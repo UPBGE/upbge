@@ -1849,6 +1849,31 @@ void RNA_def_material(BlenderRNA *brna)
 	RNA_def_property_enum_funcs(prop, NULL, "rna_Material_type_set", NULL);
 	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
+	prop = RNA_def_property(srna, "use_constant_material", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_MATERIAL);
+	RNA_def_property_ui_text(prop, "Material", "Use constant values for material");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
+	prop = RNA_def_property(srna, "use_constant_lamp", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_LAMP);
+	RNA_def_property_ui_text(prop, "Lamp", "Use constant values for lamps");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
+	prop = RNA_def_property(srna, "use_constant_texture", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_TEXTURE);
+	RNA_def_property_ui_text(prop, "Texture", "Use constant values for textures");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
+	prop = RNA_def_property(srna, "use_constant_world", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_WORLD);
+	RNA_def_property_ui_text(prop, "World", "Use constant values for world");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
+	prop = RNA_def_property(srna, "use_constant_mist", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_MIST);
+	RNA_def_property_ui_text(prop, "Mist", "Use constant values for mist");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
 	prop = RNA_def_property(srna, "use_transparency", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", MA_TRANSP);
 	RNA_def_property_ui_text(prop, "Transparency", "Render material as transparent");

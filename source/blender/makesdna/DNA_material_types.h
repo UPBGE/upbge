@@ -195,7 +195,9 @@ typedef struct Material {
 	short paint_active_slot;
 	short paint_clone_slot;
 	short tot_slots;
-	short pad4[3];
+
+	short constflag;
+	short pad4[2];
 
 	struct TexPaintSlot *texpaintslot; /* cached slot for painting. Make sure to recalculate before use
 	                                    * with refresh_texpaint_image_cache */
@@ -243,6 +245,13 @@ typedef struct Material {
 #define MA_TYPE_HALO	1
 #define MA_TYPE_VOLUME	2
 #define MA_TYPE_WIRE	3
+
+/* constflag */
+#define MA_CONSTANT_MATERIAL	(1 << 0)
+#define MA_CONSTANT_LAMP		(1 << 1)
+#define MA_CONSTANT_TEXTURE		(1 << 2)
+#define MA_CONSTANT_WORLD		(1 << 3)
+#define MA_CONSTANT_MIST		(1 << 4)
 
 /* flag */
 		/* for render */

@@ -662,19 +662,27 @@ class MATERIAL_PT_game_settings(MaterialButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        game = context.material.game_settings  # don't use node material
+        mat = context.material
+        game = mat.game_settings  # don't use node material
 
-        row = layout.row()
-        row.prop(game, "use_backface_culling")
-        row.prop(game, "invisible")
-        row.prop(game, "text")
+        split = layout.split()
 
-        row = layout.row()
-        row.label(text="Alpha Blend:")
-        row.label(text="Face Orientation:")
-        row = layout.row()
-        row.prop(game, "alpha_blend", text="")
-        row.prop(game, "face_orientation", text="")
+        col = split.column()
+        col.prop(game, "use_backface_culling")
+        col.prop(game, "invisible")
+        col.prop(game, "text")
+        col.label(text="Face Orientation:")
+        col.prop(game, "face_orientation", text="")
+        col.label(text="Alpha Blend:")
+        col.prop(game, "alpha_blend", text="")
+        
+        col = split.column()
+        col.label(text="Constant Values:")
+        col.prop(mat, "use_constant_material")
+        col.prop(mat, "use_constant_lamp")
+        col.prop(mat, "use_constant_texture")
+        col.prop(mat, "use_constant_world")
+        col.prop(mat, "use_constant_mist")
 
 
 class MATERIAL_PT_physics(MaterialButtonsPanel, Panel):

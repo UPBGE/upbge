@@ -1064,15 +1064,8 @@ void GPU_pass_update_uniforms(GPUPass *pass)
 	/* pass dynamic inputs to opengl, others were removed */
 	for (input = inputs->first; input; input = input->next) {
 		if (!(input->ima || input->tex || input->prv)) {
-			if (input->dynamictype == GPU_DYNAMIC_MAT_HARD) {
-				// The hardness is actually a short pointer, so we convert it here
-				float val = (float)(*(short *)input->dynamicvec);
-				GPU_shader_uniform_vector(shader, input->shaderloc, 1, 1, &val);
-			}
-			else {
-				GPU_shader_uniform_vector(shader, input->shaderloc, input->type, 1,
-					input->dynamicvec);
-			}
+			GPU_shader_uniform_vector(shader, input->shaderloc, input->type, 1,
+				input->dynamicvec);
 		}
 	}
 }
@@ -1423,6 +1416,33 @@ GPUNodeLink *GPU_dynamic_uniform(float *num, GPUDynamicType dynamictype, void *d
 
 
 	return link;
+}
+
+GPUNodeLink *GPU_select_uniform(float *num, GPUDynamicType dynamictype, void *data, Material *material)
+{
+	bool dynamic = false;
+	if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_MAT) {
+		dynamic = !(material->constflag & MA_CONSTANT_MATERIAL);
+	}
+	else if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_LAMP) {
+		dynamic = !(material->constflag & MA_CONSTANT_LAMP);
+	}
+	else if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_TEX) {
+		dynamic = !(material->constflag & MA_CONSTANT_TEXTURE);
+	}
+	else if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_WORLD) {
+		dynamic = !(material->constflag & MA_CONSTANT_WORLD);
+	}
+	else if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_MIST) {
+		dynamic = !(material->constflag & MA_CONSTANT_MIST);
+	}
+
+	if (dynamic) {
+		return GPU_dynamic_uniform(num, dynamictype, data);
+	}
+	else {
+		return GPU_uniform(num);
+	}
 }
 
 GPUNodeLink *GPU_image(Image *ima, ImageUser *iuser, bool is_data)
