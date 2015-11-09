@@ -35,7 +35,7 @@
 
 /* Only for Class::Parents */
 #include "BL_BlenderShader.h"
-#include "BL_ShapeActionActuator.h"
+#include "BL_ActionActuator.h"
 #include "BL_ArmatureActuator.h"
 #include "BL_ArmatureConstraint.h"
 #include "BL_ArmatureObject.h"
@@ -194,7 +194,6 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 	for (int init_getset= 1; init_getset > -1; init_getset--) { /* run twice, once to init the getsets another to run PyType_Ready */
 		PyType_Ready_Attr(dict, BL_ActionActuator, init_getset);
 		PyType_Ready_Attr(dict, BL_Shader, init_getset);
-		PyType_Ready_Attr(dict, BL_ShapeActionActuator, init_getset);
 		PyType_Ready_Attr(dict, BL_ArmatureObject, init_getset);
 		PyType_Ready_Attr(dict, BL_ArmatureActuator, init_getset);
 		PyType_Ready_Attr(dict, BL_ArmatureConstraint, init_getset);

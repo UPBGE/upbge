@@ -141,17 +141,12 @@ protected:
 	STR_String	m_framepropname;
 };
 
-// Not all of these values are used in BL_ActionActuator anymore,
-// but BL_ShapeActionActuator still uses them, so we keep them around
-// for now.
 enum {
 	ACT_FLAG_REVERSE	= 1<<0,
-	ACT_FLAG_LOCKINPUT	= 1<<1,
-	ACT_FLAG_KEYUP		= 1<<2,
-	ACT_FLAG_ACTIVE		= 1<<3,
-	ACT_FLAG_CONTINUE	= 1<<4,
-	ACT_FLAG_PLAY_END	= 1<<5,
-	ACT_FLAG_ATTEMPT_PLAY = 1<<6,
+	ACT_FLAG_ACTIVE		= 1<<1,
+	ACT_FLAG_CONTINUE	= 1<<2,
+	ACT_FLAG_PLAY_END	= 1<<3,
+	ACT_FLAG_ATTEMPT_PLAY = 1<<4,
 };
 
 #endif

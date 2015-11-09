@@ -32,7 +32,6 @@
 
 #include "BL_DeformableGameObject.h"
 #include "BL_ShapeDeformer.h"
-#include "BL_ShapeActionActuator.h"
 #include "RAS_MaterialBucket.h"
 
 
@@ -58,26 +57,21 @@ CValue*		BL_DeformableGameObject::GetReplica()
 	return replica;
 }
 
-bool BL_DeformableGameObject::SetActiveAction(BL_ShapeActionActuator *act, short priority, double curtime)
+bool BL_DeformableGameObject::SetActiveAction(short priority, double curtime)
 {
 	if (curtime != m_lastframe) {
 		m_activePriority = 9999;
 		m_lastframe= curtime;
-		m_activeAct = NULL;
 	}
 
 	if (priority<=m_activePriority)
 	{
-		if (m_activeAct && (m_activeAct!=act))
-			m_activeAct->SetBlendTime(0.0f);	/* Reset the blend timer */
-		m_activeAct = act;
 		m_activePriority = priority;
 		m_lastframe = curtime;
 	
 		return true;
 	}
 	else {
-		act->SetBlendTime(0.0f);
 		return false;
 	}
 }

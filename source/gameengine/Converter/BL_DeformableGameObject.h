@@ -42,7 +42,6 @@
 #include "KX_SoftBodyDeformer.h"
 #include <vector>
 
-class BL_ShapeActionActuator;
 struct Key;
 
 class BL_DeformableGameObject : public KX_GameObject  
@@ -69,7 +68,6 @@ public:
 	BL_DeformableGameObject(Object* blendobj, void* sgReplicationInfo, SG_Callbacks callbacks) :
 		KX_GameObject(sgReplicationInfo,callbacks),
 		m_pDeformer(NULL),
-		m_activeAct(NULL),
 		m_lastframe(0.0),
 		m_blendobj(blendobj),
 		m_activePriority(9999)
@@ -77,7 +75,7 @@ public:
 		m_isDeformable = true;
 	};
 	virtual ~BL_DeformableGameObject();
-	bool SetActiveAction(class BL_ShapeActionActuator *act, short priority, double curtime);
+	bool SetActiveAction(short priority, double curtime);
 
 	bool GetShape(vector<float> &shape);
 	
@@ -93,7 +91,6 @@ protected:
 	
 	RAS_Deformer		*m_pDeformer;
 
-	class BL_ShapeActionActuator *m_activeAct;
 	double		m_lastframe;
 	Object*		m_blendobj;
 	short		m_activePriority;

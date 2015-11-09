@@ -94,7 +94,6 @@
 #include "DNA_actuator_types.h"
 #include "DNA_packedFile_types.h"
 #include "BL_ActionActuator.h"
-#include "BL_ShapeActionActuator.h"
 #include "BL_ArmatureActuator.h"
 #include "RNA_access.h"
 #include "BL_Action.h"
@@ -235,31 +234,6 @@ void BL_ConvertActuators(const char* maggiename,
 				            );
 				baseact= tmpbaseact;
 				break;
-			}
-		case ACT_SHAPEACTION:
-			{
-				if (blenderobject->type==OB_MESH) {
-					bActionActuator* actact = (bActionActuator*) bact->data;
-					STR_String propname = actact->name;
-					STR_String propframe = actact->frameProp;
-					
-					BL_ShapeActionActuator* tmpbaseact = new BL_ShapeActionActuator(
-					            gameobj,
-					            propname,
-					            propframe,
-					            actact->sta,
-					            actact->end,
-					            actact->act,
-					            actact->type, // + 1, because Blender starts to count at zero,
-					            actact->blendin,
-					            actact->priority,
-					            actact->stridelength);
-					// Ketsji at 1, because zero is reserved for "NoDef"
-					baseact= tmpbaseact;
-					break;
-				}
-				else
-					printf ("Discarded shape action actuator from non-mesh object [%s]\n", blenderobject->id.name+2);
 			}
 		case ACT_LAMP:
 			{
