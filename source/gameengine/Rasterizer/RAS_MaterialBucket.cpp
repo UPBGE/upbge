@@ -653,11 +653,9 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	if (m_material->GetDrawingMode() & RAS_IRasterizer::RAS_RENDER_3DPOLYGON_TEXT)
 		rasty->IndexPrimitives_3DText(ms, m_material);
 	// for multitexturing
-	else if ((m_material->GetFlag() & (RAS_MULTITEX|RAS_BLENDERGLSL)))
-		rasty->IndexPrimitivesMulti(ms);
-	// use normal IndexPrimitives
-	else
+	else if ((m_material->GetFlag() & (RAS_MULTITEX|RAS_BLENDERGLSL))) {
 		rasty->IndexPrimitives(ms);
+	}
 
 	rasty->PopMatrix();
 }

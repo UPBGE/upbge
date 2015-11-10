@@ -59,16 +59,6 @@ void RAS_StorageIM::Exit()
 {
 }
 
-void RAS_StorageIM::IndexPrimitives(RAS_MeshSlot& ms)
-{
-	IndexPrimitivesInternal(ms, false);
-}
-
-void RAS_StorageIM::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
-{
-	IndexPrimitivesInternal(ms, true);
-}
-
 void RAS_StorageIM::TexCoord(const RAS_TexVert &tv)
 {
 	int unit;
@@ -206,7 +196,7 @@ static DMDrawOption CheckTexDM(MTexPoly *mtexpoly, const bool has_mcol, int matn
 	return DM_DRAW_OPTION_SKIP;
 }
 
-void RAS_StorageIM::IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi)
+void RAS_StorageIM::IndexPrimitives(RAS_MeshSlot& ms)
 { 
 	bool obcolor = ms.m_bObjectColor;
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
@@ -294,10 +284,7 @@ void RAS_StorageIM::IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi)
 
 						glNormal3fv(vertex->getNormal());
 
-						if (multi)
-							TexCoord(*vertex);
-						else
-							glTexCoord2fv(vertex->getUV(0));
+						TexCoord(*vertex);
 					}
 
 					glVertex3fv(vertex->getXYZ());
