@@ -37,45 +37,48 @@ class KX_FontObject : public KX_GameObject
 {
 public:
 	Py_Header
-	KX_FontObject(void* sgReplicationInfo,
+	KX_FontObject(void *sgReplicationInfo,
 	              SG_Callbacks callbacks,
-	              RAS_IRasterizer* rasterizer,
+	              RAS_IRasterizer *rasterizer,
 	              Object *ob,
-				  bool do_color_management);
+	              bool do_color_management);
 
 	virtual ~KX_FontObject();
 
 	void DrawFontText();
 
-	/** 
+	/**
 	 * Inherited from CValue -- return a new copy of this
-	 * instance allocated on the heap. Ownership of the new 
+	 * instance allocated on the heap. Ownership of the new
 	 * object belongs with the caller.
 	 */
-	virtual	CValue* GetReplica();
+	virtual CValue *GetReplica();
 	virtual void ProcessReplica();
-	virtual int GetGameObjectType() { return OBJ_TEXT; }
+	virtual int GetGameObjectType()
+	{
+		return OBJ_TEXT;
+	}
 
 protected:
-	std::vector<STR_String>		m_text;
-	Object*			m_object;
-	int			m_fontid;
-	int			m_dpi;
-	float			m_fsize;
-	float			m_resolution;
-	float			m_color[4];
-	float			m_line_spacing;
-	MT_Vector3		m_offset;
+	std::vector<STR_String> m_text;
+	Object *m_object;
+	int m_fontid;
+	int m_dpi;
+	float m_fsize;
+	float m_resolution;
+	float m_color[4];
+	float m_line_spacing;
+	MT_Vector3 m_offset;
 
-	class RAS_IRasterizer*	m_rasterizer;	//needed for drawing routine
+	/// needed for drawing routine
+	class RAS_IRasterizer *m_rasterizer;
 
-	bool		m_do_color_management;
+	bool m_do_color_management;
 
 #ifdef WITH_PYTHON
-	static PyObject*	pyattr_get_text(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif
-
 };
 
 #endif  /* __KX_FONTOBJECT_H__ */
