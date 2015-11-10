@@ -40,8 +40,6 @@ DummyPhysicsEnvironment::DummyPhysicsEnvironment()
 	// create physicsengine data
 }
 
-
-
 DummyPhysicsEnvironment::~DummyPhysicsEnvironment()
 {
 	//destroy physicsengine data
@@ -57,25 +55,24 @@ void DummyPhysicsEnvironment::EndFrame()
 	// end of logic frame: clear forces
 }
 
-
-
-bool		DummyPhysicsEnvironment::ProceedDeltaTime(double  curTime,float timeStep,float interval)
+bool DummyPhysicsEnvironment::ProceedDeltaTime(double curTime, float timeStep, float interval)
 {
 	//step physics simulation, typically perform
-	
-	//collision detection 
+
+	//collision detection
 	//solve constraints
 	//integrate solution
 	// return true if an update was done.
 	return true;
 }
-void		DummyPhysicsEnvironment::SetFixedTimeStep(bool useFixedTimeStep,float fixedTimeStep)
+
+void DummyPhysicsEnvironment::SetFixedTimeStep(bool useFixedTimeStep, float fixedTimeStep)
 {
 }
- 
-float		DummyPhysicsEnvironment::GetFixedTimeStep()
+
+float DummyPhysicsEnvironment::GetFixedTimeStep()
 {
-	return 0.f;
+	return 0.0f;
 }
 
 int DummyPhysicsEnvironment::GetDebugMode() const
@@ -83,7 +80,7 @@ int DummyPhysicsEnvironment::GetDebugMode() const
 	return 0;
 }
 
-void DummyPhysicsEnvironment::SetGravity(float x,float y,float z)
+void DummyPhysicsEnvironment::SetGravity(float x, float y, float z)
 {
 }
 
@@ -91,29 +88,22 @@ void DummyPhysicsEnvironment::GetGravity(class MT_Vector3& grav)
 {
 }
 
-
-
-
-int			DummyPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController* ctrl,class PHY_IPhysicsController* ctrl2,PHY_ConstraintType type,
-		float pivotX,float pivotY,float pivotZ,float axisX,float axisY,float axisZ,
-			float axis1X,float axis1Y,float axis1Z,
-			float axis2X,float axis2Y,float axis2Z,int flag
-		)
+int DummyPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl, class PHY_IPhysicsController *ctrl2, PHY_ConstraintType type,
+											  float pivotX, float pivotY, float pivotZ, float axisX, float axisY, float axisZ,
+											  float axis1X, float axis1Y, float axis1Z,
+											  float axis2X, float axis2Y, float axis2Z, int flag)
 {
-	
 	int constraintid = 0;
 	return constraintid;
-
 }
 
 void DummyPhysicsEnvironment::RemoveConstraintById(int constraintid)
 {
-	if (constraintid)
-	{
+	if (constraintid) {
 	}
 }
 
-PHY_IPhysicsController* DummyPhysicsEnvironment::RayTest(PHY_IRayCastFilterCallback &filterCallback,float fromX,float fromY,float fromZ, float toX,float toY,float toZ)
+PHY_IPhysicsController *DummyPhysicsEnvironment::RayTest(PHY_IRayCastFilterCallback &filterCallback, float fromX, float fromY, float fromZ, float toX, float toY, float toZ)
 {
 	//collision detection / raytesting
 	return NULL;
