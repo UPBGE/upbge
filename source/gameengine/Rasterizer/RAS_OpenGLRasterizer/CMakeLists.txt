@@ -30,7 +30,7 @@ set(INC
 	../../Expressions
 	../../GameLogic
 	../../Ketsji
-	../../Physics/common
+	../../Physics/Common
 	# >>>
 	../../SceneGraph
 	../../../blender/blenfont

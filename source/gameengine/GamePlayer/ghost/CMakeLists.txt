@@ -33,7 +33,7 @@ set(INC
 	../../Ketsji
 	../../Network
 	../../Network/LoopBackNetwork
-	../../Physics/common
+	../../Physics/Common
 	../../Rasterizer
 	../../Rasterizer/RAS_OpenGLRasterizer
 	../../SceneGraph

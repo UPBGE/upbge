@@ -32,7 +32,7 @@ set(INC
 	../GameLogic
 	../Network
 	../Network/LoopBackNetwork
-	../Physics/common
+	../Physics/Common
 	../Rasterizer
 	../Rasterizer/RAS_OpenGLRasterizer
 	../SceneGraph
@@ -214,15 +214,15 @@ set(SRC
 	KX_WorldIpoController.h
 
 	# orphan headers (not apart of a library)
-	../Physics/common/PHY_DynamicTypes.h
-	../Physics/common/PHY_ICharacter.h
-	../Physics/common/PHY_IController.h
-	../Physics/common/PHY_IGraphicController.h
-	../Physics/common/PHY_IMotionState.h
-	../Physics/common/PHY_IPhysicsController.h
-	../Physics/common/PHY_IPhysicsEnvironment.h
-	../Physics/common/PHY_IVehicle.h
-	../Physics/common/PHY_Pro.h
+	../Physics/Common/PHY_DynamicTypes.h
+	../Physics/Common/PHY_ICharacter.h
+	../Physics/Common/PHY_IController.h
+	../Physics/Common/PHY_IGraphicController.h
+	../Physics/Common/PHY_IMotionState.h
+	../Physics/Common/PHY_IPhysicsController.h
+	../Physics/Common/PHY_IPhysicsEnvironment.h
+	../Physics/Common/PHY_IVehicle.h
+	../Physics/Common/PHY_Pro.h
 
 )
 

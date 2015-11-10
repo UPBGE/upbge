@@ -25,7 +25,7 @@
 
 set(INC
 	.
-	../common
+	../Common
 )
 
 set(INC_SYS

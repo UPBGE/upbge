@@ -34,7 +34,7 @@ set(INC
 	../Network/LoopBackNetwork
 	../Physics/Bullet
 	../Physics/Dummy
-	../Physics/common
+	../Physics/Common
 	../Rasterizer
 	../Rasterizer/RAS_OpenGLRasterizer
 	../SceneGraph

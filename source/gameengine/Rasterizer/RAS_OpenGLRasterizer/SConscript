@@ -22,7 +22,7 @@ incs = [
     '#source/gameengine/BlenderRoutines',
     '#source/gameengine/Expressions',
     '#source/gameengine/GameLogic',
-    '#source/gameengine/Physics/common',
+    '#source/gameengine/Physics/Common',
     '#source/gameengine/Rasterizer',
     '#source/gameengine/SceneGraph',
     '#source/gameengine/Ketsji',

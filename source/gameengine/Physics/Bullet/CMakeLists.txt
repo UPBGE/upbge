@@ -28,7 +28,7 @@ remove_strict_flags()
 
 set(INC
 	.
-	../common
+	../Common
 	../../Converter
 	../../Expressions
 	../../GameLogic

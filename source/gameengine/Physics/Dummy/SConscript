@@ -31,7 +31,7 @@ sources = 'DummyPhysicsEnvironment.cpp'
 
 incs = [
     '.',
-    '../common',
+    '../Common',
     '../../../../intern/moto/include',
     ]
 incs = ' '.join(incs)

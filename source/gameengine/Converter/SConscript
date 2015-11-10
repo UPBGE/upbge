@@ -62,7 +62,7 @@ incs = [
     '#source/gameengine/Network/LoopBackNetwork',
     '#source/gameengine/Physics/Bullet',
     '#source/gameengine/Physics/Dummy',
-    '#source/gameengine/Physics/common',
+    '#source/gameengine/Physics/Common',
     '#source/gameengine/Rasterizer/RAS_OpenGLRasterizer',
     ]
 incs = ' '.join(incs)

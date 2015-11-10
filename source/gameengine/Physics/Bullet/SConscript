@@ -46,7 +46,7 @@ incs = [
     '#source/gameengine/Ketsji',
     '#source/gameengine/Rasterizer',
     '#source/gameengine/SceneGraph',
-    '../common',
+    '../Common',
     ]
 incs = ' '.join(incs)
 
