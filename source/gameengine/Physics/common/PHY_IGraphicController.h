@@ -41,16 +41,19 @@
  */
 class PHY_IGraphicController : public PHY_IController
 {
-	public:
-		/**
-		 * SynchronizeMotionStates ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
-		 */
-		virtual bool SetGraphicTransform()=0;
-		virtual void Activate(bool active=true)=0;
-		virtual void SetLocalAabb(const class MT_Vector3& aabbMin,const class MT_Vector3& aabbMax)=0;
-		virtual void SetLocalAabb(const float* aabbMin,const float* aabbMax)=0;
+public:
+	/**
+	 * SynchronizeMotionStates ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
+	 */
+	virtual bool SetGraphicTransform() = 0;
+	virtual void Activate(bool active = true) = 0;
+	virtual void SetLocalAabb(const class MT_Vector3& aabbMin, const class MT_Vector3& aabbMax) = 0;
+	virtual void SetLocalAabb(const float *aabbMin, const float *aabbMax) = 0;
 
-		virtual PHY_IGraphicController*	GetReplica(class PHY_IMotionState* motionstate) {return 0;}
+	virtual PHY_IGraphicController *GetReplica(class PHY_IMotionState *motionstate)
+	{
+		return NULL;
+	}
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PHY_IController")
