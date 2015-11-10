@@ -1176,13 +1176,17 @@ void KX_GameObject::ResolveCombinedVelocities(
 
 void KX_GameObject::SetObjectColor(const MT_Vector4& rgbavec)
 {
-	m_bUseObjectColor = true;
 	m_objectColor = rgbavec;
 }
 
 const MT_Vector4& KX_GameObject::GetObjectColor()
 {
 	return m_objectColor;
+}
+
+void KX_GameObject::SetUseObjectColor(bool useObjectColor)
+{
+	m_bUseObjectColor = useObjectColor;
 }
 
 void KX_GameObject::AlignAxisToVect(const MT_Vector3& dir, int axis, float fac)

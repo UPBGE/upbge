@@ -92,12 +92,6 @@ KX_FontObject::KX_FontObject(void *sgReplicationInfo,
 	m_offset = MT_Vector3(text->xof, text->yof, 0.0f);
 
 	m_fontid = GetFontId(text->vfont);
-
-	/* initialize the color with the object color and store it in the KX_Object class
-	 * This is a workaround waiting for the fix:
-	 * [#25487] BGE: Object Color only works when it has a keyed frame */
-	copy_v4_v4(m_color, (const float *)ob->col);
-	SetObjectColor((const MT_Vector4&)m_color);
 }
 
 KX_FontObject::~KX_FontObject()

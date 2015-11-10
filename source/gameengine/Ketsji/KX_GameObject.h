@@ -480,6 +480,8 @@ public:
 		const MT_Vector4&
 	GetObjectColor();
 
+	/// Enable color management for this object.
+	void SetUseObjectColor(bool useObjectColor);
 
 		void 
 	ResolveCombinedVelocities(
