@@ -677,6 +677,7 @@ void KX_GameObject::ApplyMovement(const MT_Vector3& dloc,bool local)
 			m_pPhysicsController->RelativeTranslate(dloc,local);
 		}
 		GetSGNode()->RelativeTranslate(dloc,GetSGNode()->GetSGParent(),local);
+		NodeUpdateGS(0.0f);
 	}
 }
 
@@ -692,6 +693,7 @@ void KX_GameObject::ApplyRotation(const MT_Vector3& drot,bool local)
 		if (m_pPhysicsController) { // (IsDynamic())
 			m_pPhysicsController->RelativeRotate(rotmat,local);
 		}
+		NodeUpdateGS(0.0f);
 	}
 }
 
