@@ -58,7 +58,7 @@
 #include "SCA_IActuator.h"
 #include "SCA_ISensor.h"
 #include "SCA_IController.h"
-#include "NG_NetworkScene.h" //Needed for sendMessage()
+#include "KX_NetworkMessageScene.h" //Needed for sendMessage()
 #include "KX_ObstacleSimulation.h"
 #include "KX_Scene.h"
 
@@ -3948,12 +3948,11 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_GameObject, sendMessage,
 	char* subject;
 	char* body = (char *)"";
 	char* to = (char *)"";
-	const STR_String& from = GetName();
 
 	if (!PyArg_ParseTuple(args, "s|ss:sendMessage", &subject, &body, &to))
 		return NULL;
 	
-	scene->GetNetworkScene()->SendMessage(to, from, subject, body);
+	scene->GetNetworkMessageScene()->SendMessage(to, this, subject, body);
 	Py_RETURN_NONE;
 }
 

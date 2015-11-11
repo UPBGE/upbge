@@ -38,7 +38,7 @@
 #include "CTR_Map.h"
 #include "CTR_HashedPtr.h"
 
-class NG_NetworkScene;
+class KX_NetworkMessageScene;
 class SCA_IScene;
 
 class SCA_ILogicBrick : public CValue
@@ -133,7 +133,7 @@ public:
 
 	/* for moving logic bricks between scenes */
 	virtual void		Replace_IScene(SCA_IScene *val) {}
-	virtual void		Replace_NetworkScene(NG_NetworkScene *val) {}
+	virtual void		Replace_NetworkScene(KX_NetworkMessageScene *val) {}
 
 #ifdef WITH_PYTHON
 	// python methods

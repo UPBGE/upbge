@@ -84,7 +84,6 @@ extern "C"
 #include "BL_Material.h" // MAXTEX
 
 #include "KX_BlenderSceneConverter.h"
-#include "NG_LoopBackNetworkDeviceInterface.h"
 
 #include "GPC_MouseDevice.h"
 #include "GPG_Canvas.h" 
@@ -128,7 +127,6 @@ GPG_Application::GPG_Application(GHOST_ISystem* system)
 	  m_canvas(0),
 	  m_rasterizer(0), 
 	  m_sceneconverter(0),
-	  m_networkdevice(0),
 	  m_blendermat(0),
 	  m_blenderglslmat(0),
 	  m_pyGlobalDictString(0),
@@ -629,12 +627,7 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_mouse = new GPC_MouseDevice();
 		if (!m_mouse)
 			goto initFailed;
-			
-		// create a networkdevice
-		m_networkdevice = new NG_LoopBackNetworkDeviceInterface();
-		if (!m_networkdevice)
-			goto initFailed;
-			
+
 		BKE_sound_init(m_maggie);
 
 		// create a ketsjisystem (only needed for timing and stuff)
@@ -648,7 +641,6 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		// set the devices
 		m_ketsjiengine->SetKeyboardDevice(m_keyboard);
 		m_ketsjiengine->SetMouseDevice(m_mouse);
-		m_ketsjiengine->SetNetworkDevice(m_networkdevice);
 		m_ketsjiengine->SetCanvas(m_canvas);
 		m_ketsjiengine->SetRasterizer(m_rasterizer);
 
@@ -673,7 +665,6 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 initFailed:
 	BKE_sound_exit();
 	delete m_kxsystem;
-	delete m_networkdevice;
 	delete m_mouse;
 	delete m_keyboard;
 	delete m_rasterizer;
@@ -682,7 +673,6 @@ initFailed:
 	m_rasterizer = NULL;
 	m_keyboard = NULL;
 	m_mouse = NULL;
-	m_networkdevice = NULL;
 	m_kxsystem = NULL;
 	return false;
 }
@@ -729,7 +719,6 @@ bool GPG_Application::startEngine(void)
 
 		m_kxStartScene = new KX_Scene(m_keyboard,
 			m_mouse,
-			m_networkdevice,
 			m_kxStartScenename,
 			m_startScene,
 			m_canvas);
@@ -801,7 +790,6 @@ void GPG_Application::stopEngine()
 #endif
 	
 	m_ketsjiengine->StopEngine();
-	m_networkdevice->Disconnect();
 
 	if (m_sceneconverter) {
 		delete m_sceneconverter;
@@ -855,11 +843,6 @@ void GPG_Application::exitEngine()
 	{
 		delete m_kxsystem;
 		m_kxsystem = 0;
-	}
-	if (m_networkdevice)
-	{
-		delete m_networkdevice;
-		m_networkdevice = 0;
 	}
 	if (m_mouse)
 	{

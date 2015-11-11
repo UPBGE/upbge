@@ -34,14 +34,13 @@
 
 #include "SCA_ISensor.h"
 
-class KX_NetworkEventManager;
-class NG_NetworkScene;
+class KX_NetworkMessageScene;
 
 class KX_NetworkMessageSensor : public SCA_ISensor
 {
 	// note: Py_Header MUST BE the first listed here
 	Py_Header
-	NG_NetworkScene *m_NetworkScene;
+	KX_NetworkMessageScene *m_NetworkScene;
 
 	// The subject we filter on.
 	STR_String m_subject;
@@ -56,8 +55,8 @@ class KX_NetworkMessageSensor : public SCA_ISensor
 
 public:
 	KX_NetworkMessageSensor(
-	    KX_NetworkEventManager *eventmgr, // our eventmanager
-	    NG_NetworkScene *NetworkScene, // our scene
+	    SCA_EventManager *eventmgr, // our eventmanager
+	    KX_NetworkMessageScene *NetworkScene, // our scene
 	    SCA_IObject *gameobj, // the sensor controlling object
 	    const STR_String &subject);
 	virtual ~KX_NetworkMessageSensor();
@@ -68,7 +67,7 @@ public:
 	virtual void Init();
 	void EndFrame();
 
-	virtual void Replace_NetworkScene(NG_NetworkScene *val)
+	virtual void Replace_NetworkScene(KX_NetworkMessageScene *val)
 	{
 		m_NetworkScene = val;
 	};

@@ -42,7 +42,6 @@
 class KX_KetsjiEngine;
 class KX_Scene;
 class KX_ISceneConverter;
-class NG_LoopBackNetworkDeviceInterface;
 class RAS_IRasterizer;
 class GHOST_IEvent;
 class GHOST_ISystem;
@@ -162,8 +161,6 @@ protected:
 	RAS_IRasterizer* m_rasterizer;
 	/** Converts Blender data files. */
 	KX_ISceneConverter* m_sceneconverter;
-	/** Network interface. */
-	NG_LoopBackNetworkDeviceInterface* m_networkdevice;
 
 	bool m_blendermat;
 	bool m_blenderglslmat;

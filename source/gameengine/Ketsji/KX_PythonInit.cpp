@@ -112,7 +112,7 @@ extern "C" {
 #include "EXP_InputParser.h"
 #include "KX_Scene.h"
 
-#include "NG_NetworkScene.h" //Needed for sendMessage()
+#include "KX_NetworkMessageScene.h" //Needed for sendMessage()
 
 #include "BL_Shader.h"
 #include "BL_Action.h"
@@ -413,12 +413,17 @@ static PyObject *gPySendMessage(PyObject *, PyObject *args)
 	char* subject;
 	char* body = (char *)"";
 	char* to = (char *)"";
-	char* from = (char *)"";
+	PyObject *pyfrom = Py_None;
+	KX_GameObject *from = NULL;
 
-	if (!PyArg_ParseTuple(args, "s|sss:sendMessage", &subject, &body, &to, &from))
+	if (!PyArg_ParseTuple(args, "s|ssO:sendMessage", &subject, &body, &to, &pyfrom))
 		return NULL;
 
-	gp_KetsjiScene->GetNetworkScene()->SendMessage(to, from, subject, body);
+	if (!ConvertPythonToGameObject(pyfrom, &from, true, "sendMessage(subject, [body, to, from]): \"from\" argument")) {
+		return NULL;
+	}
+
+	gp_KetsjiScene->GetNetworkMessageScene()->SendMessage(to, from, subject, body);
 
 	Py_RETURN_NONE;
 }

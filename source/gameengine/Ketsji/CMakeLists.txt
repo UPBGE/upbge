@@ -30,8 +30,6 @@ set(INC
 	../Converter
 	../Expressions
 	../GameLogic
-	../Network
-	../Network/LoopBackNetwork
 	../Physics/Common
 	../Rasterizer
 	../Rasterizer/RAS_OpenGLRasterizer

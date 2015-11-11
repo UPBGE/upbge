@@ -1,0 +1,91 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
+ * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): none yet.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file KX_NetworkMessageScene.h
+ *  \ingroup ketsjinet
+ *  \brief Ketsji Logic Extension: Network Message Scene class
+ */
+#ifndef __KX_NETWORKMESSAGESCENE_H__
+#define __KX_NETWORKMESSAGESCENE_H__
+
+#include "STR_String.h"
+#include <map>
+#include <vector>
+
+class SCA_IObject;
+
+class KX_NetworkMessageScene
+{
+public:
+	struct Message
+	{
+		/// Receiver object(s) name.
+		STR_String to;
+		/// Sender game object.
+		SCA_IObject *from;
+		/// Message subject, used as filter.
+		STR_String subject;
+		/// Message body.
+		STR_String body;
+	};
+
+private:
+	/** List of all messages, filtered by receiver object(s) name and subject name.
+	 * We use two lists, one handle sended message in the current frame and the other
+	 * is used for handle message sended in the last frame for sensors.
+	 */
+	std::map<STR_String, std::map<STR_String, std::vector<Message> > > m_messages[2];
+
+	/** Since we use two list for the current and last frame we have to switch of
+	 * current message list each frame. This value is only 0 or 1.
+	 */
+	unsigned short m_currentList;
+
+public:
+	KX_NetworkMessageScene();
+	virtual ~KX_NetworkMessageScene();
+
+	/** Send A message to an object(s) name.
+	 * \param to The object(s) name, in case of duplicated object all objects
+	 * with the same name will receive the message.
+	 * \param from The sender game object.
+	 * \param subject The message subject, used as filter for receiver object(s).
+	 * \param message The body of the message.
+	 */
+	void SendMessage(STR_String to, SCA_IObject *from, STR_String subject, STR_String body);
+
+	/** Get all messages for a given receiver object name and message subject.
+	 * \param to The object(s) name.
+	 * \param subject The message subject/filter.
+	 */
+	const std::vector<Message>& FindMessages(STR_String to, STR_String subject);
+
+	/// Clear all messages
+	void ClearMessages();
+};
+
+#endif // __KX_NETWORKMESSAGESCENE_H__

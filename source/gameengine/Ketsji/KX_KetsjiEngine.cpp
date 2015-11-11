@@ -62,8 +62,7 @@
 #include "KX_PyConstraintBinding.h"
 #include "PHY_IPhysicsEnvironment.h"
 
-#include "NG_NetworkScene.h"
-#include "NG_NetworkDeviceInterface.h"
+#include "KX_NetworkMessageScene.h"
 
 #include "KX_WorldInfo.h"
 #include "KX_ISceneConverter.h"
@@ -118,7 +117,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 	m_rasterizer(NULL),
 	m_kxsystem(system),
 	m_sceneconverter(NULL),
-	m_networkdevice(NULL),
 #ifdef WITH_PYTHON
 	m_pythondictionary(NULL),
 #endif
@@ -228,15 +226,6 @@ void KX_KetsjiEngine::SetMouseDevice(SCA_IInputDevice* mousedevice)
 	MT_assert(mousedevice);
 	m_mousedevice = mousedevice;
 }
-
-
-
-void KX_KetsjiEngine::SetNetworkDevice(NG_NetworkDeviceInterface* networkdevice)
-{
-	MT_assert(networkdevice);
-	m_networkdevice = networkdevice;
-}
-
 
 void KX_KetsjiEngine::SetCanvas(RAS_ICanvas* canvas)
 {
@@ -631,14 +620,6 @@ bool KX_KetsjiEngine::NextFrame()
 	
 			if (!scene->IsSuspended())
 			{
-				m_logger->StartLog(tc_network, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_NETWORK);
-				scene->GetNetworkScene()->proceed(m_frameTime);
-	
-				//m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-				//SG_SetActiveStage(SG_STAGE_NETWORK_UPDATE);
-				//scene->UpdateParents(m_frameTime);
-				
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS1);
 				// set Python hooks for each scene
@@ -674,7 +655,11 @@ bool KX_KetsjiEngine::NextFrame()
 				scene->LogicUpdateFrame(m_frameTime, true);
 				
 				scene->LogicEndFrame();
-	
+
+				m_logger->StartLog(tc_network, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_NETWORK);
+				scene->GetNetworkMessageScene()->ClearMessages();
+
 				// Actuators can affect the scenegraph
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_ACTUATOR_UPDATE);
@@ -712,9 +697,6 @@ bool KX_KetsjiEngine::NextFrame()
 	
 		if (m_mousedevice)
 			m_mousedevice->NextFrame();
-		
-		if (m_networkdevice)
-			m_networkdevice->NextFrame();
 
 		UpdateSuspendedScenes();
 		// scene management
@@ -1594,7 +1576,6 @@ KX_Scene* KX_KetsjiEngine::CreateScene(Scene *scene, bool libloading)
 {
 	KX_Scene* tmpscene = new KX_Scene(m_keyboarddevice,
 									  m_mousedevice,
-									  m_networkdevice,
 									  scene->id.name+2,
 									  scene,
 									  m_canvas);

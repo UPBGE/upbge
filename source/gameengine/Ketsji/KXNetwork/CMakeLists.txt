@@ -28,7 +28,6 @@ set(INC
 	..
 	../../Expressions
 	../../GameLogic
-	../../Network
 	../../SceneGraph
 	../../../blender/blenlib
 	../../../../intern/container
@@ -40,11 +39,11 @@ set(INC_SYS
 )
 
 set(SRC
-	KX_NetworkEventManager.cpp
+	KX_NetworkMessageScene.cpp
 	KX_NetworkMessageActuator.cpp
 	KX_NetworkMessageSensor.cpp
 
-	KX_NetworkEventManager.h
+	KX_NetworkMessageScene.h
 	KX_NetworkMessageActuator.h
 	KX_NetworkMessageSensor.h
 )

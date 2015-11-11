@@ -58,8 +58,6 @@
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_ListRasterizer.h"
 
-#include "NG_LoopBackNetworkDeviceInterface.h"
-
 #include "BL_System.h"
 
 #include "GPU_extensions.h"
@@ -315,10 +313,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		// create the inputdevices
 		KX_BlenderKeyboardDevice* keyboarddevice = new KX_BlenderKeyboardDevice();
 		KX_BlenderMouseDevice* mousedevice = new KX_BlenderMouseDevice();
-		
-		// create a networkdevice
-		NG_NetworkDeviceInterface* networkdevice = new
-			NG_LoopBackNetworkDeviceInterface();
 
 		//
 		// create a ketsji/blendersystem (only needed for timing and stuff)
@@ -330,7 +324,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		// set the devices
 		ketsjiengine->SetKeyboardDevice(keyboarddevice);
 		ketsjiengine->SetMouseDevice(mousedevice);
-		ketsjiengine->SetNetworkDevice(networkdevice);
 		ketsjiengine->SetCanvas(canvas);
 		ketsjiengine->SetRasterizer(rasterizer);
 		ketsjiengine->SetUseFixedTime(usefixed);
@@ -478,7 +471,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 					
 			KX_Scene* startscene = new KX_Scene(keyboarddevice,
 				mousedevice,
-				networkdevice,
 				startscenename,
 				scene,
 				canvas);
@@ -602,7 +594,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 #ifdef WITH_PYTHON
 				exitGamePythonScripting();
 #endif
-				networkdevice->Disconnect();
 			}
 			if (sceneconverter)
 			{
@@ -640,11 +631,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		{
 			delete kxsystem;
 			kxsystem = NULL;
-		}
-		if (networkdevice)
-		{
-			delete networkdevice;
-			networkdevice = NULL;
 		}
 		if (keyboarddevice)
 		{

@@ -70,8 +70,7 @@ class SCA_TimeEventManager;
 class SCA_MouseManager;
 class SCA_ISystem;
 class SCA_IInputDevice;
-class NG_NetworkDeviceInterface;
-class NG_NetworkScene;
+class KX_NetworkMessageScene;
 class SG_IObject;
 class SG_Node;
 class SG_Tree;
@@ -190,8 +189,7 @@ protected:
 	/**
 	 * Network scene.
 	 */
-	NG_NetworkDeviceInterface*	m_networkDeviceInterface;
-	NG_NetworkScene* m_networkScene;
+	KX_NetworkMessageScene *m_networkScene;
 
 	/**
 	 * A temporary variable used to parent objects together on
@@ -307,7 +305,6 @@ protected:
 public:
 	KX_Scene(class SCA_IInputDevice* keyboarddevice,
 		class SCA_IInputDevice* mousedevice,
-		class NG_NetworkDeviceInterface* ndi,
 		const STR_String& scenename,
 		struct Scene* scene,
 		class RAS_ICanvas* canvas);
@@ -529,14 +526,13 @@ public:
 	/**
 	 * \section Accessors to different scenes of this scene
 	 */
-	void SetNetworkDeviceInterface(NG_NetworkDeviceInterface* newInterface);
-	void SetNetworkScene(NG_NetworkScene *newScene);
+	void SetNetworkMessageScene(KX_NetworkMessageScene *newScene);
+	KX_NetworkMessageScene *GetNetworkMessageScene();
+
 	void SetWorldInfo(class KX_WorldInfo* wi);
 	KX_WorldInfo* GetWorldInfo();
 	void CalculateVisibleMeshes(RAS_IRasterizer* rasty, KX_Camera *cam, int layer=0);
 	KX_Camera* GetpCamera();
-	NG_NetworkDeviceInterface* GetNetworkDeviceInterface();
-	NG_NetworkScene* GetNetworkScene();
 	KX_BlenderSceneConverter *GetSceneConverter() { return m_sceneConverter; }
 
 	/**

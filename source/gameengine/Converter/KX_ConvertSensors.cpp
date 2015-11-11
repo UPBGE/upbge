@@ -196,22 +196,19 @@ void BL_ConvertSensors(struct Object* blenderobject,
 				}
 			case SENS_MESSAGE:
 				{
-					KX_NetworkEventManager* eventmgr = (KX_NetworkEventManager*)
-						logicmgr->FindEventManager(SCA_EventManager::NETWORK_EVENTMGR);
-					if (eventmgr) {
-						bMessageSensor* msgSens = (bMessageSensor*) sens->data;
+					SCA_EventManager *eventmgr = logicmgr->FindEventManager(SCA_EventManager::BASIC_EVENTMGR);
+					bMessageSensor* msgSens = (bMessageSensor*) sens->data;
 
-						/* Get our NetworkScene */
-						NG_NetworkScene *NetworkScene = kxscene->GetNetworkScene();
-						/* filter on the incoming subjects, might be empty */
-						const STR_String subject = msgSens->subject;
+					/* Get our NetworkScene */
+					KX_NetworkMessageScene *NetworkScene = kxscene->GetNetworkMessageScene();
+					/* filter on the incoming subjects, might be empty */
+					const STR_String subject = msgSens->subject;
 
-						gamesensor = new KX_NetworkMessageSensor(
-							eventmgr,		// our eventmanager
-							NetworkScene,	// our NetworkScene
-							gameobj,		// the sensor controlling object
-							subject);		// subject to filter on
-					}
+					gamesensor = new KX_NetworkMessageSensor(
+						eventmgr,		// our eventmanager
+						NetworkScene,	// our NetworkScene
+						gameobj,		// the sensor controlling object
+						subject);		// subject to filter on
 					break;
 				}
 			case SENS_NEAR:

@@ -283,7 +283,7 @@ void BL_ConvertActuators(const char* maggiename,
 				
 				KX_NetworkMessageActuator *tmpmsgact = new KX_NetworkMessageActuator(
 				            gameobj,					// actuator controlling object
-				            scene->GetNetworkScene(),	// needed for replication
+				            scene->GetNetworkMessageScene(),	// needed for replication
 				            toPropName,
 				            subject,
 				            bodyType,

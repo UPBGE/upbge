@@ -77,7 +77,6 @@ private:
 	class RAS_IRasterizer*				m_rasterizer;  // 3D Rasterizer (3D Rendering)
 	class KX_ISystem*					m_kxsystem;
 	class KX_ISceneConverter*			m_sceneconverter;
-	class NG_NetworkDeviceInterface*	m_networkdevice;
 #ifdef WITH_PYTHON
 	/* borrowed from sys.modules["__main__"], don't manage ref's */
 	PyObject*					m_pythondictionary;
@@ -228,7 +227,6 @@ public:
 	// set the devices and stuff. the client must take care of creating these
 	void			SetKeyboardDevice(SCA_IInputDevice* keyboarddevice);
 	void			SetMouseDevice(SCA_IInputDevice* mousedevice);
-	void			SetNetworkDevice(NG_NetworkDeviceInterface* networkdevice);
 	void			SetCanvas(RAS_ICanvas* canvas);
 	void			SetRasterizer(RAS_IRasterizer* rasterizer);
 #ifdef WITH_PYTHON

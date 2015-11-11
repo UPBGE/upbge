@@ -33,12 +33,12 @@
 
 #include <stddef.h>
 
-#include "NG_NetworkScene.h"
+#include "KX_NetworkMessageScene.h"
 #include "KX_NetworkMessageActuator.h"
 
 KX_NetworkMessageActuator::KX_NetworkMessageActuator(
 	SCA_IObject *gameobj, // the actuator controlling object
-	NG_NetworkScene *networkscene, // needed for replication
+	KX_NetworkMessageScene *networkscene, // needed for replication
 	const STR_String &toPropName,
 	const STR_String &subject,
 	int bodyType,
@@ -73,14 +73,14 @@ bool KX_NetworkMessageActuator::Update()
 	if (m_bPropBody) {
 		m_networkscene->SendMessage(
 		    m_toPropName,
-		    GetParent()->GetName(),
+		    GetParent(),
 		    m_subject,
 		    GetParent()->GetPropertyText(m_body));
 	}
 	else {
 		m_networkscene->SendMessage(
 		    m_toPropName,
-		    GetParent()->GetName(),
+		    GetParent(),
 		    m_subject,
 		    m_body);
 	}

@@ -34,10 +34,7 @@
 #include <stddef.h>
 
 #include "KX_NetworkMessageSensor.h"
-#include "KX_NetworkEventManager.h"
-#include "NG_NetworkMessage.h"
-#include "NG_NetworkScene.h"
-#include "NG_NetworkObject.h"
+#include "KX_NetworkMessageScene.h"
 #include "SCA_IObject.h"
 #include "EXP_InputParser.h"
 #include "EXP_ListValue.h"
@@ -48,8 +45,8 @@
 #endif
 
 KX_NetworkMessageSensor::KX_NetworkMessageSensor(
-	class KX_NetworkEventManager *eventmgr, // our eventmanager
-	class NG_NetworkScene *NetworkScene, // our scene
+	SCA_EventManager *eventmgr, // our eventmanager
+	class KX_NetworkMessageScene *NetworkScene, // our scene
 	SCA_IObject *gameobj, // the sensor controlling object
 	const STR_String &subject)
 	:SCA_ISensor(gameobj, eventmgr),
@@ -106,8 +103,8 @@ bool KX_NetworkMessageSensor::Evaluate()
 	STR_String& toname = GetParent()->GetName();
 	STR_String& subject = this->m_subject;
 
-	vector<NG_NetworkMessage *> messages =
-	    m_NetworkScene->FindMessages(toname, "", subject, true);
+	const vector<KX_NetworkMessageScene::Message> messages =
+	    m_NetworkScene->FindMessages(toname, subject);
 
 	m_frame_message_count = messages.size();
 
@@ -120,12 +117,12 @@ bool KX_NetworkMessageSensor::Evaluate()
 		m_SubjectList = new CListValue();
 	}
 
-	vector<NG_NetworkMessage *>::iterator mesit;
+	vector<KX_NetworkMessageScene::Message>::const_iterator mesit;
 	for (mesit = messages.begin(); mesit != messages.end(); mesit++) {
 		// save the body
-		const STR_String& body = (*mesit)->GetMessageText();
+		const STR_String& body = (*mesit).body;
 		// save the subject
-		const STR_String& messub = (*mesit)->GetSubject();
+		const STR_String& messub = (*mesit).subject;
 #ifdef NAN_NET_DEBUG
 		if (body) {
 			cout << "body [" << body << "]\n";
@@ -134,11 +131,7 @@ bool KX_NetworkMessageSensor::Evaluate()
 		m_BodyList->Add(new CStringValue(body, "body"));
 		// Store Subject
 		m_SubjectList->Add(new CStringValue(messub, "subject"));
-
-		// free the message
-		(*mesit)->Release();
 	}
-	messages.clear();
 
 	result = (WasUp != m_IsUp);
 

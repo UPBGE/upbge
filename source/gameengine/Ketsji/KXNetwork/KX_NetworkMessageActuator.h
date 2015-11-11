@@ -35,13 +35,12 @@
 
 #include "STR_String.h"
 #include "SCA_IActuator.h"
-#include "NG_NetworkMessage.h"
 
 class KX_NetworkMessageActuator : public SCA_IActuator
 {
 	Py_Header
 	bool m_lastEvent;
-	class NG_NetworkScene *m_networkscene;  // needed for replication
+	class KX_NetworkMessageScene *m_networkscene;  // needed for replication
 	STR_String m_toPropName;
 	STR_String m_subject;
 	bool m_bPropBody;
@@ -50,7 +49,7 @@ class KX_NetworkMessageActuator : public SCA_IActuator
 public:
 	KX_NetworkMessageActuator(
 	    SCA_IObject *gameobj,
-	    NG_NetworkScene *networkscene,
+	    KX_NetworkMessageScene *networkscene,
 	    const STR_String &toPropName,
 	    const STR_String &subject,
 	    int bodyType,
@@ -59,7 +58,7 @@ public:
 
 	virtual bool Update();
 	virtual CValue *GetReplica();
-	virtual void Replace_NetworkScene(NG_NetworkScene *val)
+	virtual void Replace_NetworkScene(KX_NetworkMessageScene *val)
 	{
 		m_networkscene = val;
 	};

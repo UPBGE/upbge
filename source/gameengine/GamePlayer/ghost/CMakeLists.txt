@@ -31,8 +31,6 @@ set(INC
 	../../Expressions
 	../../GameLogic
 	../../Ketsji
-	../../Network
-	../../Network/LoopBackNetwork
 	../../Physics/Common
 	../../Rasterizer
 	../../Rasterizer/RAS_OpenGLRasterizer

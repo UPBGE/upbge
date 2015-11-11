@@ -78,8 +78,7 @@
 
 #include "KX_SG_NodeRelationships.h"
 
-#include "KX_NetworkEventManager.h"
-#include "NG_NetworkScene.h"
+#include "KX_NetworkMessageScene.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IGraphicController.h"
 #include "PHY_IPhysicsController.h"
@@ -143,7 +142,6 @@ extern bool gUseVisibilityTemp;
 
 KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 				   class SCA_IInputDevice* mousedevice,
-				   class NG_NetworkDeviceInterface *ndi,
 				   const STR_String& sceneName,
 				   Scene *scene,
 				   class RAS_ICanvas* canvas): 
@@ -153,7 +151,6 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	m_sceneConverter(NULL),
 	m_physicsEnvironment(0),
 	m_sceneName(sceneName),
-	m_networkDeviceInterface(ndi),
 	m_active_camera(NULL),
 	m_ueberExecutionPriority(0),
 	m_blenderScene(scene),
@@ -185,13 +182,10 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	SCA_ActuatorEventManager* actmgr = new SCA_ActuatorEventManager(m_logicmgr);
 	SCA_BasicEventManager* basicmgr = new SCA_BasicEventManager(m_logicmgr);
 
-	KX_NetworkEventManager* netmgr = new KX_NetworkEventManager(m_logicmgr, ndi);
-
 	m_logicmgr->RegisterEventManager(actmgr);
 	m_logicmgr->RegisterEventManager(m_keyboardmgr);
 	m_logicmgr->RegisterEventManager(m_mousemgr);
 	m_logicmgr->RegisterEventManager(m_timemgr);
-	m_logicmgr->RegisterEventManager(netmgr);
 	m_logicmgr->RegisterEventManager(basicmgr);
 
 
@@ -203,8 +197,7 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 		m_logicmgr->RegisterEventManager(joymgr);
 	}
 
-	MT_assert (m_networkDeviceInterface != NULL);
-	m_networkScene = new NG_NetworkScene(m_networkDeviceInterface);
+	m_networkScene = new KX_NetworkMessageScene();
 	
 	m_rootnode = NULL;
 
@@ -1862,27 +1855,16 @@ void KX_Scene::SetActivityCullingRadius(float f)
 		f = 0.5;
 	m_activity_box_radius = f;
 }
-	
-NG_NetworkDeviceInterface* KX_Scene::GetNetworkDeviceInterface()
-{
-	return m_networkDeviceInterface;
-}
 
-NG_NetworkScene* KX_Scene::GetNetworkScene()
+KX_NetworkMessageScene* KX_Scene::GetNetworkMessageScene()
 {
 	return m_networkScene;
 }
 
-void KX_Scene::SetNetworkDeviceInterface(NG_NetworkDeviceInterface* newInterface)
-{
-	m_networkDeviceInterface = newInterface;
-}
-
-void KX_Scene::SetNetworkScene(NG_NetworkScene *newScene)
+void KX_Scene::SetNetworkMessageScene(KX_NetworkMessageScene *newScene)
 {
 	m_networkScene = newScene;
 }
-
 
 void	KX_Scene::SetGravity(const MT_Vector3& gravity)
 {
@@ -1939,7 +1921,7 @@ static void MergeScene_LogicBrick(SCA_ILogicBrick* brick, KX_Scene *from, KX_Sce
 	SCA_LogicManager *logicmgr= to->GetLogicManager();
 
 	brick->Replace_IScene(to);
-	brick->Replace_NetworkScene(to->GetNetworkScene());
+	brick->Replace_NetworkScene(to->GetNetworkMessageScene());
 
 	// If we end up replacing a KX_TouchEventManager, we need to make sure
 	// physics controllers are properly in place. In other words, do this
