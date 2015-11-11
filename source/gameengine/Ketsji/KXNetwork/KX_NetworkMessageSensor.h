@@ -41,7 +41,7 @@ class KX_NetworkMessageSensor : public SCA_ISensor
 {
 	// note: Py_Header MUST BE the first listed here
 	Py_Header
-	NG_NetworkScene        *m_NetworkScene;
+	NG_NetworkScene *m_NetworkScene;
 
 	// The subject we filter on.
 	STR_String m_subject;
@@ -51,26 +51,26 @@ class KX_NetworkMessageSensor : public SCA_ISensor
 
 	bool m_IsUp;
 
-	class CListValue* m_BodyList;
-	class CListValue* m_SubjectList;
+	class CListValue *m_BodyList;
+	class CListValue *m_SubjectList;
+
 public:
 	KX_NetworkMessageSensor(
-		KX_NetworkEventManager* eventmgr,	// our eventmanager
-		NG_NetworkScene *NetworkScene,		// our scene
-		SCA_IObject* gameobj,				// the sensor controlling object
-		const STR_String &subject
-	);
+	    KX_NetworkEventManager *eventmgr, // our eventmanager
+	    NG_NetworkScene *NetworkScene, // our scene
+	    SCA_IObject *gameobj, // the sensor controlling object
+	    const STR_String &subject);
 	virtual ~KX_NetworkMessageSensor();
 
-	virtual CValue* GetReplica();
+	virtual CValue *GetReplica();
 	virtual bool Evaluate();
 	virtual bool IsPositiveTrigger();
 	virtual void Init();
 	void EndFrame();
-	
+
 	virtual void Replace_NetworkScene(NG_NetworkScene *val)
 	{
-		m_NetworkScene= val;
+		m_NetworkScene = val;
 	};
 
 #ifdef WITH_PYTHON
@@ -80,11 +80,10 @@ public:
 	/* ------------------------------------------------------------- */
 
 	/* attributes */
-	static PyObject*	pyattr_get_bodies(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_subjects(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_bodies(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_subjects(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif  /* WITH_PYTHON */
-
 };
 
 #endif  /* __KX_NETWORKMESSAGESENSOR_H__ */

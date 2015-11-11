@@ -37,13 +37,13 @@
 #include "KX_NetworkMessageActuator.h"
 
 KX_NetworkMessageActuator::KX_NetworkMessageActuator(
-	SCA_IObject* gameobj,		// the actuator controlling object
-	NG_NetworkScene* networkscene,	// needed for replication
+	SCA_IObject *gameobj, // the actuator controlling object
+	NG_NetworkScene *networkscene, // needed for replication
 	const STR_String &toPropName,
 	const STR_String &subject,
 	int bodyType,
-	const STR_String &body) :
-	SCA_IActuator(gameobj, KX_ACT_MESSAGE),
+	const STR_String &body)
+	:SCA_IActuator(gameobj, KX_ACT_MESSAGE),
 	m_networkscene(networkscene),
 	m_toPropName(toPropName),
 	m_subject(subject),
@@ -56,7 +56,7 @@ KX_NetworkMessageActuator::~KX_NetworkMessageActuator()
 {
 }
 
-// returns true if the actuators needs to be running over several frames
+/// returns true if the actuators needs to be running over several frames
 bool KX_NetworkMessageActuator::Update()
 {
 	//printf("update messageactuator\n");
@@ -69,27 +69,27 @@ bool KX_NetworkMessageActuator::Update()
 	}
 	//printf("messageactuator true event\n");
 
-	if (m_bPropBody) // ACT_MESG_PROP in DNA_actuator_types.h
-	{
+	// ACT_MESG_PROP in DNA_actuator_types.h
+	if (m_bPropBody) {
 		m_networkscene->SendMessage(
-			m_toPropName,
-			GetParent()->GetName(),
-			m_subject,
-			GetParent()->GetPropertyText(m_body));
-	} else
-	{
+		    m_toPropName,
+		    GetParent()->GetName(),
+		    m_subject,
+		    GetParent()->GetPropertyText(m_body));
+	}
+	else {
 		m_networkscene->SendMessage(
-			m_toPropName,
-			GetParent()->GetName(),
-			m_subject,
-			m_body);
+		    m_toPropName,
+		    GetParent()->GetName(),
+		    m_subject,
+		    m_body);
 	}
 	return false;
 }
 
-CValue* KX_NetworkMessageActuator::GetReplica()
+CValue *KX_NetworkMessageActuator::GetReplica()
 {
-	KX_NetworkMessageActuator* replica = new KX_NetworkMessageActuator(*this);
+	KX_NetworkMessageActuator *replica = new KX_NetworkMessageActuator(*this);
 	replica->ProcessReplica();
 
 	return replica;
@@ -113,19 +113,19 @@ PyTypeObject KX_NetworkMessageActuator::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&SCA_IActuator::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef KX_NetworkMessageActuator::Methods[] = {
-	{NULL,NULL} // Sentinel
+	{NULL, NULL} // Sentinel
 };
 
 PyAttributeDef KX_NetworkMessageActuator::Attributes[] = {
@@ -133,7 +133,7 @@ PyAttributeDef KX_NetworkMessageActuator::Attributes[] = {
 	KX_PYATTRIBUTE_STRING_RW("subject", 0, 100, false, KX_NetworkMessageActuator, m_subject),
 	KX_PYATTRIBUTE_BOOL_RW("usePropBody", KX_NetworkMessageActuator, m_bPropBody),
 	KX_PYATTRIBUTE_STRING_RW("body", 0, 16384, false, KX_NetworkMessageActuator, m_body),
-	{ NULL }	//Sentinel
+	{NULL} //Sentinel
 };
 
 #endif // WITH_PYTHON

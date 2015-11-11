@@ -42,9 +42,8 @@
 #include "NG_NetworkMessage.h"
 #include "NG_NetworkObject.h"
 
-KX_NetworkEventManager::KX_NetworkEventManager(class SCA_LogicManager*
-logicmgr, class NG_NetworkDeviceInterface *ndi) :
-SCA_EventManager(logicmgr, NETWORK_EVENTMGR), m_ndi(ndi)
+KX_NetworkEventManager::KX_NetworkEventManager(class SCA_LogicManager *logicmgr, class NG_NetworkDeviceInterface *ndi)
+	:SCA_EventManager(logicmgr, NETWORK_EVENTMGR), m_ndi(ndi)
 {
 	//printf("KX_NetworkEventManager constructor\n");
 }
@@ -61,8 +60,7 @@ void KX_NetworkEventManager::NextFrame()
 	// eventmanager to look for network events, and process it's
 	// 'network' sensors
 	SG_DList::iterator<SCA_ISensor> it(m_sensors);
-	for (it.begin();!it.end();++it)
-	{
+	for (it.begin(); !it.end(); ++it) {
 //	    printf("KX_NetworkEventManager::proceed sensor %.2f\n", curtime);
 		// process queue
 		(*it)->Activate(m_logicmgr);
@@ -74,4 +72,3 @@ void KX_NetworkEventManager::NextFrame()
 void KX_NetworkEventManager::EndFrame()
 {
 }
-

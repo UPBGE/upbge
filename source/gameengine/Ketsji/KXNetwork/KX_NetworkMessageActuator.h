@@ -41,32 +41,28 @@ class KX_NetworkMessageActuator : public SCA_IActuator
 {
 	Py_Header
 	bool m_lastEvent;
-	class NG_NetworkScene* m_networkscene;	// needed for replication
+	class NG_NetworkScene *m_networkscene;  // needed for replication
 	STR_String m_toPropName;
 	STR_String m_subject;
 	bool m_bPropBody;
 	STR_String m_body;
+
 public:
 	KX_NetworkMessageActuator(
-		SCA_IObject* gameobj,
-		NG_NetworkScene* networkscene,
-		const STR_String &toPropName,
-		const STR_String &subject,
-		int bodyType,
-		const STR_String &body);
+	    SCA_IObject *gameobj,
+	    NG_NetworkScene *networkscene,
+	    const STR_String &toPropName,
+	    const STR_String &subject,
+	    int bodyType,
+	    const STR_String &body);
 	virtual ~KX_NetworkMessageActuator();
 
 	virtual bool Update();
-	virtual CValue* GetReplica();
-	virtual void Replace_NetworkScene(NG_NetworkScene *val) 
-	{ 
-		m_networkscene= val;
+	virtual CValue *GetReplica();
+	virtual void Replace_NetworkScene(NG_NetworkScene *val)
+	{
+		m_networkscene = val;
 	};
-
-	/* ------------------------------------------------------------ */
-	/* Python interface ------------------------------------------- */
-	/* ------------------------------------------------------------ */
-
 };
 
 #endif  /* __KX_NETWORKMESSAGEACTUATOR_H__ */
