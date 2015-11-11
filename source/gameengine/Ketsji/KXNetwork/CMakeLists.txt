@@ -43,14 +43,10 @@ set(SRC
 	KX_NetworkEventManager.cpp
 	KX_NetworkMessageActuator.cpp
 	KX_NetworkMessageSensor.cpp
-	KX_NetworkObjectActuator.cpp
-	KX_NetworkObjectSensor.cpp
 
 	KX_NetworkEventManager.h
 	KX_NetworkMessageActuator.h
 	KX_NetworkMessageSensor.h
-	KX_NetworkObjectActuator.h
-	KX_NetworkObjectSensor.h
 )
 
 blender_add_lib(ge_logic_network "${SRC}" "${INC}" "${INC_SYS}")
