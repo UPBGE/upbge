@@ -35,7 +35,6 @@
 
 #include "KX_RaySensor.h"
 #include "SCA_EventManager.h"
-#include "SCA_RandomEventManager.h"
 #include "SCA_LogicManager.h"
 #include "SCA_IObject.h"
 #include "KX_ClientObjectInfo.h"

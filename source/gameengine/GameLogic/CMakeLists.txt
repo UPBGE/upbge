@@ -43,7 +43,6 @@ set(SRC
 	SCA_ANDController.cpp
 	SCA_ActuatorEventManager.cpp
 	SCA_ActuatorSensor.cpp
-	SCA_AlwaysEventManager.cpp
 	SCA_AlwaysSensor.cpp
 	SCA_BasicEventManager.cpp
 	SCA_DelaySensor.cpp
@@ -67,14 +66,12 @@ set(SRC
 	SCA_NORController.cpp
 	SCA_ORController.cpp
 	SCA_PropertyActuator.cpp
-	SCA_PropertyEventManager.cpp
 	SCA_PropertySensor.cpp
 	SCA_PythonController.cpp
 	SCA_PythonJoystick.cpp
 	SCA_PythonKeyboard.cpp
 	SCA_PythonMouse.cpp
 	SCA_RandomActuator.cpp
-	SCA_RandomEventManager.cpp
 	SCA_RandomNumberGenerator.cpp
 	SCA_RandomSensor.cpp
 	SCA_TimeEventManager.cpp
@@ -87,7 +84,6 @@ set(SRC
 	SCA_ANDController.h
 	SCA_ActuatorEventManager.h
 	SCA_ActuatorSensor.h
-	SCA_AlwaysEventManager.h
 	SCA_AlwaysSensor.h
 	SCA_BasicEventManager.h
 	SCA_DelaySensor.h
@@ -111,14 +107,12 @@ set(SRC
 	SCA_NORController.h
 	SCA_ORController.h
 	SCA_PropertyActuator.h
-	SCA_PropertyEventManager.h
 	SCA_PropertySensor.h
 	SCA_PythonController.h
 	SCA_PythonJoystick.h
 	SCA_PythonKeyboard.h
 	SCA_PythonMouse.h
 	SCA_RandomActuator.h
-	SCA_RandomEventManager.h
 	SCA_RandomNumberGenerator.h
 	SCA_RandomSensor.h
 	SCA_TimeEventManager.h

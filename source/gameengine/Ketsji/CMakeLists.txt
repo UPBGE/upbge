@@ -109,7 +109,6 @@ set(SRC
 	KX_PythonMain.cpp
 	KX_RadarSensor.cpp
 	KX_RayCast.cpp
-	KX_RayEventManager.cpp
 	KX_RaySensor.cpp
 	KX_SCA_AddObjectActuator.cpp
 	KX_SCA_DynamicActuator.cpp
@@ -187,7 +186,6 @@ set(SRC
 	KX_PythonMain.h
 	KX_RadarSensor.h
 	KX_RayCast.h
-	KX_RayEventManager.h
 	KX_RaySensor.h
 	KX_SCA_AddObjectActuator.h
 	KX_SCA_DynamicActuator.h
