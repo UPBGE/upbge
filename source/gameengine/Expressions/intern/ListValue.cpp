@@ -97,7 +97,15 @@ void CListValue::SetValue(int i, CValue *val)
 	m_pValueArray[i]=val;
 }
 
+CListValue::iterator CListValue::GetBegin()
+{
+	return m_pValueArray.begin();
+}
 
+CListValue::iterator CListValue::GetEnd()
+{
+	return m_pValueArray.end();
+}
 
 void CListValue::Resize(int num)
 {

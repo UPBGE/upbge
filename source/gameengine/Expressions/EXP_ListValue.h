@@ -44,6 +44,8 @@ public:
 	virtual CValue* GetReplica();
 
 public:
+	typedef std::vector<CValue *>::iterator iterator;
+
 	void MergeList(CListValue* otherlist);
 	bool RemoveValue(CValue* val);
 	void SetReleaseOnDestruct(bool bReleaseContents);
@@ -60,6 +62,8 @@ public:
 	void SetValue(int i,CValue* val);
 	CValue* GetValue(int i) { assertd(i < m_pValueArray.size()); return m_pValueArray[i]; }
 	int GetCount() { return m_pValueArray.size(); }
+	iterator GetBegin();
+	iterator GetEnd();
 	virtual const STR_String & GetText();
 
 	bool CheckEqual(CValue* first,CValue* second);
