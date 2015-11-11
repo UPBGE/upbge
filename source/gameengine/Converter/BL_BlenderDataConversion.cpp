@@ -77,7 +77,6 @@
 #include "KX_EmptyObject.h"
 #include "KX_FontObject.h"
 
-#include "RAS_TexMatrix.h"
 #include "RAS_ICanvas.h"
 #include "RAS_Polygon.h"
 #include "RAS_TexVert.h"

@@ -53,7 +53,6 @@ set(SRC
 	RAS_MeshObject.cpp
 	RAS_Polygon.cpp
 	RAS_TexVert.cpp
-	RAS_texmatrix.cpp
 	RAS_ICanvas.cpp
 
 	RAS_2DFilterManager.h
@@ -70,7 +69,6 @@ set(SRC
 	RAS_ObjectColor.h
 	RAS_Polygon.h
 	RAS_Rect.h
-	RAS_TexMatrix.h
 	RAS_TexVert.h
 	RAS_OpenGLFilters/RAS_Blur2DFilter.h
 	RAS_OpenGLFilters/RAS_Dilation2DFilter.h
