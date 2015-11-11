@@ -38,6 +38,6 @@
 namespace bgl
 {
 	void InitExtensions(bool debug);
-} /* namespace bgl */
+} // namespace bgl
 
 #endif /* __RAS_GLEXTENSIONMANAGER_H__ */

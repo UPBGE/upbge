@@ -37,13 +37,17 @@ class RAS_OpenGLLight : public RAS_ILightObject
 	RAS_OpenGLRasterizer *m_rasterizer;
 
 	GPULamp *GetGPULamp();
+
 public:
 	RAS_OpenGLLight(RAS_OpenGLRasterizer *ras);
 	~RAS_OpenGLLight();
 
 	bool ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer, int slot);
 
-	RAS_OpenGLLight* Clone() { return new RAS_OpenGLLight(*this); }
+	RAS_OpenGLLight *Clone()
+	{
+		return new RAS_OpenGLLight(*this);
+	}
 
 	bool HasShadowBuffer();
 	int GetShadowLayer();

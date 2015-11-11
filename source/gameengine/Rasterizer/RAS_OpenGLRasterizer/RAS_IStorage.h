@@ -38,15 +38,16 @@ class RAS_IStorage
 {
 
 public:
-	virtual ~RAS_IStorage() {};
+	virtual ~RAS_IStorage()
+	{
+	};
 
-	virtual bool	Init()=0;
-	virtual void	Exit()=0;
+	virtual bool Init() = 0;
+	virtual void Exit() = 0;
 
-	virtual void	IndexPrimitives(RAS_MeshSlot& ms)=0;
+	virtual void IndexPrimitives(RAS_MeshSlot& ms) = 0;
 
-	virtual void	SetDrawingMode(int drawingmode)=0;
-
+	virtual void SetDrawingMode(int drawingmode) = 0;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IStorage")

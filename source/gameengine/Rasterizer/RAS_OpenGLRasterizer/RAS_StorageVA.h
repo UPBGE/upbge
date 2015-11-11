@@ -35,42 +35,50 @@
 
 class RAS_StorageVA : public RAS_IStorage
 {
-
 public:
 	RAS_StorageVA(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer);
 	virtual ~RAS_StorageVA();
 
-	virtual bool	Init();
-	virtual void	Exit();
+	virtual bool Init();
+	virtual void Exit();
 
-	virtual void	IndexPrimitives(RAS_MeshSlot& ms);
+	virtual void IndexPrimitives(RAS_MeshSlot& ms);
 
-	virtual void	SetDrawingMode(int drawingmode){m_drawingmode=drawingmode;};
+	virtual void SetDrawingMode(int drawingmode)
+	{
+		m_drawingmode = drawingmode;
+	};
 
 protected:
-	int				m_drawingmode;
+	int m_drawingmode;
 
-	int*			m_texco_num;
-	int*			m_attrib_num;
+	int *m_texco_num;
+	int *m_attrib_num;
 
-	int				m_last_texco_num;
-	int				m_last_attrib_num;
+	int m_last_texco_num;
+	int m_last_attrib_num;
 
-	RAS_IRasterizer::TexCoGen*		m_texco;
-	RAS_IRasterizer::TexCoGen*		m_attrib;
-	int*			                m_attrib_layer;
+	RAS_IRasterizer::TexCoGen *m_texco;
+	RAS_IRasterizer::TexCoGen *m_attrib;
+	int *m_attrib_layer;
 
-	RAS_IRasterizer::TexCoGen		m_last_texco[RAS_MAX_TEXCO];
-	RAS_IRasterizer::TexCoGen		m_last_attrib[RAS_MAX_ATTRIB];
+	RAS_IRasterizer::TexCoGen m_last_texco[RAS_MAX_TEXCO];
+	RAS_IRasterizer::TexCoGen m_last_attrib[RAS_MAX_ATTRIB];
 
-	virtual void	EnableTextures(bool enable);
-	virtual void	TexCoordPtr(const RAS_TexVert *tv);
+	virtual void EnableTextures(bool enable);
+	virtual void TexCoordPtr(const RAS_TexVert *tv);
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
 public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_StorageVA"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	void *operator new(size_t num_bytes)
+	{
+		return MEM_mallocN(num_bytes, "GE:RAS_StorageVA");
+	}
+	void operator delete(void *mem)
+	{
+		MEM_freeN(mem);
+	}
 #endif
 };
 

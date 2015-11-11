@@ -42,56 +42,65 @@ public:
 	VBO(RAS_DisplayArray *data, unsigned int indices);
 	~VBO();
 
-	void	Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, RAS_IRasterizer::TexCoGen* attrib, int *attrib_layer);
+	void Draw(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer);
 
-	void	UpdateData();
-	void	UpdateIndices();
+	void UpdateData();
+	void UpdateIndices();
+
 private:
-	RAS_DisplayArray*	data;
-	GLuint			size;
-	GLuint			stride;
-	GLuint			indices;
-	GLenum			mode;
-	GLuint			ibo;
-	GLuint			vbo_id;
+	RAS_DisplayArray *data;
+	GLuint size;
+	GLuint stride;
+	GLuint indices;
+	GLenum mode;
+	GLuint ibo;
+	GLuint vbo_id;
 
-	void*			vertex_offset;
-	void*			normal_offset;
-	void*			color_offset;
-	void*			tangent_offset;
-	void*			uv_offset;
+	void *vertex_offset;
+	void *normal_offset;
+	void *color_offset;
+	void *tangent_offset;
+	void *uv_offset;
 };
 
 class RAS_StorageVBO : public RAS_IStorage
 {
-
 public:
 	RAS_StorageVBO(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer);
 	virtual ~RAS_StorageVBO();
 
-	virtual bool	Init();
-	virtual void	Exit();
+	virtual bool Init();
+	virtual void Exit();
 
-	virtual void	IndexPrimitives(RAS_MeshSlot& ms);
+	virtual void IndexPrimitives(RAS_MeshSlot& ms);
 
-	virtual void	SetDrawingMode(int drawingmode){m_drawingmode=drawingmode;};
+	virtual void SetDrawingMode(int drawingmode)
+	{
+		m_drawingmode = drawingmode;
+	};
 
 protected:
-	int				m_drawingmode;
+	int m_drawingmode;
 
-	int*			m_texco_num;
-	int*			m_attrib_num;
+	int *m_texco_num;
+	int *m_attrib_num;
 
-	RAS_IRasterizer::TexCoGen*		m_texco;
-	RAS_IRasterizer::TexCoGen*		m_attrib;
-	int*			                m_attrib_layer;
+	RAS_IRasterizer::TexCoGen *m_texco;
+	RAS_IRasterizer::TexCoGen *m_attrib;
+	int *m_attrib_layer;
 
-	std::map<RAS_DisplayArray*, class VBO*>	m_vbo_lookup;
+	std::map<RAS_DisplayArray *, class VBO *> m_vbo_lookup;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_StorageVA"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	void *operator new(size_t num_bytes)
+	{
+		return MEM_mallocN(num_bytes, "GE:RAS_StorageVA");
+	}
+	void operator delete(void *mem)
+	{
+		MEM_freeN(mem);
+	}
 #endif
 };
 

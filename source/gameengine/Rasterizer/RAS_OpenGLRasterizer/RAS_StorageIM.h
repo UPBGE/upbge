@@ -37,28 +37,37 @@ public:
 	RAS_StorageIM(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer);
 	virtual ~RAS_StorageIM();
 
-	virtual bool	Init();
-	virtual void	Exit();
+	virtual bool Init();
+	virtual void Exit();
 
-	virtual void	IndexPrimitives(RAS_MeshSlot& ms);
+	virtual void IndexPrimitives(RAS_MeshSlot& ms);
 
-	virtual void	SetDrawingMode(int drawingmode){m_drawingmode=drawingmode;};
+	virtual void SetDrawingMode(int drawingmode)
+	{
+		m_drawingmode = drawingmode;
+	};
 
 protected:
-	int				m_drawingmode;
-	int*			m_texco_num;
-	int*			m_attrib_num;
-	RAS_IRasterizer::TexCoGen*		m_texco;
-	RAS_IRasterizer::TexCoGen*		m_attrib;
-	int*			                m_attrib_layer;
+	int m_drawingmode;
+	int *m_texco_num;
+	int *m_attrib_num;
+	RAS_IRasterizer::TexCoGen *m_texco;
+	RAS_IRasterizer::TexCoGen *m_attrib;
+	int *m_attrib_layer;
 
-	void	TexCoord(const RAS_TexVert &tv);
-	void	SetCullFace(bool enable);
+	void TexCoord(const RAS_TexVert &tv);
+	void SetCullFace(bool enable);
 
 #ifdef WITH_CXX_GUARDEDALLOC
 public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_StorageIM"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	void *operator new(size_t num_bytes)
+	{
+		return MEM_mallocN(num_bytes, "GE:RAS_StorageIM");
+	}
+	void operator delete(void *mem)
+	{
+		MEM_freeN(mem);
+	}
 #endif
 };
 

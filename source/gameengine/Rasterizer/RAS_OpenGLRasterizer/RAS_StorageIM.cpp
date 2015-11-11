@@ -34,7 +34,7 @@
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 
-extern "C"{
+extern "C" {
 	#include "BKE_DerivedMesh.h"
 }
 
@@ -109,7 +109,6 @@ void RAS_StorageIM::TexCoord(const RAS_TexVert &tv)
 			}
 		}
 	}
-
 }
 
 void RAS_StorageIM::SetCullFace(bool enable)
@@ -128,6 +127,7 @@ static RAS_MeshObject *current_mesh;
 static int current_blmat_nr;
 static GPUVertexAttribs current_gpu_attribs;
 static Image *current_image;
+
 static int CheckMaterialDM(int matnr, void *attribs)
 {
 	// only draw the current material
@@ -139,42 +139,12 @@ static int CheckMaterialDM(int matnr, void *attribs)
 	return 1;
 }
 
-/*
-static int CheckTexfaceDM(void *mcol, int index)
-{
-
-	// index is the original face index, retrieve the polygon
-	RAS_Polygon* polygon = (index >= 0 && index < current_mesh->NumPolygons()) ?
-		current_mesh->GetPolygon(index) : NULL;
-	if (polygon && polygon->GetMaterial() == current_bucket) {
-		// must handle color.
-		if (current_wireframe)
-			return 2;
-		if (current_ms->m_bObjectColor) {
-			MT_Vector4& rgba = current_ms->m_RGBAcolor;
-			glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
-			// don't use mcol
-			return 2;
-		}
-		if (!mcol) {
-			// we have to set the color from the material
-			unsigned char rgba[4];
-			current_polymat->GetMaterialRGBAColor(rgba);
-			glColor4ubv((const GLubyte *)rgba);
-			return 2;
-		}
-		return 1;
-	}
-	return 0;
-}
-*/
-
 static DMDrawOption CheckTexDM(MTexPoly *mtexpoly, const bool has_mcol, int matnr)
 {
-
 	// index is the original face index, retrieve the polygon
 	if (matnr == current_blmat_nr &&
-		(mtexpoly == NULL || mtexpoly->tpage == current_image)) {
+	    (mtexpoly == NULL || mtexpoly->tpage == current_image))
+	{
 		// must handle color.
 		if (current_wireframe)
 			return DM_DRAW_OPTION_NO_MCOL;
@@ -197,14 +167,14 @@ static DMDrawOption CheckTexDM(MTexPoly *mtexpoly, const bool has_mcol, int matn
 }
 
 void RAS_StorageIM::IndexPrimitives(RAS_MeshSlot& ms)
-{ 
+{
 	bool obcolor = ms.m_bObjectColor;
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
 	MT_Vector4& rgba = ms.m_RGBAcolor;
 	RAS_MeshSlot::iterator it;
 
 	if (ms.m_pDerivedMesh) {
-		// mesh data is in derived mesh, 
+		// mesh data is in derived mesh,
 		current_bucket = ms.m_bucket;
 		current_polymat = current_bucket->GetPolyMaterial();
 		current_ms = &ms;
@@ -219,12 +189,12 @@ void RAS_StorageIM::IndexPrimitives(RAS_MeshSlot& ms)
 			this->SetCullFace(false);
 
 		if (current_polymat->GetFlag() & RAS_BLENDERGLSL) {
-			// GetMaterialIndex return the original mface material index, 
+			// GetMaterialIndex return the original mface material index,
 			// increment by 1 to match what derived mesh is doing
-			current_blmat_nr = current_polymat->GetMaterialIndex()+1;
+			current_blmat_nr = current_polymat->GetMaterialIndex() + 1;
 			// For GLSL we need to retrieve the GPU material attribute
-			Material* blmat = current_polymat->GetBlenderMaterial();
-			Scene* blscene = current_polymat->GetBlenderScene();
+			Material *blmat = current_polymat->GetBlenderMaterial();
+			Scene *blscene = current_polymat->GetBlenderScene();
 			if (!wireframe && blscene && blmat)
 				GPU_material_vertex_attributes(GPU_material_from_blender(blscene, blmat, false), &current_gpu_attribs);
 			else
@@ -233,7 +203,8 @@ void RAS_StorageIM::IndexPrimitives(RAS_MeshSlot& ms)
 			int current_blend_mode = GPU_get_material_alpha_blend();
 			ms.m_pDerivedMesh->drawFacesGLSL(ms.m_pDerivedMesh, CheckMaterialDM);
 			GPU_set_material_alpha_blend(current_blend_mode);
-		} else {
+		}
+		else {
 			//ms.m_pDerivedMesh->drawMappedFacesTex(ms.m_pDerivedMesh, CheckTexfaceDM, mcol);
 			current_blmat_nr = current_polymat->GetMaterialIndex();
 			current_image = current_polymat->GetBlenderImage();
@@ -245,19 +216,18 @@ void RAS_StorageIM::IndexPrimitives(RAS_MeshSlot& ms)
 	for (ms.begin(it); !ms.end(it); ms.next(it)) {
 		RAS_TexVert *vertex;
 		size_t i, j, numvert;
-		
+
 		numvert = it.array->m_type;
 
 		if (it.array->m_type == RAS_DisplayArray::LINE) {
 			// line drawing
 			glBegin(GL_LINES);
 
-			for (i = 0; i < it.totindex; i += 2)
-			{
+			for (i = 0; i < it.totindex; i += 2) {
 				vertex = &it.vertex[it.index[i]];
 				glVertex3fv(vertex->getXYZ());
 
-				vertex = &it.vertex[it.index[i+1]];
+				vertex = &it.vertex[it.index[i + 1]];
 				glVertex3fv(vertex->getXYZ());
 			}
 
@@ -270,13 +240,12 @@ void RAS_StorageIM::IndexPrimitives(RAS_MeshSlot& ms)
 			else
 				glBegin(GL_QUADS);
 
-			for (i = 0; i < it.totindex; i += numvert)
-			{
+			for (i = 0; i < it.totindex; i += numvert) {
 				if (obcolor)
 					glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 
 				for (j = 0; j < numvert; j++) {
-					vertex = &it.vertex[it.index[i+j]];
+					vertex = &it.vertex[it.index[i + j]];
 
 					if (!wireframe) {
 						if (!obcolor)

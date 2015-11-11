@@ -46,15 +46,15 @@
 #include "GPU_material.h"
 
 RAS_OpenGLLight::RAS_OpenGLLight(RAS_OpenGLRasterizer *ras)
-    :m_rasterizer(ras)
+	:m_rasterizer(ras)
 {
 }
 
 RAS_OpenGLLight::~RAS_OpenGLLight()
 {
 	GPULamp *lamp;
-	KX_LightObject* kxlight = (KX_LightObject*)m_light;
-	Lamp *la = (Lamp*)kxlight->GetBlenderObject()->data;
+	KX_LightObject *kxlight = (KX_LightObject *)m_light;
+	Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
 
 	if ((lamp = GetGPULamp())) {
 		float obmat[4][4] = {{0}};
@@ -66,8 +66,8 @@ RAS_OpenGLLight::~RAS_OpenGLLight()
 
 bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer, int slot)
 {
-	KX_Scene* lightscene = (KX_Scene*)m_scene;
-	KX_LightObject* kxlight = (KX_LightObject*)m_light;
+	KX_Scene *lightscene = (KX_Scene *)m_scene;
+	KX_LightObject *kxlight = (KX_LightObject *)m_light;
 	float vec[4];
 	int scenelayer = ~0;
 
@@ -85,87 +85,85 @@ bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer,
 	if (kxlight->GetSGNode()->IsDirty())
 		kxlight->GetOpenGLMatrix();
 
-	MT_CmMatrix4x4& worldmatrix= *kxlight->GetOpenGLMatrixPtr();
+	MT_CmMatrix4x4& worldmatrix = *kxlight->GetOpenGLMatrixPtr();
 
-	vec[0] = worldmatrix(0,3);
-	vec[1] = worldmatrix(1,3);
-	vec[2] = worldmatrix(2,3);
+	vec[0] = worldmatrix(0, 3);
+	vec[1] = worldmatrix(1, 3);
+	vec[2] = worldmatrix(2, 3);
 	vec[3] = 1.0f;
 
-	if (m_type==RAS_ILightObject::LIGHT_SUN) {
+	if (m_type == RAS_ILightObject::LIGHT_SUN) {
 
-		vec[0] = worldmatrix(0,2);
-		vec[1] = worldmatrix(1,2);
-		vec[2] = worldmatrix(2,2);
+		vec[0] = worldmatrix(0, 2);
+		vec[1] = worldmatrix(1, 2);
+		vec[2] = worldmatrix(2, 2);
 		//vec[0] = base->object->obmat[2][0];
 		//vec[1] = base->object->obmat[2][1];
 		//vec[2] = base->object->obmat[2][2];
-		vec[3] = 0.0;
-		glLightfv((GLenum)(GL_LIGHT0+slot), GL_POSITION, vec);
+		vec[3] = 0.0f;
+		glLightfv((GLenum)(GL_LIGHT0 + slot), GL_POSITION, vec);
 	}
 	else {
 		//vec[3] = 1.0;
-		glLightfv((GLenum)(GL_LIGHT0+slot), GL_POSITION, vec);
-		glLightf((GLenum)(GL_LIGHT0+slot), GL_CONSTANT_ATTENUATION, 1.0);
-		glLightf((GLenum)(GL_LIGHT0+slot), GL_LINEAR_ATTENUATION, m_att1/m_distance);
+		glLightfv((GLenum)(GL_LIGHT0 + slot), GL_POSITION, vec);
+		glLightf((GLenum)(GL_LIGHT0 + slot), GL_CONSTANT_ATTENUATION, 1.0f);
+		glLightf((GLenum)(GL_LIGHT0 + slot), GL_LINEAR_ATTENUATION, m_att1 / m_distance);
 		// without this next line it looks backward compatible.
 		//attennuation still is acceptable
-		glLightf((GLenum)(GL_LIGHT0+slot), GL_QUADRATIC_ATTENUATION, m_att2/(m_distance*m_distance));
+		glLightf((GLenum)(GL_LIGHT0 + slot), GL_QUADRATIC_ATTENUATION, m_att2 / (m_distance * m_distance));
 
-		if (m_type==RAS_ILightObject::LIGHT_SPOT) {
-			vec[0] = -worldmatrix(0,2);
-			vec[1] = -worldmatrix(1,2);
-			vec[2] = -worldmatrix(2,2);
+		if (m_type == RAS_ILightObject::LIGHT_SPOT) {
+			vec[0] = -worldmatrix(0, 2);
+			vec[1] = -worldmatrix(1, 2);
+			vec[2] = -worldmatrix(2, 2);
 			//vec[0] = -base->object->obmat[2][0];
 			//vec[1] = -base->object->obmat[2][1];
 			//vec[2] = -base->object->obmat[2][2];
-			glLightfv((GLenum)(GL_LIGHT0+slot), GL_SPOT_DIRECTION, vec);
-			glLightf((GLenum)(GL_LIGHT0+slot), GL_SPOT_CUTOFF, m_spotsize / 2.0f);
-			glLightf((GLenum)(GL_LIGHT0+slot), GL_SPOT_EXPONENT, 128.0f * m_spotblend);
+			glLightfv((GLenum)(GL_LIGHT0 + slot), GL_SPOT_DIRECTION, vec);
+			glLightf((GLenum)(GL_LIGHT0 + slot), GL_SPOT_CUTOFF, m_spotsize / 2.0f);
+			glLightf((GLenum)(GL_LIGHT0 + slot), GL_SPOT_EXPONENT, 128.0f * m_spotblend);
 		}
 		else {
-			glLightf((GLenum)(GL_LIGHT0+slot), GL_SPOT_CUTOFF, 180.0);
+			glLightf((GLenum)(GL_LIGHT0 + slot), GL_SPOT_CUTOFF, 180.0f);
 		}
 	}
 
 	if (m_nodiffuse) {
-		vec[0] = vec[1] = vec[2] = vec[3] = 0.0;
+		vec[0] = vec[1] = vec[2] = vec[3] = 0.0f;
 	}
 	else {
-		vec[0] = m_energy*m_color[0];
-		vec[1] = m_energy*m_color[1];
-		vec[2] = m_energy*m_color[2];
-		vec[3] = 1.0;
+		vec[0] = m_energy * m_color[0];
+		vec[1] = m_energy * m_color[1];
+		vec[2] = m_energy * m_color[2];
+		vec[3] = 1.0f;
 	}
 
-	glLightfv((GLenum)(GL_LIGHT0+slot), GL_DIFFUSE, vec);
-	if (m_nospecular)
-	{
-		vec[0] = vec[1] = vec[2] = vec[3] = 0.0;
+	glLightfv((GLenum)(GL_LIGHT0 + slot), GL_DIFFUSE, vec);
+	if (m_nospecular) {
+		vec[0] = vec[1] = vec[2] = vec[3] = 0.0f;
 	}
 	else if (m_nodiffuse) {
-		vec[0] = m_energy*m_color[0];
-		vec[1] = m_energy*m_color[1];
-		vec[2] = m_energy*m_color[2];
-		vec[3] = 1.0;
+		vec[0] = m_energy * m_color[0];
+		vec[1] = m_energy * m_color[1];
+		vec[2] = m_energy * m_color[2];
+		vec[3] = 1.0f;
 	}
 
-	glLightfv((GLenum)(GL_LIGHT0+slot), GL_SPECULAR, vec);
-	glEnable((GLenum)(GL_LIGHT0+slot));
+	glLightfv((GLenum)(GL_LIGHT0 + slot), GL_SPECULAR, vec);
+	glEnable((GLenum)(GL_LIGHT0 + slot));
 
 	return true;
 }
 
 GPULamp *RAS_OpenGLLight::GetGPULamp()
 {
-	KX_LightObject* kxlight = (KX_LightObject*)m_light;
+	KX_LightObject *kxlight = (KX_LightObject *)m_light;
 
 	if (m_glsl)
 		return GPU_lamp_from_blender(kxlight->GetScene()->GetBlenderScene(), kxlight->GetBlenderObject(), kxlight->GetBlenderGroupObject());
 	else
 		return NULL;
 }
-
 
 bool RAS_OpenGLLight::HasShadowBuffer()
 {
@@ -204,10 +202,10 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_T
 	canvas->UpdateViewPort(0, 0, winsize, winsize);
 
 	/* setup camera transformation */
-	MT_Matrix4x4 modelviewmat((float*)viewmat);
-	MT_Matrix4x4 projectionmat((float*)winmat);
+	MT_Matrix4x4 modelviewmat((float *)viewmat);
+	MT_Matrix4x4 projectionmat((float *)winmat);
 
-	MT_Transform trans = MT_Transform((float*)viewmat);
+	MT_Transform trans = MT_Transform((float *)viewmat);
 	camtrans.invert(trans);
 
 	cam->SetModelviewMatrix(modelviewmat);
@@ -237,12 +235,11 @@ void RAS_OpenGLLight::UnbindShadowBuffer()
 
 Image *RAS_OpenGLLight::GetTextureImage(short texslot)
 {
-	KX_LightObject* kxlight = (KX_LightObject*)m_light;
-	Lamp *la = (Lamp*)kxlight->GetBlenderObject()->data;
+	KX_LightObject *kxlight = (KX_LightObject *)m_light;
+	Lamp *la = (Lamp *)kxlight->GetBlenderObject()->data;
 
-	if (texslot >= MAX_MTEX || texslot < 0)
-	{
-		printf("KX_LightObject::GetTextureImage(): texslot exceeds slot bounds (0-%d)\n", MAX_MTEX-1);
+	if (texslot >= MAX_MTEX || texslot < 0) {
+		printf("KX_LightObject::GetTextureImage(): texslot exceeds slot bounds (0-%d)\n", MAX_MTEX - 1);
 		return NULL;
 	}
 
@@ -255,7 +252,7 @@ Image *RAS_OpenGLLight::GetTextureImage(short texslot)
 void RAS_OpenGLLight::Update()
 {
 	GPULamp *lamp;
-	KX_LightObject* kxlight = (KX_LightObject*)m_light;
+	KX_LightObject *kxlight = (KX_LightObject *)m_light;
 
 	if ((lamp = GetGPULamp()) != NULL && kxlight->GetSGNode()) {
 		float obmat[4][4];
@@ -264,16 +261,15 @@ void RAS_OpenGLLight::Update()
 			kxlight->GetOpenGLMatrix();
 		double *dobmat = kxlight->GetOpenGLMatrixPtr()->getPointer();
 
-		for (int i=0; i<4; i++)
-			for (int j=0; j<4; j++, dobmat++)
+		for (int i = 0; i < 4; i++)
+			for (int j = 0; j < 4; j++, dobmat++)
 				obmat[i][j] = (float)*dobmat;
 
 		GPU_lamp_update(lamp, m_layer, 0, obmat);
 		GPU_lamp_update_colors(lamp, m_color[0], m_color[1],
-			m_color[2], m_energy);
+		                       m_color[2], m_energy);
 		GPU_lamp_update_distance(lamp, m_distance, m_att1, m_att2);
 		GPU_lamp_update_spot(lamp, m_spotsize, m_spotblend);
 	}
 }
-
 

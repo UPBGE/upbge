@@ -54,7 +54,8 @@ class RAS_OpenGLLight;
 #define RAS_MAX_TEXCO  8     /* match in BL_Material */
 #define RAS_MAX_ATTRIB 16    /* match in BL_BlenderShader */
 
-enum RAS_STORAGE_TYPE	{
+enum RAS_STORAGE_TYPE
+{
 	RAS_AUTO_STORAGE,
 	RAS_IMMEDIATE,
 	RAS_VA,
@@ -63,7 +64,8 @@ enum RAS_STORAGE_TYPE	{
 
 struct OglDebugShape
 {
-	enum SHAPE_TYPE{
+	enum SHAPE_TYPE
+	{
 		LINE,
 		CIRCLE,
 	};
@@ -80,7 +82,7 @@ struct OglDebugShape
 class RAS_OpenGLRasterizer : public RAS_IRasterizer
 {
 	RAS_ICanvas *m_2DCanvas;
-	
+
 	/* fogging vars */
 	bool m_fogenabled;
 
@@ -88,7 +90,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	float m_greenback;
 	float m_blueback;
 	float m_alphaback;
-	
+
 	float m_ambr;
 	float m_ambg;
 	float m_ambb;
@@ -143,23 +145,9 @@ protected:
 
 public:
 	double GetTime();
-	RAS_OpenGLRasterizer(RAS_ICanvas *canv, int storage=RAS_AUTO_STORAGE);
+	RAS_OpenGLRasterizer(RAS_ICanvas *canv, int storage = RAS_AUTO_STORAGE);
 	virtual ~RAS_OpenGLRasterizer();
 
-	/*enum DrawType
-	{
-			KX_BOUNDINGBOX = 1,
-			KX_WIREFRAME,
-			KX_SOLID,
-			KX_SHADED,
-			KX_TEXTURED
-	};
-
-	enum DepthMask
-	{
-			KX_DEPTHMASK_ENABLED =1,
-			KX_DEPTHMASK_DISABLED,
-	};*/
 	virtual void SetDepthMask(DepthMask depthmask);
 
 	virtual bool SetMaterial(const RAS_IPolyMaterial &mat);
@@ -194,7 +182,7 @@ public:
 
 	virtual const MT_Point3& GetCameraPosition();
 	virtual bool GetCameraOrtho();
-	
+
 	virtual void SetFog(short type, float start, float dist, float intensity, float color[3]);
 	virtual void EnableFog(bool enable);
 	virtual void DisplayFog();
@@ -208,12 +196,12 @@ public:
 	virtual void SetLines(bool enable);
 
 	virtual MT_Matrix4x4 GetFrustumMatrix(
-	        float left, float right, float bottom, float top,
-	        float frustnear, float frustfar, 
-	        float focallength, bool perspective);
+	    float left, float right, float bottom, float top,
+	    float frustnear, float frustfar,
+	    float focallength, bool perspective);
 	virtual MT_Matrix4x4 GetOrthoMatrix(
-	        float left, float right, float bottom, float top,
-	        float frustnear, float frustfar);
+	    float left, float right, float bottom, float top,
+	    float frustnear, float frustfar);
 
 	virtual void SetSpecularity(float specX, float specY, float specZ, float specval);
 	virtual void SetShinyness(float shiny);
@@ -227,26 +215,26 @@ public:
 
 	virtual void FlushDebugShapes(SCA_IScene *scene);
 
-	virtual void DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from,const MT_Vector3 &to, const MT_Vector3 &color)
+	virtual void DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector3 &color)
 	{
 		OglDebugShape line;
 		line.m_type = OglDebugShape::LINE;
-		line.m_pos= from;
+		line.m_pos = from;
 		line.m_param = to;
 		line.m_color = color;
 		m_debugShapes[scene].push_back(line);
 	}
 
 	virtual void DrawDebugCircle(SCA_IScene *scene, const MT_Vector3 &center, const MT_Scalar radius,
-								 const MT_Vector3 &color, const MT_Vector3 &normal, int nsector)
+	                             const MT_Vector3 &color, const MT_Vector3 &normal, int nsector)
 	{
 		OglDebugShape line;
 		line.m_type = OglDebugShape::CIRCLE;
-		line.m_pos= center;
+		line.m_pos = center;
 		line.m_param = normal;
 		line.m_color = color;
 		line.m_param2.x() = radius;
-		line.m_param2.y() = (float) nsector;
+		line.m_param2.y() = (float)nsector;
 		m_debugShapes[scene].push_back(line);
 	}
 
@@ -262,24 +250,30 @@ public:
 
 	const MT_Matrix4x4 &GetViewMatrix() const;
 	const MT_Matrix4x4 &GetViewInvMatrix() const;
-	
+
 	virtual void EnableMotionBlur(float motionblurvalue);
 	virtual void DisableMotionBlur();
-	virtual float GetMotionBlurValue() { return m_motionblurvalue; }
-	virtual int GetMotionBlurState() { return m_motionblur; }
+	virtual float GetMotionBlurValue()
+	{
+		return m_motionblurvalue;
+	}
+	virtual int GetMotionBlurState()
+	{
+		return m_motionblur;
+	}
 	virtual void SetMotionBlurState(int newstate)
 	{
 		if (newstate < 0)
 			m_motionblur = 0;
 		else if (newstate > 2)
 			m_motionblur = 2;
-		else 
+		else
 			m_motionblur = newstate;
 	}
 
 	virtual void SetAlphaBlend(int alphablend);
 	virtual void SetFrontFace(bool ccw);
-	
+
 	virtual void SetAnisotropicFiltering(short level);
 	virtual short GetAnisotropicFiltering();
 
@@ -310,12 +304,15 @@ public:
 	/// \see KX_RayCast
 	bool RayHit(struct KX_ClientObjectInfo *client, class KX_RayCast *result, double *oglmatrix);
 	/// \see KX_RayCast
-	bool NeedRayCast(struct KX_ClientObjectInfo *, void *UNUSED(data)) { return true; }
+	bool NeedRayCast(struct KX_ClientObjectInfo *, void *UNUSED(data))
+	{
+		return true;
+	}
 
-	RAS_ILightObject* CreateLight();
-	void AddLight(RAS_ILightObject* lightobject);
+	RAS_ILightObject *CreateLight();
+	void AddLight(RAS_ILightObject *lightobject);
 
-	void RemoveLight(RAS_ILightObject* lightobject);
+	void RemoveLight(RAS_ILightObject *lightobject);
 	int ApplyLights(int objectlayer, const MT_Transform& viewmat);
 
 	void MotionBlur();
