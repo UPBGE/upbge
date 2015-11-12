@@ -33,6 +33,7 @@ public:
 	void AddConfigurationData(CValue* menuvalue);
 	void Configure(CValue* menuvalue);
 	void Add(CValue* value);
+	void Insert(unsigned int i, CValue* value);
 
 	/** \attention not implemented yet :( */
 	virtual CValue* Calc(VALUE_OPERATOR op,CValue *val);
@@ -61,6 +62,8 @@ public:
 	void Resize(int num);
 	void SetValue(int i,CValue* val);
 	CValue* GetValue(int i) { assertd(i < m_pValueArray.size()); return m_pValueArray[i]; }
+	CValue *GetFront();
+	CValue *GetBack();
 	int GetCount() { return m_pValueArray.size(); }
 	iterator GetBegin();
 	iterator GetEnd();

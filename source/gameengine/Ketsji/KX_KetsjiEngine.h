@@ -44,6 +44,7 @@
 
 struct TaskScheduler;
 class KX_TimeCategoryLogger;
+class CListValue;
 
 #define LEFT_EYE  1
 #define RIGHT_EYE 2
@@ -95,8 +96,8 @@ private:
 	/** Lists of scenes scheduled to be replaced at the end of the frame. */
 	std::vector<std::pair<STR_String,STR_String> >	m_replace_scenes;
 
-	/* The current list of scenes. */
-	KX_SceneList		m_scenes;
+	/// The current list of scenes.
+	CListValue *m_scenes;
 	/* State variable recording the presence of object debug info in the current scene list. */
 	bool				m_propertiesPresent;
 
@@ -256,7 +257,7 @@ public:
 	int				GetExitCode();
 	const STR_String&	GetExitString();
 
-	KX_SceneList*	CurrentScenes();
+	CListValue *CurrentScenes();
 	KX_Scene*       FindScene(const STR_String& scenename);
 	void			AddScene(class KX_Scene* scene);
 	void			ConvertAndAddScene(const STR_String& scenename,bool overlay);

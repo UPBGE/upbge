@@ -97,6 +97,16 @@ void CListValue::SetValue(int i, CValue *val)
 	m_pValueArray[i]=val;
 }
 
+CValue *CListValue::GetFront()
+{
+	return m_pValueArray.front();
+}
+
+CValue *CListValue::GetBack()
+{
+	return m_pValueArray.back();
+}
+
 CListValue::iterator CListValue::GetBegin()
 {
 	return m_pValueArray.begin();
@@ -249,7 +259,10 @@ void CListValue::Add(CValue* value)
 	m_pValueArray.push_back(value);
 }
 
-
+void CListValue::Insert(unsigned int i, CValue* value)
+{
+	m_pValueArray.insert(m_pValueArray.begin() + i, value);
+}
 
 double CListValue::GetNumber()
 {

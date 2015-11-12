@@ -622,21 +622,7 @@ PyDoc_STRVAR(gPyGetSceneList_doc,
 );
 static PyObject *gPyGetSceneList(PyObject *self)
 {
-	KX_KetsjiEngine* m_engine = KX_GetActiveEngine();
-	PyObject *list;
-	KX_SceneList* scenes = m_engine->CurrentScenes();
-	int numScenes = scenes->size();
-	int i;
-	
-	list = PyList_New(numScenes);
-	
-	for (i=0;i<numScenes;i++)
-	{
-		KX_Scene* scene = scenes->at(i);
-		PyList_SET_ITEM(list, i, scene->GetProxy());
-	}
-
-	return list;
+	return KX_GetActiveEngine()->CurrentScenes()->GetProxy();
 }
 
 static PyObject *pyPrintStats(PyObject *,PyObject *,PyObject *)
@@ -1161,15 +1147,15 @@ static PyObject *gPySetGLSLMaterialSetting(PyObject *,
 	if (sceneflag != gs->glslflag) {
 		GPU_materials_free();
 		if (gp_KetsjiEngine) {
-			KX_SceneList *scenes = gp_KetsjiEngine->CurrentScenes();
-			KX_SceneList::iterator it;
+			CListValue *scenes = gp_KetsjiEngine->CurrentScenes();
 
-			for (it=scenes->begin(); it!=scenes->end(); it++) {
+			for (CListValue::iterator it = scenes->GetBegin(); it != scenes->GetEnd(); ++it) {
+				KX_Scene *scene = (KX_Scene *)*it;
 				// temporarily store the glsl settings in the scene for the GLSL materials
-				(*it)->GetBlenderScene()->gm.flag = gs->glslflag;
-				if ((*it)->GetBucketManager()) {
-					(*it)->GetBucketManager()->ReleaseDisplayLists();
-					(*it)->GetBucketManager()->ReleaseMaterials();
+				scene->GetBlenderScene()->gm.flag = gs->glslflag;
+				if (scene->GetBucketManager()) {
+					scene->GetBucketManager()->ReleaseDisplayLists();
+					scene->GetBucketManager()->ReleaseMaterials();
 				}
 			}
 		}

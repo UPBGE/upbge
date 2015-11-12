@@ -186,6 +186,8 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
 
 	BL_Action::InitLock();
+
+	m_scenes = new CListValue();
 }
 
 
@@ -207,6 +209,8 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 		BLI_task_scheduler_free(m_taskscheduler);
 
 	BL_Action::EndLock();
+
+	m_scenes->Release();
 }
 
 
@@ -285,7 +289,7 @@ void KX_KetsjiEngine::RenderDome()
 	
 	m_dome->SetViewPort(viewport);
 
-	KX_Scene* firstscene = *m_scenes.begin();
+	KX_Scene* firstscene = (KX_Scene*)m_scenes->GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
@@ -304,16 +308,13 @@ void KX_KetsjiEngine::RenderDome()
 	if (!BeginFrame())
 		return;
 
-	KX_SceneList::iterator sceneit;
-	KX_Scene* scene = NULL;
+	KX_Scene *scene;
 
 	int n_renders=m_dome->GetNumberRenders();// usually 4 or 6
 	for (int i=0;i<n_renders;i++) {
 		m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER|RAS_ICanvas::DEPTH_BUFFER);
-		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); sceneit++)
-		// for each scene, call the proceed functions
-		{
-			scene = *sceneit;
+		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
+			scene = (KX_Scene *)*sceit;
 			KX_SetActiveScene(scene);
 			KX_Camera* cam = scene->GetActiveCamera();
 
@@ -415,7 +416,7 @@ void KX_KetsjiEngine::StartEngine(bool clearIpo)
 	m_firstframe = true;
 	m_bInitialized = true;
 	// there is always one scene enabled at startup
-	Scene* scene = m_scenes[0]->GetBlenderScene();
+	Scene* scene = ((KX_Scene*)m_scenes->GetFront())->GetBlenderScene();
 	if (scene)
 	{
 		m_ticrate = scene->gm.ticrate ? scene->gm.ticrate : DEFAULT_LOGIC_TIC_RATE;
@@ -446,12 +447,10 @@ void KX_KetsjiEngine::ClearFrame()
 
 	// clear the viewports with the background color of the first scene
 	bool doclear = false;
-	KX_SceneList::iterator sceneit;
 	RAS_Rect clearvp, area, viewport;
 
-	for (sceneit = m_scenes.begin(); sceneit != m_scenes.end(); sceneit++)
-	{
-		KX_Scene* scene = *sceneit;
+	for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
+		KX_Scene *scene = (KX_Scene *)*sceit;
 		//const RAS_FrameSettings &framesettings = scene->GetFramingType();
 		list<class KX_Camera*>* cameras = scene->GetCameras();
 
@@ -479,7 +478,7 @@ void KX_KetsjiEngine::ClearFrame()
 	}
 
 	if (doclear) {
-		KX_Scene* firstscene = *m_scenes.begin();
+		KX_Scene* firstscene = (KX_Scene*)m_scenes->GetFront();
 		firstscene->GetWorldInfo()->UpdateBackGround();
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(),
@@ -616,11 +615,10 @@ bool KX_KetsjiEngine::NextFrame()
 		
 		m_sceneconverter->MergeAsyncLoads();
 
-		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
 		// for each scene, call the proceed functions
-		{
-			KX_Scene* scene = *sceneit;
-	
+		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
+			KX_Scene *scene = (KX_Scene *)*sceit;
+
 			/* Suspension holds the physics and logic processing for an
 			 * entire scene. Objects can be suspended individually, and
 			 * the settings for that precede the logic and physics
@@ -750,7 +748,7 @@ void KX_KetsjiEngine::Render()
 		RenderDome();
 		return;
 	}
-	KX_Scene* firstscene = *m_scenes.begin();
+	KX_Scene *firstscene = (KX_Scene *)m_scenes->GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
@@ -796,11 +794,9 @@ void KX_KetsjiEngine::Render()
 	if (!BeginFrame())
 		return;
 
-	KX_SceneList::iterator sceneit;
-	for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); sceneit++)
 	// for each scene, call the proceed functions
-	{
-		KX_Scene* scene = *sceneit;
+	for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
+		KX_Scene *scene = (KX_Scene *)*sceit;
 		KX_Camera* cam = scene->GetActiveCamera();
 		// pass the scene's worldsettings to the rasterizer
 		scene->GetWorldInfo()->UpdateWorldSettings();
@@ -852,11 +848,9 @@ void KX_KetsjiEngine::Render()
 		if (!BeginFrame())
 			return;
 
-
-		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); sceneit++)
 		// for each scene, call the proceed functions
-		{
-			KX_Scene* scene = *sceneit;
+		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
+			KX_Scene *scene = (KX_Scene *)*sceit;
 			KX_Camera* cam = scene->GetActiveCamera();
 
 			// pass the scene's worldsettings to the rasterizer
@@ -918,7 +912,7 @@ int KX_KetsjiEngine::GetExitCode()
 	// if a gameactuator has set an exitcode or if there are no scenes left
 	if (!m_exitcode)
 	{
-		if (m_scenes.begin()==m_scenes.end())
+		if (m_scenes->GetCount() == 0)
 			m_exitcode = KX_EXIT_REQUEST_NO_SCENES_LEFT;
 	}
 	
@@ -1042,8 +1036,8 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 			// Sanity/debug print to make sure we're actually going at the fps we want (should be close to anim_timestep)
 			// printf("Anim fps: %f\n", 1.0/(m_frameTime - m_previousAnimTime));
 			m_previousAnimTime = m_frameTime;
-			for (KX_SceneList::iterator sceneit = m_scenes.begin(); sceneit != m_scenes.end(); ++sceneit)
-				(*sceneit)->UpdateAnimations(m_frameTime);
+			for (CListValue::iterator sceneit = m_scenes->GetBegin(); sceneit != m_scenes->GetEnd(); ++sceneit)
+				((KX_Scene *)*sceneit)->UpdateAnimations(m_frameTime);
 		}
 	}
 	else
@@ -1288,13 +1282,11 @@ void KX_KetsjiEngine::StopEngine()
 			m_sceneconverter->TestHandlesPhysicsObjectToAnimationIpo();
 		}
 
-		KX_SceneList::iterator sceneit;
-		for (sceneit = m_scenes.begin();sceneit != m_scenes.end() ; sceneit++)
-		{
-			KX_Scene* scene = *sceneit;
+		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
+			KX_Scene *scene = (KX_Scene *)*sceit;
 			m_sceneconverter->RemoveScene(scene);
 		}
-		m_scenes.clear();
+		m_scenes->ReleaseAndRemoveAll();
 
 		// cleanup all the stuff
 		m_rasterizer->Exit();
@@ -1305,7 +1297,7 @@ void KX_KetsjiEngine::StopEngine()
 // and have several scene's running in parallel
 void KX_KetsjiEngine::AddScene(KX_Scene* scene)
 { 
-	m_scenes.push_back(scene);
+	m_scenes->Add(scene->AddRef());
 	PostProcessScene(scene);
 }
 
@@ -1469,9 +1461,8 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		unsigned propsAct = 0;
 		unsigned propsMax = (m_canvas->GetHeight() - ycoord) / const_ysize;
 
-		KX_SceneList::iterator sceneit;
-		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); sceneit++) {
-			KX_Scene* scene = *sceneit;
+		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
+			KX_Scene *scene = (KX_Scene *)*sceit;
 			/* the 'normal' debug props */
 			vector<SCA_DebugProp*>& debugproplist = scene->GetDebugProperties();
 			
@@ -1526,29 +1517,15 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	}
 }
 
-
-KX_SceneList* KX_KetsjiEngine::CurrentScenes()
+CListValue *KX_KetsjiEngine::CurrentScenes()
 {
-	return &m_scenes;
+	return m_scenes;
 }
 
-
-
-KX_Scene* KX_KetsjiEngine::FindScene(const STR_String& scenename)
+KX_Scene *KX_KetsjiEngine::FindScene(const STR_String& scenename)
 {
-	KX_SceneList::iterator sceneit = m_scenes.begin();
-
-	// bit risky :) better to split the second clause 
-	while ( (sceneit != m_scenes.end()) 
-			&& ((*sceneit)->GetName() != scenename))
-	{
-		sceneit++;
-	}
-
-	return ((sceneit == m_scenes.end()) ? NULL : *sceneit);
+	return (KX_Scene *)m_scenes->FindValue(scenename);
 }
-
-
 
 void KX_KetsjiEngine::ConvertAndAddScene(const STR_String& scenename,bool overlay)
 {
@@ -1593,16 +1570,11 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 		{
 			STR_String scenename = *scenenameit;
 
-			KX_SceneList::iterator sceneit;
-			for (sceneit = m_scenes.begin();sceneit != m_scenes.end() ; sceneit++)
-			{
-				KX_Scene* scene = *sceneit;
-				if (scene->GetName()==scenename)
-				{
-					m_sceneconverter->RemoveScene(scene);
-					m_scenes.erase(sceneit);
-					break;
-				}
+			KX_Scene *scene = FindScene(scenename);
+			if (scene) {
+				m_sceneconverter->RemoveScene(scene);
+				m_scenes->RemoveValue(scene);
+				scene->Release();
 			}
 		}
 		m_removingScenes.clear();
@@ -1647,7 +1619,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 			STR_String scenename = *scenenameit;
 			KX_Scene* tmpscene = CreateScene(scenename);
 			if (tmpscene) {
-				m_scenes.push_back(tmpscene);
+				m_scenes->Add(tmpscene->AddRef());
 				PostProcessScene(tmpscene);
 			} else {
 				printf("warning: scene %s could not be found, not added!\n",scenename.ReadPtr());
@@ -1665,7 +1637,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 			STR_String scenename = *scenenameit;
 			KX_Scene* tmpscene = CreateScene(scenename);
 			if (tmpscene) {
-				m_scenes.insert(m_scenes.begin(),tmpscene);
+				m_scenes->Insert(0, tmpscene->AddRef());
 				PostProcessScene(tmpscene);
 			} else {
 				printf("warning: scene %s could not be found, not added!\n",scenename.ReadPtr());
@@ -1708,25 +1680,24 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 		{
 			STR_String oldscenename = (*scenenameit).first;
 			STR_String newscenename = (*scenenameit).second;
-			int i=0;
 			/* Scenes are not supposed to be included twice... I think */
-			KX_SceneList::iterator sceneit;
-			for (sceneit = m_scenes.begin();sceneit != m_scenes.end() ; sceneit++) {
-				KX_Scene* scene = *sceneit;
+			for (unsigned int sce_idx = 0; sce_idx < m_scenes->GetCount(); ++sce_idx) {
+				KX_Scene* scene = (KX_Scene*)m_scenes->GetValue(sce_idx);
 				if (scene->GetName() == oldscenename) {
 					// avoid crash if the new scene doesn't exist, just do nothing
 					Scene *blScene = m_sceneconverter->GetBlenderSceneForName(newscenename);
 					if (blScene) {
 						m_sceneconverter->RemoveScene(scene);
+						scene->Release();
+
 						KX_Scene* tmpscene = CreateScene(blScene);
-						m_scenes[i]=tmpscene;
+						m_scenes->SetValue(sce_idx, tmpscene->AddRef());
 						PostProcessScene(tmpscene);
 					}
 					else {
 						printf("warning: scene %s could not be found, not replaced!\n",newscenename.ReadPtr());
 					}
 				}
-				i++;
 			}
 		}
 		m_replace_scenes.clear();
@@ -1987,12 +1958,13 @@ void KX_KetsjiEngine::Resize()
 	KX_SceneList::iterator sceneit;
 
 	/* extended mode needs to recalculate camera frustrums when */
-	KX_Scene* firstscene = *m_scenes.begin();
+	KX_Scene* firstscene = (KX_Scene*)m_scenes->GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 
 	if (framesettings.FrameType() == RAS_FrameSettings::e_frame_extend) {
-		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); sceneit++) {
-			KX_Camera* cam = ((KX_Scene *)*sceneit)->GetActiveCamera();
+		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
+			KX_Scene *scene = (KX_Scene *)*sceit;
+			KX_Camera *cam = scene->GetActiveCamera();
 			cam->InvalidateProjectionMatrix();
 		}
 	}

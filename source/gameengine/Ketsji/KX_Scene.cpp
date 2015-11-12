@@ -147,7 +147,7 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 				   const STR_String& sceneName,
 				   Scene *scene,
 				   class RAS_ICanvas* canvas): 
-	PyObjectPlus(),
+	CValue(),
 	m_keyboardmgr(NULL),
 	m_mousemgr(NULL),
 	m_sceneConverter(NULL),
@@ -297,6 +297,42 @@ KX_Scene::~KX_Scene()
 #endif
 }
 
+CValue *KX_Scene::Calc(VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
+CValue *KX_Scene::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
+const STR_String& KX_Scene::GetText()
+{
+	return m_sceneName;
+}
+
+double KX_Scene::GetNumber()
+{
+	return 0.0;
+}
+
+STR_String& KX_Scene::GetName()
+{
+	return m_sceneName;
+}
+
+/// Set the name of the value
+void KX_Scene::SetName(const char *name)
+{
+	m_sceneName = name;
+}
+
+CValue *KX_Scene::GetReplica()
+{
+	return NULL;
+}
+
 RAS_BucketManager* KX_Scene::GetBucketManager()
 {
 	return m_bucketmanager;
@@ -396,13 +432,6 @@ class KX_WorldInfo* KX_Scene::GetWorldInfo()
 {
 	return m_worldinfo;
 }
-
-
-const STR_String& KX_Scene::GetName()
-{
-	return m_sceneName;
-}
-
 
 void KX_Scene::Suspend()
 {

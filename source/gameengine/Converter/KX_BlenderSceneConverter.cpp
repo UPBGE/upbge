@@ -297,7 +297,7 @@ void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 {
 	int i, size;
 	// delete the scene first as it will stop the use of entities
-	delete scene;
+	scene->Release();
 	// delete the entities of this scene
 	vector<pair<KX_Scene *, KX_WorldInfo *> >::iterator worldit;
 	size = m_worldinfos.size();
@@ -539,12 +539,11 @@ void KX_BlenderSceneConverter::ResetPhysicsObjectsAnimationIpo(bool clearIpo)
 	//TODO this entire function is deprecated, written for 2.4x
 	//the functionality should be rewritten, currently it does nothing
 
-	KX_SceneList *scenes = m_ketsjiEngine->CurrentScenes();
-	int numScenes = scenes->size();
-	int i;
-	for (i = 0; i < numScenes; i++) {
-		KX_Scene *scene = scenes->at(i);
-		CListValue *parentList = scene->GetRootParentList();
+	CListValue *scenes = m_ketsjiEngine->CurrentScenes();
+	for (CListValue::iterator sceit = scenes->GetBegin(); sceit != scenes->GetEnd(); ++sceit) {
+		KX_Scene *scene = (KX_Scene *)*sceit;
+		//PHY_IPhysicsEnvironment* physEnv = scene->GetPhysicsEnvironment();
+		CListValue* parentList = scene->GetRootParentList();
 		int numObjects = parentList->GetCount();
 		int g;
 		for (g = 0; g < numObjects; g++) {
@@ -600,11 +599,9 @@ void KX_BlenderSceneConverter::resetNoneDynamicObjectToIpo()
 // this generates ipo curves for position, rotation, allowing to use game physics in animation
 void KX_BlenderSceneConverter::WritePhysicsObjectToAnimationIpo(int frameNumber)
 {
-	KX_SceneList *scenes = m_ketsjiEngine->CurrentScenes();
-	int numScenes = scenes->size();
-	int i;
-	for (i = 0; i < numScenes; i++) {
-		KX_Scene *scene = scenes->at(i);
+	CListValue *scenes = m_ketsjiEngine->CurrentScenes();
+	for (CListValue::iterator sceit = scenes->GetBegin(); sceit != scenes->GetEnd(); ++sceit) {
+		KX_Scene *scene = (KX_Scene *)*sceit;
 		//PHY_IPhysicsEnvironment* physEnv = scene->GetPhysicsEnvironment();
 		CListValue *parentList = scene->GetObjectList();
 		int numObjects = parentList->GetCount();
@@ -712,11 +709,9 @@ void KX_BlenderSceneConverter::WritePhysicsObjectToAnimationIpo(int frameNumber)
 
 void KX_BlenderSceneConverter::TestHandlesPhysicsObjectToAnimationIpo()
 {
-	KX_SceneList *scenes = m_ketsjiEngine->CurrentScenes();
-	int numScenes = scenes->size();
-	int i;
-	for (i = 0; i < numScenes; i++) {
-		KX_Scene *scene = scenes->at(i);
+	CListValue *scenes = m_ketsjiEngine->CurrentScenes();
+	for (CListValue::iterator sceit = scenes->GetBegin(); sceit != scenes->GetEnd(); ++sceit) {
+		KX_Scene *scene = (KX_Scene *)*sceit;
 		//PHY_IPhysicsEnvironment* physEnv = scene->GetPhysicsEnvironment();
 		CListValue *parentList = scene->GetRootParentList();
 		int numObjects = parentList->GetCount();
@@ -1061,16 +1056,16 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 	BKE_main_id_tag_all(maggie, true);
 
 	/* free all tagged objects */
-	KX_SceneList *scenes = m_ketsjiEngine->CurrentScenes();
-	int numScenes = scenes->size();
+	CListValue *scenes = m_ketsjiEngine->CurrentScenes();
+	int numScenes = scenes->GetCount();
 
-	for (int scene_idx = 0; scene_idx < numScenes; scene_idx++) {
-		KX_Scene *scene = scenes->at(scene_idx);
+	for (unsigned int sce_idx = 0; sce_idx < numScenes; ++sce_idx) {
+		KX_Scene *scene = (KX_Scene *)scenes->GetValue(sce_idx);
 		if (IS_TAGGED(scene->GetBlenderScene())) {
 			m_ketsjiEngine->RemoveScene(scene->GetName());
 			m_mat_cache.erase(scene);
 			m_polymat_cache.erase(scene);
-			scene_idx--;
+			sce_idx--;
 			numScenes--;
 		}
 		else {
@@ -1187,8 +1182,8 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 	/* Worlds don't reference original blender data so we need to make a set from them */
 	typedef std::set<KX_WorldInfo *> KX_WorldInfoSet;
 	KX_WorldInfoSet worldset;
-	for (int scene_idx = 0; scene_idx < numScenes; scene_idx++) {
-		KX_Scene *scene = scenes->at(scene_idx);
+	for (CListValue::iterator sceit = scenes->GetBegin(); sceit != scenes->GetEnd(); ++sceit) {
+		KX_Scene *scene = (KX_Scene *)*sceit;
 		if (scene->GetWorldInfo())
 			worldset.insert(scene->GetWorldInfo());
 	}

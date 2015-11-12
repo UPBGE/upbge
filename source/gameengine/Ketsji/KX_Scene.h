@@ -50,6 +50,8 @@
 
 
 #include "EXP_PyObjectPlus.h"
+#include "EXP_Value.h"
+
 #include "RAS_2DFilterManager.h"
 
 /**
@@ -99,7 +101,7 @@ class KX_ObstacleSimulation;
  * The KX_Scene holds all data for an independent scene. It relates
  * KX_Objects to the specific objects in the modules.
  * */
-class KX_Scene : public PyObjectPlus, public SCA_IScene
+class KX_Scene : public CValue, public SCA_IScene
 {
 	Py_Header
 
@@ -544,8 +546,6 @@ public:
 	void ReplicateLogic(class KX_GameObject* newobj);
 	static SG_Callbacks	m_callbacks;
 
-	const STR_String& GetName();
-	
 	// Suspend the entire scene.
 	void Suspend();
 
@@ -604,6 +604,27 @@ public:
 	void Render2DFilters(RAS_ICanvas* canvas);
 
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
+
+	/** Inherited from CValue -- does nothing! */
+	CValue *Calc(VALUE_OPERATOR op, CValue *val);
+
+	/** Inherited from CValue -- does nothing! */
+	CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+
+	/**  Inherited from CValue -- does nothing! */
+	const STR_String& GetText();
+
+	/** Inherited from CValue -- does nothing! */
+	double GetNumber();
+
+	/**  Inherited from CValue -- returns the name of this object. */
+	STR_String& GetName();
+
+	/** Inherited from CValue -- set the name of this object. */
+	void SetName(const char *name);
+
+	/** Inherited from CValue -- does nothing! */
+	virtual CValue *GetReplica();
 
 #ifdef WITH_PYTHON
 	/* --------------------------------------------------------------------- */
