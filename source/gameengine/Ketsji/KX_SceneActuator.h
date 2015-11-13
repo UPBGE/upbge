@@ -53,11 +53,6 @@ class KX_SceneActuator : public SCA_IActuator
 	// (Set Camera) Object
 	class KX_Camera*			m_camera;
 
-	/** Is this a valid scene? */
-	class KX_Scene* FindScene(const char* sceneName);
-	/** Is this a valid camera? */
-	class KX_Camera* FindCamera(const char* cameraName);
-	
  public:
 	enum SCA_SceneActuatorMode
 	{

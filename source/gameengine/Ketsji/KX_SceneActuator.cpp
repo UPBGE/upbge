@@ -188,32 +188,6 @@ bool KX_SceneActuator::Update()
 }
 
 
-
-/*  returns a camera if the name is valid */
-KX_Camera* KX_SceneActuator::FindCamera(const char *camName)
-{
-	CListValue *scenes = m_KetsjiEngine->CurrentScenes();
-	STR_String name = STR_String(camName);
-	KX_Camera* cam = NULL;
-
-	for (CListValue::iterator sceit = scenes->GetBegin(); sceit != scenes->GetEnd(); ++sceit) {
-		KX_Scene *scene = (KX_Scene *)*sceit;
-		cam = scene->FindCamera(name);
-		if (cam)
-			break;
-	}
-
-	return cam;
-}
-
-
-
-KX_Scene* KX_SceneActuator::FindScene(const char *sceneName)
-{
-	return m_KetsjiEngine->FindScene(sceneName);
-}
-
-
 #ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
