@@ -631,13 +631,6 @@ bool KX_KetsjiEngine::NextFrame()
 	
 			if (!scene->IsSuspended())
 			{
-				// if the scene was suspended recalcutlate the delta tu "curtime"
-				m_suspendedtime = scene->getSuspendedTime();
-				if (scene->getSuspendedTime()!=0.0)
-					scene->setSuspendedDelta(scene->getSuspendedDelta()+m_clockTime-scene->getSuspendedTime());
-				m_suspendeddelta = scene->getSuspendedDelta();
-
-				
 				m_logger->StartLog(tc_network, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_NETWORK);
 				scene->GetNetworkScene()->proceed(m_frameTime);
@@ -707,13 +700,8 @@ bool KX_KetsjiEngine::NextFrame()
 				{
 					m_sceneconverter->WritePhysicsObjectToAnimationIpo(++m_currentFrame);
 				}
+			}
 
-				scene->setSuspendedTime(0.0);
-			} // suspended
-			else
-				if (scene->getSuspendedTime()==0.0)
-					scene->setSuspendedTime(m_clockTime);
-			
 			m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
 		}
 
@@ -728,6 +716,7 @@ bool KX_KetsjiEngine::NextFrame()
 		if (m_networkdevice)
 			m_networkdevice->NextFrame();
 
+		UpdateSuspendedScenes();
 		// scene management
 		ProcessScheduledScenes();
 		
@@ -740,7 +729,24 @@ bool KX_KetsjiEngine::NextFrame()
 	return doRender;
 }
 
-
+void KX_KetsjiEngine::UpdateSuspendedScenes()
+{
+	for (CListValue::iterator sceneit = m_scenes->GetBegin(); sceneit != m_scenes->GetEnd(); ++sceneit) {
+		KX_Scene *scene = (KX_Scene *)*sceneit;
+		if (scene->IsSuspended()) {
+			if (scene->getSuspendedTime() == 0.0f) {
+				scene->setSuspendedTime(m_clockTime);
+			}
+		}
+		else {
+			// if the scene was suspended recalcutlate the delta to "curtime"
+			if (scene->getSuspendedTime() != 0.0f) {
+				scene->setSuspendedDelta(scene->getSuspendedDelta() + m_clockTime - scene->getSuspendedTime());
+			}
+			scene->setSuspendedTime(0.0f);
+		}
+	}
+}
 
 void KX_KetsjiEngine::Render()
 {
@@ -1029,6 +1035,8 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 		return;
 	}
 
+	// Set scene total pause duration, used for animations played on scene which was suspended.
+	m_suspendeddelta = scene->getSuspendedDelta();
 	// Handle the animations independently of the logic time step
 	if (GetRestrictAnimationFPS()) {
 		double anim_timestep = 1.0 / KX_GetActiveScene()->GetAnimationFPS();

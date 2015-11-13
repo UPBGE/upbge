@@ -204,6 +204,18 @@ private:
 	/** Task scheduler for multi-threading */
 	TaskScheduler* m_taskscheduler;
 
+	/** Set scene's total pause duration for animations process.
+	 * This is done in a separate loop to get the proper state of each scenes.
+	 * eg: There's 2 scenes, the first is suspended and the second is active.
+	 * If the second scene resume the first, the first scene will be not proceed
+	 * in 'NextFrame' for one frame, but set as active.
+	 * The render functions, called after and which update animations,
+	 * will see the first scene as active and will proceed to it,
+	 * but it will cause some negative current frame on actions because of the
+	 * total pause duration not setted.
+	 */
+	void UpdateSuspendedScenes();
+
 	void					RenderFrame(KX_Scene* scene, KX_Camera* cam);
 	void					PostRenderScene(KX_Scene* scene);
 	void					RenderDebugProperties();
@@ -247,7 +259,7 @@ public:
 	///returns true if an update happened to indicate -> Render
 	bool			NextFrame();
 	void			Render();
-	
+
 	void			StartEngine(bool clearIpo);
 	void			StopEngine();
 	void			Export(const STR_String& filename);
