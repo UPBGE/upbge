@@ -760,6 +760,7 @@ bool GPG_Application::startEngine(void)
 			m_rasterizer,
 			m_canvas);
 		m_ketsjiengine->AddScene(m_kxStartScene);
+		m_kxStartScene->Release();
 		
 		// Create a timer that is used to kick the engine
 		if (!m_frameTimer) {

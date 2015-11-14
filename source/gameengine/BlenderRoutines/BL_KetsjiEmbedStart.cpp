@@ -513,6 +513,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				    rasterizer,
 					canvas);
 				ketsjiengine->AddScene(startscene);
+				startscene->Release();
 				
 				// init the rasterizer
 				rasterizer->Init();

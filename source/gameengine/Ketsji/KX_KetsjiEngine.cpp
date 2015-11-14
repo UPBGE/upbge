@@ -1290,11 +1290,12 @@ void KX_KetsjiEngine::StopEngine()
 			m_sceneconverter->TestHandlesPhysicsObjectToAnimationIpo();
 		}
 
-		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
-			KX_Scene *scene = (KX_Scene *)*sceit;
+		while (m_scenes->GetCount() > 0) {
+			KX_Scene *scene = (KX_Scene *)m_scenes->GetFront();
 			m_sceneconverter->RemoveScene(scene);
+			// WARNING: here the scene is a dangling pointer.
+			m_scenes->Remove(0);
 		}
-		m_scenes->ReleaseAndRemoveAll();
 
 		// cleanup all the stuff
 		m_rasterizer->Exit();
@@ -1629,6 +1630,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 			if (tmpscene) {
 				m_scenes->Add(tmpscene->AddRef());
 				PostProcessScene(tmpscene);
+				tmpscene->Release();
 			} else {
 				printf("warning: scene %s could not be found, not added!\n",scenename.ReadPtr());
 			}
@@ -1647,6 +1649,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 			if (tmpscene) {
 				m_scenes->Insert(0, tmpscene->AddRef());
 				PostProcessScene(tmpscene);
+				tmpscene->Release();
 			} else {
 				printf("warning: scene %s could not be found, not added!\n",scenename.ReadPtr());
 			}
