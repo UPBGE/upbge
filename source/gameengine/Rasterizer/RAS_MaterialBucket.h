@@ -80,19 +80,9 @@ public:
 class RAS_DisplayArray
 {
 public:
-	/** The offset relation to the previous RAS_DisplayArray.
-	 * For the user vertex are one big list but in C++ source
-	 * it's two different lists if we use quads and triangles.
-	 * So to fix that we add an offset.
-	 * This value is set in UpdateDisplayArraysOffset().
-	 */
-	unsigned int m_offset;
 	vector<RAS_TexVert> m_vertex;
 	vector<unsigned short> m_index;
-	/* LINE currently isn't used */
-	enum { LINE = 2, TRIANGLE = 3, QUAD = 4 } m_type;
-	//RAS_MeshSlot *m_origSlot;
-	
+
 	/* Number of RAS_MeshSlot using this array */
 	int m_users;
 
@@ -109,17 +99,7 @@ class RAS_MeshSlot : public SG_QList
 {
 	friend class RAS_ListRasterizer;
 private:
-	//  indices into display arrays
-	int							m_startarray;
-	int							m_endarray;
-	int							m_startindex;
-	int							m_endindex;
-	int							m_startvertex;
-	int							m_endvertex;
-	RAS_DisplayArrayList		m_displayArrays;
-
-	// for construction only
-	RAS_DisplayArray*			m_currentArray;
+	RAS_DisplayArray *m_displayArray;
 
 public:
 	// for rendering
@@ -147,33 +127,13 @@ public:
 	RAS_MeshSlot(const RAS_MeshSlot& slot);
 	virtual ~RAS_MeshSlot();
 	
-	void init(RAS_MaterialBucket *bucket, int numverts);
+	void init(RAS_MaterialBucket *bucket);
 
-	struct iterator {
-		RAS_DisplayArray *array;
-		RAS_TexVert *vertex;
-		unsigned short *index;
-		size_t startvertex;
-		size_t endvertex;
-		size_t totindex;
-		size_t arraynum;
-	};
-
-	void begin(iterator& it);
-	void next(iterator& it);
-	bool end(iterator& it);
-
-	/* used during construction */
-	void SetDisplayArray(int numverts);
-	RAS_DisplayArray *CurrentDisplayArray();
+	RAS_DisplayArray *GetDisplayArray();
 	void SetDeformer(RAS_Deformer* deformer);
 
-	void AddPolygon(int numverts);
 	int AddVertex(const RAS_TexVert& tv);
 	void AddPolygonVertex(int offset);
-
-	/// Update offset of each display array
-	void UpdateDisplayArraysOffset();
 
 	/* optimization */
 	bool Split(bool force=false);
@@ -236,7 +196,7 @@ public:
 	list<RAS_MeshSlot>::iterator msBegin();
 	list<RAS_MeshSlot>::iterator msEnd();
 
-	class RAS_MeshSlot*	AddMesh(int numverts);
+	class RAS_MeshSlot*	AddMesh();
 	class RAS_MeshSlot* CopyMesh(class RAS_MeshSlot *ms);
 	void				RemoveMesh(class RAS_MeshSlot* ms);
 	void				Optimize(MT_Scalar distance);

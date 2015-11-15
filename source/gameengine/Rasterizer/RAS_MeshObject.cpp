@@ -263,7 +263,7 @@ RAS_Polygon* RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 	if (!mmat) {
 		RAS_MeshMaterial meshmat;
 		meshmat.m_bucket = bucket;
-		meshmat.m_baseslot = meshmat.m_bucket->AddMesh(numverts);
+		meshmat.m_baseslot = meshmat.m_bucket->AddMesh();
 		meshmat.m_baseslot->m_mesh = this;
 		m_materials.push_back(meshmat);
 		mmat = &m_materials.back();
@@ -271,10 +271,9 @@ RAS_Polygon* RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 
 	/* add it to the bucket, this also adds new display arrays */
 	slot = mmat->m_baseslot;
-	slot->AddPolygon(numverts);
 
 	/* create a new polygon */
-	RAS_DisplayArray *darray = slot->CurrentDisplayArray();
+	RAS_DisplayArray *darray = slot->GetDisplayArray();
 	poly = new RAS_Polygon(bucket, darray, numverts);
 	m_Polygons.push_back(poly);
 
@@ -299,12 +298,12 @@ void RAS_MeshObject::SetVertexColor(RAS_IPolyMaterial* mat,MT_Vector4 rgba)
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(mat);
 	RAS_MeshSlot *slot = mmat->m_baseslot;
-	RAS_MeshSlot::iterator it;
+	RAS_DisplayArray *array = slot->GetDisplayArray();
 	size_t i;
 
-	for (slot->begin(it); !slot->end(it); slot->next(it))
-		for (i=it.startvertex; i<it.endvertex; i++)
-			it.vertex[i].SetRGBA(rgba);
+	for (i = 0; i < array->m_vertex.size(); i++) {
+		array->m_vertex[i].SetRGBA(rgba);
+	}
 }
 
 void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
@@ -324,7 +323,7 @@ void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
 	
 	mmat = GetMeshMaterial(poly->GetMaterial()->GetPolyMaterial());
 	slot = mmat->m_baseslot;
-	darray = slot->CurrentDisplayArray();
+	darray = slot->GetDisplayArray();
 
 	{ /* Shared Vertex! */
 		/* find vertices shared between faces, with the restriction
@@ -366,15 +365,10 @@ int RAS_MeshObject::NumVertices(RAS_IPolyMaterial* mat)
 {
 	RAS_MeshMaterial *mmat;
 	RAS_MeshSlot *slot;
-	RAS_MeshSlot::iterator it;
-	size_t len = 0;
 
 	mmat = GetMeshMaterial(mat);
 	slot = mmat->m_baseslot;
-	for (slot->begin(it); !slot->end(it); slot->next(it))
-		len += it.endvertex - it.startvertex;
-	
-	return len;
+	return slot->GetDisplayArray()->m_vertex.size();
 }
 
 
@@ -383,8 +377,6 @@ RAS_TexVert* RAS_MeshObject::GetVertex(unsigned int matid,
 {
 	RAS_MeshMaterial *mmat;
 	RAS_MeshSlot *slot;
-	RAS_MeshSlot::iterator it;
-	size_t len;
 
 	mmat = GetMeshMaterial(matid);
 
@@ -392,14 +384,12 @@ RAS_TexVert* RAS_MeshObject::GetVertex(unsigned int matid,
 		return NULL;
 	
 	slot = mmat->m_baseslot;
-	len = 0;
-	for (slot->begin(it); !slot->end(it); slot->next(it)) {
-		if (index >= len + it.endvertex - it.startvertex)
-			len += it.endvertex - it.startvertex;
-		else
-			return &it.vertex[index - len];
+	RAS_DisplayArray *array = slot->GetDisplayArray();
+
+	if (index < array->m_vertex.size()) {
+		return &array->m_vertex[index];
 	}
-	
+
 	return NULL;
 }
 
@@ -472,14 +462,6 @@ void RAS_MeshObject::EndConversion()
 	vector<vector<SharedVertex> >	shared_null(0);
 	shared_null.swap( m_sharedvertex_map ); /* really free the memory */
 #endif
-
-	for (std::list<RAS_MeshMaterial>::iterator it = m_materials.begin();
-		 it != m_materials.end();
-		 ++it)
-	{
-		RAS_MeshSlot *ms = it->m_baseslot;
-		ms->UpdateDisplayArraysOffset();
-	}
 }
 
 //void RAS_MeshObject::Transform(const MT_Transform& trans)
@@ -521,35 +503,31 @@ void RAS_MeshObject::SortPolygons(RAS_MeshSlot& ms, const MT_Transform &transfor
 	// to avoid excessive state changes while drawing. e) would
 	// require splitting polygons.
 
-	RAS_MeshSlot::iterator it;
+	RAS_DisplayArray *array = ms.GetDisplayArray();
 	size_t j;
 
-	for (ms.begin(it); !ms.end(it); ms.next(it)) {
-		unsigned int nvert = (int)it.array->m_type;
-		unsigned int totpoly = it.totindex/nvert;
+	unsigned int nvert = 3;
+	unsigned int totpoly = array->m_index.size() / nvert;
 
-		if (totpoly <= 1)
-			continue;
-		if (it.array->m_type == RAS_DisplayArray::LINE)
-			continue;
+	if (totpoly <= 1)
+		return;
 
-		// Extract camera Z plane...
-		const MT_Vector3 pnorm(transform.getBasis()[2]);
-		// unneeded: const MT_Scalar pval = transform.getOrigin()[2];
+	// Extract camera Z plane...
+	const MT_Vector3 pnorm(transform.getBasis()[2]);
+	// unneeded: const MT_Scalar pval = transform.getOrigin()[2];
 
-		vector<polygonSlot> poly_slots(totpoly);
+	vector<polygonSlot> poly_slots(totpoly);
 
-		/* get indices and z into temporary array */
-		for (j=0; j<totpoly; j++)
-			poly_slots[j].get(it.vertex, it.index, j*nvert, nvert, pnorm);
+	/* get indices and z into temporary array */
+	for (j=0; j<totpoly; j++)
+		poly_slots[j].get(array->m_vertex.data(), array->m_index.data(), j*nvert, nvert, pnorm);
 
-		/* sort (stable_sort might be better, if flickering happens?) */
-		std::sort(poly_slots.begin(), poly_slots.end(), backtofront());
+	/* sort (stable_sort might be better, if flickering happens?) */
+	std::sort(poly_slots.begin(), poly_slots.end(), backtofront());
 
-		/* get indices from temporary array again */
-		for (j=0; j<totpoly; j++)
-			poly_slots[j].set(it.index, j*nvert, nvert);
-	}
+	/* get indices from temporary array again */
+	for (j=0; j<totpoly; j++)
+		poly_slots[j].set(array->m_index.data(), j*nvert, nvert);
 }
 
 

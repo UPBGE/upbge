@@ -62,15 +62,12 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial*)
 				continue;
 
 			RAS_MeshSlot *slot = *mit->m_slots[(void*)m_gameobj];
-			RAS_MeshSlot::iterator it;
+			RAS_DisplayArray *array = slot->GetDisplayArray();
 
-			// for each array
-			for (slot->begin(it); !slot->end(it); slot->next(it)) {
-				//	For each vertex
-				for (i=it.startvertex; i<it.endvertex; i++) {
-					RAS_TexVert& v = it.vertex[i];
-					v.SetXYZ(m_bmesh->mvert[v.getOrigIndex()].co);
-				}
+			//	For each vertex
+			for (i = 0; i < array->m_vertex.size(); i++) {
+				RAS_TexVert& v = array->m_vertex[i];
+				v.SetXYZ(m_bmesh->mvert[v.getOrigIndex()].co);
 			}
 		}
 
@@ -119,7 +116,6 @@ void BL_MeshDeformer::RecalcNormals()
 	 * GL_NORMALIZE so we don't have to do per vertex normalization either
 	 * since the GPU can do it faster */
 	list<RAS_MeshMaterial>::iterator mit;
-	RAS_MeshSlot::iterator it;
 	size_t i;
 
 	/* set vertex normals to zero */
@@ -132,73 +128,47 @@ void BL_MeshDeformer::RecalcNormals()
 			continue;
 
 		RAS_MeshSlot *slot = *mit->m_slots[(void*)m_gameobj];
+		RAS_DisplayArray *array = slot->GetDisplayArray();
 
-		for (slot->begin(it); !slot->end(it); slot->next(it)) {
-			int nvert = (int)it.array->m_type;
+		for (i = 0; i < array->m_index.size(); i += 3) {
+			RAS_TexVert& v1 = array->m_vertex[array->m_index[i]];
+			RAS_TexVert& v2 = array->m_vertex[array->m_index[i+1]];
+			RAS_TexVert& v3 = array->m_vertex[array->m_index[i+2]];
 
-			for (i=0; i<it.totindex; i+=nvert) {
-				RAS_TexVert& v1 = it.vertex[it.index[i]];
-				RAS_TexVert& v2 = it.vertex[it.index[i+1]];
-				RAS_TexVert& v3 = it.vertex[it.index[i+2]];
-				RAS_TexVert *v4 = NULL;
+			const float *co1 = m_transverts[v1.getOrigIndex()];
+			const float *co2 = m_transverts[v2.getOrigIndex()];
+			const float *co3 = m_transverts[v3.getOrigIndex()];
+			
+			/* compute face normal */
+			float fnor[3], n1[3], n2[3];
 
-				const float *co1 = m_transverts[v1.getOrigIndex()];
-				const float *co2 = m_transverts[v2.getOrigIndex()];
-				const float *co3 = m_transverts[v3.getOrigIndex()];
-				const float *co4 = NULL;
-				
-				/* compute face normal */
-				float fnor[3], n1[3], n2[3];
+			n1[0] = co1[0] - co2[0];
+			n2[0] = co2[0] - co3[0];
+			n1[1] = co1[1] - co2[1];
 
-				if (nvert == 4) {
-					v4 = &it.vertex[it.index[i+3]];
-					co4 = m_transverts[v4->getOrigIndex()];
+			n2[1] = co2[1] - co3[1];
+			n1[2] = co1[2] - co2[2];
+			n2[2] = co2[2] - co3[2];
 
-					n1[0] = co1[0] - co3[0];
-					n1[1] = co1[1] - co3[1];
-					n1[2] = co1[2] - co3[2];
+			fnor[0] = n1[1] * n2[2] - n1[2] * n2[1];
+			fnor[1] = n1[2] * n2[0] - n1[0] * n2[2];
+			fnor[2] = n1[0] * n2[1] - n1[1] * n2[0];
+			normalize_v3(fnor);
 
-					n2[0] = co2[0] - co4[0];
-					n2[1] = co2[1] - co4[1];
-					n2[2] = co2[2] - co4[2];
-				}
-				else {
-					n1[0] = co1[0] - co2[0];
-					n2[0] = co2[0] - co3[0];
-					n1[1] = co1[1] - co2[1];
+			/* add to vertices for smooth normals */
+			float *vn1 = m_transnors[v1.getOrigIndex()];
+			float *vn2 = m_transnors[v2.getOrigIndex()];
+			float *vn3 = m_transnors[v3.getOrigIndex()];
 
-					n2[1] = co2[1] - co3[1];
-					n1[2] = co1[2] - co2[2];
-					n2[2] = co2[2] - co3[2];
-				}
+			vn1[0] += fnor[0]; vn1[1] += fnor[1]; vn1[2] += fnor[2];
+			vn2[0] += fnor[0]; vn2[1] += fnor[1]; vn2[2] += fnor[2];
+			vn3[0] += fnor[0]; vn3[1] += fnor[1]; vn3[2] += fnor[2];
 
-				fnor[0] = n1[1] * n2[2] - n1[2] * n2[1];
-				fnor[1] = n1[2] * n2[0] - n1[0] * n2[2];
-				fnor[2] = n1[0] * n2[1] - n1[1] * n2[0];
-				normalize_v3(fnor);
-
-				/* add to vertices for smooth normals */
-				float *vn1 = m_transnors[v1.getOrigIndex()];
-				float *vn2 = m_transnors[v2.getOrigIndex()];
-				float *vn3 = m_transnors[v3.getOrigIndex()];
-
-				vn1[0] += fnor[0]; vn1[1] += fnor[1]; vn1[2] += fnor[2];
-				vn2[0] += fnor[0]; vn2[1] += fnor[1]; vn2[2] += fnor[2];
-				vn3[0] += fnor[0]; vn3[1] += fnor[1]; vn3[2] += fnor[2];
-
-				if (v4) {
-					float *vn4 = m_transnors[v4->getOrigIndex()];
-					vn4[0] += fnor[0]; vn4[1] += fnor[1]; vn4[2] += fnor[2];
-				}
-
-				/* in case of flat - just assign, the vertices are split */
-				if (v1.getFlag() & RAS_TexVert::FLAT) {
-					v1.SetNormal(fnor);
-					v2.SetNormal(fnor);
-					v3.SetNormal(fnor);
-					if (v4)
-						v4->SetNormal(fnor);
-				}
+			/* in case of flat - just assign, the vertices are split */
+			if (v1.getFlag() & RAS_TexVert::FLAT) {
+				v1.SetNormal(fnor);
+				v2.SetNormal(fnor);
+				v3.SetNormal(fnor);
 			}
 		}
 	}
@@ -210,14 +180,13 @@ void BL_MeshDeformer::RecalcNormals()
 			continue;
 
 		RAS_MeshSlot *slot = *mit->m_slots[(void*)m_gameobj];
+		RAS_DisplayArray *array = slot->GetDisplayArray();
 
-		for (slot->begin(it); !slot->end(it); slot->next(it)) {
-			for (i=it.startvertex; i<it.endvertex; i++) {
-				RAS_TexVert& v = it.vertex[i];
+		for (i = 0; i < array->m_vertex.size(); i++) {
+			RAS_TexVert& v = array->m_vertex[i];
 
-				if (!(v.getFlag() & RAS_TexVert::FLAT))
-					v.SetNormal(m_transnors[v.getOrigIndex()]); //.safe_normalized()
-			}
+			if (!(v.getFlag() & RAS_TexVert::FLAT))
+				v.SetNormal(m_transnors[v.getOrigIndex()]); //.safe_normalized()
 		}
 	}
 }

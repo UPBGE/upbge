@@ -73,7 +73,6 @@ bool KX_SoftBodyDeformer::Apply(class RAS_IPolyMaterial *polymat)
 		return false;
 
 	//printf("apply\n");
-	RAS_MeshSlot::iterator it;
 	RAS_MeshMaterial *mmat;
 	RAS_MeshSlot *slot;
 	size_t i;
@@ -90,30 +89,27 @@ bool KX_SoftBodyDeformer::Apply(class RAS_IPolyMaterial *polymat)
 		return true;
 
 	slot = *mmat->m_slots[(void*)m_gameobj];
+	RAS_DisplayArray *array = slot->GetDisplayArray();
 
-	// for each array
-	for (slot->begin(it); !slot->end(it); slot->next(it)) 
-	{
-		btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
+	btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
 
-		int index = 0;
-		for (i=it.startvertex; i<it.endvertex; i++,index++) {
-			RAS_TexVert& v = it.vertex[i];
-			btAssert(v.getSoftBodyIndex() >= 0);
+	int index = 0;
+	for (i = 0; i < array->m_vertex.size(); i++, index++) {
+		RAS_TexVert& v = array->m_vertex[i];
+		btAssert(v.getSoftBodyIndex() >= 0);
 
-			MT_Point3 pt (
-				nodes[v.getSoftBodyIndex()].m_x.getX(),
-				nodes[v.getSoftBodyIndex()].m_x.getY(),
-				nodes[v.getSoftBodyIndex()].m_x.getZ());
-			v.SetXYZ(pt);
+		MT_Point3 pt (
+			nodes[v.getSoftBodyIndex()].m_x.getX(),
+			nodes[v.getSoftBodyIndex()].m_x.getY(),
+			nodes[v.getSoftBodyIndex()].m_x.getZ());
+		v.SetXYZ(pt);
 
-			MT_Vector3 normal (
-				nodes[v.getSoftBodyIndex()].m_n.getX(),
-				nodes[v.getSoftBodyIndex()].m_n.getY(),
-				nodes[v.getSoftBodyIndex()].m_n.getZ());
-			v.SetNormal(normal);
+		MT_Vector3 normal (
+			nodes[v.getSoftBodyIndex()].m_n.getX(),
+			nodes[v.getSoftBodyIndex()].m_n.getY(),
+			nodes[v.getSoftBodyIndex()].m_n.getZ());
+		v.SetNormal(normal);
 
-		}
 	}
 	return true;
 }

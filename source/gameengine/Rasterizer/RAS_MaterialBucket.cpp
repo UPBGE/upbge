@@ -63,12 +63,11 @@ RAS_MeshSlot::RAS_MeshSlot() : SG_QList()
 	m_bDisplayList = true;
 	m_joinSlot = NULL;
 	m_pDerivedMesh = NULL;
+	m_displayArray = NULL;
 }
 
 RAS_MeshSlot::~RAS_MeshSlot()
 {
-	RAS_DisplayArrayList::iterator it;
-
 #ifdef USE_SPLIT
 	Split(true);
 
@@ -76,10 +75,11 @@ RAS_MeshSlot::~RAS_MeshSlot()
 		m_joinedSlots.front()->Split(true);
 #endif
 
-	for (it=m_displayArrays.begin(); it!=m_displayArrays.end(); it++) {
-		(*it)->m_users--;
-		if ((*it)->m_users == 0)
-			delete *it;
+	if (m_displayArray) {
+		m_displayArray->m_users--;
+		if (m_displayArray->m_users == 0) {
+			delete m_displayArray;
+		}
 	}
 
 	if (m_DisplayList) {
@@ -90,8 +90,6 @@ RAS_MeshSlot::~RAS_MeshSlot()
 
 RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot) : SG_QList()
 {
-	RAS_DisplayArrayList::iterator it;
-
 	m_clientObj = NULL;
 	m_pDeformer = NULL;
 	m_pDerivedMesh = NULL;
@@ -105,160 +103,31 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot) : SG_QList()
 	m_DisplayList = NULL;
 	m_bDisplayList = slot.m_bDisplayList;
 	m_joinSlot = NULL;
-	m_currentArray = slot.m_currentArray;
-	m_displayArrays = slot.m_displayArrays;
+	m_displayArray = slot.m_displayArray;
 	m_joinedSlots = slot.m_joinedSlots;
 
-	m_startarray = slot.m_startarray;
-	m_startvertex = slot.m_startvertex;
-	m_startindex = slot.m_startindex;
-	m_endarray = slot.m_endarray;
-	m_endvertex = slot.m_endvertex;
-	m_endindex = slot.m_endindex;
+	// don't copy display arrays for now because it breaks python 
+	// access to vertices, but we'll need a solution if we want to
+	// join display arrays for reducing draw calls.
+	//*it = new RAS_DisplayArray(**it);
+	//(*it)->m_users = 1;
 
-	for (it=m_displayArrays.begin(); it!=m_displayArrays.end(); it++) {
-		// don't copy display arrays for now because it breaks python 
-		// access to vertices, but we'll need a solution if we want to
-		// join display arrays for reducing draw calls.
-		//*it = new RAS_DisplayArray(**it);
-		//(*it)->m_users = 1;
-
-		(*it)->m_users++;
+	if (m_displayArray) {
+		m_displayArray->m_users++;
 	}
 }
 
-void RAS_MeshSlot::init(RAS_MaterialBucket *bucket, int numverts)
+void RAS_MeshSlot::init(RAS_MaterialBucket *bucket)
 {
 	m_bucket = bucket;
 
-	SetDisplayArray(numverts);
-
-	m_startarray = 0;
-	m_startvertex = 0;
-	m_startindex = 0;
-	m_endarray = 0;
-	m_endvertex = 0;
-	m_endindex = 0;
+	m_displayArray = new RAS_DisplayArray();
+	m_displayArray->m_users = 1;
 }
 
-void RAS_MeshSlot::begin(RAS_MeshSlot::iterator& it)
+RAS_DisplayArray *RAS_MeshSlot::GetDisplayArray()
 {
-	int startvertex, endvertex;
-	int startindex, endindex;
-
-	it.array = m_displayArrays.empty() ? NULL : m_displayArrays[m_startarray];
-
-	if (it.array == NULL || it.array->m_index.size() == 0 || it.array->m_vertex.size() == 0) {
-		it.array = NULL;
-		it.vertex = NULL;
-		it.index = NULL;
-		it.startvertex = 0;
-		it.endvertex = 0;
-		it.totindex = 0;
-	}
-	else {
-		startvertex = m_startvertex;
-		endvertex = (m_startarray == m_endarray)? m_endvertex: it.array->m_vertex.size();
-		startindex = m_startindex;
-		endindex = (m_startarray == m_endarray)? m_endindex: it.array->m_index.size();
-
-		it.vertex = &it.array->m_vertex[0];
-		it.index = &it.array->m_index[startindex];
-		it.startvertex = startvertex;
-		it.endvertex = endvertex;
-		it.totindex = endindex-startindex;
-		it.arraynum = m_startarray;
-	}
-}
-
-void RAS_MeshSlot::next(RAS_MeshSlot::iterator& it)
-{
-	int startvertex, endvertex;
-	int startindex, endindex;
-
-	if (it.arraynum == (size_t)m_endarray) {
-		it.array = NULL;
-		it.vertex = NULL;
-		it.index = NULL;
-		it.startvertex = 0;
-		it.endvertex = 0;
-		it.totindex = 0;
-	}
-	else {
-		it.arraynum++;
-		it.array = m_displayArrays[it.arraynum];
-
-		startindex = 0;
-		endindex = (it.arraynum == (size_t)m_endarray)? m_endindex: it.array->m_index.size();
-		startvertex = 0;
-		endvertex = (it.arraynum == (size_t)m_endarray)? m_endvertex: it.array->m_vertex.size();
-
-		it.vertex = &it.array->m_vertex[0];
-		it.index = &it.array->m_index[startindex];
-		it.startvertex = startvertex;
-		it.endvertex = endvertex;
-		it.totindex = endindex-startindex;
-	}
-}
-
-bool RAS_MeshSlot::end(RAS_MeshSlot::iterator& it)
-{
-	return (it.array == NULL);
-}
-
-RAS_DisplayArray *RAS_MeshSlot::CurrentDisplayArray()
-{
-	return m_currentArray;
-}
-
-void RAS_MeshSlot::SetDisplayArray(int numverts)
-{
-	RAS_DisplayArrayList::iterator it;
-	RAS_DisplayArray *darray = NULL;
-	
-	for (it=m_displayArrays.begin(); it!=m_displayArrays.end(); it++) {
-		darray = *it;
-
-		if (darray->m_type == numverts) {
-			if (darray->m_index.size()+numverts >= RAS_DisplayArray::BUCKET_MAX_INDEX)
-				darray = NULL;
-			else if (darray->m_vertex.size()+numverts >= RAS_DisplayArray::BUCKET_MAX_VERTEX)
-				darray = NULL;
-			else
-				break;
-		}
-		else
-			darray = NULL;
-	}
-
-	if (!darray) {
-		darray = new RAS_DisplayArray();
-		darray->m_users = 1;
-
-		if (numverts == 2) darray->m_type = RAS_DisplayArray::LINE;
-		else if (numverts == 3) darray->m_type = RAS_DisplayArray::TRIANGLE;
-		else darray->m_type = RAS_DisplayArray::QUAD;
-
-		m_displayArrays.push_back(darray);
-
-		if (numverts == 2)
-			darray->m_type = RAS_DisplayArray::LINE;
-		else if (numverts == 3)
-			darray->m_type = RAS_DisplayArray::TRIANGLE;
-		else if (numverts == 4)
-			darray->m_type = RAS_DisplayArray::QUAD;
-		
-		m_endarray = m_displayArrays.size()-1;
-		m_endvertex = 0;
-		m_endindex = 0;
-	}
-
-	m_currentArray = darray;
-}
-
-void RAS_MeshSlot::AddPolygon(int numverts)
-{
-	SetDisplayArray(numverts);
+	return m_displayArray;
 }
 
 int RAS_MeshSlot::AddVertex(const RAS_TexVert& tv)
@@ -266,12 +135,9 @@ int RAS_MeshSlot::AddVertex(const RAS_TexVert& tv)
 	RAS_DisplayArray *darray;
 	int offset;
 	
-	darray = m_currentArray;
+	darray = m_displayArray;
 	darray->m_vertex.push_back(tv);
 	offset = darray->m_vertex.size()-1;
-
-	if (darray == m_displayArrays[m_endarray])
-		m_endvertex++;
 
 	return offset;
 }
@@ -280,74 +146,49 @@ void RAS_MeshSlot::AddPolygonVertex(int offset)
 {
 	RAS_DisplayArray *darray;
 
-	darray = m_currentArray;
+	darray = m_displayArray;
 	darray->m_index.push_back(offset);
-
-	if (darray == m_displayArrays[m_endarray])
-		m_endindex++;
-}
-
-void RAS_MeshSlot::UpdateDisplayArraysOffset()
-{
-	unsigned int offset = 0;
-	for (unsigned short i = 0; i < m_displayArrays.size(); ++i) {
-		RAS_DisplayArray *darray = m_displayArrays[i];
-		darray->m_offset = offset;
-		offset += darray->m_vertex.size();
-	}
 }
 
 void RAS_MeshSlot::SetDeformer(RAS_Deformer* deformer)
 {
 	if (deformer && m_pDeformer != deformer) {
-		RAS_DisplayArrayList::iterator it;
 		if (deformer->ShareVertexArray()) {
 			// this deformer uses the base vertex array, first release the current ones
-			for (it=m_displayArrays.begin(); it!=m_displayArrays.end(); it++) {
-				(*it)->m_users--;
-				if ((*it)->m_users == 0)
-					delete *it;
+			m_displayArray->m_users--;
+			if (m_displayArray->m_users == 0) {
+				delete m_displayArray;
 			}
-			m_displayArrays.clear();
+			m_displayArray = NULL;
 			// then hook to the base ones
 			RAS_MeshMaterial *mmat = m_mesh->GetMeshMaterial(m_bucket->GetPolyMaterial());
 			if (mmat && mmat->m_baseslot) {
-				m_displayArrays = mmat->m_baseslot->m_displayArrays;
-				for (it=m_displayArrays.begin(); it!=m_displayArrays.end(); it++) {
-					(*it)->m_users++;
-				}
+				m_displayArray = mmat->m_baseslot->GetDisplayArray();
+				m_displayArray->m_users++;
 			}
 		}
 		else {
 			// no sharing
 			// we create local copy of RAS_DisplayArray when we have a deformer:
 			// this way we can avoid conflict between the vertex cache of duplicates
-			for (it=m_displayArrays.begin(); it!=m_displayArrays.end(); it++) {
-				if (deformer->UseVertexArray()) {
-					// the deformer makes use of vertex array, make sure we have our local copy
-					if ((*it)->m_users > 1) {
-						// only need to copy if there are other users
-						// note that this is the usual case as vertex arrays are held by the material base slot
-						RAS_DisplayArray *newarray = new RAS_DisplayArray(*(*it));
-						newarray->m_users = 1;
-						(*it)->m_users--;
-						*it = newarray;
-					}
-				} else {
-					// the deformer is not using vertex array (Modifier), release them
-					(*it)->m_users--;
-					if ((*it)->m_users == 0)
-						delete *it;
+			if (deformer->UseVertexArray()) {
+				// the deformer makes use of vertex array, make sure we have our local copy
+				if (m_displayArray->m_users > 1) {
+					// only need to copy if there are other users
+					// note that this is the usual case as vertex arrays are held by the material base slot
+					RAS_DisplayArray *newarray = new RAS_DisplayArray(*m_displayArray);
+					newarray->m_users = 1;
+					m_displayArray->m_users--;
+					m_displayArray = newarray;
 				}
 			}
-			if (!deformer->UseVertexArray()) {
-				m_displayArrays.clear();
-				m_startarray = 0;
-				m_startvertex = 0;
-				m_startindex = 0;
-				m_endarray = 0;
-				m_endvertex = 0;
-				m_endindex = 0;
+			else {
+				// the deformer is not using vertex array (Modifier), release them
+				m_displayArray->m_users--;
+				if (m_displayArray->m_users == 0) {
+					delete m_displayArray;
+					m_displayArray = NULL;
+				}
 			}
 		}
 	}
@@ -372,6 +213,7 @@ bool RAS_MeshSlot::Equals(RAS_MeshSlot *target)
 
 bool RAS_MeshSlot::Join(RAS_MeshSlot *target, MT_Scalar distance)
 {
+#if 0
 	RAS_DisplayArrayList::iterator it;
 	iterator mit;
 	size_t i;
@@ -426,7 +268,7 @@ bool RAS_MeshSlot::Join(RAS_MeshSlot *target, MT_Scalar distance)
 		target->m_DisplayList->Release();
 		target->m_DisplayList = NULL;
 	}
-	
+#endif
 	return true;
 #if 0
 	return false;
@@ -435,6 +277,7 @@ bool RAS_MeshSlot::Join(RAS_MeshSlot *target, MT_Scalar distance)
 
 bool RAS_MeshSlot::Split(bool force)
 {
+#if 0
 	list<RAS_MeshSlot*>::iterator jit;
 	RAS_MeshSlot *target = m_joinSlot;
 	RAS_DisplayArrayList::iterator it, jt;
@@ -493,7 +336,7 @@ bool RAS_MeshSlot::Split(bool force)
 
 		return true;
 	}
-
+#endif
 	return false;
 }
 
@@ -549,14 +392,14 @@ bool RAS_MaterialBucket::IsZSort() const
 	return (m_material->IsZSort());
 }
 
-RAS_MeshSlot* RAS_MaterialBucket::AddMesh(int numverts)
+RAS_MeshSlot* RAS_MaterialBucket::AddMesh()
 {
 	RAS_MeshSlot *ms;
 
 	m_meshSlots.push_back(RAS_MeshSlot());
 	
 	ms = &m_meshSlots.back();
-	ms->init(this, numverts);
+	ms->init(this);
 
 	return ms;
 }

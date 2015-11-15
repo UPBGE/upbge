@@ -60,57 +60,44 @@ void RAS_StorageVA::IndexPrimitives(class RAS_MeshSlot& ms)
 {
 	static const GLsizei stride = sizeof(RAS_TexVert);
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME, use_color_array = true;
-	RAS_MeshSlot::iterator it;
-	GLenum drawmode;
+	RAS_DisplayArray *array = ms.GetDisplayArray();
+	RAS_TexVert *vertexarray = array->m_vertex.data();
+	unsigned short *indexarray = array->m_index.data();
 
 	if (!wireframe)
 		EnableTextures(true);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
 
-	// use glDrawElements to draw each vertexarray
-	for (ms.begin(it); !ms.end(it); ms.next(it)) {
-		if (it.totindex == 0)
-			continue;
+	// colors
+	if (!wireframe) {
+		if (ms.m_bObjectColor) {
+			const MT_Vector4& rgba = ms.m_RGBAcolor;
 
-		// drawing mode
-		if (it.array->m_type == RAS_DisplayArray::TRIANGLE)
-			drawmode = GL_TRIANGLES;
-		else if (it.array->m_type == RAS_DisplayArray::QUAD)
-			drawmode = GL_QUADS;
-		else
-			drawmode = GL_LINES;
-
-		// colors
-		if (drawmode != GL_LINES && !wireframe) {
-			if (ms.m_bObjectColor) {
-				const MT_Vector4& rgba = ms.m_RGBAcolor;
-
-				glDisableClientState(GL_COLOR_ARRAY);
-				glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
-				use_color_array = false;
-			}
-			else {
-				glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-				glEnableClientState(GL_COLOR_ARRAY);
-				use_color_array = true;
-			}
+			glDisableClientState(GL_COLOR_ARRAY);
+			glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
+			use_color_array = false;
 		}
-		else
+		else {
 			glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-
-		glVertexPointer(3, GL_FLOAT, stride, it.vertex->getXYZ());
-		glNormalPointer(GL_FLOAT, stride, it.vertex->getNormal());
-
-		if (!wireframe) {
-			TexCoordPtr(it.vertex);
-			if (use_color_array)
-				glColorPointer(4, GL_UNSIGNED_BYTE, stride, it.vertex->getRGBA());
+			glEnableClientState(GL_COLOR_ARRAY);
+			use_color_array = true;
 		}
-
-		// here the actual drawing takes places
-		glDrawElements(drawmode, it.totindex, GL_UNSIGNED_SHORT, it.index);
 	}
+	else
+		glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+
+	glVertexPointer(3, GL_FLOAT, stride, vertexarray->getXYZ());
+	glNormalPointer(GL_FLOAT, stride, vertexarray->getNormal());
+
+	if (!wireframe) {
+		TexCoordPtr(vertexarray);
+		if (use_color_array)
+			glColorPointer(4, GL_UNSIGNED_BYTE, stride, vertexarray->getRGBA());
+	}
+
+	// here the actual drawing takes places
+	glDrawElements(GL_TRIANGLES, array->m_index.size(), GL_UNSIGNED_SHORT, indexarray);
 
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);

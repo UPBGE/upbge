@@ -291,7 +291,6 @@ void BL_SkinDeformer::BGEDeformVerts()
 
 void BL_SkinDeformer::UpdateTransverts()
 {
-	RAS_MeshSlot::iterator it;
 	RAS_MeshMaterial *mmat;
 	RAS_MeshSlot *slot;
 	size_t i, nmat, imat;
@@ -307,17 +306,15 @@ void BL_SkinDeformer::UpdateTransverts()
 				continue;
 
 			slot = *mmat->m_slots[(void*)m_gameobj];
+			RAS_DisplayArray *array = slot->GetDisplayArray();
 
-			// for each array
-			for (slot->begin(it); !slot->end(it); slot->next(it)) {
-				// for each vertex
-				// copy the untransformed data from the original mvert
-				for (i=it.startvertex; i<it.endvertex; i++) {
-					RAS_TexVert& v = it.vertex[i];
-					v.SetXYZ(m_transverts[v.getOrigIndex()]);
-					if (m_copyNormals)
-						v.SetNormal(m_transnors[v.getOrigIndex()]);
-				}
+			// for each vertex
+			// copy the untransformed data from the original mvert
+			for (i = 0; i < array->m_vertex.size(); i++) {
+				RAS_TexVert& v = array->m_vertex[i];
+				v.SetXYZ(m_transverts[v.getOrigIndex()]);
+				if (m_copyNormals)
+					v.SetNormal(m_transnors[v.getOrigIndex()]);
 			}
 		}
 

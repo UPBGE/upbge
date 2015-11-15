@@ -441,7 +441,6 @@ bool CcdPhysicsController::CreateSoftbody()
 		RAS_MeshObject *rasMesh = GetShapeInfo()->GetMesh();
 
 		if (rasMesh && !m_softbodyMappingDone) {
-			RAS_MeshSlot::iterator it;
 			RAS_MeshMaterial *mmat;
 			RAS_MeshSlot *slot;
 			size_t i;
@@ -451,22 +450,22 @@ bool CcdPhysicsController::CreateSoftbody()
 				mmat = rasMesh->GetMeshMaterial(m);
 
 				slot = mmat->m_baseslot;
-				for (slot->begin(it); !slot->end(it); slot->next(it)) {
-					int index = 0;
-					for (i = it.startvertex; i < it.endvertex; i++, index++) {
-						RAS_TexVert *vertex = &it.vertex[i];
-						//search closest index, and store it in vertex
-						vertex->setSoftBodyIndex(0);
-						btScalar maxDistSqr = 1e30;
-						btSoftBody::tNodeArray& nodes(psb->m_nodes);
-						btVector3 xyz = btVector3(vertex->getXYZ()[0], vertex->getXYZ()[1], vertex->getXYZ()[2]);
-						for (int n = 0; n < nodes.size(); n++) {
-							btScalar distSqr = (nodes[n].m_x - xyz).length2();
-							if (distSqr < maxDistSqr) {
-								maxDistSqr = distSqr;
+				RAS_DisplayArray *array = slot->GetDisplayArray();
 
-								vertex->setSoftBodyIndex(n);
-							}
+				int index = 0;
+				for (i = 0; i < array->m_vertex.size(); i++, index++) {
+					RAS_TexVert *vertex = &array->m_vertex[i];
+					//search closest index, and store it in vertex
+					vertex->setSoftBodyIndex(0);
+					btScalar maxDistSqr = 1e30;
+					btSoftBody::tNodeArray& nodes(psb->m_nodes);
+					btVector3 xyz = btVector3(vertex->getXYZ()[0], vertex->getXYZ()[1], vertex->getXYZ()[2]);
+					for (int n = 0; n < nodes.size(); n++) {
+						btScalar distSqr = (nodes[n].m_x - xyz).length2();
+						if (distSqr < maxDistSqr) {
+							maxDistSqr = distSqr;
+
+							vertex->setSoftBodyIndex(n);
 						}
 					}
 				}

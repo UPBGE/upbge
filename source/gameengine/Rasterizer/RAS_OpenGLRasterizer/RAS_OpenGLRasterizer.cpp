@@ -634,7 +634,6 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms, class RAS_IP
 {
 	bool obcolor = ms.m_bObjectColor;
 	MT_Vector4& rgba = ms.m_RGBAcolor;
-	RAS_MeshSlot::iterator it;
 
 	const STR_String& mytext = ((CValue *)m_clientobject)->GetPropertyText("Text");
 
@@ -646,59 +645,42 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms, class RAS_IP
 	else
 		glEnableClientState(GL_COLOR_ARRAY);
 
-	for (ms.begin(it); !ms.end(it); ms.next(it)) {
-		RAS_TexVert *vertex;
-		size_t i, j, numvert;
+	RAS_TexVert *vertex;
+	size_t i, j, numvert;
 
-		numvert = it.array->m_type;
+	RAS_DisplayArray *array = ms.GetDisplayArray();
+	numvert = 3;
 
-		if (it.array->m_type == RAS_DisplayArray::LINE) {
-			// line drawing, no text
-			glBegin(GL_LINES);
+	// triangle and quad text drawing
+	for (i = 0; i < array->m_index.size(); i += numvert) {
+		float v[4][3];
+		const float  *v_ptr[4] = {NULL};
+		const float *uv_ptr[4] = {NULL};
+		int glattrib, unit;
 
-			for (i = 0; i < it.totindex; i += 2) {
-				vertex = &it.vertex[it.index[i]];
-				glVertex3fv(vertex->getXYZ());
+		for (j = 0; j < numvert; j++) {
+			vertex = &array->m_vertex[array->m_index[i + j]];
 
-				vertex = &it.vertex[it.index[i + 1]];
-				glVertex3fv(vertex->getXYZ());
-			}
+			v[j][0] = vertex->getXYZ()[0];
+			v[j][1] = vertex->getXYZ()[1];
+			v[j][2] = vertex->getXYZ()[2];
+			v_ptr[j] = v[j];
 
-			glEnd();
+			uv_ptr[j] = vertex->getUV(0);
 		}
-		else {
-			// triangle and quad text drawing
-			for (i = 0; i < it.totindex; i += numvert) {
-				float v[4][3];
-				const float  *v_ptr[4] = {NULL};
-				const float *uv_ptr[4] = {NULL};
-				int glattrib, unit;
 
-				for (j = 0; j < numvert; j++) {
-					vertex = &it.vertex[it.index[i + j]];
+		// find the right opengl attribute
+		glattrib = -1;
+		if (GLEW_ARB_vertex_program)
+			for (unit = 0; unit < m_attrib_num; unit++)
+				if (m_attrib[unit] == RAS_TEXCO_UV)
+					glattrib = unit;
 
-					v[j][0] = vertex->getXYZ()[0];
-					v[j][1] = vertex->getXYZ()[1];
-					v[j][2] = vertex->getXYZ()[2];
-					v_ptr[j] = v[j];
+		GPU_render_text(
+		    polymat->GetMTexPoly(), polymat->GetDrawingMode(), mytext, mytext.Length(), polymat->GetMCol(),
+		    v_ptr, uv_ptr, glattrib);
 
-					uv_ptr[j] = vertex->getUV(0);
-				}
-
-				// find the right opengl attribute
-				glattrib = -1;
-				if (GLEW_ARB_vertex_program)
-					for (unit = 0; unit < m_attrib_num; unit++)
-						if (m_attrib[unit] == RAS_TEXCO_UV)
-							glattrib = unit;
-
-				GPU_render_text(
-				    polymat->GetMTexPoly(), polymat->GetDrawingMode(), mytext, mytext.Length(), polymat->GetMCol(),
-				    v_ptr, uv_ptr, glattrib);
-
-				ClearCachingInfo();
-			}
-		}
+		ClearCachingInfo();
 	}
 
 	glDisableClientState(GL_COLOR_ARRAY);

@@ -42,7 +42,7 @@ enum RAS_ListSlotFlags {
 
 struct DerivedMesh;
 
-typedef std::map<RAS_DisplayArrayList, RAS_ListSlot *> RAS_ArrayLists;
+typedef std::map<RAS_DisplayArray *, RAS_ListSlot *> RAS_ArrayLists;
 typedef std::vector<RAS_ListSlot *> RAS_ListSlots; // indexed by material slot number
 typedef std::map<DerivedMesh *, RAS_ListSlots *> RAS_DerivedMeshLists;
 

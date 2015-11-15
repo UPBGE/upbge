@@ -252,15 +252,13 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 		}
 
 		RAS_MeshSlot *slot = mit->m_baseslot;
-		RAS_MeshSlot::iterator it;
+		RAS_DisplayArray *array = slot->GetDisplayArray();
 		ok = true;
 
-		for (slot->begin(it); !slot->end(it); slot->next(it)) {
-			size_t i;
-			for (i = it.startvertex; i < it.endvertex; i++) {
-				RAS_TexVert *vert = &it.vertex[i];
-				vert->Transform(transform, ntransform);
-			}
+		size_t i;
+		for (i = 0; i < array->m_vertex.size(); i++) {
+			RAS_TexVert *vert = &array->m_vertex[i];
+			vert->Transform(transform, ntransform);
 		}
 
 		/* if we set a material index, quit when done */
@@ -327,31 +325,29 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 		}
 
 		RAS_MeshSlot *slot = mit->m_baseslot;
-		RAS_MeshSlot::iterator it;
+		RAS_DisplayArray *array = slot->GetDisplayArray();
 		ok = true;
 
-		for (slot->begin(it); !slot->end(it); slot->next(it)) {
-			size_t i;
+		size_t i;
 
-			for (i = it.startvertex; i < it.endvertex; i++) {
-				RAS_TexVert *vert = &it.vertex[i];
-				if (uvindex_from != -1) {
-					if (uvindex_from == 0) vert->SetUV(1, vert->getUV(0));
-					else                   vert->SetUV(0, vert->getUV(1));
-				}
+		for (i = 0; i < array->m_vertex.size(); i++) {
+			RAS_TexVert *vert = &array->m_vertex[i];
+			if (uvindex_from != -1) {
+				if (uvindex_from == 0) vert->SetUV(1, vert->getUV(0));
+				else                   vert->SetUV(0, vert->getUV(1));
+			}
 
-				switch (uvindex) {
-					case 0:
-						vert->TransformUV(0, transform);
-						break;
-					case 1:
-						vert->TransformUV(1, transform);
-						break;
-					case -1:
-						vert->TransformUV(0, transform);
-						vert->TransformUV(1, transform);
-						break;
-				}
+			switch (uvindex) {
+				case 0:
+					vert->TransformUV(0, transform);
+					break;
+				case 1:
+					vert->TransformUV(1, transform);
+					break;
+				case -1:
+					vert->TransformUV(0, transform);
+					vert->TransformUV(1, transform);
+					break;
 			}
 		}
 

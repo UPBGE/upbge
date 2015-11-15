@@ -37,13 +37,7 @@ VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 	this->indices = indices;
 	this->stride = sizeof(RAS_TexVert);
 
-	//	Determine drawmode
-	if (data->m_type == data->QUAD)
-		this->mode = GL_QUADS;
-	else if (data->m_type == data->TRIANGLE)
-		this->mode = GL_TRIANGLES;
-	else
-		this->mode = GL_LINE;
+	this->mode = GL_TRIANGLES;
 
 	// Generate Buffers
 	glGenBuffersARB(1, &this->ibo);
@@ -210,20 +204,18 @@ void RAS_StorageVBO::Exit()
 
 void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot& ms)
 {
-	RAS_MeshSlot::iterator it;
+	RAS_DisplayArray *array = ms.GetDisplayArray();
 	VBO *vbo;
 
-	for (ms.begin(it); !ms.end(it); ms.next(it)) {
-		vbo = m_vbo_lookup[it.array];
+	vbo = m_vbo_lookup[array];
 
-		if (vbo == 0)
-			m_vbo_lookup[it.array] = vbo = new VBO(it.array, it.totindex);
+	if (vbo == 0)
+		m_vbo_lookup[array] = vbo = new VBO(array, array->m_index.size());
 
 		// Update the vbo
-		if (ms.m_mesh->MeshModified()) {
-			vbo->UpdateData();
-		}
-
-		vbo->Draw(*m_texco_num, m_texco, *m_attrib_num, m_attrib, m_attrib_layer);
+	if (ms.m_mesh->MeshModified()) {
+		vbo->UpdateData();
 	}
+
+	vbo->Draw(*m_texco_num, m_texco, *m_attrib_num, m_attrib, m_attrib_layer);
 }

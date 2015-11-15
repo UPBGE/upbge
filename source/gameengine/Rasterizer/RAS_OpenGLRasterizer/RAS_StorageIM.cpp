@@ -171,7 +171,6 @@ void RAS_StorageIM::IndexPrimitives(RAS_MeshSlot& ms)
 	bool obcolor = ms.m_bObjectColor;
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
 	MT_Vector4& rgba = ms.m_RGBAcolor;
-	RAS_MeshSlot::iterator it;
 
 	if (ms.m_pDerivedMesh) {
 		// mesh data is in derived mesh,
@@ -213,54 +212,29 @@ void RAS_StorageIM::IndexPrimitives(RAS_MeshSlot& ms)
 		return;
 	}
 	// iterate over display arrays, each containing an index + vertex array
-	for (ms.begin(it); !ms.end(it); ms.next(it)) {
-		RAS_TexVert *vertex;
-		size_t i, j, numvert;
+	RAS_TexVert *vertex;
+	size_t i;
+	RAS_DisplayArray *array = ms.GetDisplayArray();
 
-		numvert = it.array->m_type;
+	glBegin(GL_TRIANGLES);
 
-		if (it.array->m_type == RAS_DisplayArray::LINE) {
-			// line drawing
-			glBegin(GL_LINES);
+	if (obcolor)
+		glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 
-			for (i = 0; i < it.totindex; i += 2) {
-				vertex = &it.vertex[it.index[i]];
-				glVertex3fv(vertex->getXYZ());
+	for (i = 0; i < array->m_index.size(); i++) {
+		vertex = &array->m_vertex[array->m_index[i]];
 
-				vertex = &it.vertex[it.index[i + 1]];
-				glVertex3fv(vertex->getXYZ());
-			}
+		if (!wireframe) {
+			if (!obcolor)
+				glColor4ubv((const GLubyte *)(vertex->getRGBA()));
 
-			glEnd();
+			glNormal3fv(vertex->getNormal());
+
+			TexCoord(*vertex);
 		}
-		else {
-			// triangle and quad drawing
-			if (it.array->m_type == RAS_DisplayArray::TRIANGLE)
-				glBegin(GL_TRIANGLES);
-			else
-				glBegin(GL_QUADS);
 
-			for (i = 0; i < it.totindex; i += numvert) {
-				if (obcolor)
-					glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
-
-				for (j = 0; j < numvert; j++) {
-					vertex = &it.vertex[it.index[i + j]];
-
-					if (!wireframe) {
-						if (!obcolor)
-							glColor4ubv((const GLubyte *)(vertex->getRGBA()));
-
-						glNormal3fv(vertex->getNormal());
-
-						TexCoord(*vertex);
-					}
-
-					glVertex3fv(vertex->getXYZ());
-				}
-			}
-
-			glEnd();
-		}
+		glVertex3fv(vertex->getXYZ());
 	}
+
+	glEnd();
 }
