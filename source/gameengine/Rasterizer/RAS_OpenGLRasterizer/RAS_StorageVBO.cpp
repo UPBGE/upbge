@@ -32,46 +32,46 @@
 
 VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 {
-	this->data = data;
-	this->size = data->m_vertex.size();
-	this->indices = indices;
-	this->stride = sizeof(RAS_TexVert);
+	m_data = data;
+	m_size = data->m_vertex.size();
+	m_indices = indices;
+	m_stride = sizeof(RAS_TexVert);
 
-	this->mode = GL_TRIANGLES;
+	m_mode = GL_TRIANGLES;
 
 	// Generate Buffers
-	glGenBuffersARB(1, &this->ibo);
-	glGenBuffersARB(1, &this->vbo_id);
+	glGenBuffersARB(1, &m_ibo);
+	glGenBuffersARB(1, &m_vbo_id);
 
 	// Fill the buffers with initial data
 	UpdateIndices();
 	UpdateData();
 
 	// Establish offsets
-	this->vertex_offset = (void *)(((RAS_TexVert *)0)->getXYZ());
-	this->normal_offset = (void *)(((RAS_TexVert *)0)->getNormal());
-	this->tangent_offset = (void *)(((RAS_TexVert *)0)->getTangent());
-	this->color_offset = (void *)(((RAS_TexVert *)0)->getRGBA());
-	this->uv_offset = (void *)(((RAS_TexVert *)0)->getUV(0));
+	m_vertex_offset = (void *)(((RAS_TexVert *)0)->getXYZ());
+	m_normal_offset = (void *)(((RAS_TexVert *)0)->getNormal());
+	m_tangent_offset = (void *)(((RAS_TexVert *)0)->getTangent());
+	m_color_offset = (void *)(((RAS_TexVert *)0)->getRGBA());
+	m_uv_offset = (void *)(((RAS_TexVert *)0)->getUV(0));
 }
 
 VBO::~VBO()
 {
-	glDeleteBuffersARB(1, &this->ibo);
-	glDeleteBuffersARB(1, &this->vbo_id);
+	glDeleteBuffersARB(1, &m_ibo);
+	glDeleteBuffersARB(1, &m_vbo_id);
 }
 
 void VBO::UpdateData()
 {
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
-	glBufferData(GL_ARRAY_BUFFER, this->stride * this->size, &this->data->m_vertex[0], GL_STATIC_DRAW);
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
+	glBufferData(GL_ARRAY_BUFFER, m_stride * m_size, m_data->m_vertex.data(), GL_STATIC_DRAW);
 }
 
 void VBO::UpdateIndices()
 {
-	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, this->ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, data->m_index.size() * sizeof(GLushort),
-	             &data->m_index[0], GL_STATIC_DRAW);
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_data->m_index.size() * sizeof(GLushort),
+	             m_data->m_index.data(), GL_STATIC_DRAW);
 }
 
 void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer)
@@ -79,20 +79,20 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 	int unit;
 
 	// Bind buffers
-	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, this->ibo);
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, this->vbo_id);
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
 
 	// Vertexes
 	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(3, GL_FLOAT, this->stride, this->vertex_offset);
+	glVertexPointer(3, GL_FLOAT, m_stride, m_vertex_offset);
 
 	// Normals
 	glEnableClientState(GL_NORMAL_ARRAY);
-	glNormalPointer(GL_FLOAT, this->stride, this->normal_offset);
+	glNormalPointer(GL_FLOAT, m_stride, m_normal_offset);
 
 	// Colors
 	glEnableClientState(GL_COLOR_ARRAY);
-	glColorPointer(4, GL_UNSIGNED_BYTE, this->stride, this->color_offset);
+	glColorPointer(4, GL_UNSIGNED_BYTE, m_stride, m_color_offset);
 
 	for (unit = 0; unit < texco_num; ++unit) {
 		glClientActiveTexture(GL_TEXTURE0_ARB + unit);
@@ -101,25 +101,25 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 			{
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-				glTexCoordPointer(3, GL_FLOAT, this->stride, this->vertex_offset);
+				glTexCoordPointer(3, GL_FLOAT, m_stride, m_vertex_offset);
 				break;
 			}
 			case RAS_IRasterizer::RAS_TEXCO_UV:
 			{
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-				glTexCoordPointer(2, GL_FLOAT, this->stride, (void *)((intptr_t)this->uv_offset + (sizeof(GLfloat) * 2 * unit)));
+				glTexCoordPointer(2, GL_FLOAT, m_stride, (void *)((intptr_t)m_uv_offset + (sizeof(GLfloat) * 2 * unit)));
 				break;
 			}
 			case RAS_IRasterizer::RAS_TEXCO_NORM:
 			{
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-				glTexCoordPointer(3, GL_FLOAT, this->stride, this->normal_offset);
+				glTexCoordPointer(3, GL_FLOAT, m_stride, m_normal_offset);
 				break;
 			}
 			case RAS_IRasterizer::RAS_TEXTANGENT:
 			{
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-				glTexCoordPointer(4, GL_FLOAT, this->stride, this->tangent_offset);
+				glTexCoordPointer(4, GL_FLOAT, m_stride, m_tangent_offset);
 				break;
 			}
 			default:
@@ -134,25 +134,25 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 				case RAS_IRasterizer::RAS_TEXCO_ORCO:
 				case RAS_IRasterizer::RAS_TEXCO_GLOB:
 				{
-					glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, this->stride, this->vertex_offset);
+					glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, m_stride, m_vertex_offset);
 					glEnableVertexAttribArrayARB(unit);
 					break;
 				}
 				case RAS_IRasterizer::RAS_TEXCO_UV:
 				{
-					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, this->stride, (void *)((intptr_t)this->uv_offset + attrib_layer[unit] * sizeof(GLfloat) * 2));
+					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, m_stride, (void *)((intptr_t)m_uv_offset + attrib_layer[unit] * sizeof(GLfloat) * 2));
 					glEnableVertexAttribArrayARB(unit);
 					break;
 				}
 				case RAS_IRasterizer::RAS_TEXCO_NORM:
 				{
-					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, stride, this->normal_offset);
+					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, m_stride, m_normal_offset);
 					glEnableVertexAttribArrayARB(unit);
 					break;
 				}
 				case RAS_IRasterizer::RAS_TEXTANGENT:
 				{
-					glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, this->stride, this->tangent_offset);
+					glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, m_stride, m_tangent_offset);
 					glEnableVertexAttribArrayARB(unit);
 					break;
 				}
@@ -162,7 +162,7 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 		}
 	}
 
-	glDrawElements(this->mode, this->indices, GL_UNSIGNED_SHORT, 0);
+	glDrawElements(m_mode, m_indices, GL_UNSIGNED_SHORT, 0);
 
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);

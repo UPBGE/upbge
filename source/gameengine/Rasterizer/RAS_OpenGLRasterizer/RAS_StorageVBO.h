@@ -48,19 +48,19 @@ public:
 	void UpdateIndices();
 
 private:
-	RAS_DisplayArray *data;
-	GLuint size;
-	GLuint stride;
-	GLuint indices;
-	GLenum mode;
-	GLuint ibo;
-	GLuint vbo_id;
+	RAS_DisplayArray *m_data;
+	GLuint m_size;
+	GLuint m_stride;
+	GLuint m_indices;
+	GLenum m_mode;
+	GLuint m_ibo;
+	GLuint m_vbo_id;
 
-	void *vertex_offset;
-	void *normal_offset;
-	void *color_offset;
-	void *tangent_offset;
-	void *uv_offset;
+	void *m_vertex_offset;
+	void *m_normal_offset;
+	void *m_color_offset;
+	void *m_tangent_offset;
+	void *m_uv_offset;
 };
 
 class RAS_StorageVBO : public RAS_IStorage
