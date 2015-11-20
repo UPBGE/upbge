@@ -1233,18 +1233,6 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getMaterialIndex, "getMaterialIndex()")
 	return PyLong_FromLong(GetMaterialIndex());
 }
 
-KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getTexture, "getTexture(index)")
-{
-	// TODO: enable python switching
-	return NULL;
-}
-
-KX_PYMETHODDEF_DOC(KX_BlenderMaterial, setTexture, "setTexture(index, tex)")
-{
-	// TODO: enable python switching
-	return NULL;
-}
-
 static const unsigned int GL_array[11] = {
 	GL_ZERO,
 	GL_ONE,
