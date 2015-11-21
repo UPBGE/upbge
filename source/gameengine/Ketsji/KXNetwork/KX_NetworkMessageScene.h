@@ -32,6 +32,12 @@
 #ifndef __KX_NETWORKMESSAGESCENE_H__
 #define __KX_NETWORKMESSAGESCENE_H__
 
+/* undef SendMessage Macro (WinUser.h) to avoid
+conflicts with KX_NetworkMessageScene::SendMessage */
+#ifdef WIN32
+#  undef SendMessage
+#endif
+
 #include "STR_String.h"
 #include <map>
 #include <vector>
