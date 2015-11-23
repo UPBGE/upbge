@@ -368,6 +368,55 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	}
 	glEnd();
 
+	glEnableClientState(GL_VERTEX_ARRAY);
+	// Draw boxes
+	for (unsigned int i = 0; i < debugShapes.size(); i++) {
+		if (debugShapes[i].m_type != OglDebugShape::BOX) {
+			continue;
+		}
+		glColor4f(debugShapes[i].m_color[0], debugShapes[i].m_color[1], debugShapes[i].m_color[2], 1.0f);
+
+		const MT_Matrix3x3& rot = debugShapes[i].m_rot;
+		const MT_Vector3& pos = debugShapes[i].m_pos;
+		double mat[16] = {
+			rot[0][0], rot[1][0], rot[2][0], 0.0,
+			rot[0][1], rot[1][1], rot[2][1], 0.0,
+			rot[0][2], rot[1][2], rot[2][2], 0.0,
+			pos[0], pos[1], pos[2], 1.0
+		};
+		glPushMatrix();
+		glMultMatrixd(mat);
+
+		const MT_Vector3& min = debugShapes[i].m_param;
+		const MT_Vector3& max = debugShapes[i].m_param2;
+
+		float vertexes[24] = {
+			(float)min[0], (float)min[1], (float)min[2],
+			(float)max[0], (float)min[1], (float)min[2],
+			(float)max[0], (float)max[1], (float)min[2],
+			(float)min[0], (float)max[1], (float)min[2],
+			(float)min[0], (float)min[1], (float)max[2],
+			(float)max[0], (float)min[1], (float)max[2],
+			(float)max[0], (float)max[1], (float)max[2],
+			(float)min[0], (float)max[1], (float)max[2]
+		};
+
+		static unsigned short indexes[24] = {
+			0, 1, 1, 2,
+			2, 3, 3, 0,
+			4, 5, 5, 6,
+			6, 7, 7, 4,
+			0, 4, 1, 5,
+			2, 6, 3, 7
+		};
+
+		glVertexPointer(3, GL_FLOAT, 0, vertexes);
+		glDrawElements(GL_LINES, 24, GL_UNSIGNED_SHORT, indexes);
+
+		glPopMatrix();
+	}
+	glDisableClientState(GL_VERTEX_ARRAY);
+
 	//draw circles
 	for (unsigned int i = 0; i < debugShapes.size(); i++) {
 		if (debugShapes[i].m_type != OglDebugShape::CIRCLE)

@@ -387,6 +387,16 @@ public:
 	virtual void DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector3& color) = 0;
 	virtual void DrawDebugCircle(SCA_IScene *scene, const MT_Vector3 &center, const MT_Scalar radius,
 								 const MT_Vector3 &color, const MT_Vector3 &normal, int nsector) = 0;
+	/** Draw a box depends on minimal and maximal corner.
+	 * \param scene The scene owner of this call.
+	 * \param pos The box's position.
+	 * \param rot The box's orientation.
+	 * \param min The box's minimal corner.
+	 * \param max The box's maximal corner.
+	 * \param color The box's color.
+	 */
+	virtual void DrawDebugBox(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
+							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector3& color) = 0;
 	virtual void FlushDebugShapes(SCA_IScene *scene) = 0;
 	
 	virtual void SetTexCoordNum(int num) = 0;

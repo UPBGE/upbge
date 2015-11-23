@@ -68,9 +68,11 @@ struct OglDebugShape
 	{
 		LINE,
 		CIRCLE,
+		BOX,
 	};
 	SHAPE_TYPE m_type;
 	MT_Vector3 m_pos;
+	MT_Matrix3x3 m_rot;
 	MT_Vector3 m_param;
 	MT_Vector3 m_param2;
 	MT_Vector3 m_color;
@@ -236,6 +238,18 @@ public:
 		line.m_param2.x() = radius;
 		line.m_param2.y() = (float)nsector;
 		m_debugShapes[scene].push_back(line);
+	}
+	virtual void DrawDebugBox(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
+							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector3& color)
+	{
+		OglDebugShape box;
+		box.m_type = OglDebugShape::BOX;
+		box.m_pos = pos;
+		box.m_rot = rot;
+		box.m_param = min;
+		box.m_param2 = max;
+		box.m_color = color;
+		m_debugShapes[scene].push_back(box);
 	}
 
 	// We store each debug shape by scene.
