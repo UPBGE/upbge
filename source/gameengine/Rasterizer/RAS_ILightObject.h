@@ -70,10 +70,14 @@ public:
 	bool	m_nospecular;
 	bool	m_glsl;
 
+	bool m_staticShadow;
+	bool m_requestShadowUpdate;
+
 	virtual ~RAS_ILightObject() {}
 	virtual RAS_ILightObject* Clone() = 0;
 
 	virtual bool HasShadowBuffer() = 0;
+	virtual bool NeedShadowUpdate() = 0;
 	virtual int GetShadowLayer() = 0;
 	virtual void BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_Transform& camtrans) = 0;
 	virtual void UnbindShadowBuffer() = 0;

@@ -740,6 +740,7 @@ class DATA_PT_shadow_game(DataButtonsPanel, Panel):
         col.prop(lamp, "shadow_color", text="")
         if lamp.type == 'SUN':
             col.prop(lamp, "show_shadow_box")
+        col.prop(lamp, "static_shadow")
 
         col = split.column()
         col.prop(lamp, "use_shadow_layer", text="This Layer Only")

@@ -65,6 +65,9 @@ public:
 	virtual int GetGameObjectType() { return OBJ_LIGHT; }
 
 #ifdef WITH_PYTHON
+	// functions
+	KX_PYMETHOD_DOC_NOARGS(KX_LightObject, updateShadow);
+
 	/* attributes */
 	static PyObject*	pyattr_get_layer(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_layer(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
@@ -85,6 +88,8 @@ public:
 	static PyObject*	pyattr_get_typeconst(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_type(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_type(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_static_shadow(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_static_shadow(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif
 };
 

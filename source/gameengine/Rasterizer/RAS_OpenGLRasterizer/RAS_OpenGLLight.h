@@ -50,9 +50,11 @@ public:
 	}
 
 	bool HasShadowBuffer();
+	bool NeedShadowUpdate();
 	int GetShadowLayer();
 	void BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_Transform& camtrans);
 	void UnbindShadowBuffer();
 	Image *GetTextureImage(short texslot);
 	void Update();
+	void SetShadowUpdateState(short state);
 };

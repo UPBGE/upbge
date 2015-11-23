@@ -146,6 +146,7 @@ PyTypeObject KX_LightObject::Type = {
 };
 
 PyMethodDef KX_LightObject::Methods[] = {
+	KX_PYMETHODTABLE_NOARGS(KX_LightObject, updateShadow),
 	{NULL,NULL} //Sentinel
 };
 
@@ -162,8 +163,15 @@ PyAttributeDef KX_LightObject::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("SUN", KX_LightObject, pyattr_get_typeconst),
 	KX_PYATTRIBUTE_RO_FUNCTION("NORMAL", KX_LightObject, pyattr_get_typeconst),
 	KX_PYATTRIBUTE_RW_FUNCTION("type", KX_LightObject, pyattr_get_type, pyattr_set_type),
+	KX_PYATTRIBUTE_RW_FUNCTION("staticShadow", KX_LightObject, pyattr_get_static_shadow, pyattr_set_static_shadow),
 	{ NULL }	//Sentinel
 };
+
+KX_PYMETHODDEF_DOC_NOARGS(KX_LightObject, updateShadow, "updateShadow(): Set the shadow to be updated next frame if the lamp uses a static shadow.\n")
+{
+	m_lightobj->m_requestShadowUpdate = true;
+	Py_RETURN_NONE;
+}
 
 PyObject *KX_LightObject::pyattr_get_layer(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
@@ -413,6 +421,25 @@ int KX_LightObject::pyattr_set_type(void* self_v, const KX_PYATTRIBUTE_DEF *attr
 			break;
 	}
 
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_LightObject::pyattr_get_static_shadow(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_LightObject* self = static_cast<KX_LightObject*>(self_v);
+	return PyBool_FromLong(self->m_lightobj->m_staticShadow);
+}
+
+int KX_LightObject::pyattr_set_static_shadow(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_LightObject* self = static_cast<KX_LightObject*>(self_v);
+	int param = PyObject_IsTrue(value);
+	if (param == -1) {
+		PyErr_SetString(PyExc_AttributeError, "light.staticShadow = val: KX_LightObject, expected True or False");
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->m_lightobj->m_staticShadow = param;
 	return PY_SET_ATTR_SUCCESS;
 }
 #endif // WITH_PYTHON

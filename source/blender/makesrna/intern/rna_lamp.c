@@ -535,6 +535,11 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 	RNA_def_property_int_funcs(prop, NULL, "rna_Lamp_buffer_size_set", NULL);
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
+	prop = RNA_def_property(srna, "static_shadow", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mode", LA_STATIC_SHADOW);
+	RNA_def_property_ui_text(prop, "Static Shadow",
+	                         "Enable static shadows");
+
 	prop = RNA_def_property(srna, "shadow_filter_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "filtertype");
 	RNA_def_property_enum_items(prop, prop_shadbuffiltertype_items);

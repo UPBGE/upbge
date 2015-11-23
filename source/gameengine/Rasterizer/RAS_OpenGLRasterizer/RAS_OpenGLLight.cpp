@@ -175,6 +175,13 @@ bool RAS_OpenGLLight::HasShadowBuffer()
 		return false;
 }
 
+bool RAS_OpenGLLight::NeedShadowUpdate()
+{
+	if (!m_staticShadow)
+		return true;
+	return m_requestShadowUpdate;
+}
+
 int RAS_OpenGLLight::GetShadowLayer()
 {
 	GPULamp *lamp;
@@ -231,6 +238,8 @@ void RAS_OpenGLLight::UnbindShadowBuffer()
 
 	if (GPU_lamp_shadow_buffer_type(lamp) == LA_SHADMAP_VARIANCE)
 		m_rasterizer->SetUsingOverrideShader(false);
+
+	m_requestShadowUpdate = false;
 }
 
 Image *RAS_OpenGLLight::GetTextureImage(short texslot)
