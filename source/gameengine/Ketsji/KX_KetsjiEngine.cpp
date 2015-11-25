@@ -1250,13 +1250,18 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene* scene)
 {
 	KX_SetActiveScene(scene);
 
-	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up)
-	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
-	
+	const RAS_Rect& viewport = scene->GetSceneViewport();
+	// Set the scene viewport.
 	m_rasterizer->FlushDebugShapes(scene);
+
+	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
+	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
 	scene->Render2DFilters(m_canvas);
 
 #ifdef WITH_PYTHON
+	// Set again the scene viewport.
+	m_canvas->SetViewPort(viewport.GetLeft(), viewport.GetBottom(), viewport.GetRight(), viewport.GetTop());
+
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 	scene->RunDrawingCallbacks(scene->GetPostDrawCB());
 
