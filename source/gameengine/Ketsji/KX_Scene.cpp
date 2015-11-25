@@ -1588,7 +1588,7 @@ void KX_Scene::DrawBoundingBox(RAS_IRasterizer *rasty)
 	for (CListValue::iterator it = m_objectlist->GetBegin(); it != m_objectlist->GetEnd(); ++it) {
 		KX_GameObject *gameobj = (KX_GameObject *)*it;
 
-		if (gameobj->GetCulled() || gameobj->GetGameObjectType() != -1) {
+		if (gameobj->GetCulled() || gameobj->GetMeshCount() == 0) {
 			continue;
 		}
 
