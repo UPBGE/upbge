@@ -1583,6 +1583,22 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 	}
 }
 
+void KX_Scene::DrawBoundingBox(RAS_IRasterizer *rasty)
+{
+	for (CListValue::iterator it = m_objectlist->GetBegin(); it != m_objectlist->GetEnd(); ++it) {
+		KX_GameObject *gameobj = (KX_GameObject *)*it;
+
+		if (gameobj->GetCulled() || gameobj->GetGameObjectType() != -1) {
+			continue;
+		}
+
+		const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
+		const SG_BBox& box = gameobj->GetSGNode()->BBox();
+		rasty->DrawDebugBox(this, gameobj->NodeGetWorldPosition(), gameobj->NodeGetWorldOrientation(),
+							box.GetMin() * scale, box.GetMax() * scale, MT_Vector3(1, 0, 1));
+	}
+}
+
 // logic stuff
 void KX_Scene::LogicBeginFrame(double curtime)
 {

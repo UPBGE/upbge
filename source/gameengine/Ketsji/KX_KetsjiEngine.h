@@ -188,6 +188,9 @@ private:
 	/** Hide cursor every frame? */
 	bool					m_hideCursor;
 
+	/// Enable debug draw of culling bounding boxes.
+	bool m_showBoundingBox;
+
 	/** Override framing bars color? */
 	bool					m_overrideFrameColor;
 	/** Red component of framing bar color. */
@@ -443,6 +446,12 @@ public:
 	 * \return The current setting for cursor hiding.
 	 */
 	bool GetHideCursor(void) const;
+
+	/// Returns the current setting for bounding box debug.
+	void SetShowBoundingBox(bool show);
+
+	/// Allow debug bounding box debug.
+	bool GetShowBoundingBox() const;
 
 	/** 
 	 * Enables/disables the use of the framing bar color of the Blender file's scenes.

@@ -269,6 +269,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
 		bool animation_record = (SYS_GetCommandLineInt(syshandle, "animation_record", 0) != 0);
 		bool displaylists = (SYS_GetCommandLineInt(syshandle, "displaylists", 0) != 0) && GPU_display_list_support();
+		bool showBoundingBox = (SYS_GetCommandLineInt(syshandle, "show_bounding_box", 0) != 0);
 #ifdef WITH_PYTHON
 		bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 0) != 0);
 #endif
@@ -329,6 +330,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		ketsjiengine->SetUseFixedTime(usefixed);
 		ketsjiengine->SetTimingDisplay(frameRate, profile, properties);
 		ketsjiengine->SetRestrictAnimationFPS(restrictAnimFPS);
+		ketsjiengine->SetShowBoundingBox(showBoundingBox);
 		KX_KetsjiEngine::SetExitKey(ConvertKeyCode(startscene->gm.exitkey));
 
 		//set the global settings (carried over if restart/load new files)

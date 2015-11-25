@@ -1557,7 +1557,8 @@ static void game_set_commmandline_options(GameData *gm)
 		test = (gm->flag & GAME_DISPLAY_LISTS);
 		SYS_WriteCommandLineInt(syshandle, "displaylists", test);
 
-
+		test = (gm->flag & GAME_SHOW_BOUNDING_BOX);
+		SYS_WriteCommandLineInt(syshandle, "show_bounding_box", test);
 	}
 }
 

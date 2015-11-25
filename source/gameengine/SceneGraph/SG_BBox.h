@@ -131,7 +131,17 @@ public:
 	void getmm(MT_Point3 *box, const MT_Transform &world) const;
 
 	void split(SG_BBox &left, SG_BBox &right) const;
-	
+
+	inline const MT_Point3& GetMin() const
+	{
+		return m_min;
+	}
+
+	inline const MT_Point3& GetMax() const
+	{
+		return m_max;
+	}
+
 	friend class SG_Tree;
 
 

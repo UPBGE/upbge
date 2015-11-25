@@ -163,6 +163,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 
 	// Default behavior is to hide the cursor every frame.
 	m_hideCursor(false),
+	m_showBoundingBox(false),
 
 	m_overrideFrameColor(false),
 	m_overrideFrameColorR(0.0),
@@ -1223,6 +1224,10 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
 	SG_SetActiveStage(SG_STAGE_RENDER);
 
+	if (m_showBoundingBox) {
+		scene->DrawBoundingBox(m_rasterizer);
+	}
+
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 	// Run any pre-drawing python callbacks
@@ -1916,6 +1921,15 @@ bool KX_KetsjiEngine::GetHideCursor(void) const
 	return m_hideCursor;
 }
 
+void KX_KetsjiEngine::SetShowBoundingBox(bool show)
+{
+	m_showBoundingBox = show;
+}
+
+bool KX_KetsjiEngine::GetShowBoundingBox() const
+{
+	return m_showBoundingBox;
+}
 
 void KX_KetsjiEngine::SetUseOverrideFrameColor(bool overrideFrameColor)
 {

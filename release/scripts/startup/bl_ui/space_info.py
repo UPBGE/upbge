@@ -226,6 +226,7 @@ class INFO_MT_game(Menu):
         layout.prop(gs, "show_debug_properties")
         layout.prop(gs, "show_framerate_profile")
         layout.prop(gs, "show_physics_visualization")
+        layout.prop(gs, "show_bounding_box")
         layout.prop(gs, "use_deprecation_warnings")
         layout.prop(gs, "use_animation_record")
         layout.separator()
