@@ -495,8 +495,8 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	// for text drawing using faces
 	if (m_material->GetDrawingMode() & RAS_IRasterizer::RAS_RENDER_3DPOLYGON_TEXT)
 		rasty->IndexPrimitives_3DText(ms, m_material);
-	// for multitexturing
-	else if ((m_material->GetFlag() & (RAS_MULTITEX|RAS_BLENDERGLSL))) {
+	// For multitexturing, blender glsl material and custom glsl shader.
+	else {
 		rasty->IndexPrimitives(ms);
 	}
 
