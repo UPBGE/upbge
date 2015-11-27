@@ -218,6 +218,7 @@ int KX_VertexProxy::pyattr_set_x(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 		pos.x() = val;
 		self->m_vertex->SetXYZ(pos);
 		self->m_mesh->SetMeshModified(true);
+		self->m_mesh->SetAabbModified(true);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -233,6 +234,7 @@ int KX_VertexProxy::pyattr_set_y(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 		pos.y() = val;
 		self->m_vertex->SetXYZ(pos);
 		self->m_mesh->SetMeshModified(true);
+		self->m_mesh->SetAabbModified(true);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -248,6 +250,7 @@ int KX_VertexProxy::pyattr_set_z(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 		pos.z() = val;
 		self->m_vertex->SetXYZ(pos);
 		self->m_mesh->SetMeshModified(true);
+		self->m_mesh->SetAabbModified(true);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -391,6 +394,7 @@ int KX_VertexProxy::pyattr_set_XYZ(void *self_v, const struct KX_PYATTRIBUTE_DEF
 		{
 			self->m_vertex->SetXYZ(vec);
 			self->m_mesh->SetMeshModified(true);
+			self->m_mesh->SetAabbModified(true);
 			return PY_SET_ATTR_SUCCESS;
 		}
 	}

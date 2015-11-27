@@ -38,6 +38,7 @@
 
 #include <stdlib.h>
 #include "CTR_Map.h"
+#include "MT_Point3.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -49,7 +50,14 @@ class RAS_MeshObject;
 class RAS_Deformer
 {
 public:
-	RAS_Deformer() : m_pMesh(NULL), m_bDynamic(false) {}
+	RAS_Deformer()
+		:m_pMesh(NULL),
+		m_bDynamic(false),
+		m_aabbMin(0.0f, 0.0f, 0.0f),
+		m_aabbMax(0.0f, 0.0f, 0.0f)
+	{
+	}
+
 	virtual ~RAS_Deformer() {}
 	virtual void Relink(CTR_Map<class CTR_HashedPtr, void*>*map)=0;
 	virtual bool Apply(class RAS_IPolyMaterial *polymat)=0;
@@ -89,10 +97,18 @@ public:
 	}
 	virtual float (* GetTransVerts(int *tot))[3]	{	*tot= 0; return NULL; }
 
+	virtual void GetAabb(MT_Point3 &aabbMin, MT_Point3 &aabbMax) const
+	{
+		aabbMin = m_aabbMin;
+		aabbMax = m_aabbMax;
+	}
+
 protected:
 	class RAS_MeshObject	*m_pMesh;
 	bool  m_bDynamic;
 
+	MT_Point3 m_aabbMin;
+	MT_Point3 m_aabbMax;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_Deformer")

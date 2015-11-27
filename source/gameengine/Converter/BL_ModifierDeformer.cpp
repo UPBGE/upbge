@@ -186,13 +186,14 @@ bool BL_ModifierDeformer::Update(void)
 			// HACK! use deformedOnly as a user counter
 			m_dm->deformedOnly = 1;
 			DM_update_materials(m_dm, blendobj);
-			/* update the graphic controller */
-			PHY_IGraphicController *ctrl = m_gameobj->GetGraphicController();
-			if (ctrl) {
+
+			// Update object's AABB.
+			if (m_gameobj->GetAutoUpdateBounds()) {
 				float min[3], max[3];
 				INIT_MINMAX(min, max);
 				m_dm->getMinMax(m_dm, min, max);
-				ctrl->SetLocalAabb(min, max);
+				m_aabbMin = MT_Point3(min);
+				m_aabbMax = MT_Point3(max);
 			}
 		}
 		m_lastModifierUpdate=m_gameobj->GetLastFrame();

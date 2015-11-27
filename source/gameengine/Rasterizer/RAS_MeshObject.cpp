@@ -103,6 +103,7 @@ STR_String RAS_MeshObject::s_emptyname = "";
 RAS_MeshObject::RAS_MeshObject(Mesh* mesh)
 	: m_bModified(true),
 	m_bMeshModified(true),
+	m_aabbModified(true),
 	m_mesh(mesh)
 {
 	if (m_mesh && m_mesh->key)
@@ -139,7 +140,49 @@ bool RAS_MeshObject::MeshModified()
 //	return m_lightlayer;
 //}
 
+void RAS_MeshObject::UpdateAabb()
+{
+	bool first = true;
+	unsigned int nmat = NumMaterials();
+	for (unsigned int imat = 0; imat < nmat; ++imat) {
+		RAS_MeshMaterial *mmat = GetMeshMaterial(imat);
+		RAS_MeshSlot *slot = mmat->m_baseslot;
+		if (!slot)
+			continue;
 
+		RAS_DisplayArray *array = slot->GetDisplayArray();
+		// for each vertex
+		for (unsigned int i = 0; i < array->m_vertex.size(); ++i) {
+			RAS_TexVert& v = array->m_vertex[i];
+			MT_Vector3 vertpos = v.xyz();
+
+			// For the first vertex of the mesh, only initialize AABB.
+			if (first) {
+				m_aabbMin = m_aabbMax = vertpos;
+				first = false;
+			}
+			else {
+				m_aabbMin.x() = std::min(m_aabbMin.x(), vertpos.x());
+				m_aabbMin.y() = std::min(m_aabbMin.y(), vertpos.y());
+				m_aabbMin.z() = std::min(m_aabbMin.z(), vertpos.z());
+				m_aabbMax.x() = std::max(m_aabbMax.x(), vertpos.x());
+				m_aabbMax.y() = std::max(m_aabbMax.y(), vertpos.y());
+				m_aabbMax.z() = std::max(m_aabbMax.z(), vertpos.z());
+			}
+		}
+	}
+
+	m_aabbModified = false;
+}
+
+void RAS_MeshObject::GetAabb(MT_Point3 &aabbMin, MT_Point3 &aabbMax)
+{
+	if (m_aabbModified)
+		UpdateAabb();
+
+	aabbMin = m_aabbMin;
+	aabbMax = m_aabbMax;
+}
 
 int RAS_MeshObject::NumMaterials()
 {

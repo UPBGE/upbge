@@ -110,7 +110,25 @@ bool KX_SoftBodyDeformer::Apply(class RAS_IPolyMaterial *polymat)
 			nodes[v.getSoftBodyIndex()].m_n.getZ());
 		v.SetNormal(normal);
 
+		if (!m_gameobj->GetAutoUpdateBounds()) {
+			continue;
+		}
+
+		// if it's the first time we call Apply in this frame we reset the AABB
+		if (m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
+			m_aabbMin = m_aabbMax = pt;
+			m_lastDeformUpdate = m_gameobj->GetLastFrame();
+		}
+		else {
+			m_aabbMin.x() = std::min(m_aabbMin.x(), pt.x());
+			m_aabbMin.y() = std::min(m_aabbMin.y(), pt.y());
+			m_aabbMin.z() = std::min(m_aabbMin.z(), pt.z());
+			m_aabbMax.x() = std::max(m_aabbMax.x(), pt.x());
+			m_aabbMax.y() = std::max(m_aabbMax.y(), pt.y());
+			m_aabbMax.z() = std::max(m_aabbMax.z(), pt.z());
+		}
 	}
+
 	return true;
 }
 

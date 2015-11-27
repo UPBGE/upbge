@@ -1230,79 +1230,10 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 	return shapeProps;
 }
 
-	
-	
-	
-		
-//////////////////////////////////////////////////////////
-	
-
-
-static float my_boundbox_mesh(Mesh *me, float *loc, float *size)
-{
-	MVert *mvert;
-	BoundBox *bb;
-	float min[3], max[3];
-	float mloc[3], msize[3];
-	float radius_sq=0.0f, vert_radius_sq, *co;
-	int a;
-	
-	if (me->bb==0) {
-		me->bb = BKE_boundbox_alloc_unit();
-	}
-	bb= me->bb;
-	
-	INIT_MINMAX(min, max);
-
-	if (!loc) loc= mloc;
-	if (!size) size= msize;
-	
-	mvert= me->mvert;
-	for (a = 0; a<me->totvert; a++, mvert++) {
-		co = mvert->co;
-		
-		/* bounds */
-		minmax_v3v3_v3(min, max, co);
-		
-		/* radius */
-
-		vert_radius_sq = len_squared_v3(co);
-		if (vert_radius_sq > radius_sq)
-			radius_sq = vert_radius_sq;
-	}
-		
-	if (me->totvert) {
-		loc[0] = (min[0] + max[0]) / 2.0f;
-		loc[1] = (min[1] + max[1]) / 2.0f;
-		loc[2] = (min[2] + max[2]) / 2.0f;
-		
-		size[0] = (max[0] - min[0]) / 2.0f;
-		size[1] = (max[1] - min[1]) / 2.0f;
-		size[2] = (max[2] - min[2]) / 2.0f;
-	}
-	else {
-		loc[0] = loc[1] = loc[2] = 0.0f;
-		size[0] = size[1] = size[2] = 0.0f;
-	}
-		
-	bb->vec[0][0] = bb->vec[1][0] = bb->vec[2][0] = bb->vec[3][0] = loc[0]-size[0];
-	bb->vec[4][0] = bb->vec[5][0] = bb->vec[6][0] = bb->vec[7][0] = loc[0]+size[0];
-		
-	bb->vec[0][1] = bb->vec[1][1] = bb->vec[4][1] = bb->vec[5][1] = loc[1]-size[1];
-	bb->vec[2][1] = bb->vec[3][1] = bb->vec[6][1] = bb->vec[7][1] = loc[1]+size[1];
-
-	bb->vec[0][2] = bb->vec[3][2] = bb->vec[4][2] = bb->vec[7][2] = loc[2]-size[2];
-	bb->vec[1][2] = bb->vec[2][2] = bb->vec[5][2] = bb->vec[6][2] = loc[2]+size[2];
-
-	return sqrtf_signed(radius_sq);
-}
-
 //////////////////////////////////////////////////////
 
 
 static void BL_CreateGraphicObjectNew(KX_GameObject* gameobj,
-                                      const MT_Point3& localAabbMin,
-                                      const MT_Point3& localAabbMax,
                                       KX_Scene* kxscene,
                                       bool isActive,
                                       e_PhysicsEngine physics_engine)
@@ -1320,7 +1251,6 @@ static void BL_CreateGraphicObjectNew(KX_GameObject* gameobj,
 				CcdGraphicController* ctrl = new CcdGraphicController(env, motionstate);
 				gameobj->SetGraphicController(ctrl);
 				ctrl->SetNewClientInfo(gameobj->getClientInfo());
-				ctrl->SetLocalAabb(localAabbMin, localAabbMax);
 				if (isActive) {
 					// add first, this will create the proxy handle, only if the object is visible
 					if (gameobj->GetVisible())
@@ -1522,8 +1452,6 @@ static KX_GameObject *gameobject_from_blenderobject(
 	case OB_MESH:
 	{
 		Mesh* mesh = static_cast<Mesh*>(ob->data);
-		float center[3], extents[3];
-		float radius = my_boundbox_mesh((Mesh*) ob->data, center, extents);
 		RAS_MeshObject* meshobj = BL_ConvertMesh(mesh,ob,kxscene,converter, libloading);
 		
 		// needed for python scripting
@@ -1620,13 +1548,6 @@ static KX_GameObject *gameobject_from_blenderobject(
 			((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
 #endif
 		}
-		
-		MT_Point3 min = MT_Point3(center) - MT_Vector3(extents);
-		MT_Point3 max = MT_Point3(center) + MT_Vector3(extents);
-		SG_BBox bbox = SG_BBox(min, max);
-		gameobj->GetSGNode()->SetBBox(bbox);
-		gameobj->GetSGNode()->SetRadius(radius);
-	
 		break;
 	}
 	
@@ -2230,11 +2151,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			KX_GameObject* gameobj = (KX_GameObject*) sumolist->GetValue(i);
 			if (gameobj->GetMeshCount() > 0) 
 			{
-				MT_Point3 box[2];
-				gameobj->GetSGNode()->BBox().getmm(box, MT_Transform::Identity());
-				// box[0] is the min, box[1] is the max
 				bool isactive = objectlist->SearchValue(gameobj);
-				BL_CreateGraphicObjectNew(gameobj,box[0],box[1],kxscene,isactive,physics_engine);
+				BL_CreateGraphicObjectNew(gameobj, kxscene, isactive, physics_engine);
 				if (gameobj->GetOccluder())
 					occlusion = true;
 			}
@@ -2305,6 +2223,40 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		}
 		int layerMask = (groupobj.find(blenderobject) == groupobj.end()) ? activeLayerBitInfo : 0;
 		BL_CreatePhysicsObjectNew(gameobj,blenderobject,meshobj,kxscene,layerMask,converter,processCompoundChildren);
+	}
+
+	// Create and set bounding volume.
+	for (i = 0; i < sumolist->GetCount(); ++i) {
+		KX_GameObject *gameobj = (KX_GameObject *)sumolist->GetValue(i);
+		Object *blenderobject = gameobj->GetBlenderObject();
+		// The object allow AABB auto update ?
+		const bool autoUpdate = blenderobject->gameflag2 & OB_AUTO_UPDATE_BOUND;
+		gameobj->SetAutoUpdateBounds(autoUpdate);
+
+		// AABB Box : min/max.
+		MT_Point3 aabbMin;
+		MT_Point3 aabbMax;
+
+		// Get proper mesh to use as AABB.
+		RAS_MeshObject *meshobj = NULL;
+		if (!autoUpdate && blenderobject->gamePredefinedBound) {
+			// If the mesh is not already converted we convert it.
+			meshobj = converter->FindGameMesh((Mesh *)blenderobject->data);
+		}
+		else if (gameobj->GetMeshCount() > 0) {
+			meshobj = gameobj->GetMesh(0);
+		}
+
+		// If there's no mesh it means that the object is an empty or a lamp.
+		if (!meshobj) {
+			continue;
+		}
+
+		// Get the AABB.
+		meshobj->GetAabb(aabbMin, aabbMax);
+
+		// Set final object AABB.
+		gameobj->SetBoundsAabb(aabbMin, aabbMax);
 	}
 
 	// create physics joints

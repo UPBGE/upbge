@@ -44,6 +44,7 @@
 #include "RAS_MeshObject.h"
 
 //#include "BL_ArmatureController.h"
+#include "BL_DeformableGameObject.h"
 #include "DNA_armature_types.h"
 #include "DNA_action_types.h"
 #include "DNA_mesh_types.h"
@@ -294,7 +295,7 @@ void BL_SkinDeformer::UpdateTransverts()
 	RAS_MeshMaterial *mmat;
 	RAS_MeshSlot *slot;
 	size_t i, nmat, imat;
-
+	bool first = true;
 	if (m_transverts) {
 		// the vertex cache is unique to this deformer, no need to update it
 		// if it wasn't updated! We must update all the materials at once
@@ -315,6 +316,26 @@ void BL_SkinDeformer::UpdateTransverts()
 				v.SetXYZ(m_transverts[v.getOrigIndex()]);
 				if (m_copyNormals)
 					v.SetNormal(m_transnors[v.getOrigIndex()]);
+
+				MT_Vector3 vertpos = v.xyz();
+
+				if (!m_gameobj->GetAutoUpdateBounds()) {
+					continue;
+				}
+
+				// For the first vertex of the mesh, only initialize AABB.
+				if (first) {
+					m_aabbMin = m_aabbMax = vertpos;
+					first = false;
+				}
+				else {
+					m_aabbMin.x() = std::min(m_aabbMin.x(), vertpos.x());
+					m_aabbMin.y() = std::min(m_aabbMin.y(), vertpos.y());
+					m_aabbMin.z() = std::min(m_aabbMin.z(), vertpos.z());
+					m_aabbMax.x() = std::max(m_aabbMax.x(), vertpos.x());
+					m_aabbMax.y() = std::max(m_aabbMax.y(), vertpos.y());
+					m_aabbMax.z() = std::max(m_aabbMax.z(), vertpos.z());
+				}
 			}
 		}
 

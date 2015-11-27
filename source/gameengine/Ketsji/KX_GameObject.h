@@ -109,6 +109,8 @@ protected:
 	bool       							m_bCulled; 
 	bool								m_bOccluder;
 
+	bool								m_autoUpdateBounds;
+
 	PHY_IPhysicsController*				m_pPhysicsController;
 	PHY_IGraphicController*				m_pGraphicController;
 
@@ -126,7 +128,7 @@ protected:
 	BL_ActionManager*					m_actionManager;
 
 	BL_ActionManager* GetActionManager();
-	
+
 	bool								m_bRecordAnimation;
 
 public:
@@ -940,7 +942,22 @@ public:
 	GetLayer(
 		void
 	);
-		
+
+	/// Allow auto updating bounding volume box.
+	inline void SetAutoUpdateBounds(bool autoUpdate)
+	{
+		m_autoUpdateBounds = autoUpdate;
+	}
+
+	inline bool GetAutoUpdateBounds() const
+	{
+		return m_autoUpdateBounds;
+	}
+
+	void UpdateBounds();
+	void SetBoundsAabb(MT_Point3 aabbMin, MT_Point3 aabbMax);
+	void GetBoundsAabb(MT_Point3 &aabbMin, MT_Point3 &aabbMax) const;
+
 	/**
 	 * Get the negative scaling state
 	 */

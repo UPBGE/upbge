@@ -92,6 +92,11 @@ void KX_MeshProxy::SetMeshModified(bool v)
 	m_meshobj->SetMeshModified(v);
 }
 
+void KX_MeshProxy::SetAabbModified(bool v)
+{
+	m_meshobj->SetAabbModified(v);
+}
+
 KX_MeshProxy::KX_MeshProxy(RAS_MeshObject* mesh)
 	: CValue(), m_meshobj(mesh)
 {
@@ -274,6 +279,7 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 	}
 
 	m_meshobj->SetMeshModified(true);
+	m_meshobj->SetAabbModified(true);
 
 	Py_RETURN_NONE;
 }

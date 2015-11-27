@@ -132,18 +132,13 @@ public:
 
 	void split(SG_BBox &left, SG_BBox &right) const;
 
-	inline const MT_Point3& GetMin() const
-	{
-		return m_min;
-	}
-
-	inline const MT_Point3& GetMax() const
-	{
-		return m_max;
-	}
-
 	friend class SG_Tree;
 
+	const MT_Point3& GetMin() const;
+	const MT_Point3& GetMax() const;
+
+	void SetMin(const MT_Point3& min);
+	void SetMax(const MT_Point3& max);
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_BBox")

@@ -45,6 +45,8 @@ class KX_SoftBodyDeformer : public RAS_Deformer
 {
 	class RAS_MeshObject*			m_pMeshObject;
 	class BL_DeformableGameObject*	m_gameobj;
+	// used to compute a fully AABB and not for only one material.
+	double m_lastDeformUpdate;
 
 public:
 	KX_SoftBodyDeformer(RAS_MeshObject*	pMeshObject,BL_DeformableGameObject* gameobj)

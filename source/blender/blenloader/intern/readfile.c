@@ -4838,7 +4838,9 @@ static void lib_link_object(FileData *fd, Main *main)
 					/* bMouseActuator *moa= act->data; */
 				}
 			}
-			
+
+			ob->gamePredefinedBound = newlibadr(fd, ob->id.lib, ob->gamePredefinedBound);
+
 			{
 				FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifiers_findByType(ob, eModifierType_Fluidsim);
 				

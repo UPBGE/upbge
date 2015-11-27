@@ -49,6 +49,7 @@ public:
 	virtual ~KX_MeshProxy();
 
 	void SetMeshModified(bool v);
+	void SetAabbModified(bool v);
 
 	// stuff for cvalue related things
 	virtual CValue*		Calc(VALUE_OPERATOR op, CValue *val);

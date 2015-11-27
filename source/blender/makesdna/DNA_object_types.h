@@ -253,6 +253,8 @@ typedef struct Object {
 	int gameflag;
 	int gameflag2;
 
+	struct Mesh *gamePredefinedBound;
+
 	struct BulletSoftBody *bsoft;	/* settings for game engine bullet soft body */
 
 	char restrictflag;		/* for restricting view, select, render etc. accessible in outliner */
@@ -574,6 +576,7 @@ enum {
 	OB_LOCK_RIGID_BODY_X_ROT_AXIS   = 1 << 5,
 	OB_LOCK_RIGID_BODY_Y_ROT_AXIS   = 1 << 6,
 	OB_LOCK_RIGID_BODY_Z_ROT_AXIS   = 1 << 7,
+	OB_AUTO_UPDATE_BOUND            = 1 << 8,
 
 /*	OB_LIFE     = OB_PROP | OB_DYNAMIC | OB_ACTOR | OB_MAINACTOR | OB_CHILD, */
 };

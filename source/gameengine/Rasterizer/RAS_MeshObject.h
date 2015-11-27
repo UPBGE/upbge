@@ -59,6 +59,9 @@ private:
 
 	bool						m_bModified;
 	bool						m_bMeshModified;
+	bool m_aabbModified;
+	MT_Point3 m_aabbMax;
+	MT_Point3 m_aabbMin;
 
 	STR_String					m_name;
 	static STR_String			s_emptyname;
@@ -69,6 +72,8 @@ private:
 	struct polygonSlot;
 	struct backtofront;
 	struct fronttoback;
+
+	void UpdateAabb();
 
 protected:
 	vector<int>						m_cacheWeightIndex;
@@ -102,6 +107,11 @@ public:
 	/* modification state */
 	bool				MeshModified();
 	void				SetMeshModified(bool v) { m_bMeshModified = v; }
+
+	void SetAabbModified(bool v)
+	{
+		m_aabbModified = v;
+	}
 
 	/* original blender mesh */
 	Mesh*				GetMesh() { return m_mesh; }
@@ -143,6 +153,8 @@ public:
 
 
 	bool				HasColliderPolygon();
+
+	void GetAabb(MT_Point3 &aabbMin, MT_Point3 &aabbMax);
 
 	/* for construction to find shared vertices */
 	struct SharedVertex {

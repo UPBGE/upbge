@@ -1309,6 +1309,7 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 		if (gameobj->GetPhysicsController())
 			gameobj->GetPhysicsController()->ReinstancePhysicsShape(NULL, use_gfx?NULL:mesh);
 	}
+	gameobj->UpdateBounds();
 }
 
 /* Font Object routines */
@@ -1473,6 +1474,10 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 		return;
 	}
 
+	if (gameobj->GetDeformer()) {
+		gameobj->UpdateBounds();
+	}
+
 	// If Frustum culling is off, the object is always visible.
 	bool vis = !cam->GetFrustumCulling();
 	
@@ -1550,6 +1555,9 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 		for (int i = 0; i < m_objectlist->GetCount(); i++) {
 			KX_GameObject *gameobj = static_cast<KX_GameObject*>(m_objectlist->GetValue(i));
 			gameobj->SetCulled(true);
+			if (gameobj->GetDeformer()) {
+				gameobj->UpdateBounds();
+			}
 		}
 
 		// test culling through Bullet
@@ -1852,8 +1860,8 @@ void KX_Scene::UpdateObjectActivity(void)
 				MT_Point3 obpos = ob->NodeGetWorldPosition();
 				
 				if ((fabs(camloc[0] - obpos[0]) > m_activity_box_radius) ||
-				    (fabs(camloc[1] - obpos[1]) > m_activity_box_radius) ||
-				    (fabs(camloc[2] - obpos[2]) > m_activity_box_radius) )
+					(fabs(camloc[1] - obpos[1]) > m_activity_box_radius) ||
+					(fabs(camloc[2] - obpos[2]) > m_activity_box_radius) )
 				{
 					ob->Suspend();
 				}

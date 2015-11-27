@@ -783,6 +783,26 @@ class OBJECT_MT_lod_tools(Menu):
         layout.operator("object.lod_generate", text="Generate")
         layout.operator("object.lod_clear_all", text="Clear All", icon='PANEL_CLOSE')
 
+class OBJECT_MT_culling(ObjectButtonsPanel, Panel):
+    bl_label = "Culling Bounding Volume"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.render.engine in cls.COMPAT_ENGINES
+
+    def draw(self, context):
+        layout = self.layout
+        game = context.active_object.game
+
+        split = layout.split()
+        col = split.column()
+        col.prop(game, "auto_update_bound")
+
+        col = split.column()
+        col.active = not game.auto_update_bound
+        col.label(text="Predefined Bound:")
+        col.prop(game, "predefined_bound", "")
 
 class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
     bl_label = "Levels of Detail"

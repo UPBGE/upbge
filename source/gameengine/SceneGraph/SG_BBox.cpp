@@ -260,3 +260,23 @@ void SG_BBox::split(SG_BBox &left, SG_BBox &right) const
 	
 	//std::cout << "Left: " << left.m_min << " -> " << left.m_max << " Right: " << right.m_min << " -> " << right.m_max << std::endl;
 }
+
+const MT_Point3& SG_BBox::GetMin() const
+{
+	return m_min;
+}
+
+const MT_Point3& SG_BBox::GetMax() const
+{
+	return m_max;
+}
+
+void SG_BBox::SetMin(const MT_Point3& min)
+{
+	m_min = min;
+}
+
+void SG_BBox::SetMax(const MT_Point3& max)
+{
+	m_max = max;
+}

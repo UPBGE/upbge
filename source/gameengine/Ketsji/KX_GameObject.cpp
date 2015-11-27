@@ -43,6 +43,7 @@
 #include "KX_Light.h"  // only for their ::Type
 #include "KX_FontObject.h"  // only for their ::Type
 #include "RAS_MeshObject.h"
+#include "RAS_Deformer.h"
 #include "KX_NavMeshObject.h"
 #include "KX_MeshProxy.h"
 #include "KX_PolyProxy.h"
@@ -105,6 +106,7 @@ KX_GameObject::KX_GameObject(
       m_bVisible(true),
       m_bCulled(true),
       m_bOccluder(false),
+      m_autoUpdateBounds(false),
       m_pPhysicsController(NULL),
       m_pGraphicController(NULL),
       m_pObstacleSimulation(NULL),
@@ -1548,6 +1550,56 @@ const MT_Point3& KX_GameObject::NodeGetLocalPosition() const
 		return dummy_point;
 }
 
+void KX_GameObject::UpdateBounds()
+{
+	if (!m_autoUpdateBounds) {
+		return;
+	}
+
+	// AABB Box : min/max.
+	MT_Point3 aabbMin;
+	MT_Point3 aabbMax;
+
+	// Get the mesh deforme AABB.
+	if (GetDeformer()) {
+		GetDeformer()->GetAabb(aabbMin, aabbMax);
+	}
+	// Get the mesh AABB.
+	else if (m_meshes.size() > 0) {
+		m_meshes[0]->GetAabb(aabbMin, aabbMax);
+	}
+	else {
+		return;
+	}
+
+	SetBoundsAabb(aabbMin, aabbMax);
+}
+
+void KX_GameObject::SetBoundsAabb(MT_Point3 aabbMin, MT_Point3 aabbMax)
+{
+	// Set the AABB in SG node box.
+	SG_BBox &box = m_pSGNode->BBox();
+	box.SetMin(aabbMin);
+	box.SetMax(aabbMax);
+
+	// Compute the radius for the first culling step which use spheres.
+	const MT_Point3& position = NodeGetWorldPosition();
+	const float radius = std::max(position.distance(aabbMin), position.distance(aabbMax));
+	m_pSGNode->SetRadius(radius);
+
+	// And in the object's graphic controller if it exists.
+	if (m_pGraphicController) {
+		m_pGraphicController->SetLocalAabb(aabbMin, aabbMax);
+	}
+}
+
+void KX_GameObject::GetBoundsAabb(MT_Point3 &aabbMin, MT_Point3 &aabbMax) const
+{
+	// Get the node box AABB
+	SG_BBox &box = m_pSGNode->BBox();
+	aabbMin = box.GetMin();
+	aabbMax = box.GetMax();
+}
 
 void KX_GameObject::UnregisterCollisionCallbacks()
 {
