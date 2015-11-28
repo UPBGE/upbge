@@ -905,7 +905,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 			converter->CacheBlenderMaterial(scene, ma, bl_mat);
 	}
 
-	if (tface && mface) {
+	if (mface) {
 		const bool use_vcol = GetMaterialUseVColor(ma, bl_mat->glslmat);
 		GetRGB(use_vcol, mface, mcol, ma, rgb);
 
