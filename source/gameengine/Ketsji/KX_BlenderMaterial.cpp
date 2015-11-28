@@ -984,6 +984,7 @@ PyObject *KX_BlenderMaterial::pyattr_get_shader(void *self_v, const KX_PYATTRIBU
 PyObject *KX_BlenderMaterial::pyattr_get_materialIndex(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
+	ShowDeprecationWarning("material_index", "mesh.materials.index(material)");
 	return PyLong_FromLong(self->GetMaterialIndex());
 }
 
@@ -1230,6 +1231,7 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 
 KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getMaterialIndex, "getMaterialIndex()")
 {
+	ShowDeprecationWarning("getMaterialIndex()", "mesh.materials.index(material)");
 	return PyLong_FromLong(GetMaterialIndex());
 }
 

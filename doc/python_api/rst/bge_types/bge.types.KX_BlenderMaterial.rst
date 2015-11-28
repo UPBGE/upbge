@@ -79,6 +79,7 @@ base class --- :class:`PyObjectPlus`
    .. attribute:: material_index
 
       The material's index.
+      .. deprecated:: use `mesh.materials.index(material)`
 
       :type: integer
 
@@ -170,6 +171,7 @@ base class --- :class:`PyObjectPlus`
    .. method:: getMaterialIndex()
 
       Returns the material's index.
+      .. deprecated:: use `mesh.materials.index(material)`
 
       :return: the material's index
       :rtype: integer
