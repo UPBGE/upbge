@@ -3695,7 +3695,7 @@ KX_PYMETHODDEF_DOC_O(KX_GameObject, getVectTo,
 
 struct KX_GameObject::RayCastData
 {
-	RayCastData(STR_String prop, bool xray, short mask)
+	RayCastData(STR_String prop, bool xray, unsigned int mask)
 		:m_prop(prop),
 		m_xray(xray),
 		m_mask(mask),
@@ -3705,7 +3705,7 @@ struct KX_GameObject::RayCastData
 
 	STR_String m_prop;
 	bool m_xray;
-	unsigned short m_mask;
+	unsigned int m_mask;
 	KX_GameObject *m_hitObject;
 };
 
