@@ -573,7 +573,7 @@ static bool ConvertMaterial(
 	
 	material->IdMode = DEFAULT_BLENDER;
 	material->glslmat = (validmat) ? glslmat: false;
-	material->materialindex = mface->mat_nr;
+	material->materialindex = mface ? mface->mat_nr : 0;
 
 	// --------------------------------
 	if (validmat) {
@@ -861,7 +861,9 @@ static bool ConvertMaterial(
 	// XXX The RGB values here were meant to be temporary storage for the conversion process,
 	// but fonts now make use of them too, so we leave them in for now.
 	unsigned int rgb[4];
-	GetRGB(use_vcol, mface, mmcol, mat, rgb);
+	if (mface) {
+		GetRGB(use_vcol, mface, mmcol, mat, rgb);
+	}
 
 	// swap the material color, so MCol on bitmap font works
 	if (validmat && (use_vcol == false) && (mat->game.flag & GEMAT_TEXT)) {
@@ -903,10 +905,12 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 			converter->CacheBlenderMaterial(scene, ma, bl_mat);
 	}
 
-	const bool use_vcol = GetMaterialUseVColor(ma, bl_mat->glslmat);
-	GetRGB(use_vcol, mface, mcol, ma, rgb);
+	if (tface && mface) {
+		const bool use_vcol = GetMaterialUseVColor(ma, bl_mat->glslmat);
+		GetRGB(use_vcol, mface, mcol, ma, rgb);
 
-	GetUVs(bl_mat, layers, mface, tface, uvs);
+		GetUVs(bl_mat, layers, mface, tface, uvs);
+	}
 
 	/* then the KX_BlenderMaterial */
 	if (polymat == NULL)
@@ -1027,6 +1031,12 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	/* we need to manually initialize the uvs (MoTo doesn't do that) [#34550] */
 	for (unsigned int i = 0; i < RAS_TexVert::MAX_UNIT; i++) {
 		uvs[0][i] = uvs[1][i] = uvs[2][i] = uvs[3][i] = MT_Point2(0.f, 0.f);
+	}
+
+	if (totface == 0) {
+		ma = mesh->mat ? mesh->mat[0] : &defmaterial;
+		RAS_MaterialBucket *bucket = material_from_mesh(ma, mface, tface, mcol, layers, lightlayer, rgb, uvs, tfaceName, scene, converter);
+		meshobj->AddMaterial(bucket);
 	}
 
 	for (int f=0;f<totface;f++,mface++)

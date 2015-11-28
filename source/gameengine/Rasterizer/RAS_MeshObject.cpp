@@ -293,16 +293,11 @@ int RAS_MeshObject::GetMaterialId(RAS_IPolyMaterial *mat)
 	return -1;
 }
 
-RAS_Polygon* RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts)
+RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket)
 {
-	RAS_MeshMaterial *mmat;
-	RAS_Polygon *poly;
-	RAS_MeshSlot *slot;
+	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
 
-	/* find a mesh material */
-	mmat = GetMeshMaterial(bucket->GetPolyMaterial());
-
-	/* none found, create a new one */
+	// none found, create a new one
 	if (!mmat) {
 		RAS_MeshMaterial meshmat;
 		meshmat.m_bucket = bucket;
@@ -312,6 +307,17 @@ RAS_Polygon* RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 		mmat = &m_materials.back();
 	}
 
+	return mmat;
+}
+
+RAS_Polygon* RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts)
+{
+	RAS_MeshMaterial *mmat;
+	RAS_Polygon *poly;
+	RAS_MeshSlot *slot;
+
+	/* find a mesh material */
+	mmat = AddMaterial(bucket);
 	/* add it to the bucket, this also adds new display arrays */
 	slot = mmat->m_baseslot;
 

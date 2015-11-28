@@ -117,7 +117,8 @@ public:
 	Mesh*				GetMesh() { return m_mesh; }
 
 	/* mesh construction */
-	
+
+	RAS_MeshMaterial *AddMaterial(RAS_MaterialBucket *bucket);
 	virtual RAS_Polygon*	AddPolygon(RAS_MaterialBucket *bucket, int numverts);
 	virtual void			AddVertex(RAS_Polygon *poly, int i,
 							const MT_Point3& xyz,
