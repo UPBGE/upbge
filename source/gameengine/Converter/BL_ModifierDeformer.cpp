@@ -161,6 +161,8 @@ bool BL_ModifierDeformer::Update(void)
 	if (bShapeUpdate || m_lastModifierUpdate != m_gameobj->GetLastFrame()) {
 		// static derived mesh are not updated
 		if (m_dm == NULL || m_bDynamic) {
+			// Set to true if it's the first time Update() function is called.
+			const bool initialize = (m_dm == NULL);
 			/* execute the modifiers */
 			Object* blendobj = m_gameobj->GetBlendObject();
 			/* hack: the modifiers require that the mesh is attached to the object
@@ -188,7 +190,7 @@ bool BL_ModifierDeformer::Update(void)
 			DM_update_materials(m_dm, blendobj);
 
 			// Update object's AABB.
-			if (m_gameobj->GetAutoUpdateBounds()) {
+			if (initialize || m_gameobj->GetAutoUpdateBounds()) {
 				float min[3], max[3];
 				INIT_MINMAX(min, max);
 				m_dm->getMinMax(m_dm, min, max);
