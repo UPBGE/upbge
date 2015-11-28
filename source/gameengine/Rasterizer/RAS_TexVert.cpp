@@ -35,24 +35,23 @@
 #include "BLI_math.h"
 
 RAS_TexVert::RAS_TexVert(const MT_Point3& xyz,
-                         const MT_Point2 uvs[MAX_UNIT],
-                         const MT_Vector4& tangent,
-                         const unsigned int rgba,
-                         const MT_Vector3& normal,
-                         const bool flat,
-                         const unsigned int origindex)
+						 const MT_Point2 uvs[MAX_UNIT],
+						 const MT_Vector4& tangent,
+						 const unsigned int rgba,
+						 const MT_Vector3& normal,
+						 const bool flat,
+						 const unsigned int origindex)
 {
 	xyz.getValue(m_localxyz);
 	SetRGBA(rgba);
 	SetNormal(normal);
 	tangent.getValue(m_tangent);
-	m_flag = (flat) ? FLAT: 0;
+	m_flag = (flat) ? FLAT : 0;
 	m_origindex = origindex;
 	m_unit = 2;
 	m_softBodyIndex = -1;
 
-	for (int i = 0; i < MAX_UNIT; ++i)
-	{
+	for (int i = 0; i < MAX_UNIT; ++i) {
 		uvs[i].getValue(m_uvs[i]);
 	}
 }
@@ -65,11 +64,11 @@ const MT_Point3& RAS_TexVert::xyz()
 
 void RAS_TexVert::SetRGBA(const MT_Vector4& rgba)
 {
-	unsigned char *colp = (unsigned char*) &m_rgba;
-	colp[0] = (unsigned char) (rgba[0] * 255.0);
-	colp[1] = (unsigned char) (rgba[1] * 255.0);
-	colp[2] = (unsigned char) (rgba[2] * 255.0);
-	colp[3] = (unsigned char) (rgba[3] * 255.0);
+	unsigned char *colp = (unsigned char *)&m_rgba;
+	colp[0] = (unsigned char)(rgba[0] * 255.0);
+	colp[1] = (unsigned char)(rgba[1] * 255.0);
+	colp[2] = (unsigned char)(rgba[2] * 255.0);
+	colp[3] = (unsigned char)(rgba[3] * 255.0);
 }
 
 
@@ -94,10 +93,9 @@ void RAS_TexVert::SetUV(int index, const float uv[2])
 }
 
 void RAS_TexVert::SetRGBA(const unsigned int rgba)
-{ 
+{
 	m_rgba = rgba;
 }
-
 
 void RAS_TexVert::SetFlag(const short flag)
 {
@@ -106,7 +104,7 @@ void RAS_TexVert::SetFlag(const short flag)
 
 void RAS_TexVert::SetUnit(const unsigned int u)
 {
-	m_unit = (u <= (unsigned int) MAX_UNIT) ? u: (unsigned int)MAX_UNIT;
+	m_unit = (u <= (unsigned int)MAX_UNIT) ? u : (unsigned int)MAX_UNIT;
 }
 
 void RAS_TexVert::SetNormal(const MT_Vector3& normal)
@@ -119,9 +117,8 @@ void RAS_TexVert::SetTangent(const MT_Vector3& tangent)
 	tangent.getValue(m_tangent);
 }
 
-
 // compare two vertices, and return true if both are almost identical (they can be shared)
-bool RAS_TexVert::closeTo(const RAS_TexVert* other)
+bool RAS_TexVert::closeTo(const RAS_TexVert *other)
 {
 	const float eps = FLT_EPSILON;
 	for (int i = 0; i < MAX_UNIT; i++) {
@@ -131,20 +128,19 @@ bool RAS_TexVert::closeTo(const RAS_TexVert* other)
 	}
 
 	return (/* m_flag == other->m_flag && */
-	        /* at the moment the face only stores the smooth/flat setting so don't bother comparing it */
-	        (m_rgba == other->m_rgba) &&
-	        compare_v3v3(m_normal, other->m_normal, eps) &&
-	        compare_v3v3(m_tangent, other->m_tangent, eps)
-	        /* don't bother comparing m_localxyz since we know there from the same vert */
-	        /* && compare_v3v3(m_localxyz, other->m_localxyz, eps))*/
-	        );
+		    /* at the moment the face only stores the smooth/flat setting so don't bother comparing it */
+		   (m_rgba == other->m_rgba) &&
+		   compare_v3v3(m_normal, other->m_normal, eps) &&
+		   compare_v3v3(m_tangent, other->m_tangent, eps)
+			/* don't bother comparing m_localxyz since we know there from the same vert */
+			/* && compare_v3v3(m_localxyz, other->m_localxyz, eps))*/
+		   );
 }
 
 short RAS_TexVert::getFlag() const
 {
 	return m_flag;
 }
-
 
 unsigned int RAS_TexVert::getUnit() const
 {
@@ -153,12 +149,12 @@ unsigned int RAS_TexVert::getUnit() const
 
 void RAS_TexVert::Transform(const MT_Matrix4x4& mat, const MT_Matrix4x4& nmat)
 {
-	SetXYZ((mat * MT_Vector4(m_localxyz[0], m_localxyz[1], m_localxyz[2], 1.0)).getValue());
-	SetNormal((nmat * MT_Vector4(m_normal[0], m_normal[1], m_normal[2], 1.0)).getValue());
-	SetTangent((nmat * MT_Vector4(m_tangent[0], m_tangent[1], m_tangent[2], 1.0)).getValue());
+	SetXYZ((mat * MT_Vector4(m_localxyz[0], m_localxyz[1], m_localxyz[2], 1.0f)).getValue());
+	SetNormal((nmat * MT_Vector4(m_normal[0], m_normal[1], m_normal[2], 1.0f)).getValue());
+	SetTangent((nmat * MT_Vector4(m_tangent[0], m_tangent[1], m_tangent[2], 1.0f)).getValue());
 }
 
 void RAS_TexVert::TransformUV(int index, const MT_Matrix4x4& mat)
 {
-	SetUV(index, (mat * MT_Vector4(m_uvs[index][0], m_uvs[index][1], 0.0, 1.0)).getValue());
+	SetUV(index, (mat * MT_Vector4(m_uvs[index][0], m_uvs[index][1], 0.0f, 1.0f)).getValue());
 }
