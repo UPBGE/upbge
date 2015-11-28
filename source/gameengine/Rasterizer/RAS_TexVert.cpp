@@ -48,7 +48,6 @@ RAS_TexVert::RAS_TexVert(const MT_Point3& xyz,
 	tangent.getValue(m_tangent);
 	m_flag = (flat) ? FLAT : 0;
 	m_origindex = origindex;
-	m_unit = 2;
 	m_softBodyIndex = -1;
 
 	for (int i = 0; i < MAX_UNIT; ++i) {
@@ -102,11 +101,6 @@ void RAS_TexVert::SetFlag(const short flag)
 	m_flag = flag;
 }
 
-void RAS_TexVert::SetUnit(const unsigned int u)
-{
-	m_unit = (u <= (unsigned int)MAX_UNIT) ? u : (unsigned int)MAX_UNIT;
-}
-
 void RAS_TexVert::SetNormal(const MT_Vector3& normal)
 {
 	normal.getValue(m_normal);
@@ -140,11 +134,6 @@ bool RAS_TexVert::closeTo(const RAS_TexVert *other)
 short RAS_TexVert::getFlag() const
 {
 	return m_flag;
-}
-
-unsigned int RAS_TexVert::getUnit() const
-{
-	return m_unit;
 }
 
 void RAS_TexVert::Transform(const MT_Matrix4x4& mat, const MT_Matrix4x4& nmat)

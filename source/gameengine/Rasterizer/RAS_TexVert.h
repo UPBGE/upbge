@@ -55,9 +55,8 @@ class RAS_TexVert
 	float m_normal[3]; // 3*4 = 12
 	short m_flag; // 2
 	short m_softBodyIndex; //2
-	unsigned int m_unit; // 4
 	unsigned int m_origindex; // 4
-	char m_padding[8]; // 8
+	char m_padding[12]; // 12
 	//---------
 	//      128
 	// 32 bytes alignment improves performance on ATI cards.
@@ -70,7 +69,6 @@ public:
 	};
 
 	short getFlag() const;
-	unsigned int getUnit() const;
 
 	RAS_TexVert()
 	{
@@ -135,7 +133,6 @@ public:
 	void SetNormal(const MT_Vector3& normal);
 	void SetTangent(const MT_Vector3& tangent);
 	void SetFlag(const short flag);
-	void SetUnit(const unsigned u);
 
 	void SetRGBA(const MT_Vector4& rgba);
 	const MT_Point3& xyz();
