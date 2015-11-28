@@ -40,44 +40,46 @@
 #include "BL_DeformableGameObject.h"
 #include <vector>
 
+class CTR_HashedPtr;
+class BL_DeformableGameObject;
+class RAS_MeshObject;
+class RAS_IPolyMaterial;
 
 class KX_SoftBodyDeformer : public RAS_Deformer
 {
-	class RAS_MeshObject*			m_pMeshObject;
-	class BL_DeformableGameObject*	m_gameobj;
+	RAS_MeshObject *m_pMeshObject;
+	BL_DeformableGameObject *m_gameobj;
 	// used to compute a fully AABB and not for only one material.
 	double m_lastDeformUpdate;
 
 public:
-	KX_SoftBodyDeformer(RAS_MeshObject*	pMeshObject,BL_DeformableGameObject* gameobj)
+	KX_SoftBodyDeformer(RAS_MeshObject *pMeshObject, BL_DeformableGameObject *gameobj)
 		:m_pMeshObject(pMeshObject),
 		m_gameobj(gameobj)
 	{
-		//printf("KX_SoftBodyDeformer\n");
-	};
+	}
 
 	virtual ~KX_SoftBodyDeformer()
 	{
-		//printf("~KX_SoftBodyDeformer\n");
-	};
-	virtual void Relink(CTR_Map<class CTR_HashedPtr, void*>*map);
-	virtual bool Apply(class RAS_IPolyMaterial *polymat);
-	virtual bool Update(void)
-	{
-		//printf("update\n");
-		m_bDynamic = true;
-		return true;//??
 	}
-	virtual bool UpdateBuckets(void)
+
+	virtual void Relink(CTR_Map<CTR_HashedPtr, void *> *map);
+	virtual bool Apply(RAS_IPolyMaterial *polymat);
+	virtual bool Update()
 	{
-		// this is to update the mesh slots outside the rasterizer, 
+		m_bDynamic = true;
+		return true;
+	}
+	virtual bool UpdateBuckets()
+	{
+		// this is to update the mesh slots outside the rasterizer,
 		// no need to do it for this deformer, it's done in any case in Apply()
 		return false;
 	}
 
 	virtual RAS_Deformer *GetReplica()
 	{
-		KX_SoftBodyDeformer* deformer = new KX_SoftBodyDeformer(*this);
+		KX_SoftBodyDeformer *deformer = new KX_SoftBodyDeformer(*this);
 		deformer->ProcessReplica();
 		return deformer;
 	}
@@ -91,14 +93,10 @@ public:
 		return true;
 	}
 
-protected:
-	//class RAS_MeshObject	*m_pMesh;
-
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_ShapeDeformer")
 #endif
 };
-
 
 #endif
 

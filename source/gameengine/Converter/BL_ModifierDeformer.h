@@ -40,44 +40,41 @@
 #include "BL_DeformableGameObject.h"
 #include <vector>
 
+class RAS_MeshObject;
 struct DerivedMesh;
 struct Object;
 
-class BL_ModifierDeformer : public BL_ShapeDeformer  
+class BL_ModifierDeformer : public BL_ShapeDeformer
 {
 public:
 	static bool HasCompatibleDeformer(Object *ob);
 	static bool HasArmatureDeformer(Object *ob);
 
-
 	BL_ModifierDeformer(BL_DeformableGameObject *gameobj,
-	                    Scene *scene,
-	                    Object *bmeshobj,
-	                    RAS_MeshObject *mesh)
-	                    :
-	                    BL_ShapeDeformer(gameobj,bmeshobj, mesh),
-	                    m_lastModifierUpdate(-1),
-	                    m_scene(scene),
-	                    m_dm(NULL)
+						Scene *scene,
+						Object *bmeshobj,
+						RAS_MeshObject *mesh)
+		:BL_ShapeDeformer(gameobj, bmeshobj, mesh),
+		m_lastModifierUpdate(-1.0),
+		m_scene(scene),
+		m_dm(NULL)
 	{
 		m_recalcNormal = false;
 	}
 
 	/* this second constructor is needed for making a mesh deformable on the fly. */
 	BL_ModifierDeformer(BL_DeformableGameObject *gameobj,
-	                    struct Scene *scene,
-	                    struct Object *bmeshobj_old,
-	                    struct Object *bmeshobj_new,
-	                    class RAS_MeshObject *mesh,
-	                    bool release_object,
-	                    BL_ArmatureObject* arma = NULL)
-	                    :
-	                    BL_ShapeDeformer(gameobj, bmeshobj_old, bmeshobj_new, mesh, release_object, false, arma),
-	                    m_lastModifierUpdate(-1),
-	                    m_scene(scene),
-	                    m_dm(NULL)
+						Scene *scene,
+						Object *bmeshobj_old,
+						Object *bmeshobj_new,
+						RAS_MeshObject *mesh,
+						bool release_object,
+						BL_ArmatureObject *arma = NULL)
+		:BL_ShapeDeformer(gameobj, bmeshobj_old, bmeshobj_new, mesh, release_object, false, arma),
+		m_lastModifierUpdate(-1),
+		m_scene(scene),
+		m_dm(NULL)
 	{
-		/* pass */
 	}
 
 	virtual void ProcessReplica();
@@ -88,24 +85,23 @@ public:
 		return false;
 	}
 
-	bool Update (void);
+	bool Update();
 	bool Apply(RAS_IPolyMaterial *mat);
 	void ForceUpdate()
 	{
 		m_lastModifierUpdate = -1.0;
-	};
-	virtual struct DerivedMesh* GetFinalMesh()
+	}
+	virtual DerivedMesh *GetFinalMesh()
 	{
 		return m_dm;
 	}
 	// The derived mesh returned by this function must be released!
-	virtual struct DerivedMesh* GetPhysicsMesh();
+	virtual DerivedMesh *GetPhysicsMesh();
 
 protected:
-	double					 m_lastModifierUpdate;
-	Scene					*m_scene;
-	DerivedMesh				*m_dm;
-
+	double m_lastModifierUpdate;
+	Scene *m_scene;
+	DerivedMesh *m_dm;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_ModifierDeformer")
