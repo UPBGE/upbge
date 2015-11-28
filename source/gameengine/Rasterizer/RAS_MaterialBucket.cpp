@@ -187,8 +187,8 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer* deformer)
 				m_displayArray->m_users--;
 				if (m_displayArray->m_users == 0) {
 					delete m_displayArray;
-					m_displayArray = NULL;
 				}
+				m_displayArray = NULL;
 			}
 		}
 	}
