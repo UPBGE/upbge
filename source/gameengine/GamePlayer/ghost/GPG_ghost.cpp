@@ -502,8 +502,10 @@ int main(int argc, char** argv)
 			break;
 
 		case SCREEN_SAVER_MODE_PREVIEW:
+		case SCREEN_SAVER_MODE_NONE:
 			/* This will actually be handled somewhere below... */
 			break;
+
 		}
 	}
 #endif
