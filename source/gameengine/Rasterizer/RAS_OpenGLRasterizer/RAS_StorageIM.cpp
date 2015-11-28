@@ -28,6 +28,7 @@
 #include "RAS_StorageIM.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_IPolygonMaterial.h"
+#include "RAS_MeshObject.h"
 
 #include "glew-mx.h"
 #include "GPU_draw.h"
@@ -190,7 +191,7 @@ void RAS_StorageIM::IndexPrimitives(RAS_MeshSlot& ms)
 		if (current_polymat->GetFlag() & RAS_BLENDERGLSL) {
 			// GetMaterialIndex return the original mface material index,
 			// increment by 1 to match what derived mesh is doing
-			current_blmat_nr = current_polymat->GetMaterialIndex() + 1;
+			current_blmat_nr = current_mesh->GetMaterialId(current_polymat) + 1;
 			// For GLSL we need to retrieve the GPU material attribute
 			Material *blmat = current_polymat->GetBlenderMaterial();
 			Scene *blscene = current_polymat->GetBlenderScene();
