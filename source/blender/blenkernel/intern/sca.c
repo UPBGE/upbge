@@ -151,6 +151,7 @@ void init_sensor(bSensor *sens)
 		sens->data= MEM_callocN(sizeof(bRaySensor), "raysens");
 		rs = sens->data;
 		rs->range = 0.01f;
+		rs->mask = (1 << OB_MAX_COL_MASKS) - 1;
 		break;
 	case SENS_MESSAGE:
 		sens->data= MEM_callocN(sizeof(bMessageSensor), "messagesens");

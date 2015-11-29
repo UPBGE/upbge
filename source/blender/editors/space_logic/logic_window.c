@@ -1162,6 +1162,8 @@ static void draw_sensor_ray(uiLayout *layout, PointerRNA *ptr, bContext *C)
 	row = uiLayoutRow(split, false);
 	uiItemR(row, ptr, "range", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "use_x_ray", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
+	split = uiLayoutSplit(layout, 0.3, false);
+	uiItemR(split, ptr, "mask", 0, NULL, ICON_NONE);
 }
 
 static void draw_brick_sensor(uiLayout *layout, PointerRNA *ptr, bContext *C)

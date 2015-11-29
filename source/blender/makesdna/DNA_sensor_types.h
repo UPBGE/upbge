@@ -134,6 +134,7 @@ typedef struct bRaySensor {
 	short mode;
 	short pad1;
 	int axisflag;
+	int mask;
 } bRaySensor;
 
 typedef struct bArmatureSensor {

@@ -487,7 +487,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						// don't want to get rays of length 0.0 or so
 						double distance = (blenderraysensor->range < 0.01f ? 0.01f : blenderraysensor->range);
 						int axis = blenderraysensor->axisflag;
-
+						int mask = blenderraysensor->mask;
 
 						gamesensor = new KX_RaySensor(eventmgr,
 													  gameobj,
@@ -496,6 +496,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 													  bXRay,
 													  distance,
 													  axis,
+													  mask,
 													  kxscene);
 
 					}

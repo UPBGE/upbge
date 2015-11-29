@@ -53,6 +53,7 @@ class KX_RaySensor : public SCA_ISensor
 	class KX_Scene* m_scene;
 	bool			m_bTriggered;
 	int				m_axis;
+	int				m_mask;
 	bool			m_rayHit;
 	float			m_hitPosition[3];
 	SCA_IObject*	m_hitObject;
@@ -68,6 +69,7 @@ public:
 					bool bXRay,
 					double distance,
 					int axis,
+					int mask,
 					class KX_Scene* ketsjiScene);
 	virtual ~KX_RaySensor();
 	virtual CValue* GetReplica();

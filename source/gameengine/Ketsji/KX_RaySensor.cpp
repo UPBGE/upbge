@@ -57,6 +57,7 @@ KX_RaySensor::KX_RaySensor(class SCA_EventManager* eventmgr,
 					bool bXRay,
 					double distance,
 					int axis,
+					int mask,
 					KX_Scene* ketsjiScene)
 			: SCA_ISensor(gameobj,eventmgr),
 					m_propertyname(propname),
@@ -65,6 +66,7 @@ KX_RaySensor::KX_RaySensor(class SCA_EventManager* eventmgr,
 					m_distance(distance),
 					m_scene(ketsjiScene),
 					m_axis(axis),
+					m_mask(mask),
 					m_hitMaterial("")
 {
 	Init();
@@ -168,6 +170,12 @@ bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 		printf("Invalid client type %d found ray casting\n", client->m_type);
 		return false;
 	}
+
+	// The current object is not in the proper layer.
+	if (!(client->m_gameobject->GetUserCollisionGroup() & m_mask)) {
+		return false;
+	}
+
 	if (m_bXRay && m_propertyname.Length() != 0)
 	{
 		if (m_bFindMaterial) {
@@ -362,6 +370,7 @@ PyAttributeDef KX_RaySensor::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_RW("range", 0, 10000, KX_RaySensor, m_distance),
 	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, KX_RaySensor, m_propertyname),
 	KX_PYATTRIBUTE_INT_RW("axis", 0, 5, true, KX_RaySensor, m_axis),
+	KX_PYATTRIBUTE_INT_RW("mask", 1, (1 << OB_MAX_COL_MASKS) - 1, true, KX_RaySensor, m_mask),
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("hitPosition", KX_RaySensor, m_hitPosition, 3),
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("rayDirection", KX_RaySensor, m_rayDirection, 3),
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("hitNormal", KX_RaySensor, m_hitNormal, 3),
