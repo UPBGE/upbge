@@ -1690,8 +1690,8 @@ static void walk_children(SG_Node* node, CListValue* list, bool recursive)
 		CValue* childobj = (CValue*)childnode->GetSGClientObject();
 		if (childobj != NULL) // This is a GameObject
 		{
-			// add to the list
-			list->Add(childobj->AddRef());
+			// add to the list, no AddRef because the list doesn't own its items.
+			list->Add(childobj);
 		}
 		
 		// if the childobj is NULL then this may be an inverse parent link
@@ -1705,6 +1705,9 @@ static void walk_children(SG_Node* node, CListValue* list, bool recursive)
 CListValue* KX_GameObject::GetChildren()
 {
 	CListValue* list = new CListValue();
+	/* The list must not own any data because is temporary and we can't
+	 * ensure that it will freed before item's in it (e.g python owner). */
+	list->SetReleaseOnDestruct(false);
 	walk_children(GetSGNode(), list, 0); /* GetSGNode() is always valid or it would have raised an exception before this */
 	return list;
 }
@@ -1712,6 +1715,9 @@ CListValue* KX_GameObject::GetChildren()
 CListValue* KX_GameObject::GetChildrenRecursive()
 {
 	CListValue* list = new CListValue();
+	/* The list must not own any data because is temporary and we can't
+	 * ensure that it will freed before item's in it (e.g python owner). */
+	list->SetReleaseOnDestruct(false);
 	walk_children(GetSGNode(), list, 1);
 	return list;
 }
