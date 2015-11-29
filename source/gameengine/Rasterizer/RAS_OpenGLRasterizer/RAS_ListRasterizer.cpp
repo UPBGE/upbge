@@ -33,6 +33,7 @@
 #include "glew-mx.h"
 
 #include "RAS_MaterialBucket.h"
+#include "RAS_MeshObject.h"
 #include "RAS_TexVert.h"
 #include "MT_assert.h"
 
@@ -178,7 +179,7 @@ RAS_ListSlot *RAS_ListRasterizer::FindOrAdd(RAS_MeshSlot& ms)
 		if (ms.m_pDerivedMesh) {
 			// that means that we draw based on derived mesh, a display list is possible
 			// Note that we come here only for static derived mesh
-			int matnr = ms.m_bucket->GetPolyMaterial()->GetMaterialIndex();
+			int matnr = ms.m_mesh->GetMaterialId(ms.m_bucket->GetPolyMaterial());
 			RAS_ListSlot *nullSlot = NULL;
 			RAS_ListSlots *listVector;
 			RAS_DerivedMeshLists::iterator it = mDerivedMeshLists.find(ms.m_pDerivedMesh);
