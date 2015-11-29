@@ -921,20 +921,6 @@ void KX_GameObject::SynchronizeTransformFunc(SG_IObject* node, void* gameobj, vo
 	((KX_GameObject*)gameobj)->SynchronizeTransform();
 }
 
-
-void KX_GameObject::SetDebugColor(unsigned int bgra)
-{
-	for (size_t i=0;i<m_meshes.size();i++)
-		m_meshes[i]->DebugColor(bgra);
-}
-
-
-
-void KX_GameObject::ResetDebugColor()
-{
-	SetDebugColor(0xff000000);
-}
-
 void KX_GameObject::InitIPO(bool ipo_as_force,
                             bool ipo_add,
                             bool ipo_local)

@@ -146,7 +146,6 @@ public:
 	void EndConversion();
 
 	// colors
-	void DebugColor(unsigned int abgr);
 	void SetVertexColor(RAS_IPolyMaterial *mat, MT_Vector4 rgba);
 
 	// polygon sorting by Z for alpha

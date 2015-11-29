@@ -310,10 +310,6 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 	return poly;
 }
 
-void RAS_MeshObject::DebugColor(unsigned int abgr)
-{
-}
-
 void RAS_MeshObject::SetVertexColor(RAS_IPolyMaterial *mat, MT_Vector4 rgba)
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(mat);

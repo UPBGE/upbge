@@ -858,22 +858,6 @@ public:
 	) const { 
 		return m_meshes.size(); 
 	}
-	
-	/**
-	 * Set the debug color of the meshes associated with this
-	 * class. Does this still work?
-	 */
-		void
-	SetDebugColor(
-		unsigned int bgra
-	);
-
-	/** 
-	 * Reset the debug color of meshes associated with this class.
-	 */
-		void
-	ResetDebugColor(
-	);
 
 	/**
 	 * Was this object marked visible? (only for the explicit
