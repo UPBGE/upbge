@@ -33,7 +33,7 @@
 #define __RAS_MESHOBJECT_H__
 
 #ifdef _MSC_VER
-   /* disable the STL warnings ("debug information length > 255") */
+/* disable the STL warnings ("debug information length > 255") */
 #  pragma warning (disable:4786)
 #endif
 
@@ -55,18 +55,16 @@ class RAS_Polygon;
 class RAS_MeshObject
 {
 private:
-	/* unsigned int				m_debugcolor; */ /* UNUSED */
-
-	bool						m_bModified;
-	bool						m_bMeshModified;
+	bool m_bModified;
+	bool m_bMeshModified;
 	bool m_aabbModified;
 	MT_Point3 m_aabbMax;
 	MT_Point3 m_aabbMin;
 
-	STR_String					m_name;
-	static STR_String			s_emptyname;
+	STR_String m_name;
+	static STR_String s_emptyname;
 
-	vector<RAS_Polygon*> 	m_Polygons;
+	vector<RAS_Polygon *> m_Polygons;
 
 	/* polygon sorting */
 	struct polygonSlot;
@@ -76,94 +74,96 @@ private:
 	void UpdateAabb();
 
 protected:
-	vector<int>						m_cacheWeightIndex;
-	list<RAS_MeshMaterial>			m_materials;
-	Mesh*							m_mesh;
+	vector<int> m_cacheWeightIndex;
+	list<RAS_MeshMaterial> m_materials;
+	Mesh *m_mesh;
 
 public:
 	// for now, meshes need to be in a certain layer (to avoid sorting on lights in realtime)
-	RAS_MeshObject(Mesh* mesh);
+	RAS_MeshObject(Mesh *mesh);
 	virtual ~RAS_MeshObject();
 
+	// materials
+	int NumMaterials();
+	const STR_String& GetMaterialName(unsigned int matid);
+	const STR_String& GetTextureName(unsigned int matid);
 
-	/* materials */
-	int					NumMaterials();
-	const STR_String&	GetMaterialName(unsigned int matid);
-	const STR_String&	GetTextureName(unsigned int matid);
-
-	RAS_MeshMaterial* 	GetMeshMaterial(unsigned int matid);
-	RAS_MeshMaterial*	GetMeshMaterial(RAS_IPolyMaterial *mat);
-	int					GetMaterialId(RAS_IPolyMaterial *mat);
+	RAS_MeshMaterial *GetMeshMaterial(unsigned int matid);
+	RAS_MeshMaterial *GetMeshMaterial(RAS_IPolyMaterial *mat);
+	int GetMaterialId(RAS_IPolyMaterial *mat);
 
 	list<RAS_MeshMaterial>::iterator GetFirstMaterial();
 	list<RAS_MeshMaterial>::iterator GetLastMaterial();
 
-	//unsigned int		GetLightLayer();
+	// name
+	void SetName(const char *name);
+	STR_String& GetName();
 
-	/* name */
-	void				SetName(const char *name);
-	STR_String&			GetName();
-
-	/* modification state */
-	bool				MeshModified();
-	void				SetMeshModified(bool v) { m_bMeshModified = v; }
+	// modification state
+	bool MeshModified();
+	void SetMeshModified(bool v)
+	{
+		m_bMeshModified = v;
+	}
 
 	void SetAabbModified(bool v)
 	{
 		m_aabbModified = v;
 	}
 
-	/* original blender mesh */
-	Mesh*				GetMesh() { return m_mesh; }
+	// original blender mesh
+	Mesh *GetMesh()
+	{
+		return m_mesh;
+	}
 
-	/* mesh construction */
-
+	// mesh construction
 	RAS_MeshMaterial *AddMaterial(RAS_MaterialBucket *bucket);
-	virtual RAS_Polygon*	AddPolygon(RAS_MaterialBucket *bucket, int numverts);
-	virtual void			AddVertex(RAS_Polygon *poly, int i,
-							const MT_Point3& xyz,
-							const MT_Point2 uvs[RAS_TexVert::MAX_UNIT],
-							const MT_Vector4& tangent,
-							const unsigned int rgbacolor,
-							const MT_Vector3& normal,
-							bool flat,
-							int origindex);
+	virtual RAS_Polygon *AddPolygon(RAS_MaterialBucket *bucket, int numverts);
+	virtual void AddVertex(RAS_Polygon *poly, int i,
+						   const MT_Point3& xyz,
+						   const MT_Point2 uvs[RAS_TexVert::MAX_UNIT],
+						   const MT_Vector4& tangent,
+						   const unsigned int rgbacolor,
+						   const MT_Vector3& normal,
+						   bool flat,
+						   int origindex);
 
-	void					SchedulePolygons(int drawingmode);
+	void SchedulePolygons(int drawingmode);
 
-	/* vertex and polygon acces */
-	int					NumVertices(RAS_IPolyMaterial* mat);
-	RAS_TexVert*		GetVertex(unsigned int matid, unsigned int index);
-	const float*		GetVertexLocation(unsigned int orig_index);
+	// vertex and polygon acces
+	int NumVertices(RAS_IPolyMaterial *mat);
+	RAS_TexVert *GetVertex(unsigned int matid, unsigned int index);
+	const float *GetVertexLocation(unsigned int orig_index);
 
-	int					NumPolygons();
-	RAS_Polygon*		GetPolygon(int num) const;
-	
-	/* buckets */
-	virtual void		AddMeshUser(void *clientobj, SG_QList *head, RAS_Deformer* deformer);
+	int NumPolygons();
+	RAS_Polygon *GetPolygon(int num) const;
 
-	void				RemoveFromBuckets(void *clientobj);
-	void				EndConversion();
+	// buckets
+	virtual void AddMeshUser(void *clientobj, SG_QList *head, RAS_Deformer *deformer);
 
-	/* colors */
-	void				DebugColor(unsigned int abgr);
-	void 				SetVertexColor(RAS_IPolyMaterial* mat,MT_Vector4 rgba);
-	
-	/* polygon sorting by Z for alpha */
-	void				SortPolygons(RAS_MeshSlot& ms, const MT_Transform &transform);
+	void RemoveFromBuckets(void *clientobj);
+	void EndConversion();
 
+	// colors
+	void DebugColor(unsigned int abgr);
+	void SetVertexColor(RAS_IPolyMaterial *mat, MT_Vector4 rgba);
 
-	bool				HasColliderPolygon();
+	// polygon sorting by Z for alpha
+	void SortPolygons(RAS_MeshSlot& ms, const MT_Transform &transform);
+
+	bool HasColliderPolygon();
 
 	void GetAabb(MT_Point3 &aabbMin, MT_Point3 &aabbMax);
 
-	/* for construction to find shared vertices */
-	struct SharedVertex {
+	// for construction to find shared vertices
+	struct SharedVertex
+	{
 		RAS_DisplayArray *m_darray;
 		int m_offset;
 	};
 
-	vector<vector<SharedVertex> >	m_sharedvertex_map;
+	vector<vector<SharedVertex> > m_sharedvertex_map;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
@@ -171,4 +171,4 @@ public:
 #endif
 };
 
-#endif  /* __RAS_MESHOBJECT_H__ */
+#endif  // __RAS_MESHOBJECT_H__
