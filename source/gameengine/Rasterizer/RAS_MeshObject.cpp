@@ -196,12 +196,13 @@ const STR_String& RAS_MeshObject::GetMaterialName(unsigned int matid)
 
 RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(unsigned int matid)
 {
-	if ((m_materials.empty() == false) && (matid < m_materials.size())) {
-		list<RAS_MeshMaterial>::iterator it = m_materials.begin();
-		while (matid--) {
-			++it;
+	for(std::list<RAS_MeshMaterial>::iterator it = m_materials.begin();
+		it != m_materials.end();
+		++it)
+	{
+		if (it->m_index == matid) {
+			return &*it;
 		}
-		return &*it;
 	}
 
 	return NULL;
@@ -263,18 +264,17 @@ RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(RAS_IPolyMaterial *mat)
 int RAS_MeshObject::GetMaterialId(RAS_IPolyMaterial *mat)
 {
 	list<RAS_MeshMaterial>::iterator mit;
-	int imat;
 
 	// find a mesh material
-	for (imat = 0, mit = m_materials.begin(); mit != m_materials.end(); mit++, imat++) {
+	for (mit = m_materials.begin(); mit != m_materials.end(); ++mit) {
 		if (mit->m_bucket->GetPolyMaterial() == mat)
-			return imat;
+			return mit->m_index;
 	}
 
 	return -1;
 }
 
-RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket)
+void RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index)
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
 
@@ -284,11 +284,9 @@ RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket)
 		meshmat.m_bucket = bucket;
 		meshmat.m_baseslot = meshmat.m_bucket->AddMesh();
 		meshmat.m_baseslot->m_mesh = this;
+		meshmat.m_index = index;
 		m_materials.push_back(meshmat);
-		mmat = &m_materials.back();
 	}
-
-	return mmat;
 }
 
 RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts)
@@ -298,7 +296,7 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 	RAS_MeshSlot *slot;
 
 	// find a mesh material
-	mmat = AddMaterial(bucket);
+	mmat = GetMeshMaterial(bucket->GetPolyMaterial());
 	// add it to the bucket, this also adds new display arrays
 	slot = mmat->m_baseslot;
 
