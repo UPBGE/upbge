@@ -277,64 +277,68 @@ bool KX_ObjectActuator::Update()
 				parent->ApplyRotation(m_drot,(m_bitLocalFlag.DRot) != 0);
 			}
 
-			if (m_bitLocalFlag.ZeroLinearVelocity) {
-				if (!m_bitLocalFlag.AddOrSetLinV) {
-					/* No need to select local or world, as the velocity is zero anyway,
-					 * and setLinearVelocity() converts local to world first. We do need to
-					 * pass a true zero vector, as m_linear_velocity is only fuzzily zero. */
-					parent->setLinearVelocity(MT_Vector3(0, 0, 0), false);
+			if (m_bitLocalFlag.ZeroForce) {
+				if (m_bitLocalFlag.ZeroLinearVelocity) {
+					if (!m_bitLocalFlag.AddOrSetLinV) {
+						/* No need to select local or world, as the velocity is zero anyway,
+						* and setLinearVelocity() converts local to world first. We do need to
+						* pass a true zero vector, as m_linear_velocity is only fuzzily zero. */
+						parent->setLinearVelocity(MT_Vector3(0, 0, 0), false);
+					}
+				}
+				else {
+					if (m_bitLocalFlag.AddOrSetLinV) {
+						parent->addLinearVelocity(m_linear_velocity,(m_bitLocalFlag.LinearVelocity) != 0);
+					} else {
+						m_active_combined_velocity = true;
+						if (m_damping > 0) {
+							MT_Vector3 linV;
+							if (!m_linear_damping_active) {
+								// delta and the start speed (depends on the existing speed in that direction)
+								linV = parent->GetLinearVelocity(m_bitLocalFlag.LinearVelocity);
+								// keep only the projection along the desired direction
+								m_current_linear_factor = linV.dot(m_linear_velocity)/m_linear_length2;
+								m_linear_damping_active = true;
+							}
+							if (m_current_linear_factor < 1.0)
+								m_current_linear_factor += 1.0/m_damping;
+							if (m_current_linear_factor > 1.0)
+								m_current_linear_factor = 1.0;
+							linV = m_current_linear_factor * m_linear_velocity;
+							parent->setLinearVelocity(linV,(m_bitLocalFlag.LinearVelocity) != 0);
+						} else {
+							parent->setLinearVelocity(m_linear_velocity,(m_bitLocalFlag.LinearVelocity) != 0);
+						}
+					}
 				}
 			}
-			else {
-				if (m_bitLocalFlag.AddOrSetLinV) {
-					parent->addLinearVelocity(m_linear_velocity,(m_bitLocalFlag.LinearVelocity) != 0);
-				} else {
+			if (m_bitLocalFlag.ZeroTorque) {
+				if (m_bitLocalFlag.ZeroAngularVelocity) {
+					/* No need to select local or world, as the velocity is zero anyway,
+					* and setAngularVelocity() converts local to world first. We do need to
+					* pass a true zero vector, as m_angular_velocity is only fuzzily zero. */
+					parent->setAngularVelocity(MT_Vector3(0, 0, 0), false);
+				}
+				else {
 					m_active_combined_velocity = true;
 					if (m_damping > 0) {
-						MT_Vector3 linV;
-						if (!m_linear_damping_active) {
+						MT_Vector3 angV;
+						if (!m_angular_damping_active) {
 							// delta and the start speed (depends on the existing speed in that direction)
-							linV = parent->GetLinearVelocity(m_bitLocalFlag.LinearVelocity);
+							angV = parent->GetAngularVelocity(m_bitLocalFlag.AngularVelocity);
 							// keep only the projection along the desired direction
-							m_current_linear_factor = linV.dot(m_linear_velocity)/m_linear_length2;
-							m_linear_damping_active = true;
+							m_current_angular_factor = angV.dot(m_angular_velocity)/m_angular_length2;
+							m_angular_damping_active = true;
 						}
-						if (m_current_linear_factor < 1.0)
-							m_current_linear_factor += 1.0/m_damping;
-						if (m_current_linear_factor > 1.0)
-							m_current_linear_factor = 1.0;
-						linV = m_current_linear_factor * m_linear_velocity;
-						parent->setLinearVelocity(linV,(m_bitLocalFlag.LinearVelocity) != 0);
+						if (m_current_angular_factor < 1.0)
+							m_current_angular_factor += 1.0/m_damping;
+						if (m_current_angular_factor > 1.0)
+							m_current_angular_factor = 1.0;
+						angV = m_current_angular_factor * m_angular_velocity;
+						parent->setAngularVelocity(angV,(m_bitLocalFlag.AngularVelocity) != 0);
 					} else {
-						parent->setLinearVelocity(m_linear_velocity,(m_bitLocalFlag.LinearVelocity) != 0);
+						parent->setAngularVelocity(m_angular_velocity,(m_bitLocalFlag.AngularVelocity) != 0);
 					}
-				}
-			}
-			if (m_bitLocalFlag.ZeroAngularVelocity) {
-				/* No need to select local or world, as the velocity is zero anyway,
-				 * and setAngularVelocity() converts local to world first. We do need to
-				 * pass a true zero vector, as m_angular_velocity is only fuzzily zero. */
-				parent->setAngularVelocity(MT_Vector3(0, 0, 0), false);
-			}
-			else {
-				m_active_combined_velocity = true;
-				if (m_damping > 0) {
-					MT_Vector3 angV;
-					if (!m_angular_damping_active) {
-						// delta and the start speed (depends on the existing speed in that direction)
-						angV = parent->GetAngularVelocity(m_bitLocalFlag.AngularVelocity);
-						// keep only the projection along the desired direction
-						m_current_angular_factor = angV.dot(m_angular_velocity)/m_angular_length2;
-						m_angular_damping_active = true;
-					}
-					if (m_current_angular_factor < 1.0)
-						m_current_angular_factor += 1.0/m_damping;
-					if (m_current_angular_factor > 1.0)
-						m_current_angular_factor = 1.0;
-					angV = m_current_angular_factor * m_angular_velocity;
-					parent->setAngularVelocity(angV,(m_bitLocalFlag.AngularVelocity) != 0);
-				} else {
-					parent->setAngularVelocity(m_angular_velocity,(m_bitLocalFlag.AngularVelocity) != 0);
 				}
 			}
 		}
