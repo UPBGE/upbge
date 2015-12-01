@@ -748,16 +748,13 @@ void KX_GameObject::AddMeshUser()
 {
 	for (size_t i=0;i<m_meshes.size();i++)
 	{
-		m_meshes[i]->AddMeshUser(this, &m_meshSlots, GetDeformer());
+		m_meshes[i]->AddMeshUser(this, m_meshSlots, GetDeformer());
 	}
 	// set the part of the mesh slot that never change
 	float *fl = GetOpenGLMatrixPtr()->getPointer();
 
-	SG_QList::iterator<RAS_MeshSlot> mit(m_meshSlots);
-//	RAS_MeshSlot* ms;
-	for (mit.begin(); !mit.end(); ++mit)
-	{
-		(*mit)->m_OpenGLMatrix = fl;
+	for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end; ++it) {
+		(*it)->m_OpenGLMatrix = fl;
 	}
 	UpdateBuckets(false);
 }
@@ -782,15 +779,11 @@ static void UpdateBuckets_recursive(SG_Node* node)
 void KX_GameObject::UpdateBuckets( bool recursive )
 {
 	if (GetSGNode()) {
-		RAS_MeshSlot *ms;
-
 		if (GetSGNode()->IsDirty())
 			GetOpenGLMatrix();
 
-		SG_QList::iterator<RAS_MeshSlot> mit(m_meshSlots);
-		for (mit.begin(); !mit.end(); ++mit)
-		{
-			ms = *mit;
+		for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end; ++it) {
+			RAS_MeshSlot *ms = *it;
 			ms->m_bObjectColor = m_bUseObjectColor;
 			ms->m_RGBAcolor = m_objectColor;
 			ms->m_bVisible = m_bVisible;
@@ -814,6 +807,8 @@ void KX_GameObject::RemoveMeshes()
 {
 	for (size_t i=0;i<m_meshes.size();i++)
 		m_meshes[i]->RemoveFromBuckets(this);
+	// Remove all mesh slots.
+	m_meshSlots.clear();
 
 	//note: meshes can be shared, and are deleted by KX_BlenderSceneConverter
 

@@ -141,7 +141,7 @@ public:
 	RAS_Polygon *GetPolygon(int num) const;
 
 	// buckets
-	virtual void AddMeshUser(void *clientobj, SG_QList *head, RAS_Deformer *deformer);
+	virtual void AddMeshUser(void *clientobj, RAS_MeshSlotList& meshslots, RAS_Deformer *deformer);
 
 	void RemoveFromBuckets(void *clientobj);
 	void EndConversion();

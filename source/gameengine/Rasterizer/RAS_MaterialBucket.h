@@ -34,7 +34,6 @@
 
 #include "RAS_TexVert.h"
 #include "CTR_Map.h"
-#include "SG_QList.h"
 
 #include "MT_Transform.h"
 #include "MT_Matrix4x4.h"
@@ -98,9 +97,7 @@ public:
 // Entry of a RAS_MeshObject into RAS_MaterialBucket
 typedef std::vector<RAS_DisplayArray *>  RAS_DisplayArrayList;
 
-// The QList is used to link the mesh slots to the object
-// The DList is used to link the visible mesh slots to the material bucket
-class RAS_MeshSlot : public SG_QList
+class RAS_MeshSlot
 {
 	friend class RAS_ListRasterizer;
 private:
@@ -162,6 +159,8 @@ public:
 #endif
 };
 
+typedef std::vector<RAS_MeshSlot *> RAS_MeshSlotList;
+
 // Used by RAS_MeshObject, to point to it's slots in a bucket
 class RAS_MeshMaterial
 {
@@ -206,23 +205,17 @@ public:
 	RAS_MeshSlot *CopyMesh(RAS_MeshSlot *ms);
 	void RemoveMesh(RAS_MeshSlot *ms);
 	void Optimize(MT_Scalar distance);
-	void ActivateMesh(RAS_MeshSlot *slot)
-	{
-		m_activeMeshSlotsHead.AddBack(slot);
-	}
-	SG_DList& GetActiveMeshSlots()
-	{
-		return m_activeMeshSlotsHead;
-	}
-	RAS_MeshSlot *GetNextActiveMeshSlot()
-	{
-		return (RAS_MeshSlot *)m_activeMeshSlotsHead.Remove();
-	}
+
+	/// \section Active Mesh Slots Management.
+	void ActivateMesh(RAS_MeshSlot *slot);
+	RAS_MeshSlotList& GetActiveMeshSlots();
+	void RemoveActiveMeshSlots();
+	unsigned int GetNumActiveMeshSLots() const;
 
 private:
 	list<RAS_MeshSlot> m_meshSlots; // all the mesh slots
 	RAS_IPolyMaterial *m_material;
-	SG_DList m_activeMeshSlotsHead; // only those which must be rendered
+	RAS_MeshSlotList m_activeMeshSlotsHead; // only those which must be rendered
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MaterialBucket")

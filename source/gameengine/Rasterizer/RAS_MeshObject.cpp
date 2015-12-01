@@ -411,7 +411,7 @@ const float *RAS_MeshObject::GetVertexLocation(unsigned int orig_index)
 	return it->m_darray->m_vertex[it->m_offset].getXYZ();
 }
 
-void RAS_MeshObject::AddMeshUser(void *clientobj, SG_QList *head, RAS_Deformer *deformer)
+void RAS_MeshObject::AddMeshUser(void *clientobj, RAS_MeshSlotList& meshslots, RAS_Deformer *deformer)
 {
 	list<RAS_MeshMaterial>::iterator it;
 	list<RAS_MeshMaterial>::iterator mit;
@@ -421,7 +421,7 @@ void RAS_MeshObject::AddMeshUser(void *clientobj, SG_QList *head, RAS_Deformer *
 		ms->m_clientObj = clientobj;
 		ms->SetDeformer(deformer);
 		it->m_slots.insert(clientobj, ms);
-		head->QAddBack(ms);
+		meshslots.push_back(ms);
 	}
 }
 

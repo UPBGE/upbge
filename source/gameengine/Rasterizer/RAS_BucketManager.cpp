@@ -112,11 +112,8 @@ void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList
 	 * but we leave out pval since it's constant anyway */
 	const MT_Vector3 pnorm(cameratrans.getBasis()[2]);
 
-	for (bit = buckets.begin(); bit != buckets.end(); ++bit)
-	{
-		SG_DList::iterator<RAS_MeshSlot> mit((*bit)->GetActiveMeshSlots());
-		for (mit.begin(); !mit.end(); ++mit)
-			size++;
+	for (bit = buckets.begin(); bit != buckets.end(); ++bit) {
+		size += (*bit)->GetActiveMeshSlots().size();
 	}
 
 	slots.resize(size);
@@ -124,11 +121,11 @@ void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList
 	for (bit = buckets.begin(); bit != buckets.end(); ++bit)
 	{
 		RAS_MaterialBucket* bucket = *bit;
-		RAS_MeshSlot* ms;
-		// remove the mesh slot form the list, it culls them automatically for next frame
-		while ((ms = bucket->GetNextActiveMeshSlot())) {
-			slots[i++].set(ms, bucket, pnorm);
+		RAS_MeshSlotList& activeMeshSlots = bucket->GetActiveMeshSlots();
+		for (RAS_MeshSlotList::iterator it = activeMeshSlots.begin(), end = activeMeshSlots.end(); it != end; ++it) {
+			slots[i++].set(*it, bucket, pnorm);
 		}
+		bucket->RemoveActiveMeshSlots();
 	}
 		
 	if (alpha)
@@ -173,9 +170,9 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 	for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
 #if 1
 		RAS_MaterialBucket* bucket = *bit;
-		RAS_MeshSlot* ms;
-		// remove the mesh slot form the list, it culls them automatically for next frame
-		while ((ms = bucket->GetNextActiveMeshSlot())) {
+		RAS_MeshSlotList& activeMeshSlots = bucket->GetActiveMeshSlots();
+		for (RAS_MeshSlotList::iterator it = activeMeshSlots.begin(), end = activeMeshSlots.end(); it != end; ++it) {
+			RAS_MeshSlot *ms = *it;
 			rasty->SetClientObject(ms->m_clientObj);
 			while (bucket->ActivateMaterial(cameratrans, rasty))
 				bucket->RenderMeshSlot(cameratrans, rasty, *ms);
@@ -184,6 +181,7 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 			// it will be culled out by frustrum culling
 			ms->SetCulled(true);
 		}
+		bucket->RemoveActiveMeshSlots();
 #else
 		list<RAS_MeshSlot>::iterator mit;
 		for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {

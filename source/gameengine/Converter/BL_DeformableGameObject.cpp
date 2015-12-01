@@ -101,10 +101,8 @@ void BL_DeformableGameObject::SetDeformer(class RAS_Deformer* deformer)
 {
 	m_pDeformer = deformer;
 
-	SG_QList::iterator<RAS_MeshSlot> mit(m_meshSlots);
-	for (mit.begin(); !mit.end(); ++mit)
-	{
-		(*mit)->SetDeformer(deformer);
+	for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end; ++it) {
+		(*it)->SetDeformer(deformer);
 	}
 }
 

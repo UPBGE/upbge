@@ -57,6 +57,7 @@
 struct KX_ClientObjectInfo;
 class KX_RayCast;
 class RAS_MeshObject;
+class RAS_MeshSlot;
 class PHY_IGraphicController;
 class PHY_IPhysicsEnvironment;
 class PHY_IPhysicsController;
@@ -91,7 +92,7 @@ protected:
 	std::vector<RAS_MeshObject*>		m_lodmeshes;
 	int                                 m_currentLodLevel;
 	short								m_previousLodLevel;
-	SG_QList							m_meshSlots;	// head of mesh slots of this 
+	std::vector<RAS_MeshSlot *>			m_meshSlots; // list of mesh slots of this 
 	struct Object*						m_pBlenderObject;
 	struct Object*						m_pBlenderGroupObject;
 	

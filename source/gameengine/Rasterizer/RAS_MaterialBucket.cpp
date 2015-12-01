@@ -47,8 +47,7 @@
 
 // mesh slot
 RAS_MeshSlot::RAS_MeshSlot()
-	:SG_QList(),
-	m_displayArray(NULL),
+	:m_displayArray(NULL),
 	m_bucket(NULL),
 	m_mesh(NULL),
 	m_clientObj(NULL),
@@ -87,7 +86,7 @@ RAS_MeshSlot::~RAS_MeshSlot()
 	}
 }
 
-RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot) : SG_QList()
+RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 {
 	m_clientObj = NULL;
 	m_pDeformer = NULL;
@@ -508,4 +507,24 @@ void RAS_MaterialBucket::Optimize(MT_Scalar distance)
 		for (jt = it, jt++; jt != m_meshSlots.end(); jt++)
 			jt->Join(&*it, distance);
 #endif
+}
+
+void RAS_MaterialBucket::ActivateMesh(RAS_MeshSlot *slot)
+{
+	m_activeMeshSlotsHead.push_back(slot);
+}
+
+RAS_MeshSlotList& RAS_MaterialBucket::GetActiveMeshSlots()
+{
+	return m_activeMeshSlotsHead;
+}
+
+void RAS_MaterialBucket::RemoveActiveMeshSlots()
+{
+	m_activeMeshSlotsHead.clear();
+}
+
+unsigned int RAS_MaterialBucket::GetNumActiveMeshSLots() const
+{
+	return m_activeMeshSlotsHead.size();
 }
