@@ -253,8 +253,6 @@ typedef struct Object {
 	int gameflag;
 	int gameflag2;
 
-	struct Mesh *gamePredefinedBound;
-
 	struct BulletSoftBody *bsoft;	/* settings for game engine bullet soft body */
 
 	char restrictflag;		/* for restricting view, select, render etc. accessible in outliner */
@@ -301,6 +299,8 @@ typedef struct Object {
 	LodLevel *currentlod;
 
 	struct PreviewImage *preview;
+
+	struct Mesh *gamePredefinedBound;
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */
