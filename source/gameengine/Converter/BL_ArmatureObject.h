@@ -89,7 +89,7 @@ public:
 	Object* GetOrigArmatureObject() {return m_origObjArma;}
 
 	int GetVertDeformType() {return m_vert_deform_type;}
-
+	void DrawDebugArmature();
 	// for constraint python API
 	void LoadConstraints(KX_BlenderSceneConverter* converter);
 	size_t GetConstraintNumber() const { return m_constraintNumber; }
@@ -118,6 +118,7 @@ public:
 	static PyObject *pyattr_get_constraints(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_channels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	KX_PYMETHOD_DOC_NOARGS(BL_ArmatureObject, update);
+	KX_PYMETHOD_DOC_NOARGS(BL_ArmatureObject, draw);
 
 #endif  /* WITH_PYTHON */
 
@@ -138,6 +139,8 @@ protected:
 	size_t  m_channelNumber;
 	// store the original armature object matrix
 	float m_obmat[4][4];
+	/// Set to true to allow draw debug info for one frame, reset in DrawDebugArmature.
+	bool m_drawDebug;
 
 	double			m_lastapplyframe;
 };

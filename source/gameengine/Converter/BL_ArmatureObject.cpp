@@ -230,6 +230,7 @@ BL_ArmatureObject::BL_ArmatureObject(
 	m_vert_deform_type(vert_deform_type),
 	m_constraintNumber(0),
 	m_channelNumber(0),
+	m_drawDebug(false),
 	m_lastapplyframe(0.0)
 {
 	m_origObjArma = armature; // Keep a copy of the original armature so we can fix drivers later
@@ -494,6 +495,9 @@ void BL_ArmatureObject::ApplyPose()
 		}
 		m_lastapplyframe = m_lastframe;
 	}
+
+	// Debug draw all bones.
+	DrawDebugArmature();
 }
 
 void BL_ArmatureObject::RestorePose()
@@ -574,6 +578,24 @@ bool BL_ArmatureObject::GetBoneMatrix(Bone* bone, MT_Matrix4x4& matrix)
 	return (pchan != NULL);
 }
 
+void BL_ArmatureObject::DrawDebugArmature()
+{
+	if (!m_drawDebug) {
+		return;
+	}
+
+	const MT_Vector3& scale = NodeGetWorldScaling();
+	const MT_Matrix3x3& rot = NodeGetWorldOrientation();
+	const MT_Point3& pos = NodeGetWorldPosition();
+
+	for (bPoseChannel *pchan = (bPoseChannel *)m_pose->chanbase.first; pchan; pchan = pchan->next) {
+		MT_Vector3 head = rot * MT_Vector3(pchan->pose_head) * scale + pos;
+		MT_Vector3 tail = rot * MT_Vector3(pchan->pose_tail) * scale + pos;
+		KX_RasterizerDrawDebugLine(tail, head, MT_Vector3(1.0f, 0.0f, 0.0f));
+	}
+	m_drawDebug = false;
+}
+
 float BL_ArmatureObject::GetBoneLength(Bone* bone) const
 {
 	return (float)(MT_Point3(bone->head) - MT_Point3(bone->tail)).length();
@@ -613,6 +635,7 @@ PyTypeObject BL_ArmatureObject::Type = {
 
 PyMethodDef BL_ArmatureObject::Methods[] = {
 	KX_PYMETHODTABLE_NOARGS(BL_ArmatureObject, update),
+	KX_PYMETHODTABLE_NOARGS(BL_ArmatureObject, draw),
 	{NULL,NULL} //Sentinel
 };
 
@@ -684,6 +707,15 @@ KX_PYMETHODDEF_DOC_NOARGS(BL_ArmatureObject, update,
 						  "or if an action is playing. This function is useful in other cases.\n")
 {
 	UpdateTimestep(KX_GetActiveEngine()->GetFrameTime());
+	Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC_NOARGS(BL_ArmatureObject, draw,
+	"Draw Debug Armature")
+{
+	/* Armature bones are updated later, so we only set to true a flag
+	 * to request a debug draw later in ApplyPose after updating bones. */
+	m_drawDebug = true;
 	Py_RETURN_NONE;
 }
 
