@@ -2079,7 +2079,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			// Note: there may be descendents already if the children of the child were processed
 			//       by this loop before the child. In that case, we must remove the children also
 			CListValue* childrenlist = childobj->GetChildrenRecursive();
-			childrenlist->Add(childobj->AddRef());
+			// The returned list by GetChildrenRecursive is not owned by anyone and must not own items, so no AddRef().
+			childrenlist->Add(childobj);
 			for ( i=0;i<childrenlist->GetCount();i++)
 			{
 				KX_GameObject* obj = static_cast<KX_GameObject*>(childrenlist->GetValue(i));
