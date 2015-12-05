@@ -162,3 +162,10 @@ void BL_ActionManager::Update(float curtime)
 		}
 	}
 }
+
+void BL_ActionManager::UpdateIPOs()
+{
+	for (BL_ActionMap::iterator it = m_layers.begin(); it != m_layers.end(); ++it) {
+		it->second->UpdateIPOs();
+	}
+}

@@ -74,8 +74,6 @@
 
 #include "KX_NavMeshObject.h"
 
-#include "BL_Action.h" // For managing action lock.
-
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 //#define DEFAULT_PHYSICS_TIC_RATE 60.0
 
@@ -184,8 +182,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 
 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
 
-	BL_Action::InitLock();
-
 	m_scenes = new CListValue();
 }
 
@@ -206,8 +202,6 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 
 	if (m_taskscheduler)
 		BLI_task_scheduler_free(m_taskscheduler);
-
-	BL_Action::EndLock();
 
 	m_scenes->Release();
 }

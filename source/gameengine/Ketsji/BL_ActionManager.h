@@ -124,6 +124,11 @@ public:
 	 */
 	void Update(float);
 
+	/**
+	 * Update object IPOs (note: not thread-safe!)
+	 */
+	void UpdateIPOs();
+
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_ActionManager")
 #endif

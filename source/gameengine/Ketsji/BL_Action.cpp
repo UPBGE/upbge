@@ -56,15 +56,6 @@ extern "C" {
 #include "BKE_library.h"
 #include "BKE_global.h"
 
-#include "BLI_threads.h" // for lock
-
-/* Lock to solve animation thread issues.
- * A spin lock is better than a mutex in case of short wait 
- * because spin lock stop the thread by a loop contrary to mutex
- * which switch all memory, process.
- */ 
-static SpinLock BL_ActionLock;
-
 BL_Action::BL_Action(class KX_GameObject* gameobj)
 :
 	m_action(NULL),
@@ -511,24 +502,16 @@ void BL_Action::Update(float curtime)
 			obj->SetActiveAction(0, curtime);
 		}
 	}
+}
 
-	BLI_spin_lock(&BL_ActionLock);
-	/* This function is not thread safe because of recursive scene graph transform
-	 * updates on children. e.g: If an object and one of its children is animated,
-	 * the both can write transform at the same time. A thread lock avoid problems. */
+void BL_Action::UpdateIPOs()
+{
+	/* This function does nothing if the scene graph controllers are already removed
+	 * by ClearControllerList. */
 	m_obj->UpdateIPO(m_localframe, m_ipo_flags & ACT_IPOFLAG_CHILD);
-	BLI_spin_unlock(&BL_ActionLock);
 
-	if (m_done)
+	// If the action is done we can remove its scene graph IPO controller.
+	if (m_done) {
 		ClearControllerList();
-}
-
-void BL_Action::InitLock()
-{
-	BLI_spin_init(&BL_ActionLock);
-}
-
-void BL_Action::EndLock()
-{
-	BLI_spin_end(&BL_ActionLock);
+	}
 }
