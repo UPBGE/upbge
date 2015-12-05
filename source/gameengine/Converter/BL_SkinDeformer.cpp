@@ -282,6 +282,11 @@ void BL_SkinDeformer::BGEDeformVerts()
 
 void BL_SkinDeformer::UpdateTransverts()
 {
+	// if we don't use a vertex array we does nothing.
+	if (!UseVertexArray()) {
+		return;
+	}
+
 	RAS_MeshMaterial *mmat;
 	RAS_MeshSlot *slot;
 	size_t i, nmat, imat;
