@@ -4093,6 +4093,10 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_BOUNDING_BOX);
 	RNA_def_property_ui_text(prop, "Show Bounding Box", "Show a visualization of bounding volume box");
 
+	prop = RNA_def_property(srna, "show_armatures", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_ARMATURES);
+	RNA_def_property_ui_text(prop, "Show Armatures", "Show a visualization of armatures");
+
 	/* materials */
 	prop = RNA_def_property(srna, "material_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "matmode");

@@ -162,6 +162,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 	// Default behavior is to hide the cursor every frame.
 	m_hideCursor(false),
 	m_showBoundingBox(false),
+	m_showArmature(false),
 
 	m_overrideFrameColor(false),
 	m_overrideFrameColorR(0.0),
@@ -1928,6 +1929,16 @@ void KX_KetsjiEngine::SetShowBoundingBox(bool show)
 bool KX_KetsjiEngine::GetShowBoundingBox() const
 {
 	return m_showBoundingBox;
+}
+
+void KX_KetsjiEngine::SetShowArmatures(bool show)
+{
+	m_showArmature = show;
+}
+
+bool KX_KetsjiEngine::GetShowArmatures() const
+{
+	return m_showArmature;
 }
 
 void KX_KetsjiEngine::SetUseOverrideFrameColor(bool overrideFrameColor)

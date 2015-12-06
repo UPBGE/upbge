@@ -190,6 +190,8 @@ private:
 
 	/// Enable debug draw of culling bounding boxes.
 	bool m_showBoundingBox;
+	/// Enable debug draw armatures.
+	bool m_showArmature;
 
 	/** Override framing bars color? */
 	bool					m_overrideFrameColor;
@@ -452,6 +454,12 @@ public:
 
 	/// Allow debug bounding box debug.
 	bool GetShowBoundingBox() const;
+
+	/// Returns the current setting for armatures debug.
+	void SetShowArmatures(bool show);
+
+	/// Allow debug armatures.
+	bool GetShowArmatures() const;
 
 	/** 
 	 * Enables/disables the use of the framing bar color of the Blender file's scenes.

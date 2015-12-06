@@ -580,7 +580,7 @@ bool BL_ArmatureObject::GetBoneMatrix(Bone* bone, MT_Matrix4x4& matrix)
 
 void BL_ArmatureObject::DrawDebugArmature()
 {
-	if (!m_drawDebug) {
+	if (!m_drawDebug && !KX_GetActiveEngine()->GetShowArmatures()) {
 		return;
 	}
 
