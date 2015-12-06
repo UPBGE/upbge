@@ -53,45 +53,50 @@ class RAS_MeshObject;
 
 using namespace std;
 
-/* Display List Slot */
-
+// Display List Slot
 class KX_ListSlot
 {
 protected:
 	int m_refcount;
 public:
-	KX_ListSlot() { m_refcount = 1; }
-	virtual ~KX_ListSlot() {}
-	virtual int Release() { 
+	KX_ListSlot()
+	{
+		m_refcount = 1;
+	}
+	virtual ~KX_ListSlot()
+	{
+	}
+	virtual int Release()
+	{
 		if (--m_refcount > 0)
 			return m_refcount;
 		delete this;
 		return 0;
 	}
-	virtual KX_ListSlot* AddRef() {
+	virtual KX_ListSlot *AddRef()
+	{
 		m_refcount++;
 		return this;
 	}
-	virtual void SetModified(bool mod)=0;
+	virtual void SetModified(bool mod) = 0;
 };
 
-/* An array with data used for OpenGL drawing */
-
+// An array with data used for OpenGL drawing
 class RAS_DisplayArray
 {
 public:
 	vector<RAS_TexVert> m_vertex;
 	vector<unsigned short> m_index;
 
-	/* Number of RAS_MeshSlot using this array */
+	// Number of RAS_MeshSlot using this array
 	int m_users;
 
-	enum { BUCKET_MAX_INDEX = 65535 };
-	enum { BUCKET_MAX_VERTEX = 65535 };
+	enum {BUCKET_MAX_INDEX = 65535};
+	enum {BUCKET_MAX_VERTEX = 65535};
 };
 
-/* Entry of a RAS_MeshObject into RAS_MaterialBucket */
-typedef std::vector<RAS_DisplayArray*>	RAS_DisplayArrayList;
+// Entry of a RAS_MeshObject into RAS_MaterialBucket
+typedef std::vector<RAS_DisplayArray *>  RAS_DisplayArrayList;
 
 // The QList is used to link the mesh slots to the object
 // The DList is used to link the visible mesh slots to the material bucket
@@ -103,68 +108,71 @@ private:
 
 public:
 	// for rendering
-	RAS_MaterialBucket*		m_bucket;
-	RAS_MeshObject*			m_mesh;
-	void*					m_clientObj;
-	RAS_Deformer*			m_pDeformer;
-	DerivedMesh*			m_pDerivedMesh;
-	double*					m_OpenGLMatrix;
+	RAS_MaterialBucket *m_bucket;
+	RAS_MeshObject *m_mesh;
+	void *m_clientObj;
+	RAS_Deformer *m_pDeformer;
+	DerivedMesh *m_pDerivedMesh;
+	double *m_OpenGLMatrix;
 	// visibility
-	bool					m_bVisible;
-	bool					m_bCulled;
+	bool m_bVisible;
+	bool m_bCulled;
 	// object color
-	bool					m_bObjectColor;
-	MT_Vector4				m_RGBAcolor;
+	bool m_bObjectColor;
+	MT_Vector4 m_RGBAcolor;
 	// display lists
-	KX_ListSlot*			m_DisplayList;
-	bool					m_bDisplayList;
+	KX_ListSlot *m_DisplayList;
+	bool m_bDisplayList;
 	// joined mesh slots
-	RAS_MeshSlot*			m_joinSlot;
-	MT_Matrix4x4			m_joinInvTransform;
-	list<RAS_MeshSlot*>		m_joinedSlots;
+	RAS_MeshSlot *m_joinSlot;
+	MT_Matrix4x4 m_joinInvTransform;
+	list<RAS_MeshSlot *> m_joinedSlots;
 
 	RAS_MeshSlot();
 	RAS_MeshSlot(const RAS_MeshSlot& slot);
 	virtual ~RAS_MeshSlot();
-	
+
 	void init(RAS_MaterialBucket *bucket);
 
 	RAS_DisplayArray *GetDisplayArray();
-	void SetDeformer(RAS_Deformer* deformer);
+	void SetDeformer(RAS_Deformer *deformer);
 
 	int AddVertex(const RAS_TexVert& tv);
 	void AddPolygonVertex(int offset);
 
-	/* optimization */
-	bool Split(bool force=false);
+	// optimization
+	bool Split(bool force = false);
 	bool Join(RAS_MeshSlot *target, MT_Scalar distance);
 	bool Equals(RAS_MeshSlot *target);
 #ifdef USE_SPLIT
 	bool IsCulled();
 #else
-	bool IsCulled() { return m_bCulled; }
+	bool IsCulled()
+	{
+		return m_bCulled;
+	}
 #endif
-	void SetCulled(bool culled) { m_bCulled = culled; }
-
+	void SetCulled(bool culled)
+	{
+		m_bCulled = culled;
+	}
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MeshSlot")
 #endif
 };
 
-/* Used by RAS_MeshObject, to point to it's slots in a bucket */
-
+// Used by RAS_MeshObject, to point to it's slots in a bucket
 class RAS_MeshMaterial
 {
 public:
 	RAS_MeshSlot *m_baseslot;
-	class RAS_MaterialBucket *m_bucket;
+	RAS_MaterialBucket *m_bucket;
 	/// The material index position in the mesh.
 	unsigned int m_index;
 
-	/* the KX_GameObject is used as a key here */
-	CTR_Map<CTR_HashedPtr,RAS_MeshSlot*> m_slots;
-
+	/// the KX_GameObject is used as a key here
+	CTR_Map<CTR_HashedPtr, RAS_MeshSlot *> m_slots;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MeshMaterial")
@@ -178,52 +186,47 @@ public:
 class RAS_MaterialBucket
 {
 public:
-	RAS_MaterialBucket(RAS_IPolyMaterial* mat);
+	RAS_MaterialBucket(RAS_IPolyMaterial *mat);
 	virtual ~RAS_MaterialBucket();
-	
-	/* Bucket Sorting */
-	struct less;
-	typedef set<RAS_MaterialBucket*, less> Set;
 
-	/* Material Properties */
-	RAS_IPolyMaterial*		GetPolyMaterial() const;
-	bool					IsAlpha() const;
-	bool					IsZSort() const;
-		
-	/* Rendering */
-	bool ActivateMaterial(const MT_Transform& cameratrans, RAS_IRasterizer* rasty);
-	void RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer* rasty, RAS_MeshSlot &ms);
-	
-	/* Mesh Slot Access */
+	// Material Properties
+	RAS_IPolyMaterial *GetPolyMaterial() const;
+	bool IsAlpha() const;
+	bool IsZSort() const;
+
+	// Rendering
+	bool ActivateMaterial(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);
+	void RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_MeshSlot& ms);
+
+	// Mesh Slot Access
 	list<RAS_MeshSlot>::iterator msBegin();
 	list<RAS_MeshSlot>::iterator msEnd();
 
-	class RAS_MeshSlot*	AddMesh();
-	class RAS_MeshSlot* CopyMesh(class RAS_MeshSlot *ms);
-	void				RemoveMesh(class RAS_MeshSlot* ms);
-	void				Optimize(MT_Scalar distance);
-	void				ActivateMesh(RAS_MeshSlot* slot)
+	RAS_MeshSlot *AddMesh();
+	RAS_MeshSlot *CopyMesh(RAS_MeshSlot *ms);
+	void RemoveMesh(RAS_MeshSlot *ms);
+	void Optimize(MT_Scalar distance);
+	void ActivateMesh(RAS_MeshSlot *slot)
 	{
 		m_activeMeshSlotsHead.AddBack(slot);
 	}
-	SG_DList&			GetActiveMeshSlots()
+	SG_DList& GetActiveMeshSlots()
 	{
 		return m_activeMeshSlotsHead;
 	}
-	RAS_MeshSlot*		GetNextActiveMeshSlot()
+	RAS_MeshSlot *GetNextActiveMeshSlot()
 	{
-		return (RAS_MeshSlot*)m_activeMeshSlotsHead.Remove();
+		return (RAS_MeshSlot *)m_activeMeshSlotsHead.Remove();
 	}
 
 private:
-	list<RAS_MeshSlot>			m_meshSlots;			// all the mesh slots
-	RAS_IPolyMaterial*			m_material;
-	SG_DList					m_activeMeshSlotsHead;	// only those which must be rendered
-	
+	list<RAS_MeshSlot> m_meshSlots; // all the mesh slots
+	RAS_IPolyMaterial *m_material;
+	SG_DList m_activeMeshSlotsHead; // only those which must be rendered
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MaterialBucket")
 #endif
 };
 
-#endif  /* __RAS_MATERIAL_BUCKET */
+#endif  // __RAS_MATERIAL_BUCKET
