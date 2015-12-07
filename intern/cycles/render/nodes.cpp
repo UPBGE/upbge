@@ -3177,6 +3177,13 @@ ValueNode::ValueNode()
 	add_output("Value", SHADER_SOCKET_FLOAT);
 }
 
+bool ValueNode::constant_fold(ShaderOutput *socket, float3 *optimized_value)
+{
+	*optimized_value = make_float3(value, value, value);
+
+	return true;
+}
+
 void ValueNode::compile(SVMCompiler& compiler)
 {
 	ShaderOutput *val_out = output("Value");
@@ -3199,6 +3206,13 @@ ColorNode::ColorNode()
 	value = make_float3(0.0f, 0.0f, 0.0f);
 
 	add_output("Color", SHADER_SOCKET_COLOR);
+}
+
+bool ColorNode::constant_fold(ShaderOutput *socket, float3 *optimized_value)
+{
+	*optimized_value = value;
+
+	return true;
 }
 
 void ColorNode::compile(SVMCompiler& compiler)
@@ -4316,6 +4330,9 @@ RGBCurvesNode::RGBCurvesNode()
 	add_input("Fac", SHADER_SOCKET_FLOAT);
 	add_input("Color", SHADER_SOCKET_COLOR);
 	add_output("Color", SHADER_SOCKET_COLOR);
+
+	min_x = 0.0f;
+	max_x = 1.0f;
 }
 
 void RGBCurvesNode::compile(SVMCompiler& compiler)
@@ -4328,7 +4345,12 @@ void RGBCurvesNode::compile(SVMCompiler& compiler)
 	compiler.stack_assign(color_in);
 	compiler.stack_assign(color_out);
 
-	compiler.add_node(NODE_RGB_CURVES, fac_in->stack_offset, color_in->stack_offset, color_out->stack_offset);
+	compiler.add_node(NODE_RGB_CURVES,
+	                  compiler.encode_uchar4(fac_in->stack_offset,
+	                                         color_in->stack_offset,
+	                                         color_out->stack_offset),
+	                  __float_as_int(min_x),
+	                  __float_as_int(max_x));
 	compiler.add_array(curves, RAMP_TABLE_SIZE);
 }
 
@@ -4343,6 +4365,8 @@ void RGBCurvesNode::compile(OSLCompiler& compiler)
 	}
 
 	compiler.parameter_color_array("ramp", ramp, RAMP_TABLE_SIZE);
+	compiler.parameter("min_x", min_x);
+	compiler.parameter("max_x", max_x);
 	compiler.add(this, "node_rgb_curves");
 }
 

@@ -49,6 +49,7 @@
 
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
@@ -78,7 +79,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
-#include "GPU_simple_shader.h"
+#include "GPU_basic_shader.h"
 
 #include "PIL_time.h"
 
@@ -1400,9 +1401,10 @@ void GPU_free_images_old(void)
 /* OpenGL state caching for materials */
 
 typedef struct GPUMaterialFixed {
-	float diff[4];
-	float spec[4];
+	float diff[3];
+	float spec[3];
 	int hard;
+	float alpha;
 } GPUMaterialFixed; 
 
 static struct GPUMaterialState {
@@ -1427,6 +1429,7 @@ static struct GPUMaterialState {
 	float (*gviewcamtexcofac);
 
 	bool backface_culling;
+	bool two_sided_lighting;
 
 	GPUBlendMode *alphablend;
 	GPUBlendMode alphablend_fixed[FIXEDMAT];
@@ -1444,20 +1447,18 @@ static void gpu_material_to_fixed(GPUMaterialFixed *smat, const Material *bmat, 
 {
 	if (bmat->mode & MA_SHLESS) {
 		copy_v3_v3(smat->diff, &bmat->r);
-		smat->diff[3] = 1.0;
 
 		if (gamma)
 			linearrgb_to_srgb_v3_v3(smat->diff, smat->diff);
 
-		zero_v4(smat->spec);
+		zero_v3(smat->spec);
+		smat->alpha = 1.0f;
 		smat->hard = 0;
 	}
 	else if (new_shading_nodes) {
 		copy_v3_v3(smat->diff, &bmat->r);
-		smat->diff[3] = 1.0;
-		
 		copy_v3_v3(smat->spec, &bmat->specr);
-		smat->spec[3] = 1.0;
+		smat->alpha = 1.0f;
 		smat->hard = CLAMPIS(bmat->har, 0, 128);
 		
 		if (dimdown) {
@@ -1472,14 +1473,13 @@ static void gpu_material_to_fixed(GPUMaterialFixed *smat, const Material *bmat, 
 	}
 	else {
 		mul_v3_v3fl(smat->diff, &bmat->r, bmat->ref + bmat->emit);
-		smat->diff[3] = 1.0; /* caller may set this to bmat->alpha */
 
 		if (bmat->shade_flag & MA_OBCOLOR)
 			mul_v3_v3(smat->diff, ob->col);
 		
 		mul_v3_v3fl(smat->spec, &bmat->specr, bmat->spec);
-		smat->spec[3] = 1.0; /* always 1 */
-		smat->hard= CLAMPIS(bmat->har, 0, 128);
+		smat->hard = CLAMPIS(bmat->har, 1, 128);
+		smat->alpha = 1.0f;
 
 		if (gamma) {
 			linearrgb_to_srgb_v3_v3(smat->diff, smat->diff);
@@ -1567,6 +1567,10 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 
 	GMS.backface_culling = (v3d->flag2 & V3D_BACKFACE_CULLING) != 0;
 
+	GMS.two_sided_lighting = false;
+	if (ob && ob->type == OB_MESH)
+		GMS.two_sided_lighting = (((Mesh*)ob->data)->flag & ME_TWOSIDED) != 0;
+
 	GMS.gob = ob;
 	GMS.gscene = scene;
 	GMS.is_opensubdiv = use_opensubdiv;
@@ -1645,11 +1649,11 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 				gpu_material_to_fixed(&GMS.matbuf[a], ma, gamma, ob, new_shading_nodes, false);
 
 				if (GMS.use_alpha_pass && ((ma->mode & MA_TRANSP) || (new_shading_nodes && ma->alpha != 1.0f))) {
-					GMS.matbuf[a].diff[3] = ma->alpha;
+					GMS.matbuf[a].alpha = ma->alpha;
 					alphablend = (ma->alpha == 1.0f)? GPU_BLEND_SOLID: GPU_BLEND_ALPHA;
 				}
 				else {
-					GMS.matbuf[a].diff[3] = 1.0f;
+					GMS.matbuf[a].alpha = 1.0f;
 					alphablend = GPU_BLEND_SOLID;
 				}
 			}
@@ -1706,19 +1710,17 @@ int GPU_object_material_bind(int nr, void *attribs)
 
 	/* no GPU_begin_object_materials, use default material */
 	if (!GMS.matbuf) {
-		float diff[4], spec[4];
-
 		memset(&GMS, 0, sizeof(GMS));
 
-		mul_v3_v3fl(diff, &defmaterial.r, defmaterial.ref + defmaterial.emit);
-		diff[3] = 1.0;
+		float diffuse[3], specular[3];
+		mul_v3_v3fl(diffuse, &defmaterial.r, defmaterial.ref + defmaterial.emit);
+		mul_v3_v3fl(specular, &defmaterial.specr, defmaterial.spec);
+		GPU_basic_shader_colors(diffuse, specular, 35, 1.0f);
 
-		mul_v3_v3fl(spec, &defmaterial.specr, defmaterial.spec);
-		spec[3] = 1.0;
-
-		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diff);
-		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
-		glMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35); /* blender default */
+		if (GMS.two_sided_lighting)
+			GPU_basic_shader_bind(GPU_SHADER_LIGHTING | GPU_SHADER_TWO_SIDED);
+		else
+			GPU_basic_shader_bind(GPU_SHADER_LIGHTING);
 
 		return 0;
 	}
@@ -1795,9 +1797,13 @@ int GPU_object_material_bind(int nr, void *attribs)
 		}
 		else {
 			/* or do fixed function opengl material */
-			glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, GMS.matbuf[nr].diff);
-			glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, GMS.matbuf[nr].spec);
-			glMateriali(GL_FRONT_AND_BACK, GL_SHININESS, GMS.matbuf[nr].hard);
+			GPU_basic_shader_colors(GMS.matbuf[nr].diff,
+				GMS.matbuf[nr].spec, GMS.matbuf[nr].hard, GMS.matbuf[nr].alpha);
+
+			if (GMS.two_sided_lighting)
+				GPU_basic_shader_bind(GPU_SHADER_LIGHTING | GPU_SHADER_TWO_SIDED);
+			else
+				GPU_basic_shader_bind(GPU_SHADER_LIGHTING);
 		}
 
 		/* set (alpha) blending mode */
@@ -1805,6 +1811,31 @@ int GPU_object_material_bind(int nr, void *attribs)
 	}
 
 	return GMS.lastretval;
+}
+
+int GPU_object_material_visible(int nr, void *attribs)
+{
+	GPUVertexAttribs *gattribs = attribs;
+	int visible;
+
+	if (!GMS.matbuf)
+		return 0;
+
+	if (gattribs)
+		memset(gattribs, 0, sizeof(*gattribs));
+
+	if (nr>=GMS.totmat)
+		nr = 0;
+
+	if (GMS.use_alpha_pass) {
+		visible = ELEM(GMS.alphablend[nr], GPU_BLEND_SOLID, GPU_BLEND_CLIP);
+		if (GMS.is_alpha_pass)
+			visible = !visible;
+	}
+	else
+		visible = !GMS.is_alpha_pass;
+
+	return visible;
 }
 
 void GPU_set_material_alpha_blend(int alphablend)
@@ -1834,6 +1865,8 @@ void GPU_object_material_unbind(void)
 		GPU_material_unbind(GPU_material_from_blender(GMS.gscene, GMS.gboundmat, GMS.is_opensubdiv));
 		GMS.gboundmat = NULL;
 	}
+	else
+		GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
 
 	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
 }
@@ -1849,7 +1882,8 @@ void GPU_material_diffuse_get(int nr, float diff[4])
 		mul_v3_v3fl(diff, &defmaterial.r, defmaterial.ref + defmaterial.emit);
 	}
 	else {
-		copy_v4_v4(diff, GMS.matbuf[nr].diff);
+		copy_v3_v3(diff, GMS.matbuf[nr].diff);
+		diff[3] = GMS.matbuf[nr].alpha;
 	}
 }
 
@@ -1878,6 +1912,7 @@ void GPU_end_object_materials(void)
 	GMS.matbuf = NULL;
 	GMS.gmatbuf = NULL;
 	GMS.alphablend = NULL;
+	GMS.two_sided_lighting = false;
 
 	/* resetting the texture matrix after the scaling needed for tiled textures */
 	if (GTS.tilemode) {
@@ -1914,7 +1949,7 @@ int GPU_default_lights(void)
 		U.light[2].spec[3] = 1.0;
 	}
 
-	GPU_simple_shader_light_set_viewer(false);
+	GPU_basic_shader_light_set_viewer(false);
 
 	for (a = 0; a < 8; a++) {
 		if (a < 3 && U.light[a].flag) {
@@ -1926,16 +1961,13 @@ int GPU_default_lights(void)
 			copy_v3_v3(light.diffuse, U.light[a].col);
 			copy_v3_v3(light.specular, U.light[a].spec);
 
-			GPU_simple_shader_light_set(a, &light);
+			GPU_basic_shader_light_set(a, &light);
 
 			count++;
 		}
 		else
-			GPU_simple_shader_light_set(a, NULL);
+			GPU_basic_shader_light_set(a, NULL);
 	}
-
-	glDisable(GL_LIGHTING);
-	glDisable(GL_COLOR_MATERIAL);
 
 	return count;
 }
@@ -1948,11 +1980,11 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 	
 	/* disable all lights */
 	for (count = 0; count < 8; count++)
-		GPU_simple_shader_light_set(count, NULL);
+		GPU_basic_shader_light_set(count, NULL);
 	
 	/* view direction for specular is not computed correct by default in
 	 * opengl, so we set the settings ourselfs */
-	GPU_simple_shader_light_set_viewer(!ortho);
+	GPU_basic_shader_light_set_viewer(!ortho);
 
 	count = 0;
 
@@ -1999,7 +2031,7 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 				light.type = GPU_LIGHT_POINT;
 		}
 		
-		GPU_simple_shader_light_set(count, &light);
+		GPU_basic_shader_light_set(count, &light);
 		
 		glPopMatrix();
 		
@@ -2059,6 +2091,7 @@ void GPU_state_init(void)
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_specular);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
 	glMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35);
+	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 
 	GPU_default_lights();
 	
@@ -2118,6 +2151,8 @@ void GPU_state_init(void)
 	glDisable(GL_CULL_FACE);
 
 	gpu_multisample(false);
+
+	GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
 }
 
 #ifdef WITH_OPENSUBDIV

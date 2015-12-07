@@ -485,12 +485,16 @@ class ValueNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(ValueNode)
 
+	bool constant_fold(ShaderOutput *socket, float3 *optimized_value);
+
 	float value;
 };
 
 class ColorNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(ColorNode)
+
+	bool constant_fold(ShaderOutput *socket, float3 *optimized_value);
 
 	float3 value;
 };
@@ -703,6 +707,7 @@ public:
 	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
 
 	float4 curves[RAMP_TABLE_SIZE];
+	float min_x, max_x;
 };
 
 class VectorCurvesNode : public ShaderNode {

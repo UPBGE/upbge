@@ -291,6 +291,112 @@ int BLI_kdtree_find_nearest(
 	return min_node->index;
 }
 
+
+/**
+ * A version of #BLI_kdtree_find_nearest which runs a callback
+ * to filter out values.
+ *
+ * \param filter_cb: Filter find results,
+ * Return codes: (1: accept, 0: skip, -1: immediate exit).
+ */
+int BLI_kdtree_find_nearest_cb(
+        const KDTree *tree, const float co[3],
+        int (*filter_cb)(void *user_data, int index, const float co[3], float dist_sq), void *user_data,
+        KDTreeNearest *r_nearest)
+{
+	const KDTreeNode *nodes = tree->nodes;
+	const KDTreeNode *min_node = NULL;
+
+	unsigned int *stack, defaultstack[KD_STACK_INIT];
+	float min_dist = FLT_MAX, cur_dist;
+	unsigned int totstack, cur = 0;
+
+#ifdef DEBUG
+	BLI_assert(tree->is_balanced == true);
+#endif
+
+	if (UNLIKELY(tree->root == KD_NODE_UNSET))
+		return -1;
+
+	stack = defaultstack;
+	totstack = KD_STACK_INIT;
+
+#define NODE_TEST_NEAREST(node) \
+{ \
+	const float dist_sq = len_squared_v3v3((node)->co, co); \
+	if (dist_sq < min_dist) { \
+		const int result = filter_cb(user_data, (node)->index, (node)->co, dist_sq); \
+		if (result == 1) { \
+			min_dist = dist_sq; \
+			min_node = node; \
+		} \
+		else if (result == 0) { \
+			/* pass */ \
+		} \
+		else { \
+			BLI_assert(result == -1); \
+			goto finally; \
+		} \
+	} \
+} ((void)0)
+
+	stack[cur++] = tree->root;
+
+	while (cur--) {
+		const KDTreeNode *node = &nodes[stack[cur]];
+
+		cur_dist = node->co[node->d] - co[node->d];
+
+		if (cur_dist < 0.0f) {
+			cur_dist = -cur_dist * cur_dist;
+
+			if (-cur_dist < min_dist) {
+				NODE_TEST_NEAREST(node);
+
+				if (node->left != KD_NODE_UNSET)
+					stack[cur++] = node->left;
+			}
+			if (node->right != KD_NODE_UNSET)
+				stack[cur++] = node->right;
+		}
+		else {
+			cur_dist = cur_dist * cur_dist;
+
+			if (cur_dist < min_dist) {
+				NODE_TEST_NEAREST(node);
+
+				if (node->right != KD_NODE_UNSET)
+					stack[cur++] = node->right;
+			}
+			if (node->left != KD_NODE_UNSET)
+				stack[cur++] = node->left;
+		}
+		if (UNLIKELY(cur + 3 > totstack)) {
+			stack = realloc_nodes(stack, &totstack, defaultstack != stack);
+		}
+	}
+
+#undef NODE_TEST_NEAREST
+
+
+finally:
+	if (stack != defaultstack)
+		MEM_freeN(stack);
+
+	if (min_node) {
+		if (r_nearest) {
+			r_nearest->index = min_node->index;
+			r_nearest->dist = sqrtf(min_dist);
+			copy_v3_v3(r_nearest->co, min_node->co);
+		}
+
+		return min_node->index;
+	}
+	else {
+		return -1;
+	}
+}
+
 static void add_nearest(KDTreeNearest *ptn, unsigned int *found, unsigned int n, int index,
                         float dist, const float *co)
 {
@@ -448,7 +554,6 @@ int BLI_kdtree_range_search__normal(
         KDTreeNearest **r_nearest, float range)
 {
 	const KDTreeNode *nodes = tree->nodes;
-	const KDTreeNode *root;
 	unsigned int *stack, defaultstack[KD_STACK_INIT];
 	KDTreeNearest *foundstack = NULL;
 	float range_sq = range * range, dist_sq;
@@ -464,27 +569,7 @@ int BLI_kdtree_range_search__normal(
 	stack = defaultstack;
 	totstack = KD_STACK_INIT;
 
-	root = &nodes[tree->root];
-
-	if (co[root->d] + range < root->co[root->d]) {
-		if (root->left != KD_NODE_UNSET)
-			stack[cur++] = root->left;
-	}
-	else if (co[root->d] - range > root->co[root->d]) {
-		if (root->right != KD_NODE_UNSET)
-			stack[cur++] = root->right;
-	}
-	else {
-		dist_sq = squared_distance(root->co, co, nor);
-		if (dist_sq <= range_sq) {
-			add_in_range(&foundstack, &totfoundstack, found++, root->index, dist_sq, root->co);
-		}
-
-		if (root->left != KD_NODE_UNSET)
-			stack[cur++] = root->left;
-		if (root->right != KD_NODE_UNSET)
-			stack[cur++] = root->right;
-	}
+	stack[cur++] = tree->root;
 
 	while (cur--) {
 		const KDTreeNode *node = &nodes[stack[cur]];
@@ -538,7 +623,7 @@ void BLI_kdtree_range_search_cb(
         bool (*search_cb)(void *user_data, int index, const float co[3], float dist_sq), void *user_data)
 {
 	const KDTreeNode *nodes = tree->nodes;
-	const KDTreeNode *root;
+
 	unsigned int *stack, defaultstack[KD_STACK_INIT];
 	float range_sq = range * range, dist_sq;
 	unsigned int totstack, cur = 0;
@@ -553,29 +638,7 @@ void BLI_kdtree_range_search_cb(
 	stack = defaultstack;
 	totstack = KD_STACK_INIT;
 
-	root = &nodes[tree->root];
-
-	if (co[root->d] + range < root->co[root->d]) {
-		if (root->left != KD_NODE_UNSET)
-			stack[cur++] = root->left;
-	}
-	else if (co[root->d] - range > root->co[root->d]) {
-		if (root->right != KD_NODE_UNSET)
-			stack[cur++] = root->right;
-	}
-	else {
-		dist_sq = len_squared_v3v3(root->co, co);
-		if (dist_sq <= range_sq) {
-			if (search_cb(user_data, root->index, root->co, dist_sq) == false) {
-				goto finally;
-			}
-		}
-
-		if (root->left != KD_NODE_UNSET)
-			stack[cur++] = root->left;
-		if (root->right != KD_NODE_UNSET)
-			stack[cur++] = root->right;
-	}
+	stack[cur++] = tree->root;
 
 	while (cur--) {
 		const KDTreeNode *node = &nodes[stack[cur]];

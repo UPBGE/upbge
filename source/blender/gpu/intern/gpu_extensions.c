@@ -49,7 +49,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_compositing.h"
-#include "GPU_simple_shader.h"
+#include "GPU_basic_shader.h"
 
 #include "intern/gpu_private.h"
 
@@ -256,13 +256,34 @@ void gpu_extensions_init(void)
 
 
 	GPU_invalid_tex_init();
-	GPU_simple_shaders_init();
+	GPU_basic_shaders_init();
 }
 
 void gpu_extensions_exit(void)
 {
-	GPU_simple_shaders_exit();
+	GPU_basic_shaders_exit();
 	GPU_invalid_tex_free();
+}
+
+bool GPU_legacy_support(void)
+{
+	// return whether or not current GL context is compatible with legacy OpenGL
+
+	if (GLEW_VERSION_3_2) {
+		static GLint profile = 0;
+
+		if (profile == 0) {
+			glGetIntegerv(GL_CONTEXT_PROFILE_MASK, &profile);
+		}
+
+		return profile & GL_CONTEXT_COMPATIBILITY_PROFILE_BIT;
+	}
+	else if (GLEW_VERSION_3_1) {
+		return GLEW_ARB_compatibility;
+	}
+	else {
+		return true;
+	}
 }
 
 bool GPU_glsl_support(void)
@@ -291,19 +312,18 @@ bool GPU_bicubic_bump_support(void)
 	return GLEW_VERSION_4_0 || (GLEW_ARB_texture_query_lod && GLEW_VERSION_3_0);
 }
 
-
 bool GPU_geometry_shader_support(void)
 {
 	/* in GL 3.2 geometry shaders are fully supported
 	 * core profile clashes with our other shaders so accept compatibility only
 	 * other GL versions can use EXT_geometry_shader4 if available
 	 */
-	return (GLEW_VERSION_3_2 && GLEW_ARB_compatibility) || GLEW_EXT_geometry_shader4;
+	return (GLEW_VERSION_3_2 && GPU_legacy_support()) || GLEW_EXT_geometry_shader4;
 }
 
 static bool GPU_geometry_shader_support_via_extension(void)
 {
-	return GLEW_EXT_geometry_shader4 && !(GLEW_VERSION_3_2 && GLEW_ARB_compatibility);
+	return GLEW_EXT_geometry_shader4 && !(GLEW_VERSION_3_2 && GPU_legacy_support());
 }
 
 bool GPU_instanced_drawing_support(void)
@@ -563,9 +583,6 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, const f
 	int r_width;
 	bool rescale = false;
 
-	if (!GLEW_VERSION_1_2)
-		return NULL;
-
 	tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
 	tex->w = tex->w_orig = w;
 	tex->h = tex->h_orig = h;
@@ -784,7 +801,6 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 	glBindTexture(GL_TEXTURE_2D, 0);
 	
 	return tex;
-
 }
 
 GPUTexture *GPU_texture_create_1D(int w, const float *fpixels, char err_out[256])
@@ -1646,7 +1662,7 @@ static void shader_print_errors(const char *task, const char *log, const char **
 static const char *gpu_shader_version(void)
 {
 	if (GLEW_VERSION_3_2) {
-		if (GLEW_ARB_compatibility) {
+		if (GPU_legacy_support()) {
 			return "#version 150 compatibility\n";
 			/* highest version that is widely supported
 			 * gives us native geometry shaders!
@@ -2115,7 +2131,7 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
 		fprintf(stderr, "Not enough texture slots.\n");
 		return;
 	}
-		
+
 	if (tex->number == -1)
 		return;
 
