@@ -137,7 +137,7 @@ const GLubyte stipple_diag_stripes_neg[128] = {
 
 const GLubyte stipple_checker_8px[128] = {
 	255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-	255,  0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
+	255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
 	0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
 	0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
 	255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
@@ -180,32 +180,20 @@ void fdrawbezier(float vec[4][3])
 
 void fdrawline(float x1, float y1, float x2, float y2)
 {
-	float v[2];
-	
-	glBegin(GL_LINE_STRIP);
-	v[0] = x1; v[1] = y1;
-	glVertex2fv(v);
-	v[0] = x2; v[1] = y2;
-	glVertex2fv(v);
+	glBegin(GL_LINES);
+	glVertex2f(x1, y1);
+	glVertex2f(x2, y2);
 	glEnd();
 }
 
 void fdrawbox(float x1, float y1, float x2, float y2)
 {
-	float v[2];
+	glBegin(GL_LINE_LOOP);
 	
-	glBegin(GL_LINE_STRIP);
-	
-	v[0] = x1; v[1] = y1;
-	glVertex2fv(v);
-	v[0] = x1; v[1] = y2;
-	glVertex2fv(v);
-	v[0] = x2; v[1] = y2;
-	glVertex2fv(v);
-	v[0] = x2; v[1] = y1;
-	glVertex2fv(v);
-	v[0] = x1; v[1] = y1;
-	glVertex2fv(v);
+	glVertex2f(x1, y1);
+	glVertex2f(x1, y2);
+	glVertex2f(x2, y2);
+	glVertex2f(x2, y1);
 	
 	glEnd();
 }
@@ -226,13 +214,9 @@ void fdrawcheckerboard(float x1, float y1, float x2, float y2)
 
 void sdrawline(int x1, int y1, int x2, int y2)
 {
-	int v[2];
-	
-	glBegin(GL_LINE_STRIP);
-	v[0] = x1; v[1] = y1;
-	glVertex2iv(v);
-	v[0] = x2; v[1] = y2;
-	glVertex2iv(v);
+	glBegin(GL_LINES);
+	glVertex2i(x1, y1);
+	glVertex2i(x2, y2);
 	glEnd();
 }
 
@@ -248,13 +232,9 @@ void sdrawline(int x1, int y1, int x2, int y2)
 
 static void sdrawtripoints(int x1, int y1, int x2, int y2)
 {
-	int v[2];
-	v[0] = x1; v[1] = y1;
-	glVertex2iv(v);
-	v[0] = x1; v[1] = y2;
-	glVertex2iv(v);
-	v[0] = x2; v[1] = y1;
-	glVertex2iv(v);
+	glVertex2i(x1, y1);
+	glVertex2i(x1, y2);
+	glVertex2i(x2, y1);
 }
 
 void sdrawtri(int x1, int y1, int x2, int y2)
@@ -274,20 +254,12 @@ void sdrawtrifill(int x1, int y1, int x2, int y2)
 
 void sdrawbox(int x1, int y1, int x2, int y2)
 {
-	int v[2];
+	glBegin(GL_LINE_LOOP);
 	
-	glBegin(GL_LINE_STRIP);
-	
-	v[0] = x1; v[1] = y1;
-	glVertex2iv(v);
-	v[0] = x1; v[1] = y2;
-	glVertex2iv(v);
-	v[0] = x2; v[1] = y2;
-	glVertex2iv(v);
-	v[0] = x2; v[1] = y1;
-	glVertex2iv(v);
-	v[0] = x1; v[1] = y1;
-	glVertex2iv(v);
+	glVertex2i(x1, y1);
+	glVertex2i(x1, y2);
+	glVertex2i(x2, y2);
+	glVertex2i(x2, y1);
 	
 	glEnd();
 }
@@ -510,9 +482,10 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, zoomfilter);
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && 0
+	/* [merwin] disable this workaround and see if anyone is affected. If not scrap it! Also at end of this function */
 	/* workaround for os x 10.5/10.6 driver bug: http://lists.apple.com/archives/Mac-opengl/2008/Jul/msg00117.html */
-	glPixelZoom(1.f, 1.f);
+	glPixelZoom(1.0f, 1.0f);
 #endif
 	
 	/* setup seamless 2=on, 0=off */
@@ -611,7 +584,7 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 	
-#ifdef __APPLE__
+#if defined(__APPLE__) && 0
 	/* workaround for os x 10.5/10.6 driver bug (above) */
 	glPixelZoom(xzoom, yzoom);
 #endif

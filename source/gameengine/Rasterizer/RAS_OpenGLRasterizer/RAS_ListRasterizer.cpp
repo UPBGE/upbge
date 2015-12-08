@@ -120,7 +120,7 @@ bool RAS_ListSlot::End()
 	return (m_flag & LIST_END) != 0;
 }
 
-RAS_ListRasterizer::RAS_ListRasterizer(RAS_ICanvas *canvas, bool lock, int storage)
+RAS_ListRasterizer::RAS_ListRasterizer(RAS_ICanvas* canvas, bool lock, RAS_STORAGE_TYPE storage)
 	:RAS_OpenGLRasterizer(canvas, storage)
 {
 }
@@ -241,7 +241,7 @@ void RAS_ListRasterizer::ReleaseAlloc()
 
 void RAS_ListRasterizer::IndexPrimitives(RAS_MeshSlot& ms)
 {
-	RAS_ListSlot *localSlot = 0;
+	RAS_ListSlot *localSlot = NULL;
 
 	if (ms.m_bDisplayList) {
 		localSlot = FindOrAdd(ms);

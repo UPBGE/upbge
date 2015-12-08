@@ -70,8 +70,9 @@
 /* -- extension: version of GL that absorbs it
  * ARB_fragment_program: 2.0
  * ARB_framebuffer object: 3.0
- * EXT_framebuffer_multisample: 3.0
+ * EXT_framebuffer_object: 3.0
  * EXT_framebuffer_blit: 3.0
+ * EXT_framebuffer_multisample: 3.0
  * EXT_framebuffer_multisample_blit_scaled: ???
  * ARB_draw_instanced: 3.1
  * ARB_texture_multisample: 3.2
@@ -484,17 +485,19 @@ static GPUTexture *GPU_texture_create_nD(
 				case GPU_HDR_NONE:
 					internalformat = GL_RGBA8;
 					break;
+				/* the following formats rely on ARB_texture_float or OpenGL 3.0 */
 				case GPU_HDR_HALF_FLOAT:
-					internalformat = GL_RGBA16F;
+					internalformat = GL_RGBA16F_ARB;
 					break;
 				case GPU_HDR_FULL_FLOAT:
-					internalformat = GL_RGBA32F;
+					internalformat = GL_RGBA32F_ARB;
 					break;
 				default:
 					break;
 			}
 		}
 		else if (components == 2) {
+			/* these formats rely on ARB_texture_rg or OpenGL 3.0 */
 			format = GL_RG;
 			switch (hdr_type) {
 				case GPU_HDR_NONE:
@@ -615,11 +618,11 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, const f
 	type = GL_FLOAT;
 	if (channels == 4) {
 		format = GL_RGBA;
-		internalformat = GL_RGBA;
+		internalformat = GL_RGBA8;
 	}
 	else {
 		format = GL_RED;
-		internalformat = GL_INTENSITY;
+		internalformat = GL_INTENSITY8;
 	}
 
 	/* 3D textures are quite heavy, test if it's possible to create them first */
@@ -1088,7 +1091,7 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 {
 	GPUFrameBuffer *fb;
 
-	if (!GLEW_EXT_framebuffer_object)
+	if (!(GLEW_VERSION_3_0 || GLEW_ARB_framebuffer_object || (GLEW_EXT_framebuffer_object && GLEW_EXT_framebuffer_blit)))
 		return NULL;
 	
 	fb = MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");
@@ -1368,7 +1371,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	/* We do the bind ourselves rather than using GPU_framebuffer_texture_bind() to avoid
 	 * pushing unnecessary matrices onto the OpenGL stack. */
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, blurfb->object);
-	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
 	
 	/* avoid warnings from texture binding */
 	GG.currentfb = blurfb->object;
@@ -1401,7 +1404,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	/* Blurring vertically */
 
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
-	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
 	
 	GG.currentfb = fb->object;
 	
@@ -1542,28 +1545,28 @@ void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels)
 		}
 
 		glBindTexture(GL_TEXTURE_2D, tex_blit);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, type, 0);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, type, 0);
 
 #ifdef USE_FBO_CTX_SWITCH
 		/* read from multi-sample buffer */
-		glBindFramebufferEXT(GL_READ_FRAMEBUFFER, ofs->color->fb->object);
+		glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, ofs->color->fb->object);
 		glFramebufferTexture2DEXT(
-		        GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + ofs->color->fb_attachment,
+		        GL_READ_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT + ofs->color->fb_attachment,
 		        GL_TEXTURE_2D_MULTISAMPLE, ofs->color->bindcode, 0);
-		status = glCheckFramebufferStatus(GL_READ_FRAMEBUFFER);
-		if (status != GL_FRAMEBUFFER_COMPLETE) {
+		status = glCheckFramebufferStatusEXT(GL_READ_FRAMEBUFFER_EXT);
+		if (status != GL_FRAMEBUFFER_COMPLETE_EXT) {
 			goto finally;
 		}
 #endif
 
 		/* write into new single-sample buffer */
 		glGenFramebuffersEXT(1, &fbo_blit);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo_blit);
+		glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER_EXT, fbo_blit);
 		glFramebufferTexture2DEXT(
-		        GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+		        GL_DRAW_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
 		        GL_TEXTURE_2D, tex_blit, 0);
-		status = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
-		if (status != GL_FRAMEBUFFER_COMPLETE) {
+		status = glCheckFramebufferStatusEXT(GL_DRAW_FRAMEBUFFER_EXT);
+		if (status != GL_FRAMEBUFFER_COMPLETE_EXT) {
 			goto finally;
 		}
 
@@ -1571,12 +1574,12 @@ void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels)
 		glBlitFramebufferEXT(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 		/* read the results */
-		glBindFramebufferEXT(GL_READ_FRAMEBUFFER, fbo_blit);
+		glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, fbo_blit);
 		glReadPixels(0, 0, w, h, GL_RGBA, type, pixels);
 
 #ifdef USE_FBO_CTX_SWITCH
 		/* restore the original frame-bufer */
-		glBindFramebufferEXT(GL_FRAMEBUFFER, ofs->color->fb->object);
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, ofs->color->fb->object);
 #undef USE_FBO_CTX_SWITCH
 #endif
 

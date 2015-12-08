@@ -54,7 +54,6 @@
 #include "KX_PyConstraintBinding.h"
 #include "KX_PythonMain.h"
 
-#include "RAS_GLExtensionManager.h"
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_ListRasterizer.h"
 
@@ -248,8 +247,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 	
 	PyObject *pyGlobalDict = PyDict_New(); /* python utility storage, spans blend file loading */
 #endif
-	
-	bgl::InitExtensions(true);
 
 	// Globals to be carried on over blender files
 	GlobalSettings gs;
@@ -302,12 +299,20 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			canvas->SetSwapInterval((startscene->gm.vsync == VSYNC_ON) ? 1 : 0);
 
 		RAS_IRasterizer* rasterizer = NULL;
+		RAS_STORAGE_TYPE raster_storage = RAS_AUTO_STORAGE;
+
+		if (startscene->gm.raster_storage == RAS_STORE_VBO) {
+			raster_storage = RAS_VBO;
+		}
+		else if (startscene->gm.raster_storage == RAS_STORE_VA) {
+			raster_storage = RAS_VA;
+		}
 		//Don't use displaylists with VBOs
 		//If auto starts using VBOs, make sure to check for that here
-		if (displaylists && startscene->gm.raster_storage != RAS_STORE_VBO)
-			rasterizer = new RAS_ListRasterizer(canvas, true, startscene->gm.raster_storage);
+		if (displaylists && raster_storage != RAS_VBO)
+			rasterizer = new RAS_ListRasterizer(canvas, true, raster_storage);
 		else
-			rasterizer = new RAS_OpenGLRasterizer(canvas, startscene->gm.raster_storage);
+			rasterizer = new RAS_OpenGLRasterizer(canvas, raster_storage);
 
 		RAS_IRasterizer::MipmapOption mipmapval = rasterizer->GetMipmapping();
 

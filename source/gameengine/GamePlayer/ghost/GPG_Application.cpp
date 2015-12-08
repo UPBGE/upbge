@@ -78,7 +78,6 @@ extern "C"
 #include "RAS_MeshObject.h"
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_ListRasterizer.h"
-#include "RAS_GLExtensionManager.h"
 #include "KX_PythonInit.h"
 #include "KX_PyConstraintBinding.h"
 #include "BL_Material.h" // MAXTEX
@@ -561,7 +560,6 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 	if (!m_engineInitialized)
 	{
 		GPU_init();
-		bgl::InitExtensions(true);
 
 		// get and set the preferences
 		SYS_SystemHandle syshandle = SYS_GetSystem();
@@ -607,12 +605,20 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		if (gm->flag & GAME_SHOW_MOUSE)
 			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
 		
+		RAS_STORAGE_TYPE raster_storage = RAS_AUTO_STORAGE;
+
+		if (gm->raster_storage == RAS_STORE_VBO) {
+			raster_storage = RAS_VBO;
+		}
+		else if (gm->raster_storage == RAS_STORE_VA) {
+			raster_storage = RAS_VA;
+		}
 		//Don't use displaylists with VBOs
 		//If auto starts using VBOs, make sure to check for that here
-		if (useLists && gm->raster_storage != RAS_STORE_VBO)
-			m_rasterizer = new RAS_ListRasterizer(m_canvas, false, gm->raster_storage);
+		if (useLists && raster_storage != RAS_VBO)
+			m_rasterizer = new RAS_ListRasterizer(m_canvas, true, raster_storage);
 		else
-			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, gm->raster_storage);
+			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, raster_storage);
 
 		/* Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI */
 		m_rasterizer->SetStereoMode((RAS_IRasterizer::StereoMode) stereoMode);
