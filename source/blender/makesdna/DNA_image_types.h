@@ -115,7 +115,11 @@ typedef struct Image {
 	short twsta, twend;
 	unsigned int bindcode;	/* only for current image... */
 	unsigned int *repbind;	/* for repeat of parts of images */
-	
+
+	/* mipmapping settings */
+	float lodbias;
+	int pad1;
+
 	struct PackedFile *packedfile DNA_DEPRECATED; /* deprecated */
 	struct ListBase packedfiles;
 	struct PreviewImage *preview;
@@ -174,6 +178,7 @@ enum {
 	IMA_USE_VIEWS           = (1 << 14),
 	// IMA_IS_STEREO        = (1 << 15), /* deprecated */
 	// IMA_IS_MULTIVIEW     = (1 << 16), /* deprecated */
+	IMA_USE_MIPMAP          = (1 << 15),
 };
 
 /* Image.tpageflag */

@@ -933,6 +933,13 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				               CURVEMAP_SLOPE_POS_NEG);
 			}
 		}
+		if (!DNA_struct_elem_find(fd->filesdna, "Image", "float", "lodbias")) {
+			Image *image;
+			for (image = main->image.first; image != NULL; image = image->id.next) {
+				image->lodbias = 0.0f;
+				image->flag |= IMA_USE_MIPMAP;
+			}
+		}
 	}
 
 

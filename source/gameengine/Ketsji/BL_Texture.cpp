@@ -136,7 +136,7 @@ bool BL_Texture::InitFromImage(int unit,  Image *img, bool mipmap)
 		return mOk;
 	}
 
-	mipmap = mipmap && GPU_get_mipmap();
+	mipmap = mipmap && GPU_get_mipmap() && img->flag & IMA_USE_MIPMAP;
 
 	mTexture = img->bindcode;
 	mType = GL_TEXTURE_2D;
@@ -170,11 +170,11 @@ bool BL_Texture::InitFromImage(int unit,  Image *img, bool mipmap)
 
 #ifdef WITH_DDS
 	if (ibuf->ftype == IMB_FTYPE_DDS)
-		InitGLCompressedTex(ibuf, mipmap);
+		InitGLCompressedTex(ibuf, mipmap, img->lodbias);
 	else
-		InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap);
+		InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap, img->lodbias);
 #else
-	InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap);
+	InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap, img->lodbias);
 #endif
 
 	// track created units
@@ -193,10 +193,10 @@ bool BL_Texture::InitFromImage(int unit,  Image *img, bool mipmap)
 	return mOk;
 }
 
-void BL_Texture::InitGLTex(unsigned int *pix,int x,int y,bool mipmap)
+void BL_Texture::InitGLTex(unsigned int *pix,int x,int y,bool mipmap, float lodbias)
 {
 	if (!GPU_non_power_of_two_support() && (!is_power_of_2_i(x) || !is_power_of_2_i(y)) ) {
-		InitNonPow2Tex(pix, x,y,mipmap);
+		InitNonPow2Tex(pix, x,y,mipmap, lodbias);
 		return;
 	}
 
@@ -206,6 +206,7 @@ void BL_Texture::InitGLTex(unsigned int *pix,int x,int y,bool mipmap)
 		ImBuf *ibuf;
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, lodbias);
 
 		ibuf = IMB_allocFromBuffer(pix, NULL, x, y);
 
@@ -229,23 +230,23 @@ void BL_Texture::InitGLTex(unsigned int *pix,int x,int y,bool mipmap)
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 }
 
-void BL_Texture::InitGLCompressedTex(ImBuf *ibuf, bool mipmap)
+void BL_Texture::InitGLCompressedTex(ImBuf *ibuf, bool mipmap, float lodbias)
 {
 #ifndef WITH_DDS
 	// Fall back to uncompressed if DDS isn't enabled
-	InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap);
+	InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap, lodbias);
 	return;
 #else
 	glBindTexture(GL_TEXTURE_2D, mTexture);
 	
 	if (GPU_upload_dxt_texture(ibuf) == 0) {
-		InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap);
+		InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap, lodbias);
 		return;
 	}
 #endif
 }
 
-void BL_Texture::InitNonPow2Tex(unsigned int *pix,int x,int y,bool mipmap)
+void BL_Texture::InitNonPow2Tex(unsigned int *pix,int x,int y,bool mipmap, float lodbias)
 {
 	int nx= power_of_2_min_i(x);
 	int ny= power_of_2_min_i(y);
@@ -259,6 +260,7 @@ void BL_Texture::InitNonPow2Tex(unsigned int *pix,int x,int y,bool mipmap)
 		int i;
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, lodbias);
 
 		IMB_makemipmap(ibuf, true);
 
@@ -373,6 +375,7 @@ bool BL_Texture::InitCubeMap(int unit,  EnvMap *cubemap)
 
 	glTexParameteri( GL_TEXTURE_CUBE_MAP_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 	glTexParameteri( GL_TEXTURE_CUBE_MAP_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	glTexParameterf(GL_TEXTURE_CUBE_MAP_ARB, GL_TEXTURE_LOD_BIAS, cubemap->ima->lodbias);
 	glTexParameteri( GL_TEXTURE_CUBE_MAP_ARB, GL_TEXTURE_WRAP_S,	 GL_CLAMP_TO_EDGE );
 	glTexParameteri( GL_TEXTURE_CUBE_MAP_ARB, GL_TEXTURE_WRAP_T,	 GL_CLAMP_TO_EDGE );
 	if (GLEW_VERSION_1_2)

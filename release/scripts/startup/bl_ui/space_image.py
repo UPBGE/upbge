@@ -617,6 +617,30 @@ class IMAGE_PT_game_properties(Panel):
         col.separator()
         col.prop(ima, "mapping", expand=True)
 
+class IMAGE_PT_game_properties(Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+    bl_label = "Mipmapping"
+
+    def draw_header(self, context):
+        sima = context.space_data
+        ima = sima.image
+        self.layout.prop(ima, "use_mipmap", text="")
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        # display even when not in game mode because these settings effect the 3d view
+        return (sima and sima.image and not sima.show_maskedit)  # and (rd.engine == 'BLENDER_GAME')
+
+    def draw(self, context):
+        layout = self.layout
+
+        sima = context.space_data
+        ima = sima.image
+
+        col = layout.column()
+        col.prop(ima, "lod_bias")
 
 class IMAGE_PT_view_properties(Panel):
     bl_space_type = 'IMAGE_EDITOR'

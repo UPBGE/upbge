@@ -139,6 +139,12 @@ static void rna_Image_generated_update(Main *UNUSED(bmain), Scene *UNUSED(scene)
 	BKE_image_signal(ima, NULL, IMA_SIGNAL_FREE);
 }
 
+static void rna_Image_mipmap_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	Image *ima = ptr->id.data;
+	BKE_image_signal(ima, NULL, IMA_SIGNAL_FREE);
+}
+
 static void rna_Image_colormanage_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Image *ima = ptr->id.data;
@@ -848,6 +854,16 @@ static void rna_def_image(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Bindcode", "OpenGL bindcode");
 	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
+
+	prop = RNA_def_property(srna, "lod_bias", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "lodbias");
+	RNA_def_property_ui_text(prop, "Lod Bias", "OpenGL mipmapping lod bias");
+	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Image_mipmap_update");
+
+	prop = RNA_def_property(srna, "use_mipmap", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", IMA_USE_MIPMAP);
+	RNA_def_property_ui_text(prop, "Use Mipmap", "Use OpenGL mipmapping mode");
+	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Image_mipmap_update");
 
 	prop = RNA_def_property(srna, "render_slots", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_type(prop, "RenderSlot");
