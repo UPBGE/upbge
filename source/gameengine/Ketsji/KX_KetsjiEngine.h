@@ -70,7 +70,7 @@ enum KX_ExitRequestMode
 typedef struct {
 	short matmode;
 	short glslflag;
-}   GlobalSettings;
+} GlobalSettings;
 
 /**
  * KX_KetsjiEngine is the core game engine class.
@@ -79,31 +79,34 @@ class KX_KetsjiEngine
 {
 
 private:
-	RAS_ICanvas *m_canvas; // 2D Canvas (2D Rendering Device Context)
-	RAS_IRasterizer *m_rasterizer; // 3D Rasterizer (3D Rendering)
+	/// 2D Canvas (2D Rendering Device Context)
+	RAS_ICanvas *m_canvas;
+	/// 3D Rasterizer (3D Rendering)
+	RAS_IRasterizer *m_rasterizer;
 	KX_ISystem *m_kxsystem;
 	KX_ISceneConverter *m_sceneconverter;
 #ifdef WITH_PYTHON
-	/* borrowed from sys.modules["__main__"], don't manage ref's */
+	/// \note borrowed from sys.modules["__main__"], don't manage ref's
 	PyObject *m_pythondictionary;
 	PyObject *m_pyprofiledict;
 #endif
 	SCA_IInputDevice *m_keyboarddevice;
 	SCA_IInputDevice *m_mousedevice;
-	KX_Dome *m_dome; // dome stereo mode
+	/// dome stereo mode
+	KX_Dome *m_dome;
 
-	/** Lists of scenes scheduled to be removed at the end of the frame. */
+	/// Lists of scenes scheduled to be removed at the end of the frame.
 	std::vector<STR_String> m_removingScenes;
-	/** Lists of overley scenes scheduled to be added at the end of the frame. */
+	/// Lists of overley scenes scheduled to be added at the end of the frame.
 	std::vector<STR_String> m_addingOverlayScenes;
-	/** Lists of background scenes scheduled to be added at the end of the frame. */
+	/// Lists of background scenes scheduled to be added at the end of the frame.
 	std::vector<STR_String> m_addingBackgroundScenes;
-	/** Lists of scenes scheduled to be replaced at the end of the frame. */
+	/// Lists of scenes scheduled to be replaced at the end of the frame.
 	std::vector<std::pair<STR_String, STR_String> >  m_replace_scenes;
 
 	/// The current list of scenes.
 	CListValue *m_scenes;
-	/* State variable recording the presence of object debug info in the current scene list. */
+	/// State variable recording the presence of object debug info in the current scene list.
 	bool m_propertiesPresent;
 
 	bool m_bInitialized;
@@ -113,23 +116,31 @@ private:
 	bool m_firstframe;
 	int m_currentFrame;
 
-	double m_frameTime; // discrete timestamp of the 'game logic frame'
-	double m_clockTime; // current time
-	double m_previousClockTime; // previous clock time
-	double m_previousAnimTime; // the last time animations were updated
+	/// discrete timestamp of the 'game logic frame'
+	double m_frameTime;
+	/// current time
+	double m_clockTime;
+	/// previous clock time
+	double m_previousClockTime;
+	/// the last time animations were updated
+	double m_previousAnimTime;
 	double m_remainingTime;
 
-	static int m_maxLogicFrame; /* maximum number of consecutive logic frame */
-	static int m_maxPhysicsFrame; /* maximum number of consecutive physics frame */
+	/// maximum number of consecutive logic frame
+	static int m_maxLogicFrame;
+	/// maximum number of consecutive physics frame
+	static int m_maxPhysicsFrame;
 	static double m_ticrate;
-	static double m_anim_framerate; /* for animation playback only - ipo and action */
+	/// for animation playback only - ipo and action
+	static double m_anim_framerate;
 
 	static bool m_restrict_anim_fps;
 
 	static double m_suspendedtime;
 	static double m_suspendeddelta;
 
-	static short m_exitkey; /* Key used to exit the BGE */
+	/// Key used to exit the BGE
+	static short m_exitkey;
 
 	int m_exitcode;
 	STR_String m_exitstring;
@@ -151,7 +162,7 @@ private:
 	bool m_stereo;
 	int m_curreye;
 
-	/** Categories for profiling display. */
+	/// Categories for profiling display.
 	typedef enum {
 		tc_first = 0,
 		tc_physics = 0,
@@ -167,30 +178,30 @@ private:
 		tc_numCategories
 	} KX_TimeCategory;
 
-	/** Time logger. */
+	/// Time logger.
 	KX_TimeCategoryLogger *m_logger;
 
-	/** Labels for profiling display. */
+	/// Labels for profiling display.
 	static const char m_profileLabels[tc_numCategories][15];
-	/** Last estimated framerate */
+	/// Last estimated framerate
 	static double m_average_framerate;
-	/** Show the framerate on the game display? */
+	/// Show the framerate on the game display?
 	bool m_show_framerate;
-	/** Show profiling info on the game display? */
+	/// Show profiling info on the game display?
 	bool m_show_profile;
-	/** Show any debug (scene) object properties on the game display? */
+	/// Show any debug (scene) object properties on the game display?
 	bool m_showProperties;
-	/** Show background behind text for readability? */
+	/// Show background behind text for readability?
 	bool m_showBackground;
-	/** Show debug properties on the game display*/
+	/// Show debug properties on the game display
 	bool m_show_debug_properties;
-	/** Automatic add debug properties to the debug list*/
+	/// Automatic add debug properties to the debug list
 	bool m_autoAddDebugProperties;
 
-	/** record physics into keyframes */
+	/// record physics into keyframes
 	bool m_animation_record;
 
-	/** Hide cursor every frame? */
+	/// Hide cursor every frame?
 	bool m_hideCursor;
 
 	/// Enable debug draw of culling bounding boxes.
@@ -198,19 +209,19 @@ private:
 	/// Enable debug draw armatures.
 	bool m_showArmature;
 
-	/** Override framing bars color? */
+	/// Override framing bars color?
 	bool m_overrideFrameColor;
-	/** Red component of framing bar color. */
+	/// Red component of framing bar color.
 	float m_overrideFrameColorR;
-	/** Green component of framing bar color. */
+	/// Green component of framing bar color.
 	float m_overrideFrameColorG;
-	/** Blue component of framing bar color. */
+	/// Blue component of framing bar color.
 	float m_overrideFrameColorB;
 
-	/** Settings that doesn't go away with Game Actuator */
+	/// Settings that doesn't go away with Game Actuator
 	GlobalSettings m_globalsettings;
 
-	/** Task scheduler for multi-threading */
+	/// Task scheduler for multi-threading
 	TaskScheduler *m_taskscheduler;
 
 	/** Set scene's total pause duration for animations process.
@@ -234,7 +245,7 @@ public:
 	KX_KetsjiEngine(KX_ISystem *system);
 	virtual ~KX_KetsjiEngine();
 
-	// set the devices and stuff. the client must take care of creating these
+	/// set the devices and stuff. the client must take care of creating these
 	void SetKeyboardDevice(SCA_IInputDevice *keyboarddevice);
 	void SetMouseDevice(SCA_IInputDevice *mousedevice);
 	void SetCanvas(RAS_ICanvas *canvas);
@@ -285,7 +296,7 @@ public:
 	void RenderDome();
 	bool m_usedome;
 
-	///returns true if an update happened to indicate -> Render
+	/// returns true if an update happened to indicate -> Render
 	bool NextFrame();
 	void Render();
 
@@ -539,7 +550,6 @@ protected:
 	/**
 	 * This method is invoked when the scene lists have changed.
 	 */
-
 	void RemoveScheduledScenes(void);
 	void AddScheduledScenes(void);
 	void ReplaceScheduledScenes(void);

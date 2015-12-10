@@ -1017,8 +1017,8 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 	//m_rasterizer->SetAmbient();
 	m_rasterizer->DisplayFog();
 
-	override_camera = m_overrideCam && (scene->GetName() == m_overrideSceneName);
-	override_camera = override_camera && (cam->GetName() == "__default__cam__");
+	override_camera = m_overrideCam && (scene->GetName() == m_overrideSceneName) &&
+		(cam->GetName() == "__default__cam__");
 
 	if (override_camera && m_overrideCamUseOrtho) {
 		m_rasterizer->SetProjectionMatrix(m_overrideCamProjMat);
