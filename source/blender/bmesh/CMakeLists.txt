@@ -30,6 +30,7 @@ set(INC
 	../blentranslation
 	../makesdna
 	../../../intern/guardedalloc
+	../../../intern/eigen
 	../../../extern/rangetree
 )
 
@@ -112,6 +113,8 @@ set(SRC
 	intern/bmesh_operators_private.h
 	intern/bmesh_polygon.c
 	intern/bmesh_polygon.h
+	intern/bmesh_polygon_edgenet.c
+	intern/bmesh_polygon_edgenet.h
 	intern/bmesh_private.h
 	intern/bmesh_queries.c
 	intern/bmesh_queries.h
@@ -160,7 +163,7 @@ set(SRC
 )
 
 if(MSVC)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX /wd4101")
 endif()
 
 if(WITH_BULLET)
@@ -172,13 +175,6 @@ endif()
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
-endif()
-
-if(WITH_OPENNL)
-	add_definitions(-DWITH_OPENNL)
-	list(APPEND INC_SYS
-		../../../intern/opennl/extern
-	)
 endif()
 
 if(WITH_FREESTYLE)

@@ -24,8 +24,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __EIGEN3_SVD_C_API_CC__
-#define __EIGEN3_SVD_C_API_CC__
+#ifndef __EIGEN3_EIGENVALUES_C_API_CC__
+#define __EIGEN3_EIGENVALUES_C_API_CC__
 
 /* Eigen gives annoying huge amount of warnings here, silence them! */
 #ifdef __GNUC__
@@ -33,40 +33,38 @@
 #endif
 
 #include <Eigen/Core>
-#include <Eigen/SVD>
+#include <Eigen/Eigenvalues>
 
-#include "svd.h"
+#include "eigenvalues.h"
 
-using Eigen::JacobiSVD;
-
-using Eigen::NoQRPreconditioner;
-
-using Eigen::ComputeThinU;
-using Eigen::ComputeThinV;
+using Eigen::SelfAdjointEigenSolver;
 
 using Eigen::MatrixXf;
 using Eigen::VectorXf;
 using Eigen::Map;
 
-void EG3_svd_square_matrix(const int size, const float *matrix, float *r_U, float *r_S, float *r_V)
+using Eigen::Success;
+
+bool EIG_self_adjoint_eigen_solve(const int size, const float *matrix, float *r_eigen_values, float *r_eigen_vectors)
 {
-	/* Since our matrix is squared, we can use thinU/V. */
-	unsigned int flags = (r_U ? ComputeThinU : 0) | (r_V ? ComputeThinV : 0);
+	SelfAdjointEigenSolver<MatrixXf> eigen_solver;
 
 	/* Blender and Eigen matrices are both column-major. */
-	JacobiSVD<MatrixXf, NoQRPreconditioner> svd(Map<MatrixXf>((float *)matrix, size, size), flags);
+	eigen_solver.compute(Map<MatrixXf>((float *)matrix, size, size));
 
-	if (r_U) {
-		Map<MatrixXf>(r_U, size, size) = svd.matrixU();
+	if (eigen_solver.info() != Success) {
+		return false;
 	}
 
-	if (r_S) {
-		Map<VectorXf>(r_S, size) = svd.singularValues();
+	if (r_eigen_values) {
+		Map<VectorXf>(r_eigen_values, size) = eigen_solver.eigenvalues().transpose();
 	}
 
-	if (r_V) {
-		Map<MatrixXf>(r_V, size, size) = svd.matrixV();
+	if (r_eigen_vectors) {
+		Map<MatrixXf>(r_eigen_vectors, size, size) = eigen_solver.eigenvectors();
 	}
+
+	return true;
 }
 
-#endif  /* __EIGEN3_SVD_C_API_CC__ */
+#endif  /* __EIGEN3_EIGENVALUES_C_API_CC__ */

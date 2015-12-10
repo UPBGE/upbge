@@ -15,26 +15,20 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2015 Blender Foundation.
- * All rights reserved.
- *
- * Contributor(s): Blender Foundation,
- *                 Bastien Montagne
- *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __EIGEN3_EIGENVALUES_C_API_H__
-#define __EIGEN3_EIGENVALUES_C_API_H__
+#ifndef __BMESH_POLYGON_EDGENET_H__
+#define __BMESH_POLYGON_EDGENET_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+/** \file blender/bmesh/intern/bmesh_polygon_edgenet.h
+ *  \ingroup bmesh
+ */
 
-bool EG3_self_adjoint_eigen_solve(const int size, const float *matrix, float *r_eigen_values, float *r_eigen_vectors);
+bool BM_face_split_edgenet(
+        BMesh *bm, BMFace *f,
+        BMEdge **edge_net, const int edge_net_len,
+        BMFace ***r_face_arr, int *r_face_arr_len);
 
-#ifdef __cplusplus
-}
-#endif
 
-#endif  /* __EIGEN3_EIGENVALUES_C_API_H__ */
+#endif  /* __BMESH_POLYGON_EDGENET_H__ */

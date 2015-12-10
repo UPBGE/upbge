@@ -14,28 +14,33 @@
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
-# The Original Code is Copyright (C) 2011, Blender Foundation
+# The Original Code is Copyright (C) 2015, Blender Foundation
 # All rights reserved.
 #
-# Contributor(s): Blender Foundation,
-#                 Sergey Sharybin
+# The Original Code is: all of this file.
+#
+# Contributor(s): Bastien Montagne.
 #
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	Include
+	.
 )
 
 set(INC_SYS
-
+	${EIGEN3_INCLUDE_DIRS}
 )
 
 set(SRC
-	Source/colamd.c
-	Source/colamd_global.c
+	eigen_capi.h
 
-	Include/colamd.h
-	Include/UFconfig.h
+	intern/eigenvalues.cc
+	intern/linear_solver.cc
+	intern/svd.cc
+
+	intern/eigenvalues.h
+	intern/linear_solver.h
+	intern/svd.h
 )
 
-blender_add_lib(extern_colamd "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_intern_eigen "${SRC}" "${INC}" "${INC_SYS}")

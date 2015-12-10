@@ -51,8 +51,9 @@
 #include "RAS_StorageVBO.h"
 
 #include "GPU_draw.h"
-#include "GPU_material.h"
 #include "GPU_extensions.h"
+#include "GPU_material.h"
+#include "GPU_shader.h"
 
 extern "C" {
 	#include "BLF_api.h"
@@ -1670,6 +1671,6 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 
 	pprint(" GL_ARB_texture_env_combine supported?  "<< (GLEW_ARB_texture_env_combine?"yes.":"no."));
 
-	pprint(" GL_ARB_texture_non_power_of_two supported  " << (GPU_non_power_of_two_support()?"yes.":"no."));
+	pprint(" GL_ARB_texture_non_power_of_two supported  " << (GPU_full_non_power_of_two_support()?"yes.":"no."));
 }
 

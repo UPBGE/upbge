@@ -7,11 +7,9 @@ if env['WITH_BF_GLEW_ES']:
 else:
     SConscript(['glew/SConscript'])
 
-SConscript(['colamd/SConscript'])
 SConscript(['rangetree/SConscript'])
 SConscript(['wcwidth/SConscript'])
 SConscript(['libmv/SConscript'])
-SConscript(['Eigen3/SConscript'])
 
 if env['WITH_BF_GAMEENGINE']:
     SConscript(['recastnavigation/SConscript'])

@@ -169,14 +169,13 @@ endif()
 		extern_recastnavigation
 		bf_intern_raskter
 		bf_intern_opencolorio
-		bf_intern_opennl
 		bf_intern_glew_mx
+		bf_intern_eigen
 		extern_rangetree
 		extern_wcwidth
 		extern_libmv
 		extern_glog
 		extern_sdlew
-		extern_eigen3
 	)
 
 	if(WITH_MOD_CLOTH_ELTOPO)
@@ -194,8 +193,6 @@ endif()
 	if(WITH_LIBMV)
 		list(APPEND BLENDER_SORTED_LIBS extern_ceres)
 	endif()
-
-	list(APPEND BLENDER_SORTED_LIBS extern_colamd)
 
 	if(WITH_MOD_BOOLEAN)
 		list(APPEND BLENDER_SORTED_LIBS extern_carve)

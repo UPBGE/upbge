@@ -31,11 +31,10 @@ set(INC
 	../imbuf
 	../makesdna
 	../../../intern/guardedalloc
-	../../../extern/Eigen3
 )
 
 set(INC_SYS
-
+	${EIGEN3_INCLUDE_DIRS}
 )
 
 set(SRC
