@@ -1,4 +1,4 @@
-# code from https://en.wikibooks.org/wiki/GLSL_Programming/Blender/Diffuse_Reflection
+# code from https://en.wikibooks.org/wiki/GLSL_Programming/Blender/Reflecting_Surfaces
 # and https://en.wikibooks.org/wiki/GLSL_Programming/Blender/Diffuse_Reflection
 # This shader works only with 1 Light Source. You can use a for loop to take into
 # account multiple light sources (gl_LightSource[i]). The code works only for 1
@@ -14,7 +14,8 @@ import bge
 cont = bge.logic.getCurrentController()
 
 VertexShader = """
-         varying vec4 color; 
+         varying vec4 color;
+         uniform int diffuse;
          uniform mat4 viewMatrix; // world to view transformation
          uniform mat4 viewMatrixInverse; 
             // view to world transformation
@@ -25,8 +26,6 @@ VertexShader = """
         
          void main()
          {
-            vec3 lightDirection;
-            float attenuation;
             vec4 positionInViewSpace = gl_ModelViewMatrix * gl_Vertex;
                // transformation of gl_Vertex from object coordinates 
                // to view coordinates
@@ -53,44 +52,50 @@ VertexShader = """
                // to world coordinates with the transposed 
                // (multiplication of the vector from the left) of 
                // the inverse of viewMatrixInverse, which is viewMatrix
- 
-            if (0.0 == gl_LightSource[0].position.w) 
-               // directional light?
-            {
-               attenuation = 1.0; // no attenuation
-               lightDirection = 
-                  normalize(vec3(gl_LightSource[0].position));
-            } 
-            else // point light or spotlight (or other kind of light) 
-            {
-               vec3 vertexToLightSource = 
-                  vec3(gl_LightSource[0].position 
-                  - gl_ModelViewMatrix * gl_Vertex);
-               float distance = length(vertexToLightSource);
-               attenuation = 1.0 / distance; // linear attenuation 
-               lightDirection = normalize(vertexToLightSource);
- 
-               if (gl_LightSource[0].spotCutoff <= 90.0) // spotlight?
-               {
-                  float clampedCosine = max(0.0, dot(-lightDirection, 
-                     gl_LightSource[0].spotDirection));
-                  if (clampedCosine < gl_LightSource[0].spotCosCutoff) 
-                     // outside of spotlight cone?
-                  {
-                     attenuation = 0.0;
-                  }
-                  else
-                  {
-                     attenuation = attenuation * pow(clampedCosine, 
-                        gl_LightSource[0].spotExponent);
-                  }
-               }
+            if (bool(diffuse)) {
+                vec3 lightDirection;
+                float attenuation;
+                if (0.0 == gl_LightSource[0].position.w) 
+                   // directional light?
+                {
+                   attenuation = 1.0; // no attenuation
+                   lightDirection = 
+                      normalize(vec3(gl_LightSource[0].position));
+                } 
+                else // point light or spotlight (or other kind of light) 
+                {
+                   vec3 vertexToLightSource = 
+                      vec3(gl_LightSource[0].position 
+                      - gl_ModelViewMatrix * gl_Vertex);
+                   float distance = length(vertexToLightSource);
+                   attenuation = 1.0 / distance; // linear attenuation 
+                   lightDirection = normalize(vertexToLightSource);
+     
+                   if (gl_LightSource[0].spotCutoff <= 90.0) // spotlight?
+                   {
+                      float clampedCosine = max(0.0, dot(-lightDirection, 
+                         gl_LightSource[0].spotDirection));
+                      if (clampedCosine < gl_LightSource[0].spotCosCutoff) 
+                         // outside of spotlight cone?
+                      {
+                         attenuation = 0.0;
+                      }
+                      else
+                      {
+                         attenuation = attenuation * pow(clampedCosine, 
+                            gl_LightSource[0].spotExponent);
+                      }
+                   }
+                }
+                vec3 diffuseReflection = attenuation 
+                   * vec3(gl_LightSource[0].diffuse) 
+                   * max(0.0, dot(normalDirection, lightDirection));
+     
+                color = vec4(diffuseReflection, 1.0);
             }
-            vec3 diffuseReflection = attenuation 
-               * vec3(gl_LightSource[0].diffuse) 
-               * max(0.0, dot(normalDirection, lightDirection));
- 
-            color = vec4(diffuseReflection, 1.0);
+            else {
+                color = vec4(0.0);
+            }
             gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
          }
 """
