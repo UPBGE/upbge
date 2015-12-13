@@ -875,9 +875,14 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	}
 	else
 		GPU_link(mat, "set_value", GPU_uniform(&one), &shadfac);
-
+	if (ma->sss_flag)
+	{
+		GPU_link(mat, "set_sss", GPU_uniform(&lamp->energy), GPU_uniform((float *)&lamp->col), GPU_uniform(&ma->sss_scale), GPU_uniform((float *)&ma->sss_radius), shi->rgb, i, view, lv, vn, GPU_builtin(GPU_VIEW_POSITION), GPU_dynamic_uniform(lamp->dynco, GPU_DYNAMIC_LAMP_DYNCO, lamp->ob), &shr->combined);
+		GPU_link(mat, "shade_add", shr->combined, shr->diff, &shr->diff);
+	}		
+			
 	if (GPU_link_changed(shi->refl) || ma->ref != 0.0f) {
-		if (!(lamp->mode & LA_NO_DIFF)) {
+		if (!(lamp->mode & LA_NO_DIFF) && !(ma->sss_flag)) {
 			GPUNodeLink *rgb;
 			GPU_link(mat, "shade_mul_value", i, lcol, &rgb);
 			GPU_link(mat, "mtex_value_invert", shadfac, &shadfac);
@@ -1203,7 +1208,7 @@ static void do_material_tex(GPUShadeInput *shi)
 				}
 
 				if (tex->type == TEX_IMAGE)
-					if (GPU_material_do_color_management(mat))
+					if (GPU_material_do_color_management(mat) && !(ma->sss_flag))
 						GPU_link(mat, "srgb_to_linearrgb", tcol, &tcol);
 				
 				if (mtex->mapto & MAP_COL) {
@@ -1509,7 +1514,7 @@ void GPU_shadeinput_set(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 	GPU_link(mat, "set_value", GPU_uniform(&ma->spectra), &shi->spectra);
 	GPU_link(mat, "shade_view", GPU_builtin(GPU_VIEW_POSITION), &shi->view);
 	GPU_link(mat, "vcol_attribute", GPU_attribute(CD_MCOL, ""), &shi->vcol);
-	if (GPU_material_do_color_management(mat))
+	if (GPU_material_do_color_management(mat) && !(ma->sss_flag))
 		GPU_link(mat, "srgb_to_linearrgb", shi->vcol, &shi->vcol);
 	GPU_link(mat, "texco_refl", shi->vn, shi->view, &shi->ref);
 }
@@ -1548,6 +1553,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 	World *world = mat->scene->world;
 	float linfac, logfac;
 
+	mat->dynproperty |= DYN_LAMP_CO;
 	memset(shr, 0, sizeof(*shr));
 
 	if (ma->mode & MA_VERTEXCOLP)
@@ -1810,7 +1816,7 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_open
 		GPU_material_output_link(mat, outlink);
 	}
 
-	if (GPU_material_do_color_management(mat))
+	if (GPU_material_do_color_management(mat) && !(ma->sss_flag))
 		if (mat->outlink)
 			GPU_link(mat, "linearrgb_to_srgb", mat->outlink, &mat->outlink);
 

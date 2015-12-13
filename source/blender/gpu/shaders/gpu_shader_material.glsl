@@ -409,6 +409,67 @@ void set_value(float val, out float outval)
 	outval = val;
 }
 
+float halfLambert(in vec3 vect1, in vec3 vect2)
+{
+     float product = dot(vect1,vect2);
+     return product * 0.5 + 0.5;
+}
+
+float blinnPhongSpecular(in vec3 normalVec, in vec3 lightVec, in float specPower)
+{
+    vec3 halfAngle = normalize(normalVec + lightVec);
+    return pow(clamp(0.0,1.0,dot(normalVec,halfAngle)),specPower);
+}
+
+vec3 subScatterFS(float brightness, vec3 lightcol, float scale, vec3 radius, vec3 col, float i, vec3 view, vec3 lv, vec3 vert, vec3 LightPosition, vec3 normal)
+{
+     float MaterialThickness = scale;
+     vec3 worldNormal = normal;//gl_NormalMatrix * normal;
+     vec3 ecPos = view;//vec4(gl_ModelViewMatrix * vec4(vert,1.0)).xyz;
+     vec3 eyeVec = -ecPos; //normalize(-ecPos);
+     vec3 vertPos = vert;
+     vec3 lightVec = lv;//LightPosition - ecPos;normalize(LightPosition - ecPos);
+     vec3 lightPos = LightPosition;
+     vec3 ExtinctionCoefficient = radius*0.1;
+     vec3 LightColor = lightcol;
+     vec3 BaseColor = col;
+     //BaseColor *= i;
+     float attenuation = (1.0 / distance(lightPos,vertPos))*brightness;
+     vec3 eVec = normalize(eyeVec);
+     vec3 lVec = lightVec;//normalize(lightVec);
+     vec3 wNorm = worldNormal;//normalize(worldNormal);
+     
+     vec3 dotLN = vec3(i);//attenuation) * i;
+     //halfLambert(lVec,wNorm)
+     dotLN *= BaseColor;
+     
+     vec3 indirectLightComponent = vec3(MaterialThickness * max(0.0,dot(-wNorm,lVec)));
+     indirectLightComponent += MaterialThickness * vec3(halfLambert(-eVec,lVec));
+     indirectLightComponent *= attenuation;
+     indirectLightComponent.r *= ExtinctionCoefficient.r;
+     indirectLightComponent.g *= ExtinctionCoefficient.g;
+     indirectLightComponent.b *= ExtinctionCoefficient.b;
+            
+     //vec3 rim = vec3(1.0 - max(0.0,dot(wNorm,eVec)));
+     //rim *= rim;
+     //rim *= max(0.0,dot(wNorm,lVec)) * SpecColor.rgb;
+     
+     vec3 finalCol = dotLN + vec3(indirectLightComponent);
+     //finalCol.rgb += (rim * RimScalar * attenuation);
+     //finalCol.rgb += vec3(blinnPhongSpecular(wNorm,lVec,SpecPower) * attenuation * SpecColor * 0.05);
+     finalCol.rgb *= LightColor.rgb;
+     return finalCol; 
+}
+
+//vec3 vn, vec3 lv, 
+
+void set_sss(float brightness, vec3 lightcol, float scale, vec3 radius, vec3 col, float i, vec3 view, vec3 lv, vec3 normal, vec3 vert, vec3 lightPos, out vec4 outcol)
+{
+    //vec3 radius = vec3();
+    outcol = vec4(subScatterFS(brightness, lightcol, scale, radius, col, i, view, lv, vert, lightPos, normal),1.0);
+    //is = subScatterFS();
+}
+
 void set_rgb(vec3 col, out vec3 outcol)
 {
 	outcol = col;
@@ -1843,6 +1904,26 @@ void shade_hemi_spec(vec3 vn, vec3 lv, vec3 view, float spec, float hard, float 
 	t = 0.5*t + 0.5;
 
 	t = visifac*spec*pow(t, hard);
+}
+
+float InScatter(vec3 start, vec3 dir, vec3 lightPos, float d)
+{
+	// calculate quadratic coefficients a,b,c
+	vec3 q = start - lightPos;
+	float b = dot(dir, q);
+	float c = dot(q, q);
+
+	// evaluate integral
+	float s = 1.0 / sqrt(c - b*b);
+
+	float l = s * (atan( (d + b) * s) - atan( b*s ));
+
+	return l;	
+}
+ 
+vec3 linePlaneIntersect(in vec3 lp, in vec3 lv, in vec3 pc, in vec3 pn)
+{
+   return lp+lv*(dot(pn,pc-lp)/dot(pn,lv));
 }
 
 void shade_phong_spec(vec3 n, vec3 l, vec3 v, float hard, out float specfac)

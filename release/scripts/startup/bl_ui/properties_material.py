@@ -511,7 +511,7 @@ class MATERIAL_PT_mirror(MaterialButtonsPanel, Panel):
 class MATERIAL_PT_sss(MaterialButtonsPanel, Panel):
     bl_label = "Subsurface Scattering"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     @classmethod
     def poll(cls, context):
@@ -542,22 +542,27 @@ class MATERIAL_PT_sss(MaterialButtonsPanel, Panel):
 
         split = layout.split()
 
-        col = split.column()
-        col.prop(sss, "ior")
-        col.prop(sss, "scale")
-        col.prop(sss, "color", text="")
-        col.prop(sss, "radius", text="RGB Radius", expand=True)
-
-        col = split.column()
-        sub = col.column(align=True)
-        sub.label(text="Blend:")
-        sub.prop(sss, "color_factor", text="Color")
-        sub.prop(sss, "texture_factor", text="Texture")
-        sub.label(text="Scattering Weight:")
-        sub.prop(sss, "front")
-        sub.prop(sss, "back")
-        col.separator()
-        col.prop(sss, "error_threshold", text="Error")
+        if context.scene.render.engine != 'BLENDER_GAME':	
+            col = split.column()
+            col.prop(sss, "ior")
+            col.prop(sss, "scale")
+            col.prop(sss, "color", text="")
+            col.prop(sss, "radius", text="RGB Radius", expand=True)	
+            col = split.column()
+            sub = col.column(align=True)
+            sub.label(text="Blend:")
+            sub.prop(sss, "color_factor", text="Color")
+            sub.prop(sss, "texture_factor", text="Texture")
+            sub.label(text="Scattering Weight:")
+            sub.prop(sss, "front")
+            sub.prop(sss, "back")
+            col.separator()
+            col.prop(sss, "error_threshold", text="Error")
+        else:
+            col = split.column()
+            col.prop(sss, "scale")
+            col.prop(sss, "color", text="")
+            col.prop(sss, "radius", text="RGB Radius", expand=True)
 
 
 class MATERIAL_PT_halo(MaterialButtonsPanel, Panel):
