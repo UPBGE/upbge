@@ -112,19 +112,23 @@ private:
 	bool m_bInitialized;
 	int m_activecam;
 	bool m_bFixedTime;
+	bool m_useExternalClock;
 
 	bool m_firstframe;
 	int m_currentFrame;
 
-	/// discrete timestamp of the 'game logic frame'
+	/// current logic game time
 	double m_frameTime;
-	/// current time
+	/// game time for the next rendering step
 	double m_clockTime;
-	/// previous clock time
+	/// game time of the previous rendering step
 	double m_previousClockTime;
-	/// the last time animations were updated
+	///game time when the animations were last updated
 	double m_previousAnimTime;
 	double m_remainingTime;
+	/// time scaling parameter. if > 1.0, time goes faster than real-time. If < 1.0, times goes slower than real-time.
+	double m_timescale;
+	double m_previousRealTime;
 
 	/// maximum number of consecutive logic frame
 	static int m_maxLogicFrame;
@@ -350,15 +354,37 @@ public:
 	bool GetUseFixedTime(void) const;
 
 	/**
-	 * Returns current render frame clock time
+	 * Sets if the BGE relies on a external clock or its own internal clock
+	 */
+	void SetUseExternalClock(bool bUseExternalClock);
+
+	/**
+	 * Returns if we rely on an external clock
+	 * \return Current setting
+	 */
+	bool GetUseExternalClock(void) const;
+
+	/**
+	 * Returns next render frame game time
 	 */
 	double GetClockTime(void) const;
+
 	/**
-	 * Returns current logic frame clock time
+	 * Set the next render frame game time. It will impact also frame time, as
+	 * this one is derived from clocktime
+	 */
+	void SetClockTime(double externalClockTime);
+
+	/**
+	 * Returns current logic frame game time
 	 */
 	double GetFrameTime(void) const;
 
+	/**
+	 * Returns the real (system) time
+	 */
 	double GetRealTime(void) const;
+
 	/**
 	 * Returns the difference between the local time of the scene (when it
 	 * was running and not suspended) and the "curtime"
@@ -413,6 +439,16 @@ public:
 	 * Gets the last estimated average framerate
 	 */
 	static double GetAverageFrameRate();
+
+	/**
+	 * Gets the time scale multiplier 
+	 */
+	double GetTimeScale() const;
+
+	/**
+	 * Sets the time scale multiplier
+	 */
+	void SetTimeScale(double scale);
 
 	static void SetExitKey(short key);
 
