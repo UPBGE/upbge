@@ -542,12 +542,12 @@ class MATERIAL_PT_sss(MaterialButtonsPanel, Panel):
 
         split = layout.split()
 
-        if context.scene.render.engine != 'BLENDER_GAME':	
+        if context.scene.render.engine != 'BLENDER_GAME':
             col = split.column()
             col.prop(sss, "ior")
             col.prop(sss, "scale")
             col.prop(sss, "color", text="")
-            col.prop(sss, "radius", text="RGB Radius", expand=True)	
+            col.prop(sss, "radius", text="RGB Radius", expand=True)
             col = split.column()
             sub = col.column(align=True)
             sub.label(text="Blend:")
@@ -561,7 +561,6 @@ class MATERIAL_PT_sss(MaterialButtonsPanel, Panel):
         else:
             col = split.column()
             col.prop(sss, "scale")
-            col.prop(sss, "color", text="")
             col.prop(sss, "radius", text="RGB Radius", expand=True)
 
 
