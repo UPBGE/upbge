@@ -40,6 +40,7 @@
 #include "KX_Scene.h"
 #include "EXP_Python.h"
 #include "KX_WorldInfo.h"
+#include "KX_RenderDebugInfo.h"
 #include <vector>
 
 struct TaskScheduler;
@@ -185,6 +186,9 @@ private:
 	/// Time logger.
 	KX_TimeCategoryLogger *m_logger;
 
+	/// Debug info manager for poly/mesh count.
+	KX_RenderDebugInfo m_renderDebugInfo;
+
 	/// Labels for profiling display.
 	static const char m_profileLabels[tc_numCategories][15];
 	/// Last estimated framerate
@@ -209,6 +213,8 @@ private:
 	bool m_showBoundingBox;
 	/// Enable debug draw armatures.
 	bool m_showArmature;
+	/// Enable debug render info.
+	bool m_showRenderDebugInfo;
 
 	/// Override framing bars color?
 	bool m_overrideFrameColor;
@@ -526,6 +532,12 @@ public:
 
 	/// Allow debug armatures.
 	bool GetShowArmatures() const;
+
+	/// Returns the current setting for armatures debug.
+	void SetShowRenderDebugInfo(bool show);
+
+	/// Allow debug armatures.
+	bool GetShowRenderDebugInfo() const;
 
 	/**
 	 * Enables/disables the use of the framing bar color of the Blender file's scenes.

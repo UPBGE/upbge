@@ -1603,6 +1603,8 @@ static void game_set_commmandline_options(GameData *gm)
 		SYS_WriteCommandLineInt(syshandle, "show_bounding_box", test);
 		test = (gm->flag & GAME_SHOW_ARMATURES);
 		SYS_WriteCommandLineInt(syshandle, "show_armatures", test);
+		test = (gm->flag & GAME_SHOW_RENDER_DEBUG_INFO);
+		SYS_WriteCommandLineInt(syshandle, "show_render_debug_info", test);
 	}
 }
 

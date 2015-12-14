@@ -151,6 +151,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_hideCursor(false),
 	m_showBoundingBox(false),
 	m_showArmature(false),
+	m_showRenderDebugInfo(false),
 	m_overrideFrameColor(false),
 	m_overrideFrameColorR(0.0f),
 	m_overrideFrameColorG(0.0f),
@@ -458,7 +459,7 @@ void KX_KetsjiEngine::EndFrame()
 
 	// Show profiling info
 	m_logger->StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds(), true);
-	if (m_show_framerate || m_show_profile || (m_show_debug_properties)) {
+	if (m_show_framerate || m_show_profile || (m_show_debug_properties) || m_showRenderDebugInfo) {
 		RenderDebugProperties();
 	}
 
@@ -479,6 +480,9 @@ void KX_KetsjiEngine::EndFrame()
 #endif
 
 	m_average_framerate = 1.0 / tottime;
+
+	// Clear old poly and mesh profile.
+	m_renderDebugInfo.ResetAllInfos();
 
 	// Go to next profiling measurement, time spent after this call is shown in the next frame.
 	m_logger->NextMeasurement(m_kxsystem->GetTimeInSeconds());
@@ -1162,6 +1166,11 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 
 	scene->CalculateVisibleMeshes(m_rasterizer, cam);
 
+	if (m_showRenderDebugInfo) {
+		// Get poly and mesh profile for each scene.
+		m_renderDebugInfo.Update(scene);
+	}
+
 	m_logger->StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
 	SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
 	UpdateAnimations(scene);
@@ -1371,6 +1380,39 @@ void KX_KetsjiEngine::RenderDebugProperties()
 			ycoord += const_ysize;
 		}
 	}
+	if (m_showRenderDebugInfo) {
+		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
+		                           "Render Infos :",
+		                           xcoord + const_xindent + title_xmargin,  // Adds the constant x indent (0 for now) to the title x margin
+		                           ycoord,
+		                           m_canvas->GetWidth(),
+		                           m_canvas->GetHeight());
+
+		// Increase the indent by default increase
+		ycoord += const_ysize;
+		// Add the title indent afterwards
+		ycoord += title_y_bottom_margin;
+
+		for (unsigned int i = 0; i < KX_RenderDebugInfo::INFO_NUM_CATEGORIES; ++i) {
+			m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
+									   m_renderDebugInfo.GetInfoName(i),
+									   xcoord + const_xindent,
+									   ycoord,
+									   m_canvas->GetWidth(),
+									   m_canvas->GetHeight());
+
+			m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
+									   STR_String((int)m_renderDebugInfo.GetInfoValue(i)).ReadPtr(),
+									   xcoord + const_xindent + 84,
+									   ycoord,
+									   m_canvas->GetWidth(),
+									   m_canvas->GetHeight());
+
+			// Increase the indent by default increase
+			ycoord += const_ysize;
+		}
+	}
+
 	// Add the ymargin for titles below the other section of debug info
 	ycoord += title_y_top_margin;
 
@@ -1855,6 +1897,16 @@ void KX_KetsjiEngine::SetShowArmatures(bool show)
 bool KX_KetsjiEngine::GetShowArmatures() const
 {
 	return m_showArmature;
+}
+
+void KX_KetsjiEngine::SetShowRenderDebugInfo(bool show)
+{
+	m_showRenderDebugInfo = show;
+}
+
+bool KX_KetsjiEngine::GetShowRenderDebugInfo() const
+{
+	return m_showRenderDebugInfo;
 }
 
 void KX_KetsjiEngine::SetUseOverrideFrameColor(bool overrideFrameColor)

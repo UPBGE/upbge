@@ -4336,6 +4336,10 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_ARMATURES);
 	RNA_def_property_ui_text(prop, "Show Armatures", "Show a visualization of armatures");
 
+	prop = RNA_def_property(srna, "show_render_debug_info", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_RENDER_DEBUG_INFO);
+	RNA_def_property_ui_text(prop, "Show Debug Render Info", "Show render debug infos");
+
 	/* materials */
 	prop = RNA_def_property(srna, "use_glsl_lights", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_LIGHTS);
