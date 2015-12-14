@@ -877,7 +877,11 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 		GPU_link(mat, "set_value", GPU_uniform(&one), &shadfac);
 	if (ma->sss_flag)
 	{
-		GPU_link(mat, "set_sss", GPU_uniform(&lamp->energy), GPU_uniform((float *)&lamp->col), GPU_uniform(&ma->sss_scale), GPU_uniform((float *)&ma->sss_radius), shi->rgb, i, view, lv, vn, GPU_builtin(GPU_VIEW_POSITION), GPU_dynamic_uniform(lamp->dynco, GPU_DYNAMIC_LAMP_DYNCO, lamp->ob), &shr->combined);
+		GPU_link(mat, "set_sss", GPU_dynamic_uniform(&lamp->dynenergy, GPU_DYNAMIC_LAMP_DYNENERGY, lamp->ob),
+								 GPU_dynamic_uniform(lamp->dyncol, GPU_DYNAMIC_LAMP_DYNCOL, lamp->ob),
+								 GPU_uniform(&ma->sss_scale), GPU_uniform((float *)&ma->sss_radius),
+								 shi->rgb, i, view, lv, vn, GPU_builtin(GPU_VIEW_POSITION),
+								 GPU_dynamic_uniform(lamp->dynco, GPU_DYNAMIC_LAMP_DYNCO, lamp->ob), &shr->combined);
 		GPU_link(mat, "shade_add", shr->combined, shr->diff, &shr->diff);
 	}		
 			
