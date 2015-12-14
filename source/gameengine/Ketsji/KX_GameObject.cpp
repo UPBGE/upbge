@@ -1571,8 +1571,7 @@ void KX_GameObject::SetBoundsAabb(MT_Point3 aabbMin, MT_Point3 aabbMax)
 	box.SetMax(aabbMax);
 
 	// Compute the radius for the first culling step which use spheres.
-	const MT_Point3& position = NodeGetWorldPosition();
-	const float radius = std::max(position.distance(aabbMin), position.distance(aabbMax));
+	const float radius = std::max(aabbMin.length(), aabbMax.length());
 	m_pSGNode->SetRadius(radius);
 
 	// And in the object's graphic controller if it exists.
