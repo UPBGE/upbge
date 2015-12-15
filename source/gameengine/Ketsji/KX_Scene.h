@@ -73,7 +73,6 @@ class SCA_IInputDevice;
 class KX_NetworkMessageScene;
 class SG_IObject;
 class SG_Node;
-class SG_Tree;
 class KX_WorldInfo;
 class KX_Camera;
 class KX_GameObject;
@@ -282,8 +281,6 @@ protected:
 	/**
 	 * Visibility testing functions.
 	 */
-	void MarkVisible(SG_Tree *node, RAS_IRasterizer* rasty, KX_Camera*cam,int layer=0);
-	void MarkSubTreeVisible(SG_Tree *node, RAS_IRasterizer* rasty, bool visible, KX_Camera*cam,int layer=0);
 	void MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj, KX_Camera*cam, int layer=0);
 	static void PhysicsCullingCallback(KX_ClientObjectInfo* objectInfo, void* cullingInfo);
 
@@ -588,11 +585,6 @@ public:
 	MT_Vector3 GetGravity();
 
 	short GetAnimationFPS();
-	
-	/**
-	 * Sets the node tree for this scene.
-	 */
-	void SetNodeTree(SG_Tree* root);
 
 	/**
 	 * 2D Filters
