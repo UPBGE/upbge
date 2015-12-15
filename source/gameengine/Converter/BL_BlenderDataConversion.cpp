@@ -2250,7 +2250,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		RAS_MeshObject *meshobj = NULL;
 		if (!autoUpdate && blenderobject->gamePredefinedBound) {
 			// If the mesh is not already converted we convert it.
-			meshobj = converter->FindGameMesh((Mesh *)blenderobject->data);
+			meshobj = converter->FindGameMesh((Mesh *)blenderobject->gamePredefinedBound);
 		}
 		else if (gameobj->GetMeshCount() > 0) {
 			meshobj = gameobj->GetMesh(0);
