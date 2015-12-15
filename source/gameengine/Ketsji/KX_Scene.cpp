@@ -1488,6 +1488,11 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 			KX_GameObject *gameobj = static_cast<KX_GameObject*>(m_objectlist->GetValue(i));
 			gameobj->SetCulled(true);
 			if (gameobj->GetDeformer()) {
+				/** Update all the deformer, not only per material.
+				 * One of the side effect is to clear some flags about AABB calculation.
+				 * like in KX_SoftBodyDeformer.
+				 */
+				gameobj->GetDeformer()->UpdateBuckets();
 				gameobj->UpdateBounds();
 			}
 		}

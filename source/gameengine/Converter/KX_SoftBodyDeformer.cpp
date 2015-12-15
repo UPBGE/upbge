@@ -115,10 +115,18 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 			continue;
 		}
 
-		// if it's the first time we call Apply in this frame we reset the AABB
-		if (m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
+		const MT_Vector3& scale = m_gameobj->NodeGetWorldScaling();
+		const MT_Vector3& invertscale = MT_Vector3(1.0f / scale.x(), 1.0f / scale.y(), 1.0f / scale.z());
+		const MT_Point3& pos = m_gameobj->NodeGetWorldPosition();
+		const MT_Matrix3x3& rot = m_gameobj->NodeGetWorldOrientation();
+
+		// Extract object transform from the vertex position.
+		pt = (pt - pos) * rot * invertscale;
+
+		// if the AABB need an update.
+		if (m_needUpdateAABB) {
 			m_aabbMin = m_aabbMax = pt;
-			m_lastDeformUpdate = m_gameobj->GetLastFrame();
+			m_needUpdateAABB = false;
 		}
 		else {
 			m_aabbMin.x() = std::min(m_aabbMin.x(), pt.x());
