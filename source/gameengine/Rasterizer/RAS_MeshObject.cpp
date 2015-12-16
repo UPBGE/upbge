@@ -141,6 +141,7 @@ void RAS_MeshObject::UpdateAabb()
 	unsigned int nmat = NumMaterials();
 	for (unsigned int imat = 0; imat < nmat; ++imat) {
 		RAS_MeshMaterial *mmat = GetMeshMaterial(imat);
+
 		RAS_MeshSlot *slot = mmat->m_baseslot;
 		if (!slot)
 			continue;
@@ -196,13 +197,12 @@ const STR_String& RAS_MeshObject::GetMaterialName(unsigned int matid)
 
 RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(unsigned int matid)
 {
-	for(std::list<RAS_MeshMaterial>::iterator it = m_materials.begin();
-		it != m_materials.end();
-		++it)
-	{
-		if (it->m_index == matid) {
-			return &*it;
+	if ((m_materials.empty() == false) && (matid < m_materials.size())) {
+		list<RAS_MeshMaterial>::iterator it = m_materials.begin();
+		while (matid--) {
+			++it;
 		}
+		return &*it;
 	}
 
 	return NULL;
@@ -261,7 +261,7 @@ RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(RAS_IPolyMaterial *mat)
 	return NULL;
 }
 
-int RAS_MeshObject::GetMaterialId(RAS_IPolyMaterial *mat)
+int RAS_MeshObject::GetBlenderMaterialId(RAS_IPolyMaterial *mat)
 {
 	list<RAS_MeshMaterial>::iterator mit;
 

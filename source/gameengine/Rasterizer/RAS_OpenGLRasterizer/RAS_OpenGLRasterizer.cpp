@@ -836,7 +836,7 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(class RAS_MeshSlot &ms)
 	if (current_polymat->GetFlag() & RAS_BLENDERGLSL) {
 		// GetMaterialIndex return the original mface material index,
 		// increment by 1 to match what derived mesh is doing
-		current_blmat_nr = current_mesh->GetMaterialId(current_bucket->GetPolyMaterial()) + 1;
+		current_blmat_nr = current_mesh->GetBlenderMaterialId(current_bucket->GetPolyMaterial()) + 1;
 		// For GLSL we need to retrieve the GPU material attribute
 		Material* blmat = current_polymat->GetBlenderMaterial();
 		Scene* blscene = current_polymat->GetBlenderScene();
@@ -850,7 +850,7 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(class RAS_MeshSlot &ms)
 		GPU_set_material_alpha_blend(current_blend_mode);
 	} else {
 		//ms.m_pDerivedMesh->drawMappedFacesTex(ms.m_pDerivedMesh, CheckTexfaceDM, mcol);
-		current_blmat_nr = current_mesh->GetMaterialId(current_bucket->GetPolyMaterial());
+		current_blmat_nr = current_mesh->GetBlenderMaterialId(current_bucket->GetPolyMaterial());
 		current_image = current_polymat->GetBlenderImage();
 		ms.m_pDerivedMesh->drawFacesTex(ms.m_pDerivedMesh, CheckTexDM, NULL, NULL, DM_DRAW_USE_ACTIVE_UV);
 	}

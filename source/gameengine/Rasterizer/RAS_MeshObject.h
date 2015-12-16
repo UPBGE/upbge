@@ -90,7 +90,8 @@ public:
 
 	RAS_MeshMaterial *GetMeshMaterial(unsigned int matid);
 	RAS_MeshMaterial *GetMeshMaterial(RAS_IPolyMaterial *mat);
-	int GetMaterialId(RAS_IPolyMaterial *mat);
+	/// Return the material position in the mesh, like in blender.
+	int GetBlenderMaterialId(RAS_IPolyMaterial *mat);
 
 	list<RAS_MeshMaterial>::iterator GetFirstMaterial();
 	list<RAS_MeshMaterial>::iterator GetLastMaterial();
