@@ -1492,7 +1492,6 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 			if (scene) {
 				m_sceneconverter->RemoveScene(scene);
 				m_scenes->RemoveValue(scene);
-				scene->Release();
 			}
 		}
 		m_removingScenes.clear();
@@ -1606,11 +1605,11 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 					Scene *blScene = m_sceneconverter->GetBlenderSceneForName(newscenename);
 					if (blScene) {
 						m_sceneconverter->RemoveScene(scene);
-						scene->Release();
 
 						KX_Scene *tmpscene = CreateScene(blScene);
 						m_scenes->SetValue(sce_idx, tmpscene->AddRef());
 						PostProcessScene(tmpscene);
+						tmpscene->Release();
 					}
 					else {
 						printf("warning: scene %s could not be found, not replaced!\n", newscenename.ReadPtr());
