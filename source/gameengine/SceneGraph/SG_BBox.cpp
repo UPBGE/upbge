@@ -261,6 +261,16 @@ void SG_BBox::split(SG_BBox &left, SG_BBox &right) const
 	//std::cout << "Left: " << left.m_min << " -> " << left.m_max << " Right: " << right.m_min << " -> " << right.m_max << std::endl;
 }
 
+const MT_Vector3 SG_BBox::GetCenter() const
+{
+	return (m_max + m_min) * 0.5f;
+}
+
+const MT_Scalar SG_BBox::GetRadius() const
+{
+	return m_min.distance(m_max) / 2.0f;
+}
+
 const MT_Point3& SG_BBox::GetMin() const
 {
 	return m_min;

@@ -134,6 +134,9 @@ public:
 
 	friend class SG_Tree;
 
+	const MT_Vector3 GetCenter() const;
+	const MT_Scalar GetRadius() const;
+
 	const MT_Point3& GetMin() const;
 	const MT_Point3& GetMax() const;
 

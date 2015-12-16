@@ -820,7 +820,6 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 		// update scenegraph for entire tree of children
 		replica->GetSGNode()->UpdateWorldData(0);
 		replica->GetSGNode()->SetBBox(gameobj->GetSGNode()->BBox());
-		replica->GetSGNode()->SetRadius(gameobj->GetSGNode()->Radius());
 		// we can now add the graphic controller to the physic engine
 		replica->ActivateGraphicController(true);
 
@@ -944,7 +943,6 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 
 	replica->GetSGNode()->UpdateWorldData(0);
 	replica->GetSGNode()->SetBBox(originalobj->GetSGNode()->BBox());
-	replica->GetSGNode()->SetRadius(originalobj->GetSGNode()->Radius());
 	// the size is correct, we can add the graphic controller to the physic engine
 	replica->ActivateGraphicController(true);
 
@@ -1422,9 +1420,11 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 	// Test the object's bound sphere against the view frustum.
 	if (!vis)
 	{
-		MT_Vector3 scale = gameobj->GetSGNode()->GetWorldScaling();
-		MT_Scalar radius = fabs(scale[scale.closestAxis()] * gameobj->GetSGNode()->Radius());
-		switch (cam->SphereInsideFrustum(gameobj->NodeGetWorldPosition(), radius))
+		SG_BBox &box = gameobj->GetSGNode()->BBox();
+		const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
+		const MT_Scalar radius = fabs(scale[scale.closestAxis()] * box.GetRadius());
+		const MT_Point3 center = gameobj->NodeGetWorldPosition() + box.GetCenter();
+		switch (cam->SphereInsideFrustum(center, radius))
 		{
 			case KX_Camera::INSIDE:
 				vis = true;

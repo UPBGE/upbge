@@ -63,7 +63,6 @@ protected:
 	SG_ParentRelation *	m_parent_relation;
 	
 	SG_BBox			m_bbox;
-	MT_Scalar		m_radius;
 	bool			m_modified;
 	bool			m_ogldirty;		// true if the openGL matrix for this object must be recomputed
 
@@ -242,9 +241,7 @@ public:
 	bool inside(const MT_Point3 &point) const;
 	void getBBox(MT_Point3 *box) const;
 	void getAABBox(MT_Point3 *box) const;
-	
-	MT_Scalar Radius() const { return m_radius; }
-	void SetRadius(MT_Scalar radius) { m_radius = radius; }
+
 	bool IsModified() { return m_modified; }
 	bool IsDirty() { return m_ogldirty; }
 	

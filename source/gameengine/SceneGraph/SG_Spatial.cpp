@@ -54,7 +54,6 @@ SG_Spatial(
 	m_parent_relation (NULL),
 	
 	m_bbox(MT_Point3(-1.0, -1.0, -1.0), MT_Point3(1.0, 1.0, 1.0)),
-	m_radius(1.0),
 	m_modified(false),
 	m_ogldirty(false)
 {
@@ -76,7 +75,6 @@ SG_Spatial(
 	m_parent_relation(NULL),
 	
 	m_bbox(other.m_bbox),
-	m_radius(other.m_radius),
 	m_modified(false),
 	m_ogldirty(false)
 {
@@ -199,7 +197,7 @@ MT_Transform SG_Spatial::GetWorldTransform() const
 
 bool SG_Spatial::inside(const MT_Point3 &point) const
 {
-	MT_Scalar radius = m_worldScaling[m_worldScaling.closestAxis()]*m_radius;
+	MT_Scalar radius = m_worldScaling[m_worldScaling.closestAxis()] * m_bbox.GetRadius();
 	return (m_worldPosition.distance2(point) <= radius*radius) ?
 		m_bbox.transform(GetWorldTransform()).inside(point) :
 		false;
