@@ -632,10 +632,10 @@ static bool gp_brush_twist_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
 
 
 /* ----------------------------------------------- */
-/* Randomise Brush */
+/* Randomize Brush */
 
 /* Apply some random jitter to the point */
-static bool gp_brush_randomise_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
+static bool gp_brush_randomize_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
                                      const int radius, const int co[2])
 {
 	bGPDspoint *pt = gps->points + i;
@@ -706,7 +706,7 @@ static bool gp_brush_randomise_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
  *   by placing the midpoint of the buffer strokes under the cursor now
  *
  * - Otherwise, in:
- *   "Stamp Mode" - Move the newly pasted strokes so that their center
+ *   "Stamp Mode" - Move the newly pasted strokes so that their center follows the cursor
  *   "Continuous" - Repeatedly just paste new copies for where the brush is now
  */
 
@@ -1257,7 +1257,7 @@ static bool gpsculpt_brush_apply_standard(bContext *C, tGP_BrushEditData *gso)
 			break;
 		}
 		
-		case GP_EDITBRUSH_TYPE_RANDOMISE: /* Random jitter */
+		case GP_EDITBRUSH_TYPE_RANDOMIZE: /* Random jitter */
 		{
 			/* compute the displacement vector for the cursor (in data space) */
 			gp_brush_grab_calc_dvec(gso);
@@ -1321,14 +1321,14 @@ static bool gpsculpt_brush_apply_standard(bContext *C, tGP_BrushEditData *gso)
 				break;
 			}
 			
-			case GP_EDITBRUSH_TYPE_RANDOMISE: /* Apply jitter */
+			case GP_EDITBRUSH_TYPE_RANDOMIZE: /* Apply jitter */
 			{
-				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_randomise_apply);
+				changed |= gpsculpt_brush_do_stroke(gso, gps, gp_brush_randomize_apply);
 				break;
 			}
 			
 			default:
-				printf("ERROR: Unknown type of GPencil Sculpt brush - %d\n", gso->brush_type);
+				printf("ERROR: Unknown type of GPencil Sculpt brush - %u\n", gso->brush_type);
 				break;
 		}
 	}
@@ -1545,6 +1545,40 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 					gpsculpt_brush_apply_event(C, op, event);
 					gso->timerTick = false;
 				}
+				break;
+				
+			/* Adjust brush settings */
+			/* FIXME: Step increments and modifier keys are hardcoded here! */
+			case WHEELUPMOUSE:
+			case PADPLUSKEY:
+				if (event->shift) {
+					/* increase strength */
+					gso->brush->strength += 0.05f;
+					CLAMP_MAX(gso->brush->strength, 1.0f);
+				}
+				else {
+					/* increase brush size */
+					gso->brush->size += 3;
+					CLAMP_MAX(gso->brush->size, 300);
+				}
+					
+				redraw_region = true;
+				break;
+			
+			case WHEELDOWNMOUSE: 
+			case PADMINUS:
+				if (event->shift) {
+					/* decrease strength */
+					gso->brush->strength -= 0.05f;
+					CLAMP_MIN(gso->brush->strength, 0.0f);
+				}
+				else {
+					/* decrease brush size */
+					gso->brush->size -= 3;
+					CLAMP_MIN(gso->brush->size, 1);
+				}
+					
+				redraw_region = true;
 				break;
 			
 			/* Painting mbut release = Stop painting (back to idle) */

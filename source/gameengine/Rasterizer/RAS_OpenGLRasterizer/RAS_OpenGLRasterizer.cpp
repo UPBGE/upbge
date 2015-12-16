@@ -437,7 +437,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 		int n = (int)debugShapes[i].m_param2.y();
 		for (int j = 0; j < n; j++) {
 			MT_Scalar theta = j * M_PI * 2 / n;
-			MT_Vector3 pos(cos(theta) * rad, sin(theta) * rad, 0.0f);
+			MT_Vector3 pos(cosf(theta) * rad, sinf(theta) * rad, 0.0f);
 			pos = pos * tr;
 			pos += debugShapes[i].m_pos;
 			const MT_Scalar *posPtr = &pos.x();
@@ -1497,8 +1497,8 @@ void RAS_OpenGLRasterizer::RenderBox2D(int xco,
 }
 
 void RAS_OpenGLRasterizer::RenderText3D(
-    int fontid, const char *text, int size, int dpi,
-    const float color[4], const double mat[16], float aspect)
+        int fontid, const char *text, int size, int dpi,
+        const float color[4], const float mat[16], float aspect)
 {
 	/* gl prepping */
 	DisableForText();

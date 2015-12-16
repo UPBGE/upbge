@@ -333,7 +333,7 @@ void BL_Action::SetTimes(float start, float end)
 
 void BL_Action::SetLocalTime(float curtime)
 {
-	float dt = (curtime-m_starttime)*KX_KetsjiEngine::GetAnimFrameRate()*m_speed;
+	float dt = (curtime-m_starttime)*(float)KX_KetsjiEngine::GetAnimFrameRate()*m_speed;
 
 	if (m_endframe < m_startframe)
 		dt = -dt;
@@ -345,7 +345,7 @@ void BL_Action::ResetStartTime(float curtime)
 {
 	float dt = (m_localframe > m_startframe) ? m_localframe - m_startframe : m_startframe - m_localframe;
 
-	m_starttime = curtime - dt / (KX_KetsjiEngine::GetAnimFrameRate()*m_speed);
+	m_starttime = curtime - dt / ((float)KX_KetsjiEngine::GetAnimFrameRate()*m_speed);
 	SetLocalTime(curtime);
 }
 
@@ -356,7 +356,7 @@ void BL_Action::IncrementBlending(float curtime)
 		m_blendstart = curtime;
 	
 	// Bump the blend frame
-	m_blendframe = (curtime - m_blendstart)*KX_KetsjiEngine::GetAnimFrameRate();
+	m_blendframe = (curtime - m_blendstart)*(float)KX_KetsjiEngine::GetAnimFrameRate();
 
 	// Clamp
 	if (m_blendframe>m_blendin)
@@ -389,7 +389,7 @@ void BL_Action::Update(float curtime)
 	if (m_done)
 		return;
 
-	curtime -= KX_KetsjiEngine::GetSuspendedDelta();
+	curtime -= (float)KX_KetsjiEngine::GetSuspendedDelta();
 
 	// Grab the start time here so we don't end up with a negative m_localframe when
 	// suspending and resuming scenes.

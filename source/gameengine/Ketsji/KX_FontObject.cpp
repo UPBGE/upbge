@@ -187,18 +187,14 @@ void KX_FontObject::DrawFontText()
 	const float aspect = m_fsize / size;
 
 	/* Get a working copy of the OpenGLMatrix to use */
-	double mat[16];
-	float *origmat = GetOpenGLMatrix();
-	for (unsigned short i = 0; i < 16; ++i) {
-		mat[i] = (double)origmat[i];
-	}
+	float *mat = GetOpenGLMatrix();
 
 	/* Account for offset */
 	MT_Vector3 offset = NodeGetWorldOrientation() * m_offset * NodeGetWorldScaling();
 	mat[12] += offset[0]; mat[13] += offset[1]; mat[14] += offset[2];
 
 	/* Orient the spacing vector */
-	MT_Vector3 spacing = MT_Vector3(0, m_fsize * m_line_spacing, 0);
+	MT_Vector3 spacing = MT_Vector3(0.0f, m_fsize * m_line_spacing, 0.0f);
 	spacing = NodeGetWorldOrientation() * spacing * NodeGetWorldScaling()[1];
 
 	/* Draw each line, taking spacing into consideration */

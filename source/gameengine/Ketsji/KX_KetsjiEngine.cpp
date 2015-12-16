@@ -542,7 +542,7 @@ bool KX_KetsjiEngine::NextFrame()
 	}
 
 	double deltatime = m_clockTime - m_frameTime;
-	if (deltatime < 0.f) {
+	if (deltatime < 0.0) {
 		// We got here too quickly, which means there is nothing todo, just return and don't render.
 		// Not sure if this is the best fix, but it seems to stop the jumping framerate issue (#33088)
 		return false;
@@ -1336,7 +1336,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		                           m_canvas->GetWidth() /* RdV, TODO ?? */,
 		                           m_canvas->GetHeight() /* RdV, TODO ?? */);
 
-		debugtxt.Format("%5.1fms (%.1ffps)", tottime * 1000.0, 1.0 / tottime);
+		debugtxt.Format("%5.1fms (%.1ffps)", tottime * 1000.0f, 1.0f / tottime);
 		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
 		                           debugtxt.ReadPtr(),
 		                           xcoord + const_xindent + profile_indent,
@@ -1359,14 +1359,14 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 			double time = m_logger->GetAverage((KX_TimeCategory)j);
 
-			debugtxt.Format("%5.2fms | %d%%", time * 1000.0, (int)(time / tottime * 100.0));
+			debugtxt.Format("%5.2fms | %d%%", time*1000.f, (int)(time/tottime * 100.f));
 			m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
 			                           debugtxt.ReadPtr(),
 			                           xcoord + const_xindent + profile_indent, ycoord,
 			                           m_canvas->GetWidth(),
 			                           m_canvas->GetHeight());
 
-			m_rasterizer->RenderBox2D(xcoord + (int)(2.2 * profile_indent), ycoord, m_canvas->GetWidth(), m_canvas->GetHeight(), time / tottime);
+			m_rasterizer->RenderBox2D(xcoord + (int)(2.2 * profile_indent), ycoord, m_canvas->GetWidth(), m_canvas->GetHeight(), time/tottime);
 			ycoord += const_ysize;
 		}
 	}

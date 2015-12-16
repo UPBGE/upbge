@@ -544,9 +544,10 @@ void CcdPhysicsEnvironment::UpdateCcdPhysicsController(CcdPhysicsController *ctr
 	// remove and add the collistioning object
 	btRigidBody *body = ctrl->GetRigidBody();
 	btSoftBody *softBody = ctrl->GetSoftBody();
-	btCollisionObject *obj = ctrl->GetCollisionObject();
-	if (obj) {
-		btVector3 inertia(0.0f, 0.0f, 0.0f);
+	btCollisionObject* obj = ctrl->GetCollisionObject();
+	if (obj)
+	{
+		btVector3 inertia(0.0,0.0,0.0);
 		m_dynamicsWorld->removeCollisionObject(obj);
 		obj->setCollisionFlags(newCollisionFlags);
 		if (body) {
@@ -811,8 +812,8 @@ void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
 							if (rel_vel_lateral > SIMD_EPSILON) {
 								btScalar friction_factor = hit_object->getFriction();//cl_object->getFriction();
 
-								btScalar max_friction = friction_factor * btMax(btScalar(0.0f), i_spring);
-
+								btScalar max_friction = friction_factor * btMax(btScalar(0.0), i_spring);
+								
 								btScalar rel_mom_lateral = rel_vel_lateral / cl_object->getInvMass();
 
 								btVector3 friction = (rel_mom_lateral > max_friction) ?
@@ -2506,10 +2507,11 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 			if (rb1) {
 				btTransform frameInA;
 				btTransform frameInB;
-
-				btVector3 axis1(axis1X, axis1Y, axis1Z), axis2(axis2X, axis2Y, axis2Z);
-				if (axis1.length() == 0.0f) {
-					btPlaneSpace1(axisInA, axis1, axis2);
+				
+				btVector3 axis1(axis1X,axis1Y,axis1Z), axis2(axis2X,axis2Y,axis2Z);
+				if (axis1.length() == 0.0)
+				{
+					btPlaneSpace1( axisInA, axis1, axis2 );
 				}
 
 				frameInA.getBasis().setValue(axisInA.x(), axis1.x(), axis2.x(),
@@ -2576,10 +2578,11 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 			if (rb1) {
 				btTransform frameInA;
 				btTransform frameInB;
-
-				btVector3 axis1(axis1X, axis1Y, axis1Z), axis2(axis2X, axis2Y, axis2Z);
-				if (axis1.length() == 0.0f) {
-					btPlaneSpace1(axisInA, axis1, axis2);
+				
+				btVector3 axis1(axis1X,axis1Y,axis1Z), axis2(axis2X,axis2Y,axis2Z);
+				if (axis1.length() == 0.0)
+				{
+					btPlaneSpace1( axisInA, axis1, axis2 );
 				}
 
 				frameInA.getBasis().setValue(axisInA.x(), axis1.x(), axis2.x(),
@@ -2824,7 +2827,7 @@ struct BlenderDebugDraw : public btIDebugDraw
 	virtual void drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB, float distance, int lifeTime, const btVector3& color)
 	{
 		drawLine(PointOnB, PointOnB + normalOnB, color);
-		drawSphere(PointOnB, 0.1, color);
+		drawSphere(PointOnB, 0.1f, color);
 	}
 
 	virtual void setDebugMode(int debugMode)

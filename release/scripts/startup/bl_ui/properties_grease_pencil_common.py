@@ -208,8 +208,16 @@ class GreasePencilStrokeSculptPanel:
 
         layout.separator()
 
-        if settings.tool in {'THICKNESS', 'PINCH', 'TWIST'}:
+        if settings.tool == 'THICKNESS':
             layout.row().prop(brush, "direction", expand=True)
+        elif settings.tool == 'PINCH':
+            row = layout.row(align=True)
+            row.prop_enum(brush, "direction", 'ADD', text="Pinch")
+            row.prop_enum(brush, "direction", 'SUBTRACT', text="Inflate")
+        elif settings.tool == 'TWIST':
+            row = layout.row(align=True)
+            row.prop_enum(brush, "direction", 'SUBTRACT', text="CW")
+            row.prop_enum(brush, "direction", 'ADD', text="CCW")
 
         layout.separator()
         layout.prop(settings, "use_select_mask")
@@ -408,7 +416,7 @@ class GPENCIL_PIE_sculpt(Menu):
         row = pie.row()
         row.prop_enum(settings, "tool", value='SMOOTH')
         row.prop_enum(settings, "tool", value='THICKNESS')
-        row.prop_enum(settings, "tool", value='RANDOMISE')
+        row.prop_enum(settings, "tool", value='RANDOMIZE')
 
 
 ###############################

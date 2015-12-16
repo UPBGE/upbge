@@ -1455,9 +1455,9 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
 	rootBody->getMotionState()->getWorldTransform(rootTrans);
 	childBody->getMotionState()->getWorldTransform(childTrans);
 	btVector3 rootScale = rootShape->getLocalScaling();
-	rootScale[0] = 1.0f / rootScale[0];
-	rootScale[1] = 1.0f / rootScale[1];
-	rootScale[2] = 1.0f / rootScale[2];
+	rootScale[0] = 1.0/rootScale[0];
+	rootScale[1] = 1.0/rootScale[1];
+	rootScale[2] = 1.0/rootScale[2];
 	// relative scale = child_scale/parent_scale
 	btVector3 relativeScale = childShape->getLocalScaling() * rootScale;
 	btMatrix3x3 rootRotInverse = rootTrans.getBasis().transpose();
