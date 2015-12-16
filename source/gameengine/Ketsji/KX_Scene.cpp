@@ -1519,7 +1519,7 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 		float pmat[16] = {0};
 		cam->GetProjectionMatrix().getValue(pmat);
 
-		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback,&info,planes,5,m_dbvt_occlusion_res,
+		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback,&info,planes,6,m_dbvt_occlusion_res,
 		                                                 KX_GetActiveEngine()->GetCanvas()->GetViewPort(),
 		                                                 mvmat, pmat);
 	}
