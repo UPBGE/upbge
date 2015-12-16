@@ -37,7 +37,6 @@ set(SRC
 	SG_IObject.cpp
 	SG_Node.cpp
 	SG_Spatial.cpp
-	SG_Tree.cpp
 
 	SG_BBox.h
 	SG_Controller.h
@@ -47,7 +46,6 @@ set(SRC
 	SG_ParentRelation.h
 	SG_QList.h
 	SG_Spatial.h
-	SG_Tree.h
 )
 
 blender_add_lib(ge_scenegraph "${SRC}" "${INC}" "${INC_SYS}")

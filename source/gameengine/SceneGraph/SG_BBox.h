@@ -132,8 +132,6 @@ public:
 
 	void split(SG_BBox &left, SG_BBox &right) const;
 
-	friend class SG_Tree;
-
 	const MT_Vector3 GetCenter() const;
 	const MT_Scalar GetRadius() const;
 

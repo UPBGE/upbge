@@ -159,7 +159,6 @@ extern Material defmaterial;	/* material.c */
 
 #include "SG_Node.h"
 #include "SG_BBox.h"
-#include "SG_Tree.h"
 #include "KX_SG_NodeRelationships.h"
 #include "KX_SG_BoneParentNodeRelationship.h"
 
@@ -1916,9 +1915,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	SCA_TimeEventManager* timemgr = kxscene->GetTimeEventManager();
 	
 	CListValue* logicbrick_conversionlist = new CListValue();
-	
-	//SG_TreeFactory tf;
-	
+
 	// Convert actions to actionmap
 	bAction *curAct;
 	for (curAct = (bAction*)maggie->action.first; curAct; curAct=(bAction*)curAct->id.next)

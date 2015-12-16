@@ -71,7 +71,6 @@
 #include "BL_System.h"
 #include "SG_Controller.h"
 #include "SG_IObject.h"
-#include "SG_Tree.h"
 #include "DNA_group_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_property_types.h"
