@@ -1545,19 +1545,17 @@ void KX_GameObject::UpdateBounds()
 	}
 
 	// AABB Box : min/max.
-	MT_Point3 aabbMin;
-	MT_Point3 aabbMax;
+	MT_Point3 aabbMin(0.0f, 0.0f, 0.0f);
+	MT_Point3 aabbMax(0.0f, 0.0f, 0.0f);
 
 	// Get the mesh deforme AABB.
 	if (GetDeformer()) {
+		// Can return an empty AABB if not updated.
 		GetDeformer()->GetAabb(aabbMin, aabbMax);
 	}
-	// Get the mesh AABB.
-	else if (m_meshes.size() > 0) {
+	// Get the mesh AABB if there's a mesh or the deformer return an invalid AABB.
+	if ((aabbMin == aabbMax) && (m_meshes.size() > 0)) {
 		m_meshes[0]->GetAabb(aabbMin, aabbMax);
-	}
-	else {
-		return;
 	}
 
 	SetBoundsAabb(aabbMin, aabbMax);
