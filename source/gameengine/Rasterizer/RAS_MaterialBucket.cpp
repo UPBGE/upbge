@@ -444,8 +444,7 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	m_material->ActivateMeshSlot(ms, rasty);
 
 	if (ms.m_pDeformer) {
-		if (ms.m_pDeformer->Apply(m_material))
-			ms.m_mesh->SetMeshModified(true);
+		ms.m_pDeformer->Apply(m_material);
 	}
 
 	if (IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::KX_SOLID)
