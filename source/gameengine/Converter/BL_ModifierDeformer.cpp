@@ -150,6 +150,10 @@ DerivedMesh *BL_ModifierDeformer::GetPhysicsMesh()
 	DerivedMesh *dm = mesh_create_derived_physics(m_scene, blendobj, m_transverts, CD_MASK_MESH);
 	/* restore object data */
 	blendobj->data = oldmesh;
+
+	// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
+	DM_ensure_tessface(dm);
+
 	/* m_transverts is correct here (takes into account deform only modifiers) */
 	/* the derived mesh returned by this function must be released by the caller !!! */
 	return dm;
@@ -189,6 +193,9 @@ bool BL_ModifierDeformer::Update(void)
 			// HACK! use deformedOnly as a user counter
 			m_dm->deformedOnly = 1;
 			DM_update_materials(m_dm, blendobj);
+
+			// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
+			DM_ensure_tessface(m_dm);
 
 			// Update object's AABB.
 			if (initialize || m_gameobj->GetAutoUpdateBounds()) {
