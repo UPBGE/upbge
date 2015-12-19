@@ -27,6 +27,7 @@
 
 #include "RAS_StorageVBO.h"
 #include "RAS_MeshObject.h"
+#include "RAS_Deformer.h"
 
 #include "glew-mx.h"
 
@@ -212,8 +213,8 @@ void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot& ms)
 	if (vbo == 0)
 		m_vbo_lookup[array] = vbo = new VBO(array, array->m_index.size());
 
-		// Update the vbo
-	if (ms.m_mesh->MeshModified()) {
+	// Update the vbo if the mesh is modified or use a dynamic deformer.
+	if (ms.m_mesh->MeshModified() || (ms.m_pDeformer && ms.m_pDeformer->IsDynamic())) {
 		vbo->UpdateData();
 	}
 
