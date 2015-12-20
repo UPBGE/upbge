@@ -612,5 +612,6 @@ void ED_spacetype_text(void)
 	ED_text_format_register_py();
 	ED_text_format_register_osl();
 	ED_text_format_register_lua();
+	ED_text_format_register_glsl();
 }
 
