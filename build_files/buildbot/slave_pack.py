@@ -81,29 +81,9 @@ def create_tar_bz2(src, dest, package_name):
     package.close()
 
 
-# scons does own packaging
-if builder.find('scons') != -1:
-    python_bin = 'python'
-
-    os.chdir('../blender.git')
-    scons_options = ['BF_QUICK=slnt', 'BUILDBOT_BRANCH=' + branch, 'buildslave', 'BF_FANCY=False']
-
-    buildbot_dir = os.path.dirname(os.path.realpath(__file__))
-    config_dir = os.path.join(buildbot_dir, 'config')
-
-    if builder.find('mac') != -1:
-        if builder.find('x86_64') != -1:
-            config = 'user-config-mac-x86_64.py'
-        else:
-            config = 'user-config-mac-i386.py'
-
-        scons_options.append('BF_CONFIG=' + os.path.join(config_dir, config))
-
-    retcode = subprocess.call([python_bin, 'scons/scons.py'] + scons_options)
-    sys.exit(retcode)
-else:
+if builder.find('cmake') != -1:
     # CMake
-    if 'win' in builder:
+    if 'win' in builder or 'mac' in builder:
         os.chdir(build_dir)
 
         files = [f for f in os.listdir('.') if os.path.isfile(f) and f.endswith('.zip')]
@@ -119,6 +99,15 @@ else:
         blender_full_version = '.'.join(blender_version[0:2])
         git_hash = tokens[2].split('.')[1]
         platform = builder.split('_')[0]
+        if platform == 'mac':
+            # Special exception for OSX
+            platform = 'OSX-10.6-'
+            if builder.endswith('x86_64_10_6_cmake'):
+                platform += 'x86_64'
+            elif builder.endswith('i386_10_6_cmake'):
+                platform += 'i386'
+            elif builder.endswith('ppc_10_6_cmake'):
+                platform += 'ppc'
         builderified_name = 'blender-{}-{}-{}'.format(blender_full_version, git_hash, platform)
         if branch != '':
             builderified_name = branch + "-" + builderified_name
@@ -194,6 +183,9 @@ else:
         print("Creating .tar.bz2 archive")
         upload_filepath = install_dir + '.tar.bz2'
         create_tar_bz2(install_dir, upload_filepath, package_name)
+else:
+    print("Unknown building system")
+    sys.exit(1)
 
 
 if upload_filepath is None:

@@ -53,16 +53,23 @@ if 'cmake' in builder:
     cmake_cuda_config_file = None
 
     # Set build options.
-    cmake_options = ['-DCMAKE_BUILD_TYPE:STRING=Release']
+    cmake_options = []
+    cmake_extra_options = ['-DCMAKE_BUILD_TYPE:STRING=Release']
 
     if builder.startswith('mac'):
+        remove_cache = True
+        install_dir = None
         # Set up OSX architecture
-        if builder.endswith('x86_64_cmake'):
-            cmake_options.append('-DCMAKE_OSX_ARCHITECTURES:STRING=x86_64')
-        elif builder.endswith('i386_cmake'):
-            cmake_options.append('-DCMAKE_OSX_ARCHITECTURES:STRING=i386')
-        elif builder.endswith('ppc_cmake'):
-            cmake_options.append('-DCMAKE_OSX_ARCHITECTURES:STRING=ppc')
+        if builder.endswith('x86_64_10_6_cmake'):
+            cmake_extra_options.append('-DCMAKE_OSX_ARCHITECTURES:STRING=x86_64')
+        elif builder.endswith('i386_10_6_cmake'):
+            build_cubins = False
+            cmake_extra_options.append('-DCMAKE_OSX_ARCHITECTURES:STRING=i386')
+            # Some special options to disable usupported features
+            cmake_extra_options.append("-DWITH_CYCLES_OSL=OFF")
+            cmake_extra_options.append("-DWITH_OPENCOLLADA=OFF")
+        elif builder.endswith('ppc_10_6_cmake'):
+            cmake_extra_options.append('-DCMAKE_OSX_ARCHITECTURES:STRING=ppc')
 
     elif builder.startswith('win'):
         install_dir = None
@@ -88,12 +95,13 @@ if 'cmake' in builder:
             build_cubins = False
             targets = ['player', 'blender']
 
+    cmake_options.append("-C" + os.path.join(blender_dir, cmake_config_file))
     cmake_options.append("-DWITH_CYCLES_CUDA_BINARIES=%d" % (build_cubins))
 
     if install_dir:
         cmake_options.append("-DCMAKE_INSTALL_PREFIX=%s" % (install_dir))
 
-    cmake_options.append("-C" + os.path.join(blender_dir, cmake_config_file))
+    cmake_options += cmake_extra_options
 
     # Prepare chroot command prefix if needed
 
@@ -149,34 +157,5 @@ if 'cmake' in builder:
         if retcode != 0:
             sys.exit(retcode)
 else:
-    python_bin = 'python'
-
-    # scons
-    os.chdir(blender_dir)
-    scons_cmd = [python_bin, 'scons/scons.py']
-    scons_options = ['BF_FANCY=False']
-
-    # We're using the same rules as release builder, so tweak
-    # build and install dirs
-    build_dir = os.path.join('..', 'build', builder)
-    install_dir = os.path.join('..', 'install', builder)
-
-    # Clean install directory so we'll be sure there's no
-    # residual libs and files remained from the previous install.
-    if os.path.isdir(install_dir):
-        shutil.rmtree(install_dir)
-
-    buildbot_dir = os.path.dirname(os.path.realpath(__file__))
-    config_dir = os.path.join(buildbot_dir, 'config')
-
-    if builder.find('mac') != -1:
-        if builder.find('x86_64') != -1:
-            config = 'user-config-mac-x86_64.py'
-        else:
-            config = 'user-config-mac-i386.py'
-
-        scons_options.append('BF_CONFIG=' + os.path.join(config_dir, config))
-
-    retcode = subprocess.call([python_bin, 'scons/scons.py'] + scons_options)
-
-    sys.exit(retcode)
+    print("Unknown building system")
+    sys.exit(1)

@@ -35,7 +35,7 @@ blender_dir = '../blender.git'
 if "cmake" in builder:
     # cmake
 
-    if "linux" in builder:
+    if "linux" in builder or 'mac' in builder:
         print("Automated tests are still DISABLED!")
         sys.exit(0)
 
@@ -54,5 +54,5 @@ if "cmake" in builder:
     retcode = subprocess.call(chroot_prefix + ['ctest', '--output-on-failure'])
     sys.exit(retcode)
 else:
-    # scons
-    pass
+    print("Unknown building system")
+    sys.exit(1)
