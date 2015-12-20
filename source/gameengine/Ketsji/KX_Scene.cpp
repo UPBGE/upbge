@@ -1434,17 +1434,7 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 				break;
 		}
 	}
-	
-	if (vis)
-	{
-		int nummeshes = gameobj->GetMeshCount();
-		
-		for (int m=0;m<nummeshes;m++)
-		{
-			// this adds the vertices to the display list
-			(gameobj->GetMesh(m))->SchedulePolygons(rasty->GetDrawingMode());
-		}
-	}
+
 	// Visibility/ non-visibility are marked
 	// elsewhere now.
 	gameobj->SetCulled(!vis);

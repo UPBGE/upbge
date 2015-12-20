@@ -102,8 +102,7 @@ struct RAS_MeshObject::fronttoback
 STR_String RAS_MeshObject::s_emptyname = "";
 
 RAS_MeshObject::RAS_MeshObject(Mesh *mesh)
-	:m_bModified(true),
-	m_bMeshModified(true),
+	:m_bMeshModified(true),
 	m_aabbModified(true),
 	m_mesh(mesh)
 {
@@ -506,12 +505,4 @@ bool RAS_MeshObject::HasColliderPolygon()
 	}
 
 	return false;
-}
-
-void RAS_MeshObject::SchedulePolygons(int drawingmode)
-{
-	if (m_bModified) {
-		m_bModified = false;
-		m_bMeshModified = true;
-	}
 }

@@ -55,7 +55,6 @@ class RAS_Polygon;
 class RAS_MeshObject
 {
 private:
-	bool m_bModified;
 	bool m_bMeshModified;
 	bool m_aabbModified;
 	MT_Point3 m_aabbMax;
@@ -129,8 +128,6 @@ public:
 						   const MT_Vector3& normal,
 						   bool flat,
 						   int origindex);
-
-	void SchedulePolygons(int drawingmode);
 
 	// vertex and polygon acces
 	int NumVertices(RAS_IPolyMaterial *mat);
