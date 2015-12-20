@@ -1403,10 +1403,6 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 		return;
 	}
 
-	if (gameobj->GetDeformer()) {
-		gameobj->UpdateBounds();
-	}
-
 	// If Frustum culling is off, the object is always visible.
 	bool vis = !cam->GetFrustumCulling();
 	
