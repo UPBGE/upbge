@@ -140,6 +140,7 @@ static int txtfmt_glsl_find_specialvar(const char *string)
 	else if (STR_LITERAL_STARTSWITH(string, "gl_PointSize;",                         len)) i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "gl_ClipDistance",                       len)) i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "gl_PerVertex",                          len)) i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "getmetatable",                          len)) i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "gl_ViewportIndex",                      len)) i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "gl_Layer",                              len)) i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "gl_ViewportIndex",                      len)) i = len;
