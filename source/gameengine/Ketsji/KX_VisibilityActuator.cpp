@@ -77,7 +77,6 @@ KX_VisibilityActuator::Update()
 	
 	obj->SetVisible(m_visible, m_recursive);
 	obj->SetOccluder(m_occlusion, m_recursive);
-	obj->UpdateBuckets(m_recursive);
 
 	return false;
 }

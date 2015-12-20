@@ -756,27 +756,9 @@ void KX_GameObject::AddMeshUser()
 	for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end; ++it) {
 		(*it)->m_OpenGLMatrix = fl;
 	}
-	UpdateBuckets(false);
 }
 
-static void UpdateBuckets_recursive(SG_Node* node)
-{
-	NodeList& children = node->GetSGChildren();
-
-	for (NodeList::iterator childit = children.begin();!(childit==children.end());++childit)
-	{
-		SG_Node* childnode = (*childit);
-		KX_GameObject *clientgameobj = static_cast<KX_GameObject*>( (*childit)->GetSGClientObject());
-		if (clientgameobj != NULL) // This is a GameObject
-			clientgameobj->UpdateBuckets(0);
-		
-		// if the childobj is NULL then this may be an inverse parent link
-		// so a non recursive search should still look down this node.
-		UpdateBuckets_recursive(childnode);
-	}
-}
-
-void KX_GameObject::UpdateBuckets( bool recursive )
+void KX_GameObject::UpdateBuckets()
 {
 	if (GetSGNode()) {
 		if (GetSGNode()->IsDirty())
@@ -795,10 +777,6 @@ void KX_GameObject::UpdateBuckets( bool recursive )
 #ifdef USE_SPLIT
 			ms->Split();
 #endif
-		}
-	
-		if (recursive) {
-			UpdateBuckets_recursive(GetSGNode());
 		}
 	}
 }
@@ -2615,7 +2593,6 @@ int KX_GameObject::pyattr_set_visible(void *self_v, const KX_PYATTRIBUTE_DEF *at
 	}
 
 	self->SetVisible(param, false);
-	self->UpdateBuckets(false);
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -3388,7 +3365,6 @@ PyObject *KX_GameObject::PySetVisible(PyObject *args)
 		return NULL;
 	
 	SetVisible(visible ? true:false, recursive ? true:false);
-	UpdateBuckets(recursive ? true:false);
 	Py_RETURN_NONE;
 	
 }

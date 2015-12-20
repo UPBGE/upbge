@@ -1399,7 +1399,6 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 	// Shadow lamp layers
 	if (layer && !(gameobj->GetLayer() & layer)) {
 		gameobj->SetCulled(true);
-		gameobj->UpdateBuckets(false);
 		return;
 	}
 
@@ -1445,14 +1444,10 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 			// this adds the vertices to the display list
 			(gameobj->GetMesh(m))->SchedulePolygons(rasty->GetDrawingMode());
 		}
-		// Visibility/ non-visibility are marked
-		// elsewhere now.
-		gameobj->SetCulled(false);
-		gameobj->UpdateBuckets(false);
-	} else {
-		gameobj->SetCulled(true);
-		gameobj->UpdateBuckets(false);
 	}
+	// Visibility/ non-visibility are marked
+	// elsewhere now.
+	gameobj->SetCulled(!vis);
 }
 
 void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void* cullingInfo)
@@ -1467,7 +1462,6 @@ void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void* cul
 
 	// make object visible
 	gameobj->SetCulled(false);
-	gameobj->UpdateBuckets(false);
 }
 
 void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int layer)
@@ -1733,6 +1727,12 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 void KX_Scene::RenderBuckets(const MT_Transform & cameratransform,
                              class RAS_IRasterizer* rasty)
 {
+	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
+		 * It's done just before the render to be sure of the object color and visibility. */
+		((KX_GameObject *)*it)->UpdateBuckets();
+	}
+
 	m_bucketmanager->Renderbuckets(cameratransform,rasty);
 	KX_BlenderMaterial::EndFrame();
 }
@@ -2027,8 +2027,6 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		if (KX_GetActiveEngine()->GetAutoAddDebugProperties()) {
 			AddObjectDebugProperties(gameobj);
 		}
-
-		gameobj->UpdateBuckets(false); /* only for active objects */
 	}
 
 	for (int i = 0; i < other->GetInactiveList()->GetCount(); i++)

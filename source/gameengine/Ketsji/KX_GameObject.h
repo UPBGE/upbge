@@ -802,10 +802,7 @@ public:
 	 * creating or duplicating the object, changing
 	 * visibility, object color, .. .
 	 */
-		void
-	UpdateBuckets(
-		bool recursive
-	);
+	void UpdateBuckets();
 
 	/**
 	 * Clear the meshes associated with this class
