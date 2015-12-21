@@ -130,22 +130,13 @@ RAS_DisplayArray *RAS_MeshSlot::GetDisplayArray()
 
 int RAS_MeshSlot::AddVertex(const RAS_TexVert& tv)
 {
-	RAS_DisplayArray *darray;
-	int offset;
-
-	darray = m_displayArray;
-	darray->m_vertex.push_back(tv);
-	offset = darray->m_vertex.size() - 1;
-
-	return offset;
+	m_displayArray->m_vertex.push_back(tv);
+	return (m_displayArray->m_vertex.size() - 1);
 }
 
 void RAS_MeshSlot::AddPolygonVertex(int offset)
 {
-	RAS_DisplayArray *darray;
-
-	darray = m_displayArray;
-	darray->m_index.push_back(offset);
+	m_displayArray->m_index.push_back(offset);
 }
 
 void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
@@ -381,11 +372,9 @@ bool RAS_MaterialBucket::IsZSort() const
 
 RAS_MeshSlot *RAS_MaterialBucket::AddMesh()
 {
-	RAS_MeshSlot *ms;
-
 	m_meshSlots.push_back(RAS_MeshSlot());
 
-	ms = &m_meshSlots.back();
+	RAS_MeshSlot *ms = &m_meshSlots.back();
 	ms->init(this);
 
 	return ms;
@@ -400,9 +389,7 @@ RAS_MeshSlot *RAS_MaterialBucket::CopyMesh(RAS_MeshSlot *ms)
 
 void RAS_MaterialBucket::RemoveMesh(RAS_MeshSlot *ms)
 {
-	list<RAS_MeshSlot>::iterator it;
-
-	for (it = m_meshSlots.begin(); it != m_meshSlots.end(); it++) {
+	for (list<RAS_MeshSlot>::iterator it = m_meshSlots.begin(); it != m_meshSlots.end(); it++) {
 		if (&*it == ms) {
 			m_meshSlots.erase(it);
 			return;
@@ -422,8 +409,6 @@ list<RAS_MeshSlot>::iterator RAS_MaterialBucket::msEnd()
 
 bool RAS_MaterialBucket::ActivateMaterial(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)
 {
-	bool uselights;
-
 	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && !m_material->CastsShadows())
 		return false;
 
@@ -433,7 +418,7 @@ bool RAS_MaterialBucket::ActivateMaterial(const MT_Transform& cameratrans, RAS_I
 	if (!rasty->SetMaterial(*m_material))
 		return false;
 
-	uselights = m_material->UsesLighting(rasty);
+	bool uselights = m_material->UsesLighting(rasty);
 	rasty->ProcessLighting(uselights, cameratrans);
 
 	return true;

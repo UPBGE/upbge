@@ -249,10 +249,8 @@ const STR_String& RAS_MeshObject::GetTextureName(unsigned int matid)
 
 RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(RAS_IPolyMaterial *mat)
 {
-	list<RAS_MeshMaterial>::iterator mit;
-
 	// find a mesh material
-	for (mit = m_materials.begin(); mit != m_materials.end(); mit++) {
+	for (list<RAS_MeshMaterial>::iterator mit = m_materials.begin(); mit != m_materials.end(); mit++) {
 		if (mit->m_bucket->GetPolyMaterial() == mat)
 			return &*mit;
 	}
@@ -262,10 +260,8 @@ RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(RAS_IPolyMaterial *mat)
 
 int RAS_MeshObject::GetBlenderMaterialId(RAS_IPolyMaterial *mat)
 {
-	list<RAS_MeshMaterial>::iterator mit;
-
 	// find a mesh material
-	for (mit = m_materials.begin(); mit != m_materials.end(); ++mit) {
+	for (list<RAS_MeshMaterial>::iterator mit = m_materials.begin(); mit != m_materials.end(); ++mit) {
 		if (mit->m_bucket->GetPolyMaterial() == mat)
 			return mit->m_index;
 	}
@@ -290,18 +286,14 @@ void RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index)
 
 RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts)
 {
-	RAS_MeshMaterial *mmat;
-	RAS_Polygon *poly;
-	RAS_MeshSlot *slot;
-
 	// find a mesh material
-	mmat = GetMeshMaterial(bucket->GetPolyMaterial());
+	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
 	// add it to the bucket, this also adds new display arrays
-	slot = mmat->m_baseslot;
+	RAS_MeshSlot *slot = mmat->m_baseslot;
 
 	// create a new polygon
 	RAS_DisplayArray *darray = slot->GetDisplayArray();
-	poly = new RAS_Polygon(bucket, darray, numverts);
+	RAS_Polygon *poly = new RAS_Polygon(bucket, darray, numverts);
 	m_Polygons.push_back(poly);
 
 	return poly;
@@ -312,9 +304,8 @@ void RAS_MeshObject::SetVertexColor(RAS_IPolyMaterial *mat, MT_Vector4 rgba)
 	RAS_MeshMaterial *mmat = GetMeshMaterial(mat);
 	RAS_MeshSlot *slot = mmat->m_baseslot;
 	RAS_DisplayArray *array = slot->GetDisplayArray();
-	size_t i;
 
-	for (i = 0; i < array->m_vertex.size(); i++) {
+	for (unsigned int i = 0; i < array->m_vertex.size(); i++) {
 		array->m_vertex[i].SetRGBA(rgba);
 	}
 }
@@ -329,14 +320,10 @@ void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
                                int origindex)
 {
 	RAS_TexVert texvert(xyz, uvs, tangent, rgba, normal, flat, origindex);
-	RAS_MeshMaterial *mmat;
-	RAS_DisplayArray *darray;
-	RAS_MeshSlot *slot;
-	int offset;
 
-	mmat = GetMeshMaterial(poly->GetMaterial()->GetPolyMaterial());
-	slot = mmat->m_baseslot;
-	darray = slot->GetDisplayArray();
+	RAS_MeshMaterial *mmat = GetMeshMaterial(poly->GetMaterial()->GetPolyMaterial());
+	RAS_MeshSlot *slot = mmat->m_baseslot;
+	RAS_DisplayArray *darray = slot->GetDisplayArray();
 
 	{	/* Shared Vertex! */
 		/* find vertices shared between faces, with the restriction
@@ -360,7 +347,7 @@ void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
 	}
 
 	// no shared vertex found, add a new one
-	offset = slot->AddVertex(texvert);
+	int offset = slot->AddVertex(texvert);
 	if (poly->IsVisible())
 		slot->AddPolygonVertex(offset);
 	poly->SetVertexOffset(i, offset);
@@ -375,25 +362,19 @@ void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
 
 int RAS_MeshObject::NumVertices(RAS_IPolyMaterial *mat)
 {
-	RAS_MeshMaterial *mmat;
-	RAS_MeshSlot *slot;
-
-	mmat = GetMeshMaterial(mat);
-	slot = mmat->m_baseslot;
+	RAS_MeshMaterial *mmat = GetMeshMaterial(mat);
+	RAS_MeshSlot *slot = mmat->m_baseslot;
 	return slot->GetDisplayArray()->m_vertex.size();
 }
 
 RAS_TexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
 {
-	RAS_MeshMaterial *mmat;
-	RAS_MeshSlot *slot;
-
-	mmat = GetMeshMaterial(matid);
+	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
 	if (!mmat)
 		return NULL;
 
-	slot = mmat->m_baseslot;
+	RAS_MeshSlot *slot = mmat->m_baseslot;
 	RAS_DisplayArray *array = slot->GetDisplayArray();
 
 	if (index < array->m_vertex.size()) {
@@ -412,10 +393,7 @@ const float *RAS_MeshObject::GetVertexLocation(unsigned int orig_index)
 
 void RAS_MeshObject::AddMeshUser(void *clientobj, RAS_MeshSlotList& meshslots, RAS_Deformer *deformer)
 {
-	list<RAS_MeshMaterial>::iterator it;
-	list<RAS_MeshMaterial>::iterator mit;
-
-	for (it = m_materials.begin(); it != m_materials.end(); ++it) {
+	for (list<RAS_MeshMaterial>::iterator it = m_materials.begin(); it != m_materials.end(); ++it) {
 		RAS_MeshSlot *ms = it->m_bucket->CopyMesh(it->m_baseslot);
 		ms->m_clientObj = clientobj;
 		ms->SetDeformer(deformer);
@@ -426,9 +404,7 @@ void RAS_MeshObject::AddMeshUser(void *clientobj, RAS_MeshSlotList& meshslots, R
 
 void RAS_MeshObject::RemoveFromBuckets(void *clientobj)
 {
-	list<RAS_MeshMaterial>::iterator it;
-
-	for (it = m_materials.begin(); it != m_materials.end(); ++it) {
+	for (list<RAS_MeshMaterial>::iterator it = m_materials.begin(); it != m_materials.end(); ++it) {
 		RAS_MeshSlot **msp = it->m_slots[clientobj];
 
 		if (!msp)
@@ -469,7 +445,6 @@ void RAS_MeshObject::SortPolygons(RAS_MeshSlot& ms, const MT_Transform &transfor
 	// require splitting polygons.
 
 	RAS_DisplayArray *array = ms.GetDisplayArray();
-	size_t j;
 
 	unsigned int nvert = 3;
 	unsigned int totpoly = array->m_index.size() / nvert;
@@ -484,14 +459,14 @@ void RAS_MeshObject::SortPolygons(RAS_MeshSlot& ms, const MT_Transform &transfor
 	vector<polygonSlot> poly_slots(totpoly);
 
 	// get indices and z into temporary array
-	for (j = 0; j < totpoly; j++)
+	for (unsigned int j = 0; j < totpoly; j++)
 		poly_slots[j].get(array->m_vertex.data(), array->m_index.data(), j * nvert, nvert, pnorm);
 
 	// sort (stable_sort might be better, if flickering happens?)
 	std::sort(poly_slots.begin(), poly_slots.end(), backtofront());
 
 	// get indices from temporary array again
-	for (j = 0; j < totpoly; j++)
+	for (unsigned int j = 0; j < totpoly; j++)
 		poly_slots[j].set(array->m_index.data(), j * nvert, nvert);
 }
 
