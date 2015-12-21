@@ -771,7 +771,7 @@ void KX_GameObject::UpdateBuckets()
 			ms->m_bVisible = m_bVisible;
 			ms->m_bCulled = m_bCulled || !m_bVisible;
 			if (!ms->m_bCulled) 
-				ms->m_bucket->ActivateMesh(ms);
+				ms->m_displayArrayBucket->ActivateMesh(ms);
 			
 			/* split if necessary */
 #ifdef USE_SPLIT

@@ -171,6 +171,16 @@ void RAS_ListRasterizer::ReleaseAlloc()
 	mArrayLists.clear();
 }
 
+void RAS_ListRasterizer::BindPrimitives(RAS_DisplayArray *array)
+{
+	// Set all vertex array attributs outside the display list is slower than recall it for each display list.
+}
+
+void RAS_ListRasterizer::UnbindPrimitives(RAS_DisplayArray *array)
+{
+	// Set all vertex array attributs outside the display list is slower than recall it for each display list.
+}
+
 void RAS_ListRasterizer::IndexPrimitives(RAS_MeshSlot& ms)
 {
 	RAS_ListSlot *localSlot = NULL;
@@ -187,7 +197,9 @@ void RAS_ListRasterizer::IndexPrimitives(RAS_MeshSlot& ms)
 		}
 	}
 
+	RAS_OpenGLRasterizer::BindPrimitives(ms.GetDisplayArray());
 	RAS_OpenGLRasterizer::IndexPrimitives(ms);
+	RAS_OpenGLRasterizer::UnbindPrimitives(ms.GetDisplayArray());
 
 	if (ms.m_bDisplayList) {
 		localSlot->EndList();

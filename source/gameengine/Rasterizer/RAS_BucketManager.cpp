@@ -113,7 +113,12 @@ void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList
 	const MT_Vector3 pnorm(cameratrans.getBasis()[2]);
 
 	for (bit = buckets.begin(); bit != buckets.end(); ++bit) {
-		size += (*bit)->GetActiveMeshSlots().size();
+		RAS_DisplayArrayBucketList& displayArrayBucketList = (*bit)->GetDisplayArrayBucketList();
+		for (RAS_DisplayArrayBucketList::iterator dbit = displayArrayBucketList.begin(), dbend = displayArrayBucketList.end();
+			 dbit != dbend; ++dbit)
+		{
+			size += (*dbit)->GetNumActiveMeshSlots();
+		}
 	}
 
 	slots.resize(size);
@@ -121,11 +126,17 @@ void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList
 	for (bit = buckets.begin(); bit != buckets.end(); ++bit)
 	{
 		RAS_MaterialBucket* bucket = *bit;
-		RAS_MeshSlotList& activeMeshSlots = bucket->GetActiveMeshSlots();
-		for (RAS_MeshSlotList::iterator it = activeMeshSlots.begin(), end = activeMeshSlots.end(); it != end; ++it) {
-			slots[i++].set(*it, bucket, pnorm);
+		RAS_DisplayArrayBucketList& displayArrayBucketList = (*bit)->GetDisplayArrayBucketList();
+		for (RAS_DisplayArrayBucketList::iterator dbit = displayArrayBucketList.begin(), dbend = displayArrayBucketList.end();
+			 dbit != dbend; ++dbit)
+		{
+			RAS_DisplayArrayBucket *displayArrayBucket = *dbit;
+			RAS_MeshSlotList& activeMeshSlots = displayArrayBucket->GetActiveMeshSlots();
+			for (RAS_MeshSlotList::iterator it = activeMeshSlots.begin(), end = activeMeshSlots.end(); it != end; ++it) {
+				slots[i++].set(*it, bucket, pnorm);
+			}
+			displayArrayBucket->RemoveActiveMeshSlots();
 		}
-		bucket->RemoveActiveMeshSlots();
 	}
 		
 	if (alpha)
@@ -170,18 +181,30 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 	for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
 #if 1
 		RAS_MaterialBucket* bucket = *bit;
-		RAS_MeshSlotList& activeMeshSlots = bucket->GetActiveMeshSlots();
-		for (RAS_MeshSlotList::iterator it = activeMeshSlots.begin(), end = activeMeshSlots.end(); it != end; ++it) {
-			RAS_MeshSlot *ms = *it;
-			rasty->SetClientObject(ms->m_clientObj);
-			while (bucket->ActivateMaterial(cameratrans, rasty))
-				bucket->RenderMeshSlot(cameratrans, rasty, *ms);
+		RAS_DisplayArrayBucketList& displayArrayBucketList = bucket->GetDisplayArrayBucketList();
+		for (RAS_DisplayArrayBucketList::iterator sbit = displayArrayBucketList.begin(), sbend = displayArrayBucketList.end();
+			 sbit != sbend; ++sbit)
+		{
+			RAS_DisplayArrayBucket *displayArrayBucket = *sbit;
+			RAS_MeshSlotList& activeMeshSlots = displayArrayBucket->GetActiveMeshSlots();
+			RAS_DisplayArray *displayArray = displayArrayBucket->GetDisplayArray();
 
-			// make this mesh slot culled automatically for next frame
-			// it will be culled out by frustrum culling
-			ms->SetCulled(true);
+			rasty->BindPrimitives(displayArray);
+			for (RAS_MeshSlotList::iterator mit = activeMeshSlots.begin(), mend = activeMeshSlots.end(); mit != mend; ++mit) {
+				RAS_MeshSlot *ms = *mit;
+				rasty->SetClientObject(ms->m_clientObj);
+				while (bucket->ActivateMaterial(cameratrans, rasty))
+					bucket->RenderMeshSlot(cameratrans, rasty, *ms);
+
+				// make this mesh slot culled automatically for next frame
+				// it will be culled out by frustrum culling
+				ms->SetCulled(true);
+			}
+			// Ensure we unset array attributs.
+			rasty->UnbindPrimitives(displayArray);
+
+			displayArrayBucket->RemoveActiveMeshSlots();
 		}
-		bucket->RemoveActiveMeshSlots();
 #else
 		list<RAS_MeshSlot>::iterator mit;
 		for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {

@@ -75,7 +75,7 @@ void VBO::UpdateIndices()
 	             m_data->m_index.data(), GL_STATIC_DRAW);
 }
 
-void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer)
+void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer)
 {
 	int unit;
 
@@ -162,9 +162,10 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 			}
 		}
 	}
+}
 
-	glDrawElements(m_mode, m_indices, GL_UNSIGNED_SHORT, 0);
-
+void VBO::Unbind(int attrib_num)
+{
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
@@ -177,6 +178,11 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
+}
+
+void VBO::Draw()
+{
+	glDrawElements(m_mode, m_indices, GL_UNSIGNED_SHORT, 0);
 }
 
 RAS_StorageVBO::RAS_StorageVBO(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer) :
@@ -203,20 +209,44 @@ void RAS_StorageVBO::Exit()
 	m_vbo_lookup.clear();
 }
 
+VBO *RAS_StorageVBO::GetVBO(RAS_DisplayArray *array)
+{
+	VBO *vbo = m_vbo_lookup[array];
+	if (!vbo) {
+		m_vbo_lookup[array] = vbo = new VBO(array, array->m_index.size());
+	}
+	return vbo;
+}
+
+void RAS_StorageVBO::BindPrimitives(RAS_DisplayArray *array)
+{
+	if (!array) {
+		return;
+	}
+
+	VBO *vbo = GetVBO(array);
+	vbo->Bind(*m_texco_num, m_texco, *m_attrib_num, m_attrib, m_attrib_layer);
+}
+
+void RAS_StorageVBO::UnbindPrimitives(RAS_DisplayArray *array)
+{
+	if (!array) {
+		return;
+	}
+
+	VBO *vbo = GetVBO(array);
+	vbo->Unbind(*m_attrib_num);
+}
+
 void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot& ms)
 {
 	RAS_DisplayArray *array = ms.GetDisplayArray();
-	VBO *vbo;
-
-	vbo = m_vbo_lookup[array];
-
-	if (vbo == 0)
-		m_vbo_lookup[array] = vbo = new VBO(array, array->m_index.size());
+	VBO *vbo = GetVBO(array);
 
 	// Update the vbo if the mesh is modified or use a dynamic deformer.
 	if (ms.m_mesh->MeshModified() || (ms.m_pDeformer && ms.m_pDeformer->IsDynamic())) {
 		vbo->UpdateData();
 	}
 
-	vbo->Draw(*m_texco_num, m_texco, *m_attrib_num, m_attrib, m_attrib_layer);
+	vbo->Draw();
 }

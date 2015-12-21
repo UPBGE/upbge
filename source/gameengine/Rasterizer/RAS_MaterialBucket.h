@@ -39,10 +39,10 @@
 #include "MT_Matrix4x4.h"
 
 #include <vector>
-#include <set>
 #include <list>
 
 class RAS_MaterialBucket;
+class RAS_DisplayArrayBucket;
 struct DerivedMesh;
 class CTR_HashedPtr;
 class RAS_Deformer;
@@ -87,9 +87,6 @@ public:
 	vector<RAS_TexVert> m_vertex;
 	vector<unsigned short> m_index;
 
-	// Number of RAS_MeshSlot using this array
-	int m_users;
-
 	enum {BUCKET_MAX_INDEX = 65535};
 	enum {BUCKET_MAX_VERTEX = 65535};
 };
@@ -106,6 +103,7 @@ private:
 public:
 	// for rendering
 	RAS_MaterialBucket *m_bucket;
+	RAS_DisplayArrayBucket *m_displayArrayBucket;
 	RAS_MeshObject *m_mesh;
 	void *m_clientObj;
 	RAS_Deformer *m_pDeformer;
@@ -178,6 +176,46 @@ public:
 #endif
 };
 
+/** This class is an interface between RAS_MeshSlots and the RAS_DisplayArray.
+ * It manages the allocation and deletion of the RAS_DisplayArray.
+ */
+class RAS_DisplayArrayBucket
+{
+private:
+	/// The number of mesh slot using it.
+	unsigned int m_refcount;
+	/// The parent bucket.
+	RAS_MaterialBucket *m_bucket;
+	/// The display array = list of vertexes and indexes.
+	RAS_DisplayArray *m_displayArray;
+	/// The list fo all visible mesh slots to render this frame.
+	RAS_MeshSlotList m_activeMeshSlots;
+
+public:
+	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket);
+	~RAS_DisplayArrayBucket();
+
+	/// \section Reference Count Management.
+	RAS_DisplayArrayBucket *AddRef();
+	RAS_DisplayArrayBucket *Release();
+	unsigned int GetRefCount() const;
+
+	/// \section Replication
+	RAS_DisplayArrayBucket *GetReplica();
+	void ProcessReplica();
+
+	RAS_DisplayArray *GetDisplayArray() const;
+
+	/// \section Active Mesh Slots Management.
+	void ActivateMesh(RAS_MeshSlot *slot);
+	RAS_MeshSlotList& GetActiveMeshSlots();
+	unsigned int GetNumActiveMeshSlots() const;
+	/// Remove all mesh slots from the list.
+	void RemoveActiveMeshSlots();
+};
+
+typedef std::vector<RAS_DisplayArrayBucket *> RAS_DisplayArrayBucketList;
+
 /* Contains a list of display arrays with the same material,
  * and a mesh slot for each mesh that uses display arrays in
  * this bucket */
@@ -206,16 +244,15 @@ public:
 	void RemoveMesh(RAS_MeshSlot *ms);
 	void Optimize(MT_Scalar distance);
 
-	/// \section Active Mesh Slots Management.
-	void ActivateMesh(RAS_MeshSlot *slot);
-	RAS_MeshSlotList& GetActiveMeshSlots();
-	void RemoveActiveMeshSlots();
-	unsigned int GetNumActiveMeshSLots() const;
+	void AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
+	void RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
+
+	RAS_DisplayArrayBucketList& GetDisplayArrayBucketList();
 
 private:
 	list<RAS_MeshSlot> m_meshSlots; // all the mesh slots
 	RAS_IPolyMaterial *m_material;
-	RAS_MeshSlotList m_activeMeshSlotsHead; // only those which must be rendered
+	RAS_DisplayArrayBucketList m_displayArrayBucket;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MaterialBucket")

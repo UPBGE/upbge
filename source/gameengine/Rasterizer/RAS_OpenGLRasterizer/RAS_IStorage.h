@@ -33,6 +33,7 @@
 #endif
 
 class RAS_MeshSlot;
+class RAS_DisplayArray;
 
 class RAS_IStorage
 {
@@ -44,6 +45,9 @@ public:
 
 	virtual bool Init() = 0;
 	virtual void Exit() = 0;
+
+	virtual void BindPrimitives(RAS_DisplayArray *array) = 0;
+	virtual void UnbindPrimitives(RAS_DisplayArray *array) = 0;
 
 	virtual void IndexPrimitives(RAS_MeshSlot& ms) = 0;
 

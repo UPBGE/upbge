@@ -45,10 +45,13 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Deformer.h"   // __NLA
 
+#include <algorithm>
+
 // mesh slot
 RAS_MeshSlot::RAS_MeshSlot()
 	:m_displayArray(NULL),
 	m_bucket(NULL),
+	m_displayArrayBucket(NULL),
 	m_mesh(NULL),
 	m_clientObj(NULL),
 	m_pDeformer(NULL),
@@ -73,11 +76,8 @@ RAS_MeshSlot::~RAS_MeshSlot()
 		m_joinedSlots.front()->Split(true);
 #endif
 
-	if (m_displayArray) {
-		m_displayArray->m_users--;
-		if (m_displayArray->m_users == 0) {
-			delete m_displayArray;
-		}
+	if (m_displayArrayBucket) {
+		m_displayArrayBucket->Release();
 	}
 
 	if (m_DisplayList) {
@@ -94,6 +94,7 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 	m_OpenGLMatrix = NULL;
 	m_mesh = slot.m_mesh;
 	m_bucket = slot.m_bucket;
+	m_displayArrayBucket = slot.m_displayArrayBucket;
 	m_bVisible = slot.m_bVisible;
 	m_bCulled = slot.m_bCulled;
 	m_bObjectColor = slot.m_bObjectColor;
@@ -104,23 +105,16 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 	m_displayArray = slot.m_displayArray;
 	m_joinedSlots = slot.m_joinedSlots;
 
-	// don't copy display arrays for now because it breaks python
-	// access to vertices, but we'll need a solution if we want to
-	// join display arrays for reducing draw calls.
-	//*it = new RAS_DisplayArray(**it);
-	//(*it)->m_users = 1;
-
-	if (m_displayArray) {
-		m_displayArray->m_users++;
+	if (m_displayArrayBucket) {
+		m_displayArrayBucket->AddRef();
 	}
 }
 
 void RAS_MeshSlot::init(RAS_MaterialBucket *bucket)
 {
 	m_bucket = bucket;
-
-	m_displayArray = new RAS_DisplayArray();
-	m_displayArray->m_users = 1;
+	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket);
+	m_displayArray = m_displayArrayBucket->GetDisplayArray();
 }
 
 RAS_DisplayArray *RAS_MeshSlot::GetDisplayArray()
@@ -144,16 +138,12 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 	if (deformer && m_pDeformer != deformer) {
 		if (deformer->ShareVertexArray()) {
 			// this deformer uses the base vertex array, first release the current ones
-			m_displayArray->m_users--;
-			if (m_displayArray->m_users == 0) {
-				delete m_displayArray;
-			}
-			m_displayArray = NULL;
+			m_displayArrayBucket->Release();
+			m_displayArrayBucket = NULL;
 			// then hook to the base ones
 			RAS_MeshMaterial *mmat = m_mesh->GetMeshMaterial(m_bucket->GetPolyMaterial());
 			if (mmat && mmat->m_baseslot) {
-				m_displayArray = mmat->m_baseslot->GetDisplayArray();
-				m_displayArray->m_users++;
+				m_displayArrayBucket = mmat->m_baseslot->m_displayArrayBucket->AddRef();
 			}
 		}
 		else {
@@ -162,26 +152,24 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 			// this way we can avoid conflict between the vertex cache of duplicates
 			if (deformer->UseVertexArray()) {
 				// the deformer makes use of vertex array, make sure we have our local copy
-				if (m_displayArray->m_users > 1) {
+				if (m_displayArrayBucket->GetRefCount() > 1) {
 					// only need to copy if there are other users
 					// note that this is the usual case as vertex arrays are held by the material base slot
-					RAS_DisplayArray *newarray = new RAS_DisplayArray(*m_displayArray);
-					newarray->m_users = 1;
-					m_displayArray->m_users--;
-					m_displayArray = newarray;
+					m_displayArrayBucket->Release();
+					m_displayArrayBucket = m_displayArrayBucket->GetReplica();
 				}
 			}
 			else {
 				// the deformer is not using vertex array (Modifier), release them
-				m_displayArray->m_users--;
-				if (m_displayArray->m_users == 0) {
-					delete m_displayArray;
-				}
-				m_displayArray = NULL;
+				m_displayArrayBucket->Release();
+				m_displayArrayBucket = NULL;
 			}
 		}
 	}
 	m_pDeformer = deformer;
+
+	// Update m_displayArray to the display array bucket.
+	m_displayArray = m_displayArrayBucket ? m_displayArrayBucket->GetDisplayArray() : NULL;
 }
 
 bool RAS_MeshSlot::Equals(RAS_MeshSlot *target)
@@ -345,6 +333,81 @@ bool RAS_MeshSlot::IsCulled()
 }
 #endif
 
+RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket)
+	:m_refcount(1),
+	m_bucket(bucket)
+{
+	m_displayArray = new RAS_DisplayArray();
+	m_bucket->AddDisplayArrayBucket(this);
+}
+
+RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
+{
+	m_bucket->RemoveDisplayArrayBucket(this);
+	delete m_displayArray;
+}
+
+RAS_DisplayArrayBucket *RAS_DisplayArrayBucket::AddRef()
+{
+	++m_refcount;
+	return this;
+}
+
+RAS_DisplayArrayBucket *RAS_DisplayArrayBucket::Release()
+{
+	--m_refcount;
+	if (m_refcount == 0) {
+		delete this;
+		return NULL;
+	}
+	return this;
+}
+
+unsigned int RAS_DisplayArrayBucket::GetRefCount() const
+{
+	return m_refcount;
+}
+
+RAS_DisplayArrayBucket *RAS_DisplayArrayBucket::GetReplica()
+{
+	RAS_DisplayArrayBucket *replica = new RAS_DisplayArrayBucket(*this);
+	replica->ProcessReplica();
+	return replica;
+}
+
+void RAS_DisplayArrayBucket::ProcessReplica()
+{
+	m_refcount = 1;
+	m_activeMeshSlots.clear();
+	m_displayArray = new RAS_DisplayArray(*m_displayArray);
+	m_bucket->AddDisplayArrayBucket(this);
+}
+
+RAS_DisplayArray *RAS_DisplayArrayBucket::GetDisplayArray() const
+{
+	return m_displayArray;
+}
+
+void RAS_DisplayArrayBucket::ActivateMesh(RAS_MeshSlot *slot)
+{
+	m_activeMeshSlots.push_back(slot);
+}
+
+RAS_MeshSlotList& RAS_DisplayArrayBucket::GetActiveMeshSlots()
+{
+	return m_activeMeshSlots;
+}
+
+void RAS_DisplayArrayBucket::RemoveActiveMeshSlots()
+{
+	m_activeMeshSlots.clear();
+}
+
+unsigned int RAS_DisplayArrayBucket::GetNumActiveMeshSlots() const
+{
+	return m_activeMeshSlots.size();
+}
+
 // material bucket
 RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat)
 {
@@ -353,6 +416,8 @@ RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat)
 
 RAS_MaterialBucket::~RAS_MaterialBucket()
 {
+	// If we don't clear the list here it will be done after the destructor and no one can call any functions in the bucket.
+	m_meshSlots.clear();
 }
 
 RAS_IPolyMaterial *RAS_MaterialBucket::GetPolyMaterial() const
@@ -493,22 +558,20 @@ void RAS_MaterialBucket::Optimize(MT_Scalar distance)
 #endif
 }
 
-void RAS_MaterialBucket::ActivateMesh(RAS_MeshSlot *slot)
+void RAS_MaterialBucket::AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)
 {
-	m_activeMeshSlotsHead.push_back(slot);
+	m_displayArrayBucket.push_back(bucket);
 }
 
-RAS_MeshSlotList& RAS_MaterialBucket::GetActiveMeshSlots()
+void RAS_MaterialBucket::RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)
 {
-	return m_activeMeshSlotsHead;
+	RAS_DisplayArrayBucketList::iterator it = std::find(m_displayArrayBucket.begin(), m_displayArrayBucket.end(), bucket);
+	if (it != m_displayArrayBucket.end()) {
+		m_displayArrayBucket.erase(it);
+	}
 }
 
-void RAS_MaterialBucket::RemoveActiveMeshSlots()
+RAS_DisplayArrayBucketList& RAS_MaterialBucket::GetDisplayArrayBucketList()
 {
-	m_activeMeshSlotsHead.clear();
-}
-
-unsigned int RAS_MaterialBucket::GetNumActiveMeshSLots() const
-{
-	return m_activeMeshSlotsHead.size();
+	return m_displayArrayBucket;
 }

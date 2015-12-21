@@ -173,6 +173,8 @@ public:
 
 	virtual void SwapBuffers();
 
+	virtual void BindPrimitives(RAS_DisplayArray *array);
+	virtual void UnbindPrimitives(RAS_DisplayArray *array);
 	virtual void IndexPrimitives(class RAS_MeshSlot &ms);
 	virtual void IndexPrimitives_3DText(class RAS_MeshSlot &ms, class RAS_IPolyMaterial *polymat);
 	virtual void DrawDerivedMesh(class RAS_MeshSlot &ms);

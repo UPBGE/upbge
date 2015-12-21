@@ -760,6 +760,16 @@ void RAS_OpenGLRasterizer::SetAttrib(TexCoGen coords, int unit, int layer)
 	}
 }
 
+void RAS_OpenGLRasterizer::BindPrimitives(RAS_DisplayArray *array)
+{
+	m_storage->BindPrimitives(array);
+}
+
+void RAS_OpenGLRasterizer::UnbindPrimitives(RAS_DisplayArray *array)
+{
+	m_storage->UnbindPrimitives(array);
+}
+
 void RAS_OpenGLRasterizer::IndexPrimitives(RAS_MeshSlot& ms)
 {
 	if (ms.m_pDerivedMesh)

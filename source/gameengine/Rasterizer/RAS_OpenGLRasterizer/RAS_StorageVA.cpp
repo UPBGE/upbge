@@ -56,18 +56,51 @@ void RAS_StorageVA::Exit()
 {
 }
 
-void RAS_StorageVA::IndexPrimitives(class RAS_MeshSlot& ms)
+void RAS_StorageVA::BindPrimitives(RAS_DisplayArray *array)
 {
+	if (!array) {
+		return;
+	}
+
 	static const GLsizei stride = sizeof(RAS_TexVert);
-	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME, use_color_array = true;
-	RAS_DisplayArray *array = ms.GetDisplayArray();
+	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
 	RAS_TexVert *vertexarray = array->m_vertex.data();
-	unsigned short *indexarray = array->m_index.data();
 
 	if (!wireframe)
 		EnableTextures(true);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
+
+	glVertexPointer(3, GL_FLOAT, stride, vertexarray->getXYZ());
+	glNormalPointer(GL_FLOAT, stride, vertexarray->getNormal());
+
+	if (!wireframe) {
+		TexCoordPtr(vertexarray);
+	}
+}
+
+void RAS_StorageVA::UnbindPrimitives(RAS_DisplayArray *array)
+{
+	if (!array) {
+		return;
+	}
+
+	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
+	if (!wireframe) {
+		glDisableClientState(GL_COLOR_ARRAY);
+		EnableTextures(false);
+	}
+}
+
+void RAS_StorageVA::IndexPrimitives(class RAS_MeshSlot& ms)
+{
+	static const GLsizei stride = sizeof(RAS_TexVert);
+	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
+	RAS_DisplayArray *array = ms.GetDisplayArray();
+	RAS_TexVert *vertexarray = array->m_vertex.data();
+	unsigned short *indexarray = array->m_index.data();
 
 	// colors
 	if (!wireframe) {
@@ -76,35 +109,18 @@ void RAS_StorageVA::IndexPrimitives(class RAS_MeshSlot& ms)
 
 			glDisableClientState(GL_COLOR_ARRAY);
 			glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
-			use_color_array = false;
 		}
 		else {
 			glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
 			glEnableClientState(GL_COLOR_ARRAY);
-			use_color_array = true;
+			glColorPointer(4, GL_UNSIGNED_BYTE, stride, vertexarray->getRGBA());
 		}
 	}
 	else
 		glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
 
-	glVertexPointer(3, GL_FLOAT, stride, vertexarray->getXYZ());
-	glNormalPointer(GL_FLOAT, stride, vertexarray->getNormal());
-
-	if (!wireframe) {
-		TexCoordPtr(vertexarray);
-		if (use_color_array)
-			glColorPointer(4, GL_UNSIGNED_BYTE, stride, vertexarray->getRGBA());
-	}
-
 	// here the actual drawing takes places
 	glDrawElements(GL_TRIANGLES, array->m_index.size(), GL_UNSIGNED_SHORT, indexarray);
-
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_NORMAL_ARRAY);
-	if (!wireframe) {
-		glDisableClientState(GL_COLOR_ARRAY);
-		EnableTextures(false);
-	}
 }
 
 void RAS_StorageVA::TexCoordPtr(const RAS_TexVert *tv)
