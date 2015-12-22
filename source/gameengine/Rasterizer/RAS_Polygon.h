@@ -65,7 +65,7 @@ public:
 	RAS_TexVert *GetVertex(int i);
 
 	void SetVertexOffset(int i, unsigned short offset);
-	unsigned int GetVertexOffsetAbsolute(unsigned short i);
+	unsigned int GetVertexOffset(unsigned short i);
 
 	bool IsVisible();
 	void SetVisible(bool visible);
