@@ -62,6 +62,8 @@
 
 #include "RAS_IRasterizer.h"
 #include "RAS_ICanvas.h"
+#include "RAS_2DFilterData.h"
+#include "RAS_2DFilterManager.h"
 #include "RAS_BucketManager.h"
 
 #include "EXP_FloatValue.h"
@@ -173,6 +175,7 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	m_euthanasyobjects = new CListValue();
 	m_animatedlist = new CListValue();
 
+	m_filterManager = new RAS_2DFilterManager(canvas);
 	m_logicmgr = new SCA_LogicManager();
 	
 	m_timemgr = new SCA_TimeEventManager(m_logicmgr);
@@ -262,6 +265,10 @@ KX_Scene::~KX_Scene()
 
 	if (m_animatedlist)
 		m_animatedlist->Release();
+
+	if (m_filterManager) {
+		delete m_filterManager;
+	}
 
 	if (m_logicmgr)
 		delete m_logicmgr;
@@ -2114,14 +2121,14 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 	return true;
 }
 
-void KX_Scene::Update2DFilter(vector<STR_String>& propNames, void* gameObj, RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, int pass, STR_String& text)
+RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 {
-	m_filtermanager.EnableFilter(propNames, gameObj, filtermode, pass, text);
+	return m_filterManager;
 }
 
-void KX_Scene::Render2DFilters(RAS_ICanvas* canvas)
+void KX_Scene::Render2DFilters()
 {
-	m_filtermanager.RenderFilters(canvas);
+	m_filterManager->RenderFilters();
 }
 
 #ifdef WITH_PYTHON

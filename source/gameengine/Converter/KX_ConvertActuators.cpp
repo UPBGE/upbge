@@ -52,6 +52,8 @@
 #include "SCA_RandomActuator.h"
 #include "SCA_2DFilterActuator.h"
 
+#include "RAS_2DFilterManager.h" // for filter type.
+
 // Ketsji specific logicbricks
 #include "KX_SceneActuator.h"
 #include "KX_SoundActuator.h"
@@ -885,61 +887,61 @@ void BL_ConvertActuators(const char* maggiename,
 			bTwoDFilterActuator *_2dfilter = (bTwoDFilterActuator*) bact->data;
 			SCA_2DFilterActuator *tmp = NULL;
 
-			RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode;
+			RAS_2DFilterManager::FILTER_MODE filtermode;
 			switch (_2dfilter->type) {
 				case ACT_2DFILTER_MOTIONBLUR:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_MOTIONBLUR;
+					filtermode = RAS_2DFilterManager::FILTER_MOTIONBLUR;
 					break;
 				case ACT_2DFILTER_BLUR:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_BLUR;
+					filtermode = RAS_2DFilterManager::FILTER_BLUR;
 					break;
 				case ACT_2DFILTER_SHARPEN:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_SHARPEN;
+					filtermode = RAS_2DFilterManager::FILTER_SHARPEN;
 					break;
 				case ACT_2DFILTER_DILATION:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_DILATION;
+					filtermode = RAS_2DFilterManager::FILTER_DILATION;
 					break;
 				case ACT_2DFILTER_EROSION:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_EROSION;
+					filtermode = RAS_2DFilterManager::FILTER_EROSION;
 					break;
 				case ACT_2DFILTER_LAPLACIAN:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_LAPLACIAN;
+					filtermode = RAS_2DFilterManager::FILTER_LAPLACIAN;
 					break;
 				case ACT_2DFILTER_SOBEL:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_SOBEL;
+					filtermode = RAS_2DFilterManager::FILTER_SOBEL;
 					break;
 				case ACT_2DFILTER_PREWITT:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_PREWITT;
+					filtermode = RAS_2DFilterManager::FILTER_PREWITT;
 					break;
 				case ACT_2DFILTER_GRAYSCALE:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_GRAYSCALE;
+					filtermode = RAS_2DFilterManager::FILTER_GRAYSCALE;
 					break;
 				case ACT_2DFILTER_SEPIA:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_SEPIA;
+					filtermode = RAS_2DFilterManager::FILTER_SEPIA;
 					break;
 				case ACT_2DFILTER_INVERT:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_INVERT;
+					filtermode = RAS_2DFilterManager::FILTER_INVERT;
 					break;
 				case ACT_2DFILTER_CUSTOMFILTER:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_CUSTOMFILTER;
+					filtermode = RAS_2DFilterManager::FILTER_CUSTOMFILTER;
 					break;
 				case ACT_2DFILTER_NOFILTER:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_NOFILTER;
+					filtermode = RAS_2DFilterManager::FILTER_NOFILTER;
 					break;
 				case ACT_2DFILTER_DISABLED:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_DISABLED;
+					filtermode = RAS_2DFilterManager::FILTER_DISABLED;
 					break;
 				case ACT_2DFILTER_ENABLED:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_ENABLED;
+					filtermode = RAS_2DFilterManager::FILTER_ENABLED;
 					break;
 				default:
-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_NOFILTER;
+					filtermode = RAS_2DFilterManager::FILTER_NOFILTER;
 					break;
 			}
 
 			tmp = new SCA_2DFilterActuator(gameobj, filtermode,  _2dfilter->flag,
 			                               _2dfilter->float_arg, _2dfilter->int_arg,
-			                               ketsjiEngine->GetRasterizer(), scene);
+			                               ketsjiEngine->GetRasterizer(), scene->Get2DFilterManager(), scene);
 
 			if (_2dfilter->text)
 			{

@@ -35,29 +35,32 @@
 #include "SCA_IActuator.h"
 #include "SCA_IScene.h"
 
+class RAS_2DFilterManager;
+
 class SCA_2DFilterActuator : public SCA_IActuator
 {
 	Py_Header
 
 private:
 	vector<STR_String> m_propNames;
-	RAS_2DFilterManager::RAS_2DFILTER_MODE m_type;
+	int m_type;
 	short m_disableMotionBlur;
 	float m_float_arg;
 	int   m_int_arg;
 	STR_String	m_shaderText;
 	RAS_IRasterizer* m_rasterizer;
+	RAS_2DFilterManager *m_filterManager;
 	SCA_IScene* m_scene;
 
 public:
-
 	SCA_2DFilterActuator(
 	        class SCA_IObject* gameobj,
-	        RAS_2DFilterManager::RAS_2DFILTER_MODE type,
+	        int type,
 	        short flag,
 	        float float_arg,
 	        int int_arg,
 	        RAS_IRasterizer* rasterizer,
+			RAS_2DFilterManager *filterManager,
 	        SCA_IScene* scene);
 
 	void	SetShaderText(const char *text);

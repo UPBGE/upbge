@@ -31,20 +31,20 @@
 
 #include "SCA_IActuator.h"
 #include "SCA_2DFilterActuator.h"
+#include "RAS_2DFilterData.h"
+#include "RAS_2DFilterManager.h"
+#include "RAS_2DFilter.h"
 
 #include <iostream>
 
-SCA_2DFilterActuator::~SCA_2DFilterActuator()
-{
-}
-
 SCA_2DFilterActuator::SCA_2DFilterActuator(
         SCA_IObject *gameobj,
-        RAS_2DFilterManager::RAS_2DFILTER_MODE type,
+        int type,
         short flag,
         float float_arg,
         int int_arg,
         RAS_IRasterizer* rasterizer,
+		RAS_2DFilterManager *filterManager,
         SCA_IScene* scene)
     : SCA_IActuator(gameobj, KX_ACT_2DFILTER),
       m_type(type),
@@ -52,15 +52,15 @@ SCA_2DFilterActuator::SCA_2DFilterActuator(
       m_float_arg(float_arg),
       m_int_arg(int_arg),
       m_rasterizer(rasterizer),
+      m_filterManager(filterManager),
       m_scene(scene)
 {
-	m_gameobj = NULL;
-	if (gameobj) {
-		m_propNames = gameobj->GetPropertyNames();
-		m_gameobj = gameobj;
-	}
+	m_propNames = m_gameobj->GetPropertyNames();
 }
 
+SCA_2DFilterActuator::~SCA_2DFilterActuator()
+{
+}
 
 CValue* SCA_2DFilterActuator::GetReplica()
 {
@@ -79,19 +79,53 @@ bool SCA_2DFilterActuator::Update()
 	if (bNegativeEvent)
 		return false; // do nothing on negative events
 
-	if ( m_type == RAS_2DFilterManager::RAS_2DFILTER_MOTIONBLUR )
-	{
-		if (!m_disableMotionBlur)
-			m_rasterizer->EnableMotionBlur(m_float_arg);
-		else
-			m_rasterizer->DisableMotionBlur();
+	switch (m_type) {
+		case RAS_2DFilterManager::FILTER_ENABLED:
+		{
+			m_filterManager->EnableFilterPass(m_int_arg);
+			break;
+		}
+		case RAS_2DFilterManager::FILTER_DISABLED:
+		{
+			m_filterManager->DisableFilterPass(m_int_arg);
+			break;
+		}
+		case RAS_2DFilterManager::FILTER_NOFILTER:
+		{
+			m_filterManager->RemoveFilterPass(m_int_arg);
+			break;
+		}
+		case RAS_2DFilterManager::FILTER_MOTIONBLUR:
+		{
+			if (m_disableMotionBlur) {
+				m_rasterizer->DisableMotionBlur();
+			}
+			else {
+				m_rasterizer->EnableMotionBlur(m_float_arg);
+			}
+			break;
+		}
+		default:
+		{
+			if (!m_filterManager->GetFilterPass(m_int_arg)) {
+				RAS_2DFilterData info;
+				info.filterPassIndex = m_int_arg;
+				info.gameObject = m_gameobj;
+				info.filterMode = m_type;
+				info.propertyNames = m_propNames;
+				info.shaderText = m_shaderText;
 
-		return false;
+				m_filterManager->AddFilter(info);
+			}
+			else {
+				std::cout << "Object: " << m_gameobj->GetName() << ", actuator: " << m_name <<
+					". Warning: 2D Filter for pass index: " <<  m_int_arg << 
+					" already exists, do nothing." << std::endl;
+			}
+			break;
+		}
 	}
-	else if (m_type < RAS_2DFilterManager::RAS_2DFILTER_NUMBER_OF_FILTERS)
-	{
-		m_scene->Update2DFilter(m_propNames, m_gameobj, m_type, m_int_arg, m_shaderText);
-	}
+
 	// once the filter is in place, no need to update it again => disable the actuator
 	return false;
 }
@@ -144,8 +178,8 @@ PyMethodDef SCA_2DFilterActuator::Methods[] = {
 PyAttributeDef SCA_2DFilterActuator::Attributes[] = {
 	KX_PYATTRIBUTE_STRING_RW("shaderText", 0, 64000, false, SCA_2DFilterActuator, m_shaderText),
 	KX_PYATTRIBUTE_SHORT_RW("disableMotionBlur", 0, 1, true, SCA_2DFilterActuator, m_disableMotionBlur),
-	KX_PYATTRIBUTE_ENUM_RW("mode",RAS_2DFilterManager::RAS_2DFILTER_ENABLED,RAS_2DFilterManager::RAS_2DFILTER_NUMBER_OF_FILTERS,false,SCA_2DFilterActuator,m_type),
-	KX_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
+	KX_PYATTRIBUTE_ENUM_RW("mode", RAS_2DFilterManager::FILTER_ENABLED, RAS_2DFilterManager::FILTER_NUMBER_OF_FILTERS, false, SCA_2DFilterActuator, m_type),
+KX_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
 	KX_PYATTRIBUTE_FLOAT_RW("value", 0.0, 100.0, SCA_2DFilterActuator, m_float_arg),
 	{ NULL }	//Sentinel
 };

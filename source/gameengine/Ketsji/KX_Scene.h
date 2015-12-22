@@ -52,8 +52,6 @@
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
 
-#include "RAS_2DFilterManager.h"
-
 /**
  * \section Forward declarations
  */
@@ -83,6 +81,7 @@ class RAS_MaterialBucket;
 class RAS_IPolyMaterial;
 class RAS_IRasterizer;
 class RAS_IRenderTools;
+class RAS_2DFilterManager;
 class SCA_JoystickManager;
 class btCollisionShape;
 class KX_BlenderSceneConverter;
@@ -290,7 +289,7 @@ protected:
 
 	struct Scene* m_blenderScene;
 
-	RAS_2DFilterManager m_filtermanager;
+	RAS_2DFilterManager *m_filterManager;
 
 	KX_ObstacleSimulation* m_obstacleSimulation;
 
@@ -591,8 +590,8 @@ public:
 	/**
 	 * 2D Filters
 	 */
-	void Update2DFilter(std::vector<STR_String>& propNames, void* gameObj, RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, int pass, STR_String& text);
-	void Render2DFilters(RAS_ICanvas* canvas);
+	RAS_2DFilterManager *Get2DFilterManager() const;
+	void Render2DFilters();
 
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 

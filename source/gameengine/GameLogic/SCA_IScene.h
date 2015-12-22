@@ -35,7 +35,7 @@
 #include <vector>
 
 #include "STR_String.h"
-#include "RAS_2DFilterManager.h"
+#include "RAS_2DFilterData.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -73,11 +73,6 @@ public:
 	void			AddDebugProperty(class CValue* debugprop, const STR_String &name);
 	void			RemoveDebugProperty(class CValue *gameobj, const STR_String &name);
 	void			RemoveObjectDebugProperties(class CValue* gameobj);
-
-	virtual void	Update2DFilter(std::vector<STR_String>& propNames, void* gameObj, 
-									RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, 
-									int pass, STR_String& text) {}
-
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_IScene")

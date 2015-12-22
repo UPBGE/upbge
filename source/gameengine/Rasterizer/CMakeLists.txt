@@ -28,6 +28,7 @@ set(INC
 	../Expressions
 	../Ketsji
 	../SceneGraph
+	../GameLogic
 	../../blender/makesdna
 	../../blender/blenlib
 	../../blender/blenkernel
@@ -42,6 +43,7 @@ set(INC_SYS
 	../../../intern/moto/include
 	${GLEW_INCLUDE_PATH}
 	${PYTHON_INCLUDE_DIRS}
+	${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
@@ -56,7 +58,11 @@ set(SRC
 	RAS_Polygon.cpp
 	RAS_TexVert.cpp
 	RAS_ICanvas.cpp
-
+	RAS_2DFilterData.cpp
+	RAS_2DFilter.cpp
+ 
+	RAS_2DFilterData.h
+	RAS_2DFilter.h
 	RAS_2DFilterManager.h
 	RAS_BucketManager.h
 	RAS_CameraData.h
