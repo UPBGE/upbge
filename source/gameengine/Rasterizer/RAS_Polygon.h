@@ -40,24 +40,15 @@ class RAS_TexVert;
 #include "MEM_guardedalloc.h"
 #endif
 
-/* polygon flags */
-
 class RAS_Polygon
 {
-	/* location */
-	RAS_MaterialBucket*			m_bucket;
-	RAS_DisplayArray*			m_darray;
-	unsigned short				m_offset[4];
-	unsigned short				m_numvert;
+	// location
+	RAS_MaterialBucket *m_bucket;
+	RAS_DisplayArray *m_darray;
+	unsigned short m_offset[4];
+	unsigned short m_numvert;
+	unsigned short m_polyflags;
 
-	/* flags */
-#if 1
-	unsigned short			m_polyflags;
-#else
-	unsigned char				m_edgecode;
-	unsigned char				m_polyflags;
-#endif
-	
 public:
 	enum {
 		VISIBLE = 1,
@@ -65,31 +56,28 @@ public:
 		TWOSIDE = 4
 	};
 
-	RAS_Polygon(RAS_MaterialBucket* bucket, RAS_DisplayArray* darray, int numvert);
-	virtual ~RAS_Polygon() {};
-	
-	int					VertexCount();
-	RAS_TexVert*		GetVertex(int i);
+	RAS_Polygon(RAS_MaterialBucket *bucket, RAS_DisplayArray *darray, int numvert);
+	virtual ~RAS_Polygon()
+	{
+	}
 
-	void				SetVertexOffset(int i, unsigned short offset);
-	unsigned int		GetVertexOffsetAbsolute(unsigned short i);
+	int VertexCount();
+	RAS_TexVert *GetVertex(int i);
 
-	// each bit is for a visible edge, starting with bit 1 for the first edge, bit 2 for second etc.
-	// - Not used yet!
-/*	int					GetEdgeCode();
-	void				SetEdgeCode(int edgecode); */
-	
-	bool				IsVisible();
-	void				SetVisible(bool visible);
+	void SetVertexOffset(int i, unsigned short offset);
+	unsigned int GetVertexOffsetAbsolute(unsigned short i);
 
-	bool				IsCollider();
-	void				SetCollider(bool collider);
+	bool IsVisible();
+	void SetVisible(bool visible);
 
-	bool				IsTwoside();
-	void				SetTwoside(bool twoside);
+	bool IsCollider();
+	void SetCollider(bool collider);
 
-	RAS_MaterialBucket*	GetMaterial();
-	RAS_DisplayArray*	GetDisplayArray();
+	bool IsTwoside();
+	void SetTwoside(bool twoside);
+
+	RAS_MaterialBucket *GetMaterial();
+	RAS_DisplayArray *GetDisplayArray();
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

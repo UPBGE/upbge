@@ -36,15 +36,13 @@
 #include "RAS_Polygon.h"
 #include "RAS_MaterialBucket.h"
 
-RAS_Polygon::RAS_Polygon(RAS_MaterialBucket* bucket, RAS_DisplayArray *darray, int numvert)
+RAS_Polygon::RAS_Polygon(RAS_MaterialBucket *bucket, RAS_DisplayArray *darray, int numvert)
+	:m_bucket(bucket),
+	m_darray(darray),
+	m_numvert(numvert),
+	m_polyflags(0)
 {
-	m_bucket = bucket;
-	m_darray = darray;
 	m_offset[0] = m_offset[1] = m_offset[2] = m_offset[3] = 0;
-	m_numvert = numvert;
-
-//	m_edgecode = 255;
-	m_polyflags = 0;
 }
 
 int RAS_Polygon::VertexCount()
@@ -67,18 +65,6 @@ unsigned int RAS_Polygon::GetVertexOffsetAbsolute(unsigned short i)
 	return m_offset[i];
 }
 
-/*
-int RAS_Polygon::GetEdgeCode()
-{
-	return m_edgecode;
-}
-
-void RAS_Polygon::SetEdgeCode(int edgecode)
-{
-	m_edgecode = edgecode;
-}*/
-
-	
 bool RAS_Polygon::IsVisible()
 {
 	return (m_polyflags & VISIBLE) != 0;
@@ -86,8 +72,12 @@ bool RAS_Polygon::IsVisible()
 
 void RAS_Polygon::SetVisible(bool visible)
 {
-	if (visible) m_polyflags |= VISIBLE;
-	else m_polyflags &= ~VISIBLE;
+	if (visible) {
+		m_polyflags |= VISIBLE;
+	}
+	else {
+		m_polyflags &= ~VISIBLE;
+	}
 }
 
 bool RAS_Polygon::IsCollider()
@@ -97,8 +87,12 @@ bool RAS_Polygon::IsCollider()
 
 void RAS_Polygon::SetCollider(bool visible)
 {
-	if (visible) m_polyflags |= COLLIDER;
-	else m_polyflags &= ~COLLIDER;
+	if (visible) {
+		m_polyflags |= COLLIDER;
+	}
+	else {
+		m_polyflags &= ~COLLIDER;
+	}
 }
 
 bool RAS_Polygon::IsTwoside()
@@ -108,16 +102,20 @@ bool RAS_Polygon::IsTwoside()
 
 void RAS_Polygon::SetTwoside(bool twoside)
 {
-	if (twoside) m_polyflags |= TWOSIDE;
-	else m_polyflags &= ~TWOSIDE;
+	if (twoside) {
+		m_polyflags |= TWOSIDE;
+	}
+	else {
+		m_polyflags &= ~TWOSIDE;
+	}
 }
 
-RAS_MaterialBucket* RAS_Polygon::GetMaterial()
+RAS_MaterialBucket *RAS_Polygon::GetMaterial()
 {
 	return m_bucket;
 }
 
-RAS_DisplayArray* RAS_Polygon::GetDisplayArray()
+RAS_DisplayArray *RAS_Polygon::GetDisplayArray()
 {
 	return m_darray;
 }
