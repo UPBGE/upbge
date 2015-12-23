@@ -489,54 +489,50 @@ typedef struct MTF_localLayer {
 static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Point2 uvs[4][MAXTEX])
 {
 	int unit = 0;
-	if (tface)
-	{
-			
+	if (tface) {
 		uvs[0][0].setValue(tface->uv[0]);
 		uvs[1][0].setValue(tface->uv[1]);
 		uvs[2][0].setValue(tface->uv[2]);
 
-		if (mface->v4) 
+		if (mface->v4)
 			uvs[3][0].setValue(tface->uv[3]);
 	}
-	else
-	{
-		uvs[0][0] = uvs[1][0] = uvs[2][0] = uvs[3][0] = MT_Point2(0.f, 0.f);
+	else {
+		uvs[0][0] = uvs[1][0] = uvs[2][0] = uvs[3][0] = MT_Point2(0.0f, 0.0f);
 	}
 	
 	vector<STR_String> found_layers;
 
-	for (int vind = 0; vind<MAXTEX; vind++)
-	{
+	for (int vind = 0; vind < MAXTEX; ++vind) {
 		BL_Mapping &map = material->mapping[vind];
 
-		if (!(map.mapping & USEUV)) continue;
+		if (!(map.mapping & USEUV)) {
+			continue;
+		}
 
 		if (std::find(found_layers.begin(), found_layers.end(), map.uvCoName) != found_layers.end())
 			continue;
 
 		//If no UVSet is specified, try grabbing one from the UV/Image editor
-		if (map.uvCoName.IsEmpty() && tface)
-		{			
+		if (map.uvCoName.IsEmpty() && tface) {
 			uvs[0][unit].setValue(tface->uv[0]);
 			uvs[1][unit].setValue(tface->uv[1]);
 			uvs[2][unit].setValue(tface->uv[2]);
 
-			if (mface->v4) 
+			if (mface->v4)
 				uvs[3][unit].setValue(tface->uv[3]);
 
 			++unit;
 			continue;
 		}
 
-
-		for (int lay=0; lay<MAX_MTFACE; lay++)
-		{
+		for (int lay=0; lay < MAX_MTFACE; ++lay) {
 			MTF_localLayer& layer = layers[lay];
-			if (layer.face == 0) break;
+			if (layer.face == 0) {
+				break;
+			}
 
-			if (map.uvCoName.IsEmpty() || strcmp(map.uvCoName.ReadPtr(), layer.name)==0)
-			{
+			if (map.uvCoName.IsEmpty() || strcmp(map.uvCoName.ReadPtr(), layer.name) == 0) {
 				uvs[0][unit].setValue(layer.face->uv[0]);
 				uvs[1][unit].setValue(layer.face->uv[1]);
 				uvs[2][unit].setValue(layer.face->uv[2]);
