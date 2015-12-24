@@ -33,7 +33,6 @@
 #include "BKE_DerivedMesh.h"
 
 #include "BL_BlenderShader.h"
-#include "BL_Material.h"
 
 #include "GPU_material.h"
 #include "GPU_shader.h"
@@ -42,9 +41,10 @@
 #include "RAS_MeshObject.h"
 #include "RAS_IRasterizer.h"
  
-BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer)
+BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, BL_Material *blmat, int lightlayer)
 :
 	mMat(ma),
+	m_blMaterial(blmat),
 	mLightLayer(lightlayer),
 	mGPUMat(NULL)
 {
@@ -52,12 +52,39 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lig
 	mAlphaBlend = GPU_BLEND_SOLID;
 
 	ReloadMaterial();
+	ParseAttribs();
 }
 
 BL_BlenderShader::~BL_BlenderShader()
 {
 	if (mGPUMat)
 		GPU_material_unbind(mGPUMat);
+}
+
+void BL_BlenderShader::ParseAttribs()
+{
+	GPUVertexAttribs attribs;
+	GPU_material_vertex_attributes(mGPUMat, &attribs);
+	int numattrib = GetAttribNum();
+
+	for (unsigned int i = 0; i < MAXTEX; ++i) {
+		m_uvLayers[i] = -1; // only to find bug.
+	}
+
+	for (unsigned int i = 0; i < attribs.totlayer; ++i) {
+		if (attribs.layer[i].glindex > numattrib) {
+			continue;
+		}
+
+		if (attribs.layer[i].type == CD_MTFACE) {
+			for (unsigned int j = 0; j < MAXTEX; ++j) {
+				if (strcmp(m_blMaterial->uvsName[j], attribs.layer[i].name) == 0) {
+					m_uvLayers[i] = j;
+					break;
+				}
+			}
+		}
+	}
 }
 
 void BL_BlenderShader::ReloadMaterial()
@@ -104,11 +131,11 @@ int BL_BlenderShader::GetAttribNum()
 	return enabled;
 }
 
-void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras, const BL_Material *mat)
+void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras)
 {
 	GPUVertexAttribs attribs;
 	GPUMaterial *gpumat;
-	int i, attrib_num, uv = 0;
+	int i, attrib_num;
 
 	ras->SetAttribNum(0);
 
@@ -117,7 +144,7 @@ void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras, const BL_Material *mat)
 	
 	gpumat = mGPUMat;
 	if (ras->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED || (ras->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW &&
-			mat->alphablend != GEMAT_SOLID && !ras->GetUsingOverrideShader())) {
+		m_blMaterial->alphablend != GEMAT_SOLID && !ras->GetUsingOverrideShader())) {
 		GPU_material_vertex_attributes(gpumat, &attribs);
 		attrib_num = GetAttribNum();
 
@@ -131,7 +158,7 @@ void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras, const BL_Material *mat)
 				continue;
 
 			if (attribs.layer[i].type == CD_MTFACE)
-				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_UV, attribs.layer[i].glindex, uv++);
+				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_UV, attribs.layer[i].glindex, m_uvLayers[i]);
 			else if (attribs.layer[i].type == CD_TANGENT)
 				ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, attribs.layer[i].glindex);
 			else if (attribs.layer[i].type == CD_ORCO)

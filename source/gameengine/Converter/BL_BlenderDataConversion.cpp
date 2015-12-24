@@ -488,7 +488,6 @@ typedef struct MTF_localLayer {
 
 static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Point2 uvs[4][MAXTEX])
 {
-	int unit = 0;
 	if (tface) {
 		uvs[0][0].setValue(tface->uv[0]);
 		uvs[1][0].setValue(tface->uv[1]);
@@ -500,52 +499,22 @@ static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, 
 	else {
 		uvs[0][0] = uvs[1][0] = uvs[2][0] = uvs[3][0] = MT_Point2(0.0f, 0.0f);
 	}
-	
-	vector<STR_String> found_layers;
 
-	for (int vind = 0; vind < MAXTEX; ++vind) {
-		BL_Mapping &map = material->mapping[vind];
-
-		if (!(map.mapping & USEUV)) {
-			continue;
+	for (int lay = 0; lay < MAX_MTFACE; ++lay) {
+		MTF_localLayer& layer = layers[lay];
+		if (!layer.face) {
+			break;
 		}
 
-		if (std::find(found_layers.begin(), found_layers.end(), map.uvCoName) != found_layers.end())
-			continue;
+		uvs[0][lay].setValue(layer.face->uv[0]);
+		uvs[1][lay].setValue(layer.face->uv[1]);
+		uvs[2][lay].setValue(layer.face->uv[2]);
 
-		//If no UVSet is specified, try grabbing one from the UV/Image editor
-		if (map.uvCoName.IsEmpty() && tface) {
-			uvs[0][unit].setValue(tface->uv[0]);
-			uvs[1][unit].setValue(tface->uv[1]);
-			uvs[2][unit].setValue(tface->uv[2]);
-
-			if (mface->v4)
-				uvs[3][unit].setValue(tface->uv[3]);
-
-			++unit;
-			continue;
+		if (mface->v4) {
+			uvs[3][lay].setValue(layer.face->uv[3]);
 		}
-
-		for (int lay=0; lay < MAX_MTFACE; ++lay) {
-			MTF_localLayer& layer = layers[lay];
-			if (layer.face == 0) {
-				break;
-			}
-
-			if (map.uvCoName.IsEmpty() || strcmp(map.uvCoName.ReadPtr(), layer.name) == 0) {
-				uvs[0][unit].setValue(layer.face->uv[0]);
-				uvs[1][unit].setValue(layer.face->uv[1]);
-				uvs[2][unit].setValue(layer.face->uv[2]);
-
-				if (mface->v4) 
-					uvs[3][unit].setValue(layer.face->uv[3]);
-				else
-					uvs[3][unit].setValue(0.0f, 0.0f);
-
-				++unit;
-				found_layers.push_back(map.uvCoName);
-				break;
-			}
+		else {
+			uvs[3][lay].setValue(0.0f, 0.0f);
 		}
 	}
 }
@@ -558,6 +527,7 @@ static bool ConvertMaterial(
 	const char *tfaceName,
 	MFace *mface,
 	MCol *mmcol,
+	MTF_localLayer *layers,
 	bool glslmat)
 {
 	material->Initialize();
@@ -596,6 +566,9 @@ static bool ConvertMaterial(
 
 		// foreach MTex
 		for (int i = 0; i < MAXTEX; i++) {
+			// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
+			material->uvsName[i] = layers[i].name;
+
 			// use face tex
 			if (i == 0 && facetex ) {
 				facetex = false;
@@ -614,11 +587,6 @@ static bool ConvertMaterial(
 						material->mapping[i].mapping |= USEREFL;
 					}
 					else {
-						mttmp = getMTexFromMaterial(mat, i);
-						if (mttmp && (mttmp->texco & TEXCO_UV)) {
-							/* string may be "" but thats detected as empty after */
-							material->mapping[i].uvCoName = mttmp->uvname;
-						}
 						material->mapping[i].mapping |= USEUV;
 					}
 
@@ -702,8 +670,6 @@ static bool ConvertMaterial(
 							material->mapping[i].mapping |= USEORCO;
 						}
 						else if (mttmp->texco & TEXCO_UV) {
-							/* string may be "" but thats detected as empty after */
-							material->mapping[i].uvCoName = mttmp->uvname;
 							material->mapping[i].mapping |= USEUV;
 						}
 						else if (mttmp->texco & TEXCO_NORM) {
@@ -893,7 +859,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 	{
 		bl_mat = new BL_Material();
 
-		ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol,
+		ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol, layers,
 			converter->GetGLSLMaterials());
 
 		if (ma && (ma->mode & MA_FACETEXTURE) == 0)

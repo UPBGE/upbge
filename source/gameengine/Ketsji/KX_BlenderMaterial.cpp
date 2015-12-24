@@ -509,7 +509,7 @@ void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty, TCaching
 			rasty->SetLines(false);
 
 		ActivatGLMaterials(rasty);
-		mBlenderShader->SetAttribs(rasty, mMaterial);
+		mBlenderShader->SetAttribs(rasty);
 	}
 }
 
@@ -814,7 +814,7 @@ BL_Material *KX_BlenderMaterial::GetBLMaterial()
 void KX_BlenderMaterial::SetBlenderGLSLShader()
 {
 	if (!mBlenderShader)
-		mBlenderShader = new BL_BlenderShader(mScene, mMaterial->material, mLightLayer);
+		mBlenderShader = new BL_BlenderShader(mScene, mMaterial->material, mMaterial, mLightLayer);
 
 	if (!mBlenderShader->Ok()) {
 		delete mBlenderShader;

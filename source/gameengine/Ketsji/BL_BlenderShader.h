@@ -44,6 +44,8 @@
 
 #include "KX_Scene.h"
 
+#include "BL_Material.h"
+
 struct Material;
 struct Scene;
 class BL_Material;
@@ -59,17 +61,24 @@ class BL_BlenderShader
 private:
 	struct Scene	*mBlenderScene;
 	struct Material	*mMat;
+	BL_Material *m_blMaterial;
 	int				mLightLayer;
 	int				mAlphaBlend;
 	GPUMaterial     *mGPUMat;
+
+	/** The cooresponding uv layer index to the given attribut index.
+	 * If the attribut doesn't use UV info it will return -1. */
+	int m_uvLayers[BL_MAX_ATTRIB];
 
 	bool			VerifyShader() 
 	{
 		return (NULL != mGPUMat);
 	}
 
+	void ParseAttribs();
+
 public:
-	BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer);
+	BL_BlenderShader(KX_Scene *scene, struct Material *ma, BL_Material *blmat, int lightlayer);
 	virtual ~BL_BlenderShader();
 
 	bool				Ok()
@@ -80,7 +89,7 @@ public:
 	void				SetProg(bool enable, double time=0.0, RAS_IRasterizer* rasty=NULL);
 
 	int GetAttribNum();
-	void SetAttribs(class RAS_IRasterizer* ras, const BL_Material *mat);
+	void SetAttribs(class RAS_IRasterizer* ras);
 	void Update(const class RAS_MeshSlot & ms, class RAS_IRasterizer* rasty);
 	void ReloadMaterial();
 	int GetAlphaBlend();

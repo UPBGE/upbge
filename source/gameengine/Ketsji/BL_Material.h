@@ -41,7 +41,6 @@ public:
 	float offsets[3];
 	int projplane[3];
 	STR_String objconame;
-	STR_String uvCoName;
 };
 
 // base material struct
@@ -82,6 +81,7 @@ public:
 	BL_Mapping	mapping[MAXTEX];
 	STR_String	imageId[MAXTEX];
 
+	STR_String uvsName[MAXTEX];
 
 	Material*			material;
 	MTexPoly			mtexpoly; /* copy of the derived meshes tface */
