@@ -32,71 +32,54 @@
 #ifndef __BL_BLENDERSHADER_H__
 #define __BL_BLENDERSHADER_H__
 
-#include "GPU_material.h"
-
-#include "MT_Matrix4x4.h"
-#include "MT_Matrix3x3.h"
-#include "MT_Tuple2.h"
-#include "MT_Tuple3.h"
-#include "MT_Tuple4.h"
-
-#include "RAS_IPolygonMaterial.h"
-
-#include "KX_Scene.h"
-
-#include "BL_Material.h"
-
 struct Material;
 struct Scene;
+struct GPUMaterial;
+class KX_Scene;
 class BL_Material;
+class RAS_IRasterizer;
+class RAS_MeshSlot;
 
-#define BL_MAX_ATTRIB	16
+#define BL_MAX_ATTRIB 16
 
 /**
  * BL_BlenderShader
- *  Blender GPU shader material
+ * Blender GPU shader material
  */
 class BL_BlenderShader
 {
 private:
-	struct Scene	*mBlenderScene;
-	struct Material	*mMat;
+	Scene *m_blenderScene;
+	Material *m_mat;
 	BL_Material *m_blMaterial;
-	int				mLightLayer;
-	int				mAlphaBlend;
-	GPUMaterial     *mGPUMat;
+	int m_lightLayer;
+	int m_alphaBlend;
+	GPUMaterial *m_GPUMat;
 
 	/** The cooresponding uv layer index to the given attribut index.
 	 * If the attribut doesn't use UV info it will return -1. */
 	int m_uvLayers[BL_MAX_ATTRIB];
 
-	bool			VerifyShader() 
-	{
-		return (NULL != mGPUMat);
-	}
-
 	void ParseAttribs();
 
 public:
-	BL_BlenderShader(KX_Scene *scene, struct Material *ma, BL_Material *blmat, int lightlayer);
+	BL_BlenderShader(KX_Scene *scene, Material *ma, BL_Material *blmat, int lightlayer);
 	virtual ~BL_BlenderShader();
 
-	bool				Ok()
+	bool Ok()
 	{
-		// same as VerifyShared
-		return (NULL != mGPUMat);
+		return (m_GPUMat != NULL);
 	}
-	void				SetProg(bool enable, double time=0.0, RAS_IRasterizer* rasty=NULL);
+	void SetProg(bool enable, double time = 0.0, RAS_IRasterizer *rasty = NULL);
 
 	int GetAttribNum();
-	void SetAttribs(class RAS_IRasterizer* ras);
-	void Update(const class RAS_MeshSlot & ms, class RAS_IRasterizer* rasty);
+	void SetAttribs(RAS_IRasterizer *ras);
+	void Update(const RAS_MeshSlot& ms, RAS_IRasterizer * rasty);
 	void ReloadMaterial();
 	int GetAlphaBlend();
 
 	bool Equals(BL_BlenderShader *blshader);
-	
-	
+
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_BlenderShader")
 #endif

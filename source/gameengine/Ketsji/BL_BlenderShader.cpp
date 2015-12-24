@@ -22,34 +22,33 @@
  *  \ingroup ketsji
  */
 
-#include "DNA_customdata_types.h"
 #include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_utildefines.h"
-
-#include "BKE_global.h"
-#include "BKE_main.h"
+// #include "BKE_global.h"
+// #include "BKE_main.h"
 #include "BKE_DerivedMesh.h"
-
-#include "BL_BlenderShader.h"
 
 #include "GPU_material.h"
 #include "GPU_shader.h"
 
+#include "BL_BlenderShader.h"
+#include "BL_Material.h"
+
 #include "RAS_BucketManager.h"
 #include "RAS_MeshObject.h"
 #include "RAS_IRasterizer.h"
- 
+
+#include "KX_Scene.h"
+
 BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, BL_Material *blmat, int lightlayer)
-:
-	mMat(ma),
+	:m_mat(ma),
 	m_blMaterial(blmat),
-	mLightLayer(lightlayer),
-	mGPUMat(NULL)
+	m_lightLayer(lightlayer),
+	m_GPUMat(NULL)
 {
-	mBlenderScene = scene->GetBlenderScene();
-	mAlphaBlend = GPU_BLEND_SOLID;
+	m_blenderScene = scene->GetBlenderScene();
+	m_alphaBlend = GPU_BLEND_SOLID;
 
 	ReloadMaterial();
 	ParseAttribs();
@@ -57,14 +56,14 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, BL_Mate
 
 BL_BlenderShader::~BL_BlenderShader()
 {
-	if (mGPUMat)
-		GPU_material_unbind(mGPUMat);
+	if (m_GPUMat)
+		GPU_material_unbind(m_GPUMat);
 }
 
 void BL_BlenderShader::ParseAttribs()
 {
 	GPUVertexAttribs attribs;
-	GPU_material_vertex_attributes(mGPUMat, &attribs);
+	GPU_material_vertex_attributes(m_GPUMat, &attribs);
 	int numattrib = GetAttribNum();
 
 	for (unsigned int i = 0; i < MAXTEX; ++i) {
@@ -89,25 +88,25 @@ void BL_BlenderShader::ParseAttribs()
 
 void BL_BlenderShader::ReloadMaterial()
 {
-	mGPUMat = (mMat) ? GPU_material_from_blender(mBlenderScene, mMat, false) : NULL;
+	m_GPUMat = (m_mat) ? GPU_material_from_blender(m_blenderScene, m_mat, false) : NULL;
 }
 
-void BL_BlenderShader::SetProg(bool enable, double time, RAS_IRasterizer* rasty)
+void BL_BlenderShader::SetProg(bool enable, double time, RAS_IRasterizer *rasty)
 {
-	if (VerifyShader()) {
+	if (Ok()) {
 		if (enable) {
 			assert(rasty != NULL); // XXX Kinda hacky, but SetProg() should always have the rasterizer if enable is true
 
 			float viewmat[4][4], viewinvmat[4][4];
 			const MT_Matrix4x4& view = rasty->GetViewMatrix();
 			const MT_Matrix4x4& viewinv = rasty->GetViewInvMatrix();
-			view.getValue((float*)viewmat);
-			viewinv.getValue((float*)viewinvmat);
+			view.getValue((float *)viewmat);
+			viewinv.getValue((float *)viewinvmat);
 
-			GPU_material_bind(mGPUMat, mLightLayer, mBlenderScene->lay, time, 1, viewmat, viewinvmat, NULL, false);
+			GPU_material_bind(m_GPUMat, m_lightLayer, m_blenderScene->lay, time, 1, viewmat, viewinvmat, NULL, false);
 		}
 		else
-			GPU_material_unbind(mGPUMat);
+			GPU_material_unbind(m_GPUMat);
 	}
 }
 
@@ -116,22 +115,22 @@ int BL_BlenderShader::GetAttribNum()
 	GPUVertexAttribs attribs;
 	int i, enabled = 0;
 
-	if (!VerifyShader())
+	if (!Ok())
 		return enabled;
 
-	GPU_material_vertex_attributes(mGPUMat, &attribs);
+	GPU_material_vertex_attributes(m_GPUMat, &attribs);
 
 	for (i = 0; i < attribs.totlayer; i++)
-		if (attribs.layer[i].glindex+1 > enabled)
-			enabled= attribs.layer[i].glindex+1;
-	
+		if (attribs.layer[i].glindex + 1 > enabled)
+			enabled = attribs.layer[i].glindex + 1;
+
 	if (enabled > BL_MAX_ATTRIB)
 		enabled = BL_MAX_ATTRIB;
 
 	return enabled;
 }
 
-void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras)
+void BL_BlenderShader::SetAttribs(RAS_IRasterizer *ras)
 {
 	GPUVertexAttribs attribs;
 	GPUMaterial *gpumat;
@@ -139,12 +138,12 @@ void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras)
 
 	ras->SetAttribNum(0);
 
-	if (!VerifyShader())
+	if (!Ok())
 		return;
-	
-	gpumat = mGPUMat;
+
+	gpumat = m_GPUMat;
 	if (ras->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED || (ras->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW &&
-		m_blMaterial->alphablend != GEMAT_SOLID && !ras->GetUsingOverrideShader())) {
+	                                                              m_blMaterial->alphablend != GEMAT_SOLID && !ras->GetUsingOverrideShader())) {
 		GPU_material_vertex_attributes(gpumat, &attribs);
 		attrib_num = GetAttribNum();
 
@@ -173,12 +172,12 @@ void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras)
 	}
 }
 
-void BL_BlenderShader::Update(const RAS_MeshSlot & ms, RAS_IRasterizer* rasty )
+void BL_BlenderShader::Update(const RAS_MeshSlot & ms, RAS_IRasterizer *rasty)
 {
 	float obmat[4][4], obcol[4];
 	GPUMaterial *gpumat;
 
-	gpumat = mGPUMat;
+	gpumat = m_GPUMat;
 
 	if (!gpumat || !GPU_material_bound(gpumat))
 		return;
@@ -187,28 +186,26 @@ void BL_BlenderShader::Update(const RAS_MeshSlot & ms, RAS_IRasterizer* rasty )
 	model.setValue(ms.m_OpenGLMatrix);
 
 	// note: getValue gives back column major as needed by OpenGL
-	model.getValue((float*)obmat);
+	model.getValue((float *)obmat);
 
 	if (ms.m_bObjectColor)
 		ms.m_RGBAcolor.getValue((float *)obcol);
 	else
 		obcol[0] = obcol[1] = obcol[2] = obcol[3] = 1.0f;
 
-	float auto_bump_scale = ms.m_pDerivedMesh!=0 ? ms.m_pDerivedMesh->auto_bump_scale : 1.0f;
+	float auto_bump_scale = ms.m_pDerivedMesh != 0 ? ms.m_pDerivedMesh->auto_bump_scale : 1.0f;
 	GPU_material_bind_uniforms(gpumat, obmat, obcol, auto_bump_scale, NULL);
 
-	mAlphaBlend = GPU_material_alpha_blend(gpumat, obcol);
+	m_alphaBlend = GPU_material_alpha_blend(gpumat, obcol);
 }
 
 int BL_BlenderShader::GetAlphaBlend()
 {
-	return mAlphaBlend;
+	return m_alphaBlend;
 }
 
 bool BL_BlenderShader::Equals(BL_BlenderShader *blshader)
 {
-	/* to avoid unneeded state switches */
-	return (blshader && mMat == blshader->mMat && mLightLayer == blshader->mLightLayer);
+	// to avoid unneeded state switches
+	return (blshader && m_mat == blshader->m_mat && m_lightLayer == blshader->m_lightLayer);
 }
-
-// eof

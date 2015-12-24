@@ -37,6 +37,8 @@
 
 #include <vector>
 
+class SCA_IScene;
+
 class RAS_BucketManager
 {
 public:
