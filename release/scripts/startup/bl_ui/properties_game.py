@@ -796,14 +796,8 @@ class OBJECT_MT_culling(ObjectButtonsPanel, Panel):
         layout = self.layout
         game = context.active_object.game
 
-        split = layout.split()
-        col = split.column()
-        col.prop(game, "auto_update_bound")
-
-        col = split.column()
-        col.active = not game.auto_update_bound
-        col.label(text="Predefined Bound:")
-        col.prop(game, "predefined_bound", "")
+        layout.label(text="Predefined Bound:")
+        layout.prop(game, "predefined_bound", "")
 
 class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
     bl_label = "Levels of Detail"

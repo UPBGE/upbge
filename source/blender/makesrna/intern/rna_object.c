@@ -1836,10 +1836,6 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "gameflag2", OB_NEVER_DO_ACTIVITY_CULLING);
 	RNA_def_property_ui_text(prop, "Lock Z Rotation Axis", "Disable simulation of angular motion along the Z axis");
 
-	prop = RNA_def_property(srna, "auto_update_bound", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "gameflag2", OB_AUTO_UPDATE_BOUND);
-	RNA_def_property_ui_text(prop, "Auto Update Bound", "Automatically update bounding volume for skinned and deformed objects");
-
 	prop = RNA_def_property(srna, "predefined_bound", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "Mesh");
 	RNA_def_property_pointer_sdna(prop, NULL, "gamePredefinedBound");

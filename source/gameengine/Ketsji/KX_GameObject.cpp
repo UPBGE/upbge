@@ -1498,9 +1498,13 @@ const MT_Point3& KX_GameObject::NodeGetLocalPosition() const
 		return dummy_point;
 }
 
-void KX_GameObject::UpdateBounds()
+void KX_GameObject::UpdateBounds(bool force)
 {
-	if (!m_autoUpdateBounds) {
+	RAS_Deformer *deformer = GetDeformer();
+	bool meshModified = (!m_meshes.empty() && m_meshes[0]->AabbModfified()) ||
+						(deformer && deformer->IsDynamic());
+
+	if (!(m_autoUpdateBounds && meshModified) && !force) {
 		return;
 	}
 
@@ -1509,9 +1513,9 @@ void KX_GameObject::UpdateBounds()
 	MT_Point3 aabbMax(0.0f, 0.0f, 0.0f);
 
 	// Get the mesh deforme AABB.
-	if (GetDeformer()) {
+	if (deformer) {
 		// Can return an empty AABB if not updated.
-		GetDeformer()->GetAabb(aabbMin, aabbMax);
+		deformer->GetAabb(aabbMin, aabbMax);
 	}
 	// Get the mesh AABB if there's a mesh or the deformer return an invalid AABB.
 	if ((aabbMin == aabbMax) && (m_meshes.size() > 0)) {

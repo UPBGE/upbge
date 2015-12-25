@@ -943,7 +943,12 @@ public:
 		return m_autoUpdateBounds;
 	}
 
-	void UpdateBounds();
+	/** Update the game object bounding box (AABB) by using the one existing in the
+	 * mesh or the mesh deformer.
+	 * \param force Force the AABB update even if the object doesn't allow auto update or if the mesh is
+	 * not modified like in the case of mesh replacement.
+	 */
+	void UpdateBounds(bool force = false);
 	void SetBoundsAabb(MT_Point3 aabbMin, MT_Point3 aabbMax);
 	void GetBoundsAabb(MT_Point3 &aabbMin, MT_Point3 &aabbMax) const;
 

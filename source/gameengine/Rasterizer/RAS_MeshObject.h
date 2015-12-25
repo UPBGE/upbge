@@ -106,6 +106,10 @@ public:
 		m_bMeshModified = v;
 	}
 
+	bool AabbModfified() const
+	{
+		return m_aabbModified;
+	}
 	void SetAabbModified(bool v)
 	{
 		m_aabbModified = v;

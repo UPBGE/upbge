@@ -1030,7 +1030,7 @@ void BKE_object_init(Object *ob)
 	ob->anisotropicFriction[1] = 1.0f;
 	ob->anisotropicFriction[2] = 1.0f;
 	ob->gameflag = OB_PROP | OB_COLLISION;
-	ob->gameflag2 = OB_AUTO_UPDATE_BOUND;
+	ob->gameflag2 = 0;
 	ob->margin = 0.04f;
 	ob->init_state = 1;
 	ob->state = 1;

@@ -1224,10 +1224,6 @@ static void BL_CreateGraphicObjectNew(KX_GameObject* gameobj,
 					// add first, this will create the proxy handle, only if the object is visible
 					if (gameobj->GetVisible())
 						env->AddCcdGraphicController(ctrl);
-					// update the mesh if there is a deformer, this will also update the bounding box for modifiers
-					RAS_Deformer* deformer = gameobj->GetDeformer();
-					if (deformer)
-						deformer->UpdateBuckets();
 				}
 			}
 			break;
@@ -2197,34 +2193,30 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	for (i = 0; i < sumolist->GetCount(); ++i) {
 		KX_GameObject *gameobj = (KX_GameObject *)sumolist->GetValue(i);
 		Object *blenderobject = gameobj->GetBlenderObject();
-		// The object allow AABB auto update ?
-		const bool autoUpdate = blenderobject->gameflag2 & OB_AUTO_UPDATE_BOUND;
-		gameobj->SetAutoUpdateBounds(autoUpdate);
+		Mesh *predifinedBoundMesh = blenderobject->gamePredefinedBound;
 
-		// AABB Box : min/max.
-		MT_Point3 aabbMin;
-		MT_Point3 aabbMax;
+		if (predifinedBoundMesh) {
+			RAS_MeshObject *meshobj = converter->FindGameMesh(predifinedBoundMesh);
+			// In case of mesh taken in a other scene.
+			if (!meshobj) {
+				continue;
+			}
 
-		// Get proper mesh to use as AABB.
-		RAS_MeshObject *meshobj = NULL;
-		if (!autoUpdate && blenderobject->gamePredefinedBound) {
-			// If the mesh is not already converted we convert it.
-			meshobj = converter->FindGameMesh((Mesh *)blenderobject->gamePredefinedBound);
+			gameobj->SetAutoUpdateBounds(false);
+
+			// AABB Box : min/max.
+			MT_Point3 aabbMin;
+			MT_Point3 aabbMax;
+			// Get the AABB.
+			meshobj->GetAabb(aabbMin, aabbMax);
+			gameobj->SetBoundsAabb(aabbMin, aabbMax);
 		}
 		else if (gameobj->GetMeshCount() > 0) {
-			meshobj = gameobj->GetMesh(0);
+			// The object allow AABB auto update only if there's no predefined bound.
+			gameobj->SetAutoUpdateBounds(true);
+
+			gameobj->UpdateBounds();
 		}
-
-		// If there's no mesh it means that the object is an empty or a lamp.
-		if (!meshobj) {
-			continue;
-		}
-
-		// Get the AABB.
-		meshobj->GetAabb(aabbMin, aabbMax);
-
-		// Set final object AABB.
-		gameobj->SetBoundsAabb(aabbMin, aabbMax);
 	}
 
 	// create physics joints

@@ -1315,7 +1315,7 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 		if (gameobj->GetPhysicsController())
 			gameobj->GetPhysicsController()->ReinstancePhysicsShape(NULL, use_gfx?NULL:mesh);
 	}
-	gameobj->UpdateBounds();
+	gameobj->UpdateBounds(true);
 }
 
 /* Font Object routines */
