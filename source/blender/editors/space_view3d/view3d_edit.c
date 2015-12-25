@@ -609,18 +609,18 @@ static void viewops_data_alloc(bContext *C, wmOperator *op)
 	vod->rv3d = vod->ar->regiondata;
 }
 
-static void view3d_orbit_apply_dyn_ofs(
-        float r_ofs[3], const float dyn_ofs[3],
-        const float oldquat[4], const float viewquat[4])
+void view3d_orbit_apply_dyn_ofs(
+        float r_ofs[3], const float ofs_old[3], const float viewquat_old[4],
+        const float viewquat_new[4], const float dyn_ofs[3])
 {
-	float q1[4];
-	invert_qt_qt_normalized(q1, oldquat);
-	mul_qt_qtqt(q1, q1, viewquat);
+	float q[4];
+	invert_qt_qt_normalized(q, viewquat_old);
+	mul_qt_qtqt(q, q, viewquat_new);
 
-	invert_qt_normalized(q1);
+	invert_qt_normalized(q);
 
-	sub_v3_v3(r_ofs, dyn_ofs);
-	mul_qt_v3(q1, r_ofs);
+	sub_v3_v3v3(r_ofs, ofs_old, dyn_ofs);
+	mul_qt_v3(q, r_ofs);
 	add_v3_v3(r_ofs, dyn_ofs);
 }
 
@@ -910,12 +910,11 @@ void viewrotate_modal_keymap(wmKeyConfig *keyconf)
 
 }
 
-static void viewrotate_apply_dyn_ofs(ViewOpsData *vod, const float viewquat[4])
+static void viewrotate_apply_dyn_ofs(ViewOpsData *vod, const float viewquat_new[4])
 {
 	if (vod->use_dyn_ofs) {
 		RegionView3D *rv3d = vod->rv3d;
-		copy_v3_v3(rv3d->ofs, vod->ofs);
-		view3d_orbit_apply_dyn_ofs(rv3d->ofs, vod->dyn_ofs, vod->oldquat, viewquat);
+		view3d_orbit_apply_dyn_ofs(rv3d->ofs, vod->ofs, vod->oldquat, viewquat_new, vod->dyn_ofs);
 	}
 }
 
@@ -1221,7 +1220,6 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 	/* makes op->customdata */
 	viewops_data_alloc(C, op);
-	viewops_data_create(C, op, event);
 	vod = op->customdata;
 
 	/* poll should check but in some cases fails, see poll func for details */
@@ -1238,6 +1236,8 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		 */
 		ED_region_tag_redraw(vod->ar);
 	}
+
+	viewops_data_create(C, op, event);
 
 	if (ELEM(event->type, MOUSEPAN, MOUSEROTATE)) {
 		/* Rotate direction we keep always same */
@@ -2880,14 +2880,16 @@ static void view3d_from_minmax(bContext *C, View3D *v3d, ARegion *ar,
 
 	if (rv3d->persp == RV3D_CAMOB && !ED_view3d_camera_lock_check(v3d, rv3d)) {
 		rv3d->persp = RV3D_PERSP;
-		ED_view3d_smooth_view(C, v3d, ar, v3d->camera, NULL,
-		                      new_ofs, NULL, ok_dist ? &new_dist : NULL, NULL,
-		                      smooth_viewtx);
+		ED_view3d_smooth_view(
+		        C, v3d, ar, smooth_viewtx,
+		        &(const V3D_SmoothParams){
+		            .camera_old=v3d->camera, .ofs = new_ofs,
+		            .dist = ok_dist ? &new_dist : NULL});
 	}
 	else {
-		ED_view3d_smooth_view(C, v3d, ar, NULL, NULL,
-		                      new_ofs, NULL, ok_dist ? &new_dist : NULL, NULL,
-		                      smooth_viewtx);
+		ED_view3d_smooth_view(
+		        C, v3d, ar, smooth_viewtx,
+		        &(const V3D_SmoothParams){.ofs = new_ofs, .dist = ok_dist ? &new_dist : NULL});
 	}
 
 	/* smooth view does viewlock RV3D_BOXVIEW copy */
@@ -3196,10 +3198,10 @@ static int viewcenter_cursor_exec(bContext *C, wmOperator *op)
 		/* non camera center */
 		float new_ofs[3];
 		negate_v3_v3(new_ofs, ED_view3d_cursor3d_get(scene, v3d));
-		ED_view3d_smooth_view(C, v3d, ar, NULL, NULL,
-		                      new_ofs, NULL, NULL, NULL,
-		                      smooth_viewtx);
-		
+		ED_view3d_smooth_view(
+		        C, v3d, ar, smooth_viewtx,
+		        &(const V3D_SmoothParams){.ofs = new_ofs});
+
 		/* smooth view does viewlock RV3D_BOXVIEW copy */
 	}
 	
@@ -3243,9 +3245,9 @@ static int viewcenter_pick_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 			ED_view3d_win_to_3d_int(ar, new_ofs, event->mval, new_ofs);
 		}
 		negate_v3(new_ofs);
-		ED_view3d_smooth_view(C, v3d, ar, NULL, NULL,
-		                      new_ofs, NULL, NULL, NULL,
-		                      smooth_viewtx);
+		ED_view3d_smooth_view(
+		        C, v3d, ar, smooth_viewtx,
+		        &(const V3D_SmoothParams){.ofs = new_ofs});
 	}
 
 	return OPERATOR_FINISHED;
@@ -3628,9 +3630,9 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 	/* clamp after because we may have been zooming out */
 	CLAMP(new_dist, dist_range[0], dist_range[1]);
 
-	ED_view3d_smooth_view(C, v3d, ar, NULL, NULL,
-	                      new_ofs, NULL, &new_dist, NULL,
-	                      smooth_viewtx);
+	ED_view3d_smooth_view(
+	        C, v3d, ar, smooth_viewtx,
+	        &(const V3D_SmoothParams){.ofs = new_ofs, .dist = &new_dist});
 
 	if (rv3d->viewlock & RV3D_BOXVIEW)
 		view3d_boxview_sync(CTX_wm_area(C), ar);
@@ -3785,9 +3787,9 @@ static void axis_set_view(bContext *C, View3D *v3d, ARegion *ar,
 
 	if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
 		/* to camera */
-		ED_view3d_smooth_view(C, v3d, ar, v3d->camera, NULL,
-		                      rv3d->ofs, quat, NULL, NULL,
-		                      smooth_viewtx);
+		ED_view3d_smooth_view(
+		        C, v3d, ar, smooth_viewtx,
+		        &(const V3D_SmoothParams){.camera_old = v3d->camera, .ofs = rv3d->ofs, .quat = quat});
 	}
 	else if (orig_persp == RV3D_CAMOB && v3d->camera) {
 		/* from camera */
@@ -3799,15 +3801,26 @@ static void axis_set_view(bContext *C, View3D *v3d, ARegion *ar,
 		/* so we animate _from_ the camera location */
 		ED_view3d_from_object(v3d->camera, rv3d->ofs, NULL, &rv3d->dist, NULL);
 
-		ED_view3d_smooth_view(C, v3d, ar, NULL, NULL,
-		                      ofs, quat, &dist, NULL,
-		                      smooth_viewtx);
+		ED_view3d_smooth_view(
+		        C, v3d, ar, smooth_viewtx,
+		        &(const V3D_SmoothParams){.ofs = ofs, .quat = quat, .dist = &dist});
 	}
 	else {
+		/* rotate around selection */
+		const float *dyn_ofs_pt = NULL;
+		float dyn_ofs[3];
+
+		if (U.uiflag & USER_ORBIT_SELECTION) {
+			if (view3d_orbit_calc_center(C, dyn_ofs)) {
+				negate_v3(dyn_ofs);
+				dyn_ofs_pt = dyn_ofs;
+			}
+		}
+
 		/* no camera involved */
-		ED_view3d_smooth_view(C, v3d, ar, NULL, NULL,
-		                      NULL, quat, NULL, NULL,
-		                      smooth_viewtx);
+		ED_view3d_smooth_view(
+		        C, v3d, ar, smooth_viewtx,
+		        &(const V3D_SmoothParams){.quat = quat, .dyn_ofs = dyn_ofs_pt});
 	}
 }
 
@@ -3896,9 +3909,11 @@ static int viewnumpad_exec(bContext *C, wmOperator *op)
 
 				/* finally do snazzy view zooming */
 				rv3d->persp = RV3D_CAMOB;
-				ED_view3d_smooth_view(C, v3d, ar, NULL, v3d->camera,
-				                      rv3d->ofs, rv3d->viewquat, &rv3d->dist, &v3d->lens,
-				                      smooth_viewtx);
+				ED_view3d_smooth_view(
+				        C, v3d, ar, smooth_viewtx,
+				        &(const V3D_SmoothParams){
+				            .camera = v3d->camera, .ofs = rv3d->ofs, .quat = rv3d->viewquat,
+				            .dist = &rv3d->dist, .lens = &v3d->lens});
 
 			}
 			else {
@@ -3979,8 +3994,6 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
 			int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 			float quat_mul[4];
 			float quat_new[4];
-			float ofs_new[3];
-			float *ofs_new_pt = NULL;
 
 			if (view_opposite == RV3D_VIEW_USER) {
 				view3d_ensure_persp(v3d, ar);
@@ -4015,25 +4028,19 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
 				rv3d->view = RV3D_VIEW_USER;
 			}
 
+
+			float dyn_ofs[3], *dyn_ofs_pt = NULL;
+
 			if (U.uiflag & USER_ORBIT_SELECTION) {
-				float dyn_ofs[3];
-
-				view3d_orbit_calc_center(C, dyn_ofs);
-				negate_v3(dyn_ofs);
-
-				copy_v3_v3(ofs_new, rv3d->ofs);
-
-				view3d_orbit_apply_dyn_ofs(ofs_new, dyn_ofs, rv3d->viewquat, quat_new);
-				ofs_new_pt = ofs_new;
-
-				/* disable smoothview in this case
-				 * although it works OK, it looks a little odd. */
-				smooth_viewtx = 0;
+				if (view3d_orbit_calc_center(C, dyn_ofs)) {
+					negate_v3(dyn_ofs);
+					dyn_ofs_pt = dyn_ofs;
+				}
 			}
 
-			ED_view3d_smooth_view(C, v3d, ar, NULL, NULL,
-			                      ofs_new_pt, quat_new, NULL, NULL,
-			                      smooth_viewtx);
+			ED_view3d_smooth_view(
+			        C, v3d, ar, smooth_viewtx,
+			        &(const V3D_SmoothParams){.quat = quat_new, .dyn_ofs = dyn_ofs_pt});
 
 			return OPERATOR_FINISHED;
 		}
@@ -4096,6 +4103,10 @@ static void viewroll_apply(ViewOpsData *vod, int x, int UNUSED(y))
 
 	if (angle != 0.0f)
 		view_roll_angle(vod->ar, vod->rv3d->viewquat, vod->oldquat, vod->mousevec, angle);
+
+	if (vod->use_dyn_ofs) {
+		view3d_orbit_apply_dyn_ofs(vod->rv3d->ofs, vod->ofs, vod->oldquat, vod->rv3d->viewquat, vod->dyn_ofs);
+	}
 
 	if (vod->rv3d->viewlock & RV3D_BOXVIEW)
 		view3d_boxview_sync(vod->sa, vod->ar);
@@ -4198,9 +4209,18 @@ static int viewroll_exec(bContext *C, wmOperator *op)
 		negate_v3(mousevec);
 		view_roll_angle(ar, quat_new, rv3d->viewquat, mousevec, angle);
 
-		ED_view3d_smooth_view(C, v3d, ar, NULL, NULL,
-		                      NULL, quat_new, NULL, NULL,
-		                      smooth_viewtx);
+		const float *dyn_ofs_pt = NULL;
+		float dyn_ofs[3];
+		if (U.uiflag & USER_ORBIT_SELECTION) {
+			if (view3d_orbit_calc_center(C, dyn_ofs)) {
+				negate_v3(dyn_ofs);
+				dyn_ofs_pt = dyn_ofs;
+			}
+		}
+
+		ED_view3d_smooth_view(
+		        C, v3d, ar, smooth_viewtx,
+		        &(const V3D_SmoothParams){.quat = quat_new, .dyn_ofs = dyn_ofs_pt});
 
 		viewops_data_free(C, op);
 		return OPERATOR_FINISHED;

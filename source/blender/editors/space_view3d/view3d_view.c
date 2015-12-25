@@ -138,6 +138,9 @@ struct SmoothView3DStore {
 
 	bool to_camera;
 
+	bool use_dyn_ofs;
+	float dyn_ofs[3];
+
 	/* When smooth-view is enabled, store the 'rv3d->view' here,
 	 * assign back when the view motion is completed. */
 	char org_view;
@@ -168,10 +171,8 @@ static void view3d_smooth_view_state_restore(const struct SmoothView3DState *sms
 void ED_view3d_smooth_view_ex(
         /* avoid passing in the context */
         wmWindowManager *wm, wmWindow *win, ScrArea *sa,
-
-        View3D *v3d, ARegion *ar, Object *oldcamera, Object *camera,
-        const float *ofs, const float *quat, const float *dist, const float *lens,
-        const int smooth_viewtx)
+        View3D *v3d, ARegion *ar, const int smooth_viewtx,
+        const V3D_SmoothParams *sview)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	struct SmoothView3DStore sms = {{0}};
@@ -199,19 +200,34 @@ void ED_view3d_smooth_view_ex(
 	 * camera to be moved or changed, so only when the camera is not being set should
 	 * we allow camera option locking to initialize the view settings from the camera.
 	 */
-	if (camera == NULL && oldcamera == NULL) {
+	if (sview->camera == NULL && sview->camera_old == NULL) {
 		ED_view3d_camera_lock_init(v3d, rv3d);
 	}
 
 	/* store the options we want to end with */
-	if (ofs)  copy_v3_v3(sms.dst.ofs, ofs);
-	if (quat) copy_qt_qt(sms.dst.quat, quat);
-	if (dist) sms.dst.dist = *dist;
-	if (lens) sms.dst.lens = *lens;
+	if (sview->ofs)
+		copy_v3_v3(sms.dst.ofs, sview->ofs);
+	if (sview->quat)
+		copy_qt_qt(sms.dst.quat, sview->quat);
+	if (sview->dist)
+		sms.dst.dist = *sview->dist;
+	if (sview->lens)
+		sms.dst.lens = *sview->lens;
 
-	if (camera) {
-		sms.dst.dist = ED_view3d_offset_distance(camera->obmat, ofs, VIEW3D_DIST_FALLBACK);
-		ED_view3d_from_object(camera, sms.dst.ofs, sms.dst.quat, &sms.dst.dist, &sms.dst.lens);
+	if (sview->dyn_ofs) {
+		BLI_assert(sview->ofs  == NULL);
+		BLI_assert(sview->quat != NULL);
+
+		copy_v3_v3(sms.dyn_ofs, sview->dyn_ofs);
+		sms.use_dyn_ofs = true;
+
+		/* calcualte the final destination offset */
+		view3d_orbit_apply_dyn_ofs(sms.dst.ofs, sms.src.ofs, sms.src.quat, sms.dst.quat, sms.dyn_ofs);
+	}
+
+	if (sview->camera) {
+		sms.dst.dist = ED_view3d_offset_distance(sview->camera->obmat, sview->ofs, VIEW3D_DIST_FALLBACK);
+		ED_view3d_from_object(sview->camera, sms.dst.ofs, sms.dst.quat, &sms.dst.dist, &sms.dst.lens);
 		sms.to_camera = true; /* restore view3d values in end */
 	}
 	
@@ -219,7 +235,7 @@ void ED_view3d_smooth_view_ex(
 	if (smooth_viewtx && v3d->drawtype != OB_RENDER) {
 		bool changed = false; /* zero means no difference */
 		
-		if (oldcamera != camera)
+		if (sview->camera_old != sview->camera)
 			changed = true;
 		else if (sms.dst.dist != rv3d->dist)
 			changed = true;
@@ -234,10 +250,10 @@ void ED_view3d_smooth_view_ex(
 		 * so animate the view */
 		if (changed) {
 			/* original values */
-			if (oldcamera) {
-				sms.src.dist = ED_view3d_offset_distance(oldcamera->obmat, rv3d->ofs, 0.0f);
+			if (sview->camera_old) {
+				sms.src.dist = ED_view3d_offset_distance(sview->camera_old->obmat, rv3d->ofs, 0.0f);
 				/* this */
-				ED_view3d_from_object(oldcamera, sms.src.ofs, sms.src.quat, &sms.src.dist, &sms.src.lens);
+				ED_view3d_from_object(sview->camera_old, sms.src.ofs, sms.src.quat, &sms.src.dist, &sms.src.lens);
 			}
 			/* grid draw as floor */
 			if ((rv3d->viewlock & RV3D_LOCKED) == 0) {
@@ -251,26 +267,17 @@ void ED_view3d_smooth_view_ex(
 			 * we can decrease the time allowed by
 			 * the angle between quats 
 			 * this means small rotations wont lag */
-			if (quat && !ofs && !dist) {
-				float vec1[3] = {0, 0, 1}, vec2[3] = {0, 0, 1};
-				float q1[4], q2[4];
-
-				invert_qt_qt_normalized(q1, sms.dst.quat);
-				invert_qt_qt_normalized(q2, sms.src.quat);
-
-				mul_qt_v3(q1, vec1);
-				mul_qt_v3(q2, vec2);
-
+			if (sview->quat && !sview->ofs && !sview->dist) {
 				/* scale the time allowed by the rotation */
-				sms.time_allowed *= (double)angle_v3v3(vec1, vec2) / M_PI; /* 180deg == 1.0 */
+				sms.time_allowed *= (double)angle_normalized_qtqt(sms.dst.quat, sms.src.quat) / M_PI; /* 180deg == 1.0 */
 			}
 
 			/* ensure it shows correct */
 			if (sms.to_camera) {
 				/* use ortho if we move from an ortho view to an ortho camera */
 				rv3d->persp = (((rv3d->is_persp == false) &&
-				                (camera->type == OB_CAMERA) &&
-				                (((Camera *)camera->data)->type == CAM_ORTHO)) ?
+				                (sview->camera->type == OB_CAMERA) &&
+				                (((Camera *)sview->camera->data)->type == CAM_ORTHO)) ?
 				                RV3D_ORTHO : RV3D_PERSP);
 			}
 
@@ -316,9 +323,8 @@ void ED_view3d_smooth_view_ex(
 
 void ED_view3d_smooth_view(
         bContext *C,
-        View3D *v3d, ARegion *ar, Object *oldcamera, Object *camera,
-        const float *ofs, const float *quat, const float *dist, const float *lens,
-        const int smooth_viewtx)
+        View3D *v3d, ARegion *ar, const int smooth_viewtx,
+        const struct V3D_SmoothParams *sview)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win = CTX_wm_window(C);
@@ -326,8 +332,8 @@ void ED_view3d_smooth_view(
 
 	ED_view3d_smooth_view_ex(
 	        wm, win, sa,
-	        v3d, ar, oldcamera, camera,
-	        ofs, quat, dist, lens, smooth_viewtx);
+	        v3d, ar, smooth_viewtx,
+	        sview);
 }
 
 /* only meant for timer usage */
@@ -379,8 +385,14 @@ static int view3d_smoothview_invoke(bContext *C, wmOperator *UNUSED(op), const w
 
 		step_inv = 1.0f - step;
 
-		interp_v3_v3v3(rv3d->ofs,      sms->src.ofs,  sms->dst.ofs,  step);
 		interp_qt_qtqt(rv3d->viewquat, sms->src.quat, sms->dst.quat, step);
+
+		if (sms->use_dyn_ofs) {
+			view3d_orbit_apply_dyn_ofs(rv3d->ofs, sms->src.ofs, sms->src.quat, rv3d->viewquat, sms->dyn_ofs);
+		}
+		else {
+			interp_v3_v3v3(rv3d->ofs, sms->src.ofs,  sms->dst.ofs,  step);
+		}
 		
 		rv3d->dist = sms->dst.dist * step + sms->src.dist * step_inv;
 		v3d->lens  = sms->dst.lens * step + sms->src.lens * step_inv;
@@ -576,9 +588,12 @@ static int view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
 		if (camera_old != ob) {
 			ED_view3d_lastview_store(rv3d);
 
-			ED_view3d_smooth_view(C, v3d, ar, camera_old, v3d->camera,
-			                      rv3d->ofs, rv3d->viewquat, &rv3d->dist, &v3d->lens,
-			                      smooth_viewtx);
+			ED_view3d_smooth_view(
+			        C, v3d, ar, smooth_viewtx,
+			        &(const V3D_SmoothParams){
+			            .camera_old = camera_old, .camera = v3d->camera,
+			            .ofs = rv3d->ofs, .quat = rv3d->viewquat,
+			            .dist = &rv3d->dist, .lens = &v3d->lens});
 		}
 
 		WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS | NC_OBJECT | ND_DRAW, CTX_data_scene(C));
@@ -1308,10 +1323,11 @@ static bool view3d_localview_init(
 				}
 
 				ED_view3d_smooth_view_ex(
-				        wm, win, sa,
-				        v3d, ar, camera_old, NULL,
-				        ofs_new, NULL, ok_dist ? &dist_new : NULL, NULL,
-				        smooth_viewtx);
+				        wm, win, sa, v3d, ar, smooth_viewtx,
+				            &(const V3D_SmoothParams){
+				                .camera_old = camera_old,
+				                .ofs = ofs_new, .quat = rv3d->viewquat,
+				                .dist = ok_dist ? &dist_new : NULL, .lens = &v3d->lens});
 			}
 		}
 		
@@ -1372,9 +1388,11 @@ static void restore_localviewdata(wmWindowManager *wm, wmWindow *win, Main *bmai
 
 				ED_view3d_smooth_view_ex(
 				        wm, win, sa,
-				        v3d, ar, camera_old_rv3d, camera_new_rv3d,
-				        rv3d->localvd->ofs, rv3d->localvd->viewquat, &rv3d->localvd->dist, NULL,
-				        smooth_viewtx);
+				        v3d, ar, smooth_viewtx,
+				        &(const V3D_SmoothParams){
+				            .camera_old = camera_old_rv3d, .camera = camera_new_rv3d,
+				            .ofs = rv3d->localvd->ofs, .quat = rv3d->localvd->viewquat,
+				            .dist = &rv3d->localvd->dist});
 
 				if (free) {
 					MEM_freeN(rv3d->localvd);

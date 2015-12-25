@@ -191,7 +191,7 @@ void MESH_OT_intersect(struct wmOperatorType *ot)
 	};
 
 	/* identifiers */
-	ot->name = "Intersect";
+	ot->name = "Intersect (Knife)";
 	ot->description = "Cut an intersection into faces";
 	ot->idname = "MESH_OT_intersect";
 
@@ -264,7 +264,7 @@ void MESH_OT_intersect_boolean(struct wmOperatorType *ot)
 	};
 
 	/* identifiers */
-	ot->name = "Boolean Intersect";
+	ot->name = "Intersect (Boolean)";
 	ot->description = "Cut solid geometry from selected to unselected";
 	ot->idname = "MESH_OT_intersect_boolean";
 
@@ -371,6 +371,26 @@ static void bm_face_split_by_edges(
 	if (face_arr) {
 		MEM_freeN(face_arr);
 	}
+}
+
+/**
+ * Check if a vert is in any of the faces connected to the edge,
+ * \a f_ignore is a face we happen to know isn't shared by the vertex.
+ */
+static bool bm_vert_in_faces_radial(BMVert *v, BMEdge *e_radial, BMFace *f_ignore)
+{
+	BLI_assert(BM_vert_in_face(v, f_ignore) == false);
+	if (e_radial->l) {
+		BMLoop *l_iter = e_radial->l;
+		do {
+			if (l_iter->f != f_ignore) {
+				if (BM_vert_in_face(v, l_iter->f)) {
+					return true;
+				}
+			}
+		} while ((l_iter = l_iter->radial_next) != e_radial->l);
+	}
+	return false;
 }
 
 #ifdef USE_NET_ISLAND_CONNECT
@@ -791,12 +811,15 @@ static int edbm_face_split_by_edges_exec(bContext *C, wmOperator *UNUSED(op))
 							        v_pivot_co, &v_pivot_fac);
 
 							if (e_split) {
-								BMEdge *e_new;
-								BMVert *v_new = BM_edge_split(bm, e_split, e_split->v1, &e_new, v_pivot_fac);
-								if (v_new) {
-									/* we _know_ these don't share an edge */
-									BM_vert_splice(bm, v_pivot, v_new);
-									BM_elem_index_set(e_new, BM_elem_index_get(e_split));
+								/* for degenerate cases this vertex may be in one of this edges radial faces */
+								if (!bm_vert_in_faces_radial(v_pivot, e_split, f)) {
+									BMEdge *e_new;
+									BMVert *v_new = BM_edge_split(bm, e_split, e_split->v1, &e_new, v_pivot_fac);
+									if (v_new) {
+										/* we _know_ these don't share an edge */
+										BM_vert_splice(bm, v_pivot, v_new);
+										BM_elem_index_set(e_new, BM_elem_index_get(e_split));
+									}
 								}
 							}
 						}
@@ -845,8 +868,8 @@ static int edbm_face_split_by_edges_exec(bContext *C, wmOperator *UNUSED(op))
 void MESH_OT_face_split_by_edges(struct wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Split by Edges";
-	ot->description = "Split faces by loose edges";
+	ot->name = "Weld Edges into Faces";
+	ot->description = "Weld loose edges into faces (splitting them into new faces)";
 	ot->idname = "MESH_OT_face_split_by_edges";
 
 	/* api callbacks */

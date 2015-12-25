@@ -252,6 +252,8 @@ public:
 	ConvertNode(ShaderSocketType from, ShaderSocketType to, bool autoconvert = false);
 	SHADER_NODE_BASE_CLASS(ConvertNode)
 
+	bool constant_fold(ShaderOutput *socket, float3 *optimized_value);
+
 	ShaderSocketType from, to;
 };
 
@@ -353,7 +355,6 @@ public:
 	SHADER_NODE_CLASS(SubsurfaceScatteringNode)
 	bool has_surface_bssrdf() { return true; }
 	bool has_bssrdf_bump();
-	bool has_spatial_varying() { return true; }
 
 	static ShaderEnum falloff_enum;
 };
@@ -557,6 +558,9 @@ public:
 class GammaNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(GammaNode)
+
+	bool constant_fold(ShaderOutput *socket, float3 *optimized_value);
+
 	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
 };
 

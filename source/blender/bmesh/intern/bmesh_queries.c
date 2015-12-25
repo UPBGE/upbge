@@ -768,9 +768,31 @@ bool BM_vert_is_edge_pair(const BMVert *v)
 {
 	const BMEdge *e = v->e;
 	if (e) {
-		const BMDiskLink *dl = bmesh_disk_edge_link_from_vert(e, v);
-		return (dl->next == dl->prev);
+		BMEdge *e_other = BM_DISK_EDGE_NEXT(e, v);
+		return ((e_other != e) && (BM_DISK_EDGE_NEXT(e_other, v) == e));
 	}
+	return false;
+}
+
+/**
+ * Access a verts 2 connected edges.
+ *
+ * \return true when only 2 verts are found.
+ */
+bool BM_vert_edge_pair(BMVert *v, BMEdge **r_e_a, BMEdge **r_e_b)
+{
+	BMEdge *e_a = v->e;
+	if (e_a) {
+		BMEdge *e_b = BM_DISK_EDGE_NEXT(e_a, v);
+		if ((e_b != e_a) && (BM_DISK_EDGE_NEXT(e_b, v) == e_a)) {
+			*r_e_a = e_a;
+			*r_e_b = e_b;
+			return true;
+		}
+	}
+
+	*r_e_a = NULL;
+	*r_e_b = NULL;
 	return false;
 }
 
@@ -2072,26 +2094,13 @@ bool BM_face_exists_multi_edge(BMEdge **earr, int len)
 {
 	BMVert **varr = BLI_array_alloca(varr, len);
 
-	bool ok;
-	int i, i_next;
-
 	/* first check if verts have edges, if not we can bail out early */
-	ok = true;
-	for (i = len - 1, i_next = 0; i_next < len; (i = i_next++)) {
-		if (!(varr[i] = BM_edge_share_vert(earr[i], earr[i_next]))) {
-			ok = false;
-			break;
-		}
-	}
-
-	if (ok == false) {
+	if (!BM_verts_from_edges(varr, earr, len)) {
 		BMESH_ASSERT(0);
 		return false;
 	}
 
-	ok = BM_face_exists_multi(varr, earr, len);
-
-	return ok;
+	return BM_face_exists_multi(varr, earr, len);
 }
 
 

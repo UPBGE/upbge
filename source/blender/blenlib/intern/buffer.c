@@ -56,16 +56,12 @@
 
 static void *buffer_alloc(BLI_Buffer *buffer, const size_t len)
 {
-	return ((buffer->flag & BLI_BUFFER_USE_CALLOC) ?
-	        MEM_callocN : MEM_mallocN)
-	        (buffer->elem_size * len, "BLI_Buffer.data");
+	return MEM_mallocN(buffer->elem_size * len, "BLI_Buffer.data");
 }
 
 static void *buffer_realloc(BLI_Buffer *buffer, const size_t len)
 {
-	return ((buffer->flag & BLI_BUFFER_USE_CALLOC) ?
-	        MEM_recallocN_id : MEM_reallocN_id)
-	        (buffer->data, buffer->elem_size * len, "BLI_Buffer.data");
+	return MEM_reallocN_id(buffer->data, buffer->elem_size * len, "BLI_Buffer.data");
 }
 
 void BLI_buffer_resize(BLI_Buffer *buffer, const size_t new_count)
@@ -90,14 +86,6 @@ void BLI_buffer_resize(BLI_Buffer *buffer, const size_t new_count)
 			buffer->data = buffer_realloc(buffer, buffer->alloc_count);
 		}
 	}
-	else {
-		if (buffer->flag & BLI_BUFFER_USE_CALLOC) {
-			if (new_count > buffer->count) {
-				memset(POINTER_OFFSET(buffer->data, buffer->elem_size * buffer->count), 0,
-				       buffer->elem_size * (new_count - buffer->count));
-			}
-		}
-	}
 
 	buffer->count = new_count;
 }
@@ -107,7 +95,7 @@ void BLI_buffer_resize(BLI_Buffer *buffer, const size_t new_count)
  * - Ignored (malloc'd)
  * - Cleared (when BLI_BUFFER_USE_CALLOC is set)
  */
-void BLI_buffer_reinit(BLI_Buffer *buffer, size_t new_count)
+void BLI_buffer_reinit(BLI_Buffer *buffer, const size_t new_count)
 {
 	if (UNLIKELY(new_count > buffer->alloc_count)) {
 		if ((buffer->flag & BLI_BUFFER_USE_STATIC) == 0) {
@@ -123,13 +111,8 @@ void BLI_buffer_reinit(BLI_Buffer *buffer, size_t new_count)
 			buffer->alloc_count = new_count;
 		}
 
-		buffer->data = buffer_alloc(buffer, new_count);
-	}
-	else {
-		if (buffer->flag & BLI_BUFFER_USE_CALLOC) {
-			memset(buffer->data, 0,
-			       buffer->elem_size * new_count);
-		}
+		buffer->flag &= ~BLI_BUFFER_USE_STATIC;
+		buffer->data = buffer_alloc(buffer, buffer->alloc_count);
 	}
 
 	buffer->count = new_count;
