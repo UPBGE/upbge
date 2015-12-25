@@ -535,6 +535,8 @@ void KX_GameObject::ProcessReplica()
 	m_actionManager = NULL;
 	m_state = 0;
 
+	m_meshSlots.clear();
+
 	KX_Scene* scene = KX_GetActiveScene();
 	KX_ObstacleSimulation* obssimulation = scene->GetObstacleSimulation();
 	struct Object* blenderobject = GetBlenderObject();
