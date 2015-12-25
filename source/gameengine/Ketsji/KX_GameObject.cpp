@@ -113,8 +113,7 @@ KX_GameObject::KX_GameObject(
       m_pInstanceObjects(NULL),
       m_pDupliGroupObject(NULL),
       m_actionManager(NULL),
-      m_bRecordAnimation(false),
-      m_isDeformable(false)
+      m_bRecordAnimation(false)
 
 #ifdef WITH_PYTHON
     , m_attr_dict(NULL),

@@ -1173,7 +1173,7 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 	gameobj->RemoveMeshes();
 	gameobj->AddMesh(mesh);
 	
-	if (gameobj->m_isDeformable)
+	if (gameobj->IsDeformable())
 	{
 		BL_DeformableGameObject* newobj = static_cast<BL_DeformableGameObject*>( gameobj );
 		

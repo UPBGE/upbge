@@ -133,8 +133,6 @@ protected:
 	bool								m_bRecordAnimation;
 
 public:
-	bool								m_isDeformable;
-
 	/**
 	 * KX_GameObject custom infos for ray cast, it contains property name,
 	 * collision mask, xray flag and hited object.
@@ -519,6 +517,11 @@ public:
 	virtual void	SetDeformer(class RAS_Deformer* deformer)
 	{
 
+	}
+	/// Return true when the game object is a BL_DeformableGameObject.
+	virtual bool IsDeformable() const
+	{
+		return false;
 	}
 
 	/**

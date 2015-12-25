@@ -72,7 +72,6 @@ public:
 		m_blendobj(blendobj),
 		m_activePriority(9999)
 	{
-		m_isDeformable = true;
 	};
 	virtual ~BL_DeformableGameObject();
 	bool SetActiveAction(short priority, double curtime);
@@ -83,6 +82,10 @@ public:
 	virtual class RAS_Deformer* GetDeformer()
 	{
 		return m_pDeformer;
+	}
+	virtual bool IsDeformable() const
+	{
+		return true;
 	}
 
 public:
