@@ -120,8 +120,6 @@ protected:
 	MT_CmMatrix4x4						m_OpenGL_4x4Matrix;
 	std::vector<bRigidBodyJointConstraint*>	m_constraints;
 
-	KX_ObstacleSimulation*				m_pObstacleSimulation;
-
 	CListValue*							m_pInstanceObjects;
 	KX_GameObject*						m_pDupliGroupObject;
 
@@ -974,16 +972,6 @@ public:
 	 */
 	void Resume(void);
 
-	void RegisterObstacle(KX_ObstacleSimulation* obstacleSimulation)
-	{
-		m_pObstacleSimulation = obstacleSimulation;
-	}
-
-	void UnregisterObstacle()
-	{
-		m_pObstacleSimulation = NULL;
-	}
-	
 	/**
 	 * add debug object to the debuglist.
 	 */

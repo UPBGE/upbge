@@ -201,7 +201,6 @@ KX_Obstacle* KX_ObstacleSimulation::CreateObstacle(KX_GameObject* gameobj)
 		vset(&obstacle->hvel[i*2], 0,0);
 	obstacle->hhead = 0;
 
-	gameobj->RegisterObstacle(this);
 	m_obstacles.push_back(obstacle);
 	return obstacle;
 }
@@ -249,7 +248,6 @@ void KX_ObstacleSimulation::DestroyObstacleForObj(KX_GameObject* gameobj)
 		if (m_obstacles[i]->m_gameObj == gameobj)
 		{
 			KX_Obstacle* obstacle = m_obstacles[i];
-			obstacle->m_gameObj->UnregisterObstacle();
 			m_obstacles[i] = m_obstacles.back();
 			m_obstacles.pop_back();
 			delete obstacle;

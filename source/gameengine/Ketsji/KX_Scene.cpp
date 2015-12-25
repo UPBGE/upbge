@@ -540,6 +540,11 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_IObject* node, class CVal
 	SG_IObject* replicanode = newobj->GetSGNode();
 //	SG_Node* rootnode = (replicanode == m_rootnode ? NULL : m_rootnode);
 
+	// Add the object in the obstacle simulation if needed.
+	if (orgobj->GetBlenderObject()->gameflag & OB_HASOBSTACLE) {
+		m_obstacleSimulation->AddObstacleForObj(newobj);
+	}
+
 	replicanode->SetSGClientObject(newobj);
 
 	// this is the list of object that are send to the graphics pipeline
@@ -1107,7 +1112,11 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 	KX_GameObject* group = newobj->GetDupliGroupObject();
 	if (group)
 		group->RemoveInstanceObject(newobj);
-	
+
+	if (m_obstacleSimulation) {
+		m_obstacleSimulation->DestroyObstacleForObj(newobj);
+	}
+
 	newobj->RemoveMeshes();
 
 	switch (newobj->GetGameObjectType()) {

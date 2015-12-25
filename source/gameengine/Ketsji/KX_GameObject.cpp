@@ -109,7 +109,6 @@ KX_GameObject::KX_GameObject(
       m_autoUpdateBounds(false),
       m_pPhysicsController(NULL),
       m_pGraphicController(NULL),
-      m_pObstacleSimulation(NULL),
       m_pInstanceObjects(NULL),
       m_pDupliGroupObject(NULL),
       m_actionManager(NULL),
@@ -180,11 +179,6 @@ KX_GameObject::~KX_GameObject()
 	if (m_pPhysicsController)
 	{
 		delete m_pPhysicsController;
-	}
-
-	if (m_pObstacleSimulation)
-	{
-		m_pObstacleSimulation->DestroyObstacleForObj(this);
 	}
 
 	if (m_actionManager)
@@ -535,14 +529,6 @@ void KX_GameObject::ProcessReplica()
 	m_state = 0;
 
 	m_meshSlots.clear();
-
-	KX_Scene* scene = KX_GetActiveScene();
-	KX_ObstacleSimulation* obssimulation = scene->GetObstacleSimulation();
-	struct Object* blenderobject = GetBlenderObject();
-	if (obssimulation && (blenderobject->gameflag & OB_HASOBSTACLE))
-	{
-		obssimulation->AddObstacleForObj(this);
-	}
 
 #ifdef WITH_PYTHON
 	if (m_attr_dict)
