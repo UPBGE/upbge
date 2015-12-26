@@ -178,6 +178,7 @@ public:
 
 /** This class is an interface between RAS_MeshSlots and the RAS_DisplayArray.
  * It manages the allocation and deletion of the RAS_DisplayArray.
+ * It can have a NULL display array. e.g modifier meshes.
  */
 class RAS_DisplayArrayBucket
 {
@@ -192,7 +193,7 @@ private:
 	RAS_MeshSlotList m_activeMeshSlots;
 
 public:
-	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket);
+	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array);
 	~RAS_DisplayArrayBucket();
 
 	/// \section Reference Count Management.
@@ -244,6 +245,8 @@ public:
 	void RemoveMesh(RAS_MeshSlot *ms);
 	void Optimize(MT_Scalar distance);
 
+	/// Find a display array bucket for the given display array, if not retrurn a new one.
+	RAS_DisplayArrayBucket *FindDisplayArrayBucket(RAS_DisplayArray *array);
 	void AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 	void RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 
@@ -252,7 +255,7 @@ public:
 private:
 	list<RAS_MeshSlot> m_meshSlots; // all the mesh slots
 	RAS_IPolyMaterial *m_material;
-	RAS_DisplayArrayBucketList m_displayArrayBucket;
+	RAS_DisplayArrayBucketList m_displayArrayBucketList;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MaterialBucket")

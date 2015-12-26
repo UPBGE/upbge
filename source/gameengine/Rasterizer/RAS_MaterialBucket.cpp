@@ -113,7 +113,7 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 void RAS_MeshSlot::init(RAS_MaterialBucket *bucket)
 {
 	m_bucket = bucket;
-	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket);
+	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, (new RAS_DisplayArray()));
 	m_displayArray = m_displayArrayBucket->GetDisplayArray();
 }
 
@@ -162,7 +162,7 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 			else {
 				// the deformer is not using vertex array (Modifier), release them
 				m_displayArrayBucket->Release();
-				m_displayArrayBucket = NULL;
+				m_displayArrayBucket = m_bucket->FindDisplayArrayBucket(NULL);
 			}
 		}
 	}
@@ -333,18 +333,20 @@ bool RAS_MeshSlot::IsCulled()
 }
 #endif
 
-RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket)
+RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array)
 	:m_refcount(1),
-	m_bucket(bucket)
+	m_bucket(bucket),
+	m_displayArray(array)
 {
-	m_displayArray = new RAS_DisplayArray();
 	m_bucket->AddDisplayArrayBucket(this);
 }
 
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
 {
 	m_bucket->RemoveDisplayArrayBucket(this);
-	delete m_displayArray;
+	if (m_displayArray) {
+		delete m_displayArray;
+	}
 }
 
 RAS_DisplayArrayBucket *RAS_DisplayArrayBucket::AddRef()
@@ -379,7 +381,9 @@ void RAS_DisplayArrayBucket::ProcessReplica()
 {
 	m_refcount = 1;
 	m_activeMeshSlots.clear();
-	m_displayArray = new RAS_DisplayArray(*m_displayArray);
+	if (m_displayArray) {
+		m_displayArray = new RAS_DisplayArray(*m_displayArray);
+	}
 	m_bucket->AddDisplayArrayBucket(this);
 }
 
@@ -558,20 +562,34 @@ void RAS_MaterialBucket::Optimize(MT_Scalar distance)
 #endif
 }
 
+RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_DisplayArray *array)
+{
+	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
+		it != end; ++it)
+	{
+		RAS_DisplayArrayBucket *displayArrayBucket = *it;
+		if (displayArrayBucket->GetDisplayArray() == array) {
+			return displayArrayBucket;
+		}
+	}
+	RAS_DisplayArrayBucket *displayArrayBucket = new RAS_DisplayArrayBucket(this, array);
+	return displayArrayBucket;
+}
+
 void RAS_MaterialBucket::AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)
 {
-	m_displayArrayBucket.push_back(bucket);
+	m_displayArrayBucketList.push_back(bucket);
 }
 
 void RAS_MaterialBucket::RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)
 {
-	RAS_DisplayArrayBucketList::iterator it = std::find(m_displayArrayBucket.begin(), m_displayArrayBucket.end(), bucket);
-	if (it != m_displayArrayBucket.end()) {
-		m_displayArrayBucket.erase(it);
+	RAS_DisplayArrayBucketList::iterator it = std::find(m_displayArrayBucketList.begin(), m_displayArrayBucketList.end(), bucket);
+	if (it != m_displayArrayBucketList.end()) {
+		m_displayArrayBucketList.erase(it);
 	}
 }
 
 RAS_DisplayArrayBucketList& RAS_MaterialBucket::GetDisplayArrayBucketList()
 {
-	return m_displayArrayBucket;
+	return m_displayArrayBucketList;
 }
