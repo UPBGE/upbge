@@ -57,6 +57,7 @@ class RAS_MeshObject
 private:
 	bool m_bMeshModified;
 	bool m_aabbModified;
+	bool m_needUpdateAabb;
 	MT_Point3 m_aabbMax;
 	MT_Point3 m_aabbMin;
 
@@ -106,13 +107,14 @@ public:
 		m_bMeshModified = v;
 	}
 
-	bool AabbModfified() const
+	bool AabbModified() const
 	{
 		return m_aabbModified;
 	}
 	void SetAabbModified(bool v)
 	{
 		m_aabbModified = v;
+		m_needUpdateAabb = v;
 	}
 
 	// original blender mesh

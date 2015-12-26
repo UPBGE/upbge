@@ -1474,8 +1474,8 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 			 * like in KX_SoftBodyDeformer.
 			 */
 			gameobj->GetDeformer()->UpdateBuckets();
-			gameobj->UpdateBounds();
 		}
+		gameobj->UpdateBounds();
 	}
 
 	bool dbvt_culling = false;

@@ -104,6 +104,7 @@ STR_String RAS_MeshObject::s_emptyname = "";
 RAS_MeshObject::RAS_MeshObject(Mesh *mesh)
 	:m_bMeshModified(true),
 	m_aabbModified(true),
+	m_needUpdateAabb(true),
 	m_mesh(mesh)
 {
 	if (m_mesh && m_mesh->key) {
@@ -166,14 +167,14 @@ void RAS_MeshObject::UpdateAabb()
 			}
 		}
 	}
-
-	m_aabbModified = false;
 }
 
 void RAS_MeshObject::GetAabb(MT_Point3 &aabbMin, MT_Point3 &aabbMax)
 {
-	if (m_aabbModified)
+	if (m_needUpdateAabb) {
 		UpdateAabb();
+		m_needUpdateAabb = false;
+	}
 
 	aabbMin = m_aabbMin;
 	aabbMax = m_aabbMax;

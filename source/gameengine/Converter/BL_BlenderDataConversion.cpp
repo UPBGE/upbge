@@ -2215,7 +2215,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			// The object allow AABB auto update only if there's no predefined bound.
 			gameobj->SetAutoUpdateBounds(true);
 
-			gameobj->UpdateBounds();
+			gameobj->UpdateBounds(true);
 		}
 	}
 
