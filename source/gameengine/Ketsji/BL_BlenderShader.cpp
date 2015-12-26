@@ -76,8 +76,14 @@ void BL_BlenderShader::ParseAttribs()
 		}
 
 		if (attribs.layer[i].type == CD_MTFACE) {
+			const char *attribname = attribs.layer[i].name;
+			if (strlen(attribname) == 0) {
+				// The attribut use the default UV = the first one.
+				m_uvLayers[i] = 0;
+				continue;
+			}
 			for (unsigned int j = 0; j < MAXTEX; ++j) {
-				if (strcmp(m_blMaterial->uvsName[j], attribs.layer[i].name) == 0) {
+				if (strcmp(m_blMaterial->uvsName[j], attribname) == 0) {
 					m_uvLayers[i] = j;
 					break;
 				}
