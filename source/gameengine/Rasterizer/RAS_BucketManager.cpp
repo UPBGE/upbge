@@ -187,6 +187,10 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 		{
 			RAS_DisplayArrayBucket *displayArrayBucket = *sbit;
 			RAS_MeshSlotList& activeMeshSlots = displayArrayBucket->GetActiveMeshSlots();
+			if (activeMeshSlots.empty()) {
+				continue;
+			}
+
 			RAS_DisplayArray *displayArray = displayArrayBucket->GetDisplayArray();
 
 			rasty->BindPrimitives(displayArray);
