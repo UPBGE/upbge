@@ -1501,7 +1501,7 @@ const MT_Point3& KX_GameObject::NodeGetLocalPosition() const
 void KX_GameObject::UpdateBounds(bool force)
 {
 	RAS_Deformer *deformer = GetDeformer();
-	bool meshModified = (!m_meshes.empty() && m_meshes[0]->AabbModified()) ||
+	bool meshModified = (!m_meshes.empty() && (m_meshes[0]->GetModifiedFlag() & RAS_MeshObject::AABB_MODIFIED)) ||
 						(deformer && deformer->IsDynamic());
 
 	if (!(m_autoUpdateBounds && meshModified) && !force) {

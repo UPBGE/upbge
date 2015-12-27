@@ -87,14 +87,9 @@ PyAttributeDef KX_MeshProxy::Attributes[] = {
 	{ NULL }	//Sentinel
 };
 
-void KX_MeshProxy::SetMeshModified(bool v)
+void KX_MeshProxy::AppendModifiedFlag(short flag)
 {
-	m_meshobj->SetMeshModified(v);
-}
-
-void KX_MeshProxy::SetAabbModified(bool v)
-{
-	m_meshobj->SetAabbModified(v);
+	m_meshobj->AppendModifiedFlag(flag);
 }
 
 KX_MeshProxy::KX_MeshProxy(RAS_MeshObject* mesh)
@@ -278,8 +273,9 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 		return NULL;
 	}
 
-	m_meshobj->SetMeshModified(true);
-	m_meshobj->SetAabbModified(true);
+	m_meshobj->AppendModifiedFlag(RAS_MeshObject::POSITION_MODIFIED |
+							   RAS_MeshObject::NORMAL_MODIFIED |
+							   RAS_MeshObject::TANGENT_MODIFIED);
 
 	Py_RETURN_NONE;
 }
@@ -369,7 +365,7 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 		return NULL;
 	}
 
-	m_meshobj->SetMeshModified(true);
+	m_meshobj->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
 
 	Py_RETURN_NONE;
 }

@@ -35,6 +35,7 @@
 #include "KX_VertexProxy.h"
 #include "KX_MeshProxy.h"
 #include "RAS_TexVert.h"
+#include "RAS_MeshObject.h"
 
 #include "KX_PyMath.h"
 
@@ -217,8 +218,7 @@ int KX_VertexProxy::pyattr_set_x(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 		MT_Point3 pos(self->m_vertex->getXYZ());
 		pos.x() = val;
 		self->m_vertex->SetXYZ(pos);
-		self->m_mesh->SetMeshModified(true);
-		self->m_mesh->SetAabbModified(true);
+		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::POSITION_MODIFIED);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -233,8 +233,7 @@ int KX_VertexProxy::pyattr_set_y(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 		MT_Point3 pos(self->m_vertex->getXYZ());
 		pos.y() = val;
 		self->m_vertex->SetXYZ(pos);
-		self->m_mesh->SetMeshModified(true);
-		self->m_mesh->SetAabbModified(true);
+		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::POSITION_MODIFIED);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -249,8 +248,7 @@ int KX_VertexProxy::pyattr_set_z(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 		MT_Point3 pos(self->m_vertex->getXYZ());
 		pos.z() = val;
 		self->m_vertex->SetXYZ(pos);
-		self->m_mesh->SetMeshModified(true);
-		self->m_mesh->SetAabbModified(true);
+		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::POSITION_MODIFIED);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -265,7 +263,7 @@ int KX_VertexProxy::pyattr_set_u(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 		MT_Point2 uv = self->m_vertex->getUV(0);
 		uv[0] = val;
 		self->m_vertex->SetUV(0, uv);
-		self->m_mesh->SetMeshModified(true);
+		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -280,7 +278,7 @@ int KX_VertexProxy::pyattr_set_v(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 		MT_Point2 uv = self->m_vertex->getUV(0);
 		uv[1] = val;
 		self->m_vertex->SetUV(0, uv);
-		self->m_mesh->SetMeshModified(true);
+		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -295,7 +293,7 @@ int KX_VertexProxy::pyattr_set_u2(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 		MT_Point2 uv = self->m_vertex->getUV(1);
 		uv[0] = val;
 		self->m_vertex->SetUV(1, uv);
-		self->m_mesh->SetMeshModified(true);
+		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -310,7 +308,7 @@ int KX_VertexProxy::pyattr_set_v2(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 		MT_Point2 uv = self->m_vertex->getUV(1);
 		uv[1] = val;
 		self->m_vertex->SetUV(1, uv);
-		self->m_mesh->SetMeshModified(true);
+		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -327,7 +325,7 @@ int KX_VertexProxy::pyattr_set_r(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 		val *= 255.0f;
 		cp[0] = (unsigned char) val;
 		self->m_vertex->SetRGBA(icol);
-		self->m_mesh->SetMeshModified(true);
+		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::COLORS_MODIFIED);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -344,7 +342,7 @@ int KX_VertexProxy::pyattr_set_g(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 		val *= 255.0f;
 		cp[1] = (unsigned char) val;
 		self->m_vertex->SetRGBA(icol);
-		self->m_mesh->SetMeshModified(true);
+		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::COLORS_MODIFIED);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -361,7 +359,7 @@ int KX_VertexProxy::pyattr_set_b(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 		val *= 255.0f;
 		cp[2] = (unsigned char) val;
 		self->m_vertex->SetRGBA(icol);
-		self->m_mesh->SetMeshModified(true);
+		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::COLORS_MODIFIED);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -378,7 +376,7 @@ int KX_VertexProxy::pyattr_set_a(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 		val *= 255.0f;
 		cp[3] = (unsigned char) val;
 		self->m_vertex->SetRGBA(icol);
-		self->m_mesh->SetMeshModified(true);
+		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::COLORS_MODIFIED);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -393,8 +391,7 @@ int KX_VertexProxy::pyattr_set_XYZ(void *self_v, const struct KX_PYATTRIBUTE_DEF
 		if (PyVecTo(value, vec))
 		{
 			self->m_vertex->SetXYZ(vec);
-			self->m_mesh->SetMeshModified(true);
-			self->m_mesh->SetAabbModified(true);
+			self->m_mesh->AppendModifiedFlag(RAS_MeshObject::POSITION_MODIFIED);
 			return PY_SET_ATTR_SUCCESS;
 		}
 	}
@@ -409,7 +406,7 @@ int KX_VertexProxy::pyattr_set_UV(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 		MT_Point2 vec;
 		if (PyVecTo(value, vec)) {
 			self->m_vertex->SetUV(0, vec);
-			self->m_mesh->SetMeshModified(true);
+			self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
 			return PY_SET_ATTR_SUCCESS;
 		}
 	}
@@ -427,7 +424,6 @@ int KX_VertexProxy::pyattr_set_uvs(void *self_v, const struct KX_PYATTRIBUTE_DEF
 			if (PyVecTo(PySequence_GetItem(value, i), vec))
 			{
 				self->m_vertex->SetUV(i, vec);
-				self->m_mesh->SetMeshModified(true);
 			}
 			else
 			{
@@ -436,7 +432,7 @@ int KX_VertexProxy::pyattr_set_uvs(void *self_v, const struct KX_PYATTRIBUTE_DEF
 			}
 		}
 		
-		self->m_mesh->SetMeshModified(true);
+		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -451,7 +447,7 @@ int KX_VertexProxy::pyattr_set_color(void *self_v, const struct KX_PYATTRIBUTE_D
 		if (PyVecTo(value, vec))
 		{
 			self->m_vertex->SetRGBA(vec);
-			self->m_mesh->SetMeshModified(true);
+			self->m_mesh->AppendModifiedFlag(RAS_MeshObject::COLORS_MODIFIED);
 			return PY_SET_ATTR_SUCCESS;
 		}
 	}
@@ -467,7 +463,7 @@ int KX_VertexProxy::pyattr_set_normal(void *self_v, const struct KX_PYATTRIBUTE_
 		if (PyVecTo(value, vec))
 		{
 			self->m_vertex->SetNormal(vec);
-			self->m_mesh->SetMeshModified(true);
+			self->m_mesh->AppendModifiedFlag(RAS_MeshObject::NORMAL_MODIFIED);
 			return PY_SET_ATTR_SUCCESS;
 		}
 	}
@@ -514,7 +510,7 @@ PyObject *KX_VertexProxy::PySetXYZ(PyObject *value)
 		return NULL;
 
 	m_vertex->SetXYZ(vec);
-	m_mesh->SetMeshModified(true);
+	m_mesh->AppendModifiedFlag(RAS_MeshObject::POSITION_MODIFIED);
 	Py_RETURN_NONE;
 }
 
@@ -530,7 +526,7 @@ PyObject *KX_VertexProxy::PySetNormal(PyObject *value)
 		return NULL;
 
 	m_vertex->SetNormal(vec);
-	m_mesh->SetMeshModified(true);
+	m_mesh->AppendModifiedFlag(RAS_MeshObject::NORMAL_MODIFIED);
 	Py_RETURN_NONE;
 }
 
@@ -546,7 +542,7 @@ PyObject *KX_VertexProxy::PySetRGBA(PyObject *value)
 	if (PyLong_Check(value)) {
 		int rgba = PyLong_AsLong(value);
 		m_vertex->SetRGBA(rgba);
-		m_mesh->SetMeshModified(true);
+		m_mesh->AppendModifiedFlag(true);
 		Py_RETURN_NONE;
 	}
 	else {
@@ -554,7 +550,7 @@ PyObject *KX_VertexProxy::PySetRGBA(PyObject *value)
 		if (PyVecTo(value, vec))
 		{
 			m_vertex->SetRGBA(vec);
-			m_mesh->SetMeshModified(true);
+			m_mesh->AppendModifiedFlag(RAS_MeshObject::COLORS_MODIFIED);
 			Py_RETURN_NONE;
 		}
 	}
@@ -576,7 +572,7 @@ PyObject *KX_VertexProxy::PySetUV1(PyObject *value)
 		return NULL;
 
 	m_vertex->SetUV(0, vec);
-	m_mesh->SetMeshModified(true);
+	m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
 	Py_RETURN_NONE;
 }
 
@@ -592,7 +588,7 @@ PyObject *KX_VertexProxy::PySetUV2(PyObject *args)
 		return NULL;
 
 	m_vertex->SetUV(1, vec);
-	m_mesh->SetMeshModified(true);
+	m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
 	Py_RETURN_NONE;
 }
 

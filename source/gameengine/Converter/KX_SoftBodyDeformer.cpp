@@ -91,12 +91,14 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 
 	slot = *mmat->m_slots[(void *)m_gameobj];
 	RAS_DisplayArray *array = slot->GetDisplayArray();
+	RAS_DisplayArray *origarray = mmat->m_baseslot->GetDisplayArray();
 
 	btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
 
 	int index = 0;
 	for (i = 0; i < array->m_vertex.size(); i++, index++) {
 		RAS_TexVert& v = array->m_vertex[i];
+		RAS_TexVert& origvert = origarray->m_vertex[i];
 		btAssert(v.getSoftBodyIndex() >= 0);
 
 		MT_Point3 pt(
@@ -110,6 +112,23 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 		    nodes[v.getSoftBodyIndex()].m_n.getY(),
 		    nodes[v.getSoftBodyIndex()].m_n.getZ());
 		v.SetNormal(normal);
+
+		/// Update vertex data from the original mesh.
+		const short modifiedFlag = m_pMeshObject->GetModifiedFlag();
+		// If the tangent vertex data is modified.
+		if (modifiedFlag & RAS_MeshObject::TANGENT_MODIFIED) {
+			v.SetTangent(origvert.getTangent());
+		}
+		// If the tangent vertex data is modified.
+		if (modifiedFlag & RAS_MeshObject::UVS_MODIFIED) {
+			for (unsigned int uv = 0; uv < 8; ++uv) {
+				v.SetUV(uv, origvert.getUV(uv));
+			}
+		}
+		// If the colors vertex data is modified.
+		if (modifiedFlag & RAS_MeshObject::COLORS_MODIFIED) {
+			v.SetRGBA(*((unsigned int *)origvert.getRGBA()));
+		}
 
 		if (!m_gameobj->GetAutoUpdateBounds()) {
 			continue;

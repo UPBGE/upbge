@@ -55,8 +55,7 @@ class RAS_Polygon;
 class RAS_MeshObject
 {
 private:
-	bool m_bMeshModified;
-	bool m_aabbModified;
+	short m_modifiedFlag;
 	bool m_needUpdateAabb;
 	MT_Point3 m_aabbMax;
 	MT_Point3 m_aabbMin;
@@ -100,22 +99,26 @@ public:
 	void SetName(const char *name);
 	STR_String& GetName();
 
-	// modification state
-	bool MeshModified();
-	void SetMeshModified(bool v)
-	{
-		m_bMeshModified = v;
-	}
+	/// Modification categories.
+	enum {
+		POSITION_MODIFIED = 1 << 0, // Vertex position modified.
+		NORMAL_MODIFIED = 1 << 1, // Vertex normal modified.
+		UVS_MODIFIED = 1 << 2, // Vertex UVs modified.
+		COLORS_MODIFIED = 1 << 3, // Vertex colors modified.
+		TANGENT_MODIFIED = 1 << 4, // Vertex tangent modified.
+		AABB_MODIFIED = POSITION_MODIFIED,
+		MESH_MODIFIED = POSITION_MODIFIED | NORMAL_MODIFIED | UVS_MODIFIED |
+						COLORS_MODIFIED | TANGENT_MODIFIED
+	};
 
-	bool AabbModified() const
-	{
-		return m_aabbModified;
-	}
-	void SetAabbModified(bool v)
-	{
-		m_aabbModified = v;
-		m_needUpdateAabb = v;
-	}
+	/// Return mesh modified flag.
+	short GetModifiedFlag() const;
+	/** Mix mesh modified flag with a new flag.
+	 * \param flag The flag to mix.
+	 */
+	void AppendModifiedFlag(short flag);
+	/// Set the mesh modified flag.
+	void SetModifiedFlag(short flag);
 
 	// original blender mesh
 	Mesh *GetMesh()

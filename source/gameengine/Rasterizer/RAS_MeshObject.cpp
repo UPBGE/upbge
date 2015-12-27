@@ -102,8 +102,7 @@ struct RAS_MeshObject::fronttoback
 STR_String RAS_MeshObject::s_emptyname = "";
 
 RAS_MeshObject::RAS_MeshObject(Mesh *mesh)
-	:m_bMeshModified(true),
-	m_aabbModified(true),
+	:m_modifiedFlag(MESH_MODIFIED),
 	m_needUpdateAabb(true),
 	m_mesh(mesh)
 {
@@ -128,11 +127,6 @@ RAS_MeshObject::~RAS_MeshObject()
 	m_sharedvertex_map.clear();
 	m_Polygons.clear();
 	m_materials.clear();
-}
-
-bool RAS_MeshObject::MeshModified()
-{
-	return m_bMeshModified;
 }
 
 void RAS_MeshObject::UpdateAabb()
@@ -236,6 +230,24 @@ void RAS_MeshObject::SetName(const char *name)
 STR_String& RAS_MeshObject::GetName()
 {
 	return m_name;
+}
+
+short RAS_MeshObject::GetModifiedFlag() const
+{
+	return m_modifiedFlag;
+}
+
+void RAS_MeshObject::AppendModifiedFlag(short flag)
+{
+	SetModifiedFlag(m_modifiedFlag | flag);
+}
+
+void RAS_MeshObject::SetModifiedFlag(short flag)
+{
+	m_modifiedFlag = flag;
+	if (m_modifiedFlag & AABB_MODIFIED) {
+		m_needUpdateAabb = true;
+	}
 }
 
 const STR_String& RAS_MeshObject::GetTextureName(unsigned int matid)

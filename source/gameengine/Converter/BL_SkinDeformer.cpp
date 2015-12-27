@@ -148,6 +148,46 @@ void BL_SkinDeformer::Relink(CTR_Map<CTR_HashedPtr, void *> *map)
 
 bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *mat)
 {
+	// if we don't use a vertex array we does nothing.
+	if (!UseVertexArray() || !mat) {
+		return false;
+	}
+
+	const short modifiedFlag = m_pMeshObject->GetModifiedFlag();
+	// No modifications ?
+	if (modifiedFlag == 0) {
+		return false;
+	}
+
+	RAS_MeshMaterial *mmat = m_pMeshObject->GetMeshMaterial(mat);
+	if (!mmat->m_slots[(void *)m_gameobj])
+		return false;
+
+	RAS_MeshSlot *slot = *mmat->m_slots[(void *)m_gameobj];
+	RAS_DisplayArray *array = slot->GetDisplayArray();
+	RAS_DisplayArray *origarray = mmat->m_baseslot->GetDisplayArray();
+
+	/// Update vertex data from the original mesh.
+	for (unsigned int i = 0; i < array->m_vertex.size(); i++) {
+		RAS_TexVert& vert = array->m_vertex[i];
+		RAS_TexVert& origvert = origarray->m_vertex[i];
+
+		// If the tangent vertex data is modified.
+		if (modifiedFlag & RAS_MeshObject::TANGENT_MODIFIED) {
+			vert.SetTangent(origvert.getTangent());
+		}
+		// If the UVs vertex data is modified.
+		if (modifiedFlag & RAS_MeshObject::UVS_MODIFIED) {
+			for (unsigned int uv = 0; uv < 8; ++uv) {
+				vert.SetUV(uv, origvert.getUV(uv));
+			}
+		}
+		// If the colors vertex data is modified.
+		if (modifiedFlag & RAS_MeshObject::COLORS_MODIFIED) {
+			vert.SetRGBA(*((unsigned int *)origvert.getRGBA()));
+		}
+	}
+
 	// We do everything in UpdateInternal() now so we can thread it.
 	return false;
 }

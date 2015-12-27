@@ -511,7 +511,7 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 
 	if (rasty->QueryLists()) {
 		if (ms.m_DisplayList)
-			ms.m_DisplayList->SetModified(ms.m_mesh->MeshModified());
+			ms.m_DisplayList->SetModified(ms.m_mesh->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED);
 	}
 
 	// verify if we can use display list, not for deformed object, and

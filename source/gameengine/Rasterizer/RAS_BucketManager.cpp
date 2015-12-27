@@ -265,15 +265,13 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 		for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
 			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
 				RAS_MeshObject *meshobj = mit->m_mesh;
-				meshobj->SetMeshModified(false);
-				meshobj->SetAabbModified(false);
+				meshobj->SetModifiedFlag(0);
 			}
 		}
 		for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit) {
 			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
 				RAS_MeshObject *meshobj = mit->m_mesh;
-				meshobj->SetMeshModified(false);
-				meshobj->SetAabbModified(false);
+				meshobj->SetModifiedFlag(0);
 			}
 		}
 	}
