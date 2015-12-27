@@ -1426,7 +1426,7 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 		SG_BBox &box = gameobj->GetSGNode()->BBox();
 		const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
 		const MT_Scalar radius = fabs(scale[scale.closestAxis()] * box.GetRadius());
-		const MT_Point3 center = gameobj->NodeGetWorldPosition() + box.GetCenter();
+		const MT_Point3 center = gameobj->NodeGetWorldPosition() + (box.GetCenter() * scale) * gameobj->NodeGetWorldOrientation();
 		switch (cam->SphereInsideFrustum(center, radius))
 		{
 			case KX_Camera::INSIDE:
