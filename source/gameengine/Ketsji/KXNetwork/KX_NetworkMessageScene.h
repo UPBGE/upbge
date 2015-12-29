@@ -88,7 +88,7 @@ public:
 	 * \param to The object(s) name.
 	 * \param subject The message subject/filter.
 	 */
-	const std::vector<Message>& FindMessages(STR_String to, STR_String subject);
+	const std::vector<Message> FindMessages(STR_String to, STR_String subject);
 
 	/// Clear all messages
 	void ClearMessages();
