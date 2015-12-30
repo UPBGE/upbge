@@ -59,14 +59,13 @@
 #include "GPU_draw.h"
 #include "GPU_glew.h"
 #include "GPU_shader.h"
+#include "GPU_basic_shader.h"
 
 #include "WM_api.h"
 
 #include <string.h>
 #include <limits.h>
 #include <math.h>
-
-extern GLubyte stipple_quarttone[128]; /* glutil.c, bad level data */
 
 typedef struct {
 	DerivedMesh dm;
@@ -749,6 +748,8 @@ static void cdDM_drawMappedFaces(
 				draw_option = setMaterial(bufmat->mat_nr + 1, NULL);
 
 			if (draw_option != DM_DRAW_OPTION_SKIP) {
+				DMDrawOption last_draw_option = DM_DRAW_OPTION_NORMAL;
+
 				for (i = 0; i < totpoly; i++) {
 					int actualFace = next_actualFace;
 					int flush = 0;
@@ -767,17 +768,12 @@ static void cdDM_drawMappedFaces(
 						}
 					}
 
-					if (draw_option == DM_DRAW_OPTION_STIPPLE) {
-						glEnable(GL_POLYGON_STIPPLE);
-						glPolygonStipple(stipple_quarttone);
-					}
-
 					/* Goal is to draw as long of a contiguous triangle
 					 * array as possible, so draw when we hit either an
 					 * invisible triangle or at the end of the array */
 
 					/* flush buffer if current triangle isn't drawable or it's last triangle... */
-					flush = (ELEM(draw_option, DM_DRAW_OPTION_SKIP, DM_DRAW_OPTION_STIPPLE)) || (i == totpoly - 1);
+					flush = (draw_option != last_draw_option) || (i == totpoly - 1);
 
 					if (!flush && compareDrawOptions) {
 						flush |= compareDrawOptions(userData, actualFace, next_actualFace) == 0;
@@ -787,18 +783,27 @@ static void cdDM_drawMappedFaces(
 					tot_element += tot_tri_verts;
 
 					if (flush) {
-						if (!ELEM(draw_option, DM_DRAW_OPTION_SKIP, DM_DRAW_OPTION_STIPPLE))
+						if (draw_option != DM_DRAW_OPTION_SKIP) {
 							tot_drawn += tot_tri_verts;
+
+							if (last_draw_option != draw_option) {
+								if (draw_option == DM_DRAW_OPTION_STIPPLE) {
+									GPU_basic_shader_bind(GPU_SHADER_STIPPLE | GPU_SHADER_USE_COLOR);
+									GPU_basic_shader_stipple(GPU_SHADER_STIPPLE_QUARTTONE);
+								}
+								else {
+									GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
+								}
+							}
+						}
 
 						if (tot_drawn) {
 							GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, bufmat->start + start_element, tot_drawn);
 							tot_drawn = 0;
 						}
 
+						last_draw_option = draw_option;
 						start_element = tot_element;
-
-						if (draw_option == DM_DRAW_OPTION_STIPPLE)
-							glDisable(GL_POLYGON_STIPPLE);
 					}
 					else {
 						tot_drawn += tot_tri_verts;
@@ -808,6 +813,7 @@ static void cdDM_drawMappedFaces(
 		}
 	}
 
+	GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
 	glShadeModel(GL_FLAT);
 
 	GPU_buffers_unbind();

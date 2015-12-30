@@ -2648,10 +2648,7 @@ void MESH_OT_select_linked(wmOperatorType *ot)
 
 static int edbm_select_linked_pick_exec(bContext *C, wmOperator *op);
 
-static void edbm_select_linked_pick_ex(
-        BMEditMesh *em,
-        BMVert *eve, BMEdge *eed, BMFace *efa,
-        bool sel, int delimit)
+static void edbm_select_linked_pick_ex(BMEditMesh *em, BMElem *ele, bool sel, int delimit)
 {
 	BMesh *bm = em->bm;
 	BMWalker walker;
@@ -2664,7 +2661,8 @@ static void edbm_select_linked_pick_ex(
 
 	/* Note: logic closely matches 'edbm_select_linked_exec', keep in sync */
 
-	if ((em->selectmode & SCE_SELECT_VERTEX) && eve) {
+	if (ele->head.htype == BM_VERT) {
+		BMVert *eve = (BMVert *)ele;
 
 		BMW_init(&walker, bm, delimit ? BMW_LOOP_SHELL_WIRE : BMW_VERT_SHELL,
 		         BMW_MASK_NOP, delimit ? BMO_ELE_TAG : BMW_MASK_NOP, BMW_MASK_NOP,
@@ -2696,7 +2694,8 @@ static void edbm_select_linked_pick_ex(
 
 		EDBM_selectmode_flush(em);
 	}
-	else if ((em->selectmode & SCE_SELECT_EDGE) && eed) {
+	else if (ele->head.htype == BM_EDGE) {
+		BMEdge *eed = (BMEdge *)ele;
 
 		BMW_init(&walker, bm, delimit ? BMW_LOOP_SHELL_WIRE : BMW_VERT_SHELL,
 		         BMW_MASK_NOP, delimit ? BMO_ELE_TAG : BMW_MASK_NOP, BMW_MASK_NOP,
@@ -2728,7 +2727,8 @@ static void edbm_select_linked_pick_ex(
 
 		EDBM_selectmode_flush(em);
 	}
-	else if ((em->selectmode & SCE_SELECT_FACE) && efa) {
+	else if (ele->head.htype == BM_FACE) {
+		BMFace *efa = (BMFace *)ele;
 
 		BMW_init(&walker, bm, BMW_ISLAND,
 		         BMW_MASK_NOP, delimit ? BMO_ELE_TAG : BMW_MASK_NOP, BMW_MASK_NOP,
@@ -2795,24 +2795,13 @@ static int edbm_select_linked_pick_invoke(bContext *C, wmOperator *op, const wmE
 	int delimit = RNA_enum_get(op->ptr, "delimit");
 #endif
 
-	edbm_select_linked_pick_ex(em, eve, eed, efa, sel, delimit);
+	BMElem *ele = EDBM_elem_from_selectmode(em, eve, eed, efa);
+
+	edbm_select_linked_pick_ex(em, ele, sel, delimit);
 
 	/* to support redo */
-	if ((em->selectmode & SCE_SELECT_VERTEX) && eve) {
-		BM_mesh_elem_index_ensure(bm, BM_VERT);
-		index = BM_elem_index_get(eve);
-	}
-	else if ((em->selectmode & SCE_SELECT_EDGE) && eed) {
-		BM_mesh_elem_index_ensure(bm, BM_EDGE);
-		index = BM_elem_index_get(eed) + bm->totvert;
-	}
-	else if ((em->selectmode & SCE_SELECT_FACE) && efa) {
-		BM_mesh_elem_index_ensure(bm, BM_FACE);
-		index = BM_elem_index_get(efa) + bm->totvert + bm->totedge;
-	}
-	else {
-		index = -1;
-	}
+	BM_mesh_elem_index_ensure(bm, ele->head.htype);
+	index = EDBM_elem_to_index_any(em, ele);
 
 	RNA_int_set(op->ptr, "index", index);
 
@@ -2828,9 +2817,6 @@ static int edbm_select_linked_pick_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMesh *bm = em->bm;
 	int index;
-	BMVert *eve = NULL;
-	BMEdge *eed = NULL;
-	BMFace *efa = NULL;
 	const bool sel = !RNA_boolean_get(op->ptr, "deselect");
 
 	index = RNA_int_get(op->ptr, "index");
@@ -2838,17 +2824,7 @@ static int edbm_select_linked_pick_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	if (index < bm->totvert) {
-		eve = BM_vert_at_index_find_or_table(bm, index);
-	}
-	else if (index < (bm->totvert + bm->totedge)) {
-		index -= bm->totvert;
-		eed = BM_edge_at_index_find_or_table(bm, index);
-	}
-	else if (index < (bm->totvert + bm->totedge + bm->totface)) {
-		index -= (bm->totvert + bm->totedge);
-		efa = BM_face_at_index_find_or_table(bm, index);
-	}
+	BMElem *ele = EDBM_elem_from_index_any(em, index);
 
 #ifdef USE_LINKED_SELECT_DEFAULT_HACK
 	int delimit = select_linked_delimit_default_from_op(op, em);
@@ -2856,7 +2832,7 @@ static int edbm_select_linked_pick_exec(bContext *C, wmOperator *op)
 	int delimit = RNA_enum_get(op->ptr, "delimit");
 #endif
 
-	edbm_select_linked_pick_ex(em, eve, eed, efa, sel, delimit);
+	edbm_select_linked_pick_ex(em, ele, sel, delimit);
 
 	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit);
 
@@ -3162,7 +3138,9 @@ static bool bm_edge_is_select_isolated(BMEdge *e)
 /* Walk all reachable elements of the same type as h_act in breadth-first
  * order, starting from h_act. Deselects elements if the depth when they
  * are reached is not a multiple of "nth". */
-static void walker_deselect_nth(BMEditMesh *em, int nth, int skip, int offset, BMHeader *h_act)
+static void walker_deselect_nth(
+        BMEditMesh *em, const struct CheckerIntervalParams *op_params,
+        BMHeader *h_act)
 {
 	BMElem *ele;
 	BMesh *bm = em->bm;
@@ -3229,7 +3207,7 @@ static void walker_deselect_nth(BMEditMesh *em, int nth, int skip, int offset, B
 		if (!BM_elem_flag_test(ele, BM_ELEM_TAG)) {
 			/* Deselect elements that aren't at "nth" depth from active */
 			const int depth = BMW_current_depth(&walker) - 1;
-			if ((offset + depth) % (skip + nth) >= skip) {
+			if (WM_operator_properties_checker_interval_test(op_params, depth)) {
 				BM_elem_select_set(bm, ele, false);
 			}
 			BM_elem_flag_enable(ele, BM_ELEM_TAG);
@@ -3296,7 +3274,7 @@ static void deselect_nth_active(BMEditMesh *em, BMVert **r_eve, BMEdge **r_eed, 
 	}
 }
 
-static bool edbm_deselect_nth(BMEditMesh *em, int nth, int skip, int offset)
+static bool edbm_deselect_nth(BMEditMesh *em, const struct CheckerIntervalParams *op_params)
 {
 	BMVert *v;
 	BMEdge *e;
@@ -3305,15 +3283,15 @@ static bool edbm_deselect_nth(BMEditMesh *em, int nth, int skip, int offset)
 	deselect_nth_active(em, &v, &e, &f);
 
 	if (v) {
-		walker_deselect_nth(em, nth, skip, offset, &v->head);
+		walker_deselect_nth(em, op_params, &v->head);
 		return true;
 	}
 	else if (e) {
-		walker_deselect_nth(em, nth, skip, offset, &e->head);
+		walker_deselect_nth(em, op_params, &e->head);
 		return true;
 	}
 	else if (f) {
-		walker_deselect_nth(em, nth, skip, offset, &f->head);
+		walker_deselect_nth(em, op_params, &f->head);
 		return true;
 	}
 
@@ -3324,14 +3302,11 @@ static int edbm_select_nth_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	const int nth = RNA_int_get(op->ptr, "nth") - 1;
-	const int skip = RNA_int_get(op->ptr, "skip");
-	int offset = RNA_int_get(op->ptr, "offset");
+	struct CheckerIntervalParams op_params;
 
-	/* so input of offset zero ends up being (nth - 1) */
-	offset = mod_i(offset, nth + skip);
+	WM_operator_properties_checker_interval_from_op(op, &op_params);
 
-	if (edbm_deselect_nth(em, nth, skip, offset) == false) {
+	if (edbm_deselect_nth(em, &op_params) == false) {
 		BKE_report(op->reports, RPT_ERROR, "Mesh has no active vert/edge/face");
 		return OPERATOR_CANCELLED;
 	}
@@ -3356,9 +3331,7 @@ void MESH_OT_select_nth(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_int(ot->srna, "nth", 2, 2, INT_MAX, "Nth Selection", "", 2, 100);
-	RNA_def_int(ot->srna, "skip", 1, 1, INT_MAX, "Skip", "", 1, 100);
-	RNA_def_int(ot->srna, "offset", 0, INT_MIN, INT_MAX, "Offset", "", -100, 100);
+	WM_operator_properties_checker_interval(ot, false);
 }
 
 void em_setup_viewcontext(bContext *C, ViewContext *vc)

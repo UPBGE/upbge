@@ -113,7 +113,7 @@ void EDBM_redo_state_free(BMBackup *backup, BMEditMesh *em, int recalctess)
  * see: [#31811] */
 void EDBM_mesh_ensure_valid_dm_hack(Scene *scene, BMEditMesh *em)
 {
-	if ((((ID *)em->ob->data)->flag & LIB_ID_RECALC) ||
+	if ((((ID *)em->ob->data)->tag & LIB_TAG_ID_RECALC) ||
 	    (em->ob->recalc & OB_RECALC_DATA))
 	{
 		/* since we may not have done selection flushing */
@@ -1431,7 +1431,69 @@ int EDBM_view3d_poll(bContext *C)
 	return 0;
 }
 
+BMElem *EDBM_elem_from_selectmode(BMEditMesh *em, BMVert *eve, BMEdge *eed, BMFace *efa)
+{
+	BMElem *ele = NULL;
 
+	if ((em->selectmode & SCE_SELECT_VERTEX) && eve) {
+		ele = (BMElem *)eve;
+	}
+	else if ((em->selectmode & SCE_SELECT_EDGE) && eed) {
+		ele = (BMElem *)eed;
+	}
+	else if ((em->selectmode & SCE_SELECT_FACE) && efa) {
+		ele = (BMElem *)efa;
+	}
+
+	return ele;
+}
+
+/**
+ * Used when we want to store a single index for any vert/edge/face.
+ *
+ * Intended for use with operators.
+ */
+int EDBM_elem_to_index_any(BMEditMesh *em, BMElem *ele)
+{
+	BMesh *bm = em->bm;
+	int index = BM_elem_index_get(ele);
+
+	if (ele->head.htype == BM_VERT) {
+		BLI_assert(!(bm->elem_index_dirty & BM_VERT));
+	}
+	else if (ele->head.htype == BM_EDGE) {
+		BLI_assert(!(bm->elem_index_dirty & BM_EDGE));
+		index += bm->totvert;
+	}
+	else if (ele->head.htype == BM_FACE) {
+		BLI_assert(!(bm->elem_index_dirty & BM_FACE));
+		index += bm->totvert + bm->totedge;
+	}
+	else {
+		BLI_assert(0);
+	}
+
+	return index;
+}
+
+BMElem *EDBM_elem_from_index_any(BMEditMesh *em, int index)
+{
+	BMesh *bm = em->bm;
+
+	if (index < bm->totvert) {
+		return (BMElem *)BM_vert_at_index_find_or_table(bm, index);
+	}
+	index -= bm->totvert;
+	if (index < bm->totedge) {
+		return (BMElem *)BM_edge_at_index_find_or_table(bm, index);
+	}
+	index -= bm->totedge;
+	if (index < bm->totface) {
+		return (BMElem *)BM_face_at_index_find_or_table(bm, index);
+	}
+
+	return NULL;
+}
 
 /* -------------------------------------------------------------------- */
 /* BMBVH functions */

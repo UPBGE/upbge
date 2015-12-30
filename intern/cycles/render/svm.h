@@ -52,11 +52,48 @@ public:
 
 class SVMCompiler {
 public:
+	struct Summary {
+		Summary();
+
+		/* Number of SVM nodes shader was compiled into. */
+		int num_svm_nodes;
+
+		/* Peak stack usage during shader evaluation. */
+		int peak_stack_usage;
+
+		/* Time spent on surface graph finalization. */
+		double time_finalize;
+
+		/* Time spent on bump graph finalization. */
+		double time_finalize_bump;
+
+		/* Time spent on generating SVM nodes for surface shader. */
+		double time_generate_surface;
+
+		/* Time spent on generating SVM nodes for bump shader. */
+		double time_generate_bump;
+
+		/* Time spent on generating SVM nodes for volume shader. */
+		double time_generate_volume;
+
+		/* Time spent on generating SVM nodes for displacement shader. */
+		double time_generate_displacement;
+
+		/* Total time spent on all routines. */
+		double time_total;
+
+		/* A full multiline description of the state of the compiler after
+		 * compilation.
+		 */
+		string full_report() const;
+	};
+
 	SVMCompiler(ShaderManager *shader_manager, ImageManager *image_manager);
 	void compile(Scene *scene,
 	             Shader *shader,
 	             vector<int4>& svm_nodes,
-	             int index);
+	             int index,
+	             Summary *summary = NULL);
 
 	void stack_assign(ShaderOutput *output);
 	void stack_assign(ShaderInput *input);
