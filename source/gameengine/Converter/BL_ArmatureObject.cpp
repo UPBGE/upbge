@@ -495,9 +495,6 @@ void BL_ArmatureObject::ApplyPose()
 		}
 		m_lastapplyframe = m_lastframe;
 	}
-
-	// Debug draw all bones.
-	DrawDebugArmature();
 }
 
 void BL_ArmatureObject::RestorePose()
@@ -578,12 +575,13 @@ bool BL_ArmatureObject::GetBoneMatrix(Bone* bone, MT_Matrix4x4& matrix)
 	return (pchan != NULL);
 }
 
+bool BL_ArmatureObject::GetDrawDebug() const
+{
+	return m_drawDebug;
+}
+
 void BL_ArmatureObject::DrawDebugArmature()
 {
-	if (!m_drawDebug && !KX_GetActiveEngine()->GetShowArmatures()) {
-		return;
-	}
-
 	const MT_Vector3& scale = NodeGetWorldScaling();
 	const MT_Matrix3x3& rot = NodeGetWorldOrientation();
 	const MT_Point3& pos = NodeGetWorldPosition();

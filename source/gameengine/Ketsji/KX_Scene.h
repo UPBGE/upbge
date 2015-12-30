@@ -529,7 +529,7 @@ public:
 	void SetWorldInfo(class KX_WorldInfo* wi);
 	KX_WorldInfo* GetWorldInfo();
 	void CalculateVisibleMeshes(RAS_IRasterizer* rasty, KX_Camera *cam, int layer=0);
-	void DrawBoundingBox(RAS_IRasterizer *rasty);
+	void DrawDebug(RAS_IRasterizer *rasty);
 	KX_Camera* GetpCamera();
 	KX_BlenderSceneConverter *GetSceneConverter() { return m_sceneConverter; }
 

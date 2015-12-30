@@ -1163,9 +1163,8 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
 	SG_SetActiveStage(SG_STAGE_RENDER);
 
-	if (m_showBoundingBox) {
-		scene->DrawBoundingBox(m_rasterizer);
-	}
+	// Draw debug infos like bouding box, armature ect.. if enabled.
+	scene->DrawDebug(m_rasterizer);
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());

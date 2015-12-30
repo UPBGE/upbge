@@ -89,6 +89,7 @@ public:
 	Object* GetOrigArmatureObject() {return m_origObjArma;}
 
 	int GetVertDeformType() {return m_vert_deform_type;}
+	bool GetDrawDebug() const;
 	void DrawDebugArmature();
 	// for constraint python API
 	void LoadConstraints(KX_BlenderSceneConverter* converter);
