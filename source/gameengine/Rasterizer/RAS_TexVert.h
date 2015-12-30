@@ -42,9 +42,6 @@
 #include "MEM_guardedalloc.h"
 #endif
 
-static MT_Point3 g_pt3;
-static MT_Point2 g_pt2;
-
 class RAS_TexVert
 {
 
@@ -135,7 +132,7 @@ public:
 	void SetFlag(const short flag);
 
 	void SetRGBA(const MT_Vector4& rgba);
-	const MT_Point3& xyz();
+	MT_Point3 xyz() const;
 
 	void Transform(const MT_Matrix4x4& mat,
 				   const MT_Matrix4x4& nmat);

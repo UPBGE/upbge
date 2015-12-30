@@ -55,10 +55,9 @@ RAS_TexVert::RAS_TexVert(const MT_Point3& xyz,
 	}
 }
 
-const MT_Point3& RAS_TexVert::xyz()
+MT_Point3 RAS_TexVert::xyz() const
 {
-	g_pt3.setValue(m_localxyz);
-	return g_pt3;
+	return MT_Point3(m_localxyz);
 }
 
 void RAS_TexVert::SetRGBA(const MT_Vector4& rgba)
