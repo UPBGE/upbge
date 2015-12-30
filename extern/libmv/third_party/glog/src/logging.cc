@@ -35,7 +35,6 @@
 #include <assert.h>
 #include <iomanip>
 #include <string>
-#include <algorithm>
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>  // For _exit.
 #endif
@@ -87,6 +86,10 @@ using std::perror;
 
 #ifdef __QNX__
 using std::fdopen;
+#endif
+
+#ifdef _WIN32
+#define fdopen _fdopen
 #endif
 
 // There is no thread annotation support.
@@ -161,6 +164,8 @@ static const char* DefaultLogDir() {
   }
   return "";
 }
+
+GLOG_DEFINE_int32(logfile_mode, 0664, "Log file mode/permissions.");
 
 GLOG_DEFINE_string(log_dir, DefaultLogDir(),
                    "If specified, logfiles are written into this directory instead "
@@ -254,6 +259,7 @@ static bool TerminalSupportsColor() {
       !strcmp(term, "xterm") ||
       !strcmp(term, "xterm-color") ||
       !strcmp(term, "xterm-256color") ||
+      !strcmp(term, "screen-256color") ||
       !strcmp(term, "screen") ||
       !strcmp(term, "linux") ||
       !strcmp(term, "cygwin");
@@ -295,7 +301,7 @@ static GLogColor SeverityToColor(LogSeverity severity) {
 #ifdef OS_WINDOWS
 
 // Returns the character attribute for the given color.
-WORD GetColorAttribute(GLogColor color) {
+static WORD GetColorAttribute(GLogColor color) {
   switch (color) {
     case COLOR_RED:    return FOREGROUND_RED;
     case COLOR_GREEN:  return FOREGROUND_GREEN;
@@ -570,7 +576,7 @@ inline void LogDestination::FlushLogFilesUnsafe(int min_severity) {
   // assume we have the log_mutex or we simply don't care
   // about it
   for (int i = min_severity; i < NUM_SEVERITIES; i++) {
-    LogDestination* log = log_destination(i);
+    LogDestination* log = log_destinations_[i];
     if (log != NULL) {
       // Flush the base fileobject_ logger directly instead of going
       // through any wrappers to reduce chance of deadlock.
@@ -817,6 +823,8 @@ void LogDestination::DeleteLogDestinations() {
     delete log_destinations_[severity];
     log_destinations_[severity] = NULL;
   }
+  MutexLock l(&sink_mutex_);
+  delete sinks_;
 }
 
 namespace {
@@ -897,7 +905,7 @@ bool LogFileObject::CreateLogfile(const string& time_pid_string) {
   string string_filename = base_filename_+filename_extension_+
                            time_pid_string;
   const char* filename = string_filename.c_str();
-  int fd = open(filename, O_WRONLY | O_CREAT | O_EXCL, 0664);
+  int fd = open(filename, O_WRONLY | O_CREAT | O_EXCL, FLAGS_logfile_mode);
   if (fd == -1) return false;
 #ifdef HAVE_FCNTL
   // Mark the file close-on-exec. We don't really care if this fails
@@ -1669,9 +1677,7 @@ void LogToStderr() {
 namespace base {
 namespace internal {
 
-namespace {
-
-bool GetExitOnDFatal() {
+static bool GetExitOnDFatal() {
   MutexLock l(&log_mutex);
   return exit_on_dfatal;
 }
@@ -1686,12 +1692,10 @@ bool GetExitOnDFatal() {
 // and the stack trace is not recorded.  The LOG(FATAL) *will* still
 // exit the program.  Since this function is used only in testing,
 // these differences are acceptable.
-void SetExitOnDFatal(bool value) {
+static void SetExitOnDFatal(bool value) {
   MutexLock l(&log_mutex);
   exit_on_dfatal = value;
 }
-
-}  // namespace
 
 }  // namespace internal
 }  // namespace base
