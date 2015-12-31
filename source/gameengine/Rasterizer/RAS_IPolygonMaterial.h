@@ -149,7 +149,7 @@ public:
 	{
 		return false;
 	}
-	virtual void ActivateMeshSlot(const class RAS_MeshSlot & ms, RAS_IRasterizer *rasty) const
+	virtual void ActivateMeshSlot(class RAS_MeshSlot *ms, RAS_IRasterizer *rasty) const
 	{
 	}
 

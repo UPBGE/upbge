@@ -439,7 +439,7 @@ void RAS_MeshObject::EndConversion()
 #endif
 }
 
-void RAS_MeshObject::SortPolygons(RAS_MeshSlot& ms, const MT_Transform &transform)
+void RAS_MeshObject::SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transform)
 {
 	// Limitations: sorting is quite simple, and handles many
 	// cases wrong, partially due to polygons being sorted per
@@ -457,7 +457,7 @@ void RAS_MeshObject::SortPolygons(RAS_MeshSlot& ms, const MT_Transform &transfor
 	// to avoid excessive state changes while drawing. e) would
 	// require splitting polygons.
 
-	RAS_DisplayArray *array = ms.GetDisplayArray();
+	RAS_DisplayArray *array = ms->GetDisplayArray();
 
 	unsigned int nvert = 3;
 	unsigned int totpoly = array->m_index.size() / nvert;

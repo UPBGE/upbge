@@ -45,7 +45,7 @@ class RAS_ListRasterizer : public RAS_OpenGLRasterizer
 {
 	RAS_ArrayLists mArrayLists;
 
-	RAS_ListSlot *FindOrAdd(class RAS_MeshSlot& ms);
+	RAS_ListSlot *FindOrAdd(class RAS_MeshSlot *ms);
 	void ReleaseAlloc();
 
 public:
@@ -55,7 +55,7 @@ public:
 
 	virtual void BindPrimitives(RAS_DisplayArray *array);
 	virtual void UnbindPrimitives(RAS_DisplayArray *array);
-	virtual void IndexPrimitives(class RAS_MeshSlot& ms);
+	virtual void IndexPrimitives(class RAS_MeshSlot *ms);
 
 	virtual bool Init();
 	virtual void Exit();

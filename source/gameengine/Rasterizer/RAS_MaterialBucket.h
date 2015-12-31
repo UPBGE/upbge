@@ -234,11 +234,11 @@ public:
 
 	// Rendering
 	bool ActivateMaterial(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);
-	void RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_MeshSlot& ms);
+	void RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_MeshSlot *ms);
 
 	// Mesh Slot Access
-	list<RAS_MeshSlot>::iterator msBegin();
-	list<RAS_MeshSlot>::iterator msEnd();
+	RAS_MeshSlotList::iterator msBegin();
+	RAS_MeshSlotList::iterator msEnd();
 
 	RAS_MeshSlot *AddMesh();
 	RAS_MeshSlot *CopyMesh(RAS_MeshSlot *ms);
@@ -253,7 +253,7 @@ public:
 	RAS_DisplayArrayBucketList& GetDisplayArrayBucketList();
 
 private:
-	list<RAS_MeshSlot> m_meshSlots; // all the mesh slots
+	RAS_MeshSlotList m_meshSlots; // all the mesh slots
 	RAS_IPolyMaterial *m_material;
 	RAS_DisplayArrayBucketList m_displayArrayBucketList;
 

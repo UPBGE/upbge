@@ -94,18 +94,18 @@ void RAS_StorageVA::UnbindPrimitives(RAS_DisplayArray *array)
 	}
 }
 
-void RAS_StorageVA::IndexPrimitives(class RAS_MeshSlot& ms)
+void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 {
 	static const GLsizei stride = sizeof(RAS_TexVert);
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
-	RAS_DisplayArray *array = ms.GetDisplayArray();
+	RAS_DisplayArray *array = ms->GetDisplayArray();
 	RAS_TexVert *vertexarray = array->m_vertex.data();
 	unsigned short *indexarray = array->m_index.data();
 
 	// colors
 	if (!wireframe) {
-		if (ms.m_bObjectColor) {
-			const MT_Vector4& rgba = ms.m_RGBAcolor;
+		if (ms->m_bObjectColor) {
+			const MT_Vector4& rgba = ms->m_RGBAcolor;
 
 			glDisableClientState(GL_COLOR_ARRAY);
 			glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);

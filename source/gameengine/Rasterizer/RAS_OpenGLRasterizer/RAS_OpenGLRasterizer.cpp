@@ -676,10 +676,10 @@ const MT_Matrix4x4& RAS_OpenGLRasterizer::GetViewInvMatrix() const
 	return m_viewinvmatrix;
 }
 
-void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms, class RAS_IPolyMaterial *polymat)
+void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat)
 {
-	bool obcolor = ms.m_bObjectColor;
-	MT_Vector4& rgba = ms.m_RGBAcolor;
+	bool obcolor = ms->m_bObjectColor;
+	MT_Vector4& rgba = ms->m_RGBAcolor;
 
 	const STR_String& mytext = ((CValue *)m_clientobject)->GetPropertyText("Text");
 
@@ -694,7 +694,7 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms, class RAS_IP
 	RAS_TexVert *vertex;
 	size_t i, j, numvert;
 
-	RAS_DisplayArray *array = ms.GetDisplayArray();
+	RAS_DisplayArray *array = ms->GetDisplayArray();
 	numvert = 3;
 
 	// triangle and quad text drawing
@@ -772,9 +772,9 @@ void RAS_OpenGLRasterizer::UnbindPrimitives(RAS_DisplayArray *array)
 	m_storage->UnbindPrimitives(array);
 }
 
-void RAS_OpenGLRasterizer::IndexPrimitives(RAS_MeshSlot& ms)
+void RAS_OpenGLRasterizer::IndexPrimitives(RAS_MeshSlot *ms)
 {
-	if (ms.m_pDerivedMesh)
+	if (ms->m_pDerivedMesh)
 		DrawDerivedMesh(ms);
 	else
 		m_storage->IndexPrimitives(ms);
@@ -829,15 +829,15 @@ static DMDrawOption CheckTexDM(MTexPoly *mtexpoly, const bool has_mcol, int matn
 	return DM_DRAW_OPTION_SKIP;
 }
 
-void RAS_OpenGLRasterizer::DrawDerivedMesh(class RAS_MeshSlot &ms)
+void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms)
 {
 	// mesh data is in derived mesh,
-	current_bucket = ms.m_bucket;
+	current_bucket = ms->m_bucket;
 	current_polymat = current_bucket->GetPolyMaterial();
-	current_ms = &ms;
-	current_mesh = ms.m_mesh;
+	current_ms = ms;
+	current_mesh = ms->m_mesh;
 	current_wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
-	// MCol *mcol = (MCol*)ms.m_pDerivedMesh->getFaceDataArray(ms.m_pDerivedMesh, CD_MCOL); /* UNUSED */
+	// MCol *mcol = (MCol*)ms->m_pDerivedMesh->getFaceDataArray(ms->m_pDerivedMesh, CD_MCOL); /* UNUSED */
 
 	// handle two-side
 	if (current_polymat->GetDrawingMode() & RAS_IRasterizer::KX_BACKCULL)
@@ -858,13 +858,13 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(class RAS_MeshSlot &ms)
 			memset(&current_gpu_attribs, 0, sizeof(current_gpu_attribs));
 		// DM draw can mess up blending mode, restore at the end
 		int current_blend_mode = GPU_get_material_alpha_blend();
-		ms.m_pDerivedMesh->drawFacesGLSL(ms.m_pDerivedMesh, CheckMaterialDM);
+		ms->m_pDerivedMesh->drawFacesGLSL(ms->m_pDerivedMesh, CheckMaterialDM);
 		GPU_set_material_alpha_blend(current_blend_mode);
 	} else {
-		//ms.m_pDerivedMesh->drawMappedFacesTex(ms.m_pDerivedMesh, CheckTexfaceDM, mcol);
+		//ms->m_pDerivedMesh->drawMappedFacesTex(ms->m_pDerivedMesh, CheckTexfaceDM, mcol);
 		current_blmat_nr = current_mesh->GetBlenderMaterialId(current_bucket->GetPolyMaterial());
 		current_image = current_polymat->GetBlenderImage();
-		ms.m_pDerivedMesh->drawFacesTex(ms.m_pDerivedMesh, CheckTexDM, NULL, NULL, DM_DRAW_USE_ACTIVE_UV);
+		ms->m_pDerivedMesh->drawFacesTex(ms->m_pDerivedMesh, CheckTexDM, NULL, NULL, DM_DRAW_USE_ACTIVE_UV);
 	}
 }
 

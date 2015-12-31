@@ -156,7 +156,7 @@ public:
 	void SetVertexColor(RAS_IPolyMaterial *mat, MT_Vector4 rgba);
 
 	// polygon sorting by Z for alpha
-	void SortPolygons(RAS_MeshSlot& ms, const MT_Transform &transform);
+	void SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transform);
 
 	bool HasColliderPolygon();
 

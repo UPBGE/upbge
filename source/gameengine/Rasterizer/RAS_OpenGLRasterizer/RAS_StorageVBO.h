@@ -76,7 +76,7 @@ public:
 
 	virtual void BindPrimitives(RAS_DisplayArray *array);
 	virtual void UnbindPrimitives(RAS_DisplayArray *array);
-	virtual void IndexPrimitives(RAS_MeshSlot& ms);
+	virtual void IndexPrimitives(RAS_MeshSlot *ms);
 
 	virtual void SetDrawingMode(int drawingmode)
 	{

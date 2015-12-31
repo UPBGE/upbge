@@ -57,7 +57,7 @@ public:
 
 	virtual bool Activate(RAS_IRasterizer *rasty, TCachingInfo& cachingInfo) const;
 
-	virtual void ActivateMeshSlot(const RAS_MeshSlot& ms, RAS_IRasterizer *rasty) const;
+	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty) const;
 
 	void ActivateMat(RAS_IRasterizer *rasty, TCachingInfo& cachingInfo) const;
 

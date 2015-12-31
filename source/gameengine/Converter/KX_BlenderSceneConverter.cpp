@@ -1264,7 +1264,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 
 	vector<pair<KX_Scene *, RAS_MeshObject *> >::iterator meshit;
 	RAS_BucketManager::BucketList::iterator bit;
-	list<RAS_MeshSlot>::iterator msit;
+	RAS_MeshSlotList::iterator msit;
 	RAS_BucketManager::BucketList buckets;
 
 	size = m_meshobjects.size();
@@ -1278,8 +1278,8 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 				msit = (*bit)->msBegin();
 
 				while (msit != (*bit)->msEnd()) {
-					if (msit->m_mesh == meshit->second)
-						(*bit)->RemoveMesh(&(*msit++));
+					if ((*msit)->m_mesh == meshit->second)
+						(*bit)->RemoveMesh(*msit++);
 					else
 						msit++;
 				}
@@ -1291,8 +1291,8 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 				msit = (*bit)->msBegin();
 
 				while (msit != (*bit)->msEnd()) {
-					if (msit->m_mesh == meshit->second)
-						(*bit)->RemoveMesh(&(*msit++));
+					if ((*msit)->m_mesh == meshit->second)
+						(*bit)->RemoveMesh(*msit++);
 					else
 						msit++;
 				}

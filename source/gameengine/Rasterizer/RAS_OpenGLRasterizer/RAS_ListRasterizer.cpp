@@ -141,7 +141,7 @@ void RAS_ListRasterizer::RemoveListSlot(RAS_ListSlot *list)
 	}
 }
 
-RAS_ListSlot *RAS_ListRasterizer::FindOrAdd(RAS_MeshSlot& ms)
+RAS_ListSlot *RAS_ListRasterizer::FindOrAdd(RAS_MeshSlot *ms)
 {
 	/*
 	 * Keep a copy of constant lists submitted for rendering,
@@ -149,12 +149,12 @@ RAS_ListSlot *RAS_ListRasterizer::FindOrAdd(RAS_MeshSlot& ms)
 	 * and we can reuse lists!
 	 * :: sorted by mesh slot
 	 */
-	RAS_ListSlot *localSlot = (RAS_ListSlot *)ms.m_DisplayList;
+	RAS_ListSlot *localSlot = (RAS_ListSlot *)ms->m_DisplayList;
 	if (!localSlot) {
-		RAS_ArrayLists::iterator it = mArrayLists.find(ms.m_displayArray);
+		RAS_ArrayLists::iterator it = mArrayLists.find(ms->m_displayArray);
 		if (it == mArrayLists.end()) {
 			localSlot = new RAS_ListSlot(this);
-			mArrayLists.insert(std::pair<RAS_DisplayArray *, RAS_ListSlot *>(ms.m_displayArray, localSlot));
+			mArrayLists.insert(std::pair<RAS_DisplayArray *, RAS_ListSlot *>(ms->m_displayArray, localSlot));
 		}
 		else {
 			localSlot = static_cast<RAS_ListSlot *>(it->second->AddRef());
@@ -181,29 +181,29 @@ void RAS_ListRasterizer::UnbindPrimitives(RAS_DisplayArray *array)
 	// Set all vertex array attributs outside the display list is slower than recall it for each display list.
 }
 
-void RAS_ListRasterizer::IndexPrimitives(RAS_MeshSlot& ms)
+void RAS_ListRasterizer::IndexPrimitives(RAS_MeshSlot *ms)
 {
 	RAS_ListSlot *localSlot = NULL;
 
-	if (ms.m_bDisplayList) {
+	if (ms->m_bDisplayList) {
 		localSlot = FindOrAdd(ms);
 		localSlot->DrawList();
 
 		if (localSlot->End()) {
 			// save slot here too, needed for replicas and object using same mesh
 			// => they have the same vertexarray but different mesh slot
-			ms.m_DisplayList = localSlot;
+			ms->m_DisplayList = localSlot;
 			return;
 		}
 	}
 
-	RAS_OpenGLRasterizer::BindPrimitives(ms.GetDisplayArray());
+	RAS_OpenGLRasterizer::BindPrimitives(ms->GetDisplayArray());
 	RAS_OpenGLRasterizer::IndexPrimitives(ms);
-	RAS_OpenGLRasterizer::UnbindPrimitives(ms.GetDisplayArray());
+	RAS_OpenGLRasterizer::UnbindPrimitives(ms->GetDisplayArray());
 
-	if (ms.m_bDisplayList) {
+	if (ms->m_bDisplayList) {
 		localSlot->EndList();
-		ms.m_DisplayList = localSlot;
+		ms->m_DisplayList = localSlot;
 	}
 }
 

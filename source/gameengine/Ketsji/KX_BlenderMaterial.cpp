@@ -611,7 +611,7 @@ bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 		return true;
 }
 
-void KX_BlenderMaterial::ActivateMeshSlot(const RAS_MeshSlot & ms, RAS_IRasterizer *rasty) const
+void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty) const
 {
 	if (mShader && GLEW_ARB_shader_objects) {
 		mShader->Update(ms, rasty);

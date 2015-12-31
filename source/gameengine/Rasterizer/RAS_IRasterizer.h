@@ -271,12 +271,12 @@ public:
 	/**
 	 * IndexPrimitives: Renders primitives from mesh slot.
 	 */
-	virtual void IndexPrimitives(class RAS_MeshSlot &ms) = 0;
+	virtual void IndexPrimitives(class RAS_MeshSlot *ms) = 0;
 
 	/**
 	 * IndexPrimitives_3DText will render text into the polygons.
 	 */
-	virtual void IndexPrimitives_3DText(class RAS_MeshSlot &ms, class RAS_IPolyMaterial *polymat) = 0;
+	virtual void IndexPrimitives_3DText(class RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat) = 0;
  
 	virtual void SetProjectionMatrix(MT_CmMatrix4x4 &mat) = 0;
 

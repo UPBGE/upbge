@@ -420,8 +420,9 @@ RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat)
 
 RAS_MaterialBucket::~RAS_MaterialBucket()
 {
-	// If we don't clear the list here it will be done after the destructor and no one can call any functions in the bucket.
-	m_meshSlots.clear();
+	for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end; ++it) {
+		delete (*it);
+	}
 }
 
 RAS_IPolyMaterial *RAS_MaterialBucket::GetPolyMaterial() const
@@ -441,37 +442,37 @@ bool RAS_MaterialBucket::IsZSort() const
 
 RAS_MeshSlot *RAS_MaterialBucket::AddMesh()
 {
-	m_meshSlots.push_back(RAS_MeshSlot());
-
-	RAS_MeshSlot *ms = &m_meshSlots.back();
+	RAS_MeshSlot *ms = new RAS_MeshSlot();
 	ms->init(this);
+
+	m_meshSlots.push_back(ms);
 
 	return ms;
 }
 
 RAS_MeshSlot *RAS_MaterialBucket::CopyMesh(RAS_MeshSlot *ms)
 {
-	m_meshSlots.push_back(RAS_MeshSlot(*ms));
+	RAS_MeshSlot *newMeshSlot = new RAS_MeshSlot(*ms);
+	m_meshSlots.push_back(newMeshSlot);
 
-	return &m_meshSlots.back();
+	return newMeshSlot;
 }
 
 void RAS_MaterialBucket::RemoveMesh(RAS_MeshSlot *ms)
 {
-	for (list<RAS_MeshSlot>::iterator it = m_meshSlots.begin(); it != m_meshSlots.end(); it++) {
-		if (&*it == ms) {
-			m_meshSlots.erase(it);
-			return;
-		}
+	RAS_MeshSlotList::iterator it = std::find(m_meshSlots.begin(), m_meshSlots.end(), ms);
+	if (it != m_meshSlots.end()) {
+		m_meshSlots.erase(it);
+		delete ms;
 	}
 }
 
-list<RAS_MeshSlot>::iterator RAS_MaterialBucket::msBegin()
+RAS_MeshSlotList::iterator RAS_MaterialBucket::msBegin()
 {
 	return m_meshSlots.begin();
 }
 
-list<RAS_MeshSlot>::iterator RAS_MaterialBucket::msEnd()
+RAS_MeshSlotList::iterator RAS_MaterialBucket::msEnd()
 {
 	return m_meshSlots.end();
 }
@@ -493,25 +494,25 @@ bool RAS_MaterialBucket::ActivateMaterial(const MT_Transform& cameratrans, RAS_I
 	return true;
 }
 
-void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_MeshSlot &ms)
+void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_MeshSlot *ms)
 {
 	m_material->ActivateMeshSlot(ms, rasty);
 
-	if (ms.m_pDeformer) {
-		ms.m_pDeformer->Apply(m_material);
+	if (ms->m_pDeformer) {
+		ms->m_pDeformer->Apply(m_material);
 	}
 
 	if (IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::KX_SOLID)
-		ms.m_mesh->SortPolygons(ms, cameratrans * MT_Transform(ms.m_OpenGLMatrix));
+		ms->m_mesh->SortPolygons(ms, cameratrans * MT_Transform(ms->m_OpenGLMatrix));
 
 	rasty->PushMatrix();
-	if (!ms.m_pDeformer || !ms.m_pDeformer->SkipVertexTransform()) {
-		rasty->applyTransform(ms.m_OpenGLMatrix, m_material->GetDrawingMode());
+	if (!ms->m_pDeformer || !ms->m_pDeformer->SkipVertexTransform()) {
+		rasty->applyTransform(ms->m_OpenGLMatrix, m_material->GetDrawingMode());
 	}
 
 	if (rasty->QueryLists()) {
-		if (ms.m_DisplayList)
-			ms.m_DisplayList->SetModified(ms.m_mesh->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED);
+		if (ms->m_DisplayList)
+			ms->m_DisplayList->SetModified(ms->m_mesh->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED);
 	}
 
 	// verify if we can use display list, not for deformed object, and
@@ -519,20 +520,20 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	// then it won't have texture coordinates for actual drawing. also
 	// for zsort we can't make a display list, since the polygon order
 	// changes all the time.
-	if (ms.m_pDeformer && ms.m_pDeformer->IsDynamic())
-		ms.m_bDisplayList = false;
-	else if (!ms.m_DisplayList && rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW)
-		ms.m_bDisplayList = false;
+	if (ms->m_pDeformer && ms->m_pDeformer->IsDynamic())
+		ms->m_bDisplayList = false;
+	else if (!ms->m_DisplayList && rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW)
+		ms->m_bDisplayList = false;
 	else if (IsZSort())
-		ms.m_bDisplayList = false;
-	else if (m_material->UsesObjectColor() && ms.m_bObjectColor)
-		ms.m_bDisplayList = false;
-	else if (ms.m_pDerivedMesh) {
+		ms->m_bDisplayList = false;
+	else if (m_material->UsesObjectColor() && ms->m_bObjectColor)
+		ms->m_bDisplayList = false;
+	else if (ms->m_pDerivedMesh) {
 		// Derived mesh are rendered by the viewport code.
-		ms.m_bDisplayList = false;
+		ms->m_bDisplayList = false;
 	}
 	else
-		ms.m_bDisplayList = true;
+		ms->m_bDisplayList = true;
 
 	if (m_material->GetDrawingMode() & RAS_IRasterizer::RAS_RENDER_3DPOLYGON_TEXT) {
 	    // for text drawing using faces
@@ -552,8 +553,8 @@ void RAS_MaterialBucket::Optimize(MT_Scalar distance)
 	 * - make it work with physics */
 
 #if 0
-	list<RAS_MeshSlot>::iterator it;
-	list<RAS_MeshSlot>::iterator jt;
+	RAS_MeshSlotList::iterator it;
+	RAS_MeshSlotList::iterator jt;
 
 	// greed joining on all following buckets
 	for (it = m_meshSlots.begin(); it != m_meshSlots.end(); it++)

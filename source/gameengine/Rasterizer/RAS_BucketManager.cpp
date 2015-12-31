@@ -105,7 +105,7 @@ RAS_BucketManager::~RAS_BucketManager()
 void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, vector<sortedmeshslot>& slots, bool alpha)
 {
 	BucketList::iterator bit;
-	list<RAS_MeshSlot>::iterator mit;
+	RAS_MeshSlotList::iterator mit;
 	size_t size = 0, i = 0;
 
 	/* Camera's near plane equation: pnorm.dot(point) + pval,
@@ -165,7 +165,7 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 		rasty->BindPrimitives(displayArray);
 
 		while (sit->m_bucket->ActivateMaterial(cameratrans, rasty))
-			sit->m_bucket->RenderMeshSlot(cameratrans, rasty, *(sit->m_ms));
+			sit->m_bucket->RenderMeshSlot(cameratrans, rasty, sit->m_ms);
 
 		rasty->UnbindPrimitives(displayArray);
 
@@ -203,7 +203,7 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 				RAS_MeshSlot *ms = *mit;
 				rasty->SetClientObject(ms->m_clientObj);
 				while (bucket->ActivateMaterial(cameratrans, rasty))
-					bucket->RenderMeshSlot(cameratrans, rasty, *ms);
+					bucket->RenderMeshSlot(cameratrans, rasty, ms);
 
 				// make this mesh slot culled automatically for next frame
 				// it will be culled out by frustrum culling
@@ -215,7 +215,7 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 			displayArrayBucket->RemoveActiveMeshSlots();
 		}
 #else
-		list<RAS_MeshSlot>::iterator mit;
+		RAS_MeshSlotList::iterator mit;
 		for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
 			if (mit->IsCulled())
 				continue;
@@ -266,16 +266,16 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 		/* All meshes should be up to date now */
 		/* Don't do this while processing buckets because some meshes are split between buckets */
 		BucketList::iterator bit;
-		list<RAS_MeshSlot>::iterator mit;
+		RAS_MeshSlotList::iterator mit;
 		for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
 			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
-				RAS_MeshObject *meshobj = mit->m_mesh;
+				RAS_MeshObject *meshobj = (*mit)->m_mesh;
 				meshobj->SetModifiedFlag(0);
 			}
 		}
 		for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit) {
 			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
-				RAS_MeshObject *meshobj = mit->m_mesh;
+				RAS_MeshObject *meshobj = (*mit)->m_mesh;
 				meshobj->SetModifiedFlag(0);
 			}
 		}
@@ -325,14 +325,15 @@ void RAS_BucketManager::OptimizeBuckets(MT_Scalar distance)
 void RAS_BucketManager::ReleaseDisplayLists(RAS_IPolyMaterial *mat)
 {
 	BucketList::iterator bit;
-	list<RAS_MeshSlot>::iterator mit;
+	RAS_MeshSlotList::iterator mit;
 
 	for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
 		if (mat == NULL || (mat == (*bit)->GetPolyMaterial())) {
 			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
-				if (mit->m_DisplayList) {
-					mit->m_DisplayList->Release();
-					mit->m_DisplayList = NULL;
+				RAS_MeshSlot *ms = *mit;
+				if (ms->m_DisplayList) {
+					ms->m_DisplayList->Release();
+					ms->m_DisplayList = NULL;
 				}
 			}
 		}
@@ -341,9 +342,10 @@ void RAS_BucketManager::ReleaseDisplayLists(RAS_IPolyMaterial *mat)
 	for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit) {
 		if (mat == NULL || (mat == (*bit)->GetPolyMaterial())) {
 			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
-				if (mit->m_DisplayList) {
-					mit->m_DisplayList->Release();
-					mit->m_DisplayList = NULL;
+				RAS_MeshSlot *ms = *mit;
+				if (ms->m_DisplayList) {
+					ms->m_DisplayList->Release();
+					ms->m_DisplayList = NULL;
 				}
 			}
 		}
@@ -353,7 +355,7 @@ void RAS_BucketManager::ReleaseDisplayLists(RAS_IPolyMaterial *mat)
 void RAS_BucketManager::ReleaseMaterials(RAS_IPolyMaterial * mat)
 {
 	BucketList::iterator bit;
-	list<RAS_MeshSlot>::iterator mit;
+	RAS_MeshSlotList::iterator mit;
 
 	for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
 		if (mat == NULL || (mat == (*bit)->GetPolyMaterial())) {
@@ -372,7 +374,7 @@ void RAS_BucketManager::ReleaseMaterials(RAS_IPolyMaterial * mat)
 void RAS_BucketManager::RemoveMaterial(RAS_IPolyMaterial * mat)
 {
 	BucketList::iterator bit, bitp;
-	list<RAS_MeshSlot>::iterator mit;
+	RAS_MeshSlotList::iterator mit;
 	int i;
 
 

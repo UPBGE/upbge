@@ -74,7 +74,7 @@ public:
 
 	int GetAttribNum();
 	void SetAttribs(RAS_IRasterizer *ras);
-	void Update(const RAS_MeshSlot& ms, RAS_IRasterizer * rasty);
+	void Update(RAS_MeshSlot *ms, RAS_IRasterizer * rasty);
 	void ReloadMaterial();
 	int GetAlphaBlend();
 

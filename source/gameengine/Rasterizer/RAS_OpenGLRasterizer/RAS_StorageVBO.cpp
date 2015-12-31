@@ -238,14 +238,14 @@ void RAS_StorageVBO::UnbindPrimitives(RAS_DisplayArray *array)
 	vbo->Unbind(*m_attrib_num);
 }
 
-void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot& ms)
+void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot *ms)
 {
-	RAS_DisplayArray *array = ms.GetDisplayArray();
+	RAS_DisplayArray *array = ms->GetDisplayArray();
 	VBO *vbo = GetVBO(array);
 
 	// Update the vbo if the mesh is modified or use a dynamic deformer.
-	if ((ms.m_mesh->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED) ||
-		(ms.m_pDeformer && ms.m_pDeformer->IsDynamic()))
+	if ((ms->m_mesh->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED) ||
+		(ms->m_pDeformer && ms->m_pDeformer->IsDynamic()))
 	{
 		vbo->UpdateData();
 	}
