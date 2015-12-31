@@ -86,13 +86,12 @@ class KX_TouchEventManager : public SCA_EventManager
 	virtual bool	NewHandleCollision(void* obj1,void* obj2,
 						const PHY_CollData * coll_data); 
 
-
-
-
+	void RemoveNewCollisions();
 
 public:
 	KX_TouchEventManager(class SCA_LogicManager* logicmgr,  
 		PHY_IPhysicsEnvironment* physEnv);
+	virtual ~KX_TouchEventManager();
 	virtual void NextFrame();
 	virtual void	EndFrame();
 	virtual void RegisterSensor(SCA_ISensor* sensor);

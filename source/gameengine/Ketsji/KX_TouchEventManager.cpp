@@ -54,6 +54,19 @@ KX_TouchEventManager::KX_TouchEventManager(class SCA_LogicManager* logicmgr,
 
 }
 
+KX_TouchEventManager::~KX_TouchEventManager()
+{
+	RemoveNewCollisions();
+}
+
+void KX_TouchEventManager::RemoveNewCollisions()
+{
+	for (std::set<NewCollision>::iterator it = m_newCollisions.begin(), end = m_newCollisions.end(); it != end; ++it) {
+		delete it->colldata;
+	}
+	m_newCollisions.clear();
+}
+
 bool	KX_TouchEventManager::NewHandleCollision(void* object1, void* object2, const PHY_CollData *coll_data)
 {
 
@@ -212,16 +225,13 @@ void KX_TouchEventManager::NextFrame()
 			PHY_CollData *colldata = cit->colldata;
 			kxObj1->RunCollisionCallbacks(kxObj2, colldata->m_point1, colldata->m_normal);
 			kxObj2->RunCollisionCallbacks(kxObj1, colldata->m_point2, -colldata->m_normal);
-
-			delete cit->colldata;
 		}
-			
-		m_newCollisions.clear();
-			
+
 		for (it.begin();!it.end();++it)
 			(*it)->Activate(m_logicmgr);
-	}
 
+	RemoveNewCollisions();
+}
 
 KX_TouchEventManager::NewCollision::NewCollision(PHY_IPhysicsController *first,
                                                  PHY_IPhysicsController *second,
