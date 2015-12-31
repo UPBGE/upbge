@@ -161,8 +161,13 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 	for (sit=slots.begin(); sit!=slots.end(); ++sit) {
 		rasty->SetClientObject(sit->m_ms->m_clientObj);
 
+		RAS_DisplayArray *displayArray = sit->m_ms->GetDisplayArray();
+		rasty->BindPrimitives(displayArray);
+
 		while (sit->m_bucket->ActivateMaterial(cameratrans, rasty))
 			sit->m_bucket->RenderMeshSlot(cameratrans, rasty, *(sit->m_ms));
+
+		rasty->UnbindPrimitives(displayArray);
 
 		// make this mesh slot culled automatically for next frame
 		// it will be culled out by frustrum culling
