@@ -162,7 +162,7 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 			else {
 				// the deformer is not using vertex array (Modifier), release them
 				m_displayArrayBucket->Release();
-				m_displayArrayBucket = m_bucket->FindDisplayArrayBucket(NULL);
+				m_displayArrayBucket = m_bucket->FindDisplayArrayBucket(NULL)->AddRef();
 			}
 		}
 	}
