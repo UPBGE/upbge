@@ -143,7 +143,8 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 				   class SCA_IInputDevice* mousedevice,
 				   const STR_String& sceneName,
 				   Scene *scene,
-				   class RAS_ICanvas* canvas): 
+				   class RAS_ICanvas* canvas,
+				   KX_NetworkMessageManager *messageManager): 
 	CValue(),
 	m_keyboardmgr(NULL),
 	m_mousemgr(NULL),
@@ -196,7 +197,7 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 		m_logicmgr->RegisterEventManager(joymgr);
 	}
 
-	m_networkScene = new KX_NetworkMessageScene();
+	m_networkScene = new KX_NetworkMessageScene(messageManager);
 	
 	m_rootnode = NULL;
 

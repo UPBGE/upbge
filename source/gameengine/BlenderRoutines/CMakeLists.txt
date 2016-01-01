@@ -5,6 +5,7 @@ set(INC
 	../Expressions
 	../GameLogic
 	../Ketsji
+	../Ketsji/KXNetwork
 	../Physics/Bullet
 	../Physics/Common
 	../Rasterizer

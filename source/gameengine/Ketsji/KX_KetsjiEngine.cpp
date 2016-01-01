@@ -216,6 +216,11 @@ void KX_KetsjiEngine::SetRasterizer(RAS_IRasterizer *rasterizer)
 	m_rasterizer = rasterizer;
 }
 
+void KX_KetsjiEngine::SetNetworkMessageManager(KX_NetworkMessageManager *manager)
+{
+	m_networkMessageManager = manager;
+}
+
 #ifdef WITH_PYTHON
 /*
  * At the moment the bge.logic module is imported into 'pythondictionary' after this function is called.
@@ -626,10 +631,6 @@ bool KX_KetsjiEngine::NextFrame()
 
 				scene->LogicEndFrame();
 
-				m_logger->StartLog(tc_network, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_NETWORK);
-				scene->GetNetworkMessageScene()->ClearMessages();
-
 				// Actuators can affect the scenegraph
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_ACTUATOR_UPDATE);
@@ -658,6 +659,12 @@ bool KX_KetsjiEngine::NextFrame()
 
 			m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
 		}
+
+		m_logger->StartLog(tc_network, m_kxsystem->GetTimeInSeconds(), true);
+		SG_SetActiveStage(SG_STAGE_NETWORK);
+		m_networkMessageManager->ClearMessages();
+
+		m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
 
 		// update system devices
 		m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
@@ -1503,7 +1510,8 @@ KX_Scene *KX_KetsjiEngine::CreateScene(Scene *scene, bool libloading)
 	                                  m_mousedevice,
 	                                  scene->id.name + 2,
 	                                  scene,
-	                                  m_canvas);
+	                                  m_canvas,
+									  m_networkMessageManager);
 
 	m_sceneconverter->ConvertScene(tmpscene,
 	                               m_rasterizer,

@@ -71,6 +71,7 @@ class SCA_MouseManager;
 class SCA_ISystem;
 class SCA_IInputDevice;
 class KX_NetworkMessageScene;
+class KX_NetworkMessageManager;
 class SG_IObject;
 class SG_Node;
 class KX_WorldInfo;
@@ -304,7 +305,8 @@ public:
 		class SCA_IInputDevice* mousedevice,
 		const STR_String& scenename,
 		struct Scene* scene,
-		class RAS_ICanvas* canvas);
+		class RAS_ICanvas* canvas,
+		KX_NetworkMessageManager *messageManager);
 
 	virtual
 	~KX_Scene();

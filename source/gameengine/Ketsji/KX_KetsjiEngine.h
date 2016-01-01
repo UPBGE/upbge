@@ -46,6 +46,7 @@ struct TaskScheduler;
 class KX_TimeCategoryLogger;
 class KX_ISystem;
 class KX_ISceneConverter;
+class KX_NetworkMessageManager;
 class KX_Dome;
 class CListValue;
 class RAS_ICanvas;
@@ -85,6 +86,7 @@ private:
 	RAS_IRasterizer *m_rasterizer;
 	KX_ISystem *m_kxsystem;
 	KX_ISceneConverter *m_sceneconverter;
+	KX_NetworkMessageManager *m_networkMessageManager;
 #ifdef WITH_PYTHON
 	/// \note borrowed from sys.modules["__main__"], don't manage ref's
 	PyObject *m_pythondictionary;
@@ -254,6 +256,7 @@ public:
 	void SetMouseDevice(SCA_IInputDevice *mousedevice);
 	void SetCanvas(RAS_ICanvas *canvas);
 	void SetRasterizer(RAS_IRasterizer *rasterizer);
+	void SetNetworkMessageManager(KX_NetworkMessageManager *manager);
 #ifdef WITH_PYTHON
 	void SetPyNamespace(PyObject *pythondictionary);
 	PyObject *GetPyNamespace()
@@ -287,6 +290,10 @@ public:
 	SCA_IInputDevice *GetMouseDevice()
 	{
 		return m_mousedevice;
+	}
+	KX_NetworkMessageManager *GetNetworkMessageManager() const
+	{
+		return m_networkMessageManager;
 	}
 
 	TaskScheduler *GetTaskScheduler()

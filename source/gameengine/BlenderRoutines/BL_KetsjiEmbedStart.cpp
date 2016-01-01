@@ -49,6 +49,7 @@
 #include "BL_Material.h"
 
 #include "KX_KetsjiEngine.h"
+#include "KX_NetworkMessageManager.h"
 #include "KX_BlenderSceneConverter.h"
 #include "KX_PythonInit.h"
 #include "KX_PyConstraintBinding.h"
@@ -324,7 +325,9 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		//
 		// create a ketsji/blendersystem (only needed for timing and stuff)
 		KX_BlenderSystem* kxsystem = new KX_BlenderSystem();
-		
+
+		KX_NetworkMessageManager *networkMessageManager = new KX_NetworkMessageManager();
+
 		// create the ketsjiengine
 		KX_KetsjiEngine* ketsjiengine = new KX_KetsjiEngine(kxsystem);
 		
@@ -333,6 +336,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		ketsjiengine->SetMouseDevice(mousedevice);
 		ketsjiengine->SetCanvas(canvas);
 		ketsjiengine->SetRasterizer(rasterizer);
+		ketsjiengine->SetNetworkMessageManager(networkMessageManager);
 		ketsjiengine->SetUseFixedTime(usefixed);
 		ketsjiengine->SetTimingDisplay(frameRate, profile, properties);
 		ketsjiengine->SetRestrictAnimationFPS(restrictAnimFPS);
@@ -482,7 +486,8 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				mousedevice,
 				startscenename,
 				scene,
-				canvas);
+				canvas,
+				networkMessageManager);
 
 #ifdef WITH_PYTHON
 			// some python things
@@ -661,6 +666,10 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			canvas->SetSwapInterval(previous_vsync); // Set the swap interval back
 			delete canvas;
 			canvas = NULL;
+		}
+		if (networkMessageManager) {
+			delete networkMessageManager;
+			networkMessageManager = NULL;
 		}
 
 		// stop all remaining playing sounds

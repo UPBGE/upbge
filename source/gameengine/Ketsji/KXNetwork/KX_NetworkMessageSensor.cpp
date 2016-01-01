@@ -103,7 +103,7 @@ bool KX_NetworkMessageSensor::Evaluate()
 	STR_String& toname = GetParent()->GetName();
 	STR_String& subject = this->m_subject;
 
-	const vector<KX_NetworkMessageScene::Message> messages =
+	const vector<KX_NetworkMessageManager::Message> messages =
 	    m_NetworkScene->FindMessages(toname, subject);
 
 	m_frame_message_count = messages.size();
@@ -117,7 +117,7 @@ bool KX_NetworkMessageSensor::Evaluate()
 		m_SubjectList = new CListValue();
 	}
 
-	vector<KX_NetworkMessageScene::Message>::const_iterator mesit;
+	vector<KX_NetworkMessageManager::Message>::const_iterator mesit;
 	for (mesit = messages.begin(); mesit != messages.end(); mesit++) {
 		// save the body
 		const STR_String& body = (*mesit).body;

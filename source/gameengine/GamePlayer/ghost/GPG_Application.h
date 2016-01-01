@@ -42,6 +42,7 @@
 class KX_KetsjiEngine;
 class KX_Scene;
 class KX_ISceneConverter;
+class KX_NetworkMessageManager;
 class RAS_IRasterizer;
 class GHOST_IEvent;
 class GHOST_ISystem;
@@ -161,6 +162,8 @@ protected:
 	RAS_IRasterizer* m_rasterizer;
 	/** Converts Blender data files. */
 	KX_ISceneConverter* m_sceneconverter;
+	/// Manage messages.
+	KX_NetworkMessageManager *m_networkMessageManager;
 
 	bool m_blendermat;
 	bool m_blenderglslmat;

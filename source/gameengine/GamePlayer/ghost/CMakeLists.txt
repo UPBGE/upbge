@@ -31,6 +31,7 @@ set(INC
 	../../Expressions
 	../../GameLogic
 	../../Ketsji
+	../../Ketsji/KXNetwork
 	../../Physics/Common
 	../../Rasterizer
 	../../Rasterizer/RAS_OpenGLRasterizer

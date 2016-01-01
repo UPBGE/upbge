@@ -82,6 +82,7 @@ extern "C"
 #include "KX_PyConstraintBinding.h"
 #include "BL_Material.h" // MAXTEX
 
+#include "KX_NetworkMessageManager.h"
 #include "KX_BlenderSceneConverter.h"
 
 #include "GPC_MouseDevice.h"
@@ -642,6 +643,8 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_kxsystem = new GPG_System (m_system);
 		if (!m_kxsystem)
 			goto initFailed;
+
+		m_networkMessageManager = new KX_NetworkMessageManager();
 		
 		// create the ketsjiengine
 		m_ketsjiengine = new KX_KetsjiEngine(m_kxsystem);
@@ -651,6 +654,7 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_ketsjiengine->SetMouseDevice(m_mouse);
 		m_ketsjiengine->SetCanvas(m_canvas);
 		m_ketsjiengine->SetRasterizer(m_rasterizer);
+		m_ketsjiengine->SetNetworkMessageManager(m_networkMessageManager);
 
 		KX_KetsjiEngine::SetExitKey(ConvertKeyCode(gm->exitkey));
 #ifdef WITH_PYTHON
@@ -731,8 +735,9 @@ bool GPG_Application::startEngine(void)
 			m_mouse,
 			m_kxStartScenename,
 			m_startScene,
-			m_canvas);
-		
+			m_canvas,
+			m_networkMessageManager);
+
 #ifdef WITH_PYTHON
 			// some python things
 			PyObject *gameLogic, *gameLogic_keys;
@@ -873,6 +878,10 @@ void GPG_Application::exitEngine()
 	{
 		delete m_canvas;
 		m_canvas = 0;
+	}
+	if (m_networkMessageManager) {
+		delete m_networkMessageManager;
+		m_networkMessageManager = NULL;
 	}
 
 	GPU_exit();
