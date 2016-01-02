@@ -542,7 +542,7 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_IObject* node, class CVal
 //	SG_Node* rootnode = (replicanode == m_rootnode ? NULL : m_rootnode);
 
 	// Add the object in the obstacle simulation if needed.
-	if (orgobj->GetBlenderObject()->gameflag & OB_HASOBSTACLE) {
+	if (m_obstacleSimulation && orgobj->GetBlenderObject()->gameflag & OB_HASOBSTACLE) {
 		m_obstacleSimulation->AddObstacleForObj(newobj);
 	}
 
