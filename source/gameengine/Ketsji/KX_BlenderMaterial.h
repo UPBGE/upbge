@@ -49,21 +49,15 @@ public:
 
 	virtual ~KX_BlenderMaterial();
 
-	// --------------------------------
-	virtual TCachingInfo GetCachingInfo() const
-	{
-		return (void *)this;
-	}
+	virtual void Activate(RAS_IRasterizer *rasty);
+	virtual void Desactivate(RAS_IRasterizer *rasty);
+	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty);
 
-	virtual bool Activate(RAS_IRasterizer *rasty, TCachingInfo& cachingInfo) const;
+	void ActivateMat(RAS_IRasterizer *rasty);
 
-	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty) const;
+	void ActivateShaders(RAS_IRasterizer *rasty);
 
-	void ActivateMat(RAS_IRasterizer *rasty, TCachingInfo& cachingInfo) const;
-
-	void ActivatShaders(RAS_IRasterizer *rasty, TCachingInfo& cachingInfo) const;
-
-	void ActivateBlenderShaders(RAS_IRasterizer *rasty, TCachingInfo& cachingInfo) const;
+	void ActivateBlenderShaders(RAS_IRasterizer *rasty);
 
 	Material *GetBlenderMaterial() const;
 	Image *GetBlenderImage() const;
@@ -154,7 +148,7 @@ private:
 
 	void SetBlenderGLSLShader();
 
-	void ActivatGLMaterials(RAS_IRasterizer *rasty) const;
+	void ActivateGLMaterials(RAS_IRasterizer *rasty) const;
 	void ActivateTexGen(RAS_IRasterizer *ras) const;
 
 	bool UsesLighting(RAS_IRasterizer *rasty) const;
@@ -163,9 +157,9 @@ private:
 	void ReleaseMaterial();
 
 	// message centers
-	void setTexData(bool enable, RAS_IRasterizer *ras);
-	void setBlenderShaderData(bool enable, RAS_IRasterizer *ras);
-	void setShaderData(bool enable, RAS_IRasterizer *ras);
+	void setTexData(RAS_IRasterizer *ras);
+	void setBlenderShaderData(RAS_IRasterizer *ras);
+	void setShaderData(RAS_IRasterizer *ras);
 
 	void setObjectMatrixData(int i, RAS_IRasterizer *ras);
 	void setTexMatrixData(int i);
@@ -174,12 +168,6 @@ private:
 
 	// cleanup stuff
 	void OnExit();
-
-	// shader chacing
-	static BL_BlenderShader *mLastBlenderShader;
-	static BL_Shader *mLastShader;
-
-	mutable int mPass;
 };
 
 #endif

@@ -54,7 +54,8 @@ public:
 	bool IsZSort() const;
 
 	// Rendering
-	bool ActivateMaterial(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);
+	bool ActivateMaterial(RAS_IRasterizer *rasty);
+	void DesactivateMaterial(RAS_IRasterizer *rasty);
 	void RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_MeshSlot *ms);
 
 	// Mesh Slot Access

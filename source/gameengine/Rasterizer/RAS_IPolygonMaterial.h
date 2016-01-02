@@ -91,9 +91,6 @@ public:
 	MT_Vector3 m_specular;
 	float m_specularity;
 
-	/** Used to store caching information for materials. */
-	typedef void *TCachingInfo;
-
 	// care! these are taken from blender polygonflags, see file DNA_mesh_types.h for #define TF_BILLBOARD etc.
 	enum MaterialFlags
 	{
@@ -130,27 +127,19 @@ public:
 	}
 
 	/**
-	 * Returns the caching information for this material,
-	 * This can be used to speed up the rasterizing process.
-	 * \return The caching information.
-	 */
-	virtual TCachingInfo GetCachingInfo(void) const
-	{
-		return NULL;
-	}
-
-	/**
 	 * Activates the material in the rasterizer.
 	 * On entry, the cachingInfo contains info about the last activated material.
 	 * On exit, the cachingInfo should contain updated info about this material.
 	 * \param rasty The rasterizer in which the material should be active.
 	 * \param cachingInfo The information about the material used to speed up rasterizing.
 	 */
-	virtual bool Activate(RAS_IRasterizer *rasty, TCachingInfo& cachingInfo) const
+	virtual void Activate(RAS_IRasterizer *rasty)
 	{
-		return false;
 	}
-	virtual void ActivateMeshSlot(class RAS_MeshSlot *ms, RAS_IRasterizer *rasty) const
+	virtual void Desactivate(RAS_IRasterizer *rasty)
+	{
+	}
+	virtual void ActivateMeshSlot(class RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 	{
 	}
 

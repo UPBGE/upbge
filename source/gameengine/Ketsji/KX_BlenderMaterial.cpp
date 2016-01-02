@@ -56,11 +56,6 @@
 
 #define spit(x) std::cout << x << std::endl;
 
-BL_Shader *KX_BlenderMaterial::mLastShader = NULL;
-BL_BlenderShader *KX_BlenderMaterial::mLastBlenderShader = NULL;
-
-//static PyObject *gTextureDict = 0;
-
 KX_BlenderMaterial::KX_BlenderMaterial()
 	:PyObjectPlus(),
 	RAS_IPolyMaterial(),
@@ -70,8 +65,7 @@ KX_BlenderMaterial::KX_BlenderMaterial()
 	mScene(NULL),
 	mUserDefBlend(false),
 	mModified(false),
-	mConstructed(false),
-	mPass(0)
+	mConstructed(false)
 {
 }
 
@@ -117,7 +111,6 @@ void KX_BlenderMaterial::Initialize(
 	mUserDefBlend = false;
 	mModified = false;
 	mConstructed = false;
-	mPass = 0;
 	mLightLayer = lightlayer;
 	// --------------------------------
 	// RAS_IPolyMaterial variables...
@@ -250,37 +243,15 @@ void KX_BlenderMaterial::OnConstruction()
 
 void KX_BlenderMaterial::EndFrame()
 {
-	if (mLastBlenderShader) {
-		mLastBlenderShader->SetProg(false);
-		mLastBlenderShader = NULL;
-	}
-
-	if (mLastShader) {
-		mLastShader->SetProg(false);
-		mLastShader = NULL;
-	}
 }
 
 void KX_BlenderMaterial::OnExit()
 {
 	if (mShader) {
-		//note, the shader here is allocated, per unique material
-		//and this function is called per face
-		if (mShader == mLastShader) {
-			mShader->SetProg(false);
-			mLastShader = NULL;
-		}
-
 		delete mShader;
 		mShader = NULL;
 	}
-
 	if (mBlenderShader) {
-		if (mBlenderShader == mLastBlenderShader) {
-			mBlenderShader->SetProg(false);
-			mLastBlenderShader = NULL;
-		}
-
 		delete mBlenderShader;
 		mBlenderShader = NULL;
 	}
@@ -300,26 +271,13 @@ void KX_BlenderMaterial::OnExit()
 }
 
 
-void KX_BlenderMaterial::setShaderData(bool enable, RAS_IRasterizer *ras)
+void KX_BlenderMaterial::setShaderData(RAS_IRasterizer *ras)
 {
 	MT_assert(GLEW_ARB_shader_objects && mShader);
 
 	int i;
-	if (!enable || !mShader->Ok() ) {
-		// frame cleanup.
-		if (mShader == mLastShader) {
-			mShader->SetProg(false);
-			mLastShader = NULL;
-		}
 
-		ras->SetAlphaBlend(TF_SOLID);
-		BL_Texture::DisableAllTextures();
-		return;
-	}
-
-	BL_Texture::DisableAllTextures();
 	mShader->SetProg(true);
-	mLastShader = mShader;
 
 	BL_Texture::ActivateFirst();
 
@@ -345,44 +303,15 @@ void KX_BlenderMaterial::setShaderData(bool enable, RAS_IRasterizer *ras)
 	}
 }
 
-void KX_BlenderMaterial::setBlenderShaderData(bool enable, RAS_IRasterizer *ras)
+void KX_BlenderMaterial::setBlenderShaderData(RAS_IRasterizer *ras)
 {
-	if (!enable || !mBlenderShader->Ok()) {
-		ras->SetAlphaBlend(TF_SOLID);
+	ras->SetAlphaBlend(mMaterial->alphablend);
 
-		// frame cleanup.
-		if (mLastBlenderShader) {
-			mLastBlenderShader->SetProg(false);
-			mLastBlenderShader = NULL;
-		}
-		else
-			BL_Texture::DisableAllTextures();
-
-		return;
-	}
-
-	if (!mBlenderShader->Equals(mLastBlenderShader)) {
-		ras->SetAlphaBlend(mMaterial->alphablend);
-
-		if (mLastBlenderShader)
-			mLastBlenderShader->SetProg(false);
-		else
-			BL_Texture::DisableAllTextures();
-
-		mBlenderShader->SetProg(true, ras->GetTime(), ras);
-		mLastBlenderShader = mBlenderShader;
-	}
+	mBlenderShader->SetProg(true, ras->GetTime(), ras);
 }
 
-void KX_BlenderMaterial::setTexData(bool enable, RAS_IRasterizer *ras)
+void KX_BlenderMaterial::setTexData(RAS_IRasterizer *ras)
 {
-	BL_Texture::DisableAllTextures();
-
-	if (!enable) {
-		ras->SetAlphaBlend(TF_SOLID);
-		return;
-	}
-
 	BL_Texture::ActivateFirst();
 
 	if (mMaterial->IdMode == DEFAULT_BLENDER) {
@@ -430,173 +359,99 @@ void KX_BlenderMaterial::setTexData(bool enable, RAS_IRasterizer *ras)
 	}
 }
 
-void KX_BlenderMaterial::ActivatShaders(RAS_IRasterizer *rasty, TCachingInfo& cachingInfo) const
+void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 {
-	KX_BlenderMaterial *tmp = const_cast<KX_BlenderMaterial *>(this);
+	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
+		setShaderData(rasty);
+	else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && mMaterial->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
+		setShaderData(rasty);
 
-	// reset...
-	if (tmp->mMaterial->IsShared())
-		cachingInfo = NULL;
+	if (mMaterial->ras_mode & TWOSIDED)
+		rasty->SetCullFace(false);
+	else
+		rasty->SetCullFace(true);
 
-	if (mLastBlenderShader) {
-		mLastBlenderShader->SetProg(false);
-		mLastBlenderShader = NULL;
-	}
-
-	if (GetCachingInfo() != cachingInfo) {
-
-		if (!cachingInfo)
-			tmp->setShaderData(false, rasty);
-
-		cachingInfo = GetCachingInfo();
-
-		if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
-			tmp->setShaderData(true, rasty);
-		else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && mMaterial->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
-			tmp->setShaderData(true, rasty);
-		else
-			tmp->setShaderData(false, rasty);
-
-		if (mMaterial->ras_mode & TWOSIDED)
+	if ((mMaterial->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
+		if (mMaterial->ras_mode & WIRE)
 			rasty->SetCullFace(false);
-		else
-			rasty->SetCullFace(true);
-
-		if ((mMaterial->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
-			if (mMaterial->ras_mode & WIRE)
-				rasty->SetCullFace(false);
-			rasty->SetLines(true);
-		}
-		else
-			rasty->SetLines(false);
-		ActivatGLMaterials(rasty);
-		ActivateTexGen(rasty);
+		rasty->SetLines(true);
 	}
+	else
+		rasty->SetLines(false);
+	ActivateGLMaterials(rasty);
+	ActivateTexGen(rasty);
 }
 
-void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty, TCachingInfo& cachingInfo) const
+void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 {
-	KX_BlenderMaterial *tmp = const_cast<KX_BlenderMaterial *>(this);
+	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
+		setBlenderShaderData(rasty);
+	else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && mMaterial->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
+		setBlenderShaderData(rasty);
 
-	if (mLastShader) {
-		mLastShader->SetProg(false);
-		mLastShader = NULL;
-	}
+	if (mMaterial->ras_mode & TWOSIDED)
+		rasty->SetCullFace(false);
+	else
+		rasty->SetCullFace(true);
 
-	if (GetCachingInfo() != cachingInfo) {
-		if (!cachingInfo)
-			tmp->setBlenderShaderData(false, rasty);
-
-		cachingInfo = GetCachingInfo();
-
-		if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
-			tmp->setBlenderShaderData(true, rasty);
-		else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && mMaterial->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
-			tmp->setBlenderShaderData(true, rasty);
-		else
-			tmp->setBlenderShaderData(false, rasty);
-
-		if (mMaterial->ras_mode & TWOSIDED)
+	if ((mMaterial->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
+		if (mMaterial->ras_mode & WIRE)
 			rasty->SetCullFace(false);
-		else
-			rasty->SetCullFace(true);
-
-		if ((mMaterial->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
-			if (mMaterial->ras_mode & WIRE)
-				rasty->SetCullFace(false);
-			rasty->SetLines(true);
-		}
-		else
-			rasty->SetLines(false);
-
-		ActivatGLMaterials(rasty);
-		mBlenderShader->SetAttribs(rasty);
+		rasty->SetLines(true);
 	}
+	else
+		rasty->SetLines(false);
+
+	ActivateGLMaterials(rasty);
+	mBlenderShader->SetAttribs(rasty);
 }
 
-void KX_BlenderMaterial::ActivateMat(RAS_IRasterizer *rasty, TCachingInfo& cachingInfo) const
+void KX_BlenderMaterial::ActivateMat(RAS_IRasterizer *rasty)
 {
-	KX_BlenderMaterial *tmp = const_cast<KX_BlenderMaterial *>(this);
+	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
+		setTexData(rasty);
+	else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && mMaterial->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
+		setTexData(rasty);
 
-	if (mLastShader) {
-		mLastShader->SetProg(false);
-		mLastShader = NULL;
-	}
+	if (mMaterial->ras_mode & TWOSIDED)
+		rasty->SetCullFace(false);
+	else
+		rasty->SetCullFace(true);
 
-	if (mLastBlenderShader) {
-		mLastBlenderShader->SetProg(false);
-		mLastBlenderShader = NULL;
-	}
-
-	if (GetCachingInfo() != cachingInfo) {
-		if (!cachingInfo)
-			tmp->setTexData(false, rasty);
-
-		cachingInfo = GetCachingInfo();
-
-		if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
-			tmp->setTexData(true, rasty);
-		else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && mMaterial->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
-			tmp->setTexData(true, rasty);
-		else
-			tmp->setTexData(false, rasty);
-
-		if (mMaterial->ras_mode & TWOSIDED)
+	if ((mMaterial->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
+		if (mMaterial->ras_mode & WIRE)
 			rasty->SetCullFace(false);
-		else
-			rasty->SetCullFace(true);
-
-		if ((mMaterial->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
-			if (mMaterial->ras_mode & WIRE)
-				rasty->SetCullFace(false);
-			rasty->SetLines(true);
-		}
-		else
-			rasty->SetLines(false);
-		ActivatGLMaterials(rasty);
-		ActivateTexGen(rasty);
+		rasty->SetLines(true);
 	}
-
-	//ActivatGLMaterials(rasty);
-	//ActivateTexGen(rasty);
+	else
+		rasty->SetLines(false);
+	ActivateGLMaterials(rasty);
+	ActivateTexGen(rasty);
 }
 
-bool KX_BlenderMaterial::Activate(RAS_IRasterizer *rasty, TCachingInfo& cachingInfo) const
+void KX_BlenderMaterial::Activate(RAS_IRasterizer *rasty)
 {
 	if (GLEW_ARB_shader_objects && (mShader && mShader->Ok())) {
-		if ((mPass++) < mShader->getNumPass()) {
-			ActivatShaders(rasty, cachingInfo);
-			return true;
-		}
-		else {
-			if (mShader == mLastShader) {
-				mShader->SetProg(false);
-				mLastShader = NULL;
-			}
-			mPass = 0;
-			return false;
-		}
+		ActivateShaders(rasty);
 	}
 	else if (GLEW_ARB_shader_objects && (mBlenderShader && mBlenderShader->Ok())) {
-		if (mPass++ == 0) {
-			ActivateBlenderShaders(rasty, cachingInfo);
-			return true;
-		}
-		else {
-			mPass = 0;
-			return false;
-		}
+		ActivateBlenderShaders(rasty);
 	}
 	else {
-		if (mPass++ == 0) {
-			ActivateMat(rasty, cachingInfo);
-			return true;
-		}
-		else {
-			mPass = 0;
-			return false;
-		}
+		ActivateMat(rasty);
 	}
+}
+void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
+{
+	if (GLEW_ARB_shader_objects && (mShader && mShader->Ok())) {
+		mShader->SetProg(false);
+	}
+	else if (GLEW_ARB_shader_objects && (mBlenderShader && mBlenderShader->Ok())) {
+		mBlenderShader->SetProg(false);
+	}
+
+	rasty->SetAlphaBlend(TF_SOLID);
+	BL_Texture::DisableAllTextures();
 }
 
 bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
@@ -612,7 +467,7 @@ bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 		return true;
 }
 
-void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty) const
+void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 {
 	if (mShader && GLEW_ARB_shader_objects) {
 		mShader->Update(ms, rasty);
@@ -632,7 +487,7 @@ void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *ras
 	}
 }
 
-void KX_BlenderMaterial::ActivatGLMaterials(RAS_IRasterizer *rasty) const
+void KX_BlenderMaterial::ActivateGLMaterials(RAS_IRasterizer *rasty) const
 {
 	if (mShader || !mBlenderShader) {
 		rasty->SetSpecularity(

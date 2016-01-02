@@ -109,25 +109,34 @@ RAS_MeshSlotList::iterator RAS_MaterialBucket::msEnd()
 	return m_meshSlots.end();
 }
 
-bool RAS_MaterialBucket::ActivateMaterial(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)
+bool RAS_MaterialBucket::ActivateMaterial(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && !m_material->CastsShadows())
+	if ((rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && !m_material->CastsShadows()) ||
+		(rasty->GetDrawingMode() != RAS_IRasterizer::KX_SHADOW && m_material->OnlyShadow()))
+	{
 		return false;
+	}
 
-	if (rasty->GetDrawingMode() != RAS_IRasterizer::KX_SHADOW && m_material->OnlyShadow())
-		return false;
-
-	if (!rasty->SetMaterial(*m_material))
-		return false;
-
-	bool uselights = m_material->UsesLighting(rasty);
-	rasty->ProcessLighting(uselights, cameratrans);
+	m_material->Activate(rasty);
 
 	return true;
 }
 
+void RAS_MaterialBucket::DesactivateMaterial(RAS_IRasterizer *rasty)
+{
+	m_material->Desactivate(rasty);
+}
+
 void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_MeshSlot *ms)
 {
+	// Inverse condition of in ActivateMaterial.
+	if (!((rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && !m_material->CastsShadows()) ||
+		(rasty->GetDrawingMode() != RAS_IRasterizer::KX_SHADOW && m_material->OnlyShadow())))
+	{
+		bool uselights = m_material->UsesLighting(rasty);
+		rasty->ProcessLighting(uselights, cameratrans);
+	}
+
 	m_material->ActivateMeshSlot(ms, rasty);
 
 	if (ms->m_pDeformer) {

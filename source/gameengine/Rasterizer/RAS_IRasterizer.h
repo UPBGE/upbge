@@ -179,13 +179,6 @@ public:
 	virtual void SetDepthMask(DepthMask depthmask) = 0;
 
 	/**
-	 * SetMaterial sets the material settings for subsequent primitives
-	 * to be rendered with.
-	 * The material will be cached.
-	 */
-	virtual bool SetMaterial(const RAS_IPolyMaterial &mat) = 0;
-
-	/**
 	 * Init initializes the renderer.
 	 */
 	virtual bool Init() = 0;
@@ -209,11 +202,6 @@ public:
 	 * ClearDepthBuffer clears the depth buffer.
 	 */
 	virtual void ClearDepthBuffer() = 0;
-
-	/**
-	 * ClearCachingInfo clears the currently cached material.
-	 */
-	virtual void ClearCachingInfo(void) = 0;
 
 	/**
 	 * EndFrame is called at the end of each frame.

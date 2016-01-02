@@ -161,14 +161,16 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 	for (sit=slots.begin(); sit!=slots.end(); ++sit) {
 		rasty->SetClientObject(sit->m_ms->m_clientObj);
 
+		RAS_MaterialBucket *bucket = sit->m_bucket;
 		RAS_DisplayArray *displayArray = sit->m_ms->GetDisplayArray();
-		rasty->BindPrimitives(displayArray);
 
-		while (sit->m_bucket->ActivateMaterial(cameratrans, rasty))
-			sit->m_bucket->RenderMeshSlot(cameratrans, rasty, sit->m_ms);
+		if (bucket->ActivateMaterial(rasty)) {
+			rasty->BindPrimitives(displayArray);
+			bucket->RenderMeshSlot(cameratrans, rasty, sit->m_ms);
+			rasty->UnbindPrimitives(displayArray);
 
-		rasty->UnbindPrimitives(displayArray);
-
+			bucket->DesactivateMaterial(rasty);
+		}
 		// make this mesh slot culled automatically for next frame
 		// it will be culled out by frustrum culling
 		sit->m_ms->SetCulled(true);
@@ -187,7 +189,11 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 #if 1
 		RAS_MaterialBucket* bucket = *bit;
 		RAS_DisplayArrayBucketList& displayArrayBucketList = bucket->GetDisplayArrayBucketList();
-		for (RAS_DisplayArrayBucketList::iterator sbit = displayArrayBucketList.begin(), sbend = displayArrayBucketList.end();
+
+		// False if the material can't be activated.
+		bool matactivated = false;
+
+		for (RAS_DisplayArrayBucketList::reverse_iterator sbit = displayArrayBucketList.rbegin(), sbend = displayArrayBucketList.rend();
 			 sbit != sbend; ++sbit)
 		{
 			RAS_DisplayArrayBucket *displayArrayBucket = *sbit;
@@ -196,14 +202,25 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 				continue;
 			}
 
+			if (!matactivated) {
+				// Try activate the material.
+				if (!bucket->ActivateMaterial(rasty)) {
+					// If the material can't be activated only clear all slot meshes.
+					displayArrayBucket->RemoveActiveMeshSlots();
+					continue;
+				}
+				// Else set the material as activated.
+				matactivated = true;
+			}
+
 			RAS_DisplayArray *displayArray = displayArrayBucket->GetDisplayArray();
 
 			rasty->BindPrimitives(displayArray);
 			for (RAS_MeshSlotList::iterator mit = activeMeshSlots.begin(), mend = activeMeshSlots.end(); mit != mend; ++mit) {
 				RAS_MeshSlot *ms = *mit;
 				rasty->SetClientObject(ms->m_clientObj);
-				while (bucket->ActivateMaterial(cameratrans, rasty))
-					bucket->RenderMeshSlot(cameratrans, rasty, ms);
+
+				bucket->RenderMeshSlot(cameratrans, rasty, ms);
 
 				// make this mesh slot culled automatically for next frame
 				// it will be culled out by frustrum culling
@@ -214,6 +231,12 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 
 			displayArrayBucket->RemoveActiveMeshSlots();
 		}
+
+		// Desactivate the material if it was activated.
+		if (matactivated) {
+			bucket->DesactivateMaterial(rasty);
+		}
+
 #else
 		RAS_MeshSlotList::iterator mit;
 		for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
@@ -252,9 +275,6 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 
 void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty)
 {
-	/* beginning each frame, clear (texture/material) caching information */
-	rasty->ClearCachingInfo();
-
 	RenderSolidBuckets(cameratrans, rasty);
 	RenderAlphaBuckets(cameratrans, rasty);
 

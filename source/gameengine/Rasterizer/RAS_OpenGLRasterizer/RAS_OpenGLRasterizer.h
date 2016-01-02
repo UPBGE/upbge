@@ -135,9 +135,6 @@ protected:
 	/* int m_last_alphablend; */
 	bool m_last_frontface;
 
-	/* Stores the caching information for the last material activated. */
-	RAS_IPolyMaterial::TCachingInfo m_materialCachingInfo;
-
 	/* Making use of a Strategy design pattern for storage behavior.
 	 * Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
 	int m_storage_type;
@@ -150,13 +147,11 @@ public:
 
 	virtual void SetDepthMask(DepthMask depthmask);
 
-	virtual bool SetMaterial(const RAS_IPolyMaterial &mat);
 	virtual bool Init();
 	virtual void Exit();
 	virtual bool BeginFrame(double time);
 	virtual void ClearColorBuffer();
 	virtual void ClearDepthBuffer();
-	virtual void ClearCachingInfo(void);
 	virtual void EndFrame();
 	virtual void SetRenderArea();
 

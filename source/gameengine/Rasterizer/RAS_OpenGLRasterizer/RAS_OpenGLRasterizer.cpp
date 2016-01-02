@@ -109,7 +109,6 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, RAS_STORAGE_TYPE
 	m_attrib_num(0),
 	//m_last_alphablend(GPU_BLEND_SOLID),
 	m_last_frontface(true),
-	m_materialCachingInfo(0),
 	m_storage_type(storage)
 {
 	m_viewmatrix.setIdentity();
@@ -230,11 +229,6 @@ void RAS_OpenGLRasterizer::DisplayFog()
 	}
 }
 
-bool RAS_OpenGLRasterizer::SetMaterial(const RAS_IPolyMaterial& mat)
-{
-	return mat.Activate(this, m_materialCachingInfo);
-}
-
 void RAS_OpenGLRasterizer::Exit()
 {
 	m_storage->Exit();
@@ -325,11 +319,6 @@ void RAS_OpenGLRasterizer::ClearColorBuffer()
 void RAS_OpenGLRasterizer::ClearDepthBuffer()
 {
 	m_2DCanvas->ClearBuffer(RAS_ICanvas::DEPTH_BUFFER);
-}
-
-void RAS_OpenGLRasterizer::ClearCachingInfo(void)
-{
-	m_materialCachingInfo = 0;
 }
 
 void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
@@ -726,8 +715,6 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot *ms, class RAS_IP
 		GPU_render_text(
 		    polymat->GetMTexPoly(), polymat->GetDrawingMode(), mytext, mytext.Length(), polymat->GetMCol(),
 		    v_ptr, uv_ptr, glattrib);
-
-		ClearCachingInfo();
 	}
 
 	glDisableClientState(GL_COLOR_ARRAY);
