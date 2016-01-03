@@ -55,7 +55,7 @@ struct RAS_MeshObject::polygonSlot
 
 	/* pnorm is the normal from the plane equation that the distance from is
 	 * used to sort again. */
-	void get(const RAS_TexVert *vertexarray, const unsigned short *indexarray,
+	void get(const RAS_TexVert *vertexarray, const unsigned int *indexarray,
 	         int offset, int nvert, const MT_Vector3& pnorm)
 	{
 		MT_Vector3 center(0.0f, 0.0f, 0.0f);
@@ -72,7 +72,7 @@ struct RAS_MeshObject::polygonSlot
 		m_z = MT_dot(pnorm, center);
 	}
 
-	void set(unsigned short *indexarray, int offset, int nvert)
+	void set(unsigned int *indexarray, int offset, int nvert)
 	{
 		int i;
 

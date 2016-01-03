@@ -85,7 +85,7 @@ class RAS_DisplayArray
 {
 public:
 	vector<RAS_TexVert> m_vertex;
-	vector<unsigned short> m_index;
+	vector<unsigned int> m_index;
 
 	enum {BUCKET_MAX_INDEX = 65535};
 	enum {BUCKET_MAX_VERTEX = 65535};

@@ -100,7 +100,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
 	RAS_DisplayArray *array = ms->GetDisplayArray();
 	RAS_TexVert *vertexarray = array->m_vertex.data();
-	unsigned short *indexarray = array->m_index.data();
+	unsigned int *indexarray = array->m_index.data();
 
 	// colors
 	if (!wireframe) {
@@ -120,7 +120,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 		glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
 
 	// here the actual drawing takes places
-	glDrawElements(GL_TRIANGLES, array->m_index.size(), GL_UNSIGNED_SHORT, indexarray);
+	glDrawElements(GL_TRIANGLES, array->m_index.size(), GL_UNSIGNED_INT, indexarray);
 }
 
 void RAS_StorageVA::TexCoordPtr(const RAS_TexVert *tv)

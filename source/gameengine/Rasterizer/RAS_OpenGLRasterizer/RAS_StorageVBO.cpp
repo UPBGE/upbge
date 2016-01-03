@@ -71,7 +71,7 @@ void VBO::UpdateData()
 void VBO::UpdateIndices()
 {
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_data->m_index.size() * sizeof(GLushort),
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_data->m_index.size() * sizeof(GLuint),
 	             m_data->m_index.data(), GL_STATIC_DRAW);
 }
 
@@ -182,7 +182,7 @@ void VBO::Unbind(int attrib_num)
 
 void VBO::Draw()
 {
-	glDrawElements(m_mode, m_indices, GL_UNSIGNED_SHORT, 0);
+	glDrawElements(m_mode, m_indices, GL_UNSIGNED_INT, 0);
 }
 
 RAS_StorageVBO::RAS_StorageVBO(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer) :
