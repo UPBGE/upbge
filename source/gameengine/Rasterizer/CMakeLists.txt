@@ -47,10 +47,12 @@ set(INC_SYS
 set(SRC
 	RAS_2DFilterManager.cpp
 	RAS_BucketManager.cpp
+	RAS_DisplayArrayBucket.cpp
 	RAS_FramingManager.cpp
 	RAS_IPolygonMaterial.cpp
 	RAS_MaterialBucket.cpp
 	RAS_MeshObject.cpp
+	RAS_MeshSlot.cpp
 	RAS_Polygon.cpp
 	RAS_TexVert.cpp
 	RAS_ICanvas.cpp
@@ -59,13 +61,17 @@ set(SRC
 	RAS_BucketManager.h
 	RAS_CameraData.h
 	RAS_Deformer.h
+	RAS_DisplayArray.h
+	RAS_DisplayArrayBucket.h
 	RAS_FramingManager.h
 	RAS_ICanvas.h
 	RAS_IPolygonMaterial.h
 	RAS_IRasterizer.h
 	RAS_ILightObject.h
 	RAS_MaterialBucket.h
+	RAS_MeshMaterial.h
 	RAS_MeshObject.h
+	RAS_MeshSlot.h
 	RAS_Polygon.h
 	RAS_Rect.h
 	RAS_TexVert.h

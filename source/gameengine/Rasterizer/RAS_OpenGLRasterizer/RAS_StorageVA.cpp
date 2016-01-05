@@ -26,6 +26,7 @@
  */
 
 #include "RAS_StorageVA.h"
+#include "RAS_DisplayArray.h"
 
 #include "glew-mx.h"
 

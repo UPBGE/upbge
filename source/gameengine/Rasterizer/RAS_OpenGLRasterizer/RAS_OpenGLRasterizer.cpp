@@ -42,6 +42,7 @@
 #include "RAS_TexVert.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
+#include "RAS_DisplayArray.h"
 #include "RAS_ILightObject.h"
 #include "MT_CmMatrix4x4.h"
 

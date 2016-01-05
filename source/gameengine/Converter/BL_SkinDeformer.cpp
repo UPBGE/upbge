@@ -41,6 +41,7 @@
 #include "CTR_Map.h"
 #include "STR_HashedString.h"
 #include "RAS_IPolygonMaterial.h"
+#include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
 
 //#include "BL_ArmatureController.h"

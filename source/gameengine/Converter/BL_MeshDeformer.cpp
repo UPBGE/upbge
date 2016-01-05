@@ -37,6 +37,7 @@
 #endif
 
 #include "RAS_IPolygonMaterial.h"
+#include "RAS_DisplayArray.h"
 #include "BL_DeformableGameObject.h"
 #include "BL_MeshDeformer.h"
 #include "RAS_MeshObject.h"

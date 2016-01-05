@@ -38,6 +38,7 @@
 
 #include "KX_SoftBodyDeformer.h"
 #include "RAS_MeshObject.h"
+#include "RAS_DisplayArray.h"
 #include "CTR_Map.h"
 #include "CTR_HashedPtr.h"
 

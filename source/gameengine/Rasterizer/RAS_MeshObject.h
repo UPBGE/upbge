@@ -41,7 +41,10 @@
 #include <list>
 
 #include "RAS_MaterialBucket.h"
+#include "RAS_MeshMaterial.h"
+#include "RAS_TexVert.h"
 #include "MT_Transform.h"
+#include "MT_Point2.h"
 #include "STR_String.h"
 
 struct Mesh;
@@ -63,7 +66,7 @@ private:
 	STR_String m_name;
 	static STR_String s_emptyname;
 
-	vector<RAS_Polygon *> m_Polygons;
+	std::vector<RAS_Polygon *> m_Polygons;
 
 	/* polygon sorting */
 	struct polygonSlot;
@@ -73,8 +76,8 @@ private:
 	void UpdateAabb();
 
 protected:
-	vector<int> m_cacheWeightIndex;
-	list<RAS_MeshMaterial> m_materials;
+	std::vector<int> m_cacheWeightIndex;
+	std::list<RAS_MeshMaterial> m_materials;
 	Mesh *m_mesh;
 
 public:
@@ -92,8 +95,8 @@ public:
 	/// Return the material position in the mesh, like in blender.
 	int GetBlenderMaterialId(RAS_IPolyMaterial *mat);
 
-	list<RAS_MeshMaterial>::iterator GetFirstMaterial();
-	list<RAS_MeshMaterial>::iterator GetLastMaterial();
+	std::list<RAS_MeshMaterial>::iterator GetFirstMaterial();
+	std::list<RAS_MeshMaterial>::iterator GetLastMaterial();
 
 	// name
 	void SetName(const char *name);
@@ -169,7 +172,7 @@ public:
 		int m_offset;
 	};
 
-	vector<vector<SharedVertex> > m_sharedvertex_map;
+	std::vector<std::vector<SharedVertex> > m_sharedvertex_map;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

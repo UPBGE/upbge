@@ -34,6 +34,7 @@
 
 #include "KX_MeshProxy.h"
 #include "RAS_IPolygonMaterial.h"
+#include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
 
 #include "KX_VertexProxy.h"

@@ -102,7 +102,7 @@ RAS_BucketManager::~RAS_BucketManager()
 	m_AlphaBuckets.clear();
 }
 
-void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, vector<sortedmeshslot>& slots, bool alpha)
+void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, std::vector<sortedmeshslot>& slots, bool alpha)
 {
 	BucketList::iterator bit;
 	RAS_MeshSlotList::iterator mit;
@@ -147,8 +147,8 @@ void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList
 
 void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty)
 {
-	vector<sortedmeshslot> slots;
-	vector<sortedmeshslot>::iterator sit;
+	std::vector<sortedmeshslot> slots;
+	std::vector<sortedmeshslot>::iterator sit;
 
 	// Having depth masks disabled/enabled gives different artifacts in
 	// case no sorting is done or is done inexact. For compatibility, we

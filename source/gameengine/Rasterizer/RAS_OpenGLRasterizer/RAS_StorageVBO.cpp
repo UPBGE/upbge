@@ -26,6 +26,7 @@
  */
 
 #include "RAS_StorageVBO.h"
+#include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Deformer.h"
 
