@@ -162,17 +162,35 @@ void id_lib_extern(ID *id)
 }
 
 /* ensure we have a real user */
+/* Note: Now that we have flags, we could get rid of the 'fake_user' special case, flags are enough to ensure
+ *       we always have a real user.
+ *       However, ID_REAL_USERS is used in several places outside of core library.c, so think we can wait later
+ *       to make this change... */
 void id_us_ensure_real(ID *id)
 {
 	if (id) {
 		const int limit = ID_FAKE_USERS(id);
+		id->tag |= LIB_TAG_EXTRAUSER;
 		if (id->us <= limit) {
-			if (id->us < limit) {
+			if (id->us < limit || ((id->us == limit) && (id->tag & LIB_TAG_EXTRAUSER_SET))) {
 				printf("ID user count error: %s (from '%s')\n", id->name, id->lib ? id->lib->filepath : "[Main]");
 				BLI_assert(0);
 			}
 			id->us = limit + 1;
+			id->tag |= LIB_TAG_EXTRAUSER_SET;
 		}
+	}
+}
+
+/* Unused currently... */
+static void UNUSED_FUNCTION(id_us_clear_real)(ID *id)
+{
+	if (id && (id->tag & LIB_TAG_EXTRAUSER)) {
+		if (id->tag & LIB_TAG_EXTRAUSER_SET) {
+			id->us--;
+			BLI_assert(id->us >= ID_FAKE_USERS(id));
+		}
+		id->tag &= ~(LIB_TAG_EXTRAUSER | LIB_TAG_EXTRAUSER_SET);
 	}
 }
 
@@ -190,8 +208,15 @@ void id_us_min(ID *id)
 {
 	if (id) {
 		const int limit = ID_FAKE_USERS(id);
+
+		if ((id->us == limit) && (id->tag & LIB_TAG_EXTRAUSER) && !(id->tag & LIB_TAG_EXTRAUSER_SET)) {
+			/* We need an extra user here, but never actually incremented user count for it so far, do it now. */
+			id_us_ensure_real(id);
+		}
+
 		if (id->us <= limit) {
-			printf("ID user decrement error: %s (from '%s')\n", id->name, id->lib ? id->lib->filepath : "[Main]");
+			printf("ID user decrement error: %s (from '%s'): %d <= %d\n",
+			       id->name, id->lib ? id->lib->filepath : "[Main]", id->us, limit);
 			/* We cannot assert here, because of how we 'delete' datablocks currently (setting their usercount to zero),
 			 * this is weak but it's how it works for now. */
 			/* BLI_assert(0); */
@@ -1760,7 +1785,7 @@ void BKE_main_id_tag_all(struct Main *mainvar, const bool tag)
 
 /* if lib!=NULL, only all from lib local
  * bmain is almost certainly G.main */
-void BKE_library_make_local(Main *bmain, Library *lib, bool untagged_only)
+void BKE_library_make_local(Main *bmain, Library *lib, bool untagged_only, bool set_fake)
 {
 	ListBase *lbarray[MAX_LIBARRAY];
 	ID *id, *idn;
@@ -1797,7 +1822,15 @@ void BKE_library_make_local(Main *bmain, Library *lib, bool untagged_only)
 						id->tag &= ~(LIB_TAG_EXTERN | LIB_TAG_INDIRECT | LIB_TAG_NEW);
 					}
 				}
+
+				if (set_fake) {
+					if (!ELEM(GS(id->name), ID_OB, ID_GR)) {
+						/* do not set fake user on objects, groups (instancing) */
+						id_fake_user_set(id);
+					}
+				}
 			}
+
 			id = idn;
 		}
 	}

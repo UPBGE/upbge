@@ -173,8 +173,9 @@ endif()
 		bf_intern_eigen
 		extern_rangetree
 		extern_wcwidth
-		extern_libmv
+		bf_intern_libmv
 		extern_glog
+		extern_gflags
 		extern_sdlew
 	)
 
