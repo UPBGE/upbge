@@ -36,8 +36,13 @@
 
 #include <vector>
 
+class RAS_IRasterizer;
 class RAS_MaterialBucket;
 class RAS_DisplayArray;
+class RAS_MeshObject;
+class RAS_Deformer;
+
+typedef std::vector<RAS_Deformer *> RAS_DeformerList;
 
 class RAS_DisplayArrayBucket
 {
@@ -50,6 +55,11 @@ private:
 	RAS_DisplayArray *m_displayArray;
 	/// The list fo all visible mesh slots to render this frame.
 	RAS_MeshSlotList m_activeMeshSlots;
+	/// The list of all deformer usign this display array.
+	RAS_DeformerList m_deformerList;
+
+	/// True if the display array is not frequently modified and can use display list.
+	bool m_useDisplayList;
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array);
@@ -72,6 +82,18 @@ public:
 	unsigned int GetNumActiveMeshSlots() const;
 	/// Remove all mesh slots from the list.
 	void RemoveActiveMeshSlots();
+
+	/// \section Deformer
+	/// Add a deformer user.
+	void AddDeformer(RAS_Deformer *deformer);
+	/// Remove the given deformer.
+	void RemoveDeformer(RAS_Deformer *deformer);
+
+	/// \section Render Infos
+	bool UseDisplayList();
+
+	/// Update render infos.
+	void UpdateActiveMeshSlots(RAS_IRasterizer *rasty);
 };
 
 typedef std::vector<RAS_DisplayArrayBucket *> RAS_DisplayArrayBucketList;

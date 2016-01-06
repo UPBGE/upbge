@@ -171,21 +171,30 @@ void RAS_ListRasterizer::ReleaseAlloc()
 	mArrayLists.clear();
 }
 
-void RAS_ListRasterizer::BindPrimitives(RAS_DisplayArray *array)
+void RAS_ListRasterizer::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
 	// Set all vertex array attributs outside the display list is slower than recall it for each display list.
+	if (arrayBucket && !arrayBucket->UseDisplayList()) {
+		RAS_OpenGLRasterizer::BindPrimitives(arrayBucket);
+	}
 }
 
-void RAS_ListRasterizer::UnbindPrimitives(RAS_DisplayArray *array)
+void RAS_ListRasterizer::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
 	// Set all vertex array attributs outside the display list is slower than recall it for each display list.
+	if (arrayBucket && !arrayBucket->UseDisplayList()) {
+		RAS_OpenGLRasterizer::UnbindPrimitives(arrayBucket);
+	}
 }
 
 void RAS_ListRasterizer::IndexPrimitives(RAS_MeshSlot *ms)
 {
 	RAS_ListSlot *localSlot = NULL;
 
-	if (ms->m_bDisplayList) {
+	RAS_DisplayArrayBucket *arrayBucket = ms->m_displayArrayBucket;
+	bool useDisplayList = arrayBucket->UseDisplayList();
+
+	if (useDisplayList) {
 		localSlot = FindOrAdd(ms);
 		localSlot->DrawList();
 
@@ -195,13 +204,15 @@ void RAS_ListRasterizer::IndexPrimitives(RAS_MeshSlot *ms)
 			ms->m_DisplayList = localSlot;
 			return;
 		}
+
+		RAS_OpenGLRasterizer::BindPrimitives(arrayBucket);
 	}
 
-	RAS_OpenGLRasterizer::BindPrimitives(ms->GetDisplayArray());
 	RAS_OpenGLRasterizer::IndexPrimitives(ms);
-	RAS_OpenGLRasterizer::UnbindPrimitives(ms->GetDisplayArray());
 
-	if (ms->m_bDisplayList) {
+	if (useDisplayList) {
+		RAS_OpenGLRasterizer::UnbindPrimitives(arrayBucket);
+
 		localSlot->EndList();
 		ms->m_DisplayList = localSlot;
 	}

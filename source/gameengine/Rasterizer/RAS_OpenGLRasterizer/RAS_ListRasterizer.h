@@ -53,8 +53,8 @@ public:
 	RAS_ListRasterizer(RAS_ICanvas *canvas, bool lock = false, RAS_STORAGE_TYPE storage = RAS_AUTO_STORAGE);
 	virtual ~RAS_ListRasterizer();
 
-	virtual void BindPrimitives(RAS_DisplayArray *array);
-	virtual void UnbindPrimitives(RAS_DisplayArray *array);
+	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
+	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void IndexPrimitives(class RAS_MeshSlot *ms);
 
 	virtual bool Init();

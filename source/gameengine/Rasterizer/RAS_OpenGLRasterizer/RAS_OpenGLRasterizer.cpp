@@ -750,14 +750,18 @@ void RAS_OpenGLRasterizer::SetAttrib(TexCoGen coords, int unit, int layer)
 	}
 }
 
-void RAS_OpenGLRasterizer::BindPrimitives(RAS_DisplayArray *array)
+void RAS_OpenGLRasterizer::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
-	m_storage->BindPrimitives(array);
+	if (arrayBucket) {
+		m_storage->BindPrimitives(arrayBucket->GetDisplayArray());
+	}
 }
 
-void RAS_OpenGLRasterizer::UnbindPrimitives(RAS_DisplayArray *array)
+void RAS_OpenGLRasterizer::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
-	m_storage->UnbindPrimitives(array);
+	if (arrayBucket) {
+		m_storage->UnbindPrimitives(arrayBucket->GetDisplayArray());
+	}
 }
 
 void RAS_OpenGLRasterizer::IndexPrimitives(RAS_MeshSlot *ms)

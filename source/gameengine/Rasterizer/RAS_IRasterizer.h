@@ -53,7 +53,7 @@ using namespace std;
 class RAS_ICanvas;
 class RAS_IPolyMaterial;
 class RAS_MeshSlot;
-class RAS_DisplayArray;
+class RAS_DisplayArrayBucket;
 class RAS_ILightObject;
 class SCA_IScene;
 
@@ -252,10 +252,10 @@ public:
 	virtual void SwapBuffers() = 0;
 	
 	// Drawing Functions
-	/// Set all pre render attributs for given vertex array.
-	virtual void BindPrimitives(RAS_DisplayArray *array) = 0;
-	/// UnSet all pre render attributs for given vertex array.
-	virtual void UnbindPrimitives(RAS_DisplayArray *array) = 0;
+	/// Set all pre render attributs for given display array bucket.
+	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket) = 0;
+	/// UnSet all pre render attributs for given display array bucket.
+	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket) = 0;
 	/**
 	 * IndexPrimitives: Renders primitives from mesh slot.
 	 */

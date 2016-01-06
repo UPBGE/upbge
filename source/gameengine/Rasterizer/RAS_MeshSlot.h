@@ -95,7 +95,6 @@ public:
 	MT_Vector4 m_RGBAcolor;
 	// display lists
 	KX_ListSlot *m_DisplayList;
-	bool m_bDisplayList;
 
 	RAS_MeshSlot *m_joinSlot;
 	MT_Matrix4x4 m_joinInvTransform;

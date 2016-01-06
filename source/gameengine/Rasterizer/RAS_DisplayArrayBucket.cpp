@@ -32,6 +32,11 @@
 #include "RAS_DisplayArrayBucket.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_MaterialBucket.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_Deformer.h"
+#include "RAS_IRasterizer.h"
+
+#include <algorithm>
 
 #ifdef _MSC_VER
 #  pragma warning (disable:4786)
@@ -44,7 +49,8 @@
 RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array)
 	:m_refcount(1),
 	m_bucket(bucket),
-	m_displayArray(array)
+	m_displayArray(array),
+	m_useDisplayList(false)
 {
 	m_bucket->AddDisplayArrayBucket(this);
 }
@@ -118,4 +124,55 @@ void RAS_DisplayArrayBucket::RemoveActiveMeshSlots()
 unsigned int RAS_DisplayArrayBucket::GetNumActiveMeshSlots() const
 {
 	return m_activeMeshSlots.size();
+}
+
+void RAS_DisplayArrayBucket::AddDeformer(RAS_Deformer *deformer)
+{
+	m_deformerList.push_back(deformer);
+}
+
+void RAS_DisplayArrayBucket::RemoveDeformer(RAS_Deformer *deformer)
+{
+	RAS_DeformerList::iterator it = std::find(m_deformerList.begin(), m_deformerList.end(), deformer);
+	if (it != m_deformerList.end()) {
+		m_deformerList.erase(it);
+	}
+}
+
+bool RAS_DisplayArrayBucket::UseDisplayList()
+{
+	return m_useDisplayList;
+}
+
+void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
+{
+	m_useDisplayList = true;
+
+	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
+
+	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW) {
+		m_useDisplayList = false;
+	}
+	else if (m_bucket->IsZSort()) {
+		m_useDisplayList = false;
+	}
+	// TODO : disable display list for object color only for non-blender material.
+	else if (material->UsesObjectColor()) {
+		m_useDisplayList = false;
+	}
+	// No display array mean modifiers.
+	else if (!m_displayArray) {
+		m_useDisplayList = false;
+	}
+
+	for (RAS_DeformerList::iterator it = m_deformerList.begin(), end = m_deformerList.end(); it != end; ++it) {
+		RAS_Deformer *deformer = *it;
+
+		deformer->Apply(material);
+
+		// Test if one of deformers is dynamic.
+		if (deformer->IsDynamic()) {
+			m_useDisplayList = false;
+		}
+	}
 }

@@ -79,7 +79,8 @@ public:
 
 
 private:
-	void OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, std::vector<sortedmeshslot>& slots, bool alpha);
+	void OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, std::vector<sortedmeshslot>& slots, 
+					  bool alpha, RAS_IRasterizer *rasty);
 
 	void RenderSolidBuckets(const MT_Transform& cameratrans,
 		RAS_IRasterizer* rasty);

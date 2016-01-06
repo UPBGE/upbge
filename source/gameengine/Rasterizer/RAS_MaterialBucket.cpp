@@ -151,10 +151,6 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 
 	m_material->ActivateMeshSlot(ms, rasty);
 
-	if (ms->m_pDeformer) {
-		ms->m_pDeformer->Apply(m_material);
-	}
-
 	if (IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::KX_SOLID)
 		ms->m_mesh->SortPolygons(ms, cameratrans * MT_Transform(ms->m_OpenGLMatrix));
 
@@ -167,26 +163,6 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 		if (ms->m_DisplayList)
 			ms->m_DisplayList->SetModified(ms->m_mesh->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED);
 	}
-
-	// verify if we can use display list, not for deformed object, and
-	// also don't create a new display list when drawing shadow buffers,
-	// then it won't have texture coordinates for actual drawing. also
-	// for zsort we can't make a display list, since the polygon order
-	// changes all the time.
-	if (ms->m_pDeformer && ms->m_pDeformer->IsDynamic())
-		ms->m_bDisplayList = false;
-	else if (!ms->m_DisplayList && rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW)
-		ms->m_bDisplayList = false;
-	else if (IsZSort())
-		ms->m_bDisplayList = false;
-	else if (m_material->UsesObjectColor())
-		ms->m_bDisplayList = false;
-	else if (ms->m_pDerivedMesh) {
-		// Derived mesh are rendered by the viewport code.
-		ms->m_bDisplayList = false;
-	}
-	else
-		ms->m_bDisplayList = true;
 
 	if (m_material->GetDrawingMode() & RAS_IRasterizer::RAS_RENDER_3DPOLYGON_TEXT) {
 	    // for text drawing using faces

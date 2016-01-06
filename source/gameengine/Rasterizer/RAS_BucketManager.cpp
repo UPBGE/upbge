@@ -102,7 +102,8 @@ RAS_BucketManager::~RAS_BucketManager()
 	m_AlphaBuckets.clear();
 }
 
-void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, std::vector<sortedmeshslot>& slots, bool alpha)
+void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, std::vector<sortedmeshslot>& slots,
+									 bool alpha, RAS_IRasterizer *rasty)
 {
 	BucketList::iterator bit;
 	RAS_MeshSlotList::iterator mit;
@@ -132,6 +133,10 @@ void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList
 		{
 			RAS_DisplayArrayBucket *displayArrayBucket = *dbit;
 			RAS_MeshSlotList& activeMeshSlots = displayArrayBucket->GetActiveMeshSlots();
+
+			// Update deformer and render settings.
+			displayArrayBucket->UpdateActiveMeshSlots(rasty);
+
 			for (RAS_MeshSlotList::iterator it = activeMeshSlots.begin(), end = activeMeshSlots.end(); it != end; ++it) {
 				slots[i++].set(*it, bucket, pnorm);
 			}
@@ -156,10 +161,10 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 	if (rasty->GetDrawingMode() != RAS_IRasterizer::KX_SHADOW)
 		rasty->SetDepthMask(RAS_IRasterizer::KX_DEPTHMASK_DISABLED);
 
-	OrderBuckets(cameratrans, m_AlphaBuckets, slots, true);
+	OrderBuckets(cameratrans, m_AlphaBuckets, slots, true, rasty);
 
 	// The last display array and material bucket used to avoid double calls.
-	RAS_DisplayArray *lastDisplayArray = NULL;
+	RAS_DisplayArrayBucket *lastDisplayArrayBucket = NULL;
 	RAS_MaterialBucket *lastMaterialBucket = NULL;
 
 	bool matactivated = false;
@@ -168,7 +173,7 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 		rasty->SetClientObject(sit->m_ms->m_clientObj);
 
 		RAS_MaterialBucket *bucket = sit->m_bucket;
-		RAS_DisplayArray *displayArray = sit->m_ms->GetDisplayArray();
+		RAS_DisplayArrayBucket *displayArrayBucket = sit->m_ms->m_displayArrayBucket;
 
 		if (bucket != lastMaterialBucket) {
 			if (matactivated) {
@@ -178,10 +183,10 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 			lastMaterialBucket = bucket;
 		}
 
-		if (displayArray != lastDisplayArray) {
-			rasty->UnbindPrimitives(lastDisplayArray);
-			rasty->BindPrimitives(displayArray);
-			lastDisplayArray = displayArray;
+		if (displayArrayBucket != lastDisplayArrayBucket) {
+			rasty->UnbindPrimitives(lastDisplayArrayBucket);
+			rasty->BindPrimitives(displayArrayBucket);
+			lastDisplayArrayBucket = displayArrayBucket;
 		}
 
 		bucket->RenderMeshSlot(cameratrans, rasty, sit->m_ms);
@@ -194,7 +199,7 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 	if (matactivated && lastMaterialBucket) {
 		lastMaterialBucket->DesactivateMaterial(rasty);
 	}
-	rasty->UnbindPrimitives(lastDisplayArray);
+	rasty->UnbindPrimitives(lastDisplayArrayBucket);
 
 	rasty->SetDepthMask(RAS_IRasterizer::KX_DEPTHMASK_ENABLED);
 }
@@ -233,9 +238,10 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 				matactivated = true;
 			}
 
-			RAS_DisplayArray *displayArray = displayArrayBucket->GetDisplayArray();
+			// Update deformer and render settings.
+			displayArrayBucket->UpdateActiveMeshSlots(rasty);
 
-			rasty->BindPrimitives(displayArray);
+			rasty->BindPrimitives(displayArrayBucket);
 			for (RAS_MeshSlotList::iterator mit = activeMeshSlots.begin(), mend = activeMeshSlots.end(); mit != mend; ++mit) {
 				RAS_MeshSlot *ms = *mit;
 				rasty->SetClientObject(ms->m_clientObj);
@@ -247,7 +253,7 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 				ms->SetCulled(true);
 			}
 			// Ensure we unset array attributs.
-			rasty->UnbindPrimitives(displayArray);
+			rasty->UnbindPrimitives(displayArrayBucket);
 
 			displayArrayBucket->RemoveActiveMeshSlots();
 		}

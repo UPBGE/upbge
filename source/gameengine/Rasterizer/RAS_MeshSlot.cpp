@@ -58,7 +58,6 @@ RAS_MeshSlot::RAS_MeshSlot()
 	m_bCulled(true),
 	m_RGBAcolor(MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f)),
 	m_DisplayList(NULL),
-	m_bDisplayList(true),
 	m_joinSlot(NULL)
 {
 }
@@ -71,6 +70,11 @@ RAS_MeshSlot::~RAS_MeshSlot()
 	while (m_joinedSlots.size())
 		m_joinedSlots.front()->Split(true);
 #endif
+
+	if (m_pDeformer) {
+		// Remove the deformer user in the display array bucket.
+		m_displayArrayBucket->RemoveDeformer(m_pDeformer);
+	}
 
 	if (m_displayArrayBucket) {
 		m_displayArrayBucket->Release();
@@ -95,7 +99,6 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 	m_bCulled = slot.m_bCulled;
 	m_RGBAcolor = slot.m_RGBAcolor;
 	m_DisplayList = NULL;
-	m_bDisplayList = slot.m_bDisplayList;
 	m_joinSlot = NULL;
 	m_displayArray = slot.m_displayArray;
 	m_joinedSlots = slot.m_joinedSlots;
@@ -160,11 +163,13 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 				m_displayArrayBucket = m_bucket->FindDisplayArrayBucket(NULL)->AddRef();
 			}
 		}
+
+		// Add the deformer user in the display array bucket.
+		m_displayArrayBucket->AddDeformer(deformer);
+		// Update m_displayArray to the display array bucket.
+		m_displayArray = m_displayArrayBucket ? m_displayArrayBucket->GetDisplayArray() : NULL;
 	}
 	m_pDeformer = deformer;
-
-	// Update m_displayArray to the display array bucket.
-	m_displayArray = m_displayArrayBucket ? m_displayArrayBucket->GetDisplayArray() : NULL;
 }
 
 bool RAS_MeshSlot::Equals(RAS_MeshSlot *target)
