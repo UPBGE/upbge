@@ -158,7 +158,7 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 		ms->m_bDisplayList = false;
 	else if (IsZSort())
 		ms->m_bDisplayList = false;
-	else if (m_material->UsesObjectColor() && ms->m_bObjectColor)
+	else if (m_material->UsesObjectColor())
 		ms->m_bDisplayList = false;
 	else if (ms->m_pDerivedMesh) {
 		// Derived mesh are rendered by the viewport code.

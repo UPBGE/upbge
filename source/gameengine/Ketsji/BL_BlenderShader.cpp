@@ -194,10 +194,7 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 	// note: getValue gives back column major as needed by OpenGL
 	model.getValue((float *)obmat);
 
-	if (ms->m_bObjectColor)
-		ms->m_RGBAcolor.getValue((float *)obcol);
-	else
-		obcol[0] = obcol[1] = obcol[2] = obcol[3] = 1.0f;
+	ms->m_RGBAcolor.getValue((float *)obcol);
 
 	float auto_bump_scale = ms->m_pDerivedMesh != 0 ? ms->m_pDerivedMesh->auto_bump_scale : 1.0f;
 	GPU_material_bind_uniforms(gpumat, obmat, obcol, auto_bump_scale, NULL);

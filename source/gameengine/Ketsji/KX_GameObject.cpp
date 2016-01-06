@@ -100,7 +100,6 @@ KX_GameObject::KX_GameObject(
       m_previousLodLevel(0),
       m_pBlenderObject(NULL),
       m_pBlenderGroupObject(NULL),
-      m_bUseObjectColor(false),
       m_bIsNegativeScaling(false),
       m_objectColor(1.0f, 1.0f, 1.0f, 1.0f),
       m_bVisible(true),
@@ -753,7 +752,6 @@ void KX_GameObject::UpdateBuckets()
 
 		for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end; ++it) {
 			RAS_MeshSlot *ms = *it;
-			ms->m_bObjectColor = m_bUseObjectColor;
 			ms->m_RGBAcolor = m_objectColor;
 			ms->m_bVisible = m_bVisible;
 			ms->m_bCulled = m_bCulled || !m_bVisible;
@@ -1134,11 +1132,6 @@ void KX_GameObject::SetObjectColor(const MT_Vector4& rgbavec)
 const MT_Vector4& KX_GameObject::GetObjectColor()
 {
 	return m_objectColor;
-}
-
-void KX_GameObject::SetUseObjectColor(bool useObjectColor)
-{
-	m_bUseObjectColor = useObjectColor;
 }
 
 void KX_GameObject::AlignAxisToVect(const MT_Vector3& dir, int axis, float fac)

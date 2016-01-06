@@ -289,7 +289,7 @@ bool RAS_IPolyMaterial::OnlyShadow() const
 
 bool RAS_IPolyMaterial::UsesObjectColor() const
 {
-	return !(m_flag & RAS_BLENDERGLSL);
+	return (!(m_flag & RAS_BLENDERGLSL)) && (m_flag & RAS_OBJECTCOLOR);
 }
 
 unsigned int RAS_IPolyMaterial::m_newpolymatid = 0;

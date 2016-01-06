@@ -56,7 +56,6 @@ RAS_MeshSlot::RAS_MeshSlot()
 	m_OpenGLMatrix(NULL),
 	m_bVisible(false),
 	m_bCulled(true),
-	m_bObjectColor(false),
 	m_RGBAcolor(MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f)),
 	m_DisplayList(NULL),
 	m_bDisplayList(true),
@@ -94,7 +93,6 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 	m_displayArrayBucket = slot.m_displayArrayBucket;
 	m_bVisible = slot.m_bVisible;
 	m_bCulled = slot.m_bCulled;
-	m_bObjectColor = slot.m_bObjectColor;
 	m_RGBAcolor = slot.m_RGBAcolor;
 	m_DisplayList = NULL;
 	m_bDisplayList = slot.m_bDisplayList;
@@ -177,9 +175,7 @@ bool RAS_MeshSlot::Equals(RAS_MeshSlot *target)
 		return false;
 	if (m_bVisible != target->m_bVisible)
 		return false;
-	if (m_bObjectColor != target->m_bObjectColor)
-		return false;
-	if (m_bObjectColor && !(m_RGBAcolor == target->m_RGBAcolor))
+	if (m_RGBAcolor == target->m_RGBAcolor)
 		return false;
 
 	return true;

@@ -102,10 +102,11 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 	RAS_DisplayArray *array = ms->GetDisplayArray();
 	RAS_TexVert *vertexarray = array->m_vertex.data();
 	unsigned int *indexarray = array->m_index.data();
+	RAS_IPolyMaterial *material = ms->m_bucket->GetPolyMaterial();
 
 	// colors
 	if (!wireframe) {
-		if (ms->m_bObjectColor) {
+		if (material->UsesObjectColor()) {
 			const MT_Vector4& rgba = ms->m_RGBAcolor;
 
 			glDisableClientState(GL_COLOR_ARRAY);

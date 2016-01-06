@@ -56,6 +56,7 @@ enum MaterialProps
 	RAS_BLENDERGLSL = (1 << 3),
 	RAS_CASTSHADOW = (1 << 4),
 	RAS_ONLYSHADOW = (1 << 5),
+	RAS_OBJECTCOLOR = (1 << 6),
 };
 
 /**

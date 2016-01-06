@@ -92,7 +92,6 @@ public:
 	bool m_bVisible;
 	bool m_bCulled;
 	// object color
-	bool m_bObjectColor;
 	MT_Vector4 m_RGBAcolor;
 	// display lists
 	KX_ListSlot *m_DisplayList;

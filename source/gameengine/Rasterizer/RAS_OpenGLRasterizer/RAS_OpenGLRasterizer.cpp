@@ -679,7 +679,7 @@ const MT_Matrix4x4& RAS_OpenGLRasterizer::GetViewInvMatrix() const
 
 void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat)
 {
-	bool obcolor = ms->m_bObjectColor;
+	bool obcolor = polymat->UsesObjectColor();
 	MT_Vector4& rgba = ms->m_RGBAcolor;
 
 	const STR_String& mytext = ((CValue *)m_clientobject)->GetPropertyText("Text");
@@ -812,7 +812,7 @@ static DMDrawOption CheckTexDM(MTexPoly *mtexpoly, const bool has_mcol, int matn
 		// must handle color.
 		if (current_wireframe)
 			return DM_DRAW_OPTION_NO_MCOL;
-		if (current_ms->m_bObjectColor) {
+		if (current_polymat->UsesObjectColor()) {
 			MT_Vector4& rgba = current_ms->m_RGBAcolor;
 			glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 			// don't use mcol
