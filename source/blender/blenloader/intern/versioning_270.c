@@ -40,6 +40,7 @@
 #include "DNA_constraint_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_sdna_types.h"
+#include "DNA_sensor_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
@@ -1041,6 +1042,18 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		if (!DNA_struct_elem_find(fd->filesdna, "Object", "unsigned char", "max_jumps")) {
 			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
 				ob->max_jumps = 1;
+			}
+		}
+		if (!DNA_struct_elem_find(fd->filesdna, "bRaySensor", "int", "mask")) {
+			bRaySensor *raySensor;
+
+			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
+				for(bSensor* sensor = ob->sensors.first; sensor != NULL; sensor = (bSensor *)sensor->next) {
+					if(sensor->type == SENS_RAY) {
+						raySensor = (bRaySensor *)sensor->data;
+						raySensor->mask = 0xFFFF;//all one, 'cause this was the previous behavior
+					}
+				}
 			}
 		}
 	}
