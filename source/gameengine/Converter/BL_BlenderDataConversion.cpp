@@ -1067,22 +1067,16 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 				
 			int nverts = (mface->v4)? 4: 3;
 
-			RAS_Polygon *poly = meshobj->AddPolygon(bucket, nverts);
+			unsigned int indices[4]; // all indices of the poly, can be a tri or quad.
+			indices[0] = meshobj->AddVertex(bucket, 0, pt[0], uvs[0], tan[0], rgb[0], no[0], flat, mface->v1);
+			indices[1] = meshobj->AddVertex(bucket, 1, pt[1], uvs[1], tan[1], rgb[1], no[1], flat, mface->v2);
+			indices[2] = meshobj->AddVertex(bucket, 2, pt[2], uvs[2], tan[2], rgb[2], no[2], flat, mface->v3);
 
-			poly->SetVisible(visible);
-			poly->SetCollider(collider);
-			poly->SetTwoside(twoside);
-			//poly->SetEdgeCode(mface->edcode);
-
-			meshobj->AddVertex(poly,0,pt[0],uvs[0],tan[0],rgb[0],no[0],flat,mface->v1);
-			meshobj->AddVertex(poly,1,pt[1],uvs[1],tan[1],rgb[1],no[1],flat,mface->v2);
-			meshobj->AddVertex(poly,2,pt[2],uvs[2],tan[2],rgb[2],no[2],flat,mface->v3);
-
-			if (nverts==4) {
-				meshobj->AddVertex(poly,0,pt[0],uvs[0],tan[0],rgb[0],no[0],flat,mface->v1);
-				meshobj->AddVertex(poly,2,pt[2],uvs[2],tan[2],rgb[2],no[2],flat,mface->v3);
-				meshobj->AddVertex(poly,3,pt[3],uvs[3],tan[3],rgb[3],no[3],flat,mface->v4);
+			if (nverts == 4) {
+				indices[3] = meshobj->AddVertex(bucket, 3, pt[3], uvs[3], tan[3], rgb[3], no[3], flat, mface->v4);
 			}
+
+			meshobj->AddPolygon(bucket, nverts, indices, visible, collider, twoside);
 		}
 
 		if (tface) 

@@ -298,7 +298,8 @@ void RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index)
 	}
 }
 
-RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts)
+RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts, unsigned int indices[4],
+										bool visible, bool collider, bool twoside)
 {
 	// find a mesh material
 	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
@@ -309,6 +310,30 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 	RAS_DisplayArray *darray = slot->GetDisplayArray();
 	RAS_Polygon *poly = new RAS_Polygon(bucket, darray, numverts);
 	m_Polygons.push_back(poly);
+
+	poly->SetVisible(visible);
+	poly->SetCollider(collider);
+	poly->SetTwoside(twoside);
+
+	if (visible) {
+		// Add the first triangle.
+		slot->AddPolygonVertex(indices[0]);
+		slot->AddPolygonVertex(indices[1]);
+		slot->AddPolygonVertex(indices[2]);
+
+		poly->SetVertexOffset(0, indices[0]);
+		poly->SetVertexOffset(1, indices[1]);
+		poly->SetVertexOffset(2, indices[2]);
+
+		if (numverts == 4) {
+			// Add the second triangle.
+			slot->AddPolygonVertex(indices[0]);
+			slot->AddPolygonVertex(indices[2]);
+			slot->AddPolygonVertex(indices[3]);
+
+			poly->SetVertexOffset(3, indices[3]);
+		}
+	}
 
 	return poly;
 }
@@ -324,7 +349,7 @@ void RAS_MeshObject::SetVertexColor(RAS_IPolyMaterial *mat, MT_Vector4 rgba)
 	}
 }
 
-void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
+unsigned int RAS_MeshObject::AddVertex(RAS_MaterialBucket *bucket, int i,
                                const MT_Point3& xyz,
                                const MT_Point2 uvs[RAS_TexVert::MAX_UNIT],
                                const MT_Vector4& tangent,
@@ -335,7 +360,7 @@ void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
 {
 	RAS_TexVert texvert(xyz, uvs, tangent, rgba, normal, flat, origindex);
 
-	RAS_MeshMaterial *mmat = GetMeshMaterial(poly->GetMaterial()->GetPolyMaterial());
+	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
 	RAS_MeshSlot *slot = mmat->m_baseslot;
 	RAS_DisplayArray *darray = slot->GetDisplayArray();
 
@@ -353,18 +378,12 @@ void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
 				continue;
 
 			// found one, add it and we're done
-			if (poly->IsVisible())
-				slot->AddPolygonVertex(it->m_offset);
-			poly->SetVertexOffset(i, it->m_offset);
-			return;
+			return it->m_offset;
 		}
 	}
 
 	// no shared vertex found, add a new one
 	int offset = slot->AddVertex(texvert);
-	if (poly->IsVisible())
-		slot->AddPolygonVertex(offset);
-	poly->SetVertexOffset(i, offset);
 
 	{ 	// Shared Vertex!
 		SharedVertex shared;
@@ -372,6 +391,8 @@ void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
 		shared.m_offset = offset;
 		m_sharedvertex_map[origindex].push_back(shared);
 	}
+
+	return offset;
 }
 
 int RAS_MeshObject::NumVertices(RAS_IPolyMaterial *mat)

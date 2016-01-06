@@ -131,8 +131,9 @@ public:
 
 	// mesh construction
 	void AddMaterial(RAS_MaterialBucket *bucket, unsigned int index);
-	virtual RAS_Polygon *AddPolygon(RAS_MaterialBucket *bucket, int numverts);
-	virtual void AddVertex(RAS_Polygon *poly, int i,
+	virtual RAS_Polygon *AddPolygon(RAS_MaterialBucket *bucket, int numverts, unsigned int indices[4],
+									bool visible, bool collider, bool twoside);
+	virtual unsigned int AddVertex(RAS_MaterialBucket *bucket, int i,
 						   const MT_Point3& xyz,
 						   const MT_Point2 uvs[RAS_TexVert::MAX_UNIT],
 						   const MT_Vector4& tangent,
