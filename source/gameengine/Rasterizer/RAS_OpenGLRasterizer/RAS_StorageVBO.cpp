@@ -207,42 +207,42 @@ bool RAS_StorageVBO::Init()
 
 void RAS_StorageVBO::Exit()
 {
-	m_vbo_lookup.clear();
 }
 
-VBO *RAS_StorageVBO::GetVBO(RAS_DisplayArray *array)
+VBO *RAS_StorageVBO::GetVBO(RAS_DisplayArrayBucket *arrayBucket)
 {
-	VBO *vbo = m_vbo_lookup[array];
+	VBO *vbo = (VBO *)arrayBucket->GetStorageInfo();
 	if (!vbo) {
-		m_vbo_lookup[array] = vbo = new VBO(array, array->m_index.size());
+		RAS_DisplayArray *array = arrayBucket->GetDisplayArray();
+		vbo = new VBO(array, array->m_index.size());
+		arrayBucket->SetStorageInfo(vbo);
 	}
 	return vbo;
 }
 
-void RAS_StorageVBO::BindPrimitives(RAS_DisplayArray *array)
+void RAS_StorageVBO::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
-	if (!array) {
+	if (!arrayBucket->GetDisplayArray()) {
 		return;
 	}
 
-	VBO *vbo = GetVBO(array);
+	VBO *vbo = GetVBO(arrayBucket);
 	vbo->Bind(*m_texco_num, m_texco, *m_attrib_num, m_attrib, m_attrib_layer);
 }
 
-void RAS_StorageVBO::UnbindPrimitives(RAS_DisplayArray *array)
+void RAS_StorageVBO::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
-	if (!array) {
+	if (!arrayBucket->GetDisplayArray()) {
 		return;
 	}
 
-	VBO *vbo = GetVBO(array);
+	VBO *vbo = GetVBO(arrayBucket);
 	vbo->Unbind(*m_attrib_num);
 }
 
 void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot *ms)
 {
-	RAS_DisplayArray *array = ms->GetDisplayArray();
-	VBO *vbo = GetVBO(array);
+	VBO *vbo = GetVBO(ms->m_displayArrayBucket);
 
 	// Update the vbo if the mesh is modified or use a dynamic deformer.
 	if ((ms->m_mesh->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED) ||

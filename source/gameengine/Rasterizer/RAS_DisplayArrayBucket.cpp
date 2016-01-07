@@ -35,6 +35,7 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_Deformer.h"
 #include "RAS_IRasterizer.h"
+#include "RAS_IStorage.h"
 
 #include <algorithm>
 
@@ -50,7 +51,8 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_D
 	:m_refcount(1),
 	m_bucket(bucket),
 	m_displayArray(array),
-	m_useDisplayList(false)
+	m_useDisplayList(false),
+	m_storageInfo(NULL)
 {
 	m_bucket->AddDisplayArrayBucket(this);
 }
@@ -58,6 +60,9 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_D
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
 {
 	m_bucket->RemoveDisplayArrayBucket(this);
+	if (m_storageInfo) {
+		delete m_storageInfo;
+	}
 	if (m_displayArray) {
 		delete m_displayArray;
 	}
@@ -175,4 +180,14 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 			m_useDisplayList = false;
 		}
 	}
+}
+
+RAS_IStorageInfo *RAS_DisplayArrayBucket::GetStorageInfo() const
+{
+	return m_storageInfo;
+}
+
+void RAS_DisplayArrayBucket::SetStorageInfo(RAS_IStorageInfo *info)
+{
+	m_storageInfo = info;
 }

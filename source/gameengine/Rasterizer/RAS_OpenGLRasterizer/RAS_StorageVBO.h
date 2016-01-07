@@ -36,11 +36,11 @@
 
 #include "RAS_OpenGLRasterizer.h"
 
-class VBO
+class VBO : public RAS_IStorageInfo
 {
 public:
 	VBO(RAS_DisplayArray *data, unsigned int indices);
-	~VBO();
+	virtual ~VBO();
 
 	void Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer);
 	void Unbind(int attrib_num);
@@ -74,8 +74,8 @@ public:
 	virtual bool Init();
 	virtual void Exit();
 
-	virtual void BindPrimitives(RAS_DisplayArray *array);
-	virtual void UnbindPrimitives(RAS_DisplayArray *array);
+	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
+	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void IndexPrimitives(RAS_MeshSlot *ms);
 
 	virtual void SetDrawingMode(int drawingmode)
@@ -93,9 +93,7 @@ protected:
 	RAS_IRasterizer::TexCoGen *m_attrib;
 	int *m_attrib_layer;
 
-	std::map<RAS_DisplayArray *, class VBO *> m_vbo_lookup;
-
-	VBO *GetVBO(RAS_DisplayArray *array);
+	VBO *GetVBO(RAS_DisplayArrayBucket *arrayBucket);
 
 #ifdef WITH_CXX_GUARDEDALLOC
 public:

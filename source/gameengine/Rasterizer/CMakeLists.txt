@@ -73,6 +73,7 @@ set(SRC
 	RAS_ICanvas.h
 	RAS_IPolygonMaterial.h
 	RAS_IRasterizer.h
+	RAS_IStorage.h
 	RAS_ILightObject.h
 	RAS_MaterialBucket.h
 	RAS_MeshMaterial.h

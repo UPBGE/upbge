@@ -33,7 +33,22 @@
 #endif
 
 class RAS_MeshSlot;
-class RAS_DisplayArray;
+class RAS_DisplayArrayBucket;
+
+/** This class is used to store special storage infos for an array
+ * like VBO/IBO ID for VBO storage or DL for VA storage.
+ * Currently it only exists for the virtual destructor.
+ */
+class RAS_IStorageInfo
+{
+public:
+	RAS_IStorageInfo()
+	{
+	}
+	virtual ~RAS_IStorageInfo()
+	{
+	}
+};
 
 class RAS_IStorage
 {
@@ -46,8 +61,8 @@ public:
 	virtual bool Init() = 0;
 	virtual void Exit() = 0;
 
-	virtual void BindPrimitives(RAS_DisplayArray *array) = 0;
-	virtual void UnbindPrimitives(RAS_DisplayArray *array) = 0;
+	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket) = 0;
+	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket) = 0;
 
 	virtual void IndexPrimitives(RAS_MeshSlot *ms) = 0;
 

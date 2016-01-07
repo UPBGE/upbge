@@ -41,6 +41,7 @@ class RAS_MaterialBucket;
 class RAS_DisplayArray;
 class RAS_MeshObject;
 class RAS_Deformer;
+class RAS_IStorageInfo;
 
 typedef std::vector<RAS_Deformer *> RAS_DeformerList;
 
@@ -60,6 +61,13 @@ private:
 
 	/// True if the display array is not frequently modified and can use display list.
 	bool m_useDisplayList;
+
+	/** Info created by the storage and freed by this class.
+	 * So it's an unique instance by display array bucket.
+	 * It contains all infos about special redering e.g
+	 * VBO and IBO ID for VBO storage, DL for VA storage.
+	 */
+	RAS_IStorageInfo *m_storageInfo;
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array);
@@ -94,6 +102,9 @@ public:
 
 	/// Update render infos.
 	void UpdateActiveMeshSlots(RAS_IRasterizer *rasty);
+
+	RAS_IStorageInfo *GetStorageInfo() const;
+	void SetStorageInfo(RAS_IStorageInfo *info);
 };
 
 typedef std::vector<RAS_DisplayArrayBucket *> RAS_DisplayArrayBucketList;

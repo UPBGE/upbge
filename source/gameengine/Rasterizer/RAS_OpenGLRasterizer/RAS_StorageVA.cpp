@@ -57,8 +57,9 @@ void RAS_StorageVA::Exit()
 {
 }
 
-void RAS_StorageVA::BindPrimitives(RAS_DisplayArray *array)
+void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
+	RAS_DisplayArray *array = arrayBucket->GetDisplayArray();
 	if (!array) {
 		return;
 	}
@@ -80,8 +81,9 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArray *array)
 	}
 }
 
-void RAS_StorageVA::UnbindPrimitives(RAS_DisplayArray *array)
+void RAS_StorageVA::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
+	RAS_DisplayArray *array = arrayBucket->GetDisplayArray();
 	if (!array) {
 		return;
 	}

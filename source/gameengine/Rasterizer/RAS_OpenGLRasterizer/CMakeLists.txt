@@ -55,7 +55,6 @@ set(SRC
 	RAS_StorageVA.cpp
 	RAS_StorageVBO.cpp
 
-	RAS_IStorage.h
 	RAS_ListRasterizer.h
 	RAS_OpenGLLight.h
 	RAS_OpenGLRasterizer.h
