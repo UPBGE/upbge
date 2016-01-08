@@ -45,37 +45,8 @@ class RAS_MeshObject;
 class RAS_DisplayArray;
 class RAS_TexVert;
 
-// Display List Slot
-class KX_ListSlot
-{
-protected:
-	int m_refcount;
-public:
-	KX_ListSlot()
-	{
-		m_refcount = 1;
-	}
-	virtual ~KX_ListSlot()
-	{
-	}
-	virtual int Release()
-	{
-		if (--m_refcount > 0)
-			return m_refcount;
-		delete this;
-		return 0;
-	}
-	virtual KX_ListSlot *AddRef()
-	{
-		m_refcount++;
-		return this;
-	}
-	virtual void SetModified(bool mod) = 0;
-};
-
 class RAS_MeshSlot
 {
-	friend class RAS_ListRasterizer;
 private:
 	RAS_DisplayArray *m_displayArray;
 
@@ -93,8 +64,6 @@ public:
 	bool m_bCulled;
 	// object color
 	MT_Vector4 m_RGBAcolor;
-	// display lists
-	KX_ListSlot *m_DisplayList;
 
 	RAS_MeshSlot *m_joinSlot;
 	MT_Matrix4x4 m_joinInvTransform;

@@ -56,7 +56,6 @@
 #include "KX_PythonMain.h"
 
 #include "RAS_OpenGLRasterizer.h"
-#include "RAS_ListRasterizer.h"
 
 #include "BL_System.h"
 
@@ -301,19 +300,19 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 		RAS_IRasterizer* rasterizer = NULL;
 		RAS_STORAGE_TYPE raster_storage = RAS_AUTO_STORAGE;
+		int storageInfo = RAS_STORAGE_INFO_NONE;
 
 		if (startscene->gm.raster_storage == RAS_STORE_VBO) {
 			raster_storage = RAS_VBO;
 		}
 		else if (startscene->gm.raster_storage == RAS_STORE_VA) {
 			raster_storage = RAS_VA;
+			if (displaylists) {
+				storageInfo |= RAS_STORAGE_USE_DISPLAY_LIST;
+			}
 		}
-		//Don't use displaylists with VBOs
-		//If auto starts using VBOs, make sure to check for that here
-		if (displaylists && raster_storage != RAS_VBO)
-			rasterizer = new RAS_ListRasterizer(canvas, true, raster_storage);
-		else
-			rasterizer = new RAS_OpenGLRasterizer(canvas, raster_storage);
+
+		rasterizer = new RAS_OpenGLRasterizer(canvas, raster_storage, storageInfo);
 
 		RAS_IRasterizer::MipmapOption mipmapval = rasterizer->GetMipmapping();
 

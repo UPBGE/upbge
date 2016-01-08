@@ -61,6 +61,12 @@ enum RAS_STORAGE_TYPE
 	RAS_VBO,
 };
 
+enum RAS_STORAGE_INFO
+{
+	RAS_STORAGE_INFO_NONE = 0,
+	RAS_STORAGE_USE_DISPLAY_LIST = (1 << 0),
+};
+
 struct OglDebugShape
 {
 	enum SHAPE_TYPE
@@ -139,10 +145,11 @@ protected:
 	 * Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
 	int m_storage_type;
 	RAS_IStorage *m_storage;
+	int m_storageInfo;
 
 public:
 	double GetTime();
-	RAS_OpenGLRasterizer(RAS_ICanvas *canv, RAS_STORAGE_TYPE storage);
+	RAS_OpenGLRasterizer(RAS_ICanvas *canv, RAS_STORAGE_TYPE storage, int storageInfo);
 	virtual ~RAS_OpenGLRasterizer();
 
 	virtual void SetDepthMask(DepthMask depthmask);
@@ -260,6 +267,8 @@ public:
 
 	const MT_Matrix4x4 &GetViewMatrix() const;
 	const MT_Matrix4x4 &GetViewInvMatrix() const;
+
+	virtual bool UseDisplayLists() const;
 
 	virtual void EnableMotionBlur(float motionblurvalue);
 	virtual void DisableMotionBlur();

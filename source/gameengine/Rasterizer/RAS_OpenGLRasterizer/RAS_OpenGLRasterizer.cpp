@@ -86,7 +86,7 @@ static GLuint right_eye_vinterlace_mask[32];
  */
 static GLuint hinterlace_mask[33];
 
-RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, RAS_STORAGE_TYPE storage)
+RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, RAS_STORAGE_TYPE storage, int storageInfo)
 	:RAS_IRasterizer(canvas),
 	m_2DCanvas(canvas),
 	m_fogenabled(false),
@@ -109,7 +109,8 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, RAS_STORAGE_TYPE
 	m_attrib_num(0),
 	//m_last_alphablend(GPU_BLEND_SOLID),
 	m_last_frontface(true),
-	m_storage_type(storage)
+	m_storage_type(storage),
+	m_storageInfo(storageInfo)
 {
 	m_viewmatrix.setIdentity();
 	m_viewinvmatrix.setIdentity();
@@ -664,6 +665,11 @@ const MT_Matrix4x4& RAS_OpenGLRasterizer::GetViewMatrix() const
 const MT_Matrix4x4& RAS_OpenGLRasterizer::GetViewInvMatrix() const
 {
 	return m_viewinvmatrix;
+}
+
+bool RAS_OpenGLRasterizer::UseDisplayLists() const
+{
+	return m_storageInfo & RAS_STORAGE_USE_DISPLAY_LIST;
 }
 
 void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat)

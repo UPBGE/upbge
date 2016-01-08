@@ -77,7 +77,6 @@ extern "C"
 #include "SCA_IActuator.h"
 #include "RAS_MeshObject.h"
 #include "RAS_OpenGLRasterizer.h"
-#include "RAS_ListRasterizer.h"
 #include "KX_PythonInit.h"
 #include "KX_PyConstraintBinding.h"
 #include "BL_Material.h" // MAXTEX
@@ -607,19 +606,19 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
 		
 		RAS_STORAGE_TYPE raster_storage = RAS_AUTO_STORAGE;
+		int storageInfo = RAS_STORAGE_INFO_NONE;
 
 		if (gm->raster_storage == RAS_STORE_VBO) {
 			raster_storage = RAS_VBO;
 		}
 		else if (gm->raster_storage == RAS_STORE_VA) {
 			raster_storage = RAS_VA;
+			if (useLists) {
+				storageInfo |= RAS_STORAGE_USE_DISPLAY_LIST;
+			}
 		}
-		//Don't use displaylists with VBOs
-		//If auto starts using VBOs, make sure to check for that here
-		if (useLists && raster_storage != RAS_VBO)
-			m_rasterizer = new RAS_ListRasterizer(m_canvas, true, raster_storage);
-		else
-			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, raster_storage);
+
+		m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, raster_storage, storageInfo);
 
 		/* Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI */
 		m_rasterizer->SetStereoMode((RAS_IRasterizer::StereoMode) stereoMode);

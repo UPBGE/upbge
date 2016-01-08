@@ -30,6 +30,60 @@
 
 #include "glew-mx.h"
 
+#include <iostream>
+
+RAS_DisplayList::RAS_DisplayList()
+{
+	for (unsigned int i = 0; i < NUM_LIST; ++i) {
+		m_list[i] = -1;
+	}
+}
+
+RAS_DisplayList::~RAS_DisplayList()
+{
+	RemoveAllList();
+}
+
+void RAS_DisplayList::RemoveAllList()
+{
+	for (unsigned int i = 0; i < NUM_LIST; ++i) {
+		int list = m_list[i];
+		if (list != -1) {
+			glDeleteLists(list, 1);
+		}
+		m_list[i] = -1;
+	}
+}
+
+void RAS_DisplayList::SetMeshModified(bool modified)
+{
+	if (modified) {
+		RemoveAllList();
+	}
+}
+
+bool RAS_DisplayList::Draw(LIST_TYPE type)
+{
+	int list = m_list[type];
+	if (list == -1) {
+		m_list[type] = list = glGenLists(1);
+
+		glNewList(list, GL_COMPILE);
+
+		return false;
+	}
+
+	glCallList(list);
+
+	return true;
+}
+
+void RAS_DisplayList::End(LIST_TYPE type)
+{
+	glEndList();
+	glCallList(m_list[type]);
+}
+
 RAS_StorageVA::RAS_StorageVA(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer) :
 	m_drawingmode(RAS_IRasterizer::KX_TEXTURED),
 	m_texco_num(texco_num),
@@ -64,12 +118,18 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 		return;
 	}
 
+	RAS_DisplayList *displayList = GetDisplayList(arrayBucket);
+	if (displayList && displayList->Draw(RAS_DisplayList::BIND_LIST)) {
+		return;
+	}
+
 	static const GLsizei stride = sizeof(RAS_TexVert);
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
 	RAS_TexVert *vertexarray = array->m_vertex.data();
 
 	if (!wireframe)
 		EnableTextures(true);
+
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
 
@@ -78,6 +138,10 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 
 	if (!wireframe) {
 		TexCoordPtr(vertexarray);
+	}
+
+	if (displayList) {
+		displayList->End(RAS_DisplayList::BIND_LIST);
 	}
 }
 
@@ -88,6 +152,11 @@ void RAS_StorageVA::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 		return;
 	}
 
+	RAS_DisplayList *displayList = GetDisplayList(arrayBucket);
+	if (displayList && displayList->Draw(RAS_DisplayList::UNBIND_LIST)) {
+		return;
+	}
+
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);
@@ -95,10 +164,22 @@ void RAS_StorageVA::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 		glDisableClientState(GL_COLOR_ARRAY);
 		EnableTextures(false);
 	}
+
+	if (displayList) {
+		displayList->End(RAS_DisplayList::UNBIND_LIST);
+	}
+
 }
 
 void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 {
+	RAS_DisplayArrayBucket *arrayBucket = ms->m_displayArrayBucket;
+
+	RAS_DisplayList *displayList = GetDisplayList(arrayBucket);
+	if (displayList && displayList->Draw(RAS_DisplayList::DRAW_LIST)) {
+		return;
+	}
+
 	static const GLsizei stride = sizeof(RAS_TexVert);
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
 	RAS_DisplayArray *array = ms->GetDisplayArray();
@@ -125,6 +206,25 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 
 	// here the actual drawing takes places
 	glDrawElements(GL_TRIANGLES, array->m_index.size(), GL_UNSIGNED_INT, indexarray);
+
+	if (displayList) {
+		displayList->End(RAS_DisplayList::DRAW_LIST);
+	}
+}
+
+RAS_DisplayList *RAS_StorageVA::GetDisplayList(RAS_DisplayArrayBucket *arrayBucket)
+{
+	if (!arrayBucket->UseDisplayList()) {
+		return NULL;
+	}
+
+	RAS_DisplayList *displayList = (RAS_DisplayList *)arrayBucket->GetStorageInfo();
+	if (!displayList) {
+		displayList = new RAS_DisplayList();
+		arrayBucket->SetStorageInfo(displayList);
+	}
+
+	return displayList;
 }
 
 void RAS_StorageVA::TexCoordPtr(const RAS_TexVert *tv)
@@ -210,23 +310,23 @@ void RAS_StorageVA::EnableTextures(bool enable)
 
 	/* we cache last texcoords and attribs to ensure we disable the ones that
 	 * were actually last set */
-	if (enable) {
+// 	if (enable) {
 		texco = m_texco;
 		texco_num = *m_texco_num;
 		attrib = m_attrib;
 		attrib_num = *m_attrib_num;
 
-		memcpy(m_last_texco, m_texco, sizeof(RAS_IRasterizer::TexCoGen) * (*m_texco_num));
-		m_last_texco_num = *m_texco_num;
-		memcpy(m_last_attrib, m_attrib, sizeof(RAS_IRasterizer::TexCoGen) * (*m_attrib_num));
-		m_last_attrib_num = *m_attrib_num;
-	}
-	else {
+// 		memcpy(m_last_texco, m_texco, sizeof(RAS_IRasterizer::TexCoGen) * (*m_texco_num));
+// 		m_last_texco_num = *m_texco_num;
+// 		memcpy(m_last_attrib, m_attrib, sizeof(RAS_IRasterizer::TexCoGen) * (*m_attrib_num));
+// 		m_last_attrib_num = *m_attrib_num;
+// 	}
+	/*else {
 		texco = m_last_texco;
 		texco_num = m_last_texco_num;
 		attrib = m_last_attrib;
 		attrib_num = m_last_attrib_num;
-	}
+	}*/
 
 	if (GLEW_ARB_multitexture) {
 		for (unit = 0; unit < texco_num; unit++) {

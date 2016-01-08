@@ -33,6 +33,36 @@
 
 #include "RAS_OpenGLRasterizer.h"
 
+class RAS_DisplayList : public RAS_IStorageInfo
+{
+public:
+	enum LIST_TYPE {
+		BIND_LIST = 0,
+		UNBIND_LIST = 1,
+		DRAW_LIST = 2,
+		NUM_LIST = 3
+	};
+
+private:
+	int m_list[NUM_LIST];
+
+	void RemoveAllList();
+
+public:
+	RAS_DisplayList();
+	virtual ~RAS_DisplayList();
+
+	virtual void SetMeshModified(bool modified);
+
+	/** Return true if the list already exists and was called.
+	 * False mean : we need call all opengl functions and finish
+	 * with an End call.
+	 */
+	bool Draw(LIST_TYPE type);
+	/// Finish the display list, must be called after Draw when it return false.
+	void End(LIST_TYPE type);
+};
+
 class RAS_StorageVA : public RAS_IStorage
 {
 public:
@@ -66,6 +96,8 @@ protected:
 
 	RAS_IRasterizer::TexCoGen m_last_texco[RAS_MAX_TEXCO];
 	RAS_IRasterizer::TexCoGen m_last_attrib[RAS_MAX_ATTRIB];
+
+	RAS_DisplayList *GetDisplayList(RAS_DisplayArrayBucket *arrayBucket);
 
 	virtual void EnableTextures(bool enable);
 	virtual void TexCoordPtr(const RAS_TexVert *tv);

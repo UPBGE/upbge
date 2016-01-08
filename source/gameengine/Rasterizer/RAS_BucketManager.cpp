@@ -218,7 +218,7 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 		// False if the material can't be activated.
 		bool matactivated = false;
 
-		for (RAS_DisplayArrayBucketList::reverse_iterator sbit = displayArrayBucketList.rbegin(), sbend = displayArrayBucketList.rend();
+		for (RAS_DisplayArrayBucketList::iterator sbit = displayArrayBucketList.begin(), sbend = displayArrayBucketList.end();
 			 sbit != sbend; ++sbit)
 		{
 			RAS_DisplayArrayBucket *displayArrayBucket = *sbit;
@@ -374,26 +374,28 @@ void RAS_BucketManager::ReleaseDisplayLists(RAS_IPolyMaterial *mat)
 	RAS_MeshSlotList::iterator mit;
 
 	for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
-		if (mat == NULL || (mat == (*bit)->GetPolyMaterial())) {
-			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
-				RAS_MeshSlot *ms = *mit;
-				if (ms->m_DisplayList) {
-					ms->m_DisplayList->Release();
-					ms->m_DisplayList = NULL;
-				}
-			}
+		RAS_MaterialBucket *bucket = *bit;
+		if (bucket->GetPolyMaterial() != mat) {
+			continue;
+		}
+		RAS_DisplayArrayBucketList& displayArrayBucketList = bucket->GetDisplayArrayBucketList();
+		for (RAS_DisplayArrayBucketList::iterator it = displayArrayBucketList.begin(), end = displayArrayBucketList.end();
+			it != end; ++it)
+		{
+			 (*it)->DestructStorageInfo();
 		}
 	}
-	
+
 	for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit) {
-		if (mat == NULL || (mat == (*bit)->GetPolyMaterial())) {
-			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
-				RAS_MeshSlot *ms = *mit;
-				if (ms->m_DisplayList) {
-					ms->m_DisplayList->Release();
-					ms->m_DisplayList = NULL;
-				}
-			}
+		RAS_MaterialBucket *bucket = *bit;
+		if (bucket->GetPolyMaterial() != mat) {
+			continue;
+		}
+		RAS_DisplayArrayBucketList& displayArrayBucketList = bucket->GetDisplayArrayBucketList();
+		for (RAS_DisplayArrayBucketList::iterator it = displayArrayBucketList.begin(), end = displayArrayBucketList.end();
+			it != end; ++it)
+		{
+			 (*it)->DestructStorageInfo();
 		}
 	}
 }

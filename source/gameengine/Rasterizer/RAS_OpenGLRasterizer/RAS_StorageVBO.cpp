@@ -242,12 +242,11 @@ void RAS_StorageVBO::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 
 void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot *ms)
 {
-	VBO *vbo = GetVBO(ms->m_displayArrayBucket);
+	RAS_DisplayArrayBucket *arrayBucket = ms->m_displayArrayBucket;
+	VBO *vbo = GetVBO(arrayBucket);
 
 	// Update the vbo if the mesh is modified or use a dynamic deformer.
-	if ((ms->m_mesh->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED) ||
-		(ms->m_pDeformer && ms->m_pDeformer->IsDynamic()))
-	{
+	if (arrayBucket->IsMeshModified()) {
 		vbo->UpdateData();
 	}
 

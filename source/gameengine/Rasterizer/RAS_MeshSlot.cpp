@@ -57,7 +57,6 @@ RAS_MeshSlot::RAS_MeshSlot()
 	m_bVisible(false),
 	m_bCulled(true),
 	m_RGBAcolor(MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f)),
-	m_DisplayList(NULL),
 	m_joinSlot(NULL)
 {
 }
@@ -79,11 +78,6 @@ RAS_MeshSlot::~RAS_MeshSlot()
 	if (m_displayArrayBucket) {
 		m_displayArrayBucket->Release();
 	}
-
-	if (m_DisplayList) {
-		m_DisplayList->Release();
-		m_DisplayList = NULL;
-	}
 }
 
 RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
@@ -98,7 +92,6 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 	m_bVisible = slot.m_bVisible;
 	m_bCulled = slot.m_bCulled;
 	m_RGBAcolor = slot.m_RGBAcolor;
-	m_DisplayList = NULL;
 	m_joinSlot = NULL;
 	m_displayArray = slot.m_displayArray;
 	m_joinedSlots = slot.m_joinedSlots;
@@ -111,7 +104,7 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 void RAS_MeshSlot::init(RAS_MaterialBucket *bucket)
 {
 	m_bucket = bucket;
-	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, (new RAS_DisplayArray()));
+	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, (new RAS_DisplayArray()), m_mesh);
 	m_displayArray = m_displayArrayBucket->GetDisplayArray();
 }
 
@@ -160,7 +153,7 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 			else {
 				// the deformer is not using vertex array (Modifier), release them
 				m_displayArrayBucket->Release();
-				m_displayArrayBucket = m_bucket->FindDisplayArrayBucket(NULL)->AddRef();
+				m_displayArrayBucket = m_bucket->FindDisplayArrayBucket(NULL, m_mesh)->AddRef();
 			}
 		}
 

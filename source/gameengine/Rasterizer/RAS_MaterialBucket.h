@@ -62,13 +62,15 @@ public:
 	RAS_MeshSlotList::iterator msBegin();
 	RAS_MeshSlotList::iterator msEnd();
 
-	RAS_MeshSlot *AddMesh();
+	RAS_MeshSlot *AddMesh(RAS_MeshObject *mesh);
 	RAS_MeshSlot *CopyMesh(RAS_MeshSlot *ms);
 	void RemoveMesh(RAS_MeshSlot *ms);
 	void Optimize(MT_Scalar distance);
 
-	/// Find a display array bucket for the given display array, if not retrurn a new one.
-	RAS_DisplayArrayBucket *FindDisplayArrayBucket(RAS_DisplayArray *array);
+	/** Find a display array bucket for the given display array, if not retrurn a new one.
+	 * mesh param is used only to create a new display array not to find it.
+	 */
+	RAS_DisplayArrayBucket *FindDisplayArrayBucket(RAS_DisplayArray *array, RAS_MeshObject *mesh);
 	void AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 	void RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 

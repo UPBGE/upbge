@@ -54,6 +54,8 @@ private:
 	RAS_MaterialBucket *m_bucket;
 	/// The display array = list of vertexes and indexes.
 	RAS_DisplayArray *m_displayArray;
+	/// The parent mesh object.
+	RAS_MeshObject *m_mesh;
 	/// The list fo all visible mesh slots to render this frame.
 	RAS_MeshSlotList m_activeMeshSlots;
 	/// The list of all deformer usign this display array.
@@ -61,6 +63,9 @@ private:
 
 	/// True if the display array is not frequently modified and can use display list.
 	bool m_useDisplayList;
+
+	/// True if a deformer is dynamic or the mesh i modified this frame.
+	bool m_meshModified;
 
 	/** Info created by the storage and freed by this class.
 	 * So it's an unique instance by display array bucket.
@@ -70,7 +75,7 @@ private:
 	RAS_IStorageInfo *m_storageInfo;
 
 public:
-	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array);
+	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array, RAS_MeshObject *mesh);
 	~RAS_DisplayArrayBucket();
 
 	/// \section Reference Count Management.
@@ -82,7 +87,9 @@ public:
 	RAS_DisplayArrayBucket *GetReplica();
 	void ProcessReplica();
 
+	/// \section Accesor
 	RAS_DisplayArray *GetDisplayArray() const;
+	RAS_MaterialBucket *GetMaterialBucket() const;
 
 	/// \section Active Mesh Slots Management.
 	void ActivateMesh(RAS_MeshSlot *slot);
@@ -98,13 +105,15 @@ public:
 	void RemoveDeformer(RAS_Deformer *deformer);
 
 	/// \section Render Infos
-	bool UseDisplayList();
+	bool UseDisplayList() const;
+	bool IsMeshModified() const;
 
 	/// Update render infos.
 	void UpdateActiveMeshSlots(RAS_IRasterizer *rasty);
 
 	RAS_IStorageInfo *GetStorageInfo() const;
 	void SetStorageInfo(RAS_IStorageInfo *info);
+	void DestructStorageInfo();
 };
 
 typedef std::vector<RAS_DisplayArrayBucket *> RAS_DisplayArrayBucketList;

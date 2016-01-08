@@ -33,6 +33,7 @@
 #include "RAS_DisplayArray.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_IPolygonMaterial.h"
+#include "RAS_MeshObject.h"
 #include "RAS_Deformer.h"
 #include "RAS_IRasterizer.h"
 #include "RAS_IStorage.h"
@@ -47,11 +48,13 @@
 #  include <windows.h>
 #endif // WIN32
 
-RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array)
+RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array, RAS_MeshObject *mesh)
 	:m_refcount(1),
 	m_bucket(bucket),
 	m_displayArray(array),
+	m_mesh(mesh),
 	m_useDisplayList(false),
+	m_meshModified(false),
 	m_storageInfo(NULL)
 {
 	m_bucket->AddDisplayArrayBucket(this);
@@ -60,9 +63,8 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_D
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
 {
 	m_bucket->RemoveDisplayArrayBucket(this);
-	if (m_storageInfo) {
-		delete m_storageInfo;
-	}
+	DestructStorageInfo();
+
 	if (m_displayArray) {
 		delete m_displayArray;
 	}
@@ -111,6 +113,11 @@ RAS_DisplayArray *RAS_DisplayArrayBucket::GetDisplayArray() const
 	return m_displayArray;
 }
 
+RAS_MaterialBucket *RAS_DisplayArrayBucket::GetMaterialBucket() const
+{
+	return m_bucket;
+}
+
 void RAS_DisplayArrayBucket::ActivateMesh(RAS_MeshSlot *slot)
 {
 	m_activeMeshSlots.push_back(slot);
@@ -144,24 +151,33 @@ void RAS_DisplayArrayBucket::RemoveDeformer(RAS_Deformer *deformer)
 	}
 }
 
-bool RAS_DisplayArrayBucket::UseDisplayList()
+bool RAS_DisplayArrayBucket::UseDisplayList() const
 {
 	return m_useDisplayList;
 }
 
+bool RAS_DisplayArrayBucket::IsMeshModified() const
+{
+	return m_meshModified;
+}
+
 void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 {
+	// Reset values to default.
 	m_useDisplayList = true;
+	m_meshModified = false;
 
 	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
 
+	if (!rasty->UseDisplayLists()) {
+		m_useDisplayList = false;
+	}
 	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW) {
 		m_useDisplayList = false;
 	}
 	else if (m_bucket->IsZSort()) {
 		m_useDisplayList = false;
 	}
-	// TODO : disable display list for object color only for non-blender material.
 	else if (material->UsesObjectColor()) {
 		m_useDisplayList = false;
 	}
@@ -178,7 +194,17 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 		// Test if one of deformers is dynamic.
 		if (deformer->IsDynamic()) {
 			m_useDisplayList = false;
+			m_meshModified = true;
 		}
+	}
+
+	if (m_mesh->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED) {
+		m_meshModified = true;
+	}
+
+	// Set the storage info modified if the mesh is modified.
+	if (m_storageInfo) {
+		m_storageInfo->SetMeshModified(m_meshModified);
 	}
 }
 
@@ -190,4 +216,12 @@ RAS_IStorageInfo *RAS_DisplayArrayBucket::GetStorageInfo() const
 void RAS_DisplayArrayBucket::SetStorageInfo(RAS_IStorageInfo *info)
 {
 	m_storageInfo = info;
+}
+
+void RAS_DisplayArrayBucket::DestructStorageInfo()
+{
+	if (m_storageInfo) {
+		delete m_storageInfo;
+		m_storageInfo = NULL;
+	}
 }

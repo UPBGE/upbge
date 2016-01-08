@@ -48,6 +48,10 @@ public:
 	virtual ~RAS_IStorageInfo()
 	{
 	}
+
+	virtual void SetMeshModified(bool modified)
+	{
+	}
 };
 
 class RAS_IStorage

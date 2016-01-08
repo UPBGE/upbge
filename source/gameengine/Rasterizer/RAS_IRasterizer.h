@@ -400,8 +400,7 @@ public:
 	virtual const MT_Matrix4x4 &GetViewMatrix() const = 0;
 	virtual const MT_Matrix4x4 &GetViewInvMatrix() const = 0;
 
-	virtual bool QueryLists() { return false; }
-	virtual bool QueryArrays() { return false; }
+	virtual bool UseDisplayLists() const = 0;
 	
 	virtual void EnableMotionBlur(float motionblurvalue) = 0;
 	virtual void DisableMotionBlur() = 0;

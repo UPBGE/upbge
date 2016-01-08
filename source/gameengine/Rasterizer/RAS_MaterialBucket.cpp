@@ -72,9 +72,10 @@ bool RAS_MaterialBucket::IsZSort() const
 	return (m_material->IsZSort());
 }
 
-RAS_MeshSlot *RAS_MaterialBucket::AddMesh()
+RAS_MeshSlot *RAS_MaterialBucket::AddMesh(RAS_MeshObject *mesh)
 {
 	RAS_MeshSlot *ms = new RAS_MeshSlot();
+	ms->m_mesh = mesh;
 	ms->init(this);
 
 	m_meshSlots.push_back(ms);
@@ -159,11 +160,6 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 		rasty->applyTransform(ms->m_OpenGLMatrix, m_material->GetDrawingMode());
 	}
 
-	if (rasty->QueryLists()) {
-		if (ms->m_DisplayList)
-			ms->m_DisplayList->SetModified(ms->m_mesh->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED);
-	}
-
 	if (m_material->GetDrawingMode() & RAS_IRasterizer::RAS_RENDER_3DPOLYGON_TEXT) {
 	    // for text drawing using faces
 		rasty->IndexPrimitives_3DText(ms, m_material);
@@ -192,7 +188,7 @@ void RAS_MaterialBucket::Optimize(MT_Scalar distance)
 #endif
 }
 
-RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_DisplayArray *array)
+RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_DisplayArray *array, RAS_MeshObject *mesh)
 {
 	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
 		it != end; ++it)
@@ -202,7 +198,7 @@ RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_DisplayAr
 			return displayArrayBucket;
 		}
 	}
-	RAS_DisplayArrayBucket *displayArrayBucket = new RAS_DisplayArrayBucket(this, array);
+	RAS_DisplayArrayBucket *displayArrayBucket = new RAS_DisplayArrayBucket(this, array, mesh);
 	return displayArrayBucket;
 }
 

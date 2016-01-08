@@ -291,8 +291,7 @@ void RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index)
 	if (!mmat) {
 		RAS_MeshMaterial meshmat;
 		meshmat.m_bucket = bucket;
-		meshmat.m_baseslot = meshmat.m_bucket->AddMesh();
-		meshmat.m_baseslot->m_mesh = this;
+		meshmat.m_baseslot = meshmat.m_bucket->AddMesh(this);
 		meshmat.m_index = index;
 		m_materials.push_back(meshmat);
 	}
