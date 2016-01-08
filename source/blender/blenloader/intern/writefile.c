@@ -1299,6 +1299,9 @@ static void write_sensors(WriteData *wd, ListBase *lb)
 		case SENS_RAY:
 			writestruct(wd, DATA, "bRaySensor", 1, sens->data);
 			break;
+		case SENS_MOVEMENT:
+			writestruct(wd, DATA, "bMovementSensor", 1, sens->data);
+			break;
 		case SENS_MESSAGE:
 			writestruct(wd, DATA, "bMessageSensor", 1, sens->data);
 			break;
