@@ -196,8 +196,8 @@ void RAS_2DFilter::InitializeShader()
 void RAS_2DFilter::InitializeTextures()
 {
 	RAS_ICanvas *canvas = m_manager->GetCanvas();
-	const unsigned int texturewidth = canvas->GetWidth();
-	const unsigned int textureheight = canvas->GetHeight();
+	const unsigned int texturewidth = canvas->GetWidth() + 1;
+	const unsigned int textureheight = canvas->GetHeight() + 1;
 
 	if (m_renderedTextureUniformLocation >= 0) {
 		glGenTextures(1, &m_renderedTextureUid);
@@ -234,8 +234,8 @@ of nearby fragments. Or vertices or whatever.*/
 void RAS_2DFilter::ComputeTextureOffsets()
 {
 	RAS_ICanvas *canvas = m_manager->GetCanvas();
-	const GLfloat texturewidth = (GLfloat)canvas->GetWidth();
-	const GLfloat textureheight = (GLfloat)canvas->GetHeight();
+	const GLfloat texturewidth = (GLfloat)canvas->GetWidth() + 1;
+	const GLfloat textureheight = (GLfloat)canvas->GetHeight() + 1;
 	const GLfloat xInc = 1.0f / texturewidth;
 	const GLfloat yInc = 1.0f / textureheight;
 
@@ -260,8 +260,8 @@ void RAS_2DFilter::UnbindShaderProgram()
 void RAS_2DFilter::BindUniforms()
 {
 	RAS_ICanvas *canvas = m_manager->GetCanvas();
-	const unsigned int texturewidth = canvas->GetWidth();
-	const unsigned int textureheight = canvas->GetHeight();
+	const unsigned int texturewidth = canvas->GetWidth() + 1;
+	const unsigned int textureheight = canvas->GetHeight() + 1;
 	const unsigned int textureleft = canvas->GetViewPort()[0];
 	const unsigned int texturebottom = canvas->GetViewPort()[1];
 
