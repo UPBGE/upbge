@@ -411,46 +411,33 @@ void set_value(float val, out float outval)
 
 float half_lambert(in vec3 vect1, in vec3 vect2)
 {
-     float product = dot(vect1, vect2);
-     return product * 0.5 + 0.5;
+	float product = dot(vect1, vect2);
+	return product * 0.5 + 0.5;
 }
 
-vec3 sub_scatter_fs(float brightness, vec3 lightcol, float scale, vec3 radius, vec3 col, float i, vec3 view, vec3 lv, vec3 vert, vec3 lightposition, vec3 normal)
+vec3 sub_scatter_fs(float brightness, vec3 lightcol, float scale, vec3 radius, vec3 col, float i, vec3 view, vec3 lv, vec3 vert, vec3 lightpos, vec3 normal)
 {
-     float materialthickness = scale;
-     vec3 worldnormal = normal;
-     vec3 ecpos = view;
-     vec3 eyevec = -ecpos;
-     vec3 vertpos = vert;
-     vec3 lightvec = lv;
-     vec3 lightpos = lightposition;
-     vec3 extinctioncoefficient = radius * 0.1;
-     vec3 lightcolor = lightcol;
-     vec3 basecolor = col;
-     float attenuation = (1.0 / distance(lightpos, vertpos)) * brightness;
-     vec3 evec = normalize(eyevec);
-     vec3 lvec = lightvec;
-     vec3 wnorm = worldnormal;
-     
-     vec3 dotLN = vec3(i);
-     dotLN *= basecolor;
-     
-     vec3 indirectlightcomponent = vec3(materialthickness * max(0.0, dot(-wnorm, lvec)));
-     indirectlightcomponent += materialthickness * vec3(half_lambert(-evec, lvec));
-     indirectlightcomponent *= attenuation;
-     indirectlightcomponent.r *= extinctioncoefficient.r;
-     indirectlightcomponent.g *= extinctioncoefficient.g;
-     indirectlightcomponent.b *= extinctioncoefficient.b;
-     
-     vec3 finalcol = dotLN + vec3(indirectlightcomponent);
+	vec3 extinctioncoefficient = radius * 0.1;
+	float attenuation = (1.0 / distance(lightpos, vert)) * brightness;
+	vec3 evec = normalize(-view);
 
-     finalcol.rgb *= lightcolor.rgb;
-     return finalcol;
+	vec3 dotLN = vec3(i);
+	dotLN *= col;
+
+	vec3 indirectlightcomponent = vec3(scale * max(0.0, dot(-normal, lv)));
+	indirectlightcomponent += scale * vec3(half_lambert(-evec, lv));
+	indirectlightcomponent *= attenuation;
+	indirectlightcomponent *= extinctioncoefficient;
+
+	vec3 finalcol = dotLN + vec3(indirectlightcomponent);
+
+	finalcol.rgb *= lightcol.rgb;
+	return finalcol;
 }
 
 void set_sss(float brightness, vec3 lightcol, float scale, vec3 radius, vec3 col, float i, vec3 view, vec3 lv, vec3 normal, vec3 vert, vec3 lightpos, out vec4 outcol)
 {
-    outcol = vec4(sub_scatter_fs(brightness, lightcol, scale, radius, col, i, view, lv, vert, lightpos, normal), 1.0);
+	outcol = vec4(sub_scatter_fs(brightness, lightcol, scale, radius, col, i, view, lv, vert, lightpos, normal), 1.0);
 }
 
 void set_rgb(vec3 col, out vec3 outcol)
