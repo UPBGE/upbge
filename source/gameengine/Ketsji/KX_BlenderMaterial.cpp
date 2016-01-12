@@ -241,8 +241,10 @@ void KX_BlenderMaterial::OnConstruction()
 	mConstructed = true;
 }
 
-void KX_BlenderMaterial::EndFrame()
+void KX_BlenderMaterial::EndFrame(RAS_IRasterizer *rasty)
 {
+	rasty->SetAlphaBlend(TF_SOLID);
+	BL_Texture::DisableAllTextures();
 }
 
 void KX_BlenderMaterial::OnExit()
@@ -305,8 +307,7 @@ void KX_BlenderMaterial::setShaderData(RAS_IRasterizer *ras)
 
 void KX_BlenderMaterial::setBlenderShaderData(RAS_IRasterizer *ras)
 {
-	ras->SetAlphaBlend(mMaterial->alphablend);
-
+	// Don't set the alpha blend here because ActivateMeshSlot do it.
 	mBlenderShader->SetProg(true, ras->GetTime(), ras);
 }
 
@@ -449,9 +450,6 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 	else if (GLEW_ARB_shader_objects && (mBlenderShader && mBlenderShader->Ok())) {
 		mBlenderShader->SetProg(false);
 	}
-
-	rasty->SetAlphaBlend(TF_SOLID);
-	BL_Texture::DisableAllTextures();
 }
 
 bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
@@ -473,13 +471,11 @@ void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *ras
 		mShader->Update(ms, rasty);
 	}
 	else if (mBlenderShader && GLEW_ARB_shader_objects) {
-		int alphablend;
-
 		mBlenderShader->Update(ms, rasty);
 
 		/* we do blend modes here, because they can change per object
 		 * with the same material due to obcolor/obalpha */
-		alphablend = mBlenderShader->GetAlphaBlend();
+		int alphablend = mBlenderShader->GetAlphaBlend();
 		if (ELEM(alphablend, GEMAT_SOLID, GEMAT_ALPHA, GEMAT_ALPHA_SORT) && mMaterial->alphablend != GEMAT_SOLID)
 			alphablend = mMaterial->alphablend;
 

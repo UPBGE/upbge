@@ -121,7 +121,7 @@ public:
 	// pre calculate to avoid pops/lag at startup
 	virtual void OnConstruction();
 
-	static void EndFrame();
+	static void EndFrame(RAS_IRasterizer *rasty);
 
 private:
 	BL_Material *mMaterial;

@@ -1745,7 +1745,7 @@ void KX_Scene::RenderBuckets(const MT_Transform & cameratransform,
 	}
 
 	m_bucketmanager->Renderbuckets(cameratransform,rasty);
-	KX_BlenderMaterial::EndFrame();
+	KX_BlenderMaterial::EndFrame(rasty);
 }
 
 void KX_Scene::RenderFonts()

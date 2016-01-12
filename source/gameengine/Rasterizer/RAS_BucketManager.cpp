@@ -157,24 +157,44 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 		rasty->SetDepthMask(RAS_IRasterizer::KX_DEPTHMASK_DISABLED);
 
 	OrderBuckets(cameratrans, m_AlphaBuckets, slots, true);
-	
+
+	// The last display array and material bucket used to avoid double calls.
+	RAS_DisplayArray *lastDisplayArray = NULL;
+	RAS_MaterialBucket *lastMaterialBucket = NULL;
+
+	bool matactivated = false;
+
 	for (sit=slots.begin(); sit!=slots.end(); ++sit) {
 		rasty->SetClientObject(sit->m_ms->m_clientObj);
 
 		RAS_MaterialBucket *bucket = sit->m_bucket;
 		RAS_DisplayArray *displayArray = sit->m_ms->GetDisplayArray();
 
-		if (bucket->ActivateMaterial(rasty)) {
-			rasty->BindPrimitives(displayArray);
-			bucket->RenderMeshSlot(cameratrans, rasty, sit->m_ms);
-			rasty->UnbindPrimitives(displayArray);
-
-			bucket->DesactivateMaterial(rasty);
+		if (bucket != lastMaterialBucket) {
+			if (matactivated) {
+				lastMaterialBucket->DesactivateMaterial(rasty);
+			}
+			matactivated = bucket->ActivateMaterial(rasty);
+			lastMaterialBucket = bucket;
 		}
+
+		if (displayArray != lastDisplayArray) {
+			rasty->UnbindPrimitives(lastDisplayArray);
+			rasty->BindPrimitives(displayArray);
+			lastDisplayArray = displayArray;
+		}
+
+		bucket->RenderMeshSlot(cameratrans, rasty, sit->m_ms);
+
 		// make this mesh slot culled automatically for next frame
 		// it will be culled out by frustrum culling
 		sit->m_ms->SetCulled(true);
 	}
+
+	if (matactivated && lastMaterialBucket) {
+		lastMaterialBucket->DesactivateMaterial(rasty);
+	}
+	rasty->UnbindPrimitives(lastDisplayArray);
 
 	rasty->SetDepthMask(RAS_IRasterizer::KX_DEPTHMASK_ENABLED);
 }
