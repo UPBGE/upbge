@@ -446,6 +446,8 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 {
 	if (GLEW_ARB_shader_objects && (mShader && mShader->Ok())) {
 		mShader->SetProg(false);
+		// Disable all textures for custom shader because they use multitexture.
+		BL_Texture::DisableAllTextures();
 	}
 	else if (GLEW_ARB_shader_objects && (mBlenderShader && mBlenderShader->Ok())) {
 		mBlenderShader->SetProg(false);
