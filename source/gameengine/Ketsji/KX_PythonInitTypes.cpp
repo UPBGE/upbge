@@ -87,6 +87,7 @@
 #include "KX_NearSensor.h"
 #include "KX_RadarSensor.h"
 #include "KX_RaySensor.h"
+#include "KX_MovementSensor.h"
 #include "KX_SCA_DynamicActuator.h"
 #include "KX_SoundActuator.h"
 #include "KX_TouchSensor.h"
@@ -217,6 +218,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_FontObject, init_getset);
 		PyType_Ready_Attr(dict, KX_MeshProxy, init_getset);
 		PyType_Ready_Attr(dict, KX_MouseFocusSensor, init_getset);
+		PyType_Ready_Attr(dict, KX_MovementSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_NearSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_NetworkMessageActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_NetworkMessageSensor, init_getset);
