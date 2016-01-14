@@ -995,7 +995,12 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	}
 
 	if (totface == 0) {
-		ma = mesh->mat ? mesh->mat[0] : &defmaterial;
+		ma = mesh->mat ? mesh->mat[0] : NULL;
+		// Check for blender material
+		if (!ma) {
+			ma = &defmaterial;
+		}
+
 		RAS_MaterialBucket *bucket = material_from_mesh(ma, mface, tface, mcol, layers, lightlayer, rgb, uvs, tfaceName, scene, converter);
 		meshobj->AddMaterial(bucket, 0);
 	}
