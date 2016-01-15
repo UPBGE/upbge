@@ -168,7 +168,7 @@ void RAS_2DFilter::InitializeShader()
 	glCompileShaderARB(m_fragmentShaderUid);
 	glGetObjectParameterivARB(m_fragmentShaderUid, GL_COMPILE_STATUS, &compilationStatus);
 	if (!compilationStatus) {
-		m_manager->PrintShaderError(m_fragmentShaderUid, "compile", m_fragmentShaderSourceCode.Ptr());
+		m_manager->PrintShaderError(m_fragmentShaderUid, "compile", m_fragmentShaderSourceCode.Ptr(), m_passIndex);
 		DeleteShader();
 	}
 	else {
@@ -177,14 +177,14 @@ void RAS_2DFilter::InitializeShader()
 		glLinkProgramARB(m_shaderProgramUid);
 		glGetObjectParameterivARB(m_shaderProgramUid, GL_LINK_STATUS, &compilationStatus);
 		if (!compilationStatus) {
-			m_manager->PrintShaderError(m_fragmentShaderUid, "link", m_fragmentShaderSourceCode.Ptr());
+			m_manager->PrintShaderError(m_fragmentShaderUid, "link", m_fragmentShaderSourceCode.Ptr(), m_passIndex);
 			DeleteShader();
 		}
 		else {
 			glValidateProgramARB(m_shaderProgramUid);
 			glGetObjectParameterivARB(m_shaderProgramUid, GL_VALIDATE_STATUS, &compilationStatus);
 			if (!compilationStatus) {
-				m_manager->PrintShaderError(m_fragmentShaderUid, "validate", m_fragmentShaderSourceCode.Ptr());
+				m_manager->PrintShaderError(m_fragmentShaderUid, "validate", m_fragmentShaderSourceCode.Ptr(), m_passIndex);
 				DeleteShader();
 			}
 			else {

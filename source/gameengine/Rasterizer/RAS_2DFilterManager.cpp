@@ -57,7 +57,7 @@ RAS_2DFilterManager::~RAS_2DFilterManager()
 	}
 }
 
-void RAS_2DFilterManager::PrintShaderError(unsigned int shaderUid, const char *title, const char *shaderCode)
+void RAS_2DFilterManager::PrintShaderError(unsigned int shaderUid, const char *title, const char *shaderCode, unsigned int passindex)
 {
 	std::cout << "2D Filter GLSL Shader: " << title << " error." << std::endl;
 
@@ -75,6 +75,7 @@ void RAS_2DFilterManager::PrintShaderError(unsigned int shaderUid, const char *t
 
 		glGetInfoLogARB(shaderUid, logSize, &infoLogRetSize, logCharBuffer);
 		std::cout << logCharBuffer << std::endl;
+		m_filters[passindex]->SetEnabled(false);
 
 		free(logCharBuffer);
 	}
