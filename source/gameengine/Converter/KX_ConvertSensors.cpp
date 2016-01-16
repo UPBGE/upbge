@@ -535,7 +535,8 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					{
 						bool localflag = (blendermovsensor->localflag & SENS_MOVEMENT_LOCAL);
 						int axis = blendermovsensor->axisflag;
-						gamesensor = new KX_MovementSensor(eventmgr, gameobj, axis, localflag);
+						float threshold = blendermovsensor->threshold;
+						gamesensor = new KX_MovementSensor(eventmgr, gameobj, axis, localflag, threshold);
 					}
 				}
 				break;

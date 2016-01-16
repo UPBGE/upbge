@@ -45,22 +45,34 @@
 
 KX_MovementSensor::KX_MovementSensor(SCA_EventManager *eventmgr,
 									 SCA_IObject *gameobj,
-									 int axis, bool localflag)
+									 int axis, bool localflag,
+									 float threshold)
 	:SCA_ISensor(gameobj, eventmgr),
 	m_localflag(localflag),
-	m_axis((MovementAxis)axis)
+	m_axis(axis),
+	m_threshold(threshold)
 {
 	Init();
 }
 
 void KX_MovementSensor::Init()
 {
-	m_previousPosition = MT_Point3(0.0f, 0.0f, 0.0f);
+	m_previousPosition = GetOwnerPosition(m_localflag);
 	m_positionHasChanged = false;
+	m_triggered = (m_invert) ? true : false;
 }
 
 KX_MovementSensor::~KX_MovementSensor()
 {
+}
+
+MT_Vector3 KX_MovementSensor::GetOwnerPosition(bool local)
+{
+	KX_GameObject *owner = (KX_GameObject *)GetParent();
+	if (!local) {
+		return owner->NodeGetWorldPosition();
+	}
+	return owner->NodeGetLocalOrientation().inverse() * owner->NodeGetLocalPosition();
 }
 
 CValue *KX_MovementSensor::GetReplica()
@@ -85,17 +97,12 @@ bool KX_MovementSensor::IsPositiveTrigger()
 
 bool KX_MovementSensor::Evaluate()
 {
-	KX_GameObject *obj = (KX_GameObject *)GetParent();
 	MT_Point3 currentposition;
 
-	if (m_localflag) {
-		currentposition = obj->NodeGetLocalOrientation().inverse() * obj->NodeGetLocalPosition();
-	}
-	else {
-		currentposition = obj->NodeGetWorldPosition();
-	}
-
-	float treshold = 0.001f;
+	bool result = false;
+	bool reset = m_reset && m_level;
+	
+	currentposition = GetOwnerPosition(m_localflag);
 
 	m_positionHasChanged = false;
 
@@ -103,39 +110,39 @@ bool KX_MovementSensor::Evaluate()
 	{
 		case SENS_MOVEMENT_X_AXIS: // X
 		{
-			m_positionHasChanged = ((currentposition.x() - m_previousPosition.x()) > treshold);
+			m_positionHasChanged = ((currentposition.x() - m_previousPosition.x()) > m_threshold);
 			break;
 		}
 		case SENS_MOVEMENT_Y_AXIS: // Y
 		{
-			m_positionHasChanged = ((currentposition.y() - m_previousPosition.y()) > treshold);
+			m_positionHasChanged = ((currentposition.y() - m_previousPosition.y()) > m_threshold);
 			break;
 		}
 		case SENS_MOVEMENT_Z_AXIS: // Z
 		{
-			m_positionHasChanged = ((currentposition.z() - m_previousPosition.z()) > treshold);
+			m_positionHasChanged = ((currentposition.z() - m_previousPosition.z()) > m_threshold);
 			break;
 		}
 		case SENS_MOVEMENT_NEG_X_AXIS: // -X
 		{
-			m_positionHasChanged = ((currentposition.x() - m_previousPosition.x()) < -treshold);
+			m_positionHasChanged = ((currentposition.x() - m_previousPosition.x()) < -m_threshold);
 			break;
 		}
 		case SENS_MOVEMENT_NEG_Y_AXIS: // -Y
 		{
-			m_positionHasChanged = ((currentposition.y() - m_previousPosition.y()) < -treshold);
+			m_positionHasChanged = ((currentposition.y() - m_previousPosition.y()) < -m_threshold);
 			break;
 		}
 		case SENS_MOVEMENT_NEG_Z_AXIS: // -Z
 		{
-			m_positionHasChanged = ((currentposition.z() - m_previousPosition.z()) < -treshold);
+			m_positionHasChanged = ((currentposition.z() - m_previousPosition.z()) < -m_threshold);
 			break;
 		}
 		case SENS_MOVEMENT_ALL_AXIS: // ALL
 		{
-			if ((fabs(currentposition.x() - m_previousPosition.x()) > treshold) ||
-				(fabs(currentposition.y() - m_previousPosition.y()) > treshold) ||
-				(fabs(currentposition.z() - m_previousPosition.z()) > treshold))
+			if ((fabs(currentposition.x() - m_previousPosition.x()) > m_threshold) ||
+				(fabs(currentposition.y() - m_previousPosition.y()) > m_threshold) ||
+				(fabs(currentposition.z() - m_previousPosition.z()) > m_threshold))
 			{
 				m_positionHasChanged = true;
 			}
@@ -145,7 +152,36 @@ bool KX_MovementSensor::Evaluate()
 
 	m_previousPosition = currentposition;
 
-	return m_positionHasChanged;
+	/* now pass this result*/
+
+	if (m_positionHasChanged) {
+		if (!m_triggered) {
+			// notify logicsystem that movement sensor is just activated
+			result = true;
+			m_triggered = true;
+		}
+		else {
+			// notify logicsystem that movement sensor is STILL active ...
+			result = false;
+		}
+	}
+	else {
+		if (m_triggered) {
+			m_triggered = false;
+			// notify logicsystem that movement is just deactivated
+			result = true;
+		}
+		else {
+			result = false;
+		}
+
+	}
+	if (reset) {
+		// force an event
+		result = true;
+	}
+
+	return result;
 }
 
 #ifdef WITH_PYTHON
@@ -182,6 +218,8 @@ PyMethodDef KX_MovementSensor::Methods[] = {
 };
 
 PyAttributeDef KX_MovementSensor::Attributes[] = {
+	KX_PYATTRIBUTE_FLOAT_RW("threshold", 0.001f, 10000.0f, KX_MovementSensor, m_threshold),
+	KX_PYATTRIBUTE_INT_RW("axis", 0, 6, true, KX_MovementSensor, m_axis),
 	{NULL} // Sentinel
 };
 

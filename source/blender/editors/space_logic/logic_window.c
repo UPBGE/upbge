@@ -1168,8 +1168,11 @@ static void draw_sensor_ray(uiLayout *layout, PointerRNA *ptr, bContext *C)
 
 static void draw_sensor_movement(uiLayout *layout, PointerRNA *ptr)
 {
+	uiLayout *row;
 	uiItemR(layout, ptr, "axis", 0, NULL, ICON_NONE);
-	uiItemR(layout, ptr, "use_local", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
+	row = uiLayoutRow(layout, false);
+	uiItemR(row, ptr, "use_local", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
+	uiItemR(row, ptr, "threshold", 0, NULL, ICON_NONE);
 }
 
 static void draw_brick_sensor(uiLayout *layout, PointerRNA *ptr, bContext *C)

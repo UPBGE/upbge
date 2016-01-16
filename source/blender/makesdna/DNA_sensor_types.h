@@ -197,6 +197,7 @@ typedef struct bJoystickSensor {
 typedef struct bMovementSensor {
 	int axisflag;
 	int localflag;
+	float threshold, pad;
 } bMovementSensor;
 
 /* bMouseSensor->type: uses blender event defines */

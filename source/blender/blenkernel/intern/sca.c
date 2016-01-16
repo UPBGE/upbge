@@ -105,6 +105,7 @@ void init_sensor(bSensor *sens)
 	bMouseSensor *ms;
 	bJoystickSensor *js;
 	bRaySensor *rs;
+	bMovementSensor *movs;
 	
 	if (sens->data) MEM_freeN(sens->data);
 	sens->data= NULL;
@@ -149,6 +150,8 @@ void init_sensor(bSensor *sens)
 		break;
 	case SENS_MOVEMENT:
 		sens->data = MEM_callocN(sizeof(bMovementSensor), "movementsens");
+		movs = sens->data;
+		movs->threshold = 0.01f;
 		break;
 	case SENS_RAY:
 		sens->data= MEM_callocN(sizeof(bRaySensor), "raysens");

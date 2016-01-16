@@ -835,6 +835,14 @@ static void rna_def_movement_sensor(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Local",
 		"Toggle beetween local/global coordinates");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop = RNA_def_property(srna, "threshold", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "threshold");
+	RNA_def_property_float_default(prop, 0.01f);
+	RNA_def_property_ui_text(prop, "Threshold", "Set Threshold");
+	RNA_def_property_range(prop, 0.001f, 10000.0f);
+	RNA_def_property_ui_range(prop, 0.001, 10000.0, 0.1, 3);
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
 
 static void rna_def_message_sensor(BlenderRNA *brna)

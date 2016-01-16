@@ -56,20 +56,25 @@ private:
 	/// True if the position is taken in world space or object space(local).
 	bool m_localflag;
 	/// The axis to detect mouvement, can be all axis.
-	MovementAxis m_axis;
+	int m_axis;
 	/// The previous object position.
 	MT_Point3 m_previousPosition;
 	/** True if the position is not the same (depends of a treshold value)
 	 * between two logic frame.
 	 */
 	bool m_positionHasChanged;
+	/// Threshold below which the movement is not detected
+	float m_threshold;
+	bool m_triggered;
 
 public:
 	KX_MovementSensor(SCA_EventManager *eventmgr,
 					  SCA_IObject *gameobj,
-					  int axis, bool localflag);
+					  int axis, bool localflag,
+					  float threshold);
 	virtual ~KX_MovementSensor();
 	virtual CValue *GetReplica();
+	MT_Vector3 GetOwnerPosition(bool local);
 
 	virtual bool Evaluate();
 	virtual bool IsPositiveTrigger();
