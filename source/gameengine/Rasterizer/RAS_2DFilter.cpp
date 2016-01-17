@@ -24,6 +24,7 @@
 #include "RAS_2DFilterManager.h"
 #include "RAS_IRasterizer.h"
 #include "RAS_ICanvas.h"
+#include "RAS_Rect.h"
 
 #include "EXP_Value.h"
 
@@ -324,6 +325,13 @@ void RAS_2DFilter::BindUniforms()
 
 void RAS_2DFilter::DrawOverlayPlane()
 {
+	RAS_ICanvas *canvas = m_manager->GetCanvas();
+	RAS_Rect scissor_rect = canvas->GetDisplayArea();
+	glScissor(scissor_rect.GetLeft() + canvas->GetViewPort()[0], 
+			  scissor_rect.GetBottom() + canvas->GetViewPort()[1],
+			  scissor_rect.GetWidth() + 1,
+			  scissor_rect.GetHeight() + 1);
+
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
 	glDisable(GL_ALPHA_TEST);
