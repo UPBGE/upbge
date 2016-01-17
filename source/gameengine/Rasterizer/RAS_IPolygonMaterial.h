@@ -126,13 +126,6 @@ public:
 	{
 	}
 
-	/**
-	 * Activates the material in the rasterizer.
-	 * On entry, the cachingInfo contains info about the last activated material.
-	 * On exit, the cachingInfo should contain updated info about this material.
-	 * \param rasty The rasterizer in which the material should be active.
-	 * \param cachingInfo The information about the material used to speed up rasterizing.
-	 */
 	virtual void Activate(RAS_IRasterizer *rasty)
 	{
 	}
