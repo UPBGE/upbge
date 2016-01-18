@@ -123,8 +123,7 @@ KX_BlenderSceneConverter::KX_BlenderSceneConverter(
 							m_ketsjiEngine(engine),
 							m_alwaysUseExpandFraming(false),
 							m_usemat(false),
-							m_useglslmat(false),
-							m_use_mat_cache(true)
+							m_useglslmat(false)
 {
 	BKE_main_id_tag_all(maggie, false);  /* avoid re-tagging later on */
 	m_newfilename = "";
@@ -379,11 +378,6 @@ void KX_BlenderSceneConverter::SetGLSLMaterials(bool val)
 	m_useglslmat = val;
 }
 
-void KX_BlenderSceneConverter::SetCacheMaterials(bool val)
-{
-	m_use_mat_cache = val;
-}
-
 bool KX_BlenderSceneConverter::GetMaterials()
 {
 	return m_usemat;
@@ -392,11 +386,6 @@ bool KX_BlenderSceneConverter::GetMaterials()
 bool KX_BlenderSceneConverter::GetGLSLMaterials()
 {
 	return m_useglslmat;
-}
-
-bool KX_BlenderSceneConverter::GetCacheMaterials()
-{
-	return m_use_mat_cache;
 }
 
 void KX_BlenderSceneConverter::RegisterBlenderMaterial(BL_Material *mat)
@@ -476,24 +465,24 @@ void KX_BlenderSceneConverter::RegisterPolyMaterial(RAS_IPolyMaterial *polymat)
 
 void KX_BlenderSceneConverter::CachePolyMaterial(KX_Scene *scene, Material *mat, RAS_IPolyMaterial *polymat)
 {
-	if (m_use_mat_cache && mat)
+	if (mat)
 		m_polymat_cache[scene][mat] = polymat;
 }
 
 RAS_IPolyMaterial *KX_BlenderSceneConverter::FindCachedPolyMaterial(KX_Scene *scene, Material *mat)
 {
-	return (m_use_mat_cache) ? m_polymat_cache[scene][mat] : NULL;
+	return m_polymat_cache[scene][mat];
 }
 
 void KX_BlenderSceneConverter::CacheBlenderMaterial(KX_Scene *scene, Material *mat, BL_Material *blmat)
 {
-	if (m_use_mat_cache && mat)
+	if (mat)
 		m_mat_cache[scene][mat] = blmat;
 }
 
 BL_Material *KX_BlenderSceneConverter::FindCachedBlenderMaterial(KX_Scene *scene, Material *mat)
 {
-	return (m_use_mat_cache) ? m_mat_cache[scene][mat] : NULL;
+	return m_mat_cache[scene][mat];
 }
 
 void KX_BlenderSceneConverter::RegisterInterpolatorList(BL_InterpolatorList *actList, bAction *for_act)

@@ -88,10 +88,6 @@ public:
 	virtual void SetGLSLMaterials(bool val) =0;
 	virtual bool GetGLSLMaterials()=0;
 
-	// cache materials during conversion
-	virtual void SetCacheMaterials(bool val) =0;
-	virtual bool GetCacheMaterials()=0;
-
 	virtual struct Scene* GetBlenderSceneForName(const STR_String& name)=0;
 	
 	
