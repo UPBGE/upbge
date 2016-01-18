@@ -206,9 +206,3 @@ int BL_BlenderShader::GetAlphaBlend()
 {
 	return m_alphaBlend;
 }
-
-bool BL_BlenderShader::Equals(BL_BlenderShader *blshader)
-{
-	// to avoid unneeded state switches
-	return (blshader && m_mat == blshader->m_mat && m_lightLayer == blshader->m_lightLayer);
-}

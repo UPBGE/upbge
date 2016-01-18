@@ -78,8 +78,6 @@ public:
 	void ReloadMaterial();
 	int GetAlphaBlend();
 
-	bool Equals(BL_BlenderShader *blshader);
-
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_BlenderShader")
 #endif

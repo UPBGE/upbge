@@ -119,39 +119,6 @@ RAS_IPolyMaterial::RAS_IPolyMaterial(const STR_String& texname,
 	m_diffuse = MT_Vector3(0.5f,0.5f,0.5f);
 }
 
-
-bool RAS_IPolyMaterial::Equals(const RAS_IPolyMaterial& lhs) const
-{
-	if (m_flag &RAS_BLENDERMAT)
-	{
-		bool test = (
-			this->m_multimode			==		lhs.m_multimode &&
-			this->m_flag				==		lhs.m_flag		&&
-			this->m_drawingmode			==		lhs.m_drawingmode &&
-			this->m_alphablend			==		lhs.m_alphablend &&
-			this->m_texturename.hash()		==		lhs.m_texturename.hash() &&
-			this->m_materialname.hash() 		==		lhs.m_materialname.hash()
-		);
-
-		return test;
-	}
-	else
-	{
-		return (
-				this->m_tile		==		lhs.m_tile &&
-				this->m_tilexrep	==		lhs.m_tilexrep &&
-				this->m_tileyrep	==		lhs.m_tileyrep &&
-				this->m_alphablend	==		lhs.m_alphablend &&
-				this->m_alpha		==		lhs.m_alpha &&
-				this->m_zsort		==		lhs.m_zsort &&
-				this->m_light		==		lhs.m_light &&
-				this->m_drawingmode	==		lhs.m_drawingmode &&
-				this->m_texturename.hash()	==		lhs.m_texturename.hash() &&
-				this->m_materialname.hash() ==		lhs.m_materialname.hash()
-		);
-	}
-}
-
 int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game, bool image) const
 {
 	if (!game) return (image?GEMAT_TEX:0);
@@ -174,14 +141,6 @@ void RAS_IPolyMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
 	*rgba++ = 0xFF;
 	*rgba++ = 0xFF;
 	*rgba++ = 0xFF;
-}
-
-bool RAS_IPolyMaterial::Less(const RAS_IPolyMaterial& rhs) const
-{
-	if (Equals(rhs))
-		return false;
-		
-	return m_polymatid < rhs.m_polymatid;
 }
 
 bool RAS_IPolyMaterial::IsAlpha() const

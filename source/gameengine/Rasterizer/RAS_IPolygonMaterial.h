@@ -136,8 +136,6 @@ public:
 	{
 	}
 
-	virtual bool Equals(const RAS_IPolyMaterial& lhs) const;
-	bool Less(const RAS_IPolyMaterial& rhs) const;
 	bool IsAlpha() const;
 	bool IsZSort() const;
 	unsigned int hash() const;
@@ -181,15 +179,5 @@ public:
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IPolyMaterial")
 #endif
 };
-
-inline bool operator==(const RAS_IPolyMaterial& rhs, const RAS_IPolyMaterial& lhs)
-{
-	return (rhs.Equals(lhs));
-}
-
-inline bool operator<(const RAS_IPolyMaterial& lhs, const RAS_IPolyMaterial& rhs)
-{
-	return lhs.Less(rhs);
-}
 
 #endif  /* __RAS_IPOLYGONMATERIAL_H__ */

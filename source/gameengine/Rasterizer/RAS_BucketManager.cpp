@@ -338,11 +338,11 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 	bucketCreated = false;
 
 	for (it = m_SolidBuckets.begin(); it != m_SolidBuckets.end(); it++)
-		if (*(*it)->GetPolyMaterial() == *material)
+		if ((*it)->GetPolyMaterial() == material)
 			return *it;
 	
 	for (it = m_AlphaBuckets.begin(); it != m_AlphaBuckets.end(); it++)
-		if (*(*it)->GetPolyMaterial() == *material)
+		if ((*it)->GetPolyMaterial() == material)
 			return *it;
 	
 	RAS_MaterialBucket *bucket = new RAS_MaterialBucket(material);
