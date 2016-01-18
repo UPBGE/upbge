@@ -109,16 +109,12 @@ void RAS_StorageVA::Exit()
 
 void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
-	RAS_DisplayArray *array = arrayBucket->GetDisplayArray();
-	if (!array) {
-		return;
-	}
-
 	RAS_DisplayList *displayList = GetDisplayList(arrayBucket);
 	if (displayList && displayList->Draw(RAS_DisplayList::BIND_LIST)) {
 		return;
 	}
 
+	RAS_DisplayArray *array = arrayBucket->GetDisplayArray();
 	static const GLsizei stride = sizeof(RAS_TexVert);
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
 	RAS_TexVert *vertexarray = array->m_vertex.data();
@@ -143,11 +139,6 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 
 void RAS_StorageVA::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
-	RAS_DisplayArray *array = arrayBucket->GetDisplayArray();
-	if (!array) {
-		return;
-	}
-
 	RAS_DisplayList *displayList = GetDisplayList(arrayBucket);
 	if (displayList && displayList->Draw(RAS_DisplayList::UNBIND_LIST)) {
 		return;

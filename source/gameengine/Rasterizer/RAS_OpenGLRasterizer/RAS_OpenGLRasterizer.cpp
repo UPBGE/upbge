@@ -758,14 +758,14 @@ void RAS_OpenGLRasterizer::SetAttrib(TexCoGen coords, int unit, int layer)
 
 void RAS_OpenGLRasterizer::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
-	if (arrayBucket) {
+	if (arrayBucket && arrayBucket->GetDisplayArray()) {
 		m_storage->BindPrimitives(arrayBucket);
 	}
 }
 
 void RAS_OpenGLRasterizer::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
-	if (arrayBucket) {
+	if (arrayBucket && arrayBucket->GetDisplayArray()) {
 		m_storage->UnbindPrimitives(arrayBucket);
 	}
 }
