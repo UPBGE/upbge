@@ -87,15 +87,9 @@ protected:
 	int *m_texco_num;
 	int *m_attrib_num;
 
-	int m_last_texco_num;
-	int m_last_attrib_num;
-
 	RAS_IRasterizer::TexCoGen *m_texco;
 	RAS_IRasterizer::TexCoGen *m_attrib;
 	int *m_attrib_layer;
-
-	RAS_IRasterizer::TexCoGen m_last_texco[RAS_MAX_TEXCO];
-	RAS_IRasterizer::TexCoGen m_last_attrib[RAS_MAX_ATTRIB];
 
 	RAS_DisplayList *GetDisplayList(RAS_DisplayArrayBucket *arrayBucket);
 

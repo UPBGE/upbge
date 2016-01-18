@@ -88,8 +88,6 @@ RAS_StorageVA::RAS_StorageVA(int *texco_num, RAS_IRasterizer::TexCoGen *texco, i
 	m_drawingmode(RAS_IRasterizer::KX_TEXTURED),
 	m_texco_num(texco_num),
 	m_attrib_num(attrib_num),
-	m_last_texco_num(0),
-	m_last_attrib_num(0),
 	m_texco(texco),
 	m_attrib(attrib),
 	m_attrib_layer(attrib_layer)
@@ -308,25 +306,10 @@ void RAS_StorageVA::EnableTextures(bool enable)
 	RAS_IRasterizer::TexCoGen *texco, *attrib;
 	int unit, texco_num, attrib_num;
 
-	/* we cache last texcoords and attribs to ensure we disable the ones that
-	 * were actually last set */
-// 	if (enable) {
-		texco = m_texco;
-		texco_num = *m_texco_num;
-		attrib = m_attrib;
-		attrib_num = *m_attrib_num;
-
-// 		memcpy(m_last_texco, m_texco, sizeof(RAS_IRasterizer::TexCoGen) * (*m_texco_num));
-// 		m_last_texco_num = *m_texco_num;
-// 		memcpy(m_last_attrib, m_attrib, sizeof(RAS_IRasterizer::TexCoGen) * (*m_attrib_num));
-// 		m_last_attrib_num = *m_attrib_num;
-// 	}
-	/*else {
-		texco = m_last_texco;
-		texco_num = m_last_texco_num;
-		attrib = m_last_attrib;
-		attrib_num = m_last_attrib_num;
-	}*/
+	texco = m_texco;
+	texco_num = *m_texco_num;
+	attrib = m_attrib;
+	attrib_num = *m_attrib_num;
 
 	if (GLEW_ARB_multitexture) {
 		for (unit = 0; unit < texco_num; unit++) {
@@ -393,10 +376,5 @@ void RAS_StorageVA::EnableTextures(bool enable)
 				}
 			}
 		}
-	}
-
-	if (!enable) {
-		m_last_texco_num = 0;
-		m_last_attrib_num = 0;
 	}
 }
