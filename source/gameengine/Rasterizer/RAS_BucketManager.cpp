@@ -375,7 +375,7 @@ void RAS_BucketManager::ReleaseDisplayLists(RAS_IPolyMaterial *mat)
 
 	for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
 		RAS_MaterialBucket *bucket = *bit;
-		if (bucket->GetPolyMaterial() != mat) {
+		if (bucket->GetPolyMaterial() != mat && mat) {
 			continue;
 		}
 		RAS_DisplayArrayBucketList& displayArrayBucketList = bucket->GetDisplayArrayBucketList();
@@ -388,7 +388,7 @@ void RAS_BucketManager::ReleaseDisplayLists(RAS_IPolyMaterial *mat)
 
 	for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit) {
 		RAS_MaterialBucket *bucket = *bit;
-		if (bucket->GetPolyMaterial() != mat) {
+		if (bucket->GetPolyMaterial() != mat && mat) {
 			continue;
 		}
 		RAS_DisplayArrayBucketList& displayArrayBucketList = bucket->GetDisplayArrayBucketList();
