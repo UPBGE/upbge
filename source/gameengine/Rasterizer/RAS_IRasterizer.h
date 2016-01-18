@@ -41,11 +41,6 @@
 #include "MT_CmMatrix4x4.h"
 #include "MT_Matrix4x4.h"
 
-#include "RAS_TexVert.h"
-
-#include <vector>
-using namespace std;
-
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
 #endif
@@ -56,11 +51,6 @@ class RAS_MeshSlot;
 class RAS_DisplayArrayBucket;
 class RAS_ILightObject;
 class SCA_IScene;
-
-typedef vector<unsigned short> KX_IndexArray;
-typedef vector<RAS_TexVert> KX_VertexArray;
-typedef vector<KX_VertexArray *> vecVertexArray;
-typedef vector<KX_IndexArray *> vecIndexArrays;
 
 /**
  * 3D rendering device context interface. 
