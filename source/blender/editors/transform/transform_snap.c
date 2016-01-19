@@ -803,29 +803,19 @@ static void ApplySnapTranslation(TransInfo *t, float vec[3])
 
 static void ApplySnapRotation(TransInfo *t, float *value)
 {
-	if (t->tsnap.target == SCE_SNAP_TARGET_CLOSEST) {
-		*value = t->tsnap.dist;
-	}
-	else {
-		float point[3];
-		getSnapPoint(t, point);
-		*value = RotationBetween(t, t->tsnap.snapTarget, point);
-	}
+	float point[3];
+	getSnapPoint(t, point);
+
+	float dist = RotationBetween(t, t->tsnap.snapTarget, point);
+	*value = dist;
 }
 
 static void ApplySnapResize(TransInfo *t, float vec[3])
 {
-	float dist;
+	float point[3];
+	getSnapPoint(t, point);
 
-	if (t->tsnap.target == SCE_SNAP_TARGET_CLOSEST) {
-		dist = t->tsnap.dist;
-	}
-	else {
-		float point[3];
-		getSnapPoint(t, point);
-		dist = ResizeBetween(t, t->tsnap.snapTarget, point);
-	}
-
+	float dist = ResizeBetween(t, t->tsnap.snapTarget, point);
 	copy_v3_fl(vec, dist);
 }
 
@@ -833,7 +823,7 @@ static void ApplySnapResize(TransInfo *t, float vec[3])
 
 static float TranslationBetween(TransInfo *UNUSED(t), const float p1[3], const float p2[3])
 {
-	return len_v3v3(p1, p2);
+	return len_squared_v3v3(p1, p2);
 }
 
 static float RotationBetween(TransInfo *t, const float p1[3], const float p2[3])
@@ -1167,6 +1157,7 @@ static void TargetSnapClosest(TransInfo *t)
 {
 	// Only valid if a snap point has been selected
 	if (t->tsnap.status & POINT_INIT) {
+		float dist_closest = 0.0f;
 		TransData *closest = NULL, *td = NULL;
 		
 		/* Object mode */
@@ -1189,11 +1180,11 @@ static void TargetSnapClosest(TransInfo *t)
 						dist = t->tsnap.distance(t, loc, t->tsnap.snapPoint);
 
 						if ((dist != TRANSFORM_DIST_INVALID) &&
-						    (closest == NULL || fabsf(dist) < fabsf(t->tsnap.dist)))
+						    (closest == NULL || fabsf(dist) < fabsf(dist_closest)))
 						{
 							copy_v3_v3(t->tsnap.snapTarget, loc);
 							closest = td;
-							t->tsnap.dist = dist; 
+							dist_closest = dist;
 						}
 					}
 				}
@@ -1207,11 +1198,10 @@ static void TargetSnapClosest(TransInfo *t)
 					dist = t->tsnap.distance(t, loc, t->tsnap.snapPoint);
 
 					if ((dist != TRANSFORM_DIST_INVALID) &&
-					    (closest == NULL || fabsf(dist) < fabsf(t->tsnap.dist)))
+					    (closest == NULL || fabsf(dist) < fabsf(dist_closest)))
 					{
 						copy_v3_v3(t->tsnap.snapTarget, loc);
 						closest = td;
-						t->tsnap.dist = dist; 
 					}
 				}
 			}
@@ -1232,11 +1222,11 @@ static void TargetSnapClosest(TransInfo *t)
 				dist = t->tsnap.distance(t, loc, t->tsnap.snapPoint);
 				
 				if ((dist != TRANSFORM_DIST_INVALID) &&
-				    (closest == NULL || fabsf(dist) < fabsf(t->tsnap.dist)))
+				    (closest == NULL || fabsf(dist) < fabsf(dist_closest)))
 				{
 					copy_v3_v3(t->tsnap.snapTarget, loc);
 					closest = td;
-					t->tsnap.dist = dist; 
+					dist_closest = dist;
 				}
 			}
 		}
@@ -1544,7 +1534,7 @@ static bool snapDerivedMesh(
 	if (totvert > 0) {
 		float imat[4][4];
 		float timat[3][3]; /* transpose inverse matrix for normals */
-		float ray_start_local[3], ray_normal_local[3], local_scale, len_diff = TRANSFORM_DIST_MAX_RAY;
+		float ray_start_local[3], ray_normal_local[3], local_scale, len_diff = BVH_RAYCAST_DIST_MAX;
 
 		invert_m4_m4(imat, obmat);
 		transpose_m3_m4(timat, imat);
@@ -1637,7 +1627,7 @@ static bool snapDerivedMesh(
 
 				hit.index = -1;
 				hit.dist = *ray_depth;
-				if (hit.dist != TRANSFORM_DIST_MAX_RAY) {
+				if (hit.dist != BVH_RAYCAST_DIST_MAX) {
 					hit.dist *= local_scale;
 					hit.dist -= len_diff;
 				}
@@ -2081,7 +2071,7 @@ bool snapObjectsTransform(
         TransInfo *t, const float mval[2], SnapSelect snap_select,
         float r_loc[3], float r_no[3], float *r_dist_px)
 {
-	float ray_dist = TRANSFORM_DIST_MAX_RAY;
+	float ray_dist = BVH_RAYCAST_DIST_MAX;
 	Object *obedit = NULL;
 	Base *base_act = NULL;
 
@@ -2109,7 +2099,7 @@ bool snapObjectsContext(
 	Scene *scene = CTX_data_scene(C);
 	ARegion *ar = CTX_wm_region(C);
 	Object *obedit = CTX_data_edit_object(C);
-	float ray_dist = TRANSFORM_DIST_MAX_RAY;
+	float ray_dist = BVH_RAYCAST_DIST_MAX;
 
 	return snapObjects(
 	        scene, v3d, ar, scene->basact, obedit,

@@ -113,6 +113,11 @@ extern EnumPropertyItem rna_enum_brush_image_tool_items[];
 
 extern EnumPropertyItem rna_enum_gpencil_sculpt_brush_items[];
 
+extern EnumPropertyItem rna_enum_axis_xy_items[];
+extern EnumPropertyItem rna_enum_axis_xyz_items[];
+
+extern EnumPropertyItem rna_enum_axis_flag_xyz_items[];
+
 extern EnumPropertyItem rna_enum_symmetrize_direction_items[];
 
 extern EnumPropertyItem rna_enum_texture_type_items[];
@@ -130,12 +135,14 @@ extern EnumPropertyItem rna_enum_rigidbody_object_shape_items[];
 extern EnumPropertyItem rna_enum_rigidbody_constraint_type_items[];
 
 extern EnumPropertyItem rna_enum_object_axis_items[];
-extern EnumPropertyItem rna_enum_object_axis_unsigned_items[];
 
 extern EnumPropertyItem rna_enum_controller_type_items[];
 
 extern EnumPropertyItem rna_enum_render_pass_type_items[];
 extern EnumPropertyItem rna_enum_render_pass_debug_type_items[];
+
+extern EnumPropertyItem rna_enum_bake_pass_type_items[];
+extern EnumPropertyItem rna_enum_bake_pass_filter_type_items[];
 
 extern EnumPropertyItem rna_enum_keymap_propvalue_items[];
 

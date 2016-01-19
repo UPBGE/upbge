@@ -295,14 +295,14 @@ ccl_device void camera_sample(KernelGlobals *kg, int x, int y, float filter_u, f
 	}
 	else {
 		/* TODO(sergey): Such lookup is unneeded when there's rolling shutter
-		 * effect in use but rollign shutter duration is set to 0.0.
+		 * effect in use but rolling shutter duration is set to 0.0.
 		 */
 		const int shutter_table_offset = kernel_data.cam.shutter_table_offset;
 		ray->time = lookup_table_read(kg, time, shutter_table_offset, SHUTTER_TABLE_SIZE);
 		/* TODO(sergey): Currently single rolling shutter effect type only
 		 * where scanlines are acquired from top to bottom and whole scanline
 		 * is acquired at once (no delay in acquisition happens between pixels
-		 * of sinle scanline).
+		 * of single scanline).
 		 *
 		 * Might want to support more models in the future.
 		 */

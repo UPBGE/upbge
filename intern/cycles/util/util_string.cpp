@@ -122,5 +122,13 @@ string string_remove_trademark(const string &s)
 	return string_strip(result);
 }
 
+string string_from_bool(bool var)
+{
+	if(var)
+		return "True";
+	else
+		return "False";
+}
+
 CCL_NAMESPACE_END
 

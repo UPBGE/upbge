@@ -54,6 +54,10 @@
 
 #include "UI_interface_icons.h"
 
+/* for notifiers */
+#include "WM_api.h"
+#include "WM_types.h"
+
 #include "../generic/py_capi_utils.h"
 #include "../generic/python_utildefines.h"
 
@@ -270,6 +274,8 @@ static int bpy_app_debug_value_set(PyObject *UNUSED(self), PyObject *value, void
 	
 	G.debug_value = param;
 
+	WM_main_add_notifier(NC_WINDOW, NULL);
+
 	return 0;
 }
 
@@ -334,8 +340,8 @@ static PyGetSetDef bpy_app_getsets[] = {
 	{(char *)"tempdir", bpy_app_tempdir_get, NULL, (char *)bpy_app_tempdir_doc, NULL},
 	{(char *)"driver_namespace", bpy_app_driver_dict_get, NULL, (char *)bpy_app_driver_dict_doc, NULL},
 
-    {(char *)"render_icon_size", bpy_app_preview_render_size_get, NULL, (char *)bpy_app_preview_render_size_doc, (void *)ICON_SIZE_ICON},
-    {(char *)"render_preview_size", bpy_app_preview_render_size_get, NULL, (char *)bpy_app_preview_render_size_doc, (void *)ICON_SIZE_PREVIEW},
+	{(char *)"render_icon_size", bpy_app_preview_render_size_get, NULL, (char *)bpy_app_preview_render_size_doc, (void *)ICON_SIZE_ICON},
+	{(char *)"render_preview_size", bpy_app_preview_render_size_get, NULL, (char *)bpy_app_preview_render_size_doc, (void *)ICON_SIZE_PREVIEW},
 
 	/* security */
 	{(char *)"autoexec_fail", bpy_app_global_flag_get, NULL, NULL, (void *)G_SCRIPT_AUTOEXEC_FAIL},

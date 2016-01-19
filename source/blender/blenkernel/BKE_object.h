@@ -266,6 +266,10 @@ struct KDTree *BKE_object_as_kdtree(struct Object *ob, int *r_tot);
 
 bool BKE_object_modifier_use_time(struct Object *ob, struct ModifierData *md);
 
+bool BKE_object_modifier_update_subframe(struct Scene *scene, struct Object *ob, bool update_mesh,
+                                         int parent_recursion, float frame,
+                                         int type);
+
 #ifdef __cplusplus
 }
 #endif

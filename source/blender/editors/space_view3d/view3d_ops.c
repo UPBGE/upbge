@@ -34,6 +34,7 @@
 
 
 #include "DNA_object_types.h"
+#include "DNA_group_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -49,6 +50,7 @@
 #include "BKE_report.h"
 
 #include "RNA_access.h"
+#include "RNA_define.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -77,6 +79,17 @@ static int view3d_copybuffer_exec(bContext *C, wmOperator *op)
 		BKE_copybuffer_tag_ID(&ob->id);
 	}
 	CTX_DATA_END;
+
+	for (Group *group = bmain->group.first; group; group = group->id.next) {
+		for (GroupObject *go = group->gobject.first; go; go = go->next) {
+			if (go->ob && (go->ob->id.tag & LIB_TAG_DOIT)) {
+				BKE_copybuffer_tag_ID(&group->id);
+				/* don't expand out to all other objects */
+				group->id.tag &= ~LIB_TAG_NEED_EXPAND;
+				break;
+			}
+		}
+	}
 	
 	BLI_make_file_string("/", str, BKE_tempdir_base(), "copybuffer.blend");
 	BKE_copybuffer_save(str, op->reports);
@@ -102,9 +115,15 @@ static void VIEW3D_OT_copybuffer(wmOperatorType *ot)
 static int view3d_pastebuffer_exec(bContext *C, wmOperator *op)
 {
 	char str[FILE_MAX];
+	short flag = 0;
+
+	if (RNA_boolean_get(op->ptr, "autoselect"))
+		flag |= FILE_AUTOSELECT;
+	if (RNA_boolean_get(op->ptr, "active_layer"))
+		flag |= FILE_ACTIVELAY;
 
 	BLI_make_file_string("/", str, BKE_tempdir_base(), "copybuffer.blend");
-	if (BKE_copybuffer_paste(C, str, op->reports)) {
+	if (BKE_copybuffer_paste(C, str, flag, op->reports)) {
 		WM_event_add_notifier(C, NC_WINDOW, NULL);
 
 		BKE_report(op->reports, RPT_INFO, "Objects pasted from buffer");
@@ -131,6 +150,9 @@ static void VIEW3D_OT_pastebuffer(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "autoselect", true, "Select", "Select pasted objects");
+	RNA_def_boolean(ot->srna, "active_layer", true, "Active Layer", "Put pasted objects on the active layer");
 }
 
 /* ************************** registration **********************************/

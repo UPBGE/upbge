@@ -343,6 +343,22 @@ static void cdDM_update_normals_from_pbvh(DerivedMesh *dm)
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 	float (*face_nors)[3];
 
+	/* Some callbacks do not use optimal PBVH draw, so needs all the
+	 * possible data (like normals) to be copied from PBVH back to DM.
+	 *
+	 * This is safe to do if PBVH and DM are representing the same mesh,
+	 * which could be wrong when modifiers are enabled for sculpt.
+	 * So here we only doing update when there's no modifiers applied
+	 * during sculpt.
+	 *
+	 * It's safe to do nothing if there are modifiers, because in this
+	 * case modifier stack is re-constructed from scratch on every
+	 * update.
+	 */
+	if (!cddm->pbvh_draw) {
+		return;
+	}
+
 	face_nors = CustomData_get_layer(&dm->polyData, CD_NORMAL);
 
 	BKE_pbvh_update(cddm->pbvh, PBVH_UpdateNormals, face_nors);
@@ -450,9 +466,6 @@ static void cdDM_drawFacesSolid(
 			              setMaterial, false, false);
 			glShadeModel(GL_FLAT);
 			return;
-		}
-		else {
-			cdDM_update_normals_from_pbvh(dm);
 		}
 	}
 	

@@ -355,7 +355,10 @@ typedef struct ImageFormatData {
 	char  jp2_flag;
 	char jp2_codec;
 
-	char pad[5];
+	/* TIFF */
+	char tiff_codec;
+
+	char pad[4];
 
 	/* Multiview */
 	char views_format;
@@ -442,6 +445,14 @@ typedef struct ImageFormatData {
 /* ImageFormatData.cineon_flag */
 #define R_IMF_CINEON_FLAG_LOG (1<<0)  /* was R_CINEON_LOG */
 
+/* ImageFormatData.tiff_codec */
+enum {
+	R_IMF_TIFF_CODEC_DEFLATE   = 0,
+	R_IMF_TIFF_CODEC_LZW       = 1,
+	R_IMF_TIFF_CODEC_PACKBITS  = 2,
+	R_IMF_TIFF_CODEC_NONE      = 3,
+};
+
 typedef struct BakeData {
 	struct ImageFormatData im_format;
 
@@ -451,7 +462,7 @@ typedef struct BakeData {
 	short margin, flag;
 
 	float cage_extrusion;
-	float pad2;
+	int pass_filter;
 
 	char normal_swizzle[3];
 	char normal_space;
@@ -477,6 +488,22 @@ typedef enum BakeSaveMode {
 	R_BAKE_SAVE_INTERNAL = 0,
 	R_BAKE_SAVE_EXTERNAL = 1,
 } BakeSaveMode;
+
+/* bake->pass_filter */
+typedef enum BakePassFilter {
+	R_BAKE_PASS_FILTER_NONE           = 0,
+	R_BAKE_PASS_FILTER_AO             = (1 << 0),
+	R_BAKE_PASS_FILTER_EMIT           = (1 << 1),
+	R_BAKE_PASS_FILTER_DIFFUSE        = (1 << 2),
+	R_BAKE_PASS_FILTER_GLOSSY         = (1 << 3),
+	R_BAKE_PASS_FILTER_TRANSM         = (1 << 4),
+	R_BAKE_PASS_FILTER_SUBSURFACE     = (1 << 5),
+	R_BAKE_PASS_FILTER_DIRECT         = (1 << 6),
+	R_BAKE_PASS_FILTER_INDIRECT       = (1 << 7),
+	R_BAKE_PASS_FILTER_COLOR          = (1 << 8),
+} BakePassFilter;
+
+#define R_BAKE_PASS_FILTER_ALL (~0)
 
 /* *************************************************************** */
 /* Render Data */

@@ -60,7 +60,6 @@
 /* Extensions support */
 
 /* -- extension: version of GL that absorbs it
- * ARB_fragment_program: 2.0
  * ARB_framebuffer object: 3.0
  * EXT_framebuffer_object: 3.0
  * EXT_framebuffer_blit: 3.0
@@ -84,6 +83,7 @@ static struct GPUGlobal {
 	float dfdyfactors[2]; /* workaround for different calculation of dfdy factors on GPUs. Some GPUs/drivers
 	                         calculate dfdy in shader differently when drawing to an offscreen buffer. First
 	                         number is factor on screen and second is off-screen */
+	float max_anisotropy;
 } GG = {1, 0};
 
 /* GPU Types */
@@ -110,6 +110,11 @@ int GPU_max_textures(void)
 	return GG.maxtextures;
 }
 
+float GPU_max_texture_anisotropy(void)
+{
+	return GG.max_anisotropy;
+}
+
 int GPU_max_color_texture_samples(void)
 {
 	return GG.samples_color_texture_max;
@@ -129,6 +134,11 @@ void gpu_extensions_init(void)
 
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &GG.maxtexsize);
 
+	if (GLEW_EXT_texture_filter_anisotropic)
+		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &GG.max_anisotropy);
+	else
+		GG.max_anisotropy = 1.0f;
+
 	GLint r, g, b;
 	glGetIntegerv(GL_RED_BITS, &r);
 	glGetIntegerv(GL_GREEN_BITS, &g);
@@ -136,7 +146,7 @@ void gpu_extensions_init(void)
 	GG.colordepth = r + g + b; /* assumes same depth for RGB */
 
 	if (GLEW_VERSION_3_2 || GLEW_ARB_texture_multisample) {
-		glGetIntegerv(GL_MAX_COLOR_TEXTURE_SAMPLES , &GG.samples_color_texture_max);
+		glGetIntegerv(GL_MAX_COLOR_TEXTURE_SAMPLES, &GG.samples_color_texture_max);
 	}
 
 	const char *vendor = (const char *)glGetString(GL_VENDOR);
@@ -152,9 +162,10 @@ void gpu_extensions_init(void)
 		GG.driver = GPU_DRIVER_OFFICIAL;
 	}
 	else if (strstr(vendor, "Intel") ||
-	        /* src/mesa/drivers/dri/intel/intel_context.c */
-	        strstr(renderer, "Mesa DRI Intel") ||
-		strstr(renderer, "Mesa DRI Mobile Intel")) {
+	         /* src/mesa/drivers/dri/intel/intel_context.c */
+	         strstr(renderer, "Mesa DRI Intel") ||
+	         strstr(renderer, "Mesa DRI Mobile Intel"))
+	{
 		GG.device = GPU_DEVICE_INTEL;
 		GG.driver = GPU_DRIVER_OFFICIAL;
 	}
@@ -201,13 +212,13 @@ void gpu_extensions_init(void)
 		GG.dfdyfactors[0] = 1.0;
 		GG.dfdyfactors[1] = -1.0;
 	}
-	else if (GG.device == GPU_DEVICE_INTEL && GG.os == GPU_OS_WIN  &&
-	        (strstr(version, "4.0.0 - Build 10.18.10.3308") ||
-	         strstr(version, "4.0.0 - Build 9.18.10.3186") ||
-	         strstr(version, "4.0.0 - Build 9.18.10.3165") ||
-	         strstr(version, "3.1.0 - Build 9.17.10.3347") ||
-	         strstr(version, "3.1.0 - Build 9.17.10.4101") ||
-	         strstr(version, "3.3.0 - Build 8.15.10.2618")))
+	else if ((GG.device == GPU_DEVICE_INTEL) && (GG.os == GPU_OS_WIN) &&
+	         (strstr(version, "4.0.0 - Build 10.18.10.3308") ||
+	          strstr(version, "4.0.0 - Build 9.18.10.3186") ||
+	          strstr(version, "4.0.0 - Build 9.18.10.3165") ||
+	          strstr(version, "3.1.0 - Build 9.17.10.3347") ||
+	          strstr(version, "3.1.0 - Build 9.17.10.4101") ||
+	          strstr(version, "3.3.0 - Build 8.15.10.2618")))
 	{
 		GG.dfdyfactors[0] = -1.0;
 		GG.dfdyfactors[1] = 1.0;

@@ -25,7 +25,7 @@
 ARGS=$( \
 getopt \
 -o s:i:t:h \
---long source:,install:,tmp:,info:,threads:,help,show-deps,no-sudo,with-all,with-opencollada,\
+--long source:,install:,tmp:,info:,threads:,help,show-deps,no-sudo,no-confirm,with-all,with-opencollada,\
 ver-ocio:,ver-oiio:,ver-llvm:,ver-osl:,ver-osd:,\
 force-all,force-python,force-numpy,force-boost,force-ocio,force-openexr,force-oiio,force-llvm,force-osl,force-osd,\
 force-ffmpeg,force-opencollada,\
@@ -93,6 +93,9 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
 
     --no-sudo
         Disable use of sudo (this script won't be able to do much though, will just print needed packages...).
+
+    --no-confirm
+        Disable any interaction with user (suitable for automated run).
 
     --with-all
         By default, a number of optional and not-so-often needed libraries are not installed.
@@ -249,6 +252,8 @@ DO_SHOW_DEPS=false
 
 SUDO="sudo"
 
+NO_CONFIRM=false
+
 PYTHON_VERSION="3.5.1"
 PYTHON_VERSION_MIN="3.5"
 PYTHON_FORCE_BUILD=false
@@ -261,7 +266,7 @@ NUMPY_FORCE_BUILD=false
 NUMPY_FORCE_REBUILD=false
 NUMPY_SKIP=false
 
-BOOST_VERSION="1.55.0"
+BOOST_VERSION="1.60.0"
 BOOST_VERSION_MIN="1.49"
 BOOST_FORCE_BUILD=false
 BOOST_FORCE_REBUILD=false
@@ -282,9 +287,9 @@ OPENEXR_FORCE_REBUILD=false
 OPENEXR_SKIP=false
 _with_built_openexr=false
 
-OIIO_VERSION="1.4.16"
-OIIO_VERSION_MIN="1.4.0"
-OIIO_VERSION_MAX="1.5.0"  # Not supported by current OSL...
+OIIO_VERSION="1.6.9"
+OIIO_VERSION_MIN="1.6.0"
+OIIO_VERSION_MAX="1.9.0"  # UNKNOWN currently # Not supported by current OSL...
 OIIO_FORCE_BUILD=false
 OIIO_FORCE_REBUILD=false
 OIIO_SKIP=false
@@ -297,7 +302,7 @@ LLVM_FORCE_REBUILD=false
 LLVM_SKIP=false
 
 # OSL needs to be compiled for now!
-OSL_VERSION="1.5.11"
+OSL_VERSION="1.6.9"
 OSL_VERSION_MIN=$OSL_VERSION
 OSL_FORCE_BUILD=false
 OSL_FORCE_REBUILD=false
@@ -316,8 +321,8 @@ OPENCOLLADA_FORCE_BUILD=true  # no package!
 OPENCOLLADA_FORCE_REBUILD=false
 OPENCOLLADA_SKIP=false
 
-FFMPEG_VERSION="2.1.5"
-FFMPEG_VERSION_MIN="2.1.5"
+FFMPEG_VERSION="2.8.4"
+FFMPEG_VERSION_MIN="2.8.4"
 FFMPEG_FORCE_BUILD=false
 FFMPEG_FORCE_REBUILD=false
 FFMPEG_SKIP=false
@@ -430,6 +435,9 @@ while true; do
       WARNING "--no-sudo enabled, this script might not be able to do much..."
       PRINT ""
       SUDO=""; shift; continue
+    ;;
+    --no-confirm)
+      NO_CONFIRM=true; shift; continue
     ;;
     --with-all)
       WITH_ALL=true; shift; continue
@@ -588,7 +596,7 @@ while true; do
     ;;
     --skip-osd)
       OSD_SKIP=true; shift; continue
-    ;;    
+    ;;
     --skip-opencollada)
       OPENCOLLADA_SKIP=true; shift; continue
     ;;
@@ -622,7 +630,7 @@ NUMPY_SOURCE=( "http://sourceforge.net/projects/numpy/files/NumPy/$NUMPY_VERSION
 
 _boost_version_nodots=`echo "$BOOST_VERSION" | sed -r 's/\./_/g'`
 BOOST_SOURCE=( "http://sourceforge.net/projects/boost/files/boost/$BOOST_VERSION/boost_$_boost_version_nodots.tar.bz2/download" )
-BOOST_BUILD_MODULES="--with-system --with-filesystem --with-thread --with-regex --with-locale --with-date_time"
+BOOST_BUILD_MODULES="--with-system --with-filesystem --with-thread --with-regex --with-locale --with-date_time --with-wave"
 
 OCIO_SOURCE=( "https://github.com/imageworks/OpenColorIO/tarball/v$OCIO_VERSION" )
 
@@ -640,9 +648,9 @@ OIIO_SOURCE_REPO_UID="c9e67275a0b248ead96152f6d2221cc0c0f278a4"
 LLVM_SOURCE=( "http://llvm.org/releases/$LLVM_VERSION/llvm-$LLVM_VERSION.src.tar.gz" )
 LLVM_CLANG_SOURCE=( "http://llvm.org/releases/$LLVM_VERSION/clang-$LLVM_VERSION.src.tar.gz" "http://llvm.org/releases/$LLVM_VERSION/cfe-$LLVM_VERSION.src.tar.gz" )
 
-OSL_USE_REPO=true
-#~ OSL_SOURCE=( "https://github.com/imageworks/OpenShadingLanguage/archive/Release-$OSL_VERSION.tar.gz" )
-OSL_SOURCE=( "https://github.com/Nazg-Gul/OpenShadingLanguage/archive/Release-1.5.11.tar.gz" )
+OSL_USE_REPO=false
+OSL_SOURCE=( "https://github.com/imageworks/OpenShadingLanguage/archive/Release-$OSL_VERSION.tar.gz" )
+#~ OSL_SOURCE=( "https://github.com/Nazg-Gul/OpenShadingLanguage/archive/Release-1.5.11.tar.gz" )
 #~ OSL_SOURCE_REPO=( "https://github.com/imageworks/OpenShadingLanguage.git" )
 #~ OSL_SOURCE_REPO=( "https://github.com/mont29/OpenShadingLanguage.git" )
 #~ OSL_SOURCE_REPO_UID="85179714e1bc69cd25ecb6bb711c1a156685d395"
@@ -652,7 +660,7 @@ OSL_SOURCE_REPO_UID="7d40ff5fe8e47b030042afb92d0e955f5aa96f48"
 OSL_SOURCE_REPO_BRANCH="blender-fixes"
 
 OSD_USE_REPO=true
-# Script foo to make the version string compliant with the archive name: 
+# Script foo to make the version string compliant with the archive name:
 # ${Varname//SearchForThisChar/ReplaceWithThisChar}
 OSD_SOURCE=( "https://github.com/PixarAnimationStudios/OpenSubdiv/archive/v${OSD_VERSION//./_}.tar.gz" )
 OSD_SOURCE_REPO=( "https://github.com/PixarAnimationStudios/OpenSubdiv.git" )
@@ -1034,7 +1042,7 @@ clean_Boost() {
 
 compile_Boost() {
   # To be changed each time we make edits that would modify the compiled result!
-  boost_magic=7
+  boost_magic=9
 
   _init_boost
 
@@ -1133,7 +1141,7 @@ compile_OCIO() {
     # Always refresh the whole build!
     if [ -d build ]; then
       rm -rf build
-    fi    
+    fi
     mkdir build
     cd build
 
@@ -1229,7 +1237,7 @@ compile_ILMBASE() {
     # Always refresh the whole build!
     if [ -d build ]; then
       rm -rf build
-    fi    
+    fi
     mkdir build
     cd build
 
@@ -1336,7 +1344,7 @@ compile_OPENEXR() {
     # Always refresh the whole build!
     if [ -d build ]; then
       rm -rf build
-    fi    
+    fi
     mkdir build
     cd build
 
@@ -1398,7 +1406,7 @@ clean_OIIO() {
 
 compile_OIIO() {
   # To be changed each time we make edits that would modify the compiled result!
-  oiio_magic=14
+  oiio_magic=15
   _init_oiio
 
   # Clean install if needed!
@@ -1441,7 +1449,7 @@ compile_OIIO() {
     # Always refresh the whole build!
     if [ -d build ]; then
       rm -rf build
-    fi    
+    fi
     mkdir build
     cd build
 
@@ -1624,7 +1632,7 @@ clean_OSL() {
 
 compile_OSL() {
   # To be changed each time we make edits that would modify the compiled result!
-  osl_magic=17
+  osl_magic=18
   _init_osl
 
   # Clean install if needed!
@@ -1669,7 +1677,7 @@ compile_OSL() {
     # Always refresh the whole build!
     if [ -d build ]; then
       rm -rf build
-    fi    
+    fi
     mkdir build
     cd build
 
@@ -1788,7 +1796,7 @@ compile_OSD() {
     # Always refresh the whole build!
     if [ -d build ]; then
       rm -rf build
-    fi    
+    fi
     mkdir build
     cd build
 
@@ -1919,7 +1927,7 @@ clean_FFmpeg() {
 
 compile_FFmpeg() {
   # To be changed each time we make edits that would modify the compiled result!
-  ffmpeg_magic=3
+  ffmpeg_magic=4
   _init_ffmpeg
 
   # Clean install if needed!
@@ -1985,6 +1993,7 @@ compile_FFmpeg() {
         --disable-vaapi --disable-libfaac --disable-nonfree --enable-gpl \
         --disable-postproc --disable-librtmp --disable-libopencore-amrnb \
         --disable-libopencore-amrwb --disable-libdc1394 --disable-version3 --disable-outdev=sdl \
+        --disable-libxcb \
         --disable-outdev=xv \
         --disable-outdev=alsa --disable-indev=sdl --disable-indev=alsa --disable-indev=jack \
         --disable-indev=lavfi $extra
@@ -2087,8 +2096,10 @@ install_DEB() {
   PRINT "`eval _echo "$COMMON_INFO"`"
   PRINT ""
 
-  read -p "Do you want to continue (Y/n)?"
-  [ "$(echo ${REPLY:=Y} | tr [:upper:] [:lower:])" != "y" ] && exit
+  if [ "$NO_CONFIRM" = false ]; then
+    read -p "Do you want to continue (Y/n)?"
+    [ "$(echo ${REPLY:=Y} | tr [:upper:] [:lower:])" != "y" ] && exit
+  fi
 
   if [ ! -z "`cat /etc/debian_version | grep ^6`"  ]; then
     if [ -z "`cat /etc/apt/sources.list | grep backports.debian.org`"  ]; then
@@ -2534,7 +2545,7 @@ get_package_version_RPM() {
     yum info $1 | grep Version | tail -n 1 | sed -r 's/.*:\s+(([0-9]+\.?)+).*/\1/'
   elif [ "$RPM" = "SUSE" ]; then
     zypper info $1 | grep Version | tail -n 1 | sed -r 's/.*:\s+(([0-9]+\.?)+).*/\1/'
-  fi  
+  fi
 }
 
 check_package_RPM() {
@@ -2618,8 +2629,10 @@ install_RPM() {
   PRINT "`eval _echo "$COMMON_INFO"`"
   PRINT ""
 
-  read -p "Do you want to continue (Y/n)?"
-  [ "$(echo ${REPLY:=Y} | tr [:upper:] [:lower:])" != "y" ] && exit
+  if [ "$NO_CONFIRM" = false ]; then
+    read -p "Do you want to continue (Y/n)?"
+    [ "$(echo ${REPLY:=Y} | tr [:upper:] [:lower:])" != "y" ] && exit
+  fi
 
   # Enable non-free repositories for all flavours
   if [ ! $SUDO ]; then
@@ -2773,7 +2786,7 @@ install_RPM() {
   SNDFILE_DEV="libsndfile-devel"
   check_package_RPM $SNDFILE_DEV
   if [ $? -eq 0 ]; then
-    install_packages_RMP $SNDFILE_DEV
+    install_packages_RPM $SNDFILE_DEV
   fi
 
   if [ "$WITH_ALL" = true ]; then
@@ -3093,8 +3106,10 @@ install_ARCH() {
   PRINT "`eval _echo "$COMMON_INFO"`"
   PRINT ""
 
-  read -p "Do you want to continue (Y/n)?"
-  [ "$(echo ${REPLY:=Y} | tr [:upper:] [:lower:])" != "y" ] && exit
+  if [ "$NO_CONFIRM" = false ]; then
+    read -p "Do you want to continue (Y/n)?"
+    [ "$(echo ${REPLY:=Y} | tr [:upper:] [:lower:])" != "y" ] && exit
+  fi
 
   # Check for sudo...
   if [ $SUDO ]; then
@@ -3352,7 +3367,7 @@ install_ARCH() {
 
   if [ "$_do_compile_osl" = true ]; then
     if [ "$have_llvm" = true ]; then
-      #XXX Note: will fail to build with LLVM 3.2! 
+      #XXX Note: will fail to build with LLVM 3.2!
       install_packages_ARCH intel-tbb
       PRINT ""
       compile_OSL
@@ -3450,8 +3465,10 @@ install_OTHER() {
   PRINT "`eval _echo "$DEPS_SPECIFIC_INFO"`"
   PRINT ""
 
-  read -p "Do you want to continue (Y/n)?"
-  [ "$(echo ${REPLY:=Y} | tr [:upper:] [:lower:])" != "y" ] && exit
+  if [ "$NO_CONFIRM" = false ]; then
+    read -p "Do you want to continue (Y/n)?"
+    [ "$(echo ${REPLY:=Y} | tr [:upper:] [:lower:])" != "y" ] && exit
+  fi
 
   PRINT ""
   _do_compile_python=false
@@ -3772,7 +3789,7 @@ print_info() {
 
   if [ "$FFMPEG_SKIP" = false ]; then
     _1="-D WITH_CODEC_FFMPEG=ON"
-    _2="-D FFMPEG_LIBRARIES='avformat;avcodec;avutil;avdevice;swscale;rt;`print_info_ffmpeglink`'"
+    _2="-D FFMPEG_LIBRARIES='avformat;avcodec;avutil;avdevice;swscale;swresample;lzma;rt;`print_info_ffmpeglink`'"
     PRINT "  $_1"
     PRINT "  $_2"
     _buildargs="$_buildargs -U *FFMPEG* $_1 $_2"

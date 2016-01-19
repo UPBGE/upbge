@@ -23,7 +23,13 @@
 
 #include "buffers.h"
 
-#include "cuew.h"
+#ifdef WITH_CUDA_DYNLOAD
+#  include "cuew.h"
+#else
+#  include "util_opengl.h"
+#  include <cuda.h>
+#  include <cudaGL.h>
+#endif
 #include "util_debug.h"
 #include "util_logging.h"
 #include "util_map.h"
@@ -41,6 +47,40 @@
 /* #define KERNEL_USE_ADAPTIVE */
 
 CCL_NAMESPACE_BEGIN
+
+#ifndef WITH_CUDA_DYNLOAD
+
+/* Transparently implement some functions, so majority of the file does not need
+ * to worry about difference between dynamically loaded and linked CUDA at all.
+ */
+
+namespace {
+
+const char *cuewErrorString(CUresult result)
+{
+	/* We can only give error code here without major code duplication, that
+	 * should be enough since dynamic loading is only being disabled by folks
+	 * who knows what they're doing anyway.
+	 *
+	 * NOTE: Avoid call from several threads.
+	 */
+	static string error;
+	error = string_printf("%d", result);
+	return error.c_str();
+}
+
+const char *cuewCompilerPath(void)
+{
+	return CYCLES_CUDA_NVCC_EXECUTABLE;
+}
+
+int cuewCompilerVersion(void)
+{
+	return (CUDA_VERSION / 100) + (CUDA_VERSION % 100 / 10);
+}
+
+}  /* namespace */
+#endif  /* WITH_CUDA_DYNLOAD */
 
 class CUDADevice : public Device
 {
@@ -213,10 +253,7 @@ public:
 		string cubin;
 
 		/* attempt to use kernel provided with blender */
-		if(requested_features.experimental)
-			cubin = path_get(string_printf("lib/kernel_experimental_sm_%d%d.cubin", major, minor));
-		else
-			cubin = path_get(string_printf("lib/kernel_sm_%d%d.cubin", major, minor));
+		cubin = path_get(string_printf("lib/kernel_sm_%d%d.cubin", major, minor));
 		VLOG(1) << "Testing for pre-compiled kernel " << cubin;
 		if(path_exists(cubin)) {
 			VLOG(1) << "Using precompiled kernel";
@@ -235,10 +272,8 @@ public:
 		                      major, minor,
 		                      md5.c_str());
 #else
-		if(requested_features.experimental)
-			cubin = string_printf("cycles_kernel_experimental_sm%d%d_%s.cubin", major, minor, md5.c_str());
-		else
-			cubin = string_printf("cycles_kernel_sm%d%d_%s.cubin", major, minor, md5.c_str());
+		(void)requested_features;
+		cubin = string_printf("cycles_kernel_sm%d%d_%s.cubin", major, minor, md5.c_str());
 #endif
 
 		cubin = path_user_get(path_join("cache", cubin));
@@ -298,10 +333,6 @@ public:
 
 #ifdef KERNEL_USE_ADAPTIVE
 		command += " " + feature_build_options;
-#else
-		if(requested_features.experimental) {
-			command += " -D__KERNEL_EXPERIMENTAL__";
-		}
 #endif
 
 		const char* extra_cflags = getenv("CYCLES_CUDA_EXTRA_CFLAGS");
@@ -1100,6 +1131,7 @@ public:
 
 bool device_cuda_init(void)
 {
+#ifdef WITH_CUDA_DYNLOAD
 	static bool initialized = false;
 	static bool result = false;
 
@@ -1133,6 +1165,9 @@ bool device_cuda_init(void)
 	}
 
 	return result;
+#else  /* WITH_CUDA_DYNLOAD */
+	return true;
+#endif /* WITH_CUDA_DYNLOAD */
 }
 
 Device *device_cuda_create(DeviceInfo& info, Stats &stats, bool background)

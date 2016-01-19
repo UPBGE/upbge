@@ -1388,15 +1388,31 @@ class WM_OT_appconfig_activate(Operator):
 
 
 class WM_OT_sysinfo(Operator):
-    """Generate system info text, accessible from Blender's internal text editor"""
+    """Generate system information, saved into a text file"""
 
     bl_idname = "wm.sysinfo"
-    bl_label = "System Info"
+    bl_label = "Save System Info"
+
+    filepath = StringProperty(
+            subtype='FILE_PATH',
+            options={'SKIP_SAVE'},
+            )
 
     def execute(self, context):
         import sys_info
-        sys_info.write_sysinfo(self)
+        sys_info.write_sysinfo(self.filepath)
         return {'FINISHED'}
+
+    def invoke(self, context, event):
+        import os
+
+        if not self.filepath:
+            self.filepath = os.path.join(
+                    os.path.expanduser("~"), "system-info.txt")
+
+        wm = context.window_manager
+        wm.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 
 class WM_OT_copy_prev_settings(Operator):
@@ -1752,13 +1768,13 @@ class WM_OT_operator_cheat_sheet(Operator):
 # Addon Operators
 
 class WM_OT_addon_enable(Operator):
-    "Enable an addon"
+    "Enable an add-on"
     bl_idname = "wm.addon_enable"
     bl_label = "Enable Addon"
 
     module = StringProperty(
             name="Module",
-            description="Module name of the addon to enable",
+            description="Module name of the add-on to enable",
             )
 
     def execute(self, context):
@@ -1766,7 +1782,7 @@ class WM_OT_addon_enable(Operator):
 
         err_str = ""
 
-        def err_cb():
+        def err_cb(ex):
             import traceback
             nonlocal err_str
             err_str = traceback.format_exc()
@@ -1796,13 +1812,13 @@ class WM_OT_addon_enable(Operator):
 
 
 class WM_OT_addon_disable(Operator):
-    "Disable an addon"
+    "Disable an add-on"
     bl_idname = "wm.addon_disable"
     bl_label = "Disable Addon"
 
     module = StringProperty(
             name="Module",
-            description="Module name of the addon to disable",
+            description="Module name of the add-on to disable",
             )
 
     def execute(self, context):
@@ -1810,7 +1826,7 @@ class WM_OT_addon_disable(Operator):
 
         err_str = ""
 
-        def err_cb():
+        def err_cb(ex):
             import traceback
             nonlocal err_str
             err_str = traceback.format_exc()
@@ -1884,7 +1900,7 @@ class WM_OT_theme_install(Operator):
 
 
 class WM_OT_addon_refresh(Operator):
-    "Scan addon directories for new modules"
+    "Scan add-on directories for new modules"
     bl_idname = "wm.addon_refresh"
     bl_label = "Refresh"
 
@@ -1897,7 +1913,7 @@ class WM_OT_addon_refresh(Operator):
 
 
 class WM_OT_addon_install(Operator):
-    "Install an addon"
+    "Install an add-on"
     bl_idname = "wm.addon_install"
     bl_label = "Install from File..."
 
@@ -1978,7 +1994,7 @@ class WM_OT_addon_install(Operator):
         pyfile_dir = os.path.dirname(pyfile)
         for addon_path in addon_utils.paths():
             if os.path.samefile(pyfile_dir, addon_path):
-                self.report({'ERROR'}, "Source file is in the addon search path: %r" % addon_path)
+                self.report({'ERROR'}, "Source file is in the add-on search path: %r" % addon_path)
                 return {'CANCELLED'}
         del addon_path
         del pyfile_dir
@@ -2062,13 +2078,13 @@ class WM_OT_addon_install(Operator):
 
 
 class WM_OT_addon_remove(Operator):
-    "Delete the addon from the file system"
+    "Delete the add-on from the file system"
     bl_idname = "wm.addon_remove"
     bl_label = "Remove Addon"
 
     module = StringProperty(
             name="Module",
-            description="Module name of the addon to remove",
+            description="Module name of the add-on to remove",
             )
 
     @staticmethod
@@ -2121,14 +2137,14 @@ class WM_OT_addon_remove(Operator):
 
 
 class WM_OT_addon_expand(Operator):
-    "Display more information on this addon"
+    "Display information and preferences for this add-on"
     bl_idname = "wm.addon_expand"
     bl_label = ""
     bl_options = {'INTERNAL'}
 
     module = StringProperty(
             name="Module",
-            description="Module name of the addon to expand",
+            description="Module name of the add-on to expand",
             )
 
     def execute(self, context):

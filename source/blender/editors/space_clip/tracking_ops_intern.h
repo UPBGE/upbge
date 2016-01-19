@@ -15,26 +15,31 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2012 Blender Foundation.
+ * The Original Code is Copyright (C) 2016 Blender Foundation.
  * All rights reserved.
  *
- * The Original Code is: all of this file.
  *
- * Contributor(s): Peter Larabell.
+ * Contributor(s): Blender Foundation,
+ *                 Sergey Sharybin
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-/** \file raskter.h
- *  \ingroup RASKTER
+
+/** \file blender/editors/space_clip/tracking_ops_intern.h
+ *  \ingroup spclip
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef __TRACKING_OPS_INTERN_H__
+#define __TRACKING_OPS_INTERN_H__
 
-int PLX_raskterize(float (*base_verts)[2], int num_base_verts,
-                   float *buf, int buf_x, int buf_y);
+struct bContext;
+struct SpaceClip;
+struct MovieClip;
 
-#ifdef __cplusplus
-}
-#endif
+void clip_tracking_clear_invisible_track_selection(struct SpaceClip *sc,
+                                                   struct MovieClip *clip);
+
+void clip_tracking_show_cursor(struct bContext *C);
+void clip_tracking_hide_cursor(struct bContext *C);
+
+#endif /* __TRACKING_OPS_INTERN_H__ */

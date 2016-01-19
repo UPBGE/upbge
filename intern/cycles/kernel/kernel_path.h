@@ -119,9 +119,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 
 				shader_setup_from_volume(kg,
 				                         &volume_sd,
-				                         &volume_ray,
-				                         state->bounce,
-				                         state->transparent_bounce);
+				                         &volume_ray);
 				kernel_volume_decoupled_record(kg,
 				                               state,
 				                               &volume_ray,
@@ -252,11 +250,9 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 		shader_setup_from_ray(kg,
 		                      &sd,
 		                      &isect,
-		                      ray,
-		                      state->bounce,
-		                      state->transparent_bounce);
+		                      ray);
 		float rbsdf = path_state_rng_1D_for_decision(kg, rng, state, PRNG_BSDF);
-		shader_eval_surface(kg, &sd, rbsdf, state->flag, SHADER_CONTEXT_INDIRECT);
+		shader_eval_surface(kg, &sd, state, rbsdf, state->flag, SHADER_CONTEXT_INDIRECT);
 #ifdef __BRANCHED_PATH__
 		shader_merge_closures(&sd);
 #endif
@@ -366,6 +362,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 				                  &bssrdf_u, &bssrdf_v);
 				subsurface_scatter_step(kg,
 				                        &sd,
+				                        state,
 				                        state->flag,
 				                        sc,
 				                        &lcg_state,
@@ -394,7 +391,12 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg,
 	}
 }
 
-ccl_device void kernel_path_ao(KernelGlobals *kg, ShaderData *sd, PathRadiance *L, PathState *state, RNG *rng, float3 throughput)
+ccl_device_noinline void kernel_path_ao(KernelGlobals *kg,
+                                        ShaderData *sd,
+                                        PathRadiance *L,
+                                        PathState *state,
+                                        RNG *rng,
+                                        float3 throughput)
 {
 	/* todo: solve correlation */
 	float bsdf_u, bsdf_v;
@@ -481,6 +483,7 @@ ccl_device bool kernel_path_subsurface_scatter(
 			                               &ss_isect,
 			                               hit,
 			                               sd,
+			                               state,
 			                               state->flag,
 			                               sc,
 			                               false);
@@ -588,7 +591,11 @@ ccl_device void kernel_path_subsurface_setup_indirect(
 
 #endif  /* __SUBSURFACE__ */
 
-ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, Ray ray, ccl_global float *buffer)
+ccl_device_inline float4 kernel_path_integrate(KernelGlobals *kg,
+                                               RNG *rng,
+                                               int sample,
+                                               Ray ray,
+                                               ccl_global float *buffer)
 {
 	/* initialize */
 	PathRadiance L;
@@ -684,7 +691,7 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 				VolumeSegment volume_segment;
 				ShaderData volume_sd;
 
-				shader_setup_from_volume(kg, &volume_sd, &volume_ray, state.bounce, state.transparent_bounce);
+				shader_setup_from_volume(kg, &volume_sd, &volume_ray);
 				kernel_volume_decoupled_record(kg, &state,
 					&volume_ray, &volume_sd, &volume_segment, heterogeneous);
 
@@ -774,9 +781,9 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 
 		/* setup shading */
 		ShaderData sd;
-		shader_setup_from_ray(kg, &sd, &isect, &ray, state.bounce, state.transparent_bounce);
+		shader_setup_from_ray(kg, &sd, &isect, &ray);
 		float rbsdf = path_state_rng_1D_for_decision(kg, rng, &state, PRNG_BSDF);
-		shader_eval_surface(kg, &sd, rbsdf, state.flag, SHADER_CONTEXT_MAIN);
+		shader_eval_surface(kg, &sd, &state, rbsdf, state.flag, SHADER_CONTEXT_MAIN);
 
 		/* holdout */
 #ifdef __HOLDOUT__

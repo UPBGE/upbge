@@ -78,6 +78,40 @@ public:
 		system_cpu_support_sse41();
 		system_cpu_support_avx();
 		system_cpu_support_avx2();
+
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
+		if(system_cpu_support_avx2()) {
+			VLOG(1) << "Will be using AVX2 kernels.";
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
+		if(system_cpu_support_avx()) {
+			VLOG(1) << "Will be using AVX kernels.";
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
+		if(system_cpu_support_sse41()) {
+			VLOG(1) << "Will be using SSE4.1 kernels.";
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
+		if(system_cpu_support_sse3()) {
+			VLOG(1) << "Will be using SSE3kernels.";
+		}
+		else
+#endif
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
+		if(system_cpu_support_sse2()) {
+			VLOG(1) << "Will be using SSE2 kernels.";
+		}
+		else
+#endif
+		{
+			VLOG(1) << "Will be using regular kernels.";
+		}
 	}
 
 	~CPUDevice()
@@ -197,31 +231,38 @@ public:
 		void(*path_trace_kernel)(KernelGlobals*, float*, unsigned int*, int, int, int, int, int);
 
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-		if(system_cpu_support_avx2())
+		if(system_cpu_support_avx2()) {
 			path_trace_kernel = kernel_cpu_avx2_path_trace;
+		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-		if(system_cpu_support_avx())
+		if(system_cpu_support_avx()) {
 			path_trace_kernel = kernel_cpu_avx_path_trace;
+		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41
-		if(system_cpu_support_sse41())
+		if(system_cpu_support_sse41()) {
 			path_trace_kernel = kernel_cpu_sse41_path_trace;
+		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
-		if(system_cpu_support_sse3())
+		if(system_cpu_support_sse3()) {
 			path_trace_kernel = kernel_cpu_sse3_path_trace;
+		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-		if(system_cpu_support_sse2())
+		if(system_cpu_support_sse2()) {
 			path_trace_kernel = kernel_cpu_sse2_path_trace;
+		}
 		else
 #endif
+		{
 			path_trace_kernel = kernel_cpu_path_trace;
+		}
 		
 		while(task.acquire_tile(this, tile)) {
 			float *render_buffer = (float*)tile.buffer;
@@ -267,32 +308,38 @@ public:
 		if(task.rgba_half) {
 			void(*convert_to_half_float_kernel)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int);
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-			if(system_cpu_support_avx2())
+			if(system_cpu_support_avx2()) {
 				convert_to_half_float_kernel = kernel_cpu_avx2_convert_to_half_float;
+			}
 			else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-			if(system_cpu_support_avx())
-				for(int y = task.y; y < task.y + task.h; y++)
+			if(system_cpu_support_avx()) {
 				convert_to_half_float_kernel = kernel_cpu_avx_convert_to_half_float;
+			}
 			else
 #endif	
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41			
-			if(system_cpu_support_sse41())
+			if(system_cpu_support_sse41()) {
 				convert_to_half_float_kernel = kernel_cpu_sse41_convert_to_half_float;
+			}
 			else
 #endif		
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3		
-			if(system_cpu_support_sse3())
+			if(system_cpu_support_sse3()) {
 				convert_to_half_float_kernel = kernel_cpu_sse3_convert_to_half_float;
+			}
 			else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-			if(system_cpu_support_sse2())
+			if(system_cpu_support_sse2()) {
 				convert_to_half_float_kernel = kernel_cpu_sse2_convert_to_half_float;
+			}
 			else
 #endif
+			{
 				convert_to_half_float_kernel = kernel_cpu_convert_to_half_float;
+			}
 
 			for(int y = task.y; y < task.y + task.h; y++)
 				for(int x = task.x; x < task.x + task.w; x++)
@@ -302,31 +349,38 @@ public:
 		else {
 			void(*convert_to_byte_kernel)(KernelGlobals *, uchar4 *, float *, float, int, int, int, int);
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-			if(system_cpu_support_avx2())
+			if(system_cpu_support_avx2()) {
 				convert_to_byte_kernel = kernel_cpu_avx2_convert_to_byte;
+			}
 			else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-			if(system_cpu_support_avx())
+			if(system_cpu_support_avx()) {
 				convert_to_byte_kernel = kernel_cpu_avx_convert_to_byte;
+			}
 			else
 #endif		
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41			
-			if(system_cpu_support_sse41())
+			if(system_cpu_support_sse41()) {
 				convert_to_byte_kernel = kernel_cpu_sse41_convert_to_byte;
+			}
 			else
 #endif			
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
-			if(system_cpu_support_sse3())
+			if(system_cpu_support_sse3()) {
 				convert_to_byte_kernel = kernel_cpu_sse3_convert_to_byte;
+			}
 			else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-			if(system_cpu_support_sse2())
+			if(system_cpu_support_sse2()) {
 				convert_to_byte_kernel = kernel_cpu_sse2_convert_to_byte;
+			}
 			else
 #endif
+			{
 				convert_to_byte_kernel = kernel_cpu_convert_to_byte;
+			}
 
 			for(int y = task.y; y < task.y + task.h; y++)
 				for(int x = task.x; x < task.x + task.w; x++)
@@ -343,34 +397,41 @@ public:
 #ifdef WITH_OSL
 		OSLShader::thread_init(&kg, &kernel_globals, &osl_globals);
 #endif
-		void(*shader_kernel)(KernelGlobals*, uint4*, float4*, float*, int, int, int, int);
+		void(*shader_kernel)(KernelGlobals*, uint4*, float4*, float*, int, int, int, int, int);
 
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX2
-		if(system_cpu_support_avx2())
+		if(system_cpu_support_avx2()) {
 			shader_kernel = kernel_cpu_avx2_shader;
+		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
-		if(system_cpu_support_avx())
+		if(system_cpu_support_avx()) {
 			shader_kernel = kernel_cpu_avx_shader;
+		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41			
-		if(system_cpu_support_sse41())
+		if(system_cpu_support_sse41()) {
 			shader_kernel = kernel_cpu_sse41_shader;
+		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
-		if(system_cpu_support_sse3())
+		if(system_cpu_support_sse3()) {
 			shader_kernel = kernel_cpu_sse3_shader;
+		}
 		else
 #endif
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
-		if(system_cpu_support_sse2())
+		if(system_cpu_support_sse2()) {
 			shader_kernel = kernel_cpu_sse2_shader;
+		}
 		else
 #endif
+		{
 			shader_kernel = kernel_cpu_shader;
+		}
 
 		for(int sample = 0; sample < task.num_samples; sample++) {
 			for(int x = task.shader_x; x < task.shader_x + task.shader_w; x++)
@@ -379,6 +440,7 @@ public:
 				              (float4*)task.shader_output,
 				              (float*)task.shader_output_luma,
 				              task.shader_eval_type,
+				              task.shader_filter,
 				              x,
 				              task.offset,
 				              sample);

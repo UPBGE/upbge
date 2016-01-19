@@ -1055,6 +1055,13 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float tex
 			fx -= xs;
 			fy -= ys;
 		}
+		else if ((tex->flag & TEX_CHECKER_ODD) == 0 &&
+		         (tex->flag & TEX_CHECKER_EVEN) == 0)
+		{
+			if (ima)
+				BKE_image_pool_release_ibuf(ima, ibuf, pool);
+			return retval;
+		}
 		else {
 			int xs1 = (int)floorf(fx - minx);
 			int ys1 = (int)floorf(fy - miny);
@@ -1248,7 +1255,9 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float tex
 				texres->ta += levf*(texr.ta - texres->ta);
 			}
 
-			alpha_clip_aniso(ibuf, fx-minx, fy-miny, fx+minx, fy+miny, extflag, texres);
+			if (tex->texfilter != TXF_EWA) {
+				alpha_clip_aniso(ibuf, fx-minx, fy-miny, fx+minx, fy+miny, extflag, texres);
+			}
 		}
 	}
 	else {	/* no mipmap */
@@ -1290,7 +1299,9 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, const float tex
 		}
 		else {
 			filterfunc(texres, ibuf, fx, fy, &AFD);
-			alpha_clip_aniso(ibuf, fx-minx, fy-miny, fx+minx, fy+miny, extflag, texres);
+			if (tex->texfilter != TXF_EWA) {
+				alpha_clip_aniso(ibuf, fx-minx, fy-miny, fx+minx, fy+miny, extflag, texres);
+			}
 		}
 	}
 
@@ -1471,6 +1482,13 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, const float texvec[3], const
 		if ( (tex->flag & TEX_CHECKER_ODD) && (tex->flag & TEX_CHECKER_EVEN) ) {
 			fx-= xs;
 			fy-= ys;
+		}
+		else if ((tex->flag & TEX_CHECKER_ODD) == 0 &&
+		         (tex->flag & TEX_CHECKER_EVEN) == 0)
+		{
+			if (ima)
+				BKE_image_pool_release_ibuf(ima, ibuf, pool);
+			return retval;
 		}
 		else {
 			

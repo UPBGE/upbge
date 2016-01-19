@@ -100,6 +100,8 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_select_linked);
 	WM_operatortype_append(OBJECT_OT_select_grouped);
 	WM_operatortype_append(OBJECT_OT_select_mirror);
+	WM_operatortype_append(OBJECT_OT_select_more);
+	WM_operatortype_append(OBJECT_OT_select_less);
 
 	WM_operatortype_append(GROUP_OT_create);
 	WM_operatortype_append(GROUP_OT_objects_remove_all);
@@ -331,24 +333,27 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_select_all", IKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "action", SEL_INVERT);
 
+	WM_keymap_add_item(keymap, "OBJECT_OT_select_more", PADPLUSKEY, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "OBJECT_OT_select_less", PADMINUS, KM_PRESS, KM_CTRL, 0);
+
 	WM_keymap_add_item(keymap, "OBJECT_OT_select_linked", LKEY, KM_PRESS, KM_SHIFT, 0);
 	WM_keymap_add_item(keymap, "OBJECT_OT_select_grouped", GKEY, KM_PRESS, KM_SHIFT, 0);
 	WM_keymap_add_item(keymap, "OBJECT_OT_select_mirror", MKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
 	
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_select_hierarchy", LEFTBRACKETKEY, KM_PRESS, 0, 0);
-	RNA_enum_set_identifier(kmi->ptr, "direction", "PARENT");
+	RNA_enum_set_identifier(NULL, kmi->ptr, "direction", "PARENT");
 	RNA_boolean_set(kmi->ptr, "extend", false);
 
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_select_hierarchy", LEFTBRACKETKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_enum_set_identifier(kmi->ptr, "direction", "PARENT");
+	RNA_enum_set_identifier(NULL, kmi->ptr, "direction", "PARENT");
 	RNA_boolean_set(kmi->ptr, "extend", true);
 
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_select_hierarchy", RIGHTBRACKETKEY, KM_PRESS, 0, 0);
-	RNA_enum_set_identifier(kmi->ptr, "direction", "CHILD");
+	RNA_enum_set_identifier(NULL, kmi->ptr, "direction", "CHILD");
 	RNA_boolean_set(kmi->ptr, "extend", false);
 
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_select_hierarchy", RIGHTBRACKETKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_enum_set_identifier(kmi->ptr, "direction", "CHILD");
+	RNA_enum_set_identifier(NULL, kmi->ptr, "direction", "CHILD");
 	RNA_boolean_set(kmi->ptr, "extend", true);
 
 	WM_keymap_verify_item(keymap, "OBJECT_OT_parent_set", PKEY, KM_PRESS, KM_CTRL, 0);

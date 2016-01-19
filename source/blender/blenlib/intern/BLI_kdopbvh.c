@@ -750,7 +750,7 @@ typedef struct BVHDivNodesData {
 	int first_of_next_level;
 } BVHDivNodesData;
 
-static void non_recursive_bvh_div_nodes_task_cb(void *userdata, void *UNUSED(userdata_chunk), int j)
+static void non_recursive_bvh_div_nodes_task_cb(void *userdata, const int j)
 {
 	BVHDivNodesData *data = userdata;
 
@@ -873,9 +873,9 @@ static void non_recursive_bvh_div_nodes(BVHTree *tree, BVHNode *branches_array, 
 		cb_data.i = i;
 		cb_data.depth = depth;
 
-		BLI_task_parallel_range_ex(
-		            i, end_j, &cb_data, NULL, 0, non_recursive_bvh_div_nodes_task_cb,
-		            num_leafs > KDOPBVH_THREAD_LEAF_THRESHOLD, false);
+		BLI_task_parallel_range(
+		            i, end_j, &cb_data, non_recursive_bvh_div_nodes_task_cb,
+		            num_leafs > KDOPBVH_THREAD_LEAF_THRESHOLD);
 	}
 }
 
@@ -1195,7 +1195,7 @@ int BLI_bvhtree_overlap_thread_num(const BVHTree *tree)
 	return (int)MIN2(tree->tree_type, tree->nodes[tree->totleaf]->totnode);
 }
 
-static void bvhtree_overlap_task_cb(void *userdata, void *UNUSED(userdata_chunk), int j)
+static void bvhtree_overlap_task_cb(void *userdata, const int j)
 {
 	BVHOverlapData_Thread *data = &((BVHOverlapData_Thread *)userdata)[j];
 	BVHOverlapData_Shared *data_shared = data->shared;
@@ -1260,9 +1260,9 @@ BVHTreeOverlap *BLI_bvhtree_overlap(
 		data[j].thread = j;
 	}
 
-	BLI_task_parallel_range_ex(
-	            0, thread_num, data, NULL, 0, bvhtree_overlap_task_cb,
-	            tree1->totleaf > KDOPBVH_THREAD_LEAF_THRESHOLD, false);
+	BLI_task_parallel_range(
+	            0, thread_num, data, bvhtree_overlap_task_cb,
+	            tree1->totleaf > KDOPBVH_THREAD_LEAF_THRESHOLD);
 	
 	for (j = 0; j < thread_num; j++)
 		total += BLI_stack_count(data[j].overlap);
@@ -1611,7 +1611,7 @@ static void dfs_raycast_all(BVHRayCastData *data, BVHNode *node)
 	if (node->totnode == 0) {
 		if (data->callback) {
 			data->hit.index = -1;
-			data->hit.dist = FLT_MAX;
+			data->hit.dist = BVH_RAYCAST_DIST_MAX;
 			data->callback(data->userdata, node->index, &data->ray, &data->hit);
 		}
 		else {
@@ -1720,7 +1720,7 @@ int BLI_bvhtree_ray_cast_ex(
 	}
 	else {
 		data.hit.index = -1;
-		data.hit.dist = FLT_MAX;
+		data.hit.dist = BVH_RAYCAST_DIST_MAX;
 	}
 
 	if (root) {
@@ -1747,7 +1747,7 @@ float BLI_bvhtree_bb_raycast(const float bv[6], const float light_start[3], cons
 	BVHRayCastData data;
 	float dist;
 
-	data.hit.dist = FLT_MAX;
+	data.hit.dist = BVH_RAYCAST_DIST_MAX;
 	
 	/* get light direction */
 	sub_v3_v3v3(data.ray.direction, light_end, light_start);
@@ -1792,7 +1792,7 @@ int BLI_bvhtree_ray_cast_all_ex(
 	bvhtree_ray_cast_data_precalc(&data, flag);
 
 	data.hit.index = -1;
-	data.hit.dist = FLT_MAX;
+	data.hit.dist = BVH_RAYCAST_DIST_MAX;
 
 	if (root) {
 		dfs_raycast_all(&data, root);

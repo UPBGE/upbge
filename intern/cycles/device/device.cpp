@@ -28,8 +28,12 @@
 #include "util_time.h"
 #include "util_types.h"
 #include "util_vector.h"
+#include "util_string.h"
 
 CCL_NAMESPACE_BEGIN
+
+bool Device::need_types_update = true;
+bool Device::need_devices_update = true;
 
 /* Device Requested Features */
 
@@ -42,15 +46,14 @@ std::ostream& operator <<(std::ostream &os,
 	os << "Max nodes group: " << requested_features.max_nodes_group << std::endl;
 	/* TODO(sergey): Decode bitflag into list of names. */
 	os << "Nodes features: " << requested_features.nodes_features << std::endl;
-	/* TODO(sergey): Make it utility function to convert bool to string. */
 	os << "Use hair: "
-	   << (requested_features.use_hair ? "True" : "False")  << std::endl;
+	   << string_from_bool(requested_features.use_hair)  << std::endl;
 	os << "Use object motion: "
-	   << (requested_features.use_object_motion ? "True" : "False")  << std::endl;
+	   << string_from_bool(requested_features.use_object_motion)  << std::endl;
 	os << "Use camera motion: "
-	   << (requested_features.use_camera_motion ? "True" : "False")  << std::endl;
+	   << string_from_bool(requested_features.use_camera_motion)  << std::endl;
 	os << "Use Baking: "
-	   << (requested_features.use_baking ? "True" : "False")  << std::endl;
+	   << string_from_bool(requested_features.use_baking)  << std::endl;
 	return os;
 }
 
@@ -278,9 +281,9 @@ string Device::string_from_type(DeviceType type)
 vector<DeviceType>& Device::available_types()
 {
 	static vector<DeviceType> types;
-	static bool types_init = false;
 
-	if(!types_init) {
+	if(need_types_update) {
+		types.clear();
 		types.push_back(DEVICE_CPU);
 
 #ifdef WITH_CUDA
@@ -300,7 +303,7 @@ vector<DeviceType>& Device::available_types()
 		types.push_back(DEVICE_MULTI);
 #endif
 
-		types_init = true;
+		need_types_update = false;
 	}
 
 	return types;
@@ -309,9 +312,9 @@ vector<DeviceType>& Device::available_types()
 vector<DeviceInfo>& Device::available_devices()
 {
 	static vector<DeviceInfo> devices;
-	static bool devices_init = false;
 
-	if(!devices_init) {
+	if(need_types_update) {
+		devices.clear();
 #ifdef WITH_CUDA
 		if(device_cuda_init())
 			device_cuda_info(devices);
@@ -332,7 +335,7 @@ vector<DeviceInfo>& Device::available_devices()
 		device_network_info(devices);
 #endif
 
-		devices_init = true;
+		need_types_update = false;
 	}
 
 	return devices;
@@ -357,6 +360,12 @@ string Device::device_capabilities()
 #endif
 
 	return capabilities;
+}
+
+void Device::tag_update()
+{
+	need_types_update = true;
+	need_devices_update = true;
 }
 
 CCL_NAMESPACE_END

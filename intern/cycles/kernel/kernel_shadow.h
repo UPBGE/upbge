@@ -107,11 +107,14 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *
 
 				/* setup shader data at surface */
 				ShaderData sd;
-				shader_setup_from_ray(kg, &sd, isect, ray, state->bounce+1, bounce);
+				shader_setup_from_ray(kg, &sd, isect, ray);
 
 				/* attenuation from transparent surface */
 				if(!(sd.flag & SD_HAS_ONLY_VOLUME)) {
-					shader_eval_surface(kg, &sd, 0.0f, PATH_RAY_SHADOW, SHADER_CONTEXT_SHADOW);
+					path_state_modify_bounce(state, true);
+					shader_eval_surface(kg, &sd, state, 0.0f, PATH_RAY_SHADOW, SHADER_CONTEXT_SHADOW);
+					path_state_modify_bounce(state, false);
+
 					throughput *= shader_bsdf_transparency(kg, &sd);
 				}
 
@@ -180,11 +183,14 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *
  * potentially transparent, and only in that case start marching. this gives
  * one extra ray cast for the cases were we do want transparency. */
 
-ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray_input, float3 *shadow
+ccl_device_noinline bool shadow_blocked(KernelGlobals *kg,
+                                        ccl_addr_space PathState *state,
+                                        ccl_addr_space Ray *ray_input,
+                                        float3 *shadow
 #ifdef __SPLIT_KERNEL__
-                                      , ShaderData *sd_mem, Intersection *isect_mem
+                                        , ShaderData *sd_mem, Intersection *isect_mem
 #endif
-                                      )
+                                       )
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 
@@ -253,11 +259,14 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ccl_addr_space PathStat
 				ShaderData sd_object;
 				ShaderData *sd = &sd_object;
 #endif
-				shader_setup_from_ray(kg, sd, isect, ray, state->bounce+1, bounce);
+				shader_setup_from_ray(kg, sd, isect, ray);
 
 				/* attenuation from transparent surface */
 				if(!(ccl_fetch(sd, flag) & SD_HAS_ONLY_VOLUME)) {
-					shader_eval_surface(kg, sd, 0.0f, PATH_RAY_SHADOW, SHADER_CONTEXT_SHADOW);
+					path_state_modify_bounce(state, true);
+					shader_eval_surface(kg, sd, state, 0.0f, PATH_RAY_SHADOW, SHADER_CONTEXT_SHADOW);
+					path_state_modify_bounce(state, false);
+
 					throughput *= shader_bsdf_transparency(kg, sd);
 				}
 

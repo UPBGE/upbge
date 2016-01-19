@@ -194,9 +194,9 @@ void		WM_main_remove_notifier_reference(const void *reference);
 void		WM_main_remove_editor_id_reference(const struct ID *id);
 
 			/* reports */
-void        WM_report_banner_show(const struct bContext *C);
-void        WM_report(const struct bContext *C, ReportType type, const char *message);
-void        WM_reportf(const struct bContext *C, ReportType type, const char *format, ...) ATTR_PRINTF_FORMAT(3, 4);
+void        WM_report_banner_show(void);
+void        WM_report(ReportType type, const char *message);
+void        WM_reportf(ReportType type, const char *format, ...) ATTR_PRINTF_FORMAT(2, 3);
 
 void wm_event_add_ex(
         struct wmWindow *win, const struct wmEvent *event_to_add,
@@ -442,6 +442,8 @@ enum {
 	WM_JOB_TYPE_CLIP_PREFETCH,
 	WM_JOB_TYPE_SEQ_BUILD_PROXY,
 	WM_JOB_TYPE_SEQ_BUILD_PREVIEW,
+	WM_JOB_TYPE_POINTCACHE,
+	WM_JOB_TYPE_DPAINT_BAKE,
 	/* add as needed, screencast, seq proxy build
 	 * if having hard coded values is a problem */
 };
@@ -451,10 +453,12 @@ struct wmJob *WM_jobs_get(struct wmWindowManager *wm, struct wmWindow *win, void
 bool        WM_jobs_test(struct wmWindowManager *wm, void *owner, int job_type);
 float		WM_jobs_progress(struct wmWindowManager *wm, void *owner);
 char       *WM_jobs_name(struct wmWindowManager *wm, void *owner);
+double      WM_jobs_starttime(struct wmWindowManager *wm, void *owner);
 void       *WM_jobs_customdata(struct wmWindowManager *wm, void *owner);
 void       *WM_jobs_customdata_from_type(struct wmWindowManager *wm, int job_type);
 
 bool        WM_jobs_is_running(struct wmJob *);
+bool		WM_jobs_is_stopped(wmWindowManager *wm, void *owner);
 void       *WM_jobs_customdata_get(struct wmJob *);
 void        WM_jobs_customdata_set(struct wmJob *, void *customdata, void (*free)(void *));
 void        WM_jobs_timer(struct wmJob *, double timestep, unsigned int note, unsigned int endnote);

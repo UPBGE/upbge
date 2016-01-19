@@ -51,6 +51,8 @@ public:
 
 	bool HasShadowBuffer();
 	bool NeedShadowUpdate();
+	int GetShadowBindCode();
+	MT_Matrix4x4 GetShadowMatrix();
 	int GetShadowLayer();
 	void BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_Transform& camtrans);
 	void UnbindShadowBuffer();

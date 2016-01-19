@@ -88,6 +88,11 @@ def create(engine, data, scene, region=None, v3d=None, rv3d=None, preview_osl=Fa
     if rv3d:
         rv3d = rv3d.as_pointer()
 
+    if bpy.app.debug_value == 256:
+        _cycles.debug_flags_update(scene)
+    else:
+        _cycles.debug_flags_reset()
+
     engine.session = _cycles.create(engine.as_pointer(), userpref, data, scene, region, v3d, rv3d, preview_osl)
 
 
@@ -105,11 +110,11 @@ def render(engine):
         _cycles.render(engine.session)
 
 
-def bake(engine, obj, pass_type, object_id, pixel_array, num_pixels, depth, result):
+def bake(engine, obj, pass_type, pass_filter, object_id, pixel_array, num_pixels, depth, result):
     import _cycles
     session = getattr(engine, "session", None)
     if session is not None:
-        _cycles.bake(engine.session, obj.as_pointer(), pass_type, object_id, pixel_array.as_pointer(), num_pixels, depth, result.as_pointer())
+        _cycles.bake(engine.session, obj.as_pointer(), pass_type, pass_filter, object_id, pixel_array.as_pointer(), num_pixels, depth, result.as_pointer())
 
 
 def reset(engine, data, scene):

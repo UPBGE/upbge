@@ -27,6 +27,7 @@
 
 #include "buffers.h"
 
+#include "util_debug.h"
 #include "util_foreach.h"
 #include "util_logging.h"
 #include "util_map.h"
@@ -84,29 +85,28 @@ namespace {
 
 cl_device_type opencl_device_type()
 {
-	char *device = getenv("CYCLES_OPENCL_TEST");
-
-	if(device) {
-		if(strcmp(device, "NONE") == 0)
+	switch(DebugFlags().opencl.device_type)
+	{
+		case DebugFlags::OpenCL::DEVICE_NONE:
 			return 0;
-		if(strcmp(device, "ALL") == 0)
+		case DebugFlags::OpenCL::DEVICE_ALL:
 			return CL_DEVICE_TYPE_ALL;
-		else if(strcmp(device, "DEFAULT") == 0)
+		case DebugFlags::OpenCL::DEVICE_DEFAULT:
 			return CL_DEVICE_TYPE_DEFAULT;
-		else if(strcmp(device, "CPU") == 0)
+		case DebugFlags::OpenCL::DEVICE_CPU:
 			return CL_DEVICE_TYPE_CPU;
-		else if(strcmp(device, "GPU") == 0)
+		case DebugFlags::OpenCL::DEVICE_GPU:
 			return CL_DEVICE_TYPE_GPU;
-		else if(strcmp(device, "ACCELERATOR") == 0)
+		case DebugFlags::OpenCL::DEVICE_ACCELERATOR:
 			return CL_DEVICE_TYPE_ACCELERATOR;
+		default:
+			return CL_DEVICE_TYPE_ALL;
 	}
-
-	return CL_DEVICE_TYPE_ALL;
 }
 
-bool opencl_kernel_use_debug()
+inline bool opencl_kernel_use_debug()
 {
-	return (getenv("CYCLES_OPENCL_DEBUG") != NULL);
+	return DebugFlags().opencl.debug;
 }
 
 bool opencl_kernel_use_advanced_shading(const string& platform)
@@ -129,11 +129,11 @@ bool opencl_kernel_use_advanced_shading(const string& platform)
 bool opencl_kernel_use_split(const string& platform_name,
                              const cl_device_type device_type)
 {
-	if(getenv("CYCLES_OPENCL_SPLIT_KERNEL_TEST") != NULL) {
+	if(DebugFlags().opencl.kernel_type == DebugFlags::OpenCL::KERNEL_SPLIT) {
 		VLOG(1) << "Forcing split kernel to use.";
 		return true;
 	}
-	if(getenv("CYCLES_OPENCL_MEGA_KERNEL_TEST") != NULL) {
+	if(DebugFlags().opencl.kernel_type == DebugFlags::OpenCL::KERNEL_MEGA) {
 		VLOG(1) << "Forcing mega kernel to use.";
 		return false;
 	}
@@ -229,8 +229,7 @@ bool opencl_device_version_check(cl_device_id device,
 void opencl_get_usable_devices(vector<OpenCLPlatformDevice> *usable_devices)
 {
 	const bool force_all_platforms =
-	        (getenv("CYCLES_OPENCL_TEST") != NULL) ||
-	        (getenv("CYCLES_OPENCL_SPLIT_KERNEL_TEST")) != NULL;
+		(DebugFlags().opencl.kernel_type != DebugFlags::OpenCL::KERNEL_DEFAULT);
 	const cl_device_type device_type = opencl_device_type();
 	static bool first_time = true;
 #define FIRST_VLOG(severity) if(first_time) VLOG(severity)
@@ -1920,10 +1919,6 @@ public:
 	cl_mem time_sd_DL_shadow;
 	cl_mem ray_length_sd;
 	cl_mem ray_length_sd_DL_shadow;
-	cl_mem ray_depth_sd;
-	cl_mem ray_depth_sd_DL_shadow;
-	cl_mem transparent_depth_sd;
-	cl_mem transparent_depth_sd_DL_shadow;
 
 	/* Ray differentials. */
 	cl_mem dP_sd, dI_sd;
@@ -2073,10 +2068,6 @@ public:
 		time_sd_DL_shadow = NULL;
 		ray_length_sd = NULL;
 		ray_length_sd_DL_shadow = NULL;
-		ray_depth_sd = NULL;
-		ray_depth_sd_DL_shadow = NULL;
-		transparent_depth_sd = NULL;
-		transparent_depth_sd_DL_shadow = NULL;
 
 		/* Ray differentials. */
 		dP_sd = NULL;
@@ -2417,10 +2408,6 @@ public:
 		release_mem_object_safe(time_sd_DL_shadow);
 		release_mem_object_safe(ray_length_sd);
 		release_mem_object_safe(ray_length_sd_DL_shadow);
-		release_mem_object_safe(ray_depth_sd);
-		release_mem_object_safe(ray_depth_sd_DL_shadow);
-		release_mem_object_safe(transparent_depth_sd);
-		release_mem_object_safe(transparent_depth_sd_DL_shadow);
 
 		/* Ray differentials. */
 		release_mem_object_safe(dP_sd);
@@ -2619,10 +2606,6 @@ public:
 			time_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float));
 			ray_length_sd = mem_alloc(num_global_elements * sizeof(float));
 			ray_length_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float));
-			ray_depth_sd = mem_alloc(num_global_elements * sizeof(int));
-			ray_depth_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(int));
-			transparent_depth_sd = mem_alloc(num_global_elements * sizeof(int));
-			transparent_depth_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(int));
 
 			/* Ray differentials. */
 			dP_sd = mem_alloc(num_global_elements * sizeof(differential3));
@@ -2725,11 +2708,7 @@ public:
 			                time_sd,
 			                time_sd_DL_shadow,
 			                ray_length_sd,
-			                ray_length_sd_DL_shadow,
-			                ray_depth_sd,
-			                ray_depth_sd_DL_shadow,
-			                transparent_depth_sd,
-			                transparent_depth_sd_DL_shadow);
+			                ray_length_sd_DL_shadow);
 
 		/* Ray differentials. */
 		start_arg_index +=

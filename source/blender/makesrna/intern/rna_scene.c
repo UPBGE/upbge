@@ -391,6 +391,20 @@ EnumPropertyItem rna_enum_stereo3d_interlace_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+EnumPropertyItem rna_enum_bake_pass_filter_type_items[] = {
+	{R_BAKE_PASS_FILTER_NONE, "NONE", 0, "None", ""},
+	{R_BAKE_PASS_FILTER_AO, "AO", 0, "AO", ""},
+	{R_BAKE_PASS_FILTER_EMIT, "EMIT", 0, "Emit", ""},
+	{R_BAKE_PASS_FILTER_DIRECT, "DIRECT", 0, "Direct", ""},
+	{R_BAKE_PASS_FILTER_INDIRECT, "INDIRECT", 0, "Indirect", ""},
+	{R_BAKE_PASS_FILTER_COLOR, "COLOR", 0, "Color", ""},
+	{R_BAKE_PASS_FILTER_DIFFUSE, "DIFFUSE", 0, "Diffuse", ""},
+	{R_BAKE_PASS_FILTER_GLOSSY, "GLOSSY", 0, "Glossy", ""},
+	{R_BAKE_PASS_FILTER_TRANSM, "TRANSMISSION", 0, "Transmission", ""},
+	{R_BAKE_PASS_FILTER_SUBSURFACE, "SUBSURFACE", 0, "Subsurface", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
 #ifdef RNA_RUNTIME
 
 #include "DNA_anim_types.h"
@@ -2088,8 +2102,8 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	prop = RNA_def_property(srna, "use_multipaint", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "multipaint", 1);
 	RNA_def_property_ui_text(prop, "WPaint Multi-Paint",
-	                         "Paint across all selected bones while "
-	                         "weight painting");
+	                         "Paint across the weights of all selected bones, "
+	                         "maintaining their relative influence");
 	RNA_def_property_update(prop, 0, "rna_Scene_update_active_object_data");
 
 	prop = RNA_def_property(srna, "vertex_group_user", PROP_ENUM, PROP_NONE);
@@ -3747,6 +3761,57 @@ static void rna_def_bake_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Cage",
 	                         "Cast rays to active object from a cage");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	/* custom passes flags */
+	prop = RNA_def_property(srna, "use_pass_ambient_occlusion", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "pass_filter", R_BAKE_PASS_FILTER_AO);
+	RNA_def_property_ui_text(prop, "AO", "Add ambient occlusion contribution");
+
+	prop = RNA_def_property(srna, "use_pass_emit", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "pass_filter", R_BAKE_PASS_FILTER_EMIT);
+	RNA_def_property_ui_text(prop, "Emit", "Add emission contribution");
+
+	prop = RNA_def_property(srna, "use_pass_direct", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "pass_filter", R_BAKE_PASS_FILTER_DIRECT);
+	RNA_def_property_ui_text(prop, "Direct", "Add direct lighting contribution");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	prop = RNA_def_property(srna, "use_pass_indirect", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "pass_filter", R_BAKE_PASS_FILTER_INDIRECT);
+	RNA_def_property_ui_text(prop, "Indirect", "Add indirect lighting contribution");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	prop = RNA_def_property(srna, "use_pass_color", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "pass_filter", R_BAKE_PASS_FILTER_COLOR);
+	RNA_def_property_ui_text(prop, "Color", "Color the pass");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	prop = RNA_def_property(srna, "use_pass_diffuse", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "pass_filter", R_BAKE_PASS_FILTER_DIFFUSE);
+	RNA_def_property_ui_text(prop, "Diffuse", "Add diffuse contribution");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	prop = RNA_def_property(srna, "use_pass_glossy", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "pass_filter", R_BAKE_PASS_FILTER_GLOSSY);
+	RNA_def_property_ui_text(prop, "Glossy", "Add glossy contribution");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	prop = RNA_def_property(srna, "use_pass_transmission", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "pass_filter", R_BAKE_PASS_FILTER_TRANSM);
+	RNA_def_property_ui_text(prop, "Transmission", "Add transmission contribution");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	prop = RNA_def_property(srna, "use_pass_subsurface", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "pass_filter", R_BAKE_PASS_FILTER_SUBSURFACE);
+	RNA_def_property_ui_text(prop, "Subsurface", "Add subsurface contribution");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
+	prop = RNA_def_property(srna, "pass_filter", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "pass_filter");
+	RNA_def_property_enum_items(prop, rna_enum_bake_pass_filter_type_items);
+	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
+	RNA_def_property_ui_text(prop, "Pass Filter",  "Passes to include in the active baking pass");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 
 static void rna_def_scene_game_data(BlenderRNA *brna)
@@ -4582,6 +4647,16 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
 	};
 #endif
 
+#ifdef WITH_TIFF
+	static EnumPropertyItem tiff_codec_items[] = {
+		{R_IMF_TIFF_CODEC_NONE, "NONE", 0, "None", ""},
+		{R_IMF_TIFF_CODEC_DEFLATE, "DEFLATE", 0, "Deflate", ""},
+		{R_IMF_TIFF_CODEC_LZW, "LZW", 0, "LZW", ""},
+		{R_IMF_TIFF_CODEC_PACKBITS, "PACKBITS", 0, "Pack Bits", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+#endif
+
 	StructRNA *srna;
 	PropertyRNA *prop;
 
@@ -4678,6 +4753,15 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "jp2_codec");
 	RNA_def_property_enum_items(prop, jp2_codec_items);
 	RNA_def_property_ui_text(prop, "Codec", "Codec settings for Jpek2000");
+	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+#endif
+
+#ifdef WITH_TIFF
+	/* TIFF */
+	prop = RNA_def_property(srna, "tiff_codec", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "tiff_codec");
+	RNA_def_property_enum_items(prop, tiff_codec_items);
+	RNA_def_property_ui_text(prop, "Compression", "Compression mode for TIFF");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 #endif
 
