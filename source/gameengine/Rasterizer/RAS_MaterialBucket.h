@@ -57,6 +57,8 @@ public:
 	bool ActivateMaterial(RAS_IRasterizer *rasty);
 	void DesactivateMaterial(RAS_IRasterizer *rasty);
 	void RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_MeshSlot *ms);
+	/// Render all mesh slots for solid render.
+	void RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);
 
 	// Mesh Slot Access
 	RAS_MeshSlotList::iterator msBegin();

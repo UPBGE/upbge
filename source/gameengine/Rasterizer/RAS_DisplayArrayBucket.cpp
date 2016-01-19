@@ -222,3 +222,23 @@ void RAS_DisplayArrayBucket::DestructStorageInfo()
 		m_storageInfo = NULL;
 	}
 }
+
+void RAS_DisplayArrayBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)
+{
+	if (m_activeMeshSlots.size() == 0) {
+		return;
+	}
+
+	// Update deformer and render settings.
+	UpdateActiveMeshSlots(rasty);
+
+	rasty->BindPrimitives(this);
+
+	for (RAS_MeshSlotList::iterator it = m_activeMeshSlots.begin(), end = m_activeMeshSlots.end(); it != end; ++it) {
+		RAS_MeshSlot *ms = *it;
+		m_bucket->RenderMeshSlot(cameratrans, rasty, ms);
+	}
+
+	rasty->UnbindPrimitives(this);
+}
+

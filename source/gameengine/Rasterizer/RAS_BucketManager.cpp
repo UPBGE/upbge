@@ -170,8 +170,6 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 	bool matactivated = false;
 
 	for (sit=slots.begin(); sit!=slots.end(); ++sit) {
-		rasty->SetClientObject(sit->m_ms->m_clientObj);
-
 		RAS_MaterialBucket *bucket = sit->m_bucket;
 		RAS_DisplayArrayBucket *displayArrayBucket = sit->m_ms->m_displayArrayBucket;
 
@@ -190,10 +188,6 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 		}
 
 		bucket->RenderMeshSlot(cameratrans, rasty, sit->m_ms);
-
-		// make this mesh slot culled automatically for next frame
-		// it will be culled out by frustrum culling
-		sit->m_ms->SetCulled(true);
 	}
 
 	if (matactivated && lastMaterialBucket) {
@@ -206,97 +200,12 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 
 void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty)
 {
-	BucketList::iterator bit;
-
 	rasty->SetDepthMask(RAS_IRasterizer::KX_DEPTHMASK_ENABLED);
 
-	for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
-#if 1
+	for (BucketList::iterator bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
 		RAS_MaterialBucket* bucket = *bit;
-		RAS_DisplayArrayBucketList& displayArrayBucketList = bucket->GetDisplayArrayBucketList();
-
-		// False if the material can't be activated.
-		bool matactivated = false;
-
-		for (RAS_DisplayArrayBucketList::iterator sbit = displayArrayBucketList.begin(), sbend = displayArrayBucketList.end();
-			 sbit != sbend; ++sbit)
-		{
-			RAS_DisplayArrayBucket *displayArrayBucket = *sbit;
-			RAS_MeshSlotList& activeMeshSlots = displayArrayBucket->GetActiveMeshSlots();
-			if (displayArrayBucket->GetNumActiveMeshSlots() == 0) {
-				continue;
-			}
-
-			if (!matactivated) {
-				// Try activate the material.
-				if (!bucket->ActivateMaterial(rasty)) {
-					// If the material can't be activated only clear all slot meshes.
-					displayArrayBucket->RemoveActiveMeshSlots();
-					continue;
-				}
-				// Else set the material as activated.
-				matactivated = true;
-			}
-
-			// Update deformer and render settings.
-			displayArrayBucket->UpdateActiveMeshSlots(rasty);
-
-			rasty->BindPrimitives(displayArrayBucket);
-			for (RAS_MeshSlotList::iterator mit = activeMeshSlots.begin(), mend = activeMeshSlots.end(); mit != mend; ++mit) {
-				RAS_MeshSlot *ms = *mit;
-				rasty->SetClientObject(ms->m_clientObj);
-
-				bucket->RenderMeshSlot(cameratrans, rasty, ms);
-
-				// make this mesh slot culled automatically for next frame
-				// it will be culled out by frustrum culling
-				ms->SetCulled(true);
-			}
-			// Ensure we unset array attributs.
-			rasty->UnbindPrimitives(displayArrayBucket);
-
-			displayArrayBucket->RemoveActiveMeshSlots();
-		}
-
-		// Desactivate the material if it was activated.
-		if (matactivated) {
-			bucket->DesactivateMaterial(rasty);
-		}
-
-#else
-		RAS_MeshSlotList::iterator mit;
-		for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
-			if (mit->IsCulled())
-				continue;
-
-			rasty->SetClientObject(rasty, mit->m_clientObj);
-
-			while ((*bit)->ActivateMaterial(cameratrans, rasty))
-				(*bit)->RenderMeshSlot(cameratrans, rasty, *mit);
-
-			// make this mesh slot culled automatically for next frame
-			// it will be culled out by frustrum culling
-			mit->SetCulled(true);
-		}
-#endif
+		bucket->RenderMeshSlots(cameratrans, rasty);
 	}
-	
-	/* this code draws meshes order front-to-back instead to reduce overdraw.
-	 * it turned out slower due to much material state switching, a more clever
-	 * algorithm might do better. */
-#if 0
-	vector<sortedmeshslot> slots;
-	vector<sortedmeshslot>::iterator sit;
-
-	OrderBuckets(cameratrans, m_SolidBuckets, slots, false);
-
-	for (sit=slots.begin(); sit!=slots.end(); ++sit) {
-		rendertools->SetClientObject(rasty, sit->m_ms->m_clientObj);
-
-		while (sit->m_bucket->ActivateMaterial(cameratrans, rasty))
-			sit->m_bucket->RenderMeshSlot(cameratrans, rasty, *(sit->m_ms));
-	}
-#endif
 }
 
 void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty)

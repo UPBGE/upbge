@@ -142,6 +142,8 @@ void RAS_MaterialBucket::DesactivateMaterial(RAS_IRasterizer *rasty)
 
 void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_MeshSlot *ms)
 {
+	rasty->SetClientObject(ms->m_clientObj);
+
 	// Inverse condition of in ActivateMaterial.
 	if (!((rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && !m_material->CastsShadows()) ||
 		(rasty->GetDrawingMode() != RAS_IRasterizer::KX_SHADOW && m_material->OnlyShadow())))
@@ -168,7 +170,30 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 		rasty->IndexPrimitives(ms);
 	}
 
+	// make this mesh slot culled automatically for next frame
+	// it will be culled out by frustrum culling
+	ms->SetCulled(true);
+
 	rasty->PopMatrix();
+}
+
+void RAS_MaterialBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)
+{
+	bool matactivated = ActivateMaterial(rasty);
+
+	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
+		it != end; ++it)
+	{
+		RAS_DisplayArrayBucket *displayArrayBucket = *it;
+		if (matactivated) {
+			displayArrayBucket->RenderMeshSlots(cameratrans, rasty);
+		}
+		displayArrayBucket->RemoveActiveMeshSlots();
+	}
+
+	if (matactivated) {
+		DesactivateMaterial(rasty);
+	}
 }
 
 void RAS_MaterialBucket::Optimize(MT_Scalar distance)

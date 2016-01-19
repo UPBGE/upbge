@@ -114,6 +114,9 @@ public:
 	RAS_IStorageInfo *GetStorageInfo() const;
 	void SetStorageInfo(RAS_IStorageInfo *info);
 	void DestructStorageInfo();
+
+	/// Render all mesh slots fro solid render.
+	void RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);
 };
 
 typedef std::vector<RAS_DisplayArrayBucket *> RAS_DisplayArrayBucketList;
