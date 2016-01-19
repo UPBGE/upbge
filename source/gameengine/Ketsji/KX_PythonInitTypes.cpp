@@ -35,6 +35,7 @@
 
 /* Only for Class::Parents */
 #include "BL_BlenderShader.h"
+#include "BL_Shader.h"
 #include "BL_ActionActuator.h"
 #include "BL_ArmatureActuator.h"
 #include "BL_ArmatureConstraint.h"

@@ -26,6 +26,8 @@
 
 #include "KX_BlenderMaterial.h"
 #include "BL_Material.h"
+#include "BL_Shader.h"
+#include "BL_BlenderShader.h"
 #include "KX_Scene.h"
 #include "KX_Light.h"
 #include "KX_GameObject.h"
@@ -44,20 +46,18 @@
 
 #include "STR_HashedString.h"
 
-// ------------------------------------
 #include "DNA_object_types.h"
 #include "DNA_material_types.h"
 #include "DNA_image_types.h"
 #include "DNA_meshdata_types.h"
 #include "BKE_mesh.h"
-// ------------------------------------
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 
 #define spit(x) std::cout << x << std::endl;
 
 KX_BlenderMaterial::KX_BlenderMaterial()
-	:PyObjectPlus(),
+	: PyObjectPlus(),
 	RAS_IPolyMaterial(),
 	mMaterial(NULL),
 	mShader(NULL),
@@ -121,15 +121,6 @@ void KX_BlenderMaterial::Initialize(
 	m_flag |= ((mMaterial->ras_mode & CAST_SHADOW) != 0) ? RAS_CASTSHADOW : 0;
 	m_flag |= ((mMaterial->ras_mode & ONLY_SHADOW) != 0) ? RAS_ONLYSHADOW : 0;
 	m_flag |= ((ma->shade_flag & MA_OBCOLOR) != 0) ? RAS_OBJECTCOLOR : 0;
-
-	// test the sum of the various modes for equality
-	// so we can ether accept or reject this material
-	// as being equal, this is rather important to
-	// prevent material bleeding
-	for (int i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		m_multimode += (mMaterial->flag[i] + mMaterial->blend_mode[i]);
-	}
-	m_multimode += mMaterial->IdMode + (mMaterial->ras_mode & ~(USE_LIGHT));
 }
 
 KX_BlenderMaterial::~KX_BlenderMaterial()
@@ -149,9 +140,10 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 	ma->emit = mSavedData.emit;
 
 	// cleanup work
-	if (mConstructed)
+	if (mConstructed) {
 		// clean only if material was actually used
 		OnExit();
+	}
 }
 
 MTexPoly *KX_BlenderMaterial::GetMTexPoly() const
@@ -227,9 +219,10 @@ void KX_BlenderMaterial::InitTextures()
 
 void KX_BlenderMaterial::OnConstruction()
 {
-	if (mConstructed)
+	if (mConstructed) {
 		// when material are reused between objects
 		return;
+	}
 
 	if (mMaterial->glslmat)
 		SetBlenderGLSLShader();
@@ -521,7 +514,7 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 {
 	if (ras->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED ||
 	    (ras->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW &&
-	    mMaterial->alphablend != GEMAT_SOLID && !ras->GetUsingOverrideShader()))
+	     mMaterial->alphablend != GEMAT_SOLID && !ras->GetUsingOverrideShader()))
 	{
 		ras->SetAttribNum(0);
 		if (mShader && GLEW_ARB_shader_objects) {

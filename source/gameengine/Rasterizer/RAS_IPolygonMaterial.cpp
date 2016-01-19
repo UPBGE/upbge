@@ -35,19 +35,19 @@
 
 #include "DNA_material_types.h"
 
-void  RAS_IPolyMaterial::Initialize( 
-				const STR_String& texname,
-				const STR_String& matname,
-				int materialindex,
-				int tile,
-				int tilexrep,
-				int tileyrep,
-				int alphablend,
-				bool alpha,
-				bool zsort,
-				bool light,
-				bool image,
-				struct GameSettings* game)
+void RAS_IPolyMaterial::Initialize(
+    const STR_String& texname,
+    const STR_String& matname,
+    int materialindex,
+    int tile,
+    int tilexrep,
+    int tileyrep,
+    int alphablend,
+    bool alpha,
+    bool zsort,
+    bool light,
+    bool image,
+    GameSettings *game)
 {
 	m_texturename = texname;
 	m_materialname = matname;
@@ -61,67 +61,54 @@ void  RAS_IPolyMaterial::Initialize(
 	m_light = light;
 	m_polymatid = m_newpolymatid++;
 	m_flag = 0;
-	m_multimode = 0;
-	m_shininess = 35.0f;
-	m_specular.setValue(0.5f,0.5f,0.5f);
-	m_specularity = 1.0f;
-	m_diffuse.setValue(0.5f,0.5f,0.5f);
 	m_drawingmode = ConvertFaceMode(game, image);
 }
 
-RAS_IPolyMaterial::RAS_IPolyMaterial() 
-		: m_texturename("__Dummy_Texture_Name__"),
-		m_materialname("__Dummy_Material_Name__"),
-		m_tile(0),
-		m_tilexrep(0),
-		m_tileyrep(0),
-		m_drawingmode (0),
-		m_alphablend(0),
-		m_alpha(false),
-		m_zsort(false),
-		m_light(false),
-		m_materialindex(0),
-		m_polymatid(0),
-		m_flag(0),
-		m_multimode(0)
+RAS_IPolyMaterial::RAS_IPolyMaterial()
+	:m_texturename("__Dummy_Texture_Name__"),
+	m_materialname("__Dummy_Material_Name__"),
+	m_tile(0),
+	m_tilexrep(0),
+	m_tileyrep(0),
+	m_drawingmode(0),
+	m_alphablend(0),
+	m_alpha(false),
+	m_zsort(false),
+	m_light(false),
+	m_materialindex(0),
+	m_polymatid(0),
+	m_flag(0)
 {
-	m_shininess = 35.0f;
-	m_specular = MT_Vector3(0.5f,0.5f,0.5f);
-	m_specularity = 1.0f;
-	m_diffuse = MT_Vector3(0.5f,0.5f,0.5f);
 }
 
 RAS_IPolyMaterial::RAS_IPolyMaterial(const STR_String& texname,
-									 const STR_String& matname,
-									 int materialindex,
-									 int tile,
-									 int tilexrep,
-									 int tileyrep,
-									 int alphablend,
-									 bool alpha,
-									 bool zsort)
-		: m_texturename(texname),
-		m_materialname(matname),
-		m_tile(tile),
-		m_tilexrep(tilexrep),
-		m_tileyrep(tileyrep),
-		m_alphablend(alphablend),
-		m_alpha(alpha),
-		m_zsort(zsort),
-		m_materialindex(materialindex),
-		m_polymatid(m_newpolymatid++),
-		m_flag(0),
-		m_multimode(0)
+                                     const STR_String& matname,
+                                     int materialindex,
+                                     int tile,
+                                     int tilexrep,
+                                     int tileyrep,
+                                     int alphablend,
+                                     bool alpha,
+                                     bool zsort)
+	:m_texturename(texname),
+	m_materialname(matname),
+	m_tile(tile),
+	m_tilexrep(tilexrep),
+	m_tileyrep(tileyrep),
+	m_alphablend(alphablend),
+	m_alpha(alpha),
+	m_zsort(zsort),
+	m_materialindex(materialindex),
+	m_polymatid(m_newpolymatid++),
+	m_flag(0)
 {
-	m_shininess = 35.0f;
-	m_specular = MT_Vector3(0.5f,0.5f,0.5f);
-	m_specularity = 1.0f;
-	m_diffuse = MT_Vector3(0.5f,0.5f,0.5f);
 }
 
 int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game, bool image) const
 {
-	if (!game) return (image?GEMAT_TEX:0);
+	if (!game) {
+		return (image ? GEMAT_TEX : 0);
+	}
 
 	int modefinal = 0;
 
@@ -164,7 +151,7 @@ int RAS_IPolyMaterial::GetDrawingMode() const
 }
 
 const STR_String& RAS_IPolyMaterial::GetMaterialName() const
-{ 
+{
 	return m_materialname;
 }
 
@@ -202,7 +189,7 @@ unsigned int *RAS_IPolyMaterial::GetMCol() const
 	return NULL;
 }
 
-Scene* RAS_IPolyMaterial::GetBlenderScene() const
+Scene *RAS_IPolyMaterial::GetBlenderScene() const
 {
 	return NULL;
 }
@@ -211,7 +198,7 @@ void RAS_IPolyMaterial::ReleaseMaterial()
 {
 }
 
-unsigned int	RAS_IPolyMaterial::GetFlag() const
+unsigned int RAS_IPolyMaterial::GetFlag() const
 {
 	return m_flag;
 }
@@ -232,7 +219,7 @@ bool RAS_IPolyMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 	else {
 		dolights = m_light;
 	}
-	
+
 	return dolights;
 }
 

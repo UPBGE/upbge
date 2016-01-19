@@ -39,6 +39,7 @@
 #include "BKE_image.h"
 #include "MEM_guardedalloc.h"
 
+#include <iostream>
 
 GPC_Canvas::GPC_Canvas(
 	int width,

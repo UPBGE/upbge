@@ -8,12 +8,9 @@
 
 #include <vector>
 
-
 #include "RAS_IPolygonMaterial.h"
 #include "BL_Material.h"
 #include "BL_Texture.h"
-#include "BL_Shader.h"
-#include "BL_BlenderShader.h"
 
 #include "EXP_PyObjectPlus.h"
 
@@ -24,28 +21,26 @@
 #include "MEM_guardedalloc.h"
 #endif
 
-#include "SCA_IScene.h" /* only for Replace_IScene */
-#include "KX_Scene.h"
-
-struct MTFace;
+class SCA_IScene;
 class KX_Scene;
-
+class BL_BlenderShader;
+class BL_Shader;
 
 #ifdef USE_MATHUTILS
 void KX_BlenderMaterial_Mathutils_Callback_Init(void);
 #endif
 
-class KX_BlenderMaterial :  public PyObjectPlus, public RAS_IPolyMaterial
+class KX_BlenderMaterial : public PyObjectPlus, public RAS_IPolyMaterial
 {
 	Py_Header
+
 public:
-	// --------------------------------
 	KX_BlenderMaterial();
 	void Initialize(
-		class KX_Scene *scene,
-		BL_Material *mat,
-		GameSettings *game,
-		int lightlayer);
+			KX_Scene *scene,
+			BL_Material *mat,
+			GameSettings *game,
+			int lightlayer);
 
 	virtual ~KX_BlenderMaterial();
 
@@ -86,7 +81,6 @@ public:
 	BL_Material *GetBLMaterial();
 
 #ifdef WITH_PYTHON
-	// --------------------------------
 	virtual PyObject *py_repr()
 	{
 		return PyUnicode_From_STR_String(mMaterial->matname);
@@ -115,9 +109,8 @@ public:
 	KX_PYMETHOD_DOC(KX_BlenderMaterial, getMaterialIndex);
 	KX_PYMETHOD_DOC(KX_BlenderMaterial, setBlending);
 
-#endif  /* WITH_PYTHON */
+#endif  // WITH_PYTHON
 
-	// --------------------------------
 	// pre calculate to avoid pops/lag at startup
 	virtual void OnConstruction();
 

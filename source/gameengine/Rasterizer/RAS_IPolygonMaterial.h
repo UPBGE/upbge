@@ -34,13 +34,12 @@
 
 #include "STR_HashedString.h"
 
-#include "MT_Vector3.h"
-
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
 #endif
 
 class RAS_IRasterizer;
+class RAS_MeshSlot;
 struct MTexPoly;
 struct Material;
 struct Image;
@@ -61,11 +60,9 @@ enum MaterialProps
 
 /**
  * Polygon Material on which the material buckets are sorted
- *
  */
 class RAS_IPolyMaterial
 {
-	//todo: remove these variables from this interface/protocol class
 protected:
 	STR_HashedString m_texturename;
 	STR_HashedString m_materialname; // also needed for touchsensor
@@ -82,14 +79,8 @@ protected:
 	unsigned int m_polymatid;
 	static unsigned int m_newpolymatid;
 
-	// will move...
-	unsigned int m_flag; // MaterialProps
-	int m_multimode; // sum of values
+	unsigned int m_flag;
 public:
-	MT_Vector3 m_diffuse;
-	float m_shininess;
-	MT_Vector3 m_specular;
-	float m_specularity;
 
 	// care! these are taken from blender polygonflags, see file DNA_mesh_types.h for #define TF_BILLBOARD etc.
 	enum MaterialFlags
@@ -120,7 +111,7 @@ public:
 	                bool zsort,
 	                bool light,
 	                bool image,
-	                struct GameSettings *game);
+	                GameSettings *game);
 
 	virtual ~RAS_IPolyMaterial()
 	{
@@ -132,7 +123,7 @@ public:
 	virtual void Desactivate(RAS_IRasterizer *rasty)
 	{
 	}
-	virtual void ActivateMeshSlot(class RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
+	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 	{
 	}
 
@@ -158,7 +149,7 @@ public:
 	virtual bool CastsShadows() const;
 	virtual bool OnlyShadow() const;
 
-    // overridden by KX_BlenderMaterial
+	/// Overridden by KX_BlenderMaterial
 	virtual void Replace_IScene(SCA_IScene *val)
 	{
 	}
