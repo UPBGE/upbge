@@ -275,10 +275,26 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		bool mouse_state = (startscene->gm.flag & GAME_SHOW_MOUSE) != 0;
 		bool restrictAnimFPS = (startscene->gm.flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
-		short drawtype = v3d->drawtype;
-		
-		/* we do not support material mode in game engine, force change to texture mode */
-		if (drawtype == OB_MATERIAL) drawtype = OB_TEXTURE;
+		RAS_IRasterizer::DrawType drawmode = RAS_IRasterizer::KX_TEXTURED;
+		switch(v3d->drawtype) {
+			case OB_BOUNDBOX:
+			case OB_WIRE:
+			{
+				drawmode = RAS_IRasterizer::KX_WIREFRAME;
+				break;
+			}
+			case OB_SOLID:
+			{
+				drawmode = RAS_IRasterizer::KX_SOLID;
+				break;
+			}
+			case OB_MATERIAL:
+			{
+				drawmode = RAS_IRasterizer::KX_TEXTURED;
+				break;
+			}
+		}
+
 		if (animation_record) usefixed= false; /* override since you don't want to run full-speed for sim recording */
 
 		// create the canvas and rasterizer
@@ -373,7 +389,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			}
 		}
 
-		rasterizer->SetDrawingMode(drawtype);
+		rasterizer->SetDrawingMode(drawmode);
 		ketsjiengine->SetCameraZoom(camzoom);
 		ketsjiengine->SetCameraOverrideZoom(2.0f);
 

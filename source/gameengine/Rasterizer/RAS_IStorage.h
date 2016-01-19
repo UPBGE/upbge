@@ -28,6 +28,8 @@
 #ifndef __KX_STORAGE
 #define __KX_STORAGE
 
+#include "RAS_IRasterizer.h"
+
 #ifdef WITH_CXX_GUARDEDALLOC
   #include "MEM_guardedalloc.h"
 #endif
@@ -49,7 +51,7 @@ public:
 	{
 	}
 
-	virtual void SetMeshModified(unsigned short drawType, bool modified)
+	virtual void SetMeshModified(RAS_IRasterizer::DrawType drawType, bool modified)
 	{
 	}
 };
@@ -70,7 +72,7 @@ public:
 
 	virtual void IndexPrimitives(RAS_MeshSlot *ms) = 0;
 
-	virtual void SetDrawingMode(int drawingmode) = 0;
+	virtual void SetDrawingMode(RAS_IRasterizer::DrawType drawingmode) = 0;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IStorage")

@@ -29,7 +29,6 @@
 #define __KX_VERTEXARRAYSTORAGE
 
 #include "RAS_IStorage.h"
-#include "RAS_IRasterizer.h"
 #include "RAS_DisplayArrayBucket.h"
 
 class RAS_DisplayList : public RAS_IStorageInfo
@@ -43,23 +42,23 @@ public:
 	};
 
 private:
-	int m_list[RAS_IRasterizer::KX_SHADOW][NUM_LIST];
+	int m_list[RAS_IRasterizer::KX_DRAW_MAX][NUM_LIST];
 
-	void RemoveAllList(unsigned short drawType);
+	void RemoveAllList(RAS_IRasterizer::DrawType drawmode);
 
 public:
 	RAS_DisplayList();
 	virtual ~RAS_DisplayList();
 
-	virtual void SetMeshModified(unsigned short drawType, bool modified);
+	virtual void SetMeshModified(RAS_IRasterizer::DrawType drawmode, bool modified);
 
 	/** Return true if the list already exists and was called.
 	 * False mean : we need call all opengl functions and finish
 	 * with an End call.
 	 */
-	bool Draw(unsigned short drawType, LIST_TYPE type);
+	bool Draw(RAS_IRasterizer::DrawType drawmode, LIST_TYPE type);
 	/// Finish the display list, must be called after Draw when it return false.
-	void End(unsigned short drawType, LIST_TYPE type);
+	void End(RAS_IRasterizer::DrawType drawmode, LIST_TYPE type);
 };
 
 class RAS_StorageVA : public RAS_IStorage
@@ -75,13 +74,13 @@ public:
 	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void IndexPrimitives(RAS_MeshSlot *ms);
 
-	virtual void SetDrawingMode(int drawingmode)
+	virtual void SetDrawingMode(RAS_IRasterizer::DrawType drawingmode)
 	{
 		m_drawingmode = drawingmode;
 	};
 
 protected:
-	int m_drawingmode;
+	RAS_IRasterizer::DrawType m_drawingmode;
 
 	int *m_texco_num;
 	int *m_attrib_num;

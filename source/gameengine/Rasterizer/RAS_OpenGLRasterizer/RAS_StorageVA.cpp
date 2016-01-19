@@ -34,7 +34,7 @@
 
 RAS_DisplayList::RAS_DisplayList()
 {
-	for (unsigned short i = 0; i < RAS_IRasterizer::KX_SHADOW; ++i) {
+	for (unsigned short i = 0; i < RAS_IRasterizer::KX_DRAW_MAX; ++i) {
 		for (unsigned short j = 0; j < NUM_LIST; ++j) {
 			m_list[i][j] = -1;
 		}
@@ -43,34 +43,34 @@ RAS_DisplayList::RAS_DisplayList()
 
 RAS_DisplayList::~RAS_DisplayList()
 {
-	for (unsigned short i = 0; i < RAS_IRasterizer::KX_SHADOW; ++i) {
-		RemoveAllList(i + 1);
+	for (unsigned short i = 0; i < RAS_IRasterizer::KX_DRAW_MAX; ++i) {
+		RemoveAllList((RAS_IRasterizer::DrawType)i);
 	}
 }
 
-void RAS_DisplayList::RemoveAllList(unsigned short drawType)
+void RAS_DisplayList::RemoveAllList(RAS_IRasterizer::DrawType drawmode)
 {
 	for (unsigned short j = 0; j < NUM_LIST; ++j) {
-		int list = m_list[drawType - 1][j];
+		int list = m_list[drawmode][j];
 		if (list != -1) {
 			glDeleteLists(list, 1);
 		}
-		m_list[drawType - 1][j] = -1;
+		m_list[drawmode][j] = -1;
 	}
 }
 
-void RAS_DisplayList::SetMeshModified(unsigned short drawType, bool modified)
+void RAS_DisplayList::SetMeshModified(RAS_IRasterizer::DrawType drawmode, bool modified)
 {
 	if (modified) {
-		RemoveAllList(drawType);
+		RemoveAllList(drawmode);
 	}
 }
 
-bool RAS_DisplayList::Draw(unsigned short drawType, LIST_TYPE type)
+bool RAS_DisplayList::Draw(RAS_IRasterizer::DrawType drawmode, LIST_TYPE type)
 {
-	int list = m_list[drawType - 1][type];
+	int list = m_list[drawmode][type];
 	if (list == -1) {
-		m_list[drawType - 1][type] = list = glGenLists(1);
+		m_list[drawmode][type] = list = glGenLists(1);
 		glNewList(list, GL_COMPILE);
 
 		return false;
@@ -81,10 +81,10 @@ bool RAS_DisplayList::Draw(unsigned short drawType, LIST_TYPE type)
 	return true;
 }
 
-void RAS_DisplayList::End(unsigned short drawType, LIST_TYPE type)
+void RAS_DisplayList::End(RAS_IRasterizer::DrawType drawmode, LIST_TYPE type)
 {
 	glEndList();
-	glCallList(m_list[drawType - 1][type]);
+	glCallList(m_list[drawmode][type]);
 }
 
 RAS_StorageVA::RAS_StorageVA(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer) :

@@ -32,7 +32,6 @@
 #include "glew-mx.h"
 
 #include "RAS_IStorage.h"
-#include "RAS_IRasterizer.h"
 
 #include "RAS_OpenGLRasterizer.h"
 
@@ -78,13 +77,13 @@ public:
 	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void IndexPrimitives(RAS_MeshSlot *ms);
 
-	virtual void SetDrawingMode(int drawingmode)
+	virtual void SetDrawingMode(RAS_IRasterizer::DrawType drawingmode)
 	{
 		m_drawingmode = drawingmode;
 	};
 
 protected:
-	int m_drawingmode;
+	RAS_IRasterizer::DrawType m_drawingmode;
 
 	int *m_texco_num;
 	int *m_attrib_num;

@@ -132,7 +132,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	unsigned int m_numgllights;
 
 protected:
-	int m_drawingmode;
+	DrawType m_drawingmode;
 	TexCoGen m_texco[RAS_MAX_TEXCO];
 	TexCoGen m_attrib[RAS_MAX_ATTRIB];
 	int m_attrib_layer[RAS_MAX_ATTRIB];
@@ -194,8 +194,8 @@ public:
 
 	virtual void SetBackColor(float color[3]);
 
-	virtual void SetDrawingMode(int drawingmode);
-	virtual int GetDrawingMode();
+	virtual void SetDrawingMode(DrawType drawingmode);
+	virtual DrawType GetDrawingMode();
 
 	virtual void SetCullFace(bool enable);
 	virtual void SetLines(bool enable);

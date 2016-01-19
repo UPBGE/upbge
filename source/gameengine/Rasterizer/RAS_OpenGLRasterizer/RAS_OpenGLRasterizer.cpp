@@ -291,17 +291,13 @@ bool RAS_OpenGLRasterizer::BeginFrame(double time)
 	return true;
 }
 
-void RAS_OpenGLRasterizer::SetDrawingMode(int drawingmode)
+void RAS_OpenGLRasterizer::SetDrawingMode(RAS_IRasterizer::DrawType drawingmode)
 {
 	m_drawingmode = drawingmode;
-
-	if (m_drawingmode == KX_WIREFRAME)
-		glDisable(GL_CULL_FACE);
-
 	m_storage->SetDrawingMode(drawingmode);
 }
 
-int RAS_OpenGLRasterizer::GetDrawingMode()
+RAS_IRasterizer::DrawType RAS_OpenGLRasterizer::GetDrawingMode()
 {
 	return m_drawingmode;
 }
@@ -1088,7 +1084,7 @@ void RAS_OpenGLRasterizer::SetPolygonOffset(float mult, float add)
 {
 	glPolygonOffset(mult, add);
 	GLint mode = GL_POLYGON_OFFSET_FILL;
-	if (m_drawingmode < KX_SHADED)
+	if (m_drawingmode < KX_TEXTURED)
 		mode = GL_POLYGON_OFFSET_LINE;
 	if (mult != 0.0f || add != 0.0f)
 		glEnable(mode);

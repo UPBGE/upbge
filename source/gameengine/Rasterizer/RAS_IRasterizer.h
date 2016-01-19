@@ -72,12 +72,11 @@ public:
 	 * Drawing types
 	 */
 	enum DrawType {
-		KX_BOUNDINGBOX = 1,
-		KX_WIREFRAME,
+		KX_WIREFRAME = 0,
 		KX_SOLID,
-		KX_SHADED,
 		KX_TEXTURED,
 		KX_SHADOW,
+		KX_DRAW_MAX,
 	};
 
 	/**
@@ -289,12 +288,12 @@ public:
 	/**
 	 * \param drawingmode = KX_BOUNDINGBOX, KX_WIREFRAME, KX_SOLID, KX_SHADED or KX_TEXTURED.
 	 */
-	virtual void SetDrawingMode(int drawingmode) = 0;
+	virtual void SetDrawingMode(DrawType drawingmode) = 0;
 
 	/**
 	 * \return the current drawing mode: KX_BOUNDINGBOX, KX_WIREFRAME, KX_SOLID, KX_SHADED or KX_TEXTURED.
 	 */
-	virtual int GetDrawingMode() = 0;
+	virtual DrawType GetDrawingMode() = 0;
 
 	/**
 	 * Sets face culling

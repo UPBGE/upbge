@@ -985,7 +985,7 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
 	CListValue *lightlist = scene->GetLightList();
-	int i, drawmode;
+	int i;
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
 
@@ -1006,7 +1006,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			MT_Transform camtrans;
 
 			/* switch drawmode for speed */
-			drawmode = m_rasterizer->GetDrawingMode();
+			RAS_IRasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
 			m_rasterizer->SetDrawingMode(RAS_IRasterizer::KX_SHADOW);
 
 			/* binds framebuffer object, sets up camera .. */
