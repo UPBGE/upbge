@@ -1,9 +1,13 @@
-# upBGE
+# UPBGE
 
-English:
+UPBGE (Uchronia Project Blender Game Engine) is a fork of Blender created by Porteries Tristan (a Blender Game Engine developer) and some of his friends in September 2015.
 
-A fork of the BGE especialy designed for develloping on the expressway. You want to help the developement of the best free software game engine? You love video games, programming, drawing and more? This repository is designed for you. Our group, UPBGE (UP for Uchronia Project, our ultimate video game project), composed by veterans of the BGE that sometime wanted to pass out of
+It's an independant branch and its aim is to clean up and improve current BGE code, experiment new features, implement forgotten cool features that currently exists but are not merged to the official Blender trunk, and try to make the BGE a more powerfull and a more fun engine.
 
-Français:
+Its development cycle is based on a month: 3 weeks to add new features, and 1 week to fix bugs. Then a new release is made available for download.
 
-Fork du Blender Game Engine pour déplacer le développement sur la voie rapide. Vous avez envie de participer au développement du meilleur moteur de jeu libre? Vous aimez le jeu vidéo, et à fortiori vous aimez en programmer, imaginer, dessiner en bref designer? Ce dépot est fait pour vous. Notre groupe, UPBGE (UP pour uchronia project, un projet de jeu vidéo) est composé de veterans du BGE qui ont voulu passer outre les problèmes de commits interlminables ou de coding au ralenti. Ce dépôt, toujours en phase avec les dernières innovations du BGE contient tout les commits qui trainaient dans les mailing list depuis des années après relecture, réactualisation nous implémentons tout ce qui manque au BGE pour devenir un moteur sérieux.
+Regularly, the UPBGE merges the official Blender new patches, to stay up-to-date with the last Blender evolutions.
+
+The UPBGE team is composed of volonteers, BGE users who are interested in the game engine development, a web developer, and a communication manager.
+
+The team message: We hope that new users will join the project, and maybe help us to test new features, report bugs, give us feedbacks and ideas to improve UPBGE (https://github.com/UPBGE/blender/issues), and that new developers will join the team to help us and to have fun coding shiny things for the game engine.
