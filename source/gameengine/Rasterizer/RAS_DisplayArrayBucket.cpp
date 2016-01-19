@@ -172,9 +172,6 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 	if (!rasty->UseDisplayLists()) {
 		m_useDisplayList = false;
 	}
-	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW) {
-		m_useDisplayList = false;
-	}
 	else if (m_bucket->IsZSort()) {
 		m_useDisplayList = false;
 	}
@@ -204,7 +201,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 
 	// Set the storage info modified if the mesh is modified.
 	if (m_storageInfo) {
-		m_storageInfo->SetMeshModified(m_meshModified);
+		m_storageInfo->SetMeshModified(rasty->GetDrawingMode(), m_meshModified);
 	}
 }
 

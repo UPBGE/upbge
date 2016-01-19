@@ -613,9 +613,10 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		}
 		else if (gm->raster_storage == RAS_STORE_VA) {
 			raster_storage = RAS_VA;
-			if (useLists) {
-				storageInfo |= RAS_STORAGE_USE_DISPLAY_LIST;
-			}
+		}
+
+		if (useLists) {
+			storageInfo |= RAS_STORAGE_USE_DISPLAY_LIST;
 		}
 
 		m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, raster_storage, storageInfo);

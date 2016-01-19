@@ -49,7 +49,7 @@ public:
 	{
 	}
 
-	virtual void SetMeshModified(bool modified)
+	virtual void SetMeshModified(unsigned short drawType, bool modified)
 	{
 	}
 };

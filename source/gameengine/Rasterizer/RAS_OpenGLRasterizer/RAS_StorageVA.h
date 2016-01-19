@@ -30,8 +30,7 @@
 
 #include "RAS_IStorage.h"
 #include "RAS_IRasterizer.h"
-
-#include "RAS_OpenGLRasterizer.h"
+#include "RAS_DisplayArrayBucket.h"
 
 class RAS_DisplayList : public RAS_IStorageInfo
 {
@@ -44,23 +43,23 @@ public:
 	};
 
 private:
-	int m_list[NUM_LIST];
+	int m_list[RAS_IRasterizer::KX_SHADOW][NUM_LIST];
 
-	void RemoveAllList();
+	void RemoveAllList(unsigned short drawType);
 
 public:
 	RAS_DisplayList();
 	virtual ~RAS_DisplayList();
 
-	virtual void SetMeshModified(bool modified);
+	virtual void SetMeshModified(unsigned short drawType, bool modified);
 
 	/** Return true if the list already exists and was called.
 	 * False mean : we need call all opengl functions and finish
 	 * with an End call.
 	 */
-	bool Draw(LIST_TYPE type);
+	bool Draw(unsigned short drawType, LIST_TYPE type);
 	/// Finish the display list, must be called after Draw when it return false.
-	void End(LIST_TYPE type);
+	void End(unsigned short drawType, LIST_TYPE type);
 };
 
 class RAS_StorageVA : public RAS_IStorage

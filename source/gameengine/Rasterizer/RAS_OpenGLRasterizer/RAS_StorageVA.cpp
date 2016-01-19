@@ -26,48 +26,51 @@
  */
 
 #include "RAS_StorageVA.h"
+#include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
+#include "RAS_MaterialBucket.h"
 
 #include "glew-mx.h"
 
-#include <iostream>
-
 RAS_DisplayList::RAS_DisplayList()
 {
-	for (unsigned int i = 0; i < NUM_LIST; ++i) {
-		m_list[i] = -1;
+	for (unsigned short i = 0; i < RAS_IRasterizer::KX_SHADOW; ++i) {
+		for (unsigned short j = 0; j < NUM_LIST; ++j) {
+			m_list[i][j] = -1;
+		}
 	}
 }
 
 RAS_DisplayList::~RAS_DisplayList()
 {
-	RemoveAllList();
+	for (unsigned short i = 0; i < RAS_IRasterizer::KX_SHADOW; ++i) {
+		RemoveAllList(i + 1);
+	}
 }
 
-void RAS_DisplayList::RemoveAllList()
+void RAS_DisplayList::RemoveAllList(unsigned short drawType)
 {
-	for (unsigned int i = 0; i < NUM_LIST; ++i) {
-		int list = m_list[i];
+	for (unsigned short j = 0; j < NUM_LIST; ++j) {
+		int list = m_list[drawType - 1][j];
 		if (list != -1) {
 			glDeleteLists(list, 1);
 		}
-		m_list[i] = -1;
+		m_list[drawType - 1][j] = -1;
 	}
 }
 
-void RAS_DisplayList::SetMeshModified(bool modified)
+void RAS_DisplayList::SetMeshModified(unsigned short drawType, bool modified)
 {
 	if (modified) {
-		RemoveAllList();
+		RemoveAllList(drawType);
 	}
 }
 
-bool RAS_DisplayList::Draw(LIST_TYPE type)
+bool RAS_DisplayList::Draw(unsigned short drawType, LIST_TYPE type)
 {
-	int list = m_list[type];
+	int list = m_list[drawType - 1][type];
 	if (list == -1) {
-		m_list[type] = list = glGenLists(1);
-
+		m_list[drawType - 1][type] = list = glGenLists(1);
 		glNewList(list, GL_COMPILE);
 
 		return false;
@@ -78,10 +81,10 @@ bool RAS_DisplayList::Draw(LIST_TYPE type)
 	return true;
 }
 
-void RAS_DisplayList::End(LIST_TYPE type)
+void RAS_DisplayList::End(unsigned short drawType, LIST_TYPE type)
 {
 	glEndList();
-	glCallList(m_list[type]);
+	glCallList(m_list[drawType - 1][type]);
 }
 
 RAS_StorageVA::RAS_StorageVA(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer) :
@@ -110,7 +113,7 @@ void RAS_StorageVA::Exit()
 void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
 	RAS_DisplayList *displayList = GetDisplayList(arrayBucket);
-	if (displayList && displayList->Draw(RAS_DisplayList::BIND_LIST)) {
+	if (displayList && displayList->Draw(m_drawingmode, RAS_DisplayList::BIND_LIST)) {
 		return;
 	}
 
@@ -133,14 +136,14 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 	}
 
 	if (displayList) {
-		displayList->End(RAS_DisplayList::BIND_LIST);
+		displayList->End(m_drawingmode, RAS_DisplayList::BIND_LIST);
 	}
 }
 
 void RAS_StorageVA::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
 	RAS_DisplayList *displayList = GetDisplayList(arrayBucket);
-	if (displayList && displayList->Draw(RAS_DisplayList::UNBIND_LIST)) {
+	if (displayList && displayList->Draw(m_drawingmode, RAS_DisplayList::UNBIND_LIST)) {
 		return;
 	}
 
@@ -153,7 +156,7 @@ void RAS_StorageVA::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 	}
 
 	if (displayList) {
-		displayList->End(RAS_DisplayList::UNBIND_LIST);
+		displayList->End(m_drawingmode, RAS_DisplayList::UNBIND_LIST);
 	}
 
 }
@@ -163,7 +166,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 	RAS_DisplayArrayBucket *arrayBucket = ms->m_displayArrayBucket;
 
 	RAS_DisplayList *displayList = GetDisplayList(arrayBucket);
-	if (displayList && displayList->Draw(RAS_DisplayList::DRAW_LIST)) {
+	if (displayList && displayList->Draw(m_drawingmode, RAS_DisplayList::DRAW_LIST)) {
 		return;
 	}
 
@@ -195,7 +198,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 	glDrawElements(GL_TRIANGLES, array->m_index.size(), GL_UNSIGNED_INT, indexarray);
 
 	if (displayList) {
-		displayList->End(RAS_DisplayList::DRAW_LIST);
+		displayList->End(m_drawingmode, RAS_DisplayList::DRAW_LIST);
 	}
 }
 

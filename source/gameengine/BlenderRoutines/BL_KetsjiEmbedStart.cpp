@@ -307,9 +307,10 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		}
 		else if (startscene->gm.raster_storage == RAS_STORE_VA) {
 			raster_storage = RAS_VA;
-			if (displaylists) {
-				storageInfo |= RAS_STORAGE_USE_DISPLAY_LIST;
-			}
+		}
+
+		if (displaylists) {
+			storageInfo |= RAS_STORAGE_USE_DISPLAY_LIST;
 		}
 
 		rasterizer = new RAS_OpenGLRasterizer(canvas, raster_storage, storageInfo);
