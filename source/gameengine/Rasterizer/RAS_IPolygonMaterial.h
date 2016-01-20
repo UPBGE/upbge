@@ -117,15 +117,9 @@ public:
 	{
 	}
 
-	virtual void Activate(RAS_IRasterizer *rasty)
-	{
-	}
-	virtual void Desactivate(RAS_IRasterizer *rasty)
-	{
-	}
-	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
-	{
-	}
+	virtual void Activate(RAS_IRasterizer *rasty) = 0;
+	virtual void Desactivate(RAS_IRasterizer *rasty) = 0;
+	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty) = 0;
 
 	bool IsAlpha() const;
 	bool IsZSort() const;
@@ -137,12 +131,12 @@ public:
 	unsigned int GetFlag() const;
 	int GetMaterialIndex() const;
 
-	virtual Material *GetBlenderMaterial() const;
-	virtual Image *GetBlenderImage() const;
-	virtual MTexPoly *GetMTexPoly() const;
-	virtual unsigned int *GetMCol() const;
-	virtual Scene *GetBlenderScene() const;
-	virtual void ReleaseMaterial();
+	virtual Material *GetBlenderMaterial() const = 0;
+	virtual Image *GetBlenderImage() const = 0;
+	virtual MTexPoly *GetMTexPoly() const = 0;
+	virtual unsigned int *GetMCol() const = 0;
+	virtual Scene *GetBlenderScene() const = 0;
+	virtual void ReleaseMaterial() = 0;
 	virtual void GetMaterialRGBAColor(unsigned char *rgba) const;
 	virtual bool UsesLighting(RAS_IRasterizer *rasty) const;
 	virtual bool UsesObjectColor() const;
@@ -150,9 +144,7 @@ public:
 	virtual bool OnlyShadow() const;
 
 	/// Overridden by KX_BlenderMaterial
-	virtual void Replace_IScene(SCA_IScene *val)
-	{
-	}
+	virtual void Replace_IScene(SCA_IScene *val) = 0;
 
 	/**
 	 * \return the equivalent drawing mode for the material settings (equivalent to old TexFace tface->mode).
@@ -162,9 +154,7 @@ public:
 	/*
 	 * PreCalculate texture gen
 	 */
-	virtual void OnConstruction()
-	{
-	}
+	virtual void OnConstruction() = 0;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IPolyMaterial")

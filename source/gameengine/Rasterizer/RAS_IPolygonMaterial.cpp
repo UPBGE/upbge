@@ -170,34 +170,6 @@ int RAS_IPolyMaterial::GetMaterialIndex() const
 	return m_materialindex;
 }
 
-Material *RAS_IPolyMaterial::GetBlenderMaterial() const
-{
-	return NULL;
-}
-
-Image *RAS_IPolyMaterial::GetBlenderImage() const
-{
-	return NULL;
-}
-MTexPoly *RAS_IPolyMaterial::GetMTexPoly() const
-{
-	return NULL;
-}
-
-unsigned int *RAS_IPolyMaterial::GetMCol() const
-{
-	return NULL;
-}
-
-Scene *RAS_IPolyMaterial::GetBlenderScene() const
-{
-	return NULL;
-}
-
-void RAS_IPolyMaterial::ReleaseMaterial()
-{
-}
-
 unsigned int RAS_IPolyMaterial::GetFlag() const
 {
 	return m_flag;
