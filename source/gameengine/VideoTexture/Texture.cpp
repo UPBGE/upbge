@@ -243,12 +243,12 @@ static int Texture_init(Texture *self, PyObject *args, PyObject *kwds)
 				// is it blender material or polygon material
 				if (mat->GetFlag() & RAS_BLENDERGLSL) 
 				{
-					self->m_imgTexture = static_cast<KX_BlenderMaterial*>(mat)->getImage(texID);
+					self->m_imgTexture = static_cast<KX_BlenderMaterial*>(mat)->GetImage(texID);
 					self->m_useMatTexture = false;
 				} else
 				{
 					// get blender material texture
-					self->m_matTexture = static_cast<KX_BlenderMaterial*>(mat)->getTex(texID);
+					self->m_matTexture = static_cast<KX_BlenderMaterial*>(mat)->GetTex(texID);
 					self->m_useMatTexture = true;
 				}
 			}

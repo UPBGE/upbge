@@ -59,13 +59,13 @@
 KX_BlenderMaterial::KX_BlenderMaterial()
 	: PyObjectPlus(),
 	RAS_IPolyMaterial(),
-	mMaterial(NULL),
-	mShader(NULL),
-	mBlenderShader(NULL),
-	mScene(NULL),
-	mUserDefBlend(false),
-	mModified(false),
-	mConstructed(false)
+	m_material(NULL),
+	m_shader(NULL),
+	m_blenderShader(NULL),
+	m_scene(NULL),
+	m_userDefBlend(false),
+	m_modified(false),
+	m_constructed(false)
 {
 }
 
@@ -92,55 +92,55 @@ void KX_BlenderMaterial::Initialize(
 	Material *ma = data->material;
 
 	// Save material data to restore on exit
-	mSavedData.r = ma->r;
-	mSavedData.g = ma->g;
-	mSavedData.b = ma->b;
-	mSavedData.a = ma->alpha;
-	mSavedData.specr = ma->specr;
-	mSavedData.specg = ma->specg;
-	mSavedData.specb = ma->specb;
-	mSavedData.spec = ma->spec;
-	mSavedData.ref = ma->ref;
-	mSavedData.hardness = ma->har;
-	mSavedData.emit = ma->emit;
+	m_savedData.r = ma->r;
+	m_savedData.g = ma->g;
+	m_savedData.b = ma->b;
+	m_savedData.a = ma->alpha;
+	m_savedData.specr = ma->specr;
+	m_savedData.specg = ma->specg;
+	m_savedData.specb = ma->specb;
+	m_savedData.spec = ma->spec;
+	m_savedData.ref = ma->ref;
+	m_savedData.hardness = ma->har;
+	m_savedData.emit = ma->emit;
 
-	mMaterial = data;
-	mShader = NULL;
-	mBlenderShader = NULL;
-	mScene = scene;
-	mUserDefBlend = false;
-	mModified = false;
-	mConstructed = false;
-	mLightLayer = lightlayer;
+	m_material = data;
+	m_shader = NULL;
+	m_blenderShader = NULL;
+	m_scene = scene;
+	m_userDefBlend = false;
+	m_modified = false;
+	m_constructed = false;
+	m_lightLayer = lightlayer;
 	// --------------------------------
 	// RAS_IPolyMaterial variables...
 	m_flag |= RAS_BLENDERMAT;
-	m_flag |= (mMaterial->IdMode >= ONETEX) ? RAS_MULTITEX : 0;
-	m_flag |= ((mMaterial->ras_mode & USE_LIGHT) != 0) ? RAS_MULTILIGHT : 0;
-	m_flag |= (mMaterial->glslmat) ? RAS_BLENDERGLSL : 0;
-	m_flag |= ((mMaterial->ras_mode & CAST_SHADOW) != 0) ? RAS_CASTSHADOW : 0;
-	m_flag |= ((mMaterial->ras_mode & ONLY_SHADOW) != 0) ? RAS_ONLYSHADOW : 0;
+	m_flag |= (m_material->IdMode >= ONETEX) ? RAS_MULTITEX : 0;
+	m_flag |= ((m_material->ras_mode & USE_LIGHT) != 0) ? RAS_MULTILIGHT : 0;
+	m_flag |= (m_material->glslmat) ? RAS_BLENDERGLSL : 0;
+	m_flag |= ((m_material->ras_mode & CAST_SHADOW) != 0) ? RAS_CASTSHADOW : 0;
+	m_flag |= ((m_material->ras_mode & ONLY_SHADOW) != 0) ? RAS_ONLYSHADOW : 0;
 	m_flag |= ((ma->shade_flag & MA_OBCOLOR) != 0) ? RAS_OBJECTCOLOR : 0;
 }
 
 KX_BlenderMaterial::~KX_BlenderMaterial()
 {
-	Material *ma = mMaterial->material;
+	Material *ma = m_material->material;
 	// Restore Blender material data
-	ma->r = mSavedData.r;
-	ma->g = mSavedData.g;
-	ma->b = mSavedData.b;
-	ma->alpha = mSavedData.a;
-	ma->specr = mSavedData.specr;
-	ma->specg = mSavedData.specg;
-	ma->specb = mSavedData.specb;
-	ma->spec = mSavedData.spec;
-	ma->ref = mSavedData.ref;
-	ma->har = mSavedData.hardness;
-	ma->emit = mSavedData.emit;
+	ma->r = m_savedData.r;
+	ma->g = m_savedData.g;
+	ma->b = m_savedData.b;
+	ma->alpha = m_savedData.a;
+	ma->specr = m_savedData.specr;
+	ma->specg = m_savedData.specg;
+	ma->specb = m_savedData.specb;
+	ma->spec = m_savedData.spec;
+	ma->ref = m_savedData.ref;
+	ma->har = m_savedData.hardness;
+	ma->emit = m_savedData.emit;
 
 	// cleanup work
-	if (mConstructed) {
+	if (m_constructed) {
 		// clean only if material was actually used
 		OnExit();
 	}
@@ -149,22 +149,22 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 MTexPoly *KX_BlenderMaterial::GetMTexPoly() const
 {
 	// fonts on polys
-	return &mMaterial->mtexpoly;
+	return &m_material->mtexpoly;
 }
 
 unsigned int *KX_BlenderMaterial::GetMCol() const
 {
 	// fonts on polys
-	return mMaterial->rgb;
+	return m_material->rgb;
 }
 
 void KX_BlenderMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
 {
-	if (mMaterial) {
-		*rgba++ = (unsigned char)(mMaterial->matcolor[0] * 255.0f);
-		*rgba++ = (unsigned char)(mMaterial->matcolor[1] * 255.0f);
-		*rgba++ = (unsigned char)(mMaterial->matcolor[2] * 255.0f);
-		*rgba++ = (unsigned char)(mMaterial->matcolor[3] * 255.0f);
+	if (m_material) {
+		*rgba++ = (unsigned char)(m_material->matcolor[0] * 255.0f);
+		*rgba++ = (unsigned char)(m_material->matcolor[1] * 255.0f);
+		*rgba++ = (unsigned char)(m_material->matcolor[2] * 255.0f);
+		*rgba++ = (unsigned char)(m_material->matcolor[3] * 255.0f);
 	}
 	else
 		RAS_IPolyMaterial::GetMaterialRGBAColor(rgba);
@@ -172,23 +172,23 @@ void KX_BlenderMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
 
 Material *KX_BlenderMaterial::GetBlenderMaterial() const
 {
-	return mMaterial->material;
+	return m_material->material;
 }
 
 Image *KX_BlenderMaterial::GetBlenderImage() const
 {
-	return mMaterial->mtexpoly.tpage;
+	return m_material->mtexpoly.tpage;
 }
 
 Scene *KX_BlenderMaterial::GetBlenderScene() const
 {
-	return mScene->GetBlenderScene();
+	return m_scene->GetBlenderScene();
 }
 
 void KX_BlenderMaterial::ReleaseMaterial()
 {
-	if (mBlenderShader)
-		mBlenderShader->ReloadMaterial();
+	if (m_blenderShader)
+		m_blenderShader->ReloadMaterial();
 }
 
 void KX_BlenderMaterial::InitTextures()
@@ -196,22 +196,22 @@ void KX_BlenderMaterial::InitTextures()
 	// for each unique material...
 	int i;
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		if (mMaterial->mapping[i].mapping & USEENV) {
+		if (m_material->mapping[i].mapping & USEENV) {
 			if (!GLEW_ARB_texture_cube_map) {
 				spit("CubeMap textures not supported");
 				continue;
 			}
-			if (!mTextures[i].InitCubeMap(i, mMaterial->cubemap[i]) )
+			if (!m_textures[i].InitCubeMap(i, m_material->cubemap[i]) )
 				spit("unable to initialize image(" << i << ") in " <<
-				     mMaterial->matname << ", image will not be available");
+				     m_material->matname << ", image will not be available");
 		}
 		/* If we're using glsl materials, the textures are handled by bf_gpu, so don't load them twice!
 		 * However, if we're using a custom shader, then we still need to load the textures ourselves. */
-		else if (!mMaterial->glslmat || mShader) {
-			if (mMaterial->img[i]) {
-				if (!mTextures[i].InitFromImage(i, mMaterial->img[i], (mMaterial->flag[i] & MIPMAP) != 0))
+		else if (!m_material->glslmat || m_shader) {
+			if (m_material->img[i]) {
+				if (!m_textures[i].InitFromImage(i, m_material->img[i], (m_material->flag[i] & MIPMAP) != 0))
 					spit("unable to initialize image(" << i << ") in " <<
-					     mMaterial->matname << ", image will not be available");
+					     m_material->matname << ", image will not be available");
 			}
 		}
 	}
@@ -219,19 +219,19 @@ void KX_BlenderMaterial::InitTextures()
 
 void KX_BlenderMaterial::OnConstruction()
 {
-	if (mConstructed) {
+	if (m_constructed) {
 		// when material are reused between objects
 		return;
 	}
 
-	if (mMaterial->glslmat)
+	if (m_material->glslmat)
 		SetBlenderGLSLShader();
 
 	InitTextures();
 
-	mBlendFunc[0] = 0;
-	mBlendFunc[1] = 0;
-	mConstructed = true;
+	m_blendFunc[0] = 0;
+	m_blendFunc[1] = 0;
+	m_constructed = true;
 }
 
 void KX_BlenderMaterial::EndFrame(RAS_IRasterizer *rasty)
@@ -242,51 +242,51 @@ void KX_BlenderMaterial::EndFrame(RAS_IRasterizer *rasty)
 
 void KX_BlenderMaterial::OnExit()
 {
-	if (mShader) {
-		delete mShader;
-		mShader = NULL;
+	if (m_shader) {
+		delete m_shader;
+		m_shader = NULL;
 	}
-	if (mBlenderShader) {
-		delete mBlenderShader;
-		mBlenderShader = NULL;
+	if (m_blenderShader) {
+		delete m_blenderShader;
+		m_blenderShader = NULL;
 	}
 
 	BL_Texture::ActivateFirst();
 	for (int i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		if (!mTextures[i].Ok()) continue;
+		if (!m_textures[i].Ok()) continue;
 		BL_Texture::ActivateUnit(i);
-		mTextures[i].DeleteTex();
-		mTextures[i].DisableUnit();
+		m_textures[i].DeleteTex();
+		m_textures[i].DisableUnit();
 	}
 
-	/* used to call with 'mMaterial->tface' but this can be a freed array,
+	/* used to call with 'm_material->tface' but this can be a freed array,
 	 * see: [#30493], so just call with NULL, this is best since it clears
 	 * the 'lastface' pointer in GPU too - campbell */
-	GPU_set_tpage(NULL, 1, mMaterial->alphablend);
+	GPU_set_tpage(NULL, 1, m_material->alphablend);
 }
 
 
-void KX_BlenderMaterial::setShaderData(RAS_IRasterizer *ras)
+void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 {
-	MT_assert(GLEW_ARB_shader_objects && mShader);
+	MT_assert(GLEW_ARB_shader_objects && m_shader);
 
 	int i;
 
-	mShader->SetProg(true);
+	m_shader->SetProg(true);
 
 	BL_Texture::ActivateFirst();
 
-	mShader->ApplyShader();
+	m_shader->ApplyShader();
 
 	// for each enabled unit
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		if (!mTextures[i].Ok()) continue;
-		mTextures[i].ActivateTexture();
-		mTextures[0].SetMapping(mMaterial->mapping[i].mapping);
+		if (!m_textures[i].Ok()) continue;
+		m_textures[i].ActivateTexture();
+		m_textures[0].SetMapping(m_material->mapping[i].mapping);
 	}
 
-	if (!mUserDefBlend) {
-		ras->SetAlphaBlend(mMaterial->alphablend);
+	if (!m_userDefBlend) {
+		ras->SetAlphaBlend(m_material->alphablend);
 	}
 	else {
 		ras->SetAlphaBlend(TF_SOLID);
@@ -294,79 +294,79 @@ void KX_BlenderMaterial::setShaderData(RAS_IRasterizer *ras)
 
 		// tested to be valid enums
 		glEnable(GL_BLEND);
-		glBlendFunc(mBlendFunc[0], mBlendFunc[1]);
+		glBlendFunc(m_blendFunc[0], m_blendFunc[1]);
 	}
 }
 
-void KX_BlenderMaterial::setBlenderShaderData(RAS_IRasterizer *ras)
+void KX_BlenderMaterial::SetBlenderShaderData(RAS_IRasterizer *ras)
 {
 	// Don't set the alpha blend here because ActivateMeshSlot do it.
-	mBlenderShader->SetProg(true, ras->GetTime(), ras);
+	m_blenderShader->SetProg(true, ras->GetTime(), ras);
 }
 
-void KX_BlenderMaterial::setTexData(RAS_IRasterizer *ras)
+void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 {
 	BL_Texture::ActivateFirst();
 
-	if (mMaterial->IdMode == DEFAULT_BLENDER) {
-		ras->SetAlphaBlend(mMaterial->alphablend);
+	if (m_material->IdMode == DEFAULT_BLENDER) {
+		ras->SetAlphaBlend(m_material->alphablend);
 		return;
 	}
 
-	if (mMaterial->IdMode == TEXFACE) {
+	if (m_material->IdMode == TEXFACE) {
 		// no material connected to the object
-		if (mTextures[0].Ok() ) {
-			mTextures[0].ActivateTexture();
-			mTextures[0].setTexEnv(0, true);
-			mTextures[0].SetMapping(mMaterial->mapping[0].mapping);
-			ras->SetAlphaBlend(mMaterial->alphablend);
+		if (m_textures[0].Ok() ) {
+			m_textures[0].ActivateTexture();
+			m_textures[0].setTexEnv(0, true);
+			m_textures[0].SetMapping(m_material->mapping[0].mapping);
+			ras->SetAlphaBlend(m_material->alphablend);
 		}
 		return;
 	}
 
 	int mode = 0, i = 0;
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		if (!mTextures[i].Ok() ) continue;
+		if (!m_textures[i].Ok() ) continue;
 
-		mTextures[i].ActivateTexture();
-		mTextures[i].setTexEnv(mMaterial);
-		mode = mMaterial->mapping[i].mapping;
+		m_textures[i].ActivateTexture();
+		m_textures[i].setTexEnv(m_material);
+		mode = m_material->mapping[i].mapping;
 
 		if (mode & USEOBJ)
-			setObjectMatrixData(i, ras);
+			SetObjectMatrixData(i, ras);
 		else
-			mTextures[i].SetMapping(mode);
+			m_textures[i].SetMapping(mode);
 
 		if (!(mode & USEOBJ))
-			setTexMatrixData(i);
+			SetTexMatrixData(i);
 	}
 
-	if (!mUserDefBlend) {
-		ras->SetAlphaBlend(mMaterial->alphablend);
+	if (!m_userDefBlend) {
+		ras->SetAlphaBlend(m_material->alphablend);
 	}
 	else {
 		ras->SetAlphaBlend(TF_SOLID);
 		ras->SetAlphaBlend(-1); // indicates custom mode
 
 		glEnable(GL_BLEND);
-		glBlendFunc(mBlendFunc[0], mBlendFunc[1]);
+		glBlendFunc(m_blendFunc[0], m_blendFunc[1]);
 	}
 }
 
 void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 {
 	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
-		setShaderData(rasty);
-	else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && mMaterial->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
-		setShaderData(rasty);
+		SetShaderData(rasty);
+	else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && m_material->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
+		SetShaderData(rasty);
 
-	if (mMaterial->ras_mode & TWOSIDED)
+	if (m_material->ras_mode & TWOSIDED)
 		rasty->SetCullFace(false);
 	else
 		rasty->SetCullFace(true);
 
-	if ((mMaterial->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
-		if (mMaterial->ras_mode & WIRE)
+	if ((m_material->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
+		if (m_material->ras_mode & WIRE)
 			rasty->SetCullFace(false);
 		rasty->SetLines(true);
 	}
@@ -379,17 +379,17 @@ void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 {
 	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
-		setBlenderShaderData(rasty);
-	else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && mMaterial->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
-		setBlenderShaderData(rasty);
+		SetBlenderShaderData(rasty);
+	else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && m_material->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
+		SetBlenderShaderData(rasty);
 
-	if (mMaterial->ras_mode & TWOSIDED)
+	if (m_material->ras_mode & TWOSIDED)
 		rasty->SetCullFace(false);
 	else
 		rasty->SetCullFace(true);
 
-	if ((mMaterial->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
-		if (mMaterial->ras_mode & WIRE)
+	if ((m_material->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
+		if (m_material->ras_mode & WIRE)
 			rasty->SetCullFace(false);
 		rasty->SetLines(true);
 	}
@@ -397,23 +397,23 @@ void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 		rasty->SetLines(false);
 
 	ActivateGLMaterials(rasty);
-	mBlenderShader->SetAttribs(rasty);
+	m_blenderShader->SetAttribs(rasty);
 }
 
 void KX_BlenderMaterial::ActivateMat(RAS_IRasterizer *rasty)
 {
 	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
-		setTexData(rasty);
-	else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && mMaterial->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
-		setTexData(rasty);
+		SetTexData(rasty);
+	else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && m_material->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
+		SetTexData(rasty);
 
-	if (mMaterial->ras_mode & TWOSIDED)
+	if (m_material->ras_mode & TWOSIDED)
 		rasty->SetCullFace(false);
 	else
 		rasty->SetCullFace(true);
 
-	if ((mMaterial->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
-		if (mMaterial->ras_mode & WIRE)
+	if ((m_material->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
+		if (m_material->ras_mode & WIRE)
 			rasty->SetCullFace(false);
 		rasty->SetLines(true);
 	}
@@ -425,10 +425,10 @@ void KX_BlenderMaterial::ActivateMat(RAS_IRasterizer *rasty)
 
 void KX_BlenderMaterial::Activate(RAS_IRasterizer *rasty)
 {
-	if (GLEW_ARB_shader_objects && (mShader && mShader->Ok())) {
+	if (GLEW_ARB_shader_objects && (m_shader && m_shader->Ok())) {
 		ActivateShaders(rasty);
 	}
-	else if (GLEW_ARB_shader_objects && (mBlenderShader && mBlenderShader->Ok())) {
+	else if (GLEW_ARB_shader_objects && (m_blenderShader && m_blenderShader->Ok())) {
 		ActivateBlenderShaders(rasty);
 	}
 	else {
@@ -437,13 +437,13 @@ void KX_BlenderMaterial::Activate(RAS_IRasterizer *rasty)
 }
 void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 {
-	if (GLEW_ARB_shader_objects && (mShader && mShader->Ok())) {
-		mShader->SetProg(false);
+	if (GLEW_ARB_shader_objects && (m_shader && m_shader->Ok())) {
+		m_shader->SetProg(false);
 		// Disable all textures for custom shader because they use multitexture.
 		BL_Texture::DisableAllTextures();
 	}
-	else if (GLEW_ARB_shader_objects && (mBlenderShader && mBlenderShader->Ok())) {
-		mBlenderShader->SetProg(false);
+	else if (GLEW_ARB_shader_objects && (m_blenderShader && m_blenderShader->Ok())) {
+		m_blenderShader->SetProg(false);
 	}
 }
 
@@ -452,9 +452,9 @@ bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 	if (!RAS_IPolyMaterial::UsesLighting(rasty))
 		return false;
 
-	if (mShader && mShader->Ok())
+	if (m_shader && m_shader->Ok())
 		return true;
-	else if (mBlenderShader && mBlenderShader->Ok())
+	else if (m_blenderShader && m_blenderShader->Ok())
 		return false;
 	else
 		return true;
@@ -462,17 +462,17 @@ bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 
 void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 {
-	if (mShader && GLEW_ARB_shader_objects) {
-		mShader->Update(ms, rasty);
+	if (m_shader && GLEW_ARB_shader_objects) {
+		m_shader->Update(ms, rasty);
 	}
-	else if (mBlenderShader && GLEW_ARB_shader_objects) {
-		mBlenderShader->Update(ms, rasty);
+	else if (m_blenderShader && GLEW_ARB_shader_objects) {
+		m_blenderShader->Update(ms, rasty);
 
 		/* we do blend modes here, because they can change per object
 		 * with the same material due to obcolor/obalpha */
-		int alphablend = mBlenderShader->GetAlphaBlend();
-		if (ELEM(alphablend, GEMAT_SOLID, GEMAT_ALPHA, GEMAT_ALPHA_SORT) && mMaterial->alphablend != GEMAT_SOLID)
-			alphablend = mMaterial->alphablend;
+		int alphablend = m_blenderShader->GetAlphaBlend();
+		if (ELEM(alphablend, GEMAT_SOLID, GEMAT_ALPHA, GEMAT_ALPHA_SORT) && m_material->alphablend != GEMAT_SOLID)
+			alphablend = m_material->alphablend;
 
 		rasty->SetAlphaBlend(alphablend);
 	}
@@ -480,33 +480,33 @@ void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *ras
 
 void KX_BlenderMaterial::ActivateGLMaterials(RAS_IRasterizer *rasty) const
 {
-	if (mShader || !mBlenderShader) {
+	if (m_shader || !m_blenderShader) {
 		rasty->SetSpecularity(
-		    mMaterial->speccolor[0] * mMaterial->spec_f,
-		    mMaterial->speccolor[1] * mMaterial->spec_f,
-		    mMaterial->speccolor[2] * mMaterial->spec_f,
-		    mMaterial->spec_f
+		    m_material->speccolor[0] * m_material->spec_f,
+		    m_material->speccolor[1] * m_material->spec_f,
+		    m_material->speccolor[2] * m_material->spec_f,
+		    m_material->spec_f
 		    );
 
-		rasty->SetShinyness(mMaterial->hard);
+		rasty->SetShinyness(m_material->hard);
 
 		rasty->SetDiffuse(
-		    mMaterial->matcolor[0] * mMaterial->ref + mMaterial->emit,
-		    mMaterial->matcolor[1] * mMaterial->ref + mMaterial->emit,
-		    mMaterial->matcolor[2] * mMaterial->ref + mMaterial->emit,
+		    m_material->matcolor[0] * m_material->ref + m_material->emit,
+		    m_material->matcolor[1] * m_material->ref + m_material->emit,
+		    m_material->matcolor[2] * m_material->ref + m_material->emit,
 		    1.0f);
 
 		rasty->SetEmissive(
-		    mMaterial->matcolor[0] * mMaterial->emit,
-		    mMaterial->matcolor[1] * mMaterial->emit,
-		    mMaterial->matcolor[2] * mMaterial->emit,
+		    m_material->matcolor[0] * m_material->emit,
+		    m_material->matcolor[1] * m_material->emit,
+		    m_material->matcolor[2] * m_material->emit,
 		    1.0f);
 
-		rasty->SetAmbient(mMaterial->amb);
+		rasty->SetAmbient(m_material->amb);
 	}
 
-	if (mMaterial->material)
-		rasty->SetPolygonOffset(-mMaterial->material->zoffs, 0.0f);
+	if (m_material->material)
+		rasty->SetPolygonOffset(-m_material->material->zoffs, 0.0f);
 }
 
 
@@ -514,21 +514,21 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 {
 	if (ras->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED ||
 	    (ras->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW &&
-	     mMaterial->alphablend != GEMAT_SOLID && !ras->GetUsingOverrideShader()))
+	     m_material->alphablend != GEMAT_SOLID && !ras->GetUsingOverrideShader()))
 	{
 		ras->SetAttribNum(0);
-		if (mShader && GLEW_ARB_shader_objects) {
-			if (mShader->GetAttribute() == BL_Shader::SHD_TANGENT) {
+		if (m_shader && GLEW_ARB_shader_objects) {
+			if (m_shader->GetAttribute() == BL_Shader::SHD_TANGENT) {
 				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, 0);
 				ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, 1);
 				ras->SetAttribNum(2);
 			}
 		}
 
-		ras->SetTexCoordNum(mMaterial->num_enabled);
+		ras->SetTexCoordNum(m_material->num_enabled);
 
 		for (int i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-			int mode = mMaterial->mapping[i].mapping;
+			int mode = m_material->mapping[i].mapping;
 
 			if (mode & (USEREFL | USEOBJ))
 				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_GEN, i);
@@ -546,21 +546,21 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 	}
 }
 
-void KX_BlenderMaterial::setTexMatrixData(int i)
+void KX_BlenderMaterial::SetTexMatrixData(int i)
 {
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
 
 	if (GLEW_ARB_texture_cube_map &&
-	    mTextures[i].GetTextureType() == GL_TEXTURE_CUBE_MAP_ARB &&
-	    mMaterial->mapping[i].mapping & USEREFL)
+	    m_textures[i].GetTextureType() == GL_TEXTURE_CUBE_MAP_ARB &&
+	    m_material->mapping[i].mapping & USEREFL)
 	{
-		glScalef(mMaterial->mapping[i].scale[0], -mMaterial->mapping[i].scale[1], -mMaterial->mapping[i].scale[2]);
+		glScalef(m_material->mapping[i].scale[0], -m_material->mapping[i].scale[1], -m_material->mapping[i].scale[2]);
 	}
 	else {
-		glScalef(mMaterial->mapping[i].scale[0], mMaterial->mapping[i].scale[1], mMaterial->mapping[i].scale[2]);
+		glScalef(m_material->mapping[i].scale[0], m_material->mapping[i].scale[1], m_material->mapping[i].scale[2]);
 	}
-	glTranslatef(mMaterial->mapping[i].offsets[0], mMaterial->mapping[i].offsets[1], mMaterial->mapping[i].offsets[2]);
+	glTranslatef(m_material->mapping[i].offsets[0], m_material->mapping[i].offsets[1], m_material->mapping[i].offsets[2]);
 
 	glMatrixMode(GL_MODELVIEW);
 }
@@ -576,9 +576,9 @@ static void GetProjPlane(BL_Material *mat, int index, int num, float *param)
 		param[2] = 1.0f;
 }
 
-void KX_BlenderMaterial::setObjectMatrixData(int i, RAS_IRasterizer *ras)
+void KX_BlenderMaterial::SetObjectMatrixData(int i, RAS_IRasterizer *ras)
 {
-	KX_GameObject *obj = (KX_GameObject *)mScene->GetObjectList()->FindValue(mMaterial->mapping[i].objconame);
+	KX_GameObject *obj = (KX_GameObject *)m_scene->GetObjectList()->FindValue(m_material->mapping[i].objconame);
 
 	if (!obj) {
 		return;
@@ -592,13 +592,13 @@ void KX_BlenderMaterial::setObjectMatrixData(int i, RAS_IRasterizer *ras)
 
 	// figure plane gen
 	float proj[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-	GetProjPlane(mMaterial, i, 0, proj);
+	GetProjPlane(m_material, i, 0, proj);
 	glTexGenfv(GL_S, plane, proj);
 
-	GetProjPlane(mMaterial, i, 1, proj);
+	GetProjPlane(m_material, i, 1, proj);
 	glTexGenfv(GL_T, plane, proj);
 
-	GetProjPlane(mMaterial, i, 2, proj);
+	GetProjPlane(m_material, i, 2, proj);
 	glTexGenfv(GL_R, plane, proj);
 
 	glEnable(GL_TEXTURE_GEN_S);
@@ -609,7 +609,7 @@ void KX_BlenderMaterial::setObjectMatrixData(int i, RAS_IRasterizer *ras)
 
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
-	glScalef(mMaterial->mapping[i].scale[0], mMaterial->mapping[i].scale[1], mMaterial->mapping[i].scale[2]);
+	glScalef(m_material->mapping[i].scale[0], m_material->mapping[i].scale[1], m_material->mapping[i].scale[2]);
 
 	MT_Point3 pos = obj->NodeGetWorldPosition();
 	MT_Vector4 matmul = MT_Vector4(pos[0], pos[1], pos[2], 1.0f);
@@ -633,39 +633,39 @@ void KX_BlenderMaterial::UpdateIPO(
 	// only works one deep now
 
 	// GLSL							Multitexture				Input
-	mMaterial->material->specr = mMaterial->speccolor[0] = (float)(specrgb)[0];
-	mMaterial->material->specg = mMaterial->speccolor[1] = (float)(specrgb)[1];
-	mMaterial->material->specb = mMaterial->speccolor[2] = (float)(specrgb)[2];
-	mMaterial->material->r = mMaterial->matcolor[0] = (float)(rgba[0]);
-	mMaterial->material->g = mMaterial->matcolor[1] = (float)(rgba[1]);
-	mMaterial->material->b = mMaterial->matcolor[2] = (float)(rgba[2]);
-	mMaterial->material->alpha = mMaterial->alpha = (float)(rgba[3]);
-	mMaterial->material->har = mMaterial->hard = (float)(hard);
-	mMaterial->material->emit = mMaterial->emit = (float)(emit);
-	mMaterial->material->spec = mMaterial->spec_f = (float)(spec);
-	mMaterial->material->ref = mMaterial->ref = (float)(ref);
+	m_material->material->specr = m_material->speccolor[0] = (float)(specrgb)[0];
+	m_material->material->specg = m_material->speccolor[1] = (float)(specrgb)[1];
+	m_material->material->specb = m_material->speccolor[2] = (float)(specrgb)[2];
+	m_material->material->r = m_material->matcolor[0] = (float)(rgba[0]);
+	m_material->material->g = m_material->matcolor[1] = (float)(rgba[1]);
+	m_material->material->b = m_material->matcolor[2] = (float)(rgba[2]);
+	m_material->material->alpha = m_material->alpha = (float)(rgba[3]);
+	m_material->material->har = m_material->hard = (float)(hard);
+	m_material->material->emit = m_material->emit = (float)(emit);
+	m_material->material->spec = m_material->spec_f = (float)(spec);
+	m_material->material->ref = m_material->ref = (float)(ref);
 }
 
 void KX_BlenderMaterial::Replace_IScene(SCA_IScene *val)
 {
-	mScene = static_cast<KX_Scene *>(val);
+	m_scene = static_cast<KX_Scene *>(val);
 
 	OnConstruction();
 }
 
 BL_Material *KX_BlenderMaterial::GetBLMaterial()
 {
-	return mMaterial;
+	return m_material;
 }
 
 void KX_BlenderMaterial::SetBlenderGLSLShader()
 {
-	if (!mBlenderShader)
-		mBlenderShader = new BL_BlenderShader(mScene, mMaterial->material, mMaterial, mLightLayer);
+	if (!m_blenderShader)
+		m_blenderShader = new BL_BlenderShader(m_scene, m_material->material, m_material, m_lightLayer);
 
-	if (!mBlenderShader->Ok()) {
-		delete mBlenderShader;
-		mBlenderShader = NULL;
+	if (!m_blenderShader->Ok()) {
+		delete m_blenderShader;
+		m_blenderShader = NULL;
 	}
 }
 
@@ -837,7 +837,7 @@ PyObject *KX_BlenderMaterial::pyattr_get_materialIndex(void *self_v, const KX_PY
 PyObject *KX_BlenderMaterial::pyattr_get_blending(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	unsigned int *bfunc = self->getBlendFunc();
+	unsigned int *bfunc = self->GetBlendFunc();
 	return Py_BuildValue("(ll)", (long int)bfunc[0], (long int)bfunc[1]);
 }
 
@@ -1020,53 +1020,53 @@ int KX_BlenderMaterial::pyattr_set_blending(void *self_v, const KX_PYATTRIBUTE_D
 KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 {
 	if (!GLEW_ARB_fragment_shader) {
-		if (!mModified)
+		if (!m_modified)
 			spit("Fragment shaders not supported");
 
-		mModified = true;
+		m_modified = true;
 		Py_RETURN_NONE;
 	}
 
 	if (!GLEW_ARB_vertex_shader) {
-		if (!mModified)
+		if (!m_modified)
 			spit("Vertex shaders not supported");
 
-		mModified = true;
+		m_modified = true;
 		Py_RETURN_NONE;
 	}
 
 	if (!GLEW_ARB_shader_objects) {
-		if (!mModified)
+		if (!m_modified)
 			spit("GLSL not supported");
-		mModified = true;
+		m_modified = true;
 		Py_RETURN_NONE;
 	}
 	else {
 		// returns Py_None on error
 		// the calling script will need to check
 
-		if (!mShader && !mModified) {
-			mShader = new BL_Shader();
-			mModified = true;
+		if (!m_shader && !m_modified) {
+			m_shader = new BL_Shader();
+			m_modified = true;
 
 			// Using a custom shader, make sure to initialize textures
 			InitTextures();
 		}
 
-		if (mShader && !mShader->GetError()) {
+		if (m_shader && !m_shader->GetError()) {
 			m_flag &= ~RAS_BLENDERGLSL;
-			mMaterial->SetSharedMaterial(true);
-			mScene->GetBucketManager()->ReleaseDisplayLists(this);
-			return mShader->GetProxy();
+			m_material->SetSharedMaterial(true);
+			m_scene->GetBucketManager()->ReleaseDisplayLists(this);
+			return m_shader->GetProxy();
 		}
 		else {
 			// decref all references to the object
 			// then delete it!
 			// We will then go back to fixed functionality
 			// for this material
-			if (mShader) {
-				delete mShader; /* will handle python de-referencing */
-				mShader = NULL;
+			if (m_shader) {
+				delete m_shader; /* will handle python de-referencing */
+				m_shader = NULL;
 			}
 		}
 		Py_RETURN_NONE;
@@ -1103,11 +1103,11 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, setBlending, "setBlending(bge.logic.src, 
 		for (int i = 0; i < 11; i++) {
 			if (b[0] == GL_array[i]) {
 				value_found[0] = true;
-				mBlendFunc[0] = b[0];
+				m_blendFunc[0] = b[0];
 			}
 			if (b[1] == GL_array[i]) {
 				value_found[1] = true;
-				mBlendFunc[1] = b[1];
+				m_blendFunc[1] = b[1];
 			}
 			if (value_found[0] && value_found[1]) {
 				break;
@@ -1117,7 +1117,7 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, setBlending, "setBlending(bge.logic.src, 
 			PyErr_SetString(PyExc_ValueError, "material.setBlending(int, int): KX_BlenderMaterial, invalid enum.");
 			return NULL;
 		}
-		mUserDefBlend = true;
+		m_userDefBlend = true;
 		Py_RETURN_NONE;
 	}
 	return NULL;

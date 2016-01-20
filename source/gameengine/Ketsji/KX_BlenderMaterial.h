@@ -58,17 +58,17 @@ public:
 	Image *GetBlenderImage() const;
 	MTexPoly *GetMTexPoly() const;
 	unsigned int *GetMCol() const;
-	BL_Texture *getTex(unsigned int idx)
+	BL_Texture *GetTex(unsigned int idx)
 	{
-		return (idx < MAXTEX) ? mTextures + idx : NULL;
+		return (idx < MAXTEX) ? m_textures + idx : NULL;
 	}
-	Image *getImage(unsigned int idx)
+	Image *GetImage(unsigned int idx)
 	{
-		return (idx < MAXTEX && mMaterial) ? mMaterial->img[idx] : NULL;
+		return (idx < MAXTEX && m_material) ? m_material->img[idx] : NULL;
 	}
-	unsigned int *getBlendFunc()
+	unsigned int *GetBlendFunc()
 	{
-		return mBlendFunc;
+		return m_blendFunc;
 	}
 	// for ipos
 	void UpdateIPO(
@@ -83,7 +83,7 @@ public:
 #ifdef WITH_PYTHON
 	virtual PyObject *py_repr()
 	{
-		return PyUnicode_From_STR_String(mMaterial->matname);
+		return PyUnicode_From_STR_String(m_material->matname);
 	}
 
 	static PyObject *pyattr_get_shader(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
@@ -117,16 +117,16 @@ public:
 	static void EndFrame(RAS_IRasterizer *rasty);
 
 private:
-	BL_Material *mMaterial;
-	BL_Shader *mShader;
-	BL_BlenderShader *mBlenderShader;
-	KX_Scene *mScene;
-	BL_Texture mTextures[MAXTEX]; // texture array
-	bool mUserDefBlend;
-	unsigned int mBlendFunc[2];
-	bool mModified;
-	bool mConstructed; // if false, don't clean on exit
-	int mLightLayer;
+	BL_Material *m_material;
+	BL_Shader *m_shader;
+	BL_BlenderShader *m_blenderShader;
+	KX_Scene *m_scene;
+	BL_Texture m_textures[MAXTEX]; // texture array
+	bool m_userDefBlend;
+	unsigned int m_blendFunc[2];
+	bool m_modified;
+	bool m_constructed; // if false, don't clean on exit
+	int m_lightLayer;
 
 	struct {
 		float r, g, b, a;
@@ -135,7 +135,7 @@ private:
 		float ref;
 		float hardness;
 		float emit;
-	} mSavedData;
+	} m_savedData;
 
 	void InitTextures();
 
@@ -150,14 +150,14 @@ private:
 	void ReleaseMaterial();
 
 	// message centers
-	void setTexData(RAS_IRasterizer *ras);
-	void setBlenderShaderData(RAS_IRasterizer *ras);
-	void setShaderData(RAS_IRasterizer *ras);
+	void SetTexData(RAS_IRasterizer *ras);
+	void SetBlenderShaderData(RAS_IRasterizer *ras);
+	void SetShaderData(RAS_IRasterizer *ras);
 
-	void setObjectMatrixData(int i, RAS_IRasterizer *ras);
-	void setTexMatrixData(int i);
+	void SetObjectMatrixData(int i, RAS_IRasterizer *ras);
+	void SetTexMatrixData(int i);
 
-	void setLightData();
+	void SetLightData();
 
 	// cleanup stuff
 	void OnExit();
