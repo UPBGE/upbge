@@ -76,6 +76,7 @@ typedef struct MTex {
 	
 	/* material */
 	float norfac, dispfac, warpfac;
+	float parallaxuv, parallaxsteps, parallaxbumpsc, padpfac;
 	float colspecfac, mirrfac, alphafac;
 	float difffac, specfac, emitfac, hardfac;
 	float raymirrfac, translfac, ambfac;
@@ -93,6 +94,9 @@ typedef struct MTex {
 
 	/* world */
 	float zenupfac, zendownfac, blendfac;
+
+	/* parallax */
+	short parflag, pad3[3];
 } MTex;
 
 #ifndef DNA_USHORT_FIX
@@ -489,6 +493,10 @@ typedef struct ColorMapping {
 #define MTEX_TIPS				4096  /* should use with_freestyle flag?  */
 #define MTEX_BICUBIC_BUMP		8192
 #define MTEX_MAPTO_BOUNDS		16384
+
+#define MTEX_PARALLAX_UV		32768 // texflag
+#define MTEX_DISCARD_AT_EDGES	1     // parflag
+
 
 /* blendtype */
 #define MTEX_BLEND		0

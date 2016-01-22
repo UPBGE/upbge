@@ -725,6 +725,9 @@ void BKE_texture_mtex_default(MTex *mtex)
 	mtex->blendtype = MTEX_BLEND;
 	mtex->colfac = 1.0;
 	mtex->norfac = 1.0;
+	mtex->parallaxuv = 0.0f;
+	mtex->parallaxbumpsc = 0.03f;
+	mtex->parallaxsteps = 10.0f;
 	mtex->varfac = 1.0;
 	mtex->dispfac = 0.2;
 	mtex->colspecfac = 1.0f;

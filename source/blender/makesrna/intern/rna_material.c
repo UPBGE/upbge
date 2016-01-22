@@ -550,6 +550,16 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_NORM);
 	RNA_def_property_ui_text(prop, "Normal", "The texture affects the rendered normal");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "use_map_parallax", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_PARALLAX);
+	RNA_def_property_ui_text(prop, "Parallax", "The texture affects the relief depth");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "use_parallax_uv", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "texflag", MTEX_PARALLAX_UV);
+	RNA_def_property_ui_text(prop, "Use Parallax UV", "This is necessary for proper use of the parallax mapping");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
 	prop = RNA_def_property(srna, "use_map_color_spec", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_COLSPEC);
@@ -656,6 +666,29 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "warpfac");
 	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
 	RNA_def_property_ui_text(prop, "Warp Factor", "Amount texture affects texture coordinates of next channels");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "parallax_uv_shift", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "parallaxuv");
+	RNA_def_property_ui_range(prop, 0.0, 2.0, 1.0, 3);
+	RNA_def_property_ui_text(prop, "UV Shift", "Amount texture is shifted");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "parallax_steps", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "parallaxsteps");
+	RNA_def_property_ui_range(prop, 0.0, 100.0, 1.0, 3);
+	RNA_def_property_ui_text(prop, "Parallax Steps", "Number of steps taken to achieve result");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "parallax_bump_scale", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "parallaxbumpsc");
+	RNA_def_property_ui_range(prop, 0.0, 0.5, 1.0, 3);
+	RNA_def_property_ui_text(prop, "Parallax Bump Scale", "Height of SPOM");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "parallax_uv_discard", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "parflag", MTEX_DISCARD_AT_EDGES);
+	RNA_def_property_ui_text(prop, "Parallax UV discard", "To discard parallax UV at edges");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
 	prop = RNA_def_property(srna, "specular_color_factor", PROP_FLOAT, PROP_NONE);

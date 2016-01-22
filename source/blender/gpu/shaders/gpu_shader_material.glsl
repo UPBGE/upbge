@@ -2664,6 +2664,42 @@ void node_output_world(vec4 surface, vec4 volume, out vec4 result)
 	result = surface;
 }
 
+void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler2D ima, float scale, float numsteps, float bumpscale, float discarduv, out vec3 ptexcoord)
+{
+	vec3 binormal = cross(-vn, tangent.xyz) * tangent.w;
+	vec3 vvec = vec3(dot(tangent.xyz, vp), dot(binormal, vp), dot(-vn, vp));
+	vec3 vv = normalize(vvec);
+	float height = texture2D(ima, texco.xy).a;
+	vec2 texuv = texco.xy + height * scale * 0.005;
+	float h = 1.0;
+	float numeyesteps = mix(numsteps * 2.0, numsteps, vv.z);
+	float step = 1.0 / numeyesteps;
+	vec2 delta = vec2(-vv.x, vv.y) * bumpscale / (vv.z * numeyesteps);
+	for (int i = 0; i < numeyesteps; ++i) {
+		if (height < h) {
+			h -= step;
+			texuv -= delta;
+			height = texture2D(ima, texuv * size.xy).a;
+		}
+	}
+	h = height;
+	float min;
+	float max;
+	if (discarduv == 1.0) {
+		min = 0.0;
+		max = 1.0;
+	}
+	else {
+		min = -0.1;
+		max = 1.1;
+	}
+
+	if (texuv.x < min || texuv.x > max || texuv.y < min || texuv.y > max) {
+		discard;
+	}
+	ptexcoord = vec3(texuv * size.xy, 0.0);
+}
+
 /* ********************** matcap style render ******************** */
 
 void material_preview_matcap(vec4 color, sampler2D ima, vec4 N, vec4 mask, out vec4 result)

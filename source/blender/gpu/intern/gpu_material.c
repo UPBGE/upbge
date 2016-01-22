@@ -1132,8 +1132,11 @@ static void do_material_tex(GPUShadeInput *shi)
 	GPUNodeLink *texco_global, *texco_uv = NULL;
 	GPUNodeLink *newnor, *orn;
 	float one = 1.0f;
+	GPUNodeLink *parco;
 	int rgbnor, talpha;
 	bool init_done = false;
+	float discard;
+	int tex_nr;
 	int iBumpSpacePrev = 0; /* Not necessary, quieting gcc warning. */
 	GPUNodeLink *vNorg, *vNacc, *fPrevMagnitude;
 	int iFirstTimeNMap = 1;
@@ -1153,9 +1156,35 @@ static void do_material_tex(GPUShadeInput *shi)
 		GPU_builtin(GPU_VIEW_POSITION), &texco_global);
 
 	orn = texco_norm;
+	
+	/* find parallax texco (parco) */
+	for (tex_nr = 0; tex_nr < MAX_MTEX; tex_nr++) {
+		/* separate tex switching */
+		if (ma->septex & (1 << tex_nr)) continue;
+		if (ma->mtex[tex_nr]) {
+			mtex = ma->mtex[tex_nr];
+			tex = mtex->tex;
+			if (tex == NULL || !(mtex->texflag & MTEX_PARALLAX_UV) || !mtex->texco == TEXCO_UV) continue;
+			GPU_link(mat, "texco_uv", GPU_attribute(CD_MTFACE, mtex->uvname), &texco_uv);
+			texco = texco_uv;
+			if (mtex->mapto & MAP_PARALLAX) {
+				discard = (mtex->parflag & MTEX_DISCARD_AT_EDGES) != 0 ? 1.0f : 0.0f;
+				GPU_link(mat, "parallax_out", texco,
+					GPU_builtin(GPU_VIEW_POSITION), GPU_attribute(CD_TANGENT, ""),
+					GPU_builtin(GPU_VIEW_NORMAL), GPU_uniform(mtex->size),
+					GPU_image(tex->ima, &tex->iuser, false), 
+					GPU_uniform(&mtex->parallaxuv), GPU_uniform(&mtex->parallaxsteps),
+					GPU_uniform(&mtex->parallaxbumpsc), GPU_uniform(&discard),
+					&parco);
+			}
+			else {
+				parco = NULL;
+			}
+		}
+	}
 
 	/* go over texture slots */
-	for (int tex_nr = 0; tex_nr < MAX_MTEX; tex_nr++) {
+	for (tex_nr = 0; tex_nr < MAX_MTEX; tex_nr++) {
 		/* separate tex switching */
 		if (ma->septex & (1 << tex_nr)) continue;
 		
@@ -1189,11 +1218,16 @@ static void do_material_tex(GPUShadeInput *shi)
 			}
 			else
 				continue;
-
+			
+			/*if parallax has modified uv*/
+			if (mtex->texflag & MTEX_PARALLAX_UV) {
+				if (parco) {
+					texco = parco;
+				}
+			}
 			/* in case of uv, this would just undo a multiplication in texco_uv */
 			if (mtex->texco != TEXCO_UV)
 				GPU_link(mat, "mtex_2d_mapping", texco, &texco);
-
 			if (mtex->size[0] != 1.0f || mtex->size[1] != 1.0f || mtex->size[2] != 1.0f)
 				GPU_link(mat, "mtex_mapping_size", texco, GPU_uniform(mtex->size), &texco);
 

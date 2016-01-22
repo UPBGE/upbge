@@ -992,6 +992,7 @@ class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
                 col = split.column()
                 if tex.texture_coords in {'ORCO', 'UV'}:
                     col.prop(tex, "use_from_dupli")
+                    col.prop(tex, "use_parallax_uv", text = "Use Parallax UV")
                     if (idblock.type == 'VOLUME' and tex.texture_coords == 'ORCO'):
                         col.prop(tex, "use_map_to_bounds")
                 elif tex.texture_coords == 'OBJECT':
@@ -1059,6 +1060,12 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
                 factor_but(col, "use_map_specular", "specular_factor", "Intensity")
                 factor_but(col, "use_map_color_spec", "specular_color_factor", "Color")
                 factor_but(col, "use_map_hardness", "hardness_factor", "Hardness")
+
+                col.label(text = "Parallax:")
+                factor_but(col, "use_parallax_uv", "parallax_uv_shift", "Height Scale")
+                factor_but(col, "use_map_parallax", "parallax_steps", "Steps")
+                factor_but(col, "use_map_parallax", "parallax_bump_scale", "Bump Scale")
+                col.prop(tex, "parallax_uv_discard", text = "Discard Edges")
 
                 col = split.column()
                 col.label(text="Shading:")
