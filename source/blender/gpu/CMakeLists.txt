@@ -74,6 +74,7 @@ set(SRC
 	shaders/gpu_shader_basic_frag.glsl
 	shaders/gpu_shader_basic_vert.glsl
 	shaders/gpu_shader_vertex.glsl
+	shaders/gpu_shader_vertex_instancing.glsl
 	shaders/gpu_shader_vsm_store_frag.glsl
 	shaders/gpu_shader_vsm_store_vert.glsl
 	shaders/gpu_shader_fx_depth_resolve.glsl
@@ -107,6 +108,7 @@ data_to_c_simple(shaders/gpu_shader_basic_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_basic_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vertex.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vertex_world.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_vertex_instancing.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vsm_store_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_vsm_store_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_vert.glsl SRC)

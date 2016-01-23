@@ -189,6 +189,7 @@ public:
 	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void IndexPrimitives(class RAS_MeshSlot *ms);
+	virtual void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void IndexPrimitives_3DText(class RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat);
 	virtual void DrawDerivedMesh(class RAS_MeshSlot *ms);
 

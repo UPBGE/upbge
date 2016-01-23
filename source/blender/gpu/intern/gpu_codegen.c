@@ -58,6 +58,7 @@
 extern char datatoc_gpu_shader_material_glsl[];
 extern char datatoc_gpu_shader_vertex_glsl[];
 extern char datatoc_gpu_shader_vertex_world_glsl[];
+extern char datatoc_gpu_shader_vertex_instancing_glsl[];
 extern char datatoc_gpu_shader_geometry_glsl[];
 
 static char *glsl_material_library = NULL;
@@ -408,6 +409,22 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "unfparticlevel";
 	else if (builtin == GPU_PARTICLE_ANG_VELOCITY)
 		return "unfparticleangvel";
+	else if (builtin == GPU_INSTANCING_MATRIX)
+		return "varinstmat";
+	else if (builtin == GPU_INSTANCING_INVERSE_MATRIX)
+		return "varinstinvmat";
+	else if (builtin == GPU_INSTANCING_LOC_TO_VIEW_MATRIX)
+		return "varinstlocaltoviewmat";
+	else if (builtin == GPU_INSTANCING_INVERSE_LOC_TO_VIEW_MATRIX)
+		return "varinstinvlocaltoviewmat";
+	else if (builtin == GPU_INSTANCING_COLOR)
+		return "varinstcolor";
+	else if (builtin == GPU_INSTANCING_COLOR_ATTRIB)
+		return "ininstcolor";
+	else if (builtin == GPU_INSTANCING_MATRIX_ATTRIB)
+		return "ininstmatrix";
+	else if (builtin == GPU_INSTANCING_POSITION_ATTRIB)
+		return "ininstposition";
 	else
 		return "";
 }
@@ -766,6 +783,9 @@ static char *code_generate_vertex(ListBase *nodes, const GPUMatType type)
 	switch (type) {
 		case GPU_MATERIAL_TYPE_MESH:
 			vertcode = datatoc_gpu_shader_vertex_glsl;
+			break;
+		case GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE:
+			vertcode = datatoc_gpu_shader_vertex_instancing_glsl;
 			break;
 		case GPU_MATERIAL_TYPE_WORLD:
 			vertcode = datatoc_gpu_shader_vertex_world_glsl;

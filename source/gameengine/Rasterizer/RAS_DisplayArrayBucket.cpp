@@ -37,6 +37,9 @@
 #include "RAS_Deformer.h"
 #include "RAS_IRasterizer.h"
 #include "RAS_IStorage.h"
+#include "KX_PythonInit.h"
+#include "KX_KetsjiEngine.h"
+#include "glew-mx.h"
 
 #include <algorithm>
 
@@ -58,6 +61,7 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_D
 	m_storageInfo(NULL)
 {
 	m_bucket->AddDisplayArrayBucket(this);
+	glGenBuffersARB(1, &m_vbo);
 }
 
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
@@ -175,7 +179,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 	else if (m_bucket->IsZSort()) {
 		m_useDisplayList = false;
 	}
-	else if (material->UsesObjectColor()) {
+	else if (material->UsesObjectColor() || material->UseInstancing()) {
 		m_useDisplayList = false;
 	}
 	// No display array mean modifiers.
@@ -245,5 +249,83 @@ void RAS_DisplayArrayBucket::RenderMeshSlots(const MT_Transform& cameratrans, RA
 	}
 
 	rasty->UnbindPrimitives(this);
+}
+
+void RAS_DisplayArrayBucket::UpdateActiveMeshSlotsInstancingBuffer(RAS_IRasterizer *rasty, RAS_DisplayArrayBucket::InstancingObject *buffer)
+{
+	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
+	for (unsigned int i = 0, size = m_activeMeshSlots.size(); i < size; ++i) {
+		RAS_MeshSlot *ms = m_activeMeshSlots[i];
+		InstancingObject& data = buffer[i];
+		float mat[16];
+		rasty->SetClientObject(ms->m_clientObj);
+		rasty->GetTransform(ms->m_OpenGLMatrix, material->GetDrawingMode(), mat);
+		data.matrix[0] = mat[0];
+		data.matrix[1] = mat[4];
+		data.matrix[2] = mat[8];
+		data.matrix[3] = mat[1];
+		data.matrix[4] = mat[5];
+		data.matrix[5] = mat[9];
+		data.matrix[6] = mat[2];
+		data.matrix[7] = mat[6];
+		data.matrix[8] = mat[10];
+		data.position[0] = mat[12];
+		data.position[1] = mat[13];
+		data.position[2] = mat[14];
+
+		data.color[0] = ms->m_RGBAcolor[0] * 255.0f;
+		data.color[1] = ms->m_RGBAcolor[1] * 255.0f;
+		data.color[2] = ms->m_RGBAcolor[2] * 255.0f;
+		data.color[3] = ms->m_RGBAcolor[3] * 255.0f;
+	}
+}
+
+#define USE_BUFFER
+void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)
+{
+	if (m_activeMeshSlots.size() == 0) {
+		return;
+	}
+
+	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
+
+	// Update deformer and render settings.
+	UpdateActiveMeshSlots(rasty);
+
+// 	material->ActivateMeshSlot(m_activeMeshSlots[0], rasty);
+
+	double time = KX_GetActiveEngine()->GetRealTime();
+#ifdef USE_BUFFER
+	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(InstancingObject) * m_activeMeshSlots.size(), 0, GL_DYNAMIC_DRAW);
+	InstancingObject *buffer = (InstancingObject *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+#else
+	InstancingObject buffer[m_activeMeshSlots.size()];
+#endif
+
+	UpdateActiveMeshSlotsInstancingBuffer(rasty, buffer);
+	glUnmapBuffer(GL_ARRAY_BUFFER);
+// 	std::cout << "pack data take : " << KX_GetActiveEngine()->GetRealTime() - time << ", num instances : " << m_activeMeshSlots.size() << std::endl;
+	material->ActivateInstancing(
+#ifdef USE_BUFFER
+		(void *)((InstancingObject *)NULL)->matrix,
+		(void *)((InstancingObject *)NULL)->position,
+		(void *)((InstancingObject *)NULL)->color,
+#else
+		(void *)buffer->matrix,
+		(void *)buffer->position,
+		(void *)buffer->color,
+#endif
+		sizeof(InstancingObject));
+
+	time = KX_GetActiveEngine()->GetRealTime();
+#ifdef USE_BUFFER
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+#endif
+	rasty->BindPrimitives(this);
+	rasty->IndexPrimitivesInstancing(this);
+	material->DesactivateInstancing();
+	rasty->UnbindPrimitives(this);
+// 	std::cout << "draw take : " << KX_GetActiveEngine()->GetRealTime() - time << std::endl;
 }
 

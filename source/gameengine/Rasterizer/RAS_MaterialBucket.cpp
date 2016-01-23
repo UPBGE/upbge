@@ -204,9 +204,18 @@ void RAS_MaterialBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IR
 		it != end; ++it)
 	{
 		RAS_DisplayArrayBucket *displayArrayBucket = *it;
-		if (matactivated) {
+		if (!matactivated) {
+			displayArrayBucket->RemoveActiveMeshSlots();
+			continue;
+		}
+
+		if (m_material->UseInstancing()) {
+			displayArrayBucket->RenderMeshSlotsInstancing(cameratrans, rasty);
+		}
+		else {
 			displayArrayBucket->RenderMeshSlots(cameratrans, rasty);
 		}
+
 		displayArrayBucket->RemoveActiveMeshSlots();
 	}
 

@@ -121,6 +121,10 @@ struct GPUMaterial {
 	int partvel;
 	int partangvel;
 
+	int ininstposloc;
+	int ininstmatloc;
+	int ininstcolloc;
+
 	ListBase lamps;
 	bool bound;
 
@@ -263,6 +267,11 @@ static int GPU_material_construct_end(GPUMaterial *material, const char *passnam
 			material->partvel = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_VELOCITY));
 		if (material->builtins & GPU_PARTICLE_ANG_VELOCITY)
 			material->partangvel = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_ANG_VELOCITY));
+		if (material->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) {
+			material->ininstposloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
+			material->ininstmatloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
+			material->ininstcolloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_COLOR_ATTRIB));
+		}
 		return 1;
 	}
 
@@ -310,6 +319,64 @@ bool GPU_lamp_override_visible(GPULamp *lamp, SceneRenderLayer *srl, Material *m
 		return true;
 }
 
+void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
+{
+	// Matrix
+	if (material->ininstmatloc != -1) {
+		glEnableVertexAttribArrayARB(material->ininstmatloc);
+		glEnableVertexAttribArrayARB(material->ininstmatloc + 1);
+		glEnableVertexAttribArrayARB(material->ininstmatloc + 2);
+
+		glVertexAttribPointerARB(material->ininstmatloc, 3, GL_FLOAT, GL_FALSE, stride, matrixoffset);
+		glVertexAttribPointerARB(material->ininstmatloc + 1, 3, GL_FLOAT, GL_FALSE, stride, ((char *)matrixoffset) + 3 * sizeof(float));
+		glVertexAttribPointerARB(material->ininstmatloc + 2, 3, GL_FLOAT, GL_FALSE, stride, ((char *)matrixoffset) + 6 * sizeof(float));
+
+		glVertexAttribDivisorARB(material->ininstmatloc, 1);
+		glVertexAttribDivisorARB(material->ininstmatloc + 1, 1);
+		glVertexAttribDivisorARB(material->ininstmatloc + 2, 1);
+	}
+
+	// Position
+	if (material->ininstposloc != -1) {
+		glEnableVertexAttribArrayARB(material->ininstposloc);
+		glVertexAttribPointerARB(material->ininstposloc, 3, GL_FLOAT, GL_FALSE, stride, positionoffset);
+		glVertexAttribDivisorARB(material->ininstposloc, 1);
+	}
+
+	// Color
+	if (material->ininstcolloc != -1) {
+		glEnableVertexAttribArrayARB(material->ininstcolloc);
+		glVertexAttribPointerARB(material->ininstcolloc, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, coloroffset);
+		glVertexAttribDivisorARB(material->ininstcolloc, 1);
+	}
+}
+
+void GPU_material_unbind_instancing_attrib(GPUMaterial *material)
+{
+	// Matrix
+	if (material->ininstmatloc != -1) {
+		glDisableVertexAttribArrayARB(material->ininstmatloc);
+		glDisableVertexAttribArrayARB(material->ininstmatloc + 1);
+		glDisableVertexAttribArrayARB(material->ininstmatloc + 2);
+
+		glVertexAttribDivisorARB(material->ininstmatloc, 0);
+		glVertexAttribDivisorARB(material->ininstmatloc + 1, 0);
+		glVertexAttribDivisorARB(material->ininstmatloc + 2, 0);
+	}
+
+	// Position
+	if (material->ininstposloc != -1) {
+		glDisableVertexAttribArrayARB(material->ininstposloc);
+		glVertexAttribDivisorARB(material->ininstposloc, 0);
+	}
+
+	// Color
+	if (material->ininstcolloc != -1) {
+		glDisableVertexAttribArrayARB(material->ininstcolloc);
+		glVertexAttribDivisorARB(material->ininstcolloc, 0);
+	}
+}
+
 void GPU_material_bind(
         GPUMaterial *material, int oblay, int viewlay, double time, int mipmap,
         float viewmat[4][4], float viewinv[4][4], float camerafactors[4], bool scenelock)
@@ -322,10 +389,9 @@ void GPU_material_bind(
 			viewlay &= srl->lay;
 
 		/* handle layer lamps */
-		if (material->type == GPU_MATERIAL_TYPE_MESH) {
+		if (material->type == GPU_MATERIAL_TYPE_MESH || material->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) {
 			for (LinkData *nlink = material->lamps.first; nlink; nlink = nlink->next) {
 				GPULamp *lamp = nlink->data;
-				
 				if (!lamp->hide && (lamp->lay & viewlay) && (!(lamp->mode & LA_LAYER) || (lamp->lay & oblay)) &&
 				    GPU_lamp_override_visible(lamp, srl, material->ma))
 				{
@@ -467,7 +533,6 @@ GPUMatType GPU_Material_get_type(GPUMaterial *material)
 {
 	return material->type;
 }
-
 
 void GPU_material_vertex_attributes(GPUMaterial *material, GPUVertexAttribs *attribs)
 {
@@ -1169,7 +1234,7 @@ static void do_material_tex(GPUShadeInput *shi)
 	GPU_link(mat, "texco_norm", GPU_builtin(GPU_VIEW_NORMAL), &texco_norm);
 	GPU_link(mat, "texco_orco", GPU_attribute(CD_ORCO, ""), &texco_orco);
 	GPU_link(mat, "texco_object", GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
-		GPU_builtin(GPU_INVERSE_OBJECT_MATRIX),
+		GPU_builtin((mat->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) ? GPU_INSTANCING_INVERSE_MATRIX : GPU_INVERSE_OBJECT_MATRIX),
 		GPU_builtin(GPU_VIEW_POSITION), &texco_object);
 #if 0
 	GPU_link(mat, "texco_tangent", GPU_attribute(CD_TANGENT, ""), &texco_tangent);
@@ -1476,8 +1541,8 @@ static void do_material_tex(GPUShadeInput *shi)
 								         surf_pos, vNorg,
 								         GPU_builtin(GPU_VIEW_MATRIX),
 								         GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
-								         GPU_builtin(GPU_OBJECT_MATRIX),
-								         GPU_builtin(GPU_INVERSE_OBJECT_MATRIX),
+								         GPU_builtin((mat->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) ? GPU_INSTANCING_MATRIX : GPU_OBJECT_MATRIX),
+								         GPU_builtin((mat->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) ? GPU_INSTANCING_INVERSE_MATRIX : GPU_INVERSE_OBJECT_MATRIX),
 								         fPrevMagnitude, vNacc,
 								         &fPrevMagnitude, &vNacc,
 								         &vR1, &vR2, &fDet);
@@ -1766,8 +1831,10 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 	GPU_link(mat, "mtex_alpha_to_col", shr->combined, shr->alpha, &shr->combined);
 
-	if (ma->shade_flag & MA_OBCOLOR)
-		GPU_link(mat, "shade_obcolor", shr->combined, GPU_builtin(GPU_OBCOLOR), &shr->combined);
+	if (ma->shade_flag & MA_OBCOLOR) {
+		GPU_link(mat, "shade_obcolor", shr->combined, 
+			GPU_builtin((mat->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) ? GPU_INSTANCING_COLOR : GPU_OBCOLOR), &shr->combined);
+	}
 
 	if (!(ma->mode & MA_NOMIST)) {
 		GPU_link(mat, "shade_mist_factor", GPU_builtin(GPU_VIEW_POSITION),
@@ -1791,7 +1858,8 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 	if (ma->shade_flag & MA_OBCOLOR) {
 		mat->obcolalpha = 1;
-		GPU_link(mat, "shade_alpha_obcolor", shr->combined, GPU_builtin(GPU_OBCOLOR), &shr->combined);
+		GPU_link(mat, "shade_alpha_obcolor", shr->combined, 
+			GPU_builtin((mat->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) ? GPU_INSTANCING_COLOR : GPU_OBCOLOR), &shr->combined);
 	}
 }
 
@@ -2172,6 +2240,62 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_open
 	return mat;
 }
 
+GPUMaterial *GPU_material_instancing_from_blender(Scene *scene, Material *ma)
+{
+	GPUMaterial *mat;
+	GPUNodeLink *outlink;
+	LinkData *link;
+
+	for (link = ma->gpumaterialinstancing.first; link; link = link->next)
+		if (((GPUMaterial*)link->data)->scene == scene)
+			return link->data;
+
+	/* allocate material */
+	mat = GPU_material_construct_begin(ma);
+	mat->scene = scene;
+	mat->type = GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE;
+
+	/* render pipeline option */
+	if (ma->mode & MA_TRANSP)
+		GPU_material_enable_alpha(mat);
+
+	if (!(scene->gm.flag & GAME_GLSL_NO_NODES) && ma->nodetree && ma->use_nodes) {
+		/* create nodes */
+		if (BKE_scene_use_new_shading_nodes(scene))
+			ntreeGPUMaterialNodes(ma->nodetree, mat, NODE_NEW_SHADING);
+		else
+			ntreeGPUMaterialNodes(ma->nodetree, mat, NODE_OLD_SHADING);
+	}
+	else {
+		if (BKE_scene_use_new_shading_nodes(scene)) {
+			/* create simple diffuse material instead of nodes */
+			outlink = gpu_material_diffuse_bsdf(mat, ma);
+		}
+		else {
+			/* create blender material */
+			outlink = GPU_blender_material(mat, ma);
+		}
+
+		GPU_material_output_link(mat, outlink);
+	}
+
+	if (GPU_material_do_color_management(mat))
+		if (mat->outlink)
+			GPU_link(mat, "linearrgb_to_srgb", mat->outlink, &mat->outlink);
+
+	GPU_material_construct_end(mat, ma->id.name);
+
+	/* note that even if building the shader fails in some way, we still keep
+	 * it to avoid trying to compile again and again, and simple do not use
+	 * the actual shader on drawing */
+
+	link = MEM_callocN(sizeof(LinkData), "GPUMaterialLinkInstancing");
+	link->data = mat;
+	BLI_addtail(&ma->gpumaterialinstancing, link);
+
+	return mat;
+}
+
 void GPU_materials_free(void)
 {
 	Object *ob;
@@ -2179,13 +2303,16 @@ void GPU_materials_free(void)
 	World *wo;
 	extern Material defmaterial;
 
-	for (ma = G.main->mat.first; ma; ma = ma->id.next)
+	for (ma = G.main->mat.first; ma; ma = ma->id.next) {
 		GPU_material_free(&ma->gpumaterial);
+		GPU_material_free(&ma->gpumaterialinstancing);
+	}
 
 	for (wo = G.main->world.first; wo; wo = wo->id.next)
 		GPU_material_free(&wo->gpumaterial);
 	
 	GPU_material_free(&defmaterial.gpumaterial);
+	GPU_material_free(&defmaterial.gpumaterialinstancing);
 
 	for (ob = G.main->object.first; ob; ob = ob->id.next)
 		GPU_lamp_free(ob);
@@ -2474,6 +2601,8 @@ void GPU_lamp_free(Object *ob)
 
 			if (ma->gpumaterial.first)
 				GPU_material_free(&ma->gpumaterial);
+			if (ma->gpumaterialinstancing.first)
+				GPU_material_free(&ma->gpumaterialinstancing);
 		}
 
 		gpu_lamp_shadow_free(lamp);

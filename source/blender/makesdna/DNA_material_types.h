@@ -200,6 +200,7 @@ typedef struct Material {
 	struct TexPaintSlot *texpaintslot; /* cached slot for painting. Make sure to recalculate before use
 	                                    * with refresh_texpaint_image_cache */
 	ListBase gpumaterial;		/* runtime */
+	ListBase gpumaterialinstancing;		/* runtime */
 } Material;
 
 
@@ -323,6 +324,7 @@ typedef struct Material {
 #define MA_OBCOLOR			2
 #define MA_APPROX_OCCLUSION	4
 #define MA_GROUP_LOCAL      8
+#define MA_INSTANCE			16
 
 /* diff_shader */
 #define MA_DIFF_LAMBERT		0

@@ -244,6 +244,12 @@ public:
 	virtual void IndexPrimitives(class RAS_MeshSlot *ms) = 0;
 
 	/**
+	 * Renders all primitives from mesh slots contained in this display array
+	 * bucket with the geometry instancing way.
+	 */
+	virtual void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket) = 0;
+
+	/**
 	 * IndexPrimitives_3DText will render text into the polygons.
 	 */
 	virtual void IndexPrimitives_3DText(class RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat) = 0;

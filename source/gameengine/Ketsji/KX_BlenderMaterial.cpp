@@ -443,6 +443,28 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 	}
 }
 
+bool KX_BlenderMaterial::UseInstancing() const
+{
+	if (m_blenderShader) {
+		return m_blenderShader->UseInstancing();
+	}
+	return false;
+}
+
+void KX_BlenderMaterial::ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
+{
+	if (m_blenderShader) {
+		m_blenderShader->ActivateInstancing(matrixoffset, positionoffset, coloroffset, stride);
+	}
+}
+
+void KX_BlenderMaterial::DesactivateInstancing()
+{
+	if (m_blenderShader) {
+		m_blenderShader->DesactivateInstancing();
+	}
+}
+
 bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 {
 	if (!RAS_IPolyMaterial::UsesLighting(rasty))

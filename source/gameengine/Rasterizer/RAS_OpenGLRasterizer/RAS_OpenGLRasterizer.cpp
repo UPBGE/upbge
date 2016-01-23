@@ -788,6 +788,12 @@ void RAS_OpenGLRasterizer::IndexPrimitives(RAS_MeshSlot *ms)
 		m_storage->IndexPrimitives(ms);
 }
 
+void RAS_OpenGLRasterizer::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket)
+{
+	m_storage->IndexPrimitivesInstancing(arrayBucket);
+}
+
+
 // Code for hooking into Blender's mesh drawing for derived meshes.
 // If/when we use more of Blender's drawing code, we may be able to
 // clean this up

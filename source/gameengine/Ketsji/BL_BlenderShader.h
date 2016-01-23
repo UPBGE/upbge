@@ -66,7 +66,7 @@ public:
 	BL_BlenderShader(KX_Scene *scene, Material *ma, BL_Material *blmat, int lightlayer);
 	virtual ~BL_BlenderShader();
 
-	bool Ok()
+	bool Ok() const
 	{
 		return (m_GPUMat != NULL);
 	}
@@ -75,6 +75,14 @@ public:
 	int GetAttribNum();
 	void SetAttribs(RAS_IRasterizer *ras);
 	void Update(RAS_MeshSlot *ms, RAS_IRasterizer * rasty);
+
+	/**
+	 * retrun true if the shader uses a special vertex program for geometry instancing
+	 */
+	bool UseInstancing() const;
+	void ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
+	void DesactivateInstancing();
+
 	void ReloadMaterial();
 	int GetAlphaBlend();
 
