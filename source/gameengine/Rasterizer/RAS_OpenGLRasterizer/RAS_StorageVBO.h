@@ -44,6 +44,7 @@ public:
 	void Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer);
 	void Unbind(int attrib_num, int texco_num);
 	void Draw();
+	void DrawInstancing(unsigned int numinstance);
 
 	void UpdateData();
 	void UpdateIndices();
@@ -76,6 +77,7 @@ public:
 	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void IndexPrimitives(RAS_MeshSlot *ms);
+	virtual void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket);
 
 	virtual void SetDrawingMode(RAS_IRasterizer::DrawType drawingmode)
 	{

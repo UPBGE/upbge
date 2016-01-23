@@ -73,6 +73,7 @@ public:
 	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void IndexPrimitives(RAS_MeshSlot *ms);
+	virtual void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket);
 
 	virtual void SetDrawingMode(RAS_IRasterizer::DrawType drawingmode)
 	{

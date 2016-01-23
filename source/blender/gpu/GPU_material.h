@@ -98,6 +98,14 @@ typedef enum GPUBuiltin {
 	GPU_PARTICLE_ANG_VELOCITY = (1 << 12),
 	GPU_LOC_TO_VIEW_MATRIX =    (1 << 13),
 	GPU_INVERSE_LOC_TO_VIEW_MATRIX = (1 << 14),
+	GPU_INSTANCING_MATRIX                     = (1 << 15),
+	GPU_INSTANCING_INVERSE_MATRIX             = (1 << 16),
+	GPU_INSTANCING_LOC_TO_VIEW_MATRIX         = (1 << 17),
+	GPU_INSTANCING_INVERSE_LOC_TO_VIEW_MATRIX = (1 << 18),
+	GPU_INSTANCING_COLOR           = (1 << 19),
+	GPU_INSTANCING_COLOR_ATTRIB    = (1 << 20),
+	GPU_INSTANCING_MATRIX_ATTRIB   = (1 << 21),
+	GPU_INSTANCING_POSITION_ATTRIB = (1 << 22),
 } GPUBuiltin;
 
 typedef enum GPUOpenGLBuiltin {
@@ -215,6 +223,7 @@ GPUBlendMode GPU_material_alpha_blend(GPUMaterial *material, float obcol[4]);
 GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo);
 
 GPUMaterial *GPU_material_from_blender(struct Scene *scene, struct Material *ma, bool use_opensubdiv);
+GPUMaterial *GPU_material_instancing_from_blender(struct Scene *scene, struct Material *ma);
 GPUMaterial *GPU_material_matcap(struct Scene *scene, struct Material *ma, bool use_opensubdiv);
 void GPU_material_free(struct ListBase *gpumaterial);
 
@@ -344,6 +353,10 @@ struct DerivedMesh;
 void GPU_material_update_fvar_offset(GPUMaterial *gpu_material,
                                      struct DerivedMesh *dm);
 #endif
+
+/* Instancing material */
+void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
+void GPU_material_unbind_instancing_attrib(GPUMaterial *material);
 
 #ifdef __cplusplus
 }

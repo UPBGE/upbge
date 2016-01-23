@@ -127,9 +127,11 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
 
 	glVertexPointer(3, GL_FLOAT, stride, vertexarray->getXYZ());
 	glNormalPointer(GL_FLOAT, stride, vertexarray->getNormal());
+	glColorPointer(4, GL_UNSIGNED_BYTE, stride, vertexarray->getRGBA());
 
 	if (!wireframe) {
 		TexCoordPtr(vertexarray);
@@ -200,6 +202,15 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 	if (displayList) {
 		displayList->End(m_drawingmode, RAS_DisplayList::DRAW_LIST);
 	}
+}
+
+void RAS_StorageVA::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket)
+{
+	RAS_DisplayArray *array = arrayBucket->GetDisplayArray();
+	unsigned int *indexarray = array->m_index.data();
+
+	// here the actual drawing takes places
+	glDrawElementsInstanced(GL_TRIANGLES, array->m_index.size(), GL_UNSIGNED_INT, indexarray, arrayBucket->GetNumActiveMeshSlots());
 }
 
 RAS_DisplayList *RAS_StorageVA::GetDisplayList(RAS_DisplayArrayBucket *arrayBucket)

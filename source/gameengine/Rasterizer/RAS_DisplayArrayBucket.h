@@ -42,12 +42,14 @@ class RAS_DisplayArray;
 class RAS_MeshObject;
 class RAS_Deformer;
 class RAS_IStorageInfo;
+class RAS_InstancingBuffer;
 
 typedef std::vector<RAS_Deformer *> RAS_DeformerList;
 
 class RAS_DisplayArrayBucket
 {
 private:
+	unsigned int m_vbo;
 	/// The number of mesh slot using it.
 	unsigned int m_refcount;
 	/// The parent bucket.
@@ -73,6 +75,8 @@ private:
 	 * VBO and IBO ID for VBO storage, DL for VA storage.
 	 */
 	RAS_IStorageInfo *m_storageInfo;
+
+	RAS_InstancingBuffer *m_instancingBuffer;
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array, RAS_MeshObject *mesh);
@@ -117,8 +121,10 @@ public:
 	void SetStorageInfo(RAS_IStorageInfo *info);
 	void DestructStorageInfo();
 
-	/// Render all mesh slots fro solid render.
+	/// Render all mesh slots for solid render.
 	void RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);
+	/// Render all mesh slots with geometry instancing render.
+	void RenderMeshSlotsInstancing(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, bool alpha);
 };
 
 typedef std::vector<RAS_DisplayArrayBucket *> RAS_DisplayArrayBucketList;

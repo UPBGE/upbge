@@ -31,6 +31,7 @@
 
 #include "GPU_material.h"
 #include "GPU_shader.h"
+#include "GPU_extensions.h"
 
 #include "BL_BlenderShader.h"
 #include "BL_Material.h"
@@ -94,7 +95,11 @@ void BL_BlenderShader::ParseAttribs()
 
 void BL_BlenderShader::ReloadMaterial()
 {
-	m_GPUMat = (m_mat) ? GPU_material_from_blender(m_blenderScene, m_mat, false) : NULL;
+	m_GPUMat = (m_mat) ? 
+		(UseInstancing() ?
+		GPU_material_instancing_from_blender(m_blenderScene, m_mat) :
+		GPU_material_from_blender(m_blenderScene, m_mat, false)) :
+		NULL;
 }
 
 void BL_BlenderShader::SetProg(bool enable, double time, RAS_IRasterizer *rasty)
@@ -148,32 +153,30 @@ void BL_BlenderShader::SetAttribs(RAS_IRasterizer *ras)
 		return;
 
 	gpumat = m_GPUMat;
-	if (ras->UseMaterial(m_blMaterial->alphablend)) {
-		GPU_material_vertex_attributes(gpumat, &attribs);
-		attrib_num = GetAttribNum();
+	GPU_material_vertex_attributes(gpumat, &attribs);
+	attrib_num = GetAttribNum();
 
-		ras->SetTexCoordNum(0);
-		ras->SetAttribNum(attrib_num);
-		for (i = 0; i < attrib_num; i++)
-			ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, i);
+	ras->SetTexCoordNum(0);
+	ras->SetAttribNum(attrib_num);
+	for (i = 0; i < attrib_num; i++)
+		ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, i);
 
-		for (i = 0; i < attribs.totlayer; i++) {
-			if (attribs.layer[i].glindex > attrib_num)
-				continue;
+	for (i = 0; i < attribs.totlayer; i++) {
+		if (attribs.layer[i].glindex > attrib_num)
+			continue;
 
-			if (attribs.layer[i].type == CD_MTFACE)
-				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_UV, attribs.layer[i].glindex, m_uvLayers[i]);
-			else if (attribs.layer[i].type == CD_TANGENT)
-				ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, attribs.layer[i].glindex);
-			else if (attribs.layer[i].type == CD_ORCO)
-				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_ORCO, attribs.layer[i].glindex);
-			else if (attribs.layer[i].type == CD_NORMAL)
-				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_NORM, attribs.layer[i].glindex);
-			else if (attribs.layer[i].type == CD_MCOL)
-				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_VCOL, attribs.layer[i].glindex);
-			else
-				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, attribs.layer[i].glindex);
-		}
+		if (attribs.layer[i].type == CD_MTFACE)
+			ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_UV, attribs.layer[i].glindex, m_uvLayers[i]);
+		else if (attribs.layer[i].type == CD_TANGENT)
+			ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, attribs.layer[i].glindex);
+		else if (attribs.layer[i].type == CD_ORCO)
+			ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_ORCO, attribs.layer[i].glindex);
+		else if (attribs.layer[i].type == CD_NORMAL)
+			ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_NORM, attribs.layer[i].glindex);
+		else if (attribs.layer[i].type == CD_MCOL)
+			ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_VCOL, attribs.layer[i].glindex);
+		else
+			ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, attribs.layer[i].glindex);
 	}
 }
 
@@ -200,6 +203,25 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 	GPU_material_bind_uniforms(gpumat, obmat, viewmat, obcol, auto_bump_scale, NULL);
 
 	m_alphaBlend = GPU_material_alpha_blend(gpumat, obcol);
+}
+
+bool BL_BlenderShader::UseInstancing() const
+{
+	return (GPU_instanced_drawing_support() && (m_mat->shade_flag & MA_INSTANCING));
+}
+
+void BL_BlenderShader::ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
+{
+	if (Ok()) {
+		GPU_material_bind_instancing_attrib(m_GPUMat, matrixoffset, positionoffset, coloroffset, stride);
+	}
+}
+
+void BL_BlenderShader::DesactivateInstancing()
+{
+	if (Ok()) {
+		GPU_material_unbind_instancing_attrib(m_GPUMat);
+	}
 }
 
 int BL_BlenderShader::GetAlphaBlend()

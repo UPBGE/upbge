@@ -40,12 +40,15 @@
 #include "GPU_glew.h"
 #include "GPU_shader.h"
 #include "GPU_texture.h"
+#include "gpu_codegen.h"
 
 /* TODO(sergey): Find better default values for this constants. */
 #define MAX_DEFINE_LENGTH 1024
 #define MAX_EXT_DEFINE_LENGTH 1024
 
 /* Non-generated shaders */
+extern char datatoc_gpu_shader_basic_instancing_frag_glsl[];
+extern char datatoc_gpu_shader_basic_instancing_vert_glsl[];
 extern char datatoc_gpu_shader_smoke_vert_glsl[];
 extern char datatoc_gpu_shader_smoke_frag_glsl[];
 extern char datatoc_gpu_shader_vsm_store_vert_glsl[];
@@ -65,9 +68,11 @@ extern char datatoc_gpu_shader_fx_lib_glsl[];
 static struct GPUShadersGlobal {
 	struct {
 		GPUShader *vsm_store;
+		GPUShader *vsm_store_instancing;
 		GPUShader *sep_gaussian_blur;
 		GPUShader *smoke;
 		GPUShader *smoke_fire;
+		GPUShader *instancing;
 		/* cache for shader fx. Those can exist in combinations so store them here */
 		GPUShader *fx_shaders[MAX_FX_SHADERS * 2];
 	} shaders;
@@ -185,6 +190,7 @@ static void gpu_shader_standard_extensions(char defines[MAX_EXT_DEFINE_LENGTH], 
 
 static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH],
                                         bool use_opensubdiv,
+										bool use_instancing,
                                         bool use_new_shading)
 {
 	/* some useful defines to detect GPU type */
@@ -223,6 +229,10 @@ static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH],
 #else
 	UNUSED_VARS(use_opensubdiv);
 #endif
+
+	if (use_instancing) {
+		strcat(defines, "#define USE_INSTANCING\n");
+	}
 
 	if (use_new_shading) {
 		strcat(defines, "#define USE_NEW_SHADING\n");
@@ -271,6 +281,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	UNUSED_VARS(flags);
 	bool use_opensubdiv = false;
 #endif
+	bool use_instancing = (flags & GPU_SHADER_FLAGS_SPECIAL_INSTANCING) != 0;
 	GLint status;
 	GLchar log[5000];
 	GLsizei length = 0;
@@ -304,6 +315,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 
 	gpu_shader_standard_defines(standard_defines,
 	                            use_opensubdiv,
+								use_instancing,
 	                            (flags & GPU_SHADER_FLAGS_NEW_SHADING) != 0);
 	gpu_shader_standard_extensions(standard_extensions, geocode != NULL);
 
@@ -565,6 +577,58 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 	return index;
 }
 
+// Used only for VSM shader with geometry instancing support.
+void GPU_shader_bind_instancing_attrib(GPUShader *shader, void *matrixoffset, void *positionoffset, unsigned int stride)
+{
+	int posloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
+	int matloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
+
+	// Matrix
+	if (matloc != -1) {
+		glEnableVertexAttribArrayARB(matloc);
+		glEnableVertexAttribArrayARB(matloc + 1);
+		glEnableVertexAttribArrayARB(matloc + 2);
+
+		glVertexAttribPointerARB(matloc, 3, GL_FLOAT, GL_FALSE, stride, matrixoffset);
+		glVertexAttribPointerARB(matloc + 1, 3, GL_FLOAT, GL_FALSE, stride, ((char *)matrixoffset) + 3 * sizeof(float));
+		glVertexAttribPointerARB(matloc + 2, 3, GL_FLOAT, GL_FALSE, stride, ((char *)matrixoffset) + 6 * sizeof(float));
+
+		glVertexAttribDivisorARB(matloc, 1);
+		glVertexAttribDivisorARB(matloc + 1, 1);
+		glVertexAttribDivisorARB(matloc + 2, 1);
+	}
+
+	// Position
+	if (posloc != -1) {
+		glEnableVertexAttribArrayARB(posloc);
+		glVertexAttribPointerARB(posloc, 3, GL_FLOAT, GL_FALSE, stride, positionoffset);
+		glVertexAttribDivisorARB(posloc, 1);
+	}
+}
+
+void GPU_shader_unbind_instancing_attrib(GPUShader *shader)
+{
+	int posloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
+	int matloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
+
+	// Matrix
+	if (matloc != -1) {
+		glDisableVertexAttribArrayARB(matloc);
+		glDisableVertexAttribArrayARB(matloc + 1);
+		glDisableVertexAttribArrayARB(matloc + 2);
+
+		glVertexAttribDivisorARB(matloc, 0);
+		glVertexAttribDivisorARB(matloc + 1, 0);
+		glVertexAttribDivisorARB(matloc + 2, 0);
+	}
+
+	// Position
+	if (posloc != -1) {
+		glDisableVertexAttribArrayARB(posloc);
+		glVertexAttribDivisorARB(posloc, 0);
+	}
+}
+
 GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 {
 	GPUShader *retval = NULL;
@@ -576,6 +640,13 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 				        datatoc_gpu_shader_vsm_store_vert_glsl, datatoc_gpu_shader_vsm_store_frag_glsl,
 				        NULL, NULL, NULL, 0, 0, 0);
 			retval = GG.shaders.vsm_store;
+			break;
+		case GPU_SHADER_VSM_STORE_INSTANCING:
+			if (!GG.shaders.vsm_store_instancing)
+				GG.shaders.vsm_store_instancing = GPU_shader_create(
+					datatoc_gpu_shader_vsm_store_vert_glsl, datatoc_gpu_shader_vsm_store_frag_glsl,
+					NULL, NULL, "#define USE_INSTANCING;\n", 0, 0, 0);
+			retval = GG.shaders.vsm_store_instancing;
 			break;
 		case GPU_SHADER_SEP_GAUSSIAN_BLUR:
 			if (!GG.shaders.sep_gaussian_blur)
@@ -598,6 +669,13 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 				        datatoc_gpu_shader_smoke_vert_glsl, datatoc_gpu_shader_smoke_frag_glsl,
 				        NULL, NULL, "#define USE_FIRE;\n", 0, 0, 0);
 			retval = GG.shaders.smoke_fire;
+			break;
+		case GPU_SHADER_INSTANCING:
+			if (!GG.shaders.instancing)
+				GG.shaders.instancing = GPU_shader_create(
+					datatoc_gpu_shader_basic_instancing_vert_glsl, datatoc_gpu_shader_basic_instancing_frag_glsl,
+					NULL, NULL, NULL, 0, 0, 0);
+				retval = GG.shaders.instancing;
 			break;
 	}
 

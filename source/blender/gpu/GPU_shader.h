@@ -47,6 +47,7 @@ enum {
 	GPU_SHADER_FLAGS_NONE = 0,
 	GPU_SHADER_FLAGS_SPECIAL_OPENSUBDIV = (1 << 0),
 	GPU_SHADER_FLAGS_NEW_SHADING        = (1 << 1),
+	GPU_SHADER_FLAGS_SPECIAL_INSTANCING = (1 << 2),
 };
 
 GPUShader *GPU_shader_create(
@@ -81,12 +82,17 @@ void GPU_shader_geometry_stage_primitive_io(GPUShader *shader, int input, int ou
 
 int GPU_shader_get_attribute(GPUShader *shader, const char *name);
 
+void GPU_shader_bind_instancing_attrib(GPUShader *shader, void *matrixoffset, void *positionoffset, unsigned int stride);
+void GPU_shader_unbind_instancing_attrib(GPUShader *shader);
+
 /* Builtin/Non-generated shaders */
 typedef enum GPUBuiltinShader {
-	GPU_SHADER_VSM_STORE         = 0,
-	GPU_SHADER_SEP_GAUSSIAN_BLUR = 1,
-	GPU_SHADER_SMOKE             = 2,
-	GPU_SHADER_SMOKE_FIRE        = 3,
+	GPU_SHADER_VSM_STORE            = 0,
+	GPU_SHADER_VSM_STORE_INSTANCING = 1,
+	GPU_SHADER_SEP_GAUSSIAN_BLUR    = 2,
+	GPU_SHADER_SMOKE                = 3,
+	GPU_SHADER_SMOKE_FIRE           = 4,
+	GPU_SHADER_INSTANCING           = 5,
 } GPUBuiltinShader;
 
 GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader);

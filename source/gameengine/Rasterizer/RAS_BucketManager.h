@@ -43,18 +43,40 @@ class RAS_BucketManager
 {
 public:
 	typedef std::vector<class RAS_MaterialBucket*> BucketList;
-private:
-	enum {
+	struct sortedmeshslot
+	{
+		/// depth
+		MT_Scalar m_z;
+		/// mesh slot
+		RAS_MeshSlot *m_ms;
+		/// buck mesh slot came from
+		RAS_MaterialBucket *m_bucket;
+		void set(RAS_MeshSlot *ms, RAS_MaterialBucket *bucket, const MT_Vector3& pnorm);
+	};
+	struct backtofront
+	{
+		bool operator()(const sortedmeshslot &a, const sortedmeshslot &b);
+	};
+	struct fronttoback
+	{
+		bool operator()(const sortedmeshslot &a, const sortedmeshslot &b);
+	};
+
+protected:
+	enum BucketType {
 		SOLID_BUCKET = 0,
 		ALPHA_BUCKET,
+		SOLID_INSTANCING_BUCKET,
+		ALPHA_INSTANCING_BUCKET,
+		SOLID_SHADOW_BUCKET,
+		ALPHA_SHADOW_BUCKET,
+		SOLID_SHADOW_INSTANCING_BUCKET,
+		ALPHA_SHADOW_INSTANCING_BUCKET,
+		ALL_BUCKET,
 		NUM_BUCKET_TYPE,
-	} BucketType;
+	};
 
 	BucketList m_buckets[NUM_BUCKET_TYPE];
-
-	struct sortedmeshslot;
-	struct backtofront;
-	struct fronttoback;
 
 public:
 	RAS_BucketManager();
@@ -72,13 +94,9 @@ public:
 
 	/* for merging */
 	void MergeBucketManager(RAS_BucketManager *other, SCA_IScene *scene);
-	BucketList& GetSolidBuckets()
+	BucketList& GetBuckets()
 	{
-		return m_buckets[SOLID_BUCKET];
-	}
-	BucketList& GetAlphaBuckets()
-	{
-		return m_buckets[ALPHA_BUCKET];
+		return m_buckets[ALL_BUCKET];
 	}
 
 	/*void PrintStats(int verbose_level) {
@@ -90,13 +108,12 @@ public:
 
 
 private:
-	void OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, std::vector<sortedmeshslot>& slots, 
-					  bool alpha, RAS_IRasterizer *rasty);
+	unsigned int GetNumActiveMeshSlots(BucketType bucketType);
+	void OrderBuckets(const MT_Transform& cameratrans, RAS_BucketManager::BucketType bucketType,
+					  std::vector<sortedmeshslot>& slots, bool alpha, RAS_IRasterizer *rasty);
 
-	void RenderSolidBuckets(const MT_Transform& cameratrans,
-		RAS_IRasterizer* rasty);
-	void RenderAlphaBuckets(const MT_Transform& cameratrans,
-		RAS_IRasterizer* rasty);
+	void RenderBasicBuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, BucketType bucketType);
+	void RenderSortedBuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty, BucketType bucketType);
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

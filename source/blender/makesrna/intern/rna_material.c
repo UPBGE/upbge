@@ -1895,6 +1895,10 @@ void RNA_def_material(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Object Color", "Modulate the result with a per-object color");
 	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
+	prop = RNA_def_property(srna, "use_instancing", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "shade_flag", MA_INSTANCING);
+	RNA_def_property_ui_text(prop, "Geometry Instancing", "Use special vertex shader for instancing rendering in game engine");
+
 	prop = RNA_def_property(srna, "shadow_ray_bias", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "sbias");
 	RNA_def_property_range(prop, 0, 0.25);

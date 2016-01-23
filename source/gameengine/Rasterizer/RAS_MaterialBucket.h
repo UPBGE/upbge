@@ -52,6 +52,7 @@ public:
 	RAS_IPolyMaterial *GetPolyMaterial() const;
 	bool IsAlpha() const;
 	bool IsZSort() const;
+	bool UseInstancing() const;
 
 	// Rendering
 	bool ActivateMaterial(RAS_IRasterizer *rasty);

@@ -192,6 +192,11 @@ void VBO::Draw()
 	glDrawElements(m_mode, m_indices, GL_UNSIGNED_INT, 0);
 }
 
+void VBO::DrawInstancing(unsigned int numinstance)
+{
+	glDrawElementsInstanced(m_mode, m_indices, GL_UNSIGNED_INT, 0, numinstance);
+}
+
 RAS_StorageVBO::RAS_StorageVBO(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer) :
 	m_drawingmode(RAS_IRasterizer::RAS_TEXTURED),
 	m_texco_num(texco_num),
@@ -249,4 +254,16 @@ void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot *ms)
 	}
 
 	vbo->Draw();
+}
+
+void RAS_StorageVBO::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket)
+{
+	VBO *vbo = GetVBO(arrayBucket);
+
+	// Update the vbo if the mesh is modified or use a dynamic deformer.
+	if (arrayBucket->IsMeshModified()) {
+		vbo->UpdateData();
+	}
+
+	vbo->DrawInstancing(arrayBucket->GetNumActiveMeshSlots());
 }

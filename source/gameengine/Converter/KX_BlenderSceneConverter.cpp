@@ -1237,20 +1237,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		if (IS_TAGGED(me->GetMesh())) {
 			// Before deleting the mesh object, make sure the rasterizer is
 			// no longer referencing it.
-			buckets = meshit->first->GetBucketManager()->GetSolidBuckets();
-			for (bit = buckets.begin(); bit != buckets.end(); bit++) {
-				msit = (*bit)->msBegin();
-
-				while (msit != (*bit)->msEnd()) {
-					if ((*msit)->m_mesh == meshit->second)
-						(*bit)->RemoveMesh(*msit++);
-					else
-						msit++;
-				}
-			}
-
-			// And now the alpha buckets
-			buckets = meshit->first->GetBucketManager()->GetAlphaBuckets();
+			buckets = meshit->first->GetBucketManager()->GetBuckets();
 			for (bit = buckets.begin(); bit != buckets.end(); bit++) {
 				msit = (*bit)->msBegin();
 

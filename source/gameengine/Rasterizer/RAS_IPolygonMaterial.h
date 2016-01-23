@@ -118,6 +118,8 @@ public:
 
 	virtual void Activate(RAS_IRasterizer *rasty) = 0;
 	virtual void Desactivate(RAS_IRasterizer *rasty) = 0;
+	virtual void ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride) = 0;
+	virtual void DesactivateInstancing() = 0;
 	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty) = 0;
 
 	bool IsAlpha() const;
@@ -134,6 +136,8 @@ public:
 	virtual MTexPoly *GetMTexPoly() const = 0;
 	virtual unsigned int *GetMCol() const = 0;
 	virtual Scene *GetBlenderScene() const = 0;
+	virtual bool IsAlphaShadow() const = 0;
+	virtual bool UseInstancing() const = 0;
 	virtual void ReleaseMaterial() = 0;
 	virtual void GetMaterialRGBAColor(unsigned char *rgba) const;
 	virtual bool UsesLighting(RAS_IRasterizer *rasty) const;

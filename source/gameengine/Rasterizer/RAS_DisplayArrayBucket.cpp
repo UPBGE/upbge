@@ -37,6 +37,8 @@
 #include "RAS_Deformer.h"
 #include "RAS_IRasterizer.h"
 #include "RAS_IStorage.h"
+#include "RAS_InstancingBuffer.h"
+#include "RAS_BucketManager.h"
 
 #include <algorithm>
 
@@ -55,7 +57,8 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_D
 	m_mesh(mesh),
 	m_useDisplayList(false),
 	m_meshModified(false),
-	m_storageInfo(NULL)
+	m_storageInfo(NULL),
+	m_instancingBuffer(NULL)
 {
 	m_bucket->AddDisplayArrayBucket(this);
 }
@@ -64,6 +67,10 @@ RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
 {
 	m_bucket->RemoveDisplayArrayBucket(this);
 	DestructStorageInfo();
+
+	if (m_instancingBuffer) {
+		delete m_instancingBuffer;
+	}
 
 	if (m_displayArray) {
 		delete m_displayArray;
@@ -175,7 +182,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 	else if (m_bucket->IsZSort()) {
 		m_useDisplayList = false;
 	}
-	else if (material->UsesObjectColor()) {
+	else if (material->UsesObjectColor() || m_bucket->UseInstancing()) {
 		m_useDisplayList = false;
 	}
 	// No display array mean modifiers.
@@ -242,6 +249,84 @@ void RAS_DisplayArrayBucket::RenderMeshSlots(const MT_Transform& cameratrans, RA
 	for (RAS_MeshSlotList::iterator it = m_activeMeshSlots.begin(), end = m_activeMeshSlots.end(); it != end; ++it) {
 		RAS_MeshSlot *ms = *it;
 		m_bucket->RenderMeshSlot(cameratrans, rasty, ms);
+	}
+
+	rasty->UnbindPrimitives(this);
+}
+
+void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, bool alpha)
+{
+	unsigned int nummeshslots = m_activeMeshSlots.size(); 
+	if (nummeshslots == 0) {
+		return;
+	}
+
+	// Create the instancing buffer only if it needed.
+	if (!m_instancingBuffer) {
+		m_instancingBuffer = new RAS_InstancingBuffer();
+	}
+
+	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
+
+	// Update deformer and render settings.
+	UpdateActiveMeshSlots(rasty);
+
+	// Bind the instancing buffer to work on it.
+	m_instancingBuffer->Bind();
+
+	/* If the material use the transparency we must sort all mesh slots depending on the distance.
+	 * This code share the code used in RAS_BucketManager to do the sort.
+	 */
+	if (alpha) {
+		std::vector<RAS_BucketManager::sortedmeshslot> sortedMeshSlots(nummeshslots);
+
+		const MT_Vector3 pnorm(cameratrans.getBasis()[2]);
+		unsigned int i = 0;
+		for (RAS_MeshSlotList::iterator it = m_activeMeshSlots.begin(), end = m_activeMeshSlots.end(); it != end; ++it) {
+			sortedMeshSlots[i++].set(*it, m_bucket, pnorm);
+		}
+		std::sort(sortedMeshSlots.begin(), sortedMeshSlots.end(), RAS_BucketManager::backtofront());
+		std::vector<RAS_MeshSlot *> meshSlots(nummeshslots);
+		for (unsigned int i = 0; i < nummeshslots; ++i) {
+			meshSlots[i] = sortedMeshSlots[i].m_ms;
+		}
+
+		// Fill the buffer with the sorted mesh slots.
+		m_instancingBuffer->Update(rasty, material->GetDrawingMode(), meshSlots);
+	}
+	else {
+		// Fill the buffer with the original mesh slots.
+		m_instancingBuffer->Update(rasty, material->GetDrawingMode(), m_activeMeshSlots);
+	}
+
+	// Bind all vertex attributs for the used material and the given buffer offset.
+	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
+		material->ActivateInstancing(
+			rasty,
+			m_instancingBuffer->GetMatrixOffset(),
+			m_instancingBuffer->GetPositionOffset(),
+			m_instancingBuffer->GetColorOffset(),
+			m_instancingBuffer->GetStride());
+	}
+	else {
+		rasty->ActivateOverrideShaderInstancing(
+			m_instancingBuffer->GetMatrixOffset(),
+			m_instancingBuffer->GetPositionOffset(),
+			m_instancingBuffer->GetStride());
+	}
+
+	// Unbind the buffer to avoid conflict with the render after.
+	m_instancingBuffer->Unbind();
+
+	rasty->BindPrimitives(this);
+
+	rasty->IndexPrimitivesInstancing(this);
+	// Unbind vertex attributs.
+	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
+		material->DesactivateInstancing();
+	}
+	else {
+		rasty->DesactivateOverrideShaderInstancing();
 	}
 
 	rasty->UnbindPrimitives(this);
