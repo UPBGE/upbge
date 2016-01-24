@@ -821,17 +821,14 @@ void GPG_Application::EngineNextFrame()
 	// Update the state of the game engine
 	if (m_kxsystem && !m_exitRequested)
 	{
-		// Proceed to next frame
-		if (m_mainWindow)
-			m_mainWindow->activateDrawingContext();
-
 		// first check if we want to exit
 		m_exitRequested = m_ketsjiengine->GetExitCode();
 		
 		// kick the engine
 		bool renderFrame = m_ketsjiengine->NextFrame();
-		if (renderFrame && m_mainWindow)
-		{
+		if (renderFrame && m_mainWindow) {
+			// Proceed to next frame
+			m_mainWindow->activateDrawingContext();
 			// render the frame
 			m_ketsjiengine->Render();
 		}
