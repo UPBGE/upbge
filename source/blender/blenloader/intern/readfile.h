@@ -167,6 +167,7 @@ void blo_do_versions_pre250(struct FileData *fd, struct Library *lib, struct Mai
 void blo_do_versions_250(struct FileData *fd, struct Library *lib, struct Main *main);
 void blo_do_versions_260(struct FileData *fd, struct Library *lib, struct Main *main);
 void blo_do_versions_270(struct FileData *fd, struct Library *lib, struct Main *main);
+void blo_do_versions_upbge(struct FileData *fd, struct Library *lib, struct Main *main);
 
 #endif
 

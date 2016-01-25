@@ -47,6 +47,9 @@ extern "C" {
 #define BLENDER_MINVERSION      270
 #define BLENDER_MINSUBVERSION   6
 
+#define UPBGE_VERSION           0
+#define UPBGE_SUBVERSION        3
+
 /* used by packaging tools */
 /* can be left blank, otherwise a,b,c... etc with no quotes */
 #define BLENDER_VERSION_CHAR   
