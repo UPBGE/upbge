@@ -1660,18 +1660,17 @@ static void rna_def_material_specularity(StructRNA *srna)
 	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
 	/* CookTorrance BRDF */
-	prop = RNA_def_property(srna, "ct_roughness", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "ct_roughness");
-	RNA_def_property_ui_range(prop, 0.001f, 1.0f, 0.05f, 3);
+	prop = RNA_def_property(srna, "cooktorr_roughness", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "cooktorr_roughness");
+	RNA_def_property_ui_range(prop, 0.01f, 1.0f, 0.05f, 2);
 	RNA_def_property_ui_text(prop, "Roughness", "0 : smooth, 1: rough");
 	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
-	prop = RNA_def_property(srna, "ct_f0", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "ct_f0");
-	RNA_def_property_ui_range(prop, 0.0f, 4.0f, 0.05f, 3);
+	prop = RNA_def_property(srna, "cooktorr_metallic", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "cooktorr_metallic");
+	RNA_def_property_ui_range(prop, 0.0f, 4.0f, 0.05f, 2);
 	RNA_def_property_ui_text(prop, "Metallic", "The metallic term");
 	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
-	/***********************/
 
 	prop = RNA_def_property(srna, "specular_ior", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "refrac");

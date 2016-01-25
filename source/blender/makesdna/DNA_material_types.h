@@ -198,7 +198,7 @@ typedef struct Material {
 	short pad4[3];
 
 	/* Cook-Torrance BRDF */
-	float ct_roughness, ct_f0;
+	float cooktorr_roughness, cooktorr_metallic;
 	float pad5[2];
 
 	struct TexPaintSlot *texpaintslot; /* cached slot for painting. Make sure to recalculate before use
