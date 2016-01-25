@@ -667,7 +667,7 @@ static void add_to_diffuse(
         GPUNodeLink **r_diff)
 {
 	GPUNodeLink *fac, *tmp, *addcol;
-	
+
 	if (!(mat->scene->gm.flag & GAME_GLSL_NO_RAMPS) &&
 	    ma->ramp_col && (ma->mode & MA_RAMP_COL))
 	{
@@ -848,7 +848,14 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	GPU_link(mat, "shade_visifac", i, visifac, shi->refl, &i);
 	
 	GPU_link(mat, "set_rgb", GPU_dynamic_uniform(lamp->dyncol, GPU_DYNAMIC_LAMP_DYNCOL, lamp->ob), &lcol);
+
+	/* ambient */
+	GPU_link(mat, "shade_maddf", lcol, GPU_uniform(&ma->amb),
+			 GPU_dynamic_uniform(GPUWorld.ambcol, GPU_DYNAMIC_AMBIENT_COLOR, NULL),
+			 &lcol);
+
 	shade_light_textures(mat, lamp, &lcol);
+
 	GPU_link(mat, "shade_mul_value_v3",
 	         GPU_dynamic_uniform(&lamp->dynenergy, GPU_DYNAMIC_LAMP_DYNENERGY, lamp->ob), lcol, &lcol);
 
@@ -878,7 +885,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 				         GPU_dynamic_uniform((float *)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
 				         GPU_uniform(&lamp->bias), inp, &shadfac);
 			}
-			
+
 			if (lamp->mode & LA_ONLYSHADOW) {
 				GPUNodeLink *shadrgb;
 				GPU_link(mat, "shade_only_shadow", i, shadfac,
@@ -899,6 +906,10 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 				add_user_list(&lamp->materials, shi->gpumat->ma);
 				return;
 			}
+			/* ambient */
+			GPU_link(mat, "shade_add", shadfac,
+					 GPU_dynamic_uniform(GPUWorld.ambcol, GPU_DYNAMIC_AMBIENT_COLOR, NULL),
+					 &shadfac);
 		}
 	}
 	else if ((mat->scene->gm.flag & GAME_GLSL_NO_SHADOWS) && (lamp->mode & LA_ONLYSHADOW)) {
@@ -1024,6 +1035,7 @@ static void material_lights(GPUShadeInput *shi, GPUShadeResult *shr)
 	/* prevent only shadow lamps from producing negative colors.*/
 	GPU_link(shi->gpumat, "shade_clamp_positive", shr->spec, &shr->spec);
 	GPU_link(shi->gpumat, "shade_clamp_positive", shr->diff, &shr->diff);
+
 }
 
 static void texture_rgb_blend(
@@ -1708,11 +1720,11 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 			}
 
 			/* ambient color */
-			if (GPU_link_changed(shi->amb) || ma->amb != 0.0f) {
-				GPU_link(mat, "shade_maddf", shr->combined, GPU_uniform(&ma->amb),
-				         GPU_dynamic_uniform(GPUWorld.ambcol, GPU_DYNAMIC_AMBIENT_COLOR, NULL),
-				         &shr->combined);
-			}
+//			if (GPU_link_changed(shi->amb) || ma->amb != 0.0f) {
+//				GPU_link(mat, "shade_maddf", shr->combined, GPU_uniform(&ma->amb),
+//						 GPU_dynamic_uniform(GPUWorld.ambcol, GPU_DYNAMIC_AMBIENT_COLOR, NULL),
+//						 &shr->combined);
+//			}
 		}
 
 		if (ma->mode & MA_TRANSP && (ma->mode & (MA_ZTRANSP | MA_RAYTRANSP))) {
@@ -2377,7 +2389,6 @@ GPUNodeLink *GPU_lamp_get_data(
 	else {
 		GPU_link(mat, "set_rgb_one", r_shadow);
 	}
-
 	/* ensure shadow buffer and lamp textures will be updated */
 	add_user_list(&mat->lamps, lamp);
 	add_user_list(&lamp->materials, mat->ma);

@@ -1685,7 +1685,7 @@ void shade_tangent_v(vec3 lv, vec3 tang, out vec3 vn)
 
 void shade_inp(vec3 vn, vec3 lv, out float inp)
 {
-	inp = dot(vn, lv);
+	inp = clamp(dot(vn, lv), 0.0, 1.0);
 }
 
 void shade_is_no_diffuse(out float is)
@@ -2067,7 +2067,7 @@ void shade_madd_clamped(vec4 col, vec4 col1, vec4 col2, out vec4 outcol)
 
 void shade_maddf(vec4 col, float f, vec4 col1, out vec4 outcol)
 {
-	outcol = col + f*col1;
+	outcol = col + f * col1;
 }
 
 void shade_mul(vec4 col1, vec4 col2, out vec4 outcol)
