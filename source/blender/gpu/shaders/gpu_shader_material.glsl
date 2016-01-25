@@ -2682,7 +2682,12 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler
 			height = texture2D(ima, texuv * size.xy).a;
 		}
 	}
-	h = height;
+
+	vec2 pretexuv = texuv + delta;
+	float postheight  = height - h;
+	float preheight = texture2D(ima, pretexuv * size.xy).a - h - step;
+	float weight = postheight / (postheight - preheight);
+
 	float min;
 	float max;
 	if (discarduv == 1.0) {
@@ -2697,7 +2702,7 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler
 	if (texuv.x < min || texuv.x > max || texuv.y < min || texuv.y > max) {
 		discard;
 	}
-	ptexcoord = vec3(texuv * size.xy, 0.0);
+	ptexcoord = vec3(mix(texuv, pretexuv, weight) * size.xy, 0.0);
 }
 
 /* ********************** matcap style render ******************** */
