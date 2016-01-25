@@ -840,6 +840,11 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 		}
 	}
 
+	/* ambient */
+	GPU_link(mat, "shade_maddf", is, GPU_uniform(&ma->amb),
+			 GPU_dynamic_uniform(GPUWorld.ambcol, GPU_DYNAMIC_AMBIENT_COLOR, NULL),
+			 &is);
+
 	if (!(mat->scene->gm.flag & GAME_GLSL_NO_SHADERS))
 		if (ma->shade_flag & MA_CUBIC)
 			GPU_link(mat, "shade_cubic", is, &is);
@@ -850,9 +855,9 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	GPU_link(mat, "set_rgb", GPU_dynamic_uniform(lamp->dyncol, GPU_DYNAMIC_LAMP_DYNCOL, lamp->ob), &lcol);
 
 	/* ambient */
-	GPU_link(mat, "shade_maddf", lcol, GPU_uniform(&ma->amb),
+	GPU_link(mat, "shade_add", is,
 			 GPU_dynamic_uniform(GPUWorld.ambcol, GPU_DYNAMIC_AMBIENT_COLOR, NULL),
-			 &lcol);
+			 &is);
 
 	shade_light_textures(mat, lamp, &lcol);
 
