@@ -945,7 +945,9 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 				GPU_link(mat, "shade_phong_spec", vn, lv, view, shi->har, &specfac);
 			}
 			else if (ma->spec_shader == MA_SPEC_COOKTORR) {
-				GPU_link(mat, "shade_cooktorr_spec", vn, lv, view, shi->har, &specfac);
+				GPU_link(mat, "shade_cooktorr_spec", vn, lv, view,
+						 GPU_uniform(&ma->ct_roughness),
+						 GPU_uniform(&ma->ct_f0), &specfac);
 			}
 			else if (ma->spec_shader == MA_SPEC_BLINN) {
 				GPU_link(mat, "shade_blinn_spec", vn, lv, view,

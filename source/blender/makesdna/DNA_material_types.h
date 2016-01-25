@@ -197,6 +197,10 @@ typedef struct Material {
 	short tot_slots;
 	short pad4[3];
 
+	/* Cook-Torrance BRDF */
+	float ct_roughness, ct_f0;
+	float pad5[2];
+
 	struct TexPaintSlot *texpaintslot; /* cached slot for painting. Make sure to recalculate before use
 	                                    * with refresh_texpaint_image_cache */
 	ListBase gpumaterial;		/* runtime */

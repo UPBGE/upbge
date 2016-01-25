@@ -1904,22 +1904,47 @@ void shade_phong_spec(vec3 n, vec3 l, vec3 v, float hard, out float specfac)
 	specfac = pow(rslt, hard);
 }
 
-void shade_cooktorr_spec(vec3 n, vec3 l, vec3 v, float hard, out float specfac)
+/* CookTorrance BRDF */
+
+float G(float NdotH, float NdotV, float VdotH, float NdotL)
 {
-	vec3 h = normalize(v + l);
-	float nh = dot(n, h);
-
-	if(nh < 0.0) {
-		specfac = 0.0;
-	}
-	else {
-		float nv = max(dot(n, v), 0.0);
-		float i = pow(nh, hard);
-
-		i = i/(0.1+nv);
-		specfac = i;
-	}
+  float G1 = 2.0 * NdotH * NdotV / VdotH;
+  float G2 = 2.0 * NdotH * NdotL / VdotH;
+  return min( 1.0, min( G1, G2 ));
 }
+
+float R_F(float VdotH, float s) {
+  return (s + (1.0 - s) * pow(1.0 - VdotH, 5.0));
+}
+
+float Beckmann(float NdotH, float m){
+  float A = 1.0 / (pow(m, 2.0) + pow(NdotH,4.0) * 3.14159265);
+  float B = exp( - pow( tan(acos(NdotH)) , 2.0) / pow(m,2.0));
+  return A*B;
+}
+
+void shade_cooktorr_spec(vec3 n, vec3 le, vec3 v, float R, float f0, out float specfac)
+{
+	vec3  N = normalize( n );
+	vec3  V = normalize( v );
+	vec3  L = normalize( le + v );
+	vec3  H = normalize( v + le );
+
+	float spec = 0.0;
+	float  NdotH = max(0.0, dot( N, H ));
+	float  VdotH = max(0.0, dot( V, H ));
+	float  NdotV = max(0.0, dot( N, V ));
+	float  NdotL = max(0.0, dot( N, L ));
+
+	if (NdotL > 0.0 && NdotV > 0.0)
+	{
+		spec = (Beckmann(NdotH, R) * G(NdotH, NdotV, VdotH, NdotL) * R_F(VdotH, f0)) / ( NdotL * NdotV);
+	}
+
+	specfac = spec;
+}
+
+/*********************/
 
 void shade_blinn_spec(vec3 n, vec3 l, vec3 v, float refrac, float spec_power, out float specfac)
 {
