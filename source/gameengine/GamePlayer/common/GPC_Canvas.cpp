@@ -40,6 +40,9 @@
 #include "MEM_guardedalloc.h"
 
 #include <iostream>
+#ifdef DEBUG
+	#include <assert.h>
+#endif
 
 GPC_Canvas::GPC_Canvas(
 	int width,
