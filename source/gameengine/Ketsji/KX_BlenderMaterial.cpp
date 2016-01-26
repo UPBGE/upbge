@@ -779,14 +779,12 @@ void KX_BlenderMaterial_Mathutils_Callback_Init()
 PyMethodDef KX_BlenderMaterial::Methods[] =
 {
 	KX_PYMETHODTABLE(KX_BlenderMaterial, getShader),
-	KX_PYMETHODTABLE(KX_BlenderMaterial, getMaterialIndex),
 	KX_PYMETHODTABLE(KX_BlenderMaterial, setBlending),
 	{NULL, NULL} //Sentinel
 };
 
 PyAttributeDef KX_BlenderMaterial::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("shader", KX_BlenderMaterial, pyattr_get_shader),
-	KX_PYATTRIBUTE_RO_FUNCTION("material_index", KX_BlenderMaterial, pyattr_get_materialIndex),
 	KX_PYATTRIBUTE_RW_FUNCTION("blending", KX_BlenderMaterial, pyattr_get_blending, pyattr_set_blending),
 	KX_PYATTRIBUTE_RW_FUNCTION("alpha", KX_BlenderMaterial, pyattr_get_alpha, pyattr_set_alpha),
 	KX_PYATTRIBUTE_RW_FUNCTION("hardness", KX_BlenderMaterial, pyattr_get_hardness, pyattr_set_hardness),
@@ -825,13 +823,6 @@ PyObject *KX_BlenderMaterial::pyattr_get_shader(void *self_v, const KX_PYATTRIBU
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
 	return self->PygetShader(NULL, NULL);
-}
-
-PyObject *KX_BlenderMaterial::pyattr_get_materialIndex(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	ShowDeprecationWarning("material_index", "mesh.materials.index(material)");
-	return PyLong_FromLong(self->GetMaterialIndex());
 }
 
 PyObject *KX_BlenderMaterial::pyattr_get_blending(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -1073,12 +1064,6 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 	}
 	PyErr_SetString(PyExc_ValueError, "material.getShader(): KX_BlenderMaterial, GLSL Error");
 	return NULL;
-}
-
-KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getMaterialIndex, "getMaterialIndex()")
-{
-	ShowDeprecationWarning("getMaterialIndex()", "mesh.materials.index(material)");
-	return PyLong_FromLong(GetMaterialIndex());
 }
 
 static const unsigned int GL_array[11] = {

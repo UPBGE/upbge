@@ -165,11 +165,6 @@ const STR_String& RAS_IPolyMaterial::GetTextureName() const
 	return m_texturename;
 }
 
-int RAS_IPolyMaterial::GetMaterialIndex() const
-{
-	return m_materialindex;
-}
-
 unsigned int RAS_IPolyMaterial::GetFlag() const
 {
 	return m_flag;

@@ -76,13 +76,6 @@ base class --- :class:`PyObjectPlus`
 
       :type: (integer, integer)
 
-   .. attribute:: material_index
-
-      The material's index.
-      .. deprecated:: use `mesh.materials.index(material)`
-
-      :type: integer
-
    .. method:: getShader()
 
       Returns the material's shader.
@@ -167,12 +160,3 @@ base class --- :class:`PyObjectPlus`
          * :data:`~bgl.GL_SRC_ALPHA_SATURATE`
       
       :type dest: int
-
-   .. method:: getMaterialIndex()
-
-      Returns the material's index.
-      .. deprecated:: use `mesh.materials.index(material)`
-
-      :return: the material's index
-      :rtype: integer
-

@@ -129,7 +129,6 @@ public:
 	dword GetMaterialNameHash() const;
 	const STR_String& GetTextureName() const;
 	unsigned int GetFlag() const;
-	int GetMaterialIndex() const;
 
 	virtual Material *GetBlenderMaterial() const = 0;
 	virtual Image *GetBlenderImage() const = 0;
