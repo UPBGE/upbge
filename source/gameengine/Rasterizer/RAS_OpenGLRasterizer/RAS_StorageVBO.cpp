@@ -165,12 +165,18 @@ void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 	}
 }
 
-void VBO::Unbind(int attrib_num)
+void VBO::Unbind(int attrib_num, int texco_num)
 {
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	for (unsigned int unit = 0; unit < texco_num; ++unit) {
+		glClientActiveTextureARB(GL_TEXTURE0_ARB + unit);
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	}
+	glClientActiveTextureARB(GL_TEXTURE0_ARB);
 
 	if (GLEW_ARB_vertex_program) {
 		for (int i = 0; i < attrib_num; ++i)
@@ -229,7 +235,7 @@ void RAS_StorageVBO::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 void RAS_StorageVBO::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
 	VBO *vbo = GetVBO(arrayBucket);
-	vbo->Unbind(*m_attrib_num);
+	vbo->Unbind(*m_attrib_num, *m_texco_num);
 }
 
 void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot *ms)

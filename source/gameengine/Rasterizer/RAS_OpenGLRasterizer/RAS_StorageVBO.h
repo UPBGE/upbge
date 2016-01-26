@@ -42,7 +42,7 @@ public:
 	virtual ~VBO();
 
 	void Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer);
-	void Unbind(int attrib_num);
+	void Unbind(int attrib_num, int texco_num);
 	void Draw();
 
 	void UpdateData();
