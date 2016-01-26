@@ -173,6 +173,13 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 		RAS_MaterialBucket *bucket = sit->m_bucket;
 		RAS_DisplayArrayBucket *displayArrayBucket = sit->m_ms->m_displayArrayBucket;
 
+		/* Unbind display array here before unset material to use the proper
+		 * number of attributs in RAS_IStorage::Unbind since this variable is
+		 * global and mutated by all material during its activation.
+		 */
+		if (displayArrayBucket != lastDisplayArrayBucket) {
+			rasty->UnbindPrimitives(lastDisplayArrayBucket);
+		}
 		if (bucket != lastMaterialBucket) {
 			if (matactivated) {
 				lastMaterialBucket->DesactivateMaterial(rasty);
@@ -181,8 +188,10 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 			lastMaterialBucket = bucket;
 		}
 
+		/* Bind the new display array here after material activation to use
+		 * proper attributs numbers, same as display array unbind before.
+		 */
 		if (displayArrayBucket != lastDisplayArrayBucket) {
-			rasty->UnbindPrimitives(lastDisplayArrayBucket);
 			rasty->BindPrimitives(displayArrayBucket);
 			lastDisplayArrayBucket = displayArrayBucket;
 		}
