@@ -1691,8 +1691,15 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 				if (ot->flag & OPTYPE_UNDO)
 					wm->op_undo_depth--;
 
-				if (retval & (OPERATOR_CANCELLED | OPERATOR_FINISHED))
+				if (retval & (OPERATOR_CANCELLED | OPERATOR_FINISHED)) {
 					wm_operator_reports(C, op, retval, false);
+				}
+				else {
+					/* not very common, but modal operators may report before finishing */
+					if (!BLI_listbase_is_empty(&op->reports->list)) {
+						wm_add_reports(op->reports);
+					}
+				}
 
 				/* important to run 'wm_operator_finished' before NULLing the context members */
 				if (retval & OPERATOR_FINISHED) {
@@ -1883,7 +1890,9 @@ static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHand
 					WM_operator_last_properties_store(handler->op);
 				}
 
-				WM_operator_free(handler->op);
+				if (retval & (OPERATOR_CANCELLED | OPERATOR_FINISHED)) {
+					WM_operator_free(handler->op);
+				}
 			}
 			else {
 				if (handler->op->type->cancel) {

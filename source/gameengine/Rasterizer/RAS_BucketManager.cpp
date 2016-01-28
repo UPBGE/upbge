@@ -367,7 +367,7 @@ void RAS_BucketManager::RemoveMaterial(RAS_IPolyMaterial * mat)
 
 void RAS_BucketManager::MergeBucketManager(RAS_BucketManager *other, SCA_IScene *scene)
 {
-	/* concatinate lists */
+	/* concatenate lists */
 	// printf("BEFORE %d %d\n", GetSolidBuckets().size(), GetAlphaBuckets().size());
 
 	GetSolidBuckets().insert( GetSolidBuckets().end(), other->GetSolidBuckets().begin(), other->GetSolidBuckets().end() );

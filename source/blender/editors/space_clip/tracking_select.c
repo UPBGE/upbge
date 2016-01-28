@@ -53,7 +53,8 @@
 
 #include "UI_view2d.h"
 
-#include "clip_intern.h"    // own include
+#include "tracking_ops_intern.h"  /* own include */
+#include "clip_intern.h"  /* own include */
 
 static float dist_to_crns(float co[2], float pos[2], float crns[4][2]);
 
@@ -244,22 +245,22 @@ static MovieTrackingPlaneTrack *find_nearest_plane_track(SpaceClip *sc, ListBase
 	return plane_track;
 }
 
-static void delect_all_tracks(ListBase *tracks_base)
+void ed_tracking_delect_all_tracks(ListBase *tracks_base)
 {
 	MovieTrackingTrack *track;
 	for (track = tracks_base->first;
-	     track;
+	     track != NULL;
 	     track = track->next)
 	{
 		BKE_tracking_track_flag_clear(track, TRACK_AREA_ALL, SELECT);
 	}
 }
 
-static void delect_all_plane_tracks(ListBase *plane_tracks_base)
+void ed_tracking_delect_all_plane_tracks(ListBase *plane_tracks_base)
 {
 	MovieTrackingPlaneTrack *plane_track;
 	for (plane_track = plane_tracks_base->first;
-	     plane_track;
+	     plane_track != NULL;
 	     plane_track = plane_track->next)
 	{
 		plane_track->flag &= ~SELECT;
@@ -292,7 +293,7 @@ static int mouse_select(bContext *C, float co[2], int extend)
 	}
 
 	if (!extend) {
-		delect_all_plane_tracks(plane_tracks_base);
+		ed_tracking_delect_all_plane_tracks(plane_tracks_base);
 	}
 
 	if (track) {
@@ -321,7 +322,7 @@ static int mouse_select(bContext *C, float co[2], int extend)
 	}
 	else if (plane_track) {
 		if (!extend) {
-			delect_all_tracks(tracksbase);
+			ed_tracking_delect_all_tracks(tracksbase);
 		}
 
 		if (PLANE_TRACK_VIEW_SELECTED(plane_track)) {

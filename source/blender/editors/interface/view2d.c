@@ -212,11 +212,6 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 
 	do_init = (v2d->flag & V2D_IS_INITIALISED) == 0;
 
-	/* initialize without scroll bars (interferes with zoom level see: T47047) */
-	if (do_init) {
-		v2d->scroll |= V2D_SCROLL_VERTICAL_FULLR | V2D_SCROLL_HORIZONTAL_FULLR;
-	}
-
 	/* see eView2D_CommonViewTypes in UI_view2d.h for available view presets */
 	switch (type) {
 		/* 'standard view' - optimum setup for 'standard' view behavior,
@@ -322,8 +317,12 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 			v2d->keeptot = V2D_KEEPTOT_BOUNDS;
 			
 			/* note, scroll is being flipped in ED_region_panels() drawing */
-			v2d->scroll |= V2D_SCROLL_HORIZONTAL_HIDE;
-			v2d->scroll |= V2D_SCROLL_VERTICAL_HIDE;
+			v2d->scroll |= (V2D_SCROLL_HORIZONTAL_HIDE | V2D_SCROLL_VERTICAL_HIDE);
+
+			/* initialize without scroll bars (interferes with zoom level see: T47047) */
+			if (do_init) {
+				v2d->scroll |= (V2D_SCROLL_VERTICAL_FULLR | V2D_SCROLL_HORIZONTAL_FULLR);
+			}
 
 			if (do_init) {
 				float panelzoom = (style) ? style->panelzoom : 1.0f;
@@ -1298,7 +1297,9 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 	/* check for grid first, as it may not exist */
 	if (grid == NULL)
 		return;
-	
+
+	glBegin(GL_LINES);
+
 	/* vertical lines */
 	if (flag & V2D_VERTICAL_LINES) {
 		/* initialize initial settings */
@@ -1311,10 +1312,8 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		UI_ThemeColor(TH_GRID);
 		
 		for (a = 0; a < step; a++) {
-			glBegin(GL_LINE_STRIP);
 			glVertex2fv(vec1);
 			glVertex2fv(vec2);
-			glEnd();
 			
 			vec2[0] = vec1[0] += grid->dx;
 		}
@@ -1325,10 +1324,8 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		
 		step++;
 		for (a = 0; a <= step; a++) {
-			glBegin(GL_LINE_STRIP);
 			glVertex2fv(vec1);
 			glVertex2fv(vec2);
-			glEnd();
 			
 			vec2[0] = vec1[0] -= grid->dx;
 		}
@@ -1345,10 +1342,8 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		
 		UI_ThemeColor(TH_GRID);
 		for (a = 0; a <= step; a++) {
-			glBegin(GL_LINE_STRIP);
 			glVertex2fv(vec1);
 			glVertex2fv(vec2);
-			glEnd();
 			
 			vec2[1] = vec1[1] += grid->dy;
 		}
@@ -1360,10 +1355,8 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		if (flag & V2D_HORIZONTAL_FINELINES) {
 			UI_ThemeColorShade(TH_GRID, 16);
 			for (a = 0; a < step; a++) {
-				glBegin(GL_LINE_STRIP);
 				glVertex2fv(vec1);
 				glVertex2fv(vec2);
-				glEnd();
 				
 				vec2[1] = vec1[1] -= grid->dy;
 			}
@@ -1379,10 +1372,8 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		vec2[0] = v2d->cur.xmax;
 		vec1[1] = vec2[1] = 0.0f;
 		
-		glBegin(GL_LINE_STRIP);
 		glVertex2fv(vec1);
 		glVertex2fv(vec2);
-		glEnd();
 	}
 	
 	/* vertical axis */
@@ -1391,11 +1382,11 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		vec2[1] = v2d->cur.ymax;
 		vec1[0] = vec2[0] = 0.0f;
 		
-		glBegin(GL_LINE_STRIP);
 		glVertex2fv(vec1);
 		glVertex2fv(vec2);
-		glEnd();
 	}
+
+	glEnd();
 }
 
 /* Draw a constant grid in given 2d-region */
@@ -1435,7 +1426,8 @@ void UI_view2d_multi_grid_draw(View2D *v2d, int colorid, float step, int level_s
 	int offset = -10;
 	float lstep = step;
 	int level;
-	
+
+	glLineWidth(1.0f);
 	for (level = 0; level < totlevels; ++level) {
 		int i;
 		float start;

@@ -158,7 +158,6 @@ option_defaults_init(
 	_init_IMAGE_REDCODE
 	_init_INPUT_NDOF
 	_init_JACK
-	_init_LIBMV_SCHUR_SPECIALIZATION
 	_init_OPENCOLLADA
 	_init_OPENCOLORIO
 	_init_SDL
@@ -185,7 +184,6 @@ if (UNIX AND NOT APPLE)
 elseif(WIN32)
 	set(_init_JACK                           OFF)
 elseif(APPLE)
-	set(_init_INPUT_NDOF                     OFF)
 	set(_init_JACK                           OFF)
 	set(_init_OPENSUBDIV                     OFF)
 endif()
@@ -241,6 +239,9 @@ mark_as_advanced(WITH_COMPOSITOR_WERROR)
 option(WITH_OPENSUBDIV    "Enable OpenSubdiv for surface subdivision" _init_OPENSUBDIV)
 option(WITH_SUBSURF_WERROR  "Treat warnings as errors in subsurf code" OFF)
 mark_as_advanced(WITH_COMPOSITOR_WERROR)
+
+option(WITH_OPENVDB       "Enable features relying on OpenVDB" OFF)
+option(WITH_OPENVDB_BLOSC "Enable blosc compression for OpenVDB, only enable if OpenVDB was built with blosc support" OFF)
 
 # GHOST Windowing Library Options
 option(WITH_GHOST_DEBUG   "Enable debugging output for the GHOST library" OFF)
@@ -348,7 +349,7 @@ endif()
 
 # Camera/motion tracking
 option(WITH_LIBMV         "Enable Libmv structure from motion library" ON)
-option(WITH_LIBMV_SCHUR_SPECIALIZATIONS "Enable fixed-size schur specializations." ${_init_LIBMV_SCHUR_SPECIALIZATION})
+option(WITH_LIBMV_SCHUR_SPECIALIZATIONS "Enable fixed-size schur specializations." OFF)
 option(WITH_LIBMV_WERROR  "Treat warnings as errors in Libmv (and Blender's motion tracking) code")
 mark_as_advanced(WITH_LIBMV_SCHUR_SPECIALIZATIONS)
 mark_as_advanced(WITH_LIBMV_WERROR)
@@ -389,7 +390,7 @@ option(WITH_CYCLES_STANDALONE		"Build Cycles standalone application" OFF)
 option(WITH_CYCLES_STANDALONE_GUI	"Build Cycles standalone with GUI" OFF)
 option(WITH_CYCLES_OSL				"Build Cycles with OSL support" ${_init_CYCLES_OSL})
 option(WITH_CYCLES_CUDA_BINARIES	"Build Cycles CUDA binaries" OFF)
-set(CYCLES_CUDA_BINARIES_ARCH sm_20 sm_21 sm_30 sm_35 sm_50 sm_52 CACHE STRING "CUDA architectures to build binaries for")
+set(CYCLES_CUDA_BINARIES_ARCH sm_20 sm_21 sm_30 sm_35 sm_37 sm_50 sm_52 CACHE STRING "CUDA architectures to build binaries for")
 mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
 unset(PLATFORM_DEFAULT)
 option(WITH_CYCLES_LOGGING	"Build Cycles with logging support" ON)
@@ -677,10 +678,14 @@ if(NOT WITH_BOOST)
 	set_and_warn(WITH_CYCLES         OFF)
 	set_and_warn(WITH_AUDASPACE      OFF)
 	set_and_warn(WITH_INTERNATIONAL  OFF)
+	set_and_warn(WITH_OPENVDB        OFF)
+	set_and_warn(WITH_OPENCOLORIO    OFF)
+	set_and_warn(WITH_MOD_BOOLEAN    OFF)
 
 	set_and_warn(WITH_OPENAL         OFF)  # depends on AUDASPACE
 	set_and_warn(WITH_GAMEENGINE     OFF)  # depends on AUDASPACE
-elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_INTERNATIONAL)
+	set_and_warn(WITH_PLAYER         OFF)  # depends on GAMEENGINE
+elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_INTERNATIONAL OR WITH_OPENVDB OR WITH_OPENCOLORIO OR WITH_MOD_BOOLEAN)
 	# Keep enabled
 else()
 	# Enabled but we don't need it
@@ -1056,6 +1061,16 @@ if(UNIX AND NOT APPLE)
 		endif()
 	endif()
 
+	if(WITH_OPENVDB)
+		find_package_wrapper(OpenVDB)
+		find_package_wrapper(TBB)
+		if(NOT OPENVDB_FOUND OR NOT TBB_FOUND)
+			set(WITH_OPENVDB OFF)
+			set(WITH_OPENVDB_BLOSC OFF)
+			message(STATUS "OpenVDB not found, disabling it")
+		endif()
+	endif()
+
 	if(WITH_BOOST)
 		# uses in build instructions to override include and library variables
 		if(NOT BOOST_CUSTOM)
@@ -1075,6 +1090,9 @@ if(UNIX AND NOT APPLE)
 			endif()
 			if(WITH_CYCLES_NETWORK)
 				list(APPEND __boost_packages serialization)
+			endif()
+			if(WITH_OPENVDB)
+				list(APPEND __boost_packages iostreams)
 			endif()
 			find_package(Boost 1.48 COMPONENTS ${__boost_packages})
 			if(NOT Boost_FOUND)
@@ -1561,7 +1579,14 @@ elseif(WIN32)
 			set(OPENCOLORIO_LIBPATH ${LIBDIR}/opencolorio/lib)
 			set(OPENCOLORIO_DEFINITIONS)
 		endif()
-		
+
+		if(WITH_OPENVDB)
+			set(OPENVDB ${LIBDIR}/openvdb)
+			set(OPENVDB_INCLUDE_DIRS ${OPENVDB}/include)
+			set(OPENVDB_LIBRARIES openvdb ${TBB_LIBRARIES})
+			set(OPENVDB_LIBPATH ${LIBDIR}/openvdb/lib)
+			set(OPENVDB_DEFINITIONS)
+		endif()
 
 		if(WITH_MOD_CLOTH_ELTOPO)
 			set(LAPACK ${LIBDIR}/lapack)
@@ -1832,6 +1857,14 @@ elseif(WIN32)
 			set(SDL_INCLUDE_DIR ${SDL}/include)
 			set(SDL_LIBRARY SDL)
 			set(SDL_LIBPATH ${SDL}/lib)
+		endif()
+
+		if(WITH_OPENVDB)
+			set(OPENVDB ${LIBDIR}/openvdb)
+			set(OPENVDB_INCLUDE_DIRS ${OPENVDB}/include)
+			set(OPENVDB_LIBRARIES openvdb ${TBB_LIBRARIES})
+			set(OPENVDB_LIBPATH ${LIBDIR}/openvdb/lib)
+			set(OPENVDB_DEFINITIONS)
 		endif()
 
 		set(PLATFORM_LINKFLAGS "-Xlinker --stack=2097152")
@@ -2137,6 +2170,14 @@ elseif(APPLE)
 		set(OPENCOLORIO_INCLUDE_DIRS ${OPENCOLORIO}/include)
 		set(OPENCOLORIO_LIBRARIES OpenColorIO tinyxml yaml-cpp)
 		set(OPENCOLORIO_LIBPATH ${OPENCOLORIO}/lib)
+	endif()
+
+	if(WITH_OPENVDB)
+		set(OPENVDB ${LIBDIR}/openvdb)
+		set(OPENVDB_INCLUDE_DIRS ${OPENVDB}/include)
+		set(OPENVDB_LIBRARIES openvdb ${TBB_LIBRARIES})
+		set(OPENVDB_LIBPATH ${LIBDIR}/openvdb/lib)
+		set(OPENVDB_DEFINITIONS)
 	endif()
 
 	if(WITH_LLVM)
@@ -2981,6 +3022,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_CYCLES)
 	info_cfg_option(WITH_FREESTYLE)
 	info_cfg_option(WITH_OPENCOLORIO)
+	info_cfg_option(WITH_OPENVDB)
 
 	info_cfg_text("Compiler Options:")
 	info_cfg_option(WITH_BUILDINFO)

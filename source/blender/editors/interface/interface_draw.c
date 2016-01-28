@@ -514,30 +514,23 @@ static void histogram_draw_one(
         float r, float g, float b, float alpha,
         float x, float y, float w, float h, const float *data, int res, const bool is_line)
 {
+	glEnable(GL_LINE_SMOOTH);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glColor4f(r, g, b, alpha);
+
 	if (is_line) {
-		glLineWidth(1.5);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-		glColor4f(r, g, b, alpha);
-
 		/* curve outline */
+		glLineWidth(1.5);
 
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-		glEnable(GL_LINE_SMOOTH);
 		glBegin(GL_LINE_STRIP);
 		for (int i = 0; i < res; i++) {
 			float x2 = x + i * (w / (float)res);
 			glVertex2f(x2, y + (data[i] * h));
 		}
 		glEnd();
-		glDisable(GL_LINE_SMOOTH);
-
-		glLineWidth(1.0);
 	}
 	else {
 		/* under the curve */
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-		glColor4f(r, g, b, alpha);
-
 		glShadeModel(GL_FLAT);
 		glBegin(GL_TRIANGLE_STRIP);
 		glVertex2f(x, y);
@@ -553,15 +546,15 @@ static void histogram_draw_one(
 		glColor4f(0.f, 0.f, 0.f, 0.25f);
 
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glEnable(GL_LINE_SMOOTH);
 		glBegin(GL_LINE_STRIP);
 		for (int i = 0; i < res; i++) {
 			float x2 = x + i * (w / (float)res);
 			glVertex2f(x2, y + (data[i] * h));
 		}
 		glEnd();
-		glDisable(GL_LINE_SMOOTH);
 	}
+
+	glDisable(GL_LINE_SMOOTH);
 }
 
 #define HISTOGRAM_TOT_GRID_LINES 4
@@ -1636,7 +1629,7 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	glEnd();
 	
 	glColor4ub(0, 0, 0, 150);
-	
+	glLineWidth(1);
 	glEnable(GL_LINE_SMOOTH);
 	glBegin(GL_LINE_LOOP);
 	for (int a = 0; a < 16; a++)
@@ -1644,7 +1637,6 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	glEnd();
 	glDisable(GL_LINE_SMOOTH);
 	glDisable(GL_BLEND);
-	glLineWidth(1.0f);
 	
 	/* restore scissortest */
 	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);

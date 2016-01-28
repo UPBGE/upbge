@@ -103,7 +103,7 @@ double KX_KetsjiEngine::m_suspendedtime = 0.0;
 double KX_KetsjiEngine::m_suspendeddelta = 0.0;
 double KX_KetsjiEngine::m_average_framerate = 0.0;
 bool KX_KetsjiEngine::m_restrict_anim_fps = false;
-short KX_KetsjiEngine::m_exitkey = 130;  //ESC Key
+short KX_KetsjiEngine::m_exitkey = 130; // ESC Key
 
 /**
  * Constructor of the Ketsji Engine
@@ -278,9 +278,10 @@ void KX_KetsjiEngine::RenderDome()
 
 	KX_Scene *scene;
 
-	int n_renders = m_dome->GetNumberRenders();// usually 4 or 6
+	int n_renders = m_dome->GetNumberRenders(); // usually 4 or 6
 	for (int i = 0; i < n_renders; i++) {
 		m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER | RAS_ICanvas::DEPTH_BUFFER);
+		// for each scene, call the proceed functions
 		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
 			scene = (KX_Scene *)*sceit;
 			KX_SetActiveScene(scene);
@@ -293,7 +294,7 @@ void KX_KetsjiEngine::RenderDome()
 			if (i == 0) {
 				RenderShadowBuffers(scene);
 			}
-			// Avoid drawing the scene with the active camera twice when it's viewport is enabled
+			// Avoid drawing the scene with the active camera twice when its viewport is enabled
 			if (cam && !cam->GetViewport()) {
 				if (scene->IsClearingZBuffer())
 					m_rasterizer->ClearDepthBuffer();
@@ -302,7 +303,7 @@ void KX_KetsjiEngine::RenderDome()
 
 				// do the rendering
 				m_dome->RenderDomeFrame(scene, cam, i);
-				//render all the font objects for this scene
+				// render all the font objects for this scene
 				scene->RenderFonts();
 			}
 
@@ -319,7 +320,7 @@ void KX_KetsjiEngine::RenderDome()
 
 					// do the rendering
 					m_dome->RenderDomeFrame(scene, (*it), i);
-					//render all the font objects for this scene
+					// render all the font objects for this scene
 					scene->RenderFonts();
 				}
 
@@ -487,7 +488,7 @@ void KX_KetsjiEngine::EndFrame()
 
 	m_average_framerate = 1.0 / tottime;
 
-	// Go to next profiling measurement, time spend after this call is shown in the next frame.
+	// Go to next profiling measurement, time spent after this call is shown in the next frame.
 	m_logger->NextMeasurement(m_kxsystem->GetTimeInSeconds());
 
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
@@ -548,7 +549,7 @@ bool KX_KetsjiEngine::NextFrame()
 
 	double deltatime = m_clockTime - m_frameTime;
 	if (deltatime < 0.0) {
-		// We got here too quickly, which means there is nothing todo, just return and don't render.
+		// We got here too quickly, which means there is nothing to do, just return and don't render.
 		// Not sure if this is the best fix, but it seems to stop the jumping framerate issue (#33088)
 		return false;
 	}
@@ -590,7 +591,7 @@ bool KX_KetsjiEngine::NextFrame()
 			 * update. */
 			m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
 
-			m_sceneconverter->resetNoneDynamicObjectToIpo();//this is for none dynamic objects with ipo
+			m_sceneconverter->resetNoneDynamicObjectToIpo(); // this is for none dynamic objects with ipo
 
 			scene->UpdateObjectActivity();
 
@@ -681,7 +682,7 @@ bool KX_KetsjiEngine::NextFrame()
 		frames--;
 	}
 
-	// Start logging time spend outside main loop
+	// Start logging time spent outside main loop
 	m_logger->StartLog(tc_outside, m_kxsystem->GetTimeInSeconds(), true);
 
 	return doRender;
@@ -764,7 +765,7 @@ void KX_KetsjiEngine::Render()
 		// shadow buffers
 		RenderShadowBuffers(scene);
 
-		// Avoid drawing the scene with the active camera twice when it's viewport is enabled
+		// Avoid drawing the scene with the active camera twice when its viewport is enabled
 		if (cam && !cam->GetViewport()) {
 			if (scene->IsClearingZBuffer())
 				m_rasterizer->ClearDepthBuffer();
@@ -813,7 +814,7 @@ void KX_KetsjiEngine::Render()
 			if (scene->IsClearingZBuffer())
 				m_rasterizer->ClearDepthBuffer();
 
-			//pass the scene, for picking and raycasting (shadows)
+			// pass the scene, for picking and raycasting (shadows)
 			m_rasterizer->SetAuxilaryClientInfo(scene);
 
 			// do the rendering
@@ -856,7 +857,7 @@ void KX_KetsjiEngine::SetNameNextGame(const STR_String& nextgame)
 
 int KX_KetsjiEngine::GetExitCode()
 {
-	// if a gameactuator has set an exitcode or if there are no scenes left
+	// if a game actuator has set an exit code or if there are no scenes left
 	if (!m_exitcode) {
 		if (m_scenes->GetCount() == 0)
 			m_exitcode = KX_EXIT_REQUEST_NO_SCENES_LEFT;
@@ -914,9 +915,8 @@ void KX_KetsjiEngine::SetCameraOverrideZoom(float camzoom)
 
 void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect& area, RAS_Rect& viewport)
 {
-	// In this function we make sure the rasterizer settings are upto
-	// date. We compute the viewport so that logic
-	// using this information is upto date.
+	// In this function we make sure the rasterizer settings are up-to-date.
+	// We compute the viewport so that logic using this information is up-to-date.
 
 	// Note we postpone computation of the projection matrix
 	// so that we are using the latest camera position.
@@ -1069,7 +1069,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 	if (override_camera && m_overrideCamUseOrtho) {
 		m_rasterizer->SetProjectionMatrix(m_overrideCamProjMat);
 		if (!cam->hasValidProjectionMatrix()) {
-			// needed to get frustrum planes for culling
+			// needed to get frustum planes for culling
 			MT_Matrix4x4 projmat;
 			projmat.setValue(m_overrideCamProjMat.getPointer());
 			cam->SetProjectionMatrix(projmat);
@@ -1181,7 +1181,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 
 	scene->RenderBuckets(camtrans, m_rasterizer);
 
-	//render all the font objects for this scene
+	// render all the font objects for this scene
 	scene->RenderFonts();
 
 	if (scene->GetPhysicsEnvironment())
@@ -1237,7 +1237,7 @@ void KX_KetsjiEngine::StopEngine()
 }
 
 // Scene Management is able to switch between scenes
-// and have several scene's running in parallel
+// and have several scenes running in parallel
 void KX_KetsjiEngine::AddScene(KX_Scene *scene)
 {
 	m_scenes->Add(scene->AddRef());
@@ -1251,7 +1251,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 	SG_SetActiveStage(SG_STAGE_SCENE);
 
 	// if there is no activecamera, or the camera is being
-	// overridden we need to construct a temporarily camera
+	// overridden we need to construct a temporary camera
 	if (!scene->GetActiveCamera() || override_camera) {
 		KX_Camera *activecam = NULL;
 
@@ -1287,7 +1287,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 		scene->SetActiveCamera(activecam);
 		scene->GetObjectList()->Add(activecam->AddRef());
 		scene->GetRootParentList()->Add(activecam->AddRef());
-		//done with activecam
+		// done with activecam
 		activecam->Release();
 	}
 
@@ -1379,7 +1379,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	// Add the ymargin for titles below the other section of debug info
 	ycoord += title_y_top_margin;
 
-	/* Property display*/
+	/* Property display */
 	if (m_show_debug_properties) {
 
 		/* Title for debugging("Debug properties") */
@@ -1575,7 +1575,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 
 bool KX_KetsjiEngine::ReplaceScene(const STR_String& oldscene, const STR_String& newscene)
 {
-	// Don't allow replacement if the new scene doesn't exists.
+	// Don't allow replacement if the new scene doesn't exist.
 	// Allows smarter game design (used to have no check here).
 	// Note that it creates a small backward compatbility issue
 	// for a game that did a replace followed by a lib load with the
@@ -1658,7 +1658,7 @@ void KX_KetsjiEngine::SetAnimRecordMode(bool animation_record, int startFrame)
 {
 	m_animation_record = animation_record;
 	if (animation_record) {
-		//when recording physics keyframes, run at a variable (capped) frame rate (fixed time == full speed)
+		// when recording physics keyframes, run at a variable (capped) frame rate (fixed time == full speed)
 		m_bFixedTime = false;
 	}
 	m_currentFrame = startFrame;
@@ -1911,7 +1911,7 @@ void KX_KetsjiEngine::Resize()
 {
 	KX_SceneList::iterator sceneit;
 
-	/* extended mode needs to recalculate camera frustrums when */
+	/* extended mode needs to recalculate camera frusta when */
 	KX_Scene *firstscene = (KX_Scene *)m_scenes->GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 

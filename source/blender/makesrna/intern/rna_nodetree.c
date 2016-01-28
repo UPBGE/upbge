@@ -3063,7 +3063,7 @@ void rna_ShaderNodePointDensity_density_cache(bNode *self,
 	pd->color_source = point_density_color_source_from_shader(shader_point_density);
 
 	/* Single-threaded sampling of the voxel domain. */
-	RE_cache_point_density(scene,
+	RE_point_density_cache(scene,
 	                       pd,
 	                       settings == 1);
 }
@@ -3091,13 +3091,29 @@ void rna_ShaderNodePointDensity_density_calc(bNode *self,
 	}
 
 	/* Single-threaded sampling of the voxel domain. */
-	RE_sample_point_density(scene, pd,
+	RE_point_density_sample(scene, pd,
 	                        shader_point_density->resolution,
 	                        settings == 1,
 	                        *values);
 
 	/* We're done, time to clean up. */
 	BKE_texture_pointdensity_free_data(pd);
+}
+
+void rna_ShaderNodePointDensity_density_minmax(bNode *self,
+                                               Scene *scene,
+                                               int settings,
+                                               float r_min[3],
+                                               float r_max[3])
+{
+	NodeShaderTexPointDensity *shader_point_density = self->storage;
+	PointDensity *pd = &shader_point_density->pd;
+	if (scene == NULL) {
+		zero_v3(r_min);
+		zero_v3(r_max);
+		return;
+	}
+	RE_point_density_minmax(scene, pd, settings == 1, r_min, r_max);
 }
 
 #else
@@ -4053,6 +4069,19 @@ static void def_sh_tex_pointdensity(StructRNA *srna)
 	/* TODO, See how array size of 0 works, this shouldnt be used. */
 	prop = RNA_def_float_array(func, "rgba_values", 1, NULL, 0, 0, "", "RGBA Values", 0, 0);
 	RNA_def_property_flag(prop, PROP_DYNAMIC);
+	RNA_def_function_output(func, prop);
+
+	func = RNA_def_function(srna, "calc_point_density_minmax", "rna_ShaderNodePointDensity_density_minmax");
+	RNA_def_function_ui_description(func, "Calculate point density");
+	RNA_def_pointer(func, "scene", "Scene", "", "");
+	RNA_def_enum(func, "settings", calc_mode_items, 1, "", "Calculate density for rendering");
+	prop = RNA_def_property(func, "min", PROP_FLOAT, PROP_COORDS);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_flag(prop, PROP_THICK_WRAP);
+	RNA_def_function_output(func, prop);
+	prop = RNA_def_property(func, "max", PROP_FLOAT, PROP_COORDS);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_flag(prop, PROP_THICK_WRAP);
 	RNA_def_function_output(func, prop);
 }
 

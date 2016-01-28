@@ -565,8 +565,8 @@ void DM_update_tessface_data(DerivedMesh *dm)
 			}
 		}
 
-		/* NOTE: quad detection issue - forth vertidx vs forth loopidx:
-		 * Here, our tfaces' forth vertex index is never 0 for a quad. However, we know our forth loop index may be
+		/* NOTE: quad detection issue - fourth vertidx vs fourth loopidx:
+		 * Here, our tfaces' fourth vertex index is never 0 for a quad. However, we know our fourth loop index may be
 		 * 0 for quads (because our quads may have been rotated compared to their org poly, see tessellation code).
 		 * So we pass the MFace's, and BKE_mesh_loops_to_tessdata will use MFace->v4 index as quad test.
 		 */
@@ -630,8 +630,8 @@ void DM_generate_tangent_tessface_data(DerivedMesh *dm, bool generate)
 		}
 	}
 
-	/* NOTE: quad detection issue - forth vertidx vs forth loopidx:
-	 * Here, our tfaces' forth vertex index is never 0 for a quad. However, we know our forth loop index may be
+	/* NOTE: quad detection issue - fourth vertidx vs fourth loopidx:
+	 * Here, our tfaces' fourth vertex index is never 0 for a quad. However, we know our fourth loop index may be
 	 * 0 for quads (because our quads may have been rotated compared to their org poly, see tessellation code).
 	 * So we pass the MFace's, and BKE_mesh_loops_to_tessdata will use MFace->v4 index as quad test.
 	 */
@@ -799,7 +799,7 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask, bool
 
 	/* ok, this should now use new CD shapekey data,
 	 * which should be fed through the modifier
-	 * stack*/
+	 * stack */
 	if (tmp.totvert != me->totvert && !did_shapekeys && me->key) {
 		printf("%s: YEEK! this should be recoded! Shape key loss!: ID '%s'\n", __func__, tmp.id.name);
 		if (tmp.key)
@@ -1322,7 +1322,8 @@ enum {
 	CALC_WP_GROUP_USER_ALL      = (1 << 2),
 
 	CALC_WP_MULTIPAINT          = (1 << 3),
-	CALC_WP_AUTO_NORMALIZE      = (1 << 4)
+	CALC_WP_AUTO_NORMALIZE      = (1 << 4),
+	CALC_WP_MIRROR_X            = (1 << 5),
 };
 
 typedef struct DMWeightColorInfo {
@@ -1331,12 +1332,13 @@ typedef struct DMWeightColorInfo {
 } DMWeightColorInfo;
 
 
-static int dm_drawflag_calc(const ToolSettings *ts)
+static int dm_drawflag_calc(const ToolSettings *ts, const Mesh *me)
 {
-	return ((ts->multipaint ? CALC_WP_MULTIPAINT :
-	                          /* CALC_WP_GROUP_USER_ACTIVE or CALC_WP_GROUP_USER_ALL*/
-	                          (1 << ts->weightuser)) |
-	        (ts->auto_normalize ? CALC_WP_AUTO_NORMALIZE : 0));
+	return ((ts->multipaint ? CALC_WP_MULTIPAINT : 0) |
+	        /* CALC_WP_GROUP_USER_ACTIVE or CALC_WP_GROUP_USER_ALL */
+	        (1 << ts->weightuser) |
+	        (ts->auto_normalize ? CALC_WP_AUTO_NORMALIZE : 0) |
+	        ((me->editflag & ME_EDIT_MIRROR_X) ? CALC_WP_MIRROR_X : 0));
 }
 
 static void weightpaint_color(unsigned char r_col[4], DMWeightColorInfo *dm_wcinfo, const float input)
@@ -1373,29 +1375,12 @@ static void calc_weightpaint_vert_color(
 
 	if ((defbase_sel_tot > 1) && (draw_flag & CALC_WP_MULTIPAINT)) {
 		/* Multi-Paint feature */
-		bool was_a_nonzero = false;
-		unsigned int i;
-
-		const MDeformWeight *dw = dv->dw;
-		for (i = dv->totweight; i != 0; i--, dw++) {
-			/* in multipaint, get the average if auto normalize is inactive
-			 * get the sum if it is active */
-			if (dw->def_nr < defbase_tot) {
-				if (defbase_sel[dw->def_nr]) {
-					if (dw->weight) {
-						input += dw->weight;
-						was_a_nonzero = true;
-					}
-				}
-			}
-		}
+		input = BKE_defvert_multipaint_collective_weight(
+		        dv, defbase_tot, defbase_sel, defbase_sel_tot, (draw_flag & CALC_WP_AUTO_NORMALIZE) != 0);
 
 		/* make it black if the selected groups have no weight on a vertex */
-		if (was_a_nonzero == false) {
+		if (input == 0.0f) {
 			show_alert_color = true;
-		}
-		else if ((draw_flag & CALC_WP_AUTO_NORMALIZE) == false) {
-			input /= defbase_sel_tot; /* get the average */
 		}
 	}
 	else {
@@ -1459,6 +1444,10 @@ static void calc_weightpaint_vert_array(
 
 		if (draw_flag & CALC_WP_MULTIPAINT) {
 			defbase_sel = BKE_object_defgroup_selected_get(ob, defbase_tot, &defbase_sel_tot);
+
+			if (defbase_sel_tot > 1 && (draw_flag & CALC_WP_MIRROR_X)) {
+				BKE_object_defgroup_mirror_selection(ob, defbase_tot, defbase_sel, defbase_sel, &defbase_sel_tot);
+			}
 		}
 
 		for (i = numVerts; i != 0; i--, wc++, dv++) {
@@ -1472,7 +1461,8 @@ static void calc_weightpaint_vert_array(
 	else {
 		unsigned char col[4];
 		if ((ob->actdef == 0) && !BLI_listbase_is_empty(&ob->defbase)) {
-			ARRAY_SET_ITEMS(col, 0xff, 0, 0xff, 0xff);
+			/* color-code for missing data (full brightness isn't easy on the eye). */
+			ARRAY_SET_ITEMS(col, 0xa0, 0, 0xa0, 0xff);
 		}
 		else if (draw_flag & (CALC_WP_GROUP_USER_ACTIVE | CALC_WP_GROUP_USER_ALL)) {
 			copy_v3_v3_char((char *)col, dm_wcinfo->alert_color);
@@ -1555,8 +1545,8 @@ void DM_update_weight_mcol(
 		int l_index;
 		int j;
 
-		/* now add to loops, so the data can be passed through the modifier stack */
-		/* If no CD_PREVIEW_MLOOPCOL existed yet, we have to add a new one! */
+		/* now add to loops, so the data can be passed through the modifier stack
+		 * If no CD_PREVIEW_MLOOPCOL existed yet, we have to add a new one! */
 		if (!wtcol_l) {
 			wtcol_l = MEM_mallocN(sizeof(*wtcol_l) * dm_totloop, __func__);
 			CustomData_add_layer(&dm->loopData, CD_PREVIEW_MLOOPCOL, CD_ASSIGN, wtcol_l, dm_totloop);
@@ -1732,7 +1722,7 @@ static void mesh_calc_modifiers(
 	bool multires_applied = false;
 	const bool sculpt_mode = ob->mode & OB_MODE_SCULPT && ob->sculpt && !useRenderParams;
 	const bool sculpt_dyntopo = (sculpt_mode && ob->sculpt->bm)  && !useRenderParams;
-	const int draw_flag = dm_drawflag_calc(scene->toolsettings);
+	const int draw_flag = dm_drawflag_calc(scene->toolsettings, me);
 
 	/* Generic preview only in object mode! */
 	const bool do_mod_mcol = (ob->mode == OB_MODE_OBJECT);
@@ -2023,12 +2013,12 @@ static void mesh_calc_modifiers(
 			
 			/* set the DerivedMesh to only copy needed data */
 			mask = curr->mask;
-			/* needMapping check here fixes bug [#28112], otherwise its
-			 * possible that it wont be copied */
+			/* needMapping check here fixes bug [#28112], otherwise it's
+			 * possible that it won't be copied */
 			mask |= append_mask;
 			DM_set_only_copy(dm, mask | (need_mapping ? CD_MASK_ORIGINDEX : 0));
 			
-			/* add cloth rest shape key if need */
+			/* add cloth rest shape key if needed */
 			if (mask & CD_MASK_CLOTH_ORCO)
 				add_orco_dm(ob, NULL, dm, clothorcodm, CD_CLOTH_ORCO);
 
@@ -2273,7 +2263,7 @@ static void editbmesh_calc_modifiers(
 	int i, numVerts = 0, cageIndex = modifiers_getCageIndex(scene, ob, NULL, 1);
 	CDMaskLink *datamasks, *curr;
 	const int required_mode = eModifierMode_Realtime | eModifierMode_Editmode;
-	int draw_flag = dm_drawflag_calc(scene->toolsettings);
+	int draw_flag = dm_drawflag_calc(scene->toolsettings, ob->data);
 
 	// const bool do_mod_mcol = true; // (ob->mode == OB_MODE_OBJECT);
 #if 0 /* XXX Will re-enable this when we have global mod stack options. */
@@ -2987,6 +2977,12 @@ void mesh_get_mapped_verts_coords(DerivedMesh *dm, float (*r_cos)[3], const int 
 
 /* ******************* GLSL ******************** */
 
+/** \name Tangent Space Calculation
+ * \{ */
+
+/* Necessary complexity to handle looptri's as quads for correct tangents */
+#define USE_LOOPTRI_DETECT_QUADS
+
 typedef struct {
 	float (*precomputedFaceNormals)[3];
 	float (*precomputedLoopNormals)[3];
@@ -2999,83 +2995,212 @@ typedef struct {
 	float (*tangent)[4];    /* destination */
 	int numTessFaces;
 
+#ifdef USE_LOOPTRI_DETECT_QUADS
+	/* map from 'fake' face index to looptri,
+	 * quads will point to the first looptri of the quad */
+	const int    *face_as_quad_map;
+	int       num_face_as_quad_map;
+#endif
+
 } SGLSLMeshToTangent;
 
 /* interface */
 #include "mikktspace.h"
 
-static int GetNumFaces(const SMikkTSpaceContext *pContext)
+static int dm_ts_GetNumFaces(const SMikkTSpaceContext *pContext)
 {
-	SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
+	SGLSLMeshToTangent *pMesh = pContext->m_pUserData;
+
+#ifdef USE_LOOPTRI_DETECT_QUADS
+	return pMesh->num_face_as_quad_map;
+#else
 	return pMesh->numTessFaces;
+#endif
 }
 
-static int GetNumVertsOfFace(const SMikkTSpaceContext *pContext, const int face_num)
+static int dm_ts_GetNumVertsOfFace(const SMikkTSpaceContext *pContext, const int face_num)
 {
-	//SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
+#ifdef USE_LOOPTRI_DETECT_QUADS
+	SGLSLMeshToTangent *pMesh = pContext->m_pUserData;
+	if (pMesh->face_as_quad_map) {
+		const MLoopTri *lt = &pMesh->looptri[pMesh->face_as_quad_map[face_num]];
+		const MPoly *mp = &pMesh->mpoly[lt->poly];
+		if (mp->totloop == 4) {
+			return 4;
+		}
+	}
+	return 3;
+#else
 	UNUSED_VARS(pContext, face_num);
 	return 3;
+#endif
 }
 
-static void GetPosition(const SMikkTSpaceContext *pContext, float r_co[3], const int face_num, const int vert_index)
+static void dm_ts_GetPosition(
+        const SMikkTSpaceContext *pContext, float r_co[3],
+        const int face_num, const int vert_index)
 {
 	//assert(vert_index >= 0 && vert_index < 4);
-	SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
-	const MLoopTri *lt = &pMesh->looptri[face_num];
-	const float *co = pMesh->mvert[pMesh->mloop[lt->tri[vert_index]].v].co;
+	SGLSLMeshToTangent *pMesh = pContext->m_pUserData;
+	const MLoopTri *lt;
+	int loop_index;
+	const float *co;
+
+#ifdef USE_LOOPTRI_DETECT_QUADS
+	if (pMesh->face_as_quad_map) {
+		lt = &pMesh->looptri[pMesh->face_as_quad_map[face_num]];
+		const MPoly *mp = &pMesh->mpoly[lt->poly];
+		if (mp->totloop == 4) {
+			loop_index = mp->loopstart + vert_index;
+			goto finally;
+		}
+		/* fall through to regular triangle */
+	}
+	else {
+		lt = &pMesh->looptri[face_num];
+	}
+#else
+	lt = &pMesh->looptri[face_num];
+#endif
+	loop_index = lt->tri[vert_index];
+
+finally:
+	co = pMesh->mvert[pMesh->mloop[loop_index].v].co;
 	copy_v3_v3(r_co, co);
 }
 
-static void GetTextureCoordinate(const SMikkTSpaceContext *pContext, float r_uv[2], const int face_num, const int vert_index)
+static void dm_ts_GetTextureCoordinate(
+        const SMikkTSpaceContext *pContext, float r_uv[2],
+        const int face_num, const int vert_index)
 {
 	//assert(vert_index >= 0 && vert_index < 4);
-	SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
-	const MLoopTri *lt = &pMesh->looptri[face_num];
+	SGLSLMeshToTangent *pMesh = pContext->m_pUserData;
+	const MLoopTri *lt;
+	int loop_index;
 
+#ifdef USE_LOOPTRI_DETECT_QUADS
+	if (pMesh->face_as_quad_map) {
+		lt = &pMesh->looptri[pMesh->face_as_quad_map[face_num]];
+		const MPoly *mp = &pMesh->mpoly[lt->poly];
+		if (mp->totloop == 4) {
+			loop_index = mp->loopstart + vert_index;
+			goto finally;
+		}
+		/* fall through to regular triangle */
+	}
+	else {
+		lt = &pMesh->looptri[face_num];
+	}
+#else
+	lt = &pMesh->looptri[face_num];
+#endif
+	loop_index = lt->tri[vert_index];
+
+finally:
 	if (pMesh->mloopuv != NULL) {
-		const float *uv = pMesh->mloopuv[lt->tri[vert_index]].uv;
+		const float *uv = pMesh->mloopuv[loop_index].uv;
 		copy_v2_v2(r_uv, uv);
 	}
 	else {
-		const float *orco = pMesh->orco[pMesh->mloop[lt->tri[vert_index]].v];
+		const float *orco = pMesh->orco[pMesh->mloop[loop_index].v];
 		map_to_sphere(&r_uv[0], &r_uv[1], orco[0], orco[1], orco[2]);
 	}
 }
 
-static void GetNormal(const SMikkTSpaceContext *pContext, float r_no[3], const int face_num, const int vert_index)
+static void dm_ts_GetNormal(
+        const SMikkTSpaceContext *pContext, float r_no[3],
+        const int face_num, const int vert_index)
 {
 	//assert(vert_index >= 0 && vert_index < 4);
 	SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
-	const MLoopTri *lt = &pMesh->looptri[face_num];
-	const bool smoothnormal = (pMesh->mpoly[lt->poly].flag & ME_SMOOTH) != 0;
+	const MLoopTri *lt;
+	int loop_index;
 
-	if (pMesh->precomputedLoopNormals) {
-		copy_v3_v3(r_no, pMesh->precomputedLoopNormals[lt->tri[vert_index]]);
+#ifdef USE_LOOPTRI_DETECT_QUADS
+	if (pMesh->face_as_quad_map) {
+		lt = &pMesh->looptri[pMesh->face_as_quad_map[face_num]];
+		const MPoly *mp = &pMesh->mpoly[lt->poly];
+		if (mp->totloop == 4) {
+			loop_index = mp->loopstart + vert_index;
+			goto finally;
+		}
+		/* fall through to regular triangle */
 	}
-	else if (!smoothnormal) {    // flat
+	else {
+		lt = &pMesh->looptri[face_num];
+	}
+#else
+	lt = &pMesh->looptri[face_num];
+#endif
+	loop_index = lt->tri[vert_index];
+
+finally:
+	if (pMesh->precomputedLoopNormals) {
+		copy_v3_v3(r_no, pMesh->precomputedLoopNormals[loop_index]);
+	}
+	else if ((pMesh->mpoly[lt->poly].flag & ME_SMOOTH) == 0) {  /* flat */
 		if (pMesh->precomputedFaceNormals) {
 			copy_v3_v3(r_no, pMesh->precomputedFaceNormals[lt->poly]);
 		}
 		else {
-			const float *p0 = pMesh->mvert[pMesh->mloop[lt->tri[0]].v].co;
-			const float *p1 = pMesh->mvert[pMesh->mloop[lt->tri[1]].v].co;
-			const float *p2 = pMesh->mvert[pMesh->mloop[lt->tri[2]].v].co;
-
-			normal_tri_v3(r_no, p0, p1, p2);
+#ifdef USE_LOOPTRI_DETECT_QUADS
+			const MPoly *mp = &pMesh->mpoly[lt->poly];
+			if (mp->totloop == 4) {
+				normal_quad_v3(
+				        r_no,
+				        pMesh->mvert[pMesh->mloop[mp->loopstart + 0].v].co,
+				        pMesh->mvert[pMesh->mloop[mp->loopstart + 1].v].co,
+				        pMesh->mvert[pMesh->mloop[mp->loopstart + 2].v].co,
+				        pMesh->mvert[pMesh->mloop[mp->loopstart + 3].v].co);
+			}
+			else
+#endif
+			{
+				normal_tri_v3(
+				        r_no,
+				        pMesh->mvert[pMesh->mloop[lt->tri[0]].v].co,
+				        pMesh->mvert[pMesh->mloop[lt->tri[1]].v].co,
+				        pMesh->mvert[pMesh->mloop[lt->tri[2]].v].co);
+			}
 		}
 	}
 	else {
-		const short *no = pMesh->mvert[pMesh->mloop[lt->tri[vert_index]].v].no;
+		const short *no = pMesh->mvert[pMesh->mloop[loop_index].v].no;
 		normal_short_to_float_v3(r_no, no);
 	}
 }
 
-static void SetTSpace(const SMikkTSpaceContext *pContext, const float fvTangent[3], const float fSign, const int face_num, const int vert_index)
+static void dm_ts_SetTSpace(
+        const SMikkTSpaceContext *pContext, const float fvTangent[3], const float fSign,
+        const int face_num, const int vert_index)
 {
 	//assert(vert_index >= 0 && vert_index < 4);
 	SGLSLMeshToTangent *pMesh = (SGLSLMeshToTangent *) pContext->m_pUserData;
-	const MLoopTri *lt = &pMesh->looptri[face_num];
-	float *pRes = pMesh->tangent[lt->tri[vert_index]];
+	const MLoopTri *lt;
+	int loop_index;
+
+#ifdef USE_LOOPTRI_DETECT_QUADS
+	if (pMesh->face_as_quad_map) {
+		lt = &pMesh->looptri[pMesh->face_as_quad_map[face_num]];
+		const MPoly *mp = &pMesh->mpoly[lt->poly];
+		if (mp->totloop == 4) {
+			loop_index = mp->loopstart + vert_index;
+			goto finally;
+		}
+		/* fall through to regular triangle */
+	}
+	else {
+		lt = &pMesh->looptri[face_num];
+	}
+#else
+	lt = &pMesh->looptri[face_num];
+#endif
+	loop_index = lt->tri[vert_index];
+
+	float *pRes;
+
+finally:
+	pRes = pMesh->tangent[loop_index];
 	copy_v3_v3(pRes, fvTangent);
 	pRes[3] = fSign;
 }
@@ -3122,6 +3247,31 @@ void DM_calc_loop_tangents(DerivedMesh *dm)
 	DM_add_loop_layer(dm, CD_TANGENT, CD_CALLOC, NULL);
 	tangent = DM_get_loop_data_layer(dm, CD_TANGENT);
 	
+#ifdef USE_LOOPTRI_DETECT_QUADS
+	int num_face_as_quad_map;
+	int *face_as_quad_map = NULL;
+
+	/* map faces to quads */
+	if (totface != dm->getNumPolys(dm)) {
+		/* over alloc, since we dont know how many ngon or quads we have */
+
+		/* map fake face index to looptri */
+		face_as_quad_map = MEM_mallocN(sizeof(int) * totface, __func__);
+		int i, j;
+		for (i = 0, j = 0; j < totface; i++, j++) {
+			face_as_quad_map[i] = j;
+			/* step over all quads */
+			if (mpoly[looptri[j].poly].totloop == 4) {
+				j++;  /* skips the nest looptri */
+			}
+		}
+		num_face_as_quad_map = i;
+	}
+	else {
+		num_face_as_quad_map = totface;
+	}
+#endif
+
 	/* new computation method */
 	{
 		SGLSLMeshToTangent mesh2tangent = {NULL};
@@ -3139,19 +3289,34 @@ void DM_calc_loop_tangents(DerivedMesh *dm)
 		mesh2tangent.tangent = tangent;
 		mesh2tangent.numTessFaces = totface;
 
+#ifdef USE_LOOPTRI_DETECT_QUADS
+		mesh2tangent.face_as_quad_map = face_as_quad_map;
+		mesh2tangent.num_face_as_quad_map = num_face_as_quad_map;
+#endif
+
 		sContext.m_pUserData = &mesh2tangent;
 		sContext.m_pInterface = &sInterface;
-		sInterface.m_getNumFaces = GetNumFaces;
-		sInterface.m_getNumVerticesOfFace = GetNumVertsOfFace;
-		sInterface.m_getPosition = GetPosition;
-		sInterface.m_getTexCoord = GetTextureCoordinate;
-		sInterface.m_getNormal = GetNormal;
-		sInterface.m_setTSpaceBasic = SetTSpace;
+		sInterface.m_getNumFaces = dm_ts_GetNumFaces;
+		sInterface.m_getNumVerticesOfFace = dm_ts_GetNumVertsOfFace;
+		sInterface.m_getPosition = dm_ts_GetPosition;
+		sInterface.m_getTexCoord = dm_ts_GetTextureCoordinate;
+		sInterface.m_getNormal = dm_ts_GetNormal;
+		sInterface.m_setTSpaceBasic = dm_ts_SetTSpace;
 
 		/* 0 if failed */
 		genTangSpaceDefault(&sContext);
+
+#ifdef USE_LOOPTRI_DETECT_QUADS
+		if (face_as_quad_map) {
+			MEM_freeN(face_as_quad_map);
+		}
+#undef USE_LOOPTRI_DETECT_QUADS
+#endif
 	}
 }
+
+/** \} */
+
 
 void DM_calc_auto_bump_scale(DerivedMesh *dm)
 {
@@ -3532,7 +3697,6 @@ static void navmesh_drawColored(DerivedMesh *dm)
 	//UI_ThemeColor(TH_WIRE);
 	glLineWidth(2.0);
 	dm->drawEdges(dm, 0, 1);
-	glLineWidth(1.0);
 #endif
 
 	/* if (GPU_buffer_legacy(dm) ) */ /* TODO - VBO draw code, not high priority - campbell */

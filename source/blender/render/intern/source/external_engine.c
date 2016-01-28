@@ -415,15 +415,18 @@ rcti* RE_engine_get_current_tiles(Render *re, int *r_total_tiles, bool *r_needs_
 				/* Just in case we're using crazy network rendering with more
 				 * slaves as BLENDER_MAX_THREADS.
 				 */
-				if (tiles == tiles_static)
-					tiles = MEM_mallocN(allocation_step * sizeof(rcti), "current engine tiles");
-				else
-					tiles = MEM_reallocN(tiles, (total_tiles + allocation_step) * sizeof(rcti));
-
 				allocation_size += allocation_step;
+				if (tiles == tiles_static) {
+					/* Can not realloc yet, tiles are pointing to a
+					 * stack memory.
+					 */
+					tiles = MEM_mallocN(allocation_size * sizeof(rcti), "current engine tiles");
+				}
+				else {
+					tiles = MEM_reallocN(tiles, allocation_size * sizeof(rcti));
+				}
 				*r_needs_free = true;
 			}
-
 			tiles[total_tiles] = pa->disprect;
 
 			if (pa->crop) {
@@ -603,7 +606,7 @@ int RE_engine_render(Render *re, int do_all)
 			if (re->r.scemode & R_SINGLE_LAYER) {
 				srl = BLI_findlink(&re->r.layers, re->r.actlay);
 				if (srl) {
-					non_excluded_lay |= ~srl->lay_exclude;
+					non_excluded_lay |= ~(srl->lay_exclude & ~srl->lay_zmask);
 
 					/* in this case we must update all because animation for
 					 * the scene has not been updated yet, and so may not be
@@ -615,7 +618,7 @@ int RE_engine_render(Render *re, int do_all)
 			else {
 				for (srl = re->r.layers.first; srl; srl = srl->next) {
 					if (!(srl->layflag & SCE_LAY_DISABLE)) {
-						non_excluded_lay |= ~srl->lay_exclude;
+						non_excluded_lay |= ~(srl->lay_exclude & ~srl->lay_zmask);
 
 						if (render_layer_exclude_animated(re->scene, srl))
 							non_excluded_lay |= ~0;

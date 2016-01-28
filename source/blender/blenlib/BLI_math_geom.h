@@ -271,21 +271,46 @@ bool isect_point_tri_v3(
 /* axis-aligned bounding box */
 bool isect_aabb_aabb_v3(const float min1[3], const float max1[3], const float min2[3], const float max2[3]);
 
-typedef struct {
+struct IsectRayAABB_Precalc {
 	float ray_origin[3];
 	float ray_inv_dir[3];
 	int sign[3];
-} IsectRayAABBData;
+};
 
-void isect_ray_aabb_initialize(IsectRayAABBData *data, const float ray_origin[3], const float ray_direction[3]);
-bool isect_ray_aabb(const IsectRayAABBData *data, const float bb_min[3], const float bb_max[3], float *tmin);
+void isect_ray_aabb_v3_precalc(
+        struct IsectRayAABB_Precalc *data,
+        const float ray_origin[3], const float ray_direction[3]);
+bool isect_ray_aabb_v3(
+        const struct IsectRayAABB_Precalc *data,
+        const float bb_min[3], const float bb_max[3], float *tmin);
+
+struct NearestRayToAABB_Precalc {
+	float ray_origin[3];
+	float ray_dot_axis[3];
+	float idot_axis[3];
+	float cdot_axis[3];
+	float idiag_sq[3];
+	bool sign[3];
+};
+
+void dist_squared_ray_to_aabb_v3_precalc(
+        struct NearestRayToAABB_Precalc *data,
+        const float ray_origin[3], const float ray_direction[3]);
+float dist_squared_ray_to_aabb_v3(
+        const struct NearestRayToAABB_Precalc *data,
+        const float bb_min[3], const float bb_max[3],
+        bool r_axis_closest[3]);
 
 /* other */
 bool isect_sweeping_sphere_tri_v3(const float p1[3], const float p2[3], const float radius,
                                   const float v0[3], const float v1[3], const float v2[3], float *r_lambda, float ipoint[3]);
 
-bool clip_segment_v3_plane(float p1[3], float p2[3], const float plane[4]);
-bool clip_segment_v3_plane_n(float p1[3], float p2[3], float plane_array[][4], const int plane_tot);
+bool clip_segment_v3_plane(
+        const float p1[3], const float p2[3], const float plane[4],
+        float r_p1[3], float r_p2[3]);
+bool clip_segment_v3_plane_n(
+        const float p1[3], const float p2[3], const float plane_array[][4], const int plane_tot,
+        float r_p1[3], float r_p2[3]);
 
 void plot_line_v2v2i(const int p1[2], const int p2[2], bool (*callback)(int, int, void *), void *userData);
 void fill_poly_v2i_n(

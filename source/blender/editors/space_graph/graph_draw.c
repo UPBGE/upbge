@@ -85,6 +85,7 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 	
 	/* draw two black lines showing the standard reference levels */
 	glColor3f(0.0f, 0.0f, 0.0f);
+	glLineWidth(1);
 	setlinestyle(5);
 	
 	glBegin(GL_LINES);
@@ -93,7 +94,7 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 		
 	glVertex2f(v2d->cur.xmin, env->midval + env->max);
 	glVertex2f(v2d->cur.xmax, env->midval + env->max);
-	glEnd();  /* GL_LINES */
+	glEnd();
 	setlinestyle(0);
 	
 	/* set size of vertices (non-adjustable for now) */
@@ -852,7 +853,6 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 		
 		/* cleanup line drawing */
 		setlinestyle(0);
-		glLineWidth(1.0f);
 	}
 	
 	/* draw driver only if actually functional */
@@ -946,7 +946,6 @@ void graph_draw_ghost_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar)
 	
 	/* restore settings */
 	setlinestyle(0);
-	glLineWidth(1.0f);
 	
 	if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glDisable(GL_LINE_SMOOTH);
 	glDisable(GL_BLEND);
@@ -1009,6 +1008,9 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 			if (fcu->flag & FCURVE_ACTIVE) {
 				glLineWidth(2.0);
 			}
+			else {
+				glLineWidth(1.0);
+			}
 			
 			/* anti-aliased lines for less jagged appearance */
 			if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glEnable(GL_LINE_SMOOTH);
@@ -1036,7 +1038,6 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 			
 			/* restore settings */
 			setlinestyle(0);
-			glLineWidth(1.0);
 			
 			if ((sipo->flag & SIPO_BEAUTYDRAW_OFF) == 0) glDisable(GL_LINE_SMOOTH);
 			glDisable(GL_BLEND);
@@ -1060,11 +1061,15 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 				short mapping_flag = ANIM_get_normalization_flags(ac);
 				float offset;
 				float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag, &offset);
-
+				
+				/* apply unit-scaling to all values via OpenGL */
 				glPushMatrix();
 				glScalef(1.0f, unit_scale, 1.0f);
 				glTranslatef(0.0f, offset, 0.0f);
-
+				
+				/* set this once and for all - all handles and handle-verts should use the same thickness */
+				glLineWidth(1.0);
+				
 				if (fcu->bezt) {
 					bool do_handles = draw_fcurve_handles_check(sipo, fcu);
 					
@@ -1081,7 +1086,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 					/* samples: only draw two indicators at either end as indicators */
 					draw_fcurve_samples(sipo, ar, fcu);
 				}
-
+				
 				glPopMatrix();
 			}
 		}

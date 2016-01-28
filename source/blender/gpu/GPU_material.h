@@ -78,6 +78,7 @@ typedef enum GPUType {
 
 	GPU_TEX2D = 1002,
 	GPU_SHADOW2D = 1003,
+	GPU_TEXCUBE = 1004,
 	GPU_ATTRIB = 3001
 } GPUType;
 
@@ -95,6 +96,8 @@ typedef enum GPUBuiltin {
 	GPU_PARTICLE_LOCATION =	    (1 << 10),
 	GPU_PARTICLE_VELOCITY =     (1 << 11),
 	GPU_PARTICLE_ANG_VELOCITY = (1 << 12),
+	GPU_LOC_TO_VIEW_MATRIX =    (1 << 13),
+	GPU_INVERSE_LOC_TO_VIEW_MATRIX = (1 << 14),
 } GPUBuiltin;
 
 typedef enum GPUOpenGLBuiltin {
@@ -148,6 +151,8 @@ typedef enum GPUDynamicType {
 	GPU_DYNAMIC_OBJECT_IMAT          = 4  | GPU_DYNAMIC_GROUP_OBJECT,
 	GPU_DYNAMIC_OBJECT_COLOR         = 5  | GPU_DYNAMIC_GROUP_OBJECT,
 	GPU_DYNAMIC_OBJECT_AUTOBUMPSCALE = 6  | GPU_DYNAMIC_GROUP_OBJECT,
+	GPU_DYNAMIC_OBJECT_LOCTOVIEWMAT  = 7  | GPU_DYNAMIC_GROUP_OBJECT,
+	GPU_DYNAMIC_OBJECT_LOCTOVIEWIMAT = 8  | GPU_DYNAMIC_GROUP_OBJECT,
 
 	GPU_DYNAMIC_LAMP_DYNVEC          = 1  | GPU_DYNAMIC_GROUP_LAMP,
 	GPU_DYNAMIC_LAMP_DYNCO           = 2  | GPU_DYNAMIC_GROUP_LAMP,
@@ -175,6 +180,7 @@ typedef enum GPUDynamicType {
 
 	GPU_DYNAMIC_HORIZON_COLOR        = 1  | GPU_DYNAMIC_GROUP_WORLD,
 	GPU_DYNAMIC_AMBIENT_COLOR        = 2  | GPU_DYNAMIC_GROUP_WORLD,
+	GPU_DYNAMIC_ZENITH_COLOR         = 3  | GPU_DYNAMIC_GROUP_WORLD,
 
 	GPU_DYNAMIC_MAT_DIFFRGB          = 1  | GPU_DYNAMIC_GROUP_MAT,
 	GPU_DYNAMIC_MAT_REF              = 2  | GPU_DYNAMIC_GROUP_MAT,
@@ -190,6 +196,7 @@ GPUNodeLink *GPU_attribute(CustomDataType type, const char *name);
 GPUNodeLink *GPU_uniform(float *num);
 GPUNodeLink *GPU_dynamic_uniform(float *num, GPUDynamicType dynamictype, void *data);
 GPUNodeLink *GPU_image(struct Image *ima, struct ImageUser *iuser, bool is_data);
+GPUNodeLink *GPU_cube_map(struct Image *ima, struct ImageUser *iuser, bool is_data);
 GPUNodeLink *GPU_image_preview(struct PreviewImage *prv);
 GPUNodeLink *GPU_texture(int size, float *pixels);
 GPUNodeLink *GPU_dynamic_texture(struct GPUTexture *tex, GPUDynamicType dynamictype, void *data);
@@ -218,7 +225,7 @@ void GPU_material_bind(
         GPUMaterial *material, int oblay, int viewlay, double time, int mipmap,
         float viewmat[4][4], float viewinv[4][4], float cameraborder[4], bool scenelock);
 void GPU_material_bind_uniforms(
-        GPUMaterial *material, float obmat[4][4], float obcol[4],
+        GPUMaterial *material, float obmat[4][4], float viewmat[4][4], float obcol[4],
         float autobumpscale, GPUParticleInfo *pi);
 void GPU_material_unbind(GPUMaterial *material);
 bool GPU_material_bound(GPUMaterial *material);

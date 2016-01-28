@@ -180,7 +180,7 @@ void BL_BlenderShader::SetAttribs(RAS_IRasterizer *ras)
 
 void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 {
-	float obmat[4][4], obcol[4];
+	float obmat[4][4], viewmat[4][4], obcol[4];
 	GPUMaterial *gpumat;
 
 	gpumat = m_GPUMat;
@@ -196,8 +196,9 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 
 	ms->m_RGBAcolor.getValue((float *)obcol);
 
+	rasty->GetViewMatrix().getValue((float *)viewmat);
 	float auto_bump_scale = ms->m_pDerivedMesh != 0 ? ms->m_pDerivedMesh->auto_bump_scale : 1.0f;
-	GPU_material_bind_uniforms(gpumat, obmat, obcol, auto_bump_scale, NULL);
+	GPU_material_bind_uniforms(gpumat, obmat, viewmat, obcol, auto_bump_scale, NULL);
 
 	m_alphaBlend = GPU_material_alpha_blend(gpumat, obcol);
 }
