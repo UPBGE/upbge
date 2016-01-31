@@ -560,7 +560,7 @@ static bool ConvertMaterial(
 		 * it is set in the buttons
 		 * In GLSL is not working yet :/ 3.2011 */
 		bool facetex = false;
-		if (validface && mat->mode & MA_FACETEXTURE) {
+		if (validface && mat->mode & MA_FACETEXTURE && !glslmat) {
 			facetex = true;
 		}
 
@@ -862,7 +862,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 		ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol, layers,
 			converter->GetGLSLMaterials());
 
-		if (ma && (ma->mode & MA_FACETEXTURE) == 0)
+		if (ma && ((ma->mode & MA_FACETEXTURE) == 0 || bl_mat->glslmat))
 			converter->CacheBlenderMaterial(scene, ma, bl_mat);
 	}
 
@@ -880,7 +880,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 
 		kx_blmat->Initialize(scene, bl_mat, (ma?&ma->game:NULL), lightlayer);
 		polymat = static_cast<RAS_IPolyMaterial*>(kx_blmat);
-		if (ma && (ma->mode & MA_FACETEXTURE) == 0)
+		if (ma && ((ma->mode & MA_FACETEXTURE) == 0 || bl_mat->glslmat))
 			converter->CachePolyMaterial(scene, ma, polymat);
 	}
 	
