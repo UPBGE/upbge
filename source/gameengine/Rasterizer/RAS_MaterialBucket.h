@@ -68,6 +68,7 @@ public:
 	RAS_MeshSlot *CopyMesh(RAS_MeshSlot *ms);
 	void RemoveMesh(RAS_MeshSlot *ms);
 	void Optimize(MT_Scalar distance);
+	unsigned int GetNumActiveMeshSlots();
 
 	/** Find a display array bucket for the given display array, if not retrurn a new one.
 	 * mesh param is used only to create a new display array not to find it.
