@@ -56,6 +56,9 @@
 #include "GPU_material.h"
 #include "GPU_shader.h"
 
+#include "BLI_math_vector.h"
+#include "BLI_math_matrix.h"
+
 extern "C" {
 	#include "BLF_api.h"
 	#include "BKE_DerivedMesh.h"
@@ -1292,27 +1295,37 @@ void RAS_OpenGLRasterizer::RemoveLight(RAS_ILightObject *lightobject)
 		m_lights.erase(lit);
 }
 
-bool RAS_OpenGLRasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *result, float *oglmatrix)
+bool RAS_OpenGLRasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform)
 {
 	if (result->m_hitMesh) {
 		RAS_Polygon *poly = result->m_hitMesh->GetPolygon(result->m_hitPolygon);
 		if (!poly->IsVisible())
 			return false;
 
+		float *origmat = raytransform->origmat;
+		float *mat = raytransform->mat;
+		const MT_Vector3& scale = raytransform->scale;
+		const MT_Vector3& point = result->m_hitPoint;
 		MT_Vector3 resultnormal(result->m_hitNormal);
-		MT_Vector3 left(oglmatrix[0], oglmatrix[1], oglmatrix[2]);
+		MT_Vector3 left(&origmat[0]);
 		MT_Vector3 dir = -(left.cross(resultnormal)).safe_normalized();
 		left = (dir.cross(resultnormal)).safe_normalized();
 		// for the up vector, we take the 'resultnormal' returned by the physics
 
-		float maat[16] = {left[0], left[1], left[2], 0.0f,
-						  dir[0], dir[1], dir[2], 0.0f,
-						  resultnormal[0], resultnormal[1], resultnormal[2], 0.0f,
-						  0.0f, 0.0f, 0.0f, 1.0f};
+		// we found the "ground", but the cast matrix doesn't take
+		// scaling in consideration, so we must apply the object scale
+		left *= scale[0];
+		dir *= scale[1];
+		resultnormal *= scale[2];
 
-		glTranslatef(oglmatrix[12],oglmatrix[13],oglmatrix[14]);
-		//glMultMatrixd(oglmatrix);
-		glMultMatrixf(maat);
+		float tmpmat[16] = {
+			left[0], left[1], left[2], 0.0f,
+			dir[0], dir[1], dir[2], 0.0f,
+			resultnormal[0], resultnormal[1], resultnormal[2], 0.0f,
+			point[0], point[1], point[2], 1.0f,
+		};
+		memcpy(mat, tmpmat, sizeof(float) * 16);
+
 		return true;
 	}
 	else {
@@ -1320,20 +1333,8 @@ bool RAS_OpenGLRasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast
 	}
 }
 
-void RAS_OpenGLRasterizer::applyTransform(float *oglmatrix, int objectdrawmode)
+void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[16])
 {
-	/* FIXME:
-	   blender: intern/moto/include/MT_Vector3.inl:42: MT_Vector3 operator/(const
-	   MT_Vector3&, double): Assertion `!MT_fuzzyZero(s)' failed.
-
-	   Program received signal SIGABRT, Aborted.
-	   [Switching to Thread 16384 (LWP 1519)]
-	   0x40477571 in kill () from /lib/libc.so.6
-	   (gdb) bt
-	   #7  0x08334368 in MT_Vector3::normalized() const ()
-	   #8  0x0833e6ec in RAS_OpenGLRasterizer::applyTransform(RAS_IRasterizer*, double*, int) ()
-	 */
-
 	if (objectdrawmode & RAS_IPolyMaterial::BILLBOARD_SCREENALIGNED ||
 	    objectdrawmode & RAS_IPolyMaterial::BILLBOARD_AXISALIGNED)
 	{
@@ -1345,14 +1346,14 @@ void RAS_OpenGLRasterizer::applyTransform(float *oglmatrix, int objectdrawmode)
 		// when new parenting for objects is done, this rotation
 		// will be moved into the object
 
-		MT_Point3 objpos(oglmatrix[12], oglmatrix[13], oglmatrix[14]);
+		MT_Point3 objpos(&origmat[12]);
 		MT_Point3 campos = GetCameraPosition();
 		MT_Vector3 dir = (campos - objpos).safe_normalized();
 		MT_Vector3 up(0.0f, 0.0f, 1.0f);
 
 		KX_GameObject *gameobj = (KX_GameObject *)m_clientobject;
 		// get scaling of halo object
-		MT_Vector3 size = gameobj->GetSGNode()->GetWorldScaling();
+		MT_Vector3 scale = gameobj->NodeGetWorldScaling();
 
 		bool screenaligned = (objectdrawmode & RAS_IPolyMaterial::BILLBOARD_SCREENALIGNED) != 0;//false; //either screen or axisaligned
 		if (screenaligned) {
@@ -1368,55 +1369,60 @@ void RAS_OpenGLRasterizer::applyTransform(float *oglmatrix, int objectdrawmode)
 		// we have calculated the row vectors, now we keep
 		// local scaling into account:
 
-		left *= size[0];
-		dir  *= size[1];
-		up   *= size[2];
+		left *= scale[0];
+		dir *= scale[1];
+		up *= scale[2];
 
-		float maat[16] = {left[0], left[1], left[2], 0.0f,
-						  dir[0], dir[1], dir[2], 0.0f,
-						  up[0], up[1], up[2], 0.0f,
-						  0.0f, 0.0f, 0.0f, 1.0f};
-
-		glTranslatef(objpos[0],objpos[1],objpos[2]);
-		glMultMatrixf(maat);
-
+		float tmpmat[16] = {
+			left[0], left[1], left[2], 0.0f,
+			dir[0], dir[1], dir[2], 0.0f,
+			up[0], up[1], up[2], 0.0f,
+			origmat[12], origmat[13], origmat[14], 1.0f,
+		};
+		memcpy(mat, tmpmat, sizeof(float) * 16);
 	}
-	else {
-		if (objectdrawmode & RAS_IPolyMaterial::SHADOW) {
-			// shadow must be cast to the ground, physics system needed here!
-			MT_Point3 frompoint(oglmatrix[12], oglmatrix[13], oglmatrix[14]);
-			KX_GameObject *gameobj = (KX_GameObject *)m_clientobject;
-			MT_Vector3 direction = MT_Vector3(0.0f, 0.0f, -1.0f);
+	else if (objectdrawmode & RAS_IPolyMaterial::SHADOW) {
+		// shadow must be cast to the ground, physics system needed here!
+		MT_Point3 frompoint(&origmat[12]);
+		KX_GameObject *gameobj = (KX_GameObject *)m_clientobject;
+		MT_Vector3 direction = MT_Vector3(0.0f, 0.0f, -1.0f);
 
-			direction.normalize();
-			direction *= 100000.0f;
+		direction.normalize();
+		direction *= 100000.0f;
 
-			MT_Point3 topoint = frompoint + direction;
+		MT_Point3 topoint = frompoint + direction;
 
-			KX_Scene *kxscene = (KX_Scene *)m_auxilaryClientInfo;
-			PHY_IPhysicsEnvironment *physics_environment = kxscene->GetPhysicsEnvironment();
-			PHY_IPhysicsController *physics_controller = gameobj->GetPhysicsController();
+		KX_Scene *kxscene = (KX_Scene *)m_auxilaryClientInfo;
+		PHY_IPhysicsEnvironment *physics_environment = kxscene->GetPhysicsEnvironment();
+		PHY_IPhysicsController *physics_controller = gameobj->GetPhysicsController();
 
-			KX_GameObject *parent = gameobj->GetParent();
-			if (!physics_controller && parent)
-				physics_controller = parent->GetPhysicsController();
+		KX_GameObject *parent = gameobj->GetParent();
+		if (!physics_controller && parent)
+			physics_controller = parent->GetPhysicsController();
 
-			KX_RayCast::Callback<RAS_OpenGLRasterizer, float> callback(this, physics_controller, oglmatrix);
-			if (!KX_RayCast::RayTest(physics_environment, frompoint, topoint, callback)) {
-				// couldn't find something to cast the shadow on...
-				glMultMatrixf(oglmatrix);
-			}
-			else { // we found the "ground", but the cast matrix doesn't take
-				   // scaling in consideration, so we must apply the object scale
-				MT_Vector3 size = gameobj->GetSGNode()->GetLocalScale();
-				glScalef(size[0], size[1], size[2]);
-			}
+		RayCastTranform raytransform;
+		raytransform.origmat = origmat;
+		raytransform.mat = mat;
+		raytransform.scale = gameobj->NodeGetWorldScaling();
+
+		KX_RayCast::Callback<RAS_OpenGLRasterizer, RayCastTranform> callback(this, physics_controller, &raytransform);
+		if (!KX_RayCast::RayTest(physics_environment, frompoint, topoint, callback)) {
+			// couldn't find something to cast the shadow on...
+			memcpy(mat, origmat, sizeof(float) * 16);
 		}
 		else {
-			// 'normal' object
-			glMultMatrixf(oglmatrix);
+			memcpy(mat, raytransform.mat, sizeof(float) * 16);
 		}
 	}
+	else {
+		// 'normal' object
+		memcpy(mat, origmat, sizeof(float) * 16);
+	}
+}
+
+void RAS_OpenGLRasterizer::ApplyTransform(const float mat[16])
+{
+	glMultMatrixf(mat);
 }
 
 static void DisableForText()

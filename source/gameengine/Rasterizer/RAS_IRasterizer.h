@@ -413,7 +413,8 @@ public:
 	/**
 	 * Render Tools
 	 */
-	virtual void applyTransform(float *oglmatrix, int drawingmode) = 0;
+	virtual void GetTransform(float *origmat, int objectdrawmode, float mat[16]) = 0;
+	virtual void ApplyTransform(const float mat[16]) = 0;
 
 	/**
 	 * Renders 2D boxes.

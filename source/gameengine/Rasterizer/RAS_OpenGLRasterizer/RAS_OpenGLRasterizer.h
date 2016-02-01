@@ -83,6 +83,17 @@ struct OglDebugShape
 	MT_Vector3 m_color;
 };
 
+// All info used to compute the ray cast transform matrix.
+struct RayCastTranform
+{
+	/// The object scale.
+	MT_Vector3 scale;
+	/// The original object matrix.
+	float *origmat;
+	/// The output matrix.
+	float *mat;
+};
+
 /**
  * 3D rendering device context.
  */
@@ -315,13 +326,14 @@ public:
 	void RenderText2D(RAS_TEXT_RENDER_MODE mode, const char *text,
 	                  int xco, int yco, int width, int height);
 
-	void applyTransform(float *oglmatrix, int objectdrawmode);
+	virtual void GetTransform(float *origmat, int objectdrawmode, float mat[16]);
+	virtual void ApplyTransform(const float mat[16]);
 
 	void PushMatrix();
 	void PopMatrix();
 
 	/// \see KX_RayCast
-	bool RayHit(struct KX_ClientObjectInfo *client, class KX_RayCast *result, float *oglmatrix);
+	bool RayHit(struct KX_ClientObjectInfo *client, class KX_RayCast *result, RayCastTranform *raytransform);
 	/// \see KX_RayCast
 	bool NeedRayCast(struct KX_ClientObjectInfo *, void *UNUSED(data))
 	{
