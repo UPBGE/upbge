@@ -740,14 +740,20 @@ void ARMATURE_OT_select_less(wmOperatorType *ot)
 }
 
 enum {
-	SIMEDBONE_LENGTH = 1,
+	SIMEDBONE_CHILDREN = 1,
+	SIMEDBONE_CHILDREN_IMMEDIATE,
+	SIMEDBONE_SIBLINGS,
+	SIMEDBONE_LENGTH,
 	SIMEDBONE_DIRECTION,
 	SIMEDBONE_PREFIX,
 	SIMEDBONE_SUFFIX,
-	SIMEDBONE_LAYER
+	SIMEDBONE_LAYER,
 };
 
 static EnumPropertyItem prop_similar_types[] = {
+	{SIMEDBONE_CHILDREN, "CHILDREN", 0, "Children", ""},
+	{SIMEDBONE_CHILDREN_IMMEDIATE, "CHILDREN_IMMEDIATE", 0, "Immediate children", ""},
+	{SIMEDBONE_SIBLINGS, "SIBLINGS", 0, "Siblings", ""},
 	{SIMEDBONE_LENGTH, "LENGTH", 0, "Length", ""},
 	{SIMEDBONE_DIRECTION, "DIRECTION", 0, "Direction (Y axis)", ""},
 	{SIMEDBONE_PREFIX, "PREFIX", 0, "Prefix", ""},
@@ -855,6 +861,57 @@ static void select_similar_suffix(bArmature *arm, EditBone *ebone_act)
 	}
 }
 
+static void is_ancestor(EditBone * bone, EditBone * ancestor)
+{
+	if (bone->temp.ebone == ancestor || bone->temp.ebone == NULL)
+		return;
+
+	if (bone->temp.ebone->temp.ebone != NULL && bone->temp.ebone->temp.ebone != ancestor)
+		is_ancestor(bone->temp.ebone, ancestor);
+
+	bone->temp.ebone = bone->temp.ebone->temp.ebone;
+}
+
+static void select_similar_children(bArmature *arm, EditBone *ebone_act)
+{
+	EditBone *ebone_iter;
+
+	for (ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
+		ebone_iter->temp.ebone = ebone_iter->parent;
+	}
+
+	for (ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
+		is_ancestor(ebone_iter, ebone_act);
+
+		if (ebone_iter->temp.ebone == ebone_act && EBONE_SELECTABLE(arm, ebone_iter))
+			ED_armature_ebone_select_set(ebone_iter, true);
+	}
+}
+
+static void select_similar_children_immediate(bArmature *arm, EditBone *ebone_act)
+{
+	EditBone *ebone_iter;
+	for (ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
+		if (ebone_iter->parent == ebone_act && EBONE_SELECTABLE(arm, ebone_iter)) {
+			ED_armature_ebone_select_set(ebone_iter, true);
+		}
+	}
+}
+
+static void select_similar_siblings(bArmature *arm, EditBone *ebone_act)
+{
+	EditBone *ebone_iter;
+
+	if (ebone_act->parent == NULL)
+		return;
+
+	for (ebone_iter = arm->edbo->first; ebone_iter; ebone_iter = ebone_iter->next) {
+		if (ebone_iter->parent == ebone_act->parent && EBONE_SELECTABLE(arm, ebone_iter)) {
+			ED_armature_ebone_select_set(ebone_iter, true);
+		}
+	}
+}
+
 static int armature_select_similar_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
@@ -872,6 +929,15 @@ static int armature_select_similar_exec(bContext *C, wmOperator *op)
 	}
 
 	switch (type) {
+		case SIMEDBONE_CHILDREN:
+			select_similar_children(arm, ebone_act);
+			break;
+		case SIMEDBONE_CHILDREN_IMMEDIATE:
+			select_similar_children_immediate(arm, ebone_act);
+			break;
+		case SIMEDBONE_SIBLINGS:
+			select_similar_siblings(arm, ebone_act);
+			break;
 		case SIMEDBONE_LENGTH:
 			select_similar_length(arm, ebone_act, thresh);
 			break;

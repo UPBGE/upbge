@@ -4005,8 +4005,8 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
 					angle = -angle;
 				}
 
-				/* z-axis */
-				axis_angle_to_quat_single(quat_mul, 'Z', angle);
+				/* View Y-axis */
+				axis_angle_to_quat(quat_mul, rv3d->viewinv[1], angle);
 			}
 			else {
 
@@ -4014,7 +4014,7 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
 					angle = -angle;
 				}
 
-				/* horizontal axis */
+				/* View X-axis */
 				axis_angle_to_quat(quat_mul, rv3d->viewinv[0], angle);
 			}
 
@@ -4171,9 +4171,9 @@ static int viewroll_modal(bContext *C, wmOperator *op, const wmEvent *event)
 }
 
 static EnumPropertyItem prop_view_roll_items[] = {
-	{0, "ROLLANGLE", 0, "Roll Angle", "Roll the view using an angle value"},
-	{V3D_VIEW_STEPLEFT, "ROLLLEFT", 0, "Roll Left", "Roll the view around to the Left"},
-	{V3D_VIEW_STEPRIGHT, "ROLLTRIGHT", 0, "Roll Right", "Roll the view around to the Right"},
+	{0, "ANGLE", 0, "Roll Angle", "Roll the view using an angle value"},
+	{V3D_VIEW_STEPLEFT, "LEFT", 0, "Roll Left", "Roll the view around to the Left"},
+	{V3D_VIEW_STEPRIGHT, "RIGHT", 0, "Roll Right", "Roll the view around to the Right"},
 	{0, NULL, 0, NULL, NULL}
 };
 

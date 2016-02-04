@@ -50,6 +50,7 @@ OSL::ClosureParam *closure_bsdf_diffuse_ramp_params();
 OSL::ClosureParam *closure_bsdf_phong_ramp_params();
 OSL::ClosureParam *closure_bssrdf_cubic_params();
 OSL::ClosureParam *closure_bssrdf_gaussian_params();
+OSL::ClosureParam *closure_bssrdf_burley_params();
 OSL::ClosureParam *closure_henyey_greenstein_volume_params();
 
 void closure_emission_prepare(OSL::RendererServices *, int id, void *data);
@@ -60,6 +61,7 @@ void closure_bsdf_diffuse_ramp_prepare(OSL::RendererServices *, int id, void *da
 void closure_bsdf_phong_ramp_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bssrdf_cubic_prepare(OSL::RendererServices *, int id, void *data);
 void closure_bssrdf_gaussian_prepare(OSL::RendererServices *, int id, void *data);
+void closure_bssrdf_burley_prepare(OSL::RendererServices *, int id, void *data);
 void closure_henyey_greenstein_volume_prepare(OSL::RendererServices *, int id, void *data);
 
 #define CCLOSURE_PREPARE(name, classname)          \
@@ -185,7 +187,7 @@ static ClosureParam *bsdf_##lower##_params() \
 
 #define BSDF_CLOSURE_CLASS_END(Upper, lower) \
 		CLOSURE_STRING_KEYPARAM(Upper##Closure, label, "label"), \
-	    CLOSURE_FINISH_PARAM(Upper##Closure) \
+		CLOSURE_FINISH_PARAM(Upper##Closure) \
 	}; \
 	return params; \
 } \
@@ -233,7 +235,7 @@ static ClosureParam *volume_##lower##_params() \
 
 #define VOLUME_CLOSURE_CLASS_END(Upper, lower) \
 		CLOSURE_STRING_KEYPARAM(Upper##Closure, label, "label"), \
-	    CLOSURE_FINISH_PARAM(Upper##Closure) \
+		CLOSURE_FINISH_PARAM(Upper##Closure) \
 	}; \
 	return params; \
 } \

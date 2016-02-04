@@ -1,3 +1,13 @@
+/* Converters */
+
+float convert_rgba_to_float(vec4 color)
+{
+#ifdef USE_NEW_SHADING
+	return color.r*0.2126 + color.g*0.7152 + color.b*0.0722;
+#else
+	return (color.r + color.g + color.b) / 3.0;
+#endif
+}
 
 float exp_blender(float f)
 {
@@ -384,6 +394,12 @@ void vec_math_negate(vec3 v, out vec3 outv)
 	outv = -v;
 }
 
+void invert_z(vec3 v, out vec3 outv)
+{
+        v.z = -v.z;
+        outv = v;
+}
+
 void normal(vec3 dir, vec3 nor, out vec3 outnor, out float outdot)
 {
 	outnor = nor;
@@ -768,7 +784,11 @@ void valtorgb(float fac, sampler2D colormap, out vec4 outcol, out float outalpha
 
 void rgbtobw(vec4 color, out float outval)  
 {
+#ifdef USE_NEW_SHADING
+	outval = color.r*0.2126 + color.g*0.7152 + color.b*0.0722;
+#else
 	outval = color.r*0.35 + color.g*0.45 + color.b*0.2; /* keep these factors in sync with texture.h:RGBTOBW */
+#endif
 }
 
 void invert(float fac, vec4 col, out vec4 outcol)
@@ -1292,6 +1312,15 @@ vec3 mtex_2d_mapping(vec3 vec)
 void mtex_cube_map(vec3 co, samplerCube ima, out float value, out vec4 color)
 {
 	color = textureCube(ima, co);
+	value = 1.0;
+}
+
+void mtex_cube_map_refl(samplerCube ima, vec3 vp, vec3 vn, mat4 viewmatrixinverse, mat4 viewmatrix, out float value, out vec4 color)
+{
+	vec3 viewdirection = vec3(viewmatrixinverse * vec4(vp, 0.0));
+	vec3 normaldirection = normalize(vec3(vec4(vn, 0.0) * viewmatrix));
+	vec3 reflecteddirection = reflect(viewdirection, normaldirection);
+	color = textureCube(ima, reflecteddirection);
 	value = 1.0;
 }
 

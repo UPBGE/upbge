@@ -226,7 +226,9 @@ static int GPU_material_construct_end(GPUMaterial *material, const char *passnam
 		GPUNodeLink *outlink = material->outlink;
 		material->pass = GPU_generate_pass(&material->nodes, outlink,
 			&material->attribs, &material->builtins, material->type,
-			passname, material->is_opensubdiv);
+			passname,
+			material->is_opensubdiv,
+			GPU_material_use_new_shading_nodes(material));
 
 		if (!material->pass)
 			return 0;
@@ -1262,8 +1264,19 @@ static void do_material_tex(GPUShadeInput *shi)
 
 			talpha = 0;
 
-			if (tex && tex->type == TEX_IMAGE && tex->ima) {
-				GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false), &tin, &trgb);
+			if (tex && tex->ima &&
+			    ((tex->type == TEX_IMAGE) ||
+			     ((tex->type == TEX_ENVMAP) && (mtex->texco == TEXCO_REFL))))
+			{
+				if (tex->type == TEX_IMAGE) {
+					GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false), &tin, &trgb);
+				}
+				else {
+					GPU_link(mat, "mtex_cube_map_refl",
+					         GPU_cube_map(tex->ima, &tex->iuser, false), shi->view, shi->vn,
+					         GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
+					         GPU_builtin(GPU_VIEW_MATRIX), &tin, &trgb);
+				}
 				rgbnor = TEX_RGB;
 
 				talpha = ((tex->imaflag & TEX_USEALPHA) && tex->ima && (tex->ima->flag & IMA_IGNORE_ALPHA) == 0);
@@ -1309,9 +1322,13 @@ static void do_material_tex(GPUShadeInput *shi)
 						GPU_link(mat, "set_value_one", &tin);
 				}
 
-				if (tex->type == TEX_IMAGE)
-					if (GPU_material_do_color_management(mat) && !(ma->sss_flag))
+				if ((tex->type == TEX_IMAGE) ||
+				    ((tex->type == TEX_ENVMAP) && (mtex->texco == TEXCO_REFL)))
+				{
+					if (GPU_material_do_color_management(mat) && !(ma->sss_flag)) {
 						GPU_link(mat, "srgb_to_linearrgb", tcol, &tcol);
+					}
+				}
 				
 				if (mtex->mapto & MAP_COL) {
 					GPUNodeLink *colfac;
