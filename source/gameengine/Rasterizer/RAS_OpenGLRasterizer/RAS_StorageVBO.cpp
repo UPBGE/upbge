@@ -32,18 +32,23 @@
 
 #include "glew-mx.h"
 
-VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
+VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
+	:m_vaoInitialized(false)
 {
-	m_data = data;
-	m_size = data->m_vertex.size();
-	m_indices = indices;
+	m_data = arrayBucket->GetDisplayArray();
+	m_size = m_data->m_vertex.size();
+	m_indices = m_data->m_index.size();
 	m_stride = sizeof(RAS_TexVert);
 
 	m_mode = m_data->GetOpenGLPrimitiveType();
 
+	m_useVao = arrayBucket->UseVao() && GLEW_ARB_vertex_array_object;
+
 	// Generate Buffers
 	glGenBuffersARB(1, &m_ibo);
 	glGenBuffersARB(1, &m_vbo_id);
+	// Generate Vertex Array Object
+	glGenVertexArrays(1, &m_vao);
 
 	// Fill the buffers with initial data
 	UpdateIndices();
@@ -61,6 +66,9 @@ VBO::~VBO()
 {
 	glDeleteBuffersARB(1, &m_ibo);
 	glDeleteBuffersARB(1, &m_vbo_id);
+	if (m_vao) {
+		glDeleteVertexArrays(1, &m_vao);
+	}
 }
 
 void VBO::UpdateData()
@@ -76,9 +84,24 @@ void VBO::UpdateIndices()
 	             m_data->m_index.data(), GL_STATIC_DRAW);
 }
 
+void VBO::SetMeshModified(RAS_IRasterizer::DrawType drawType, bool modified)
+{
+	if (modified) {
+		m_vaoInitialized = false;
+	}
+}
+
 void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib,
 			   int *attrib_layer, RAS_IRasterizer::DrawType drawingmode)
 {
+	if (m_useVao) {
+		glBindVertexArray(m_vao);
+		if (m_vaoInitialized) {
+			return;
+		}
+		m_vaoInitialized = true;
+	}
+
 	bool wireframe = (drawingmode == RAS_IRasterizer::RAS_WIREFRAME);
 	int unit;
 
@@ -171,6 +194,11 @@ void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 
 void VBO::Unbind(int attrib_num, int texco_num, RAS_IRasterizer::DrawType drawingmode)
 {
+	if (m_useVao) {
+		glBindVertexArray(0);
+		return;
+	}
+
 	bool wireframe = (drawingmode == RAS_IRasterizer::RAS_WIREFRAME);
 
 	glDisableClientState(GL_VERTEX_ARRAY);
@@ -232,8 +260,7 @@ VBO *RAS_StorageVBO::GetVBO(RAS_DisplayArrayBucket *arrayBucket)
 {
 	VBO *vbo = (VBO *)arrayBucket->GetStorageInfo();
 	if (!vbo) {
-		RAS_DisplayArray *array = arrayBucket->GetDisplayArray();
-		vbo = new VBO(array, array->m_index.size());
+		vbo = new VBO(arrayBucket);
 		arrayBucket->SetStorageInfo(vbo);
 	}
 	return vbo;

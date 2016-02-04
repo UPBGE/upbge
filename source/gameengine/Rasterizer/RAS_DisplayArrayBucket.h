@@ -67,6 +67,8 @@ private:
 
 	/// True if the display array is not frequently modified and can use display list.
 	bool m_useDisplayList;
+	/// As m_useDisplayList but without rasterizer value.
+	bool m_useVao;
 
 	/// True if a deformer is dynamic or the mesh i modified this frame.
 	bool m_meshModified;
@@ -112,6 +114,7 @@ public:
 
 	/// \section Render Infos
 	bool UseDisplayList() const;
+	bool UseVao() const;
 	bool IsMeshModified() const;
 
 	/// Update render infos.

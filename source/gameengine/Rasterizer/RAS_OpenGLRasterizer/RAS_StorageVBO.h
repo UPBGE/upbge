@@ -38,7 +38,7 @@
 class VBO : public RAS_IStorageInfo
 {
 public:
-	VBO(RAS_DisplayArray *data, unsigned int indices);
+	VBO(RAS_DisplayArrayBucket *arrayBucket);
 	virtual ~VBO();
 
 	void Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib,
@@ -50,6 +50,8 @@ public:
 	void UpdateData();
 	void UpdateIndices();
 
+	virtual void SetMeshModified(RAS_IRasterizer::DrawType drawType, bool modified);
+
 private:
 	RAS_DisplayArray *m_data;
 	GLuint m_size;
@@ -58,6 +60,12 @@ private:
 	GLenum m_mode;
 	GLuint m_ibo;
 	GLuint m_vbo_id;
+	/// The VAO id allocated by OpenGL.
+	GLuint m_vao;
+	/// Set to true when the VBO can use VAO (the GPU support VAO and there's no geometry instancing).
+	bool m_useVao;
+	/// Set to true when the VAO was already filled in a VBO::Bind() call.
+	bool m_vaoInitialized;
 
 	void *m_vertex_offset;
 	void *m_normal_offset;
