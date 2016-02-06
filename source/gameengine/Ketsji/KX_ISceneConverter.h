@@ -80,14 +80,6 @@ public:
 	///this is for reseting the position,rotation and scale of the gameobjet that is not dynamic
 	virtual void	resetNoneDynamicObjectToIpo()=0;
 
-	// use blender materials
-	virtual void SetMaterials(bool val) =0;
-	virtual bool GetMaterials()=0;
-
-	// use blender glsl materials
-	virtual void SetGLSLMaterials(bool val) =0;
-	virtual bool GetGLSLMaterials()=0;
-
 	virtual struct Scene* GetBlenderSceneForName(const STR_String& name)=0;
 	
 	

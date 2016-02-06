@@ -480,19 +480,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			if (always_use_expand_framing)
 				sceneconverter->SetAlwaysUseExpandFraming(true);
 
-			bool usemat = false, useglslmat = false;
-
-			if (GLEW_ARB_multitexture && GLEW_VERSION_1_1)
-				usemat = true;
-
-			if (GPU_glsl_support())
-				useglslmat = true;
-
-			if (usemat)
-				sceneconverter->SetMaterials(true);
-			if (useglslmat)
-				sceneconverter->SetGLSLMaterials(true);
-
 			KX_Scene* startscene = new KX_Scene(keyboarddevice,
 				mousedevice,
 				startscenename,

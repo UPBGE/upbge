@@ -527,9 +527,9 @@ static bool ConvertMaterial(
 	const char *tfaceName,
 	MFace *mface,
 	MCol *mmcol,
-	MTF_localLayer *layers,
-	bool glslmat)
+	MTF_localLayer *layers)
 {
+	bool glslmat = true;
 	material->Initialize();
 	int texalpha = 0;
 	const bool validmat  = (mat != NULL);
@@ -859,8 +859,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 	{
 		bl_mat = new BL_Material();
 
-		ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol, layers,
-			converter->GetGLSLMaterials());
+		ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol, layers);
 
 		if (ma && ((ma->mode & MA_FACETEXTURE) == 0 || bl_mat->glslmat))
 			converter->CacheBlenderMaterial(scene, ma, bl_mat);
@@ -1347,7 +1346,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	lightobj->m_nodiffuse = (la->mode & LA_NO_DIFF) != 0;
 	lightobj->m_nospecular = (la->mode & LA_NO_SPEC) != 0;
 	
-	bool glslmat = converter->GetGLSLMaterials();
+	bool glslmat = true;
 
 	// in GLSL NEGATIVE LAMP is handled inside the lamp update function
 	if (glslmat==0) {

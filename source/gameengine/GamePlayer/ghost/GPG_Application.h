@@ -165,9 +165,6 @@ protected:
 	/// Manage messages.
 	KX_NetworkMessageManager *m_networkMessageManager;
 
-	bool m_blendermat;
-	bool m_blenderglslmat;
-	
 	/*
 	 * GameLogic.globalDict as a string so that loading new blend files can use the same dict.
 	 * Do this because python starts/stops when loading blend files.

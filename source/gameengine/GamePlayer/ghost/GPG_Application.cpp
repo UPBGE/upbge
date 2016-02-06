@@ -126,8 +126,6 @@ GPG_Application::GPG_Application(GHOST_ISystem* system)
 	  m_canvas(0),
 	  m_rasterizer(0), 
 	  m_sceneconverter(0),
-	  m_blendermat(0),
-	  m_blenderglslmat(0),
 	  m_pyGlobalDictString(0),
 	  m_pyGlobalDictString_Length(0)
 {
@@ -583,12 +581,6 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
 		bool restrictAnimFPS = (gm->flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
-		if (GLEW_ARB_multitexture && GLEW_VERSION_1_1)
-			m_blendermat = false;
-
-		if (GPU_glsl_support())
-			m_blenderglslmat = true;
-
 		// create the canvas, rasterizer and rendertools
 		m_canvas = new GPG_Canvas(window);
 		if (!m_canvas)
@@ -719,13 +711,6 @@ bool GPG_Application::startEngine(void)
 	{
 		STR_String m_kxStartScenename = m_startSceneName.Ptr();
 		m_ketsjiengine->SetSceneConverter(m_sceneconverter);
-
-		//	if (always_use_expand_framing)
-		//		sceneconverter->SetAlwaysUseExpandFraming(true);
-		if (m_blendermat)
-			m_sceneconverter->SetMaterials(true);
-		if (m_blenderglslmat)
-			m_sceneconverter->SetGLSLMaterials(true);
 
 		m_kxStartScene = new KX_Scene(m_keyboard,
 			m_mouse,
