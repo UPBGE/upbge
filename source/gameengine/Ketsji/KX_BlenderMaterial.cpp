@@ -118,7 +118,7 @@ void KX_BlenderMaterial::Initialize(
 	m_flag |= RAS_BLENDERMAT;
 	m_flag |= (m_material->IdMode >= ONETEX) ? RAS_MULTITEX : 0;
 	m_flag |= ((m_material->ras_mode & USE_LIGHT) != 0) ? RAS_MULTILIGHT : 0;
-	m_flag |= (m_material->glslmat) ? RAS_BLENDERGLSL : 0;
+	m_flag |= RAS_BLENDERGLSL;
 	m_flag |= ((m_material->ras_mode & CAST_SHADOW) != 0) ? RAS_CASTSHADOW : 0;
 	m_flag |= ((m_material->ras_mode & ONLY_SHADOW) != 0) ? RAS_ONLYSHADOW : 0;
 	m_flag |= ((ma->shade_flag & MA_OBCOLOR) != 0) ? RAS_OBJECTCOLOR : 0;
@@ -208,7 +208,7 @@ void KX_BlenderMaterial::InitTextures()
 		}
 		/* If we're using glsl materials, the textures are handled by bf_gpu, so don't load them twice!
 		 * However, if we're using a custom shader, then we still need to load the textures ourselves. */
-		else if (!m_material->glslmat || m_shader) {
+		else if (m_shader) {
 			if (m_material->img[i]) {
 				if (!m_textures[i].InitFromImage(i, m_material->img[i], (m_material->flag[i] & MIPMAP) != 0))
 					spit("unable to initialize image(" << i << ") in " <<
@@ -225,8 +225,7 @@ void KX_BlenderMaterial::OnConstruction()
 		return;
 	}
 
-	if (m_material->glslmat)
-		SetBlenderGLSLShader();
+	SetBlenderGLSLShader();
 
 	InitTextures();
 

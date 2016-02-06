@@ -410,75 +410,27 @@ static void SetDefaultLightMode(Scene* scene)
 	}
 }
 
-
-static bool GetMaterialUseVColor(Material *ma, const bool glslmat)
-{
-	if (ma) {
-		/* glsl uses vertex colors, otherwise use material setting
-		 * defmaterial doesn't have VERTEXCOLP as default [#34505] */
-		return (glslmat || ma == &defmaterial || (ma->mode & MA_VERTEXCOLP) != 0);
-	}
-	else {
-		/* no material, use vertex colors */
-		return true;
-	}
-}
-
-// --
 static void GetRGB(
-        const bool use_vcol,
         MFace* mface,
         MCol* mmcol,
         Material *mat,
         unsigned int c[4])
 {
 	unsigned int color = 0xFFFFFFFFL;
-	if (use_vcol == true) {
-		if (mmcol) {
-			c[0] = KX_Mcol2uint_new(mmcol[0]);
-			c[1] = KX_Mcol2uint_new(mmcol[1]);
-			c[2] = KX_Mcol2uint_new(mmcol[2]);
-			if (mface->v4)
-				c[3] = KX_Mcol2uint_new(mmcol[3]);
-		}
-		else { // backup white
-			c[0] = KX_rgbaint2uint_new(color);
-			c[1] = KX_rgbaint2uint_new(color);
-			c[2] = KX_rgbaint2uint_new(color);
-			if (mface->v4)
-				c[3] = KX_rgbaint2uint_new( color );
-		}
+	if (mmcol) {
+		c[0] = KX_Mcol2uint_new(mmcol[0]);
+		c[1] = KX_Mcol2uint_new(mmcol[1]);
+		c[2] = KX_Mcol2uint_new(mmcol[2]);
+		if (mface->v4)
+			c[3] = KX_Mcol2uint_new(mmcol[3]);
 	}
-	else {
-		/* material rgba */
-		if (mat) {
-			union {
-				unsigned char cp[4];
-				unsigned int integer;
-			} col_converter;
-			col_converter.cp[3] = (unsigned char) (mat->r     * 255.0f);
-			col_converter.cp[2] = (unsigned char) (mat->g     * 255.0f);
-			col_converter.cp[1] = (unsigned char) (mat->b     * 255.0f);
-			col_converter.cp[0] = (unsigned char) (mat->alpha * 255.0f);
-			color = col_converter.integer;
-		}
-		c[0] = KX_rgbaint2uint_new(color);
-		c[1] = KX_rgbaint2uint_new(color);
-		c[2] = KX_rgbaint2uint_new(color);
-		if (mface->v4) {
-			c[3] = KX_rgbaint2uint_new(color);
-		}
-	}
-
-#if 0  /* white, unused */
-	{
+	else { // backup white
 		c[0] = KX_rgbaint2uint_new(color);
 		c[1] = KX_rgbaint2uint_new(color);
 		c[2] = KX_rgbaint2uint_new(color);
 		if (mface->v4)
-			c[3] = KX_rgbaint2uint_new(color);
+			c[3] = KX_rgbaint2uint_new( color );
 	}
-#endif
 }
 
 typedef struct MTF_localLayer {
@@ -529,15 +481,12 @@ static bool ConvertMaterial(
 	MCol *mmcol,
 	MTF_localLayer *layers)
 {
-	bool glslmat = true;
 	material->Initialize();
 	int texalpha = 0;
 	const bool validmat  = (mat != NULL);
 	const bool validface = (tface != NULL);
-	const bool use_vcol  = GetMaterialUseVColor(mat, glslmat);
-	
+
 	material->IdMode = DEFAULT_BLENDER;
-	material->glslmat = (validmat) ? glslmat: false;
 	material->materialindex = mface ? mface->mat_nr : 0;
 
 	// --------------------------------
@@ -556,48 +505,10 @@ static bool ConvertMaterial(
 		MTex *mttmp = NULL;
 		int valid_index = 0;
 
-		/* In Multitexture use the face texture if and only if
-		 * it is set in the buttons
-		 * In GLSL is not working yet :/ 3.2011 */
-		bool facetex = false;
-		if (validface && mat->mode & MA_FACETEXTURE && !glslmat) {
-			facetex = true;
-		}
-
 		// foreach MTex
 		for (int i = 0; i < MAXTEX; i++) {
 			// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
 			material->uvsName[i] = layers[i].name;
-
-			// use face tex
-			if (i == 0 && facetex ) {
-				facetex = false;
-				Image *tmp = (Image *)(tface->tpage);
-
-				if (tmp) {
-					material->img[i] = tmp;
-					material->texname[i] = material->img[i]->id.name;
-					material->flag[i] |= MIPMAP;
-
-					material->flag[i] |= (mat->game.alpha_blend & GEMAT_ALPHA_SORT) ? USEALPHA : 0;
-					material->flag[i] |= (mat->game.alpha_blend & GEMAT_ALPHA) ? USEALPHA : 0;
-					material->flag[i] |= (mat->game.alpha_blend & GEMAT_ADD) ? CALCALPHA : 0;
-
-					if (material->img[i]->flag & IMA_REFLECT) {
-						material->mapping[i].mapping |= USEREFL;
-					}
-					else {
-						material->mapping[i].mapping |= USEUV;
-					}
-
-					valid_index++;
-				}
-				else {
-					material->img[i] = 0;
-					material->texname[i] = "";
-				}
-				continue;
-			}
 
 			mttmp = getMTexFromMaterial(mat, i);
 			if (mttmp) {
@@ -622,10 +533,6 @@ static bool ConvertMaterial(
 							material->color_blend[i] = mttmp->colfac;
 							material->flag[i] |= (mttmp->mapto & MAP_ALPHA) ? TEXALPHA : 0;
 							material->flag[i] |= (mttmp->texflag & MTEX_NEGATIVE) ? TEXNEG : 0;
-
-							if (!glslmat && (material->flag[i] & TEXALPHA)) {
-								texalpha = 1;
-							}
 						}
 					}
 					else if (mttmp->tex->type == TEX_ENVMAP) {
@@ -823,15 +730,7 @@ static bool ConvertMaterial(
 	// but fonts now make use of them too, so we leave them in for now.
 	unsigned int rgb[4];
 	if (mface) {
-		GetRGB(use_vcol, mface, mmcol, mat, rgb);
-	}
-
-	// swap the material color, so MCol on bitmap font works
-	if (validmat && (use_vcol == false) && (mat->game.flag & GEMAT_TEXT)) {
-		material->rgb[0] = KX_rgbaint2uint_new(rgb[0]);
-		material->rgb[1] = KX_rgbaint2uint_new(rgb[1]);
-		material->rgb[2] = KX_rgbaint2uint_new(rgb[2]);
-		material->rgb[3] = KX_rgbaint2uint_new(rgb[3]);
+		GetRGB(mface, mmcol, mat, rgb);
 	}
 
 	if (validmat) {
@@ -861,13 +760,11 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 
 		ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol, layers);
 
-		if (ma && ((ma->mode & MA_FACETEXTURE) == 0 || bl_mat->glslmat))
-			converter->CacheBlenderMaterial(scene, ma, bl_mat);
+		converter->CacheBlenderMaterial(scene, ma, bl_mat);
 	}
 
 	if (mface) {
-		const bool use_vcol = GetMaterialUseVColor(ma, bl_mat->glslmat);
-		GetRGB(use_vcol, mface, mcol, ma, rgb);
+		GetRGB(mface, mcol, ma, rgb);
 
 		GetUVs(bl_mat, layers, mface, tface, uvs);
 	}
@@ -879,8 +776,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 
 		kx_blmat->Initialize(scene, bl_mat, (ma?&ma->game:NULL), lightlayer);
 		polymat = static_cast<RAS_IPolyMaterial*>(kx_blmat);
-		if (ma && ((ma->mode & MA_FACETEXTURE) == 0 || bl_mat->glslmat))
-			converter->CachePolyMaterial(scene, ma, polymat);
+		converter->CachePolyMaterial(scene, ma, polymat);
 	}
 	
 	// see if a bucket was reused or a new one was created
@@ -1345,8 +1241,6 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 
 	lightobj->m_nodiffuse = (la->mode & LA_NO_DIFF) != 0;
 	lightobj->m_nospecular = (la->mode & LA_NO_SPEC) != 0;
-	
-	bool glslmat = true;
 
 	if (la->type==LA_SUN) {
 		lightobj->m_type = RAS_ILightObject::LIGHT_SUN;
