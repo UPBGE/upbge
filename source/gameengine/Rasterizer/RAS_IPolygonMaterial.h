@@ -51,7 +51,6 @@ enum MaterialProps
 {
 	RAS_MULTITEX = (1 << 0),
 	RAS_MULTILIGHT = (1 << 1),
-	RAS_BLENDERMAT = (1 << 2),
 	RAS_BLENDERGLSL = (1 << 3),
 	RAS_CASTSHADOW = (1 << 4),
 	RAS_ONLYSHADOW = (1 << 5),

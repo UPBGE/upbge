@@ -930,27 +930,24 @@ KX_GameObject::UpdateMaterialData(
 		{
 			RAS_IPolyMaterial* poly = mit->m_bucket->GetPolyMaterial();
 
-			if (poly->GetFlag() & RAS_BLENDERMAT )
+			KX_BlenderMaterial *m =  static_cast<KX_BlenderMaterial*>(poly);
+
+			if (matname_hash == 0)
 			{
-				KX_BlenderMaterial *m =  static_cast<KX_BlenderMaterial*>(poly);
-				
-				if (matname_hash == 0)
+				m->UpdateIPO(rgba, specrgb,hard,spec,ref,emit, alpha);
+				// if mesh has only one material attached to it then use original hack with no need to edit vertices (better performance)
+				SetObjectColor(rgba);
+			}
+			else
+			{
+				if (matname_hash == poly->GetMaterialNameHash())
 				{
 					m->UpdateIPO(rgba, specrgb,hard,spec,ref,emit, alpha);
-					// if mesh has only one material attached to it then use original hack with no need to edit vertices (better performance)
-					SetObjectColor(rgba);
-				}
-				else
-				{
-					if (matname_hash == poly->GetMaterialNameHash())
-					{
-						m->UpdateIPO(rgba, specrgb,hard,spec,ref,emit, alpha);
-						m_meshes[mesh]->SetVertexColor(poly,rgba);
-						
-						// no break here, because one blender material can be split into several game engine materials
-						// (e.g. one uvsphere material is split into one material at poles with ras_mode TRIANGLE and one material for the body
-						// if here was a break then would miss some vertices if material was split
-					}
+					m_meshes[mesh]->SetVertexColor(poly,rgba);
+
+					// no break here, because one blender material can be split into several game engine materials
+					// (e.g. one uvsphere material is split into one material at poles with ras_mode TRIANGLE and one material for the body
+					// if here was a break then would miss some vertices if material was split
 				}
 			}
 		}

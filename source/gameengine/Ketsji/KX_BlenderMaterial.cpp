@@ -115,7 +115,6 @@ void KX_BlenderMaterial::Initialize(
 	m_lightLayer = lightlayer;
 	// --------------------------------
 	// RAS_IPolyMaterial variables...
-	m_flag |= RAS_BLENDERMAT;
 	m_flag |= (m_material->IdMode >= ONETEX) ? RAS_MULTITEX : 0;
 	m_flag |= ((m_material->ras_mode & USE_LIGHT) != 0) ? RAS_MULTILIGHT : 0;
 	m_flag |= RAS_BLENDERGLSL;
