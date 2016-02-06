@@ -54,8 +54,7 @@
 
 KX_LightObject::KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,
                                RAS_IRasterizer* rasterizer,
-                               RAS_ILightObject* lightobj,
-                               bool glsl)
+                               RAS_ILightObject* lightobj)
 	: KX_GameObject(sgReplicationInfo,callbacks),
 	  m_rasterizer(rasterizer)
 {
@@ -63,7 +62,6 @@ KX_LightObject::KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,
 	m_lightobj->m_scene = sgReplicationInfo;
 	m_lightobj->m_light = this;
 	m_rasterizer->AddLight(m_lightobj);
-	m_lightobj->m_glsl = glsl;
 	m_blenderscene = ((KX_Scene*)sgReplicationInfo)->GetBlenderScene();
 	m_base = NULL;
 };

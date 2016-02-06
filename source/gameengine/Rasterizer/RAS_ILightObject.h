@@ -76,7 +76,6 @@ public:
 	
 	bool	m_nodiffuse;
 	bool	m_nospecular;
-	bool	m_glsl;
 
 	bool m_staticShadow;
 	bool m_requestShadowUpdate;

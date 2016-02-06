@@ -54,7 +54,7 @@ protected:
 	Base*				m_base;
 
 public:
-	KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,RAS_IRasterizer* rasterizer,RAS_ILightObject*	lightobj, bool glsl);
+	KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,RAS_IRasterizer* rasterizer,RAS_ILightObject*	lightobj);
 	virtual ~KX_LightObject();
 	virtual CValue*		GetReplica();
 	RAS_ILightObject*	GetLightData() { return m_lightobj;}

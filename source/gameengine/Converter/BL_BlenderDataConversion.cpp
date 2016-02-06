@@ -1348,16 +1348,6 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	
 	bool glslmat = true;
 
-	// in GLSL NEGATIVE LAMP is handled inside the lamp update function
-	if (glslmat==0) {
-		if (la->mode & LA_NEG)
-		{
-			lightobj->m_color[0] = -lightobj->m_color[0];
-			lightobj->m_color[1] = -lightobj->m_color[1];
-			lightobj->m_color[2] = -lightobj->m_color[2];
-		}
-	}
-		
 	if (la->type==LA_SUN) {
 		lightobj->m_type = RAS_ILightObject::LIGHT_SUN;
 	} else if (la->type==LA_SPOT) {
@@ -1366,9 +1356,8 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 		lightobj->m_type = RAS_ILightObject::LIGHT_NORMAL;
 	}
 
-	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rasterizer,
-		lightobj, glslmat);
-	
+	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rasterizer, lightobj);
+
 	return gamelight;
 }
 
