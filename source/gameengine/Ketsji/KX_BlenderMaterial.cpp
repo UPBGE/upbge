@@ -451,11 +451,16 @@ bool KX_BlenderMaterial::UseInstancing() const
 	return false;
 }
 
-void KX_BlenderMaterial::ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
+void KX_BlenderMaterial::ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
 {
 	if (m_blenderShader) {
 		m_blenderShader->ActivateInstancing(matrixoffset, positionoffset, coloroffset, stride);
 	}
+
+	/* Because the geometry instancing use setting for all instances we use the original alpha blend.
+	 * This requierd that the user use "alpha blend" mode if he will use mutate object color alpha.
+	 */
+	rasty->SetAlphaBlend(m_material->alphablend);
 }
 
 void KX_BlenderMaterial::DesactivateInstancing()

@@ -292,8 +292,6 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 	// Update deformer and render settings.
 	UpdateActiveMeshSlots(rasty);
 
-// 	material->ActivateMeshSlot(m_activeMeshSlots[0], rasty);
-
 	double time = KX_GetActiveEngine()->GetRealTime();
 #ifdef USE_BUFFER
 	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
@@ -306,7 +304,7 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 	UpdateActiveMeshSlotsInstancingBuffer(rasty, buffer);
 	glUnmapBuffer(GL_ARRAY_BUFFER);
 // 	std::cout << "pack data take : " << KX_GetActiveEngine()->GetRealTime() - time << ", num instances : " << m_activeMeshSlots.size() << std::endl;
-	material->ActivateInstancing(
+	material->ActivateInstancing(rasty,
 #ifdef USE_BUFFER
 		(void *)((InstancingObject *)NULL)->matrix,
 		(void *)((InstancingObject *)NULL)->position,

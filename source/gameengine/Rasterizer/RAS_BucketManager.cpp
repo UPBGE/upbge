@@ -154,7 +154,31 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 	std::vector<sortedmeshslot> slots;
 	std::vector<sortedmeshslot>::iterator sit;
 
-	OrderBuckets(cameratrans, m_buckets[ALPHA_BUCKET], slots, true, rasty);
+	BucketList buckets;
+	BucketList alphaBuckets = m_buckets[ALPHA_BUCKET];
+	for (BucketList::iterator bit = alphaBuckets.begin(), bend = alphaBuckets.end(); bit != bend; ++bit) {
+		RAS_MaterialBucket *bucket = *bit;
+		/* If the material bucket doesn't use geometry instancing we put it in
+		 * the list of mesh slot to sort. */
+		if (!bucket->GetPolyMaterial()->UseInstancing()) {
+			buckets.push_back(bucket);
+			continue;
+		}
+
+		bucket->ActivateMaterial(rasty);
+		// Else we draw it now.
+		RAS_DisplayArrayBucketList& displayArrayBucketList = (*bit)->GetDisplayArrayBucketList();
+		for (RAS_DisplayArrayBucketList::iterator dbit = displayArrayBucketList.begin(), dbend = displayArrayBucketList.end();
+			 dbit != dbend; ++dbit)
+		{
+			RAS_DisplayArrayBucket *displayArrayBucket = *dbit;
+			displayArrayBucket->RenderMeshSlotsInstancing(cameratrans, rasty);
+			displayArrayBucket->RemoveActiveMeshSlots();
+		}
+		bucket->DesactivateMaterial(rasty);
+	}
+
+	OrderBuckets(cameratrans, buckets, slots, true, rasty);
 
 	// The last display array and material bucket used to avoid double calls.
 	RAS_DisplayArrayBucket *lastDisplayArrayBucket = NULL;

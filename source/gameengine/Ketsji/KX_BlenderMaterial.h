@@ -46,7 +46,7 @@ public:
 
 	virtual void Activate(RAS_IRasterizer *rasty);
 	virtual void Desactivate(RAS_IRasterizer *rasty);
-	virtual void ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
+	virtual void ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
 	virtual void DesactivateInstancing();
 	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty);
 
