@@ -584,12 +584,10 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		bool restrictAnimFPS = (gm->flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
 		if (GLEW_ARB_multitexture && GLEW_VERSION_1_1)
-			m_blendermat = (SYS_GetCommandLineInt(syshandle, "blender_material", 1) != 0);
+			m_blendermat = false;
 
 		if (GPU_glsl_support())
-			m_blenderglslmat = (SYS_GetCommandLineInt(syshandle, "blender_glsl_material", 1) != 0);
-		else if (m_globalSettings->matmode == GAME_MAT_GLSL)
-			m_blendermat = false;
+			m_blenderglslmat = true;
 
 		// create the canvas, rasterizer and rendertools
 		m_canvas = new GPG_Canvas(window);
@@ -726,7 +724,7 @@ bool GPG_Application::startEngine(void)
 		//		sceneconverter->SetAlwaysUseExpandFraming(true);
 		if (m_blendermat)
 			m_sceneconverter->SetMaterials(true);
-		if (m_blenderglslmat && (m_globalSettings->matmode == GAME_MAT_GLSL))
+		if (m_blenderglslmat)
 			m_sceneconverter->SetGLSLMaterials(true);
 
 		m_kxStartScene = new KX_Scene(m_keyboard,

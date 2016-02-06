@@ -715,7 +715,6 @@ void BKE_scene_init(Scene *sce)
 	sce->gm.deactivationtime = 0.0f;
 
 	sce->gm.flag = GAME_DISPLAY_LISTS;
-	sce->gm.matmode = GAME_MAT_MULTITEX;
 
 	sce->gm.obstacleSimulation = OBSTSIMULATION_NONE;
 	sce->gm.levelHeight = 2.f;

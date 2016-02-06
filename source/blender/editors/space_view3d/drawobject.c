@@ -300,7 +300,7 @@ bool draw_glsl_material(Scene *scene, Object *ob, View3D *v3d, const char dt)
 		return true;
 	
 	if (v3d->drawtype == OB_TEXTURE)
-		return (scene->gm.matmode == GAME_MAT_GLSL && !BKE_scene_use_new_shading_nodes(scene));
+		return (!BKE_scene_use_new_shading_nodes(scene));
 	else if (v3d->drawtype == OB_MATERIAL && dt > OB_SOLID)
 		return true;
 	else

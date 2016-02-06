@@ -250,7 +250,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 	// Globals to be carried on over blender files
 	GlobalSettings gs;
-	gs.matmode= startscene->gm.matmode;
 	gs.glslflag= startscene->gm.flag;
 
 	do
@@ -488,12 +487,10 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 			if (GPU_glsl_support())
 				useglslmat = true;
-			else if (gs.matmode == GAME_MAT_GLSL)
-				usemat = false;
 
 			if (usemat)
 				sceneconverter->SetMaterials(true);
-			if (useglslmat && (gs.matmode == GAME_MAT_GLSL))
+			if (useglslmat)
 				sceneconverter->SetGLSLMaterials(true);
 
 			KX_Scene* startscene = new KX_Scene(keyboarddevice,

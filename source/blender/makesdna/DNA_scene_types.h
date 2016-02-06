@@ -826,7 +826,7 @@ typedef struct GameData {
 	 * bit 5: (gameengine) : enable Bullet DBVT tree for view frustum culling
 	 */
 	int flag;
-	short mode, matmode;
+	short mode, pad1;
 	short occlusionRes;		/* resolution of occlusion Z buffer in pixel */
 	short physicsEngine;
 	short exitkey;
@@ -908,9 +908,9 @@ typedef struct GameData {
 enum {
 #ifdef DNA_DEPRECATED
 	GAME_MAT_TEXFACE    = 0, /* deprecated */
-#endif
 	GAME_MAT_MULTITEX   = 1,
 	GAME_MAT_GLSL       = 2,
+#endif
 };
 
 /* GameData.lodflag */

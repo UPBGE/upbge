@@ -195,8 +195,7 @@ void KX_WorldInfo::UpdateWorldSettings()
 
 void KX_WorldInfo::RenderBackground(RAS_IRasterizer *rasty)
 {
-	if (m_hasworld  && m_scene->gm.flag & GAME_RENDER_WORLD_BACKGROUND
-		&& m_scene->gm.matmode & GAME_MAT_GLSL) {
+	if (m_hasworld  && m_scene->gm.flag & GAME_RENDER_WORLD_BACKGROUND) {
 		GPUMaterial *gpumat = GPU_material_world(m_scene, m_scene->world);
 
 		float viewmat[4][4];

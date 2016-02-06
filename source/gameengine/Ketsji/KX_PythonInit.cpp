@@ -1213,35 +1213,16 @@ static PyObject *gPySetMaterialType(PyObject *,
                                     PyObject *args,
                                     PyObject *)
 {
-	GlobalSettings *gs= gp_KetsjiEngine->GetGlobalSettings();
-	int type;
-
-	if (!PyArg_ParseTuple(args,"i:setMaterialType",&type))
-		return NULL;
-
-	if (type == KX_BLENDER_GLSL_MATERIAL)
-		gs->matmode= GAME_MAT_GLSL;
-	else if (type == KX_BLENDER_MULTITEX_MATERIAL)
-		gs->matmode= GAME_MAT_MULTITEX;
-	else {
-		PyErr_SetString(PyExc_ValueError, "Rasterizer.setMaterialType(int): material type is not known");
-		return NULL;
-	}
+	// TODO set deprecated.
 
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetMaterialType(PyObject *)
 {
-	GlobalSettings *gs= gp_KetsjiEngine->GetGlobalSettings();
-	int flag;
+	// TODO set deprecated.
 
-	if (gs->matmode == GAME_MAT_GLSL)
-		flag = KX_BLENDER_GLSL_MATERIAL;
-	else
-		flag = KX_BLENDER_MULTITEX_MATERIAL;
-	
-	return PyLong_FromLong(flag);
+	return PyLong_FromLong(0);
 }
 
 static PyObject *gPySetAnisotropicFiltering(PyObject *, PyObject *args)

@@ -916,7 +916,6 @@ int main(int argc, char** argv)
 						if (firstTimeRunning) {
 							G.fileflags  = bfd->fileflags;
 
-							gs.matmode= scene->gm.matmode;
 							gs.glslflag= scene->gm.flag;
 						}
 

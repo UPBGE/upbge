@@ -1111,13 +1111,6 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 			if (fd->fileflags & G_FILE_IGNORE_DEPRECATION_WARNINGS)
 				sce->gm.flag |= GAME_IGNORE_DEPRECATION_WARNINGS;
 
-			if (fd->fileflags & G_FILE_GAME_MAT_GLSL)
-				sce->gm.matmode = GAME_MAT_GLSL;
-			else if (fd->fileflags & G_FILE_GAME_MAT)
-				sce->gm.matmode = GAME_MAT_MULTITEX;
-			else
-				sce->gm.matmode = GAME_MAT_TEXFACE;
-
 			sce->gm.flag |= GAME_DISPLAY_LISTS;
 		}
 

@@ -69,7 +69,6 @@ enum KX_ExitRequestMode
 };
 
 typedef struct {
-	short matmode;
 	short glslflag;
 } GlobalSettings;
 
