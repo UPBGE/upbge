@@ -445,7 +445,7 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 
 bool KX_BlenderMaterial::UseInstancing() const
 {
-	if (m_blenderShader) {
+	if (m_blenderShader && !(m_shader && m_shader->Ok())) {
 		return m_blenderShader->UseInstancing();
 	}
 	return false;
