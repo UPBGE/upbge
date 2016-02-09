@@ -43,6 +43,25 @@ class RAS_BucketManager
 {
 public:
 	typedef std::vector<class RAS_MaterialBucket*> BucketList;
+	struct sortedmeshslot
+	{
+		/// depth
+		MT_Scalar m_z;
+		/// mesh slot
+		RAS_MeshSlot *m_ms;
+		/// buck mesh slot came from
+		RAS_MaterialBucket *m_bucket;
+		void set(RAS_MeshSlot *ms, RAS_MaterialBucket *bucket, const MT_Vector3& pnorm);
+	};
+	struct backtofront
+	{
+		bool operator()(const sortedmeshslot &a, const sortedmeshslot &b);
+	};
+	struct fronttoback
+	{
+		bool operator()(const sortedmeshslot &a, const sortedmeshslot &b);
+	};
+
 private:
 	enum {
 		SOLID_BUCKET = 0,

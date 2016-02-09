@@ -210,7 +210,7 @@ void RAS_MaterialBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IR
 		}
 
 		if (m_material->UseInstancing()) {
-			displayArrayBucket->RenderMeshSlotsInstancing(cameratrans, rasty);
+			displayArrayBucket->RenderMeshSlotsInstancing(cameratrans, rasty, false);
 		}
 		else {
 			displayArrayBucket->RenderMeshSlots(cameratrans, rasty);

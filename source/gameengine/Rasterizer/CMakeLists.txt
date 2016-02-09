@@ -52,6 +52,7 @@ set(SRC
 	RAS_DisplayArrayBucket.cpp
 	RAS_FramingManager.cpp
 	RAS_IPolygonMaterial.cpp
+	RAS_InstancingBuffer.cpp
 	RAS_MaterialBucket.cpp
 	RAS_MeshObject.cpp
 	RAS_MeshSlot.cpp
@@ -75,6 +76,7 @@ set(SRC
 	RAS_IRasterizer.h
 	RAS_IStorage.h
 	RAS_ILightObject.h
+	RAS_InstancingBuffer.h
 	RAS_MaterialBucket.h
 	RAS_MeshMaterial.h
 	RAS_MeshObject.h

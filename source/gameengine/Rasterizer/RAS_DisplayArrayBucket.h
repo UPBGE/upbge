@@ -42,6 +42,7 @@ class RAS_DisplayArray;
 class RAS_MeshObject;
 class RAS_Deformer;
 class RAS_IStorageInfo;
+class RAS_InstancingBuffer;
 
 typedef std::vector<RAS_Deformer *> RAS_DeformerList;
 
@@ -75,19 +76,7 @@ private:
 	 */
 	RAS_IStorageInfo *m_storageInfo;
 
-	/// \section Geometry Instancing
-	/// Structure used to store object info for geometry instancing objects render.
-	struct InstancingObject
-	{
-		float matrix[9];
-		float position[3];
-		unsigned char color[4];
-	};
-
-	/** Fill the giving buffer with mesh slot data and modify offset for matrix, position
-	 * and color attributs.
-	 */
-	void UpdateActiveMeshSlotsInstancingBuffer(RAS_IRasterizer *rasty, InstancingObject *buffer);
+	RAS_InstancingBuffer *m_instancingBuffer;
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array, RAS_MeshObject *mesh);
@@ -134,7 +123,7 @@ public:
 
 	/// Render all mesh slots fro solid render.
 	void RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);
-	void RenderMeshSlotsInstancing(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);
+	void RenderMeshSlotsInstancing(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, bool alpha);
 };
 
 typedef std::vector<RAS_DisplayArrayBucket *> RAS_DisplayArrayBucketList;

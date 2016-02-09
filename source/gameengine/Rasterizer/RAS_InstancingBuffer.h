@@ -1,0 +1,78 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): Porteries Tristan.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file RAS_InstancingBuffer.h
+ *  \ingroup bgerast
+ */
+
+#ifndef __RAS_INSTANCING_BUFFER_H__
+#define __RAS_INSTANCING_BUFFER_H__
+
+#include "RAS_MeshSlot.h"
+
+class RAS_IRasterizer;
+
+class RAS_InstancingBuffer
+{
+	unsigned int m_vbo;
+	void *m_matrixOffset;
+	void *m_positionOffset;
+	void *m_colorOffset;
+
+	/// Structure used to store object info for geometry instancing objects render.
+	struct InstancingObject
+	{
+		float matrix[9];
+		float position[3];
+		unsigned char color[4];
+	};
+
+public:
+	RAS_InstancingBuffer();
+	virtual ~RAS_InstancingBuffer();
+
+	void Bind();
+	void Unbind();
+	void Update(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, int drawingmode, RAS_MeshSlotList &meshSlots);
+
+	inline void *GetMatrixOffset() const
+	{
+		return m_matrixOffset;
+	}
+	inline void *GetPositionOffset() const
+	{
+		return m_positionOffset;
+	}
+	inline void *GetColorOffset() const
+	{
+		return m_colorOffset;
+	}
+	inline unsigned int GetStride() const
+	{
+		return sizeof(InstancingObject);
+	}
+};
+
+#endif // __RAS_INSTANCING_BUFFER_H__
+

@@ -45,41 +45,25 @@
 #include <algorithm>
 /* sorting */
 
-struct RAS_BucketManager::sortedmeshslot
+void RAS_BucketManager::sortedmeshslot::set(RAS_MeshSlot *ms, RAS_MaterialBucket *bucket, const MT_Vector3& pnorm)
 {
-public:
-	MT_Scalar m_z;					/* depth */
-	RAS_MeshSlot *m_ms;				/* mesh slot */
-	RAS_MaterialBucket *m_bucket;	/* buck mesh slot came from */
+	// would be good to use the actual bounding box center instead
+	MT_Point3 pos(ms->m_OpenGLMatrix[12], ms->m_OpenGLMatrix[13], ms->m_OpenGLMatrix[14]);
 
-	sortedmeshslot() {}
+	m_z = MT_dot(pnorm, pos);
+	m_ms = ms;
+	m_bucket = bucket;
+}
 
-	void set(RAS_MeshSlot *ms, RAS_MaterialBucket *bucket, const MT_Vector3& pnorm)
-	{
-		// would be good to use the actual bounding box center instead
-		MT_Point3 pos(ms->m_OpenGLMatrix[12], ms->m_OpenGLMatrix[13], ms->m_OpenGLMatrix[14]);
-
-		m_z = MT_dot(pnorm, pos);
-		m_ms = ms;
-		m_bucket = bucket;
-	}
-};
-
-struct RAS_BucketManager::backtofront
+bool RAS_BucketManager::backtofront::operator()(const sortedmeshslot &a, const sortedmeshslot &b)
 {
-	bool operator()(const sortedmeshslot &a, const sortedmeshslot &b)
-	{
-		return (a.m_z < b.m_z) || (a.m_z == b.m_z && a.m_ms < b.m_ms);
-	}
-};
+	return (a.m_z < b.m_z) || (a.m_z == b.m_z && a.m_ms < b.m_ms);
+}
 
-struct RAS_BucketManager::fronttoback
+bool RAS_BucketManager::fronttoback::operator()(const sortedmeshslot &a, const sortedmeshslot &b)
 {
-	bool operator()(const sortedmeshslot &a, const sortedmeshslot &b)
-	{
-		return (a.m_z > b.m_z) || (a.m_z == b.m_z && a.m_ms > b.m_ms);
-	}
-};
+	return (a.m_z > b.m_z) || (a.m_z == b.m_z && a.m_ms > b.m_ms);
+}
 
 /* bucket manager */
 
@@ -172,7 +156,7 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 			 dbit != dbend; ++dbit)
 		{
 			RAS_DisplayArrayBucket *displayArrayBucket = *dbit;
-			displayArrayBucket->RenderMeshSlotsInstancing(cameratrans, rasty);
+			displayArrayBucket->RenderMeshSlotsInstancing(cameratrans, rasty, true);
 			displayArrayBucket->RemoveActiveMeshSlots();
 		}
 		bucket->DesactivateMaterial(rasty);
