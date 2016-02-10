@@ -121,8 +121,9 @@ public:
 	void SetStorageInfo(RAS_IStorageInfo *info);
 	void DestructStorageInfo();
 
-	/// Render all mesh slots fro solid render.
+	/// Render all mesh slots for solid render.
 	void RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);
+	/// Render all mesh slots with geometry instancing render.
 	void RenderMeshSlotsInstancing(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, bool alpha);
 };
 

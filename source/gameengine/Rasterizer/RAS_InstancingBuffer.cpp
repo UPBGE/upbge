@@ -33,7 +33,8 @@
 RAS_InstancingBuffer::RAS_InstancingBuffer()
 	:m_matrixOffset(NULL),
 	m_positionOffset(NULL),
-	m_colorOffset(NULL)
+	m_colorOffset(NULL),
+	m_stride(sizeof(RAS_InstancingBuffer::InstancingObject))
 {
 	glGenBuffersARB(1, &m_vbo);
 
@@ -57,7 +58,7 @@ void RAS_InstancingBuffer::Unbind()
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void RAS_InstancingBuffer::Update(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, int drawingmode, RAS_MeshSlotList &meshSlots)
+void RAS_InstancingBuffer::Update(RAS_IRasterizer *rasty, int drawingmode, RAS_MeshSlotList &meshSlots)
 {
 	glBufferData(GL_ARRAY_BUFFER, sizeof(InstancingObject) * meshSlots.size(), 0, GL_DYNAMIC_DRAW);
 	InstancingObject *buffer = (InstancingObject *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);

@@ -209,6 +209,7 @@ void RAS_MaterialBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IR
 			continue;
 		}
 
+		// Choose the rendering mode : geometry instancing render / regular render.
 		if (m_material->UseInstancing()) {
 			displayArrayBucket->RenderMeshSlotsInstancing(cameratrans, rasty, false);
 		}

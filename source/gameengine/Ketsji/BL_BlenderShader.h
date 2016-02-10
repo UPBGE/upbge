@@ -76,9 +76,7 @@ public:
 	void SetAttribs(RAS_IRasterizer *ras);
 	void Update(RAS_MeshSlot *ms, RAS_IRasterizer * rasty);
 
-	/**
-	 * retrun true if the shader uses a special vertex program for geometry instancing
-	 */
+	/// Return true if the shader uses a special vertex shader for geometry instancing.
 	bool UseInstancing() const;
 	void ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
 	void DesactivateInstancing();

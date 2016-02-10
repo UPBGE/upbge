@@ -35,10 +35,16 @@ class RAS_IRasterizer;
 
 class RAS_InstancingBuffer
 {
+	/// The OpenGL VBO identificator.
 	unsigned int m_vbo;
+	/// The matrix offset in the VBO.
 	void *m_matrixOffset;
+	/// The position offset in the VBO.
 	void *m_positionOffset;
+	/// The color offset in the VBO.
 	void *m_colorOffset;
+	/// The instance structure stride in the VBO.
+	unsigned int m_stride;
 
 	/// Structure used to store object info for geometry instancing objects render.
 	struct InstancingObject
@@ -52,9 +58,17 @@ public:
 	RAS_InstancingBuffer();
 	virtual ~RAS_InstancingBuffer();
 
+	/// Bind the VBO before work on it.
 	void Bind();
+	/// Unbind the VBO after work on it.
 	void Unbind();
-	void Update(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, int drawingmode, RAS_MeshSlotList &meshSlots);
+
+	/** Allocate the VBO and fill it with a InstancingObject per mesh slots.
+	 * \param rasty Rasterizer used to compute the mesh slot matrix, useful for billboard material.
+	 * \param drawingmode The material drawing mode used to detect a billboard/halo/shadow material.
+	 * \param meshSlots The list of all non-culled and visible mesh slots (= game object).
+	 */
+	void Update(RAS_IRasterizer *rasty, int drawingmode, RAS_MeshSlotList &meshSlots);
 
 	inline void *GetMatrixOffset() const
 	{
@@ -70,7 +84,7 @@ public:
 	}
 	inline unsigned int GetStride() const
 	{
-		return sizeof(InstancingObject);
+		return m_stride;
 	}
 };
 

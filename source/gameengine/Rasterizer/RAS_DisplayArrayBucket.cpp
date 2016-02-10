@@ -261,6 +261,7 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 		return;
 	}
 
+	// Create the instancing buffer only if it needed.
 	if (!m_instancingBuffer) {
 		m_instancingBuffer = new RAS_InstancingBuffer();
 	}
@@ -270,8 +271,12 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 	// Update deformer and render settings.
 	UpdateActiveMeshSlots(rasty);
 
+	// Bind the instancing buffer to work on it.
 	m_instancingBuffer->Bind();
 
+	/* If the material use the transparency we must sort all mesh slots depending on the distance.
+	 * This code share the code used in RAS_BucketManager to do the sort.
+	 */
 	if (alpha) {
 		std::vector<RAS_BucketManager::sortedmeshslot> sortedMeshSlots;
 		sortedMeshSlots.resize(nummeshslots);
@@ -288,12 +293,15 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 			meshSlots[i] = sortedMeshSlots[i].m_ms;
 		}
 
-		m_instancingBuffer->Update(cameratrans, rasty, material->GetDrawingMode(), meshSlots);
+		// Fill the buffer with the sorted mesh slots.
+		m_instancingBuffer->Update(rasty, material->GetDrawingMode(), meshSlots);
 	}
 	else {
-		m_instancingBuffer->Update(cameratrans, rasty, material->GetDrawingMode(), m_activeMeshSlots);
+		// Fill the buffer with the original mesh slots.
+		m_instancingBuffer->Update(rasty, material->GetDrawingMode(), m_activeMeshSlots);
 	}
 
+	// Bind all vertex attributs for the used material and the given buffer offset.
 	material->ActivateInstancing(
 		rasty,
 		m_instancingBuffer->GetMatrixOffset(),
@@ -301,11 +309,13 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 		m_instancingBuffer->GetColorOffset(),
 		m_instancingBuffer->GetStride());
 
+	// Unbind the buffer to avoid conflict with the render after.
 	m_instancingBuffer->Unbind();
 
 	rasty->BindPrimitives(this);
 
 	rasty->IndexPrimitivesInstancing(this);
+	// Unbind vertex attributs.
 	material->DesactivateInstancing();
 
 	rasty->UnbindPrimitives(this);
