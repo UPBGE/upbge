@@ -278,8 +278,7 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 	 * This code share the code used in RAS_BucketManager to do the sort.
 	 */
 	if (alpha) {
-		std::vector<RAS_BucketManager::sortedmeshslot> sortedMeshSlots;
-		sortedMeshSlots.resize(nummeshslots);
+		std::vector<RAS_BucketManager::sortedmeshslot> sortedMeshSlots(nummeshslots);
 
 		const MT_Vector3 pnorm(cameratrans.getBasis()[2]);
 		unsigned int i = 0;
@@ -287,8 +286,7 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 			sortedMeshSlots[i++].set(*it, m_bucket, pnorm);
 		}
 		std::sort(sortedMeshSlots.begin(), sortedMeshSlots.end(), RAS_BucketManager::backtofront());
-		std::vector<RAS_MeshSlot *> meshSlots;
-		meshSlots.resize(nummeshslots);
+		std::vector<RAS_MeshSlot *> meshSlots(nummeshslots);
 		for (unsigned int i = 0; i < nummeshslots; ++i) {
 			meshSlots[i] = sortedMeshSlots[i].m_ms;
 		}
