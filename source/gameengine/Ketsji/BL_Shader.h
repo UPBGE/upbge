@@ -205,7 +205,10 @@ public:
 #ifdef WITH_PYTHON
 	virtual PyObject *py_repr()
 	{
-		return PyUnicode_FromFormat("BL_Shader\n\tvertex shader:%s\n\n\tfragment shader%s\n\n", vertProg, fragProg);
+		if (vertProg && fragProg) {
+			return PyUnicode_FromFormat("BL_Shader\n\tvertex shader:%s\n\n\tfragment shader%s\n\n", vertProg, fragProg);
+		}
+		return PyUnicode_FromString("BL_Shader");
 	}
 
 	// -----------------------------------
