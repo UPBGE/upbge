@@ -31,6 +31,7 @@
 
 #include "GPU_material.h"
 #include "GPU_shader.h"
+#include "GPU_extensions.h"
 
 #include "BL_BlenderShader.h"
 #include "BL_Material.h"
@@ -95,7 +96,7 @@ void BL_BlenderShader::ParseAttribs()
 void BL_BlenderShader::ReloadMaterial()
 {
 	m_GPUMat = (m_mat) ? 
-		((m_mat->shade_flag & MA_INSTANCING) ?
+		(UseInstancing() ?
 		GPU_material_instancing_from_blender(m_blenderScene, m_mat) :
 		GPU_material_from_blender(m_blenderScene, m_mat, false)) :
 		NULL;
@@ -208,10 +209,7 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 
 bool BL_BlenderShader::UseInstancing() const
 {
-	if (Ok()) {
-		return GPU_Material_get_type(m_GPUMat) == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE;
-	}
-	return false;
+	return (GPU_instanced_drawing_support() && (m_mat->shade_flag & MA_INSTANCING));
 }
 
 void BL_BlenderShader::ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
