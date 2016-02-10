@@ -95,7 +95,7 @@ void BL_BlenderShader::ParseAttribs()
 void BL_BlenderShader::ReloadMaterial()
 {
 	m_GPUMat = (m_mat) ? 
-		((m_mat->shade_flag & MA_INSTANCE) ? 
+		((m_mat->shade_flag & MA_INSTANCING) ?
 		GPU_material_instancing_from_blender(m_blenderScene, m_mat) :
 		GPU_material_from_blender(m_blenderScene, m_mat, false)) :
 		NULL;
