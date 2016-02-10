@@ -123,10 +123,10 @@ const int *GPC_Canvas::GetViewPort()
 	// from what the gpu thinks we have. This could lead to nasty, hard to find bugs.
 	int viewport[4];
 	glGetIntegerv(GL_VIEWPORT, viewport);
-	/*assert(viewport[0] == m_viewport[0]);
+	assert(viewport[0] == m_viewport[0]);
 	assert(viewport[1] == m_viewport[1]);
 	assert(viewport[2] == m_viewport[2]);
-	assert(viewport[3] == m_viewport[3]);*/
+	assert(viewport[3] == m_viewport[3]);
 #endif
 
 	return m_viewport;
