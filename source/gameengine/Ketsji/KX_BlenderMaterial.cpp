@@ -355,10 +355,9 @@ void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 
 void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED)
+	if (rasty->UseMaterial(m_material->alphablend)) {
 		SetShaderData(rasty);
-	else if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && m_material->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
-		SetShaderData(rasty);
+	}
 
 	if (m_material->ras_mode & TWOSIDED)
 		rasty->SetCullFace(false);
@@ -378,10 +377,9 @@ void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 
 void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED)
+	if (rasty->UseMaterial(m_material->alphablend)) {
 		SetBlenderShaderData(rasty);
-	else if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && m_material->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
-		SetBlenderShaderData(rasty);
+	}
 
 	if (m_material->ras_mode & TWOSIDED)
 		rasty->SetCullFace(false);
@@ -402,10 +400,9 @@ void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 
 void KX_BlenderMaterial::ActivateMat(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED)
+	if (rasty->UseMaterial(m_material->alphablend)) {
 		SetTexData(rasty);
-	else if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && m_material->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
-		SetTexData(rasty);
+	}
 
 	if (m_material->ras_mode & TWOSIDED)
 		rasty->SetCullFace(false);
@@ -512,10 +509,7 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_IRasterizer *rasty) const
 
 void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 {
-	if (ras->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED ||
-	    (ras->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW &&
-	     m_material->alphablend != GEMAT_SOLID && !ras->GetUsingOverrideShader()))
-	{
+	if (ras->UseMaterial(m_material->alphablend)) {
 		ras->SetAttribNum(0);
 		if (m_shader && GLEW_ARB_shader_objects) {
 			if (m_shader->GetAttribute() == BL_Shader::SHD_TANGENT) {

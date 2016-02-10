@@ -1182,6 +1182,11 @@ bool RAS_OpenGLRasterizer::GetUsingOverrideShader()
 	return m_usingoverrideshader;
 }
 
+bool RAS_OpenGLRasterizer::UseMaterial(int alphablend) const
+{
+	return ((m_drawingmode == RAS_TEXTURED) || (m_drawingmode == RAS_SHADOW && alphablend != GPU_BLEND_SOLID && !m_usingoverrideshader));
+}
+
 /**
  * Render Tools
  */
