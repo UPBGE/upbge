@@ -1531,16 +1531,23 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 
 void KX_Scene::DrawDebug(RAS_IRasterizer *rasty)
 {
-	for (CListValue::iterator it = m_objectlist->GetBegin(); it != m_objectlist->GetEnd(); ++it) {
-		KX_GameObject *gameobj = (KX_GameObject *)*it;
+	const bool showBoundingBox = KX_GetActiveEngine()->GetShowBoundingBox();
+	if (showBoundingBox) {
+		for (CListValue::iterator it = m_objectlist->GetBegin(); it != m_objectlist->GetEnd(); ++it) {
+			KX_GameObject *gameobj = (KX_GameObject *)*it;
 
-		if (KX_GetActiveEngine()->GetShowBoundingBox() && gameobj->GetMeshCount() != 0 && !gameobj->GetCulled()) {
-			const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
-			const SG_BBox& box = gameobj->GetSGNode()->BBox();
-			rasty->DrawDebugBox(this, gameobj->NodeGetWorldPosition(), gameobj->NodeGetWorldOrientation(),
-								box.GetMin() * scale, box.GetMax() * scale, MT_Vector3(1, 0, 1));
+			if (!gameobj->GetCulled() && gameobj->GetMeshCount() != 0) {
+				const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
+				const SG_BBox& box = gameobj->GetSGNode()->BBox();
+				rasty->DrawDebugBox(this, gameobj->NodeGetWorldPosition(), gameobj->NodeGetWorldOrientation(),
+									box.GetMin() * scale, box.GetMax() * scale, MT_Vector3(1, 0, 1));
+			}
 		}
-		else if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
+	}
+	// The side effect of a armature is that it was added in the animated object list.
+	for (CListValue::iterator it = m_animatedlist->GetBegin(), end = m_animatedlist->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = (KX_GameObject *)*it;
+		if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
 			BL_ArmatureObject *armature = (BL_ArmatureObject *)gameobj;
 			if (armature->GetDrawDebug() || KX_GetActiveEngine()->GetShowArmatures()) {
 				armature->DrawDebugArmature();
