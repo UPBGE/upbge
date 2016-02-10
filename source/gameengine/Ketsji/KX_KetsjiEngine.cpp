@@ -727,7 +727,7 @@ void KX_KetsjiEngine::Render()
 	// clear the entire game screen with the border color
 	// only once per frame
 	m_canvas->BeginDraw();
-	if (m_rasterizer->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED) {
+	if (m_rasterizer->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED) {
 		m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
 		if (m_overrideFrameColor) {
 			// Do not use the framing bar color set in the Blender scenes
@@ -997,7 +997,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 		raslight->Update();
 
-		if (light->GetVisible() && m_rasterizer->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED &&
+		if (light->GetVisible() && m_rasterizer->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED &&
 			raslight->HasShadowBuffer() && raslight->NeedShadowUpdate())
 		{
 			/* make temporary camera */
@@ -1009,7 +1009,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 			/* switch drawmode for speed */
 			RAS_IRasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
-			m_rasterizer->SetDrawingMode(RAS_IRasterizer::KX_SHADOW);
+			m_rasterizer->SetDrawingMode(RAS_IRasterizer::RAS_SHADOW);
 
 			/* binds framebuffer object, sets up camera .. */
 			raslight->BindShadowBuffer(m_canvas, cam, camtrans);

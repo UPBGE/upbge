@@ -1832,7 +1832,7 @@ void KX_Dome::DrawDomeFisheye(void)
 	glLoadIdentity();
 	gluLookAt(0.0f,-1.0f,0.0f, 0.0f,0.0f,0.0f, 0.0f,0.0f,1.0f);
 
-	if (m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
+	if (m_drawingmode == RAS_IRasterizer::RAS_WIREFRAME)
 		glPolygonMode(GL_FRONT, GL_LINE);
 	else
 		glPolygonMode(GL_FRONT, GL_FILL);
@@ -1915,7 +1915,7 @@ void KX_Dome::DrawPanorama(void)
 	glLoadIdentity();
 	gluLookAt(0.0f,-1.0f,0.0f, 0.0f,0.0f,0.0f, 0.0f,0.0f,1.0f);
 
-	if (m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
+	if (m_drawingmode == RAS_IRasterizer::RAS_WIREFRAME)
 		glPolygonMode(GL_FRONT, GL_LINE);
 	else
 		glPolygonMode(GL_FRONT, GL_FILL);
@@ -1983,7 +1983,7 @@ void KX_Dome::DrawDomeWarped(void)
 	glLoadIdentity();
 	gluLookAt(0.0f, 0.0f, 1.0f, 0.0f,0.0f,0.0f, 0.0f,1.0f,0.0f);
 
-	if (m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
+	if (m_drawingmode == RAS_IRasterizer::RAS_WIREFRAME)
 		glPolygonMode(GL_FRONT, GL_LINE);
 	else
 		glPolygonMode(GL_FRONT, GL_FILL);

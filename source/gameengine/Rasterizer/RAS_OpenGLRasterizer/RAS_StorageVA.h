@@ -42,7 +42,7 @@ public:
 	};
 
 private:
-	int m_list[RAS_IRasterizer::KX_DRAW_MAX][NUM_LIST];
+	int m_list[RAS_IRasterizer::RAS_DRAW_MAX][NUM_LIST];
 
 	void RemoveAllList(RAS_IRasterizer::DrawType drawmode);
 

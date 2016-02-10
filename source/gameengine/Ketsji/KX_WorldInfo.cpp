@@ -162,7 +162,7 @@ void KX_WorldInfo::UpdateBackGround()
 	if (m_hasworld) {
 		RAS_IRasterizer *m_rasterizer = KX_GetActiveEngine()->GetRasterizer();
 
-		if (m_rasterizer->GetDrawingMode() >= RAS_IRasterizer::KX_SOLID) {
+		if (m_rasterizer->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID) {
 			m_rasterizer->SetBackColor(m_con_backgroundcolor);
 			GPU_horizon_update_color(m_backgroundcolor);
 		}
@@ -174,7 +174,7 @@ void KX_WorldInfo::UpdateWorldSettings()
 	if (m_hasworld) {
 		RAS_IRasterizer *m_rasterizer = KX_GetActiveEngine()->GetRasterizer();
 
-		if (m_rasterizer->GetDrawingMode() >= RAS_IRasterizer::KX_SOLID) {
+		if (m_rasterizer->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID) {
 			m_rasterizer->SetAmbientColor(m_con_ambientcolor);
 			GPU_ambient_update_color(m_ambientcolor);
 

@@ -125,7 +125,7 @@ RAS_MeshSlotList::iterator RAS_MaterialBucket::msEnd()
 
 bool RAS_MaterialBucket::ActivateMaterial(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW) {
+	if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW) {
 		if (!m_material->CastsShadows()) {
 			return false;
 		}
@@ -145,7 +145,7 @@ bool RAS_MaterialBucket::ActivateMaterial(RAS_IRasterizer *rasty)
 
 void RAS_MaterialBucket::DesactivateMaterial(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && m_material->CastsShadows() && rasty->GetUsingOverrideShader()) {
+	if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && m_material->CastsShadows() && rasty->GetUsingOverrideShader()) {
 		// Override variance shadow map shader.
 		return;
 	}
@@ -158,8 +158,8 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	rasty->SetClientObject(ms->m_clientObj);
 
 	// Inverse condition of in ActivateMaterial.
-	if (!((rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && !m_material->CastsShadows()) ||
-		(rasty->GetDrawingMode() != RAS_IRasterizer::KX_SHADOW && m_material->OnlyShadow())))
+	if (!((rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && !m_material->CastsShadows()) ||
+		(rasty->GetDrawingMode() != RAS_IRasterizer::RAS_SHADOW && m_material->OnlyShadow())))
 	{
 		bool uselights = m_material->UsesLighting(rasty);
 		rasty->ProcessLighting(uselights, cameratrans);
@@ -167,7 +167,7 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 
 	m_material->ActivateMeshSlot(ms, rasty);
 
-	if (IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::KX_SOLID)
+	if (IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID)
 		ms->m_mesh->SortPolygons(ms, cameratrans * MT_Transform(ms->m_OpenGLMatrix));
 
 	rasty->PushMatrix();

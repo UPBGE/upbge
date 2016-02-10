@@ -158,8 +158,8 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 	// Having depth masks disabled/enabled gives different artifacts in
 	// case no sorting is done or is done inexact. For compatibility, we
 	// disable it.
-	if (rasty->GetDrawingMode() != RAS_IRasterizer::KX_SHADOW)
-		rasty->SetDepthMask(RAS_IRasterizer::KX_DEPTHMASK_DISABLED);
+	if (rasty->GetDrawingMode() != RAS_IRasterizer::RAS_SHADOW)
+		rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
 
 	OrderBuckets(cameratrans, m_AlphaBuckets, slots, true, rasty);
 
@@ -204,12 +204,12 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 	}
 	rasty->UnbindPrimitives(lastDisplayArrayBucket);
 
-	rasty->SetDepthMask(RAS_IRasterizer::KX_DEPTHMASK_ENABLED);
+	rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 }
 
 void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty)
 {
-	rasty->SetDepthMask(RAS_IRasterizer::KX_DEPTHMASK_ENABLED);
+	rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 
 	for (BucketList::iterator bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
 		RAS_MaterialBucket* bucket = *bit;
@@ -226,7 +226,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 	 * then the mesh is still modified, so we don't want to set MeshModified to false yet (it will mess up
 	 * updating display lists). Just leave this step for the main render pass.
 	 */
-	if (rasty->GetDrawingMode() != RAS_IRasterizer::KX_SHADOW) {
+	if (rasty->GetDrawingMode() != RAS_IRasterizer::RAS_SHADOW) {
 		/* All meshes should be up to date now */
 		/* Don't do this while processing buckets because some meshes are split between buckets */
 		BucketList::iterator bit;

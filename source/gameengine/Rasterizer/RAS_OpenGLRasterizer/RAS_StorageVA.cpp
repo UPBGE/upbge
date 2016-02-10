@@ -34,7 +34,7 @@
 
 RAS_DisplayList::RAS_DisplayList()
 {
-	for (unsigned short i = 0; i < RAS_IRasterizer::KX_DRAW_MAX; ++i) {
+	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_DRAW_MAX; ++i) {
 		for (unsigned short j = 0; j < NUM_LIST; ++j) {
 			m_list[i][j] = -1;
 		}
@@ -43,7 +43,7 @@ RAS_DisplayList::RAS_DisplayList()
 
 RAS_DisplayList::~RAS_DisplayList()
 {
-	for (unsigned short i = 0; i < RAS_IRasterizer::KX_DRAW_MAX; ++i) {
+	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_DRAW_MAX; ++i) {
 		RemoveAllList((RAS_IRasterizer::DrawType)i);
 	}
 }
@@ -88,7 +88,7 @@ void RAS_DisplayList::End(RAS_IRasterizer::DrawType drawmode, LIST_TYPE type)
 }
 
 RAS_StorageVA::RAS_StorageVA(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer) :
-	m_drawingmode(RAS_IRasterizer::KX_TEXTURED),
+	m_drawingmode(RAS_IRasterizer::RAS_TEXTURED),
 	m_texco_num(texco_num),
 	m_attrib_num(attrib_num),
 	m_texco(texco),
@@ -119,7 +119,7 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 
 	RAS_DisplayArray *array = arrayBucket->GetDisplayArray();
 	static const GLsizei stride = sizeof(RAS_TexVert);
-	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
+	bool wireframe = m_drawingmode <= RAS_IRasterizer::RAS_WIREFRAME;
 	RAS_TexVert *vertexarray = array->m_vertex.data();
 
 	if (!wireframe)
@@ -147,7 +147,7 @@ void RAS_StorageVA::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 		return;
 	}
 
-	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
+	bool wireframe = m_drawingmode <= RAS_IRasterizer::RAS_WIREFRAME;
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);
 	if (!wireframe) {
@@ -171,7 +171,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 	}
 
 	static const GLsizei stride = sizeof(RAS_TexVert);
-	bool wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
+	bool wireframe = m_drawingmode <= RAS_IRasterizer::RAS_WIREFRAME;
 	RAS_DisplayArray *array = ms->GetDisplayArray();
 	RAS_TexVert *vertexarray = array->m_vertex.data();
 	unsigned int *indexarray = array->m_index.data();

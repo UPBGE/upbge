@@ -177,10 +177,10 @@ bool RAS_IPolyMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 	if (!(m_flag & RAS_BLENDERGLSL)) {
 		dolights = (m_flag & RAS_MULTILIGHT) != 0;
 	}
-	else if (rasty->GetDrawingMode() < RAS_IRasterizer::KX_SOLID) {
+	else if (rasty->GetDrawingMode() < RAS_IRasterizer::RAS_SOLID) {
 		/* pass */
 	}
-	else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW) {
+	else if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW) {
 		/* pass */
 	}
 	else {

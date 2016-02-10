@@ -355,9 +355,9 @@ void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 
 void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
+	if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED)
 		SetShaderData(rasty);
-	else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && m_material->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
+	else if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && m_material->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
 		SetShaderData(rasty);
 
 	if (m_material->ras_mode & TWOSIDED)
@@ -365,7 +365,7 @@ void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 	else
 		rasty->SetCullFace(true);
 
-	if ((m_material->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
+	if ((m_material->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::RAS_WIREFRAME)) {
 		if (m_material->ras_mode & WIRE)
 			rasty->SetCullFace(false);
 		rasty->SetLines(true);
@@ -378,9 +378,9 @@ void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 
 void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
+	if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED)
 		SetBlenderShaderData(rasty);
-	else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && m_material->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
+	else if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && m_material->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
 		SetBlenderShaderData(rasty);
 
 	if (m_material->ras_mode & TWOSIDED)
@@ -388,7 +388,7 @@ void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 	else
 		rasty->SetCullFace(true);
 
-	if ((m_material->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
+	if ((m_material->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::RAS_WIREFRAME)) {
 		if (m_material->ras_mode & WIRE)
 			rasty->SetCullFace(false);
 		rasty->SetLines(true);
@@ -402,9 +402,9 @@ void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 
 void KX_BlenderMaterial::ActivateMat(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
+	if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED)
 		SetTexData(rasty);
-	else if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && m_material->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
+	else if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && m_material->alphablend != GEMAT_SOLID && !rasty->GetUsingOverrideShader())
 		SetTexData(rasty);
 
 	if (m_material->ras_mode & TWOSIDED)
@@ -412,7 +412,7 @@ void KX_BlenderMaterial::ActivateMat(RAS_IRasterizer *rasty)
 	else
 		rasty->SetCullFace(true);
 
-	if ((m_material->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME)) {
+	if ((m_material->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::RAS_WIREFRAME)) {
 		if (m_material->ras_mode & WIRE)
 			rasty->SetCullFace(false);
 		rasty->SetLines(true);
@@ -512,8 +512,8 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_IRasterizer *rasty) const
 
 void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 {
-	if (ras->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED ||
-	    (ras->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW &&
+	if (ras->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED ||
+	    (ras->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW &&
 	     m_material->alphablend != GEMAT_SOLID && !ras->GetUsingOverrideShader()))
 	{
 		ras->SetAttribNum(0);

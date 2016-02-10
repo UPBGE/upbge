@@ -72,38 +72,26 @@ public:
 	 * Drawing types
 	 */
 	enum DrawType {
-		KX_WIREFRAME = 0,
-		KX_SOLID,
-		KX_TEXTURED,
-		KX_SHADOW,
-		KX_DRAW_MAX,
-	};
-
-	/**
-	 * Drawing modes
-	 */
-
-	enum DrawMode {
-		KX_MODE_LINES = 1,
-		KX_MODE_TRIANGLES,
-		KX_MODE_QUADS,
+		RAS_WIREFRAME = 0,
+		RAS_SOLID,
+		RAS_TEXTURED,
+		RAS_SHADOW,
+		RAS_DRAW_MAX,
 	};
 
 	/**
 	 * Valid SetDepthMask parameters
 	 */
 	enum DepthMask {
-		KX_DEPTHMASK_ENABLED = 1,
-		KX_DEPTHMASK_DISABLED,
+		RAS_DEPTHMASK_ENABLED = 1,
+		RAS_DEPTHMASK_DISABLED,
 	};
 
 	/**
 	 */
 	enum {
-		RAS_RENDER_3DPOLYGON_TEXT = 64, /* GEMAT_TEXT */
-		KX_BACKCULL = 16,               /* GEMAT_BACKCULL */
-		KX_TEX = 4096,                  /* GEMAT_TEX */
-		KX_LINES = 32768,
+		RAS_RENDER_3DPOLYGON_TEXT = 64, // GEMAT_TEXT
+		RAS_BACKCULL = 16, // GEMAT_BACKCULL
 	};
 
 	/**
@@ -286,12 +274,12 @@ public:
 	virtual void SetBackColor(float color[3]) = 0;
 	
 	/**
-	 * \param drawingmode = KX_BOUNDINGBOX, KX_WIREFRAME, KX_SOLID, KX_SHADED or KX_TEXTURED.
+	 * \param drawingmode = KX_BOUNDINGBOX, RAS_WIREFRAME, RAS_SOLID, KX_SHADED or RAS_TEXTURED.
 	 */
 	virtual void SetDrawingMode(DrawType drawingmode) = 0;
 
 	/**
-	 * \return the current drawing mode: KX_BOUNDINGBOX, KX_WIREFRAME, KX_SOLID, KX_SHADED or KX_TEXTURED.
+	 * \return the current drawing mode: KX_BOUNDINGBOX, RAS_WIREFRAME, RAS_SOLID, KX_SHADED or RAS_TEXTURED.
 	 */
 	virtual DrawType GetDrawingMode() = 0;
 

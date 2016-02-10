@@ -107,7 +107,7 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, RAS_STORAGE_TYPE
 	m_usingoverrideshader(false),
 	m_clientobject(NULL),
 	m_auxilaryClientInfo(NULL),
-	m_drawingmode(KX_TEXTURED),
+	m_drawingmode(RAS_TEXTURED),
 	m_texco_num(0),
 	m_attrib_num(0),
 	//m_last_alphablend(GPU_BLEND_SOLID),
@@ -225,7 +225,7 @@ void RAS_OpenGLRasterizer::EnableFog(bool enable)
 
 void RAS_OpenGLRasterizer::DisplayFog()
 {
-	if ((m_drawingmode >= KX_SOLID) && m_fogenabled) {
+	if ((m_drawingmode >= RAS_SOLID) && m_fogenabled) {
 		glEnable(GL_FOG);
 	}
 	else {
@@ -261,7 +261,7 @@ bool RAS_OpenGLRasterizer::BeginFrame(double time)
 	m_time = time;
 
 	// Blender camera routine destroys the settings
-	if (m_drawingmode < KX_SOLID) {
+	if (m_drawingmode < RAS_SOLID) {
 		glDisable(GL_CULL_FACE);
 		glDisable(GL_DEPTH_TEST);
 	}
@@ -307,7 +307,7 @@ RAS_IRasterizer::DrawType RAS_OpenGLRasterizer::GetDrawingMode()
 
 void RAS_OpenGLRasterizer::SetDepthMask(DepthMask depthmask)
 {
-	glDepthMask(depthmask == KX_DEPTHMASK_DISABLED ? GL_FALSE : GL_TRUE);
+	glDepthMask(depthmask == RAS_DEPTHMASK_DISABLED ? GL_FALSE : GL_TRUE);
 }
 
 void RAS_OpenGLRasterizer::ClearColorBuffer()
@@ -833,11 +833,11 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms)
 	current_polymat = current_bucket->GetPolyMaterial();
 	current_ms = ms;
 	current_mesh = ms->m_mesh;
-	current_wireframe = m_drawingmode <= RAS_IRasterizer::KX_WIREFRAME;
+	current_wireframe = m_drawingmode <= RAS_IRasterizer::RAS_WIREFRAME;
 	// MCol *mcol = (MCol*)ms->m_pDerivedMesh->getFaceDataArray(ms->m_pDerivedMesh, CD_MCOL); /* UNUSED */
 
 	// handle two-side
-	if (current_polymat->GetDrawingMode() & RAS_IRasterizer::KX_BACKCULL)
+	if (current_polymat->GetDrawingMode() & RAS_IRasterizer::RAS_BACKCULL)
 		this->SetCullFace(true);
 	else
 		this->SetCullFace(false);
@@ -1086,7 +1086,7 @@ void RAS_OpenGLRasterizer::SetPolygonOffset(float mult, float add)
 {
 	glPolygonOffset(mult, add);
 	GLint mode = GL_POLYGON_OFFSET_FILL;
-	if (m_drawingmode < KX_TEXTURED)
+	if (m_drawingmode < RAS_TEXTURED)
 		mode = GL_POLYGON_OFFSET_LINE;
 	if (mult != 0.0f || add != 0.0f)
 		glEnable(mode);
@@ -1112,7 +1112,7 @@ void RAS_OpenGLRasterizer::DisableMotionBlur()
 void RAS_OpenGLRasterizer::SetAlphaBlend(int alphablend)
 {
 	/* Variance shadow maps don't handle alpha well, best to not allow it for now  */
-	if (m_drawingmode == KX_SHADOW && m_usingoverrideshader)
+	if (m_drawingmode == RAS_SHADOW && m_usingoverrideshader)
 		GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
 	else
 		GPU_set_material_alpha_blend(alphablend);

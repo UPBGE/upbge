@@ -275,22 +275,22 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		bool mouse_state = (startscene->gm.flag & GAME_SHOW_MOUSE) != 0;
 		bool restrictAnimFPS = (startscene->gm.flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
-		RAS_IRasterizer::DrawType drawmode = RAS_IRasterizer::KX_TEXTURED;
+		RAS_IRasterizer::DrawType drawmode = RAS_IRasterizer::RAS_TEXTURED;
 		switch(v3d->drawtype) {
 			case OB_BOUNDBOX:
 			case OB_WIRE:
 			{
-				drawmode = RAS_IRasterizer::KX_WIREFRAME;
+				drawmode = RAS_IRasterizer::RAS_WIREFRAME;
 				break;
 			}
 			case OB_SOLID:
 			{
-				drawmode = RAS_IRasterizer::KX_SOLID;
+				drawmode = RAS_IRasterizer::RAS_SOLID;
 				break;
 			}
 			case OB_MATERIAL:
 			{
-				drawmode = RAS_IRasterizer::KX_TEXTURED;
+				drawmode = RAS_IRasterizer::RAS_TEXTURED;
 				break;
 			}
 		}

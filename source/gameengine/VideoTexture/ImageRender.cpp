@@ -123,7 +123,7 @@ void ImageRender::setBackgroundFromScene (KX_Scene *scene)
 // capture image from viewport
 void ImageRender::calcImage (unsigned int texId, double ts)
 {
-	if (m_rasterizer->GetDrawingMode() != RAS_IRasterizer::KX_TEXTURED ||   // no need for texture
+	if (m_rasterizer->GetDrawingMode() != RAS_IRasterizer::RAS_TEXTURED ||   // no need for texture
 	        m_camera->GetViewport() ||        // camera must be inactive
 	        m_camera == m_scene->GetActiveCamera())
 	{
