@@ -294,6 +294,9 @@ void ImageRender::Render()
 	
 	m_rasterizer->SetViewMatrix(viewmat, m_camera->NodeGetWorldOrientation(), m_camera->NodeGetWorldPosition(), m_camera->GetCameraData()->m_perspective);
 	m_camera->SetModelviewMatrix(viewmat);
+
+	m_scene->GetWorldInfo()->RenderBackground(m_rasterizer);
+
 	// restore the stereo mode now that the matrix is computed
 	m_rasterizer->SetStereoMode(stereomode);
 

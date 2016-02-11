@@ -53,6 +53,7 @@
 
 
 KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
+	:m_scene(blenderscene)
 {
 	if (blenderworld) {
 		m_name = blenderworld->id.name + 2;
@@ -189,6 +190,25 @@ void KX_WorldInfo::UpdateWorldSettings()
 				GPU_mist_update_enable(false);
 			}
 		}
+	}
+}
+
+void KX_WorldInfo::RenderBackground(RAS_IRasterizer *rasty)
+{
+	if (m_hasworld) {
+		GPUMaterial *gpumat = GPU_material_world(m_scene, m_scene->world);
+
+		float viewmat[4][4];
+		rasty->GetViewMatrix().getValue(&viewmat[0][0]);
+		float invviewmat[4][4];
+		rasty->GetViewInvMatrix().getValue(&invviewmat[0][0]);
+
+		static float texcofac[4] = {0.0f, 0.0f, 1.0f, 1.0f};
+		GPU_material_bind(gpumat, 0xFFFFFFFF, m_scene->lay, 1.0f, false, viewmat, invviewmat, texcofac, false);
+
+		rasty->RenderBackground();
+
+		GPU_material_unbind(gpumat);
 	}
 }
 

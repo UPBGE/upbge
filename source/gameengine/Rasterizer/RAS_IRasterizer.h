@@ -166,6 +166,11 @@ public:
 	virtual void Exit() = 0;
 
 	/**
+	 * Draw world background according to world material
+	 */
+	virtual void RenderBackground() = 0;
+
+	/**
 	 * BeginFrame is called at the start of each frame.
 	 */
 	virtual bool BeginFrame(double time) = 0;

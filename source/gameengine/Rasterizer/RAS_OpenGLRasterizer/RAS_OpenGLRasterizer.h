@@ -166,6 +166,7 @@ public:
 
 	virtual bool Init();
 	virtual void Exit();
+	virtual void RenderBackground();
 	virtual bool BeginFrame(double time);
 	virtual void ClearColorBuffer();
 	virtual void ClearDepthBuffer();

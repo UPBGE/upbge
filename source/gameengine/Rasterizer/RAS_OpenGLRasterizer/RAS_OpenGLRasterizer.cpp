@@ -252,6 +252,21 @@ void RAS_OpenGLRasterizer::Exit()
 	EndFrame();
 }
 
+void RAS_OpenGLRasterizer::RenderBackground()
+{
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_ALWAYS);
+
+	glBegin(GL_TRIANGLE_STRIP);
+	glVertex3f(-1.0f, -1.0f, 1.0f);
+	glVertex3f(1.0f, -1.0f, 1.0f);
+	glVertex3f(-1.0f, 1.0f, 1.0f);
+	glVertex3f(1.0f, 1.0f, 1.0f);
+	glEnd();
+
+	glDepthFunc(GL_LEQUAL);
+}
+
 bool RAS_OpenGLRasterizer::BeginFrame(double time)
 {
 	m_time = time;

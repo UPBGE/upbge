@@ -592,11 +592,25 @@ class WORLD_PT_game_world(WorldButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
+        self.layout.template_preview(context.world)
+
         world = context.world
 
         row = layout.row()
+        row.prop(world, "use_sky_paper")
+        row.prop(world, "use_sky_blend")
+        row.prop(world, "use_sky_real")
+
+        row = layout.row()
         row.column().prop(world, "horizon_color")
+        col = row.column()
+        col.prop(world, "zenith_color")
+        col.active = world.use_sky_blend
         row.column().prop(world, "ambient_color")
+
+        row = layout.row()
+        row.prop(world, "exposure")
+        row.prop(world, "color_range")
 
 
 class WORLD_PT_game_mist(WorldButtonsPanel, Panel):

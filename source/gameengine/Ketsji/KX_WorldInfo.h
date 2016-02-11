@@ -48,6 +48,7 @@ class KX_WorldInfo : public PyObjectPlus
 	Py_Header
 
 	STR_String m_name;
+	Scene *m_scene;
 	bool m_do_color_management;
 	bool m_hasworld;
 	bool m_hasmist;
@@ -88,6 +89,7 @@ public:
 	void setAmbientColor(float r, float g, float b);
 	void UpdateBackGround();
 	void UpdateWorldSettings();
+	void RenderBackground(RAS_IRasterizer *rasty);
 
 #ifdef WITH_PYTHON
 	/* attributes */

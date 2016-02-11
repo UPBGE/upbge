@@ -1046,6 +1046,8 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 	if (!cam)
 		return;
 
+	bool isfirstscene = (scene == m_scenes->GetFront());
+
 	KX_SetActiveScene(scene);
 
 #ifdef WITH_PYTHON
@@ -1154,6 +1156,10 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 
 	m_rasterizer->SetViewMatrix(viewmat, cam->NodeGetWorldOrientation(), cam->NodeGetWorldPosition(), cam->GetCameraData()->m_perspective);
 	cam->SetModelviewMatrix(viewmat);
+
+	if (isfirstscene) {
+		scene->GetWorldInfo()->RenderBackground(m_rasterizer);
+	}
 
 	// The following actually reschedules all vertices to be
 	// redrawn. There is a cache between the actual rescheduling
