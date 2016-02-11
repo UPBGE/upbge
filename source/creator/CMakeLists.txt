@@ -130,7 +130,7 @@ if(WIN32 AND NOT UNIX)
 
 
 	list(APPEND SRC
-		../icons/winblender.rc
+		${CMAKE_SOURCE_DIR}/release/windows/icons/winblender.rc
 	)
 endif()
 
@@ -528,7 +528,6 @@ if(UNIX AND NOT APPLE)
 			install(
 				DIRECTORY ${PYTHON_LIBPATH}/python${PYTHON_VERSION}
 				DESTINATION ${TARGETDIR_VER}/python/${_target_LIB}
-				PATTERN ".svn" EXCLUDE
 				PATTERN "__pycache__" EXCLUDE               # * any cache *
 				PATTERN "distutils" EXCLUDE                 # ./distutils
 				PATTERN "lib2to3" EXCLUDE                   # ./lib2to3
@@ -1094,7 +1093,7 @@ setup_liblinks(blender)
 if(WIN32 AND NOT WITH_PYTHON_MODULE)
 	set(LAUNCHER_SRC
 		creator_launch_win.c
-		../icons/winblender.rc
+		${CMAKE_SOURCE_DIR}/release/windows/icons/winblender.rc
 	)
 	add_executable(blender-launcher ${LAUNCHER_SRC})
 	target_link_libraries(blender-launcher bf_intern_utfconv ${PLATFORM_LINKLIBS})

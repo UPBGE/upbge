@@ -116,10 +116,12 @@ if NOT "%1" == "" (
 	goto argv_loop
 )
 
-if "%PROCESSOR_ARCHITECTURE%" == "x86" (
-	set WINDOWS_ARCH=
-) else (
+if "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
 	set WINDOWS_ARCH=Win64
+) else if "%PROCESSOR_ARCHITEW6432%" == "AMD64" (
+	set WINDOWS_ARCH=Win64
+) else (
+	set WINDOWS_ARCH=
 )
 
 set BUILD_CMAKE_ARGS=%BUILD_CMAKE_ARGS% -G "Visual Studio 12 2013 %WINDOWS_ARCH%"
@@ -159,7 +161,9 @@ msbuild ^
 	/verbosity:minimal
 
 echo.
-echo edit build configuration with: "%BUILD_DIR%\CMakeCache.txt" run make again to rebuild.
+echo At any point you can optionally modify your build configuration by editing:
+echo "%BUILD_DIR%\CMakeCache.txt", then run "make" again to build with the changes applied.
+echo.
 echo Blender successfully built, run from: "%BUILD_DIR%\bin\%BUILD_TYPE%"
 echo.
 

@@ -114,9 +114,6 @@ static ShaderSocketType convert_osl_socket_type(OSL::OSLQuery& query,
                                                 BL::NodeSocket& b_socket)
 {
 	ShaderSocketType socket_type = convert_socket_type(b_socket);
-#if OSL_LIBRARY_VERSION_CODE < 10701
-	(void) query;
-#else
 	if(socket_type == SHADER_SOCKET_VECTOR) {
 		/* TODO(sergey): Do we need compatible_name() here? */
 		const OSL::OSLQuery::Parameter *param = query.getparam(b_socket.name());
@@ -130,7 +127,7 @@ static ShaderSocketType convert_osl_socket_type(OSL::OSLQuery& query,
 			}
 		}
 	}
-#endif
+
 	return socket_type;
 }
 #endif  /* WITH_OSL */
@@ -561,7 +558,7 @@ static ShaderNode *add_node(Scene *scene,
 			 * input/output type info needed for proper node construction.
 			 */
 			OSL::OSLQuery query;
-#if OSL_LIBRARY_VERSION_CODE >= 10701
+
 			if(!bytecode_hash.empty()) {
 				query.open_bytecode(b_script_node.bytecode());
 			}
@@ -569,7 +566,6 @@ static ShaderNode *add_node(Scene *scene,
 				!OSLShaderManager::osl_query(query, b_script_node.filepath());
 			}
 			/* TODO(sergey): Add proper query info error parsing. */
-#endif
 
 			/* Generate inputs/outputs from node sockets
 			 *
@@ -1204,8 +1200,8 @@ void BlenderSync::sync_materials(bool update_all)
 			shader->use_mis = get_boolean(cmat, "sample_as_light");
 			shader->use_transparent_shadow = get_boolean(cmat, "use_transparent_shadow");
 			shader->heterogeneous_volume = !get_boolean(cmat, "homogeneous_volume");
-			shader->volume_sampling_method = (VolumeSampling)RNA_enum_get(&cmat, "volume_sampling");
-			shader->volume_interpolation_method = (VolumeInterpolation)RNA_enum_get(&cmat, "volume_interpolation");
+			shader->volume_sampling_method = (VolumeSampling)get_enum(cmat, "volume_sampling");
+			shader->volume_interpolation_method = (VolumeInterpolation)get_enum(cmat, "volume_interpolation");
 
 			shader->set_graph(graph);
 			shader->tag_update(scene);
@@ -1235,8 +1231,8 @@ void BlenderSync::sync_world(bool update_all)
 			/* volume */
 			PointerRNA cworld = RNA_pointer_get(&b_world.ptr, "cycles");
 			shader->heterogeneous_volume = !get_boolean(cworld, "homogeneous_volume");
-			shader->volume_sampling_method = (VolumeSampling)RNA_enum_get(&cworld, "volume_sampling");
-			shader->volume_interpolation_method = (VolumeInterpolation)RNA_enum_get(&cworld, "volume_interpolation");
+			shader->volume_sampling_method = (VolumeSampling)get_enum(cworld, "volume_sampling");
+			shader->volume_interpolation_method = (VolumeInterpolation)get_enum(cworld, "volume_interpolation");
 		}
 		else if(b_world) {
 			ShaderNode *closure, *out;

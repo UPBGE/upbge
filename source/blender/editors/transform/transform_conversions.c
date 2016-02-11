@@ -3390,9 +3390,9 @@ static void posttrans_action_clean(bAnimContext *ac, bAction *act)
 		AnimData *adt = ANIM_nla_mapping_get(ac, ale);
 		
 		if (adt) {
-			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 1);
+			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 0);
 			posttrans_fcurve_clean(ale->key_data, false); /* only use handles in graph editor */
-			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, 1);
+			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, 0);
 		}
 		else
 			posttrans_fcurve_clean(ale->key_data, false);  /* only use handles in graph editor */
@@ -6039,9 +6039,9 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 				    ((canceled == 0) || (duplicate)) )
 				{
 					if (adt) {
-						ANIM_nla_mapping_apply_fcurve(adt, fcu, 0, 1);
+						ANIM_nla_mapping_apply_fcurve(adt, fcu, 0, 0);
 						posttrans_fcurve_clean(fcu, false); /* only use handles in graph editor */
-						ANIM_nla_mapping_apply_fcurve(adt, fcu, 1, 1);
+						ANIM_nla_mapping_apply_fcurve(adt, fcu, 1, 0);
 					}
 					else
 						posttrans_fcurve_clean(fcu, false);  /* only use handles in graph editor */
@@ -7645,9 +7645,7 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 	 */
 	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
 		/* only editable and visible layers are considered */
-		if ((gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) == 0 &&
-		    (gpl->actframe != NULL))
-		{
+		if (gpencil_layer_is_editable(gpl) && (gpl->actframe != NULL)) {
 			bGPDframe *gpf = gpl->actframe;
 			bGPDstroke *gps;
 			
@@ -7701,9 +7699,7 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 	/* Second Pass: Build transdata array */
 	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
 		/* only editable and visible layers are considered */
-		if ((gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) == 0 &&
-		    (gpl->actframe != NULL))
-		{
+		if (gpencil_layer_is_editable(gpl) && (gpl->actframe != NULL)) {
 			bGPDframe *gpf = gpl->actframe;
 			bGPDstroke *gps;
 			

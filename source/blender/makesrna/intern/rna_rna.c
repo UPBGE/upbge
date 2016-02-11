@@ -854,7 +854,8 @@ static void rna_EnumProperty_items_begin(CollectionPropertyIterator *iter, Point
 	rna_idproperty_check(&prop, ptr);
 	/* eprop = (EnumPropertyRNA *)prop; */
 	
-	RNA_property_enum_items(NULL, ptr, prop, &item, &totitem, &free);
+	RNA_property_enum_items_ex(
+	            NULL, ptr, prop, STREQ(iter->prop->identifier, "enum_items_static"), &item, &totitem, &free);
 	rna_iterator_array_begin(iter, (void *)item, sizeof(EnumPropertyItem), totitem, free, rna_enum_check_separator);
 }
 
@@ -952,13 +953,13 @@ static void rna_Function_parameters_begin(CollectionPropertyIterator *iter, Poin
 static int rna_Function_registered_get(PointerRNA *ptr)
 {
 	FunctionRNA *func = (FunctionRNA *)ptr->data;
-	return func->flag & FUNC_REGISTER;
+	return 0 != (func->flag & FUNC_REGISTER);
 }
 
 static int rna_Function_registered_optional_get(PointerRNA *ptr)
 {
 	FunctionRNA *func = (FunctionRNA *)ptr->data;
-	return func->flag & (FUNC_REGISTER_OPTIONAL & ~FUNC_REGISTER);
+	return 0 != (func->flag & (FUNC_REGISTER_OPTIONAL & ~FUNC_REGISTER));
 }
 
 static int rna_Function_no_self_get(PointerRNA *ptr)
@@ -970,7 +971,7 @@ static int rna_Function_no_self_get(PointerRNA *ptr)
 static int rna_Function_use_self_type_get(PointerRNA *ptr)
 {
 	FunctionRNA *func = (FunctionRNA *)ptr->data;
-	return (func->flag & FUNC_USE_SELF_TYPE);
+	return 0 != (func->flag & FUNC_USE_SELF_TYPE);
 }
 
 /* Blender RNA */
@@ -1422,6 +1423,14 @@ static void rna_def_enum_property(BlenderRNA *brna, StructRNA *srna)
 	RNA_def_property_collection_funcs(prop, "rna_EnumProperty_items_begin", "rna_iterator_array_next",
 	                                  "rna_iterator_array_end", "rna_iterator_array_get", NULL, NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Items", "Possible values for the property");
+
+	prop = RNA_def_property(srna, "enum_items_static", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_struct_type(prop, "EnumPropertyItem");
+	RNA_def_property_collection_funcs(prop, "rna_EnumProperty_items_begin", "rna_iterator_array_next",
+	                                  "rna_iterator_array_end", "rna_iterator_array_get", NULL, NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Static Items",
+	                         "Possible values for the property (never calls optional dynamic generation of those)");
 
 	srna = RNA_def_struct(brna, "EnumPropertyItem", NULL);
 	RNA_def_struct_ui_text(srna, "Enum Item Definition", "Definition of a choice in an RNA enum property");

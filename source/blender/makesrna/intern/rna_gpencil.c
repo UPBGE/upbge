@@ -145,7 +145,7 @@ static int rna_GPencilLayer_is_stroke_visible_get(PointerRNA *ptr)
 	 * about this limit for showing/not showing
 	 */
 	bGPDlayer *gpl = (bGPDlayer *)ptr->data;
-	return (gpl->color[3] > 0.001f);
+	return (gpl->color[3] > GPENCIL_ALPHA_OPACITY_THRESH);
 }
 
 static int rna_GPencilLayer_is_fill_visible_get(PointerRNA *ptr)
@@ -154,7 +154,7 @@ static int rna_GPencilLayer_is_fill_visible_get(PointerRNA *ptr)
 	 * about this limit for showing/not showing
 	 */
 	bGPDlayer *gpl = (bGPDlayer *)ptr->data;
-	return (gpl->fill[3] > 0.001f);
+	return (gpl->fill[3] > GPENCIL_ALPHA_OPACITY_THRESH);
 }
 
 static PointerRNA rna_GPencil_active_layer_get(PointerRNA *ptr)
@@ -448,7 +448,7 @@ static bGPDframe *rna_GPencil_frame_copy(bGPDlayer *layer, bGPDframe *src)
 
 static bGPDlayer *rna_GPencil_layer_new(bGPdata *gpd, const char *name, int setactive)
 {
-	bGPDlayer *gl = gpencil_layer_addnew(gpd, name, setactive);
+	bGPDlayer *gl = gpencil_layer_addnew(gpd, name, setactive != 0);
 
 	WM_main_add_notifier(NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
 
@@ -698,7 +698,7 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Info", "Layer name");
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_GPencilLayer_info_set");
 	RNA_def_struct_name_property(srna, prop);
-	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, NULL);
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA | NA_RENAME, NULL);
 
 	/* Frames */
 	prop = RNA_def_property(srna, "frames", PROP_COLLECTION, PROP_NONE);

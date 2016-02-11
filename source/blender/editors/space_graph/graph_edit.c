@@ -1348,8 +1348,9 @@ void GRAPH_OT_sound_bake(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_SOUND | FILE_TYPE_MOVIE, FILE_SPECIAL, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
+	WM_operator_properties_filesel(
+	        ot, FILE_TYPE_FOLDER | FILE_TYPE_SOUND | FILE_TYPE_MOVIE, FILE_SPECIAL, FILE_OPENFILE,
+	        WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 	RNA_def_float(ot->srna, "low", 0.0f, 0.0, 100000.0, "Lowest frequency",
 	              "Cutoff frequency of a high-pass filter that is applied to the audio data", 0.1, 1000.00);
 	RNA_def_float(ot->srna, "high", 100000.0, 0.0, 100000.0, "Highest frequency",
@@ -2115,9 +2116,9 @@ static void snap_graph_keys(bAnimContext *ac, short mode)
 		
 		/* perform snapping */
 		if (adt) {
-			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 1); 
+			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 0); 
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
-			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, 1);
+			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, 0);
 		}
 		else 
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
@@ -2252,9 +2253,9 @@ static void mirror_graph_keys(bAnimContext *ac, short mode)
 		
 		/* perform actual mirroring */
 		if (adt) {
-			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 1); 
+			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 0, 0); 
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
-			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, 1);
+			ANIM_nla_mapping_apply_fcurve(adt, ale->key_data, 1, 0);
 		}
 		else 
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);

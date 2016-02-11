@@ -1281,6 +1281,16 @@ void OBJECT_OT_paths_calculate(wmOperatorType *ot)
 
 /* --------- */
 
+static int object_update_paths_poll(bContext *C)
+{
+	if (ED_operator_object_active_editable(C)) {
+		Object *ob = CTX_data_active_object(C);
+		return (ob->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) != 0;
+	}
+	
+	return false;
+}
+
 static int object_update_paths_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene = CTX_data_scene(C);
@@ -1306,7 +1316,7 @@ void OBJECT_OT_paths_update(wmOperatorType *ot)
 	
 	/* api callbakcs */
 	ot->exec = object_update_paths_exec;
-	ot->poll = ED_operator_object_active_editable; /* TODO: this should probably check for existing paths */
+	ot->poll = object_update_paths_poll;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1314,11 +1324,11 @@ void OBJECT_OT_paths_update(wmOperatorType *ot)
 
 /* --------- */
 
-/* Clear motion paths for selected objects only */
+/* Clear motion paths for all objects */
 void ED_objects_clear_paths(bContext *C)
 {
-	/* loop over objects in scene */
-	CTX_DATA_BEGIN(C, Object *, ob, selected_editable_objects)
+	/* loop over all edtiable objects in scene */
+	CTX_DATA_BEGIN(C, Object *, ob, editable_objects)
 	{
 		if (ob->mpath) {
 			animviz_free_motionpath(ob->mpath);
@@ -1346,7 +1356,7 @@ void OBJECT_OT_paths_clear(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Clear Object Paths";
 	ot->idname = "OBJECT_OT_paths_clear";
-	ot->description = "Clear path caches for selected objects";
+	ot->description = "Clear path caches for all objects";
 	
 	/* api callbacks */
 	ot->exec = object_clear_paths_exec;

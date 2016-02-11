@@ -1454,7 +1454,7 @@ clean_OIIO() {
 
 compile_OIIO() {
   # To be changed each time we make edits that would modify the compiled result!
-  oiio_magic=15
+  oiio_magic=16
   _init_oiio
 
   # Clean install if needed!
@@ -1507,6 +1507,7 @@ compile_OIIO() {
     cmake_d="$cmake_d -D STOP_ON_WARNING=OFF"
     cmake_d="$cmake_d -D BUILDSTATIC=OFF"
     cmake_d="$cmake_d -D LINKSTATIC=OFF"
+    cmake_d="$cmake_d -D USE_SIMD=sse2"
 
     cmake_d="$cmake_d -D ILMBASE_VERSION=$ILMBASE_VERSION"
     cmake_d="$cmake_d -D OPENEXR_VERSION=$OPENEXR_VERSION"
@@ -1681,7 +1682,7 @@ clean_OSL() {
 
 compile_OSL() {
   # To be changed each time we make edits that would modify the compiled result!
-  osl_magic=19
+  osl_magic=20
   _init_osl
 
   # Clean install if needed!
@@ -1737,6 +1738,7 @@ compile_OSL() {
     cmake_d="$cmake_d -D BUILDSTATIC=OFF"
     cmake_d="$cmake_d -D OSL_BUILD_PLUGINS=OFF"
     cmake_d="$cmake_d -D OSL_BUILD_TESTS=OFF"
+    cmake_d="$cmake_d -D USE_SIMD=sse2"
 
     #~ cmake_d="$cmake_d -D ILMBASE_VERSION=$ILMBASE_VERSION"
 
@@ -3087,7 +3089,7 @@ install_RPM() {
     INFO "Forced Boost building, as requested..."
     compile_Boost
   else
-    check_package_version_ge_RPM boost-devel $BOOST_VERSION
+    check_package_version_ge_RPM boost-devel $BOOST_VERSION_MIN
     if [ $? -eq 0 ]; then
       install_packages_RPM boost-devel
       clean_Boost

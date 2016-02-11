@@ -264,11 +264,7 @@ void OSLShaderManager::shading_system_free()
 
 bool OSLShaderManager::osl_compile(const string& inputfile, const string& outputfile)
 {
-#if OSL_LIBRARY_VERSION_CODE < 10602
-	vector<string_view> options;
-#else
 	vector<string> options;
-#endif
 	string stdosl_path;
 	string shader_path = path_get("shader");
 
@@ -283,11 +279,7 @@ bool OSLShaderManager::osl_compile(const string& inputfile, const string& output
 	stdosl_path = path_get("shader/stdosl.h");
 
 	/* compile */
-#if OSL_LIBRARY_VERSION_CODE >= 10602
 	OSL::OSLCompiler *compiler = new OSL::OSLCompiler(&OSL::ErrorHandler::default_handler());
-#else
-	OSL::OSLCompiler *compiler = new OSL::OSLCompiler();
-#endif
 	bool ok = compiler->compile(string_view(inputfile), options, string_view(stdosl_path));
 	delete compiler;
 
@@ -570,19 +562,25 @@ void OSLCompiler::add(ShaderNode *node, const char *name, bool isfilepath)
 	/* test if we shader contains specific closures */
 	OSLShaderInfo *info = ((OSLShaderManager*)manager)->shader_loaded_info(name);
 
-	if(info && current_type == SHADER_TYPE_SURFACE) {
-		if(info->has_surface_emission)
-			current_shader->has_surface_emission = true;
-		if(info->has_surface_transparent)
-			current_shader->has_surface_transparent = true;
-		if(info->has_surface_bssrdf) {
-			current_shader->has_surface_bssrdf = true;
-			current_shader->has_bssrdf_bump = true; /* can't detect yet */
+	if(current_type == SHADER_TYPE_SURFACE) {
+		if(info) {
+			if(info->has_surface_emission)
+				current_shader->has_surface_emission = true;
+			if(info->has_surface_transparent)
+				current_shader->has_surface_transparent = true;
+			if(info->has_surface_bssrdf) {
+				current_shader->has_surface_bssrdf = true;
+				current_shader->has_bssrdf_bump = true; /* can't detect yet */
+			}
+		}
+
+		if(node->has_spatial_varying()) {
+			current_shader->has_surface_spatial_varying = true;
 		}
 	}
 	else if(current_type == SHADER_TYPE_VOLUME) {
 		if(node->has_spatial_varying())
-			current_shader->has_heterogeneous_volume = true;
+			current_shader->has_volume_spatial_varying = true;
 	}
 
 	if(node->has_object_dependency()) {
@@ -752,6 +750,8 @@ void OSLCompiler::generate_nodes(const ShaderNodeSet& nodes)
 							current_shader->has_surface_emission = true;
 						if(node->has_surface_transparent())
 							current_shader->has_surface_transparent = true;
+						if(node->has_spatial_varying())
+							current_shader->has_surface_spatial_varying = true;
 						if(node->has_surface_bssrdf()) {
 							current_shader->has_surface_bssrdf = true;
 							if(node->has_bssrdf_bump())
@@ -760,7 +760,7 @@ void OSLCompiler::generate_nodes(const ShaderNodeSet& nodes)
 					}
 					else if(current_type == SHADER_TYPE_VOLUME) {
 						if(node->has_spatial_varying())
-							current_shader->has_heterogeneous_volume = true;
+							current_shader->has_volume_spatial_varying = true;
 					}
 				}
 				else
@@ -839,7 +839,8 @@ void OSLCompiler::compile(Scene *scene, OSLGlobals *og, Shader *shader)
 		shader->has_bssrdf_bump = false;
 		shader->has_volume = false;
 		shader->has_displacement = false;
-		shader->has_heterogeneous_volume = false;
+		shader->has_surface_spatial_varying = false;
+		shader->has_volume_spatial_varying = false;
 		shader->has_object_dependency = false;
 		shader->has_integrator_dependency = false;
 

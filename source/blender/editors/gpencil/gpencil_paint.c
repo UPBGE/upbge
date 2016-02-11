@@ -931,7 +931,7 @@ static void gp_stroke_doeraser(tGPsdata *p)
 		bGPDframe *gpf = gpl->actframe;
 		
 		/* only affect layer if it's editable (and visible) */
-		if (gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) {
+		if (gpencil_layer_is_editable(gpl) == false) {
 			continue;
 		}
 		else if (gpf == NULL) {
@@ -1198,7 +1198,7 @@ static void gp_paint_initstroke(tGPsdata *p, eGPencil_PaintModes paintmode)
 	/* get active layer (or add a new one if non-existent) */
 	p->gpl = gpencil_layer_getactive(p->gpd);
 	if (p->gpl == NULL) {
-		p->gpl = gpencil_layer_addnew(p->gpd, "GP_Layer", 1);
+		p->gpl = gpencil_layer_addnew(p->gpd, "GP_Layer", true);
 		
 		if (p->custom_color[3])
 			copy_v3_v3(p->gpl->color, p->custom_color);
@@ -1220,7 +1220,7 @@ static void gp_paint_initstroke(tGPsdata *p, eGPencil_PaintModes paintmode)
 		bGPDlayer *gpl;
 		for (gpl = p->gpd->layers.first; gpl; gpl = gpl->next) {
 			/* Skip if layer not editable */
-			if (gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED))
+			if (gpencil_layer_is_editable(gpl) == false)
 				continue;
 			
 			/* Add a new frame if needed (and based off the active frame,
@@ -1949,6 +1949,13 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			 *   - for undo (during sketching sessions)
 			 */
 		}
+		else if (ELEM(event->type, PAD0, PAD1, PAD2, PAD3, PAD4, PAD5, PAD6, PAD7, PAD8, PAD9)) {
+			/* allow numpad keys so that camera/view manipulations can still take place
+			 * - PAD0 in particular is really important for Grease Pencil drawing,
+			 *   as animators may be working "to camera", so having this working
+			 *   is essential for ensuring that they can quickly return to that view
+			 */
+		}
 		else {
 			estate = OPERATOR_RUNNING_MODAL;
 		}
@@ -2145,8 +2152,8 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				case PADMINUS:
 					p->radius -= 5;
 					
-					if (p->radius < 0)
-						p->radius = 0;
+					if (p->radius <= 0)
+						p->radius = 1;
 					break;
 			}
 			
