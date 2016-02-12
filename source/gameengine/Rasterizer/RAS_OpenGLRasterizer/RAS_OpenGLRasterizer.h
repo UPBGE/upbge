@@ -39,7 +39,6 @@
 #include "MT_CmMatrix4x4.h"
 #include <vector>
 #include <map>
-using namespace std;
 
 #include "RAS_IRasterizer.h"
 #include "RAS_MaterialBucket.h"
@@ -273,8 +272,6 @@ public:
 	virtual void SetAttribNum(int num);
 	virtual void SetTexCoord(TexCoGen coords, int unit);
 	virtual void SetAttrib(TexCoGen coords, int unit, int layer = 0);
-
-	void TexCoord(const RAS_TexVert &tv);
 
 	const MT_Matrix4x4 &GetViewMatrix() const;
 	const MT_Matrix4x4 &GetViewInvMatrix() const;
