@@ -274,12 +274,12 @@ public:
 	virtual void SetBackColor(float color[3]) = 0;
 	
 	/**
-	 * \param drawingmode = KX_BOUNDINGBOX, RAS_WIREFRAME, RAS_SOLID, KX_SHADED or RAS_TEXTURED.
+	 * \param drawingmode = RAS_WIREFRAME, RAS_SOLID, RAS_SHADOW or RAS_TEXTURED.
 	 */
 	virtual void SetDrawingMode(DrawType drawingmode) = 0;
 
 	/**
-	 * \return the current drawing mode: KX_BOUNDINGBOX, RAS_WIREFRAME, RAS_SOLID, KX_SHADED or RAS_TEXTURED.
+	 * \return the current drawing mode: RAS_WIREFRAME, RAS_SOLID RAS_SHADOW or RAS_TEXTURED.
 	 */
 	virtual DrawType GetDrawingMode() = 0;
 
