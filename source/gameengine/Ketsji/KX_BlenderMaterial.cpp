@@ -43,6 +43,7 @@
 #include "RAS_IRasterizer.h"
 
 #include "GPU_draw.h"
+#include "GPU_material.h" // for GPU_BLEND_SOLID
 
 #include "STR_HashedString.h"
 
@@ -236,7 +237,7 @@ void KX_BlenderMaterial::OnConstruction()
 
 void KX_BlenderMaterial::EndFrame(RAS_IRasterizer *rasty)
 {
-	rasty->SetAlphaBlend(TF_SOLID);
+	rasty->SetAlphaBlend(GPU_BLEND_SOLID);
 	BL_Texture::DisableAllTextures();
 }
 
@@ -289,7 +290,7 @@ void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 		ras->SetAlphaBlend(m_material->alphablend);
 	}
 	else {
-		ras->SetAlphaBlend(TF_SOLID);
+		ras->SetAlphaBlend(GPU_BLEND_SOLID);
 		ras->SetAlphaBlend(-1); // indicates custom mode
 
 		// tested to be valid enums
@@ -345,7 +346,7 @@ void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 		ras->SetAlphaBlend(m_material->alphablend);
 	}
 	else {
-		ras->SetAlphaBlend(TF_SOLID);
+		ras->SetAlphaBlend(GPU_BLEND_SOLID);
 		ras->SetAlphaBlend(-1); // indicates custom mode
 
 		glEnable(GL_BLEND);
