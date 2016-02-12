@@ -72,10 +72,6 @@ extern "C" {
 #include "KX_GameObject.h"
 // >>>
 
-#ifndef M_PI
-#define M_PI        3.14159265358979323846
-#endif
-
 /**
  *  32x32 bit masks for vinterlace stereo mode
  */
@@ -426,7 +422,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 		MT_Scalar rad = debugShapes[i].m_param2.x();
 		int n = (int)debugShapes[i].m_param2.y();
 		for (int j = 0; j < n; j++) {
-			MT_Scalar theta = j * M_PI * 2 / n;
+			MT_Scalar theta = j * MT_2_PI / n;
 			MT_Vector3 pos(cosf(theta) * rad, sinf(theta) * rad, 0.0f);
 			pos = pos * tr;
 			pos += debugShapes[i].m_pos;
