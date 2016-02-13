@@ -354,7 +354,7 @@ void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 
 void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 {
-	if (rasty->UseMaterial(m_material->alphablend)) {
+	if (rasty->UseMaterial(m_material->alphablend, UseInstancing())) {
 		SetShaderData(rasty);
 	}
 
@@ -376,7 +376,7 @@ void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 
 void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 {
-	if (rasty->UseMaterial(m_material->alphablend)) {
+	if (rasty->UseMaterial(m_material->alphablend, UseInstancing())) {
 		SetBlenderShaderData(rasty);
 	}
 
@@ -399,7 +399,7 @@ void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 
 void KX_BlenderMaterial::ActivateMat(RAS_IRasterizer *rasty)
 {
-	if (rasty->UseMaterial(m_material->alphablend)) {
+	if (rasty->UseMaterial(m_material->alphablend, UseInstancing())) {
 		SetTexData(rasty);
 	}
 
@@ -535,7 +535,7 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_IRasterizer *rasty) const
 
 void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 {
-	if (ras->UseMaterial(m_material->alphablend)) {
+	if (ras->UseMaterial(m_material->alphablend, UseInstancing())) {
 		ras->SetAttribNum(0);
 		if (m_shader && GLEW_ARB_shader_objects) {
 			if (m_shader->GetAttribute() == BL_Shader::SHD_TANGENT) {

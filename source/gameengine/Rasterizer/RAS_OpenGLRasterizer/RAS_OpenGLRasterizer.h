@@ -312,7 +312,7 @@ public:
 	virtual void SetUsingOverrideShader(bool val);
 	virtual bool GetUsingOverrideShader();
 
-	virtual bool UseMaterial(int alphablend) const;
+	virtual bool UseMaterial(int alphablend, bool instancing) const;
 
 	/**
 	 * Render Tools

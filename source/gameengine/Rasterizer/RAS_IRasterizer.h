@@ -409,8 +409,8 @@ public:
 	virtual void SetUsingOverrideShader(bool val) = 0;
 	virtual bool GetUsingOverrideShader() = 0;
 
-	/// Return true if the material can be used with the current drawing mode and alpha blend.
-	virtual bool UseMaterial(int alphablend) const = 0;
+	/// Return true if the material can be used with the current drawing mode, alpha blend and instancing support.
+	virtual bool UseMaterial(int alphablend, bool instancing) const = 0;
 
 	/**
 	 * Render Tools
