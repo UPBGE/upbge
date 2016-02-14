@@ -150,6 +150,16 @@ public:
 	};
 
 	/**
+	 * Shadow shaders
+	 */
+	enum ShadowShaderType {
+		RAS_SHADOW_SHADER_NONE,
+		RAS_SHADOW_SHADER_SIMPLE,
+		RAS_SHADOW_SHADER_VARIANCE,
+		RAS_SHADOW_SHADER_VARIANCE_INSTANCING,
+	};
+
+	/**
 	 * SetDepthMask enables or disables writing a fragment's depth value
 	 * to the Z buffer.
 	 */
@@ -408,6 +418,8 @@ public:
 
 	virtual void SetUsingOverrideShader(bool val) = 0;
 	virtual bool GetUsingOverrideShader() = 0;
+
+	virtual void SetShadowShader(ShadowShaderType type) = 0;
 
 	/// Return true if the material can be used with the current drawing mode, alpha blend and instancing support.
 	virtual bool UseMaterial(int alphablend, bool instancing) const = 0;

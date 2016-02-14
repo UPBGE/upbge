@@ -314,7 +314,7 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 
 	rasty->IndexPrimitivesInstancing(this);
 	// Unbind vertex attributs.
-	material->DesactivateInstancing();
+	material->DesactivateInstancing(rasty);
 
 	rasty->UnbindPrimitives(this);
 }

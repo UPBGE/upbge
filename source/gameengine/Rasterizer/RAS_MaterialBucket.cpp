@@ -131,8 +131,13 @@ bool RAS_MaterialBucket::ActivateMaterial(RAS_IRasterizer *rasty)
 		}
 		// Override shader for variance shadow map, return true to allow render but the Desactivate function do nothing too.
 		else if (rasty->GetUsingOverrideShader()) {
+			rasty->SetShadowShader(m_material->UseInstancing() ?
+					RAS_IRasterizer::RAS_SHADOW_SHADER_VARIANCE_INSTANCING :
+					RAS_IRasterizer::RAS_SHADOW_SHADER_VARIANCE);
 			return true;
 		}
+
+		rasty->SetShadowShader(RAS_IRasterizer::RAS_SHADOW_SHADER_SIMPLE);
 	}
 	else if (m_material->OnlyShadow()) {
 		return false;
@@ -145,9 +150,11 @@ bool RAS_MaterialBucket::ActivateMaterial(RAS_IRasterizer *rasty)
 
 void RAS_MaterialBucket::DesactivateMaterial(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && m_material->CastsShadows() && rasty->GetUsingOverrideShader()) {
-		// Override variance shadow map shader.
-		return;
+	if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && m_material->CastsShadows()) {
+		rasty->SetShadowShader(RAS_IRasterizer::RAS_SHADOW_SHADER_NONE);
+		if (rasty->GetUsingOverrideShader()) {
+			return;
+		}
 	}
 
 	m_material->Desactivate(rasty);

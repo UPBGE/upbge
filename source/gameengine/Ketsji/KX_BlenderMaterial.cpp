@@ -454,7 +454,7 @@ bool KX_BlenderMaterial::UseInstancing() const
 void KX_BlenderMaterial::ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
 {
 	if (m_blenderShader) {
-		m_blenderShader->ActivateInstancing(matrixoffset, positionoffset, coloroffset, stride);
+		m_blenderShader->ActivateInstancing(rasty, matrixoffset, positionoffset, coloroffset, stride);
 	}
 
 	/* Because the geometry instancing use setting for all instances we use the original alpha blend.
@@ -463,10 +463,10 @@ void KX_BlenderMaterial::ActivateInstancing(RAS_IRasterizer *rasty, void *matrix
 	rasty->SetAlphaBlend(m_material->alphablend);
 }
 
-void KX_BlenderMaterial::DesactivateInstancing()
+void KX_BlenderMaterial::DesactivateInstancing(RAS_IRasterizer *rasty)
 {
 	if (m_blenderShader) {
-		m_blenderShader->DesactivateInstancing();
+		m_blenderShader->DesactivateInstancing(rasty);
 	}
 }
 

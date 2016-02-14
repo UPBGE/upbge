@@ -108,6 +108,7 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, RAS_STORAGE_TYPE
 	m_attrib_num(0),
 	//m_last_alphablend(GPU_BLEND_SOLID),
 	m_last_frontface(true),
+	m_lastShadowShader(RAS_SHADOW_SHADER_NONE),
 	m_storage_type(storage),
 	m_storageInfo(storageInfo)
 {
@@ -1197,6 +1198,35 @@ void RAS_OpenGLRasterizer::SetUsingOverrideShader(bool val)
 bool RAS_OpenGLRasterizer::GetUsingOverrideShader()
 {
 	return m_usingoverrideshader;
+}
+
+void RAS_OpenGLRasterizer::SetShadowShader(RAS_OpenGLRasterizer::ShadowShaderType type)
+{
+	if (type == m_lastShadowShader) {
+		return;
+	}
+
+	switch (type) {
+		case RAS_SHADOW_SHADER_NONE:
+		case RAS_SHADOW_SHADER_SIMPLE:
+		{
+			if (m_lastShadowShader == RAS_SHADOW_SHADER_VARIANCE || m_lastShadowShader == RAS_SHADOW_SHADER_VARIANCE_INSTANCING) {
+				GPU_shader_unbind();
+			}
+			break;
+		}
+		case RAS_SHADOW_SHADER_VARIANCE:
+		{
+			GPU_shader_bind(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE));
+			break;
+		}
+		case RAS_SHADOW_SHADER_VARIANCE_INSTANCING:
+		{
+			GPU_shader_bind(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING));
+			break;
+		}
+	}
+	m_lastShadowShader = type;
 }
 
 bool RAS_OpenGLRasterizer::UseMaterial(int alphablend, bool instancing) const

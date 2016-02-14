@@ -65,6 +65,7 @@ extern char datatoc_gpu_shader_fx_lib_glsl[];
 static struct GPUShadersGlobal {
 	struct {
 		GPUShader *vsm_store;
+		GPUShader *vsm_store_instancing;
 		GPUShader *sep_gaussian_blur;
 		GPUShader *smoke;
 		GPUShader *smoke_fire;
@@ -576,6 +577,13 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 				        datatoc_gpu_shader_vsm_store_vert_glsl, datatoc_gpu_shader_vsm_store_frag_glsl,
 				        NULL, NULL, NULL, 0, 0, 0);
 			retval = GG.shaders.vsm_store;
+			break;
+		case GPU_SHADER_VSM_STORE_INSTANCING:
+			if (!GG.shaders.vsm_store_instancing)
+				GG.shaders.vsm_store_instancing = GPU_shader_create(
+					datatoc_gpu_shader_vsm_store_vert_glsl, datatoc_gpu_shader_vsm_store_frag_glsl,
+					NULL, NULL, "#define USE_INSTANCING;\n", 0, 0, 0);
+			retval = GG.shaders.vsm_store_instancing;
 			break;
 		case GPU_SHADER_SEP_GAUSSIAN_BLUR:
 			if (!GG.shaders.sep_gaussian_blur)

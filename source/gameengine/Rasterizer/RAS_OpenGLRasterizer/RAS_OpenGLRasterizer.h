@@ -151,6 +151,8 @@ protected:
 	/* int m_last_alphablend; */
 	bool m_last_frontface;
 
+	ShadowShaderType m_lastShadowShader;
+
 	/* Making use of a Strategy design pattern for storage behavior.
 	 * Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
 	int m_storage_type;
@@ -311,6 +313,8 @@ public:
 
 	virtual void SetUsingOverrideShader(bool val);
 	virtual bool GetUsingOverrideShader();
+
+	virtual void SetShadowShader(ShadowShaderType type);
 
 	virtual bool UseMaterial(int alphablend, bool instancing) const;
 

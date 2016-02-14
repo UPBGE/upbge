@@ -212,16 +212,29 @@ bool BL_BlenderShader::UseInstancing() const
 	return (GPU_instanced_drawing_support() && (m_mat->shade_flag & MA_INSTANCING));
 }
 
-void BL_BlenderShader::ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
+void BL_BlenderShader::ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
 {
-	if (Ok()) {
+	if (!Ok()) {
+		return;
+	}
+
+	if (rasty->GetUsingOverrideShader()) {
+		GPU_lamp_shadow_shader_bind_instancing_attrib(matrixoffset, positionoffset, stride);
+	}
+	else {
 		GPU_material_bind_instancing_attrib(m_GPUMat, matrixoffset, positionoffset, coloroffset, stride);
 	}
 }
 
-void BL_BlenderShader::DesactivateInstancing()
+void BL_BlenderShader::DesactivateInstancing(RAS_IRasterizer *rasty)
 {
-	if (Ok()) {
+	if (!Ok()) {
+		return;
+	}
+	if (rasty->GetUsingOverrideShader()) {
+		GPU_lamp_shadow_shader_unbind_instancing_attrib();
+	}
+	else {
 		GPU_material_unbind_instancing_attrib(m_GPUMat);
 	}
 }
