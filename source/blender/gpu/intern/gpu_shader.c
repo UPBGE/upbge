@@ -186,6 +186,7 @@ static void gpu_shader_standard_extensions(char defines[MAX_EXT_DEFINE_LENGTH], 
 
 static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH],
                                         bool use_opensubdiv,
+										bool use_instancing,
                                         bool use_new_shading)
 {
 	/* some useful defines to detect GPU type */
@@ -224,6 +225,10 @@ static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH],
 #else
 	UNUSED_VARS(use_opensubdiv);
 #endif
+
+	if (use_instancing) {
+		strcat(defines, "#define USE_INSTANCING\n");
+	}
 
 	if (use_new_shading) {
 		strcat(defines, "#define USE_NEW_SHADING\n");
@@ -272,6 +277,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	UNUSED_VARS(flags);
 	bool use_opensubdiv = false;
 #endif
+	bool use_instancing = (flags & GPU_SHADER_FLAGS_SPECIAL_INSTANCING) != 0;
 	GLint status;
 	GLchar log[5000];
 	GLsizei length = 0;
@@ -305,6 +311,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 
 	gpu_shader_standard_defines(standard_defines,
 	                            use_opensubdiv,
+								use_instancing,
 	                            (flags & GPU_SHADER_FLAGS_NEW_SHADING) != 0);
 	gpu_shader_standard_extensions(standard_extensions, geocode != NULL);
 

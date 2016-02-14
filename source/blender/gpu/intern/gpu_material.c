@@ -125,6 +125,8 @@ struct GPUMaterial {
 	int ininstmatloc;
 	int ininstcolloc;
 
+	bool use_instancing;
+
 	ListBase lamps;
 	bool bound;
 
@@ -232,6 +234,7 @@ static int GPU_material_construct_end(GPUMaterial *material, const char *passnam
 			&material->attribs, &material->builtins, material->type,
 			passname,
 			material->is_opensubdiv,
+			material->use_instancing,
 			GPU_material_use_new_shading_nodes(material));
 
 		if (!material->pass)
@@ -267,7 +270,7 @@ static int GPU_material_construct_end(GPUMaterial *material, const char *passnam
 			material->partvel = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_VELOCITY));
 		if (material->builtins & GPU_PARTICLE_ANG_VELOCITY)
 			material->partangvel = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_ANG_VELOCITY));
-		if (material->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) {
+		if (material->use_instancing) {
 			material->ininstposloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
 			material->ininstmatloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
 			material->ininstcolloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_COLOR_ATTRIB));
@@ -389,7 +392,7 @@ void GPU_material_bind(
 			viewlay &= srl->lay;
 
 		/* handle layer lamps */
-		if (material->type == GPU_MATERIAL_TYPE_MESH || material->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) {
+		if (material->type == GPU_MATERIAL_TYPE_MESH || material->use_instancing) {
 			for (LinkData *nlink = material->lamps.first; nlink; nlink = nlink->next) {
 				GPULamp *lamp = nlink->data;
 				if (!lamp->hide && (lamp->lay & viewlay) && (!(lamp->mode & LA_LAYER) || (lamp->lay & oblay)) &&
@@ -1234,7 +1237,7 @@ static void do_material_tex(GPUShadeInput *shi)
 	GPU_link(mat, "texco_norm", GPU_builtin(GPU_VIEW_NORMAL), &texco_norm);
 	GPU_link(mat, "texco_orco", GPU_attribute(CD_ORCO, ""), &texco_orco);
 	GPU_link(mat, "texco_object", GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
-		GPU_builtin((mat->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) ? GPU_INSTANCING_INVERSE_MATRIX : GPU_INVERSE_OBJECT_MATRIX),
+		GPU_builtin((mat->use_instancing) ? GPU_INSTANCING_INVERSE_MATRIX : GPU_INVERSE_OBJECT_MATRIX),
 		GPU_builtin(GPU_VIEW_POSITION), &texco_object);
 #if 0
 	GPU_link(mat, "texco_tangent", GPU_attribute(CD_TANGENT, ""), &texco_tangent);
@@ -1541,8 +1544,8 @@ static void do_material_tex(GPUShadeInput *shi)
 								         surf_pos, vNorg,
 								         GPU_builtin(GPU_VIEW_MATRIX),
 								         GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
-								         GPU_builtin((mat->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) ? GPU_INSTANCING_MATRIX : GPU_OBJECT_MATRIX),
-								         GPU_builtin((mat->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) ? GPU_INSTANCING_INVERSE_MATRIX : GPU_INVERSE_OBJECT_MATRIX),
+								         GPU_builtin((mat->use_instancing) ? GPU_INSTANCING_MATRIX : GPU_OBJECT_MATRIX),
+								         GPU_builtin((mat->use_instancing) ? GPU_INSTANCING_INVERSE_MATRIX : GPU_INVERSE_OBJECT_MATRIX),
 								         fPrevMagnitude, vNacc,
 								         &fPrevMagnitude, &vNacc,
 								         &vR1, &vR2, &fDet);
@@ -1833,7 +1836,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 	if (ma->shade_flag & MA_OBCOLOR) {
 		GPU_link(mat, "shade_obcolor", shr->combined, 
-			GPU_builtin((mat->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) ? GPU_INSTANCING_COLOR : GPU_OBCOLOR), &shr->combined);
+			GPU_builtin((mat->use_instancing) ? GPU_INSTANCING_COLOR : GPU_OBCOLOR), &shr->combined);
 	}
 
 	if (!(ma->mode & MA_NOMIST)) {
@@ -1859,7 +1862,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 	if (ma->shade_flag & MA_OBCOLOR) {
 		mat->obcolalpha = 1;
 		GPU_link(mat, "shade_alpha_obcolor", shr->combined, 
-			GPU_builtin((mat->type == GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE) ? GPU_INSTANCING_COLOR : GPU_OBCOLOR), &shr->combined);
+			GPU_builtin((mat->use_instancing) ? GPU_INSTANCING_COLOR : GPU_OBCOLOR), &shr->combined);
 	}
 }
 
@@ -2194,6 +2197,7 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_open
 	mat = GPU_material_construct_begin(ma);
 	mat->scene = scene;
 	mat->type = GPU_MATERIAL_TYPE_MESH;
+	mat->use_instancing = false;
 	mat->is_opensubdiv = use_opensubdiv;
 
 	/* render pipeline option */
@@ -2253,7 +2257,9 @@ GPUMaterial *GPU_material_instancing_from_blender(Scene *scene, Material *ma)
 	/* allocate material */
 	mat = GPU_material_construct_begin(ma);
 	mat->scene = scene;
-	mat->type = GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE;
+	mat->type = GPU_MATERIAL_TYPE_MESH;
+	mat->use_instancing = true;
+	mat->is_opensubdiv = false;
 
 	/* render pipeline option */
 	if (ma->mode & MA_TRANSP)

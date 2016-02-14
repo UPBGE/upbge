@@ -116,7 +116,6 @@ typedef enum GPUOpenGLBuiltin {
 typedef enum GPUMatType {
 	GPU_MATERIAL_TYPE_MESH  = 1,
 	GPU_MATERIAL_TYPE_WORLD = 2,
-	GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE = 3,
 } GPUMatType;
 
 

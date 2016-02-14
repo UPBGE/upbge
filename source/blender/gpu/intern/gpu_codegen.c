@@ -58,7 +58,6 @@
 extern char datatoc_gpu_shader_material_glsl[];
 extern char datatoc_gpu_shader_vertex_glsl[];
 extern char datatoc_gpu_shader_vertex_world_glsl[];
-extern char datatoc_gpu_shader_vertex_instancing_glsl[];
 extern char datatoc_gpu_shader_geometry_glsl[];
 
 static char *glsl_material_library = NULL;
@@ -783,9 +782,6 @@ static char *code_generate_vertex(ListBase *nodes, const GPUMatType type)
 	switch (type) {
 		case GPU_MATERIAL_TYPE_MESH:
 			vertcode = datatoc_gpu_shader_vertex_glsl;
-			break;
-		case GPU_MATERIAL_TYPE_GEOMETRY_INSTANCE:
-			vertcode = datatoc_gpu_shader_vertex_instancing_glsl;
 			break;
 		case GPU_MATERIAL_TYPE_WORLD:
 			vertcode = datatoc_gpu_shader_vertex_world_glsl;
@@ -1665,6 +1661,7 @@ GPUPass *GPU_generate_pass(
         GPUVertexAttribs *attribs, int *builtins,
         const GPUMatType type, const char *UNUSED(name),
         const bool use_opensubdiv,
+		const bool use_instancing,
         const bool use_new_shading)
 {
 	GPUShader *shader;
@@ -1695,6 +1692,9 @@ GPUPass *GPU_generate_pass(
 	}
 	if (use_new_shading) {
 		flags |= GPU_SHADER_FLAGS_NEW_SHADING;
+	}
+	if (use_instancing) {
+		flags |= GPU_SHADER_FLAGS_SPECIAL_INSTANCING;
 	}
 	shader = GPU_shader_create_ex(vertexcode,
 	                              fragmentcode,
