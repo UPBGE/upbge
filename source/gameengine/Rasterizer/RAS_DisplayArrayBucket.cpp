@@ -205,6 +205,11 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 	}
 }
 
+void RAS_DisplayArrayBucket::SetMeshUnmodified()
+{
+	m_mesh->SetModifiedFlag(0);
+}
+
 RAS_IStorageInfo *RAS_DisplayArrayBucket::GetStorageInfo() const
 {
 	return m_storageInfo;

@@ -110,6 +110,8 @@ public:
 
 	/// Update render infos.
 	void UpdateActiveMeshSlots(RAS_IRasterizer *rasty);
+	/// Set the mesh object as unmodified flag.
+	void SetMeshUnmodified();
 
 	RAS_IStorageInfo *GetStorageInfo() const;
 	void SetStorageInfo(RAS_IStorageInfo *info);

@@ -209,6 +209,8 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 
 void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty)
 {
+	bool isShadow = rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW;
+
 	rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 
 	RenderSolidBuckets(cameratrans, rasty);
@@ -216,7 +218,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 	// Having depth masks disabled/enabled gives different artifacts in
 	// case no sorting is done or is done inexact. For compatibility, we
 	// disable it.
-	if (rasty->GetDrawingMode() != RAS_IRasterizer::RAS_SHADOW) {
+	if (isShadow) {
 		rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
 	}
 
@@ -228,22 +230,14 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 	 * then the mesh is still modified, so we don't want to set MeshModified to false yet (it will mess up
 	 * updating display lists). Just leave this step for the main render pass.
 	 */
-	if (rasty->GetDrawingMode() != RAS_IRasterizer::RAS_SHADOW) {
+	if (!isShadow) {
 		/* All meshes should be up to date now */
 		/* Don't do this while processing buckets because some meshes are split between buckets */
-		BucketList::iterator bit;
-		RAS_MeshSlotList::iterator mit;
-		for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
-			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
-				RAS_MeshObject *meshobj = (*mit)->m_mesh;
-				meshobj->SetModifiedFlag(0);
-			}
+		for (BucketList::iterator it = m_SolidBuckets.begin(), end = m_SolidBuckets.end(); it != end; ++it) {
+			(*it)->SetMeshUnmodified();
 		}
-		for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit) {
-			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
-				RAS_MeshObject *meshobj = (*mit)->m_mesh;
-				meshobj->SetModifiedFlag(0);
-			}
+		for (BucketList::iterator it = m_AlphaBuckets.begin(), end = m_AlphaBuckets.end(); it != end; ++it) {
+			(*it)->SetMeshUnmodified();
 		}
 	}
 	

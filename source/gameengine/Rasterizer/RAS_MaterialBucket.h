@@ -68,6 +68,8 @@ public:
 	RAS_MeshSlot *CopyMesh(RAS_MeshSlot *ms);
 	void RemoveMesh(RAS_MeshSlot *ms);
 	void Optimize(MT_Scalar distance);
+	/// Set the mesh object as unmodified flag.
+	void SetMeshUnmodified();
 	unsigned int GetNumActiveMeshSlots();
 
 	/** Find a display array bucket for the given display array, if not retrurn a new one.

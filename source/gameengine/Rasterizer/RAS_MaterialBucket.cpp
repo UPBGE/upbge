@@ -232,6 +232,16 @@ void RAS_MaterialBucket::Optimize(MT_Scalar distance)
 #endif
 }
 
+void RAS_MaterialBucket::SetMeshUnmodified()
+{
+	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
+		it != end; ++it)
+	{
+		RAS_DisplayArrayBucket *displayArrayBucket = *it;
+		displayArrayBucket->SetMeshUnmodified();
+	}
+}
+
 RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_DisplayArray *array, RAS_MeshObject *mesh)
 {
 	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
