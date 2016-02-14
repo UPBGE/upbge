@@ -155,12 +155,6 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 	std::vector<sortedmeshslot> slots;
 	std::vector<sortedmeshslot>::iterator sit;
 
-	// Having depth masks disabled/enabled gives different artifacts in
-	// case no sorting is done or is done inexact. For compatibility, we
-	// disable it.
-	if (rasty->GetDrawingMode() != RAS_IRasterizer::RAS_SHADOW)
-		rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
-
 	OrderBuckets(cameratrans, m_AlphaBuckets, slots, true, rasty);
 
 	// The last display array and material bucket used to avoid double calls.
@@ -203,14 +197,10 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 		lastMaterialBucket->DesactivateMaterial(rasty);
 	}
 	rasty->UnbindPrimitives(lastDisplayArrayBucket);
-
-	rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 }
 
 void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty)
 {
-	rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
-
 	for (BucketList::iterator bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
 		RAS_MaterialBucket* bucket = *bit;
 		bucket->RenderMeshSlots(cameratrans, rasty);
@@ -219,8 +209,20 @@ void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_
 
 void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty)
 {
+	rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
+
 	RenderSolidBuckets(cameratrans, rasty);
+
+	// Having depth masks disabled/enabled gives different artifacts in
+	// case no sorting is done or is done inexact. For compatibility, we
+	// disable it.
+	if (rasty->GetDrawingMode() != RAS_IRasterizer::RAS_SHADOW) {
+		rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
+	}
+
 	RenderAlphaBuckets(cameratrans, rasty);
+
+	rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 
 	/* If we're drawing shadows and bucket wasn't rendered (outside of the lamp frustum or doesn't cast shadows)
 	 * then the mesh is still modified, so we don't want to set MeshModified to false yet (it will mess up
