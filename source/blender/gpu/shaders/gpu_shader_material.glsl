@@ -2760,7 +2760,7 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler
 	vec3 binormal = cross(-vn, tangent.xyz) * tangent.w;
 	vec3 vvec = vec3(dot(tangent.xyz, vp), dot(binormal, vp), dot(-vn, vp));
 	vec3 vv = normalize(vvec);
-	float height = texture2D(ima, texco.xy).a;
+	float height = texture2D(ima, texco.xy * size.xy).a;
 	vec2 texuv = texco.xy + height * scale * 0.005;
 	float h = 1.0;
 	float numeyesteps = mix(numsteps * 2.0, numsteps, vv.z);
@@ -2793,7 +2793,7 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler
 	if (texuv.x < min || texuv.x > max || texuv.y < min || texuv.y > max) {
 		discard;
 	}
-	ptexcoord = vec3(mix(texuv, pretexuv, weight) * size.xy, 0.0);
+	ptexcoord = vec3(mix(texuv, pretexuv, weight), 0.0);
 }
 
 /* ********************** matcap style render ******************** */
