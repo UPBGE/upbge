@@ -92,14 +92,13 @@ RAS_BucketManager::~RAS_BucketManager()
 {
 	BucketList::iterator it;
 
-	for (it = m_SolidBuckets.begin(); it != m_SolidBuckets.end(); it++)
-		delete (*it);
-
-	for (it = m_AlphaBuckets.begin(); it != m_AlphaBuckets.end(); it++)
-		delete(*it);
-	
-	m_SolidBuckets.clear();
-	m_AlphaBuckets.clear();
+	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
+		BucketList& buckets = m_buckets[i];
+		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
+			delete *it;
+		}
+		buckets.clear();
+	}
 }
 
 void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, std::vector<sortedmeshslot>& slots,
@@ -155,7 +154,7 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 	std::vector<sortedmeshslot> slots;
 	std::vector<sortedmeshslot>::iterator sit;
 
-	OrderBuckets(cameratrans, m_AlphaBuckets, slots, true, rasty);
+	OrderBuckets(cameratrans, m_buckets[ALPHA_BUCKET], slots, true, rasty);
 
 	// The last display array and material bucket used to avoid double calls.
 	RAS_DisplayArrayBucket *lastDisplayArrayBucket = NULL;
@@ -201,7 +200,8 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 
 void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty)
 {
-	for (BucketList::iterator bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
+	BucketList& solidBuckets = m_buckets[SOLID_BUCKET];
+	for (BucketList::iterator bit = solidBuckets.begin(); bit != solidBuckets.end(); ++bit) {
 		RAS_MaterialBucket* bucket = *bit;
 		bucket->RenderMeshSlots(cameratrans, rasty);
 	}
@@ -233,11 +233,11 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 	if (!isShadow) {
 		/* All meshes should be up to date now */
 		/* Don't do this while processing buckets because some meshes are split between buckets */
-		for (BucketList::iterator it = m_SolidBuckets.begin(), end = m_SolidBuckets.end(); it != end; ++it) {
-			(*it)->SetMeshUnmodified();
-		}
-		for (BucketList::iterator it = m_AlphaBuckets.begin(), end = m_AlphaBuckets.end(); it != end; ++it) {
-			(*it)->SetMeshUnmodified();
+		for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
+			BucketList& buckets = m_buckets[i];
+			for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
+				(*it)->SetMeshUnmodified();
+			}
 		}
 	}
 	
@@ -247,39 +247,39 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 
 RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated)
 {
-	BucketList::iterator it;
-
 	bucketCreated = false;
 
-	for (it = m_SolidBuckets.begin(); it != m_SolidBuckets.end(); it++)
-		if ((*it)->GetPolyMaterial() == material)
-			return *it;
-	
-	for (it = m_AlphaBuckets.begin(); it != m_AlphaBuckets.end(); it++)
-		if ((*it)->GetPolyMaterial() == material)
-			return *it;
+	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
+		BucketList& buckets = m_buckets[i];
+		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
+			RAS_MaterialBucket *bucket = *it;
+			if (bucket->GetPolyMaterial() == material) {
+				return bucket;
+			}
+		}
+	}
 	
 	RAS_MaterialBucket *bucket = new RAS_MaterialBucket(material);
 	bucketCreated = true;
 
 	if (bucket->IsAlpha())
-		m_AlphaBuckets.push_back(bucket);
+		m_buckets[ALPHA_BUCKET].push_back(bucket);
 	else
-		m_SolidBuckets.push_back(bucket);
+		m_buckets[SOLID_BUCKET].push_back(bucket);
 	
 	return bucket;
 }
 
 void RAS_BucketManager::OptimizeBuckets(MT_Scalar distance)
 {
-	BucketList::iterator bit;
-	
 	distance = 10.0f;
 
-	for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit)
-		(*bit)->Optimize(distance);
-	for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit)
-		(*bit)->Optimize(distance);
+	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
+		BucketList& buckets = m_buckets[i];
+		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
+			(*it)->Optimize(distance);
+		}
+	}
 }
 
 void RAS_BucketManager::ReleaseDisplayLists(RAS_IPolyMaterial *mat)
@@ -287,47 +287,32 @@ void RAS_BucketManager::ReleaseDisplayLists(RAS_IPolyMaterial *mat)
 	BucketList::iterator bit;
 	RAS_MeshSlotList::iterator mit;
 
-	for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
-		RAS_MaterialBucket *bucket = *bit;
-		if (bucket->GetPolyMaterial() != mat && mat) {
-			continue;
-		}
-		RAS_DisplayArrayBucketList& displayArrayBucketList = bucket->GetDisplayArrayBucketList();
-		for (RAS_DisplayArrayBucketList::iterator it = displayArrayBucketList.begin(), end = displayArrayBucketList.end();
-			it != end; ++it)
-		{
-			 (*it)->DestructStorageInfo();
-		}
-	}
-
-	for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit) {
-		RAS_MaterialBucket *bucket = *bit;
-		if (bucket->GetPolyMaterial() != mat && mat) {
-			continue;
-		}
-		RAS_DisplayArrayBucketList& displayArrayBucketList = bucket->GetDisplayArrayBucketList();
-		for (RAS_DisplayArrayBucketList::iterator it = displayArrayBucketList.begin(), end = displayArrayBucketList.end();
-			it != end; ++it)
-		{
-			 (*it)->DestructStorageInfo();
+	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
+		BucketList& buckets = m_buckets[i];
+		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
+			RAS_MaterialBucket *bucket = *it;
+			if (bucket->GetPolyMaterial() != mat && mat) {
+				continue;
+			}
+			RAS_DisplayArrayBucketList& displayArrayBucketList = bucket->GetDisplayArrayBucketList();
+			for (RAS_DisplayArrayBucketList::iterator dit = displayArrayBucketList.begin(), dend = displayArrayBucketList.end();
+				dit != dend; ++dit)
+			{
+				(*dit)->DestructStorageInfo();
+			}
 		}
 	}
 }
 
 void RAS_BucketManager::ReleaseMaterials(RAS_IPolyMaterial * mat)
 {
-	BucketList::iterator bit;
-	RAS_MeshSlotList::iterator mit;
-
-	for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
-		if (mat == NULL || (mat == (*bit)->GetPolyMaterial())) {
-			(*bit)->GetPolyMaterial()->ReleaseMaterial();
-		}
-	}
-	
-	for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit) {
-		if (mat == NULL || (mat == (*bit)->GetPolyMaterial())) {
-			(*bit)->GetPolyMaterial()->ReleaseMaterial();
+	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
+		BucketList& buckets = m_buckets[i];
+		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
+			RAS_MaterialBucket *bucket = *it;
+			if (mat == NULL || (mat == bucket->GetPolyMaterial())) {
+				bucket->GetPolyMaterial()->ReleaseMaterial();
+			}
 		}
 	}
 }
@@ -335,26 +320,17 @@ void RAS_BucketManager::ReleaseMaterials(RAS_IPolyMaterial * mat)
 /* frees the bucket, only used when freeing scenes */
 void RAS_BucketManager::RemoveMaterial(RAS_IPolyMaterial * mat)
 {
-	BucketList::iterator bit, bitp;
-	RAS_MeshSlotList::iterator mit;
-	int i;
-
-
-	for (i=0; i<m_SolidBuckets.size(); i++) {
-		RAS_MaterialBucket *bucket = m_SolidBuckets[i];
-		if (mat == bucket->GetPolyMaterial()) {
-			m_SolidBuckets.erase(m_SolidBuckets.begin()+i);
-			delete bucket;
-			i--;
-		}
-	}
-
-	for (int i=0; i<m_AlphaBuckets.size(); i++) {
-		RAS_MaterialBucket *bucket = m_AlphaBuckets[i];
-		if (mat == bucket->GetPolyMaterial()) {
-			m_AlphaBuckets.erase(m_AlphaBuckets.begin()+i);
-			delete bucket;
-			i--;
+	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
+		BucketList& buckets = m_buckets[i];
+		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end;) {
+			RAS_MaterialBucket *bucket = *it;
+			if (mat == bucket->GetPolyMaterial()) {
+				buckets.erase(it++);
+				delete bucket;
+			}
+			else {
+				++it;
+			}
 		}
 	}
 }

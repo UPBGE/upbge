@@ -44,9 +44,14 @@ class RAS_BucketManager
 public:
 	typedef std::vector<class RAS_MaterialBucket*> BucketList;
 private:
-	BucketList m_SolidBuckets;
-	BucketList m_AlphaBuckets;
-	
+	enum {
+		SOLID_BUCKET = 0,
+		ALPHA_BUCKET,
+		NUM_BUCKET_TYPE,
+	} BucketType;
+
+	BucketList m_buckets[NUM_BUCKET_TYPE];
+
 	struct sortedmeshslot;
 	struct backtofront;
 	struct fronttoback;
@@ -67,8 +72,14 @@ public:
 
 	/* for merging */
 	void MergeBucketManager(RAS_BucketManager *other, SCA_IScene *scene);
-	BucketList & GetSolidBuckets() {return m_SolidBuckets;}
-	BucketList & GetAlphaBuckets() {return m_AlphaBuckets;}
+	BucketList& GetSolidBuckets()
+	{
+		return m_buckets[SOLID_BUCKET];
+	}
+	BucketList& GetAlphaBuckets()
+	{
+		return m_buckets[ALPHA_BUCKET];
+	}
 
 	/*void PrintStats(int verbose_level) {
 		printf("\nMappings...\n");
