@@ -445,10 +445,14 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 
 bool KX_BlenderMaterial::UseInstancing() const
 {
-	if (m_blenderShader && !(m_shader && m_shader->Ok())) {
+	if (m_shader && m_shader->Ok()) {
+		return false;
+	}
+	else if (m_blenderShader) {
 		return m_blenderShader->UseInstancing();
 	}
-	return false;
+	// The material is in conversion, we use the blender material flag then.
+	return m_material->material->shade_flag & MA_INSTANCING;
 }
 
 void KX_BlenderMaterial::ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)

@@ -72,6 +72,11 @@ bool RAS_MaterialBucket::IsZSort() const
 	return (m_material->IsZSort());
 }
 
+bool RAS_MaterialBucket::UseInstancing() const
+{
+	return (m_material->UseInstancing());
+}
+
 RAS_MeshSlot *RAS_MaterialBucket::AddMesh(RAS_MeshObject *mesh)
 {
 	RAS_MeshSlot *ms = new RAS_MeshSlot();
@@ -131,7 +136,7 @@ bool RAS_MaterialBucket::ActivateMaterial(RAS_IRasterizer *rasty)
 		}
 		// Override shader for variance shadow map, return true to allow render but the Desactivate function do nothing too.
 		else if (rasty->GetUsingOverrideShader()) {
-			rasty->SetShadowShader(m_material->UseInstancing() ?
+			rasty->SetShadowShader(UseInstancing() ?
 					RAS_IRasterizer::RAS_SHADOW_SHADER_VARIANCE_INSTANCING :
 					RAS_IRasterizer::RAS_SHADOW_SHADER_VARIANCE);
 			return true;
@@ -217,8 +222,8 @@ void RAS_MaterialBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IR
 		}
 
 		// Choose the rendering mode : geometry instancing render / regular render.
-		if (m_material->UseInstancing()) {
-			displayArrayBucket->RenderMeshSlotsInstancing(cameratrans, rasty, false);
+		if (UseInstancing()) {
+			displayArrayBucket->RenderMeshSlotsInstancing(cameratrans, rasty, IsAlpha());
 		}
 		else {
 			displayArrayBucket->RenderMeshSlots(cameratrans, rasty);

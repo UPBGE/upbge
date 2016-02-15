@@ -63,17 +63,15 @@ public:
 	};
 
 private:
-	enum {
+	enum BucketType {
 		SOLID_BUCKET = 0,
 		ALPHA_BUCKET,
+		SOLID_INSTANCING_BUCKET,
+		ALPHA_INSTANCING_BUCKET,
 		NUM_BUCKET_TYPE,
-	} BucketType;
+	};
 
 	BucketList m_buckets[NUM_BUCKET_TYPE];
-
-	struct sortedmeshslot;
-	struct backtofront;
-	struct fronttoback;
 
 public:
 	RAS_BucketManager();
@@ -112,10 +110,8 @@ private:
 	void OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, std::vector<sortedmeshslot>& slots, 
 					  bool alpha, RAS_IRasterizer *rasty);
 
-	void RenderSolidBuckets(const MT_Transform& cameratrans,
-		RAS_IRasterizer* rasty);
-	void RenderAlphaBuckets(const MT_Transform& cameratrans,
-		RAS_IRasterizer* rasty);
+	void RenderBasicBuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, BucketType bucketType);
+	void RenderSortedBuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty, BucketType bucketType);
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

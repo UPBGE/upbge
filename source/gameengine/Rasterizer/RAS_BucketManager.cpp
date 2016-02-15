@@ -133,36 +133,12 @@ void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList
 		sort(slots.begin(), slots.end(), fronttoback());
 }
 
-void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty)
+void RAS_BucketManager::RenderSortedBuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty, RAS_BucketManager::BucketType bucketType)
 {
 	std::vector<sortedmeshslot> slots;
 	std::vector<sortedmeshslot>::iterator sit;
 
-	BucketList buckets;
-	BucketList alphaBuckets = m_buckets[ALPHA_BUCKET];
-	for (BucketList::iterator bit = alphaBuckets.begin(), bend = alphaBuckets.end(); bit != bend; ++bit) {
-		RAS_MaterialBucket *bucket = *bit;
-		/* If the material bucket doesn't use geometry instancing we put it in
-		 * the list of mesh slot to sort. */
-		if (!bucket->GetPolyMaterial()->UseInstancing()) {
-			buckets.push_back(bucket);
-			continue;
-		}
-
-		bucket->ActivateMaterial(rasty);
-		// Else we draw it now.
-		RAS_DisplayArrayBucketList& displayArrayBucketList = (*bit)->GetDisplayArrayBucketList();
-		for (RAS_DisplayArrayBucketList::iterator dbit = displayArrayBucketList.begin(), dbend = displayArrayBucketList.end();
-			 dbit != dbend; ++dbit)
-		{
-			RAS_DisplayArrayBucket *displayArrayBucket = *dbit;
-			displayArrayBucket->RenderMeshSlotsInstancing(cameratrans, rasty, true);
-			displayArrayBucket->RemoveActiveMeshSlots();
-		}
-		bucket->DesactivateMaterial(rasty);
-	}
-
-	OrderBuckets(cameratrans, buckets, slots, true, rasty);
+	OrderBuckets(cameratrans, m_buckets[bucketType], slots, true, rasty);
 
 	// The last display array and material bucket used to avoid double calls.
 	RAS_DisplayArrayBucket *lastDisplayArrayBucket = NULL;
@@ -206,9 +182,9 @@ void RAS_BucketManager::RenderAlphaBuckets(const MT_Transform& cameratrans, RAS_
 	rasty->UnbindPrimitives(lastDisplayArrayBucket);
 }
 
-void RAS_BucketManager::RenderSolidBuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty)
+void RAS_BucketManager::RenderBasicBuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty, RAS_BucketManager::BucketType bucketType)
 {
-	BucketList& solidBuckets = m_buckets[SOLID_BUCKET];
+	BucketList& solidBuckets = m_buckets[bucketType];
 	for (BucketList::iterator bit = solidBuckets.begin(); bit != solidBuckets.end(); ++bit) {
 		RAS_MaterialBucket* bucket = *bit;
 		bucket->RenderMeshSlots(cameratrans, rasty);
@@ -221,7 +197,8 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 
 	rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 
-	RenderSolidBuckets(cameratrans, rasty);
+	RenderBasicBuckets(cameratrans, rasty, SOLID_BUCKET);
+	RenderBasicBuckets(cameratrans, rasty, SOLID_INSTANCING_BUCKET);
 
 	// Having depth masks disabled/enabled gives different artifacts in
 	// case no sorting is done or is done inexact. For compatibility, we
@@ -230,7 +207,8 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 		rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
 	}
 
-	RenderAlphaBuckets(cameratrans, rasty);
+	RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
+	RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
 
 	rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 
@@ -270,10 +248,12 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 	RAS_MaterialBucket *bucket = new RAS_MaterialBucket(material);
 	bucketCreated = true;
 
+	const bool useinstancing = bucket->UseInstancing();
+	std::cout << "useinstancing : " << useinstancing << std::endl;
 	if (bucket->IsAlpha())
-		m_buckets[ALPHA_BUCKET].push_back(bucket);
+		m_buckets[useinstancing ? ALPHA_INSTANCING_BUCKET : ALPHA_BUCKET].push_back(bucket);
 	else
-		m_buckets[SOLID_BUCKET].push_back(bucket);
+		m_buckets[useinstancing ? SOLID_INSTANCING_BUCKET : SOLID_BUCKET].push_back(bucket);
 	
 	return bucket;
 }

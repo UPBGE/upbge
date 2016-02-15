@@ -182,7 +182,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 	else if (m_bucket->IsZSort()) {
 		m_useDisplayList = false;
 	}
-	else if (material->UsesObjectColor() || material->UseInstancing()) {
+	else if (material->UsesObjectColor() || m_bucket->UseInstancing()) {
 		m_useDisplayList = false;
 	}
 	// No display array mean modifiers.
