@@ -1213,14 +1213,14 @@ static PyObject *gPySetMaterialType(PyObject *,
                                     PyObject *args,
                                     PyObject *)
 {
-	// TODO set deprecated.
+	ShowDeprecationWarning("setMaterialMode(mode)", "nothing");
 
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetMaterialType(PyObject *)
 {
-	// TODO set deprecated.
+	ShowDeprecationWarning("getMaterialMode()", "nothing");
 
 	return PyLong_FromLong(0);
 }

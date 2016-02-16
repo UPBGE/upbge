@@ -58,13 +58,19 @@ Constants
 
 .. data:: KX_TEXFACE_MATERIAL
 
+   Deprecated.
+
    Materials as defined by the texture face settings.
 
 .. data:: KX_BLENDER_MULTITEX_MATERIAL
 
+   Deprecated.
+
    Materials approximating blender materials with multitexturing.
 
 .. data:: KX_BLENDER_GLSL_MATERIAL
+
+   Deprecated.
 
    Materials approximating blender materials with GLSL.
 
@@ -232,6 +238,8 @@ Functions
 
 .. function:: setMaterialMode(mode)
 
+   Deprecated and no longer functional.
+
    Set the material mode to use for OpenGL rendering.
 
    :arg mode: material mode
@@ -241,6 +249,8 @@ Functions
 
 
 .. function:: getMaterialMode(mode)
+
+   Deprecated and no longer functional.
 
    Get the material mode to use for OpenGL rendering.
 
