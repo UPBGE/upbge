@@ -64,4 +64,12 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 3)) {
+		Scene *scene;
+		for (scene = main->scene.first; scene != NULL; scene = scene->id.next) {
+			/* for files saved before 0.0.3, the viewport background must be desactivated
+			* in the case the files used KX_WorldInfo python API or KX_WorldIpo */
+			scene->gm.flag &= ~GAME_RENDER_WORLD_BACKGROUND;
+		}
+	}
 }
