@@ -395,21 +395,18 @@ class RENDER_PT_game_shading(RenderButtonsPanel, Panel):
 
         gs = context.scene.game_settings
 
-        layout.prop(gs, "material_mode", expand=True)
+        split = layout.split()
 
-        if gs.material_mode == 'GLSL':
-            split = layout.split()
+        col = split.column()
+        col.prop(gs, "use_world_material")
+        col.prop(gs, "use_glsl_lights", text="Lights")
+        col.prop(gs, "use_glsl_shaders", text="Shaders")
+        col.prop(gs, "use_glsl_shadows", text="Shadows")
 
-            col = split.column()
-            col.prop(gs, "use_world_material")
-            col.prop(gs, "use_glsl_lights", text="Lights")
-            col.prop(gs, "use_glsl_shaders", text="Shaders")
-            col.prop(gs, "use_glsl_shadows", text="Shadows")
-
-            col = split.column()
-            col.prop(gs, "use_glsl_ramps", text="Ramps")
-            col.prop(gs, "use_glsl_nodes", text="Nodes")
-            col.prop(gs, "use_glsl_extra_textures", text="Extra Textures")
+        col = split.column()
+        col.prop(gs, "use_glsl_ramps", text="Ramps")
+        col.prop(gs, "use_glsl_nodes", text="Nodes")
+        col.prop(gs, "use_glsl_extra_textures", text="Extra Textures")
 
 
 class RENDER_PT_game_system(RenderButtonsPanel, Panel):
