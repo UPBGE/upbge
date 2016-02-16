@@ -130,8 +130,6 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	int m_motionblur;
 	float m_motionblurvalue;
 
-	bool m_usingoverrideshader;
-
 	/* Render tools */
 	void *m_clientobject;
 	void *m_auxilaryClientInfo;
@@ -143,6 +141,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 
 protected:
 	DrawType m_drawingmode;
+	ShadowType m_shadowMode;
 	TexCoGen m_texco[RAS_MAX_TEXCO];
 	TexCoGen m_attrib[RAS_MAX_ATTRIB];
 	int m_attrib_layer[RAS_MAX_ATTRIB];
@@ -151,7 +150,7 @@ protected:
 	/* int m_last_alphablend; */
 	bool m_last_frontface;
 
-	ShadowShaderType m_lastShadowShader;
+	OverrideShaderType m_overrideShader;
 
 	/* Making use of a Strategy design pattern for storage behavior.
 	 * Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
@@ -210,6 +209,9 @@ public:
 
 	virtual void SetDrawingMode(DrawType drawingmode);
 	virtual DrawType GetDrawingMode();
+
+	virtual void SetShadowMode(ShadowType shadowmode);
+	virtual ShadowType GetShadowMode();
 
 	virtual void SetCullFace(bool enable);
 	virtual void SetLines(bool enable);
@@ -311,12 +313,10 @@ public:
 	virtual void SetMipmapping(MipmapOption val);
 	virtual MipmapOption GetMipmapping();
 
-	virtual void SetUsingOverrideShader(bool val);
-	virtual bool GetUsingOverrideShader();
-
-	virtual void SetShadowShader(ShadowShaderType type);
-
-	virtual bool UseMaterial(int alphablend, bool instancing) const;
+	virtual void SetOverrideShader(OverrideShaderType type);
+	virtual OverrideShaderType GetOverrideShader();
+	virtual void ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride);
+	virtual void DesactivateOverrideShaderInstancing();
 
 	/**
 	 * Render Tools

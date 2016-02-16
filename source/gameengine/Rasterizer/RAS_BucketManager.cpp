@@ -74,15 +74,11 @@ RAS_BucketManager::RAS_BucketManager()
 
 RAS_BucketManager::~RAS_BucketManager()
 {
-	BucketList::iterator it;
-
-	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
-		BucketList& buckets = m_buckets[i];
-		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-			delete *it;
-		}
-		buckets.clear();
+	BucketList& buckets = m_buckets[ALL_BUCKET];
+	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
+		delete *it;
 	}
+	buckets.clear();
 }
 
 void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, std::vector<sortedmeshslot>& slots,
@@ -193,30 +189,90 @@ void RAS_BucketManager::RenderBasicBuckets(const MT_Transform& cameratrans, RAS_
 
 void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty)
 {
-	bool isShadow = rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW;
+	switch (rasty->GetDrawingMode()) {
+		case RAS_IRasterizer::RAS_SHADOW:
+		{
+			const bool isVarianceShadow = rasty->GetShadowMode() == RAS_IRasterizer::RAS_SHADOW_VARIANCE;
 
-	rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
+			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 
-	RenderBasicBuckets(cameratrans, rasty, SOLID_BUCKET);
-	RenderBasicBuckets(cameratrans, rasty, SOLID_INSTANCING_BUCKET);
+			rasty->SetOverrideShader(isVarianceShadow ? 
+					RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE :
+					RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
 
-	// Having depth masks disabled/enabled gives different artifacts in
-	// case no sorting is done or is done inexact. For compatibility, we
-	// disable it.
-	if (isShadow) {
-		rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
+			RenderBasicBuckets(cameratrans, rasty, SOLID_SHADOW_BUCKET);
+
+			rasty->SetOverrideShader(isVarianceShadow ?
+					RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING :
+					RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC_INSTANCING);
+
+			RenderBasicBuckets(cameratrans, rasty, SOLID_SHADOW_INSTANCING_BUCKET);
+
+			if (isVarianceShadow) {
+				RenderBasicBuckets(cameratrans, rasty, ALPHA_SHADOW_INSTANCING_BUCKET);
+
+				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE);
+
+				RenderSortedBuckets(cameratrans, rasty, ALPHA_SHADOW_BUCKET);
+
+				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE);
+			}
+			else {
+				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE);
+
+				RenderBasicBuckets(cameratrans, rasty, ALPHA_SHADOW_INSTANCING_BUCKET);
+				RenderSortedBuckets(cameratrans, rasty, ALPHA_SHADOW_BUCKET);
+			}
+
+			break;
+		}
+		case RAS_IRasterizer::RAS_WIREFRAME:
+		{
+			rasty->SetLines(true);
+			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
+			rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
+
+			RenderBasicBuckets(cameratrans, rasty, SOLID_BUCKET);
+
+			rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC_INSTANCING);
+
+			RenderBasicBuckets(cameratrans, rasty, SOLID_INSTANCING_BUCKET);
+
+			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
+
+			RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
+
+			rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
+
+			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
+
+			rasty->SetLines(false);
+			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
+			break;
+		}
+		case RAS_IRasterizer::RAS_SOLID:
+		case RAS_IRasterizer::RAS_TEXTURED:
+		{
+			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
+
+			RenderBasicBuckets(cameratrans, rasty, SOLID_BUCKET);
+			RenderBasicBuckets(cameratrans, rasty, SOLID_INSTANCING_BUCKET);
+
+			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
+
+			RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
+			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
+
+			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
+			break;
+		}
 	}
-
-	RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
-	RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
-
-	rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 
 	/* If we're drawing shadows and bucket wasn't rendered (outside of the lamp frustum or doesn't cast shadows)
 	 * then the mesh is still modified, so we don't want to set MeshModified to false yet (it will mess up
 	 * updating display lists). Just leave this step for the main render pass.
 	 */
-	if (!isShadow) {
+	if (rasty->GetDrawingMode() != RAS_IRasterizer::RAS_SHADOW) {
 		/* All meshes should be up to date now */
 		/* Don't do this while processing buckets because some meshes are split between buckets */
 		for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
@@ -235,13 +291,11 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 {
 	bucketCreated = false;
 
-	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
-		BucketList& buckets = m_buckets[i];
-		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-			RAS_MaterialBucket *bucket = *it;
-			if (bucket->GetPolyMaterial() == material) {
-				return bucket;
-			}
+	BucketList& buckets = m_buckets[ALL_BUCKET];
+	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
+		RAS_MaterialBucket *bucket = *it;
+		if (bucket->GetPolyMaterial() == material) {
+			return bucket;
 		}
 	}
 	
@@ -249,12 +303,20 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 	bucketCreated = true;
 
 	const bool useinstancing = bucket->UseInstancing();
-	std::cout << "useinstancing : " << useinstancing << std::endl;
-	if (bucket->IsAlpha())
-		m_buckets[useinstancing ? ALPHA_INSTANCING_BUCKET : ALPHA_BUCKET].push_back(bucket);
-	else
-		m_buckets[useinstancing ? SOLID_INSTANCING_BUCKET : SOLID_BUCKET].push_back(bucket);
-	
+	if (!material->OnlyShadow()) {
+		if (bucket->IsAlpha())
+			m_buckets[useinstancing ? ALPHA_INSTANCING_BUCKET : ALPHA_BUCKET].push_back(bucket);
+		else
+			m_buckets[useinstancing ? SOLID_INSTANCING_BUCKET : SOLID_BUCKET].push_back(bucket);
+	}
+	if (material->CastsShadows()) {
+		if (bucket->IsAlpha())
+			m_buckets[useinstancing ? ALPHA_SHADOW_INSTANCING_BUCKET : ALPHA_SHADOW_BUCKET].push_back(bucket);
+		else
+			m_buckets[useinstancing ? SOLID_SHADOW_INSTANCING_BUCKET : SOLID_SHADOW_BUCKET].push_back(bucket);
+	}
+	// Used to free the bucket.
+	m_buckets[ALL_BUCKET].push_back(bucket);
 	return bucket;
 }
 
@@ -272,35 +334,30 @@ void RAS_BucketManager::OptimizeBuckets(MT_Scalar distance)
 
 void RAS_BucketManager::ReleaseDisplayLists(RAS_IPolyMaterial *mat)
 {
-	BucketList::iterator bit;
-	RAS_MeshSlotList::iterator mit;
 
-	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
-		BucketList& buckets = m_buckets[i];
-		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-			RAS_MaterialBucket *bucket = *it;
-			if (bucket->GetPolyMaterial() != mat && mat) {
-				continue;
-			}
-			RAS_DisplayArrayBucketList& displayArrayBucketList = bucket->GetDisplayArrayBucketList();
-			for (RAS_DisplayArrayBucketList::iterator dit = displayArrayBucketList.begin(), dend = displayArrayBucketList.end();
-				dit != dend; ++dit)
-			{
-				(*dit)->DestructStorageInfo();
-			}
+	BucketList& buckets = m_buckets[ALL_BUCKET];
+	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
+		RAS_MaterialBucket *bucket = *it;
+		if (bucket->GetPolyMaterial() != mat && mat) {
+			continue;
+		}
+		RAS_DisplayArrayBucketList& displayArrayBucketList = bucket->GetDisplayArrayBucketList();
+		for (RAS_DisplayArrayBucketList::iterator dit = displayArrayBucketList.begin(), dend = displayArrayBucketList.end();
+			dit != dend; ++dit)
+		{
+			(*dit)->DestructStorageInfo();
 		}
 	}
 }
 
 void RAS_BucketManager::ReleaseMaterials(RAS_IPolyMaterial * mat)
 {
-	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
-		BucketList& buckets = m_buckets[i];
-		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-			RAS_MaterialBucket *bucket = *it;
-			if (mat == NULL || (mat == bucket->GetPolyMaterial())) {
-				bucket->GetPolyMaterial()->ReleaseMaterial();
-			}
+	// TODO cleanup.
+	BucketList& buckets = m_buckets[ALL_BUCKET];
+	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
+		RAS_MaterialBucket *bucket = *it;
+		if (mat == NULL || (mat == bucket->GetPolyMaterial())) {
+			bucket->GetPolyMaterial()->ReleaseMaterial();
 		}
 	}
 }

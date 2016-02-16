@@ -300,12 +300,20 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 	}
 
 	// Bind all vertex attributs for the used material and the given buffer offset.
-	material->ActivateInstancing(
-		rasty,
-		m_instancingBuffer->GetMatrixOffset(),
-		m_instancingBuffer->GetPositionOffset(),
-		m_instancingBuffer->GetColorOffset(),
-		m_instancingBuffer->GetStride());
+	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
+		material->ActivateInstancing(
+			rasty,
+			m_instancingBuffer->GetMatrixOffset(),
+			m_instancingBuffer->GetPositionOffset(),
+			m_instancingBuffer->GetColorOffset(),
+			m_instancingBuffer->GetStride());
+	}
+	else {
+		rasty->ActivateOverrideShaderInstancing(
+			m_instancingBuffer->GetMatrixOffset(),
+			m_instancingBuffer->GetPositionOffset(),
+			m_instancingBuffer->GetStride());
+	}
 
 	// Unbind the buffer to avoid conflict with the render after.
 	m_instancingBuffer->Unbind();
@@ -314,7 +322,12 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 
 	rasty->IndexPrimitivesInstancing(this);
 	// Unbind vertex attributs.
-	material->DesactivateInstancing(rasty);
+	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
+		material->DesactivateInstancing();
+	}
+	else {
+		rasty->DesactivateOverrideShaderInstancing();
+	}
 
 	rasty->UnbindPrimitives(this);
 }

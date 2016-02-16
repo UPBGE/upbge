@@ -2677,59 +2677,6 @@ void GPU_lamp_shadow_buffer_unbind(GPULamp *lamp)
 	glEnable(GL_SCISSOR_TEST);
 }
 
-// Used only for VSM shader with geometry instancing support.
-void GPU_lamp_shadow_shader_bind_instancing_attrib(void *matrixoffset, void *positionoffset, unsigned int stride)
-{
-	GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING);
-	int posloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
-	int matloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
-
-	// Matrix
-	if (matloc != -1) {
-		glEnableVertexAttribArrayARB(matloc);
-		glEnableVertexAttribArrayARB(matloc + 1);
-		glEnableVertexAttribArrayARB(matloc + 2);
-
-		glVertexAttribPointerARB(matloc, 3, GL_FLOAT, GL_FALSE, stride, matrixoffset);
-		glVertexAttribPointerARB(matloc + 1, 3, GL_FLOAT, GL_FALSE, stride, ((char *)matrixoffset) + 3 * sizeof(float));
-		glVertexAttribPointerARB(matloc + 2, 3, GL_FLOAT, GL_FALSE, stride, ((char *)matrixoffset) + 6 * sizeof(float));
-
-		glVertexAttribDivisorARB(matloc, 1);
-		glVertexAttribDivisorARB(matloc + 1, 1);
-		glVertexAttribDivisorARB(matloc + 2, 1);
-	}
-
-	// Position
-	if (posloc != -1) {
-		glEnableVertexAttribArrayARB(posloc);
-		glVertexAttribPointerARB(posloc, 3, GL_FLOAT, GL_FALSE, stride, positionoffset);
-		glVertexAttribDivisorARB(posloc, 1);
-	}
-}
-
-void GPU_lamp_shadow_shader_unbind_instancing_attrib(void)
-{
-	GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING);
-	int posloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
-	int matloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
-	// Matrix
-	if (matloc != -1) {
-		glDisableVertexAttribArrayARB(matloc);
-		glDisableVertexAttribArrayARB(matloc + 1);
-		glDisableVertexAttribArrayARB(matloc + 2);
-
-		glVertexAttribDivisorARB(matloc, 0);
-		glVertexAttribDivisorARB(matloc + 1, 0);
-		glVertexAttribDivisorARB(matloc + 2, 0);
-	}
-
-	// Position
-	if (posloc != -1) {
-		glDisableVertexAttribArrayARB(posloc);
-		glVertexAttribDivisorARB(posloc, 0);
-	}
-}
-
 int GPU_lamp_shadow_buffer_type(GPULamp *lamp)
 {
 	return lamp->la->shadowmap_type;

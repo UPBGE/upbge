@@ -321,8 +321,6 @@ bool GPU_lamp_has_shadow_buffer(GPULamp *lamp);
 void GPU_lamp_update_buffer_mats(GPULamp *lamp);
 void GPU_lamp_shadow_buffer_bind(GPULamp *lamp, float viewmat[4][4], int *winsize, float winmat[4][4]);
 void GPU_lamp_shadow_buffer_unbind(GPULamp *lamp);
-void GPU_lamp_shadow_shader_bind_instancing_attrib(void *matrixoffset, void *positionoffset, unsigned int stride);
-void GPU_lamp_shadow_shader_unbind_instancing_attrib(void);
 int GPU_lamp_shadow_buffer_type(GPULamp *lamp);
 int GPU_lamp_shadow_bind_code(GPULamp *lamp);
 float *GPU_lamp_dynpersmat(GPULamp *lamp);

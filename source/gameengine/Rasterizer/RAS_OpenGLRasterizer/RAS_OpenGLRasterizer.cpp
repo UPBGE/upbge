@@ -100,15 +100,15 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, RAS_STORAGE_TYPE
 	m_noOfScanlines(32),
 	m_motionblur(0),
 	m_motionblurvalue(-1.0f),
-	m_usingoverrideshader(false),
 	m_clientobject(NULL),
 	m_auxilaryClientInfo(NULL),
 	m_drawingmode(RAS_TEXTURED),
+	m_shadowMode(RAS_SHADOW_NONE),
 	m_texco_num(0),
 	m_attrib_num(0),
 	//m_last_alphablend(GPU_BLEND_SOLID),
 	m_last_frontface(true),
-	m_lastShadowShader(RAS_SHADOW_SHADER_NONE),
+	m_overrideShader(RAS_OVERRIDE_SHADER_NONE),
 	m_storage_type(storage),
 	m_storageInfo(storageInfo)
 {
@@ -315,6 +315,16 @@ void RAS_OpenGLRasterizer::SetDrawingMode(RAS_IRasterizer::DrawType drawingmode)
 RAS_IRasterizer::DrawType RAS_OpenGLRasterizer::GetDrawingMode()
 {
 	return m_drawingmode;
+}
+
+void RAS_OpenGLRasterizer::SetShadowMode(RAS_IRasterizer::ShadowType shadowmode)
+{
+	m_shadowMode = shadowmode;
+}
+
+RAS_IRasterizer::ShadowType RAS_OpenGLRasterizer::GetShadowMode()
+{
+	return m_shadowMode;
 }
 
 void RAS_OpenGLRasterizer::SetDepthMask(DepthMask depthmask)
@@ -1129,11 +1139,7 @@ void RAS_OpenGLRasterizer::DisableMotionBlur()
 
 void RAS_OpenGLRasterizer::SetAlphaBlend(int alphablend)
 {
-	/* Variance shadow maps don't handle alpha well, best to not allow it for now  */
-	if (m_drawingmode == RAS_SHADOW && m_usingoverrideshader)
-		GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
-	else
-		GPU_set_material_alpha_blend(alphablend);
+	GPU_set_material_alpha_blend(alphablend);
 }
 
 void RAS_OpenGLRasterizer::SetFrontFace(bool ccw)
@@ -1190,50 +1196,90 @@ RAS_IRasterizer::MipmapOption RAS_OpenGLRasterizer::GetMipmapping()
 	}
 }
 
-void RAS_OpenGLRasterizer::SetUsingOverrideShader(bool val)
+void RAS_OpenGLRasterizer::SetOverrideShader(RAS_OpenGLRasterizer::OverrideShaderType type)
 {
-	m_usingoverrideshader = val;
-}
-
-bool RAS_OpenGLRasterizer::GetUsingOverrideShader()
-{
-	return m_usingoverrideshader;
-}
-
-void RAS_OpenGLRasterizer::SetShadowShader(RAS_OpenGLRasterizer::ShadowShaderType type)
-{
-	if (type == m_lastShadowShader) {
+	if (type == m_overrideShader) {
 		return;
 	}
 
 	switch (type) {
-		case RAS_SHADOW_SHADER_NONE:
-		case RAS_SHADOW_SHADER_SIMPLE:
+		case RAS_OVERRIDE_SHADER_NONE:
 		{
-			if (m_lastShadowShader == RAS_SHADOW_SHADER_VARIANCE || m_lastShadowShader == RAS_SHADOW_SHADER_VARIANCE_INSTANCING) {
-				GPU_shader_unbind();
-			}
+			GPU_shader_unbind();
 			break;
 		}
-		case RAS_SHADOW_SHADER_VARIANCE:
+		case RAS_OVERRIDE_SHADER_BASIC:
+		{
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_BASIC_INSTANCING:
+		{
+			GPU_shader_bind(GPU_shader_get_builtin_shader(GPU_SHADER_INSTANCING));
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:
 		{
 			GPU_shader_bind(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE));
 			break;
 		}
-		case RAS_SHADOW_SHADER_VARIANCE_INSTANCING:
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING:
 		{
 			GPU_shader_bind(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING));
 			break;
 		}
 	}
-	m_lastShadowShader = type;
+	m_overrideShader = type;
 }
 
-bool RAS_OpenGLRasterizer::UseMaterial(int alphablend, bool instancing) const
+RAS_IRasterizer::OverrideShaderType RAS_OpenGLRasterizer::GetOverrideShader()
 {
-	return ((m_drawingmode == RAS_TEXTURED) ||
-		(m_drawingmode == RAS_SHADOW && !m_usingoverrideshader &&
-		(alphablend != GPU_BLEND_SOLID || instancing)));
+	return m_overrideShader;
+}
+
+void RAS_OpenGLRasterizer::ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride)
+{
+	switch (m_overrideShader) {
+		case RAS_OVERRIDE_SHADER_NONE:
+		case RAS_OVERRIDE_SHADER_BASIC:
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:
+		{
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_BASIC_INSTANCING:
+		{
+			GPU_shader_bind_instancing_attrib(GPU_shader_get_builtin_shader(GPU_SHADER_INSTANCING),
+					matrixoffset, positionoffset, stride);
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING:
+		{
+			GPU_shader_bind_instancing_attrib(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING),
+					matrixoffset, positionoffset, stride);
+			break;
+		}
+	}
+}
+
+void RAS_OpenGLRasterizer::DesactivateOverrideShaderInstancing()
+{
+	switch (m_overrideShader) {
+		case RAS_OVERRIDE_SHADER_NONE:
+		case RAS_OVERRIDE_SHADER_BASIC:
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:
+		{
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_BASIC_INSTANCING:
+		{
+			GPU_shader_unbind_instancing_attrib(GPU_shader_get_builtin_shader(GPU_SHADER_INSTANCING));
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING:
+		{
+			GPU_shader_unbind_instancing_attrib(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING));
+			break;
+		}
+	}
 }
 
 /**

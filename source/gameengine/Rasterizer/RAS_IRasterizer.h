@@ -150,13 +150,20 @@ public:
 	};
 
 	/**
-	 * Shadow shaders
+	 * Override shaders
 	 */
-	enum ShadowShaderType {
-		RAS_SHADOW_SHADER_NONE,
-		RAS_SHADOW_SHADER_SIMPLE,
-		RAS_SHADOW_SHADER_VARIANCE,
-		RAS_SHADOW_SHADER_VARIANCE_INSTANCING,
+	enum OverrideShaderType {
+		RAS_OVERRIDE_SHADER_NONE,
+		RAS_OVERRIDE_SHADER_BASIC,
+		RAS_OVERRIDE_SHADER_BASIC_INSTANCING,
+		RAS_OVERRIDE_SHADER_SHADOW_VARIANCE,
+		RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING,
+	};
+
+	enum ShadowType {
+		RAS_SHADOW_NONE,
+		RAS_SHADOW_SIMPLE,
+		RAS_SHADOW_VARIANCE,
 	};
 
 	/**
@@ -304,6 +311,12 @@ public:
 	 */
 	virtual DrawType GetDrawingMode() = 0;
 
+	/// \param shadowmode = RAS_SHADOW_SIMPLE, RAS_SHADOW_VARIANCE.
+	virtual void SetShadowMode(ShadowType shadowmode) = 0;
+
+	/// \return the current drawing mode: RAS_SHADOW_SIMPLE, RAS_SHADOW_VARIANCE.
+	virtual ShadowType GetShadowMode() = 0;
+
 	/**
 	 * Sets face culling
 	 */
@@ -416,13 +429,10 @@ public:
 	virtual void SetMipmapping(MipmapOption val) = 0;
 	virtual MipmapOption GetMipmapping() = 0;
 
-	virtual void SetUsingOverrideShader(bool val) = 0;
-	virtual bool GetUsingOverrideShader() = 0;
-
-	virtual void SetShadowShader(ShadowShaderType type) = 0;
-
-	/// Return true if the material can be used with the current drawing mode, alpha blend and instancing support.
-	virtual bool UseMaterial(int alphablend, bool instancing) const = 0;
+	virtual void SetOverrideShader(OverrideShaderType type) = 0;
+	virtual OverrideShaderType GetOverrideShader() = 0;
+	virtual void ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride) = 0;
+	virtual void DesactivateOverrideShaderInstancing() = 0;
 
 	/**
 	 * Render Tools
