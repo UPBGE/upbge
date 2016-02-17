@@ -62,7 +62,7 @@ public:
 		bool operator()(const sortedmeshslot &a, const sortedmeshslot &b);
 	};
 
-private:
+protected:
 	enum BucketType {
 		SOLID_BUCKET = 0,
 		ALPHA_BUCKET,
@@ -94,13 +94,9 @@ public:
 
 	/* for merging */
 	void MergeBucketManager(RAS_BucketManager *other, SCA_IScene *scene);
-	BucketList& GetSolidBuckets()
+	BucketList& GetBuckets()
 	{
-		return m_buckets[SOLID_BUCKET];
-	}
-	BucketList& GetAlphaBuckets()
-	{
-		return m_buckets[ALPHA_BUCKET];
+		return m_buckets[ALL_BUCKET];
 	}
 
 	/*void PrintStats(int verbose_level) {
