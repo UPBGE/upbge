@@ -156,7 +156,9 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 		rasty->ProcessLighting(uselights, cameratrans);
 	}
 
-	m_material->ActivateMeshSlot(ms, rasty);
+	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
+		m_material->ActivateMeshSlot(ms, rasty);
+	}
 
 	if (IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID)
 		ms->m_mesh->SortPolygons(ms, cameratrans * MT_Transform(ms->m_OpenGLMatrix));

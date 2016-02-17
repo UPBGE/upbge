@@ -1204,12 +1204,9 @@ void RAS_OpenGLRasterizer::SetOverrideShader(RAS_OpenGLRasterizer::OverrideShade
 
 	switch (type) {
 		case RAS_OVERRIDE_SHADER_NONE:
-		{
-			GPU_shader_unbind();
-			break;
-		}
 		case RAS_OVERRIDE_SHADER_BASIC:
 		{
+			GPU_shader_unbind();
 			break;
 		}
 		case RAS_OVERRIDE_SHADER_BASIC_INSTANCING:
