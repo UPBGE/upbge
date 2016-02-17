@@ -288,7 +288,7 @@ void KX_KetsjiEngine::RenderDome()
 			KX_Camera *cam = scene->GetActiveCamera();
 
 			// pass the scene's worldsettings to the rasterizer
-			scene->GetWorldInfo()->UpdateWorldSettings();
+			scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 
 			// shadow buffers
 			if (i == 0) {
@@ -437,7 +437,7 @@ void KX_KetsjiEngine::ClearFrame()
 
 	if (doclear) {
 		KX_Scene *firstscene = (KX_Scene *)m_scenes->GetFront();
-		firstscene->GetWorldInfo()->UpdateBackGround();
+		firstscene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight(), clearvp.GetTop());
 		m_rasterizer->ClearColorBuffer();
@@ -760,7 +760,7 @@ void KX_KetsjiEngine::Render()
 		KX_Scene *scene = (KX_Scene *)*sceit;
 		KX_Camera *cam = scene->GetActiveCamera();
 		// pass the scene's worldsettings to the rasterizer
-		scene->GetWorldInfo()->UpdateWorldSettings();
+		scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 
 		// shadow buffers
 		RenderShadowBuffers(scene);
@@ -809,7 +809,7 @@ void KX_KetsjiEngine::Render()
 			KX_Camera *cam = scene->GetActiveCamera();
 
 			// pass the scene's worldsettings to the rasterizer
-			scene->GetWorldInfo()->UpdateWorldSettings();
+			scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 
 			if (scene->IsClearingZBuffer())
 				m_rasterizer->ClearDepthBuffer();

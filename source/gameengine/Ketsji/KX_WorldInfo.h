@@ -87,8 +87,8 @@ public:
 	void setBackColor(float r, float g, float b);
 	const float *getBackColorConverted() const;
 	void setAmbientColor(float r, float g, float b);
-	void UpdateBackGround();
-	void UpdateWorldSettings();
+	void UpdateBackGround(RAS_IRasterizer *rasty);
+	void UpdateWorldSettings(RAS_IRasterizer *rasty);
 	void RenderBackground(RAS_IRasterizer *rasty);
 
 #ifdef WITH_PYTHON

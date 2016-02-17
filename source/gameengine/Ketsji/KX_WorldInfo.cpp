@@ -31,7 +31,6 @@
 
 
 #include "KX_WorldInfo.h"
-#include "KX_PythonInit.h"
 #include "KX_PyMath.h"
 #include "RAS_IRasterizer.h"
 #include "GPU_material.h"
@@ -158,37 +157,29 @@ void KX_WorldInfo::setAmbientColor(float r, float g, float b)
 	}
 }
 
-void KX_WorldInfo::UpdateBackGround()
+void KX_WorldInfo::UpdateBackGround(RAS_IRasterizer *rasty)
 {
-	if (m_hasworld) {
-		RAS_IRasterizer *m_rasterizer = KX_GetActiveEngine()->GetRasterizer();
-
-		if (m_rasterizer->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID) {
-			m_rasterizer->SetBackColor(m_con_backgroundcolor);
-			GPU_horizon_update_color(m_backgroundcolor);
-		}
+	if (m_hasworld && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID) {
+		rasty->SetBackColor(m_con_backgroundcolor);
+		GPU_horizon_update_color(m_backgroundcolor);
 	}
 }
 
-void KX_WorldInfo::UpdateWorldSettings()
+void KX_WorldInfo::UpdateWorldSettings(RAS_IRasterizer *rasty)
 {
-	if (m_hasworld) {
-		RAS_IRasterizer *m_rasterizer = KX_GetActiveEngine()->GetRasterizer();
+	if (m_hasworld && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID) {
+		rasty->SetAmbientColor(m_con_ambientcolor);
+		GPU_ambient_update_color(m_ambientcolor);
 
-		if (m_rasterizer->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID) {
-			m_rasterizer->SetAmbientColor(m_con_ambientcolor);
-			GPU_ambient_update_color(m_ambientcolor);
-
-			if (m_hasmist) {
-				m_rasterizer->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_con_mistcolor);
-				GPU_mist_update_values(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_mistcolor);
-				m_rasterizer->EnableFog(true);
-				GPU_mist_update_enable(true);
-			}
-			else {
-				m_rasterizer->EnableFog(false);
-				GPU_mist_update_enable(false);
-			}
+		if (m_hasmist) {
+			rasty->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_con_mistcolor);
+			GPU_mist_update_values(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_mistcolor);
+			rasty->EnableFog(true);
+			GPU_mist_update_enable(true);
+		}
+		else {
+			rasty->EnableFog(false);
+			GPU_mist_update_enable(false);
 		}
 	}
 }
