@@ -56,6 +56,7 @@ public:
 
 	void ActivateBlenderShaders(RAS_IRasterizer *rasty);
 
+	virtual bool IsAlphaShadow() const;
 	virtual bool UseInstancing() const;
 	Material *GetBlenderMaterial() const;
 	Image *GetBlenderImage() const;

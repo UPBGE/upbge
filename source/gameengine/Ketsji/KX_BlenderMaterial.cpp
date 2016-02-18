@@ -435,6 +435,11 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 	}
 }
 
+bool KX_BlenderMaterial::IsAlphaShadow() const
+{
+	return m_material->alphablend != GEMAT_SOLID;
+}
+
 bool KX_BlenderMaterial::UseInstancing() const
 {
 	if (m_shader && m_shader->Ok()) {
