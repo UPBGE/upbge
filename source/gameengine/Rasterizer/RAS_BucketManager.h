@@ -108,8 +108,9 @@ public:
 
 
 private:
-	void OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, std::vector<sortedmeshslot>& slots, 
-					  bool alpha, RAS_IRasterizer *rasty);
+	unsigned int GetNumActiveMeshSlots(BucketType bucketType);
+	void OrderBuckets(const MT_Transform& cameratrans, RAS_BucketManager::BucketType bucketType,
+					  std::vector<sortedmeshslot>& slots, bool alpha, RAS_IRasterizer *rasty);
 
 	void RenderBasicBuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, BucketType bucketType);
 	void RenderSortedBuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty, BucketType bucketType);

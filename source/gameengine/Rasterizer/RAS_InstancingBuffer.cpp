@@ -86,6 +86,10 @@ void RAS_InstancingBuffer::Update(RAS_IRasterizer *rasty, int drawingmode, RAS_M
 		data.color[1] = ms->m_RGBAcolor[1] * 255.0f;
 		data.color[2] = ms->m_RGBAcolor[2] * 255.0f;
 		data.color[3] = ms->m_RGBAcolor[3] * 255.0f;
+
+		// make this mesh slot culled automatically for next frame
+		// it will be culled out by frustrum culling
+		ms->SetCulled(true);
 	}
 
 	glUnmapBuffer(GL_ARRAY_BUFFER);

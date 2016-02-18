@@ -47,6 +47,7 @@
 #define MAX_EXT_DEFINE_LENGTH 1024
 
 /* Non-generated shaders */
+extern char datatoc_gpu_shader_basic_instancing_frag_glsl[];
 extern char datatoc_gpu_shader_basic_instancing_vert_glsl[];
 extern char datatoc_gpu_shader_smoke_vert_glsl[];
 extern char datatoc_gpu_shader_smoke_frag_glsl[];
@@ -672,7 +673,7 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 		case GPU_SHADER_INSTANCING:
 			if (!GG.shaders.instancing)
 				GG.shaders.instancing = GPU_shader_create(
-					datatoc_gpu_shader_basic_instancing_vert_glsl, NULL,
+					datatoc_gpu_shader_basic_instancing_vert_glsl, datatoc_gpu_shader_basic_instancing_frag_glsl,
 					NULL, NULL, NULL, 0, 0, 0);
 				retval = GG.shaders.instancing;
 			break;

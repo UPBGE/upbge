@@ -433,6 +433,9 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 	else if (GLEW_ARB_shader_objects && (m_blenderShader && m_blenderShader->Ok())) {
 		m_blenderShader->SetProg(false);
 	}
+	// Make sure no one will use the attributs set by this material.
+	rasty->SetTexCoordNum(0);
+	rasty->SetAttribNum(0);
 }
 
 bool KX_BlenderMaterial::IsAlphaShadow() const

@@ -81,27 +81,32 @@ RAS_BucketManager::~RAS_BucketManager()
 	buckets.clear();
 }
 
-void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, std::vector<sortedmeshslot>& slots,
-									 bool alpha, RAS_IRasterizer *rasty)
+unsigned int RAS_BucketManager::GetNumActiveMeshSlots(BucketType bucketType)
+{
+	unsigned int count = 0;
+	BucketList& buckets = m_buckets[bucketType];
+	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
+		count += (*it)->GetNumActiveMeshSlots();
+	}
+	return count;
+}
+
+void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, RAS_BucketManager::BucketType bucketType,
+									 std::vector<sortedmeshslot>& slots, bool alpha, RAS_IRasterizer *rasty)
 {
 	BucketList::iterator bit;
 	RAS_MeshSlotList::iterator mit;
-	size_t size = 0, i = 0;
+	size_t i = 0;
 
 	/* Camera's near plane equation: pnorm.dot(point) + pval,
 	 * but we leave out pval since it's constant anyway */
 	const MT_Vector3 pnorm(cameratrans.getBasis()[2]);
 
-	for (bit = buckets.begin(); bit != buckets.end(); ++bit) {
-		RAS_DisplayArrayBucketList& displayArrayBucketList = (*bit)->GetDisplayArrayBucketList();
-		for (RAS_DisplayArrayBucketList::iterator dbit = displayArrayBucketList.begin(), dbend = displayArrayBucketList.end();
-			 dbit != dbend; ++dbit)
-		{
-			size += (*dbit)->GetNumActiveMeshSlots();
-		}
-	}
+	unsigned int size = GetNumActiveMeshSlots(bucketType);
 
 	slots.resize(size);
+
+	BucketList& buckets = m_buckets[bucketType];
 
 	for (bit = buckets.begin(); bit != buckets.end(); ++bit)
 	{
@@ -134,7 +139,7 @@ void RAS_BucketManager::RenderSortedBuckets(const MT_Transform& cameratrans, RAS
 	std::vector<sortedmeshslot> slots;
 	std::vector<sortedmeshslot>::iterator sit;
 
-	OrderBuckets(cameratrans, m_buckets[bucketType], slots, true, rasty);
+	OrderBuckets(cameratrans, bucketType, slots, true, rasty);
 
 	// The last display array and material bucket used to avoid double calls.
 	RAS_DisplayArrayBucket *lastDisplayArrayBucket = NULL;
@@ -196,22 +201,29 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 
-			rasty->SetOverrideShader(isVarianceShadow ? 
-					RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE :
-					RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
-
+			if (GetNumActiveMeshSlots(SOLID_SHADOW_BUCKET) != 0) {
+				rasty->SetOverrideShader(isVarianceShadow ?
+						RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE :
+						RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
+			}
 			RenderBasicBuckets(cameratrans, rasty, SOLID_SHADOW_BUCKET);
 
-			rasty->SetOverrideShader(isVarianceShadow ?
-					RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING :
-					RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC_INSTANCING);
-
+			if ((GetNumActiveMeshSlots(SOLID_SHADOW_INSTANCING_BUCKET) != 0) {
+				rasty->SetOverrideShader(isVarianceShadow ?
+						RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING :
+						RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC_INSTANCING);
+			}
 			RenderBasicBuckets(cameratrans, rasty, SOLID_SHADOW_INSTANCING_BUCKET);
 
 			if (isVarianceShadow) {
+				if ((GetNumActiveMeshSlots(ALPHA_SHADOW_INSTANCING_BUCKET) != 0) {
+					rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING);
+				}
 				RenderBasicBuckets(cameratrans, rasty, ALPHA_SHADOW_INSTANCING_BUCKET);
 
-				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE);
+				if (GetNumActiveMeshSlots(ALPHA_SHADOW_BUCKET) != 0) {
+					rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE);
+				}
 
 				RenderSortedBuckets(cameratrans, rasty, ALPHA_SHADOW_BUCKET);
 
@@ -230,11 +242,15 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 		{
 			rasty->SetLines(true);
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
-			rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
+			if (GetNumActiveMeshSlots(SOLID_BUCKET) != 0) {
+				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
+			}
 
 			RenderBasicBuckets(cameratrans, rasty, SOLID_BUCKET);
 
-			rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC_INSTANCING);
+			if ((GetNumActiveMeshSlots(SOLID_INSTANCING_BUCKET) + GetNumActiveMeshSlots(ALPHA_INSTANCING_BUCKET)) != 0) {
+				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC_INSTANCING);
+			}
 
 			RenderBasicBuckets(cameratrans, rasty, SOLID_INSTANCING_BUCKET);
 
@@ -242,7 +258,9 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 
 			RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
 
-			rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
+			if (GetNumActiveMeshSlots(ALPHA_BUCKET)) {
+				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
+			}
 
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
 
@@ -275,11 +293,9 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 	if (rasty->GetDrawingMode() != RAS_IRasterizer::RAS_SHADOW) {
 		/* All meshes should be up to date now */
 		/* Don't do this while processing buckets because some meshes are split between buckets */
-		for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
-			BucketList& buckets = m_buckets[i];
-			for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-				(*it)->SetMeshUnmodified();
-			}
+		BucketList& buckets = m_buckets[ALL_BUCKET];
+		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
+			(*it)->SetMeshUnmodified();
 		}
 	}
 	
