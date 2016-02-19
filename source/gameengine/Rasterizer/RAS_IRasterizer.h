@@ -150,6 +150,23 @@ public:
 	};
 
 	/**
+	 * Override shaders
+	 */
+	enum OverrideShaderType {
+		RAS_OVERRIDE_SHADER_NONE,
+		RAS_OVERRIDE_SHADER_BASIC,
+		RAS_OVERRIDE_SHADER_BASIC_INSTANCING,
+		RAS_OVERRIDE_SHADER_SHADOW_VARIANCE,
+		RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING,
+	};
+
+	enum ShadowType {
+		RAS_SHADOW_NONE,
+		RAS_SHADOW_SIMPLE,
+		RAS_SHADOW_VARIANCE,
+	};
+
+	/**
 	 * SetDepthMask enables or disables writing a fragment's depth value
 	 * to the Z buffer.
 	 */
@@ -244,6 +261,12 @@ public:
 	virtual void IndexPrimitives(class RAS_MeshSlot *ms) = 0;
 
 	/**
+	 * Renders all primitives from mesh slots contained in this display array
+	 * bucket with the geometry instancing way.
+	 */
+	virtual void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket) = 0;
+
+	/**
 	 * IndexPrimitives_3DText will render text into the polygons.
 	 */
 	virtual void IndexPrimitives_3DText(class RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat) = 0;
@@ -287,6 +310,12 @@ public:
 	 * \return the current drawing mode: RAS_WIREFRAME, RAS_SOLID RAS_SHADOW or RAS_TEXTURED.
 	 */
 	virtual DrawType GetDrawingMode() = 0;
+
+	/// \param shadowmode = RAS_SHADOW_SIMPLE, RAS_SHADOW_VARIANCE.
+	virtual void SetShadowMode(ShadowType shadowmode) = 0;
+
+	/// \return the current drawing mode: RAS_SHADOW_SIMPLE, RAS_SHADOW_VARIANCE.
+	virtual ShadowType GetShadowMode() = 0;
 
 	/**
 	 * Sets face culling
@@ -400,11 +429,10 @@ public:
 	virtual void SetMipmapping(MipmapOption val) = 0;
 	virtual MipmapOption GetMipmapping() = 0;
 
-	virtual void SetUsingOverrideShader(bool val) = 0;
-	virtual bool GetUsingOverrideShader() = 0;
-
-	/// Return true if the material can be used with the current drawing mode and alpha blend.
-	virtual bool UseMaterial(int alphablend) const = 0;
+	virtual void SetOverrideShader(OverrideShaderType type) = 0;
+	virtual OverrideShaderType GetOverrideShader() = 0;
+	virtual void ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride) = 0;
+	virtual void DesactivateOverrideShaderInstancing() = 0;
 
 	/**
 	 * Render Tools

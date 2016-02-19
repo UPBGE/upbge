@@ -354,18 +354,15 @@ void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 
 void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 {
-	if (rasty->UseMaterial(m_material->alphablend)) {
-		SetShaderData(rasty);
-	}
+	SetShaderData(rasty);
 
 	if (m_material->ras_mode & TWOSIDED)
 		rasty->SetCullFace(false);
 	else
 		rasty->SetCullFace(true);
 
-	if ((m_material->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::RAS_WIREFRAME)) {
-		if (m_material->ras_mode & WIRE)
-			rasty->SetCullFace(false);
+	if (m_material->ras_mode & WIRE) {
+		rasty->SetCullFace(false);
 		rasty->SetLines(true);
 	}
 	else
@@ -376,18 +373,15 @@ void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 
 void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 {
-	if (rasty->UseMaterial(m_material->alphablend)) {
-		SetBlenderShaderData(rasty);
-	}
+	SetBlenderShaderData(rasty);
 
 	if (m_material->ras_mode & TWOSIDED)
 		rasty->SetCullFace(false);
 	else
 		rasty->SetCullFace(true);
 
-	if ((m_material->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::RAS_WIREFRAME)) {
-		if (m_material->ras_mode & WIRE)
-			rasty->SetCullFace(false);
+	if (m_material->ras_mode & WIRE) {
+		rasty->SetCullFace(false);
 		rasty->SetLines(true);
 	}
 	else
@@ -399,9 +393,7 @@ void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 
 void KX_BlenderMaterial::ActivateMat(RAS_IRasterizer *rasty)
 {
-	if (rasty->UseMaterial(m_material->alphablend)) {
-		SetTexData(rasty);
-	}
+	SetTexData(rasty);
 
 	if (m_material->ras_mode & TWOSIDED)
 		rasty->SetCullFace(false);
@@ -440,6 +432,45 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 	}
 	else if (GLEW_ARB_shader_objects && (m_blenderShader && m_blenderShader->Ok())) {
 		m_blenderShader->SetProg(false);
+	}
+	// Make sure no one will use the attributs set by this material.
+	rasty->SetTexCoordNum(0);
+	rasty->SetAttribNum(0);
+}
+
+bool KX_BlenderMaterial::IsAlphaShadow() const
+{
+	return m_material->alphablend != GEMAT_SOLID;
+}
+
+bool KX_BlenderMaterial::UseInstancing() const
+{
+	if (m_shader && m_shader->Ok()) {
+		return false;
+	}
+	else if (m_blenderShader) {
+		return m_blenderShader->UseInstancing();
+	}
+	// The material is in conversion, we use the blender material flag then.
+	return m_material->material->shade_flag & MA_INSTANCING;
+}
+
+void KX_BlenderMaterial::ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
+{
+	if (m_blenderShader) {
+		m_blenderShader->ActivateInstancing(matrixoffset, positionoffset, coloroffset, stride);
+	}
+
+	/* Because the geometry instancing use setting for all instances we use the original alpha blend.
+	 * This requierd that the user use "alpha blend" mode if he will use mutate object color alpha.
+	 */
+	rasty->SetAlphaBlend(m_material->alphablend);
+}
+
+void KX_BlenderMaterial::DesactivateInstancing()
+{
+	if (m_blenderShader) {
+		m_blenderShader->DesactivateInstancing();
 	}
 }
 
@@ -508,34 +539,32 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_IRasterizer *rasty) const
 
 void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 {
-	if (ras->UseMaterial(m_material->alphablend)) {
-		ras->SetAttribNum(0);
-		if (m_shader && GLEW_ARB_shader_objects) {
-			if (m_shader->GetAttribute() == BL_Shader::SHD_TANGENT) {
-				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, 0);
-				ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, 1);
-				ras->SetAttribNum(2);
-			}
+	ras->SetAttribNum(0);
+	if (m_shader && GLEW_ARB_shader_objects) {
+		if (m_shader->GetAttribute() == BL_Shader::SHD_TANGENT) {
+			ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, 0);
+			ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, 1);
+			ras->SetAttribNum(2);
 		}
+	}
 
-		ras->SetTexCoordNum(m_material->num_enabled);
+	ras->SetTexCoordNum(m_material->num_enabled);
 
-		for (int i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-			int mode = m_material->mapping[i].mapping;
+	for (int i = 0; i < BL_Texture::GetMaxUnits(); i++) {
+		int mode = m_material->mapping[i].mapping;
 
-			if (mode & (USEREFL | USEOBJ))
-				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_GEN, i);
-			else if (mode & USEORCO)
-				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_ORCO, i);
-			else if (mode & USENORM)
-				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_NORM, i);
-			else if (mode & USEUV)
-				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_UV, i);
-			else if (mode & USETANG)
-				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXTANGENT, i);
-			else
-				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_DISABLE, i);
-		}
+		if (mode & (USEREFL | USEOBJ))
+			ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_GEN, i);
+		else if (mode & USEORCO)
+			ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_ORCO, i);
+		else if (mode & USENORM)
+			ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_NORM, i);
+		else if (mode & USEUV)
+			ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_UV, i);
+		else if (mode & USETANG)
+			ras->SetTexCoord(RAS_IRasterizer::RAS_TEXTANGENT, i);
+		else
+			ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_DISABLE, i);
 	}
 }
 

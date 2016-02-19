@@ -100,14 +100,15 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, RAS_STORAGE_TYPE
 	m_noOfScanlines(32),
 	m_motionblur(0),
 	m_motionblurvalue(-1.0f),
-	m_usingoverrideshader(false),
 	m_clientobject(NULL),
 	m_auxilaryClientInfo(NULL),
 	m_drawingmode(RAS_TEXTURED),
+	m_shadowMode(RAS_SHADOW_NONE),
 	m_texco_num(0),
 	m_attrib_num(0),
 	//m_last_alphablend(GPU_BLEND_SOLID),
 	m_last_frontface(true),
+	m_overrideShader(RAS_OVERRIDE_SHADER_NONE),
 	m_storage_type(storage),
 	m_storageInfo(storageInfo)
 {
@@ -314,6 +315,16 @@ void RAS_OpenGLRasterizer::SetDrawingMode(RAS_IRasterizer::DrawType drawingmode)
 RAS_IRasterizer::DrawType RAS_OpenGLRasterizer::GetDrawingMode()
 {
 	return m_drawingmode;
+}
+
+void RAS_OpenGLRasterizer::SetShadowMode(RAS_IRasterizer::ShadowType shadowmode)
+{
+	m_shadowMode = shadowmode;
+}
+
+RAS_IRasterizer::ShadowType RAS_OpenGLRasterizer::GetShadowMode()
+{
+	return m_shadowMode;
 }
 
 void RAS_OpenGLRasterizer::SetDepthMask(DepthMask depthmask)
@@ -788,6 +799,12 @@ void RAS_OpenGLRasterizer::IndexPrimitives(RAS_MeshSlot *ms)
 		m_storage->IndexPrimitives(ms);
 }
 
+void RAS_OpenGLRasterizer::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket)
+{
+	m_storage->IndexPrimitivesInstancing(arrayBucket);
+}
+
+
 // Code for hooking into Blender's mesh drawing for derived meshes.
 // If/when we use more of Blender's drawing code, we may be able to
 // clean this up
@@ -1122,11 +1139,7 @@ void RAS_OpenGLRasterizer::DisableMotionBlur()
 
 void RAS_OpenGLRasterizer::SetAlphaBlend(int alphablend)
 {
-	/* Variance shadow maps don't handle alpha well, best to not allow it for now  */
-	if (m_drawingmode == RAS_SHADOW && m_usingoverrideshader)
-		GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
-	else
-		GPU_set_material_alpha_blend(alphablend);
+	GPU_set_material_alpha_blend(alphablend);
 }
 
 void RAS_OpenGLRasterizer::SetFrontFace(bool ccw)
@@ -1183,19 +1196,87 @@ RAS_IRasterizer::MipmapOption RAS_OpenGLRasterizer::GetMipmapping()
 	}
 }
 
-void RAS_OpenGLRasterizer::SetUsingOverrideShader(bool val)
+void RAS_OpenGLRasterizer::SetOverrideShader(RAS_OpenGLRasterizer::OverrideShaderType type)
 {
-	m_usingoverrideshader = val;
+	if (type == m_overrideShader) {
+		return;
+	}
+
+	switch (type) {
+		case RAS_OVERRIDE_SHADER_NONE:
+		case RAS_OVERRIDE_SHADER_BASIC:
+		{
+			GPU_shader_unbind();
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_BASIC_INSTANCING:
+		{
+			GPU_shader_bind(GPU_shader_get_builtin_shader(GPU_SHADER_INSTANCING));
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:
+		{
+			GPU_shader_bind(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE));
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING:
+		{
+			GPU_shader_bind(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING));
+			break;
+		}
+	}
+	m_overrideShader = type;
 }
 
-bool RAS_OpenGLRasterizer::GetUsingOverrideShader()
+RAS_IRasterizer::OverrideShaderType RAS_OpenGLRasterizer::GetOverrideShader()
 {
-	return m_usingoverrideshader;
+	return m_overrideShader;
 }
 
-bool RAS_OpenGLRasterizer::UseMaterial(int alphablend) const
+void RAS_OpenGLRasterizer::ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride)
 {
-	return ((m_drawingmode == RAS_TEXTURED) || (m_drawingmode == RAS_SHADOW && alphablend != GPU_BLEND_SOLID && !m_usingoverrideshader));
+	switch (m_overrideShader) {
+		case RAS_OVERRIDE_SHADER_NONE:
+		case RAS_OVERRIDE_SHADER_BASIC:
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:
+		{
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_BASIC_INSTANCING:
+		{
+			GPU_shader_bind_instancing_attrib(GPU_shader_get_builtin_shader(GPU_SHADER_INSTANCING),
+					matrixoffset, positionoffset, stride);
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING:
+		{
+			GPU_shader_bind_instancing_attrib(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING),
+					matrixoffset, positionoffset, stride);
+			break;
+		}
+	}
+}
+
+void RAS_OpenGLRasterizer::DesactivateOverrideShaderInstancing()
+{
+	switch (m_overrideShader) {
+		case RAS_OVERRIDE_SHADER_NONE:
+		case RAS_OVERRIDE_SHADER_BASIC:
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:
+		{
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_BASIC_INSTANCING:
+		{
+			GPU_shader_unbind_instancing_attrib(GPU_shader_get_builtin_shader(GPU_SHADER_INSTANCING));
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING:
+		{
+			GPU_shader_unbind_instancing_attrib(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING));
+			break;
+		}
+	}
 }
 
 /**

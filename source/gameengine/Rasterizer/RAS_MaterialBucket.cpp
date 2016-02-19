@@ -72,6 +72,11 @@ bool RAS_MaterialBucket::IsZSort() const
 	return (m_material->IsZSort());
 }
 
+bool RAS_MaterialBucket::UseInstancing() const
+{
+	return (m_material->UseInstancing());
+}
+
 RAS_MeshSlot *RAS_MaterialBucket::AddMesh(RAS_MeshObject *mesh)
 {
 	RAS_MeshSlot *ms = new RAS_MeshSlot();
@@ -125,32 +130,18 @@ RAS_MeshSlotList::iterator RAS_MaterialBucket::msEnd()
 
 bool RAS_MaterialBucket::ActivateMaterial(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW) {
-		if (!m_material->CastsShadows()) {
-			return false;
-		}
-		// Override shader for variance shadow map, return true to allow render but the Desactivate function do nothing too.
-		else if (rasty->GetUsingOverrideShader()) {
-			return true;
-		}
+	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
+		m_material->Activate(rasty);
 	}
-	else if (m_material->OnlyShadow()) {
-		return false;
-	}
-
-	m_material->Activate(rasty);
 
 	return true;
 }
 
 void RAS_MaterialBucket::DesactivateMaterial(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && m_material->CastsShadows() && rasty->GetUsingOverrideShader()) {
-		// Override variance shadow map shader.
-		return;
+	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
+		m_material->Desactivate(rasty);
 	}
-
-	m_material->Desactivate(rasty);
 }
 
 void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_MeshSlot *ms)
@@ -165,7 +156,9 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 		rasty->ProcessLighting(uselights, cameratrans);
 	}
 
-	m_material->ActivateMeshSlot(ms, rasty);
+	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
+		m_material->ActivateMeshSlot(ms, rasty);
+	}
 
 	if (IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID)
 		ms->m_mesh->SortPolygons(ms, cameratrans * MT_Transform(ms->m_OpenGLMatrix));
@@ -204,9 +197,19 @@ void RAS_MaterialBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IR
 		it != end; ++it)
 	{
 		RAS_DisplayArrayBucket *displayArrayBucket = *it;
-		if (matactivated) {
+		if (!matactivated) {
+			displayArrayBucket->RemoveActiveMeshSlots();
+			continue;
+		}
+
+		// Choose the rendering mode : geometry instancing render / regular render.
+		if (UseInstancing()) {
+			displayArrayBucket->RenderMeshSlotsInstancing(cameratrans, rasty, IsAlpha());
+		}
+		else {
 			displayArrayBucket->RenderMeshSlots(cameratrans, rasty);
 		}
+
 		displayArrayBucket->RemoveActiveMeshSlots();
 	}
 

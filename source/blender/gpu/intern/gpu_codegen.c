@@ -408,6 +408,22 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "unfparticlevel";
 	else if (builtin == GPU_PARTICLE_ANG_VELOCITY)
 		return "unfparticleangvel";
+	else if (builtin == GPU_INSTANCING_MATRIX)
+		return "varinstmat";
+	else if (builtin == GPU_INSTANCING_INVERSE_MATRIX)
+		return "varinstinvmat";
+	else if (builtin == GPU_INSTANCING_LOC_TO_VIEW_MATRIX)
+		return "varinstlocaltoviewmat";
+	else if (builtin == GPU_INSTANCING_INVERSE_LOC_TO_VIEW_MATRIX)
+		return "varinstinvlocaltoviewmat";
+	else if (builtin == GPU_INSTANCING_COLOR)
+		return "varinstcolor";
+	else if (builtin == GPU_INSTANCING_COLOR_ATTRIB)
+		return "ininstcolor";
+	else if (builtin == GPU_INSTANCING_MATRIX_ATTRIB)
+		return "ininstmatrix";
+	else if (builtin == GPU_INSTANCING_POSITION_ATTRIB)
+		return "ininstposition";
 	else
 		return "";
 }
@@ -1645,6 +1661,7 @@ GPUPass *GPU_generate_pass(
         GPUVertexAttribs *attribs, int *builtins,
         const GPUMatType type, const char *UNUSED(name),
         const bool use_opensubdiv,
+		const bool use_instancing,
         const bool use_new_shading)
 {
 	GPUShader *shader;
@@ -1675,6 +1692,9 @@ GPUPass *GPU_generate_pass(
 	}
 	if (use_new_shading) {
 		flags |= GPU_SHADER_FLAGS_NEW_SHADING;
+	}
+	if (use_instancing) {
+		flags |= GPU_SHADER_FLAGS_SPECIAL_INSTANCING;
 	}
 	shader = GPU_shader_create_ex(vertexcode,
 	                              fragmentcode,

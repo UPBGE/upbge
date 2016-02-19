@@ -122,6 +122,8 @@ void BKE_material_free_ex(Material *ma, bool do_id_user)
 
 	if (ma->gpumaterial.first)
 		GPU_material_free(&ma->gpumaterial);
+	if (ma->gpumaterialinstancing.first)
+		GPU_material_free(&ma->gpumaterialinstancing);
 }
 
 void BKE_material_init(Material *ma)
@@ -258,6 +260,7 @@ Material *BKE_material_copy(Material *ma)
 	}
 
 	BLI_listbase_clear(&man->gpumaterial);
+	BLI_listbase_clear(&man->gpumaterialinstancing);
 	
 	if (ma->id.lib) {
 		BKE_id_lib_local_paths(G.main, ma->id.lib, &man->id);
@@ -292,7 +295,8 @@ Material *localize_material(Material *ma)
 		man->nodetree = ntreeLocalize(ma->nodetree);
 	
 	BLI_listbase_clear(&man->gpumaterial);
-	
+	BLI_listbase_clear(&man->gpumaterialinstancing);
+
 	return man;
 }
 
