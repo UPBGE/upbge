@@ -104,8 +104,16 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 void RAS_MeshSlot::init(RAS_MaterialBucket *bucket)
 {
 	m_bucket = bucket;
-	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, (new RAS_DisplayArray()), m_mesh);
-	m_displayArray = m_displayArrayBucket->GetDisplayArray();
+
+	m_displayArray = new RAS_DisplayArray();
+	if (bucket->IsWire()) {
+		m_displayArray->m_type = RAS_DisplayArray::LINES;
+	}
+	else {
+		m_displayArray->m_type = RAS_DisplayArray::TRIANGLES;
+	}
+
+	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, m_mesh);
 }
 
 RAS_DisplayArray *RAS_MeshSlot::GetDisplayArray()

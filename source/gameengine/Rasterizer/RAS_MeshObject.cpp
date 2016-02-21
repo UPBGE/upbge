@@ -297,6 +297,20 @@ void RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index)
 	}
 }
 
+void RAS_MeshObject::AddLine(RAS_MaterialBucket *bucket, unsigned int v1, unsigned int v2)
+{
+	// find a mesh material
+	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
+	// add it to the bucket, this also adds new display arrays
+	RAS_MeshSlot *slot = mmat->m_baseslot;
+
+	// create a new polygon
+	RAS_DisplayArray *darray = slot->GetDisplayArray();
+	darray->m_type = RAS_DisplayArray::LINES;
+	slot->AddPolygonVertex(v1);
+	slot->AddPolygonVertex(v2);
+}
+
 RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts, unsigned int indices[4],
 										bool visible, bool collider, bool twoside)
 {
@@ -314,7 +328,7 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 	poly->SetCollider(collider);
 	poly->SetTwoside(twoside);
 
-	if (visible) {
+	if (visible && !bucket->IsWire()) {
 		// Add the first triangle.
 		slot->AddPolygonVertex(indices[0]);
 		slot->AddPolygonVertex(indices[1]);

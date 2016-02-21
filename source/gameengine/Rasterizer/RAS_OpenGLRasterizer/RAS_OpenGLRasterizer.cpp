@@ -870,6 +870,10 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms)
 	else
 		this->SetCullFace(false);
 
+	if (current_bucket->IsWire()) {
+		SetLines(true);
+	}
+
 	if (current_polymat->GetFlag() & RAS_BLENDERGLSL) {
 		// GetMaterialIndex return the original mface material index,
 		// increment by 1 to match what derived mesh is doing
@@ -890,6 +894,10 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms)
 		current_blmat_nr = current_mesh->GetBlenderMaterialId(current_bucket->GetPolyMaterial());
 		current_image = current_polymat->GetBlenderImage();
 		ms->m_pDerivedMesh->drawFacesTex(ms->m_pDerivedMesh, CheckTexDM, NULL, NULL, DM_DRAW_USE_ACTIVE_UV);
+	}
+
+	if (current_bucket->IsWire()) {
+		SetLines(false);
 	}
 }
 

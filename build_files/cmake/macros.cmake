@@ -609,8 +609,8 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_logic_ketsji
 		extern_recastnavigation
 		ge_logic
-		ge_rasterizer
 		ge_oglrasterizer
+		ge_rasterizer
 		ge_logic_expressions
 		ge_scenegraph
 		ge_logic_network

@@ -819,6 +819,10 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	MFace *mface = dm->getTessFaceArray(dm);
 	MTFace *tface = static_cast<MTFace*>(dm->getTessFaceDataArray(dm, CD_MTFACE));
 	MCol *mcol = static_cast<MCol*>(dm->getTessFaceDataArray(dm, CD_MCOL));
+	MPoly *mpolyarray = (MPoly *)dm->getPolyArray(dm);
+	MLoop *mlooparray = (MLoop *)dm->getLoopArray(dm);
+	MEdge *medgearray = (MEdge *)dm->getEdgeArray(dm);
+	int *mfaceTompoly = (int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
 	float (*tangent)[4] = NULL;
 	int totface = dm->getNumTessFaces(dm);
 	const char *tfaceName = "";
@@ -976,6 +980,28 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 				indices[3] = meshobj->AddVertex(bucket, 3, pt[3], uvs[3], tan[3], rgb[3], no[3], flat, mface->v4);
 			}
 
+			if (bucket->IsWire() && visible) {
+				// The fourth value can be uninitialized.
+				unsigned int mfaceindices[4] = {mface->v1, mface->v2, mface->v3, mface->v4};
+				MPoly *mpoly = mpolyarray + mfaceTompoly[f];
+				unsigned int lpstart = mpoly->loopstart;
+				unsigned int totlp = mpoly->totloop;
+				// Iterate on all edges (=loops) of the MPoly which contains the current MFace.
+				for (unsigned int i = lpstart; i < lpstart + totlp; ++i) {
+					MLoop *mloop = mlooparray + i;
+					// Get the edge.
+					MEdge *medge = medgearray + mloop->e;
+					// Iterate on all MFace vertices index.
+					for (unsigned short j = (nverts - 1), k = 0; k < nverts; j = k++) {
+						// If 2 vertices are the same as an edge, we add a line in the mesh.
+						if (ELEM(medge->v1, mfaceindices[j], mfaceindices[k]) &&
+							ELEM(medge->v2, mfaceindices[j], mfaceindices[k])) {
+							meshobj->AddLine(bucket, indices[j], indices[k]);
+							break;
+						}
+					}
+				}
+			}
 			meshobj->AddPolygon(bucket, nverts, indices, visible, collider, twoside);
 		}
 

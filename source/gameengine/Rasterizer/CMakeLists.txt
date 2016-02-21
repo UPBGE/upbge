@@ -49,6 +49,7 @@ set(INC_SYS
 set(SRC
 	RAS_2DFilterManager.cpp
 	RAS_BucketManager.cpp
+	RAS_DisplayArray.cpp
 	RAS_DisplayArrayBucket.cpp
 	RAS_FramingManager.cpp
 	RAS_IPolygonMaterial.cpp

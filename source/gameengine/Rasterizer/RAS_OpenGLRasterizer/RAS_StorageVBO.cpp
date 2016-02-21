@@ -39,7 +39,7 @@ VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 	m_indices = indices;
 	m_stride = sizeof(RAS_TexVert);
 
-	m_mode = GL_TRIANGLES;
+	m_mode = m_data->GetOpenGLPrimitiveType();
 
 	// Generate Buffers
 	glGenBuffersARB(1, &m_ibo);

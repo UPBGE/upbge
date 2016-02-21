@@ -15,43 +15,32 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
  * The Original Code is: all of this file.
  *
- * Contributor(s): none yet.
+ * Contributor(s): Porteries Tristan.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file RAS_DisplayArray.h
+/** \file RAS_DisplayArray.cpp
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_DISPLAY_ARRAY_H__
-#define __RAS_DISPLAY_ARRAY_H__
+#include "RAS_DisplayArray.h"
 
-#include "RAS_TexVert.h"
+#include "glew-mx.h"
 
-#include <vector>
-
-/// An array with data used for OpenGL drawing
-class RAS_DisplayArray
+int RAS_DisplayArray::GetOpenGLPrimitiveType() const
 {
-public:
-	std::vector<RAS_TexVert> m_vertex;
-	std::vector<unsigned int> m_index;
-
-	enum {
-		TRIANGLES,
-		LINES,
-	} m_type;
-
-	enum {BUCKET_MAX_INDEX = 65535};
-	enum {BUCKET_MAX_VERTEX = 65535};
-
-	int GetOpenGLPrimitiveType() const;
-};
-
-#endif  // __RAS_DISPLAY_ARRAY_H__
+	switch (m_type) {
+		case LINES:
+		{
+			return GL_LINES;
+		}
+		case TRIANGLES:
+		{
+			return GL_TRIANGLES;
+		}
+	}
+	return 0;
+}

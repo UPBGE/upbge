@@ -125,8 +125,8 @@ endif()
 		ge_phys_bullet 
 		ge_phys_dummy
 		ge_logic 
-		ge_rasterizer 
-		ge_oglrasterizer 
+		ge_oglrasterizer
+		ge_rasterizer
 		ge_logic_expressions 
 		ge_scenegraph
 		bf_ikplugin

@@ -356,17 +356,16 @@ void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 {
 	SetShaderData(rasty);
 
-	if (m_material->ras_mode & TWOSIDED)
+	if (IsWire()) {
 		rasty->SetCullFace(false);
-	else
-		rasty->SetCullFace(true);
-
-	if (m_material->ras_mode & WIRE) {
-		rasty->SetCullFace(false);
-		rasty->SetLines(true);
 	}
-	else
-		rasty->SetLines(false);
+	else if (m_material->ras_mode & TWOSIDED) {
+		rasty->SetCullFace(false);
+	}
+	else {
+		rasty->SetCullFace(true);
+	}
+
 	ActivateGLMaterials(rasty);
 	ActivateTexGen(rasty);
 }
@@ -375,17 +374,15 @@ void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 {
 	SetBlenderShaderData(rasty);
 
-	if (m_material->ras_mode & TWOSIDED)
+	if (IsWire()) {
 		rasty->SetCullFace(false);
-	else
-		rasty->SetCullFace(true);
-
-	if (m_material->ras_mode & WIRE) {
-		rasty->SetCullFace(false);
-		rasty->SetLines(true);
 	}
-	else
-		rasty->SetLines(false);
+	else if (m_material->ras_mode & TWOSIDED) {
+		rasty->SetCullFace(false);
+	}
+	else {
+		rasty->SetCullFace(true);
+	}
 
 	ActivateGLMaterials(rasty);
 	m_blenderShader->SetAttribs(rasty);
@@ -436,6 +433,11 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 	// Make sure no one will use the attributs set by this material.
 	rasty->SetTexCoordNum(0);
 	rasty->SetAttribNum(0);
+}
+
+bool KX_BlenderMaterial::IsWire() const
+{
+	return m_material->ras_mode & WIRE;
 }
 
 bool KX_BlenderMaterial::IsAlphaShadow() const

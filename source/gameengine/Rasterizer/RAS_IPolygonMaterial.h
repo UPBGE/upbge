@@ -136,6 +136,7 @@ public:
 	virtual MTexPoly *GetMTexPoly() const = 0;
 	virtual unsigned int *GetMCol() const = 0;
 	virtual Scene *GetBlenderScene() const = 0;
+	virtual bool IsWire() const = 0;
 	virtual bool IsAlphaShadow() const = 0;
 	virtual bool UseInstancing() const = 0;
 	virtual void ReleaseMaterial() = 0;

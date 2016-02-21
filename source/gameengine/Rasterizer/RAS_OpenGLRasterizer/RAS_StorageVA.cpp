@@ -197,7 +197,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 		glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
 
 	// here the actual drawing takes places
-	glDrawElements(GL_TRIANGLES, array->m_index.size(), GL_UNSIGNED_INT, indexarray);
+	glDrawElements(array->GetOpenGLPrimitiveType(), array->m_index.size(), GL_UNSIGNED_INT, indexarray);
 
 	if (displayList) {
 		displayList->End(m_drawingmode, RAS_DisplayList::DRAW_LIST);
@@ -210,7 +210,7 @@ void RAS_StorageVA::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucke
 	unsigned int *indexarray = array->m_index.data();
 
 	// here the actual drawing takes places
-	glDrawElementsInstanced(GL_TRIANGLES, array->m_index.size(), GL_UNSIGNED_INT, indexarray, arrayBucket->GetNumActiveMeshSlots());
+	glDrawElementsInstanced(array->GetOpenGLPrimitiveType(), array->m_index.size(), GL_UNSIGNED_INT, indexarray, arrayBucket->GetNumActiveMeshSlots());
 }
 
 RAS_DisplayList *RAS_StorageVA::GetDisplayList(RAS_DisplayArrayBucket *arrayBucket)
