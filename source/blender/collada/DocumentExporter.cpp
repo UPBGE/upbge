@@ -133,6 +133,7 @@ extern bool bc_has_object_type(LinkNode *export_set, short obtype);
 #include "LightExporter.h"
 #include "MaterialExporter.h"
 
+#include <errno.h>
 
 char *bc_CustomData_get_layer_name(const struct CustomData *data, int type, int n)
 {
@@ -160,7 +161,7 @@ static COLLADABU::NativeString make_temp_filepath(const char *name, const char *
 	const char *tempdir = BKE_tempdir_session();
 
 	if (name == NULL) {
-		name = tmpnam(NULL);
+		name = "untitled";
 	}
 
 	BLI_make_file_string(NULL, tempfile, tempdir, name);
@@ -178,7 +179,7 @@ static COLLADABU::NativeString make_temp_filepath(const char *name, const char *
 // COLLADA allows this through multiple <channel>s in <animation>.
 // For this to work, we need to know objects that use a certain action.
 
-void DocumentExporter::exportCurrentScene(Scene *sce)
+int DocumentExporter::exportCurrentScene(Scene *sce)
 {
 	PointerRNA sceneptr, unit_settings;
 	PropertyRNA *system; /* unused , *scale; */
@@ -187,8 +188,6 @@ void DocumentExporter::exportCurrentScene(Scene *sce)
 
 	COLLADABU::NativeString native_filename = make_temp_filepath(NULL, ".dae");
 	COLLADASW::StreamWriter *writer = new COLLADASW::StreamWriter(native_filename);
-
-	fprintf(stdout, "Collada export: %s\n", this->export_settings->filepath);
 
 	// open <collada>
 	writer->startDocument();
@@ -330,8 +329,13 @@ void DocumentExporter::exportCurrentScene(Scene *sce)
 	delete writer;
 
 	// Finally move the created document into place
-	BLI_rename(native_filename.c_str(), this->export_settings->filepath);
-
+	fprintf(stdout, "Collada export to: %s\n", this->export_settings->filepath);
+	int status = BLI_rename(native_filename.c_str(), this->export_settings->filepath);
+	if (status != 0) {
+		status = BLI_copy(native_filename.c_str(), this->export_settings->filepath);
+		BLI_delete(native_filename.c_str(), false, false);
+	}
+	return status;
 }
 
 void DocumentExporter::exportScenes(const char *filename)

@@ -34,7 +34,6 @@ OIIO_NAMESPACE_USING
 #  include <direct.h>
 #else
 #  define DIR_SEP '/'
-#  define DIR_SEP_ALT '\\'
 #  include <dirent.h>
 #endif
 
@@ -178,7 +177,8 @@ public:
 	class path_info {
 	public:
 		path_info(const string& path)
-		: path_(path)
+		: path_(path),
+		  entry_(NULL)
 		{
 		}
 

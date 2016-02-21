@@ -801,6 +801,7 @@ void KX_BlenderMaterial_Mathutils_Callback_Init()
 PyMethodDef KX_BlenderMaterial::Methods[] =
 {
 	KX_PYMETHODTABLE(KX_BlenderMaterial, getShader),
+	KX_PYMETHODTABLE( KX_BlenderMaterial, getTextureBindcode),
 	KX_PYMETHODTABLE(KX_BlenderMaterial, setBlending),
 	{NULL, NULL} //Sentinel
 };
@@ -1127,6 +1128,22 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, setBlending, "setBlending(bge.logic.src, 
 		m_userDefBlend = true;
 		Py_RETURN_NONE;
 	}
+	return NULL;
+}
+
+KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getTextureBindcode, "getTextureBindcode(texslot)")
+{
+	unsigned int texslot;
+	if (!PyArg_ParseTuple(args, "i:texslot", &texslot)) {
+		PyErr_SetString(PyExc_ValueError, "material.getTextureBindcode(texslot): KX_BlenderMaterial, expected an int.");
+		return NULL;
+	}
+	Image *ima = GetImage(texslot);
+	if (ima) {
+		unsigned int *bindcode = ima->bindcode;
+		return PyLong_FromLong(*bindcode);
+	}
+	PyErr_SetString(PyExc_ValueError, "material.getTextureBindcode(texslot): KX_BlenderMaterial, invalid texture slot.");
 	return NULL;
 }
 

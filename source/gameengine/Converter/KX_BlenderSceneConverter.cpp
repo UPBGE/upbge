@@ -123,7 +123,7 @@ KX_BlenderSceneConverter::KX_BlenderSceneConverter(
 							m_ketsjiEngine(engine),
 							m_alwaysUseExpandFraming(false)
 {
-	BKE_main_id_tag_all(maggie, false);  /* avoid re-tagging later on */
+	BKE_main_id_tag_all(maggie, LIB_TAG_DOIT, false);  /* avoid re-tagging later on */
 	m_newfilename = "";
 	m_threadinfo = new ThreadInfo();
 	m_threadinfo->m_pool = BLI_task_pool_create(engine->GetTaskScheduler(), NULL);
@@ -1004,7 +1004,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 	for (vector<Main *>::iterator it = m_DynamicMaggie.begin(); !(it == m_DynamicMaggie.end()); it++) {
 		Main *main = *it;
 		if (main != maggie) {
-			BKE_main_id_tag_all(main, false);
+			BKE_main_id_tag_all(main, LIB_TAG_DOIT, false);
 		}
 		else {
 			maggie_index = i;
@@ -1017,7 +1017,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		return false;
 
 	m_DynamicMaggie.erase(m_DynamicMaggie.begin() + maggie_index);
-	BKE_main_id_tag_all(maggie, true);
+	BKE_main_id_tag_all(maggie, LIB_TAG_DOIT, true);
 
 	/* free all tagged objects */
 	CListValue *scenes = m_ketsjiEngine->CurrentScenes();

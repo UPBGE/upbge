@@ -31,11 +31,6 @@
 
 #include <set>
 
-#include <openimageio_api.h>
-#include <OpenImageIO/imageio.h>
-
-OIIO_NAMESPACE_USING
-
 #if defined(WIN32) && !defined(FREE_WINDOWS)
 #include "utfconv.h"
 #endif
@@ -53,7 +48,12 @@ extern "C"
 #include "IMB_colormanagement_intern.h"
 }
 
-using namespace std;
+#include <openimageio_api.h>
+#include <OpenImageIO/imageio.h>
+
+OIIO_NAMESPACE_USING
+
+using std::string;
 
 typedef unsigned char uchar;
 

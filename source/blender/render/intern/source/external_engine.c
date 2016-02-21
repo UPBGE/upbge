@@ -454,14 +454,7 @@ void RE_bake_engine_set_engine_parameters(Render *re, Main *bmain, Scene *scene)
 {
 	re->scene = scene;
 	re->main = bmain;
-	re->r = scene->r;
-
-	/* prevent crash when freeing the scene
-	 * but it potentially leaves unfreed memory blocks
-	 * not sure how to fix this yet -- dfelinto */
-	BLI_listbase_clear(&re->r.layers);
-	BLI_listbase_clear(&re->r.views);
-	curvemapping_copy_data(&re->r.mblur_shutter_curve, &scene->r.mblur_shutter_curve);
+	render_copy_renderdata(&re->r, &scene->r);
 }
 
 bool RE_bake_has_engine(Render *re)
@@ -518,8 +511,6 @@ bool RE_bake_engine(
 	engine->flag &= ~RE_ENGINE_RENDERING;
 
 	BLI_rw_mutex_lock(&re->partsmutex, THREAD_LOCK_WRITE);
-
-	curvemapping_free_data(&re->r.mblur_shutter_curve);
 
 	/* re->engine becomes zero if user changed active render engine during render */
 	if (!persistent_data || !re->engine) {

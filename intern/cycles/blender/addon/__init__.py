@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Cycles Render Engine",
     "author": "",
-    "blender": (2, 70, 0),
+    "blender": (2, 76, 0),
     "location": "Info header, render engine menu",
     "description": "Cycles Render Engine integration",
     "warning": "",
@@ -98,6 +98,8 @@ def register():
     from . import presets
     import atexit
 
+    # Make sure we only registered the callback once.
+    atexit.unregister(engine_exit)
     atexit.register(engine_exit)
 
     engine.init()
@@ -122,6 +124,3 @@ def unregister():
     properties.unregister()
     presets.unregister()
     bpy.utils.unregister_module(__name__)
-
-    atexit.unregister(engine_exit)
-    engine_exit()

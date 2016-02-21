@@ -673,8 +673,11 @@ if(NOT WITH_BOOST)
 elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_INTERNATIONAL OR WITH_OPENVDB OR WITH_OPENCOLORIO OR WITH_MOD_BOOLEAN)
 	# Keep enabled
 else()
-	# Enabled but we don't need it
-	set(WITH_BOOST OFF)
+	# New dependency graph needs either Boost or C++11 for function bindings.
+	if(NOT USE_CPP11)
+		# Enabled but we don't need it
+		set(WITH_BOOST OFF)
+	endif()
 endif()
 
 # auto enable openimageio for cycles
@@ -1284,6 +1287,10 @@ elseif(WIN32)
 		set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} /MT")
 
 		set(PLATFORM_LINKFLAGS "/SUBSYSTEM:CONSOLE /STACK:2097152 /INCREMENTAL:NO /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:msvcmrt.lib /NODEFAULTLIB:msvcurt.lib /NODEFAULTLIB:msvcrtd.lib")
+
+		# Ignore meaningless for us linker warnings.
+		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} /ignore:4049 /ignore:4217 /ignore:4221")
+		set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /ignore:4221")
 
 		# MSVC only, Mingw doesnt need
 		if(CMAKE_CL_64)
@@ -2169,7 +2176,7 @@ elseif(APPLE)
 		set(OPENVDB_INCLUDE_DIRS ${OPENVDB}/include)
 		set(TBB_INCLUDE_DIRS ${LIBDIR}/tbb/include)
 		set(TBB_LIBRARIES ${LIBDIR}/tbb/lib/libtbb.a)
-		set(OPENVDB_LIBRARIES openvdb ${TBB_LIBRARIES})
+		set(OPENVDB_LIBRARIES openvdb blosc ${TBB_LIBRARIES})
 		set(OPENVDB_LIBPATH ${LIBDIR}/openvdb/lib)
 		set(OPENVDB_DEFINITIONS)
 	endif()

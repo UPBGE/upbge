@@ -50,15 +50,21 @@ public:
 
 	T *allocate(size_t n, const void *hint = 0)
 	{
-		util_guarded_mem_alloc(n * sizeof(T));
+		size_t size = n * sizeof(T);
+		util_guarded_mem_alloc(size);
 		(void)hint;
 #ifdef WITH_BLENDER_GUARDEDALLOC
 		if(n == 0) {
 			return NULL;
 		}
-		return (T*)MEM_mallocN(n * sizeof(T), "Cycles Alloc");
+		/* C++ standard requires allocation functions to allocate memory suitably
+		 * aligned for any standard type. This is 16 bytes for 64 bit platform as
+		 * far as i concerned. We might over-align on 32bit here, but that should
+		 * be all safe actually.
+		 */
+		return (T*)MEM_mallocN_aligned(size, 16, "Cycles Alloc");
 #else
-		return (T*)malloc(n * sizeof(T));
+		return (T*)malloc(size);
 #endif
 	}
 
@@ -114,6 +120,37 @@ public:
 
 	template <class U>
 	GuardedAllocator& operator=(const GuardedAllocator<U>&) { return *this; }
+
+	inline bool operator==(GuardedAllocator const& /*other*/) const { return true; }
+	inline bool operator!=(GuardedAllocator const& other) const { return !operator==(other); }
+
+#ifdef _MSC_VER
+	/* Welcome to the black magic here.
+	 *
+	 * The issue is that MSVC C++ allocates container proxy on any
+	 * vector initialization, including static vectors which don't
+	 * have any data yet. This leads to several issues:
+	 *
+	 * - Static objects initialization fiasco (global_stats from
+	 *   util_stats.h might not be initialized yet).
+	 * - If main() function changes allocator type (for example,
+	 *   this might happen with `blender --debug-memory`) nobody
+	 *   will know how to convert already allocated memory to a new
+	 *   guarded allocator.
+	 *
+	 * Here we work this around by making it so container proxy does
+	 * not use guarded allocation. A bit fragile, unfortunately.
+	 */
+	template<>
+	struct rebind<std::_Container_proxy> {
+		typedef std::allocator<std::_Container_proxy> other;
+	};
+
+	operator std::allocator<std::_Container_proxy>() const
+	{
+		return std::allocator<std::_Container_proxy>();
+	}
+#endif
 };
 
 /* Get memory usage and peak from the guarded STL allocator. */

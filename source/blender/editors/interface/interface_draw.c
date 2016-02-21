@@ -1304,6 +1304,8 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, const rcti
 	float offsx = cumap->curr.xmin - (1.0f / zoomx);
 	float offsy = cumap->curr.ymin - (1.0f / zoomy);
 	
+	glLineWidth(1.0f);
+
 	/* backdrop */
 	if (but->a1 == UI_GRAD_H) {
 		/* magic trigger for curve backgrounds */
@@ -1732,3 +1734,14 @@ void ui_draw_dropshadow(const rctf *rct, float radius, float aspect, float alpha
 	glDisable(GL_BLEND);
 }
 
+/**
+ * Reset GL state (keep minimal).
+ *
+ * \note Blender's internal code doesn't assume these are reset,
+ * but external callbacks may depend on their state.
+ */
+void UI_reinit_gl_state(void)
+{
+	glLineWidth(1.0f);
+	glPointSize(1.0f);
+}

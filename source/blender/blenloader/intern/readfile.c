@@ -5509,7 +5509,6 @@ static void lib_link_sequence_modifiers(FileData *fd, Scene *scene, ListBase *lb
 	for (smd = lb->first; smd; smd = smd->next) {
 		if (smd->mask_id)
 			smd->mask_id = newlibadr_us(fd, scene->id.lib, smd->mask_id);
-		smd->scene = scene;
 	}
 }
 
@@ -9861,7 +9860,7 @@ static Main *library_link_begin(Main *mainvar, FileData **fd, const char *filepa
 	(*fd)->mainlist = MEM_callocN(sizeof(ListBase), "FileData.mainlist");
 	
 	/* clear for group instantiating tag */
-	BKE_main_id_tag_listbase(&(mainvar->group), false);
+	BKE_main_id_tag_listbase(&(mainvar->group), LIB_TAG_DOIT, false);
 
 	/* make mains */
 	blo_split_main((*fd)->mainlist, mainvar);
@@ -9943,7 +9942,7 @@ static void library_link_end(Main *mainl, FileData **fd, const short flag, Scene
 	}
 
 	/* clear group instantiating tag */
-	BKE_main_id_tag_listbase(&(mainvar->group), false);
+	BKE_main_id_tag_listbase(&(mainvar->group), LIB_TAG_DOIT, false);
 
 	/* patch to prevent switch_endian happens twice */
 	if ((*fd)->flags & FD_FLAGS_SWITCH_ENDIAN) {
