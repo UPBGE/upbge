@@ -97,6 +97,7 @@
 
 #include "GPU_draw.h"
 #include "GPU_framebuffer.h"
+#include "GPU_shader.h"
 #include "GPU_material.h"
 #include "GPU_compositing.h"
 #include "GPU_extensions.h"
@@ -2555,6 +2556,7 @@ static void gpu_update_lamps_shadows_world(Scene *scene, View3D *v3d)
 		int drawtype, lay, winsize, flag2 = v3d->flag2;
 		ARegion ar = {NULL};
 		RegionView3D rv3d = {{{0}}};
+		bool vsm = GPU_lamp_shadow_buffer_type(shadow->lamp) == LA_SHADMAP_VARIANCE;
 		
 		drawtype = v3d->drawtype;
 		lay = v3d->lay;
@@ -2563,7 +2565,10 @@ static void gpu_update_lamps_shadows_world(Scene *scene, View3D *v3d)
 		v3d->lay &= GPU_lamp_shadow_layer(shadow->lamp);
 		v3d->flag2 &= ~(V3D_SOLID_TEX | V3D_SHOW_SOLID_MATCAP);
 		v3d->flag2 |= V3D_RENDER_OVERRIDE | V3D_RENDER_SHADOW;
-		
+
+		if (vsm) {
+			GPU_shader_bind(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE));
+		}
 		GPU_lamp_shadow_buffer_bind(shadow->lamp, viewmat, &winsize, winmat);
 
 		ar.regiondata = &rv3d;
@@ -2580,6 +2585,10 @@ static void gpu_update_lamps_shadows_world(Scene *scene, View3D *v3d)
 		            scene, v3d, &ar, winsize, winsize, viewmat, winmat,
 		            false, false, true,
 		            NULL, NULL, NULL, NULL);
+
+		if (vsm) {
+			GPU_shader_unbind();
+		}
 		GPU_lamp_shadow_buffer_unbind(shadow->lamp);
 		
 		v3d->drawtype = drawtype;
