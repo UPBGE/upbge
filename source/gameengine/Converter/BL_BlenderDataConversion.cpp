@@ -1547,16 +1547,6 @@ static KX_GameObject* getGameOb(STR_String busc,CListValue* sumolist)
 
 }
 
-static bool bl_isConstraintInList(KX_GameObject *gameobj, set<KX_GameObject*> convertedlist)
-{
-	set<KX_GameObject*>::iterator gobit;
-	for (gobit = convertedlist.begin(); gobit != convertedlist.end(); gobit++) {
-		if ((*gobit)->GetName() == gameobj->GetName())
-			return true;
-	}
-	return false;
-}
-
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
 static void bl_ConvertBlenderObject_Single(
@@ -1720,7 +1710,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	 * push all converted group members to this set.
 	 * This will happen when a group instance is made from a linked group instance
 	 * and both are on the active layer. */
-	set<KX_GameObject*> convertedlist;
+	CListValue *convertedlist = new CListValue();
 
 	if (alwaysUseExpandFraming) {
 		frame_type = RAS_FrameSettings::e_frame_extend;
@@ -1859,7 +1849,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							/* Insert object to the constraint game object list
 							 * so we can check later if there is a instance in the scene or
 							 * an instance and its actual group definition. */
-							convertedlist.insert((KX_GameObject*)gameobj->AddRef());
+							convertedlist->Add((KX_GameObject*)gameobj->AddRef());
 
 							/* macro calls object conversion funcs */
 							BL_CONVERTBLENDEROBJECT_SINGLE;
@@ -1944,6 +1934,9 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 					obj->Release();
 				if (logicbrick_conversionlist->RemoveValue(obj))
 					obj->Release();
+				if (convertedlist->RemoveValue(obj)) {
+					obj->Release();
+				}
 			}
 			childrenlist->Release();
 			
@@ -2154,8 +2147,9 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			/* Skipped already converted constraints. 
 			 * This will happen when a group instance is made from a linked group instance
 			 * and both are on the active layer. */
-			if (bl_isConstraintInList(gameobj, convertedlist))
+			if (convertedlist->FindValue(gameobj->GetName())) {
 				continue;
+			}
 
 			KX_GameObject *gotar = getGameOb(dat->tar->id.name + 2, sumolist);
 
@@ -2168,11 +2162,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	/* cleanup converted set of group objects */
-	set<KX_GameObject*>::iterator gobit;
-	for (gobit = convertedlist.begin(); gobit != convertedlist.end(); gobit++)
-		(*gobit)->Release();
-		
-	convertedlist.clear();
+	convertedlist->Release();
 	sumolist->Release();
 
 	// convert world
