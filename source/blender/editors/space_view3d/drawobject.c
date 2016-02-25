@@ -4248,20 +4248,26 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 			        scene, ob, em, scene->customdata_mask,
 			        &finalDM);
 
+		const bool use_material = ((me->drawflag & ME_DRAWEIGHT) == 0);
+
 		DM_update_materials(finalDM, ob);
 		if (cageDM != finalDM) {
 			DM_update_materials(cageDM, ob);
 		}
 
-		if (dt > OB_WIRE) {
-			const bool glsl = draw_glsl_material(scene, ob, v3d, dt);
+		if (use_material) {
+			if (dt > OB_WIRE) {
+				const bool glsl = draw_glsl_material(scene, ob, v3d, dt);
 
-			GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl, NULL);
+				GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl, NULL);
+			}
 		}
 
 		draw_em_fancy(scene, ar, v3d, ob, em, cageDM, finalDM, dt);
 
-		GPU_end_object_materials();
+		if (use_material) {
+			GPU_end_object_materials();
+		}
 
 		if (obedit != ob)
 			finalDM->release(finalDM);
@@ -5088,6 +5094,8 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		draw_as = PART_DRAW_DOT;
 
 /* 3. */
+	glLineWidth(1.0f);
+
 	switch (draw_as) {
 		case PART_DRAW_DOT:
 			if (part->draw_size)
@@ -8060,7 +8068,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (do_draw_center != -1) {
 			if (dflag & DRAW_PICKING) {
 				/* draw a single point for opengl selection */
-				if (U.obcenter_dia > 0) {
+				if ((base->sx != IS_CLIPPED) &&
+				    (U.obcenter_dia != 0.0))
+				{
 					glPointSize(U.obcenter_dia);
 					glBegin(GL_POINTS);
 					glVertex3fv(ob->obmat[3]);
@@ -8069,7 +8079,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			}
 			else if ((dflag & DRAW_CONSTCOLOR) == 0) {
 				/* we don't draw centers for duplicators and sets */
-				if (U.obcenter_dia > 0 && !(G.f & G_RENDER_OGL)) {
+				if ((base->sx != IS_CLIPPED) &&
+				    (U.obcenter_dia != 0.0) &&
+				    !(G.f & G_RENDER_OGL))
+				{
 					/* check > 0 otherwise grease pencil can draw into the circle select which is annoying. */
 					drawcentercircle(v3d, rv3d, ob->obmat[3], do_draw_center, ob->id.lib || ob->id.us > 1);
 				}
