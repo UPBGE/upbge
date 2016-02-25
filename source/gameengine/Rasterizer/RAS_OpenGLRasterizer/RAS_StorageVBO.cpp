@@ -76,8 +76,10 @@ void VBO::UpdateIndices()
 	             m_data->m_index.data(), GL_STATIC_DRAW);
 }
 
-void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer)
+void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib,
+			   int *attrib_layer, RAS_IRasterizer::DrawType drawingmode)
 {
+	bool wireframe = (drawingmode == RAS_IRasterizer::RAS_WIREFRAME);
 	int unit;
 
 	// Bind buffers
@@ -93,8 +95,10 @@ void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 	glNormalPointer(GL_FLOAT, m_stride, m_normal_offset);
 
 	// Colors
-	glEnableClientState(GL_COLOR_ARRAY);
-	glColorPointer(4, GL_UNSIGNED_BYTE, m_stride, m_color_offset);
+	if (!wireframe) {
+		glEnableClientState(GL_COLOR_ARRAY);
+		glColorPointer(4, GL_UNSIGNED_BYTE, m_stride, m_color_offset);
+	}
 
 	for (unit = 0; unit < texco_num; ++unit) {
 		glClientActiveTexture(GL_TEXTURE0_ARB + unit);
@@ -165,11 +169,15 @@ void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 	}
 }
 
-void VBO::Unbind(int attrib_num, int texco_num)
+void VBO::Unbind(int attrib_num, int texco_num, RAS_IRasterizer::DrawType drawingmode)
 {
+	bool wireframe = (drawingmode == RAS_IRasterizer::RAS_WIREFRAME);
+
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
+	if (!wireframe) {
+		glDisableClientState(GL_COLOR_ARRAY);
+	}
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	for (unsigned int unit = 0; unit < texco_num; ++unit) {
@@ -234,13 +242,13 @@ VBO *RAS_StorageVBO::GetVBO(RAS_DisplayArrayBucket *arrayBucket)
 void RAS_StorageVBO::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
 	VBO *vbo = GetVBO(arrayBucket);
-	vbo->Bind(*m_texco_num, m_texco, *m_attrib_num, m_attrib, m_attrib_layer);
+	vbo->Bind(*m_texco_num, m_texco, *m_attrib_num, m_attrib, m_attrib_layer, m_drawingmode);
 }
 
 void RAS_StorageVBO::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
 	VBO *vbo = GetVBO(arrayBucket);
-	vbo->Unbind(*m_attrib_num, *m_texco_num);
+	vbo->Unbind(*m_attrib_num, *m_texco_num, m_drawingmode);
 }
 
 void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot *ms)

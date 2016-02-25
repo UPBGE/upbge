@@ -41,8 +41,9 @@ public:
 	VBO(RAS_DisplayArray *data, unsigned int indices);
 	virtual ~VBO();
 
-	void Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer);
-	void Unbind(int attrib_num, int texco_num);
+	void Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib,
+			  int *attrib_layer, RAS_IRasterizer::DrawType drawingmode);
+	void Unbind(int attrib_num, int texco_num, RAS_IRasterizer::DrawType drawingmode);
 	void Draw();
 	void DrawInstancing(unsigned int numinstance);
 

@@ -127,13 +127,13 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
-	glEnableClientState(GL_COLOR_ARRAY);
 
 	glVertexPointer(3, GL_FLOAT, stride, vertexarray->getXYZ());
 	glNormalPointer(GL_FLOAT, stride, vertexarray->getNormal());
-	glColorPointer(4, GL_UNSIGNED_BYTE, stride, vertexarray->getRGBA());
 
 	if (!wireframe) {
+		glEnableClientState(GL_COLOR_ARRAY);
+		glColorPointer(4, GL_UNSIGNED_BYTE, stride, vertexarray->getRGBA());
 		TexCoordPtr(vertexarray);
 	}
 
@@ -180,18 +180,9 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 	RAS_IPolyMaterial *material = ms->m_bucket->GetPolyMaterial();
 
 	// colors
-	if (!wireframe) {
-		if (material->UsesObjectColor()) {
-			const MT_Vector4& rgba = ms->m_RGBAcolor;
-
-			glDisableClientState(GL_COLOR_ARRAY);
-			glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
-		}
-		else {
-			glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-			glEnableClientState(GL_COLOR_ARRAY);
-			glColorPointer(4, GL_UNSIGNED_BYTE, stride, vertexarray->getRGBA());
-		}
+	if (!wireframe && material->UsesObjectColor()) {
+		const MT_Vector4& rgba = ms->m_RGBAcolor;
+		glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 	}
 	else
 		glColor4f(0.0f, 0.0f, 0.0f, 1.0f);

@@ -874,6 +874,7 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms)
 		SetLines(true);
 	}
 
+	bool wireframe = (m_drawingmode == RAS_WIREFRAME);
 	if (current_polymat->GetFlag() & RAS_BLENDERGLSL) {
 		// GetMaterialIndex return the original mface material index,
 		// increment by 1 to match what derived mesh is doing
@@ -887,12 +888,20 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms)
 			memset(&current_gpu_attribs, 0, sizeof(current_gpu_attribs));
 		// DM draw can mess up blending mode, restore at the end
 		int current_blend_mode = GPU_get_material_alpha_blend();
+
+		if (wireframe) {
+			glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+		}
 		ms->m_pDerivedMesh->drawFacesGLSL(ms->m_pDerivedMesh, CheckMaterialDM);
 		GPU_set_material_alpha_blend(current_blend_mode);
 	} else {
 		//ms->m_pDerivedMesh->drawMappedFacesTex(ms->m_pDerivedMesh, CheckTexfaceDM, mcol);
 		current_blmat_nr = current_mesh->GetBlenderMaterialId(current_bucket->GetPolyMaterial());
 		current_image = current_polymat->GetBlenderImage();
+
+		if (wireframe) {
+			glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+		}
 		ms->m_pDerivedMesh->drawFacesTex(ms->m_pDerivedMesh, CheckTexDM, NULL, NULL, DM_DRAW_USE_ACTIVE_UV);
 	}
 
