@@ -414,10 +414,10 @@ void GPU_framebuffer_restore(void)
 
 void GPU_framebuffer_blur(
         GPUFrameBuffer *fb, GPUTexture *tex,
-        GPUFrameBuffer *blurfb, GPUTexture *blurtex)
+        GPUFrameBuffer *blurfb, GPUTexture *blurtex, float sharpness)
 {
-	const float scaleh[2] = {1.0f / GPU_texture_width(blurtex), 0.0f};
-	const float scalev[2] = {0.0f, 1.0f / GPU_texture_height(tex)};
+	const float scaleh[2] = {(1.0f - sharpness) / GPU_texture_width(blurtex), 0.0f};
+	const float scalev[2] = {0.0f, (1.0f - sharpness) / GPU_texture_height(tex)};
 
 	GPUShader *blur_shader = GPU_shader_get_builtin_shader(GPU_SHADER_SEP_GAUSSIAN_BLUR);
 	int scale_uniform, texture_source_uniform;

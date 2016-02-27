@@ -69,7 +69,7 @@ bool GPU_framebuffer_bound(GPUFrameBuffer *fb);
 void GPU_framebuffer_restore(void);
 void GPU_framebuffer_blur(
         GPUFrameBuffer *fb, struct GPUTexture *tex,
-        GPUFrameBuffer *blurfb, struct GPUTexture *blurtex);
+        GPUFrameBuffer *blurfb, struct GPUTexture *blurtex, float sharpness);
 
 typedef enum GPURenderBufferType {
 	GPU_RENDERBUFFER_COLOR = 0,
