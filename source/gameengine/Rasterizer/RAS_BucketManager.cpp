@@ -264,6 +264,8 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
 
+			rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE);
+
 			rasty->SetLines(false);
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 			break;
