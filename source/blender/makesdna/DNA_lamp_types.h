@@ -67,7 +67,8 @@ typedef struct Lamp {
 	short pad2;
 	
 	float clipsta, clipend;
-	float bias, soft, compressthresh, bleedbias, pad5;
+	float bias, soft, compressthresh, bleedbias;
+	float bufsharp;
 	short bufsize, samp, buffers, filtertype;
 	char bufflag, buftype;
 	
@@ -78,6 +79,7 @@ typedef struct Lamp {
 	float adapt_thresh;
 	short ray_samp_method;
 	short shadowmap_type;
+	short shadow_filter, pad3[3];
 	
 	/* texact is for buttons */
 	short texact, shadhalostep;
@@ -152,6 +154,11 @@ typedef struct Lamp {
 #define LA_SHOW_CONE    (1 << 17)
 #define LA_SHOW_SHADOW_BOX (1 << 18)
 #define LA_STATIC_SHADOW (1 << 19)
+
+/* shadow_filter */
+#define LA_SHADOW_FILTER_NONE		0
+#define LA_SHADOW_FILTER_PCF		1
+#define LA_SHADOW_FILTER_PCF_BAIL	2
 
 /* layer_shadow */
 #define LA_LAYER_SHADOW_BOTH	0
