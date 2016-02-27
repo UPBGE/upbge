@@ -2784,21 +2784,13 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler
 	float preheight = texture2D(ima, parallax_scale(pretexuv, size.xy)).a - h - step;
 	float weight = postheight / (postheight - preheight);
 
-	float min;
-	float max;
-	if (discarduv == 1.0) {
-		min = 0.0;
-		max = 1.0;
-	}
-	else {
-		min = -0.1;
-		max = 1.1;
-	}
+	vec2 finaltexuv = mix(texuv, pretexuv, weight);
 
-	if (texuv.x < min || texuv.x > max || texuv.y < min || texuv.y > max) {
+	if ((discarduv == 1.0) && (finaltexuv.x < 0.0 || finaltexuv.x > 1.0 || finaltexuv.y < 0.0 || finaltexuv.y > 1.0)) {
 		discard;
 	}
-	ptexcoord = vec3(mix(texuv, pretexuv, weight), 0.0);
+
+	ptexcoord = vec3(finaltexuv, 0.0);
 }
 
 /* ********************** matcap style render ******************** */
