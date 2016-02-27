@@ -2755,12 +2755,17 @@ void node_output_world(vec4 surface, vec4 volume, out vec4 result)
 	result = surface;
 }
 
+vec2 parallax_scale(vec2 texuv, vec2 size)
+{
+	return (texuv * size) + (vec2(1.0) - size) / 2.0;
+}
+
 void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler2D ima, float scale, float numsteps, float bumpscale, float discarduv, out vec3 ptexcoord)
 {
 	vec3 binormal = cross(-vn, tangent.xyz) * tangent.w;
 	vec3 vvec = vec3(dot(tangent.xyz, vp), dot(binormal, vp), dot(-vn, vp));
 	vec3 vv = normalize(vvec);
-	float height = texture2D(ima, texco.xy * size.xy).a;
+	float height = texture2D(ima, parallax_scale(texco.xy, size.xy)).a;
 	vec2 texuv = texco.xy + height * scale * 0.005;
 	float h = 1.0;
 	float numeyesteps = mix(numsteps * 2.0, numsteps, vv.z);
@@ -2770,13 +2775,13 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler
 		if (height < h) {
 			h -= step;
 			texuv -= delta;
-			height = texture2D(ima, texuv * size.xy).a;
+			height = texture2D(ima, parallax_scale(texuv, size.xy)).a;
 		}
 	}
 
 	vec2 pretexuv = texuv + delta;
 	float postheight  = height - h;
-	float preheight = texture2D(ima, pretexuv * size.xy).a - h - step;
+	float preheight = texture2D(ima, parallax_scale(pretexuv, size.xy)).a - h - step;
 	float weight = postheight / (postheight - preheight);
 
 	float min;
