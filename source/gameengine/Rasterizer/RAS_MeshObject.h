@@ -48,6 +48,7 @@
 #include "STR_String.h"
 
 struct Mesh;
+class RAS_MeshUser;
 class RAS_Deformer;
 class RAS_Polygon;
 
@@ -152,7 +153,7 @@ public:
 	RAS_Polygon *GetPolygon(int num) const;
 
 	// buckets
-	virtual void AddMeshUser(void *clientobj, RAS_MeshSlotList& meshslots, RAS_Deformer *deformer);
+	RAS_MeshUser *AddMeshUser(void *clientobj, RAS_Deformer *deformer);
 
 	void RemoveFromBuckets(void *clientobj);
 	void EndConversion();

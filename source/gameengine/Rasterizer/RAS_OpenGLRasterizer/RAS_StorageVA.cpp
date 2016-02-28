@@ -29,6 +29,7 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_MaterialBucket.h"
+#include "RAS_MeshUser.h"
 
 #include "glew-mx.h"
 
@@ -172,16 +173,14 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 		return;
 	}
 
-	static const GLsizei stride = sizeof(RAS_TexVert);
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::RAS_WIREFRAME;
 	RAS_DisplayArray *array = ms->GetDisplayArray();
-	RAS_TexVert *vertexarray = array->m_vertex.data();
 	unsigned int *indexarray = array->m_index.data();
 	RAS_IPolyMaterial *material = ms->m_bucket->GetPolyMaterial();
 
 	// colors
 	if (!wireframe && material->UsesObjectColor()) {
-		const MT_Vector4& rgba = ms->m_RGBAcolor;
+		const MT_Vector4& rgba = ms->m_meshUser->GetColor();
 		glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 	}
 	else

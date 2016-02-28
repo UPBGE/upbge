@@ -34,6 +34,8 @@
 
 #include "RAS_MeshSlot.h" // needed for RAS_MeshSlotList
 
+#include "MT_Transform.h"
+
 #include <vector>
 
 class RAS_IRasterizer;

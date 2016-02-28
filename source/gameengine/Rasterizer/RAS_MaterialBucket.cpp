@@ -33,6 +33,7 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_IRasterizer.h"
 #include "RAS_MeshObject.h"
+#include "RAS_MeshUser.h"
 #include "RAS_Deformer.h"
 
 #include <algorithm>
@@ -151,7 +152,9 @@ void RAS_MaterialBucket::DesactivateMaterial(RAS_IRasterizer *rasty)
 
 void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_MeshSlot *ms)
 {
-	rasty->SetClientObject(ms->m_clientObj);
+	RAS_MeshUser *meshUser = ms->m_meshUser;
+	rasty->SetClientObject(meshUser->GetClientObject());
+	rasty->SetFrontFace(meshUser->GetFrontFace());
 
 	// Inverse condition of in ActivateMaterial.
 	if (!((rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && !m_material->CastsShadows()) ||
@@ -166,12 +169,12 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	}
 
 	if (IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID)
-		ms->m_mesh->SortPolygons(ms, cameratrans * MT_Transform(ms->m_OpenGLMatrix));
+		ms->m_mesh->SortPolygons(ms, cameratrans * MT_Transform(meshUser->GetMatrix()));
 
 	rasty->PushMatrix();
 	if (!ms->m_pDeformer || !ms->m_pDeformer->SkipVertexTransform()) {
 		float mat[16];
-		rasty->GetTransform(ms->m_OpenGLMatrix, m_material->GetDrawingMode(), mat);
+		rasty->GetTransform(meshUser->GetMatrix(), m_material->GetDrawingMode(), mat);
 		rasty->ApplyTransform(mat);
 	}
 
@@ -182,10 +185,6 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	else {
 		rasty->IndexPrimitives(ms);
 	}
-
-	// make this mesh slot culled automatically for next frame
-	// it will be culled out by frustrum culling
-	ms->SetCulled(true);
 
 	rasty->PopMatrix();
 }

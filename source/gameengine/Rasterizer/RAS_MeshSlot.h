@@ -32,16 +32,14 @@
 #ifndef __RAS_MESH_SLOT_H__
 #define __RAS_MESH_SLOT_H__
 
-#include "MT_Matrix4x4.h"
-
 #include <vector>
-#include <list>
 
 class RAS_MaterialBucket;
 class RAS_DisplayArrayBucket;
 struct DerivedMesh;
 class RAS_Deformer;
 class RAS_MeshObject;
+class RAS_MeshUser;
 class RAS_DisplayArray;
 class RAS_TexVert;
 
@@ -55,19 +53,9 @@ public:
 	RAS_MaterialBucket *m_bucket;
 	RAS_DisplayArrayBucket *m_displayArrayBucket;
 	RAS_MeshObject *m_mesh;
-	void *m_clientObj;
 	RAS_Deformer *m_pDeformer;
 	DerivedMesh *m_pDerivedMesh;
-	float *m_OpenGLMatrix;
-	// visibility
-	bool m_bVisible;
-	bool m_bCulled;
-	// object color
-	MT_Vector4 m_RGBAcolor;
-
-	RAS_MeshSlot *m_joinSlot;
-	MT_Matrix4x4 m_joinInvTransform;
-	std::list<RAS_MeshSlot *> m_joinedSlots;
+	RAS_MeshUser *m_meshUser;
 
 	RAS_MeshSlot();
 	RAS_MeshSlot(const RAS_MeshSlot& slot);
@@ -77,26 +65,10 @@ public:
 
 	RAS_DisplayArray *GetDisplayArray();
 	void SetDeformer(RAS_Deformer *deformer);
+	void SetMeshUser(RAS_MeshUser *user);
 
 	int AddVertex(const RAS_TexVert& tv);
 	void AddPolygonVertex(int offset);
-
-	// optimization
-	bool Split(bool force = false);
-	bool Join(RAS_MeshSlot *target, MT_Scalar distance);
-	bool Equals(RAS_MeshSlot *target);
-#ifdef USE_SPLIT
-	bool IsCulled();
-#else
-	bool IsCulled()
-	{
-		return m_bCulled;
-	}
-#endif
-	void SetCulled(bool culled)
-	{
-		m_bCulled = culled;
-	}
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MeshSlot")

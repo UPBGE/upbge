@@ -315,6 +315,8 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 			m_instancingBuffer->GetStride());
 	}
 
+	rasty->SetFrontFace(true);
+
 	// Unbind the buffer to avoid conflict with the render after.
 	m_instancingBuffer->Unbind();
 

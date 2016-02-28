@@ -35,6 +35,7 @@
 #include "CTR_HashedPtr.h"
 
 #include "RAS_MeshObject.h"
+#include "RAS_MeshUser.h"
 #include "RAS_Polygon.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
@@ -439,15 +440,17 @@ const float *RAS_MeshObject::GetVertexLocation(unsigned int orig_index)
 	return it->m_darray->m_vertex[it->m_offset].getXYZ();
 }
 
-void RAS_MeshObject::AddMeshUser(void *clientobj, RAS_MeshSlotList& meshslots, RAS_Deformer *deformer)
+RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deformer)
 {
+	RAS_MeshUser *meshUser = new RAS_MeshUser(clientobj);
 	for (std::list<RAS_MeshMaterial>::iterator it = m_materials.begin(); it != m_materials.end(); ++it) {
 		RAS_MeshSlot *ms = it->m_bucket->CopyMesh(it->m_baseslot);
-		ms->m_clientObj = clientobj;
+		ms->SetMeshUser(meshUser);
 		ms->SetDeformer(deformer);
 		it->m_slots.insert(clientobj, ms);
-		meshslots.push_back(ms);
+		meshUser->AddMeshSlot(ms);
 	}
+	return meshUser;
 }
 
 void RAS_MeshObject::RemoveFromBuckets(void *clientobj)

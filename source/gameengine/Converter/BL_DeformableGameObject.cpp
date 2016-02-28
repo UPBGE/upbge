@@ -32,6 +32,7 @@
 
 #include "BL_DeformableGameObject.h"
 #include "BL_ShapeDeformer.h"
+#include "RAS_MeshUser.h"
 #include "RAS_MaterialBucket.h"
 
 
@@ -101,7 +102,8 @@ void BL_DeformableGameObject::SetDeformer(class RAS_Deformer* deformer)
 {
 	m_pDeformer = deformer;
 
-	for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end; ++it) {
+	RAS_MeshSlotList& meshSlots = m_meshUser->GetMeshSlots();
+	for (RAS_MeshSlotList::iterator it = meshSlots.begin(), end = meshSlots.end(); it != end; ++it) {
 		(*it)->SetDeformer(deformer);
 	}
 }

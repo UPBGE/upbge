@@ -36,6 +36,7 @@
 
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshObject.h"
+#include "RAS_MeshUser.h"
 #include "RAS_Polygon.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_IRasterizer.h"
@@ -48,7 +49,7 @@
 void RAS_BucketManager::sortedmeshslot::set(RAS_MeshSlot *ms, RAS_MaterialBucket *bucket, const MT_Vector3& pnorm)
 {
 	// would be good to use the actual bounding box center instead
-	MT_Point3 pos(ms->m_OpenGLMatrix[12], ms->m_OpenGLMatrix[13], ms->m_OpenGLMatrix[14]);
+	MT_Point3 pos(&ms->m_meshUser->GetMatrix()[12]);
 
 	m_z = MT_dot(pnorm, pos);
 	m_ms = ms;
