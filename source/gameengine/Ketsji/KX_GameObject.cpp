@@ -43,6 +43,7 @@
 #include "KX_Light.h"  // only for their ::Type
 #include "KX_FontObject.h"  // only for their ::Type
 #include "RAS_MeshObject.h"
+#include "RAS_MeshUser.h"
 #include "RAS_Deformer.h"
 #include "KX_NavMeshObject.h"
 #include "KX_MeshProxy.h"
@@ -98,6 +99,7 @@ KX_GameObject::KX_GameObject(
       m_layer(0),
       m_currentLodLevel(0),
       m_previousLodLevel(0),
+      m_meshUser(NULL),
       m_pBlenderObject(NULL),
       m_pBlenderGroupObject(NULL),
       m_bIsNegativeScaling(false),
@@ -527,8 +529,7 @@ void KX_GameObject::ProcessReplica()
 	m_actionManager = NULL;
 	m_state = 0;
 
-	m_meshSlots.clear();
-
+	m_meshUser = NULL;
 #ifdef WITH_PYTHON
 	if (m_attr_dict)
 		m_attr_dict= PyDict_Copy(m_attr_dict);
@@ -732,37 +733,27 @@ void KX_GameObject::UpdateBlenderObjectMatrix(Object* blendobj)
 
 void KX_GameObject::AddMeshUser()
 {
-	for (size_t i=0;i<m_meshes.size();i++)
-	{
-		m_meshes[i]->AddMeshUser(this, m_meshSlots, GetDeformer());
+	for (size_t i = 0; i < m_meshes.size(); ++i) {
+		m_meshUser = m_meshes[i]->AddMeshUser(this, GetDeformer());
 	}
 	// set the part of the mesh slot that never change
 	float *fl = GetOpenGLMatrixPtr()->getPointer();
 
-	for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end; ++it) {
-		(*it)->m_OpenGLMatrix = fl;
+	if (m_meshUser) {
+		m_meshUser->SetMatrix(fl);
 	}
 }
 
 void KX_GameObject::UpdateBuckets()
 {
-	if (GetSGNode()) {
+	if (GetSGNode() && m_meshUser) {
 		if (GetSGNode()->IsDirty())
 			GetOpenGLMatrix();
 
-		for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end; ++it) {
-			RAS_MeshSlot *ms = *it;
-			ms->m_RGBAcolor = m_objectColor;
-			ms->m_bVisible = m_bVisible;
-			ms->m_bCulled = m_bCulled || !m_bVisible;
-			if (!ms->m_bCulled) 
-				ms->m_displayArrayBucket->ActivateMesh(ms);
-			
-			/* split if necessary */
-#ifdef USE_SPLIT
-			ms->Split();
-#endif
-		}
+		m_meshUser->SetColor(m_objectColor);
+		m_meshUser->SetCulled(m_bCulled || !m_bVisible);
+		m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
+		m_meshUser->ActivateMeshSlots();
 	}
 }
 
@@ -771,7 +762,10 @@ void KX_GameObject::RemoveMeshes()
 	for (size_t i=0;i<m_meshes.size();i++)
 		m_meshes[i]->RemoveFromBuckets(this);
 	// Remove all mesh slots.
-	m_meshSlots.clear();
+	if (m_meshUser) {
+		delete m_meshUser;
+		m_meshUser = NULL;
+	}
 
 	//note: meshes can be shared, and are deleted by KX_BlenderSceneConverter
 

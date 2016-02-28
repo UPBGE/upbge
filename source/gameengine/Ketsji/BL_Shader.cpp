@@ -35,6 +35,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "RAS_MeshObject.h"
+#include "RAS_MeshUser.h"
 #include "RAS_IRasterizer.h"
 
 #define spit(x) std::cout << x << std::endl;
@@ -490,7 +491,7 @@ void BL_Shader::Update(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 
 	if (GLEW_ARB_fragment_shader && GLEW_ARB_vertex_shader && GLEW_ARB_shader_objects) {
 		MT_Matrix4x4 model;
-		model.setValue(ms->m_OpenGLMatrix);
+		model.setValue(ms->m_meshUser->GetMatrix());
 		const MT_Matrix4x4 &view = rasty->GetViewMatrix();
 
 		if (mAttr == SHD_TANGENT) {

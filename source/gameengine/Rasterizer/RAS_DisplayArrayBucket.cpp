@@ -315,6 +315,10 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 			m_instancingBuffer->GetStride());
 	}
 
+	/* It's a major issue of the geometry instancing : we can't manage face wise.
+	 * To be sure we don't use the old face wise we focre it to true. */
+	rasty->SetFrontFace(true);
+
 	// Unbind the buffer to avoid conflict with the render after.
 	m_instancingBuffer->Unbind();
 

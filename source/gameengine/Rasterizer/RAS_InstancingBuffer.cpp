@@ -28,6 +28,7 @@
 
 #include "RAS_InstancingBuffer.h"
 #include "RAS_IRasterizer.h"
+#include "RAS_MeshUser.h"
 #include "glew-mx.h"
 
 RAS_InstancingBuffer::RAS_InstancingBuffer()
@@ -67,8 +68,8 @@ void RAS_InstancingBuffer::Update(RAS_IRasterizer *rasty, int drawingmode, RAS_M
 		RAS_MeshSlot *ms = meshSlots[i];
 		InstancingObject& data = buffer[i];
 		float mat[16];
-		rasty->SetClientObject(ms->m_clientObj);
-		rasty->GetTransform(ms->m_OpenGLMatrix, drawingmode, mat);
+		rasty->SetClientObject(ms->m_meshUser->GetClientObject());
+		rasty->GetTransform(ms->m_meshUser->GetMatrix(), drawingmode, mat);
 		data.matrix[0] = mat[0];
 		data.matrix[1] = mat[4];
 		data.matrix[2] = mat[8];
@@ -82,14 +83,11 @@ void RAS_InstancingBuffer::Update(RAS_IRasterizer *rasty, int drawingmode, RAS_M
 		data.position[1] = mat[13];
 		data.position[2] = mat[14];
 
-		data.color[0] = ms->m_RGBAcolor[0] * 255.0f;
-		data.color[1] = ms->m_RGBAcolor[1] * 255.0f;
-		data.color[2] = ms->m_RGBAcolor[2] * 255.0f;
-		data.color[3] = ms->m_RGBAcolor[3] * 255.0f;
-
-		// make this mesh slot culled automatically for next frame
-		// it will be culled out by frustrum culling
-		ms->SetCulled(true);
+		const MT_Vector4& color = ms->m_meshUser->GetColor();
+		data.color[0] = color[0] * 255.0f;
+		data.color[1] = color[1] * 255.0f;
+		data.color[2] = color[2] * 255.0f;
+		data.color[3] = color[3] * 255.0f;
 	}
 
 	glUnmapBuffer(GL_ARRAY_BUFFER);

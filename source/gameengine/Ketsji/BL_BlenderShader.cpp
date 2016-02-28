@@ -38,6 +38,7 @@
 
 #include "RAS_BucketManager.h"
 #include "RAS_MeshObject.h"
+#include "RAS_MeshUser.h"
 #include "RAS_IRasterizer.h"
 
 #include "KX_Scene.h"
@@ -191,12 +192,12 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 		return;
 
 	MT_Matrix4x4 model;
-	model.setValue(ms->m_OpenGLMatrix);
+	model.setValue(ms->m_meshUser->GetMatrix());
 
 	// note: getValue gives back column major as needed by OpenGL
 	model.getValue((float *)obmat);
 
-	ms->m_RGBAcolor.getValue((float *)obcol);
+	ms->m_meshUser->GetColor().getValue((float *)obcol);
 
 	rasty->GetViewMatrix().getValue((float *)viewmat);
 	float auto_bump_scale = ms->m_pDerivedMesh != 0 ? ms->m_pDerivedMesh->auto_bump_scale : 1.0f;

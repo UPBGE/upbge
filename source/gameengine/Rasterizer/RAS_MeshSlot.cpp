@@ -50,26 +50,14 @@ RAS_MeshSlot::RAS_MeshSlot()
 	m_bucket(NULL),
 	m_displayArrayBucket(NULL),
 	m_mesh(NULL),
-	m_clientObj(NULL),
 	m_pDeformer(NULL),
 	m_pDerivedMesh(NULL),
-	m_OpenGLMatrix(NULL),
-	m_bVisible(false),
-	m_bCulled(true),
-	m_RGBAcolor(MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f)),
-	m_joinSlot(NULL)
+	m_meshUser(NULL)
 {
 }
 
 RAS_MeshSlot::~RAS_MeshSlot()
 {
-#ifdef USE_SPLIT
-	Split(true);
-
-	while (m_joinedSlots.size())
-		m_joinedSlots.front()->Split(true);
-#endif
-
 	if (m_pDeformer) {
 		// Remove the deformer user in the display array bucket.
 		m_displayArrayBucket->RemoveDeformer(m_pDeformer);
@@ -82,19 +70,13 @@ RAS_MeshSlot::~RAS_MeshSlot()
 
 RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 {
-	m_clientObj = NULL;
 	m_pDeformer = NULL;
 	m_pDerivedMesh = NULL;
-	m_OpenGLMatrix = NULL;
+	m_meshUser = NULL;
 	m_mesh = slot.m_mesh;
 	m_bucket = slot.m_bucket;
 	m_displayArrayBucket = slot.m_displayArrayBucket;
-	m_bVisible = slot.m_bVisible;
-	m_bCulled = slot.m_bCulled;
-	m_RGBAcolor = slot.m_RGBAcolor;
-	m_joinSlot = NULL;
 	m_displayArray = slot.m_displayArray;
-	m_joinedSlots = slot.m_joinedSlots;
 
 	if (m_displayArrayBucket) {
 		m_displayArrayBucket->AddRef();
@@ -173,161 +155,7 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 	m_pDeformer = deformer;
 }
 
-bool RAS_MeshSlot::Equals(RAS_MeshSlot *target)
+void RAS_MeshSlot::SetMeshUser(RAS_MeshUser *user)
 {
-	if (!m_OpenGLMatrix || !target->m_OpenGLMatrix)
-		return false;
-	if (m_pDeformer || target->m_pDeformer)
-		return false;
-	if (m_bVisible != target->m_bVisible)
-		return false;
-	if (m_RGBAcolor == target->m_RGBAcolor)
-		return false;
-
-	return true;
+	m_meshUser = user;
 }
-
-bool RAS_MeshSlot::Join(RAS_MeshSlot *target, MT_Scalar distance)
-{
-#if 0
-	RAS_DisplayArrayList::iterator it;
-	iterator mit;
-	size_t i;
-
-	// verify if we can join
-	if (m_joinSlot || (m_joinedSlots.empty() == false) || target->m_joinSlot)
-		return false;
-
-	if (!Equals(target))
-		return false;
-
-	MT_Vector3 co(&m_OpenGLMatrix[12]);
-	MT_Vector3 targetco(&target->m_OpenGLMatrix[12]);
-
-	if ((co - targetco).length() > distance)
-		return false;
-
-	MT_Matrix4x4 mat(m_OpenGLMatrix);
-	MT_Matrix4x4 targetmat(target->m_OpenGLMatrix);
-	targetmat.invert();
-
-	MT_Matrix4x4 transform = targetmat * mat;
-
-	// m_mesh, clientobj
-	m_joinSlot = target;
-	m_joinInvTransform = transform;
-	m_joinInvTransform.invert();
-	target->m_joinedSlots.push_back(this);
-
-	MT_Matrix4x4 ntransform = m_joinInvTransform.transposed();
-	ntransform[0][3] = ntransform[1][3] = ntransform[2][3] = 0.0f;
-
-	for (begin(mit); !end(mit); next(mit))
-		for (i = mit.startvertex; i < mit.endvertex; i++)
-			mit.vertex[i].Transform(transform, ntransform);
-
-	/* We know we'll need a list at least this big, reserve in advance */
-	target->m_displayArrays.reserve(target->m_displayArrays.size() + m_displayArrays.size());
-
-	for (it = m_displayArrays.begin(); it != m_displayArrays.end(); it++) {
-		target->m_displayArrays.push_back(*it);
-		target->m_endarray++;
-		target->m_endvertex = target->m_displayArrays.back()->m_vertex.size();
-		target->m_endindex = target->m_displayArrays.back()->m_index.size();
-	}
-
-	if (m_DisplayList) {
-		m_DisplayList->Release();
-		m_DisplayList = NULL;
-	}
-	if (target->m_DisplayList) {
-		target->m_DisplayList->Release();
-		target->m_DisplayList = NULL;
-	}
-#endif
-	return true;
-#if 0
-	return false;
-#endif
-}
-
-bool RAS_MeshSlot::Split(bool force)
-{
-#if 0
-	list<RAS_MeshSlot *>::iterator jit;
-	RAS_MeshSlot *target = m_joinSlot;
-	RAS_DisplayArrayList::iterator it, jt;
-	iterator mit;
-	size_t i, found0 = 0, found1 = 0;
-
-	if (target && (force || !Equals(target))) {
-		m_joinSlot = NULL;
-
-		for (jit = target->m_joinedSlots.begin(); jit != target->m_joinedSlots.end(); jit++) {
-			if (*jit == this) {
-				target->m_joinedSlots.erase(jit);
-				found0 = 1;
-				break;
-			}
-		}
-
-		if (!found0)
-			abort();
-
-		for (it = m_displayArrays.begin(); it != m_displayArrays.end(); it++) {
-			found1 = 0;
-			for (jt = target->m_displayArrays.begin(); jt != target->m_displayArrays.end(); jt++) {
-				if (*jt == *it) {
-					target->m_displayArrays.erase(jt);
-					target->m_endarray--;
-					found1 = 1;
-					break;
-				}
-			}
-
-			if (!found1)
-				abort();
-		}
-
-		if (target->m_displayArrays.empty() == false) {
-			target->m_endvertex = target->m_displayArrays.back()->m_vertex.size();
-			target->m_endindex = target->m_displayArrays.back()->m_index.size();
-		}
-		else {
-			target->m_endvertex = 0;
-			target->m_endindex = 0;
-		}
-
-		MT_Matrix4x4 ntransform = m_joinInvTransform.inverse().transposed();
-		ntransform[0][3] = ntransform[1][3] = ntransform[2][3] = 0.0f;
-
-		for (begin(mit); !end(mit); next(mit))
-			for (i = mit.startvertex; i < mit.endvertex; i++)
-				mit.vertex[i].Transform(m_joinInvTransform, ntransform);
-
-		if (target->m_DisplayList) {
-			target->m_DisplayList->Release();
-			target->m_DisplayList = NULL;
-		}
-
-		return true;
-	}
-#endif
-	return false;
-}
-
-
-#ifdef USE_SPLIT
-bool RAS_MeshSlot::IsCulled()
-{
-	if (m_joinSlot)
-		return true;
-	if (!m_bCulled)
-		return false;
-	list<RAS_MeshSlot *>::iterator it;
-	for (it = m_joinedSlots.begin(); it != m_joinedSlots.end(); it++)
-		if (!(*it)->m_bCulled)
-			return false;
-	return true;
-}
-#endif

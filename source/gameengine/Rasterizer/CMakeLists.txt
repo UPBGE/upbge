@@ -57,6 +57,7 @@ set(SRC
 	RAS_MaterialBucket.cpp
 	RAS_MeshObject.cpp
 	RAS_MeshSlot.cpp
+	RAS_MeshUser.cpp
 	RAS_Polygon.cpp
 	RAS_TexVert.cpp
 	RAS_ICanvas.cpp
@@ -82,6 +83,7 @@ set(SRC
 	RAS_MeshMaterial.h
 	RAS_MeshObject.h
 	RAS_MeshSlot.h
+	RAS_MeshUser.h
 	RAS_Polygon.h
 	RAS_Rect.h
 	RAS_TexVert.h

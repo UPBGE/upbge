@@ -41,6 +41,7 @@
 #include "RAS_Rect.h"
 #include "RAS_TexVert.h"
 #include "RAS_MeshObject.h"
+#include "RAS_MeshUser.h"
 #include "RAS_Polygon.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_ILightObject.h"
@@ -696,7 +697,7 @@ bool RAS_OpenGLRasterizer::UseDisplayLists() const
 void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat)
 {
 	bool obcolor = polymat->UsesObjectColor();
-	MT_Vector4& rgba = ms->m_RGBAcolor;
+	const MT_Vector4& rgba = ms->m_meshUser->GetColor();
 
 	const STR_String& mytext = ((CValue *)m_clientobject)->GetPropertyText("Text");
 
@@ -837,7 +838,7 @@ static DMDrawOption CheckTexDM(MTexPoly *mtexpoly, const bool has_mcol, int matn
 		if (current_wireframe)
 			return DM_DRAW_OPTION_NO_MCOL;
 		if (current_polymat->UsesObjectColor()) {
-			MT_Vector4& rgba = current_ms->m_RGBAcolor;
+			const MT_Vector4& rgba = current_ms->m_meshUser->GetColor();
 			glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
 			// don't use mcol
 			return DM_DRAW_OPTION_NO_MCOL;
@@ -1722,12 +1723,7 @@ void RAS_OpenGLRasterizer::MotionBlur()
 
 void RAS_OpenGLRasterizer::SetClientObject(void *obj)
 {
-	if (m_clientobject != obj) {
-		bool ccw = (obj == NULL || !((KX_GameObject *)obj)->IsNegativeScaling());
-		SetFrontFace(ccw);
-
-		m_clientobject = obj;
-	}
+	m_clientobject = obj;
 }
 
 void RAS_OpenGLRasterizer::SetAuxilaryClientInfo(void *inf)
