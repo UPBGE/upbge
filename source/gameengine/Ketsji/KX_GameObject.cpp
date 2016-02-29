@@ -734,7 +734,7 @@ void KX_GameObject::UpdateBlenderObjectMatrix(Object* blendobj)
 void KX_GameObject::AddMeshUser()
 {
 	for (size_t i = 0; i < m_meshes.size(); ++i) {
-		m_meshUser = m_meshes[i]->AddMeshUser(this, GetDeformer());
+		m_meshUser = m_meshes[i]->AddMeshUser(m_pClient_info, GetDeformer());
 	}
 	// set the part of the mesh slot that never change
 	float *fl = GetOpenGLMatrixPtr()->getPointer();

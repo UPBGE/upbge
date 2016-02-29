@@ -699,7 +699,7 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot *ms, class RAS_IP
 	bool obcolor = polymat->UsesObjectColor();
 	const MT_Vector4& rgba = ms->m_meshUser->GetColor();
 
-	const STR_String& mytext = ((CValue *)m_clientobject)->GetPropertyText("Text");
+	const STR_String& mytext = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject)->GetPropertyText("Text");
 
 	// handle object color
 	if (obcolor) {
@@ -1315,7 +1315,7 @@ void RAS_OpenGLRasterizer::ProcessLighting(bool uselights, const MT_Transform& v
 	/* find the layer */
 	if (uselights) {
 		if (m_clientobject)
-			layer = static_cast<KX_GameObject *>(m_clientobject)->GetLayer();
+			layer = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject)->GetLayer();
 	}
 
 	/* avoid state switching */
@@ -1466,7 +1466,7 @@ void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, floa
 		MT_Vector3 dir = (campos - objpos).safe_normalized();
 		MT_Vector3 up(0.0f, 0.0f, 1.0f);
 
-		KX_GameObject *gameobj = (KX_GameObject *)m_clientobject;
+		KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject);
 		// get scaling of halo object
 		MT_Vector3 scale = gameobj->NodeGetWorldScaling();
 
@@ -1499,7 +1499,7 @@ void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, floa
 	else if (objectdrawmode & RAS_IPolyMaterial::SHADOW) {
 		// shadow must be cast to the ground, physics system needed here!
 		MT_Point3 frompoint(&origmat[12]);
-		KX_GameObject *gameobj = (KX_GameObject *)m_clientobject;
+		KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject);
 		MT_Vector3 direction = MT_Vector3(0.0f, 0.0f, -1.0f);
 
 		direction.normalize();
