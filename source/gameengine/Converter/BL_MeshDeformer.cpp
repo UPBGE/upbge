@@ -59,10 +59,10 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *)
 		// For each material
 		for (list<RAS_MeshMaterial>::iterator mit = m_pMeshObject->GetFirstMaterial();
 		     mit != m_pMeshObject->GetLastMaterial(); ++mit) {
-			if (!mit->m_slots[(void *)m_gameobj])
+			if (!mit->m_slots[(void *)m_gameobj->getClientInfo()])
 				continue;
 
-			RAS_MeshSlot *slot = *mit->m_slots[(void *)m_gameobj];
+			RAS_MeshSlot *slot = *mit->m_slots[(void *)m_gameobj->getClientInfo()];
 			RAS_DisplayArray *array = slot->GetDisplayArray();
 
 			//	For each vertex
@@ -129,10 +129,10 @@ void BL_MeshDeformer::RecalcNormals()
 
 	/* add face normals to vertices. */
 	for (mit = m_pMeshObject->GetFirstMaterial(); mit != m_pMeshObject->GetLastMaterial(); ++mit) {
-		if (!mit->m_slots[(void *)m_gameobj])
+		if (!mit->m_slots[(void *)m_gameobj->getClientInfo()])
 			continue;
 
-		RAS_MeshSlot *slot = *mit->m_slots[(void *)m_gameobj];
+		RAS_MeshSlot *slot = *mit->m_slots[(void *)m_gameobj->getClientInfo()];
 		RAS_DisplayArray *array = slot->GetDisplayArray();
 
 		for (i = 0; i < array->m_index.size(); i += 3) {
@@ -180,10 +180,10 @@ void BL_MeshDeformer::RecalcNormals()
 
 	/* assign smooth vertex normals */
 	for (mit = m_pMeshObject->GetFirstMaterial(); mit != m_pMeshObject->GetLastMaterial(); ++mit) {
-		if (!mit->m_slots[(void *)m_gameobj])
+		if (!mit->m_slots[(void *)m_gameobj->getClientInfo()])
 			continue;
 
-		RAS_MeshSlot *slot = *mit->m_slots[(void *)m_gameobj];
+		RAS_MeshSlot *slot = *mit->m_slots[(void *)m_gameobj->getClientInfo()];
 		RAS_DisplayArray *array = slot->GetDisplayArray();
 
 		for (i = 0; i < array->m_vertex.size(); i++) {

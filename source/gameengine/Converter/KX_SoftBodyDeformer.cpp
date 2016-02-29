@@ -87,10 +87,10 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 	// share the same mesh (=the same cache). As the rendering is done per polymaterial
 	// cycling through the objects, the entire mesh cache cannot be updated in one shot.
 	mmat = m_pMeshObject->GetMeshMaterial(polymat);
-	if (!mmat->m_slots[(void *)m_gameobj])
+	if (!mmat->m_slots[(void *)m_gameobj->getClientInfo()])
 		return true;
 
-	slot = *mmat->m_slots[(void *)m_gameobj];
+	slot = *mmat->m_slots[(void *)m_gameobj->getClientInfo()];
 	RAS_DisplayArray *array = slot->GetDisplayArray();
 	RAS_DisplayArray *origarray = mmat->m_baseslot->GetDisplayArray();
 
