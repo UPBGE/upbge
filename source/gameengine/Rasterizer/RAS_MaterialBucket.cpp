@@ -222,23 +222,6 @@ void RAS_MaterialBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IR
 	}
 }
 
-void RAS_MaterialBucket::Optimize(MT_Scalar distance)
-{
-	/* TODO: still have to check before this works correct:
-	 * - lightlayer, frontface, text, billboard
-	 * - make it work with physics */
-
-#if 0
-	RAS_MeshSlotList::iterator it;
-	RAS_MeshSlotList::iterator jt;
-
-	// greed joining on all following buckets
-	for (it = m_meshSlots.begin(); it != m_meshSlots.end(); it++)
-		for (jt = it, jt++; jt != m_meshSlots.end(); jt++)
-			jt->Join(&*it, distance);
-#endif
-}
-
 void RAS_MaterialBucket::SetMeshUnmodified()
 {
 	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();

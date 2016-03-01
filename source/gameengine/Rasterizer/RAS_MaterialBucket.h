@@ -69,7 +69,6 @@ public:
 	RAS_MeshSlot *AddMesh(RAS_MeshObject *mesh);
 	RAS_MeshSlot *CopyMesh(RAS_MeshSlot *ms);
 	void RemoveMesh(RAS_MeshSlot *ms);
-	void Optimize(MT_Scalar distance);
 	/// Set the mesh object as unmodified flag.
 	void SetMeshUnmodified();
 	unsigned int GetNumActiveMeshSlots();

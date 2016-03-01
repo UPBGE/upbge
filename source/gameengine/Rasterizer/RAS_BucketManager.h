@@ -85,7 +85,6 @@ public:
 	void Renderbuckets(const MT_Transform & cameratrans, RAS_IRasterizer *rasty);
 
 	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
-	void OptimizeBuckets(MT_Scalar distance);
 
 	void ReleaseDisplayLists(RAS_IPolyMaterial *material = NULL);
 	void ReleaseMaterials(RAS_IPolyMaterial *material = NULL);

@@ -2256,10 +2256,5 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			kxscene->DupliGroupRecurse(gameobj, 0);
 		}
 	}
-
-	KX_Camera *activecam = kxscene->GetActiveCamera();
-	MT_Scalar distance = (activecam)? activecam->GetCameraFar() - activecam->GetCameraNear(): 100.0f;
-	RAS_BucketManager *bucketmanager = kxscene->GetBucketManager();
-	bucketmanager->OptimizeBuckets(distance);
 }
 

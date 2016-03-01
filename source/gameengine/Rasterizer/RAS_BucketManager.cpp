@@ -334,18 +334,6 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 	return bucket;
 }
 
-void RAS_BucketManager::OptimizeBuckets(MT_Scalar distance)
-{
-	distance = 10.0f;
-
-	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
-		BucketList& buckets = m_buckets[i];
-		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-			(*it)->Optimize(distance);
-		}
-	}
-}
-
 void RAS_BucketManager::ReleaseDisplayLists(RAS_IPolyMaterial *mat)
 {
 	BucketList& buckets = m_buckets[ALL_BUCKET];
