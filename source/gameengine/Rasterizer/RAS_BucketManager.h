@@ -42,7 +42,7 @@ class SCA_IScene;
 class RAS_BucketManager
 {
 public:
-	typedef std::vector<class RAS_MaterialBucket*> BucketList;
+	typedef std::vector<RAS_MaterialBucket *> BucketList;
 	struct sortedmeshslot
 	{
 		/// depth
@@ -82,38 +82,31 @@ public:
 	RAS_BucketManager();
 	virtual ~RAS_BucketManager();
 
-	void Renderbuckets(const MT_Transform & cameratrans, RAS_IRasterizer* rasty);
+	void Renderbuckets(const MT_Transform & cameratrans, RAS_IRasterizer *rasty);
 
-	RAS_MaterialBucket* FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
+	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
 	void OptimizeBuckets(MT_Scalar distance);
-	
+
 	void ReleaseDisplayLists(RAS_IPolyMaterial *material = NULL);
 	void ReleaseMaterials(RAS_IPolyMaterial *material = NULL);
 
-	void RemoveMaterial(RAS_IPolyMaterial *mat); // freeing scenes only
+	// freeing scenes only
+	void RemoveMaterial(RAS_IPolyMaterial *mat);
 
-	/* for merging */
+	// for merging
 	void MergeBucketManager(RAS_BucketManager *other, SCA_IScene *scene);
 	BucketList& GetBuckets()
 	{
 		return m_buckets[ALL_BUCKET];
 	}
 
-	/*void PrintStats(int verbose_level) {
-		printf("\nMappings...\n");
-		printf("\t m_SolidBuckets: %d\n", m_SolidBuckets.size());
-		printf("\t\t m_SolidBuckets: %d\n", m_SolidBuckets.size());
-		printf("\t m_AlphaBuckets: %d\n", m_AlphaBuckets.size());
-	}*/
-
-
 private:
 	unsigned int GetNumActiveMeshSlots(BucketType bucketType);
 	void OrderBuckets(const MT_Transform& cameratrans, RAS_BucketManager::BucketType bucketType,
-					  std::vector<sortedmeshslot>& slots, bool alpha, RAS_IRasterizer *rasty);
+	                  std::vector<sortedmeshslot>& slots, bool alpha, RAS_IRasterizer *rasty);
 
 	void RenderBasicBuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, BucketType bucketType);
-	void RenderSortedBuckets(const MT_Transform& cameratrans, RAS_IRasterizer* rasty, BucketType bucketType);
+	void RenderSortedBuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, BucketType bucketType);
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
@@ -121,4 +114,4 @@ private:
 #endif
 };
 
-#endif  /* __RAS_BUCKETMANAGER_H__ */
+#endif // __RAS_BUCKETMANAGER_H__
