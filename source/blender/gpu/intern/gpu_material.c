@@ -998,7 +998,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	}
 	else
 		GPU_link(mat, "set_value", GPU_uniform(&one), &shadfac);
-	if (ma->sss_flag)
+	if (ma->sss_flag && lamp->type == LA_LOCAL)
 	{
 		GPU_link(mat, "set_sss", GPU_dynamic_uniform(&lamp->dynenergy, GPU_DYNAMIC_LAMP_DYNENERGY, lamp->ob),
 								 GPU_dynamic_uniform(lamp->dyncol, GPU_DYNAMIC_LAMP_DYNCOL, lamp->ob),
@@ -1009,7 +1009,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	}		
 			
 	if (GPU_link_changed(shi->refl) || ma->ref != 0.0f) {
-		if (!(lamp->mode & LA_NO_DIFF) && !(ma->sss_flag)) {
+		if (!(lamp->mode & LA_NO_DIFF)) {
 			GPUNodeLink *rgb;
 			GPU_link(mat, "shade_mul_value", i, lcol, &rgb);
 			GPU_link(mat, "mtex_value_invert", shadfac, &shadfac);
