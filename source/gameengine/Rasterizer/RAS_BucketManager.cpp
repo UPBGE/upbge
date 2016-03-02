@@ -50,7 +50,7 @@ void RAS_BucketManager::sortedmeshslot::set(RAS_MeshSlot *ms, RAS_MaterialBucket
 {
 	// would be good to use the actual bounding box center instead
 	float *matrix = ms->m_meshUser->GetMatrix();
-	const MT_Point3 pos(matrix[12], matrix[13], matrix[14]);
+	const MT_Vector3 pos(matrix[12], matrix[13], matrix[14]);
 
 	m_z = MT_dot(pnorm, pos);
 	m_ms = ms;

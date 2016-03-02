@@ -35,7 +35,7 @@
 #include "RAS_Deformer.h"
 #include "DNA_object_types.h"
 #include "DNA_key_types.h"
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 #include <stdlib.h>
 
 #ifdef _MSC_VER

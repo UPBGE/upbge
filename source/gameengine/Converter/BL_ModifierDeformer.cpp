@@ -54,7 +54,7 @@
 #include "BKE_action.h"
 #include "BKE_key.h"
 #include "BKE_ipo.h"
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 
 extern "C" {
 	#include "BKE_customdata.h"
@@ -202,8 +202,8 @@ bool BL_ModifierDeformer::Update(void)
 				float min[3], max[3];
 				INIT_MINMAX(min, max);
 				m_dm->getMinMax(m_dm, min, max);
-				m_aabbMin = MT_Point3(min);
-				m_aabbMax = MT_Point3(max);
+				m_aabbMin = MT_Vector3(min);
+				m_aabbMax = MT_Vector3(max);
 			}
 		}
 		m_lastModifierUpdate = m_gameobj->GetLastFrame();

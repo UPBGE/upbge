@@ -7,7 +7,7 @@
 #define __BL_MATERIAL_H__
 
 #include "STR_String.h"
-#include "MT_Point2.h"
+#include "MT_Vector2.h"
 #include "DNA_meshdata_types.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC

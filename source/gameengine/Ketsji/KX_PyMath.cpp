@@ -40,7 +40,7 @@
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
 #include "MT_Matrix4x4.h"
-#include "MT_Point2.h"
+#include "MT_Vector2.h"
 
 #include "EXP_ListValue.h"
 
@@ -152,7 +152,7 @@ PyObject *PyObjectFrom(const MT_Quaternion &qrot)
 }
 #endif
 
-PyObject *PyObjectFrom(const MT_Tuple4 &vec)
+PyObject *PyObjectFrom(const MT_Vector4 &vec)
 {
 #ifdef USE_MATHUTILS
 	float fvec[4];
@@ -168,7 +168,7 @@ PyObject *PyObjectFrom(const MT_Tuple4 &vec)
 #endif
 }
 
-PyObject *PyObjectFrom(const MT_Tuple3 &vec)
+PyObject *PyObjectFrom(const MT_Vector3 &vec)
 {
 #ifdef USE_MATHUTILS
 	float fvec[3];
@@ -183,7 +183,7 @@ PyObject *PyObjectFrom(const MT_Tuple3 &vec)
 #endif
 }
 
-PyObject *PyObjectFrom(const MT_Tuple2 &vec)
+PyObject *PyObjectFrom(const MT_Vector2 &vec)
 {
 #ifdef USE_MATHUTILS
 	float fvec[2];

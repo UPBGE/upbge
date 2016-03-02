@@ -36,7 +36,7 @@
 
 #include "KX_RayCast.h"
 
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 #include "MT_Vector3.h"
 
 #include "PHY_IPhysicsEnvironment.h"
@@ -58,7 +58,7 @@ void KX_RayCast::reportHit(PHY_RayCastResult* result)
 	m_hitPolygon = result->m_polygon;
 }
 
-bool KX_RayCast::RayTest(PHY_IPhysicsEnvironment* physics_environment, const MT_Point3& _frompoint, const MT_Point3& topoint, KX_RayCast& callback)
+bool KX_RayCast::RayTest(PHY_IPhysicsEnvironment* physics_environment, const MT_Vector3& _frompoint, const MT_Vector3& topoint, KX_RayCast& callback)
 {
 	if (physics_environment==NULL) return false; /* prevents crashing in some cases */
 	
@@ -69,9 +69,9 @@ bool KX_RayCast::RayTest(PHY_IPhysicsEnvironment* physics_environment, const MT_
 	//
 	// returns true if an object was found, false if not.
 	
-	MT_Point3 frompoint(_frompoint);
+	MT_Vector3 frompoint(_frompoint);
 	const MT_Vector3 todir( (topoint - frompoint).safe_normalized() );
-	MT_Point3 prevpoint(_frompoint+todir*(-1.f));
+	MT_Vector3 prevpoint(_frompoint+todir*(-1.f));
 	
 	PHY_IPhysicsController* hit_controller;
 

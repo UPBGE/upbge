@@ -36,7 +36,6 @@ set(SRC
 	intern/MT_CmMatrix4x4.cpp
 	intern/MT_Matrix3x3.cpp
 	intern/MT_Matrix4x4.cpp
-	intern/MT_Point3.cpp
 	intern/MT_Quaternion.cpp
 	intern/MT_Transform.cpp
 	intern/MT_Vector2.cpp
@@ -49,15 +48,10 @@ set(SRC
 	include/MT_Matrix4x4.h
 	include/MT_MinMax.h
 	include/MT_Optimize.h
-	include/MT_Point2.h
-	include/MT_Point3.h
 	include/MT_Quaternion.h
 	include/MT_Scalar.h
 	include/MT_Stream.h
 	include/MT_Transform.h
-	include/MT_Tuple2.h
-	include/MT_Tuple3.h
-	include/MT_Tuple4.h
 	include/MT_Vector2.h
 	include/MT_Vector3.h
 	include/MT_Vector4.h
@@ -66,8 +60,6 @@ set(SRC
 
 	include/MT_Matrix3x3.inl
 	include/MT_Matrix4x4.inl
-	include/MT_Point2.inl
-	include/MT_Point3.inl
 	include/MT_Quaternion.inl
 	include/MT_Vector2.inl
 	include/MT_Vector3.inl

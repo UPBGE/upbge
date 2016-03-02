@@ -151,13 +151,13 @@ void ImageRender::Render()
 		// mirror mode, compute camera frustum, position and orientation
 		// convert mirror position and normal in world space
 		const MT_Matrix3x3 & mirrorObjWorldOri = m_mirror->GetSGNode()->GetWorldOrientation();
-		const MT_Point3 & mirrorObjWorldPos = m_mirror->GetSGNode()->GetWorldPosition();
+		const MT_Vector3 & mirrorObjWorldPos = m_mirror->GetSGNode()->GetWorldPosition();
 		const MT_Vector3 & mirrorObjWorldScale = m_mirror->GetSGNode()->GetWorldScaling();
-		MT_Point3 mirrorWorldPos =
+		MT_Vector3 mirrorWorldPos =
 		        mirrorObjWorldPos + mirrorObjWorldScale * (mirrorObjWorldOri * m_mirrorPos);
 		MT_Vector3 mirrorWorldZ = mirrorObjWorldOri * m_mirrorZ;
 		// get observer world position
-		const MT_Point3 & observerWorldPos = m_observer->GetSGNode()->GetWorldPosition();
+		const MT_Vector3 & observerWorldPos = m_observer->GetSGNode()->GetWorldPosition();
 		// get plane D term = mirrorPos . normal
 		MT_Scalar mirrorPlaneDTerm = mirrorWorldPos.dot(mirrorWorldZ);
 		// compute distance of observer to mirror = D - observerPos . normal
@@ -166,7 +166,7 @@ void ImageRender::Render()
 		if (observerDistance < 0.01)
 			return;
 		// set camera world position = observerPos + normal * 2 * distance
-		MT_Point3 cameraWorldPos = observerWorldPos + (MT_Scalar(2.0)*observerDistance)*mirrorWorldZ;
+		MT_Vector3 cameraWorldPos = observerWorldPos + (MT_Scalar(2.0)*observerDistance)*mirrorWorldZ;
 		m_camera->GetSGNode()->SetLocalPosition(cameraWorldPos);
 		// set camera orientation: z=normal, y=mirror_up in world space, x= y x z
 		MT_Vector3 mirrorWorldY = mirrorObjWorldOri * m_mirrorY;

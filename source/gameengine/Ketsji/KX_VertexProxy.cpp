@@ -177,7 +177,7 @@ PyObject *KX_VertexProxy::pyattr_get_XYZ(void *self_v, const KX_PYATTRIBUTE_DEF 
 PyObject *KX_VertexProxy::pyattr_get_UV(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-	return PyObjectFrom(MT_Point2(self->m_vertex->getUV(0)));
+	return PyObjectFrom(MT_Vector2(self->m_vertex->getUV(0)));
 }
 
 PyObject *KX_VertexProxy::pyattr_get_uvs(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -186,7 +186,7 @@ PyObject *KX_VertexProxy::pyattr_get_uvs(void *self_v, const KX_PYATTRIBUTE_DEF 
 
 	PyObject *uvlist = PyList_New(RAS_TexVert::MAX_UNIT);
 	for (int i = 0; i < RAS_TexVert::MAX_UNIT; ++i) {
-		PyList_SET_ITEM(uvlist, i, PyObjectFrom(MT_Point2(self->m_vertex->getUV(i))));
+		PyList_SET_ITEM(uvlist, i, PyObjectFrom(MT_Vector2(self->m_vertex->getUV(i))));
 	}
 
 	return uvlist;
@@ -212,7 +212,7 @@ int KX_VertexProxy::pyattr_set_x(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		MT_Point3 pos(self->m_vertex->getXYZ());
+		MT_Vector3 pos(self->m_vertex->getXYZ());
 		pos.x() = val;
 		self->m_vertex->SetXYZ(pos);
 		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::POSITION_MODIFIED);
@@ -226,7 +226,7 @@ int KX_VertexProxy::pyattr_set_y(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		MT_Point3 pos(self->m_vertex->getXYZ());
+		MT_Vector3 pos(self->m_vertex->getXYZ());
 		pos.y() = val;
 		self->m_vertex->SetXYZ(pos);
 		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::POSITION_MODIFIED);
@@ -240,7 +240,7 @@ int KX_VertexProxy::pyattr_set_z(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		MT_Point3 pos(self->m_vertex->getXYZ());
+		MT_Vector3 pos(self->m_vertex->getXYZ());
 		pos.z() = val;
 		self->m_vertex->SetXYZ(pos);
 		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::POSITION_MODIFIED);
@@ -254,7 +254,7 @@ int KX_VertexProxy::pyattr_set_u(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		MT_Point2 uv = self->m_vertex->getUV(0);
+		MT_Vector2 uv = self->m_vertex->getUV(0);
 		uv[0] = val;
 		self->m_vertex->SetUV(0, uv);
 		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
@@ -268,7 +268,7 @@ int KX_VertexProxy::pyattr_set_v(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		MT_Point2 uv = self->m_vertex->getUV(0);
+		MT_Vector2 uv = self->m_vertex->getUV(0);
 		uv[1] = val;
 		self->m_vertex->SetUV(0, uv);
 		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
@@ -282,7 +282,7 @@ int KX_VertexProxy::pyattr_set_u2(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		MT_Point2 uv = self->m_vertex->getUV(1);
+		MT_Vector2 uv = self->m_vertex->getUV(1);
 		uv[0] = val;
 		self->m_vertex->SetUV(1, uv);
 		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
@@ -296,7 +296,7 @@ int KX_VertexProxy::pyattr_set_v2(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		MT_Point2 uv = self->m_vertex->getUV(1);
+		MT_Vector2 uv = self->m_vertex->getUV(1);
 		uv[1] = val;
 		self->m_vertex->SetUV(1, uv);
 		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
@@ -373,7 +373,7 @@ int KX_VertexProxy::pyattr_set_XYZ(void *self_v, const struct KX_PYATTRIBUTE_DEF
 {
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PySequence_Check(value)) {
-		MT_Point3 vec;
+		MT_Vector3 vec;
 		if (PyVecTo(value, vec)) {
 			self->m_vertex->SetXYZ(vec);
 			self->m_mesh->AppendModifiedFlag(RAS_MeshObject::POSITION_MODIFIED);
@@ -387,7 +387,7 @@ int KX_VertexProxy::pyattr_set_UV(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 {
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PySequence_Check(value)) {
-		MT_Point2 vec;
+		MT_Vector2 vec;
 		if (PyVecTo(value, vec)) {
 			self->m_vertex->SetUV(0, vec);
 			self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
@@ -401,7 +401,7 @@ int KX_VertexProxy::pyattr_set_uvs(void *self_v, const struct KX_PYATTRIBUTE_DEF
 {
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PySequence_Check(value)) {
-		MT_Point2 vec;
+		MT_Vector2 vec;
 		for (int i = 0; i < PySequence_Size(value) && i < RAS_TexVert::MAX_UNIT; ++i) {
 			if (PyVecTo(PySequence_GetItem(value, i), vec)) {
 				self->m_vertex->SetUV(i, vec);
@@ -500,12 +500,12 @@ CValue *KX_VertexProxy::GetReplica()
 // stuff for python integration
 PyObject *KX_VertexProxy::PyGetXYZ()
 {
-	return PyObjectFrom(MT_Point3(m_vertex->getXYZ()));
+	return PyObjectFrom(MT_Vector3(m_vertex->getXYZ()));
 }
 
 PyObject *KX_VertexProxy::PySetXYZ(PyObject *value)
 {
-	MT_Point3 vec;
+	MT_Vector3 vec;
 	if (!PyVecTo(value, vec))
 		return NULL;
 
@@ -564,7 +564,7 @@ PyObject *KX_VertexProxy::PyGetUV1()
 
 PyObject *KX_VertexProxy::PySetUV1(PyObject *value)
 {
-	MT_Point2 vec;
+	MT_Vector2 vec;
 	if (!PyVecTo(value, vec))
 		return NULL;
 
@@ -580,7 +580,7 @@ PyObject *KX_VertexProxy::PyGetUV2()
 
 PyObject *KX_VertexProxy::PySetUV2(PyObject *args)
 {
-	MT_Point2 vec;
+	MT_Vector2 vec;
 	if (!PyVecTo(args, vec))
 		return NULL;
 

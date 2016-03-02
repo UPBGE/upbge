@@ -431,7 +431,7 @@ typedef struct MTF_localLayer {
 	const char *name;
 } MTF_localLayer;
 
-static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Point2 uvs[4][MAXTEX])
+static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Vector2 uvs[4][MAXTEX])
 {
 	if (tface) {
 		uvs[0][0].setValue(tface->uv[0]);
@@ -442,7 +442,7 @@ static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, 
 			uvs[3][0].setValue(tface->uv[3]);
 	}
 	else {
-		uvs[0][0] = uvs[1][0] = uvs[2][0] = uvs[3][0] = MT_Point2(0.0f, 0.0f);
+		uvs[0][0] = uvs[1][0] = uvs[2][0] = uvs[3][0] = MT_Vector2(0.0f, 0.0f);
 	}
 
 	for (int lay = 0; lay < MAX_MTFACE; ++lay) {
@@ -740,7 +740,7 @@ static bool ConvertMaterial(
 	return true;
 }
 
-static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace *tface, MCol *mcol, MTF_localLayer *layers, int lightlayer, unsigned int *rgb, MT_Point2 uvs[4][RAS_TexVert::MAX_UNIT], const char *tfaceName, KX_Scene* scene, KX_BlenderSceneConverter *converter)
+static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace *tface, MCol *mcol, MTF_localLayer *layers, int lightlayer, unsigned int *rgb, MT_Vector2 uvs[4][RAS_TexVert::MAX_UNIT], const char *tfaceName, KX_Scene* scene, KX_BlenderSceneConverter *converter)
 {
 	RAS_IPolyMaterial* polymat = converter->FindCachedPolyMaterial(scene, ma);
 	BL_Material* bl_mat = converter->FindCachedBlenderMaterial(scene, ma);
@@ -864,10 +864,10 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	meshobj->m_sharedvertex_map.resize(totvert);
 
 	Material* ma = 0;
-	MT_Point2 uvs[4][RAS_TexVert::MAX_UNIT];
+	MT_Vector2 uvs[4][RAS_TexVert::MAX_UNIT];
 	unsigned int rgb[4] = {0};
 
-	MT_Point3 pt[4];
+	MT_Vector3 pt[4];
 	MT_Vector3 no[4];
 	MT_Vector4 tan[4];
 
@@ -883,7 +883,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 	/* we need to manually initialize the uvs (MoTo doesn't do that) [#34550] */
 	for (unsigned int i = 0; i < RAS_TexVert::MAX_UNIT; i++) {
-		uvs[0][i] = uvs[1][i] = uvs[2][i] = uvs[3][i] = MT_Point2(0.f, 0.f);
+		uvs[0][i] = uvs[1][i] = uvs[2][i] = uvs[3][i] = MT_Vector2(0.f, 0.f);
 	}
 
 	if (totface == 0) {
@@ -1553,7 +1553,7 @@ static void bl_ConvertBlenderObject_Single(
         bool isInActiveLayer
         )
 {
-	MT_Point3 pos(
+	MT_Vector3 pos(
 		blenderobject->loc[0]+blenderobject->dloc[0],
 		blenderobject->loc[1]+blenderobject->dloc[1],
 		blenderobject->loc[2]+blenderobject->dloc[2]
@@ -2092,8 +2092,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			gameobj->SetAutoUpdateBounds(false);
 
 			// AABB Box : min/max.
-			MT_Point3 aabbMin;
-			MT_Point3 aabbMax;
+			MT_Vector3 aabbMin;
+			MT_Vector3 aabbMax;
 			// Get the AABB.
 			meshobj->GetAabb(aabbMin, aabbMax);
 			gameobj->SetBoundsAabb(aabbMin, aabbMax);

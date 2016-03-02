@@ -635,7 +635,7 @@ void KX_BlenderMaterial::SetObjectMatrixData(int i, RAS_IRasterizer *ras)
 	glLoadIdentity();
 	glScalef(m_material->mapping[i].scale[0], m_material->mapping[i].scale[1], m_material->mapping[i].scale[2]);
 
-	MT_Point3 pos = obj->NodeGetWorldPosition();
+	MT_Vector3 pos = obj->NodeGetWorldPosition();
 	MT_Vector4 matmul = MT_Vector4(pos[0], pos[1], pos[2], 1.0f);
 	MT_Vector4 t = mvmat * matmul;
 

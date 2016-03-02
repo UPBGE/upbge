@@ -97,7 +97,7 @@ bool KX_MovementSensor::IsPositiveTrigger()
 
 bool KX_MovementSensor::Evaluate()
 {
-	MT_Point3 currentposition;
+	MT_Vector3 currentposition;
 
 	bool result = false;
 	bool reset = m_reset && m_level;

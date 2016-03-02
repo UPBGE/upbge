@@ -151,7 +151,7 @@ bool KX_IpoSGController::Update(double currentTime)
 			else {
 				// Local ipo should be defined with the object position at (0,0,0)
 				// Local transform is applied to the object based on initial position
-				MT_Point3 newPosition(0.0f, 0.0f, 0.0f);
+				MT_Vector3 newPosition(0.0f, 0.0f, 0.0f);
 
 				if (!m_ipo_add)
 					newPosition = ob->GetLocalPosition();

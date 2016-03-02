@@ -190,10 +190,10 @@ bool KX_CameraActuator::Update(double curtime, bool frame)
 		return false;
 	
 	KX_GameObject *obj = (KX_GameObject*) GetParent();
-	MT_Point3 from = obj->NodeGetWorldPosition();
+	MT_Vector3 from = obj->NodeGetWorldPosition();
 	MT_Matrix3x3 frommat = obj->NodeGetWorldOrientation();
 	/* These casts are _very_ dangerous!!! */
-	MT_Point3 lookat = ((KX_GameObject*)m_ob)->NodeGetWorldPosition();
+	MT_Vector3 lookat = ((KX_GameObject*)m_ob)->NodeGetWorldPosition();
 	MT_Matrix3x3 actormat = ((KX_GameObject*)m_ob)->NodeGetWorldOrientation();
 
 	float fp1[3]={0}, fp2[3]={0}, rc[3];

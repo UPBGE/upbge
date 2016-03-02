@@ -252,7 +252,7 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 			if (cam)
 			{
 				KX_GameObject* obj = (KX_GameObject*)this->GetParent();
-				MT_Point3 p;
+				MT_Vector3 p;
 				MT_Matrix3x3 Mo;
 				float data[4];
 

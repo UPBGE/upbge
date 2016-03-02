@@ -42,7 +42,7 @@ SG_BBox::SG_BBox() :
 {
 }
 
-SG_BBox::SG_BBox(const MT_Point3 &min, const MT_Point3 &max) :
+SG_BBox::SG_BBox(const MT_Vector3 &min, const MT_Vector3 &max) :
 	m_min(min),
 	m_max(max)
 {
@@ -52,12 +52,12 @@ SG_BBox::SG_BBox(const SG_BBox &other, const MT_Transform &world) :
 	m_min(world(other.m_min)),
 	m_max(world(other.m_max))
 {
-	*this += world(MT_Point3(m_min[0], m_min[1], m_max[2]));
-	*this += world(MT_Point3(m_min[0], m_max[1], m_min[2]));
-	*this += world(MT_Point3(m_min[0], m_max[1], m_max[2]));
-	*this += world(MT_Point3(m_max[0], m_min[1], m_min[2]));
-	*this += world(MT_Point3(m_max[0], m_min[1], m_max[2]));
-	*this += world(MT_Point3(m_max[0], m_max[1], m_min[2]));
+	*this += world(MT_Vector3(m_min[0], m_min[1], m_max[2]));
+	*this += world(MT_Vector3(m_min[0], m_max[1], m_min[2]));
+	*this += world(MT_Vector3(m_min[0], m_max[1], m_max[2]));
+	*this += world(MT_Vector3(m_max[0], m_min[1], m_min[2]));
+	*this += world(MT_Vector3(m_max[0], m_min[1], m_max[2]));
+	*this += world(MT_Vector3(m_max[0], m_max[1], m_min[2]));
 }
 
 SG_BBox::SG_BBox(const SG_BBox &other) :
@@ -70,7 +70,7 @@ SG_BBox::~ SG_BBox()
 {
 }
 
-SG_BBox& SG_BBox::operator +=(const MT_Point3 &point)
+SG_BBox& SG_BBox::operator +=(const MT_Vector3 &point)
 {
 	if (point[0] < m_min[0])
 		m_min[0] = point[0];
@@ -117,7 +117,7 @@ void SG_BBox::translate(const MT_Vector3& dx)
 	m_max += dx;
 }
 
-void SG_BBox::scale(const MT_Vector3& size, const MT_Point3& point)
+void SG_BBox::scale(const MT_Vector3& size, const MT_Vector3& point)
 {
 	MT_Vector3 center = (m_max - m_min)/2. + point;
 	m_max = (m_max - center)*size;
@@ -128,16 +128,16 @@ void SG_BBox::scale(const MT_Vector3& size, const MT_Point3& point)
 SG_BBox SG_BBox::transform(const MT_Transform &world) const
 {
 	SG_BBox bbox(world(m_min), world(m_max));
-	bbox += world(MT_Point3(m_min[0], m_min[1], m_max[2]));
-	bbox += world(MT_Point3(m_min[0], m_max[1], m_min[2]));
-	bbox += world(MT_Point3(m_min[0], m_max[1], m_max[2]));
-	bbox += world(MT_Point3(m_max[0], m_min[1], m_min[2]));
-	bbox += world(MT_Point3(m_max[0], m_min[1], m_max[2]));
-	bbox += world(MT_Point3(m_max[0], m_max[1], m_min[2]));
+	bbox += world(MT_Vector3(m_min[0], m_min[1], m_max[2]));
+	bbox += world(MT_Vector3(m_min[0], m_max[1], m_min[2]));
+	bbox += world(MT_Vector3(m_min[0], m_max[1], m_max[2]));
+	bbox += world(MT_Vector3(m_max[0], m_min[1], m_min[2]));
+	bbox += world(MT_Vector3(m_max[0], m_min[1], m_max[2]));
+	bbox += world(MT_Vector3(m_max[0], m_max[1], m_min[2]));
 	return bbox;
 }
 
-bool SG_BBox::inside(const MT_Point3 &point) const
+bool SG_BBox::inside(const MT_Vector3 &point) const
 {
 	return point[0] >= m_min[0] && point[0] <= m_max[0] &&
 	        point[1] >= m_min[1] && point[1] <= m_max[1] &&
@@ -166,34 +166,34 @@ SG_BBox::intersect SG_BBox::test(const SG_BBox& other) const
 	return point1?(point2?INSIDE:INTERSECT):(point2?INTERSECT:OUTSIDE);
 }
 
-void SG_BBox::get(MT_Point3 *box, const MT_Transform &world) const
+void SG_BBox::get(MT_Vector3 *box, const MT_Transform &world) const
 {
 	*box++ = world(m_min);
-	*box++ = world(MT_Point3(m_min[0], m_min[1], m_max[2]));
-	*box++ = world(MT_Point3(m_min[0], m_max[1], m_min[2]));
-	*box++ = world(MT_Point3(m_min[0], m_max[1], m_max[2]));
-	*box++ = world(MT_Point3(m_max[0], m_min[1], m_min[2]));
-	*box++ = world(MT_Point3(m_max[0], m_min[1], m_max[2]));
-	*box++ = world(MT_Point3(m_max[0], m_max[1], m_min[2]));
+	*box++ = world(MT_Vector3(m_min[0], m_min[1], m_max[2]));
+	*box++ = world(MT_Vector3(m_min[0], m_max[1], m_min[2]));
+	*box++ = world(MT_Vector3(m_min[0], m_max[1], m_max[2]));
+	*box++ = world(MT_Vector3(m_max[0], m_min[1], m_min[2]));
+	*box++ = world(MT_Vector3(m_max[0], m_min[1], m_max[2]));
+	*box++ = world(MT_Vector3(m_max[0], m_max[1], m_min[2]));
 	*box++ = world(m_max);
 }
 
-void SG_BBox::getaa(MT_Point3 *box, const MT_Transform &world) const
+void SG_BBox::getaa(MT_Vector3 *box, const MT_Transform &world) const
 {
-	const MT_Point3 min(world(m_min)), max(world(m_max));
+	const MT_Vector3 min(world(m_min)), max(world(m_max));
 	*box++ = min;
-	*box++ = MT_Point3(min[0], min[1], max[2]);
-	*box++ = MT_Point3(min[0], max[1], min[2]);
-	*box++ = MT_Point3(min[0], max[1], max[2]);
-	*box++ = MT_Point3(max[0], min[1], min[2]);
-	*box++ = MT_Point3(max[0], min[1], max[2]);
-	*box++ = MT_Point3(max[0], max[1], min[2]);
+	*box++ = MT_Vector3(min[0], min[1], max[2]);
+	*box++ = MT_Vector3(min[0], max[1], min[2]);
+	*box++ = MT_Vector3(min[0], max[1], max[2]);
+	*box++ = MT_Vector3(max[0], min[1], min[2]);
+	*box++ = MT_Vector3(max[0], min[1], max[2]);
+	*box++ = MT_Vector3(max[0], max[1], min[2]);
 	*box++ = max;
 }
 
-void SG_BBox::getmm(MT_Point3 *box, const MT_Transform &world) const
+void SG_BBox::getmm(MT_Vector3 *box, const MT_Transform &world) const
 {
-	const MT_Point3 min(world(m_min)), max(world(m_max));
+	const MT_Vector3 min(world(m_min)), max(world(m_max));
 	*box++ = min;
 	*box++ = max;
 }
@@ -271,22 +271,22 @@ const MT_Scalar SG_BBox::GetRadius() const
 	return m_min.distance(m_max) / 2.0f;
 }
 
-const MT_Point3& SG_BBox::GetMin() const
+const MT_Vector3& SG_BBox::GetMin() const
 {
 	return m_min;
 }
 
-const MT_Point3& SG_BBox::GetMax() const
+const MT_Vector3& SG_BBox::GetMax() const
 {
 	return m_max;
 }
 
-void SG_BBox::SetMin(const MT_Point3& min)
+void SG_BBox::SetMin(const MT_Vector3& min)
 {
 	m_min = min;
 }
 
-void SG_BBox::SetMax(const MT_Point3& max)
+void SG_BBox::SetMax(const MT_Vector3& max)
 {
 	m_max = max;
 }

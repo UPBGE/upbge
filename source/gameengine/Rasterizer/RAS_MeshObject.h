@@ -44,7 +44,7 @@
 #include "RAS_MeshMaterial.h"
 #include "RAS_TexVert.h"
 #include "MT_Transform.h"
-#include "MT_Point2.h"
+#include "MT_Vector2.h"
 #include "STR_String.h"
 
 struct Mesh;
@@ -61,8 +61,8 @@ class RAS_MeshObject
 private:
 	short m_modifiedFlag;
 	bool m_needUpdateAabb;
-	MT_Point3 m_aabbMax;
-	MT_Point3 m_aabbMin;
+	MT_Vector3 m_aabbMax;
+	MT_Vector3 m_aabbMin;
 
 	STR_String m_name;
 	static STR_String s_emptyname;
@@ -136,8 +136,8 @@ public:
 	virtual RAS_Polygon *AddPolygon(RAS_MaterialBucket *bucket, int numverts, unsigned int indices[4],
 									bool visible, bool collider, bool twoside);
 	virtual unsigned int AddVertex(RAS_MaterialBucket *bucket, int i,
-						   const MT_Point3& xyz,
-						   const MT_Point2 uvs[RAS_TexVert::MAX_UNIT],
+						   const MT_Vector3& xyz,
+						   const MT_Vector2 uvs[RAS_TexVert::MAX_UNIT],
 						   const MT_Vector4& tangent,
 						   const unsigned int rgbacolor,
 						   const MT_Vector3& normal,
@@ -166,7 +166,7 @@ public:
 
 	bool HasColliderPolygon();
 
-	void GetAabb(MT_Point3 &aabbMin, MT_Point3 &aabbMax);
+	void GetAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax);
 
 	// for construction to find shared vertices
 	struct SharedVertex

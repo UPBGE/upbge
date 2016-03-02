@@ -69,7 +69,7 @@ UpdateChildCoordinates(
 	else {
 		// the childs world locations which we will update.
 		const MT_Vector3 & p_world_scale = parent->GetWorldScaling();
-		const MT_Point3 & p_world_pos = parent->GetWorldPosition();
+		const MT_Vector3 & p_world_pos = parent->GetWorldPosition();
 		const MT_Matrix3x3 & p_world_rotation = parent->GetWorldOrientation();
 
 		child->SetWorldScale(p_world_scale * child->GetLocalScale());
@@ -195,13 +195,13 @@ UpdateChildCoordinates(
 	parentUpdated = true;
 
 	const MT_Vector3 & child_scale = child->GetLocalScale();
-	const MT_Point3 & child_pos = child->GetLocalPosition();
+	const MT_Vector3 & child_pos = child->GetLocalPosition();
 	const MT_Matrix3x3 & child_rotation = child->GetLocalOrientation();
 
 	// the childs world locations which we will update.
 	
 	MT_Vector3 child_w_scale;
-	MT_Point3 child_w_pos;
+	MT_Vector3 child_w_pos;
 	MT_Matrix3x3 child_w_rotation;
 		
 	if (parent) {
@@ -210,11 +210,11 @@ UpdateChildCoordinates(
 		// first compute the normal child world coordinates.
 
 		MT_Vector3 child_n_scale;
-		MT_Point3 child_n_pos;
+		MT_Vector3 child_n_pos;
 		MT_Matrix3x3 child_n_rotation;
 
 		const MT_Vector3 & p_world_scale = parent->GetWorldScaling();
-		const MT_Point3 & p_world_pos = parent->GetWorldPosition();
+		const MT_Vector3 & p_world_pos = parent->GetWorldPosition();
 		const MT_Matrix3x3 & p_world_rotation = parent->GetWorldOrientation();
 
 		child_n_scale = p_world_scale * child_scale;

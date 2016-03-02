@@ -33,7 +33,7 @@
 #define __SG_SPATIAL_H__
 
 #include <MT_Vector3.h>
-#include <MT_Point3.h>
+#include <MT_Vector3.h>
 #include <MT_Matrix3x3.h> // or Quaternion later ?
 #include "SG_IObject.h"
 #include "SG_BBox.h"
@@ -52,11 +52,11 @@ class SG_Spatial : public SG_IObject
 {
 
 protected:
-	MT_Point3		m_localPosition;
+	MT_Vector3		m_localPosition;
 	MT_Matrix3x3		m_localRotation;
 	MT_Vector3		m_localScaling;
 
-	MT_Point3		m_worldPosition;
+	MT_Vector3		m_worldPosition;
 	MT_Matrix3x3		m_worldRotation;
 	MT_Vector3		m_worldScaling;
 	
@@ -124,13 +124,13 @@ public:
 		bool local
 	);
 
-	void SetLocalPosition(const MT_Point3& trans)
+	void SetLocalPosition(const MT_Vector3& trans)
 	{
 		m_localPosition = trans;
 		SetModified();
 	}
 
-	void SetWorldPosition(const MT_Point3& trans)
+	void SetWorldPosition(const MT_Vector3& trans)
 	{
 		m_worldPosition = trans;
 	}
@@ -177,7 +177,7 @@ public:
 		m_worldScaling = scale;
 	}
 
-	const MT_Point3& GetLocalPosition() const
+	const MT_Vector3& GetLocalPosition() const
 	{
 		return m_localPosition;
 	}
@@ -192,7 +192,7 @@ public:
 		return m_localScaling;
 	}
 
-	const MT_Point3& GetWorldPosition() const
+	const MT_Vector3& GetWorldPosition() const
 	{
 		return m_worldPosition;
 	}
@@ -238,9 +238,9 @@ public:
 	}
 
 
-	bool inside(const MT_Point3 &point) const;
-	void getBBox(MT_Point3 *box) const;
-	void getAABBox(MT_Point3 *box) const;
+	bool inside(const MT_Vector3 &point) const;
+	void getBBox(MT_Vector3 *box) const;
+	void getAABBox(MT_Vector3 *box) const;
 
 	bool IsModified() { return m_modified; }
 	bool IsDirty() { return m_ogldirty; }

@@ -82,7 +82,7 @@ protected:
 	//           Elements: SCA_IController with bookmark option
 	static SG_QList		   m_activeBookmarkedControllers;
 
-	static class MT_Point3 m_sDummy;
+	static class MT_Vector3 m_sDummy;
 
 	/**
 	 * Ignore activity culling requests?
@@ -213,7 +213,7 @@ public:
 	 */
 	unsigned int GetState(void)	{ return m_state; }
 
-//	const class MT_Point3&	ConvertPythonPylist(PyObject *pylist);
+//	const class MT_Vector3&	ConvertPythonPylist(PyObject *pylist);
 
 	virtual int GetGameObjectType() {return -1;}
 	

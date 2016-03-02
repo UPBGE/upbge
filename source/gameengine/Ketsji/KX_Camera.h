@@ -38,7 +38,7 @@
 #include "MT_Matrix3x3.h"
 #include "MT_Matrix4x4.h"
 #include "MT_Vector3.h"
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 #include "KX_GameObject.h"
 #include "EXP_IntValue.h"
 #include "RAS_CameraData.h"
@@ -61,7 +61,7 @@ protected:
 	RAS_CameraData	m_camdata;
 
 	// Never used, I think...
-//	void MoveTo(const MT_Point3& movevec)
+//	void MoveTo(const MT_Vector3& movevec)
 //	{
 #if 0
 		MT_Transform camtrans;
@@ -113,7 +113,7 @@ protected:
 	/**
 	 * The center point of the frustum.
 	 */
-	MT_Point3    m_frustum_center;
+	MT_Vector3    m_frustum_center;
 	MT_Scalar    m_frustum_radius;
 	bool         m_set_frustum_center;
 
@@ -168,7 +168,7 @@ public:
 	 * Not implemented.
 	 */
 	void				CorrectLookUp(MT_Scalar speed);
-	const MT_Point3		GetCameraLocation() const;
+	const MT_Vector3		GetCameraLocation() const;
 
 	/* I want the camera orientation as well. */
 	const MT_Quaternion GetCameraOrientation() const;
@@ -226,19 +226,19 @@ public:
 	 * \param radius The radius of the sphere.
 	 * \return INSIDE, INTERSECT, or OUTSIDE depending on the sphere's relation to the frustum.
 	 */
-	int SphereInsideFrustum(const MT_Point3& center, const MT_Scalar &radius);
+	int SphereInsideFrustum(const MT_Vector3& center, const MT_Scalar &radius);
 	/**
 	 * Tests the given eight corners of a box with the view frustum.
 	 *
-	 * \param box a pointer to eight MT_Point3 representing the world coordinates of the corners of the box.
+	 * \param box a pointer to eight MT_Vector3 representing the world coordinates of the corners of the box.
 	 * \return INSIDE, INTERSECT, or OUTSIDE depending on the box's relation to the frustum.
 	 */
-	int BoxInsideFrustum(const MT_Point3 *box);
+	int BoxInsideFrustum(const MT_Vector3 *box);
 	/**
 	 * Tests the given point against the view frustum.
 	 * \return true if the given point is inside or on the view frustum; false if it is outside.
 	 */
-	bool PointInsideFrustum(const MT_Point3& x);
+	bool PointInsideFrustum(const MT_Vector3& x);
 	
 	/**
 	 * Gets this camera's culling status.

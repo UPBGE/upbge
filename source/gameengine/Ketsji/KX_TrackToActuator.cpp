@@ -329,7 +329,7 @@ bool KX_TrackToActuator::Update(double curtime, bool frame)
 		/* check if the model is parented and calculate the child transform */
 		if (m_parentobj) {
 				
-			MT_Point3 localpos;
+			MT_Vector3 localpos;
 			localpos = curobj->GetSGNode()->GetLocalPosition();
 			// Get the inverse of the parent matrix
 			MT_Matrix3x3 parentmatinv;

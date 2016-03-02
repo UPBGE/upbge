@@ -676,7 +676,7 @@ public:
 	virtual void SetMass(MT_Scalar newmass);
 
 	// physics methods
-	virtual void ApplyImpulse(const MT_Point3& attach, const MT_Vector3& impulsein, bool local);
+	virtual void ApplyImpulse(const MT_Vector3& attach, const MT_Vector3& impulsein, bool local);
 	virtual void ApplyTorque(const MT_Vector3& torque, bool local);
 	virtual void ApplyForce(const MT_Vector3& force, bool local);
 	virtual void SetAngularVelocity(const MT_Vector3& ang_vel, bool local);
@@ -693,7 +693,7 @@ public:
 	// reading out information from physics
 	virtual MT_Vector3 GetLinearVelocity();
 	virtual MT_Vector3 GetAngularVelocity();
-	virtual MT_Vector3 GetVelocity(const MT_Point3& posin);
+	virtual MT_Vector3 GetVelocity(const MT_Vector3& posin);
 	virtual MT_Vector3 GetLocalInertia();
 
 	// dyna's that are rigidbody are free in orientation, dyna's with non-rigidbody are restricted

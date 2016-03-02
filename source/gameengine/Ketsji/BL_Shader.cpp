@@ -556,7 +556,7 @@ void BL_Shader::Update(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 				}
 				case CAM_POS:
 				{
-					MT_Point3 pos(rasty->GetCameraPosition());
+					MT_Vector3 pos(rasty->GetCameraPosition());
 					SetUniform(uni->mLoc, pos);
 					break;
 				}
@@ -627,7 +627,7 @@ int BL_Shader::GetUniformLocation(const char *name)
 	return -1;
 }
 
-void BL_Shader::SetUniform(int uniform, const MT_Tuple2 &vec)
+void BL_Shader::SetUniform(int uniform, const MT_Vector2 &vec)
 {
 	if (GLEW_ARB_fragment_shader && GLEW_ARB_vertex_shader && GLEW_ARB_shader_objects) {
 		float value[2];
@@ -636,7 +636,7 @@ void BL_Shader::SetUniform(int uniform, const MT_Tuple2 &vec)
 	}
 }
 
-void BL_Shader::SetUniform(int uniform, const MT_Tuple3 &vec)
+void BL_Shader::SetUniform(int uniform, const MT_Vector3 &vec)
 {
 	if (GLEW_ARB_fragment_shader && GLEW_ARB_vertex_shader && GLEW_ARB_shader_objects) {
 		float value[3];
@@ -645,7 +645,7 @@ void BL_Shader::SetUniform(int uniform, const MT_Tuple3 &vec)
 	}
 }
 
-void BL_Shader::SetUniform(int uniform, const MT_Tuple4 &vec)
+void BL_Shader::SetUniform(int uniform, const MT_Vector4 &vec)
 {
 	if (GLEW_ARB_fragment_shader && GLEW_ARB_vertex_shader && GLEW_ARB_shader_objects) {
 		float value[4];

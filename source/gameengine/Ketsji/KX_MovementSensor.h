@@ -34,7 +34,7 @@
 #define __KX_MOVEMENT_H__
 
 #include "SCA_ISensor.h"
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 
 
 class KX_MovementSensor : public SCA_ISensor
@@ -58,7 +58,7 @@ private:
 	/// The axis to detect mouvement, can be all axis.
 	int m_axis;
 	/// The previous object position.
-	MT_Point3 m_previousPosition;
+	MT_Vector3 m_previousPosition;
 	/** True if the position is not the same (depends of a treshold value)
 	 * between two logic frame.
 	 */

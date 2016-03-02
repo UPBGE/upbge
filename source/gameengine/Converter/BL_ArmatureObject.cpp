@@ -584,7 +584,7 @@ void BL_ArmatureObject::DrawDebugArmature()
 {
 	const MT_Vector3& scale = NodeGetWorldScaling();
 	const MT_Matrix3x3& rot = NodeGetWorldOrientation();
-	const MT_Point3& pos = NodeGetWorldPosition();
+	const MT_Vector3& pos = NodeGetWorldPosition();
 
 	for (bPoseChannel *pchan = (bPoseChannel *)m_pose->chanbase.first; pchan; pchan = pchan->next) {
 		MT_Vector3 head = rot * (MT_Vector3(pchan->pose_head) * scale) + pos;
@@ -596,7 +596,7 @@ void BL_ArmatureObject::DrawDebugArmature()
 
 float BL_ArmatureObject::GetBoneLength(Bone* bone) const
 {
-	return (float)(MT_Point3(bone->head) - MT_Point3(bone->tail)).length();
+	return (float)(MT_Vector3(bone->head) - MT_Vector3(bone->tail)).length();
 }
 
 #ifdef WITH_PYTHON

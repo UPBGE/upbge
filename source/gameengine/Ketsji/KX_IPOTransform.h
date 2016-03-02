@@ -52,11 +52,11 @@ public:
 		                                 m_scaling + m_deltaScaling));
 	}
 
-	MT_Point3&	         GetPosition()          { return m_position; 	}
+	MT_Vector3&	         GetPosition()          { return m_position; 	}
 	MT_Vector3&          GetEulerAngles()       { return m_eulerAngles;	}
 	MT_Vector3&          GetScaling()           { return m_scaling;	}
 
-	const MT_Point3&	 GetPosition()    const { return m_position; 	}
+	const MT_Vector3&	 GetPosition()    const { return m_position; 	}
 	const MT_Vector3&    GetEulerAngles() const { return m_eulerAngles;	}
 	const MT_Vector3&    GetScaling()     const { return m_scaling;	}
 	
@@ -64,7 +64,7 @@ public:
 	MT_Vector3&          GetDeltaEulerAngles()  { return m_deltaEulerAngles; }
 	MT_Vector3&          GetDeltaScaling()      { return m_deltaScaling; }
 	
-	void SetPosition(const MT_Point3& pos)      { m_position = pos; 	}
+	void SetPosition(const MT_Vector3& pos)      { m_position = pos; 	}
 	void SetEulerAngles(const MT_Vector3& eul)  { m_eulerAngles = eul;	}
 	void SetScaling(const MT_Vector3& scaling)  { m_scaling = scaling;	}
 	
@@ -75,7 +75,7 @@ public:
 	}
 
 protected:
-	MT_Point3              m_position;
+	MT_Vector3              m_position;
 	MT_Vector3             m_eulerAngles;
 	MT_Vector3             m_scaling;
 	MT_Vector3             m_deltaPosition;

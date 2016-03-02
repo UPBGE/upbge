@@ -310,7 +310,7 @@ bool KX_NavMeshObject::BuildNavMesh()
 		return false;
 	}
 	
-	MT_Point3 pos;
+	MT_Vector3 pos;
 	if (dmeshes==NULL)
 	{
 		for (int i=0; i<nverts; i++)
@@ -506,8 +506,8 @@ void KX_NavMeshObject::DrawNavMesh(NavMeshRenderMode renderMode)
 					continue;
 				const float* vif = m_navMesh->getVertex(poly->v[i]);
 				const float* vjf = m_navMesh->getVertex(poly->v[j]);
-				MT_Point3 vi(vif[0], vif[2], vif[1]);
-				MT_Point3 vj(vjf[0], vjf[2], vjf[1]);
+				MT_Vector3 vi(vif[0], vif[2], vif[1]);
+				MT_Vector3 vj(vjf[0], vjf[2], vjf[1]);
 				vi = TransformToWorldCoords(vi);
 				vj = TransformToWorldCoords(vj);
 				KX_RasterizerDrawDebugLine(vi, vj, color);
@@ -523,7 +523,7 @@ void KX_NavMeshObject::DrawNavMesh(NavMeshRenderMode renderMode)
 			for (int j = 0; j < pd->ntris; ++j)
 			{
 				const unsigned char* t = m_navMesh->getDetailTri(pd->tbase+j);
-				MT_Point3 tri[3];
+				MT_Vector3 tri[3];
 				for (int k = 0; k < 3; ++k)
 				{
 					const float* v;
@@ -551,7 +551,7 @@ void KX_NavMeshObject::DrawNavMesh(NavMeshRenderMode renderMode)
 	}
 }
 
-MT_Point3 KX_NavMeshObject::TransformToLocalCoords(const MT_Point3& wpos)
+MT_Vector3 KX_NavMeshObject::TransformToLocalCoords(const MT_Vector3& wpos)
 {
 	MT_Matrix3x3 orientation = NodeGetWorldOrientation();
 	const MT_Vector3& scaling = NodeGetWorldScaling();
@@ -559,26 +559,26 @@ MT_Point3 KX_NavMeshObject::TransformToLocalCoords(const MT_Point3& wpos)
 	MT_Transform worldtr(NodeGetWorldPosition(), orientation); 
 	MT_Transform invworldtr;
 	invworldtr.invert(worldtr);
-	MT_Point3 lpos = invworldtr(wpos);
+	MT_Vector3 lpos = invworldtr(wpos);
 	return lpos;
 }
 
-MT_Point3 KX_NavMeshObject::TransformToWorldCoords(const MT_Point3& lpos)
+MT_Vector3 KX_NavMeshObject::TransformToWorldCoords(const MT_Vector3& lpos)
 {
 	MT_Matrix3x3 orientation = NodeGetWorldOrientation();
 	const MT_Vector3& scaling = NodeGetWorldScaling();
 	orientation.scale(scaling[0], scaling[1], scaling[2]);
 	MT_Transform worldtr(NodeGetWorldPosition(), orientation); 
-	MT_Point3 wpos = worldtr(lpos);
+	MT_Vector3 wpos = worldtr(lpos);
 	return wpos;
 }
 
-int KX_NavMeshObject::FindPath(const MT_Point3& from, const MT_Point3& to, float* path, int maxPathLen)
+int KX_NavMeshObject::FindPath(const MT_Vector3& from, const MT_Vector3& to, float* path, int maxPathLen)
 {
 	if (!m_navMesh)
 		return 0;
-	MT_Point3 localfrom = TransformToLocalCoords(from);
-	MT_Point3 localto = TransformToLocalCoords(to);
+	MT_Vector3 localfrom = TransformToLocalCoords(from);
+	MT_Vector3 localto = TransformToLocalCoords(to);
 	float spos[3], epos[3];
 	localfrom.getValue(spos); flipAxes(spos);
 	localto.getValue(epos); flipAxes(epos);
@@ -597,7 +597,7 @@ int KX_NavMeshObject::FindPath(const MT_Point3& from, const MT_Point3& to, float
 			for (int i=0; i<pathLen; i++)
 			{
 				flipAxes(&path[i*3]);
-				MT_Point3 waypoint(&path[i*3]);
+				MT_Vector3 waypoint(&path[i*3]);
 				waypoint = TransformToWorldCoords(waypoint);
 				waypoint.getValue(&path[i*3]);
 			}
@@ -609,12 +609,12 @@ int KX_NavMeshObject::FindPath(const MT_Point3& from, const MT_Point3& to, float
 	return pathLen;
 }
 
-float KX_NavMeshObject::Raycast(const MT_Point3& from, const MT_Point3& to)
+float KX_NavMeshObject::Raycast(const MT_Vector3& from, const MT_Vector3& to)
 {
 	if (!m_navMesh)
 		return 0.f;
-	MT_Point3 localfrom = TransformToLocalCoords(from);
-	MT_Point3 localto = TransformToLocalCoords(to);
+	MT_Vector3 localfrom = TransformToLocalCoords(from);
+	MT_Vector3 localto = TransformToLocalCoords(to);
 	float spos[3], epos[3];
 	localfrom.getValue(spos); flipAxes(spos);
 	localto.getValue(epos); flipAxes(epos);
@@ -686,7 +686,7 @@ KX_PYMETHODDEF_DOC(KX_NavMeshObject, findPath,
 	PyObject *ob_from, *ob_to;
 	if (!PyArg_ParseTuple(args,"OO:getPath",&ob_from,&ob_to))
 		return NULL;
-	MT_Point3 from, to;
+	MT_Vector3 from, to;
 	if (!PyVecTo(ob_from, from) || !PyVecTo(ob_to, to))
 		return NULL;
 	
@@ -695,7 +695,7 @@ KX_PYMETHODDEF_DOC(KX_NavMeshObject, findPath,
 	PyObject *pathList = PyList_New( pathLen );
 	for (int i=0; i<pathLen; i++)
 	{
-		MT_Point3 point(&path[3*i]);
+		MT_Vector3 point(&path[3*i]);
 		PyList_SET_ITEM(pathList, i, PyObjectFrom(point));
 	}
 
@@ -709,7 +709,7 @@ KX_PYMETHODDEF_DOC(KX_NavMeshObject, raycast,
 	PyObject *ob_from, *ob_to;
 	if (!PyArg_ParseTuple(args,"OO:getPath",&ob_from,&ob_to))
 		return NULL;
-	MT_Point3 from, to;
+	MT_Vector3 from, to;
 	if (!PyVecTo(ob_from, from) || !PyVecTo(ob_to, to))
 		return NULL;
 	float hit = Raycast(from, to);

@@ -147,14 +147,14 @@ void KX_RadarSensor::SynchronizeTransform()
 		}
 	}
 	
-	//Using a temp variable to translate MT_Point3 to float[3].
+	//Using a temp variable to translate MT_Vector3 to float[3].
 	//float[3] works better for the Python interface.
-	MT_Point3 temp = trans.getOrigin();
+	MT_Vector3 temp = trans.getOrigin();
 	m_cone_origin[0] = temp[0];
 	m_cone_origin[1] = temp[1];
 	m_cone_origin[2] = temp[2];
 
-	temp = trans(MT_Point3(0, -m_coneheight/2.0f, 0));
+	temp = trans(MT_Vector3(0, -m_coneheight/2.0f, 0));
 	m_cone_target[0] = temp[0];
 	m_cone_target[1] = temp[1];
 	m_cone_target[2] = temp[2];
@@ -163,7 +163,7 @@ void KX_RadarSensor::SynchronizeTransform()
 	if (m_physCtrl)
 	{
 		PHY_IMotionState* motionState = m_physCtrl->GetMotionState();
-		const MT_Point3& pos = trans.getOrigin();
+		const MT_Vector3& pos = trans.getOrigin();
 		float ori[12];
 		trans.getBasis().getValue(ori);
 		motionState->SetWorldPosition(pos[0], pos[1], pos[2]);

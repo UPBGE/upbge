@@ -38,7 +38,7 @@
 
 #include <stdlib.h>
 #include "CTR_Map.h"
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -97,7 +97,7 @@ public:
 	}
 	virtual float (* GetTransVerts(int *tot))[3]	{	*tot= 0; return NULL; }
 
-	virtual void GetAabb(MT_Point3 &aabbMin, MT_Point3 &aabbMax) const
+	virtual void GetAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) const
 	{
 		aabbMin = m_aabbMin;
 		aabbMax = m_aabbMax;
@@ -107,8 +107,8 @@ protected:
 	class RAS_MeshObject	*m_pMesh;
 	bool  m_bDynamic;
 
-	MT_Point3 m_aabbMin;
-	MT_Point3 m_aabbMax;
+	MT_Vector3 m_aabbMin;
+	MT_Vector3 m_aabbMax;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_Deformer")

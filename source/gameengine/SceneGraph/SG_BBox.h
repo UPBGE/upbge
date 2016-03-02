@@ -34,7 +34,7 @@
 #define __SG_BBOX_H__
  
 #include "MT_Scalar.h"
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 #include "MT_Vector3.h"
 #include "MT_Transform.h"
 
@@ -53,12 +53,12 @@ class SG_Node;
  */
 class SG_BBox
 {
-	MT_Point3 m_min;
-	MT_Point3 m_max;
+	MT_Vector3 m_min;
+	MT_Vector3 m_max;
 public:
 	typedef enum { INSIDE, INTERSECT, OUTSIDE } intersect;
 	SG_BBox();
-	SG_BBox(const MT_Point3 &min, const MT_Point3 &max);
+	SG_BBox(const MT_Vector3 &min, const MT_Vector3 &max);
 	SG_BBox(const SG_BBox &other, const MT_Transform &world);
 	SG_BBox(const SG_BBox &other);
 	~SG_BBox();
@@ -66,7 +66,7 @@ public:
 	/**
 	 * Enlarges the bounding box to contain the specified point.
 	 */
-	SG_BBox& operator +=(const MT_Point3 &point);
+	SG_BBox& operator +=(const MT_Vector3 &point);
 	/**
 	 * Enlarges the bounding box to contain the specified bound box.
 	 */
@@ -81,7 +81,7 @@ public:
 	/**
 	 * Scales the bounding box about the optional point.
 	 */
-	void scale(const MT_Vector3 &size, const MT_Point3 &point = MT_Point3(0.0f, 0.0f, 0.0f));
+	void scale(const MT_Vector3 &size, const MT_Vector3 &point = MT_Vector3(0.0f, 0.0f, 0.0f));
 #endif
 	SG_BBox transform(const MT_Transform &world) const;
 	/**
@@ -92,7 +92,7 @@ public:
 	/**
 	 * Test if the given point is inside this bounding box.
 	 */
-	bool inside(const MT_Point3 &point) const;
+	bool inside(const MT_Vector3 &point) const;
 	
 	/**
 	 * Test if the given bounding box is inside this bounding box.
@@ -119,27 +119,27 @@ public:
 	 *
 	 * \param world a world transform to apply to the produced points bounding box.
 	 */
-	void get(MT_Point3 *box, const MT_Transform &world) const;
+	void get(MT_Vector3 *box, const MT_Transform &world) const;
 	/**
 	 * Get the eight points that define this axis aligned bounding box.
 	 * This differs from SG_BBox::get() in that the produced box will be world axis aligned.
 	 * The maximum & minimum local points will be transformed *before* splitting to 8 points.
 	 * \param world a world transform to be applied.
 	 */
-	void getaa(MT_Point3 *box, const MT_Transform &world) const;
+	void getaa(MT_Vector3 *box, const MT_Transform &world) const;
 	
-	void getmm(MT_Point3 *box, const MT_Transform &world) const;
+	void getmm(MT_Vector3 *box, const MT_Transform &world) const;
 
 	void split(SG_BBox &left, SG_BBox &right) const;
 
 	const MT_Vector3 GetCenter() const;
 	const MT_Scalar GetRadius() const;
 
-	const MT_Point3& GetMin() const;
-	const MT_Point3& GetMax() const;
+	const MT_Vector3& GetMin() const;
+	const MT_Vector3& GetMax() const;
 
-	void SetMin(const MT_Point3& min);
-	void SetMax(const MT_Point3& max);
+	void SetMin(const MT_Vector3& min);
+	void SetMax(const MT_Vector3& max);
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_BBox")

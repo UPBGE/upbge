@@ -79,7 +79,7 @@ protected:
 	float m_clip;						// clipping distance
 	float m_mirrorHalfWidth;            // mirror width in mirror space
 	float m_mirrorHalfHeight;           // mirror height in mirror space
-	MT_Point3 m_mirrorPos;              // mirror center position in local space
+	MT_Vector3 m_mirrorPos;              // mirror center position in local space
 	MT_Vector3 m_mirrorZ;               // mirror Z axis in local space
 	MT_Vector3 m_mirrorY;               // mirror Y axis in local space
 	MT_Vector3 m_mirrorX;               // mirror X axis in local space

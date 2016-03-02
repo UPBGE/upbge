@@ -33,8 +33,8 @@
 #define __RAS_TEXVERT_H__
 
 
-#include "MT_Point3.h"
-#include "MT_Point2.h"
+#include "MT_Vector3.h"
+#include "MT_Vector2.h"
 #include "MT_Matrix4x4.h"
 #include "MT_Transform.h"
 
@@ -44,7 +44,6 @@
 
 class RAS_TexVert
 {
-
 	float m_localxyz[3]; // 3 * 4 = 12
 	float m_uvs[8][2]; // 8 * 2 * 4 = 64    8 = MAX_UNIT
 	unsigned int m_rgba; // 4
@@ -70,8 +69,8 @@ public:
 	RAS_TexVert()
 	{
 	}
-	RAS_TexVert(const MT_Point3& xyz,
-	            const MT_Point2 uvs[MAX_UNIT],
+	RAS_TexVert(const MT_Vector3& xyz,
+	            const MT_Vector2 uvs[MAX_UNIT],
 	            const MT_Vector4& tangent,
 	            const unsigned int rgba,
 	            const MT_Vector3& normal,
@@ -121,9 +120,9 @@ public:
 		return m_origindex;
 	}
 
-	void SetXYZ(const MT_Point3& xyz);
+	void SetXYZ(const MT_Vector3& xyz);
 	void SetXYZ(const float xyz[3]);
-	void SetUV(int index, const MT_Point2& uv);
+	void SetUV(int index, const MT_Vector2& uv);
 	void SetUV(int index, const float uv[2]);
 
 	void SetRGBA(const unsigned int rgba);
@@ -132,7 +131,7 @@ public:
 	void SetFlag(const short flag);
 
 	void SetRGBA(const MT_Vector4& rgba);
-	MT_Point3 xyz() const;
+	MT_Vector3 xyz() const;
 
 	void Transform(const MT_Matrix4x4& mat,
 				   const MT_Matrix4x4& nmat);

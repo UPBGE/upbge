@@ -54,7 +54,7 @@
 #include "BLI_utildefines.h"
 #include "BKE_armature.h"
 #include "BKE_action.h"
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 
 extern "C" {
 	#include "BKE_lattice.h"

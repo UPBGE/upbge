@@ -35,7 +35,7 @@
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IPhysicsController.h"
 #include "MT_Vector2.h"
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 #include "MT_Vector3.h"
 
 class RAS_MeshObject; 
@@ -60,7 +60,7 @@ class KX_RayCast : public PHY_IRayCastFilterCallback
 {
 public:
 	bool					m_hitFound;
-	MT_Point3				m_hitPoint;
+	MT_Vector3				m_hitPoint;
 	MT_Vector3				m_hitNormal;
 	const RAS_MeshObject*	m_hitMesh;
 	int						m_hitPolygon;
@@ -92,8 +92,8 @@ public:
 	/// Implement bool RayHit in your class to receive ray callbacks.
 	static bool RayTest(
 		PHY_IPhysicsEnvironment* physics_environment, 
-		const MT_Point3& frompoint, 
-		const MT_Point3& topoint, 
+		const MT_Vector3& frompoint, 
+		const MT_Vector3& topoint, 
 		KX_RayCast& callback);
 	
 	

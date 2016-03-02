@@ -40,7 +40,7 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_Deformer.h"
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 
 #include <algorithm>
 
@@ -165,7 +165,7 @@ void RAS_MeshObject::UpdateAabb()
 	}
 }
 
-void RAS_MeshObject::GetAabb(MT_Point3 &aabbMin, MT_Point3 &aabbMax)
+void RAS_MeshObject::GetAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax)
 {
 	if (m_needUpdateAabb) {
 		UpdateAabb();
@@ -364,8 +364,8 @@ void RAS_MeshObject::SetVertexColor(RAS_IPolyMaterial *mat, MT_Vector4 rgba)
 }
 
 unsigned int RAS_MeshObject::AddVertex(RAS_MaterialBucket *bucket, int i,
-                               const MT_Point3& xyz,
-                               const MT_Point2 uvs[RAS_TexVert::MAX_UNIT],
+                               const MT_Vector3& xyz,
+                               const MT_Vector2 uvs[RAS_TexVert::MAX_UNIT],
                                const MT_Vector4& tangent,
                                const unsigned int rgba,
                                const MT_Vector3& normal,

@@ -66,7 +66,7 @@ UpdateChildCoordinates(
 	// be nice to have non constant reference access to these values.
 
 	const MT_Vector3 & child_scale = child->GetLocalScale();
-	const MT_Point3 & child_pos = child->GetLocalPosition();
+	const MT_Vector3 & child_pos = child->GetLocalPosition();
 	const MT_Matrix3x3 & child_rotation = child->GetLocalOrientation();
 	// we don't know if the armature has been updated or not, assume yes
 	parentUpdated = true;
@@ -74,7 +74,7 @@ UpdateChildCoordinates(
 	// the childs world locations which we will update.
 	
 	MT_Vector3 child_w_scale;
-	MT_Point3 child_w_pos;
+	MT_Vector3 child_w_pos;
 	MT_Matrix3x3 child_w_rotation;
 	
 	bool valid_parent_transform = false;
@@ -109,7 +109,7 @@ UpdateChildCoordinates(
 					child_transform[2][0], child_transform[2][1], child_transform[2][2]);
 				child_w_rotation.scale(1.0f/child_w_scale[0], 1.0f/child_w_scale[1], 1.0f/child_w_scale[2]);
 					
-				child_w_pos = MT_Point3(child_transform[0][3], child_transform[1][3], child_transform[2][3]);
+				child_w_pos = MT_Vector3(child_transform[0][3], child_transform[1][3], child_transform[2][3]);
 					
 				valid_parent_transform = true;
 			}

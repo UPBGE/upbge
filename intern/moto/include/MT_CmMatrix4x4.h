@@ -46,7 +46,6 @@
 
 #include "MT_Scalar.h"
 
-class MT_Point3;
 class MT_Vector3;
 
 class MT_CmMatrix4x4
@@ -71,7 +70,7 @@ public :
 	);
 
 	MT_CmMatrix4x4(
-		const MT_Point3& orig,
+		const MT_Vector3& orig,
 		const MT_Vector3& dir,
 		const MT_Vector3 up
 	);
@@ -112,7 +111,7 @@ public :
 	GetDir(
 	) const;
 
-		MT_Point3
+		MT_Vector3
 	GetPos(
 	) const;
 

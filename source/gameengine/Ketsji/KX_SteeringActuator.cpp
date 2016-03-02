@@ -187,8 +187,8 @@ bool KX_SteeringActuator::Update(double curtime, bool frame)
 			return false; // do nothing on negative events
 
 		KX_GameObject *obj = (KX_GameObject*) GetParent();
-		const MT_Point3& mypos = obj->NodeGetWorldPosition();
-		const MT_Point3& targpos = m_target->NodeGetWorldPosition();
+		const MT_Vector3& mypos = obj->NodeGetWorldPosition();
+		const MT_Vector3& targpos = m_target->NodeGetWorldPosition();
 		MT_Vector3 vectotarg = targpos - mypos;
 		MT_Vector3 vectotarg2d = vectotarg;
 		vectotarg2d.z() = 0.0f;
@@ -499,7 +499,7 @@ void KX_SteeringActuator::HandleActorFace(MT_Vector3& velocity)
 	KX_GameObject* parentObject = curobj->GetParent();
 	if (parentObject)
 	{ 
-		MT_Point3 localpos;
+		MT_Vector3 localpos;
 		localpos = curobj->GetSGNode()->GetLocalPosition();
 		MT_Matrix3x3 parentmatinv;
 		parentmatinv = parentObject->NodeGetWorldOrientation ().inverse ();

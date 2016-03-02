@@ -43,7 +43,7 @@ KX_MotionState::~KX_MotionState()
 
 void	KX_MotionState::GetWorldPosition(float& posX,float& posY,float& posZ)
 {
-	const MT_Point3& pos = m_node->GetWorldPosition();
+	const MT_Vector3& pos = m_node->GetWorldPosition();
 	posX = pos[0];
 	posY = pos[1];
 	posZ = pos[2];
@@ -79,8 +79,8 @@ void	KX_MotionState::SetWorldOrientation(const float* ori)
 	
 void	KX_MotionState::SetWorldPosition(float posX,float posY,float posZ)
 {
-	m_node->SetLocalPosition(MT_Point3(posX,posY,posZ));
-	//m_node->SetWorldPosition(MT_Point3(posX,posY,posZ));
+	m_node->SetLocalPosition(MT_Vector3(posX,posY,posZ));
+	//m_node->SetWorldPosition(MT_Vector3(posX,posY,posZ));
 }
 
 void	KX_MotionState::SetWorldOrientation(float quatIma0,float quatIma1,float quatIma2,float quatReal)

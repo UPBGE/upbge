@@ -214,7 +214,7 @@ bool KX_RaySensor::Evaluate()
 	m_hitNormal[2] = 0;
 	
 	KX_GameObject* obj = (KX_GameObject*)GetParent();
-	MT_Point3 frompoint = obj->NodeGetWorldPosition();
+	MT_Vector3 frompoint = obj->NodeGetWorldPosition();
 	MT_Matrix3x3 matje = obj->NodeGetWorldOrientation();
 	MT_Matrix3x3 invmat = matje.inverse();
 	
@@ -270,7 +270,7 @@ bool KX_RaySensor::Evaluate()
 	m_rayDirection[1] = todir[1];
 	m_rayDirection[2] = todir[2];
 
-	MT_Point3 topoint = frompoint + (m_distance) * todir;
+	MT_Vector3 topoint = frompoint + (m_distance) * todir;
 	PHY_IPhysicsEnvironment* pe = m_scene->GetPhysicsEnvironment();
 
 	if (!pe)

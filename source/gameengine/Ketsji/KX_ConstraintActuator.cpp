@@ -36,7 +36,7 @@
 #include "SCA_IActuator.h"
 #include "KX_ConstraintActuator.h"
 #include "SCA_IObject.h"
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 #include "MT_Matrix3x3.h"
 #include "KX_GameObject.h"
 #include "KX_RayCast.h"
@@ -180,8 +180,8 @@ bool KX_ConstraintActuator::Update(double curtime, bool frame)
 		/* Having to retrieve location/rotation and setting it afterwards may not */
 		/* be efficient enough... Something to look at later.                     */
 		KX_GameObject  *obj = (KX_GameObject*) GetParent();
-		MT_Point3    position = obj->NodeGetWorldPosition();
-		MT_Point3    newposition;
+		MT_Vector3    position = obj->NodeGetWorldPosition();
+		MT_Vector3    newposition;
 		MT_Vector3   normal, direction, refDirection;
 		MT_Matrix3x3 rotation = obj->NodeGetWorldOrientation();
 		MT_Scalar    filter, newdistance, cosangle;
@@ -332,7 +332,7 @@ bool KX_ConstraintActuator::Update(double curtime, bool frame)
 				}
 			}
 			{
-				MT_Point3 topoint = position + (m_maximumBound) * direction;
+				MT_Vector3 topoint = position + (m_maximumBound) * direction;
 				PHY_IPhysicsEnvironment* pe = KX_GetActiveScene()->GetPhysicsEnvironment();
 				PHY_IPhysicsController *spc = obj->GetPhysicsController();
 
@@ -458,7 +458,7 @@ bool KX_ConstraintActuator::Update(double curtime, bool frame)
 				}
 				m_hitObject = NULL;
 				// distance of Fh area is stored in m_minimum
-				MT_Point3 topoint = position + (m_minimumBound+spc->GetRadius()) * direction;
+				MT_Vector3 topoint = position + (m_minimumBound+spc->GetRadius()) * direction;
 				KX_RayCast::Callback<KX_ConstraintActuator, void> callback(this, spc);
 				result = KX_RayCast::RayTest(pe, position, topoint, callback);
 				// we expect a hit object
@@ -470,7 +470,7 @@ bool KX_ConstraintActuator::Update(double curtime, bool frame)
 					// compute new position & orientation
 					MT_Scalar distance = (callback.m_hitPoint-position).length()-spc->GetRadius(); 
 					// estimate the velocity of the hit point
-					MT_Point3 relativeHitPoint;
+					MT_Vector3 relativeHitPoint;
 					relativeHitPoint = (callback.m_hitPoint-m_hitObject->NodeGetWorldPosition());
 					MT_Vector3 velocityHitPoint = m_hitObject->GetVelocity(relativeHitPoint);
 					MT_Vector3 relativeVelocity = spc->GetLinearVelocity() - velocityHitPoint;

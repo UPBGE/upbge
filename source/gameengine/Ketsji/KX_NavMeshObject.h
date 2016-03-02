@@ -56,15 +56,15 @@ public:
 
 	bool BuildNavMesh();
 	dtStatNavMesh* GetNavMesh();
-	int FindPath(const MT_Point3& from, const MT_Point3& to, float* path, int maxPathLen);
-	float Raycast(const MT_Point3& from, const MT_Point3& to);
+	int FindPath(const MT_Vector3& from, const MT_Vector3& to, float* path, int maxPathLen);
+	float Raycast(const MT_Vector3& from, const MT_Vector3& to);
 
 	enum NavMeshRenderMode {RM_WALLS, RM_POLYS, RM_TRIS, RM_MAX};
 	void DrawNavMesh(NavMeshRenderMode mode);
 	void DrawPath(const float *path, int pathLen, const MT_Vector3& color);
 
-	MT_Point3 TransformToLocalCoords(const MT_Point3& wpos);
-	MT_Point3 TransformToWorldCoords(const MT_Point3& lpos);
+	MT_Vector3 TransformToLocalCoords(const MT_Vector3& wpos);
+	MT_Vector3 TransformToWorldCoords(const MT_Vector3& lpos);
 #ifdef WITH_PYTHON
 	/* --------------------------------------------------------------------- */
 	/* Python interface ---------------------------------------------------- */

@@ -34,8 +34,8 @@
 #include "MT_Matrix4x4.h"
 #include "BLI_math.h"
 
-RAS_TexVert::RAS_TexVert(const MT_Point3& xyz,
-						 const MT_Point2 uvs[MAX_UNIT],
+RAS_TexVert::RAS_TexVert(const MT_Vector3& xyz,
+						 const MT_Vector2 uvs[MAX_UNIT],
 						 const MT_Vector4& tangent,
 						 const unsigned int rgba,
 						 const MT_Vector3& normal,
@@ -55,9 +55,9 @@ RAS_TexVert::RAS_TexVert(const MT_Point3& xyz,
 	}
 }
 
-MT_Point3 RAS_TexVert::xyz() const
+MT_Vector3 RAS_TexVert::xyz() const
 {
-	return MT_Point3(m_localxyz);
+	return MT_Vector3(m_localxyz);
 }
 
 void RAS_TexVert::SetRGBA(const MT_Vector4& rgba)
@@ -70,7 +70,7 @@ void RAS_TexVert::SetRGBA(const MT_Vector4& rgba)
 }
 
 
-void RAS_TexVert::SetXYZ(const MT_Point3& xyz)
+void RAS_TexVert::SetXYZ(const MT_Vector3& xyz)
 {
 	xyz.getValue(m_localxyz);
 }
@@ -80,7 +80,7 @@ void RAS_TexVert::SetXYZ(const float xyz[3])
 	copy_v3_v3(m_localxyz, xyz);
 }
 
-void RAS_TexVert::SetUV(int index, const MT_Point2& uv)
+void RAS_TexVert::SetUV(int index, const MT_Vector2& uv)
 {
 	uv.getValue(m_uvs[index]);
 }

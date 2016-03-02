@@ -165,9 +165,9 @@ bool KX_ObjectActuator::Update()
 			MT_Vector3 v = parent->GetLinearVelocity(m_bitLocalFlag.LinearVelocity);
 			if (m_reference)
 			{
-				const MT_Point3& mypos = parent->NodeGetWorldPosition();
-				const MT_Point3& refpos = m_reference->NodeGetWorldPosition();
-				MT_Point3 relpos;
+				const MT_Vector3& mypos = parent->NodeGetWorldPosition();
+				const MT_Vector3& refpos = m_reference->NodeGetWorldPosition();
+				MT_Vector3 relpos;
 				relpos = (mypos-refpos);
 				MT_Vector3 vel= m_reference->GetVelocity(relpos);
 				if (m_bitLocalFlag.LinearVelocity)

@@ -27,8 +27,8 @@
 #define __KX_OBSTACLESIMULATION_H__
 
 #include <vector>
-#include "MT_Point2.h"
-#include "MT_Point3.h"
+#include "MT_Vector2.h"
+#include "MT_Vector3.h"
 
 class KX_GameObject;
 class KX_NavMeshObject;
@@ -50,8 +50,8 @@ struct KX_Obstacle
 {
 	KX_OBSTACLE_TYPE m_type;
 	KX_OBSTACLE_SHAPE m_shape;
-	MT_Point3 m_pos;
-	MT_Point3 m_pos2;
+	MT_Vector3 m_pos;
+	MT_Vector3 m_pos2;
 	MT_Scalar m_rad;
 	
 	float vel[2];

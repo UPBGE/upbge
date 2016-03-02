@@ -64,7 +64,7 @@ class KX_IpoSGController : public SG_Controller
 	double m_ipotime;
 
 	/** Location of the object when the IPO is first fired (for local transformations) */
-	MT_Point3 m_ipo_start_point;
+	MT_Vector3 m_ipo_start_point;
 
 	/** Orientation of the object when the IPO is first fired (for local transformations) */
 	MT_Matrix3x3 m_ipo_start_orient;

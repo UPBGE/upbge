@@ -38,7 +38,7 @@
 
 #include <stdio.h>
 
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 #include "RAS_FramingManager.h"
 #include "RAS_ICanvas.h"
 #include "RAS_IRasterizer.h"
@@ -391,17 +391,17 @@ bool KX_MouseFocusSensor::ParentObjectHasFocus()
 	return false;
 }
 
-const MT_Point3& KX_MouseFocusSensor::RaySource() const
+const MT_Vector3& KX_MouseFocusSensor::RaySource() const
 {
 	return m_prevSourcePoint;
 }
 
-const MT_Point3& KX_MouseFocusSensor::RayTarget() const
+const MT_Vector3& KX_MouseFocusSensor::RayTarget() const
 {
 	return m_prevTargetPoint;
 }
 
-const MT_Point3& KX_MouseFocusSensor::HitPosition() const
+const MT_Vector3& KX_MouseFocusSensor::HitPosition() const
 {
 	return m_hitPosition;
 }

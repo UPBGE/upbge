@@ -1016,7 +1016,7 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetOrthoMatrix(
 // next arguments probably contain redundant info, for later...
 void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
                                          const MT_Matrix3x3 & camOrientMat3x3,
-                                         const MT_Point3 & pos,
+                                         const MT_Vector3 & pos,
                                          bool perspective)
 {
 	m_viewmatrix = mat;
@@ -1070,7 +1070,7 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 	m_campos = pos;
 }
 
-const MT_Point3& RAS_OpenGLRasterizer::GetCameraPosition()
+const MT_Vector3& RAS_OpenGLRasterizer::GetCameraPosition()
 {
 	return m_campos;
 }
@@ -1461,8 +1461,8 @@ void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, floa
 		// when new parenting for objects is done, this rotation
 		// will be moved into the object
 
-		MT_Point3 objpos(&origmat[12]);
-		MT_Point3 campos = GetCameraPosition();
+		MT_Vector3 objpos(&origmat[12]);
+		MT_Vector3 campos = GetCameraPosition();
 		MT_Vector3 dir = (campos - objpos).safe_normalized();
 		MT_Vector3 up(0.0f, 0.0f, 1.0f);
 
@@ -1498,14 +1498,14 @@ void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, floa
 	}
 	else if (objectdrawmode & RAS_IPolyMaterial::SHADOW) {
 		// shadow must be cast to the ground, physics system needed here!
-		MT_Point3 frompoint(&origmat[12]);
+		MT_Vector3 frompoint(&origmat[12]);
 		KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject);
 		MT_Vector3 direction = MT_Vector3(0.0f, 0.0f, -1.0f);
 
 		direction.normalize();
 		direction *= 100000.0f;
 
-		MT_Point3 topoint = frompoint + direction;
+		MT_Vector3 topoint = frompoint + direction;
 
 		KX_Scene *kxscene = (KX_Scene *)m_auxilaryClientInfo;
 		PHY_IPhysicsEnvironment *physics_environment = kxscene->GetPhysicsEnvironment();

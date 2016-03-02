@@ -822,8 +822,8 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 		// set the replica's relative scale with the rootnode's scale
 		replica->NodeSetRelativeScale(newscale);
 
-		MT_Point3 offset(group->dupli_ofs);
-		MT_Point3 newpos = groupobj->NodeGetWorldPosition() + 
+		MT_Vector3 offset(group->dupli_ofs);
+		MT_Vector3 newpos = groupobj->NodeGetWorldPosition() + 
 			newscale*(groupobj->NodeGetWorldOrientation() * (gameobj->NodeGetWorldPosition()-offset));
 		replica->NodeSetLocalPosition(newpos);
 		// set the orientation after position for softbody!
@@ -941,7 +941,7 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 	if (referenceobj) {
 		// At this stage all the objects in the hierarchy have been duplicated,
 		// we can update the scenegraph, we need it for the duplication of logic
-		MT_Point3 newpos = referenceobj->NodeGetWorldPosition();
+		MT_Vector3 newpos = referenceobj->NodeGetWorldPosition();
 		replica->NodeSetLocalPosition(newpos);
 
 		MT_Matrix3x3 newori = referenceobj->NodeGetWorldOrientation();
@@ -1434,7 +1434,7 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 		SG_BBox &box = gameobj->GetSGNode()->BBox();
 		const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
 		const MT_Scalar radius = fabs(scale[scale.closestAxis()] * box.GetRadius());
-		const MT_Point3 center = gameobj->NodeGetWorldPosition() + (box.GetCenter() * scale) * gameobj->NodeGetWorldOrientation();
+		const MT_Vector3 center = gameobj->NodeGetWorldPosition() + (box.GetCenter() * scale) * gameobj->NodeGetWorldOrientation();
 		switch (cam->SphereInsideFrustum(center, radius))
 		{
 			case KX_Camera::INSIDE:
@@ -1445,7 +1445,7 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 				break;
 			case KX_Camera::INTERSECT:
 				// Test the object's bound box against the view frustum.
-				MT_Point3 box[8];
+				MT_Vector3 box[8];
 				gameobj->GetSGNode()->getBBox(box); 
 				vis = cam->BoxInsideFrustum(box) != KX_Camera::OUTSIDE;
 				break;
@@ -1807,7 +1807,7 @@ void KX_Scene::UpdateObjectActivity(void)
 		/* determine the activity criterium and set objects accordingly */
 		int i=0;
 		
-		MT_Point3 camloc = GetActiveCamera()->NodeGetWorldPosition(); //GetCameraLocation();
+		MT_Vector3 camloc = GetActiveCamera()->NodeGetWorldPosition(); //GetCameraLocation();
 		
 		for (i=0;i<GetObjectList()->GetCount();i++)
 		{
@@ -1816,7 +1816,7 @@ void KX_Scene::UpdateObjectActivity(void)
 			if (!ob->GetIgnoreActivityCulling()) {
 				/* Simple test: more than 10 away from the camera, count
 				 * Manhattan distance. */
-				MT_Point3 obpos = ob->NodeGetWorldPosition();
+				MT_Vector3 obpos = ob->NodeGetWorldPosition();
 				
 				if ((fabsf(camloc[0] - obpos[0]) > m_activity_box_radius) ||
 				    (fabsf(camloc[1] - obpos[1]) > m_activity_box_radius) ||

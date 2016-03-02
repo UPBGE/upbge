@@ -114,7 +114,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	double m_time;
 	MT_Matrix4x4 m_viewmatrix;
 	MT_Matrix4x4 m_viewinvmatrix;
-	MT_Point3 m_campos;
+	MT_Vector3 m_campos;
 	bool m_camortho;
 
 	StereoMode m_stereomode;
@@ -196,9 +196,9 @@ public:
 
 	virtual void SetProjectionMatrix(MT_CmMatrix4x4 &mat);
 	virtual void SetProjectionMatrix(const MT_Matrix4x4 &mat);
-	virtual void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Matrix3x3 &ori, const MT_Point3 &pos, bool perspective);
+	virtual void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Matrix3x3 &ori, const MT_Vector3 &pos, bool perspective);
 
-	virtual const MT_Point3& GetCameraPosition();
+	virtual const MT_Vector3& GetCameraPosition();
 	virtual bool GetCameraOrtho();
 
 	virtual void SetFog(short type, float start, float dist, float intensity, float color[3]);

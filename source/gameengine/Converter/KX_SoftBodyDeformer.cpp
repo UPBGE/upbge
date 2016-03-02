@@ -102,7 +102,7 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 		RAS_TexVert& origvert = origarray->m_vertex[i];
 		btAssert(v.getSoftBodyIndex() >= 0);
 
-		MT_Point3 pt(
+		MT_Vector3 pt(
 		    nodes[v.getSoftBodyIndex()].m_x.getX(),
 		    nodes[v.getSoftBodyIndex()].m_x.getY(),
 		    nodes[v.getSoftBodyIndex()].m_x.getZ());
@@ -137,7 +137,7 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 
 		const MT_Vector3& scale = m_gameobj->NodeGetWorldScaling();
 		const MT_Vector3& invertscale = MT_Vector3(1.0f / scale.x(), 1.0f / scale.y(), 1.0f / scale.z());
-		const MT_Point3& pos = m_gameobj->NodeGetWorldPosition();
+		const MT_Vector3& pos = m_gameobj->NodeGetWorldPosition();
 		const MT_Matrix3x3& rot = m_gameobj->NodeGetWorldOrientation();
 
 		// Extract object transform from the vertex position.

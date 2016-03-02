@@ -33,8 +33,8 @@
 #ifndef __KX_PYMATH_H__
 #define __KX_PYMATH_H__
 
-#include "MT_Point2.h"
-#include "MT_Point3.h"
+#include "MT_Vector2.h"
+#include "MT_Vector3.h"
 #include "MT_Vector2.h"
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
@@ -53,9 +53,9 @@ extern "C" {
 
 inline unsigned int Size(const MT_Matrix4x4&)          { return 4; }
 inline unsigned int Size(const MT_Matrix3x3&)          { return 3; }
-inline unsigned int Size(const MT_Tuple2&)                { return 2; }
-inline unsigned int Size(const MT_Tuple3&)                { return 3; }
-inline unsigned int Size(const MT_Tuple4&)                { return 4; }
+inline unsigned int Size(const MT_Vector2&)                { return 2; }
+inline unsigned int Size(const MT_Vector3&)                { return 3; }
+inline unsigned int Size(const MT_Vector4&)                { return 4; }
 
 /**
  *  Converts the given python matrix (column-major) to an MT class (row-major).
@@ -250,14 +250,14 @@ PyObject *PyObjectFrom(const MT_Matrix4x4 &mat);
 PyObject *PyObjectFrom(const MT_Matrix3x3 &mat);
 
 /**
- * Converts an MT_Tuple2 to a python object.
+ * Converts an MT_Vector2 to a python object.
  */
-PyObject *PyObjectFrom(const MT_Tuple2 &vec);
+PyObject *PyObjectFrom(const MT_Vector2 &vec);
 
 /**
- * Converts an MT_Tuple3 to a python object
+ * Converts an MT_Vector3 to a python object
  */
-PyObject *PyObjectFrom(const MT_Tuple3 &vec);
+PyObject *PyObjectFrom(const MT_Vector3 &vec);
 
 #ifdef USE_MATHUTILS
 /**
@@ -267,9 +267,9 @@ PyObject *PyObjectFrom(const MT_Quaternion &qrot);
 #endif
 
 /**
- * Converts an MT_Tuple4 to a python object.
+ * Converts an MT_Vector4 to a python object.
  */
-PyObject *PyObjectFrom(const MT_Tuple4 &pos);
+PyObject *PyObjectFrom(const MT_Vector4 &pos);
 
 #endif
 

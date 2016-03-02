@@ -33,7 +33,7 @@
 #define __KX_RADARSENSOR_H__
 
 #include "KX_NearSensor.h"
-#include "MT_Point3.h"
+#include "MT_Vector3.h"
 
 /**
  * Radar 'cone' sensor. Very similar to a near-sensor, but instead of a sphere, a cone is used.

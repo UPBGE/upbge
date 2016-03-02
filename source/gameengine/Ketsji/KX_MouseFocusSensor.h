@@ -97,9 +97,9 @@ class KX_MouseFocusSensor : public SCA_MouseSensor
 	/// \see KX_RayCast
 	bool NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data));
 	
-	const MT_Point3& RaySource() const;
-	const MT_Point3& RayTarget() const;
-	const MT_Point3& HitPosition() const;
+	const MT_Vector3& RaySource() const;
+	const MT_Vector3& RayTarget() const;
+	const MT_Vector3& HitPosition() const;
 	const MT_Vector3& HitNormal() const;
 	const MT_Vector2& HitUV() const;
 	
@@ -173,17 +173,17 @@ class KX_MouseFocusSensor : public SCA_MouseSensor
 	/**
 	 * (in game world coordinates) the place where the object was hit.
 	 */
-	MT_Point3        m_hitPosition;
+	MT_Vector3        m_hitPosition;
 
 	/**
 	 * (in game world coordinates) the position to which to shoot the ray.
 	 */
-	MT_Point3        m_prevTargetPoint;
+	MT_Vector3        m_prevTargetPoint;
 
 	/**
 	 * (in game world coordinates) the position from which to shoot the ray.
 	 */
-	MT_Point3        m_prevSourcePoint;
+	MT_Vector3        m_prevSourcePoint;
 
 	/**
 	 * (in game world coordinates) the face normal of the vertex where
