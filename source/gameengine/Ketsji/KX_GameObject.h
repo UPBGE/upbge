@@ -120,7 +120,7 @@ protected:
 	MT_CmMatrix4x4						m_OpenGL_4x4Matrix;
 
 #ifdef WITH_PYTHON
-       ComponentList                                           m_components;
+	ComponentList						m_components;
 #endif
 	std::vector<bRigidBodyJointConstraint*>	m_constraints;
 
@@ -973,20 +973,20 @@ public:
 	
 	CListValue* GetChildren();
 	CListValue* GetChildrenRecursive();
-       /**
-        * Returns the component list
-        */
-       ComponentList &GetComponents();
+	/**
+	 * Returns the component list
+	 */
+	ComponentList &GetComponents();
 
-       /**
-        * Initializes the components
-        */
-       void InitComponents();
+	/**
+	 * Initializes the components
+	 */
+	void InitComponents();
 
-       /**
-        * Updates the components
-        */
-       void UpdateComponents();
+	/**
+	 * Updates the components
+	 */
+	void UpdateComponents();
 
 	KX_Scene*	GetScene();
 
@@ -1113,7 +1113,7 @@ public:
 	static PyObject*	pyattr_get_attrDict(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_obcolor(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_obcolor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-       static PyObject*        pyattr_get_components(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_components(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_collisionCallbacks(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_collisionCallbacks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_collisionGroup(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);

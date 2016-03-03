@@ -446,7 +446,7 @@ void BKE_object_free_ex(Object *ob, bool do_id_user)
 	free_sensors(&ob->sensors);
 	free_controllers(&ob->controllers);
 	free_actuators(&ob->actuators);
-       free_components(&ob->components);
+	free_components(&ob->components);
 	
 	BKE_constraints_free_ex(&ob->constraints, do_id_user);
 	

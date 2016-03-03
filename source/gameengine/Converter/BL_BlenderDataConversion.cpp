@@ -2159,8 +2159,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	converter->RegisterWorldInfo(worldinfo);
 	kxscene->SetWorldInfo(worldinfo);
 
-       // Set the physics environment so KX_PythonComponent.start() can use bge.constraints
-       PHY_SetActiveEnvironment(kxscene->GetPhysicsEnvironment());
+	// Set the physics environment so KX_PythonComponent.start() can use bge.constraints
+	PHY_SetActiveEnvironment(kxscene->GetPhysicsEnvironment());
 
 	//create object representations for obstacle simulation
 	KX_ObstacleSimulation* obssimulation = kxscene->GetObstacleSimulation();
@@ -2230,12 +2230,12 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		gameobj->SetInitState((blenderobj->init_state)?blenderobj->init_state:blenderobj->state);
 	}
 	// apply the initial state to controllers, only on the active objects as this registers the sensors
-       // also, to avoid another loop, we initialze components here
+	// also, to avoid another loop, we initialze components here
 	for ( i=0;i<objectlist->GetCount();i++)
 	{
 		KX_GameObject* gameobj = static_cast<KX_GameObject*>(objectlist->GetValue(i));
 		gameobj->ResetState();
-               gameobj->InitComponents();
+		gameobj->InitComponents();
 	}
 
 	logicbrick_conversionlist->Release();

@@ -4,18 +4,18 @@
 #include "DNA_listBase.h"
 
 typedef struct ComponentProperty {
-       struct ComponentProperty *next, *prev;
-       char name[32];
-       short type, pad;
-       int data;
-       void *poin, *poin2;
+	struct ComponentProperty *next, *prev;
+	char name[32];
+	short type, pad;
+	int data;
+	void *poin, *poin2;
 } ComponentProperty;
 
 typedef struct PythonComponent {
-       struct PythonComponent *next, *prev;
-       ListBase properties;
-       char name[64];
-       char module[64];
+	struct PythonComponent *next, *prev;
+	ListBase properties;
+	char name[64];
+	char module[64];
 } PythonComponent;
 
 

@@ -33,9 +33,9 @@
 /* ------------------------------------------------------------------------- */
 
 KX_PythonComponent::KX_PythonComponent(char *name)
-       : PyObjectPlus(),
-         m_gameobj(NULL),
-         m_name(name)
+	: PyObjectPlus(),
+	  m_gameobj(NULL),
+	  m_name(name)
 {
 }
 
@@ -45,17 +45,17 @@ KX_PythonComponent::~KX_PythonComponent()
 
 STR_String& KX_PythonComponent::GetName()
 {
-       return m_name;
+	return m_name;
 }
 
 KX_GameObject* KX_PythonComponent::GetGameobject()
 {
-       return m_gameobj;
+	return m_gameobj;
 }
 
 void KX_PythonComponent::SetGameobject(KX_GameObject *gameobj)
 {
-       m_gameobj = gameobj;
+	m_gameobj = gameobj;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -64,99 +64,99 @@ void KX_PythonComponent::SetGameobject(KX_GameObject *gameobj)
 
 PyObject *KX_PythonComponent::py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-       PyObjectPlus_Proxy *self;
-       char name[64];
+	PyObjectPlus_Proxy *self;
+	char name[64];
 
-       self = (PyObjectPlus_Proxy*)type->tp_alloc(type, 0);
+	self = (PyObjectPlus_Proxy*)type->tp_alloc(type, 0);
 
-       if (self)
-       {
-               BLI_strncpy(name, Py_TYPE(self)->tp_name, sizeof(name));
+	if (self)
+	{
+		BLI_strncpy(name, Py_TYPE(self)->tp_name, sizeof(name));
 
-               self->ptr = NULL;
-               self->ref = new KX_PythonComponent(name);
-               self->py_owns = true;
-               self->py_ref = true;
-       }
+		self->ptr = NULL;
+		self->ref = new KX_PythonComponent(name);
+		self->py_owns = true;
+		self->py_ref = true;
+	}
 
-       return (PyObject*)self;
+	return (PyObject*)self;
 }
 
 int KX_PythonComponent::py_component_init(PyObjectPlus_Proxy *self, PyObject *args, PyObject *kwds)
 {
-       KX_GameObject *gameobj;
-       KX_PythonComponent *kxpycomp;
-       PyObject *pyobj;
+	KX_GameObject *gameobj;
+	KX_PythonComponent *kxpycomp;
+	PyObject *pyobj;
 
-       if (!PyArg_ParseTuple(args, "O", &pyobj))
-               return -1;
+	if (!PyArg_ParseTuple(args, "O", &pyobj))
+		return -1;
 
-       if (!PyObject_IsInstance(pyobj, (PyObject*)&KX_GameObject::Type))
-       {
-               PyErr_SetString(PyExc_TypeError, "expected a KX_GameObject for first argument");
-               return -1;
-       }
+	if (!PyObject_IsInstance(pyobj, (PyObject*)&KX_GameObject::Type))
+	{
+		PyErr_SetString(PyExc_TypeError, "expected a KX_GameObject for first argument");
+		return -1;
+	}
 
-       gameobj = static_cast<KX_GameObject*>(BGE_PROXY_REF(pyobj));
-       kxpycomp = static_cast<KX_PythonComponent*>(BGE_PROXY_REF(self));
+	gameobj = static_cast<KX_GameObject*>(BGE_PROXY_REF(pyobj));
+	kxpycomp = static_cast<KX_PythonComponent*>(BGE_PROXY_REF(self));
 
-       kxpycomp->SetGameobject(gameobj);
+	kxpycomp->SetGameobject(gameobj);
 
-       return 0;
+	return 0;
 }
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_PythonComponent::Type = {
-       PyVarObject_HEAD_INIT(NULL, 0)
-       "KX_PythonComponent",
-       sizeof(PyObjectPlus_Proxy),
-       0,
-       py_base_dealloc,
-       0,
-       0,
-       0,
-       0,
-       py_base_repr,
-       0,0,0,0,0,0,0,0,0,
-       Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-       0,0,0,0,0,0,0,
-       Methods,
-       0,
-       0,
-       &PyObjectPlus::Type,
-       0,0,0,0,
-       (initproc)py_component_init,
-       0,
-       py_component_new
+	PyVarObject_HEAD_INIT(NULL, 0)
+	"KX_PythonComponent",
+	sizeof(PyObjectPlus_Proxy),
+	0,
+	py_base_dealloc,
+	0,
+	0,
+	0,
+	0,
+	py_base_repr,
+	0,0,0,0,0,0,0,0,0,
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+	0,0,0,0,0,0,0,
+	Methods,
+	0,
+	0,
+	&PyObjectPlus::Type,
+	0,0,0,0,
+	(initproc)py_component_init,
+	0,
+	py_component_new
 };
 
 PyMethodDef KX_PythonComponent::Methods[] = {
-       KX_PYMETHODTABLE_O(KX_PythonComponent, start),
-       {NULL,NULL} //Sentinel
+	KX_PYMETHODTABLE_O(KX_PythonComponent, start),
+	{NULL,NULL} //Sentinel
 };
 
 PyAttributeDef KX_PythonComponent::Attributes[] = {
-       KX_PYATTRIBUTE_RO_FUNCTION("object", KX_PythonComponent, pyattr_get_object),
-       { NULL }        //Sentinel
+	KX_PYATTRIBUTE_RO_FUNCTION("object", KX_PythonComponent, pyattr_get_object),
+	{ NULL }        //Sentinel
 };
 
 PyObject* KX_PythonComponent::pyattr_get_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-       KX_PythonComponent* self= static_cast<KX_PythonComponent*>(self_v);
-       KX_GameObject *gameobj = self->GetGameobject();
+	KX_PythonComponent* self= static_cast<KX_PythonComponent*>(self_v);
+	KX_GameObject *gameobj = self->GetGameobject();
 
-       if (gameobj)
-               return gameobj->GetProxy();
-       else
-               Py_RETURN_NONE;
+	if (gameobj)
+		return gameobj->GetProxy();
+	else
+		Py_RETURN_NONE;
 }
 
 KX_PYMETHODDEF_DOC_O(KX_PythonComponent, start,
-                                        "start(args)\n"
-                                        "initializes the component")
+					 "start(args)\n"
+					 "initializes the component")
 {
-       printf("base start\n");
-       // We leave this empty, derived classes should define their own if they need it
-       Py_RETURN_NONE;
+	printf("base start\n");
+	// We leave this empty, derived classes should define their own if they need it
+	Py_RETURN_NONE;
 }
 #endif

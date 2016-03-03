@@ -4394,10 +4394,10 @@ static void rna_def_space_logic(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "SpaceLogic");
 	RNA_def_struct_ui_text(srna, "Space Logic Editor", "Logic editor space data");
 
-       /* Properties */
-       prop= RNA_def_property(srna, "import_string", PROP_STRING, PROP_NONE);
-       RNA_def_property_string_sdna(prop, NULL, "import_string");
-       RNA_def_property_ui_text(prop, "Import String", "Import string used to find the component when adding a new component");
+	/* Properties */
+	prop = RNA_def_property(srna, "import_string", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "import_string");
+	RNA_def_property_ui_text(prop, "Import String", "Import string used to find the component when adding a new component");
 
 	/* sensors */
 	prop = RNA_def_property(srna, "show_sensors_selected_objects", PROP_BOOLEAN, PROP_NONE);

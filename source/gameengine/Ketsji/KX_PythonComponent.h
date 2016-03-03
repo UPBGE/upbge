@@ -30,29 +30,29 @@
 
 class KX_PythonComponent : public PyObjectPlus
 {
-       Py_Header
-private:
-       // member vars
-       class KX_GameObject *m_gameobj;
-       STR_String m_name;
+	Py_Header
+	private:
+		// member vars
+		class KX_GameObject *m_gameobj;
+	STR_String m_name;
 
 public:
-       KX_PythonComponent(char *name);
-       virtual ~KX_PythonComponent();
+	KX_PythonComponent(char *name);
+	virtual ~KX_PythonComponent();
 
-       STR_String& GetName();
+	STR_String& GetName();
 
-       class KX_GameObject *GetGameobject();
-       void SetGameobject(class KX_GameObject*);
+	class KX_GameObject *GetGameobject();
+	void SetGameobject(class KX_GameObject*);
 
-       static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
-       static int py_component_init(PyObjectPlus_Proxy *self, PyObject *args, PyObject *kwds);
+	static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+	static int py_component_init(PyObjectPlus_Proxy *self, PyObject *args, PyObject *kwds);
 
-       // Methods
-       KX_PYMETHOD_DOC_O(KX_PythonComponent, start)
+	// Methods
+	KX_PYMETHOD_DOC_O(KX_PythonComponent, start)
 
-       // Attributes
-       static PyObject*        pyattr_get_object(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	// Attributes
+	static PyObject*        pyattr_get_object(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 };
 
 #endif //ndef DISABLE_PYTHON

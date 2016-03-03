@@ -1418,32 +1418,32 @@ static void write_actuators(WriteData *wd, ListBase *lb)
 
 static void write_component_properties(WriteData *wd, ListBase *lb)
 {
-       ComponentProperty *cprop;
+	ComponentProperty *cprop;
 
-       cprop= lb->first;
+	cprop = lb->first;
 
-       while(cprop) {
-               writestruct(wd, DATA, "ComponentProperty", 1, cprop);
+	while(cprop) {
+		writestruct(wd, DATA, "ComponentProperty", 1, cprop);
 
-               if(cprop->poin)
-                       writedata(wd, DATA, MEM_allocN_len(cprop->poin), cprop->poin);
+		if(cprop->poin)
+			writedata(wd, DATA, MEM_allocN_len(cprop->poin), cprop->poin);
 
-               cprop= cprop->next;
-       }
+		cprop = cprop->next;
+	}
 }
 
 static void write_components(WriteData *wd, ListBase *lb)
 {
-       PythonComponent *pc;
+	PythonComponent *pc;
 
-       pc= lb->first;
+	pc = lb->first;
 
-       while(pc) {
-               writestruct(wd, DATA, "PythonComponent", 1, pc);
-               write_component_properties(wd, &pc->properties);
+	while(pc) {
+		writestruct(wd, DATA, "PythonComponent", 1, pc);
+		write_component_properties(wd, &pc->properties);
 
-               pc= pc->next;
-       }
+		pc = pc->next;
+	}
 }
 
 static void write_motionpath(WriteData *wd, bMotionPath *mpath)
@@ -1716,7 +1716,7 @@ static void write_objects(WriteData *wd, ListBase *idbase)
 			write_sensors(wd, &ob->sensors);
 			write_controllers(wd, &ob->controllers);
 			write_actuators(wd, &ob->actuators);
-                       write_components(wd, &ob->components);
+			write_components(wd, &ob->components);
 
 			if (ob->type == OB_ARMATURE) {
 				bArmature *arm = ob->data;

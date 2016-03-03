@@ -1079,7 +1079,7 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 
 static PythonComponent *rna_py_components_add(Object *ob, ReportList *reports, const char *path)
 {
-       return NULL;
+	return NULL;
 }
 
 static void rna_py_components_remove(Object *ob, ReportList *reports, PythonComponent *pycomp)
@@ -1634,30 +1634,30 @@ static void rna_def_material_slot(BlenderRNA *brna)
 /* object.components */
 static void rna_def_py_components(BlenderRNA *brna, PropertyRNA *cprop)
 {
-       StructRNA *srna;
+	StructRNA *srna;
 
-       FunctionRNA *func;
-       PropertyRNA *parm;
+	FunctionRNA *func;
+	PropertyRNA *parm;
 
-       RNA_def_property_srna(cprop, "Components");
-       srna = RNA_def_struct(brna, "Components", NULL);
-       RNA_def_struct_sdna(srna, "Object");
-       RNA_def_struct_ui_text(srna, "Components", "Collection of components");
+	RNA_def_property_srna(cprop, "Components");
+	srna = RNA_def_struct(brna, "Components", NULL);
+	RNA_def_struct_sdna(srna, "Object");
+	RNA_def_struct_ui_text(srna, "Components", "Collection of components");
 
-       func = RNA_def_function(srna, "add", "rna_py_components_add");
-       RNA_def_function_ui_description(func, "Add a component to an object");
-       RNA_def_function_flag(func, FUNC_USE_REPORTS);
-       parm = RNA_def_string(func, "pypath", NULL, 64, "", "The import string for the component");
-       RNA_def_property_flag(parm, PROP_REQUIRED);
+	func = RNA_def_function(srna, "add", "rna_py_components_add");
+	RNA_def_function_ui_description(func, "Add a component to an object");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	parm = RNA_def_string(func, "pypath", NULL, 64, "", "The import string for the component");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
 
-       parm = RNA_def_pointer(func, "component", "PythonComponent", "", "The newly created component");
-       RNA_def_function_return(func, parm);
+	parm = RNA_def_pointer(func, "component", "PythonComponent", "", "The newly created component");
+	RNA_def_function_return(func, parm);
 
-       func = RNA_def_function(srna, "remove", "rna_py_components_remove");
-       RNA_def_function_ui_description(func, "Remove a component from an object");
-       RNA_def_function_flag(func, FUNC_USE_REPORTS);
-       parm = RNA_def_pointer(func, "component", "PythonComponent", "", "The component to remove");
-       RNA_def_property_flag(parm, PROP_REQUIRED|PROP_NEVER_NULL);
+	func = RNA_def_function(srna, "remove", "rna_py_components_remove");
+	RNA_def_function_ui_description(func, "Remove a component from an object");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	parm = RNA_def_pointer(func, "component", "PythonComponent", "", "The component to remove");
+	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_NEVER_NULL);
 }
 
 static void rna_def_object_game_settings(BlenderRNA *brna)
@@ -1707,11 +1707,11 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "GameProperty"); /* rna_property.c */
 	RNA_def_property_ui_text(prop, "Properties", "Game engine properties");
 
-       prop= RNA_def_property(srna, "components", PROP_COLLECTION, PROP_NONE);
-       RNA_def_property_collection_sdna(prop, NULL, "components", NULL);
-       RNA_def_property_struct_type(prop, "PythonComponent"); /* rna_pycomponent.c */
-       RNA_def_property_ui_text(prop, "Components", "Game engine components");
-       rna_def_py_components(brna, prop);
+	prop = RNA_def_property(srna, "components", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "components", NULL);
+	RNA_def_property_struct_type(prop, "PythonComponent"); /* rna_pycomponent.c */
+	RNA_def_property_ui_text(prop, "Components", "Game engine components");
+	rna_def_py_components(brna, prop);
 
 	prop = RNA_def_property(srna, "show_sensors", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scaflag", OB_SHOWSENS);
