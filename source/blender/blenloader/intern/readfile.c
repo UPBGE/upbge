@@ -62,6 +62,7 @@
 #include "DNA_cloth_types.h"
 #include "DNA_controller_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_component_types.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_effect_types.h"
 #include "DNA_fileglobal_types.h"
@@ -5244,6 +5245,8 @@ static void direct_link_object(FileData *fd, Object *ob)
 	bSensor *sens;
 	bController *cont;
 	bActuator *act;
+       PythonComponent *pc;
+       ComponentProperty *cprop;
 	
 	/* weak weak... this was only meant as draw flag, now is used in give_base_to_objects too */
 	ob->flag &= ~OB_FROMGROUP;
@@ -5425,6 +5428,19 @@ static void direct_link_object(FileData *fd, Object *ob)
 	for (act = ob->actuators.first; act; act = act->next) {
 		act->data = newdataadr(fd, act->data);
 	}
+
+       link_glob_list(fd, &ob->components);
+       pc= ob->components.first;
+       while(pc) {
+               link_glob_list(fd, &pc->properties);
+               cprop= pc->properties.first;
+               while(cprop) {
+                       cprop->poin= newdataadr(fd, cprop->poin);
+                       cprop= cprop->next;
+               }
+
+               pc= pc->next;
+       }
 
 	link_list(fd, &ob->hooks);
 	while (ob->hooks.first) {

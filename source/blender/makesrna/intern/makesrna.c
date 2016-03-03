@@ -3328,6 +3328,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_palette.c", NULL, RNA_def_palette},
 	{"rna_particle.c", NULL, RNA_def_particle},
 	{"rna_pose.c", "rna_pose_api.c", RNA_def_pose},
+       {"rna_pycomponent.c", NULL, RNA_def_py_component},
 	{"rna_property.c", NULL, RNA_def_gameproperty},
 	{"rna_render.c", NULL, RNA_def_render},
 	{"rna_rigidbody.c", NULL, RNA_def_rigidbody},

@@ -1670,6 +1670,10 @@ void KX_Scene::UpdateAnimations(double curtime)
 
 void KX_Scene::LogicUpdateFrame(double curtime, bool frame)
 {
+       // Update object components
+       for (int i=0; i<m_objectlist->GetCount(); ++i) {
+               ((KX_GameObject*)m_objectlist->GetValue(i))->UpdateComponents();
+       }
 	m_logicmgr->UpdateFrame(curtime, frame);
 }
 

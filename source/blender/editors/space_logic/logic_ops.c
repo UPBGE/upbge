@@ -35,6 +35,7 @@
 #include "DNA_controller_types.h"
 #include "DNA_actuator_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_component_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -44,6 +45,7 @@
 #include "BKE_context.h"
 #include "BKE_main.h"
 #include "BKE_sca.h"
+#include "BKE_pycomponent.h"
 
 #include "ED_logic.h"
 #include "ED_object.h"
@@ -59,6 +61,8 @@
 #include "UI_view2d.h"
 
 #include "logic_intern.h"
+
+#include <stdio.h> /* sprintf */
 
 /* ************* Generic Operator Helpers ************* */
 static int edit_sensor_poll(bContext *C)
@@ -735,6 +739,150 @@ static void LOGIC_OT_view_all(wmOperatorType *ot)
 	ot->flag = 0;
 }
 
+/* Component operators */
+static int component_add_exec(bContext *C, wmOperator *op)
+{
+
+       SpaceLogic *slogic= CTX_wm_space_logic(C);
+       PythonComponent *pycomp;
+       Object *ob = CTX_data_active_object(C);
+       char import[sizeof(slogic->import_string)];
+
+       if (!ob)
+               return OPERATOR_CANCELLED;
+
+       /* We always want to clear the import_string after this operator is called */
+       BLI_strncpy(import, slogic->import_string, sizeof(import));
+       BLI_strncpy(slogic->import_string, "", sizeof(slogic->import_string));
+
+       pycomp = new_component_from_import(import);
+
+       if(!pycomp)
+               return OPERATOR_CANCELLED;
+
+       BLI_addtail(&ob->components, pycomp);
+       WM_event_add_notifier(C, NC_LOGIC, NULL);
+
+       return OPERATOR_FINISHED;
+}
+
+static void LOGIC_OT_component_add(wmOperatorType *ot)
+{
+       /* identifiers */
+       ot->name= "Add Component";
+       ot->description= "Add Component";
+       ot->idname= "LOGIC_OT_component_add";
+
+       /* api callbacks */
+       ot->exec= component_add_exec;
+       ot->poll= ED_operator_object_active_editable;
+
+       /* flags */
+       ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+static int component_remove_exec(bContext *C, wmOperator *op)
+{
+       Object *ob= CTX_data_active_object(C);
+       PythonComponent *pc= NULL;
+       int index= RNA_int_get(op->ptr, "index");
+
+       if(!ob)
+               return OPERATOR_CANCELLED;
+
+       pc= BLI_findlink(&ob->components, index);
+
+       if(!pc)
+               return OPERATOR_CANCELLED;
+
+       BLI_remlink(&ob->components, pc);
+       free_component(pc);
+
+       WM_event_add_notifier(C,NC_LOGIC, NULL);
+
+       return OPERATOR_FINISHED;
+}
+
+static void LOGIC_OT_component_remove(wmOperatorType *ot)
+{
+       /* identifiers */
+       ot->name= "Remove Component";
+       ot->description= "Remove Component";
+       ot->idname= "LOGIC_OT_component_remove";
+
+       /* api callbacks */
+       ot->exec= component_remove_exec;
+       ot->poll= ED_operator_object_active_editable;
+
+       /* flags */
+       ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+       /* properties */
+       RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to remove", 0, INT_MAX);
+}
+
+static int component_reload_exec(bContext *C, wmOperator *op)
+{
+       Object *ob= CTX_data_active_object(C);
+       PythonComponent *pc= NULL, *new_pc=NULL, *prev_pc=NULL;
+       int index= RNA_int_get(op->ptr, "index");
+       char import[64];
+
+       if(!ob)
+               return OPERATOR_CANCELLED;
+
+       if (index > 0)
+       {
+               prev_pc= BLI_findlink(&ob->components, index-1);
+               pc = prev_pc->next;
+       }
+       else
+       {
+               /* pc is at the head */
+               pc = BLI_findlink(&ob->components, index);
+       }
+
+       if(!pc)
+               return OPERATOR_CANCELLED;
+
+       /* Try to create a new component */
+       sprintf(import, "%s.%s", pc->module, pc->name);
+       new_pc = new_component_from_import(import);
+
+       /* If creation failed, leave the old one along */
+       if(!new_pc)
+               return OPERATOR_CANCELLED;
+
+       /* Otherwise swap and destroy the old one */
+       BLI_remlink(&ob->components, pc);
+       free_component(pc);
+
+       if (prev_pc)
+               BLI_insertlinkafter(&ob->components, prev_pc, new_pc);
+       else
+               BLI_addhead(&ob->components, new_pc);
+
+       return OPERATOR_FINISHED;
+}
+
+static void LOGIC_OT_component_reload(wmOperatorType *ot)
+{
+       /* identifiers */
+       ot->name= "Reload Component";
+       ot->description= "Reload Component";
+       ot->idname= "LOGIC_OT_component_reload";
+
+       /* api callbacks */
+       ot->exec= component_reload_exec;
+       ot->poll= ED_operator_object_active_editable;
+
+       /* flags */
+       ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+       /* properties */
+       RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to remove", 0, INT_MAX);
+}
+
 /* ************************* */
 
 void ED_operatortypes_logic(void)
@@ -748,5 +896,10 @@ void ED_operatortypes_logic(void)
 	WM_operatortype_append(LOGIC_OT_actuator_remove);
 	WM_operatortype_append(LOGIC_OT_actuator_add);
 	WM_operatortype_append(LOGIC_OT_actuator_move);
+
+       WM_operatortype_append(LOGIC_OT_component_add);
+       WM_operatortype_append(LOGIC_OT_component_remove);
+       WM_operatortype_append(LOGIC_OT_component_reload);
+
 	WM_operatortype_append(LOGIC_OT_view_all);
 }

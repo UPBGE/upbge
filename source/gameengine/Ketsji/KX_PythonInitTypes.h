@@ -32,9 +32,9 @@
 #ifndef __KX_PYTHON_INIT_TYPES__
 #define __KX_PYTHON_INIT_TYPES__
 
-#ifdef WITH_PYTHON
+//#ifdef WITH_PYTHON
 #include <Python.h>
 PyMODINIT_FUNC initGameTypesPythonBinding(void);
-#endif
+//#endif
 
 #endif  /* __KX_PYTHON_INIT_TYPES__ */
