@@ -1677,8 +1677,6 @@ void KX_Scene::LogicUpdateFrame(double curtime, bool frame)
 	m_logicmgr->UpdateFrame(curtime, frame);
 }
 
-
-
 void KX_Scene::LogicEndFrame()
 {
 	m_logicmgr->EndFrame();
