@@ -120,6 +120,7 @@
 #include "DNA_packedFile_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_property_types.h"
+#include "DNA_python_component_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sdna_types.h"
@@ -1415,6 +1416,36 @@ static void write_actuators(WriteData *wd, ListBase *lb)
 	}
 }
 
+static void write_component_properties(WriteData *wd, ListBase *lb)
+{
+	PythonComponentProperty *cprop;
+	cprop = lb->first;
+
+	while (cprop) {
+		LinkData *link;
+		writestruct(wd, DATA, "PythonComponentProperty", 1, cprop);
+		writelist(wd, DATA, "LinkData", &cprop->enumval);
+		for (link = cprop->enumval.first; link; link = link->next) {
+			writedata(wd, DATA, strlen(link->data)+1, link->data);
+		}
+		cprop = cprop->next;
+	}
+}
+
+static void write_components(WriteData *wd, ListBase *lb)
+{
+	PythonComponent *pc;
+
+	pc = lb->first;
+
+	while(pc) {
+		writestruct(wd, DATA, "PythonComponent", 1, pc);
+		write_component_properties(wd, &pc->properties);
+
+		pc = pc->next;
+	}
+}
+
 static void write_motionpath(WriteData *wd, bMotionPath *mpath)
 {
 	/* sanity checks */
@@ -1685,6 +1716,7 @@ static void write_objects(WriteData *wd, ListBase *idbase)
 			write_sensors(wd, &ob->sensors);
 			write_controllers(wd, &ob->controllers);
 			write_actuators(wd, &ob->actuators);
+			write_components(wd, &ob->components);
 
 			if (ob->type == OB_ARMATURE) {
 				bArmature *arm = ob->data;
