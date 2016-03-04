@@ -86,6 +86,7 @@ set(SRC
 	KX_KetsjiEngine.cpp
 	KX_Light.cpp
 	KX_LightIpoSGController.cpp
+	KX_Lod.cpp
 	KX_MaterialIpoController.cpp
 	KX_MeshProxy.cpp
 	KX_MotionState.cpp
@@ -163,6 +164,7 @@ set(SRC
 	KX_KetsjiEngine.h
 	KX_Light.h
 	KX_LightIpoSGController.h
+	KX_Lod.h
 	KX_MaterialIpoController.h
 	KX_MeshProxy.h
 	KX_MotionState.h
