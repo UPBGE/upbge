@@ -5431,14 +5431,15 @@ static void direct_link_object(FileData *fd, Object *ob)
 
 	link_glob_list(fd, &ob->components);
 	pc = ob->components.first;
-	while(pc) {
-		   link_glob_list(fd, &pc->properties);
-		   cprop = pc->properties.first;
-		   while(cprop) {
-				   cprop->poin = newdataadr(fd, cprop->poin);
-				   cprop = cprop->next;
-		   }
-		   pc = pc->next;
+	while (pc) {
+		link_glob_list(fd, &pc->properties);
+		cprop = pc->properties.first;
+		while (cprop) {
+			cprop->ptr = newdataadr(fd, cprop->ptr);
+			cprop->ptr2 = newdataadr(fd, cprop->ptr2);
+			cprop = cprop->next;
+		}
+		pc = pc->next;
 	}
 
 	link_list(fd, &ob->hooks);

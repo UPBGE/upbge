@@ -1421,10 +1421,13 @@ static void write_component_properties(WriteData *wd, ListBase *lb)
 	ComponentProperty *cprop;
 	cprop = lb->first;
 
-	while(cprop) {
+	while (cprop) {
 		writestruct(wd, DATA, "ComponentProperty", 1, cprop);
-		if(cprop->poin) {
-			writedata(wd, DATA, MEM_allocN_len(cprop->poin), cprop->poin);
+		if (cprop->ptr) {
+			writedata(wd, DATA, MEM_allocN_len(cprop->ptr), cprop->ptr);
+		}
+		if (cprop->ptr2) {
+			writedata(wd, DATA, MEM_allocN_len(cprop->ptr2), cprop->ptr2);
 		}
 		cprop = cprop->next;
 	}

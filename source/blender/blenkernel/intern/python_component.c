@@ -36,8 +36,7 @@ static int verify_class(PyObject *cls)
 		comp = strcmp("KX_PythonComponent", name);
 		Py_DECREF(item);
 
-		if (comp == 0)
-		{
+		if (comp == 0) {
 			Py_DECREF(list);
 			return 1;
 		}
@@ -48,20 +47,19 @@ static int verify_class(PyObject *cls)
 	return 0;
 }
 
-static ComponentProperty *create_property(char *name, short type, int data, void *poin)
+static ComponentProperty *create_property(char *name, short type, int data, void *ptr)
 {
 	ComponentProperty *cprop;
 
 	cprop = MEM_mallocN(sizeof(ComponentProperty), "ComponentProperty");
 
-	if (cprop)
-	{
+	if (cprop) {
 		BLI_strncpy(cprop->name, name, sizeof(cprop->name));
 		cprop->type = type;
 
 		cprop->data = 0;
-		cprop->poin = NULL;
-		cprop->poin2 = NULL;
+		cprop->ptr = NULL;
+		cprop->ptr2 = NULL;
 
 		if (type == CPROP_TYPE_INT) {
 			cprop->data = data;
@@ -73,11 +71,11 @@ static ComponentProperty *create_property(char *name, short type, int data, void
 			cprop->data = data;
 		}
 		else if (type == CPROP_TYPE_STRING) {
-			cprop->poin = poin;
+			cprop->ptr = ptr;
 		}
 		else if (type == CPROP_TYPE_SET) {
-			cprop->poin = poin;
-			cprop->poin2 = ((EnumPropertyItem*)poin)->identifier;
+			cprop->ptr = ptr;
+			cprop->ptr2 = (void *)((EnumPropertyItem*)ptr)->identifier;
 			cprop->data = 0;
 		}
 	}
@@ -87,11 +85,11 @@ static ComponentProperty *create_property(char *name, short type, int data, void
 
 static void free_component_property(ComponentProperty *cprop)
 {
-	if (cprop->poin) {
-		MEM_freeN(cprop->poin);
+	if (cprop->ptr) {
+		MEM_freeN(cprop->ptr);
 	}
-	if (cprop->poin2) {
-		MEM_freeN(cprop->poin2);
+	if (cprop->ptr2) {
+		MEM_freeN(cprop->ptr2);
 	}
 	MEM_freeN(cprop);
 }
@@ -100,7 +98,7 @@ static void free_component_properties(ListBase *lb)
 {
 	ComponentProperty *cprop;
 
-	while (cprop= lb->first) {
+	while ((cprop = lb->first)) {
 		BLI_remlink(lb, cprop);
 		free_component_property(cprop);
 	}
@@ -109,18 +107,17 @@ static void free_component_properties(ListBase *lb)
 static void create_properties(PythonComponent *pycomp, PyObject *cls)
 {
 #ifdef WITH_PYTHON
-	PyObject *args_dict, *key, *value, *items, *item;
+	PyObject *args_dict, *pykey, *pyvalue, *pyitems, *pyitem;
 	ComponentProperty *cprop;
 	char name[64];
 	int data;
 	short type;
-	void *poin=NULL;
+	void *ptr = NULL;
 
 	args_dict = PyObject_GetAttrString(cls, "args");
 
 	// If there is no args dict, then we are already done
-	if (args_dict == NULL || !PyDict_Check(args_dict))
-	{
+	if (!args_dict || !PyDict_Check(args_dict)) {
 		Py_XDECREF(args_dict);
 		return;
 	}
@@ -130,61 +127,60 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 	// key = property name
 	// value = default value
 	// type(value) = property type
-	items = PyMapping_Items(args_dict);
+	pyitems = PyMapping_Items(args_dict);
 
-	for (unsigned int i = 0, size = PyList_Size(items); i < size; ++i)
-	{
-		item = PyList_GetItem(items, i);
-		key = PyTuple_GetItem(item, 0);
-		value = PyTuple_GetItem(item, 1);
+	for (unsigned int i = 0, size = PyList_Size(pyitems); i < size; ++i) {
+		pyitem = PyList_GetItem(pyitems, i);
+		pykey = PyTuple_GetItem(pyitem, 0);
+		pyvalue = PyTuple_GetItem(pyitem, 1);
 
 		// Make sure type(key) == string
-		if (!PyUnicode_Check(key)) {
+		if (!PyUnicode_Check(pykey)) {
 			printf("Non-string key found in the args dictionary, skipping\n");
 			continue;
 		}
 
-		BLI_strncpy(name, _PyUnicode_AsString(key), sizeof(name));
+		BLI_strncpy(name, _PyUnicode_AsString(pykey), sizeof(name));
 
 		// Determine the type and default value
-		if (PyBool_Check(value)) {
+		if (PyBool_Check(pyvalue)) {
 			type = CPROP_TYPE_BOOLEAN;
-			data = PyLong_AsLong(value) != 0;
+			data = PyLong_AsLong(pyvalue) != 0;
 		}
-		else if (PyLong_Check(value)) {
+		else if (PyLong_Check(pyvalue)) {
 			type = CPROP_TYPE_INT;
-			data = PyLong_AsLong(value);
+			data = PyLong_AsLong(pyvalue);
 		}
-		else if (PyFloat_Check(value)) {
+		else if (PyFloat_Check(pyvalue)) {
 			type = CPROP_TYPE_FLOAT;
-			*((float*)&data) = (float)PyFloat_AsDouble(value);
+			*((float*)&data) = (float)PyFloat_AsDouble(pyvalue);
 		}
-		else if (PyUnicode_Check(value)) {
+		else if (PyUnicode_Check(pyvalue)) {
 			type = CPROP_TYPE_STRING;
-			poin = MEM_callocN(MAX_PROPSTRING, "ComponentProperty string");
-			BLI_strncpy((char*)poin, _PyUnicode_AsString(value), MAX_PROPSTRING);
+			ptr = MEM_callocN(MAX_PROPSTRING, "ComponentProperty string");
+			BLI_strncpy((char*)ptr, _PyUnicode_AsString(pyvalue), MAX_PROPSTRING);
 		}
-		else if (PySet_Check(value)) {
-			int len = PySet_Size(value), i=0;
+		else if (PySet_Check(pyvalue)) {
+			int len = PySet_Size(pyvalue), j = 0;
 			EnumPropertyItem *items;
-			PyObject *iterator = PyObject_GetIter(value), *v=NULL;
+			PyObject *iterator = PyObject_GetIter(pyvalue), *v = NULL;
 			char *str;
 			type = CPROP_TYPE_SET;
 
 			// Create an EnumPropertyItem array
-			poin = MEM_callocN(sizeof(EnumPropertyItem)*(len+1), "ComponentProperty set");
-			items = (EnumPropertyItem*)poin;
-			while (v = PyIter_Next(iterator)) {
+			ptr = MEM_callocN(sizeof(EnumPropertyItem) * (len + 1), "ComponentProperty set");
+			items = (EnumPropertyItem*)ptr;
+			while ((v = PyIter_Next(iterator))) {
 				str = MEM_callocN(MAX_PROPSTRING, "ComponentProperty set string");
 				BLI_strncpy(str, _PyUnicode_AsString(v), MAX_PROPSTRING);
 
-				items[i].value = i;
-				items[i].identifier = str;
-				items[i].icon = 0;
-				items[i].name = str;
-				items[i].description = "";
+				items[j].value = j;
+				items[j].identifier = str;
+				items[j].icon = 0;
+				items[j].name = str;
+				items[j].description = "";
 
-				i++;
+				++j;
 			}
 			data = 0;
 		}
@@ -194,14 +190,14 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 			continue;
 		}
 
-		cprop = create_property(name, type, data, poin);
+		cprop = create_property(name, type, data, ptr);
 
 		if (cprop) {
 			BLI_addtail(&pycomp->properties, cprop);
 		}
 		else {
-			// Cleanup poin if it's set
-			if (poin) MEM_freeN(poin);
+			// Cleanup ptr if it's set
+			if (ptr) MEM_freeN(ptr);
 		}
 	}
 
@@ -216,13 +212,13 @@ PythonComponent *new_component_from_module_name(char *import)
 	PyObject *mod, *mod_list, *item, *py_name;
 	PyGILState_STATE state;
 	char *name, *cls, path[64];
+	char *module_name;
 
 	// Don't bother with an empty string
 	if (strcmp(import, "") == 0) {
 		return NULL;
 	}
 
-	char *module_name;
 	module_name = strtok(import, ".");
 	cls = strtok(NULL, ".");
 
@@ -239,14 +235,12 @@ PythonComponent *new_component_from_module_name(char *import)
 	// Try to load up the module
 	mod = PyImport_ImportModule(path);
 
-	if (mod)
-	{
+	if (mod) {
 		// Get the list of objects in the module
 		mod_list = PyDict_Values(PyModule_GetDict(mod));
 
 		// Now iterate the list
-		for (unsigned int i = 0, size = PyList_Size(mod_list); i < size; ++i)
-		{
+		for (unsigned int i = 0, size = PyList_Size(mod_list); i < size; ++i) {
 			item = PyList_GetItem(mod_list, i);
 
 			// We only want to bother checking type objects
@@ -315,7 +309,7 @@ void free_components(ListBase *lb)
 {
 	PythonComponent *pc;
 
-	while (pc = lb->first) {
+	while ((pc = lb->first)) {
 		BLI_remlink(lb, pc);
 		free_component(pc);
 	}

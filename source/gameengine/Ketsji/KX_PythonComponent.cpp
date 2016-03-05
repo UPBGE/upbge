@@ -26,14 +26,10 @@
 #include "KX_GameObject.h"
 #include "BLI_string.h"
 
-/* ------------------------------------------------------------------------- */
-/* Native functions                                                          */
-/* ------------------------------------------------------------------------- */
-
-KX_PythonComponent::KX_PythonComponent(char *name)
-	: PyObjectPlus(),
-	  m_gameobj(NULL),
-	  m_name(name)
+KX_PythonComponent::KX_PythonComponent(STR_String name)
+	:CValue(),
+	m_gameobj(NULL),
+	m_name(name)
 {
 }
 
@@ -41,12 +37,7 @@ KX_PythonComponent::~KX_PythonComponent()
 {
 }
 
-STR_String& KX_PythonComponent::GetName()
-{
-	return m_name;
-}
-
-KX_GameObject* KX_PythonComponent::GetGameObject()
+KX_GameObject *KX_PythonComponent::GetGameObject()
 {
 	return m_gameobj;
 }
@@ -56,33 +47,56 @@ void KX_PythonComponent::SetGameObject(KX_GameObject *gameobj)
 	m_gameobj = gameobj;
 }
 
-/* ------------------------------------------------------------------------- */
-/* Python functions                                                          */
-/* ------------------------------------------------------------------------- */
+// stuff for cvalue related things
+CValue *KX_PythonComponent::Calc(VALUE_OPERATOR, CValue *val)
+{
+	return NULL;
+}
+
+CValue *KX_PythonComponent::CalcFinal(VALUE_DATA_TYPE, VALUE_OPERATOR, CValue *val)
+{
+	return NULL;
+}
+
+const STR_String& KX_PythonComponent::GetText()
+{
+	return m_name;
+}
+
+double KX_PythonComponent::GetNumber()
+{
+	return -1.0;
+}
+
+STR_String& KX_PythonComponent::GetName()
+{
+	return m_name;
+}
+
+void KX_PythonComponent::SetName(const char *name)
+{
+}
+
+CValue *KX_PythonComponent::GetReplica()
+{
+	return NULL;
+}
 
 PyObject *KX_PythonComponent::py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-	PyObjectPlus_Proxy *self;
-	char name[64];
+	KX_PythonComponent *comp = new KX_PythonComponent(STR_String(type->tp_name));
 
-	self = (PyObjectPlus_Proxy*)type->tp_alloc(type, 0);
-
-	if (self) {
-		BLI_strncpy(name, Py_TYPE(self)->tp_name, sizeof(name));
-
-		self->ptr = NULL;
-		self->ref = new KX_PythonComponent(name);
-		self->py_owns = true;
-		self->py_ref = true;
+	PyObject *proxy = py_base_new(type, PyTuple_Pack(1, comp->GetProxy()), kwds);
+	if (!proxy) {
+		delete comp;
+		return NULL;
 	}
 
-	return (PyObject*)self;
+	return proxy;
 }
 
 int KX_PythonComponent::py_component_init(PyObjectPlus_Proxy *self, PyObject *args, PyObject *kwds)
 {
-	KX_GameObject *gameobj;
-	KX_PythonComponent *kxpycomp;
 	PyObject *pyobj;
 
 	if (!PyArg_ParseTuple(args, "O", &pyobj)) {
@@ -94,15 +108,14 @@ int KX_PythonComponent::py_component_init(PyObjectPlus_Proxy *self, PyObject *ar
 		return -1;
 	}
 
-	gameobj = static_cast<KX_GameObject*>(BGE_PROXY_REF(pyobj));
-	kxpycomp = static_cast<KX_PythonComponent*>(BGE_PROXY_REF(self));
+	KX_GameObject *gameobj = static_cast<KX_GameObject *>(BGE_PROXY_REF(pyobj));
+	KX_PythonComponent *kxpycomp = static_cast<KX_PythonComponent *>(BGE_PROXY_REF(self));
 
 	kxpycomp->SetGameObject(gameobj);
 
 	return 0;
 }
 
-/* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_PythonComponent::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	"KX_PythonComponent",
@@ -128,18 +141,17 @@ PyTypeObject KX_PythonComponent::Type = {
 };
 
 PyMethodDef KX_PythonComponent::Methods[] = {
-	KX_PYMETHODTABLE_O(KX_PythonComponent, start),
-	{NULL,NULL} //Sentinel
+	{NULL, NULL} //Sentinel
 };
 
 PyAttributeDef KX_PythonComponent::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("object", KX_PythonComponent, pyattr_get_object),
-	{ NULL }        //Sentinel
+	{NULL} //Sentinel
 };
 
 PyObject* KX_PythonComponent::pyattr_get_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_PythonComponent* self= static_cast<KX_PythonComponent*>(self_v);
+	KX_PythonComponent *self = static_cast<KX_PythonComponent *>(self_v);
 	KX_GameObject *gameobj = self->GetGameObject();
 
 	if (gameobj) {
@@ -148,14 +160,5 @@ PyObject* KX_PythonComponent::pyattr_get_object(void *self_v, const KX_PYATTRIBU
 	else {
 		Py_RETURN_NONE;
 	}
-}
-
-KX_PYMETHODDEF_DOC_O(KX_PythonComponent, start,
-					 "start(args)\n"
-					 "initializes the component")
-{
-	printf("base start\n");
-	// We leave this empty, derived classes should define their own if they need it
-	Py_RETURN_NONE;
 }
 #endif

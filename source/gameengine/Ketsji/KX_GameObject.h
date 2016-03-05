@@ -74,8 +74,6 @@ bool ConvertPythonToGameObject(PyObject *value, KX_GameObject **object, bool py_
 void KX_GameObject_Mathutils_Callback_Init(void);
 #endif
 
-typedef std::vector<PyObject*> ComponentList;
-
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
@@ -120,7 +118,7 @@ protected:
 	MT_CmMatrix4x4						m_OpenGL_4x4Matrix;
 
 #ifdef WITH_PYTHON
-	ComponentList						m_components;
+	CListValue							*m_components;
 #endif
 	std::vector<bRigidBodyJointConstraint*>	m_constraints;
 
@@ -976,7 +974,7 @@ public:
 	/**
 	 * Returns the component list
 	 */
-	ComponentList &GetComponents();
+	CListValue *GetComponents();
 
 	/**
 	 * Initializes the components

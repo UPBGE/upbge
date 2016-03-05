@@ -238,7 +238,7 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
                     _sys_path_ensure(path)
 
                     # only add this to sys.modules, don't run
-                    if path_subdir in ("modules"):
+                    if path_subdir == "modules":
                         continue
 
                     for mod in modules_from_path(path, loaded_modules):

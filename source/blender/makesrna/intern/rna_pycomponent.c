@@ -34,58 +34,57 @@
 
 static StructRNA* rna_ComponentProperty_refine(struct PointerRNA *ptr)
 {
-	ComponentProperty *cprop = (ComponentProperty*)ptr->data;
+	ComponentProperty *cprop = (ComponentProperty *)ptr->data;
 
 	switch(cprop->type) {
-	case CPROP_TYPE_BOOLEAN:
-		return &RNA_ComponentBooleanProperty;
-	case CPROP_TYPE_INT:
-		return &RNA_ComponentIntProperty;
-	case CPROP_TYPE_FLOAT:
-		return &RNA_ComponentFloatProperty;
-	case CPROP_TYPE_STRING:
-		return &RNA_ComponentStringProperty;
-	case CPROP_TYPE_SET:
-		return &RNA_ComponentSetProperty;
-	default:
-		return &RNA_ComponentProperty;
+		case CPROP_TYPE_BOOLEAN:
+			return &RNA_ComponentBooleanProperty;
+		case CPROP_TYPE_INT:
+			return &RNA_ComponentIntProperty;
+		case CPROP_TYPE_FLOAT:
+			return &RNA_ComponentFloatProperty;
+		case CPROP_TYPE_STRING:
+			return &RNA_ComponentStringProperty;
+		case CPROP_TYPE_SET:
+			return &RNA_ComponentSetProperty;
+		default:
+			return &RNA_ComponentProperty;
 	}
 }
 
 static float rna_ComponentFloatProperty_value_get(PointerRNA *ptr)
 {
-	ComponentProperty *cprop = (ComponentProperty*)(ptr->data);
+	ComponentProperty *cprop = (ComponentProperty *)(ptr->data);
 	return *(float*)(&cprop->data);
 }
 
 static void rna_ComponentFloatProperty_value_set(PointerRNA *ptr, float value)
 {
-	ComponentProperty *cprop = (ComponentProperty*)(ptr->data);
+	ComponentProperty *cprop = (ComponentProperty *)(ptr->data);
 	*(float*)(&cprop->data) = value;
 }
 static int rna_ComponentSetProperty_get(struct PointerRNA *ptr)
 {
-	ComponentProperty *cprop = (ComponentProperty*)(ptr->data);
+	ComponentProperty *cprop = (ComponentProperty *)(ptr->data);
 	return cprop->data;
 }
 
 static void rna_ComponentSetProperty_set(struct PointerRNA *ptr, int value)
 {
-	ComponentProperty *cprop = (ComponentProperty*)(ptr->data);
+	ComponentProperty *cprop = (ComponentProperty *)(ptr->data);
 	cprop->data = value;
-	cprop->poin2 = (((EnumPropertyItem*)cprop->poin)+value)->identifier;
+	cprop->ptr2 = (void *)(((EnumPropertyItem *)cprop->ptr) + value)->identifier;
 }
 
-EnumPropertyItem *rna_ComponentSetProperty_itemf(bContext *C, PointerRNA *ptr, int *free)
+static EnumPropertyItem *rna_ComponentSetProperty_itemf(bContext *UNUSED(C), PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
-
-	ComponentProperty *cprop = (ComponentProperty*)(ptr->data);
-	*free = 0;
-	return (EnumPropertyItem*)cprop->poin;
+	ComponentProperty *cprop = (ComponentProperty *)(ptr->data);
+	*r_free = false;
+	return (EnumPropertyItem *)cprop->ptr;
 }
 #else
 
-void rna_def_py_component(BlenderRNA *brna)
+static void rna_def_py_component(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
@@ -108,7 +107,7 @@ void rna_def_py_component(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Properties", "Component properties");
 }
 
-void rna_def_py_component_property(BlenderRNA *brna)
+static void rna_def_py_component_property(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
@@ -167,13 +166,12 @@ void rna_def_py_component_property(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Python Component String Property", "A string property of a Python Component");
 
 	prop = RNA_def_property(srna, "value", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "poin");
+	RNA_def_property_string_sdna(prop, NULL, "ptr");
 	RNA_def_property_string_maxlength(prop, MAX_PROPSTRING);
 	RNA_def_property_ui_text(prop, "Value", "Property value");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	/* Set */
-	//#if 0
 	srna = RNA_def_struct(brna, "ComponentSetProperty", "ComponentProperty");
 	RNA_def_struct_sdna(srna, "ComponentProperty");
 	RNA_def_struct_ui_text(srna, "Python Component Set Property", "A set property of a Python Component");
@@ -182,11 +180,8 @@ void rna_def_py_component_property(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, empty_items);
 	RNA_def_property_enum_funcs(prop, "rna_ComponentSetProperty_get", "rna_ComponentSetProperty_set", "rna_ComponentSetProperty_itemf");
 	RNA_def_property_enum_default(prop, 0);
-	//RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_ComponentSetProperty_itemf");
 	RNA_def_property_ui_text(prop, "Value", "Property value");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
-	//#endif
-
 }
 
 void RNA_def_py_component(BlenderRNA *brna)

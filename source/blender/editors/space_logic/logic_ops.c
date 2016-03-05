@@ -62,8 +62,6 @@
 
 #include "logic_intern.h"
 
-#include <stdio.h> /* sprintf */
-
 /* ************* Generic Operator Helpers ************* */
 static int edit_sensor_poll(bContext *C)
 {
@@ -740,7 +738,7 @@ static void LOGIC_OT_view_all(wmOperatorType *ot)
 }
 
 /* Component operators */
-static int component_add_exec(bContext *C, wmOperator *op)
+static int component_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 
 	SpaceLogic *slogic= CTX_wm_space_logic(C);
@@ -780,7 +778,7 @@ static void LOGIC_OT_component_add(wmOperatorType *ot)
 	ot->poll = ED_operator_object_active_editable;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 static int component_remove_exec(bContext *C, wmOperator *op)
@@ -802,7 +800,7 @@ static int component_remove_exec(bContext *C, wmOperator *op)
 	BLI_remlink(&ob->components, pc);
 	free_component(pc);
 
-	WM_event_add_notifier(C,NC_LOGIC, NULL);
+	WM_event_add_notifier(C, NC_LOGIC, NULL);
 
 	return OPERATOR_FINISHED;
 }
@@ -819,7 +817,7 @@ static void LOGIC_OT_component_remove(wmOperatorType *ot)
 	ot->poll = ED_operator_object_active_editable;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
 	RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to remove", 0, INT_MAX);
@@ -828,7 +826,7 @@ static void LOGIC_OT_component_remove(wmOperatorType *ot)
 static int component_reload_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
-	PythonComponent *pc = NULL, *new_pc=NULL, *prev_pc=NULL;
+	PythonComponent *pc = NULL, *new_pc = NULL, *prev_pc = NULL;
 	int index = RNA_int_get(op->ptr, "index");
 	char import[64];
 
@@ -836,8 +834,7 @@ static int component_reload_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	if (index > 0)
-	{
+	if (index > 0) {
 		prev_pc = BLI_findlink(&ob->components, index-1);
 		pc = prev_pc->next;
 	}
@@ -850,8 +847,8 @@ static int component_reload_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
+	snprintf(import, sizeof(import), "%s.%s", pc->module, pc->name);
 	/* Try to create a new component */
-	sprintf(import, "%s.%s", pc->module, pc->name);
 	new_pc = new_component_from_module_name(import);
 
 	/* If creation failed, leave the old one along */
@@ -885,10 +882,10 @@ static void LOGIC_OT_component_reload(wmOperatorType *ot)
 	ot->poll = ED_operator_object_active_editable;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to remove", 0, INT_MAX);
+	RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Component index to reload", 0, INT_MAX);
 }
 
 /* ************************* */

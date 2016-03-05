@@ -20,14 +20,16 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __KX_PYCOMPONENT
-#define __KX_PYCOMPONENT
+#ifndef __KX_PYCOMPONENT_H__
+#define __KX_PYCOMPONENT_H__
+
 #ifdef WITH_PYTHON
 
-#include "EXP_PyObjectPlus.h"
+#include "EXP_Value.h"
 
 class KX_GameObject;
-class KX_PythonComponent : public PyObjectPlus
+
+class KX_PythonComponent : public CValue
 {
 	Py_Header
 private:
@@ -36,23 +38,28 @@ private:
 	STR_String m_name;
 
 public:
-	KX_PythonComponent(char *name);
+	KX_PythonComponent(STR_String name);
 	virtual ~KX_PythonComponent();
 
-	STR_String& GetName();
-
 	KX_GameObject *GetGameObject();
-	void SetGameObject(KX_GameObject*);
+	void SetGameObject(KX_GameObject *gameobj);
+
+	// stuff for cvalue related things
+	CValue *Calc(VALUE_OPERATOR op, CValue *val);
+	CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+	const STR_String& GetText();
+	double GetNumber();
+	STR_String& GetName();
+	void SetName(const char *name); // Set the name of the value
+	CValue *GetReplica();
 
 	static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 	static int py_component_init(PyObjectPlus_Proxy *self, PyObject *args, PyObject *kwds);
 
-	// Methods
-	KX_PYMETHOD_DOC_O(KX_PythonComponent, start)
-
 	// Attributes
-	static PyObject*        pyattr_get_object(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 };
 
-#endif //def WITH_PYTHON
-#endif //__KX_PYCOMPONENT
+#endif // WITH_PYTHON
+
+#endif // __KX_PYCOMPONENT_H__

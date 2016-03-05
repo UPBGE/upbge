@@ -1077,12 +1077,12 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 	WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->id.data);
 }
 
-static PythonComponent *rna_py_components_add(Object *ob, ReportList *reports, const char *path)
+static PythonComponent *rna_py_components_add(Object *UNUSED(ob), ReportList *UNUSED(reports), const char *UNUSED(path))
 {
 	return NULL;
 }
 
-static void rna_py_components_remove(Object *ob, ReportList *reports, PythonComponent *pycomp)
+static void rna_py_components_remove(Object *UNUSED(ob), ReportList *UNUSED(reports), PythonComponent *UNUSED(pycomp))
 {
 }
 

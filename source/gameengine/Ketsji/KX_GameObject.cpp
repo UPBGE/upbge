@@ -116,6 +116,7 @@ KX_GameObject::KX_GameObject(
       m_autoUpdateBounds(false),
       m_pPhysicsController(NULL),
       m_pGraphicController(NULL),
+      m_components(NULL),
       m_pInstanceObjects(NULL),
       m_pDupliGroupObject(NULL),
       m_actionManager(NULL)
@@ -152,12 +153,9 @@ KX_GameObject::~KX_GameObject()
 		Py_CLEAR(m_collisionCallbacks);
 	}
 
-	for (ComponentList::iterator it = m_components.begin(), end = m_components.end(); it != end; ++it)
-	{
-		Py_DECREF(*it);
+	if (m_components) {
+		m_components->Release();
 	}
-
-	m_components.clear();
 #endif // WITH_PYTHON
 
 	RemoveMeshes();
@@ -1647,7 +1645,7 @@ CListValue* KX_GameObject::GetChildrenRecursive()
 	return list;
 }
 
-ComponentList &KX_GameObject::GetComponents()
+CListValue *KX_GameObject::GetComponents()
 {
 	return m_components;
 }
@@ -1656,7 +1654,7 @@ ComponentList &KX_GameObject::GetComponents()
 static PyObject *arg_dict_from_component(PythonComponent *pc)
 {
 	ComponentProperty *cprop;
-	PyObject *args= NULL, *value=NULL;
+	PyObject *args = NULL, *value = NULL;
 
 	args = PyDict_New();
 
@@ -1673,10 +1671,10 @@ static PyObject *arg_dict_from_component(PythonComponent *pc)
 			value = PyBool_FromLong(cprop->data);
 		}
 		else if (cprop->type == CPROP_TYPE_STRING) {
-			value = PyUnicode_FromString((char*)cprop->poin);
+			value = PyUnicode_FromString((char*)cprop->ptr);
 		}
 		else if (cprop->type == CPROP_TYPE_SET) {
-			value = PyUnicode_FromString((char*)cprop->poin2);
+			value = PyUnicode_FromString((char*)cprop->ptr2);
 		}
 		else {
 			cprop= cprop->next;
@@ -1695,8 +1693,17 @@ static PyObject *arg_dict_from_component(PythonComponent *pc)
 void KX_GameObject::InitComponents()
 {
 #ifdef WITH_PYTHON
-	PythonComponent *pc = (PythonComponent*)GetBlenderObject()->components.first;
+	PythonComponent *pc = (PythonComponent *)GetBlenderObject()->components.first;
 	PyObject *arg_dict = NULL, *args = NULL, *mod = NULL, *cls = NULL, *pycomp;
+
+	if (!pc) {
+		return;
+	}
+
+	if (m_components) {
+		m_components->Release();
+	}
+	m_components = new CListValue();
 
 	while (pc) {
 		// Make sure to clean out anything from previous loops
@@ -1751,7 +1758,8 @@ void KX_GameObject::InitComponents()
 			Py_XDECREF(pycomp);
 		}
 		else {
-			m_components.push_back(pycomp);
+			KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(BGE_PROXY_REF(pycomp));
+			m_components->Add(comp);
 		}
 
 		pc = pc->next;
@@ -1768,8 +1776,13 @@ void KX_GameObject::InitComponents()
 void KX_GameObject::UpdateComponents()
 {
 #ifdef WITH_PYTHON
-	for (size_t i = 0; i < m_components.size(); ++i) {
-		if (!PyObject_CallMethod(m_components[i], "update", "")) {
+	if (!m_components) {
+		return;
+	}
+
+	for (CListValue::iterator it = m_components->GetBegin(), end = m_components->GetEnd(); it != end; ++it) {
+		PyObject *pycomp = (*it)->GetProxy();
+		if (!PyObject_CallMethod(pycomp, "update", "")) {
 			PyErr_Print();
 		}
 	}
@@ -3144,30 +3157,10 @@ int KX_GameObject::pyattr_set_obcolor(void *self_v, const KX_PYATTRIBUTE_DEF *at
 	return PY_SET_ATTR_SUCCESS;
 }
 
-static int kx_game_object_get_components_size_cb(void *self_v)
-{
-	return ((KX_GameObject *)self_v)->GetComponents().size();
-}
-
-static PyObject *kx_game_object_get_components_item_cb(void *self_v, int index)
-{
-	return ((KX_GameObject *)self_v)->GetComponents()[index];
-}
-
-static const char *kx_game_object_get_components_item_name_cb(void *self_v, int index)
-{
-	return ((KX_PythonComponent*)((KX_GameObject *)self_v)->GetComponents()[index])->GetName().ReadPtr();
-}
-
 PyObject* KX_GameObject::pyattr_get_components(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new CListWrapper(self_v,
-							 ((KX_GameObject *)self_v)->GetProxy(),
-							 NULL,
-							 kx_game_object_get_components_size_cb,
-							 kx_game_object_get_components_item_cb,
-							 kx_game_object_get_components_item_name_cb,
-							 NULL))->NewProxy(true);
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+	return self->GetComponents()->GetProxy();
 }
 
 static int kx_game_object_get_sensors_size_cb(void *self_v)

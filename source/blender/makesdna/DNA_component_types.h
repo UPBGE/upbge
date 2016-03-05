@@ -8,7 +8,7 @@ typedef struct ComponentProperty {
 	char name[32];
 	short type, pad;
 	int data;
-	void *poin, *poin2;
+	void *ptr, *ptr2;
 } ComponentProperty;
 
 typedef struct PythonComponent {
