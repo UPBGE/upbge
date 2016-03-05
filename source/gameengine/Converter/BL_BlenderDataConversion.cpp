@@ -175,7 +175,7 @@ extern Material defmaterial;	/* material.c */
 #include "KX_NavMeshObject.h"
 #include "KX_ObstacleSimulation.h"
 
-#include "KX_LodLevels.h"
+#include "KX_Lod.h"
 
 #include "BLI_threads.h"
 
@@ -1227,9 +1227,9 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	}
 }
 
-static KX_LodLevels *lodlevels_from_blenderobject(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading)
+static KX_Lod *lodlevels_from_blenderobject(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading)
 {
-	KX_LodLevels* lodLevels = new KX_LodLevels(ob, scene, converter, libloading);
+	KX_Lod* lodLevels = new KX_Lod(ob, scene, converter, libloading);
 	if (lodLevels->Empty()) {
 		delete lodLevels;
 		return NULL;
@@ -1353,7 +1353,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		gameobj->AddMesh(meshobj);
 
 		// gather levels of detail
-		KX_LodLevels *lodLevels = lodlevels_from_blenderobject(ob, kxscene, converter, libloading);
+		KX_Lod *lodLevels = lodlevels_from_blenderobject(ob, kxscene, converter, libloading);
 		gameobj->SetLodLevels(lodLevels);
 
 		// for all objects: check whether they want to

@@ -63,7 +63,7 @@
 #include "KX_NetworkMessageScene.h" //Needed for sendMessage()
 #include "KX_ObstacleSimulation.h"
 #include "KX_Scene.h"
-#include "KX_LodLevels.h"
+#include "KX_Lod.h"
 
 #include "BKE_object.h"
 
@@ -791,7 +791,7 @@ void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos)
 	KX_Scene *scene = GetScene();
 	float distance2 = NodeGetWorldPosition().distance2(cam_pos);
 
-	const KX_LodLevel& lodLevel = m_lodLevels->GetDistance2ToLodLevel(scene, m_previousLodLevel, distance2);
+	const KX_Lod::Level& lodLevel = m_lodLevels->GetDistance2ToLodLevel(scene, m_previousLodLevel, distance2);
 	const unsigned short level = lodLevel.level;
 	RAS_MeshObject *mesh = lodLevel.meshobj;
 

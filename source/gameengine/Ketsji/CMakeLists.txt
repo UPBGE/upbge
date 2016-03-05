@@ -86,6 +86,7 @@ set(SRC
 	KX_KetsjiEngine.cpp
 	KX_Light.cpp
 	KX_LightIpoSGController.cpp
+	KX_Lod.cpp
 	KX_MaterialIpoController.cpp
 	KX_MeshProxy.cpp
 	KX_MotionState.cpp
@@ -132,7 +133,6 @@ set(SRC
 	KX_VisibilityActuator.cpp
 	KX_WorldInfo.cpp
 	KX_WorldIpoController.cpp
-	KX_LodLevels.cpp
 
 	BL_Action.h
 	BL_ActionManager.h
@@ -164,6 +164,7 @@ set(SRC
 	KX_KetsjiEngine.h
 	KX_Light.h
 	KX_LightIpoSGController.h
+	KX_Lod.h
 	KX_MaterialIpoController.h
 	KX_MeshProxy.h
 	KX_MotionState.h
@@ -211,7 +212,6 @@ set(SRC
 	KX_VisibilityActuator.h
 	KX_WorldInfo.h
 	KX_WorldIpoController.h
-	KX_LodLevels.h
 
 	# orphan headers (not apart of a library)
 	../Physics/Common/PHY_DynamicTypes.h

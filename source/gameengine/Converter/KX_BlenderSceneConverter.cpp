@@ -44,7 +44,7 @@
 #include "BL_Material.h"
 #include "BL_ActionActuator.h"
 #include "KX_BlenderMaterial.h"
-#include "KX_LodLevels.h"
+#include "KX_Lod.h"
 
 #include "BL_System.h"
 
@@ -143,7 +143,7 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 	}
 
 	for (unsigned int i = 0; i < m_map_blenderobject_to_lodlevels.size(); i++) {
-		KX_LodLevels *lodLevels = *m_map_blenderobject_to_lodlevels.at(i);
+		KX_Lod *lodLevels = *m_map_blenderobject_to_lodlevels.at(i);
 		delete lodLevels;
 	}
 
@@ -503,14 +503,14 @@ void KX_BlenderSceneConverter::RegisterWorldInfo(KX_WorldInfo *worldinfo)
 	m_worldinfos.push_back(pair<KX_Scene *, KX_WorldInfo *> (m_currentScene, worldinfo));
 }
 
-void KX_BlenderSceneConverter::RegisterLodLevels(KX_LodLevels *lodLevels, Object *for_blenderobject)
+void KX_BlenderSceneConverter::RegisterLodLevels(KX_Lod *lodLevels, Object *for_blenderobject)
 {
 	m_map_blenderobject_to_lodlevels.insert(CHashedPtr(for_blenderobject), lodLevels);
 }
 
-KX_LodLevels *KX_BlenderSceneConverter::FindLodLevels(Object *for_blenderobject)
+KX_Lod *KX_BlenderSceneConverter::FindLodLevels(Object *for_blenderobject)
 {
-	KX_LodLevels **lodLevelsp = m_map_blenderobject_to_lodlevels[CHashedPtr(for_blenderobject)];
+	KX_Lod **lodLevelsp = m_map_blenderobject_to_lodlevels[CHashedPtr(for_blenderobject)];
 	return lodLevelsp ? *lodLevelsp : NULL;
 }
 

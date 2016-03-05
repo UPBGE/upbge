@@ -56,7 +56,7 @@
 //Forward declarations.
 struct KX_ClientObjectInfo;
 class KX_RayCast;
-class KX_LodLevels;
+class KX_Lod;
 class RAS_MeshObject;
 class RAS_MeshUser;
 class PHY_IGraphicController;
@@ -90,7 +90,7 @@ protected:
 	STR_String							m_text;
 	int									m_layer;
 	std::vector<RAS_MeshObject*>		m_meshes;
-	KX_LodLevels						*m_lodLevels;
+	KX_Lod							*m_lodLevels;
 	int                                 m_currentLodLevel;
 	short								m_previousLodLevel;
 	RAS_MeshUser						*m_meshUser;
@@ -828,12 +828,12 @@ public:
 	/**
 	 * Set library of lod meshes
 	 */
-	void SetLodLevels(KX_LodLevels* lodLevels)
+	void SetLodLevels(KX_Lod* lodLevels)
 	{
 		m_lodLevels = lodLevels;
 	}
 
-	KX_LodLevels* GetLodLevels()
+	KX_Lod* GetLodLevels()
 	{
 		return m_lodLevels;
 	}

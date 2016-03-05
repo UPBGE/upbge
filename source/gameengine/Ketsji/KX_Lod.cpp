@@ -20,14 +20,14 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "KX_LodLevels.h"
+#include "KX_Lod.h"
 #include "KX_Scene.h"
 #include "BL_BlenderDataConversion.h"
 #include "DNA_object_types.h"
 #include "BLI_listbase.h"
 #include <iostream>
 
-KX_LodLevels::KX_LodLevels(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter* converter, bool libloading)
+KX_Lod::KX_Lod(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter* converter, bool libloading)
 {
 	if (BLI_listbase_count_ex(&ob->lodlevels, 2) > 1) {
 		LodLevel *lod = (LodLevel*)ob->lodlevels.first;
@@ -40,7 +40,7 @@ KX_LodLevels::KX_LodLevels(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter
 				continue;
 			}
 
-			KX_LodLevel lodLevel;
+			Level lodLevel;
 
 			if (lod->flags & OB_LOD_USE_MESH) {
 				lodmesh = (Mesh*)lod->source->data;
@@ -51,7 +51,7 @@ KX_LodLevels::KX_LodLevels(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter
 			}
 
 			if (lod->flags & OB_LOD_USE_HYST) {
-				lodLevel.flags |= KX_LodLevel::USE_HYST;
+				lodLevel.flags |= Level::USE_HYST;
 			}
 
 			lodLevel.level = level++;
@@ -63,22 +63,22 @@ KX_LodLevels::KX_LodLevels(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter
 	}
 }
 
-KX_LodLevels::~KX_LodLevels()
+KX_Lod::~KX_Lod()
 {
 }
 
-float KX_LodLevels::GetHysteresis(KX_Scene *scene, unsigned short level)
+float KX_Lod::GetHysteresis(KX_Scene *scene, unsigned short level)
 {
 	if (!scene->IsActivedLodHysteresis()) {
 		return 0.0f;
 	}
 
-	const KX_LodLevel& lod = m_lodLevelList[level];
-	const KX_LodLevel& lodnext = m_lodLevelList[level + 1];
+	const Level& lod = m_lodLevelList[level];
+	const Level& lodnext = m_lodLevelList[level + 1];
 
 	float hysteresis = 0.0f;
 	// if exists, LoD level hysteresis will override scene hysteresis
-	if (lodnext.flags & KX_LodLevel::USE_HYST) {
+	if (lodnext.flags & Level::USE_HYST) {
 		hysteresis = lodnext.hysteresis;
 	}
 	else {
@@ -88,7 +88,7 @@ float KX_LodLevels::GetHysteresis(KX_Scene *scene, unsigned short level)
 	return MT_abs(lodnext.distance - lod.distance) * hysteresis;
 }
 
-const KX_LodLevel& KX_LodLevels::GetDistance2ToLodLevel(KX_Scene *scene, unsigned short previouslod, float distance2)
+const KX_Lod::Level& KX_Lod::GetDistance2ToLodLevel(KX_Scene *scene, unsigned short previouslod, float distance2)
 {
 	unsigned short level = 0;
 	unsigned short count = m_lodLevelList.size();

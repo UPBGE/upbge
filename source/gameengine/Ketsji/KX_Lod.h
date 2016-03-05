@@ -18,9 +18,6 @@
  * Contributor(s): Porteries Tristan.
  *
  * ***** END GPL LICENSE BLOCK *****
- *
- * Le principe de cette classe est de supprimer les erreurs d'un mauvais lod en début de jeu et de pouvoir 
- * pendant la jeu changer de mesh de LOD, par exemple LOD d'une maison vers LOD d'une maison detruite
  */
 
 #include <vector>
@@ -30,31 +27,32 @@ class KX_Scene;
 class KX_BlenderSceneConverter;
 struct Object;
 
-struct KX_LodLevel
+class KX_Lod
 {
-	float distance;
-	float hysteresis;
-	unsigned short level;
-	unsigned short flags;
-	RAS_MeshObject* meshobj;
+public:
+	struct Level
+	{
+		float distance;
+		float hysteresis;
+		unsigned short level;
+		unsigned short flags;
+		RAS_MeshObject *meshobj;
 
-	enum {
-		USE_HYST = (1 << 0),
+		enum {
+			USE_HYST = (1 << 0),
+		};
 	};
-};
 
-class KX_LodLevels
-{
 private:
-	std::vector<KX_LodLevel> m_lodLevelList;
+	std::vector<Level> m_lodLevelList;
 
 	float GetHysteresis(KX_Scene *scene, unsigned short level);
 
 public:
-	KX_LodLevels(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading);
-	virtual ~KX_LodLevels();
+	KX_Lod(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading);
+	virtual ~KX_Lod();
 
-	const KX_LodLevel& GetDistance2ToLodLevel(KX_Scene *scene, unsigned short previouslod, float distance2);
+	const KX_Lod::Level& GetDistance2ToLodLevel(KX_Scene *scene, unsigned short previouslod, float distance2);
 
 	inline bool Empty() const
 	{
