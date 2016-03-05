@@ -29,7 +29,7 @@ class LOGIC_PT_components(bpy.types.Panel):
     def poll(cls, context):
         ob = context.active_object
         return ob and ob.name
-          
+
     def draw(self, context):
         layout = self.layout
 
@@ -53,7 +53,7 @@ class LOGIC_PT_components(bpy.types.Panel):
                 row = box.row()
                 row.label(text=prop.name)
                 row.prop(prop, "value", text="")
-                      
+
 
 class LOGIC_PT_properties(Panel):
     bl_space_type = 'LOGIC_EDITOR'

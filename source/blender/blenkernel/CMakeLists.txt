@@ -264,7 +264,7 @@ set(SRC
 	BKE_pbvh.h
 	BKE_pointcache.h
 	BKE_property.h
-	BKE_pycomponent.h
+	BKE_python_component.h
 	BKE_report.h
 	BKE_rigidbody.h
 	BKE_sca.h

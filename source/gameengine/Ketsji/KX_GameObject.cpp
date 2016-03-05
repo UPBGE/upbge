@@ -80,8 +80,8 @@
 #  include "python_utildefines.h"
 #endif
 
-/* Component stuff */
-#include "DNA_component_types.h"
+// Component stuff
+#include "DNA_python_component_types.h"
 
 // This file defines relationships between parents and children
 // in the game engine.
@@ -1658,23 +1658,23 @@ static PyObject *arg_dict_from_component(PythonComponent *pc)
 
 	args = PyDict_New();
 
-	cprop = (ComponentProperty*)pc->properties.first;
+	cprop = (ComponentProperty *)pc->properties.first;
 
 	while (cprop) {
 		if (cprop->type == CPROP_TYPE_INT) {
 			value = PyLong_FromLong(cprop->data);
 		}
 		else if (cprop->type == CPROP_TYPE_FLOAT) {
-			value = PyFloat_FromDouble(*(float*)(&cprop->data));
+			value = PyFloat_FromDouble(*(float *)(&cprop->data));
 		}
 		else if (cprop->type == CPROP_TYPE_BOOLEAN) {
 			value = PyBool_FromLong(cprop->data);
 		}
 		else if (cprop->type == CPROP_TYPE_STRING) {
-			value = PyUnicode_FromString((char*)cprop->ptr);
+			value = PyUnicode_FromString((char *)cprop->ptr);
 		}
 		else if (cprop->type == CPROP_TYPE_SET) {
-			value = PyUnicode_FromString((char*)cprop->ptr2);
+			value = PyUnicode_FromString((char *)cprop->ptr2);
 		}
 		else {
 			cprop= cprop->next;

@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor(s): UPBGE Team
+ * Contributor(s): Mitchell Stokes, Diego Lopes, Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -25,7 +25,7 @@
 #include "RNA_define.h"
 
 #include "rna_internal.h"
-#include "DNA_component_types.h"
+#include "DNA_python_component_types.h"
 #include "DNA_property_types.h"
 
 #include "WM_types.h"

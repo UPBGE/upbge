@@ -35,7 +35,7 @@
 #include "DNA_controller_types.h"
 #include "DNA_actuator_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_component_types.h"
+#include "DNA_python_component_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -45,7 +45,7 @@
 #include "BKE_context.h"
 #include "BKE_main.h"
 #include "BKE_sca.h"
-#include "BKE_pycomponent.h"
+#include "BKE_python_component.h"
 
 #include "ED_logic.h"
 #include "ED_object.h"

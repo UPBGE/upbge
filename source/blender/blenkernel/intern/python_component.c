@@ -1,17 +1,31 @@
-#include <stdlib.h>
+/**
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Contributor(s): Mitchell Stokes, Diego Lopes, Tristan Porteries.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
-#include "DNA_component_types.h"
+#include "DNA_python_component_types.h"
 #include "DNA_property_types.h" /* For MAX_PROPSTRING */
-#include "BLI_sys_types.h"
-#include "DNA_listBase.h"
-#include "BLI_fileops.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
 #include "BLI_string.h"
 #include "MEM_guardedalloc.h"
-#include "BKE_pycomponent.h"
+#include "BKE_python_component.h"
 
 #include "RNA_types.h"
 
@@ -81,6 +95,17 @@ static ComponentProperty *create_property(char *name, short type, int data, void
 	}
 
 	return cprop;
+}
+
+static ComponentProperty *copy_property(ComponentProperty *cprop)
+{
+	ComponentProperty *cpropn;
+
+	cpropn = MEM_dupallocN(cprop);
+	cpropn->ptr = MEM_dupallocN(cpropn->ptr);
+	cpropn->ptr2 = MEM_dupallocN(cpropn->ptr2);
+
+	return cpropn;
 }
 
 static void free_component_property(ComponentProperty *cprop)
@@ -200,7 +225,6 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 			if (ptr) MEM_freeN(ptr);
 		}
 	}
-
 #endif /* WITH_PYTHON */
 }
 
@@ -296,6 +320,37 @@ PythonComponent *new_component_from_module_name(char *import)
 #endif /* WITH_PYTHON */
 
 	return pc;
+}
+
+static PythonComponent *copy_component(PythonComponent *comp)
+{
+	PythonComponent *compn;
+	ComponentProperty *cprop, *cpropn;
+
+	compn = MEM_dupallocN(comp);
+
+	BLI_listbase_clear(&compn->properties);
+	cprop = comp->properties.first;
+	while (cprop) {
+		cpropn = copy_property(cprop);
+		BLI_addtail(&compn->properties, cpropn);
+		cprop = cprop->next;
+	}
+
+	return compn;
+}
+
+void copy_components(ListBase *lbn, ListBase *lbo)
+{
+	PythonComponent *comp, *compn;
+
+	lbn->first = lbn->last = NULL;
+	comp = lbo->first;
+	while (comp) {
+		compn = copy_component(comp);
+		BLI_addtail(lbn, compn);
+		comp = comp->next;
+	}
 }
 
 void free_component(PythonComponent *pc)
