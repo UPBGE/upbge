@@ -748,17 +748,19 @@ static int component_add_exec(bContext *C, wmOperator *op)
 	Object *ob = CTX_data_active_object(C);
 	char import[sizeof(slogic->import_string)];
 
-	if (!ob)
+	if (!ob) {
 		return OPERATOR_CANCELLED;
+	}
 
 	/* We always want to clear the import_string after this operator is called */
 	BLI_strncpy(import, slogic->import_string, sizeof(import));
 	BLI_strncpy(slogic->import_string, "", sizeof(slogic->import_string));
 
-	pycomp = new_component_from_import(import);
+	pycomp = new_component_from_module_name(import);
 
-	if(!pycomp)
+	if(!pycomp) {
 		return OPERATOR_CANCELLED;
+	}
 
 	BLI_addtail(&ob->components, pycomp);
 	WM_event_add_notifier(C, NC_LOGIC, NULL);
@@ -787,13 +789,15 @@ static int component_remove_exec(bContext *C, wmOperator *op)
 	PythonComponent *pc = NULL;
 	int index = RNA_int_get(op->ptr, "index");
 
-	if(!ob)
+	if(!ob) {
 		return OPERATOR_CANCELLED;
+	}
 
 	pc = BLI_findlink(&ob->components, index);
 
-	if(!pc)
+	if(!pc) {
 		return OPERATOR_CANCELLED;
+	}
 
 	BLI_remlink(&ob->components, pc);
 	free_component(pc);
@@ -828,39 +832,43 @@ static int component_reload_exec(bContext *C, wmOperator *op)
 	int index = RNA_int_get(op->ptr, "index");
 	char import[64];
 
-	if(!ob)
+	if(!ob) {
 		return OPERATOR_CANCELLED;
+	}
 
 	if (index > 0)
 	{
 		prev_pc = BLI_findlink(&ob->components, index-1);
 		pc = prev_pc->next;
 	}
-	else
-	{
+	else {
 		/* pc is at the head */
 		pc = BLI_findlink(&ob->components, index);
 	}
 
-	if(!pc)
+	if(!pc) {
 		return OPERATOR_CANCELLED;
+	}
 
 	/* Try to create a new component */
 	sprintf(import, "%s.%s", pc->module, pc->name);
-	new_pc = new_component_from_import(import);
+	new_pc = new_component_from_module_name(import);
 
 	/* If creation failed, leave the old one along */
-	if(!new_pc)
+	if(!new_pc) {
 		return OPERATOR_CANCELLED;
+	}
 
 	/* Otherwise swap and destroy the old one */
 	BLI_remlink(&ob->components, pc);
 	free_component(pc);
 
-	if (prev_pc)
+	if (prev_pc) {
 		BLI_insertlinkafter(&ob->components, prev_pc, new_pc);
-	else
+	}
+	else {
 		BLI_addhead(&ob->components, new_pc);
+	}
 
 	return OPERATOR_FINISHED;
 }

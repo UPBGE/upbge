@@ -1,6 +1,4 @@
 /**
- * $Id$
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +20,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 #include "KX_PythonComponent.h"
 #include "KX_GameObject.h"
@@ -48,12 +46,12 @@ STR_String& KX_PythonComponent::GetName()
 	return m_name;
 }
 
-KX_GameObject* KX_PythonComponent::GetGameobject()
+KX_GameObject* KX_PythonComponent::GetGameObject()
 {
 	return m_gameobj;
 }
 
-void KX_PythonComponent::SetGameobject(KX_GameObject *gameobj)
+void KX_PythonComponent::SetGameObject(KX_GameObject *gameobj)
 {
 	m_gameobj = gameobj;
 }
@@ -69,8 +67,7 @@ PyObject *KX_PythonComponent::py_component_new(PyTypeObject *type, PyObject *arg
 
 	self = (PyObjectPlus_Proxy*)type->tp_alloc(type, 0);
 
-	if (self)
-	{
+	if (self) {
 		BLI_strncpy(name, Py_TYPE(self)->tp_name, sizeof(name));
 
 		self->ptr = NULL;
@@ -88,11 +85,11 @@ int KX_PythonComponent::py_component_init(PyObjectPlus_Proxy *self, PyObject *ar
 	KX_PythonComponent *kxpycomp;
 	PyObject *pyobj;
 
-	if (!PyArg_ParseTuple(args, "O", &pyobj))
+	if (!PyArg_ParseTuple(args, "O", &pyobj)) {
 		return -1;
+	}
 
-	if (!PyObject_IsInstance(pyobj, (PyObject*)&KX_GameObject::Type))
-	{
+	if (!PyObject_IsInstance(pyobj, (PyObject*)&KX_GameObject::Type)) {
 		PyErr_SetString(PyExc_TypeError, "expected a KX_GameObject for first argument");
 		return -1;
 	}
@@ -100,7 +97,7 @@ int KX_PythonComponent::py_component_init(PyObjectPlus_Proxy *self, PyObject *ar
 	gameobj = static_cast<KX_GameObject*>(BGE_PROXY_REF(pyobj));
 	kxpycomp = static_cast<KX_PythonComponent*>(BGE_PROXY_REF(self));
 
-	kxpycomp->SetGameobject(gameobj);
+	kxpycomp->SetGameObject(gameobj);
 
 	return 0;
 }
@@ -143,12 +140,14 @@ PyAttributeDef KX_PythonComponent::Attributes[] = {
 PyObject* KX_PythonComponent::pyattr_get_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_PythonComponent* self= static_cast<KX_PythonComponent*>(self_v);
-	KX_GameObject *gameobj = self->GetGameobject();
+	KX_GameObject *gameobj = self->GetGameObject();
 
-	if (gameobj)
+	if (gameobj) {
 		return gameobj->GetProxy();
-	else
+	}
+	else {
 		Py_RETURN_NONE;
+	}
 }
 
 KX_PYMETHODDEF_DOC_O(KX_PythonComponent, start,

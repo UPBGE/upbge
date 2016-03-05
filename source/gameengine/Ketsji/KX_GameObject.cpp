@@ -152,8 +152,7 @@ KX_GameObject::~KX_GameObject()
 		Py_CLEAR(m_collisionCallbacks);
 	}
 
-	ComponentList::iterator it;
-	for (it=m_components.begin(); it != m_components.end(); ++it)
+	for (ComponentList::iterator it = m_components.begin(), end = m_components.end(); it != end; ++it)
 	{
 		Py_DECREF(*it);
 	}
@@ -1657,27 +1656,30 @@ ComponentList &KX_GameObject::GetComponents()
 static PyObject *arg_dict_from_component(PythonComponent *pc)
 {
 	ComponentProperty *cprop;
-	PyObject *args = NULL, *value=NULL;
+	PyObject *args= NULL, *value=NULL;
 
 	args = PyDict_New();
 
 	cprop = (ComponentProperty*)pc->properties.first;
 
-	while (cprop)
-	{
-		if (cprop->type == CPROP_TYPE_INT)
+	while (cprop) {
+		if (cprop->type == CPROP_TYPE_INT) {
 			value = PyLong_FromLong(cprop->data);
-		else if (cprop->type == CPROP_TYPE_FLOAT)
+		}
+		else if (cprop->type == CPROP_TYPE_FLOAT) {
 			value = PyFloat_FromDouble(*(float*)(&cprop->data));
-		else if (cprop->type == CPROP_TYPE_BOOLEAN)
+		}
+		else if (cprop->type == CPROP_TYPE_BOOLEAN) {
 			value = PyBool_FromLong(cprop->data);
-		else if (cprop->type == CPROP_TYPE_STRING)
+		}
+		else if (cprop->type == CPROP_TYPE_STRING) {
 			value = PyUnicode_FromString((char*)cprop->poin);
-		else if (cprop->type == CPROP_TYPE_SET)
+		}
+		else if (cprop->type == CPROP_TYPE_SET) {
 			value = PyUnicode_FromString((char*)cprop->poin2);
-		else
-		{
-			cprop = cprop->next;
+		}
+		else {
+			cprop= cprop->next;
 			continue;
 		}
 
@@ -1688,7 +1690,7 @@ static PyObject *arg_dict_from_component(PythonComponent *pc)
 
 	return args;
 }
-#endif /* WITH_PYTHON */
+#endif
 
 void KX_GameObject::InitComponents()
 {
@@ -1696,42 +1698,39 @@ void KX_GameObject::InitComponents()
 	PythonComponent *pc = (PythonComponent*)GetBlenderObject()->components.first;
 	PyObject *arg_dict = NULL, *args = NULL, *mod = NULL, *cls = NULL, *pycomp;
 
-	while (pc)
-	{
+	while (pc) {
 		// Make sure to clean out anything from previous loops
 		Py_XDECREF(args);
 		Py_XDECREF(arg_dict);
 		Py_XDECREF(mod);
 		Py_XDECREF(cls);
-		args = mod = cls = NULL;
+		args = arg_dict = mod = cls = NULL;
 
 		// Grab the module
 		mod = PyImport_ImportModule(pc->module);
 
-		if (mod == NULL)
-		{
-			if (PyErr_Occurred()) PyErr_Print();
+		if (mod == NULL) {
+			if (PyErr_Occurred()) {
+				PyErr_Print();
+			}
 			printf("Coulding import the module '%s'\n", pc->module);
 			pc = pc->next;
 			continue;
 		}
 
-		// Clear the module from sys.modules
-		//PyDict_DelItemString(PyImport_GetModuleDict(), pc->module);
-
 		// Grab the class object
 		cls = PyObject_GetAttrString(mod, pc->name);
-		if (cls == NULL)
-		{
-			if (PyErr_Occurred()) PyErr_Print();
+		if (cls == NULL) {
+			if (PyErr_Occurred()) {
+				PyErr_Print();
+			}
 			printf("Python module found, but failed to find the compoent '%s'\n", pc->name);
 			pc = pc->next;
 			continue;
 		}
 
 		// Lastly make sure we have a class and it's an appropriate sub type
-		if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject*)&KX_PythonComponent::Type))
-		{
+		if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject*)&KX_PythonComponent::Type)) {
 			printf("%s.%s is not a KX_PythonComponent subclass\n", pc->module, pc->name);
 			pc = pc->next;
 			continue;
@@ -1746,18 +1745,17 @@ void KX_GameObject::InitComponents()
 
 		PyObject_CallMethod(pycomp, "start", "O", arg_dict);
 
-		if (PyErr_Occurred())
-		{
+		if (PyErr_Occurred()) {
 			// The component is invalid, drop it
 			PyErr_Print();
 			Py_XDECREF(pycomp);
 		}
-		else
+		else {
 			m_components.push_back(pycomp);
+		}
 
 		pc = pc->next;
 	}
-
 
 	Py_XDECREF(args);
 	Py_XDECREF(arg_dict);
@@ -1770,10 +1768,10 @@ void KX_GameObject::InitComponents()
 void KX_GameObject::UpdateComponents()
 {
 #ifdef WITH_PYTHON
-	for (size_t i = 0; i < m_components.size(); ++i)
-	{
-		if (!PyObject_CallMethod(m_components[i], "update", ""))
+	for (size_t i = 0; i < m_components.size(); ++i) {
+		if (!PyObject_CallMethod(m_components[i], "update", "")) {
 			PyErr_Print();
+		}
 	}
 
 #endif // WITH_PYTHON

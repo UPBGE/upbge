@@ -24,16 +24,13 @@ static int verify_class(PyObject *cls)
 #ifdef WITH_PYTHON
 	PyObject *list, *item;
 	char *name;
-	int i;
 	int comp;
 
 	list = PyObject_GetAttrString(cls, "__bases__");
 
-	for (i = 0; i < PyTuple_Size(list); ++i)
-	{
+	for (unsigned int i = 0, size = PyTuple_Size(list); i < size; ++i) {
 		item = PyObject_GetAttrString(PyTuple_GetItem(list, i), "__name__");
 		name = _PyUnicode_AsString(item);
-
 
 		// We don't want to decref until after the comprison
 		comp = strcmp("KX_PythonComponent", name);
@@ -66,16 +63,19 @@ static ComponentProperty *create_property(char *name, short type, int data, void
 		cprop->poin = NULL;
 		cprop->poin2 = NULL;
 
-		if (type == CPROP_TYPE_INT)
+		if (type == CPROP_TYPE_INT) {
 			cprop->data = data;
-		else if (type == CPROP_TYPE_FLOAT)
+		}
+		else if (type == CPROP_TYPE_FLOAT) {
 			*((float *)&cprop->data) = *(float*)(&data);
-		else if (type == CPROP_TYPE_BOOLEAN)
+		}
+		else if (type == CPROP_TYPE_BOOLEAN) {
 			cprop->data = data;
-		else if (type == CPROP_TYPE_STRING)
+		}
+		else if (type == CPROP_TYPE_STRING) {
 			cprop->poin = poin;
-		else if (type == CPROP_TYPE_SET)
-		{
+		}
+		else if (type == CPROP_TYPE_SET) {
 			cprop->poin = poin;
 			cprop->poin2 = ((EnumPropertyItem*)poin)->identifier;
 			cprop->data = 0;
@@ -87,8 +87,12 @@ static ComponentProperty *create_property(char *name, short type, int data, void
 
 static void free_component_property(ComponentProperty *cprop)
 {
-	if (cprop->poin) MEM_freeN(cprop->poin);
-	if (cprop->poin2) MEM_freeN(cprop->poin2);
+	if (cprop->poin) {
+		MEM_freeN(cprop->poin);
+	}
+	if (cprop->poin2) {
+		MEM_freeN(cprop->poin2);
+	}
 	MEM_freeN(cprop);
 }
 
@@ -108,7 +112,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 	PyObject *args_dict, *key, *value, *items, *item;
 	ComponentProperty *cprop;
 	char name[64];
-	int i=0, data;
+	int data;
 	short type;
 	void *poin=NULL;
 
@@ -128,15 +132,14 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 	// type(value) = property type
 	items = PyMapping_Items(args_dict);
 
-	for (i=0; i<PyList_Size(items); ++i)
+	for (unsigned int i = 0, size = PyList_Size(items); i < size; ++i)
 	{
 		item = PyList_GetItem(items, i);
 		key = PyTuple_GetItem(item, 0);
 		value = PyTuple_GetItem(item, 1);
 
 		// Make sure type(key) == string
-		if (!PyUnicode_Check(key))
-		{
+		if (!PyUnicode_Check(key)) {
 			printf("Non-string key found in the args dictionary, skipping\n");
 			continue;
 		}
@@ -144,29 +147,24 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 		BLI_strncpy(name, _PyUnicode_AsString(key), sizeof(name));
 
 		// Determine the type and default value
-		if (PyBool_Check(value))
-		{
+		if (PyBool_Check(value)) {
 			type = CPROP_TYPE_BOOLEAN;
 			data = PyLong_AsLong(value) != 0;
 		}
-		else if (PyLong_Check(value))
-		{
+		else if (PyLong_Check(value)) {
 			type = CPROP_TYPE_INT;
 			data = PyLong_AsLong(value);
 		}
-		else if (PyFloat_Check(value))
-		{
+		else if (PyFloat_Check(value)) {
 			type = CPROP_TYPE_FLOAT;
 			*((float*)&data) = (float)PyFloat_AsDouble(value);
 		}
-		else if (PyUnicode_Check(value))
-		{
+		else if (PyUnicode_Check(value)) {
 			type = CPROP_TYPE_STRING;
 			poin = MEM_callocN(MAX_PROPSTRING, "ComponentProperty string");
 			BLI_strncpy((char*)poin, _PyUnicode_AsString(value), MAX_PROPSTRING);
 		}
-		else if (PySet_Check(value))
-		{
+		else if (PySet_Check(value)) {
 			int len = PySet_Size(value), i=0;
 			EnumPropertyItem *items;
 			PyObject *iterator = PyObject_GetIter(value), *v=NULL;
@@ -176,12 +174,10 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 			// Create an EnumPropertyItem array
 			poin = MEM_callocN(sizeof(EnumPropertyItem)*(len+1), "ComponentProperty set");
 			items = (EnumPropertyItem*)poin;
-			while (v = PyIter_Next(iterator))
-			{
-
+			while (v = PyIter_Next(iterator)) {
 				str = MEM_callocN(MAX_PROPSTRING, "ComponentProperty set string");
 				BLI_strncpy(str, _PyUnicode_AsString(v), MAX_PROPSTRING);
-				printf("SET: %s\n", str);
+
 				items[i].value = i;
 				items[i].identifier = str;
 				items[i].icon = 0;
@@ -190,11 +186,9 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 
 				i++;
 			}
-
 			data = 0;
 		}
-		else
-		{
+		else {
 			// Unsupported type
 			printf("Unsupported type found for args[%s], skipping\n", name);
 			continue;
@@ -202,49 +196,19 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 
 		cprop = create_property(name, type, data, poin);
 
-		if (cprop)
+		if (cprop) {
 			BLI_addtail(&pycomp->properties, cprop);
-		else
+		}
+		else {
 			// Cleanup poin if it's set
 			if (poin) MEM_freeN(poin);
+		}
 	}
 
 #endif /* WITH_PYTHON */
 }
 
-static PyObject *arg_dict_from_component(PythonComponent *pc)
-{
-	ComponentProperty *cprop;
-	PyObject *args= NULL, *value=NULL;
-
-#ifdef WITH_PYTHON
-	args = PyDict_New();
-
-	cprop = pc->properties.first;
-
-	while (cprop)
-	{
-		if (cprop->type == CPROP_TYPE_INT)
-			value = PyLong_FromLong(cprop->data);
-		else if (cprop->type == CPROP_TYPE_FLOAT)
-			value = PyFloat_FromDouble(*(float*)(&cprop->data));
-		else if (cprop->type == CPROP_TYPE_BOOLEAN)
-			value = PyBool_FromLong(cprop->data);
-		else if (cprop->type == CPROP_TYPE_STRING)
-			value = PyUnicode_FromString((char*)cprop->poin);
-		else
-			continue;
-
-		PyDict_SetItemString(args, cprop->name, value);
-
-		cprop= cprop->next;
-	}
-
-#endif /* WITH_PYTHON */
-	return args;
-}
-
-PythonComponent *new_component_from_import(char *import)
+PythonComponent *new_component_from_module_name(char *import)
 {
 	PythonComponent *pc = NULL;
 
@@ -252,11 +216,11 @@ PythonComponent *new_component_from_import(char *import)
 	PyObject *mod, *mod_list, *item, *py_name;
 	PyGILState_STATE state;
 	char *name, *cls, path[64];
-	int i;
 
 	// Don't bother with an empty string
-	if (strcmp(import, "") == 0)
+	if (strcmp(import, "") == 0) {
 		return NULL;
+	}
 
 	char *module_name;
 	module_name = strtok(import, ".");
@@ -281,25 +245,26 @@ PythonComponent *new_component_from_import(char *import)
 		mod_list = PyDict_Values(PyModule_GetDict(mod));
 
 		// Now iterate the list
-		for (i = 0; i < PyList_Size(mod_list); ++i)
+		for (unsigned int i = 0, size = PyList_Size(mod_list); i < size; ++i)
 		{
 			item = PyList_GetItem(mod_list, i);
 
 			// We only want to bother checking type objects
-			if (!PyType_Check(item))
+			if (!PyType_Check(item)) {
 				continue;
+			}
 
 			// Make sure the name matches
 			py_name = PyObject_GetAttrString(item, "__name__");
 			name = _PyUnicode_AsString(py_name);
 			Py_DECREF(py_name);
 
-			if (strcmp(name, cls) != 0)
+			if (strcmp(name, cls) != 0) {
 				continue;
+			}
 
 			// Check the subclass with our own function since we don't have access to the KX_PythonComponent type object
-			if (!verify_class(item))
-			{
+			if (!verify_class(item)) {
 				printf("A %s type was found, but it was not a valid subclass of KX_PythonComponent\n", cls);
 			}
 			else {
@@ -317,8 +282,9 @@ PythonComponent *new_component_from_import(char *import)
 		}
 
 		// If we still have a NULL component, then we didn't find a suitable class
-		if (pc == NULL)
+		if (pc == NULL) {
 			printf("No suitable class was found for a component at %s\n", import);
+		}
 
 		// Take the module out of the module list so it's not cached by Python (this allows for simpler reloading of components)
 		PyDict_DelItemString(PyImport_GetModuleDict(), path);

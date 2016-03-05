@@ -1,6 +1,4 @@
 /**
- * $Id$
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -24,16 +22,17 @@
 
 #ifndef __KX_PYCOMPONENT
 #define __KX_PYCOMPONENT
-#ifndef DISABLE_PYTHON
+#ifdef WITH_PYTHON
 
 #include "EXP_PyObjectPlus.h"
 
+class KX_GameObject;
 class KX_PythonComponent : public PyObjectPlus
 {
 	Py_Header
-	private:
-		// member vars
-		class KX_GameObject *m_gameobj;
+private:
+	// member vars
+	KX_GameObject *m_gameobj;
 	STR_String m_name;
 
 public:
@@ -42,8 +41,8 @@ public:
 
 	STR_String& GetName();
 
-	class KX_GameObject *GetGameobject();
-	void SetGameobject(class KX_GameObject*);
+	KX_GameObject *GetGameObject();
+	void SetGameObject(KX_GameObject*);
 
 	static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 	static int py_component_init(PyObjectPlus_Proxy *self, PyObject *args, PyObject *kwds);
@@ -55,5 +54,5 @@ public:
 	static PyObject*        pyattr_get_object(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 };
 
-#endif //ndef DISABLE_PYTHON
+#endif //def WITH_PYTHON
 #endif //__KX_PYCOMPONENT

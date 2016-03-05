@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-struct PythonComponent *new_component_from_import(char *import);
+struct PythonComponent *new_component_from_module_name(char *import);
 void free_component(struct PythonComponent *pc);
 void free_components(struct ListBase *base);
 

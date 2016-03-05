@@ -1529,7 +1529,6 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 	copy_sensors(&obn->sensors, &ob->sensors);
 	copy_controllers(&obn->controllers, &ob->controllers);
 	copy_actuators(&obn->actuators, &ob->actuators);
-       // XXX todo copy_components(&obn->components, &ob->components);
 	
 	if (ob->pose) {
 		copy_object_pose(obn, ob);

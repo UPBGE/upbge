@@ -1419,15 +1419,13 @@ static void write_actuators(WriteData *wd, ListBase *lb)
 static void write_component_properties(WriteData *wd, ListBase *lb)
 {
 	ComponentProperty *cprop;
-
 	cprop = lb->first;
 
 	while(cprop) {
 		writestruct(wd, DATA, "ComponentProperty", 1, cprop);
-
-		if(cprop->poin)
+		if(cprop->poin) {
 			writedata(wd, DATA, MEM_allocN_len(cprop->poin), cprop->poin);
-
+		}
 		cprop = cprop->next;
 	}
 }
