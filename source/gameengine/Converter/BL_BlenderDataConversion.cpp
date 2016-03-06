@@ -175,8 +175,9 @@ extern Material defmaterial;	/* material.c */
 #include "KX_NavMeshObject.h"
 #include "KX_ObstacleSimulation.h"
 
-#include "BLI_threads.h"
+#include "KX_Lod.h"
 
+#include "BLI_threads.h"
 
 static bool default_light_mode = 0;
 
@@ -1226,9 +1227,17 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	}
 }
 
+static KX_Lod *lodlevels_from_blenderobject(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading)
+{
+	KX_Lod* lodLevels = new KX_Lod(ob, scene, converter, libloading);
+	if (lodLevels->Empty()) {
+		delete lodLevels;
+		return NULL;
+	}
 
-
-
+	converter->RegisterLodLevels(lodLevels, ob);
+	return lodLevels;
+}
 
 static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_IRasterizer *rasterizer, KX_BlenderSceneConverter *converter)
 {
@@ -1344,27 +1353,9 @@ static KX_GameObject *gameobject_from_blenderobject(
 		gameobj->AddMesh(meshobj);
 
 		// gather levels of detail
-		if (BLI_listbase_count_ex(&ob->lodlevels, 2) > 1) {
-			LodLevel *lod = ((LodLevel*)ob->lodlevels.first)->next;
-			Mesh* lodmesh = mesh;
-			Object* lodmatob = ob;
-			gameobj->AddLodMesh(meshobj);
-			for (; lod; lod = lod->next) {
-				if (!lod->source || lod->source->type != OB_MESH) continue;
-				if (lod->flags & OB_LOD_USE_MESH) {
-					lodmesh = static_cast<Mesh*>(lod->source->data);
-				}
-				if (lod->flags & OB_LOD_USE_MAT) {
-					lodmatob = lod->source;
-				}
-				gameobj->AddLodMesh(BL_ConvertMesh(lodmesh, lodmatob, kxscene, converter, libloading));
-			}
-			if (blenderscene->gm.lodflag & SCE_LOD_USE_HYST) {
-				kxscene->SetLodHysteresis(true);
-				kxscene->SetLodHysteresisValue(blenderscene->gm.scehysteresis);
-			}
-		}
-	
+		KX_Lod *lodLevels = lodlevels_from_blenderobject(ob, kxscene, converter, libloading);
+		gameobj->SetLodLevels(lodLevels);
+
 		// for all objects: check whether they want to
 		// respond to updates
 		bool ignoreActivityCulling =  
@@ -1741,6 +1732,11 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	
 	// no occlusion culling by default
 	kxscene->SetDbvtOcclusionRes(0);
+
+	if (blenderscene->gm.lodflag & SCE_LOD_USE_HYST) {
+		kxscene->SetLodHysteresis(true);
+		kxscene->SetLodHysteresisValue(blenderscene->gm.scehysteresis);
+	}
 
 	int activeLayerBitInfo = blenderscene->lay;
 	

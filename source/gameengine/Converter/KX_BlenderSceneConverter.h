@@ -44,6 +44,7 @@
 using namespace std;
 
 class KX_WorldInfo;
+class KX_Lod;
 class SCA_IActuator;
 class SCA_IController;
 class RAS_MeshObject;
@@ -85,6 +86,8 @@ class KX_BlenderSceneConverter : public KX_ISceneConverter
 	CTR_Map<CHashedPtr,SCA_IController*>m_map_blender_to_gamecontroller;	/* cleared after conversion */
 	
 	CTR_Map<CHashedPtr,BL_InterpolatorList*> m_map_blender_to_gameAdtList;
+
+	CTR_Map<CHashedPtr, KX_Lod *> m_map_blenderobject_to_lodlevels;
 	
 	Main*					m_maggie;
 	vector<struct Main*>	m_DynamicMaggie;
@@ -145,6 +148,9 @@ public:
 
 	void RegisterWorldInfo(KX_WorldInfo *worldinfo);
 
+	void RegisterLodLevels(KX_Lod *lodLevels, struct Object *for_blenderobject);
+	KX_Lod *FindLodLevels(struct Object *for_blenderobject);
+
 	virtual void	ResetPhysicsObjectsAnimationIpo(bool clearIpo);
 
 	///this is for reseting the position,rotation and scale of the gameobjet that is not dynamic
@@ -187,6 +193,7 @@ public:
 		printf("\t m_map_blender_to_gameactuator: %d\n", m_map_blender_to_gameactuator.size());
 		printf("\t m_map_blender_to_gamecontroller: %d\n", m_map_blender_to_gamecontroller.size());
 		printf("\t m_map_blender_to_gameAdtList: %d\n", m_map_blender_to_gameAdtList.size());
+		printf("\t m_map_blenderobject_to_lodlevels: %d\n", m_map_blenderobject_to_lodlevels.size());
 
 #ifdef WITH_CXX_GUARDEDALLOC
 		MEM_printmemlist_pydict();
