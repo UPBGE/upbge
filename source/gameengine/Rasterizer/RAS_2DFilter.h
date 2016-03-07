@@ -66,6 +66,7 @@ private:
 	float m_textureOffsets[TEXTURE_OFFSETS_SIZE]; 
 	int m_passIndex;
 	bool m_enabled;
+	bool m_error;
 	bool m_initialized;
 
 	void ParseShaderProgram();

@@ -55,6 +55,7 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager)
 	m_gameObject(data.gameObject),
 	m_passIndex(data.filterPassIndex),
 	m_enabled(true),
+	m_error(false),
 	m_initialized(false)
 {
 	for(unsigned int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
@@ -118,7 +119,7 @@ void RAS_2DFilter::Start()
 {
 	Initialize();
 
-	if (m_enabled) {
+	if (m_enabled && !m_error) {
 		BindShaderProgram();
 		BindUniforms();
 		DrawOverlayPlane();
@@ -127,7 +128,7 @@ void RAS_2DFilter::Start()
 
 void RAS_2DFilter::End()
 {
-	if(m_enabled) {
+	if(m_enabled && !m_error) {
 		UnbindShaderProgram();
 	}
 }
@@ -192,6 +193,9 @@ void RAS_2DFilter::InitializeShader()
 				ParseShaderProgram();
 			}
 		}
+	}
+	if (compilationStatus != GL_TRUE) {
+		m_error = true;
 	}
 }
 void RAS_2DFilter::InitializeTextures()
