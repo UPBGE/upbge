@@ -1764,18 +1764,16 @@ void KX_Scene::RenderFonts()
 	}
 }
 
-void KX_Scene::UpdateObjectLods(void)
+void KX_Scene::UpdateObjectLods()
 {
-	KX_GameObject* gameobj;
-
-	if (!this->m_active_camera)
+	if (!m_active_camera)
 		return;
 
-	MT_Vector3 cam_pos = this->m_active_camera->NodeGetWorldPosition();
+	const MT_Vector3& cam_pos = m_active_camera->NodeGetWorldPosition();
 
-	for (int i = 0; i < this->GetObjectList()->GetCount(); i++) {
-		gameobj = (KX_GameObject*) GetObjectList()->GetValue(i);
-		if (!gameobj->GetCulled()){
+	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = (KX_GameObject *)*it;
+		if (!gameobj->GetCulled()) {
 			gameobj->UpdateLod(cam_pos);
 		}
 	}

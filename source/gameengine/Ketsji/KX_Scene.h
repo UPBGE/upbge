@@ -547,8 +547,8 @@ public:
 	// Resume a suspended scene.
 	void Resume();
 
-	// Update the mesh for objects based on level of detail settings
-	void UpdateObjectLods(void);
+	/// Update the mesh for objects based on level of detail settings
+	void UpdateObjectLods();
 
 	// LoD Hysteresis functions
 	void SetLodHysteresis(bool active);
