@@ -110,11 +110,12 @@ extern "C" {
 }
 
 #include "BLI_task.h"
+#include "EXP_Thread.h"
 
 // This is used to avoid including BLI_task.h in KX_BlenderSceneConverter.h
 typedef struct ThreadInfo {
 	TaskPool *m_pool;
-	ThreadMutex m_mutex;
+	CThreadMutex m_mutex;
 } ThreadInfo;
 
 KX_BlenderSceneConverter::KX_BlenderSceneConverter(
@@ -128,7 +129,6 @@ KX_BlenderSceneConverter::KX_BlenderSceneConverter(
 	m_newfilename = "";
 	m_threadinfo = new ThreadInfo();
 	m_threadinfo->m_pool = BLI_task_pool_create(engine->GetTaskScheduler(), NULL);
-	BLI_mutex_init(&m_threadinfo->m_mutex);
 }
 
 KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
@@ -183,7 +183,6 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 		Because it needs to lock the mutex, even if there's no active task when it's
 		in the scene converter destructor. */
 		BLI_task_pool_free(m_threadinfo->m_pool);
-		BLI_mutex_end(&m_threadinfo->m_mutex);
 		delete m_threadinfo;
 	}
 }
@@ -529,7 +528,7 @@ void KX_BlenderSceneConverter::MergeAsyncLoads()
 	vector<KX_LibLoadStatus *>::iterator mit;
 	vector<KX_Scene *>::iterator sit;
 
-	BLI_mutex_lock(&m_threadinfo->m_mutex);
+	m_threadinfo->m_mutex.Lock();
 
 	for (mit = m_mergequeue.begin(); mit != m_mergequeue.end(); ++mit) {
 		merge_scenes = (vector<KX_Scene *> *)(*mit)->GetData();
@@ -547,7 +546,7 @@ void KX_BlenderSceneConverter::MergeAsyncLoads()
 
 	m_mergequeue.clear();
 
-	BLI_mutex_unlock(&m_threadinfo->m_mutex);
+	m_threadinfo->m_mutex.Unlock();
 }
 
 void KX_BlenderSceneConverter::FinalizeAsyncLoads()
@@ -562,9 +561,9 @@ void KX_BlenderSceneConverter::FinalizeAsyncLoads()
 
 void KX_BlenderSceneConverter::AddScenesToMergeQueue(KX_LibLoadStatus *status)
 {
-	BLI_mutex_lock(&m_threadinfo->m_mutex);
+	m_threadinfo->m_mutex.Lock();
 	m_mergequeue.push_back(status);
-	BLI_mutex_unlock(&m_threadinfo->m_mutex);
+	m_threadinfo->m_mutex.Unlock();
 }
 
 static void async_convert(TaskPool *pool, void *ptr, int UNUSED(threadid))
@@ -774,9 +773,9 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 
 	// If the given library is currently in loading, we do nothing.
 	if (m_status_map.count(maggie->name)) {
-		BLI_mutex_lock(&m_threadinfo->m_mutex);
+		m_threadinfo->m_mutex.Lock();
 		const bool finished = m_status_map[maggie->name]->IsFinished();
-		BLI_mutex_unlock(&m_threadinfo->m_mutex);
+		m_threadinfo->m_mutex.Unlock();
 
 		if (!finished) {
 			printf("Library (%s) is currently being loaded asynchronously, and cannot be freed until this process is done\n", maggie->name);
