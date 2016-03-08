@@ -161,10 +161,11 @@ bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *mat)
 	}
 
 	RAS_MeshMaterial *mmat = m_pMeshObject->GetMeshMaterial(mat);
-	if (!mmat->m_slots[(void *)m_gameobj->getClientInfo()])
+	RAS_MeshSlot *slot = mmat->m_slots[(void *)m_gameobj->getClientInfo()];
+	if (!slot) {
 		return false;
+	}
 
-	RAS_MeshSlot *slot = *mmat->m_slots[(void *)m_gameobj->getClientInfo()];
 	RAS_DisplayArray *array = slot->GetDisplayArray();
 	RAS_DisplayArray *origarray = mmat->m_baseslot->GetDisplayArray();
 
@@ -339,10 +340,11 @@ void BL_SkinDeformer::UpdateTransverts()
 		nmat = m_pMeshObject->NumMaterials();
 		for (imat = 0; imat < nmat; imat++) {
 			mmat = m_pMeshObject->GetMeshMaterial(imat);
-			if (!mmat->m_slots[(void *)m_gameobj->getClientInfo()])
+			slot = mmat->m_slots[(void *)m_gameobj->getClientInfo()];
+			if (!slot) {
 				continue;
+			}
 
-			slot = *mmat->m_slots[(void *)m_gameobj->getClientInfo()];
 			RAS_DisplayArray *array = slot->GetDisplayArray();
 
 			// for each vertex

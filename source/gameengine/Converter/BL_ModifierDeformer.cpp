@@ -212,10 +212,11 @@ bool BL_ModifierDeformer::Update(void)
 		int nmat = m_pMeshObject->NumMaterials();
 		for (int imat = 0; imat < nmat; imat++) {
 			RAS_MeshMaterial *mmat = m_pMeshObject->GetMeshMaterial(imat);
-			RAS_MeshSlot **slot = mmat->m_slots[(void *)m_gameobj->getClientInfo()];
-			if (!slot || !*slot)
+			RAS_MeshSlot *slot = mmat->m_slots[(void *)m_gameobj->getClientInfo()];
+			if (!slot) {
 				continue;
-			(*slot)->m_pDerivedMesh = m_dm;
+			}
+			slot->m_pDerivedMesh = m_dm;
 		}
 	}
 	return bShapeUpdate;

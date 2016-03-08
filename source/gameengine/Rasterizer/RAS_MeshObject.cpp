@@ -32,8 +32,6 @@
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 
-#include "CTR_HashedPtr.h"
-
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
 #include "RAS_Polygon.h"
@@ -447,7 +445,7 @@ RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deforme
 		RAS_MeshSlot *ms = it->m_bucket->CopyMesh(it->m_baseslot);
 		ms->SetMeshUser(meshUser);
 		ms->SetDeformer(deformer);
-		it->m_slots.insert(clientobj, ms);
+		it->m_slots[clientobj] = ms;
 		meshUser->AddMeshSlot(ms);
 	}
 	return meshUser;
@@ -456,15 +454,16 @@ RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deforme
 void RAS_MeshObject::RemoveFromBuckets(void *clientobj)
 {
 	for (std::list<RAS_MeshMaterial>::iterator it = m_materials.begin(); it != m_materials.end(); ++it) {
-		RAS_MeshSlot **msp = it->m_slots[clientobj];
+		std::map<void *, RAS_MeshSlot *>::iterator msit = it->m_slots.find(clientobj);
 
-		if (!msp)
+		if (msit == it->m_slots.end()) {
 			continue;
+		}
 
-		RAS_MeshSlot *ms = *msp;
+		RAS_MeshSlot *ms = msit->second;
 
 		it->m_bucket->RemoveMesh(ms);
-		it->m_slots.remove(clientobj);
+		it->m_slots.erase(clientobj);
 	}
 }
 

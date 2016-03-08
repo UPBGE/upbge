@@ -90,7 +90,7 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 	if (!mmat->m_slots[(void *)m_gameobj->getClientInfo()])
 		return true;
 
-	slot = *mmat->m_slots[(void *)m_gameobj->getClientInfo()];
+	slot = mmat->m_slots[(void *)m_gameobj->getClientInfo()];
 	RAS_DisplayArray *array = slot->GetDisplayArray();
 	RAS_DisplayArray *origarray = mmat->m_baseslot->GetDisplayArray();
 

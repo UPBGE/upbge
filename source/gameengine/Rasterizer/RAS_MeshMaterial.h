@@ -32,11 +32,10 @@
 #ifndef __RAS_MESH_MATERIAL_H__
 #define __RAS_MESH_MATERIAL_H__
 
-#include "CTR_Map.h"
+#include <map>
 
 class RAS_MaterialBucket;
 class RAS_MeshSlot;
-class CTR_HashedPtr;
 
 // Used by RAS_MeshObject, to point to it's slots in a bucket
 class RAS_MeshMaterial
@@ -48,7 +47,7 @@ public:
 	unsigned int m_index;
 
 	/// the KX_GameObject is used as a key here
-	CTR_Map<CTR_HashedPtr, RAS_MeshSlot *> m_slots;
+	std::map<void *, RAS_MeshSlot *> m_slots;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MeshMaterial")
