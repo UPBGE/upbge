@@ -535,7 +535,9 @@ void KX_GameObject::ProcessReplica()
 	m_state = 0;
 
 	m_meshUser = NULL;
-	m_lodList->AddRef();
+	if (m_lodList) {
+		m_lodList->AddRef();
+	}
 
 #ifdef WITH_PYTHON
 	if (m_attr_dict)
