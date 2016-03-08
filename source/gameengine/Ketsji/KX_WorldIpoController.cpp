@@ -65,8 +65,12 @@ bool KX_WorldIpoController::Update(double currentTime)
 		}
 
 		if (m_modify_horizon_color) {
-			world->setBackColor(m_hori_rgb[0], m_hori_rgb[1], m_hori_rgb[2]);
+			world->setHorizonColor(m_hori_rgb[0], m_hori_rgb[1], m_hori_rgb[2]);
 			world->setMistColor(m_hori_rgb[0], m_hori_rgb[1], m_hori_rgb[2]);
+		}
+
+		if (m_modify_zenith_color) {
+			world->setZenithColor(m_zeni_rgb[0], m_zeni_rgb[1], m_zeni_rgb[2]);
 		}
 
 		if (m_modify_ambient_color) {
