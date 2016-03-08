@@ -100,18 +100,23 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 	for (i = 0; i < array->m_vertex.size(); i++, index++) {
 		RAS_TexVert& v = array->m_vertex[i];
 		RAS_TexVert& origvert = origarray->m_vertex[i];
-		btAssert(v.getSoftBodyIndex() >= 0);
+		/* The physics converter write the soft body index only in the original
+		 * vertex array because at this moment it doesn't know which is the
+		 * game object. It didn't cause any issues because it's always the same
+		 * vertex order.
+		 */
+		const unsigned int softbodyindex = origvert.getSoftBodyIndex();
 
 		MT_Vector3 pt(
-		    nodes[v.getSoftBodyIndex()].m_x.getX(),
-		    nodes[v.getSoftBodyIndex()].m_x.getY(),
-		    nodes[v.getSoftBodyIndex()].m_x.getZ());
+		    nodes[softbodyindex].m_x.getX(),
+		    nodes[softbodyindex].m_x.getY(),
+		    nodes[softbodyindex].m_x.getZ());
 		v.SetXYZ(pt);
 
 		MT_Vector3 normal(
-		    nodes[v.getSoftBodyIndex()].m_n.getX(),
-		    nodes[v.getSoftBodyIndex()].m_n.getY(),
-		    nodes[v.getSoftBodyIndex()].m_n.getZ());
+		    nodes[softbodyindex].m_n.getX(),
+		    nodes[softbodyindex].m_n.getY(),
+		    nodes[softbodyindex].m_n.getZ());
 		v.SetNormal(normal);
 
 		/// Update vertex data from the original mesh.
