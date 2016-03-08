@@ -1060,24 +1060,6 @@ static PyObject *gPyGetStereoEye(PyObject *, PyObject *, PyObject *)
 	return PyLong_FromLong(flag);
 }
 
-static PyObject *gPySetBackgroundColor(PyObject *, PyObject *value)
-{
-	MT_Vector4 vec;
-	if (!PyVecTo(value, vec))
-		return NULL;
-
-	KX_WorldInfo *wi = gp_KetsjiScene->GetWorldInfo();
-	if (!wi->hasWorld()) {
-		PyErr_SetString(PyExc_RuntimeError, "bge.render.SetBackgroundColor(color), World not available");
-		return NULL;
-	}
-
-	ShowDeprecationWarning("setBackgroundColor()", "KX_WorldInfo.background_color");
-	wi->setBackColor((float)vec[0], (float)vec[1], (float)vec[2]);
-
-	Py_RETURN_NONE;
-}
-
 static PyObject *gPyMakeScreenshot(PyObject *, PyObject *args)
 {
 	char* filename;
@@ -1448,7 +1430,6 @@ static struct PyMethodDef rasterizer_methods[] = {
 	 METH_VARARGS, "showMouse(bool visible)"},
 	{"setMousePosition",(PyCFunction) gPySetMousePosition,
 	 METH_VARARGS, "setMousePosition(int x,int y)"},
-	{"setBackgroundColor",(PyCFunction)gPySetBackgroundColor,METH_O,"set Background Color (rgb)"},
 	{"enableMotionBlur",(PyCFunction)gPyEnableMotionBlur,METH_VARARGS,"enable motion blur"},
 	{"disableMotionBlur",(PyCFunction)gPyDisableMotionBlur,METH_NOARGS,"disable motion blur"},
 

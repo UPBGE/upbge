@@ -76,7 +76,8 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera) :
     m_mirrorHalfHeight(0.f)
 {
 	// initialize background color to scene background color as default
-	setBackgroundFromScene(m_scene);
+	setHorizonFromScene(m_scene);
+	setZenithFromScene(m_scene);
 	// retrieve rendering objects
 	m_engine = KX_GetActiveEngine();
 	m_rasterizer = m_engine->GetRasterizer();
@@ -90,35 +91,63 @@ ImageRender::~ImageRender (void)
 		m_camera->Release();
 }
 
-// get background color
-float ImageRender::getBackground (int idx)
+// get horizon color
+float ImageRender::getHorizon(int idx)
 {
-	return (idx < 0 || idx > 3) ? 0.0f : m_background[idx] * 255.0f;
+	return (idx < 0 || idx > 3) ? 0.0f : m_horizon[idx];
 }
 
-// set background color
-void ImageRender::setBackground (float red, float green, float blue, float alpha)
+// set horizon color
+void ImageRender::setHorizon(float red, float green, float blue, float alpha)
 {
-	m_background[0] = (red < 0.0f) ? 0.0f : (red > 255.0f) ? 1.0f : red / 255.0f;
-	m_background[1] = (green < 0.0f) ? 0.0f : (green > 255.0f) ? 1.0f : green / 255.0f;
-	m_background[2] = (blue < 0.0f) ? 0.0f : (blue > 255.0f) ? 1.0f : blue / 255.0f;
-	m_background[3] = (alpha < 0.0f) ? 0.0f : (alpha > 255.0f) ? 1.0f : alpha / 255.0f;
+	m_horizon[0] = (red < 0.0f) ? 0.0f : (red > 1.0f) ? 1.0f : red;
+	m_horizon[1] = (green < 0.0f) ? 0.0f : (green > 1.0f) ? 1.0f : green;
+	m_horizon[2] = (blue < 0.0f) ? 0.0f : (blue > 1.0f) ? 1.0f : blue;
+	m_horizon[3] = (alpha < 0.0f) ? 0.0f : (alpha > 1.0f) ? 1.0f : alpha;
 }
 
-// set background color from scene
-void ImageRender::setBackgroundFromScene (KX_Scene *scene)
+// get zenith color
+float ImageRender::getZenith(int idx)
+{
+	return (idx < 0 || idx > 3) ? 0.0f : m_zenith[idx];
+}
+
+// set zenith color
+void ImageRender::setZenith(float red, float green, float blue, float alpha)
+{
+	m_zenith[0] = (red < 0.0f) ? 0.0f : (red > 1.0f) ? 1.0f : red;
+	m_zenith[1] = (green < 0.0f) ? 0.0f : (green > 1.0f) ? 1.0f : green;
+	m_zenith[2] = (blue < 0.0f) ? 0.0f : (blue > 1.0f) ? 1.0f : blue;
+	m_zenith[3] = (alpha < 0.0f) ? 0.0f : (alpha > 1.0f) ? 1.0f : alpha;
+}
+
+// set horizon color from scene
+void ImageRender::setHorizonFromScene (KX_Scene *scene)
 {
 	if (scene) {
-		const float *background_color = scene->GetWorldInfo()->getBackColorConverted();
-		copy_v3_v3(m_background, background_color);
-		m_background[3] = 1.0f;
+		const float *horizon_color = scene->GetWorldInfo()->getHorizonColorConverted();
+		copy_v3_v3(m_horizon, horizon_color);
+		m_horizon[3] = 1.0f;
 	}
 	else {
 		const float blue_color[] = {0.0f, 0.0f, 1.0f, 1.0f};
-		copy_v4_v4(m_background, blue_color);
+		copy_v4_v4(m_horizon, blue_color);
 	}
 }
 
+// set zenith color from scene
+void ImageRender::setZenithFromScene(KX_Scene *scene)
+{
+	if (scene) {
+		const float *zenith_color = scene->GetWorldInfo()->getZenithColorConverted();
+		copy_v3_v3(m_zenith, zenith_color);
+		m_zenith[3] = 1.0f;
+	}
+	else {
+		const float blue_color[] = {0.0f, 0.0f, 1.0f, 1.0f};
+		copy_v4_v4(m_zenith, blue_color);
+	}
+}
 
 // capture image from viewport
 void ImageRender::calcImage (unsigned int texId, double ts)
@@ -216,7 +245,7 @@ void ImageRender::Render()
 
 	// The screen area that ImageViewport will copy is also the rendering zone
 	m_canvas->SetViewPort(m_position[0], m_position[1], m_position[0]+m_capSize[0]-1, m_position[1]+m_capSize[1]-1);
-	m_canvas->ClearColor(m_background[0], m_background[1], m_background[2], m_background[3]);
+	m_canvas->ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER|RAS_ICanvas::DEPTH_BUFFER);
 	m_rasterizer->BeginFrame(m_engine->GetClockTime());
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
@@ -224,6 +253,7 @@ void ImageRender::Render()
 	m_rasterizer->DisplayFog();
 	// matrix calculation, don't apply any of the stereo mode
 	m_rasterizer->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
+
 	if (m_mirror)
 	{
 		// frustum was computed above
@@ -295,8 +325,6 @@ void ImageRender::Render()
 	m_rasterizer->SetViewMatrix(viewmat, m_camera->NodeGetWorldOrientation(), m_camera->NodeGetWorldPosition(), m_camera->GetCameraData()->m_perspective);
 	m_camera->SetModelviewMatrix(viewmat);
 
-	m_scene->GetWorldInfo()->RenderBackground(m_rasterizer);
-
 	// restore the stereo mode now that the matrix is computed
 	m_rasterizer->SetStereoMode(stereomode);
 
@@ -306,6 +334,18 @@ void ImageRender::Render()
         // TODO: implement an explicit function in rasterizer to restore the left buffer.
         m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_LEFTEYE);
     }
+
+	// Render Background
+	float hor[3];
+	copy_v3_v3(hor, m_scene->GetWorldInfo()->m_horizoncolor);
+	float zen[3];
+	copy_v3_v3(zen, m_scene->GetWorldInfo()->m_zenithcolor);
+	m_scene->GetWorldInfo()->setHorizonColor(m_horizon[0], m_horizon[1], m_horizon[2]);
+	m_scene->GetWorldInfo()->setZenithColor(m_zenith[0], m_zenith[1], m_zenith[2]);
+	m_scene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
+	m_scene->GetWorldInfo()->RenderBackground(m_rasterizer);
+	m_scene->GetWorldInfo()->setHorizonColor(hor[0], hor[1], hor[2]);
+	m_scene->GetWorldInfo()->setZenithColor(zen[0], zen[1], zen[2]);
 
 	m_scene->CalculateVisibleMeshes(m_rasterizer,m_camera);
 
@@ -376,18 +416,18 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 }
 
 
-// get background color
-static PyObject *getBackground (PyImage *self, void *closure)
+// get horizon color /////////////TO DO
+static PyObject *getHorizon(PyImage *self, void *closure)
 {
 	return Py_BuildValue("[ffff]",
-	                     getImageRender(self)->getBackground(0),
-	                     getImageRender(self)->getBackground(1),
-	                     getImageRender(self)->getBackground(2),
-	                     getImageRender(self)->getBackground(3));
+	                     getImageRender(self)->getHorizon(0),
+	                     getImageRender(self)->getHorizon(1),
+	                     getImageRender(self)->getHorizon(2),
+	                     getImageRender(self)->getHorizon(3));
 }
 
 // set color
-static int setBackground(PyImage *self, PyObject *value, void *closure)
+static int setHorizon(PyImage *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
 	if (value == NULL || !PySequence_Check(value) || PySequence_Size(value) != 4
@@ -396,15 +436,48 @@ static int setBackground(PyImage *self, PyObject *value, void *closure)
 		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 2)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 2)))
 		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 3)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 3)))) {
 
-		PyErr_SetString(PyExc_TypeError, "The value must be a sequence of 4 floats or ints between 0.0 and 255.0");
+		PyErr_SetString(PyExc_TypeError, "The value must be a sequence of 4 floats or ints between 0.0 and 1.0");
 		return -1;
 	}
-	// set background color
-	getImageRender(self)->setBackground(
+	// set horizon color
+	getImageRender(self)->setHorizon(
 	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 0)),
 	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 1)),
 	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 2)),
 	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 3)));
+	// success
+	return 0;
+}
+
+// get zenith color
+static PyObject *getZenith(PyImage *self, void *closure)
+{
+	return Py_BuildValue("[ffff]",
+		getImageRender(self)->getZenith(0),
+		getImageRender(self)->getZenith(1),
+		getImageRender(self)->getZenith(2),
+		getImageRender(self)->getZenith(3));
+}
+
+// set color
+static int setZenith(PyImage *self, PyObject *value, void *closure)
+{
+	// check validity of parameter
+	if (value == NULL || !PySequence_Check(value) || PySequence_Size(value) != 4
+		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 0)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 0)))
+		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 1)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 1)))
+		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 2)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 2)))
+		|| (!PyFloat_Check(PySequence_Fast_GET_ITEM(value, 3)) && !PyLong_Check(PySequence_Fast_GET_ITEM(value, 3)))) {
+
+		PyErr_SetString(PyExc_TypeError, "The value must be a sequence of 4 floats or ints between 0.0 and 1.0");
+		return -1;
+	}
+	// set zenith color
+	getImageRender(self)->setZenith(
+		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 0)),
+		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 1)),
+		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 2)),
+		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 3)));
 	// success
 	return 0;
 }
@@ -419,7 +492,8 @@ static PyMethodDef imageRenderMethods[] =
 // attributes structure
 static PyGetSetDef imageRenderGetSets[] =
 { 
-	{(char*)"background", (getter)getBackground, (setter)setBackground, (char*)"background color", NULL},
+	{(char*)"horizon", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", NULL},
+	{(char*)"zenith", (getter)getZenith, (setter)setZenith, (char*)"zenith color", NULL},
 	// attribute from ImageViewport
 	{(char*)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char*)"size of render area", NULL},
 	{(char*)"alpha", (getter)ImageViewport_getAlpha, (setter)ImageViewport_setAlpha, (char*)"use alpha in texture", NULL},
@@ -582,7 +656,8 @@ static PyGetSetDef imageMirrorGetSets[] =
 { 
 	{(char*)"clip", (getter)getClip, (setter)setClip, (char*)"clipping distance", NULL},
 	// attribute from ImageRender
-	{(char*)"background", (getter)getBackground, (setter)setBackground, (char*)"background color", NULL},
+	{(char*)"horizon", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", NULL},
+	{(char*)"zenith", (getter)getZenith, (setter)setZenith, (char*)"zenith color", NULL},
 	// attribute from ImageViewport
 	{(char*)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char*)"size of render area", NULL},
 	{(char*)"alpha", (getter)ImageViewport_getAlpha, (setter)ImageViewport_setAlpha, (char*)"use alpha in texture", NULL},
@@ -765,7 +840,8 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	m_render = true;
 
 	// set mirror background color to scene background color as default
-	setBackgroundFromScene(m_scene);
+	setHorizonFromScene(m_scene);
+	setZenithFromScene(m_scene);
 }
 
 

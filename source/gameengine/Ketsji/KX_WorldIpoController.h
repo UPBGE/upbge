@@ -43,6 +43,7 @@ public:
 	MT_Scalar           m_mist_dist;
 	MT_Scalar           m_mist_intensity;
 	MT_Scalar           m_hori_rgb[3];
+	MT_Scalar           m_zeni_rgb[3];
 	MT_Scalar           m_ambi_rgb[3];
 
 private:
@@ -51,6 +52,7 @@ private:
 	unsigned short  	m_modify_mist_dist 	 : 1;
 	unsigned short		m_modify_mist_intensity	: 1;
 	unsigned short		m_modify_horizon_color	: 1;
+	unsigned short		m_modify_zenith_color : 1;
 	unsigned short		m_modify_ambient_color	: 1;
 	bool				m_modified;
 
@@ -62,6 +64,7 @@ public:
 				m_modify_mist_dist(false),
 				m_modify_mist_intensity(false),
 				m_modify_horizon_color(false),
+				m_modify_zenith_color(false),
 				m_modify_ambient_color(false),
 				m_modified(true),
 				m_ipotime(0.0)
@@ -92,6 +95,10 @@ public:
 
 	void	SetModifyHorizonColor(bool modify) {
 		m_modify_horizon_color = modify;
+	}
+
+	void	SetModifyZenithColor(bool modify) {
+		m_modify_zenith_color = modify;
 	}
 
 	void	SetModifyAmbientColor(bool modify) {

@@ -84,9 +84,6 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
 		scene->r.im_format.planes = R_IMF_PLANES_RGBA;
 		scene->r.im_format.compress = 15;
-		/* In the game engine, render tab, shading, Render
-		* World Material option is activated by default */
-		scene->gm.flag |= GAME_RENDER_WORLD_BACKGROUND;
 
 		for (srl = scene->r.layers.first; srl; srl = srl->next) {
 			srl->freestyleConfig.sphere_radius = 0.1f;

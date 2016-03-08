@@ -57,10 +57,12 @@ class KX_WorldInfo : public PyObjectPlus
 	float m_mistdistance;
 	float m_mistintensity;
 	float m_mistcolor[3];
-	float m_backgroundcolor[3];
+	float m_horizoncolor[3];
+	float m_zenithcolor[3];
 	float m_ambientcolor[3];
 	float m_con_mistcolor[3];
-	float m_con_backgroundcolor[3];
+	float m_con_horizoncolor[3];
+	float m_con_zenithcolor[3];
 	float m_con_ambientcolor[3];
 
 public:
@@ -76,6 +78,11 @@ public:
 	KX_WorldInfo(Scene *blenderscene, World *blenderworld);
 	~KX_WorldInfo();
 
+	struct {
+		float horizonColor[3];
+		float zenithColor[3];
+	} m_savedData;
+
 	const STR_String &GetName();
 	bool hasWorld();
 	void setUseMist(bool enable);
@@ -84,8 +91,10 @@ public:
 	void setMistDistance(float d);
 	void setMistIntensity(float intensity);
 	void setMistColor(float r, float g, float b);
-	void setBackColor(float r, float g, float b);
-	const float *getBackColorConverted() const;
+	void setHorizonColor(float r, float g, float b);
+	void setZenithColor(float r, float g, float b);
+	const float *getHorizonColorConverted() const;
+	const float *getZenithColorConverted() const;
 	void setAmbientColor(float r, float g, float b);
 	void UpdateBackGround(RAS_IRasterizer *rasty);
 	void UpdateWorldSettings(RAS_IRasterizer *rasty);
@@ -96,8 +105,10 @@ public:
 	static PyObject *pyattr_get_mist_typeconst(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_mist_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_mist_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_back_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_back_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_horizon_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_horizon_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_zenith_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_zenith_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_ambient_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_ambient_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	virtual PyObject *py_repr(void);

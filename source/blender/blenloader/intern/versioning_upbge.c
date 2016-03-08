@@ -55,21 +55,13 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 			bRaySensor *raySensor;
 
 			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
-				for(bSensor* sensor = ob->sensors.first; sensor != NULL; sensor = (bSensor *)sensor->next) {
-					if(sensor->type == SENS_RAY) {
+				for (bSensor* sensor = ob->sensors.first; sensor != NULL; sensor = (bSensor *)sensor->next) {
+					if (sensor->type == SENS_RAY) {
 						raySensor = (bRaySensor *)sensor->data;
 						raySensor->mask = 0xFFFF;//all one, 'cause this was the previous behavior
 					}
 				}
 			}
-		}
-	}
-	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 3)) {
-		Scene *scene;
-		for (scene = main->scene.first; scene != NULL; scene = scene->id.next) {
-			/* for files saved before 0.0.3, the viewport background must be desactivated
-			* in the case the files used KX_WorldInfo python API or KX_WorldIpo */
-			scene->gm.flag &= ~GAME_RENDER_WORLD_BACKGROUND;
 		}
 	}
 }

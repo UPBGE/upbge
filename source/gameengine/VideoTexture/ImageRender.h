@@ -54,10 +54,15 @@ public:
 	/// destructor
 	virtual ~ImageRender (void);
 
-	/// get background color
-	float getBackground (int idx);
-	/// set background color
-	void setBackground (float red, float green, float blue, float alpha);
+	/// get horizon color
+	float getHorizon(int idx);
+	/// set horizon color
+	void setHorizon(float red, float green, float blue, float alpha);
+
+	/// get zenith color
+	float getZenith(int idx);
+	/// set zenith color
+	void setZenith(float red, float green, float blue, float alpha);
 
 	/// clipping distance
 	float getClip (void) { return m_clip; }
@@ -90,8 +95,11 @@ protected:
 	/// engine
 	KX_KetsjiEngine* m_engine;
 
-	/// background color
-	float  m_background[4];
+	/// horizon color
+	float m_horizon[4];
+
+	/// zenith color
+	float m_zenith[4];
 
 
 	/// render 3d scene to image
@@ -100,7 +108,8 @@ protected:
 	void Render();
 	void SetupRenderFrame(KX_Scene *scene, KX_Camera* cam);
 	void RenderFrame(KX_Scene* scene, KX_Camera* cam);
-	void setBackgroundFromScene(KX_Scene *scene);
+	void setHorizonFromScene(KX_Scene *scene);
+	void setZenithFromScene(KX_Scene *scene);
 	void SetWorldSettings(KX_WorldInfo* wi);
 };
 
