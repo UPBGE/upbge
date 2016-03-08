@@ -135,11 +135,10 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 	// clears meshes, and hashmaps from blender to gameengine data
 	// delete sumoshapes
 
-	int numAdtLists = m_map_blender_to_gameAdtList.size();
-	for (int i = 0; i < numAdtLists; i++) {
-		BL_InterpolatorList *adtList = *m_map_blender_to_gameAdtList.at(i);
-
-		delete (adtList);
+	for (std::map<bAction *, BL_InterpolatorList *>::iterator it = m_map_blender_to_gameAdtList.begin(),
+		 end = m_map_blender_to_gameAdtList.end(); it != end; ++it)
+	{
+		delete it->second;
 	}
 
 	vector<pair<KX_Scene *, KX_WorldInfo *> >::iterator itw = m_worldinfos.begin();
@@ -382,7 +381,7 @@ void KX_BlenderSceneConverter::SetAlwaysUseExpandFraming(bool to_what)
 void KX_BlenderSceneConverter::RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject) 
 {
 	/* only maintained while converting, freed during game runtime */
-	m_map_blender_to_gameobject.insert(CHashedPtr(for_blenderobject), gameobject);
+	m_map_blender_to_gameobject[for_blenderobject] = gameobject;
 }
 
 /* only need to run this during conversion since
@@ -391,41 +390,31 @@ void KX_BlenderSceneConverter::UnregisterGameObject(KX_GameObject *gameobject)
 {
 	Object *bobp = gameobject->GetBlenderObject();
 	if (bobp) {
-		CHashedPtr bptr(bobp);
-		KX_GameObject **gobp = m_map_blender_to_gameobject[bptr];
-		if (gobp && *gobp == gameobject) {
+		std::map<Object *, KX_GameObject *>::iterator it = m_map_blender_to_gameobject.find(bobp);
+		if (it->second == gameobject) {
 			// also maintain m_map_blender_to_gameobject if the gameobject
 			// being removed is matching the blender object
-			m_map_blender_to_gameobject.remove(bptr);
+			m_map_blender_to_gameobject.erase(it);
 		}
 	}
 }
 
 KX_GameObject *KX_BlenderSceneConverter::FindGameObject(Object *for_blenderobject) 
 {
-	KX_GameObject **obp = m_map_blender_to_gameobject[CHashedPtr(for_blenderobject)];
-
-	return obp ? *obp : NULL;
+	return m_map_blender_to_gameobject[for_blenderobject];
 }
 
 void KX_BlenderSceneConverter::RegisterGameMesh(RAS_MeshObject *gamemesh, Mesh *for_blendermesh)
 {
 	if (for_blendermesh) { /* dynamically loaded meshes we don't want to keep lookups for */
-		m_map_mesh_to_gamemesh.insert(CHashedPtr(for_blendermesh),gamemesh);
+		m_map_mesh_to_gamemesh[for_blendermesh] = gamemesh;
 	}
 	m_meshobjects.push_back(pair<KX_Scene *, RAS_MeshObject *> (m_currentScene,gamemesh));
 }
 
 RAS_MeshObject *KX_BlenderSceneConverter::FindGameMesh(Mesh *for_blendermesh)
 {
-	RAS_MeshObject **meshp = m_map_mesh_to_gamemesh[CHashedPtr(for_blendermesh)];
-
-	if (meshp) {
-		return *meshp;
-	} 
-	else {
-		return NULL;
-	}
+	return m_map_mesh_to_gamemesh[for_blendermesh];
 }
 
 void KX_BlenderSceneConverter::RegisterPolyMaterial(RAS_IPolyMaterial *polymat)
@@ -462,35 +451,32 @@ BL_Material *KX_BlenderSceneConverter::FindCachedBlenderMaterial(KX_Scene *scene
 
 void KX_BlenderSceneConverter::RegisterInterpolatorList(BL_InterpolatorList *actList, bAction *for_act)
 {
-	m_map_blender_to_gameAdtList.insert(CHashedPtr(for_act), actList);
+	m_map_blender_to_gameAdtList[for_act] = actList;
 }
 
 BL_InterpolatorList *KX_BlenderSceneConverter::FindInterpolatorList(bAction *for_act)
 {
-	BL_InterpolatorList **listp = m_map_blender_to_gameAdtList[CHashedPtr(for_act)];
-	return listp ? *listp : NULL;
+	return m_map_blender_to_gameAdtList[for_act];
 }
 
 void KX_BlenderSceneConverter::RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator)
 {
-	m_map_blender_to_gameactuator.insert(CHashedPtr(for_actuator), act);
+	m_map_blender_to_gameactuator[for_actuator] = act;
 }
 
 SCA_IActuator *KX_BlenderSceneConverter::FindGameActuator(bActuator *for_actuator)
 {
-	SCA_IActuator **actp = m_map_blender_to_gameactuator[CHashedPtr(for_actuator)];
-	return actp ? *actp : NULL;
+	return m_map_blender_to_gameactuator[for_actuator];
 }
 
 void KX_BlenderSceneConverter::RegisterGameController(SCA_IController *cont, bController *for_controller)
 {
-	m_map_blender_to_gamecontroller.insert(CHashedPtr(for_controller), cont);
+	m_map_blender_to_gamecontroller[for_controller] = cont;
 }
 
 SCA_IController *KX_BlenderSceneConverter::FindGameController(bController *for_controller)
 {
-	SCA_IController **contp = m_map_blender_to_gamecontroller[CHashedPtr(for_controller)];
-	return contp ? *contp : NULL;
+	return m_map_blender_to_gamecontroller[for_controller];
 }
 
 void KX_BlenderSceneConverter::RegisterWorldInfo(KX_WorldInfo *worldinfo)
@@ -1042,7 +1028,10 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 					if (meshobj && IS_TAGGED(meshobj->GetMesh())) {
 						STR_HashedString mn = meshobj->GetName();
 						mapStringToMeshes.remove(mn);
-						m_map_mesh_to_gamemesh.remove(CHashedPtr(meshobj->GetMesh()));
+						std::map<Mesh *, RAS_MeshObject *>::iterator meshit = m_map_mesh_to_gamemesh.find(meshobj->GetMesh());
+						if (meshit != m_map_mesh_to_gamemesh.end()) {
+							m_map_mesh_to_gamemesh.erase(meshit);
+						}
 						i--;
 					}
 				}
@@ -1058,7 +1047,11 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 					if (IS_TAGGED(action)) {
 						STR_HashedString an = action->name + 2;
 						mapStringToActions.remove(an);
-						m_map_blender_to_gameAdtList.remove(CHashedPtr(action));
+						std::map<bAction *, BL_InterpolatorList *>::iterator actit = m_map_blender_to_gameAdtList.find((bAction *)action);
+						if (actit != m_map_blender_to_gameAdtList.end()) {
+							m_map_blender_to_gameAdtList.erase(actit);
+						}
+						m_map_blender_to_gameAdtList.erase(actit);
 						i--;
 					}
 				}

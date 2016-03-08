@@ -33,7 +33,6 @@
 #define __KX_BLENDERSCENECONVERTER_H__
 
 #include "EXP_HashedPtr.h"
-#include "CTR_Map.h"
 #include <stdio.h>
 
 #include "KX_ISceneConverter.h"
@@ -51,9 +50,13 @@ class RAS_IPolyMaterial;
 class BL_InterpolatorList;
 class BL_Material;
 struct Main;
+struct Mesh;
 struct Scene;
 struct ThreadInfo;
 struct Material;
+struct bAction;
+struct bActuator;
+struct bController;
 
 typedef map<KX_Scene*, map<Material*, BL_Material*> > MaterialCache;
 typedef map<KX_Scene*, map<Material*, RAS_IPolyMaterial*> > PolyMaterialCache;
@@ -79,12 +82,12 @@ class KX_BlenderSceneConverter : public KX_ISceneConverter
 	// Should also have a list of collision shapes. 
 	// For the time being this is held in KX_Scene::m_shapes
 
-	CTR_Map<CHashedPtr,KX_GameObject*>	m_map_blender_to_gameobject;		/* cleared after conversion */
-	CTR_Map<CHashedPtr,RAS_MeshObject*>	m_map_mesh_to_gamemesh;				/* cleared after conversion */
-	CTR_Map<CHashedPtr,SCA_IActuator*>	m_map_blender_to_gameactuator;		/* cleared after conversion */
-	CTR_Map<CHashedPtr,SCA_IController*>m_map_blender_to_gamecontroller;	/* cleared after conversion */
+	std::map<Object *, KX_GameObject *> m_map_blender_to_gameobject;		/* cleared after conversion */
+	std::map<Mesh *, RAS_MeshObject *> m_map_mesh_to_gamemesh;				/* cleared after conversion */
+	std::map<bActuator *, SCA_IActuator *> m_map_blender_to_gameactuator;		/* cleared after conversion */
+	std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller;	/* cleared after conversion */
 	
-	CTR_Map<CHashedPtr,BL_InterpolatorList*> m_map_blender_to_gameAdtList;
+	std::map<bAction *, BL_InterpolatorList *> m_map_blender_to_gameAdtList;
 	
 	Main*					m_maggie;
 	vector<struct Main*>	m_DynamicMaggie;
@@ -182,11 +185,11 @@ public:
 		printf("\t m_materials: %d\n", (int)m_materials.size());
 
 		printf("\nMappings...\n");
-		printf("\t m_map_blender_to_gameobject: %d\n", m_map_blender_to_gameobject.size());
-		printf("\t m_map_mesh_to_gamemesh: %d\n", m_map_mesh_to_gamemesh.size());
-		printf("\t m_map_blender_to_gameactuator: %d\n", m_map_blender_to_gameactuator.size());
-		printf("\t m_map_blender_to_gamecontroller: %d\n", m_map_blender_to_gamecontroller.size());
-		printf("\t m_map_blender_to_gameAdtList: %d\n", m_map_blender_to_gameAdtList.size());
+		printf("\t m_map_blender_to_gameobject: %d\n", (int)m_map_blender_to_gameobject.size());
+		printf("\t m_map_mesh_to_gamemesh: %d\n", (int)m_map_mesh_to_gamemesh.size());
+		printf("\t m_map_blender_to_gameactuator: %d\n", (int)m_map_blender_to_gameactuator.size());
+		printf("\t m_map_blender_to_gamecontroller: %d\n", (int)m_map_blender_to_gamecontroller.size());
+		printf("\t m_map_blender_to_gameAdtList: %d\n", (int)m_map_blender_to_gameAdtList.size());
 
 #ifdef WITH_CXX_GUARDEDALLOC
 		MEM_printmemlist_pydict();
