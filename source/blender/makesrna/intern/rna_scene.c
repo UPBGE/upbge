@@ -4246,11 +4246,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	                         "Use extra textures like normal or specular maps for GLSL rendering");
 	RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_glsl_update");
 
-	/* world material */
-	prop = RNA_def_property(srna, "use_world_material", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_RENDER_WORLD_BACKGROUND);
-	RNA_def_property_ui_text(prop, "World Background", "Render World Material in the game engine");
-
 	/* obstacle simulation */
 	prop = RNA_def_property(srna, "obstacle_simulation", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "obstacleSimulation");

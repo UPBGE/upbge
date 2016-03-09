@@ -103,11 +103,6 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	/* fogging vars */
 	bool m_fogenabled;
 
-	float m_redback;
-	float m_greenback;
-	float m_blueback;
-	float m_alphaback;
-
 	float m_ambr;
 	float m_ambg;
 	float m_ambb;
@@ -204,8 +199,6 @@ public:
 	virtual void SetFog(short type, float start, float dist, float intensity, float color[3]);
 	virtual void EnableFog(bool enable);
 	virtual void DisplayFog();
-
-	virtual void SetBackColor(float color[3]);
 
 	virtual void SetDrawingMode(DrawType drawingmode);
 	virtual DrawType GetDrawingMode();

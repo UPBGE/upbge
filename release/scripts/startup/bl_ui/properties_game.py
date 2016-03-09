@@ -398,7 +398,6 @@ class RENDER_PT_game_shading(RenderButtonsPanel, Panel):
         split = layout.split()
 
         col = split.column()
-        col.prop(gs, "use_world_material")
         col.prop(gs, "use_glsl_lights", text="Lights")
         col.prop(gs, "use_glsl_shaders", text="Shaders")
         col.prop(gs, "use_glsl_shadows", text="Shadows")

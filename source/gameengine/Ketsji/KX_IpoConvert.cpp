@@ -303,6 +303,17 @@ SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, 
 			}
 		}
 
+		for (int i = 0; i<3; i++) {
+			if ((interp = adtList->GetScalarInterpolator("zenith_color", i))) {
+				if (!ipocontr) {
+					ipocontr = new KX_WorldIpoController();
+				}
+				interpolator = new KX_ScalarInterpolator(&ipocontr->m_zeni_rgb[i], interp);
+				ipocontr->AddInterpolator(interpolator);
+				ipocontr->SetModifyZenithColor(true);
+			}
+		}
+
 		if ((interp = adtList->GetScalarInterpolator("mist_settings.start", 0))) {
 			if (!ipocontr) {
 				ipocontr = new KX_WorldIpoController();

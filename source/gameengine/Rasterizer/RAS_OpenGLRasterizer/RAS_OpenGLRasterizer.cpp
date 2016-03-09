@@ -168,13 +168,7 @@ bool RAS_OpenGLRasterizer::Init()
 
 	glFrontFace(GL_CCW);
 	m_last_frontface = true;
-
-	m_redback = 0.4375f;
-	m_greenback = 0.4375f;
-	m_blueback = 0.4375f;
-	m_alphaback = 0.0f;
-
-	glClearColor(m_redback, m_greenback, m_blueback, m_alphaback);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -196,14 +190,6 @@ void RAS_OpenGLRasterizer::SetAmbient(float factor)
 {
 	float ambient[] = {m_ambr *factor, m_ambg * factor, m_ambb * factor, 1.0f};
 	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
-}
-
-void RAS_OpenGLRasterizer::SetBackColor(float color[3])
-{
-	m_redback = color[0];
-	m_greenback = color[1];
-	m_blueback = color[2];
-	m_alphaback = 1.0f;
 }
 
 void RAS_OpenGLRasterizer::SetFog(short type, float start, float dist, float intensity, float color[3])
@@ -239,7 +225,7 @@ void RAS_OpenGLRasterizer::Exit()
 	glEnable(GL_DEPTH_TEST);
 	glClearDepth(1.0f);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glClearColor(m_redback, m_greenback, m_blueback, m_alphaback);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glDepthMask(GL_TRUE);
 	glDepthFunc(GL_LEQUAL);
@@ -335,7 +321,7 @@ void RAS_OpenGLRasterizer::SetDepthMask(DepthMask depthmask)
 
 void RAS_OpenGLRasterizer::ClearColorBuffer()
 {
-	m_2DCanvas->ClearColor(m_redback, m_greenback, m_blueback, m_alphaback);
+	m_2DCanvas->ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	m_2DCanvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER);
 }
 

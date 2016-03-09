@@ -458,8 +458,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 				rasterizer->SetEyeSeparation(scene->gm.eyeseparation);
 			}
-
-			rasterizer->SetBackColor(scene->gm.framing.col);
 		}
 		
 		if (exitrequested != KX_EXIT_REQUEST_QUIT_GAME)
