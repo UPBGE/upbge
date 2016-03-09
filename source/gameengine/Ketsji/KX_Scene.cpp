@@ -510,7 +510,7 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_IObject* node, class CVal
 	
 	KX_GameObject* orgobj = (KX_GameObject*)gameobj;
 	KX_GameObject* newobj = (KX_GameObject*)orgobj->GetReplica();
-	m_map_gameobject_to_replica.insert(orgobj, newobj);
+	m_map_gameobject_to_replica[orgobj] = newobj;
 
 	// also register 'timers' (time properties) of the replica
 	int numprops = newobj->GetPropertyCount();
@@ -653,12 +653,9 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 		{
 			SCA_ISensor* oldsensor = (*its);
 			SCA_IObject* oldsensorobj = oldsensor->GetParent();
-			SCA_IObject* newsensorobj = NULL;
-		
 			// the original owner of the sensor has been replicated?
-			void **h_obj = m_map_gameobject_to_replica[oldsensorobj];
-			if (h_obj)
-				newsensorobj = (SCA_IObject*)(*h_obj);
+			SCA_IObject* newsensorobj = (SCA_IObject *)m_map_gameobject_to_replica[oldsensorobj];
+
 			if (!newsensorobj)
 			{
 				// no, then the sensor points outside the hierarchy, keep it the same
@@ -692,12 +689,7 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 		{
 			SCA_IActuator* oldactuator = (*ita);
 			SCA_IObject* oldactuatorobj = oldactuator->GetParent();
-			SCA_IObject* newactuatorobj = NULL;
-
-			// the original owner of the sensor has been replicated?
-			void **h_obj = m_map_gameobject_to_replica[oldactuatorobj];
-			if (h_obj)
-				newactuatorobj = (SCA_IObject*)(*h_obj);
+			SCA_IObject* newactuatorobj = (SCA_IObject *)m_map_gameobject_to_replica[oldactuatorobj];
 
 			if (!newactuatorobj)
 			{
@@ -851,7 +843,7 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
 	{
 		// this will also relink the actuator to objects within the hierarchy
-		(*git)->Relink(&m_map_gameobject_to_replica);
+		(*git)->Relink(m_map_gameobject_to_replica);
 		// add the object in the layer of the parent
 		(*git)->SetLayer(groupobj->GetLayer());
 	}
@@ -969,7 +961,7 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
 	{
 		// this will also relink the actuators in the hierarchy
-		(*git)->Relink(&m_map_gameobject_to_replica);
+		(*git)->Relink(m_map_gameobject_to_replica);
 		if (referenceobj) {
 			// add the object in the layer of the reference object
 			(*git)->SetLayer(referenceobj->GetLayer());

@@ -36,7 +36,6 @@
 #  pragma warning (disable:4786)  /* get rid of stupid stl-visual compiler debug warning */
 #endif  /* WIN32 */
 
-#include "CTR_HashedPtr.h"
 #include "BL_MeshDeformer.h"
 #include "BL_ArmatureObject.h"
 
@@ -51,12 +50,11 @@ struct Object;
 struct bPoseChannel;
 class RAS_MeshObject;
 class RAS_IPolyMaterial;
-class CTR_HashedPtr;
 
 class BL_SkinDeformer : public BL_MeshDeformer
 {
 public:
-	virtual void Relink(CTR_Map<CTR_HashedPtr, void *> *map);
+	virtual void Relink(std::map<void *, void *>& map);
 	void SetArmature(BL_ArmatureObject *armobj);
 
 	BL_SkinDeformer(BL_DeformableGameObject *gameobj,

@@ -33,9 +33,9 @@
 #define __BL_ARMATURECONSTRAINT_H__
 
 #include "DNA_constraint_types.h"
-#include "CTR_HashedPtr.h"
-#include "CTR_Map.h"
 #include "EXP_PyObjectPlus.h"
+
+#include <map>
 
 class SCA_IObject;
 class KX_GameObject;
@@ -78,7 +78,7 @@ public:
 
 	BL_ArmatureConstraint* GetReplica() const;
 	void ReParent(BL_ArmatureObject* armature);
-	void Relink(CTR_Map<CTR_HashedPtr, void*> *map);
+	void Relink(std::map<void *, void *>& map);
 	bool UnlinkObject(SCA_IObject* clientobj);
 
 	void UpdateTarget();

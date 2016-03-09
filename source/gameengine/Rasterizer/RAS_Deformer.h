@@ -37,7 +37,7 @@
 #endif
 
 #include <stdlib.h>
-#include "CTR_Map.h"
+#include <map>
 #include "MT_Vector3.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
@@ -59,7 +59,7 @@ public:
 	}
 
 	virtual ~RAS_Deformer() {}
-	virtual void Relink(CTR_Map<class CTR_HashedPtr, void*>*map)=0;
+	virtual void Relink(std::map<void *, void *>& map) = 0;
 	virtual bool Apply(class RAS_IPolyMaterial *polymat)=0;
 	virtual bool Update(void)=0;
 	virtual bool UpdateBuckets(void)=0;

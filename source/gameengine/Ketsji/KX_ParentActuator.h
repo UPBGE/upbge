@@ -71,7 +71,7 @@ public:
 	
 	virtual CValue* GetReplica();
 	virtual void ProcessReplica();
-	virtual void Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map);
+	virtual void Relink(std::map<void *, void *>& obj_map);
 	virtual bool UnlinkObject(SCA_IObject* clientobj);
 	
 #ifdef WITH_PYTHON

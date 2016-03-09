@@ -45,8 +45,6 @@
 #include "SG_Node.h"
 #include "MT_Transform.h"
 #include "MT_CmMatrix4x4.h"
-#include "CTR_Map.h"
-#include "CTR_HashedPtr.h"
 #include "KX_Scene.h"
 #include "KX_KetsjiEngine.h" /* for m_anim_framerate */
 #include "DNA_constraint_types.h" /* for constraint replication */
@@ -166,7 +164,7 @@ public:
 
 	virtual void	/* This function should be virtual - derived classed override it */
 	Relink(
-		CTR_Map<CTR_HashedPtr, void*> *map
+		std::map<void *, void *>& map
 	);
 
 	/**

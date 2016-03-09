@@ -39,8 +39,6 @@
 #include "KX_SoftBodyDeformer.h"
 #include "RAS_MeshObject.h"
 #include "RAS_DisplayArray.h"
-#include "CTR_Map.h"
-#include "CTR_HashedPtr.h"
 
 #ifdef WITH_BULLET
 
@@ -50,12 +48,12 @@
 
 #include "btBulletDynamicsCommon.h"
 
-void KX_SoftBodyDeformer::Relink(CTR_Map<CTR_HashedPtr, void *> *map)
+void KX_SoftBodyDeformer::Relink(std::map<void *, void *>& map)
 {
-	void **h_obj = (*map)[m_gameobj];
+	void *h_obj = map[m_gameobj];
 
 	if (h_obj) {
-		m_gameobj = (BL_DeformableGameObject *)(*h_obj);
+		m_gameobj = (BL_DeformableGameObject *)h_obj;
 		m_pMeshObject = m_gameobj->GetMesh(0);
 	}
 	else {

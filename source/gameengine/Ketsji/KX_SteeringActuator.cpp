@@ -141,21 +141,21 @@ bool KX_SteeringActuator::UnlinkObject(SCA_IObject* clientobj)
 	return false;
 }
 
-void KX_SteeringActuator::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
+void KX_SteeringActuator::Relink(std::map<void *, void *>& obj_map)
 {
-	void **h_obj = (*obj_map)[m_target];
+	void *h_obj = obj_map[m_target];
 	if (h_obj) {
 		if (m_target)
 			m_target->UnregisterActuator(this);
-		m_target = (KX_GameObject*)(*h_obj);
+		m_target = (KX_GameObject *)h_obj;
 		m_target->RegisterActuator(this);
 	}
 
-	h_obj = (*obj_map)[m_navmesh];
+	h_obj = obj_map[m_navmesh];
 	if (h_obj) {
 		if (m_navmesh)
 			m_navmesh->UnregisterActuator(this);
-		m_navmesh = (KX_NavMeshObject*)(*h_obj);
+		m_navmesh = (KX_NavMeshObject *)h_obj;
 		m_navmesh->RegisterActuator(this);
 	}
 }

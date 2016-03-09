@@ -101,13 +101,13 @@ bool KX_CameraActuator::UnlinkObject(SCA_IObject* clientobj)
 }
 
 
-void KX_CameraActuator::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
+void KX_CameraActuator::Relink(std::map<void *, void *>& obj_map)
 {
-	void **h_obj = (*obj_map)[m_ob];
+	void *h_obj = obj_map[m_ob];
 	if (h_obj) {
 		if (m_ob)
 			m_ob->UnregisterActuator(this);
-		m_ob = (SCA_IObject*)(*h_obj);
+		m_ob = (SCA_IObject *)h_obj;
 		m_ob->RegisterActuator(this);
 	}
 }

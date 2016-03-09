@@ -44,7 +44,6 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
-#include "CTR_Map.h"
 #include "STR_HashedString.h"
 #include "BLI_math.h"
 
@@ -99,14 +98,9 @@ void BL_MeshDeformer::ProcessReplica()
 	m_lastDeformUpdate = -1.0;
 }
 
-void BL_MeshDeformer::Relink(CTR_Map<class CTR_HashedPtr, void *> *map)
+void BL_MeshDeformer::Relink(std::map<void *, void *>& map)
 {
-	void **h_obj = (*map)[m_gameobj];
-
-	if (h_obj)
-		m_gameobj = (BL_DeformableGameObject *)(*h_obj);
-	else
-		m_gameobj = NULL;
+	m_gameobj = (BL_DeformableGameObject *)map[m_gameobj];
 }
 
 /**

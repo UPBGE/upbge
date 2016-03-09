@@ -95,13 +95,13 @@ bool KX_ParentActuator::UnlinkObject(SCA_IObject* clientobj)
 	return false;
 }
 
-void KX_ParentActuator::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
+void KX_ParentActuator::Relink(std::map<void *, void *>& obj_map)
 {
-	void **h_obj = (*obj_map)[m_ob];
+	void *h_obj = obj_map[m_ob];
 	if (h_obj) {
 		if (m_ob)
 			m_ob->UnregisterActuator(this);
-		m_ob = (SCA_IObject*)(*h_obj);
+		m_ob = (SCA_IObject *)h_obj;
 		m_ob->RegisterActuator(this);
 	}
 }

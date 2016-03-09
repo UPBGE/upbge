@@ -35,8 +35,6 @@
 #include "EXP_Value.h"
 #include "SCA_IObject.h"
 #include "EXP_BoolValue.h"
-#include "CTR_Map.h"
-#include "CTR_HashedPtr.h"
 
 class KX_NetworkMessageScene;
 class SCA_IScene;
@@ -68,7 +66,7 @@ public:
 	SCA_IObject*	GetParent() { return m_gameobj; }
 
 	virtual void	ReParent(SCA_IObject* parent);
-	virtual void	Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map);
+	virtual void	Relink(std::map<void *, void *>& obj_map);
 	virtual void Delete() { Release(); }
 
 	// act as a BoolValue (with value IsPositiveTrigger)

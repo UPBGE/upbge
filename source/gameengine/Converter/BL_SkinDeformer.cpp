@@ -38,7 +38,6 @@
 #include <Eigen/LU>
 
 #include "BL_SkinDeformer.h"
-#include "CTR_Map.h"
 #include "STR_HashedString.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
@@ -133,15 +132,10 @@ BL_SkinDeformer::~BL_SkinDeformer()
 		delete [] m_dfnrToPC;
 }
 
-void BL_SkinDeformer::Relink(CTR_Map<CTR_HashedPtr, void *> *map)
+void BL_SkinDeformer::Relink(std::map<void *, void *>& map)
 {
 	if (m_armobj) {
-		void **h_obj = (*map)[m_armobj];
-
-		if (h_obj)
-			m_armobj = (BL_ArmatureObject *)(*h_obj);
-		else
-			m_armobj = NULL;
+		m_armobj = (BL_ArmatureObject *)map[m_armobj];
 	}
 
 	BL_MeshDeformer::Relink(map);

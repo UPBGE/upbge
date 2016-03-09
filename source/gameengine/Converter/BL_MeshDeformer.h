@@ -44,7 +44,6 @@
 
 struct Object;
 struct Mesh;
-class CTR_HashedPtr;
 class BL_DeformableGameObject;
 class RAS_MeshObject;
 class RAS_IPolyMaterial;
@@ -54,7 +53,7 @@ class BL_MeshDeformer : public RAS_Deformer
 public:
 	void VerifyStorage();
 	void RecalcNormals();
-	virtual void Relink(CTR_Map<CTR_HashedPtr, void *> *map);
+	virtual void Relink(std::map<void *, void *>& map);
 	BL_MeshDeformer(BL_DeformableGameObject *gameobj,
 					Object *obj,
 					RAS_MeshObject *meshobj)

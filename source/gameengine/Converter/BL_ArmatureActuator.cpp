@@ -115,20 +115,20 @@ bool BL_ArmatureActuator::UnlinkObject(SCA_IObject* clientobj)
 	return res;
 }
 
-void BL_ArmatureActuator::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
+void BL_ArmatureActuator::Relink(std::map<void *, void *>& obj_map)
 {
-	void **h_obj = (*obj_map)[m_gametarget];
+	void *h_obj = obj_map[m_gametarget];
 	if (h_obj) {
 		if (m_gametarget)
 			m_gametarget->UnregisterActuator(this);
-		m_gametarget = (KX_GameObject*)(*h_obj);
+		m_gametarget = (KX_GameObject*)h_obj;
 		m_gametarget->RegisterActuator(this);
 	}
-	h_obj = (*obj_map)[m_gamesubtarget];
+	h_obj = obj_map[m_gamesubtarget];
 	if (h_obj) {
 		if (m_gamesubtarget)
 			m_gamesubtarget->UnregisterActuator(this);
-		m_gamesubtarget = (KX_GameObject*)(*h_obj);
+		m_gamesubtarget = (KX_GameObject*)h_obj;
 		m_gamesubtarget->RegisterActuator(this);
 	}
 }

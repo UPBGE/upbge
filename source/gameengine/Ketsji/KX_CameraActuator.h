@@ -119,7 +119,7 @@ private :
 	virtual bool	UnlinkObject(SCA_IObject* clientobj);
 
 	/** Methods inherited from SCA_ILogicBrick */
-	virtual void	Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map);
+	virtual void	Relink(std::map<void *, void *>& obj_map);
 
 #ifdef WITH_PYTHON
 

@@ -51,8 +51,6 @@ extern "C" {
 }
 
 #include "BKE_constraint.h"
-#include "CTR_Map.h"
-#include "CTR_HashedPtr.h"
 #include "MEM_guardedalloc.h"
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"
@@ -451,7 +449,7 @@ void BL_ArmatureObject::ReParentLogic()
 	KX_GameObject::ReParentLogic();
 }
 
-void BL_ArmatureObject::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
+void BL_ArmatureObject::Relink(std::map<void *, void*>& obj_map)
 {
 	SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
 	for (cit.begin(); !cit.end(); ++cit) {

@@ -358,13 +358,13 @@ bool KX_ObjectActuator::UnlinkObject(SCA_IObject* clientobj)
 	return false;
 }
 
-void KX_ObjectActuator::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
+void KX_ObjectActuator::Relink(std::map<void *, void *>& obj_map)
 {
-	void **h_obj = (*obj_map)[m_reference];
+	void *h_obj = obj_map[m_reference];
 	if (h_obj) {
 		if (m_reference)
 			m_reference->UnregisterActuator(this);
-		m_reference = (KX_GameObject*)(*h_obj);
+		m_reference = (KX_GameObject *)h_obj;
 		m_reference->RegisterActuator(this);
 	}
 }

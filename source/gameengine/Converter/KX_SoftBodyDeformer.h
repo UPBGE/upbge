@@ -40,7 +40,6 @@
 #include "BL_DeformableGameObject.h"
 #include <vector>
 
-class CTR_HashedPtr;
 class BL_DeformableGameObject;
 class RAS_MeshObject;
 class RAS_IPolyMaterial;
@@ -66,7 +65,7 @@ public:
 	{
 	}
 
-	virtual void Relink(CTR_Map<CTR_HashedPtr, void *> *map);
+	virtual void Relink(std::map<void *, void *>& map);
 	virtual bool Apply(RAS_IPolyMaterial *polymat);
 	virtual bool Update()
 	{

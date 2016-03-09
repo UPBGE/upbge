@@ -1650,7 +1650,7 @@ KX_Scene* KX_GameObject::GetScene()
 /* ---------------------------------------------------------------------
  * Some stuff taken from the header
  * --------------------------------------------------------------------- */
-void KX_GameObject::Relink(CTR_Map<CTR_HashedPtr, void*> *map_parameter)
+void KX_GameObject::Relink(std::map<void *, void *>& map_parameter)
 {
 	// we will relink the sensors and actuators that use object references
 	// if the object is part of the replicated hierarchy, use the new

@@ -77,7 +77,7 @@ void SCA_ILogicBrick::ReParent(SCA_IObject* parent)
 	m_gameobj = parent;
 }
 
-void SCA_ILogicBrick::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
+void SCA_ILogicBrick::Relink(std::map<void *, void *>& obj_map)
 {
 	// nothing to do
 }
