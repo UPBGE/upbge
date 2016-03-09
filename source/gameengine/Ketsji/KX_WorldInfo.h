@@ -33,6 +33,7 @@
 #define __KX_WORLDINFO_H__
 
 #include "MT_Scalar.h"
+#include "MT_Vector3.h"
 #include "KX_KetsjiEngine.h"
 #include "EXP_PyObjectPlus.h"
 
@@ -56,14 +57,14 @@ class KX_WorldInfo : public PyObjectPlus
 	float m_miststart;
 	float m_mistdistance;
 	float m_mistintensity;
-	float m_mistcolor[3];
-	float m_horizoncolor[3];
-	float m_zenithcolor[3];
-	float m_ambientcolor[3];
-	float m_con_mistcolor[3];
-	float m_con_horizoncolor[3];
-	float m_con_zenithcolor[3];
-	float m_con_ambientcolor[3];
+	MT_Vector3 m_mistcolor;
+	MT_Vector3 m_horizoncolor;
+	MT_Vector3 m_zenithcolor;
+	MT_Vector3 m_ambientcolor;
+	MT_Vector3 m_con_mistcolor;
+	MT_Vector3 m_con_horizoncolor;
+	MT_Vector3 m_con_zenithcolor;
+	MT_Vector3 m_con_ambientcolor;
 
 public:
 	/**
@@ -79,8 +80,8 @@ public:
 	~KX_WorldInfo();
 
 	struct {
-		float horizonColor[3];
-		float zenithColor[3];
+		MT_Vector3 horizonColor;
+		MT_Vector3 zenithColor;
 	} m_savedData;
 
 	const STR_String &GetName();
@@ -90,12 +91,12 @@ public:
 	void setMistStart(float d);
 	void setMistDistance(float d);
 	void setMistIntensity(float intensity);
-	void setMistColor(float r, float g, float b);
-	void setHorizonColor(float r, float g, float b);
-	void setZenithColor(float r, float g, float b);
-	const float *getHorizonColorConverted() const;
-	const float *getZenithColorConverted() const;
-	void setAmbientColor(float r, float g, float b);
+	void setMistColor(const MT_Vector3& mistcolor);
+	void setHorizonColor(const MT_Vector3& horizoncolor);
+	void setZenithColor(const MT_Vector3& zenithcolor);
+	const MT_Vector3& getHorizonColorConverted() const;
+	const MT_Vector3& getZenithColorConverted() const;
+	void setAmbientColor(const MT_Vector3& ambientcolor);
 	void UpdateBackGround(RAS_IRasterizer *rasty);
 	void UpdateWorldSettings(RAS_IRasterizer *rasty);
 	void RenderBackground(RAS_IRasterizer *rasty);

@@ -96,10 +96,10 @@ protected:
 	KX_KetsjiEngine* m_engine;
 
 	/// horizon color
-	float m_horizon[4];
+	MT_Vector4 m_horizon;
 
 	/// zenith color
-	float m_zenith[4];
+	MT_Vector4 m_zenith;
 
 
 	/// render 3d scene to image

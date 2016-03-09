@@ -125,13 +125,11 @@ void ImageRender::setZenith(float red, float green, float blue, float alpha)
 void ImageRender::setHorizonFromScene (KX_Scene *scene)
 {
 	if (scene) {
-		const float *horizon_color = scene->GetWorldInfo()->getHorizonColorConverted();
-		copy_v3_v3(m_horizon, horizon_color);
-		m_horizon[3] = 1.0f;
+		const MT_Vector3& horizon_color = scene->GetWorldInfo()->getHorizonColorConverted();
+		m_horizon = MT_Vector4(horizon_color[0], horizon_color[1], horizon_color[2], 1.0f);
 	}
 	else {
-		const float blue_color[] = {0.0f, 0.0f, 1.0f, 1.0f};
-		copy_v4_v4(m_horizon, blue_color);
+		m_horizon = MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f);
 	}
 }
 
@@ -139,13 +137,11 @@ void ImageRender::setHorizonFromScene (KX_Scene *scene)
 void ImageRender::setZenithFromScene(KX_Scene *scene)
 {
 	if (scene) {
-		const float *zenith_color = scene->GetWorldInfo()->getZenithColorConverted();
-		copy_v3_v3(m_zenith, zenith_color);
-		m_zenith[3] = 1.0f;
+		const MT_Vector3& zenith_color = scene->GetWorldInfo()->getZenithColorConverted();
+		m_zenith = MT_Vector4(zenith_color[0], zenith_color[1], zenith_color[2], 1.0f);
 	}
 	else {
-		const float blue_color[] = {0.0f, 0.0f, 1.0f, 1.0f};
-		copy_v4_v4(m_zenith, blue_color);
+		m_zenith = MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f);
 	}
 }
 
@@ -336,16 +332,14 @@ void ImageRender::Render()
     }
 
 	// Render Background
-	float hor[3];
-	copy_v3_v3(hor, m_scene->GetWorldInfo()->m_horizoncolor);
-	float zen[3];
-	copy_v3_v3(zen, m_scene->GetWorldInfo()->m_zenithcolor);
-	m_scene->GetWorldInfo()->setHorizonColor(m_horizon[0], m_horizon[1], m_horizon[2]);
-	m_scene->GetWorldInfo()->setZenithColor(m_zenith[0], m_zenith[1], m_zenith[2]);
+	const MT_Vector3 hor = m_scene->GetWorldInfo()->m_horizoncolor;
+	const MT_Vector3 zen = m_scene->GetWorldInfo()->m_zenithcolor;
+	m_scene->GetWorldInfo()->setHorizonColor(MT_Vector3(m_horizon[0], m_horizon[1], m_horizon[2]));
+	m_scene->GetWorldInfo()->setZenithColor(MT_Vector3(m_zenith[0], m_zenith[1], m_zenith[2]));
 	m_scene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
 	m_scene->GetWorldInfo()->RenderBackground(m_rasterizer);
-	m_scene->GetWorldInfo()->setHorizonColor(hor[0], hor[1], hor[2]);
-	m_scene->GetWorldInfo()->setZenithColor(zen[0], zen[1], zen[2]);
+	m_scene->GetWorldInfo()->setHorizonColor(hor);
+	m_scene->GetWorldInfo()->setZenithColor(zen);
 
 	m_scene->CalculateVisibleMeshes(m_rasterizer,m_camera);
 
