@@ -440,6 +440,7 @@ void KX_KetsjiEngine::ClearFrame()
 		firstscene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight(), clearvp.GetTop());
+		m_rasterizer->ClearColorBuffer();
 	}
 }
 

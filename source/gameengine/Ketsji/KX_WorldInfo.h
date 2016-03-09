@@ -57,8 +57,6 @@ class KX_WorldInfo : public PyObjectPlus
 	float m_mistdistance;
 	float m_mistintensity;
 	float m_mistcolor[3];
-	float m_savedhorizoncolor[3];
-	float m_savedzenithcolor[3];
 	float m_horizoncolor[3];
 	float m_zenithcolor[3];
 	float m_ambientcolor[3];
@@ -79,6 +77,11 @@ public:
 
 	KX_WorldInfo(Scene *blenderscene, World *blenderworld);
 	~KX_WorldInfo();
+
+	struct {
+		float horizonColor[3];
+		float zenithColor[3];
+	} m_savedData;
 
 	const STR_String &GetName();
 	bool hasWorld();

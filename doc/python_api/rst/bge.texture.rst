@@ -366,11 +366,17 @@ Image classes
       
       :type: bool
 
-   .. attribute:: background
+   .. attribute:: horizon
 
-      Background color.
+      Horizon color.
       
-      :type: int or float list [r, g, b, a] in [0.0, 255.0]
+      :type: float list [r, g, b, a] in [0.0, 1.0]
+
+   .. attribute:: zenith
+
+      Zenith color.
+      
+      :type: float list [r, g, b, a] in [0.0, 1.0]
 
    .. attribute:: capsize
 
@@ -560,11 +566,17 @@ Image classes
       
       :type: bool
 
-   .. attribute:: background
+   .. attribute:: horizon
 
-      Background color.
+      Horizon color.
       
-      :type: int or float list [r, g, b, a] in [0.0, 255.0]
+      :type: float list [r, g, b, a] in [0.0, 1.0]
+
+   .. attribute:: zenith
+
+      Zenith color.
+      
+      :type: float list [r, g, b, a] in [0.0, 1.0]
 
    .. attribute:: capsize
 

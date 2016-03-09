@@ -59,12 +59,12 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 		m_do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
 		m_hasworld = true;
 		m_hasmist = ((blenderworld->mode) & WO_MIST ? true : false);
-		m_savedhorizoncolor[0] = blenderworld->horr;
-		m_savedhorizoncolor[1] = blenderworld->horg;
-		m_savedhorizoncolor[2] = blenderworld->horb;
-		m_savedzenithcolor[0] = blenderworld->zenr;
-		m_savedzenithcolor[1] = blenderworld->zeng;
-		m_savedzenithcolor[2] = blenderworld->zenb;
+		m_savedData.horizonColor[0] = blenderworld->horr;
+		m_savedData.horizonColor[1] = blenderworld->horg;
+		m_savedData.horizonColor[2] = blenderworld->horb;
+		m_savedData.zenithColor[0] = blenderworld->zenr;
+		m_savedData.zenithColor[1] = blenderworld->zeng;
+		m_savedData.zenithColor[2] = blenderworld->zenb;
 		m_misttype = blenderworld->mistype;
 		m_miststart = blenderworld->miststa;
 		m_mistdistance = blenderworld->mistdist;
@@ -82,12 +82,14 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 KX_WorldInfo::~KX_WorldInfo()
 {
 	// Restore saved horizon and zenith colors
-	m_scene->world->horr = m_savedhorizoncolor[0];
-	m_scene->world->horg = m_savedhorizoncolor[1];
-	m_scene->world->horb = m_savedhorizoncolor[2];
-	m_scene->world->zenr = m_savedzenithcolor[0];
-	m_scene->world->zeng = m_savedzenithcolor[1];
-	m_scene->world->zenb = m_savedzenithcolor[2];
+	if (m_hasworld) {
+		m_scene->world->horr = m_savedData.horizonColor[0];
+		m_scene->world->horg = m_savedData.horizonColor[1];
+		m_scene->world->horb = m_savedData.horizonColor[2];
+		m_scene->world->zenr = m_savedData.zenithColor[0];
+		m_scene->world->zeng = m_savedData.zenithColor[1];
+		m_scene->world->zenb = m_savedData.zenithColor[2];
+	}
 }
 
 const STR_String& KX_WorldInfo::GetName()

@@ -168,7 +168,7 @@ bool RAS_OpenGLRasterizer::Init()
 
 	glFrontFace(GL_CCW);
 	m_last_frontface = true;
-
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -225,6 +225,7 @@ void RAS_OpenGLRasterizer::Exit()
 	glEnable(GL_DEPTH_TEST);
 	glClearDepth(1.0f);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glDepthMask(GL_TRUE);
 	glDepthFunc(GL_LEQUAL);
@@ -320,6 +321,7 @@ void RAS_OpenGLRasterizer::SetDepthMask(DepthMask depthmask)
 
 void RAS_OpenGLRasterizer::ClearColorBuffer()
 {
+	m_2DCanvas->ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	m_2DCanvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER);
 }
 

@@ -245,6 +245,7 @@ void ImageRender::Render()
 
 	// The screen area that ImageViewport will copy is also the rendering zone
 	m_canvas->SetViewPort(m_position[0], m_position[1], m_position[0]+m_capSize[0]-1, m_position[1]+m_capSize[1]-1);
+	m_canvas->ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER|RAS_ICanvas::DEPTH_BUFFER);
 	m_rasterizer->BeginFrame(m_engine->GetClockTime());
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
@@ -448,7 +449,7 @@ static int setHorizon(PyImage *self, PyObject *value, void *closure)
 	return 0;
 }
 
-// get zenith color /////////////TO DO
+// get zenith color
 static PyObject *getZenith(PyImage *self, void *closure)
 {
 	return Py_BuildValue("[ffff]",
@@ -491,8 +492,8 @@ static PyMethodDef imageRenderMethods[] =
 // attributes structure
 static PyGetSetDef imageRenderGetSets[] =
 { 
-	{(char*)"horizon", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", NULL}, /////////////TO DO
-	{(char*)"zenith", (getter)getZenith, (setter)setZenith, (char*)"zenith color", NULL}, /////////////TO DO
+	{(char*)"horizon", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", NULL},
+	{(char*)"zenith", (getter)getZenith, (setter)setZenith, (char*)"zenith color", NULL},
 	// attribute from ImageViewport
 	{(char*)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char*)"size of render area", NULL},
 	{(char*)"alpha", (getter)ImageViewport_getAlpha, (setter)ImageViewport_setAlpha, (char*)"use alpha in texture", NULL},
@@ -655,8 +656,8 @@ static PyGetSetDef imageMirrorGetSets[] =
 { 
 	{(char*)"clip", (getter)getClip, (setter)setClip, (char*)"clipping distance", NULL},
 	// attribute from ImageRender
-	{(char*)"horizon", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", NULL}, /////////////TO DO
-	{(char*)"zenith", (getter)getZenith, (setter)setZenith, (char*)"zenith color", NULL}, /////////////TO DO
+	{(char*)"horizon", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", NULL},
+	{(char*)"zenith", (getter)getZenith, (setter)setZenith, (char*)"zenith color", NULL},
 	// attribute from ImageViewport
 	{(char*)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char*)"size of render area", NULL},
 	{(char*)"alpha", (getter)ImageViewport_getAlpha, (setter)ImageViewport_setAlpha, (char*)"use alpha in texture", NULL},
