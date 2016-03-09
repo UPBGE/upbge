@@ -1021,38 +1021,37 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		else {
 			/* in case the mesh might be refered to later */
 			{
-				CTR_Map<STR_HashedString, void *> &mapStringToMeshes = scene->GetLogicManager()->GetMeshMap();
+				std::map<STR_HashedString, void *> &mapStringToMeshes = scene->GetLogicManager()->GetMeshMap();
 				
-				for (int i = 0; i < mapStringToMeshes.size(); i++) {
-					RAS_MeshObject *meshobj = (RAS_MeshObject *) *mapStringToMeshes.at(i);
+				for (std::map<STR_HashedString, void *>::iterator it = mapStringToMeshes.begin(),
+					 end = mapStringToMeshes.end(); it != end;)
+				{
+					RAS_MeshObject *meshobj = (RAS_MeshObject *)it->second;
 					if (meshobj && IS_TAGGED(meshobj->GetMesh())) {
-						STR_HashedString mn = meshobj->GetName();
-						mapStringToMeshes.remove(mn);
-						std::map<Mesh *, RAS_MeshObject *>::iterator meshit = m_map_mesh_to_gamemesh.find(meshobj->GetMesh());
-						if (meshit != m_map_mesh_to_gamemesh.end()) {
-							m_map_mesh_to_gamemesh.erase(meshit);
-						}
-						i--;
+						m_map_mesh_to_gamemesh.erase(meshobj->GetMesh());
+						mapStringToMeshes.erase(it++);
+					}
+					else {
+						++it;
 					}
 				}
 			}
 
 			/* Now unregister actions */
 			{
-				CTR_Map<STR_HashedString, void *> &mapStringToActions = scene->GetLogicManager()->GetActionMap();
+				std::map<STR_HashedString, void *> &mapStringToActions = scene->GetLogicManager()->GetActionMap();
 
-				for (int i = 0; i < mapStringToActions.size(); i++) {
-					ID *action = (ID*) *mapStringToActions.at(i);
+				for (std::map<STR_HashedString, void *>::iterator it = mapStringToActions.begin(),
+					 end = mapStringToActions.end(); it != end;)
+				{
+					ID *action = (ID *)it->second;
 
 					if (IS_TAGGED(action)) {
-						STR_HashedString an = action->name + 2;
-						mapStringToActions.remove(an);
-						std::map<bAction *, BL_InterpolatorList *>::iterator actit = m_map_blender_to_gameAdtList.find((bAction *)action);
-						if (actit != m_map_blender_to_gameAdtList.end()) {
-							m_map_blender_to_gameAdtList.erase(actit);
-						}
-						m_map_blender_to_gameAdtList.erase(actit);
-						i--;
+						m_map_blender_to_gameAdtList.erase((bAction *)action);
+						mapStringToActions.erase(it++);
+					}
+					else {
+						++it;
 					}
 				}
 			}

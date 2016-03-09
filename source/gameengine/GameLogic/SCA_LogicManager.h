@@ -36,17 +36,13 @@
 #endif 
 
 #include <vector>
-//#include "CTR_Map.h"
 #include <set>
 #include <map>
 #include <list>
 
-#include "CTR_Map.h"
 #include "STR_HashedString.h"
 #include "EXP_Value.h"
 #include "SG_QList.h"
-
-#include "EXP_HashedPtr.h"
 
 using namespace std;
 typedef std::list<class SCA_IController*> controllerlist;
@@ -83,12 +79,12 @@ class SCA_LogicManager
 
 	// need to find better way for this
 	// also known as FactoryManager...
-	CTR_Map<STR_HashedString,CValue*>	m_mapStringToGameObjects;
-	CTR_Map<STR_HashedString,void*>		m_mapStringToMeshes;
-	CTR_Map<STR_HashedString,void*>		m_mapStringToActions;
+	std::map<STR_HashedString, CValue *>	m_mapStringToGameObjects;
+	std::map<STR_HashedString, void *>		m_mapStringToMeshes;
+	std::map<STR_HashedString, void *>		m_mapStringToActions;
 
-	CTR_Map<STR_HashedString,void*>		m_map_gamemeshname_to_blendobj;
-	CTR_Map<CHashedPtr,void*>			m_map_blendobj_to_gameobj;
+	std::map<STR_HashedString, void *>		m_map_gamemeshname_to_blendobj;
+	std::map<void *, CValue *>			m_map_blendobj_to_gameobj;
 public:
 	SCA_LogicManager();
 	virtual ~SCA_LogicManager();
@@ -127,8 +123,8 @@ public:
 	// for the scripting... needs a FactoryManager later (if we would have time... ;)
 	void	RegisterMeshName(const STR_String& meshname,void* mesh);
 	void	UnregisterMeshName(const STR_String& meshname,void* mesh);
-	CTR_Map<STR_HashedString,void*>&	GetMeshMap() { return m_mapStringToMeshes; }
-	CTR_Map<STR_HashedString,void*>&	GetActionMap() { return m_mapStringToActions; }
+	std::map<STR_HashedString, void *>&	GetMeshMap() { return m_mapStringToMeshes; }
+	std::map<STR_HashedString, void *>&	GetActionMap() { return m_mapStringToActions; }
 	
 	void	RegisterActionName(const STR_String& actname,void* action);
 
