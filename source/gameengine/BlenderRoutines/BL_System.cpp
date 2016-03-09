@@ -30,14 +30,15 @@
  *  \ingroup blroutines
  */
 
-#include "CTR_Map.h"
 #include "STR_HashedString.h"
 #include "BL_System.h"
 
+#include <map>
+
 struct SingletonSystem {
-	CTR_Map<STR_HashedString,int> int_params;
-	CTR_Map<STR_HashedString,float> float_params;
-	CTR_Map<STR_HashedString,STR_String> string_params;
+	std::map<STR_HashedString, int> int_params;
+	std::map<STR_HashedString, float> float_params;
+	std::map<STR_HashedString, STR_String> string_params;
 };
 
 static SingletonSystem *_system_instance = NULL;
@@ -60,43 +61,46 @@ void SYS_DeleteSystem(SYS_SystemHandle sys)
 
 int SYS_GetCommandLineInt(SYS_SystemHandle sys, const char *paramname, int defaultvalue)
 {
-	int *result = ((SingletonSystem *)sys)->int_params[paramname];
-	if (result)
-		return *result;
+	std::map<STR_HashedString, int>::iterator it = ((SingletonSystem *)sys)->int_params.find(paramname);
+	if (it != ((SingletonSystem *)sys)->int_params.end()) {
+		return it->second;
+	}
 
 	return defaultvalue;
 }
 
 float SYS_GetCommandLineFloat(SYS_SystemHandle sys, const char *paramname, float defaultvalue)
 {
-	float *result = ((SingletonSystem *)sys)->float_params[paramname];
-	if (result)
-		return *result;
+	std::map<STR_HashedString, float>::iterator it = ((SingletonSystem *)sys)->float_params.find(paramname);
+	if (it != ((SingletonSystem *)sys)->float_params.end()) {
+		return it->second;
+	}
 
 	return defaultvalue;
 }
 
 const char *SYS_GetCommandLineString(SYS_SystemHandle sys, const char *paramname, const char *defaultvalue)
 {
-	STR_String *result = ((SingletonSystem *)sys)->string_params[paramname];
-	if (result)
-		return *result;
+	std::map<STR_HashedString, STR_String>::iterator it = ((SingletonSystem *)sys)->string_params.find(paramname);
+	if (it != ((SingletonSystem *)sys)->string_params.end()) {
+		return it->second;
+	}
 
 	return defaultvalue;
 }
 
 void SYS_WriteCommandLineInt(SYS_SystemHandle sys, const char *paramname, int value)
 {
-	((SingletonSystem *)sys)->int_params.insert(paramname, value);
+	((SingletonSystem *)sys)->int_params[paramname] = value;
 }
 
 void SYS_WriteCommandLineFloat(SYS_SystemHandle sys, const char *paramname, float value)
 {
-	((SingletonSystem *)sys)->float_params.insert(paramname, value);
+	((SingletonSystem *)sys)->float_params[paramname] = value;
 }
 
 void SYS_WriteCommandLineString(SYS_SystemHandle sys, const char *paramname, const char *value)
 {
-	((SingletonSystem *)sys)->string_params.insert(paramname, value);
+	((SingletonSystem *)sys)->string_params[paramname] = value;
 }
 
