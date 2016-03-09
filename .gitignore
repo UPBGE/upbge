@@ -1,6 +1,9 @@
 # generic files to ignore
 .*
 
+# travis ci
+!.travis.yml
+
 # python temp paths
 __pycache__/
 *.py[cod]
