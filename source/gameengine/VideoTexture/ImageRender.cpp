@@ -94,31 +94,31 @@ ImageRender::~ImageRender (void)
 // get horizon color
 float ImageRender::getHorizon (int idx)
 {
-	return (idx < 0 || idx > 3) ? 0.0f : m_horizon[idx] * 255.0f;
+	return (idx < 0 || idx > 3) ? 0.0f : m_horizon[idx];
 }
 
 // set horizon color
 void ImageRender::setHorizon (float red, float green, float blue, float alpha)
 {
-	m_horizon[0] = (red < 0.0f) ? 0.0f : (red > 255.0f) ? 1.0f : red / 255.0f;
-	m_horizon[1] = (green < 0.0f) ? 0.0f : (green > 255.0f) ? 1.0f : green / 255.0f;
-	m_horizon[2] = (blue < 0.0f) ? 0.0f : (blue > 255.0f) ? 1.0f : blue / 255.0f;
-	m_horizon[3] = (alpha < 0.0f) ? 0.0f : (alpha > 255.0f) ? 1.0f : alpha / 255.0f;
+	m_horizon[0] = (red < 0.0f) ? 0.0f : (red > 1.0f) ? 1.0f : red;
+	m_horizon[1] = (green < 0.0f) ? 0.0f : (green > 1.0f) ? 1.0f : green;
+	m_horizon[2] = (blue < 0.0f) ? 0.0f : (blue > 1.0f) ? 1.0f : blue;
+	m_horizon[3] = (alpha < 0.0f) ? 0.0f : (alpha > 1.0f) ? 1.0f : alpha;
 }
 
 // get zenith color
 float ImageRender::getZenith(int idx)
 {
-	return (idx < 0 || idx > 3) ? 0.0f : m_zenith[idx] * 255.0f;
+	return (idx < 0 || idx > 3) ? 0.0f : m_zenith[idx];
 }
 
 // set zenith color
 void ImageRender::setZenith(float red, float green, float blue, float alpha)
 {
-	m_zenith[0] = (red < 0.0f) ? 0.0f : (red > 255.0f) ? 1.0f : red / 255.0f;
-	m_zenith[1] = (green < 0.0f) ? 0.0f : (green > 255.0f) ? 1.0f : green / 255.0f;
-	m_zenith[2] = (blue < 0.0f) ? 0.0f : (blue > 255.0f) ? 1.0f : blue / 255.0f;
-	m_zenith[3] = (alpha < 0.0f) ? 0.0f : (alpha > 255.0f) ? 1.0f : alpha / 255.0f;
+	m_zenith[0] = (red < 0.0f) ? 0.0f : (red > 1.0f) ? 1.0f : red;
+	m_zenith[1] = (green < 0.0f) ? 0.0f : (green > 1.0f) ? 1.0f : green;
+	m_zenith[2] = (blue < 0.0f) ? 0.0f : (blue > 1.0f) ? 1.0f : blue;
+	m_zenith[3] = (alpha < 0.0f) ? 0.0f : (alpha > 1.0f) ? 1.0f : alpha;
 }
 
 // set horizon color from scene
@@ -245,7 +245,6 @@ void ImageRender::Render()
 
 	// The screen area that ImageViewport will copy is also the rendering zone
 	m_canvas->SetViewPort(m_position[0], m_position[1], m_position[0]+m_capSize[0]-1, m_position[1]+m_capSize[1]-1);
-	m_canvas->ClearColor(m_horizon[0], m_horizon[1], m_horizon[2], m_horizon[3]);
 	m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER|RAS_ICanvas::DEPTH_BUFFER);
 	m_rasterizer->BeginFrame(m_engine->GetClockTime());
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
@@ -253,6 +252,7 @@ void ImageRender::Render()
 	m_rasterizer->DisplayFog();
 	// matrix calculation, don't apply any of the stereo mode
 	m_rasterizer->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
+
 	if (m_mirror)
 	{
 		// frustum was computed above
@@ -324,8 +324,6 @@ void ImageRender::Render()
 	m_rasterizer->SetViewMatrix(viewmat, m_camera->NodeGetWorldOrientation(), m_camera->NodeGetWorldPosition(), m_camera->GetCameraData()->m_perspective);
 	m_camera->SetModelviewMatrix(viewmat);
 
-	m_scene->GetWorldInfo()->RenderBackground(m_rasterizer);
-
 	// restore the stereo mode now that the matrix is computed
 	m_rasterizer->SetStereoMode(stereomode);
 
@@ -335,6 +333,18 @@ void ImageRender::Render()
         // TODO: implement an explicit function in rasterizer to restore the left buffer.
         m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_LEFTEYE);
     }
+
+	// Render Background
+	float hor[3];
+	copy_v3_v3(hor, m_scene->GetWorldInfo()->m_horizoncolor);
+	float zen[3];
+	copy_v3_v3(zen, m_scene->GetWorldInfo()->m_zenithcolor);
+	m_scene->GetWorldInfo()->setHorizonColor(m_horizon[0], m_horizon[1], m_horizon[2]);
+	m_scene->GetWorldInfo()->setZenithColor(m_zenith[0], m_zenith[1], m_zenith[2]);
+	m_scene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
+	m_scene->GetWorldInfo()->RenderBackground(m_rasterizer);
+	m_scene->GetWorldInfo()->setHorizonColor(hor[0], hor[1], hor[2]);
+	m_scene->GetWorldInfo()->setZenithColor(zen[0], zen[1], zen[2]);
 
 	m_scene->CalculateVisibleMeshes(m_rasterizer,m_camera);
 
@@ -405,7 +415,7 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 }
 
 
-// get background color /////////////TO DO
+// get horizon color /////////////TO DO
 static PyObject *getHorizon (PyImage *self, void *closure)
 {
 	return Py_BuildValue("[ffff]",
@@ -415,7 +425,7 @@ static PyObject *getHorizon (PyImage *self, void *closure)
 	                     getImageRender(self)->getHorizon(3));
 }
 
-// set color /////////////TO DO
+// set color
 static int setHorizon(PyImage *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
@@ -428,7 +438,7 @@ static int setHorizon(PyImage *self, PyObject *value, void *closure)
 		PyErr_SetString(PyExc_TypeError, "The value must be a sequence of 4 floats or ints between 0.0 and 255.0");
 		return -1;
 	}
-	// set background color
+	// set horizon color
 	getImageRender(self)->setHorizon(
 	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 0)),
 	        PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 1)),
@@ -438,7 +448,7 @@ static int setHorizon(PyImage *self, PyObject *value, void *closure)
 	return 0;
 }
 
-// get background color /////////////TO DO
+// get zenith color /////////////TO DO
 static PyObject *getZenith(PyImage *self, void *closure)
 {
 	return Py_BuildValue("[ffff]",
@@ -448,7 +458,7 @@ static PyObject *getZenith(PyImage *self, void *closure)
 		getImageRender(self)->getZenith(3));
 }
 
-// set color /////////////TO DO
+// set color
 static int setZenith(PyImage *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
@@ -461,7 +471,7 @@ static int setZenith(PyImage *self, PyObject *value, void *closure)
 		PyErr_SetString(PyExc_TypeError, "The value must be a sequence of 4 floats or ints between 0.0 and 255.0");
 		return -1;
 	}
-	// set background color
+	// set zenith color
 	getImageRender(self)->setZenith(
 		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 0)),
 		PyFloat_AsDouble(PySequence_Fast_GET_ITEM(value, 1)),
