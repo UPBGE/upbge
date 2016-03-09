@@ -32,7 +32,6 @@
 #ifndef __BL_BLENDERDATACONVERSION_H__
 #define __BL_BLENDERDATACONVERSION_H__
 
-#include "CTR_HashedPtr.h"
 #include "STR_String.h"
 #include "EXP_Python.h"
 #include "KX_PhysicsEngineEnums.h"
