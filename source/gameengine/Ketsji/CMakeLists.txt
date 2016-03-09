@@ -46,7 +46,6 @@ set(INC
 	../../blender/python
 	../../blender/python/generic
 	../../blender/python/mathutils
-	../../../intern/container
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
 	../../../intern/string

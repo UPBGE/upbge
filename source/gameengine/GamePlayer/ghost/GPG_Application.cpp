@@ -73,7 +73,6 @@ extern "C"
 #include "KX_KetsjiEngine.h"
 
 // include files needed by "KX_BlenderSceneConverter.h"
-#include "CTR_Map.h"
 #include "SCA_IActuator.h"
 #include "RAS_MeshObject.h"
 #include "RAS_OpenGLRasterizer.h"

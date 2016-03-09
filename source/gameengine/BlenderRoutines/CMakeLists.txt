@@ -22,7 +22,6 @@ set(INC
 	../../blender/makesdna
 	../../blender/makesrna
 	../../blender/windowmanager
-	../../../intern/container
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
 	../../../intern/string

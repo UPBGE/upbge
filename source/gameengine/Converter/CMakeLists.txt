@@ -46,7 +46,6 @@ set(INC
 	../../blender/makesdna
 	../../blender/makesrna
 	../../blender/windowmanager
-	../../../intern/container
 	../../../intern/guardedalloc
 	../../../intern/string
 )

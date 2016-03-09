@@ -43,7 +43,6 @@ set(INC
 	../../../blender/gpu
 	../../../blender/imbuf
 	../../../blender/makesdna
-	../../../../intern/container
 	../../../../intern/ghost
 	../../../../intern/glew-mx
 	../../../../intern/guardedalloc

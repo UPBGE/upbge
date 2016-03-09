@@ -29,7 +29,6 @@ set(INC
 	../Rasterizer
 	../SceneGraph
 	../../blender/blenlib
-	../../../intern/container
 	../../../intern/string
 	../../../intern/ghost
 )

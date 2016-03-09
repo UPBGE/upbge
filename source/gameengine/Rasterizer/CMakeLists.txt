@@ -33,7 +33,6 @@ set(INC
 	../../blender/blenlib
 	../../blender/blenkernel
 	../../blender/imbuf
-	../../../intern/container
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
 	../../../intern/string

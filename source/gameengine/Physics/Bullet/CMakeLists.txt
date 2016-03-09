@@ -38,7 +38,6 @@ set(INC
 	../../../blender/blenkernel
 	../../../blender/blenlib
 	../../../blender/makesdna
-	../../../../intern/container
 	../../../../intern/guardedalloc
 	../../../../intern/glew-mx
 	../../../../intern/string
