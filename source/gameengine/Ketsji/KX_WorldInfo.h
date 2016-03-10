@@ -62,8 +62,6 @@ class KX_WorldInfo : public PyObjectPlus
 	MT_Vector3 m_zenithcolor;
 	MT_Vector3 m_ambientcolor;
 	MT_Vector3 m_con_mistcolor;
-	MT_Vector3 m_con_horizoncolor;
-	MT_Vector3 m_con_zenithcolor;
 	MT_Vector3 m_con_ambientcolor;
 
 public:
@@ -94,8 +92,6 @@ public:
 	void setMistColor(const MT_Vector3& mistcolor);
 	void setHorizonColor(const MT_Vector3& horizoncolor);
 	void setZenithColor(const MT_Vector3& zenithcolor);
-	const MT_Vector3& getHorizonColorConverted() const;
-	const MT_Vector3& getZenithColorConverted() const;
 	void setAmbientColor(const MT_Vector3& ambientcolor);
 	void UpdateBackGround(RAS_IRasterizer *rasty);
 	void UpdateWorldSettings(RAS_IRasterizer *rasty);

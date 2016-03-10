@@ -105,35 +105,11 @@ bool KX_WorldInfo::hasWorld()
 void KX_WorldInfo::setHorizonColor(const MT_Vector3& horizoncolor)
 {
 	m_horizoncolor = horizoncolor;
-
-	if (m_do_color_management) {
-		linearrgb_to_srgb_v3_v3(m_con_horizoncolor.getValue(), m_horizoncolor.getValue());
-	}
-	else {
-		m_con_horizoncolor = m_horizoncolor;
-	}
 }
 
 void KX_WorldInfo::setZenithColor(const MT_Vector3& zenithcolor)
 {
 	m_zenithcolor = zenithcolor;
-
-	if (m_do_color_management) {
-		linearrgb_to_srgb_v3_v3(m_con_zenithcolor.getValue(), m_zenithcolor.getValue());
-	}
-	else {
-		m_con_zenithcolor = m_zenithcolor;
-	}
-}
-
-const MT_Vector3& KX_WorldInfo::getHorizonColorConverted() const
-{
-	return m_con_horizoncolor;
-}
-
-const MT_Vector3& KX_WorldInfo::getZenithColorConverted() const
-{
-	return m_con_zenithcolor;
 }
 
 void KX_WorldInfo::setMistType(short type)
