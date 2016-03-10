@@ -204,13 +204,17 @@ base class --- :class:`SCA_IObject`
 
       :type: list of functions and/or methods
 
-      Callbacks should either accept one argument `(object)`, or three
-      arguments `(object, point, normal)`. For simplicity, per
-      colliding object only the first collision point is reported.
+      Callbacks should either accept one argument `(object)`, or four
+      arguments `(object, point, normal, points)`. For simplicity, per
+      colliding object the first collision point is reported in second
+      and third argument.
 
       .. code-block:: python
 
         # Function form
+        def callback_four(object, point, normal, points):
+            print('Hit by %r with %i contacts points' % (object.name, len(points)))
+
         def callback_three(object, point, normal):
             print('Hit by %r at %s with normal %s' % (object.name, point, normal))
 
@@ -218,6 +222,7 @@ base class --- :class:`SCA_IObject`
             print('Hit by %r' % object.name)
 
         def register_callback(controller):
+            controller.owner.collisionCallbacks.append(callback_four)
             controller.owner.collisionCallbacks.append(callback_three)
             controller.owner.collisionCallbacks.append(callback_one)
 
@@ -225,8 +230,12 @@ base class --- :class:`SCA_IObject`
         # Method form
         class YourGameEntity(bge.types.KX_GameObject):
             def __init__(self, old_owner):
+                self.collisionCallbacks.append(self.on_collision_four)
                 self.collisionCallbacks.append(self.on_collision_three)
                 self.collisionCallbacks.append(self.on_collision_one)
+
+            def on_collision_four(self, object, point, normal, points):
+                print('Hit by %r with %i contacts points' % (object.name, len(points)))
 
             def on_collision_three(self, object, point, normal):
                 print('Hit by %r at %s with normal %s' % (object.name, point, normal))
@@ -238,7 +247,7 @@ base class --- :class:`SCA_IObject`
         For backward compatibility, a callback with variable number of
         arguments (using `*args`) will be passed only the `object`
         argument. Only when there is more than one fixed argument (not
-        counting `self` for methods) will the three-argument form be
+        counting `self` for methods) will the four-argument form be
         used.
 
    .. attribute:: scene

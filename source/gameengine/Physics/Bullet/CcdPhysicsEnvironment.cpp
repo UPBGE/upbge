@@ -2231,22 +2231,10 @@ void CcdPhysicsEnvironment::CallbackTriggers()
 		}
 
 		if (usecallback) {
-			static PHY_CollData coll_data;
-			const btManifoldPoint &cp = manifold->getContactPoint(0);
-
-			/* Make sure that "point1" is always on the object we report on, and
-			 * "point2" on the other object. Also ensure the normal is oriented
-			 * correctly. */
-			btVector3 point1 = colliding_ctrl0 ? cp.m_positionWorldOnA : cp.m_positionWorldOnB;
-			btVector3 point2 = colliding_ctrl0 ? cp.m_positionWorldOnB : cp.m_positionWorldOnA;
-			btVector3 normal = colliding_ctrl0 ? -cp.m_normalWorldOnB : cp.m_normalWorldOnB;
-
-			coll_data.m_point1 = MT_Vector3(point1.m_floats);
-			coll_data.m_point2 = MT_Vector3(point2.m_floats);
-			coll_data.m_normal = MT_Vector3(normal.m_floats);
+			const CcdCollData *coll_data = new CcdCollData(manifold);
 
 			m_triggerCallbacks[PHY_OBJECT_RESPONSE](m_triggerCallbacksUserPtrs[PHY_OBJECT_RESPONSE],
-			                                        ctrl0, ctrl1, &coll_data);
+				colliding_ctrl0 ? ctrl0 : ctrl1, colliding_ctrl0 ? ctrl1 : ctrl0, coll_data);
 		}
 		// Bullet does not refresh the manifold contact point for object without contact response
 		// may need to remove this when a newer Bullet version is integrated
@@ -3377,4 +3365,60 @@ void CcdPhysicsEnvironment::SetupObjectConstraints(KX_GameObject *obj_src, KX_Ga
 		}
 		dofbit <<= 1;
 	}
+}
+
+CcdCollData::CcdCollData(const btPersistentManifold *manifoldPoint)
+	:m_manifoldPoint(manifoldPoint)
+{
+}
+
+CcdCollData::~CcdCollData()
+{
+}
+
+unsigned int CcdCollData::GetNumContacts() const
+{
+	return m_manifoldPoint->getNumContacts();
+}
+
+MT_Vector3 CcdCollData::GetLocalPointA(unsigned int index, bool first) const
+{
+	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
+	return MT_Vector3(first ? point.m_localPointA.m_floats : point.m_localPointB.m_floats);
+}
+
+MT_Vector3 CcdCollData::GetLocalPointB(unsigned int index, bool first) const
+{
+	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
+	return MT_Vector3(first ? point.m_localPointB.m_floats : point.m_localPointA.m_floats);
+}
+
+MT_Vector3 CcdCollData::GetWorldPoint(unsigned int index, bool first) const
+{
+	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
+	return MT_Vector3(point.m_positionWorldOnB.m_floats);
+}
+
+MT_Vector3 CcdCollData::GetNormal(unsigned int index, bool first) const
+{
+	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
+	return MT_Vector3(first ? (-point.m_normalWorldOnB).m_floats : point.m_normalWorldOnB.m_floats);
+}
+
+float CcdCollData::GetCombinedFriction(unsigned int index, bool first) const
+{
+	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
+	return point.m_combinedFriction;
+}
+
+float CcdCollData::GetCombinedRestitution(unsigned int index, bool first) const
+{
+	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
+	return point.m_combinedRestitution;
+}
+
+float CcdCollData::GetAppliedImpulse(unsigned int index, bool first) const
+{
+	const btManifoldPoint& point = m_manifoldPoint->getContactPoint(index);
+	return point.m_appliedImpulse;
 }

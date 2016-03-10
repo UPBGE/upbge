@@ -334,4 +334,21 @@ protected:
 #endif
 };
 
+class CcdCollData : public PHY_CollData
+{
+	const btPersistentManifold *m_manifoldPoint;
+public:
+	CcdCollData(const btPersistentManifold *manifoldPoint);
+	virtual ~CcdCollData();
+
+	virtual unsigned int GetNumContacts() const;
+	virtual MT_Vector3 GetLocalPointA(unsigned int index, bool first) const;
+	virtual MT_Vector3 GetLocalPointB(unsigned int index, bool first) const;
+	virtual MT_Vector3 GetWorldPoint(unsigned int index, bool first) const;
+	virtual MT_Vector3 GetNormal(unsigned int index, bool first) const;
+	virtual float GetCombinedFriction(unsigned int index, bool first) const;
+	virtual float GetCombinedRestitution(unsigned int index, bool first) const;
+	virtual float GetAppliedImpulse(unsigned int index, bool first) const;
+};
+
 #endif  /* __CCDPHYSICSENVIRONMENT_H__ */

@@ -52,7 +52,7 @@ class KX_TouchEventManager : public SCA_EventManager
 	public:
 		PHY_IPhysicsController *first;
 		PHY_IPhysicsController *second;
-		PHY_CollData *colldata;
+		const PHY_CollData *colldata;
 
 		/**
 	     * Creates a copy of the given PHY_CollData; freeing that copy should be done by the owner of
