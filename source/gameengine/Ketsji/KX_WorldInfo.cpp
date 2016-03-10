@@ -162,7 +162,7 @@ void KX_WorldInfo::setAmbientColor(const MT_Vector3& ambientcolor)
 
 void KX_WorldInfo::UpdateBackGround(RAS_IRasterizer *rasty)
 {
-	if (m_hasworld && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID) {
+	if (m_hasworld) {
 		m_scene->world->zenr = m_zenithcolor[0];
 		m_scene->world->zeng = m_zenithcolor[1];
 		m_scene->world->zenb = m_zenithcolor[2];
@@ -174,7 +174,7 @@ void KX_WorldInfo::UpdateBackGround(RAS_IRasterizer *rasty)
 
 void KX_WorldInfo::UpdateWorldSettings(RAS_IRasterizer *rasty)
 {
-	if (m_hasworld && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID) {
+	if (m_hasworld) {
 		rasty->SetAmbientColor(m_con_ambientcolor.getValue());
 		GPU_ambient_update_color(m_ambientcolor.getValue());
 
@@ -193,7 +193,7 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_IRasterizer *rasty)
 
 void KX_WorldInfo::RenderBackground(RAS_IRasterizer *rasty)
 {
-	if (m_hasworld && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID) {
+	if (m_hasworld) {
 		GPUMaterial *gpumat = GPU_material_world(m_scene, m_scene->world);
 
 		float viewmat[4][4];
