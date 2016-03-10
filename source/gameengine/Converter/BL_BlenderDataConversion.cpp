@@ -1215,10 +1215,6 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 		(isSensor) ? ((isActor) ? KX_ClientObjectInfo::OBACTORSENSOR : KX_ClientObjectInfo::OBSENSOR) :
 		(isActor) ? KX_ClientObjectInfo::ACTOR : KX_ClientObjectInfo::STATIC;
 
-	// should we record animation for this object?
-	if ((blenderobject->gameflag & OB_RECORD_ANIMATION) != 0)
-		gameobj->SetRecordAnimation(true);
-
 	delete shapeprops;
 	delete smmaterial;
 	if (dm) {

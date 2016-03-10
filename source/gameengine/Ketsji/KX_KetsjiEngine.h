@@ -203,9 +203,6 @@ private:
 	/// Automatic add debug properties to the debug list
 	bool m_autoAddDebugProperties;
 
-	/// record physics into keyframes
-	bool m_animation_record;
-
 	/// Hide cursor every frame?
 	bool m_hideCursor;
 
@@ -269,10 +266,6 @@ public:
 	{
 		return m_sceneconverter;
 	}
-	void SetAnimRecordMode(bool animation_record, int startFrame);
-
-	int getAnimRecordFrame() const;
-	void setAnimRecordFrame(int framenr);
 
 	RAS_IRasterizer *GetRasterizer()
 	{

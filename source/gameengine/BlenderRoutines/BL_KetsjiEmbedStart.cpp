@@ -263,7 +263,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		bool usefixed = (SYS_GetCommandLineInt(syshandle, "fixedtime", 0) != 0);
 		bool profile = (SYS_GetCommandLineInt(syshandle, "show_profile", 0) != 0);
 		bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
-		bool animation_record = (SYS_GetCommandLineInt(syshandle, "animation_record", 0) != 0);
 		bool displaylists = (SYS_GetCommandLineInt(syshandle, "displaylists", 0) != 0) && GPU_display_list_support();
 		bool showBoundingBox = (SYS_GetCommandLineInt(syshandle, "show_bounding_box", 0) != 0);
 		bool showArmatures = (SYS_GetCommandLineInt(syshandle, "show_armatures", 0) != 0);
@@ -293,8 +292,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				break;
 			}
 		}
-
-		if (animation_record) usefixed= false; /* override since you don't want to run full-speed for sim recording */
 
 		// create the canvas and rasterizer
 		RAS_ICanvas* canvas = new KX_BlenderCanvas(wm, win, area_rect, ar);
@@ -448,9 +445,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 		if (scene)
 		{
-			int startFrame = scene->r.cfra;
-			ketsjiengine->SetAnimRecordMode(animation_record, startFrame);
-			
 			// Quad buffered needs a special window.
 			if (scene->gm.stereoflag == STEREO_ENABLED) {
 				if (scene->gm.stereomode != RAS_IRasterizer::RAS_STEREO_QUADBUFFERED)

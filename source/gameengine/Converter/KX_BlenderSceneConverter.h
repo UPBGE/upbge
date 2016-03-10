@@ -148,15 +148,6 @@ public:
 
 	void RegisterWorldInfo(KX_WorldInfo *worldinfo);
 
-	virtual void	ResetPhysicsObjectsAnimationIpo(bool clearIpo);
-
-	///this is for reseting the position,rotation and scale of the gameobjet that is not dynamic
-	virtual	void	resetNoneDynamicObjectToIpo();
-	
-	///this generates ipo curves for position, rotation, allowing to use game physics in animation
-	virtual void	WritePhysicsObjectToAnimationIpo(int frameNumber);
-	virtual void	TestHandlesPhysicsObjectToAnimationIpo();
-
 	struct Scene* GetBlenderSceneForName(const STR_String& name);
 
 //	struct Main* GetMain() { return m_maggie; }

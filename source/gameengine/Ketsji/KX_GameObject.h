@@ -126,8 +126,6 @@ protected:
 
 	BL_ActionManager* GetActionManager();
 
-	bool								m_bRecordAnimation;
-
 public:
 	/**
 	 * KX_GameObject custom infos for ray cast, it contains property name,
@@ -647,20 +645,6 @@ public:
 	bool IsDynamicsSuspended() const;
 
 	/**
-	 * Should we record animation for this object?
-	 */
-
-	void SetRecordAnimation(bool recordAnimation)
-	{
-		m_bRecordAnimation = recordAnimation;
-	}
-
-	bool IsRecordAnimation() const
-	{
-		return m_bRecordAnimation;
-	}
-
-	/**
 	 * Check if this object has a vertex parent relationship
 	 */
 	bool IsVertexParent( )
@@ -1073,8 +1057,6 @@ public:
 	static int			pyattr_set_ang_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_record_animation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_record_animation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_worldPosition(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_worldPosition(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_localPosition(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

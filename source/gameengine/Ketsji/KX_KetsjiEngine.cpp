@@ -147,7 +147,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_showBackground(false),
 	m_show_debug_properties(false),
 	m_autoAddDebugProperties(true),
-	m_animation_record(false),
 	// Default behavior is to hide the cursor every frame.
 	m_hideCursor(false),
 	m_showBoundingBox(false),
@@ -391,11 +390,6 @@ void KX_KetsjiEngine::StartEngine(bool clearIpo)
 		m_maxLogicFrame = 5;
 		m_maxPhysicsFrame = 5;
 	}
-
-	if (m_animation_record) {
-		m_sceneconverter->ResetPhysicsObjectsAnimationIpo(clearIpo);
-		m_sceneconverter->WritePhysicsObjectToAnimationIpo(m_currentFrame);
-	}
 }
 
 void KX_KetsjiEngine::ClearFrame()
@@ -591,8 +585,6 @@ bool KX_KetsjiEngine::NextFrame()
 			 * update. */
 			m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
 
-			m_sceneconverter->resetNoneDynamicObjectToIpo(); // this is for none dynamic objects with ipo
-
 			scene->UpdateObjectActivity();
 
 			if (!scene->IsSuspended()) {
@@ -651,11 +643,6 @@ bool KX_KetsjiEngine::NextFrame()
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS2_UPDATE);
 				scene->UpdateParents(m_frameTime);
-
-
-				if (m_animation_record) {
-					m_sceneconverter->WritePhysicsObjectToAnimationIpo(++m_currentFrame);
-				}
 			}
 
 			m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
@@ -1228,10 +1215,6 @@ void KX_KetsjiEngine::StopEngine()
 	if (m_bInitialized) {
 		m_sceneconverter->FinalizeAsyncLoads();
 
-		if (m_animation_record) {
-			m_sceneconverter->TestHandlesPhysicsObjectToAnimationIpo();
-		}
-
 		while (m_scenes->GetCount() > 0) {
 			KX_Scene *scene = (KX_Scene *)m_scenes->GetFront();
 			m_sceneconverter->RemoveScene(scene);
@@ -1660,26 +1643,6 @@ void KX_KetsjiEngine::SetUseFixedTime(bool bUseFixedTime)
 void KX_KetsjiEngine::SetUseExternalClock(bool useExternalClock)
 {
 	m_useExternalClock = useExternalClock;
-}
-
-void KX_KetsjiEngine::SetAnimRecordMode(bool animation_record, int startFrame)
-{
-	m_animation_record = animation_record;
-	if (animation_record) {
-		// when recording physics keyframes, run at a variable (capped) frame rate (fixed time == full speed)
-		m_bFixedTime = false;
-	}
-	m_currentFrame = startFrame;
-}
-
-int KX_KetsjiEngine::getAnimRecordFrame() const
-{
-	return m_currentFrame;
-}
-
-void KX_KetsjiEngine::setAnimRecordFrame(int framenr)
-{
-	m_currentFrame = framenr;
 }
 
 bool KX_KetsjiEngine::GetUseFixedTime(void) const

@@ -229,7 +229,6 @@ class INFO_MT_game(Menu):
         layout.prop(gs, "show_bounding_box")
         layout.prop(gs, "show_armatures")
         layout.prop(gs, "use_deprecation_warnings")
-        layout.prop(gs, "use_animation_record")
         layout.separator()
         layout.prop(gs, "use_auto_start")
 

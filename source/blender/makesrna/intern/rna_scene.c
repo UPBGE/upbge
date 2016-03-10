@@ -4187,10 +4187,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Deprecation Warnings",
 	                         "Print warnings when using deprecated features in the python API");
 
-	prop = RNA_def_property(srna, "use_animation_record", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_ENABLE_ANIMATION_RECORD);
-	RNA_def_property_ui_text(prop, "Record Animation", "Record animation to F-Curves");
-
 	prop = RNA_def_property(srna, "use_auto_start", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_GameSettings_auto_start_get", "rna_GameSettings_auto_start_set");
 	RNA_def_property_ui_text(prop, "Auto Start", "Automatically start game at load time");

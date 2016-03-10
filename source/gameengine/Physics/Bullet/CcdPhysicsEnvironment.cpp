@@ -3275,10 +3275,6 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 
 	gameobj->SetPhysicsController(physicscontroller, isbulletdyna);
 
-	// record animation for dynamic objects
-	if (isbulletdyna)
-		gameobj->SetRecordAnimation(true);
-
 	physicscontroller->SetNewClientInfo(gameobj->getClientInfo());
 
 	// don't add automatically sensor object, they are added when a collision sensor is registered

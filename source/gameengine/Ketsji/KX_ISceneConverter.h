@@ -71,15 +71,6 @@ public:
 	virtual void	SetNewFileName(const STR_String& filename) = 0;
 	virtual bool	TryAndLoadNewFile() = 0;
 
-	virtual void	ResetPhysicsObjectsAnimationIpo(bool clearIpo) = 0;
-
-	///this generates ipo curves for position, rotation, allowing to use game physics in animation
-	virtual void	WritePhysicsObjectToAnimationIpo(int frameNumber) = 0;
-	virtual void	TestHandlesPhysicsObjectToAnimationIpo() = 0;
-
-	///this is for reseting the position,rotation and scale of the gameobjet that is not dynamic
-	virtual void	resetNoneDynamicObjectToIpo()=0;
-
 	virtual struct Scene* GetBlenderSceneForName(const STR_String& name)=0;
 	
 	
