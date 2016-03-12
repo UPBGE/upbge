@@ -240,16 +240,17 @@ PythonComponent *new_component_from_module_name(char *import)
 
 	// Don't bother with an empty string
 	if (strcmp(import, "") == 0) {
+		printf("No component was specified.\n");
 		return NULL;
 	}
 
 	module_name = strtok(import, ".");
 	cls = strtok(NULL, ".");
 
-	if (cls) {
+	if (cls && module_name) {
 		strcpy(path, module_name);
 	}
-	else {
+	else if (!cls && module_name) {
 		printf("No component class was specified, only the module was.\n");
 		return NULL;
 	}
