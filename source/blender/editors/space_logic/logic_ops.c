@@ -750,7 +750,7 @@ static int component_add_exec(bContext *C, wmOperator *op)
 	}
 
 	RNA_string_get(op->ptr, "component_name", import);
-	pycomp = new_component_from_module_name(import);
+	pycomp = new_component_from_module_name(import, op);
 
 	if(!pycomp) {
 		return OPERATOR_CANCELLED;
@@ -855,7 +855,7 @@ static int component_reload_exec(bContext *C, wmOperator *op)
 
 	snprintf(import, sizeof(import), "%s.%s", pc->module, pc->name);
 	/* Try to create a new component */
-	new_pc = new_component_from_module_name(import);
+	new_pc = new_component_from_module_name(import, op);
 
 	/* If creation failed, leave the old one along */
 	if(!new_pc) {

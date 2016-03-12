@@ -22,10 +22,13 @@
 
 #include "DNA_python_component_types.h"
 #include "DNA_property_types.h" /* For MAX_PROPSTRING */
+#include "DNA_windowmanager_types.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "MEM_guardedalloc.h"
+
 #include "BKE_python_component.h"
+#include "BKE_report.h"
 
 #include "RNA_types.h"
 
@@ -228,7 +231,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 #endif /* WITH_PYTHON */
 }
 
-PythonComponent *new_component_from_module_name(char *import)
+PythonComponent *new_component_from_module_name(char *import, wmOperator *op)
 {
 	PythonComponent *pc = NULL;
 
@@ -240,18 +243,18 @@ PythonComponent *new_component_from_module_name(char *import)
 
 	// Don't bother with an empty string
 	if (strcmp(import, "") == 0) {
-		printf("No component was specified.\n");
+		BKE_report(op->reports, RPT_ERROR_INVALID_INPUT, "No component was specified.");
 		return NULL;
 	}
 
 	module_name = strtok(import, ".");
 	cls = strtok(NULL, ".");
 
-	if (cls && module_name) {
+	if (module_name) {
 		strcpy(path, module_name);
 	}
-	else if (!cls && module_name) {
-		printf("No component class was specified, only the module was.\n");
+	if (module_name && !cls) {
+		BKE_report(op->reports, RPT_ERROR_INVALID_INPUT, "No component class was specified, only the module was.");
 		return NULL;
 	}
 
@@ -259,6 +262,10 @@ PythonComponent *new_component_from_module_name(char *import)
 
 	// Try to load up the module
 	mod = PyImport_ImportModule(path);
+	if (!mod) {
+		BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "No module named \"%s\".", module_name);
+		return NULL;
+	}
 
 	if (mod) {
 		// Get the list of objects in the module
@@ -284,7 +291,7 @@ PythonComponent *new_component_from_module_name(char *import)
 
 			// Check the subclass with our own function since we don't have access to the KX_PythonComponent type object
 			if (!verify_class(item)) {
-				printf("A %s type was found, but it was not a valid subclass of KX_PythonComponent\n", cls);
+				BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "A %s type was found, but it was not a valid subclass of KX_PythonComponent.", cls);
 			}
 			else {
 				// We have a valid class, make a component
@@ -302,7 +309,7 @@ PythonComponent *new_component_from_module_name(char *import)
 
 		// If we still have a NULL component, then we didn't find a suitable class
 		if (pc == NULL) {
-			printf("No suitable class was found for a component at %s\n", import);
+			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "No suitable class was found for a component at %s.", import);
 		}
 
 		// Take the module out of the module list so it's not cached by Python (this allows for simpler reloading of components)
@@ -314,7 +321,7 @@ PythonComponent *new_component_from_module_name(char *import)
 	}
 	else {
 		PyErr_Print();
-		printf("Unable to load component from %s\n", import);
+		BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "Unable to load component from \"%s\" because either the component doesn't exists or the module is invalid.", import);
 	}
 
 	PyGILState_Release(state);
