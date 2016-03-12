@@ -202,7 +202,7 @@ public:
 	virtual void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Matrix3x3 &ori, const MT_Vector3 &pos, bool perspective);
 
 	virtual void SetViewport(int x, int y, int width, int height);
-	virtual int* GetViewport();
+	virtual void GetViewport(int *rect);
 	virtual void SetScissor(int x, int y, int width, int height);
 
 	virtual const MT_Vector3& GetCameraPosition();

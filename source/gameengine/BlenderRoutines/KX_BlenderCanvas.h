@@ -59,7 +59,7 @@ private:
 	 * Rect that defines the area used for rendering,
 	 * relative to the context */
 	RAS_Rect m_displayarea;
-	int *m_viewport;
+	int m_viewport[4];
 
 public:
 	/* Construct a new canvas.

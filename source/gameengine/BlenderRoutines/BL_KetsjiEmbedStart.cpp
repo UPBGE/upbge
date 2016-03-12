@@ -124,24 +124,23 @@ static BlendFileData *load_game_data(char *filename)
 static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWindow *win, Scene *scene, ARegion *ar,
                               KX_BlenderKeyboardDevice* keyboarddevice, KX_BlenderMouseDevice* mousedevice, int draw_letterbox)
 {
-	int exitrequested;
-	RAS_IRasterizer *rasty = ketsjiengine->GetRasterizer();
-
 	// first check if we want to exit
-	exitrequested = ketsjiengine->GetExitCode();
+	int exitrequested = ketsjiengine->GetExitCode();
 
 	// kick the engine
 	bool render = ketsjiengine->NextFrame();
 
 	if (render) {
 		if (draw_letterbox) {
+			RAS_IRasterizer *rasty = ketsjiengine->GetRasterizer();
+
 			// Clear screen to border color
 			// We do this here since we set the canvas to be within the frames. This means the engine
 			// itself is unaware of the extra space, so we clear the whole region for it.
 			rasty->SetClearColor(scene->gm.framing.col[0], scene->gm.framing.col[1], scene->gm.framing.col[2]);
 			rasty->SetViewport(ar->winrct.xmin, ar->winrct.ymin,
 			           BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
-			rasty->Clear(RAS_IRasterizer::RAS_COLOR_BIT);
+			rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
 		}
 
 		// render the frame

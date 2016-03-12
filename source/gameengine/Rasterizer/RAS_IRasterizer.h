@@ -192,9 +192,9 @@ public:
 	};
 
 	enum ClearBit {
-		RAS_COLOR_BIT = 0x2,
-		RAS_DEPTH_BIT = 0x4,
-		RAS_STENCIL_BIT = 0x8
+		RAS_COLOR_BUFFER_BIT = 0x2,
+		RAS_DEPTH_BUFFER_BIT = 0x4,
+		RAS_STENCIL_BUFFER_BIT = 0x8
 	};
 
 	/**
@@ -358,7 +358,7 @@ public:
 	 * Get/Set viewport area
 	 */
 	virtual void SetViewport(int x, int y, int width, int height) = 0;
-	virtual int* GetViewport() = 0;
+	virtual void GetViewport(int *rect) = 0;
 
 	/**
 	 * Set scissor mask

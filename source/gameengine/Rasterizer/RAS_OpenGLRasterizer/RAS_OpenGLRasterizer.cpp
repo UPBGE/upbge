@@ -32,6 +32,7 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <malloc.h>
 
 #include "RAS_OpenGLRasterizer.h"
 
@@ -380,25 +381,25 @@ unsigned int *RAS_OpenGLRasterizer::MakeScreenshot(int x, int y, int width, int 
 
 void RAS_OpenGLRasterizer::ClearColorBuffer()
 {
-	Clear(RAS_COLOR_BIT);
+	Clear(RAS_COLOR_BUFFER_BIT);
 }
 
 void RAS_OpenGLRasterizer::ClearDepthBuffer()
 {
-	Clear(RAS_DEPTH_BIT);
+	Clear(RAS_DEPTH_BUFFER_BIT);
 }
 
 void RAS_OpenGLRasterizer::Clear(RAS_IRasterizer::ClearBit clearbit)
 {
 	GLbitfield glclearbit = 0;
 
-	if ((clearbit & RAS_COLOR_BIT) == RAS_COLOR_BIT) {
+	if ((clearbit & RAS_COLOR_BUFFER_BIT) == RAS_COLOR_BUFFER_BIT) {
 		glclearbit |= GL_COLOR_BUFFER_BIT;
 	}
-	if ((clearbit & RAS_DEPTH_BIT) == RAS_DEPTH_BIT) {
+	if ((clearbit & RAS_DEPTH_BUFFER_BIT) == RAS_DEPTH_BUFFER_BIT) {
 		glclearbit |= GL_DEPTH_BUFFER_BIT;
 	}
-	if ((clearbit & RAS_STENCIL_BIT) == RAS_STENCIL_BIT) {
+	if ((clearbit & RAS_STENCIL_BUFFER_BIT) == RAS_STENCIL_BUFFER_BIT) {
 		glclearbit |= GL_STENCIL_BUFFER_BIT;
 	}
 
@@ -1145,11 +1146,9 @@ void RAS_OpenGLRasterizer::SetViewport(int x, int y, int width, int height)
 	glViewport(x, y, width, height);
 }
 
-int *RAS_OpenGLRasterizer::GetViewport()
+void RAS_OpenGLRasterizer::GetViewport(int *rect)
 {
-	int vp[4];
-	glGetIntegerv(GL_VIEWPORT, vp);
-	return &vp[0];
+	glGetIntegerv(GL_VIEWPORT, rect);
 }
 
 void RAS_OpenGLRasterizer::SetScissor(int x, int y, int width, int height)
@@ -1169,18 +1168,22 @@ bool RAS_OpenGLRasterizer::GetCameraOrtho()
 
 void RAS_OpenGLRasterizer::SetCullFace(bool enable)
 {
-	if (enable)
-		glEnable(GL_CULL_FACE);
-	else
-		glDisable(GL_CULL_FACE);
+	if (enable) {
+		Enable(RAS_CULL_FACE);
+	}
+	else {
+		Disable(RAS_CULL_FACE);
+	}
 }
 
 void RAS_OpenGLRasterizer::SetLines(bool enable)
 {
-	if (enable)
+	if (enable) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	else
+	}
+	else {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
 }
 
 void RAS_OpenGLRasterizer::SetSpecularity(float specX,
@@ -1264,20 +1267,24 @@ void RAS_OpenGLRasterizer::SetPolygonOffset(float mult, float add)
 {
 	glPolygonOffset(mult, add);
 	GLint mode = GL_POLYGON_OFFSET_FILL;
-	if (m_drawingmode < RAS_TEXTURED)
+	if (m_drawingmode < RAS_TEXTURED) {
 		mode = GL_POLYGON_OFFSET_LINE;
-	if (mult != 0.0f || add != 0.0f)
+	}
+	if (mult != 0.0f || add != 0.0f) {
 		glEnable(mode);
-	else
+	}
+	else {
 		glDisable(mode);
+	}
 }
 
 void RAS_OpenGLRasterizer::EnableMotionBlur(float motionblurvalue)
 {
 	/* don't just set m_motionblur to 1, but check if it is 0 so
 	 * we don't reset a motion blur that is already enabled */
-	if (m_motionblur == 0)
+	if (m_motionblur == 0) {
 		m_motionblur = 1;
+	}
 	m_motionblurvalue = motionblurvalue;
 }
 
@@ -1294,13 +1301,16 @@ void RAS_OpenGLRasterizer::SetAlphaBlend(int alphablend)
 
 void RAS_OpenGLRasterizer::SetFrontFace(bool ccw)
 {
-	if (m_last_frontface == ccw)
+	if (m_last_frontface == ccw) {
 		return;
+	}
 
-	if (ccw)
+	if (ccw) {
 		glFrontFace(GL_CCW);
-	else
+	}
+	else {
 		glFrontFace(GL_CW);
+	}
 
 	m_last_frontface = ccw;
 }
@@ -1446,13 +1456,15 @@ void RAS_OpenGLRasterizer::ProcessLighting(bool uselights, const MT_Transform& v
 
 	/* find the layer */
 	if (uselights) {
-		if (m_clientobject)
+		if (m_clientobject) {
 			layer = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject)->GetLayer();
+		}
 	}
 
 	/* avoid state switching */
-	if (m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo)
+	if (m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo) {
 		return;
+	}
 
 	m_lastlightlayer = layer;
 	m_lastauxinfo = m_auxilaryClientInfo;
@@ -1466,8 +1478,9 @@ void RAS_OpenGLRasterizer::ProcessLighting(bool uselights, const MT_Transform& v
 		unsigned int count;
 		std::vector<RAS_OpenGLLight *>::iterator lit = m_lights.begin();
 
-		for (count = 0; count < m_numgllights; count++)
+		for (count = 0; count < m_numgllights; count++) {
 			glDisable((GLenum)(GL_LIGHT0 + count));
+		}
 
 		viewmat.getValue(glviewmat);
 
@@ -1476,33 +1489,39 @@ void RAS_OpenGLRasterizer::ProcessLighting(bool uselights, const MT_Transform& v
 		for (lit = m_lights.begin(), count = 0; !(lit == m_lights.end()) && count < m_numgllights; ++lit) {
 			RAS_OpenGLLight *light = (*lit);
 
-			if (light->ApplyFixedFunctionLighting(kxscene, layer, count))
+			if (light->ApplyFixedFunctionLighting(kxscene, layer, count)) {
 				count++;
+			}
 		}
 		glPopMatrix();
 
 		enable = count > 0;
 	}
 
-	if (enable)
+	if (enable) {
 		EnableOpenGLLights();
-	else
+	}
+	else {
 		DisableOpenGLLights();
+	}
 }
 
 void RAS_OpenGLRasterizer::EnableOpenGLLights()
 {
-	if (m_lastlighting == true)
+	if (m_lastlighting == true) {
 		return;
+	}
 
-	glEnable(GL_LIGHTING);
-	glEnable(GL_COLOR_MATERIAL);
+	Enable(RAS_LIGHTING);
+	Enable(RAS_COLOR_MATERIAL);
 
 	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, (GetCameraOrtho()) ? GL_FALSE : GL_TRUE);
-	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)
+
+	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)  {
 		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
+	}
 
 	m_lastlighting = true;
 }
@@ -1512,8 +1531,8 @@ void RAS_OpenGLRasterizer::DisableOpenGLLights()
 	if (m_lastlighting == false)
 		return;
 
-	glDisable(GL_LIGHTING);
-	glDisable(GL_COLOR_MATERIAL);
+	Disable(RAS_LIGHTING);
+	Disable(RAS_COLOR_MATERIAL);
 
 	m_lastlighting = false;
 }
@@ -1538,16 +1557,18 @@ void RAS_OpenGLRasterizer::RemoveLight(RAS_ILightObject *lightobject)
 	std::vector<RAS_OpenGLLight *>::iterator lit =
 	    std::find(m_lights.begin(), m_lights.end(), gllight);
 
-	if (!(lit == m_lights.end()))
+	if (lit != m_lights.end()) {
 		m_lights.erase(lit);
+	}
 }
 
 bool RAS_OpenGLRasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform)
 {
 	if (result->m_hitMesh) {
 		RAS_Polygon *poly = result->m_hitMesh->GetPolygon(result->m_hitPolygon);
-		if (!poly->IsVisible())
+		if (!poly->IsVisible()) {
 			return false;
+		}
 
 		float *origmat = raytransform->origmat;
 		float *mat = raytransform->mat;
@@ -1644,8 +1665,9 @@ void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, floa
 		PHY_IPhysicsController *physics_controller = gameobj->GetPhysicsController();
 
 		KX_GameObject *parent = gameobj->GetParent();
-		if (!physics_controller && parent)
+		if (!physics_controller && parent) {
 			physics_controller = parent->GetPhysicsController();
+		}
 
 		RayCastTranform raytransform;
 		raytransform.origmat = origmat;
@@ -1715,7 +1737,7 @@ void RAS_OpenGLRasterizer::RenderBox2D(int xco,
 	/* This is a rather important line :( The gl-mode hasn't been left
 	 * behind quite as neatly as we'd have wanted to. I don't know
 	 * what cause it, though :/ .*/
-	glDisable(GL_DEPTH_TEST);
+	Disable(RAS_DEPTH_TEST);
 
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
@@ -1751,7 +1773,8 @@ void RAS_OpenGLRasterizer::RenderBox2D(int xco,
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
-	glEnable(GL_DEPTH_TEST);
+
+	Enable(RAS_DEPTH_TEST);
 }
 
 void RAS_OpenGLRasterizer::RenderText3D(
@@ -1790,7 +1813,7 @@ void RAS_OpenGLRasterizer::RenderText2D(
 	 * behind quite as neatly as we'd have wanted to. I don't know
 	 * what cause it, though :/ .*/
 	DisableForText();
-	glDisable(GL_DEPTH_TEST);
+	Disable(RAS_DEPTH_TEST);
 
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
@@ -1820,7 +1843,8 @@ void RAS_OpenGLRasterizer::RenderText2D(
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
-	glEnable(GL_DEPTH_TEST);
+
+	Enable(RAS_DEPTH_TEST);
 }
 
 void RAS_OpenGLRasterizer::PushMatrix()

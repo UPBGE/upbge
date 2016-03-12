@@ -57,7 +57,7 @@ protected:
 	 * relative to the context */
 	RAS_Rect m_displayarea;
 
-	int *m_viewport;
+	int m_viewport[4];
 
 public:
 

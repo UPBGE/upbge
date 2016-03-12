@@ -65,7 +65,7 @@ KX_BlenderCanvas::KX_BlenderCanvas(RAS_IRasterizer *rasty, wmWindowManager *wm, 
 	m_area_top = ar->winrct.ymax;
 	m_frame = 1;
 
-	m_viewport = m_rasty->GetViewport();
+	m_rasterizer->GetViewport(m_viewport);
 }
 
 KX_BlenderCanvas::~KX_BlenderCanvas()
@@ -74,7 +74,7 @@ KX_BlenderCanvas::~KX_BlenderCanvas()
 
 void KX_BlenderCanvas::Init()
 {
-	m_rasty->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
+	m_rasterizer->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
 }
 
 
@@ -130,34 +130,34 @@ void KX_BlenderCanvas::EndDraw()
 
 void KX_BlenderCanvas::BeginFrame()
 {
-	m_rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
-	m_rasty->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
+	m_rasterizer->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
+	m_rasterizer->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
 }
 
 
 void KX_BlenderCanvas::EndFrame()
 {
-	m_rasty->Disable(RAS_IRasterizer::RAS_FOG);
+	m_rasterizer->Disable(RAS_IRasterizer::RAS_FOG);
 }
 
 
 void KX_BlenderCanvas::ClearColor(float r,float g,float b,float a)
 {
-	m_rasty->SetClearColor(r, g, b, a);
+	m_rasterizer->SetClearColor(r, g, b, a);
 }
 
 
 void KX_BlenderCanvas::ClearBuffer(int type)
 {
-	GLuint ogltype = 0;
+	unsigned int rastype = 0;
 
 	if (type & RAS_ICanvas::COLOR_BUFFER )
-		ogltype |= RAS_IRasterizer::RAS_COLOR_BIT;
+		rastype |= RAS_IRasterizer::RAS_COLOR_BUFFER_BIT;
 
 	if (type & RAS_ICanvas::DEPTH_BUFFER )
-		ogltype |= RAS_IRasterizer::RAS_DEPTH_BIT;
+		rastype |= RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT;
 
-	m_rasty->Clear((RAS_IRasterizer::ClearBit)ogltype);
+	m_rasterizer->Clear((RAS_IRasterizer::ClearBit)rastype);
 }
 
 int KX_BlenderCanvas::GetWidth(
@@ -227,8 +227,8 @@ SetViewPort(
 	m_viewport[2] = vp_width;
 	m_viewport[3] = vp_height;
 
-	glViewport(minx + x1, miny + y1, vp_width, vp_height);
-	glScissor(minx + x1, miny + y1, vp_width, vp_height);
+	m_rasterizer->SetViewport(minx + x1, miny + y1, vp_width, vp_height);
+	m_rasterizer->SetScissor(minx + x1, miny + y1, vp_width, vp_height);
 }
 
 	void
@@ -310,7 +310,7 @@ void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 	int width = m_frame_rect.GetTop() - m_frame_rect.GetBottom();
 	int height = m_frame_rect.GetRight() - m_frame_rect.GetLeft();
 
-	pixeldata = m_rasty->MakeScreenshot(x, y, width, height);
+	pixeldata = m_rasterizer->MakeScreenshot(x, y, width, height);
 	if (!pixeldata) {
 		std::cerr << "KX_BlenderCanvas: Unable to take screenshot!" << std::endl;
 		return;

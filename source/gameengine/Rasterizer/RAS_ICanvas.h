@@ -260,7 +260,7 @@ public:
 
 	RAS_IRasterizer *GetRasterizer()
 	{
-		return m_rasty;
+		return m_rasterizer;
 	}
 	
 protected:
@@ -268,7 +268,7 @@ protected:
 	int m_frame;  /// frame number for screenshots.
 	TaskScheduler *m_taskscheduler;
 	TaskPool *m_taskpool;
-	RAS_IRasterizer *m_rasty;
+	RAS_IRasterizer *m_rasterizer;
 
 	/**
 	 * Saves screenshot data to a file. The actual compression and disk I/O is performed in
