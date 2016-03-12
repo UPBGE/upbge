@@ -739,7 +739,7 @@ static void LOGIC_OT_view_all(wmOperatorType *ot)
 }
 
 /* Component operators */
-static int component_add_exec(bContext *C, wmOperator *UNUSED(op))
+static int component_add_exec(bContext *C, wmOperator *op)
 {
 	PythonComponent *pycomp;
 	Object *ob = CTX_data_active_object(C);
