@@ -40,7 +40,6 @@
 
 #include "MT_CmMatrix4x4.h"
 #include "MT_Matrix4x4.h"
-#include "MT_Vector2.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
