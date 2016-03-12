@@ -242,7 +242,7 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 	if (multisample_enabled)
 		glDisable(GL_MULTISAMPLE);
 
-	wmOrtho2_region_ui(ar);
+	wmOrtho2_region_pixelspace(ar);
 
 	/* draw background */
 	ui_draw_tooltip_background(UI_style_get(), NULL, &bbox);
@@ -829,7 +829,7 @@ int UI_searchbox_size_y(void)
 
 int UI_searchbox_size_x(void)
 {
-	return 12 * UI_UNIT_X;
+	return 10 * UI_UNIT_X;
 }
 
 int UI_search_items_find_index(uiSearchItems *items, const char *name)
@@ -1085,7 +1085,7 @@ static void ui_searchbox_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 	uiSearchboxData *data = ar->regiondata;
 	
 	/* pixel space */
-	wmOrtho2_region_ui(ar);
+	wmOrtho2_region_pixelspace(ar);
 
 	if (data->noback == false)
 		ui_draw_search_back(NULL, NULL, &data->bbox);  /* style not used yet */
@@ -1164,7 +1164,7 @@ static void ui_searchbox_region_free_cb(ARegion *ar)
 	ar->regiondata = NULL;
 }
 
-ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
+ARegion *ui_searchbox_create_generic(bContext *C, ARegion *butregion, uiBut *but)
 {
 	wmWindow *win = CTX_wm_window(C);
 	uiStyle *style = UI_style_get();
@@ -1325,6 +1325,110 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 	for (i = 0; i < data->items.maxitem; i++)
 		data->items.names[i] = MEM_callocN(but->hardmax + 1, "search pointers");
 	
+	return ar;
+}
+
+/**
+ * Similar to Python's `str.title` except...
+ *
+ * - we know words are upper case and ascii only.
+ * - '_' are replaces by spaces.
+ */
+static void str_tolower_titlecaps_ascii(char *str, const size_t len)
+{
+	size_t i;
+	bool prev_delim = true;
+
+	for (i = 0; (i < len) && str[i]; i++) {
+		if (str[i] >= 'A' && str[i] <= 'Z') {
+			if (prev_delim == false) {
+				str[i] += 'a' - 'A';
+			}
+		}
+		else if (str[i] == '_') {
+			str[i] = ' ';
+		}
+
+		prev_delim = ELEM(str[i], ' ') || (str[i] >= '0' && str[i] <= '9');
+	}
+
+}
+
+static void ui_searchbox_region_draw_cb__operator(const bContext *UNUSED(C), ARegion *ar)
+{
+	uiSearchboxData *data = ar->regiondata;
+
+	/* pixel space */
+	wmOrtho2_region_pixelspace(ar);
+
+	if (data->noback == false)
+		ui_draw_search_back(NULL, NULL, &data->bbox);  /* style not used yet */
+
+	/* draw text */
+	if (data->items.totitem) {
+		rcti rect;
+		int a;
+
+		/* draw items */
+		for (a = 0; a < data->items.totitem; a++) {
+			rcti rect_pre, rect_post;
+			ui_searchbox_butrect(&rect, data, a);
+
+			rect_pre  = rect;
+			rect_post = rect;
+
+			rect_pre.xmax = rect_post.xmin = rect.xmin + ((rect.xmax - rect.xmin) / 4);
+
+			/* widget itself */
+			{
+				wmOperatorType *ot = data->items.pointers[a];
+
+				int state = (a == data->active) ? UI_ACTIVE : 0;
+				char  text_pre[128];
+				char *text_pre_p = strstr(ot->idname, "_OT_");
+				if (text_pre_p == NULL) {
+					text_pre[0] = '\0';
+				}
+				else {
+					int text_pre_len;
+					text_pre_p += 1;
+					text_pre_len = BLI_strncpy_rlen(
+					        text_pre, ot->idname, min_ii(sizeof(text_pre), text_pre_p - ot->idname));
+					text_pre[text_pre_len] = ':';
+					text_pre[text_pre_len + 1] = '\0';
+					str_tolower_titlecaps_ascii(text_pre, sizeof(text_pre));
+				}
+
+				rect_pre.xmax += 4;  /* sneaky, avoid showing ugly margin */
+				ui_draw_menu_item(&data->fstyle, &rect_pre, text_pre, data->items.icons[a], state, false);
+				ui_draw_menu_item(&data->fstyle, &rect_post, data->items.names[a], 0, state, data->use_sep);
+			}
+
+		}
+		/* indicate more */
+		if (data->items.more) {
+			ui_searchbox_butrect(&rect, data, data->items.maxitem - 1);
+			glEnable(GL_BLEND);
+			UI_icon_draw((BLI_rcti_size_x(&rect)) / 2, rect.ymin - 9, ICON_TRIA_DOWN);
+			glDisable(GL_BLEND);
+		}
+		if (data->items.offset) {
+			ui_searchbox_butrect(&rect, data, 0);
+			glEnable(GL_BLEND);
+			UI_icon_draw((BLI_rcti_size_x(&rect)) / 2, rect.ymax - 7, ICON_TRIA_UP);
+			glDisable(GL_BLEND);
+		}
+	}
+}
+
+ARegion *ui_searchbox_create_operator(bContext *C, ARegion *butregion, uiBut *but)
+{
+	ARegion *ar;
+
+	ar = ui_searchbox_create_generic(C, butregion, but);
+
+	ar->type->draw = ui_searchbox_region_draw_cb__operator;
+
 	return ar;
 }
 
@@ -1517,7 +1621,8 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 				// yof = ysize; (not with menu scrolls)
 			}
 		}
-		
+
+#if 0 /* seems redundant and causes issues with blocks inside big regions */
 		/* or no space left or right */
 		if (left == 0 && right == 0) {
 			if (dir1 == UI_DIR_UP || dir1 == UI_DIR_DOWN) {
@@ -1525,7 +1630,8 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 				xof = -block->rect.xmin + 5;
 			}
 		}
-		
+#endif
+
 #if 0
 		/* clamp to window bounds, could be made into an option if its ever annoying */
 		if (     (offscreen = (block->rect.ymin + yof)) < 0) yof -= offscreen;   /* bottom */

@@ -2333,7 +2333,14 @@ void CustomData_interp(const CustomData *source, CustomData *dest,
 	if (count > SOURCE_BUF_SIZE) MEM_freeN((void *)sources);
 }
 
-void CustomData_swap(struct CustomData *data, int index, const int *corner_indices)
+/**
+ * Swap data inside each item, for all layers.
+ * This only applies to item types that may store several sub-item data (e.g. corner data [UVs, VCol, ...] of
+ * tessellated faces).
+ *
+ * \param corner_indices A mapping 'new_index -> old_index' of sub-item data.
+ */
+void CustomData_swap_corners(struct CustomData *data, int index, const int *corner_indices)
 {
 	const LayerTypeInfo *typeInfo;
 	int i;
@@ -2345,6 +2352,35 @@ void CustomData_swap(struct CustomData *data, int index, const int *corner_indic
 			const int offset = index * typeInfo->size;
 
 			typeInfo->swap(POINTER_OFFSET(data->layers[i].data, offset), corner_indices);
+		}
+	}
+}
+
+/**
+ * Swap two items of given custom data, in all available layers.
+ */
+void CustomData_swap(struct CustomData *data, const int index_a, const int index_b)
+{
+	int i;
+	char buff_static[256];
+
+	if (index_a == index_b) {
+		return;
+	}
+
+	for (i = 0; i < data->totlayer; ++i) {
+		const LayerTypeInfo *typeInfo = layerType_getInfo(data->layers[i].type);
+		const size_t size = typeInfo->size;
+		const size_t offset_a = size * index_a;
+		const size_t offset_b = size * index_b;
+
+		void *buff = size <= sizeof(buff_static) ? buff_static : MEM_mallocN(size, __func__);
+		memcpy(buff, POINTER_OFFSET(data->layers[i].data, offset_a), size);
+		memcpy(POINTER_OFFSET(data->layers[i].data, offset_a), POINTER_OFFSET(data->layers[i].data, offset_b), size);
+		memcpy(POINTER_OFFSET(data->layers[i].data, offset_b), buff, size);
+
+		if (buff != buff_static) {
+			MEM_freeN(buff);
 		}
 	}
 }

@@ -2064,7 +2064,6 @@ static void draw_dupli_objects_color(
 	short transflag;
 	bool use_displist = false;  /* -1 is initialize */
 	char dt;
-	bool testbb = false;
 	short dtx;
 	DupliApplyData *apply_data;
 
@@ -2088,10 +2087,11 @@ static void draw_dupli_objects_color(
 	if (dob) dob_next = dupli_step(dob->next);
 
 	for (; dob; dob_prev = dob, dob = dob_next, dob_next = dob_next ? dupli_step(dob_next->next) : NULL) {
+		bool testbb = false;
+
 		tbase.object = dob->ob;
 
 		/* Make sure lod is updated from dupli's position */
-
 		savedlod = dob->ob->currentlod;
 
 #ifdef WITH_GAMEENGINE
@@ -3313,7 +3313,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
 {
 	RegionView3D *rv3d = ar->regiondata;
 	ImBuf *ibuf;
-	const bool draw_sky = (alpha_mode == R_ADDSKY) && v3d && (v3d->flag3 & V3D_SHOW_WORLD);
+	const bool draw_sky = (alpha_mode == R_ADDSKY);
 	const bool own_ofs = (ofs == NULL);
 
 	/* view state */

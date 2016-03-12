@@ -893,7 +893,7 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, flo
 		glPushMatrix();
 		glMatrixMode(GL_MODELVIEW);
 		glPushMatrix();
-		wmOrtho2_region_ui(ar);
+		wmOrtho2_region_pixelspace(ar);
 		glLoadIdentity();
 		
 		if (depth_write) {
@@ -4065,6 +4065,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
 					glColor3ubv(ob_wire_col);
 				}
+				glLineWidth(1.0f);
 				dm->drawLooseEdges(dm);
 			}
 		}
@@ -4141,6 +4142,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
 					glColor3ubv(ob_wire_col);
 				}
+				glLineWidth(1.0f);
 				dm->drawLooseEdges(dm);
 			}
 		}
@@ -4183,6 +4185,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			glDepthMask(0);  /* disable write in zbuffer, selected edge wires show better */
 		}
 		
+		glLineWidth(1.0f);
 		dm->drawEdges(dm, ((dt == OB_WIRE) || no_faces), (ob->dtx & OB_DRAW_ALL_EDGES) != 0);
 
 		if (dt != OB_WIRE && (draw_wire == OBDRAW_WIRE_ON_DEPTH)) {
@@ -6018,8 +6021,6 @@ static void drawhandlesN(Nurb *nu, const char sel, const bool hide_handles)
 {
 	if (nu->hide || hide_handles) return;
 
-	glBegin(GL_LINES);
-
 	if (nu->type == CU_BEZIER) {
 
 		const float *fp;
@@ -6032,6 +6033,10 @@ static void drawhandlesN(Nurb *nu, const char sel, const bool hide_handles)
 		for (int a = 0; a < TH_HANDLE_COL_TOT; a++) {
 			UI_GetThemeColor3ubv(basecol + a, handle_cols[a]);
 		}
+
+		glLineWidth(1.0f);
+
+		glBegin(GL_LINES);
 
 		BezTriple *bezt = nu->bezt;
 		int a = nu->pntsu;
@@ -6066,10 +6071,11 @@ static void drawhandlesN(Nurb *nu, const char sel, const bool hide_handles)
 			bezt++;
 		}
 
+		glEnd();
+
 #undef TH_HANDLE_COL_TOT
 
 	}
-	glEnd();
 }
 
 static void drawhandlesN_active(Nurb *nu)
@@ -6242,6 +6248,8 @@ static void draw_editnurb_splines(Object *ob, Nurb *nurb, const bool sel)
 						editnurb_draw_active_poly(nu);
 					}
 
+					glLineWidth(1);
+
 					UI_ThemeColor(TH_NURB_ULINE);
 					bp = nu->bp;
 					for (b = 0; b < nu->pntsv; b++) {
@@ -6260,6 +6268,8 @@ static void draw_editnurb_splines(Object *ob, Nurb *nurb, const bool sel)
 						/* we should draw active spline highlight below everything */
 						editnurb_draw_active_nurbs(nu);
 					}
+
+					glLineWidth(1);
 
 					glBegin(GL_LINES);
 
@@ -7184,12 +7194,8 @@ static void drawObjectSelect(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 				draw_mesh_object_outline(v3d, ob, dm);
 			}
 			else {
-				/* don't show outline on 'wire' with surfaces,
-				 * don't show interior tessellation with curves */
-				drawDispListwire_ex(
-				        &ob->curve_cache->disp,
-				        (ob->type == OB_SURF) ?
-				        (DL_INDEX3 | DL_INDEX4 | DL_SURF) : (DL_SEGM | DL_POLY));
+				/* only draw 'solid' parts of the display list as wire. */
+				drawDispListwire_ex(&ob->curve_cache->disp, (DL_INDEX3 | DL_INDEX4 | DL_SURF));
 			}
 		}
 	}

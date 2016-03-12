@@ -120,7 +120,7 @@ void ED_spacetypes_init(void)
 	ED_operatortypes_io();
 	
 	ED_operatortypes_view2d();
-	ED_button_operatortypes();
+	ED_operatortypes_ui();
 	
 	/* register operators */
 	spacetypes = BKE_spacetypes_list();
@@ -188,6 +188,7 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
 	ED_keymap_marker(keyconf);
 
 	ED_keymap_view2d(keyconf);
+	ED_keymap_ui(keyconf);
 
 	spacetypes = BKE_spacetypes_list();
 	for (stype = spacetypes->first; stype; stype = stype->next) {

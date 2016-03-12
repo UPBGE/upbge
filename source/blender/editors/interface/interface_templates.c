@@ -197,7 +197,9 @@ static uiBlock *id_search_menu(bContext *C, ARegion *ar, void *arg_litem)
 		
 		but = uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 0, w, UI_UNIT_Y,
 		                     template.prv_rows, template.prv_cols, "");
-		UI_but_func_search_set(but, id_search_cb, &template, id_search_call_cb, idptr.data);
+		UI_but_func_search_set(
+		        but, ui_searchbox_create_generic, id_search_cb,
+		        &template, id_search_call_cb, idptr.data);
 	}
 	/* list view */
 	else {
@@ -207,7 +209,9 @@ static uiBlock *id_search_menu(bContext *C, ARegion *ar, void *arg_litem)
 		/* fake button, it holds space for search items */
 		uiDefBut(block, UI_BTYPE_LABEL, 0, "", 10, 15, searchbox_width, searchbox_height, NULL, 0, 0, 0, 0, NULL);
 		but = uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 0, searchbox_width, UI_UNIT_Y - 1, 0, 0, "");
-		UI_but_func_search_set(but, id_search_cb, &template, id_search_call_cb, idptr.data);
+		UI_but_func_search_set(
+		        but, ui_searchbox_create_generic, id_search_cb,
+		        &template, id_search_call_cb, idptr.data);
 	}
 		
 	
@@ -3303,7 +3307,9 @@ static void operator_search_cb(const bContext *C, void *UNUSED(arg), const char 
 
 void UI_but_func_operator_search(uiBut *but)
 {
-	UI_but_func_search_set(but, operator_search_cb, NULL, operator_call_cb, NULL);
+	UI_but_func_search_set(
+	        but, ui_searchbox_create_operator, operator_search_cb,
+	        NULL, operator_call_cb, NULL);
 }
 
 void uiTemplateOperatorSearch(uiLayout *layout)
@@ -3662,6 +3668,9 @@ void uiTemplateKeymapItemProperties(uiLayout *layout, PointerRNA *ptr)
 			/* operator buttons may store props for use (file selector, [#36492]) */
 			if (but->rnaprop) {
 				UI_but_func_set(but, keymap_item_modified, ptr->data, NULL);
+
+				/* Otherwise the keymap will be re-generated which we're trying to edit, see: T47685 */
+				UI_but_flag_enable(but, UI_BUT_UPDATE_DELAY);
 			}
 		}
 	}

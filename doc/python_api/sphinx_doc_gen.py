@@ -263,8 +263,9 @@ else:
         "gpu",
         "gpu.offscreen",
         "mathutils",
-        "mathutils.geometry",
         "mathutils.bvhtree",
+        "mathutils.geometry",
+        "mathutils.interpolate",
         "mathutils.kdtree",
         "mathutils.noise",
         "freestyle",
@@ -1001,9 +1002,11 @@ context_type_map = {
     "edit_movieclip": ("MovieClip", False),
     "edit_object": ("Object", False),
     "edit_text": ("Text", False),
+    "editable_bases": ("ObjectBase", True),
     "editable_bones": ("EditBone", True),
     "editable_gpencil_layers": ("GPencilLayer", True),
     "editable_gpencil_strokes": ("GPencilStroke", True),
+    "editable_objects": ("Object", True),
     "fluid": ("FluidSimulationModifier", False),
     "gpencil_data": ("GreasePencel", False),
     "gpencil_data_owner": ("ID", False),
@@ -1661,7 +1664,11 @@ def write_rst_contents(basepath):
 
     standalone_modules = (
         # mathutils
-        "mathutils", "mathutils.geometry", "mathutils.bvhtree", "mathutils.kdtree", "mathutils.noise",
+        "mathutils",
+        "mathutils.geometry",
+        "mathutils.bvhtree", "mathutils.kdtree",
+        "mathutils.interpolate",
+        "mathutils.noise",
         # misc
         "freestyle", "bgl", "blf",
         "gpu", "gpu.offscreen",
@@ -1818,6 +1825,7 @@ def write_rst_importable_modules(basepath):
         "mathutils.geometry"   : "Geometry Utilities",
         "mathutils.bvhtree"    : "BVHTree Utilities",
         "mathutils.kdtree"     : "KDTree Utilities",
+        "mathutils.interpolate": "Interpolation Utilities",
         "mathutils.noise"      : "Noise Utilities",
         "freestyle"            : "Freestyle Module",
         "freestyle.types"      : "Freestyle Types",

@@ -1087,7 +1087,7 @@ static void UI_OT_drop_color(wmOperatorType *ot)
 /* ********************************************************* */
 /* Registration */
 
-void ED_button_operatortypes(void)
+void ED_operatortypes_ui(void)
 {
 	WM_operatortype_append(UI_OT_reset_default_theme);
 	WM_operatortype_append(UI_OT_copy_data_path_button);
@@ -1107,4 +1107,16 @@ void ED_button_operatortypes(void)
 	WM_operatortype_append(UI_OT_eyedropper_color);
 	WM_operatortype_append(UI_OT_eyedropper_id);
 	WM_operatortype_append(UI_OT_eyedropper_depth);
+}
+
+/**
+ * \brief User Interface Keymap
+ *
+ * For now only modal maps here, since UI uses special ui-handlers instead of operators.
+ */
+void ED_keymap_ui(wmKeyConfig *keyconf)
+{
+	WM_keymap_find(keyconf, "User Interface", 0, 0);
+
+	eyedropper_modal_keymap(keyconf);
 }

@@ -141,13 +141,15 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 		while (i1 < c1->totlayer && !ELEM(l1->type, CD_MVERT, CD_MEDGE, CD_MPOLY,
 		                                  CD_MLOOPUV, CD_MLOOPCOL, CD_MTEXPOLY, CD_MDEFORMVERT))
 		{
-			i1++, l1++;
+			i1++;
+			l1++;
 		}
 
 		while (i2 < c2->totlayer && !ELEM(l2->type, CD_MVERT, CD_MEDGE, CD_MPOLY,
 		                                  CD_MLOOPUV, CD_MLOOPCOL, CD_MTEXPOLY, CD_MDEFORMVERT))
 		{
-			i2++, l2++;
+			i2++;
+			l2++;
 		}
 		
 		if (l1->type == CD_MVERT) {
@@ -496,7 +498,7 @@ void BKE_mesh_init(Mesh *me)
 	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(me, id));
 
 	me->size[0] = me->size[1] = me->size[2] = 1.0;
-	me->smoothresh = 30;
+	me->smoothresh = DEG2RADF(30);
 	me->texflag = ME_AUTOSPACE;
 
 	/* disable because its slow on many GPU's, see [#37518] */
@@ -995,7 +997,7 @@ int test_index_face(MFace *mface, CustomData *fdata, int mfindex, int nr)
 			SWAP(unsigned int, mface->v2, mface->v3);
 
 			if (fdata)
-				CustomData_swap(fdata, mfindex, corner_indices);
+				CustomData_swap_corners(fdata, mfindex, corner_indices);
 		}
 	}
 	else if (nr == 4) {
@@ -1006,7 +1008,7 @@ int test_index_face(MFace *mface, CustomData *fdata, int mfindex, int nr)
 			SWAP(unsigned int, mface->v2, mface->v4);
 
 			if (fdata)
-				CustomData_swap(fdata, mfindex, corner_indices);
+				CustomData_swap_corners(fdata, mfindex, corner_indices);
 		}
 	}
 

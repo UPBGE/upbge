@@ -296,6 +296,7 @@ typedef struct uiHandleButtonData {
 	/* tooltip */
 	ARegion *tooltip;
 	wmTimer *tooltiptimer;
+	unsigned int tooltip_force : 1;
 	
 	/* auto open */
 	bool used_mouse;
@@ -760,7 +761,7 @@ static void ui_apply_but_funcs_after(bContext *C)
 
 		if (after.opptr) {
 			/* free in advance to avoid leak on exit */
-			opptr = *after.opptr,
+			opptr = *after.opptr;
 			MEM_freeN(after.opptr);
 		}
 
@@ -3066,7 +3067,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 
 	/* optional searchbox */
 	if (but->type ==  UI_BTYPE_SEARCH_MENU) {
-		data->searchbox = ui_searchbox_create(C, data->region, but);
+		data->searchbox = but->search_create_func(C, data->region, but);
 		ui_searchbox_update(C, data->searchbox, but, true); /* true = reset */
 	}
 
@@ -7603,7 +7604,7 @@ static void button_tooltip_timer_reset(bContext *C, uiBut *but)
 		data->tooltiptimer = NULL;
 	}
 
-	if ((U.flag & USER_TOOLTIPS) || (but->flag & UI_BUT_TIP_FORCE)) {
+	if ((U.flag & USER_TOOLTIPS) || (data->tooltip_force)) {
 		if (!but->block->tooltipdisabled) {
 			if (!wm->drags.first) {
 				data->tooltiptimer = WM_event_add_timer(data->wm, data->window, TIMER, BUTTON_TOOLTIP_DELAY);
@@ -7769,7 +7770,9 @@ static void button_activate_init(bContext *C, ARegion *ar, uiBut *but, uiButtonA
 		/* XXX curve is temp */
 	}
 	else {
-		data->interactive = true;
+		if ((but->flag & UI_BUT_UPDATE_DELAY) == 0) {
+			data->interactive = true;
+		}
 	}
 	
 	data->state = BUTTON_STATE_INIT;
@@ -8129,14 +8132,12 @@ static int ui_handle_button_over(bContext *C, const wmEvent *event, ARegion *ar)
 	if (event->type == MOUSEMOVE) {
 		but = ui_but_find_mouse_over(ar, event);
 		if (but) {
-			if (event->alt) {
-				/* display tooltips if holding alt on mouseover when tooltips are off in prefs */
-				but->flag |= UI_BUT_TIP_FORCE;
-			}
-			else {
-				but->flag &= ~UI_BUT_TIP_FORCE;
-			}
 			button_activate_init(C, ar, but, BUTTON_ACTIVATE_OVER);
+
+			if (event->alt && but->active) {
+				/* display tooltips if holding alt on mouseover when tooltips are off in prefs */
+				but->active->tooltip_force = true;
+			}
 		}
 	}
 	else if (event->type == EVT_BUT_OPEN) {
