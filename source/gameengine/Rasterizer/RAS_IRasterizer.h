@@ -65,8 +65,8 @@ public:
 		RAS_TEXT_MAX,
 	};
 
-	RAS_IRasterizer(RAS_ICanvas* canv) {};
-	virtual ~RAS_IRasterizer() {};
+	RAS_IRasterizer() {}
+	virtual ~RAS_IRasterizer() {}
 
 	/**
 	 * Drawing types
@@ -166,6 +166,91 @@ public:
 		RAS_SHADOW_VARIANCE,
 	};
 
+	enum EnableBit {
+		RAS_DEPTH_TEST = 0,
+		RAS_ALPHA_TEST,
+		RAS_SCISSOR_TEST,
+		RAS_TEXTURE_2D,
+		RAS_TEXTURE_CUBE_MAP,
+		RAS_BLEND,
+		RAS_COLOR_MATERIAL,
+		RAS_CULL_FACE,
+		RAS_FOG,
+		RAS_LIGHTING,
+		RAS_MULTISAMPLE,
+		RAS_POLYGON_STIPPLE,
+		RAS_POLYGON_OFFSET_FILL,
+		RAS_POLYGON_OFFSET_LINE
+	};
+
+	enum DepthFunc {
+		RAS_NEVER = 0,
+		RAS_LEQUAL,
+		RAS_LESS,
+		RAS_ALWAYS,
+		RAS_GEQUAL,
+		RAS_GREATER,
+		RAS_NOTEQUAL,
+		RAS_EQUAL
+	};
+
+	enum BlendFunc {
+		RAS_ZERO = 0,
+		RAS_ONE,
+		RAS_SRC_COLOR,
+		RAS_ONE_MINUS_SRC_COLOR,
+		RAS_DST_COLOR,
+		RAS_ONE_MINUS_DST_COLOR,
+		RAS_SRC_ALPHA,
+		RAS_ONE_MINUS_SRC_ALPHA,
+		RAS_DST_ALPHA,
+		RAS_ONE_MINUS_DST_ALPHA,
+		RAS_SRC_ALPHA_SATURATE
+	};
+
+	enum MatrixMode {
+		RAS_PROJECTION = 0,
+		RAS_MODELVIEW,
+		RAS_TEXTURE,
+		RAS_MATRIX_MODE_MAX
+	};
+
+	enum ClearBit {
+		RAS_COLOR_BUFFER_BIT = 0x2,
+		RAS_DEPTH_BUFFER_BIT = 0x4,
+		RAS_STENCIL_BUFFER_BIT = 0x8
+	};
+
+	/**
+	 * Enable capability
+	 * \param bit Enable bit
+	 */
+	virtual void Enable(EnableBit bit) = 0;
+
+	/**
+	 * Disable capability
+	 * \param bit Enable bit
+	 */
+	virtual void Disable(EnableBit bit) = 0;
+
+	/**
+	 * Set the value for Depth Buffer comparisons
+	 * \param func Depth comparison function
+	 */
+	virtual void SetDepthFunc(DepthFunc func) = 0;
+
+	/** 
+	 * Set the blending equation.
+	 * \param src The src value.
+	 * \param dst The destination value.
+	 */
+	virtual void SetBlendFunc(BlendFunc src, BlendFunc dst) = 0;
+
+	/**
+	 * Takes a screenshot
+	 */
+	virtual unsigned int *MakeScreenshot(int x, int y, int width, int height) = 0;
+
 	/**
 	 * SetDepthMask enables or disables writing a fragment's depth value
 	 * to the Z buffer.
@@ -193,15 +278,25 @@ public:
 	virtual bool BeginFrame(double time) = 0;
 
 	/**
-	 * ClearColorBuffer clears the color buffer.
+	 * Clears a specified set of buffers
+	 * \param clearbit What buffers to clear (separated by bitwise OR)
 	 */
-	virtual void ClearColorBuffer() = 0;
+	virtual void Clear(int clearbit) = 0;
 
 	/**
-	 * ClearDepthBuffer clears the depth buffer.
+	 * Set background color
 	 */
-	virtual void ClearDepthBuffer() = 0;
+	virtual void SetClearColor(float r, float g, float b, float a=1.0f) = 0;
 
+	/**
+	 * Set background depth
+	 */
+	virtual void SetClearDepth(float d) = 0;
+
+	/**
+	 * Set background color mask.
+	 */
+	virtual void SetColorMask(bool r, bool g, bool b, bool a) = 0;
 	/**
 	 * EndFrame is called at the end of each frame.
 	 */
@@ -211,7 +306,7 @@ public:
 	 * SetRenderArea sets the render area from the 2d canvas.
 	 * Returns true if only of subset of the canvas is used.
 	 */
-	virtual void SetRenderArea() = 0;
+	virtual void SetRenderArea(RAS_ICanvas *canvas) = 0;
 
 	// Stereo Functions
 	/**
@@ -248,7 +343,7 @@ public:
 	/**
 	 * SwapBuffers swaps the back buffer with the front buffer.
 	 */
-	virtual void SwapBuffers() = 0;
+	virtual void SwapBuffers(RAS_ICanvas *canvas) = 0;
 	
 	// Drawing Functions
 	/// Set all pre render attributs for given display array bucket.
@@ -286,6 +381,17 @@ public:
 	 */
 	virtual void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Matrix3x3 &ori,
 	                           const MT_Vector3 &pos, bool perspective) = 0;
+
+	/**
+	 * Get/Set viewport area
+	 */
+	virtual void SetViewport(int x, int y, int width, int height) = 0;
+	virtual void GetViewport(int *rect) = 0;
+
+	/**
+	 * Set scissor mask
+	 */
+	virtual void SetScissor(int x, int y, int width, int height) = 0;
 
 	/**
 	 */
@@ -436,7 +542,6 @@ public:
 	 * Render Tools
 	 */
 	virtual void GetTransform(float *origmat, int objectdrawmode, float mat[16]) = 0;
-	virtual void ApplyTransform(const float mat[16]) = 0;
 
 	/**
 	 * Renders 2D boxes.
@@ -478,8 +583,8 @@ public:
 	virtual void ProcessLighting(bool uselights, const MT_Transform &trans) = 0;
 
 	virtual void PushMatrix() = 0;
-
 	virtual void PopMatrix() = 0;
+	virtual void MultMatrix(const float mat[16]) = 0;
 
 	virtual RAS_ILightObject *CreateLight() = 0;
 

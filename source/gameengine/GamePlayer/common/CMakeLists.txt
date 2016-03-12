@@ -51,7 +51,6 @@ set(INC
 
 set(INC_SYS
 	../../../../intern/moto/include
-	${GLEW_INCLUDE_PATH}
 	${PYTHON_INCLUDE_DIRS}
 	${PNG_INCLUDE_DIRS}
 	${ZLIB_INCLUDE_DIRS}

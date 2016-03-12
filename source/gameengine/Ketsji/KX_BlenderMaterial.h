@@ -156,8 +156,6 @@ private:
 	Scene *GetBlenderScene() const;
 	void ReleaseMaterial();
 
-	// message centers
-	void SetTexData(RAS_IRasterizer *ras);
 	void SetBlenderShaderData(RAS_IRasterizer *ras);
 	void SetShaderData(RAS_IRasterizer *ras);
 

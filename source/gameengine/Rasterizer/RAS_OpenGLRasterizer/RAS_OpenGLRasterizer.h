@@ -98,8 +98,6 @@ struct RayCastTranform
  */
 class RAS_OpenGLRasterizer : public RAS_IRasterizer
 {
-	RAS_ICanvas *m_2DCanvas;
-
 	/* fogging vars */
 	bool m_fogenabled;
 
@@ -153,21 +151,35 @@ protected:
 	RAS_IStorage *m_storage;
 	int m_storageInfo;
 
+	void SetMatrixMode(RAS_IRasterizer::MatrixMode mode);
+	void LoadMatrix(const float mat[16]);
+	void LoadIdentity();
+
 public:
 	double GetTime();
-	RAS_OpenGLRasterizer(RAS_ICanvas *canv, RAS_STORAGE_TYPE storage, int storageInfo);
+	RAS_OpenGLRasterizer(RAS_STORAGE_TYPE storage, int storageInfo);
 	virtual ~RAS_OpenGLRasterizer();
 
+	virtual void Enable(EnableBit bit);
+	virtual void Disable(EnableBit bit);
+
+	virtual void SetDepthFunc(DepthFunc func);
 	virtual void SetDepthMask(DepthMask depthmask);
+
+	virtual void SetBlendFunc(BlendFunc src, BlendFunc dst);
+
+	virtual unsigned int *MakeScreenshot(int x, int y, int width, int height);
 
 	virtual bool Init();
 	virtual void Exit();
 	virtual void RenderBackground();
 	virtual bool BeginFrame(double time);
-	virtual void ClearColorBuffer();
-	virtual void ClearDepthBuffer();
+	virtual void Clear(int clearbit);
+	virtual void SetClearColor(float r, float g, float b, float a=1.0f);
+	virtual void SetClearDepth(float d);
+	virtual void SetColorMask(bool r, bool g, bool b, bool a);
 	virtual void EndFrame();
-	virtual void SetRenderArea();
+	virtual void SetRenderArea(RAS_ICanvas *canvas);
 
 	virtual void SetStereoMode(const StereoMode stereomode);
 	virtual RAS_IRasterizer::StereoMode GetStereoMode();
@@ -180,7 +192,7 @@ public:
 	virtual void SetFocalLength(const float focallength);
 	virtual float GetFocalLength();
 
-	virtual void SwapBuffers();
+	virtual void SwapBuffers(RAS_ICanvas *canvas);
 
 	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
@@ -192,6 +204,10 @@ public:
 	virtual void SetProjectionMatrix(MT_CmMatrix4x4 &mat);
 	virtual void SetProjectionMatrix(const MT_Matrix4x4 &mat);
 	virtual void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Matrix3x3 &ori, const MT_Vector3 &pos, bool perspective);
+
+	virtual void SetViewport(int x, int y, int width, int height);
+	virtual void GetViewport(int *rect);
+	virtual void SetScissor(int x, int y, int width, int height);
 
 	virtual const MT_Vector3& GetCameraPosition();
 	virtual bool GetCameraOrtho();
@@ -318,6 +334,7 @@ public:
 	void DisableOpenGLLights();
 	void ProcessLighting(bool uselights, const MT_Transform &viewmat);
 
+	void DisableForText();
 	void RenderBox2D(int xco, int yco, int width, int height, float percentage);
 	void RenderText3D(int fontid, const char *text, int size, int dpi,
 	                  const float color[4], const float mat[16], float aspect);
@@ -325,10 +342,10 @@ public:
 	                  int xco, int yco, int width, int height);
 
 	virtual void GetTransform(float *origmat, int objectdrawmode, float mat[16]);
-	virtual void ApplyTransform(const float mat[16]);
 
 	void PushMatrix();
 	void PopMatrix();
+	void MultMatrix(const float mat[16]);
 
 	/// \see KX_RayCast
 	bool RayHit(struct KX_ClientObjectInfo *client, class KX_RayCast *result, RayCastTranform *raytransform);

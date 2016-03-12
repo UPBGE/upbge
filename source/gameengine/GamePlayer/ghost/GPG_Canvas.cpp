@@ -34,8 +34,8 @@
 #include <assert.h>
 #include "GHOST_ISystem.h"
 
-GPG_Canvas::GPG_Canvas(GHOST_IWindow* window)
-: GPC_Canvas(0, 0), m_window(window)
+GPG_Canvas::GPG_Canvas(RAS_IRasterizer *rasty, GHOST_IWindow* window)
+: GPC_Canvas(rasty, 0, 0), m_window(window)
 {
 	if (m_window)
 	{

@@ -73,6 +73,62 @@ extern "C" {
 #include "KX_GameObject.h"
 // >>>
 
+// WARNING: Always respect the order from RAS_IRasterizer::EnableBit.
+static int openGLEnableBitEnums[] = {
+	GL_DEPTH_TEST, // RAS_DEPTH_TEST
+	GL_ALPHA_TEST, // RAS_ALPHA_TEST
+	GL_SCISSOR_TEST, // RAS_SCISSOR_TEST
+	GL_TEXTURE_2D, // RAS_TEXTURE_2D
+	GL_TEXTURE_CUBE_MAP_ARB, // RAS_TEXTURE_CUBE_MAP
+	GL_BLEND, // RAS_BLEND
+	GL_COLOR_MATERIAL, // RAS_COLOR_MATERIAL
+	GL_CULL_FACE, // RAS_CULL_FACE
+	GL_FOG, // RAS_FOG
+	GL_LIGHTING, // RAS_LIGHTING
+	GL_MULTISAMPLE_ARB, // RAS_MULTISAMPLE
+	GL_POLYGON_STIPPLE, // RAS_POLYGON_STIPPLE
+	GL_POLYGON_OFFSET_FILL, // RAS_POLYGON_OFFSET_FILL
+	GL_POLYGON_OFFSET_LINE, // RAS_POLYGON_OFFSET_LINE
+	GL_TEXTURE_GEN_S, // RAS_TEXTURE_GEN_S
+	GL_TEXTURE_GEN_T, // RAS_TEXTURE_GEN_T
+	GL_TEXTURE_GEN_R, // RAS_TEXTURE_GEN_R
+	GL_TEXTURE_GEN_Q // RAS_TEXTURE_GEN_Q
+};
+
+// WARNING: Always respect the order from RAS_IRasterizer::DepthFunc.
+static int openGLDepthFuncEnums[] = {
+	GL_NEVER, // RAS_NEVER
+	GL_LEQUAL, // RAS_LEQUAL
+	GL_LESS, // RAS_LESS
+	GL_ALWAYS, // RAS_ALWAYS
+	GL_GEQUAL, // RAS_GEQUAL
+	GL_GREATER, // RAS_GREATER
+	GL_NOTEQUAL, // RAS_NOTEQUAL
+	GL_EQUAL // RAS_EQUAL
+};
+
+// WARNING: Always respect the order from RAS_IRasterizer::MatrixMode.
+static int openGLMatrixModeEnums[] = {
+	GL_PROJECTION, // RAS_PROJECTION
+	GL_MODELVIEW, // RAS_MODELVIEW
+	GL_TEXTURE // RAS_TEXTURE
+};
+
+// WARNING: Always respect the order from RAS_IRasterizer::BlendFunc.
+static int openGLBlendFuncEnums[] = {
+	GL_ZERO, // RAS_ZERO,
+	GL_ONE, // RAS_ONE,
+	GL_SRC_COLOR, // RAS_SRC_COLOR,
+	GL_ONE_MINUS_SRC_COLOR, // RAS_ONE_MINUS_SRC_COLOR,
+	GL_DST_COLOR, // RAS_DST_COLOR,
+	GL_ONE_MINUS_DST_COLOR, // RAS_ONE_MINUS_DST_COLOR,
+	GL_SRC_ALPHA, // RAS_SRC_ALPHA,
+	GL_ONE_MINUS_SRC_ALPHA, // RAS_ONE_MINUS_SRC_ALPHA,
+	GL_DST_ALPHA, // RAS_DST_ALPHA,
+	GL_ONE_MINUS_DST_ALPHA, // RAS_ONE_MINUS_DST_ALPHA,
+	GL_SRC_ALPHA_SATURATE // RAS_SRC_ALPHA_SATURATE
+};
+
 /**
  *  32x32 bit masks for vinterlace stereo mode
  */
@@ -86,10 +142,8 @@ static GLuint right_eye_vinterlace_mask[32];
  */
 static GLuint hinterlace_mask[33];
 
-RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, RAS_STORAGE_TYPE storage, int storageInfo)
-	:RAS_IRasterizer(canvas),
-	m_2DCanvas(canvas),
-	m_fogenabled(false),
+RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_STORAGE_TYPE storage, int storageInfo)
+	: m_fogenabled(false),
 	m_time(0.0f),
 	m_campos(0.0f, 0.0f, 0.0f),
 	m_camortho(false),
@@ -152,6 +206,26 @@ RAS_OpenGLRasterizer::~RAS_OpenGLRasterizer()
 		delete m_storage;
 }
 
+void RAS_OpenGLRasterizer::Enable(RAS_IRasterizer::EnableBit bit)
+{
+	glEnable(openGLEnableBitEnums[bit]);
+}
+
+void RAS_OpenGLRasterizer::Disable(RAS_IRasterizer::EnableBit bit)
+{
+	glDisable(openGLEnableBitEnums[bit]);
+}
+
+void RAS_OpenGLRasterizer::SetDepthFunc(RAS_IRasterizer::DepthFunc func)
+{
+	glDepthFunc(openGLDepthFuncEnums[func]);
+}
+
+void RAS_OpenGLRasterizer::SetBlendFunc(BlendFunc src, BlendFunc dst)
+{
+	glBlendFunc(openGLBlendFuncEnums[src], openGLBlendFuncEnums[dst]);
+}
+
 bool RAS_OpenGLRasterizer::Init()
 {
 	bool storage_init;
@@ -161,16 +235,16 @@ bool RAS_OpenGLRasterizer::Init()
 	m_ambg = 0.0f;
 	m_ambb = 0.0f;
 
-	glDisable(GL_BLEND);
-	glDisable(GL_ALPHA_TEST);
+	Disable(RAS_BLEND);
+	Disable(RAS_ALPHA_TEST);
 	//m_last_alphablend = GPU_BLEND_SOLID;
 	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
 
-	glFrontFace(GL_CCW);
-	m_last_frontface = true;
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	SetFrontFace(true);
+
+	SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	SetColorMask(true, true, true, true);
+	Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
 
 	glShadeModel(GL_SMOOTH);
 
@@ -210,10 +284,10 @@ void RAS_OpenGLRasterizer::EnableFog(bool enable)
 void RAS_OpenGLRasterizer::DisplayFog()
 {
 	if ((m_drawingmode >= RAS_SOLID) && m_fogenabled) {
-		glEnable(GL_FOG);
+		Enable(RAS_FOG);
 	}
 	else {
-		glDisable(GL_FOG);
+		Disable(RAS_FOG);
 	}
 }
 
@@ -221,19 +295,22 @@ void RAS_OpenGLRasterizer::Exit()
 {
 	m_storage->Exit();
 
-	glEnable(GL_CULL_FACE);
-	glEnable(GL_DEPTH_TEST);
-	glClearDepth(1.0f);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glDepthMask(GL_TRUE);
-	glDepthFunc(GL_LEQUAL);
-	glBlendFunc(GL_ONE, GL_ZERO);
+	Enable(RAS_CULL_FACE);
+	Enable(RAS_DEPTH_TEST);
 
-	glDisable(GL_POLYGON_STIPPLE);
+	SetClearDepth(1.0f);
+	SetColorMask(true, true, true, true);
 
-	glDisable(GL_LIGHTING);
+	SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+	Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
+	SetDepthMask(RAS_DEPTHMASK_ENABLED);
+	SetDepthFunc(RAS_LEQUAL);
+	SetBlendFunc(RAS_ONE, RAS_ZERO);
+
+	Disable(RAS_POLYGON_STIPPLE);
+
+	Disable(RAS_LIGHTING);
 	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)
 		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
 
@@ -242,17 +319,22 @@ void RAS_OpenGLRasterizer::Exit()
 
 void RAS_OpenGLRasterizer::RenderBackground()
 {
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_ALWAYS);
+	Enable(RAS_DEPTH_TEST);
+	SetDepthFunc(RAS_ALWAYS);
 
-	glBegin(GL_TRIANGLE_STRIP);
-	glVertex3f(-1.0f, -1.0f, 1.0f);
-	glVertex3f(1.0f, -1.0f, 1.0f);
-	glVertex3f(-1.0f, 1.0f, 1.0f);
-	glVertex3f(1.0f, 1.0f, 1.0f);
-	glEnd();
+	float vertices[] = {
+		-1.0f, -1.0f, 1.0f,
+		 1.0f, -1.0f, 1.0f,
+		-1.0f,  1.0f, 1.0f,
+		 1.0f,  1.0f, 1.0f
+	};
 
-	glDepthFunc(GL_LEQUAL);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(3, GL_FLOAT, 0, vertices);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glDisableClientState(GL_VERTEX_ARRAY);
+
+	SetDepthFunc(RAS_LEQUAL);
 }
 
 bool RAS_OpenGLRasterizer::BeginFrame(double time)
@@ -261,33 +343,34 @@ bool RAS_OpenGLRasterizer::BeginFrame(double time)
 
 	// Blender camera routine destroys the settings
 	if (m_drawingmode < RAS_SOLID) {
-		glDisable(GL_CULL_FACE);
-		glDisable(GL_DEPTH_TEST);
+		Disable(RAS_CULL_FACE);
+		Disable(RAS_DEPTH_TEST);
 	}
 	else {
-		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_CULL_FACE);
+		Enable(RAS_CULL_FACE);
+		Enable(RAS_DEPTH_TEST);
 	}
 
-	glDisable(GL_BLEND);
-	glDisable(GL_ALPHA_TEST);
+	Disable(RAS_BLEND);
+	Disable(RAS_ALPHA_TEST);
 	//m_last_alphablend = GPU_BLEND_SOLID;
 	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
 
-	glFrontFace(GL_CCW);
-	m_last_frontface = true;
+	SetFrontFace(true);
 
 	glShadeModel(GL_SMOOTH);
 
-	glEnable(GL_MULTISAMPLE_ARB);
+	Enable(RAS_MULTISAMPLE);
 
-	m_2DCanvas->BeginFrame();
+	Enable(RAS_DEPTH_TEST);
+	SetDepthFunc(RAS_LEQUAL);
 
 	// Render Tools
 	m_clientobject = NULL;
 	m_lastlightlayer = -1;
 	m_lastauxinfo = NULL;
 	m_lastlighting = true; /* force disable in DisableOpenGLLights() */
+
 	DisableOpenGLLights();
 
 	return true;
@@ -319,15 +402,51 @@ void RAS_OpenGLRasterizer::SetDepthMask(DepthMask depthmask)
 	glDepthMask(depthmask == RAS_DEPTHMASK_DISABLED ? GL_FALSE : GL_TRUE);
 }
 
-void RAS_OpenGLRasterizer::ClearColorBuffer()
+unsigned int *RAS_OpenGLRasterizer::MakeScreenshot(int x, int y, int width, int height)
 {
-	m_2DCanvas->ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	m_2DCanvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER);
+	unsigned int *pixeldata = NULL;
+
+	if (width && height) {
+		pixeldata = (unsigned int*) malloc(sizeof(unsigned int) * width * height);
+		glReadBuffer(GL_FRONT);
+		glReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixeldata);
+		glFinish();
+		glReadBuffer(GL_BACK);
+	}
+
+	return pixeldata;
 }
 
-void RAS_OpenGLRasterizer::ClearDepthBuffer()
+void RAS_OpenGLRasterizer::Clear(int clearbit)
 {
-	m_2DCanvas->ClearBuffer(RAS_ICanvas::DEPTH_BUFFER);
+	GLbitfield glclearbit = 0;
+
+	if ((clearbit & RAS_COLOR_BUFFER_BIT) == RAS_COLOR_BUFFER_BIT) {
+		glclearbit |= GL_COLOR_BUFFER_BIT;
+	}
+	if ((clearbit & RAS_DEPTH_BUFFER_BIT) == RAS_DEPTH_BUFFER_BIT) {
+		glclearbit |= GL_DEPTH_BUFFER_BIT;
+	}
+	if ((clearbit & RAS_STENCIL_BUFFER_BIT) == RAS_STENCIL_BUFFER_BIT) {
+		glclearbit |= GL_STENCIL_BUFFER_BIT;
+	}
+
+	glClear(glclearbit);
+}
+
+void RAS_OpenGLRasterizer::SetClearColor(float r, float g, float b, float a)
+{
+	glClearColor(r, g, b, a);
+}
+
+void RAS_OpenGLRasterizer::SetClearDepth(float d)
+{
+	glClearDepth(d);
+}
+
+void RAS_OpenGLRasterizer::SetColorMask(bool r, bool g, bool b, bool a)
+{
+	glColorMask(r ? GL_TRUE : GL_FALSE, g ? GL_TRUE : GL_FALSE, b ? GL_TRUE : GL_FALSE, a ? GL_TRUE : GL_FALSE);
 }
 
 void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
@@ -343,10 +462,10 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	tex = glIsEnabled(GL_TEXTURE_2D);
 
 	if (light) {
-		glDisable(GL_LIGHTING);
+		Disable(RAS_LIGHTING);
 	}
 	if (tex) {
-		glDisable(GL_TEXTURE_2D);
+		Disable(RAS_TEXTURE_2D);
 	}
 
 	// draw lines
@@ -372,14 +491,14 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 
 		const MT_Matrix3x3& rot = debugShapes[i].m_rot;
 		const MT_Vector3& pos = debugShapes[i].m_pos;
-		double mat[16] = {
+		float mat[16] = {
 			rot[0][0], rot[1][0], rot[2][0], 0.0,
 			rot[0][1], rot[1][1], rot[2][1], 0.0,
 			rot[0][2], rot[1][2], rot[2][2], 0.0,
 			pos[0], pos[1], pos[2], 1.0
 		};
-		glPushMatrix();
-		glMultMatrixd(mat);
+		PushMatrix();
+		MultMatrix(mat);
 
 		const MT_Vector3& min = debugShapes[i].m_param;
 		const MT_Vector3& max = debugShapes[i].m_param2;
@@ -407,7 +526,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 		glVertexPointer(3, GL_FLOAT, 0, vertexes);
 		glDrawElements(GL_LINES, 24, GL_UNSIGNED_SHORT, indexes);
 
-		glPopMatrix();
+		PopMatrix();
 	}
 	glDisableClientState(GL_VERTEX_ARRAY);
 
@@ -446,10 +565,10 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	}
 
 	if (light) {
-		glEnable(GL_LIGHTING);
+		Enable(RAS_LIGHTING);
 	}
 	if (tex) {
-		glEnable(GL_TEXTURE_2D);
+		Enable(RAS_TEXTURE_2D);
 	}
 
 	debugShapes.clear();
@@ -457,15 +576,19 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 
 void RAS_OpenGLRasterizer::EndFrame()
 {
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	SetColorMask(true, true, true, true);
 
-	glDisable(GL_MULTISAMPLE_ARB);
+	Disable(RAS_MULTISAMPLE);
 
-	m_2DCanvas->EndFrame();
+	Disable(RAS_FOG);
 }
 
-void RAS_OpenGLRasterizer::SetRenderArea()
+void RAS_OpenGLRasterizer::SetRenderArea(RAS_ICanvas *canvas)
 {
+	if (canvas == NULL) {
+		return;
+	}
+
 	RAS_Rect area;
 	// only above/below stereo method needs viewport adjustment
 	switch (m_stereomode)
@@ -477,12 +600,12 @@ void RAS_OpenGLRasterizer::SetRenderArea()
 				{
 					// upper half of window
 					area.SetLeft(0);
-					area.SetBottom(m_2DCanvas->GetHeight() -
-					               int(m_2DCanvas->GetHeight() - m_noOfScanlines) / 2);
+					area.SetBottom(canvas->GetHeight() -
+								   int(canvas->GetHeight() - m_noOfScanlines) / 2);
 
-					area.SetRight(int(m_2DCanvas->GetWidth()));
-					area.SetTop(int(m_2DCanvas->GetHeight()));
-					m_2DCanvas->SetDisplayArea(&area);
+					area.SetRight(int(canvas->GetWidth()));
+					area.SetTop(int(canvas->GetHeight()));
+					canvas->SetDisplayArea(&area);
 					break;
 				}
 				case RAS_STEREO_RIGHTEYE:
@@ -490,9 +613,9 @@ void RAS_OpenGLRasterizer::SetRenderArea()
 					// lower half of window
 					area.SetLeft(0);
 					area.SetBottom(0);
-					area.SetRight(int(m_2DCanvas->GetWidth()));
-					area.SetTop(int(m_2DCanvas->GetHeight() - m_noOfScanlines) / 2);
-					m_2DCanvas->SetDisplayArea(&area);
+					area.SetRight(int(canvas->GetWidth()));
+					area.SetTop(int(canvas->GetHeight() - m_noOfScanlines) / 2);
+					canvas->SetDisplayArea(&area);
 					break;
 				}
 			}
@@ -505,12 +628,12 @@ void RAS_OpenGLRasterizer::SetRenderArea()
 				{
 					// upper half of window
 					area.SetLeft(0);
-					area.SetBottom(m_2DCanvas->GetHeight() -
-					               m_2DCanvas->GetHeight() / 2);
+					area.SetBottom(canvas->GetHeight() -
+								   canvas->GetHeight() / 2);
 
-					area.SetRight(m_2DCanvas->GetWidth());
-					area.SetTop(m_2DCanvas->GetHeight());
-					m_2DCanvas->SetDisplayArea(&area);
+					area.SetRight(canvas->GetWidth());
+					area.SetTop(canvas->GetHeight());
+					canvas->SetDisplayArea(&area);
 					break;
 				}
 				case RAS_STEREO_RIGHTEYE:
@@ -518,9 +641,9 @@ void RAS_OpenGLRasterizer::SetRenderArea()
 					// lower half of window
 					area.SetLeft(0);
 					area.SetBottom(0);
-					area.SetRight(m_2DCanvas->GetWidth());
-					area.SetTop(m_2DCanvas->GetHeight() / 2);
-					m_2DCanvas->SetDisplayArea(&area);
+					area.SetRight(canvas->GetWidth());
+					area.SetTop(canvas->GetHeight() / 2);
+					canvas->SetDisplayArea(&area);
 					break;
 				}
 			}
@@ -535,19 +658,19 @@ void RAS_OpenGLRasterizer::SetRenderArea()
 					// Left half of window
 					area.SetLeft(0);
 					area.SetBottom(0);
-					area.SetRight(m_2DCanvas->GetWidth() / 2);
-					area.SetTop(m_2DCanvas->GetHeight());
-					m_2DCanvas->SetDisplayArea(&area);
+					area.SetRight(canvas->GetWidth() / 2);
+					area.SetTop(canvas->GetHeight());
+					canvas->SetDisplayArea(&area);
 					break;
 				}
 				case RAS_STEREO_RIGHTEYE:
 				{
 					// Right half of window
-					area.SetLeft(m_2DCanvas->GetWidth() / 2);
+					area.SetLeft(canvas->GetWidth() / 2);
 					area.SetBottom(0);
-					area.SetRight(m_2DCanvas->GetWidth());
-					area.SetTop(m_2DCanvas->GetHeight());
-					m_2DCanvas->SetDisplayArea(&area);
+					area.SetRight(canvas->GetWidth());
+					area.SetTop(canvas->GetHeight());
+					canvas->SetDisplayArea(&area);
 					break;
 				}
 			}
@@ -558,9 +681,9 @@ void RAS_OpenGLRasterizer::SetRenderArea()
 			// every available pixel
 			area.SetLeft(0);
 			area.SetBottom(0);
-			area.SetRight(int(m_2DCanvas->GetWidth()));
-			area.SetTop(int(m_2DCanvas->GetHeight()));
-			m_2DCanvas->SetDisplayArea(&area);
+			area.SetRight(int(canvas->GetWidth()));
+			area.SetTop(int(canvas->GetHeight()));
+			canvas->SetDisplayArea(&area);
 			break;
 		}
 	}
@@ -602,12 +725,12 @@ void RAS_OpenGLRasterizer::SetEye(const StereoEye eye)
 		case RAS_STEREO_ANAGLYPH:
 		{
 			if (m_curreye == RAS_STEREO_LEFTEYE) {
-				glColorMask(GL_TRUE, GL_FALSE, GL_FALSE, GL_FALSE);
+				SetColorMask(true, false, false, false);
 			}
 			else {
 				//glAccum(GL_LOAD, 1.0f);
-				glColorMask(GL_FALSE, GL_TRUE, GL_TRUE, GL_FALSE);
-				ClearDepthBuffer();
+				SetColorMask(false, true, true, false);
+				Clear(RAS_DEPTH_BUFFER_BIT);
 			}
 			break;
 		}
@@ -615,18 +738,18 @@ void RAS_OpenGLRasterizer::SetEye(const StereoEye eye)
 		{
 			// OpenGL stippling is deprecated, it is no longer possible to affect all shaders
 			// this way, offscreen rendering and then compositing may be the better solution
-			glEnable(GL_POLYGON_STIPPLE);
+			Enable(RAS_POLYGON_STIPPLE);
 			glPolygonStipple((const GLubyte *)((m_curreye == RAS_STEREO_LEFTEYE) ? left_eye_vinterlace_mask : right_eye_vinterlace_mask));
 			if (m_curreye == RAS_STEREO_RIGHTEYE)
-				ClearDepthBuffer();
+				Clear(RAS_DEPTH_BUFFER_BIT);
 			break;
 		}
 		case RAS_STEREO_INTERLACED:
 		{
-			glEnable(GL_POLYGON_STIPPLE);
+			Enable(RAS_POLYGON_STIPPLE);
 			glPolygonStipple((const GLubyte *)&hinterlace_mask[m_curreye == RAS_STEREO_LEFTEYE ? 0 : 1]);
 			if (m_curreye == RAS_STEREO_RIGHTEYE)
-				ClearDepthBuffer();
+				Clear(RAS_DEPTH_BUFFER_BIT);
 			break;
 		}
 		default:
@@ -660,9 +783,9 @@ float RAS_OpenGLRasterizer::GetFocalLength()
 	return m_focallength;
 }
 
-void RAS_OpenGLRasterizer::SwapBuffers()
+void RAS_OpenGLRasterizer::SwapBuffers(RAS_ICanvas *canvas)
 {
-	m_2DCanvas->SwapBuffers();
+	canvas->SwapBuffers();
 }
 
 const MT_Matrix4x4& RAS_OpenGLRasterizer::GetViewMatrix() const
@@ -899,20 +1022,20 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms)
 
 void RAS_OpenGLRasterizer::SetProjectionMatrix(MT_CmMatrix4x4 &mat)
 {
-	glMatrixMode(GL_PROJECTION);
+	SetMatrixMode(RAS_PROJECTION);
 	float *matrix = &mat(0, 0);
-	glLoadMatrixf(matrix);
+	LoadMatrix(matrix);
 
 	m_camortho = (mat(3, 3) != 0.0f);
 }
 
 void RAS_OpenGLRasterizer::SetProjectionMatrix(const MT_Matrix4x4 & mat)
 {
-	glMatrixMode(GL_PROJECTION);
+	SetMatrixMode(RAS_PROJECTION);
 	float matrix[16];
 	/* Get into argument. Looks a bit dodgy, but it's ok. */
 	mat.getValue(matrix);
-	glLoadMatrixf(matrix);
+	LoadMatrix(matrix);
 
 	m_camortho = (mat[3][3] != 0.0f);
 }
@@ -967,8 +1090,8 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetFrustumMatrix(
 		}
 	}
 
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
+	SetMatrixMode(RAS_PROJECTION);
+	LoadIdentity();
 	glFrustum(left, right, bottom, top, frustnear, frustfar);
 
 	glGetFloatv(GL_PROJECTION_MATRIX, mat);
@@ -989,8 +1112,8 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetOrthoMatrix(
 	float mat[16];
 
 	// stereo is meaningless for orthographic, disable it
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
+	SetMatrixMode(RAS_PROJECTION);
+	LoadIdentity();
 	glOrtho(left, right, bottom, top, frustnear, frustfar);
 
 	glGetFloatv(GL_PROJECTION_MATRIX, mat);
@@ -1051,9 +1174,24 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 	MT_Scalar glviewmat[16];
 	m_viewmatrix.getValue(glviewmat);
 
-	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(glviewmat);
+	SetMatrixMode(RAS_MODELVIEW);
+	LoadMatrix(glviewmat);
 	m_campos = pos;
+}
+
+void RAS_OpenGLRasterizer::SetViewport(int x, int y, int width, int height)
+{
+	glViewport(x, y, width, height);
+}
+
+void RAS_OpenGLRasterizer::GetViewport(int *rect)
+{
+	glGetIntegerv(GL_VIEWPORT, rect);
+}
+
+void RAS_OpenGLRasterizer::SetScissor(int x, int y, int width, int height)
+{
+	glScissor(x, y, width, height);
 }
 
 const MT_Vector3& RAS_OpenGLRasterizer::GetCameraPosition()
@@ -1068,18 +1206,22 @@ bool RAS_OpenGLRasterizer::GetCameraOrtho()
 
 void RAS_OpenGLRasterizer::SetCullFace(bool enable)
 {
-	if (enable)
-		glEnable(GL_CULL_FACE);
-	else
-		glDisable(GL_CULL_FACE);
+	if (enable) {
+		Enable(RAS_CULL_FACE);
+	}
+	else {
+		Disable(RAS_CULL_FACE);
+	}
 }
 
 void RAS_OpenGLRasterizer::SetLines(bool enable)
 {
-	if (enable)
+	if (enable) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	else
+	}
+	else {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
 }
 
 void RAS_OpenGLRasterizer::SetSpecularity(float specX,
@@ -1117,21 +1259,25 @@ double RAS_OpenGLRasterizer::GetTime()
 void RAS_OpenGLRasterizer::SetPolygonOffset(float mult, float add)
 {
 	glPolygonOffset(mult, add);
-	GLint mode = GL_POLYGON_OFFSET_FILL;
-	if (m_drawingmode < RAS_TEXTURED)
-		mode = GL_POLYGON_OFFSET_LINE;
-	if (mult != 0.0f || add != 0.0f)
-		glEnable(mode);
-	else
-		glDisable(mode);
+	EnableBit mode = RAS_POLYGON_OFFSET_FILL;
+	if (m_drawingmode < RAS_TEXTURED) {
+		mode = RAS_POLYGON_OFFSET_LINE;
+	}
+	if (mult != 0.0f || add != 0.0f) {
+		Enable(mode);
+	}
+	else {
+		Disable(mode);
+	}
 }
 
 void RAS_OpenGLRasterizer::EnableMotionBlur(float motionblurvalue)
 {
 	/* don't just set m_motionblur to 1, but check if it is 0 so
 	 * we don't reset a motion blur that is already enabled */
-	if (m_motionblur == 0)
+	if (m_motionblur == 0) {
 		m_motionblur = 1;
+	}
 	m_motionblurvalue = motionblurvalue;
 }
 
@@ -1148,13 +1294,16 @@ void RAS_OpenGLRasterizer::SetAlphaBlend(int alphablend)
 
 void RAS_OpenGLRasterizer::SetFrontFace(bool ccw)
 {
-	if (m_last_frontface == ccw)
+	if (m_last_frontface == ccw) {
 		return;
+	}
 
-	if (ccw)
+	if (ccw) {
 		glFrontFace(GL_CCW);
-	else
+	}
+	else {
 		glFrontFace(GL_CW);
+	}
 
 	m_last_frontface = ccw;
 }
@@ -1300,13 +1449,15 @@ void RAS_OpenGLRasterizer::ProcessLighting(bool uselights, const MT_Transform& v
 
 	/* find the layer */
 	if (uselights) {
-		if (m_clientobject)
+		if (m_clientobject) {
 			layer = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject)->GetLayer();
+		}
 	}
 
 	/* avoid state switching */
-	if (m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo)
+	if (m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo) {
 		return;
+	}
 
 	m_lastlightlayer = layer;
 	m_lastauxinfo = m_auxilaryClientInfo;
@@ -1320,43 +1471,50 @@ void RAS_OpenGLRasterizer::ProcessLighting(bool uselights, const MT_Transform& v
 		unsigned int count;
 		std::vector<RAS_OpenGLLight *>::iterator lit = m_lights.begin();
 
-		for (count = 0; count < m_numgllights; count++)
+		for (count = 0; count < m_numgllights; count++) {
 			glDisable((GLenum)(GL_LIGHT0 + count));
+		}
 
 		viewmat.getValue(glviewmat);
 
-		glPushMatrix();
-		glLoadMatrixf(glviewmat);
+		PushMatrix();
+		LoadMatrix(glviewmat);
 		for (lit = m_lights.begin(), count = 0; !(lit == m_lights.end()) && count < m_numgllights; ++lit) {
 			RAS_OpenGLLight *light = (*lit);
 
-			if (light->ApplyFixedFunctionLighting(kxscene, layer, count))
+			if (light->ApplyFixedFunctionLighting(kxscene, layer, count)) {
 				count++;
+			}
 		}
-		glPopMatrix();
+		PopMatrix();
 
 		enable = count > 0;
 	}
 
-	if (enable)
+	if (enable) {
 		EnableOpenGLLights();
-	else
+	}
+	else {
 		DisableOpenGLLights();
+	}
 }
 
 void RAS_OpenGLRasterizer::EnableOpenGLLights()
 {
-	if (m_lastlighting == true)
+	if (m_lastlighting == true) {
 		return;
+	}
 
-	glEnable(GL_LIGHTING);
-	glEnable(GL_COLOR_MATERIAL);
+	Enable(RAS_LIGHTING);
+	Enable(RAS_COLOR_MATERIAL);
 
 	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, (GetCameraOrtho()) ? GL_FALSE : GL_TRUE);
-	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)
+
+	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)  {
 		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
+	}
 
 	m_lastlighting = true;
 }
@@ -1366,8 +1524,8 @@ void RAS_OpenGLRasterizer::DisableOpenGLLights()
 	if (m_lastlighting == false)
 		return;
 
-	glDisable(GL_LIGHTING);
-	glDisable(GL_COLOR_MATERIAL);
+	Disable(RAS_LIGHTING);
+	Disable(RAS_COLOR_MATERIAL);
 
 	m_lastlighting = false;
 }
@@ -1392,16 +1550,18 @@ void RAS_OpenGLRasterizer::RemoveLight(RAS_ILightObject *lightobject)
 	std::vector<RAS_OpenGLLight *>::iterator lit =
 	    std::find(m_lights.begin(), m_lights.end(), gllight);
 
-	if (!(lit == m_lights.end()))
+	if (lit != m_lights.end()) {
 		m_lights.erase(lit);
+	}
 }
 
 bool RAS_OpenGLRasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform)
 {
 	if (result->m_hitMesh) {
 		RAS_Polygon *poly = result->m_hitMesh->GetPolygon(result->m_hitPolygon);
-		if (!poly->IsVisible())
+		if (!poly->IsVisible()) {
 			return false;
+		}
 
 		float *origmat = raytransform->origmat;
 		float *mat = raytransform->mat;
@@ -1498,8 +1658,9 @@ void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, floa
 		PHY_IPhysicsController *physics_controller = gameobj->GetPhysicsController();
 
 		KX_GameObject *parent = gameobj->GetParent();
-		if (!physics_controller && parent)
+		if (!physics_controller && parent) {
 			physics_controller = parent->GetPhysicsController();
+		}
 
 		RayCastTranform raytransform;
 		raytransform.origmat = origmat;
@@ -1521,43 +1682,26 @@ void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, floa
 	}
 }
 
-void RAS_OpenGLRasterizer::ApplyTransform(const float mat[16])
-{
-	glMultMatrixf(mat);
-}
-
-static void DisableForText()
+void RAS_OpenGLRasterizer::DisableForText()
 {
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); /* needed for texture fonts otherwise they render as wireframe */
 
-	glDisable(GL_BLEND);
-	glDisable(GL_ALPHA_TEST);
+	Disable(RAS_BLEND);
+	Disable(RAS_ALPHA_TEST);
 
-	glDisable(GL_LIGHTING);
-	glDisable(GL_COLOR_MATERIAL);
+	Disable(RAS_LIGHTING);
+	Disable(RAS_COLOR_MATERIAL);
 
-	if (GLEW_ARB_multitexture) {
-		for (int i = 0; i < RAS_MAX_TEXCO; i++) {
-			glActiveTextureARB(GL_TEXTURE0_ARB + i);
+	for (int i = 0; i < RAS_MAX_TEXCO; i++) {
+		glActiveTextureARB(GL_TEXTURE0_ARB + i);
 
-			if (GLEW_ARB_texture_cube_map) {
-				glDisable(GL_TEXTURE_CUBE_MAP_ARB);
-				glDisable(GL_TEXTURE_GEN_S);
-				glDisable(GL_TEXTURE_GEN_T);
-				glDisable(GL_TEXTURE_GEN_Q);
-				glDisable(GL_TEXTURE_GEN_R);
-			}
-			glDisable(GL_TEXTURE_2D);
+		if (GLEW_ARB_texture_cube_map) {
+			Disable(RAS_TEXTURE_CUBE_MAP);
 		}
-
-		glActiveTextureARB(GL_TEXTURE0_ARB);
+		Disable(RAS_TEXTURE_2D);
 	}
-	else {
-		if (GLEW_ARB_texture_cube_map)
-			glDisable(GL_TEXTURE_CUBE_MAP_ARB);
 
-		glDisable(GL_TEXTURE_2D);
-	}
+	glActiveTextureARB(GL_TEXTURE0_ARB);
 }
 
 void RAS_OpenGLRasterizer::RenderBox2D(int xco,
@@ -1569,17 +1713,17 @@ void RAS_OpenGLRasterizer::RenderBox2D(int xco,
 	/* This is a rather important line :( The gl-mode hasn't been left
 	 * behind quite as neatly as we'd have wanted to. I don't know
 	 * what cause it, though :/ .*/
-	glDisable(GL_DEPTH_TEST);
+	Disable(RAS_DEPTH_TEST);
 
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
+	SetMatrixMode(RAS_PROJECTION);
+	PushMatrix();
+	LoadIdentity();
 
 	glOrtho(0, width, 0, height, -100, 100);
 
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	SetMatrixMode(RAS_MODELVIEW);
+	PushMatrix();
+	LoadIdentity();
 
 	yco = height - yco;
 	int barsize = 50;
@@ -1601,11 +1745,12 @@ void RAS_OpenGLRasterizer::RenderBox2D(int xco,
 	glVertex2f(xco + 1 + barsize * percentage, yco);
 	glEnd();
 
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
-	glEnable(GL_DEPTH_TEST);
+	SetMatrixMode(RAS_PROJECTION);
+	PopMatrix();
+	SetMatrixMode(RAS_MODELVIEW);
+	PopMatrix();
+
+	Enable(RAS_DEPTH_TEST);
 }
 
 void RAS_OpenGLRasterizer::RenderText3D(
@@ -1644,17 +1789,17 @@ void RAS_OpenGLRasterizer::RenderText2D(
 	 * behind quite as neatly as we'd have wanted to. I don't know
 	 * what cause it, though :/ .*/
 	DisableForText();
-	glDisable(GL_DEPTH_TEST);
+	Disable(RAS_DEPTH_TEST);
 
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
+	SetMatrixMode(RAS_PROJECTION);
+	PushMatrix();
+	LoadIdentity();
 
 	glOrtho(0, width, 0, height, -100, 100);
 
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	SetMatrixMode(RAS_MODELVIEW);
+	PushMatrix();
+	LoadIdentity();
 
 	if (mode == RAS_TEXT_PADDED) {
 		/* draw in black first */
@@ -1670,11 +1815,12 @@ void RAS_OpenGLRasterizer::RenderText2D(
 	BLF_position(blf_mono_font, (float)xco, (float)(height - yco), 0.0f);
 	BLF_draw(blf_mono_font, text, 65535); /* XXX, use real len */
 
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
-	glEnable(GL_DEPTH_TEST);
+	SetMatrixMode(RAS_PROJECTION);
+	PopMatrix();
+	SetMatrixMode(RAS_MODELVIEW);
+	PopMatrix();
+
+	Enable(RAS_DEPTH_TEST);
 }
 
 void RAS_OpenGLRasterizer::PushMatrix()
@@ -1685,6 +1831,26 @@ void RAS_OpenGLRasterizer::PushMatrix()
 void RAS_OpenGLRasterizer::PopMatrix()
 {
 	glPopMatrix();
+}
+
+void RAS_OpenGLRasterizer::SetMatrixMode(RAS_IRasterizer::MatrixMode mode)
+{
+	glMatrixMode(openGLMatrixModeEnums[mode]);
+}
+
+void RAS_OpenGLRasterizer::MultMatrix(const float mat[16])
+{
+	glMultMatrixf(mat);
+}
+
+void RAS_OpenGLRasterizer::LoadMatrix(const float mat[16])
+{
+	glLoadMatrixf(mat);
+}
+
+void RAS_OpenGLRasterizer::LoadIdentity()
+{
+	glLoadIdentity();
 }
 
 void RAS_OpenGLRasterizer::MotionBlur()

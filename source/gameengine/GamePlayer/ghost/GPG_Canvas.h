@@ -48,7 +48,7 @@ protected:
 	GHOST_IWindow* m_window;
 
 public:
-	GPG_Canvas(GHOST_IWindow* window);
+	GPG_Canvas(RAS_IRasterizer *rasty, GHOST_IWindow* window);
 	virtual ~GPG_Canvas(void);
 
 	virtual void Init(void);

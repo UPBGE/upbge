@@ -29,8 +29,6 @@
  *  \ingroup blroutines
  */
 
-#include "glew-mx.h"
-
 #include "MEM_guardedalloc.h"
 
 #include "KX_BlenderCanvas.h"
@@ -41,6 +39,8 @@
 
 #include "BKE_image.h"
 
+#include "RAS_IRasterizer.h"
+
 #include <assert.h>
 #include <iostream>
 
@@ -50,10 +50,11 @@ extern "C" {
 #include "wm_window.h"
 }
 
-KX_BlenderCanvas::KX_BlenderCanvas(wmWindowManager *wm, wmWindow *win, RAS_Rect &rect, struct ARegion *ar) :
-m_wm(wm),
-m_win(win),
-m_frame_rect(rect)
+KX_BlenderCanvas::KX_BlenderCanvas(RAS_IRasterizer *rasty, wmWindowManager *wm, wmWindow *win, RAS_Rect &rect, struct ARegion *ar)
+	:RAS_ICanvas(rasty),
+	m_wm(wm),
+	m_win(win),
+	m_frame_rect(rect)
 {
 	// initialize area so that it's available for game logic on frame 1 (ImageViewport)
 	m_area_rect = rect;
@@ -62,7 +63,7 @@ m_frame_rect(rect)
 	m_area_top = ar->winrct.ymax;
 	m_frame = 1;
 
-	glGetIntegerv(GL_VIEWPORT, (GLint *)m_viewport);
+	m_rasterizer->GetViewport(m_viewport);
 }
 
 KX_BlenderCanvas::~KX_BlenderCanvas()
@@ -71,7 +72,7 @@ KX_BlenderCanvas::~KX_BlenderCanvas()
 
 void KX_BlenderCanvas::Init()
 {
-	glDepthFunc(GL_LEQUAL);
+	m_rasterizer->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
 }
 
 
@@ -127,35 +128,34 @@ void KX_BlenderCanvas::EndDraw()
 
 void KX_BlenderCanvas::BeginFrame()
 {
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
+	m_rasterizer->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
+	m_rasterizer->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
 }
 
 
 void KX_BlenderCanvas::EndFrame()
 {
-	glDisable(GL_FOG);
+	m_rasterizer->Disable(RAS_IRasterizer::RAS_FOG);
 }
-
 
 
 void KX_BlenderCanvas::ClearColor(float r,float g,float b,float a)
 {
-	glClearColor(r,g,b,a);
+	m_rasterizer->SetClearColor(r, g, b, a);
 }
-
 
 
 void KX_BlenderCanvas::ClearBuffer(int type)
 {
-	int ogltype = 0;
+	unsigned int rastype = 0;
 
 	if (type & RAS_ICanvas::COLOR_BUFFER )
-		ogltype |= GL_COLOR_BUFFER_BIT;
+		rastype |= RAS_IRasterizer::RAS_COLOR_BUFFER_BIT;
 
 	if (type & RAS_ICanvas::DEPTH_BUFFER )
-		ogltype |= GL_DEPTH_BUFFER_BIT;
-	glClear(ogltype);
+		rastype |= RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT;
+
+	m_rasterizer->Clear(rastype);
 }
 
 int KX_BlenderCanvas::GetWidth(
@@ -225,8 +225,8 @@ SetViewPort(
 	m_viewport[2] = vp_width;
 	m_viewport[3] = vp_height;
 
-	glViewport(minx + x1, miny + y1, vp_width, vp_height);
-	glScissor(minx + x1, miny + y1, vp_width, vp_height);
+	m_rasterizer->SetViewport(minx + x1, miny + y1, vp_width, vp_height);
+	m_rasterizer->SetScissor(minx + x1, miny + y1, vp_width, vp_height);
 }
 
 	void
@@ -248,7 +248,7 @@ GetViewPort() {
 	// If we're in a debug build, we might as well make sure our values don't differ
 	// from what the gpu thinks we have. This could lead to nasty, hard to find bugs.
 	int viewport[4];
-	glGetIntegerv(GL_VIEWPORT, viewport);
+	m_rasterizer->GetViewport(viewport);
 	assert(viewport[0] == m_viewport[0]);
 	assert(viewport[1] == m_viewport[1]);
 	assert(viewport[2] == m_viewport[2]);
@@ -298,43 +298,18 @@ void KX_BlenderCanvas::SetMousePosition(int x,int y)
 }
 
 
-/* get shot from frontbuffer sort of a copy from screendump.c */
-static unsigned int *screenshot(ScrArea *curarea, int *dumpsx, int *dumpsy)
-{
-	int x=0, y=0;
-	unsigned int *dumprect= NULL;
-
-	x= curarea->totrct.xmin;
-	y= curarea->totrct.ymin;
-	*dumpsx= curarea->totrct.xmax-x;
-	*dumpsy= curarea->totrct.ymax-y;
-
-	if (*dumpsx && *dumpsy) {
-
-		dumprect= (unsigned int *)MEM_mallocN(sizeof(int) * (*dumpsx) * (*dumpsy), "dumprect");
-		glReadBuffer(GL_FRONT);
-		glReadPixels(x, y, *dumpsx, *dumpsy, GL_RGBA, GL_UNSIGNED_BYTE, dumprect);
-		glFinish();
-		glReadBuffer(GL_BACK);
-	}
-
-	return dumprect;
-}
-
 void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 {
-	ScrArea area_dummy= {0};
+	unsigned int *pixeldata;
 	bScreen *screen = m_win->screen;
-	unsigned int *dumprect;
-	int dumpsx, dumpsy;
 
-	area_dummy.totrct.xmin = m_frame_rect.GetLeft();
-	area_dummy.totrct.xmax = m_frame_rect.GetRight();
-	area_dummy.totrct.ymin = m_frame_rect.GetBottom();
-	area_dummy.totrct.ymax = m_frame_rect.GetTop();
+	int x = m_frame_rect.GetLeft();
+	int y = m_frame_rect.GetBottom();
+	int width = m_frame_rect.GetTop() - m_frame_rect.GetBottom();
+	int height = m_frame_rect.GetRight() - m_frame_rect.GetLeft();
 
-	dumprect = screenshot(&area_dummy, &dumpsx, &dumpsy);
-	if (!dumprect) {
+	pixeldata = m_rasterizer->MakeScreenshot(x, y, width, height);
+	if (!pixeldata) {
 		std::cerr << "KX_BlenderCanvas: Unable to take screenshot!" << std::endl;
 		return;
 	}
@@ -349,5 +324,5 @@ void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 		BKE_imformat_defaults(im_format);
 
 	/* save_screenshot() frees dumprect and im_format */
-	save_screenshot(filename, dumpsx, dumpsy, dumprect, im_format);
+	save_screenshot(filename, width, height, pixeldata, im_format);
 }

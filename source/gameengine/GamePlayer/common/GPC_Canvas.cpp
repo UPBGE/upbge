@@ -30,6 +30,7 @@
  */
 
 
+#include "RAS_IRasterizer.h"
 #include "RAS_IPolygonMaterial.h"
 #include "GPC_Canvas.h"
 
@@ -45,9 +46,11 @@
 #endif
 
 GPC_Canvas::GPC_Canvas(
+	RAS_IRasterizer *rasty,
 	int width,
 	int height
-) : 
+)
+	:RAS_ICanvas(rasty),
 	m_width(width),
 	m_height(height)
 {
@@ -58,7 +61,7 @@ GPC_Canvas::GPC_Canvas(
 	m_displayarea.m_y2 = height;
 	m_frame = 1;
 
-	glGetIntegerv(GL_VIEWPORT, (GLint*)m_viewport);
+	m_rasterizer->GetViewport(m_viewport);
 }
 
 
@@ -82,7 +85,7 @@ void GPC_Canvas::Resize(int width, int height)
 
 void GPC_Canvas::ClearColor(float r, float g, float b, float a)
 {
-	::glClearColor(r,g,b,a);
+	m_rasterizer->SetClearColor(r, g, b, a);
 }
 
 void GPC_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
@@ -97,15 +100,15 @@ void GPC_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
 		 * but where... definitely need to clean up this
 		 * whole canvas/rendertools mess.
 		 */
-	glEnable(GL_SCISSOR_TEST);
+	m_rasterizer->Enable(RAS_IRasterizer::RAS_SCISSOR_TEST);
 	
 	m_viewport[0] = x1;
 	m_viewport[1] = y1;
 	m_viewport[2] = x2-x1 + 1;
 	m_viewport[3] = y2-y1 + 1;
 
-	glViewport(x1,y1,x2-x1 + 1,y2-y1 + 1);
-	glScissor(x1,y1,x2-x1 + 1,y2-y1 + 1);
+	m_rasterizer->SetViewport(x1,y1,x2-x1 + 1,y2-y1 + 1);
+	m_rasterizer->SetScissor(x1,y1,x2-x1 + 1,y2-y1 + 1);
 }
 
 void GPC_Canvas::UpdateViewPort(int x1, int y1, int x2, int y2)
@@ -122,7 +125,7 @@ const int *GPC_Canvas::GetViewPort()
 	// If we're in a debug build, we might as well make sure our values don't differ
 	// from what the gpu thinks we have. This could lead to nasty, hard to find bugs.
 	int viewport[4];
-	glGetIntegerv(GL_VIEWPORT, viewport);
+	m_rasterizer->GetViewport(viewport);
 	assert(viewport[0] == m_viewport[0]);
 	assert(viewport[1] == m_viewport[1]);
 	assert(viewport[2] == m_viewport[2]);
@@ -135,14 +138,15 @@ const int *GPC_Canvas::GetViewPort()
 void GPC_Canvas::ClearBuffer(
 	int type
 ) {
+	unsigned int ogltype = 0;
 
-	int ogltype = 0;
 	if (type & RAS_ICanvas::COLOR_BUFFER )
-		ogltype |= GL_COLOR_BUFFER_BIT;
-	if (type & RAS_ICanvas::DEPTH_BUFFER )
-		ogltype |= GL_DEPTH_BUFFER_BIT;
+		ogltype |= RAS_IRasterizer::RAS_COLOR_BUFFER_BIT;
 
-	::glClear(ogltype);
+	if (type & RAS_ICanvas::DEPTH_BUFFER )
+		ogltype |= RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT;
+
+	m_rasterizer->Clear(ogltype);
 }
 
 	void
@@ -160,7 +164,7 @@ MakeScreenShot(
 		return;
 	}
 
-	glReadPixels(0, 0, dumpsx, dumpsy, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+	pixels = m_rasterizer->MakeScreenshot(0, 0, dumpsx, dumpsy);
 
 	// initialize image file format data
 	ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData), "im_format");

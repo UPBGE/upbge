@@ -40,8 +40,6 @@
 #  include <windows.h>
 #endif  /* WIN32 */
 
-#include "glew-mx.h"
-
 #include <map>
 
 
@@ -61,7 +59,7 @@ protected:
 
 public:
 
-	GPC_Canvas(int width, int height);
+	GPC_Canvas(RAS_IRasterizer *rasty, int width, int height);
 
 	virtual ~GPC_Canvas();
 
