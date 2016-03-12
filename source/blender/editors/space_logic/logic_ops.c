@@ -29,6 +29,7 @@
  */
 
 #include <stddef.h>
+#include <string.h>
 
 #include "DNA_object_types.h"
 #include "DNA_sensor_types.h"
@@ -853,7 +854,10 @@ static int component_reload_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	snprintf(import, sizeof(import), "%s.%s", pc->module, pc->name);
+	strcpy(import, pc->module);
+	strcat(import, ".");
+	strcat(import, pc->name);
+
 	/* Try to create a new component */
 	new_pc = new_component_from_module_name(import, op);
 

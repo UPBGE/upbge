@@ -253,18 +253,20 @@ PythonComponent *new_component_from_module_name(char *import, wmOperator *op)
 	if (module_name) {
 		strcpy(path, module_name);
 	}
-	if (module_name && !cls) {
-		BKE_report(op->reports, RPT_ERROR_INVALID_INPUT, "No component class was specified, only the module was.");
-		return NULL;
-	}
 
 	state = PyGILState_Ensure();
 
 	// Try to load up the module
 	mod = PyImport_ImportModule(path);
 	if (!mod) {
-		BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "No module named \"%s\".", module_name);
+		BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "No module named \"%s\".", import);
 		return NULL;
+	}
+	else {
+		if (module_name && !cls) {
+			BKE_report(op->reports, RPT_ERROR_INVALID_INPUT, "No component class was specified, only the module was.");
+			return NULL;
+		}
 	}
 
 	if (mod) {
@@ -309,7 +311,7 @@ PythonComponent *new_component_from_module_name(char *import, wmOperator *op)
 
 		// If we still have a NULL component, then we didn't find a suitable class
 		if (pc == NULL) {
-			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "No suitable class was found for a component at %s.", import);
+			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "No \"%s\" component was found at \"%s\".", cls, import);
 		}
 
 		// Take the module out of the module list so it's not cached by Python (this allows for simpler reloading of components)
@@ -321,7 +323,6 @@ PythonComponent *new_component_from_module_name(char *import, wmOperator *op)
 	}
 	else {
 		PyErr_Print();
-		BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "Unable to load component from \"%s\" because either the component doesn't exists or the module is invalid.", import);
 	}
 
 	PyGILState_Release(state);
