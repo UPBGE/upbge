@@ -98,8 +98,6 @@ struct RayCastTranform
  */
 class RAS_OpenGLRasterizer : public RAS_IRasterizer
 {
-	RAS_ICanvas *m_2DCanvas;
-
 	/* fogging vars */
 	bool m_fogenabled;
 
@@ -153,12 +151,20 @@ protected:
 	RAS_IStorage *m_storage;
 	int m_storageInfo;
 
+	void SetOpenGLCapability(EnableBit bit, bool enabled, unsigned int customvalue=0);
+
 public:
 	double GetTime();
-	RAS_OpenGLRasterizer(RAS_ICanvas *canv, RAS_STORAGE_TYPE storage, int storageInfo);
+	RAS_OpenGLRasterizer(RAS_STORAGE_TYPE storage, int storageInfo);
 	virtual ~RAS_OpenGLRasterizer();
 
+	virtual void Enable(EnableBit bit, unsigned int customvalue=0);
+	virtual void Disable(EnableBit bit, unsigned int customvalue=0);
+
+	virtual void SetDepthFunc(DepthFunc func);
 	virtual void SetDepthMask(DepthMask depthmask);
+
+	virtual unsigned int *MakeScreenshot(int x, int y, int width, int height);
 
 	virtual bool Init();
 	virtual void Exit();
@@ -166,8 +172,10 @@ public:
 	virtual bool BeginFrame(double time);
 	virtual void ClearColorBuffer();
 	virtual void ClearDepthBuffer();
+	virtual void Clear(ClearBit clearbit);
+	virtual void SetClearColor(float r, float g, float b, float a=1.0f);
 	virtual void EndFrame();
-	virtual void SetRenderArea();
+	virtual void SetRenderArea(RAS_ICanvas *canvas);
 
 	virtual void SetStereoMode(const StereoMode stereomode);
 	virtual RAS_IRasterizer::StereoMode GetStereoMode();
@@ -180,7 +188,7 @@ public:
 	virtual void SetFocalLength(const float focallength);
 	virtual float GetFocalLength();
 
-	virtual void SwapBuffers();
+	virtual void SwapBuffers(RAS_ICanvas *canvas);
 
 	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
@@ -192,6 +200,10 @@ public:
 	virtual void SetProjectionMatrix(MT_CmMatrix4x4 &mat);
 	virtual void SetProjectionMatrix(const MT_Matrix4x4 &mat);
 	virtual void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Matrix3x3 &ori, const MT_Vector3 &pos, bool perspective);
+
+	virtual void SetViewport(int x, int y, int width, int height);
+	virtual int* GetViewport();
+	virtual void SetScissor(int x, int y, int width, int height);
 
 	virtual const MT_Vector3& GetCameraPosition();
 	virtual bool GetCameraOrtho();

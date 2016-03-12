@@ -40,6 +40,7 @@
 
 #include "MT_CmMatrix4x4.h"
 #include "MT_Matrix4x4.h"
+#include "MT_Vector2.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -65,8 +66,8 @@ public:
 		RAS_TEXT_MAX,
 	};
 
-	RAS_IRasterizer(RAS_ICanvas* canv) {};
-	virtual ~RAS_IRasterizer() {};
+	RAS_IRasterizer() {}
+	virtual ~RAS_IRasterizer() {}
 
 	/**
 	 * Drawing types
@@ -166,6 +167,61 @@ public:
 		RAS_SHADOW_VARIANCE,
 	};
 
+	enum EnableBit {
+		RAS_DEPTH_TEST = 1,
+		RAS_ALPHA_TEST,
+		RAS_SCISSOR_TEST,
+		RAS_TEXTURE_2D,
+		RAS_BLEND,
+		RAS_COLOR_MATERIAL,
+		RAS_CULL_FACE,
+		RAS_FOG,
+		RAS_LIGHTING,
+		RAS_CUSTOM
+	};
+
+	enum DepthFunc {
+		RAS_NEVER = 1,
+		RAS_LEQUAL,
+		RAS_LESS,
+		RAS_ALWAYS,
+		RAS_GEQUAL,
+		RAS_GREATER,
+		RAS_NOT_EQUAL,
+		RAS_EQUAL
+	};
+
+	enum ClearBit {
+		RAS_COLOR_BIT = 0x2,
+		RAS_DEPTH_BIT = 0x4,
+		RAS_STENCIL_BIT = 0x8
+	};
+
+	/**
+	 * Enable capability
+	 * \param bit Enable bit
+	 * \param customvalue Custom value for RAS_CUSTOM bit
+	 */
+	virtual void Enable(EnableBit bit, unsigned int customvalue=0) = 0;
+
+	/**
+	 * Disable capability
+	 * \param bit Enable bit
+	 * \param customvalue Custom value for RAS_CUSTOM bit
+	 */
+	virtual void Disable(EnableBit bit, unsigned int customvalue=0) = 0;
+
+	/**
+	 * Set the value for Depth Buffer comparisons
+	 * \param func Depth comparison function
+	 */
+	virtual void SetDepthFunc(DepthFunc func) = 0;
+
+	/**
+	 * Takes a screenshot
+	 */
+	virtual unsigned int *MakeScreenshot(int x, int y, int width, int height) = 0;
+
 	/**
 	 * SetDepthMask enables or disables writing a fragment's depth value
 	 * to the Z buffer.
@@ -203,6 +259,17 @@ public:
 	virtual void ClearDepthBuffer() = 0;
 
 	/**
+	 * Clears a specified set of buffers
+	 * \param clearbit What buffers to clear (separated by bitwise OR)
+	 */
+	virtual void Clear(ClearBit clearbit) = 0;
+
+	/**
+	 * Set background color
+	 */
+	virtual void SetClearColor(float r, float g, float b, float a=1.0f) = 0;
+
+	/**
 	 * EndFrame is called at the end of each frame.
 	 */
 	virtual void EndFrame() = 0;
@@ -211,7 +278,7 @@ public:
 	 * SetRenderArea sets the render area from the 2d canvas.
 	 * Returns true if only of subset of the canvas is used.
 	 */
-	virtual void SetRenderArea() = 0;
+	virtual void SetRenderArea(RAS_ICanvas *canvas) = 0;
 
 	// Stereo Functions
 	/**
@@ -248,7 +315,7 @@ public:
 	/**
 	 * SwapBuffers swaps the back buffer with the front buffer.
 	 */
-	virtual void SwapBuffers() = 0;
+	virtual void SwapBuffers(RAS_ICanvas *canvas) = 0;
 	
 	// Drawing Functions
 	/// Set all pre render attributs for given display array bucket.
@@ -286,6 +353,17 @@ public:
 	 */
 	virtual void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Matrix3x3 &ori,
 	                           const MT_Vector3 &pos, bool perspective) = 0;
+
+	/**
+	 * Get/Set viewport area
+	 */
+	virtual void SetViewport(int x, int y, int width, int height) = 0;
+	virtual int* GetViewport() = 0;
+
+	/**
+	 * Set scissor mask
+	 */
+	virtual void SetScissor(int x, int y, int width, int height) = 0;
 
 	/**
 	 */

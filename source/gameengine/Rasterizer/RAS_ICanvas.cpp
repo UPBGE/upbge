@@ -61,10 +61,11 @@ struct ScreenshotTaskData
 void save_screenshot_thread_func(TaskPool *__restrict pool, void *taskdata, int threadid);
 
 
-RAS_ICanvas::RAS_ICanvas()
+RAS_ICanvas::RAS_ICanvas(RAS_IRasterizer *rasty)
 {
 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
 	m_taskpool = BLI_task_pool_create(m_taskscheduler, NULL);
+	m_rasty = rasty;
 }
 
 RAS_ICanvas::~RAS_ICanvas()

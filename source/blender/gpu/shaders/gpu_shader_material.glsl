@@ -2228,21 +2228,18 @@ void test_shadowbuf_vsm(vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float
 		if (co.w > 0.0 && co.x > 0.0 && co.x/co.w < 1.0 && co.y > 0.0 && co.y/co.w < 1.0) {
 			vec2 moments = texture2DProj(shadowmap, co).rg;
 			float dist = co.z/co.w;
-			float p = 0.0;
-			
-			if(dist <= moments.x)
-				p = 1.0;
+			float p = float(dist <= moments.x);
 
 			float variance = moments.y - (moments.x*moments.x);
-			variance = max(variance, shadowbias/10.0);
+			variance = min(max(variance, shadowbias) + 0.0001, 1.0);
 
-			float d = moments.x - dist;
+			float d = dist - moments.x;
 			float p_max = variance / (variance + d*d);
 
 			// Now reduce light-bleeding by removing the [0, x] tail and linearly rescaling (x, 1]
 			p_max = clamp((p_max-bleedbias)/(1.0-bleedbias), 0.0, 1.0);
 
-			result = max(p, p_max);
+			result = smoothstep(0.2, 1.0, max(p_max, p));
 		}
 		else {
 			result = 1.0;

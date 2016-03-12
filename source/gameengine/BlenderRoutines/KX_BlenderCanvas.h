@@ -59,14 +59,14 @@ private:
 	 * Rect that defines the area used for rendering,
 	 * relative to the context */
 	RAS_Rect m_displayarea;
-	int m_viewport[4];
+	int *m_viewport;
 
 public:
 	/* Construct a new canvas.
 	 * 
 	 * \param area The Blender ARegion to run the game within.
 	 */
-	KX_BlenderCanvas(struct wmWindowManager *wm, struct wmWindow* win, RAS_Rect &rect, struct ARegion* ar);
+	KX_BlenderCanvas(RAS_IRasterizer *rasty, struct wmWindowManager *wm, struct wmWindow* win, RAS_Rect &rect, struct ARegion* ar);
 	~KX_BlenderCanvas();
 
 		void 
@@ -212,7 +212,6 @@ private:
 	RAS_Rect 	m_area_rect;
 	int			m_area_left;
 	int			m_area_top;
-
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderCanvas")

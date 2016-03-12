@@ -609,7 +609,7 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 			storageInfo |= RAS_STORAGE_USE_DISPLAY_LIST;
 		}
 
-		m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, raster_storage, storageInfo);
+		m_rasterizer = new RAS_OpenGLRasterizer(raster_storage, storageInfo);
 
 		/* Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI */
 		m_rasterizer->SetStereoMode((RAS_IRasterizer::StereoMode) stereoMode);

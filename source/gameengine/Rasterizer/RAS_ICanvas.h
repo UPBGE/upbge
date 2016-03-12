@@ -37,6 +37,7 @@
 #endif
 
 class RAS_Rect;
+class RAS_IRasterizer;
 struct TaskScheduler;
 struct TaskPool;
 struct ImageFormatData;
@@ -59,7 +60,7 @@ public:
 		MOUSE_NORMAL
 	};
 
-	RAS_ICanvas();
+	RAS_ICanvas(RAS_IRasterizer *rasty);
 	virtual ~RAS_ICanvas();
 
 	virtual 
@@ -257,13 +258,17 @@ public:
 		bool
 	GetFullScreen()=0;
 
-		
+	RAS_IRasterizer *GetRasterizer()
+	{
+		return m_rasty;
+	}
 	
 protected:
 	RAS_MouseState m_mousestate;
 	int m_frame;  /// frame number for screenshots.
 	TaskScheduler *m_taskscheduler;
 	TaskPool *m_taskpool;
+	RAS_IRasterizer *m_rasty;
 
 	/**
 	 * Saves screenshot data to a file. The actual compression and disk I/O is performed in

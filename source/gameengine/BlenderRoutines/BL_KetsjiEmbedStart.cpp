@@ -125,6 +125,7 @@ static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWind
                               KX_BlenderKeyboardDevice* keyboarddevice, KX_BlenderMouseDevice* mousedevice, int draw_letterbox)
 {
 	int exitrequested;
+	RAS_IRasterizer *rasty = ketsjiengine->GetRasterizer();
 
 	// first check if we want to exit
 	exitrequested = ketsjiengine->GetExitCode();
@@ -137,10 +138,10 @@ static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWind
 			// Clear screen to border color
 			// We do this here since we set the canvas to be within the frames. This means the engine
 			// itself is unaware of the extra space, so we clear the whole region for it.
-			glClearColor(scene->gm.framing.col[0], scene->gm.framing.col[1], scene->gm.framing.col[2], 1.0f);
-			glViewport(ar->winrct.xmin, ar->winrct.ymin,
+			rasty->SetClearColor(scene->gm.framing.col[0], scene->gm.framing.col[1], scene->gm.framing.col[2]);
+			rasty->SetViewport(ar->winrct.xmin, ar->winrct.ymin,
 			           BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
-			glClear(GL_COLOR_BUFFER_BIT);
+			rasty->Clear(RAS_IRasterizer::RAS_COLOR_BIT);
 		}
 
 		// render the frame
@@ -294,23 +295,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			}
 		}
 
-		// create the canvas and rasterizer
-		RAS_ICanvas* canvas = new KX_BlenderCanvas(wm, win, area_rect, ar);
-		
-		// default mouse state set on render panel
-		if (mouse_state)
-			canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
-		else
-			canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
-
-		// Setup vsync
-		int previous_vsync = 0;
-		canvas->GetSwapInterval(previous_vsync);
-		if (startscene->gm.vsync == VSYNC_ADAPTIVE)
-			canvas->SetSwapInterval(-1);
-		else
-			canvas->SetSwapInterval((startscene->gm.vsync == VSYNC_ON) ? 1 : 0);
-
+		// create the rasterizer and canvas
 		RAS_IRasterizer* rasterizer = NULL;
 		RAS_STORAGE_TYPE raster_storage = RAS_AUTO_STORAGE;
 		int storageInfo = RAS_STORAGE_INFO_NONE;
@@ -326,10 +311,25 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			storageInfo |= RAS_STORAGE_USE_DISPLAY_LIST;
 		}
 
-		rasterizer = new RAS_OpenGLRasterizer(canvas, raster_storage, storageInfo);
+		rasterizer = new RAS_OpenGLRasterizer(raster_storage, storageInfo);
 
 		RAS_IRasterizer::MipmapOption mipmapval = rasterizer->GetMipmapping();
 
+		RAS_ICanvas* canvas = new KX_BlenderCanvas(rasterizer, wm, win, area_rect, ar);
+
+		// default mouse state set on render panel
+		if (mouse_state)
+			canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
+		else
+			canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
+
+		// Setup vsync
+		int previous_vsync = 0;
+		canvas->GetSwapInterval(previous_vsync);
+		if (startscene->gm.vsync == VSYNC_ADAPTIVE)
+			canvas->SetSwapInterval(-1);
+		else
+			canvas->SetSwapInterval((startscene->gm.vsync == VSYNC_ON) ? 1 : 0);
 		
 		// create the inputdevices
 		KX_BlenderKeyboardDevice* keyboarddevice = new KX_BlenderKeyboardDevice();
@@ -648,16 +648,16 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			delete mousedevice;
 			mousedevice = NULL;
 		}
-		if (rasterizer)
-		{
-			delete rasterizer;
-			rasterizer = NULL;
-		}
 		if (canvas)
 		{
 			canvas->SetSwapInterval(previous_vsync); // Set the swap interval back
 			delete canvas;
 			canvas = NULL;
+		}
+		if (rasterizer)
+		{
+			delete rasterizer;
+			rasterizer = NULL;
 		}
 		if (networkMessageManager) {
 			delete networkMessageManager;

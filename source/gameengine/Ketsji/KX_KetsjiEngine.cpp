@@ -441,7 +441,7 @@ void KX_KetsjiEngine::ClearFrame()
 bool KX_KetsjiEngine::BeginFrame()
 {
 	// set the area used for rendering (stereo can assign only a subset)
-	m_rasterizer->SetRenderArea();
+	m_rasterizer->SetRenderArea(m_canvas);
 
 	if (m_canvas->BeginDraw()) {
 		ClearFrame();
@@ -489,7 +489,7 @@ void KX_KetsjiEngine::EndFrame()
 	m_rasterizer->EndFrame();
 	// swap backbuffer (drawing into this buffer) <-> front/visible buffer
 	m_logger->StartLog(tc_latency, m_kxsystem->GetTimeInSeconds(), true);
-	m_rasterizer->SwapBuffers();
+	m_rasterizer->SwapBuffers(m_canvas);
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
 
 	m_canvas->EndDraw();
