@@ -39,8 +39,7 @@ class LOGIC_PT_components(bpy.types.Panel):
         st = context.space_data
 
         row = layout.row()
-        row.prop(st, "import_string", text="")
-        row.operator("logic.component_add", text="Add Component")
+        row.operator("logic.add_python_component", text="Add Component", icon="ZOOMIN")
 
         for i, c in enumerate(game.components):
             box = layout.box()

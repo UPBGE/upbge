@@ -58,6 +58,7 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "UI_interface.h"
 #include "UI_view2d.h"
 
 #include "logic_intern.h"
@@ -740,20 +741,15 @@ static void LOGIC_OT_view_all(wmOperatorType *ot)
 /* Component operators */
 static int component_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
-
-	SpaceLogic *slogic= CTX_wm_space_logic(C);
 	PythonComponent *pycomp;
 	Object *ob = CTX_data_active_object(C);
-	char import[sizeof(slogic->import_string)];
+	char import[MAX_NAME];
 
 	if (!ob) {
 		return OPERATOR_CANCELLED;
 	}
 
-	/* We always want to clear the import_string after this operator is called */
-	BLI_strncpy(import, slogic->import_string, sizeof(import));
-	BLI_strncpy(slogic->import_string, "", sizeof(slogic->import_string));
-
+	RNA_string_get(op->ptr, "component_name", import);
 	pycomp = new_component_from_module_name(import);
 
 	if(!pycomp) {
@@ -766,19 +762,29 @@ static int component_add_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
+static int component_new_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	/* Better for user feedback. */
+	return WM_operator_props_dialog_popup(C, op, 15 * UI_UNIT_X, UI_UNIT_Y);
+}
+
 static void LOGIC_OT_component_add(wmOperatorType *ot)
 {
-	/* identifiers */
-	ot->name = "Add Component";
-	ot->description = "Add Component";
-	ot->idname = "LOGIC_OT_component_add";
+	ot->name = "Add Python Component";
+	ot->idname = "LOGIC_OT_add_python_component";
+	ot->description = "Add a python component to the selected object";
 
 	/* api callbacks */
 	ot->exec = component_add_exec;
+	ot->invoke = component_new_invoke;
 	ot->poll = ED_operator_object_active_editable;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	PropertyRNA *parm;
+	parm = RNA_def_string(ot->srna, "component_name", "my.Component", 64, "Component", "The component class name with module (module.ComponentName)");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
 
 static int component_remove_exec(bContext *C, wmOperator *op)
