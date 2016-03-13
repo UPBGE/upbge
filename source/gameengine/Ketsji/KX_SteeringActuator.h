@@ -114,6 +114,7 @@ public:
 	static PyObject *pyattr_get_navmesh(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static int       pyattr_set_navmesh(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_steeringVec(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_path(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	
 
 #endif  /* WITH_PYTHON */

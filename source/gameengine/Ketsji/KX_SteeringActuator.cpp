@@ -562,6 +562,7 @@ PyAttributeDef KX_SteeringActuator::Attributes[] = {
 	KX_PYATTRIBUTE_SHORT_RW("facingMode", 0, 6, true, KX_SteeringActuator, m_facingMode),
 	KX_PYATTRIBUTE_INT_RW("pathUpdatePeriod", -1, 100000, true, KX_SteeringActuator, m_pathUpdatePeriod),
 	KX_PYATTRIBUTE_BOOL_RW("lockZVelocity", KX_SteeringActuator, m_lockzvel),
+	KX_PYATTRIBUTE_RO_FUNCTION("path", KX_SteeringActuator, pyattr_get_path),
 	{ NULL }	//Sentinel
 };
 
@@ -631,6 +632,22 @@ PyObject *KX_SteeringActuator::pyattr_get_steeringVec(void *self, const struct K
 	KX_SteeringActuator* actuator = static_cast<KX_SteeringActuator*>(self);
 	const MT_Vector3& steeringVec = actuator->GetSteeringVec();
 	return PyObjectFrom(steeringVec);
+}
+
+PyObject *KX_SteeringActuator::pyattr_get_path(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_SteeringActuator* actuator = static_cast<KX_SteeringActuator*>(self);
+	int pathLen = actuator->m_pathLen;
+	float *path = actuator->m_path;
+
+	PyObject *pathList = PyList_New( pathLen );
+	for (int i=0; i<pathLen; i++)
+	{
+		MT_Vector3 point(&path[3*i]);
+		PyList_SET_ITEM(pathList, i, PyObjectFrom(point));
+	}
+
+	return pathList;
 }
 
 #endif // WITH_PYTHON
