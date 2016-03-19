@@ -231,7 +231,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 #endif /* WITH_PYTHON */
 }
 
-PythonComponent *new_component_from_module_name(char *import, wmOperator *op)
+PythonComponent *new_component_from_module_name(char *import, ReportList *reports)
 {
 	PythonComponent *pc = NULL;
 
@@ -243,7 +243,7 @@ PythonComponent *new_component_from_module_name(char *import, wmOperator *op)
 
 	// Don't bother with an empty string
 	if (strcmp(import, "") == 0) {
-		BKE_report(op->reports, RPT_ERROR_INVALID_INPUT, "No component was specified.");
+		BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component was specified.");
 		return NULL;
 	}
 
@@ -259,12 +259,12 @@ PythonComponent *new_component_from_module_name(char *import, wmOperator *op)
 	// Try to load up the module
 	mod = PyImport_ImportModule(path);
 	if (!mod) {
-		BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "No module named \"%s\".", import);
+		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No module named \"%s\".", import);
 		return NULL;
 	}
 	else {
 		if (module_name && !cls) {
-			BKE_report(op->reports, RPT_ERROR_INVALID_INPUT, "No component class was specified, only the module was.");
+			BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component class was specified, only the module was.");
 			return NULL;
 		}
 	}
@@ -293,7 +293,7 @@ PythonComponent *new_component_from_module_name(char *import, wmOperator *op)
 
 			// Check the subclass with our own function since we don't have access to the KX_PythonComponent type object
 			if (!verify_class(item)) {
-				BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "A %s type was found, but it was not a valid subclass of KX_PythonComponent.", cls);
+				BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "A %s type was found, but it was not a valid subclass of KX_PythonComponent.", cls);
 			}
 			else {
 				// We have a valid class, make a component
@@ -311,7 +311,7 @@ PythonComponent *new_component_from_module_name(char *import, wmOperator *op)
 
 		// If we still have a NULL component, then we didn't find a suitable class
 		if (pc == NULL) {
-			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "No \"%s\" component was found at \"%s\".", cls, import);
+			BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No \"%s\" component was found at \"%s\".", cls, import);
 		}
 
 		// Take the module out of the module list so it's not cached by Python (this allows for simpler reloading of components)
