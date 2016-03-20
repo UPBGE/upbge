@@ -111,7 +111,10 @@ void SCA_LogicManager::RegisterGameObj(void* blendobj, CValue* gameobj)
 
 void SCA_LogicManager::UnregisterGameObj(void* blendobj, CValue* gameobj) 
 {
-	m_map_blendobj_to_gameobj.erase(blendobj);
+	std::map<void *, CValue *>::iterator it = m_map_blendobj_to_gameobj.find(blendobj);
+	if (it->second == gameobj) {
+		m_map_blendobj_to_gameobj.erase(it);
+	}
 }
 
 CValue* SCA_LogicManager::GetGameObjectByName(const STR_String& gameobjname)
