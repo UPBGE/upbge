@@ -352,7 +352,9 @@ PythonComponent *new_component_from_module_name(char *import, ReportList *report
 
 	// Copy module and class names.
 	strcpy(pc->module, modulename);
-	strcpy(pc->name, classname);
+	if (classname) {
+		strcpy(pc->name, classname);
+	}
 
 	// Try load the component.
 	if (!load_component(pc, reports)) {
