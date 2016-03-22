@@ -276,7 +276,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports)
 		return false;
 	}
 	else {
-		if (pc->module && !pc->name) {
+		if (strlen(pc->module) > 0 && strlen(pc->name) == 0) {
 			BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component class was specified, only the module was.");
 			return false;
 		}
@@ -287,6 +287,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports)
 		mod_list = PyDict_Values(PyModule_GetDict(mod));
 
 		// Now iterate the list
+		bool found = false;
 		for (unsigned int i = 0, size = PyList_Size(mod_list); i < size; ++i) {
 			item = PyList_GetItem(mod_list, i);
 
@@ -311,8 +312,13 @@ static bool load_component(PythonComponent *pc, ReportList *reports)
 			else {
 				// Setup the properties
 				create_properties(pc, item);
+				found = true;
 				break;
 			}
+		}
+
+		if (!found) {
+			BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No class named %s was found.", pc->name);
 		}
 
 		// Take the module out of the module list so it's not cached by Python (this allows for simpler reloading of components)
