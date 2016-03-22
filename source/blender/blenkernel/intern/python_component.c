@@ -141,6 +141,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 	int data;
 	short type;
 	void *ptr = NULL;
+	ListBase properties;
 
 	args_dict = PyObject_GetAttrString(cls, "args");
 
@@ -221,51 +222,63 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 		cprop = create_property(name, type, data, ptr);
 
 		if (cprop) {
-			BLI_addtail(&pycomp->properties, cprop);
+			bool found = false;
+			for (ComponentProperty *propit = pycomp->properties.first; propit; propit = propit->next) {
+				if ((strcmp(propit->name, cprop->name) == 0) && propit->type == cprop->type) {
+					/* We found a coresponding property in the old component, so the new one
+					 * is released, the old property is removed from the original list and
+					 * added to the new list.
+					 */
+					free_component_property(cprop);
+					BLI_remlink(&pycomp->properties, propit);
+					BLI_addtail(&properties, propit);
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				BLI_addtail(&properties, cprop);
+			}
 		}
 		else {
 			// Cleanup ptr if it's set
-			if (ptr) MEM_freeN(ptr);
+			if (ptr) {
+				MEM_freeN(ptr);
+			}
 		}
 	}
+
+	// Free properties no used in the new component.
+	for (ComponentProperty *propit = pycomp->properties.first; propit;) {
+		ComponentProperty *prop = propit;
+		propit = propit->next;
+		free_component_property(prop);
+	}
+	// Set the new property list.
+	pycomp->properties = properties;
+
 #endif /* WITH_PYTHON */
 }
 
-PythonComponent *new_component_from_module_name(char *import, ReportList *reports)
+static bool load_component(PythonComponent *pc, ReportList *reports) 
 {
-	PythonComponent *pc = NULL;
-
 #ifdef WITH_PYTHON
 	PyObject *mod, *mod_list, *item, *py_name;
 	PyGILState_STATE state;
-	char *name, *cls, path[64];
-	char *module_name;
-
-	// Don't bother with an empty string
-	if (strcmp(import, "") == 0) {
-		BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component was specified.");
-		return NULL;
-	}
-
-	module_name = strtok(import, ".");
-	cls = strtok(NULL, ".");
-
-	if (module_name) {
-		strcpy(path, module_name);
-	}
+	char *name;
 
 	state = PyGILState_Ensure();
 
 	// Try to load up the module
-	mod = PyImport_ImportModule(path);
+	mod = PyImport_ImportModule(pc->module);
 	if (!mod) {
-		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No module named \"%s\".", import);
-		return NULL;
+		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No module named \"%s\".", pc->module);
+		return false;
 	}
 	else {
-		if (module_name && !cls) {
+		if (pc->module && !pc->name) {
 			BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component class was specified, only the module was.");
-			return NULL;
+			return false;
 		}
 	}
 
@@ -287,35 +300,23 @@ PythonComponent *new_component_from_module_name(char *import, ReportList *report
 			name = _PyUnicode_AsString(py_name);
 			Py_DECREF(py_name);
 
-			if (strcmp(name, cls) != 0) {
+			if (strcmp(name, pc->name) != 0) {
 				continue;
 			}
 
 			// Check the subclass with our own function since we don't have access to the KX_PythonComponent type object
 			if (!verify_class(item)) {
-				BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "A %s type was found, but it was not a valid subclass of KX_PythonComponent.", cls);
+				BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "A %s type was found, but it was not a valid subclass of KX_PythonComponent.", pc->name);
 			}
 			else {
-				// We have a valid class, make a component
-				pc = MEM_callocN(sizeof(PythonComponent), "PythonComponent");
-
-				strcpy(pc->module, path);
-				strcpy(pc->name, cls);
-
 				// Setup the properties
 				create_properties(pc, item);
-
 				break;
 			}
 		}
 
-		// If we still have a NULL component, then we didn't find a suitable class
-		if (pc == NULL) {
-			BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No \"%s\" component was found at \"%s\".", cls, import);
-		}
-
 		// Take the module out of the module list so it's not cached by Python (this allows for simpler reloading of components)
-		PyDict_DelItemString(PyImport_GetModuleDict(), path);
+		PyDict_DelItemString(PyImport_GetModuleDict(), pc->module);
 
 		// Cleanup our Python objects
 		Py_DECREF(mod);
@@ -328,7 +329,43 @@ PythonComponent *new_component_from_module_name(char *import, ReportList *report
 	PyGILState_Release(state);
 #endif /* WITH_PYTHON */
 
+	return true;
+}
+
+PythonComponent *new_component_from_module_name(char *import, ReportList *reports)
+{
+	char *classname;
+	char *modulename;
+	PythonComponent *pc;
+
+	// Don't bother with an empty string
+	if (strcmp(import, "") == 0) {
+		BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component was specified.");
+		return NULL;
+	}
+
+	// Extract the module name and the class name.
+	modulename = strtok(import, ".");
+	classname = strtok(NULL, ".");
+
+	pc = MEM_callocN(sizeof(PythonComponent), "PythonComponent");
+
+	// Copy module and class names.
+	strcpy(pc->module, modulename);
+	strcpy(pc->name, classname);
+
+	// Try load the component.
+	if (!load_component(pc, reports)) {
+		free_component(pc);
+		return NULL;
+	}
+
 	return pc;
+}
+
+void reload_component(PythonComponent *pc, ReportList *reports)
+{
+	load_component(pc, reports);
 }
 
 static PythonComponent *copy_component(PythonComponent *comp)

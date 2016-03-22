@@ -833,9 +833,8 @@ static void LOGIC_OT_component_remove(wmOperatorType *ot)
 static int component_reload_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
-	PythonComponent *pc = NULL, *new_pc = NULL, *prev_pc = NULL;
+	PythonComponent *pc = NULL, *prev_pc = NULL;
 	int index = RNA_int_get(op->ptr, "index");
-	char import[64];
 
 	if(!ob) {
 		return OPERATOR_CANCELLED;
@@ -854,28 +853,9 @@ static int component_reload_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	strcpy(import, pc->module);
-	strcat(import, ".");
-	strcat(import, pc->name);
 
 	/* Try to create a new component */
-	new_pc = new_component_from_module_name(import, op->reports);
-
-	/* If creation failed, leave the old one along */
-	if(!new_pc) {
-		return OPERATOR_CANCELLED;
-	}
-
-	/* Otherwise swap and destroy the old one */
-	BLI_remlink(&ob->components, pc);
-	free_component(pc);
-
-	if (prev_pc) {
-		BLI_insertlinkafter(&ob->components, prev_pc, new_pc);
-	}
-	else {
-		BLI_addhead(&ob->components, new_pc);
-	}
+	reload_component(pc, op->reports);
 
 	return OPERATOR_FINISHED;
 }

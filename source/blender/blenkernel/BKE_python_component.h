@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 struct PythonComponent *new_component_from_module_name(char *import, struct ReportList *reports);
+void reload_component(struct PythonComponent *pc, struct ReportList *reports);
 void copy_components(struct ListBase *lbn, struct ListBase *lbo);
 void free_component(struct PythonComponent *pc);
 void free_components(struct ListBase *base);
