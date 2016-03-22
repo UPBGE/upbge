@@ -319,6 +319,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports)
 
 		if (!found) {
 			BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No class named %s was found.", pc->name);
+			return false;
 		}
 
 		// Take the module out of the module list so it's not cached by Python (this allows for simpler reloading of components)
