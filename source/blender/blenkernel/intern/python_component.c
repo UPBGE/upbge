@@ -273,7 +273,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports)
 	// Try to load up the module
 	mod = PyImport_ImportModule(pc->module);
 	if (!mod) {
-		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No module named \"%s\".", pc->module);
+		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No module named \"%s\" or script error at loading.", pc->module);
 		return false;
 	}
 	else {
