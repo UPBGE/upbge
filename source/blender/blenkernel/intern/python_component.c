@@ -142,6 +142,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 	short type;
 	void *ptr = NULL;
 	ListBase properties;
+	memset(&properties, 0, sizeof(ListBase));
 
 	args_dict = PyObject_GetAttrString(cls, "args");
 
