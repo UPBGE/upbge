@@ -784,7 +784,7 @@ static void LOGIC_OT_component_add(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	PropertyRNA *parm;
-	parm = RNA_def_string(ot->srna, "component_name", "my.Component", 64, "Component", "The component class name with module (module.ComponentName)");
+	parm = RNA_def_string(ot->srna, "component_name", "module.Component", 64, "Component", "The component class name with module (module.ComponentName)");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
 
