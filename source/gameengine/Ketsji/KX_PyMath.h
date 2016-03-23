@@ -271,11 +271,11 @@ PyObject *PyObjectFrom(const MT_Quaternion &qrot);
  */
 PyObject *PyObjectFrom(const MT_Vector4 &pos);
 
-#endif
-
 /**
  * Converts an MT_Vector3 to a python color object.
  */
 PyObject *PyColorFromVector(const MT_Vector3 &vec);
 
-#endif  /* WITH_PYTHON */
+#endif  // WITH_PYTHON
+
+#endif  // __KX_PYMATH_H__
