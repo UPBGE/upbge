@@ -25,15 +25,19 @@
 #include "DNA_windowmanager_types.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_path_util.h"
 #include "MEM_guardedalloc.h"
 
 #include "BKE_python_component.h"
 #include "BKE_report.h"
+#include "BKE_context.h"
+#include "BKE_main.h"
 
 #include "RNA_types.h"
 
 #ifdef WITH_PYTHON
 #include "Python.h"
+#include "generic/py_capi_utils.h"
 #endif
 
 static int verify_class(PyObject *cls)
@@ -261,86 +265,97 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 #endif /* WITH_PYTHON */
 }
 
-static bool load_component(PythonComponent *pc, ReportList *reports) 
+static bool load_component(PythonComponent *pc, ReportList *reports, char *filename)
 {
 #ifdef WITH_PYTHON
-	PyObject *mod, *mod_list, *item, *py_name;
+	PyObject *mod, *mod_list, *item, *py_name, *sys_path, *pypath;
 	PyGILState_STATE state;
 	char *name;
+	char path[FILE_MAX];
 
 	state = PyGILState_Ensure();
+
+	sys_path = PySys_GetObject("path");
+	BLI_split_dir_part(filename, path, sizeof(path));
+	pypath = PyC_UnicodeFromByte(path);
+	PyList_Insert(sys_path, 0, pypath);
 
 	// Try to load up the module
 	mod = PyImport_ImportModule(pc->module);
 	if (!mod) {
 		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No module named \"%s\" or script error at loading.", pc->module);
-		return false;
+		goto error;
 	}
 	else {
 		if (strlen(pc->module) > 0 && strlen(pc->name) == 0) {
 			BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component class was specified, only the module was.");
-			return false;
+			goto error;
 		}
 	}
 
-	if (mod) {
-		// Get the list of objects in the module
-		mod_list = PyDict_Values(PyModule_GetDict(mod));
+	// Get the list of objects in the module
+	mod_list = PyDict_Values(PyModule_GetDict(mod));
 
-		// Now iterate the list
-		bool found = false;
-		for (unsigned int i = 0, size = PyList_Size(mod_list); i < size; ++i) {
-			item = PyList_GetItem(mod_list, i);
+	// Now iterate the list
+	bool found = false;
+	for (unsigned int i = 0, size = PyList_Size(mod_list); i < size; ++i) {
+		item = PyList_GetItem(mod_list, i);
 
-			// We only want to bother checking type objects
-			if (!PyType_Check(item)) {
-				continue;
-			}
-
-			// Make sure the name matches
-			py_name = PyObject_GetAttrString(item, "__name__");
-			name = _PyUnicode_AsString(py_name);
-			Py_DECREF(py_name);
-
-			if (strcmp(name, pc->name) != 0) {
-				continue;
-			}
-
-			// Check the subclass with our own function since we don't have access to the KX_PythonComponent type object
-			if (!verify_class(item)) {
-				BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "A %s type was found, but it was not a valid subclass of KX_PythonComponent.", pc->name);
-			}
-			else {
-				// Setup the properties
-				create_properties(pc, item);
-				found = true;
-				break;
-			}
+		// We only want to bother checking type objects
+		if (!PyType_Check(item)) {
+			continue;
 		}
 
-		if (!found) {
-			BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No class named %s was found.", pc->name);
-			return false;
+		// Make sure the name matches
+		py_name = PyObject_GetAttrString(item, "__name__");
+		name = _PyUnicode_AsString(py_name);
+		Py_DECREF(py_name);
+
+		if (strcmp(name, pc->name) != 0) {
+			continue;
 		}
 
-		// Take the module out of the module list so it's not cached by Python (this allows for simpler reloading of components)
-		PyDict_DelItemString(PyImport_GetModuleDict(), pc->module);
+		// Check the subclass with our own function since we don't have access to the KX_PythonComponent type object
+		if (!verify_class(item)) {
+			BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "A %s type was found, but it was not a valid subclass of KX_PythonComponent.", pc->name);
+		}
+		else {
+			// Setup the properties
+			create_properties(pc, item);
+			found = true;
+			break;
+		}
+	}
 
-		// Cleanup our Python objects
-		Py_DECREF(mod);
-		Py_DECREF(mod_list);
+	if (!found) {
+		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No class named %s was found.", pc->name);
+		goto error;
 	}
-	else {
-		PyErr_Print();
-	}
+	// Take the module out of the module list so it's not cached by Python (this allows for simpler reloading of components)
+	PyDict_DelItemString(PyImport_GetModuleDict(), pc->module);
+
+	// Cleanup our Python objects
+	Py_DECREF(mod);
+	Py_DECREF(mod_list);
+
+	PySequence_DelItem(sys_path, 0);
 
 	PyGILState_Release(state);
 #endif /* WITH_PYTHON */
 
 	return true;
+
+error:
+#ifdef WITH_PYTHON
+	PySequence_DelItem(sys_path, 0);
+
+	PyGILState_Release(state);
+#endif /* WITH_PYTHON */
+
+	return false;
 }
 
-PythonComponent *new_component_from_module_name(char *import, ReportList *reports)
+PythonComponent *new_component_from_module_name(char *import, ReportList *reports, bContext *context)
 {
 	char *classname;
 	char *modulename;
@@ -365,7 +380,7 @@ PythonComponent *new_component_from_module_name(char *import, ReportList *report
 	}
 
 	// Try load the component.
-	if (!load_component(pc, reports)) {
+	if (!load_component(pc, reports, CTX_data_main(context)->name)) {
 		free_component(pc);
 		return NULL;
 	}
@@ -373,9 +388,9 @@ PythonComponent *new_component_from_module_name(char *import, ReportList *report
 	return pc;
 }
 
-void reload_component(PythonComponent *pc, ReportList *reports)
+void reload_component(PythonComponent *pc, ReportList *reports, bContext *context)
 {
-	load_component(pc, reports);
+	load_component(pc, reports, CTX_data_main(context)->name);
 }
 
 static PythonComponent *copy_component(PythonComponent *comp)
