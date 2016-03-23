@@ -385,6 +385,8 @@ struct GPG_NextFrameState {
 	GlobalSettings *gs;
 } gpg_nextframestate;
 
+#ifdef WITH_PYTHON
+
 static int GPG_PyNextFrame(void *state0)
 {
 	GPG_NextFrameState *state = (GPG_NextFrameState *) state0;
@@ -398,6 +400,8 @@ static int GPG_PyNextFrame(void *state0)
 		return 1;
 	}
 }
+
+#endif
 
 int main(int argc, char** argv)
 {
@@ -1071,16 +1075,14 @@ int main(int argc, char** argv)
 						
 						// Enter main loop
 						bool run = true;
+#ifdef WITH_PYTHON
 						char *python_main = NULL;
 						pynextframestate.state = NULL;
 						pynextframestate.func = NULL;
-#ifdef WITH_PYTHON
 						python_main = KX_GetPythonMain(scene);
-#endif // WITH_PYTHON
 						if (python_main) {
 							char *python_code = KX_GetPythonCode(maggie, python_main);
 							if (python_code) {
-#ifdef WITH_PYTHON
 								// Set python environement variable.
 								KX_Scene *startscene = app.GetStartScene();
 								KX_SetActiveScene(startscene);
@@ -1095,7 +1097,6 @@ int main(int argc, char** argv)
 								printf("Yielding control to Python script '%s'...\n", python_main);
 								PyRun_SimpleString(python_code);
 								printf("Exit Python script '%s'\n", python_main);
-#endif // WITH_PYTHON
 								MEM_freeN(python_code);
 							}
 							else {
@@ -1103,10 +1104,13 @@ int main(int argc, char** argv)
 							}
 						}
 						else {
+#endif // WITH_PYTHON
 							while (run) {
 								run = GPG_NextFrame(system, &app, exitcode, exitstring, &gs);
 							}
+#ifdef WITH_PYTHON
 						}
+#endif // WITH_PYTHON
 						app.StopGameEngine();
 
 						/* 'app' is freed automatic when out of scope.
@@ -1116,7 +1120,11 @@ int main(int argc, char** argv)
 						BLO_blendfiledata_free(bfd);
 						/* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */
 						G.main = NULL;
-						if (python_main) MEM_freeN(python_main);
+#ifdef WITH_PYTHON
+						if (python_main) {
+							MEM_freeN(python_main);
+						}
+#endif // WITH_PYTHON
 					}
 				} while (exitcode == KX_EXIT_REQUEST_RESTART_GAME || exitcode == KX_EXIT_REQUEST_START_OTHER_GAME);
 			}
