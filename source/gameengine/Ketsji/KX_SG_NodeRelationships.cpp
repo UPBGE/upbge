@@ -32,6 +32,8 @@
 
 #include "KX_SG_NodeRelationships.h"
 
+#include "BLI_utildefines.h"
+
 /**
  * Implementation of classes defined in KX_SG_NodeRelationships.h
  */
@@ -54,7 +56,7 @@ UpdateChildCoordinates(
 	const SG_Spatial * parent,
 	bool& parentUpdated
 ) {
-	MT_assert(child != NULL);
+	BLI_assert(child != NULL);
 
 	if (!parentUpdated && !child->IsModified())
 		return false;
@@ -124,7 +126,7 @@ UpdateChildCoordinates(
 	bool& parentUpdated
 ) {
 
-	MT_assert(child != NULL);
+	BLI_assert(child != NULL);
 
 	if (!parentUpdated && !child->IsModified())
 		return false;
@@ -189,7 +191,7 @@ UpdateChildCoordinates(
 	const SG_Spatial * parent,
 	bool& parentUpdated
 ) {
-	MT_assert(child != NULL);
+	BLI_assert(child != NULL);
 
 	// the child will move even if the parent is not
 	parentUpdated = true;

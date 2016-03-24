@@ -26,6 +26,7 @@
 set(INC
 	.
 	../Common
+	../../../blender/blenlib
 )
 
 set(INC_SYS

@@ -39,7 +39,7 @@
 
 #include "KX_Scene.h"
 #include "KX_Globals.h"
-#include "MT_assert.h"
+#include "BLI_utildefines.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_BlenderMaterial.h"
 #include "KX_FontObject.h"

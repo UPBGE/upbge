@@ -47,7 +47,7 @@
 #ifndef MT_QUATERNION_H
 #define MT_QUATERNION_H
 
-#include <MT_assert.h>
+#include <BLI_utildefines.h>
 
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
@@ -69,7 +69,7 @@ public:
 
     void setRotation(const MT_Vector3& axis, MT_Scalar mt_angle) {
         MT_Scalar d = axis.length();
-        MT_assert(!MT_fuzzyZero(d));
+        BLI_assert(!MT_fuzzyZero(d));
         MT_Scalar s = sinf(mt_angle * MT_Scalar(0.5f)) / d;
         setValue(axis[0] * s, axis[1] * s, axis[2] * s, 
                  cosf(mt_angle * MT_Scalar(0.5f)));

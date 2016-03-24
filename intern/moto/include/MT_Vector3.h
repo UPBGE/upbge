@@ -47,7 +47,7 @@
 #ifndef MT_VECTOR3_H
 #define MT_VECTOR3_H
 
-#include <MT_assert.h>
+#include <BLI_utildefines.h>
 #include "MT_Scalar.h"
 #include "MT_Stream.h"
 

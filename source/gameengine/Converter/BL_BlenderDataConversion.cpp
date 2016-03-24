@@ -1041,13 +1041,13 @@ static PHY_MaterialProps *CreateMaterialFromBlenderObject(struct Object* blender
 {
 	PHY_MaterialProps *materialProps = new PHY_MaterialProps;
 	
-	MT_assert(materialProps && "Create physics material properties failed");
+	BLI_assert(materialProps && "Create physics material properties failed");
 		
 	Material* blendermat = give_current_material(blenderobject, 1);
 		
 	if (blendermat)
 	{
-		MT_assert(0.0f <= blendermat->reflect && blendermat->reflect <= 1.0f);
+		BLI_assert(0.0f <= blendermat->reflect && blendermat->reflect <= 1.0f);
 	
 		materialProps->m_restitution = blendermat->reflect;
 		materialProps->m_friction = blendermat->friction;
@@ -1074,7 +1074,7 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 {
 	PHY_ShapeProps *shapeProps = new PHY_ShapeProps;
 	
-	MT_assert(shapeProps);
+	BLI_assert(shapeProps);
 		
 	shapeProps->m_mass = blenderobject->mass;
 	
@@ -1084,8 +1084,8 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 // the sphere radius
 	shapeProps->m_inertia = blenderobject->formfactor;
 	
-	MT_assert(0.0f <= blenderobject->damping && blenderobject->damping <= 1.0f);
-	MT_assert(0.0f <= blenderobject->rdamping && blenderobject->rdamping <= 1.0f);
+	BLI_assert(0.0f <= blenderobject->damping && blenderobject->damping <= 1.0f);
+	BLI_assert(0.0f <= blenderobject->rdamping && blenderobject->rdamping <= 1.0f);
 	
 	shapeProps->m_lin_drag = 1.0f - blenderobject->damping;
 	shapeProps->m_ang_drag = 1.0f - blenderobject->rdamping;

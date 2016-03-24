@@ -1461,11 +1461,11 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	PyDict_SetItemString(d, "globalDict", item=PyDict_New()); Py_DECREF(item);
 
 	// Add keyboard and mouse attributes to this module
-	MT_assert(!gp_PythonKeyboard);
+	BLI_assert(!gp_PythonKeyboard);
 	gp_PythonKeyboard = new SCA_PythonKeyboard(KX_GetActiveEngine()->GetKeyboardDevice());
 	PyDict_SetItemString(d, "keyboard", gp_PythonKeyboard->NewProxy(true));
 
-	MT_assert(!gp_PythonMouse);
+	BLI_assert(!gp_PythonMouse);
 	gp_PythonMouse = new SCA_PythonMouse(KX_GetActiveEngine()->GetMouseDevice(), KX_GetActiveEngine()->GetCanvas());
 	PyDict_SetItemString(d, "mouse", gp_PythonMouse->NewProxy(true));
 

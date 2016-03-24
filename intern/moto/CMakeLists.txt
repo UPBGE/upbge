@@ -25,6 +25,7 @@
 
 set(INC
 	include
+	../../source/blender/blenlib
 )
 
 set(INC_SYS
@@ -32,7 +33,6 @@ set(INC_SYS
 )
 
 set(SRC
-	intern/MT_Assert.cpp
 	intern/MT_CmMatrix4x4.cpp
 	intern/MT_Matrix3x3.cpp
 	intern/MT_Matrix4x4.cpp
@@ -55,7 +55,6 @@ set(SRC
 	include/MT_Vector2.h
 	include/MT_Vector3.h
 	include/MT_Vector4.h
-	include/MT_assert.h
 	include/MT_random.h
 
 	include/MT_Matrix3x3.inl

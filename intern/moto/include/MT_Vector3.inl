@@ -47,7 +47,7 @@ GEN_INLINE MT_Vector3& MT_Vector3::operator*=(MT_Scalar s) {
 }
 
 GEN_INLINE MT_Vector3& MT_Vector3::operator/=(MT_Scalar s) {
-    MT_assert(!MT_fuzzyZero(s));
+    BLI_assert(!MT_fuzzyZero(s));
     return *this *= MT_Scalar(1.0f) / s;
 }
 
@@ -70,7 +70,7 @@ GEN_INLINE MT_Vector3 operator*(const MT_Vector3& v, MT_Scalar s) {
 GEN_INLINE MT_Vector3 operator*(MT_Scalar s, const MT_Vector3& v) { return v * s; }
 
 GEN_INLINE MT_Vector3 operator/(const MT_Vector3& v, MT_Scalar s) {
-    MT_assert(!MT_fuzzyZero(s));
+    BLI_assert(!MT_fuzzyZero(s));
     return v * (MT_Scalar(1.0f) / s);
 }
 
@@ -125,7 +125,7 @@ GEN_INLINE MT_Vector3 MT_Vector3::scaled(MT_Scalar xx, MT_Scalar yy, MT_Scalar z
 
 GEN_INLINE MT_Scalar MT_Vector3::angle(const MT_Vector3& v) const {
     MT_Scalar s = sqrtf(length2() * v.length2());
-    MT_assert(!MT_fuzzyZero(s));
+    BLI_assert(!MT_fuzzyZero(s));
     return acosf(dot(v) / s);
 }
 

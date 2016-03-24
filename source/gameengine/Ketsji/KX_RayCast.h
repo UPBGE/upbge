@@ -32,6 +32,8 @@
 #ifndef __KX_RAYCAST_H__
 #define __KX_RAYCAST_H__
 
+#include "BLI_utildefines.h"
+
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IPhysicsController.h"
 #include "MT_Vector2.h"
@@ -133,7 +135,7 @@ public:
 		
 		if (!info)
 		{
-			MT_assert(info && "Physics controller with no client object info");
+			BLI_assert(info && "Physics controller with no client object info");
 			return false;
 		}
 		return self->NeedRayCast(info, data);

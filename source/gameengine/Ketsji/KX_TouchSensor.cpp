@@ -44,6 +44,7 @@
 #include "RAS_MeshObject.h"
 
 #include <iostream>
+#include "BLI_utildefines.h"
 #include "PHY_IPhysicsEnvironment.h"
 
 /* ------------------------------------------------------------------------- */
@@ -121,7 +122,7 @@ m_hitMaterial("")
 	client_info->m_sensors.push_back(this);
 	
 	m_physCtrl = gameobj->GetPhysicsController();
-	MT_assert( !gameobj->GetPhysicsController() || m_physCtrl );
+	BLI_assert( !gameobj->GetPhysicsController() || m_physCtrl );
 	Init();
 }
 

@@ -276,7 +276,7 @@ public:
 		else
 		{
 			// Reference count reached 0, delete ourselves and return 0
-	//		MT_assert(m_refcount==0, "Reference count reached sub-zero, object released too much");
+	//		BLI_assert(m_refcount==0, "Reference count reached sub-zero, object released too much");
 			
 			delete this;
 			return 0;
