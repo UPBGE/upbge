@@ -54,6 +54,7 @@
 #include "KX_PythonInit.h"
 #include "KX_PyConstraintBinding.h"
 #include "KX_PythonMain.h"
+#include "KX_Globals.h"
 
 #include "RAS_OpenGLRasterizer.h"
 
@@ -479,10 +480,12 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				canvas,
 				networkMessageManager);
 
+			KX_SetActiveScene(startscene);
+			KX_SetActiveEngine(ketsjiengine);
 #ifdef WITH_PYTHON
 			// some python things
 			PyObject *gameLogic, *gameLogic_keys;
-			setupGamePython(ketsjiengine, startscene, blenderdata, pyGlobalDict, &gameLogic, &gameLogic_keys, 0, NULL);
+			setupGamePython(ketsjiengine, blenderdata, pyGlobalDict, &gameLogic, &gameLogic_keys, 0, NULL);
 #endif // WITH_PYTHON
 
 			//initialize Dome Settings
@@ -535,7 +538,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 					char *python_code = KX_GetPythonCode(blenderdata, python_main);
 					if (python_code) {
 						// Set python environement variable.
-						KX_SetActiveScene(startscene);
 						PHY_SetActiveEnvironment(startscene->GetPhysicsEnvironment());
 
 						ketsjinextframestate.ketsjiengine = ketsjiengine;

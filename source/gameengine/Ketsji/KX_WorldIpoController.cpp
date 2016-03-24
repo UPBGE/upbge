@@ -33,7 +33,7 @@
 #include "KX_WorldIpoController.h"
 #include "KX_ScalarInterpolator.h"
 #include "KX_WorldInfo.h"
-#include "KX_PythonInit.h"
+#include "KX_Globals.h"
 #include "KX_Scene.h"
 
 #if defined(_WIN64)
