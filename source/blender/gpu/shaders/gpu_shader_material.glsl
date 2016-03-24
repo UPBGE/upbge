@@ -954,6 +954,11 @@ void shade_norm(vec3 normal, out vec3 outnormal)
 	outnormal = -normalize(normal);
 }
 
+void mtex_mirror(vec3 tcol, vec4 refcol, float tin, float colmirfac, out vec4 outrefcol)
+{
+    outrefcol = mix(refcol, vec4(1.0, tcol), tin*colmirfac);
+}
+
 void mtex_rgb_blend(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
 {
 	float facm;
@@ -1658,6 +1663,17 @@ void lamp_falloff_sliders(float lampdist, float ld1, float ld2, float dist, out 
 	visifac *= lampdistkw/(lampdistkw + ld2*dist*dist);
 }
 
+void lamp_falloff_invcoefficients(float coeff_const, float coeff_lin, float coeff_quad, float dist, out float visifac)
+{
+	vec3 coeff = vec3(coeff_const, coeff_lin, coeff_quad);
+	vec3 d_coeff = vec3(1.0, dist, dist*dist);
+	float visifac_r = dot(coeff, d_coeff);
+	if (visifac_r > 0.0)
+		visifac = 1.0 / visifac_r;
+	else
+		visifac = 0.0;
+}
+
 void lamp_falloff_curve(float lampdist, sampler2D curvemap, float dist, out float visifac)
 {
 	visifac = texture2D(curvemap, vec2(dist/lampdist, 0.0)).x;
@@ -2096,6 +2112,11 @@ void shade_spec_t(float shadfac, float spec, float visifac, float specfac, out f
 void shade_add_spec(float t, vec3 lampcol, vec3 speccol, out vec3 outcol)
 {
 	outcol = t*lampcol*speccol;
+}
+
+void shade_add_mirror(vec3 mir, vec4 refcol, vec3 combined, out vec3 result)
+{
+    result = mir*refcol.gba + (vec3(1.0) - mir*refcol.rrr)*combined;
 }
 
 void alpha_spec_correction(vec3 spec, float spectra, float alpha, out float outalpha)

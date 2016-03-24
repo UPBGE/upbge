@@ -443,6 +443,11 @@ static ImBuf *avi_fetchibuf(struct anim *anim, int position)
 
 #ifdef WITH_FFMPEG
 
+BLI_INLINE bool need_aligned_ffmpeg_buffer(struct anim *anim)
+{
+	return (anim->x & 31) != 0;
+}
+
 static int startffmpeg(struct anim *anim)
 {
 	int i, videoStream;
@@ -560,6 +565,23 @@ static int startffmpeg(struct anim *anim)
 	anim->pFrameDeinterlaced = av_frame_alloc();
 	anim->pFrameRGB = av_frame_alloc();
 
+	if (need_aligned_ffmpeg_buffer(anim)) {
+		anim->pFrameRGB->format = AV_PIX_FMT_RGBA;
+		anim->pFrameRGB->width  = anim->x;
+		anim->pFrameRGB->height = anim->y;
+
+		if (av_frame_get_buffer(anim->pFrameRGB, 32) < 0) {
+			fprintf(stderr, "Could not allocate frame data.\n");
+			avcodec_close(anim->pCodecCtx);
+			avformat_close_input(&anim->pFormatCtx);
+			av_frame_free(&anim->pFrameRGB);
+			av_frame_free(&anim->pFrameDeinterlaced);
+			av_frame_free(&anim->pFrame);
+			anim->pCodecCtx = NULL;
+			return -1;
+		}
+	}
+
 	if (avpicture_get_size(AV_PIX_FMT_RGBA, anim->x, anim->y) !=
 	    anim->x * anim->y * 4)
 	{
@@ -567,9 +589,9 @@ static int startffmpeg(struct anim *anim)
 		        "ffmpeg has changed alloc scheme ... ARGHHH!\n");
 		avcodec_close(anim->pCodecCtx);
 		avformat_close_input(&anim->pFormatCtx);
-		av_free(anim->pFrameRGB);
-		av_free(anim->pFrameDeinterlaced);
-		av_free(anim->pFrame);
+		av_frame_free(&anim->pFrameRGB);
+		av_frame_free(&anim->pFrameDeinterlaced);
+		av_frame_free(&anim->pFrame);
 		anim->pCodecCtx = NULL;
 		return -1;
 	}
@@ -600,7 +622,7 @@ static int startffmpeg(struct anim *anim)
 	        anim->x,
 	        anim->y,
 	        AV_PIX_FMT_RGBA,
-	        SWS_FAST_BILINEAR | SWS_PRINT_INFO | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND,
+	        SWS_FAST_BILINEAR | SWS_PRINT_INFO | SWS_FULL_CHR_H_INT,
 	        NULL, NULL, NULL);
 		
 	if (!anim->img_convert_ctx) {
@@ -608,9 +630,9 @@ static int startffmpeg(struct anim *anim)
 		        "Can't transform color space??? Bailing out...\n");
 		avcodec_close(anim->pCodecCtx);
 		avformat_close_input(&anim->pFormatCtx);
-		av_free(anim->pFrameRGB);
-		av_free(anim->pFrameDeinterlaced);
-		av_free(anim->pFrame);
+		av_frame_free(&anim->pFrameRGB);
+		av_frame_free(&anim->pFrameDeinterlaced);
+		av_frame_free(&anim->pFrame);
 		anim->pCodecCtx = NULL;
 		return -1;
 	}
@@ -685,10 +707,12 @@ static void ffmpeg_postprocess(struct anim *anim)
 			input = anim->pFrameDeinterlaced;
 		}
 	}
-	
-	avpicture_fill((AVPicture *) anim->pFrameRGB,
-	               (unsigned char *) ibuf->rect,
-	               AV_PIX_FMT_RGBA, anim->x, anim->y);
+
+	if (!need_aligned_ffmpeg_buffer(anim)) {
+		avpicture_fill((AVPicture *) anim->pFrameRGB,
+		               (unsigned char *) ibuf->rect,
+		               AV_PIX_FMT_RGBA, anim->x, anim->y);
+	}
 
 	if (ENDIAN_ORDER == B_ENDIAN) {
 		int *dstStride   = anim->pFrameRGB->linesize;
@@ -751,6 +775,16 @@ static void ffmpeg_postprocess(struct anim *anim)
 		          anim->y,
 		          dst2,
 		          dstStride2);
+	}
+
+	if (need_aligned_ffmpeg_buffer(anim)) {
+		uint8_t *src = anim->pFrameRGB->data[0];
+		uint8_t *dst = (uint8_t *) ibuf->rect;
+		for (int y = 0; y < anim->y; y++) {
+			memcpy(dst, src, anim->x * 4);
+			dst += anim->x * 4;
+			src += anim->pFrameRGB->linesize[0];
+		}
 	}
 
 	if (filter_y) {
@@ -1134,13 +1168,28 @@ static void free_anim_ffmpeg(struct anim *anim)
 	if (anim->pCodecCtx) {
 		avcodec_close(anim->pCodecCtx);
 		avformat_close_input(&anim->pFormatCtx);
-		av_free(anim->pFrameRGB);
+
+		/* Special case here: pFrame could share pointers with codec,
+		 * so in order to avoid double-free we don't use av_frame_free()
+		 * to free the frame.
+		 *
+		 * Could it be a bug in FFmpeg?
+		 */
 		av_free(anim->pFrame);
 
-		if (anim->ib_flags & IB_animdeinterlace) {
-			MEM_freeN(anim->pFrameDeinterlaced->data[0]);
+		if (!need_aligned_ffmpeg_buffer(anim)) {
+			/* If there's no need for own aligned buffer it means that FFmpeg's
+			 * frame shares the same buffer as temporary ImBuf. In this case we
+			 * should not free the buffer when freeing the FFmpeg buffer.
+			 */
+			avpicture_fill((AVPicture *)anim->pFrameRGB,
+			               NULL,
+			               AV_PIX_FMT_RGBA,
+			               anim->x, anim->y);
 		}
-		av_free(anim->pFrameDeinterlaced);
+		av_frame_free(&anim->pFrameRGB);
+		av_frame_free(&anim->pFrameDeinterlaced);
+
 		sws_freeContext(anim->img_convert_ctx);
 		IMB_freeImBuf(anim->last_frame);
 		if (anim->next_packet.stream_index != -1) {

@@ -3253,7 +3253,7 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 	recttemp.ymax -= delta;
 	
 	/* half rounded */
-	rad = 0.2f * U.widget_unit;
+	rad = BLI_rcti_size_y(&recttemp) / 3;
 	round_box_edges(&wtb, UI_CNR_ALL, &recttemp, rad);
 	
 	/* decoration */
@@ -3499,6 +3499,10 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			
 		/* specials */
 		case UI_WTYPE_ICON:
+			wt.custom = widget_icon_has_anim;
+			break;
+
+		case UI_WTYPE_ICON_LABEL:
 			/* behave like regular labels (this is simply a label with an icon) */
 			wt.state = widget_state_label;
 			wt.custom = widget_icon_has_anim;
@@ -3628,7 +3632,14 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 	}
 	else if (but->dt == UI_EMBOSS_NONE) {
 		/* "nothing" */
-		wt = widget_type(UI_WTYPE_ICON);
+		switch (but->type) {
+			case UI_BTYPE_LABEL:
+				wt = widget_type(UI_WTYPE_ICON_LABEL);
+				break;
+			default:
+				wt = widget_type(UI_WTYPE_ICON);
+				break;
+		}
 	}
 	else if (but->dt == UI_EMBOSS_RADIAL) {
 		wt = widget_type(UI_WTYPE_MENU_ITEM_RADIAL);

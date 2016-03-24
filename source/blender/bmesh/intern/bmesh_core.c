@@ -37,6 +37,7 @@
 #include "BLT_translation.h"
 
 #include "BKE_DerivedMesh.h"
+#include "BKE_mesh.h"
 
 #include "bmesh.h"
 #include "intern/bmesh_private.h"
@@ -1044,13 +1045,18 @@ static int UNUSED_FUNCTION(bm_loop_length)(BMLoop *l)
  *
  * BMESH_TODO: reinsert validation code.
  *
+ * \param cd_loop_mdisp_offset: Cached result of `CustomData_get_offset(&bm->ldata, CD_MDISPS)`.
+ * \param use_loop_mdisp_flip: When set, flip the Z-depth of the mdisp,
+ * (use when flipping normals, disable when mirroring, eg: symmetrize).
+ *
  * \return Success
  */
-static bool bm_loop_reverse_loop(BMesh *bm, BMFace *f
+static bool bm_loop_reverse_loop(
+        BMesh *bm, BMFace *f,
 #ifdef USE_BMESH_HOLES
-                                , BMLoopList *lst
+        BMLoopList *lst,
 #endif
-                                )
+        const int cd_loop_mdisp_offset, const bool use_loop_mdisp_flip)
 {
 
 #ifdef USE_BMESH_HOLES
@@ -1060,7 +1066,6 @@ static bool bm_loop_reverse_loop(BMesh *bm, BMFace *f
 #endif
 
 	const int len = f->len;
-	const int cd_loop_mdisp_offset = CustomData_get_offset(&bm->ldata, CD_MDISPS);
 	BMLoop *l_iter, *oldprev, *oldnext;
 	BMEdge **edar = BLI_array_alloca(edar, len);
 	int i, j, edok;
@@ -1078,38 +1083,8 @@ static bool bm_loop_reverse_loop(BMesh *bm, BMFace *f
 		l_iter = oldnext;
 		
 		if (cd_loop_mdisp_offset != -1) {
-			float (*co)[3];
-			int x, y, sides;
-			MDisps *md;
-			
-			md = BM_ELEM_CD_GET_VOID_P(l_iter, cd_loop_mdisp_offset);
-			if (!md->totdisp || !md->disps)
-				continue;
-
-			sides = (int)sqrt(md->totdisp);
-			co = md->disps;
-			
-			for (x = 0; x < sides; x++) {
-				float *co_a, *co_b;
-
-				for (y = 0; y < x; y++) {
-					co_a = co[y * sides + x];
-					co_b = co[x * sides + y];
-
-					swap_v3_v3(co_a, co_b);
-					SWAP(float, co_a[0], co_a[1]);
-					SWAP(float, co_b[0], co_b[1]);
-
-					co_a[2] *= -1.0f;
-					co_b[2] *= -1.0f;
-				}
-
-				co_a = co[x * sides + x];
-
-				SWAP(float, co_a[0], co_a[1]);
-
-				co_a[2] *= -1.0f;
-			}
+			MDisps *md = BM_ELEM_CD_GET_VOID_P(l_iter, cd_loop_mdisp_offset);
+			BKE_mesh_mdisp_flip(md, use_loop_mdisp_flip);
 		}
 	}
 
@@ -1155,12 +1130,14 @@ static bool bm_loop_reverse_loop(BMesh *bm, BMFace *f
 /**
  * \brief Flip the faces direction
  */
-bool bmesh_loop_reverse(BMesh *bm, BMFace *f)
+bool bmesh_loop_reverse(
+        BMesh *bm, BMFace *f,
+        const int cd_loop_mdisp_offset, const bool use_loop_mdisp_flip)
 {
 #ifdef USE_BMESH_HOLES
-	return bm_loop_reverse_loop(bm, f, f->loops.first);
+	return bm_loop_reverse_loop(bm, f, f->loops.first, cd_loop_mdisp_offset, use_loop_mdisp_flip);
 #else
-	return bm_loop_reverse_loop(bm, f);
+	return bm_loop_reverse_loop(bm, f, cd_loop_mdisp_offset, use_loop_mdisp_flip);
 #endif
 }
 

@@ -48,6 +48,7 @@ struct MFace;
 struct MEdge;
 struct MVert;
 struct MDeformVert;
+struct MDisps;
 struct Object;
 struct CustomData;
 struct DerivedMesh;
@@ -317,6 +318,11 @@ void BKE_mesh_convert_mfaces_to_mpolys_ex(
         int *r_totloop, int *r_totpoly,
         struct MLoop **r_mloop, struct MPoly **r_mpoly);
 
+void BKE_mesh_mdisp_flip(struct MDisps *md, const bool use_loop_mdisp_flip);
+
+void BKE_mesh_polygon_flip_ex(
+        struct MPoly *mpoly, struct MLoop *mloop, struct CustomData *ldata,
+        struct MDisps *mdisp, const bool use_loop_mdisp_flip);
 void BKE_mesh_polygon_flip(struct MPoly *mpoly, struct MLoop *mloop, struct CustomData *ldata);
 void BKE_mesh_polygons_flip(struct MPoly *mpoly, struct MLoop *mloop, struct CustomData *ldata, int totpoly);
 

@@ -363,18 +363,22 @@ if(UNIX AND NOT APPLE)
 		mark_as_advanced(WITH_BOOST_ICU)
 	endif()
 endif()
+
 option(WITH_PYTHON_INSTALL       "Copy system python into the blender install folder" ON)
-option(WITH_PYTHON_INSTALL_NUMPY "Copy system numpy into the blender install folder"  ON)
-set(PYTHON_NUMPY_PATH            "" CACHE PATH "Path to python site-packages or dist-packages containing 'numpy' module")
-mark_as_advanced(PYTHON_NUMPY_PATH)
+if(WITH_PYTHON_INSTALL)
+	option(WITH_PYTHON_INSTALL_NUMPY "Copy system numpy into the blender install folder"  ON)
+	set(PYTHON_NUMPY_PATH            "" CACHE PATH "Path to python site-packages or dist-packages containing 'numpy' module")
+	mark_as_advanced(PYTHON_NUMPY_PATH)
+
+	if(UNIX AND NOT APPLE)
+		option(WITH_PYTHON_INSTALL_REQUESTS "Copy system requests into the blender install folder" ON)
+		set(PYTHON_REQUESTS_PATH "" CACHE PATH "Path to python site-packages or dist-packages containing 'requests' module")
+		mark_as_advanced(PYTHON_REQUESTS_PATH)
+	endif()
+endif()
+
 option(WITH_CPU_SSE              "Enable SIMD instruction if they're detected on the host machine" ON)
 mark_as_advanced(WITH_CPU_SSE)
-
-if(UNIX AND NOT APPLE)
-	option(WITH_PYTHON_INSTALL_REQUESTS "Copy system requests into the blender install folder" ON)
-	set(PYTHON_REQUESTS_PATH "" CACHE PATH "Path to python site-packages or dist-packages containing 'requests' module")
-	mark_as_advanced(PYTHON_REQUESTS_PATH)
-endif()
 
 # Cycles
 option(WITH_CYCLES					"Enable Cycles Render Engine" ON)
@@ -471,8 +475,8 @@ endif()
 # Experimental support of C11 and C++11
 option(WITH_C11 "Build with C11 standard enabled, for development use only!" OFF)
 mark_as_advanced(WITH_C11)
-option(WITH_CPP11 "Build with C++11 standard enabled, for development use only!" OFF)
-mark_as_advanced(WITH_CPP11)
+option(WITH_CXX11 "Build with C++11 standard enabled, for development use only!" OFF)
+mark_as_advanced(WITH_CXX11)
 
 # Dependency graph
 option(WITH_LEGACY_DEPSGRAPH "Build Blender with legacy dependency graph" ON)
@@ -660,7 +664,7 @@ elseif(WITH_CYCLES OR WITH_OPENIMAGEIO OR WITH_AUDASPACE OR WITH_INTERNATIONAL O
 	# Keep enabled
 else()
 	# New dependency graph needs either Boost or C++11 for function bindings.
-	if(NOT USE_CPP11)
+	if(NOT USE_CXX11)
 		# Enabled but we don't need it
 		set(WITH_BOOST OFF)
 	endif()
@@ -2893,7 +2897,7 @@ if(WITH_PYTHON)
 	endif()
 endif()
 
-if(WITH_CPP11)
+if(WITH_CXX11)
 	if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 	elseif(MSVC12)

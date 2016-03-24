@@ -301,7 +301,7 @@ void update_autoflags_fcurve(FCurve *fcu, bContext *C, ReportList *reports, Poin
  * NOTE: any recalculate of the F-Curve that needs to be done will need to 
  *      be done by the caller.
  */
-int insert_bezt_fcurve(FCurve *fcu, BezTriple *bezt, short flag)
+int insert_bezt_fcurve(FCurve *fcu, const BezTriple *bezt, short flag)
 {
 	int i = 0;
 	
@@ -383,11 +383,16 @@ int insert_bezt_fcurve(FCurve *fcu, BezTriple *bezt, short flag)
 	return i;
 }
 
-/* This function is a wrapper for insert_bezt_fcurve_internal(), and should be used when
+/**
+ * This function is a wrapper for insert_bezt_fcurve_internal(), and should be used when
  * adding a new keyframe to a curve, when the keyframe doesn't exist anywhere else yet. 
  * It returns the index at which the keyframe was added.
+ *
+ * \param keyframe_type: The type of keyframe (eBezTriple_KeyframeTypes)
+ * \param flag: Optional flags (eInsertKeyFlags) for controlling how keys get added 
+ *              and/or whether updates get done
  */
-int insert_vert_fcurve(FCurve *fcu, float x, float y, short flag)
+int insert_vert_fcurve(FCurve *fcu, float x, float y, char keyframe_type, short flag)
 {
 	BezTriple beztr = {{{0}}};
 	unsigned int oldTot = fcu->totvert;
@@ -413,9 +418,8 @@ int insert_vert_fcurve(FCurve *fcu, float x, float y, short flag)
 		beztr.ipo = BEZT_IPO_BEZ;
 	}
 	else {
-		/* for UI usage - defaults should come from the */
+		/* for UI usage - defaults should come from the userprefs and/or toolsettings */
 		beztr.h1 = beztr.h2 = U.keyhandles_new; /* use default handle type here */
-		//BEZKEYTYPE(&beztr)= scene->keytype; /* default keyframe type */
 		
 		/* use default interpolation mode, with exceptions for int/discrete values */
 		beztr.ipo = U.ipo_new;
@@ -428,6 +432,9 @@ int insert_vert_fcurve(FCurve *fcu, float x, float y, short flag)
 	else if ((beztr.ipo == BEZT_IPO_BEZ) && (fcu->flag & FCURVE_INT_VALUES)) {
 		beztr.ipo = BEZT_IPO_LIN;
 	}
+	
+	/* set keyframe type value (supplied), which should come from the scene settings in most cases */
+	BEZKEYTYPE(&beztr) = keyframe_type;
 	
 	/* set default values for "easing" interpolation mode settings
 	 * NOTE: Even if these modes aren't currently used, if users switch
@@ -873,11 +880,13 @@ static float visualkey_get_value(PointerRNA *ptr, PropertyRNA *prop, int array_i
  *  Use this when validation of necessary animation data is not necessary, since an RNA-pointer to the necessary
  *	data being keyframed, and a pointer to the F-Curve to use have both been provided.
  *
+ *  keytype is the "keyframe type" (eBezTriple_KeyframeTypes), as shown in the Dope Sheet.
+ *
  *	The flag argument is used for special settings that alter the behavior of
  *	the keyframe insertion. These include the 'visual' keyframing modes, quick refresh,
  *	and extra keyframe filtering.
  */
-bool insert_keyframe_direct(ReportList *reports, PointerRNA ptr, PropertyRNA *prop, FCurve *fcu, float cfra, short flag)
+bool insert_keyframe_direct(ReportList *reports, PointerRNA ptr, PropertyRNA *prop, FCurve *fcu, float cfra, char keytype, short flag)
 {
 	float curval = 0.0f;
 	
@@ -922,6 +931,12 @@ bool insert_keyframe_direct(ReportList *reports, PointerRNA ptr, PropertyRNA *pr
 	/* update F-Curve flags to ensure proper behaviour for property type */
 	update_autoflags_fcurve_direct(fcu, prop);
 	
+	/* adjust frame on which to add keyframe */
+	if ((flag & INSERTKEY_DRIVER) && (fcu->driver)) {
+		/* for making it easier to add corrective drivers... */
+		cfra = evaluate_driver(fcu->driver, cfra);
+	}
+	
 	/* obtain value to give keyframe */
 	if ( (flag & INSERTKEY_MATRIX) && 
 	     (visualkey_can_use(&ptr, prop)) )
@@ -946,7 +961,7 @@ bool insert_keyframe_direct(ReportList *reports, PointerRNA ptr, PropertyRNA *pr
 		
 		/* insert new keyframe at current frame */
 		if (insert_mode)
-			insert_vert_fcurve(fcu, cfra, curval, flag);
+			insert_vert_fcurve(fcu, cfra, curval, keytype, flag);
 		
 		/* delete keyframe immediately before/after newly added */
 		switch (insert_mode) {
@@ -964,7 +979,7 @@ bool insert_keyframe_direct(ReportList *reports, PointerRNA ptr, PropertyRNA *pr
 	}
 	else {
 		/* just insert keyframe */
-		insert_vert_fcurve(fcu, cfra, curval, flag);
+		insert_vert_fcurve(fcu, cfra, curval, keytype, flag);
 		
 		/* return success */
 		return true;
@@ -983,7 +998,7 @@ bool insert_keyframe_direct(ReportList *reports, PointerRNA ptr, PropertyRNA *pr
  *
  *	index of -1 keys all array indices
  */
-short insert_keyframe(ReportList *reports, ID *id, bAction *act, const char group[], const char rna_path[], int array_index, float cfra, short flag)
+short insert_keyframe(ReportList *reports, ID *id, bAction *act, const char group[], const char rna_path[], int array_index, float cfra, char keytype, short flag)
 {	
 	PointerRNA id_ptr, ptr;
 	PropertyRNA *prop = NULL;
@@ -1057,7 +1072,7 @@ short insert_keyframe(ReportList *reports, ID *id, bAction *act, const char grou
 			}
 			
 			/* insert keyframe */
-			ret += insert_keyframe_direct(reports, ptr, prop, fcu, cfra, flag);
+			ret += insert_keyframe_direct(reports, ptr, prop, fcu, cfra, keytype, flag);
 		}
 	}
 	
@@ -1731,9 +1746,11 @@ void ANIM_OT_keyframe_delete_v3d(wmOperatorType *ot)
 static int insert_key_button_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
+	ToolSettings *ts = scene->toolsettings;
 	PointerRNA ptr = {{NULL}};
 	PropertyRNA *prop = NULL;
 	char *path;
+	uiBut *but;
 	float cfra = (float)CFRA;
 	short success = 0;
 	int index;
@@ -1744,6 +1761,7 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
 	flag = ANIM_get_keyframing_flags(scene, 1);
 	
 	/* try to insert keyframe using property retrieved from UI */
+	but = UI_context_active_but_get(C);
 	UI_context_active_but_prop_get(C, &ptr, &prop, &index);
 	
 	if ((ptr.id.data && ptr.data && prop) && RNA_property_animateable(&ptr, prop)) {
@@ -1755,7 +1773,18 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
 			NlaStrip *strip = (NlaStrip *)ptr.data;
 			FCurve *fcu = list_find_fcurve(&strip->fcurves, RNA_property_identifier(prop), index);
 			
-			success = insert_keyframe_direct(op->reports, ptr, prop, fcu, cfra, 0);
+			success = insert_keyframe_direct(op->reports, ptr, prop, fcu, cfra, ts->keyframe_type, 0);
+		}
+		else if (UI_but_flag_is_set(but, UI_BUT_DRIVEN)) {
+			/* Driven property - Find driver */
+			FCurve *fcu;
+			bool driven, special;
+			
+			fcu = rna_get_fcurve_context_ui(C, &ptr, prop, index, NULL, NULL, &driven, &special);
+			
+			if (fcu && driven) {
+				success = insert_keyframe_direct(op->reports, ptr, prop, fcu, cfra, ts->keyframe_type, INSERTKEY_DRIVER);
+			}
 		}
 		else {
 			/* standard properties */
@@ -1767,7 +1796,7 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
 					index = -1;
 				}
 				
-				success = insert_keyframe(op->reports, ptr.id.data, NULL, NULL, path, index, cfra, flag);
+				success = insert_keyframe(op->reports, ptr.id.data, NULL, NULL, path, index, cfra, ts->keyframe_type, flag);
 				
 				MEM_freeN(path);
 			}

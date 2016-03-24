@@ -314,23 +314,25 @@ int list_find_data_fcurves(ListBase *dst, ListBase *src, const char *dataPrefix,
 	return matches;
 }
 
-FCurve *rna_get_fcurve(PointerRNA *ptr, PropertyRNA *prop, int rnaindex, AnimData **adt, 
-                       bAction **action, bool *r_driven, bool *r_special)
+FCurve *rna_get_fcurve(
+        PointerRNA *ptr, PropertyRNA *prop, int rnaindex,
+        AnimData **r_adt,  bAction **r_action, bool *r_driven, bool *r_special)
 {
-	return rna_get_fcurve_context_ui(NULL, ptr, prop, rnaindex, adt, action, r_driven, r_special);
+	return rna_get_fcurve_context_ui(NULL, ptr, prop, rnaindex, r_adt, r_action, r_driven, r_special);
 }
 
-FCurve *rna_get_fcurve_context_ui(bContext *C, PointerRNA *ptr, PropertyRNA *prop, int rnaindex, AnimData **animdata,
-                                  bAction **action, bool *r_driven, bool *r_special)
+FCurve *rna_get_fcurve_context_ui(
+        bContext *C, PointerRNA *ptr, PropertyRNA *prop, int rnaindex,
+        AnimData **r_animdata, bAction **r_action, bool *r_driven, bool *r_special)
 {
 	FCurve *fcu = NULL;
 	PointerRNA tptr = *ptr;
 	
-	if (animdata) *animdata = NULL;
 	*r_driven = false;
 	*r_special = false;
 	
-	if (action) *action = NULL;
+	if (r_animdata) *r_animdata = NULL;
+	if (r_action) *r_action = NULL;
 	
 	/* Special case for NLA Control Curves... */
 	if (ptr->type == &RNA_NlaStrip) {
@@ -372,8 +374,8 @@ FCurve *rna_get_fcurve_context_ui(bContext *C, PointerRNA *ptr, PropertyRNA *pro
 					if (adt->action && adt->action->curves.first) {
 						fcu = list_find_fcurve(&adt->action->curves, path, rnaindex);
 						
-						if (fcu && action)
-							*action = adt->action;
+						if (fcu && r_action)
+							*r_action = adt->action;
 					}
 					
 					/* if not animated, check if driven */
@@ -381,14 +383,14 @@ FCurve *rna_get_fcurve_context_ui(bContext *C, PointerRNA *ptr, PropertyRNA *pro
 						fcu = list_find_fcurve(&adt->drivers, path, rnaindex);
 						
 						if (fcu) {
-							if (animdata) *animdata = adt;
+							if (r_animdata) *r_animdata = adt;
 							*r_driven = true;
 						}
 					}
 					
-					if (fcu && action) {
-						if (animdata) *animdata = adt;
-						*action = adt->action;
+					if (fcu && r_action) {
+						if (r_animdata) *r_animdata = adt;
+						*r_action = adt->action;
 						break;
 					}
 					else if (step) {
@@ -1593,6 +1595,69 @@ void driver_change_variable_type(DriverVar *dvar, int type)
 	DRIVER_TARGETS_LOOPER_END
 }
 
+/* Validate driver name (after being renamed) */
+void driver_variable_name_validate(DriverVar *dvar)
+{
+	/* Special character blacklist */
+	const char special_char_blacklist[] = {
+	    '~', '`', '!', '@', '#', '$', '%', '^', '&', '*', '+', '=', '-',
+	    '/', '\\', '?', ':', ';',  '<', '>', '{', '}', '[', ']', '|',
+	    ' ', '.', '\t', '\n', '\r'
+	};
+	
+	/* sanity checks */
+	if (dvar == NULL)
+		return;
+	
+	/* clear all invalid-name flags */
+	dvar->flag &= ~DVAR_ALL_INVALID_FLAGS;
+	
+	/* 1) Must start with a letter */
+	/* XXX: We assume that valid unicode letters in other languages are ok too, hence the blacklisting */
+	if (ELEM(dvar->name[0], '0', '1', '2', '3', '4', '5', '6', '7', '8', '9')) {
+		dvar->flag |= DVAR_FLAG_INVALID_START_NUM;
+	}
+	else if (dvar->name[0] == '_') {
+		/* NOTE: We don't allow names to start with underscores (i.e. it helps when ruling out security risks) */
+		dvar->flag |= DVAR_FLAG_INVALID_START_CHAR;
+	}
+	
+	/* 2) Must not contain invalid stuff in the middle of the string */
+	if (strchr(dvar->name, ' ')) {
+		dvar->flag |= DVAR_FLAG_INVALID_HAS_SPACE;
+	}
+	if (strchr(dvar->name, '.')) {
+		dvar->flag |= DVAR_FLAG_INVALID_HAS_DOT;
+	}
+	
+	/* 3) Check for special characters - Either at start, or in the middle */
+	for (int i = 0; i < sizeof(special_char_blacklist); i++) {
+		char *match = strchr(dvar->name, special_char_blacklist[i]);
+		
+		if (match == dvar->name)
+			dvar->flag |= DVAR_FLAG_INVALID_START_CHAR;
+		else if (match != NULL)
+			dvar->flag |= DVAR_FLAG_INVALID_HAS_SPECIAL;
+	}
+	
+	/* 4) Check if the name is a reserved keyword
+	 * NOTE: These won't confuse Python, but it will be impossible to use the variable
+	 *       in an expression without Python misinterpreting what these are for
+	 */
+	if (STREQ(dvar->name, "if") || STREQ(dvar->name, "elif") || STREQ(dvar->name, "else") ||
+	    STREQ(dvar->name, "for") || STREQ(dvar->name, "while") || STREQ(dvar->name, "def") ||
+	    STREQ(dvar->name, "True") || STREQ(dvar->name, "False") || STREQ(dvar->name, "import") ||
+	    STREQ(dvar->name, "pass")  || STREQ(dvar->name, "with"))
+	{
+		dvar->flag |= DVAR_FLAG_INVALID_PY_KEYWORD;
+	}
+	
+	
+	/* If any these conditions match, the name is invalid */
+	if (dvar->flag & DVAR_ALL_INVALID_FLAGS)
+		dvar->flag |= DVAR_FLAG_INVALID_NAME;
+}
+
 /* Add a new driver variable */
 DriverVar *driver_add_new_variable(ChannelDriver *driver)
 {
@@ -1619,7 +1684,7 @@ DriverVar *driver_add_new_variable(ChannelDriver *driver)
 	if (driver->type == DRIVER_TYPE_PYTHON)
 		driver->flag |= DRIVER_FLAG_RENAMEVAR;
 #endif
-
+	
 	/* return the target */
 	return dvar;
 }
@@ -1714,7 +1779,7 @@ float driver_get_variable_value(ChannelDriver *driver, DriverVar *dvar)
  *	- "evaltime" is the frame at which F-Curve is being evaluated
  *  - has to return a float value
  */
-static float evaluate_driver(ChannelDriver *driver, const float evaltime)
+float evaluate_driver(ChannelDriver *driver, const float evaltime)
 {
 	DriverVar *dvar;
 	

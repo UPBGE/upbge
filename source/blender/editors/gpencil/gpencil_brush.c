@@ -659,7 +659,7 @@ static bool gp_brush_randomize_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 	 *   and then project these to get the points/distances in
 	 *   viewspace as needed
 	 */
-	float mvec[2], svec[2], nco[2];
+	float mvec[2], svec[2];
 	
 	/* mouse movement in ints -> floats */
 	mvec[0] = (float)(gso->mval[0] - gso->mval_prev[0]);
@@ -679,16 +679,20 @@ static bool gp_brush_randomize_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 		mul_v2_fl(svec, fac);
 	}
 	
-	nco[0] = (float)co[0] + svec[0];
-	nco[1] = (float)co[1] + svec[1];
-	
 	//printf("%f %f (%f), nco = {%f %f}, co = %d %d\n", svec[0], svec[1], fac, nco[0], nco[1], co[0], co[1]);
 	
 	/* convert to dataspace */
 	if (gps->flag & GP_STROKE_3DSPACE) {
 		/* 3D: Project to 3D space */
 		if (gso->sa->spacetype == SPACE_VIEW3D) {
-			gp_point_xy_to_3d(&gso->gsc, gso->scene, nco, &pt->x);
+			bool flip;
+			RegionView3D *rv3d = gso->ar->regiondata;
+			float zfac = ED_view3d_calc_zfac(rv3d, &pt->x, &flip);
+			if (flip == false) {
+				float dvec[3];
+				ED_view3d_win_to_delta(gso->gsc.ar, svec, dvec, zfac);
+				add_v3_v3(&pt->x, dvec);
+			}
 		}
 		else {
 			/* ERROR */
@@ -698,6 +702,10 @@ static bool gp_brush_randomize_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 	else {
 		/* 2D: As-is */
 		// XXX: v2d scaling/offset?
+		float nco[2];
+		nco[0] = (float)co[0] + svec[0];
+		nco[1] = (float)co[1] + svec[1];
+
 		copy_v2_v2(&pt->x, nco);
 	}
 	
@@ -1529,6 +1537,7 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 	tGP_BrushEditData *gso = op->customdata;
 	const bool is_modal = RNA_boolean_get(op->ptr, "wait_for_input");
 	bool redraw_region = false;
+	bool redraw_toolsettings = false;
 	
 	/* The operator can be in 2 states: Painting and Idling */
 	if (gso->is_painting) {
@@ -1567,8 +1576,9 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 					gso->brush->size += 3;
 					CLAMP_MAX(gso->brush->size, 300);
 				}
-					
+				
 				redraw_region = true;
+				redraw_toolsettings = true;
 				break;
 			
 			case WHEELDOWNMOUSE: 
@@ -1583,8 +1593,9 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 					gso->brush->size -= 3;
 					CLAMP_MIN(gso->brush->size, 1);
 				}
-					
+				
 				redraw_region = true;
+				redraw_toolsettings = true;
 				break;
 			
 			/* Painting mbut release = Stop painting (back to idle) */
@@ -1656,8 +1667,9 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 					gso->brush->size += 3;
 					CLAMP_MAX(gso->brush->size, 300);
 				}
-					
+				
 				redraw_region = true;
+				redraw_toolsettings = true;
 				break;
 			
 			case WHEELDOWNMOUSE: 
@@ -1672,8 +1684,9 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 					gso->brush->size -= 3;
 					CLAMP_MIN(gso->brush->size, 1);
 				}
-					
+				
 				redraw_region = true;
+				redraw_toolsettings = true;
 				break;
 			
 			/* Change Frame - Allowed */
@@ -1693,6 +1706,11 @@ static int gpsculpt_brush_modal(bContext *C, wmOperator *op, const wmEvent *even
 	if (redraw_region) {
 		ARegion *ar = CTX_wm_region(C);
 		ED_region_tag_redraw(ar);
+	}
+	
+	/* Redraw toolsettings (brush settings)? */
+	if (redraw_toolsettings) {
+		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
 	}
 	
 	return OPERATOR_RUNNING_MODAL;

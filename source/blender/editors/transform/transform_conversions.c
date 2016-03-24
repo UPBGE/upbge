@@ -5521,6 +5521,7 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob,
 	// TODO: this should probably be done per channel instead...
 	if (autokeyframe_cfra_can_key(scene, id)) {
 		ReportList *reports = CTX_wm_reports(C);
+		ToolSettings *ts = scene->toolsettings;
 		KeyingSet *active_ks = ANIM_scene_get_active_keyingset(scene);
 		ListBase dsources = {NULL, NULL};
 		float cfra = (float)CFRA; // xxx this will do for now
@@ -5547,7 +5548,8 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob,
 					fcu->flag &= ~FCURVE_SELECTED;
 					insert_keyframe(reports, id, adt->action,
 					                (fcu->grp ? fcu->grp->name : NULL),
-					                fcu->rna_path, fcu->array_index, cfra, flag);
+					                fcu->rna_path, fcu->array_index, cfra, 
+					                ts->keyframe_type, flag);
 				}
 			}
 		}
@@ -5639,6 +5641,7 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *o
 	// TODO: this should probably be done per channel instead...
 	if (autokeyframe_cfra_can_key(scene, id)) {
 		ReportList *reports = CTX_wm_reports(C);
+		ToolSettings *ts = scene->toolsettings;
 		KeyingSet *active_ks = ANIM_scene_get_active_keyingset(scene);
 		float cfra = (float)CFRA;
 		short flag = 0;
@@ -5679,9 +5682,13 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *o
 								/* only if bone name matches too... 
 								 * NOTE: this will do constraints too, but those are ok to do here too?
 								 */
-								if (pchanName && STREQ(pchanName, pchan->name)) 
-									insert_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
-									
+								if (pchanName && STREQ(pchanName, pchan->name)) {
+									insert_keyframe(reports, id, act, 
+									                ((fcu->grp) ? (fcu->grp->name) : (NULL)),
+									                fcu->rna_path, fcu->array_index, cfra,
+									                ts->keyframe_type, flag);
+								}
+								
 								if (pchanName) MEM_freeN(pchanName);
 							}
 						}
@@ -7786,15 +7793,26 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 								td->ival = pt->pressure;
 							}
 							
-							/* configure 2D points so that they don't play up... */
-							if (gps->flag & (GP_STROKE_2DSPACE | GP_STROKE_2DIMAGE)) {
+							/* screenspace needs special matrices... */
+							if ((gps->flag & (GP_STROKE_3DSPACE | GP_STROKE_2DSPACE | GP_STROKE_2DIMAGE)) == 0) {
+								/* screenspace */
 								td->protectflag = OB_LOCK_LOCZ | OB_LOCK_ROTZ | OB_LOCK_SCALEZ;
-								// XXX: matrices may need to be different?
+								
+								copy_m3_m4(td->smtx, t->persmat);
+								copy_m3_m4(td->mtx, t->persinv);
+								unit_m3(td->axismtx);
 							}
-							
-							copy_m3_m3(td->smtx, smtx);
-							copy_m3_m3(td->mtx, mtx);
-							unit_m3(td->axismtx); // XXX?
+							else {
+								/* configure 2D dataspace points so that they don't play up... */
+								if (gps->flag & (GP_STROKE_2DSPACE | GP_STROKE_2DIMAGE)) {
+									td->protectflag = OB_LOCK_LOCZ | OB_LOCK_ROTZ | OB_LOCK_SCALEZ;
+									// XXX: matrices may need to be different?
+								}
+								
+								copy_m3_m3(td->smtx, smtx);
+								copy_m3_m3(td->mtx, mtx);
+								unit_m3(td->axismtx); // XXX?
+							}
 							
 							td++;
 							tail++;

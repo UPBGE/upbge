@@ -3201,6 +3201,46 @@ void BKE_mesh_convert_mfaces_to_mpolys_ex(ID *id, CustomData *fdata, CustomData 
 /** \} */
 
 /**
+ * Flip a single MLoop's #MDisps structure,
+ * low level function to be called from face-flipping code which re-arranged the mdisps themselves.
+ */
+void BKE_mesh_mdisp_flip(MDisps *md, const bool use_loop_mdisp_flip)
+{
+	if (UNLIKELY(!md->totdisp || !md->disps)) {
+		return;
+	}
+
+	const int sides = (int)sqrt(md->totdisp);
+	float (*co)[3] = md->disps;
+
+	for (int x = 0; x < sides; x++) {
+		float *co_a, *co_b;
+
+		for (int y = 0; y < x; y++) {
+			co_a = co[y * sides + x];
+			co_b = co[x * sides + y];
+
+			swap_v3_v3(co_a, co_b);
+			SWAP(float, co_a[0], co_a[1]);
+			SWAP(float, co_b[0], co_b[1]);
+
+			if (use_loop_mdisp_flip) {
+				co_a[2] *= -1.0f;
+				co_b[2] *= -1.0f;
+			}
+		}
+
+		co_a = co[x * sides + x];
+
+		SWAP(float, co_a[0], co_a[1]);
+
+		if (use_loop_mdisp_flip) {
+			co_a[2] *= -1.0f;
+		}
+	}
+}
+
+/**
  * Flip (invert winding of) the given \a mpoly, i.e. reverse order of its loops
  * (keeping the same vertex as 'start point').
  *
@@ -3208,16 +3248,24 @@ void BKE_mesh_convert_mfaces_to_mpolys_ex(ID *id, CustomData *fdata, CustomData 
  * \param mloop the full loops array.
  * \param ldata the loops custom data.
  */
-void BKE_mesh_polygon_flip(MPoly *mpoly, MLoop *mloop, CustomData *ldata)
+void BKE_mesh_polygon_flip_ex(
+        MPoly *mpoly, MLoop *mloop, CustomData *ldata,
+        MDisps *mdisp, const bool use_loop_mdisp_flip)
 {
 	int loopstart = mpoly->loopstart;
 	int loopend = loopstart + mpoly->totloop - 1;
 	const bool loops_in_ldata = (CustomData_get_layer(ldata, CD_MLOOP) == mloop);
 
+	if (mdisp) {
+		for (int i = mpoly->loopstart; i <= loopend; i++) {
+			BKE_mesh_mdisp_flip(&mdisp[i], use_loop_mdisp_flip);
+		}
+	}
+
 	/* Note that we keep same start vertex for flipped face. */
 
-	/* We also have to update loops' edge
-	 * (they ell get ther original 'other edge', that is, the original edge of their original previous loop)... */
+	/* We also have to update loops edge
+	 * (they will get their original 'other edge', that is, the original edge of their original previous loop)... */
 	unsigned int prev_edge_index = mloop[loopstart].e;
 	mloop[loopstart].e = mloop[loopend].e;
 
@@ -3236,6 +3284,12 @@ void BKE_mesh_polygon_flip(MPoly *mpoly, MLoop *mloop, CustomData *ldata)
 	}
 }
 
+void BKE_mesh_polygon_flip(MPoly *mpoly, MLoop *mloop, CustomData *ldata)
+{
+	MDisps *mdisp = CustomData_get_layer(ldata, CD_MDISPS);
+	BKE_mesh_polygon_flip_ex(mpoly, mloop, ldata, mdisp, true);
+}
+
 /**
  * Flip (invert winding of) all polygons (used to inverse their normals).
  *
@@ -3244,11 +3298,12 @@ void BKE_mesh_polygon_flip(MPoly *mpoly, MLoop *mloop, CustomData *ldata)
 void BKE_mesh_polygons_flip(
         MPoly *mpoly, MLoop *mloop, CustomData *ldata, int totpoly)
 {
+	MDisps *mdisp = CustomData_get_layer(ldata, CD_MDISPS);
 	MPoly *mp;
 	int i;
 
 	for (mp = mpoly, i = 0; i < totpoly; mp++, i++) {
-		BKE_mesh_polygon_flip(mp, mloop, ldata);
+		BKE_mesh_polygon_flip_ex(mp, mloop, ldata, mdisp, true);
 	}
 }
 

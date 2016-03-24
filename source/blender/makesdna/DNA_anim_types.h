@@ -54,7 +54,7 @@ typedef struct FModifier {
 	
 	void *data;			/* pointer to modifier data */
 	
-	char name[64];		/* user-defined description for the modifier */
+	char name[64];		/* user-defined description for the modifier - MAX_ID_NAME-2 */
 	short type;			/* type of f-curve modifier */
 	short flag;			/* settings for the modifier */
 	
@@ -271,7 +271,7 @@ typedef struct DriverTarget {
 	
 	char *rna_path;			/* RNA path defining the setting to use (for DVAR_TYPE_SINGLE_PROP) */
 	
-	char pchan_name[32];	/* name of the posebone to use (for vars where DTAR_FLAG_STRUCT_REF is used) */
+	char pchan_name[64];	/* name of the posebone to use (for vars where DTAR_FLAG_STRUCT_REF is used) - MAX_ID_NAME-2 */
 	short transChan;		/* transform channel index (for DVAR_TYPE_TRANSFORM_CHAN)*/
 	
 	short flag;				/* flags for the validity of the target (NOTE: these get reset every time the types change) */
@@ -327,13 +327,15 @@ typedef enum eDriverTarget_TransformChannels {
  */
 typedef struct DriverVar {
 	struct DriverVar *next, *prev;
-
-	char name[64];              /* name of the variable to use in py-expression (must be valid python identifier) */
-
+	
+	char name[64];              /* name of the variable to use in py-expression (must be valid python identifier) - MAX_ID_NAME-2 */
+	
 	DriverTarget targets[8];    /* MAX_DRIVER_TARGETS, target slots */
-	short num_targets;          /* number of targets actually used by this variable */
-
-	short type;                 /* type of driver target (eDriverTarget_Types) */
+	
+	char num_targets;           /* number of targets actually used by this variable */
+	char type;                  /* type of driver variable (eDriverVar_Types) */
+	
+	short flag;                 /* validation tags, etc. (eDriverVar_Flags) */
 	float curval;               /* result of previous evaluation */
 } DriverVar;
 
@@ -355,6 +357,38 @@ typedef enum eDriverVar_Types {
 	MAX_DVAR_TYPES
 } eDriverVar_Types;
 
+/* Driver Variable Flags */
+typedef enum eDriverVar_Flags {
+	/* variable is not set up correctly */
+	DVAR_FLAG_ERROR               = (1 << 0),
+	
+	/* variable name doesn't pass the validation tests */
+	DVAR_FLAG_INVALID_NAME        = (1 << 1),
+	/* name starts with a number */
+	DVAR_FLAG_INVALID_START_NUM   = (1 << 2),
+	/* name starts with a special character (!, $, @, #, _, etc.) */
+	DVAR_FLAG_INVALID_START_CHAR  = (1 << 3),
+	/* name contains a space */
+	DVAR_FLAG_INVALID_HAS_SPACE   = (1 << 4),
+	/* name contains a dot */
+	DVAR_FLAG_INVALID_HAS_DOT     = (1 << 5),
+	/* name contains invalid chars */
+	DVAR_FLAG_INVALID_HAS_SPECIAL = (1 << 6),
+	/* name is a reserved keyword */
+	DVAR_FLAG_INVALID_PY_KEYWORD  = (1 << 7),
+} eDriverVar_Flags;
+
+/* All invalid dvar name flags */
+#define DVAR_ALL_INVALID_FLAGS (   \
+	DVAR_FLAG_INVALID_NAME |       \
+	DVAR_FLAG_INVALID_START_NUM | \
+	DVAR_FLAG_INVALID_START_CHAR | \
+	DVAR_FLAG_INVALID_HAS_SPACE |  \
+	DVAR_FLAG_INVALID_HAS_DOT |    \
+	DVAR_FLAG_INVALID_HAS_SPECIAL |  \
+	DVAR_FLAG_INVALID_PY_KEYWORD  \
+)
+
 /* --- */
 
 /* Channel Driver (i.e. Drivers / Expressions) (driver)
@@ -374,7 +408,7 @@ typedef struct ChannelDriver {
 	/* python expression to execute (may call functions defined in an accessory file) 
 	 * which relates the target 'variables' in some way to yield a single usable value
 	 */
-	char expression[256];	/* expression to compile for evaluation */
+	char expression[512];	/* expression to compile for evaluation */
 	void *expr_comp; 		/* PyObject - compiled expression, don't save this */
 	
 	float curval;		/* result of previous evaluation */
@@ -568,7 +602,7 @@ typedef struct NlaStrip {
 	ListBase fcurves;           /* F-Curves for controlling this strip's influence and timing */    // TODO: move out?
 	ListBase modifiers;         /* F-Curve modifiers to be applied to the entire strip's referenced F-Curves */
 
-	char name[64];              /* User-Visible Identifier for Strip */
+	char name[64];              /* User-Visible Identifier for Strip - MAX_ID_NAME-2 */
 
 	float influence;            /* Influence of strip */
 	float strip_time;           /* Current 'time' within action being used (automatically evaluated, but can be overridden) */
@@ -678,7 +712,7 @@ typedef struct NlaTrack {
 	int flag;				/* settings for this track */
 	int index;				/* index of the track in the stack (NOTE: not really useful, but we need a pad var anyways!) */
 	
-	char name[64];			/* short user-description of this track */
+	char name[64];			/* short user-description of this track - MAX_ID_NAME-2 */
 } NlaTrack;
 
 /* settings for track */
@@ -714,7 +748,7 @@ typedef struct KS_Path {
 	struct KS_Path *next, *prev;
 	
 	ID *id;					/* ID block that keyframes are for */
-	char group[64];			/* name of the group to add to */
+	char group[64];			/* name of the group to add to - MAX_ID_NAME-2 */
 	
 	int idtype;				/* ID-type that path can be used on */
 	
@@ -765,10 +799,10 @@ typedef struct KeyingSet {
 	
 	ListBase paths;			/* (KS_Path) paths to keyframe to */
 	
-	char idname[64];		/* unique name (for search, etc.) */
-	char name[64];			/* user-viewable name for KeyingSet (for menus, etc.) */
+	char idname[64];		/* unique name (for search, etc.) - MAX_ID_NAME-2  */
+	char name[64];			/* user-viewable name for KeyingSet (for menus, etc.) - MAX_ID_NAME-2 */
 	char description[240];	/* (RNA_DYN_DESCR_MAX) short help text. */
-	char typeinfo[64];		/* name of the typeinfo data used for the relative paths */
+	char typeinfo[64];		/* name of the typeinfo data used for the relative paths - MAX_ID_NAME-2 */
 	
 	int active_path;		/* index of the active path */
 	
@@ -800,6 +834,7 @@ typedef enum eInsertKeyFlags {
 	/* Allow to make a full copy of new key into existing one, if any, instead of 'reusing' existing handles.
 	 * Used by copy/paste code. */
 	INSERTKEY_OVERWRITE_FULL = (1<<7),
+	INSERTKEY_DRIVER    = (1<<8),	/* for driver FCurves, use driver's "input" value - for easier corrective driver setup */
 } eInsertKeyFlags;
 
 /* ************************************************ */
