@@ -63,7 +63,7 @@ GEN_INLINE MT_Quaternion operator*(const MT_Vector3& w, const MT_Quaternion& q)
 GEN_INLINE MT_Scalar MT_Quaternion::angle(const MT_Quaternion& q) const 
 {
 	MT_Scalar s = sqrtf(length2() * q.length2());
-	assert(s != MT_Scalar(0.0f));
+	BLI_assert(s != MT_Scalar(0.0f));
 	
 	s = dot(q) / s;
 	

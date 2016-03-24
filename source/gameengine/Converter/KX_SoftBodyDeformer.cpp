@@ -34,7 +34,7 @@
 #  pragma warning (disable:4786)
 #endif //WIN32
 
-#include "MT_assert.h"
+#include "BLI_utildefines.h"
 
 #include "KX_SoftBodyDeformer.h"
 #include "RAS_MeshObject.h"

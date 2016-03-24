@@ -17,7 +17,7 @@
 
 #include <stdlib.h>
 
-#include "MT_assert.h"
+#include "BLI_utildefines.h"
 
 #include "EXP_Value.h"
 #include "EXP_InputParser.h"
@@ -411,7 +411,7 @@ int CParser::Priority(int optorkind)
 		case OPtimes:
 		case OPdivide: return 5;
 	}
-	MT_assert(false);
+	BLI_assert(false);
 	return 0;      // should not happen
 }
 
@@ -442,7 +442,7 @@ CExpression *CParser::Ex(int i)
 				case OPless: e1 = new COperator2Expr(VALUE_LES_OPERATOR,e1, e2); break;
 				case OPgreaterequal: e1 = new COperator2Expr(VALUE_GEQ_OPERATOR,e1, e2); break;
 				case OPlessequal: e1 = new COperator2Expr(VALUE_LEQ_OPERATOR,e1, e2); break;
-				default: MT_assert(false);	break; // should not happen
+				default: BLI_assert(false);	break; // should not happen
 			}
 		}
 	} else if (i == NUM_PRIORITY) {
@@ -489,7 +489,7 @@ CExpression *CParser::Ex(int i)
 							e1 = new CConstExpr(new CStringValue(const_as_string,""));
 							break;
 						default :
-							MT_assert(false);
+							BLI_assert(false);
 							break;
 					}
 					NextSym();
@@ -527,7 +527,7 @@ CExpression *CParser::Ex(int i)
 				}
 				case errorsym:
 				{
-					MT_assert(!e1);
+					BLI_assert(!e1);
 					STR_String errtext="[no info]";
 					if (errmsg)
 					{
@@ -542,7 +542,7 @@ CExpression *CParser::Ex(int i)
 							errmsg=NULL;
 						} else {
 							// does this happen ?
-							MT_assert("does this happen");
+							BLI_assert("does this happen");
 						}
 					}
 					e1 = Error(errtext);
@@ -552,7 +552,7 @@ CExpression *CParser::Ex(int i)
 				default:
 					NextSym();
 					//return Error("Expression expected");
-					MT_assert(!e1);
+					BLI_assert(!e1);
 					e1 = Error("Expression expected");
 			}
 		}

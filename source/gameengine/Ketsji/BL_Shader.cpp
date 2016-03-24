@@ -28,7 +28,7 @@
 #include "BL_Shader.h"
 #include "BL_Material.h"
 
-#include "MT_assert.h"
+#include "BLI_utildefines.h"
 #include "MT_Matrix4x4.h"
 #include "MT_Matrix3x3.h"
 #include "KX_PyMath.h"
@@ -53,7 +53,7 @@ BL_Uniform::BL_Uniform(int data_size)
 	mDataLen(data_size)
 {
 #ifdef SORT_UNIFORMS
-	MT_assert((int)mDataLen <= UNIFORM_MAX_LEN);
+	BLI_assert((int)mDataLen <= UNIFORM_MAX_LEN);
 	mData = (void *)MEM_mallocN(mDataLen, "shader-uniform-alloc");
 #endif
 }
@@ -71,7 +71,7 @@ BL_Uniform::~BL_Uniform()
 void BL_Uniform::Apply(class BL_Shader *shader)
 {
 #ifdef SORT_UNIFORMS
-	MT_assert(mType > UNI_NONE && mType < UNI_MAX && mData);
+	BLI_assert(mType > UNI_NONE && mType < UNI_MAX && mData);
 
 	if (!mDirty) {
 		return;
@@ -452,7 +452,7 @@ unsigned int BL_Shader::GetProg()
 
 //const BL_Sampler *BL_Shader::GetSampler(int i)
 //{
-//	MT_assert(i<=MAXTEX);
+//	BLI_assert(i<=MAXTEX);
 //	return &mSampler[i];
 //}
 
@@ -465,7 +465,7 @@ void BL_Shader::SetSampler(int loc, int unit)
 
 //void BL_Shader::InitializeSampler(int unit, BL_Texture *texture)
 //{
-//	MT_assert(unit <= MAXTEX);
+//	BLI_assert(unit <= MAXTEX);
 //	mSampler[unit].mTexture = texture;
 //	mSampler[unit].mLoc = -1;
 //	mSampler[unit].mOwn = 0;
@@ -615,7 +615,7 @@ void BL_Shader::BindAttribute(const char *attr, int loc)
 int BL_Shader::GetUniformLocation(const char *name)
 {
 	if (GLEW_ARB_fragment_shader && GLEW_ARB_vertex_shader && GLEW_ARB_shader_objects) {
-		MT_assert(mShader != 0);
+		BLI_assert(mShader != 0);
 		int location = glGetUniformLocationARB(mShader, name);
 
 		if (location == -1) {
@@ -715,7 +715,7 @@ void BL_Shader::SetUniform(int uniform, const float *val, int len)
 			glUniform4fvARB(uniform, 1, (GLfloat *)val);
 		}
 		else {
-			MT_assert(0);
+			BLI_assert(0);
 		}
 	}
 }
@@ -733,7 +733,7 @@ void BL_Shader::SetUniform(int uniform, const int *val, int len)
 			glUniform4ivARB(uniform, 1, (GLint *)val);
 		}
 		else {
-			MT_assert(0);
+			BLI_assert(0);
 		}
 	}
 }

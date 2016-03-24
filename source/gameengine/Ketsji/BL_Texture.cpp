@@ -31,7 +31,7 @@
 #include "BL_Material.h"
 #include "BL_Texture.h"
 #include "MT_Matrix4x4.h"
-#include "MT_assert.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_texture_types.h"
 #include "DNA_image_types.h"

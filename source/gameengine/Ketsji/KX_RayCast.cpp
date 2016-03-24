@@ -84,7 +84,7 @@ bool KX_RayCast::RayTest(PHY_IPhysicsEnvironment* physics_environment, const MT_
 		if (!info)
 		{
 			printf("no info!\n");
-			MT_assert(info && "Physics controller with no client object info");
+			BLI_assert(info && "Physics controller with no client object info");
 			break;
 		}
 		

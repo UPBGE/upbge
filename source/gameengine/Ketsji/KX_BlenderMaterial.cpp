@@ -267,7 +267,7 @@ void KX_BlenderMaterial::OnExit()
 
 void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 {
-	MT_assert(GLEW_ARB_shader_objects && m_shader);
+	BLI_assert(GLEW_ARB_shader_objects && m_shader);
 
 	int i;
 

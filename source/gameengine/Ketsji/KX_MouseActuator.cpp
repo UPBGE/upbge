@@ -28,7 +28,7 @@
 #include "KX_GameObject.h"
 #include "MT_Vector3.h"
 #include "MT_Scalar.h"
-#include "MT_assert.h"
+#include "BLI_utildefines.h"
 #include "limits.h"
 
 #include "BLI_math.h"
@@ -319,7 +319,7 @@ void KX_MouseActuator::ProcessReplica()
 
 void KX_MouseActuator::getMousePosition(float* pos)
 {
-	MT_assert(m_mouse);
+	BLI_assert(m_mouse);
 	const SCA_InputEvent & xevent = m_mouse->GetEventValue(SCA_IInputDevice::KX_MOUSEX);
 	const SCA_InputEvent & yevent = m_mouse->GetEventValue(SCA_IInputDevice::KX_MOUSEY);
 

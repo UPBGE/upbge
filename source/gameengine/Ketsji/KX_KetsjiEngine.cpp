@@ -193,25 +193,25 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 
 void KX_KetsjiEngine::SetKeyboardDevice(SCA_IInputDevice *keyboarddevice)
 {
-	MT_assert(keyboarddevice);
+	BLI_assert(keyboarddevice);
 	m_keyboarddevice = keyboarddevice;
 }
 
 void KX_KetsjiEngine::SetMouseDevice(SCA_IInputDevice *mousedevice)
 {
-	MT_assert(mousedevice);
+	BLI_assert(mousedevice);
 	m_mousedevice = mousedevice;
 }
 
 void KX_KetsjiEngine::SetCanvas(RAS_ICanvas *canvas)
 {
-	MT_assert(canvas);
+	BLI_assert(canvas);
 	m_canvas = canvas;
 }
 
 void KX_KetsjiEngine::SetRasterizer(RAS_IRasterizer *rasterizer)
 {
-	MT_assert(rasterizer);
+	BLI_assert(rasterizer);
 	m_rasterizer = rasterizer;
 }
 
@@ -227,7 +227,7 @@ void KX_KetsjiEngine::SetNetworkMessageManager(KX_NetworkMessageManager *manager
  */
 void KX_KetsjiEngine::SetPyNamespace(PyObject *pythondictionary)
 {
-	MT_assert(pythondictionary);
+	BLI_assert(pythondictionary);
 	m_pythondictionary = pythondictionary;
 }
 
@@ -240,7 +240,7 @@ PyObject *KX_KetsjiEngine::GetPyProfileDict()
 
 void KX_KetsjiEngine::SetSceneConverter(KX_ISceneConverter *sceneconverter)
 {
-	MT_assert(sceneconverter);
+	BLI_assert(sceneconverter);
 	m_sceneconverter = sceneconverter;
 }
 

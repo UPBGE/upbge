@@ -16,7 +16,7 @@ GEN_INLINE MT_Vector4& MT_Vector4::operator*=(MT_Scalar s) {
 }
 
 GEN_INLINE MT_Vector4& MT_Vector4::operator/=(MT_Scalar s) {
-    MT_assert(!MT_fuzzyZero(s));
+    BLI_assert(!MT_fuzzyZero(s));
     return *this *= MT_Scalar(1.0f) / s;
 }
 
@@ -39,7 +39,7 @@ GEN_INLINE MT_Vector4 operator*(const MT_Vector4& v, MT_Scalar s) {
 GEN_INLINE MT_Vector4 operator*(MT_Scalar s, const MT_Vector4& v) { return v * s; }
 
 GEN_INLINE MT_Vector4 operator/(const MT_Vector4& v, MT_Scalar s) {
-    MT_assert(!MT_fuzzyZero(s));
+    BLI_assert(!MT_fuzzyZero(s));
     return v * (MT_Scalar(1.0f) / s);
 }
 

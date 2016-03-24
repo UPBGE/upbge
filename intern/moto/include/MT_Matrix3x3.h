@@ -47,7 +47,7 @@
 #ifndef MT_MATRIX3X3_H
 #define MT_MATRIX3X3_H
 
-#include <MT_assert.h>
+#include <BLI_utildefines.h>
 
 #include "MT_Vector3.h"
 #include "MT_Quaternion.h"
@@ -131,7 +131,7 @@ public:
   
     void setRotation(const MT_Quaternion& q) {
         MT_Scalar d = q.length2();
-        MT_assert(!MT_fuzzyZero2(d));
+        BLI_assert(!MT_fuzzyZero2(d));
         MT_Scalar s = MT_Scalar(2.0f) / d;
         MT_Scalar xs = q[0] * s,   ys = q[1] * s,   zs = q[2] * s;
         MT_Scalar wx = q[3] * xs,  wy = q[3] * ys,  wz = q[3] * zs;

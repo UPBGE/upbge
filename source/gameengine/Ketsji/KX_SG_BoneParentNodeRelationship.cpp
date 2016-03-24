@@ -31,7 +31,9 @@
 
 
 #include <iostream>
- 
+
+#include "BLI_utildefines.h"
+
 #include "KX_SG_BoneParentNodeRelationship.h"
 
 #include "MT_Matrix4x4.h"
@@ -60,7 +62,7 @@ UpdateChildCoordinates(
 	const SG_Spatial * parent,
 	bool& parentUpdated
 ) {
-	MT_assert(child != NULL);
+	BLI_assert(child != NULL);
 	
 	// This way of accessing child coordinates is a bit cumbersome
 	// be nice to have non constant reference access to these values.
