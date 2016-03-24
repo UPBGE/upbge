@@ -49,7 +49,7 @@ typedef float sample_t;
 
 #include "KX_GameObject.h"
 #include "KX_PyMath.h" // needed for PyObjectFrom()
-#include "KX_PythonInit.h"
+#include "KX_Globals.h"
 #include "KX_Camera.h"
 #include <iostream>
 

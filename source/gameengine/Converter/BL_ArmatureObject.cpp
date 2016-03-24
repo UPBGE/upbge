@@ -58,7 +58,7 @@ extern "C" {
 #include "DNA_scene_types.h"
 #include "DNA_constraint_types.h"
 #include "RNA_access.h"
-#include "KX_PythonInit.h"
+#include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 
 #include "EXP_ListWrapper.h"

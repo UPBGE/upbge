@@ -41,6 +41,7 @@
 #endif /* __linux__ */
 
 #include "KX_KetsjiEngine.h"
+#include "KX_Globals.h"
 #include "KX_PythonInit.h"
 #include "KX_PythonMain.h"
 #include "KX_PyConstraintBinding.h" // for PHY_SetActiveEnvironment

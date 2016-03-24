@@ -76,6 +76,7 @@ extern "C"
 #include "SCA_IActuator.h"
 #include "RAS_MeshObject.h"
 #include "RAS_OpenGLRasterizer.h"
+#include "KX_Globals.h"
 #include "KX_PythonInit.h"
 #include "KX_PyConstraintBinding.h"
 #include "BL_Material.h" // MAXTEX
@@ -718,10 +719,13 @@ bool GPG_Application::startEngine(void)
 			m_canvas,
 			m_networkMessageManager);
 
+		KX_SetActiveScene(m_kxStartScene);
+		KX_SetActiveEngine(m_ketsjiengine);
+
 #ifdef WITH_PYTHON
 			// some python things
 			PyObject *gameLogic, *gameLogic_keys;
-			setupGamePython(m_ketsjiengine, m_kxStartScene, m_maggie, NULL, &gameLogic, &gameLogic_keys, m_argc, m_argv);
+			setupGamePython(m_ketsjiengine, m_maggie, NULL, &gameLogic, &gameLogic_keys, m_argc, m_argv);
 #endif // WITH_PYTHON
 
 		//initialize Dome Settings

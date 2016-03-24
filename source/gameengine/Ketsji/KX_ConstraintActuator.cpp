@@ -40,7 +40,7 @@
 #include "MT_Matrix3x3.h"
 #include "KX_GameObject.h"
 #include "KX_RayCast.h"
-#include "KX_PythonInit.h" // KX_GetActiveScene
+#include "KX_Globals.h" // KX_GetActiveScene
 #include "RAS_MeshObject.h"
 
 #include <stdio.h>

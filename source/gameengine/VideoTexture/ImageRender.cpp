@@ -38,7 +38,7 @@
 
 #include "glew-mx.h"
 
-#include "KX_PythonInit.h"
+#include "KX_Globals.h"
 #include "DNA_scene_types.h"
 #include "RAS_CameraData.h"
 #include "RAS_MeshObject.h"

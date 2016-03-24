@@ -80,6 +80,7 @@ set(SRC
 	KX_FontObject.cpp
 	KX_GameActuator.cpp
 	KX_GameObject.cpp
+	KX_Globals.cpp
 	KX_IpoConvert.cpp
 	KX_IPO_SGController.cpp
 	KX_KetsjiEngine.cpp
@@ -153,6 +154,7 @@ set(SRC
 	KX_FontObject.h
 	KX_GameActuator.h
 	KX_GameObject.h
+	KX_Globals.h
 	KX_IInterpolator.h
 	KX_IpoConvert.h
 	KX_IPOTransform.h

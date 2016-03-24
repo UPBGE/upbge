@@ -49,7 +49,7 @@
 #include "BL_Texture.h"
 
 #include "KX_KetsjiEngine.h"
-#include "KX_PythonInit.h"
+#include "KX_Globals.h"
 #include "Texture.h"
 #include "ImageBase.h"
 #include "Exception.h"

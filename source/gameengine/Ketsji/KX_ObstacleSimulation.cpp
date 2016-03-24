@@ -28,7 +28,7 @@
 
 #include "KX_ObstacleSimulation.h"
 #include "KX_NavMeshObject.h"
-#include "KX_PythonInit.h"
+#include "KX_Globals.h"
 #include "DNA_object_types.h"
 #include "BLI_math.h"
 

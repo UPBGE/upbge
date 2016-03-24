@@ -113,6 +113,7 @@ extern "C" {
 #include "EXP_ListValue.h"
 #include "EXP_InputParser.h"
 #include "KX_Scene.h"
+#include "KX_Globals.h"
 
 #include "KX_NetworkMessageScene.h" //Needed for sendMessage()
 
@@ -154,51 +155,12 @@ extern "C" {
 
 #ifdef WITH_PYTHON
 
-static RAS_ICanvas* gp_Canvas = NULL;
 static char gp_GamePythonPath[FILE_MAX] = "";
 static char gp_GamePythonPathOrig[FILE_MAX] = ""; // not super happy about this, but we need to remember the first loaded file for the global/dict load save
 
 static SCA_PythonKeyboard* gp_PythonKeyboard = NULL;
 static SCA_PythonMouse* gp_PythonMouse = NULL;
 static SCA_PythonJoystick* gp_PythonJoysticks[JOYINDEX_MAX] = {NULL};
-#endif // WITH_PYTHON
-
-static KX_Scene*	gp_KetsjiScene = NULL;
-static KX_KetsjiEngine*	gp_KetsjiEngine = NULL;
-static RAS_IRasterizer* gp_Rasterizer = NULL;
-
-
-void KX_SetActiveScene(class KX_Scene* scene)
-{
-	gp_KetsjiScene = scene;
-}
-
-class KX_Scene* KX_GetActiveScene()
-{
-	return gp_KetsjiScene;
-}
-
-class KX_KetsjiEngine* KX_GetActiveEngine()
-{
-	return gp_KetsjiEngine;
-}
-
-/* why is this in python? */
-void KX_RasterizerDrawDebugLine(const MT_Vector3& from,const MT_Vector3& to,const MT_Vector3& color)
-{
-	if (gp_Rasterizer)
-		gp_Rasterizer->DrawDebugLine(gp_KetsjiScene, from, to, color);
-}
-
-void KX_RasterizerDrawDebugCircle(const MT_Vector3& center, const MT_Scalar radius, const MT_Vector3& color,
-                                  const MT_Vector3& normal, int nsector)
-{
-	if (gp_Rasterizer)
-		gp_Rasterizer->DrawDebugCircle(gp_KetsjiScene, center, radius, color, normal, nsector);
-}
-
-#ifdef WITH_PYTHON
-
 
 static struct {
 	PyObject *path;
@@ -244,8 +206,9 @@ static PyObject *gPySetGravity(PyObject *, PyObject *value)
 	if (!PyVecTo(value, vec))
 		return NULL;
 
-	if (gp_KetsjiScene)
-		gp_KetsjiScene->SetGravity(vec);
+	KX_Scene *scene = KX_GetActiveScene();
+	if (scene)
+		scene->SetGravity(vec);
 	
 	Py_RETURN_NONE;
 }
@@ -283,8 +246,8 @@ static PyObject *gPyStartGame(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "s:startGame", &blendfile))
 		return NULL;
 
-	gp_KetsjiEngine->RequestExit(KX_EXIT_REQUEST_START_OTHER_GAME);
-	gp_KetsjiEngine->SetNameNextGame(blendfile);
+	KX_GetActiveEngine()->RequestExit(KX_EXIT_REQUEST_START_OTHER_GAME);
+	KX_GetActiveEngine()->SetNameNextGame(blendfile);
 
 	Py_RETURN_NONE;
 }
@@ -295,7 +258,7 @@ PyDoc_STRVAR(gPyEndGame_doc,
 );
 static PyObject *gPyEndGame(PyObject *)
 {
-	gp_KetsjiEngine->RequestExit(KX_EXIT_REQUEST_QUIT_GAME);
+	KX_GetActiveEngine()->RequestExit(KX_EXIT_REQUEST_QUIT_GAME);
 
 	//printf("%s\n", gp_GamePythonPath);
 
@@ -308,8 +271,8 @@ PyDoc_STRVAR(gPyRestartGame_doc,
 );
 static PyObject *gPyRestartGame(PyObject *)
 {
-	gp_KetsjiEngine->RequestExit(KX_EXIT_REQUEST_RESTART_GAME);
-	gp_KetsjiEngine->SetNameNextGame(gp_GamePythonPath);
+	KX_GetActiveEngine()->RequestExit(KX_EXIT_REQUEST_RESTART_GAME);
+	KX_GetActiveEngine()->SetNameNextGame(gp_GamePythonPath);
 
 	Py_RETURN_NONE;
 }
@@ -403,7 +366,7 @@ PyDoc_STRVAR(gPyGetProfileInfo_doc,
 );
 static PyObject *gPyGetProfileInfo(PyObject *)
 {
-	return gp_KetsjiEngine->GetPyProfileDict();
+	return KX_GetActiveEngine()->GetPyProfileDict();
 }
 
 PyDoc_STRVAR(gPySendMessage_doc,
@@ -429,7 +392,7 @@ static PyObject *gPySendMessage(PyObject *, PyObject *args)
 		return NULL;
 	}
 
-	gp_KetsjiScene->GetNetworkMessageScene()->SendMessage(to, from, subject, body);
+	KX_GetActiveScene()->GetNetworkMessageScene()->SendMessage(to, from, subject, body);
 
 	Py_RETURN_NONE;
 }
@@ -540,7 +503,7 @@ static PyObject *gPyGetAverageFrameRate(PyObject *)
 
 static PyObject *gPyGetUseExternalClock(PyObject *)
 {
-	return PyBool_FromLong(gp_KetsjiEngine->GetUseExternalClock());
+	return PyBool_FromLong(KX_GetActiveEngine()->GetUseExternalClock());
 }
 
 static PyObject *gPySetUseExternalClock(PyObject *, PyObject *args)
@@ -550,13 +513,13 @@ static PyObject *gPySetUseExternalClock(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "p:setUseExternalClock", &bUseExternalClock))
 		return NULL;
 
-	gp_KetsjiEngine->SetUseExternalClock(bUseExternalClock);
+	KX_GetActiveEngine()->SetUseExternalClock(bUseExternalClock);
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetClockTime(PyObject *)
 {
-	return PyFloat_FromDouble(gp_KetsjiEngine->GetClockTime());
+	return PyFloat_FromDouble(KX_GetActiveEngine()->GetClockTime());
 }
 
 static PyObject *gPySetClockTime(PyObject *, PyObject *args)
@@ -566,23 +529,23 @@ static PyObject *gPySetClockTime(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "d:setClockTime", &externalClockTime))
 		return NULL;
 
-	gp_KetsjiEngine->SetClockTime(externalClockTime);
+	KX_GetActiveEngine()->SetClockTime(externalClockTime);
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetFrameTime(PyObject *)
 {
-	return PyFloat_FromDouble(gp_KetsjiEngine->GetFrameTime());
+	return PyFloat_FromDouble(KX_GetActiveEngine()->GetFrameTime());
 }
 
 static PyObject *gPyGetRealTime(PyObject *)
 {
-	return PyFloat_FromDouble(gp_KetsjiEngine->GetRealTime());
+	return PyFloat_FromDouble(KX_GetActiveEngine()->GetRealTime());
 }
 
 static PyObject *gPyGetTimeScale(PyObject *)
 {
-	return PyFloat_FromDouble(gp_KetsjiEngine->GetTimeScale());
+	return PyFloat_FromDouble(KX_GetActiveEngine()->GetTimeScale());
 }
 
 static PyObject *gPySetTimeScale(PyObject *, PyObject *args)
@@ -592,7 +555,7 @@ static PyObject *gPySetTimeScale(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "d:setTimeScale", &time_scale))
 			return NULL;
 
-	gp_KetsjiEngine->SetTimeScale(time_scale);
+	KX_GetActiveEngine()->SetTimeScale(time_scale);
 	Py_RETURN_NONE;
 }
 
@@ -650,7 +613,7 @@ static PyObject *gPyAddScene(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "s|i:addScene", &name , &overlay))
 		return NULL;
 	
-	gp_KetsjiEngine->ConvertAndAddScene(name, (overlay != 0));
+	KX_GetActiveEngine()->ConvertAndAddScene(name, (overlay != 0));
 
 	Py_RETURN_NONE;
 }
@@ -661,7 +624,7 @@ PyDoc_STRVAR(gPyGetCurrentScene_doc,
 );
 static PyObject *gPyGetCurrentScene(PyObject *self)
 {
-	return gp_KetsjiScene->GetProxy();
+	return KX_GetActiveScene()->GetProxy();
 }
 
 PyDoc_STRVAR(gPyGetSceneList_doc,
@@ -675,14 +638,15 @@ static PyObject *gPyGetSceneList(PyObject *self)
 
 static PyObject *pyPrintStats(PyObject *,PyObject *,PyObject *)
 {
-	gp_KetsjiScene->GetSceneConverter()->PrintStats();
+	KX_GetActiveScene()->GetSceneConverter()->PrintStats();
 	Py_RETURN_NONE;
 }
 
 static PyObject *pyPrintExt(PyObject *,PyObject *,PyObject *)
 {
-	if (gp_Rasterizer)
-		gp_Rasterizer->PrintHardwareInfo();
+	RAS_IRasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
+	if (rasterizer)
+		rasterizer->PrintHardwareInfo();
 	else
 		printf("Warning: no rasterizer detected for PrintGLInfo!\n");
 
@@ -691,7 +655,7 @@ static PyObject *pyPrintExt(PyObject *,PyObject *,PyObject *)
 
 static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 {
-	KX_Scene *kx_scene= gp_KetsjiScene;
+	KX_Scene *kx_scene= KX_GetActiveScene();
 	char *path;
 	char *group;
 	Py_buffer py_buffer;
@@ -750,7 +714,7 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 
 static PyObject *gLibNew(PyObject *, PyObject *args)
 {
-	KX_Scene *kx_scene= gp_KetsjiScene;
+	KX_Scene *kx_scene= KX_GetActiveScene();
 	char *path;
 	char *group;
 	const char *name;
@@ -808,7 +772,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 
 static PyObject *gLibFree(PyObject *, PyObject *args)
 {
-	KX_Scene *kx_scene= gp_KetsjiScene;
+	KX_Scene *kx_scene= KX_GetActiveScene();
 	char *path;
 
 	if (!PyArg_ParseTuple(args,"s:LibFree",&path))
@@ -825,7 +789,7 @@ static PyObject *gLibFree(PyObject *, PyObject *args)
 
 static PyObject *gLibList(PyObject *, PyObject *args)
 {
-	vector<Main*> &dynMaggie = gp_KetsjiScene->GetSceneConverter()->GetMainDynamic();
+	vector<Main*> &dynMaggie = KX_GetActiveScene()->GetSceneConverter()->GetMainDynamic();
 	int i= 0;
 	PyObject *list= PyList_New(dynMaggie.size());
 	
@@ -908,14 +872,16 @@ static struct PyMethodDef game_methods[] = {
 
 static PyObject *gPyGetWindowHeight(PyObject *, PyObject *args)
 {
-	return PyLong_FromLong((gp_Canvas ? gp_Canvas->GetHeight() : 0));
+	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+	return PyLong_FromLong((canvas ? canvas->GetHeight() : 0));
 }
 
 
 
 static PyObject *gPyGetWindowWidth(PyObject *, PyObject *args)
 {
-	return PyLong_FromLong((gp_Canvas ? gp_Canvas->GetWidth() : 0));
+	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+	return PyLong_FromLong((canvas ? canvas->GetWidth() : 0));
 }
 
 
@@ -940,15 +906,17 @@ static PyObject *gPyShowMouse(PyObject *, PyObject *args)
 	int visible;
 	if (!PyArg_ParseTuple(args,"i:showMouse",&visible))
 		return NULL;
-	
+
+	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+
 	if (visible)
 	{
-		if (gp_Canvas)
-			gp_Canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
+		if (canvas)
+			canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
 	} else
 	{
-		if (gp_Canvas)
-			gp_Canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
+		if (canvas)
+			canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
 	}
 	
 	Py_RETURN_NONE;
@@ -961,9 +929,11 @@ static PyObject *gPySetMousePosition(PyObject *, PyObject *args)
 	int x,y;
 	if (!PyArg_ParseTuple(args,"ii:setMousePosition",&x,&y))
 		return NULL;
-	
-	if (gp_Canvas)
-		gp_Canvas->SetMousePosition(x,y);
+
+	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+
+	if (canvas)
+		canvas->SetMousePosition(x,y);
 	
 	Py_RETURN_NONE;
 }
@@ -974,24 +944,24 @@ static PyObject *gPySetEyeSeparation(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "f:setEyeSeparation", &sep))
 		return NULL;
 
-	if (!gp_Rasterizer) {
+	if (!KX_GetActiveEngine()->GetRasterizer()) {
 		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.setEyeSeparation(float), Rasterizer not available");
 		return NULL;
 	}
 	
-	gp_Rasterizer->SetEyeSeparation(sep);
+	KX_GetActiveEngine()->GetRasterizer()->SetEyeSeparation(sep);
 	
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetEyeSeparation(PyObject *)
 {
-	if (!gp_Rasterizer) {
+	if (!KX_GetActiveEngine()->GetRasterizer()) {
 		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.getEyeSeparation(), Rasterizer not available");
 		return NULL;
 	}
 	
-	return PyFloat_FromDouble(gp_Rasterizer->GetEyeSeparation());
+	return PyFloat_FromDouble(KX_GetActiveEngine()->GetRasterizer()->GetEyeSeparation());
 }
 
 static PyObject *gPySetFocalLength(PyObject *, PyObject *args)
@@ -1000,24 +970,24 @@ static PyObject *gPySetFocalLength(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "f:setFocalLength", &focus))
 		return NULL;
 	
-	if (!gp_Rasterizer) {
+	if (!KX_GetActiveEngine()->GetRasterizer()) {
 		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.setFocalLength(float), Rasterizer not available");
 		return NULL;
 	}
 
-	gp_Rasterizer->SetFocalLength(focus);
+	KX_GetActiveEngine()->GetRasterizer()->SetFocalLength(focus);
 	
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetFocalLength(PyObject *, PyObject *, PyObject *)
 {
-	if (!gp_Rasterizer) {
+	if (!KX_GetActiveEngine()->GetRasterizer()) {
 		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.getFocalLength(), Rasterizer not available");
 		return NULL;
 	}
 	
-	return PyFloat_FromDouble(gp_Rasterizer->GetFocalLength());
+	return PyFloat_FromDouble(KX_GetActiveEngine()->GetRasterizer()->GetFocalLength());
 	
 	Py_RETURN_NONE;
 }
@@ -1026,13 +996,15 @@ static PyObject *gPyGetStereoEye(PyObject *, PyObject *, PyObject *)
 {
 	int flag = RAS_IRasterizer::RAS_STEREO_LEFTEYE;
 
-	if (!gp_Rasterizer) {
+	RAS_IRasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
+
+	if (!rasterizer) {
 		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.getStereoEye(), Rasterizer not available");
 		return NULL;
 	}
 
-	if (gp_Rasterizer->Stereo())
-		flag = gp_Rasterizer->GetEye();
+	if (rasterizer->Stereo())
+		flag = rasterizer->GetEye();
 
 	return PyLong_FromLong(flag);
 }
@@ -1042,10 +1014,11 @@ static PyObject *gPyMakeScreenshot(PyObject *, PyObject *args)
 	char* filename;
 	if (!PyArg_ParseTuple(args,"s:makeScreenshot",&filename))
 		return NULL;
-	
-	if (gp_Canvas)
-	{
-		gp_Canvas->MakeScreenShot(filename);
+
+	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+
+	if (canvas) {
+		canvas->MakeScreenShot(filename);
 	}
 	
 	Py_RETURN_NONE;
@@ -1057,24 +1030,24 @@ static PyObject *gPyEnableMotionBlur(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args,"f:enableMotionBlur",&motionblurvalue))
 		return NULL;
 	
-	if (!gp_Rasterizer) {
+	if (!KX_GetActiveEngine()->GetRasterizer()) {
 		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.enableMotionBlur(float), Rasterizer not available");
 		return NULL;
 	}
 	
-	gp_Rasterizer->EnableMotionBlur(motionblurvalue);
+	KX_GetActiveEngine()->GetRasterizer()->EnableMotionBlur(motionblurvalue);
 	
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyDisableMotionBlur(PyObject *)
 {
-	if (!gp_Rasterizer) {
+	if (!KX_GetActiveEngine()->GetRasterizer()) {
 		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.disableMotionBlur(), Rasterizer not available");
 		return NULL;
 	}
 	
-	gp_Rasterizer->DisableMotionBlur();
+	KX_GetActiveEngine()->GetRasterizer()->DisableMotionBlur();
 	
 	Py_RETURN_NONE;
 }
@@ -1101,7 +1074,7 @@ static PyObject *gPySetGLSLMaterialSetting(PyObject *,
                                            PyObject *args,
                                            PyObject *)
 {
-	GlobalSettings *gs= gp_KetsjiEngine->GetGlobalSettings();
+	GlobalSettings *gs= KX_GetActiveEngine()->GetGlobalSettings();
 	char *setting;
 	int enable, flag, sceneflag;
 
@@ -1125,8 +1098,8 @@ static PyObject *gPySetGLSLMaterialSetting(PyObject *,
 	/* display lists and GLSL materials need to be remade */
 	if (sceneflag != gs->glslflag) {
 		GPU_materials_free();
-		if (gp_KetsjiEngine) {
-			CListValue *scenes = gp_KetsjiEngine->CurrentScenes();
+		if (KX_GetActiveEngine()) {
+			CListValue *scenes = KX_GetActiveEngine()->CurrentScenes();
 
 			for (CListValue::iterator it = scenes->GetBegin(); it != scenes->GetEnd(); ++it) {
 				KX_Scene *scene = (KX_Scene *)*it;
@@ -1147,7 +1120,7 @@ static PyObject *gPyGetGLSLMaterialSetting(PyObject *,
                                            PyObject *args,
                                            PyObject *)
 {
-	GlobalSettings *gs= gp_KetsjiEngine->GetGlobalSettings();
+	GlobalSettings *gs= KX_GetActiveEngine()->GetGlobalSettings();
 	char *setting;
 	int enabled = 0, flag;
 
@@ -1196,14 +1169,14 @@ static PyObject *gPySetAnisotropicFiltering(PyObject *, PyObject *args)
 		return NULL;
 	}
 
-	gp_Rasterizer->SetAnisotropicFiltering(level);
+	KX_GetActiveEngine()->GetRasterizer()->SetAnisotropicFiltering(level);
 
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetAnisotropicFiltering(PyObject *, PyObject *args)
 {
-	return PyLong_FromLong(gp_Rasterizer->GetAnisotropicFiltering());
+	return PyLong_FromLong(KX_GetActiveEngine()->GetRasterizer()->GetAnisotropicFiltering());
 }
 
 static PyObject *gPyDrawLine(PyObject *, PyObject *args)
@@ -1212,7 +1185,7 @@ static PyObject *gPyDrawLine(PyObject *, PyObject *args)
 	PyObject *ob_to;
 	PyObject *ob_color;
 
-	if (!gp_Rasterizer) {
+	if (!KX_GetActiveEngine()->GetRasterizer()) {
 		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.drawLine(obFrom, obTo, color): Rasterizer not available");
 		return NULL;
 	}
@@ -1230,7 +1203,7 @@ static PyObject *gPyDrawLine(PyObject *, PyObject *args)
 	if (!PyVecTo(ob_color, color))
 		return NULL;
 
-	gp_Rasterizer->DrawDebugLine(gp_KetsjiScene, from, to, color);
+	KX_GetActiveEngine()->GetRasterizer()->DrawDebugLine(KX_GetActiveScene(), from, to, color);
 	
 	Py_RETURN_NONE;
 }
@@ -1241,19 +1214,19 @@ static PyObject *gPySetWindowSize(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "ii:resize", &width, &height))
 		return NULL;
 
-	gp_Canvas->ResizeWindow(width, height);
+	KX_GetActiveEngine()->GetCanvas()->ResizeWindow(width, height);
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPySetFullScreen(PyObject *, PyObject *value)
 {
-	gp_Canvas->SetFullScreen(PyObject_IsTrue(value));
+	KX_GetActiveEngine()->GetCanvas()->SetFullScreen(PyObject_IsTrue(value));
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetFullScreen(PyObject *)
 {
-	return PyBool_FromLong(gp_Canvas->GetFullScreen());
+	return PyBool_FromLong(KX_GetActiveEngine()->GetCanvas()->GetFullScreen());
 }
 
 static PyObject *gPySetMipmapping(PyObject *, PyObject *args)
@@ -1268,22 +1241,22 @@ static PyObject *gPySetMipmapping(PyObject *, PyObject *args)
 		return NULL;
 	}
 
-	if (!gp_Rasterizer) {
+	if (!KX_GetActiveEngine()->GetRasterizer()) {
 		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.setMipmapping(val): Rasterizer not available");
 		return NULL;
 	}
 
-	gp_Rasterizer->SetMipmapping((RAS_IRasterizer::MipmapOption)val);
+	KX_GetActiveEngine()->GetRasterizer()->SetMipmapping((RAS_IRasterizer::MipmapOption)val);
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetMipmapping(PyObject *)
 {
-	if (!gp_Rasterizer) {
+	if (!KX_GetActiveEngine()->GetRasterizer()) {
 		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.getMipmapping(): Rasterizer not available");
 		return NULL;
 	}
-	return PyLong_FromLong(gp_Rasterizer->GetMipmapping());
+	return PyLong_FromLong(KX_GetActiveEngine()->GetRasterizer()->GetMipmapping());
 }
 
 static PyObject *gPySetVsync(PyObject *, PyObject *args)
@@ -1300,14 +1273,14 @@ static PyObject *gPySetVsync(PyObject *, PyObject *args)
 
 	if (interval == VSYNC_ADAPTIVE)
 		interval = -1;
-	gp_Canvas->SetSwapInterval((interval == VSYNC_ON) ? 1 : 0);
+	KX_GetActiveEngine()->GetCanvas()->SetSwapInterval((interval == VSYNC_ON) ? 1 : 0);
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetVsync(PyObject *)
 {
 	int interval = 0;
-	gp_Canvas->GetSwapInterval(interval);
+	KX_GetActiveEngine()->GetCanvas()->GetSwapInterval(interval);
 	return PyLong_FromLong(interval);
 }
 
@@ -1317,10 +1290,10 @@ static PyObject *gPyShowFramerate(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args,"i:showFramerate",&visible))
 		return NULL;
 
-	if (visible && gp_KetsjiEngine)
-		gp_KetsjiEngine->SetShowFramerate(true);
+	if (visible && KX_GetActiveEngine())
+		KX_GetActiveEngine()->SetShowFramerate(true);
 	else
-		gp_KetsjiEngine->SetShowFramerate(false);
+		KX_GetActiveEngine()->SetShowFramerate(false);
 
 	Py_RETURN_NONE;
 }
@@ -1331,10 +1304,10 @@ static PyObject *gPyShowProfile(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args,"i:showProfile",&visible))
 		return NULL;
 
-	if (visible && gp_KetsjiEngine)
-		gp_KetsjiEngine->SetShowProfile(true);
+	if (visible && KX_GetActiveEngine())
+		KX_GetActiveEngine()->SetShowProfile(true);
 	else
-		gp_KetsjiEngine->SetShowProfile(false);
+		KX_GetActiveEngine()->SetShowProfile(false);
 
 	Py_RETURN_NONE;
 }
@@ -1345,10 +1318,10 @@ static PyObject *gPyShowProperties(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args,"i:showProperties",&visible))
 		return NULL;
 
-	if (visible && gp_KetsjiEngine)
-		gp_KetsjiEngine->SetShowProperties(true);
+	if (visible && KX_GetActiveEngine())
+		KX_GetActiveEngine()->SetShowProperties(true);
 	else
-		gp_KetsjiEngine->SetShowProperties(false);
+		KX_GetActiveEngine()->SetShowProperties(false);
 
 	Py_RETURN_NONE;
 }
@@ -1359,18 +1332,19 @@ static PyObject *gPyAutoDebugList(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args,"i:autoAddProperties",&add))
 		return NULL;
 
-	if (add && gp_KetsjiEngine)
-		gp_KetsjiEngine->SetAutoAddDebugProperties(true);
+	if (add && KX_GetActiveEngine())
+		KX_GetActiveEngine()->SetAutoAddDebugProperties(true);
 	else
-		gp_KetsjiEngine->SetAutoAddDebugProperties(false);
+		KX_GetActiveEngine()->SetAutoAddDebugProperties(false);
 
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyClearDebugList(PyObject *)
 {
-	if (gp_KetsjiScene)
-		gp_KetsjiScene->RemoveAllDebugProperties();
+	KX_Scene *scene = KX_GetActiveScene();
+	if (scene)
+		scene->RemoveAllDebugProperties();
 
 	Py_RETURN_NONE;
 }
@@ -1380,7 +1354,7 @@ static PyObject *gPyGetDisplayDimensions(PyObject *)
 	PyObject *result;
 	int width, height;
 
-	gp_Canvas->GetDisplayDimensions(width, height);
+	KX_GetActiveEngine()->GetCanvas()->GetDisplayDimensions(width, height);
 
 	result = PyTuple_New(2);
 	PyTuple_SET_ITEMS(result,
@@ -1488,11 +1462,11 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 
 	// Add keyboard and mouse attributes to this module
 	MT_assert(!gp_PythonKeyboard);
-	gp_PythonKeyboard = new SCA_PythonKeyboard(gp_KetsjiEngine->GetKeyboardDevice());
+	gp_PythonKeyboard = new SCA_PythonKeyboard(KX_GetActiveEngine()->GetKeyboardDevice());
 	PyDict_SetItemString(d, "keyboard", gp_PythonKeyboard->NewProxy(true));
 
 	MT_assert(!gp_PythonMouse);
-	gp_PythonMouse = new SCA_PythonMouse(gp_KetsjiEngine->GetMouseDevice(), gp_Canvas);
+	gp_PythonMouse = new SCA_PythonMouse(KX_GetActiveEngine()->GetMouseDevice(), KX_GetActiveEngine()->GetCanvas());
 	PyDict_SetItemString(d, "mouse", gp_PythonMouse->NewProxy(true));
 
 	PyObject* joylist = PyList_New(JOYINDEX_MAX);
@@ -2227,15 +2201,10 @@ void exitGamePythonScripting()
 
 /* similar to the above functions except it sets up the namespace
  * and other more general things */
-void setupGamePython(KX_KetsjiEngine* ketsjiengine, KX_Scene *startscene, Main *blenderdata,
+void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
                      PyObject *pyGlobalDict, PyObject **gameLogic, PyObject **gameLogic_keys, int argc, char** argv)
 {
 	PyObject *modules, *dictionaryobject;
-
-	gp_Canvas = ketsjiengine->GetCanvas();
-	gp_Rasterizer = ketsjiengine->GetRasterizer();
-	gp_KetsjiEngine = ketsjiengine;
-	gp_KetsjiScene = startscene;
 
 	if (argv) /* player only */
 		dictionaryobject= initGamePlayerPythonScripting(blenderdata, argc, argv);

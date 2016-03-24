@@ -38,7 +38,7 @@
 #include "PHY_ICharacter.h"
 #include "PHY_Pro.h"
 #include "KX_GameObject.h"
-#include "KX_PythonInit.h" // for KX_RasterizerDrawDebugLine
+#include "KX_Globals.h" // for KX_RasterizerDrawDebugLine
 #include "KX_BlenderSceneConverter.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"

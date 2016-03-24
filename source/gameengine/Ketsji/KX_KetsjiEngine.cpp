@@ -58,7 +58,7 @@
 #include "KX_Camera.h"
 #include "KX_Dome.h"
 #include "KX_Light.h"
-#include "KX_PythonInit.h"
+#include "KX_Globals.h"
 #include "KX_PyConstraintBinding.h"
 #include "PHY_IPhysicsEnvironment.h"
 

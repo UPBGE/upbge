@@ -43,7 +43,7 @@ extern "C" {
 #include "BKE_navmesh_conversion.h"
 }
 
-#include "KX_PythonInit.h"
+#include "KX_Globals.h"
 #include "KX_PyMath.h"
 #include "EXP_Value.h"
 #include "Recast.h"
