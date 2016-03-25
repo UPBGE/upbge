@@ -34,6 +34,7 @@ public:
 	virtual int				GetValueType();
 	
 	cInt GetInt();
+	void SetInt(int i);
 	CIntValue();
 	CIntValue(cInt innie);
 	CIntValue(cInt innie,
