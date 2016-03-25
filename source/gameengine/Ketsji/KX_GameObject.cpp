@@ -2381,11 +2381,10 @@ PyObject *KX_GameObject::pyattr_get_life(void *self_v, const KX_PYATTRIBUTE_DEF 
 {
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
 
-	CValue *life = self->GetProperty("::timebomb");
+	CIntValue *life = (CIntValue*) self->GetProperty("::timebomb");
 	if (life)
-		// this convert the timebomb seconds to frames, hard coded 50.0f (assuming 50fps)
-		// value hardcoded in KX_Scene::AddReplicaObject()
-		return PyFloat_FromDouble(life->GetNumber() * 50.0);
+		// Set in KX_Scene::AddReplicaObject()
+		return PyLong_FromLongLong(life->GetInt());
 	else
 		Py_RETURN_NONE;
 }
