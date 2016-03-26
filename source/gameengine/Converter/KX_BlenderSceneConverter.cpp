@@ -59,6 +59,7 @@
 #include "KX_BlenderScalarInterpolator.h"
 #include "BL_BlenderDataConversion.h"
 #include "KX_WorldInfo.h"
+#include "EXP_StringValue.h"
 
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
@@ -217,6 +218,22 @@ Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const STR_String &name)
 	}
 
 	return NULL;
+}
+
+CListValue *KX_BlenderSceneConverter::GetInactiveSceneNames()
+{
+	CListValue *list = new CListValue();
+
+	for (Scene *sce = (Scene *)m_maggie->scene.first; sce; sce = (Scene *)sce->id.next) {
+		const char *name = sce->id.name + 2;
+		if (m_ketsjiEngine->CurrentScenes()->FindValue(name)) {
+			continue;
+		}
+		CStringValue *item = new CStringValue(name, name);
+		list->Add(item);
+	}
+
+	return list;
 }
 
 void KX_BlenderSceneConverter::ConvertScene(KX_Scene *destinationscene, RAS_IRasterizer *rendertools,

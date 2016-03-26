@@ -149,6 +149,7 @@ public:
 	void RegisterWorldInfo(KX_WorldInfo *worldinfo);
 
 	struct Scene* GetBlenderSceneForName(const STR_String& name);
+	virtual CListValue *GetInactiveSceneNames();
 
 //	struct Main* GetMain() { return m_maggie; }
 	struct Main*		  GetMainDynamicPath(const char *path);

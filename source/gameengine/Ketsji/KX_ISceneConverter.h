@@ -39,7 +39,8 @@
 #include "MEM_guardedalloc.h"
 #endif
 
-struct Scene;
+class Scene;
+class CListValue;
 
 class KX_ISceneConverter 
 {
@@ -72,7 +73,7 @@ public:
 	virtual bool	TryAndLoadNewFile() = 0;
 
 	virtual struct Scene* GetBlenderSceneForName(const STR_String& name)=0;
-	
+	virtual CListValue *GetInactiveSceneNames() = 0;
 	
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_ISceneConverter")
