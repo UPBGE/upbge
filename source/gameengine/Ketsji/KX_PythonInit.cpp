@@ -636,6 +636,19 @@ static PyObject *gPyGetSceneList(PyObject *self)
 	return KX_GetActiveEngine()->CurrentScenes()->GetProxy();
 }
 
+PyDoc_STRVAR(gPyGetInactiveSceneNames_doc,
+"getInactiveSceneNames()\n"
+"Get all inactive scenes names"
+);
+static PyObject *gPyGetInactiveSceneNames(PyObject *self)
+{
+	CListValue *list = KX_GetActiveEngine()->GetSceneConverter()->GetInactiveSceneNames();
+
+	return list->NewProxy(true);
+}
+
+
+
 static PyObject *pyPrintStats(PyObject *,PyObject *,PyObject *)
 {
 	KX_GetActiveScene()->GetSceneConverter()->PrintStats();
@@ -828,6 +841,7 @@ static struct PyMethodDef game_methods[] = {
 	{"sendMessage", (PyCFunction)gPySendMessage, METH_VARARGS, (const char *)gPySendMessage_doc},
 	{"getCurrentController", (PyCFunction) SCA_PythonController::sPyGetCurrentController, METH_NOARGS, SCA_PythonController::sPyGetCurrentController__doc__},
 	{"getCurrentScene", (PyCFunction) gPyGetCurrentScene, METH_NOARGS, gPyGetCurrentScene_doc},
+	{"getInactiveSceneNames", (PyCFunction)gPyGetInactiveSceneNames, METH_NOARGS, (const char *)gPyGetInactiveSceneNames_doc},
 	{"getSceneList", (PyCFunction) gPyGetSceneList, METH_NOARGS, (const char *)gPyGetSceneList_doc},
 	{"addScene", (PyCFunction)gPyAddScene, METH_VARARGS, (const char *)gPyAddScene_doc},
 	{"getRandomFloat",(PyCFunction) gPyGetRandomFloat, METH_NOARGS, (const char *)gPyGetRandomFloat_doc},
