@@ -40,30 +40,63 @@
 #include "generic/py_capi_utils.h"
 #endif
 
+#ifdef WITH_PYTHON
+
+PyTypeObject PythonComponentType = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	"KX_PythonComponent",           /* tp_name */
+	sizeof(PyObject),               /* tp_basicsize */
+	0,                              /* tp_itemsize */
+	(destructor)NULL,  /* tp_dealloc */
+	NULL,                           /* tp_print */
+	NULL,                           /* tp_getattr */
+	NULL,                           /* tp_setattr */
+	NULL,                           /* tp_compare */
+	(reprfunc)NULL,          /* tp_repr */
+	NULL,              /* tp_as_number */
+	NULL,              /* tp_as_sequence */
+	NULL,               /* tp_as_mapping */
+	(hashfunc)NULL,           /* tp_hash */
+	NULL,                           /* tp_call */
+	NULL,                           /* tp_str */
+	NULL,                           /* tp_getattro */
+	NULL,                           /* tp_setattro */
+	NULL,                           /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
+	NULL, /* tp_doc */
+	(traverseproc)NULL,  /* tp_traverse */
+	(inquiry)NULL,  /* tp_clear */
+	(richcmpfunc)NULL,    /* tp_richcompare */
+	0,                              /* tp_weaklistoffset */
+	NULL,                           /* tp_iter */
+	NULL,                           /* tp_iternext */
+	NULL,                  /* tp_methods */
+	NULL,                           /* tp_members */
+	NULL,                /* tp_getset */
+	NULL,                           /* tp_base */
+	NULL,                           /* tp_dict */
+	NULL,                           /* tp_descr_get */
+	NULL,                           /* tp_descr_set */
+	0,                              /* tp_dictoffset */
+	NULL,                           /* tp_init */
+	PyType_GenericAlloc,                           /* tp_alloc */
+	PyType_GenericNew,                      /* tp_new */
+	NULL,                           /* tp_free */
+	NULL,                           /* tp_is_gc */
+	NULL,                           /* tp_bases */
+	NULL,                           /* tp_mro */
+	NULL,                           /* tp_cache */
+	NULL,                           /* tp_subclasses */
+	NULL,                           /* tp_weaklist */
+	NULL                            /* tp_del */
+};
+
+#endif
+
 static int verify_class(PyObject *cls)
 {
 #ifdef WITH_PYTHON
-	PyObject *list, *item;
-	char *name;
-	int comp;
-
-	list = PyObject_GetAttrString(cls, "__bases__");
-
-	for (unsigned int i = 0, size = PyTuple_Size(list); i < size; ++i) {
-		item = PyObject_GetAttrString(PyTuple_GetItem(list, i), "__name__");
-		name = _PyUnicode_AsString(item);
-
-		// We don't want to decref until after the comprison
-		comp = strcmp("KX_PythonComponent", name);
-		Py_DECREF(item);
-
-		if (comp == 0) {
-			Py_DECREF(list);
-			return 1;
-		}
-	}
-
-	Py_DECREF(list);
+	return PyType_IsSubtype((PyTypeObject *)cls, &PythonComponentType);
 #endif
 	return 0;
 }
@@ -270,11 +303,17 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 #ifdef WITH_PYTHON
 
 	#define ERROR \
+		PyDict_DelItemString(sys_modules, "bge"); \
+		Py_DECREF(bgemod); \
+		Py_DECREF(bgesubmod); \
 		PySequence_DelItem(sys_path, 0); \
 		PyGILState_Release(state); \
 		return false;
 
 	PyObject *mod, *mod_list, *item, *py_name, *sys_path, *pypath;
+	PyObject *bgemod;
+	PyObject *bgesubmod;
+	PyObject *sys_modules;
 	PyGILState_STATE state;
 	char *name;
 	char path[FILE_MAX];
@@ -285,6 +324,17 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 	BLI_split_dir_part(filename, path, sizeof(path));
 	pypath = PyC_UnicodeFromByte(path);
 	PyList_Insert(sys_path, 0, pypath);
+
+	sys_modules = PyThreadState_GET()->interp->modules;
+	bgemod = PyModule_New("bge");
+	bgesubmod = PyModule_New("bge.types");
+
+	PyModule_AddObject(bgemod, "types", bgesubmod);
+	PyType_Ready(&PythonComponentType);
+	PyModule_AddObject(bgesubmod, "KX_PythonComponent", (PyObject *)&PythonComponentType);
+
+	PyDict_SetItemString(sys_modules, "bge", bgemod);
+	PyDict_SetItemString(sys_modules, "bge.types", bgesubmod);
 
 	// Try to load up the module
 	mod = PyImport_ImportModule(pc->module);
@@ -344,9 +394,11 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 	// Cleanup our Python objects
 	Py_DECREF(mod);
 	Py_DECREF(mod_list);
+	PyDict_DelItemString(sys_modules, "bge");
+	Py_DECREF(bgemod);
+	Py_DECREF(bgesubmod);
 
 	PySequence_DelItem(sys_path, 0);
-
 	PyGILState_Release(state);
 
 	#undef ERROR

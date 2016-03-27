@@ -55,10 +55,6 @@
 #include "../generic/py_capi_utils.h"
 #include "../generic/python_utildefines.h"
 
-#ifdef WITH_GAMEENGINE
-#  include "../../gameengine/Ketsji/KX_PythonInitTypes.h"
-#endif
-
 /* external util modules */
 #include "../generic/idprop_py_api.h"
 
@@ -309,12 +305,6 @@ void BPy_init_modules(void)
 	}
 	/* stand alone utility modules not related to blender directly */
 	IDProp_Init_Types(); /* not actually a submodule, just types */
-
-#ifdef WITH_GAMEENGINE
-	/* Setup a dummy BGE module so we can import BGE classes for introspection */
-	initGameTypesPythonBinding();
-	PyRun_SimpleString("sys = __import__('sys');mod = sys.modules['bge'] = type(sys)('bge');mod.__dict__.update({'logic':'', 'render':'', 'events':'', 'constraints':'', 'types':__import__('GameTypes'), 'texture':''});");
-#endif
 
 #ifdef WITH_FREESTYLE
 	Freestyle_Init();
