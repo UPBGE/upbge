@@ -905,13 +905,11 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 	// lifespan of zero means 'this object lives forever'
 	if (lifespan > 0)
 	{
-		// for now, convert between so called frames and realtime
 		m_tempObjectList->Add(replica->AddRef());
-		// this convert the life from frames to sort-of seconds, hard coded 0.02 that assumes we have 50 frames per second
 		// if you change this value, make sure you change it in KX_GameObject::pyattr_get_life property too
-		CValue *fval = new CFloatValue(lifespan*0.02f);
-		replica->SetProperty("::timebomb",fval);
-		fval->Release();
+		CValue *ival = new CIntValue(lifespan);
+		replica->SetProperty("::timebomb",ival);
+		ival->Release();
 	}
 
 	// add to 'rootparent' list (this is the list of top hierarchy objects, updated each frame)
@@ -1557,15 +1555,15 @@ void KX_Scene::LogicBeginFrame(double curtime)
 	for (int i = lastobj; i >= 0; i--)
 	{
 		CValue* objval = m_tempObjectList->GetValue(i);
-		CFloatValue* propval = (CFloatValue*) objval->GetProperty("::timebomb");
+		CIntValue* propval = (CIntValue*) objval->GetProperty("::timebomb");
 		
 		if (propval)
 		{
-			float timeleft = (float)(propval->GetNumber() - 1.0/KX_KetsjiEngine::GetTicRate());
+			int timeleft = propval->GetInt() - 1;
 			
 			if (timeleft > 0)
 			{
-				propval->SetFloat(timeleft);
+				propval->SetInt(timeleft);
 			}
 			else
 			{

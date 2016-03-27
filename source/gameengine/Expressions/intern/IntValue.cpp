@@ -282,6 +282,12 @@ CValue* CIntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *v
 }
 
 
+void CIntValue::SetInt(int i)
+{
+	m_int = (cInt) i;
+}
+
+
 /**
  * pre:
  * ret: the cInt stored in the object
