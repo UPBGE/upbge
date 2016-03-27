@@ -268,6 +268,12 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 static bool load_component(PythonComponent *pc, ReportList *reports, char *filename)
 {
 #ifdef WITH_PYTHON
+
+	#define ERROR \
+		PySequence_DelItem(sys_path, 0); \
+		PyGILState_Release(state); \
+		return false;
+
 	PyObject *mod, *mod_list, *item, *py_name, *sys_path, *pypath;
 	PyGILState_STATE state;
 	char *name;
@@ -284,12 +290,12 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 	mod = PyImport_ImportModule(pc->module);
 	if (!mod) {
 		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No module named \"%s\" or script error at loading.", pc->module);
-		goto error;
+		ERROR;
 	}
 	else {
 		if (strlen(pc->module) > 0 && strlen(pc->name) == 0) {
 			BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component class was specified, only the module was.");
-			goto error;
+			ERROR;
 		}
 	}
 
@@ -318,6 +324,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 		// Check the subclass with our own function since we don't have access to the KX_PythonComponent type object
 		if (!verify_class(item)) {
 			BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "A %s type was found, but it was not a valid subclass of KX_PythonComponent.", pc->name);
+			ERROR;
 		}
 		else {
 			// Setup the properties
@@ -329,7 +336,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 
 	if (!found) {
 		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No class named %s was found.", pc->name);
-		goto error;
+		ERROR;
 	}
 	// Take the module out of the module list so it's not cached by Python (this allows for simpler reloading of components)
 	PyDict_DelItemString(PyImport_GetModuleDict(), pc->module);
@@ -341,18 +348,12 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 	PySequence_DelItem(sys_path, 0);
 
 	PyGILState_Release(state);
+
+	#undef ERROR
+
 #endif /* WITH_PYTHON */
 
 	return true;
-
-error:
-#ifdef WITH_PYTHON
-	PySequence_DelItem(sys_path, 0);
-
-	PyGILState_Release(state);
-#endif /* WITH_PYTHON */
-
-	return false;
 }
 
 PythonComponent *new_component_from_module_name(char *import, ReportList *reports, bContext *context)
