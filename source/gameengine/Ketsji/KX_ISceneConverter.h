@@ -39,7 +39,7 @@
 #include "MEM_guardedalloc.h"
 #endif
 
-class Scene;
+struct Scene;
 class CListValue;
 
 class KX_ISceneConverter 
