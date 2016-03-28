@@ -69,18 +69,6 @@ static int power_of_2_min_i(int num)
 	return num;
 }
 
-// Place holder for a full texture manager
-class BL_TextureObject
-{
-public:
-	unsigned int gl_texture;
-	void *ref_buffer;
-};
-
-typedef std::map<char *, BL_TextureObject> BL_TextureMap;
-static BL_TextureMap g_textureManager;
-static GLint g_max_units = -1;
-
 BL_Texture::BL_Texture()
 	:mTexture(0),
 	mOk(false),
@@ -104,7 +92,6 @@ void BL_Texture::DeleteTex()
 		glDeleteLists((GLuint)mDisableState, 1);
 		mDisableState = 0;
 	}
-	g_textureManager.clear();
 }
 
 void BL_Texture::Init(Image *img, bool cubemap)
