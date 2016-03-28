@@ -37,7 +37,6 @@ public:
 	static void DisableAllTextures();
 	static void ActivateUnit(int unit);
 	static int GetMaxUnits();
-	static int GetPow2(int x);
 	static void SplitEnvMap(EnvMap *map);
 
 	void ActivateTexture(int unit);

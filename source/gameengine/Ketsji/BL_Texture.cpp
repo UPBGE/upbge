@@ -57,18 +57,6 @@ extern "C" {
 	void my_free_envmapdata(EnvMap *env);
 }
 
-// (n&(n-1)) zeros the least significant bit of n
-static int is_power_of_2_i(int num)
-{
-	return ((num) & (num - 1)) == 0;
-}
-static int power_of_2_min_i(int num)
-{
-	while (!is_power_of_2_i(num))
-		num = num & (num - 1);
-	return num;
-}
-
 BL_Texture::BL_Texture()
 	:mTexture(0),
 	mOk(false),
@@ -379,14 +367,6 @@ void BL_Texture::setTexEnv(int unit, BL_Material *mat, bool modulate)
 	glTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE_ARB, 1.0f);
 
 	glEndList();
-}
-
-int BL_Texture::GetPow2(int n)
-{
-	if (!is_power_of_2_i(n))
-		n = power_of_2_min_i(n);
-
-	return n;
 }
 
 void BL_Texture::SplitEnvMap(EnvMap *map)
