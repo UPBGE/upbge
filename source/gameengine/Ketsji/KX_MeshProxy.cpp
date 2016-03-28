@@ -36,6 +36,7 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
+#include "RAS_Polygon.h"
 
 #include "KX_VertexProxy.h"
 #include "KX_PolyProxy.h"
@@ -76,6 +77,7 @@ PyMethodDef KX_MeshProxy::Methods[] = {
 	{"getPolygon", (PyCFunction) KX_MeshProxy::sPyGetPolygon, METH_VARARGS},
 	{"transform", (PyCFunction) KX_MeshProxy::sPyTransform, METH_VARARGS},
 	{"transformUV", (PyCFunction) KX_MeshProxy::sPyTransformUV, METH_VARARGS},
+	{"recalculateNormals", (PyCFunction)KX_MeshProxy::sPyRecalculateNormals, METH_VARARGS },
 
 	{NULL, NULL} //Sentinel
 };
@@ -472,6 +474,81 @@ bool ConvertPythonToMesh(PyObject *value, RAS_MeshObject **object, bool py_none_
 	}
 
 	return false;
+}
+
+PyObject *KX_MeshProxy::PyRecalculateNormals(PyObject *args, PyObject *kwds)
+{
+	int matindex;
+	RAS_TexVert *vertex = NULL;
+	RAS_Polygon *polygon = NULL;
+
+	if (!PyArg_ParseTuple(args, "i:recalculateNormals", &matindex))
+		return NULL;
+
+	RAS_MeshMaterial *mmat = m_meshobj->GetMeshMaterial(matindex); /* can be NULL*/
+
+	if (mmat) 
+	{
+		RAS_IPolyMaterial *mat = mmat->m_bucket->GetPolyMaterial();
+		if (mat)
+		{
+			/* reset normals */
+			for (int i = 0; i < m_meshobj->NumVertices(mat); i++)
+			{
+				vertex = m_meshobj->GetVertex(matindex, i);
+				vertex->SetNormal(MT_Vector3(0.0, 0.0, 0.0));
+			}
+
+			/* sum face normals for each connected vert*/
+			for (int p = 0; p < m_meshobj->NumPolygons(); p++)
+			{
+				polygon = m_meshobj->GetPolygon(p);
+
+				MT_Vector3 v1(polygon->GetVertex(0)->getXYZ()[0], polygon->GetVertex(0)->getXYZ()[1], polygon->GetVertex(0)->getXYZ()[2]);
+				MT_Vector3 v2(polygon->GetVertex(1)->getXYZ()[0], polygon->GetVertex(1)->getXYZ()[1], polygon->GetVertex(1)->getXYZ()[2]);
+				MT_Vector3 v3(polygon->GetVertex(2)->getXYZ()[0], polygon->GetVertex(2)->getXYZ()[1], polygon->GetVertex(2)->getXYZ()[2]);
+
+				MT_Vector3 edge1 = v2 - v1;
+				MT_Vector3 edge2 = v3 - v1;
+
+				MT_Vector3 normal = edge1.cross(edge2);
+
+				MT_Vector3 v1Normal(polygon->GetVertex(0)->getNormal()[0], polygon->GetVertex(0)->getNormal()[1], polygon->GetVertex(0)->getNormal()[2]);
+				MT_Vector3 v2Normal(polygon->GetVertex(1)->getNormal()[0], polygon->GetVertex(1)->getNormal()[1], polygon->GetVertex(1)->getNormal()[2]);
+				MT_Vector3 v3Normal(polygon->GetVertex(2)->getNormal()[0], polygon->GetVertex(2)->getNormal()[1], polygon->GetVertex(2)->getNormal()[2]);
+
+				polygon->GetVertex(0)->SetNormal(v1Normal + normal);
+				polygon->GetVertex(1)->SetNormal(v2Normal + normal);
+				polygon->GetVertex(2)->SetNormal(v3Normal + normal);
+
+				if (polygon->VertexCount() == 4)
+				{
+					MT_Vector3 v4(polygon->GetVertex(3)->getXYZ()[0], polygon->GetVertex(3)->getXYZ()[1], polygon->GetVertex(3)->getXYZ()[2]);
+					MT_Vector3 edge3 = v4 - v1;
+					normal = edge1.cross(edge3);
+
+					MT_Vector3 v1Normal(polygon->GetVertex(0)->getNormal()[0], polygon->GetVertex(0)->getNormal()[1], polygon->GetVertex(0)->getNormal()[2]);
+					MT_Vector3 v2Normal(polygon->GetVertex(2)->getNormal()[0], polygon->GetVertex(2)->getNormal()[1], polygon->GetVertex(2)->getNormal()[2]);
+					MT_Vector3 v3Normal(polygon->GetVertex(3)->getNormal()[0], polygon->GetVertex(3)->getNormal()[1], polygon->GetVertex(3)->getNormal()[2]);
+
+					polygon->GetVertex(0)->SetNormal(v1Normal + normal);
+					polygon->GetVertex(2)->SetNormal(v2Normal + normal);
+					polygon->GetVertex(3)->SetNormal(v3Normal + normal);
+				}
+			}
+
+			/* normalise summed normals */
+			for (int i = 0; i < m_meshobj->NumVertices(mat); i++)
+			{
+				vertex = m_meshobj->GetVertex(matindex, i);
+				MT_Vector3 normal(vertex->getNormal()[0], vertex->getNormal()[1], vertex->getNormal()[2]);
+				normal.normalize();
+				vertex->SetNormal(normal);
+				this->AppendModifiedFlag(RAS_MeshObject::NORMAL_MODIFIED);
+			}
+		}
+	}
+	Py_RETURN_NONE;
 }
 
 #endif // WITH_PYTHON
