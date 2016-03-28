@@ -44,6 +44,7 @@
 #include "KX_WorldInfo.h"
 #include "KX_ArmatureSensor.h"
 #include "KX_BlenderMaterial.h"
+#include "KX_Camera.h"
 #include "KX_CameraActuator.h"
 #include "KX_CharacterWrapper.h"
 #include "KX_ConstraintActuator.h"

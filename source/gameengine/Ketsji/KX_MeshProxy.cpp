@@ -36,6 +36,7 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
+#include "SCA_LogicManager.h"
 
 #include "KX_VertexProxy.h"
 #include "KX_PolyProxy.h"

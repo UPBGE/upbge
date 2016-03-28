@@ -6,8 +6,6 @@
 #ifndef __BL_TEXTURE_H__
 #define __BL_TEXTURE_H__
 
-#include "KX_Camera.h"
-
 struct Image;
 struct EnvMap;
 class BL_Material;
