@@ -205,16 +205,18 @@ bool RAS_OpenGLRasterizer::Init()
 	m_ambg = 0.0f;
 	m_ambb = 0.0f;
 
-	glDisable(GL_BLEND);
-	glDisable(GL_ALPHA_TEST);
+	Disable(RAS_BLEND);
+	Disable(RAS_ALPHA_TEST);
 	//m_last_alphablend = GPU_BLEND_SOLID;
 	GPU_set_material_alpha_blend(GPU_BLEND_SOLID);
 
 	glFrontFace(GL_CCW);
+
 	m_last_frontface = true;
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+	SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
 
 	glShadeModel(GL_SMOOTH);
 
@@ -254,10 +256,10 @@ void RAS_OpenGLRasterizer::EnableFog(bool enable)
 void RAS_OpenGLRasterizer::DisplayFog()
 {
 	if ((m_drawingmode >= RAS_SOLID) && m_fogenabled) {
-		glEnable(GL_FOG);
+		Enable(RAS_FOG);
 	}
 	else {
-		glDisable(GL_FOG);
+		Disable(RAS_FOG);
 	}
 }
 
@@ -265,19 +267,22 @@ void RAS_OpenGLRasterizer::Exit()
 {
 	m_storage->Exit();
 
-	glEnable(GL_CULL_FACE);
-	glEnable(GL_DEPTH_TEST);
+	Enable(RAS_CULL_FACE);
+	Enable(RAS_DEPTH_TEST);
+
 	glClearDepth(1.0f);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+	Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
 	glDepthMask(GL_TRUE);
 	glDepthFunc(GL_LEQUAL);
 	glBlendFunc(GL_ONE, GL_ZERO);
 
-	glDisable(GL_POLYGON_STIPPLE);
+	Disable(RAS_CUSTOM, GL_POLYGON_STIPPLE);
 
-	glDisable(GL_LIGHTING);
+	Disable(RAS_LIGHTING);
 	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)
 		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
 
@@ -286,15 +291,20 @@ void RAS_OpenGLRasterizer::Exit()
 
 void RAS_OpenGLRasterizer::RenderBackground()
 {
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_ALWAYS);
+	Enable(RAS_DEPTH_TEST);
+	SetDepthFunc(RAS_ALWAYS);
 
-	glBegin(GL_TRIANGLE_STRIP);
-	glVertex3f(-1.0f, -1.0f, 1.0f);
-	glVertex3f(1.0f, -1.0f, 1.0f);
-	glVertex3f(-1.0f, 1.0f, 1.0f);
-	glVertex3f(1.0f, 1.0f, 1.0f);
-	glEnd();
+	float vertices[] = {
+		-1.0f, -1.0f, 1.0f,
+		 1.0f, -1.0f, 1.0f,
+		-1.0f,  1.0f, 1.0f,
+		 1.0f,  1.0f, 1.0f
+	}
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(3, GL_FLOAT, 0 vertices);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glDisableClientState(GL_VERTEX_ARRAY);
 
 	glDepthFunc(GL_LEQUAL);
 }
@@ -333,6 +343,7 @@ bool RAS_OpenGLRasterizer::BeginFrame(double time)
 	m_lastlightlayer = -1;
 	m_lastauxinfo = NULL;
 	m_lastlighting = true; /* force disable in DisableOpenGLLights() */
+
 	DisableOpenGLLights();
 
 	return true;
@@ -424,10 +435,10 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	tex = glIsEnabled(GL_TEXTURE_2D);
 
 	if (light) {
-		glDisable(GL_LIGHTING);
+		Disable(RAS_LIGHTING);
 	}
 	if (tex) {
-		glDisable(GL_TEXTURE_2D);
+		Disable(RAS_TEXTURE_2D);
 	}
 
 	// draw lines
@@ -540,7 +551,7 @@ void RAS_OpenGLRasterizer::EndFrame()
 {
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
-	glDisable(GL_MULTISAMPLE_ARB);
+	Disable(RAS_CUSTOM, GL_MULTISAMPLE_ARB);
 
 	Disable(RAS_FOG);
 }
@@ -708,7 +719,7 @@ void RAS_OpenGLRasterizer::SetEye(const StereoEye eye)
 		}
 		case RAS_STEREO_INTERLACED:
 		{
-			glEnable(GL_POLYGON_STIPPLE);
+			Enable(RAS_CUSTOM, GL_POLYGON_STIPPLE);
 			glPolygonStipple((const GLubyte *)&hinterlace_mask[m_curreye == RAS_STEREO_LEFTEYE ? 0 : 1]);
 			if (m_curreye == RAS_STEREO_RIGHTEYE)
 				ClearDepthBuffer();
