@@ -37,6 +37,8 @@
 #include "KX_PyMath.h"
 #include "Recast.h"
 
+#include "EXP_ListWrapper.h"
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
@@ -562,6 +564,7 @@ PyAttributeDef KX_SteeringActuator::Attributes[] = {
 	KX_PYATTRIBUTE_SHORT_RW("facingMode", 0, 6, true, KX_SteeringActuator, m_facingMode),
 	KX_PYATTRIBUTE_INT_RW("pathUpdatePeriod", -1, 100000, true, KX_SteeringActuator, m_pathUpdatePeriod),
 	KX_PYATTRIBUTE_BOOL_RW("lockZVelocity", KX_SteeringActuator, m_lockzvel),
+	KX_PYATTRIBUTE_RO_FUNCTION("path", KX_SteeringActuator, pyattr_get_path),
 	{ NULL }	//Sentinel
 };
 
@@ -631,6 +634,29 @@ PyObject *KX_SteeringActuator::pyattr_get_steeringVec(void *self, const struct K
 	KX_SteeringActuator* actuator = static_cast<KX_SteeringActuator*>(self);
 	const MT_Vector3& steeringVec = actuator->GetSteeringVec();
 	return PyObjectFrom(steeringVec);
+}
+
+static int kx_steering_actuator_get_path_size_cb(void *self)
+{
+	return ((KX_SteeringActuator *)self)->m_pathLen;
+}
+
+static PyObject *kx_steering_actuator_get_path_item_cb(void *self, int index)
+{
+	float *path = ((KX_SteeringActuator *)self)->m_path;
+	MT_Vector3 point(&path[3*index]);
+	return PyObjectFrom(point);
+}
+
+PyObject *KX_SteeringActuator::pyattr_get_path(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+{
+	return (new CListWrapper(self,
+							((KX_SteeringActuator *)self)->GetProxy(),
+							NULL,
+							kx_steering_actuator_get_path_size_cb,
+							kx_steering_actuator_get_path_item_cb,
+							NULL,
+							NULL))->NewProxy(true);
 }
 
 #endif // WITH_PYTHON
