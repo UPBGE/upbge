@@ -200,18 +200,10 @@ void KX_BlenderMaterial::InitTextures()
 				spit("CubeMap textures not supported");
 				continue;
 			}
-			if (!m_textures[i].InitCubeMap(i, m_material->cubemap[i]) )
-				spit("unable to initialize image(" << i << ") in " <<
-				     m_material->matname << ", image will not be available");
+			m_textures[i].Init(i, m_material->cubemap[i]->ima, true);
 		}
-		/* If we're using glsl materials, the textures are handled by bf_gpu, so don't load them twice!
-		 * However, if we're using a custom shader, then we still need to load the textures ourselves. */
-		else if (m_shader) {
-			if (m_material->img[i]) {
-				if (!m_textures[i].InitFromImage(i, m_material->img[i], (m_material->flag[i] & MIPMAP) != 0))
-					spit("unable to initialize image(" << i << ") in " <<
-					     m_material->matname << ", image will not be available");
-			}
+		else if (m_material->img[i]) {
+			m_textures[i].Init(i, m_material->img[i], false);
 		}
 	}
 }

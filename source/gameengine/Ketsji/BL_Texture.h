@@ -39,8 +39,7 @@ public:
 	unsigned int GetTextureType() const;
 	void DeleteTex();
 
-	bool InitFromImage(int unit, Image *img, bool mipmap);
-	bool InitCubeMap(int unit, EnvMap *cubemap);
+	void Init(int unit, Image *img, bool cubemap);
 
 	bool IsValid();
 	void Validate();

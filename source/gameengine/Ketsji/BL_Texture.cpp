@@ -108,22 +108,11 @@ void BL_Texture::DeleteTex()
 	g_textureManager.clear();
 }
 
-bool BL_Texture::InitFromImage(int unit, Image *img, bool mipmap)
+void BL_Texture::Init(int unit, Image *img, bool cubemap)
 {
-	mTexture = img->bindcode[TEXTARGET_TEXTURE_2D];
-	mType = GL_TEXTURE_2D;
+	mTexture = img->bindcode[cubemap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D];
+	mType = cubemap ? GL_TEXTURE_CUBE_MAP_ARB : GL_TEXTURE_2D;
 	mUnit = unit;
-
-	return true;
-}
-
-bool BL_Texture::InitCubeMap(int unit,  EnvMap *cubemap)
-{
-	mTexture = cubemap->ima->bindcode[TEXTARGET_TEXTURE_CUBE_MAP];
-	mType = GL_TEXTURE_CUBE_MAP_ARB;
-	mUnit = unit;
-
-	return true;
 }
 
 bool BL_Texture::IsValid()
