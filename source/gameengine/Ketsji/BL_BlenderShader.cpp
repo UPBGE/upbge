@@ -101,6 +101,12 @@ void BL_BlenderShader::ReloadMaterial()
 		GPU_material_instancing_from_blender(m_blenderScene, m_mat) :
 		GPU_material_from_blender(m_blenderScene, m_mat, false)) :
 		NULL;
+
+	if (Ok()) {
+		float viewmat[4][4], viewinvmat[4][4];
+		GPU_material_bind(m_GPUMat, m_lightLayer, m_blenderScene->lay, 0.0, 1, viewmat, viewinvmat, NULL, false);
+		GPU_material_unbind(m_GPUMat);
+	}
 }
 
 void BL_BlenderShader::SetProg(bool enable, double time, RAS_IRasterizer *rasty)

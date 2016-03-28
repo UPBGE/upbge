@@ -115,73 +115,13 @@ void BL_Texture::DeleteTex()
 	g_textureManager.clear();
 }
 
-bool BL_Texture::InitFromImage(int unit,  Image *img, bool mipmap)
+bool BL_Texture::InitFromImage(int unit, Image *img, bool mipmap)
 {
-	ImBuf *ibuf;
-	if (!img || img->ok == 0) {
-		mOk = false;
-		return mOk;
-	}
-
-	ibuf = BKE_image_acquire_ibuf(img, NULL, NULL);
-	if (ibuf == NULL) {
-		img->ok = 0;
-		mOk = false;
-		return mOk;
-	}
-
-	mipmap = mipmap && GPU_get_mipmap() && img->flag & IMA_USE_MIPMAP;
-
 	mTexture = img->bindcode[TEXTARGET_TEXTURE_2D];
 	mType = GL_TEXTURE_2D;
 	mUnit = unit;
 
-	ActivateUnit(mUnit);
-
-	if (mTexture != 0) {
-		glBindTexture(GL_TEXTURE_2D, mTexture);
-		Validate();
-		BKE_image_release_ibuf(img, ibuf, NULL);
-		return mOk;
-	}
-
-	// look for an existing gl image
-	BL_TextureMap::iterator mapLook = g_textureManager.find(img->id.name);
-	if (mapLook != g_textureManager.end()) {
-		if (mapLook->second.gl_texture != 0) {
-			mTexture = mapLook->second.gl_texture;
-			glBindTexture(GL_TEXTURE_2D, mTexture);
-			mOk = IsValid();
-			BKE_image_release_ibuf(img, ibuf, NULL);
-			return mOk;
-		}
-	}
-
-	mNeedsDeleted = true;
-	glGenTextures(1, (GLuint *)&mTexture);
-
-#ifdef WITH_DDS
-	if (ibuf->ftype == IMB_FTYPE_DDS)
-		InitGLCompressedTex(ibuf, mipmap, img->lodbias);
-	else
-		InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap, img->lodbias);
-#else
-	InitGLTex(ibuf->rect, ibuf->x, ibuf->y, mipmap, img->lodbias);
-#endif
-
-	// track created units
-	BL_TextureObject obj;
-	obj.gl_texture = mTexture;
-	obj.ref_buffer = img;
-	g_textureManager.insert(std::pair<char *, BL_TextureObject>((char *)img->id.name, obj));
-
-	glDisable(GL_TEXTURE_2D);
-	ActivateUnit(0);
-	Validate();
-
-	BKE_image_release_ibuf(img, ibuf, NULL);
-
-	return mOk;
+	return true;
 }
 
 void BL_Texture::InitGLTex(unsigned int *pix, int x, int y, bool mipmap, float lodbias)
