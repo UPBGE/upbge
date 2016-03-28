@@ -86,6 +86,7 @@ PyAttributeDef KX_PolyProxy::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("v4", KX_PolyProxy, pyattr_get_v4),
 	KX_PYATTRIBUTE_RO_FUNCTION("visible", KX_PolyProxy, pyattr_get_visible),
 	KX_PYATTRIBUTE_RO_FUNCTION("collide", KX_PolyProxy, pyattr_get_collide),
+	KX_PYATTRIBUTE_RO_FUNCTION("normal", KX_PolyProxy, pyattr_get_normal),
 	{ NULL }	//Sentinel
 };
 
@@ -178,6 +179,12 @@ PyObject *KX_PolyProxy::pyattr_get_collide(void *self_v, const KX_PYATTRIBUTE_DE
 {
 	KX_PolyProxy* self = static_cast<KX_PolyProxy*>(self_v);
 	return self->PyisCollider();
+}
+
+PyObject *KX_PolyProxy::pyattr_get_normal(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_PolyProxy* self = static_cast<KX_PolyProxy*>(self_v);
+	return PyObjectFrom(MT_Vector3(self->m_polygon->GetNormal()));
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialIndex,

@@ -79,6 +79,8 @@ public:
 	RAS_MaterialBucket *GetMaterial();
 	RAS_DisplayArray *GetDisplayArray();
 
+	const float *GetNormal();
+
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_Polygon")

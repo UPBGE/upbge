@@ -36,6 +36,7 @@
 #include "RAS_Polygon.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_DisplayArray.h"
+#include "BLI_math.h"
 
 RAS_Polygon::RAS_Polygon(RAS_MaterialBucket *bucket, RAS_DisplayArray *darray, int numvert)
 	:m_bucket(bucket),
@@ -119,4 +120,20 @@ RAS_MaterialBucket *RAS_Polygon::GetMaterial()
 RAS_DisplayArray *RAS_Polygon::GetDisplayArray()
 {
 	return m_darray;
+}
+
+const float *RAS_Polygon::GetNormal()
+{
+	float faceNormal[3];
+	float verts[4][3];
+
+	for (int v = 0; v < m_numvert; v++)
+	{
+		verts[v][0] = GetVertex(v)->getXYZ()[0];
+		verts[v][1] = GetVertex(v)->getXYZ()[1];
+		verts[v][2] = GetVertex(v)->getXYZ()[2];
+	}
+
+	normal_poly_v3(faceNormal, verts, m_numvert);
+	return faceNormal;
 }
