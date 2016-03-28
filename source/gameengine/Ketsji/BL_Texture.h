@@ -17,7 +17,6 @@ class BL_Texture
 private:
 	unsigned int mTexture; // Bound texture unit data
 	bool mOk;
-	bool mNeedsDeleted; // If generated
 	unsigned int mType; // enum TEXTURE_2D | CUBE_MAP
 	int mUnit; // Texture unit associated with mTexture
 	unsigned int mEnvState; // cache textureEnv

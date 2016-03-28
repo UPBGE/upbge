@@ -84,7 +84,6 @@ static GLint g_max_units = -1;
 BL_Texture::BL_Texture()
 	:mTexture(0),
 	mOk(false),
-	mNeedsDeleted(false),
 	mType(0),
 	mUnit(0),
 	mEnvState(0)
@@ -97,12 +96,6 @@ BL_Texture::~BL_Texture()
 
 void BL_Texture::DeleteTex()
 {
-	if (mNeedsDeleted) {
-		glDeleteTextures(1, (GLuint *)&mTexture);
-		mNeedsDeleted = false;
-		mOk = false;
-	}
-
 	if (mEnvState) {
 		glDeleteLists((GLuint)mEnvState, 1);
 		mEnvState = 0;
