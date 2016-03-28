@@ -85,7 +85,6 @@ BL_Texture::BL_Texture()
 	:mTexture(0),
 	mOk(false),
 	mType(0),
-	mUnit(0),
 	mEnvState(0)
 {
 }
@@ -108,11 +107,10 @@ void BL_Texture::DeleteTex()
 	g_textureManager.clear();
 }
 
-void BL_Texture::Init(int unit, Image *img, bool cubemap)
+void BL_Texture::Init(Image *img, bool cubemap)
 {
 	mTexture = img->bindcode[cubemap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D];
 	mType = cubemap ? GL_TEXTURE_CUBE_MAP_ARB : GL_TEXTURE_2D;
-	mUnit = unit;
 }
 
 bool BL_Texture::IsValid()
@@ -167,10 +165,10 @@ void BL_Texture::ActivateUnit(int unit)
 	}
 }
 
-void BL_Texture::DisableUnit()
+void BL_Texture::DisableUnit(int unit)
 {
 	if (GLEW_ARB_multitexture)
-		glActiveTextureARB(GL_TEXTURE0_ARB + mUnit);
+		glActiveTextureARB(GL_TEXTURE0_ARB + unit);
 
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
@@ -211,10 +209,10 @@ void BL_Texture::DisableAllTextures()
 		glActiveTextureARB(GL_TEXTURE0_ARB);
 }
 
-void BL_Texture::ActivateTexture()
+void BL_Texture::ActivateTexture(int unit)
 {
 	if (GLEW_ARB_multitexture)
-		glActiveTextureARB(GL_TEXTURE0_ARB + mUnit);
+		glActiveTextureARB(GL_TEXTURE0_ARB + unit);
 
 	if (mType == GL_TEXTURE_CUBE_MAP_ARB && GLEW_ARB_texture_cube_map) {
 		glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, mTexture);
@@ -264,7 +262,7 @@ void BL_Texture::SetMapping(int mode)
 	}
 }
 
-void BL_Texture::setTexEnv(BL_Material *mat, bool modulate)
+void BL_Texture::setTexEnv(int unit, BL_Material *mat, bool modulate)
 {
 	if (modulate || !GLEW_ARB_texture_env_combine) {
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
@@ -295,7 +293,7 @@ void BL_Texture::setTexEnv(BL_Material *mat, bool modulate)
 	GLenum op2 = GL_OPERAND2_RGB_ARB;
 
 	// switch to alpha combiners
-	if (mat->flag[mUnit]  & TEXALPHA) {
+	if (mat->flag[unit]  & TEXALPHA) {
 		combiner = GL_COMBINE_ALPHA_ARB;
 		source0 = GL_SOURCE0_ALPHA_ARB;
 		source1 = GL_SOURCE1_ALPHA_ARB;
@@ -306,35 +304,35 @@ void BL_Texture::setTexEnv(BL_Material *mat, bool modulate)
 		blend_operand = GL_SRC_ALPHA;
 		blend_operand_prev = GL_SRC_ALPHA;
 		// invert
-		if (mat->flag[mUnit] & TEXNEG) {
+		if (mat->flag[unit] & TEXNEG) {
 			blend_operand_prev = GL_ONE_MINUS_SRC_ALPHA;
 			blend_operand = GL_ONE_MINUS_SRC_ALPHA;
 		}
 	}
 	else {
-		if (mat->flag[mUnit] & TEXNEG) {
+		if (mat->flag[unit] & TEXNEG) {
 			blend_operand_prev = GL_ONE_MINUS_SRC_COLOR;
 			blend_operand = GL_ONE_MINUS_SRC_COLOR;
 		}
 	}
 	bool using_alpha = false;
 
-	if (mat->flag[mUnit] & USEALPHA) {
+	if (mat->flag[unit] & USEALPHA) {
 		alphaOp = GL_ONE_MINUS_SRC_ALPHA;
 		using_alpha = true;
 	}
-	else if (mat->flag[mUnit] & USENEGALPHA) {
+	else if (mat->flag[unit] & USENEGALPHA) {
 		alphaOp = GL_SRC_ALPHA;
 		using_alpha = true;
 	}
 
-	switch (mat->blend_mode[mUnit]) {
+	switch (mat->blend_mode[unit]) {
 		case BLEND_MIX:
 		{
 			if (!using_alpha) {
 				GLfloat base_col[4];
 				base_col[0]  = base_col[1]  = base_col[2]  = 0.f;
-				base_col[3]  = 1.f - mat->color_blend[mUnit];
+				base_col[3]  = 1.f - mat->color_blend[unit];
 				glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, base_col);
 			}
 			glTexEnvf(GL_TEXTURE_ENV, combiner, GL_INTERPOLATE_ARB);

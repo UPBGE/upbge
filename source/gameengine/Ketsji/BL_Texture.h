@@ -18,7 +18,6 @@ private:
 	unsigned int mTexture; // Bound texture unit data
 	bool mOk;
 	unsigned int mType; // enum TEXTURE_2D | CUBE_MAP
-	int mUnit; // Texture unit associated with mTexture
 	unsigned int mEnvState; // cache textureEnv
 	static unsigned int mDisableState; // speed up disabling calls
 
@@ -27,19 +26,11 @@ public:
 	~BL_Texture();
 
 	bool Ok();
-	int GetUnit()
-	{
-		return mUnit;
-	}
-	void SetUnit(int unit)
-	{
-		mUnit = unit;
-	}
 
 	unsigned int GetTextureType() const;
 	void DeleteTex();
 
-	void Init(int unit, Image *img, bool cubemap);
+	void Init(Image *img, bool cubemap);
 
 	bool IsValid();
 	void Validate();
@@ -51,10 +42,10 @@ public:
 	static int GetPow2(int x);
 	static void SplitEnvMap(EnvMap *map);
 
-	void ActivateTexture();
+	void ActivateTexture(int unit);
 	void SetMapping(int mode);
-	void DisableUnit();
-	void setTexEnv(BL_Material *mat, bool modulate = false);
+	void DisableUnit(int unit);
+	void setTexEnv(int unit, BL_Material *mat, bool modulate = false);
 	unsigned int swapTexture(unsigned int newTex)
 	{
 		// swap texture codes

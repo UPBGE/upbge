@@ -200,10 +200,10 @@ void KX_BlenderMaterial::InitTextures()
 				spit("CubeMap textures not supported");
 				continue;
 			}
-			m_textures[i].Init(i, m_material->cubemap[i]->ima, true);
+			m_textures[i].Init(m_material->cubemap[i]->ima, true);
 		}
 		else if (m_material->img[i]) {
-			m_textures[i].Init(i, m_material->img[i], false);
+			m_textures[i].Init(m_material->img[i], false);
 		}
 	}
 }
@@ -246,7 +246,7 @@ void KX_BlenderMaterial::OnExit()
 		if (!m_textures[i].Ok()) continue;
 		BL_Texture::ActivateUnit(i);
 		m_textures[i].DeleteTex();
-		m_textures[i].DisableUnit();
+		m_textures[i].DisableUnit(i);
 	}
 
 	/* used to call with 'm_material->tface' but this can be a freed array,
@@ -271,8 +271,8 @@ void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 	// for each enabled unit
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
 		if (!m_textures[i].Ok()) continue;
-		m_textures[i].ActivateTexture();
-		m_textures[0].SetMapping(m_material->mapping[i].mapping);
+		m_textures[i].ActivateTexture(i);
+		m_textures[i].SetMapping(m_material->mapping[i].mapping);
 	}
 
 	if (!m_userDefBlend) {
@@ -298,12 +298,28 @@ void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 {
 	BL_Texture::ActivateFirst();
 
+	if (m_material->IdMode == DEFAULT_BLENDER) {
+		ras->SetAlphaBlend(m_material->alphablend);
+		return;
+	}
+
+	if (m_material->IdMode == TEXFACE) {
+		// no material connected to the object
+		if (m_textures[0].Ok() ) {
+			m_textures[0].ActivateTexture(0);
+			m_textures[0].setTexEnv(0, 0, true);
+			m_textures[0].SetMapping(m_material->mapping[0].mapping);
+			ras->SetAlphaBlend(m_material->alphablend);
+		}
+		return;
+	}
+
 	int mode = 0, i = 0;
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
 		if (!m_textures[i].Ok() ) continue;
 
-		m_textures[i].ActivateTexture();
-		m_textures[i].setTexEnv(m_material);
+		m_textures[i].ActivateTexture(i);
+		m_textures[i].setTexEnv(i, m_material);
 		mode = m_material->mapping[i].mapping;
 
 		if (mode & USEOBJ)
