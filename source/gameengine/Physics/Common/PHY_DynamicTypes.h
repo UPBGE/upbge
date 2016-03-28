@@ -36,11 +36,26 @@ enum
 	PHY_NUM_RESPONSE
 };
 
-typedef struct PHY_CollData {
-	MT_Vector3 m_point1; // Point in object1 in world coordinates
-	MT_Vector3 m_point2; // Point in object2 in world coordinates
-	MT_Vector3 m_normal; // point2 - point1
-} PHY_CollData;
+class PHY_CollData
+{
+public:
+	PHY_CollData()
+	{
+	}
+
+	virtual ~PHY_CollData()
+	{
+	}
+
+	virtual unsigned int GetNumContacts() const = 0;
+	virtual MT_Vector3 GetLocalPointA(unsigned int index, bool first) const = 0;
+	virtual MT_Vector3 GetLocalPointB(unsigned int index, bool first) const = 0;
+	virtual MT_Vector3 GetWorldPoint(unsigned int index, bool first) const = 0;
+	virtual MT_Vector3 GetNormal(unsigned int index, bool first) const = 0;
+	virtual float GetCombinedFriction(unsigned int index, bool first) const = 0;
+	virtual float GetCombinedRestitution(unsigned int index, bool first) const = 0;
+	virtual float GetAppliedImpulse(unsigned int index, bool first) const = 0;
+};
 
 typedef bool (*PHY_ResponseCallback)(void *client_data,
                                      void *client_object1,

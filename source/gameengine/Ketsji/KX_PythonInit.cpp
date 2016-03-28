@@ -898,18 +898,13 @@ static PyObject *gPyGetWindowWidth(PyObject *, PyObject *args)
 	return PyLong_FromLong((canvas ? canvas->GetWidth() : 0));
 }
 
-
-
-// temporarility visibility thing, will be moved to rasterizer/renderer later
-bool gUseVisibilityTemp = false;
-
 static PyObject *gPyEnableVisibility(PyObject *, PyObject *args)
 {
 	int visible;
 	if (!PyArg_ParseTuple(args,"i:enableVisibility",&visible))
 		return NULL;
-	
-	gUseVisibilityTemp = (visible != 0);
+
+	// TODO
 	Py_RETURN_NONE;
 }
 
@@ -1457,8 +1452,6 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	PyObject *m;
 	PyObject *d;
 	PyObject *item; /* temp PyObject *storage */
-
-	gUseVisibilityTemp=false;
 
 	PyObjectPlus::ClearDeprecationWarning(); /* Not that nice to call here but makes sure warnings are reset between loading scenes */
 

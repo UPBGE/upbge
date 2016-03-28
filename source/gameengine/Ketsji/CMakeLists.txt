@@ -133,6 +133,7 @@ set(SRC
 	KX_VisibilityActuator.cpp
 	KX_WorldInfo.cpp
 	KX_WorldIpoController.cpp
+	KX_CollisionContactPoints.cpp
 
 	BL_Action.h
 	BL_ActionManager.h
@@ -213,6 +214,7 @@ set(SRC
 	KX_VisibilityActuator.h
 	KX_WorldInfo.h
 	KX_WorldIpoController.h
+	KX_CollisionContactPoints.h
 
 	# orphan headers (not apart of a library)
 	../Physics/Common/PHY_DynamicTypes.h

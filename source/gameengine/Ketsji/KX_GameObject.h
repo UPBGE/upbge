@@ -63,6 +63,7 @@ class PHY_IPhysicsController;
 class BL_ActionManager;
 struct Object;
 class KX_ObstacleSimulation;
+class KX_CollisionContactPointList;
 struct bAction;
 
 #ifdef WITH_PYTHON
@@ -947,7 +948,7 @@ public:
 
 	void RegisterCollisionCallbacks();
 	void UnregisterCollisionCallbacks();
-	void RunCollisionCallbacks(KX_GameObject *collider, const MT_Vector3 &point, const MT_Vector3 &normal);
+	void RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionContactPointList *contactPointList);
 	/**
 	 * Stop making progress
 	 */

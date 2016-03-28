@@ -34,6 +34,7 @@
 #include "SCA_ISensor.h"
 #include "KX_TouchSensor.h"
 #include "KX_GameObject.h"
+#include "KX_CollisionContactPoints.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IPhysicsController.h"
 
@@ -197,7 +198,6 @@ void KX_TouchEventManager::NextFrame()
 			// Controllers
 			PHY_IPhysicsController* ctrl1 = (*cit).first;
 			PHY_IPhysicsController* ctrl2 = (*cit).second;
-
 			// Sensor iterator
 			list<SCA_ISensor*>::iterator sit;
 
@@ -222,9 +222,11 @@ void KX_TouchEventManager::NextFrame()
 				}
 			}
 			// Run python callbacks
-			PHY_CollData *colldata = cit->colldata;
-			kxObj1->RunCollisionCallbacks(kxObj2, colldata->m_point1, colldata->m_normal);
-			kxObj2->RunCollisionCallbacks(kxObj1, colldata->m_point2, -colldata->m_normal);
+			const PHY_CollData *colldata = cit->colldata;
+			KX_CollisionContactPointList *contactPointList0 = new KX_CollisionContactPointList(colldata, true);
+			KX_CollisionContactPointList *contactPointList1 = new KX_CollisionContactPointList(colldata, false);
+			kxObj1->RunCollisionCallbacks(kxObj2, contactPointList0);
+			kxObj2->RunCollisionCallbacks(kxObj1, contactPointList1);
 		}
 
 		for (it.begin();!it.end();++it)
@@ -236,7 +238,7 @@ void KX_TouchEventManager::NextFrame()
 KX_TouchEventManager::NewCollision::NewCollision(PHY_IPhysicsController *first,
                                                  PHY_IPhysicsController *second,
                                                  const PHY_CollData *colldata)
-    : first(first), second(second), colldata(new PHY_CollData(*colldata))
+    : first(first), second(second), colldata(colldata)
 {}
 
 KX_TouchEventManager::NewCollision::NewCollision(const NewCollision &to_copy)

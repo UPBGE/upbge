@@ -64,6 +64,7 @@
 #include "KX_ObstacleSimulation.h"
 #include "KX_Scene.h"
 #include "KX_Lod.h"
+#include "KX_CollisionContactPoints.h"
 
 #include "BKE_object.h"
 
@@ -1539,7 +1540,7 @@ void KX_GameObject::RegisterCollisionCallbacks()
 			pe->AddSensor(spc);
 	}
 }
-void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider, const MT_Vector3 &point, const MT_Vector3 &normal)
+void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionContactPointList *contactPointList)
 {
 #ifdef WITH_PYTHON
 	if (!m_collisionCallbacks || PyList_GET_SIZE(m_collisionCallbacks) == 0)
@@ -1553,12 +1554,21 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider, const MT_Vect
 	 */
 	SCA_ILogicBrick::m_sCurrentLogicManager = GetScene()->GetLogicManager();
 
-	PyObject *args[] = {collider->GetProxy(), PyObjectFrom(point), PyObjectFrom(normal)};
+	CListWrapper *listWrapper = contactPointList->GetListWrapper();
+	PyObject *args[] = {collider->GetProxy(),
+						PyObjectFrom(contactPointList->GetCollData()->GetWorldPoint(0, contactPointList->GetFirstObject())),
+						PyObjectFrom(contactPointList->GetCollData()->GetNormal(0, contactPointList->GetFirstObject())),
+						listWrapper->GetProxy()};
 	RunPythonCallBackList(m_collisionCallbacks, args, 1, ARRAY_SIZE(args));
 
 	for (unsigned int i = 0; i < ARRAY_SIZE(args); ++i) {
 		Py_DECREF(args[i]);
 	}
+
+	// Invalidate the collison contact point to avoid acces to it in next frame
+	listWrapper->InvalidateProxy();
+	delete listWrapper;
+	delete contactPointList;
 #endif
 }
 

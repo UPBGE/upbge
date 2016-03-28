@@ -45,13 +45,21 @@ m_getItem(getItem),
 m_getItemName(getItemName),
 m_setItem(setItem)
 {
-	// Incref to always have a existing pointer.
-	Py_INCREF(m_base);
+	/* Incref to always have a existing pointer.
+	 * If there's no base python proxy it mean that we must manage the
+	 * invalidation of this list manualy when the instance which create
+	 * it is freed.
+	 */
+	if (m_base) {
+		Py_INCREF(m_base);
+	}
 }
 
 CListWrapper::~CListWrapper()
 {
-	Py_DECREF(m_base);
+	if (m_base) {
+		Py_DECREF(m_base);
+	}
 }
 
 bool CListWrapper::CheckValid()
