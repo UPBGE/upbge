@@ -132,6 +132,7 @@ public:
 	void*	GetMeshByName(const STR_String& meshname);
 
 	void	RegisterGameObjectName(const STR_String& gameobjname,CValue* gameobj);
+	void	UnregisterGameObjectName(const STR_String& gameobjname);
 	class CValue*	GetGameObjectByName(const STR_String& gameobjname);
 
 	void	RegisterGameMeshName(const STR_String& gamemeshname, void* blendobj);

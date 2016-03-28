@@ -64,7 +64,7 @@ base class --- :class:`SCA_IObject`
 
    .. attribute:: name
 
-      The object's name. (read-only).
+      The object's name.
 
       :type: string
 

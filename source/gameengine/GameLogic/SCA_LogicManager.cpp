@@ -94,6 +94,10 @@ void SCA_LogicManager::RegisterGameObjectName(const STR_String& gameobjname,
 	m_mapStringToGameObjects[mn] = gameobj;
 }
 
+void SCA_LogicManager::UnregisterGameObjectName(const STR_String& gameobjname)
+{
+	m_mapStringToGameObjects.erase(gameobjname);
+}
 
 
 void SCA_LogicManager::RegisterGameMeshName(const STR_String& gamemeshname, void* blendobj)
