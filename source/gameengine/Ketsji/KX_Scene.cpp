@@ -137,10 +137,6 @@ SG_Callbacks KX_Scene::m_callbacks = SG_Callbacks(
 	KX_Scene::KX_ScenegraphUpdateFunc,
 	KX_Scene::KX_ScenegraphRescheduleFunc);
 
-// temporarily var until there is a button in the userinterface
-// (defined in KX_PythonInit.cpp)
-extern bool gUseVisibilityTemp;
-
 KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 				   class SCA_IInputDevice* mousedevice,
 				   const STR_String& sceneName,
