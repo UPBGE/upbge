@@ -68,6 +68,9 @@ KX_BlenderMaterial::KX_BlenderMaterial()
 	m_modified(false),
 	m_constructed(false)
 {
+	for (unsigned short i = 0; i < MAXTEX; ++i) {
+		m_textures[i] = NULL;
+	}
 }
 
 void KX_BlenderMaterial::Initialize(
@@ -138,6 +141,12 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 	ma->har = m_savedData.hardness;
 	ma->emit = m_savedData.emit;
 
+	for (unsigned short i = 0; i < MAXTEX; ++i) {
+		if (m_textures[i]) {
+			delete m_textures[i];
+		}
+	}
+
 	// cleanup work
 	if (m_constructed) {
 		// clean only if material was actually used
@@ -195,23 +204,13 @@ void KX_BlenderMaterial::InitTextures()
 	// for each unique material...
 	int i;
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		if (m_material->mapping[i].mapping & USEENV) {
-			if (!GLEW_ARB_texture_cube_map) {
-				spit("CubeMap textures not supported");
-				continue;
-			}
-			if (!m_textures[i].InitCubeMap(i, m_material->cubemap[i]) )
-				spit("unable to initialize image(" << i << ") in " <<
-				     m_material->matname << ", image will not be available");
-		}
-		/* If we're using glsl materials, the textures are handled by bf_gpu, so don't load them twice!
-		 * However, if we're using a custom shader, then we still need to load the textures ourselves. */
-		else if (m_shader) {
-			if (m_material->img[i]) {
-				if (!m_textures[i].InitFromImage(i, m_material->img[i], (m_material->flag[i] & MIPMAP) != 0))
-					spit("unable to initialize image(" << i << ") in " <<
-					     m_material->matname << ", image will not be available");
-			}
+		Material *material = m_material->material;
+		MTex *mtex = material->mtex[i];
+		if (mtex) {
+			bool mipmap = (m_material->flag[i] & MIPMAP) != 0;
+			bool cubemap = (mtex->tex->type == TEX_ENVMAP && mtex->tex->env->stype == ENV_LOAD);
+			BL_Texture *texture = new BL_Texture(mtex, cubemap, mipmap);
+			m_textures[i] = texture;
 		}
 	}
 }
@@ -235,7 +234,6 @@ void KX_BlenderMaterial::OnConstruction()
 void KX_BlenderMaterial::EndFrame(RAS_IRasterizer *rasty)
 {
 	rasty->SetAlphaBlend(GPU_BLEND_SOLID);
-	BL_Texture::DisableAllTextures();
 }
 
 void KX_BlenderMaterial::OnExit()
@@ -247,14 +245,6 @@ void KX_BlenderMaterial::OnExit()
 	if (m_blenderShader) {
 		delete m_blenderShader;
 		m_blenderShader = NULL;
-	}
-
-	BL_Texture::ActivateFirst();
-	for (int i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		if (!m_textures[i].Ok()) continue;
-		BL_Texture::ActivateUnit(i);
-		m_textures[i].DeleteTex();
-		m_textures[i].DisableUnit();
 	}
 
 	/* used to call with 'm_material->tface' but this can be a freed array,
@@ -272,15 +262,14 @@ void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 
 	m_shader->SetProg(true);
 
-	BL_Texture::ActivateFirst();
-
 	m_shader->ApplyShader();
 
 	// for each enabled unit
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		if (!m_textures[i].Ok()) continue;
-		m_textures[i].ActivateTexture();
-		m_textures[0].SetMapping(m_material->mapping[i].mapping);
+		if (!m_textures[i] || !m_textures[i]->Ok()) {
+			continue;
+		}
+		m_textures[i]->ActivateTexture(i);
 	}
 
 	if (!m_userDefBlend) {
@@ -304,20 +293,17 @@ void KX_BlenderMaterial::SetBlenderShaderData(RAS_IRasterizer *ras)
 
 void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 {
-	BL_Texture::ActivateFirst();
-
 	int mode = 0, i = 0;
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		if (!m_textures[i].Ok() ) continue;
+		if (!m_textures[i] || !m_textures[i]->Ok()) {
+			continue;
+		}
 
-		m_textures[i].ActivateTexture();
-		m_textures[i].setTexEnv(m_material);
+		m_textures[i]->ActivateTexture(i);
 		mode = m_material->mapping[i].mapping;
 
 		if (mode & USEOBJ)
 			SetObjectMatrixData(i, ras);
-		else
-			m_textures[i].SetMapping(mode);
 
 		if (!(mode & USEOBJ))
 			SetTexMatrixData(i);
@@ -407,8 +393,11 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 {
 	if (GLEW_ARB_shader_objects && (m_shader && m_shader->Ok())) {
 		m_shader->SetProg(false);
-		// Disable all textures for custom shader because they use multitexture.
-		BL_Texture::DisableAllTextures();
+		for (unsigned short i = 0; i < BL_Texture::GetMaxUnits(); i++) {
+			if (m_textures[i] && m_textures[i]->Ok()) {
+				m_textures[i]->DisableTexture();
+			}
+		}
 	}
 	else if (GLEW_ARB_shader_objects && (m_blenderShader && m_blenderShader->Ok())) {
 		m_blenderShader->SetProg(false);
@@ -559,7 +548,7 @@ void KX_BlenderMaterial::SetTexMatrixData(int i)
 	glLoadIdentity();
 
 	if (GLEW_ARB_texture_cube_map &&
-	    m_textures[i].GetTextureType() == GL_TEXTURE_CUBE_MAP_ARB &&
+	    m_textures[i]->GetTextureType() == GL_TEXTURE_CUBE_MAP_ARB &&
 	    m_material->mapping[i].mapping & USEREFL)
 	{
 		glScalef(m_material->mapping[i].scale[0], -m_material->mapping[i].scale[1], -m_material->mapping[i].scale[2]);

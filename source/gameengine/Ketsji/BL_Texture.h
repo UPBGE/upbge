@@ -6,68 +6,33 @@
 #ifndef __BL_TEXTURE_H__
 #define __BL_TEXTURE_H__
 
-#include "KX_Camera.h"
-
-struct Image;
-struct EnvMap;
-class BL_Material;
+struct MTex;
+struct GPUTexture;
 
 class BL_Texture
 {
 private:
-	unsigned int mTexture; // Bound texture unit data
-	bool mOk;
-	bool mNeedsDeleted; // If generated
-	unsigned int mType; // enum TEXTURE_2D | CUBE_MAP
-	int mUnit; // Texture unit associated with mTexture
-	unsigned int mEnvState; // cache textureEnv
-	static unsigned int mDisableState; // speed up disabling calls
+	unsigned int m_bindcode;
+	MTex *m_mtex;
+	GPUTexture *m_gputex;
 
-	void InitNonPow2Tex(unsigned int *p, int x, int y, bool mipmap, float lodbias);
-	void InitGLTex(unsigned int *p, int x, int y, bool mipmap, float lodbias);
-	void InitGLCompressedTex(struct ImBuf *p, bool mipmap, float lodbias);
+	struct {
+		unsigned int bindcode;
+	} m_savedData;
+
 public:
-	BL_Texture();
+	BL_Texture(MTex *mtex, bool cubemap, bool mipmap);
 	~BL_Texture();
 
 	bool Ok();
-	int GetUnit()
-	{
-		return mUnit;
-	}
-	void SetUnit(int unit)
-	{
-		mUnit = unit;
-	}
 
 	unsigned int GetTextureType() const;
-	void DeleteTex();
 
-	bool InitFromImage(int unit, Image *img, bool mipmap);
-	bool InitCubeMap(int unit, EnvMap *cubemap);
-
-	bool IsValid();
-	void Validate();
-
-	static void ActivateFirst();
-	static void DisableAllTextures();
-	static void ActivateUnit(int unit);
 	static int GetMaxUnits();
-	static int GetPow2(int x);
-	static void SplitEnvMap(EnvMap *map);
 
-	void ActivateTexture();
-	void SetMapping(int mode);
-	void DisableUnit();
-	void setTexEnv(BL_Material *mat, bool modulate = false);
-	unsigned int swapTexture(unsigned int newTex)
-	{
-		// swap texture codes
-		unsigned int tmp = mTexture;
-		mTexture = newTex;
-		// return original texture code
-		return tmp;
-	}
+	void ActivateTexture(int unit);
+	void DisableTexture();
+	unsigned int swapTexture(unsigned int bindcode);
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_Texture")

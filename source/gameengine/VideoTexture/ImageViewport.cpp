@@ -36,6 +36,7 @@
 #include "glew-mx.h"
 
 #include "KX_Globals.h"
+#include "KX_KetsjiEngine.h"
 #include "RAS_ICanvas.h"
 #include "Texture.h"
 #include "ImageBase.h"

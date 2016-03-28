@@ -65,7 +65,7 @@ public:
 	unsigned int *GetMCol() const;
 	BL_Texture *GetTex(unsigned int idx)
 	{
-		return (idx < MAXTEX) ? m_textures + idx : NULL;
+		return (idx < MAXTEX) ? m_textures[idx] : NULL;
 	}
 	Image *GetImage(unsigned int idx)
 	{
@@ -129,7 +129,7 @@ private:
 	BL_Shader *m_shader;
 	BL_BlenderShader *m_blenderShader;
 	KX_Scene *m_scene;
-	BL_Texture m_textures[MAXTEX]; // texture array
+	BL_Texture *m_textures[MAXTEX]; // texture array
 	bool m_userDefBlend;
 	unsigned int m_blendFunc[2];
 	bool m_modified;

@@ -536,10 +536,6 @@ static bool ConvertMaterial(
 							material->cubemap[i] = env;
 
 							if (material->cubemap[i]) {
-								if (!material->cubemap[i]->cube[0]) {
-									BL_Texture::SplitEnvMap(material->cubemap[i]);
-								}
-
 								material->texname[i] = material->cubemap[i]->ima->id.name;
 								material->mapping[i].mapping |= USEENV;
 							}

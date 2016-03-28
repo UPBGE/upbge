@@ -98,6 +98,9 @@ int GPU_texture_height(const GPUTexture *tex);
 int GPU_texture_depth(const GPUTexture *tex);
 int GPU_texture_opengl_bindcode(const GPUTexture *tex);
 
+void GPU_texture_set_opengl_bindcode(GPUTexture *tex, int bindcode);
+
+
 #ifdef __cplusplus
 }
 #endif
