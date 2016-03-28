@@ -23,9 +23,6 @@ private:
 	unsigned int mEnvState; // cache textureEnv
 	static unsigned int mDisableState; // speed up disabling calls
 
-	void InitNonPow2Tex(unsigned int *p, int x, int y, bool mipmap, float lodbias);
-	void InitGLTex(unsigned int *p, int x, int y, bool mipmap, float lodbias);
-	void InitGLCompressedTex(struct ImBuf *p, bool mipmap, float lodbias);
 public:
 	BL_Texture();
 	~BL_Texture();
