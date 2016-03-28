@@ -37,14 +37,6 @@
 #include "MT_Vector3.h"
 
 class KX_KetsjiEngine;
-class KX_Scene;
-
-typedef enum {
-	psl_Lowest = 0,
-	psl_Highest,
-} TPythonSecurityLevel;
-
-extern bool gUseVisibilityTemp;
 
 #ifdef WITH_PYTHON
 PyMODINIT_FUNC initBGE(void);
