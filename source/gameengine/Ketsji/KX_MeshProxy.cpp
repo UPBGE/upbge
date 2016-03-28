@@ -37,6 +37,7 @@
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
+#include "BLI_math.h"
 
 #include "KX_VertexProxy.h"
 #include "KX_PolyProxy.h"
@@ -504,36 +505,27 @@ PyObject *KX_MeshProxy::PyRecalculateNormals(PyObject *args, PyObject *kwds)
 			{
 				polygon = m_meshobj->GetPolygon(p);
 
-				MT_Vector3 v1(polygon->GetVertex(0)->getXYZ()[0], polygon->GetVertex(0)->getXYZ()[1], polygon->GetVertex(0)->getXYZ()[2]);
-				MT_Vector3 v2(polygon->GetVertex(1)->getXYZ()[0], polygon->GetVertex(1)->getXYZ()[1], polygon->GetVertex(1)->getXYZ()[2]);
-				MT_Vector3 v3(polygon->GetVertex(2)->getXYZ()[0], polygon->GetVertex(2)->getXYZ()[1], polygon->GetVertex(2)->getXYZ()[2]);
+				float faceNormal[3];
+				float verts[4][3];
 
-				MT_Vector3 edge1 = v2 - v1;
-				MT_Vector3 edge2 = v3 - v1;
-
-				MT_Vector3 normal = edge1.cross(edge2);
-
-				MT_Vector3 v1Normal(polygon->GetVertex(0)->getNormal()[0], polygon->GetVertex(0)->getNormal()[1], polygon->GetVertex(0)->getNormal()[2]);
-				MT_Vector3 v2Normal(polygon->GetVertex(1)->getNormal()[0], polygon->GetVertex(1)->getNormal()[1], polygon->GetVertex(1)->getNormal()[2]);
-				MT_Vector3 v3Normal(polygon->GetVertex(2)->getNormal()[0], polygon->GetVertex(2)->getNormal()[1], polygon->GetVertex(2)->getNormal()[2]);
-
-				polygon->GetVertex(0)->SetNormal(v1Normal + normal);
-				polygon->GetVertex(1)->SetNormal(v2Normal + normal);
-				polygon->GetVertex(2)->SetNormal(v3Normal + normal);
-
-				if (polygon->VertexCount() == 4)
+				for (int v = 0; v < polygon->VertexCount(); v++)
 				{
-					MT_Vector3 v4(polygon->GetVertex(3)->getXYZ()[0], polygon->GetVertex(3)->getXYZ()[1], polygon->GetVertex(3)->getXYZ()[2]);
-					MT_Vector3 edge3 = v4 - v1;
-					normal = edge1.cross(edge3);
+					verts[v][0] = polygon->GetVertex(v)->getXYZ()[0];
+					verts[v][1] = polygon->GetVertex(v)->getXYZ()[1];
+					verts[v][2] = polygon->GetVertex(v)->getXYZ()[2];
+				}
 
-					MT_Vector3 v1Normal(polygon->GetVertex(0)->getNormal()[0], polygon->GetVertex(0)->getNormal()[1], polygon->GetVertex(0)->getNormal()[2]);
-					MT_Vector3 v2Normal(polygon->GetVertex(2)->getNormal()[0], polygon->GetVertex(2)->getNormal()[1], polygon->GetVertex(2)->getNormal()[2]);
-					MT_Vector3 v3Normal(polygon->GetVertex(3)->getNormal()[0], polygon->GetVertex(3)->getNormal()[1], polygon->GetVertex(3)->getNormal()[2]);
+				/* normal_poly appears more accurate to blenders initial normal calc, but cross_poly is quicker */
+				//cross_poly_v3(faceNormal, verts, polygon->VertexCount());
+				normal_poly_v3(faceNormal, verts, polygon->VertexCount());
 
-					polygon->GetVertex(0)->SetNormal(v1Normal + normal);
-					polygon->GetVertex(2)->SetNormal(v2Normal + normal);
-					polygon->GetVertex(3)->SetNormal(v3Normal + normal);
+				for (int v = 0; v < polygon->VertexCount(); v++)
+				{
+					MT_Vector3 vertNormal(polygon->GetVertex(v)->getNormal()[0], polygon->GetVertex(v)->getNormal()[1], polygon->GetVertex(v)->getNormal()[2]);
+					vertNormal[0] += faceNormal[0];
+					vertNormal[1] += faceNormal[1];
+					vertNormal[2] += faceNormal[2];
+					polygon->GetVertex(v)->SetNormal(vertNormal);
 				}
 			}
 
@@ -544,7 +536,7 @@ PyObject *KX_MeshProxy::PyRecalculateNormals(PyObject *args, PyObject *kwds)
 				MT_Vector3 normal(vertex->getNormal()[0], vertex->getNormal()[1], vertex->getNormal()[2]);
 				normal.normalize();
 				vertex->SetNormal(normal);
-				this->AppendModifiedFlag(RAS_MeshObject::NORMAL_MODIFIED);
+				AppendModifiedFlag(RAS_MeshObject::NORMAL_MODIFIED);
 			}
 		}
 	}
