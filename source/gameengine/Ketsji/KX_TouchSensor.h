@@ -36,7 +36,7 @@
 #include "SCA_ISensor.h"
 #include "EXP_ListValue.h"
 
-struct PHY_CollData;
+class PHY_CollData;
 
 #include "KX_ClientObjectInfo.h"
 

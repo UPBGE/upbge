@@ -37,7 +37,7 @@
 #include "KX_ClientObjectInfo.h"
 
 class KX_Scene;
-struct PHY_CollData;
+class PHY_CollData;
 
 class KX_NearSensor : public KX_TouchSensor
 {
