@@ -13,11 +13,11 @@ class BL_Material;
 class BL_Texture
 {
 private:
-	unsigned int mTexture; // Bound texture unit data
-	bool mOk;
-	unsigned int mType; // enum TEXTURE_2D | CUBE_MAP
-	unsigned int mEnvState; // cache textureEnv
-	static unsigned int mDisableState; // speed up disabling calls
+	unsigned int m_texture; // Bound texture unit data
+	bool m_ok;
+	unsigned int m_type; // enum TEXTURE_2D | CUBE_MAP
+	unsigned int m_envState; // cache textureEnv
+	static unsigned int m_disableState; // speed up disabling calls
 
 public:
 	BL_Texture();
@@ -46,8 +46,8 @@ public:
 	unsigned int swapTexture(unsigned int newTex)
 	{
 		// swap texture codes
-		unsigned int tmp = mTexture;
-		mTexture = newTex;
+		unsigned int tmp = m_texture;
+		m_texture = newTex;
 		// return original texture code
 		return tmp;
 	}

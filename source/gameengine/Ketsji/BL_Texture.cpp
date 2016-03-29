@@ -58,10 +58,10 @@ extern "C" {
 }
 
 BL_Texture::BL_Texture()
-	:mTexture(0),
-	mOk(false),
-	mType(0),
-	mEnvState(0)
+	:m_texture(0),
+	m_ok(false),
+	m_type(0),
+	m_envState(0)
 {
 }
 
@@ -71,41 +71,41 @@ BL_Texture::~BL_Texture()
 
 void BL_Texture::DeleteTex()
 {
-	if (mEnvState) {
-		glDeleteLists((GLuint)mEnvState, 1);
-		mEnvState = 0;
+	if (m_envState) {
+		glDeleteLists((GLuint)m_envState, 1);
+		m_envState = 0;
 	}
 
-	if (mDisableState) {
-		glDeleteLists((GLuint)mDisableState, 1);
-		mDisableState = 0;
+	if (m_disableState) {
+		glDeleteLists((GLuint)m_disableState, 1);
+		m_disableState = 0;
 	}
 }
 
 void BL_Texture::Init(Image *img, bool cubemap)
 {
-	mTexture = img->bindcode[cubemap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D];
-	mType = cubemap ? GL_TEXTURE_CUBE_MAP_ARB : GL_TEXTURE_2D;
+	m_texture = img->bindcode[cubemap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D];
+	m_type = cubemap ? GL_TEXTURE_CUBE_MAP_ARB : GL_TEXTURE_2D;
 }
 
 bool BL_Texture::IsValid()
 {
-	return (mTexture != 0) ? glIsTexture(mTexture) != 0 : false;
+	return (m_texture != 0) ? glIsTexture(m_texture) != 0 : false;
 }
 
 void BL_Texture::Validate()
 {
-	mOk = IsValid();
+	m_ok = IsValid();
 }
 
 bool BL_Texture::Ok()
 {
-	return (mTexture != 0);
+	return (m_texture != 0);
 }
 
 unsigned int BL_Texture::GetTextureType() const
 {
-	return mType;
+	return m_type;
 }
 
 int BL_Texture::GetMaxUnits()
@@ -176,15 +176,15 @@ void BL_Texture::ActivateTexture(int unit)
 	if (GLEW_ARB_multitexture)
 		glActiveTextureARB(GL_TEXTURE0_ARB + unit);
 
-	if (mType == GL_TEXTURE_CUBE_MAP_ARB && GLEW_ARB_texture_cube_map) {
-		glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, mTexture);
+	if (m_type == GL_TEXTURE_CUBE_MAP_ARB && GLEW_ARB_texture_cube_map) {
+		glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, m_texture);
 		glEnable(GL_TEXTURE_CUBE_MAP_ARB);
 	}
 	else {
 		if (GLEW_ARB_texture_cube_map)
 			glDisable(GL_TEXTURE_CUBE_MAP_ARB);
 
-		glBindTexture(GL_TEXTURE_2D, mTexture);
+		glBindTexture(GL_TEXTURE_2D, m_texture);
 		glEnable(GL_TEXTURE_2D);
 	}
 }
@@ -199,7 +199,7 @@ void BL_Texture::SetMapping(int mode)
 		return;
 	}
 
-	if (mType == GL_TEXTURE_CUBE_MAP_ARB &&
+	if (m_type == GL_TEXTURE_CUBE_MAP_ARB &&
 	    GLEW_ARB_texture_cube_map &&
 	    mode & USEREFL)
 	{
@@ -231,14 +231,14 @@ void BL_Texture::setTexEnv(int unit, BL_Material *mat, bool modulate)
 		return;
 	}
 
-	if (glIsList(mEnvState)) {
-		glCallList(mEnvState);
+	if (glIsList(m_envState)) {
+		glCallList(m_envState);
 		return;
 	}
-	if (!mEnvState)
-		mEnvState = glGenLists(1);
+	if (!m_envState)
+		m_envState = glGenLists(1);
 
-	glNewList(mEnvState, GL_COMPILE_AND_EXECUTE);
+	glNewList(m_envState, GL_COMPILE_AND_EXECUTE);
 
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
 
@@ -368,7 +368,7 @@ void BL_Texture::SplitEnvMap(EnvMap *map)
 	}
 }
 
-unsigned int BL_Texture::mDisableState = 0;
+unsigned int BL_Texture::m_disableState = 0;
 
 extern "C" {
 
