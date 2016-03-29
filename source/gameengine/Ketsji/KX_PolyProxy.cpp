@@ -184,7 +184,7 @@ PyObject *KX_PolyProxy::pyattr_get_collide(void *self_v, const KX_PYATTRIBUTE_DE
 PyObject *KX_PolyProxy::pyattr_get_normal(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_PolyProxy* self = static_cast<KX_PolyProxy*>(self_v);
-	return PyObjectFrom(MT_Vector3(self->m_polygon->GetNormal()));
+	return PyObjectFrom(self->m_polygon->GetNormal());
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialIndex,

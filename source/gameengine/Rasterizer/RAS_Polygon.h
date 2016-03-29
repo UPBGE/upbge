@@ -36,6 +36,8 @@ class RAS_DisplayArray;
 class RAS_MaterialBucket;
 class RAS_TexVert;
 
+class MT_Vector3;
+
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
 #endif
@@ -79,7 +81,7 @@ public:
 	RAS_MaterialBucket *GetMaterial();
 	RAS_DisplayArray *GetDisplayArray();
 
-	const float *GetNormal();
+	MT_Vector3 GetNormal();
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

@@ -122,7 +122,7 @@ RAS_DisplayArray *RAS_Polygon::GetDisplayArray()
 	return m_darray;
 }
 
-const float *RAS_Polygon::GetNormal()
+MT_Vector3 RAS_Polygon::GetNormal()
 {
 	float faceNormal[3];
 	float verts[4][3];
@@ -135,5 +135,5 @@ const float *RAS_Polygon::GetNormal()
 	}
 
 	normal_poly_v3(faceNormal, verts, m_numvert);
-	return faceNormal;
+	return MT_Vector3 (faceNormal[0], faceNormal[1], faceNormal[2]);
 }

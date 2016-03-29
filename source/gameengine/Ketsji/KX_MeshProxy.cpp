@@ -77,7 +77,7 @@ PyMethodDef KX_MeshProxy::Methods[] = {
 	{"getPolygon", (PyCFunction) KX_MeshProxy::sPyGetPolygon, METH_VARARGS},
 	{"transform", (PyCFunction) KX_MeshProxy::sPyTransform, METH_VARARGS},
 	{"transformUV", (PyCFunction) KX_MeshProxy::sPyTransformUV, METH_VARARGS},
-	{ "recalculateNormals", (PyCFunction)KX_MeshProxy::sPyRecalculateNormals, METH_VARARGS },
+	{ "recalculateNormals", (PyCFunction)KX_MeshProxy::sPyRecalculateNormals, METH_NOARGS },
 
 	{NULL, NULL} //Sentinel
 };
@@ -476,48 +476,74 @@ bool ConvertPythonToMesh(PyObject *value, RAS_MeshObject **object, bool py_none_
 	return false;
 }
 
-PyObject *KX_MeshProxy::PyRecalculateNormals(PyObject *args, PyObject *kwds)
+PyObject *KX_MeshProxy::PyRecalculateNormals()
 {
-	int matindex;
 	RAS_TexVert *vertex = NULL;
 	RAS_Polygon *polygon = NULL;
+	RAS_MeshMaterial *meshMat = NULL;
+	RAS_IPolyMaterial *polyMat = NULL;
 
-	if (!PyArg_ParseTuple(args, "i:recalculateNormals", &matindex))
-		return NULL;
-
-	RAS_MeshMaterial *mmat = m_meshobj->GetMeshMaterial(matindex); /* can be NULL*/
-
-	if (mmat)
+	for (int m = 0; m < m_meshobj->NumMaterials(); m++)
 	{
-		RAS_IPolyMaterial *mat = mmat->m_bucket->GetPolyMaterial();
-		if (mat)
+		meshMat = m_meshobj->GetMeshMaterial(m);
+		polyMat = meshMat->m_bucket->GetPolyMaterial();
+		if (polyMat)
 		{
-			/* reset normals */
-			for (int i = 0; i < m_meshobj->NumVertices(mat); i++)
+			for (int v = 0; v < m_meshobj->NumVertices(polyMat); v++)
 			{
-				vertex = m_meshobj->GetVertex(matindex, i);
+				vertex = m_meshobj->GetVertex(m, v);
 				vertex->SetNormal(MT_Vector3(0.0, 0.0, 0.0));
 			}
+		}
+	}
 
-			/* sum face normals for each connected vert*/
-			for (int p = 0; p < m_meshobj->NumPolygons(); p++)
+	/* sum face normals for each connected vert*/
+	for (int polyId = 0; polyId < m_meshobj->NumPolygons(); polyId++)
+	{
+		polygon = m_meshobj->GetPolygon(polyId);
+
+		for (int polyVertId = 0; polyVertId < polygon->VertexCount(); polyVertId++)
+		{
+			MT_Vector3 vertNormal = polygon->GetVertex(polyVertId)->getNormal();
+			MT_Vector3 polyNormal = polygon->GetNormal();
+			if (polygon->GetVertex(polyVertId)->getFlag() == RAS_TexVert::FLAT)
+				/* this only needs to be set for flat verts as smooth verts will be set when searching for shared verts*/
+				polygon->GetVertex(polyVertId)->SetNormal(vertNormal + polyNormal);
+
+			/* search for shared verts and add the poly normal to them */
+			for (int m = 0; m < m_meshobj->NumMaterials(); m++)
 			{
-				polygon = m_meshobj->GetPolygon(p);
-
-				for (int v = 0; v < polygon->VertexCount(); v++)
+				meshMat = m_meshobj->GetMeshMaterial(m);
+				polyMat = meshMat->m_bucket->GetPolyMaterial();
+				if (polyMat)
 				{
-					MT_Vector3 vertNormal(polygon->GetVertex(v)->getNormal()[0], polygon->GetVertex(v)->getNormal()[1], polygon->GetVertex(v)->getNormal()[2]);
-					vertNormal[0] += polygon->GetNormal()[0];
-					vertNormal[1] += polygon->GetNormal()[1];
-					vertNormal[2] += polygon->GetNormal()[2];
-					polygon->GetVertex(v)->SetNormal(vertNormal);
+					for (int v = 0; v < m_meshobj->NumVertices(polyMat); v++)
+					{
+						vertex = m_meshobj->GetVertex(m, v);
+						MT_Vector3 vPos = vertex->getXYZ();
+						MT_Vector3 vPos2 = polygon->GetVertex(polyVertId)->getXYZ();
+
+						if (vPos == vPos2 && vertex->getFlag() != RAS_TexVert::FLAT)
+						{
+							vertNormal = vertex->getNormal();
+							vertex->SetNormal(vertNormal + polyNormal);
+						}
+					}
 				}
 			}
+		}
+	}
 
-			/* normalise summed normals */
-			for (int i = 0; i < m_meshobj->NumVertices(mat); i++)
+	/* normalise summed normals */
+	for (int m = 0; m < m_meshobj->NumMaterials(); m++)
+	{
+		meshMat = m_meshobj->GetMeshMaterial(m);
+		polyMat = meshMat->m_bucket->GetPolyMaterial();
+		if (polyMat)
+		{
+			for (int v = 0; v < m_meshobj->NumVertices(polyMat); v++)
 			{
-				vertex = m_meshobj->GetVertex(matindex, i);
+				vertex = m_meshobj->GetVertex(m, v);
 				MT_Vector3 normal(vertex->getNormal()[0], vertex->getNormal()[1], vertex->getNormal()[2]);
 				normal.normalize();
 				vertex->SetNormal(normal);
@@ -525,6 +551,7 @@ PyObject *KX_MeshProxy::PyRecalculateNormals(PyObject *args, PyObject *kwds)
 			}
 		}
 	}
+			
 	Py_RETURN_NONE;
 }
 
