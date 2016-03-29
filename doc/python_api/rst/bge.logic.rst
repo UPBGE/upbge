@@ -156,6 +156,12 @@ General functions
    
    .. note:: Scenes in your blend file that have not been converted wont be in this list. This list will only contain scenes such as overlays scenes.
 
+.. function:: getInactiveSceneNames()
+
+   Gets a list of the scene's names not loaded in the game engine.
+
+   :rtype: list of string
+
 .. function:: loadGlobalDict()
 
    Loads bge.logic.globalDict from a file.
