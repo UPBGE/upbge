@@ -44,42 +44,23 @@
 
 #include "KX_GameObject.h"
 
-#define spit(x) std::cout << x << std::endl;
-
 #include "MEM_guardedalloc.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_texture.h"
 
-extern "C" {
-	// envmaps
-	#include "IMB_imbuf.h"
-	void my_envmap_split_ima(EnvMap *env, ImBuf *ibuf);
-	void my_free_envmapdata(EnvMap *env);
-}
-
 BL_Texture::BL_Texture()
-	:m_bindcode(0),
-	m_type(0),
-	m_envState(0),
-	m_mtex(NULL)
+	:m_type(0),
+	m_mtex(NULL),
+	m_gputex(NULL)
 {
 }
 
 BL_Texture::~BL_Texture()
 {
-}
-
-void BL_Texture::DeleteTex()
-{
-	if (m_envState) {
-		glDeleteLists((GLuint)m_envState, 1);
-		m_envState = 0;
-	}
-
-	if (m_disableState) {
-		glDeleteLists((GLuint)m_disableState, 1);
-		m_disableState = 0;
+	// Restore saved data.
+	if (m_gputex) {
+		GPU_texture_set_opengl_bindcode(m_gputex, m_savedData.bindcode);
 	}
 }
 
@@ -88,19 +69,22 @@ void BL_Texture::Init(MTex *mtex, bool cubemap, bool mipmap)
 	Tex *tex = mtex->tex;
 	Image *ima = tex->ima;
 	ImageUser& iuser = tex->iuser;
-	const int textarget = cubemap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
 	const int gltextarget = cubemap ? GL_TEXTURE_CUBE_MAP_ARB : GL_TEXTURE_2D;
 
-	GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, mipmap);
+	m_gputex = GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, mipmap);
 
-	m_bindcode = ima->bindcode[textarget];
 	m_type = gltextarget;
 	m_mtex = mtex;
+
+	// Initialize saved data.
+	if (m_gputex) {
+		m_savedData.bindcode = GPU_texture_opengl_bindcode(m_gputex);
+	}
 }
 
 bool BL_Texture::Ok()
 {
-	return (m_bindcode != 0);
+	return (m_gputex != NULL);
 }
 
 unsigned int BL_Texture::GetTextureType() const
@@ -117,37 +101,6 @@ void BL_Texture::ActivateFirst()
 {
 	if (GLEW_ARB_multitexture)
 		glActiveTextureARB(GL_TEXTURE0_ARB);
-}
-
-void BL_Texture::ActivateUnit(int unit)
-{
-	if (GLEW_ARB_multitexture) {
-		if (unit <= MAXTEX)
-			glActiveTextureARB(GL_TEXTURE0_ARB + unit);
-	}
-}
-
-void BL_Texture::DisableUnit(int unit)
-{
-	if (GLEW_ARB_multitexture)
-		glActiveTextureARB(GL_TEXTURE0_ARB + unit);
-
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
-
-	if (GLEW_ARB_texture_cube_map && glIsEnabled(GL_TEXTURE_CUBE_MAP_ARB))
-		glDisable(GL_TEXTURE_CUBE_MAP_ARB);
-	else {
-		if (glIsEnabled(GL_TEXTURE_2D))
-			glDisable(GL_TEXTURE_2D);
-	}
-
-	glDisable(GL_TEXTURE_GEN_S);
-	glDisable(GL_TEXTURE_GEN_T);
-	glDisable(GL_TEXTURE_GEN_R);
-	glDisable(GL_TEXTURE_GEN_Q);
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 }
 
 void BL_Texture::DisableAllTextures()
@@ -173,245 +126,14 @@ void BL_Texture::DisableAllTextures()
 
 void BL_Texture::ActivateTexture(int unit)
 {
-	if (GLEW_ARB_multitexture)
-		glActiveTextureARB(GL_TEXTURE0_ARB + unit);
-
-	if (m_type == GL_TEXTURE_CUBE_MAP_ARB && GLEW_ARB_texture_cube_map) {
-		glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, m_bindcode);
-		glEnable(GL_TEXTURE_CUBE_MAP_ARB);
-	}
-	else {
-		if (GLEW_ARB_texture_cube_map)
-			glDisable(GL_TEXTURE_CUBE_MAP_ARB);
-
-		glBindTexture(GL_TEXTURE_2D, m_bindcode);
-		glEnable(GL_TEXTURE_2D);
-	}
+	GPU_texture_bind(m_gputex, unit);
 }
 
-void BL_Texture::SetMapping(int mode)
+unsigned int BL_Texture::swapTexture(unsigned int bindcode)
 {
-	if (!(mode & USEREFL)) {
-		glDisable(GL_TEXTURE_GEN_S);
-		glDisable(GL_TEXTURE_GEN_T);
-		glDisable(GL_TEXTURE_GEN_R);
-		glDisable(GL_TEXTURE_GEN_Q);
-		return;
-	}
-
-	if (m_type == GL_TEXTURE_CUBE_MAP_ARB &&
-	    GLEW_ARB_texture_cube_map &&
-	    mode & USEREFL)
-	{
-		glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_REFLECTION_MAP_ARB);
-		glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_REFLECTION_MAP_ARB);
-		glTexGeni(GL_R, GL_TEXTURE_GEN_MODE, GL_REFLECTION_MAP_ARB);
-
-		glEnable(GL_TEXTURE_GEN_S);
-		glEnable(GL_TEXTURE_GEN_T);
-		glEnable(GL_TEXTURE_GEN_R);
-		glDisable(GL_TEXTURE_GEN_Q);
-		return;
-	}
-	else {
-		glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
-		glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
-
-		glEnable(GL_TEXTURE_GEN_S);
-		glEnable(GL_TEXTURE_GEN_T);
-		glDisable(GL_TEXTURE_GEN_R);
-		glDisable(GL_TEXTURE_GEN_Q);
-	}
+	// swap texture codes
+	unsigned int tmp = GPU_texture_opengl_bindcode(m_gputex);
+	GPU_texture_set_opengl_bindcode(m_gputex, bindcode);
+	// return original texture code
+	return tmp;
 }
-
-void BL_Texture::setTexEnv(int unit, BL_Material *mat, bool modulate)
-{
-	if (modulate || !GLEW_ARB_texture_env_combine) {
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-		return;
-	}
-
-	if (glIsList(m_envState)) {
-		glCallList(m_envState);
-		return;
-	}
-	if (!m_envState)
-		m_envState = glGenLists(1);
-
-	glNewList(m_envState, GL_COMPILE_AND_EXECUTE);
-
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
-
-	GLfloat blend_operand = GL_SRC_COLOR;
-	GLfloat blend_operand_prev = GL_SRC_COLOR;
-	GLfloat alphaOp = GL_SRC_ALPHA;
-
-	GLenum combiner = GL_COMBINE_RGB_ARB;
-	GLenum source0 = GL_SOURCE0_RGB_ARB;
-	GLenum source1 = GL_SOURCE1_RGB_ARB;
-	GLenum source2 = GL_SOURCE2_RGB_ARB;
-	GLenum op0 = GL_OPERAND0_RGB_ARB;
-	GLenum op1 = GL_OPERAND1_RGB_ARB;
-	GLenum op2 = GL_OPERAND2_RGB_ARB;
-
-	// switch to alpha combiners
-	if (mat->flag[unit]  & TEXALPHA) {
-		combiner = GL_COMBINE_ALPHA_ARB;
-		source0 = GL_SOURCE0_ALPHA_ARB;
-		source1 = GL_SOURCE1_ALPHA_ARB;
-		source2 = GL_SOURCE2_ALPHA_ARB;
-		op0 = GL_OPERAND0_ALPHA_ARB;
-		op1 = GL_OPERAND1_ALPHA_ARB;
-		op2 = GL_OPERAND2_ALPHA_ARB;
-		blend_operand = GL_SRC_ALPHA;
-		blend_operand_prev = GL_SRC_ALPHA;
-		// invert
-		if (mat->flag[unit] & TEXNEG) {
-			blend_operand_prev = GL_ONE_MINUS_SRC_ALPHA;
-			blend_operand = GL_ONE_MINUS_SRC_ALPHA;
-		}
-	}
-	else {
-		if (mat->flag[unit] & TEXNEG) {
-			blend_operand_prev = GL_ONE_MINUS_SRC_COLOR;
-			blend_operand = GL_ONE_MINUS_SRC_COLOR;
-		}
-	}
-	bool using_alpha = false;
-
-	if (mat->flag[unit] & USEALPHA) {
-		alphaOp = GL_ONE_MINUS_SRC_ALPHA;
-		using_alpha = true;
-	}
-	else if (mat->flag[unit] & USENEGALPHA) {
-		alphaOp = GL_SRC_ALPHA;
-		using_alpha = true;
-	}
-
-	switch (mat->blend_mode[unit]) {
-		case BLEND_MIX:
-		{
-			if (!using_alpha) {
-				GLfloat base_col[4];
-				base_col[0]  = base_col[1]  = base_col[2]  = 0.f;
-				base_col[3]  = 1.f - mat->color_blend[unit];
-				glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, base_col);
-			}
-			glTexEnvf(GL_TEXTURE_ENV, combiner, GL_INTERPOLATE_ARB);
-			glTexEnvf(GL_TEXTURE_ENV, source0, GL_PREVIOUS_ARB);
-			glTexEnvf(GL_TEXTURE_ENV, op0, blend_operand_prev);
-			glTexEnvf(GL_TEXTURE_ENV, source1, GL_TEXTURE);
-			glTexEnvf(GL_TEXTURE_ENV, op1, blend_operand);
-			if (!using_alpha)
-				glTexEnvf(GL_TEXTURE_ENV, source2, GL_CONSTANT_ARB);
-			else
-				glTexEnvf(GL_TEXTURE_ENV, source2, GL_TEXTURE);
-
-			glTexEnvf(GL_TEXTURE_ENV, op2, alphaOp);
-		} break;
-		case BLEND_MUL:
-		{
-			glTexEnvf(GL_TEXTURE_ENV, combiner, GL_MODULATE);
-			glTexEnvf(GL_TEXTURE_ENV, source0, GL_PREVIOUS_ARB);
-			glTexEnvf(GL_TEXTURE_ENV, op0, blend_operand_prev);
-			glTexEnvf(GL_TEXTURE_ENV, source1, GL_TEXTURE);
-			if (using_alpha)
-				glTexEnvf(GL_TEXTURE_ENV, op1, alphaOp);
-			else
-				glTexEnvf(GL_TEXTURE_ENV, op1, blend_operand);
-		} break;
-		case BLEND_ADD:
-		{
-			glTexEnvf(GL_TEXTURE_ENV, combiner, GL_ADD_SIGNED_ARB);
-			glTexEnvf(GL_TEXTURE_ENV, source0, GL_PREVIOUS_ARB);
-			glTexEnvf(GL_TEXTURE_ENV, op0, blend_operand_prev);
-			glTexEnvf(GL_TEXTURE_ENV, source1, GL_TEXTURE);
-			if (using_alpha)
-				glTexEnvf(GL_TEXTURE_ENV, op1, alphaOp);
-			else
-				glTexEnvf(GL_TEXTURE_ENV, op1, blend_operand);
-		} break;
-		case BLEND_SUB:
-		{
-			glTexEnvf(GL_TEXTURE_ENV, combiner, GL_SUBTRACT_ARB);
-			glTexEnvf(GL_TEXTURE_ENV, source0, GL_PREVIOUS_ARB);
-			glTexEnvf(GL_TEXTURE_ENV, op0, blend_operand_prev);
-			glTexEnvf(GL_TEXTURE_ENV, source1, GL_TEXTURE);
-			glTexEnvf(GL_TEXTURE_ENV, op1, blend_operand);
-		} break;
-		case BLEND_SCR:
-		{
-			glTexEnvf(GL_TEXTURE_ENV, combiner, GL_ADD);
-			glTexEnvf(GL_TEXTURE_ENV, source0, GL_PREVIOUS_ARB);
-			glTexEnvf(GL_TEXTURE_ENV, op0, blend_operand_prev);
-			glTexEnvf(GL_TEXTURE_ENV, source1, GL_TEXTURE);
-			if (using_alpha)
-				glTexEnvf(GL_TEXTURE_ENV, op1, alphaOp);
-			else
-				glTexEnvf(GL_TEXTURE_ENV, op1, blend_operand);
-		} break;
-	}
-	glTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE_ARB, 1.0f);
-
-	glEndList();
-}
-
-void BL_Texture::SplitEnvMap(EnvMap *map)
-{
-	if (!map || !map->ima || (map->ima && !map->ima->ok)) {
-		return;
-	}
-	ImBuf *ibuf = BKE_image_acquire_ibuf(map->ima, NULL, NULL);
-	if (ibuf) {
-		my_envmap_split_ima(map, ibuf);
-		BKE_image_release_ibuf(map->ima, ibuf, NULL);
-	}
-}
-
-unsigned int BL_Texture::m_disableState = 0;
-
-extern "C" {
-
-void my_envmap_split_ima(EnvMap *env, ImBuf *ibuf)
-{
-	int dx, part;
-
-	my_free_envmapdata(env);
-
-	dx = ibuf->y;
-	dx /= 2;
-	if (3 * dx != ibuf->x) {
-		printf("Incorrect envmap size\n");
-		env->ok = 0;
-		env->ima->ok = 0;
-	}
-	else {
-		for (part = 0; part < 6; part++) {
-			env->cube[part] = IMB_allocImBuf(dx, dx, 24, IB_rect);
-		}
-		IMB_rectcpy(env->cube[0], ibuf, 0, 0, 0, 0, dx, dx);
-		IMB_rectcpy(env->cube[1], ibuf, 0, 0, dx, 0, dx, dx);
-		IMB_rectcpy(env->cube[2], ibuf, 0, 0, 2 * dx, 0, dx, dx);
-		IMB_rectcpy(env->cube[3], ibuf, 0, 0, 0, dx, dx, dx);
-		IMB_rectcpy(env->cube[4], ibuf, 0, 0, dx, dx, dx, dx);
-		IMB_rectcpy(env->cube[5], ibuf, 0, 0, 2 * dx, dx, dx, dx);
-
-		env->ok = 2;
-	}
-}
-
-void my_free_envmapdata(EnvMap *env)
-{
-	unsigned int part;
-
-	for (part = 0; part < 6; part++) {
-		ImBuf *ibuf = env->cube[part];
-		if (ibuf) {
-			IMB_freeImBuf(ibuf);
-			env->cube[part] = NULL;
-		}
-	}
-	env->ok = 0;
-}
-
-} // extern C

@@ -242,14 +242,6 @@ void KX_BlenderMaterial::OnExit()
 		m_blenderShader = NULL;
 	}
 
-	BL_Texture::ActivateFirst();
-	for (int i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		if (!m_textures[i].Ok()) continue;
-		BL_Texture::ActivateUnit(i);
-		m_textures[i].DeleteTex();
-		m_textures[i].DisableUnit(i);
-	}
-
 	/* used to call with 'm_material->tface' but this can be a freed array,
 	 * see: [#30493], so just call with NULL, this is best since it clears
 	 * the 'lastface' pointer in GPU too - campbell */
@@ -273,7 +265,6 @@ void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
 		if (!m_textures[i].Ok()) continue;
 		m_textures[i].ActivateTexture(i);
-		m_textures[i].SetMapping(m_material->mapping[i].mapping);
 	}
 
 	if (!m_userDefBlend) {
@@ -308,8 +299,6 @@ void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 		// no material connected to the object
 		if (m_textures[0].Ok() ) {
 			m_textures[0].ActivateTexture(0);
-			m_textures[0].setTexEnv(0, 0, true);
-			m_textures[0].SetMapping(m_material->mapping[0].mapping);
 			ras->SetAlphaBlend(m_material->alphablend);
 		}
 		return;
@@ -320,13 +309,10 @@ void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 		if (!m_textures[i].Ok() ) continue;
 
 		m_textures[i].ActivateTexture(i);
-		m_textures[i].setTexEnv(i, m_material);
 		mode = m_material->mapping[i].mapping;
 
 		if (mode & USEOBJ)
 			SetObjectMatrixData(i, ras);
-		else
-			m_textures[i].SetMapping(mode);
 
 		if (!(mode & USEOBJ))
 			SetTexMatrixData(i);
