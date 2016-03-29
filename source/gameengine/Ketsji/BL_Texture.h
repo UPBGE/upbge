@@ -34,11 +34,10 @@ public:
 
 	void Init(MTex *mtex, bool cubemap, bool mipmap);
 
-	static void ActivateFirst();
-	static void DisableAllTextures();
 	static int GetMaxUnits();
 
 	void ActivateTexture(int unit);
+	void DisableTexture();
 	unsigned int swapTexture(unsigned int bindcode);
 
 #ifdef WITH_CXX_GUARDEDALLOC

@@ -228,7 +228,6 @@ void KX_BlenderMaterial::OnConstruction()
 void KX_BlenderMaterial::EndFrame(RAS_IRasterizer *rasty)
 {
 	rasty->SetAlphaBlend(GPU_BLEND_SOLID);
-	BL_Texture::DisableAllTextures();
 }
 
 void KX_BlenderMaterial::OnExit()
@@ -256,8 +255,6 @@ void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 	int i;
 
 	m_shader->SetProg(true);
-
-	BL_Texture::ActivateFirst();
 
 	m_shader->ApplyShader();
 
@@ -288,8 +285,6 @@ void KX_BlenderMaterial::SetBlenderShaderData(RAS_IRasterizer *ras)
 
 void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 {
-	BL_Texture::ActivateFirst();
-
 	if (m_material->IdMode == DEFAULT_BLENDER) {
 		ras->SetAlphaBlend(m_material->alphablend);
 		return;
@@ -402,8 +397,11 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 {
 	if (GLEW_ARB_shader_objects && (m_shader && m_shader->Ok())) {
 		m_shader->SetProg(false);
-		// Disable all textures for custom shader because they use multitexture.
-		BL_Texture::DisableAllTextures();
+		for (unsigned short i = 0; i < BL_Texture::GetMaxUnits(); i++) {
+			if (m_textures[i].Ok()) {
+				m_textures[i].DisableTexture();
+			}
+		}
 	}
 	else if (GLEW_ARB_shader_objects && (m_blenderShader && m_blenderShader->Ok())) {
 		m_blenderShader->SetProg(false);

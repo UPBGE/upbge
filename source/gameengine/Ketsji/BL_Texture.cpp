@@ -97,36 +97,14 @@ int BL_Texture::GetMaxUnits()
 	return MAXTEX;
 }
 
-void BL_Texture::ActivateFirst()
-{
-	if (GLEW_ARB_multitexture)
-		glActiveTextureARB(GL_TEXTURE0_ARB);
-}
-
-void BL_Texture::DisableAllTextures()
-{
-	for (int i = 0; i < MAXTEX; i++) {
-		if (GLEW_ARB_multitexture)
-			glActiveTextureARB(GL_TEXTURE0_ARB + i);
-
-		glMatrixMode(GL_TEXTURE);
-		glLoadIdentity();
-		glMatrixMode(GL_MODELVIEW);
-		glDisable(GL_TEXTURE_2D);
-		glDisable(GL_TEXTURE_GEN_S);
-		glDisable(GL_TEXTURE_GEN_T);
-		glDisable(GL_TEXTURE_GEN_R);
-		glDisable(GL_TEXTURE_GEN_Q);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	}
-
-	if (GLEW_ARB_multitexture)
-		glActiveTextureARB(GL_TEXTURE0_ARB);
-}
-
 void BL_Texture::ActivateTexture(int unit)
 {
 	GPU_texture_bind(m_gputex, unit);
+}
+
+void BL_Texture::DisableTexture()
+{
+	GPU_texture_unbind(m_gputex);
 }
 
 unsigned int BL_Texture::swapTexture(unsigned int bindcode)
