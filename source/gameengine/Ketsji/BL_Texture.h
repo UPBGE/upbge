@@ -14,7 +14,6 @@ class BL_Texture
 {
 private:
 	unsigned int m_bindcode; // Bound texture unit data
-	bool m_ok;
 	unsigned int m_type; // enum TEXTURE_2D | CUBE_MAP
 	unsigned int m_envState; // cache textureEnv
 	MTex *m_mtex;
@@ -30,9 +29,6 @@ public:
 	void DeleteTex();
 
 	void Init(MTex *mtex, bool cubemap, bool mipmap);
-
-	bool IsValid();
-	void Validate();
 
 	static void ActivateFirst();
 	static void DisableAllTextures();

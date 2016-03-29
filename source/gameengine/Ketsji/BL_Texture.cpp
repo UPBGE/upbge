@@ -60,7 +60,6 @@ extern "C" {
 
 BL_Texture::BL_Texture()
 	:m_bindcode(0),
-	m_ok(false),
 	m_type(0),
 	m_envState(0),
 	m_mtex(NULL)
@@ -97,16 +96,6 @@ void BL_Texture::Init(MTex *mtex, bool cubemap, bool mipmap)
 	m_bindcode = ima->bindcode[textarget];
 	m_type = gltextarget;
 	m_mtex = mtex;
-}
-
-bool BL_Texture::IsValid()
-{
-	return (m_bindcode != 0) ? glIsTexture(m_bindcode) != 0 : false;
-}
-
-void BL_Texture::Validate()
-{
-	m_ok = IsValid();
 }
 
 bool BL_Texture::Ok()
