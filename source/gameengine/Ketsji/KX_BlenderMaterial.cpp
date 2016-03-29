@@ -195,15 +195,16 @@ void KX_BlenderMaterial::InitTextures()
 	// for each unique material...
 	int i;
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
+		bool mipmap = (m_material->flag[i] & MIPMAP) != 0;
 		if (m_material->mapping[i].mapping & USEENV) {
 			if (!GLEW_ARB_texture_cube_map) {
 				spit("CubeMap textures not supported");
 				continue;
 			}
-			m_textures[i].Init(m_material->cubemap[i]->ima, true);
+			m_textures[i].Init(m_material->material->mtex[i], true, mipmap);
 		}
 		else if (m_material->img[i]) {
-			m_textures[i].Init(m_material->img[i], false);
+			m_textures[i].Init(m_material->material->mtex[i], false, mipmap);
 		}
 	}
 }

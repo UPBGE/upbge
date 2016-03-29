@@ -6,7 +6,7 @@
 #ifndef __BL_TEXTURE_H__
 #define __BL_TEXTURE_H__
 
-struct Image;
+struct MTex;
 struct EnvMap;
 class BL_Material;
 
@@ -17,6 +17,7 @@ private:
 	bool m_ok;
 	unsigned int m_type; // enum TEXTURE_2D | CUBE_MAP
 	unsigned int m_envState; // cache textureEnv
+	MTex *m_mtex;
 	static unsigned int m_disableState; // speed up disabling calls
 
 public:
@@ -28,7 +29,7 @@ public:
 	unsigned int GetTextureType() const;
 	void DeleteTex();
 
-	void Init(Image *img, bool cubemap);
+	void Init(MTex *mtex, bool cubemap, bool mipmap);
 
 	bool IsValid();
 	void Validate();

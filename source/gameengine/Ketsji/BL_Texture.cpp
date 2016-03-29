@@ -49,6 +49,7 @@
 #include "MEM_guardedalloc.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_texture.h"
 
 extern "C" {
 	// envmaps
@@ -61,7 +62,8 @@ BL_Texture::BL_Texture()
 	:m_bindcode(0),
 	m_ok(false),
 	m_type(0),
-	m_envState(0)
+	m_envState(0),
+	m_mtex(NULL)
 {
 }
 
@@ -82,10 +84,19 @@ void BL_Texture::DeleteTex()
 	}
 }
 
-void BL_Texture::Init(Image *img, bool cubemap)
+void BL_Texture::Init(MTex *mtex, bool cubemap, bool mipmap)
 {
-	m_bindcode = img->bindcode[cubemap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D];
-	m_type = cubemap ? GL_TEXTURE_CUBE_MAP_ARB : GL_TEXTURE_2D;
+	Tex *tex = mtex->tex;
+	Image *ima = tex->ima;
+	ImageUser& iuser = tex->iuser;
+	const int textarget = cubemap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
+	const int gltextarget = cubemap ? GL_TEXTURE_CUBE_MAP_ARB : GL_TEXTURE_2D;
+
+	GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, mipmap);
+
+	m_bindcode = ima->bindcode[textarget];
+	m_type = gltextarget;
+	m_mtex = mtex;
 }
 
 bool BL_Texture::IsValid()

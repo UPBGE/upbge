@@ -1051,20 +1051,18 @@ int main(int argc, char** argv)
 								else
 #endif
 								{
-			
-									if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
-										GPU_set_mipmap(0);
-									}
-
-									// These calls request a texture reload, so don't do this after convert BGE datas.
-									GPU_set_anisotropic(U.anisotropic_filter);
-									GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
-
 									if (parentWindow != 0)
 										app.startEmbeddedWindow(title, parentWindow, stereoWindow, stereomode, aasamples);
 									else
 										app.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
 										                stereoWindow, stereomode, aasamples);
+
+									if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
+										GPU_set_mipmap(0);
+									}
+
+									GPU_set_anisotropic(U.anisotropic_filter);
+									GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
 								}
 							}
 						}
