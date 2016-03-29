@@ -13,7 +13,7 @@ class BL_Material;
 class BL_Texture
 {
 private:
-	unsigned int m_texture; // Bound texture unit data
+	unsigned int m_bindcode; // Bound texture unit data
 	bool m_ok;
 	unsigned int m_type; // enum TEXTURE_2D | CUBE_MAP
 	unsigned int m_envState; // cache textureEnv
@@ -43,11 +43,11 @@ public:
 	void SetMapping(int mode);
 	void DisableUnit(int unit);
 	void setTexEnv(int unit, BL_Material *mat, bool modulate = false);
-	unsigned int swapTexture(unsigned int newTex)
+	unsigned int swapTexture(unsigned int bindcode)
 	{
 		// swap texture codes
-		unsigned int tmp = m_texture;
-		m_texture = newTex;
+		unsigned int tmp = m_bindcode;
+		m_bindcode = bindcode;
 		// return original texture code
 		return tmp;
 	}

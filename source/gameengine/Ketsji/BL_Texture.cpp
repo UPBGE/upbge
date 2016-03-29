@@ -58,7 +58,7 @@ extern "C" {
 }
 
 BL_Texture::BL_Texture()
-	:m_texture(0),
+	:m_bindcode(0),
 	m_ok(false),
 	m_type(0),
 	m_envState(0)
@@ -84,13 +84,13 @@ void BL_Texture::DeleteTex()
 
 void BL_Texture::Init(Image *img, bool cubemap)
 {
-	m_texture = img->bindcode[cubemap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D];
+	m_bindcode = img->bindcode[cubemap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D];
 	m_type = cubemap ? GL_TEXTURE_CUBE_MAP_ARB : GL_TEXTURE_2D;
 }
 
 bool BL_Texture::IsValid()
 {
-	return (m_texture != 0) ? glIsTexture(m_texture) != 0 : false;
+	return (m_bindcode != 0) ? glIsTexture(m_bindcode) != 0 : false;
 }
 
 void BL_Texture::Validate()
@@ -100,7 +100,7 @@ void BL_Texture::Validate()
 
 bool BL_Texture::Ok()
 {
-	return (m_texture != 0);
+	return (m_bindcode != 0);
 }
 
 unsigned int BL_Texture::GetTextureType() const
@@ -177,14 +177,14 @@ void BL_Texture::ActivateTexture(int unit)
 		glActiveTextureARB(GL_TEXTURE0_ARB + unit);
 
 	if (m_type == GL_TEXTURE_CUBE_MAP_ARB && GLEW_ARB_texture_cube_map) {
-		glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, m_texture);
+		glBindTexture(GL_TEXTURE_CUBE_MAP_ARB, m_bindcode);
 		glEnable(GL_TEXTURE_CUBE_MAP_ARB);
 	}
 	else {
 		if (GLEW_ARB_texture_cube_map)
 			glDisable(GL_TEXTURE_CUBE_MAP_ARB);
 
-		glBindTexture(GL_TEXTURE_2D, m_texture);
+		glBindTexture(GL_TEXTURE_2D, m_bindcode);
 		glEnable(GL_TEXTURE_2D);
 	}
 }
