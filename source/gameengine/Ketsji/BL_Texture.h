@@ -6,12 +6,8 @@
 #ifndef __BL_TEXTURE_H__
 #define __BL_TEXTURE_H__
 
-#include <iostream>
-
 struct MTex;
-struct EnvMap;
 struct GPUTexture;
-class BL_Material;
 
 class BL_Texture
 {

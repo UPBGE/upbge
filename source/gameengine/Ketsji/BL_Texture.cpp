@@ -24,29 +24,11 @@
 
 #include "glew-mx.h"
 
-#include <iostream>
-#include <map>
-#include <stdlib.h>
-
 #include "BL_Material.h"
 #include "BL_Texture.h"
-#include "MT_Matrix4x4.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_texture_types.h"
-#include "DNA_image_types.h"
-#include "IMB_imbuf_types.h"
-#include "BKE_image.h"
-#include "BLI_blenlib.h"
 
-#include "RAS_ICanvas.h"
-#include "RAS_Rect.h"
-
-#include "KX_GameObject.h"
-
-#include "MEM_guardedalloc.h"
-#include "GPU_draw.h"
-#include "GPU_extensions.h"
 #include "GPU_texture.h"
 
 BL_Texture::BL_Texture()
