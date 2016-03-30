@@ -480,7 +480,6 @@ static bool ConvertMaterial(
 	const bool validmat  = (mat != NULL);
 	const bool validface = (tface != NULL);
 
-	material->IdMode = DEFAULT_BLENDER;
 	material->materialindex = mface ? mface->mat_nr : 0;
 
 	// --------------------------------
@@ -618,19 +617,6 @@ static bool ConvertMaterial(
 			}
 		}
 
-		// above one tex the switches here
-		// are not used
-		switch (valid_index) {
-		case 0:
-			material->IdMode = DEFAULT_BLENDER;
-			break;
-		case 1:
-			material->IdMode = ONETEX;
-			break;
-		default:
-			material->IdMode = GREATERTHAN2;
-			break;
-		}
 		material->SetUsers(mat->id.us);
 
 		material->num_enabled = valid_index;
@@ -679,7 +665,6 @@ static bool ConvertMaterial(
 
 		material->SetUsers(-1);
 		material->num_enabled = valid;
-		material->IdMode = TEXFACE;
 		material->speccolor[0] = 1.0f;
 		material->speccolor[1] = 1.0f;
 		material->speccolor[2] = 1.0f;

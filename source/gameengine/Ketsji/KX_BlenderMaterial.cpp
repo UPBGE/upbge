@@ -115,7 +115,6 @@ void KX_BlenderMaterial::Initialize(
 	m_lightLayer = lightlayer;
 	// --------------------------------
 	// RAS_IPolyMaterial variables...
-	m_flag |= (m_material->IdMode >= ONETEX) ? RAS_MULTITEX : 0;
 	m_flag |= ((m_material->ras_mode & USE_LIGHT) != 0) ? RAS_MULTILIGHT : 0;
 	m_flag |= RAS_BLENDERGLSL;
 	m_flag |= ((m_material->ras_mode & CAST_SHADOW) != 0) ? RAS_CASTSHADOW : 0;
@@ -306,22 +305,6 @@ void KX_BlenderMaterial::SetBlenderShaderData(RAS_IRasterizer *ras)
 void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 {
 	BL_Texture::ActivateFirst();
-
-	if (m_material->IdMode == DEFAULT_BLENDER) {
-		ras->SetAlphaBlend(m_material->alphablend);
-		return;
-	}
-
-	if (m_material->IdMode == TEXFACE) {
-		// no material connected to the object
-		if (m_textures[0].Ok() ) {
-			m_textures[0].ActivateTexture();
-			m_textures[0].setTexEnv(0, true);
-			m_textures[0].SetMapping(m_material->mapping[0].mapping);
-			ras->SetAlphaBlend(m_material->alphablend);
-		}
-		return;
-	}
 
 	int mode = 0, i = 0;
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {

@@ -51,7 +51,6 @@ void BL_Material::Initialize()
 	rgb[1] = 0xFFFFFFFFL;
 	rgb[2] = 0xFFFFFFFFL;
 	rgb[3] = 0xFFFFFFFFL;
-	IdMode = 0;
 	ras_mode = 0;
 	tile = 0;
 	matname = "NoMaterial";

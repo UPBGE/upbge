@@ -49,7 +49,6 @@ struct GameSettings;
 
 enum MaterialProps
 {
-	RAS_MULTITEX = (1 << 0),
 	RAS_MULTILIGHT = (1 << 1),
 	RAS_BLENDERGLSL = (1 << 3),
 	RAS_CASTSHADOW = (1 << 4),

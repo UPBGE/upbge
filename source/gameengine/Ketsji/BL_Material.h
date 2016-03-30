@@ -55,7 +55,6 @@ public:
 	BL_Material();
 	void Initialize();
 
-	int IdMode;
 	unsigned int ras_mode;
 
 	STR_String texname[MAXTEX];
@@ -97,15 +96,6 @@ public:
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_Material")
 #endif
-};
-
-// BL_Material::IdMode
-enum BL_IdMode {
-	DEFAULT_BLENDER=-1,
-	TEXFACE,
-	ONETEX,
-	TWOTEX,
-	GREATERTHAN2
 };
 
 // BL_Material::blend_mode[index]
