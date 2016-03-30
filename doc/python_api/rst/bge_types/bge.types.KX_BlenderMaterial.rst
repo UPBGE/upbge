@@ -134,6 +134,12 @@ base class --- :class:`PyObjectPlus`
 
       :type: :class:`mathutils.Color`
 
+   .. attribute:: textures
+
+      List of all material's textures.
+
+      :type: List of :class:`BL_Texture` (read only)
+
    .. method:: setBlending(src, dest)
 
       Set the pixel color arithmetic functions.

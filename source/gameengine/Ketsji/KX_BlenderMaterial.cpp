@@ -34,6 +34,8 @@
 #include "KX_MeshProxy.h"
 #include "KX_PyMath.h"
 
+#include "EXP_ListWrapper.h"
+
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
 #include "MT_Matrix4x4.h"
@@ -782,6 +784,7 @@ PyMethodDef KX_BlenderMaterial::Methods[] =
 
 PyAttributeDef KX_BlenderMaterial::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("shader", KX_BlenderMaterial, pyattr_get_shader),
+	KX_PYATTRIBUTE_RO_FUNCTION("textures", KX_BlenderMaterial, pyattr_get_textures),
 	KX_PYATTRIBUTE_RW_FUNCTION("blending", KX_BlenderMaterial, pyattr_get_blending, pyattr_set_blending),
 	KX_PYATTRIBUTE_RW_FUNCTION("alpha", KX_BlenderMaterial, pyattr_get_alpha, pyattr_set_alpha),
 	KX_PYATTRIBUTE_RW_FUNCTION("hardness", KX_BlenderMaterial, pyattr_get_hardness, pyattr_set_hardness),
@@ -820,6 +823,42 @@ PyObject *KX_BlenderMaterial::pyattr_get_shader(void *self_v, const KX_PYATTRIBU
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
 	return self->PygetShader(NULL, NULL);
+}
+
+static int kx_blender_material_get_textures_size_cb(void *self_v)
+{
+	return MAXTEX;
+}
+
+static PyObject *kx_blender_material_get_textures_item_cb(void *self_v, int index)
+{
+	BL_Texture *tex = ((KX_BlenderMaterial *)self_v)->GetTex(index);
+	PyObject *item = NULL;
+	if (tex) {
+		item = tex->GetProxy();
+	}
+	else {
+		item = Py_None;
+		Py_INCREF(Py_None);
+	}
+	return item;
+}
+
+static const char *kx_blender_material_get_textures_item_name_cb(void *self_v, int index)
+{
+	BL_Texture *tex = ((KX_BlenderMaterial *)self_v)->GetTex(index);
+	return (tex ? tex->GetName().ReadPtr() : "");
+}
+
+PyObject *KX_BlenderMaterial::pyattr_get_textures(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	return (new CListWrapper(self_v,
+							 ((KX_BlenderMaterial *)self_v)->GetProxy(),
+							 NULL,
+							 kx_blender_material_get_textures_size_cb,
+							 kx_blender_material_get_textures_item_cb,
+							 kx_blender_material_get_textures_item_name_cb,
+							 NULL))->NewProxy(true);
 }
 
 PyObject *KX_BlenderMaterial::pyattr_get_blending(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
