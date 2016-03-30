@@ -29,10 +29,13 @@
 
 #include "DNA_texture_types.h"
 
+#include "EXP_PyObjectPlus.h"
+
 #include "GPU_texture.h"
 
 BL_Texture::BL_Texture(MTex *mtex, bool cubemap, bool mipmap)
-	:m_bindcode(0),
+	:CValue(),
+	m_bindcode(0),
 	m_mtex(NULL),
 	m_gputex(NULL)
 {
@@ -44,17 +47,20 @@ BL_Texture::BL_Texture(MTex *mtex, bool cubemap, bool mipmap)
 	m_gputex = ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, mipmap) : NULL;
 
 	m_mtex = mtex;
-
+	m_savedData.colfac = mtex->colfac;
+	m_savedData.alphafac = mtex->alphafac;
 	// Initialize saved data.
 	if (m_gputex) {
 		m_bindcode = GPU_texture_opengl_bindcode(m_gputex);
-		m_savedData.bindcode = m_bindcode;
+		m_savedData.bindcode = m_bindcode;		
 	}
 }
 
 BL_Texture::~BL_Texture()
 {
 	// Restore saved data.
+	m_mtex->colfac = m_savedData.colfac;
+	m_mtex->alphafac = m_savedData.alphafac;
 	if (m_gputex) {
 		GPU_texture_set_opengl_bindcode(m_gputex, m_savedData.bindcode);
 	}
@@ -98,3 +104,116 @@ unsigned int BL_Texture::swapTexture(unsigned int bindcode)
 	// return original texture code
 	return tmp;
 }
+
+PyTypeObject BL_Texture::Type = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	"BL_Texture",
+	sizeof(PyObjectPlus_Proxy),
+	0,
+	py_base_dealloc,
+	0,
+	0,
+	0,
+	0,
+	py_base_repr,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+	0, 0, 0, 0, 0, 0, 0,
+	Methods,
+	0,
+	0,
+	&CValue::Type,
+	0, 0, 0, 0, 0, 0,
+	py_base_new
+};
+
+PyMethodDef BL_Texture::Methods[] = {
+	//{ "getTextureName", (PyCFunction)BL_Texture::sPyGetTextureName, METH_VARARGS },
+	{ NULL, NULL } //Sentinel
+};
+
+PyAttributeDef BL_Texture::Attributes[] = {
+	KX_PYATTRIBUTE_RW_FUNCTION("colorfac", BL_Texture, pyattr_get_colorfac, pyattr_set_colorfac),
+	KX_PYATTRIBUTE_RW_FUNCTION("alphafac", BL_Texture, pyattr_get_alphafac, pyattr_set_alphafac),
+	{ NULL }    //Sentinel
+};
+
+// stuff for cvalue related things
+CValue *BL_Texture::Calc(VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
+CValue *BL_Texture::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
+const STR_String &BL_Texture::GetText()
+{
+	return GetName();
+}
+
+double BL_Texture::GetNumber()
+{
+	return -1.0;
+}
+
+STR_String &BL_Texture::GetName()
+{
+	return (STR_String)(m_mtex->tex->id.name);
+}
+
+void BL_Texture::SetName(const char *name)
+{
+}
+
+CValue *BL_Texture::GetReplica()
+{
+	return NULL;
+}
+
+PyObject *BL_Texture::pyattr_get_colorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->colfac);
+}
+
+int BL_Texture::pyattr_set_colorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 0.0f, 1.0f);
+	self->GetMTex()->colfac = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_alphafac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->alphafac);
+}
+
+int BL_Texture::pyattr_set_alphafac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 0.0f, 1.0f);
+
+	self->GetMTex()->alphafac = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+

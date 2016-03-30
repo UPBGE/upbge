@@ -41,6 +41,7 @@
 #include "BL_ArmatureConstraint.h"
 #include "BL_ArmatureObject.h"
 #include "BL_ArmatureChannel.h"
+#include "BL_Texture.h"
 #include "KX_WorldInfo.h"
 #include "KX_ArmatureSensor.h"
 #include "KX_BlenderMaterial.h"
@@ -203,6 +204,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, BL_ArmatureConstraint, init_getset);
 		PyType_Ready_AttrPtr(dict, BL_ArmatureBone, init_getset);
 		PyType_Ready_AttrPtr(dict, BL_ArmatureChannel, init_getset);
+		PyType_Ready_Attr(dict, BL_Texture, init_getset);
 		// PyType_Ready_Attr(dict, CPropValue, init_getset);  // doesn't use Py_Header
 		PyType_Ready_Attr(dict, CListValue, init_getset);
 		PyType_Ready_Attr(dict, CListWrapper, init_getset);

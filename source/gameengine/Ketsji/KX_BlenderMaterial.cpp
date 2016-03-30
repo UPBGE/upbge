@@ -26,6 +26,7 @@
 
 #include "KX_BlenderMaterial.h"
 #include "BL_Material.h"
+#include "BL_Texture.h"
 #include "BL_Shader.h"
 #include "BL_BlenderShader.h"
 #include "KX_Scene.h"
@@ -782,6 +783,7 @@ PyMethodDef KX_BlenderMaterial::Methods[] =
 
 PyAttributeDef KX_BlenderMaterial::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("shader", KX_BlenderMaterial, pyattr_get_shader),
+	KX_PYATTRIBUTE_RO_FUNCTION("textures", KX_BlenderMaterial, pyattr_get_textures),
 	KX_PYATTRIBUTE_RW_FUNCTION("blending", KX_BlenderMaterial, pyattr_get_blending, pyattr_set_blending),
 	KX_PYATTRIBUTE_RW_FUNCTION("alpha", KX_BlenderMaterial, pyattr_get_alpha, pyattr_set_alpha),
 	KX_PYATTRIBUTE_RW_FUNCTION("hardness", KX_BlenderMaterial, pyattr_get_hardness, pyattr_set_hardness),
@@ -820,6 +822,21 @@ PyObject *KX_BlenderMaterial::pyattr_get_shader(void *self_v, const KX_PYATTRIBU
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
 	return self->PygetShader(NULL, NULL);
+}
+
+PyObject *KX_BlenderMaterial::pyattr_get_textures(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
+	int i;
+
+	PyObject *textures = PyList_New(MAXTEX);
+	for (i = 0; i < MAXTEX; i++) {
+		BL_Texture *tex = self->GetTex(i);
+		if (tex) {
+			PyList_SET_ITEM(textures, i, tex->GetProxy());
+		}
+	}
+	return textures;
 }
 
 PyObject *KX_BlenderMaterial::pyattr_get_blending(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

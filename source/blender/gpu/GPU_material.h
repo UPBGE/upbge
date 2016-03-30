@@ -148,6 +148,7 @@ typedef struct GPUNodeStack {
 #define GPU_DYNAMIC_GROUP_MIST     0x00050000
 #define GPU_DYNAMIC_GROUP_WORLD    0x00060000
 #define GPU_DYNAMIC_GROUP_MAT      0x00070000
+#define GPU_DYNAMIC_GROUP_TEX      0x00080000
 
 typedef enum GPUDynamicType {
 
@@ -201,7 +202,10 @@ typedef enum GPUDynamicType {
 	GPU_DYNAMIC_MAT_EMIT             = 6  | GPU_DYNAMIC_GROUP_MAT,
 	GPU_DYNAMIC_MAT_AMB              = 7  | GPU_DYNAMIC_GROUP_MAT,
 	GPU_DYNAMIC_MAT_ALPHA            = 8  | GPU_DYNAMIC_GROUP_MAT,
-	GPU_DYNAMIC_MAT_MIR              = 9  | GPU_DYNAMIC_GROUP_MAT
+	GPU_DYNAMIC_MAT_MIR              = 9  | GPU_DYNAMIC_GROUP_MAT,
+
+	GPU_DYNAMIC_TEX_COLFAC           = 1  | GPU_DYNAMIC_GROUP_TEX,
+	GPU_DYNAMIC_TEX_ALPHAFAC         = 2  | GPU_DYNAMIC_GROUP_TEX
 } GPUDynamicType;
 
 GPUNodeLink *GPU_attribute(CustomDataType type, const char *name);

@@ -1409,7 +1409,7 @@ static void do_material_tex(GPUShadeInput *shi)
 					GPUNodeLink *colfac;
 
 					if (mtex->colfac == 1.0f) colfac = stencil;
-					else GPU_link(mat, "math_multiply", GPU_uniform(&mtex->colfac), stencil, &colfac);
+					else GPU_link(mat, "math_multiply", GPU_dynamic_uniform(&mtex->colfac, GPU_DYNAMIC_TEX_COLFAC, NULL), stencil, &colfac);
 
 					texture_rgb_blend(mat, tcol, shi->rgb, tin, colfac, mtex->blendtype, &shi->rgb);
 				}
@@ -1694,7 +1694,7 @@ static void do_material_tex(GPUShadeInput *shi)
 					GPUNodeLink *alphafac;
 
 					if (mtex->alphafac == 1.0f) alphafac = stencil;
-					else GPU_link(mat, "math_multiply", GPU_uniform(&mtex->alphafac), stencil, &alphafac);
+					else GPU_link(mat, "math_multiply", GPU_dynamic_uniform(&mtex->alphafac, GPU_DYNAMIC_TEX_ALPHAFAC, NULL), stencil, &alphafac);
 
 					texture_value_blend(
 					        mat, GPU_uniform(&mtex->def_var), shi->alpha, tin, alphafac,
