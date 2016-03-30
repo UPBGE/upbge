@@ -33,6 +33,7 @@
 
 BL_Texture::BL_Texture()
 	:m_type(0),
+	m_bindcode(0),
 	m_mtex(NULL),
 	m_gputex(NULL)
 {
@@ -60,7 +61,8 @@ void BL_Texture::Init(MTex *mtex, bool cubemap, bool mipmap)
 
 	// Initialize saved data.
 	if (m_gputex) {
-		m_savedData.bindcode = GPU_texture_opengl_bindcode(m_gputex);
+		m_bindcode = GPU_texture_opengl_bindcode(m_gputex);
+		m_savedData.bindcode = m_bindcode;
 	}
 }
 
@@ -81,6 +83,11 @@ int BL_Texture::GetMaxUnits()
 
 void BL_Texture::ActivateTexture(int unit)
 {
+	/* Since GPUTexture can be shared between material textures (MTex),
+	 * we should reapply the bindcode in case of VideoTexture owned texture.
+	 * Without that every material that use this GPUTexture will then use
+	 * the VideoTexture texture, it's not wanted. */
+	GPU_texture_set_opengl_bindcode(m_gputex, m_bindcode);
 	GPU_texture_bind(m_gputex, unit);
 }
 
@@ -92,8 +99,8 @@ void BL_Texture::DisableTexture()
 unsigned int BL_Texture::swapTexture(unsigned int bindcode)
 {
 	// swap texture codes
-	unsigned int tmp = GPU_texture_opengl_bindcode(m_gputex);
-	GPU_texture_set_opengl_bindcode(m_gputex, bindcode);
+	unsigned int tmp = m_bindcode;
+	m_bindcode = bindcode;
 	// return original texture code
 	return tmp;
 }
