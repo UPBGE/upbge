@@ -21,14 +21,12 @@ private:
 	} m_savedData;
 
 public:
-	BL_Texture();
+	BL_Texture(MTex *mtex, bool cubemap, bool mipmap);
 	~BL_Texture();
 
 	bool Ok();
 
 	unsigned int GetTextureType() const;
-
-	void Init(MTex *mtex, bool cubemap, bool mipmap);
 
 	static int GetMaxUnits();
 

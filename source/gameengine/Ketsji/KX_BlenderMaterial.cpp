@@ -68,6 +68,9 @@ KX_BlenderMaterial::KX_BlenderMaterial()
 	m_modified(false),
 	m_constructed(false)
 {
+	for (unsigned short i = 0; i < MAXTEX; ++i) {
+		m_textures[i] = NULL;
+	}
 }
 
 void KX_BlenderMaterial::Initialize(
@@ -195,16 +198,13 @@ void KX_BlenderMaterial::InitTextures()
 	// for each unique material...
 	int i;
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		bool mipmap = (m_material->flag[i] & MIPMAP) != 0;
-		if (m_material->mapping[i].mapping & USEENV) {
-			if (!GLEW_ARB_texture_cube_map) {
-				spit("CubeMap textures not supported");
-				continue;
-			}
-			m_textures[i].Init(m_material->material->mtex[i], true, mipmap);
-		}
-		else if (m_material->img[i]) {
-			m_textures[i].Init(m_material->material->mtex[i], false, mipmap);
+		Material *material = m_material->material;
+		MTex *mtex = material->mtex[i];
+		if (mtex) {
+			bool mipmap = (m_material->flag[i] & MIPMAP) != 0;
+			bool cubemap = (mtex->tex->type == TEX_ENVMAP && mtex->tex->env->stype == ENV_LOAD);
+			BL_Texture *texture = new BL_Texture(m_material->material->mtex[i], cubemap, mipmap);
+			m_textures[i] = texture;
 		}
 	}
 }
@@ -260,8 +260,10 @@ void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 
 	// for each enabled unit
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		if (!m_textures[i].Ok()) continue;
-		m_textures[i].ActivateTexture(i);
+		if (!m_textures[i] || !m_textures[i]->Ok()) {
+			continue;
+		}
+		m_textures[i]->ActivateTexture(i);
 	}
 
 	if (!m_userDefBlend) {
@@ -292,8 +294,8 @@ void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 
 	if (m_material->IdMode == TEXFACE) {
 		// no material connected to the object
-		if (m_textures[0].Ok() ) {
-			m_textures[0].ActivateTexture(0);
+		if (m_textures[0] && m_textures[0]->Ok()) {
+			m_textures[0]->ActivateTexture(0);
 			ras->SetAlphaBlend(m_material->alphablend);
 		}
 		return;
@@ -301,9 +303,11 @@ void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 
 	int mode = 0, i = 0;
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		if (!m_textures[i].Ok() ) continue;
+		if (!m_textures[i] || !m_textures[i]->Ok()) {
+			continue;
+		}
 
-		m_textures[i].ActivateTexture(i);
+		m_textures[i]->ActivateTexture(i);
 		mode = m_material->mapping[i].mapping;
 
 		if (mode & USEOBJ)
@@ -398,8 +402,8 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 	if (GLEW_ARB_shader_objects && (m_shader && m_shader->Ok())) {
 		m_shader->SetProg(false);
 		for (unsigned short i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-			if (m_textures[i].Ok()) {
-				m_textures[i].DisableTexture();
+			if (m_textures[i] && m_textures[i]->Ok()) {
+				m_textures[i]->DisableTexture();
 			}
 		}
 	}
@@ -552,7 +556,7 @@ void KX_BlenderMaterial::SetTexMatrixData(int i)
 	glLoadIdentity();
 
 	if (GLEW_ARB_texture_cube_map &&
-	    m_textures[i].GetTextureType() == GL_TEXTURE_CUBE_MAP_ARB &&
+	    m_textures[i]->GetTextureType() == GL_TEXTURE_CUBE_MAP_ARB &&
 	    m_material->mapping[i].mapping & USEREFL)
 	{
 		glScalef(m_material->mapping[i].scale[0], -m_material->mapping[i].scale[1], -m_material->mapping[i].scale[2]);

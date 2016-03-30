@@ -31,22 +31,10 @@
 
 #include "GPU_texture.h"
 
-BL_Texture::BL_Texture()
+BL_Texture::BL_Texture(MTex *mtex, bool cubemap, bool mipmap)
 	:m_bindcode(0),
 	m_mtex(NULL),
 	m_gputex(NULL)
-{
-}
-
-BL_Texture::~BL_Texture()
-{
-	// Restore saved data.
-	if (m_gputex) {
-		GPU_texture_set_opengl_bindcode(m_gputex, m_savedData.bindcode);
-	}
-}
-
-void BL_Texture::Init(MTex *mtex, bool cubemap, bool mipmap)
 {
 	Tex *tex = mtex->tex;
 	Image *ima = tex->ima;
@@ -61,6 +49,14 @@ void BL_Texture::Init(MTex *mtex, bool cubemap, bool mipmap)
 	if (m_gputex) {
 		m_bindcode = GPU_texture_opengl_bindcode(m_gputex);
 		m_savedData.bindcode = m_bindcode;
+	}
+}
+
+BL_Texture::~BL_Texture()
+{
+	// Restore saved data.
+	if (m_gputex) {
+		GPU_texture_set_opengl_bindcode(m_gputex, m_savedData.bindcode);
 	}
 }
 
