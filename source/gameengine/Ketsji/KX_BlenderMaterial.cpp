@@ -287,20 +287,6 @@ void KX_BlenderMaterial::SetBlenderShaderData(RAS_IRasterizer *ras)
 
 void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
 {
-	if (m_material->IdMode == DEFAULT_BLENDER) {
-		ras->SetAlphaBlend(m_material->alphablend);
-		return;
-	}
-
-	if (m_material->IdMode == TEXFACE) {
-		// no material connected to the object
-		if (m_textures[0] && m_textures[0]->Ok()) {
-			m_textures[0]->ActivateTexture(0);
-			ras->SetAlphaBlend(m_material->alphablend);
-		}
-		return;
-	}
-
 	int mode = 0, i = 0;
 	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
 		if (!m_textures[i] || !m_textures[i]->Ok()) {
