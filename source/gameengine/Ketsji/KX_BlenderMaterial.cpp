@@ -203,7 +203,7 @@ void KX_BlenderMaterial::InitTextures()
 		if (mtex) {
 			bool mipmap = (m_material->flag[i] & MIPMAP) != 0;
 			bool cubemap = (mtex->tex->type == TEX_ENVMAP && mtex->tex->env->stype == ENV_LOAD);
-			BL_Texture *texture = new BL_Texture(m_material->material->mtex[i], cubemap, mipmap);
+			BL_Texture *texture = new BL_Texture(mtex, cubemap, mipmap);
 			m_textures[i] = texture;
 		}
 	}
