@@ -307,12 +307,12 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 		return NULL;
 	}
 
-	if (uvindex < -1 || uvindex > 1) {
+	if (uvindex < -1 || uvindex > MAXTEX) {
 		PyErr_Format(PyExc_ValueError,
 		             "mesh.transformUV(...): invalid uv_index %d", uvindex);
 		return NULL;
 	}
-	if (uvindex_from < -1 || uvindex_from > 1) {
+	if (uvindex_from < -1 || uvindex_from > MAXTEX) {
 		PyErr_Format(PyExc_ValueError,
 		             "mesh.transformUV(...): invalid uv_index_from %d", uvindex);
 		return NULL;
@@ -346,25 +346,16 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 		for (i = 0; i < array->m_vertex.size(); i++) {
 			RAS_TexVert *vert = &array->m_vertex[i];
 			if (uvindex_from != -1) {
-				if (uvindex_from == 0) {
-					vert->SetUV(1, vert->getUV(0));
-				}
-				else {
-					vert->SetUV(0, vert->getUV(1));
-				}
+				vert->SetUV(uvindex, vert->getUV(uvindex_from));
 			}
 
-			switch (uvindex) {
-				case 0:
-					vert->TransformUV(0, transform);
-					break;
-				case 1:
-					vert->TransformUV(1, transform);
-					break;
-				case -1:
-					vert->TransformUV(0, transform);
-					vert->TransformUV(1, transform);
-					break;
+			if (uvindex >= 0) {
+				vert->TransformUV(uvindex, transform);
+			}
+			else if (uvindex == -1) {
+				for (int i = 0; i < MAXTEX; ++i) {
+					vert->TransformUV(i, transform);
+				}
 			}
 		}
 
