@@ -12,7 +12,6 @@ struct GPUTexture;
 class BL_Texture
 {
 private:
-	unsigned int m_type; // enum TEXTURE_2D | CUBE_MAP
 	unsigned int m_bindcode;
 	MTex *m_mtex;
 	GPUTexture *m_gputex;

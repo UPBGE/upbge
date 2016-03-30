@@ -32,8 +32,7 @@
 #include "GPU_texture.h"
 
 BL_Texture::BL_Texture()
-	:m_type(0),
-	m_bindcode(0),
+	:m_bindcode(0),
 	m_mtex(NULL),
 	m_gputex(NULL)
 {
@@ -56,7 +55,6 @@ void BL_Texture::Init(MTex *mtex, bool cubemap, bool mipmap)
 
 	m_gputex = GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, mipmap);
 
-	m_type = gltextarget;
 	m_mtex = mtex;
 
 	// Initialize saved data.
@@ -73,7 +71,7 @@ bool BL_Texture::Ok()
 
 unsigned int BL_Texture::GetTextureType() const
 {
-	return m_type;
+	return GPU_texture_target(m_gputex);
 }
 
 int BL_Texture::GetMaxUnits()
