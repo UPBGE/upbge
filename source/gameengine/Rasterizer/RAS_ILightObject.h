@@ -48,7 +48,8 @@ public:
 	enum LightType {
 		LIGHT_SPOT,
 		LIGHT_SUN,
-		LIGHT_NORMAL
+		LIGHT_NORMAL,
+		LIGHT_HEMI
 	};
 	bool	m_modified;
 	int		m_layer;

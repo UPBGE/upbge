@@ -170,6 +170,7 @@ PyAttributeDef KX_LightObject::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("SPOT", KX_LightObject, pyattr_get_typeconst),
 	KX_PYATTRIBUTE_RO_FUNCTION("SUN", KX_LightObject, pyattr_get_typeconst),
 	KX_PYATTRIBUTE_RO_FUNCTION("NORMAL", KX_LightObject, pyattr_get_typeconst),
+	KX_PYATTRIBUTE_RO_FUNCTION("HEMI", KX_LightObject, pyattr_get_typeconst),
 	KX_PYATTRIBUTE_RW_FUNCTION("type", KX_LightObject, pyattr_get_type, pyattr_set_type),
 	KX_PYATTRIBUTE_RW_FUNCTION("staticShadow", KX_LightObject, pyattr_get_static_shadow, pyattr_set_static_shadow),
 	{ NULL }	//Sentinel
@@ -448,10 +449,15 @@ PyObject *KX_LightObject::pyattr_get_typeconst(void *self_v, const KX_PYATTRIBUT
 
 	if (!strcmp(type, "SPOT")) {
 		retvalue = PyLong_FromLong(RAS_ILightObject::LIGHT_SPOT);
-	} else if (!strcmp(type, "SUN")) {
+	}
+	else if (!strcmp(type, "SUN")) {
 		retvalue = PyLong_FromLong(RAS_ILightObject::LIGHT_SUN);
-	} else if (!strcmp(type, "NORMAL")) {
+	}
+	else if (!strcmp(type, "NORMAL")) {
 		retvalue = PyLong_FromLong(RAS_ILightObject::LIGHT_NORMAL);
+	}
+	else if (!strcmp(type, "HEMI")) {
+		retvalue = PyLong_FromLong(RAS_ILightObject::LIGHT_HEMI);
 	}
 	else {
 		/* should never happen */
@@ -472,7 +478,7 @@ int KX_LightObject::pyattr_set_type(void* self_v, const KX_PYATTRIBUTE_DEF *attr
 {
 	KX_LightObject* self = static_cast<KX_LightObject*>(self_v);
 	const int val = PyLong_AsLong(value);
-	if ((val==-1 && PyErr_Occurred()) || val<0 || val>2) {
+	if ((val==-1 && PyErr_Occurred()) || val<0 || val>3) {
 		PyErr_SetString(PyExc_ValueError, "light.type= val: KX_LightObject, expected an int between 0 and 2");
 		return PY_SET_ATTR_FAIL;
 	}
@@ -486,6 +492,9 @@ int KX_LightObject::pyattr_set_type(void* self_v, const KX_PYATTRIBUTE_DEF *attr
 			break;
 		case 2:
 			self->m_lightobj->m_type = self->m_lightobj->LIGHT_NORMAL;
+			break;
+		case 3:
+			self->m_lightobj->m_type = self->m_lightobj->LIGHT_HEMI;
 			break;
 	}
 

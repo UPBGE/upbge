@@ -1249,11 +1249,16 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	lightobj->m_nodiffuse = (la->mode & LA_NO_DIFF) != 0;
 	lightobj->m_nospecular = (la->mode & LA_NO_SPEC) != 0;
 
-	if (la->type==LA_SUN) {
+	if (la->type == LA_SUN) {
 		lightobj->m_type = RAS_ILightObject::LIGHT_SUN;
-	} else if (la->type==LA_SPOT) {
+	}
+	else if (la->type == LA_SPOT) {
 		lightobj->m_type = RAS_ILightObject::LIGHT_SPOT;
-	} else {
+	}
+	else if (la->type == LA_HEMI) {
+		lightobj->m_type = RAS_ILightObject::LIGHT_HEMI;
+	}
+	else {
 		lightobj->m_type = RAS_ILightObject::LIGHT_NORMAL;
 	}
 

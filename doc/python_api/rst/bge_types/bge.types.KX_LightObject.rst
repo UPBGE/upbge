@@ -32,6 +32,10 @@ base class --- :class:`KX_GameObject`
 
       A point light source. See attribute :data:`type`
 
+   .. data:: HEMI
+
+      A hemi light source. See attribute :data:`type`
+      
    .. attribute:: type
 
       The type of light - must be SPOT, SUN or NORMAL
