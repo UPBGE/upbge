@@ -46,21 +46,40 @@ BL_Texture::BL_Texture(MTex *mtex, bool cubemap, bool mipmap)
 
 	m_gputex = ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, mipmap) : NULL;
 
+	// Initialize saved data.
 	m_mtex = mtex;
+	m_savedData.colintensfac = mtex->difffac;
 	m_savedData.colfac = mtex->colfac;
 	m_savedData.alphafac = mtex->alphafac;
-	// Initialize saved data.
+	m_savedData.specintensfac = mtex->specfac;
+	m_savedData.speccolorfac = mtex->colspecfac;
+	m_savedData.spechardnessfac = mtex->hardfac;
+	m_savedData.emitfac = mtex->emitfac;
+	m_savedData.mirrorfac = mtex->mirrfac;
+	m_savedData.normalfac = mtex->norfac;
+	m_savedData.parallaxbumpfac = mtex->parallaxbumpsc;
+	m_savedData.parallaxstepfac = mtex->parallaxsteps;
+	
 	if (m_gputex) {
 		m_bindcode = GPU_texture_opengl_bindcode(m_gputex);
-		m_savedData.bindcode = m_bindcode;		
+		m_savedData.bindcode = m_bindcode;
 	}
 }
 
 BL_Texture::~BL_Texture()
 {
 	// Restore saved data.
+	m_mtex->difffac = m_savedData.colintensfac;
 	m_mtex->colfac = m_savedData.colfac;
 	m_mtex->alphafac = m_savedData.alphafac;
+	m_mtex->specfac = m_savedData.specintensfac;
+	m_mtex->colspecfac = m_savedData.speccolorfac;
+	m_mtex->hardfac = m_savedData.spechardnessfac;
+	m_mtex->emitfac = m_savedData.emitfac;
+	m_mtex->mirrfac = m_savedData.mirrorfac;
+	m_mtex->norfac = m_savedData.normalfac;
+	m_mtex->parallaxbumpsc = m_savedData.parallaxbumpfac;
+	m_mtex->parallaxsteps = m_savedData.parallaxstepfac;
 	if (m_gputex) {
 		GPU_texture_set_opengl_bindcode(m_gputex, m_savedData.bindcode);
 	}
@@ -133,8 +152,17 @@ PyMethodDef BL_Texture::Methods[] = {
 };
 
 PyAttributeDef BL_Texture::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("colorfac", BL_Texture, pyattr_get_colorfac, pyattr_set_colorfac),
-	KX_PYATTRIBUTE_RW_FUNCTION("alphafac", BL_Texture, pyattr_get_alphafac, pyattr_set_alphafac),
+	KX_PYATTRIBUTE_RW_FUNCTION("colorIntensFac", BL_Texture, pyattr_get_colorintensfac, pyattr_set_colorintensfac),
+	KX_PYATTRIBUTE_RW_FUNCTION("colorFac", BL_Texture, pyattr_get_colorfac, pyattr_set_colorfac),
+	KX_PYATTRIBUTE_RW_FUNCTION("alphaFac", BL_Texture, pyattr_get_alphafac, pyattr_set_alphafac),
+	KX_PYATTRIBUTE_RW_FUNCTION("specIntensFac", BL_Texture, pyattr_get_specintensfac, pyattr_set_specintensfac),
+	KX_PYATTRIBUTE_RW_FUNCTION("specColorFac", BL_Texture, pyattr_get_speccolorfac, pyattr_set_speccolorfac),
+	KX_PYATTRIBUTE_RW_FUNCTION("specHardnessFac", BL_Texture, pyattr_get_spechardnessfac, pyattr_set_spechardnessfac),
+	KX_PYATTRIBUTE_RW_FUNCTION("emitFac", BL_Texture, pyattr_get_emitfac, pyattr_set_emitfac),
+	KX_PYATTRIBUTE_RW_FUNCTION("mirrorFac", BL_Texture, pyattr_get_mirrorfac, pyattr_set_mirrorfac),
+	KX_PYATTRIBUTE_RW_FUNCTION("normalFac", BL_Texture, pyattr_get_normalfac, pyattr_set_normalfac),
+	KX_PYATTRIBUTE_RW_FUNCTION("parallaxBumpFac", BL_Texture, pyattr_get_parallaxbumpfac, pyattr_set_parallaxbumpfac),
+	KX_PYATTRIBUTE_RW_FUNCTION("parallaxStepFac", BL_Texture, pyattr_get_parallaxstepfac, pyattr_set_parallaxstepfac),
 	{ NULL }    //Sentinel
 };
 
@@ -161,7 +189,7 @@ double BL_Texture::GetNumber()
 
 STR_String &BL_Texture::GetName()
 {
-	return (STR_String)(m_mtex->tex->id.name);
+	return (STR_String)(m_mtex->tex->id.name+2);
 }
 
 void BL_Texture::SetName(const char *name)
@@ -171,6 +199,27 @@ void BL_Texture::SetName(const char *name)
 CValue *BL_Texture::GetReplica()
 {
 	return NULL;
+}
+
+PyObject *BL_Texture::pyattr_get_colorintensfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->difffac);
+}
+
+int BL_Texture::pyattr_set_colorintensfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, -1.0f, 1.0f);
+	self->GetMTex()->difffac = val;
+	return PY_SET_ATTR_SUCCESS;
 }
 
 PyObject *BL_Texture::pyattr_get_colorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -210,9 +259,185 @@ int BL_Texture::pyattr_set_alphafac(void *self_v, const KX_PYATTRIBUTE_DEF *attr
 		return PY_SET_ATTR_FAIL;
 	}
 
-	CLAMP(val, 0.0f, 1.0f);
+	CLAMP(val, -1.0f, 1.0f);
 
 	self->GetMTex()->alphafac = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_specintensfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->specfac);
+}
+
+int BL_Texture::pyattr_set_specintensfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 0.0f, 10.0f);
+
+	self->GetMTex()->specfac = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_speccolorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->colspecfac);
+}
+
+int BL_Texture::pyattr_set_speccolorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 0.0f, 1.0f);
+
+	self->GetMTex()->colspecfac = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_spechardnessfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->hardfac);
+}
+
+int BL_Texture::pyattr_set_spechardnessfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 0.0f, 10.0f);
+
+	self->GetMTex()->hardfac = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_emitfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->emitfac);
+}
+
+int BL_Texture::pyattr_set_emitfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 0.0f, 10.0f);
+
+	self->GetMTex()->emitfac = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_mirrorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->mirrfac);
+}
+
+int BL_Texture::pyattr_set_mirrorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 0.0f, 1.0f);
+
+	self->GetMTex()->mirrfac = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_normalfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->norfac);
+}
+
+int BL_Texture::pyattr_set_normalfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, -5.0f, 5.0f);
+
+	self->GetMTex()->norfac = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_parallaxbumpfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->parallaxbumpsc);
+}
+
+int BL_Texture::pyattr_set_parallaxbumpfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 0.0f, 0.5f);
+
+	self->GetMTex()->parallaxbumpsc = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_parallaxstepfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->parallaxsteps);
+}
+
+int BL_Texture::pyattr_set_parallaxstepfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 0.0f, 100.0f);
+
+	self->GetMTex()->parallaxsteps = val;
 	return PY_SET_ATTR_SUCCESS;
 }
 

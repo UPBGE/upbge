@@ -21,8 +21,17 @@ private:
 
 	struct {
 		unsigned int bindcode;
+		float colintensfac;
 		float colfac;
 		float alphafac;
+		float specintensfac;
+		float speccolorfac;
+		float spechardnessfac;
+		float emitfac;
+		float mirrorfac;
+		float normalfac;
+		float parallaxbumpfac;
+		float parallaxstepfac;
 	} m_savedData;
 
 public:
@@ -47,10 +56,28 @@ public:
 	KX_PYMETHOD(BL_Texture, GetNumTex);
 	KX_PYMETHOD(BL_Texture, GetTextureName);
 
+	static PyObject *pyattr_get_colorintensfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_colorintensfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_colorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_colorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_alphafac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_alphafac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_specintensfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_specintensfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_speccolorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_speccolorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_spechardnessfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_spechardnessfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_emitfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_emitfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_mirrorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_mirrorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_normalfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_normalfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_parallaxbumpfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_parallaxbumpfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_parallaxstepfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_parallaxstepfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	bool Ok();
 
