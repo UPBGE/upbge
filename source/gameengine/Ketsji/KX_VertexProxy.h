@@ -51,6 +51,9 @@ public:
 	KX_VertexProxy(KX_MeshProxy *mesh, RAS_TexVert *vertex);
 	virtual ~KX_VertexProxy();
 
+	RAS_TexVert *GetVertex();
+	KX_MeshProxy *GetMesh();
+
 	// stuff for cvalue related things
 	CValue *Calc(VALUE_OPERATOR op, CValue *val);
 	CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);

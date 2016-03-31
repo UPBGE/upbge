@@ -38,6 +38,8 @@
 
 #include "KX_PyMath.h"
 
+#include "EXP_ListWrapper.h"
+
 PyTypeObject KX_VertexProxy::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	"KX_VertexProxy",
@@ -180,16 +182,40 @@ PyObject *KX_VertexProxy::pyattr_get_UV(void *self_v, const KX_PYATTRIBUTE_DEF *
 	return PyObjectFrom(MT_Vector2(self->m_vertex->getUV(0)));
 }
 
-PyObject *KX_VertexProxy::pyattr_get_uvs(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+static int kx_vertex_proxy_get_uvs_size_cb(void *self_v)
 {
-	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
+	return RAS_TexVert::MAX_UNIT;
+}
 
-	PyObject *uvlist = PyList_New(RAS_TexVert::MAX_UNIT);
-	for (int i = 0; i < RAS_TexVert::MAX_UNIT; ++i) {
-		PyList_SET_ITEM(uvlist, i, PyObjectFrom(MT_Vector2(self->m_vertex->getUV(i))));
+static PyObject *kx_vertex_proxy_get_uvs_item_cb(void *self_v, int index)
+{
+	MT_Vector2 uv = MT_Vector2(((KX_VertexProxy *)self_v)->GetVertex()->getUV(index));
+	return PyObjectFrom(uv);
+}
+
+static bool kx_vertex_proxy_set_uvs_item_cb(void *self_v, int index, PyObject *item)
+{
+	MT_Vector2 uv;
+	if (!PyVecTo(item, uv)) {
+		return false;
 	}
 
-	return uvlist;
+	KX_VertexProxy *self = ((KX_VertexProxy *)self_v);
+	self->GetVertex()->SetUV(index, uv);
+	self->GetMesh()->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
+
+	return true;
+}
+
+PyObject *KX_VertexProxy::pyattr_get_uvs(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	return (new CListWrapper(self_v,
+							 ((KX_VertexProxy *)self_v)->GetProxy(),
+							 NULL,
+							 kx_vertex_proxy_get_uvs_size_cb,
+							 kx_vertex_proxy_get_uvs_item_cb,
+							 NULL,
+							 kx_vertex_proxy_set_uvs_item_cb))->NewProxy(true);
 }
 
 PyObject *KX_VertexProxy::pyattr_get_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -458,6 +484,16 @@ KX_VertexProxy::~KX_VertexProxy()
 {
 	/* see bug [#27071] */
 	Py_DECREF(m_mesh->GetProxy());
+}
+
+RAS_TexVert *KX_VertexProxy::GetVertex()
+{
+	return m_vertex;
+}
+
+KX_MeshProxy *KX_VertexProxy::GetMesh()
+{
+	return m_mesh;
 }
 
 // stuff for cvalue related things
