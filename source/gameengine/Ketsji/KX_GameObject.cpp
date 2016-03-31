@@ -67,6 +67,7 @@
 #include "KX_Lod.h"
 
 #include "BKE_object.h"
+#include "BKE_python_component.h"
 
 #include "BL_ActionManager.h"
 #include "BL_Action.h"
@@ -1725,13 +1726,15 @@ void KX_GameObject::InitComponents()
 			continue;
 		}
 
+		reload_script_module_recursive_component(mod);
+
 		// Grab the class object
 		cls = PyObject_GetAttrString(mod, pc->name);
 		if (cls == NULL) {
 			if (PyErr_Occurred()) {
 				PyErr_Print();
 			}
-			printf("Python module found, but failed to find the compoent '%s'\n", pc->name);
+			printf("Python module found, but failed to find the component '%s'\n", pc->name);
 			pc = pc->next;
 			continue;
 		}

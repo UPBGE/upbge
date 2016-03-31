@@ -305,7 +305,6 @@ void BPy_init_modules(void)
 	}
 	/* stand alone utility modules not related to blender directly */
 	IDProp_Init_Types(); /* not actually a submodule, just types */
-
 #ifdef WITH_FREESTYLE
 	Freestyle_Init();
 #endif

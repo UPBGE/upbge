@@ -42,45 +42,49 @@
 
 #ifdef WITH_PYTHON
 
-PyTypeObject PythonComponentType = {
+PyDoc_STRVAR(class_documentation,
+"This is the fake BGE class KX_PythonComponent from fake BGE module bge.types"
+);
+
+static PyTypeObject PythonComponentType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	"KX_PythonComponent",           /* tp_name */
 	sizeof(PyObject),               /* tp_basicsize */
 	0,                              /* tp_itemsize */
-	(destructor)NULL,  /* tp_dealloc */
+	(destructor)NULL,               /* tp_dealloc */
 	NULL,                           /* tp_print */
 	NULL,                           /* tp_getattr */
 	NULL,                           /* tp_setattr */
 	NULL,                           /* tp_compare */
-	(reprfunc)NULL,          /* tp_repr */
-	NULL,              /* tp_as_number */
-	NULL,              /* tp_as_sequence */
-	NULL,               /* tp_as_mapping */
-	(hashfunc)NULL,           /* tp_hash */
+	(reprfunc)NULL,                 /* tp_repr */
+	NULL,                           /* tp_as_number */
+	NULL,                           /* tp_as_sequence */
+	NULL,                           /* tp_as_mapping */
+	(hashfunc)NULL,                 /* tp_hash */
 	NULL,                           /* tp_call */
 	NULL,                           /* tp_str */
 	NULL,                           /* tp_getattro */
 	NULL,                           /* tp_setattro */
 	NULL,                           /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
-	NULL, /* tp_doc */
-	(traverseproc)NULL,  /* tp_traverse */
-	(inquiry)NULL,  /* tp_clear */
-	(richcmpfunc)NULL,    /* tp_richcompare */
+	class_documentation,            /* tp_doc */
+	(traverseproc)NULL,             /* tp_traverse */
+	(inquiry)NULL,                  /* tp_clear */
+	(richcmpfunc)NULL,              /* tp_richcompare */
 	0,                              /* tp_weaklistoffset */
 	NULL,                           /* tp_iter */
 	NULL,                           /* tp_iternext */
-	NULL,                  /* tp_methods */
+	NULL,                           /* tp_methods */
 	NULL,                           /* tp_members */
-	NULL,                /* tp_getset */
+	NULL,                           /* tp_getset */
 	NULL,                           /* tp_base */
 	NULL,                           /* tp_dict */
 	NULL,                           /* tp_descr_get */
 	NULL,                           /* tp_descr_set */
 	0,                              /* tp_dictoffset */
 	NULL,                           /* tp_init */
-	PyType_GenericAlloc,                           /* tp_alloc */
-	PyType_GenericNew,                      /* tp_new */
+	PyType_GenericAlloc,            /* tp_alloc */
+	PyType_GenericNew,              /* tp_new */
 	NULL,                           /* tp_free */
 	NULL,                           /* tp_is_gc */
 	NULL,                           /* tp_bases */
@@ -90,6 +94,62 @@ PyTypeObject PythonComponentType = {
 	NULL,                           /* tp_weaklist */
 	NULL                            /* tp_del */
 };
+
+PyDoc_STRVAR(module_documentation,
+"This is the fake BGE API module used only to import the KX_PythonComponent class from bge.types.KX_PythonComponent"
+);
+
+static struct PyMethodDef module_methods[] = {
+	{NULL, NULL, 0, NULL}
+};
+
+static struct PyModuleDef bge_module_def = {
+	PyModuleDef_HEAD_INIT, /* m_base */
+	"bge",  /* m_name */
+	module_documentation,  /* m_doc */
+	0,  /* m_size */
+	module_methods,  /* m_methods */
+	NULL,  /* m_reload */
+	NULL,  /* m_traverse */
+	NULL,  /* m_clear */
+	NULL,  /* m_free */
+};
+
+static struct PyModuleDef bge_types_module_def = {
+	PyModuleDef_HEAD_INIT, /* m_base */
+	"types",  /* m_name */
+	module_documentation,  /* m_doc */
+	0,  /* m_size */
+	module_methods,  /* m_methods */
+	NULL,  /* m_reload */
+	NULL,  /* m_traverse */
+	NULL,  /* m_clear */
+	NULL,  /* m_free */
+};
+
+void reload_script_module_recursive_component(void *module)
+{
+	PyObject *mod_list, *mod_item, *modspec, *item;
+
+	mod_list = PyDict_Values(PyModule_GetDict(module));
+
+	// Reload all modules imported in the component module script.
+	for (unsigned int i = 0, size = PySequence_Size(mod_list); i < size; ++i) {
+		item = PySequence_GetItem(mod_list, i);
+		if (PyModule_Check(item)) {
+			// If there's no spec, then the module can't be reloaded.
+			modspec = PyObject_GetAttrString(item, "__spec__");
+			if (modspec != Py_None) {
+				reload_script_module_recursive_component(item);
+				mod_item = PyImport_ReloadModule(item);
+				Py_XDECREF(mod_item);
+			}
+			Py_DECREF(modspec);
+		}
+		Py_DECREF(item);
+	}
+	Py_DECREF(mod_list);
+}
 
 #endif
 
@@ -302,20 +362,22 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 {
 #ifdef WITH_PYTHON
 
-	#define ERROR \
+	#define FINISH(value) \
+		if (mod) { \
+			/* Take the module out of the module list so it's not cached \
+			   by Python (this allows for simpler reloading of components)*/ \
+			PyDict_DelItemString(sys_modules, pc->module); \
+		} \
+		Py_XDECREF(mod); \
+		Py_XDECREF(item); \
 		PyDict_DelItemString(sys_modules, "bge"); \
-		Py_DECREF(bgemod); \
-		Py_DECREF(bgesubmod); \
+		PyDict_DelItemString(sys_modules, "bge.types"); \
 		PySequence_DelItem(sys_path, 0); \
 		PyGILState_Release(state); \
-		return false;
+		return value;
 
-	PyObject *mod, *mod_list, *item, *py_name, *sys_path, *pypath;
-	PyObject *bgemod;
-	PyObject *bgesubmod;
-	PyObject *sys_modules;
+	PyObject *mod, *mod_list, *mod_item, *modspec, *item, *sys_path, *pypath, *sys_modules, *bgemod, *bgesubmod;
 	PyGILState_STATE state;
-	char *name;
 	char path[FILE_MAX];
 
 	state = PyGILState_Ensure();
@@ -325,9 +387,10 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 	pypath = PyC_UnicodeFromByte(path);
 	PyList_Insert(sys_path, 0, pypath);
 
+	// Setup BGE fake module and submodule.
 	sys_modules = PyThreadState_GET()->interp->modules;
-	bgemod = PyModule_New("bge");
-	bgesubmod = PyModule_New("bge.types");
+	bgemod = PyModule_Create(&bge_module_def);
+	bgesubmod = PyModule_Create(&bge_types_module_def);
 
 	PyModule_AddObject(bgemod, "types", bgesubmod);
 	PyType_Ready(&PythonComponentType);
@@ -338,74 +401,59 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 
 	// Try to load up the module
 	mod = PyImport_ImportModule(pc->module);
+
 	if (!mod) {
 		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No module named \"%s\" or script error at loading.", pc->module);
-		ERROR;
+		FINISH(false);
 	}
-	else {
-		if (strlen(pc->module) > 0 && strlen(pc->name) == 0) {
-			BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component class was specified, only the module was.");
-			ERROR;
-		}
+	else if (strlen(pc->module) > 0 && strlen(pc->name) == 0) {
+		BKE_report(reports, RPT_ERROR_INVALID_INPUT, "No component class was specified, only the module was.");
+		FINISH(false);
 	}
 
-	// Get the list of objects in the module
 	mod_list = PyDict_Values(PyModule_GetDict(mod));
 
-	// Now iterate the list
-	bool found = false;
-	for (unsigned int i = 0, size = PyList_Size(mod_list); i < size; ++i) {
-		item = PyList_GetItem(mod_list, i);
-
-		// We only want to bother checking type objects
-		if (!PyType_Check(item)) {
-			continue;
+	// Reload all modules imported in the component module script.
+	for (unsigned int i = 0, size = PySequence_Size(mod_list); i < size; ++i) {
+		item = PySequence_GetItem(mod_list, i);
+		if (PyModule_Check(item)) {
+			// If there's no spec, then the module can't be reloaded.
+			modspec = PyObject_GetAttrString(item, "__spec__");
+			if (modspec != Py_None) {
+				mod_item = PyImport_ReloadModule(item);
+				Py_XDECREF(mod_item);
+			}
+			Py_DECREF(modspec);
 		}
-
-		// Make sure the name matches
-		py_name = PyObject_GetAttrString(item, "__name__");
-		name = _PyUnicode_AsString(py_name);
-		Py_DECREF(py_name);
-
-		if (strcmp(name, pc->name) != 0) {
-			continue;
-		}
-
-		// Check the subclass with our own function since we don't have access to the KX_PythonComponent type object
-		if (!verify_class(item)) {
-			BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "A %s type was found, but it was not a valid subclass of KX_PythonComponent.", pc->name);
-			ERROR;
-		}
-		else {
-			// Setup the properties
-			create_properties(pc, item);
-			found = true;
-			break;
-		}
+		Py_DECREF(item);
 	}
-
-	if (!found) {
-		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No class named %s was found.", pc->name);
-		ERROR;
-	}
-	// Take the module out of the module list so it's not cached by Python (this allows for simpler reloading of components)
-	PyDict_DelItemString(PyImport_GetModuleDict(), pc->module);
-
-	// Cleanup our Python objects
-	Py_DECREF(mod);
 	Py_DECREF(mod_list);
-	PyDict_DelItemString(sys_modules, "bge");
-	Py_DECREF(bgemod);
-	Py_DECREF(bgesubmod);
 
-	PySequence_DelItem(sys_path, 0);
-	PyGILState_Release(state);
+	item = PyObject_GetAttrString(mod, pc->name);
+	if (!item) {
+		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No class named %s was found.", pc->name);
+		FINISH(false);
+	}
+
+	// Check the subclass with our own function since we don't have access to the KX_PythonComponent type object
+	if (!verify_class(item)) {
+		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "A %s type was found, but it was not a valid subclass of KX_PythonComponent.", pc->name);
+		FINISH(false);
+	}
+	else {
+		// Setup the properties
+		create_properties(pc, item);
+	}
+
+	FINISH(true);
 
 	#undef ERROR
 
-#endif /* WITH_PYTHON */
+#else
 
 	return true;
+
+#endif /* WITH_PYTHON */
 }
 
 PythonComponent *new_component_from_module_name(char *import, ReportList *reports, bContext *context)
