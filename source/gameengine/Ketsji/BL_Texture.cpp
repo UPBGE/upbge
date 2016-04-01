@@ -125,6 +125,43 @@ unsigned int BL_Texture::swapTexture(unsigned int bindcode)
 	return tmp;
 }
 
+// stuff for cvalue related things
+CValue *BL_Texture::Calc(VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
+CValue *BL_Texture::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
+const STR_String &BL_Texture::GetText()
+{
+	return GetName();
+}
+
+double BL_Texture::GetNumber()
+{
+	return -1.0;
+}
+
+STR_String &BL_Texture::GetName()
+{
+	return m_mtexname;
+}
+
+void BL_Texture::SetName(const char *name)
+{
+}
+
+CValue *BL_Texture::GetReplica()
+{
+	return NULL;
+}
+
+#ifdef WITH_PYTHON
+
 PyTypeObject BL_Texture::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	"BL_Texture",
@@ -166,41 +203,6 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxStep", BL_Texture, pyattr_get_parallax_step, pyattr_set_parallax_step),
 	{ NULL }    //Sentinel
 };
-
-// stuff for cvalue related things
-CValue *BL_Texture::Calc(VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-CValue *BL_Texture::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-const STR_String &BL_Texture::GetText()
-{
-	return GetName();
-}
-
-double BL_Texture::GetNumber()
-{
-	return -1.0;
-}
-
-STR_String &BL_Texture::GetName()
-{
-	return m_mtexname;
-}
-
-void BL_Texture::SetName(const char *name)
-{
-}
-
-CValue *BL_Texture::GetReplica()
-{
-	return NULL;
-}
 
 PyObject *BL_Texture::pyattr_get_diffuse_intensity(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
@@ -442,4 +444,4 @@ int BL_Texture::pyattr_set_parallax_step(void *self_v, const KX_PYATTRIBUTE_DEF 
 	return PY_SET_ATTR_SUCCESS;
 }
 
-
+#endif  // WITH_PYTHON
