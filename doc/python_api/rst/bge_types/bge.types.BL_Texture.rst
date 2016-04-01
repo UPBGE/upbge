@@ -9,67 +9,67 @@ base class --- :class:`CValue`
 
    A texture object that contains attributes and methods for Image, MTex...
 
-   .. attribute:: colorIntensFac
+   .. attribute:: diffuseIntensity
 
       Amount texture affects diffuse reflectivity.
 
       :type: float
 
-   .. attribute:: colorFac
+   .. attribute:: diffuseFactor
 
       Amount texture affects diffuse color.
 
       :type: float
 
-   .. attribute:: alphaFac
+   .. attribute:: alpha
 
       Amount texture affects alpha.
 
       :type: float
 
-   .. attribute:: specIntensFac
+   .. attribute:: specularIntensity
 
       Amount texture affects specular reflectivity.
 
       :type: float
 
-   .. attribute:: specColorFac
+   .. attribute:: specularFactor
 
       Amount texture affects specular color.
 
       :type: float
 
-   .. attribute:: specHarnessFac
+   .. attribute:: hardness
 
       Amount texture affects hardness.
 
       :type: float
 
-   .. attribute:: emitFac
+   .. attribute:: emit
 
       Amount texture affects emission.
 
       :type: float
 
-   .. attribute:: mirrorFac
+   .. attribute:: mirror
 
       Amount texture affects mirror color.
 
       :type: float
 
-   .. attribute:: normalFac
+   .. attribute:: normal
 
       Amount texture affects normal values.
 
       :type: float
 
-   .. attribute:: parallaxBumpFac
+   .. attribute:: parallaxBump
 
       Height of parallax occlusion mapping.
 
       :type: float
 
-   .. attribute:: parallaxStepFac
+   .. attribute:: parallaxStep
 
       Number of steps to achieve parallax effect.
 
