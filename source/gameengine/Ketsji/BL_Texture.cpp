@@ -48,6 +48,7 @@ BL_Texture::BL_Texture(MTex *mtex, bool cubemap, bool mipmap)
 
 	// Initialize saved data.
 	m_mtex = mtex;
+	m_mtexname = (STR_String)(mtex->tex->id.name + 2);
 	m_savedData.colintensfac = mtex->difffac;
 	m_savedData.colfac = mtex->colfac;
 	m_savedData.alphafac = mtex->alphafac;
@@ -69,17 +70,29 @@ BL_Texture::BL_Texture(MTex *mtex, bool cubemap, bool mipmap)
 BL_Texture::~BL_Texture()
 {
 	// Restore saved data.
-	m_mtex->difffac = m_savedData.colintensfac;
-	m_mtex->colfac = m_savedData.colfac;
-	m_mtex->alphafac = m_savedData.alphafac;
-	m_mtex->specfac = m_savedData.specintensfac;
-	m_mtex->colspecfac = m_savedData.speccolorfac;
-	m_mtex->hardfac = m_savedData.spechardnessfac;
-	m_mtex->emitfac = m_savedData.emitfac;
-	m_mtex->mirrfac = m_savedData.mirrorfac;
-	m_mtex->norfac = m_savedData.normalfac;
-	m_mtex->parallaxbumpsc = m_savedData.parallaxbumpfac;
-	m_mtex->parallaxsteps = m_savedData.parallaxstepfac;
+	if (m_savedData.colintensfac)
+		m_mtex->difffac = m_savedData.colintensfac;
+	if (m_savedData.colfac)
+		m_mtex->colfac = m_savedData.colfac;
+	if (m_savedData.alphafac)
+		m_mtex->alphafac = m_savedData.alphafac;
+	if (m_savedData.specintensfac)
+		m_mtex->specfac = m_savedData.specintensfac;
+	if (m_savedData.speccolorfac)
+		m_mtex->colspecfac = m_savedData.speccolorfac;
+	if (m_savedData.spechardnessfac)
+		m_mtex->hardfac = m_savedData.spechardnessfac;
+	if (m_savedData.emitfac)
+		m_mtex->emitfac = m_savedData.emitfac;
+	if (m_savedData.mirrorfac)
+		m_mtex->mirrfac = m_savedData.mirrorfac;
+	if (m_savedData.normalfac)
+		m_mtex->norfac = m_savedData.normalfac;
+	if (m_savedData.parallaxbumpfac)
+		m_mtex->parallaxbumpsc = m_savedData.parallaxbumpfac;
+	if (m_savedData.parallaxstepfac)
+		m_mtex->parallaxsteps = m_savedData.parallaxstepfac;
+
 	if (m_gputex) {
 		GPU_texture_set_opengl_bindcode(m_gputex, m_savedData.bindcode);
 	}
@@ -189,7 +202,7 @@ double BL_Texture::GetNumber()
 
 STR_String &BL_Texture::GetName()
 {
-	return (STR_String)(m_mtex->tex->id.name+2);
+	return m_mtexname;
 }
 
 void BL_Texture::SetName(const char *name)

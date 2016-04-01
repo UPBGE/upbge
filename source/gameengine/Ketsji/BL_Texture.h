@@ -17,6 +17,7 @@ class BL_Texture : public CValue
 private:
 	unsigned int m_bindcode;
 	MTex *m_mtex;
+	STR_String m_mtexname;
 	GPUTexture *m_gputex;
 
 	struct {
