@@ -27,7 +27,7 @@ private:
 		float alphafac;
 		float specintensfac;
 		float speccolorfac;
-		float spechardnessfac;
+		float hardnessfac;
 		float emitfac;
 		float mirrorfac;
 		float normalfac;
@@ -52,34 +52,6 @@ public:
 	virtual void SetName(const char *name); // Set the name of the value
 	virtual CValue *GetReplica();
 
-	// stuff for python integration
-
-	KX_PYMETHOD(BL_Texture, GetNumTex);
-	KX_PYMETHOD(BL_Texture, GetTextureName);
-
-	static PyObject *pyattr_get_colorintensfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_colorintensfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_colorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_colorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_alphafac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_alphafac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_specintensfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_specintensfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_speccolorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_speccolorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_spechardnessfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_spechardnessfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_emitfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_emitfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_mirrorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_mirrorfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_normalfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_normalfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_parallaxbumpfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_parallaxbumpfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_parallaxstepfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_parallaxstepfac(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-
 	bool Ok();
 
 	unsigned int GetTextureType() const;
@@ -89,6 +61,36 @@ public:
 	void ActivateTexture(int unit);
 	void DisableTexture();
 	unsigned int swapTexture(unsigned int bindcode);
+
+#ifdef WITH_PYTHON
+
+	KX_PYMETHOD(BL_Texture, GetNumTex);
+	KX_PYMETHOD(BL_Texture, GetTextureName);
+
+	static PyObject *pyattr_get_diffuse_intensity(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_diffuse_intensity(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_diffuse_factor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_diffuse_factor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_alpha(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_alpha(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_specular_intensity(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_specular_intensity(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_specular_factor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_specular_factor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_hardness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_hardness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_emit(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_emit(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_mirror(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_mirror(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_normal(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_normal(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_parallax_bump(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_parallax_bump(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_parallax_step(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_parallax_step(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+
+#endif
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_Texture")
