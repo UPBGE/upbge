@@ -1053,7 +1053,10 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 	// note that all the replicas of an object will have the same
 	// blender object, that's why we need to check the game object
 	// as only the deletion of the original object must be recorded
-	m_logicmgr->UnregisterGameObj(newobj->GetBlenderObject(), gameobj);
+	if (newobj->GetBlenderObject()) {
+		// In some case the game object can contains a NULL blender object e.g default camera.
+		m_logicmgr->UnregisterGameObj(newobj->GetBlenderObject(), gameobj);
+	}
 
 	//todo: look at this
 	//GetPhysicsEnvironment()->RemovePhysicsController(gameobj->getPhysicsController());
