@@ -92,7 +92,6 @@ void BL_Material::Initialize()
 		mapping[i].objconame = "";
 		mtexname[i] = "NULL";
 		imageId[i]="NULL";
-		flag[i] = 0;
 		texname[i] = "NULL";
 		tilexrep[i] = 1;
 		tileyrep[i] = 1;

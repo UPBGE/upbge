@@ -511,24 +511,6 @@ static bool ConvertMaterial(
 					if (mttmp->tex->type == TEX_IMAGE) {
 						material->mtexname[i] = mttmp->tex->id.name;
 						material->img[i] = mttmp->tex->ima;
-						if (material->img[i]) {
-
-							material->texname[i] = material->img[i]->id.name;
-							material->flag[i] |= (mttmp->tex->imaflag &TEX_MIPMAP) ? MIPMAP : 0;
-							if (material->img[i] && (material->img[i]->flag & IMA_IGNORE_ALPHA) == 0) {
-								material->flag[i] |= USEALPHA;
-							}
-							if (mttmp->tex->imaflag & TEX_CALCALPHA) {
-								material->flag[i] |= CALCALPHA;
-							}
-							else if (mttmp->tex->flag & TEX_NEGALPHA) {
-								material->flag[i] |= USENEGALPHA;
-							}
-
-							material->color_blend[i] = mttmp->colfac;
-							material->flag[i] |= (mttmp->mapto & MAP_ALPHA) ? TEXALPHA : 0;
-							material->flag[i] |= (mttmp->texflag & MTEX_NEGATIVE) ? TEXNEG : 0;
-						}
 					}
 					else if (mttmp->tex->type == TEX_ENVMAP) {
 						if (mttmp->tex->env->stype == ENV_LOAD) {
@@ -543,9 +525,6 @@ static bool ConvertMaterial(
 							}
 						}
 					}
-#if 0				/* this flag isn't used anymore */
-					material->flag[i] |= (BKE_animdata_from_id(mat->id) != NULL) ? HASIPO : 0;
-#endif
 					/// --------------------------------
 					// mapping methods
 					if (mat->septex & (1 << i)) {
@@ -648,7 +627,6 @@ static bool ConvertMaterial(
 
 				/* see if depth of the image is 32bits */
 				if (BKE_image_has_alpha(material->img[0])) {
-					material->flag[0] |= USEALPHA;
 					material->alphablend = GEMAT_ALPHA;
 				}
 				else {

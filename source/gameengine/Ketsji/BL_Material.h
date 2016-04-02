@@ -58,7 +58,6 @@ public:
 	unsigned int ras_mode;
 
 	STR_String texname[MAXTEX];
-	unsigned int flag[MAXTEX];
 	int tile,tilexrep[MAXTEX],tileyrep[MAXTEX];
 	STR_String matname;
 	STR_String mtexname[MAXTEX];
@@ -106,19 +105,6 @@ enum BL_BlendMode
 	BLEND_SUB,
 	BLEND_MUL,
 	BLEND_SCR
-};
-
-// -------------------------------------
-// BL_Material::flag[index]
-enum BL_flag
-{
-	MIPMAP=1,		// set to use mipmaps
-	CALCALPHA=2,	// additive
-	USEALPHA=4,		// use actual alpha channel
-	TEXALPHA=8,		// use alpha combiner functions
-	TEXNEG=16,		// negate blending
-	/*HASIPO=32,*/	// unused, commeted for now.
-	USENEGALPHA=64
 };
 
 // BL_Material::ras_mode
