@@ -77,7 +77,6 @@ void BL_Material::Initialize()
 
 	for (i = 0; i < MAXTEX; i++) // :(
 	{
-		mapping[i].mapping = 0;
 		mapping[i].offsets[0] = 0.f;
 		mapping[i].offsets[1] = 0.f;
 		mapping[i].offsets[2] = 0.f;

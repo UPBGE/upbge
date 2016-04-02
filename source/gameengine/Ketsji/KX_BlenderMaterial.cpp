@@ -474,20 +474,28 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 	ras->SetTexCoordNum(m_material->num_enabled);
 
 	for (int i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		int mode = m_material->mapping[i].mapping;
-
-		if (mode & (USEREFL | USEOBJ))
-			ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_GEN, i);
-		else if (mode & USEORCO)
-			ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_ORCO, i);
-		else if (mode & USENORM)
-			ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_NORM, i);
-		else if (mode & USEUV)
-			ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_UV, i);
-		else if (mode & USETANG)
-			ras->SetTexCoord(RAS_IRasterizer::RAS_TEXTANGENT, i);
-		else
+		BL_Texture *texture = m_textures[i];
+		if (texture && texture->Ok()) {
+			MTex *mtex = texture->GetMTex();
+			if (mtex->texco & (TEXCO_OBJECT | TEXCO_REFL)) {
+				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_GEN, i);
+			}
+			else if (mtex->texco & (TEXCO_ORCO | TEXCO_GLOB)) {
+				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_ORCO, i);
+			}
+			else if (mtex->texco & TEXCO_UV) {
+				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_UV, i);
+			}
+			else if (mtex->texco & TEXCO_NORM) {
+				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_NORM, i);
+			}
+			else if (mtex->texco & TEXCO_TANGENT) {
+				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXTANGENT, i);
+			}
+		}
+		else {
 			ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_DISABLE, i);
+		}
 	}
 }
 
@@ -984,7 +992,6 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 
 	if (m_shader && !m_shader->GetError()) {
 		m_flag &= ~RAS_BLENDERGLSL;
-		m_material->SetSharedMaterial(true);
 		m_scene->GetBucketManager()->ReleaseDisplayLists(this);
 		return m_shader->GetProxy();
 	}

@@ -519,7 +519,6 @@ static bool ConvertMaterial(
 
 							if (material->cubemap[i]) {
 								material->texname[i] = material->cubemap[i]->ima->id.name;
-								material->mapping[i].mapping |= USEENV;
 							}
 						}
 					}
@@ -527,34 +526,12 @@ static bool ConvertMaterial(
 					// mapping methods
 					if (mat->septex & (1 << i)) {
 						// If this texture slot isn't in use, set it to disabled to prevent multi-uv problems
-						material->mapping[i].mapping = DISABLE;
 					} 
 					else {
-						material->mapping[i].mapping |= (mttmp->texco & TEXCO_REFL) ? USEREFL : 0;
-
 						if (mttmp->texco & TEXCO_OBJECT) {
-							material->mapping[i].mapping |= USEOBJ;
 							if (mttmp->object) {
 								material->mapping[i].objconame = mttmp->object->id.name;
 							}
-						}
-						else if (mttmp->texco & TEXCO_REFL) {
-							material->mapping[i].mapping |= USEREFL;
-						}
-						else if (mttmp->texco & (TEXCO_ORCO | TEXCO_GLOB)) {
-							material->mapping[i].mapping |= USEORCO;
-						}
-						else if (mttmp->texco & TEXCO_UV) {
-							material->mapping[i].mapping |= USEUV;
-						}
-						else if (mttmp->texco & TEXCO_NORM) {
-							material->mapping[i].mapping |= USENORM;
-						}
-						else if (mttmp->texco & TEXCO_TANGENT) {
-							material->mapping[i].mapping |= USETANG;
-						}
-						else {
-							material->mapping[i].mapping |= DISABLE;
 						}
 
 						material->mapping[i].scale[0] = mttmp->size[0];
@@ -601,7 +578,6 @@ static bool ConvertMaterial(
 			// ------------------------
 			if (material->img[0]) {
 				material->texname[0] = material->img[0]->id.name;
-				material->mapping[0].mapping |= ((material->img[0]->flag & IMA_REFLECT) != 0) ? USEREFL : 0;
 
 				/* see if depth of the image is 32bits */
 				if (BKE_image_has_alpha(material->img[0])) {

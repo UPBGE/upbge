@@ -36,7 +36,6 @@ struct EnvMap;
 class BL_Mapping
 {
 public:
-	int mapping;
 	float scale[3];
 	float offsets[3];
 	int projplane[3];
@@ -98,22 +97,6 @@ enum BL_ras_mode
 	TEX=256,
 	TWOSIDED=512,
 	ONLY_SHADOW=1024,
-};
-
-// -------------------------------------
-// BL_Material::mapping[index]::mapping
-enum BL_MappingFlag
-{
-	USEENV	=1,
-	// --
-	USEREFL	=2,
-	USEOBJ	=4,
-	USENORM	=8,
-	USEORCO =16,
-	USEUV	=32,
-	USETANG	=64,
-	DISABLE =128,
-	USECUSTOMUV=256
 };
 
 // BL_Material::BL_Mapping::projplane
