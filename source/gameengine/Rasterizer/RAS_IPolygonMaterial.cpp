@@ -35,91 +35,38 @@
 
 #include "DNA_material_types.h"
 
-void RAS_IPolyMaterial::Initialize(
-    const STR_String& texname,
-    const STR_String& matname,
-    int materialindex,
-    int tile,
-    int tilexrep,
-    int tileyrep,
-    int alphablend,
-    bool alpha,
-    bool zsort,
-    bool light,
-    bool image,
-    GameSettings *game)
-{
-	m_texturename = texname;
-	m_materialname = matname;
-	m_materialindex = materialindex;
-	m_tile = tile;
-	m_tilexrep = tilexrep;
-	m_tileyrep = tileyrep;
-	m_alphablend = alphablend;
-	m_alpha = alpha;
-	m_zsort = zsort;
-	m_light = light;
-	m_polymatid = m_newpolymatid++;
-	m_flag = 0;
-	m_drawingmode = ConvertFaceMode(game, image);
-}
-
-RAS_IPolyMaterial::RAS_IPolyMaterial()
-	:m_texturename("__Dummy_Texture_Name__"),
-	m_materialname("__Dummy_Material_Name__"),
-	m_tile(0),
-	m_tilexrep(0),
-	m_tileyrep(0),
-	m_drawingmode(0),
+RAS_IPolyMaterial::RAS_IPolyMaterial(
+	const STR_String& matname,
+	GameSettings *game)
+	:m_materialname(matname),
 	m_alphablend(0),
-	m_alpha(false),
-	m_zsort(false),
-	m_light(false),
-	m_materialindex(0),
-	m_polymatid(0),
+	m_rasMode(0),
 	m_flag(0)
 {
+	m_drawingmode = ConvertFaceMode(game);
 }
 
-RAS_IPolyMaterial::RAS_IPolyMaterial(const STR_String& texname,
-                                     const STR_String& matname,
-                                     int materialindex,
-                                     int tile,
-                                     int tilexrep,
-                                     int tileyrep,
-                                     int alphablend,
-                                     bool alpha,
-                                     bool zsort)
-	:m_texturename(texname),
-	m_materialname(matname),
-	m_tile(tile),
-	m_tilexrep(tilexrep),
-	m_tileyrep(tileyrep),
-	m_alphablend(alphablend),
-	m_alpha(alpha),
-	m_zsort(zsort),
-	m_materialindex(materialindex),
-	m_polymatid(m_newpolymatid++),
-	m_flag(0)
+int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game) const
 {
-}
-
-int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game, bool image) const
-{
-	if (!game) {
-		return (image ? GEMAT_TEX : 0);
-	}
-
 	int modefinal = 0;
 
-	int orimode   = game->face_orientation;
+	int orimode = game->face_orientation;
 	int alpha_blend = game->alpha_blend;
 	int flags = game->flag & (GEMAT_TEXT | GEMAT_BACKCULL);
 
 	modefinal = orimode | alpha_blend | flags;
-	modefinal |= (image ? GEMAT_TEX : 0);
 
 	return modefinal;
+}
+
+bool RAS_IPolyMaterial::IsAlphaShadow() const
+{
+	return m_alphablend != GEMAT_SOLID;
+}
+
+bool RAS_IPolyMaterial::IsWire() const
+{
+	return (m_rasMode & RAS_WIRE);
 }
 
 void RAS_IPolyMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
@@ -132,17 +79,12 @@ void RAS_IPolyMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
 
 bool RAS_IPolyMaterial::IsAlpha() const
 {
-	return m_alpha || m_zsort;
+	return (m_rasMode & (RAS_ALPHA | RAS_ZSORT));
 }
 
 bool RAS_IPolyMaterial::IsZSort() const
 {
-	return m_zsort;
-}
-
-unsigned int RAS_IPolyMaterial::hash() const
-{
-	return m_texturename.hash();
+	return (m_rasMode & RAS_ZSORT);
 }
 
 int RAS_IPolyMaterial::GetDrawingMode() const
@@ -155,16 +97,6 @@ const STR_String& RAS_IPolyMaterial::GetMaterialName() const
 	return m_materialname;
 }
 
-dword RAS_IPolyMaterial::GetMaterialNameHash() const
-{
-	return m_materialname.hash();
-}
-
-const STR_String& RAS_IPolyMaterial::GetTextureName() const
-{
-	return m_texturename;
-}
-
 unsigned int RAS_IPolyMaterial::GetFlag() const
 {
 	return m_flag;
@@ -172,22 +104,8 @@ unsigned int RAS_IPolyMaterial::GetFlag() const
 
 bool RAS_IPolyMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 {
-	bool dolights = false;
-
-	if (!(m_flag & RAS_BLENDERGLSL)) {
-		dolights = (m_flag & RAS_MULTILIGHT) != 0;
-	}
-	else if (rasty->GetDrawingMode() < RAS_IRasterizer::RAS_SOLID) {
-		/* pass */
-	}
-	else if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW) {
-		/* pass */
-	}
-	else {
-		dolights = m_light;
-	}
-
-	return dolights;
+	// Return false only if material is shadeless.
+	return (m_flag & RAS_MULTILIGHT);
 }
 
 bool RAS_IPolyMaterial::CastsShadows() const
@@ -204,6 +122,3 @@ bool RAS_IPolyMaterial::UsesObjectColor() const
 {
 	return (!(m_flag & RAS_BLENDERGLSL)) && (m_flag & RAS_OBJECTCOLOR);
 }
-
-unsigned int RAS_IPolyMaterial::m_newpolymatid = 0;
-

@@ -9,6 +9,7 @@
 #include "SCA_IObject.h"
 
 struct MTex;
+struct Image;
 struct GPUTexture;
 
 class BL_Texture : public CValue
@@ -45,19 +46,18 @@ public:
 	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 	virtual const STR_String& GetText();
 	virtual double GetNumber();
-	virtual MTex *GetMTex()
-	{
-		return m_mtex;
-	}
 	virtual STR_String& GetName();
 	virtual void SetName(const char *name); // Set the name of the value
 	virtual CValue *GetReplica();
 
 	bool Ok();
 
+	MTex *GetMTex();
+	Image *GetImage();
+
 	unsigned int GetTextureType() const;
 
-	static int GetMaxUnits();
+	enum {MaxUnits = 8};
 
 	void ActivateTexture(int unit);
 	void DisableTexture();

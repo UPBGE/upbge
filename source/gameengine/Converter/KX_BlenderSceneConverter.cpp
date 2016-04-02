@@ -37,14 +37,12 @@
 #include "KX_GameObject.h"
 #include "KX_IpoConvert.h"
 #include "RAS_MeshObject.h"
+#include "RAS_IPolygonMaterial.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h" // So we can handle adding new text datablocks for Python to import
-#include "BL_Material.h"
 #include "BL_ActionActuator.h"
-#include "KX_BlenderMaterial.h"
-
 
 #include "BL_System.h"
 
@@ -155,14 +153,6 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 		itp++;
 	}
 	m_polymaterials.clear();
-
-	// delete after RAS_IPolyMaterial
-	vector<pair<KX_Scene *,BL_Material *> >::iterator itmat = m_materials.begin();
-	while (itmat != m_materials.end()) {
-		delete itmat->second;
-		itmat++;
-	}
-	m_materials.clear();
 
 	vector<pair<KX_Scene *,RAS_MeshObject *> >::iterator itm = m_meshobjects.begin();
 	while (itm != m_meshobjects.end()) {
@@ -344,24 +334,6 @@ void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 
 	m_polymat_cache.erase(scene);
 
-	vector<pair<KX_Scene *, BL_Material *> >::iterator matit;
-	size = m_materials.size();
-	for (i = 0, matit = m_materials.begin(); i < size; ) {
-		if (matit->first == scene) {
-			m_mat_cache[scene].erase(matit->second->material);
-			delete matit->second;
-			*matit = m_materials.back();
-			m_materials.pop_back();
-			size--;
-		} 
-		else {
-			i++;
-			matit++;
-		}
-	}
-
-	m_mat_cache.erase(scene);
-
 	vector<pair<KX_Scene *, RAS_MeshObject *> >::iterator meshit;
 	size = m_meshobjects.size();
 	for (i = 0, meshit = m_meshobjects.begin(); i < size; ) {
@@ -376,17 +348,6 @@ void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 			meshit++;
 		}
 	}
-}
-
-void KX_BlenderSceneConverter::RegisterBlenderMaterial(BL_Material *mat)
-{
-	// First make sure we don't register the material twice
-	vector<pair<KX_Scene *, BL_Material *> >::iterator it;
-	for (it = m_materials.begin(); it != m_materials.end(); ++it)
-		if (it->second == mat)
-			return;
-
-	m_materials.push_back(pair<KX_Scene *, BL_Material *> (m_currentScene, mat));
 }
 
 void KX_BlenderSceneConverter::SetAlwaysUseExpandFraming(bool to_what)
@@ -452,17 +413,6 @@ void KX_BlenderSceneConverter::CachePolyMaterial(KX_Scene *scene, Material *mat,
 RAS_IPolyMaterial *KX_BlenderSceneConverter::FindCachedPolyMaterial(KX_Scene *scene, Material *mat)
 {
 	return m_polymat_cache[scene][mat];
-}
-
-void KX_BlenderSceneConverter::CacheBlenderMaterial(KX_Scene *scene, Material *mat, BL_Material *blmat)
-{
-	if (mat)
-		m_mat_cache[scene][mat] = blmat;
-}
-
-BL_Material *KX_BlenderSceneConverter::FindCachedBlenderMaterial(KX_Scene *scene, Material *mat)
-{
-	return m_mat_cache[scene][mat];
 }
 
 void KX_BlenderSceneConverter::RegisterInterpolatorList(BL_InterpolatorList *actList, bAction *for_act)
@@ -810,7 +760,6 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		KX_Scene *scene = (KX_Scene *)scenes->GetValue(sce_idx);
 		if (IS_TAGGED(scene->GetBlenderScene())) {
 			m_ketsjiEngine->RemoveScene(scene->GetName());
-			m_mat_cache.erase(scene);
 			m_polymat_cache.erase(scene);
 			sce_idx--;
 			numScenes--;
@@ -965,8 +914,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		RAS_IPolyMaterial *mat = polymit->second;
 		Material *bmat = NULL;
 
-		KX_BlenderMaterial *bl_mat = static_cast<KX_BlenderMaterial *>(mat);
-		bmat = bl_mat->GetBlenderMaterial();
+		bmat = mat->GetBlenderMaterial();
 
 		if (IS_TAGGED(bmat)) {
 			/* only remove from bucket */
@@ -981,8 +929,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		RAS_IPolyMaterial *mat = polymit->second;
 		Material *bmat = NULL;
 
-		KX_BlenderMaterial *bl_mat = static_cast<KX_BlenderMaterial*>(mat);
-		bmat = bl_mat->GetBlenderMaterial();
+		bmat = mat->GetBlenderMaterial();
 
 		if (IS_TAGGED(bmat)) {
 			// Remove the poly material coresponding to this Blender Material.
@@ -994,24 +941,6 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		} else {
 			i++;
 			polymit++;
-		}
-	}
-
-	vector<pair<KX_Scene *, BL_Material *> >::iterator matit;
-	size = m_materials.size();
-	for (i = 0, matit = m_materials.begin(); i < size; ) {
-		BL_Material *mat = matit->second;
-		if (IS_TAGGED(mat->material)) {
-			// Remove the bl material coresponding to this Blender Material.
-			m_mat_cache[matit->first].erase(mat->material);
-			delete matit->second;
-			*matit = m_materials.back();
-			m_materials.pop_back();
-			size--;
-		} 
-		else {
-			i++;
-			matit++;
 		}
 	}
 
@@ -1101,22 +1030,6 @@ bool KX_BlenderSceneConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 				itp->first = to;
 			itp++;
 		}
-	}
-
-	{
-		vector<pair<KX_Scene *, BL_Material *> >::iterator itp = m_materials.begin();
-		while (itp != m_materials.end()) {
-			if (itp->first == from)
-				itp->first = to;
-			itp++;
-		}
-	}
-
-	MaterialCache::iterator matcacheit = m_mat_cache.find(from);
-	if (matcacheit != m_mat_cache.end()) {
-		// Merge cached BL_Material map.
-		m_mat_cache[to].insert(matcacheit->second.begin(), matcacheit->second.end());
-		m_mat_cache.erase(matcacheit);
 	}
 
 	PolyMaterialCache::iterator polymatcacheit = m_polymat_cache.find(from);

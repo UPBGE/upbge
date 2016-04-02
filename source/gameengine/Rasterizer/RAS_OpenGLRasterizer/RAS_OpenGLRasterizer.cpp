@@ -849,8 +849,13 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot *ms, class RAS_IP
 				if (m_attrib[unit] == RAS_TEXCO_UV)
 					glattrib = unit;
 
+		unsigned int rgba[4];
+		for (unsigned short j = 0; j < 4; ++j) {
+			polymat->GetMaterialRGBAColor((unsigned char *)&rgba[j]);
+		}
+
 		GPU_render_text(
-		    polymat->GetMTexPoly(), polymat->GetDrawingMode(), mytext, mytext.Length(), polymat->GetMCol(),
+		    polymat->GetMTexPoly(), polymat->GetDrawingMode(), mytext, mytext.Length(), rgba,
 		    v_ptr, uv_ptr, glattrib);
 	}
 

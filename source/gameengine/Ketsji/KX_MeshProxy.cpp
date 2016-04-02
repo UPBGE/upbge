@@ -310,12 +310,12 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 		return NULL;
 	}
 
-	if (uvindex < -1 || uvindex > MAXTEX) {
+	if (uvindex < -1 || uvindex > BL_Texture::MaxUnits) {
 		PyErr_Format(PyExc_ValueError,
 		             "mesh.transformUV(...): invalid uv_index %d", uvindex);
 		return NULL;
 	}
-	if (uvindex_from < -1 || uvindex_from > MAXTEX) {
+	if (uvindex_from < -1 || uvindex_from > BL_Texture::MaxUnits) {
 		PyErr_Format(PyExc_ValueError,
 		             "mesh.transformUV(...): invalid uv_index_from %d", uvindex);
 		return NULL;
@@ -356,7 +356,7 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 				vert->TransformUV(uvindex, transform);
 			}
 			else if (uvindex == -1) {
-				for (int i = 0; i < MAXTEX; ++i) {
+				for (int i = 0; i < BL_Texture::MaxUnits; ++i) {
 					vert->TransformUV(i, transform);
 				}
 			}

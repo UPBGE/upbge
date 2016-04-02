@@ -32,7 +32,7 @@
 #ifndef __RAS_IPOLYGONMATERIAL_H__
 #define __RAS_IPOLYGONMATERIAL_H__
 
-#include "STR_HashedString.h"
+#include "STR_String.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -58,28 +58,27 @@ enum MaterialProps
 	RAS_OBJECTCOLOR = (1 << 6),
 };
 
+enum MaterialRasterizerModes
+{
+	RAS_COLLIDER = 2,
+	RAS_ZSORT = 4,
+	RAS_ALPHA = 8,
+	RAS_WIRE = 64,
+	RAS_TWOSIDED = 512,
+};
+
 /**
  * Polygon Material on which the material buckets are sorted
  */
 class RAS_IPolyMaterial
 {
 protected:
-	STR_HashedString m_texturename;
-	STR_HashedString m_materialname; // also needed for touchsensor
-	int m_tile;
-	int m_tilexrep;
-	int m_tileyrep;
+	STR_String m_materialname; // also needed for touchsensor
 	int m_drawingmode;
 	int m_alphablend;
-	bool m_alpha;
-	bool m_zsort;
-	bool m_light;
-	int m_materialindex;
-
-	unsigned int m_polymatid;
-	static unsigned int m_newpolymatid;
-
+	int m_rasMode;
 	unsigned int m_flag;
+
 public:
 
 	// care! these are taken from blender polygonflags, see file DNA_mesh_types.h for #define TF_BILLBOARD etc.
@@ -90,28 +89,8 @@ public:
 		SHADOW = 2048 // GEMAT_SHADOW
 	};
 
-	RAS_IPolyMaterial();
-	RAS_IPolyMaterial(const STR_String& texname,
-	                  const STR_String& matname,
-	                  int materialindex,
-	                  int tile,
-	                  int tilexrep,
-	                  int tileyrep,
-	                  int transp,
-	                  bool alpha,
-	                  bool zsort);
-	void Initialize(const STR_String& texname,
-	                const STR_String& matname,
-	                int materialindex,
-	                int tile,
-	                int tilexrep,
-	                int tileyrep,
-	                int transp,
-	                bool alpha,
-	                bool zsort,
-	                bool light,
-	                bool image,
-	                GameSettings *game);
+	RAS_IPolyMaterial(const STR_String& matname,
+	                  GameSettings *game);
 
 	virtual ~RAS_IPolyMaterial()
 	{
@@ -125,27 +104,24 @@ public:
 
 	bool IsAlpha() const;
 	bool IsZSort() const;
-	unsigned int hash() const;
+	bool IsWire() const;
 	int GetDrawingMode() const;
 	const STR_String& GetMaterialName() const;
-	dword GetMaterialNameHash() const;
-	const STR_String& GetTextureName() const;
 	unsigned int GetFlag() const;
+	bool IsAlphaShadow() const;
+	bool UsesObjectColor() const;
+	bool CastsShadows() const;
+	bool OnlyShadow() const;
 
+	virtual const STR_String& GetTextureName() const = 0;
 	virtual Material *GetBlenderMaterial() const = 0;
 	virtual Image *GetBlenderImage() const = 0;
 	virtual MTexPoly *GetMTexPoly() const = 0;
-	virtual unsigned int *GetMCol() const = 0;
 	virtual Scene *GetBlenderScene() const = 0;
-	virtual bool IsWire() const = 0;
-	virtual bool IsAlphaShadow() const = 0;
 	virtual bool UseInstancing() const = 0;
 	virtual void ReleaseMaterial() = 0;
 	virtual void GetMaterialRGBAColor(unsigned char *rgba) const;
 	virtual bool UsesLighting(RAS_IRasterizer *rasty) const;
-	virtual bool UsesObjectColor() const;
-	virtual bool CastsShadows() const;
-	virtual bool OnlyShadow() const;
 
 	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha) = 0;
@@ -156,7 +132,7 @@ public:
 	/**
 	 * \return the equivalent drawing mode for the material settings (equivalent to old TexFace tface->mode).
 	 */
-	int ConvertFaceMode(struct GameSettings *game, bool image) const;
+	int ConvertFaceMode(struct GameSettings *game) const;
 
 	/*
 	 * PreCalculate texture gen

@@ -58,7 +58,6 @@ struct bAction;
 struct bActuator;
 struct bController;
 
-typedef map<KX_Scene*, map<Material*, BL_Material*> > MaterialCache;
 typedef map<KX_Scene*, map<Material*, RAS_IPolyMaterial*> > PolyMaterialCache;
 
 class KX_BlenderSceneConverter : public KX_ISceneConverter
@@ -67,13 +66,11 @@ class KX_BlenderSceneConverter : public KX_ISceneConverter
 	vector<pair<KX_Scene*,KX_WorldInfo*> >	m_worldinfos;
 	vector<pair<KX_Scene*,RAS_IPolyMaterial*> > m_polymaterials;
 	vector<pair<KX_Scene*,RAS_MeshObject*> > m_meshobjects;
-	vector<pair<KX_Scene*,BL_Material *> >	m_materials;
 
 	vector<class KX_LibLoadStatus*> m_mergequeue;
 	ThreadInfo	*m_threadinfo;
 
 	// Cached material conversions
-	MaterialCache m_mat_cache;
 	PolyMaterialCache m_polymat_cache;
 
 	// Saved KX_LibLoadStatus objects
@@ -133,10 +130,6 @@ public:
 	void CachePolyMaterial(KX_Scene *scene, Material *mat, RAS_IPolyMaterial *polymat);
 	RAS_IPolyMaterial *FindCachedPolyMaterial(KX_Scene *scene, Material *mat);
 
-	void RegisterBlenderMaterial(BL_Material *mat);
-	void CacheBlenderMaterial(KX_Scene *scene, Material *mat, BL_Material *blmat);
-	BL_Material *FindCachedBlenderMaterial(KX_Scene *scene, Material *mat);
-	
 	void RegisterInterpolatorList(BL_InterpolatorList *actList, struct bAction *for_act);
 	BL_InterpolatorList *FindInterpolatorList(struct bAction *for_act);
 
@@ -174,7 +167,6 @@ public:
 		printf("\t m_worldinfos: %d\n", (int)m_worldinfos.size());
 		printf("\t m_polymaterials: %d\n", (int)m_polymaterials.size());
 		printf("\t m_meshobjects: %d\n", (int)m_meshobjects.size());
-		printf("\t m_materials: %d\n", (int)m_materials.size());
 
 		printf("\nMappings...\n");
 		printf("\t m_map_blender_to_gameobject: %d\n", (int)m_map_blender_to_gameobject.size());

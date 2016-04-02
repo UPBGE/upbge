@@ -78,7 +78,6 @@ extern "C"
 #include "KX_Globals.h"
 #include "KX_PythonInit.h"
 #include "KX_PyConstraintBinding.h"
-#include "BL_Material.h" // MAXTEX
 
 #include "KX_NetworkMessageManager.h"
 #include "KX_BlenderSceneConverter.h"
