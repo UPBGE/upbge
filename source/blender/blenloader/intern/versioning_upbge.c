@@ -64,4 +64,13 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 2)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Image", "float", "lodbias")) {
+			Image *image;
+			for (image = main->image.first; image != NULL; image = image->id.next) {
+				image->lodbias = 0.0f;
+				image->flag |= IMA_USE_MIPMAP;
+			}
+		}
+	}
 }
