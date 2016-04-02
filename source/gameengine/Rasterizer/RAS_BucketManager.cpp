@@ -174,10 +174,12 @@ void RAS_BucketManager::RenderSortedBuckets(const MT_Transform& cameratrans, RAS
 		bucket->RenderMeshSlot(cameratrans, rasty, sit->m_ms);
 	}
 
+	// Always unbind VBO or VA before unset the material to use the correct material attributs.
+	rasty->UnbindPrimitives(lastDisplayArrayBucket);
+
 	if (matactivated && lastMaterialBucket) {
 		lastMaterialBucket->DesactivateMaterial(rasty);
 	}
-	rasty->UnbindPrimitives(lastDisplayArrayBucket);
 }
 
 void RAS_BucketManager::RenderBasicBuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_BucketManager::BucketType bucketType)
