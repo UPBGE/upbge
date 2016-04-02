@@ -40,6 +40,7 @@
 
 #include "KX_VertexProxy.h"
 #include "KX_PolyProxy.h"
+#include "RAS_Polygon.h"
 
 #include "KX_BlenderMaterial.h"
 
@@ -77,6 +78,7 @@ PyMethodDef KX_MeshProxy::Methods[] = {
 	{"getPolygon", (PyCFunction) KX_MeshProxy::sPyGetPolygon, METH_VARARGS},
 	{"transform", (PyCFunction) KX_MeshProxy::sPyTransform, METH_VARARGS},
 	{"transformUV", (PyCFunction) KX_MeshProxy::sPyTransformUV, METH_VARARGS},
+	{ "recalculateNormals", (PyCFunction)KX_MeshProxy::sPyRecalculateNormals, METH_NOARGS },
 
 	{NULL, NULL} //Sentinel
 };
@@ -464,6 +466,85 @@ bool ConvertPythonToMesh(PyObject *value, RAS_MeshObject **object, bool py_none_
 	}
 
 	return false;
+}
+
+PyObject *KX_MeshProxy::PyRecalculateNormals()
+{
+	RAS_TexVert *vertex = NULL;
+	RAS_Polygon *polygon = NULL;
+	RAS_MeshMaterial *meshMat = NULL;
+	RAS_IPolyMaterial *polyMat = NULL;
+
+	for (int m = 0; m < m_meshobj->NumMaterials(); m++)
+	{
+		meshMat = m_meshobj->GetMeshMaterial(m);
+		polyMat = meshMat->m_bucket->GetPolyMaterial();
+		if (polyMat)
+		{
+			for (int v = 0; v < m_meshobj->NumVertices(polyMat); v++)
+			{
+				vertex = m_meshobj->GetVertex(m, v);
+				vertex->SetNormal(MT_Vector3(0.0, 0.0, 0.0));
+			}
+		}
+	}
+
+	/* sum face normals for each connected vert*/
+	for (int polyId = 0; polyId < m_meshobj->NumPolygons(); polyId++)
+	{
+		polygon = m_meshobj->GetPolygon(polyId);
+
+		for (int polyVertId = 0; polyVertId < polygon->VertexCount(); polyVertId++)
+		{
+			MT_Vector3 vertNormal = polygon->GetVertex(polyVertId)->getNormal();
+			MT_Vector3 polyNormal = polygon->GetNormal();
+			if (polygon->GetVertex(polyVertId)->getFlag() == RAS_TexVert::FLAT)
+				/* this only needs to be set for flat verts as smooth verts will be set when searching for shared verts*/
+				polygon->GetVertex(polyVertId)->SetNormal(vertNormal + polyNormal);
+
+			/* search for shared verts and add the poly normal to them */
+			for (int m = 0; m < m_meshobj->NumMaterials(); m++)
+			{
+				meshMat = m_meshobj->GetMeshMaterial(m);
+				polyMat = meshMat->m_bucket->GetPolyMaterial();
+				if (polyMat)
+				{
+					for (int v = 0; v < m_meshobj->NumVertices(polyMat); v++)
+					{
+						vertex = m_meshobj->GetVertex(m, v);
+						MT_Vector3 vPos = vertex->getXYZ();
+						MT_Vector3 vPos2 = polygon->GetVertex(polyVertId)->getXYZ();
+
+						if (vPos == vPos2 && vertex->getFlag() != RAS_TexVert::FLAT)
+						{
+							vertNormal = vertex->getNormal();
+							vertex->SetNormal(vertNormal + polyNormal);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/* normalise summed normals */
+	for (int m = 0; m < m_meshobj->NumMaterials(); m++)
+	{
+		meshMat = m_meshobj->GetMeshMaterial(m);
+		polyMat = meshMat->m_bucket->GetPolyMaterial();
+		if (polyMat)
+		{
+			for (int v = 0; v < m_meshobj->NumVertices(polyMat); v++)
+			{
+				vertex = m_meshobj->GetVertex(m, v);
+				MT_Vector3 normal(vertex->getNormal()[0], vertex->getNormal()[1], vertex->getNormal()[2]);
+				normal.normalize();
+				vertex->SetNormal(normal);
+				AppendModifiedFlag(RAS_MeshObject::NORMAL_MODIFIED);
+			}
+		}
+	}
+			
+	Py_RETURN_NONE;
 }
 
 #endif // WITH_PYTHON
