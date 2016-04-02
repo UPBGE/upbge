@@ -574,8 +574,6 @@ static bool ConvertMaterial(
 			}
 		}
 
-		material->SetUsers(mat->id.us);
-
 		material->num_enabled = valid_index;
 
 		material->speccolor[0] = mat->specr;
@@ -619,7 +617,6 @@ static bool ConvertMaterial(
 			material->alphablend = GEMAT_SOLID;
 		}
 
-		material->SetUsers(-1);
 		material->num_enabled = valid;
 		material->speccolor[0] = 1.0f;
 		material->speccolor[1] = 1.0f;

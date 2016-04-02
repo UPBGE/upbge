@@ -46,10 +46,6 @@ public:
 // base material struct
 class BL_Material
 {
-private:
-	int num_users;
-	bool share;
-
 public:
 	// -----------------------------------
 	BL_Material();
@@ -83,11 +79,6 @@ public:
 
 	unsigned int rgb[4];
 
-	void SetSharedMaterial(bool v);
-	bool IsShared();
-	void SetUsers(int num);
-	
-	
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_Material")
 #endif

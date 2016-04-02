@@ -72,8 +72,6 @@ void BL_Material::Initialize()
 	materialindex = 0;
 	amb=0.5f;
 	num_enabled = 0;
-	num_users = 1;
-	share = false;
 
 	int i;
 
@@ -98,22 +96,3 @@ void BL_Material::Initialize()
 		cubemap[i] = 0;
 	}
 }
-
-void BL_Material::SetSharedMaterial(bool v)
-{
-	if ((v && num_users == -1) || num_users > 1 )
-		share = true;
-	else 
-		share = false;
-}
-
-bool BL_Material::IsShared()
-{
-	return share;
-}
-
-void BL_Material::SetUsers(int num)
-{
-	num_users = num;
-}
-
