@@ -570,25 +570,7 @@ static bool ConvertMaterial(
 						material->mapping[i].projplane[1] = mttmp->projy;
 						material->mapping[i].projplane[2] = mttmp->projz;
 					}
-					/// --------------------------------
-					
-					switch (mttmp->blendtype) {
-					case MTEX_BLEND:
-						material->blend_mode[i] = BLEND_MIX;
-						break;
-					case MTEX_MUL:
-						material->blend_mode[i] = BLEND_MUL;
-						break;
-					case MTEX_ADD:
-						material->blend_mode[i] = BLEND_ADD;
-						break;
-					case MTEX_SUB:
-						material->blend_mode[i] = BLEND_SUB;
-						break;
-					case MTEX_SCREEN:
-						material->blend_mode[i] = BLEND_SCR;
-						break;
-					}
+
 					valid_index++;
 				}
 			}

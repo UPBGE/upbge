@@ -96,7 +96,6 @@ void BL_Material::Initialize()
 		tilexrep[i] = 1;
 		tileyrep[i] = 1;
 		color_blend[i] = 1.f;
-		blend_mode[i]	= 0;
 		img[i] = 0;
 		cubemap[i] = 0;
 	}

@@ -71,8 +71,6 @@ public:
 	float alpha, emit, color_blend[MAXTEX], ref;
 	float amb, specalpha;
 
-	int blend_mode[MAXTEX];
-
 	int num_enabled;
 	
 	BL_Mapping	mapping[MAXTEX];
@@ -95,16 +93,6 @@ public:
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_Material")
 #endif
-};
-
-// BL_Material::blend_mode[index]
-enum BL_BlendMode
-{
-	BLEND_MIX=1,
-	BLEND_ADD,
-	BLEND_SUB,
-	BLEND_MUL,
-	BLEND_SCR
 };
 
 // BL_Material::ras_mode
