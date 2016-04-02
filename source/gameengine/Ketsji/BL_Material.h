@@ -60,7 +60,6 @@ public:
 	STR_String texname[MAXTEX];
 	int tile,tilexrep[MAXTEX],tileyrep[MAXTEX];
 	STR_String matname;
-	STR_String mtexname[MAXTEX];
 	int materialindex;
 
 	float matcolor[4];
@@ -74,7 +73,6 @@ public:
 	int num_enabled;
 	
 	BL_Mapping	mapping[MAXTEX];
-	STR_String	imageId[MAXTEX];
 
 	STR_String uvsName[MAXTEX];
 

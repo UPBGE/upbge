@@ -90,8 +90,6 @@ void BL_Material::Initialize()
 		mapping[i].projplane[1] = PROJY;
 		mapping[i].projplane[2] = PROJZ;
 		mapping[i].objconame = "";
-		mtexname[i] = "NULL";
-		imageId[i]="NULL";
 		texname[i] = "NULL";
 		tilexrep[i] = 1;
 		tileyrep[i] = 1;

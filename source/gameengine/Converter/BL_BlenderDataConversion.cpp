@@ -509,12 +509,10 @@ static bool ConvertMaterial(
 			if (mttmp) {
 				if (mttmp->tex) {
 					if (mttmp->tex->type == TEX_IMAGE) {
-						material->mtexname[i] = mttmp->tex->id.name;
 						material->img[i] = mttmp->tex->ima;
 					}
 					else if (mttmp->tex->type == TEX_ENVMAP) {
 						if (mttmp->tex->env->stype == ENV_LOAD) {
-							material->mtexname[i] = mttmp->tex->id.name;
 							EnvMap *env = mttmp->tex->env;
 							env->ima = mttmp->tex->ima;
 							material->cubemap[i] = env;
