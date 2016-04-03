@@ -136,9 +136,9 @@ base class --- :class:`PyObjectPlus`
 
    .. attribute:: textures
 
-      List of all material's BL_Texture.
+      List of all material's textures.
 
-      :type: List (read only)
+      :type: List of :class:`BL_Texture` (read only)
 
    .. method:: setBlending(src, dest)
 

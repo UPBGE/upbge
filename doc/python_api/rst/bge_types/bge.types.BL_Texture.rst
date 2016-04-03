@@ -1,5 +1,5 @@
 BL_Texture(CValue)
-================================
+==================
 
 .. module:: bge.types
 
@@ -7,7 +7,7 @@ base class --- :class:`CValue`
 
 .. class:: BL_Texture(CValue)
 
-   A texture object that contains attributes and methods for Image, MTex...
+   A texture object that contains attributes of a material texture.
 
    .. attribute:: diffuseIntensity
 
