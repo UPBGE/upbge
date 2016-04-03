@@ -34,6 +34,7 @@ void free_component(struct PythonComponent *pc);
 void free_components(struct ListBase *base);
 
 void reload_script_module_recursive_component(void *module);
+void *argument_dict_from_component(struct PythonComponent *pc);
 
 #ifdef __cplusplus
 }

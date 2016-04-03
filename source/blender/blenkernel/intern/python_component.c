@@ -127,30 +127,6 @@ static struct PyModuleDef bge_types_module_def = {
 	NULL,  /* m_free */
 };
 
-void reload_script_module_recursive_component(void *module)
-{
-	PyObject *mod_list, *mod_item, *modspec, *item;
-
-	mod_list = PyDict_Values(PyModule_GetDict(module));
-
-	// Reload all modules imported in the component module script.
-	for (unsigned int i = 0, size = PySequence_Size(mod_list); i < size; ++i) {
-		item = PySequence_GetItem(mod_list, i);
-		if (PyModule_Check(item)) {
-			// If there's no spec, then the module can't be reloaded.
-			modspec = PyObject_GetAttrString(item, "__spec__");
-			if (modspec != Py_None) {
-				reload_script_module_recursive_component(item);
-				mod_item = PyImport_ReloadModule(item);
-				Py_XDECREF(mod_item);
-			}
-			Py_DECREF(modspec);
-		}
-		Py_DECREF(item);
-	}
-	Py_DECREF(mod_list);
-}
-
 #endif
 
 static int verify_class(PyObject *cls)
@@ -540,4 +516,75 @@ void free_components(ListBase *lb)
 		BLI_remlink(lb, pc);
 		free_component(pc);
 	}
+}
+
+void reload_script_module_recursive_component(void *module)
+{
+#ifdef WITH_PYTHON
+	PyObject *mod_list, *mod_item, *modspec, *item;
+
+	mod_list = PyDict_Values(PyModule_GetDict(module));
+
+	// Reload all modules imported in the component module script.
+	for (unsigned int i = 0, size = PySequence_Size(mod_list); i < size; ++i) {
+		item = PySequence_GetItem(mod_list, i);
+		if (PyModule_Check(item)) {
+			// If there's no spec, then the module can't be reloaded.
+			modspec = PyObject_GetAttrString(item, "__spec__");
+			if (modspec != Py_None) {
+				reload_script_module_recursive_component(item);
+				mod_item = PyImport_ReloadModule(item);
+				Py_XDECREF(mod_item);
+			}
+			Py_DECREF(modspec);
+		}
+		Py_DECREF(item);
+	}
+	Py_DECREF(mod_list);
+#endif /* WITH_PYTHON */
+}
+
+void *argument_dict_from_component(PythonComponent *pc)
+{
+#ifdef WITH_PYTHON
+	ComponentProperty *cprop;
+	PyObject *args, *value;
+
+	args = PyDict_New();
+
+	cprop = (ComponentProperty *)pc->properties.first;
+
+	while (cprop) {
+		if (cprop->type == CPROP_TYPE_INT) {
+			value = PyLong_FromLong(cprop->data);
+		}
+		else if (cprop->type == CPROP_TYPE_FLOAT) {
+			value = PyFloat_FromDouble(*(float *)(&cprop->data));
+		}
+		else if (cprop->type == CPROP_TYPE_BOOLEAN) {
+			value = PyBool_FromLong(cprop->data);
+		}
+		else if (cprop->type == CPROP_TYPE_STRING) {
+			value = PyUnicode_FromString((char *)cprop->ptr);
+		}
+		else if (cprop->type == CPROP_TYPE_SET) {
+			value = PyUnicode_FromString((char *)cprop->ptr2);
+		}
+		else {
+			cprop= cprop->next;
+			continue;
+		}
+
+		PyDict_SetItemString(args, cprop->name, value);
+
+		cprop = cprop->next;
+	}
+
+	return args;
+
+#else
+
+	return NULL;
+
+#endif /* WITH_PYTHON */
 }

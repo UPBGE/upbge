@@ -1651,46 +1651,6 @@ CListValue *KX_GameObject::GetComponents()
 	return m_components;
 }
 
-#ifdef WITH_PYTHON
-static PyObject *arg_dict_from_component(PythonComponent *pc)
-{
-	ComponentProperty *cprop;
-	PyObject *args = NULL, *value = NULL;
-
-	args = PyDict_New();
-
-	cprop = (ComponentProperty *)pc->properties.first;
-
-	while (cprop) {
-		if (cprop->type == CPROP_TYPE_INT) {
-			value = PyLong_FromLong(cprop->data);
-		}
-		else if (cprop->type == CPROP_TYPE_FLOAT) {
-			value = PyFloat_FromDouble(*(float *)(&cprop->data));
-		}
-		else if (cprop->type == CPROP_TYPE_BOOLEAN) {
-			value = PyBool_FromLong(cprop->data);
-		}
-		else if (cprop->type == CPROP_TYPE_STRING) {
-			value = PyUnicode_FromString((char *)cprop->ptr);
-		}
-		else if (cprop->type == CPROP_TYPE_SET) {
-			value = PyUnicode_FromString((char *)cprop->ptr2);
-		}
-		else {
-			cprop= cprop->next;
-			continue;
-		}
-
-		PyDict_SetItemString(args, cprop->name, value);
-
-		cprop = cprop->next;
-	}
-
-	return args;
-}
-#endif
-
 void KX_GameObject::InitComponents()
 {
 #ifdef WITH_PYTHON
@@ -1747,7 +1707,7 @@ void KX_GameObject::InitComponents()
 		}
 
 		// Every thing checks out, now generate the args dictionary and init the component
-		arg_dict = arg_dict_from_component(pc);
+		arg_dict = (PyObject *)argument_dict_from_component(pc);
 		args = PyTuple_New(1);
 		PyTuple_SetItem(args, 0, GetProxy());
 
