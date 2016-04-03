@@ -1655,7 +1655,7 @@ void KX_GameObject::InitComponents()
 {
 #ifdef WITH_PYTHON
 	PythonComponent *pc = (PythonComponent *)GetBlenderObject()->components.first;
-	PyObject *arg_dict = NULL, *args = NULL, *mod = NULL, *cls = NULL, *pycomp;
+	PyObject *arg_dict = NULL, *args = NULL, *mod = NULL, *cls = NULL, *pycomp = NULL, *ret = NULL;
 
 	if (!pc) {
 		return;
@@ -1672,7 +1672,9 @@ void KX_GameObject::InitComponents()
 		Py_XDECREF(arg_dict);
 		Py_XDECREF(mod);
 		Py_XDECREF(cls);
-		args = arg_dict = mod = cls = NULL;
+		Py_XDECREF(ret);
+		Py_XDECREF(pycomp);
+		args = arg_dict = mod = cls = pycomp = ret = NULL;
 
 		// Grab the module
 		mod = PyImport_ImportModule(pc->module);
@@ -1713,12 +1715,11 @@ void KX_GameObject::InitComponents()
 
 		pycomp = PyObject_Call(cls, args, NULL);
 
-		PyObject_CallMethod(pycomp, "start", "O", arg_dict);
+		ret = PyObject_CallMethod(pycomp, "start", "O", arg_dict);
 
 		if (PyErr_Occurred()) {
 			// The component is invalid, drop it
 			PyErr_Print();
-			Py_XDECREF(pycomp);
 		}
 		else {
 			KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(BGE_PROXY_REF(pycomp));
@@ -1732,6 +1733,8 @@ void KX_GameObject::InitComponents()
 	Py_XDECREF(arg_dict);
 	Py_XDECREF(mod);
 	Py_XDECREF(cls);
+	Py_XDECREF(ret);
+	Py_XDECREF(pycomp);
 
 #endif // WITH_PYTHON
 }
