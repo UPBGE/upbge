@@ -1,0 +1,4668 @@
+diff --git a/source/gameengine/Converter/KX_ConvertActuators.cpp b/source/gameengine/Converter/KX_ConvertActuators.cpp
+index d6db528..9b021cd 100644
+--- a/source/gameengine/Converter/KX_ConvertActuators.cpp
++++ b/source/gameengine/Converter/KX_ConvertActuators.cpp
+@@ -52,6 +52,8 @@
+ #include "SCA_RandomActuator.h"
+ #include "SCA_2DFilterActuator.h"
+ 
++#include "RAS_2DFilterManager.h" // for filter type.
++
+ // Ketsji specific logicbricks
+ #include "KX_SceneActuator.h"
+ #include "KX_SoundActuator.h"
+@@ -885,61 +887,61 @@ void BL_ConvertActuators(const char* maggiename,
+ 			bTwoDFilterActuator *_2dfilter = (bTwoDFilterActuator*) bact->data;
+ 			SCA_2DFilterActuator *tmp = NULL;
+ 
+-			RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode;
++			RAS_2DFilterManager::FILTER_MODE filtermode;
+ 			switch (_2dfilter->type) {
+ 				case ACT_2DFILTER_MOTIONBLUR:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_MOTIONBLUR;
++					filtermode = RAS_2DFilterManager::FILTER_MOTIONBLUR;
+ 					break;
+ 				case ACT_2DFILTER_BLUR:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_BLUR;
++					filtermode = RAS_2DFilterManager::FILTER_BLUR;
+ 					break;
+ 				case ACT_2DFILTER_SHARPEN:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_SHARPEN;
++					filtermode = RAS_2DFilterManager::FILTER_SHARPEN;
+ 					break;
+ 				case ACT_2DFILTER_DILATION:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_DILATION;
++					filtermode = RAS_2DFilterManager::FILTER_DILATION;
+ 					break;
+ 				case ACT_2DFILTER_EROSION:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_EROSION;
++					filtermode = RAS_2DFilterManager::FILTER_EROSION;
+ 					break;
+ 				case ACT_2DFILTER_LAPLACIAN:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_LAPLACIAN;
++					filtermode = RAS_2DFilterManager::FILTER_LAPLACIAN;
+ 					break;
+ 				case ACT_2DFILTER_SOBEL:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_SOBEL;
++					filtermode = RAS_2DFilterManager::FILTER_SOBEL;
+ 					break;
+ 				case ACT_2DFILTER_PREWITT:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_PREWITT;
++					filtermode = RAS_2DFilterManager::FILTER_PREWITT;
+ 					break;
+ 				case ACT_2DFILTER_GRAYSCALE:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_GRAYSCALE;
++					filtermode = RAS_2DFilterManager::FILTER_GRAYSCALE;
+ 					break;
+ 				case ACT_2DFILTER_SEPIA:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_SEPIA;
++					filtermode = RAS_2DFilterManager::FILTER_SEPIA;
+ 					break;
+ 				case ACT_2DFILTER_INVERT:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_INVERT;
++					filtermode = RAS_2DFilterManager::FILTER_INVERT;
+ 					break;
+ 				case ACT_2DFILTER_CUSTOMFILTER:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_CUSTOMFILTER;
++					filtermode = RAS_2DFilterManager::FILTER_CUSTOMFILTER;
+ 					break;
+ 				case ACT_2DFILTER_NOFILTER:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_NOFILTER;
++					filtermode = RAS_2DFilterManager::FILTER_NOFILTER;
+ 					break;
+ 				case ACT_2DFILTER_DISABLED:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_DISABLED;
++					filtermode = RAS_2DFilterManager::FILTER_DISABLED;
+ 					break;
+ 				case ACT_2DFILTER_ENABLED:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_ENABLED;
++					filtermode = RAS_2DFilterManager::FILTER_ENABLED;
+ 					break;
+ 				default:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_NOFILTER;
++					filtermode = RAS_2DFilterManager::FILTER_NOFILTER;
+ 					break;
+ 			}
+ 
+ 			tmp = new SCA_2DFilterActuator(gameobj, filtermode,  _2dfilter->flag,
+ 			                               _2dfilter->float_arg, _2dfilter->int_arg,
+-			                               ketsjiEngine->GetRasterizer(), scene);
++			                               ketsjiEngine->GetRasterizer(), scene->Get2DFilterManager(), scene);
+ 
+ 			if (_2dfilter->text)
+ 			{
+diff --git a/source/gameengine/GameLogic/SCA_2DFilterActuator.cpp b/source/gameengine/GameLogic/SCA_2DFilterActuator.cpp
+index 6a87d3c..5d745d5 100644
+--- a/source/gameengine/GameLogic/SCA_2DFilterActuator.cpp
++++ b/source/gameengine/GameLogic/SCA_2DFilterActuator.cpp
+@@ -31,20 +31,20 @@
+ 
+ #include "SCA_IActuator.h"
+ #include "SCA_2DFilterActuator.h"
++#include "RAS_2DFilterData.h"
++#include "RAS_2DFilterManager.h"
++#include "RAS_2DFilter.h"
+ 
+ #include <iostream>
+ 
+-SCA_2DFilterActuator::~SCA_2DFilterActuator()
+-{
+-}
+-
+ SCA_2DFilterActuator::SCA_2DFilterActuator(
+         SCA_IObject *gameobj,
+-        RAS_2DFilterManager::RAS_2DFILTER_MODE type,
++        int type,
+         short flag,
+         float float_arg,
+         int int_arg,
+         RAS_IRasterizer* rasterizer,
++		RAS_2DFilterManager *filterManager,
+         SCA_IScene* scene)
+     : SCA_IActuator(gameobj, KX_ACT_2DFILTER),
+       m_type(type),
+@@ -52,15 +52,15 @@ SCA_2DFilterActuator::SCA_2DFilterActuator(
+       m_float_arg(float_arg),
+       m_int_arg(int_arg),
+       m_rasterizer(rasterizer),
++      m_filterManager(filterManager),
+       m_scene(scene)
+ {
+-	m_gameobj = NULL;
+-	if (gameobj) {
+-		m_propNames = gameobj->GetPropertyNames();
+-		m_gameobj = gameobj;
+-	}
++	m_propNames = m_gameobj->GetPropertyNames();
+ }
+ 
++SCA_2DFilterActuator::~SCA_2DFilterActuator()
++{
++}
+ 
+ CValue* SCA_2DFilterActuator::GetReplica()
+ {
+@@ -79,19 +79,49 @@ bool SCA_2DFilterActuator::Update()
+ 	if (bNegativeEvent)
+ 		return false; // do nothing on negative events
+ 
+-	if ( m_type == RAS_2DFilterManager::RAS_2DFILTER_MOTIONBLUR )
+-	{
+-		if (!m_disableMotionBlur)
+-			m_rasterizer->EnableMotionBlur(m_float_arg);
+-		else
+-			m_rasterizer->DisableMotionBlur();
+-
+-		return false;
+-	}
+-	else if (m_type < RAS_2DFilterManager::RAS_2DFILTER_NUMBER_OF_FILTERS)
+-	{
+-		m_scene->Update2DFilter(m_propNames, m_gameobj, m_type, m_int_arg, m_shaderText);
++	switch (m_type) {
++		case RAS_2DFilterManager::FILTER_ENABLED:
++		{
++			m_filterManager->EnableFilterPass(m_int_arg);
++			break;
++		}
++		case RAS_2DFilterManager::FILTER_DISABLED:
++		{
++			m_filterManager->DisableFilterPass(m_int_arg);
++			break;
++		}
++		case RAS_2DFilterManager::FILTER_NOFILTER:
++		{
++			m_filterManager->RemoveFilterPass(m_int_arg);
++			break;
++		}
++		case RAS_2DFilterManager::FILTER_MOTIONBLUR:
++		{
++			if (m_disableMotionBlur) {
++				m_rasterizer->DisableMotionBlur();
++			}
++			else {
++				m_rasterizer->EnableMotionBlur(m_float_arg);
++			}
++			break;
++		}
++		default:
++		{
++			if (!m_filterManager->GetFilterPass(m_int_arg)) {
++				RAS_2DFilterData info;
++				info.filterPassIndex = m_int_arg;
++				info.gameObject = m_gameobj;
++				info.filterMode = m_type;
++				info.propertyNames = m_propNames;
++				info.shaderText = m_shaderText;
++				info.filterIdentifier = m_name;
++
++				m_filterManager->AddFilter(info);
++			}
++			break;
++		}
+ 	}
++
+ 	// once the filter is in place, no need to update it again => disable the actuator
+ 	return false;
+ }
+@@ -144,8 +174,8 @@ PyMethodDef SCA_2DFilterActuator::Methods[] = {
+ PyAttributeDef SCA_2DFilterActuator::Attributes[] = {
+ 	KX_PYATTRIBUTE_STRING_RW("shaderText", 0, 64000, false, SCA_2DFilterActuator, m_shaderText),
+ 	KX_PYATTRIBUTE_SHORT_RW("disableMotionBlur", 0, 1, true, SCA_2DFilterActuator, m_disableMotionBlur),
+-	KX_PYATTRIBUTE_ENUM_RW("mode",RAS_2DFilterManager::RAS_2DFILTER_ENABLED,RAS_2DFilterManager::RAS_2DFILTER_NUMBER_OF_FILTERS,false,SCA_2DFilterActuator,m_type),
+-	KX_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
++	KX_PYATTRIBUTE_ENUM_RW("mode", RAS_2DFilterManager::FILTER_ENABLED, RAS_2DFilterManager::FILTER_NUMBER_OF_FILTERS, false, SCA_2DFilterActuator, m_type),
++KX_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
+ 	KX_PYATTRIBUTE_FLOAT_RW("value", 0.0, 100.0, SCA_2DFilterActuator, m_float_arg),
+ 	{ NULL }	//Sentinel
+ };
+diff --git a/source/gameengine/GameLogic/SCA_2DFilterActuator.h b/source/gameengine/GameLogic/SCA_2DFilterActuator.h
+index 4635a8a..04d7fb3 100644
+--- a/source/gameengine/GameLogic/SCA_2DFilterActuator.h
++++ b/source/gameengine/GameLogic/SCA_2DFilterActuator.h
+@@ -35,29 +35,32 @@
+ #include "SCA_IActuator.h"
+ #include "SCA_IScene.h"
+ 
++class RAS_2DFilterManager;
++
+ class SCA_2DFilterActuator : public SCA_IActuator
+ {
+ 	Py_Header
+ 
+ private:
+ 	vector<STR_String> m_propNames;
+-	RAS_2DFilterManager::RAS_2DFILTER_MODE m_type;
++	int m_type;
+ 	short m_disableMotionBlur;
+ 	float m_float_arg;
+ 	int   m_int_arg;
+ 	STR_String	m_shaderText;
+ 	RAS_IRasterizer* m_rasterizer;
++	RAS_2DFilterManager *m_filterManager;
+ 	SCA_IScene* m_scene;
+ 
+ public:
+-
+ 	SCA_2DFilterActuator(
+ 	        class SCA_IObject* gameobj,
+-	        RAS_2DFilterManager::RAS_2DFILTER_MODE type,
++	        int type,
+ 	        short flag,
+ 	        float float_arg,
+ 	        int int_arg,
+ 	        RAS_IRasterizer* rasterizer,
++			RAS_2DFilterManager *filterManager,
+ 	        SCA_IScene* scene);
+ 
+ 	void	SetShaderText(const char *text);
+diff --git a/source/gameengine/GameLogic/SCA_IScene.h b/source/gameengine/GameLogic/SCA_IScene.h
+index b76b563..ee839e3 100644
+--- a/source/gameengine/GameLogic/SCA_IScene.h
++++ b/source/gameengine/GameLogic/SCA_IScene.h
+@@ -35,7 +35,7 @@
+ #include <vector>
+ 
+ #include "STR_String.h"
+-#include "RAS_2DFilterManager.h"
++#include "RAS_2DFilterData.h"
+ 
+ #ifdef WITH_CXX_GUARDEDALLOC
+ #include "MEM_guardedalloc.h"
+@@ -74,11 +74,6 @@ public:
+ 	void			RemoveDebugProperty(class CValue *gameobj, const STR_String &name);
+ 	void			RemoveObjectDebugProperties(class CValue* gameobj);
+ 
+-	virtual void	Update2DFilter(std::vector<STR_String>& propNames, void* gameObj, 
+-									RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, 
+-									int pass, STR_String& text) {}
+-
+-
+ #ifdef WITH_CXX_GUARDEDALLOC
+ 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_IScene")
+ #endif
+diff --git a/source/gameengine/Ketsji/KX_KetsjiEngine.cpp b/source/gameengine/Ketsji/KX_KetsjiEngine.cpp
+index bb311e2..68b4094 100644
+--- a/source/gameengine/Ketsji/KX_KetsjiEngine.cpp
++++ b/source/gameengine/Ketsji/KX_KetsjiEngine.cpp
+@@ -322,7 +322,7 @@ void KX_KetsjiEngine::RenderDome()
+ 			}
+ 			// Part of PostRenderScene()
+ 			m_rasterizer->MotionBlur();
+-			scene->Render2DFilters(m_canvas);
++			scene->Render2DFilters();
+ 			// no RunDrawingCallBacks
+ 			// no FlushDebugLines
+ 		}
+@@ -1195,7 +1195,7 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene)
+ 
+ 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
+ 	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
+-	scene->Render2DFilters(m_canvas);
++	scene->Render2DFilters();
+ 
+ #ifdef WITH_PYTHON
+ 	// Set again the scene viewport.
+diff --git a/source/gameengine/Ketsji/KX_PythonInit.cpp b/source/gameengine/Ketsji/KX_PythonInit.cpp
+index eebf243..a9aa0d7 100644
+--- a/source/gameengine/Ketsji/KX_PythonInit.cpp
++++ b/source/gameengine/Ketsji/KX_PythonInit.cpp
+@@ -97,6 +97,7 @@ extern "C" {
+ #include "SCA_PythonJoystick.h"
+ #include "SCA_PythonKeyboard.h"
+ #include "SCA_PythonMouse.h"
++#include "SCA_2DFilterActuator.h"
+ #include "KX_ConstraintActuator.h"
+ #include "KX_SoundActuator.h"
+ #include "KX_StateActuator.h"
+@@ -1767,21 +1768,21 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
+ 	KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_RIGHT, SCA_IInputDevice::KX_RIGHTMOUSE);
+ 
+ 	/* 2D Filter Actuator */
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_ENABLED, RAS_2DFilterManager::RAS_2DFILTER_ENABLED);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_DISABLED, RAS_2DFilterManager::RAS_2DFILTER_DISABLED);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_NOFILTER, RAS_2DFilterManager::RAS_2DFILTER_NOFILTER);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_MOTIONBLUR, RAS_2DFilterManager::RAS_2DFILTER_MOTIONBLUR);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_BLUR, RAS_2DFilterManager::RAS_2DFILTER_BLUR);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SHARPEN, RAS_2DFilterManager::RAS_2DFILTER_SHARPEN);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_DILATION, RAS_2DFilterManager::RAS_2DFILTER_DILATION);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_EROSION, RAS_2DFilterManager::RAS_2DFILTER_EROSION);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_LAPLACIAN, RAS_2DFilterManager::RAS_2DFILTER_LAPLACIAN);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SOBEL, RAS_2DFilterManager::RAS_2DFILTER_SOBEL);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_PREWITT, RAS_2DFilterManager::RAS_2DFILTER_PREWITT);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_GRAYSCALE, RAS_2DFilterManager::RAS_2DFILTER_GRAYSCALE);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SEPIA, RAS_2DFilterManager::RAS_2DFILTER_SEPIA);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_INVERT, RAS_2DFilterManager::RAS_2DFILTER_INVERT);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_CUSTOMFILTER, RAS_2DFilterManager::RAS_2DFILTER_CUSTOMFILTER);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_ENABLED, RAS_2DFilterManager::FILTER_ENABLED);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_DISABLED, RAS_2DFilterManager::FILTER_DISABLED);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_NOFILTER, RAS_2DFilterManager::FILTER_NOFILTER);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_MOTIONBLUR, RAS_2DFilterManager::FILTER_MOTIONBLUR);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_BLUR, RAS_2DFilterManager::FILTER_BLUR);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SHARPEN, RAS_2DFilterManager::FILTER_SHARPEN);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_DILATION, RAS_2DFilterManager::FILTER_DILATION);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_EROSION, RAS_2DFilterManager::FILTER_EROSION);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_LAPLACIAN, RAS_2DFilterManager::FILTER_LAPLACIAN);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SOBEL, RAS_2DFilterManager::FILTER_SOBEL);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_PREWITT, RAS_2DFilterManager::FILTER_PREWITT);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_GRAYSCALE, RAS_2DFilterManager::FILTER_GRAYSCALE);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SEPIA, RAS_2DFilterManager::FILTER_SEPIA);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_INVERT, RAS_2DFilterManager::FILTER_INVERT);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_CUSTOMFILTER, RAS_2DFilterManager::FILTER_CUSTOMFILTER);
+ 
+ 	/* Sound Actuator */
+ 	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_PLAYSTOP, KX_SoundActuator::KX_SOUNDACT_PLAYSTOP);
+diff --git a/source/gameengine/Ketsji/KX_Scene.cpp b/source/gameengine/Ketsji/KX_Scene.cpp
+index 7746339..8f9515f 100644
+--- a/source/gameengine/Ketsji/KX_Scene.cpp
++++ b/source/gameengine/Ketsji/KX_Scene.cpp
+@@ -62,6 +62,8 @@
+ 
+ #include "RAS_IRasterizer.h"
+ #include "RAS_ICanvas.h"
++#include "RAS_2DFilterData.h"
++#include "RAS_2DFilterManager.h"
+ #include "RAS_BucketManager.h"
+ 
+ #include "EXP_FloatValue.h"
+@@ -172,6 +174,7 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
+ 	m_euthanasyobjects = new CListValue();
+ 	m_animatedlist = new CListValue();
+ 
++	m_filterManager = new RAS_2DFilterManager(canvas);
+ 	m_logicmgr = new SCA_LogicManager();
+ 	
+ 	m_timemgr = new SCA_TimeEventManager(m_logicmgr);
+@@ -262,6 +265,10 @@ KX_Scene::~KX_Scene()
+ 	if (m_animatedlist)
+ 		m_animatedlist->Release();
+ 
++	if (m_filterManager) {
++		delete m_filterManager;
++	}
++
+ 	if (m_logicmgr)
+ 		delete m_logicmgr;
+ 
+@@ -2100,14 +2107,14 @@ bool KX_Scene::MergeScene(KX_Scene *other)
+ 	return true;
+ }
+ 
+-void KX_Scene::Update2DFilter(vector<STR_String>& propNames, void* gameObj, RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, int pass, STR_String& text)
++RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
+ {
+-	m_filtermanager.EnableFilter(propNames, gameObj, filtermode, pass, text);
++	return m_filterManager;
+ }
+ 
+-void KX_Scene::Render2DFilters(RAS_ICanvas* canvas)
++void KX_Scene::Render2DFilters()
+ {
+-	m_filtermanager.RenderFilters(canvas);
++	m_filterManager->RenderFilters();
+ }
+ 
+ #ifdef WITH_PYTHON
+diff --git a/source/gameengine/Ketsji/KX_Scene.h b/source/gameengine/Ketsji/KX_Scene.h
+index 1d80cc3..e6fd2ca 100644
+--- a/source/gameengine/Ketsji/KX_Scene.h
++++ b/source/gameengine/Ketsji/KX_Scene.h
+@@ -52,8 +52,6 @@
+ #include "EXP_PyObjectPlus.h"
+ #include "EXP_Value.h"
+ 
+-#include "RAS_2DFilterManager.h"
+-
+ /**
+  * \section Forward declarations
+  */
+@@ -82,6 +80,7 @@ class RAS_MaterialBucket;
+ class RAS_IPolyMaterial;
+ class RAS_IRasterizer;
+ class RAS_IRenderTools;
++class RAS_2DFilterManager;
+ class SCA_JoystickManager;
+ class btCollisionShape;
+ class KX_BlenderSceneConverter;
+@@ -289,7 +288,7 @@ protected:
+ 
+ 	struct Scene* m_blenderScene;
+ 
+-	RAS_2DFilterManager m_filtermanager;
++	RAS_2DFilterManager *m_filterManager;
+ 
+ 	KX_ObstacleSimulation* m_obstacleSimulation;
+ 
+@@ -589,8 +588,8 @@ public:
+ 	/**
+ 	 * 2D Filters
+ 	 */
+-	void Update2DFilter(std::vector<STR_String>& propNames, void* gameObj, RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, int pass, STR_String& text);
+-	void Render2DFilters(RAS_ICanvas* canvas);
++	RAS_2DFilterManager *Get2DFilterManager() const;
++	void Render2DFilters();
+ 
+ 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
+ 
+diff --git a/source/gameengine/Rasterizer/CMakeLists.txt b/source/gameengine/Rasterizer/CMakeLists.txt
+index 8a6f511..7cc7928 100644
+--- a/source/gameengine/Rasterizer/CMakeLists.txt
++++ b/source/gameengine/Rasterizer/CMakeLists.txt
+@@ -28,6 +28,7 @@ set(INC
+ 	../Expressions
+ 	../Ketsji
+ 	../SceneGraph
++	../GameLogic
+ 	../../blender/makesdna
+ 	../../blender/blenlib
+ 	../../blender/blenkernel
+@@ -42,6 +43,7 @@ set(INC_SYS
+ 	../../../intern/moto/include
+ 	${GLEW_INCLUDE_PATH}
+ 	${PYTHON_INCLUDE_DIRS}
++	${BOOST_INCLUDE_DIR}
+ )
+ 
+ set(SRC
+@@ -54,7 +56,11 @@ set(SRC
+ 	RAS_Polygon.cpp
+ 	RAS_TexVert.cpp
+ 	RAS_ICanvas.cpp
+-
++	RAS_2DFilterData.cpp
++	RAS_2DFilter.cpp
++ 
++	RAS_2DFilterData.h
++	RAS_2DFilter.h
+ 	RAS_2DFilterManager.h
+ 	RAS_BucketManager.h
+ 	RAS_CameraData.h
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilter.cpp b/source/gameengine/Rasterizer/RAS_2DFilter.cpp
+new file mode 100644
+index 0000000..d58e6c0
+--- /dev/null
++++ b/source/gameengine/Rasterizer/RAS_2DFilter.cpp
+@@ -0,0 +1,367 @@
++/*
++* ***** BEGIN GPL LICENSE BLOCK *****
++*
++* This program is free software; you can redistribute it and/or
++* modify it under the terms of the GNU General Public License
++* as published by the Free Software Foundation; either version 2
++* of the License, or (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU General Public License for more details.
++*
++* You should have received a copy of the GNU General Public License
++* along with this program; if not, write to the Free Software Foundation,
++* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++*
++* Contributor(s): none yet.
++*
++* ***** END GPL LICENSE BLOCK *****
++*/
++#include "RAS_2DFilter.h"
++#include "RAS_2DFilterManager.h"
++#include "RAS_IRasterizer.h"
++#include "RAS_ICanvas.h"
++
++#include "EXP_Value.h"
++
++#include "glew-mx.h"
++#include <iostream>
++
++const char *RAS_2DFilter::UNIFORM_NAME_RENDERED_TEXTURE = "bgl_RenderedTexture";
++const char *RAS_2DFilter::UNIFORM_NAME_LUMINANCE_TEXTURE = "bgl_LuminanceTexture";
++const char *RAS_2DFilter::UNIFORM_NAME_DEPTH_TEXTURE = "bgl_DepthTexture";
++const char *RAS_2DFilter::UNIFORM_NAME_RENDERED_TEXTURE_WIDTH = "bgl_RenderedTextureWidth";
++const char *RAS_2DFilter::UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT = "bgl_RenderedTextureHeight";
++const char *RAS_2DFilter::UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS = "bgl_TextureCoordinateOffset";
++
++RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager)
++	:m_manager(manager),
++	m_shaderProgramUid(0),
++	m_fragmentShaderUid(0),
++	m_renderedTextureUniformLocation(-1),
++	m_luminanceTextureUniformLocation(-1),
++	m_depthTextureUniformLocation(-1),
++	m_renderedTextureWidthUniformLocation(-1),
++	m_renderedTextureHeightUniformLocation(-1),
++	m_textureOffsetsUniformLocation(-1),
++	m_renderedTextureUid(0),
++	m_luminanceTextureUid(0),
++	m_depthTextureUid(0),
++	m_properties(data.propertyNames),
++	m_gameObject(data.gameObject),
++	m_passIndex(data.filterPassIndex),
++	m_enabled(true),
++	m_initialized(false)
++{
++	for(int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
++		m_textureOffsets[i] = 0;
++	}
++	m_uid = data.filterIdentifier;
++	m_fragmentShaderSourceCode = data.shaderText;
++}
++
++void RAS_2DFilter::ReleaseTextures()
++{
++	if(m_renderedTextureUid != -1) {
++		glDeleteTextures(1, &m_renderedTextureUid);
++	}
++	if(m_luminanceTextureUid != -1) {
++		glDeleteTextures(1, &m_luminanceTextureUid);
++	}
++	if(m_depthTextureUid != -1) {
++		glDeleteTextures(1, &m_depthTextureUid);
++	}
++}
++
++void RAS_2DFilter::DeleteShader()
++{
++	if (m_fragmentShaderUid) {
++		glDeleteObjectARB(m_fragmentShaderUid);
++	}
++	if (m_shaderProgramUid) {
++		glDeleteObjectARB(m_shaderProgramUid);
++	}
++}
++
++RAS_2DFilter::~RAS_2DFilter()
++{
++	DeleteShader();
++	ReleaseTextures();
++}
++
++void RAS_2DFilter::SetEnabled(bool enabled)
++{
++	m_enabled = enabled;
++}
++
++STR_String& RAS_2DFilter::GetUid()
++{
++	return m_uid;
++}
++
++void RAS_2DFilter::Initialize()
++{
++	/* The shader must be initialized at the first frame when the canvas is set.
++	 * to solve this we initialize filter at the frist render frame. */
++	if (!m_initialized) {
++		InitializeShader();
++		InitializeTextures();
++		ComputeTextureOffsets();
++		m_initialized = true;
++	}
++}
++
++int RAS_2DFilter::GetPassIndex()
++{
++	return m_passIndex;
++}
++
++void RAS_2DFilter::Start()
++{
++	Initialize();
++
++	if (m_enabled) {
++		BindShaderProgram();
++		BindUniforms();
++		DrawOverlayPlane();
++	}
++}
++
++void RAS_2DFilter::End()
++{
++	if(m_enabled) {
++		UnbindShaderProgram();
++	}
++}
++
++void RAS_2DFilter::ParseShaderProgram()
++{
++	m_renderedTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE);
++	m_luminanceTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_LUMINANCE_TEXTURE);
++	m_depthTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_DEPTH_TEXTURE);
++	m_renderedTextureWidthUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE_WIDTH);
++	m_renderedTextureHeightUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT);
++	m_textureOffsetsUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS);
++
++	if (m_gameObject) {
++		std::vector<STR_String> foundProperties;
++		for (std::vector<STR_String>::iterator it = m_properties.begin(), end = m_properties.end(); it != end; ++it) {
++			STR_String prop = *it;
++			unsigned int loc = glGetUniformLocationARB(m_shaderProgramUid, prop);
++			if (loc != -1) {
++				m_propertiesLoc.push_back(loc);
++				foundProperties.push_back(prop);
++			}
++		}
++		m_properties = foundProperties;
++	}
++}
++
++void RAS_2DFilter::InitializeShader()
++{
++	GLint compilationStatus;
++	m_fragmentShaderUid = glCreateShaderObjectARB(GL_FRAGMENT_SHADER);
++	const GLcharARB* shaderSourceCodeList[1];
++	GLint shaderSourceCodeLengthList[1];
++	const GLsizei shaderListSize = 1;
++	shaderSourceCodeList[0] = (GLchar*)(m_fragmentShaderSourceCode.Ptr());
++	shaderSourceCodeLengthList[0] = (GLint)(m_fragmentShaderSourceCode.Length());
++	
++	glShaderSourceARB(m_fragmentShaderUid, shaderListSize, shaderSourceCodeList, shaderSourceCodeLengthList);
++	glCompileShaderARB(m_fragmentShaderUid);
++	glGetObjectParameterivARB(m_fragmentShaderUid, GL_COMPILE_STATUS, &compilationStatus);
++	if (!compilationStatus) {
++		m_manager->PrintShaderError(m_fragmentShaderUid, "compile", m_fragmentShaderSourceCode.Ptr());
++		DeleteShader();
++	}
++	else {
++		m_shaderProgramUid = glCreateProgramObjectARB();
++		glAttachObjectARB(m_shaderProgramUid, m_fragmentShaderUid);
++		glLinkProgramARB(m_shaderProgramUid);
++		glGetObjectParameterivARB(m_shaderProgramUid, GL_LINK_STATUS, &compilationStatus);
++		if (!compilationStatus) {
++			m_manager->PrintShaderError(m_fragmentShaderUid, "link", m_fragmentShaderSourceCode.Ptr());
++			DeleteShader();
++		}
++		else {
++			glValidateProgramARB(m_shaderProgramUid);
++			glGetObjectParameterivARB(m_shaderProgramUid, GL_VALIDATE_STATUS, &compilationStatus);
++			if (!compilationStatus) {
++				m_manager->PrintShaderError(m_fragmentShaderUid, "validate", m_fragmentShaderSourceCode.Ptr());
++				DeleteShader();
++			}
++			else {
++				ParseShaderProgram();
++			}
++		}
++	}
++}
++void RAS_2DFilter::InitializeTextures()
++{
++	RAS_ICanvas *canvas = m_manager->GetCanvas();
++	const unsigned int texturewidth = canvas->GetWidth();
++	const unsigned int textureheight = canvas->GetHeight();
++
++	if (m_renderedTextureUniformLocation >= 0) {
++		glGenTextures(1, &m_renderedTextureUid);
++		glBindTexture(GL_TEXTURE_2D, m_renderedTextureUid);
++		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texturewidth, textureheight, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
++	}
++	if (m_depthTextureUniformLocation >= 0) {
++		glGenTextures(1, &m_depthTextureUid);
++		glBindTexture(GL_TEXTURE_2D, m_depthTextureUid);
++		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, texturewidth, textureheight, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE,NULL);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
++	}
++	if (m_luminanceTextureUniformLocation >= 0) {
++		glGenTextures(1, &m_luminanceTextureUid);
++		glBindTexture(GL_TEXTURE_2D, m_luminanceTextureUid);
++		glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, texturewidth, textureheight, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
++	}
++}
++
++/* Fill the textureOffsets array with values used by the shaders to get texture samples
++of nearby fragments. Or vertices or whatever.*/
++void RAS_2DFilter::ComputeTextureOffsets()
++{
++	RAS_ICanvas *canvas = m_manager->GetCanvas();
++	const GLfloat texturewidth = (GLfloat)canvas->GetWidth();
++	const GLfloat textureheight = (GLfloat)canvas->GetHeight();
++	const GLfloat xInc = 1.0f / texturewidth;
++	const GLfloat yInc = 1.0f / textureheight;
++
++	for (int i = 0; i < 3; i++) {
++		for (int j = 0; j < 3; j++) {
++			m_textureOffsets[(((i * 3) + j) * 2) + 0] = (-1.0f * xInc) + ((GLfloat)i * xInc);
++			m_textureOffsets[(((i * 3) + j) * 2) + 1] = (-1.0f * yInc) + ((GLfloat)j * yInc);
++		}
++	}
++}
++
++void RAS_2DFilter::BindShaderProgram()
++{
++	glUseProgramObjectARB(m_shaderProgramUid);
++}
++
++void RAS_2DFilter::UnbindShaderProgram()
++{
++	glUseProgramObjectARB(0);
++}
++
++void RAS_2DFilter::BindUniforms()
++{
++	RAS_ICanvas *canvas = m_manager->GetCanvas();
++	const unsigned int texturewidth = canvas->GetWidth();
++	const unsigned int textureheight = canvas->GetHeight();
++	const unsigned int textureleft = canvas->GetViewPort()[0];
++	const unsigned int texturebottom = canvas->GetViewPort()[1];
++
++	if (m_renderedTextureUniformLocation >= 0) {
++		//create and bind rendered texture
++		glActiveTextureARB(GL_TEXTURE0);
++		glBindTexture(GL_TEXTURE_2D, m_renderedTextureUid);
++		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
++		glUniform1iARB(m_renderedTextureUniformLocation, 0);
++	}
++	if (m_depthTextureUniformLocation >= 0) {
++		//create and bind depth texture
++		glActiveTextureARB(GL_TEXTURE1);
++		glBindTexture(GL_TEXTURE_2D, m_depthTextureUid);
++		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
++		glUniform1iARB(m_depthTextureUniformLocation, 1);
++	}
++	if (m_luminanceTextureUniformLocation >= 0) {
++		//create and bind luminance texture
++		glActiveTextureARB(GL_TEXTURE2);
++		glBindTexture(GL_TEXTURE_2D, m_luminanceTextureUid);
++		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
++		glUniform1iARB(m_luminanceTextureUniformLocation, 2);
++	}
++	if (m_renderedTextureWidthUniformLocation >= 0) {
++		//bind rendered texture width
++		glUniform1fARB(m_renderedTextureWidthUniformLocation, (float)texturewidth);
++	}
++	if (m_renderedTextureHeightUniformLocation >= 0) {
++		//bind rendered texture height
++		glUniform1fARB(m_renderedTextureHeightUniformLocation, (float)textureheight);
++	}
++	if (m_textureOffsetsUniformLocation >= 0) {
++		//bind texture offsets
++		glUniform2fvARB(m_textureOffsetsUniformLocation, 9, m_textureOffsets);
++	}
++
++	for (unsigned int i = 0, size = m_properties.size(); i < size; ++i) {
++		STR_String prop = m_properties[i];
++		unsigned int uniformLoc = m_propertiesLoc[i];
++
++		CValue *property = m_gameObject->GetProperty(prop);
++
++		if (!property)
++			continue;
++
++		switch (property->GetValueType()) {
++			case VALUE_INT_TYPE:
++				glUniform1iARB(uniformLoc, property->GetNumber());
++				break;
++			case VALUE_FLOAT_TYPE:
++				glUniform1fARB(uniformLoc, property->GetNumber());
++				break;
++			default:
++				break;
++		}
++	}
++}
++
++void RAS_2DFilter::DrawOverlayPlane()
++{
++	glActiveTextureARB(GL_TEXTURE0);
++	glDisable(GL_DEPTH_TEST);
++	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
++	glDisable(GL_BLEND);
++	glDisable(GL_ALPHA_TEST);
++	glPushMatrix();
++		glLoadIdentity();
++		glMatrixMode(GL_TEXTURE);
++		glMatrixMode(GL_PROJECTION);
++		glPushMatrix();
++			glLoadIdentity();
++			glActiveTextureARB(GL_TEXTURE0);
++			glBindTexture(GL_TEXTURE_2D, m_renderedTextureUid);
++				glBegin(GL_QUADS);
++					glColor4f(1.f, 1.f, 1.f, 1.0f);
++					
++					glTexCoord2f(1.0, 1.0);
++					glMultiTexCoord2fARB(GL_TEXTURE3_ARB, 1, 1);
++					glVertex2f(1, 1);
++					
++					glTexCoord2f(0.0, 1.0);
++					glMultiTexCoord2fARB(GL_TEXTURE3_ARB, -1, 1);
++					glVertex2f(-1, 1);
++					
++					glTexCoord2f(0.0, 0.0);
++					glMultiTexCoord2fARB(GL_TEXTURE3_ARB, -1, -1);
++					glVertex2f(-1, -1);
++					
++					glTexCoord2f(1.0, 0.0);
++					glMultiTexCoord2fARB(GL_TEXTURE3_ARB, 1, -1);
++					glVertex2f(1, -1);
++				glEnd();
++			glEnable(GL_DEPTH_TEST);
++		glPopMatrix();
++		glMatrixMode(GL_MODELVIEW);
++	glPopMatrix();
++}
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilter.h b/source/gameengine/Rasterizer/RAS_2DFilter.h
+new file mode 100644
+index 0000000..3c728cc
+--- /dev/null
++++ b/source/gameengine/Rasterizer/RAS_2DFilter.h
+@@ -0,0 +1,109 @@
++/*
++* ***** BEGIN GPL LICENSE BLOCK *****
++*
++* This program is free software; you can redistribute it and/or
++* modify it under the terms of the GNU General Public License
++* as published by the Free Software Foundation; either version 2
++* of the License, or (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU General Public License for more details.
++*
++* You should have received a copy of the GNU General Public License
++* along with this program; if not, write to the Free Software Foundation,
++* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++*
++* Contributor(s): none yet.
++*
++* ***** END GPL LICENSE BLOCK *****
++*/
++
++#ifndef __RAS_2DFILTER_H__
++#define __RAS_2DFILTER_H__
++
++#include "RAS_2DFilterData.h"
++
++class RAS_2DFilterManager;
++class CValue;
++
++class RAS_2DFilter
++{
++private:
++	/// Names of the predefined values available to glsl shaders
++	static const char *UNIFORM_NAME_RENDERED_TEXTURE;
++	static const char *UNIFORM_NAME_LUMINANCE_TEXTURE;
++	static const char *UNIFORM_NAME_DEPTH_TEXTURE;
++	static const char *UNIFORM_NAME_RENDERED_TEXTURE_WIDTH;
++	static const char *UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT;
++	static const char *UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS;
++
++	RAS_2DFilterManager *m_manager;
++
++	STR_String m_uid;
++	STR_String m_fragmentShaderSourceCode;
++
++	unsigned int m_shaderProgramUid;
++	unsigned int m_fragmentShaderUid;
++	int m_renderedTextureUniformLocation;
++	int m_luminanceTextureUniformLocation;
++	int m_depthTextureUniformLocation;
++	int m_renderedTextureWidthUniformLocation;
++	int m_renderedTextureHeightUniformLocation;
++	int m_textureOffsetsUniformLocation;
++	unsigned int m_renderedTextureUid;
++	unsigned int m_luminanceTextureUid;
++	unsigned int m_depthTextureUid;
++
++	std::vector<STR_String> m_properties;
++	std::vector<unsigned int> m_propertiesLoc;
++	CValue *m_gameObject;
++
++	/** A set of vec2 coordinates that the shaders use to sample nearby pixels from incoming textures.
++	The computation should be left to the glsl shader, I keep it for backward compatibility. */
++	static const int TEXTURE_OFFSETS_SIZE = 18; //9 vec2 entries
++	float m_textureOffsets[TEXTURE_OFFSETS_SIZE]; 
++	int m_passIndex;
++	bool m_enabled;
++	bool m_initialized;
++
++	void ParseShaderProgram();
++	void InitializeShader();
++	void InitializeTextures();
++	void BindShaderProgram();
++	void UnbindShaderProgram();
++	void BindUniforms();
++	void DrawOverlayPlane();
++	void ComputeTextureOffsets();
++	void ReleaseTextures();
++	void DeleteShader();
++
++public:
++	RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager);
++	~RAS_2DFilter();
++
++	/// Called by the filter manager when it has informations like the display size, a gl context...
++	void Initialize();
++
++	/// Starts executing the filter.
++	void Start();
++
++	/// Finalizes the execution stage of the filter.
++	void End();
++
++	/// The pass index determines the precedence of this filter over other filters in the same context.
++	int GetPassIndex();
++
++	/// Returns the unique name of this filter in the filters' context.
++	STR_String& GetUid();
++
++	/// Enables / disables this filter. A disabled filter has no effect on the rendering.
++	void SetEnabled(bool enabled);
++
++	/// Checks if a RAS_2DFilterData identifies a predefined shader.
++	static bool IsPredefinedGlslShader(RAS_2DFilterData& data);
++};
++
++#endif // __RAS_2DFILTER_H__
++
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilterData.cpp b/source/gameengine/Rasterizer/RAS_2DFilterData.cpp
+new file mode 100644
+index 0000000..7ac1f90
+--- /dev/null
++++ b/source/gameengine/Rasterizer/RAS_2DFilterData.cpp
+@@ -0,0 +1,36 @@
++/*
++* ***** BEGIN GPL LICENSE BLOCK *****
++*
++* This program is free software; you can redistribute it and/or
++* modify it under the terms of the GNU General Public License
++* as published by the Free Software Foundation; either version 2
++* of the License, or (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU General Public License for more details.
++*
++* You should have received a copy of the GNU General Public License
++* along with this program; if not, write to the Free Software Foundation,
++* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++*
++* Contributor(s): none yet.
++*
++* ***** END GPL LICENSE BLOCK *****
++*/
++#include "RAS_2DFilterData.h"
++#include "STR_String.h"
++
++RAS_2DFilterData::RAS_2DFilterData()
++	:gameObject(NULL),
++	filterMode(-1),
++	filterPassIndex(-1),
++	outputBufferWidth(0),
++	outputBufferHeight(0)
++{
++}
++
++RAS_2DFilterData::~RAS_2DFilterData()
++{
++}
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilterData.h b/source/gameengine/Rasterizer/RAS_2DFilterData.h
+new file mode 100644
+index 0000000..3d37ec1
+--- /dev/null
++++ b/source/gameengine/Rasterizer/RAS_2DFilterData.h
+@@ -0,0 +1,61 @@
++/*
++* ***** BEGIN GPL LICENSE BLOCK *****
++*
++* This program is free software; you can redistribute it and/or
++* modify it under the terms of the GNU General Public License
++* as published by the Free Software Foundation; either version 2
++* of the License, or (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU General Public License for more details.
++*
++* You should have received a copy of the GNU General Public License
++* along with this program; if not, write to the Free Software Foundation,
++* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++*
++* Contributor(s): none yet.
++*
++* ***** END GPL LICENSE BLOCK *****
++*/
++
++#ifndef __RAS_2DFILTERDATA__
++#define __RAS_2DFILTERDATA__
++
++#include <vector>
++#include "STR_String.h"
++
++class CValue;
++
++/** This type is used to pack data received from a 2D Filter actuator and send it to
++the RAS_2DFilterManager::AddFilter method, because the number of parameters needed by
++a custom filter may become quite large and a function with a thousands paramters doesn't look
++very good. So it's purely for readability. */
++class RAS_2DFilterData
++{
++public:
++	RAS_2DFilterData();
++	virtual ~RAS_2DFilterData();
++
++	/** This is supposed to be an unique identifier for the filter. The old system used
++	the pass index as identifier but the user interface (and maybe postprocessing) allows
++	filters to share the same pass index. */
++	STR_String filterIdentifier;
++
++	/// The names of the properties of the game object that the shader may want to use as uniforms.
++	std::vector<STR_String> propertyNames;
++	/// The KX_GameObject (or something else?) that provides the values for the uniforms named above.
++	CValue *gameObject;
++	/// Should be a SCA_2DFilterActuator.FILTER_MODE value.
++	int filterMode;
++	/// In the original design this was bot the pass index and the unique identifier of the filter in the filter manager.
++	unsigned int filterPassIndex;
++	/// This is the shader program source code IF the filter is not a predefined one.
++	STR_String shaderText;
++	/// If > 0 tells that the filter wants an offscreen buffer to render into (possibly smaller than the viewport, for performance reasons).
++	int outputBufferWidth;
++	/// If > 0 tells that the filter wants... actually a tuple2 might have been a better idea.
++	int outputBufferHeight;
++};
++#endif // __RAS_2DFILTERDATA__
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilterManager.cpp b/source/gameengine/Rasterizer/RAS_2DFilterManager.cpp
+index 82b2674..895cc54 100644
+--- a/source/gameengine/Rasterizer/RAS_2DFilterManager.cpp
++++ b/source/gameengine/Rasterizer/RAS_2DFilterManager.cpp
+@@ -24,8 +24,14 @@
+  *  \ingroup bgerast
+  */
+ 
+-#define STRINGIFY(A)  #A
++#include "RAS_ICanvas.h"
++#include "RAS_2DFilterManager.h"
++#include "RAS_2DFilter.h"
++#include <iostream>
+ 
++#include "glew-mx.h"
++
++#define STRINGIFY(A) #A
+ #include "RAS_OpenGLFilters/RAS_Blur2DFilter.h"
+ #include "RAS_OpenGLFilters/RAS_Sharpen2DFilter.h"
+ #include "RAS_OpenGLFilters/RAS_Dilation2DFilter.h"
+@@ -37,526 +43,148 @@
+ #include "RAS_OpenGLFilters/RAS_Sepia2DFilter.h"
+ #include "RAS_OpenGLFilters/RAS_Invert2DFilter.h"
+ 
+-#include "STR_String.h"
+-#include "RAS_ICanvas.h"
+-#include "RAS_Rect.h"
+-#include "RAS_2DFilterManager.h"
+-#include <iostream>
+-
+-#include "glew-mx.h"
+ 
+-#include <stdio.h>
+-
+-#include "EXP_Value.h"
+-
+-RAS_2DFilterManager::RAS_2DFilterManager():
+-texturewidth(-1), textureheight(-1),
+-/* numberoffilters(0), */ /* UNUSED */ need_tex_update(true)
++RAS_2DFilterManager::RAS_2DFilterManager(RAS_ICanvas *canvas)
++	:m_canvas(canvas)
+ {
+-	isshadersupported = GLEW_ARB_shader_objects &&
+-		GLEW_ARB_fragment_shader && GLEW_ARB_multitexture;
+-
+-	/* used to return before 2.49 but need to initialize values so don't */
+-	if (!isshadersupported)
+-		std::cout<<"shaders not supported!" << std::endl;
+-
+-	int passindex;
+-	for (passindex =0; passindex<MAX_RENDER_PASS; passindex++)
+-	{
+-		m_filters[passindex] = 0;
+-		m_enabled[passindex] = 0;
+-		texflag[passindex] = 0;
+-		m_gameObjects[passindex] = NULL;
+-	}
+-	texname[0] = texname[1] = texname[2] = -1;
+-	errorprinted= false;
+ }
+ 
+ RAS_2DFilterManager::~RAS_2DFilterManager()
+ {
+-	FreeTextures();
+-
+-	for (int passindex = 0; passindex < MAX_RENDER_PASS; passindex++) {
+-		if (m_filters[passindex]) {
+-			glDeleteObjectARB(m_filters[passindex]);
+-		}
++	for (RAS_PassTo2DFilter::iterator it = m_filters.begin(), end = m_filters.end(); it != end; ++it) {
++		RAS_2DFilter *filter = it->second;
++		delete filter;
+ 	}
+ }
+ 
+-void RAS_2DFilterManager::PrintShaderErrors(unsigned int shader, const char *task, const char *code)
++void RAS_2DFilterManager::PrintShaderError(unsigned int shaderUid, const char *title, const char *shaderCode)
+ {
+-	GLcharARB log[5000];
+-	GLsizei length = 0;
+-	const char *c, *pos, *end;
+-	int line = 1;
+-
+-	if (errorprinted)
+-		return;
+-	
+-	errorprinted= true;
+-
+-	glGetInfoLogARB(shader, sizeof(log), &length, log);
+-	end = code + strlen(code);
+-
+-	printf("2D Filter GLSL Shader: %s error:\n", task);
+-
+-	c = code;
+-	while ((c < end) && (pos = strchr(c, '\n'))) {
+-		printf("%2d  ", line);
+-		fwrite(c, (pos+1)-c, 1, stdout);
+-		c = pos+1;
+-		line++;
++	std::cout << "2D Filter GLSL Shader: " << title << " error." << std::endl;
++	const int MAX_LOG_CHAR_COUNT = 5000;
++	GLint maxLogSize = 0;
++	glGetShaderiv(shaderUid, GL_INFO_LOG_LENGTH, &maxLogSize);
++	if(maxLogSize > 1) {
++		GLsizei infoLogRetSize = 0;
++		if (maxLogSize > MAX_LOG_CHAR_COUNT) {
++			maxLogSize = MAX_LOG_CHAR_COUNT;
++		}
++		GLcharARB logCharBuffer[maxLogSize];
++		glGetInfoLogARB(shaderUid, maxLogSize, &infoLogRetSize, logCharBuffer);
++		std::cout << logCharBuffer << std::endl;
+ 	}
+-
+-	puts(c);
+-	puts(log);
+-	puts("\n");
+ }
+ 
+-unsigned int RAS_2DFilterManager::CreateShaderProgram(const char* shadersource)
++RAS_2DFilter *RAS_2DFilterManager::AddFilter(RAS_2DFilterData& filterData)
+ {
+-	GLuint program = 0;
+-	GLuint fShader = glCreateShaderObjectARB(GL_FRAGMENT_SHADER);
+-	GLint success;
+-
+-	glShaderSourceARB(fShader, 1, (const char**)&shadersource, NULL);
+-
+-	glCompileShaderARB(fShader);
+-
++	RAS_2DFilter *filter = CreateFilter(filterData);
+ 
+-	glGetObjectParameterivARB(fShader, GL_COMPILE_STATUS, &success);
+-	if (!success) {
+-		/*Shader Comile Error*/
+-		PrintShaderErrors(fShader, "compile", shadersource);
+-		goto fail;
+-	}
+-		
+-	program = glCreateProgramObjectARB();
+-	glAttachObjectARB(program, fShader);
+-
+-	glLinkProgramARB(program);
+-	glGetObjectParameterivARB(program, GL_LINK_STATUS, &success);
+-	if (!success) {
+-		/*Program Link Error*/
+-		PrintShaderErrors(fShader, "link", shadersource);
+-		goto fail;
+-	}
+-	
+-	glValidateProgramARB(program);
+-	glGetObjectParameterivARB(program, GL_VALIDATE_STATUS, &success);
+-	if (!success) {
+-		/*Program Validation Error*/
+-		PrintShaderErrors(fShader, "validate", shadersource);
+-		goto fail;
+-	}
+-
+-	/* owned by 'program' */
+-	if (fShader) {
+-		glDeleteObjectARB(fShader);
+-	}
+-
+-	return program;
++	m_filters[filterData.filterPassIndex] = filter;
+ 
+-
+-fail:
+-	if (fShader) {
+-		glDeleteObjectARB(fShader);
+-	}
+-
+-	if (program) {
+-		glDeleteObjectARB(program);
+-	}
+-	return 0;
++	return filter;
+ }
+ 
+-unsigned int RAS_2DFilterManager::CreateShaderProgram(int filtermode)
++/* Enables all the filters at some pass index */
++void RAS_2DFilterManager::EnableFilterPass(unsigned int passIndex)
+ {
+-	switch (filtermode) {
+-		case RAS_2DFILTER_BLUR:
+-			return CreateShaderProgram(BlurFragmentShader);
+-		case RAS_2DFILTER_SHARPEN:
+-			return CreateShaderProgram(SharpenFragmentShader);
+-		case RAS_2DFILTER_DILATION:
+-			return CreateShaderProgram(DilationFragmentShader);
+-		case RAS_2DFILTER_EROSION:
+-			return CreateShaderProgram(ErosionFragmentShader);
+-		case RAS_2DFILTER_LAPLACIAN:
+-			return CreateShaderProgram(LaplacionFragmentShader);
+-		case RAS_2DFILTER_SOBEL:
+-			return CreateShaderProgram(SobelFragmentShader);
+-		case RAS_2DFILTER_PREWITT:
+-			return CreateShaderProgram(PrewittFragmentShader);
+-		case RAS_2DFILTER_GRAYSCALE:
+-			return CreateShaderProgram(GrayScaleFragmentShader);
+-		case RAS_2DFILTER_SEPIA:
+-			return CreateShaderProgram(SepiaFragmentShader);
+-		case RAS_2DFILTER_INVERT:
+-			return CreateShaderProgram(InvertFragmentShader);
++	RAS_2DFilter *filter = GetFilterPass(passIndex);
++	if (filter) {
++		filter->SetEnabled(true);
+ 	}
+-	return 0;
+ }
+ 
+-void RAS_2DFilterManager::AnalyseShader(int passindex, vector<STR_String>& propNames)
++/* Disables all the filters at some pass index */
++void RAS_2DFilterManager::DisableFilterPass(unsigned int passIndex)
+ {
+-	texflag[passindex] = 0;
+-	if (glGetUniformLocationARB(m_filters[passindex], "bgl_DepthTexture") != -1)
+-	{
+-		if (GLEW_ARB_depth_texture)
+-			texflag[passindex] |= 0x1;
+-	}
+-	if (glGetUniformLocationARB(m_filters[passindex], "bgl_LuminanceTexture") != -1)
+-	{
+-		texflag[passindex] |= 0x2;
+-	}
+-
+-	if (m_gameObjects[passindex])
+-	{
+-		int objProperties = propNames.size();
+-		int i;
+-		for (i=0; i<objProperties; i++)
+-			if (glGetUniformLocationARB(m_filters[passindex], propNames[i]) != -1)
+-				m_properties[passindex].push_back(propNames[i]);
++	RAS_2DFilter *filter = GetFilterPass(passIndex);
++	if (filter) {
++		filter->SetEnabled(false);
+ 	}
+ }
+ 
+-void RAS_2DFilterManager::StartShaderProgram(int passindex)
++/* Removes all the filters at some pass index from the .filters vector */
++void RAS_2DFilterManager::RemoveFilterPass(unsigned int passIndex)
+ {
+-	GLint uniformLoc;
+-	glUseProgramObjectARB(m_filters[passindex]);
+-	uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_RenderedTexture");
+-	glActiveTextureARB(GL_TEXTURE0);
+-	glBindTexture(GL_TEXTURE_2D, texname[0]);
+-
+-	if (uniformLoc != -1)
+-	{
+-		glUniform1iARB(uniformLoc, 0);
+-	}
+-
+-	/* send depth texture to glsl program if it needs */
+-	if (texflag[passindex] & 0x1) {
+-		uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_DepthTexture");
+-		glActiveTextureARB(GL_TEXTURE1);
+-		glBindTexture(GL_TEXTURE_2D, texname[1]);
+-
+-		if (uniformLoc != -1)
+-		{
+-			glUniform1iARB(uniformLoc, 1);
+-		}
+-	}
+-
+-	/* send luminance texture to glsl program if it needs */
+-	if (texflag[passindex] & 0x2) {
+-		uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_LuminanceTexture");
+-		glActiveTextureARB(GL_TEXTURE2);
+-		glBindTexture(GL_TEXTURE_2D, texname[2]);
+-
+-		if (uniformLoc != -1)
+-		{
+-			glUniform1iARB(uniformLoc, 2);
+-		}
+-	}
+-	
+-	uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_TextureCoordinateOffset");
+-	if (uniformLoc != -1)
+-	{
+-		glUniform2fvARB(uniformLoc, 9, textureoffsets);
+-	}
+-	uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_RenderedTextureWidth");
+-	if (uniformLoc != -1)
+-	{
+-		glUniform1fARB(uniformLoc,texturewidth);
+-	}
+-	uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_RenderedTextureHeight");
+-	if (uniformLoc != -1)
+-	{
+-		glUniform1fARB(uniformLoc,textureheight);
+-	}
+-
+-	int i, objProperties = m_properties[passindex].size();
+-	for (i=0; i<objProperties; i++)
+-	{
+-		uniformLoc = glGetUniformLocationARB(m_filters[passindex], m_properties[passindex][i]);
+-
+-		if (uniformLoc == -1)
+-			continue;
+-
+-		CValue *property = ((CValue *)m_gameObjects[passindex])->GetProperty(m_properties[passindex][i]);
+-
+-		if (!property)
+-			continue;
+-
+-		switch (property->GetValueType()) {
+-			case VALUE_INT_TYPE:
+-				glUniform1iARB(uniformLoc, property->GetNumber());
+-				break;
+-			case VALUE_FLOAT_TYPE:
+-				glUniform1fARB(uniformLoc, property->GetNumber());
+-				break;
+-			default:
+-				break;
+-		}
+-	}
++	m_filters.erase(passIndex);
+ }
+ 
+-void RAS_2DFilterManager::EndShaderProgram()
++RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
+ {
+-	glUseProgramObjectARB(0);
++	RAS_PassTo2DFilter::iterator it = m_filters.find(passIndex);
++	return (it != m_filters.end()) ? it->second : NULL;
+ }
+ 
+-void RAS_2DFilterManager::FreeTextures()
++/* Applies the filters to the scene. */
++void RAS_2DFilterManager::RenderFilters()
+ {
+-	if (texname[0]!=(unsigned int)-1)
+-		glDeleteTextures(1, (GLuint*)&texname[0]);
+-	if (texname[1]!=(unsigned int)-1)
+-		glDeleteTextures(1, (GLuint*)&texname[1]);
+-	if (texname[2]!=(unsigned int)-1)
+-		glDeleteTextures(1, (GLuint*)&texname[2]);
++	ApplyFilters();
+ }
+ 
+-void RAS_2DFilterManager::SetupTextures(bool depth, bool luminance)
++/* Returns the rectangular renderable portion of the screen (RAS_GLSLFilterContext impl). */
++RAS_ICanvas *RAS_2DFilterManager::GetCanvas()
+ {
+-	FreeTextures();
+-	
+-	glGenTextures(1, (GLuint*)&texname[0]);
+-	glBindTexture(GL_TEXTURE_2D, texname[0]);
+-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texturewidth, textureheight, 0, GL_RGBA,
+-			GL_UNSIGNED_BYTE, 0);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+-
+-	if (depth) {
+-		glGenTextures(1, (GLuint*)&texname[1]);
+-		glBindTexture(GL_TEXTURE_2D, texname[1]);
+-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, texturewidth,textureheight,
+-		             0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE,NULL);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE,
+-		                GL_NONE);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+-	}
+-
+-	if (luminance) {
+-		glGenTextures(1, (GLuint*)&texname[2]);
+-		glBindTexture(GL_TEXTURE_2D, texname[2]);
+-		glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, texturewidth, textureheight,
+-			 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+-	}
++	return m_canvas;
+ }
+ 
+-void RAS_2DFilterManager::UpdateOffsetMatrix(RAS_ICanvas* canvas)
++RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
+ {
+-	/* RAS_Rect canvas_rect = canvas->GetWindowArea(); */ /* UNUSED */
+-	texturewidth = canvas->GetWidth()+1;
+-	textureheight = canvas->GetHeight()+1;
+-	GLint i,j;
+-
+-	if (!GL_ARB_texture_non_power_of_two)
+-	{
+-		i = 0;
+-		while ((1 << i) <= texturewidth)
+-			i++;
+-		texturewidth = (1 << (i));
+-
+-		// Now for height
+-		i = 0;
+-		while ((1 << i) <= textureheight)
+-			i++;
+-		textureheight = (1 << (i));
+-	}
+-
+-	GLfloat	xInc = 1.0f / (GLfloat)texturewidth;
+-	GLfloat yInc = 1.0f / (GLfloat)textureheight;
+-	
+-	for (i = 0; i < 3; i++)
+-	{
+-		for (j = 0; j < 3; j++)
+-		{
+-			textureoffsets[(((i*3)+j)*2)+0] = (-1.0f * xInc) + ((GLfloat)i * xInc);
+-			textureoffsets[(((i*3)+j)*2)+1] = (-1.0f * yInc) + ((GLfloat)j * yInc);
++	RAS_2DFilter *result = NULL;
++	const char *shaderSource = NULL;
++	switch(filterData.filterMode) {
++		case RAS_2DFilterManager::FILTER_MOTIONBLUR:
++			break;
++		case RAS_2DFilterManager::FILTER_BLUR:
++			shaderSource = BlurFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_SHARPEN:
++			shaderSource = SharpenFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_DILATION:
++			shaderSource = DilationFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_EROSION:
++			shaderSource = ErosionFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_LAPLACIAN:
++			shaderSource = LaplacianFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_SOBEL:
++			shaderSource = SobelFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_PREWITT:
++			shaderSource = PrewittFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_GRAYSCALE:
++			shaderSource = GrayScaleFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_SEPIA:
++			shaderSource = SepiaFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_INVERT:
++			shaderSource = InvertFragmentShader;
++			break;
++	}
++	if (!shaderSource) {
++		if(filterData.filterMode == RAS_2DFilterManager::FILTER_CUSTOMFILTER) {
++			result = new RAS_2DFilter(filterData, this);
+ 		}
+-	}
+-}
+-
+-void RAS_2DFilterManager::UpdateCanvasTextureCoord(const int viewport[4])
+-{
+-	/*
+-	 * This function update canvascoord[].
+-	 * These parameters are used to create texcoord[1]
+-	 * That way we can access the texcoord relative to the canvas:
+-	 * (0.0,0.0) bottom left, (1.0,1.0) top right, (0.5,0.5) center
+-	 */
+-	canvascoord[0] = (GLfloat) viewport[0] / -viewport[2];
+-	canvascoord[1] = (GLfloat) (texturewidth - viewport[0]) / viewport[2];
+- 
+-	canvascoord[2] = (GLfloat) viewport[1] / -viewport[3];
+-	canvascoord[3] = (GLfloat)(textureheight - viewport[1]) / viewport[3];
+-}
+-
+-void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
+-{
+-	bool need_depth=false;
+-	bool need_luminance=false;
+-	int num_filters = 0;
+-
+-	int passindex;
+-
+-	if (!isshadersupported)
+-		return;
+-
+-	for (passindex =0; passindex<MAX_RENDER_PASS; passindex++)
+-	{
+-		if (m_filters[passindex] && m_enabled[passindex]) {
+-			num_filters ++;
+-			if (texflag[passindex] & 0x1)
+-				need_depth = true;
+-			if (texflag[passindex] & 0x2)
+-				need_luminance = true;
+-			if (need_depth && need_luminance)
+-				break;
++		else {
++			std::cout << "cannot create filter for mode " << filterData.filterMode << std::endl;
+ 		}
+ 	}
+-
+-	if (num_filters <= 0)
+-		return;
+-
+-	const int *viewport = canvas->GetViewPort();
+-
+-	if (texturewidth != viewport[2] || textureheight != viewport[3])
+-	{
+-		UpdateOffsetMatrix(canvas);
+-		UpdateCanvasTextureCoord(viewport);
+-		need_tex_update = true;
+-	}
+-	
+-	if (need_tex_update)
+-	{
+-		SetupTextures(need_depth, need_luminance);
+-		need_tex_update = false;
+-	}
+-
+-	if (need_depth) {
+-		glActiveTextureARB(GL_TEXTURE1);
+-		glBindTexture(GL_TEXTURE_2D, texname[1]);
+-		glCopyTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT, viewport[0], viewport[1], viewport[2], viewport[3], 0);
+-	}
+-	
+-	if (need_luminance) {
+-		glActiveTextureARB(GL_TEXTURE2);
+-		glBindTexture(GL_TEXTURE_2D, texname[2]);
+-		glCopyTexImage2D(GL_TEXTURE_2D,0,GL_LUMINANCE16, viewport[0], viewport[1], viewport[2], viewport[3], 0);
++	else {
++		filterData.shaderText = shaderSource;
++		result = new RAS_2DFilter(filterData, this);
+ 	}
+-
+-	// reverting to texunit 0, without this we get bug [#28462]
+-	glActiveTextureARB(GL_TEXTURE0);
+-
+-	// We do this to make side-by-side stereo rendering work correctly with 2D filters. It would probably be nicer to just set the viewport,
+-	// but it can be easier for writing shaders to have the coordinates for the whole screen instead of just part of the screen. 
+-	RAS_Rect scissor_rect = canvas->GetDisplayArea();
+-
+-	glScissor(scissor_rect.GetLeft() + viewport[0],
+-	          scissor_rect.GetBottom() + viewport[1],
+-	          scissor_rect.GetWidth() + 1,
+-	          scissor_rect.GetHeight() + 1);
+-
+-	glDisable(GL_DEPTH_TEST);
+-	// in case the previous material was wire
+-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+-	// if the last rendered face had alpha add it would messes with the color of the plane we apply 2DFilter to
+-	glDisable(GL_BLEND); 
+-	// fix for [#34523] alpha buffer is now available for all OSs
+-	glDisable(GL_ALPHA_TEST);
+-
+-	glPushMatrix();		//GL_MODELVIEW
+-	glLoadIdentity();	// GL_MODELVIEW
+-	glMatrixMode(GL_TEXTURE);
+-	glLoadIdentity();
+-	glMatrixMode(GL_PROJECTION);
+-	glPushMatrix();
+-	glLoadIdentity();
+-
+-	for (passindex =0; passindex<MAX_RENDER_PASS; passindex++)
+-	{
+-		if (m_filters[passindex] && m_enabled[passindex])
+-		{
+-			StartShaderProgram(passindex);
+-
+-			glActiveTextureARB(GL_TEXTURE0);
+-			glBindTexture(GL_TEXTURE_2D, texname[0]);
+-			glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, viewport[0], viewport[1], viewport[2], viewport[3], 0); // Don't use texturewidth and textureheight in case we don't have NPOT support
+-			glClear(GL_COLOR_BUFFER_BIT);
+-
+-			glBegin(GL_QUADS);
+-				glColor4f(1.f, 1.f, 1.f, 1.f);
+-				glTexCoord2f(1.0f, 1.0f);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[1], canvascoord[3]); glVertex2f(1.0f,1.0f);
+-				glTexCoord2f(0.0f, 1.0f);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[0], canvascoord[3]); glVertex2f(-1.0f,1.0f);
+-				glTexCoord2f(0.0f, 0.0f);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[0], canvascoord[2]); glVertex2f(-1.0f,-1.0f);
+-				glTexCoord2f(1.0f, 0.0f);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[1], canvascoord[2]); glVertex2f(1.0f,-1.0f);
+-			glEnd();
+-		}
+-	}
+-
+-	glEnable(GL_DEPTH_TEST);
+-	EndShaderProgram();
+-	glPopMatrix();
+-	glMatrixMode(GL_MODELVIEW);
+-	glPopMatrix();
++	return result;
+ }
+ 
+-void RAS_2DFilterManager::EnableFilter(vector<STR_String>& propNames, void* gameObj, RAS_2DFILTER_MODE mode, int pass, STR_String& text)
++/* Loops throught the filters' vector and runs each filter found. Filters are applied according to their
++pass index, as long as the filters' vector is sorted by pass index. */
++void RAS_2DFilterManager::ApplyFilters()
+ {
+-	if (!isshadersupported)
+-		return;
+-	if (pass<0 || pass>=MAX_RENDER_PASS)
+-		return;
+-	need_tex_update = true;
+-	if (mode == RAS_2DFILTER_DISABLED)
+-	{
+-		m_enabled[pass] = 0;
+-		return;
+-	}
+-
+-	if (mode == RAS_2DFILTER_ENABLED)
+-	{
+-		m_enabled[pass] = 1;
+-		return;
+-	}
+-
+-	if (mode == RAS_2DFILTER_NOFILTER)
+-	{
+-		if (m_filters[pass])
+-			glDeleteObjectARB(m_filters[pass]);
+-		m_enabled[pass] = 0;
+-		m_filters[pass] = 0;
+-		m_gameObjects[pass] = NULL;
+-		m_properties[pass].clear();
+-		texflag[pass] = 0;
+-		return;
++	for (RAS_PassTo2DFilter::iterator it = m_filters.begin(), end = m_filters.end(); it != end; ++it) {
++		RAS_2DFilter *filter = it->second;
++		filter->Start();
++		filter->End();
+ 	}
+-	
+-	if (mode == RAS_2DFILTER_CUSTOMFILTER)
+-	{
+-		if (m_filters[pass])
+-			glDeleteObjectARB(m_filters[pass]);
+-		m_filters[pass] = CreateShaderProgram(text.Ptr());
+-		m_gameObjects[pass] = gameObj;
+-		AnalyseShader(pass, propNames);
+-		m_enabled[pass] = 1;
+-		return;
+-	}
+-
+-	// We've checked all other cases, which means we must be dealing with a builtin filter
+-	if (m_filters[pass])
+-		glDeleteObjectARB(m_filters[pass]);
+-	m_filters[pass] = CreateShaderProgram(mode);
+-	m_gameObjects[pass] = NULL;
+-	AnalyseShader(pass, propNames);
+-	m_enabled[pass] = 1;
+-}
++}
+\ No newline at end of file
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilterManager.h b/source/gameengine/Rasterizer/RAS_2DFilterManager.h
+index bb727fe..bab5bb8 100644
+--- a/source/gameengine/Rasterizer/RAS_2DFilterManager.h
++++ b/source/gameengine/Rasterizer/RAS_2DFilterManager.h
+@@ -32,83 +32,75 @@
+ #ifndef __RAS_2DFILTERMANAGER_H__
+ #define __RAS_2DFILTERMANAGER_H__
+ 
+-#define MAX_RENDER_PASS	100
++#include "RAS_2DFilterData.h"
++#include <map>
+ 
+ #ifdef WITH_CXX_GUARDEDALLOC
+ #include "MEM_guardedalloc.h"
+ #endif
+ 
+ class RAS_ICanvas;
++class RAS_2DFilter;
++
++typedef std::map<unsigned int, RAS_2DFilter *> RAS_PassTo2DFilter;
+ 
+ class RAS_2DFilterManager
+ {
+-private:
+-	unsigned int	CreateShaderProgram(const char* shadersource);
+-	unsigned int	CreateShaderProgram(int filtermode);
+-	void		AnalyseShader(int passindex, std::vector<STR_String>& propNames);
+-	void			StartShaderProgram(int passindex);
+-	void			EndShaderProgram();
+-	void			PrintShaderErrors(unsigned int shader, const char *task, const char *code);
+-
+-	void SetupTextures(bool depth, bool luminance);
+-	void FreeTextures();
+-
+-	void UpdateOffsetMatrix(RAS_ICanvas* canvas);
+-	void UpdateCanvasTextureCoord(const int viewport[4]);
+- 
+-	float			canvascoord[4];
+-	float			textureoffsets[18];
+-	/* float			view[4]; */ /* UNUSED */
+-	/* texname[0] contains render to texture, texname[1] contains depth texture,  texname[2] contains luminance texture*/
+-	unsigned int	texname[3]; 
+-	int				texturewidth;
+-	int				textureheight;
+-	/* int				numberoffilters; */ /* UNUSED */
+-	/* bit 0: enable/disable depth texture
+-	 * bit 1: enable/disable luminance texture*/
+-	short			texflag[MAX_RENDER_PASS];
+-
+-	bool			isshadersupported;
+-	bool			errorprinted;
+-	bool			need_tex_update;
+-
+-	unsigned int	m_filters[MAX_RENDER_PASS];
+-	short		m_enabled[MAX_RENDER_PASS];
+-
+-	// stores object properties to send to shaders in each pass
+-	std::vector<STR_String>	m_properties[MAX_RENDER_PASS];
+-	void* m_gameObjects[MAX_RENDER_PASS];
+ public:
+-	enum RAS_2DFILTER_MODE {
+-		RAS_2DFILTER_ENABLED = -2,
+-		RAS_2DFILTER_DISABLED = -1,
+-		RAS_2DFILTER_NOFILTER = 0,
+-		RAS_2DFILTER_MOTIONBLUR,
+-		RAS_2DFILTER_BLUR,
+-		RAS_2DFILTER_SHARPEN,
+-		RAS_2DFILTER_DILATION,
+-		RAS_2DFILTER_EROSION,
+-		RAS_2DFILTER_LAPLACIAN,
+-		RAS_2DFILTER_SOBEL,
+-		RAS_2DFILTER_PREWITT,
+-		RAS_2DFILTER_GRAYSCALE,
+-		RAS_2DFILTER_SEPIA,
+-		RAS_2DFILTER_INVERT,
+-		RAS_2DFILTER_CUSTOMFILTER,
+-		RAS_2DFILTER_NUMBER_OF_FILTERS
++	enum FILTER_MODE {
++		FILTER_ENABLED = -2,
++		FILTER_DISABLED = -1,
++		FILTER_NOFILTER = 0,
++		FILTER_MOTIONBLUR,
++		FILTER_BLUR,
++		FILTER_SHARPEN,
++		FILTER_DILATION,
++		FILTER_EROSION,
++		FILTER_LAPLACIAN,
++		FILTER_SOBEL,
++		FILTER_PREWITT,
++		FILTER_GRAYSCALE,
++		FILTER_SEPIA,
++		FILTER_INVERT,
++		FILTER_CUSTOMFILTER,
++		FILTER_NUMBER_OF_FILTERS
+ 	};
+ 
+-	RAS_2DFilterManager();
++	RAS_2DFilterManager(RAS_ICanvas *canvas);
++	virtual ~RAS_2DFilterManager();
++
++	void PrintShaderError(unsigned int shaderUid, const char *title, const char *shaderCode);
++
++	void RenderFilters();
++
++	/// Add a filter to the stack of filters managed by this object.
++	RAS_2DFilter *AddFilter(RAS_2DFilterData& filterData);
+ 
+-	~RAS_2DFilterManager();
++	/// Enables all the filters with pass index info.passIndex.
++	void EnableFilterPass(unsigned int passIndex);
+ 
+-	void RenderFilters(RAS_ICanvas* canvas);
++	/// Disables all the filters with pass index info.passIndex.
++	void DisableFilterPass(unsigned int passIndex);
+ 
+-	void EnableFilter(std::vector<STR_String>& propNames, void* gameObj, RAS_2DFILTER_MODE mode, int pass, STR_String& text);
++	/// Removes all filters at a given pass index.
++	void RemoveFilterPass(unsigned int passIndex);
++
++	RAS_2DFilter *GetFilterPass(unsigned int passIndex);
++
++	void ApplyFilters();
++
++	RAS_ICanvas *GetCanvas();
++
++private:
++	RAS_PassTo2DFilter m_filters;
++	RAS_ICanvas *m_canvas;
+ 
++	/** Creates a filter matching the given filter data. Returns NULL if no
++	 * filter can be created with such information. */
++	RAS_2DFilter *CreateFilter(RAS_2DFilterData& filterData);
+ 
+ #ifdef WITH_CXX_GUARDEDALLOC
+-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_2DFilterManager")
++MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_2DFilterManager")
+ #endif
+ };
+ #endif
+diff --git a/source/gameengine/Rasterizer/RAS_OpenGLFilters/RAS_Laplacian2DFilter.h b/source/gameengine/Rasterizer/RAS_OpenGLFilters/RAS_Laplacian2DFilter.h
+index 9ec5092..f7ad7a2 100644
+--- a/source/gameengine/Rasterizer/RAS_OpenGLFilters/RAS_Laplacian2DFilter.h
++++ b/source/gameengine/Rasterizer/RAS_OpenGLFilters/RAS_Laplacian2DFilter.h
+@@ -32,7 +32,7 @@
+ #ifndef __RAS_LAPLACIAN2DFILTER_H__
+ #define __RAS_LAPLACIAN2DFILTER_H__
+ 
+-static const char *LaplacionFragmentShader = STRINGIFY(
++static const char *LaplacianFragmentShader = STRINGIFY(
+ uniform sampler2D bgl_RenderedTexture;
+ uniform vec2 bgl_TextureCoordinateOffset[9];
+ 
+diff --git a/source/gameengine/Converter/KX_ConvertActuators.cpp b/source/gameengine/Converter/KX_ConvertActuators.cpp
+index d6db528..9b021cd 100644
+--- a/source/gameengine/Converter/KX_ConvertActuators.cpp
++++ b/source/gameengine/Converter/KX_ConvertActuators.cpp
+@@ -52,6 +52,8 @@
+ #include "SCA_RandomActuator.h"
+ #include "SCA_2DFilterActuator.h"
+ 
++#include "RAS_2DFilterManager.h" // for filter type.
++
+ // Ketsji specific logicbricks
+ #include "KX_SceneActuator.h"
+ #include "KX_SoundActuator.h"
+@@ -885,61 +887,61 @@ void BL_ConvertActuators(const char* maggiename,
+ 			bTwoDFilterActuator *_2dfilter = (bTwoDFilterActuator*) bact->data;
+ 			SCA_2DFilterActuator *tmp = NULL;
+ 
+-			RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode;
++			RAS_2DFilterManager::FILTER_MODE filtermode;
+ 			switch (_2dfilter->type) {
+ 				case ACT_2DFILTER_MOTIONBLUR:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_MOTIONBLUR;
++					filtermode = RAS_2DFilterManager::FILTER_MOTIONBLUR;
+ 					break;
+ 				case ACT_2DFILTER_BLUR:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_BLUR;
++					filtermode = RAS_2DFilterManager::FILTER_BLUR;
+ 					break;
+ 				case ACT_2DFILTER_SHARPEN:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_SHARPEN;
++					filtermode = RAS_2DFilterManager::FILTER_SHARPEN;
+ 					break;
+ 				case ACT_2DFILTER_DILATION:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_DILATION;
++					filtermode = RAS_2DFilterManager::FILTER_DILATION;
+ 					break;
+ 				case ACT_2DFILTER_EROSION:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_EROSION;
++					filtermode = RAS_2DFilterManager::FILTER_EROSION;
+ 					break;
+ 				case ACT_2DFILTER_LAPLACIAN:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_LAPLACIAN;
++					filtermode = RAS_2DFilterManager::FILTER_LAPLACIAN;
+ 					break;
+ 				case ACT_2DFILTER_SOBEL:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_SOBEL;
++					filtermode = RAS_2DFilterManager::FILTER_SOBEL;
+ 					break;
+ 				case ACT_2DFILTER_PREWITT:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_PREWITT;
++					filtermode = RAS_2DFilterManager::FILTER_PREWITT;
+ 					break;
+ 				case ACT_2DFILTER_GRAYSCALE:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_GRAYSCALE;
++					filtermode = RAS_2DFilterManager::FILTER_GRAYSCALE;
+ 					break;
+ 				case ACT_2DFILTER_SEPIA:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_SEPIA;
++					filtermode = RAS_2DFilterManager::FILTER_SEPIA;
+ 					break;
+ 				case ACT_2DFILTER_INVERT:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_INVERT;
++					filtermode = RAS_2DFilterManager::FILTER_INVERT;
+ 					break;
+ 				case ACT_2DFILTER_CUSTOMFILTER:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_CUSTOMFILTER;
++					filtermode = RAS_2DFilterManager::FILTER_CUSTOMFILTER;
+ 					break;
+ 				case ACT_2DFILTER_NOFILTER:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_NOFILTER;
++					filtermode = RAS_2DFilterManager::FILTER_NOFILTER;
+ 					break;
+ 				case ACT_2DFILTER_DISABLED:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_DISABLED;
++					filtermode = RAS_2DFilterManager::FILTER_DISABLED;
+ 					break;
+ 				case ACT_2DFILTER_ENABLED:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_ENABLED;
++					filtermode = RAS_2DFilterManager::FILTER_ENABLED;
+ 					break;
+ 				default:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_NOFILTER;
++					filtermode = RAS_2DFilterManager::FILTER_NOFILTER;
+ 					break;
+ 			}
+ 
+ 			tmp = new SCA_2DFilterActuator(gameobj, filtermode,  _2dfilter->flag,
+ 			                               _2dfilter->float_arg, _2dfilter->int_arg,
+-			                               ketsjiEngine->GetRasterizer(), scene);
++			                               ketsjiEngine->GetRasterizer(), scene->Get2DFilterManager(), scene);
+ 
+ 			if (_2dfilter->text)
+ 			{
+diff --git a/source/gameengine/GameLogic/SCA_2DFilterActuator.cpp b/source/gameengine/GameLogic/SCA_2DFilterActuator.cpp
+index 6a87d3c..5d745d5 100644
+--- a/source/gameengine/GameLogic/SCA_2DFilterActuator.cpp
++++ b/source/gameengine/GameLogic/SCA_2DFilterActuator.cpp
+@@ -31,20 +31,20 @@
+ 
+ #include "SCA_IActuator.h"
+ #include "SCA_2DFilterActuator.h"
++#include "RAS_2DFilterData.h"
++#include "RAS_2DFilterManager.h"
++#include "RAS_2DFilter.h"
+ 
+ #include <iostream>
+ 
+-SCA_2DFilterActuator::~SCA_2DFilterActuator()
+-{
+-}
+-
+ SCA_2DFilterActuator::SCA_2DFilterActuator(
+         SCA_IObject *gameobj,
+-        RAS_2DFilterManager::RAS_2DFILTER_MODE type,
++        int type,
+         short flag,
+         float float_arg,
+         int int_arg,
+         RAS_IRasterizer* rasterizer,
++		RAS_2DFilterManager *filterManager,
+         SCA_IScene* scene)
+     : SCA_IActuator(gameobj, KX_ACT_2DFILTER),
+       m_type(type),
+@@ -52,15 +52,15 @@ SCA_2DFilterActuator::SCA_2DFilterActuator(
+       m_float_arg(float_arg),
+       m_int_arg(int_arg),
+       m_rasterizer(rasterizer),
++      m_filterManager(filterManager),
+       m_scene(scene)
+ {
+-	m_gameobj = NULL;
+-	if (gameobj) {
+-		m_propNames = gameobj->GetPropertyNames();
+-		m_gameobj = gameobj;
+-	}
++	m_propNames = m_gameobj->GetPropertyNames();
+ }
+ 
++SCA_2DFilterActuator::~SCA_2DFilterActuator()
++{
++}
+ 
+ CValue* SCA_2DFilterActuator::GetReplica()
+ {
+@@ -79,19 +79,49 @@ bool SCA_2DFilterActuator::Update()
+ 	if (bNegativeEvent)
+ 		return false; // do nothing on negative events
+ 
+-	if ( m_type == RAS_2DFilterManager::RAS_2DFILTER_MOTIONBLUR )
+-	{
+-		if (!m_disableMotionBlur)
+-			m_rasterizer->EnableMotionBlur(m_float_arg);
+-		else
+-			m_rasterizer->DisableMotionBlur();
+-
+-		return false;
+-	}
+-	else if (m_type < RAS_2DFilterManager::RAS_2DFILTER_NUMBER_OF_FILTERS)
+-	{
+-		m_scene->Update2DFilter(m_propNames, m_gameobj, m_type, m_int_arg, m_shaderText);
++	switch (m_type) {
++		case RAS_2DFilterManager::FILTER_ENABLED:
++		{
++			m_filterManager->EnableFilterPass(m_int_arg);
++			break;
++		}
++		case RAS_2DFilterManager::FILTER_DISABLED:
++		{
++			m_filterManager->DisableFilterPass(m_int_arg);
++			break;
++		}
++		case RAS_2DFilterManager::FILTER_NOFILTER:
++		{
++			m_filterManager->RemoveFilterPass(m_int_arg);
++			break;
++		}
++		case RAS_2DFilterManager::FILTER_MOTIONBLUR:
++		{
++			if (m_disableMotionBlur) {
++				m_rasterizer->DisableMotionBlur();
++			}
++			else {
++				m_rasterizer->EnableMotionBlur(m_float_arg);
++			}
++			break;
++		}
++		default:
++		{
++			if (!m_filterManager->GetFilterPass(m_int_arg)) {
++				RAS_2DFilterData info;
++				info.filterPassIndex = m_int_arg;
++				info.gameObject = m_gameobj;
++				info.filterMode = m_type;
++				info.propertyNames = m_propNames;
++				info.shaderText = m_shaderText;
++				info.filterIdentifier = m_name;
++
++				m_filterManager->AddFilter(info);
++			}
++			break;
++		}
+ 	}
++
+ 	// once the filter is in place, no need to update it again => disable the actuator
+ 	return false;
+ }
+@@ -144,8 +174,8 @@ PyMethodDef SCA_2DFilterActuator::Methods[] = {
+ PyAttributeDef SCA_2DFilterActuator::Attributes[] = {
+ 	KX_PYATTRIBUTE_STRING_RW("shaderText", 0, 64000, false, SCA_2DFilterActuator, m_shaderText),
+ 	KX_PYATTRIBUTE_SHORT_RW("disableMotionBlur", 0, 1, true, SCA_2DFilterActuator, m_disableMotionBlur),
+-	KX_PYATTRIBUTE_ENUM_RW("mode",RAS_2DFilterManager::RAS_2DFILTER_ENABLED,RAS_2DFilterManager::RAS_2DFILTER_NUMBER_OF_FILTERS,false,SCA_2DFilterActuator,m_type),
+-	KX_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
++	KX_PYATTRIBUTE_ENUM_RW("mode", RAS_2DFilterManager::FILTER_ENABLED, RAS_2DFilterManager::FILTER_NUMBER_OF_FILTERS, false, SCA_2DFilterActuator, m_type),
++KX_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
+ 	KX_PYATTRIBUTE_FLOAT_RW("value", 0.0, 100.0, SCA_2DFilterActuator, m_float_arg),
+ 	{ NULL }	//Sentinel
+ };
+diff --git a/source/gameengine/GameLogic/SCA_2DFilterActuator.h b/source/gameengine/GameLogic/SCA_2DFilterActuator.h
+index 4635a8a..04d7fb3 100644
+--- a/source/gameengine/GameLogic/SCA_2DFilterActuator.h
++++ b/source/gameengine/GameLogic/SCA_2DFilterActuator.h
+@@ -35,29 +35,32 @@
+ #include "SCA_IActuator.h"
+ #include "SCA_IScene.h"
+ 
++class RAS_2DFilterManager;
++
+ class SCA_2DFilterActuator : public SCA_IActuator
+ {
+ 	Py_Header
+ 
+ private:
+ 	vector<STR_String> m_propNames;
+-	RAS_2DFilterManager::RAS_2DFILTER_MODE m_type;
++	int m_type;
+ 	short m_disableMotionBlur;
+ 	float m_float_arg;
+ 	int   m_int_arg;
+ 	STR_String	m_shaderText;
+ 	RAS_IRasterizer* m_rasterizer;
++	RAS_2DFilterManager *m_filterManager;
+ 	SCA_IScene* m_scene;
+ 
+ public:
+-
+ 	SCA_2DFilterActuator(
+ 	        class SCA_IObject* gameobj,
+-	        RAS_2DFilterManager::RAS_2DFILTER_MODE type,
++	        int type,
+ 	        short flag,
+ 	        float float_arg,
+ 	        int int_arg,
+ 	        RAS_IRasterizer* rasterizer,
++			RAS_2DFilterManager *filterManager,
+ 	        SCA_IScene* scene);
+ 
+ 	void	SetShaderText(const char *text);
+diff --git a/source/gameengine/GameLogic/SCA_IScene.h b/source/gameengine/GameLogic/SCA_IScene.h
+index b76b563..ee839e3 100644
+--- a/source/gameengine/GameLogic/SCA_IScene.h
++++ b/source/gameengine/GameLogic/SCA_IScene.h
+@@ -35,7 +35,7 @@
+ #include <vector>
+ 
+ #include "STR_String.h"
+-#include "RAS_2DFilterManager.h"
++#include "RAS_2DFilterData.h"
+ 
+ #ifdef WITH_CXX_GUARDEDALLOC
+ #include "MEM_guardedalloc.h"
+@@ -74,11 +74,6 @@ public:
+ 	void			RemoveDebugProperty(class CValue *gameobj, const STR_String &name);
+ 	void			RemoveObjectDebugProperties(class CValue* gameobj);
+ 
+-	virtual void	Update2DFilter(std::vector<STR_String>& propNames, void* gameObj, 
+-									RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, 
+-									int pass, STR_String& text) {}
+-
+-
+ #ifdef WITH_CXX_GUARDEDALLOC
+ 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_IScene")
+ #endif
+diff --git a/source/gameengine/Ketsji/KX_KetsjiEngine.cpp b/source/gameengine/Ketsji/KX_KetsjiEngine.cpp
+index bb311e2..68b4094 100644
+--- a/source/gameengine/Ketsji/KX_KetsjiEngine.cpp
++++ b/source/gameengine/Ketsji/KX_KetsjiEngine.cpp
+@@ -322,7 +322,7 @@ void KX_KetsjiEngine::RenderDome()
+ 			}
+ 			// Part of PostRenderScene()
+ 			m_rasterizer->MotionBlur();
+-			scene->Render2DFilters(m_canvas);
++			scene->Render2DFilters();
+ 			// no RunDrawingCallBacks
+ 			// no FlushDebugLines
+ 		}
+@@ -1195,7 +1195,7 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene)
+ 
+ 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
+ 	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
+-	scene->Render2DFilters(m_canvas);
++	scene->Render2DFilters();
+ 
+ #ifdef WITH_PYTHON
+ 	// Set again the scene viewport.
+diff --git a/source/gameengine/Ketsji/KX_PythonInit.cpp b/source/gameengine/Ketsji/KX_PythonInit.cpp
+index eebf243..a9aa0d7 100644
+--- a/source/gameengine/Ketsji/KX_PythonInit.cpp
++++ b/source/gameengine/Ketsji/KX_PythonInit.cpp
+@@ -97,6 +97,7 @@ extern "C" {
+ #include "SCA_PythonJoystick.h"
+ #include "SCA_PythonKeyboard.h"
+ #include "SCA_PythonMouse.h"
++#include "SCA_2DFilterActuator.h"
+ #include "KX_ConstraintActuator.h"
+ #include "KX_SoundActuator.h"
+ #include "KX_StateActuator.h"
+@@ -1767,21 +1768,21 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
+ 	KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_RIGHT, SCA_IInputDevice::KX_RIGHTMOUSE);
+ 
+ 	/* 2D Filter Actuator */
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_ENABLED, RAS_2DFilterManager::RAS_2DFILTER_ENABLED);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_DISABLED, RAS_2DFilterManager::RAS_2DFILTER_DISABLED);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_NOFILTER, RAS_2DFilterManager::RAS_2DFILTER_NOFILTER);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_MOTIONBLUR, RAS_2DFilterManager::RAS_2DFILTER_MOTIONBLUR);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_BLUR, RAS_2DFilterManager::RAS_2DFILTER_BLUR);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SHARPEN, RAS_2DFilterManager::RAS_2DFILTER_SHARPEN);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_DILATION, RAS_2DFilterManager::RAS_2DFILTER_DILATION);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_EROSION, RAS_2DFilterManager::RAS_2DFILTER_EROSION);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_LAPLACIAN, RAS_2DFilterManager::RAS_2DFILTER_LAPLACIAN);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SOBEL, RAS_2DFilterManager::RAS_2DFILTER_SOBEL);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_PREWITT, RAS_2DFilterManager::RAS_2DFILTER_PREWITT);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_GRAYSCALE, RAS_2DFilterManager::RAS_2DFILTER_GRAYSCALE);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SEPIA, RAS_2DFilterManager::RAS_2DFILTER_SEPIA);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_INVERT, RAS_2DFilterManager::RAS_2DFILTER_INVERT);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_CUSTOMFILTER, RAS_2DFilterManager::RAS_2DFILTER_CUSTOMFILTER);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_ENABLED, RAS_2DFilterManager::FILTER_ENABLED);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_DISABLED, RAS_2DFilterManager::FILTER_DISABLED);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_NOFILTER, RAS_2DFilterManager::FILTER_NOFILTER);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_MOTIONBLUR, RAS_2DFilterManager::FILTER_MOTIONBLUR);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_BLUR, RAS_2DFilterManager::FILTER_BLUR);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SHARPEN, RAS_2DFilterManager::FILTER_SHARPEN);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_DILATION, RAS_2DFilterManager::FILTER_DILATION);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_EROSION, RAS_2DFilterManager::FILTER_EROSION);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_LAPLACIAN, RAS_2DFilterManager::FILTER_LAPLACIAN);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SOBEL, RAS_2DFilterManager::FILTER_SOBEL);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_PREWITT, RAS_2DFilterManager::FILTER_PREWITT);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_GRAYSCALE, RAS_2DFilterManager::FILTER_GRAYSCALE);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SEPIA, RAS_2DFilterManager::FILTER_SEPIA);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_INVERT, RAS_2DFilterManager::FILTER_INVERT);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_CUSTOMFILTER, RAS_2DFilterManager::FILTER_CUSTOMFILTER);
+ 
+ 	/* Sound Actuator */
+ 	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_PLAYSTOP, KX_SoundActuator::KX_SOUNDACT_PLAYSTOP);
+diff --git a/source/gameengine/Ketsji/KX_Scene.cpp b/source/gameengine/Ketsji/KX_Scene.cpp
+index 7746339..8f9515f 100644
+--- a/source/gameengine/Ketsji/KX_Scene.cpp
++++ b/source/gameengine/Ketsji/KX_Scene.cpp
+@@ -62,6 +62,8 @@
+ 
+ #include "RAS_IRasterizer.h"
+ #include "RAS_ICanvas.h"
++#include "RAS_2DFilterData.h"
++#include "RAS_2DFilterManager.h"
+ #include "RAS_BucketManager.h"
+ 
+ #include "EXP_FloatValue.h"
+@@ -172,6 +174,7 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
+ 	m_euthanasyobjects = new CListValue();
+ 	m_animatedlist = new CListValue();
+ 
++	m_filterManager = new RAS_2DFilterManager(canvas);
+ 	m_logicmgr = new SCA_LogicManager();
+ 	
+ 	m_timemgr = new SCA_TimeEventManager(m_logicmgr);
+@@ -262,6 +265,10 @@ KX_Scene::~KX_Scene()
+ 	if (m_animatedlist)
+ 		m_animatedlist->Release();
+ 
++	if (m_filterManager) {
++		delete m_filterManager;
++	}
++
+ 	if (m_logicmgr)
+ 		delete m_logicmgr;
+ 
+@@ -2100,14 +2107,14 @@ bool KX_Scene::MergeScene(KX_Scene *other)
+ 	return true;
+ }
+ 
+-void KX_Scene::Update2DFilter(vector<STR_String>& propNames, void* gameObj, RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, int pass, STR_String& text)
++RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
+ {
+-	m_filtermanager.EnableFilter(propNames, gameObj, filtermode, pass, text);
++	return m_filterManager;
+ }
+ 
+-void KX_Scene::Render2DFilters(RAS_ICanvas* canvas)
++void KX_Scene::Render2DFilters()
+ {
+-	m_filtermanager.RenderFilters(canvas);
++	m_filterManager->RenderFilters();
+ }
+ 
+ #ifdef WITH_PYTHON
+diff --git a/source/gameengine/Ketsji/KX_Scene.h b/source/gameengine/Ketsji/KX_Scene.h
+index 1d80cc3..e6fd2ca 100644
+--- a/source/gameengine/Ketsji/KX_Scene.h
++++ b/source/gameengine/Ketsji/KX_Scene.h
+@@ -52,8 +52,6 @@
+ #include "EXP_PyObjectPlus.h"
+ #include "EXP_Value.h"
+ 
+-#include "RAS_2DFilterManager.h"
+-
+ /**
+  * \section Forward declarations
+  */
+@@ -82,6 +80,7 @@ class RAS_MaterialBucket;
+ class RAS_IPolyMaterial;
+ class RAS_IRasterizer;
+ class RAS_IRenderTools;
++class RAS_2DFilterManager;
+ class SCA_JoystickManager;
+ class btCollisionShape;
+ class KX_BlenderSceneConverter;
+@@ -289,7 +288,7 @@ protected:
+ 
+ 	struct Scene* m_blenderScene;
+ 
+-	RAS_2DFilterManager m_filtermanager;
++	RAS_2DFilterManager *m_filterManager;
+ 
+ 	KX_ObstacleSimulation* m_obstacleSimulation;
+ 
+@@ -589,8 +588,8 @@ public:
+ 	/**
+ 	 * 2D Filters
+ 	 */
+-	void Update2DFilter(std::vector<STR_String>& propNames, void* gameObj, RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, int pass, STR_String& text);
+-	void Render2DFilters(RAS_ICanvas* canvas);
++	RAS_2DFilterManager *Get2DFilterManager() const;
++	void Render2DFilters();
+ 
+ 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
+ 
+diff --git a/source/gameengine/Rasterizer/CMakeLists.txt b/source/gameengine/Rasterizer/CMakeLists.txt
+index 8a6f511..7cc7928 100644
+--- a/source/gameengine/Rasterizer/CMakeLists.txt
++++ b/source/gameengine/Rasterizer/CMakeLists.txt
+@@ -28,6 +28,7 @@ set(INC
+ 	../Expressions
+ 	../Ketsji
+ 	../SceneGraph
++	../GameLogic
+ 	../../blender/makesdna
+ 	../../blender/blenlib
+ 	../../blender/blenkernel
+@@ -42,6 +43,7 @@ set(INC_SYS
+ 	../../../intern/moto/include
+ 	${GLEW_INCLUDE_PATH}
+ 	${PYTHON_INCLUDE_DIRS}
++	${BOOST_INCLUDE_DIR}
+ )
+ 
+ set(SRC
+@@ -54,7 +56,11 @@ set(SRC
+ 	RAS_Polygon.cpp
+ 	RAS_TexVert.cpp
+ 	RAS_ICanvas.cpp
+-
++	RAS_2DFilterData.cpp
++	RAS_2DFilter.cpp
++ 
++	RAS_2DFilterData.h
++	RAS_2DFilter.h
+ 	RAS_2DFilterManager.h
+ 	RAS_BucketManager.h
+ 	RAS_CameraData.h
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilter.cpp b/source/gameengine/Rasterizer/RAS_2DFilter.cpp
+new file mode 100644
+index 0000000..d58e6c0
+--- /dev/null
++++ b/source/gameengine/Rasterizer/RAS_2DFilter.cpp
+@@ -0,0 +1,367 @@
++/*
++* ***** BEGIN GPL LICENSE BLOCK *****
++*
++* This program is free software; you can redistribute it and/or
++* modify it under the terms of the GNU General Public License
++* as published by the Free Software Foundation; either version 2
++* of the License, or (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU General Public License for more details.
++*
++* You should have received a copy of the GNU General Public License
++* along with this program; if not, write to the Free Software Foundation,
++* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++*
++* Contributor(s): none yet.
++*
++* ***** END GPL LICENSE BLOCK *****
++*/
++#include "RAS_2DFilter.h"
++#include "RAS_2DFilterManager.h"
++#include "RAS_IRasterizer.h"
++#include "RAS_ICanvas.h"
++
++#include "EXP_Value.h"
++
++#include "glew-mx.h"
++#include <iostream>
++
++const char *RAS_2DFilter::UNIFORM_NAME_RENDERED_TEXTURE = "bgl_RenderedTexture";
++const char *RAS_2DFilter::UNIFORM_NAME_LUMINANCE_TEXTURE = "bgl_LuminanceTexture";
++const char *RAS_2DFilter::UNIFORM_NAME_DEPTH_TEXTURE = "bgl_DepthTexture";
++const char *RAS_2DFilter::UNIFORM_NAME_RENDERED_TEXTURE_WIDTH = "bgl_RenderedTextureWidth";
++const char *RAS_2DFilter::UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT = "bgl_RenderedTextureHeight";
++const char *RAS_2DFilter::UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS = "bgl_TextureCoordinateOffset";
++
++RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager)
++	:m_manager(manager),
++	m_shaderProgramUid(0),
++	m_fragmentShaderUid(0),
++	m_renderedTextureUniformLocation(-1),
++	m_luminanceTextureUniformLocation(-1),
++	m_depthTextureUniformLocation(-1),
++	m_renderedTextureWidthUniformLocation(-1),
++	m_renderedTextureHeightUniformLocation(-1),
++	m_textureOffsetsUniformLocation(-1),
++	m_renderedTextureUid(0),
++	m_luminanceTextureUid(0),
++	m_depthTextureUid(0),
++	m_properties(data.propertyNames),
++	m_gameObject(data.gameObject),
++	m_passIndex(data.filterPassIndex),
++	m_enabled(true),
++	m_initialized(false)
++{
++	for(int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
++		m_textureOffsets[i] = 0;
++	}
++	m_uid = data.filterIdentifier;
++	m_fragmentShaderSourceCode = data.shaderText;
++}
++
++void RAS_2DFilter::ReleaseTextures()
++{
++	if(m_renderedTextureUid != -1) {
++		glDeleteTextures(1, &m_renderedTextureUid);
++	}
++	if(m_luminanceTextureUid != -1) {
++		glDeleteTextures(1, &m_luminanceTextureUid);
++	}
++	if(m_depthTextureUid != -1) {
++		glDeleteTextures(1, &m_depthTextureUid);
++	}
++}
++
++void RAS_2DFilter::DeleteShader()
++{
++	if (m_fragmentShaderUid) {
++		glDeleteObjectARB(m_fragmentShaderUid);
++	}
++	if (m_shaderProgramUid) {
++		glDeleteObjectARB(m_shaderProgramUid);
++	}
++}
++
++RAS_2DFilter::~RAS_2DFilter()
++{
++	DeleteShader();
++	ReleaseTextures();
++}
++
++void RAS_2DFilter::SetEnabled(bool enabled)
++{
++	m_enabled = enabled;
++}
++
++STR_String& RAS_2DFilter::GetUid()
++{
++	return m_uid;
++}
++
++void RAS_2DFilter::Initialize()
++{
++	/* The shader must be initialized at the first frame when the canvas is set.
++	 * to solve this we initialize filter at the frist render frame. */
++	if (!m_initialized) {
++		InitializeShader();
++		InitializeTextures();
++		ComputeTextureOffsets();
++		m_initialized = true;
++	}
++}
++
++int RAS_2DFilter::GetPassIndex()
++{
++	return m_passIndex;
++}
++
++void RAS_2DFilter::Start()
++{
++	Initialize();
++
++	if (m_enabled) {
++		BindShaderProgram();
++		BindUniforms();
++		DrawOverlayPlane();
++	}
++}
++
++void RAS_2DFilter::End()
++{
++	if(m_enabled) {
++		UnbindShaderProgram();
++	}
++}
++
++void RAS_2DFilter::ParseShaderProgram()
++{
++	m_renderedTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE);
++	m_luminanceTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_LUMINANCE_TEXTURE);
++	m_depthTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_DEPTH_TEXTURE);
++	m_renderedTextureWidthUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE_WIDTH);
++	m_renderedTextureHeightUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT);
++	m_textureOffsetsUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS);
++
++	if (m_gameObject) {
++		std::vector<STR_String> foundProperties;
++		for (std::vector<STR_String>::iterator it = m_properties.begin(), end = m_properties.end(); it != end; ++it) {
++			STR_String prop = *it;
++			unsigned int loc = glGetUniformLocationARB(m_shaderProgramUid, prop);
++			if (loc != -1) {
++				m_propertiesLoc.push_back(loc);
++				foundProperties.push_back(prop);
++			}
++		}
++		m_properties = foundProperties;
++	}
++}
++
++void RAS_2DFilter::InitializeShader()
++{
++	GLint compilationStatus;
++	m_fragmentShaderUid = glCreateShaderObjectARB(GL_FRAGMENT_SHADER);
++	const GLcharARB* shaderSourceCodeList[1];
++	GLint shaderSourceCodeLengthList[1];
++	const GLsizei shaderListSize = 1;
++	shaderSourceCodeList[0] = (GLchar*)(m_fragmentShaderSourceCode.Ptr());
++	shaderSourceCodeLengthList[0] = (GLint)(m_fragmentShaderSourceCode.Length());
++	
++	glShaderSourceARB(m_fragmentShaderUid, shaderListSize, shaderSourceCodeList, shaderSourceCodeLengthList);
++	glCompileShaderARB(m_fragmentShaderUid);
++	glGetObjectParameterivARB(m_fragmentShaderUid, GL_COMPILE_STATUS, &compilationStatus);
++	if (!compilationStatus) {
++		m_manager->PrintShaderError(m_fragmentShaderUid, "compile", m_fragmentShaderSourceCode.Ptr());
++		DeleteShader();
++	}
++	else {
++		m_shaderProgramUid = glCreateProgramObjectARB();
++		glAttachObjectARB(m_shaderProgramUid, m_fragmentShaderUid);
++		glLinkProgramARB(m_shaderProgramUid);
++		glGetObjectParameterivARB(m_shaderProgramUid, GL_LINK_STATUS, &compilationStatus);
++		if (!compilationStatus) {
++			m_manager->PrintShaderError(m_fragmentShaderUid, "link", m_fragmentShaderSourceCode.Ptr());
++			DeleteShader();
++		}
++		else {
++			glValidateProgramARB(m_shaderProgramUid);
++			glGetObjectParameterivARB(m_shaderProgramUid, GL_VALIDATE_STATUS, &compilationStatus);
++			if (!compilationStatus) {
++				m_manager->PrintShaderError(m_fragmentShaderUid, "validate", m_fragmentShaderSourceCode.Ptr());
++				DeleteShader();
++			}
++			else {
++				ParseShaderProgram();
++			}
++		}
++	}
++}
++void RAS_2DFilter::InitializeTextures()
++{
++	RAS_ICanvas *canvas = m_manager->GetCanvas();
++	const unsigned int texturewidth = canvas->GetWidth();
++	const unsigned int textureheight = canvas->GetHeight();
++
++	if (m_renderedTextureUniformLocation >= 0) {
++		glGenTextures(1, &m_renderedTextureUid);
++		glBindTexture(GL_TEXTURE_2D, m_renderedTextureUid);
++		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texturewidth, textureheight, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
++	}
++	if (m_depthTextureUniformLocation >= 0) {
++		glGenTextures(1, &m_depthTextureUid);
++		glBindTexture(GL_TEXTURE_2D, m_depthTextureUid);
++		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, texturewidth, textureheight, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE,NULL);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
++	}
++	if (m_luminanceTextureUniformLocation >= 0) {
++		glGenTextures(1, &m_luminanceTextureUid);
++		glBindTexture(GL_TEXTURE_2D, m_luminanceTextureUid);
++		glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, texturewidth, textureheight, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
++	}
++}
++
++/* Fill the textureOffsets array with values used by the shaders to get texture samples
++of nearby fragments. Or vertices or whatever.*/
++void RAS_2DFilter::ComputeTextureOffsets()
++{
++	RAS_ICanvas *canvas = m_manager->GetCanvas();
++	const GLfloat texturewidth = (GLfloat)canvas->GetWidth();
++	const GLfloat textureheight = (GLfloat)canvas->GetHeight();
++	const GLfloat xInc = 1.0f / texturewidth;
++	const GLfloat yInc = 1.0f / textureheight;
++
++	for (int i = 0; i < 3; i++) {
++		for (int j = 0; j < 3; j++) {
++			m_textureOffsets[(((i * 3) + j) * 2) + 0] = (-1.0f * xInc) + ((GLfloat)i * xInc);
++			m_textureOffsets[(((i * 3) + j) * 2) + 1] = (-1.0f * yInc) + ((GLfloat)j * yInc);
++		}
++	}
++}
++
++void RAS_2DFilter::BindShaderProgram()
++{
++	glUseProgramObjectARB(m_shaderProgramUid);
++}
++
++void RAS_2DFilter::UnbindShaderProgram()
++{
++	glUseProgramObjectARB(0);
++}
++
++void RAS_2DFilter::BindUniforms()
++{
++	RAS_ICanvas *canvas = m_manager->GetCanvas();
++	const unsigned int texturewidth = canvas->GetWidth();
++	const unsigned int textureheight = canvas->GetHeight();
++	const unsigned int textureleft = canvas->GetViewPort()[0];
++	const unsigned int texturebottom = canvas->GetViewPort()[1];
++
++	if (m_renderedTextureUniformLocation >= 0) {
++		//create and bind rendered texture
++		glActiveTextureARB(GL_TEXTURE0);
++		glBindTexture(GL_TEXTURE_2D, m_renderedTextureUid);
++		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
++		glUniform1iARB(m_renderedTextureUniformLocation, 0);
++	}
++	if (m_depthTextureUniformLocation >= 0) {
++		//create and bind depth texture
++		glActiveTextureARB(GL_TEXTURE1);
++		glBindTexture(GL_TEXTURE_2D, m_depthTextureUid);
++		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
++		glUniform1iARB(m_depthTextureUniformLocation, 1);
++	}
++	if (m_luminanceTextureUniformLocation >= 0) {
++		//create and bind luminance texture
++		glActiveTextureARB(GL_TEXTURE2);
++		glBindTexture(GL_TEXTURE_2D, m_luminanceTextureUid);
++		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
++		glUniform1iARB(m_luminanceTextureUniformLocation, 2);
++	}
++	if (m_renderedTextureWidthUniformLocation >= 0) {
++		//bind rendered texture width
++		glUniform1fARB(m_renderedTextureWidthUniformLocation, (float)texturewidth);
++	}
++	if (m_renderedTextureHeightUniformLocation >= 0) {
++		//bind rendered texture height
++		glUniform1fARB(m_renderedTextureHeightUniformLocation, (float)textureheight);
++	}
++	if (m_textureOffsetsUniformLocation >= 0) {
++		//bind texture offsets
++		glUniform2fvARB(m_textureOffsetsUniformLocation, 9, m_textureOffsets);
++	}
++
++	for (unsigned int i = 0, size = m_properties.size(); i < size; ++i) {
++		STR_String prop = m_properties[i];
++		unsigned int uniformLoc = m_propertiesLoc[i];
++
++		CValue *property = m_gameObject->GetProperty(prop);
++
++		if (!property)
++			continue;
++
++		switch (property->GetValueType()) {
++			case VALUE_INT_TYPE:
++				glUniform1iARB(uniformLoc, property->GetNumber());
++				break;
++			case VALUE_FLOAT_TYPE:
++				glUniform1fARB(uniformLoc, property->GetNumber());
++				break;
++			default:
++				break;
++		}
++	}
++}
++
++void RAS_2DFilter::DrawOverlayPlane()
++{
++	glActiveTextureARB(GL_TEXTURE0);
++	glDisable(GL_DEPTH_TEST);
++	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
++	glDisable(GL_BLEND);
++	glDisable(GL_ALPHA_TEST);
++	glPushMatrix();
++		glLoadIdentity();
++		glMatrixMode(GL_TEXTURE);
++		glMatrixMode(GL_PROJECTION);
++		glPushMatrix();
++			glLoadIdentity();
++			glActiveTextureARB(GL_TEXTURE0);
++			glBindTexture(GL_TEXTURE_2D, m_renderedTextureUid);
++				glBegin(GL_QUADS);
++					glColor4f(1.f, 1.f, 1.f, 1.0f);
++					
++					glTexCoord2f(1.0, 1.0);
++					glMultiTexCoord2fARB(GL_TEXTURE3_ARB, 1, 1);
++					glVertex2f(1, 1);
++					
++					glTexCoord2f(0.0, 1.0);
++					glMultiTexCoord2fARB(GL_TEXTURE3_ARB, -1, 1);
++					glVertex2f(-1, 1);
++					
++					glTexCoord2f(0.0, 0.0);
++					glMultiTexCoord2fARB(GL_TEXTURE3_ARB, -1, -1);
++					glVertex2f(-1, -1);
++					
++					glTexCoord2f(1.0, 0.0);
++					glMultiTexCoord2fARB(GL_TEXTURE3_ARB, 1, -1);
++					glVertex2f(1, -1);
++				glEnd();
++			glEnable(GL_DEPTH_TEST);
++		glPopMatrix();
++		glMatrixMode(GL_MODELVIEW);
++	glPopMatrix();
++}
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilter.h b/source/gameengine/Rasterizer/RAS_2DFilter.h
+new file mode 100644
+index 0000000..3c728cc
+--- /dev/null
++++ b/source/gameengine/Rasterizer/RAS_2DFilter.h
+@@ -0,0 +1,109 @@
++/*
++* ***** BEGIN GPL LICENSE BLOCK *****
++*
++* This program is free software; you can redistribute it and/or
++* modify it under the terms of the GNU General Public License
++* as published by the Free Software Foundation; either version 2
++* of the License, or (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU General Public License for more details.
++*
++* You should have received a copy of the GNU General Public License
++* along with this program; if not, write to the Free Software Foundation,
++* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++*
++* Contributor(s): none yet.
++*
++* ***** END GPL LICENSE BLOCK *****
++*/
++
++#ifndef __RAS_2DFILTER_H__
++#define __RAS_2DFILTER_H__
++
++#include "RAS_2DFilterData.h"
++
++class RAS_2DFilterManager;
++class CValue;
++
++class RAS_2DFilter
++{
++private:
++	/// Names of the predefined values available to glsl shaders
++	static const char *UNIFORM_NAME_RENDERED_TEXTURE;
++	static const char *UNIFORM_NAME_LUMINANCE_TEXTURE;
++	static const char *UNIFORM_NAME_DEPTH_TEXTURE;
++	static const char *UNIFORM_NAME_RENDERED_TEXTURE_WIDTH;
++	static const char *UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT;
++	static const char *UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS;
++
++	RAS_2DFilterManager *m_manager;
++
++	STR_String m_uid;
++	STR_String m_fragmentShaderSourceCode;
++
++	unsigned int m_shaderProgramUid;
++	unsigned int m_fragmentShaderUid;
++	int m_renderedTextureUniformLocation;
++	int m_luminanceTextureUniformLocation;
++	int m_depthTextureUniformLocation;
++	int m_renderedTextureWidthUniformLocation;
++	int m_renderedTextureHeightUniformLocation;
++	int m_textureOffsetsUniformLocation;
++	unsigned int m_renderedTextureUid;
++	unsigned int m_luminanceTextureUid;
++	unsigned int m_depthTextureUid;
++
++	std::vector<STR_String> m_properties;
++	std::vector<unsigned int> m_propertiesLoc;
++	CValue *m_gameObject;
++
++	/** A set of vec2 coordinates that the shaders use to sample nearby pixels from incoming textures.
++	The computation should be left to the glsl shader, I keep it for backward compatibility. */
++	static const int TEXTURE_OFFSETS_SIZE = 18; //9 vec2 entries
++	float m_textureOffsets[TEXTURE_OFFSETS_SIZE]; 
++	int m_passIndex;
++	bool m_enabled;
++	bool m_initialized;
++
++	void ParseShaderProgram();
++	void InitializeShader();
++	void InitializeTextures();
++	void BindShaderProgram();
++	void UnbindShaderProgram();
++	void BindUniforms();
++	void DrawOverlayPlane();
++	void ComputeTextureOffsets();
++	void ReleaseTextures();
++	void DeleteShader();
++
++public:
++	RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager);
++	~RAS_2DFilter();
++
++	/// Called by the filter manager when it has informations like the display size, a gl context...
++	void Initialize();
++
++	/// Starts executing the filter.
++	void Start();
++
++	/// Finalizes the execution stage of the filter.
++	void End();
++
++	/// The pass index determines the precedence of this filter over other filters in the same context.
++	int GetPassIndex();
++
++	/// Returns the unique name of this filter in the filters' context.
++	STR_String& GetUid();
++
++	/// Enables / disables this filter. A disabled filter has no effect on the rendering.
++	void SetEnabled(bool enabled);
++
++	/// Checks if a RAS_2DFilterData identifies a predefined shader.
++	static bool IsPredefinedGlslShader(RAS_2DFilterData& data);
++};
++
++#endif // __RAS_2DFILTER_H__
++
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilterData.cpp b/source/gameengine/Rasterizer/RAS_2DFilterData.cpp
+new file mode 100644
+index 0000000..7ac1f90
+--- /dev/null
++++ b/source/gameengine/Rasterizer/RAS_2DFilterData.cpp
+@@ -0,0 +1,36 @@
++/*
++* ***** BEGIN GPL LICENSE BLOCK *****
++*
++* This program is free software; you can redistribute it and/or
++* modify it under the terms of the GNU General Public License
++* as published by the Free Software Foundation; either version 2
++* of the License, or (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU General Public License for more details.
++*
++* You should have received a copy of the GNU General Public License
++* along with this program; if not, write to the Free Software Foundation,
++* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++*
++* Contributor(s): none yet.
++*
++* ***** END GPL LICENSE BLOCK *****
++*/
++#include "RAS_2DFilterData.h"
++#include "STR_String.h"
++
++RAS_2DFilterData::RAS_2DFilterData()
++	:gameObject(NULL),
++	filterMode(-1),
++	filterPassIndex(-1),
++	outputBufferWidth(0),
++	outputBufferHeight(0)
++{
++}
++
++RAS_2DFilterData::~RAS_2DFilterData()
++{
++}
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilterData.h b/source/gameengine/Rasterizer/RAS_2DFilterData.h
+new file mode 100644
+index 0000000..3d37ec1
+--- /dev/null
++++ b/source/gameengine/Rasterizer/RAS_2DFilterData.h
+@@ -0,0 +1,61 @@
++/*
++* ***** BEGIN GPL LICENSE BLOCK *****
++*
++* This program is free software; you can redistribute it and/or
++* modify it under the terms of the GNU General Public License
++* as published by the Free Software Foundation; either version 2
++* of the License, or (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU General Public License for more details.
++*
++* You should have received a copy of the GNU General Public License
++* along with this program; if not, write to the Free Software Foundation,
++* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++*
++* Contributor(s): none yet.
++*
++* ***** END GPL LICENSE BLOCK *****
++*/
++
++#ifndef __RAS_2DFILTERDATA__
++#define __RAS_2DFILTERDATA__
++
++#include <vector>
++#include "STR_String.h"
++
++class CValue;
++
++/** This type is used to pack data received from a 2D Filter actuator and send it to
++the RAS_2DFilterManager::AddFilter method, because the number of parameters needed by
++a custom filter may become quite large and a function with a thousands paramters doesn't look
++very good. So it's purely for readability. */
++class RAS_2DFilterData
++{
++public:
++	RAS_2DFilterData();
++	virtual ~RAS_2DFilterData();
++
++	/** This is supposed to be an unique identifier for the filter. The old system used
++	the pass index as identifier but the user interface (and maybe postprocessing) allows
++	filters to share the same pass index. */
++	STR_String filterIdentifier;
++
++	/// The names of the properties of the game object that the shader may want to use as uniforms.
++	std::vector<STR_String> propertyNames;
++	/// The KX_GameObject (or something else?) that provides the values for the uniforms named above.
++	CValue *gameObject;
++	/// Should be a SCA_2DFilterActuator.FILTER_MODE value.
++	int filterMode;
++	/// In the original design this was bot the pass index and the unique identifier of the filter in the filter manager.
++	unsigned int filterPassIndex;
++	/// This is the shader program source code IF the filter is not a predefined one.
++	STR_String shaderText;
++	/// If > 0 tells that the filter wants an offscreen buffer to render into (possibly smaller than the viewport, for performance reasons).
++	int outputBufferWidth;
++	/// If > 0 tells that the filter wants... actually a tuple2 might have been a better idea.
++	int outputBufferHeight;
++};
++#endif // __RAS_2DFILTERDATA__
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilterManager.cpp b/source/gameengine/Rasterizer/RAS_2DFilterManager.cpp
+index 82b2674..895cc54 100644
+--- a/source/gameengine/Rasterizer/RAS_2DFilterManager.cpp
++++ b/source/gameengine/Rasterizer/RAS_2DFilterManager.cpp
+@@ -24,8 +24,14 @@
+  *  \ingroup bgerast
+  */
+ 
+-#define STRINGIFY(A)  #A
++#include "RAS_ICanvas.h"
++#include "RAS_2DFilterManager.h"
++#include "RAS_2DFilter.h"
++#include <iostream>
+ 
++#include "glew-mx.h"
++
++#define STRINGIFY(A) #A
+ #include "RAS_OpenGLFilters/RAS_Blur2DFilter.h"
+ #include "RAS_OpenGLFilters/RAS_Sharpen2DFilter.h"
+ #include "RAS_OpenGLFilters/RAS_Dilation2DFilter.h"
+@@ -37,526 +43,148 @@
+ #include "RAS_OpenGLFilters/RAS_Sepia2DFilter.h"
+ #include "RAS_OpenGLFilters/RAS_Invert2DFilter.h"
+ 
+-#include "STR_String.h"
+-#include "RAS_ICanvas.h"
+-#include "RAS_Rect.h"
+-#include "RAS_2DFilterManager.h"
+-#include <iostream>
+-
+-#include "glew-mx.h"
+ 
+-#include <stdio.h>
+-
+-#include "EXP_Value.h"
+-
+-RAS_2DFilterManager::RAS_2DFilterManager():
+-texturewidth(-1), textureheight(-1),
+-/* numberoffilters(0), */ /* UNUSED */ need_tex_update(true)
++RAS_2DFilterManager::RAS_2DFilterManager(RAS_ICanvas *canvas)
++	:m_canvas(canvas)
+ {
+-	isshadersupported = GLEW_ARB_shader_objects &&
+-		GLEW_ARB_fragment_shader && GLEW_ARB_multitexture;
+-
+-	/* used to return before 2.49 but need to initialize values so don't */
+-	if (!isshadersupported)
+-		std::cout<<"shaders not supported!" << std::endl;
+-
+-	int passindex;
+-	for (passindex =0; passindex<MAX_RENDER_PASS; passindex++)
+-	{
+-		m_filters[passindex] = 0;
+-		m_enabled[passindex] = 0;
+-		texflag[passindex] = 0;
+-		m_gameObjects[passindex] = NULL;
+-	}
+-	texname[0] = texname[1] = texname[2] = -1;
+-	errorprinted= false;
+ }
+ 
+ RAS_2DFilterManager::~RAS_2DFilterManager()
+ {
+-	FreeTextures();
+-
+-	for (int passindex = 0; passindex < MAX_RENDER_PASS; passindex++) {
+-		if (m_filters[passindex]) {
+-			glDeleteObjectARB(m_filters[passindex]);
+-		}
++	for (RAS_PassTo2DFilter::iterator it = m_filters.begin(), end = m_filters.end(); it != end; ++it) {
++		RAS_2DFilter *filter = it->second;
++		delete filter;
+ 	}
+ }
+ 
+-void RAS_2DFilterManager::PrintShaderErrors(unsigned int shader, const char *task, const char *code)
++void RAS_2DFilterManager::PrintShaderError(unsigned int shaderUid, const char *title, const char *shaderCode)
+ {
+-	GLcharARB log[5000];
+-	GLsizei length = 0;
+-	const char *c, *pos, *end;
+-	int line = 1;
+-
+-	if (errorprinted)
+-		return;
+-	
+-	errorprinted= true;
+-
+-	glGetInfoLogARB(shader, sizeof(log), &length, log);
+-	end = code + strlen(code);
+-
+-	printf("2D Filter GLSL Shader: %s error:\n", task);
+-
+-	c = code;
+-	while ((c < end) && (pos = strchr(c, '\n'))) {
+-		printf("%2d  ", line);
+-		fwrite(c, (pos+1)-c, 1, stdout);
+-		c = pos+1;
+-		line++;
++	std::cout << "2D Filter GLSL Shader: " << title << " error." << std::endl;
++	const int MAX_LOG_CHAR_COUNT = 5000;
++	GLint maxLogSize = 0;
++	glGetShaderiv(shaderUid, GL_INFO_LOG_LENGTH, &maxLogSize);
++	if(maxLogSize > 1) {
++		GLsizei infoLogRetSize = 0;
++		if (maxLogSize > MAX_LOG_CHAR_COUNT) {
++			maxLogSize = MAX_LOG_CHAR_COUNT;
++		}
++		GLcharARB logCharBuffer[maxLogSize];
++		glGetInfoLogARB(shaderUid, maxLogSize, &infoLogRetSize, logCharBuffer);
++		std::cout << logCharBuffer << std::endl;
+ 	}
+-
+-	puts(c);
+-	puts(log);
+-	puts("\n");
+ }
+ 
+-unsigned int RAS_2DFilterManager::CreateShaderProgram(const char* shadersource)
++RAS_2DFilter *RAS_2DFilterManager::AddFilter(RAS_2DFilterData& filterData)
+ {
+-	GLuint program = 0;
+-	GLuint fShader = glCreateShaderObjectARB(GL_FRAGMENT_SHADER);
+-	GLint success;
+-
+-	glShaderSourceARB(fShader, 1, (const char**)&shadersource, NULL);
+-
+-	glCompileShaderARB(fShader);
+-
++	RAS_2DFilter *filter = CreateFilter(filterData);
+ 
+-	glGetObjectParameterivARB(fShader, GL_COMPILE_STATUS, &success);
+-	if (!success) {
+-		/*Shader Comile Error*/
+-		PrintShaderErrors(fShader, "compile", shadersource);
+-		goto fail;
+-	}
+-		
+-	program = glCreateProgramObjectARB();
+-	glAttachObjectARB(program, fShader);
+-
+-	glLinkProgramARB(program);
+-	glGetObjectParameterivARB(program, GL_LINK_STATUS, &success);
+-	if (!success) {
+-		/*Program Link Error*/
+-		PrintShaderErrors(fShader, "link", shadersource);
+-		goto fail;
+-	}
+-	
+-	glValidateProgramARB(program);
+-	glGetObjectParameterivARB(program, GL_VALIDATE_STATUS, &success);
+-	if (!success) {
+-		/*Program Validation Error*/
+-		PrintShaderErrors(fShader, "validate", shadersource);
+-		goto fail;
+-	}
+-
+-	/* owned by 'program' */
+-	if (fShader) {
+-		glDeleteObjectARB(fShader);
+-	}
+-
+-	return program;
++	m_filters[filterData.filterPassIndex] = filter;
+ 
+-
+-fail:
+-	if (fShader) {
+-		glDeleteObjectARB(fShader);
+-	}
+-
+-	if (program) {
+-		glDeleteObjectARB(program);
+-	}
+-	return 0;
++	return filter;
+ }
+ 
+-unsigned int RAS_2DFilterManager::CreateShaderProgram(int filtermode)
++/* Enables all the filters at some pass index */
++void RAS_2DFilterManager::EnableFilterPass(unsigned int passIndex)
+ {
+-	switch (filtermode) {
+-		case RAS_2DFILTER_BLUR:
+-			return CreateShaderProgram(BlurFragmentShader);
+-		case RAS_2DFILTER_SHARPEN:
+-			return CreateShaderProgram(SharpenFragmentShader);
+-		case RAS_2DFILTER_DILATION:
+-			return CreateShaderProgram(DilationFragmentShader);
+-		case RAS_2DFILTER_EROSION:
+-			return CreateShaderProgram(ErosionFragmentShader);
+-		case RAS_2DFILTER_LAPLACIAN:
+-			return CreateShaderProgram(LaplacionFragmentShader);
+-		case RAS_2DFILTER_SOBEL:
+-			return CreateShaderProgram(SobelFragmentShader);
+-		case RAS_2DFILTER_PREWITT:
+-			return CreateShaderProgram(PrewittFragmentShader);
+-		case RAS_2DFILTER_GRAYSCALE:
+-			return CreateShaderProgram(GrayScaleFragmentShader);
+-		case RAS_2DFILTER_SEPIA:
+-			return CreateShaderProgram(SepiaFragmentShader);
+-		case RAS_2DFILTER_INVERT:
+-			return CreateShaderProgram(InvertFragmentShader);
++	RAS_2DFilter *filter = GetFilterPass(passIndex);
++	if (filter) {
++		filter->SetEnabled(true);
+ 	}
+-	return 0;
+ }
+ 
+-void RAS_2DFilterManager::AnalyseShader(int passindex, vector<STR_String>& propNames)
++/* Disables all the filters at some pass index */
++void RAS_2DFilterManager::DisableFilterPass(unsigned int passIndex)
+ {
+-	texflag[passindex] = 0;
+-	if (glGetUniformLocationARB(m_filters[passindex], "bgl_DepthTexture") != -1)
+-	{
+-		if (GLEW_ARB_depth_texture)
+-			texflag[passindex] |= 0x1;
+-	}
+-	if (glGetUniformLocationARB(m_filters[passindex], "bgl_LuminanceTexture") != -1)
+-	{
+-		texflag[passindex] |= 0x2;
+-	}
+-
+-	if (m_gameObjects[passindex])
+-	{
+-		int objProperties = propNames.size();
+-		int i;
+-		for (i=0; i<objProperties; i++)
+-			if (glGetUniformLocationARB(m_filters[passindex], propNames[i]) != -1)
+-				m_properties[passindex].push_back(propNames[i]);
++	RAS_2DFilter *filter = GetFilterPass(passIndex);
++	if (filter) {
++		filter->SetEnabled(false);
+ 	}
+ }
+ 
+-void RAS_2DFilterManager::StartShaderProgram(int passindex)
++/* Removes all the filters at some pass index from the .filters vector */
++void RAS_2DFilterManager::RemoveFilterPass(unsigned int passIndex)
+ {
+-	GLint uniformLoc;
+-	glUseProgramObjectARB(m_filters[passindex]);
+-	uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_RenderedTexture");
+-	glActiveTextureARB(GL_TEXTURE0);
+-	glBindTexture(GL_TEXTURE_2D, texname[0]);
+-
+-	if (uniformLoc != -1)
+-	{
+-		glUniform1iARB(uniformLoc, 0);
+-	}
+-
+-	/* send depth texture to glsl program if it needs */
+-	if (texflag[passindex] & 0x1) {
+-		uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_DepthTexture");
+-		glActiveTextureARB(GL_TEXTURE1);
+-		glBindTexture(GL_TEXTURE_2D, texname[1]);
+-
+-		if (uniformLoc != -1)
+-		{
+-			glUniform1iARB(uniformLoc, 1);
+-		}
+-	}
+-
+-	/* send luminance texture to glsl program if it needs */
+-	if (texflag[passindex] & 0x2) {
+-		uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_LuminanceTexture");
+-		glActiveTextureARB(GL_TEXTURE2);
+-		glBindTexture(GL_TEXTURE_2D, texname[2]);
+-
+-		if (uniformLoc != -1)
+-		{
+-			glUniform1iARB(uniformLoc, 2);
+-		}
+-	}
+-	
+-	uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_TextureCoordinateOffset");
+-	if (uniformLoc != -1)
+-	{
+-		glUniform2fvARB(uniformLoc, 9, textureoffsets);
+-	}
+-	uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_RenderedTextureWidth");
+-	if (uniformLoc != -1)
+-	{
+-		glUniform1fARB(uniformLoc,texturewidth);
+-	}
+-	uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_RenderedTextureHeight");
+-	if (uniformLoc != -1)
+-	{
+-		glUniform1fARB(uniformLoc,textureheight);
+-	}
+-
+-	int i, objProperties = m_properties[passindex].size();
+-	for (i=0; i<objProperties; i++)
+-	{
+-		uniformLoc = glGetUniformLocationARB(m_filters[passindex], m_properties[passindex][i]);
+-
+-		if (uniformLoc == -1)
+-			continue;
+-
+-		CValue *property = ((CValue *)m_gameObjects[passindex])->GetProperty(m_properties[passindex][i]);
+-
+-		if (!property)
+-			continue;
+-
+-		switch (property->GetValueType()) {
+-			case VALUE_INT_TYPE:
+-				glUniform1iARB(uniformLoc, property->GetNumber());
+-				break;
+-			case VALUE_FLOAT_TYPE:
+-				glUniform1fARB(uniformLoc, property->GetNumber());
+-				break;
+-			default:
+-				break;
+-		}
+-	}
++	m_filters.erase(passIndex);
+ }
+ 
+-void RAS_2DFilterManager::EndShaderProgram()
++RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
+ {
+-	glUseProgramObjectARB(0);
++	RAS_PassTo2DFilter::iterator it = m_filters.find(passIndex);
++	return (it != m_filters.end()) ? it->second : NULL;
+ }
+ 
+-void RAS_2DFilterManager::FreeTextures()
++/* Applies the filters to the scene. */
++void RAS_2DFilterManager::RenderFilters()
+ {
+-	if (texname[0]!=(unsigned int)-1)
+-		glDeleteTextures(1, (GLuint*)&texname[0]);
+-	if (texname[1]!=(unsigned int)-1)
+-		glDeleteTextures(1, (GLuint*)&texname[1]);
+-	if (texname[2]!=(unsigned int)-1)
+-		glDeleteTextures(1, (GLuint*)&texname[2]);
++	ApplyFilters();
+ }
+ 
+-void RAS_2DFilterManager::SetupTextures(bool depth, bool luminance)
++/* Returns the rectangular renderable portion of the screen (RAS_GLSLFilterContext impl). */
++RAS_ICanvas *RAS_2DFilterManager::GetCanvas()
+ {
+-	FreeTextures();
+-	
+-	glGenTextures(1, (GLuint*)&texname[0]);
+-	glBindTexture(GL_TEXTURE_2D, texname[0]);
+-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texturewidth, textureheight, 0, GL_RGBA,
+-			GL_UNSIGNED_BYTE, 0);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+-
+-	if (depth) {
+-		glGenTextures(1, (GLuint*)&texname[1]);
+-		glBindTexture(GL_TEXTURE_2D, texname[1]);
+-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, texturewidth,textureheight,
+-		             0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE,NULL);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE,
+-		                GL_NONE);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+-	}
+-
+-	if (luminance) {
+-		glGenTextures(1, (GLuint*)&texname[2]);
+-		glBindTexture(GL_TEXTURE_2D, texname[2]);
+-		glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, texturewidth, textureheight,
+-			 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+-	}
++	return m_canvas;
+ }
+ 
+-void RAS_2DFilterManager::UpdateOffsetMatrix(RAS_ICanvas* canvas)
++RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
+ {
+-	/* RAS_Rect canvas_rect = canvas->GetWindowArea(); */ /* UNUSED */
+-	texturewidth = canvas->GetWidth()+1;
+-	textureheight = canvas->GetHeight()+1;
+-	GLint i,j;
+-
+-	if (!GL_ARB_texture_non_power_of_two)
+-	{
+-		i = 0;
+-		while ((1 << i) <= texturewidth)
+-			i++;
+-		texturewidth = (1 << (i));
+-
+-		// Now for height
+-		i = 0;
+-		while ((1 << i) <= textureheight)
+-			i++;
+-		textureheight = (1 << (i));
+-	}
+-
+-	GLfloat	xInc = 1.0f / (GLfloat)texturewidth;
+-	GLfloat yInc = 1.0f / (GLfloat)textureheight;
+-	
+-	for (i = 0; i < 3; i++)
+-	{
+-		for (j = 0; j < 3; j++)
+-		{
+-			textureoffsets[(((i*3)+j)*2)+0] = (-1.0f * xInc) + ((GLfloat)i * xInc);
+-			textureoffsets[(((i*3)+j)*2)+1] = (-1.0f * yInc) + ((GLfloat)j * yInc);
++	RAS_2DFilter *result = NULL;
++	const char *shaderSource = NULL;
++	switch(filterData.filterMode) {
++		case RAS_2DFilterManager::FILTER_MOTIONBLUR:
++			break;
++		case RAS_2DFilterManager::FILTER_BLUR:
++			shaderSource = BlurFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_SHARPEN:
++			shaderSource = SharpenFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_DILATION:
++			shaderSource = DilationFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_EROSION:
++			shaderSource = ErosionFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_LAPLACIAN:
++			shaderSource = LaplacianFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_SOBEL:
++			shaderSource = SobelFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_PREWITT:
++			shaderSource = PrewittFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_GRAYSCALE:
++			shaderSource = GrayScaleFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_SEPIA:
++			shaderSource = SepiaFragmentShader;
++			break;
++		case RAS_2DFilterManager::FILTER_INVERT:
++			shaderSource = InvertFragmentShader;
++			break;
++	}
++	if (!shaderSource) {
++		if(filterData.filterMode == RAS_2DFilterManager::FILTER_CUSTOMFILTER) {
++			result = new RAS_2DFilter(filterData, this);
+ 		}
+-	}
+-}
+-
+-void RAS_2DFilterManager::UpdateCanvasTextureCoord(const int viewport[4])
+-{
+-	/*
+-	 * This function update canvascoord[].
+-	 * These parameters are used to create texcoord[1]
+-	 * That way we can access the texcoord relative to the canvas:
+-	 * (0.0,0.0) bottom left, (1.0,1.0) top right, (0.5,0.5) center
+-	 */
+-	canvascoord[0] = (GLfloat) viewport[0] / -viewport[2];
+-	canvascoord[1] = (GLfloat) (texturewidth - viewport[0]) / viewport[2];
+- 
+-	canvascoord[2] = (GLfloat) viewport[1] / -viewport[3];
+-	canvascoord[3] = (GLfloat)(textureheight - viewport[1]) / viewport[3];
+-}
+-
+-void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
+-{
+-	bool need_depth=false;
+-	bool need_luminance=false;
+-	int num_filters = 0;
+-
+-	int passindex;
+-
+-	if (!isshadersupported)
+-		return;
+-
+-	for (passindex =0; passindex<MAX_RENDER_PASS; passindex++)
+-	{
+-		if (m_filters[passindex] && m_enabled[passindex]) {
+-			num_filters ++;
+-			if (texflag[passindex] & 0x1)
+-				need_depth = true;
+-			if (texflag[passindex] & 0x2)
+-				need_luminance = true;
+-			if (need_depth && need_luminance)
+-				break;
++		else {
++			std::cout << "cannot create filter for mode " << filterData.filterMode << std::endl;
+ 		}
+ 	}
+-
+-	if (num_filters <= 0)
+-		return;
+-
+-	const int *viewport = canvas->GetViewPort();
+-
+-	if (texturewidth != viewport[2] || textureheight != viewport[3])
+-	{
+-		UpdateOffsetMatrix(canvas);
+-		UpdateCanvasTextureCoord(viewport);
+-		need_tex_update = true;
+-	}
+-	
+-	if (need_tex_update)
+-	{
+-		SetupTextures(need_depth, need_luminance);
+-		need_tex_update = false;
+-	}
+-
+-	if (need_depth) {
+-		glActiveTextureARB(GL_TEXTURE1);
+-		glBindTexture(GL_TEXTURE_2D, texname[1]);
+-		glCopyTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT, viewport[0], viewport[1], viewport[2], viewport[3], 0);
+-	}
+-	
+-	if (need_luminance) {
+-		glActiveTextureARB(GL_TEXTURE2);
+-		glBindTexture(GL_TEXTURE_2D, texname[2]);
+-		glCopyTexImage2D(GL_TEXTURE_2D,0,GL_LUMINANCE16, viewport[0], viewport[1], viewport[2], viewport[3], 0);
++	else {
++		filterData.shaderText = shaderSource;
++		result = new RAS_2DFilter(filterData, this);
+ 	}
+-
+-	// reverting to texunit 0, without this we get bug [#28462]
+-	glActiveTextureARB(GL_TEXTURE0);
+-
+-	// We do this to make side-by-side stereo rendering work correctly with 2D filters. It would probably be nicer to just set the viewport,
+-	// but it can be easier for writing shaders to have the coordinates for the whole screen instead of just part of the screen. 
+-	RAS_Rect scissor_rect = canvas->GetDisplayArea();
+-
+-	glScissor(scissor_rect.GetLeft() + viewport[0],
+-	          scissor_rect.GetBottom() + viewport[1],
+-	          scissor_rect.GetWidth() + 1,
+-	          scissor_rect.GetHeight() + 1);
+-
+-	glDisable(GL_DEPTH_TEST);
+-	// in case the previous material was wire
+-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+-	// if the last rendered face had alpha add it would messes with the color of the plane we apply 2DFilter to
+-	glDisable(GL_BLEND); 
+-	// fix for [#34523] alpha buffer is now available for all OSs
+-	glDisable(GL_ALPHA_TEST);
+-
+-	glPushMatrix();		//GL_MODELVIEW
+-	glLoadIdentity();	// GL_MODELVIEW
+-	glMatrixMode(GL_TEXTURE);
+-	glLoadIdentity();
+-	glMatrixMode(GL_PROJECTION);
+-	glPushMatrix();
+-	glLoadIdentity();
+-
+-	for (passindex =0; passindex<MAX_RENDER_PASS; passindex++)
+-	{
+-		if (m_filters[passindex] && m_enabled[passindex])
+-		{
+-			StartShaderProgram(passindex);
+-
+-			glActiveTextureARB(GL_TEXTURE0);
+-			glBindTexture(GL_TEXTURE_2D, texname[0]);
+-			glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, viewport[0], viewport[1], viewport[2], viewport[3], 0); // Don't use texturewidth and textureheight in case we don't have NPOT support
+-			glClear(GL_COLOR_BUFFER_BIT);
+-
+-			glBegin(GL_QUADS);
+-				glColor4f(1.f, 1.f, 1.f, 1.f);
+-				glTexCoord2f(1.0f, 1.0f);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[1], canvascoord[3]); glVertex2f(1.0f,1.0f);
+-				glTexCoord2f(0.0f, 1.0f);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[0], canvascoord[3]); glVertex2f(-1.0f,1.0f);
+-				glTexCoord2f(0.0f, 0.0f);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[0], canvascoord[2]); glVertex2f(-1.0f,-1.0f);
+-				glTexCoord2f(1.0f, 0.0f);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[1], canvascoord[2]); glVertex2f(1.0f,-1.0f);
+-			glEnd();
+-		}
+-	}
+-
+-	glEnable(GL_DEPTH_TEST);
+-	EndShaderProgram();
+-	glPopMatrix();
+-	glMatrixMode(GL_MODELVIEW);
+-	glPopMatrix();
++	return result;
+ }
+ 
+-void RAS_2DFilterManager::EnableFilter(vector<STR_String>& propNames, void* gameObj, RAS_2DFILTER_MODE mode, int pass, STR_String& text)
++/* Loops throught the filters' vector and runs each filter found. Filters are applied according to their
++pass index, as long as the filters' vector is sorted by pass index. */
++void RAS_2DFilterManager::ApplyFilters()
+ {
+-	if (!isshadersupported)
+-		return;
+-	if (pass<0 || pass>=MAX_RENDER_PASS)
+-		return;
+-	need_tex_update = true;
+-	if (mode == RAS_2DFILTER_DISABLED)
+-	{
+-		m_enabled[pass] = 0;
+-		return;
+-	}
+-
+-	if (mode == RAS_2DFILTER_ENABLED)
+-	{
+-		m_enabled[pass] = 1;
+-		return;
+-	}
+-
+-	if (mode == RAS_2DFILTER_NOFILTER)
+-	{
+-		if (m_filters[pass])
+-			glDeleteObjectARB(m_filters[pass]);
+-		m_enabled[pass] = 0;
+-		m_filters[pass] = 0;
+-		m_gameObjects[pass] = NULL;
+-		m_properties[pass].clear();
+-		texflag[pass] = 0;
+-		return;
++	for (RAS_PassTo2DFilter::iterator it = m_filters.begin(), end = m_filters.end(); it != end; ++it) {
++		RAS_2DFilter *filter = it->second;
++		filter->Start();
++		filter->End();
+ 	}
+-	
+-	if (mode == RAS_2DFILTER_CUSTOMFILTER)
+-	{
+-		if (m_filters[pass])
+-			glDeleteObjectARB(m_filters[pass]);
+-		m_filters[pass] = CreateShaderProgram(text.Ptr());
+-		m_gameObjects[pass] = gameObj;
+-		AnalyseShader(pass, propNames);
+-		m_enabled[pass] = 1;
+-		return;
+-	}
+-
+-	// We've checked all other cases, which means we must be dealing with a builtin filter
+-	if (m_filters[pass])
+-		glDeleteObjectARB(m_filters[pass]);
+-	m_filters[pass] = CreateShaderProgram(mode);
+-	m_gameObjects[pass] = NULL;
+-	AnalyseShader(pass, propNames);
+-	m_enabled[pass] = 1;
+-}
++}
+\ No newline at end of file
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilterManager.h b/source/gameengine/Rasterizer/RAS_2DFilterManager.h
+index bb727fe..bab5bb8 100644
+--- a/source/gameengine/Rasterizer/RAS_2DFilterManager.h
++++ b/source/gameengine/Rasterizer/RAS_2DFilterManager.h
+@@ -32,83 +32,75 @@
+ #ifndef __RAS_2DFILTERMANAGER_H__
+ #define __RAS_2DFILTERMANAGER_H__
+ 
+-#define MAX_RENDER_PASS	100
++#include "RAS_2DFilterData.h"
++#include <map>
+ 
+ #ifdef WITH_CXX_GUARDEDALLOC
+ #include "MEM_guardedalloc.h"
+ #endif
+ 
+ class RAS_ICanvas;
++class RAS_2DFilter;
++
++typedef std::map<unsigned int, RAS_2DFilter *> RAS_PassTo2DFilter;
+ 
+ class RAS_2DFilterManager
+ {
+-private:
+-	unsigned int	CreateShaderProgram(const char* shadersource);
+-	unsigned int	CreateShaderProgram(int filtermode);
+-	void		AnalyseShader(int passindex, std::vector<STR_String>& propNames);
+-	void			StartShaderProgram(int passindex);
+-	void			EndShaderProgram();
+-	void			PrintShaderErrors(unsigned int shader, const char *task, const char *code);
+-
+-	void SetupTextures(bool depth, bool luminance);
+-	void FreeTextures();
+-
+-	void UpdateOffsetMatrix(RAS_ICanvas* canvas);
+-	void UpdateCanvasTextureCoord(const int viewport[4]);
+- 
+-	float			canvascoord[4];
+-	float			textureoffsets[18];
+-	/* float			view[4]; */ /* UNUSED */
+-	/* texname[0] contains render to texture, texname[1] contains depth texture,  texname[2] contains luminance texture*/
+-	unsigned int	texname[3]; 
+-	int				texturewidth;
+-	int				textureheight;
+-	/* int				numberoffilters; */ /* UNUSED */
+-	/* bit 0: enable/disable depth texture
+-	 * bit 1: enable/disable luminance texture*/
+-	short			texflag[MAX_RENDER_PASS];
+-
+-	bool			isshadersupported;
+-	bool			errorprinted;
+-	bool			need_tex_update;
+-
+-	unsigned int	m_filters[MAX_RENDER_PASS];
+-	short		m_enabled[MAX_RENDER_PASS];
+-
+-	// stores object properties to send to shaders in each pass
+-	std::vector<STR_String>	m_properties[MAX_RENDER_PASS];
+-	void* m_gameObjects[MAX_RENDER_PASS];
+ public:
+-	enum RAS_2DFILTER_MODE {
+-		RAS_2DFILTER_ENABLED = -2,
+-		RAS_2DFILTER_DISABLED = -1,
+-		RAS_2DFILTER_NOFILTER = 0,
+-		RAS_2DFILTER_MOTIONBLUR,
+-		RAS_2DFILTER_BLUR,
+-		RAS_2DFILTER_SHARPEN,
+-		RAS_2DFILTER_DILATION,
+-		RAS_2DFILTER_EROSION,
+-		RAS_2DFILTER_LAPLACIAN,
+-		RAS_2DFILTER_SOBEL,
+-		RAS_2DFILTER_PREWITT,
+-		RAS_2DFILTER_GRAYSCALE,
+-		RAS_2DFILTER_SEPIA,
+-		RAS_2DFILTER_INVERT,
+-		RAS_2DFILTER_CUSTOMFILTER,
+-		RAS_2DFILTER_NUMBER_OF_FILTERS
++	enum FILTER_MODE {
++		FILTER_ENABLED = -2,
++		FILTER_DISABLED = -1,
++		FILTER_NOFILTER = 0,
++		FILTER_MOTIONBLUR,
++		FILTER_BLUR,
++		FILTER_SHARPEN,
++		FILTER_DILATION,
++		FILTER_EROSION,
++		FILTER_LAPLACIAN,
++		FILTER_SOBEL,
++		FILTER_PREWITT,
++		FILTER_GRAYSCALE,
++		FILTER_SEPIA,
++		FILTER_INVERT,
++		FILTER_CUSTOMFILTER,
++		FILTER_NUMBER_OF_FILTERS
+ 	};
+ 
+-	RAS_2DFilterManager();
++	RAS_2DFilterManager(RAS_ICanvas *canvas);
++	virtual ~RAS_2DFilterManager();
++
++	void PrintShaderError(unsigned int shaderUid, const char *title, const char *shaderCode);
++
++	void RenderFilters();
++
++	/// Add a filter to the stack of filters managed by this object.
++	RAS_2DFilter *AddFilter(RAS_2DFilterData& filterData);
+ 
+-	~RAS_2DFilterManager();
++	/// Enables all the filters with pass index info.passIndex.
++	void EnableFilterPass(unsigned int passIndex);
+ 
+-	void RenderFilters(RAS_ICanvas* canvas);
++	/// Disables all the filters with pass index info.passIndex.
++	void DisableFilterPass(unsigned int passIndex);
+ 
+-	void EnableFilter(std::vector<STR_String>& propNames, void* gameObj, RAS_2DFILTER_MODE mode, int pass, STR_String& text);
++	/// Removes all filters at a given pass index.
++	void RemoveFilterPass(unsigned int passIndex);
++
++	RAS_2DFilter *GetFilterPass(unsigned int passIndex);
++
++	void ApplyFilters();
++
++	RAS_ICanvas *GetCanvas();
++
++private:
++	RAS_PassTo2DFilter m_filters;
++	RAS_ICanvas *m_canvas;
+ 
++	/** Creates a filter matching the given filter data. Returns NULL if no
++	 * filter can be created with such information. */
++	RAS_2DFilter *CreateFilter(RAS_2DFilterData& filterData);
+ 
+ #ifdef WITH_CXX_GUARDEDALLOC
+-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_2DFilterManager")
++MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_2DFilterManager")
+ #endif
+ };
+ #endif
+diff --git a/source/gameengine/Rasterizer/RAS_OpenGLFilters/RAS_Laplacian2DFilter.h b/source/gameengine/Rasterizer/RAS_OpenGLFilters/RAS_Laplacian2DFilter.h
+index 9ec5092..f7ad7a2 100644
+--- a/source/gameengine/Rasterizer/RAS_OpenGLFilters/RAS_Laplacian2DFilter.h
++++ b/source/gameengine/Rasterizer/RAS_OpenGLFilters/RAS_Laplacian2DFilter.h
+@@ -32,7 +32,7 @@
+ #ifndef __RAS_LAPLACIAN2DFILTER_H__
+ #define __RAS_LAPLACIAN2DFILTER_H__
+ 
+-static const char *LaplacionFragmentShader = STRINGIFY(
++static const char *LaplacianFragmentShader = STRINGIFY(
+ uniform sampler2D bgl_RenderedTexture;
+ uniform vec2 bgl_TextureCoordinateOffset[9];
+ 
+diff --git a/source/gameengine/Converter/KX_ConvertActuators.cpp b/source/gameengine/Converter/KX_ConvertActuators.cpp
+index d6db528..9b021cd 100644
+--- a/source/gameengine/Converter/KX_ConvertActuators.cpp
++++ b/source/gameengine/Converter/KX_ConvertActuators.cpp
+@@ -52,6 +52,8 @@
+ #include "SCA_RandomActuator.h"
+ #include "SCA_2DFilterActuator.h"
+ 
++#include "RAS_2DFilterManager.h" // for filter type.
++
+ // Ketsji specific logicbricks
+ #include "KX_SceneActuator.h"
+ #include "KX_SoundActuator.h"
+@@ -885,61 +887,61 @@ void BL_ConvertActuators(const char* maggiename,
+ 			bTwoDFilterActuator *_2dfilter = (bTwoDFilterActuator*) bact->data;
+ 			SCA_2DFilterActuator *tmp = NULL;
+ 
+-			RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode;
++			RAS_2DFilterManager::FILTER_MODE filtermode;
+ 			switch (_2dfilter->type) {
+ 				case ACT_2DFILTER_MOTIONBLUR:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_MOTIONBLUR;
++					filtermode = RAS_2DFilterManager::FILTER_MOTIONBLUR;
+ 					break;
+ 				case ACT_2DFILTER_BLUR:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_BLUR;
++					filtermode = RAS_2DFilterManager::FILTER_BLUR;
+ 					break;
+ 				case ACT_2DFILTER_SHARPEN:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_SHARPEN;
++					filtermode = RAS_2DFilterManager::FILTER_SHARPEN;
+ 					break;
+ 				case ACT_2DFILTER_DILATION:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_DILATION;
++					filtermode = RAS_2DFilterManager::FILTER_DILATION;
+ 					break;
+ 				case ACT_2DFILTER_EROSION:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_EROSION;
++					filtermode = RAS_2DFilterManager::FILTER_EROSION;
+ 					break;
+ 				case ACT_2DFILTER_LAPLACIAN:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_LAPLACIAN;
++					filtermode = RAS_2DFilterManager::FILTER_LAPLACIAN;
+ 					break;
+ 				case ACT_2DFILTER_SOBEL:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_SOBEL;
++					filtermode = RAS_2DFilterManager::FILTER_SOBEL;
+ 					break;
+ 				case ACT_2DFILTER_PREWITT:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_PREWITT;
++					filtermode = RAS_2DFilterManager::FILTER_PREWITT;
+ 					break;
+ 				case ACT_2DFILTER_GRAYSCALE:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_GRAYSCALE;
++					filtermode = RAS_2DFilterManager::FILTER_GRAYSCALE;
+ 					break;
+ 				case ACT_2DFILTER_SEPIA:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_SEPIA;
++					filtermode = RAS_2DFilterManager::FILTER_SEPIA;
+ 					break;
+ 				case ACT_2DFILTER_INVERT:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_INVERT;
++					filtermode = RAS_2DFilterManager::FILTER_INVERT;
+ 					break;
+ 				case ACT_2DFILTER_CUSTOMFILTER:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_CUSTOMFILTER;
++					filtermode = RAS_2DFilterManager::FILTER_CUSTOMFILTER;
+ 					break;
+ 				case ACT_2DFILTER_NOFILTER:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_NOFILTER;
++					filtermode = RAS_2DFilterManager::FILTER_NOFILTER;
+ 					break;
+ 				case ACT_2DFILTER_DISABLED:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_DISABLED;
++					filtermode = RAS_2DFilterManager::FILTER_DISABLED;
+ 					break;
+ 				case ACT_2DFILTER_ENABLED:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_ENABLED;
++					filtermode = RAS_2DFilterManager::FILTER_ENABLED;
+ 					break;
+ 				default:
+-					filtermode = RAS_2DFilterManager::RAS_2DFILTER_NOFILTER;
++					filtermode = RAS_2DFilterManager::FILTER_NOFILTER;
+ 					break;
+ 			}
+ 
+ 			tmp = new SCA_2DFilterActuator(gameobj, filtermode,  _2dfilter->flag,
+ 			                               _2dfilter->float_arg, _2dfilter->int_arg,
+-			                               ketsjiEngine->GetRasterizer(), scene);
++			                               ketsjiEngine->GetRasterizer(), scene->Get2DFilterManager(), scene);
+ 
+ 			if (_2dfilter->text)
+ 			{
+diff --git a/source/gameengine/GameLogic/SCA_2DFilterActuator.cpp b/source/gameengine/GameLogic/SCA_2DFilterActuator.cpp
+index 6a87d3c..5d745d5 100644
+--- a/source/gameengine/GameLogic/SCA_2DFilterActuator.cpp
++++ b/source/gameengine/GameLogic/SCA_2DFilterActuator.cpp
+@@ -31,20 +31,20 @@
+ 
+ #include "SCA_IActuator.h"
+ #include "SCA_2DFilterActuator.h"
++#include "RAS_2DFilterData.h"
++#include "RAS_2DFilterManager.h"
++#include "RAS_2DFilter.h"
+ 
+ #include <iostream>
+ 
+-SCA_2DFilterActuator::~SCA_2DFilterActuator()
+-{
+-}
+-
+ SCA_2DFilterActuator::SCA_2DFilterActuator(
+         SCA_IObject *gameobj,
+-        RAS_2DFilterManager::RAS_2DFILTER_MODE type,
++        int type,
+         short flag,
+         float float_arg,
+         int int_arg,
+         RAS_IRasterizer* rasterizer,
++		RAS_2DFilterManager *filterManager,
+         SCA_IScene* scene)
+     : SCA_IActuator(gameobj, KX_ACT_2DFILTER),
+       m_type(type),
+@@ -52,15 +52,15 @@ SCA_2DFilterActuator::SCA_2DFilterActuator(
+       m_float_arg(float_arg),
+       m_int_arg(int_arg),
+       m_rasterizer(rasterizer),
++      m_filterManager(filterManager),
+       m_scene(scene)
+ {
+-	m_gameobj = NULL;
+-	if (gameobj) {
+-		m_propNames = gameobj->GetPropertyNames();
+-		m_gameobj = gameobj;
+-	}
++	m_propNames = m_gameobj->GetPropertyNames();
+ }
+ 
++SCA_2DFilterActuator::~SCA_2DFilterActuator()
++{
++}
+ 
+ CValue* SCA_2DFilterActuator::GetReplica()
+ {
+@@ -79,19 +79,49 @@ bool SCA_2DFilterActuator::Update()
+ 	if (bNegativeEvent)
+ 		return false; // do nothing on negative events
+ 
+-	if ( m_type == RAS_2DFilterManager::RAS_2DFILTER_MOTIONBLUR )
+-	{
+-		if (!m_disableMotionBlur)
+-			m_rasterizer->EnableMotionBlur(m_float_arg);
+-		else
+-			m_rasterizer->DisableMotionBlur();
+-
+-		return false;
+-	}
+-	else if (m_type < RAS_2DFilterManager::RAS_2DFILTER_NUMBER_OF_FILTERS)
+-	{
+-		m_scene->Update2DFilter(m_propNames, m_gameobj, m_type, m_int_arg, m_shaderText);
++	switch (m_type) {
++		case RAS_2DFilterManager::FILTER_ENABLED:
++		{
++			m_filterManager->EnableFilterPass(m_int_arg);
++			break;
++		}
++		case RAS_2DFilterManager::FILTER_DISABLED:
++		{
++			m_filterManager->DisableFilterPass(m_int_arg);
++			break;
++		}
++		case RAS_2DFilterManager::FILTER_NOFILTER:
++		{
++			m_filterManager->RemoveFilterPass(m_int_arg);
++			break;
++		}
++		case RAS_2DFilterManager::FILTER_MOTIONBLUR:
++		{
++			if (m_disableMotionBlur) {
++				m_rasterizer->DisableMotionBlur();
++			}
++			else {
++				m_rasterizer->EnableMotionBlur(m_float_arg);
++			}
++			break;
++		}
++		default:
++		{
++			if (!m_filterManager->GetFilterPass(m_int_arg)) {
++				RAS_2DFilterData info;
++				info.filterPassIndex = m_int_arg;
++				info.gameObject = m_gameobj;
++				info.filterMode = m_type;
++				info.propertyNames = m_propNames;
++				info.shaderText = m_shaderText;
++				info.filterIdentifier = m_name;
++
++				m_filterManager->AddFilter(info);
++			}
++			break;
++		}
+ 	}
++
+ 	// once the filter is in place, no need to update it again => disable the actuator
+ 	return false;
+ }
+@@ -144,8 +174,8 @@ PyMethodDef SCA_2DFilterActuator::Methods[] = {
+ PyAttributeDef SCA_2DFilterActuator::Attributes[] = {
+ 	KX_PYATTRIBUTE_STRING_RW("shaderText", 0, 64000, false, SCA_2DFilterActuator, m_shaderText),
+ 	KX_PYATTRIBUTE_SHORT_RW("disableMotionBlur", 0, 1, true, SCA_2DFilterActuator, m_disableMotionBlur),
+-	KX_PYATTRIBUTE_ENUM_RW("mode",RAS_2DFilterManager::RAS_2DFILTER_ENABLED,RAS_2DFilterManager::RAS_2DFILTER_NUMBER_OF_FILTERS,false,SCA_2DFilterActuator,m_type),
+-	KX_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
++	KX_PYATTRIBUTE_ENUM_RW("mode", RAS_2DFilterManager::FILTER_ENABLED, RAS_2DFilterManager::FILTER_NUMBER_OF_FILTERS, false, SCA_2DFilterActuator, m_type),
++KX_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
+ 	KX_PYATTRIBUTE_FLOAT_RW("value", 0.0, 100.0, SCA_2DFilterActuator, m_float_arg),
+ 	{ NULL }	//Sentinel
+ };
+diff --git a/source/gameengine/GameLogic/SCA_2DFilterActuator.h b/source/gameengine/GameLogic/SCA_2DFilterActuator.h
+index 4635a8a..04d7fb3 100644
+--- a/source/gameengine/GameLogic/SCA_2DFilterActuator.h
++++ b/source/gameengine/GameLogic/SCA_2DFilterActuator.h
+@@ -35,29 +35,32 @@
+ #include "SCA_IActuator.h"
+ #include "SCA_IScene.h"
+ 
++class RAS_2DFilterManager;
++
+ class SCA_2DFilterActuator : public SCA_IActuator
+ {
+ 	Py_Header
+ 
+ private:
+ 	vector<STR_String> m_propNames;
+-	RAS_2DFilterManager::RAS_2DFILTER_MODE m_type;
++	int m_type;
+ 	short m_disableMotionBlur;
+ 	float m_float_arg;
+ 	int   m_int_arg;
+ 	STR_String	m_shaderText;
+ 	RAS_IRasterizer* m_rasterizer;
++	RAS_2DFilterManager *m_filterManager;
+ 	SCA_IScene* m_scene;
+ 
+ public:
+-
+ 	SCA_2DFilterActuator(
+ 	        class SCA_IObject* gameobj,
+-	        RAS_2DFilterManager::RAS_2DFILTER_MODE type,
++	        int type,
+ 	        short flag,
+ 	        float float_arg,
+ 	        int int_arg,
+ 	        RAS_IRasterizer* rasterizer,
++			RAS_2DFilterManager *filterManager,
+ 	        SCA_IScene* scene);
+ 
+ 	void	SetShaderText(const char *text);
+diff --git a/source/gameengine/GameLogic/SCA_IScene.h b/source/gameengine/GameLogic/SCA_IScene.h
+index b76b563..ee839e3 100644
+--- a/source/gameengine/GameLogic/SCA_IScene.h
++++ b/source/gameengine/GameLogic/SCA_IScene.h
+@@ -35,7 +35,7 @@
+ #include <vector>
+ 
+ #include "STR_String.h"
+-#include "RAS_2DFilterManager.h"
++#include "RAS_2DFilterData.h"
+ 
+ #ifdef WITH_CXX_GUARDEDALLOC
+ #include "MEM_guardedalloc.h"
+@@ -74,11 +74,6 @@ public:
+ 	void			RemoveDebugProperty(class CValue *gameobj, const STR_String &name);
+ 	void			RemoveObjectDebugProperties(class CValue* gameobj);
+ 
+-	virtual void	Update2DFilter(std::vector<STR_String>& propNames, void* gameObj, 
+-									RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, 
+-									int pass, STR_String& text) {}
+-
+-
+ #ifdef WITH_CXX_GUARDEDALLOC
+ 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_IScene")
+ #endif
+diff --git a/source/gameengine/Ketsji/KX_KetsjiEngine.cpp b/source/gameengine/Ketsji/KX_KetsjiEngine.cpp
+index bb311e2..68b4094 100644
+--- a/source/gameengine/Ketsji/KX_KetsjiEngine.cpp
++++ b/source/gameengine/Ketsji/KX_KetsjiEngine.cpp
+@@ -322,7 +322,7 @@ void KX_KetsjiEngine::RenderDome()
+ 			}
+ 			// Part of PostRenderScene()
+ 			m_rasterizer->MotionBlur();
+-			scene->Render2DFilters(m_canvas);
++			scene->Render2DFilters();
+ 			// no RunDrawingCallBacks
+ 			// no FlushDebugLines
+ 		}
+@@ -1195,7 +1195,7 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene)
+ 
+ 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
+ 	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
+-	scene->Render2DFilters(m_canvas);
++	scene->Render2DFilters();
+ 
+ #ifdef WITH_PYTHON
+ 	// Set again the scene viewport.
+diff --git a/source/gameengine/Ketsji/KX_PythonInit.cpp b/source/gameengine/Ketsji/KX_PythonInit.cpp
+index eebf243..a9aa0d7 100644
+--- a/source/gameengine/Ketsji/KX_PythonInit.cpp
++++ b/source/gameengine/Ketsji/KX_PythonInit.cpp
+@@ -97,6 +97,7 @@ extern "C" {
+ #include "SCA_PythonJoystick.h"
+ #include "SCA_PythonKeyboard.h"
+ #include "SCA_PythonMouse.h"
++#include "SCA_2DFilterActuator.h"
+ #include "KX_ConstraintActuator.h"
+ #include "KX_SoundActuator.h"
+ #include "KX_StateActuator.h"
+@@ -1767,21 +1768,21 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
+ 	KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_RIGHT, SCA_IInputDevice::KX_RIGHTMOUSE);
+ 
+ 	/* 2D Filter Actuator */
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_ENABLED, RAS_2DFilterManager::RAS_2DFILTER_ENABLED);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_DISABLED, RAS_2DFilterManager::RAS_2DFILTER_DISABLED);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_NOFILTER, RAS_2DFilterManager::RAS_2DFILTER_NOFILTER);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_MOTIONBLUR, RAS_2DFilterManager::RAS_2DFILTER_MOTIONBLUR);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_BLUR, RAS_2DFilterManager::RAS_2DFILTER_BLUR);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SHARPEN, RAS_2DFilterManager::RAS_2DFILTER_SHARPEN);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_DILATION, RAS_2DFilterManager::RAS_2DFILTER_DILATION);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_EROSION, RAS_2DFilterManager::RAS_2DFILTER_EROSION);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_LAPLACIAN, RAS_2DFilterManager::RAS_2DFILTER_LAPLACIAN);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SOBEL, RAS_2DFilterManager::RAS_2DFILTER_SOBEL);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_PREWITT, RAS_2DFilterManager::RAS_2DFILTER_PREWITT);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_GRAYSCALE, RAS_2DFilterManager::RAS_2DFILTER_GRAYSCALE);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SEPIA, RAS_2DFilterManager::RAS_2DFILTER_SEPIA);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_INVERT, RAS_2DFilterManager::RAS_2DFILTER_INVERT);
+-	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_CUSTOMFILTER, RAS_2DFilterManager::RAS_2DFILTER_CUSTOMFILTER);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_ENABLED, RAS_2DFilterManager::FILTER_ENABLED);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_DISABLED, RAS_2DFilterManager::FILTER_DISABLED);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_NOFILTER, RAS_2DFilterManager::FILTER_NOFILTER);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_MOTIONBLUR, RAS_2DFilterManager::FILTER_MOTIONBLUR);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_BLUR, RAS_2DFilterManager::FILTER_BLUR);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SHARPEN, RAS_2DFilterManager::FILTER_SHARPEN);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_DILATION, RAS_2DFilterManager::FILTER_DILATION);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_EROSION, RAS_2DFilterManager::FILTER_EROSION);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_LAPLACIAN, RAS_2DFilterManager::FILTER_LAPLACIAN);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SOBEL, RAS_2DFilterManager::FILTER_SOBEL);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_PREWITT, RAS_2DFilterManager::FILTER_PREWITT);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_GRAYSCALE, RAS_2DFilterManager::FILTER_GRAYSCALE);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_SEPIA, RAS_2DFilterManager::FILTER_SEPIA);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_INVERT, RAS_2DFilterManager::FILTER_INVERT);
++	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_CUSTOMFILTER, RAS_2DFilterManager::FILTER_CUSTOMFILTER);
+ 
+ 	/* Sound Actuator */
+ 	KX_MACRO_addTypesToDict(d, KX_SOUNDACT_PLAYSTOP, KX_SoundActuator::KX_SOUNDACT_PLAYSTOP);
+diff --git a/source/gameengine/Ketsji/KX_Scene.cpp b/source/gameengine/Ketsji/KX_Scene.cpp
+index 7746339..8f9515f 100644
+--- a/source/gameengine/Ketsji/KX_Scene.cpp
++++ b/source/gameengine/Ketsji/KX_Scene.cpp
+@@ -62,6 +62,8 @@
+ 
+ #include "RAS_IRasterizer.h"
+ #include "RAS_ICanvas.h"
++#include "RAS_2DFilterData.h"
++#include "RAS_2DFilterManager.h"
+ #include "RAS_BucketManager.h"
+ 
+ #include "EXP_FloatValue.h"
+@@ -172,6 +174,7 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
+ 	m_euthanasyobjects = new CListValue();
+ 	m_animatedlist = new CListValue();
+ 
++	m_filterManager = new RAS_2DFilterManager(canvas);
+ 	m_logicmgr = new SCA_LogicManager();
+ 	
+ 	m_timemgr = new SCA_TimeEventManager(m_logicmgr);
+@@ -262,6 +265,10 @@ KX_Scene::~KX_Scene()
+ 	if (m_animatedlist)
+ 		m_animatedlist->Release();
+ 
++	if (m_filterManager) {
++		delete m_filterManager;
++	}
++
+ 	if (m_logicmgr)
+ 		delete m_logicmgr;
+ 
+@@ -2100,14 +2107,14 @@ bool KX_Scene::MergeScene(KX_Scene *other)
+ 	return true;
+ }
+ 
+-void KX_Scene::Update2DFilter(vector<STR_String>& propNames, void* gameObj, RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, int pass, STR_String& text)
++RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
+ {
+-	m_filtermanager.EnableFilter(propNames, gameObj, filtermode, pass, text);
++	return m_filterManager;
+ }
+ 
+-void KX_Scene::Render2DFilters(RAS_ICanvas* canvas)
++void KX_Scene::Render2DFilters()
+ {
+-	m_filtermanager.RenderFilters(canvas);
++	m_filterManager->RenderFilters();
+ }
+ 
+ #ifdef WITH_PYTHON
+diff --git a/source/gameengine/Ketsji/KX_Scene.h b/source/gameengine/Ketsji/KX_Scene.h
+index 1d80cc3..e6fd2ca 100644
+--- a/source/gameengine/Ketsji/KX_Scene.h
++++ b/source/gameengine/Ketsji/KX_Scene.h
+@@ -52,8 +52,6 @@
+ #include "EXP_PyObjectPlus.h"
+ #include "EXP_Value.h"
+ 
+-#include "RAS_2DFilterManager.h"
+-
+ /**
+  * \section Forward declarations
+  */
+@@ -82,6 +80,7 @@ class RAS_MaterialBucket;
+ class RAS_IPolyMaterial;
+ class RAS_IRasterizer;
+ class RAS_IRenderTools;
++class RAS_2DFilterManager;
+ class SCA_JoystickManager;
+ class btCollisionShape;
+ class KX_BlenderSceneConverter;
+@@ -289,7 +288,7 @@ protected:
+ 
+ 	struct Scene* m_blenderScene;
+ 
+-	RAS_2DFilterManager m_filtermanager;
++	RAS_2DFilterManager *m_filterManager;
+ 
+ 	KX_ObstacleSimulation* m_obstacleSimulation;
+ 
+@@ -589,8 +588,8 @@ public:
+ 	/**
+ 	 * 2D Filters
+ 	 */
+-	void Update2DFilter(std::vector<STR_String>& propNames, void* gameObj, RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, int pass, STR_String& text);
+-	void Render2DFilters(RAS_ICanvas* canvas);
++	RAS_2DFilterManager *Get2DFilterManager() const;
++	void Render2DFilters();
+ 
+ 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
+ 
+diff --git a/source/gameengine/Rasterizer/CMakeLists.txt b/source/gameengine/Rasterizer/CMakeLists.txt
+index 8a6f511..7cc7928 100644
+--- a/source/gameengine/Rasterizer/CMakeLists.txt
++++ b/source/gameengine/Rasterizer/CMakeLists.txt
+@@ -28,6 +28,7 @@ set(INC
+ 	../Expressions
+ 	../Ketsji
+ 	../SceneGraph
++	../GameLogic
+ 	../../blender/makesdna
+ 	../../blender/blenlib
+ 	../../blender/blenkernel
+@@ -42,6 +43,7 @@ set(INC_SYS
+ 	../../../intern/moto/include
+ 	${GLEW_INCLUDE_PATH}
+ 	${PYTHON_INCLUDE_DIRS}
++	${BOOST_INCLUDE_DIR}
+ )
+ 
+ set(SRC
+@@ -54,7 +56,11 @@ set(SRC
+ 	RAS_Polygon.cpp
+ 	RAS_TexVert.cpp
+ 	RAS_ICanvas.cpp
+-
++	RAS_2DFilterData.cpp
++	RAS_2DFilter.cpp
++ 
++	RAS_2DFilterData.h
++	RAS_2DFilter.h
+ 	RAS_2DFilterManager.h
+ 	RAS_BucketManager.h
+ 	RAS_CameraData.h
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilter.cpp b/source/gameengine/Rasterizer/RAS_2DFilter.cpp
+new file mode 100644
+index 0000000..d58e6c0
+--- /dev/null
++++ b/source/gameengine/Rasterizer/RAS_2DFilter.cpp
+@@ -0,0 +1,367 @@
++/*
++* ***** BEGIN GPL LICENSE BLOCK *****
++*
++* This program is free software; you can redistribute it and/or
++* modify it under the terms of the GNU General Public License
++* as published by the Free Software Foundation; either version 2
++* of the License, or (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU General Public License for more details.
++*
++* You should have received a copy of the GNU General Public License
++* along with this program; if not, write to the Free Software Foundation,
++* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++*
++* Contributor(s): none yet.
++*
++* ***** END GPL LICENSE BLOCK *****
++*/
++#include "RAS_2DFilter.h"
++#include "RAS_2DFilterManager.h"
++#include "RAS_IRasterizer.h"
++#include "RAS_ICanvas.h"
++
++#include "EXP_Value.h"
++
++#include "glew-mx.h"
++#include <iostream>
++
++const char *RAS_2DFilter::UNIFORM_NAME_RENDERED_TEXTURE = "bgl_RenderedTexture";
++const char *RAS_2DFilter::UNIFORM_NAME_LUMINANCE_TEXTURE = "bgl_LuminanceTexture";
++const char *RAS_2DFilter::UNIFORM_NAME_DEPTH_TEXTURE = "bgl_DepthTexture";
++const char *RAS_2DFilter::UNIFORM_NAME_RENDERED_TEXTURE_WIDTH = "bgl_RenderedTextureWidth";
++const char *RAS_2DFilter::UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT = "bgl_RenderedTextureHeight";
++const char *RAS_2DFilter::UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS = "bgl_TextureCoordinateOffset";
++
++RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager)
++	:m_manager(manager),
++	m_shaderProgramUid(0),
++	m_fragmentShaderUid(0),
++	m_renderedTextureUniformLocation(-1),
++	m_luminanceTextureUniformLocation(-1),
++	m_depthTextureUniformLocation(-1),
++	m_renderedTextureWidthUniformLocation(-1),
++	m_renderedTextureHeightUniformLocation(-1),
++	m_textureOffsetsUniformLocation(-1),
++	m_renderedTextureUid(0),
++	m_luminanceTextureUid(0),
++	m_depthTextureUid(0),
++	m_properties(data.propertyNames),
++	m_gameObject(data.gameObject),
++	m_passIndex(data.filterPassIndex),
++	m_enabled(true),
++	m_initialized(false)
++{
++	for(int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
++		m_textureOffsets[i] = 0;
++	}
++	m_uid = data.filterIdentifier;
++	m_fragmentShaderSourceCode = data.shaderText;
++}
++
++void RAS_2DFilter::ReleaseTextures()
++{
++	if(m_renderedTextureUid != -1) {
++		glDeleteTextures(1, &m_renderedTextureUid);
++	}
++	if(m_luminanceTextureUid != -1) {
++		glDeleteTextures(1, &m_luminanceTextureUid);
++	}
++	if(m_depthTextureUid != -1) {
++		glDeleteTextures(1, &m_depthTextureUid);
++	}
++}
++
++void RAS_2DFilter::DeleteShader()
++{
++	if (m_fragmentShaderUid) {
++		glDeleteObjectARB(m_fragmentShaderUid);
++	}
++	if (m_shaderProgramUid) {
++		glDeleteObjectARB(m_shaderProgramUid);
++	}
++}
++
++RAS_2DFilter::~RAS_2DFilter()
++{
++	DeleteShader();
++	ReleaseTextures();
++}
++
++void RAS_2DFilter::SetEnabled(bool enabled)
++{
++	m_enabled = enabled;
++}
++
++STR_String& RAS_2DFilter::GetUid()
++{
++	return m_uid;
++}
++
++void RAS_2DFilter::Initialize()
++{
++	/* The shader must be initialized at the first frame when the canvas is set.
++	 * to solve this we initialize filter at the frist render frame. */
++	if (!m_initialized) {
++		InitializeShader();
++		InitializeTextures();
++		ComputeTextureOffsets();
++		m_initialized = true;
++	}
++}
++
++int RAS_2DFilter::GetPassIndex()
++{
++	return m_passIndex;
++}
++
++void RAS_2DFilter::Start()
++{
++	Initialize();
++
++	if (m_enabled) {
++		BindShaderProgram();
++		BindUniforms();
++		DrawOverlayPlane();
++	}
++}
++
++void RAS_2DFilter::End()
++{
++	if(m_enabled) {
++		UnbindShaderProgram();
++	}
++}
++
++void RAS_2DFilter::ParseShaderProgram()
++{
++	m_renderedTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE);
++	m_luminanceTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_LUMINANCE_TEXTURE);
++	m_depthTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_DEPTH_TEXTURE);
++	m_renderedTextureWidthUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE_WIDTH);
++	m_renderedTextureHeightUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT);
++	m_textureOffsetsUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS);
++
++	if (m_gameObject) {
++		std::vector<STR_String> foundProperties;
++		for (std::vector<STR_String>::iterator it = m_properties.begin(), end = m_properties.end(); it != end; ++it) {
++			STR_String prop = *it;
++			unsigned int loc = glGetUniformLocationARB(m_shaderProgramUid, prop);
++			if (loc != -1) {
++				m_propertiesLoc.push_back(loc);
++				foundProperties.push_back(prop);
++			}
++		}
++		m_properties = foundProperties;
++	}
++}
++
++void RAS_2DFilter::InitializeShader()
++{
++	GLint compilationStatus;
++	m_fragmentShaderUid = glCreateShaderObjectARB(GL_FRAGMENT_SHADER);
++	const GLcharARB* shaderSourceCodeList[1];
++	GLint shaderSourceCodeLengthList[1];
++	const GLsizei shaderListSize = 1;
++	shaderSourceCodeList[0] = (GLchar*)(m_fragmentShaderSourceCode.Ptr());
++	shaderSourceCodeLengthList[0] = (GLint)(m_fragmentShaderSourceCode.Length());
++	
++	glShaderSourceARB(m_fragmentShaderUid, shaderListSize, shaderSourceCodeList, shaderSourceCodeLengthList);
++	glCompileShaderARB(m_fragmentShaderUid);
++	glGetObjectParameterivARB(m_fragmentShaderUid, GL_COMPILE_STATUS, &compilationStatus);
++	if (!compilationStatus) {
++		m_manager->PrintShaderError(m_fragmentShaderUid, "compile", m_fragmentShaderSourceCode.Ptr());
++		DeleteShader();
++	}
++	else {
++		m_shaderProgramUid = glCreateProgramObjectARB();
++		glAttachObjectARB(m_shaderProgramUid, m_fragmentShaderUid);
++		glLinkProgramARB(m_shaderProgramUid);
++		glGetObjectParameterivARB(m_shaderProgramUid, GL_LINK_STATUS, &compilationStatus);
++		if (!compilationStatus) {
++			m_manager->PrintShaderError(m_fragmentShaderUid, "link", m_fragmentShaderSourceCode.Ptr());
++			DeleteShader();
++		}
++		else {
++			glValidateProgramARB(m_shaderProgramUid);
++			glGetObjectParameterivARB(m_shaderProgramUid, GL_VALIDATE_STATUS, &compilationStatus);
++			if (!compilationStatus) {
++				m_manager->PrintShaderError(m_fragmentShaderUid, "validate", m_fragmentShaderSourceCode.Ptr());
++				DeleteShader();
++			}
++			else {
++				ParseShaderProgram();
++			}
++		}
++	}
++}
++void RAS_2DFilter::InitializeTextures()
++{
++	RAS_ICanvas *canvas = m_manager->GetCanvas();
++	const unsigned int texturewidth = canvas->GetWidth();
++	const unsigned int textureheight = canvas->GetHeight();
++
++	if (m_renderedTextureUniformLocation >= 0) {
++		glGenTextures(1, &m_renderedTextureUid);
++		glBindTexture(GL_TEXTURE_2D, m_renderedTextureUid);
++		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texturewidth, textureheight, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
++	}
++	if (m_depthTextureUniformLocation >= 0) {
++		glGenTextures(1, &m_depthTextureUid);
++		glBindTexture(GL_TEXTURE_2D, m_depthTextureUid);
++		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, texturewidth, textureheight, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE,NULL);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
++	}
++	if (m_luminanceTextureUniformLocation >= 0) {
++		glGenTextures(1, &m_luminanceTextureUid);
++		glBindTexture(GL_TEXTURE_2D, m_luminanceTextureUid);
++		glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, texturewidth, textureheight, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
++	}
++}
++
++/* Fill the textureOffsets array with values used by the shaders to get texture samples
++of nearby fragments. Or vertices or whatever.*/
++void RAS_2DFilter::ComputeTextureOffsets()
++{
++	RAS_ICanvas *canvas = m_manager->GetCanvas();
++	const GLfloat texturewidth = (GLfloat)canvas->GetWidth();
++	const GLfloat textureheight = (GLfloat)canvas->GetHeight();
++	const GLfloat xInc = 1.0f / texturewidth;
++	const GLfloat yInc = 1.0f / textureheight;
++
++	for (int i = 0; i < 3; i++) {
++		for (int j = 0; j < 3; j++) {
++			m_textureOffsets[(((i * 3) + j) * 2) + 0] = (-1.0f * xInc) + ((GLfloat)i * xInc);
++			m_textureOffsets[(((i * 3) + j) * 2) + 1] = (-1.0f * yInc) + ((GLfloat)j * yInc);
++		}
++	}
++}
++
++void RAS_2DFilter::BindShaderProgram()
++{
++	glUseProgramObjectARB(m_shaderProgramUid);
++}
++
++void RAS_2DFilter::UnbindShaderProgram()
++{
++	glUseProgramObjectARB(0);
++}
++
++void RAS_2DFilter::BindUniforms()
++{
++	RAS_ICanvas *canvas = m_manager->GetCanvas();
++	const unsigned int texturewidth = canvas->GetWidth();
++	const unsigned int textureheight = canvas->GetHeight();
++	const unsigned int textureleft = canvas->GetViewPort()[0];
++	const unsigned int texturebottom = canvas->GetViewPort()[1];
++
++	if (m_renderedTextureUniformLocation >= 0) {
++		//create and bind rendered texture
++		glActiveTextureARB(GL_TEXTURE0);
++		glBindTexture(GL_TEXTURE_2D, m_renderedTextureUid);
++		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
++		glUniform1iARB(m_renderedTextureUniformLocation, 0);
++	}
++	if (m_depthTextureUniformLocation >= 0) {
++		//create and bind depth texture
++		glActiveTextureARB(GL_TEXTURE1);
++		glBindTexture(GL_TEXTURE_2D, m_depthTextureUid);
++		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
++		glUniform1iARB(m_depthTextureUniformLocation, 1);
++	}
++	if (m_luminanceTextureUniformLocation >= 0) {
++		//create and bind luminance texture
++		glActiveTextureARB(GL_TEXTURE2);
++		glBindTexture(GL_TEXTURE_2D, m_luminanceTextureUid);
++		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
++		glUniform1iARB(m_luminanceTextureUniformLocation, 2);
++	}
++	if (m_renderedTextureWidthUniformLocation >= 0) {
++		//bind rendered texture width
++		glUniform1fARB(m_renderedTextureWidthUniformLocation, (float)texturewidth);
++	}
++	if (m_renderedTextureHeightUniformLocation >= 0) {
++		//bind rendered texture height
++		glUniform1fARB(m_renderedTextureHeightUniformLocation, (float)textureheight);
++	}
++	if (m_textureOffsetsUniformLocation >= 0) {
++		//bind texture offsets
++		glUniform2fvARB(m_textureOffsetsUniformLocation, 9, m_textureOffsets);
++	}
++
++	for (unsigned int i = 0, size = m_properties.size(); i < size; ++i) {
++		STR_String prop = m_properties[i];
++		unsigned int uniformLoc = m_propertiesLoc[i];
++
++		CValue *property = m_gameObject->GetProperty(prop);
++
++		if (!property)
++			continue;
++
++		switch (property->GetValueType()) {
++			case VALUE_INT_TYPE:
++				glUniform1iARB(uniformLoc, property->GetNumber());
++				break;
++			case VALUE_FLOAT_TYPE:
++				glUniform1fARB(uniformLoc, property->GetNumber());
++				break;
++			default:
++				break;
++		}
++	}
++}
++
++void RAS_2DFilter::DrawOverlayPlane()
++{
++	glActiveTextureARB(GL_TEXTURE0);
++	glDisable(GL_DEPTH_TEST);
++	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
++	glDisable(GL_BLEND);
++	glDisable(GL_ALPHA_TEST);
++	glPushMatrix();
++		glLoadIdentity();
++		glMatrixMode(GL_TEXTURE);
++		glMatrixMode(GL_PROJECTION);
++		glPushMatrix();
++			glLoadIdentity();
++			glActiveTextureARB(GL_TEXTURE0);
++			glBindTexture(GL_TEXTURE_2D, m_renderedTextureUid);
++				glBegin(GL_QUADS);
++					glColor4f(1.f, 1.f, 1.f, 1.0f);
++					
++					glTexCoord2f(1.0, 1.0);
++					glMultiTexCoord2fARB(GL_TEXTURE3_ARB, 1, 1);
++					glVertex2f(1, 1);
++					
++					glTexCoord2f(0.0, 1.0);
++					glMultiTexCoord2fARB(GL_TEXTURE3_ARB, -1, 1);
++					glVertex2f(-1, 1);
++					
++					glTexCoord2f(0.0, 0.0);
++					glMultiTexCoord2fARB(GL_TEXTURE3_ARB, -1, -1);
++					glVertex2f(-1, -1);
++					
++					glTexCoord2f(1.0, 0.0);
++					glMultiTexCoord2fARB(GL_TEXTURE3_ARB, 1, -1);
++					glVertex2f(1, -1);
++				glEnd();
++			glEnable(GL_DEPTH_TEST);
++		glPopMatrix();
++		glMatrixMode(GL_MODELVIEW);
++	glPopMatrix();
++}
+diff --git a/source/gameengine/Rasterizer/RAS_2DFilter.h b/source/gameengine/Rasterizer/RAS_2DFilter.h
+new file mode 100644
+index 0000000..3c728cc
+--- /dev/null
++++ b/source/gameengine/Rasterizer/RAS_2DFilter.h
+@@ -0,0 +1,109 @@
++/*
++* ***** BEGIN GPL LICENSE BLOCK *****
++*
++* This program is free software; you can redistribute it and/or
++* modify it under the terms of the GNU General Public License
++* as published by the Free Software Foundation; either version 2
++* of the License, or (at your option) any later version.
++*
++* This program is distributed in the hope that it will be useful,
++* but WITHOUT ANY WARRANTY; without even the implied warranty of
++* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++* GNU General Public License for more details.
++*
++* You should have received a copy of the GNU General Public License
++* along with this program; if not, write to the Free Software Foundation,
++* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++*
++* Contributor(s): none yet.
++*
++* ***** END GPL LICENSE BLOCK *****
++*/
++
++#ifndef __RAS_2DFILTER_H__
++#define __RAS_2DFILTER_H__
++
++#include "RAS_2DFilterData.h"
++
++class RAS_2DFilterManager;
++class CValue;
++
++class RAS_2DFilter
++{
++private:
++	/// Names of the predefined values available to glsl shaders
++	static const char *UNIFORM_NAME_RENDERED_TEXTURE;
++	static const char *UNIFORM_NAME_LUMINANCE_TEXTURE;
++	static const char *UNIFORM_NAME_DEPTH_TEXTURE;
++	static const char *UNIFORM_NAME_RENDERED_TEXTURE_WIDTH;
++	static const char *UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT;
++	static const char *UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS;
++
++	RAS_2DFilterManager *m_manager;
++
++	STR_String m_uid;
++	STR_String m_fragmentShaderSourceCode;
++
++	unsigned int m_shaderProgramUid;
++	unsigned int m_fragmentShaderUid;
++	int m_renderedTextureUniformLocation;
++	int m_luminanceTextureUniformLocation;
++	int m_depthTextureUniformLocation;
++	int m_renderedTextureWidthUniformLocation;
++	int m_renderedTextureHeightUniformLocation;
++	int m_textureOffsetsUniformLocation;
++	unsigned int m_renderedTextureUid;
++	unsigned int m_luminanceTextureUid;
++	unsigned int m_depthTextureUid;
++
++	std::vector<STR_String> m_properties;
++	std::vector<unsigned int> m_propertiesLoc;
++	CValue *m_gameObject;
++
++	/** A set of vec2 coordinates that the shaders use to sample nearby pixels from incoming textures.
++	The computation should be left to the glsl shader, I keep it for backward compatibility. */
++	

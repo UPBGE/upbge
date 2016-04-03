@@ -326,7 +326,11 @@ class MATERIAL_PT_specular(MaterialButtonsPanel, Panel):
         col.prop(mat, "use_specular_ramp", text="Ramp")
 
         col = layout.column()
-        if mat.specular_shader in {'COOKTORR', 'PHONG'}:
+        if mat.specular_shader == 'COOKTORR':
+            row = col.row()
+            row.prop(mat, "cooktorr_roughness", text="Roughness")
+            row.prop(mat, "cooktorr_metallic", text="Metallic")
+        elif mat.specular_shader == 'PHONG':
             col.prop(mat, "specular_hardness", text="Hardness")
         elif mat.specular_shader == 'BLINN':
             row = col.row()
