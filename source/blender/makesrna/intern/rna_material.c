@@ -855,6 +855,11 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, prop_bump_space_items);
 	RNA_def_property_ui_text(prop, "Bump Space", "Space to apply bump mapping in");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "use_dynamic_uniform", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "texflag", MTEX_DYNAMIC_UNIFORM);
+	RNA_def_property_ui_text(prop, "Dynamic Uniforms", "Use dynamic material uniform in the material shader");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
 }
 
 static void rna_def_material_gamesettings(BlenderRNA *brna)

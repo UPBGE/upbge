@@ -38,6 +38,8 @@
 #include "DNA_sdna_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_space_types.h"
+#include "DNA_material_types.h"
+#include "DNA_texture_types.h"
 
 #include "BKE_main.h"
 
@@ -70,6 +72,16 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 			for (image = main->image.first; image != NULL; image = image->id.next) {
 				image->lodbias = 0.0f;
 				image->flag |= IMA_USE_MIPMAP;
+			}
+		}
+	}
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 6)) {
+		Material *ma;
+		for (ma = main->mat.first; ma; ma = ma->id.next) {
+			for (int i = 0; i < MAX_MTEX; ++i) {
+				if (ma->mtex[i]) {
+					ma->mtex[i]->texflag |= MTEX_DYNAMIC_UNIFORM;
+				}
 			}
 		}
 	}

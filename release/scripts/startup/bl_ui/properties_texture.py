@@ -1193,6 +1193,7 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
             col.prop(tex, "use_rgb_to_intensity")
             # color is used on gray-scale textures even when use_rgb_to_intensity is disabled.
             col.prop(tex, "color", text="")
+            col.prop(tex, "use_dynamic_uniform")
 
             col = split.column()
             col.prop(tex, "invert", text="Negative")
