@@ -74,3 +74,10 @@ base class --- :class:`CValue`
       Number of steps to achieve parallax effect.
 
       :type: float
+
+   .. attribute:: bindcode
+
+      Texture bind code/Id/number.
+
+      :type: integer
+
