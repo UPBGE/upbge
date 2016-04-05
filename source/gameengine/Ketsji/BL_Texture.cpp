@@ -35,7 +35,7 @@
 
 BL_Texture::BL_Texture(MTex *mtex, bool cubemap, bool mipmap)
 	:CValue(),
-	m_bindcode(0),
+	m_bindcode(-1),
 	m_mtex(mtex),
 	m_gputex(NULL)
 {
@@ -201,6 +201,7 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("normal", BL_Texture, pyattr_get_normal, pyattr_set_normal),
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxBump", BL_Texture, pyattr_get_parallax_bump, pyattr_set_parallax_bump),
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxStep", BL_Texture, pyattr_get_parallax_step, pyattr_set_parallax_step),
+	KX_PYATTRIBUTE_RO_FUNCTION("bindcode", BL_Texture, pyattr_get_bindcode),
 	{ NULL }    //Sentinel
 };
 
@@ -422,6 +423,12 @@ int BL_Texture::pyattr_set_parallax_step(void *self_v, const KX_PYATTRIBUTE_DEF 
 
 	self->GetMTex()->parallaxsteps = val;
 	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_bindcode(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyLong_FromLong(self->m_bindcode);
 }
 
 #endif  // WITH_PYTHON

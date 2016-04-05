@@ -15,7 +15,7 @@ class BL_Texture : public CValue
 {
 	Py_Header
 private:
-	unsigned int m_bindcode;
+	int m_bindcode;
 	MTex *m_mtex;
 	STR_String m_mtexname;
 	GPUTexture *m_gputex;
@@ -89,6 +89,7 @@ public:
 	static int pyattr_set_parallax_bump(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_parallax_step(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_parallax_step(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_bindcode(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif  // WITH_PYTHON
 
