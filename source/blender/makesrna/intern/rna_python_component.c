@@ -199,7 +199,7 @@ static void rna_def_py_component_property(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Python Component Vector 2D Property", "A 2D vector property of a Python Component");
 
 	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COORDS);
-	RNA_def_property_float_sdna(prop, NULL, "vec2");
+	RNA_def_property_float_sdna(prop, NULL, "vec");
 	RNA_def_property_array(prop, 2);
 	RNA_def_property_ui_text(prop, "Value", "Property value");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
@@ -210,7 +210,7 @@ static void rna_def_py_component_property(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Python Component Vector 3D Property", "A 3D vector property of a Python Component");
 
 	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COORDS);
-	RNA_def_property_float_sdna(prop, NULL, "vec3");
+	RNA_def_property_float_sdna(prop, NULL, "vec");
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Value", "Property value");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
@@ -221,7 +221,7 @@ static void rna_def_py_component_property(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Python Component Vector 4D Property", "A 4D vector property of a Python Component");
 
 	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COORDS);
-	RNA_def_property_float_sdna(prop, NULL, "vec4");
+	RNA_def_property_float_sdna(prop, NULL, "vec");
 	RNA_def_property_array(prop, 4);
 	RNA_def_property_ui_text(prop, "Value", "Property value");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);

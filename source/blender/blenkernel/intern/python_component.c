@@ -259,18 +259,14 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 		}
 		else if (PySequence_Check(pyvalue)) {
 			int len = PySequence_Size(pyvalue);
-			float *vec = NULL;
 			switch (len) {
 				case 2:
-					vec = cprop->vec2;
 					cprop->type = CPROP_TYPE_VEC2;
 					break;
 				case 3:
-					vec = cprop->vec3;
 					cprop->type = CPROP_TYPE_VEC3;
 					break;
 				case 4:
-					vec = cprop->vec4;
 					cprop->type = CPROP_TYPE_VEC4;
 					break;
 				default:
@@ -279,11 +275,11 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 					break;
 			}
 
-			if (vec) {
+			if (!free) {
 				for (unsigned int j = 0; j < len; ++j) {
 					PyObject *item = PySequence_GetItem(pyvalue, j);
 					if (PyFloat_Check(item)) {
-						vec[j] = PyFloat_AsDouble(item);
+						cprop->vec[j] = PyFloat_AsDouble(item);
 					}
 					else {
 						printf("Sequence property \"%s\" contains a non-float item (%i)\n", name, j);
@@ -567,6 +563,28 @@ void *argument_dict_from_component(PythonComponent *pc)
 		else if (cprop->type == CPROP_TYPE_SET) {
 			LinkData *link = BLI_findlink(&cprop->enumval, cprop->itemval);
 			value = PyUnicode_FromString(link->data);
+		}
+		else if (cprop->type == CPROP_TYPE_VEC2 ||
+				 cprop->type == CPROP_TYPE_VEC3 ||
+				 cprop->type == CPROP_TYPE_VEC4)
+		{
+			int size;
+			switch (cprop->type) {
+				case CPROP_TYPE_VEC2:
+					size = 2;
+					break;
+				case CPROP_TYPE_VEC3:
+					size = 3;
+					break;
+				case CPROP_TYPE_VEC4:
+					size = 4;
+					break;
+			}
+			value = PyList_New(size);
+			// Fill the vector list.
+			for (unsigned int i = 0; i < size; ++i) {
+				PyList_SetItem(value, i, PyFloat_FromDouble(cprop->vec[i]));
+			}
 		}
 		else {
 			cprop = cprop->next;

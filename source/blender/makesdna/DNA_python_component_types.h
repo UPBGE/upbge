@@ -34,10 +34,7 @@ typedef struct ComponentProperty {
 	float floatval;
 	char strval[64];
 	int itemval;
-	float vec2[2];
-	float vec3[3];
-	float vec4[4];
-	int pad;
+	float vec[4];
 	ListBase enumval;
 } ComponentProperty;
 
