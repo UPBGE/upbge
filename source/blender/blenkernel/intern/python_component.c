@@ -342,6 +342,8 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 
 	PyDict_SetItemString(sys_modules, "bge", bgemod);
 	PyDict_SetItemString(sys_modules, "bge.types", bgesubmod);
+	PyDict_SetItemString(PyModule_GetDict(bgemod), "__component__", Py_True);
+	Py_INCREF(Py_True);
 
 	// Try to load up the module
 	mod = PyImport_ImportModule(pc->module);
