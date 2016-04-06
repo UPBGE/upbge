@@ -1422,12 +1422,11 @@ static void write_component_properties(WriteData *wd, ListBase *lb)
 	cprop = lb->first;
 
 	while (cprop) {
+		LinkData *link;
 		writestruct(wd, DATA, "ComponentProperty", 1, cprop);
-		if (cprop->ptr) {
-			writedata(wd, DATA, MEM_allocN_len(cprop->ptr), cprop->ptr);
-		}
-		if (cprop->ptr2) {
-			writedata(wd, DATA, MEM_allocN_len(cprop->ptr2), cprop->ptr2);
+		writelist(wd, DATA, "LinkData", &cprop->enumval);
+		for (link = cprop->enumval.first; link; link = link->next) {
+			writedata(wd, DATA, strlen(link->data)+1, link->data);
 		}
 		cprop = cprop->next;
 	}

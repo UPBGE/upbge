@@ -137,38 +137,12 @@ static int verify_class(PyObject *cls)
 	return 0;
 }
 
-static ComponentProperty *create_property(char *name, short type, int data, void *ptr)
+static ComponentProperty *create_property(char *name)
 {
 	ComponentProperty *cprop;
 
-	cprop = MEM_mallocN(sizeof(ComponentProperty), "ComponentProperty");
-
-	if (cprop) {
-		BLI_strncpy(cprop->name, name, sizeof(cprop->name));
-		cprop->type = type;
-
-		cprop->data = 0;
-		cprop->ptr = NULL;
-		cprop->ptr2 = NULL;
-
-		if (type == CPROP_TYPE_INT) {
-			cprop->data = data;
-		}
-		else if (type == CPROP_TYPE_FLOAT) {
-			*((float *)&cprop->data) = *(float*)(&data);
-		}
-		else if (type == CPROP_TYPE_BOOLEAN) {
-			cprop->data = data;
-		}
-		else if (type == CPROP_TYPE_STRING) {
-			cprop->ptr = ptr;
-		}
-		else if (type == CPROP_TYPE_SET) {
-			cprop->ptr = ptr;
-			cprop->ptr2 = (void *)((EnumPropertyItem*)ptr)->identifier;
-			cprop->data = 0;
-		}
-	}
+	cprop = MEM_callocN(sizeof(ComponentProperty), "ComponentProperty");
+	BLI_strncpy(cprop->name, name, sizeof(cprop->name));
 
 	return cprop;
 }
@@ -178,20 +152,21 @@ static ComponentProperty *copy_property(ComponentProperty *cprop)
 	ComponentProperty *cpropn;
 
 	cpropn = MEM_dupallocN(cprop);
-	cpropn->ptr = MEM_dupallocN(cpropn->ptr);
-	cpropn->ptr2 = MEM_dupallocN(cpropn->ptr2);
+
+	BLI_duplicatelist(&cpropn->enumval, &cprop->enumval);
+	for (LinkData *link = cpropn->enumval.first; link; link = link->next) {
+		link->data = MEM_dupallocN(link->data);
+	}
 
 	return cpropn;
 }
 
 static void free_component_property(ComponentProperty *cprop)
 {
-	if (cprop->ptr) {
-		MEM_freeN(cprop->ptr);
+	for (LinkData *link = cprop->enumval.first; link; link = link->next) {
+		MEM_freeN(link->data);
 	}
-	if (cprop->ptr2) {
-		MEM_freeN(cprop->ptr2);
-	}
+	BLI_freelistN(&cprop->enumval);
 	MEM_freeN(cprop);
 }
 
@@ -211,9 +186,6 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 	PyObject *args_dict, *pykey, *pyvalue, *pyitems, *pyitem;
 	ComponentProperty *cprop;
 	char name[64];
-	int data;
-	short type;
-	void *ptr = NULL;
 	ListBase properties;
 	memset(&properties, 0, sizeof(ListBase));
 
@@ -245,80 +217,75 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 
 		BLI_strncpy(name, _PyUnicode_AsString(pykey), sizeof(name));
 
+		cprop = create_property(name);
+
 		// Determine the type and default value
 		if (PyBool_Check(pyvalue)) {
-			type = CPROP_TYPE_BOOLEAN;
-			data = PyLong_AsLong(pyvalue) != 0;
+			cprop->type = CPROP_TYPE_BOOLEAN;
+			cprop->boolval = PyLong_AsLong(pyvalue) != 0;
 		}
 		else if (PyLong_Check(pyvalue)) {
-			type = CPROP_TYPE_INT;
-			data = PyLong_AsLong(pyvalue);
+			cprop->type = CPROP_TYPE_INT;
+			cprop->intval = PyLong_AsLong(pyvalue);
 		}
 		else if (PyFloat_Check(pyvalue)) {
-			type = CPROP_TYPE_FLOAT;
-			*((float*)&data) = (float)PyFloat_AsDouble(pyvalue);
+			cprop->type = CPROP_TYPE_FLOAT;
+			cprop->floatval = (float)PyFloat_AsDouble(pyvalue);
 		}
 		else if (PyUnicode_Check(pyvalue)) {
-			type = CPROP_TYPE_STRING;
-			ptr = MEM_callocN(MAX_PROPSTRING, "ComponentProperty string");
-			BLI_strncpy((char*)ptr, _PyUnicode_AsString(pyvalue), MAX_PROPSTRING);
+			cprop->type = CPROP_TYPE_STRING;
+			BLI_strncpy((char*)cprop->strval, _PyUnicode_AsString(pyvalue), MAX_PROPSTRING);
 		}
 		else if (PySet_Check(pyvalue)) {
-			int len = PySet_Size(pyvalue), j = 0;
-			EnumPropertyItem *items;
 			PyObject *iterator = PyObject_GetIter(pyvalue), *v = NULL;
 			char *str;
-			type = CPROP_TYPE_SET;
+			cprop->type = CPROP_TYPE_SET;
+			int j = 0;
 
-			// Create an EnumPropertyItem array
-			ptr = MEM_callocN(sizeof(EnumPropertyItem) * (len + 1), "ComponentProperty set");
-			items = (EnumPropertyItem*)ptr;
+			memset(&cprop->enumval, 0, sizeof(ListBase));
 			while ((v = PyIter_Next(iterator))) {
+				LinkData *link = MEM_callocN(sizeof(LinkData), "ComponentProperty set link data");
 				str = MEM_callocN(MAX_PROPSTRING, "ComponentProperty set string");
 				BLI_strncpy(str, _PyUnicode_AsString(v), MAX_PROPSTRING);
 
-				items[j].value = j;
-				items[j].identifier = str;
-				items[j].icon = 0;
-				items[j].name = str;
-				items[j].description = "";
+				link->data = str;
+				BLI_addtail(&cprop->enumval, link);
 
 				++j;
 			}
-			data = 0;
+			cprop->itemval = 0;
 		}
 		else {
 			// Unsupported type
 			printf("Unsupported type found for args[%s], skipping\n", name);
+			free_component_property(cprop);
 			continue;
 		}
 
-		cprop = create_property(name, type, data, ptr);
-
-		if (cprop) {
-			bool found = false;
-			for (ComponentProperty *propit = pycomp->properties.first; propit; propit = propit->next) {
-				if ((strcmp(propit->name, cprop->name) == 0) && propit->type == cprop->type) {
-					/* We found a coresponding property in the old component, so the new one
-					 * is released, the old property is removed from the original list and
-					 * added to the new list.
-					 */
-					free_component_property(cprop);
-					BLI_remlink(&pycomp->properties, propit);
-					BLI_addtail(&properties, propit);
-					found = true;
+		bool found = false;
+		for (ComponentProperty *propit = pycomp->properties.first; propit; propit = propit->next) {
+			if ((strcmp(propit->name, cprop->name) == 0) && propit->type == cprop->type) {
+				/* We never reuse a enum property because we don't know if one of the
+				 * enum value was modified and it easier to just copy the current item
+				 * index than the list.
+				 */
+				if (cprop->type == CPROP_TYPE_SET) {
+					cprop->itemval = propit->itemval;
 					break;
 				}
-			}
-			if (!found) {
-				BLI_addtail(&properties, cprop);
+				/* We found a coresponding property in the old component, so the new one
+				 * is released, the old property is removed from the original list and
+				 * added to the new list.
+				 */
+				free_component_property(cprop);
+				BLI_remlink(&pycomp->properties, propit);
+				BLI_addtail(&properties, propit);
+				found = true;
+				break;
 			}
 		}
-		else {
-			// Cleanup ptr if it's set
-			if (ptr) {
-				MEM_freeN(ptr);
-			}
+		if (!found) {
+			BLI_addtail(&properties, cprop);
 		}
 	}
 
@@ -556,22 +523,22 @@ void *argument_dict_from_component(PythonComponent *pc)
 
 	while (cprop) {
 		if (cprop->type == CPROP_TYPE_INT) {
-			value = PyLong_FromLong(cprop->data);
+			value = PyLong_FromLong(cprop->intval);
 		}
 		else if (cprop->type == CPROP_TYPE_FLOAT) {
-			value = PyFloat_FromDouble(*(float *)(&cprop->data));
+			value = PyFloat_FromDouble(cprop->floatval);
 		}
 		else if (cprop->type == CPROP_TYPE_BOOLEAN) {
-			value = PyBool_FromLong(cprop->data);
+			value = PyBool_FromLong(cprop->boolval);
 		}
 		else if (cprop->type == CPROP_TYPE_STRING) {
-			value = PyUnicode_FromString((char *)cprop->ptr);
+			value = PyUnicode_FromString(cprop->strval);
 		}
-		else if (cprop->type == CPROP_TYPE_SET) {
+		/*else if (cprop->type == CPROP_TYPE_SET) {
 			value = PyUnicode_FromString((char *)cprop->ptr2);
-		}
+		}*/
 		else {
-			cprop= cprop->next;
+			cprop = cprop->next;
 			continue;
 		}
 

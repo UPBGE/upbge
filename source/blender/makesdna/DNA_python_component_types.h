@@ -28,9 +28,13 @@
 typedef struct ComponentProperty {
 	struct ComponentProperty *next, *prev;
 	char name[32];
-	short type, pad;
-	int data;
-	void *ptr, *ptr2;
+	short type;
+	short boolval;
+	int intval;
+	float floatval;
+	char strval[64];
+	int itemval;
+	ListBase enumval;
 } ComponentProperty;
 
 typedef struct PythonComponent {

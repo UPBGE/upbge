@@ -5435,8 +5435,10 @@ static void direct_link_object(FileData *fd, Object *ob)
 		link_glob_list(fd, &pc->properties);
 		cprop = pc->properties.first;
 		while (cprop) {
-			cprop->ptr = newdataadr(fd, cprop->ptr);
-			cprop->ptr2 = newdataadr(fd, cprop->ptr2);
+			link_list(fd, &cprop->enumval);
+			for (LinkData *link = cprop->enumval.first; link; link = link->next) {
+				link->data = newdataadr(fd, link->data);
+			}
 			cprop = cprop->next;
 		}
 		pc = pc->next;

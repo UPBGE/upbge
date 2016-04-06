@@ -52,35 +52,39 @@ static StructRNA* rna_ComponentProperty_refine(struct PointerRNA *ptr)
 	}
 }
 
-static float rna_ComponentFloatProperty_value_get(PointerRNA *ptr)
-{
-	ComponentProperty *cprop = (ComponentProperty *)(ptr->data);
-	return *(float*)(&cprop->data);
-}
-
-static void rna_ComponentFloatProperty_value_set(PointerRNA *ptr, float value)
-{
-	ComponentProperty *cprop = (ComponentProperty *)(ptr->data);
-	*(float*)(&cprop->data) = value;
-}
 static int rna_ComponentSetProperty_get(struct PointerRNA *ptr)
 {
 	ComponentProperty *cprop = (ComponentProperty *)(ptr->data);
-	return cprop->data;
+	return cprop->itemval;
 }
 
 static void rna_ComponentSetProperty_set(struct PointerRNA *ptr, int value)
 {
 	ComponentProperty *cprop = (ComponentProperty *)(ptr->data);
-	cprop->data = value;
-	cprop->ptr2 = (void *)(((EnumPropertyItem *)cprop->ptr) + value)->identifier;
+	cprop->itemval = value;
 }
 
 static EnumPropertyItem *rna_ComponentSetProperty_itemf(bContext *UNUSED(C), PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	ComponentProperty *cprop = (ComponentProperty *)(ptr->data);
-	*r_free = false;
-	return (EnumPropertyItem *)cprop->ptr;
+	EnumPropertyItem *items = NULL;
+	int totitem = 0;
+	int j = 0;
+
+	for (LinkData *link = cprop->enumval.first; link; link = link->next, ++j) {
+		EnumPropertyItem item = {0, "", 0, "", ""};
+		item.value = j;
+		item.identifier = link->data;
+		item.icon = 0;
+		item.name = link->data;
+		item.description = "";
+		RNA_enum_item_add(&items, &totitem, &item);
+	}
+
+	RNA_enum_item_end(&items, &totitem);
+	*r_free = true;
+
+	return items;
 }
 #else
 
@@ -136,7 +140,7 @@ static void rna_def_py_component_property(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Python Component Boolean Property", "A boolean property of a Python Component");
 
 	prop = RNA_def_property(srna, "value", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "data", 1);
+	RNA_def_property_boolean_sdna(prop, NULL, "boolval", 1);
 	RNA_def_property_ui_text(prop, "Value", "Property value");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
@@ -146,7 +150,7 @@ static void rna_def_py_component_property(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Python Component Integer Property", "An integer property of a Python Component");
 
 	prop = RNA_def_property(srna, "value", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "data");
+	RNA_def_property_int_sdna(prop, NULL, "intval");
 	RNA_def_property_ui_text(prop, "Value", "Property value");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
@@ -156,8 +160,8 @@ static void rna_def_py_component_property(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Python Component Float Property", "A float property of a Python Component");
 
 	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "floatval");
 	RNA_def_property_ui_text(prop, "Value", "Property value");
-	RNA_def_property_float_funcs(prop, "rna_ComponentFloatProperty_value_get", "rna_ComponentFloatProperty_value_set", NULL);
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	/* String */
@@ -166,7 +170,7 @@ static void rna_def_py_component_property(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Python Component String Property", "A string property of a Python Component");
 
 	prop = RNA_def_property(srna, "value", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "ptr");
+	RNA_def_property_string_sdna(prop, NULL, "strval");
 	RNA_def_property_string_maxlength(prop, MAX_PROPSTRING);
 	RNA_def_property_ui_text(prop, "Value", "Property value");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
