@@ -183,9 +183,7 @@ static void free_component_properties(ListBase *lb)
 static void create_properties(PythonComponent *pycomp, PyObject *cls)
 {
 #ifdef WITH_PYTHON
-	PyObject *args_dict, *pykey, *pyvalue, *pyitems, *pyitem;
-	ComponentProperty *cprop;
-	char name[64];
+	PyObject *args_dict, *pyitems;
 	ListBase properties;
 	memset(&properties, 0, sizeof(ListBase));
 
@@ -205,9 +203,11 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 	pyitems = PyMapping_Items(args_dict);
 
 	for (unsigned int i = 0, size = PyList_Size(pyitems); i < size; ++i) {
-		pyitem = PyList_GetItem(pyitems, i);
-		pykey = PyTuple_GetItem(pyitem, 0);
-		pyvalue = PyTuple_GetItem(pyitem, 1);
+		ComponentProperty *cprop;
+		char name[64];
+		PyObject *pyitem = PyList_GetItem(pyitems, i);
+		PyObject *pykey = PyTuple_GetItem(pyitem, 0);
+		PyObject *pyvalue = PyTuple_GetItem(pyitem, 1);
 
 		// Make sure type(key) == string
 		if (!PyUnicode_Check(pykey)) {
@@ -238,14 +238,13 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 		}
 		else if (PySet_Check(pyvalue)) {
 			PyObject *iterator = PyObject_GetIter(pyvalue), *v = NULL;
-			char *str;
-			cprop->type = CPROP_TYPE_SET;
 			int j = 0;
+			cprop->type = CPROP_TYPE_SET;
 
 			memset(&cprop->enumval, 0, sizeof(ListBase));
 			while ((v = PyIter_Next(iterator))) {
 				LinkData *link = MEM_callocN(sizeof(LinkData), "ComponentProperty set link data");
-				str = MEM_callocN(MAX_PROPSTRING, "ComponentProperty set string");
+				char *str = MEM_callocN(MAX_PROPSTRING, "ComponentProperty set string");
 				BLI_strncpy(str, _PyUnicode_AsString(v), MAX_PROPSTRING);
 
 				link->data = str;
@@ -321,7 +320,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 		PyGILState_Release(state); \
 		return value;
 
-	PyObject *mod, *mod_list, *mod_item, *modspec, *item, *sys_path, *pypath, *sys_modules, *bgemod, *bgesubmod;
+	PyObject *mod, *item, *sys_path, *pypath, *sys_modules, *bgemod, *bgesubmod;
 	PyGILState_STATE state;
 	char path[FILE_MAX];
 
@@ -356,23 +355,8 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 		FINISH(false);
 	}
 
-	mod_list = PyDict_Values(PyModule_GetDict(mod));
-
 	// Reload all modules imported in the component module script.
-	for (unsigned int i = 0, size = PySequence_Size(mod_list); i < size; ++i) {
-		item = PySequence_GetItem(mod_list, i);
-		if (PyModule_Check(item)) {
-			// If there's no spec, then the module can't be reloaded.
-			modspec = PyObject_GetAttrString(item, "__spec__");
-			if (modspec != Py_None) {
-				mod_item = PyImport_ReloadModule(item);
-				Py_XDECREF(mod_item);
-			}
-			Py_DECREF(modspec);
-		}
-		Py_DECREF(item);
-	}
-	Py_DECREF(mod_list);
+	reload_script_module_recursive_component(mod);
 
 	item = PyObject_GetAttrString(mod, pc->name);
 	if (!item) {
@@ -490,19 +474,17 @@ void free_components(ListBase *lb)
 void reload_script_module_recursive_component(void *module)
 {
 #ifdef WITH_PYTHON
-	PyObject *mod_list, *mod_item, *modspec, *item;
-
-	mod_list = PyDict_Values(PyModule_GetDict(module));
+	PyObject *mod_list = PyDict_Values(PyModule_GetDict(module));
 
 	// Reload all modules imported in the component module script.
 	for (unsigned int i = 0, size = PySequence_Size(mod_list); i < size; ++i) {
-		item = PySequence_GetItem(mod_list, i);
+		PyObject *item = PySequence_GetItem(mod_list, i);
 		if (PyModule_Check(item)) {
 			// If there's no spec, then the module can't be reloaded.
-			modspec = PyObject_GetAttrString(item, "__spec__");
+			PyObject *modspec = PyObject_GetAttrString(item, "__spec__");
 			if (modspec != Py_None) {
 				reload_script_module_recursive_component(item);
-				mod_item = PyImport_ReloadModule(item);
+				PyObject *mod_item = PyImport_ReloadModule(item);
 				Py_XDECREF(mod_item);
 			}
 			Py_DECREF(modspec);
@@ -516,14 +498,11 @@ void reload_script_module_recursive_component(void *module)
 void *argument_dict_from_component(PythonComponent *pc)
 {
 #ifdef WITH_PYTHON
-	ComponentProperty *cprop;
-	PyObject *args, *value;
-
-	args = PyDict_New();
-
-	cprop = (ComponentProperty *)pc->properties.first;
+	ComponentProperty *cprop = (ComponentProperty *)pc->properties.first;
+	PyObject *args = PyDict_New();
 
 	while (cprop) {
+		PyObject *value;
 		if (cprop->type == CPROP_TYPE_INT) {
 			value = PyLong_FromLong(cprop->intval);
 		}
@@ -536,9 +515,10 @@ void *argument_dict_from_component(PythonComponent *pc)
 		else if (cprop->type == CPROP_TYPE_STRING) {
 			value = PyUnicode_FromString(cprop->strval);
 		}
-		/*else if (cprop->type == CPROP_TYPE_SET) {
-			value = PyUnicode_FromString((char *)cprop->ptr2);
-		}*/
+		else if (cprop->type == CPROP_TYPE_SET) {
+			LinkData *link = BLI_findlink(&cprop->enumval, cprop->itemval);
+			value = PyUnicode_FromString(link->data);
+		}
 		else {
 			cprop = cprop->next;
 			continue;
