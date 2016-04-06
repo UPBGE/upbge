@@ -311,7 +311,14 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 				 * index than the list.
 				 */
 				if (cprop->type == CPROP_TYPE_SET) {
-					cprop->itemval = propit->itemval;
+					char *str = ((LinkData *)BLI_findlink(&propit->enumval, propit->itemval))->data;
+					int j = 0;
+					for (LinkData *link = cprop->enumval.first; link; link = link->next) {
+						if (strcmp(link->data, str) == 0) {
+							cprop->itemval = j;
+						}
+						++j;
+					}
 					break;
 				}
 				/* We found a coresponding property in the old component, so the new one
