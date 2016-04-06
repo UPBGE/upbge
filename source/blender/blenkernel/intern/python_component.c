@@ -274,7 +274,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 					cprop->type = CPROP_TYPE_VEC4;
 					break;
 				default:
-					printf("Sequence property %s length %i out of range [2, 4]\n", name, len);
+					printf("Sequence property \"%s\" length %i out of range [2, 4]\n", name, len);
 					free = true;
 					break;
 			}
@@ -286,7 +286,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 						vec[j] = PyFloat_AsDouble(item);
 					}
 					else {
-						printf("Sequence property %s contains a non-float item (%i)\n", name, j);
+						printf("Sequence property \"%s\" contains a non-float item (%i)\n", name, j);
 					}
 					Py_DECREF(item);
 				}
@@ -294,7 +294,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 		}
 		else {
 			// Unsupported type
-			printf("Unsupported type found for args[%s], skipping\n", name);
+			printf("Unsupported type %s found for property \"%s\", skipping\n", Py_TYPE(pyvalue)->tp_name, name);
 			free = true;
 		}
 
