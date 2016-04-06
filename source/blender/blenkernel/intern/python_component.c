@@ -251,8 +251,10 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 				link->data = str;
 				BLI_addtail(&cprop->enumval, link);
 
+				Py_DECREF(v);
 				++j;
 			}
+			Py_DECREF(iterator);
 			cprop->itemval = 0;
 		}
 		else {
