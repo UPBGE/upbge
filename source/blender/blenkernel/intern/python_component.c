@@ -205,6 +205,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 	for (unsigned int i = 0, size = PyList_Size(pyitems); i < size; ++i) {
 		ComponentProperty *cprop;
 		char name[64];
+		bool free = false;
 		PyObject *pyitem = PyList_GetItem(pyitems, i);
 		PyObject *pykey = PyTuple_GetItem(pyitem, 0);
 		PyObject *pyvalue = PyTuple_GetItem(pyitem, 1);
@@ -256,9 +257,48 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 			Py_DECREF(iterator);
 			cprop->itemval = 0;
 		}
+		else if (PySequence_Check(pyvalue)) {
+			int len = PySequence_Size(pyvalue);
+			float *vec = NULL;
+			switch (len) {
+				case 2:
+					vec = cprop->vec2;
+					cprop->type = CPROP_TYPE_VEC2;
+					break;
+				case 3:
+					vec = cprop->vec3;
+					cprop->type = CPROP_TYPE_VEC3;
+					break;
+				case 4:
+					vec = cprop->vec4;
+					cprop->type = CPROP_TYPE_VEC4;
+					break;
+				default:
+					printf("Sequence property %s length %i out of range [2, 4]\n", name, len);
+					free = true;
+					break;
+			}
+
+			if (vec) {
+				for (unsigned int j = 0; j < len; ++j) {
+					PyObject *item = PySequence_GetItem(pyvalue, j);
+					if (PyFloat_Check(item)) {
+						vec[j] = PyFloat_AsDouble(item);
+					}
+					else {
+						printf("Sequence property %s contains a non-float item (%i)\n", name, j);
+					}
+					Py_DECREF(item);
+				}
+			}
+		}
 		else {
 			// Unsupported type
 			printf("Unsupported type found for args[%s], skipping\n", name);
+			free = true;
+		}
+
+		if (free) {
 			free_component_property(cprop);
 			continue;
 		}

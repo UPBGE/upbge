@@ -51,7 +51,8 @@ class LOGIC_PT_components(bpy.types.Panel):
             for prop in c.properties:
                 row = box.row()
                 row.label(text=prop.name)
-                row.prop(prop, "value", text="")
+                col = row.column()
+                col.prop(prop, "value", text="")
 
 
 class LOGIC_PT_properties(Panel):

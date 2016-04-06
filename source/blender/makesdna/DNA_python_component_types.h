@@ -34,6 +34,10 @@ typedef struct ComponentProperty {
 	float floatval;
 	char strval[64];
 	int itemval;
+	float vec2[2];
+	float vec3[3];
+	float vec4[4];
+	int pad;
 	ListBase enumval;
 } ComponentProperty;
 
@@ -51,5 +55,8 @@ typedef struct PythonComponent {
 #define CPROP_TYPE_STRING      2
 #define CPROP_TYPE_BOOLEAN     3
 #define CPROP_TYPE_SET         4
+#define CPROP_TYPE_VEC2        5
+#define CPROP_TYPE_VEC3        6
+#define CPROP_TYPE_VEC4        7
 
 #endif // DNA_COMPONENT_TYPES_H

@@ -47,6 +47,12 @@ static StructRNA* rna_ComponentProperty_refine(struct PointerRNA *ptr)
 			return &RNA_ComponentStringProperty;
 		case CPROP_TYPE_SET:
 			return &RNA_ComponentSetProperty;
+		case CPROP_TYPE_VEC2:
+			return &RNA_ComponentVector2DProperty;
+		case CPROP_TYPE_VEC3:
+			return &RNA_ComponentVector3DProperty;
+		case CPROP_TYPE_VEC4:
+			return &RNA_ComponentVector4DProperty;
 		default:
 			return &RNA_ComponentProperty;
 	}
@@ -184,6 +190,39 @@ static void rna_def_py_component_property(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, empty_items);
 	RNA_def_property_enum_funcs(prop, "rna_ComponentSetProperty_get", "rna_ComponentSetProperty_set", "rna_ComponentSetProperty_itemf");
 	RNA_def_property_enum_default(prop, 0);
+	RNA_def_property_ui_text(prop, "Value", "Property value");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	/* Vector 2D */
+	srna = RNA_def_struct(brna, "ComponentVector2DProperty", "ComponentProperty");
+	RNA_def_struct_sdna(srna, "ComponentProperty");
+	RNA_def_struct_ui_text(srna, "Python Component Vector 2D Property", "A 2D vector property of a Python Component");
+
+	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COORDS);
+	RNA_def_property_float_sdna(prop, NULL, "vec2");
+	RNA_def_property_array(prop, 2);
+	RNA_def_property_ui_text(prop, "Value", "Property value");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	/* Vector 3D */
+	srna = RNA_def_struct(brna, "ComponentVector3DProperty", "ComponentProperty");
+	RNA_def_struct_sdna(srna, "ComponentProperty");
+	RNA_def_struct_ui_text(srna, "Python Component Vector 3D Property", "A 3D vector property of a Python Component");
+
+	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COORDS);
+	RNA_def_property_float_sdna(prop, NULL, "vec3");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Value", "Property value");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	/* Vector 4D */
+	srna = RNA_def_struct(brna, "ComponentVector4DProperty", "ComponentProperty");
+	RNA_def_struct_sdna(srna, "ComponentProperty");
+	RNA_def_struct_ui_text(srna, "Python Component Vector 4D Property", "A 4D vector property of a Python Component");
+
+	prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_COORDS);
+	RNA_def_property_float_sdna(prop, NULL, "vec4");
+	RNA_def_property_array(prop, 4);
 	RNA_def_property_ui_text(prop, "Value", "Property value");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
