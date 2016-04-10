@@ -795,6 +795,11 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 		return 0;
 	}
 	
+	/* XXX This distribution code is totally broken in case from == PART_FROM_CHILD, it's always using finaldm
+	 *     even if use_modifier_stack is unset... But making things consistent here break all existing edited
+	 *     hair systems, so better wait for complete rewrite.
+	 */
+
 	psys_thread_context_init(ctx, sim);
 	
 	/* First handle special cases */
@@ -810,10 +815,21 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 		/* Grid distribution */
 		if (part->distr==PART_DISTR_GRID && from != PART_FROM_VERT) {
 			BLI_srandom(31415926 + psys->seed);
-			dm= CDDM_from_mesh((Mesh*)ob->data);
+
+			if (psys->part->use_modifier_stack) {
+				dm = finaldm;
+			}
+			else {
+				dm = CDDM_from_mesh((Mesh*)ob->data);
+			}
 			DM_ensure_tessface(dm);
+
 			distribute_grid(dm,psys);
-			dm->release(dm);
+
+			if (dm != finaldm) {
+				dm->release(dm);
+			}
+
 			return 0;
 		}
 	}
@@ -899,7 +915,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 
 	element_weight	= MEM_callocN(sizeof(float)*totelem, "particle_distribution_weights");
 	particle_element= MEM_callocN(sizeof(int)*totpart, "particle_distribution_indexes");
-	element_sum		= MEM_callocN(sizeof(float)*(totelem+1), "particle_distribution_sum");
+	element_sum		= MEM_mallocN(sizeof(*element_sum) * totelem, "particle_distribution_sum");
 	jitter_offset	= MEM_callocN(sizeof(float)*totelem, "particle_distribution_jitoff");
 
 	/* Calculate weights from face areas */
@@ -994,9 +1010,10 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 	inv_totweight = (totweight > 0.f ? 1.f/totweight : 0.f);
 
 	/* Calculate cumulative weights */
-	element_sum[0] = 0.0f;
-	for (i=0; i<totelem; i++)
-		element_sum[i+1] = element_sum[i] + element_weight[i] * inv_totweight;
+	element_sum[0] = element_weight[0] * inv_totweight;
+	for (i = 1; i < totelem; i++) {
+		element_sum[i] = element_sum[i - 1] + element_weight[i] * inv_totweight;
+	}
 	
 	/* Finally assign elements to particles */
 	if ((part->flag&PART_TRAND) || (part->simplify_flag&PART_SIMPLIFY_ENABLE)) {
@@ -1004,7 +1021,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 
 		for (p=0; p<totpart; p++) {
 			/* In theory element_sum[totelem] should be 1.0, but due to float errors this is not necessarily always true, so scale pos accordingly. */
-			pos= BLI_frand() * element_sum[totelem];
+			pos= BLI_frand() * element_sum[totelem - 1];
 			particle_element[p] = distribute_binary_search(element_sum, totelem, pos);
 			particle_element[p] = MIN2(totelem-1, particle_element[p]);
 			jitter_offset[particle_element[p]] = pos;
@@ -1013,21 +1030,33 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx, Parti
 	else {
 		double step, pos;
 		
-		step= (totpart < 2) ? 0.5 : 1.0/(double)totpart;
-		pos= 1e-6; /* tiny offset to avoid zero weight face */
-		i= 0;
+		step = (totpart < 2) ? 0.5 : 1.0 / (double)totpart;
+		/* This is to address tricky issues with vertex-emitting when user tries (and expects) exact 1-1 vert/part
+		 * distribution (see T47983 and its two example files). It allows us to consider pos as
+		 * 'midpoint between v and v+1' (or 'p and p+1', depending whether we have more vertices than particles or not),
+		 * and avoid stumbling over float imprecisions in element_sum. */
+		if (from == PART_FROM_VERT) {
+			pos = (totpart < totelem) ? 0.5 / (double)totelem : step * 0.5;  /* We choose the smaller step. */
+		}
+		else {
+			pos = 0.0;
+		}
 
-		for (p=0; p<totpart; p++, pos+=step) {
-			while ((i < totelem) && (pos > (double)element_sum[i + 1]))
-				i++;
+		/* Avoid initial zero-weight items. */
+		for (i = 0; (element_sum[i] == 0.0) && (i < totelem - 1); i++);
 
-			particle_element[p] = MIN2(totelem-1, i);
+		for (p = 0; p < totpart; p++, pos += step) {
+			for ( ; (pos > (double)element_sum[i]) && (i < totelem - 1); i++);
 
-			/* avoid zero weight face */
-			if (p == totpart-1 && element_weight[particle_element[p]] == 0.0f)
-				particle_element[p] = particle_element[p-1];
+			particle_element[p] = i;
 
 			jitter_offset[particle_element[p]] = pos;
+		}
+
+		/* Avoid final zero weight items. */
+		BLI_assert(p == totpart);
+		if (element_weight[particle_element[--p]] == 0.0f) {
+			particle_element[p] = particle_element[p - 1];
 		}
 	}
 

@@ -533,4 +533,107 @@ bool gp_point_xy_to_3d(GP_SpaceConversion *gsc, Scene *scene, const float screen
 	}
 }
 
+/**
+ * Apply smooth to stroke point 
+ * \param gps              Stroke to smooth
+ * \param i                Point index
+ * \param inf              Amount of smoothing to apply
+ * \param affect_pressure  Apply smoothing to pressure values too?
+ */
+bool gp_smooth_stroke(bGPDstroke *gps, int i, float inf, bool affect_pressure)
+{
+	bGPDspoint *pt = &gps->points[i];
+	float pressure = 0.0f;
+	float sco[3] = {0.0f};
+	
+	/* Do nothing if not enough points to smooth out */
+	if (gps->totpoints <= 2) {
+		return false;
+	}
+	
+	/* Only affect endpoints by a fraction of the normal strength,
+	* to prevent the stroke from shrinking too much
+	*/
+	if ((i == 0) || (i == gps->totpoints - 1)) {
+		inf *= 0.1f;
+	}
+	
+	/* Compute smoothed coordinate by taking the ones nearby */
+	/* XXX: This is potentially slow, and suffers from accumulation error as earlier points are handled before later ones */
+	{
+		// XXX: this is hardcoded to look at 2 points on either side of the current one (i.e. 5 items total)
+		const int   steps = 2;
+		const float average_fac = 1.0f / (float)(steps * 2 + 1);
+		int step;
+		
+		/* add the point itself */
+		madd_v3_v3fl(sco, &pt->x, average_fac);
+		
+		/* n-steps before/after current point */
+		// XXX: review how the endpoints are treated by this algorithm
+		// XXX: falloff measures should also introduce some weighting variations, so that further-out points get less weight
+		for (step = 1; step <= steps; step++) {
+			bGPDspoint *pt1, *pt2;
+			int before = i - step;
+			int after = i + step;
+			
+			CLAMP_MIN(before, 0);
+			CLAMP_MAX(after, gps->totpoints - 1);
+			
+			pt1 = &gps->points[before];
+			pt2 = &gps->points[after];
+			
+			/* add both these points to the average-sum (s += p[i]/n) */
+			madd_v3_v3fl(sco, &pt1->x, average_fac);
+			madd_v3_v3fl(sco, &pt2->x, average_fac);
+			
+			/* do pressure too? */
+			if (affect_pressure) {
+				pressure += pt1->pressure * average_fac;
+				pressure += pt2->pressure * average_fac;
+			}
+		}
+	}
+	
+	/* Based on influence factor, blend between original and optimal smoothed coordinate */
+	interp_v3_v3v3(&pt->x, &pt->x, sco, inf);
+	
+	if (affect_pressure) {
+		pt->pressure = pressure;
+	}
+	
+	return true;
+}
+
+/**
+ * Subdivide a stroke once, by adding a point half way between each pair of existing points
+ * \param gps           Stroke data
+ * \param new_totpoints Total number of points (after subdividing)
+ */
+void gp_subdivide_stroke(bGPDstroke *gps, const int new_totpoints)
+{
+	/* Move points towards end of enlarged points array to leave space for new points */
+	int y = 1;
+	for (int i = gps->totpoints - 1; i > 0; i--) {
+		gps->points[new_totpoints - y] = gps->points[i];
+		y += 2;
+	}
+	
+	/* Create interpolated points */
+	for (int i = 0; i < new_totpoints - 1; i += 2) {
+		bGPDspoint *prev  = &gps->points[i];
+		bGPDspoint *pt    = &gps->points[i + 1];
+		bGPDspoint *next  = &gps->points[i + 2];
+		
+		/* Interpolate all values */
+		interp_v3_v3v3(&pt->x, &prev->x, &next->x, 0.5f);
+		
+		pt->pressure = interpf(prev->pressure, next->pressure, 0.5f);
+		pt->time     = interpf(prev->time, next->time, 0.5f);
+	}
+	
+	/* Update to new total number of points */
+	gps->totpoints = new_totpoints;
+}
+
 /* ******************************************************** */

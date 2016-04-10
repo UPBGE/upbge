@@ -258,6 +258,7 @@ set(BLENDER_TEXT_FILES
 	${CMAKE_SOURCE_DIR}/release/text/Python-license.txt
 	${CMAKE_SOURCE_DIR}/release/text/copyright.txt
 	${CMAKE_SOURCE_DIR}/release/text/jemalloc-license.txt
+	${CMAKE_SOURCE_DIR}/release/text/ocio-license.txt
 	# generate this file
 	# ${CMAKE_SOURCE_DIR}/release/text/readme.html
 	${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-bfont.ttf.txt
@@ -1099,17 +1100,7 @@ setup_liblinks(blender)
 # Setup launcher
 
 if(WIN32 AND NOT WITH_PYTHON_MODULE)
-	set(LAUNCHER_SRC
-		creator_launch_win.c
-		${CMAKE_SOURCE_DIR}/release/windows/icons/winblender.rc
-	)
-	add_executable(blender-launcher ${LAUNCHER_SRC})
-	target_link_libraries(blender-launcher bf_intern_utfconv ${PLATFORM_LINKLIBS})
-
-	set_target_properties(blender PROPERTIES OUTPUT_NAME blender-app)
-	set_target_properties(blender-launcher PROPERTIES OUTPUT_NAME blender)
-
-	install(TARGETS blender blender-launcher
+	install(TARGETS blender
 			COMPONENT Blender
 			DESTINATION ".")
 

@@ -41,6 +41,7 @@ extern "C" {
 #include "tools/bmesh_edgenet.h"
 #include "tools/bmesh_edgesplit.h"
 #include "tools/bmesh_path.h"
+#include "tools/bmesh_path_region.h"
 #include "tools/bmesh_region_match.h"
 #include "tools/bmesh_triangulate.h"
 

@@ -44,7 +44,7 @@ ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1, 2, 3, 5);
 
 struct LinkNode *BM_mesh_calc_path_face(
         BMesh *bm, BMFace *f_src, BMFace *f_dst, const struct BMCalcPathParams *params,
-        bool (*test_fn)(BMFace *, void *), void *user_data)
+        bool (*filter_fn)(BMFace *, void *), void *user_data)
 ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1, 2, 3, 5);
 
 #endif /* __BMESH_PATH_H__ */

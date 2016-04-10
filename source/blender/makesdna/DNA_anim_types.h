@@ -376,6 +376,8 @@ typedef enum eDriverVar_Flags {
 	DVAR_FLAG_INVALID_HAS_SPECIAL = (1 << 6),
 	/* name is a reserved keyword */
 	DVAR_FLAG_INVALID_PY_KEYWORD  = (1 << 7),
+	/* name is zero-length */
+	DVAR_FLAG_INVALID_EMPTY       = (1 << 8),
 } eDriverVar_Flags;
 
 /* All invalid dvar name flags */
@@ -386,7 +388,8 @@ typedef enum eDriverVar_Flags {
 	DVAR_FLAG_INVALID_HAS_SPACE |  \
 	DVAR_FLAG_INVALID_HAS_DOT |    \
 	DVAR_FLAG_INVALID_HAS_SPECIAL |  \
-	DVAR_FLAG_INVALID_PY_KEYWORD  \
+	DVAR_FLAG_INVALID_PY_KEYWORD  | \
+	DVAR_FLAG_INVALID_EMPTY  \
 )
 
 /* --- */
@@ -408,7 +411,7 @@ typedef struct ChannelDriver {
 	/* python expression to execute (may call functions defined in an accessory file) 
 	 * which relates the target 'variables' in some way to yield a single usable value
 	 */
-	char expression[512];	/* expression to compile for evaluation */
+	char expression[256];	/* expression to compile for evaluation */
 	void *expr_comp; 		/* PyObject - compiled expression, don't save this */
 	
 	float curval;		/* result of previous evaluation */

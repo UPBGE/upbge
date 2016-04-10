@@ -15,13 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2004 Blender Foundation.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
  * ***** END GPL LICENSE BLOCK *****
  */
 
@@ -40,6 +33,7 @@
 
 #include "bmesh.h"
 #include "bmesh_path.h"  /* own include */
+
 
 /* -------------------------------------------------------------------- */
 /* Generic Helpers */
@@ -126,7 +120,7 @@ static void verttag_add_adjacent(
 
 LinkNode *BM_mesh_calc_path_vert(
         BMesh *bm, BMVert *v_src, BMVert *v_dst, const struct BMCalcPathParams *params,
-        bool (*test_fn)(BMVert *, void *user_data), void *user_data)
+        bool (*filter_fn)(BMVert *, void *user_data), void *user_data)
 {
 	LinkNode *path = NULL;
 	/* BM_ELEM_TAG flag is used to store visited edges */
@@ -141,13 +135,7 @@ LinkNode *BM_mesh_calc_path_vert(
 	// BM_mesh_elem_index_ensure(bm, BM_VERT /* | BM_EDGE */); // NOT NEEDED FOR FACETAG
 
 	BM_ITER_MESH_INDEX (v, &viter, bm, BM_VERTS_OF_MESH, i) {
-		if (test_fn(v, user_data)) {
-			BM_elem_flag_disable(v, BM_ELEM_TAG);
-		}
-		else {
-			BM_elem_flag_enable(v, BM_ELEM_TAG);
-		}
-
+		BM_elem_flag_set(v, BM_ELEM_TAG, !filter_fn(v, user_data));
 		BM_elem_index_set(v, i); /* set_inline */
 	}
 	bm->elem_index_dirty &= ~BM_VERT;
@@ -200,11 +188,8 @@ LinkNode *BM_mesh_calc_path_vert(
 	return path;
 }
 
-
-
 /* -------------------------------------------------------------------- */
 /* BM_mesh_calc_path_edge */
-
 
 static float edgetag_cut_cost_vert(BMEdge *e_a, BMEdge *e_b, BMVert *v)
 {
@@ -322,13 +307,7 @@ LinkNode *BM_mesh_calc_path_edge(
 	BM_mesh_elem_index_ensure(bm, BM_VERT /* | BM_EDGE */);
 
 	BM_ITER_MESH_INDEX (e, &eiter, bm, BM_EDGES_OF_MESH, i) {
-		if (filter_fn(e, user_data)) {
-			BM_elem_flag_disable(e, BM_ELEM_TAG);
-		}
-		else {
-			BM_elem_flag_enable(e, BM_ELEM_TAG);
-		}
-
+		BM_elem_flag_set(e, BM_ELEM_TAG, !filter_fn(e, user_data));
 		BM_elem_index_set(e, i); /* set_inline */
 	}
 	bm->elem_index_dirty &= ~BM_EDGE;
@@ -380,7 +359,6 @@ LinkNode *BM_mesh_calc_path_edge(
 
 	return path;
 }
-
 
 
 /* -------------------------------------------------------------------- */
@@ -493,7 +471,7 @@ static void facetag_add_adjacent(
 
 LinkNode *BM_mesh_calc_path_face(
         BMesh *bm, BMFace *f_src, BMFace *f_dst, const struct BMCalcPathParams *params,
-        bool (*test_fn)(BMFace *, void *user_data), void *user_data)
+        bool (*filter_fn)(BMFace *, void *user_data), void *user_data)
 {
 	LinkNode *path = NULL;
 	/* BM_ELEM_TAG flag is used to store visited edges */
@@ -508,13 +486,7 @@ LinkNode *BM_mesh_calc_path_face(
 	// BM_mesh_elem_index_ensure(bm, BM_VERT /* | BM_EDGE */); // NOT NEEDED FOR FACETAG
 
 	BM_ITER_MESH_INDEX (f, &fiter, bm, BM_FACES_OF_MESH, i) {
-		if (test_fn(f, user_data)) {
-			BM_elem_flag_disable(f, BM_ELEM_TAG);
-		}
-		else {
-			BM_elem_flag_enable(f, BM_ELEM_TAG);
-		}
-
+		BM_elem_flag_set(f, BM_ELEM_TAG, !filter_fn(f, user_data));
 		BM_elem_index_set(f, i); /* set_inline */
 	}
 	bm->elem_index_dirty &= ~BM_FACE;

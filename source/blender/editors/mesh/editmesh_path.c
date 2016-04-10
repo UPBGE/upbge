@@ -65,6 +65,7 @@ struct PathSelectParams {
 	bool track_active;  /* ensure the active element is the last selected item (handy for picking) */
 	bool use_topology_distance;
 	bool use_face_step;
+	bool use_fill;
 	char edge_mode;
 	struct CheckerIntervalParams interval_params;
 };
@@ -77,6 +78,9 @@ static void path_select_properties(wmOperatorType *ot)
 	RNA_def_boolean(
 	        ot->srna, "use_topology_distance", false, "Topology Distance",
 	        "Find the minimum number of steps, ignoring spatial distance");
+	RNA_def_boolean(
+	        ot->srna, "use_fill", false, "Fill Region",
+	        "Select all paths between the source/destination elements");
 	WM_operator_properties_checker_interval(ot, true);
 }
 
@@ -85,6 +89,7 @@ static void path_select_params_from_op(wmOperator *op, struct PathSelectParams *
 	op_params->edge_mode = EDGE_MODE_SELECT;
 	op_params->track_active = false;
 	op_params->use_face_step = RNA_boolean_get(op->ptr, "use_face_step");
+	op_params->use_fill = RNA_boolean_get(op->ptr, "use_fill");
 	op_params->use_topology_distance = RNA_boolean_get(op->ptr, "use_topology_distance");
 	WM_operator_properties_checker_interval_from_op(op, &op_params->interval_params);
 }
@@ -123,16 +128,26 @@ static void mouse_mesh_shortest_path_vert(
 
 	struct UserData user_data = {bm, obedit->data, op_params};
 	LinkNode *path = NULL;
+	bool is_path_ordered = false;
 
 	if (v_act && (v_act != v_dst)) {
-		if ((path = BM_mesh_calc_path_vert(
-		         bm, v_act, v_dst,
-		         &(const struct BMCalcPathParams) {
-		             .use_topology_distance = op_params->use_topology_distance,
-		             .use_step_face = op_params->use_face_step,
-		         },
-		         verttag_filter_cb, &user_data)))
-		{
+		if (op_params->use_fill) {
+			path = BM_mesh_calc_path_region_vert(
+			        bm, (BMElem *)v_act, (BMElem *)v_dst,
+			        verttag_filter_cb, &user_data);
+		}
+		else {
+			is_path_ordered = true;
+			path = BM_mesh_calc_path_vert(
+			        bm, v_act, v_dst,
+			        &(const struct BMCalcPathParams) {
+			            .use_topology_distance = op_params->use_topology_distance,
+			            .use_step_face = op_params->use_face_step,
+			        },
+			        verttag_filter_cb, &user_data);
+		}
+
+		if (path) {
 			if (op_params->track_active) {
 				BM_select_history_remove(bm, v_act);
 			}
@@ -157,9 +172,13 @@ static void mouse_mesh_shortest_path_vert(
 		int depth = 1;
 		node = path;
 		do {
-			if (WM_operator_properties_checker_interval_test(&op_params->interval_params, depth)) {
+			if ((is_path_ordered == false) ||
+			    WM_operator_properties_checker_interval_test(&op_params->interval_params, depth))
+			{
 				verttag_set_cb((BMVert *)node->link, !all_set, &user_data);
-				v_dst_last = node->link;
+				if (is_path_ordered) {
+					v_dst_last = node->link;
+				}
 			}
 		} while ((void)depth++, (node = node->next));
 
@@ -296,18 +315,28 @@ static void mouse_mesh_shortest_path_edge(
 	struct UserData user_data = {bm, obedit->data, op_params};
 	LinkNode *path = NULL;
 	Mesh *me = obedit->data;
+	bool is_path_ordered = false;
 
 	edgetag_ensure_cd_flag(scene, obedit->data);
 
 	if (e_act && (e_act != e_dst)) {
-		if ((path = BM_mesh_calc_path_edge(
-		         bm, e_act, e_dst,
-		         &(const struct BMCalcPathParams) {
-		             .use_topology_distance = op_params->use_topology_distance,
-		             .use_step_face = op_params->use_face_step,
-		         },
-		         edgetag_filter_cb, &user_data)))
-		{
+		if (op_params->use_fill) {
+			path = BM_mesh_calc_path_region_edge(
+			        bm, (BMElem *)e_act, (BMElem *)e_dst,
+			        edgetag_filter_cb, &user_data);
+		}
+		else {
+			is_path_ordered = true;
+			path = BM_mesh_calc_path_edge(
+			        bm, e_act, e_dst,
+			        &(const struct BMCalcPathParams) {
+			            .use_topology_distance = op_params->use_topology_distance,
+			            .use_step_face = op_params->use_face_step,
+			        },
+			        edgetag_filter_cb, &user_data);
+		}
+
+		if (path) {
 			if (op_params->track_active) {
 				BM_select_history_remove(bm, e_act);
 			}
@@ -332,9 +361,13 @@ static void mouse_mesh_shortest_path_edge(
 		int depth = 1;
 		node = path;
 		do {
-			if (WM_operator_properties_checker_interval_test(&op_params->interval_params, depth)) {
+			if ((is_path_ordered == false) ||
+			    WM_operator_properties_checker_interval_test(&op_params->interval_params, depth))
+			{
 				edgetag_set_cb((BMEdge *)node->link, !all_set, &user_data);
-				e_dst_last = node->link;
+				if (is_path_ordered) {
+					e_dst_last = node->link;
+				}
 			}
 		} while ((void)depth++, (node = node->next));
 
@@ -426,17 +459,28 @@ static void mouse_mesh_shortest_path_face(
 
 	struct UserData user_data = {bm, obedit->data, op_params};
 	LinkNode *path = NULL;
+	bool is_path_ordered = false;
 
 	if (f_act) {
+		if (op_params->use_fill) {
+			path = BM_mesh_calc_path_region_face(
+			        bm, (BMElem *)f_act, (BMElem *)f_dst,
+			        facetag_filter_cb, &user_data);
+		}
+		else {
+			is_path_ordered = true;
+			path = BM_mesh_calc_path_face(
+			        bm, f_act, f_dst,
+			        &(const struct BMCalcPathParams) {
+			            .use_topology_distance = op_params->use_topology_distance,
+			            .use_step_face = op_params->use_face_step,
+			        },
+			        facetag_filter_cb, &user_data);
+		}
+
+
 		if (f_act != f_dst) {
-			if ((path = BM_mesh_calc_path_face(
-			         bm, f_act, f_dst,
-			         &(const struct BMCalcPathParams) {
-			             .use_topology_distance = op_params->use_topology_distance,
-			             .use_step_face = op_params->use_face_step,
-			         },
-			         facetag_filter_cb, &user_data)))
-			{
+			if (path) {
 				if (op_params->track_active) {
 					BM_select_history_remove(bm, f_act);
 				}
@@ -462,9 +506,13 @@ static void mouse_mesh_shortest_path_face(
 		int depth = 1;
 		node = path;
 		do {
-			if (WM_operator_properties_checker_interval_test(&op_params->interval_params, depth)) {
+			if ((is_path_ordered == false) ||
+			    WM_operator_properties_checker_interval_test(&op_params->interval_params, depth))
+			{
 				facetag_set_cb((BMFace *)node->link, !all_set, &user_data);
-				f_dst_last = node->link;
+				if (is_path_ordered) {
+					f_dst_last = node->link;
+				}
 			}
 		} while ((void)depth++, (node = node->next));
 

@@ -18,6 +18,7 @@
 #define __UTIL_TASK_H__
 
 #include "util_list.h"
+#include "util_string.h"
 #include "util_thread.h"
 #include "util_vector.h"
 
@@ -27,7 +28,21 @@ class Task;
 class TaskPool;
 class TaskScheduler;
 
-typedef function<void(void)> TaskRunFunction;
+/* Notes on Thread ID
+ *
+ * Thread ID argument reports the 0-based ID of a working thread from which
+ * the run() callback is being invoked. Thread ID of 0 denotes the thread from
+ * which wait_work() was called.
+ *
+ * DO NOT use this ID to control execution flaw, use it only for things like
+ * emulating TLS which does not affect on scheduling. Don't use this ID to make
+ * any decisions.
+ *
+ * It is to be noted here that dedicated task pool will always report thread ID
+ * of 0.
+ */
+
+typedef function<void(int thread_id)> TaskRunFunction;
 
 /* Task
  *
@@ -56,13 +71,26 @@ public:
 class TaskPool
 {
 public:
+	struct Summary {
+		/* Time spent to handle all tasks. */
+		double time_total;
+
+		/* Number of all tasks handled by this pool. */
+		int num_tasks_handled;
+
+		/* A full multiline description of the state of the pool after
+		 * all work is done.
+		 */
+		string full_report() const;
+	};
+
 	TaskPool();
 	~TaskPool();
 
 	void push(Task *task, bool front = false);
 	void push(const TaskRunFunction& run, bool front = false);
 
-	void wait_work();	/* work and wait until all tasks are done */
+	void wait_work(Summary *stats = NULL);	/* work and wait until all tasks are done */
 	void cancel();		/* cancel all tasks, keep worker threads running */
 	void stop();		/* stop all worker threads */
 
@@ -79,6 +107,14 @@ protected:
 
 	int num;
 	bool do_cancel;
+
+	/* ** Statistics ** */
+
+	/* Time time stamp of first task pushed. */
+	double start_time;
+
+	/* Number of all tasks handled by this pool. */
+	int num_tasks_handled;
 };
 
 /* Task Scheduler

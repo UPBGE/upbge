@@ -622,6 +622,13 @@ class GreasePencilDataPanel:
         row.prop(gpl, "after_color", text="")
         sub.prop(gpl, "ghost_after_range", text="After")
 
+        # Smooth and subdivide new strokes
+        layout.separator()
+        col = layout.column(align=True)
+        col.label(text="New Stroke Quality:")
+        col.prop(gpl, "pen_smooth_factor")
+        col.prop(gpl, "pen_subdivision_steps")
+
 
 class GreasePencilToolsPanel:
     # subclass must set

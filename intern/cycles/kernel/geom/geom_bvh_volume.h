@@ -33,7 +33,8 @@
 
 ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
                                             const Ray *ray,
-                                            Intersection *isect)
+                                            Intersection *isect,
+                                            const uint visibility)
 {
 	/* todo:
 	 * - test if pushing distance on the stack helps (for non shadow rays)
@@ -55,8 +56,6 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 	float3 dir = bvh_clamp_direction(ray->D);
 	float3 idir = bvh_inverse_direction(dir);
 	int object = OBJECT_NONE;
-
-	const uint visibility = PATH_RAY_ALL_VISIBILITY;
 
 #if BVH_FEATURE(BVH_MOTION)
 	Transform ob_itfm;
@@ -266,15 +265,15 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 
 					if(object_flag & SD_OBJECT_HAS_VOLUME) {
 
-#if BVH_FEATURE(BVH_MOTION)
+#  if BVH_FEATURE(BVH_MOTION)
 						bvh_instance_motion_push(kg, object, ray, &P, &dir, &idir, &isect->t, &ob_itfm);
-#else
+#  else
 						bvh_instance_push(kg, object, ray, &P, &dir, &idir, &isect->t);
-#endif
+#  endif
 
 						triangle_intersect_precalc(dir, &isect_precalc);
 
-#if defined(__KERNEL_SSE2__)
+#  if defined(__KERNEL_SSE2__)
 						Psplat[0] = ssef(P.x);
 						Psplat[1] = ssef(P.y);
 						Psplat[2] = ssef(P.z);
@@ -282,7 +281,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 						tsplat = ssef(0.0f, 0.0f, -isect->t, -isect->t);
 
 						gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
-#endif
+#  endif
 
 						++stackPtr;
 						kernel_assert(stackPtr < BVH_STACK_SIZE);
@@ -306,15 +305,15 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 			kernel_assert(object != OBJECT_NONE);
 
 			/* instance pop */
-#if BVH_FEATURE(BVH_MOTION)
+#  if BVH_FEATURE(BVH_MOTION)
 			bvh_instance_motion_pop(kg, object, ray, &P, &dir, &idir, &isect->t, &ob_itfm);
-#else
+#  else
 			bvh_instance_pop(kg, object, ray, &P, &dir, &idir, &isect->t);
-#endif
+#  endif
 
 			triangle_intersect_precalc(dir, &isect_precalc);
 
-#if defined(__KERNEL_SSE2__)
+#  if defined(__KERNEL_SSE2__)
 			Psplat[0] = ssef(P.x);
 			Psplat[1] = ssef(P.y);
 			Psplat[2] = ssef(P.z);
@@ -322,7 +321,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 			tsplat = ssef(0.0f, 0.0f, -isect->t, -isect->t);
 
 			gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
-#endif
+#  endif
 
 			object = OBJECT_NONE;
 			nodeAddr = traversalStack[stackPtr];
@@ -336,13 +335,15 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 
 ccl_device_inline bool BVH_FUNCTION_NAME(KernelGlobals *kg,
                                          const Ray *ray,
-                                         Intersection *isect)
+                                         Intersection *isect,
+                                         const uint visibility)
 {
 #ifdef __QBVH__
 	if(kernel_data.bvh.use_qbvh) {
 		return BVH_FUNCTION_FULL_NAME(QBVH)(kg,
 		                                    ray,
-		                                    isect);
+		                                    isect,
+		                                    visibility);
 	}
 	else
 #endif
@@ -350,7 +351,8 @@ ccl_device_inline bool BVH_FUNCTION_NAME(KernelGlobals *kg,
 		kernel_assert(kernel_data.bvh.use_qbvh == false);
 		return BVH_FUNCTION_FULL_NAME(BVH)(kg,
 		                                   ray,
-		                                   isect);
+		                                   isect,
+		                                   visibility);
 	}
 }
 

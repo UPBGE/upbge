@@ -391,8 +391,10 @@ mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
 unset(PLATFORM_DEFAULT)
 option(WITH_CYCLES_LOGGING	"Build Cycles with logging support" ON)
 option(WITH_CYCLES_DEBUG	"Build Cycles with extra debug capabilities" OFF)
+option(WITH_CYCLES_NATIVE_ONLY	"Build Cycles with native kernel only (which fits current CPU, use for development only)" OFF)
 mark_as_advanced(WITH_CYCLES_LOGGING)
 mark_as_advanced(WITH_CYCLES_DEBUG)
+mark_as_advanced(WITH_CYCLES_NATIVE_ONLY)
 
 option(WITH_CUDA_DYNLOAD "Dynamically load CUDA libraries at runtime" ON)
 mark_as_advanced(WITH_CUDA_DYNLOAD)
@@ -1316,6 +1318,17 @@ elseif(WIN32)
 
 		set(PLATFORM_LINKFLAGS_DEBUG "/IGNORE:4099 /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:libc.lib")
 
+		# Use dynamic loading for OpenMP
+		if(WITH_OPENMP)
+			if(MSVC_VERSION EQUAL 1800)
+				set(OPENMP_DLL_NAME "vcomp120")
+			else()
+				set(OPENMP_DLL_NAME "vcomp140")
+			endif()
+			set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} /DELAYLOAD:${OPENMP_DLL_NAME}.dll delayimp.lib")
+			set(PLATFORM_LINKFLAGS_DEBUG "${PLATFORM_LINKFLAGS_DEBUG} /DELAYLOAD:${OPENMP_DLL_NAME}d.dll delayimp.lib")
+		endif()
+
 		if(NOT DEFINED LIBDIR)
 
 			# Setup 64bit and 64bit windows systems
@@ -1451,11 +1464,11 @@ elseif(WIN32)
 				set(OPENEXR_INCLUDE_DIRS ${OPENEXR_INCLUDE_DIR} ${OPENEXR}/include/OpenEXR)
 				set(OPENEXR_LIBPATH ${OPENEXR}/lib)
 				set(OPENEXR_LIBRARIES
-					${OPENEXR_LIBPATH}/Iex-2_2.lib
-					${OPENEXR_LIBPATH}/Half.lib
-					${OPENEXR_LIBPATH}/IlmImf-2_2.lib
-					${OPENEXR_LIBPATH}/Imath-2_2.lib
-					${OPENEXR_LIBPATH}/IlmThread-2_2.lib
+					optimized ${OPENEXR_LIBPATH}/Iex-2_2.lib debug ${OPENEXR_LIBPATH}/Iex-2_2_d.lib
+					optimized ${OPENEXR_LIBPATH}/Half.lib debug ${OPENEXR_LIBPATH}/Half_d.lib
+					optimized ${OPENEXR_LIBPATH}/IlmImf-2_2.lib debug ${OPENEXR_LIBPATH}/IlmImf-2_2_d.lib
+					optimized ${OPENEXR_LIBPATH}/Imath-2_2.lib debug ${OPENEXR_LIBPATH}/Imath-2_2_d.lib
+					optimized ${OPENEXR_LIBPATH}/IlmThread-2_2.lib debug ${OPENEXR_LIBPATH}/IlmThread-2_2_d.lib
 				)
 			endif()
 		endif()
@@ -1594,12 +1607,12 @@ elseif(WIN32)
 		endif()
 
 		if(WITH_OPENVDB)
-			set(BLOSC_LIBRARIES ${LIBDIR}/blosc/lib/libblosc.lib)
-			set(TBB_LIBRARIES ${LIBDIR}/tbb/lib/tbb.lib)
+			set(BLOSC_LIBRARIES optimized ${LIBDIR}/blosc/lib/libblosc.lib debug ${LIBDIR}/blosc/lib/libblosc_d.lib)
+			set(TBB_LIBRARIES optimized ${LIBDIR}/tbb/lib/tbb.lib debug ${LIBDIR}/tbb/lib/tbb_debug.lib)
 			set(TBB_INCLUDE_DIR ${LIBDIR}/tbb/include)
 			set(OPENVDB ${LIBDIR}/openvdb)
 			set(OPENVDB_INCLUDE_DIRS ${OPENVDB}/include ${TBB_INCLUDE_DIR})
-			set(OPENVDB_LIBRARIES openvdb ${TBB_LIBRARIES} ${BLOSC_LIBRARIES})
+			set(OPENVDB_LIBRARIES optimized openvdb debug openvdb_d ${TBB_LIBRARIES} ${BLOSC_LIBRARIES})
 			set(OPENVDB_LIBPATH ${LIBDIR}/openvdb/lib)
 		endif()
 
@@ -2012,14 +2025,14 @@ elseif(APPLE)
 		if(NOT WITH_PYTHON_MODULE AND NOT WITH_PYTHON_FRAMEWORK)
 			# normally cached but not since we include them with blender
 			set(PYTHON_INCLUDE_DIR "${LIBDIR}/python/include/python${PYTHON_VERSION}m")
-			# set(PYTHON_EXECUTABLE "${LIBDIR}/python/bin/python${PYTHON_VERSION}") # not used yet
+			set(PYTHON_EXECUTABLE "${LIBDIR}/python/bin/python${PYTHON_VERSION}m")
 			set(PYTHON_LIBRARY python${PYTHON_VERSION}m)
 			set(PYTHON_LIBPATH "${LIBDIR}/python/lib/python${PYTHON_VERSION}")
 			# set(PYTHON_LINKFLAGS "-u _PyMac_Error")  # won't  build with this enabled
 		else()
 			# module must be compiled against Python framework
 			set(PYTHON_INCLUDE_DIR "/Library/Frameworks/Python.framework/Versions/${PYTHON_VERSION}/include/python${PYTHON_VERSION}m")
-			set(PYTHON_EXECUTABLE "/Library/Frameworks/Python.framework/Versions/${PYTHON_VERSION}/bin/python${PYTHON_VERSION}")
+			set(PYTHON_EXECUTABLE "/Library/Frameworks/Python.framework/Versions/${PYTHON_VERSION}/bin/python${PYTHON_VERSION}m")
 			#set(PYTHON_LIBRARY python${PYTHON_VERSION})
 			set(PYTHON_LIBPATH "/Library/Frameworks/Python.framework/Versions/${PYTHON_VERSION}/lib/python${PYTHON_VERSION}/config-${PYTHON_VERSION}m")
 			#set(PYTHON_LINKFLAGS "-u _PyMac_Error -framework Python")  # won't  build with this enabled
@@ -2028,6 +2041,10 @@ elseif(APPLE)
 		# uncached vars
 		set(PYTHON_INCLUDE_DIRS "${PYTHON_INCLUDE_DIR}")
 		set(PYTHON_LIBRARIES  "${PYTHON_LIBRARY}")
+
+		if(NOT EXISTS "${PYTHON_EXECUTABLE}")
+			message(FATAL_ERROR "Python executable missing: ${PYTHON_EXECUTABLE}")
+		endif()
 	endif()
 
 	if(WITH_FFTW3)

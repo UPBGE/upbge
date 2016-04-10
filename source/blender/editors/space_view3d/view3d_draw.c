@@ -1111,6 +1111,8 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	x2 = viewborder.xmax;
 	y2 = viewborder.ymax;
 	
+	glLineWidth(1.0f);
+
 	/* apply offsets so the real 3D camera shows through */
 
 	/* note: quite un-scientific but without this bit extra
@@ -1136,7 +1138,6 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 			glEnable(GL_BLEND);
 			glColor4f(0, 0, 0, ca->passepartalpha);
 		}
-		glLineWidth(1.0f);
 
 		if (x1i > 0.0f)
 			glRectf(0.0, winy, x1i, 0.0);

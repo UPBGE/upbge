@@ -797,6 +797,20 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "After Color", "Base color for ghosts after the active frame");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 	
+	/* Smoothing factor for new strokes */
+	prop = RNA_def_property(srna, "pen_smooth_factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "draw_smoothfac");
+	RNA_def_property_range(prop, 0.0, 2.0f);
+	RNA_def_property_ui_text(prop, "Smooth", "Amount of smoothing to apply to newly created strokes, to reduce jitter/noise");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+	
+	/* Subdivision level for new strokes */
+	prop = RNA_def_property(srna, "pen_subdivision_steps", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "sublevel");
+	RNA_def_property_range(prop, 0, 3);
+	RNA_def_property_ui_text(prop, "Subdivision Steps", "Number of times to subdivide newly created strokes, for less jagged strokes");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+
 	/* Flags */
 	prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_LAYER_HIDE);

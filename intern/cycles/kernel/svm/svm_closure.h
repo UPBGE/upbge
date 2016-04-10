@@ -259,6 +259,8 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 				break;
 			}
 #endif
+			int num_closure = ccl_fetch(sd, num_closure);
+
 			/* index of refraction */
 			float eta = fmaxf(param2, 1e-5f);
 			eta = (ccl_fetch(sd, flag) & SD_BACKFACING)? 1.0f/eta: eta;
@@ -269,7 +271,7 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 			float roughness = param1;
 
 			/* reflection */
-			ShaderClosure *sc = ccl_fetch_array(sd, closure, ccl_fetch(sd, num_closure));
+			ShaderClosure *sc = ccl_fetch_array(sd, closure, num_closure);
 			float3 weight = sc->weight;
 			float sample_weight = sc->sample_weight;
 
@@ -290,8 +292,8 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 #endif
 
 			/* refraction */
-			if(ccl_fetch(sd, num_closure) < MAX_CLOSURE) {
-				sc = ccl_fetch_array(sd, closure, ccl_fetch(sd, num_closure));
+			if(num_closure + 1 < MAX_CLOSURE) {
+				sc = ccl_fetch_array(sd, closure, num_closure + 1);
 				sc->weight = weight;
 				sc->sample_weight = sample_weight;
 
@@ -436,11 +438,11 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 #endif
 
 #ifdef __SUBSURFACE__
-#ifndef __SPLIT_KERNEL__
-#  define sc_next(sc) sc++
-#else
-#  define sc_next(sc) sc = ccl_fetch_array(sd, closure, ccl_fetch(sd, num_closure))
-#endif
+#  ifndef __SPLIT_KERNEL__
+#    define sc_next(sc) sc++
+#  else
+#    define sc_next(sc) sc = ccl_fetch_array(sd, closure, ccl_fetch(sd, num_closure))
+#  endif
 		case CLOSURE_BSSRDF_CUBIC_ID:
 		case CLOSURE_BSSRDF_GAUSSIAN_ID:
 		case CLOSURE_BSSRDF_BURLEY_ID: {
@@ -471,9 +473,9 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 					sc->data1 = texture_blur;
 					sc->data2 = albedo.x;
 					sc->T.x = sharpness;
-#ifdef __OSL__
+#  ifdef __OSL__
 					sc->prim = NULL;
-#endif
+#  endif
 					sc->N = N;
 					ccl_fetch(sd, flag) |= bssrdf_setup(sc, (ClosureType)type);
 
@@ -488,9 +490,9 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 					sc->data1 = texture_blur;
 					sc->data2 = albedo.y;
 					sc->T.x = sharpness;
-#ifdef __OSL__
+#  ifdef __OSL__
 					sc->prim = NULL;
-#endif
+#  endif
 					sc->N = N;
 					ccl_fetch(sd, flag) |= bssrdf_setup(sc, (ClosureType)type);
 
@@ -505,9 +507,9 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 					sc->data1 = texture_blur;
 					sc->data2 = albedo.z;
 					sc->T.x = sharpness;
-#ifdef __OSL__
+#  ifdef __OSL__
 					sc->prim = NULL;
-#endif
+#  endif
 					sc->N = N;
 					ccl_fetch(sd, flag) |= bssrdf_setup(sc, (ClosureType)type);
 
