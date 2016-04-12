@@ -980,10 +980,9 @@ KX_GameObject::SetOccluder(
 	}
 }
 
-static void setDebug_recursive(SG_Node *node, bool debug)
+static void setDebug_recursive(KX_Scene *scene, SG_Node *node, bool debug)
 {
 	NodeList& children = node->GetSGChildren();
-	KX_Scene *scene = KX_GetActiveScene();
 
 	for (NodeList::iterator childit = children.begin();!(childit==children.end());++childit) {
 		SG_Node *childnode = (*childit);
@@ -999,13 +998,13 @@ static void setDebug_recursive(SG_Node *node, bool debug)
 
 		/* if the childobj is NULL then this may be an inverse parent link
 		 * so a non recursive search should still look down this node. */
-		setDebug_recursive(childnode, debug);
+		setDebug_recursive(scene, childnode, debug);
 	}
 }
 
 void KX_GameObject::SetUseDebugProperties( bool debug, bool recursive )
 {
-	KX_Scene *scene = KX_GetActiveScene();
+	KX_Scene *scene = GetScene();
 
 	if (debug) {
 		if (!scene->ObjectInDebugList(this))
@@ -1015,7 +1014,7 @@ void KX_GameObject::SetUseDebugProperties( bool debug, bool recursive )
 		scene->RemoveObjectDebugProperties(this);
 
 	if (recursive)
-		setDebug_recursive(GetSGNode(), debug);
+		setDebug_recursive(scene, GetSGNode(), debug);
 }
 
 void
@@ -2005,7 +2004,6 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 
 PyObject *KX_GameObject::PyReplaceMesh(PyObject *args)
 {
-	KX_Scene *scene = KX_GetActiveScene();
 	
 	PyObject *value;
 	int use_gfx= 1, use_phys= 0;
@@ -2017,18 +2015,15 @@ PyObject *KX_GameObject::PyReplaceMesh(PyObject *args)
 	if (!ConvertPythonToMesh(value, &new_mesh, false, "gameOb.replaceMesh(value): KX_GameObject"))
 		return NULL;
 	
-	scene->ReplaceMesh(this, new_mesh, (bool)use_gfx, (bool)use_phys);
+	GetScene()->ReplaceMesh(this, new_mesh, (bool)use_gfx, (bool)use_phys);
 	Py_RETURN_NONE;
 }
 
 PyObject *KX_GameObject::PyEndObject()
 {
-	KX_Scene* scene = GetScene();
-	
-	scene->DelayedRemoveObject(this);
-	
-	Py_RETURN_NONE;
+	GetScene()->DelayedRemoveObject(this);
 
+	Py_RETURN_NONE;
 }
 
 PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args)
@@ -3150,10 +3145,9 @@ PyObject *KX_GameObject::pyattr_get_attrDict(void *self_v, const KX_PYATTRIBUTE_
 
 PyObject *KX_GameObject::pyattr_get_debug(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Scene *scene = KX_GetActiveScene();
 	KX_GameObject *self = static_cast<KX_GameObject*>(self_v);
 
-	return PyBool_FromLong(scene->ObjectInDebugList(self));
+	return PyBool_FromLong(self->GetScene()->ObjectInDebugList(self));
 }
 
 int KX_GameObject::pyattr_set_debug(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -3173,10 +3167,9 @@ int KX_GameObject::pyattr_set_debug(void *self_v, const KX_PYATTRIBUTE_DEF *attr
 
 PyObject *KX_GameObject::pyattr_get_debugRecursive(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Scene *scene = KX_GetActiveScene();
 	KX_GameObject *self = static_cast<KX_GameObject*>(self_v);
 
-	return PyBool_FromLong(scene->ObjectInDebugList(self));
+	return PyBool_FromLong(self->GetScene()->ObjectInDebugList(self));
 }
 
 int KX_GameObject::pyattr_set_debugRecursive(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -3395,7 +3388,6 @@ PyObject *KX_GameObject::PyDisableRigidBody()
 
 PyObject *KX_GameObject::PySetParent(PyObject *args)
 {
-	KX_Scene *scene = KX_GetActiveScene();
 	PyObject *pyobj;
 	KX_GameObject *obj;
 	int addToCompound=1, ghost=1;
@@ -3406,15 +3398,13 @@ PyObject *KX_GameObject::PySetParent(PyObject *args)
 	if (!ConvertPythonToGameObject(pyobj, &obj, true, "gameOb.setParent(obj): KX_GameObject"))
 		return NULL;
 	if (obj)
-		this->SetParent(scene, obj, addToCompound, ghost);
+		this->SetParent(GetScene(), obj, addToCompound, ghost);
 	Py_RETURN_NONE;
 }
 
 PyObject *KX_GameObject::PyRemoveParent()
 {
-	KX_Scene *scene = KX_GetActiveScene();
-	
-	this->RemoveParent(scene);
+	this->RemoveParent(GetScene());
 	Py_RETURN_NONE;
 }
 
@@ -3920,7 +3910,6 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_GameObject, sendMessage,
 "body = Message body (string)"
 "to = Name of object to send the message to")
 {
-	KX_Scene *scene = KX_GetActiveScene();
 	char* subject;
 	char* body = (char *)"";
 	char* to = (char *)"";
@@ -3928,7 +3917,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_GameObject, sendMessage,
 	if (!PyArg_ParseTuple(args, "s|ss:sendMessage", &subject, &body, &to))
 		return NULL;
 	
-	scene->GetNetworkMessageScene()->SendMessage(to, this, subject, body);
+	GetScene()->GetNetworkMessageScene()->SendMessage(to, this, subject, body);
 	Py_RETURN_NONE;
 }
 
@@ -4063,7 +4052,7 @@ KX_PYMETHODDEF_DOC(KX_GameObject, addDebugProperty,
 "addDebugProperty(name, visible=1)\n"
 "Added or remove a debug property to the debug list.\n")
 {
-	KX_Scene *scene = KX_GetActiveScene();
+	KX_Scene *scene = GetScene();
 	char *name;
 	int visible = 1;
 

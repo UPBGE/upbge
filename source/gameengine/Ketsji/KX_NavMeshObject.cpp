@@ -102,8 +102,7 @@ void KX_NavMeshObject::ProcessReplica()
 		std::cout << "Error in " << __func__ << ": unable to build navigation mesh" << std::endl;
 		return;
 	}
-	KX_Scene* scene = KX_GetActiveScene();
-	KX_ObstacleSimulation* obssimulation = scene->GetObstacleSimulation();
+	KX_ObstacleSimulation* obssimulation = GetScene()->GetObstacleSimulation();
 	if (obssimulation)
 		obssimulation->AddObstaclesForNavMesh(this);
 }

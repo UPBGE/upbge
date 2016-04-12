@@ -39,6 +39,7 @@
 #include "KX_Scene.h"
 #include "KX_Camera.h"
 #include "KX_KetsjiEngine.h"
+#include "KX_Globals.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
@@ -244,7 +245,7 @@ int KX_SceneActuator::pyattr_set_camera(void *self, const struct KX_PYATTRIBUTE_
 	KX_SceneActuator* actuator = static_cast<KX_SceneActuator*>(self);
 	KX_Camera *camOb;
 	
-	if (!ConvertPythonToCamera(value, &camOb, true, "actu.camera = value: KX_SceneActuator"))
+	if (!ConvertPythonToCamera(KX_GetActiveScene(), value, &camOb, true, "actu.camera = value: KX_SceneActuator"))
 		return PY_SET_ATTR_FAIL;
 	
 	if (actuator->m_camera)

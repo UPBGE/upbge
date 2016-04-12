@@ -956,7 +956,7 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 	m_suspendeddelta = scene->getSuspendedDelta();
 	// Handle the animations independently of the logic time step
 	if (GetRestrictAnimationFPS()) {
-		double anim_timestep = 1.0 / KX_GetActiveScene()->GetAnimationFPS();
+		double anim_timestep = 1.0 / scene->GetAnimationFPS();
 		if (m_frameTime - m_previousAnimTime > anim_timestep || m_frameTime == m_previousAnimTime) {
 			// Sanity/debug print to make sure we're actually going at the fps we want (should be close to anim_timestep)
 			// printf("Anim fps: %f\n", 1.0/(m_frameTime - m_previousAnimTime));

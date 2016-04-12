@@ -730,8 +730,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_Camera, setOnTop,
 "setOnTop()\n"
 "Sets this camera's viewport on top\n")
 {
-	class KX_Scene* scene = KX_GetActiveScene();
-	scene->SetCameraOnTop(this);
+	GetScene()->SetCameraOnTop(this);
 	Py_RETURN_NONE;
 }
 
@@ -967,7 +966,7 @@ PyObject *KX_Camera::pyattr_get_INTERSECT(void *self_v, const KX_PYATTRIBUTE_DEF
 {	return PyLong_FromLong(INTERSECT); }
 
 
-bool ConvertPythonToCamera(PyObject *value, KX_Camera **object, bool py_none_ok, const char *error_prefix)
+bool ConvertPythonToCamera(KX_Scene *scene, PyObject *value, KX_Camera **object, bool py_none_ok, const char *error_prefix)
 {
 	if (value==NULL) {
 		PyErr_Format(PyExc_TypeError, "%s, python pointer NULL, should never happen", error_prefix);
@@ -988,7 +987,7 @@ bool ConvertPythonToCamera(PyObject *value, KX_Camera **object, bool py_none_ok,
 	
 	if (PyUnicode_Check(value)) {
 		STR_String value_str = _PyUnicode_AsString(value);
-		*object = KX_GetActiveScene()->FindCamera(value_str);
+		*object = scene->FindCamera(value_str);
 		
 		if (*object) {
 			return true;

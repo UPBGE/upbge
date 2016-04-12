@@ -2370,7 +2370,7 @@ int KX_Scene::pyattr_set_active_camera(void *self_v, const KX_PYATTRIBUTE_DEF *a
 	KX_Scene* self = static_cast<KX_Scene*>(self_v);
 	KX_Camera *camOb;
 	
-	if (!ConvertPythonToCamera(value, &camOb, false, "scene.active_camera = value: KX_Scene"))
+	if (!ConvertPythonToCamera(self, value, &camOb, false, "scene.active_camera = value: KX_Scene"))
 		return PY_SET_ATTR_FAIL;
 	
 	self->SetActiveCamera(camOb);
