@@ -44,6 +44,10 @@ extern "C" {
 #include <stdio.h>
 #endif
 
+#ifdef WITH_ASSERT_ABORT
+#include <stdlib.h>
+#endif
+
 
 /* varargs macros (keep first so others can use) */
 /* --- internal helpers --- */
