@@ -220,12 +220,12 @@ public:
 	/** 
 	 * Sets the parent of this object to a game object
 	 */
-	void SetParent(KX_Scene *scene, KX_GameObject *obj, bool addToCompound=true, bool ghost=true);
+	void SetParent(KX_GameObject *obj, bool addToCompound=true, bool ghost=true);
 
 	/** 
 	 * Removes the parent of this object to a game object
 	 */
-	void RemoveParent(KX_Scene *scene);
+	void RemoveParent();
 
 	/*********************************
 	 * group reference API

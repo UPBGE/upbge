@@ -325,7 +325,7 @@ KX_GameObject* KX_GameObject::GetParent()
 	
 }
 
-void KX_GameObject::SetParent(KX_Scene *scene, KX_GameObject* obj, bool addToCompound, bool ghost)
+void KX_GameObject::SetParent(KX_GameObject* obj, bool addToCompound, bool ghost)
 {
 	// check on valid node in case a python controller holds a reference to a deleted object
 	if (obj && 
@@ -345,8 +345,9 @@ void KX_GameObject::SetParent(KX_Scene *scene, KX_GameObject* obj, bool addToCom
 			fabs(scale1[1]) < (MT_Scalar)FLT_EPSILON ||
 			fabs(scale1[2]) < (MT_Scalar)FLT_EPSILON) { return; }
 
+		KX_Scene *scene = GetScene();
 		// Remove us from our old parent and set our new parent
-		RemoveParent(scene);
+		RemoveParent();
 		obj->GetSGNode()->AddChild(GetSGNode());
 
 		if (m_pPhysicsController)
@@ -388,7 +389,7 @@ void KX_GameObject::SetParent(KX_Scene *scene, KX_GameObject* obj, bool addToCom
 	}
 }
 
-void KX_GameObject::RemoveParent(KX_Scene *scene)
+void KX_GameObject::RemoveParent()
 {
 	// check on valid node in case a python controller holds a reference to a deleted object
 	if (GetSGNode() && GetSGNode()->GetSGParent())
@@ -403,6 +404,8 @@ void KX_GameObject::RemoveParent(KX_Scene *scene)
 		// Remove us from our parent
 		GetSGNode()->DisconnectFromParent();
 		NodeUpdateGS(0.f);
+
+		KX_Scene *scene = GetScene();
 		// the object is now a root object, add it to the parentlist
 		CListValue* rootlist = scene->GetRootParentList();
 		if (!rootlist->SearchValue(this))
@@ -3398,13 +3401,13 @@ PyObject *KX_GameObject::PySetParent(PyObject *args)
 	if (!ConvertPythonToGameObject(pyobj, &obj, true, "gameOb.setParent(obj): KX_GameObject"))
 		return NULL;
 	if (obj)
-		this->SetParent(GetScene(), obj, addToCompound, ghost);
+		SetParent(obj, addToCompound, ghost);
 	Py_RETURN_NONE;
 }
 
 PyObject *KX_GameObject::PyRemoveParent()
 {
-	this->RemoveParent(GetScene());
+	RemoveParent();
 	Py_RETURN_NONE;
 }
 
