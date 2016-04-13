@@ -55,8 +55,8 @@
 class MT_Matrix3x3 {
 public:
     explicit MT_Matrix3x3() {}
-    explicit MT_Matrix3x3(const float *m) { setValue(m); }
-    explicit MT_Matrix3x3(const double *m) { setValue(m); }
+    template <typename T>
+    explicit MT_Matrix3x3(const T *m) { setValue(m); }
     explicit MT_Matrix3x3(const MT_Quaternion& q) { setRotation(q); }
     
     explicit MT_Matrix3x3(const MT_Quaternion& q, const MT_Vector3& s) { 
@@ -97,25 +97,15 @@ public:
 		m_el[i][2] = v[2];
 	}
     
-    void setValue(const float *m) {
-        m_el[0][0] = *m++; m_el[1][0] = *m++; m_el[2][0] = *m++; m++;
-        m_el[0][1] = *m++; m_el[1][1] = *m++; m_el[2][1] = *m++; m++;
-        m_el[0][2] = *m++; m_el[1][2] = *m++; m_el[2][2] = *m;
+    template <typename T>
+    void setValue(const T *m) {
+		m_el[0][0] = (MT_Scalar)*m++; m_el[1][0] = (MT_Scalar)*m++; m_el[2][0] = (MT_Scalar)*m++; m++;
+        m_el[0][1] = (MT_Scalar)*m++; m_el[1][1] = (MT_Scalar)*m++; m_el[2][1] = (MT_Scalar)*m++; m++;
+        m_el[0][2] = (MT_Scalar)*m++; m_el[1][2] = (MT_Scalar)*m++; m_el[2][2] = (MT_Scalar)*m;
     }
 
-    void setValue(const double *m) {
-        m_el[0][0] = *m++; m_el[1][0] = *m++; m_el[2][0] = *m++; m++;
-        m_el[0][1] = *m++; m_el[1][1] = *m++; m_el[2][1] = *m++; m++;
-        m_el[0][2] = *m++; m_el[1][2] = *m++; m_el[2][2] = *m;
-    }
-
-    void setValue3x3(const float *m) {
-        m_el[0][0] = *m++; m_el[1][0] = *m++; m_el[2][0] = *m++;
-        m_el[0][1] = *m++; m_el[1][1] = *m++; m_el[2][1] = *m++;
-        m_el[0][2] = *m++; m_el[1][2] = *m++; m_el[2][2] = *m;
-    }
-
-    void setValue3x3(const double *m) {
+    template <typename T>
+    void setValue3x3(const T *m) {
         m_el[0][0] = *m++; m_el[1][0] = *m++; m_el[2][0] = *m++;
         m_el[0][1] = *m++; m_el[1][1] = *m++; m_el[2][1] = *m++;
         m_el[0][2] = *m++; m_el[1][2] = *m++; m_el[2][2] = *m;
@@ -177,11 +167,11 @@ public:
 			else {
 				roll = MT_Scalar(0);
 				if (m_el[2][0] == -1.0f) {
-					pitch = (float)MT_PI / 2.0f;
+					pitch = (MT_Scalar)MT_PI / 2.0f;
 					yaw = MT_Scalar(atan2f(m_el[0][1], m_el[0][2]));
 				}
 				else {
-					pitch = (float)-MT_PI / 2.0f;
+					pitch = (MT_Scalar)-MT_PI / 2.0f;
 					yaw = MT_Scalar(atan2f(m_el[0][1], m_el[0][2]));
 				}
 			}
@@ -205,28 +195,18 @@ public:
                  MT_Scalar(0.0f), MT_Scalar(0.0f), MT_Scalar(1.0f)); 
     }
     
-    void getValue(float *m) const {
-        *m++ = (float) m_el[0][0]; *m++ = (float) m_el[1][0]; *m++ = (float) m_el[2][0]; *m++ = (float) 0.0f;
-        *m++ = (float) m_el[0][1]; *m++ = (float) m_el[1][1]; *m++ = (float) m_el[2][1]; *m++ = (float) 0.0f;
-        *m++ = (float) m_el[0][2]; *m++ = (float) m_el[1][2]; *m++ = (float) m_el[2][2]; *m   = (float) 0.0f;
+    template <typename T>
+    void getValue(T *m) const {
+        *m++ = (T)m_el[0][0]; *m++ = (T)m_el[1][0]; *m++ = (T)m_el[2][0]; *m++ = (T)0.0f;
+        *m++ = (T)m_el[0][1]; *m++ = (T)m_el[1][1]; *m++ = (T)m_el[2][1]; *m++ = (T)0.0f;
+        *m++ = (T)m_el[0][2]; *m++ = (T)m_el[1][2]; *m++ = (T)m_el[2][2]; *m   = (T)0.0f;
     }
 
-    void getValue(double *m) const {
-        *m++ = m_el[0][0]; *m++ = m_el[1][0]; *m++ = m_el[2][0]; *m++ = 0.0;
-        *m++ = m_el[0][1]; *m++ = m_el[1][1]; *m++ = m_el[2][1]; *m++ = 0.0;
-        *m++ = m_el[0][2]; *m++ = m_el[1][2]; *m++ = m_el[2][2]; *m   = 0.0;
-    }
-
-    void getValue3x3(float *m) const {
-        *m++ = (float) m_el[0][0]; *m++ = (float) m_el[1][0]; *m++ = (float) m_el[2][0];
-        *m++ = (float) m_el[0][1]; *m++ = (float) m_el[1][1]; *m++ = (float) m_el[2][1];
-        *m++ = (float) m_el[0][2]; *m++ = (float) m_el[1][2]; *m++ = (float) m_el[2][2];
-    }
-
-    void getValue3x3(double *m) const {
-        *m++ = m_el[0][0]; *m++ = m_el[1][0]; *m++ = m_el[2][0];
-        *m++ = m_el[0][1]; *m++ = m_el[1][1]; *m++ = m_el[2][1];
-        *m++ = m_el[0][2]; *m++ = m_el[1][2]; *m++ = m_el[2][2];
+    template <typename T>
+    void getValue3x3(T *m) const {
+        *m++ = (T)m_el[0][0]; *m++ = (T)m_el[1][0]; *m++ = (T)m_el[2][0];
+        *m++ = (T)m_el[0][1]; *m++ = (T)m_el[1][1]; *m++ = (T)m_el[2][1];
+        *m++ = (T)m_el[0][2]; *m++ = (T)m_el[1][2]; *m++ = (T)m_el[2][2];
     }
 
     MT_Quaternion getRotation() const;

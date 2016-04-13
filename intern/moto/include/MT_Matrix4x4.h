@@ -55,11 +55,8 @@ public:
 	/**
 	 * Initialize all fields with the values pointed at by m. A
 	 * contigous block of 16 values is read.  */
-	explicit MT_Matrix4x4(const float *m) { setValue(m); }
-	/**
-	 * Initialize all fields with the values pointed at by m. A
-	 * contigous block of 16 values is read.  */
-	explicit MT_Matrix4x4(const double *m) { setValue(m); }
+	template <typename T>
+	explicit MT_Matrix4x4(const T *m) { setValue(m); }
     
 	/**
 	 * Initialise with these 16 explicit values.
@@ -102,22 +99,12 @@ public:
     /**
 	 * Set the matrix to the values pointer at by m. A contiguous
 	 * block of 16 values is copied.  */
-    void setValue(const float *m) {
-        m_el[0][0] = *m++; m_el[1][0] = *m++; m_el[2][0] = *m++; m_el[3][0] = *m++;
-        m_el[0][1] = *m++; m_el[1][1] = *m++; m_el[2][1] = *m++; m_el[3][1] = *m++;
-        m_el[0][2] = *m++; m_el[1][2] = *m++; m_el[2][2] = *m++; m_el[3][2] = *m++;
-        m_el[0][3] = *m++; m_el[1][3] = *m++; m_el[2][3] = *m++; m_el[3][3] = *m;
-    }
-
-    /**
-	 * Set the matrix to the values pointer at by m. A contiguous
-	 * block of 16 values is copied.
-	 */
-    void setValue(const double *m) {
-        m_el[0][0] = *m++; m_el[1][0] = *m++; m_el[2][0] = *m++; m_el[3][0] = *m++;
-        m_el[0][1] = *m++; m_el[1][1] = *m++; m_el[2][1] = *m++; m_el[3][1] = *m++;
-        m_el[0][2] = *m++; m_el[1][2] = *m++; m_el[2][2] = *m++; m_el[3][2] = *m++;
-        m_el[0][3] = *m++; m_el[1][3] = *m++; m_el[2][3] = *m++; m_el[3][3] = *m;
+	template <typename T>
+    void setValue(const T *m) {
+		m_el[0][0] = (MT_Scalar)*m++; m_el[1][0] = (MT_Scalar)*m++; m_el[2][0] = (MT_Scalar)*m++; m_el[3][0] = (MT_Scalar)*m++;
+        m_el[0][1] = (MT_Scalar)*m++; m_el[1][1] = (MT_Scalar)*m++; m_el[2][1] = (MT_Scalar)*m++; m_el[3][1] = (MT_Scalar)*m++;
+        m_el[0][2] = (MT_Scalar)*m++; m_el[1][2] = (MT_Scalar)*m++; m_el[2][2] = (MT_Scalar)*m++; m_el[3][2] = (MT_Scalar)*m++;
+        m_el[0][3] = (MT_Scalar)*m++; m_el[1][3] = (MT_Scalar)*m++; m_el[2][3] = (MT_Scalar)*m++; m_el[3][3] = (MT_Scalar)*m;
     }
 
     /**
@@ -166,28 +153,19 @@ public:
 	/**
 	 * Read the element from row i, column j.
 	 */
-	float getElement(int i, int j) {
-		return (float) m_el[i][j];
+	MT_Scalar getElement(int i, int j) {
+		return (MT_Scalar)m_el[i][j];
 	}
 	
     /**
-	 * Copy the contents to a contiguous block of 16 floats.
+	 * Copy the contents to a contiguous block of 16 values.
 	 */
-    void getValue(float *m) const {
-        *m++ = (float) m_el[0][0]; *m++ = (float) m_el[1][0]; *m++ = (float) m_el[2][0]; *m++ = (float) m_el[3][0];
-        *m++ = (float) m_el[0][1]; *m++ = (float) m_el[1][1]; *m++ = (float) m_el[2][1]; *m++ = (float) m_el[3][1];
-        *m++ = (float) m_el[0][2]; *m++ = (float) m_el[1][2]; *m++ = (float) m_el[2][2]; *m++ = (float) m_el[3][2];
-        *m++ = (float) m_el[0][3]; *m++ = (float) m_el[1][3]; *m++ = (float) m_el[2][3]; *m = (float) m_el[3][3];
-    }
-
-    /**
-	 * Copy the contents to a contiguous block of 16 doubles.
-	 */
-    void getValue(double *m) const {
-        *m++ = m_el[0][0]; *m++ = m_el[1][0]; *m++ = m_el[2][0]; *m++ = m_el[3][0];
-        *m++ = m_el[0][1]; *m++ = m_el[1][1]; *m++ = m_el[2][1]; *m++ = m_el[3][1];
-        *m++ = m_el[0][2]; *m++ = m_el[1][2]; *m++ = m_el[2][2]; *m++ = m_el[3][2];
-        *m++ = m_el[0][3]; *m++ = m_el[1][3]; *m++ = m_el[2][3]; *m = m_el[3][3];
+	template <typename T>
+    void getValue(T *m) const {
+        *m++ = (T)m_el[0][0]; *m++ = (T)m_el[1][0]; *m++ = (T)m_el[2][0]; *m++ = (T)m_el[3][0];
+        *m++ = (T)m_el[0][1]; *m++ = (T)m_el[1][1]; *m++ = (T)m_el[2][1]; *m++ = (T)m_el[3][1];
+        *m++ = (T)m_el[0][2]; *m++ = (T)m_el[1][2]; *m++ = (T)m_el[2][2]; *m++ = (T)m_el[3][2];
+        *m++ = (T)m_el[0][3]; *m++ = (T)m_el[1][3]; *m++ = (T)m_el[2][3]; *m = (T)m_el[3][3];
     }
 
 	/** 
