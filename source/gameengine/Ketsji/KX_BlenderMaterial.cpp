@@ -293,36 +293,6 @@ void KX_BlenderMaterial::SetBlenderShaderData(RAS_IRasterizer *ras)
 	m_blenderShader->SetProg(true, ras->GetTime(), ras);
 }
 
-void KX_BlenderMaterial::SetTexData(RAS_IRasterizer *ras)
-{
-	int mode = 0, i = 0;
-	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
-		if (!m_textures[i] || !m_textures[i]->Ok()) {
-			continue;
-		}
-
-		m_textures[i]->ActivateTexture(i);
-		mode = m_material->mapping[i].mapping;
-
-		if (mode & USEOBJ)
-			SetObjectMatrixData(i, ras);
-
-		if (!(mode & USEOBJ))
-			SetTexMatrixData(i);
-	}
-
-	if (!m_userDefBlend) {
-		ras->SetAlphaBlend(m_material->alphablend);
-	}
-	else {
-		ras->SetAlphaBlend(GPU_BLEND_SOLID);
-		ras->SetAlphaBlend(-1); // indicates custom mode
-
-		glEnable(GL_BLEND);
-		glBlendFunc(m_blendFunc[0], m_blendFunc[1]);
-	}
-}
-
 void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 {
 	SetShaderData(rasty);
@@ -359,26 +329,6 @@ void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 	m_blenderShader->SetAttribs(rasty);
 }
 
-void KX_BlenderMaterial::ActivateMat(RAS_IRasterizer *rasty)
-{
-	SetTexData(rasty);
-
-	if (m_material->ras_mode & TWOSIDED)
-		rasty->SetCullFace(false);
-	else
-		rasty->SetCullFace(true);
-
-	if ((m_material->ras_mode & WIRE) || (rasty->GetDrawingMode() <= RAS_IRasterizer::RAS_WIREFRAME)) {
-		if (m_material->ras_mode & WIRE)
-			rasty->SetCullFace(false);
-		rasty->SetLines(true);
-	}
-	else
-		rasty->SetLines(false);
-	ActivateGLMaterials(rasty);
-	ActivateTexGen(rasty);
-}
-
 void KX_BlenderMaterial::Activate(RAS_IRasterizer *rasty)
 {
 	if (GLEW_ARB_shader_objects && (m_shader && m_shader->Ok())) {
@@ -386,9 +336,6 @@ void KX_BlenderMaterial::Activate(RAS_IRasterizer *rasty)
 	}
 	else if (GLEW_ARB_shader_objects && (m_blenderShader && m_blenderShader->Ok())) {
 		ActivateBlenderShaders(rasty);
-	}
-	else {
-		ActivateMat(rasty);
 	}
 }
 void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
@@ -544,81 +491,6 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 	}
 }
 
-void KX_BlenderMaterial::SetTexMatrixData(int i)
-{
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-
-	if (GLEW_ARB_texture_cube_map &&
-	    m_textures[i]->GetTextureType() == GL_TEXTURE_CUBE_MAP_ARB &&
-	    m_material->mapping[i].mapping & USEREFL)
-	{
-		glScalef(m_material->mapping[i].scale[0], -m_material->mapping[i].scale[1], -m_material->mapping[i].scale[2]);
-	}
-	else {
-		glScalef(m_material->mapping[i].scale[0], m_material->mapping[i].scale[1], m_material->mapping[i].scale[2]);
-	}
-	glTranslatef(m_material->mapping[i].offsets[0], m_material->mapping[i].offsets[1], m_material->mapping[i].offsets[2]);
-
-	glMatrixMode(GL_MODELVIEW);
-}
-
-static void GetProjPlane(BL_Material *mat, int index, int num, float *param)
-{
-	param[0] = param[1] = param[2] = param[3] = 0.0f;
-	if (mat->mapping[index].projplane[num] == PROJX)
-		param[0] = 1.0f;
-	else if (mat->mapping[index].projplane[num] == PROJY)
-		param[1] = 1.0f;
-	else if (mat->mapping[index].projplane[num] == PROJZ)
-		param[2] = 1.0f;
-}
-
-void KX_BlenderMaterial::SetObjectMatrixData(int i, RAS_IRasterizer *ras)
-{
-	KX_GameObject *obj = (KX_GameObject *)m_scene->GetObjectList()->FindValue(m_material->mapping[i].objconame);
-
-	if (!obj) {
-		return;
-	}
-
-	glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
-	glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
-	glTexGeni(GL_R, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
-
-	GLenum plane = GL_EYE_PLANE;
-
-	// figure plane gen
-	float proj[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-	GetProjPlane(m_material, i, 0, proj);
-	glTexGenfv(GL_S, plane, proj);
-
-	GetProjPlane(m_material, i, 1, proj);
-	glTexGenfv(GL_T, plane, proj);
-
-	GetProjPlane(m_material, i, 2, proj);
-	glTexGenfv(GL_R, plane, proj);
-
-	glEnable(GL_TEXTURE_GEN_S);
-	glEnable(GL_TEXTURE_GEN_T);
-	glEnable(GL_TEXTURE_GEN_R);
-
-	const MT_Matrix4x4& mvmat = ras->GetViewMatrix();
-
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glScalef(m_material->mapping[i].scale[0], m_material->mapping[i].scale[1], m_material->mapping[i].scale[2]);
-
-	MT_Vector3 pos = obj->NodeGetWorldPosition();
-	MT_Vector4 matmul = MT_Vector4(pos[0], pos[1], pos[2], 1.0f);
-	MT_Vector4 t = mvmat * matmul;
-
-	glTranslatef((float)(-t[0]), (float)(-t[1]), (float)(-t[2]));
-
-	glMatrixMode(GL_MODELVIEW);
-}
-
-// ------------------------------------
 void KX_BlenderMaterial::UpdateIPO(
     MT_Vector4 rgba,
     MT_Vector3 specrgb,

@@ -50,8 +50,6 @@ public:
 	virtual void DesactivateInstancing();
 	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty);
 
-	void ActivateMat(RAS_IRasterizer *rasty);
-
 	void ActivateShaders(RAS_IRasterizer *rasty);
 
 	void ActivateBlenderShaders(RAS_IRasterizer *rasty);
@@ -162,11 +160,6 @@ private:
 	void SetTexData(RAS_IRasterizer *ras);
 	void SetBlenderShaderData(RAS_IRasterizer *ras);
 	void SetShaderData(RAS_IRasterizer *ras);
-
-	void SetObjectMatrixData(int i, RAS_IRasterizer *ras);
-	void SetTexMatrixData(int i);
-
-	void SetLightData();
 
 	// cleanup stuff
 	void OnExit();
