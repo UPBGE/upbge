@@ -22,7 +22,7 @@ GEN_INLINE void MT_Quaternion::invert() {
 }
 
 GEN_INLINE MT_Quaternion MT_Quaternion::inverse() const {
-    return conjugate() / length2();
+    return MT_Quaternion(conjugate() / length2());
 }
 
 // From: "Uniform Random Rotations", Ken Shoemake, Graphics Gems III, 
@@ -95,6 +95,6 @@ GEN_INLINE MT_Quaternion MT_Quaternion::slerp(const MT_Quaternion& q, const MT_S
 	}
 	if (neg)
 		s1 = -s1;
-	return d*(*this * s0 + q * s1);
+	return MT_Quaternion(d*(*this * s0 + q * s1));
 }
 

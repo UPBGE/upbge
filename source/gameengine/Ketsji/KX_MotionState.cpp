@@ -92,7 +92,7 @@ void KX_MotionState::SetWorldOrientation(float quatIma0, float quatIma1, float q
 	orn[2] = quatIma2;
 	orn[3] = quatReal;
 
-	m_node->SetLocalOrientation(orn);
+	m_node->SetLocalOrientation(MT_Matrix3x3(orn));
 	//m_node->SetWorldOrientation(orn);
 
 }

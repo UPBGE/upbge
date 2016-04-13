@@ -59,17 +59,17 @@
 
 class MT_Transform {
 public:
-    MT_Transform() {}
-    MT_Transform(const float *m) { setValue(m); }
-    MT_Transform(const double *m) { setValue(m); }
-    MT_Transform(const MT_Vector3& p, const MT_Quaternion& q)
+	explicit MT_Transform() {}
+	explicit MT_Transform(const float *m) { setValue(m); }
+	explicit MT_Transform(const double *m) { setValue(m); }
+	explicit MT_Transform(const MT_Vector3& p, const MT_Quaternion& q)
     	: m_type(IDENTITY)
 	{ 
 		setOrigin(p);
 		setRotation(q);
 	}
 
-    MT_Transform(const MT_Vector3& p, const MT_Matrix3x3& m) 
+	explicit MT_Transform(const MT_Vector3& p, const MT_Matrix3x3& m) 
     	: m_type(IDENTITY)
 	{ 
 		setOrigin(p);

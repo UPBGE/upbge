@@ -50,15 +50,16 @@
 #include <BLI_utildefines.h>
 #include "MT_Scalar.h"
 #include "MT_Stream.h"
+#include "MT_Vector2.h"
 
 class MT_Vector3
 {
 public:
     virtual ~MT_Vector3() {}
-    MT_Vector3() {}
+    explicit MT_Vector3() {}
     template <typename T>
-    MT_Vector3(const T *v) { setValue(v); }
-    MT_Vector3(MT_Scalar xx, MT_Scalar yy, MT_Scalar zz) { setValue(xx, yy, zz); }
+    explicit MT_Vector3(const T *v) { setValue(v); }
+    explicit MT_Vector3(MT_Scalar xx, MT_Scalar yy, MT_Scalar zz) { setValue(xx, yy, zz); }
     
     MT_Scalar&       operator[](int i)       { return m_co[i]; }
     const MT_Scalar& operator[](int i) const { return m_co[i]; }
@@ -129,6 +130,8 @@ public:
     MT_Scalar   triple(const MT_Vector3& v1, const MT_Vector3& v2) const;
 
     int         closestAxis() const;
+
+	MT_Vector2 to2d() const;
 
     static MT_Vector3 random();
 

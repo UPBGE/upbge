@@ -170,12 +170,12 @@ bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *mat)
 
 		// If the tangent vertex data is modified.
 		if (modifiedFlag & RAS_MeshObject::TANGENT_MODIFIED) {
-			vert.SetTangent(origvert.getTangent());
+			vert.SetTangent(MT_Vector4(origvert.getTangent()));
 		}
 		// If the UVs vertex data is modified.
 		if (modifiedFlag & RAS_MeshObject::UVS_MODIFIED) {
 			for (unsigned int uv = 0; uv < 8; ++uv) {
-				vert.SetUV(uv, origvert.getUV(uv));
+				vert.SetUV(uv, MT_Vector2(origvert.getUV(uv)));
 			}
 		}
 		// If the colors vertex data is modified.
@@ -350,7 +350,7 @@ void BL_SkinDeformer::UpdateTransverts()
 				RAS_TexVert& v = array->m_vertex[i];
 				v.SetXYZ(m_transverts[v.getOrigIndex()]);
 				if (m_copyNormals)
-					v.SetNormal(m_transnors[v.getOrigIndex()]);
+					v.SetNormal(MT_Vector3(m_transnors[v.getOrigIndex()]));
 
 				MT_Vector3 vertpos = v.xyz();
 

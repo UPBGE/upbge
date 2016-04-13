@@ -54,16 +54,17 @@
 
 class MT_Quaternion : public MT_Vector4 {
 public:
-    MT_Quaternion() {}
-    MT_Quaternion(const MT_Vector4& v) : MT_Vector4(v) {}
-    MT_Quaternion(const float v[4]) : MT_Vector4(v) {}
-    MT_Quaternion(const double v[4]) : MT_Vector4(v) {}
-    MT_Quaternion(MT_Scalar xx, MT_Scalar yy, MT_Scalar zz, MT_Scalar ww) :
+	explicit MT_Quaternion() {}
+	explicit MT_Quaternion(const MT_Vector4& v) : MT_Vector4(v) {}
+	explicit MT_Quaternion(const float v[4]) : MT_Vector4(v) {}
+	explicit MT_Quaternion(const double v[4]) : MT_Vector4(v) {}
+	explicit MT_Quaternion(MT_Scalar xx, MT_Scalar yy, MT_Scalar zz, MT_Scalar ww) :
         MT_Vector4(xx, yy, zz, ww) {}
-    MT_Quaternion(const MT_Vector3& axis, MT_Scalar mt_angle) { 
+
+	explicit MT_Quaternion(const MT_Vector3& axis, MT_Scalar mt_angle) { 
         setRotation(axis, mt_angle); 
     }
-    MT_Quaternion(MT_Scalar yaw, MT_Scalar pitch, MT_Scalar roll) { 
+    explicit MT_Quaternion(MT_Scalar yaw, MT_Scalar pitch, MT_Scalar roll) { 
         setEuler(yaw, pitch, roll); 
     }
 

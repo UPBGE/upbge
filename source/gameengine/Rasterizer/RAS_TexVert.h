@@ -127,7 +127,7 @@ public:
 
 	void SetRGBA(const unsigned int rgba);
 	void SetNormal(const MT_Vector3& normal);
-	void SetTangent(const MT_Vector3& tangent);
+	void SetTangent(const MT_Vector4& tangent);
 	void SetFlag(const short flag);
 
 	void SetRGBA(const MT_Vector4& rgba);

@@ -893,13 +893,13 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			normal_short_to_float_v3(n0, mvert[mface->v1].no);
 			normal_short_to_float_v3(n1, mvert[mface->v2].no);
 			normal_short_to_float_v3(n2, mvert[mface->v3].no);
-			no[0] = n0;
-			no[1] = n1;
-			no[2] = n2;
+			no[0] = MT_Vector3(n0);
+			no[1] = MT_Vector3(n1);
+			no[2] = MT_Vector3(n2);
 
 			if (mface->v4) {
 				normal_short_to_float_v3(n3, mvert[mface->v4].no);
-				no[3] = n3;
+				no[3] = MT_Vector3(n3);
 			}
 		}
 		else {
@@ -914,12 +914,12 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		}
 
 		if (tangent) {
-			tan[0] = tangent[f*4 + 0];
-			tan[1] = tangent[f*4 + 1];
-			tan[2] = tangent[f*4 + 2];
+			tan[0] = MT_Vector4(tangent[f*4 + 0]);
+			tan[1] = MT_Vector4(tangent[f*4 + 1]);
+			tan[2] = MT_Vector4(tangent[f*4 + 2]);
 
 			if (mface->v4)
-				tan[3] = tangent[f*4 + 3];
+				tan[3] = MT_Vector4(tangent[f*4 + 3]);
 		}
 		if (blenderobj)
 			ma = give_current_material(blenderobj, mface->mat_nr+1);
@@ -1432,7 +1432,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 	{
 		gameobj->SetLayer(ob->lay);
 		gameobj->SetBlenderObject(ob);
-		gameobj->SetObjectColor(ob->col);
+		gameobj->SetObjectColor(MT_Vector4(ob->col));
 		/* set the visibility state based on the objects render option in the outliner */
 		if (ob->restrictflag & OB_RESTRICT_RENDER) gameobj->SetVisible(0, 0);
 	}

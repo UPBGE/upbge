@@ -45,7 +45,7 @@ RAS_TexVert::RAS_TexVert(const MT_Vector3& xyz,
 	xyz.getValue(m_localxyz);
 	SetRGBA(rgba);
 	SetNormal(normal);
-	tangent.getValue(m_tangent);
+	SetTangent(tangent);
 	m_flag = (flat) ? FLAT : 0;
 	m_origindex = origindex;
 	m_softBodyIndex = -1;
@@ -105,7 +105,7 @@ void RAS_TexVert::SetNormal(const MT_Vector3& normal)
 	normal.getValue(m_normal);
 }
 
-void RAS_TexVert::SetTangent(const MT_Vector3& tangent)
+void RAS_TexVert::SetTangent(const MT_Vector4& tangent)
 {
 	tangent.getValue(m_tangent);
 }
@@ -137,12 +137,12 @@ short RAS_TexVert::getFlag() const
 
 void RAS_TexVert::Transform(const MT_Matrix4x4& mat, const MT_Matrix4x4& nmat)
 {
-	SetXYZ((mat * MT_Vector4(m_localxyz[0], m_localxyz[1], m_localxyz[2], 1.0f)).getValue());
-	SetNormal((nmat * MT_Vector4(m_normal[0], m_normal[1], m_normal[2], 1.0f)).getValue());
-	SetTangent((nmat * MT_Vector4(m_tangent[0], m_tangent[1], m_tangent[2], 1.0f)).getValue());
+	SetXYZ((mat * MT_Vector4(m_localxyz[0], m_localxyz[1], m_localxyz[2], 1.0f)).to3d());
+	SetNormal((nmat * MT_Vector4(m_normal[0], m_normal[1], m_normal[2], 1.0f)).to3d());
+	SetTangent((nmat * MT_Vector4(m_tangent[0], m_tangent[1], m_tangent[2], 1.0f)));
 }
 
 void RAS_TexVert::TransformUV(int index, const MT_Matrix4x4& mat)
 {
-	SetUV(index, (mat * MT_Vector4(m_uvs[index][0], m_uvs[index][1], 0.0f, 1.0f)).getValue());
+	SetUV(index, (mat * MT_Vector4(m_uvs[index][0], m_uvs[index][1], 0.0f, 1.0f)).to2d());
 }

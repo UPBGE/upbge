@@ -42,9 +42,6 @@ namespace
 	inline void vset(float v[2], float x, float y) { v[0] = x; v[1] = y; }
 }
 
-/* grr, seems moto provides no nice way to do this */
-#define MT_3D_AS_2D(v) MT_Vector2((v)[0], (v)[1])
-
 static int sweepCircleCircle(
         const MT_Vector2 &pos0, const MT_Scalar r0, const MT_Vector2 &v,
         const MT_Vector2 &pos1, const MT_Scalar r1,
@@ -484,11 +481,11 @@ void KX_ObstacleSimulationTOI_rays::sampleRVO(KX_Obstacle* activeObst, KX_NavMes
 				else
 				{
 					// Moving, use RVO
-					vab = 2*svel - vel - ob->vel;
+					vab = 2*svel - vel - MT_Vector2(ob->vel);
 				}
 
-				if (!sweepCircleCircle(MT_3D_AS_2D(activeObst->m_pos), activeObst->m_rad,
-				                       vab, MT_3D_AS_2D(ob->m_pos), ob->m_rad, htmin, htmax))
+				if (!sweepCircleCircle(activeObst->m_pos.to2d(), activeObst->m_rad,
+				                       vab, ob->m_pos.to2d(), ob->m_rad, htmin, htmax))
 				{
 					continue;
 				}
@@ -505,8 +502,8 @@ void KX_ObstacleSimulationTOI_rays::sampleRVO(KX_Obstacle* activeObst, KX_NavMes
 					p2 = navmeshobj->TransformToWorldCoords(p2);
 				}
 
-				if (!sweepCircleSegment(MT_3D_AS_2D(activeObst->m_pos), activeObst->m_rad, svel,
-				                        MT_3D_AS_2D(p1), MT_3D_AS_2D(p2), ob->m_rad, htmin, htmax))
+				if (!sweepCircleSegment(activeObst->m_pos.to2d(), activeObst->m_rad, svel,
+				                        p1.to2d(), p2.to2d(), ob->m_rad, htmin, htmax))
 				{
 					continue;
 				}
@@ -652,8 +649,8 @@ static void processSamples(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavM
 				                  dot_v2v2(np, vab)) * 2.0f, 0.0f, 1.0f);
 				nside++;
 
-				if (!sweepCircleCircle(MT_3D_AS_2D(activeObst->m_pos), activeObst->m_rad,
-				                       vab, MT_3D_AS_2D(ob->m_pos), ob->m_rad, htmin, htmax))
+				if (!sweepCircleCircle(activeObst->m_pos.to2d(), activeObst->m_rad,
+				                       MT_Vector2(vab), ob->m_pos.to2d(), ob->m_rad, htmin, htmax))
 				{
 					continue;
 				}
@@ -699,7 +696,8 @@ static void processSamples(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavM
 				}
 				else
 				{
-					if (!sweepCircleSegment(activeObstPos, r, vcand, p, q, ob->m_rad, htmin, htmax))
+					if (!sweepCircleSegment(MT_Vector2(activeObstPos), r, MT_Vector2(vcand), 
+											MT_Vector2(p), MT_Vector2(q), ob->m_rad, htmin, htmax))
 						continue;
 				}
 

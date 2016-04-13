@@ -1029,7 +1029,7 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 				MT_Transform transform;
 				transform.setIdentity();
 				transform.translate(-(eyeline * m_eyeseparation / 2.0f));
-				m_viewmatrix *= transform;
+				m_viewmatrix *= MT_Matrix4x4(transform);
 				break;
 			}
 			case RAS_STEREO_RIGHTEYE:
@@ -1038,7 +1038,7 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 				MT_Transform transform;
 				transform.setIdentity();
 				transform.translate(eyeline * m_eyeseparation / 2.0f);
-				m_viewmatrix *= transform;
+				m_viewmatrix *= MT_Matrix4x4(transform);
 				break;
 			}
 		}

@@ -51,20 +51,20 @@ public:
 	/**
 	 * Empty contructor.
 	 */
-    MT_Matrix4x4() {}
+	explicit MT_Matrix4x4() {}
 	/**
 	 * Initialize all fields with the values pointed at by m. A
 	 * contigous block of 16 values is read.  */
-    MT_Matrix4x4(const float *m) { setValue(m); }
+	explicit MT_Matrix4x4(const float *m) { setValue(m); }
 	/**
 	 * Initialize all fields with the values pointed at by m. A
 	 * contigous block of 16 values is read.  */
-    MT_Matrix4x4(const double *m) { setValue(m); }
+	explicit MT_Matrix4x4(const double *m) { setValue(m); }
     
 	/**
 	 * Initialise with these 16 explicit values.
 	 */
-    MT_Matrix4x4(MT_Scalar xx, MT_Scalar xy, MT_Scalar xz, MT_Scalar xw,
+	explicit MT_Matrix4x4(MT_Scalar xx, MT_Scalar xy, MT_Scalar xz, MT_Scalar xw,
                  MT_Scalar yx, MT_Scalar yy, MT_Scalar yz, MT_Scalar yw,
                  MT_Scalar zx, MT_Scalar zy, MT_Scalar zz, MT_Scalar zw,
                  MT_Scalar wx, MT_Scalar wy, MT_Scalar wz, MT_Scalar ww) { 
@@ -77,7 +77,7 @@ public:
 	/** 
 	 * Initialize from an MT_Transform.
 	 */ 
-	MT_Matrix4x4(const MT_Transform &t) {
+	explicit MT_Matrix4x4(const MT_Transform &t) {
 
 		const MT_Matrix3x3 &basis = t.getBasis();
 		const MT_Vector3 &origin = t.getOrigin();  	

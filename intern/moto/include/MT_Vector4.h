@@ -50,15 +50,16 @@
 #include <BLI_utildefines.h>
 #include "MT_Scalar.h"
 #include "MT_Stream.h"
+#include "MT_Vector3.h"
 
 class MT_Vector4
 {
 public:
     virtual ~MT_Vector4() {}
-    MT_Vector4() {}
+    explicit MT_Vector4() {}
     template <typename T>
-    MT_Vector4(const T *v) { setValue(v); }
-    MT_Vector4(MT_Scalar xx, MT_Scalar yy, MT_Scalar zz, MT_Scalar ww) {
+    explicit MT_Vector4(const T *v) { setValue(v); }
+    explicit MT_Vector4(MT_Scalar xx, MT_Scalar yy, MT_Scalar zz, MT_Scalar ww) {
         setValue(xx, yy, zz, ww);
     }
     
@@ -121,6 +122,9 @@ public:
 
     bool        fuzzyZero() const;
     
+	MT_Vector2 to2d() const;
+	MT_Vector3 to3d() const;
+
 protected:
     MT_Scalar m_co[4];                            
 };

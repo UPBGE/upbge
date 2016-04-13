@@ -98,7 +98,7 @@ UpdateChildCoordinates(
 							child_scale[2])));
 				
 				// The child's world transform is parent * child
-				parent_matrix = parent->GetWorldTransform() * parent_matrix;
+				parent_matrix = MT_Matrix4x4(parent->GetWorldTransform()) * parent_matrix;
 				child_transform = parent_matrix * child_transform;
 				
 				// Recompute the child transform components from the transform.

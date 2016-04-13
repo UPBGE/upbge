@@ -64,6 +64,16 @@ GEN_INLINE MT_Vector4 MT_Vector4::scaled(MT_Scalar xx, MT_Scalar yy, MT_Scalar z
 
 GEN_INLINE bool MT_Vector4::fuzzyZero() const { return MT_fuzzyZero2(length2()); }
 
+GEN_INLINE MT_Vector2 MT_Vector4::to2d() const
+{
+	return MT_Vector2(m_co[0], m_co[1]);
+}
+
+GEN_INLINE MT_Vector3 MT_Vector4::to3d() const
+{
+	return MT_Vector3(m_co[0], m_co[1], m_co[2]);
+}
+
 GEN_INLINE void MT_Vector4::normalize() { *this /= length(); }
 GEN_INLINE MT_Vector4 MT_Vector4::normalized() const { return *this / length(); }
 

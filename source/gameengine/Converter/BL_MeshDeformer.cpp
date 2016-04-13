@@ -168,9 +168,10 @@ void BL_MeshDeformer::RecalcNormals()
 
 			/* in case of flat - just assign, the vertices are split */
 			if (v1.getFlag() & RAS_TexVert::FLAT) {
-				v1.SetNormal(fnor);
-				v2.SetNormal(fnor);
-				v3.SetNormal(fnor);
+				MT_Vector3 normal = MT_Vector3(fnor);
+				v1.SetNormal(normal);
+				v2.SetNormal(normal);
+				v3.SetNormal(normal);
 			}
 		}
 	}
@@ -188,7 +189,7 @@ void BL_MeshDeformer::RecalcNormals()
 			RAS_TexVert& v = array->m_vertex[i];
 
 			if (!(v.getFlag() & RAS_TexVert::FLAT))
-				v.SetNormal(m_transnors[v.getOrigIndex()]); //.safe_normalized()
+				v.SetNormal(MT_Vector3(m_transnors[v.getOrigIndex()])); //.safe_normalized()
 		}
 	}
 }

@@ -256,9 +256,9 @@ void	KX_SCA_AddObjectActuator::InstantAddObject()
 		// Now it needs to be added to the current scene.
 		SCA_IObject* replica = m_scene->AddReplicaObject(m_OriginalObject,GetParent(),m_timeProp );
 		KX_GameObject * game_obj = static_cast<KX_GameObject *>(replica);
-		game_obj->setLinearVelocity(m_linear_velocity, m_localLinvFlag);
-		game_obj->setAngularVelocity(m_angular_velocity,m_localAngvFlag);
-		game_obj->ResolveCombinedVelocities(m_linear_velocity, m_angular_velocity, m_localLinvFlag, m_localAngvFlag);
+		game_obj->setLinearVelocity(MT_Vector3(m_linear_velocity), m_localLinvFlag);
+		game_obj->setAngularVelocity(MT_Vector3(m_angular_velocity),m_localAngvFlag);
+		game_obj->ResolveCombinedVelocities(MT_Vector3(m_linear_velocity), MT_Vector3(m_angular_velocity), m_localLinvFlag, m_localAngvFlag);
 
 		// keep a copy of the last object, to allow python scripters to change it
 		if (m_lastCreatedObject)

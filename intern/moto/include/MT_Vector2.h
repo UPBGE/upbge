@@ -54,10 +54,10 @@
 class MT_Vector2 
 {
 public:
-    MT_Vector2() {}
+    explicit MT_Vector2() {}
     template <typename T>
-    MT_Vector2(const T *vv) { setValue(vv); }
-    MT_Vector2(MT_Scalar xx, MT_Scalar yy) { setValue(xx, yy); }
+    explicit MT_Vector2(const T *vv) { setValue(vv); }
+    explicit MT_Vector2(MT_Scalar xx, MT_Scalar yy) { setValue(xx, yy); }
     
     MT_Scalar&       operator[](int i)       { return m_co[i]; }
     const MT_Scalar& operator[](int i) const { return m_co[i]; }

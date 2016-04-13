@@ -191,12 +191,12 @@ void BL_ConvertActuators(const char* maggiename,
 				KX_ObjectActuator* tmpbaseact = new KX_ObjectActuator(
 				            gameobj,
 				            obref,
-				            forcevec.getValue(),
-				            torquevec.getValue(),
-				            dlocvec.getValue(),
-				            drotvec.getValue(),
-				            linvelvec.getValue(),
-				            angvelvec.getValue(),
+				            forcevec,
+				            torquevec,
+				            dlocvec,
+				            drotvec,
+				            linvelvec,
+				            angvelvec,
 				            damping,
 				            bitLocalFlag);
 				baseact = tmpbaseact;

@@ -702,7 +702,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_Camera, getCameraToWorld,
 "\tie: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]])\n"
 )
 {
-	return PyObjectFrom(GetCameraToWorld()); /* new ref */
+	return PyObjectFrom(MT_Matrix4x4(GetCameraToWorld())); /* new ref */
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_Camera, getWorldToCamera,
@@ -711,7 +711,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_Camera, getWorldToCamera,
 "\tie: [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]])\n"
 )
 {
-	return PyObjectFrom(GetWorldToCamera()); /* new ref */
+	return PyObjectFrom(MT_Matrix4x4(GetWorldToCamera())); /* new ref */
 }
 
 KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, setViewport,
@@ -942,19 +942,19 @@ int KX_Camera::pyattr_set_projection_matrix(void *self_v, const KX_PYATTRIBUTE_D
 PyObject *KX_Camera::pyattr_get_modelview_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
-	return PyObjectFrom(self->GetWorldToCamera());
+	return PyObjectFrom(MT_Matrix4x4(self->GetWorldToCamera()));
 }
 
 PyObject *KX_Camera::pyattr_get_camera_to_world(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
-	return PyObjectFrom(self->GetCameraToWorld());
+	return PyObjectFrom(MT_Matrix4x4(self->GetCameraToWorld()));
 }
 
 PyObject *KX_Camera::pyattr_get_world_to_camera(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
-	return PyObjectFrom(self->GetWorldToCamera()); 
+	return PyObjectFrom(MT_Matrix4x4(self->GetWorldToCamera())); 
 }
 
 
@@ -1051,7 +1051,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 	GLdouble modelmatrix[16];
 	GLdouble projmatrix[16];
 
-	MT_Matrix4x4 m_modelmatrix = this->GetWorldToCamera();
+	MT_Matrix4x4 m_modelmatrix = MT_Matrix4x4(GetWorldToCamera());
 	MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
 
 	m_modelmatrix.getValue(modelmatrix);
@@ -1094,7 +1094,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 	GLdouble modelmatrix[16];
 	GLdouble projmatrix[16];
 
-	MT_Matrix4x4 m_modelmatrix = this->GetWorldToCamera();
+	MT_Matrix4x4 m_modelmatrix = MT_Matrix4x4(GetWorldToCamera());
 	MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
 
 	m_modelmatrix.getValue(modelmatrix);

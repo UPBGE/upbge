@@ -63,7 +63,7 @@ struct RAS_MeshObject::polygonSlot
 
 		for (i = 0; i < nvert; i++) {
 			m_index[i] = indexarray[offset + i];
-			center += vertexarray[m_index[i]].getXYZ();
+			center += MT_Vector3(vertexarray[m_index[i]].getXYZ());
 		}
 
 		/* note we don't divide center by the number of vertices, since all

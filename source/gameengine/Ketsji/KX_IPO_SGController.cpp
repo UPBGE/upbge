@@ -261,7 +261,7 @@ bool KX_IpoSGController::Update(double currentTime)
 						roll += m_ipo_xform.GetDeltaEulerAngles()[2];
 					}
 					if (m_game_object)
-						m_game_object->NodeSetLocalOrientation(MT_Vector3(yaw, pitch, roll));
+						m_game_object->NodeSetLocalOrientation(MT_Matrix3x3(MT_Vector3(yaw, pitch, roll)));
 				}
 			}
 			else if (m_ipo_start_initialized) {

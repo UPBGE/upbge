@@ -146,6 +146,11 @@ GEN_INLINE int MT_Vector3::closestAxis() const {
     return a[0] < a[1] ? (a[1] < a[2] ? 2 : 1) : (a[0] < a[2] ? 2 : 0);
 }
 
+GEN_INLINE MT_Vector2 MT_Vector3::to2d() const
+{
+	return MT_Vector2(m_co[0], m_co[1]);
+}
+
 GEN_INLINE MT_Vector3 MT_Vector3::random() {
     MT_Scalar z = MT_Scalar(2.0f) * MT_random() - MT_Scalar(1.0f);
     MT_Scalar r = sqrtf(MT_Scalar(1.0f) - z * z);

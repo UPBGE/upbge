@@ -280,7 +280,7 @@ int KX_VertexProxy::pyattr_set_u(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		MT_Vector2 uv = self->m_vertex->getUV(0);
+		MT_Vector2 uv = MT_Vector2(self->m_vertex->getUV(0));
 		uv[0] = val;
 		self->m_vertex->SetUV(0, uv);
 		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
@@ -294,7 +294,7 @@ int KX_VertexProxy::pyattr_set_v(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		MT_Vector2 uv = self->m_vertex->getUV(0);
+		MT_Vector2 uv = MT_Vector2(self->m_vertex->getUV(0));
 		uv[1] = val;
 		self->m_vertex->SetUV(0, uv);
 		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
@@ -308,7 +308,7 @@ int KX_VertexProxy::pyattr_set_u2(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		MT_Vector2 uv = self->m_vertex->getUV(1);
+		MT_Vector2 uv = MT_Vector2(self->m_vertex->getUV(1));
 		uv[0] = val;
 		self->m_vertex->SetUV(1, uv);
 		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
@@ -322,7 +322,7 @@ int KX_VertexProxy::pyattr_set_v2(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		MT_Vector2 uv = self->m_vertex->getUV(1);
+		MT_Vector2 uv = MT_Vector2(self->m_vertex->getUV(1));
 		uv[1] = val;
 		self->m_vertex->SetUV(1, uv);
 		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);

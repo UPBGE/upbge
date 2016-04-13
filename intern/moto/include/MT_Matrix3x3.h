@@ -54,23 +54,23 @@
 
 class MT_Matrix3x3 {
 public:
-    MT_Matrix3x3() {}
-    MT_Matrix3x3(const float *m) { setValue(m); }
-    MT_Matrix3x3(const double *m) { setValue(m); }
-    MT_Matrix3x3(const MT_Quaternion& q) { setRotation(q); }
+    explicit MT_Matrix3x3() {}
+    explicit MT_Matrix3x3(const float *m) { setValue(m); }
+    explicit MT_Matrix3x3(const double *m) { setValue(m); }
+    explicit MT_Matrix3x3(const MT_Quaternion& q) { setRotation(q); }
     
-	MT_Matrix3x3(const MT_Quaternion& q, const MT_Vector3& s) { 
+    explicit MT_Matrix3x3(const MT_Quaternion& q, const MT_Vector3& s) { 
 		setRotation(q); 
 		scale(s[0], s[1], s[2]);
 	}
 	
-	MT_Matrix3x3(const MT_Vector3& euler) { setEuler(euler); }
-	MT_Matrix3x3(const MT_Vector3& euler, const MT_Vector3& s) { 
+	explicit MT_Matrix3x3(const MT_Vector3& euler) { setEuler(euler); }
+	explicit MT_Matrix3x3(const MT_Vector3& euler, const MT_Vector3& s) { 
 		setEuler(euler); 
 		scale(s[0], s[1], s[2]);
 	}
 	
-    MT_Matrix3x3(MT_Scalar xx, MT_Scalar xy, MT_Scalar xz,
+	explicit MT_Matrix3x3(MT_Scalar xx, MT_Scalar xy, MT_Scalar xz,
                  MT_Scalar yx, MT_Scalar yy, MT_Scalar yz,
                  MT_Scalar zx, MT_Scalar zy, MT_Scalar zz) { 
         setValue(xx, xy, xz, 
