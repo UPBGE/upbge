@@ -888,8 +888,9 @@ KX_GameObject::UpdateMaterialData(
 		MT_Scalar spec,
 		MT_Scalar ref,
 		MT_Scalar emit,
-		MT_Scalar alpha
-
+		MT_Scalar ambient,
+		MT_Scalar alpha,
+		MT_Scalar specalpha
 	)
 {
 	int mesh = 0;
@@ -904,7 +905,7 @@ KX_GameObject::UpdateMaterialData(
 
 			if (matname_hash == 0)
 			{
-				m->UpdateIPO(rgba, specrgb,hard,spec,ref,emit, alpha);
+				m->UpdateIPO(rgba, specrgb, hard, spec, ref, emit, ambient, alpha, specalpha);
 				// if mesh has only one material attached to it then use original hack with no need to edit vertices (better performance)
 				SetObjectColor(rgba);
 			}
@@ -912,7 +913,7 @@ KX_GameObject::UpdateMaterialData(
 			{
 				if (matname_hash == poly->GetMaterialNameHash())
 				{
-					m->UpdateIPO(rgba, specrgb,hard,spec,ref,emit, alpha);
+					m->UpdateIPO(rgba, specrgb, hard, spec, ref, emit, ambient, alpha, specalpha);
 					m_meshes[mesh]->SetVertexColor(poly,rgba);
 
 					// no break here, because one blender material can be split into several game engine materials

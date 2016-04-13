@@ -1314,35 +1314,35 @@ vec3 mtex_2d_mapping(vec3 vec)
 	return vec3(vec.xy*0.5 + vec2(0.5), vec.z);
 }
 
-void mtex_cube_map(vec3 co, samplerCube ima, out float value, out vec4 color)
+void mtex_cube_map(vec3 co, samplerCube ima, float lodbias, out float value, out vec4 color)
 {
-	color = textureCube(ima, co);
+	color = textureCube(ima, co, lodbias);
 	value = 1.0;
 }
 
-void mtex_cube_map_refl(samplerCube ima, vec3 vp, vec3 vn, mat4 viewmatrixinverse, mat4 viewmatrix, out float value, out vec4 color)
+void mtex_cube_map_refl(samplerCube ima, vec3 vp, vec3 vn, float lodbias, mat4 viewmatrixinverse, mat4 viewmatrix, out float value, out vec4 color)
 {
 	vec3 viewdirection = vec3(viewmatrixinverse * vec4(vp, 0.0));
 	vec3 normaldirection = normalize(vec3(vec4(vn, 0.0) * viewmatrix));
 	vec3 reflecteddirection = reflect(viewdirection, normaldirection);
-	color = textureCube(ima, reflecteddirection);
+	color = textureCube(ima, reflecteddirection, lodbias);
 	value = 1.0;
 }
 
-void mtex_image(vec3 texco, sampler2D ima, out float value, out vec4 color)
+void mtex_image(vec3 texco, sampler2D ima, float lodbias, out float value, out vec4 color)
 {
-	color = texture2D(ima, texco.xy);
+	color = texture2D(ima, texco.xy, lodbias);
 	value = 1.0;
 }
 
-void mtex_normal(vec3 texco, sampler2D ima, out vec3 normal)
+void mtex_normal(vec3 texco, sampler2D ima, float lodbias, out vec3 normal)
 {
 	// The invert of the red channel is to make
 	// the normal map compliant with the outside world.
 	// It needs to be done because in Blender
 	// the normal used points inward.
 	// Should this ever change this negate must be removed.
-	vec4 color = texture2D(ima, texco.xy);
+	vec4 color = texture2D(ima, texco.xy, lodbias);
 	normal = 2.0*(vec3(-color.r, color.g, color.b) - vec3(-0.5, 0.5, 0.5));
 }
 
@@ -1426,7 +1426,7 @@ void mtex_bump_init_viewspace( vec3 surf_pos, vec3 surf_norm,
 	fPrevMagnitude_out = fMagnitude;
 }
 
-void mtex_bump_tap3( vec3 texco, sampler2D ima, float hScale, 
+void mtex_bump_tap3( vec3 texco, sampler2D ima, float hScale, float lodbias,
                      out float dBs, out float dBt )
 {
 	vec2 STll = texco.xy;
@@ -1434,9 +1434,9 @@ void mtex_bump_tap3( vec3 texco, sampler2D ima, float hScale,
 	vec2 STul = texco.xy + dFdy(texco.xy) ;
 	
 	float Hll,Hlr,Hul;
-	rgbtobw( texture2D(ima, STll), Hll );
-	rgbtobw( texture2D(ima, STlr), Hlr );
-	rgbtobw( texture2D(ima, STul), Hul );
+	rgbtobw( texture2D(ima, STll, lodbias), Hll );
+	rgbtobw( texture2D(ima, STlr, lodbias), Hlr );
+	rgbtobw( texture2D(ima, STul, lodbias), Hul );
 	
 	dBs = hScale * (Hlr - Hll);
 	dBt = hScale * (Hul - Hll);
@@ -1444,7 +1444,7 @@ void mtex_bump_tap3( vec3 texco, sampler2D ima, float hScale,
 
 #ifdef BUMP_BICUBIC
 
-void mtex_bump_bicubic( vec3 texco, sampler2D ima, float hScale, 
+void mtex_bump_bicubic( vec3 texco, sampler2D ima, float hScale, float lodbias,
                      out float dBs, out float dBt ) 
 {
 	float Hl;
@@ -1460,10 +1460,10 @@ void mtex_bump_bicubic( vec3 texco, sampler2D ima, float hScale,
 	vec2 STd = texco.xy - 0.5 * TexDy ;
 	vec2 STu = texco.xy + 0.5 * TexDy ;
 	
-	rgbtobw(texture2D(ima, STl), Hl);
-	rgbtobw(texture2D(ima, STr), Hr);
-	rgbtobw(texture2D(ima, STd), Hd);
-	rgbtobw(texture2D(ima, STu), Hu);
+	rgbtobw(texture2D(ima, STl, lodbias), Hl);
+	rgbtobw(texture2D(ima, STr, lodbias), Hr);
+	rgbtobw(texture2D(ima, STd, lodbias), Hd);
+	rgbtobw(texture2D(ima, STu, lodbias), Hu);
 	
 	vec2 dHdxy = vec2(Hr - Hl, Hu - Hd);
 	float fBlend = clamp(1.0-textureQueryLOD(ima, texco.xy).x, 0.0, 1.0);
@@ -1536,7 +1536,7 @@ void mtex_bump_bicubic( vec3 texco, sampler2D ima, float hScale,
 
 #endif
 
-void mtex_bump_tap5( vec3 texco, sampler2D ima, float hScale, 
+void mtex_bump_tap5( vec3 texco, sampler2D ima, float hScale, float lodbias,
                      out float dBs, out float dBt ) 
 {
 	vec2 TexDx = dFdx(texco.xy);
@@ -1549,17 +1549,17 @@ void mtex_bump_tap5( vec3 texco, sampler2D ima, float hScale,
 	vec2 STu = texco.xy + 0.5 * TexDy ;
 	
 	float Hc,Hl,Hr,Hd,Hu;
-	rgbtobw( texture2D(ima, STc), Hc );
-	rgbtobw( texture2D(ima, STl), Hl );
-	rgbtobw( texture2D(ima, STr), Hr );
-	rgbtobw( texture2D(ima, STd), Hd );
-	rgbtobw( texture2D(ima, STu), Hu );
+	rgbtobw( texture2D(ima, STc, lodbias), Hc );
+	rgbtobw( texture2D(ima, STl, lodbias), Hl );
+	rgbtobw( texture2D(ima, STr, lodbias), Hr );
+	rgbtobw( texture2D(ima, STd, lodbias), Hd );
+	rgbtobw( texture2D(ima, STu, lodbias), Hu );
 	
 	dBs = hScale * (Hr - Hl);
 	dBt = hScale * (Hu - Hd);
 }
 
-void mtex_bump_deriv( vec3 texco, sampler2D ima, float ima_x, float ima_y, float hScale, 
+void mtex_bump_deriv( vec3 texco, sampler2D ima, float ima_x, float ima_y, float hScale, float lodbias,
                      out float dBs, out float dBt ) 
 {
 	float s = 1.0;		// negate this if flipped texture coordinate
@@ -1569,7 +1569,7 @@ void mtex_bump_deriv( vec3 texco, sampler2D ima, float ima_x, float ima_y, float
 	// this variant using a derivative map is described here
 	// http://mmikkelsen3d.blogspot.com/2011/07/derivative-maps.html
 	vec2 dim = vec2(ima_x, ima_y);
-	vec2 dBduv = hScale*dim*(2.0*texture2D(ima, texco.xy).xy-1.0);
+	vec2 dBduv = hScale*dim*(2.0*texture2D(ima, texco.xy, lodbias).xy-1.0);
 	
 	dBs = dBduv.x*TexDx.x + s*dBduv.y*TexDx.y;
 	dBt = dBduv.x*TexDy.x + s*dBduv.y*TexDy.y;

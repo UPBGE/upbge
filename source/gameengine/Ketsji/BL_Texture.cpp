@@ -31,7 +31,7 @@
 
 #include "GPU_texture.h"
 
-BL_Texture::BL_Texture(MTex *mtex, bool cubemap, bool mipmap)
+BL_Texture::BL_Texture(MTex *mtex, bool cubemap)
 	:CValue(),
 	m_bindcode(-1),
 	m_mtex(mtex),
@@ -42,7 +42,7 @@ BL_Texture::BL_Texture(MTex *mtex, bool cubemap, bool mipmap)
 	ImageUser& iuser = tex->iuser;
 	const int gltextarget = cubemap ? GL_TEXTURE_CUBE_MAP_ARB : GL_TEXTURE_2D;
 
-	m_gputex = ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, mipmap) : NULL;
+	m_gputex = ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : NULL;
 
 	// Initialize saved data.
 	m_mtexname = STR_String(m_mtex->tex->id.name + 2);
@@ -57,6 +57,7 @@ BL_Texture::BL_Texture(MTex *mtex, bool cubemap, bool mipmap)
 	m_savedData.normalfac = m_mtex->norfac;
 	m_savedData.parallaxbumpfac = m_mtex->parallaxbumpsc;
 	m_savedData.parallaxstepfac = m_mtex->parallaxsteps;
+	m_savedData.lodbias = m_mtex->lodbias;
 	
 	if (m_gputex) {
 		m_bindcode = GPU_texture_opengl_bindcode(m_gputex);
@@ -78,6 +79,7 @@ BL_Texture::~BL_Texture()
 	m_mtex->norfac = m_savedData.normalfac;
 	m_mtex->parallaxbumpsc = m_savedData.parallaxbumpfac;
 	m_mtex->parallaxsteps = m_savedData.parallaxstepfac;
+	m_mtex->lodbias = m_savedData.lodbias;
 
 	if (m_gputex) {
 		GPU_texture_set_opengl_bindcode(m_gputex, m_savedData.bindcode);
@@ -198,6 +200,7 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("normal", BL_Texture, pyattr_get_normal, pyattr_set_normal),
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxBump", BL_Texture, pyattr_get_parallax_bump, pyattr_set_parallax_bump),
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxStep", BL_Texture, pyattr_get_parallax_step, pyattr_set_parallax_step),
+	KX_PYATTRIBUTE_RW_FUNCTION("lodBias", BL_Texture, pyattr_get_lod_bias, pyattr_set_lod_bias),
 	KX_PYATTRIBUTE_INT_RO("bindcode", BL_Texture, m_bindcode),
 	{ NULL }    //Sentinel
 };
@@ -419,6 +422,26 @@ int BL_Texture::pyattr_set_parallax_step(void *self_v, const KX_PYATTRIBUTE_DEF 
 	}
 
 	self->GetMTex()->parallaxsteps = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_lod_bias(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->lodbias);
+}
+
+int BL_Texture::pyattr_set_lod_bias(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->GetMTex()->lodbias = val;
 	return PY_SET_ATTR_SUCCESS;
 }
 

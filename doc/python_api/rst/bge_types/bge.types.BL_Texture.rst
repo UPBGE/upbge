@@ -75,6 +75,12 @@ base class --- :class:`CValue`
 
       :type: float
 
+   .. attribute:: lodBias
+
+      Amount bias on mipmapping.
+
+      :type: float
+
    .. attribute:: bindcode
 
       Texture bind code/Id/number.

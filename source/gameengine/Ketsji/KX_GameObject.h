@@ -767,7 +767,9 @@ public:
 		MT_Scalar spec,
 		MT_Scalar ref,
 		MT_Scalar emit,
-		MT_Scalar alpha
+		MT_Scalar ambient,
+		MT_Scalar alpha,
+		MT_Scalar specalpha
 	);
 
 	/**

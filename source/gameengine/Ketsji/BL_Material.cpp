@@ -65,6 +65,7 @@ void BL_Material::Initialize()
 	hard = 50.f;
 	spec_f = 0.5f;
 	alpha = 1.f;
+	specalpha = 1.0f;
 	emit = 0.f;
 	material = 0;
 	memset(&mtexpoly, 0, sizeof(mtexpoly));
