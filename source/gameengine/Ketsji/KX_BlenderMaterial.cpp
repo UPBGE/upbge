@@ -107,6 +107,7 @@ void KX_BlenderMaterial::Initialize(
 	m_savedData.ref = ma->ref;
 	m_savedData.hardness = ma->har;
 	m_savedData.emit = ma->emit;
+	m_savedData.ambient = ma->amb;
 
 	m_material = data;
 	m_shader = NULL;
@@ -140,6 +141,7 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 	ma->ref = m_savedData.ref;
 	ma->har = m_savedData.hardness;
 	ma->emit = m_savedData.emit;
+	ma->amb = m_savedData.ambient;
 
 	for (unsigned short i = 0; i < MAXTEX; ++i) {
 		if (m_textures[i]) {
@@ -494,6 +496,7 @@ void KX_BlenderMaterial::UpdateIPO(
     MT_Scalar spec,
     MT_Scalar ref,
     MT_Scalar emit,
+	MT_Scalar ambient,
     MT_Scalar alpha)
 {
 	// only works one deep now
@@ -508,6 +511,7 @@ void KX_BlenderMaterial::UpdateIPO(
 	m_material->material->alpha = m_material->alpha = (float)(rgba[3]);
 	m_material->material->har = m_material->hard = (float)(hard);
 	m_material->material->emit = m_material->emit = (float)(emit);
+	m_material->material->amb = m_material->amb = (float)(ambient);
 	m_material->material->spec = m_material->spec_f = (float)(spec);
 	m_material->material->ref = m_material->ref = (float)(ref);
 }
@@ -661,6 +665,7 @@ PyAttributeDef KX_BlenderMaterial::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("diffuseIntensity", KX_BlenderMaterial, pyattr_get_diffuse_intensity, pyattr_set_diffuse_intensity),
 	KX_PYATTRIBUTE_RW_FUNCTION("diffuseColor", KX_BlenderMaterial, pyattr_get_diffuse_color, pyattr_set_diffuse_color),
 	KX_PYATTRIBUTE_RW_FUNCTION("emit", KX_BlenderMaterial, pyattr_get_emit, pyattr_set_emit),
+	KX_PYATTRIBUTE_RW_FUNCTION("ambient", KX_BlenderMaterial, pyattr_get_ambient, pyattr_set_ambient),
 
 	{NULL} //Sentinel
 };
@@ -897,6 +902,29 @@ int KX_BlenderMaterial::pyattr_set_emit(void *self_v, const KX_PYATTRIBUTE_DEF *
 
 	BL_Material *mat = self->GetBLMaterial();
 	mat->emit = mat->material->emit = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_BlenderMaterial::pyattr_get_ambient(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
+	return PyFloat_FromDouble(self->GetBLMaterial()->amb);
+}
+
+int KX_BlenderMaterial::pyattr_set_ambient(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 0.0f, 1.0f);
+
+	BL_Material *mat = self->GetBLMaterial();
+	mat->amb = mat->material->amb = val;
 	return PY_SET_ATTR_SUCCESS;
 }
 

@@ -77,7 +77,8 @@ public:
 	void UpdateIPO(
 	    MT_Vector4 rgba, MT_Vector3 specrgb,
 	    MT_Scalar hard, MT_Scalar spec,
-	    MT_Scalar ref, MT_Scalar emit, MT_Scalar alpha);
+	    MT_Scalar ref, MT_Scalar emit, MT_Scalar alpha,
+		MT_Scalar ambient);
 
 	virtual void Replace_IScene(SCA_IScene *val);
 
@@ -108,6 +109,8 @@ public:
 	static int pyattr_set_diffuse_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_emit(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_emit(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_ambient(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_ambient(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	KX_PYMETHOD_DOC(KX_BlenderMaterial, getShader);
 	KX_PYMETHOD_DOC(KX_BlenderMaterial, getTexture);
@@ -142,6 +145,7 @@ private:
 		float ref;
 		float hardness;
 		float emit;
+		float ambient;
 	} m_savedData;
 
 	void InitTextures();

@@ -110,6 +110,12 @@ base class --- :class:`PyObjectPlus`
 
       :type: float between 0.0 and 2.0 inclusive
 
+   .. attribute:: ambient
+
+      Amount of ambient light on the material.
+
+      :type: float between 0.0 and 1.0 inclusive
+
    .. attribute:: specularIntensity
 
       How intense (bright) the material's specular reflection is.

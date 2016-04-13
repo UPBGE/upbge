@@ -1844,7 +1844,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 			/* ambient color */
 			if (GPU_link_changed(shi->amb) || ma->amb != 0.0f || !(ma->constflag & MA_CONSTANT_MATERIAL)) {
-				GPU_link(mat, "shade_maddf", shr->combined, GPU_uniform(&ma->amb),
+				GPU_link(mat, "shade_maddf", shr->combined, GPU_select_uniform(&ma->amb, GPU_DYNAMIC_MAT_AMB, NULL, ma),
 				         GPU_select_uniform(GPUWorld.ambcol, GPU_DYNAMIC_AMBIENT_COLOR, NULL, ma),
 				         &shr->combined);
 			}

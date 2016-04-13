@@ -23,6 +23,7 @@ public:
 	MT_Scalar			m_spec;
 	MT_Scalar			m_ref;
 	MT_Scalar			m_emit;
+	MT_Scalar			m_ambient;
 	MT_Scalar			m_alpha;
 
 private:
