@@ -453,7 +453,7 @@ SG_Controller *BL_CreateMaterialIpo(
 		ipocontr->m_spec		= blendermaterial->spec;
 		ipocontr->m_ref			= blendermaterial->ref;
 		ipocontr->m_emit		= blendermaterial->emit;
-		ipocontr->m_ambient		= blendermaterial->emit;
+		ipocontr->m_ambient		= blendermaterial->amb;
 		ipocontr->m_alpha		= blendermaterial->alpha;
 	}
 
