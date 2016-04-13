@@ -38,28 +38,29 @@
 #include "MEM_guardedalloc.h"
 #endif
 
+class SG_Spatial;
+
 class KX_MotionState : public PHY_IMotionState
 {
-	class	SG_Spatial*		m_node;
+	SG_Spatial *m_node;
 
 public:
-	KX_MotionState(class SG_Spatial* spatial);
+	KX_MotionState(SG_Spatial *spatial);
 	virtual ~KX_MotionState();
 
-	virtual void	GetWorldPosition(float& posX,float& posY,float& posZ);
-	virtual void	GetWorldScaling(float& scaleX,float& scaleY,float& scaleZ);
-	virtual void	GetWorldOrientation(float& quatIma0,float& quatIma1,float& quatIma2,float& quatReal);
-	virtual void	SetWorldPosition(float posX,float posY,float posZ);
-	virtual	void	SetWorldOrientation(float quatIma0,float quatIma1,float quatIma2,float quatReal);
-	virtual void	GetWorldOrientation(float* ori);
-	virtual void	SetWorldOrientation(const float* ori);
+	virtual void GetWorldPosition(float& posX, float& posY, float& posZ);
+	virtual void GetWorldScaling(float& scaleX, float& scaleY, float& scaleZ);
+	virtual void GetWorldOrientation(float& quatIma0, float& quatIma1, float& quatIma2, float& quatReal);
+	virtual void SetWorldPosition(float posX, float posY, float posZ);
+	virtual void SetWorldOrientation(float quatIma0, float quatIma1, float quatIma2, float quatReal);
+	virtual void GetWorldOrientation(float *ori);
+	virtual void SetWorldOrientation(const float *ori);
 
-	virtual	void	CalculateWorldTransformations();
-
+	virtual void CalculateWorldTransformations();
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_MotionState")
 #endif
 };
 
-#endif  /* __KX_MOTIONSTATE_H__ */
+#endif  // __KX_MOTIONSTATE_H__

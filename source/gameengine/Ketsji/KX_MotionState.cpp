@@ -32,7 +32,8 @@
 #include "KX_MotionState.h"
 #include "SG_Spatial.h"
 
-KX_MotionState::KX_MotionState(SG_Spatial* node) : m_node(node)
+KX_MotionState::KX_MotionState(SG_Spatial *node)
+	:m_node(node)
 {
 
 }
@@ -41,7 +42,7 @@ KX_MotionState::~KX_MotionState()
 {
 }
 
-void	KX_MotionState::GetWorldPosition(float& posX,float& posY,float& posZ)
+void KX_MotionState::GetWorldPosition(float& posX, float& posY, float& posZ)
 {
 	const MT_Vector3& pos = m_node->GetWorldPosition();
 	posX = pos[0];
@@ -49,7 +50,7 @@ void	KX_MotionState::GetWorldPosition(float& posX,float& posY,float& posZ)
 	posZ = pos[2];
 }
 
-void	KX_MotionState::GetWorldScaling(float& scaleX,float& scaleY,float& scaleZ)
+void KX_MotionState::GetWorldScaling(float& scaleX, float& scaleY, float& scaleZ)
 {
 	const MT_Vector3& scale = m_node->GetWorldScaling();
 	scaleX = scale[0];
@@ -57,7 +58,7 @@ void	KX_MotionState::GetWorldScaling(float& scaleX,float& scaleY,float& scaleZ)
 	scaleZ = scale[2];
 }
 
-void	KX_MotionState::GetWorldOrientation(float& quatIma0,float& quatIma1,float& quatIma2,float& quatReal)
+void KX_MotionState::GetWorldOrientation(float& quatIma0, float& quatIma1, float& quatIma2, float& quatReal)
 {
 	MT_Quaternion orn = m_node->GetWorldOrientation().getRotation();
 	quatIma0 = orn[0];
@@ -65,25 +66,25 @@ void	KX_MotionState::GetWorldOrientation(float& quatIma0,float& quatIma1,float& 
 	quatIma2 = orn[2];
 	quatReal = orn[3];
 }
-	
-void	KX_MotionState::GetWorldOrientation(float* ori)
+
+void KX_MotionState::GetWorldOrientation(float *ori)
 {
 	const MT_Matrix3x3& mat = m_node->GetWorldOrientation();
 	mat.getValue(ori);
 }
-	
-void	KX_MotionState::SetWorldOrientation(const float* ori)
+
+void KX_MotionState::SetWorldOrientation(const float *ori)
 {
 	m_node->SetLocalOrientation(ori);
 }
-	
-void	KX_MotionState::SetWorldPosition(float posX,float posY,float posZ)
+
+void KX_MotionState::SetWorldPosition(float posX, float posY, float posZ)
 {
-	m_node->SetLocalPosition(MT_Vector3(posX,posY,posZ));
+	m_node->SetLocalPosition(MT_Vector3(posX, posY, posZ));
 	//m_node->SetWorldPosition(MT_Vector3(posX,posY,posZ));
 }
 
-void	KX_MotionState::SetWorldOrientation(float quatIma0,float quatIma1,float quatIma2,float quatReal)
+void KX_MotionState::SetWorldOrientation(float quatIma0, float quatIma1, float quatIma2, float quatReal)
 {
 	MT_Quaternion orn;
 	orn[0] = quatIma0;
@@ -96,11 +97,11 @@ void	KX_MotionState::SetWorldOrientation(float quatIma0,float quatIma1,float qua
 
 }
 
-void	KX_MotionState::CalculateWorldTransformations()
+void KX_MotionState::CalculateWorldTransformations()
 {
 	//Not needed, will be done in KX_Scene::UpdateParents() after the physics simulation
 	//bool parentUpdated = false;
 	//m_node->ComputeWorldTransforms(NULL, parentUpdated);
 }
 
- 
+
