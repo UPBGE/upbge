@@ -581,20 +581,6 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
 		bool restrictAnimFPS = (gm->flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
-		// create the canvas, rasterizer and rendertools
-		m_canvas = new GPG_Canvas(window);
-		if (!m_canvas)
-			return false;
-
-		if (gm->vsync == VSYNC_ADAPTIVE)
-			m_canvas->SetSwapInterval(-1);
-		else
-			m_canvas->SetSwapInterval((gm->vsync == VSYNC_ON) ? 1 : 0);
-
-		m_canvas->Init();
-		if (gm->flag & GAME_SHOW_MOUSE)
-			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
-		
 		RAS_STORAGE_TYPE raster_storage = RAS_AUTO_STORAGE;
 		int storageInfo = RAS_STORAGE_INFO_NONE;
 
@@ -617,7 +603,21 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		
 		if (!m_rasterizer)
 			goto initFailed;
-						
+
+		// create the canvas, rasterizer and rendertools
+		m_canvas = new GPG_Canvas(m_rasterizer, window);
+		if (!m_canvas)
+			return false;
+
+		if (gm->vsync == VSYNC_ADAPTIVE)
+			m_canvas->SetSwapInterval(-1);
+		else
+			m_canvas->SetSwapInterval((gm->vsync == VSYNC_ON) ? 1 : 0);
+
+		m_canvas->Init();
+		if (gm->flag & GAME_SHOW_MOUSE)
+			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
+
 		// create the inputdevices
 		m_keyboard = new GPG_KeyboardDevice();
 		if (!m_keyboard)

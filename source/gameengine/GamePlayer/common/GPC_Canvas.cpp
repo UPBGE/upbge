@@ -46,9 +46,11 @@
 #endif
 
 GPC_Canvas::GPC_Canvas(
+	RAS_IRasterizer *rasty,
 	int width,
 	int height
-) : 
+)
+	:RAS_ICanvas(rasty),
 	m_width(width),
 	m_height(height)
 {
@@ -123,7 +125,7 @@ const int *GPC_Canvas::GetViewPort()
 	// If we're in a debug build, we might as well make sure our values don't differ
 	// from what the gpu thinks we have. This could lead to nasty, hard to find bugs.
 	int viewport[4];
-	glGetIntegerv(GL_VIEWPORT, viewport);
+	m_rasterizer->GetViewport(viewport);
 	assert(viewport[0] == m_viewport[0]);
 	assert(viewport[1] == m_viewport[1]);
 	assert(viewport[2] == m_viewport[2]);
@@ -136,7 +138,7 @@ const int *GPC_Canvas::GetViewPort()
 void GPC_Canvas::ClearBuffer(
 	int type
 ) {
-	GLuint ogltype = 0;
+	unsigned int ogltype = 0;
 
 	if (type & RAS_ICanvas::COLOR_BUFFER )
 		ogltype |= RAS_IRasterizer::RAS_COLOR_BUFFER_BIT;
@@ -144,7 +146,7 @@ void GPC_Canvas::ClearBuffer(
 	if (type & RAS_ICanvas::DEPTH_BUFFER )
 		ogltype |= RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT;
 
-	m_rasterizer->Clear((RAS_IRasterizer::ClearBit)ogltype);
+	m_rasterizer->Clear(ogltype);
 }
 
 	void
