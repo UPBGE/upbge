@@ -27,14 +27,14 @@
 extern "C" {
 #endif
 
-struct PythonComponent *new_component_from_module_name(char *import, struct ReportList *reports, struct bContext *context);
-void reload_component(struct PythonComponent *pc, struct ReportList *reports, struct bContext *context);
-void copy_components(struct ListBase *lbn, struct ListBase *lbo);
-void free_component(struct PythonComponent *pc);
-void free_components(struct ListBase *base);
+struct PythonComponent *BKE_python_component_new(char *import, struct ReportList *reports, struct bContext *context);
+void BKE_python_component_reload(struct PythonComponent *pc, struct ReportList *reports, struct bContext *context);
+void BKE_python_component_copy_list(struct ListBase *lbn, struct ListBase *lbo);
+void BKE_python_component_free(struct PythonComponent *pc);
+void BKE_python_component_free_list(struct ListBase *base);
 
-void reload_script_module_recursive_component(void *module);
-void *argument_dict_from_component(struct PythonComponent *pc);
+void BKE_python_component_reload_module(void *module);
+void *BKE_python_component_argument_dict_new(struct PythonComponent *pc);
 
 #ifdef __cplusplus
 }

@@ -5246,7 +5246,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 	bController *cont;
 	bActuator *act;
 	PythonComponent *pc;
-	ComponentProperty *cprop;
+	PythonComponentProperty *cprop;
 	
 	/* weak weak... this was only meant as draw flag, now is used in give_base_to_objects too */
 	ob->flag &= ~OB_FROMGROUP;

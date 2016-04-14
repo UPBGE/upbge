@@ -29,7 +29,6 @@
  */
 
 #include <stddef.h>
-#include <string.h>
 
 #include "DNA_object_types.h"
 #include "DNA_sensor_types.h"
@@ -751,7 +750,7 @@ static int component_add_exec(bContext *C, wmOperator *op)
 	}
 
 	RNA_string_get(op->ptr, "component_name", import);
-	pycomp = new_component_from_module_name(import, op->reports, C);
+	pycomp = BKE_python_component_new(import, op->reports, C);
 
 	if(!pycomp) {
 		return OPERATOR_CANCELLED;
@@ -805,7 +804,7 @@ static int component_remove_exec(bContext *C, wmOperator *op)
 	}
 
 	BLI_remlink(&ob->components, pc);
-	free_component(pc);
+	BKE_python_component_free(pc);
 
 	WM_event_add_notifier(C, NC_LOGIC, NULL);
 
@@ -854,7 +853,7 @@ static int component_reload_exec(bContext *C, wmOperator *op)
 	}
 
 	/* Try to create a new component */
-	reload_component(pc, op->reports, C);
+	BKE_python_component_reload(pc, op->reports, C);
 
 	return OPERATOR_FINISHED;
 }

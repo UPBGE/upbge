@@ -1688,7 +1688,7 @@ void KX_GameObject::InitComponents()
 			continue;
 		}
 
-		reload_script_module_recursive_component(mod);
+		BKE_python_component_reload_module(mod);
 
 		// Grab the class object
 		cls = PyObject_GetAttrString(mod, pc->name);
@@ -1709,7 +1709,7 @@ void KX_GameObject::InitComponents()
 		}
 
 		// Every thing checks out, now generate the args dictionary and init the component
-		arg_dict = (PyObject *)argument_dict_from_component(pc);
+		arg_dict = (PyObject *)BKE_python_component_argument_dict_new(pc);
 		args = PyTuple_New(1);
 		PyTuple_SetItem(args, 0, GetProxy());
 
@@ -4220,7 +4220,7 @@ bool ConvertPythonToGameObject(PyObject *value, KX_GameObject **object, bool py_
 	}
 	
 	if (PyUnicode_Check(value)) {
-		*object = (KX_GameObject*)KX_GetActiveScene()->GetLogicManager()->GetGameObjectByName(STR_String( _PyUnicode_AsString(value) ));
+		*object = (KX_GameObject*)SCA_ILogicBrick::m_sCurrentLogicManager->GetGameObjectByName(STR_String( _PyUnicode_AsString(value) ));
 
 		if (*object) {
 			return true;

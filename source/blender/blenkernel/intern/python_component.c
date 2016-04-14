@@ -99,16 +99,12 @@ PyDoc_STRVAR(module_documentation,
 "This is the fake BGE API module used only to import the KX_PythonComponent class from bge.types.KX_PythonComponent"
 );
 
-static struct PyMethodDef module_methods[] = {
-	{NULL, NULL, 0, NULL}
-};
-
 static struct PyModuleDef bge_module_def = {
 	PyModuleDef_HEAD_INIT, /* m_base */
 	"bge",  /* m_name */
 	module_documentation,  /* m_doc */
 	0,  /* m_size */
-	module_methods,  /* m_methods */
+	NULL,  /* m_methods */
 	NULL,  /* m_reload */
 	NULL,  /* m_traverse */
 	NULL,  /* m_clear */
@@ -120,7 +116,7 @@ static struct PyModuleDef bge_types_module_def = {
 	"types",  /* m_name */
 	module_documentation,  /* m_doc */
 	0,  /* m_size */
-	module_methods,  /* m_methods */
+	NULL,  /* m_methods */
 	NULL,  /* m_reload */
 	NULL,  /* m_traverse */
 	NULL,  /* m_clear */
@@ -137,19 +133,19 @@ static int verify_class(PyObject *cls)
 	return 0;
 }
 
-static ComponentProperty *create_property(char *name)
+static PythonComponentProperty *create_property(char *name)
 {
-	ComponentProperty *cprop;
+	PythonComponentProperty *cprop;
 
-	cprop = MEM_callocN(sizeof(ComponentProperty), "ComponentProperty");
+	cprop = MEM_callocN(sizeof(PythonComponentProperty), "PythonComponentProperty");
 	BLI_strncpy(cprop->name, name, sizeof(cprop->name));
 
 	return cprop;
 }
 
-static ComponentProperty *copy_property(ComponentProperty *cprop)
+static PythonComponentProperty *copy_property(PythonComponentProperty *cprop)
 {
-	ComponentProperty *cpropn;
+	PythonComponentProperty *cpropn;
 
 	cpropn = MEM_dupallocN(cprop);
 
@@ -161,7 +157,7 @@ static ComponentProperty *copy_property(ComponentProperty *cprop)
 	return cpropn;
 }
 
-static void free_component_property(ComponentProperty *cprop)
+static void free_property(PythonComponentProperty *cprop)
 {
 	for (LinkData *link = cprop->enumval.first; link; link = link->next) {
 		MEM_freeN(link->data);
@@ -170,13 +166,13 @@ static void free_component_property(ComponentProperty *cprop)
 	MEM_freeN(cprop);
 }
 
-static void free_component_properties(ListBase *lb)
+static void free_properties(ListBase *lb)
 {
-	ComponentProperty *cprop;
+	PythonComponentProperty *cprop;
 
 	while ((cprop = lb->first)) {
 		BLI_remlink(lb, cprop);
-		free_component_property(cprop);
+		free_property(cprop);
 	}
 }
 
@@ -203,7 +199,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 	pyitems = PyMapping_Items(args_dict);
 
 	for (unsigned int i = 0, size = PyList_Size(pyitems); i < size; ++i) {
-		ComponentProperty *cprop;
+		PythonComponentProperty *cprop;
 		char name[64];
 		bool free = false;
 		PyObject *pyitem = PyList_GetItem(pyitems, i);
@@ -243,9 +239,15 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 			cprop->type = CPROP_TYPE_SET;
 
 			memset(&cprop->enumval, 0, sizeof(ListBase));
+			// Iterate to convert every enums to char.
 			while ((v = PyIter_Next(iterator))) {
-				LinkData *link = MEM_callocN(sizeof(LinkData), "ComponentProperty set link data");
-				char *str = MEM_callocN(MAX_PROPSTRING, "ComponentProperty set string");
+				if (!PyUnicode_Check(v)) {
+					printf("Enum property \"%s\" contains a non-string item (%i)\n", name, j);
+					continue;
+				}
+
+				LinkData *link = MEM_callocN(sizeof(LinkData), "PythonComponentProperty set link data");
+				char *str = MEM_callocN(MAX_PROPSTRING, "PythonComponentProperty set string");
 				BLI_strncpy(str, _PyUnicode_AsString(v), MAX_PROPSTRING);
 
 				link->data = str;
@@ -295,18 +297,22 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 		}
 
 		if (free) {
-			free_component_property(cprop);
+			free_property(cprop);
 			continue;
 		}
 
 		bool found = false;
-		for (ComponentProperty *propit = pycomp->properties.first; propit; propit = propit->next) {
+		for (PythonComponentProperty *propit = pycomp->properties.first; propit; propit = propit->next) {
 			if ((strcmp(propit->name, cprop->name) == 0) && propit->type == cprop->type) {
 				/* We never reuse a enum property because we don't know if one of the
 				 * enum value was modified and it easier to just copy the current item
 				 * index than the list.
 				 */
 				if (cprop->type == CPROP_TYPE_SET) {
+					/* Unfortunatly the python type set doesn't repect an order even with same
+					 * content. To solve that we iterate on all new enums and find the coresponding
+					 * index for the old enum name.
+					 */
 					char *str = ((LinkData *)BLI_findlink(&propit->enumval, propit->itemval))->data;
 					int j = 0;
 					for (LinkData *link = cprop->enumval.first; link; link = link->next) {
@@ -321,23 +327,27 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 				 * is released, the old property is removed from the original list and
 				 * added to the new list.
 				 */
-				free_component_property(cprop);
+				free_property(cprop);
+				/* The exisiting property is removed to allow at the end free properties
+				 * that are no longuer used.
+				 */
 				BLI_remlink(&pycomp->properties, propit);
 				BLI_addtail(&properties, propit);
 				found = true;
 				break;
 			}
 		}
+		// If no exisiting property was found we add it simply.
 		if (!found) {
 			BLI_addtail(&properties, cprop);
 		}
 	}
 
 	// Free properties no used in the new component.
-	for (ComponentProperty *propit = pycomp->properties.first; propit;) {
-		ComponentProperty *prop = propit;
+	for (PythonComponentProperty *propit = pycomp->properties.first; propit;) {
+		PythonComponentProperty *prop = propit;
 		propit = propit->next;
-		free_component_property(prop);
+		free_property(prop);
 	}
 	// Set the new property list.
 	pycomp->properties = properties;
@@ -349,6 +359,9 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 {
 #ifdef WITH_PYTHON
 
+	/* Macro used to release all python variable if the convertion fail or succeed.
+	 * The "value" argument is false on failure and true on succes.
+	 */
 	#define FINISH(value) \
 		if (mod) { \
 			/* Take the module out of the module list so it's not cached \
@@ -369,6 +382,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 
 	state = PyGILState_Ensure();
 
+	// Set the current file directory do import path to allow extern modules.
 	sys_path = PySys_GetObject("path");
 	BLI_split_dir_part(filename, path, sizeof(path));
 	pypath = PyC_UnicodeFromByte(path);
@@ -401,7 +415,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 	}
 
 	// Reload all modules imported in the component module script.
-	reload_script_module_recursive_component(mod);
+	BKE_python_component_reload_module(mod);
 
 	item = PyObject_GetAttrString(mod, pc->name);
 	if (!item) {
@@ -430,7 +444,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 #endif /* WITH_PYTHON */
 }
 
-PythonComponent *new_component_from_module_name(char *import, ReportList *reports, bContext *context)
+PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bContext *context)
 {
 	char *classname;
 	char *modulename;
@@ -456,14 +470,14 @@ PythonComponent *new_component_from_module_name(char *import, ReportList *report
 
 	// Try load the component.
 	if (!load_component(pc, reports, CTX_data_main(context)->name)) {
-		free_component(pc);
+		BKE_python_component_free(pc);
 		return NULL;
 	}
 
 	return pc;
 }
 
-void reload_component(PythonComponent *pc, ReportList *reports, bContext *context)
+void BKE_python_component_reload(PythonComponent *pc, ReportList *reports, bContext *context)
 {
 	load_component(pc, reports, CTX_data_main(context)->name);
 }
@@ -471,7 +485,7 @@ void reload_component(PythonComponent *pc, ReportList *reports, bContext *contex
 static PythonComponent *copy_component(PythonComponent *comp)
 {
 	PythonComponent *compn;
-	ComponentProperty *cprop, *cpropn;
+	PythonComponentProperty *cprop, *cpropn;
 
 	compn = MEM_dupallocN(comp);
 
@@ -486,7 +500,7 @@ static PythonComponent *copy_component(PythonComponent *comp)
 	return compn;
 }
 
-void copy_components(ListBase *lbn, ListBase *lbo)
+void BKE_python_component_copy_list(ListBase *lbn, ListBase *lbo)
 {
 	PythonComponent *comp, *compn;
 
@@ -499,24 +513,24 @@ void copy_components(ListBase *lbn, ListBase *lbo)
 	}
 }
 
-void free_component(PythonComponent *pc)
+void BKE_python_component_free(PythonComponent *pc)
 {
-	free_component_properties(&pc->properties);
+	free_properties(&pc->properties);
 
 	MEM_freeN(pc);
 }
 
-void free_components(ListBase *lb)
+void BKE_python_component_free_list(ListBase *lb)
 {
 	PythonComponent *pc;
 
 	while ((pc = lb->first)) {
 		BLI_remlink(lb, pc);
-		free_component(pc);
+		BKE_python_component_free(pc);
 	}
 }
 
-void reload_script_module_recursive_component(void *module)
+void BKE_python_component_reload_module(void *module)
 {
 #ifdef WITH_PYTHON
 	PyObject *mod_list = PyDict_Values(PyModule_GetDict(module));
@@ -528,7 +542,8 @@ void reload_script_module_recursive_component(void *module)
 			// If there's no spec, then the module can't be reloaded.
 			PyObject *modspec = PyObject_GetAttrString(item, "__spec__");
 			if (modspec != Py_None) {
-				reload_script_module_recursive_component(item);
+				// Do the same with this submodule.
+				BKE_python_component_reload_module(item);
 				PyObject *mod_item = PyImport_ReloadModule(item);
 				Py_XDECREF(mod_item);
 			}
@@ -540,10 +555,10 @@ void reload_script_module_recursive_component(void *module)
 #endif /* WITH_PYTHON */
 }
 
-void *argument_dict_from_component(PythonComponent *pc)
+void *BKE_python_component_argument_dict_new(PythonComponent *pc)
 {
 #ifdef WITH_PYTHON
-	ComponentProperty *cprop = (ComponentProperty *)pc->properties.first;
+	PythonComponentProperty *cprop = (PythonComponentProperty *)pc->properties.first;
 	PyObject *args = PyDict_New();
 
 	while (cprop) {

@@ -24,7 +24,7 @@
 
 #include "KX_PythonComponent.h"
 #include "KX_GameObject.h"
-#include "BLI_string.h"
+// #include "BLI_string.h"
 
 KX_PythonComponent::KX_PythonComponent(STR_String name)
 	:CValue(),
@@ -141,12 +141,12 @@ PyTypeObject KX_PythonComponent::Type = {
 };
 
 PyMethodDef KX_PythonComponent::Methods[] = {
-	{NULL, NULL} //Sentinel
+	{NULL, NULL} // Sentinel
 };
 
 PyAttributeDef KX_PythonComponent::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("object", KX_PythonComponent, pyattr_get_object),
-	{NULL} //Sentinel
+	{NULL} // Sentinel
 };
 
 PyObject* KX_PythonComponent::pyattr_get_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

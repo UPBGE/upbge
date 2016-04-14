@@ -446,7 +446,7 @@ void BKE_object_free_ex(Object *ob, bool do_id_user)
 	free_sensors(&ob->sensors);
 	free_controllers(&ob->controllers);
 	free_actuators(&ob->actuators);
-	free_components(&ob->components);
+	BKE_python_component_free_list(&ob->components);
 	
 	BKE_constraints_free_ex(&ob->constraints, do_id_user);
 	
@@ -1529,7 +1529,7 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 	copy_sensors(&obn->sensors, &ob->sensors);
 	copy_controllers(&obn->controllers, &ob->controllers);
 	copy_actuators(&obn->actuators, &ob->actuators);
-	copy_components(&obn->components, &ob->components);
+	BKE_python_component_copy_list(&obn->components, &ob->components);
 	
 	if (ob->pose) {
 		copy_object_pose(obn, ob);

@@ -20,14 +20,14 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef DNA_COMPONENT_TYPES_H
-#define DNA_COMPONENT_TYPES_H
+#ifndef __DNA_COMPONENT_TYPES_H__
+#define __DNA_COMPONENT_TYPES_H__
 
 #include "DNA_listBase.h"
 
-typedef struct ComponentProperty {
-	struct ComponentProperty *next, *prev;
-	char name[32];
+typedef struct PythonComponentProperty {
+	struct PythonComponentProperty *next, *prev;
+	char name[64];
 	short type;
 	short boolval;
 	int intval;
@@ -36,7 +36,7 @@ typedef struct ComponentProperty {
 	int itemval;
 	float vec[4];
 	ListBase enumval;
-} ComponentProperty;
+} PythonComponentProperty;
 
 typedef struct PythonComponent {
 	struct PythonComponent *next, *prev;
@@ -46,7 +46,7 @@ typedef struct PythonComponent {
 } PythonComponent;
 
 
-/* ComponentProperty.type */
+/* PythonComponentProperty.type */
 #define CPROP_TYPE_INT         0
 #define CPROP_TYPE_FLOAT       1
 #define CPROP_TYPE_STRING      2
@@ -56,4 +56,4 @@ typedef struct PythonComponent {
 #define CPROP_TYPE_VEC3        6
 #define CPROP_TYPE_VEC4        7
 
-#endif // DNA_COMPONENT_TYPES_H
+#endif /* __DNA_COMPONENT_TYPES_H__ */

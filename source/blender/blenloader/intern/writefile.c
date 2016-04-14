@@ -1418,12 +1418,12 @@ static void write_actuators(WriteData *wd, ListBase *lb)
 
 static void write_component_properties(WriteData *wd, ListBase *lb)
 {
-	ComponentProperty *cprop;
+	PythonComponentProperty *cprop;
 	cprop = lb->first;
 
 	while (cprop) {
 		LinkData *link;
-		writestruct(wd, DATA, "ComponentProperty", 1, cprop);
+		writestruct(wd, DATA, "PythonComponentProperty", 1, cprop);
 		writelist(wd, DATA, "LinkData", &cprop->enumval);
 		for (link = cprop->enumval.first; link; link = link->next) {
 			writedata(wd, DATA, strlen(link->data)+1, link->data);
