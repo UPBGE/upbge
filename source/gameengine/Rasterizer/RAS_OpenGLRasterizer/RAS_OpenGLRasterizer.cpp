@@ -1678,6 +1678,17 @@ void RAS_OpenGLRasterizer::DisableForText()
 
 	Disable(RAS_LIGHTING);
 	Disable(RAS_COLOR_MATERIAL);
+
+	for (int i = 0; i < RAS_MAX_TEXCO; i++) {
+		glActiveTextureARB(GL_TEXTURE0_ARB + i);
+
+		if (GLEW_ARB_texture_cube_map) {
+			Disable(RAS_TEXTURE_CUBE_MAP);
+		}
+		Disable(RAS_TEXTURE_2D);
+	}
+
+	glActiveTextureARB(GL_TEXTURE0_ARB);
 }
 
 void RAS_OpenGLRasterizer::RenderBox2D(int xco,
