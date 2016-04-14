@@ -27,6 +27,7 @@
  */
 
 #include "RAS_DisplayArray.h"
+#include "RAS_MeshObject.h"
 
 #include "glew-mx.h"
 
@@ -43,4 +44,35 @@ int RAS_DisplayArray::GetOpenGLPrimitiveType() const
 		}
 	}
 	return 0;
+}
+
+void RAS_DisplayArray::UpdateFrom(RAS_DisplayArray *other, int flag)
+{
+	if (flag & RAS_MeshObject::TANGENT_MODIFIED) {
+		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
+			m_vertex[i].SetTangent(MT_Vector4(other->m_vertex[i].getTangent()));
+		}
+	}
+	if (flag & RAS_MeshObject::UVS_MODIFIED) {
+		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
+			for (unsigned int uv = 0; uv < 8; ++uv) {
+				m_vertex[i].SetUV(uv, MT_Vector2(other->m_vertex[i].getUV(uv)));
+			}
+		}
+	}
+	if (flag & RAS_MeshObject::POSITION_MODIFIED) {
+		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
+			m_vertex[i].SetXYZ(MT_Vector3(other->m_vertex[i].getXYZ()));
+		}
+	}
+	if (flag & RAS_MeshObject::NORMAL_MODIFIED) {
+		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
+			m_vertex[i].SetNormal(MT_Vector3(other->m_vertex[i].getNormal()));
+		}
+	}
+	if (flag & RAS_MeshObject::COLORS_MODIFIED) {
+		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
+			m_vertex[i].SetRGBA(*((unsigned int *)other->m_vertex[i].getRGBA()));
+		}
+	}
 }

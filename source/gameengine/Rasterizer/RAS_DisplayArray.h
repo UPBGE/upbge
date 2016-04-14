@@ -52,6 +52,7 @@ public:
 	enum {BUCKET_MAX_VERTEX = 65535};
 
 	int GetOpenGLPrimitiveType() const;
+	void UpdateFrom(RAS_DisplayArray *other, int flag);
 };
 
 #endif  // __RAS_DISPLAY_ARRAY_H__

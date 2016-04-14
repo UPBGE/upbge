@@ -117,23 +117,6 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 		    nodes[softbodyindex].m_n.getZ());
 		v.SetNormal(normal);
 
-		/// Update vertex data from the original mesh.
-		const short modifiedFlag = m_pMeshObject->GetModifiedFlag();
-		// If the tangent vertex data is modified.
-		if (modifiedFlag & RAS_MeshObject::TANGENT_MODIFIED) {
-			v.SetTangent(MT_Vector4(origvert.getTangent()));
-		}
-		// If the tangent vertex data is modified.
-		if (modifiedFlag & RAS_MeshObject::UVS_MODIFIED) {
-			for (unsigned int uv = 0; uv < 8; ++uv) {
-				v.SetUV(uv, MT_Vector2(origvert.getUV(uv)));
-			}
-		}
-		// If the colors vertex data is modified.
-		if (modifiedFlag & RAS_MeshObject::COLORS_MODIFIED) {
-			v.SetRGBA(*((unsigned int *)origvert.getRGBA()));
-		}
-
 		if (!m_gameobj->GetAutoUpdateBounds()) {
 			continue;
 		}
@@ -160,6 +143,11 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 			m_aabbMax.z() = std::max(m_aabbMax.z(), pt.z());
 		}
 	}
+
+	array->UpdateFrom(origarray, m_pMeshObject->GetModifiedFlag() &
+					 (RAS_MeshObject::TANGENT_MODIFIED |
+					  RAS_MeshObject::UVS_MODIFIED |
+					  RAS_MeshObject::COLORS_MODIFIED));
 
 	return true;
 }

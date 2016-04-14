@@ -164,25 +164,10 @@ bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *mat)
 	RAS_DisplayArray *origarray = mmat->m_baseslot->GetDisplayArray();
 
 	/// Update vertex data from the original mesh.
-	for (unsigned int i = 0; i < array->m_vertex.size(); i++) {
-		RAS_TexVert& vert = array->m_vertex[i];
-		RAS_TexVert& origvert = origarray->m_vertex[i];
-
-		// If the tangent vertex data is modified.
-		if (modifiedFlag & RAS_MeshObject::TANGENT_MODIFIED) {
-			vert.SetTangent(MT_Vector4(origvert.getTangent()));
-		}
-		// If the UVs vertex data is modified.
-		if (modifiedFlag & RAS_MeshObject::UVS_MODIFIED) {
-			for (unsigned int uv = 0; uv < 8; ++uv) {
-				vert.SetUV(uv, MT_Vector2(origvert.getUV(uv)));
-			}
-		}
-		// If the colors vertex data is modified.
-		if (modifiedFlag & RAS_MeshObject::COLORS_MODIFIED) {
-			vert.SetRGBA(*((unsigned int *)origvert.getRGBA()));
-		}
-	}
+	array->UpdateFrom(origarray, modifiedFlag &
+					 (RAS_MeshObject::TANGENT_MODIFIED |
+					  RAS_MeshObject::UVS_MODIFIED |
+					  RAS_MeshObject::COLORS_MODIFIED));
 
 	// We do everything in UpdateInternal() now so we can thread it.
 	// All that is left is telling the rasterizer if we've changed the mesh
