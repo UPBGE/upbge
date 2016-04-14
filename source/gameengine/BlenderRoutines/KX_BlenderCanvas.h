@@ -213,6 +213,7 @@ private:
 	int			m_area_left;
 	int			m_area_top;
 
+
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderCanvas")
 #endif

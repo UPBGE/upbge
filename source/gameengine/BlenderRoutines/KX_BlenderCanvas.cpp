@@ -29,8 +29,6 @@
  *  \ingroup blroutines
  */
 
-#include "glew-mx.h"
-
 #include "MEM_guardedalloc.h"
 
 #include "KX_BlenderCanvas.h"
@@ -157,7 +155,7 @@ void KX_BlenderCanvas::ClearBuffer(int type)
 	if (type & RAS_ICanvas::DEPTH_BUFFER )
 		rastype |= RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT;
 
-	m_rasterizer->Clear((RAS_IRasterizer::ClearBit)rastype);
+	m_rasterizer->Clear(rastype);
 }
 
 int KX_BlenderCanvas::GetWidth(
@@ -250,7 +248,7 @@ GetViewPort() {
 	// If we're in a debug build, we might as well make sure our values don't differ
 	// from what the gpu thinks we have. This could lead to nasty, hard to find bugs.
 	int viewport[4];
-	glGetIntegerv(GL_VIEWPORT, viewport);
+	m_rasterizer->GetViewport(viewport);
 	assert(viewport[0] == m_viewport[0]);
 	assert(viewport[1] == m_viewport[1]);
 	assert(viewport[2] == m_viewport[2]);
@@ -259,7 +257,6 @@ GetViewPort() {
 
 	return m_viewport;
 }
-
 
 void KX_BlenderCanvas::SetMouseState(RAS_MouseState mousestate)
 {
@@ -287,6 +284,7 @@ void KX_BlenderCanvas::SetMouseState(RAS_MouseState mousestate)
 		}
 	}
 }
+
 
 
 //	(0,0) is top left, (width,height) is bottom right
