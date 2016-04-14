@@ -176,6 +176,8 @@ public:
 	virtual bool BeginFrame(double time);
 	virtual void Clear(int clearbit);
 	virtual void SetClearColor(float r, float g, float b, float a=1.0f);
+	virtual void SetClearDepth(float d);
+	virtual void SetColorMask(bool r, bool g, bool b, bool a);
 	virtual void EndFrame();
 	virtual void SetRenderArea(RAS_ICanvas *canvas);
 

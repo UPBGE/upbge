@@ -243,7 +243,7 @@ bool RAS_OpenGLRasterizer::Init()
 	SetFrontFace(true);
 
 	SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	SetColorMask(true, true, true, true);
 	Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
 
 	glShadeModel(GL_SMOOTH);
@@ -298,8 +298,8 @@ void RAS_OpenGLRasterizer::Exit()
 	Enable(RAS_CULL_FACE);
 	Enable(RAS_DEPTH_TEST);
 
-	glClearDepth(1.0f);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	SetClearDepth(1.0f);
+	SetColorMask(true, true, true, true);
 
 	SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -439,6 +439,16 @@ void RAS_OpenGLRasterizer::SetClearColor(float r, float g, float b, float a)
 	glClearColor(r, g, b, a);
 }
 
+void RAS_OpenGLRasterizer::SetClearDepth(float d)
+{
+	glClearDepth(d);
+}
+
+void RAS_OpenGLRasterizer::SetColorMask(bool r, bool g, bool b, bool a)
+{
+	glColorMask(r ? GL_TRUE : GL_FALSE, g ? GL_TRUE : GL_FALSE, b ? GL_TRUE : GL_FALSE, a ? GL_TRUE : GL_FALSE);
+}
+
 void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 {
 	std::vector<OglDebugShape> &debugShapes = m_debugShapes[scene];
@@ -566,7 +576,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 
 void RAS_OpenGLRasterizer::EndFrame()
 {
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	SetColorMask(true, true, true, true);
 
 	Disable(RAS_MULTISAMPLE);
 
@@ -715,11 +725,11 @@ void RAS_OpenGLRasterizer::SetEye(const StereoEye eye)
 		case RAS_STEREO_ANAGLYPH:
 		{
 			if (m_curreye == RAS_STEREO_LEFTEYE) {
-				glColorMask(GL_TRUE, GL_FALSE, GL_FALSE, GL_FALSE);
+				SetColorMask(true, false, false, false);
 			}
 			else {
 				//glAccum(GL_LOAD, 1.0f);
-				glColorMask(GL_FALSE, GL_TRUE, GL_TRUE, GL_FALSE);
+				SetColorMask(false, true, true, false);
 				Clear(RAS_DEPTH_BUFFER_BIT);
 			}
 			break;

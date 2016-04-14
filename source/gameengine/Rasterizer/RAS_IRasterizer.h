@@ -289,6 +289,15 @@ public:
 	virtual void SetClearColor(float r, float g, float b, float a=1.0f) = 0;
 
 	/**
+	 * Set background depth
+	 */
+	virtual void SetClearDepth(float d) = 0;
+
+	/**
+	 * Set background color mask.
+	 */
+	virtual void SetColorMask(bool r, bool g, bool b, bool a) = 0;
+	/**
 	 * EndFrame is called at the end of each frame.
 	 */
 	virtual void EndFrame() = 0;
