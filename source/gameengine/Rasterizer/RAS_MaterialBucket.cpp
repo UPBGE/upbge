@@ -175,7 +175,7 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	if (!ms->m_pDeformer || !ms->m_pDeformer->SkipVertexTransform()) {
 		float mat[16];
 		rasty->GetTransform(meshUser->GetMatrix(), m_material->GetDrawingMode(), mat);
-		rasty->ApplyTransform(mat);
+		rasty->MultMatrix(mat);
 	}
 
 	if (m_material->GetDrawingMode() & RAS_IRasterizer::RAS_RENDER_3DPOLYGON_TEXT) {

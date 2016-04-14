@@ -296,7 +296,7 @@ void KX_KetsjiEngine::RenderDome()
 			// Avoid drawing the scene with the active camera twice when its viewport is enabled
 			if (cam && !cam->GetViewport()) {
 				if (scene->IsClearingZBuffer())
-					m_rasterizer->ClearDepthBuffer();
+					m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
 				m_rasterizer->SetAuxilaryClientInfo(scene);
 
@@ -313,7 +313,7 @@ void KX_KetsjiEngine::RenderDome()
 			while (it != cameras->end()) {
 				if ((*it)->GetViewport()) {
 					if (scene->IsClearingZBuffer())
-						m_rasterizer->ClearDepthBuffer();
+						m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
 					m_rasterizer->SetAuxilaryClientInfo(scene);
 
@@ -434,7 +434,7 @@ void KX_KetsjiEngine::ClearFrame()
 		firstscene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight(), clearvp.GetTop());
-		m_rasterizer->ClearColorBuffer();
+		m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
 	}
 }
 
@@ -755,7 +755,7 @@ void KX_KetsjiEngine::Render()
 		// Avoid drawing the scene with the active camera twice when its viewport is enabled
 		if (cam && !cam->GetViewport()) {
 			if (scene->IsClearingZBuffer())
-				m_rasterizer->ClearDepthBuffer();
+				m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
 			m_rasterizer->SetAuxilaryClientInfo(scene);
 
@@ -770,7 +770,7 @@ void KX_KetsjiEngine::Render()
 		while (it != cameras->end()) {
 			if ((*it)->GetViewport()) {
 				if (scene->IsClearingZBuffer())
-					m_rasterizer->ClearDepthBuffer();
+					m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
 				m_rasterizer->SetAuxilaryClientInfo(scene);
 
@@ -799,7 +799,7 @@ void KX_KetsjiEngine::Render()
 			scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 
 			if (scene->IsClearingZBuffer())
-				m_rasterizer->ClearDepthBuffer();
+				m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
 			// pass the scene, for picking and raycasting (shadows)
 			m_rasterizer->SetAuxilaryClientInfo(scene);
@@ -815,7 +815,7 @@ void KX_KetsjiEngine::Render()
 			while (it != cameras->end()) {
 				if ((*it)->GetViewport()) {
 					if (scene->IsClearingZBuffer())
-						m_rasterizer->ClearDepthBuffer();
+						m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
 					m_rasterizer->SetAuxilaryClientInfo(scene);
 
@@ -1011,8 +1011,8 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			SG_SetActiveStage(SG_STAGE_RENDER);
 
 			/* render */
-			m_rasterizer->ClearDepthBuffer();
-			m_rasterizer->ClearColorBuffer();
+			m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+			m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
 			scene->RenderBuckets(camtrans, m_rasterizer);
 
 			/* unbind framebuffer object, restore drawmode, free camera */

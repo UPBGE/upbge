@@ -22,8 +22,6 @@
  *  \ingroup ketsji
  */
 
-#include "glew-mx.h"
-
 #include "KX_BlenderMaterial.h"
 #include "BL_Material.h"
 #include "BL_Shader.h"
@@ -258,7 +256,7 @@ void KX_BlenderMaterial::OnExit()
 
 void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 {
-	BLI_assert(GLEW_ARB_shader_objects && m_shader);
+	BLI_assert(m_shader);
 
 	int i;
 
@@ -282,8 +280,8 @@ void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 		ras->SetAlphaBlend(-1); // indicates custom mode
 
 		// tested to be valid enums
-		glEnable(GL_BLEND);
-		glBlendFunc(m_blendFunc[0], m_blendFunc[1]);
+		ras->Enable(RAS_IRasterizer::RAS_BLEND);
+		ras->SetBlendFunc((RAS_IRasterizer::BlendFunc)m_blendFunc[0], (RAS_IRasterizer::BlendFunc)m_blendFunc[1]);
 	}
 }
 
@@ -331,16 +329,16 @@ void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 
 void KX_BlenderMaterial::Activate(RAS_IRasterizer *rasty)
 {
-	if (GLEW_ARB_shader_objects && (m_shader && m_shader->Ok())) {
+	if (m_shader && m_shader->Ok()) {
 		ActivateShaders(rasty);
 	}
-	else if (GLEW_ARB_shader_objects && (m_blenderShader && m_blenderShader->Ok())) {
+	else if (m_blenderShader && m_blenderShader->Ok()) {
 		ActivateBlenderShaders(rasty);
 	}
 }
 void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 {
-	if (GLEW_ARB_shader_objects && (m_shader && m_shader->Ok())) {
+	if (m_shader && m_shader->Ok()) {
 		m_shader->SetProg(false);
 		for (unsigned short i = 0; i < BL_Texture::GetMaxUnits(); i++) {
 			if (m_textures[i] && m_textures[i]->Ok()) {
@@ -348,7 +346,7 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 			}
 		}
 	}
-	else if (GLEW_ARB_shader_objects && (m_blenderShader && m_blenderShader->Ok())) {
+	else if (m_blenderShader && m_blenderShader->Ok()) {
 		m_blenderShader->SetProg(false);
 	}
 	// Make sure no one will use the attributs set by this material.
@@ -412,10 +410,10 @@ bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 
 void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 {
-	if (m_shader && GLEW_ARB_shader_objects) {
+	if (m_shader && m_shader->Ok()) {
 		m_shader->Update(ms, rasty);
 	}
-	else if (m_blenderShader && GLEW_ARB_shader_objects) {
+	else if (m_blenderShader) {
 		m_blenderShader->Update(ms, rasty);
 
 		/* we do blend modes here, because they can change per object
@@ -463,12 +461,10 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_IRasterizer *rasty) const
 void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 {
 	ras->SetAttribNum(0);
-	if (m_shader && GLEW_ARB_shader_objects) {
-		if (m_shader->GetAttribute() == BL_Shader::SHD_TANGENT) {
-			ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, 0);
-			ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, 1);
-			ras->SetAttribNum(2);
-		}
+	if (m_shader->GetAttribute() == BL_Shader::SHD_TANGENT) {
+		ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, 0);
+		ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, 1);
+		ras->SetAttribNum(2);
 	}
 
 	ras->SetTexCoordNum(m_material->num_enabled);
@@ -918,74 +914,48 @@ int KX_BlenderMaterial::pyattr_set_blending(void *self_v, const KX_PYATTRIBUTE_D
 
 KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 {
-	if (!GLEW_ARB_fragment_shader) {
-		if (!m_modified)
-			spit("Fragment shaders not supported");
+	// returns Py_None on error
+	// the calling script will need to check
 
+	if (!m_shader && !m_modified) {
+		m_shader = new BL_Shader();
 		m_modified = true;
-		Py_RETURN_NONE;
+
+		// Using a custom shader, make sure to initialize textures
+		InitTextures();
 	}
 
-	if (!GLEW_ARB_vertex_shader) {
-		if (!m_modified)
-			spit("Vertex shaders not supported");
-
-		m_modified = true;
-		Py_RETURN_NONE;
-	}
-
-	if (!GLEW_ARB_shader_objects) {
-		if (!m_modified)
-			spit("GLSL not supported");
-		m_modified = true;
-		Py_RETURN_NONE;
+	if (m_shader && !m_shader->GetError()) {
+		m_flag &= ~RAS_BLENDERGLSL;
+		m_material->SetSharedMaterial(true);
+		m_scene->GetBucketManager()->ReleaseDisplayLists(this);
+		return m_shader->GetProxy();
 	}
 	else {
-		// returns Py_None on error
-		// the calling script will need to check
-
-		if (!m_shader && !m_modified) {
-			m_shader = new BL_Shader();
-			m_modified = true;
-
-			// Using a custom shader, make sure to initialize textures
-			InitTextures();
+		// decref all references to the object
+		// then delete it!
+		// We will then go back to fixed functionality
+		// for this material
+		if (m_shader) {
+			delete m_shader; /* will handle python de-referencing */
+			m_shader = NULL;
 		}
-
-		if (m_shader && !m_shader->GetError()) {
-			m_flag &= ~RAS_BLENDERGLSL;
-			m_material->SetSharedMaterial(true);
-			m_scene->GetBucketManager()->ReleaseDisplayLists(this);
-			return m_shader->GetProxy();
-		}
-		else {
-			// decref all references to the object
-			// then delete it!
-			// We will then go back to fixed functionality
-			// for this material
-			if (m_shader) {
-				delete m_shader; /* will handle python de-referencing */
-				m_shader = NULL;
-			}
-		}
-		Py_RETURN_NONE;
 	}
-	PyErr_SetString(PyExc_ValueError, "material.getShader(): KX_BlenderMaterial, GLSL Error");
-	return NULL;
+	Py_RETURN_NONE;
 }
 
 static const unsigned int GL_array[11] = {
-	GL_ZERO,
-	GL_ONE,
-	GL_SRC_COLOR,
-	GL_ONE_MINUS_SRC_COLOR,
-	GL_DST_COLOR,
-	GL_ONE_MINUS_DST_COLOR,
-	GL_SRC_ALPHA,
-	GL_ONE_MINUS_SRC_ALPHA,
-	GL_DST_ALPHA,
-	GL_ONE_MINUS_DST_ALPHA,
-	GL_SRC_ALPHA_SATURATE
+	RAS_IRasterizer::RAS_ZERO,
+	RAS_IRasterizer::RAS_ONE,
+	RAS_IRasterizer::RAS_SRC_COLOR,
+	RAS_IRasterizer::RAS_ONE_MINUS_SRC_COLOR,
+	RAS_IRasterizer::RAS_DST_COLOR,
+	RAS_IRasterizer::RAS_ONE_MINUS_DST_COLOR,
+	RAS_IRasterizer::RAS_SRC_ALPHA,
+	RAS_IRasterizer::RAS_ONE_MINUS_SRC_ALPHA,
+	RAS_IRasterizer::RAS_DST_ALPHA,
+	RAS_IRasterizer::RAS_ONE_MINUS_DST_ALPHA,
+	RAS_IRasterizer::RAS_SRC_ALPHA_SATURATE
 };
 
 KX_PYMETHODDEF_DOC(KX_BlenderMaterial, setBlending, "setBlending(bge.logic.src, bge.logic.dest)")

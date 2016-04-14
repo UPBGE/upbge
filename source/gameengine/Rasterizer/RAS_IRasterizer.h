@@ -167,27 +167,52 @@ public:
 	};
 
 	enum EnableBit {
-		RAS_DEPTH_TEST = 1,
+		RAS_DEPTH_TEST = 0,
 		RAS_ALPHA_TEST,
 		RAS_SCISSOR_TEST,
 		RAS_TEXTURE_2D,
+		RAS_TEXTURE_CUBE_MAP,
 		RAS_BLEND,
 		RAS_COLOR_MATERIAL,
 		RAS_CULL_FACE,
 		RAS_FOG,
 		RAS_LIGHTING,
-		RAS_CUSTOM
+		RAS_MULTISAMPLE,
+		RAS_POLYGON_STIPPLE,
+		RAS_POLYGON_OFFSET_FILL,
+		RAS_POLYGON_OFFSET_LINE
 	};
 
 	enum DepthFunc {
-		RAS_NEVER = 1,
+		RAS_NEVER = 0,
 		RAS_LEQUAL,
 		RAS_LESS,
 		RAS_ALWAYS,
 		RAS_GEQUAL,
 		RAS_GREATER,
-		RAS_NOT_EQUAL,
+		RAS_NOTEQUAL,
 		RAS_EQUAL
+	};
+
+	enum BlendFunc {
+		RAS_ZERO = 0,
+		RAS_ONE,
+		RAS_SRC_COLOR,
+		RAS_ONE_MINUS_SRC_COLOR,
+		RAS_DST_COLOR,
+		RAS_ONE_MINUS_DST_COLOR,
+		RAS_SRC_ALPHA,
+		RAS_ONE_MINUS_SRC_ALPHA,
+		RAS_DST_ALPHA,
+		RAS_ONE_MINUS_DST_ALPHA,
+		RAS_SRC_ALPHA_SATURATE
+	};
+
+	enum MatrixMode {
+		RAS_PROJECTION = 0,
+		RAS_MODELVIEW,
+		RAS_TEXTURE,
+		RAS_MATRIX_MODE_MAX
 	};
 
 	enum ClearBit {
@@ -199,22 +224,22 @@ public:
 	/**
 	 * Enable capability
 	 * \param bit Enable bit
-	 * \param customvalue Custom value for RAS_CUSTOM bit
 	 */
-	virtual void Enable(EnableBit bit, unsigned int customvalue=0) = 0;
+	virtual void Enable(EnableBit bit) = 0;
 
 	/**
 	 * Disable capability
 	 * \param bit Enable bit
-	 * \param customvalue Custom value for RAS_CUSTOM bit
 	 */
-	virtual void Disable(EnableBit bit, unsigned int customvalue=0) = 0;
+	virtual void Disable(EnableBit bit) = 0;
 
 	/**
 	 * Set the value for Depth Buffer comparisons
 	 * \param func Depth comparison function
 	 */
 	virtual void SetDepthFunc(DepthFunc func) = 0;
+
+	virtual void SetBlendFunc(BlendFunc src, BlendFunc dst) = 0;
 
 	/**
 	 * Takes a screenshot
@@ -248,20 +273,10 @@ public:
 	virtual bool BeginFrame(double time) = 0;
 
 	/**
-	 * ClearColorBuffer clears the color buffer.
-	 */
-	virtual void ClearColorBuffer() = 0;
-
-	/**
-	 * ClearDepthBuffer clears the depth buffer.
-	 */
-	virtual void ClearDepthBuffer() = 0;
-
-	/**
 	 * Clears a specified set of buffers
 	 * \param clearbit What buffers to clear (separated by bitwise OR)
 	 */
-	virtual void Clear(ClearBit clearbit) = 0;
+	virtual void Clear(int clearbit) = 0;
 
 	/**
 	 * Set background color
@@ -513,7 +528,6 @@ public:
 	 * Render Tools
 	 */
 	virtual void GetTransform(float *origmat, int objectdrawmode, float mat[16]) = 0;
-	virtual void ApplyTransform(const float mat[16]) = 0;
 
 	/**
 	 * Renders 2D boxes.
@@ -555,8 +569,8 @@ public:
 	virtual void ProcessLighting(bool uselights, const MT_Transform &trans) = 0;
 
 	virtual void PushMatrix() = 0;
-
 	virtual void PopMatrix() = 0;
+	virtual void MultMatrix(const float mat[16]) = 0;
 
 	virtual RAS_ILightObject *CreateLight() = 0;
 

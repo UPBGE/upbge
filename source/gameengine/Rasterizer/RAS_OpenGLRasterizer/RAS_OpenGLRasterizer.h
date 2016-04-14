@@ -151,18 +151,21 @@ protected:
 	RAS_IStorage *m_storage;
 	int m_storageInfo;
 
-	void SetOpenGLCapability(EnableBit bit, bool enabled, unsigned int customvalue=0);
+	void SetMatrixMode(RAS_IRasterizer::MatrixMode mode);
+	void LoadMatrix(const float mat[16]);
 
 public:
 	double GetTime();
 	RAS_OpenGLRasterizer(RAS_STORAGE_TYPE storage, int storageInfo);
 	virtual ~RAS_OpenGLRasterizer();
 
-	virtual void Enable(EnableBit bit, unsigned int customvalue=0);
-	virtual void Disable(EnableBit bit, unsigned int customvalue=0);
+	virtual void Enable(EnableBit bit);
+	virtual void Disable(EnableBit bit);
 
 	virtual void SetDepthFunc(DepthFunc func);
 	virtual void SetDepthMask(DepthMask depthmask);
+
+	virtual void SetBlendFunc(BlendFunc src, BlendFunc dst);
 
 	virtual unsigned int *MakeScreenshot(int x, int y, int width, int height);
 
@@ -170,9 +173,7 @@ public:
 	virtual void Exit();
 	virtual void RenderBackground();
 	virtual bool BeginFrame(double time);
-	virtual void ClearColorBuffer();
-	virtual void ClearDepthBuffer();
-	virtual void Clear(ClearBit clearbit);
+	virtual void Clear(int clearbit);
 	virtual void SetClearColor(float r, float g, float b, float a=1.0f);
 	virtual void EndFrame();
 	virtual void SetRenderArea(RAS_ICanvas *canvas);
@@ -330,6 +331,7 @@ public:
 	void DisableOpenGLLights();
 	void ProcessLighting(bool uselights, const MT_Transform &viewmat);
 
+	void DisableForText();
 	void RenderBox2D(int xco, int yco, int width, int height, float percentage);
 	void RenderText3D(int fontid, const char *text, int size, int dpi,
 	                  const float color[4], const float mat[16], float aspect);
@@ -337,10 +339,10 @@ public:
 	                  int xco, int yco, int width, int height);
 
 	virtual void GetTransform(float *origmat, int objectdrawmode, float mat[16]);
-	virtual void ApplyTransform(const float mat[16]);
 
 	void PushMatrix();
 	void PopMatrix();
+	void MultMatrix(const float mat[16]);
 
 	/// \see KX_RayCast
 	bool RayHit(struct KX_ClientObjectInfo *client, class KX_RayCast *result, RayCastTranform *raytransform);
