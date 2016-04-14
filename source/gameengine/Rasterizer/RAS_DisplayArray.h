@@ -48,9 +48,6 @@ public:
 		LINES,
 	} m_type;
 
-	enum {BUCKET_MAX_INDEX = 65535};
-	enum {BUCKET_MAX_VERTEX = 65535};
-
 	int GetOpenGLPrimitiveType() const;
 	void UpdateFrom(RAS_DisplayArray *other, int flag);
 };
