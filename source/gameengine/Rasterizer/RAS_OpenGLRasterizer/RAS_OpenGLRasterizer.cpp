@@ -74,7 +74,7 @@ extern "C" {
 // >>>
 
 // WARNING: Always respect the order from RAS_IRasterizer::EnableBit.
-static int openGLEnums[] = {
+static int openGLEnableBitEnums[] = {
 	GL_DEPTH_TEST, // RAS_DEPTH_TEST
 	GL_ALPHA_TEST, // RAS_ALPHA_TEST
 	GL_SCISSOR_TEST, // RAS_SCISSOR_TEST
@@ -95,6 +95,7 @@ static int openGLEnums[] = {
 	GL_TEXTURE_GEN_Q // RAS_TEXTURE_GEN_Q
 };
 
+// WARNING: Always respect the order from RAS_IRasterizer::DepthFunc.
 static int openGLDepthFuncEnums[] = {
 	GL_NEVER, // RAS_NEVER
 	GL_LEQUAL, // RAS_LEQUAL
@@ -106,12 +107,14 @@ static int openGLDepthFuncEnums[] = {
 	GL_EQUAL // RAS_EQUAL
 };
 
+// WARNING: Always respect the order from RAS_IRasterizer::MatrixMode.
 static int openGLMatrixModeEnums[] = {
 	GL_PROJECTION, // RAS_PROJECTION
 	GL_MODELVIEW, // RAS_MODELVIEW
 	GL_TEXTURE // RAS_TEXTURE
 };
 
+// WARNING: Always respect the order from RAS_IRasterizer::BlendFunc.
 static int openGLBlendFuncEnums[] = {
 	GL_ZERO, // RAS_ZERO,
 	GL_ONE, // RAS_ONE,
@@ -205,12 +208,12 @@ RAS_OpenGLRasterizer::~RAS_OpenGLRasterizer()
 
 void RAS_OpenGLRasterizer::Enable(RAS_IRasterizer::EnableBit bit)
 {
-	glEnable(openGLEnums[bit]);
+	glEnable(openGLEnableBitEnums[bit]);
 }
 
 void RAS_OpenGLRasterizer::Disable(RAS_IRasterizer::EnableBit bit)
 {
-	glDisable(openGLEnums[bit]);
+	glDisable(openGLEnableBitEnums[bit]);
 }
 
 void RAS_OpenGLRasterizer::SetDepthFunc(RAS_IRasterizer::DepthFunc func)
