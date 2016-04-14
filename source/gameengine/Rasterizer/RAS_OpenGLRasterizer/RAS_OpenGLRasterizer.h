@@ -153,6 +153,7 @@ protected:
 
 	void SetMatrixMode(RAS_IRasterizer::MatrixMode mode);
 	void LoadMatrix(const float mat[16]);
+	void LoadIdentity();
 
 public:
 	double GetTime();

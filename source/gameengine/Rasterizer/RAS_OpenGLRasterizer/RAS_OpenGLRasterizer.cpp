@@ -1078,7 +1078,7 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetFrustumMatrix(
 	}
 
 	SetMatrixMode(RAS_PROJECTION);
-	glLoadIdentity();
+	LoadIdentity();
 	glFrustum(left, right, bottom, top, frustnear, frustfar);
 
 	glGetFloatv(GL_PROJECTION_MATRIX, mat);
@@ -1100,7 +1100,7 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetOrthoMatrix(
 
 	// stereo is meaningless for orthographic, disable it
 	SetMatrixMode(RAS_PROJECTION);
-	glLoadIdentity();
+	LoadIdentity();
 	glOrtho(left, right, bottom, top, frustnear, frustfar);
 
 	glGetFloatv(GL_PROJECTION_MATRIX, mat);
@@ -1693,13 +1693,13 @@ void RAS_OpenGLRasterizer::RenderBox2D(int xco,
 
 	SetMatrixMode(RAS_PROJECTION);
 	PushMatrix();
-	glLoadIdentity();
+	LoadIdentity();
 
 	glOrtho(0, width, 0, height, -100, 100);
 
 	SetMatrixMode(RAS_MODELVIEW);
 	PushMatrix();
-	glLoadIdentity();
+	LoadIdentity();
 
 	yco = height - yco;
 	int barsize = 50;
@@ -1769,13 +1769,13 @@ void RAS_OpenGLRasterizer::RenderText2D(
 
 	SetMatrixMode(RAS_PROJECTION);
 	PushMatrix();
-	glLoadIdentity();
+	LoadIdentity();
 
 	glOrtho(0, width, 0, height, -100, 100);
 
 	SetMatrixMode(RAS_MODELVIEW);
 	PushMatrix();
-	glLoadIdentity();
+	LoadIdentity();
 
 	if (mode == RAS_TEXT_PADDED) {
 		/* draw in black first */
@@ -1822,6 +1822,11 @@ void RAS_OpenGLRasterizer::MultMatrix(const float mat[16])
 void RAS_OpenGLRasterizer::LoadMatrix(const float mat[16])
 {
 	glLoadMatrixf(mat);
+}
+
+void RAS_OpenGLRasterizer::LoadIdentity()
+{
+	glLoadIdentity();
 }
 
 void RAS_OpenGLRasterizer::MotionBlur()
