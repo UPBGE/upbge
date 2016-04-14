@@ -30,8 +30,6 @@
  *  \ingroup ketsji
  */
 
-#include "glew-mx.h"
-
 #ifdef _MSC_VER
 #  pragma warning (disable:4786)
 #endif
@@ -1576,17 +1574,17 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, KX_ACTIONACT_PROPERTY,    ACT_ACTION_FROM_PROP);
 	
 	/* 7. GL_BlendFunc */
-	KX_MACRO_addTypesToDict(d, BL_ZERO, GL_ZERO);
-	KX_MACRO_addTypesToDict(d, BL_ONE, GL_ONE);
-	KX_MACRO_addTypesToDict(d, BL_SRC_COLOR, GL_SRC_COLOR);
-	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_SRC_COLOR, GL_ONE_MINUS_SRC_COLOR);
-	KX_MACRO_addTypesToDict(d, BL_DST_COLOR, GL_DST_COLOR);
-	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_DST_COLOR);
-	KX_MACRO_addTypesToDict(d, BL_SRC_ALPHA, GL_SRC_ALPHA);
-	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	KX_MACRO_addTypesToDict(d, BL_DST_ALPHA, GL_DST_ALPHA);
-	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA);
-	KX_MACRO_addTypesToDict(d, BL_SRC_ALPHA_SATURATE, GL_SRC_ALPHA_SATURATE);
+	KX_MACRO_addTypesToDict(d, BL_ZERO, RAS_IRasterizer::RAS_ZERO);
+	KX_MACRO_addTypesToDict(d, BL_ONE, RAS_IRasterizer::RAS_ONE);
+	KX_MACRO_addTypesToDict(d, BL_SRC_COLOR, RAS_IRasterizer::RAS_SRC_COLOR);
+	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_SRC_COLOR, RAS_IRasterizer::RAS_ONE_MINUS_SRC_COLOR);
+	KX_MACRO_addTypesToDict(d, BL_DST_COLOR, RAS_IRasterizer::RAS_DST_COLOR);
+	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_DST_COLOR, RAS_IRasterizer::RAS_ONE_MINUS_DST_COLOR);
+	KX_MACRO_addTypesToDict(d, BL_SRC_ALPHA, RAS_IRasterizer::RAS_SRC_ALPHA);
+	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_SRC_ALPHA, RAS_IRasterizer::RAS_ONE_MINUS_SRC_ALPHA);
+	KX_MACRO_addTypesToDict(d, BL_DST_ALPHA, RAS_IRasterizer::RAS_DST_ALPHA);
+	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_DST_ALPHA, RAS_IRasterizer::RAS_ONE_MINUS_DST_ALPHA);
+	KX_MACRO_addTypesToDict(d, BL_SRC_ALPHA_SATURATE, RAS_IRasterizer::RAS_SRC_ALPHA_SATURATE);
 
 
 	/* 8. UniformTypes */
