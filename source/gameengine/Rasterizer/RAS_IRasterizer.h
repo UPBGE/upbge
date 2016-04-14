@@ -239,6 +239,11 @@ public:
 	 */
 	virtual void SetDepthFunc(DepthFunc func) = 0;
 
+	/** 
+	 * Set the blending equation.
+	 * \param src The src value.
+	 * \param dst The destination value.
+	 */
 	virtual void SetBlendFunc(BlendFunc src, BlendFunc dst) = 0;
 
 	/**
