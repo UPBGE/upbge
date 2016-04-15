@@ -30,16 +30,6 @@
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
-MTex* getMTexFromMaterial(Material *mat, int index)
-{
-	if (mat && (index >= 0) && (index < MAX_MTEX)) {
-		return mat->mtex[index];
-	}
-	else {
-		return NULL;
-	}
-}
-
 BL_Material::BL_Material()
 {
 	Initialize();

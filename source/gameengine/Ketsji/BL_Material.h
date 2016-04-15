@@ -90,10 +90,6 @@ enum BL_MappingProj
 	PROJZ
 };
 
-// ------------------------------------
-//extern void initBL_Material(BL_Material* mat);
-extern MTex* getMTexFromMaterial(Material *mat, int index);
-// ------------------------------------
 
 #endif
 
