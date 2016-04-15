@@ -1352,7 +1352,6 @@ static void do_material_tex(GPUShadeInput *shi)
 			    ((tex->type == TEX_IMAGE) ||
 			     ((tex->type == TEX_ENVMAP) && (mtex->texco == TEXCO_REFL))))
 			{
-				mtex->lodbias = tex->ima->lodbias;
 				if (tex->type == TEX_IMAGE) {
 					GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false), GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma), &tin, &trgb);
 				}
