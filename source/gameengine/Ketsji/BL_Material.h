@@ -44,13 +44,7 @@ public:
 
 	STR_String matname;
 
-	float matcolor[4];
-	float speccolor[3];
-	short alphablend, pad;
-
-	float hard, spec_f;
-	float alpha, emit, ref;
-	float amb, specalpha;
+	short alphablend;
 
 	STR_String uvsName[MAXTEX];
 

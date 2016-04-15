@@ -43,22 +43,9 @@ void BL_Material::Initialize()
 	rgb[3] = 0xFFFFFFFFL;
 	ras_mode = 0;
 	matname = "NoMaterial";
-	matcolor[0] = 0.5f;
-	matcolor[1] = 0.5f;
-	matcolor[2] = 0.5f;
-	matcolor[3] = 0.5f;
-	speccolor[0] = 1.f;
-	speccolor[1] = 1.f;
-	speccolor[2] = 1.f;
 	alphablend = 0;
-	hard = 50.f;
-	spec_f = 0.5f;
-	alpha = 1.f;
-	specalpha = 1.0f;
-	emit = 0.f;
 	material = 0;
 	memset(&mtexpoly, 0, sizeof(mtexpoly));
-	amb=0.5f;
 
 	int i;
 

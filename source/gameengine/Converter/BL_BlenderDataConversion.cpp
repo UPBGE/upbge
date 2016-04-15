@@ -501,20 +501,6 @@ static bool ConvertMaterial(
 			material->uvsName[i] = layers[i].name;
 		}
 
-		material->speccolor[0] = mat->specr;
-		material->speccolor[1] = mat->specg;
-		material->speccolor[2] = mat->specb;
-		material->hard = (float)mat->har / 4.0f;
-		material->matcolor[0] = mat->r;
-		material->matcolor[1] = mat->g;
-		material->matcolor[2] = mat->b;
-		material->matcolor[3] = mat->alpha;
-		material->alpha = mat->alpha;
-		material->emit = mat->emit;
-		material->spec_f = mat->spec;
-		material->ref = mat->ref;
-		material->amb = mat->amb;
-
 		material->ras_mode |= (mat->material_type == MA_TYPE_WIRE) ? WIRE : 0;
 	}
 	else { // No Material
@@ -536,16 +522,6 @@ static bool ConvertMaterial(
 		else {
 			material->alphablend = GEMAT_SOLID;
 		}
-
-		material->speccolor[0] = 1.0f;
-		material->speccolor[1] = 1.0f;
-		material->speccolor[2] = 1.0f;
-		material->hard = 35.0f;
-		material->matcolor[0] = 0.5f;
-		material->matcolor[1] = 0.5f;
-		material->matcolor[2] = 0.5f;
-		material->spec_f = 0.5f;
-		material->ref = 0.8f;
 
 		// No material - old default TexFace properties
 		material->ras_mode |= USE_LIGHT;
