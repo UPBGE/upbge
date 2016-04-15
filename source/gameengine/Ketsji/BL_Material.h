@@ -81,16 +81,6 @@ enum BL_ras_mode
 	ONLY_SHADOW=1024,
 };
 
-// BL_Material::BL_Mapping::projplane
-enum BL_MappingProj
-{
-	PROJN=0,
-	PROJX,
-	PROJY,
-	PROJZ
-};
-
-
 #endif
 
 
