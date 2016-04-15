@@ -52,8 +52,6 @@ public:
 	float alpha, emit, color_blend[MAXTEX], ref;
 	float amb, specalpha;
 
-	int num_enabled;
-
 	STR_String uvsName[MAXTEX];
 
 	Material*			material;

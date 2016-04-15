@@ -69,7 +69,6 @@ void BL_Material::Initialize()
 	material = 0;
 	memset(&mtexpoly, 0, sizeof(mtexpoly));
 	amb=0.5f;
-	num_enabled = 0;
 
 	int i;
 

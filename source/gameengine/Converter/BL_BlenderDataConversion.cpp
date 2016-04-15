@@ -495,23 +495,11 @@ static bool ConvertMaterial(
 		// only shadows?
 		material->ras_mode |= (mat->mode & MA_ONLYCAST) ? ONLY_SHADOW : 0;
 
-		MTex *mttmp = NULL;
-		int valid_index = 0;
-
 		// foreach MTex
 		for (int i = 0; i < MAXTEX; i++) {
 			// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
 			material->uvsName[i] = layers[i].name;
-
-			mttmp = getMTexFromMaterial(mat, i);
-			if (mttmp) {
-				if (mttmp->tex) {
-					valid_index++;
-				}
-			}
 		}
-
-		material->num_enabled = valid_index;
 
 		material->speccolor[0] = mat->specr;
 		material->speccolor[1] = mat->specg;
@@ -530,7 +518,6 @@ static bool ConvertMaterial(
 		material->ras_mode |= (mat->material_type == MA_TYPE_WIRE) ? WIRE : 0;
 	}
 	else { // No Material
-		int valid = 0;
 
 		// check for tface tex to fallback on
 		if (validface) {
@@ -544,14 +531,12 @@ static bool ConvertMaterial(
 				else {
 					material->alphablend = GEMAT_SOLID;
 				}
-				valid++;
 			}
 		}
 		else {
 			material->alphablend = GEMAT_SOLID;
 		}
 
-		material->num_enabled = valid;
 		material->speccolor[0] = 1.0f;
 		material->speccolor[1] = 1.0f;
 		material->speccolor[2] = 1.0f;

@@ -472,7 +472,7 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 		ras->SetAttribNum(2);
 	}
 
-	ras->SetTexCoordNum(m_material->num_enabled);
+	ras->SetTexCoordNum(BL_Texture::GetMaxUnits());
 
 	for (int i = 0; i < BL_Texture::GetMaxUnits(); i++) {
 		BL_Texture *texture = m_textures[i];
