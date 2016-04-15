@@ -33,6 +33,7 @@ private:
 		float normalfac;
 		float parallaxbumpfac;
 		float parallaxstepfac;
+		float lodbias;
 	} m_savedData;
 
 public:
@@ -86,6 +87,8 @@ public:
 	static int pyattr_set_parallax_bump(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_parallax_step(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_parallax_step(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_lodbias(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_lodbias(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 #endif  // WITH_PYTHON
 

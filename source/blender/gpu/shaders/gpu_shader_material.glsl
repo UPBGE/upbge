@@ -1329,9 +1329,9 @@ void mtex_cube_map_refl(samplerCube ima, vec3 vp, vec3 vn, mat4 viewmatrixinvers
 	value = 1.0;
 }
 
-void mtex_image(vec3 texco, sampler2D ima, out float value, out vec4 color)
+void mtex_image(vec3 texco, sampler2D ima, float lodbias, out float value, out vec4 color)
 {
-	color = texture2D(ima, texco.xy);
+	color = texture2D(ima, texco.xy, lodbias);
 	value = 1.0;
 }
 
