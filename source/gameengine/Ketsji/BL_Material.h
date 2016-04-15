@@ -45,7 +45,6 @@ public:
 	STR_String texname[MAXTEX];
 	int tile,tilexrep[MAXTEX],tileyrep[MAXTEX];
 	STR_String matname;
-	int materialindex;
 
 	float matcolor[4];
 	float speccolor[3];

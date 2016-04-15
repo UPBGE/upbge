@@ -74,7 +74,6 @@ protected:
 	bool m_alpha;
 	bool m_zsort;
 	bool m_light;
-	int m_materialindex;
 
 	unsigned int m_polymatid;
 	static unsigned int m_newpolymatid;
@@ -93,7 +92,6 @@ public:
 	RAS_IPolyMaterial();
 	RAS_IPolyMaterial(const STR_String& texname,
 	                  const STR_String& matname,
-	                  int materialindex,
 	                  int tile,
 	                  int tilexrep,
 	                  int tileyrep,
@@ -102,7 +100,6 @@ public:
 	                  bool zsort);
 	void Initialize(const STR_String& texname,
 	                const STR_String& matname,
-	                int materialindex,
 	                int tile,
 	                int tilexrep,
 	                int tileyrep,

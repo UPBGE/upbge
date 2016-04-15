@@ -482,8 +482,6 @@ static bool ConvertMaterial(
 	const bool validmat  = (mat != NULL);
 	const bool validface = (tface != NULL);
 
-	material->materialindex = mface ? mface->mat_nr : 0;
-
 	// --------------------------------
 	if (validmat) {
 
