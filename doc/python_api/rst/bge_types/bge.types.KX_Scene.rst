@@ -145,7 +145,7 @@ base class --- :class:`PyObjectPlus`
       :type object: :class:`KX_GameObject` or string
       :arg reference: The (name of the) object which position, orientation, and scale to copy (optional), if the object to add is a light and there is not reference the light's layer will be the same that the active layer in the blender scene.
       :type reference: :class:`KX_GameObject` or string
-      :arg time: The lifetime of the added object, in frames. A time of 0 means the object will last forever (optional).
+      :arg time: The lifetime of the added object, in frames (assumes one frame is 1/50 second). A time of 0 means the object will last forever (optional).
       :type time: integer
       :return: The newly added object.
       :rtype: :class:`KX_GameObject`

@@ -468,8 +468,7 @@ base class --- :class:`SCA_IObject`
 
    .. attribute:: life
 
-      The number of seconds until the object ends, assumes 50fps.
-      (when added with an add object actuator), (read-only).
+      The number of frames until the object ends, assumes one frame is 1/50 second (read-only).
 
       :type: float
 
