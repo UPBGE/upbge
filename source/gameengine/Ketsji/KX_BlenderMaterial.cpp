@@ -499,7 +499,8 @@ void KX_BlenderMaterial::UpdateIPO(
     MT_Scalar ref,
     MT_Scalar emit,
 	MT_Scalar ambient,
-    MT_Scalar alpha)
+    MT_Scalar alpha,
+	MT_Scalar specalpha)
 {
 	// only works one deep now
 
@@ -516,6 +517,7 @@ void KX_BlenderMaterial::UpdateIPO(
 	m_material->material->amb = m_material->amb = (float)(ambient);
 	m_material->material->spec = m_material->spec_f = (float)(spec);
 	m_material->material->ref = m_material->ref = (float)(ref);
+	m_material->material->spectra = m_material->specalpha = (float)specalpha;
 }
 
 void KX_BlenderMaterial::Replace_IScene(SCA_IScene *val)

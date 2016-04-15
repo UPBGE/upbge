@@ -51,7 +51,8 @@ bool KX_MaterialIpoController::Update(double currentTime)
 			m_ref, 
 			m_emit,
 			m_ambient,
-			m_alpha
+			m_alpha,
+			m_specAlpha
 		);
 
 		m_modified=false;
