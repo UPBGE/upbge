@@ -522,30 +522,6 @@ static bool ConvertMaterial(
 							}
 						}
 					}
-					/// --------------------------------
-					// mapping methods
-					if (mat->septex & (1 << i)) {
-						// If this texture slot isn't in use, set it to disabled to prevent multi-uv problems
-					} 
-					else {
-						if (mttmp->texco & TEXCO_OBJECT) {
-							if (mttmp->object) {
-								material->mapping[i].objconame = mttmp->object->id.name;
-							}
-						}
-
-						material->mapping[i].scale[0] = mttmp->size[0];
-						material->mapping[i].scale[1] = mttmp->size[1];
-						material->mapping[i].scale[2] = mttmp->size[2];
-						material->mapping[i].offsets[0] = mttmp->ofs[0];
-						material->mapping[i].offsets[1] = mttmp->ofs[1];
-						material->mapping[i].offsets[2] = mttmp->ofs[2];
-
-						material->mapping[i].projplane[0] = mttmp->projx;
-						material->mapping[i].projplane[1] = mttmp->projy;
-						material->mapping[i].projplane[2] = mttmp->projz;
-					}
-
 					valid_index++;
 				}
 			}

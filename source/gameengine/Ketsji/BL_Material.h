@@ -32,16 +32,6 @@ struct EnvMap;
  */
 #define MAXTEX			8	//match in RAS_TexVert & RAS_OpenGLRasterizer
 
-// different mapping modes
-class BL_Mapping
-{
-public:
-	float scale[3];
-	float offsets[3];
-	int projplane[3];
-	STR_String objconame;
-};
-
 // base material struct
 class BL_Material
 {
@@ -66,8 +56,6 @@ public:
 	float amb, specalpha;
 
 	int num_enabled;
-	
-	BL_Mapping	mapping[MAXTEX];
 
 	STR_String uvsName[MAXTEX];
 
