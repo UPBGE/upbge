@@ -70,7 +70,7 @@ public:
 
 	float hard, spec_f;
 	float alpha, emit, color_blend[MAXTEX], ref;
-	float amb;
+	float amb, specalpha;
 
 	int blend_mode[MAXTEX];
 

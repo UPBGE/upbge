@@ -108,6 +108,7 @@ void KX_BlenderMaterial::Initialize(
 	m_savedData.hardness = ma->har;
 	m_savedData.emit = ma->emit;
 	m_savedData.ambient = ma->amb;
+	m_savedData.specularalpha = ma->spectra;
 
 	m_material = data;
 	m_shader = NULL;
@@ -142,6 +143,7 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 	ma->har = m_savedData.hardness;
 	ma->emit = m_savedData.emit;
 	ma->amb = m_savedData.ambient;
+	ma->spectra = m_savedData.specularalpha;
 
 	for (unsigned short i = 0; i < MAXTEX; ++i) {
 		if (m_textures[i]) {
@@ -666,6 +668,7 @@ PyAttributeDef KX_BlenderMaterial::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("diffuseColor", KX_BlenderMaterial, pyattr_get_diffuse_color, pyattr_set_diffuse_color),
 	KX_PYATTRIBUTE_RW_FUNCTION("emit", KX_BlenderMaterial, pyattr_get_emit, pyattr_set_emit),
 	KX_PYATTRIBUTE_RW_FUNCTION("ambient", KX_BlenderMaterial, pyattr_get_ambient, pyattr_set_ambient),
+	KX_PYATTRIBUTE_RW_FUNCTION("specularAlpha", KX_BlenderMaterial, pyattr_get_specular_alpha, pyattr_set_specular_alpha),
 
 	{NULL} //Sentinel
 };
@@ -763,6 +766,30 @@ int KX_BlenderMaterial::pyattr_set_alpha(void *self_v, const KX_PYATTRIBUTE_DEF 
 	mat->alpha = mat->material->alpha = val;
 	return PY_SET_ATTR_SUCCESS;
 }
+
+PyObject *KX_BlenderMaterial::pyattr_get_specular_alpha(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
+	return PyFloat_FromDouble(self->GetBLMaterial()->specalpha);
+}
+
+int KX_BlenderMaterial::pyattr_set_specular_alpha(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 0.0f, 1.0f);
+
+	BL_Material *mat = self->GetBLMaterial();
+	mat->specalpha = mat->material->spectra = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
 PyObject *KX_BlenderMaterial::pyattr_get_hardness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);

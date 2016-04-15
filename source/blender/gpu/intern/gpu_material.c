@@ -1751,7 +1751,7 @@ void GPU_shadeinput_set(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 	GPU_link(mat, "set_value", GPU_select_uniform(&ma->emit, GPU_DYNAMIC_MAT_EMIT, NULL, ma), &shi->emit);
 	GPU_link(mat, "set_value", GPU_select_uniform(&mat->har, GPU_DYNAMIC_MAT_HARD, NULL, ma), &shi->har);
 	GPU_link(mat, "set_value", GPU_select_uniform(&ma->amb, GPU_DYNAMIC_MAT_AMB, NULL, ma), &shi->amb);
-	GPU_link(mat, "set_value", GPU_uniform(&ma->spectra), &shi->spectra);
+	GPU_link(mat, "set_value", GPU_select_uniform(&ma->spectra, GPU_DYNAMIC_MAT_SPECTRA, NULL, ma), &shi->spectra);
 	GPU_link(mat, "shade_view", GPU_builtin(GPU_VIEW_POSITION), &shi->view);
 	GPU_link(mat, "vcol_attribute", GPU_attribute(CD_MCOL, ""), &shi->vcol);
 	if (GPU_material_do_color_management(mat) && !(ma->sss_flag))
