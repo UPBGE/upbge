@@ -52,7 +52,6 @@ void BL_Material::Initialize()
 	rgb[2] = 0xFFFFFFFFL;
 	rgb[3] = 0xFFFFFFFFL;
 	ras_mode = 0;
-	tile = 0;
 	matname = "NoMaterial";
 	matcolor[0] = 0.5f;
 	matcolor[1] = 0.5f;
@@ -77,8 +76,6 @@ void BL_Material::Initialize()
 	for (i = 0; i < MAXTEX; i++) // :(
 	{
 		texname[i] = "NULL";
-		tilexrep[i] = 1;
-		tileyrep[i] = 1;
 		color_blend[i] = 1.f;
 		img[i] = 0;
 		cubemap[i] = 0;

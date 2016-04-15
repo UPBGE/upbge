@@ -43,7 +43,6 @@ public:
 	unsigned int ras_mode;
 
 	STR_String texname[MAXTEX];
-	int tile,tilexrep[MAXTEX],tileyrep[MAXTEX];
 	STR_String matname;
 
 	float matcolor[4];

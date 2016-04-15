@@ -66,9 +66,6 @@ class RAS_IPolyMaterial
 protected:
 	STR_HashedString m_texturename;
 	STR_HashedString m_materialname; // also needed for touchsensor
-	int m_tile;
-	int m_tilexrep;
-	int m_tileyrep;
 	int m_drawingmode;
 	int m_alphablend;
 	bool m_alpha;
@@ -92,17 +89,11 @@ public:
 	RAS_IPolyMaterial();
 	RAS_IPolyMaterial(const STR_String& texname,
 	                  const STR_String& matname,
-	                  int tile,
-	                  int tilexrep,
-	                  int tileyrep,
 	                  int transp,
 	                  bool alpha,
 	                  bool zsort);
 	void Initialize(const STR_String& texname,
 	                const STR_String& matname,
-	                int tile,
-	                int tilexrep,
-	                int tileyrep,
 	                int transp,
 	                bool alpha,
 	                bool zsort,

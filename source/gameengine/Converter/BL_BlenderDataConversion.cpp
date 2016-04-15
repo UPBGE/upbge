@@ -584,13 +584,9 @@ static bool ConvertMaterial(
 
 	/* No material, what to do? let's see what is in the UV and set the material accordingly
 	 * light and visible is always on */
-	if (validface) {
-		material->tile = tface->tile;
-	}
-	else {
+	if (!validface) {
 		// nothing at all
 		material->alphablend = GEMAT_SOLID;
-		material->tile = 0;
 	}
 
 	if (validmat && validface) {

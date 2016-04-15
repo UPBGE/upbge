@@ -82,9 +82,6 @@ void KX_BlenderMaterial::Initialize(
 	RAS_IPolyMaterial::Initialize(
 	    data->texname[0],
 	    data->matname,
-	    data->tile,
-	    data->tilexrep[0],
-	    data->tileyrep[0],
 	    data->alphablend,
 	    ((data->ras_mode & ALPHA) != 0),
 	    ((data->ras_mode & ZSORT) != 0),

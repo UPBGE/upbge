@@ -38,9 +38,6 @@
 void RAS_IPolyMaterial::Initialize(
     const STR_String& texname,
     const STR_String& matname,
-    int tile,
-    int tilexrep,
-    int tileyrep,
     int alphablend,
     bool alpha,
     bool zsort,
@@ -50,9 +47,6 @@ void RAS_IPolyMaterial::Initialize(
 {
 	m_texturename = texname;
 	m_materialname = matname;
-	m_tile = tile;
-	m_tilexrep = tilexrep;
-	m_tileyrep = tileyrep;
 	m_alphablend = alphablend;
 	m_alpha = alpha;
 	m_zsort = zsort;
@@ -65,9 +59,6 @@ void RAS_IPolyMaterial::Initialize(
 RAS_IPolyMaterial::RAS_IPolyMaterial()
 	:m_texturename("__Dummy_Texture_Name__"),
 	m_materialname("__Dummy_Material_Name__"),
-	m_tile(0),
-	m_tilexrep(0),
-	m_tileyrep(0),
 	m_drawingmode(0),
 	m_alphablend(0),
 	m_alpha(false),
@@ -80,17 +71,11 @@ RAS_IPolyMaterial::RAS_IPolyMaterial()
 
 RAS_IPolyMaterial::RAS_IPolyMaterial(const STR_String& texname,
                                      const STR_String& matname,
-                                     int tile,
-                                     int tilexrep,
-                                     int tileyrep,
                                      int alphablend,
                                      bool alpha,
                                      bool zsort)
 	:m_texturename(texname),
 	m_materialname(matname),
-	m_tile(tile),
-	m_tilexrep(tilexrep),
-	m_tileyrep(tileyrep),
 	m_alphablend(alphablend),
 	m_alpha(alpha),
 	m_zsort(zsort),
