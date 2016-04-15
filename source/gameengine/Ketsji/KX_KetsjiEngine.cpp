@@ -252,7 +252,7 @@ void KX_KetsjiEngine::InitDome(short res, short mode, short angle, float resbuf,
 
 void KX_KetsjiEngine::RenderDome()
 {
-	const GLint *viewport = m_canvas->GetViewPort();
+	const int *viewport = m_canvas->GetViewPort();
 
 	m_dome->SetViewPort(viewport);
 

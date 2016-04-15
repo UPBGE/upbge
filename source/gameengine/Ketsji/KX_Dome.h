@@ -38,7 +38,6 @@
 #include "RAS_IRasterizer.h"
 #include "KX_KetsjiEngine.h"
 
-#include "glew-mx.h"
 #include <vector>
 
 #include "MEM_guardedalloc.h"
@@ -80,9 +79,9 @@ public:
 	bool	fboSupported;
 
 	//openGL names:
-	GLuint domefacesId[7];      /* ID of the images -- room for 7 images, using only 4 for 180deg x 360deg dome,
+	unsigned int domefacesId[7];      /* ID of the images -- room for 7 images, using only 4 for 180deg x 360deg dome,
 	                             * 6 for panoramic and +1 for warp mesh */
-	GLuint dlistId;             /* ID of the Display Lists of the images (used as an offset) */
+	unsigned int dlistId;             /* ID of the Display Lists of the images (used as an offset) */
 	
 	typedef struct {
 		double u[3], v[3];
@@ -100,7 +99,7 @@ public:
 		int n_width, n_height; //nodes width and height
 		int imagesize;
 		int bufferwidth, bufferheight;
-		GLuint fboId;
+		unsigned int fboId;
 		vector <vector <WarpMeshNode> > nodes;
 	} warp;
 
