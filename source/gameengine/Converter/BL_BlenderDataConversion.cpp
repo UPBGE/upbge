@@ -504,25 +504,6 @@ static bool ConvertMaterial(
 		material->ras_mode |= (mat->material_type == MA_TYPE_WIRE) ? WIRE : 0;
 	}
 	else { // No Material
-
-		// check for tface tex to fallback on
-		if (validface) {
-			material->img[0] = (Image *)(tface->tpage);
-			// ------------------------
-			if (material->img[0]) {
-				/* see if depth of the image is 32bits */
-				if (BKE_image_has_alpha(material->img[0])) {
-					material->alphablend = GEMAT_ALPHA;
-				}
-				else {
-					material->alphablend = GEMAT_SOLID;
-				}
-			}
-		}
-		else {
-			material->alphablend = GEMAT_SOLID;
-		}
-
 		// No material - old default TexFace properties
 		material->ras_mode |= USE_LIGHT;
 	}

@@ -62,14 +62,8 @@ public:
 	Image *GetBlenderImage() const;
 	MTexPoly *GetMTexPoly() const;
 	unsigned int *GetMCol() const;
-	BL_Texture *GetTex(unsigned int idx)
-	{
-		return (idx < MAXTEX) ? m_textures[idx] : NULL;
-	}
-	Image *GetImage(unsigned int idx)
-	{
-		return (idx < MAXTEX && m_material) ? m_material->img[idx] : NULL;
-	}
+	BL_Texture *GetTex(unsigned int idx);
+
 	unsigned int *GetBlendFunc()
 	{
 		return m_blendFunc;

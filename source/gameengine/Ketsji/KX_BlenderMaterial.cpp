@@ -165,6 +165,11 @@ unsigned int *KX_BlenderMaterial::GetMCol() const
 	return m_material->rgb;
 }
 
+BL_Texture *KX_BlenderMaterial::GetTex(unsigned int idx)
+{
+	return (idx < MAXTEX) ? m_textures[idx] : NULL;
+}
+
 void KX_BlenderMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
 {
 	if (m_material) {
@@ -1038,7 +1043,7 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getTextureBindcode, "getTextureBindcode(t
 		PyErr_SetString(PyExc_ValueError, "material.getTextureBindcode(texslot): KX_BlenderMaterial, expected an int.");
 		return NULL;
 	}
-	Image *ima = GetImage(texslot);
+	Image *ima = GetTex(texslot)->GetImage();
 	if (ima) {
 		unsigned int *bindcode = ima->bindcode;
 		return PyLong_FromLong(*bindcode);

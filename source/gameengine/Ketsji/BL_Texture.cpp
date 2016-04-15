@@ -91,6 +91,16 @@ bool BL_Texture::Ok()
 	return (m_gpuTex != NULL);
 }
 
+MTex *BL_Texture::GetMTex()
+{
+	return m_mtex;
+}
+
+Image *BL_Texture::GetImage()
+{
+	return m_mtex->tex->ima;
+}
+
 unsigned int BL_Texture::GetTextureType() const
 {
 	return GPU_texture_target(m_gpuTex);

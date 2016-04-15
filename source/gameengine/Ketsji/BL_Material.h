@@ -50,7 +50,6 @@ public:
 
 	Material*			material;
 	MTexPoly			mtexpoly; /* copy of the derived meshes tface */
-	Image*				img[MAXTEX];
 
 	unsigned int rgb[4];
 

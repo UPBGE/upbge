@@ -46,11 +46,4 @@ void BL_Material::Initialize()
 	alphablend = 0;
 	material = 0;
 	memset(&mtexpoly, 0, sizeof(mtexpoly));
-
-	int i;
-
-	for (i = 0; i < MAXTEX; i++) // :(
-	{
-		img[i] = 0;
-	}
 }
