@@ -36,7 +36,6 @@
 #  include <windows.h>
 #endif
 
-#include "glew-mx.h"
 #include "GPU_extensions.h"
 #include "GPU_init_exit.h"
 

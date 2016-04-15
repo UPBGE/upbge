@@ -47,7 +47,6 @@ set(INC
 	../../../blender/makesdna
 	../../../blender/makesrna
 	../../../../intern/ghost
-	../../../../intern/glew-mx
 	../../../../intern/guardedalloc
 	../../../../intern/string
 	../../../../intern/memutil

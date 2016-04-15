@@ -39,13 +39,11 @@ set(INC
 	../../../blender/blenlib
 	../../../blender/makesdna
 	../../../../intern/guardedalloc
-	../../../../intern/glew-mx
 	../../../../intern/string
 )
 
 set(INC_SYS
 	../../../../intern/moto/include
-	${GLEW_INCLUDE_PATH}
 	${PYTHON_INCLUDE_DIRS}
 )
 

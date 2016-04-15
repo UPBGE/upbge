@@ -44,7 +44,6 @@ set(INC
 	../../../blender/imbuf
 	../../../blender/makesdna
 	../../../../intern/ghost
-	../../../../intern/glew-mx
 	../../../../intern/guardedalloc
 	../../../../intern/string
 )
