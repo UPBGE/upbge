@@ -49,7 +49,7 @@ public:
 	short alphablend, pad;
 
 	float hard, spec_f;
-	float alpha, emit, color_blend[MAXTEX], ref;
+	float alpha, emit, ref;
 	float amb, specalpha;
 
 	STR_String uvsName[MAXTEX];
