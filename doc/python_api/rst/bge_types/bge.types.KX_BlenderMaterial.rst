@@ -118,7 +118,7 @@ base class --- :class:`PyObjectPlus`
 
    .. attribute:: specularAlpha
 
-      Amount of specular alpha.
+      Alpha transparency for specular areas.
 
       :type: float between 0.0 and 1.0 inclusive (alpha must be < 1.0)
 
