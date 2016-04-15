@@ -75,9 +75,7 @@ void BL_Material::Initialize()
 
 	for (i = 0; i < MAXTEX; i++) // :(
 	{
-		texname[i] = "NULL";
 		color_blend[i] = 1.f;
 		img[i] = 0;
-		cubemap[i] = 0;
 	}
 }

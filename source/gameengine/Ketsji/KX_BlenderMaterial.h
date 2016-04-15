@@ -57,6 +57,7 @@ public:
 	virtual bool IsWire() const;
 	virtual bool IsAlphaShadow() const;
 	virtual bool UseInstancing() const;
+	virtual const STR_String& GetTextureName() const;
 	Material *GetBlenderMaterial() const;
 	Image *GetBlenderImage() const;
 	MTexPoly *GetMTexPoly() const;

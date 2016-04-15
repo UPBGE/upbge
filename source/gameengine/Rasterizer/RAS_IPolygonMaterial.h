@@ -64,7 +64,6 @@ enum MaterialProps
 class RAS_IPolyMaterial
 {
 protected:
-	STR_HashedString m_texturename;
 	STR_HashedString m_materialname; // also needed for touchsensor
 	int m_drawingmode;
 	int m_alphablend;
@@ -87,13 +86,11 @@ public:
 	};
 
 	RAS_IPolyMaterial();
-	RAS_IPolyMaterial(const STR_String& texname,
-	                  const STR_String& matname,
+	RAS_IPolyMaterial(const STR_String& matname,
 	                  int transp,
 	                  bool alpha,
 	                  bool zsort);
-	void Initialize(const STR_String& texname,
-	                const STR_String& matname,
+	void Initialize(const STR_String& matname,
 	                int transp,
 	                bool alpha,
 	                bool zsort,
@@ -117,9 +114,9 @@ public:
 	int GetDrawingMode() const;
 	const STR_String& GetMaterialName() const;
 	dword GetMaterialNameHash() const;
-	const STR_String& GetTextureName() const;
 	unsigned int GetFlag() const;
 
+	virtual const STR_String& GetTextureName() const = 0;
 	virtual Material *GetBlenderMaterial() const = 0;
 	virtual Image *GetBlenderImage() const = 0;
 	virtual MTexPoly *GetMTexPoly() const = 0;

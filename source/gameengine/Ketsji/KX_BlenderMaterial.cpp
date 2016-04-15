@@ -80,7 +80,6 @@ void KX_BlenderMaterial::Initialize(
     int lightlayer)
 {
 	RAS_IPolyMaterial::Initialize(
-	    data->texname[0],
 	    data->matname,
 	    data->alphablend,
 	    ((data->ras_mode & ALPHA) != 0),
@@ -176,6 +175,12 @@ void KX_BlenderMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
 	}
 	else
 		RAS_IPolyMaterial::GetMaterialRGBAColor(rgba);
+}
+
+const STR_String& KX_BlenderMaterial::GetTextureName() const
+{
+	static const STR_String empty = ""; // hack to return a reference.
+	return (m_textures[0] ? m_textures[0]->GetName() : empty);
 }
 
 Material *KX_BlenderMaterial::GetBlenderMaterial() const

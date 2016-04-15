@@ -506,20 +506,6 @@ static bool ConvertMaterial(
 			mttmp = getMTexFromMaterial(mat, i);
 			if (mttmp) {
 				if (mttmp->tex) {
-					if (mttmp->tex->type == TEX_IMAGE) {
-						material->img[i] = mttmp->tex->ima;
-					}
-					else if (mttmp->tex->type == TEX_ENVMAP) {
-						if (mttmp->tex->env->stype == ENV_LOAD) {
-							EnvMap *env = mttmp->tex->env;
-							env->ima = mttmp->tex->ima;
-							material->cubemap[i] = env;
-
-							if (material->cubemap[i]) {
-								material->texname[i] = material->cubemap[i]->ima->id.name;
-							}
-						}
-					}
 					valid_index++;
 				}
 			}
@@ -551,8 +537,6 @@ static bool ConvertMaterial(
 			material->img[0] = (Image *)(tface->tpage);
 			// ------------------------
 			if (material->img[0]) {
-				material->texname[0] = material->img[0]->id.name;
-
 				/* see if depth of the image is 32bits */
 				if (BKE_image_has_alpha(material->img[0])) {
 					material->alphablend = GEMAT_ALPHA;

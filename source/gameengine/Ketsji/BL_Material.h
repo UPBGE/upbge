@@ -42,7 +42,6 @@ public:
 
 	unsigned int ras_mode;
 
-	STR_String texname[MAXTEX];
 	STR_String matname;
 
 	float matcolor[4];
@@ -60,7 +59,6 @@ public:
 	Material*			material;
 	MTexPoly			mtexpoly; /* copy of the derived meshes tface */
 	Image*				img[MAXTEX];
-	EnvMap*				cubemap[MAXTEX];
 
 	unsigned int rgb[4];
 

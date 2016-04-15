@@ -36,7 +36,6 @@
 #include "DNA_material_types.h"
 
 void RAS_IPolyMaterial::Initialize(
-    const STR_String& texname,
     const STR_String& matname,
     int alphablend,
     bool alpha,
@@ -45,7 +44,6 @@ void RAS_IPolyMaterial::Initialize(
     bool image,
     GameSettings *game)
 {
-	m_texturename = texname;
 	m_materialname = matname;
 	m_alphablend = alphablend;
 	m_alpha = alpha;
@@ -57,8 +55,7 @@ void RAS_IPolyMaterial::Initialize(
 }
 
 RAS_IPolyMaterial::RAS_IPolyMaterial()
-	:m_texturename("__Dummy_Texture_Name__"),
-	m_materialname("__Dummy_Material_Name__"),
+	:m_materialname("__Dummy_Material_Name__"),
 	m_drawingmode(0),
 	m_alphablend(0),
 	m_alpha(false),
@@ -69,13 +66,11 @@ RAS_IPolyMaterial::RAS_IPolyMaterial()
 {
 }
 
-RAS_IPolyMaterial::RAS_IPolyMaterial(const STR_String& texname,
-                                     const STR_String& matname,
+RAS_IPolyMaterial::RAS_IPolyMaterial(const STR_String& matname,
                                      int alphablend,
                                      bool alpha,
                                      bool zsort)
-	:m_texturename(texname),
-	m_materialname(matname),
+	:m_materialname(matname),
 	m_alphablend(alphablend),
 	m_alpha(alpha),
 	m_zsort(zsort),
@@ -122,7 +117,7 @@ bool RAS_IPolyMaterial::IsZSort() const
 
 unsigned int RAS_IPolyMaterial::hash() const
 {
-	return m_texturename.hash();
+	return m_materialname.hash();
 }
 
 int RAS_IPolyMaterial::GetDrawingMode() const
@@ -138,11 +133,6 @@ const STR_String& RAS_IPolyMaterial::GetMaterialName() const
 dword RAS_IPolyMaterial::GetMaterialNameHash() const
 {
 	return m_materialname.hash();
-}
-
-const STR_String& RAS_IPolyMaterial::GetTextureName() const
-{
-	return m_texturename;
 }
 
 unsigned int RAS_IPolyMaterial::GetFlag() const
