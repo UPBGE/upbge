@@ -691,6 +691,12 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Parallax UV discard", "To discard parallax UV at edges");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
+	prop = RNA_def_property(srna, "lod_bias", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "lodbias");
+	RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 10, 3);
+	RNA_def_property_ui_text(prop, "Lod Bias", "Amount offset on mipmapping lod");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
 	prop = RNA_def_property(srna, "specular_color_factor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "colspecfac");
 	RNA_def_property_ui_range(prop, 0, 1, 10, 3);

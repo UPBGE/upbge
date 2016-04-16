@@ -1353,11 +1353,13 @@ static void do_material_tex(GPUShadeInput *shi)
 			     ((tex->type == TEX_ENVMAP) && (mtex->texco == TEXCO_REFL))))
 			{
 				if (tex->type == TEX_IMAGE) {
-					GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false), &tin, &trgb);
+					GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false),
+							 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma), &tin, &trgb);
 				}
 				else {
 					GPU_link(mat, "mtex_cube_map_refl",
 					         GPU_cube_map(tex->ima, &tex->iuser, false), shi->view, shi->vn,
+							 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma),
 					         GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
 					         GPU_builtin(GPU_VIEW_MATRIX), &tin, &trgb);
 				}
@@ -1453,7 +1455,8 @@ static void do_material_tex(GPUShadeInput *shi)
 
 					if (tex->imaflag & TEX_NORMALMAP) {
 						/* normalmap image */
-						GPU_link(mat, "mtex_normal", texco, GPU_image(tex->ima, &tex->iuser, true), &tnor);
+						GPU_link(mat, "mtex_normal", texco, GPU_image(tex->ima, &tex->iuser, true),
+								 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma), &tnor);
 						
 						if (mtex->norfac < 0.0f)
 							GPU_link(mat, "mtex_negate_texnormal", tnor, &tnor);
@@ -1602,25 +1605,30 @@ static void do_material_tex(GPUShadeInput *shi)
 							GPU_link(mat, "mtex_bump_deriv",
 							         texco, GPU_image(tex->ima, &tex->iuser, true),
 							         GPU_uniform(&ima_x), GPU_uniform(&ima_y), tnorfac,
+									 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma),
 							         &dBs, &dBt);
 						}
 						else if (mtex->texflag & MTEX_3TAP_BUMP)
 							GPU_link(mat, "mtex_bump_tap3",
 							         texco, GPU_image(tex->ima, &tex->iuser, true), tnorfac,
+									 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma),
 							         &dBs, &dBt);
 						else if (mtex->texflag & MTEX_5TAP_BUMP)
 							GPU_link(mat, "mtex_bump_tap5",
 							         texco, GPU_image(tex->ima, &tex->iuser, true), tnorfac,
+									 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma),
 							         &dBs, &dBt);
 						else if (mtex->texflag & MTEX_BICUBIC_BUMP) {
 							if (GPU_bicubic_bump_support()) {
 								GPU_link(mat, "mtex_bump_bicubic",
 								         texco, GPU_image(tex->ima, &tex->iuser, true), tnorfac,
+										 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma),
 								         &dBs, &dBt);
 							}
 							else {
 								GPU_link(mat, "mtex_bump_tap5",
 								         texco, GPU_image(tex->ima, &tex->iuser, true), tnorfac,
+										 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma),
 								         &dBs, &dBt);
 							}
 						}
@@ -1751,7 +1759,7 @@ void GPU_shadeinput_set(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 	GPU_link(mat, "set_value", GPU_select_uniform(&ma->emit, GPU_DYNAMIC_MAT_EMIT, NULL, ma), &shi->emit);
 	GPU_link(mat, "set_value", GPU_select_uniform(&mat->har, GPU_DYNAMIC_MAT_HARD, NULL, ma), &shi->har);
 	GPU_link(mat, "set_value", GPU_select_uniform(&ma->amb, GPU_DYNAMIC_MAT_AMB, NULL, ma), &shi->amb);
-	GPU_link(mat, "set_value", GPU_uniform(&ma->spectra), &shi->spectra);
+	GPU_link(mat, "set_value", GPU_select_uniform(&ma->spectra, GPU_DYNAMIC_MAT_SPECTRA, NULL, ma), &shi->spectra);
 	GPU_link(mat, "shade_view", GPU_builtin(GPU_VIEW_POSITION), &shi->view);
 	GPU_link(mat, "vcol_attribute", GPU_attribute(CD_MCOL, ""), &shi->vcol);
 	if (GPU_material_do_color_management(mat) && !(ma->sss_flag))
@@ -1844,7 +1852,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 			/* ambient color */
 			if (GPU_link_changed(shi->amb) || ma->amb != 0.0f || !(ma->constflag & MA_CONSTANT_MATERIAL)) {
-				GPU_link(mat, "shade_maddf", shr->combined, GPU_uniform(&ma->amb),
+				GPU_link(mat, "shade_maddf", shr->combined, GPU_select_uniform(&ma->amb, GPU_DYNAMIC_MAT_AMB, NULL, ma),
 				         GPU_select_uniform(GPUWorld.ambcol, GPU_DYNAMIC_AMBIENT_COLOR, NULL, ma),
 				         &shr->combined);
 			}
@@ -2044,9 +2052,9 @@ static void do_world_tex(GPUShadeInput *shi, struct World *wo, GPUNodeLink **hor
 			}
 			else {
 				if (tex->type == TEX_ENVMAP)
-					GPU_link(mat, "mtex_cube_map", texco, GPU_cube_map(tex->ima, &tex->iuser, false), &tin, &trgb);
+					GPU_link(mat, "mtex_cube_map", texco, GPU_cube_map(tex->ima, &tex->iuser, false), &zero, &tin, &trgb);
 				else if (tex->type == TEX_IMAGE)
-					GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false), &tin, &trgb);
+					GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false), &zero, &tin, &trgb);
 			}
 			rgbnor = TEX_RGB;
 			if (tex->type == TEX_IMAGE || tex->type == TEX_ENVMAP)

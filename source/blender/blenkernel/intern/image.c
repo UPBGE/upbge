@@ -366,8 +366,6 @@ static Image *image_alloc(Main *bmain, const char *name, short source, short typ
 		ima->source = source;
 		ima->type = type;
 
-		ima->flag |= IMA_USE_MIPMAP;
-
 		if (source == IMA_SRC_VIEWER)
 			ima->flag |= IMA_VIEW_AS_RENDER;
 
@@ -440,8 +438,6 @@ Image *BKE_image_copy(Main *bmain, Image *ima)
 
 	nima->aspx = ima->aspx;
 	nima->aspy = ima->aspy;
-
-	nima->lodbias = ima->lodbias;
 
 	BKE_color_managed_colorspace_settings_copy(&nima->colorspace_settings, &ima->colorspace_settings);
 

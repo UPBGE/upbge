@@ -431,6 +431,22 @@ SG_Controller *BL_CreateMaterialIpo(
 		ipocontr->AddInterpolator(interpolator);
 	}
 
+	if ((sinterp = adtList->GetScalarInterpolator("ambient", 0))) {
+		if (!ipocontr) {
+			ipocontr = new KX_MaterialIpoController(matname_hash);
+		}
+		interpolator = new KX_ScalarInterpolator(&ipocontr->m_ambient, sinterp);
+		ipocontr->AddInterpolator(interpolator);
+	}
+
+	if ((sinterp = adtList->GetScalarInterpolator("specular_alpha", 0))) {
+		if (!ipocontr) {
+			ipocontr = new KX_MaterialIpoController(matname_hash);
+		}
+		interpolator = new KX_ScalarInterpolator(&ipocontr->m_specAlpha, sinterp);
+		ipocontr->AddInterpolator(interpolator);
+	}
+
 	if (ipocontr) {
 		ipocontr->m_rgba[0]	= blendermaterial->r;
 		ipocontr->m_rgba[1]	= blendermaterial->g;
@@ -445,6 +461,7 @@ SG_Controller *BL_CreateMaterialIpo(
 		ipocontr->m_spec		= blendermaterial->spec;
 		ipocontr->m_ref			= blendermaterial->ref;
 		ipocontr->m_emit		= blendermaterial->emit;
+		ipocontr->m_ambient		= blendermaterial->amb;
 		ipocontr->m_alpha		= blendermaterial->alpha;
 	}
 

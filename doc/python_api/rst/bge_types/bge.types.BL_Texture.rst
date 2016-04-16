@@ -75,6 +75,12 @@ base class --- :class:`CValue`
 
       :type: float
 
+   .. attribute:: lodbias
+
+      Amount of lodbias on the texture.
+
+      :type: float
+
    .. attribute:: bindcode
 
       Texture bind code/Id/number.
