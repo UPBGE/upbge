@@ -95,10 +95,10 @@ typedef struct MTex {
 	/* world */
 	float zenupfac, zendownfac, blendfac;
 
-	/* parallax */
-	short parflag, pad3[3];
+	float lodbias;
 
-	float lodbias, pad4;
+	/* parallax */
+	short parflag, pad3;
 } MTex;
 
 #ifndef DNA_USHORT_FIX
