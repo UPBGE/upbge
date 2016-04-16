@@ -31,7 +31,7 @@
 
 #include "GPU_texture.h"
 
-BL_Texture::BL_Texture(MTex *mtex, bool cubemap, bool mipmap)
+BL_Texture::BL_Texture(MTex *mtex, bool cubemap)
 	:CValue(),
 	m_bindcode(-1),
 	m_mtex(mtex),
@@ -42,7 +42,7 @@ BL_Texture::BL_Texture(MTex *mtex, bool cubemap, bool mipmap)
 	ImageUser& iuser = tex->iuser;
 	const int gltextarget = cubemap ? GL_TEXTURE_CUBE_MAP_ARB : GL_TEXTURE_2D;
 
-	m_gputex = ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, mipmap) : NULL;
+	m_gputex = ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : NULL;
 
 	// Initialize saved data.
 	m_mtexname = STR_String(m_mtex->tex->id.name + 2);

@@ -849,7 +849,7 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *rect, float *frect, int
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));
 
-		if (GPU_get_mipmap() && mipmap && ima->flag & IMA_USE_MIPMAP) {
+		if (GPU_get_mipmap() && mipmap) {
 			if (GTS.gpu_mipmap) {
 				gpu_generate_mipmap(GL_TEXTURE_2D);
 			}
@@ -879,7 +879,6 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *rect, float *frect, int
 				}
 			}
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gpu_get_mipmap_filter(0));
-			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, ima->lodbias);
 			if (ima)
 				ima->tpageflag |= IMA_MIPMAP_COMPLETE;
 		}
