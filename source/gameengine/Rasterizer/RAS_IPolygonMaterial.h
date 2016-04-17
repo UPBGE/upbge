@@ -38,6 +38,8 @@
 #include "MEM_guardedalloc.h"
 #endif
 
+#include "MT_Vector4.h"
+
 class RAS_IRasterizer;
 class RAS_MeshSlot;
 struct MTexPoly;
@@ -144,6 +146,9 @@ public:
 	virtual bool UsesObjectColor() const;
 	virtual bool CastsShadows() const;
 	virtual bool OnlyShadow() const;
+
+	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
+						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha) = 0;
 
 	/// Overridden by KX_BlenderMaterial
 	virtual void Replace_IScene(SCA_IScene *val) = 0;

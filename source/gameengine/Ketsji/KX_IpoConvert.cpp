@@ -359,7 +359,7 @@ SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, 
 SG_Controller *BL_CreateMaterialIpo(
 	struct bAction *action,
 	Material* blendermaterial,
-	dword matname_hash,
+	RAS_IPolyMaterial *polymat,
 	KX_GameObject* gameobj,  
 	KX_BlenderSceneConverter *converter
 	)
@@ -374,7 +374,7 @@ SG_Controller *BL_CreateMaterialIpo(
 	for (int i=0; i<3; i++) {
 		if ((sinterp = adtList->GetScalarInterpolator("diffuse_color", i))) {
 			if (!ipocontr) {
-				ipocontr = new KX_MaterialIpoController(matname_hash);
+				ipocontr = new KX_MaterialIpoController(polymat);
 			}
 			interpolator= new KX_ScalarInterpolator(&ipocontr->m_rgba[i], sinterp);
 			ipocontr->AddInterpolator(interpolator);
@@ -383,7 +383,7 @@ SG_Controller *BL_CreateMaterialIpo(
 
 	if ((sinterp = adtList->GetScalarInterpolator("alpha", 0))) {
 		if (!ipocontr) {
-			ipocontr = new KX_MaterialIpoController(matname_hash);
+			ipocontr = new KX_MaterialIpoController(polymat);
 		}
 		interpolator= new KX_ScalarInterpolator(&ipocontr->m_rgba[3], sinterp);
 		ipocontr->AddInterpolator(interpolator);
@@ -392,7 +392,7 @@ SG_Controller *BL_CreateMaterialIpo(
 	for (int i=0; i<3; i++) {
 		if ((sinterp = adtList->GetScalarInterpolator("specular_color", i))) {
 			if (!ipocontr) {
-				ipocontr = new KX_MaterialIpoController(matname_hash);
+				ipocontr = new KX_MaterialIpoController(polymat);
 			}
 			interpolator= new KX_ScalarInterpolator(&ipocontr->m_specrgb[i], sinterp);
 			ipocontr->AddInterpolator(interpolator);
@@ -401,7 +401,7 @@ SG_Controller *BL_CreateMaterialIpo(
 
 	if ((sinterp = adtList->GetScalarInterpolator("specular_hardness", 0))) {
 		if (!ipocontr) {
-			ipocontr = new KX_MaterialIpoController(matname_hash);
+			ipocontr = new KX_MaterialIpoController(polymat);
 		}
 		interpolator= new KX_ScalarInterpolator(&ipocontr->m_hard, sinterp);
 		ipocontr->AddInterpolator(interpolator);
@@ -409,7 +409,7 @@ SG_Controller *BL_CreateMaterialIpo(
 
 	if ((sinterp = adtList->GetScalarInterpolator("specular_intensity", 0))) {
 		if (!ipocontr) {
-			ipocontr = new KX_MaterialIpoController(matname_hash);
+			ipocontr = new KX_MaterialIpoController(polymat);
 		}
 		interpolator= new KX_ScalarInterpolator(&ipocontr->m_spec, sinterp);
 		ipocontr->AddInterpolator(interpolator);
@@ -417,7 +417,7 @@ SG_Controller *BL_CreateMaterialIpo(
 
 	if ((sinterp = adtList->GetScalarInterpolator("diffuse_intensity", 0))) {
 		if (!ipocontr) {
-			ipocontr = new KX_MaterialIpoController(matname_hash);
+			ipocontr = new KX_MaterialIpoController(polymat);
 		}
 		interpolator= new KX_ScalarInterpolator(&ipocontr->m_ref, sinterp);
 		ipocontr->AddInterpolator(interpolator);
@@ -425,7 +425,7 @@ SG_Controller *BL_CreateMaterialIpo(
 
 	if ((sinterp = adtList->GetScalarInterpolator("emit", 0))) {
 		if (!ipocontr) {
-			ipocontr = new KX_MaterialIpoController(matname_hash);
+			ipocontr = new KX_MaterialIpoController(polymat);
 		}
 		interpolator= new KX_ScalarInterpolator(&ipocontr->m_emit, sinterp);
 		ipocontr->AddInterpolator(interpolator);
@@ -433,7 +433,7 @@ SG_Controller *BL_CreateMaterialIpo(
 
 	if ((sinterp = adtList->GetScalarInterpolator("ambient", 0))) {
 		if (!ipocontr) {
-			ipocontr = new KX_MaterialIpoController(matname_hash);
+			ipocontr = new KX_MaterialIpoController(polymat);
 		}
 		interpolator = new KX_ScalarInterpolator(&ipocontr->m_ambient, sinterp);
 		ipocontr->AddInterpolator(interpolator);
@@ -441,7 +441,7 @@ SG_Controller *BL_CreateMaterialIpo(
 
 	if ((sinterp = adtList->GetScalarInterpolator("specular_alpha", 0))) {
 		if (!ipocontr) {
-			ipocontr = new KX_MaterialIpoController(matname_hash);
+			ipocontr = new KX_MaterialIpoController(polymat);
 		}
 		interpolator = new KX_ScalarInterpolator(&ipocontr->m_specAlpha, sinterp);
 		ipocontr->AddInterpolator(interpolator);

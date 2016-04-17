@@ -12,7 +12,7 @@
 #include "SG_Spatial.h"
 #include "KX_IInterpolator.h"
 
-#include "STR_String.h" //typedef dword
+class RAS_IPolyMaterial;
 
 class KX_MaterialIpoController : public SG_Controller
 {
@@ -32,12 +32,12 @@ private:
 	bool				m_modified;
 
 	double		        m_ipotime;
-	dword				m_matname_hash;
+	RAS_IPolyMaterial *m_material;
 public:
-	KX_MaterialIpoController(dword matname_hash) : 
+	KX_MaterialIpoController(RAS_IPolyMaterial *polymat) : 
 				m_modified(true),
 				m_ipotime(0.0),
-				m_matname_hash(matname_hash)
+				m_material(polymat)
 		{}
 	virtual ~KX_MaterialIpoController();
 	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);

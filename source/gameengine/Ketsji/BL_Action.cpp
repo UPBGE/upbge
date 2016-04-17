@@ -38,6 +38,7 @@
 
 // These three are for getting the action from the logic manager
 #include "KX_Scene.h"
+#include "KX_BlenderSceneConverter.h"
 #include "SCA_LogicManager.h"
 
 extern "C" {
@@ -180,31 +181,23 @@ bool BL_Action::Play(const char* name,
 	}
 
 	// Now try materials
-	if (m_obj->GetBlenderObject()->totcol==1) {
-		Material *mat = give_current_material(m_obj->GetBlenderObject(), 1);
-		if (mat) {
-			sg_contr = BL_CreateMaterialIpo(m_action, mat, 0, m_obj, kxscene->GetSceneConverter());
-			if (sg_contr) {
-				m_sg_contr_list.push_back(sg_contr);
-				m_obj->GetSGNode()->AddSGController(sg_contr);
-				sg_contr->SetObject(m_obj->GetSGNode());
-			}
+	for (int matidx = 1; matidx <= m_obj->GetBlenderObject()->totcol; ++matidx) {
+		Material *mat = give_current_material(m_obj->GetBlenderObject(), matidx);
+		if (!mat) {
+			continue;
 		}
-	} else {
-		Material *mat;
-		STR_HashedString matname;
 
-		for (int matidx = 1; matidx <= m_obj->GetBlenderObject()->totcol; ++matidx) {
-			mat = give_current_material(m_obj->GetBlenderObject(), matidx);
-			if (mat) {
-				matname = mat->id.name;
-				sg_contr = BL_CreateMaterialIpo(m_action, mat, matname.hash(), m_obj, kxscene->GetSceneConverter());
-				if (sg_contr) {
-					m_sg_contr_list.push_back(sg_contr);
-					m_obj->GetSGNode()->AddSGController(sg_contr);
-					sg_contr->SetObject(m_obj->GetSGNode());
-				}
-			}
+		KX_BlenderSceneConverter *converter = kxscene->GetSceneConverter();
+		RAS_IPolyMaterial *polymat = converter->FindCachedPolyMaterial(kxscene, mat);
+		if (!polymat) {
+			continue;
+		}
+
+		sg_contr = BL_CreateMaterialIpo(m_action, mat, polymat, m_obj, converter);
+		if (sg_contr) {
+			m_sg_contr_list.push_back(sg_contr);
+			m_obj->GetSGNode()->AddSGController(sg_contr);
+			sg_contr->SetObject(m_obj->GetSGNode());
 		}
 	}
 

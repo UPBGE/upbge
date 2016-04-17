@@ -74,11 +74,8 @@ public:
 		return m_blendFunc;
 	}
 	// for ipos
-	void UpdateIPO(
-	    MT_Vector4 rgba, MT_Vector3 specrgb,
-	    MT_Scalar hard, MT_Scalar spec,
-	    MT_Scalar ref, MT_Scalar emit, MT_Scalar ambient,
-		MT_Scalar alpha, MT_Scalar specalpha);
+	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
+						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha);
 
 	virtual void Replace_IScene(SCA_IScene *val);
 

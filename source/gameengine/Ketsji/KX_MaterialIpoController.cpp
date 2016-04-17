@@ -26,6 +26,8 @@
 #include "KX_ScalarInterpolator.h"
 #include "KX_GameObject.h"
 
+#include "RAS_IPolygonMaterial.h"
+
 #include "BLI_sys_types.h" // for intptr_t support
 
 bool KX_MaterialIpoController::Update(double currentTime)
@@ -36,14 +38,8 @@ bool KX_MaterialIpoController::Update(double currentTime)
 		for (i = m_interpolators.begin(); !(i == m_interpolators.end()); ++i) {
 			(*i)->Execute(m_ipotime);
 		}
-		
 
-		SG_Spatial* ob = (SG_Spatial*)m_pObject;
-		KX_GameObject* kxgameobj= (KX_GameObject*) ob->GetSGClientObject();
-
-		//kxgameobj->SetObjectColor(m_rgba);
-		kxgameobj->UpdateMaterialData( 
-			m_matname_hash,
+		m_material->UpdateIPO(
 			m_rgba, 
 			m_specrgb, 
 			m_hard, 

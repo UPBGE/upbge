@@ -755,22 +755,6 @@ public:
 		float curframetime,
 		bool recurse
 	);
-	/**
-	 * Updates Material Ipo data 
-	 */
-		void 
-	UpdateMaterialData(
-		dword matname_hash,
-		MT_Vector4 rgba,
-		MT_Vector3 specrgb,
-		MT_Scalar hard,
-		MT_Scalar spec,
-		MT_Scalar ref,
-		MT_Scalar emit,
-		MT_Scalar ambient,
-		MT_Scalar alpha,
-		MT_Scalar specalpha
-	);
 
 	/**
 	 * \section Mesh accessor functions.

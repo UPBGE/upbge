@@ -37,6 +37,7 @@ struct bAction;
 class SG_Controller;
 class KX_GameObject;
 class KX_BlenderSceneConverter;
+class RAS_IPolyMaterial;
 
 SG_Controller *BL_CreateIPO(bAction *action,
 	KX_GameObject* gameobj,
@@ -61,7 +62,7 @@ SG_Controller *BL_CreateCameraIPO(bAction *action,
 SG_Controller *BL_CreateMaterialIpo(
 	bAction *action,
 	struct Material* blendermaterial,
-	dword matname_hash,
+	RAS_IPolyMaterial *polymat,
 	KX_GameObject* gameobj,
 	KX_BlenderSceneConverter *converter);
 
