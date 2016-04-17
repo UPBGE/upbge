@@ -2050,7 +2050,8 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"replaceMesh",(PyCFunction) KX_GameObject::sPyReplaceMesh, METH_VARARGS},
 	{"endObject",(PyCFunction) KX_GameObject::sPyEndObject, METH_NOARGS},
 	{"reinstancePhysicsMesh", (PyCFunction)KX_GameObject::sPyReinstancePhysicsMesh,METH_VARARGS},
-	
+	{"replacePhysicsShape", (PyCFunction)KX_GameObject::sPyReplacePhysicsShape, METH_O},
+
 	KX_PYMETHODTABLE(KX_GameObject, rayCastTo),
 	KX_PYMETHODTABLE(KX_GameObject, rayCast),
 	KX_PYMETHODTABLE_O(KX_GameObject, getDistanceTo),
@@ -2173,6 +2174,23 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args)
 		Py_RETURN_TRUE;
 
 	Py_RETURN_FALSE;
+}
+
+PyObject *KX_GameObject::PyReplacePhysicsShape(PyObject *value)
+{
+	KX_GameObject *gameobj;
+
+	if (!ConvertPythonToGameObject(value, &gameobj, false, "gameOb.replacePhysicsShape(obj): KX_GameObject")) {
+		return NULL;
+	}
+
+	if (!GetPhysicsController() || !gameobj->GetPhysicsController()) {
+		PyErr_SetString(PyExc_AttributeError, "gameOb.replacePhysicsShape(obj): function only available for objects with collisions enabled");
+		return NULL;
+	}
+
+	GetPhysicsController()->ReplacePhysicsShape(gameobj->GetPhysicsController());
+	Py_RETURN_NONE;
 }
 
 static PyObject *Map_GetItem(PyObject *self_v, PyObject *item)

@@ -1634,6 +1634,20 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, R
 	return true;
 }
 
+void CcdPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
+{
+	CcdShapeConstructionInfo *shapeInfo = ((CcdPhysicsController *)phyctrl)->GetShapeInfo();
+
+	// switch shape info
+	m_shapeInfo->Release();
+	m_shapeInfo = shapeInfo->AddRef();
+
+	// recreate Bullet shape only for this physics controller
+	ReplaceControllerShape(NULL);
+	// refresh to remove collision pair
+	GetPhysicsEnvironment()->RefreshCcdPhysicsController(this);
+}
+
 void CcdPhysicsController::ReplicateConstraints(KX_GameObject *replica, std::vector<KX_GameObject *> constobj)
 {
 	if (replica->GetConstraints().size() == 0 || !replica->GetPhysicsController())

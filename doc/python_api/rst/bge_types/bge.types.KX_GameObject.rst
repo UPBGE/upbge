@@ -935,6 +935,17 @@ base class --- :class:`SCA_IObject`
 
          Rebuilding the physics mesh can be slow, running many times per second will give a performance hit.
 
+      .. warning::
+
+         Duplicate the physics mesh can use much more memory, use this option only for duplicated meshes else use :py:meth:`replacePhysicsShape`.
+
+   .. method:: replacePhysicsShape(gameObject)
+
+      Replace the current physics shape.
+
+      :arg gameObject: set the physics shape from this gameObjets.
+      :type gameObject: string, :class:`KX_GameObject`
+
    .. method:: get(key, default=None)
 
       Return the value matching key, or the default value if its not found.
