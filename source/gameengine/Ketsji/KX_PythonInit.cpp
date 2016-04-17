@@ -897,6 +897,23 @@ static PyObject *gPyGetWindowWidth(PyObject *, PyObject *args)
 	return PyLong_FromLong((canvas ? canvas->GetWidth() : 0));
 }
 
+static PyObject *gPySetBackgroundColor(PyObject *, PyObject *value)
+{
+	MT_Vector4 vec;
+	if (!PyVecTo(value, vec))
+		return NULL;
+	
+	KX_WorldInfo *wi = KX_GetActiveScene()->GetWorldInfo();
+	if (!wi->hasWorld()) {
+		PyErr_SetString(PyExc_RuntimeError, "bge.render.SetBackgroundColor(color), World not available");
+		return NULL;
+	}
+	ShowDeprecationWarning("setBackgroundColor()", "KX_WorldInfo.horizonColor/zenithColor");
+	wi->setHorizonColor(vec.to3d());
+	wi->setZenithColor(vec.to3d());
+	Py_RETURN_NONE;
+}
+
 static PyObject *gPyEnableVisibility(PyObject *, PyObject *args)
 {
 	int visible;
@@ -1389,6 +1406,7 @@ static struct PyMethodDef rasterizer_methods[] = {
 	 METH_VARARGS, "showMouse(bool visible)"},
 	{"setMousePosition",(PyCFunction) gPySetMousePosition,
 	 METH_VARARGS, "setMousePosition(int x,int y)"},
+	{"setBackgroundColor", (PyCFunction)gPySetBackgroundColor, METH_O, "set Background Color (rgb)"},
 	{"enableMotionBlur",(PyCFunction)gPyEnableMotionBlur,METH_VARARGS,"enable motion blur"},
 	{"disableMotionBlur",(PyCFunction)gPyDisableMotionBlur,METH_NOARGS,"disable motion blur"},
 

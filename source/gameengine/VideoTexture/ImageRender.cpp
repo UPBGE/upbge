@@ -476,6 +476,17 @@ static int setZenith(PyImage *self, PyObject *value, void *closure)
 	return 0;
 }
 
+static PyObject *getBackground(PyImage *self, void *closure)
+{
+	ShowDeprecationWarning("Image.background", "Image.horizon/zenith");
+	return getHorizon(self, closure);
+}
+
+static int setBackground(PyImage *self, PyObject *value, void *closure)
+{
+	ShowDeprecationWarning("Image.background", "Image.horizon/zenith");
+	return (setHorizon(self, value, closure) && setZenith(self, value, closure));
+}
 
 // methods structure
 static PyMethodDef imageRenderMethods[] =
@@ -487,6 +498,7 @@ static PyMethodDef imageRenderMethods[] =
 static PyGetSetDef imageRenderGetSets[] =
 { 
 	{(char*)"horizon", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", NULL},
+	{(char*)"background", (getter)getBackground, (setter)setBackground, (char*)"horizon color", NULL}, //DEPRECATED use horizon instead
 	{(char*)"zenith", (getter)getZenith, (setter)setZenith, (char*)"zenith color", NULL},
 	// attribute from ImageViewport
 	{(char*)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char*)"size of render area", NULL},
@@ -651,6 +663,7 @@ static PyGetSetDef imageMirrorGetSets[] =
 	{(char*)"clip", (getter)getClip, (setter)setClip, (char*)"clipping distance", NULL},
 	// attribute from ImageRender
 	{(char*)"horizon", (getter)getHorizon, (setter)setHorizon, (char*)"horizon color", NULL},
+	{(char*)"background", (getter)getBackground, (setter)setBackground, (char*)"horizon color", NULL}, //DEPRECATED use horizon/zenith instead.
 	{(char*)"zenith", (getter)getZenith, (setter)setZenith, (char*)"zenith color", NULL},
 	// attribute from ImageViewport
 	{(char*)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char*)"size of render area", NULL},

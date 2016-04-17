@@ -260,6 +260,7 @@ PyAttributeDef KX_WorldInfo::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("KX_MIST_INV_QUADRATIC", KX_WorldInfo, pyattr_get_mist_typeconst),
 	KX_PYATTRIBUTE_RW_FUNCTION("mistColor", KX_WorldInfo, pyattr_get_mist_color, pyattr_set_mist_color),
 	KX_PYATTRIBUTE_RW_FUNCTION("horizonColor", KX_WorldInfo, pyattr_get_horizon_color, pyattr_set_horizon_color),
+	KX_PYATTRIBUTE_RW_FUNCTION("backgroundColor", KX_WorldInfo, pyattr_get_background_color, pyattr_set_background_color), // DEPRECATED use horizoncolor/zenithColor instead.
 	KX_PYATTRIBUTE_RW_FUNCTION("zenithColor", KX_WorldInfo, pyattr_get_zenith_color, pyattr_set_zenith_color),
 	KX_PYATTRIBUTE_RW_FUNCTION("ambientColor", KX_WorldInfo, pyattr_get_ambient_color, pyattr_set_ambient_color),
 	{ NULL } /* Sentinel */
@@ -500,6 +501,29 @@ int KX_WorldInfo::pyattr_set_horizon_color(void *self_v, const KX_PYATTRIBUTE_DE
 	if (PyVecTo(value, color))
 	{
 		self->setHorizonColor(color);
+		return PY_SET_ATTR_SUCCESS;
+	}
+	return PY_SET_ATTR_FAIL;
+}
+
+PyObject *KX_WorldInfo::pyattr_get_background_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	ShowDeprecationWarning("KX_WorldInfo.backgroundColor", "KX_WorldInfo.horizonColor/zenithColor");
+	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
+	return PyObjectFrom(MT_Vector3(self->m_horizoncolor));
+}
+
+int KX_WorldInfo::pyattr_set_background_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
+
+	ShowDeprecationWarning("KX_WorldInfo.backgroundColor", "KX_WorldInfo.horizonColor/zenithColor");
+
+	MT_Vector3 color;
+	if (PyVecTo(value, color))
+	{
+		self->setHorizonColor(color);
+		self->setZenithColor(color);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;

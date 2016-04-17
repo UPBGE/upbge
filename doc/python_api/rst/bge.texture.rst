@@ -378,6 +378,12 @@ Image classes
       
       :type: float list [r, g, b, a] in [0.0, 1.0]
 
+   .. attribute:: background
+
+      :type: float list [r, g, b, a] in [0.0, 1.0]
+
+      Deprecated use :py:meth:`bge.texture.ImageMirror.horizon` or :py:meth:`bge.texture.ImageMirror.zenith` instead.
+
    .. attribute:: capsize
 
       Size of render area.
@@ -577,6 +583,12 @@ Image classes
       Zenith color.
       
       :type: float list [r, g, b, a] in [0.0, 1.0]
+
+   .. attribute:: background
+
+      :type: float list [r, g, b, a] in [0.0, 1.0]
+
+      Deprecated use :py:meth:`bge.texture.ImageRender.horizon` or :py:meth:`bge.texture.ImageRender.zenith` instead.
 
    .. attribute:: capsize
 

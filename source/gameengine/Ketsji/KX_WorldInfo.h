@@ -104,6 +104,8 @@ public:
 	static int pyattr_set_mist_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_horizon_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_horizon_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_background_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_background_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_zenith_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_zenith_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_ambient_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
