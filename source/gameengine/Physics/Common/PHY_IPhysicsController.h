@@ -137,8 +137,6 @@ public:
 	virtual void SetAngularVelocityMax(float val) = 0;
 	virtual float GetAngularVelocityMax() const = 0;
 
-	MT_Vector3 GetWorldPosition(MT_Vector3& localpos);
-
 	// Shape control
 	virtual void AddCompoundChild(PHY_IPhysicsController *child) = 0;
 	virtual void RemoveCompoundChild(PHY_IPhysicsController *child) = 0;
