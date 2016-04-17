@@ -147,7 +147,7 @@ public:
 	virtual bool IsCompound() = 0;
 	virtual bool IsSuspended() const = 0;
 
-	virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_MeshObject *from_meshobj) = 0;
+	virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_MeshObject *from_meshobj, bool dupli = false) = 0;
 
 	/* Method to replicate rigid body joint contraints for group instances. */
 	virtual void ReplicateConstraints(KX_GameObject *gameobj, std::vector<KX_GameObject *> constobj) = 0;

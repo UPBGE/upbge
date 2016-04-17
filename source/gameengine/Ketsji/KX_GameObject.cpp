@@ -2156,19 +2156,20 @@ PyObject *KX_GameObject::PyReinstancePhysicsMesh(PyObject *args)
 {
 	KX_GameObject *gameobj= NULL;
 	RAS_MeshObject *mesh= NULL;
-	
+	int dupli = 0;
+
 	PyObject *gameobj_py= NULL;
 	PyObject *mesh_py= NULL;
 
-	if (	!PyArg_ParseTuple(args,"|OO:reinstancePhysicsMesh",&gameobj_py, &mesh_py) ||
-			(gameobj_py && !ConvertPythonToGameObject(gameobj_py, &gameobj, true, "gameOb.reinstancePhysicsMesh(obj, mesh): KX_GameObject")) || 
-			(mesh_py && !ConvertPythonToMesh(mesh_py, &mesh, true, "gameOb.reinstancePhysicsMesh(obj, mesh): KX_GameObject"))
-		) {
+	if (!PyArg_ParseTuple(args,"|OOi:reinstancePhysicsMesh",&gameobj_py, &mesh_py, &dupli) ||
+		(gameobj_py && !ConvertPythonToGameObject(gameobj_py, &gameobj, true, "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject")) ||
+		(mesh_py && !ConvertPythonToMesh(mesh_py, &mesh, true, "gameOb.reinstancePhysicsMesh(obj, mesh, dupli): KX_GameObject")))
+	{
 		return NULL;
 	}
 
 	/* gameobj and mesh can be NULL */
-	if (GetPhysicsController() && GetPhysicsController()->ReinstancePhysicsShape(gameobj, mesh))
+	if (GetPhysicsController() && GetPhysicsController()->ReinstancePhysicsShape(gameobj, mesh, dupli))
 		Py_RETURN_TRUE;
 
 	Py_RETURN_FALSE;

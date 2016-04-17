@@ -1611,13 +1611,19 @@ PHY_IPhysicsController *CcdPhysicsController::GetReplicaForSensors()
  *
  * Most of the logic behind this is in m_shapeInfo->UpdateMesh(...)
  */
-bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_MeshObject *from_meshobj)
+bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_MeshObject *from_meshobj, bool dupli)
 {
 	if (m_shapeInfo->m_shapeType != PHY_SHAPE_MESH)
 		return false;
 
 	if (!from_gameobj && !from_meshobj)
 		from_gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)GetNewClientInfo());
+
+	if (dupli && (m_shapeInfo->GetRefCount() > 1)) {
+		CcdShapeConstructionInfo *newShapeInfo = m_shapeInfo->GetReplica();
+		m_shapeInfo->Release();
+		m_shapeInfo = newShapeInfo;
+	}
 
 	/* updates the arrays used for making the new bullet mesh */
 	m_shapeInfo->UpdateMesh(from_gameobj, from_meshobj);
@@ -1728,6 +1734,28 @@ CcdShapeConstructionInfo *CcdShapeConstructionInfo::FindMesh(RAS_MeshObject *mes
 	if (mit != m_meshShapeMap.end())
 		return mit->second;
 	return NULL;
+}
+
+CcdShapeConstructionInfo *CcdShapeConstructionInfo::GetReplica()
+{
+	CcdShapeConstructionInfo *replica = new CcdShapeConstructionInfo(*this);
+	replica->ProcessReplica();
+	return replica;
+}
+
+void CcdShapeConstructionInfo::ProcessReplica()
+{
+	m_userData = NULL;
+	m_refCount = 1;
+	m_meshObject = NULL;
+	m_triangleIndexVertexArray = NULL;
+	m_forceReInstance = false;
+	m_shapeProxy = NULL;
+	m_vertexArray.clear();
+	m_polygonIndexArray.clear();
+	m_triFaceArray.clear();
+	m_triFaceUVcoArray.clear();
+	m_shapeArray.clear();
 }
 
 bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm, bool polytope)

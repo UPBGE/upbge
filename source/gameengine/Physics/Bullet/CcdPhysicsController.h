@@ -101,6 +101,11 @@ public:
 		return 0;
 	}
 
+	int GetRefCount() const
+	{
+		return m_refCount;
+	}
+
 	bool IsUnused(void)
 	{
 		return (m_meshObject == NULL && m_shapeArray.size() == 0 && m_shapeProxy == NULL);
@@ -155,6 +160,10 @@ public:
 	}
 
 	bool UpdateMesh(class KX_GameObject *gameobj, class RAS_MeshObject *mesh);
+
+	CcdShapeConstructionInfo *GetReplica();
+
+	void ProcessReplica();
 
 	bool SetProxy(CcdShapeConstructionInfo *shapeInfo);
 	CcdShapeConstructionInfo *GetProxy(void)
@@ -845,7 +854,7 @@ public:
 		return GetConstructionInfo().m_shapeInfo->m_shapeType == PHY_SHAPE_COMPOUND;
 	}
 
-	virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_MeshObject *from_meshobj);
+	virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_MeshObject *from_meshobj, bool dupli = false);
 
 	/* Method to replicate rigid body joint contraints for group instances. */
 	virtual void ReplicateConstraints(KX_GameObject *gameobj, std::vector<KX_GameObject *> constobj);
