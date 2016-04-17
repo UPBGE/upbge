@@ -33,19 +33,19 @@
 
 BL_Texture::BL_Texture(MTex *mtex, bool cubemap)
 	:CValue(),
-	m_bindcode(-1),
+	m_bindCode(-1),
 	m_mtex(mtex),
-	m_gputex(NULL)
+	m_gpuTex(NULL)
 {
 	Tex *tex = m_mtex->tex;
 	Image *ima = tex->ima;
 	ImageUser& iuser = tex->iuser;
 	const int gltextarget = cubemap ? GL_TEXTURE_CUBE_MAP_ARB : GL_TEXTURE_2D;
 
-	m_gputex = ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : NULL;
+	m_gpuTex = ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : NULL;
 
 	// Initialize saved data.
-	m_mtexname = STR_String(m_mtex->tex->id.name + 2);
+	m_mtexName = STR_String(m_mtex->tex->id.name + 2);
 	m_savedData.colintensfac = m_mtex->difffac;
 	m_savedData.colfac = m_mtex->colfac;
 	m_savedData.alphafac = m_mtex->alphafac;
@@ -59,9 +59,9 @@ BL_Texture::BL_Texture(MTex *mtex, bool cubemap)
 	m_savedData.parallaxstepfac = m_mtex->parallaxsteps;
 	m_savedData.lodbias = m_mtex->lodbias;
 	
-	if (m_gputex) {
-		m_bindcode = GPU_texture_opengl_bindcode(m_gputex);
-		m_savedData.bindcode = m_bindcode;
+	if (m_gpuTex) {
+		m_bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
+		m_savedData.bindcode = m_bindCode;
 	}
 }
 
@@ -81,19 +81,19 @@ BL_Texture::~BL_Texture()
 	m_mtex->parallaxsteps = m_savedData.parallaxstepfac;
 	m_mtex->lodbias = m_savedData.lodbias;
 
-	if (m_gputex) {
-		GPU_texture_set_opengl_bindcode(m_gputex, m_savedData.bindcode);
+	if (m_gpuTex) {
+		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
 	}
 }
 
 bool BL_Texture::Ok()
 {
-	return (m_gputex != NULL);
+	return (m_gpuTex != NULL);
 }
 
 unsigned int BL_Texture::GetTextureType() const
 {
-	return GPU_texture_target(m_gputex);
+	return GPU_texture_target(m_gpuTex);
 }
 
 int BL_Texture::GetMaxUnits()
@@ -107,20 +107,20 @@ void BL_Texture::ActivateTexture(int unit)
 	 * we should reapply the bindcode in case of VideoTexture owned texture.
 	 * Without that every material that use this GPUTexture will then use
 	 * the VideoTexture texture, it's not wanted. */
-	GPU_texture_set_opengl_bindcode(m_gputex, m_bindcode);
-	GPU_texture_bind(m_gputex, unit);
+	GPU_texture_set_opengl_bindcode(m_gpuTex, m_bindCode);
+	GPU_texture_bind(m_gpuTex, unit);
 }
 
 void BL_Texture::DisableTexture()
 {
-	GPU_texture_unbind(m_gputex);
+	GPU_texture_unbind(m_gpuTex);
 }
 
 unsigned int BL_Texture::swapTexture(unsigned int bindcode)
 {
 	// swap texture codes
-	unsigned int tmp = m_bindcode;
-	m_bindcode = bindcode;
+	unsigned int tmp = m_bindCode;
+	m_bindCode = bindcode;
 	// return original texture code
 	return tmp;
 }
@@ -148,7 +148,7 @@ double BL_Texture::GetNumber()
 
 STR_String &BL_Texture::GetName()
 {
-	return m_mtexname;
+	return m_mtexName;
 }
 
 void BL_Texture::SetName(const char *name)
@@ -201,7 +201,7 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxBump", BL_Texture, pyattr_get_parallax_bump, pyattr_set_parallax_bump),
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxStep", BL_Texture, pyattr_get_parallax_step, pyattr_set_parallax_step),
 	KX_PYATTRIBUTE_RW_FUNCTION("lodBias", BL_Texture, pyattr_get_lod_bias, pyattr_set_lod_bias),
-	KX_PYATTRIBUTE_INT_RO("bindcode", BL_Texture, m_bindcode),
+	KX_PYATTRIBUTE_INT_RO("bindCode", BL_Texture, m_bindCode),
 	{ NULL }    //Sentinel
 };
 

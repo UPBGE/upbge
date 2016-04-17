@@ -81,7 +81,7 @@ base class --- :class:`CValue`
 
       :type: float
 
-   .. attribute:: bindcode
+   .. attribute:: bindCode
 
       Texture bind code/Id/number.
 

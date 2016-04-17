@@ -15,10 +15,10 @@ class BL_Texture : public CValue
 {
 	Py_Header
 private:
-	int m_bindcode;
+	int m_bindCode;
 	MTex *m_mtex;
-	STR_String m_mtexname;
-	GPUTexture *m_gputex;
+	STR_String m_mtexName;
+	GPUTexture *m_gpuTex;
 
 	struct {
 		unsigned int bindcode;
