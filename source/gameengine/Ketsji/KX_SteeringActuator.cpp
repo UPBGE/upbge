@@ -582,7 +582,7 @@ int KX_SteeringActuator::pyattr_set_target(void *self, const struct KX_PYATTRIBU
 	KX_SteeringActuator* actuator = static_cast<KX_SteeringActuator*>(self);
 	KX_GameObject *gameobj;
 
-	if (!ConvertPythonToGameObject(value, &gameobj, true, "actuator.object = value: KX_SteeringActuator"))
+	if (!ConvertPythonToGameObject(actuator->GetLogicManager(), value, &gameobj, true, "actuator.object = value: KX_SteeringActuator"))
 		return PY_SET_ATTR_FAIL; // ConvertPythonToGameObject sets the error
 
 	if (actuator->m_target != NULL)
@@ -610,7 +610,7 @@ int KX_SteeringActuator::pyattr_set_navmesh(void *self, const struct KX_PYATTRIB
 	KX_SteeringActuator* actuator = static_cast<KX_SteeringActuator*>(self);
 	KX_GameObject *gameobj;
 
-	if (!ConvertPythonToGameObject(value, &gameobj, true, "actuator.object = value: KX_SteeringActuator"))
+	if (!ConvertPythonToGameObject(actuator->GetLogicManager(), value, &gameobj, true, "actuator.object = value: KX_SteeringActuator"))
 		return PY_SET_ATTR_FAIL; // ConvertPythonToGameObject sets the error
 
 	if (dynamic_cast<KX_NavMeshObject *>(gameobj) == NULL) {

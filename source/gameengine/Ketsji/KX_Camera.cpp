@@ -1034,7 +1034,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 	{
 		PyErr_Clear();
 
-		if (ConvertPythonToGameObject(value, &obj, false, ""))
+		if (ConvertPythonToGameObject(GetScene()->GetLogicManager(), value, &obj, false, ""))
 		{
 			PyErr_Clear();
 			vect = MT_Vector3(obj->NodeGetWorldPosition());

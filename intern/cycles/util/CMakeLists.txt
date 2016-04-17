@@ -73,11 +73,13 @@ set(SRC_HEADERS
 	util_string.h
 	util_system.h
 	util_task.h
+	util_texture.h
 	util_thread.h
 	util_time.h
 	util_transform.h
 	util_types.h
 	util_vector.h
+	util_version.h
 	util_view.h
 	util_windows.h
 	util_xml.h

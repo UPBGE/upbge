@@ -839,6 +839,14 @@ bool isect_seg_seg_v2_simple(const float v1[2], const float v2[2], const float v
  * \param l1, l2: Coordinates (point of line).
  * \param sp, r:  Coordinate and radius (sphere).
  * \return r_p1, r_p2: Intersection coordinates.
+ *
+ * \note The order of assignment for intersection points (\a r_p1, \a r_p2) is predictable,
+ * based on the direction defined by ``l2 - l1``,
+ * this direction compared with the normal of each point on the sphere:
+ * \a r_p1 always has a >= 0.0 dot product.
+ * \a r_p2 always has a <= 0.0 dot product.
+ * For example, when \a l1 is inside the sphere and \a l2 is outside,
+ * \a r_p1 will always be between \a l1 and \a l2.
  */
 int isect_line_sphere_v3(const float l1[3], const float l2[3],
                          const float sp[3], const float r,
@@ -2498,6 +2506,22 @@ float closest_to_line_v2(float r_close[2], const float p[2], const float l1[2], 
 	return lambda;
 }
 
+float ray_point_factor_v3_ex(
+        const float p[3], const float ray_origin[3], const float ray_direction[3],
+        const float epsilon, const float fallback)
+{
+	float p_relative[3];
+	sub_v3_v3v3(p_relative, p, ray_origin);
+	const float dot = len_squared_v3(ray_direction);
+	return (dot > epsilon) ? (dot_v3v3(ray_direction, p_relative) / dot) : fallback;
+}
+
+float ray_point_factor_v3(
+        const float p[3], const float ray_origin[3], const float ray_direction[3])
+{
+	return ray_point_factor_v3_ex(p, ray_origin, ray_direction, 0.0f, 0.0f);
+}
+
 /**
  * A simplified version of #closest_to_line_v3
  * we only need to return the ``lambda``
@@ -2517,8 +2541,8 @@ float line_point_factor_v3_ex(
 	return (dot_v3v3(u, h) / dot_v3v3(u, u));
 #else
 	/* better check for zero */
-	dot = dot_v3v3(u, u);
-	return (fabsf(dot) > epsilon) ? (dot_v3v3(u, h) / dot) : fallback;
+	dot = len_squared_v3(u);
+	return (dot > epsilon) ? (dot_v3v3(u, h) / dot) : fallback;
 #endif
 }
 float line_point_factor_v3(
@@ -2539,8 +2563,8 @@ float line_point_factor_v2_ex(
 	return (dot_v2v2(u, h) / dot_v2v2(u, u));
 #else
 	/* better check for zero */
-	dot = dot_v2v2(u, u);
-	return (fabsf(dot) > epsilon) ? (dot_v2v2(u, h) / dot) : fallback;
+	dot = len_squared_v2(u);
+	return (dot > epsilon) ? (dot_v2v2(u, h) / dot) : fallback;
 #endif
 }
 

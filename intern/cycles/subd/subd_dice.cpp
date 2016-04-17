@@ -58,10 +58,9 @@ void EdgeDice::reserve(int num_verts, int num_tris)
 
 int EdgeDice::add_vert(Patch *patch, float2 uv)
 {
-	float3 P, N, dPdu, dPdv;
+	float3 P, N;
 
-	patch->eval(&P, &dPdu, &dPdv, uv.x, uv.y);
-	N = normalize(cross(dPdu, dPdv));
+	patch->eval(&P, NULL, NULL, &N, uv.x, uv.y);
 
 	assert(vert_offset < params.mesh->verts.size());
 
@@ -81,7 +80,7 @@ int EdgeDice::add_vert(Patch *patch, float2 uv)
 
 void EdgeDice::add_triangle(Patch *patch, int v0, int v1, int v2)
 {
-	params.mesh->add_triangle(v0, v1, v2, params.shader, params.smooth);
+	params.mesh->add_triangle(v0, v1, v2, params.shader, params.smooth, false);
 
 	if(params.ptex) {
 		Attribute *attr_ptex_face_id = params.mesh->attributes.add(ATTR_STD_PTEX_FACE_ID);
@@ -159,7 +158,7 @@ float3 QuadDice::eval_projected(SubPatch& sub, float u, float v)
 	float2 uv = map_uv(sub, u, v);
 	float3 P;
 
-	sub.patch->eval(&P, NULL, NULL, uv.x, uv.y);
+	sub.patch->eval(&P, NULL, NULL, NULL, uv.x, uv.y);
 	if(params.camera)
 		P = transform_perspective(&params.camera->worldtoraster, P);
 
@@ -305,7 +304,12 @@ void QuadDice::dice(SubPatch& sub, EdgeFactors& ef)
 	int Mu = max(ef.tu0, ef.tu1);
 	int Mv = max(ef.tv0, ef.tv1);
 
+#if 0 /* Doesnt work very well, especially at grazing angles. */
 	float S = scale_factor(sub, ef, Mu, Mv);
+#else
+	float S = 1.0f;
+#endif
+
 	Mu = max((int)ceil(S*Mu), 2); // XXX handle 0 & 1?
 	Mv = max((int)ceil(S*Mv), 2); // XXX handle 0 & 1?
 

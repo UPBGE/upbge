@@ -37,9 +37,10 @@
 #include "SCA_IObject.h"
 
 class RAS_MeshObject;
+class SCA_LogicManager;
 
 // utility conversion function
-bool ConvertPythonToMesh(PyObject *value, RAS_MeshObject **object, bool py_none_ok, const char *error_prefix);
+bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, RAS_MeshObject **object, bool py_none_ok, const char *error_prefix);
 
 class KX_MeshProxy : public CValue
 {

@@ -45,6 +45,8 @@
 
 #include "KX_PyMath.h"
 
+#include "SCA_LogicManager.h"
+
 #include "EXP_PyObjectPlus.h"
 
 PyTypeObject KX_MeshProxy::Type = {
@@ -409,7 +411,7 @@ PyObject *KX_MeshProxy::pyattr_get_numPolygons(void *self_v, const KX_PYATTRIBUT
 }
 
 /* a close copy of ConvertPythonToGameObject but for meshes */
-bool ConvertPythonToMesh(PyObject *value, RAS_MeshObject **object, bool py_none_ok, const char *error_prefix)
+bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, RAS_MeshObject **object, bool py_none_ok, const char *error_prefix)
 {
 	if (value == NULL) {
 		PyErr_Format(PyExc_TypeError, "%s, python pointer NULL, should never happen", error_prefix);
@@ -430,8 +432,8 @@ bool ConvertPythonToMesh(PyObject *value, RAS_MeshObject **object, bool py_none_
 	}
 
 	if (PyUnicode_Check(value)) {
-		*object = (RAS_MeshObject *)SCA_ILogicBrick::m_sCurrentLogicManager->GetMeshByName(STR_String(_PyUnicode_AsString(value) ));
-
+		*object = (RAS_MeshObject*)logicmgr->GetMeshByName(STR_String(_PyUnicode_AsString(value)));
+		
 		if (*object) {
 			return true;
 		}

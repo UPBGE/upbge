@@ -55,7 +55,6 @@
 class MT_Vector4
 {
 public:
-    virtual ~MT_Vector4() {}
     explicit MT_Vector4() {}
     template <typename T>
     explicit MT_Vector4(const T *v) { setValue(v); }

@@ -6537,7 +6537,6 @@ static void menu_add_shortcut_cancel(struct bContext *C, void *arg1)
 static void popup_change_shortcut_func(bContext *C, void *arg1, void *UNUSED(arg2))
 {
 	uiBut *but = (uiBut *)arg1;
-	UI_but_tooltip_timer_remove(C, but);
 	UI_popup_block_invoke(C, menu_change_shortcut, but);
 }
 
@@ -6559,7 +6558,6 @@ static void remove_shortcut_func(bContext *C, void *arg1, void *UNUSED(arg2))
 static void popup_add_shortcut_func(bContext *C, void *arg1, void *UNUSED(arg2))
 {
 	uiBut *but = (uiBut *)arg1;
-	UI_but_tooltip_timer_remove(C, but);
 	UI_popup_block_ex(C, menu_add_shortcut, NULL, menu_add_shortcut_cancel, but);
 }
 
@@ -6608,8 +6606,6 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		return false;
 	}
 	
-	UI_but_tooltip_timer_remove(C, but);
-
 	/* highly unlikely getting the label ever fails */
 	UI_but_string_info_get(C, but, &label, NULL);
 
@@ -6778,10 +6774,19 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 			        ICON_NONE, "UI_OT_unset_property_button");
 		}
 		
+		if (is_array_component) {
+			uiItemBooleanO(layout, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Copy All To Selected"),
+			               ICON_NONE, "UI_OT_copy_to_selected_button", "all", true);
+			uiItemBooleanO(layout, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Copy Single To Selected"),
+			               ICON_NONE, "UI_OT_copy_to_selected_button", "all", false);
+		}
+		else {
+			uiItemBooleanO(layout, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Copy To Selected"),
+		                   ICON_NONE, "UI_OT_copy_to_selected_button", "all", true);
+		}
+
 		uiItemO(layout, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Copy Data Path"),
 		        ICON_NONE, "UI_OT_copy_data_path_button");
-		uiItemO(layout, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Copy To Selected"),
-		        ICON_NONE, "UI_OT_copy_to_selected_button");
 
 		uiItemS(layout);
 	}

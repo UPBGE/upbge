@@ -18,6 +18,7 @@
 #include "mesh.h"
 #include "object.h"
 #include "scene.h"
+#include "camera.h"
 
 #include "blender_sync.h"
 #include "blender_session.h"
@@ -617,18 +618,19 @@ static void create_mesh(Scene *scene,
 			if(is_zero(cross(mesh->verts[vi[1]] - mesh->verts[vi[0]], mesh->verts[vi[2]] - mesh->verts[vi[0]])) ||
 			   is_zero(cross(mesh->verts[vi[2]] - mesh->verts[vi[0]], mesh->verts[vi[3]] - mesh->verts[vi[0]])))
 			{
-				mesh->set_triangle(ti++, vi[0], vi[1], vi[3], shader, smooth);
-				mesh->set_triangle(ti++, vi[2], vi[3], vi[1], shader, smooth);
+				// TODO(mai): order here is probably wrong
+				mesh->set_triangle(ti++, vi[0], vi[1], vi[3], shader, smooth, true);
+				mesh->set_triangle(ti++, vi[2], vi[3], vi[1], shader, smooth, true);
 				face_flags[fi] |= FACE_FLAG_DIVIDE_24;
 			}
 			else {
-				mesh->set_triangle(ti++, vi[0], vi[1], vi[2], shader, smooth);
-				mesh->set_triangle(ti++, vi[0], vi[2], vi[3], shader, smooth);
+				mesh->set_triangle(ti++, vi[0], vi[1], vi[2], shader, smooth, true);
+				mesh->set_triangle(ti++, vi[0], vi[2], vi[3], shader, smooth, true);
 				face_flags[fi] |= FACE_FLAG_DIVIDE_13;
 			}
 		}
 		else
-			mesh->set_triangle(ti++, vi[0], vi[1], vi[2], shader, smooth);
+			mesh->set_triangle(ti++, vi[0], vi[1], vi[2], shader, smooth, false);
 
 		nverts[fi] = n;
 	}
@@ -655,48 +657,24 @@ static void create_mesh(Scene *scene,
 
 static void create_subd_mesh(Scene *scene,
                              Mesh *mesh,
+                             BL::Object b_ob,
                              BL::Mesh& b_mesh,
                              PointerRNA *cmesh,
                              const vector<uint>& used_shaders)
 {
-	/* create subd mesh */
-	SubdMesh sdmesh;
+	Mesh basemesh;
+	create_mesh(scene, &basemesh, b_mesh, used_shaders);
 
-	/* create vertices */
-	BL::Mesh::vertices_iterator v;
-
-	for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v)
-		sdmesh.add_vert(get_float3(v->co()));
-
-	/* create faces */
-	BL::Mesh::tessfaces_iterator f;
-
-	for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f) {
-		int4 vi = get_int4(f->vertices_raw());
-		int n = (vi[3] == 0) ? 3: 4;
-		//int shader = used_shaders[f->material_index()];
-
-		if(n == 4)
-			sdmesh.add_face(vi[0], vi[1], vi[2], vi[3]);
-		else
-			sdmesh.add_face(vi[0], vi[1], vi[2]);
-	}
-
-	/* finalize subd mesh */
-	sdmesh.finish();
-
-	/* parameters */
-	bool need_ptex = mesh->need_attribute(scene, ATTR_STD_PTEX_FACE_ID) ||
-	                 mesh->need_attribute(scene, ATTR_STD_PTEX_UV);
-
-	SubdParams sdparams(mesh, used_shaders[0], true, need_ptex);
+	SubdParams sdparams(mesh, used_shaders[0], true, false);
 	sdparams.dicing_rate = RNA_float_get(cmesh, "dicing_rate");
-	//scene->camera->update();
-	//sdparams.camera = scene->camera;
+
+	scene->camera->update();
+	sdparams.camera = scene->camera;
+	sdparams.objecttoworld = get_transform(b_ob.matrix_world());
 
 	/* tesselate */
 	DiagSplit dsplit(sdparams);
-	sdmesh.tessellate(&dsplit);
+	basemesh.tessellate(&dsplit);
 }
 
 /* Sync */
@@ -804,8 +782,8 @@ Mesh *BlenderSync::sync_mesh(BL::Object& b_ob,
 
 		if(b_mesh) {
 			if(render_layer.use_surfaces && !hide_tris) {
-				if(cmesh.data && experimental && RNA_boolean_get(&cmesh, "use_subdivision"))
-					create_subd_mesh(scene, mesh, b_mesh, &cmesh, used_shaders);
+				if(cmesh.data && experimental && RNA_enum_get(&cmesh, "subdivision_type"))
+					create_subd_mesh(scene, mesh, b_ob, b_mesh, &cmesh, used_shaders);
 				else
 					create_mesh(scene, mesh, b_mesh, used_shaders);
 

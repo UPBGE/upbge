@@ -52,8 +52,8 @@ struct PackedBVH {
 	array<int4> leaf_nodes;
 	/* object index to BVH node index mapping for instances */
 	array<int> object_node; 
-	/* precomputed triangle intersection data, one triangle is 4x float4 */
-	array<float4> tri_woop;
+	/* Aligned triangle storage for fatser lookup in the kernel. */
+	array<float4> tri_storage;
 	/* primitive type - triangle or strand */
 	array<int> prim_type;
 	/* visibility visibilitys for primitives */
@@ -67,13 +67,9 @@ struct PackedBVH {
 	/* index of the root node. */
 	int root_index;
 
-	/* surface area heuristic, for building top level BVH */
-	float SAH;
-
 	PackedBVH()
 	{
 		root_index = 0;
-		SAH = 0.0f;
 	}
 };
 
@@ -97,7 +93,7 @@ protected:
 
 	/* triangles and strands*/
 	void pack_primitives();
-	void pack_triangle(int idx, float4 woop[3]);
+	void pack_triangle(int idx, float4 storage[3]);
 
 	/* merge instance BVH's */
 	void pack_instances(size_t nodes_size, size_t leaf_nodes_size);

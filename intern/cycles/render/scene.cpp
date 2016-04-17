@@ -54,7 +54,7 @@ Scene::Scene(const SceneParams& params_, const DeviceInfo& device_info_)
 	mesh_manager = new MeshManager();
 	object_manager = new ObjectManager();
 	integrator = new Integrator();
-	image_manager = new ImageManager();
+	image_manager = new ImageManager(device_info_);
 	particle_system_manager = new ParticleSystemManager();
 	curve_system_manager = new CurveSystemManager();
 	bake_manager = new BakeManager();
@@ -64,9 +64,6 @@ Scene::Scene(const SceneParams& params_, const DeviceInfo& device_info_)
 		shader_manager = ShaderManager::create(this, params.shadingsystem);
 	else
 		shader_manager = ShaderManager::create(this, SHADINGSYSTEM_SVM);
-
-	/* Extended image limits for CPU and GPUs */
-	image_manager->set_extended_image_limits(device_info_);
 }
 
 Scene::~Scene()
@@ -217,13 +214,13 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel() || device->have_error()) return;
 
-	progress.set_status("Updating Film");
-	film->device_update(device, &dscene, this);
+	progress.set_status("Updating Integrator");
+	integrator->device_update(device, &dscene, this);
 
 	if(progress.get_cancel() || device->have_error()) return;
 
-	progress.set_status("Updating Integrator");
-	integrator->device_update(device, &dscene, this);
+	progress.set_status("Updating Film");
+	film->device_update(device, &dscene, this);
 
 	if(progress.get_cancel() || device->have_error()) return;
 

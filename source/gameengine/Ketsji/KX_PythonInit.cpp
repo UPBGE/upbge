@@ -382,15 +382,16 @@ static PyObject *gPySendMessage(PyObject *, PyObject *args)
 	char* to = (char *)"";
 	PyObject *pyfrom = Py_None;
 	KX_GameObject *from = NULL;
+	KX_Scene *scene = KX_GetActiveScene();
 
 	if (!PyArg_ParseTuple(args, "s|ssO:sendMessage", &subject, &body, &to, &pyfrom))
 		return NULL;
 
-	if (!ConvertPythonToGameObject(pyfrom, &from, true, "sendMessage(subject, [body, to, from]): \"from\" argument")) {
+	if (!ConvertPythonToGameObject(scene->GetLogicManager(), pyfrom, &from, true, "sendMessage(subject, [body, to, from]): \"from\" argument")) {
 		return NULL;
 	}
 
-	KX_GetActiveScene()->GetNetworkMessageScene()->SendMessage(to, from, subject, body);
+	scene->GetNetworkMessageScene()->SendMessage(to, from, subject, body);
 
 	Py_RETURN_NONE;
 }
