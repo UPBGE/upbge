@@ -555,8 +555,11 @@ void KX_GameObject::ProcessReplica()
 	if (m_attr_dict)
 		m_attr_dict= PyDict_Copy(m_attr_dict);
 #endif
-	// Reinitialize any components
-	InitComponents();
+
+	if (m_components) {
+		m_components->Release();
+	}
+	m_components = NULL;
 }
 
 static void setGraphicController_recursive(SG_Node* node)
@@ -1666,9 +1669,6 @@ void KX_GameObject::InitComponents()
 		return;
 	}
 
-	if (m_components) {
-		m_components->Release();
-	}
 	m_components = new CListValue();
 
 	while (pc) {

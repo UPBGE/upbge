@@ -988,6 +988,17 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 	{
 		DupliGroupRecurse(*git, 0);
 	}
+
+	// Initialize component in root parent object.
+	replica->InitComponents();
+	// Initialize components recursively.
+	CListValue *childrecursive = replica->GetChildrenRecursive();
+	for (CListValue::iterator it = childrecursive->GetBegin(), end = childrecursive->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = (KX_GameObject *)*it;
+		gameobj->InitComponents();
+	}
+	childrecursive->Release();
+
 	//	don't release replica here because we are returning it, not done with it...
 	return replica;
 }
