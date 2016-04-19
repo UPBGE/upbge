@@ -2216,12 +2216,10 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		gameobj->SetInitState((blenderobj->init_state)?blenderobj->init_state:blenderobj->state);
 	}
 	// apply the initial state to controllers, only on the active objects as this registers the sensors
-	// also, to avoid another loop, we initialze components here
 	for ( i=0;i<objectlist->GetCount();i++)
 	{
 		KX_GameObject* gameobj = static_cast<KX_GameObject*>(objectlist->GetValue(i));
 		gameobj->ResetState();
-		gameobj->InitComponents();
 	}
 
 	logicbrick_conversionlist->Release();
@@ -2242,6 +2240,13 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		{
 			kxscene->DupliGroupRecurse(gameobj, 0);
 		}
+	}
+
+	/* Initialize python components, use a fixed end iterator because some component can add object
+	 * and these objects are only at the end of the list. */
+	for (CListValue::iterator it = objectlist->GetBegin(), end = objectlist->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = (KX_GameObject *)*it;
+		gameobj->InitComponents();
 	}
 }
 
