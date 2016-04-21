@@ -305,8 +305,8 @@ void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 
 	int x = m_frame_rect.GetLeft();
 	int y = m_frame_rect.GetBottom();
-	int width = m_frame_rect.GetTop() - m_frame_rect.GetBottom();
-	int height = m_frame_rect.GetRight() - m_frame_rect.GetLeft();
+	int width = m_frame_rect.GetRight() - m_frame_rect.GetLeft();
+	int height = m_frame_rect.GetTop() - m_frame_rect.GetBottom();
 
 	pixeldata = m_rasterizer->MakeScreenshot(x, y, width, height);
 	if (!pixeldata) {
