@@ -454,6 +454,12 @@ base class --- :class:`SCA_IObject`
 
       :type: dict
 
+   .. attribute:: components
+
+      All python components.
+
+      :type: :class:`CListValue` of :class:`KX_PythonComponent`'s
+
    .. attribute:: children
 
       direct children of this object, (read-only).
