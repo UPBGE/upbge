@@ -90,14 +90,14 @@ void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskda
 	/* create and save imbuf */
 	ImBuf *ibuf = IMB_allocImBuf(task->dumpsx, task->dumpsy, 24, 0);
 	ibuf->rect = task->dumprect;
-
+	
 	BKE_imbuf_write_as(ibuf, task->path, task->im_format, false);
-
-	ibuf->rect = NULL;
-	IMB_freeImBuf(ibuf);
-	MEM_freeN(task->dumprect);
 	MEM_freeN(task->path);
-	MEM_freeN(task->im_format);
+	task->path = NULL;
+	ibuf->rect = NULL;
+	task->im_format = NULL;
+	task->dumprect = NULL;
+	IMB_freeImBuf(ibuf);
 }
 
 
