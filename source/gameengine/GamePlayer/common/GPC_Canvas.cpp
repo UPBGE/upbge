@@ -157,14 +157,13 @@ MakeScreenShot(
 	// copy image data
 	unsigned int dumpsx = GetWidth();
 	unsigned int dumpsy = GetHeight();
-	unsigned int *pixels = (unsigned int *)MEM_mallocN(sizeof(int) * dumpsx * dumpsy, "pixels");
+
+	unsigned int *pixels = m_rasterizer->MakeScreenshot(0, 0, dumpsx, dumpsy);
 
 	if (!pixels) {
 		std::cout << "Cannot allocate pixels array" << std::endl;
 		return;
 	}
-
-	pixels = m_rasterizer->MakeScreenshot(0, 0, dumpsx, dumpsy);
 
 	// initialize image file format data
 	ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData), "im_format");

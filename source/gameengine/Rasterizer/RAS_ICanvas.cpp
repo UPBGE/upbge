@@ -40,6 +40,7 @@ extern "C" {
 #include "IMB_imbuf_types.h"
 }
 
+#include <stdlib.h> // for free()
 
 // Task data for saving screenshots in a different thread.
 struct ScreenshotTaskData
@@ -95,7 +96,8 @@ void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskda
 
 	ibuf->rect = NULL;
 	IMB_freeImBuf(ibuf);
-	MEM_freeN(task->dumprect);
+	// Dumprect is allocated in RAS_OpenGLRasterizer::MakeScreenShot with malloc(), we must use free() then.
+	free(task->dumprect);
 	MEM_freeN(task->path);
 	MEM_freeN(task->im_format);
 }
