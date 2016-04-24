@@ -11,6 +11,8 @@ base class --- :class:`CValue`
    The python component is a script loaded in the UI, this script defined a component class by inheriting from :class:`KX_PythonComponent`.
    This class must contain a dictionnary of properties: :attr:`args` and two default functions: :meth:`start` and :meth:`update`.
 
+   The script must have .py extension.
+
    The component properties are loaded from the :attr:`args` attribut from the UI at loading time.
    When the game start the function :meth:`start` is called with as arguments a dictionnary of the properties' name and value.
    The :meth:`update` function is called every frames during the logic stage before running logics bricks,
