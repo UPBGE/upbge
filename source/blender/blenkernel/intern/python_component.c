@@ -369,13 +369,15 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 			PyDict_DelItemString(sys_modules, pc->module); \
 		} \
 		Py_XDECREF(mod); \
+		if (item) \
+			Py_XDECREF(item); \
 		PyDict_DelItemString(sys_modules, "bge"); \
 		PyDict_DelItemString(sys_modules, "bge.types"); \
 		PySequence_DelItem(sys_path, 0); \
 		PyGILState_Release(state); \
 		return value;
 
-	PyObject *mod, *item, *sys_path, *pypath, *sys_modules, *bgemod, *bgesubmod;
+	PyObject *mod, *item = NULL, *sys_path, *pypath, *sys_modules, *bgemod, *bgesubmod;
 	PyGILState_STATE state;
 	char path[FILE_MAX];
 
