@@ -40,6 +40,7 @@ public:
 			KX_Scene *scene,
 			BL_Material *mat,
 			GameSettings *game,
+			MTexPoly *mtexpoly,
 			int lightlayer);
 
 	virtual ~KX_BlenderMaterial();
@@ -126,6 +127,7 @@ public:
 
 private:
 	BL_Material *m_material;
+	MTexPoly *m_mtexPoly;
 	BL_Shader *m_shader;
 	BL_BlenderShader *m_blenderShader;
 	KX_Scene *m_scene;

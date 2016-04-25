@@ -61,6 +61,7 @@ KX_BlenderMaterial::KX_BlenderMaterial()
 	: PyObjectPlus(),
 	RAS_IPolyMaterial(),
 	m_material(NULL),
+	m_mtexPoly(NULL),
 	m_shader(NULL),
 	m_blenderShader(NULL),
 	m_scene(NULL),
@@ -77,6 +78,7 @@ void KX_BlenderMaterial::Initialize(
     KX_Scene *scene,
     BL_Material *data,
     GameSettings *game,
+	MTexPoly *mtexpoly,
     int lightlayer)
 {
 	RAS_IPolyMaterial::Initialize(
@@ -113,6 +115,7 @@ void KX_BlenderMaterial::Initialize(
 	m_modified = false;
 	m_constructed = false;
 	m_lightLayer = lightlayer;
+	m_mtexPoly = mtexpoly;
 	// --------------------------------
 	// RAS_IPolyMaterial variables...
 	m_flag |= ((m_material->ras_mode & USE_LIGHT) != 0) ? RAS_MULTILIGHT : 0;
@@ -156,7 +159,7 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 MTexPoly *KX_BlenderMaterial::GetMTexPoly() const
 {
 	// fonts on polys
-	return &m_material->mtexpoly;
+	return m_mtexPoly;
 }
 
 BL_Texture *KX_BlenderMaterial::GetTex(unsigned int idx)
@@ -189,7 +192,7 @@ Material *KX_BlenderMaterial::GetBlenderMaterial() const
 
 Image *KX_BlenderMaterial::GetBlenderImage() const
 {
-	return m_material->mtexpoly.tpage;
+	return (m_mtexPoly ? m_mtexPoly->tpage : NULL);
 }
 
 Scene *KX_BlenderMaterial::GetBlenderScene() const

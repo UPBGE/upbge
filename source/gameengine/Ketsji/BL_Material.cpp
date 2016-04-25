@@ -41,5 +41,4 @@ void BL_Material::Initialize()
 	matname = "NoMaterial";
 	alphablend = 0;
 	material = 0;
-	memset(&mtexpoly, 0, sizeof(mtexpoly));
 }
