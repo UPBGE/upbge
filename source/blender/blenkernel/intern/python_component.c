@@ -369,7 +369,6 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 			PyDict_DelItemString(sys_modules, pc->module); \
 		} \
 		Py_XDECREF(mod); \
-		Py_XDECREF(item); \
 		PyDict_DelItemString(sys_modules, "bge"); \
 		PyDict_DelItemString(sys_modules, "bge.types"); \
 		PySequence_DelItem(sys_path, 0); \
