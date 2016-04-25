@@ -434,7 +434,7 @@ typedef struct MTF_localLayer {
 	const char *name;
 } MTF_localLayer;
 
-static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Vector2 uvs[4][MAXTEX])
+static void GetUVs(MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Vector2 uvs[4][MAXTEX])
 {
 	if (tface) {
 		uvs[0][0].setValue(tface->uv[0]);
@@ -467,22 +467,22 @@ static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, 
 	}
 }
 
-// ------------------------------------
-static bool ConvertMaterial(
-	BL_Material *material,
+static KX_BlenderMaterial *ConvertMaterial(
 	Material *mat,
 	MTFace *tface,
 	const char *tfaceName,
 	MFace *mface,
 	MCol *mmcol,
-	MTF_localLayer *layers)
+	MTF_localLayer *layers,
+	int lightlayer,
+	KX_Scene *scene)
 {
-	material->Initialize();
 	int texalpha = 0;
 	const bool validmat  = (mat != NULL);
 	const bool validface = (tface != NULL);
 
-	// --------------------------------
+	BL_Material *material = new BL_Material(); // WARNING non freed.
+
 	if (validmat) {
 
 		// use lighting?
@@ -548,38 +548,25 @@ static bool ConvertMaterial(
 		memset(&material->mtexpoly, 0, sizeof(material->mtexpoly));
 	}
 	material->material = mat;
-	return true;
+
+	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial();
+	kx_blmat->Initialize(scene, material, (mat ? &mat->game : NULL), lightlayer);
+
+	return kx_blmat;
 }
 
 static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace *tface, MCol *mcol, MTF_localLayer *layers, int lightlayer, unsigned int *rgb, MT_Vector2 uvs[4][RAS_TexVert::MAX_UNIT], const char *tfaceName, KX_Scene* scene, KX_BlenderSceneConverter *converter)
 {
 	RAS_IPolyMaterial* polymat = converter->FindCachedPolyMaterial(scene, ma);
-	BL_Material* bl_mat = converter->FindCachedBlenderMaterial(scene, ma);
-	KX_BlenderMaterial* kx_blmat = NULL;
-
-	/* first is the BL_Material */
-	if (!bl_mat)
-	{
-		bl_mat = new BL_Material();
-
-		ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol, layers);
-
-		converter->CacheBlenderMaterial(scene, ma, bl_mat);
-	}
 
 	if (mface) {
 		GetRGB(mface, mcol, ma, rgb);
 
-		GetUVs(bl_mat, layers, mface, tface, uvs);
+		GetUVs(layers, mface, tface, uvs);
 	}
 
-	/* then the KX_BlenderMaterial */
-	if (polymat == NULL)
-	{
-		kx_blmat = new KX_BlenderMaterial();
-
-		kx_blmat->Initialize(scene, bl_mat, (ma?&ma->game:NULL), lightlayer);
-		polymat = static_cast<RAS_IPolyMaterial*>(kx_blmat);
+	if (!polymat) {
+		polymat = ConvertMaterial(ma, tface, tfaceName, mface, mcol, layers, lightlayer, scene);
 		converter->CachePolyMaterial(scene, ma, polymat);
 	}
 	
@@ -592,7 +579,6 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 	// the converter will also prevent duplicates from being registered,
 	// so just register everything.
 	converter->RegisterPolyMaterial(polymat);
-	converter->RegisterBlenderMaterial(bl_mat);
 
 	return bucket;
 }
