@@ -376,7 +376,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 		PyGILState_Release(state); \
 		return value;
 
-	PyObject *mod, *item, *sys_path, *pypath, *sys_modules, *bgemod, *bgesubmod;
+	PyObject *mod, *item = NULL, *sys_path, *pypath, *sys_modules, *bgemod, *bgesubmod;
 	PyGILState_STATE state;
 	char path[FILE_MAX];
 
