@@ -35,7 +35,7 @@
 
 #include "DNA_material_types.h"
 
-void RAS_IPolyMaterial::Initialize(
+RAS_IPolyMaterial::RAS_IPolyMaterial(
     const STR_String& matname,
     int alphablend,
     bool alpha,
@@ -43,33 +43,6 @@ void RAS_IPolyMaterial::Initialize(
     bool light,
     bool image,
     GameSettings *game)
-{
-	m_materialname = matname;
-	m_alphablend = alphablend;
-	m_alpha = alpha;
-	m_zsort = zsort;
-	m_light = light;
-	m_polymatid = m_newpolymatid++;
-	m_flag = 0;
-	m_drawingmode = ConvertFaceMode(game, image);
-}
-
-RAS_IPolyMaterial::RAS_IPolyMaterial()
-	:m_materialname("__Dummy_Material_Name__"),
-	m_drawingmode(0),
-	m_alphablend(0),
-	m_alpha(false),
-	m_zsort(false),
-	m_light(false),
-	m_polymatid(0),
-	m_flag(0)
-{
-}
-
-RAS_IPolyMaterial::RAS_IPolyMaterial(const STR_String& matname,
-                                     int alphablend,
-                                     bool alpha,
-                                     bool zsort)
 	:m_materialname(matname),
 	m_alphablend(alphablend),
 	m_alpha(alpha),
@@ -77,6 +50,8 @@ RAS_IPolyMaterial::RAS_IPolyMaterial(const STR_String& matname,
 	m_polymatid(m_newpolymatid++),
 	m_flag(0)
 {
+	m_polymatid = m_newpolymatid++;
+	m_drawingmode = ConvertFaceMode(game, image);
 }
 
 int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game, bool image) const

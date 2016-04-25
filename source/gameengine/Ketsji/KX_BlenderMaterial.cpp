@@ -57,39 +57,30 @@
 
 #define spit(x) std::cout << x << std::endl;
 
-KX_BlenderMaterial::KX_BlenderMaterial()
-	: PyObjectPlus(),
-	RAS_IPolyMaterial(),
-	m_material(NULL),
-	m_mtexPoly(NULL),
+KX_BlenderMaterial::KX_BlenderMaterial(
+		KX_Scene *scene,
+		BL_Material *data,
+		GameSettings *game,
+		MTexPoly *mtexpoly,
+		int lightlayer)
+	:RAS_IPolyMaterial(
+		data->matname,
+		data->alphablend,
+		((data->ras_mode & ALPHA) != 0),
+		((data->ras_mode & ZSORT) != 0),
+		((data->ras_mode & USE_LIGHT) != 0),
+		((data->ras_mode & TEX)),
+		game),
+	m_material(data),
+	m_mtexPoly(mtexpoly),
 	m_shader(NULL),
 	m_blenderShader(NULL),
-	m_scene(NULL),
+	m_scene(scene),
 	m_userDefBlend(false),
 	m_modified(false),
-	m_constructed(false)
+	m_constructed(false),
+	m_lightLayer(lightlayer)
 {
-	for (unsigned short i = 0; i < MAXTEX; ++i) {
-		m_textures[i] = NULL;
-	}
-}
-
-void KX_BlenderMaterial::Initialize(
-    KX_Scene *scene,
-    BL_Material *data,
-    GameSettings *game,
-	MTexPoly *mtexpoly,
-    int lightlayer)
-{
-	RAS_IPolyMaterial::Initialize(
-	    data->matname,
-	    data->alphablend,
-	    ((data->ras_mode & ALPHA) != 0),
-	    ((data->ras_mode & ZSORT) != 0),
-	    ((data->ras_mode & USE_LIGHT) != 0),
-	    ((data->ras_mode & TEX)),
-	    game
-	    );
 	Material *ma = data->material;
 
 	// Save material data to restore on exit
@@ -107,22 +98,16 @@ void KX_BlenderMaterial::Initialize(
 	m_savedData.ambient = ma->amb;
 	m_savedData.specularalpha = ma->spectra;
 
-	m_material = data;
-	m_shader = NULL;
-	m_blenderShader = NULL;
-	m_scene = scene;
-	m_userDefBlend = false;
-	m_modified = false;
-	m_constructed = false;
-	m_lightLayer = lightlayer;
-	m_mtexPoly = mtexpoly;
-	// --------------------------------
 	// RAS_IPolyMaterial variables...
 	m_flag |= ((m_material->ras_mode & USE_LIGHT) != 0) ? RAS_MULTILIGHT : 0;
 	m_flag |= RAS_BLENDERGLSL;
 	m_flag |= ((m_material->ras_mode & CAST_SHADOW) != 0) ? RAS_CASTSHADOW : 0;
 	m_flag |= ((m_material->ras_mode & ONLY_SHADOW) != 0) ? RAS_ONLYSHADOW : 0;
 	m_flag |= ((ma->shade_flag & MA_OBCOLOR) != 0) ? RAS_OBJECTCOLOR : 0;
+
+	for (unsigned short i = 0; i < BL_Texture::GetMaxUnits(); ++i) {
+		m_textures[i] = NULL;
+	}
 }
 
 KX_BlenderMaterial::~KX_BlenderMaterial()

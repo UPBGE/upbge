@@ -533,14 +533,15 @@ static KX_BlenderMaterial *ConvertMaterial(
 		material->matname =(mat->id.name);
 	}
 
-	MTexPoly *mtexpoly = NULL;
+	MTexPoly *mtexpoly = new MTexPoly();
+	memset(mtexpoly, 0, sizeof(MTexPoly));
+
 	if (tface) {
 		ME_MTEXFACE_CPY(mtexpoly, tface);
 	}
 	material->material = mat;
 
-	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial();
-	kx_blmat->Initialize(scene, material, (mat ? &mat->game : NULL), mtexpoly, lightlayer);
+	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, material, (mat ? &mat->game : NULL), mtexpoly, lightlayer);
 
 	return kx_blmat;
 }

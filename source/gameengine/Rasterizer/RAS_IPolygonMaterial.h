@@ -85,18 +85,13 @@ public:
 		SHADOW = 2048 // GEMAT_SHADOW
 	};
 
-	RAS_IPolyMaterial();
 	RAS_IPolyMaterial(const STR_String& matname,
 	                  int transp,
 	                  bool alpha,
-	                  bool zsort);
-	void Initialize(const STR_String& matname,
-	                int transp,
-	                bool alpha,
-	                bool zsort,
-	                bool light,
-	                bool image,
-	                GameSettings *game);
+	                  bool zsort,
+	                  bool light,
+	                  bool image,
+	                  GameSettings *game);
 
 	virtual ~RAS_IPolyMaterial()
 	{

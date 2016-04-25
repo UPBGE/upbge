@@ -35,8 +35,7 @@ class KX_BlenderMaterial : public PyObjectPlus, public RAS_IPolyMaterial
 	Py_Header
 
 public:
-	KX_BlenderMaterial();
-	void Initialize(
+	KX_BlenderMaterial(
 			KX_Scene *scene,
 			BL_Material *mat,
 			GameSettings *game,
