@@ -1147,6 +1147,9 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
             col = split.column()
             factor_but(col, "use_map_shadow", "shadow_factor", "Shadow")
 
+            col = split.column()
+            col.prop(tex, "lod_bias")
+
         elif isinstance(idblock, World):
             split = layout.split()
 

@@ -223,6 +223,12 @@ static void rna_def_lamp_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
 	RNA_def_property_ui_text(prop, "Shadow Factor", "Amount texture affects shadow");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
+
+	prop = RNA_def_property(srna, "lod_bias", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "lodbias");
+	RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 10, 3);
+	RNA_def_property_ui_text(prop, "Lod Bias", "Amount bias on mipmapping");
+	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 }
 
 static void rna_def_lamp_sky_settings(BlenderRNA *brna)
