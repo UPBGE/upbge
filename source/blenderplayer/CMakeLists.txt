@@ -128,6 +128,7 @@ endif()
 		ge_rasterizer
 		ge_logic_expressions 
 		ge_scenegraph
+		ge_ghost
 		bf_ikplugin
 		bf_intern_itasc
 		bf_intern_iksolver

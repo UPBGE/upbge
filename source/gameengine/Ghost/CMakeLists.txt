@@ -23,34 +23,18 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-remove_extra_strict_flags()
+set(INC
+	.
+	../../../intern/ghost
+)
 
-# there are too many inter-includes so best define here
-if(WITH_PYTHON)
-	blender_include_dirs_sys("${PYTHON_INCLUDE_DIRS}")
-	add_definitions(-DWITH_PYTHON)
-endif()
+set(INC_SYS
+)
 
-add_subdirectory(BlenderRoutines)
-add_subdirectory(Converter)
-add_subdirectory(Expressions)
-add_subdirectory(GameLogic)
-add_subdirectory(Ghost)
-add_subdirectory(Ketsji)
-add_subdirectory(Ketsji/KXNetwork)
-add_subdirectory(Physics/Dummy)
-add_subdirectory(Rasterizer)
-add_subdirectory(Rasterizer/RAS_OpenGLRasterizer)
-add_subdirectory(SceneGraph)
+set(SRC
+	GH_KeyboardDevice.cpp
 
-if(WITH_BULLET)
-	add_subdirectory(Physics/Bullet)
-endif()
+	GH_KeyboardDevice.h
+)
 
-if(WITH_PYTHON)
-	add_subdirectory(VideoTexture)
-endif()
-
-if(WITH_PLAYER)
-	add_subdirectory(GamePlayer)
-endif()
+blender_add_lib(ge_ghost "${SRC}" "${INC}" "${INC_SYS}")

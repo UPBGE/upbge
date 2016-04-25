@@ -60,6 +60,9 @@
 #include "GPU_extensions.h"
 #include "EXP_Value.h"
 
+#include "GHOST_ISystem.h"
+#include "GH_KeyboardDevice.h"
+
 
 extern "C" {
 	#include "DNA_object_types.h"
@@ -252,6 +255,9 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 	do
 	{
+		GHOST_ISystem *system = GHOST_ISystem::getSystem();
+		system->addEventConsumer((new GH_KeyboardDevice()));
+
 		View3D *v3d= CTX_wm_view3d(C);
 		RegionView3D *rv3d= CTX_wm_region_view3d(C);
 

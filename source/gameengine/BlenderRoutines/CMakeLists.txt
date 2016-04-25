@@ -4,6 +4,7 @@ set(INC
 	../Converter
 	../Expressions
 	../GameLogic
+	../Ghost
 	../Ketsji
 	../Ketsji/KXNetwork
 	../Physics/Bullet
@@ -24,6 +25,7 @@ set(INC
 	../../blender/windowmanager
 	../../../intern/guardedalloc
 	../../../intern/string
+	../../../intern/ghost
 )
 
 set(INC_SYS

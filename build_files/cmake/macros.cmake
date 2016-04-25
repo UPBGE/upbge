@@ -590,6 +590,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_logic_network
 		ge_logic_ngnetwork
 		ge_logic_loopbacknetwork
+		ge_ghost
 		bf_intern_moto
 		extern_openjpeg
 		ge_videotex
