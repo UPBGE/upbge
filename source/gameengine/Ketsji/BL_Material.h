@@ -51,8 +51,6 @@ public:
 	Material*			material;
 	MTexPoly			mtexpoly; /* copy of the derived meshes tface */
 
-	unsigned int rgb[4];
-
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_Material")
 #endif

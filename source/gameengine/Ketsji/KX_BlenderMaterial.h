@@ -58,10 +58,14 @@ public:
 	virtual bool IsAlphaShadow() const;
 	virtual bool UseInstancing() const;
 	virtual const STR_String& GetTextureName() const;
-	Material *GetBlenderMaterial() const;
-	Image *GetBlenderImage() const;
-	MTexPoly *GetMTexPoly() const;
-	unsigned int *GetMCol() const;
+	virtual Material *GetBlenderMaterial() const;
+	virtual Image *GetBlenderImage() const;
+	virtual MTexPoly *GetMTexPoly() const;
+	virtual bool UsesLighting(RAS_IRasterizer *rasty) const;
+	virtual void GetMaterialRGBAColor(unsigned char *rgba) const;
+	virtual Scene *GetBlenderScene() const;
+	virtual void ReleaseMaterial();
+
 	BL_Texture *GetTex(unsigned int idx);
 
 	unsigned int *GetBlendFunc()
@@ -149,11 +153,6 @@ private:
 
 	void ActivateGLMaterials(RAS_IRasterizer *rasty) const;
 	void ActivateTexGen(RAS_IRasterizer *ras) const;
-
-	bool UsesLighting(RAS_IRasterizer *rasty) const;
-	void GetMaterialRGBAColor(unsigned char *rgba) const;
-	Scene *GetBlenderScene() const;
-	void ReleaseMaterial();
 
 	void SetBlenderShaderData(RAS_IRasterizer *ras);
 	void SetShaderData(RAS_IRasterizer *ras);

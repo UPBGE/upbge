@@ -159,12 +159,6 @@ MTexPoly *KX_BlenderMaterial::GetMTexPoly() const
 	return &m_material->mtexpoly;
 }
 
-unsigned int *KX_BlenderMaterial::GetMCol() const
-{
-	// fonts on polys
-	return m_material->rgb;
-}
-
 BL_Texture *KX_BlenderMaterial::GetTex(unsigned int idx)
 {
 	return (idx < MAXTEX) ? m_textures[idx] : NULL;

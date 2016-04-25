@@ -409,7 +409,6 @@ static void SetDefaultLightMode(Scene* scene)
 static void GetRGB(
         MFace* mface,
         MCol* mmcol,
-        Material *mat,
         unsigned int c[4])
 {
 	unsigned int color = 0xFFFFFFFFL;
@@ -530,13 +529,6 @@ static KX_BlenderMaterial *ConvertMaterial(
 		material->ras_mode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? ZSORT : 0;
 	}
 
-	// XXX The RGB values here were meant to be temporary storage for the conversion process,
-	// but fonts now make use of them too, so we leave them in for now.
-	unsigned int rgb[4];
-	if (mface) {
-		GetRGB(mface, mmcol, mat, rgb);
-	}
-
 	if (validmat) {
 		material->matname =(mat->id.name);
 	}
@@ -560,7 +552,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 	RAS_IPolyMaterial* polymat = converter->FindCachedPolyMaterial(scene, ma);
 
 	if (mface) {
-		GetRGB(mface, mcol, ma, rgb);
+		GetRGB(mface, mcol, rgb);
 
 		GetUVs(layers, mface, tface, uvs);
 	}

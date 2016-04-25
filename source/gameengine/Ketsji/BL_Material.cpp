@@ -37,10 +37,6 @@ BL_Material::BL_Material()
 
 void BL_Material::Initialize()
 {
-	rgb[0] = 0xFFFFFFFFL;
-	rgb[1] = 0xFFFFFFFFL;
-	rgb[2] = 0xFFFFFFFFL;
-	rgb[3] = 0xFFFFFFFFL;
 	ras_mode = 0;
 	matname = "NoMaterial";
 	alphablend = 0;

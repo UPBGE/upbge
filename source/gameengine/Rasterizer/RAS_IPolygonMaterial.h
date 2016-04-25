@@ -120,7 +120,6 @@ public:
 	virtual Material *GetBlenderMaterial() const = 0;
 	virtual Image *GetBlenderImage() const = 0;
 	virtual MTexPoly *GetMTexPoly() const = 0;
-	virtual unsigned int *GetMCol() const = 0;
 	virtual Scene *GetBlenderScene() const = 0;
 	virtual bool IsWire() const = 0;
 	virtual bool IsAlphaShadow() const = 0;
