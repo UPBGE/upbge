@@ -67,6 +67,11 @@ SCA_KeyboardSensor::SCA_KeyboardSensor(SCA_KeyboardManager* keybdmgr,
 {
 	if (hotkey == exitKey)
 		keybdmgr->GetInputDevice()->HookEscape();
+
+	m_status[0] = false;
+	m_status[1] = false;
+	m_status[2] = false;
+
 //	SetDrawColor(0xff0000ff);
 	Init();
 }
@@ -128,10 +133,8 @@ bool SCA_KeyboardSensor::Evaluate()
 {
 	bool result    = false;
 	bool reset     = m_reset && m_level;
-	bool qual	   = true;
-	bool qual_change = false;
-	short int m_val_orig = m_val;
-	
+	bool qual[2] = {true, true};
+
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
 	//  	cerr << "SCA_KeyboardSensor::Eval event, sensing for "<< m_hotkey << " at device " << inputdev << "\n";
 
@@ -150,155 +153,62 @@ bool SCA_KeyboardSensor::Evaluate()
 	/* Now see whether events must be bounced. */
 	if (m_bAllKeys)
 	{
-		bool justactivated = false;
-		bool justreleased = false;
 		bool active = false;
 
-		for (int i=SCA_IInputDevice::KX_BEGINKEY ; i<= SCA_IInputDevice::KX_ENDKEY;i++)
-		{
-			const SCA_InputEvent & inevent = inputdev->GetEventValue((SCA_IInputDevice::KX_EnumInputs) i);
-			switch (inevent.m_status) 
-			{ 
-			case SCA_InputEvent::KX_JUSTACTIVATED:
-				justactivated = true;
-				break;
-			case SCA_InputEvent::KX_JUSTRELEASED:
-				justreleased = true;
-				break;
-			case SCA_InputEvent::KX_ACTIVE:
+		for (int i=SCA_IInputDevice::KX_BEGINKEY ; i<= SCA_IInputDevice::KX_ENDKEY;i++) {
+			const SCA_InputEvent & inevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) i);
+			if (inevent.Find(SCA_InputEvent::KX_ACTIVE)) {
 				active = true;
-				break;
-			case SCA_InputEvent::KX_NO_INPUTSTATUS:
-				/* do nothing */
-				break;
 			}
 		}
 
-		if (justactivated)
-		{
-			m_val=1;
-			result = true;
-		} else
-		{
-			if (justreleased)
-			{
-				m_val=(active)?1:0;
+		// One of all keys is active
+		if (active) {
+			m_val = 1;
+			// The keys was not enabled before.
+			if (active != m_status[0]) {
 				result = true;
-			} else
-			{
-				if (active)
-				{
-					if (m_val == 0)
-					{
-						m_val = 1;
-						if (m_level) {
-							result = true;
-						}
-					}
-				} else
-				{
-					if (m_val == 1)
-					{
-						m_val = 0;
-						result = true;
-					}
-				}
 			}
-			if (m_tap)
-				// special case for tap mode: only generate event for new activation
-				result = false;
+			else {
+				result = m_level;
+			}
 		}
+		// The keys are now disabled.
+		else if (active != m_status[0]) {
+			m_val = 0;
+			result = true;
+		}
+		m_status[0] = active;
+	}
+	else {
+		const SCA_InputEvent & inevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) m_hotkey);
 
-
-	} else
-	{
-
-	//		cerr << "======= SCA_KeyboardSensor::Evaluate:: peeking at key status" << endl;
-		const SCA_InputEvent & inevent = inputdev->GetEventValue(
-			(SCA_IInputDevice::KX_EnumInputs) m_hotkey);
-	
-	//		cerr << "======= SCA_KeyboardSensor::Evaluate:: status: " << inevent.m_status << endl;
-		
-		
 		/* Check qualifier keys
 		 * - see if the qualifiers we request are pressed - 'qual' true/false
 		 * - see if the qualifiers we request changed their state - 'qual_change' true/false
 		 */
 		if (m_qual > 0) {
-			const SCA_InputEvent & qualevent = inputdev->GetEventValue((SCA_IInputDevice::KX_EnumInputs) m_qual);
-			switch (qualevent.m_status) {
-				case SCA_InputEvent::KX_NO_INPUTSTATUS:
-					qual = false;
-					break;
-				case SCA_InputEvent::KX_JUSTRELEASED:
-					qual_change = true;
-					qual = false;
-					break;
-				case SCA_InputEvent::KX_JUSTACTIVATED:
-					qual_change = true;
-				case SCA_InputEvent::KX_ACTIVE:
-					/* do nothing */
-					break;
+			const SCA_InputEvent & qualevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) m_qual);
+			if (!qualevent.Find(SCA_InputEvent::KX_ACTIVE)) {
+				qual[0] = false;
 			}
 		}
-		if (m_qual2 > 0 && qual==true) {
-			const SCA_InputEvent & qualevent = inputdev->GetEventValue((SCA_IInputDevice::KX_EnumInputs) m_qual2);
+		if (m_qual2 > 0) {
+			const SCA_InputEvent & qualevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) m_qual2);
 			/* copy of above */
-			switch (qualevent.m_status) {
-				case SCA_InputEvent::KX_NO_INPUTSTATUS:
-					qual = false;
-					break;
-				case SCA_InputEvent::KX_JUSTRELEASED:
-					qual_change = true;
-					qual = false;
-					break;
-				case SCA_InputEvent::KX_JUSTACTIVATED:
-					qual_change = true;
-				case SCA_InputEvent::KX_ACTIVE:
-					/* do nothing */
-					break;
+			if (!qualevent.Find(SCA_InputEvent::KX_ACTIVE)) {
+				qual[1] = false;
 			}
 		}
 		/* done reading qualifiers */
-		
-		if (inevent.m_status == SCA_InputEvent::KX_NO_INPUTSTATUS)
-		{
-			if (m_val == 1)
-			{
-				// this situation may occur after a scene suspend: the keyboard release 
-				// event was not captured, produce now the event off
-				m_val = 0;
-				result = true;
-			}
-		} else
-		{
-			if (inevent.m_status == SCA_InputEvent::KX_JUSTACTIVATED)
-			{
-				m_val=1;
-				result = true;
-			} else
-			{
-				if (inevent.m_status == SCA_InputEvent::KX_JUSTRELEASED)
-				{
-					m_val = 0;
-					result = true;
-				} else 
-				{
-					if (inevent.m_status == SCA_InputEvent::KX_ACTIVE)
-					{
-						if (m_val == 0)
-						{
-							m_val = 1;
-							if (m_level) 
-							{
-								result = true;
-							}
-						}
-					}
-				}
-			}
+
+		if (inevent.Find(SCA_InputEvent::KX_ACTIVE)) {
+			m_val = 1;
 		}
-		
+		else {
+			m_val = 0;
+		}
+
 		/* Modify the key state based on qual(s)
 		 * Tested carefully. don't touch unless your really sure.
 		 * note, this will only change the results if key modifiers are set.
@@ -309,22 +219,24 @@ bool SCA_KeyboardSensor::Evaluate()
 		 * When ANY of the modifiers or main key become inactive,
 		 *  - pulse false
 		 */
-		if (qual==false) { /* one of the qualifiers are not pressed */
-			if (m_val_orig && qual_change) { /* we were originally enabled, but a qualifier changed */
-				result = true;
-			} else {
-				result = false;
-			}
+
+		// One of the third keys value from last logic frame changed.
+		if (m_status[0] != m_val || m_status[1] != qual[0] || m_status[2] != qual[1]) {
+			result = true;
+		}
+		m_status[0] = m_val;
+		m_status[1] = qual[0];
+		m_status[2] = qual[1];
+
+		if (!qual[0] || !qual[1]) { /* one of the qualifiers are not pressed */
 			m_val = 0; /* since one of the qualifiers is not on, set the state to false */
-		} else {						/* we done have any qualifiers or they are all pressed */
-			if (m_val && qual_change) {	/* the main key state is true and our qualifier just changed */
-				result = true;
-			}
 		}
 		/* done with key quals */
-		
 	}
-	
+
+	std::cout << "main : " << m_status[0] << ", qual 1 : " << m_status[1] << ", qual 2 : " << m_status[2] <<
+	", m_val : " << m_val << ", result : " << result << std::endl;
+
 	if (reset)
 		// force an event
 		result = true;
@@ -379,20 +291,8 @@ bool SCA_KeyboardSensor::IsShifted(void)
 {
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
 	
-	if ( (inputdev->GetEventValue(SCA_IInputDevice::KX_RIGHTSHIFTKEY).m_status 
-		  == SCA_InputEvent::KX_ACTIVE)
-		 || (inputdev->GetEventValue(SCA_IInputDevice::KX_RIGHTSHIFTKEY).m_status 
-			 == SCA_InputEvent::KX_JUSTACTIVATED)
-		 || (inputdev->GetEventValue(SCA_IInputDevice::KX_LEFTSHIFTKEY).m_status 
-			 == SCA_InputEvent::KX_ACTIVE)
-		 || (inputdev->GetEventValue(SCA_IInputDevice::KX_LEFTSHIFTKEY).m_status 
-			 == SCA_InputEvent::KX_JUSTACTIVATED)
-		) {
-		return true;
-	}
-	else {
-		return false;
-	}
+	return (inputdev->GetEvent(SCA_IInputDevice::KX_RIGHTSHIFTKEY).Find(SCA_InputEvent::KX_ACTIVE) ||
+			inputdev->GetEvent(SCA_IInputDevice::KX_LEFTSHIFTKEY).Find(SCA_InputEvent::KX_ACTIVE));
 }
 
 void SCA_KeyboardSensor::LogKeystrokes(void) 
@@ -409,8 +309,8 @@ void SCA_KeyboardSensor::LogKeystrokes(void)
 		 * untangle the ordering, so don't type too fast :) */
 		for (int i=SCA_IInputDevice::KX_BEGINKEY ; i<= SCA_IInputDevice::KX_ENDKEY;i++)
 		{
-			const SCA_InputEvent & inevent = inputdev->GetEventValue((SCA_IInputDevice::KX_EnumInputs) i);
-			if (inevent.m_status == SCA_InputEvent::KX_JUSTACTIVATED) //NO_INPUTSTATUS)
+			const SCA_InputEvent & inevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) i);
+			if (inevent.Find(SCA_InputEvent::KX_JUSTACTIVATED))
 			{
 				if (index < num)
 				{
@@ -432,12 +332,12 @@ KX_PYMETHODDEF_DOC_O(SCA_KeyboardSensor, getKeyStatus,
 "getKeyStatus(keycode)\n"
 "\tGet the given key's status (KX_NO_INPUTSTATUS, KX_JUSTACTIVATED, KX_ACTIVE or KX_JUSTRELEASED).\n")
 {
-	if (!PyLong_Check(value)) {
+	/*if (!PyLong_Check(value)) {
 		PyErr_SetString(PyExc_ValueError, "sensor.getKeyStatus(int): Keyboard Sensor, expected an int");
 		return NULL;
 	}
 	
-	SCA_IInputDevice::KX_EnumInputs keycode = (SCA_IInputDevice::KX_EnumInputs)PyLong_AsLong(value);
+	SCA_IInputDevice::SCA_EnumInputs keycode = (SCA_IInputDevice::SCA_EnumInputs)PyLong_AsLong(value);
 	
 	if ((keycode < SCA_IInputDevice::KX_BEGINKEY) ||
 	    (keycode > SCA_IInputDevice::KX_ENDKEY))
@@ -447,8 +347,9 @@ KX_PYMETHODDEF_DOC_O(SCA_KeyboardSensor, getKeyStatus,
 	}
 	
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
-	const SCA_InputEvent & inevent = inputdev->GetEventValue(keycode);
-	return PyLong_FromLong(inevent.m_status);
+	const SCA_InputEvent & inevent = inputdev->GetEvent(keycode);
+	return PyLong_FromLong(inevent.m_status);*/
+	Py_RETURN_NONE;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -504,12 +405,11 @@ PyObject *SCA_KeyboardSensor::pyattr_get_events(void *self_v, const KX_PYATTRIBU
 	
 	for (int i=SCA_IInputDevice::KX_BEGINKEY ; i<= SCA_IInputDevice::KX_ENDKEY;i++)
 	{
-		const SCA_InputEvent & inevent = inputdev->GetEventValue((SCA_IInputDevice::KX_EnumInputs) i);
-		if (inevent.m_status != SCA_InputEvent::KX_NO_INPUTSTATUS)
+		SCA_InputEvent & inevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) i);
+		if (inevent.Find(SCA_InputEvent::KX_ACTIVE))
 		{
 			PyObject *keypair = PyList_New(2);
-			PyList_SET_ITEM(keypair,0,PyLong_FromLong(i));
-			PyList_SET_ITEM(keypair,1,PyLong_FromLong(inevent.m_status));
+			PyList_SET_ITEM(keypair,1,inevent.GetProxy());
 			PyList_Append(resultlist,keypair);
 			Py_DECREF(keypair);
 		}

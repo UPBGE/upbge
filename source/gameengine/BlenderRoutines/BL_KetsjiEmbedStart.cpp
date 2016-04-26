@@ -41,8 +41,6 @@
 #endif
 
 #include "KX_BlenderCanvas.h"
-#include "KX_BlenderKeyboardDevice.h"
-#include "KX_BlenderMouseDevice.h"
 #include "KX_BlenderSystem.h"
 
 #include "KX_KetsjiEngine.h"
@@ -56,12 +54,16 @@
 #include "RAS_OpenGLRasterizer.h"
 
 #include "BL_System.h"
+#include "BL_BlenderDataConversion.h"
 
 #include "GPU_extensions.h"
 #include "EXP_Value.h"
 
 #include "GHOST_ISystem.h"
-#include "GH_KeyboardDevice.h"
+#include "GH_EventConsumer.h"
+#include "GH_InputDevice.h"
+
+#include "PIL_time.h"
 
 
 extern "C" {
@@ -121,8 +123,8 @@ static BlendFileData *load_game_data(char *filename)
 	return bfd;
 }
 
-static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWindow *win, Scene *scene, ARegion *ar,
-                              KX_BlenderKeyboardDevice* keyboarddevice, KX_BlenderMouseDevice* mousedevice, int draw_letterbox)
+static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWindow *win, Scene *scene,
+							  ARegion *ar, GHOST_ISystem *system, int draw_letterbox)
 {
 	// first check if we want to exit
 	int exitrequested = ketsjiengine->GetExitCode();
@@ -147,24 +149,31 @@ static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWind
 		ketsjiengine->Render();
 	}
 
-	wm_window_process_events_nosleep();
+	system->processEvents(false);
+	system->dispatchEvents();
+
+	SCA_IInputDevice *inputDevice = ketsjiengine->GetInputDevice();
+
+	if (inputDevice->GetEvent((SCA_IInputDevice::SCA_EnumInputs)ketsjiengine->GetExitKey()).Find(SCA_InputEvent::KX_ACTIVE)) {
+		exitrequested = KX_EXIT_REQUEST_BLENDER_ESC;
+	}
 
 	// test for the ESC key
 	//XXX while (qtest())
-	while (wmEvent *event= (wmEvent *)win->queue.first) {
+	/*while (wmEvent *event= (wmEvent *)win->queue.first) {
 		short val = 0;
 		//unsigned short event = 0; //XXX extern_qread(&val);
 		unsigned int unicode = event->utf8_buf[0] ? BLI_str_utf8_as_unicode(event->utf8_buf) : event->ascii;
 
 		if (keyboarddevice->ConvertBlenderEvent(event->type, event->val, unicode))
-			exitrequested = KX_EXIT_REQUEST_BLENDER_ESC;
+			exitrequested = KX_EXIT_REQUEST_BLENDER_ESC;*/
 
 		/* Coordinate conversion... where
 		 * should this really be?
 		 */
-		if (event->type == MOUSEMOVE) {
+		/*if (event->type == MOUSEMOVE) {*/
 			/* Note, not nice! XXX 2.5 event hack */
-			val = event->x - ar->winrct.xmin;
+			/*val = event->x - ar->winrct.xmin;
 			mousedevice->ConvertBlenderEvent(MOUSEX, val, 0);
 
 			val = ar->winy - (event->y - ar->winrct.ymin) - 1;
@@ -176,7 +185,7 @@ static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWind
 
 		BLI_remlink(&win->queue, event);
 		wm_event_free(event);
-	}
+	}*/
 
 	if (win != CTX_wm_window(C)) {
 		exitrequested= KX_EXIT_REQUEST_OUTSIDE; /* window closed while bge runs */
@@ -192,8 +201,7 @@ static struct BL_KetsjiNextFrameState {
 	struct wmWindow* win;
 	struct Scene* scene;
 	struct ARegion *ar;
-	KX_BlenderKeyboardDevice* keyboarddevice;
-	KX_BlenderMouseDevice* mousedevice;
+	GHOST_ISystem *system;
 	int draw_letterbox;
 } ketsjinextframestate;
 
@@ -206,8 +214,7 @@ static int BL_KetsjiPyNextFrame(void *state0)
 		state->win, 
 		state->scene, 
 		state->ar,
-		state->keyboarddevice, 
-		state->mousedevice, 
+		state->system,
 		state->draw_letterbox);
 }
 #endif
@@ -255,9 +262,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 	do
 	{
-		GHOST_ISystem *system = GHOST_ISystem::getSystem();
-		system->addEventConsumer((new GH_KeyboardDevice()));
-
 		View3D *v3d= CTX_wm_view3d(C);
 		RegionView3D *rv3d= CTX_wm_region_view3d(C);
 
@@ -334,8 +338,11 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			canvas->SetSwapInterval((startscene->gm.vsync == VSYNC_ON) ? 1 : 0);
 		
 		// create the inputdevices
-		KX_BlenderKeyboardDevice* keyboarddevice = new KX_BlenderKeyboardDevice();
-		KX_BlenderMouseDevice* mousedevice = new KX_BlenderMouseDevice();
+		GH_InputDevice *inputDevice = new GH_InputDevice();
+
+		GHOST_ISystem *system = GHOST_ISystem::getSystem();
+		GH_EventConsumer *eventConsumer = new GH_EventConsumer(inputDevice);
+		system->addEventConsumer(eventConsumer);
 
 		//
 		// create a ketsji/blendersystem (only needed for timing and stuff)
@@ -347,8 +354,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		KX_KetsjiEngine* ketsjiengine = new KX_KetsjiEngine(kxsystem);
 		
 		// set the devices
-		ketsjiengine->SetKeyboardDevice(keyboarddevice);
-		ketsjiengine->SetMouseDevice(mousedevice);
+		ketsjiengine->SetInputDevice(inputDevice);
 		ketsjiengine->SetCanvas(canvas);
 		ketsjiengine->SetRasterizer(rasterizer);
 		ketsjiengine->SetNetworkMessageManager(networkMessageManager);
@@ -475,8 +481,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			if (always_use_expand_framing)
 				sceneconverter->SetAlwaysUseExpandFraming(true);
 
-			KX_Scene* startscene = new KX_Scene(keyboarddevice,
-				mousedevice,
+			KX_Scene* startscene = new KX_Scene(inputDevice,
 				startscenename,
 				scene,
 				canvas,
@@ -547,8 +552,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 						ketsjinextframestate.win = win;
 						ketsjinextframestate.scene = scene;
 						ketsjinextframestate.ar = ar;
-						ketsjinextframestate.keyboarddevice = keyboarddevice;
-						ketsjinextframestate.mousedevice = mousedevice;
+						ketsjinextframestate.system = system;
 						ketsjinextframestate.draw_letterbox = draw_letterbox;
 			
 						pynextframestate.state = &ketsjinextframestate;
@@ -564,7 +568,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				{
 					while (!exitrequested)
 					{
-						exitrequested = BL_KetsjiNextFrame(ketsjiengine, C, win, scene, ar, keyboarddevice, mousedevice, draw_letterbox);
+						exitrequested = BL_KetsjiNextFrame(ketsjiengine, C, win, scene, ar, system, draw_letterbox);
 					}
 				}
 				printf("Blender Game Engine Finished\n");
@@ -629,15 +633,9 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			delete kxsystem;
 			kxsystem = NULL;
 		}
-		if (keyboarddevice)
-		{
-			delete keyboarddevice;
-			keyboarddevice = NULL;
-		}
-		if (mousedevice)
-		{
-			delete mousedevice;
-			mousedevice = NULL;
+		if (inputDevice) {
+			delete inputDevice;
+			inputDevice = NULL;
 		}
 		if (canvas)
 		{
@@ -657,6 +655,9 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 		// stop all remaining playing sounds
 		AUD_Device_stopAll(BKE_sound_get_device());
+
+		system->removeEventConsumer(eventConsumer);
+		delete eventConsumer;
 	
 	} while (exitrequested == KX_EXIT_REQUEST_RESTART_GAME || exitrequested == KX_EXIT_REQUEST_START_OTHER_GAME);
 	

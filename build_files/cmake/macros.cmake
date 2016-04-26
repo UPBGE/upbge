@@ -582,6 +582,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		extern_curve_fit_nd
 		ge_logic_ketsji
 		extern_recastnavigation
+		ge_ghost
 		ge_logic
 		ge_oglrasterizer
 		ge_rasterizer
@@ -590,7 +591,6 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_logic_network
 		ge_logic_ngnetwork
 		ge_logic_loopbacknetwork
-		ge_ghost
 		bf_intern_moto
 		extern_openjpeg
 		ge_videotex

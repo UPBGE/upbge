@@ -25,16 +25,24 @@
 
 set(INC
 	.
+	../Expressions
+	../GameLogic
+	../SceneGraph
+	../../blender/blenlib
 	../../../intern/ghost
+	../../../intern/string
 )
 
 set(INC_SYS
+	../../../intern/moto/include
 )
 
 set(SRC
-	GH_KeyboardDevice.cpp
+	GH_EventConsumer.cpp
+	GH_InputDevice.cpp
 
-	GH_KeyboardDevice.h
+	GH_EventConsumer.h
+	GH_InputDevice.h
 )
 
 blender_add_lib(ge_ghost "${SRC}" "${INC}" "${INC_SYS}")

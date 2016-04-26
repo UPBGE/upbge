@@ -52,6 +52,7 @@ class SCA_KeyboardSensor : public SCA_ISensor
 	int							m_hotkey;
 	short int					m_qual,m_qual2;
 	short int					m_val;
+	bool m_status[3];
 	/**
 	 * If this toggle is true, all incoming key events generate a
 	 * response.

@@ -138,8 +138,7 @@ SG_Callbacks KX_Scene::m_callbacks = SG_Callbacks(
 	KX_Scene::KX_ScenegraphUpdateFunc,
 	KX_Scene::KX_ScenegraphRescheduleFunc);
 
-KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
-				   class SCA_IInputDevice* mousedevice,
+KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 				   const STR_String& sceneName,
 				   Scene *scene,
 				   class RAS_ICanvas* canvas,
@@ -176,8 +175,8 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	m_logicmgr = new SCA_LogicManager();
 	
 	m_timemgr = new SCA_TimeEventManager(m_logicmgr);
-	m_keyboardmgr = new SCA_KeyboardManager(m_logicmgr,keyboarddevice);
-	m_mousemgr = new SCA_MouseManager(m_logicmgr,mousedevice, canvas);
+	m_keyboardmgr = new SCA_KeyboardManager(m_logicmgr,inputDevice);
+	m_mousemgr = new SCA_MouseManager(m_logicmgr,inputDevice, canvas);
 	
 	SCA_ActuatorEventManager* actmgr = new SCA_ActuatorEventManager(m_logicmgr);
 	SCA_BasicEventManager* basicmgr = new SCA_BasicEventManager(m_logicmgr);

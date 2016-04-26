@@ -25,29 +25,31 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GH_KeyboardDevice.h
+/** \file GH_EventConsumer.h
  *  \ingroup player
  */
 
-#ifndef __GH_KEYBOARDDEVICE_H__
-#define __GH_KEYBOARDDEVICE_H__
+#ifndef __GH_EVENTCONSUMER_H__
+#define __GH_EVENTCONSUMER_H__
 
 #include "GHOST_IEventConsumer.h"
 
-class GHOST_IEvent;
+class GH_InputDevice;
 
-class GH_KeyboardDevice : public GHOST_IEventConsumer
+class GH_EventConsumer : public GHOST_IEventConsumer
 {
-public:
-	GH_KeyboardDevice()
-	{
-	}
+private:
+	GH_InputDevice *m_device;
 
-	virtual ~GH_KeyboardDevice()
-	{
-	}
+	void HandleKeyEvent(GHOST_TEventDataPtr data, bool down);
+	void HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindow *window);
+	void HandleButtonEvent(GHOST_TEventDataPtr data, bool down);
+
+public:
+	GH_EventConsumer(GH_InputDevice *device);
+	virtual ~GH_EventConsumer();
 
 	virtual bool processEvent(GHOST_IEvent *event);
 };
 
-#endif  /* __GH_KEYBOARDDEVICE_H__ */
+#endif  // __GH_EVENTCONSUMER_H__

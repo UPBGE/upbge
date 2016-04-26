@@ -47,13 +47,13 @@ void GPC_KeyboardDevice::NextFrame()
 	int previousTable = 1-m_currentTable;
 	for (int keyevent= KX_BEGINKEY; keyevent<= KX_ENDKEY;keyevent++)
 	{
-		SCA_InputEvent& oldevent = m_eventStatusTables[previousTable][keyevent];
+		SCA_InputEvent& oldevent = m_eventsTable[previousTable][keyevent];
 		if (oldevent.m_status == SCA_InputEvent::KX_JUSTACTIVATED ||
 			oldevent.m_status == SCA_InputEvent::KX_ACTIVE	)
 		{
-			m_eventStatusTables[m_currentTable][keyevent] = oldevent;
-			m_eventStatusTables[m_currentTable][keyevent].m_status = SCA_InputEvent::KX_ACTIVE;
-			//m_eventStatusTables[m_currentTable][keyevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
+			m_eventsTable[m_currentTable][keyevent] = oldevent;
+			m_eventsTable[m_currentTable][keyevent].m_status = SCA_InputEvent::KX_ACTIVE;
+			//m_eventsTable[m_currentTable][keyevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
 		}
 	}
 }
@@ -69,7 +69,7 @@ bool GPC_KeyboardDevice::ConvertEvent(int incode, int val, unsigned int unicode)
 	bool result = false;
 
 	// convert event
-	KX_EnumInputs kxevent = this->ToNative(incode);
+	SCA_EnumInputs kxevent = this->ToNative(incode);
 
 	// only process it, if it's a key
 	if (kxevent >= KX_BEGINKEY && kxevent <= KX_ENDKEY)
@@ -82,39 +82,39 @@ bool GPC_KeyboardDevice::ConvertEvent(int incode, int val, unsigned int unicode)
 				result = true;
 
 			// todo: convert val ??
-			m_eventStatusTables[m_currentTable][kxevent].m_eventval = val ; //???
-			m_eventStatusTables[m_currentTable][kxevent].m_unicode = unicode ;
+			m_eventsTable[m_currentTable][kxevent].m_eventval = val ; //???
+			m_eventsTable[m_currentTable][kxevent].m_unicode = unicode ;
 
-			switch (m_eventStatusTables[previousTable][kxevent].m_status)
+			switch (m_eventsTable[previousTable][kxevent].m_status)
 			{
 			case SCA_InputEvent::KX_JUSTACTIVATED:
 			case SCA_InputEvent::KX_ACTIVE:
 				{
-					m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_ACTIVE;
+					m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_ACTIVE;
 					break;
 				}
 
 			case SCA_InputEvent::KX_NO_INPUTSTATUS:
 			default:
 				{
-					m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
+					m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
 				}
 			}
 			
 		} else
 		{
 
-			switch (m_eventStatusTables[previousTable][kxevent].m_status)
+			switch (m_eventsTable[previousTable][kxevent].m_status)
 			{
 			case SCA_InputEvent::KX_JUSTACTIVATED:
 			case SCA_InputEvent::KX_ACTIVE:
 				{
-					m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTRELEASED;
+					m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTRELEASED;
 					break;
 				}
 			default:
 				{
-					m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_NO_INPUTSTATUS;
+					m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_NO_INPUTSTATUS;
 				}
 			}
 		}

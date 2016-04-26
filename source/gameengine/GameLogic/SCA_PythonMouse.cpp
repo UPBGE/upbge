@@ -98,9 +98,9 @@ PyObject *SCA_PythonMouse::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_
 	
 	for (int i=SCA_IInputDevice::KX_BEGINMOUSE; i<=SCA_IInputDevice::KX_ENDMOUSE; i++)
 	{
-		const SCA_InputEvent & inevent = self->m_mouse->GetEventValue((SCA_IInputDevice::KX_EnumInputs)i);
+		SCA_InputEvent & inevent = self->m_mouse->GetEvent((SCA_IInputDevice::SCA_EnumInputs)i);
 		
-		PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), PyLong_FromLong(inevent.m_status));
+		PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), inevent.GetProxy());
 	}
 	Py_INCREF(self->m_event_dict);
 	return self->m_event_dict;
@@ -114,10 +114,11 @@ PyObject *SCA_PythonMouse::pyattr_get_active_events(void *self_v, const KX_PYATT
 	
 	for (int i=SCA_IInputDevice::KX_BEGINMOUSE; i<=SCA_IInputDevice::KX_ENDMOUSE; i++)
 	{
-		const SCA_InputEvent & inevent = self->m_mouse->GetEventValue((SCA_IInputDevice::KX_EnumInputs)i);
+		SCA_InputEvent & inevent = self->m_mouse->GetEvent((SCA_IInputDevice::SCA_EnumInputs)i);
 		
-		if (inevent.m_status != SCA_InputEvent::KX_NO_INPUTSTATUS)
-			PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), PyLong_FromLong(inevent.m_status));
+		if (inevent.Find(SCA_InputEvent::KX_ACTIVE)) {
+			PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), inevent.GetProxy());
+		}
 	}
 	Py_INCREF(self->m_event_dict);
 	return self->m_event_dict;
@@ -126,13 +127,13 @@ PyObject *SCA_PythonMouse::pyattr_get_active_events(void *self_v, const KX_PYATT
 PyObject *SCA_PythonMouse::pyattr_get_position(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
-	const SCA_InputEvent & xevent = self->m_mouse->GetEventValue(SCA_IInputDevice::KX_MOUSEX);
-	const SCA_InputEvent & yevent = self->m_mouse->GetEventValue(SCA_IInputDevice::KX_MOUSEY);
+	const SCA_InputEvent & xevent = self->m_mouse->GetEvent(SCA_IInputDevice::KX_MOUSEX);
+	const SCA_InputEvent & yevent = self->m_mouse->GetEvent(SCA_IInputDevice::KX_MOUSEY);
 
 	float x_coord, y_coord;
 
-	x_coord = self->m_canvas->GetMouseNormalizedX(xevent.m_eventval);
-	y_coord = self->m_canvas->GetMouseNormalizedY(yevent.m_eventval);
+	x_coord = self->m_canvas->GetMouseNormalizedX(xevent.m_values[xevent.m_values.size() - 1]);
+	y_coord = self->m_canvas->GetMouseNormalizedY(yevent.m_values[yevent.m_values.size() - 1]);
 
 	PyObject *ret = PyTuple_New(2);
 

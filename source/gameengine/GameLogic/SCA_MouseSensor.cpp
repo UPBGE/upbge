@@ -134,7 +134,7 @@ short int SCA_MouseSensor::GetModeKey()
 
 
 
-SCA_IInputDevice::KX_EnumInputs SCA_MouseSensor::GetHotKey()
+SCA_IInputDevice::SCA_EnumInputs SCA_MouseSensor::GetHotKey()
 { 
 	return m_hotkey;
 }
@@ -155,62 +155,39 @@ bool SCA_MouseSensor::Evaluate()
 	case KX_MOUSESENSORMODE_WHEELUP:
 	case KX_MOUSESENSORMODE_WHEELDOWN:
 		{
-			const SCA_InputEvent& mevent = mousedev->GetEventValue(m_hotkey);
-			switch (mevent.m_status) {
-			case SCA_InputEvent::KX_JUSTACTIVATED:
+			const SCA_InputEvent& mevent = mousedev->GetEvent(m_hotkey);
+			if (mevent.Find(SCA_InputEvent::KX_JUSTACTIVATED)) {
 				m_val = 1;
 				result = true;
-				break;
-			case SCA_InputEvent::KX_JUSTRELEASED:
+			}
+			else if (mevent.Find(SCA_InputEvent::KX_JUSTRELEASED)) {
 				m_val = 0;
 				result = true;
-				break;
-			case SCA_InputEvent::KX_ACTIVE:
-				if (m_val == 0)
-				{
-					m_val = 1;
-					if (m_level)
-						result = true;
-				}
-				break;
-			default:
-				if (m_val == 1)
-				{
-					m_val = 0;
+			}
+			else if (mevent.Find(SCA_InputEvent::KX_ACTIVE) && m_val == 0) {
+				m_val = 1;
+				if (m_level)
 					result = true;
-				}
-				break;
+			}
+			else if (m_val == 1) {
+				m_val = 0;
+				result = true;
 			}
 			break;
 		}
 	case KX_MOUSESENSORMODE_MOVEMENT:
 		{
-			const SCA_InputEvent& eventX = mousedev->GetEventValue(SCA_IInputDevice::KX_MOUSEX);
-			const SCA_InputEvent& eventY = mousedev->GetEventValue(SCA_IInputDevice::KX_MOUSEY);
+			const SCA_InputEvent& eventX = mousedev->GetEvent(SCA_IInputDevice::KX_MOUSEX);
+			const SCA_InputEvent& eventY = mousedev->GetEvent(SCA_IInputDevice::KX_MOUSEY);
 
-			if (eventX.m_status == SCA_InputEvent::KX_JUSTACTIVATED ||
-			    eventY.m_status == SCA_InputEvent::KX_JUSTACTIVATED ||
-			    eventX.m_status == SCA_InputEvent::KX_ACTIVE ||
-			    eventY.m_status == SCA_InputEvent::KX_ACTIVE)
-			{
+			if (eventX.Find(SCA_InputEvent::KX_ACTIVE) || eventY.Find(SCA_InputEvent::KX_ACTIVE)) {
 				m_val = 1;
 				result = true;
 			} 
-			else if (eventX.m_status == SCA_InputEvent::KX_JUSTRELEASED ||
-			         eventY.m_status == SCA_InputEvent::KX_JUSTRELEASED )
-			{
+			else {
 				m_val = 0;
 				result = true;
-			} 
-			else //KX_NO_IMPUTSTATUS
-			{ 
-				if (m_val == 1)
-				{
-					m_val = 0;
-					result = true;
-				}
 			}
-			
 			break;
 		}
 	default:
@@ -248,9 +225,9 @@ KX_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
 "getButtonStatus(button)\n"
 "\tGet the given button's status (KX_INPUT_NONE, KX_INPUT_NONE, KX_INPUT_JUST_ACTIVATED, KX_INPUT_ACTIVE, KX_INPUT_JUST_RELEASED).\n")
 {
-	if (PyLong_Check(value))
+	/*if (PyLong_Check(value))
 	{
-		SCA_IInputDevice::KX_EnumInputs button = (SCA_IInputDevice::KX_EnumInputs)PyLong_AsLong(value);
+		SCA_IInputDevice::SCA_EnumInputs button = (SCA_IInputDevice::SCA_EnumInputs)PyLong_AsLong(value);
 		
 		if ((button < SCA_IInputDevice::KX_LEFTMOUSE) ||
 		    (button > SCA_IInputDevice::KX_RIGHTMOUSE))
@@ -260,9 +237,9 @@ KX_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
 		}
 		
 		SCA_IInputDevice* mousedev = ((SCA_MouseManager *)m_eventmgr)->GetInputDevice();
-		const SCA_InputEvent& event = mousedev->GetEventValue(button);
+		const SCA_InputEvent& event = mousedev->GetEvent(button);
 		return PyLong_FromLong(event.m_status);
-	}
+	}*/
 	
 	Py_RETURN_NONE;
 }

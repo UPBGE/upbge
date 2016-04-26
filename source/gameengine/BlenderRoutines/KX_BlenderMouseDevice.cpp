@@ -49,16 +49,16 @@ KX_BlenderMouseDevice::~KX_BlenderMouseDevice()
  * IsPressed gives boolean information about mouse status, true if pressed, false if not
  */
 
-bool KX_BlenderMouseDevice::IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode)
+bool KX_BlenderMouseDevice::IsPressed(SCA_IInputDevice::SCA_EnumInputs inputcode)
 {
-	const SCA_InputEvent & inevent =  m_eventStatusTables[m_currentTable][inputcode];
+	const SCA_InputEvent & inevent =  m_eventsTable[m_currentTable][inputcode];
 	bool pressed = (inevent.m_status == SCA_InputEvent::KX_JUSTACTIVATED || 
 		inevent.m_status == SCA_InputEvent::KX_ACTIVE);
 	return pressed;
 }
-/*const SCA_InputEvent&	KX_BlenderMouseDevice::GetEventValue(SCA_IInputDevice::KX_EnumInputs inputcode)
+/*const SCA_InputEvent&	KX_BlenderMouseDevice::GetEvent(SCA_IInputDevice::SCA_EnumInputs inputcode)
 {
-	return m_eventStatusTables[m_currentTable][inputcode];
+	return m_eventsTable[m_currentTable][inputcode];
 }
 */
 
@@ -75,29 +75,29 @@ void	KX_BlenderMouseDevice::NextFrame()
 	int previousTable = 1-m_currentTable;
 	for (int mouseevent= KX_BEGINMOUSE; mouseevent< KX_ENDMOUSEBUTTONS;mouseevent++)
 	{
-		SCA_InputEvent& oldevent = m_eventStatusTables[previousTable][mouseevent];
+		SCA_InputEvent& oldevent = m_eventsTable[previousTable][mouseevent];
 		if (oldevent.m_status == SCA_InputEvent::KX_JUSTACTIVATED ||
 			oldevent.m_status == SCA_InputEvent::KX_ACTIVE	)
 		{
-			m_eventStatusTables[m_currentTable][mouseevent] = oldevent;
-			m_eventStatusTables[m_currentTable][mouseevent].m_status = SCA_InputEvent::KX_ACTIVE;
+			m_eventsTable[m_currentTable][mouseevent] = oldevent;
+			m_eventsTable[m_currentTable][mouseevent].m_status = SCA_InputEvent::KX_ACTIVE;
 		}
 	}
 	for (int mousemove= KX_ENDMOUSEBUTTONS; mousemove< KX_ENDMOUSE;mousemove++)
 	{
-		SCA_InputEvent& oldevent = m_eventStatusTables[previousTable][mousemove];
-		m_eventStatusTables[m_currentTable][mousemove] = oldevent;
+		SCA_InputEvent& oldevent = m_eventsTable[previousTable][mousemove];
+		m_eventsTable[m_currentTable][mousemove] = oldevent;
 		if (oldevent.m_status == SCA_InputEvent::KX_JUSTACTIVATED ||
 			oldevent.m_status == SCA_InputEvent::KX_ACTIVE	)
 		{
 			
-			m_eventStatusTables[m_currentTable][mousemove].m_status = SCA_InputEvent::KX_JUSTRELEASED;
+			m_eventsTable[m_currentTable][mousemove].m_status = SCA_InputEvent::KX_JUSTRELEASED;
 		} else
 		{
 			if (oldevent.m_status == SCA_InputEvent::KX_JUSTRELEASED)
 			{
 				
-				m_eventStatusTables[m_currentTable][mousemove].m_status = SCA_InputEvent::KX_NO_INPUTSTATUS;
+				m_eventsTable[m_currentTable][mousemove].m_status = SCA_InputEvent::KX_NO_INPUTSTATUS;
 			}
 		}
 	}
@@ -113,7 +113,7 @@ bool KX_BlenderMouseDevice::ConvertBlenderEvent(unsigned short incode, short val
 	bool result = false;
 	
 	// convert event
-	KX_EnumInputs kxevent = this->ToNative(incode);
+	SCA_EnumInputs kxevent = this->ToNative(incode);
 	int previousTable = 1-m_currentTable;
 
 	// only process it, if it's a key
@@ -121,42 +121,42 @@ bool KX_BlenderMouseDevice::ConvertBlenderEvent(unsigned short incode, short val
 	{
 		if (val == KM_PRESS || val == KM_DBL_CLICK)
 		{
-			m_eventStatusTables[m_currentTable][kxevent].m_eventval = val ; //???
+			m_eventsTable[m_currentTable][kxevent].m_eventval = val ; //???
 
-			switch (m_eventStatusTables[previousTable][kxevent].m_status)
+			switch (m_eventsTable[previousTable][kxevent].m_status)
 			{
 			
 			case SCA_InputEvent::KX_ACTIVE:
 			case SCA_InputEvent::KX_JUSTACTIVATED:
 				{
-					m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_ACTIVE;
+					m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_ACTIVE;
 					break;
 				}
 			case SCA_InputEvent::KX_JUSTRELEASED:
 				{
-					m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
+					m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
 					break;
 				}
 			default:
 				{
-					m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
+					m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
 				}
 			}
 			
 		} else if (val == KM_RELEASE)
 		{
 			// blender eventval == 0
-			switch (m_eventStatusTables[previousTable][kxevent].m_status)
+			switch (m_eventsTable[previousTable][kxevent].m_status)
 			{
 			case SCA_InputEvent::KX_JUSTACTIVATED:
 			case SCA_InputEvent::KX_ACTIVE:
 				{
-					m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTRELEASED;
+					m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTRELEASED;
 					break;
 				}
 			default:
 				{
-					m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_NO_INPUTSTATUS;
+					m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_NO_INPUTSTATUS;
 				}
 			}
 		}
@@ -164,25 +164,25 @@ bool KX_BlenderMouseDevice::ConvertBlenderEvent(unsigned short incode, short val
 
 	if (kxevent > KX_ENDMOUSEBUTTONS && kxevent < KX_ENDMOUSE)
 	{
-		m_eventStatusTables[m_currentTable][kxevent].m_eventval = val ; //remember mouse position
+		m_eventsTable[m_currentTable][kxevent].m_eventval = val ; //remember mouse position
 
-		switch (m_eventStatusTables[previousTable][kxevent].m_status)
+		switch (m_eventsTable[previousTable][kxevent].m_status)
 		{
 			
 		case SCA_InputEvent::KX_ACTIVE:
 		case SCA_InputEvent::KX_JUSTACTIVATED:
 			{
-				m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_ACTIVE;
+				m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_ACTIVE;
 				break;
 			}
 		case SCA_InputEvent::KX_JUSTRELEASED:
 			{
-				m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_ACTIVE;
+				m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_ACTIVE;
 				break;
 			}
 		default:
 			{
-				m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
+				m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
 			}
 		}
 	}

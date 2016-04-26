@@ -63,12 +63,12 @@ public:
 
 	}
 
-	KX_EnumInputs ToNative(unsigned short incode) {
+	SCA_EnumInputs ToNative(unsigned short incode) {
 		return ConvertKeyCode(incode);
 	}
 
-	virtual bool	IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode)=0;
-	//	virtual const SCA_InputEvent&	GetEventValue(SCA_IInputDevice::KX_EnumInputs inputcode)=0;
+	virtual bool	IsPressed(SCA_IInputDevice::SCA_EnumInputs inputcode)=0;
+	//	virtual const SCA_InputEvent&	GetEvent(SCA_IInputDevice::SCA_EnumInputs inputcode)=0;
 	virtual bool	ConvertBlenderEvent(unsigned short incode, short val, unsigned int unicode)=0;
 
 

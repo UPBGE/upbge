@@ -15,26 +15,17 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPC_KeyboardDevice.h
+/** \file GH_InputDevice.h
  *  \ingroup player
  */
 
-#ifndef __GPC_KEYBOARDDEVICE_H__
-#define __GPC_KEYBOARDDEVICE_H__
-
-#ifdef WIN32
-#pragma warning (disable:4786)
-#endif  /* WIN32 */
+#ifndef __GH_KEYBOARDDEVICE_H__
+#define __GH_KEYBOARDDEVICE_H__
 
 #include "SCA_IInputDevice.h"
 
@@ -48,43 +39,30 @@
  * \see SCA_IInputDevice
  */
 
-class GPC_KeyboardDevice : public SCA_IInputDevice
+class GH_InputDevice : public SCA_IInputDevice
 {
 protected:
-
 	/**
 	 * This map converts system dependent keyboard codes into Ketsji codes.
 	 * System dependent keyboard codes are stored as ints.
 	 */
 	std::map<int, SCA_EnumInputs> m_reverseKeyTranslateTable;
-	short	m_exitkey;
+	short m_exitkey;
+	bool m_hookesc;
 
 public:
-	bool m_hookesc;
-	GPC_KeyboardDevice()
-		: m_hookesc(false)
-	{
-	}
-
-	virtual ~GPC_KeyboardDevice(void)
-	{
-	}
+	GH_InputDevice();
+	virtual ~GH_InputDevice();
 
 	virtual bool IsPressed(SCA_IInputDevice::SCA_EnumInputs inputcode)
 	{
 		return false;
 	}
 
-	virtual void NextFrame();
-	
-	virtual SCA_EnumInputs ToNative(int incode)
-	{
-		return m_reverseKeyTranslateTable[incode];
-	}
+	void ConvertEvent(int incode, int val, unsigned int unicode);
+	void ConvertMoveEvent(int x, int y);
 
-	virtual bool ConvertEvent(int incode, int val, unsigned int unicode);
-	
 	virtual void HookEscape();
 };
 
-#endif  /* __GPC_KEYBOARDDEVICE_H__ */
+#endif  /* __GH_KEYBOARDDEVICE_H__ */

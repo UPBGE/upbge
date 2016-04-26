@@ -60,7 +60,7 @@ public:
 	GPC_MouseDevice();
 	virtual ~GPC_MouseDevice(void);
 
-	virtual bool IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode);
+	virtual bool IsPressed(SCA_IInputDevice::SCA_EnumInputs inputcode);
 	virtual void NextFrame();
 
 	/**
@@ -99,7 +99,7 @@ protected:
 	 * \param eventval	Value for this event.
 	 * \return Indication as to whether the event was processed.
 	 */
-	virtual bool ConvertEvent(KX_EnumInputs kxevent, int eventval, unsigned int unicode);
+	virtual bool ConvertEvent(SCA_EnumInputs kxevent, int eventval, unsigned int unicode);
 };
 
 #endif  /* __GPC_MOUSEDEVICE_H__ */

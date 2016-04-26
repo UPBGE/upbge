@@ -44,8 +44,8 @@ public:
 	KX_BlenderMouseDevice();
 	virtual ~KX_BlenderMouseDevice();
 
-	virtual bool	IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode);
-//	virtual const SCA_InputEvent&	GetEventValue(SCA_IInputDevice::KX_EnumInputs inputcode);
+	virtual bool	IsPressed(SCA_IInputDevice::SCA_EnumInputs inputcode);
+//	virtual const SCA_InputEvent&	GetEvent(SCA_IInputDevice::SCA_EnumInputs inputcode);
 	virtual bool	ConvertBlenderEvent(unsigned short incode, short val, unsigned int unicode);
 	virtual void	NextFrame();
 

@@ -50,6 +50,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							  bool libloading=false
 							  );
 
-SCA_IInputDevice::KX_EnumInputs ConvertKeyCode(int key_code);
+SCA_IInputDevice::SCA_EnumInputs ConvertKeyCode(int key_code);
 
 #endif  /* __BL_BLENDERDATACONVERSION_H__ */

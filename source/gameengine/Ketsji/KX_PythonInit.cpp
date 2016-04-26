@@ -1500,11 +1500,11 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 
 	// Add keyboard and mouse attributes to this module
 	BLI_assert(!gp_PythonKeyboard);
-	gp_PythonKeyboard = new SCA_PythonKeyboard(KX_GetActiveEngine()->GetKeyboardDevice());
+	gp_PythonKeyboard = new SCA_PythonKeyboard(KX_GetActiveEngine()->GetInputDevice());
 	PyDict_SetItemString(d, "keyboard", gp_PythonKeyboard->NewProxy(true));
 
 	BLI_assert(!gp_PythonMouse);
-	gp_PythonMouse = new SCA_PythonMouse(KX_GetActiveEngine()->GetMouseDevice(), KX_GetActiveEngine()->GetCanvas());
+	gp_PythonMouse = new SCA_PythonMouse(KX_GetActiveEngine()->GetInputDevice(), KX_GetActiveEngine()->GetCanvas());
 	PyDict_SetItemString(d, "mouse", gp_PythonMouse->NewProxy(true));
 
 	PyObject* joylist = PyList_New(JOYINDEX_MAX);

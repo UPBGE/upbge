@@ -38,15 +38,10 @@ set(SRC
 	BL_KetsjiEmbedStart.cpp
 	BL_System.cpp
 	KX_BlenderCanvas.cpp
-	KX_BlenderKeyboardDevice.cpp
-	KX_BlenderMouseDevice.cpp
 	KX_BlenderSystem.cpp
 
 	BL_System.h
 	KX_BlenderCanvas.h
-	KX_BlenderInputDevice.h
-	KX_BlenderKeyboardDevice.h
-	KX_BlenderMouseDevice.h
 	KX_BlenderSystem.h
 )
 

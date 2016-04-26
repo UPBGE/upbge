@@ -182,9 +182,9 @@ extern Material defmaterial;	/* material.c */
 
 static bool default_light_mode = 0;
 
-static std::map<int, SCA_IInputDevice::KX_EnumInputs> create_translate_table()
+static std::map<int, SCA_IInputDevice::SCA_EnumInputs> create_translate_table()
 {
-	std::map<int, SCA_IInputDevice::KX_EnumInputs> m;
+	std::map<int, SCA_IInputDevice::SCA_EnumInputs> m;
 		
 	/* The reverse table. In order to not confuse ourselves, we      */
 	/* immediately convert all events that come in to KX codes.      */
@@ -346,9 +346,9 @@ static std::map<int, SCA_IInputDevice::KX_EnumInputs> create_translate_table()
 	return m;
 }
 
-static std::map<int, SCA_IInputDevice::KX_EnumInputs> gReverseKeyTranslateTable = create_translate_table();
+static std::map<int, SCA_IInputDevice::SCA_EnumInputs> gReverseKeyTranslateTable = create_translate_table();
 
-SCA_IInputDevice::KX_EnumInputs ConvertKeyCode(int key_code)
+SCA_IInputDevice::SCA_EnumInputs ConvertKeyCode(int key_code)
 {
 	return gReverseKeyTranslateTable[key_code];
 }

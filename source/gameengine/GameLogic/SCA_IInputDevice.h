@@ -39,34 +39,10 @@
 #include "MEM_guardedalloc.h"
 #endif
 
-class SCA_InputEvent 
-{
-	
-public:
-	enum SCA_EnumInputs {
-	
-		KX_NO_INPUTSTATUS = 0,
-		KX_JUSTACTIVATED,
-		KX_ACTIVE,
-		KX_JUSTRELEASED,
-	};
+#include "SCA_InputEvent.h"
 
-	SCA_InputEvent(SCA_EnumInputs status=KX_NO_INPUTSTATUS,int eventval=0, int unicode=0)
-		:	m_status(status),
-		m_eventval(eventval),
-		m_unicode(unicode)
-	{
-
-	}
-
-	SCA_EnumInputs m_status;
-	int		m_eventval;
-	unsigned int m_unicode;
-};
-
-/* Originally from wm_event_types.h, now only used by GameEngine */
-#define MOUSEX		MOUSEMOVE
-#define MOUSEY		ACTIONMOUSE
+#define MOUSEX         MOUSEMOVE
+#define MOUSEY         ACTIONMOUSE
 
 class SCA_IInputDevice 
 {
@@ -77,7 +53,7 @@ public:
 	SCA_IInputDevice();
 	virtual ~SCA_IInputDevice();
 
-	enum KX_EnumInputs {
+	enum SCA_EnumInputs {
 	
 		KX_NOKEY = 0,
 	
@@ -282,21 +258,11 @@ public:
 
 
 protected:
-	/**  
-	 * m_eventStatusTables are two tables that contain current and previous
-	 * status of all events
-	 */
-
-	SCA_InputEvent	m_eventStatusTables[2][SCA_IInputDevice::KX_MAX_KEYS];
-	/**  
-	 * m_currentTable is index for m_keyStatusTable that toggle between 0 or 1
-	 */
-	int				m_currentTable; 
-	void			ClearStatusTable(int tableid);
+	SCA_InputEvent m_eventsTable[SCA_IInputDevice::KX_MAX_KEYS];
 
 public:
-	virtual bool	IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode)=0;
-	virtual const SCA_InputEvent&	GetEventValue(SCA_IInputDevice::KX_EnumInputs inputcode);
+	virtual bool	IsPressed(SCA_IInputDevice::SCA_EnumInputs inputcode)=0;
+	virtual SCA_InputEvent& GetEvent(SCA_IInputDevice::SCA_EnumInputs inputcode);
 
 	/**
 	 * Count active events(active and just_activated)
@@ -322,7 +288,9 @@ public:
 	 * KX_NO_INPUTSTATUS->KX_JUSTACTIVATED and
 	 * KX_ACTIVE->KX_JUSTRELEASED transitions.
 	 */
-	virtual void	NextFrame();
+	virtual void ClearEvents();
+
+	virtual void ReleaseMoveEvent();
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

@@ -51,6 +51,7 @@ set(SRC
 	SCA_IController.cpp
 	SCA_IInputDevice.cpp
 	SCA_ILogicBrick.cpp
+	SCA_InputEvent.cpp
 	SCA_IObject.cpp
 	SCA_IScene.cpp
 	SCA_ISensor.cpp
@@ -92,6 +93,7 @@ set(SRC
 	SCA_IController.h
 	SCA_IInputDevice.h
 	SCA_ILogicBrick.h
+	SCA_InputEvent.h
 	SCA_IObject.h
 	SCA_IScene.h
 	SCA_ISensor.h

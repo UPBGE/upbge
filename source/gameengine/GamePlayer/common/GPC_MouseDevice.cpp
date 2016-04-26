@@ -44,9 +44,9 @@ GPC_MouseDevice::~GPC_MouseDevice()
 /**
  * IsPressed gives boolean information about mouse status, true if pressed, false if not.
  */
-bool GPC_MouseDevice::IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode)
+bool GPC_MouseDevice::IsPressed(SCA_IInputDevice::SCA_EnumInputs inputcode)
 {
-	const SCA_InputEvent & inevent =  m_eventStatusTables[m_currentTable][inputcode];
+	const SCA_InputEvent & inevent =  m_eventsTable[m_currentTable][inputcode];
 	bool pressed = (inevent.m_status == SCA_InputEvent::KX_JUSTACTIVATED || 
 		inevent.m_status == SCA_InputEvent::KX_ACTIVE);
 	return pressed;
@@ -65,25 +65,25 @@ void GPC_MouseDevice::NextFrame()
 	// Convert just pressed events into regular (active) events
 	int previousTable = 1-m_currentTable;
 	for (int mouseevent= KX_BEGINMOUSE; mouseevent< KX_ENDMOUSEBUTTONS; mouseevent++) {
-		SCA_InputEvent& oldevent = m_eventStatusTables[previousTable][mouseevent];
+		SCA_InputEvent& oldevent = m_eventsTable[previousTable][mouseevent];
 		if (oldevent.m_status == SCA_InputEvent::KX_JUSTACTIVATED ||
 		    oldevent.m_status == SCA_InputEvent::KX_ACTIVE)
 		{
-			m_eventStatusTables[m_currentTable][mouseevent] = oldevent;
-			m_eventStatusTables[m_currentTable][mouseevent].m_status = SCA_InputEvent::KX_ACTIVE;
+			m_eventsTable[m_currentTable][mouseevent] = oldevent;
+			m_eventsTable[m_currentTable][mouseevent].m_status = SCA_InputEvent::KX_ACTIVE;
 		}
 	}
 	for (int mousemove= KX_ENDMOUSEBUTTONS; mousemove< KX_ENDMOUSE; mousemove++) {
-		SCA_InputEvent& oldevent = m_eventStatusTables[previousTable][mousemove];
-		m_eventStatusTables[m_currentTable][mousemove] = oldevent;
+		SCA_InputEvent& oldevent = m_eventsTable[previousTable][mousemove];
+		m_eventsTable[m_currentTable][mousemove] = oldevent;
 		if (oldevent.m_status == SCA_InputEvent::KX_JUSTACTIVATED ||
 		    oldevent.m_status == SCA_InputEvent::KX_ACTIVE)
 		{
-			m_eventStatusTables[m_currentTable][mousemove].m_status = SCA_InputEvent::KX_JUSTRELEASED;
+			m_eventsTable[m_currentTable][mousemove].m_status = SCA_InputEvent::KX_JUSTRELEASED;
 		}
 		else {
 			if (oldevent.m_status == SCA_InputEvent::KX_JUSTRELEASED) {
-				m_eventStatusTables[m_currentTable][mousemove].m_status = SCA_InputEvent::KX_NO_INPUTSTATUS;
+				m_eventsTable[m_currentTable][mousemove].m_status = SCA_InputEvent::KX_NO_INPUTSTATUS;
 			}
 		}
 	}
@@ -153,7 +153,7 @@ bool GPC_MouseDevice::ConvertMoveEvent(int x, int y)
 }
 
 
-bool GPC_MouseDevice::ConvertEvent(KX_EnumInputs kxevent, int eventval, unsigned int unicode)
+bool GPC_MouseDevice::ConvertEvent(SCA_EnumInputs kxevent, int eventval, unsigned int unicode)
 {
 	bool result = true;
 	
@@ -162,47 +162,47 @@ bool GPC_MouseDevice::ConvertEvent(KX_EnumInputs kxevent, int eventval, unsigned
 		int previousTable = 1-m_currentTable;
 
 		if (eventval > 0) {
-			m_eventStatusTables[m_currentTable][kxevent].m_eventval = eventval;
+			m_eventsTable[m_currentTable][kxevent].m_eventval = eventval;
 
-			switch (m_eventStatusTables[previousTable][kxevent].m_status)
+			switch (m_eventsTable[previousTable][kxevent].m_status)
 			{
 			case SCA_InputEvent::KX_ACTIVE:
 			case SCA_InputEvent::KX_JUSTACTIVATED:
 				{
-					m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_ACTIVE;
+					m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_ACTIVE;
 					break;
 				}
 			case SCA_InputEvent::KX_JUSTRELEASED:
 				{
 					if ( kxevent > KX_BEGINMOUSEBUTTONS && kxevent < KX_ENDMOUSEBUTTONS)
 					{
-						m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
+						m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
 					} else
 					{
-						m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_ACTIVE;
+						m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_ACTIVE;
 						
 					}
 					break;
 				}
 			default:
 				{
-					m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
+					m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTACTIVATED;
 				}
 			}
 			
 		} 
 		else {
-			switch (m_eventStatusTables[previousTable][kxevent].m_status)
+			switch (m_eventsTable[previousTable][kxevent].m_status)
 			{
 			case SCA_InputEvent::KX_JUSTACTIVATED:
 			case SCA_InputEvent::KX_ACTIVE:
 				{
-					m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTRELEASED;
+					m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_JUSTRELEASED;
 					break;
 				}
 			default:
 				{
-					m_eventStatusTables[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_NO_INPUTSTATUS;
+					m_eventsTable[m_currentTable][kxevent].m_status = SCA_InputEvent::KX_NO_INPUTSTATUS;
 				}
 			}
 		}
