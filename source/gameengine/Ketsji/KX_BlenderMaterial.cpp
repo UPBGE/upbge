@@ -418,7 +418,11 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 
 	for (int i = 0; i < BL_Texture::MaxUnits; i++) {
 		BL_Texture *texture = m_textures[i];
-		if (texture && texture->Ok()) {
+		/* Here textures can return false to Ok() because we're looking only at
+		 * texture attributs and not texture bind id like for the binding and
+		 * unbinding of textures. A NULL BL_Texture means that the cooresponding
+		 * mtex is NULL too (see InitTextures).*/
+		if (texture) {
 			MTex *mtex = texture->GetMTex();
 			if (mtex->texco & (TEXCO_OBJECT | TEXCO_REFL)) {
 				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_GEN, i);
