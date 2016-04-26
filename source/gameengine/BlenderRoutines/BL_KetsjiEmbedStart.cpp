@@ -44,7 +44,6 @@
 #include "KX_BlenderKeyboardDevice.h"
 #include "KX_BlenderMouseDevice.h"
 #include "KX_BlenderSystem.h"
-#include "BL_Material.h"
 
 #include "KX_KetsjiEngine.h"
 #include "KX_NetworkMessageManager.h"

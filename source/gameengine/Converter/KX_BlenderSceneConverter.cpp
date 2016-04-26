@@ -41,7 +41,6 @@
 #include "PHY_IPhysicsEnvironment.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h" // So we can handle adding new text datablocks for Python to import
-#include "BL_Material.h"
 #include "BL_ActionActuator.h"
 #include "KX_BlenderMaterial.h"
 

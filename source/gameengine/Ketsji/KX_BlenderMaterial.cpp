@@ -23,7 +23,6 @@
  */
 
 #include "KX_BlenderMaterial.h"
-#include "BL_Material.h"
 #include "BL_Shader.h"
 #include "BL_BlenderShader.h"
 #include "KX_Scene.h"

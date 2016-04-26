@@ -34,7 +34,6 @@
 #include "GPU_extensions.h"
 
 #include "BL_BlenderShader.h"
-#include "BL_Material.h"
 
 #include "RAS_BucketManager.h"
 #include "RAS_MeshObject.h"

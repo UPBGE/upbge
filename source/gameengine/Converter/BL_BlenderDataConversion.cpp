@@ -82,7 +82,6 @@
 #include "RAS_TexVert.h"
 #include "RAS_BucketManager.h"
 #include "RAS_IPolygonMaterial.h"
-#include "BL_Material.h"
 #include "KX_BlenderMaterial.h"
 #include "BL_Texture.h"
 

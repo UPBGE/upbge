@@ -138,7 +138,6 @@ set(SRC
 	BL_Action.h
 	BL_ActionManager.h
 	BL_BlenderShader.h
-	BL_Material.h
 	BL_Shader.h
 	BL_Texture.h
 	KX_ArmatureSensor.h

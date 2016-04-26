@@ -26,7 +26,6 @@
 
 #include <iostream>
 #include "BL_Shader.h"
-#include "BL_Material.h"
 
 #include "BLI_utildefines.h"
 #include "MT_Matrix4x4.h"

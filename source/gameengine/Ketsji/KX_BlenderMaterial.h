@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "RAS_IPolygonMaterial.h"
-#include "BL_Material.h"
 #include "BL_Texture.h"
 
 #include "EXP_PyObjectPlus.h"

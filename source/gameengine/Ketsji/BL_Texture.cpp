@@ -24,7 +24,6 @@
 
 #include "glew-mx.h"
 
-#include "BL_Material.h"
 #include "BL_Texture.h"
 
 #include "DNA_texture_types.h"
