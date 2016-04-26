@@ -33,6 +33,7 @@
 #define __BL_BLENDERSHADER_H__
 
 #include "BL_Material.h" // for MAXTEX
+#include "STR_String.h"
 
 struct Material;
 struct Scene;

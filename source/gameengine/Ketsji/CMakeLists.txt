@@ -64,7 +64,6 @@ set(SRC
 	BL_Action.cpp
 	BL_ActionManager.cpp
 	BL_BlenderShader.cpp
-	BL_Material.cpp
 	BL_Shader.cpp
 	BL_Texture.cpp
 	KX_ArmatureSensor.cpp

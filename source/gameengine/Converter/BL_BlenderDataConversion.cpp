@@ -469,40 +469,32 @@ static void GetUVs(MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Vecto
 static KX_BlenderMaterial *ConvertMaterial(
 	Material *mat,
 	MTFace *tface,
-	const char *tfaceName,
-	MCol *mmcol,
 	MTF_localLayer *layers,
 	int lightlayer,
 	KX_Scene *scene)
 {
-	BL_Material *material = new BL_Material(); // WARNING non freed.
 	unsigned int alphablend = 0;
+	int rasmode = 0;
 
 	STR_String uvsname[MAXTEX];
 
-	if (mat) {
-		// use lighting?
-		material->ras_mode |= (mat->mode & MA_SHLESS) ? 0 : USE_LIGHT;
-		material->ras_mode |= (mat->game.flag & GEMAT_BACKCULL) ? 0 : TWOSIDED;
+	// use lighting?
+	rasmode |= (mat->mode & MA_SHLESS) ? 0 : RAS_USE_LIGHT;
+	rasmode |= (mat->game.flag & GEMAT_BACKCULL) ? 0 : RAS_TWOSIDED;
 
-		// cast shadows?
-		material->ras_mode |= ((mat->mode2 & MA_CASTSHADOW) && (mat->mode & MA_SHADBUF)) ? CAST_SHADOW : 0;
+	// cast shadows?
+	rasmode |= ((mat->mode2 & MA_CASTSHADOW) && (mat->mode & MA_SHADBUF)) ? RAS_CAST_SHADOW : 0;
 
-		// only shadows?
-		material->ras_mode |= (mat->mode & MA_ONLYCAST) ? ONLY_SHADOW : 0;
+	// only shadows?
+	rasmode |= (mat->mode & MA_ONLYCAST) ? RAS_ONLY_SHADOW : 0;
 
-		// foreach MTex
-		for (int i = 0; i < MAXTEX; i++) {
-			// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
-			uvsname[i] = STR_String(layers[i].name);
-		}
-
-		material->ras_mode |= (mat->material_type == MA_TYPE_WIRE) ? WIRE : 0;
+	// foreach MTex
+	for (int i = 0; i < MAXTEX; i++) {
+		// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
+		uvsname[i] = STR_String(layers[i].name);
 	}
-	else { // No Material
-		// No material - old default TexFace properties
-		material->ras_mode |= USE_LIGHT;
-	}
+
+	rasmode |= (mat->material_type == MA_TYPE_WIRE) ? RAS_WIRE : 0;
 
 	/* No material, what to do? let's see what is in the UV and set the material accordingly
 	 * light and visible is always on */
@@ -510,20 +502,19 @@ static KX_BlenderMaterial *ConvertMaterial(
 		// nothing at all
 		alphablend = GEMAT_SOLID;
 	}
-
-	if (mat && tface) {
+	else {
 		alphablend = mat->game.alpha_blend;
 	}
 
 	// with ztransp enabled, enforce alpha blending mode
-	if (mat && (mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (alphablend == GEMAT_SOLID)) {
+	if ((mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (alphablend == GEMAT_SOLID)) {
 		alphablend = GEMAT_ALPHA;
 	}
 
 	// always zsort alpha + add
 	if (ELEM(alphablend, GEMAT_ALPHA, GEMAT_ALPHA_SORT, GEMAT_ADD) && (alphablend != GEMAT_CLIP)) {
-		material->ras_mode |= ALPHA;
-		material->ras_mode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? ZSORT : 0;
+		rasmode |= RAS_ALPHA;
+		rasmode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? RAS_ZSORT : 0;
 	}
 
 	MTexPoly *mtexpoly = new MTexPoly();
@@ -532,9 +523,9 @@ static KX_BlenderMaterial *ConvertMaterial(
 	if (tface) {
 		ME_MTEXFACE_CPY(mtexpoly, tface);
 	}
-	material->material = mat;
 
-	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, material, (mat ? &mat->game : NULL), mtexpoly, alphablend, lightlayer, uvsname);
+	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, (mat ? &mat->game : NULL),
+														  mtexpoly, alphablend, lightlayer, uvsname, rasmode);
 
 	return kx_blmat;
 }
@@ -550,7 +541,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 	}
 
 	if (!polymat) {
-		polymat = ConvertMaterial(ma, tface, tfaceName, mcol, layers, lightlayer, scene);
+		polymat = ConvertMaterial(ma, tface, layers, lightlayer, scene);
 		converter->CachePolyMaterial(scene, ma, polymat);
 	}
 	

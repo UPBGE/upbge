@@ -58,6 +58,19 @@ enum MaterialProps
 	RAS_OBJECTCOLOR = (1 << 6),
 };
 
+enum MaterialRasterizerModes
+{
+	RAS_COLLIDER = 2,
+	RAS_ZSORT = 4,
+	RAS_ALPHA = 8,
+	RAS_USE_LIGHT = 32,
+	RAS_WIRE = 64,
+	RAS_CAST_SHADOW = 128,
+	RAS_TEX = 256,
+	RAS_TWOSIDED = 512,
+	RAS_ONLY_SHADOW = 1024,
+};
+
 /**
  * Polygon Material on which the material buckets are sorted
  */
@@ -67,9 +80,7 @@ protected:
 	STR_HashedString m_materialname; // also needed for touchsensor
 	int m_drawingmode;
 	int m_alphablend;
-	bool m_alpha;
-	bool m_zsort;
-	bool m_light;
+	int m_rasMode;
 
 	unsigned int m_polymatid;
 	static unsigned int m_newpolymatid;
@@ -86,11 +97,8 @@ public:
 	};
 
 	RAS_IPolyMaterial(const STR_String& matname,
-	                  int transp,
-	                  bool alpha,
-	                  bool zsort,
-	                  bool light,
-	                  bool image,
+	                  int alphablend,
+	                  int rasmode,
 	                  GameSettings *game);
 
 	virtual ~RAS_IPolyMaterial()
@@ -105,6 +113,7 @@ public:
 
 	bool IsAlpha() const;
 	bool IsZSort() const;
+	bool IsWire() const;
 	unsigned int hash() const;
 	int GetDrawingMode() const;
 	const STR_String& GetMaterialName() const;
@@ -120,7 +129,6 @@ public:
 	virtual Image *GetBlenderImage() const = 0;
 	virtual MTexPoly *GetMTexPoly() const = 0;
 	virtual Scene *GetBlenderScene() const = 0;
-	virtual bool IsWire() const = 0;
 	virtual bool UseInstancing() const = 0;
 	virtual void ReleaseMaterial() = 0;
 	virtual void GetMaterialRGBAColor(unsigned char *rgba) const;

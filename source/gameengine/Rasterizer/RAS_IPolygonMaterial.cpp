@@ -36,23 +36,18 @@
 #include "DNA_material_types.h"
 
 RAS_IPolyMaterial::RAS_IPolyMaterial(
-    const STR_String& matname,
-    int alphablend,
-    bool alpha,
-    bool zsort,
-    bool light,
-    bool image,
-    GameSettings *game)
+	const STR_String& matname,
+	int alphablend,
+	int rasmode,
+	GameSettings *game)
 	:m_materialname(matname),
 	m_alphablend(alphablend),
-	m_alpha(alpha),
-	m_zsort(zsort),
-	m_light(light),
+	m_rasMode(rasmode),
 	m_polymatid(m_newpolymatid++),
 	m_flag(0)
 {
 	m_polymatid = m_newpolymatid++;
-	m_drawingmode = ConvertFaceMode(game, image);
+	m_drawingmode = ConvertFaceMode(game, m_rasMode & RAS_TEX);
 }
 
 int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game, bool image) const
@@ -78,6 +73,11 @@ bool RAS_IPolyMaterial::IsAlphaShadow() const
 	return m_alphablend != GEMAT_SOLID;
 }
 
+bool RAS_IPolyMaterial::IsWire() const
+{
+	return (m_rasMode & RAS_WIRE);
+}
+
 void RAS_IPolyMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
 {
 	*rgba++ = 0xFF;
@@ -88,12 +88,12 @@ void RAS_IPolyMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
 
 bool RAS_IPolyMaterial::IsAlpha() const
 {
-	return m_alpha || m_zsort;
+	return (m_rasMode & (RAS_ALPHA | RAS_ZSORT));
 }
 
 bool RAS_IPolyMaterial::IsZSort() const
 {
-	return m_zsort;
+	return (m_rasMode & RAS_ZSORT);
 }
 
 unsigned int RAS_IPolyMaterial::hash() const
@@ -135,7 +135,7 @@ bool RAS_IPolyMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 		/* pass */
 	}
 	else {
-		dolights = m_light;
+		dolights = (m_rasMode & RAS_USE_LIGHT);
 	}
 
 	return dolights;

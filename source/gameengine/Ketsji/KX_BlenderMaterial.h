@@ -25,6 +25,7 @@ class SCA_IScene;
 class KX_Scene;
 class BL_BlenderShader;
 class BL_Shader;
+struct Material;
 
 #ifdef USE_MATHUTILS
 void KX_BlenderMaterial_Mathutils_Callback_Init(void);
@@ -37,12 +38,13 @@ class KX_BlenderMaterial : public PyObjectPlus, public RAS_IPolyMaterial
 public:
 	KX_BlenderMaterial(
 			KX_Scene *scene,
-			BL_Material *mat,
+			Material *mat,
 			GameSettings *game,
 			MTexPoly *mtexpoly,
 			unsigned int alphablend,
 			int lightlayer,
-			STR_String uvsname[MAXTEX]);
+			STR_String uvsname[MAXTEX],
+			int rasmode);
 
 	virtual ~KX_BlenderMaterial();
 
@@ -56,7 +58,6 @@ public:
 
 	void ActivateBlenderShaders(RAS_IRasterizer *rasty);
 
-	virtual bool IsWire() const;
 	virtual bool UseInstancing() const;
 	virtual const STR_String& GetTextureName() const;
 	virtual Material *GetBlenderMaterial() const;
@@ -78,8 +79,6 @@ public:
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha);
 
 	virtual void Replace_IScene(SCA_IScene *val);
-
-	BL_Material *GetBLMaterial();
 
 #ifdef WITH_PYTHON
 	virtual PyObject *py_repr()
@@ -126,7 +125,7 @@ public:
 	static void EndFrame(RAS_IRasterizer *rasty);
 
 private:
-	BL_Material *m_material;
+	Material *m_material;
 	MTexPoly *m_mtexPoly;
 	BL_Shader *m_shader;
 	BL_BlenderShader *m_blenderShader;
