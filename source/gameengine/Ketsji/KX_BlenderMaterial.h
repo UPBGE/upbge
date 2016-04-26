@@ -40,7 +40,8 @@ public:
 			BL_Material *mat,
 			GameSettings *game,
 			MTexPoly *mtexpoly,
-			int lightlayer);
+			int lightlayer,
+			STR_String uvsname[MAXTEX]);
 
 	virtual ~KX_BlenderMaterial();
 
@@ -136,6 +137,7 @@ private:
 	bool m_modified;
 	bool m_constructed; // if false, don't clean on exit
 	int m_lightLayer;
+	STR_String m_uvsName[MAXTEX];
 
 	struct {
 		float r, g, b, a;

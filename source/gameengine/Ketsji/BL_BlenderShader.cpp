@@ -43,9 +43,8 @@
 
 #include "KX_Scene.h"
 
-BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, BL_Material *blmat, int lightlayer)
+BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer, STR_String uvsname[MAXTEX])
 	:m_mat(ma),
-	m_blMaterial(blmat),
 	m_lightLayer(lightlayer),
 	m_GPUMat(NULL)
 {
@@ -53,7 +52,7 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, BL_Mate
 	m_alphaBlend = GPU_BLEND_SOLID;
 
 	ReloadMaterial();
-	ParseAttribs();
+	ParseAttribs(uvsname);
 }
 
 BL_BlenderShader::~BL_BlenderShader()
@@ -62,7 +61,7 @@ BL_BlenderShader::~BL_BlenderShader()
 		GPU_material_unbind(m_GPUMat);
 }
 
-void BL_BlenderShader::ParseAttribs()
+void BL_BlenderShader::ParseAttribs(STR_String uvsname[MAXTEX])
 {
 	GPUVertexAttribs attribs;
 	GPU_material_vertex_attributes(m_GPUMat, &attribs);
@@ -85,7 +84,7 @@ void BL_BlenderShader::ParseAttribs()
 				continue;
 			}
 			for (unsigned int j = 0; j < MAXTEX; ++j) {
-				if (strcmp(m_blMaterial->uvsName[j], attribname) == 0) {
+				if (strcmp(uvsname[j], attribname) == 0) {
 					m_uvLayers[i] = j;
 					break;
 				}

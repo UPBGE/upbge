@@ -44,8 +44,6 @@ public:
 
 	short alphablend;
 
-	STR_String uvsName[MAXTEX];
-
 	Material*			material;
 
 #ifdef WITH_CXX_GUARDEDALLOC

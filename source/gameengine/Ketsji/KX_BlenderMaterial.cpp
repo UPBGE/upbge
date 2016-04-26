@@ -62,7 +62,8 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		BL_Material *data,
 		GameSettings *game,
 		MTexPoly *mtexpoly,
-		int lightlayer)
+		int lightlayer,
+		STR_String uvsname[MAXTEX])
 	:RAS_IPolyMaterial(
 		data->material->id.name,
 		data->alphablend,
@@ -107,6 +108,9 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 
 	for (unsigned short i = 0; i < BL_Texture::GetMaxUnits(); ++i) {
 		m_textures[i] = NULL;
+	}
+	for (unsigned short i = 0; i < MAXTEX; ++i) {
+		m_uvsName[i] = uvsname[i];
 	}
 }
 
@@ -514,7 +518,7 @@ BL_Material *KX_BlenderMaterial::GetBLMaterial()
 void KX_BlenderMaterial::SetBlenderGLSLShader()
 {
 	if (!m_blenderShader)
-		m_blenderShader = new BL_BlenderShader(m_scene, m_material->material, m_material, m_lightLayer);
+		m_blenderShader = new BL_BlenderShader(m_scene, m_material->material, m_lightLayer, m_uvsName);
 
 	if (!m_blenderShader->Ok()) {
 		delete m_blenderShader;

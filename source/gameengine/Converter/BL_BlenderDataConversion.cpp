@@ -470,20 +470,16 @@ static KX_BlenderMaterial *ConvertMaterial(
 	Material *mat,
 	MTFace *tface,
 	const char *tfaceName,
-	MFace *mface,
 	MCol *mmcol,
 	MTF_localLayer *layers,
 	int lightlayer,
 	KX_Scene *scene)
 {
-	int texalpha = 0;
-	const bool validmat  = (mat != NULL);
-	const bool validface = (tface != NULL);
-
 	BL_Material *material = new BL_Material(); // WARNING non freed.
 
-	if (validmat) {
+	STR_String uvsname[MAXTEX];
 
+	if (mat) {
 		// use lighting?
 		material->ras_mode |= (mat->mode & MA_SHLESS) ? 0 : USE_LIGHT;
 		material->ras_mode |= (mat->game.flag & GEMAT_BACKCULL) ? 0 : TWOSIDED;
@@ -497,7 +493,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 		// foreach MTex
 		for (int i = 0; i < MAXTEX; i++) {
 			// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
-			material->uvsName[i] = layers[i].name;
+			uvsname[i] = STR_String(layers[i].name);
 		}
 
 		material->ras_mode |= (mat->material_type == MA_TYPE_WIRE) ? WIRE : 0;
@@ -509,22 +505,22 @@ static KX_BlenderMaterial *ConvertMaterial(
 
 	/* No material, what to do? let's see what is in the UV and set the material accordingly
 	 * light and visible is always on */
-	if (!validface) {
+	if (!tface) {
 		// nothing at all
 		material->alphablend = GEMAT_SOLID;
 	}
 
-	if (validmat && validface) {
+	if (mat && tface) {
 		material->alphablend = mat->game.alpha_blend;
 	}
 
 	// with ztransp enabled, enforce alpha blending mode
-	if (validmat && (mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (material->alphablend == GEMAT_SOLID)) {
+	if (mat && (mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (material->alphablend == GEMAT_SOLID)) {
 		material->alphablend = GEMAT_ALPHA;
 	}
 
 	// always zsort alpha + add
-	if ((ELEM(material->alphablend, GEMAT_ALPHA, GEMAT_ALPHA_SORT, GEMAT_ADD) || texalpha) && (material->alphablend != GEMAT_CLIP)) {
+	if (ELEM(material->alphablend, GEMAT_ALPHA, GEMAT_ALPHA_SORT, GEMAT_ADD) && (material->alphablend != GEMAT_CLIP)) {
 		material->ras_mode |= ALPHA;
 		material->ras_mode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? ZSORT : 0;
 	}
@@ -537,7 +533,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 	}
 	material->material = mat;
 
-	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, material, (mat ? &mat->game : NULL), mtexpoly, lightlayer);
+	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, material, (mat ? &mat->game : NULL), mtexpoly, lightlayer, uvsname);
 
 	return kx_blmat;
 }
@@ -553,7 +549,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 	}
 
 	if (!polymat) {
-		polymat = ConvertMaterial(ma, tface, tfaceName, mface, mcol, layers, lightlayer, scene);
+		polymat = ConvertMaterial(ma, tface, tfaceName, mcol, layers, lightlayer, scene);
 		converter->CachePolyMaterial(scene, ma, polymat);
 	}
 	
