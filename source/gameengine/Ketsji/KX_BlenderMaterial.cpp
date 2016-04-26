@@ -463,6 +463,7 @@ void KX_BlenderMaterial::UpdateIPO(
 	m_material->g = (float)(rgba[1]);
 	m_material->b = (float)(rgba[2]);
 	m_material->alpha = (float)(rgba[3]);
+	m_material->amb = (float)(ambient);
 	m_material->har = (float)(hard);
 	m_material->emit = (float)(emit);
 	m_material->spec = (float)(spec);
