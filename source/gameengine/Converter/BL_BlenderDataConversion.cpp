@@ -529,10 +529,6 @@ static KX_BlenderMaterial *ConvertMaterial(
 		material->ras_mode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? ZSORT : 0;
 	}
 
-	if (validmat) {
-		material->matname =(mat->id.name);
-	}
-
 	MTexPoly *mtexpoly = new MTexPoly();
 	memset(mtexpoly, 0, sizeof(MTexPoly));
 

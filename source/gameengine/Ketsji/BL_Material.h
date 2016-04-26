@@ -42,8 +42,6 @@ public:
 
 	unsigned int ras_mode;
 
-	STR_String matname;
-
 	short alphablend;
 
 	STR_String uvsName[MAXTEX];

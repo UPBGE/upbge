@@ -83,7 +83,7 @@ public:
 #ifdef WITH_PYTHON
 	virtual PyObject *py_repr()
 	{
-		return PyUnicode_From_STR_String(m_material->matname);
+		return PyUnicode_From_STR_String(m_materialname);
 	}
 
 	static PyObject *pyattr_get_shader(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

@@ -64,7 +64,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		MTexPoly *mtexpoly,
 		int lightlayer)
 	:RAS_IPolyMaterial(
-		data->matname,
+		data->material->id.name,
 		data->alphablend,
 		((data->ras_mode & ALPHA) != 0),
 		((data->ras_mode & ZSORT) != 0),
