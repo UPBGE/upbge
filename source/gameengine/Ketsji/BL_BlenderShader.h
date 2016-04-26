@@ -32,7 +32,7 @@
 #ifndef __BL_BLENDERSHADER_H__
 #define __BL_BLENDERSHADER_H__
 
-#include "BL_Material.h" // for MAXTEX
+#include "BL_Texture.h" // for MaxUnits
 #include "STR_String.h"
 
 struct Material;
@@ -61,10 +61,10 @@ private:
 	 * If the attribut doesn't use UV info it will return -1. */
 	int m_uvLayers[BL_MAX_ATTRIB];
 
-	void ParseAttribs(STR_String uvsname[MAXTEX]);
+	void ParseAttribs(STR_String uvsname[BL_Texture::MaxUnits]);
 
 public:
-	BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer, STR_String uvsname[MAXTEX]);
+	BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer, STR_String uvsname[BL_Texture::MaxUnits]);
 	virtual ~BL_BlenderShader();
 
 	bool Ok() const

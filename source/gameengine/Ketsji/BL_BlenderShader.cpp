@@ -43,7 +43,7 @@
 
 #include "KX_Scene.h"
 
-BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer, STR_String uvsname[MAXTEX])
+BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer, STR_String uvsname[BL_Texture::MaxUnits])
 	:m_mat(ma),
 	m_lightLayer(lightlayer),
 	m_GPUMat(NULL)
@@ -61,13 +61,13 @@ BL_BlenderShader::~BL_BlenderShader()
 		GPU_material_unbind(m_GPUMat);
 }
 
-void BL_BlenderShader::ParseAttribs(STR_String uvsname[MAXTEX])
+void BL_BlenderShader::ParseAttribs(STR_String uvsname[BL_Texture::MaxUnits])
 {
 	GPUVertexAttribs attribs;
 	GPU_material_vertex_attributes(m_GPUMat, &attribs);
 	int numattrib = GetAttribNum();
 
-	for (unsigned int i = 0; i < MAXTEX; ++i) {
+	for (unsigned int i = 0; i < BL_Texture::MaxUnits; ++i) {
 		m_uvLayers[i] = -1; // only to find bug.
 	}
 
@@ -83,7 +83,7 @@ void BL_BlenderShader::ParseAttribs(STR_String uvsname[MAXTEX])
 				m_uvLayers[i] = 0;
 				continue;
 			}
-			for (unsigned int j = 0; j < MAXTEX; ++j) {
+			for (unsigned int j = 0; j < BL_Texture::MaxUnits; ++j) {
 				if (strcmp(uvsname[j], attribname) == 0) {
 					m_uvLayers[i] = j;
 					break;

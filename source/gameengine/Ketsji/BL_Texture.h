@@ -57,7 +57,7 @@ public:
 
 	unsigned int GetTextureType() const;
 
-	static int GetMaxUnits();
+	enum {MaxUnits = 8};
 
 	void ActivateTexture(int unit);
 	void DisableTexture();

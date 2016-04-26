@@ -106,11 +106,6 @@ unsigned int BL_Texture::GetTextureType() const
 	return GPU_texture_target(m_gpuTex);
 }
 
-int BL_Texture::GetMaxUnits()
-{
-	return MAXTEX;
-}
-
 void BL_Texture::ActivateTexture(int unit)
 {
 	/* Since GPUTexture can be shared between material textures (MTex),

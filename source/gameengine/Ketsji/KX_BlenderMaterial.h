@@ -43,7 +43,7 @@ public:
 			MTexPoly *mtexpoly,
 			unsigned int alphablend,
 			int lightlayer,
-			STR_String uvsname[MAXTEX],
+			STR_String uvsname[BL_Texture::MaxUnits],
 			int rasmode);
 
 	virtual ~KX_BlenderMaterial();
@@ -130,13 +130,13 @@ private:
 	BL_Shader *m_shader;
 	BL_BlenderShader *m_blenderShader;
 	KX_Scene *m_scene;
-	BL_Texture *m_textures[MAXTEX]; // texture array
+	BL_Texture *m_textures[BL_Texture::MaxUnits]; // texture array
 	bool m_userDefBlend;
 	unsigned int m_blendFunc[2];
 	bool m_modified;
 	bool m_constructed; // if false, don't clean on exit
 	int m_lightLayer;
-	STR_String m_uvsName[MAXTEX];
+	STR_String m_uvsName[BL_Texture::MaxUnits];
 
 	struct {
 		float r, g, b, a;

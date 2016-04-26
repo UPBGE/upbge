@@ -433,7 +433,7 @@ typedef struct MTF_localLayer {
 	const char *name;
 } MTF_localLayer;
 
-static void GetUVs(MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Vector2 uvs[4][MAXTEX])
+static void GetUVs(MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Vector2 uvs[4][BL_Texture::MaxUnits])
 {
 	if (tface) {
 		uvs[0][0].setValue(tface->uv[0]);
@@ -476,7 +476,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 	unsigned int alphablend = 0;
 	int rasmode = 0;
 
-	STR_String uvsname[MAXTEX];
+	STR_String uvsname[BL_Texture::MaxUnits];
 
 	// use lighting?
 	rasmode |= (mat->mode & MA_SHLESS) ? 0 : RAS_USE_LIGHT;
@@ -489,7 +489,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 	rasmode |= (mat->mode & MA_ONLYCAST) ? RAS_ONLY_SHADOW : 0;
 
 	// foreach MTex
-	for (int i = 0; i < MAXTEX; i++) {
+	for (int i = 0; i < BL_Texture::MaxUnits; i++) {
 		// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
 		uvsname[i] = STR_String(layers[i].name);
 	}
@@ -1459,10 +1459,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	set<Group*> grouplist;	// list of groups to be converted
 	set<Object*> allblobj;	// all objects converted
 	set<Object*> groupobj;	// objects from groups (never in active layer)
-
-	// This is bad, but we use this to make sure the first time this is called
-	// is not in a separate thread.
-	BL_Texture::GetMaxUnits();
 
 	/* We have to ensure that group definitions are only converted once
 	 * push all converted group members to this set.

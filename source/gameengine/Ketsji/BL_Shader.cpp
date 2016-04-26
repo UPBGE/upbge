@@ -869,7 +869,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
 		int loc = GetUniformLocation(uniform);
 
 		if (loc != -1) {
-			if (index >= MAXTEX || index < 0) {
+			if (index >= BL_Texture::MaxUnits || index < 0) {
 				spit("Invalid texture sample index: " << index);
 			}
 #ifdef SORT_UNIFORMS
@@ -877,7 +877,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
 #else
 			SetUniform(loc, index);
 #endif
-			//if (index <= MAXTEX)
+			//if (index <= BL_Texture::MaxUnits)
 			//	mSampler[index].mLoc = loc;
 			//else
 			//	spit("Invalid texture sample index: " << index);

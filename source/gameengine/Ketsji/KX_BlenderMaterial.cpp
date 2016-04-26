@@ -64,7 +64,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		MTexPoly *mtexpoly,
 		unsigned int alphablend,
 		int lightlayer,
-		STR_String uvsname[MAXTEX],
+		STR_String uvsname[BL_Texture::MaxUnits],
 		int rasmode)
 	:RAS_IPolyMaterial(mat->id.name, alphablend, rasmode, game),
 	m_material(mat),
@@ -99,10 +99,10 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_flag |= ((rasmode & RAS_ONLY_SHADOW) != 0) ? RAS_ONLYSHADOW : 0;
 	m_flag |= ((m_material->shade_flag & MA_OBCOLOR) != 0) ? RAS_OBJECTCOLOR : 0;
 
-	for (unsigned short i = 0; i < BL_Texture::GetMaxUnits(); ++i) {
+	for (unsigned short i = 0; i < BL_Texture::MaxUnits; ++i) {
 		m_textures[i] = NULL;
 	}
-	for (unsigned short i = 0; i < MAXTEX; ++i) {
+	for (unsigned short i = 0; i < BL_Texture::MaxUnits; ++i) {
 		m_uvsName[i] = uvsname[i];
 	}
 }
@@ -124,7 +124,7 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 	m_material->amb = m_savedData.ambient;
 	m_material->spectra = m_savedData.specularalpha;
 
-	for (unsigned short i = 0; i < MAXTEX; ++i) {
+	for (unsigned short i = 0; i < BL_Texture::MaxUnits; ++i) {
 		if (m_textures[i]) {
 			delete m_textures[i];
 		}
@@ -145,7 +145,7 @@ MTexPoly *KX_BlenderMaterial::GetMTexPoly() const
 
 BL_Texture *KX_BlenderMaterial::GetTex(unsigned int idx)
 {
-	return (idx < MAXTEX) ? m_textures[idx] : NULL;
+	return (idx < BL_Texture::MaxUnits) ? m_textures[idx] : NULL;
 }
 
 void KX_BlenderMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
@@ -191,7 +191,7 @@ void KX_BlenderMaterial::InitTextures()
 {
 	// for each unique material...
 	int i;
-	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
+	for (i = 0; i < BL_Texture::MaxUnits; i++) {
 		MTex *mtex = m_material->mtex[i];
 		if (mtex) {
 			bool cubemap = (mtex->tex->type == TEX_ENVMAP && mtex->tex->env->stype == ENV_LOAD);
@@ -251,7 +251,7 @@ void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 	m_shader->ApplyShader();
 
 	// for each enabled unit
-	for (i = 0; i < BL_Texture::GetMaxUnits(); i++) {
+	for (i = 0; i < BL_Texture::MaxUnits; i++) {
 		if (!m_textures[i] || !m_textures[i]->Ok()) {
 			continue;
 		}
@@ -326,7 +326,7 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 {
 	if (m_shader && m_shader->Ok()) {
 		m_shader->SetProg(false);
-		for (unsigned short i = 0; i < BL_Texture::GetMaxUnits(); i++) {
+		for (unsigned short i = 0; i < BL_Texture::MaxUnits; i++) {
 			if (m_textures[i] && m_textures[i]->Ok()) {
 				m_textures[i]->DisableTexture();
 			}
@@ -428,9 +428,9 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 		ras->SetAttribNum(2);
 	}
 
-	ras->SetTexCoordNum(BL_Texture::GetMaxUnits());
+	ras->SetTexCoordNum(BL_Texture::MaxUnits);
 
-	for (int i = 0; i < BL_Texture::GetMaxUnits(); i++) {
+	for (int i = 0; i < BL_Texture::MaxUnits; i++) {
 		BL_Texture *texture = m_textures[i];
 		if (texture && texture->Ok()) {
 			MTex *mtex = texture->GetMTex();
@@ -668,7 +668,7 @@ PyObject *KX_BlenderMaterial::pyattr_get_shader(void *self_v, const KX_PYATTRIBU
 
 static int kx_blender_material_get_textures_size_cb(void *self_v)
 {
-	return MAXTEX;
+	return BL_Texture::MaxUnits;
 }
 
 static PyObject *kx_blender_material_get_textures_item_cb(void *self_v, int index)
