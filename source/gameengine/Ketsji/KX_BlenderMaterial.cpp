@@ -355,11 +355,6 @@ bool KX_BlenderMaterial::IsWire() const
 	return m_material->ras_mode & WIRE;
 }
 
-bool KX_BlenderMaterial::IsAlphaShadow() const
-{
-	return m_alphablend != GEMAT_SOLID;
-}
-
 bool KX_BlenderMaterial::UseInstancing() const
 {
 	if (m_shader && m_shader->Ok()) {

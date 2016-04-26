@@ -110,6 +110,10 @@ public:
 	const STR_String& GetMaterialName() const;
 	dword GetMaterialNameHash() const;
 	unsigned int GetFlag() const;
+	bool IsAlphaShadow() const;
+	bool UsesObjectColor() const;
+	bool CastsShadows() const;
+	bool OnlyShadow() const;
 
 	virtual const STR_String& GetTextureName() const = 0;
 	virtual Material *GetBlenderMaterial() const = 0;
@@ -117,14 +121,10 @@ public:
 	virtual MTexPoly *GetMTexPoly() const = 0;
 	virtual Scene *GetBlenderScene() const = 0;
 	virtual bool IsWire() const = 0;
-	virtual bool IsAlphaShadow() const = 0;
 	virtual bool UseInstancing() const = 0;
 	virtual void ReleaseMaterial() = 0;
 	virtual void GetMaterialRGBAColor(unsigned char *rgba) const;
 	virtual bool UsesLighting(RAS_IRasterizer *rasty) const;
-	virtual bool UsesObjectColor() const;
-	virtual bool CastsShadows() const;
-	virtual bool OnlyShadow() const;
 
 	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha) = 0;

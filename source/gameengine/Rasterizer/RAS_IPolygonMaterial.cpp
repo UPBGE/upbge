@@ -73,6 +73,11 @@ int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game, bool image) co
 	return modefinal;
 }
 
+bool RAS_IPolyMaterial::IsAlphaShadow() const
+{
+	return m_alphablend != GEMAT_SOLID;
+}
+
 void RAS_IPolyMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
 {
 	*rgba++ = 0xFF;
