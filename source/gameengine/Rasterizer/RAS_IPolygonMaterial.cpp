@@ -47,6 +47,7 @@ RAS_IPolyMaterial::RAS_IPolyMaterial(
 	m_alphablend(alphablend),
 	m_alpha(alpha),
 	m_zsort(zsort),
+	m_light(light),
 	m_polymatid(m_newpolymatid++),
 	m_flag(0)
 {
