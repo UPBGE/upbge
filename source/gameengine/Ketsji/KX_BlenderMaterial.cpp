@@ -23,38 +23,25 @@
  */
 
 #include "KX_BlenderMaterial.h"
+#include "KX_Scene.h"
+#include "KX_PyMath.h"
+
 #include "BL_Shader.h"
 #include "BL_BlenderShader.h"
-#include "KX_Scene.h"
-#include "KX_Light.h"
-#include "KX_GameObject.h"
-#include "KX_MeshProxy.h"
-#include "KX_PyMath.h"
 
 #include "EXP_ListWrapper.h"
 
-#include "MT_Vector3.h"
-#include "MT_Vector4.h"
 #include "MT_Matrix4x4.h"
 
 #include "RAS_BucketManager.h"
-#include "RAS_MeshObject.h"
 #include "RAS_IRasterizer.h"
 
 #include "GPU_draw.h"
 #include "GPU_material.h" // for GPU_BLEND_SOLID
 
-#include "STR_HashedString.h"
-
-#include "DNA_object_types.h"
+#include "DNA_texture_types.h"
 #include "DNA_material_types.h"
-#include "DNA_image_types.h"
 #include "DNA_meshdata_types.h"
-#include "BKE_mesh.h"
-#include "BLI_utildefines.h"
-#include "BLI_math.h"
-
-#define spit(x) std::cout << x << std::endl;
 
 KX_BlenderMaterial::KX_BlenderMaterial(
 		KX_Scene *scene,
