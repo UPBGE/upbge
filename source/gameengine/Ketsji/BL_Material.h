@@ -42,8 +42,6 @@ public:
 
 	unsigned int ras_mode;
 
-	short alphablend;
-
 	Material*			material;
 
 #ifdef WITH_CXX_GUARDEDALLOC

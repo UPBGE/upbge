@@ -62,11 +62,12 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		BL_Material *data,
 		GameSettings *game,
 		MTexPoly *mtexpoly,
+		unsigned int alphablend,
 		int lightlayer,
 		STR_String uvsname[MAXTEX])
 	:RAS_IPolyMaterial(
 		data->material->id.name,
-		data->alphablend,
+		alphablend,
 		((data->ras_mode & ALPHA) != 0),
 		((data->ras_mode & ZSORT) != 0),
 		((data->ras_mode & USE_LIGHT) != 0),
@@ -245,7 +246,7 @@ void KX_BlenderMaterial::OnExit()
 	/* used to call with 'm_material->tface' but this can be a freed array,
 	 * see: [#30493], so just call with NULL, this is best since it clears
 	 * the 'lastface' pointer in GPU too - campbell */
-	GPU_set_tpage(NULL, 1, m_material->alphablend);
+	GPU_set_tpage(NULL, 1, m_alphablend);
 }
 
 
@@ -268,7 +269,7 @@ void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 	}
 
 	if (!m_userDefBlend) {
-		ras->SetAlphaBlend(m_material->alphablend);
+		ras->SetAlphaBlend(m_alphablend);
 	}
 	else {
 		ras->SetAlphaBlend(GPU_BLEND_SOLID);
@@ -356,7 +357,7 @@ bool KX_BlenderMaterial::IsWire() const
 
 bool KX_BlenderMaterial::IsAlphaShadow() const
 {
-	return m_material->alphablend != GEMAT_SOLID;
+	return m_alphablend != GEMAT_SOLID;
 }
 
 bool KX_BlenderMaterial::UseInstancing() const
@@ -380,7 +381,7 @@ void KX_BlenderMaterial::ActivateInstancing(RAS_IRasterizer *rasty, void *matrix
 	/* Because the geometry instancing use setting for all instances we use the original alpha blend.
 	 * This requierd that the user use "alpha blend" mode if he will use mutate object color alpha.
 	 */
-	rasty->SetAlphaBlend(m_material->alphablend);
+	rasty->SetAlphaBlend(m_alphablend);
 }
 
 void KX_BlenderMaterial::DesactivateInstancing()
@@ -414,8 +415,8 @@ void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *ras
 		/* we do blend modes here, because they can change per object
 		 * with the same material due to obcolor/obalpha */
 		int alphablend = m_blenderShader->GetAlphaBlend();
-		if (ELEM(alphablend, GEMAT_SOLID, GEMAT_ALPHA, GEMAT_ALPHA_SORT) && m_material->alphablend != GEMAT_SOLID)
-			alphablend = m_material->alphablend;
+		if (ELEM(alphablend, GEMAT_SOLID, GEMAT_ALPHA, GEMAT_ALPHA_SORT) && m_alphablend != GEMAT_SOLID)
+			alphablend = m_alphablend;
 
 		rasty->SetAlphaBlend(alphablend);
 	}

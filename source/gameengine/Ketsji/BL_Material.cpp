@@ -38,6 +38,5 @@ BL_Material::BL_Material()
 void BL_Material::Initialize()
 {
 	ras_mode = 0;
-	alphablend = 0;
 	material = 0;
 }

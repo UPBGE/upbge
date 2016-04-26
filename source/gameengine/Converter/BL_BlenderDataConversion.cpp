@@ -476,6 +476,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 	KX_Scene *scene)
 {
 	BL_Material *material = new BL_Material(); // WARNING non freed.
+	unsigned int alphablend = 0;
 
 	STR_String uvsname[MAXTEX];
 
@@ -507,20 +508,20 @@ static KX_BlenderMaterial *ConvertMaterial(
 	 * light and visible is always on */
 	if (!tface) {
 		// nothing at all
-		material->alphablend = GEMAT_SOLID;
+		alphablend = GEMAT_SOLID;
 	}
 
 	if (mat && tface) {
-		material->alphablend = mat->game.alpha_blend;
+		alphablend = mat->game.alpha_blend;
 	}
 
 	// with ztransp enabled, enforce alpha blending mode
-	if (mat && (mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (material->alphablend == GEMAT_SOLID)) {
-		material->alphablend = GEMAT_ALPHA;
+	if (mat && (mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (alphablend == GEMAT_SOLID)) {
+		alphablend = GEMAT_ALPHA;
 	}
 
 	// always zsort alpha + add
-	if (ELEM(material->alphablend, GEMAT_ALPHA, GEMAT_ALPHA_SORT, GEMAT_ADD) && (material->alphablend != GEMAT_CLIP)) {
+	if (ELEM(alphablend, GEMAT_ALPHA, GEMAT_ALPHA_SORT, GEMAT_ADD) && (alphablend != GEMAT_CLIP)) {
 		material->ras_mode |= ALPHA;
 		material->ras_mode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? ZSORT : 0;
 	}
@@ -533,7 +534,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 	}
 	material->material = mat;
 
-	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, material, (mat ? &mat->game : NULL), mtexpoly, lightlayer, uvsname);
+	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, material, (mat ? &mat->game : NULL), mtexpoly, alphablend, lightlayer, uvsname);
 
 	return kx_blmat;
 }

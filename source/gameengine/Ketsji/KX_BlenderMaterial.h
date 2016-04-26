@@ -40,6 +40,7 @@ public:
 			BL_Material *mat,
 			GameSettings *game,
 			MTexPoly *mtexpoly,
+			unsigned int alphablend,
 			int lightlayer,
 			STR_String uvsname[MAXTEX]);
 
