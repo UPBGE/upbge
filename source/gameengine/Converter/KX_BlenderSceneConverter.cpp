@@ -37,13 +37,12 @@
 #include "KX_GameObject.h"
 #include "KX_IpoConvert.h"
 #include "RAS_MeshObject.h"
+#include "RAS_IPolygonMaterial.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h" // So we can handle adding new text datablocks for Python to import
 #include "BL_ActionActuator.h"
-#include "KX_BlenderMaterial.h"
-
 
 #include "BL_System.h"
 
@@ -915,8 +914,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		RAS_IPolyMaterial *mat = polymit->second;
 		Material *bmat = NULL;
 
-		KX_BlenderMaterial *bl_mat = static_cast<KX_BlenderMaterial *>(mat);
-		bmat = bl_mat->GetBlenderMaterial();
+		bmat = mat->GetBlenderMaterial();
 
 		if (IS_TAGGED(bmat)) {
 			/* only remove from bucket */
@@ -931,8 +929,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		RAS_IPolyMaterial *mat = polymit->second;
 		Material *bmat = NULL;
 
-		KX_BlenderMaterial *bl_mat = static_cast<KX_BlenderMaterial*>(mat);
-		bmat = bl_mat->GetBlenderMaterial();
+		bmat = mat->GetBlenderMaterial();
 
 		if (IS_TAGGED(bmat)) {
 			// Remove the poly material coresponding to this Blender Material.
