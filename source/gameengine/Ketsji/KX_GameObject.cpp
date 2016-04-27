@@ -1647,8 +1647,6 @@ void KX_GameObject::InitComponents()
 			continue;
 		}
 
-		BKE_python_component_reload_module(mod);
-
 		// Grab the class object
 		cls = PyObject_GetAttrString(mod, pc->name);
 		if (cls == NULL) {
