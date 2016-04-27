@@ -40,7 +40,6 @@ public:
 			Material *mat,
 			GameSettings *game,
 			MTexPoly *mtexpoly,
-			unsigned int alphablend,
 			int lightlayer,
 			STR_String uvsname[BL_Texture::MaxUnits]);
 

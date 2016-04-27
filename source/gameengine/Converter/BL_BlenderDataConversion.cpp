@@ -472,29 +472,12 @@ static KX_BlenderMaterial *ConvertMaterial(
 	int lightlayer,
 	KX_Scene *scene)
 {
-	unsigned int alphablend = 0;
-
 	STR_String uvsname[BL_Texture::MaxUnits];
 
 	// foreach MTex
 	for (int i = 0; i < BL_Texture::MaxUnits; i++) {
 		// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
 		uvsname[i] = STR_String(layers[i].name);
-	}
-
-	/* No material, what to do? let's see what is in the UV and set the material accordingly
-	 * light and visible is always on */
-	if (!tface) {
-		// nothing at all
-		alphablend = GEMAT_SOLID;
-	}
-	else {
-		alphablend = mat->game.alpha_blend;
-	}
-
-	// with ztransp enabled, enforce alpha blending mode
-	if ((mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (alphablend == GEMAT_SOLID)) {
-		alphablend = GEMAT_ALPHA;
 	}
 
 	MTexPoly *mtexpoly = new MTexPoly();
@@ -505,7 +488,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 	}
 
 	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, (mat ? &mat->game : NULL),
-														  mtexpoly, alphablend, lightlayer, uvsname);
+														  mtexpoly, lightlayer, uvsname);
 
 	return kx_blmat;
 }

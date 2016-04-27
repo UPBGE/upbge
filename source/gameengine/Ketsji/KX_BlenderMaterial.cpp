@@ -48,10 +48,9 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		Material *mat,
 		GameSettings *game,
 		MTexPoly *mtexpoly,
-		unsigned int alphablend,
 		int lightlayer,
 		STR_String uvsname[BL_Texture::MaxUnits])
-	:RAS_IPolyMaterial(mat->id.name, alphablend, game),
+	:RAS_IPolyMaterial(mat->id.name, game),
 	m_material(mat),
 	m_mtexPoly(mtexpoly),
 	m_shader(NULL),
@@ -76,6 +75,13 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_savedData.emit = m_material->emit;
 	m_savedData.ambient = m_material->amb;
 	m_savedData.specularalpha = m_material->spectra;
+
+	m_alphablend = mat->game.alpha_blend;
+
+	// with ztransp enabled, enforce alpha blending mode
+	if ((mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (m_alphablend == GEMAT_SOLID)) {
+		m_alphablend = GEMAT_ALPHA;
+	}
 
 	m_rasMode |= (mat->game.flag & GEMAT_BACKCULL) ? 0 : RAS_TWOSIDED;
 	m_rasMode |= (mat->material_type == MA_TYPE_WIRE) ? RAS_WIRE : 0;

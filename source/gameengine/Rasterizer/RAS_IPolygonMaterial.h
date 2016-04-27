@@ -93,7 +93,6 @@ public:
 	};
 
 	RAS_IPolyMaterial(const STR_String& matname,
-	                  int alphablend,
 	                  GameSettings *game);
 
 	virtual ~RAS_IPolyMaterial()

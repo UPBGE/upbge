@@ -37,15 +37,13 @@
 
 RAS_IPolyMaterial::RAS_IPolyMaterial(
 	const STR_String& matname,
-	int alphablend,
 	GameSettings *game)
 	:m_materialname(matname),
-	m_alphablend(alphablend),
+	m_alphablend(0),
 	m_rasMode(0),
 	m_polymatid(m_newpolymatid++),
 	m_flag(0)
 {
-	m_polymatid = m_newpolymatid++;
 	m_drawingmode = ConvertFaceMode(game);
 }
 
