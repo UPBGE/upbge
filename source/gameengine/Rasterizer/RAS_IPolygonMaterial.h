@@ -77,11 +77,8 @@ protected:
 	int m_drawingmode;
 	int m_alphablend;
 	int m_rasMode;
-
-	unsigned int m_polymatid;
-	static unsigned int m_newpolymatid;
-
 	unsigned int m_flag;
+
 public:
 
 	// care! these are taken from blender polygonflags, see file DNA_mesh_types.h for #define TF_BILLBOARD etc.

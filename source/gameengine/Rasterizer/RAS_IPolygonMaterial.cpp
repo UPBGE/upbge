@@ -41,7 +41,6 @@ RAS_IPolyMaterial::RAS_IPolyMaterial(
 	:m_materialname(matname),
 	m_alphablend(0),
 	m_rasMode(0),
-	m_polymatid(m_newpolymatid++),
 	m_flag(0)
 {
 	m_drawingmode = ConvertFaceMode(game);
@@ -133,6 +132,3 @@ bool RAS_IPolyMaterial::UsesObjectColor() const
 {
 	return (!(m_flag & RAS_BLENDERGLSL)) && (m_flag & RAS_OBJECTCOLOR);
 }
-
-unsigned int RAS_IPolyMaterial::m_newpolymatid = 0;
-
