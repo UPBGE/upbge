@@ -170,20 +170,10 @@ BL_Shader::BL_Shader()
 	mError(0),
 	mDirty(true)
 {
-	// if !GLEW_ARB_shader_objects this class will not be used
-	//for (int i=0; i<MAXTEX; i++) {
-	//	mSampler[i] = BL_Sampler();
-	//}
 }
 
 BL_Shader::~BL_Shader()
 {
-	//for (int i=0; i<MAXTEX; i++) {
-	//	if (mSampler[i].mOwn) {
-	//		if (mSampler[i].mTexture)
-	//			mSampler[i].mTexture->DeleteTex();
-	//	}
-	//}
 	ClearUniforms();
 
 	if (mShader) {
@@ -450,26 +440,12 @@ unsigned int BL_Shader::GetProg()
 	return mShader;
 }
 
-//const BL_Sampler *BL_Shader::GetSampler(int i)
-//{
-//	BLI_assert(i<=MAXTEX);
-//	return &mSampler[i];
-//}
-
 void BL_Shader::SetSampler(int loc, int unit)
 {
 	if (GLEW_ARB_fragment_shader && GLEW_ARB_vertex_shader && GLEW_ARB_shader_objects) {
 		glUniform1iARB(loc, unit);
 	}
 }
-
-//void BL_Shader::InitializeSampler(int unit, BL_Texture *texture)
-//{
-//	BLI_assert(unit <= MAXTEX);
-//	mSampler[unit].mTexture = texture;
-//	mSampler[unit].mLoc = -1;
-//	mSampler[unit].mOwn = 0;
-//}
 
 void BL_Shader::SetProg(bool enable)
 {
@@ -901,10 +877,6 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
 #else
 			SetUniform(loc, index);
 #endif
-			//if (index <= MAXTEX)
-			//	mSampler[index].mLoc = loc;
-			//else
-			//	spit("Invalid texture sample index: " << index);
 		}
 		Py_RETURN_NONE;
 	}
