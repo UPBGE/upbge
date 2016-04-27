@@ -414,9 +414,6 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 		FINISH(false);
 	}
 
-	// Reload all modules imported in the component module script.
-	BKE_python_component_reload_module(mod);
-
 	item = PyObject_GetAttrString(mod, pc->name);
 	if (!item) {
 		BKE_reportf(reports, RPT_ERROR_INVALID_INPUT, "No class named %s was found.", pc->name);
@@ -528,31 +525,6 @@ void BKE_python_component_free_list(ListBase *lb)
 		BLI_remlink(lb, pc);
 		BKE_python_component_free(pc);
 	}
-}
-
-void BKE_python_component_reload_module(void *module)
-{
-#ifdef WITH_PYTHON
-	PyObject *mod_list = PyDict_Values(PyModule_GetDict(module));
-
-	// Reload all modules imported in the component module script.
-	for (unsigned int i = 0, size = PySequence_Size(mod_list); i < size; ++i) {
-		PyObject *item = PySequence_GetItem(mod_list, i);
-		if (PyModule_Check(item)) {
-			// If there's no spec, then the module can't be reloaded.
-			PyObject *modspec = PyObject_GetAttrString(item, "__spec__");
-			if (modspec != Py_None) {
-				// Do the same with this submodule.
-				BKE_python_component_reload_module(item);
-				PyObject *mod_item = PyImport_ReloadModule(item);
-				Py_XDECREF(mod_item);
-			}
-			Py_DECREF(modspec);
-		}
-		Py_DECREF(item);
-	}
-	Py_DECREF(mod_list);
-#endif /* WITH_PYTHON */
 }
 
 void *BKE_python_component_argument_dict_new(PythonComponent *pc)
