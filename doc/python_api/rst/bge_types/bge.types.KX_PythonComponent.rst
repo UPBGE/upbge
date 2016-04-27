@@ -39,7 +39,7 @@ base class --- :class:`CValue`
       
           args = OrderedDict([
               ("Move Speed", 0.1),
-              ("Turn Speed", 0.04),
+              ("Turn Speed", 0.04)
           ])
       
           def start(self, args):
