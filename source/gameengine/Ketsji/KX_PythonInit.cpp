@@ -52,6 +52,7 @@ extern "C" {
 	#  include "py_capi_utils.h"
 	#  include "mathutils.h" // 'mathutils' module copied here so the blenderlayer can use.
 	#  include "bgl.h"
+	#  include "bpy.h" // for bpy_sys_module_backup
 	#  include "blf_py_api.h"
 
 	#  include "marshal.h" /* python header for loading/saving dicts */
@@ -1887,7 +1888,10 @@ static void backupPySysObjects(void)
 	/* modules */
 	Py_XDECREF(gp_sys_backup.modules); /* just in case its set */
 	gp_sys_backup.modules = PyDict_Copy(sys_mods); /* copy the dict */
-	
+
+	PyDict_Clear(sys_mods);
+	// Load a clean generated modules dict from the blender begining.
+	PyDict_Update(sys_mods, bpy_sys_module_backup);
 }
 
 /* for initPySysObjects only,
