@@ -7,7 +7,6 @@
 #define __BL_SHADER_H__
 
 #include "EXP_PyObjectPlus.h"
-#include "BL_Material.h"
 #include "BL_Texture.h"
 #include "MT_Matrix4x4.h"
 #include "MT_Matrix3x3.h"

@@ -32,11 +32,13 @@
 #ifndef __BL_BLENDERSHADER_H__
 #define __BL_BLENDERSHADER_H__
 
+#include "BL_Texture.h" // for MaxUnits
+#include "STR_String.h"
+
 struct Material;
 struct Scene;
 struct GPUMaterial;
 class KX_Scene;
-class BL_Material;
 class RAS_IRasterizer;
 class RAS_MeshSlot;
 
@@ -51,7 +53,6 @@ class BL_BlenderShader
 private:
 	Scene *m_blenderScene;
 	Material *m_mat;
-	BL_Material *m_blMaterial;
 	int m_lightLayer;
 	int m_alphaBlend;
 	GPUMaterial *m_GPUMat;
@@ -60,10 +61,10 @@ private:
 	 * If the attribut doesn't use UV info it will return -1. */
 	int m_uvLayers[BL_MAX_ATTRIB];
 
-	void ParseAttribs();
+	void ParseAttribs(STR_String uvsname[BL_Texture::MaxUnits]);
 
 public:
-	BL_BlenderShader(KX_Scene *scene, Material *ma, BL_Material *blmat, int lightlayer);
+	BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer, STR_String uvsname[BL_Texture::MaxUnits]);
 	virtual ~BL_BlenderShader();
 
 	bool Ok() const

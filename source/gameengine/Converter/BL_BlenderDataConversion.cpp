@@ -82,7 +82,6 @@
 #include "RAS_TexVert.h"
 #include "RAS_BucketManager.h"
 #include "RAS_IPolygonMaterial.h"
-#include "BL_Material.h"
 #include "KX_BlenderMaterial.h"
 #include "BL_Texture.h"
 
@@ -409,7 +408,6 @@ static void SetDefaultLightMode(Scene* scene)
 static void GetRGB(
         MFace* mface,
         MCol* mmcol,
-        Material *mat,
         unsigned int c[4])
 {
 	unsigned int color = 0xFFFFFFFFL;
@@ -434,7 +432,7 @@ typedef struct MTF_localLayer {
 	const char *name;
 } MTF_localLayer;
 
-static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Vector2 uvs[4][MAXTEX])
+static void GetUVs(MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Vector2 uvs[4][BL_Texture::MaxUnits])
 {
 	if (tface) {
 		uvs[0][0].setValue(tface->uv[0]);
@@ -467,292 +465,46 @@ static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, 
 	}
 }
 
-// ------------------------------------
-static bool ConvertMaterial(
-	BL_Material *material,
+static KX_BlenderMaterial *ConvertMaterial(
 	Material *mat,
 	MTFace *tface,
-	const char *tfaceName,
-	MFace *mface,
-	MCol *mmcol,
-	MTF_localLayer *layers)
+	MTF_localLayer *layers,
+	int lightlayer,
+	KX_Scene *scene)
 {
-	material->Initialize();
-	int texalpha = 0;
-	const bool validmat  = (mat != NULL);
-	const bool validface = (tface != NULL);
+	STR_String uvsname[BL_Texture::MaxUnits];
 
-	material->materialindex = mface ? mface->mat_nr : 0;
-
-	// --------------------------------
-	if (validmat) {
-
-		// use lighting?
-		material->ras_mode |= (mat->mode & MA_SHLESS) ? 0 : USE_LIGHT;
-		material->ras_mode |= (mat->game.flag & GEMAT_BACKCULL) ? 0 : TWOSIDED;
-
-		// cast shadows?
-		material->ras_mode |= ((mat->mode2 & MA_CASTSHADOW) && (mat->mode & MA_SHADBUF)) ? CAST_SHADOW : 0;
-
-		// only shadows?
-		material->ras_mode |= (mat->mode & MA_ONLYCAST) ? ONLY_SHADOW : 0;
-
-		MTex *mttmp = NULL;
-		int valid_index = 0;
-
-		// foreach MTex
-		for (int i = 0; i < MAXTEX; i++) {
-			// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
-			material->uvsName[i] = layers[i].name;
-
-			mttmp = getMTexFromMaterial(mat, i);
-			if (mttmp) {
-				if (mttmp->tex) {
-					if (mttmp->tex->type == TEX_IMAGE) {
-						material->mtexname[i] = mttmp->tex->id.name;
-						material->img[i] = mttmp->tex->ima;
-						if (material->img[i]) {
-
-							material->texname[i] = material->img[i]->id.name;
-							material->flag[i] |= (mttmp->tex->imaflag &TEX_MIPMAP) ? MIPMAP : 0;
-							if (material->img[i] && (material->img[i]->flag & IMA_IGNORE_ALPHA) == 0) {
-								material->flag[i] |= USEALPHA;
-							}
-							if (mttmp->tex->imaflag & TEX_CALCALPHA) {
-								material->flag[i] |= CALCALPHA;
-							}
-							else if (mttmp->tex->flag & TEX_NEGALPHA) {
-								material->flag[i] |= USENEGALPHA;
-							}
-
-							material->color_blend[i] = mttmp->colfac;
-							material->flag[i] |= (mttmp->mapto & MAP_ALPHA) ? TEXALPHA : 0;
-							material->flag[i] |= (mttmp->texflag & MTEX_NEGATIVE) ? TEXNEG : 0;
-						}
-					}
-					else if (mttmp->tex->type == TEX_ENVMAP) {
-						if (mttmp->tex->env->stype == ENV_LOAD) {
-							material->mtexname[i] = mttmp->tex->id.name;
-							EnvMap *env = mttmp->tex->env;
-							env->ima = mttmp->tex->ima;
-							material->cubemap[i] = env;
-
-							if (material->cubemap[i]) {
-								material->texname[i] = material->cubemap[i]->ima->id.name;
-								material->mapping[i].mapping |= USEENV;
-							}
-						}
-					}
-#if 0				/* this flag isn't used anymore */
-					material->flag[i] |= (BKE_animdata_from_id(mat->id) != NULL) ? HASIPO : 0;
-#endif
-					/// --------------------------------
-					// mapping methods
-					if (mat->septex & (1 << i)) {
-						// If this texture slot isn't in use, set it to disabled to prevent multi-uv problems
-						material->mapping[i].mapping = DISABLE;
-					} 
-					else {
-						material->mapping[i].mapping |= (mttmp->texco & TEXCO_REFL) ? USEREFL : 0;
-
-						if (mttmp->texco & TEXCO_OBJECT) {
-							material->mapping[i].mapping |= USEOBJ;
-							if (mttmp->object) {
-								material->mapping[i].objconame = mttmp->object->id.name;
-							}
-						}
-						else if (mttmp->texco & TEXCO_REFL) {
-							material->mapping[i].mapping |= USEREFL;
-						}
-						else if (mttmp->texco & (TEXCO_ORCO | TEXCO_GLOB)) {
-							material->mapping[i].mapping |= USEORCO;
-						}
-						else if (mttmp->texco & TEXCO_UV) {
-							material->mapping[i].mapping |= USEUV;
-						}
-						else if (mttmp->texco & TEXCO_NORM) {
-							material->mapping[i].mapping |= USENORM;
-						}
-						else if (mttmp->texco & TEXCO_TANGENT) {
-							material->mapping[i].mapping |= USETANG;
-						}
-						else {
-							material->mapping[i].mapping |= DISABLE;
-						}
-
-						material->mapping[i].scale[0] = mttmp->size[0];
-						material->mapping[i].scale[1] = mttmp->size[1];
-						material->mapping[i].scale[2] = mttmp->size[2];
-						material->mapping[i].offsets[0] = mttmp->ofs[0];
-						material->mapping[i].offsets[1] = mttmp->ofs[1];
-						material->mapping[i].offsets[2] = mttmp->ofs[2];
-
-						material->mapping[i].projplane[0] = mttmp->projx;
-						material->mapping[i].projplane[1] = mttmp->projy;
-						material->mapping[i].projplane[2] = mttmp->projz;
-					}
-					/// --------------------------------
-					
-					switch (mttmp->blendtype) {
-					case MTEX_BLEND:
-						material->blend_mode[i] = BLEND_MIX;
-						break;
-					case MTEX_MUL:
-						material->blend_mode[i] = BLEND_MUL;
-						break;
-					case MTEX_ADD:
-						material->blend_mode[i] = BLEND_ADD;
-						break;
-					case MTEX_SUB:
-						material->blend_mode[i] = BLEND_SUB;
-						break;
-					case MTEX_SCREEN:
-						material->blend_mode[i] = BLEND_SCR;
-						break;
-					}
-					valid_index++;
-				}
-			}
-		}
-
-		material->SetUsers(mat->id.us);
-
-		material->num_enabled = valid_index;
-
-		material->speccolor[0] = mat->specr;
-		material->speccolor[1] = mat->specg;
-		material->speccolor[2] = mat->specb;
-		material->hard = (float)mat->har / 4.0f;
-		material->matcolor[0] = mat->r;
-		material->matcolor[1] = mat->g;
-		material->matcolor[2] = mat->b;
-		material->matcolor[3] = mat->alpha;
-		material->alpha = mat->alpha;
-		material->emit = mat->emit;
-		material->spec_f = mat->spec;
-		material->ref = mat->ref;
-		material->amb = mat->amb;
-
-		material->ras_mode |= (mat->material_type == MA_TYPE_WIRE) ? WIRE : 0;
-	}
-	else { // No Material
-		int valid = 0;
-
-		// check for tface tex to fallback on
-		if (validface) {
-			material->img[0] = (Image *)(tface->tpage);
-			// ------------------------
-			if (material->img[0]) {
-				material->texname[0] = material->img[0]->id.name;
-				material->mapping[0].mapping |= ((material->img[0]->flag & IMA_REFLECT) != 0) ? USEREFL : 0;
-
-				/* see if depth of the image is 32bits */
-				if (BKE_image_has_alpha(material->img[0])) {
-					material->flag[0] |= USEALPHA;
-					material->alphablend = GEMAT_ALPHA;
-				}
-				else {
-					material->alphablend = GEMAT_SOLID;
-				}
-				valid++;
-			}
-		}
-		else {
-			material->alphablend = GEMAT_SOLID;
-		}
-
-		material->SetUsers(-1);
-		material->num_enabled = valid;
-		material->speccolor[0] = 1.0f;
-		material->speccolor[1] = 1.0f;
-		material->speccolor[2] = 1.0f;
-		material->hard = 35.0f;
-		material->matcolor[0] = 0.5f;
-		material->matcolor[1] = 0.5f;
-		material->matcolor[2] = 0.5f;
-		material->spec_f = 0.5f;
-		material->ref = 0.8f;
-
-		// No material - old default TexFace properties
-		material->ras_mode |= USE_LIGHT;
+	// foreach MTex
+	for (int i = 0; i < BL_Texture::MaxUnits; i++) {
+		// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
+		uvsname[i] = STR_String(layers[i].name);
 	}
 
-	/* No material, what to do? let's see what is in the UV and set the material accordingly
-	 * light and visible is always on */
-	if (validface) {
-		material->tile = tface->tile;
-	}
-	else {
-		// nothing at all
-		material->alphablend = GEMAT_SOLID;
-		material->tile = 0;
-	}
-
-	if (validmat && validface) {
-		material->alphablend = mat->game.alpha_blend;
-	}
-
-	// with ztransp enabled, enforce alpha blending mode
-	if (validmat && (mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (material->alphablend == GEMAT_SOLID)) {
-		material->alphablend = GEMAT_ALPHA;
-	}
-
-	// always zsort alpha + add
-	if ((ELEM(material->alphablend, GEMAT_ALPHA, GEMAT_ALPHA_SORT, GEMAT_ADD) || texalpha) && (material->alphablend != GEMAT_CLIP)) {
-		material->ras_mode |= ALPHA;
-		material->ras_mode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? ZSORT : 0;
-	}
-
-	// XXX The RGB values here were meant to be temporary storage for the conversion process,
-	// but fonts now make use of them too, so we leave them in for now.
-	unsigned int rgb[4];
-	if (mface) {
-		GetRGB(mface, mmcol, mat, rgb);
-	}
-
-	if (validmat) {
-		material->matname =(mat->id.name);
-	}
+	MTexPoly *mtexpoly = new MTexPoly();
+	memset(mtexpoly, 0, sizeof(MTexPoly));
 
 	if (tface) {
-		ME_MTEXFACE_CPY(&material->mtexpoly, tface);
+		ME_MTEXFACE_CPY(mtexpoly, tface);
 	}
-	else {
-		memset(&material->mtexpoly, 0, sizeof(material->mtexpoly));
-	}
-	material->material = mat;
-	return true;
+
+	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, (mat ? &mat->game : NULL),
+														  mtexpoly, lightlayer, uvsname);
+
+	return kx_blmat;
 }
 
 static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace *tface, MCol *mcol, MTF_localLayer *layers, int lightlayer, unsigned int *rgb, MT_Vector2 uvs[4][RAS_TexVert::MAX_UNIT], const char *tfaceName, KX_Scene* scene, KX_BlenderSceneConverter *converter)
 {
 	RAS_IPolyMaterial* polymat = converter->FindCachedPolyMaterial(scene, ma);
-	BL_Material* bl_mat = converter->FindCachedBlenderMaterial(scene, ma);
-	KX_BlenderMaterial* kx_blmat = NULL;
-
-	/* first is the BL_Material */
-	if (!bl_mat)
-	{
-		bl_mat = new BL_Material();
-
-		ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol, layers);
-
-		converter->CacheBlenderMaterial(scene, ma, bl_mat);
-	}
 
 	if (mface) {
-		GetRGB(mface, mcol, ma, rgb);
+		GetRGB(mface, mcol, rgb);
 
-		GetUVs(bl_mat, layers, mface, tface, uvs);
+		GetUVs(layers, mface, tface, uvs);
 	}
 
-	/* then the KX_BlenderMaterial */
-	if (polymat == NULL)
-	{
-		kx_blmat = new KX_BlenderMaterial();
-
-		kx_blmat->Initialize(scene, bl_mat, (ma?&ma->game:NULL), lightlayer);
-		polymat = static_cast<RAS_IPolyMaterial*>(kx_blmat);
+	if (!polymat) {
+		polymat = ConvertMaterial(ma, tface, layers, lightlayer, scene);
 		converter->CachePolyMaterial(scene, ma, polymat);
 	}
 	
@@ -765,7 +517,6 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 	// the converter will also prevent duplicates from being registered,
 	// so just register everything.
 	converter->RegisterPolyMaterial(polymat);
-	converter->RegisterBlenderMaterial(bl_mat);
 
 	return bucket;
 }
@@ -1671,10 +1422,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	set<Group*> grouplist;	// list of groups to be converted
 	set<Object*> allblobj;	// all objects converted
 	set<Object*> groupobj;	// objects from groups (never in active layer)
-
-	// This is bad, but we use this to make sure the first time this is called
-	// is not in a separate thread.
-	BL_Texture::GetMaxUnits();
 
 	/* We have to ensure that group definitions are only converted once
 	 * push all converted group members to this set.

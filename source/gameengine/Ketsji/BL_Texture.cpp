@@ -24,7 +24,6 @@
 
 #include "glew-mx.h"
 
-#include "BL_Material.h"
 #include "BL_Texture.h"
 
 #include "DNA_texture_types.h"
@@ -91,14 +90,19 @@ bool BL_Texture::Ok()
 	return (m_gpuTex != NULL);
 }
 
+MTex *BL_Texture::GetMTex()
+{
+	return m_mtex;
+}
+
+Image *BL_Texture::GetImage()
+{
+	return m_mtex->tex->ima;
+}
+
 unsigned int BL_Texture::GetTextureType() const
 {
 	return GPU_texture_target(m_gpuTex);
-}
-
-int BL_Texture::GetMaxUnits()
-{
-	return MAXTEX;
 }
 
 void BL_Texture::ActivateTexture(int unit)
