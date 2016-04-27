@@ -63,12 +63,8 @@ enum MaterialRasterizerModes
 	RAS_COLLIDER = 2,
 	RAS_ZSORT = 4,
 	RAS_ALPHA = 8,
-	RAS_USE_LIGHT = 32,
 	RAS_WIRE = 64,
-	RAS_CAST_SHADOW = 128,
-	RAS_TEX = 256,
 	RAS_TWOSIDED = 512,
-	RAS_ONLY_SHADOW = 1024,
 };
 
 /**
@@ -98,7 +94,6 @@ public:
 
 	RAS_IPolyMaterial(const STR_String& matname,
 	                  int alphablend,
-	                  int rasmode,
 	                  GameSettings *game);
 
 	virtual ~RAS_IPolyMaterial()
@@ -143,7 +138,7 @@ public:
 	/**
 	 * \return the equivalent drawing mode for the material settings (equivalent to old TexFace tface->mode).
 	 */
-	int ConvertFaceMode(struct GameSettings *game, bool image) const;
+	int ConvertFaceMode(struct GameSettings *game) const;
 
 	/*
 	 * PreCalculate texture gen

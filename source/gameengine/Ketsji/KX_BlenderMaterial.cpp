@@ -50,9 +50,8 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		MTexPoly *mtexpoly,
 		unsigned int alphablend,
 		int lightlayer,
-		STR_String uvsname[BL_Texture::MaxUnits],
-		int rasmode)
-	:RAS_IPolyMaterial(mat->id.name, alphablend, rasmode, game),
+		STR_String uvsname[BL_Texture::MaxUnits])
+	:RAS_IPolyMaterial(mat->id.name, alphablend, game),
 	m_material(mat),
 	m_mtexPoly(mtexpoly),
 	m_shader(NULL),
@@ -78,11 +77,20 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_savedData.ambient = m_material->amb;
 	m_savedData.specularalpha = m_material->spectra;
 
+	m_rasMode |= (mat->game.flag & GEMAT_BACKCULL) ? 0 : RAS_TWOSIDED;
+	m_rasMode |= (mat->material_type == MA_TYPE_WIRE) ? RAS_WIRE : 0;
+
+	// always zsort alpha + add
+	if (ELEM(m_alphablend, GEMAT_ALPHA, GEMAT_ALPHA_SORT, GEMAT_ADD) && (m_alphablend != GEMAT_CLIP)) {
+		m_rasMode |= RAS_ALPHA;
+		m_rasMode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? RAS_ZSORT : 0;
+	}
+
 	// RAS_IPolyMaterial variables...
-	m_flag |= ((rasmode & RAS_USE_LIGHT) != 0) ? RAS_MULTILIGHT : 0;
+	m_flag |= ((mat->mode & MA_SHLESS) != 0) ? RAS_MULTILIGHT : 0;
 	m_flag |= RAS_BLENDERGLSL;
-	m_flag |= ((rasmode & RAS_CAST_SHADOW) != 0) ? RAS_CASTSHADOW : 0;
-	m_flag |= ((rasmode & RAS_ONLY_SHADOW) != 0) ? RAS_ONLYSHADOW : 0;
+	m_flag |= (((mat->mode2 & MA_CASTSHADOW) && (mat->mode & MA_SHADBUF)) != 0) ? RAS_CASTSHADOW : 0;
+	m_flag |= ((mat->mode & MA_ONLYCAST) != 0) ? RAS_ONLYSHADOW : 0;
 	m_flag |= ((m_material->shade_flag & MA_OBCOLOR) != 0) ? RAS_OBJECTCOLOR : 0;
 
 	for (unsigned short i = 0; i < BL_Texture::MaxUnits; ++i) {

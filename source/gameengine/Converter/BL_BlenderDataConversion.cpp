@@ -473,27 +473,14 @@ static KX_BlenderMaterial *ConvertMaterial(
 	KX_Scene *scene)
 {
 	unsigned int alphablend = 0;
-	int rasmode = 0;
 
 	STR_String uvsname[BL_Texture::MaxUnits];
-
-	// use lighting?
-	rasmode |= (mat->mode & MA_SHLESS) ? 0 : RAS_USE_LIGHT;
-	rasmode |= (mat->game.flag & GEMAT_BACKCULL) ? 0 : RAS_TWOSIDED;
-
-	// cast shadows?
-	rasmode |= ((mat->mode2 & MA_CASTSHADOW) && (mat->mode & MA_SHADBUF)) ? RAS_CAST_SHADOW : 0;
-
-	// only shadows?
-	rasmode |= (mat->mode & MA_ONLYCAST) ? RAS_ONLY_SHADOW : 0;
 
 	// foreach MTex
 	for (int i = 0; i < BL_Texture::MaxUnits; i++) {
 		// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
 		uvsname[i] = STR_String(layers[i].name);
 	}
-
-	rasmode |= (mat->material_type == MA_TYPE_WIRE) ? RAS_WIRE : 0;
 
 	/* No material, what to do? let's see what is in the UV and set the material accordingly
 	 * light and visible is always on */
@@ -510,12 +497,6 @@ static KX_BlenderMaterial *ConvertMaterial(
 		alphablend = GEMAT_ALPHA;
 	}
 
-	// always zsort alpha + add
-	if (ELEM(alphablend, GEMAT_ALPHA, GEMAT_ALPHA_SORT, GEMAT_ADD) && (alphablend != GEMAT_CLIP)) {
-		rasmode |= RAS_ALPHA;
-		rasmode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT)) ? RAS_ZSORT : 0;
-	}
-
 	MTexPoly *mtexpoly = new MTexPoly();
 	memset(mtexpoly, 0, sizeof(MTexPoly));
 
@@ -524,7 +505,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 	}
 
 	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, (mat ? &mat->game : NULL),
-														  mtexpoly, alphablend, lightlayer, uvsname, rasmode);
+														  mtexpoly, alphablend, lightlayer, uvsname);
 
 	return kx_blmat;
 }

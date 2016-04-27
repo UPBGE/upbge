@@ -38,32 +38,26 @@
 RAS_IPolyMaterial::RAS_IPolyMaterial(
 	const STR_String& matname,
 	int alphablend,
-	int rasmode,
 	GameSettings *game)
 	:m_materialname(matname),
 	m_alphablend(alphablend),
-	m_rasMode(rasmode),
+	m_rasMode(0),
 	m_polymatid(m_newpolymatid++),
 	m_flag(0)
 {
 	m_polymatid = m_newpolymatid++;
-	m_drawingmode = ConvertFaceMode(game, m_rasMode & RAS_TEX);
+	m_drawingmode = ConvertFaceMode(game);
 }
 
-int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game, bool image) const
+int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game) const
 {
-	if (!game) {
-		return (image ? GEMAT_TEX : 0);
-	}
-
 	int modefinal = 0;
 
-	int orimode   = game->face_orientation;
+	int orimode = game->face_orientation;
 	int alpha_blend = game->alpha_blend;
 	int flags = game->flag & (GEMAT_TEXT | GEMAT_BACKCULL);
 
 	modefinal = orimode | alpha_blend | flags;
-	modefinal |= (image ? GEMAT_TEX : 0);
 
 	return modefinal;
 }
@@ -123,22 +117,8 @@ unsigned int RAS_IPolyMaterial::GetFlag() const
 
 bool RAS_IPolyMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 {
-	bool dolights = false;
-
-	if (!(m_flag & RAS_BLENDERGLSL)) {
-		dolights = (m_flag & RAS_MULTILIGHT) != 0;
-	}
-	else if (rasty->GetDrawingMode() < RAS_IRasterizer::RAS_SOLID) {
-		/* pass */
-	}
-	else if (rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW) {
-		/* pass */
-	}
-	else {
-		dolights = (m_rasMode & RAS_USE_LIGHT);
-	}
-
-	return dolights;
+	// Return false only if material is shadeless.
+	return (m_flag & RAS_MULTILIGHT);
 }
 
 bool RAS_IPolyMaterial::CastsShadows() const
