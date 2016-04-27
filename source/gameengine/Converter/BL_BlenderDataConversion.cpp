@@ -2242,10 +2242,12 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		}
 	}
 
-	/* Initialize python components, use a fixed end iterator because some component can add object
-	 * and these objects are only at the end of the list. */
-	for (CListValue::iterator it = objectlist->GetBegin(), end = objectlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = (KX_GameObject *)*it;
+	/* Initialize python components, use a fixed size because some component can add object
+	 * and these objects are only at the end of the list. Never use iterato here because the
+	 * begining iterator can be changed and then pointed to a fake game object.
+	 */
+	for (unsigned int i = 0, size = objectlist->GetCount(); i < size; ++i) {
+		KX_GameObject *gameobj = (KX_GameObject *)objectlist->GetValue(i);
 		gameobj->InitComponents();
 	}
 }
