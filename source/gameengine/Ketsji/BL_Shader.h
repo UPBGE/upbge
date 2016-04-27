@@ -16,26 +16,6 @@
 #include "MT_Vector4.h"
 
 /**
- * BL_Sampler
- * Sampler access
- */
-class BL_Sampler
-{
-public:
-	BL_Sampler()
-		:
-		mLoc(-1)
-	{
-	}
-
-	int mLoc; // Sampler location
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_Sampler")
-#endif
-};
-
-/**
  * BL_Uniform
  * uniform storage
  */
@@ -116,7 +96,6 @@ private:
 	int mPass; // 1.. unused
 	bool mOk; // Valid and ok
 	bool mUse;
-	//BL_Sampler mSampler[MAXTEX]; // Number of samplers
 	int mAttr; // Tangent attribute
 	const char *vertProg; // Vertex program string
 	const char *fragProg; // Fragment program string
@@ -169,7 +148,6 @@ public:
 	int getNumPass() { return mPass; }
 	bool GetError() { return mError; }
 
-	//const BL_Sampler *GetSampler(int i);
 	void SetSampler(int loc, int unit);
 	bool Ok() const;
 	unsigned int GetProg();
