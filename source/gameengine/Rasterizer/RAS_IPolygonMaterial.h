@@ -32,7 +32,7 @@
 #ifndef __RAS_IPOLYGONMATERIAL_H__
 #define __RAS_IPOLYGONMATERIAL_H__
 
-#include "STR_HashedString.h"
+#include "STR_String.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -73,7 +73,7 @@ enum MaterialRasterizerModes
 class RAS_IPolyMaterial
 {
 protected:
-	STR_HashedString m_materialname; // also needed for touchsensor
+	STR_String m_materialname; // also needed for touchsensor
 	int m_drawingmode;
 	int m_alphablend;
 	int m_rasMode;
@@ -105,10 +105,8 @@ public:
 	bool IsAlpha() const;
 	bool IsZSort() const;
 	bool IsWire() const;
-	unsigned int hash() const;
 	int GetDrawingMode() const;
 	const STR_String& GetMaterialName() const;
-	dword GetMaterialNameHash() const;
 	unsigned int GetFlag() const;
 	bool IsAlphaShadow() const;
 	bool UsesObjectColor() const;

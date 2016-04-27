@@ -87,11 +87,6 @@ bool RAS_IPolyMaterial::IsZSort() const
 	return (m_rasMode & RAS_ZSORT);
 }
 
-unsigned int RAS_IPolyMaterial::hash() const
-{
-	return m_materialname.hash();
-}
-
 int RAS_IPolyMaterial::GetDrawingMode() const
 {
 	return m_drawingmode;
@@ -100,11 +95,6 @@ int RAS_IPolyMaterial::GetDrawingMode() const
 const STR_String& RAS_IPolyMaterial::GetMaterialName() const
 {
 	return m_materialname;
-}
-
-dword RAS_IPolyMaterial::GetMaterialNameHash() const
-{
-	return m_materialname.hash();
 }
 
 unsigned int RAS_IPolyMaterial::GetFlag() const
