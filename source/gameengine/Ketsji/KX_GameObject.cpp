@@ -36,8 +36,6 @@
 #  pragma warning( disable:4786 )
 #endif
 
-#include "RAS_IPolygonMaterial.h"
-#include "KX_BlenderMaterial.h"
 #include "KX_GameObject.h"
 #include "KX_PythonComponent.h"
 #include "KX_Camera.h" // only for their ::Type
