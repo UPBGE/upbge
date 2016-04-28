@@ -6,8 +6,6 @@
 #ifndef __KX_BLENDERMATERIAL_H__
 #define __KX_BLENDERMATERIAL_H__
 
-#include <vector>
-
 #include "RAS_IPolygonMaterial.h"
 #include "BL_Texture.h"
 
@@ -108,8 +106,6 @@ public:
 	static int pyattr_set_specular_alpha(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	KX_PYMETHOD_DOC(KX_BlenderMaterial, getShader);
-	KX_PYMETHOD_DOC(KX_BlenderMaterial, getTexture);
-	KX_PYMETHOD_DOC(KX_BlenderMaterial, setTexture);
 	KX_PYMETHOD_DOC(KX_BlenderMaterial, getTextureBindcode);
 
 	KX_PYMETHOD_DOC(KX_BlenderMaterial, setBlending);
