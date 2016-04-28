@@ -53,7 +53,6 @@ set(SRC
 	intern/PyObjectPlus.cpp
 	intern/StringValue.cpp
 	intern/Value.cpp
-	intern/VectorValue.cpp
 	intern/ListWrapper.cpp
 	intern/Thread.cpp
 
@@ -75,7 +74,6 @@ set(SRC
 	EXP_Python.h
 	EXP_StringValue.h
 	EXP_Value.h
-	EXP_VectorValue.h
 	EXP_VoidValue.h
 	EXP_ListWrapper.h
 	EXP_Thread.h

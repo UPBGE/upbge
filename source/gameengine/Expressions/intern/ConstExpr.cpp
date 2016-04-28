@@ -18,7 +18,6 @@
 
 #include "EXP_Value.h" // for precompiled header
 #include "EXP_ConstExpr.h"
-#include "EXP_VectorValue.h"
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction

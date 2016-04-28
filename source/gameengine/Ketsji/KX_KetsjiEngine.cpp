@@ -43,7 +43,6 @@
 
 #include "EXP_ListValue.h"
 #include "EXP_IntValue.h"
-#include "EXP_VectorValue.h"
 #include "EXP_BoolValue.h"
 #include "EXP_FloatValue.h"
 
