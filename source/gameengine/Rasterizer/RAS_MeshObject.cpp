@@ -496,6 +496,11 @@ void RAS_MeshObject::SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transfor
 
 	RAS_DisplayArray *array = ms->GetDisplayArray();
 
+	// If there's no vertex array it means that the we're using modifier deformer.
+	if (!array) {
+		return;
+	}
+
 	unsigned int nvert = 3;
 	unsigned int totpoly = array->m_index.size() / nvert;
 
