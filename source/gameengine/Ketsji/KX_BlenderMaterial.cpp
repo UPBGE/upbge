@@ -148,7 +148,7 @@ BL_Texture *KX_BlenderMaterial::GetTex(unsigned int idx)
 	return (idx < BL_Texture::MaxUnits) ? m_textures[idx] : NULL;
 }
 
-void KX_BlenderMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
+void KX_BlenderMaterial::GetRGBAColor(unsigned char *rgba) const
 {
 	if (m_material) {
 		*rgba++ = (unsigned char)(m_material->r * 255.0f);
@@ -157,7 +157,7 @@ void KX_BlenderMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
 		*rgba++ = (unsigned char)(m_material->alpha * 255.0f);
 	}
 	else
-		RAS_IPolyMaterial::GetMaterialRGBAColor(rgba);
+		RAS_IPolyMaterial::GetRGBAColor(rgba);
 }
 
 const STR_String& KX_BlenderMaterial::GetTextureName() const

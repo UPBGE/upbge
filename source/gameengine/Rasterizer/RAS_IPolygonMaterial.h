@@ -120,7 +120,7 @@ public:
 	virtual Scene *GetBlenderScene() const = 0;
 	virtual bool UseInstancing() const = 0;
 	virtual void ReleaseMaterial() = 0;
-	virtual void GetMaterialRGBAColor(unsigned char *rgba) const;
+	virtual void GetRGBAColor(unsigned char *rgba) const;
 	virtual bool UsesLighting(RAS_IRasterizer *rasty) const;
 
 	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,

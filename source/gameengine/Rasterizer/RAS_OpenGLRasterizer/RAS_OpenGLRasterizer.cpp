@@ -851,7 +851,7 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot *ms, class RAS_IP
 
 		unsigned int rgba[4];
 		for (unsigned short j = 0; j < 4; ++j) {
-			polymat->GetMaterialRGBAColor((unsigned char *)&rgba[j]);
+			polymat->GetRGBAColor((unsigned char *)&rgba[j]);
 		}
 
 		GPU_render_text(
@@ -960,7 +960,7 @@ static DMDrawOption CheckTexDM(MTexPoly *mtexpoly, const bool has_mcol, int matn
 		if (!has_mcol) {
 			// we have to set the color from the material
 			unsigned char rgba[4];
-			current_polymat->GetMaterialRGBAColor(rgba);
+			current_polymat->GetRGBAColor(rgba);
 			glColor4ubv((const GLubyte *)rgba);
 			return DM_DRAW_OPTION_NORMAL;
 		}

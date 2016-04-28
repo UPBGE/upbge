@@ -59,7 +59,7 @@ public:
 	virtual Image *GetBlenderImage() const;
 	virtual MTexPoly *GetMTexPoly() const;
 	virtual bool UsesLighting(RAS_IRasterizer *rasty) const;
-	virtual void GetMaterialRGBAColor(unsigned char *rgba) const;
+	virtual void GetRGBAColor(unsigned char *rgba) const;
 	virtual Scene *GetBlenderScene() const;
 	virtual void ReleaseMaterial();
 

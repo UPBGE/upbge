@@ -69,7 +69,7 @@ bool RAS_IPolyMaterial::IsWire() const
 	return (m_rasMode & RAS_WIRE);
 }
 
-void RAS_IPolyMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
+void RAS_IPolyMaterial::GetRGBAColor(unsigned char *rgba) const
 {
 	*rgba++ = 0xFF;
 	*rgba++ = 0xFF;
