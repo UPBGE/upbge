@@ -184,7 +184,7 @@ const STR_String& RAS_MeshObject::GetMaterialName(unsigned int matid)
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
 	if (mmat)
-		return mmat->m_bucket->GetPolyMaterial()->GetMaterialName();
+		return mmat->m_bucket->GetPolyMaterial()->GetName();
 
 	return s_emptyname;
 }

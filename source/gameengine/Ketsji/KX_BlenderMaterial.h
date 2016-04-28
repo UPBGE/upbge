@@ -9,7 +9,7 @@
 #include "RAS_IPolygonMaterial.h"
 #include "BL_Texture.h"
 
-#include "EXP_PyObjectPlus.h"
+#include "EXP_Value.h"
 
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
@@ -28,7 +28,7 @@ struct Material;
 void KX_BlenderMaterial_Mathutils_Callback_Init(void);
 #endif
 
-class KX_BlenderMaterial : public PyObjectPlus, public RAS_IPolyMaterial
+class KX_BlenderMaterial : public CValue, public RAS_IPolyMaterial
 {
 	Py_Header
 
@@ -75,11 +75,16 @@ public:
 
 	virtual void Replace_IScene(SCA_IScene *val);
 
+	// Stuff for cvalue related things.
+	CValue *Calc(VALUE_OPERATOR op, CValue *val);
+	CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+	const STR_String &GetText();
+	double GetNumber();
+	STR_String &GetName();
+	void SetName(const char *name); // Set the name of the value
+	CValue *GetReplica();
+
 #ifdef WITH_PYTHON
-	virtual PyObject *py_repr()
-	{
-		return PyUnicode_From_STR_String(m_materialname);
-	}
 
 	static PyObject *pyattr_get_shader(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_materialIndex(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

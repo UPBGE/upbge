@@ -73,7 +73,7 @@ enum MaterialRasterizerModes
 class RAS_IPolyMaterial
 {
 protected:
-	STR_String m_materialname; // also needed for touchsensor
+	STR_String m_name; // also needed for touchsensor
 	int m_drawingmode;
 	int m_alphablend;
 	int m_rasMode;
@@ -89,7 +89,7 @@ public:
 		SHADOW = 2048 // GEMAT_SHADOW
 	};
 
-	RAS_IPolyMaterial(const STR_String& matname,
+	RAS_IPolyMaterial(const STR_String& name,
 	                  GameSettings *game);
 
 	virtual ~RAS_IPolyMaterial()
@@ -106,7 +106,7 @@ public:
 	bool IsZSort() const;
 	bool IsWire() const;
 	int GetDrawingMode() const;
-	const STR_String& GetMaterialName() const;
+	virtual STR_String& GetName();
 	unsigned int GetFlag() const;
 	bool IsAlphaShadow() const;
 	bool UsesObjectColor() const;

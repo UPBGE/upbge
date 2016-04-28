@@ -157,7 +157,7 @@ short getMaterialID(PyObject *obj, const char *name)
 		}
 		else {
 			// if material name matches
-			if (strcmp(mat->GetMaterialName().ReadPtr(), name) == 0)
+			if (strcmp(mat->GetName().ReadPtr(), name) == 0)
 				return matID;
 		}
 	}

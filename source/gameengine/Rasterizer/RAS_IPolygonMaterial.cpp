@@ -36,9 +36,9 @@
 #include "DNA_material_types.h"
 
 RAS_IPolyMaterial::RAS_IPolyMaterial(
-	const STR_String& matname,
+	const STR_String& name,
 	GameSettings *game)
-	:m_materialname(matname),
+	:m_name(name),
 	m_alphablend(0),
 	m_rasMode(0),
 	m_flag(0)
@@ -92,9 +92,9 @@ int RAS_IPolyMaterial::GetDrawingMode() const
 	return m_drawingmode;
 }
 
-const STR_String& RAS_IPolyMaterial::GetMaterialName() const
+STR_String& RAS_IPolyMaterial::GetName()
 {
-	return m_materialname;
+	return m_name;
 }
 
 unsigned int RAS_IPolyMaterial::GetFlag() const

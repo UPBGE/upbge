@@ -216,7 +216,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, isCollider,
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialName,
 "getMaterialName() : returns the polygon material name, \"NoMaterial\" if no material\n")
 {
-	return PyUnicode_From_STR_String(m_polygon->GetMaterial()->GetPolyMaterial()->GetMaterialName());
+	return PyUnicode_From_STR_String(m_polygon->GetMaterial()->GetPolyMaterial()->GetName());
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getTextureName,
