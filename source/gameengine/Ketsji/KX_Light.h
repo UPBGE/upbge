@@ -39,6 +39,7 @@
 struct GPULamp;
 struct Scene;
 struct Base;
+class KX_Scene;
 class KX_Camera;
 class RAS_IRasterizer;
 class RAS_ILightObject;
@@ -48,59 +49,67 @@ class KX_LightObject : public KX_GameObject
 {
 	Py_Header
 protected:
-	RAS_ILightObject*		m_lightobj;
-	class RAS_IRasterizer*	m_rasterizer;	//needed for registering and replication of lightobj
-	Scene*				m_blenderscene;
-	Base*				m_base;
+	RAS_ILightObject *m_lightobj;
+	/// Needed for registering and replication of lightobj.
+	RAS_IRasterizer *m_rasterizer;
+	Scene *m_blenderscene;
+	Base *m_base;
 
 public:
-	KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,RAS_IRasterizer* rasterizer,RAS_ILightObject*	lightobj);
+	KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, RAS_IRasterizer *rasterizer, RAS_ILightObject *lightobj);
 	virtual ~KX_LightObject();
-	virtual CValue*		GetReplica();
-	RAS_ILightObject*	GetLightData() { return m_lightobj;}
-	
-	void UpdateScene(class KX_Scene *kxscene);
+
+	virtual CValue *GetReplica();
+	RAS_ILightObject *GetLightData()
+	{
+		return m_lightobj;
+	}
+
+	void UpdateScene(KX_Scene *kxscene);
 	virtual void SetLayer(int layer);
 
-	virtual int GetGameObjectType() { return OBJ_LIGHT; }
+	virtual int GetGameObjectType()
+	{
+		return OBJ_LIGHT;
+	}
 
 #ifdef WITH_PYTHON
 	// functions
 	KX_PYMETHOD_DOC_NOARGS(KX_LightObject, updateShadow);
 
-	/* attributes */
-	static PyObject*	pyattr_get_layer(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_layer(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_energy(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_energy(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject		*pyattr_get_shadow_clip_start(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject		*pyattr_get_shadow_clip_end(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject		*pyattr_get_shadow_frustum_size(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject		*pyattr_get_shadow_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject		*pyattr_get_shadow_bias(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject		*pyattr_get_shadow_bleed_bias(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject		*pyattr_get_shadow_map_type(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject		*pyattr_get_shadow_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject		*pyattr_get_shadow_active(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject		*pyattr_get_shadow_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_distance(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_distance(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_color(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_color(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_lin_attenuation(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_lin_attenuation(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_quad_attenuation(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_quad_attenuation(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_spotsize(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_spotsize(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_spotblend(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_spotblend(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_typeconst(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_type(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_type(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_static_shadow(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_static_shadow(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	// attributes
+	static PyObject *pyattr_get_layer(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_layer(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_energy(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_energy(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_shadow_clip_start(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_shadow_clip_end(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_shadow_frustum_size(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_shadow_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_shadow_bias(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_shadow_bleed_bias(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_shadow_map_type(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_shadow_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_shadow_active(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_shadow_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_distance(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_distance(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_lin_attenuation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_lin_attenuation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_quad_attenuation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_quad_attenuation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_spotsize(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_spotsize(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_spotblend(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_spotblend(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_typeconst(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_type(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_type(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_static_shadow(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_static_shadow(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif
 };
 
-#endif  /* __KX_LIGHT_H__ */
+#endif  // __KX_LIGHT_H__
