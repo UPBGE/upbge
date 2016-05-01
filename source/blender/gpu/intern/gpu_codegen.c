@@ -1532,7 +1532,7 @@ bool GPU_link(GPUMaterial *mat, const char *name, ...)
 	function = gpu_lookup_function(name);
 	if (!function) {
 		fprintf(stderr, "GPU failed to find function %s\n", name);
-		return 0;
+		return false;
 	}
 
 	node = GPU_node_begin(name);
@@ -1552,7 +1552,7 @@ bool GPU_link(GPUMaterial *mat, const char *name, ...)
 
 	gpu_material_add_node(mat, node);
 
-	return 1;
+	return true;
 }
 
 bool GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNodeStack *out, ...)
@@ -1566,7 +1566,7 @@ bool GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNod
 	function = gpu_lookup_function(name);
 	if (!function) {
 		fprintf(stderr, "GPU failed to find function %s\n", name);
-		return 0;
+		return false;
 	}
 
 	node = GPU_node_begin(name);
@@ -1613,7 +1613,7 @@ bool GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNod
 
 	gpu_material_add_node(mat, node);
 	
-	return 1;
+	return true;
 }
 
 int GPU_link_changed(GPUNodeLink *link)

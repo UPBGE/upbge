@@ -438,6 +438,7 @@ class VIEW3D_MT_view(Menu):
         layout.operator("view3d.clip_border", text="Clipping Border...")
         layout.operator("view3d.zoom_border", text="Zoom Border...")
         layout.operator("view3d.render_border", text="Render Border...").camera_only = False
+        layout.operator("view3d.clear_render_border")
 
         layout.separator()
 
@@ -1901,6 +1902,7 @@ class VIEW3D_MT_particle(Menu):
         if particle_edit.select_mode == 'POINT':
             layout.operator("particle.subdivide")
 
+        layout.operator("particle.unify_length")
         layout.operator("particle.rekey")
         layout.operator("particle.weight_set")
 
@@ -1920,6 +1922,7 @@ class VIEW3D_MT_particle_specials(Menu):
         layout.operator("particle.rekey")
         layout.operator("particle.delete")
         layout.operator("particle.remove_doubles")
+        layout.operator("particle.unify_length")
 
         if particle_edit.select_mode == 'POINT':
             layout.operator("particle.subdivide")

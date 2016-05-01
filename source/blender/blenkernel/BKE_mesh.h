@@ -69,7 +69,7 @@ extern "C" {
 
 /* *** mesh.c *** */
 
-struct BMesh *BKE_mesh_to_bmesh(struct Mesh *me, struct Object *ob);
+struct BMesh *BKE_mesh_to_bmesh(struct Mesh *me, struct Object *ob, const bool add_key_index);
 
 int poly_find_loop_from_vert(
         const struct MPoly *poly,
@@ -293,8 +293,9 @@ void BKE_mesh_loops_to_mface_corners(
 void BKE_mesh_loops_to_tessdata(
         struct CustomData *fdata, struct CustomData *ldata, struct CustomData *pdata, struct MFace *mface,
         int *polyindices, unsigned int (*loopindices)[4], const int num_faces);
-void BKE_mesh_tangent_loops_to_tessdata(struct CustomData *fdata, struct CustomData *ldata, struct MFace *mface,
-                                        int *polyindices, unsigned int (*loopindices)[4], const int num_faces);
+void BKE_mesh_tangent_loops_to_tessdata(
+        struct CustomData *fdata, struct CustomData *ldata, struct MFace *mface,
+        int *polyindices, unsigned int (*loopindices)[4], const int num_faces, const char *layer_name);
 int BKE_mesh_recalc_tessellation(
         struct CustomData *fdata, struct CustomData *ldata, struct CustomData *pdata,
         struct MVert *mvert,
