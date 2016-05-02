@@ -26,6 +26,8 @@
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
 
+#include "BLI_utildefines.h" // for STRINGIFY
+
 #include "RAS_OpenGLFilters/RAS_VertexShader2DFilter.h"
 
 #include "EXP_Value.h"
@@ -44,7 +46,7 @@ static char predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_TYPE][40
 RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 	:m_properties(data.propertyNames),
 	m_gameObject(data.gameObject),
-	m_passIndex(data.filterPassIndex)
+	m_uniformInitialized(false)
 {
 	for(unsigned int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
 		m_textureOffsets[i] = 0;
@@ -58,6 +60,10 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 		m_renderedTextures[i] = 0;
 	}
 
+	for (unsigned short i = 0; i < 8; ++i) {
+		m_textures[i] = 0;
+	}
+
 	m_vertProg = STR_String(VertexShader);
 	m_fragProg = data.shaderText;
 }
@@ -69,6 +75,7 @@ void RAS_2DFilter::ReleaseTextures()
 		if (textureId) {
 			glDeleteTextures(1, &textureId);
 		}
+		m_renderedTextures[i] = 0;
 	}
 }
 
@@ -77,27 +84,20 @@ RAS_2DFilter::~RAS_2DFilter()
 	ReleaseTextures();
 }
 
-void RAS_2DFilter::SetEnabled(bool enabled)
-{
-	// reuse mUse variable to use the Ok() function.
-	mUse = enabled;
-}
-
 void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 {
 	/* The shader must be initialized at the first frame when the canvas is set.
 	 * to solve this we initialize filter at the frist render frame. */
 	if (!mOk && !mError) {
 		LinkProgram();
+	}
+	if (Ok() && !m_uniformInitialized) {
 		ParseShaderProgram();
+		ReleaseTextures();
 		InitializeTextures(canvas);
 		ComputeTextureOffsets(canvas);
+		m_uniformInitialized = true;
 	}
-}
-
-int RAS_2DFilter::GetPassIndex()
-{
-	return m_passIndex;
 }
 
 void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
@@ -106,12 +106,14 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 
 	if (Ok()) {
 		SetProg(true);
+		BindTextures(canvas);
 		BindUniforms(canvas);
 		MT_Matrix4x4 mat;
 		mat.setIdentity();
 		Update(rasty, mat);
 		ApplyShader();
-		DrawOverlayPlane(canvas);
+		DrawOverlayPlane(rasty, canvas);
+		UnbindTextures();
 	}
 }
 
@@ -122,8 +124,20 @@ void RAS_2DFilter::End()
 	}
 }
 
+bool RAS_2DFilter::LinkProgram()
+{
+	if (!RAS_Shader::LinkProgram()) {
+		return false;
+	}
+
+	m_uniformInitialized = false;
+
+	return true;
+}
+
 void RAS_2DFilter::ParseShaderProgram()
 {
+	// Parse shader to found used uniforms.
 	for (unsigned int i = 0; i < MAX_PREDEFINED_UNIFORM_TYPE; ++i) {
 		m_predefinedUniforms[i] = GetUniformLocation(predefinedUniformsName[i], false);
 	}
@@ -194,7 +208,7 @@ void RAS_2DFilter::ComputeTextureOffsets(RAS_ICanvas *canvas)
 	}
 }
 
-void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
+void RAS_2DFilter::BindTextures(RAS_ICanvas *canvas)
 {
 	const unsigned int texturewidth = canvas->GetWidth() + 1;
 	const unsigned int textureheight = canvas->GetHeight() + 1;
@@ -203,24 +217,74 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
 		// Create and bind rendered texture.
-		glActiveTextureARB(GL_TEXTURE0);
+		glActiveTextureARB(GL_TEXTURE8);
 		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[RENDERED_TEXTURE]);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
-		SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM], 0);
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
 		// Create and bind depth texture.
-		glActiveTextureARB(GL_TEXTURE1);
+		glActiveTextureARB(GL_TEXTURE9);
 		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[DEPTH_TEXTURE]);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
-		SetUniform(m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM], 1);
 	}
 	if (m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM] != -1) {
 		// Create and bind luminance texture.
-		glActiveTextureARB(GL_TEXTURE2);
+		glActiveTextureARB(GL_TEXTURE10);
 		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[LUMINANCE_TEXTURE]);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
-		SetUniform(m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM], 2);
+	}
+
+	// Bind custom textures.
+	for (unsigned short i = 0; i < 8; ++i) {
+		if (m_textures[i]) {
+			glActiveTextureARB(GL_TEXTURE0 + i);
+			glBindTexture(GL_TEXTURE_2D, m_textures[i]);
+		}
+	}
+}
+
+void RAS_2DFilter::UnbindTextures()
+{
+	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
+		// Create and bind rendered texture.
+		glActiveTextureARB(GL_TEXTURE8);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
+	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
+		// Create and bind depth texture.
+		glActiveTextureARB(GL_TEXTURE9);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
+	if (m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM] != -1) {
+		// Create and bind luminance texture.
+		glActiveTextureARB(GL_TEXTURE10);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
+
+	// Bind custom textures.
+	for (unsigned short i = 0; i < 8; ++i) {
+		if (m_textures[i]) {
+			glActiveTextureARB(GL_TEXTURE0 + i);
+			glBindTexture(GL_TEXTURE_2D, 0);
+		}
+	}
+
+	glActiveTextureARB(GL_TEXTURE0);
+}
+
+void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
+{
+	const unsigned int texturewidth = canvas->GetWidth() + 1;
+	const unsigned int textureheight = canvas->GetHeight() + 1;
+
+	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
+		SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM], 8);
+	}
+	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
+		SetUniform(m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM], 9);
+	}
+	if (m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM] != -1) {
+		SetUniform(m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM], 10);
 	}
 	if (m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM] != -1) {
 		// Bind rendered texture width.
@@ -259,54 +323,33 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 	}
 }
 
-void RAS_2DFilter::DrawOverlayPlane(RAS_ICanvas *canvas)
+void RAS_2DFilter::DrawOverlayPlane(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 {
 	RAS_Rect scissor_rect = canvas->GetDisplayArea();
-	glScissor(scissor_rect.GetLeft() + canvas->GetViewPort()[0], 
+	rasty->SetScissor(scissor_rect.GetLeft() + canvas->GetViewPort()[0], 
 			  scissor_rect.GetBottom() + canvas->GetViewPort()[1],
 			  scissor_rect.GetWidth() + 1,
 			  scissor_rect.GetHeight() + 1);
 
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_BLEND);
-	glDisable(GL_ALPHA_TEST);
+	rasty->Disable(RAS_IRasterizer::RAS_DEPTH_TEST);
+	rasty->Disable(RAS_IRasterizer::RAS_BLEND);
+	rasty->Disable(RAS_IRasterizer::RAS_ALPHA_TEST);
 
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	rasty->SetLines(false);
 
-	glPushMatrix();
-	glLoadIdentity();
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
+	rasty->PushMatrix();
+	rasty->LoadIdentity();
+	rasty->SetMatrixMode(RAS_IRasterizer::RAS_TEXTURE);
+	rasty->LoadIdentity();
+	rasty->SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
+	rasty->PushMatrix();
+	rasty->LoadIdentity();
 
-	glActiveTextureARB(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, m_renderedTextures[RENDERED_TEXTURE]);
+	rasty->DrawOverlayPlane();
 
-	glBegin(GL_QUADS);
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	rasty->PopMatrix();
+	rasty->SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);
+	rasty->PopMatrix();
 
-	glTexCoord2f(1.0f, 1.0f);
-	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, 1.0f, 1.0f);
-	glVertex2f(1.0f, 1.0f);
-
-	glTexCoord2f(0.0f, 1.0f);
-	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, -1.0f, 1.0f);
-	glVertex2f(-1.0f, 1.0f);
-
-	glTexCoord2f(0.0f, 0.0f);
-	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, -1.0f, -1.0f);
-	glVertex2f(-1.0f, -1.0f);
-
-	glTexCoord2f(1.0f, 0.0f);
-	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, 1.0f, -1.0f);
-	glVertex2f(1.0f, -1.0f);
-	glEnd();
-
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
-
-	glEnable(GL_DEPTH_TEST);
+	rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
 }

@@ -25,9 +25,7 @@
 RAS_2DFilterData::RAS_2DFilterData()
 	:gameObject(NULL),
 	filterMode(-1),
-	filterPassIndex(-1),
-	outputBufferWidth(0),
-	outputBufferHeight(0)
+	filterPassIndex(-1)
 {
 }
 

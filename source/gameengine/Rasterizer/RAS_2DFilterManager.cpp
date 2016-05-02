@@ -27,11 +27,13 @@
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterManager.h"
 #include "RAS_2DFilter.h"
+
+#include "BLI_utildefines.h" // for STRINGIFY
+
 #include <iostream>
 
 #include "glew-mx.h"
 
-#define STRINGIFY(A) #A
 #include "RAS_OpenGLFilters/RAS_Blur2DFilter.h"
 #include "RAS_OpenGLFilters/RAS_Sharpen2DFilter.h"
 #include "RAS_OpenGLFilters/RAS_Dilation2DFilter.h"
@@ -53,30 +55,6 @@ RAS_2DFilterManager::~RAS_2DFilterManager()
 	for (RAS_PassTo2DFilter::iterator it = m_filters.begin(), end = m_filters.end(); it != end; ++it) {
 		RAS_2DFilter *filter = it->second;
 		delete filter;
-	}
-}
-
-void RAS_2DFilterManager::PrintShaderError(unsigned int shaderUid, const char *title, const char *shaderCode, unsigned int passindex)
-{
-	std::cout << "2D Filter GLSL Shader: " << title << " error." << std::endl;
-
-	// Copied value from BL_Shader MAX_LOG_LEN.
-	const int MAX_LOG_CHAR_COUNT = 262144;
-	GLint logSize = 0;
-	glGetShaderiv(shaderUid, GL_INFO_LOG_LENGTH, &logSize);
-
-	if(logSize != 0) {
-		GLsizei infoLogRetSize = 0;
-		if (logSize > MAX_LOG_CHAR_COUNT) {
-			logSize = MAX_LOG_CHAR_COUNT;
-		}
-		char *logCharBuffer = (char *)malloc(sizeof(char) * logSize);
-
-		glGetInfoLogARB(shaderUid, logSize, &infoLogRetSize, logCharBuffer);
-		std::cout << logCharBuffer << std::endl;
-		m_filters[passindex]->SetEnabled(false);
-
-		free(logCharBuffer);
 	}
 }
 
@@ -151,7 +129,7 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 	}
 	if (!shaderSource) {
 		if(filterData.filterMode == RAS_2DFilterManager::FILTER_CUSTOMFILTER) {
-			result = new RAS_2DFilter(filterData);
+			result = NewFilter(filterData);
 		}
 		else {
 			std::cout << "Cannot create filter for mode: " << filterData.filterMode << "." << std::endl;
@@ -159,7 +137,12 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 	}
 	else {
 		filterData.shaderText = shaderSource;
-		result = new RAS_2DFilter(filterData);
+		result = NewFilter(filterData);
 	}
 	return result;
+}
+
+RAS_2DFilter *RAS_2DFilterManager::NewFilter(RAS_2DFilterData& filterData)
+{
+	return new RAS_2DFilter(filterData);
 }

@@ -470,6 +470,15 @@ void RAS_Shader::SetProg(bool enable)
 	}
 }
 
+void RAS_Shader::SetEnabled(bool enabled)
+{
+	mUse = enabled;
+}
+
+bool RAS_Shader::GetEnabled() const
+{
+	return mUse;
+}
 
 void RAS_Shader::Update(RAS_IRasterizer *rasty, const MT_Matrix4x4 model)
 {
@@ -550,13 +559,11 @@ void RAS_Shader::Update(RAS_IRasterizer *rasty, const MT_Matrix4x4 model)
 				}
 				case VIEWMATRIX_INVERSE:
 				{
-					MT_Matrix4x4 viewinv = view;
 					SetUniform(uni->mLoc, view.inverse());
 					break;
 				}
 				case VIEWMATRIX_INVERSETRANSPOSE:
 				{
-					MT_Matrix4x4 viewinv = view;
 					SetUniform(uni->mLoc, view.inverse(), true);
 					break;
 				}

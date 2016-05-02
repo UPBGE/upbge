@@ -204,7 +204,12 @@ void KX_WorldInfo::RenderBackground(RAS_IRasterizer *rasty)
 		static float texcofac[4] = {0.0f, 0.0f, 1.0f, 1.0f};
 		GPU_material_bind(gpumat, 0xFFFFFFFF, m_scene->lay, 1.0f, false, viewmat, invviewmat, texcofac, false);
 
-		rasty->RenderBackground();
+		rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
+		rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
+
+		rasty->DrawOverlayPlane();
+
+		rasty->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
 
 		GPU_material_unbind(gpumat);
 	}

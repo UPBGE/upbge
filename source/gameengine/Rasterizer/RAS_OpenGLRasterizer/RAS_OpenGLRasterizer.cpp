@@ -317,24 +317,32 @@ void RAS_OpenGLRasterizer::Exit()
 	EndFrame();
 }
 
-void RAS_OpenGLRasterizer::RenderBackground()
+void RAS_OpenGLRasterizer::DrawOverlayPlane()
 {
-	Enable(RAS_DEPTH_TEST);
-	SetDepthFunc(RAS_ALWAYS);
-
-	float vertices[] = {
+	static const float vertices[] = {
 		-1.0f, -1.0f, 1.0f,
 		 1.0f, -1.0f, 1.0f,
 		-1.0f,  1.0f, 1.0f,
 		 1.0f,  1.0f, 1.0f
 	};
 
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(3, GL_FLOAT, 0, vertices);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	glDisableClientState(GL_VERTEX_ARRAY);
+	static const float uvs[] = {
+		0.0f, 0.0f,
+		1.0f, 0.0f,
+		0.0f, 1.0f,
+		1.0f, 1.0f
+	};
 
-	SetDepthFunc(RAS_LEQUAL);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glVertexPointer(3, GL_FLOAT, 0, vertices);
+	glTexCoordPointer(2, GL_FLOAT, 0, uvs);
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 }
 
 bool RAS_OpenGLRasterizer::BeginFrame(double time)

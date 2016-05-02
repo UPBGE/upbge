@@ -31,7 +31,7 @@ class RAS_IRasterizer;
 class RAS_ICanvas;
 class CValue;
 
-class RAS_2DFilter : public RAS_Shader
+class RAS_2DFilter : public virtual RAS_Shader
 {
 public:
 	enum PredefinedUniformType {
@@ -51,7 +51,7 @@ public:
 		MAX_RENDERED_TEXTURE_TYPE
 	};
 
-private:
+protected:
 	int m_predefinedUniforms[MAX_PREDEFINED_UNIFORM_TYPE];
 	unsigned int m_renderedTextures[MAX_RENDERED_TEXTURE_TYPE];
 
@@ -59,22 +59,29 @@ private:
 	std::vector<unsigned int> m_propertiesLoc;
 	CValue *m_gameObject;
 
+	/// True if the uniform locations are updated with the current shader program/script.
+	bool m_uniformInitialized;
+
 	/** A set of vec2 coordinates that the shaders use to sample nearby pixels from incoming textures.
 	The computation should be left to the glsl shader, I keep it for backward compatibility. */
 	static const int TEXTURE_OFFSETS_SIZE = 18; //9 vec2 entries
-	float m_textureOffsets[TEXTURE_OFFSETS_SIZE]; 
-	int m_passIndex;
+	float m_textureOffsets[TEXTURE_OFFSETS_SIZE];
 
+	unsigned int m_textures[8];
+
+	virtual bool LinkProgram();
 	void ParseShaderProgram();
 	void InitializeTextures(RAS_ICanvas *canvas);
 	void BindUniforms(RAS_ICanvas *canvas);
-	void DrawOverlayPlane(RAS_ICanvas *canvas);
+	void BindTextures(RAS_ICanvas *canvas);
+	void UnbindTextures();
+	void DrawOverlayPlane(RAS_IRasterizer *rasty, RAS_ICanvas *canvas);
 	void ComputeTextureOffsets(RAS_ICanvas *canvas);
 	void ReleaseTextures();
 
 public:
 	RAS_2DFilter(RAS_2DFilterData& data);
-	~RAS_2DFilter();
+	virtual ~RAS_2DFilter();
 
 	/// Called by the filter manager when it has informations like the display size, a gl context...
 	void Initialize(RAS_ICanvas *canvas);
@@ -84,12 +91,6 @@ public:
 
 	/// Finalizes the execution stage of the filter.
 	void End();
-
-	/// The pass index determines the precedence of this filter over other filters in the same context.
-	int GetPassIndex();
-
-	/// Enables / disables this filter. A disabled filter has no effect on the rendering.
-	void SetEnabled(bool enabled);
 };
 
 #endif // __RAS_2DFILTER_H__
