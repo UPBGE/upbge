@@ -85,7 +85,7 @@ public:
 	#endif
 	};
 
-private:
+protected:
 	typedef std::vector<RAS_Uniform *> RAS_UniformVec;
 	typedef std::vector<RAS_DefUniform *> RAS_UniformVecDef;
 
