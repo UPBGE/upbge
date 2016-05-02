@@ -74,7 +74,7 @@ private:
 
 public:
 	RAS_2DFilter(RAS_2DFilterData& data);
-	~RAS_2DFilter();
+	virtual ~RAS_2DFilter();
 
 	/// Called by the filter manager when it has informations like the display size, a gl context...
 	void Initialize(RAS_ICanvas *canvas);

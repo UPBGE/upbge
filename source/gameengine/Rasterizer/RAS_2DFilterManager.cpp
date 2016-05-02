@@ -151,7 +151,7 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 	}
 	if (!shaderSource) {
 		if(filterData.filterMode == RAS_2DFilterManager::FILTER_CUSTOMFILTER) {
-			result = new RAS_2DFilter(filterData);
+			result = NewFilter(filterData);
 		}
 		else {
 			std::cout << "Cannot create filter for mode: " << filterData.filterMode << "." << std::endl;
@@ -159,7 +159,12 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 	}
 	else {
 		filterData.shaderText = shaderSource;
-		result = new RAS_2DFilter(filterData);
+		result = NewFilter(filterData);
 	}
 	return result;
+}
+
+RAS_2DFilter *RAS_2DFilterManager::NewFilter(RAS_2DFilterData& filterData)
+{
+	return new RAS_2DFilter(filterData);
 }

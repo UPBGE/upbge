@@ -67,6 +67,8 @@ set(SRC
 	BL_BlenderShader.cpp
 	BL_Shader.cpp
 	BL_Texture.cpp
+	KX_2DFilter.cpp
+	KX_2DFilterManager.cpp
 	KX_ArmatureSensor.cpp
 	KX_BlenderMaterial.cpp
 	KX_Camera.cpp
@@ -141,6 +143,8 @@ set(SRC
 	BL_BlenderShader.h
 	BL_Shader.h
 	BL_Texture.h
+	KX_2DFilter.h
+	KX_2DFilterManager.h
 	KX_ArmatureSensor.h
 	KX_BlenderMaterial.h
 	KX_Camera.h

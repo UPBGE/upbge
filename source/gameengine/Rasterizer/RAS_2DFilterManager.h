@@ -77,6 +77,8 @@ public:
 
 	RAS_ICanvas *GetCanvas();
 
+	RAS_PassTo2DFilter GetFilters() { return m_filters; }
+
 private:
 	RAS_PassTo2DFilter m_filters;
 
@@ -84,6 +86,8 @@ private:
 	 * filter can be created with such information.
 	 */
 	RAS_2DFilter *CreateFilter(RAS_2DFilterData& filterData);
+	/// Only return a new instanced filter.
+	virtual RAS_2DFilter *NewFilter(RAS_2DFilterData& filterData);
 };
 
 #endif // __RAS_2DFILTERMANAGER_H__
