@@ -79,6 +79,7 @@ class RAS_IPolyMaterial;
 class RAS_IRasterizer;
 class RAS_IRenderTools;
 class RAS_2DFilterManager;
+class KX_2DFilterManager;
 class SCA_JoystickManager;
 class btCollisionShape;
 class KX_BlenderSceneConverter;
@@ -286,7 +287,7 @@ protected:
 
 	struct Scene* m_blenderScene;
 
-	RAS_2DFilterManager *m_filterManager;
+	KX_2DFilterManager *m_filterManager;
 
 	KX_ObstacleSimulation* m_obstacleSimulation;
 

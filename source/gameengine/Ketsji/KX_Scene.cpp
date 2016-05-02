@@ -63,7 +63,7 @@
 #include "RAS_IRasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
-#include "RAS_2DFilterManager.h"
+#include "KX_2DFilterManager.h"
 #include "RAS_BucketManager.h"
 
 #include "EXP_FloatValue.h"
@@ -171,7 +171,7 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	m_euthanasyobjects = new CListValue();
 	m_animatedlist = new CListValue();
 
-	m_filterManager = new RAS_2DFilterManager(canvas);
+	m_filterManager = new KX_2DFilterManager(canvas);
 	m_logicmgr = new SCA_LogicManager();
 	
 	m_timemgr = new SCA_TimeEventManager(m_logicmgr);

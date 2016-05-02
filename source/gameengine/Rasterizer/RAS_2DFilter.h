@@ -74,7 +74,7 @@ private:
 
 public:
 	RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager);
-	~RAS_2DFilter();
+	virtual ~RAS_2DFilter();
 
 	/// Called by the filter manager when it has informations like the display size, a gl context...
 	void Initialize();
@@ -90,6 +90,10 @@ public:
 
 	/// Enables / disables this filter. A disabled filter has no effect on the rendering.
 	void SetEnabled(bool enabled);
+
+	unsigned int GetProgramId() { return m_shaderProgramUid; }
+
+	bool GetError() { return m_error; }
 };
 
 #endif // __RAS_2DFILTER_H__

@@ -75,6 +75,7 @@ extern "C" {
 //python physics binding
 #include "KX_PyConstraintBinding.h"
 
+#include "KX_2DFilter.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_RadarSensor.h"
 #include "KX_RaySensor.h"
@@ -647,7 +648,21 @@ static PyObject *gPyGetInactiveSceneNames(PyObject *self)
 	return list->NewProxy(true);
 }
 
-
+PyDoc_STRVAR(gPyGetFilters_doc,
+	"getSceneList()\n"
+	"Return a list of 2D Filters."
+	);
+static PyObject *gPyGetFilters(PyObject *self)
+{
+	int i = 0;
+	RAS_PassTo2DFilter filters = KX_GetActiveScene()->Get2DFilterManager()->GetFilters();
+	PyObject *filterlist = PyList_New(filters.size());
+	for (RAS_PassTo2DFilter::iterator it = filters.begin(), end = filters.end(); it != end; ++it) {
+		KX_2DFilter *filter = (KX_2DFilter *)it->second;
+		PyList_SET_ITEM(filterlist, i++, filter->GetProxy());
+	}
+	return filterlist;
+}
 
 static PyObject *pyPrintStats(PyObject *,PyObject *,PyObject *)
 {
@@ -843,6 +858,7 @@ static struct PyMethodDef game_methods[] = {
 	{"getCurrentScene", (PyCFunction) gPyGetCurrentScene, METH_NOARGS, gPyGetCurrentScene_doc},
 	{"getInactiveSceneNames", (PyCFunction)gPyGetInactiveSceneNames, METH_NOARGS, (const char *)gPyGetInactiveSceneNames_doc},
 	{"getSceneList", (PyCFunction) gPyGetSceneList, METH_NOARGS, (const char *)gPyGetSceneList_doc},
+	{"filters", (PyCFunction)gPyGetFilters, METH_NOARGS, (const char *)gPyGetFilters_doc},
 	{"addScene", (PyCFunction)gPyAddScene, METH_VARARGS, (const char *)gPyAddScene_doc},
 	{"getRandomFloat",(PyCFunction) gPyGetRandomFloat, METH_NOARGS, (const char *)gPyGetRandomFloat_doc},
 	{"setGravity",(PyCFunction) gPySetGravity, METH_O, (const char *)"set Gravitation"},
