@@ -35,6 +35,7 @@
 
 #include "RAS_BucketManager.h"
 #include "RAS_IRasterizer.h"
+#include "RAS_MeshUser.h"
 
 #include "GPU_draw.h"
 #include "GPU_material.h" // for GPU_BLEND_SOLID
@@ -387,7 +388,7 @@ bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 {
 	if (m_shader && m_shader->Ok()) {
-		m_shader->Update(ms, rasty);
+		m_shader->Update(rasty, MT_Matrix4x4(ms->m_meshUser->GetMatrix()));
 	}
 	else if (m_blenderShader) {
 		m_blenderShader->Update(ms, rasty);

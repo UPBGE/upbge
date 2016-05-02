@@ -171,7 +171,7 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	m_euthanasyobjects = new CListValue();
 	m_animatedlist = new CListValue();
 
-	m_filterManager = new RAS_2DFilterManager(canvas);
+	m_filterManager = new RAS_2DFilterManager();
 	m_logicmgr = new SCA_LogicManager();
 	
 	m_timemgr = new SCA_TimeEventManager(m_logicmgr);
@@ -2136,9 +2136,9 @@ RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 	return m_filterManager;
 }
 
-void KX_Scene::Render2DFilters()
+void KX_Scene::Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 {
-	m_filterManager->RenderFilters();
+	m_filterManager->RenderFilters(rasty, canvas);
 }
 
 #ifdef WITH_PYTHON

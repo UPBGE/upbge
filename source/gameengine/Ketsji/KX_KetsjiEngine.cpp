@@ -326,7 +326,7 @@ void KX_KetsjiEngine::RenderDome()
 			}
 			// Part of PostRenderScene()
 			m_rasterizer->MotionBlur();
-			scene->Render2DFilters();
+			scene->Render2DFilters(m_rasterizer, m_canvas);
 			// no RunDrawingCallBacks
 			// no FlushDebugLines
 		}
@@ -1195,7 +1195,7 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene)
 
 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
 	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
-	scene->Render2DFilters();
+	scene->Render2DFilters(m_rasterizer, m_canvas);
 
 #ifdef WITH_PYTHON
 	// Set again the scene viewport.

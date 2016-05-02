@@ -24,37 +24,36 @@
 #define __RAS_2DFILTER_H__
 
 #include "RAS_2DFilterData.h"
+#include "RAS_Shader.h"
 
 class RAS_2DFilterManager;
+class RAS_IRasterizer;
+class RAS_ICanvas;
 class CValue;
 
-class RAS_2DFilter
+class RAS_2DFilter : public RAS_Shader
 {
+public:
+	enum PredefinedUniformType {
+		RENDERED_TEXTURE_UNIFORM = 0,
+		LUMINANCE_TEXTURE_UNIFORM,
+		DEPTH_TEXTURE_UNIFORM,
+		RENDERED_TEXTURE_WIDTH_UNIFORM,
+		RENDERED_TEXTURE_HEIGHT_UNIFORM,
+		TEXTURE_COORDINATE_OFFSETS_UNIFORM,
+		MAX_PREDEFINED_UNIFORM_TYPE
+	};
+
+	enum RenderedTextureType {
+		RENDERED_TEXTURE = 0,
+		LUMINANCE_TEXTURE,
+		DEPTH_TEXTURE,
+		MAX_RENDERED_TEXTURE_TYPE
+	};
+
 private:
-	/// Names of the predefined values available to glsl shaders
-	static const char *UNIFORM_NAME_RENDERED_TEXTURE;
-	static const char *UNIFORM_NAME_LUMINANCE_TEXTURE;
-	static const char *UNIFORM_NAME_DEPTH_TEXTURE;
-	static const char *UNIFORM_NAME_RENDERED_TEXTURE_WIDTH;
-	static const char *UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT;
-	static const char *UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS;
-
-	RAS_2DFilterManager *m_manager;
-
-	STR_String m_uid;
-	STR_String m_fragmentShaderSourceCode;
-
-	unsigned int m_shaderProgramUid;
-	unsigned int m_fragmentShaderUid;
-	int m_renderedTextureUniformLocation;
-	int m_luminanceTextureUniformLocation;
-	int m_depthTextureUniformLocation;
-	int m_renderedTextureWidthUniformLocation;
-	int m_renderedTextureHeightUniformLocation;
-	int m_textureOffsetsUniformLocation;
-	unsigned int m_renderedTextureUid;
-	unsigned int m_luminanceTextureUid;
-	unsigned int m_depthTextureUid;
+	int m_predefinedUniforms[MAX_PREDEFINED_UNIFORM_TYPE];
+	unsigned int m_renderedTextures[MAX_RENDERED_TEXTURE_TYPE];
 
 	std::vector<STR_String> m_properties;
 	std::vector<unsigned int> m_propertiesLoc;
@@ -65,30 +64,23 @@ private:
 	static const int TEXTURE_OFFSETS_SIZE = 18; //9 vec2 entries
 	float m_textureOffsets[TEXTURE_OFFSETS_SIZE]; 
 	int m_passIndex;
-	bool m_enabled;
-	bool m_error;
-	bool m_initialized;
 
 	void ParseShaderProgram();
-	void InitializeShader();
-	void InitializeTextures();
-	void BindShaderProgram();
-	void UnbindShaderProgram();
-	void BindUniforms();
-	void DrawOverlayPlane();
-	void ComputeTextureOffsets();
+	void InitializeTextures(RAS_ICanvas *canvas);
+	void BindUniforms(RAS_ICanvas *canvas);
+	void DrawOverlayPlane(RAS_ICanvas *canvas);
+	void ComputeTextureOffsets(RAS_ICanvas *canvas);
 	void ReleaseTextures();
-	void DeleteShader();
 
 public:
-	RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager);
+	RAS_2DFilter(RAS_2DFilterData& data);
 	~RAS_2DFilter();
 
 	/// Called by the filter manager when it has informations like the display size, a gl context...
-	void Initialize();
+	void Initialize(RAS_ICanvas *canvas);
 
 	/// Starts executing the filter.
-	void Start();
+	void Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas);
 
 	/// Finalizes the execution stage of the filter.
 	void End();

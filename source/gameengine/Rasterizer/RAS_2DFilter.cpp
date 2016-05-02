@@ -26,87 +26,72 @@
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
 
+#include "RAS_OpenGLFilters/RAS_VertexShader2DFilter.h"
+
 #include "EXP_Value.h"
 
 #include "glew-mx.h"
-#include <iostream>
 
-const char *RAS_2DFilter::UNIFORM_NAME_RENDERED_TEXTURE = "bgl_RenderedTexture";
-const char *RAS_2DFilter::UNIFORM_NAME_LUMINANCE_TEXTURE = "bgl_LuminanceTexture";
-const char *RAS_2DFilter::UNIFORM_NAME_DEPTH_TEXTURE = "bgl_DepthTexture";
-const char *RAS_2DFilter::UNIFORM_NAME_RENDERED_TEXTURE_WIDTH = "bgl_RenderedTextureWidth";
-const char *RAS_2DFilter::UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT = "bgl_RenderedTextureHeight";
-const char *RAS_2DFilter::UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS = "bgl_TextureCoordinateOffset";
+static char predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_TYPE][40] = {
+	"bgl_RenderedTexture", // RENDERED_TEXTURE_UNIFORM
+	"bgl_LuminanceTexture", // LUMINANCE_TEXTURE_UNIFORM
+	"bgl_DepthTexture", // DEPTH_TEXTURE_UNIFORM
+	"bgl_RenderedTextureWidth", // RENDERED_TEXTURE_WIDTH_UNIFORM
+	"bgl_RenderedTextureHeight", // RENDERED_TEXTURE_HEIGHT_UNIFORM
+	"bgl_TextureCoordinateOffset" // TEXTURE_COORDINATE_OFFSETS_UNIFORM
+};
 
-RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager)
-	:m_manager(manager),
-	m_shaderProgramUid(0),
-	m_fragmentShaderUid(0),
-	m_renderedTextureUniformLocation(-1),
-	m_luminanceTextureUniformLocation(-1),
-	m_depthTextureUniformLocation(-1),
-	m_renderedTextureWidthUniformLocation(-1),
-	m_renderedTextureHeightUniformLocation(-1),
-	m_textureOffsetsUniformLocation(-1),
-	m_renderedTextureUid(0),
-	m_luminanceTextureUid(0),
-	m_depthTextureUid(0),
-	m_properties(data.propertyNames),
+RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
+	:m_properties(data.propertyNames),
 	m_gameObject(data.gameObject),
-	m_passIndex(data.filterPassIndex),
-	m_enabled(true),
-	m_error(false),
-	m_initialized(false)
+	m_passIndex(data.filterPassIndex)
 {
 	for(unsigned int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
 		m_textureOffsets[i] = 0;
 	}
-	m_fragmentShaderSourceCode = data.shaderText;
+
+	for (unsigned int i = 0; i < MAX_PREDEFINED_UNIFORM_TYPE; ++i) {
+		m_predefinedUniforms[i] = -1;
+	}
+
+	for (unsigned int i = 0; i < MAX_RENDERED_TEXTURE_TYPE; ++i) {
+		m_renderedTextures[i] = 0;
+	}
+
+	m_vertProg = STR_String(VertexShader);
+	m_fragProg = data.shaderText;
 }
 
 void RAS_2DFilter::ReleaseTextures()
 {
-	if(m_renderedTextureUid != -1) {
-		glDeleteTextures(1, &m_renderedTextureUid);
-	}
-	if(m_luminanceTextureUid != -1) {
-		glDeleteTextures(1, &m_luminanceTextureUid);
-	}
-	if(m_depthTextureUid != -1) {
-		glDeleteTextures(1, &m_depthTextureUid);
-	}
-}
-
-void RAS_2DFilter::DeleteShader()
-{
-	if (m_fragmentShaderUid) {
-		glDeleteObjectARB(m_fragmentShaderUid);
-	}
-	if (m_shaderProgramUid) {
-		glDeleteObjectARB(m_shaderProgramUid);
+	for (unsigned int i = 0; i < MAX_RENDERED_TEXTURE_TYPE; ++i) {
+		unsigned int textureId = m_renderedTextures[i];
+		if (textureId) {
+			glDeleteTextures(1, &textureId);
+		}
 	}
 }
 
 RAS_2DFilter::~RAS_2DFilter()
 {
-	DeleteShader();
 	ReleaseTextures();
 }
 
 void RAS_2DFilter::SetEnabled(bool enabled)
 {
-	m_enabled = enabled;
+	// reuse mUse variable to use the Ok() function.
+	mUse = enabled;
 }
 
-void RAS_2DFilter::Initialize()
+void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 {
 	/* The shader must be initialized at the first frame when the canvas is set.
 	 * to solve this we initialize filter at the frist render frame. */
-	if (!m_initialized) {
-		InitializeShader();
-		InitializeTextures();
-		ComputeTextureOffsets();
-		m_initialized = true;
+	if (!mOk && !mError) {
+		LinkProgram();
+		ParseShaderProgram();
+		InitializeTextures(canvas);
+		ComputeTextureOffsets(canvas);
 	}
 }
 
@@ -115,38 +100,39 @@ int RAS_2DFilter::GetPassIndex()
 	return m_passIndex;
 }
 
-void RAS_2DFilter::Start()
+void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 {
-	Initialize();
+	Initialize(canvas);
 
-	if (m_enabled && !m_error) {
-		BindShaderProgram();
-		BindUniforms();
-		DrawOverlayPlane();
+	if (Ok()) {
+		SetProg(true);
+		BindUniforms(canvas);
+		MT_Matrix4x4 mat;
+		mat.setIdentity();
+		Update(rasty, mat);
+		ApplyShader();
+		DrawOverlayPlane(canvas);
 	}
 }
 
 void RAS_2DFilter::End()
 {
-	if(m_enabled && !m_error) {
-		UnbindShaderProgram();
+	if(Ok()) {
+		SetProg(false);
 	}
 }
 
 void RAS_2DFilter::ParseShaderProgram()
 {
-	m_renderedTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE);
-	m_luminanceTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_LUMINANCE_TEXTURE);
-	m_depthTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_DEPTH_TEXTURE);
-	m_renderedTextureWidthUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE_WIDTH);
-	m_renderedTextureHeightUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT);
-	m_textureOffsetsUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS);
+	for (unsigned int i = 0; i < MAX_PREDEFINED_UNIFORM_TYPE; ++i) {
+		m_predefinedUniforms[i] = GetUniformLocation(predefinedUniformsName[i], false);
+	}
 
 	if (m_gameObject) {
 		std::vector<STR_String> foundProperties;
 		for (std::vector<STR_String>::iterator it = m_properties.begin(), end = m_properties.end(); it != end; ++it) {
 			STR_String prop = *it;
-			unsigned int loc = glGetUniformLocationARB(m_shaderProgramUid, prop);
+			unsigned int loc = GetUniformLocation(prop, false);
 			if (loc != -1) {
 				m_propertiesLoc.push_back(loc);
 				foundProperties.push_back(prop);
@@ -156,66 +142,23 @@ void RAS_2DFilter::ParseShaderProgram()
 	}
 }
 
-void RAS_2DFilter::InitializeShader()
+void RAS_2DFilter::InitializeTextures(RAS_ICanvas *canvas)
 {
-	GLint compilationStatus;
-	m_fragmentShaderUid = glCreateShaderObjectARB(GL_FRAGMENT_SHADER);
-	const GLcharARB* shaderSourceCodeList[1];
-	GLint shaderSourceCodeLengthList[1];
-	const GLsizei shaderListSize = 1;
-	shaderSourceCodeList[0] = (GLchar*)(m_fragmentShaderSourceCode.Ptr());
-	shaderSourceCodeLengthList[0] = (GLint)(m_fragmentShaderSourceCode.Length());
-	
-	glShaderSourceARB(m_fragmentShaderUid, shaderListSize, shaderSourceCodeList, shaderSourceCodeLengthList);
-	glCompileShaderARB(m_fragmentShaderUid);
-	glGetObjectParameterivARB(m_fragmentShaderUid, GL_COMPILE_STATUS, &compilationStatus);
-	if (!compilationStatus) {
-		m_manager->PrintShaderError(m_fragmentShaderUid, "compile", m_fragmentShaderSourceCode.Ptr(), m_passIndex);
-		DeleteShader();
-	}
-	else {
-		m_shaderProgramUid = glCreateProgramObjectARB();
-		glAttachObjectARB(m_shaderProgramUid, m_fragmentShaderUid);
-		glLinkProgramARB(m_shaderProgramUid);
-		glGetObjectParameterivARB(m_shaderProgramUid, GL_LINK_STATUS, &compilationStatus);
-		if (!compilationStatus) {
-			m_manager->PrintShaderError(m_fragmentShaderUid, "link", m_fragmentShaderSourceCode.Ptr(), m_passIndex);
-			DeleteShader();
-		}
-		else {
-			glValidateProgramARB(m_shaderProgramUid);
-			glGetObjectParameterivARB(m_shaderProgramUid, GL_VALIDATE_STATUS, &compilationStatus);
-			if (!compilationStatus) {
-				m_manager->PrintShaderError(m_fragmentShaderUid, "validate", m_fragmentShaderSourceCode.Ptr(), m_passIndex);
-				DeleteShader();
-			}
-			else {
-				ParseShaderProgram();
-			}
-		}
-	}
-	if (compilationStatus != GL_TRUE) {
-		m_error = true;
-	}
-}
-void RAS_2DFilter::InitializeTextures()
-{
-	RAS_ICanvas *canvas = m_manager->GetCanvas();
 	const unsigned int texturewidth = canvas->GetWidth() + 1;
 	const unsigned int textureheight = canvas->GetHeight() + 1;
 
-	if (m_renderedTextureUniformLocation >= 0) {
-		glGenTextures(1, &m_renderedTextureUid);
-		glBindTexture(GL_TEXTURE_2D, m_renderedTextureUid);
+	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
+		glGenTextures(1, &m_renderedTextures[RENDERED_TEXTURE]);
+		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[RENDERED_TEXTURE]);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texturewidth, textureheight, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 	}
-	if (m_depthTextureUniformLocation >= 0) {
-		glGenTextures(1, &m_depthTextureUid);
-		glBindTexture(GL_TEXTURE_2D, m_depthTextureUid);
+	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
+		glGenTextures(1, &m_renderedTextures[DEPTH_TEXTURE]);
+		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[DEPTH_TEXTURE]);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, texturewidth, textureheight, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE,NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -223,9 +166,9 @@ void RAS_2DFilter::InitializeTextures()
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 	}
-	if (m_luminanceTextureUniformLocation >= 0) {
-		glGenTextures(1, &m_luminanceTextureUid);
-		glBindTexture(GL_TEXTURE_2D, m_luminanceTextureUid);
+	if (m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM] != -1) {
+		glGenTextures(1, &m_renderedTextures[LUMINANCE_TEXTURE]);
+		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[LUMINANCE_TEXTURE]);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, texturewidth, textureheight, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -236,9 +179,8 @@ void RAS_2DFilter::InitializeTextures()
 
 /* Fill the textureOffsets array with values used by the shaders to get texture samples
 of nearby fragments. Or vertices or whatever.*/
-void RAS_2DFilter::ComputeTextureOffsets()
+void RAS_2DFilter::ComputeTextureOffsets(RAS_ICanvas *canvas)
 {
-	RAS_ICanvas *canvas = m_manager->GetCanvas();
 	const GLfloat texturewidth = (GLfloat)canvas->GetWidth() + 1;
 	const GLfloat textureheight = (GLfloat)canvas->GetHeight() + 1;
 	const GLfloat xInc = 1.0f / texturewidth;
@@ -252,56 +194,46 @@ void RAS_2DFilter::ComputeTextureOffsets()
 	}
 }
 
-void RAS_2DFilter::BindShaderProgram()
+void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 {
-	glUseProgramObjectARB(m_shaderProgramUid);
-}
-
-void RAS_2DFilter::UnbindShaderProgram()
-{
-	glUseProgramObjectARB(0);
-}
-
-void RAS_2DFilter::BindUniforms()
-{
-	RAS_ICanvas *canvas = m_manager->GetCanvas();
 	const unsigned int texturewidth = canvas->GetWidth() + 1;
 	const unsigned int textureheight = canvas->GetHeight() + 1;
 	const unsigned int textureleft = canvas->GetViewPort()[0];
 	const unsigned int texturebottom = canvas->GetViewPort()[1];
 
-	if (m_renderedTextureUniformLocation >= 0) {
+	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
 		// Create and bind rendered texture.
 		glActiveTextureARB(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, m_renderedTextureUid);
+		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[RENDERED_TEXTURE]);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
-		glUniform1iARB(m_renderedTextureUniformLocation, 0);
+		SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM], 0);
 	}
-	if (m_depthTextureUniformLocation >= 0) {
+	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
 		// Create and bind depth texture.
 		glActiveTextureARB(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, m_depthTextureUid);
+		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[DEPTH_TEXTURE]);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
-		glUniform1iARB(m_depthTextureUniformLocation, 1);
+		SetUniform(m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM], 1);
 	}
-	if (m_luminanceTextureUniformLocation >= 0) {
+	if (m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM] != -1) {
 		// Create and bind luminance texture.
 		glActiveTextureARB(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, m_luminanceTextureUid);
+		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[LUMINANCE_TEXTURE]);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
-		glUniform1iARB(m_luminanceTextureUniformLocation, 2);
+		SetUniform(m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM], 2);
 	}
-	if (m_renderedTextureWidthUniformLocation >= 0) {
+	if (m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM] != -1) {
 		// Bind rendered texture width.
-		glUniform1fARB(m_renderedTextureWidthUniformLocation, (float)texturewidth);
+		SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM], (float)texturewidth);
 	}
-	if (m_renderedTextureHeightUniformLocation >= 0) {
+	if (m_predefinedUniforms[RENDERED_TEXTURE_HEIGHT_UNIFORM] != -1) {
 		// Bind rendered texture height.
-		glUniform1fARB(m_renderedTextureHeightUniformLocation, (float)textureheight);
+		SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_HEIGHT_UNIFORM], (float)textureheight);
 	}
-	if (m_textureOffsetsUniformLocation >= 0) {
+	if (m_predefinedUniforms[TEXTURE_COORDINATE_OFFSETS_UNIFORM] != -1) {
 		// Bind texture offsets.
-		glUniform2fvARB(m_textureOffsetsUniformLocation, 9, m_textureOffsets);
+		SetUniformfv(m_predefinedUniforms[TEXTURE_COORDINATE_OFFSETS_UNIFORM], RAS_Uniform::UNI_FLOAT2, m_textureOffsets,
+					 sizeof(float) * TEXTURE_OFFSETS_SIZE, TEXTURE_OFFSETS_SIZE / 2);
 	}
 
 	for (unsigned int i = 0, size = m_properties.size(); i < size; ++i) {
@@ -316,10 +248,10 @@ void RAS_2DFilter::BindUniforms()
 
 		switch (property->GetValueType()) {
 			case VALUE_INT_TYPE:
-				glUniform1iARB(uniformLoc, property->GetNumber());
+				SetUniform(uniformLoc, (int)property->GetNumber());
 				break;
 			case VALUE_FLOAT_TYPE:
-				glUniform1fARB(uniformLoc, property->GetNumber());
+				SetUniform(uniformLoc, (float)property->GetNumber());
 				break;
 			default:
 				break;
@@ -327,9 +259,8 @@ void RAS_2DFilter::BindUniforms()
 	}
 }
 
-void RAS_2DFilter::DrawOverlayPlane()
+void RAS_2DFilter::DrawOverlayPlane(RAS_ICanvas *canvas)
 {
-	RAS_ICanvas *canvas = m_manager->GetCanvas();
 	RAS_Rect scissor_rect = canvas->GetDisplayArea();
 	glScissor(scissor_rect.GetLeft() + canvas->GetViewPort()[0], 
 			  scissor_rect.GetBottom() + canvas->GetViewPort()[1],
@@ -351,7 +282,7 @@ void RAS_2DFilter::DrawOverlayPlane()
 	glLoadIdentity();
 
 	glActiveTextureARB(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, m_renderedTextureUid);
+	glBindTexture(GL_TEXTURE_2D, m_renderedTextures[RENDERED_TEXTURE]);
 
 	glBegin(GL_QUADS);
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);

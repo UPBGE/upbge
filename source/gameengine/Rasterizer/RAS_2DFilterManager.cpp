@@ -44,8 +44,7 @@
 #include "RAS_OpenGLFilters/RAS_Invert2DFilter.h"
 
 
-RAS_2DFilterManager::RAS_2DFilterManager(RAS_ICanvas *canvas)
-	:m_canvas(canvas)
+RAS_2DFilterManager::RAS_2DFilterManager()
 {
 }
 
@@ -86,24 +85,10 @@ RAS_2DFilter *RAS_2DFilterManager::AddFilter(RAS_2DFilterData& filterData)
 	RAS_2DFilter *filter = CreateFilter(filterData);
 
 	m_filters[filterData.filterPassIndex] = filter;
+	// By default enable the filter.
+	filter->SetEnabled(true);
 
 	return filter;
-}
-
-void RAS_2DFilterManager::EnableFilterPass(unsigned int passIndex)
-{
-	RAS_2DFilter *filter = GetFilterPass(passIndex);
-	if (filter) {
-		filter->SetEnabled(true);
-	}
-}
-
-void RAS_2DFilterManager::DisableFilterPass(unsigned int passIndex)
-{
-	RAS_2DFilter *filter = GetFilterPass(passIndex);
-	if (filter) {
-		filter->SetEnabled(false);
-	}
 }
 
 void RAS_2DFilterManager::RemoveFilterPass(unsigned int passIndex)
@@ -117,18 +102,13 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 	return (it != m_filters.end()) ? it->second : NULL;
 }
 
-void RAS_2DFilterManager::RenderFilters()
+void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 {
 	for (RAS_PassTo2DFilter::iterator it = m_filters.begin(), end = m_filters.end(); it != end; ++it) {
 		RAS_2DFilter *filter = it->second;
-		filter->Start();
+		filter->Start(rasty, canvas);
 		filter->End();
 	}
-}
-
-RAS_ICanvas *RAS_2DFilterManager::GetCanvas()
-{
-	return m_canvas;
 }
 
 RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
@@ -171,7 +151,7 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 	}
 	if (!shaderSource) {
 		if(filterData.filterMode == RAS_2DFilterManager::FILTER_CUSTOMFILTER) {
-			result = new RAS_2DFilter(filterData, this);
+			result = new RAS_2DFilter(filterData);
 		}
 		else {
 			std::cout << "Cannot create filter for mode: " << filterData.filterMode << "." << std::endl;
@@ -179,7 +159,7 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 	}
 	else {
 		filterData.shaderText = shaderSource;
-		result = new RAS_2DFilter(filterData, this);
+		result = new RAS_2DFilter(filterData);
 	}
 	return result;
 }

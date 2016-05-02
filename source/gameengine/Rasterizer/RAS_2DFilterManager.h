@@ -31,6 +31,7 @@
 #include <map>
 
 class RAS_ICanvas;
+class RAS_IRasterizer;
 class RAS_2DFilter;
 
 typedef std::map<unsigned int, RAS_2DFilter *> RAS_PassTo2DFilter;
@@ -57,22 +58,16 @@ public:
 		FILTER_NUMBER_OF_FILTERS
 	};
 
-	RAS_2DFilterManager(RAS_ICanvas *canvas);
+	RAS_2DFilterManager();
 	virtual ~RAS_2DFilterManager();
 
 	void PrintShaderError(unsigned int shaderUid, const char *title, const char *shaderCode, unsigned int passindex);
 
 	/// Applies the filters to the scene.
-	void RenderFilters();
+	void RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas);
 
 	/// Add a filter to the stack of filters managed by this object.
 	RAS_2DFilter *AddFilter(RAS_2DFilterData& filterData);
-
-	/// Enables all the filters with pass index info.passIndex.
-	void EnableFilterPass(unsigned int passIndex);
-
-	/// Disables all the filters with pass index info.passIndex.
-	void DisableFilterPass(unsigned int passIndex);
 
 	/// Removes the filters at a given pass index.
 	void RemoveFilterPass(unsigned int passIndex);
@@ -84,7 +79,6 @@ public:
 
 private:
 	RAS_PassTo2DFilter m_filters;
-	RAS_ICanvas *m_canvas;
 
 	/** Creates a filter matching the given filter data. Returns NULL if no
 	 * filter can be created with such information.
