@@ -649,7 +649,7 @@ static PyObject *gPyGetInactiveSceneNames(PyObject *self)
 }
 
 PyDoc_STRVAR(gPyGetFilters_doc,
-	"getSceneList()\n"
+	"filters()\n"
 	"Return a list of 2D Filters."
 	);
 static PyObject *gPyGetFilters(PyObject *self)
