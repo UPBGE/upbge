@@ -10,6 +10,8 @@
 
 #include <vector>
 
+class RAS_IRasterizer;
+
 /**
  * RAS_Shader
  * shader access
@@ -152,6 +154,9 @@ public:
 	// Apply methods : sets colected uniforms
 	void ApplyShader();
 	void UnloadShader();
+
+	// Update predefined uniforms each render call
+	void Update(RAS_IRasterizer *rasty, MT_Matrix4x4 model);
 
 	void SetUniformfv(int location, int type, float *param, int size, bool transpose = false);
 	void SetUniformiv(int location, int type, int *param, int size, bool transpose = false);

@@ -27,6 +27,7 @@
 #include <iostream>
 #include <cstring>
 #include "RAS_Shader.h"
+#include "RAS_IRasterizer.h"
 
 #include "BLI_utildefines.h"
 #include "MEM_guardedalloc.h"
@@ -466,6 +467,114 @@ void RAS_Shader::SetProg(bool enable)
 		}
 		else {
 			glUseProgramObjectARB(0);
+		}
+	}
+}
+
+
+void RAS_Shader::Update(RAS_IRasterizer *rasty, MT_Matrix4x4 model)
+{
+	if (!Ok() || !mPreDef.size()) {
+		return;
+	}
+
+	if (GLEW_ARB_fragment_shader && GLEW_ARB_vertex_shader && GLEW_ARB_shader_objects) {
+		const MT_Matrix4x4 &view = rasty->GetViewMatrix();
+
+		RAS_UniformVecDef::iterator it;
+		for (it = mPreDef.begin(); it != mPreDef.end(); it++) {
+			RAS_DefUniform *uni = (*it);
+
+			if (uni->mLoc == -1) {
+				continue;
+			}
+
+			switch (uni->mType) {
+				case MODELMATRIX:
+				{
+					SetUniform(uni->mLoc, model);
+					break;
+				}
+				case MODELMATRIX_TRANSPOSE:
+				{
+					SetUniform(uni->mLoc, model, true);
+					break;
+				}
+				case MODELMATRIX_INVERSE:
+				{
+					model.invert();
+					SetUniform(uni->mLoc, model);
+					break;
+				}
+				case MODELMATRIX_INVERSETRANSPOSE:
+				{
+					model.invert();
+					SetUniform(uni->mLoc, model, true);
+					break;
+				}
+				case MODELVIEWMATRIX:
+				{
+					SetUniform(uni->mLoc, view * model);
+					break;
+				}
+				case MODELVIEWMATRIX_TRANSPOSE:
+				{
+					MT_Matrix4x4 mat(view * model);
+					SetUniform(uni->mLoc, mat, true);
+					break;
+				}
+				case MODELVIEWMATRIX_INVERSE:
+				{
+					MT_Matrix4x4 mat(view * model);
+					mat.invert();
+					SetUniform(uni->mLoc, mat);
+					break;
+				}
+				case MODELVIEWMATRIX_INVERSETRANSPOSE:
+				{
+					MT_Matrix4x4 mat(view * model);
+					mat.invert();
+					SetUniform(uni->mLoc, mat, true);
+					break;
+				}
+				case CAM_POS:
+				{
+					MT_Vector3 pos(rasty->GetCameraPosition());
+					SetUniform(uni->mLoc, pos);
+					break;
+				}
+				case VIEWMATRIX:
+				{
+					SetUniform(uni->mLoc, view);
+					break;
+				}
+				case VIEWMATRIX_TRANSPOSE:
+				{
+					SetUniform(uni->mLoc, view, true);
+					break;
+				}
+				case VIEWMATRIX_INVERSE:
+				{
+					MT_Matrix4x4 viewinv = view;
+					viewinv.invert();
+					SetUniform(uni->mLoc, view);
+					break;
+				}
+				case VIEWMATRIX_INVERSETRANSPOSE:
+				{
+					MT_Matrix4x4 viewinv = view;
+					viewinv.invert();
+					SetUniform(uni->mLoc, view, true);
+					break;
+				}
+				case CONSTANT_TIMER:
+				{
+					SetUniform(uni->mLoc, (float)rasty->GetTime());
+					break;
+				}
+				default:
+					break;
+			}
 		}
 	}
 }
