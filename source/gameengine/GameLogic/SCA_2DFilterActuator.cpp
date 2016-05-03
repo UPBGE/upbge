@@ -79,15 +79,20 @@ bool SCA_2DFilterActuator::Update()
 	if (bNegativeEvent)
 		return false; // do nothing on negative events
 
+	RAS_2DFilter *filter = m_filterManager->GetFilterPass(m_int_arg);
 	switch (m_type) {
 		case RAS_2DFilterManager::FILTER_ENABLED:
 		{
-			m_filterManager->EnableFilterPass(m_int_arg);
+			if (filter) {
+				filter->SetEnabled(true);
+			}
 			break;
 		}
 		case RAS_2DFilterManager::FILTER_DISABLED:
 		{
-			m_filterManager->DisableFilterPass(m_int_arg);
+			if (filter) {
+				filter->SetEnabled(false);
+			}
 			break;
 		}
 		case RAS_2DFilterManager::FILTER_NOFILTER:
@@ -107,7 +112,7 @@ bool SCA_2DFilterActuator::Update()
 		}
 		default:
 		{
-			if (!m_filterManager->GetFilterPass(m_int_arg)) {
+			if (!filter) {
 				RAS_2DFilterData info;
 				info.filterPassIndex = m_int_arg;
 				info.gameObject = m_gameobj;

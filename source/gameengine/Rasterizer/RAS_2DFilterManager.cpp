@@ -92,22 +92,6 @@ RAS_2DFilter *RAS_2DFilterManager::AddFilter(RAS_2DFilterData& filterData)
 	return filter;
 }
 
-void RAS_2DFilterManager::EnableFilterPass(unsigned int passIndex)
-{
-	RAS_2DFilter *filter = GetFilterPass(passIndex);
-	if (filter) {
-		filter->SetEnabled(true);
-	}
-}
-
-void RAS_2DFilterManager::DisableFilterPass(unsigned int passIndex)
-{
-	RAS_2DFilter *filter = GetFilterPass(passIndex);
-	if (filter) {
-		filter->SetEnabled(false);
-	}
-}
-
 void RAS_2DFilterManager::RemoveFilterPass(unsigned int passIndex)
 {
 	m_filters.erase(passIndex);

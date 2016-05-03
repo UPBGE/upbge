@@ -68,12 +68,6 @@ public:
 	/// Add a filter to the stack of filters managed by this object.
 	RAS_2DFilter *AddFilter(RAS_2DFilterData& filterData);
 
-	/// Enables all the filters with pass index info.passIndex.
-	void EnableFilterPass(unsigned int passIndex);
-
-	/// Disables all the filters with pass index info.passIndex.
-	void DisableFilterPass(unsigned int passIndex);
-
 	/// Removes the filters at a given pass index.
 	void RemoveFilterPass(unsigned int passIndex);
 
