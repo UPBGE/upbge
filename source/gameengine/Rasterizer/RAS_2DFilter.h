@@ -31,26 +31,29 @@ class CValue;
 
 class RAS_2DFilter : public RAS_Shader
 {
-private:
-	/// Names of the predefined values available to glsl shaders
-	static const char *UNIFORM_NAME_RENDERED_TEXTURE;
-	static const char *UNIFORM_NAME_LUMINANCE_TEXTURE;
-	static const char *UNIFORM_NAME_DEPTH_TEXTURE;
-	static const char *UNIFORM_NAME_RENDERED_TEXTURE_WIDTH;
-	static const char *UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT;
-	static const char *UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS;
+public:
+	enum PredefinedUniformType {
+		RENDERED_TEXTURE_UNIFORM = 0,
+		LUMINANCE_TEXTURE_UNIFORM,
+		DEPTH_TEXTURE_UNIFORM,
+		RENDERED_TEXTURE_WIDTH_UNIFORM,
+		RENDERED_TEXTURE_HEIGHT_UNIFORM,
+		TEXTURE_COORDINATE_OFFSETS_UNIFORM,
+		MAX_PREDEFINED_UNIFORM_TYPE
+	};
 
+	enum RenderedTextureType {
+		RENDERED_TEXTURE = 0,
+		LUMINANCE_TEXTURE,
+		DEPTH_TEXTURE,
+		MAX_RENDERED_TEXTURE_TYPE
+	};
+
+private:
 	RAS_2DFilterManager *m_manager;
 
-	int m_renderedTextureUniformLocation;
-	int m_luminanceTextureUniformLocation;
-	int m_depthTextureUniformLocation;
-	int m_renderedTextureWidthUniformLocation;
-	int m_renderedTextureHeightUniformLocation;
-	int m_textureOffsetsUniformLocation;
-	unsigned int m_renderedTextureUid;
-	unsigned int m_luminanceTextureUid;
-	unsigned int m_depthTextureUid;
+	int m_predefinedUniforms[MAX_PREDEFINED_UNIFORM_TYPE];
+	unsigned int m_renderedTextures[MAX_RENDERED_TEXTURE_TYPE];
 
 	std::vector<STR_String> m_properties;
 	std::vector<unsigned int> m_propertiesLoc;
