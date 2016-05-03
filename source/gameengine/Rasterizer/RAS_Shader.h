@@ -162,7 +162,13 @@ public:
 	void SetUniformiv(int location, int type, int *param, int size, bool transpose = false);
 	int GetAttribLocation(const char *name);
 	void BindAttribute(const char *attr, int loc);
-	int GetUniformLocation(const char *name);
+
+	/** Return uniform location in the shader.
+	 * \param name The uniform name.
+	 * \param debug Print message for unfound coresponding uniform name.
+	 */
+	int GetUniformLocation(const char *name, bool debug=true);
+
 	void SetUniform(int uniform, const MT_Vector2 &vec);
 	void SetUniform(int uniform, const MT_Vector3 &vec);
 	void SetUniform(int uniform, const MT_Vector4 &vec);

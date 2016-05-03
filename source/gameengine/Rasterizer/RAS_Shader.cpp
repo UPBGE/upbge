@@ -601,13 +601,13 @@ void RAS_Shader::BindAttribute(const char *attr, int loc)
 	}
 }
 
-int RAS_Shader::GetUniformLocation(const char *name)
+int RAS_Shader::GetUniformLocation(const char *name, bool debug)
 {
 	if (GLEW_ARB_fragment_shader && GLEW_ARB_vertex_shader && GLEW_ARB_shader_objects) {
 		BLI_assert(mShader != 0);
 		int location = glGetUniformLocationARB(mShader, name);
 
-		if (location == -1) {
+		if (location == -1 && debug) {
 			spit("Invalid uniform value: " << name << ".");
 		}
 

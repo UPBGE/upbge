@@ -125,18 +125,18 @@ void RAS_2DFilter::End()
 
 void RAS_2DFilter::ParseShaderProgram()
 {
-	m_renderedTextureUniformLocation = GetUniformLocation(UNIFORM_NAME_RENDERED_TEXTURE);
-	m_luminanceTextureUniformLocation = GetUniformLocation(UNIFORM_NAME_LUMINANCE_TEXTURE);
-	m_depthTextureUniformLocation = GetUniformLocation(UNIFORM_NAME_DEPTH_TEXTURE);
-	m_renderedTextureWidthUniformLocation = GetUniformLocation(UNIFORM_NAME_RENDERED_TEXTURE_WIDTH);
-	m_renderedTextureHeightUniformLocation = GetUniformLocation(UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT);
-	m_textureOffsetsUniformLocation = GetUniformLocation(UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS);
+	m_renderedTextureUniformLocation = GetUniformLocation(UNIFORM_NAME_RENDERED_TEXTURE, false);
+	m_luminanceTextureUniformLocation = GetUniformLocation(UNIFORM_NAME_LUMINANCE_TEXTURE, false);
+	m_depthTextureUniformLocation = GetUniformLocation(UNIFORM_NAME_DEPTH_TEXTURE, false);
+	m_renderedTextureWidthUniformLocation = GetUniformLocation(UNIFORM_NAME_RENDERED_TEXTURE_WIDTH, false);
+	m_renderedTextureHeightUniformLocation = GetUniformLocation(UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT, false);
+	m_textureOffsetsUniformLocation = GetUniformLocation(UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS, false);
 
 	if (m_gameObject) {
 		std::vector<STR_String> foundProperties;
 		for (std::vector<STR_String>::iterator it = m_properties.begin(), end = m_properties.end(); it != end; ++it) {
 			STR_String prop = *it;
-			unsigned int loc = GetUniformLocation(prop);
+			unsigned int loc = GetUniformLocation(prop, false);
 			if (loc != -1) {
 				m_propertiesLoc.push_back(loc);
 				foundProperties.push_back(prop);
