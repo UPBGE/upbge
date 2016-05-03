@@ -209,33 +209,33 @@ void RAS_2DFilter::BindUniforms()
 		glActiveTextureARB(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[RENDERED_TEXTURE]);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
-		glUniform1iARB(m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM], 0);
+		SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM], 0);
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
 		// Create and bind depth texture.
 		glActiveTextureARB(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[DEPTH_TEXTURE]);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
-		glUniform1iARB(m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM], 1);
+		SetUniform(m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM], 1);
 	}
 	if (m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM] != -1) {
 		// Create and bind luminance texture.
 		glActiveTextureARB(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[LUMINANCE_TEXTURE]);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
-		glUniform1iARB(m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM], 2);
+		SetUniform(m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM], 2);
 	}
 	if (m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM] != -1) {
 		// Bind rendered texture width.
-		glUniform1fARB(m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM], (float)texturewidth);
+		SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM], (float)texturewidth);
 	}
 	if (m_predefinedUniforms[RENDERED_TEXTURE_HEIGHT_UNIFORM] != -1) {
 		// Bind rendered texture height.
-		glUniform1fARB(m_predefinedUniforms[RENDERED_TEXTURE_HEIGHT_UNIFORM], (float)textureheight);
+		SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_HEIGHT_UNIFORM], (float)textureheight);
 	}
 	if (m_predefinedUniforms[TEXTURE_COORDINATE_OFFSETS_UNIFORM] != -1) {
 		// Bind texture offsets.
-		glUniform2fvARB(m_predefinedUniforms[TEXTURE_COORDINATE_OFFSETS_UNIFORM], 9, m_textureOffsets);
+		SetUniform(m_predefinedUniforms[TEXTURE_COORDINATE_OFFSETS_UNIFORM], m_textureOffsets, 9);
 	}
 
 	for (unsigned int i = 0, size = m_properties.size(); i < size; ++i) {
@@ -250,10 +250,10 @@ void RAS_2DFilter::BindUniforms()
 
 		switch (property->GetValueType()) {
 			case VALUE_INT_TYPE:
-				glUniform1iARB(uniformLoc, property->GetNumber());
+				SetUniform(uniformLoc, (int)property->GetNumber());
 				break;
 			case VALUE_FLOAT_TYPE:
-				glUniform1fARB(uniformLoc, property->GetNumber());
+				SetUniform(uniformLoc, (float)property->GetNumber());
 				break;
 			default:
 				break;
