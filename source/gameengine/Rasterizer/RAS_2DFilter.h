@@ -24,11 +24,12 @@
 #define __RAS_2DFILTER_H__
 
 #include "RAS_2DFilterData.h"
+#include "RAS_Shader.h"
 
 class RAS_2DFilterManager;
 class CValue;
 
-class RAS_2DFilter
+class RAS_2DFilter : public RAS_Shader
 {
 private:
 	/// Names of the predefined values available to glsl shaders
@@ -42,10 +43,7 @@ private:
 	RAS_2DFilterManager *m_manager;
 
 	STR_String m_uid;
-	STR_String m_fragmentShaderSourceCode;
 
-	unsigned int m_shaderProgramUid;
-	unsigned int m_fragmentShaderUid;
 	int m_renderedTextureUniformLocation;
 	int m_luminanceTextureUniformLocation;
 	int m_depthTextureUniformLocation;
@@ -70,15 +68,11 @@ private:
 	bool m_initialized;
 
 	void ParseShaderProgram();
-	void InitializeShader();
 	void InitializeTextures();
-	void BindShaderProgram();
-	void UnbindShaderProgram();
 	void BindUniforms();
 	void DrawOverlayPlane();
 	void ComputeTextureOffsets();
 	void ReleaseTextures();
-	void DeleteShader();
 
 public:
 	RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager);

@@ -26,10 +26,11 @@
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
 
+#include "RAS_OpenGLFilters/RAS_VertexFilter.h"
+
 #include "EXP_Value.h"
 
 #include "glew-mx.h"
-#include <iostream>
 
 const char *RAS_2DFilter::UNIFORM_NAME_RENDERED_TEXTURE = "bgl_RenderedTexture";
 const char *RAS_2DFilter::UNIFORM_NAME_LUMINANCE_TEXTURE = "bgl_LuminanceTexture";
@@ -40,8 +41,6 @@ const char *RAS_2DFilter::UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS = "bgl_Texture
 
 RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager)
 	:m_manager(manager),
-	m_shaderProgramUid(0),
-	m_fragmentShaderUid(0),
 	m_renderedTextureUniformLocation(-1),
 	m_luminanceTextureUniformLocation(-1),
 	m_depthTextureUniformLocation(-1),
@@ -55,13 +54,15 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager)
 	m_gameObject(data.gameObject),
 	m_passIndex(data.filterPassIndex),
 	m_enabled(true),
-	m_error(false),
 	m_initialized(false)
 {
 	for(unsigned int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
 		m_textureOffsets[i] = 0;
 	}
-	m_fragmentShaderSourceCode = data.shaderText;
+	vertProg = VertexShader;
+	char *tmp = (char *)malloc(sizeof(char) * data.shaderText.Length() + 1);
+	strcpy(tmp, data.shaderText.ReadPtr());
+	fragProg = tmp;
 }
 
 void RAS_2DFilter::ReleaseTextures()
@@ -77,19 +78,9 @@ void RAS_2DFilter::ReleaseTextures()
 	}
 }
 
-void RAS_2DFilter::DeleteShader()
-{
-	if (m_fragmentShaderUid) {
-		glDeleteObjectARB(m_fragmentShaderUid);
-	}
-	if (m_shaderProgramUid) {
-		glDeleteObjectARB(m_shaderProgramUid);
-	}
-}
-
 RAS_2DFilter::~RAS_2DFilter()
 {
-	DeleteShader();
+	//DeleteShader();
 	ReleaseTextures();
 }
 
@@ -103,7 +94,8 @@ void RAS_2DFilter::Initialize()
 	/* The shader must be initialized at the first frame when the canvas is set.
 	 * to solve this we initialize filter at the frist render frame. */
 	if (!m_initialized) {
-		InitializeShader();
+		LinkProgram();
+		ParseShaderProgram();
 		InitializeTextures();
 		ComputeTextureOffsets();
 		m_initialized = true;
@@ -119,8 +111,8 @@ void RAS_2DFilter::Start()
 {
 	Initialize();
 
-	if (m_enabled && !m_error) {
-		BindShaderProgram();
+	if (m_enabled && !mError) {
+		SetProg(true);
 		BindUniforms();
 		DrawOverlayPlane();
 	}
@@ -128,25 +120,25 @@ void RAS_2DFilter::Start()
 
 void RAS_2DFilter::End()
 {
-	if(m_enabled && !m_error) {
-		UnbindShaderProgram();
+	if(m_enabled && !mError) {
+		SetProg(false);
 	}
 }
 
 void RAS_2DFilter::ParseShaderProgram()
 {
-	m_renderedTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE);
-	m_luminanceTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_LUMINANCE_TEXTURE);
-	m_depthTextureUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_DEPTH_TEXTURE);
-	m_renderedTextureWidthUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE_WIDTH);
-	m_renderedTextureHeightUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT);
-	m_textureOffsetsUniformLocation = glGetUniformLocationARB(m_shaderProgramUid, UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS);
+	m_renderedTextureUniformLocation = GetUniformLocation(UNIFORM_NAME_RENDERED_TEXTURE);
+	m_luminanceTextureUniformLocation = GetUniformLocation(UNIFORM_NAME_LUMINANCE_TEXTURE);
+	m_depthTextureUniformLocation = GetUniformLocation(UNIFORM_NAME_DEPTH_TEXTURE);
+	m_renderedTextureWidthUniformLocation = GetUniformLocation(UNIFORM_NAME_RENDERED_TEXTURE_WIDTH);
+	m_renderedTextureHeightUniformLocation = GetUniformLocation(UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT);
+	m_textureOffsetsUniformLocation = GetUniformLocation(UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS);
 
 	if (m_gameObject) {
 		std::vector<STR_String> foundProperties;
 		for (std::vector<STR_String>::iterator it = m_properties.begin(), end = m_properties.end(); it != end; ++it) {
 			STR_String prop = *it;
-			unsigned int loc = glGetUniformLocationARB(m_shaderProgramUid, prop);
+			unsigned int loc = GetUniformLocation(prop);
 			if (loc != -1) {
 				m_propertiesLoc.push_back(loc);
 				foundProperties.push_back(prop);
@@ -156,48 +148,6 @@ void RAS_2DFilter::ParseShaderProgram()
 	}
 }
 
-void RAS_2DFilter::InitializeShader()
-{
-	GLint compilationStatus;
-	m_fragmentShaderUid = glCreateShaderObjectARB(GL_FRAGMENT_SHADER);
-	const GLcharARB* shaderSourceCodeList[1];
-	GLint shaderSourceCodeLengthList[1];
-	const GLsizei shaderListSize = 1;
-	shaderSourceCodeList[0] = (GLchar*)(m_fragmentShaderSourceCode.Ptr());
-	shaderSourceCodeLengthList[0] = (GLint)(m_fragmentShaderSourceCode.Length());
-	
-	glShaderSourceARB(m_fragmentShaderUid, shaderListSize, shaderSourceCodeList, shaderSourceCodeLengthList);
-	glCompileShaderARB(m_fragmentShaderUid);
-	glGetObjectParameterivARB(m_fragmentShaderUid, GL_COMPILE_STATUS, &compilationStatus);
-	if (!compilationStatus) {
-		m_manager->PrintShaderError(m_fragmentShaderUid, "compile", m_fragmentShaderSourceCode.Ptr(), m_passIndex);
-		DeleteShader();
-	}
-	else {
-		m_shaderProgramUid = glCreateProgramObjectARB();
-		glAttachObjectARB(m_shaderProgramUid, m_fragmentShaderUid);
-		glLinkProgramARB(m_shaderProgramUid);
-		glGetObjectParameterivARB(m_shaderProgramUid, GL_LINK_STATUS, &compilationStatus);
-		if (!compilationStatus) {
-			m_manager->PrintShaderError(m_fragmentShaderUid, "link", m_fragmentShaderSourceCode.Ptr(), m_passIndex);
-			DeleteShader();
-		}
-		else {
-			glValidateProgramARB(m_shaderProgramUid);
-			glGetObjectParameterivARB(m_shaderProgramUid, GL_VALIDATE_STATUS, &compilationStatus);
-			if (!compilationStatus) {
-				m_manager->PrintShaderError(m_fragmentShaderUid, "validate", m_fragmentShaderSourceCode.Ptr(), m_passIndex);
-				DeleteShader();
-			}
-			else {
-				ParseShaderProgram();
-			}
-		}
-	}
-	if (compilationStatus != GL_TRUE) {
-		m_error = true;
-	}
-}
 void RAS_2DFilter::InitializeTextures()
 {
 	RAS_ICanvas *canvas = m_manager->GetCanvas();
@@ -250,16 +200,6 @@ void RAS_2DFilter::ComputeTextureOffsets()
 			m_textureOffsets[(((i * 3) + j) * 2) + 1] = (-1.0f * yInc) + ((GLfloat)j * yInc);
 		}
 	}
-}
-
-void RAS_2DFilter::BindShaderProgram()
-{
-	glUseProgramObjectARB(m_shaderProgramUid);
-}
-
-void RAS_2DFilter::UnbindShaderProgram()
-{
-	glUseProgramObjectARB(0);
 }
 
 void RAS_2DFilter::BindUniforms()
