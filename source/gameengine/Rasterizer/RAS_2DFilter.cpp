@@ -52,9 +52,7 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager)
 	m_depthTextureUid(0),
 	m_properties(data.propertyNames),
 	m_gameObject(data.gameObject),
-	m_passIndex(data.filterPassIndex),
-	m_enabled(true),
-	m_initialized(false)
+	m_passIndex(data.filterPassIndex)
 {
 	for(unsigned int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
 		m_textureOffsets[i] = 0;
@@ -86,19 +84,19 @@ RAS_2DFilter::~RAS_2DFilter()
 
 void RAS_2DFilter::SetEnabled(bool enabled)
 {
-	m_enabled = enabled;
+	// reuse mUse variable to use the Ok() function.
+	mUse = enabled;
 }
 
 void RAS_2DFilter::Initialize()
 {
 	/* The shader must be initialized at the first frame when the canvas is set.
 	 * to solve this we initialize filter at the frist render frame. */
-	if (!m_initialized) {
+	if (!mOk && !mError) {
 		LinkProgram();
 		ParseShaderProgram();
 		InitializeTextures();
 		ComputeTextureOffsets();
-		m_initialized = true;
 	}
 }
 
@@ -111,7 +109,7 @@ void RAS_2DFilter::Start()
 {
 	Initialize();
 
-	if (m_enabled && !mError) {
+	if (Ok()) {
 		SetProg(true);
 		BindUniforms();
 		DrawOverlayPlane();
@@ -120,7 +118,7 @@ void RAS_2DFilter::Start()
 
 void RAS_2DFilter::End()
 {
-	if(m_enabled && !mError) {
+	if(Ok()) {
 		SetProg(false);
 	}
 }

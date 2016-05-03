@@ -42,8 +42,6 @@ private:
 
 	RAS_2DFilterManager *m_manager;
 
-	STR_String m_uid;
-
 	int m_renderedTextureUniformLocation;
 	int m_luminanceTextureUniformLocation;
 	int m_depthTextureUniformLocation;
@@ -63,9 +61,6 @@ private:
 	static const int TEXTURE_OFFSETS_SIZE = 18; //9 vec2 entries
 	float m_textureOffsets[TEXTURE_OFFSETS_SIZE]; 
 	int m_passIndex;
-	bool m_enabled;
-	bool m_error;
-	bool m_initialized;
 
 	void ParseShaderProgram();
 	void InitializeTextures();
