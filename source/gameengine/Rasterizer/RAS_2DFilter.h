@@ -90,10 +90,6 @@ public:
 
 	/// Enables / disables this filter. A disabled filter has no effect on the rendering.
 	void SetEnabled(bool enabled);
-
-	unsigned int GetProgramId() { return m_shaderProgramUid; }
-
-	bool GetError() { return m_error; }
 };
 
 #endif // __RAS_2DFILTER_H__
