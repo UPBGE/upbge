@@ -972,9 +972,6 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 	if (!m_shader && !m_modified) {
 		m_shader = new BL_Shader();
 		m_modified = true;
-
-		// Using a custom shader, make sure to initialize textures
-		InitTextures();
 	}
 
 	if (m_shader && !m_shader->GetError()) {

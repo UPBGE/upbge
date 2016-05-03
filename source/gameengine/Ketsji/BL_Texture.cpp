@@ -205,7 +205,7 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxBump", BL_Texture, pyattr_get_parallax_bump, pyattr_set_parallax_bump),
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxStep", BL_Texture, pyattr_get_parallax_step, pyattr_set_parallax_step),
 	KX_PYATTRIBUTE_RW_FUNCTION("lodBias", BL_Texture, pyattr_get_lod_bias, pyattr_set_lod_bias),
-	KX_PYATTRIBUTE_INT_RO("bindCode", BL_Texture, m_bindCode),
+	KX_PYATTRIBUTE_INT_RW("bindCode", 0, 100000, NULL, BL_Texture, m_bindCode),
 	{ NULL }    //Sentinel
 };
 
