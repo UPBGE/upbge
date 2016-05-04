@@ -77,7 +77,6 @@ void RAS_2DFilter::ReleaseTextures()
 
 RAS_2DFilter::~RAS_2DFilter()
 {
-	//DeleteShader();
 	ReleaseTextures();
 }
 
