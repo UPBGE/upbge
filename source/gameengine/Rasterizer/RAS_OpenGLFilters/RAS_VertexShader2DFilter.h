@@ -15,22 +15,17 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file RAS_Blur2DFilter.h
+/** \file RAS_VertexShader2DFilter.h
  *  \ingroup bgerastoglfilters
  */
 
-#ifndef __RAS_VERTEXFILTER_H__
-#define __RAS_VERTEXFILTER_H__
+#ifndef __RAS_VERTEX_SHADER_2DFILTER_H__
+#define __RAS_VERTEX_SHADER_2DFILTER_H__
 
 static const char *VertexShader = STRINGIFY(
 
@@ -40,5 +35,5 @@ void main(void)
 	gl_TexCoord[0] = gl_MultiTexCoord0;
 }
 );
-#endif
+#endif  // __RAS_VERTEX_SHADER_2DFILTER_H__
 

@@ -26,7 +26,7 @@
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
 
-#include "RAS_OpenGLFilters/RAS_VertexFilter.h"
+#include "RAS_OpenGLFilters/RAS_VertexShader2DFilter.h"
 
 #include "EXP_Value.h"
 

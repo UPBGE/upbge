@@ -98,7 +98,7 @@ set(SRC
 	RAS_OpenGLFilters/RAS_Sepia2DFilter.h
 	RAS_OpenGLFilters/RAS_Sharpen2DFilter.h
 	RAS_OpenGLFilters/RAS_Sobel2DFilter.h
-	RAS_OpenGLFilters/RAS_VertexFilter.h
+	RAS_OpenGLFilters/RAS_VertexShader2DFilter.h
 )
 
 add_definitions(${GL_DEFINITIONS})
