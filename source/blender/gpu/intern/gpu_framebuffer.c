@@ -442,6 +442,7 @@ void GPU_framebuffer_blur(
 	glTexCoord2d(0, 1); glVertex2f(1, -1);
 	glEnd();
 
+	GPU_texture_unbind(blurtex);
 	GPU_shader_unbind();
 }
 
