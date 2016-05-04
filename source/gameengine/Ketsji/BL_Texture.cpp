@@ -205,7 +205,7 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxBump", BL_Texture, pyattr_get_parallax_bump, pyattr_set_parallax_bump),
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxStep", BL_Texture, pyattr_get_parallax_step, pyattr_set_parallax_step),
 	KX_PYATTRIBUTE_RW_FUNCTION("lodBias", BL_Texture, pyattr_get_lod_bias, pyattr_set_lod_bias),
-	KX_PYATTRIBUTE_INT_RW("bindCode", 0, 100000, NULL, BL_Texture, m_bindCode),
+	KX_PYATTRIBUTE_RW_FUNCTION("bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
 	{ NULL }    //Sentinel
 };
 
@@ -446,6 +446,30 @@ int BL_Texture::pyattr_set_lod_bias(void *self_v, const KX_PYATTRIBUTE_DEF *attr
 	}
 
 	self->GetMTex()->lodbias = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyLong_FromLong(self->m_bindCode);
+}
+
+int BL_Texture::pyattr_set_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	unsigned int val = PyLong_AsLong(value);
+
+	if (val < 0 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = int: BL_Texture, expected a unsigned int", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+	if (!glIsTexture(val)) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = int: BL_Texture, no texture coresponding to given bind code (%i).", attrdef->m_name, val);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->m_bindCode = val;
 	return PY_SET_ATTR_SUCCESS;
 }
 

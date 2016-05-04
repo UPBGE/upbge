@@ -89,6 +89,8 @@ public:
 	static int pyattr_set_parallax_step(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_lod_bias(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_lod_bias(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 #endif  // WITH_PYTHON
 
