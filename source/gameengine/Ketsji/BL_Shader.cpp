@@ -22,22 +22,16 @@
  *  \ingroup ketsji
  */
 
-#include "glew-mx.h"
+
+#include "BL_Shader.h"
+#include "BL_Texture.h" // for BL_Texture::MaxUnits
+
+#include "KX_PyMath.h"
 
 #include <iostream>
-#include "BL_Shader.h"
-#include "BL_Texture.h"
-
-#include "BLI_utildefines.h"
-#include "KX_PyMath.h"
-#include "MEM_guardedalloc.h"
-
-#include "RAS_IRasterizer.h"
-
 #define spit(x) std::cout << x << std::endl;
 
 #define SORT_UNIFORMS 1
-#define MAX_LOG_LEN 262144 // bounds
 
 BL_Shader::BL_Shader()
 {
@@ -116,7 +110,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 		fragProg = f;
 
 		if (LinkProgram()) {
-			glUseProgramObjectARB(mShader);
+			SetProg(true);
 			mUse = apply != 0;
 			Py_RETURN_NONE;
 		}
@@ -133,11 +127,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 KX_PYMETHODDEF_DOC(BL_Shader, delSource, "delSource( )")
 {
 	ClearUniforms();
-	glUseProgramObjectARB(0);
-	glDeleteObjectARB(mShader);
-	mShader = 0;
-	mOk = 0;
-	mUse = 0;
+	DeleteShader();
 	Py_RETURN_NONE;
 }
 
@@ -167,23 +157,8 @@ KX_PYMETHODDEF_DOC(BL_Shader, validate, "validate()")
 		return NULL;
 	}
 
-	int stat = 0;
-	glValidateProgramARB(mShader);
-	glGetObjectParameterivARB(mShader, GL_OBJECT_VALIDATE_STATUS_ARB, (GLint *)&stat);
+	ValidateProgram();
 
-	if (stat > 0 && stat < MAX_LOG_LEN) {
-		int char_len = 0;
-		char *logInf = (char *)MEM_mallocN(stat, "validate-log");
-
-		glGetInfoLogARB(mShader, stat, (GLsizei *)&char_len, logInf);
-
-		if (char_len > 0) {
-			spit("---- GLSL Validation ----");
-			spit(logInf);
-		}
-		MEM_freeN(logInf);
-		logInf = NULL;
-	}
 	Py_RETURN_NONE;
 }
 
@@ -681,8 +656,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setAttrib, "setAttrib(enum)")
 	}
 
 	mAttr = attr;
-	glUseProgramObjectARB(mShader);
-	glBindAttribLocationARB(mShader, mAttr, "Tangent");
+	BindAttribute("Tangent", mAttr);
 	Py_RETURN_NONE;
 }
 

@@ -178,15 +178,10 @@ RAS_Shader::~RAS_Shader()
 {
 	ClearUniforms();
 
-	if (mShader) {
-		glDeleteObjectARB(mShader);
-		mShader = 0;
-	}
+	DeleteShader();
 
 	vertProg = NULL;
 	fragProg = NULL;
-	mOk = 0;
-	glUseProgramObjectARB(0);
 }
 
 void RAS_Shader::ClearUniforms()
@@ -278,6 +273,15 @@ void RAS_Shader::ApplyShader()
 void RAS_Shader::UnloadShader()
 {
 	//
+}
+
+void RAS_Shader::DeleteShader()
+{
+	if (mShader) {
+		glDeleteObjectARB(mShader);
+		mShader = false;
+		mOk = false;
+	}
 }
 
 bool RAS_Shader::LinkProgram()
@@ -415,6 +419,27 @@ programError:
 	mUse = 0;
 	mError = 1;
 	return false;
+}
+
+void RAS_Shader::ValidateProgram()
+{
+	int stat = 0;
+	glValidateProgramARB(mShader);
+	glGetObjectParameterivARB(mShader, GL_OBJECT_VALIDATE_STATUS_ARB, (GLint *)&stat);
+
+	if (stat > 0 && stat < MAX_LOG_LEN) {
+		int char_len = 0;
+		char *logInf = (char *)MEM_mallocN(stat, "validate-log");
+
+		glGetInfoLogARB(mShader, stat, (GLsizei *)&char_len, logInf);
+
+		if (char_len > 0) {
+			spit("---- GLSL Validation ----");
+			spit(logInf);
+		}
+		MEM_freeN(logInf);
+		logInf = NULL;
+	}
 }
 
 const char *RAS_Shader::GetVertPtr()

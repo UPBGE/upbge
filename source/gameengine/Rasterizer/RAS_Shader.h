@@ -105,6 +105,7 @@ protected:
 
 	// Compiles and links the shader
 	bool LinkProgram();
+	void ValidateProgram();
 
 	// search by location
 	RAS_Uniform *FindUniform(const int location);
@@ -154,6 +155,7 @@ public:
 	// Apply methods : sets colected uniforms
 	void ApplyShader();
 	void UnloadShader();
+	void DeleteShader();
 
 	// Update predefined uniforms each render call
 	void Update(RAS_IRasterizer *rasty, MT_Matrix4x4 model);
