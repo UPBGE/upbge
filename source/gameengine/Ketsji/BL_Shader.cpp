@@ -180,7 +180,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
 				spit("Invalid texture sample index: " << index);
 			}
 #ifdef SORT_UNIFORMS
-			SetUniformiv(loc, RAS_Uniform::UNI_INT, &index, (sizeof(int)));
+			SetUniformiv(loc, RAS_Uniform::UNI_INT, &index, (sizeof(int)), 1);
 #else
 			SetUniform(loc, index);
 #endif
@@ -205,7 +205,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform1f, "setUniform1f(name, fx)")
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
-			SetUniformfv(loc, RAS_Uniform::UNI_FLOAT, &value, sizeof(float));
+			SetUniformfv(loc, RAS_Uniform::UNI_FLOAT, &value, sizeof(float), 1);
 #else
 			SetUniform(loc, (float)value);
 #endif
@@ -229,7 +229,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform2f, "setUniform2f(name, fx, fy)")
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
-			SetUniformfv(loc, RAS_Uniform::UNI_FLOAT2, array, (sizeof(float) * 2));
+			SetUniformfv(loc, RAS_Uniform::UNI_FLOAT2, array, (sizeof(float) * 2), 1);
 #else
 			SetUniform(loc, array, 2);
 #endif
@@ -253,7 +253,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform3f, "setUniform3f(name, fx,fy,fz) ")
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
-			SetUniformfv(loc, RAS_Uniform::UNI_FLOAT3, array, (sizeof(float) * 3));
+			SetUniformfv(loc, RAS_Uniform::UNI_FLOAT3, array, (sizeof(float) * 3), 1);
 #else
 			SetUniform(loc, array, 3);
 #endif
@@ -277,7 +277,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform4f, "setUniform4f(name, fx,fy,fz, fw) ")
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
-			SetUniformfv(loc, RAS_Uniform::UNI_FLOAT4, array, (sizeof(float) * 4));
+			SetUniformfv(loc, RAS_Uniform::UNI_FLOAT4, array, (sizeof(float) * 4), 1);
 #else
 			SetUniform(loc, array, 4);
 #endif
@@ -301,7 +301,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform1i, "setUniform1i(name, ix)")
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
-			SetUniformiv(loc, RAS_Uniform::UNI_INT, &value, sizeof(int));
+			SetUniformiv(loc, RAS_Uniform::UNI_INT, &value, sizeof(int), 1);
 #else
 			SetUniform(loc, (int)value);
 #endif
@@ -325,7 +325,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform2i, "setUniform2i(name, ix, iy)")
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
-			SetUniformiv(loc, RAS_Uniform::UNI_INT2, array, sizeof(int) * 2);
+			SetUniformiv(loc, RAS_Uniform::UNI_INT2, array, sizeof(int) * 2, 1);
 #else
 			SetUniform(loc, array, 2);
 #endif
@@ -349,7 +349,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform3i, "setUniform3i(name, ix,iy,iz) ")
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
-			SetUniformiv(loc, RAS_Uniform::UNI_INT3, array, sizeof(int) * 3);
+			SetUniformiv(loc, RAS_Uniform::UNI_INT3, array, sizeof(int) * 3, 1);
 #else
 			SetUniform(loc, array, 3);
 #endif
@@ -373,7 +373,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform4i, "setUniform4i(name, ix,iy,iz, iw) ")
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
-			SetUniformiv(loc, RAS_Uniform::UNI_INT4, array, sizeof(int) * 4);
+			SetUniformiv(loc, RAS_Uniform::UNI_INT4, array, sizeof(int) * 4, 1);
 #else
 			SetUniform(loc, array, 4);
 #endif
@@ -410,7 +410,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformfv, "setUniformfv(float (list2 or list3 
 					{
 						float array2[2] = {array_data[0], array_data[1]};
 #ifdef SORT_UNIFORMS
-						SetUniformfv(loc, RAS_Uniform::UNI_FLOAT2, array2, sizeof(float) * 2);
+						SetUniformfv(loc, RAS_Uniform::UNI_FLOAT2, array2, sizeof(float) * 2, 1);
 #else
 						SetUniform(loc, array2, 2);
 #endif
@@ -421,7 +421,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformfv, "setUniformfv(float (list2 or list3 
 					{
 						float array3[3] = {array_data[0], array_data[1], array_data[2]};
 #ifdef SORT_UNIFORMS
-						SetUniformfv(loc, RAS_Uniform::UNI_FLOAT3, array3, sizeof(float) * 3);
+						SetUniformfv(loc, RAS_Uniform::UNI_FLOAT3, array3, sizeof(float) * 3, 1);
 #else
 						SetUniform(loc, array3, 3);
 #endif
@@ -432,7 +432,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformfv, "setUniformfv(float (list2 or list3 
 					{
 						float array4[4] = {array_data[0], array_data[1], array_data[2], array_data[3]};
 #ifdef SORT_UNIFORMS
-						SetUniformfv(loc, RAS_Uniform::UNI_FLOAT4, array4, sizeof(float) * 4);
+						SetUniformfv(loc, RAS_Uniform::UNI_FLOAT4, array4, sizeof(float) * 4, 1);
 #else
 						SetUniform(loc, array4, 4);
 #endif
@@ -500,7 +500,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 o
 		{
 			int array2[2] = {array_data[0], array_data[1]};
 #ifdef SORT_UNIFORMS
-			SetUniformiv(loc, RAS_Uniform::UNI_INT2, array2, sizeof(int) * 2);
+			SetUniformiv(loc, RAS_Uniform::UNI_INT2, array2, sizeof(int) * 2, 1);
 #else
 			SetUniform(loc, array2, 2);
 #endif
@@ -511,7 +511,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 o
 		{
 			int array3[3] = {array_data[0], array_data[1], array_data[2]};
 #ifdef SORT_UNIFORMS
-			SetUniformiv(loc, RAS_Uniform::UNI_INT3, array3, sizeof(int) * 3);
+			SetUniformiv(loc, RAS_Uniform::UNI_INT3, array3, sizeof(int) * 3, 1);
 #else
 			SetUniform(loc, array3, 3);
 #endif
@@ -522,7 +522,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 o
 		{
 			int array4[4] = {array_data[0], array_data[1], array_data[2], array_data[3]};
 #ifdef SORT_UNIFORMS
-			SetUniformiv(loc, RAS_Uniform::UNI_INT4, array4, sizeof(int) * 4);
+			SetUniformiv(loc, RAS_Uniform::UNI_INT4, array4, sizeof(int) * 4, 1);
 #else
 			SetUniform(loc, array4, 4);
 #endif
@@ -582,7 +582,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
 	// Sanity checks done!
 #ifdef SORT_UNIFORMS
 	mat.getValue(matr);
-	SetUniformfv(loc, RAS_Uniform::UNI_MAT4, matr, (sizeof(float) * 16), (transp != 0));
+	SetUniformfv(loc, RAS_Uniform::UNI_MAT4, matr, (sizeof(float) * 16), 1, (transp != 0));
 #else
 	SetUniform(loc, mat, (transp != 0));
 #endif
@@ -629,7 +629,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix3,
 
 #ifdef SORT_UNIFORMS
 	mat.getValue3x3(matr);
-	SetUniformfv(loc, RAS_Uniform::UNI_MAT3, matr, (sizeof(float) * 9), (transp != 0));
+	SetUniformfv(loc, RAS_Uniform::UNI_MAT3, matr, (sizeof(float) * 9), 1, (transp != 0));
 #else
 	SetUniform(loc, mat, (transp != 0));
 #endif

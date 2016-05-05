@@ -110,6 +110,7 @@ void RAS_2DFilter::Start()
 	if (Ok()) {
 		SetProg(true);
 		BindUniforms();
+		ApplyShader();
 		DrawOverlayPlane();
 	}
 }
@@ -234,7 +235,8 @@ void RAS_2DFilter::BindUniforms()
 	}
 	if (m_predefinedUniforms[TEXTURE_COORDINATE_OFFSETS_UNIFORM] != -1) {
 		// Bind texture offsets.
-		SetUniform(m_predefinedUniforms[TEXTURE_COORDINATE_OFFSETS_UNIFORM], m_textureOffsets, 9);
+		SetUniformfv(m_predefinedUniforms[TEXTURE_COORDINATE_OFFSETS_UNIFORM], RAS_Uniform::UNI_FLOAT2, m_textureOffsets,
+					 sizeof(float) * TEXTURE_OFFSETS_SIZE, TEXTURE_OFFSETS_SIZE / 2);
 	}
 
 	for (unsigned int i = 0, size = m_properties.size(); i < size; ++i) {

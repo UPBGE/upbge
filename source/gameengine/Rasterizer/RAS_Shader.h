@@ -27,6 +27,7 @@ public:
 	{
 	private:
 		int mLoc; // Uniform location
+		unsigned int m_count; // Number of items
 		void *mData; // Memory allocated for variable
 		bool mDirty; // Caching variable
 		int mType; // Enum UniformTypes
@@ -52,7 +53,7 @@ public:
 		};
 
 		void Apply(RAS_Shader *shader);
-		void SetData(int location, int type, bool transpose = false);
+		void SetData(int location, int type, unsigned int count, bool transpose = false);
 		int GetLocation();
 		void *getData();
 
@@ -160,8 +161,8 @@ public:
 	// Update predefined uniforms each render call
 	void Update(RAS_IRasterizer *rasty, MT_Matrix4x4 model);
 
-	void SetUniformfv(int location, int type, float *param, int size, bool transpose = false);
-	void SetUniformiv(int location, int type, int *param, int size, bool transpose = false);
+	void SetUniformfv(int location, int type, float *param, int size, unsigned int count, bool transpose = false);
+	void SetUniformiv(int location, int type, int *param, int size, unsigned int count, bool transpose = false);
 	int GetAttribLocation(const char *name);
 	void BindAttribute(const char *attr, int loc);
 

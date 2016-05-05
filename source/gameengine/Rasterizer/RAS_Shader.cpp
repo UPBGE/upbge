@@ -41,6 +41,7 @@
 
 RAS_Shader::RAS_Uniform::RAS_Uniform(int data_size)
 	:mLoc(-1),
+	m_count(1),
 	mDirty(true),
 	mType(UNI_NONE),
 	mTranspose(0),
@@ -75,61 +76,61 @@ void RAS_Shader::RAS_Uniform::Apply(RAS_Shader *shader)
 		case UNI_FLOAT:
 		{
 			float *f = (float *)mData;
-			glUniform1fARB(mLoc, (GLfloat)*f);
+			glUniform1fvARB(mLoc, m_count, (GLfloat *)f);
 			break;
 		}
 		case UNI_INT:
 		{
 			int *f = (int *)mData;
-			glUniform1iARB(mLoc, (GLint)*f);
+			glUniform1ivARB(mLoc, m_count, (GLint *)f);
 			break;
 		}
 		case UNI_FLOAT2:
 		{
 			float *f = (float *)mData;
-			glUniform2fvARB(mLoc, 1, (GLfloat *)f);
+			glUniform2fvARB(mLoc, m_count, (GLfloat *)f);
 			break;
 		}
 		case UNI_FLOAT3:
 		{
 			float *f = (float *)mData;
-			glUniform3fvARB(mLoc, 1, (GLfloat *)f);
+			glUniform3fvARB(mLoc, m_count, (GLfloat *)f);
 			break;
 		}
 		case UNI_FLOAT4:
 		{
 			float *f = (float *)mData;
-			glUniform4fvARB(mLoc, 1, (GLfloat *)f);
+			glUniform4fvARB(mLoc, m_count, (GLfloat *)f);
 			break;
 		}
 		case UNI_INT2:
 		{
 			int *f = (int *)mData;
-			glUniform2ivARB(mLoc, 1, (GLint *)f);
+			glUniform2ivARB(mLoc, m_count, (GLint *)f);
 			break;
 		}
 		case UNI_INT3:
 		{
 			int *f = (int *)mData;
-			glUniform3ivARB(mLoc, 1, (GLint *)f);
+			glUniform3ivARB(mLoc, m_count, (GLint *)f);
 			break;
 		}
 		case UNI_INT4:
 		{
 			int *f = (int *)mData;
-			glUniform4ivARB(mLoc, 1, (GLint *)f);
+			glUniform4ivARB(mLoc, m_count, (GLint *)f);
 			break;
 		}
 		case UNI_MAT4:
 		{
 			float *f = (float *)mData;
-			glUniformMatrix4fvARB(mLoc, 1, mTranspose ? GL_TRUE : GL_FALSE, (GLfloat *)f);
+			glUniformMatrix4fvARB(mLoc, m_count, mTranspose ? GL_TRUE : GL_FALSE, (GLfloat *)f);
 			break;
 		}
 		case UNI_MAT3:
 		{
 			float *f = (float *)mData;
-			glUniformMatrix3fvARB(mLoc, 1, mTranspose ? GL_TRUE : GL_FALSE, (GLfloat *)f);
+			glUniformMatrix3fvARB(mLoc, m_count, mTranspose ? GL_TRUE : GL_FALSE, (GLfloat *)f);
 			break;
 		}
 	}
@@ -137,11 +138,12 @@ void RAS_Shader::RAS_Uniform::Apply(RAS_Shader *shader)
 #endif
 }
 
-void RAS_Shader::RAS_Uniform::SetData(int location, int type, bool transpose)
+void RAS_Shader::RAS_Uniform::SetData(int location, int type, unsigned int count, bool transpose)
 {
 #ifdef SORT_UNIFORMS
 	mType = type;
 	mLoc = location;
+	m_count = count;
 	mDirty = true;
 #endif
 }
@@ -215,19 +217,19 @@ RAS_Shader::RAS_Uniform *RAS_Shader::FindUniform(const int location)
 	return NULL;
 }
 
-void RAS_Shader::SetUniformfv(int location, int type, float *param, int size, bool transpose)
+void RAS_Shader::SetUniformfv(int location, int type, float *param, int size, unsigned int count, bool transpose)
 {
 #ifdef SORT_UNIFORMS
 	RAS_Uniform *uni = FindUniform(location);
 
 	if (uni) {
 		memcpy(uni->getData(), param, size);
-		uni->SetData(location, type, transpose);
+		uni->SetData(location, type, count, transpose);
 	}
 	else {
 		uni = new RAS_Uniform(size);
 		memcpy(uni->getData(), param, size);
-		uni->SetData(location, type, transpose);
+		uni->SetData(location, type, count, transpose);
 		mUniforms.push_back(uni);
 	}
 
@@ -235,19 +237,19 @@ void RAS_Shader::SetUniformfv(int location, int type, float *param, int size, bo
 #endif
 }
 
-void RAS_Shader::SetUniformiv(int location, int type, int *param, int size, bool transpose)
+void RAS_Shader::SetUniformiv(int location, int type, int *param, int size, unsigned int count, bool transpose)
 {
 #ifdef SORT_UNIFORMS
 	RAS_Uniform *uni = FindUniform(location);
 
 	if (uni) {
 		memcpy(uni->getData(), param, size);
-		uni->SetData(location, type, transpose);
+		uni->SetData(location, type, count, transpose);
 	}
 	else {
 		uni = new RAS_Uniform(size);
 		memcpy(uni->getData(), param, size);
-		uni->SetData(location, type, transpose);
+		uni->SetData(location, type, count, transpose);
 		mUniforms.push_back(uni);
 	}
 
