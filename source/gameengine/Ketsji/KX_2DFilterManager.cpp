@@ -45,3 +45,75 @@ RAS_2DFilter *KX_2DFilterManager::NewFilter(RAS_2DFilterData& filterData)
 {
 	return new KX_2DFilter(filterData, this);
 }
+
+#ifdef WITH_PYTHON
+PyMethodDef KX_2DFilterManager::Methods[] = {
+	// creation
+	KX_PYMETHODTABLE(KX_2DFilterManager, getFilter),
+	KX_PYMETHODTABLE(KX_2DFilterManager, addFilter),
+	KX_PYMETHODTABLE(KX_2DFilterManager, removeFilter),
+	{NULL, NULL} //Sentinel
+};
+
+PyAttributeDef KX_2DFilterManager::Attributes[] = {
+	{NULL} //Sentinel
+};
+
+PyTypeObject KX_2DFilterManager::Type = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	"KX_2DFilterManager",
+	sizeof(PyObjectPlus_Proxy),
+	0,
+	py_base_dealloc,
+	0,
+	0,
+	0,
+	0,
+	py_base_repr,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+	0, 0, 0, 0, 0, 0, 0,
+	Methods,
+	0,
+	0,
+	&PyObjectPlus::Type,
+	0, 0, 0, 0, 0, 0,
+	py_base_new
+};
+
+
+KX_PYMETHODDEF_DOC(KX_2DFilterManager, getFilter, " getFilter(index)")
+{
+	int index = 0;
+
+	if (!PyArg_ParseTuple(args, "i:getFilter", &index)) {
+		return NULL;
+	}
+
+	KX_2DFilter *filter = (KX_2DFilter*)GetFilterPass(index);
+
+	if (filter) {
+		return filter->GetProxy();
+	}
+	Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC(KX_2DFilterManager, addFilter, " addFilter(index)")
+{
+	Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC(KX_2DFilterManager, removeFilter, " removeFilter(index)")
+{
+	int index = 0;
+
+	if (!PyArg_ParseTuple(args, "i:removeFilter", &index)) {
+		return NULL;
+	}
+
+	RemoveFilterPass(index);
+
+	Py_RETURN_NONE;
+}
+
+#endif  // WITH_PYTHON
