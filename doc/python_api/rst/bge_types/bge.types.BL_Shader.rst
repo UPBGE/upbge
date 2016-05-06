@@ -52,13 +52,6 @@ base class --- :class:`PyObjectPlus`
       :arg enum: attribute location value
       :type enum: integer
 
-   .. method:: setNumberOfPasses( max_pass )
-
-      Set the maximum number of passes. Not used a.t.m.
-
-      :arg max_pass: the maximum number of passes
-      :type max_pass: integer
-
    .. method:: setSampler(name, index)
 
       Set uniform texture sample index.

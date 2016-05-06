@@ -160,7 +160,6 @@ BL_Shader::BL_Shader()
 	:
 	PyObjectPlus(),
 	mShader(0),
-	mPass(1),
 	mOk(0),
 	mUse(0),
 	mAttr(0),
@@ -720,7 +719,6 @@ PyMethodDef BL_Shader::Methods[] = {
 	KX_PYMETHODTABLE(BL_Shader, delSource),
 	KX_PYMETHODTABLE(BL_Shader, getVertexProg),
 	KX_PYMETHODTABLE(BL_Shader, getFragmentProg),
-	KX_PYMETHODTABLE(BL_Shader, setNumberOfPasses),
 	KX_PYMETHODTABLE(BL_Shader, validate),
 	// access functions
 	KX_PYMETHODTABLE(BL_Shader, isValid),
@@ -880,18 +878,6 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
 		Py_RETURN_NONE;
 	}
 	return NULL;
-}
-
-KX_PYMETHODDEF_DOC(BL_Shader, setNumberOfPasses, "setNumberOfPasses( max-pass )")
-{
-	int pass = 1;
-
-	if (!PyArg_ParseTuple(args, "i:setNumberOfPasses", &pass)) {
-		return NULL;
-	}
-
-	mPass = 1;
-	Py_RETURN_NONE;
 }
 
 /// access functions

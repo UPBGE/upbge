@@ -92,7 +92,6 @@ private:
 	typedef std::vector<BL_DefUniform *> BL_UniformVecDef;
 
 	unsigned int mShader; // Shader object
-	int mPass; // 1.. unused
 	bool mOk; // Valid and ok
 	bool mUse;
 	int mAttr; // Tangent attribute
@@ -144,7 +143,6 @@ public:
 	const char *GetFragPtr();
 	void SetVertPtr(char *vert);
 	void SetFragPtr(char *frag);
-	int getNumPass() { return mPass; }
 	bool GetError() { return mError; }
 
 	void SetSampler(int loc, int unit);
