@@ -151,6 +151,8 @@ public:
 	bool Ok() const;
 	unsigned int GetProg();
 	void SetProg(bool enable);
+	void SetEnabled(bool enabled);
+	bool GetEnabled() const;
 	int GetAttribute();
 
 	// Apply methods : sets colected uniforms

@@ -498,6 +498,15 @@ void RAS_Shader::SetProg(bool enable)
 	}
 }
 
+void RAS_Shader::SetEnabled(bool enabled)
+{
+	mUse = enabled;
+}
+
+bool RAS_Shader::GetEnabled() const
+{
+	return mUse;
+}
 
 void RAS_Shader::Update(RAS_IRasterizer *rasty, MT_Matrix4x4 model)
 {

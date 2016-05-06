@@ -86,8 +86,6 @@ RAS_2DFilter *RAS_2DFilterManager::AddFilter(RAS_2DFilterData& filterData)
 	RAS_2DFilter *filter = CreateFilter(filterData);
 
 	m_filters[filterData.filterPassIndex] = filter;
-	// By default enable the filter.
-	filter->SetEnabled(true);
 
 	return filter;
 }

@@ -9,7 +9,7 @@
 #include "EXP_PyObjectPlus.h"
 #include "RAS_Shader.h"
 
-class BL_Shader : public PyObjectPlus, public RAS_Shader
+class BL_Shader : public PyObjectPlus, public virtual RAS_Shader
 {
 	Py_Header
 public:
@@ -25,6 +25,9 @@ public:
 		}
 		return PyUnicode_FromString("BL_Shader");
 	}
+
+	static PyObject *pyattr_get_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	// -----------------------------------
 	KX_PYMETHOD_DOC(BL_Shader, setSource);

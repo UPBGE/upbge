@@ -29,7 +29,7 @@
 class RAS_2DFilterManager;
 class CValue;
 
-class RAS_2DFilter : public RAS_Shader
+class RAS_2DFilter : public virtual RAS_Shader
 {
 public:
 	enum PredefinedUniformType {
@@ -87,9 +87,6 @@ public:
 
 	/// The pass index determines the precedence of this filter over other filters in the same context.
 	int GetPassIndex();
-
-	/// Enables / disables this filter. A disabled filter has no effect on the rendering.
-	void SetEnabled(bool enabled);
 };
 
 #endif // __RAS_2DFILTER_H__

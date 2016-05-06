@@ -63,6 +63,8 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager)
 	char *tmp = (char *)malloc(sizeof(char) * data.shaderText.Length() + 1);
 	strcpy(tmp, data.shaderText.ReadPtr());
 	fragProg = tmp;
+
+	mUse = true;
 }
 
 void RAS_2DFilter::ReleaseTextures()
@@ -78,12 +80,6 @@ void RAS_2DFilter::ReleaseTextures()
 RAS_2DFilter::~RAS_2DFilter()
 {
 	ReleaseTextures();
-}
-
-void RAS_2DFilter::SetEnabled(bool enabled)
-{
-	// reuse mUse variable to use the Ok() function.
-	mUse = enabled;
 }
 
 void RAS_2DFilter::Initialize()

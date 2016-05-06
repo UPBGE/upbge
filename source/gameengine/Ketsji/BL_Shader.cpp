@@ -70,6 +70,7 @@ PyMethodDef BL_Shader::Methods[] = {
 };
 
 PyAttributeDef BL_Shader::Attributes[] = {
+	KX_PYATTRIBUTE_RW_FUNCTION("enabled", BL_Shader, pyattr_get_enabled, pyattr_set_enabled),
 	{NULL} //Sentinel
 };
 
@@ -94,6 +95,25 @@ PyTypeObject BL_Shader::Type = {
 	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
+
+PyObject *BL_Shader::pyattr_get_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Shader* self = static_cast<BL_Shader*>(self_v);
+	return PyBool_FromLong(self->GetEnabled());
+}
+
+int BL_Shader::pyattr_set_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Shader* self = static_cast<BL_Shader*>(self_v);
+	int param = PyObject_IsTrue(value);
+	if (param == -1) {
+		PyErr_SetString(PyExc_AttributeError, "shader.enabled = bool: BL_Shader, expected True or False");
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->SetEnabled(param);
+	return PY_SET_ATTR_SUCCESS;
+}
 
 KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProgram)")
 {
