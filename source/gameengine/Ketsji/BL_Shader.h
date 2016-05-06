@@ -23,8 +23,8 @@ public:
 		return PyUnicode_FromFormat("BL_Shader\n\tvertex shader:%s\n\n\tfragment shader%s\n\n", m_vertProg.ReadPtr(), m_fragProg.ReadPtr());
 	}
 
-	static PyObject *pyattr_get_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_enable(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_enable(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	// -----------------------------------
 	KX_PYMETHOD_DOC(BL_Shader, setSource);
