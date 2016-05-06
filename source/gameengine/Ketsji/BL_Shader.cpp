@@ -70,7 +70,7 @@ PyMethodDef BL_Shader::Methods[] = {
 };
 
 PyAttributeDef BL_Shader::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("enable", BL_Shader, pyattr_get_enable, pyattr_set_enable),
+	KX_PYATTRIBUTE_RW_FUNCTION("enabled", BL_Shader, pyattr_get_enabled, pyattr_set_enabled),
 	{NULL} //Sentinel
 };
 
@@ -96,13 +96,13 @@ PyTypeObject BL_Shader::Type = {
 	py_base_new
 };
 
-PyObject *BL_Shader::pyattr_get_enable(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Shader::pyattr_get_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Shader* self = static_cast<BL_Shader*>(self_v);
 	return PyBool_FromLong(self->GetEnabled());
 }
 
-int BL_Shader::pyattr_set_enable(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int BL_Shader::pyattr_set_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_Shader* self = static_cast<BL_Shader*>(self_v);
 	int param = PyObject_IsTrue(value);

@@ -11,9 +11,9 @@ base class --- :class:`PyObjectPlus`
 
    TODO - Description
 
-   .. attribute:: enable
+   .. attribute:: enabled
 
-      Enable/Disable shader.
+      Set shader enabled to use.
 
       :type: boolean
 
