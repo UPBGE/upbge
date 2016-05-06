@@ -60,6 +60,8 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 
 	m_vertProg = STR_String(VertexShader);
 	m_fragProg = data.shaderText;
+
+	mUse = true;
 }
 
 void RAS_2DFilter::ReleaseTextures()
@@ -75,12 +77,6 @@ void RAS_2DFilter::ReleaseTextures()
 RAS_2DFilter::~RAS_2DFilter()
 {
 	ReleaseTextures();
-}
-
-void RAS_2DFilter::SetEnabled(bool enabled)
-{
-	// reuse mUse variable to use the Ok() function.
-	mUse = enabled;
 }
 
 void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
