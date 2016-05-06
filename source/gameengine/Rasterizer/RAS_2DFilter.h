@@ -63,7 +63,6 @@ private:
 	The computation should be left to the glsl shader, I keep it for backward compatibility. */
 	static const int TEXTURE_OFFSETS_SIZE = 18; //9 vec2 entries
 	float m_textureOffsets[TEXTURE_OFFSETS_SIZE]; 
-	int m_passIndex;
 
 	void ParseShaderProgram();
 	void InitializeTextures(RAS_ICanvas *canvas);
@@ -84,9 +83,6 @@ public:
 
 	/// Finalizes the execution stage of the filter.
 	void End();
-
-	/// The pass index determines the precedence of this filter over other filters in the same context.
-	int GetPassIndex();
 };
 
 #endif // __RAS_2DFILTER_H__

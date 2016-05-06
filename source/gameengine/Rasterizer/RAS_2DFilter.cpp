@@ -43,8 +43,7 @@ static char predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_TYPE][40
 
 RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 	:m_properties(data.propertyNames),
-	m_gameObject(data.gameObject),
-	m_passIndex(data.filterPassIndex)
+	m_gameObject(data.gameObject)
 {
 	for(unsigned int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
 		m_textureOffsets[i] = 0;
@@ -89,11 +88,6 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 		InitializeTextures(canvas);
 		ComputeTextureOffsets(canvas);
 	}
-}
-
-int RAS_2DFilter::GetPassIndex()
-{
-	return m_passIndex;
 }
 
 void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
