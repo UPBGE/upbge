@@ -87,6 +87,8 @@ base class --- :class:`PyObjectPlus`
 
       Returns the material's texture OpenGL bind code/id/number/name.
 
+      .. deprecated:: use :py:meth:`bge.types.BL_Texture.bindCode`
+
       :arg textureslot: Specifies the texture slot number
       :type textureslot: integer
       :return: the material's texture OpenGL bind code/id/number/name
