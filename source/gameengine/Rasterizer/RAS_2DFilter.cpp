@@ -26,6 +26,8 @@
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
 
+#include "BLI_utildefines.h" // for STRINGIFY
+
 #include "RAS_OpenGLFilters/RAS_VertexShader2DFilter.h"
 
 #include "EXP_Value.h"
