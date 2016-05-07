@@ -49,7 +49,7 @@ public:
 		MAX_RENDERED_TEXTURE_TYPE
 	};
 
-private:
+protected:
 	RAS_2DFilterManager *m_manager;
 
 	int m_predefinedUniforms[MAX_PREDEFINED_UNIFORM_TYPE];
@@ -62,12 +62,16 @@ private:
 	/** A set of vec2 coordinates that the shaders use to sample nearby pixels from incoming textures.
 	The computation should be left to the glsl shader, I keep it for backward compatibility. */
 	static const int TEXTURE_OFFSETS_SIZE = 18; //9 vec2 entries
-	float m_textureOffsets[TEXTURE_OFFSETS_SIZE]; 
+	float m_textureOffsets[TEXTURE_OFFSETS_SIZE];
+
+	unsigned int m_textures[8];
 
 	virtual bool LinkProgram();
 	void ParseShaderProgram();
 	void InitializeTextures();
 	void BindUniforms();
+	void BindTextures();
+	void UnbindTextures();
 	void DrawOverlayPlane();
 	void ComputeTextureOffsets();
 	void ReleaseTextures();
