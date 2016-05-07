@@ -27,11 +27,13 @@
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterManager.h"
 #include "RAS_2DFilter.h"
+
+#include "BLI_utildefines.h" // for STRINGIFY
+
 #include <iostream>
 
 #include "glew-mx.h"
 
-#define STRINGIFY(A) #A
 #include "RAS_OpenGLFilters/RAS_Blur2DFilter.h"
 #include "RAS_OpenGLFilters/RAS_Sharpen2DFilter.h"
 #include "RAS_OpenGLFilters/RAS_Dilation2DFilter.h"
