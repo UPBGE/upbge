@@ -43,6 +43,12 @@ class KX_2DFilter : public RAS_2DFilter, public BL_Shader
 public:
 	KX_2DFilter(RAS_2DFilterData& data);
 	virtual ~KX_2DFilter();
+
+#ifdef WITH_PYTHON
+
+	KX_PYMETHOD_DOC(KX_2DFilter, setTexture);
+
+#endif
 };
 
 #endif  // __KX_2DFILTER_H__
