@@ -37,7 +37,7 @@
 #include "BL_Shader.h"
 #include "MT_Matrix4x4.h"
 
-class KX_2DFilter : public RAS_2DFilter, BL_Shader
+class KX_2DFilter : public RAS_2DFilter, public BL_Shader
 {
 	Py_Header
 public:

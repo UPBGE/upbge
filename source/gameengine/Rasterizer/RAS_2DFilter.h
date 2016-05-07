@@ -64,6 +64,7 @@ private:
 	static const int TEXTURE_OFFSETS_SIZE = 18; //9 vec2 entries
 	float m_textureOffsets[TEXTURE_OFFSETS_SIZE]; 
 
+	virtual bool LinkProgram();
 	void ParseShaderProgram();
 	void InitializeTextures();
 	void BindUniforms();

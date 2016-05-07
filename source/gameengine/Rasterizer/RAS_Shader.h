@@ -105,7 +105,7 @@ protected:
 	RAS_UniformVecDef mPreDef;
 
 	// Compiles and links the shader
-	bool LinkProgram();
+	virtual bool LinkProgram();
 	void ValidateProgram();
 
 	// search by location
