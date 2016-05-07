@@ -59,11 +59,15 @@ private:
 	std::vector<unsigned int> m_propertiesLoc;
 	CValue *m_gameObject;
 
+	/// True if the uniform are updated with the current shader program/script.
+	bool m_uniformInitialized;
+
 	/** A set of vec2 coordinates that the shaders use to sample nearby pixels from incoming textures.
 	The computation should be left to the glsl shader, I keep it for backward compatibility. */
 	static const int TEXTURE_OFFSETS_SIZE = 18; //9 vec2 entries
 	float m_textureOffsets[TEXTURE_OFFSETS_SIZE]; 
 
+	virtual bool LinkProgram();
 	void ParseShaderProgram();
 	void InitializeTextures(RAS_ICanvas *canvas);
 	void BindUniforms(RAS_ICanvas *canvas);
