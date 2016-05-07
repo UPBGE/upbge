@@ -56,30 +56,6 @@ RAS_2DFilterManager::~RAS_2DFilterManager()
 	}
 }
 
-void RAS_2DFilterManager::PrintShaderError(unsigned int shaderUid, const char *title, const char *shaderCode, unsigned int passindex)
-{
-	std::cout << "2D Filter GLSL Shader: " << title << " error." << std::endl;
-
-	// Copied value from BL_Shader MAX_LOG_LEN.
-	const int MAX_LOG_CHAR_COUNT = 262144;
-	GLint logSize = 0;
-	glGetShaderiv(shaderUid, GL_INFO_LOG_LENGTH, &logSize);
-
-	if(logSize != 0) {
-		GLsizei infoLogRetSize = 0;
-		if (logSize > MAX_LOG_CHAR_COUNT) {
-			logSize = MAX_LOG_CHAR_COUNT;
-		}
-		char *logCharBuffer = (char *)malloc(sizeof(char) * logSize);
-
-		glGetInfoLogARB(shaderUid, logSize, &infoLogRetSize, logCharBuffer);
-		std::cout << logCharBuffer << std::endl;
-		m_filters[passindex]->SetEnabled(false);
-
-		free(logCharBuffer);
-	}
-}
-
 RAS_2DFilter *RAS_2DFilterManager::AddFilter(RAS_2DFilterData& filterData)
 {
 	RAS_2DFilter *filter = CreateFilter(filterData);

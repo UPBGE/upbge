@@ -61,8 +61,6 @@ public:
 	RAS_2DFilterManager();
 	virtual ~RAS_2DFilterManager();
 
-	void PrintShaderError(unsigned int shaderUid, const char *title, const char *shaderCode, unsigned int passindex);
-
 	/// Applies the filters to the scene.
 	void RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas);
 
