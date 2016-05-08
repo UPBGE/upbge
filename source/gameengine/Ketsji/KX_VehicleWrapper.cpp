@@ -32,6 +32,8 @@
 #include "KX_MotionState.h"
 #include "KX_Globals.h"
 
+#include "DNA_object_types.h" // for OB_MAX_COL_MASKS
+
 KX_VehicleWrapper::KX_VehicleWrapper(
 						PHY_IVehicle* vehicle,
 						PHY_IPhysicsEnvironment* physenv) :
@@ -374,7 +376,35 @@ PyMethodDef KX_VehicleWrapper::Methods[] = {
 };
 
 PyAttributeDef KX_VehicleWrapper::Attributes[] = {
+	KX_PYATTRIBUTE_RW_FUNCTION("rayMask", KX_VehicleWrapper, pyattr_get_ray_mask, pyattr_set_ray_mask),
 	{ NULL }	//Sentinel
 };
+
+PyObject *KX_VehicleWrapper::pyattr_get_ray_mask(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_VehicleWrapper *wrapper = static_cast<KX_VehicleWrapper*>(self);
+	return PyLong_FromLong(wrapper->m_vehicle->GetRayCastMask());
+}
+
+int KX_VehicleWrapper::pyattr_set_ray_mask(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_VehicleWrapper *wrapper = static_cast<KX_VehicleWrapper*>(self);
+
+	int mask = PyLong_AsLong(value);
+
+	if (mask == -1 && PyErr_Occurred()) {
+		PyErr_SetString(PyExc_TypeError, "rayMask = int: KX_VehicleWrapper, expected an int bit field");
+		return PY_SET_ATTR_FAIL;
+	}
+
+	if (mask == 0 || mask & ~((1 << OB_MAX_COL_MASKS) - 1)) {
+		PyErr_Format(PyExc_AttributeError, "rayMask = int: KX_VehicleWrapper, expected a int bit field, 0 < rayMask < %i", (1 << OB_MAX_COL_MASKS));
+		return PY_SET_ATTR_FAIL;
+	}
+
+	wrapper->m_vehicle->SetRayCastMask(mask);
+
+	return PY_SET_ATTR_SUCCESS;
+}
 
 #endif // WITH_PYTHON

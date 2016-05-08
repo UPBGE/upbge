@@ -164,3 +164,8 @@ base class --- :class:`PyObjectPlus`
       :arg wheelIndex: the wheel index
       :type wheelIndex: integer
 
+   .. attribute:: rayMask
+
+      Set ray cast mask.
+
+      :type: bitfield

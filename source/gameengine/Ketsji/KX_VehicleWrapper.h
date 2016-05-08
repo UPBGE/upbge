@@ -51,6 +51,10 @@ public:
 	KX_PYMETHOD_VARARGS(KX_VehicleWrapper,SetSuspensionCompression);
 	
 	KX_PYMETHOD_VARARGS(KX_VehicleWrapper,SetRollInfluence);
+
+	static PyObject *pyattr_get_ray_mask(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_ray_mask(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+
 #endif  /* WITH_PYTHON */
 
 private:

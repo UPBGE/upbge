@@ -60,6 +60,9 @@ public:
 
 	virtual void SetCoordinateSystem(int rightIndex, int upIndex, int forwardIndex) = 0;
 
+	virtual void SetRayCastMask(short mask) = 0;
+	virtual short GetRayCastMask() const = 0;
+
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PHY_IVehicle")
 #endif
