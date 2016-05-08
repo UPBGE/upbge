@@ -41,6 +41,12 @@ KX_2DFilter::~KX_2DFilter()
 {
 }
 
+bool KX_2DFilter::LinkProgram()
+{
+	return RAS_2DFilter::LinkProgram();
+}
+
+
 PyTypeObject KX_2DFilter::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	"KX_2DFilter",
