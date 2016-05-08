@@ -46,6 +46,7 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"
+#include "DNA_object_types.h" // for OB_MAX_COL_MASKS
 #include "DNA_object_force.h"
 
 extern "C" {
@@ -95,14 +96,102 @@ void DrawRasterizerLine(const float *from, const float *to, int color);
 #endif //WIN32
 
 #ifdef NEW_BULLET_VEHICLE_SUPPORT
+
+class VehicleClosestRayResultCallback : public btCollisionWorld::ClosestRayResultCallback
+{
+private:
+	const btCollisionShape *m_hitTriangleShape;
+	short m_mask;
+
+public:
+	VehicleClosestRayResultCallback(const btVector3& rayFrom, const btVector3& rayTo, short mask)
+		:btCollisionWorld::ClosestRayResultCallback(rayFrom, rayTo),
+		m_mask(mask)
+	{
+	}
+
+	virtual ~VehicleClosestRayResultCallback()
+	{
+	}
+
+	virtual bool needsCollision(btBroadphaseProxy *proxy0) const
+	{
+		if (!btCollisionWorld::ClosestRayResultCallback::needsCollision(proxy0)) {
+			return false;
+		}
+
+		btCollisionObject *object = (btCollisionObject *)proxy0->m_clientObject;
+		CcdPhysicsController *phyCtrl = static_cast<CcdPhysicsController *>(object->getUserPointer());
+		KX_GameObject *gameObj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)phyCtrl->GetNewClientInfo());
+
+		if (gameObj->GetUserCollisionGroup() & m_mask) {
+			return true;
+		}
+
+		return false;
+	}
+};
+
+class BlenderVehicleRaycaster : public btDefaultVehicleRaycaster
+{
+private:
+	btDynamicsWorld *m_dynamicsWorld;
+	short m_mask;
+
+public:
+	BlenderVehicleRaycaster(btDynamicsWorld *world)
+		:btDefaultVehicleRaycaster(world),
+		m_dynamicsWorld(world),
+		m_mask((1 << OB_MAX_COL_MASKS) - 1)
+	{
+	}
+
+	virtual void *castRay(const btVector3& from, const btVector3& to, btVehicleRaycasterResult& result)
+	{
+		//	RayResultCallback& resultCallback;
+
+		VehicleClosestRayResultCallback rayCallback(from, to, m_mask);
+
+		// We override btDefaultVehicleRaycaster so we can set this flag, otherwise our
+		// vehicles go crazy (http://bulletphysics.org/Bullet/phpBB3/viewtopic.php?t=9662)
+		rayCallback.m_flags |= btTriangleRaycastCallback::kF_UseSubSimplexConvexCastRaytest;
+
+		m_dynamicsWorld->rayTest(from, to, rayCallback);
+
+		if (rayCallback.hasHit()) {
+			const btRigidBody *body = btRigidBody::upcast(rayCallback.m_collisionObject);
+			if (body && body->hasContactResponse()) {
+				result.m_hitPointInWorld = rayCallback.m_hitPointWorld;
+				result.m_hitNormalInWorld = rayCallback.m_hitNormalWorld;
+				result.m_hitNormalInWorld.normalize();
+				result.m_distFraction = rayCallback.m_closestHitFraction;
+				return (void *)body;
+			}
+		}
+		return NULL;
+	}
+
+	short GetRayCastMask() const
+	{
+		return m_mask;
+	}
+
+	void SetRayCastMask(short mask)
+	{
+		m_mask = mask;
+	}
+};
+
 class WrapperVehicle : public PHY_IVehicle
 {
 	btRaycastVehicle *m_vehicle;
+	BlenderVehicleRaycaster *m_raycaster;
 	PHY_IPhysicsController *m_chassis;
 
 public:
-	WrapperVehicle(btRaycastVehicle *vehicle, PHY_IPhysicsController *chassis)
+	WrapperVehicle(btRaycastVehicle *vehicle, BlenderVehicleRaycaster *raycaster, PHY_IPhysicsController *chassis)
 		:m_vehicle(vehicle),
+		m_raycaster(raycaster),
 		m_chassis(chassis)
 	{
 	}
@@ -273,42 +362,17 @@ public:
 	{
 		m_vehicle->setCoordinateSystem(rightIndex, upIndex, forwardIndex);
 	}
-};
 
-class BlenderVehicleRaycaster : public btDefaultVehicleRaycaster
-{
-	btDynamicsWorld *m_dynamicsWorld;
-public:
-	BlenderVehicleRaycaster(btDynamicsWorld *world)
-		:btDefaultVehicleRaycaster(world), m_dynamicsWorld(world)
+	virtual void SetRayCastMask(short mask)
 	{
+		m_raycaster->SetRayCastMask(mask);
 	}
-
-	virtual void *castRay(const btVector3& from, const btVector3& to, btVehicleRaycasterResult& result)
+	virtual short GetRayCastMask() const
 	{
-		//	RayResultCallback& resultCallback;
-
-		btCollisionWorld::ClosestRayResultCallback rayCallback(from, to);
-
-		// We override btDefaultVehicleRaycaster so we can set this flag, otherwise our
-		// vehicles go crazy (http://bulletphysics.org/Bullet/phpBB3/viewtopic.php?t=9662)
-		rayCallback.m_flags |= btTriangleRaycastCallback::kF_UseSubSimplexConvexCastRaytest;
-
-		m_dynamicsWorld->rayTest(from, to, rayCallback);
-
-		if (rayCallback.hasHit()) {
-			const btRigidBody *body = btRigidBody::upcast(rayCallback.m_collisionObject);
-			if (body && body->hasContactResponse()) {
-				result.m_hitPointInWorld = rayCallback.m_hitPointWorld;
-				result.m_hitNormalInWorld = rayCallback.m_hitNormalWorld;
-				result.m_hitNormalInWorld.normalize();
-				result.m_distFraction = rayCallback.m_closestHitFraction;
-				return (void *)body;
-			}
-		}
-		return NULL;
+		return m_raycaster->GetRayCastMask();
 	}
 };
+
 #endif //NEW_BULLET_VEHICLE_SUPPORT
 
 class CcdOverlapFilterCallBack : public btOverlapFilterCallback
@@ -2698,9 +2762,9 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 		{
 			btRaycastVehicle::btVehicleTuning *tuning = new btRaycastVehicle::btVehicleTuning();
 			btRigidBody *chassis = rb0;
-			btDefaultVehicleRaycaster *raycaster = new BlenderVehicleRaycaster(m_dynamicsWorld);
+			BlenderVehicleRaycaster *raycaster = new BlenderVehicleRaycaster(m_dynamicsWorld);
 			btRaycastVehicle *vehicle = new btRaycastVehicle(*tuning, chassis, raycaster);
-			WrapperVehicle *wrapperVehicle = new WrapperVehicle(vehicle, ctrl0);
+			WrapperVehicle *wrapperVehicle = new WrapperVehicle(vehicle, raycaster, ctrl0);
 			m_wrapperVehicles.push_back(wrapperVehicle);
 			m_dynamicsWorld->addVehicle(vehicle);
 			vehicle->setUserConstraintId(gConstraintUid++);
