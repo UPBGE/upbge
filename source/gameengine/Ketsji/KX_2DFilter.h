@@ -44,6 +44,8 @@ public:
 	KX_2DFilter(RAS_2DFilterData& data);
 	virtual ~KX_2DFilter();
 
+	virtual bool LinkProgram();
+
 #ifdef WITH_PYTHON
 
 	KX_PYMETHOD_DOC(KX_2DFilter, setTexture);
