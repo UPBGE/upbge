@@ -313,7 +313,7 @@ class INFO_MT_help(Menu):
         layout.operator("wm.url_open", text="Report a Bug", icon='URL').url = "http://developer.blender.org/maniphest/task/create/?project=2&type=Bug"
         layout.separator()
 
-        layout.operator("wm.url_open", text="Python API Reference", icon='URL').url = bpy.types.WM_OT_doc_view._prefix
+        layout.operator("wm.url_open", text="Python API Reference", icon='URL').url = "https://pythonapi.upbge.fr/"
         layout.operator("wm.operator_cheat_sheet", icon='TEXT')
         layout.operator("wm.sysinfo", icon='TEXT')
         layout.separator()
