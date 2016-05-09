@@ -95,8 +95,10 @@ public:
 	             int index,
 	             Summary *summary = NULL);
 
-	void stack_assign(ShaderOutput *output);
-	void stack_assign(ShaderInput *input);
+	int stack_assign(ShaderOutput *output);
+	int stack_assign(ShaderInput *input);
+	int stack_assign_if_linked(ShaderInput *input);
+	int stack_assign_if_linked(ShaderOutput *output);
 	int stack_find_offset(ShaderSocketType type);
 	void stack_clear_offset(ShaderSocketType type, int offset);
 	void stack_link(ShaderInput *input, ShaderOutput *output);
@@ -146,12 +148,6 @@ protected:
 		int users[SVM_STACK_SIZE];
 	};
 
-	struct StackBackup {
-		Stack stack;
-		vector<int> offsets;
-		ShaderNodeSet done;
-	};
-
 	/* Global state of the compiler accessible from the compilation routines. */
 	struct CompilerState {
 		CompilerState(ShaderGraph *graph);
@@ -175,9 +171,6 @@ protected:
 		 */
 		vector<bool> nodes_done_flag;
 	};
-
-	void stack_backup(StackBackup& backup, ShaderNodeSet& done);
-	void stack_restore(StackBackup& backup, ShaderNodeSet& done);
 
 	void stack_clear_temporary(ShaderNode *node);
 	int stack_size(ShaderSocketType type);

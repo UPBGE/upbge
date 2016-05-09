@@ -2428,7 +2428,6 @@ SceneRenderView *BKE_scene_multiview_render_view_findindex(const RenderData *rd,
 	if ((rd->scemode & R_MULTIVIEW) == 0)
 		return NULL;
 
-	nr = 0;
 	for (srv = rd->views.first, nr = 0; srv; srv = srv->next) {
 		if (BKE_scene_multiview_is_render_view_active(rd, srv)) {
 			if (nr++ == view_id)
@@ -2459,7 +2458,6 @@ int BKE_scene_multiview_view_id_get(const RenderData *rd, const char *viewname)
 	if ((!viewname) || (!viewname[0]))
 		return 0;
 
-	nr = 0;
 	for (srv = rd->views.first, nr = 0; srv; srv = srv->next) {
 		if (BKE_scene_multiview_is_render_view_active(rd, srv)) {
 			if (STREQ(viewname, srv->name)) {

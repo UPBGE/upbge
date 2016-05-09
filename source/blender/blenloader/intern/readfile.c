@@ -6183,6 +6183,11 @@ static void direct_link_gpencil(FileData *fd, bGPdata *gpd)
 			
 			for (gps = gpf->strokes.first; gps; gps = gps->next) {
 				gps->points = newdataadr(fd, gps->points);
+				
+				/* the triangulation is not saved, so need to be recalculated */
+				gps->flag |= GP_STROKE_RECALC_CACHES;
+				gps->triangles = NULL;
+				gps->tot_triangles = 0;
 			}
 		}
 	}

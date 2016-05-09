@@ -37,6 +37,9 @@ public:
 	void compile(SVMCompiler& compiler, int offset_in, int offset_out);
 	void compile(OSLCompiler &compiler);
 
+	int compile_begin(SVMCompiler& compiler, ShaderInput *vector_in);
+	void compile_end(SVMCompiler& compiler, ShaderInput *vector_in, int vector_offset);
+
 	float3 translation;
 	float3 rotation;
 	float3 scale;
@@ -70,15 +73,6 @@ public:
 
 /* Nodes */
 
-/* Any node which uses image manager's slot should be a subclass of this one. */
-class ImageSlotNode : public ShaderNode {
-public:
-	ImageSlotNode(const char *name_) : ShaderNode(name_) {
-		special_type = SHADER_SPECIAL_TYPE_IMAGE_SLOT;
-	}
-	int slot;
-};
-
 class TextureNode : public ShaderNode {
 public:
 	TextureNode(const char *name_) : ShaderNode(name_) {}
@@ -90,15 +84,13 @@ public:
 	}
 };
 
-class ImageSlotTextureNode : public ImageSlotNode {
+/* Any node which uses image manager's slot should be a subclass of this one. */
+class ImageSlotTextureNode : public TextureNode {
 public:
-	ImageSlotTextureNode(const char *name_) : ImageSlotNode(name_) {}
-	TextureMapping tex_mapping;
-
-	virtual bool equals(const ShaderNode *other) {
-		return ShaderNode::equals(other) &&
-		       tex_mapping.equals(((const ImageSlotTextureNode*)other)->tex_mapping);
+	ImageSlotTextureNode(const char *name_) : TextureNode(name_) {
+		special_type = SHADER_SPECIAL_TYPE_IMAGE_SLOT;
 	}
+	int slot;
 };
 
 class ImageTextureNode : public ImageSlotTextureNode {
@@ -372,7 +364,7 @@ public:
 	ConvertNode(ShaderSocketType from, ShaderSocketType to, bool autoconvert = false);
 	SHADER_NODE_BASE_CLASS(ConvertNode)
 
-	bool constant_fold(ShaderOutput *socket, float3 *optimized_value);
+	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
 
 	ShaderSocketType from, to;
 
@@ -382,23 +374,6 @@ public:
 		return ShaderNode::equals(other) &&
 		       from == convert_node->from &&
 		       to == convert_node->to;
-	}
-};
-
-class ProxyNode : public ShaderNode {
-public:
-	ProxyNode(ShaderSocketType type);
-	SHADER_NODE_BASE_CLASS(ProxyNode)
-
-	ShaderSocketType type;
-
-	virtual bool equals(const ShaderNode * /*other*/)
-	{
-		/* Proxy nodes are created for node groups and can't be duplicated
-		 * actually. So in order to make code a bit more robust in obscure cases
-		 * lets explicitly forbid de-duplication of proxy nodes for now.
-		 */
-		return false;
 	}
 };
 
@@ -505,14 +480,15 @@ public:
 class EmissionNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(EmissionNode)
+	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
 
 	bool has_surface_emission() { return true; }
-	bool has_spatial_varying() { return true; }
 };
 
 class BackgroundNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(BackgroundNode)
+	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
 };
 
 class HoldoutNode : public ShaderNode {
@@ -651,7 +627,7 @@ class ValueNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(ValueNode)
 
-	bool constant_fold(ShaderOutput *socket, float3 *optimized_value);
+	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
 
 	float value;
 
@@ -666,7 +642,7 @@ class ColorNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(ColorNode)
 
-	bool constant_fold(ShaderOutput *socket, float3 *optimized_value);
+	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
 
 	float3 value;
 
@@ -685,6 +661,7 @@ public:
 class MixClosureNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(MixClosureNode)
+	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
 };
 
 class MixClosureWeightNode : public ShaderNode {
@@ -702,6 +679,7 @@ public:
 class MixNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(MixNode)
+	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
 
 	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
 
@@ -744,7 +722,7 @@ class GammaNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(GammaNode)
 
-	bool constant_fold(ShaderOutput *socket, float3 *optimized_value);
+	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
 
 	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
 };
@@ -835,7 +813,7 @@ public:
 class BlackbodyNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(BlackbodyNode)
-	bool constant_fold(ShaderOutput *socket, float3 *optimized_value);
+	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
 
 	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
 };
@@ -844,7 +822,7 @@ class MathNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(MathNode)
 	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
-	bool constant_fold(ShaderOutput *socket, float3 *optimized_value);
+	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
 
 	bool use_clamp;
 
@@ -879,7 +857,7 @@ class VectorMathNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(VectorMathNode)
 	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
-	bool constant_fold(ShaderOutput *socket, float3 *optimized_value);
+	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
 
 	ustring type;
 	static ShaderEnum type_enum;
@@ -917,6 +895,7 @@ public:
 class BumpNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(BumpNode)
+	bool constant_fold(ShaderGraph *graph, ShaderOutput *socket, float3 *optimized_value);
 	bool has_spatial_varying() { return true; }
 	virtual int get_feature() {
 		return NODE_FEATURE_BUMP;

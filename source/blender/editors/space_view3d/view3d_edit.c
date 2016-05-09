@@ -37,6 +37,7 @@
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_gpencil_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -74,6 +75,7 @@
 #include "ED_screen.h"
 #include "ED_transform.h"
 #include "ED_mesh.h"
+#include "ED_gpencil.h"
 #include "ED_view3d.h"
 
 #include "UI_resources.h"
@@ -1229,6 +1231,8 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		return OPERATOR_PASS_THROUGH;
 	}
 
+	ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->ar);
+
 	/* switch from camera view when: */
 	if (view3d_ensure_persp(vod->v3d, vod->ar)) {
 		/* If we're switching from camera view to the perspective one,
@@ -1647,8 +1651,10 @@ static int ndof_orbit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		viewops_data_alloc(C, op);
 		viewops_data_create_ex(C, op, event,
 		                       (U.uiflag & USER_ORBIT_SELECTION) != 0, false);
-
 		vod = op->customdata;
+
+		ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->ar);
+
 		v3d = vod->v3d;
 		rv3d = vod->rv3d;
 
@@ -1715,6 +1721,9 @@ static int ndof_orbit_zoom_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 		                       (U.uiflag & USER_ORBIT_SELECTION) != 0, false);
 
 		vod = op->customdata;
+
+		ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->ar);
+
 		v3d = vod->v3d;
 		rv3d = vod->rv3d;
 
@@ -2023,6 +2032,8 @@ static int viewmove_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	viewops_data_alloc(C, op);
 	viewops_data_create(C, op, event);
 	vod = op->customdata;
+
+	ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->ar);
 
 	if (event->type == MOUSEPAN) {
 		/* invert it, trackpad scroll follows same principle as 2d windows this way */
@@ -2503,6 +2514,8 @@ static int viewzoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	viewops_data_create(C, op, event);
 	vod = op->customdata;
 
+	ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->ar);
+
 	/* if one or the other zoom position aren't set, set from event */
 	if (!RNA_struct_property_is_set(op->ptr, "mx") || !RNA_struct_property_is_set(op->ptr, "my")) {
 		RNA_int_set(op->ptr, "mx", event->x);
@@ -2743,6 +2756,8 @@ static int viewdolly_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		return OPERATOR_PASS_THROUGH;
 	}
 
+	ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->ar);
+
 	/* needs to run before 'viewops_data_create' so the backup 'rv3d->ofs' is correct */
 	/* switch from camera view when: */
 	if (vod->rv3d->persp != RV3D_PERSP) {
@@ -2837,6 +2852,8 @@ static void view3d_from_minmax(bContext *C, View3D *v3d, ARegion *ar,
 	RegionView3D *rv3d = ar->regiondata;
 	float afm[3];
 	float size;
+
+	ED_view3d_smooth_view_force_finish(C, v3d, ar);
 
 	/* SMOOTHVIEW */
 	float new_ofs[3];
@@ -3004,6 +3021,8 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 	ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = CTX_wm_view3d(C);
 	Scene *scene = CTX_data_scene(C);
+	bGPdata *gpd = CTX_data_gpencil_data(C);
+	const bool is_gp_edit = ((gpd) && (gpd->flag & GP_DATA_STROKE_EDITMODE));
 	Object *ob = OBACT;
 	Object *obedit = CTX_data_edit_object(C);
 	float min[3], max[3];
@@ -3015,6 +3034,10 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
 	INIT_MINMAX(min, max);
+
+	if (is_gp_edit) {
+		ob = NULL;
+	}
 
 	if (ob && (ob->mode & OB_MODE_WEIGHT_PAINT)) {
 		/* hard-coded exception, we look for the one selected armature */
@@ -3032,7 +3055,19 @@ static int viewselected_exec(bContext *C, wmOperator *op)
 	}
 
 
-	if (obedit) {
+	if (is_gp_edit) {
+		CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
+		{
+			/* we're only interested in selected points here... */
+			if ((gps->flag & GP_STROKE_SELECT) && (gps->flag & GP_STROKE_3DSPACE)) {
+				if (ED_gpencil_stroke_minmax(gps, true, min, max)) {
+					ok = true;
+				}
+			}
+		}
+		CTX_DATA_END;
+	}
+	else if (obedit) {
 		ok = ED_view3d_minmax_verts(obedit, min, max);    /* only selected */
 	}
 	else if (ob && (ob->mode & OB_MODE_POSE)) {
@@ -3196,6 +3231,8 @@ static int viewcenter_cursor_exec(bContext *C, wmOperator *op)
 		ARegion *ar = CTX_wm_region(C);
 		const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
+		ED_view3d_smooth_view_force_finish(C, v3d, ar);
+
 		/* non camera center */
 		float new_ofs[3];
 		negate_v3_v3(new_ofs, ED_view3d_cursor3d_get(scene, v3d));
@@ -3234,6 +3271,8 @@ static int viewcenter_pick_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 	if (rv3d) {
 		float new_ofs[3];
 		const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+
+		ED_view3d_smooth_view_force_finish(C, v3d, ar);
 
 		view3d_operator_needs_opengl(C);
 
@@ -3840,6 +3879,8 @@ static int viewnumpad_exec(bContext *C, wmOperator *op)
 	ED_view3d_context_user_region(C, &v3d, &ar);
 	rv3d = ar->regiondata;
 
+	ED_view3d_smooth_view_force_finish(C, v3d, ar);
+
 	viewnum = RNA_enum_get(op->ptr, "type");
 	align_active = RNA_boolean_get(op->ptr, "align_active");
 
@@ -3989,6 +4030,8 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
 		ED_view3d_context_user_region(C, &v3d, &ar);
 		rv3d = ar->regiondata;
 	}
+
+	ED_view3d_smooth_view_force_finish(C, v3d, ar);
 
 	if ((rv3d->viewlock & RV3D_LOCKED) == 0 || (view_opposite != RV3D_VIEW_USER)) {
 		if ((rv3d->persp != RV3D_CAMOB) || ED_view3d_camera_lock_check(v3d, rv3d)) {
@@ -4195,6 +4238,9 @@ static int viewroll_exec(bContext *C, wmOperator *op)
 
 	rv3d = ar->regiondata;
 	if ((rv3d->persp != RV3D_CAMOB) || ED_view3d_camera_lock_check(v3d, rv3d)) {
+
+		ED_view3d_smooth_view_force_finish(C, v3d, ar);
+
 		int type = RNA_enum_get(op->ptr, "type");
 		float angle = (type == 0) ? RNA_float_get(op->ptr, "angle") : DEG2RADF(U.pad_rot_angle);
 		float mousevec[3];
@@ -4246,6 +4292,8 @@ static int viewroll_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		viewops_data_alloc(C, op);
 		viewops_data_create(C, op, event);
 		vod = op->customdata;
+
+		ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->ar);
 
 		/* overwrite the mouse vector with the view direction */
 		normalize_v3_v3(vod->mousevec, vod->rv3d->viewinv[2]);

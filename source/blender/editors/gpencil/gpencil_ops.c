@@ -160,6 +160,15 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select_lasso", EVT_TWEAK_A, KM_ANY, KM_SHIFT | KM_CTRL, 0);
 	RNA_boolean_set(kmi->ptr, "deselect", true);
 	
+	/* In the Node Editor, lasso select needs ALT modifier too (as somehow CTRL+LMB drag gets taken for "cut" quite early)
+	 * There probably isn't too much harm adding this for other editors too as part of standard GP editing keymap. This hotkey
+	 * combo doesn't seem to see much use under standard scenarios?
+	 */
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select_lasso", EVT_TWEAK_A, KM_ANY, KM_CTRL | KM_ALT, 0);
+	RNA_boolean_set(kmi->ptr, "deselect", false);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select_lasso", EVT_TWEAK_A, KM_ANY, KM_SHIFT | KM_CTRL | KM_ALT, 0);
+	RNA_boolean_set(kmi->ptr, "deselect", true);
+	
 	/* normal select */
 	WM_keymap_add_item(keymap, "GPENCIL_OT_select", SELECTMOUSE, KM_PRESS, 0, 0);
 	
@@ -314,6 +323,8 @@ void ED_operatortypes_gpencil(void)
 	WM_operatortype_append(GPENCIL_OT_select_grouped);
 	WM_operatortype_append(GPENCIL_OT_select_more);
 	WM_operatortype_append(GPENCIL_OT_select_less);
+	WM_operatortype_append(GPENCIL_OT_select_first);
+	WM_operatortype_append(GPENCIL_OT_select_last);
 	
 	WM_operatortype_append(GPENCIL_OT_duplicate);
 	WM_operatortype_append(GPENCIL_OT_delete);

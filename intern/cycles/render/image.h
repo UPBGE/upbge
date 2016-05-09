@@ -35,6 +35,13 @@ public:
 	ImageManager(const DeviceInfo& info);
 	~ImageManager();
 
+	enum ImageDataType {
+		IMAGE_DATA_TYPE_FLOAT4 = 0,
+		IMAGE_DATA_TYPE_BYTE4 = 1,
+
+		IMAGE_DATA_NUM_TYPES
+	};
+
 	int add_image(const string& filename,
 	              void *builtin_data,
 	              bool animated,
@@ -44,7 +51,7 @@ public:
 	              InterpolationType interpolation,
 	              ExtensionType extension,
 	              bool use_alpha);
-	void remove_image(int slot);
+	void remove_image(int flat_slot);
 	void remove_image(const string& filename,
 	                  void *builtin_data,
 	                  InterpolationType interpolation,
@@ -56,7 +63,7 @@ public:
 	bool is_float_image(const string& filename, void *builtin_data, bool& is_linear);
 
 	void device_update(Device *device, DeviceScene *dscene, Progress& progress);
-	void device_update_slot(Device *device, DeviceScene *dscene, int slot, Progress *progress);
+	void device_update_slot(Device *device, DeviceScene *dscene, int flat_slot, Progress *progress);
 	void device_free(Device *device, DeviceScene *dscene);
 	void device_free_builtin(Device *device, DeviceScene *dscene);
 
@@ -85,22 +92,24 @@ public:
 	};
 
 private:
-	int tex_num_byte_images;
-	int tex_num_float_images;
-	int tex_image_byte_start;
+	int tex_num_images[IMAGE_DATA_NUM_TYPES];
+	int tex_image_byte4_start;
 	thread_mutex device_mutex;
 	int animation_frame;
 
-	vector<Image*> images;
-	vector<Image*> float_images;
+	vector<Image*> images[IMAGE_DATA_NUM_TYPES];
 	void *osl_texture_system;
 	bool pack_images;
 
 	bool file_load_image(Image *img, device_vector<uchar4>& tex_img);
 	bool file_load_float_image(Image *img, device_vector<float4>& tex_img);
 
-	void device_load_image(Device *device, DeviceScene *dscene, int slot, Progress *progess);
-	void device_free_image(Device *device, DeviceScene *dscene, int slot);
+	int type_index_to_flattened_slot(int slot, ImageDataType type);
+	int flattened_slot_to_type_index(int flat_slot, ImageDataType *type);
+	string name_from_type(int type);
+
+	void device_load_image(Device *device, DeviceScene *dscene, ImageDataType type, int slot, Progress *progess);
+	void device_free_image(Device *device, DeviceScene *dscene, ImageDataType type, int slot);
 
 	void device_pack_images(Device *device, DeviceScene *dscene, Progress& progess);
 };

@@ -175,7 +175,7 @@ void Shader::set_graph(ShaderGraph *graph_)
 	 * are needed, since the node attribute callbacks check if their sockets
 	 * are connected but proxy nodes should not count */
 	if(graph_)
-		graph_->remove_unneeded_nodes();
+		graph_->remove_proxy_nodes();
 
 	/* assign graph */
 	delete graph;
@@ -404,8 +404,8 @@ void ShaderManager::device_update_common(Device *device,
 			}
 		}
 		beckmann_table_offset = scene->lookup_tables->add_table(dscene, beckmann_table);
-		ktables->beckmann_offset = (int)beckmann_table_offset;
 	}
+	ktables->beckmann_offset = (int)beckmann_table_offset;
 
 	/* integrator */
 	KernelIntegrator *kintegrator = &dscene->data.integrator;
@@ -418,10 +418,7 @@ void ShaderManager::device_update_common(Device *device,
 
 void ShaderManager::device_free_common(Device *device, DeviceScene *dscene, Scene *scene)
 {
-	if(beckmann_table_offset != TABLE_OFFSET_INVALID) {
-		scene->lookup_tables->remove_table(beckmann_table_offset);
-		beckmann_table_offset = TABLE_OFFSET_INVALID;
-	}
+	scene->lookup_tables->remove_table(&beckmann_table_offset);
 
 	device->tex_free(dscene->shader_flag);
 	dscene->shader_flag.clear();
@@ -528,6 +525,10 @@ void ShaderManager::get_requested_features(Scene *scene,
 		if(output_node->input("Displacement")->link != NULL) {
 			requested_features->nodes_features |= NODE_FEATURE_BUMP;
 		}
+		/* On top of volume nodes, also check if we need volume sampling because
+		 * e.g. an Emission node would slip through the NODE_FEATURE_VOLUME check */
+		if(shader->has_volume)
+			requested_features->use_volume |= true;
 	}
 }
 
