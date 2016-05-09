@@ -79,19 +79,21 @@ PyAttributeDef KX_2DFilter::Attributes[] = {
 };
 
 
-KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindcode)")
+KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(name, bindcode)")
 {
-	int index = 0;
 	int bindcode = 0;
+	const char *uniform;
 
-	if (!PyArg_ParseTuple(args, "ii:setTexture", &index, &bindcode)) {
+	if (!PyArg_ParseTuple(args, "si:setTexture", &uniform, &bindcode)) {
 		return NULL;
 	}
-	if (index < 0 || index >= BL_Texture::MaxUnits) {
-		PyErr_SetString(PyExc_TypeError, "setTexture(index, bindcode): KX_2DFilter. index out of range [0, 7]");
-		return NULL;
+	for (int i = 0; i < 8; i++) {
+		if (m_textures[i] == 0) {
+			int loc = GetUniformLocation(uniform);
+			SetUniformiv(loc, RAS_Uniform::UNI_INT, &i, (sizeof(int)), 1);
+			m_textures[i] = bindcode;
+			break;
+		}
 	}
-
-	m_textures[index] = bindcode;
 	Py_RETURN_NONE;
 }
