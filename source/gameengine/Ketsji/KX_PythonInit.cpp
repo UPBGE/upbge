@@ -1505,12 +1505,12 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 		PyObject *item;
 
 		if (joy && joy->Connected()) {
-			gp_PythonJoysticks[i] = new SCA_PythonJoystick(joy);
+			gp_PythonJoysticks[i] = new SCA_PythonJoystick(joy, i);
 			item = gp_PythonJoysticks[i]->NewProxy(true);
 		}
 		else {
 			if (joy) {
-				joy->ReleaseInstance();
+				joy->ReleaseInstance(i);
 			}
 			item = Py_None;
 		}

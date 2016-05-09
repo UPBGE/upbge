@@ -57,14 +57,6 @@ class SCA_JoystickSensor :public SCA_ISensor
 	 */
 	int 	m_buttonf;
 	/**
-	 * The actual hat 1-JOYHAT_MAX. MUST be followed by m_hatf
-	 */
-	int 	m_hat;
-	/**
-	 * Flag to find direction 1-12, MUST be an int
-	 */
-	int 	m_hatf;
-	/**
 	 * The threshold value the axis acts upon
 	 */
 	int 	m_precision;
@@ -92,24 +84,80 @@ class SCA_JoystickSensor :public SCA_ISensor
 	 */
 	bool m_bAllEvents;
 
+public:
+
 	enum KX_JOYSENSORMODE {
 		KX_JOYSENSORMODE_NODEF = 0,
 		KX_JOYSENSORMODE_AXIS,
 		KX_JOYSENSORMODE_BUTTON,
-		KX_JOYSENSORMODE_HAT,
+		KX_JOYSENSORMODE_HAT, //unused
 		KX_JOYSENSORMODE_AXIS_SINGLE,
 		KX_JOYSENSORMODE_MAX
 	};
-	bool isValid(KX_JOYSENSORMODE);
 
-public:
+	enum KX_JOYSENS_BUTTON {
+		KX_JOYSENS_BUTTON_NODEF = -1,
+		KX_JOYSENS_BUTTON_A,
+		KX_JOYSENS_BUTTON_B,
+		KX_JOYSENS_BUTTON_X,
+		KX_JOYSENS_BUTTON_Y,
+		KX_JOYSENS_BUTTON_BACK,
+		KX_JOYSENS_BUTTON_GUIDE,
+		KX_JOYSENS_BUTTON_START,
+		KX_JOYSENS_BUTTON_STICK_LEFT,
+		KX_JOYSENS_BUTTON_STICK_RIGHT,
+		KX_JOYSENS_BUTTON_SHOULDER_LEFT,
+		KX_JOYSENS_BUTTON_SHOULDER_RIGHT,
+		KX_JOYSENS_BUTTON_DPAD_UP,
+		KX_JOYSENS_BUTTON_DPAD_DOWN,
+		KX_JOYSENS_BUTTON_DPAD_LEFT,
+		KX_JOYSENS_BUTTON_DPAD_RIGHT,
+		KX_JOYSENS_BUTTON_MAX
+	};
+
+	enum KX_JOYSENS_AXIS_SINGLE {
+		KX_JOYSENS_AXIS_SINGLE_NODEF = 0,
+		KX_JOYSENS_AXIS_SINGLE_LEFT_STICK_HORIZONTAL,
+		KX_JOYSENS_AXIS_SINGLE_LEFT_STICK_VERTICAL,
+		KX_JOYSENS_AXIS_SINGLE_RIGHT_STICK_HORIZONTAL,
+		KX_JOYSENS_AXIS_SINGLE_RIGHT_STICK_VERTICAL,
+		KX_JOYSENS_AXIS_SINGLE_LEFT_SHOULDER_TRIGGER,
+		KX_JOYSENS_AXIS_SINGLE_RIGHT_SHOULDER_TRIGGER,
+		KX_JOYSENS_AXIS_SINGLE_MAX
+	};
+
+	enum KX_JOYSENS_AXIS {
+		KX_JOYSENS_AXIS_NODEF = 0,
+		KX_JOYSENS_AXIS_LEFT_STICK,
+		KX_JOYSENS_AXIS_RIGHT_STICK,
+		KX_JOYSENS_AXIS_SHOULDER_TRIGGER,
+		KX_JOYSENS_AXIS_MAX
+	};
+
+	enum KX_JOYSENS_AXIS_STICK_DIRECTION {
+		KX_JOYSENS_AXIS_STICK_DIRECTION_NODEF = -1,
+		KX_JOYSENS_AXIS_STICK_DIRECTION_RIGHT,
+		KX_JOYSENS_AXIS_STICK_DIRECTION_UP,
+		KX_JOYSENS_AXIS_STICK_DIRECTION_LEFT,
+		KX_JOYSENS_AXIS_STICK_DIRECTION_DOWN,
+		KX_JOYSENS_AXIS_STICK_DIRECTION_MAX
+	};
+
+	enum KX_JOYSENS_AXIS_SHOULDER_TRIGGER {
+		KX_JOYSENS_AXIS_SHOULDER_TRIGGER_NODEF = -1,
+		KX_JOYSENS_AXIS_SHOULDER_TRIGGER_LEFT_PRESS,
+		KX_JOYSENS_AXIS_SHOULDER_TRIGGER_RIGHT_PRESS,
+		KX_JOYSENS_AXIS_SHOULDER_TRIGGER_LEFT_RELEASE,
+		KX_JOYSENS_AXIS_SHOULDER_TRIGGER_RIGHT_RELEASE,
+		KX_JOYSENS_AXIS_SHOULDER_TRIGGER_MAX
+	};
+
 	SCA_JoystickSensor(class SCA_JoystickManager* eventmgr,
 					   SCA_IObject* gameobj,
 					   short int joyindex,
 					   short int joymode,
 					   int axis, int axisf,int prec,
-					   int button,
-					   int hat, int hatf, bool allevents);
+					   int button, bool allevents);
 	virtual ~SCA_JoystickSensor();
 	virtual CValue* GetReplica();
 	
@@ -121,6 +169,7 @@ public:
 		return m_joyindex;
 	}
 
+	bool isValid(KX_JOYSENSORMODE);
 #ifdef WITH_PYTHON
 
 	/* --------------------------------------------------------------------- */
@@ -133,6 +182,7 @@ public:
 
 	static PyObject*	pyattr_get_axis_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_axis_single(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_check_hat(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_hat_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_hat_single(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_num_axis(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
@@ -149,15 +199,6 @@ public:
 			sensor->m_axis = 1;
 		else if (sensor->m_axis > JOYAXIS_MAX)
 			sensor->m_axis = JOYAXIS_MAX;
-		return 0;
-	}
-	static int CheckHat(void *self, const PyAttributeDef*)
-	{
-		SCA_JoystickSensor* sensor = reinterpret_cast<SCA_JoystickSensor*>(self);
-		if (sensor->m_hat < 1)
-			sensor->m_hat = 1;
-		else if (sensor->m_hat > JOYHAT_MAX)
-			sensor->m_hat = JOYHAT_MAX;
 		return 0;
 	}
 	

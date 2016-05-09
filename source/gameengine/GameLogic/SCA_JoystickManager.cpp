@@ -41,20 +41,22 @@
 SCA_JoystickManager::SCA_JoystickManager(class SCA_LogicManager* logicmgr)
 	: SCA_EventManager(logicmgr, JOY_EVENTMGR)
 {
-	int i;
-	for (i=0; i<JOYINDEX_MAX; i++) {
-		m_joystick[i] = SCA_Joystick::GetInstance( i );
+	SCA_Joystick::Init();
+
+	for (int i = 0; i < JOYINDEX_MAX; i++) {
+		m_joystick[i] = SCA_Joystick::GetInstance(i);
 	}
 }
 
 
 SCA_JoystickManager::~SCA_JoystickManager()
 {
-	int i;
-	for (i=0; i<JOYINDEX_MAX; i++) {
+	for (int i = 0; i < JOYINDEX_MAX; i++) {
 		if (m_joystick[i])
-			m_joystick[i]->ReleaseInstance();
+			m_joystick[i]->ReleaseInstance(i);
 	}
+
+	SCA_Joystick::Close();
 }
 
 

@@ -552,8 +552,6 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						int axis	=0;
 						int axisf	=0;
 						int button	=0;
-						int hat		=0;
-						int hatf	=0;
 						int prec	=0;
 
 						switch (bjoy->type) {
@@ -566,11 +564,6 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						case SENS_JOY_BUTTON:
 							button	= bjoy->button;
 							joysticktype  = SCA_JoystickSensor::KX_JOYSENSORMODE_BUTTON;
-							break;
-						case SENS_JOY_HAT:
-							hat		= bjoy->hat;
-							hatf	= bjoy->hatf;
-							joysticktype  = SCA_JoystickSensor::KX_JOYSENSORMODE_HAT;
 							break;
 						case SENS_JOY_AXIS_SINGLE:
 							axis	= bjoy->axis_single;
@@ -589,7 +582,6 @@ void BL_ConvertSensors(struct Object* blenderobject,
 							axis,axisf,
 							prec,
 							button,
-							hat,hatf,
 							(bjoy->flag & SENS_JOY_ANY_EVENT));
 					}
 					else

@@ -34,11 +34,12 @@ class SCA_PythonJoystick : public PyObjectPlus
 	Py_Header
 private:
 	class SCA_Joystick *m_joystick;
+	int m_joyindex;
 #ifdef WITH_PYTHON
 	PyObject* m_event_dict;
 #endif
 public:
-	SCA_PythonJoystick(class SCA_Joystick* joystick);
+	SCA_PythonJoystick(class SCA_Joystick* joystick, int m_joyindex);
 	virtual ~SCA_PythonJoystick();
 
 #ifdef WITH_PYTHON

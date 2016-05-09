@@ -72,11 +72,6 @@ class SCA_Joystick
 	 *support for JOYAXIS_MAX axes (in pairs)
 	 */
 	int m_axis_array[JOYAXIS_MAX];
-
-	/** 
-	 *support for JOYHAT_MAX hats (each is a direction)
-	 */
-	int m_hat_array[JOYHAT_MAX];
 	
 	/**
 	 * Precision or range of the axes
@@ -89,7 +84,6 @@ class SCA_Joystick
 	
 	int 			m_axismax;
 	int 			m_buttonmax;
-	int 			m_hatmax;
 	
 	/** is the joystick initialized ?*/
 	bool			m_isinit;
@@ -98,20 +92,14 @@ class SCA_Joystick
 	/** is triggered for each event type */
 	bool			m_istrig_axis;
 	bool			m_istrig_button;
-	bool			m_istrig_hat;
 
 #ifdef WITH_SDL
 	/**
 	 * event callbacks
 	 */
-	void OnAxisMotion(SDL_Event *sdl_event);
-	void OnHatMotion(SDL_Event *sdl_event);
-	void OnButtonUp(SDL_Event *sdl_event);
-	void OnButtonDown(SDL_Event *sdl_event);
+	void OnAxisEvent(SDL_Event *sdl_event);
+	void OnButtonEvent(SDL_Event *sdl_event);
 	void OnNothing(SDL_Event *sdl_event);
-#if 0 /* not used yet */
-	void OnBallMotion(SDL_Event *sdl_event) {}
-#endif
 		
 #endif /* WITH_SDL */
 	/**
@@ -139,16 +127,17 @@ class SCA_Joystick
 	 */
 	int pGetAxis(int axisnum, int udlr);
 
-	SCA_Joystick(short int index);
+	SCA_Joystick(short index);
 
 	~SCA_Joystick();
 	
 public:
 
-	static SCA_Joystick *GetInstance(short int joyindex);
+	static SCA_Joystick *GetInstance(short joyindex);
 	static void HandleEvents(void);
-	void ReleaseInstance();
-	
+	void ReleaseInstance(short joyindex);
+	static void Init();
+	static void Close();
 
 	/*
 	 */
@@ -159,7 +148,6 @@ public:
 	bool aAnyButtonPressIsPositive(void);
 	bool aButtonPressIsPositive(int button);
 	bool aButtonReleaseIsPositive(int button);
-	bool aHatIsPositive(int hatnum, int dir);
 
 	/**
 	 * precision is default '3200' which is overridden by input
@@ -169,10 +157,6 @@ public:
 
 	int GetAxisPosition(int index) {
 		return m_axis_array[index];
-	}
-
-	int GetHat(int index) {
-		return m_hat_array[index];
 	}
 
 	int GetThreshold(void) {
@@ -186,10 +170,6 @@ public:
 	bool IsTrigButton(void) {
 		return m_istrig_button;
 	}
-	
-	bool IsTrigHat(void) {
-		return m_istrig_hat;
-	}
 
 	/**
 	 * returns the # of...
@@ -197,7 +177,6 @@ public:
 
 	int GetNumberOfAxes(void);
 	int GetNumberOfButtons(void);
-	int GetNumberOfHats(void);
 	
 	/**
 	 * Test if the joystick is connected
