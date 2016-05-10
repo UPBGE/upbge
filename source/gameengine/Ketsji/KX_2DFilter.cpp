@@ -79,20 +79,33 @@ PyAttributeDef KX_2DFilter::Attributes[] = {
 };
 
 
-KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(name, bindcode)")
+KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(name, bindcode, index(optional))")
 {
 	int bindcode = 0;
+	int index = -99;
 	const char *uniform;
 
-	if (!PyArg_ParseTuple(args, "si:setTexture", &uniform, &bindcode)) {
+	if (!PyArg_ParseTuple(args, "si|i:setTexture", &uniform, &bindcode, &index)) {
 		return NULL;
 	}
-	for (int i = 0; i < 8; i++) {
-		if (m_textures[i] == 0) {
-			int loc = GetUniformLocation(uniform);
-			SetUniformiv(loc, RAS_Uniform::UNI_INT, &i, (sizeof(int)), 1);
-			m_textures[i] = bindcode;
-			break;
+	
+	if (index != -99) {
+		if (index < 0 || index > 7) {
+			PyErr_SetString(PyExc_TypeError, "setTexture(index, bindcode, index(optional)): KX_2DFilter. index out of range [0, 7]");
+			return NULL;
+		}
+		int loc = GetUniformLocation(uniform);
+		SetUniformiv(loc, RAS_Uniform::UNI_INT, &index, (sizeof(int)), 1);
+		m_textures[index] = bindcode;
+	}
+	else {
+		for (int i = 0; i < 8; i++) {
+			if (m_textures[i] == 0) {
+				int loc = GetUniformLocation(uniform);
+				SetUniformiv(loc, RAS_Uniform::UNI_INT, &i, (sizeof(int)), 1);
+				m_textures[i] = bindcode;
+				break;
+			}
 		}
 	}
 	Py_RETURN_NONE;
