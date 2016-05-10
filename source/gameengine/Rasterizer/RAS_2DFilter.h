@@ -24,37 +24,36 @@
 #define __RAS_2DFILTER_H__
 
 #include "RAS_2DFilterData.h"
+#include "RAS_Shader.h"
 
 class RAS_2DFilterManager;
 class CValue;
 
-class RAS_2DFilter
+class RAS_2DFilter : public virtual RAS_Shader
 {
-private:
-	/// Names of the predefined values available to glsl shaders
-	static const char *UNIFORM_NAME_RENDERED_TEXTURE;
-	static const char *UNIFORM_NAME_LUMINANCE_TEXTURE;
-	static const char *UNIFORM_NAME_DEPTH_TEXTURE;
-	static const char *UNIFORM_NAME_RENDERED_TEXTURE_WIDTH;
-	static const char *UNIFORM_NAME_RENDERED_TEXTURE_HEIGHT;
-	static const char *UNIFORM_NAME_TEXTURE_COORDINATE_OFFSETS;
+public:
+	enum PredefinedUniformType {
+		RENDERED_TEXTURE_UNIFORM = 0,
+		LUMINANCE_TEXTURE_UNIFORM,
+		DEPTH_TEXTURE_UNIFORM,
+		RENDERED_TEXTURE_WIDTH_UNIFORM,
+		RENDERED_TEXTURE_HEIGHT_UNIFORM,
+		TEXTURE_COORDINATE_OFFSETS_UNIFORM,
+		MAX_PREDEFINED_UNIFORM_TYPE
+	};
 
+	enum RenderedTextureType {
+		RENDERED_TEXTURE = 0,
+		LUMINANCE_TEXTURE,
+		DEPTH_TEXTURE,
+		MAX_RENDERED_TEXTURE_TYPE
+	};
+
+protected:
 	RAS_2DFilterManager *m_manager;
 
-	STR_String m_uid;
-	STR_String m_fragmentShaderSourceCode;
-
-	unsigned int m_shaderProgramUid;
-	unsigned int m_fragmentShaderUid;
-	int m_renderedTextureUniformLocation;
-	int m_luminanceTextureUniformLocation;
-	int m_depthTextureUniformLocation;
-	int m_renderedTextureWidthUniformLocation;
-	int m_renderedTextureHeightUniformLocation;
-	int m_textureOffsetsUniformLocation;
-	unsigned int m_renderedTextureUid;
-	unsigned int m_luminanceTextureUid;
-	unsigned int m_depthTextureUid;
+	int m_predefinedUniforms[MAX_PREDEFINED_UNIFORM_TYPE];
+	unsigned int m_renderedTextures[MAX_RENDERED_TEXTURE_TYPE];
 
 	std::vector<STR_String> m_properties;
 	std::vector<unsigned int> m_propertiesLoc;
@@ -63,26 +62,23 @@ private:
 	/** A set of vec2 coordinates that the shaders use to sample nearby pixels from incoming textures.
 	The computation should be left to the glsl shader, I keep it for backward compatibility. */
 	static const int TEXTURE_OFFSETS_SIZE = 18; //9 vec2 entries
-	float m_textureOffsets[TEXTURE_OFFSETS_SIZE]; 
-	int m_passIndex;
-	bool m_enabled;
-	bool m_error;
-	bool m_initialized;
+	float m_textureOffsets[TEXTURE_OFFSETS_SIZE];
 
+	unsigned int m_textures[9];
+
+	virtual bool LinkProgram();
 	void ParseShaderProgram();
-	void InitializeShader();
 	void InitializeTextures();
-	void BindShaderProgram();
-	void UnbindShaderProgram();
 	void BindUniforms();
+	void BindTextures();
+	void UnbindTextures();
 	void DrawOverlayPlane();
 	void ComputeTextureOffsets();
 	void ReleaseTextures();
-	void DeleteShader();
 
 public:
 	RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager);
-	~RAS_2DFilter();
+	virtual ~RAS_2DFilter();
 
 	/// Called by the filter manager when it has informations like the display size, a gl context...
 	void Initialize();
@@ -92,12 +88,6 @@ public:
 
 	/// Finalizes the execution stage of the filter.
 	void End();
-
-	/// The pass index determines the precedence of this filter over other filters in the same context.
-	int GetPassIndex();
-
-	/// Enables / disables this filter. A disabled filter has no effect on the rendering.
-	void SetEnabled(bool enabled);
 };
 
 #endif // __RAS_2DFILTER_H__

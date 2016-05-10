@@ -11,6 +11,12 @@ base class --- :class:`PyObjectPlus`
 
    TODO - Description
 
+   .. attribute:: enabled
+
+      Set shader enabled to use.
+
+      :type: boolean
+
    .. method:: setUniformfv(name, fList)
 
       Set a uniform with a list of float values

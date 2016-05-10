@@ -79,6 +79,7 @@ class RAS_IPolyMaterial;
 class RAS_IRasterizer;
 class RAS_IRenderTools;
 class RAS_2DFilterManager;
+class KX_2DFilterManager;
 class SCA_JoystickManager;
 class btCollisionShape;
 class KX_BlenderSceneConverter;
@@ -286,7 +287,7 @@ protected:
 
 	struct Scene* m_blenderScene;
 
-	RAS_2DFilterManager *m_filterManager;
+	KX_2DFilterManager *m_filterManager;
 
 	KX_ObstacleSimulation* m_obstacleSimulation;
 
@@ -634,6 +635,7 @@ public:
 	static PyObject*	pyattr_get_objects_inactive(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_lights(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_cameras(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_filter_manager(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_world(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_active_camera(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_active_camera(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);

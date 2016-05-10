@@ -58,6 +58,7 @@ set(SRC
 	RAS_MeshSlot.cpp
 	RAS_MeshUser.cpp
 	RAS_Polygon.cpp
+	RAS_Shader.cpp
 	RAS_TexVert.cpp
 	RAS_ICanvas.cpp
 	RAS_2DFilterData.cpp
@@ -85,6 +86,7 @@ set(SRC
 	RAS_MeshUser.h
 	RAS_Polygon.h
 	RAS_Rect.h
+	RAS_Shader.h
 	RAS_TexVert.h
 	RAS_OpenGLFilters/RAS_Blur2DFilter.h
 	RAS_OpenGLFilters/RAS_Dilation2DFilter.h
@@ -96,6 +98,7 @@ set(SRC
 	RAS_OpenGLFilters/RAS_Sepia2DFilter.h
 	RAS_OpenGLFilters/RAS_Sharpen2DFilter.h
 	RAS_OpenGLFilters/RAS_Sobel2DFilter.h
+	RAS_OpenGLFilters/RAS_VertexShader2DFilter.h
 )
 
 add_definitions(${GL_DEFINITIONS})

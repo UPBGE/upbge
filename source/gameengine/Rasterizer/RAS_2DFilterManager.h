@@ -60,19 +60,11 @@ public:
 	RAS_2DFilterManager(RAS_ICanvas *canvas);
 	virtual ~RAS_2DFilterManager();
 
-	void PrintShaderError(unsigned int shaderUid, const char *title, const char *shaderCode, unsigned int passindex);
-
 	/// Applies the filters to the scene.
 	void RenderFilters();
 
 	/// Add a filter to the stack of filters managed by this object.
 	RAS_2DFilter *AddFilter(RAS_2DFilterData& filterData);
-
-	/// Enables all the filters with pass index info.passIndex.
-	void EnableFilterPass(unsigned int passIndex);
-
-	/// Disables all the filters with pass index info.passIndex.
-	void DisableFilterPass(unsigned int passIndex);
 
 	/// Removes the filters at a given pass index.
 	void RemoveFilterPass(unsigned int passIndex);
@@ -82,6 +74,8 @@ public:
 
 	RAS_ICanvas *GetCanvas();
 
+	RAS_PassTo2DFilter GetFilters() { return m_filters; }
+
 private:
 	RAS_PassTo2DFilter m_filters;
 	RAS_ICanvas *m_canvas;
@@ -90,6 +84,8 @@ private:
 	 * filter can be created with such information.
 	 */
 	RAS_2DFilter *CreateFilter(RAS_2DFilterData& filterData);
+	/// Only return a new instanced filter.
+	virtual RAS_2DFilter *NewFilter(RAS_2DFilterData& filterData);
 };
 
 #endif // __RAS_2DFILTERMANAGER_H__
