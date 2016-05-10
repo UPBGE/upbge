@@ -24,4 +24,4 @@ base class --- :class:`RAS_2DFilter` :class:`BL_Shader`
       This bindCode can be generally found like that: KX_GameObject.meshes[meshIndex].materials[materialIndex].textures[textureIndex].bindCode.
       :type textureBindCode: integer
       :arg index: Specifies the slot to be used to bind the texture.
-      :type index: integer (beetween 0 and 7 included)
+      :type index: integer (beetween 1 and 8 included)
