@@ -92,16 +92,18 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(name, bindcode, index(op
 	int loc = GetUniformLocation(uniform);
 	if (loc != -1) {
 		if (index != -1) {
-			if (index < 1 || index > 8) {
-				PyErr_SetString(PyExc_TypeError, "setTexture(name, bindcode, index(optional)): KX_2DFilter. index out of range [1, 8]");
+			if (index < 1 || index > 7) {
+				PyErr_SetString(PyExc_TypeError, "setTexture(name, bindcode, index(optional)): KX_2DFilter. index out of range [1, 7]");
 				return NULL;
 			}
 			SetUniformiv(loc, RAS_Uniform::UNI_INT, &index, (sizeof(int)), 1);
 			m_textures[index] = bindcode;
 		}
 		else {
-			int i;
-			for (i = 1; i < 9; i++) {
+			/* We don't use m_textures[0] because if m_textures[0] was used and had the bindcode of an existing texture,
+			and if a texture "tex" was not initialized with setTexture, uniform location of "tex" would be by default 0 (GLSL default),
+			and the value of this uniform value would be the bindcode of the texture already bound at location 0 */
+			for (int i = 1; i < 8; i++) {
 				if (m_textures[i] == 0) {
 					SetUniformiv(loc, RAS_Uniform::UNI_INT, &i, (sizeof(int)), 1);
 					m_textures[i] = bindcode;

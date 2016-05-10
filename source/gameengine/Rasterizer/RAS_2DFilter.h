@@ -64,7 +64,7 @@ protected:
 	static const int TEXTURE_OFFSETS_SIZE = 18; //9 vec2 entries
 	float m_textureOffsets[TEXTURE_OFFSETS_SIZE];
 
-	unsigned int m_textures[9];
+	unsigned int m_textures[8];
 
 	virtual bool LinkProgram();
 	void ParseShaderProgram();

@@ -60,7 +60,7 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data, RAS_2DFilterManager *manager)
 		m_renderedTextures[i] = 0;
 	}
 
-	for (unsigned short i = 1; i < 9; ++i) {
+	for (unsigned short i = 1; i < 8; ++i) {
 		m_textures[i] = 0;
 	}
 
@@ -215,25 +215,25 @@ void RAS_2DFilter::BindTextures()
 
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
 		// Create and bind rendered texture.
-		glActiveTextureARB(GL_TEXTURE9);
+		glActiveTextureARB(GL_TEXTURE8);
 		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[RENDERED_TEXTURE]);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
 		// Create and bind depth texture.
-		glActiveTextureARB(GL_TEXTURE10);
+		glActiveTextureARB(GL_TEXTURE9);
 		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[DEPTH_TEXTURE]);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
 	}
 	if (m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM] != -1) {
 		// Create and bind luminance texture.
-		glActiveTextureARB(GL_TEXTURE11);
+		glActiveTextureARB(GL_TEXTURE10);
 		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[LUMINANCE_TEXTURE]);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
 	}
 
 	// Bind custom textures.
-	for (unsigned short i = 1; i < 9; ++i) {
+	for (unsigned short i = 0; i < 8; ++i) {
 		if (m_textures[i]) {
 			glActiveTextureARB(GL_TEXTURE0 + i);
 			glBindTexture(GL_TEXTURE_2D, m_textures[i]);
@@ -260,7 +260,7 @@ void RAS_2DFilter::UnbindTextures()
 	}
 
 	// Unbind custom textures.
-	for (unsigned short i = 1; i < 9; ++i) {
+	for (unsigned short i = 0; i < 8; ++i) {
 		if (m_textures[i]) {
 			glActiveTextureARB(GL_TEXTURE0 + i);
 			glBindTexture(GL_TEXTURE_2D, 0);
