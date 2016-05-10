@@ -91,7 +91,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(name, bindcode, index(op
 	
 	if (index != -99) {
 		if (index < 0 || index > 7) {
-			PyErr_SetString(PyExc_TypeError, "setTexture(index, bindcode, index(optional)): KX_2DFilter. index out of range [0, 7]");
+			PyErr_SetString(PyExc_TypeError, "setTexture(name, bindcode, index(optional)): KX_2DFilter. index out of range [0, 7]");
 			return NULL;
 		}
 		int loc = GetUniformLocation(uniform);
