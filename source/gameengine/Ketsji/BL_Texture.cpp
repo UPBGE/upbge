@@ -22,8 +22,6 @@
  *  \ingroup ketsji
  */
 
-#include "glew-mx.h"
-
 #include "BL_Texture.h"
 
 #include "DNA_texture_types.h"
@@ -32,19 +30,18 @@
 
 BL_Texture::BL_Texture(MTex *mtex, bool cubemap)
 	:CValue(),
-	m_bindCode(-1),
 	m_mtex(mtex),
 	m_gpuTex(NULL)
 {
 	Tex *tex = m_mtex->tex;
 	Image *ima = tex->ima;
 	ImageUser& iuser = tex->iuser;
-	const int gltextarget = cubemap ? GL_TEXTURE_CUBE_MAP_ARB : GL_TEXTURE_2D;
+	const int gltextarget = cubemap ? GetCubeMapTextureType() : GetTexture2DType();
 
 	m_gpuTex = ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : NULL;
 
 	// Initialize saved data.
-	m_mtexName = STR_String(m_mtex->tex->id.name + 2);
+	m_name = STR_String(m_mtex->tex->id.name + 2);
 	m_savedData.colintensfac = m_mtex->difffac;
 	m_savedData.colfac = m_mtex->colfac;
 	m_savedData.alphafac = m_mtex->alphafac;
@@ -152,7 +149,7 @@ double BL_Texture::GetNumber()
 
 STR_String &BL_Texture::GetName()
 {
-	return m_mtexName;
+	return GetName();
 }
 
 void BL_Texture::SetName(const char *name)
@@ -464,7 +461,7 @@ int BL_Texture::pyattr_set_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *att
 		PyErr_Format(PyExc_AttributeError, "texture.%s = int: BL_Texture, expected a unsigned int", attrdef->m_name);
 		return PY_SET_ATTR_FAIL;
 	}
-	if (!glIsTexture(val)) {
+	if (!CheckBindCode(val)) {
 		PyErr_Format(PyExc_AttributeError, "texture.%s = int: BL_Texture, no texture coresponding to given bind code (%i).", attrdef->m_name, val);
 		return PY_SET_ATTR_FAIL;
 	}

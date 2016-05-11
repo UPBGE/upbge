@@ -6,19 +6,18 @@
 #ifndef __BL_TEXTURE_H__
 #define __BL_TEXTURE_H__
 
-#include "SCA_IObject.h"
+#include "RAS_Texture.h"
+#include "EXP_Value.h"
 
 struct MTex;
 struct Image;
 struct GPUTexture;
 
-class BL_Texture : public CValue
+class BL_Texture : public CValue, RAS_Texture
 {
 	Py_Header
 private:
-	int m_bindCode;
 	MTex *m_mtex;
-	STR_String m_mtexName;
 	GPUTexture *m_gpuTex;
 
 	struct {
@@ -39,7 +38,7 @@ private:
 
 public:
 	BL_Texture(MTex *mtex, bool cubemap);
-	~BL_Texture();
+	virtual ~BL_Texture();
 
 	// stuff for cvalue related things
 	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
@@ -50,17 +49,17 @@ public:
 	virtual void SetName(const char *name); // Set the name of the value
 	virtual CValue *GetReplica();
 
-	bool Ok();
+	virtual bool Ok();
 
-	MTex *GetMTex();
-	Image *GetImage();
+	virtual MTex *GetMTex();
+	virtual Image *GetImage();
 
-	unsigned int GetTextureType() const;
+	virtual unsigned int GetTextureType() const;
 
 	enum {MaxUnits = 8};
 
-	void ActivateTexture(int unit);
-	void DisableTexture();
+	virtual void ActivateTexture(int unit);
+	virtual void DisableTexture();
 	unsigned int swapTexture(unsigned int bindcode);
 
 #ifdef WITH_PYTHON
@@ -93,10 +92,6 @@ public:
 	static int pyattr_set_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 #endif  // WITH_PYTHON
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_Texture")
-#endif
 };
 
 #endif // __BL_TEXTURE_H__

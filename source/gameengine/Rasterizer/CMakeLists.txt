@@ -59,6 +59,7 @@ set(SRC
 	RAS_MeshUser.cpp
 	RAS_Polygon.cpp
 	RAS_Shader.cpp
+	RAS_Texture.cpp
 	RAS_TexVert.cpp
 	RAS_ICanvas.cpp
 	RAS_2DFilterData.cpp
@@ -87,6 +88,7 @@ set(SRC
 	RAS_Polygon.h
 	RAS_Rect.h
 	RAS_Shader.h
+	RAS_Texture.h
 	RAS_TexVert.h
 	RAS_OpenGLFilters/RAS_Blur2DFilter.h
 	RAS_OpenGLFilters/RAS_Dilation2DFilter.h
