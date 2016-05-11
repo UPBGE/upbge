@@ -79,7 +79,7 @@ struct OglDebugShape
 	MT_Matrix3x3 m_rot;
 	MT_Vector3 m_param;
 	MT_Vector3 m_param2;
-	MT_Vector3 m_color;
+	MT_Vector4 m_color;
 };
 
 // All info used to compute the ray cast transform matrix.
@@ -245,7 +245,7 @@ public:
 
 	virtual void FlushDebugShapes(SCA_IScene *scene);
 
-	virtual void DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector3 &color)
+	virtual void DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
 	{
 		OglDebugShape line;
 		line.m_type = OglDebugShape::LINE;
@@ -256,7 +256,7 @@ public:
 	}
 
 	virtual void DrawDebugCircle(SCA_IScene *scene, const MT_Vector3 &center, const MT_Scalar radius,
-	                             const MT_Vector3 &color, const MT_Vector3 &normal, int nsector)
+	                             const MT_Vector4 &color, const MT_Vector3 &normal, int nsector)
 	{
 		OglDebugShape line;
 		line.m_type = OglDebugShape::CIRCLE;
@@ -268,7 +268,7 @@ public:
 		m_debugShapes[scene].push_back(line);
 	}
 	virtual void DrawDebugBox(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
-							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector3& color)
+							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color)
 	{
 		OglDebugShape box;
 		box.m_type = OglDebugShape::BOX;

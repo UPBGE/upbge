@@ -2866,7 +2866,7 @@ struct BlenderDebugDraw : public btIDebugDraw
 		if (m_debugMode > 0) {
 			MT_Vector3 kxfrom(from[0], from[1], from[2]);
 			MT_Vector3 kxto(to[0], to[1], to[2]);
-			MT_Vector3 kxcolor(color[0], color[1], color[2]);
+			MT_Vector4 kxcolor(color[0], color[1], color[2], 1.0f);
 
 			KX_RasterizerDrawDebugLine(kxfrom, kxto, kxcolor);
 		}

@@ -51,12 +51,12 @@ KX_Scene *KX_GetActiveScene()
 	return g_scene;
 }
 
-void KX_RasterizerDrawDebugLine(const MT_Vector3& from,const MT_Vector3& to,const MT_Vector3& color)
+void KX_RasterizerDrawDebugLine(const MT_Vector3& from,const MT_Vector3& to,const MT_Vector4& color)
 {
 	g_engine->GetRasterizer()->DrawDebugLine(g_scene, from, to, color);
 }
 
-void KX_RasterizerDrawDebugCircle(const MT_Vector3& center, const MT_Scalar radius, const MT_Vector3& color,
+void KX_RasterizerDrawDebugCircle(const MT_Vector3& center, const MT_Scalar radius, const MT_Vector4& color,
                                   const MT_Vector3& normal, int nsector)
 {
 	g_engine->GetRasterizer()->DrawDebugCircle(g_scene, center, radius, color, normal, nsector);

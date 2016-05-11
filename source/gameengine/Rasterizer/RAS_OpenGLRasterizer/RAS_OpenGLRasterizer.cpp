@@ -456,10 +456,11 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 		return;
 
 	// DrawDebugLines
-	GLboolean light, tex;
+	GLboolean light, tex, blend;
 
 	light = glIsEnabled(GL_LIGHTING);
 	tex = glIsEnabled(GL_TEXTURE_2D);
+	blend = glIsEnabled(GL_BLEND);
 
 	if (light) {
 		Disable(RAS_LIGHTING);
@@ -467,13 +468,16 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	if (tex) {
 		Disable(RAS_TEXTURE_2D);
 	}
+	if (!blend) {
+		Enable(RAS_BLEND);
+	}
 
 	// draw lines
 	glBegin(GL_LINES);
 	for (unsigned int i = 0; i < debugShapes.size(); i++) {
 		if (debugShapes[i].m_type != OglDebugShape::LINE)
 			continue;
-		glColor4f(debugShapes[i].m_color[0], debugShapes[i].m_color[1], debugShapes[i].m_color[2], 1.0f);
+		glColor4f(debugShapes[i].m_color[0], debugShapes[i].m_color[1], debugShapes[i].m_color[2], debugShapes[i].m_color[3]);
 		const MT_Scalar *fromPtr = &debugShapes[i].m_pos.x();
 		const MT_Scalar *toPtr = &debugShapes[i].m_param.x();
 		glVertex3fv(fromPtr);
@@ -487,7 +491,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 		if (debugShapes[i].m_type != OglDebugShape::BOX) {
 			continue;
 		}
-		glColor4f(debugShapes[i].m_color[0], debugShapes[i].m_color[1], debugShapes[i].m_color[2], 1.0f);
+		glColor4f(debugShapes[i].m_color[0], debugShapes[i].m_color[1], debugShapes[i].m_color[2], debugShapes[i].m_color[3]);
 
 		const MT_Matrix3x3& rot = debugShapes[i].m_rot;
 		const MT_Vector3& pos = debugShapes[i].m_pos;
@@ -535,7 +539,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 		if (debugShapes[i].m_type != OglDebugShape::CIRCLE)
 			continue;
 		glBegin(GL_LINE_LOOP);
-		glColor4f(debugShapes[i].m_color[0], debugShapes[i].m_color[1], debugShapes[i].m_color[2], 1.0f);
+		glColor4f(debugShapes[i].m_color[0], debugShapes[i].m_color[1], debugShapes[i].m_color[2], debugShapes[i].m_color[3]);
 
 		static const MT_Vector3 worldUp(0.0f, 0.0f, 1.0f);
 		MT_Vector3 norm = debugShapes[i].m_param;
@@ -569,6 +573,9 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	}
 	if (tex) {
 		Enable(RAS_TEXTURE_2D);
+	}
+	if (!blend) {
+		Disable(RAS_BLEND);
 	}
 
 	debugShapes.clear();

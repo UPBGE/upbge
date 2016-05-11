@@ -489,7 +489,7 @@ void KX_NavMeshObject::DrawNavMesh(NavMeshRenderMode renderMode)
 {
 	if (!m_navMesh)
 		return;
-	MT_Vector3 color(0.f, 0.f, 0.f);
+	MT_Vector4 color(0.0f, 0.0f, 0.0f, 1.0f);
 	
 	switch (renderMode)
 	{
@@ -624,7 +624,7 @@ float KX_NavMeshObject::Raycast(const MT_Vector3& from, const MT_Vector3& to)
 	return t;
 }
 
-void KX_NavMeshObject::DrawPath(const float *path, int pathLen, const MT_Vector3& color)
+void KX_NavMeshObject::DrawPath(const float *path, int pathLen, const MT_Vector4& color)
 {
 	MT_Vector3 a,b;
 	for (int i=0; i<pathLen-1; i++)
