@@ -116,7 +116,9 @@ void SCA_Joystick::Init()
 
 void SCA_Joystick::Close()
 {
+#ifdef WITH_SDL
 	SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
+#endif
 }
 
 SCA_Joystick *SCA_Joystick::GetInstance(short joyindex)
