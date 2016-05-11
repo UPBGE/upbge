@@ -892,7 +892,7 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 		{SENS_JOY_LEFT_SHOULDER_TRIGGER_PRESS, "LEFT_SHOULDER_TRIGGER_PRESS", 0, "Left Shoulder Trigger Press", ""},
 		{SENS_JOY_RIGHT_SHOULDER_TRIGGER_PRESS, "RIGHT_SHOULDER_TRIGGER_PRESS", 0, "Right Shoulder Trigger Press", ""},
 		{SENS_JOY_LEFT_SHOULDER_TRIGGER_RELEASE, "LEFT_SHOULDER_TRIGGER_RELEASE", 0, "Left Shoulder Trigger Release", ""},
-		{SENS_JOY_RIGHT_SHOULDER_TRIGGER_RELEASE, "RIGHT_SHOULDER_TRIGGER_RELEASE", 0, "right Shoulder Trigger Release", ""},
+		{SENS_JOY_RIGHT_SHOULDER_TRIGGER_RELEASE, "RIGHT_SHOULDER_TRIGGER_RELEASE", 0, "Right Shoulder Trigger Release", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -956,10 +956,10 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	/* Axis */
-	prop = RNA_def_property(srna, "axis_number", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "axis");
-	RNA_def_property_ui_text(prop, "Axis Number", "Which axis pair to use, 1 is usually the main direction input");
-	RNA_def_property_range(prop, 1, 8);
+	prop = RNA_def_property(srna, "axis_number", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "axis");
+	RNA_def_property_enum_items(prop, axis_items);
+	RNA_def_property_ui_text(prop, "Stick/Trigger", "Which Stick or trigger to use");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "axis_threshold", PROP_INT, PROP_NONE);
@@ -974,11 +974,17 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Axis Direction", "The direction of the axis");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
+	prop = RNA_def_property(srna, "axis_direction_trigger", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "axisf");
+	RNA_def_property_enum_items(prop, axis_direction_items2);
+	RNA_def_property_ui_text(prop, "Trigger Direction", "The direction of the trigger");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
 	/* Single Axis */
 	prop = RNA_def_property(srna, "single_axis_number", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "axis_single");
 	RNA_def_property_enum_items(prop, axis_single_items);
-	RNA_def_property_ui_text(prop, "Axis", "Single axis (vertical/horizontal/other) to detect");
+	RNA_def_property_ui_text(prop, "Stick/Trigger Axis", "Which stick or trigger single axis (vertical/horizontal/other) to detect");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
 

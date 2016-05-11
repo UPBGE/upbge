@@ -189,8 +189,6 @@ typedef struct bJoystickSensor {
 	short axis_single;
 	int axisf;
 	int button;
-	int hat; //unused
-	int hatf; //unused
 	int precision;
 } bJoystickSensor;
 
