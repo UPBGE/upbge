@@ -128,7 +128,6 @@ private:
 	BL_Shader *m_shader;
 	BL_BlenderShader *m_blenderShader;
 	KX_Scene *m_scene;
-	BL_Texture *m_textures[BL_Texture::MaxUnits]; // texture array
 	bool m_userDefBlend;
 	unsigned int m_blendFunc[2];
 	bool m_modified;

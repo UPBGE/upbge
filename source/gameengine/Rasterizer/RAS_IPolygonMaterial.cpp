@@ -44,6 +44,19 @@ RAS_IPolyMaterial::RAS_IPolyMaterial(
 	m_flag(0)
 {
 	m_drawingmode = ConvertFaceMode(game);
+
+	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
+		m_textures[i] = NULL;
+	}
+}
+
+RAS_IPolyMaterial::~RAS_IPolyMaterial()
+{
+	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
+		if (m_textures[i]) {
+			delete m_textures[i];
+		}
+	}
 }
 
 int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game) const

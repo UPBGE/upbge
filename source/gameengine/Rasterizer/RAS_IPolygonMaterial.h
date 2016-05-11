@@ -32,6 +32,8 @@
 #ifndef __RAS_IPOLYGONMATERIAL_H__
 #define __RAS_IPOLYGONMATERIAL_H__
 
+#include "RAS_Texture.h"
+
 #include "STR_String.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
@@ -79,6 +81,8 @@ protected:
 	int m_rasMode;
 	unsigned int m_flag;
 
+	RAS_Texture *m_textures[RAS_Texture::MaxUnits];
+
 public:
 
 	// care! these are taken from blender polygonflags, see file DNA_mesh_types.h for #define TF_BILLBOARD etc.
@@ -92,9 +96,7 @@ public:
 	RAS_IPolyMaterial(const STR_String& name,
 	                  GameSettings *game);
 
-	virtual ~RAS_IPolyMaterial()
-	{
-	}
+	virtual ~RAS_IPolyMaterial();
 
 	virtual void Activate(RAS_IRasterizer *rasty) = 0;
 	virtual void Desactivate(RAS_IRasterizer *rasty) = 0;

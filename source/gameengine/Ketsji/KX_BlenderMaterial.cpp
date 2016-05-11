@@ -101,9 +101,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_flag |= ((m_material->shade_flag & MA_OBCOLOR) != 0) ? RAS_OBJECTCOLOR : 0;
 
 	for (unsigned short i = 0; i < BL_Texture::MaxUnits; ++i) {
-		m_textures[i] = NULL;
-	}
-	for (unsigned short i = 0; i < BL_Texture::MaxUnits; ++i) {
 		m_uvsName[i] = uvsname[i];
 	}
 }
@@ -125,12 +122,6 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 	m_material->amb = m_savedData.ambient;
 	m_material->spectra = m_savedData.specularalpha;
 
-	for (unsigned short i = 0; i < BL_Texture::MaxUnits; ++i) {
-		if (m_textures[i]) {
-			delete m_textures[i];
-		}
-	}
-
 	// cleanup work
 	if (m_constructed) {
 		// clean only if material was actually used
@@ -146,7 +137,7 @@ MTexPoly *KX_BlenderMaterial::GetMTexPoly() const
 
 BL_Texture *KX_BlenderMaterial::GetTex(unsigned int idx)
 {
-	return (idx < BL_Texture::MaxUnits) ? m_textures[idx] : NULL;
+	return (idx < BL_Texture::MaxUnits) ? ((BL_Texture *)m_textures[idx]) : NULL;
 }
 
 void KX_BlenderMaterial::GetRGBAColor(unsigned char *rgba) const
@@ -432,7 +423,7 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 	ras->SetTexCoordNum(BL_Texture::MaxUnits);
 
 	for (int i = 0; i < BL_Texture::MaxUnits; i++) {
-		BL_Texture *texture = m_textures[i];
+		RAS_Texture *texture = m_textures[i];
 		/* Here textures can return false to Ok() because we're looking only at
 		 * texture attributs and not texture bind id like for the binding and
 		 * unbinding of textures. A NULL BL_Texture means that the cooresponding

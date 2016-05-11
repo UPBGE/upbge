@@ -32,7 +32,7 @@ struct MTex;
 struct Image;
 struct GPUTexture;
 
-class BL_Texture : public CValue, RAS_Texture
+class BL_Texture : public CValue, public RAS_Texture
 {
 	Py_Header
 private:
