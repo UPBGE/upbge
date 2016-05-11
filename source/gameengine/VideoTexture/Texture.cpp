@@ -296,7 +296,7 @@ PyObject *Texture_close(Texture * self)
 		self->m_orgSaved = false;
 		// restore original texture code
 		if (self->m_useMatTexture)
-			self->m_matTexture->swapTexture(self->m_orgTex);
+			self->m_matTexture->SetBindCode(self->m_orgTex);
 		else
 		{
 			self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = self->m_orgTex;
@@ -347,8 +347,10 @@ static PyObject *Texture_refresh(Texture *self, PyObject *args)
 				{
 					self->m_orgSaved = true;
 					// save original image code
-					if (self->m_useMatTexture)
-						self->m_orgTex = self->m_matTexture->swapTexture(self->m_actTex);
+					if (self->m_useMatTexture) {
+						self->m_orgTex = self->m_matTexture->GetBindCode();
+						self->m_matTexture->SetBindCode(self->m_actTex);
+					}
 					else
 					{
 						// Swapping will work only if the GPU has already loaded the image.

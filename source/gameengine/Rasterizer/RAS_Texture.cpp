@@ -57,11 +57,12 @@ bool RAS_Texture::CheckBindCode(int bindcode)
 	return glIsTexture(bindcode);
 }
 
-unsigned int RAS_Texture::swapTexture(unsigned int bindcode)
+int RAS_Texture::GetBindCode() const
 {
-	// swap texture codes
-	unsigned int tmp = m_bindCode;
+	return m_bindCode;
+}
+
+void RAS_Texture::SetBindCode(int bindcode)
+{
 	m_bindCode = bindcode;
-	// return original texture code
-	return tmp;
 }

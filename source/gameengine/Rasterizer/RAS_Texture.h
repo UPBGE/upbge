@@ -60,7 +60,9 @@ public:
 
 	virtual void ActivateTexture(int unit) = 0;
 	virtual void DisableTexture() = 0;
-	unsigned int swapTexture(unsigned int bindcode);
+
+	int GetBindCode() const;
+	void SetBindCode(int bindcode);
 };
 
 #endif // __RAS_TEXTURE_H__
