@@ -254,7 +254,7 @@ bool KX_SteeringActuator::Update(double curtime, bool frame)
 						if (m_enableVisualization)
 						{
 							//debug draw
-							static const MT_Vector3 PATH_COLOR(1.0f,0.0f,0.0f);
+							static const MT_Vector4 PATH_COLOR(1.0f, 0.0f, 0.0f, 1.0f);
 							m_navmesh->DrawPath(m_path, m_pathLen, PATH_COLOR);
 						}
 					}
@@ -276,11 +276,11 @@ bool KX_SteeringActuator::Update(double curtime, bool frame)
 			if (m_simulation && m_obstacle /*&& !newvel.fuzzyZero()*/)
 			{
 				if (m_enableVisualization)
-					KX_RasterizerDrawDebugLine(mypos, mypos + newvel, MT_Vector3(1.0f, 0.0f, 0.0f));
+					KX_RasterizerDrawDebugLine(mypos, mypos + newvel, MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
 				m_simulation->AdjustObstacleVelocity(m_obstacle, m_mode!=KX_STEERING_PATHFOLLOWING ? m_navmesh : NULL,
 								newvel, m_acceleration*(float)delta, m_turnspeed/(180.0f*(float)(M_PI*delta)));
 				if (m_enableVisualization)
-					KX_RasterizerDrawDebugLine(mypos, mypos + newvel, MT_Vector3(0.0f, 1.0f, 0.0f));
+					KX_RasterizerDrawDebugLine(mypos, mypos + newvel, MT_Vector4(0.0f, 1.0f, 0.0f, 1.0f));
 			}
 
 			HandleActorFace(newvel);

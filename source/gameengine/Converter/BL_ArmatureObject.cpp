@@ -587,7 +587,7 @@ void BL_ArmatureObject::DrawDebugArmature()
 	for (bPoseChannel *pchan = (bPoseChannel *)m_pose->chanbase.first; pchan; pchan = pchan->next) {
 		MT_Vector3 head = rot * (MT_Vector3(pchan->pose_head) * scale) + pos;
 		MT_Vector3 tail = rot * (MT_Vector3(pchan->pose_tail) * scale) + pos;
-		KX_RasterizerDrawDebugLine(tail, head, MT_Vector3(1.0f, 0.0f, 0.0f));
+		KX_RasterizerDrawDebugLine(tail, head, MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
 	}
 	m_drawDebug = false;
 }

@@ -61,7 +61,7 @@ public:
 
 	enum NavMeshRenderMode {RM_WALLS, RM_POLYS, RM_TRIS, RM_MAX};
 	void DrawNavMesh(NavMeshRenderMode mode);
-	void DrawPath(const float *path, int pathLen, const MT_Vector3& color);
+	void DrawPath(const float *path, int pathLen, const MT_Vector4& color);
 
 	MT_Vector3 TransformToLocalCoords(const MT_Vector3& wpos);
 	MT_Vector3 TransformToWorldCoords(const MT_Vector3& lpos);

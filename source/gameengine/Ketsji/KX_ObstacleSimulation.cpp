@@ -296,7 +296,7 @@ void KX_ObstacleSimulation::DrawObstacles()
 {
 	if (!m_enableVisualization)
 		return;
-	static const MT_Vector3 bluecolor(0,0,1);
+	static const MT_Vector4 bluecolor(0.0f, 0.0f, 1.0f, 1.0f);
 	static const MT_Vector3 normal(0.0f, 0.0f, 1.0f);
 	static const int SECTORS_NUM = 32;
 	for (size_t i=0; i<m_obstacles.size(); i++)

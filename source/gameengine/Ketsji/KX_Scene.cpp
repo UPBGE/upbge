@@ -1542,7 +1542,7 @@ void KX_Scene::DrawDebug(RAS_IRasterizer *rasty)
 				const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
 				const SG_BBox& box = gameobj->GetSGNode()->BBox();
 				rasty->DrawDebugBox(this, gameobj->NodeGetWorldPosition(), gameobj->NodeGetWorldOrientation(),
-									box.GetMin() * scale, box.GetMax() * scale, MT_Vector3(1, 0, 1));
+									box.GetMin() * scale, box.GetMax() * scale, MT_Vector4(1, 0, 1, 1));
 			}
 		}
 	}

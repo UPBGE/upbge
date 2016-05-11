@@ -313,7 +313,7 @@ Functions
    :arg toVec: the end of the line
    :type toVec: list [x, y, z]
    :arg color: the color of the line
-   :type color: list [r, g, b]
+   :type color: list [r, g, b, a]
 
 
 .. function:: enableMotionBlur(factor)
