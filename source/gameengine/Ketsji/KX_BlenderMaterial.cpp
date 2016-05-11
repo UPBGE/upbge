@@ -135,11 +135,6 @@ MTexPoly *KX_BlenderMaterial::GetMTexPoly() const
 	return m_mtexPoly;
 }
 
-BL_Texture *KX_BlenderMaterial::GetTex(unsigned int idx)
-{
-	return (idx < BL_Texture::MaxUnits) ? ((BL_Texture *)m_textures[idx]) : NULL;
-}
-
 void KX_BlenderMaterial::GetRGBAColor(unsigned char *rgba) const
 {
 	if (m_material) {
@@ -704,7 +699,7 @@ static int kx_blender_material_get_textures_size_cb(void *self_v)
 
 static PyObject *kx_blender_material_get_textures_item_cb(void *self_v, int index)
 {
-	BL_Texture *tex = ((KX_BlenderMaterial *)self_v)->GetTex(index);
+	BL_Texture *tex = (BL_Texture *)((KX_BlenderMaterial *)self_v)->GetTexture(index);
 	PyObject *item = NULL;
 	if (tex) {
 		item = tex->GetProxy();
@@ -718,7 +713,7 @@ static PyObject *kx_blender_material_get_textures_item_cb(void *self_v, int inde
 
 static const char *kx_blender_material_get_textures_item_name_cb(void *self_v, int index)
 {
-	BL_Texture *tex = ((KX_BlenderMaterial *)self_v)->GetTex(index);
+	BL_Texture *tex = (BL_Texture *)((KX_BlenderMaterial *)self_v)->GetTexture(index);
 	return (tex ? tex->GetName().ReadPtr() : "");
 }
 
@@ -1034,7 +1029,7 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getTextureBindcode, "getTextureBindcode(t
 		PyErr_SetString(PyExc_ValueError, "material.getTextureBindcode(texslot): KX_BlenderMaterial, expected an int.");
 		return NULL;
 	}
-	Image *ima = GetTex(texslot)->GetImage();
+	Image *ima = GetTexture(texslot)->GetImage();
 	if (ima) {
 		unsigned int *bindcode = ima->bindcode;
 		return PyLong_FromLong(*bindcode);

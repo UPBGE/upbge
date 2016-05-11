@@ -35,8 +35,6 @@
 #include <structmember.h>
 
 #include "DNA_image_types.h"
-#include "BL_Texture.h"
-#include "KX_BlenderMaterial.h"
 
 #include "ImageBase.h"
 #include "BlendType.h"
@@ -44,6 +42,8 @@
 
 
 struct ImBuf;
+class RAS_Texture;
+class RAS_IPolyMaterial;
 
 // type Texture declaration
 struct Texture
@@ -65,7 +65,7 @@ struct Texture
 	// texture image for game materials
 	Image * m_imgTexture;
 	// texture for blender materials
-	BL_Texture * m_matTexture;
+	RAS_Texture * m_matTexture;
 
 	// use mipmapping
 	bool m_mipmap;

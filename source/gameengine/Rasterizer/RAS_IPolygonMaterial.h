@@ -114,6 +114,7 @@ public:
 	bool UsesObjectColor() const;
 	bool CastsShadows() const;
 	bool OnlyShadow() const;
+	RAS_Texture *GetTexture(unsigned int index);
 
 	virtual const STR_String& GetTextureName() const = 0;
 	virtual Material *GetBlenderMaterial() const = 0;

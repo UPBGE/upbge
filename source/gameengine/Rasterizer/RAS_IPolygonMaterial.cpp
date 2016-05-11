@@ -135,3 +135,8 @@ bool RAS_IPolyMaterial::UsesObjectColor() const
 {
 	return (!(m_flag & RAS_BLENDERGLSL)) && (m_flag & RAS_OBJECTCOLOR);
 }
+
+RAS_Texture *RAS_IPolyMaterial::GetTexture(unsigned int index)
+{
+	return m_textures[index];
+}

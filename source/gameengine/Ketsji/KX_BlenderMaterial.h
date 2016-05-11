@@ -63,8 +63,6 @@ public:
 	virtual Scene *GetBlenderScene() const;
 	virtual void ReleaseMaterial();
 
-	BL_Texture *GetTex(unsigned int idx);
-
 	unsigned int *GetBlendFunc()
 	{
 		return m_blendFunc;

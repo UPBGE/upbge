@@ -45,8 +45,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "KX_BlenderMaterial.h"
-#include "BL_Texture.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_Texture.h"
 
 #include "KX_KetsjiEngine.h"
 #include "KX_Globals.h"
@@ -243,12 +243,12 @@ static int Texture_init(Texture *self, PyObject *args, PyObject *kwds)
 				// is it blender material or polygon material
 				if (mat->GetFlag() & RAS_BLENDERGLSL) 
 				{
-					self->m_imgTexture = static_cast<KX_BlenderMaterial*>(mat)->GetTex(texID)->GetImage();
+					self->m_imgTexture = mat->GetTexture(texID)->GetImage();
 					self->m_useMatTexture = false;
 				} else
 				{
 					// get blender material texture
-					self->m_matTexture = static_cast<KX_BlenderMaterial*>(mat)->GetTex(texID);
+					self->m_matTexture = mat->GetTexture(texID);
 					self->m_useMatTexture = true;
 				}
 			}
