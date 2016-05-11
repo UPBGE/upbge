@@ -432,7 +432,7 @@ typedef struct MTF_localLayer {
 	const char *name;
 } MTF_localLayer;
 
-static void GetUVs(MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Vector2 uvs[4][BL_Texture::MaxUnits])
+static void GetUVs(MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Vector2 uvs[4][RAS_Texture::MaxUnits])
 {
 	if (tface) {
 		uvs[0][0].setValue(tface->uv[0]);
@@ -472,10 +472,10 @@ static KX_BlenderMaterial *ConvertMaterial(
 	int lightlayer,
 	KX_Scene *scene)
 {
-	STR_String uvsname[BL_Texture::MaxUnits];
+	STR_String uvsname[RAS_Texture::MaxUnits];
 
 	// foreach MTex
-	for (int i = 0; i < BL_Texture::MaxUnits; i++) {
+	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
 		// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
 		uvsname[i] = STR_String(layers[i].name);
 	}

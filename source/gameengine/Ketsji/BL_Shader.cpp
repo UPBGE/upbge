@@ -24,7 +24,7 @@
 
 
 #include "BL_Shader.h"
-#include "BL_Texture.h" // for BL_Texture::MaxUnits
+#include "RAS_Texture.h" // for RAS_Texture::MaxUnits
 
 #include "KX_PyMath.h"
 
@@ -174,7 +174,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
 		int loc = GetUniformLocation(uniform);
 
 		if (loc != -1) {
-			if (index >= BL_Texture::MaxUnits || index < 0) {
+			if (index >= RAS_Texture::MaxUnits || index < 0) {
 				spit("Invalid texture sample index: " << index);
 			}
 #ifdef SORT_UNIFORMS

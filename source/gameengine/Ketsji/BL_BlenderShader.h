@@ -61,10 +61,10 @@ private:
 	 * If the attribut doesn't use UV info it will return -1. */
 	int m_uvLayers[BL_MAX_ATTRIB];
 
-	void ParseAttribs(STR_String uvsname[BL_Texture::MaxUnits]);
+	void ParseAttribs(STR_String uvsname[RAS_Texture::MaxUnits]);
 
 public:
-	BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer, STR_String uvsname[BL_Texture::MaxUnits]);
+	BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer, STR_String uvsname[RAS_Texture::MaxUnits]);
 	virtual ~BL_BlenderShader();
 
 	bool Ok() const

@@ -50,7 +50,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		GameSettings *game,
 		MTexPoly *mtexpoly,
 		int lightlayer,
-		STR_String uvsname[BL_Texture::MaxUnits])
+		STR_String uvsname[RAS_Texture::MaxUnits])
 	:RAS_IPolyMaterial(mat->id.name, game),
 	m_material(mat),
 	m_mtexPoly(mtexpoly),
@@ -100,7 +100,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_flag |= ((mat->mode & MA_ONLYCAST) != 0) ? RAS_ONLYSHADOW : 0;
 	m_flag |= ((m_material->shade_flag & MA_OBCOLOR) != 0) ? RAS_OBJECTCOLOR : 0;
 
-	for (unsigned short i = 0; i < BL_Texture::MaxUnits; ++i) {
+	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
 		m_uvsName[i] = uvsname[i];
 	}
 }
@@ -178,7 +178,7 @@ void KX_BlenderMaterial::InitTextures()
 {
 	// for each unique material...
 	int i;
-	for (i = 0; i < BL_Texture::MaxUnits; i++) {
+	for (i = 0; i < RAS_Texture::MaxUnits; i++) {
 		MTex *mtex = m_material->mtex[i];
 		if (mtex) {
 			bool cubemap = (mtex->tex->type == TEX_ENVMAP && mtex->tex->env->stype == ENV_LOAD);
@@ -238,7 +238,7 @@ void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 	m_shader->ApplyShader();
 
 	// for each enabled unit
-	for (i = 0; i < BL_Texture::MaxUnits; i++) {
+	for (i = 0; i < RAS_Texture::MaxUnits; i++) {
 		if (!m_textures[i] || !m_textures[i]->Ok()) {
 			continue;
 		}
@@ -313,7 +313,7 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 {
 	if (m_shader && m_shader->Ok()) {
 		m_shader->SetProg(false);
-		for (unsigned short i = 0; i < BL_Texture::MaxUnits; i++) {
+		for (unsigned short i = 0; i < RAS_Texture::MaxUnits; i++) {
 			if (m_textures[i] && m_textures[i]->Ok()) {
 				m_textures[i]->DisableTexture();
 			}
@@ -415,9 +415,9 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 		ras->SetAttribNum(2);
 	}
 
-	ras->SetTexCoordNum(BL_Texture::MaxUnits);
+	ras->SetTexCoordNum(RAS_Texture::MaxUnits);
 
-	for (int i = 0; i < BL_Texture::MaxUnits; i++) {
+	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
 		RAS_Texture *texture = m_textures[i];
 		/* Here textures can return false to Ok() because we're looking only at
 		 * texture attributs and not texture bind id like for the binding and
@@ -694,7 +694,7 @@ PyObject *KX_BlenderMaterial::pyattr_get_shader(void *self_v, const KX_PYATTRIBU
 
 static int kx_blender_material_get_textures_size_cb(void *self_v)
 {
-	return BL_Texture::MaxUnits;
+	return RAS_Texture::MaxUnits;
 }
 
 static PyObject *kx_blender_material_get_textures_item_cb(void *self_v, int index)
