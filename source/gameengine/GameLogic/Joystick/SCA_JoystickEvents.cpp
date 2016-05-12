@@ -95,7 +95,7 @@ void SCA_Joystick::HandleEvents(void)
 				SCA_Joystick::m_instance[sdl_event.caxis.which]->OnAxisEvent(&sdl_event);
 				break;
 			default:
-				printf("SCA_Joystick::HandleEvents, Unknown SDL event (%d), this should not happen\n", sdl_event.type);
+				/* ignore old SDL_JOYSTICKS events */
 				break;
 		}
 	}

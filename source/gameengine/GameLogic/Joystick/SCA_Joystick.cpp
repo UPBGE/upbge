@@ -249,6 +249,7 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 		{
 
 			JOYSTICK_ECHO("Game Controller index " << m_joyindex << ": Could not be initialized");
+			JOYSTICK_ECHO("Please, generate Xbox360 compatible mapping using antimicro application");
 			/* Need this so python args can return empty lists */
 			joy_error = true;
 		}
