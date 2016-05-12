@@ -162,7 +162,7 @@ void RAS_2DFilter::InitializeTextures(RAS_ICanvas *canvas)
 	const unsigned int textureheight = canvas->GetHeight() + 1;
 
 	for (unsigned int i = 0; i < MAX_RENDERED_TEXTURE_TYPE; ++i) {
-		m_renderedTextures[i];
+		m_renderedTextures[i] = 0;
 	}
 
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1 && m_renderedTextures[RENDERED_TEXTURE] == 0) {
