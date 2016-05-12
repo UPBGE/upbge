@@ -349,25 +349,7 @@ void RAS_2DFilter::DrawOverlayPlane(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 	rasty->PushMatrix();
 	rasty->LoadIdentity();
 
-	glBegin(GL_QUADS);
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-
-	glTexCoord2f(1.0f, 1.0f);
-	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, 1.0f, 1.0f);
-	glVertex2f(1.0f, 1.0f);
-
-	glTexCoord2f(0.0f, 1.0f);
-	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, -1.0f, 1.0f);
-	glVertex2f(-1.0f, 1.0f);
-
-	glTexCoord2f(0.0f, 0.0f);
-	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, -1.0f, -1.0f);
-	glVertex2f(-1.0f, -1.0f);
-
-	glTexCoord2f(1.0f, 0.0f);
-	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, 1.0f, -1.0f);
-	glVertex2f(1.0f, -1.0f);
-	glEnd();
+	rasty->DrawOverlayPlane();
 
 	rasty->PopMatrix();
 	rasty->SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);

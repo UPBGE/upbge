@@ -559,13 +559,11 @@ void RAS_Shader::Update(RAS_IRasterizer *rasty, const MT_Matrix4x4 model)
 				}
 				case VIEWMATRIX_INVERSE:
 				{
-					MT_Matrix4x4 viewinv = view;
 					SetUniform(uni->mLoc, view.inverse());
 					break;
 				}
 				case VIEWMATRIX_INVERSETRANSPOSE:
 				{
-					MT_Matrix4x4 viewinv = view;
 					SetUniform(uni->mLoc, view.inverse(), true);
 					break;
 				}

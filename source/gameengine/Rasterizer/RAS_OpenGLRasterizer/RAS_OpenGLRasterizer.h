@@ -168,7 +168,7 @@ public:
 
 	virtual bool Init();
 	virtual void Exit();
-	virtual void RenderBackground();
+	virtual void DrawOverlayPlane();
 	virtual bool BeginFrame(double time);
 	virtual void Clear(int clearbit);
 	virtual void SetClearColor(float r, float g, float b, float a=1.0f);

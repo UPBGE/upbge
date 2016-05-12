@@ -268,9 +268,9 @@ public:
 	virtual void Exit() = 0;
 
 	/**
-	 * Draw world background according to world material
+	 * Draw screen overlay plane with basic uv coordinates.
 	 */
-	virtual void RenderBackground() = 0;
+	virtual void DrawOverlayPlane() = 0;
 
 	/**
 	 * BeginFrame is called at the start of each frame.
