@@ -151,10 +151,6 @@ protected:
 	RAS_IStorage *m_storage;
 	int m_storageInfo;
 
-	void SetMatrixMode(RAS_IRasterizer::MatrixMode mode);
-	void LoadMatrix(const float mat[16]);
-	void LoadIdentity();
-
 public:
 	double GetTime();
 	RAS_OpenGLRasterizer(RAS_STORAGE_TYPE storage, int storageInfo);
@@ -343,9 +339,12 @@ public:
 
 	virtual void GetTransform(float *origmat, int objectdrawmode, float mat[16]);
 
-	void PushMatrix();
-	void PopMatrix();
-	void MultMatrix(const float mat[16]);
+	virtual void PushMatrix();
+	virtual void PopMatrix();
+	virtual void MultMatrix(const float mat[16]);
+	virtual void SetMatrixMode(RAS_IRasterizer::MatrixMode mode);
+	virtual void LoadMatrix(const float mat[16]);
+	virtual void LoadIdentity();
 
 	/// \see KX_RayCast
 	bool RayHit(struct KX_ClientObjectInfo *client, class KX_RayCast *result, RayCastTranform *raytransform);

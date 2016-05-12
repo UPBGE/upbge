@@ -75,7 +75,7 @@ protected:
 	void BindUniforms(RAS_ICanvas *canvas);
 	void BindTextures(RAS_ICanvas *canvas);
 	void UnbindTextures();
-	void DrawOverlayPlane(RAS_ICanvas *canvas);
+	void DrawOverlayPlane(RAS_IRasterizer *rasty, RAS_ICanvas *canvas);
 	void ComputeTextureOffsets(RAS_ICanvas *canvas);
 	void ReleaseTextures();
 

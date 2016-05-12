@@ -112,7 +112,7 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 		mat.setIdentity();
 		Update(rasty, mat);
 		ApplyShader();
-		DrawOverlayPlane(canvas);
+		DrawOverlayPlane(rasty, canvas);
 		UnbindTextures();
 	}
 }
@@ -327,27 +327,27 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 	}
 }
 
-void RAS_2DFilter::DrawOverlayPlane(RAS_ICanvas *canvas)
+void RAS_2DFilter::DrawOverlayPlane(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 {
 	RAS_Rect scissor_rect = canvas->GetDisplayArea();
-	glScissor(scissor_rect.GetLeft() + canvas->GetViewPort()[0], 
+	rasty->SetScissor(scissor_rect.GetLeft() + canvas->GetViewPort()[0], 
 			  scissor_rect.GetBottom() + canvas->GetViewPort()[1],
 			  scissor_rect.GetWidth() + 1,
 			  scissor_rect.GetHeight() + 1);
 
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_BLEND);
-	glDisable(GL_ALPHA_TEST);
+	rasty->Disable(RAS_IRasterizer::RAS_DEPTH_TEST);
+	rasty->Disable(RAS_IRasterizer::RAS_BLEND);
+	rasty->Disable(RAS_IRasterizer::RAS_ALPHA_TEST);
 
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	rasty->SetLines(false);
 
-	glPushMatrix();
-	glLoadIdentity();
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
+	rasty->PushMatrix();
+	rasty->LoadIdentity();
+	rasty->SetMatrixMode(RAS_IRasterizer::RAS_TEXTURE);
+	rasty->LoadIdentity();
+	rasty->SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
+	rasty->PushMatrix();
+	rasty->LoadIdentity();
 
 	glBegin(GL_QUADS);
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -369,9 +369,9 @@ void RAS_2DFilter::DrawOverlayPlane(RAS_ICanvas *canvas)
 	glVertex2f(1.0f, -1.0f);
 	glEnd();
 
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	rasty->PopMatrix();
+	rasty->SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);
+	rasty->PopMatrix();
 
-	glEnable(GL_DEPTH_TEST);
+	rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
 }

@@ -585,6 +585,9 @@ public:
 	virtual void PushMatrix() = 0;
 	virtual void PopMatrix() = 0;
 	virtual void MultMatrix(const float mat[16]) = 0;
+	virtual void SetMatrixMode(MatrixMode mode) = 0;
+	virtual void LoadMatrix(const float mat[16]) = 0;
+	virtual void LoadIdentity() = 0;
 
 	virtual RAS_ILightObject *CreateLight() = 0;
 
