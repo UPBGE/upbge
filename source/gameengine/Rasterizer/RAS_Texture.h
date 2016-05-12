@@ -61,6 +61,16 @@ public:
 	virtual void ActivateTexture(int unit) = 0;
 	virtual void DisableTexture() = 0;
 
+	/** Set the current active OpenGL texture to the first texture
+	 * and bind a null texture in this slot.
+	 * This function must be used very carfully, normally only after
+	 * that the user palyed with glActiveTexture and to make sure that
+	 * it will not break the render.
+	 * Only the first slot is affected all texture in greater slot are
+	 * not affected but just unused as default.
+	 */
+	static void DesactiveTextures();
+
 	int GetBindCode() const;
 	void SetBindCode(int bindcode);
 };

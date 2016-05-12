@@ -57,6 +57,12 @@ bool RAS_Texture::CheckBindCode(int bindcode)
 	return glIsTexture(bindcode);
 }
 
+void RAS_Texture::DesactiveTextures()
+{
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
 int RAS_Texture::GetBindCode() const
 {
 	return m_bindCode;

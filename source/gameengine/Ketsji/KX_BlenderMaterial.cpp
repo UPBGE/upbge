@@ -207,6 +207,7 @@ void KX_BlenderMaterial::OnConstruction()
 void KX_BlenderMaterial::EndFrame(RAS_IRasterizer *rasty)
 {
 	rasty->SetAlphaBlend(GPU_BLEND_SOLID);
+	RAS_Texture::DesactiveTextures();
 }
 
 void KX_BlenderMaterial::OnExit()
