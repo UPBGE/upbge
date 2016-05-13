@@ -249,7 +249,7 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 		{
 			/* mapping instruccions if joystick is not a game controller */
 			printf("Game Controller index %i: Could not be initialized\n", m_joyindex);
-			printf("Please, generate Xbox360 compatible mapping using antimicro\Steam big mode application\n");
+			printf("Please, generate Xbox360 compatible mapping using antimicro or Steam big mode application\n");
 			printf("and after set, the SDL controller variable before you launch the executable, i.e:\n");
 			printf("export SDL_GAMECONTROLLERCONFIG=\"[the string you received from controllermap]\"\n");
 			/* Need this so python args can return empty lists */
