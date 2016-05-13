@@ -1362,7 +1362,7 @@ static void do_material_tex(GPUShadeInput *shi)
 					         GPU_cube_map(tex->ima, &tex->iuser, false), shi->view, shi->vn,
 							 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma),
 					         GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
-					         GPU_builtin(GPU_VIEW_MATRIX), &tin, &trgb);
+					         &tin, &trgb);
 				}
 				rgbnor = TEX_RGB;
 
