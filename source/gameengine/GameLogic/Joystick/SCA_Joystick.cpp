@@ -109,7 +109,7 @@ void SCA_Joystick::Init()
 		}
 	}
 	else {
-		JOYSTICK_ECHO("Error initializing SDL Game Controller: " << SDL_GetError());
+		printf("Error initializing SDL Game Controller: %s\n", SDL_GetError());
 	}
 #endif
 }
@@ -128,7 +128,7 @@ SCA_Joystick *SCA_Joystick::GetInstance(short joyindex)
 #else  /* WITH_SDL */
 
 	if (joyindex < 0 || joyindex >= JOYINDEX_MAX) {
-		JOYSTICK_ECHO("Error-invalid joystick index: " << joyindex);
+		printf("Error-invalid joystick index: %i\n", joyindex);
 		return NULL;
 	}
 
@@ -247,9 +247,11 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 		      SDL_CHECK(SDL_GameControllerEventState)) ||
 		    !SDL_IsGameController(m_joyindex))
 		{
-
-			JOYSTICK_ECHO("Game Controller index " << m_joyindex << ": Could not be initialized");
-			JOYSTICK_ECHO("Please, generate Xbox360 compatible mapping using antimicro application");
+			/* mapping instruccions if joystick is not a game controller */
+			printf("Game Controller index %i: Could not be initialized\n", m_joyindex);
+			printf("Please, generate Xbox360 compatible mapping using antimicro\Steam big mode application\n");
+			printf("and after set, the SDL controller variable before you launch the executable, i.e:\n");
+			printf("export SDL_GAMECONTROLLERCONFIG=\"[the string you received from controllermap]\"\n");
 			/* Need this so python args can return empty lists */
 			joy_error = true;
 		}
@@ -260,7 +262,7 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 		}
 
 		SDL_GameControllerEventState(SDL_ENABLE);
-		JOYSTICK_ECHO("Game Controller (" << GetName() << ") index " << m_joyindex << ": Initialized");
+		printf("Game Controller (%s) with index %i: Initialized\n", GetName(), m_joyindex);
 
 		/* A Game Controller has:
 		 *
@@ -282,7 +284,7 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 		if (!SDL_CHECK(SDL_HapticOpen)) {
 			m_private->m_haptic = SDL_HapticOpen(m_joyindex);
 			if (!m_private->m_haptic) {
-				JOYSTICK_ECHO("Game Controller (" << GetName() << ") index " << m_joyindex << ": Has not force feedback (vibration) available");
+				printf("Game Controller (%s) with index i%: Has not force feedback (vibration) available", GetName(), m_joyindex);
 			}
 		}
 	}
@@ -313,7 +315,7 @@ void SCA_Joystick::DestroyJoystickDevice(void)
 				m_private->m_haptic = NULL;
 			}
 
-			JOYSTICK_ECHO("Game Controller (" << GetName() << ") index " << m_joyindex << ": Closed");
+			printf("Game Controller (%s) with index i%: Closed", GetName(), m_joyindex);
 			SDL_GameControllerClose(m_private->m_gamecontroller);
 			m_private->m_gamecontroller = NULL;
 		}
