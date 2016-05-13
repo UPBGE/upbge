@@ -517,7 +517,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 	// this is needed to free up memory afterwards.
 	// the converter will also prevent duplicates from being registered,
 	// so just register everything.
-	converter->RegisterPolyMaterial(polymat);
+	converter->RegisterPolyMaterial(scene, polymat);
 
 	return bucket;
 }
@@ -766,7 +766,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	
 	dm->release(dm);
 
-	converter->RegisterGameMesh(meshobj, mesh);
+	converter->RegisterGameMesh(scene, meshobj, mesh);
 	return meshobj;
 }
 
@@ -1890,7 +1890,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 	// convert world
 	KX_WorldInfo* worldinfo = new KX_WorldInfo(blenderscene, blenderscene->world);
-	converter->RegisterWorldInfo(worldinfo);
 	kxscene->SetWorldInfo(worldinfo);
 
 	// Set the physics environment so KX_PythonComponent.start() can use bge.constraints

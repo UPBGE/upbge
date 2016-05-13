@@ -111,6 +111,20 @@ void RAS_MaterialBucket::RemoveMesh(RAS_MeshSlot *ms)
 	}
 }
 
+void RAS_MaterialBucket::RemoveMeshObject(RAS_MeshObject *mesh)
+{
+	for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end;) {
+		RAS_MeshSlot *ms = *it;
+		if (ms->m_mesh == mesh) {
+			delete ms;
+			m_meshSlots.erase(it++);
+		}
+		else {
+			++it;
+		}
+	}
+}
+
 unsigned int RAS_MaterialBucket::GetNumActiveMeshSlots()
 {
 	unsigned int count = 0;

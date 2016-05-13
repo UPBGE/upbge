@@ -62,10 +62,8 @@ typedef map<KX_Scene*, map<Material*, RAS_IPolyMaterial*> > PolyMaterialCache;
 
 class KX_BlenderSceneConverter : public KX_ISceneConverter
 {
-	// Use vector of pairs to allow removal of entities between scene switch
-	vector<pair<KX_Scene*,KX_WorldInfo*> >	m_worldinfos;
-	vector<pair<KX_Scene*,RAS_IPolyMaterial*> > m_polymaterials;
-	vector<pair<KX_Scene*,RAS_MeshObject*> > m_meshobjects;
+	std::map<KX_Scene *, std::vector<RAS_IPolyMaterial *> > m_polymaterials;
+	std::map<KX_Scene *, std::vector<RAS_MeshObject *> > m_meshobjects;
 
 	vector<class KX_LibLoadStatus*> m_mergequeue;
 	ThreadInfo	*m_threadinfo;
@@ -91,7 +89,6 @@ class KX_BlenderSceneConverter : public KX_ISceneConverter
 
 	STR_String				m_newfilename;
 	class KX_KetsjiEngine*	m_ketsjiEngine;
-	class KX_Scene*			m_currentScene;	// Scene being converted
 	bool					m_alwaysUseExpandFraming;
 
 public:
@@ -123,10 +120,10 @@ public:
 	void UnregisterGameObject(KX_GameObject *gameobject);
 	KX_GameObject *FindGameObject(struct Object *for_blenderobject);
 
-	void RegisterGameMesh(RAS_MeshObject *gamemesh, struct Mesh *for_blendermesh);
+	void RegisterGameMesh(KX_Scene *scene, RAS_MeshObject *gamemesh, struct Mesh *for_blendermesh);
 	RAS_MeshObject *FindGameMesh(struct Mesh *for_blendermesh/*, unsigned int onlayer*/);
 
-	void RegisterPolyMaterial(RAS_IPolyMaterial *polymat);
+	void RegisterPolyMaterial(KX_Scene *scene, RAS_IPolyMaterial *polymat);
 	void CachePolyMaterial(KX_Scene *scene, Material *mat, RAS_IPolyMaterial *polymat);
 	RAS_IPolyMaterial *FindCachedPolyMaterial(KX_Scene *scene, Material *mat);
 
@@ -138,8 +135,6 @@ public:
 
 	void RegisterGameController(SCA_IController *cont, struct bController *for_controller);
 	SCA_IController *FindGameController(struct bController *for_controller);
-
-	void RegisterWorldInfo(KX_WorldInfo *worldinfo);
 
 	struct Scene* GetBlenderSceneForName(const STR_String& name);
 	virtual CListValue *GetInactiveSceneNames();
@@ -164,7 +159,6 @@ public:
 		printf("BGE STATS!\n");
 
 		printf("\nAssets...\n");
-		printf("\t m_worldinfos: %d\n", (int)m_worldinfos.size());
 		printf("\t m_polymaterials: %d\n", (int)m_polymaterials.size());
 		printf("\t m_meshobjects: %d\n", (int)m_meshobjects.size());
 

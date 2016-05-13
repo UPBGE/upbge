@@ -140,26 +140,23 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 		delete it->second;
 	}
 
-	vector<pair<KX_Scene *, KX_WorldInfo *> >::iterator itw = m_worldinfos.begin();
-	while (itw != m_worldinfos.end()) {
-		delete itw->second;
-		itw++;
+	for (std::map<KX_Scene *, std::vector<RAS_IPolyMaterial *> >::iterator polymit = m_polymaterials.begin(),
+		 polymend = m_polymaterials.end(); polymit != polymend; ++polymit)
+	{
+		std::vector<RAS_IPolyMaterial *> &polymatlist = polymit->second;
+		for (std::vector<RAS_IPolyMaterial *>::iterator it = polymatlist.begin(), end = polymatlist.end(); it != end; ++it) {
+			delete *it;
+		}
 	}
-	m_worldinfos.clear();
 
-	vector<pair<KX_Scene *,RAS_IPolyMaterial *> >::iterator itp = m_polymaterials.begin();
-	while (itp != m_polymaterials.end()) {
-		delete itp->second;
-		itp++;
+	for (std::map<KX_Scene *, std::vector<RAS_MeshObject *> >::iterator meshit = m_meshobjects.begin(), meshend = m_meshobjects.end();
+		 meshit != meshend; ++meshit)
+	{
+		std::vector<RAS_MeshObject *> &meshlist = meshit->second;
+		for (std::vector<RAS_MeshObject *>::iterator it = meshlist.begin(), end = meshlist.end(); it != end; ++it) {
+			delete *it;
+		}
 	}
-	m_polymaterials.clear();
-
-	vector<pair<KX_Scene *,RAS_MeshObject *> >::iterator itm = m_meshobjects.begin();
-	while (itm != m_meshobjects.end()) {
-		delete itm->second;
-		itm++;
-	}
-	m_meshobjects.clear();
 
 	/* free any data that was dynamically loaded */
 	while (m_DynamicMaggie.size() != 0) {
@@ -234,8 +231,6 @@ void KX_BlenderSceneConverter::ConvertScene(KX_Scene *destinationscene, RAS_IRas
 	PHY_IPhysicsEnvironment *phy_env = NULL;
 
 	e_PhysicsEngine physics_engine = UseBullet;
-	// hook for registration function during conversion.
-	m_currentScene = destinationscene;
 	destinationscene->SetSceneConverter(this);
 
 	// This doesn't really seem to do anything except cause potential issues
@@ -297,57 +292,35 @@ void KX_BlenderSceneConverter::ConvertScene(KX_Scene *destinationscene, RAS_IRas
 // (see KX_BlenderSceneConverter::ConvertScene)
 void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 {
-	int i, size;
 	// delete the scene first as it will stop the use of entities
 	scene->Release();
-	// delete the entities of this scene
-	vector<pair<KX_Scene *, KX_WorldInfo *> >::iterator worldit;
-	size = m_worldinfos.size();
-	for (i = 0, worldit = m_worldinfos.begin(); i < size; ) {
-		if (worldit->first == scene) {
-			delete worldit->second;
-			*worldit = m_worldinfos.back();
-			m_worldinfos.pop_back();
-			size--;
-		} 
-		else {
-			i++;
-			worldit++;
-		}
+
+	KX_WorldInfo *world = scene->GetWorldInfo();
+	if (world) {
+		delete world;
 	}
 
-	vector<pair<KX_Scene *, RAS_IPolyMaterial *> >::iterator polymit;
-	size = m_polymaterials.size();
-	for (i = 0, polymit = m_polymaterials.begin(); i < size; ) {
-		if (polymit->first == scene) {
-			m_polymat_cache[scene].erase(polymit->second->GetBlenderMaterial());
-			delete polymit->second;
-			*polymit = m_polymaterials.back();
-			m_polymaterials.pop_back();
-			size--;
-		} 
-		else {
-			i++;
-			polymit++;
+	// delete the entities of this scene
+
+	std::map<KX_Scene *, std::vector<RAS_IPolyMaterial *> >::iterator polymit = m_polymaterials.find(scene);
+	if (polymit != m_polymaterials.end()) {
+		std::vector<RAS_IPolyMaterial *> &polymatlist = polymit->second;
+		for (std::vector<RAS_IPolyMaterial *>::iterator it = polymatlist.begin(), end = polymatlist.end(); it != end; ++it) {
+			delete *it;
 		}
+		m_polymaterials.erase(polymit);
+	}
+
+	std::map<KX_Scene *, std::vector<RAS_MeshObject *> >::iterator meshit = m_meshobjects.find(scene);
+	if (meshit != m_meshobjects.end()) {
+		std::vector<RAS_MeshObject *> &meshlist = meshit->second;
+		for (std::vector<RAS_MeshObject *>::iterator it = meshlist.begin(), end = meshlist.end(); it != end; ++it) {
+			delete *it;
+		}
+		m_meshobjects.erase(meshit);
 	}
 
 	m_polymat_cache.erase(scene);
-
-	vector<pair<KX_Scene *, RAS_MeshObject *> >::iterator meshit;
-	size = m_meshobjects.size();
-	for (i = 0, meshit = m_meshobjects.begin(); i < size; ) {
-		if (meshit->first == scene) {
-			delete meshit->second;
-			*meshit = m_meshobjects.back();
-			m_meshobjects.pop_back();
-			size--;
-		} 
-		else {
-			i++;
-			meshit++;
-		}
-	}
 }
 
 void KX_BlenderSceneConverter::SetAlwaysUseExpandFraming(bool to_what)
@@ -381,12 +354,12 @@ KX_GameObject *KX_BlenderSceneConverter::FindGameObject(Object *for_blenderobjec
 	return m_map_blender_to_gameobject[for_blenderobject];
 }
 
-void KX_BlenderSceneConverter::RegisterGameMesh(RAS_MeshObject *gamemesh, Mesh *for_blendermesh)
+void KX_BlenderSceneConverter::RegisterGameMesh(KX_Scene *scene, RAS_MeshObject *gamemesh, Mesh *for_blendermesh)
 {
 	if (for_blendermesh) { /* dynamically loaded meshes we don't want to keep lookups for */
 		m_map_mesh_to_gamemesh[for_blendermesh] = gamemesh;
 	}
-	m_meshobjects.push_back(pair<KX_Scene *, RAS_MeshObject *> (m_currentScene,gamemesh));
+	m_meshobjects[scene].push_back(gamemesh);
 }
 
 RAS_MeshObject *KX_BlenderSceneConverter::FindGameMesh(Mesh *for_blendermesh)
@@ -394,14 +367,14 @@ RAS_MeshObject *KX_BlenderSceneConverter::FindGameMesh(Mesh *for_blendermesh)
 	return m_map_mesh_to_gamemesh[for_blendermesh];
 }
 
-void KX_BlenderSceneConverter::RegisterPolyMaterial(RAS_IPolyMaterial *polymat)
+void KX_BlenderSceneConverter::RegisterPolyMaterial(KX_Scene *scene, RAS_IPolyMaterial *polymat)
 {
 	// First make sure we don't register the material twice
-	vector<pair<KX_Scene *, RAS_IPolyMaterial *> >::iterator it;
-	for (it = m_polymaterials.begin(); it != m_polymaterials.end(); ++it)
-		if (it->second == polymat)
-			return;
-	m_polymaterials.push_back(pair<KX_Scene *, RAS_IPolyMaterial *> (m_currentScene, polymat));
+	std::vector<RAS_IPolyMaterial *> &polymatlist = m_polymaterials[scene];
+	if (std::find(polymatlist.begin(), polymatlist.end(), polymat) != polymatlist.end()) {
+		return;
+	}
+	polymatlist.push_back(polymat);
 }
 
 void KX_BlenderSceneConverter::CachePolyMaterial(KX_Scene *scene, Material *mat, RAS_IPolyMaterial *polymat)
@@ -443,11 +416,6 @@ void KX_BlenderSceneConverter::RegisterGameController(SCA_IController *cont, bCo
 SCA_IController *KX_BlenderSceneConverter::FindGameController(bController *for_controller)
 {
 	return m_map_blender_to_gamecontroller[for_controller];
-}
-
-void KX_BlenderSceneConverter::RegisterWorldInfo(KX_WorldInfo *worldinfo)
-{
-	m_worldinfos.push_back(pair<KX_Scene *, KX_WorldInfo *> (m_currentScene, worldinfo));
 }
 
 #ifdef WITH_PYTHON
@@ -860,122 +828,46 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		}
 	}
 
-	int size;
+	for (std::map<KX_Scene *, std::vector<RAS_IPolyMaterial *> >::iterator polymit = m_polymaterials.begin(),
+		 polymend = m_polymaterials.end(); polymit != polymend; ++polymit)
+	{
+		KX_Scene *scene = polymit->first;
+		std::vector<RAS_IPolyMaterial *> &polymatlist = polymit->second;
 
-	// delete the entities of this scene
-	/* TODO - */
-#if 0
-	vector<pair<KX_Scene*,KX_WorldInfo*> >::iterator worldit;
-	size = m_worldinfos.size();
-	for (i=0, worldit=m_worldinfos.begin(); i<size; ) {
-		if ((*worldit).second) {
-			delete (*worldit).second;
-			*worldit = m_worldinfos.back();
-			m_worldinfos.pop_back();
-			size--;
-		} else {
-			i++;
-			worldit++;
-		}
-	}
-#endif
-
-
-	/* Worlds don't reference original blender data so we need to make a set from them */
-	typedef std::set<KX_WorldInfo *> KX_WorldInfoSet;
-	KX_WorldInfoSet worldset;
-	for (CListValue::iterator sceit = scenes->GetBegin(); sceit != scenes->GetEnd(); ++sceit) {
-		KX_Scene *scene = (KX_Scene *)*sceit;
-		if (scene->GetWorldInfo())
-			worldset.insert(scene->GetWorldInfo());
-	}
-
-	vector<pair<KX_Scene *, KX_WorldInfo *> >::iterator worldit;
-	size = m_worldinfos.size();
-	for (i = 0, worldit = m_worldinfos.begin(); i < size;) {
-		if (worldit->second && (worldset.count(worldit->second)) == 0) {
-			delete worldit->second;
-			*worldit = m_worldinfos.back();
-			m_worldinfos.pop_back();
-			size--;
-		} 
-		else {
-			i++;
-			worldit++;
-		}
-	}
-	worldset.clear();
-	/* done freeing the worlds */
-
-	vector<pair<KX_Scene *, RAS_IPolyMaterial *> >::iterator polymit;
-	size = m_polymaterials.size();
-
-	for (i = 0, polymit = m_polymaterials.begin(); i < size; ) {
-		RAS_IPolyMaterial *mat = polymit->second;
-		Material *bmat = NULL;
-
-		bmat = mat->GetBlenderMaterial();
-
-		if (IS_TAGGED(bmat)) {
-			/* only remove from bucket */
-			polymit->first->GetBucketManager()->RemoveMaterial(mat);
-		}
-
-		i++;
-		polymit++;
-	}
-
-	for (i = 0, polymit = m_polymaterials.begin(); i < size; ) {
-		RAS_IPolyMaterial *mat = polymit->second;
-		Material *bmat = NULL;
-
-		bmat = mat->GetBlenderMaterial();
-
-		if (IS_TAGGED(bmat)) {
-			// Remove the poly material coresponding to this Blender Material.
-			m_polymat_cache[polymit->first].erase(bmat);
-			delete polymit->second;
-			*polymit = m_polymaterials.back();
-			m_polymaterials.pop_back();
-			size--;
-		} else {
-			i++;
-			polymit++;
-		}
-	}
-
-	vector<pair<KX_Scene *, RAS_MeshObject *> >::iterator meshit;
-	RAS_BucketManager::BucketList::iterator bit;
-	RAS_MeshSlotList::iterator msit;
-	RAS_BucketManager::BucketList buckets;
-
-	size = m_meshobjects.size();
-	for (i = 0, meshit = m_meshobjects.begin(); i < size;) {
-		RAS_MeshObject *me = meshit->second;
-		if (IS_TAGGED(me->GetMesh())) {
-			// Before deleting the mesh object, make sure the rasterizer is
-			// no longer referencing it.
-			buckets = meshit->first->GetBucketManager()->GetBuckets();
-			for (bit = buckets.begin(); bit != buckets.end(); bit++) {
-				msit = (*bit)->msBegin();
-
-				while (msit != (*bit)->msEnd()) {
-					if ((*msit)->m_mesh == meshit->second)
-						(*bit)->RemoveMesh(*msit++);
-					else
-						msit++;
-				}
+		for (std::vector<RAS_IPolyMaterial *>::iterator it = polymatlist.begin(), end = polymatlist.end(); it != end;) {
+			RAS_IPolyMaterial *polymat = *it;
+			Material *bmat = polymat->GetBlenderMaterial();
+			if (IS_TAGGED(polymat->GetBlenderMaterial())) {
+				scene->GetBucketManager()->RemoveMaterial(polymat);
+				delete polymat;
+				m_polymat_cache[scene].erase(bmat);
+				polymatlist.erase(it++);
 			}
+			else {
+				++it;
+			}
+		}
+	}
 
-			// Now it should be safe to delete
-			delete meshit->second;
-			*meshit = m_meshobjects.back();
-			m_meshobjects.pop_back();
-			size--;
-		} 
-		else {
-			i++;
-			meshit++;
+	for (std::map<KX_Scene *, std::vector<RAS_MeshObject *> >::iterator meshit = m_meshobjects.begin(), meshend = m_meshobjects.end();
+		meshit != meshend; ++meshit)
+	{
+		KX_Scene *scene = meshit->first;
+		RAS_BucketManager::BucketList &buckets = scene->GetBucketManager()->GetBuckets();
+		std::vector<RAS_MeshObject *> &meshlist = meshit->second;
+
+		for (std::vector<RAS_MeshObject *>::iterator it = meshlist.begin(), end = meshlist.end(); it != end;) {
+			RAS_MeshObject *mesh = *it;
+			if (IS_TAGGED(mesh->GetMesh())) {
+				for (RAS_BucketManager::BucketList::iterator bit = buckets.begin(), bend = buckets.end(); bit != bend; ++bit) {
+					(*bit)->RemoveMeshObject(mesh);
+				}
+				delete mesh;
+				meshlist.erase(it++);
+			}
+			else {
+				++it;
+			}
 		}
 	}
 
@@ -1000,36 +892,23 @@ bool KX_BlenderSceneConverter::FreeBlendFile(const char *path)
 
 bool KX_BlenderSceneConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 {
-	{
-		vector<pair<KX_Scene *, KX_WorldInfo *> >::iterator itp = m_worldinfos.begin();
-		while (itp != m_worldinfos.end()) {
-			if (itp->first == from)
-				itp->first = to;
-			itp++;
+	std::map<KX_Scene *, std::vector<RAS_IPolyMaterial *> >::iterator polymit = m_polymaterials.find(from);
+	if (polymit != m_polymaterials.end()) {
+		std::vector<RAS_IPolyMaterial *> &polymatlist = polymit->second;
+		for (std::vector<RAS_IPolyMaterial *>::iterator it = polymatlist.begin(), end = polymatlist.end(); it != end; ++it) {
+			(*it)->Replace_IScene(to);
 		}
+		std::vector<RAS_IPolyMaterial *> &polymattolist = m_polymaterials[to];
+		polymattolist.insert(polymattolist.begin(), polymatlist.begin(), polymatlist.end());
+		m_polymaterials.erase(polymit);
 	}
 
-	{
-		vector<pair<KX_Scene *, RAS_IPolyMaterial *> >::iterator itp = m_polymaterials.begin();
-		while (itp != m_polymaterials.end()) {
-			if (itp->first == from) {
-				itp->first = to;
-
-				/* also switch internal data */
-				RAS_IPolyMaterial *mat = itp->second;
-				mat->Replace_IScene(to);
-			}
-			itp++;
-		}
-	}
-
-	{
-		vector<pair<KX_Scene *, RAS_MeshObject *> >::iterator itp = m_meshobjects.begin();
-		while (itp != m_meshobjects.end()) {
-			if (itp->first == from)
-				itp->first = to;
-			itp++;
-		}
+	std::map<KX_Scene *, std::vector<RAS_MeshObject *> >::iterator meshit = m_meshobjects.find(from);
+	if (meshit != m_meshobjects.end()) {
+		std::vector<RAS_MeshObject *> &meshlist = meshit->second;
+		std::vector<RAS_MeshObject *> &meshtolist = m_meshobjects[to];
+		meshtolist.insert(meshtolist.end(), meshlist.begin(), meshlist.end());
+		m_meshobjects.erase(meshit);
 	}
 
 	PolyMaterialCache::iterator polymatcacheit = m_polymat_cache.find(from);
@@ -1117,7 +996,6 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
 		}
 	}
 
-	m_currentScene = kx_scene; // This needs to be set in case we LibLoaded earlier
 	RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)me, NULL, kx_scene, this, false);
 	kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(),meshobj);
 	m_map_mesh_to_gamemesh.clear(); /* This is at runtime so no need to keep this, BL_ConvertMesh adds */

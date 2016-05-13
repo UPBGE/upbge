@@ -69,6 +69,8 @@ public:
 	RAS_MeshSlot *AddMesh(RAS_MeshObject *mesh);
 	RAS_MeshSlot *CopyMesh(RAS_MeshSlot *ms);
 	void RemoveMesh(RAS_MeshSlot *ms);
+	/// Remove all mesh slot using the given mesh object.
+	void RemoveMeshObject(RAS_MeshObject *mesh);
 	/// Set the mesh object as unmodified flag.
 	void SetMeshUnmodified();
 	unsigned int GetNumActiveMeshSlots();
