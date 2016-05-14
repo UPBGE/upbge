@@ -101,6 +101,7 @@
 #include "KX_KetsjiEngine.h"
 #include "KX_BlenderSceneConverter.h"
 
+#include "KX_Globals.h"
 #include "KX_PyConstraintBinding.h"
 
 /* This little block needed for linking to Blender... */
@@ -1893,6 +1894,10 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	kxscene->SetWorldInfo(worldinfo);
 
 	// Set the physics environment so KX_PythonComponent.start() can use bge.constraints
+	KX_Scene *currentScene = KX_GetActiveScene();
+	PHY_IPhysicsEnvironment *currentEnv = PHY_GetActiveEnvironment();
+
+	KX_SetActiveScene(kxscene);
 	PHY_SetActiveEnvironment(kxscene->GetPhysicsEnvironment());
 
 	//create object representations for obstacle simulation
@@ -1909,6 +1914,13 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			}
 		}
 	}
+
+	/* Restore the current scene and physics engine yet it was changed to 
+	 * allow python components using the current scene and physics engine.
+	 */
+
+	KX_SetActiveScene(currentScene);
+	PHY_SetActiveEnvironment(currentEnv);
 
 	//process navigation mesh objects
 	for ( i=0; i<objectlist->GetCount();i++)
