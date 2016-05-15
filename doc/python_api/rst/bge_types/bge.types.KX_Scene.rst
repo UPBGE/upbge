@@ -89,6 +89,12 @@ base class --- :class:`PyObjectPlus`
 
       :type: :class:`KX_WorldInfo`
 
+   .. attribute:: filterManager
+
+      The scene's 2D filter manager, (read-only).
+
+      :type: :class:`KX_2DFilterManager`
+
    .. attribute:: suspended
 
       True if the scene is suspended, (read-only).
