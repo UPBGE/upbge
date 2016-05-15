@@ -1425,8 +1425,8 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
 	RNA_def_property_pointer_funcs(prop, NULL, "rna_Actuator_editobject_mesh_set", NULL, NULL);
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	prop = RNA_def_property(srna, "time", PROP_INT, PROP_NONE);
-	RNA_def_property_ui_range(prop, 0, 2000, 1, 1);
+	prop = RNA_def_property(srna, "time", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_range(prop, 0.0f, FLT_MAX, 1, 2);
 	RNA_def_property_ui_text(prop, "Time", "Duration the new Object lives or the track takes");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 

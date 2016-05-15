@@ -882,7 +882,7 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 
 SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 										class CValue* referenceobject,
-										int lifespan)
+										float lifespan)
 {
 
 	m_logicHierarchicalGameObjects.clear();
@@ -899,7 +899,7 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 
 	// add a timebomb to this object
 	// lifespan of zero means 'this object lives forever'
-	if (lifespan > 0)
+	if (lifespan > 0.0f)
 	{
 		// for now, convert between so called frames and realtime
 		m_tempObjectList->Add(replica->AddRef());
@@ -2526,9 +2526,9 @@ KX_PYMETHODDEF_DOC(KX_Scene, addObject,
 	PyObject *pyob, *pyreference = Py_None;
 	KX_GameObject *ob, *reference;
 
-	int time = 0;
+	float time = 0.0f;
 
-	if (!PyArg_ParseTuple(args, "O|Oi:addObject", &pyob, &pyreference, &time))
+	if (!PyArg_ParseTuple(args, "O|Of:addObject", &pyob, &pyreference, &time))
 		return NULL;
 
 	if (!ConvertPythonToGameObject(m_logicmgr, pyob, &ob, false, "scene.addObject(object, reference, time): KX_Scene (first argument)") ||

@@ -328,7 +328,7 @@ public:
 	void AddObjectDebugProperties(class KX_GameObject* gameobj);
 	SCA_IObject* AddReplicaObject(CValue* gameobj,
 	                              CValue* locationobj,
-	                              int lifespan=0);
+	                              float lifespan=0.0f);
 	KX_GameObject* AddNodeReplicaObject(SG_IObject* node,
 	                                    CValue* gameobj);
 	void RemoveNodeDestructObject(SG_IObject* node,

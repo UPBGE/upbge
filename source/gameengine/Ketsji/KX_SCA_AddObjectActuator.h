@@ -48,7 +48,7 @@ class KX_SCA_AddObjectActuator : public SCA_IActuator
 	Py_Header
 
 	/// Time field: lifetime of the new object
-	int	m_timeProp;
+	float m_timeProp;
 
 	/// Original object reference (object to replicate)
 	SCA_IObject*	m_OriginalObject;
@@ -81,7 +81,7 @@ public:
 	KX_SCA_AddObjectActuator(
 		SCA_IObject *gameobj,
 		SCA_IObject *original,
-		int time,
+		float time,
 		SCA_IScene* scene,
 		const float *linvel,
 		bool linv_local,

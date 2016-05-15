@@ -59,7 +59,7 @@ public:
 	virtual ~SCA_IScene();
 	virtual class SCA_IObject* AddReplicaObject(class CValue* gameobj,
 												class CValue* locationobj,
-												int lifespan=0)=0;
+												float lifespan=0.0f)=0;
 	virtual void	RemoveObject(class CValue* gameobj)=0;
 	virtual void	DelayedRemoveObject(class CValue* gameobj)=0;
 	//virtual void	DelayedReleaseObject(class CValue* gameobj)=0;

@@ -87,7 +87,7 @@ typedef struct bSoundActuator {
 } bSoundActuator;
 
 typedef struct bEditObjectActuator {
-	int time;
+	float time;
 	short type, flag;
 	struct Object *ob;
 	struct Mesh *me;

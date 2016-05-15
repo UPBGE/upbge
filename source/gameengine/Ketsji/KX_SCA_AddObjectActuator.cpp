@@ -46,7 +46,7 @@
 
 KX_SCA_AddObjectActuator::KX_SCA_AddObjectActuator(SCA_IObject *gameobj,
 												   SCA_IObject *original,
-												   int time,
+												   float time,
 												   SCA_IScene* scene,
 												   const float *linvel,
 												   bool linv_local,
@@ -196,7 +196,7 @@ PyMethodDef KX_SCA_AddObjectActuator::Methods[] = {
 PyAttributeDef KX_SCA_AddObjectActuator::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("object",KX_SCA_AddObjectActuator,pyattr_get_object,pyattr_set_object),
 	KX_PYATTRIBUTE_RO_FUNCTION("objectLastCreated",KX_SCA_AddObjectActuator,pyattr_get_objectLastCreated),
-	KX_PYATTRIBUTE_INT_RW("time",0,2000,true,KX_SCA_AddObjectActuator,m_timeProp),
+	KX_PYATTRIBUTE_FLOAT_RW("time", 0.0f, FLT_MAX, KX_SCA_AddObjectActuator, m_timeProp),
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RW("linearVelocity",-FLT_MAX,FLT_MAX,KX_SCA_AddObjectActuator,m_linear_velocity,3),
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RW("angularVelocity",-FLT_MAX,FLT_MAX,KX_SCA_AddObjectActuator,m_angular_velocity,3),
 	{ NULL }	//Sentinel
