@@ -97,8 +97,37 @@ KX_PYMETHODDEF_DOC(KX_2DFilterManager, getFilter, " getFilter(index)")
 	Py_RETURN_NONE;
 }
 
-KX_PYMETHODDEF_DOC(KX_2DFilterManager, addFilter, " addFilter(index)")
+KX_PYMETHODDEF_DOC(KX_2DFilterManager, addFilter, " addFilter(index, type, fragmentProgram)")
 {
+	int index = 0;
+	int type = 0;
+	const char *frag = "";
+
+	if (!PyArg_ParseTuple(args, "ii|s:addFilter", &index, &type, &frag)) {
+		return NULL;
+	}
+
+	if (GetFilterPass(index)) {
+		PyErr_Format(PyExc_ValueError, "filterManager.addFilter(index, type, fragmentProgram): KX_2DFilterManager, found exisiting filter in index (%i)", index);
+		return NULL;
+	}
+
+	if (type < FILTER_BLUR || type > FILTER_CUSTOMFILTER) {
+		PyErr_SetString(PyExc_ValueError, "filterManager.addFilter(index, type, fragmentProgram): KX_2DFilterManager, type invalid");
+		return NULL;
+	}
+
+	if (strlen(frag) > 0 && type != FILTER_CUSTOMFILTER) {
+		std::cout << "filterManager.addFilter(index, type, fragmentProgram): KX_2DFilterManager, Warning non-empty fragment program with non-custom filter type" << std::endl;
+	}
+
+	RAS_2DFilterData data;
+	data.filterPassIndex = index;
+	data.filterMode = type;
+	data.shaderText = STR_String(frag);
+
+	AddFilter(data);
+
 	Py_RETURN_NONE;
 }
 
