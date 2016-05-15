@@ -30,7 +30,7 @@
 */
 
 #include "KX_2DFilter.h"
-#include "BL_Texture.h" // for BL_Texture::MaxUnits
+#include "RAS_Texture.h" // for RAS_Texture::MaxUnits
 
 KX_2DFilter::KX_2DFilter(RAS_2DFilterData& data)
 	:RAS_2DFilter(data)
@@ -79,19 +79,24 @@ PyAttributeDef KX_2DFilter::Attributes[] = {
 };
 
 
-KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindcode)")
+KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode)")
 {
 	int index = 0;
-	int bindcode = 0;
+	int bindCode = 0;
 
-	if (!PyArg_ParseTuple(args, "ii:setTexture", &index, &bindcode)) {
+	if (!PyArg_ParseTuple(args, "ii:setTexture", &index, &bindCode)) {
 		return NULL;
 	}
-	if (index < 0 || index >= BL_Texture::MaxUnits) {
-		PyErr_SetString(PyExc_TypeError, "setTexture(index, bindcode): KX_2DFilter. index out of range [0, 7]");
+	if (index < 0 || index >= RAS_Texture::MaxUnits) {
+		PyErr_SetString(PyExc_ValueError, "setTexture(index, bindCode): KX_2DFilter, index out of range [0, 7]");
 		return NULL;
 	}
 
-	m_textures[index] = bindcode;
+	if (!RAS_Texture::CheckBindCode(bindCode)) {
+		PyErr_Format(PyExc_ValueError, "setTexture(index, bindCode): KX_2DFilter, bindCode (%i) invalid", bindCode);
+		return NULL;
+	}
+
+	m_textures[index] = bindCode;
 	Py_RETURN_NONE;
 }

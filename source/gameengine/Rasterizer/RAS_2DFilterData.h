@@ -49,10 +49,6 @@ public:
 	unsigned int filterPassIndex;
 	/// This is the shader program source code IF the filter is not a predefined one.
 	STR_String shaderText;
-	/// If > 0 tells that the filter wants an offscreen buffer to render into (possibly smaller than the viewport, for performance reasons).
-	int outputBufferWidth;
-	/// If > 0 tells that the filter wants... actually a tuple2 might have been a better idea.
-	int outputBufferHeight;
 };
 
 #endif // __RAS_2DFILTERDATA__
