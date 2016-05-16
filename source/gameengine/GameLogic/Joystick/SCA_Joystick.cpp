@@ -222,17 +222,6 @@ bool SCA_Joystick::aButtonReleaseIsPositive(int button)
 	return false;
 }
 
-int SCA_Joystick::GetNumberOfAxes()
-{
-	return m_axismax;
-}
-
-
-int SCA_Joystick::GetNumberOfButtons()
-{
-	return m_buttonmax;
-}
-
 bool SCA_Joystick::CreateJoystickDevice(void)
 {
 	bool joy_error = false;
@@ -284,7 +273,7 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 		if (!SDL_CHECK(SDL_HapticOpen)) {
 			m_private->m_haptic = SDL_HapticOpen(m_joyindex);
 			if (!m_private->m_haptic) {
-				printf("Game Controller (%s) with index i%: Has not force feedback (vibration) available", GetName(), m_joyindex);
+				printf("Game Controller (%s) with index %i: Has not force feedback (vibration) available\n", GetName(), m_joyindex);
 			}
 		}
 	}
@@ -315,7 +304,7 @@ void SCA_Joystick::DestroyJoystickDevice(void)
 				m_private->m_haptic = NULL;
 			}
 
-			printf("Game Controller (%s) with index i%: Closed", GetName(), m_joyindex);
+			printf("Game Controller (%s) with index %i: Closed\n", GetName(), m_joyindex);
 			SDL_GameControllerClose(m_private->m_gamecontroller);
 			m_private->m_gamecontroller = NULL;
 		}

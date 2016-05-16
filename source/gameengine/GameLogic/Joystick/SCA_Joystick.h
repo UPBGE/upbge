@@ -170,13 +170,6 @@ public:
 	bool IsTrigButton(void) {
 		return m_istrig_button;
 	}
-
-	/**
-	 * returns the # of...
-	 */
-
-	int GetNumberOfAxes(void);
-	int GetNumberOfButtons(void);
 	
 	/**
 	 * Test if the joystick is connected
