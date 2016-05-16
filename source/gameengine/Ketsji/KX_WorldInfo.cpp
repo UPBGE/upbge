@@ -194,7 +194,7 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_IRasterizer *rasty)
 void KX_WorldInfo::RenderBackground(RAS_IRasterizer *rasty)
 {
 	if (m_hasworld) {
-		if (m_scene->world->skytype & (WO_SKYBLEND || WO_SKYPAPER || WO_SKYREAL)) {
+		if (m_scene->world->skytype & (WO_SKYBLEND | WO_SKYPAPER | WO_SKYREAL)) {
 			GPUMaterial *gpumat = GPU_material_world(m_scene, m_scene->world);
 			float viewmat[4][4];
 			rasty->GetViewMatrix().getValue(&viewmat[0][0]);
