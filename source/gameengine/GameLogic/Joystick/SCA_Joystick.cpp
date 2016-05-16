@@ -251,7 +251,7 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 		}
 
 		SDL_GameControllerEventState(SDL_ENABLE);
-		printf("Game Controller (%s) with index %i: Initialized\n", GetName(), m_joyindex);
+		printf("\nGame Controller (%s) with index %i: Initialized", GetName(), m_joyindex);
 
 		/* A Game Controller has:
 		 *
