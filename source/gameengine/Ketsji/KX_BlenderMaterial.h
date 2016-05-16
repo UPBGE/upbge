@@ -128,7 +128,6 @@ private:
 	KX_Scene *m_scene;
 	bool m_userDefBlend;
 	unsigned int m_blendFunc[2];
-	bool m_modified;
 	bool m_constructed; // if false, don't clean on exit
 	int m_lightLayer;
 	STR_String m_uvsName[RAS_Texture::MaxUnits];

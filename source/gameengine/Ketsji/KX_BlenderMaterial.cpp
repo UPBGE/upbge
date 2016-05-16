@@ -58,7 +58,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_blenderShader(NULL),
 	m_scene(scene),
 	m_userDefBlend(false),
-	m_modified(false),
 	m_constructed(false),
 	m_lightLayer(lightlayer)
 {
@@ -957,9 +956,8 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 	// returns Py_None on error
 	// the calling script will need to check
 
-	if (!m_shader && !m_modified) {
+	if (!m_shader) {
 		m_shader = new BL_Shader();
-		m_modified = true;
 	}
 
 	if (m_shader && !m_shader->GetError()) {
