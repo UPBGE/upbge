@@ -240,17 +240,10 @@ static int Texture_init(Texture *self, PyObject *args, PyObject *kwds)
 			KX_LightObject * lamp = getLamp(obj);
 			if (mat != NULL)
 			{
-				// is it blender material or polygon material
-				if (mat->GetFlag() & RAS_BLENDERGLSL) 
-				{
-					self->m_imgTexture = mat->GetTexture(texID)->GetImage();
-					self->m_useMatTexture = false;
-				} else
-				{
-					// get blender material texture
-					self->m_matTexture = mat->GetTexture(texID);
-					self->m_useMatTexture = true;
-				}
+				self->m_imgTexture = mat->GetTexture(texID)->GetImage();
+				// get blender material texture
+				self->m_matTexture = mat->GetTexture(texID);
+				self->m_useMatTexture = true;
 			}
 			else if (lamp != NULL)
 			{
