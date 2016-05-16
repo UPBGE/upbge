@@ -1889,9 +1889,11 @@ static void backupPySysObjects(void)
 	Py_XDECREF(gp_sys_backup.modules); /* just in case its set */
 	gp_sys_backup.modules = PyDict_Copy(sys_mods); /* copy the dict */
 
-	PyDict_Clear(sys_mods);
-	// Load a clean generated modules dict from the blender begining.
-	PyDict_Update(sys_mods, bpy_sys_module_backup);
+	if (bpy_sys_module_backup) {
+		PyDict_Clear(sys_mods);
+		// Load a clean generated modules dict from the blender begining.
+		PyDict_Update(sys_mods, bpy_sys_module_backup);
+	}
 }
 
 /* for initPySysObjects only,
