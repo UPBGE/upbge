@@ -194,24 +194,29 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_IRasterizer *rasty)
 void KX_WorldInfo::RenderBackground(RAS_IRasterizer *rasty)
 {
 	if (m_hasworld) {
-		GPUMaterial *gpumat = GPU_material_world(m_scene, m_scene->world);
+		if (m_scene->world->skytype & (WO_SKYBLEND || WO_SKYPAPER || WO_SKYREAL)) {
+			GPUMaterial *gpumat = GPU_material_world(m_scene, m_scene->world);
+			float viewmat[4][4];
+			rasty->GetViewMatrix().getValue(&viewmat[0][0]);
+			float invviewmat[4][4];
+			rasty->GetViewInvMatrix().getValue(&invviewmat[0][0]);
 
-		float viewmat[4][4];
-		rasty->GetViewMatrix().getValue(&viewmat[0][0]);
-		float invviewmat[4][4];
-		rasty->GetViewInvMatrix().getValue(&invviewmat[0][0]);
+			static float texcofac[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
+			GPU_material_bind(gpumat, 0xFFFFFFFF, m_scene->lay, 1.0f, false, viewmat, invviewmat, texcofac, false);
 
-		static float texcofac[4] = {0.0f, 0.0f, 1.0f, 1.0f};
-		GPU_material_bind(gpumat, 0xFFFFFFFF, m_scene->lay, 1.0f, false, viewmat, invviewmat, texcofac, false);
+			rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
+			rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
 
-		rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
-		rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
+			rasty->DrawOverlayPlane();
 
-		rasty->DrawOverlayPlane();
+			rasty->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
 
-		rasty->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
-
-		GPU_material_unbind(gpumat);
+			GPU_material_unbind(gpumat);
+		}
+		else {
+			rasty->SetClearColor(m_horizoncolor[0], m_horizoncolor[1], m_horizoncolor[2], 1.0f);
+			rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);			
+		}
 	}
 }
 
@@ -265,7 +270,7 @@ PyAttributeDef KX_WorldInfo::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("KX_MIST_INV_QUADRATIC", KX_WorldInfo, pyattr_get_mist_typeconst),
 	KX_PYATTRIBUTE_RW_FUNCTION("mistColor", KX_WorldInfo, pyattr_get_mist_color, pyattr_set_mist_color),
 	KX_PYATTRIBUTE_RW_FUNCTION("horizonColor", KX_WorldInfo, pyattr_get_horizon_color, pyattr_set_horizon_color),
-	KX_PYATTRIBUTE_RW_FUNCTION("backgroundColor", KX_WorldInfo, pyattr_get_background_color, pyattr_set_background_color), // DEPRECATED use horizoncolor/zenithColor instead.
+	KX_PYATTRIBUTE_RW_FUNCTION("backgroundColor", KX_WorldInfo, pyattr_get_horizon_color, pyattr_set_horizon_color), // DEPRECATED use horizoncolor/zenithColor instead.
 	KX_PYATTRIBUTE_RW_FUNCTION("zenithColor", KX_WorldInfo, pyattr_get_zenith_color, pyattr_set_zenith_color),
 	KX_PYATTRIBUTE_RW_FUNCTION("ambientColor", KX_WorldInfo, pyattr_get_ambient_color, pyattr_set_ambient_color),
 	{ NULL } /* Sentinel */
@@ -506,29 +511,6 @@ int KX_WorldInfo::pyattr_set_horizon_color(void *self_v, const KX_PYATTRIBUTE_DE
 	if (PyVecTo(value, color))
 	{
 		self->setHorizonColor(color);
-		return PY_SET_ATTR_SUCCESS;
-	}
-	return PY_SET_ATTR_FAIL;
-}
-
-PyObject *KX_WorldInfo::pyattr_get_background_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	ShowDeprecationWarning("KX_WorldInfo.backgroundColor", "KX_WorldInfo.horizonColor/zenithColor");
-	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
-	return PyObjectFrom(MT_Vector3(self->m_horizoncolor));
-}
-
-int KX_WorldInfo::pyattr_set_background_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_WorldInfo *self = static_cast<KX_WorldInfo*>(self_v);
-
-	ShowDeprecationWarning("KX_WorldInfo.backgroundColor", "KX_WorldInfo.horizonColor/zenithColor");
-
-	MT_Vector3 color;
-	if (PyVecTo(value, color))
-	{
-		self->setHorizonColor(color);
-		self->setZenithColor(color);
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
