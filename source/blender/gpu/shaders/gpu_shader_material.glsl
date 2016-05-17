@@ -2285,10 +2285,10 @@ void shadows_only_vsm(vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float s
 	}
 }
 
-void shade_light_texture(vec3 rco, sampler2D cookie, float lodbias, mat4 shadowpersmat, out vec4 result)
+void shade_light_texture(vec3 rco, sampler2D cookie, vec3 scale, float lodbias, mat4 shadowpersmat, out vec4 result)
 {
 
-	vec4 co = shadowpersmat*vec4(rco, 1.0);
+	vec4 co = shadowpersmat*vec4(rco, 1.0) * vec4(scale, 1.0);
 
 	result = texture2DProj(cookie, co, lodbias);
 }
