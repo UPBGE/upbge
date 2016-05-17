@@ -243,13 +243,11 @@ static int Texture_init(Texture *self, PyObject *args, PyObject *kwds)
 				if (mat->GetFlag() & RAS_BLENDERGLSL)
 				{
 					self->m_imgTexture = mat->GetTexture(texID)->GetImage();
-					self->m_matglsl = false;
 				}
 				
-			// get blender material texture
-			self->m_matTexture = mat->GetTexture(texID);
-			self->m_useMatTexture = true;
-				
+				// get blender material texture
+				self->m_matTexture = mat->GetTexture(texID);
+				self->m_useMatTexture = true;				
 			}
 			else if (lamp != NULL)
 			{
