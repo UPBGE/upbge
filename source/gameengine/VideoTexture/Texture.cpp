@@ -243,14 +243,11 @@ static int Texture_init(Texture *self, PyObject *args, PyObject *kwds)
 				if (mat->GetFlag() & RAS_BLENDERGLSL)
 				{
 					self->m_imgTexture = mat->GetTexture(texID)->GetImage();
-					self->m_useMatTexture = false;
 				}
-				else
-				{
-					// get blender material texture
-					self->m_matTexture = mat->GetTexture(texID);
-					self->m_useMatTexture = true;
-				}
+				
+				// get blender material texture
+				self->m_matTexture = mat->GetTexture(texID);
+				self->m_useMatTexture = true;				
 			}
 			else if (lamp != NULL)
 			{
@@ -295,8 +292,13 @@ PyObject *Texture_close(Texture * self)
 	{
 		self->m_orgSaved = false;
 		// restore original texture code
-		if (self->m_useMatTexture)
+		if (self->m_useMatTexture) {
 			self->m_matTexture->SetBindCode(self->m_orgTex);
+			if (self->m_imgTexture) {
+				self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = self->m_orgTex;
+				self->m_imgBuf = NULL;
+			}
+		}
 		else
 		{
 			self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = self->m_orgTex;
@@ -350,6 +352,10 @@ static PyObject *Texture_refresh(Texture *self, PyObject *args)
 					if (self->m_useMatTexture) {
 						self->m_orgTex = self->m_matTexture->GetBindCode();
 						self->m_matTexture->SetBindCode(self->m_actTex);
+						if (self->m_imgTexture) {
+							self->m_orgTex = self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D];
+							self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = self->m_actTex;							
+						}
 					}
 					else
 					{
@@ -389,7 +395,6 @@ static PyObject *Texture_refresh(Texture *self, PyObject *args)
 						IMB_freeImBuf(self->m_scaledImBuf);
 						self->m_scaledImBuf = IMB_allocFromBuffer(texture, NULL, orgSize[0], orgSize[1]);
 						IMB_scaleImBuf(self->m_scaledImBuf, size[0], size[1]);
-
 						// use scaled image instead original
 						texture = self->m_scaledImBuf->rect;
 					}
