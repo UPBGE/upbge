@@ -94,11 +94,7 @@ void BL_BlenderShader::ParseAttribs(STR_String uvsname[RAS_Texture::MaxUnits])
 
 void BL_BlenderShader::ReloadMaterial()
 {
-	m_GPUMat = (m_mat) ? 
-		(UseInstancing() ?
-		GPU_material_instancing_from_blender(m_blenderScene, m_mat) :
-		GPU_material_from_blender(m_blenderScene, m_mat, false)) :
-		NULL;
+	m_GPUMat = (m_mat) ? GPU_material_from_blender(m_blenderScene, m_mat, false, UseInstancing()) : NULL;
 }
 
 void BL_BlenderShader::SetProg(bool enable, double time, RAS_IRasterizer *rasty)

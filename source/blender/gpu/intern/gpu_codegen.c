@@ -1705,6 +1705,7 @@ GPUPass *GPU_generate_pass(
 	fragmentcode = code_generate_fragment(nodes, outlink->output);
 	vertexcode = code_generate_vertex(nodes, type);
 	geometrycode = code_generate_geometry(nodes, use_opensubdiv);
+	printf("%s\n", fragmentcode);
 
 	int flags = GPU_SHADER_FLAGS_NONE;
 	if (use_opensubdiv) {
