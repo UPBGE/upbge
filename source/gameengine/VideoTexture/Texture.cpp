@@ -243,14 +243,13 @@ static int Texture_init(Texture *self, PyObject *args, PyObject *kwds)
 				if (mat->GetFlag() & RAS_BLENDERGLSL)
 				{
 					self->m_imgTexture = mat->GetTexture(texID)->GetImage();
-					self->m_useMatTexture = false;
+					self->m_matglsl = false;
 				}
-				else
-				{
-					// get blender material texture
-					self->m_matTexture = mat->GetTexture(texID);
-					self->m_useMatTexture = true;
-				}
+				
+			// get blender material texture
+			self->m_matTexture = mat->GetTexture(texID);
+			self->m_useMatTexture = true;
+				
 			}
 			else if (lamp != NULL)
 			{
@@ -350,6 +349,8 @@ static PyObject *Texture_refresh(Texture *self, PyObject *args)
 					if (self->m_useMatTexture) {
 						self->m_orgTex = self->m_matTexture->GetBindCode();
 						self->m_matTexture->SetBindCode(self->m_actTex);
+						if (self->m_imgTexture)
+							self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = self->m_actTex;
 					}
 					else
 					{
@@ -365,40 +366,7 @@ static PyObject *Texture_refresh(Texture *self, PyObject *args)
 				}
 
 				// get texture
-				unsigned int * texture = self->m_source->m_image->getImage(self->m_actTex, ts);
-				// if texture is available
-				if (texture != NULL)
-				{
-					// get texture size
-					short * orgSize = self->m_source->m_image->getSize();
-					// calc scaled sizes
-					short size[2];
-					if (GLEW_ARB_texture_non_power_of_two)
-					{
-						size[0] = orgSize[0];
-						size[1] = orgSize[1];
-					}
-					else
-					{
-						size[0] = ImageBase::calcSize(orgSize[0]);
-						size[1] = ImageBase::calcSize(orgSize[1]);
-					}
-					// scale texture if needed
-					if (size[0] != orgSize[0] || size[1] != orgSize[1])
-					{
-						IMB_freeImBuf(self->m_scaledImBuf);
-						self->m_scaledImBuf = IMB_allocFromBuffer(texture, NULL, orgSize[0], orgSize[1]);
-						IMB_scaleImBuf(self->m_scaledImBuf, size[0], size[1]);
-
-						// use scaled image instead original
-						texture = self->m_scaledImBuf->rect;
-					}
-					// load texture for rendering
-					loadTexture(self->m_actTex, texture, size, self->m_mipmap);
-
-					// refresh texture source, if required
-					if (refreshSource) self->m_source->m_image->refresh();
-				}
+				self->m_source->m_image->getImage(self->m_actTex, ts);
 			}
 		}
 		CATCH_EXCP;

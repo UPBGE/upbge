@@ -60,6 +60,7 @@ struct Texture
 	// original texture saved
 	bool m_orgSaved;
 
+	bool m_matglsl;
 	// kernel image buffer, to make sure the image is loaded before we swap the bindcode
 	struct ImBuf *m_imgBuf;
 	// texture image for game materials
