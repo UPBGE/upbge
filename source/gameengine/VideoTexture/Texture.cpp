@@ -296,7 +296,6 @@ PyObject *Texture_close(Texture * self)
 			self->m_matTexture->SetBindCode(self->m_orgTex);
 			if (self->m_imgTexture) {
 				self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = self->m_orgTex;
-				BKE_image_release_ibuf(self->m_imgTexture, self->m_imgBuf, NULL);
 				self->m_imgBuf = NULL;
 			}
 		}
