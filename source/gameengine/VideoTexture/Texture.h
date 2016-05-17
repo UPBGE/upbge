@@ -57,6 +57,8 @@ struct Texture
 	unsigned int m_actTex;
 	// original texture bind code
 	unsigned int m_orgTex;
+	// original image bind code
+	unsigned int m_orgImg;
 	// original texture saved
 	bool m_orgSaved;
 
