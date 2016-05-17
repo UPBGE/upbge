@@ -36,15 +36,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#ifdef WIN32
-#  include "BLI_winstuff.h"
-#endif
-
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_threads.h"
 
+#include "BLT_translation.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -64,6 +61,7 @@
 #include "BKE_paint.h"
 #include "BKE_texture.h"
 
+#include "UI_interface.h"
 #include "UI_view2d.h"
 
 #include "ED_image.h"
@@ -1171,20 +1169,17 @@ typedef struct {
 
 static void sample_color_update_header(SampleColorData *data, bContext *C)
 {
-#define HEADER_LENGTH 150
-	char msg[HEADER_LENGTH];
+	char msg[UI_MAX_DRAW_STR];
 	ScrArea *sa = CTX_wm_area(C);
 
 	if (sa) {
-		BLI_snprintf(msg, HEADER_LENGTH,
-		             "Sample color for %s",
+		BLI_snprintf(msg, sizeof(msg),
+		             IFACE_("Sample color for %s"),
 		             !data->sample_palette ?
-		             "Brush. Use Left Click to sample for palette instead" :
-		             "Palette. Use Left Click to sample more colors");
+		             IFACE_("Brush. Use Left Click to sample for palette instead") :
+		             IFACE_("Palette. Use Left Click to sample more colors"));
 		ED_area_headerprint(sa, msg);
 	}
-
-#undef HEADER_LENGTH
 }
 
 static int sample_color_exec(bContext *C, wmOperator *op)

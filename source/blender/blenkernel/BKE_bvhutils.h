@@ -181,28 +181,12 @@ enum {
 	BVHTREE_FROM_LOOPTRI         = 3,
 };
 
-typedef struct LinkNode *BVHCache;
+typedef struct LinkNode BVHCache;
 
-
-/**
- * Queries a bvhcache for the cache bvhtree of the request type
- */
 BVHTree *bvhcache_find(BVHCache *cache, int type);
-
-/**
- * Inserts a BVHTree of the given type under the cache
- * After that the caller no longer needs to worry when to free the BVHTree
- * as that will be done when the cache is freed.
- *
- * A call to this assumes that there was no previous cached tree of the given type
- */
-void bvhcache_insert(BVHCache *cache, BVHTree *tree, int type);
-
-/**
- * inits and frees a bvhcache
- */
-void bvhcache_init(BVHCache *cache);
-void bvhcache_free(BVHCache *cache);
+bool     bvhcache_has_tree(const BVHCache *cache, const BVHTree *tree);
+void     bvhcache_insert(BVHCache **cache_p, BVHTree *tree, int type);
+void     bvhcache_init(BVHCache **cache_p);
+void     bvhcache_free(BVHCache **cache_p);
 
 #endif
-
