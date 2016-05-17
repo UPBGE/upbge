@@ -364,7 +364,39 @@ static PyObject *Texture_refresh(Texture *self, PyObject *args)
 				}
 
 				// get texture
-				self->m_source->m_image->getImage(self->m_actTex, ts);
+				unsigned int * texture = self->m_source->m_image->getImage(self->m_actTex, ts);
+				// if texture is available
+				if (texture != NULL)
+				{
+					// get texture size
+					short * orgSize = self->m_source->m_image->getSize();
+					// calc scaled sizes
+					short size[2];
+					if (GLEW_ARB_texture_non_power_of_two)
+					{
+						size[0] = orgSize[0];
+						size[1] = orgSize[1];
+					}
+					else
+					{
+						size[0] = ImageBase::calcSize(orgSize[0]);
+						size[1] = ImageBase::calcSize(orgSize[1]);
+					}
+					// scale texture if needed
+					if (size[0] != orgSize[0] || size[1] != orgSize[1])
+					{
+						IMB_freeImBuf(self->m_scaledImBuf);
+						self->m_scaledImBuf = IMB_allocFromBuffer(texture, NULL, orgSize[0], orgSize[1]);
+						IMB_scaleImBuf(self->m_scaledImBuf, size[0], size[1]);
+						// use scaled image instead original
+						texture = self->m_scaledImBuf->rect;
+					}
+					// load texture for rendering
+					loadTexture(self->m_actTex, texture, size, self->m_mipmap);
+
+					// refresh texture source, if required
+					if (refreshSource) self->m_source->m_image->refresh();
+				}
 			}
 		}
 		CATCH_EXCP;
