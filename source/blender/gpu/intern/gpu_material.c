@@ -2222,13 +2222,21 @@ GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo)
 }
 
 
-GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_opensubdiv)
+GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_opensubdiv, bool is_instancing)
 {
 	GPUMaterial *mat;
 	GPUNodeLink *outlink;
 	LinkData *link;
+	ListBase *gpumaterials;
 
-	for (link = ma->gpumaterial.first; link; link = link->next) {
+	if (is_instancing) {
+		gpumaterials = &ma->gpumaterialinstancing;
+	}
+	else {
+		gpumaterials = &ma->gpumaterial;
+	}
+
+	for (link = gpumaterials->first; link; link = link->next) {
 		GPUMaterial *current_material = (GPUMaterial *)link->data;
 		if (current_material->scene == scene &&
 		    current_material->is_opensubdiv == use_opensubdiv)
@@ -2241,7 +2249,7 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_open
 	mat = GPU_material_construct_begin(ma);
 	mat->scene = scene;
 	mat->type = GPU_MATERIAL_TYPE_MESH;
-	mat->use_instancing = false;
+	mat->use_instancing = is_instancing;
 	mat->is_opensubdiv = use_opensubdiv;
 	mat->har = ma->har;
 
@@ -2284,65 +2292,7 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_open
 
 	link = MEM_callocN(sizeof(LinkData), "GPUMaterialLink");
 	link->data = mat;
-	BLI_addtail(&ma->gpumaterial, link);
-
-	return mat;
-}
-
-GPUMaterial *GPU_material_instancing_from_blender(Scene *scene, Material *ma)
-{
-	GPUMaterial *mat;
-	GPUNodeLink *outlink;
-	LinkData *link;
-
-	for (link = ma->gpumaterialinstancing.first; link; link = link->next)
-		if (((GPUMaterial*)link->data)->scene == scene)
-			return link->data;
-
-	/* allocate material */
-	mat = GPU_material_construct_begin(ma);
-	mat->scene = scene;
-	mat->type = GPU_MATERIAL_TYPE_MESH;
-	mat->use_instancing = true;
-	mat->is_opensubdiv = false;
-
-	/* render pipeline option */
-	if (ma->mode & MA_TRANSP)
-		GPU_material_enable_alpha(mat);
-
-	if (!(scene->gm.flag & GAME_GLSL_NO_NODES) && ma->nodetree && ma->use_nodes) {
-		/* create nodes */
-		if (BKE_scene_use_new_shading_nodes(scene))
-			ntreeGPUMaterialNodes(ma->nodetree, mat, NODE_NEW_SHADING);
-		else
-			ntreeGPUMaterialNodes(ma->nodetree, mat, NODE_OLD_SHADING);
-	}
-	else {
-		if (BKE_scene_use_new_shading_nodes(scene)) {
-			/* create simple diffuse material instead of nodes */
-			outlink = gpu_material_diffuse_bsdf(mat, ma);
-		}
-		else {
-			/* create blender material */
-			outlink = GPU_blender_material(mat, ma);
-		}
-
-		GPU_material_output_link(mat, outlink);
-	}
-
-	if (GPU_material_do_color_management(mat))
-		if (mat->outlink)
-			GPU_link(mat, "linearrgb_to_srgb", mat->outlink, &mat->outlink);
-
-	GPU_material_construct_end(mat, ma->id.name);
-
-	/* note that even if building the shader fails in some way, we still keep
-	 * it to avoid trying to compile again and again, and simple do not use
-	 * the actual shader on drawing */
-
-	link = MEM_callocN(sizeof(LinkData), "GPUMaterialLinkInstancing");
-	link->data = mat;
-	BLI_addtail(&ma->gpumaterialinstancing, link);
+	BLI_addtail(gpumaterials, link);
 
 	return mat;
 }
@@ -2822,7 +2772,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 	int liblen, fraglen;
 
 	/* TODO(sergey): How to determine whether we need OSD or not here? */
-	GPUMaterial *mat = GPU_material_from_blender(scene, ma, false);
+	GPUMaterial *mat = GPU_material_from_blender(scene, ma, false, false);
 	GPUPass *pass = (mat) ? mat->pass : NULL;
 
 	if (pass && pass->fragmentcode && pass->vertexcode) {
