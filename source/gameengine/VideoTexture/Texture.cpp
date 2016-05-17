@@ -292,8 +292,14 @@ PyObject *Texture_close(Texture * self)
 	{
 		self->m_orgSaved = false;
 		// restore original texture code
-		if (self->m_useMatTexture)
+		if (self->m_useMatTexture) {
 			self->m_matTexture->SetBindCode(self->m_orgTex);
+			if (self->m_imgTexture) {
+				self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = self->m_orgTex;
+				BKE_image_release_ibuf(self->m_imgTexture, self->m_imgBuf, NULL);
+				self->m_imgBuf = NULL;
+			}
+		}
 		else
 		{
 			self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = self->m_orgTex;
@@ -347,8 +353,10 @@ static PyObject *Texture_refresh(Texture *self, PyObject *args)
 					if (self->m_useMatTexture) {
 						self->m_orgTex = self->m_matTexture->GetBindCode();
 						self->m_matTexture->SetBindCode(self->m_actTex);
-						if (self->m_imgTexture)
+						if (self->m_imgTexture) {
 							self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = self->m_actTex;
+							self->m_orgTex = self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D];
+						}
 					}
 					else
 					{
