@@ -354,8 +354,8 @@ static PyObject *Texture_refresh(Texture *self, PyObject *args)
 						self->m_orgTex = self->m_matTexture->GetBindCode();
 						self->m_matTexture->SetBindCode(self->m_actTex);
 						if (self->m_imgTexture) {
-							self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = self->m_actTex;
 							self->m_orgTex = self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D];
+							self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = self->m_actTex;							
 						}
 					}
 					else
