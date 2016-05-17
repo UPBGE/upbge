@@ -214,8 +214,10 @@ void KX_WorldInfo::RenderBackground(RAS_IRasterizer *rasty)
 			GPU_material_unbind(gpumat);
 		}
 		else {
-			rasty->SetClearColor(m_horizoncolor[0], m_horizoncolor[1], m_horizoncolor[2], 1.0f);
-			rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);			
+			float srgbcolor[3];
+			linearrgb_to_srgb_v3_v3(srgbcolor, m_horizoncolor.getValue());
+			rasty->SetClearColor(srgbcolor[0], srgbcolor[1], srgbcolor[2], 1.0f);
+			rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
 		}
 	}
 }

@@ -90,9 +90,9 @@ void BKE_world_init(World *wrld)
 {
 	BLI_assert(MEMCMP_STRUCT_OFS_IS_ZERO(wrld, id));
 
-	wrld->horr = 0.224f;
-	wrld->horg = 0.224f;
-	wrld->horb = 0.224f;
+	wrld->horr = 0.05f;
+	wrld->horg = 0.05f;
+	wrld->horb = 0.05f;
 	wrld->zenr = 0.01f;
 	wrld->zeng = 0.01f;
 	wrld->zenb = 0.01f;

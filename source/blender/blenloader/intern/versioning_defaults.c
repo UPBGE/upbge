@@ -39,7 +39,6 @@
 #include "DNA_mesh_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
-#include "DNA_world_types.h"
 
 #include "BKE_brush.h"
 #include "BKE_library.h"
@@ -79,9 +78,6 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 	for (Scene *scene = bmain->scene.first; scene; scene = scene->id.next) {
 		scene->r.im_format.planes = R_IMF_PLANES_RGBA;
 		scene->r.im_format.compress = 15;
-		scene->world->horr = 0.224f;
-		scene->world->horg = 0.224f;
-		scene->world->horb = 0.224f;
 
 		for (SceneRenderLayer *srl = scene->r.layers.first; srl; srl = srl->next) {
 			srl->freestyleConfig.sphere_radius = 0.1f;

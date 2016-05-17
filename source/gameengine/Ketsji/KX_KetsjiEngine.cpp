@@ -433,7 +433,10 @@ void KX_KetsjiEngine::ClearFrame()
 		firstscene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight(), clearvp.GetTop());
-		m_rasterizer->SetClearColor(0.224f, 0.224f, 0.224f, 1.0f);
+		/* Grey color computed by linearrgb_to_srgb_v3_v3 with a color of 
+		 * 0.050, 0.050, 0.050 (the default world horizon color).
+		 */
+		m_rasterizer->SetClearColor(0.247784f, 0.247784f, 0.247784f, 1.0f);
 		m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);		
 	}
 }
