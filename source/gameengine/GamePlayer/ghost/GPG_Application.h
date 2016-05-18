@@ -48,14 +48,14 @@ class GHOST_IEvent;
 class GHOST_ISystem;
 class GHOST_ITimerTask;
 class GHOST_IWindow;
-class GPC_MouseDevice;
 class GPG_Canvas;
-class GPG_KeyboardDevice;
 class GPG_System;
+class GH_InputDevice;
+class GH_EventConsumer;
 struct Main;
 struct Scene;
 
-class GPG_Application : public GHOST_IEventConsumer
+class GPG_Application
 {
 public:
 	GPG_Application(GHOST_ISystem* system);
@@ -80,7 +80,6 @@ public:
 	                             const bool stereoVisual, const int stereoMode, const GHOST_TUns16 samples=0);
 #endif
 
-	virtual	bool processEvent(GHOST_IEvent* event);
 	int getExitRequested(void);
 	const STR_String& getExitString(void);
 	GlobalSettings* getGlobalSettings(void);
@@ -95,11 +94,6 @@ public:
 	void EngineNextFrame();
 
 protected:
-	bool	handleWheel(GHOST_IEvent* event);
-	bool	handleButton(GHOST_IEvent* event, bool isDown);
-	bool	handleCursorMove(GHOST_IEvent* event);
-	bool	handleKey(GHOST_IEvent* event, bool isDown);
-
 	/**
 	 * Initializes the game engine.
 	 */
@@ -136,8 +130,6 @@ protected:
 	GHOST_ISystem*			m_system;
 	/* Main window. */
 	GHOST_IWindow*			m_mainWindow;
-	/* Timer to advance frames. */
-	GHOST_ITimerTask*		m_frameTimer;
 	/* The cursor shape displayed. */
 	GHOST_TStandardCursor	m_cursor;
 
@@ -152,10 +144,9 @@ protected:
 	KX_KetsjiEngine* m_ketsjiengine;
 	/** The game engine's system abstraction. */
 	GPG_System* m_kxsystem;
-	/** The game engine's keyboard abstraction. */
-	GPG_KeyboardDevice* m_keyboard;
-	/** The game engine's mouse abstraction. */
-	GPC_MouseDevice* m_mouse;
+	/** The game engine's input device abstraction. */
+	GH_InputDevice *m_inputDevice;
+	GH_EventConsumer *m_eventConsumer;
 	/** The game engine's canvas abstraction. */
 	GPG_Canvas* m_canvas;
 	/** the rasterizer */

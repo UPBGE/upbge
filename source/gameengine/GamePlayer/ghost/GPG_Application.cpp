@@ -82,9 +82,10 @@ extern "C"
 #include "KX_NetworkMessageManager.h"
 #include "KX_BlenderSceneConverter.h"
 
-#include "GPC_MouseDevice.h"
+#include "GH_InputDevice.h"
+#include "GH_EventConsumer.h"
+
 #include "GPG_Canvas.h" 
-#include "GPG_KeyboardDevice.h"
 #include "GPG_System.h"
 
 #include "STR_String.h"
@@ -99,8 +100,6 @@ extern "C"
 #  include AUD_DEVICE_H
 #endif
 
-static void frameTimerProc(GHOST_ITimerTask* task, GHOST_TUns64 time);
-
 static GHOST_ISystem* fSystem = 0;
 static const int kTimerFreq = 10;
 
@@ -112,15 +111,14 @@ GPG_Application::GPG_Application(GHOST_ISystem* system)
 	  m_exitRequested(0),
 	  m_system(system), 
 	  m_mainWindow(0), 
-	  m_frameTimer(0), 
 	  m_cursor(GHOST_kStandardCursorFirstCursor),
 	  m_engineInitialized(0), 
 	  m_engineRunning(0), 
 	  m_isEmbedded(false),
 	  m_ketsjiengine(0),
 	  m_kxsystem(0), 
-	  m_keyboard(0), 
-	  m_mouse(0), 
+	  m_inputDevice(NULL),
+	  m_eventConsumer(NULL),
 	  m_canvas(0),
 	  m_rasterizer(0), 
 	  m_sceneconverter(0),
@@ -433,104 +431,6 @@ void GPG_Application::StopGameEngine()
 	exitEngine();
 }
 
-
-
-bool GPG_Application::processEvent(GHOST_IEvent* event)
-{
-	bool handled = true;
-
-	switch (event->getType())
-	{
-		case GHOST_kEventUnknown:
-			break;
-
-		case GHOST_kEventButtonDown:
-			handled = handleButton(event, true);
-			break;
-
-		case GHOST_kEventButtonUp:
-			handled = handleButton(event, false);
-			break;
-			
-		case GHOST_kEventWheel:
-			handled = handleWheel(event);
-			break;
-
-		case GHOST_kEventCursorMove:
-			handled = handleCursorMove(event);
-			break;
-
-		case GHOST_kEventKeyDown:
-			handleKey(event, true);
-			break;
-
-		case GHOST_kEventKeyUp:
-			handleKey(event, false);
-			break;
-
-
-		case GHOST_kEventWindowClose:
-		case GHOST_kEventQuit:
-			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
-			break;
-
-		case GHOST_kEventWindowActivate:
-			handled = false;
-			break;
-		case GHOST_kEventWindowDeactivate:
-			handled = false;
-			break;
-
-		// The player now runs as often as it can (repsecting vsync and fixedtime).
-		// This allows the player to break 100fps, but this code is being left here
-		// as reference. (see EngineNextFrame)
-		//case GHOST_kEventWindowUpdate:
-		//	{
-		//		GHOST_IWindow* window = event->getWindow();
-		//		if (!m_system->validWindow(window)) break;
-		//		// Update the state of the game engine
-		//		if (m_kxsystem && !m_exitRequested)
-		//		{
-		//			// Proceed to next frame
-		//			window->activateDrawingContext();
-
-		//			// first check if we want to exit
-		//			m_exitRequested = m_ketsjiengine->GetExitCode();
-		//
-		//			// kick the engine
-		//			bool renderFrame = m_ketsjiengine->NextFrame();
-		//			if (renderFrame)
-		//			{
-		//				// render the frame
-		//				m_ketsjiengine->Render();
-		//			}
-		//		}
-		//		m_exitString = m_ketsjiengine->GetExitString();
-		//	}
-		//	break;
-		//
-		case GHOST_kEventWindowSize:
-			{
-			GHOST_IWindow* window = event->getWindow();
-			if (!m_system->validWindow(window)) break;
-			if (m_canvas) {
-				GHOST_Rect bnds;
-				window->getClientBounds(bnds);
-				m_canvas->Resize(bnds.getWidth(), bnds.getHeight());
-				m_ketsjiengine->Resize();
-			}
-			}
-			break;
-		
-		default:
-			handled = false;
-			break;
-	}
-	return handled;
-}
-
-
-
 int GPG_Application::getExitRequested(void)
 {
 	return m_exitRequested;
@@ -617,12 +517,10 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
 
 		// create the inputdevices
-		m_keyboard = new GPG_KeyboardDevice();
-		if (!m_keyboard)
-			goto initFailed;
-			
-		m_mouse = new GPC_MouseDevice();
-		if (!m_mouse)
+		m_inputDevice = new GH_InputDevice();
+		GH_EventConsumer *m_eventConsumer = new GH_EventConsumer(m_inputDevice);
+		m_system->addEventConsumer(m_eventConsumer);
+		if (!m_inputDevice)
 			goto initFailed;
 
 		BKE_sound_init(m_maggie);
@@ -638,8 +536,7 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_ketsjiengine = new KX_KetsjiEngine(m_kxsystem);
 		
 		// set the devices
-		m_ketsjiengine->SetKeyboardDevice(m_keyboard);
-		m_ketsjiengine->SetMouseDevice(m_mouse);
+		m_ketsjiengine->SetInputDevice(m_inputDevice);
 		m_ketsjiengine->SetCanvas(m_canvas);
 		m_ketsjiengine->SetRasterizer(m_rasterizer);
 		m_ketsjiengine->SetNetworkMessageManager(m_networkMessageManager);
@@ -667,14 +564,12 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 initFailed:
 	BKE_sound_exit();
 	delete m_kxsystem;
-	delete m_mouse;
-	delete m_keyboard;
+	delete m_inputDevice;
 	delete m_rasterizer;
 	delete m_canvas;
 	m_canvas = NULL;
 	m_rasterizer = NULL;
-	m_keyboard = NULL;
-	m_mouse = NULL;
+	m_inputDevice = NULL;
 	m_kxsystem = NULL;
 	return false;
 }
@@ -710,8 +605,7 @@ bool GPG_Application::startEngine(void)
 		STR_String m_kxStartScenename = m_startSceneName.Ptr();
 		m_ketsjiengine->SetSceneConverter(m_sceneconverter);
 
-		m_kxStartScene = new KX_Scene(m_keyboard,
-			m_mouse,
+		m_kxStartScene = new KX_Scene(m_inputDevice,
 			m_kxStartScenename,
 			m_startScene,
 			m_canvas,
@@ -747,11 +641,7 @@ bool GPG_Application::startEngine(void)
 			m_canvas);
 		m_ketsjiengine->AddScene(m_kxStartScene);
 		m_kxStartScene->Release();
-		
-		// Create a timer that is used to kick the engine
-		if (!m_frameTimer) {
-			m_frameTimer = m_system->installTimer(0, kTimerFreq, frameTimerProc, m_mainWindow);
-		}
+
 		m_rasterizer->Init();
 		m_ketsjiengine->StartEngine(true);
 		m_engineRunning = true;
@@ -792,10 +682,6 @@ void GPG_Application::stopEngine()
 		delete m_sceneconverter;
 		m_sceneconverter = 0;
 	}
-	if (m_system && m_frameTimer) {
-		m_system->removeTimer(m_frameTimer);
-		m_frameTimer = 0;
-	}
 
 	m_engineRunning = false;
 }
@@ -815,6 +701,12 @@ void GPG_Application::EngineNextFrame()
 			m_mainWindow->activateDrawingContext();
 			// render the frame
 			m_ketsjiengine->Render();
+		}
+		m_system->processEvents(false);
+		m_system->dispatchEvents();
+
+		if (m_inputDevice->GetEvent((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiengine->GetExitKey()).Find(SCA_InputEvent::KX_ACTIVE)) {
+			m_exitRequested = KX_EXIT_REQUEST_BLENDER_ESC;
 		}
 	}
 	m_exitString = m_ketsjiengine->GetExitString();
@@ -838,15 +730,14 @@ void GPG_Application::exitEngine()
 		delete m_kxsystem;
 		m_kxsystem = 0;
 	}
-	if (m_mouse)
+	if (m_inputDevice)
 	{
-		delete m_mouse;
-		m_mouse = 0;
+		delete m_inputDevice;
+		m_inputDevice = NULL;
 	}
-	if (m_keyboard)
-	{
-		delete m_keyboard;
-		m_keyboard = 0;
+	if (m_eventConsumer) {
+		m_system->removeEventConsumer(m_eventConsumer);
+		delete m_eventConsumer;
 	}
 	if (m_rasterizer)
 	{
@@ -872,98 +763,4 @@ void GPG_Application::exitEngine()
 
 	m_exitRequested = 0;
 	m_engineInitialized = false;
-}
-
-bool GPG_Application::handleWheel(GHOST_IEvent* event)
-{
-	bool handled = false;
-	BLI_assert(event);
-	if (m_mouse) 
-	{
-		GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
-		GHOST_TEventWheelData* wheelData = static_cast<GHOST_TEventWheelData*>(eventData);
-		GPC_MouseDevice::TButtonId button;
-		if (wheelData->z > 0)
-			button = GPC_MouseDevice::buttonWheelUp;
-		else
-			button = GPC_MouseDevice::buttonWheelDown;
-		m_mouse->ConvertButtonEvent(button, true);
-		handled = true;
-	}
-	return handled;
-}
-
-bool GPG_Application::handleButton(GHOST_IEvent* event, bool isDown)
-{
-	bool handled = false;
-	BLI_assert(event);
-	if (m_mouse) 
-	{
-		GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
-		GHOST_TEventButtonData* buttonData = static_cast<GHOST_TEventButtonData*>(eventData);
-		GPC_MouseDevice::TButtonId button;
-		switch (buttonData->button)
-		{
-		case GHOST_kButtonMaskMiddle:
-			button = GPC_MouseDevice::buttonMiddle;
-			break;
-		case GHOST_kButtonMaskRight:
-			button = GPC_MouseDevice::buttonRight;
-			break;
-		case GHOST_kButtonMaskLeft:
-		default:
-			button = GPC_MouseDevice::buttonLeft;
-			break;
-		}
-		m_mouse->ConvertButtonEvent(button, isDown);
-		handled = true;
-	}
-	return handled;
-}
-
-
-bool GPG_Application::handleCursorMove(GHOST_IEvent* event)
-{
-	bool handled = false;
-	BLI_assert(event);
-	if (m_mouse && m_mainWindow)
-	{
-		GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
-		GHOST_TEventCursorData* cursorData = static_cast<GHOST_TEventCursorData*>(eventData);
-		GHOST_TInt32 x, y;
-		m_mainWindow->screenToClient(cursorData->x, cursorData->y, x, y);
-		m_mouse->ConvertMoveEvent(x, y);
-		handled = true;
-	}
-	return handled;
-}
-
-
-bool GPG_Application::handleKey(GHOST_IEvent* event, bool isDown)
-{
-	bool handled = false;
-	BLI_assert(event);
-	if (m_keyboard)
-	{
-		GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
-		GHOST_TEventKeyData* keyData = static_cast<GHOST_TEventKeyData*>(eventData);
-		unsigned int unicode = keyData->utf8_buf[0] ? BLI_str_utf8_as_unicode(keyData->utf8_buf) : keyData->ascii;
-
-		if (m_keyboard->ToNative(keyData->key) == KX_KetsjiEngine::GetExitKey() && !m_keyboard->m_hookesc && !m_isEmbedded) {
-			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
-		}
-		m_keyboard->ConvertEvent(keyData->key, isDown, unicode);
-		handled = true;
-	}
-	return handled;
-}
-
-
-
-static void frameTimerProc(GHOST_ITimerTask* task, GHOST_TUns64 time)
-{
-	GHOST_IWindow* window = (GHOST_IWindow*)task->getUserData();
-	if (fSystem->validWindow(window)) {
-		window->invalidate();
-	}
 }

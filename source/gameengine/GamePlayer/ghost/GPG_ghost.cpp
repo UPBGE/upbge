@@ -1109,10 +1109,7 @@ int main(
 							app.StartGameEngine(stereomode);
 							exitcode = KX_EXIT_REQUEST_NO_REQUEST;
 						}
-						
-						// Add the application as event consumer
-						system->addEventConsumer(&app);
-						
+
 						// Enter main loop
 						bool run = true;
 #ifdef WITH_PYTHON
@@ -1152,10 +1149,6 @@ int main(
 						}
 #endif // WITH_PYTHON
 						app.StopGameEngine();
-
-						/* 'app' is freed automatic when out of scope.
-						 * removal is needed else the system will free an already freed value */
-						system->removeEventConsumer(&app);
 
 						BLO_blendfiledata_free(bfd);
 						/* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */

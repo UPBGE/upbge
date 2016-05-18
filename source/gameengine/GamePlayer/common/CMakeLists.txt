@@ -57,12 +57,8 @@ set(INC_SYS
 
 set(SRC
 	GPC_Canvas.cpp
-	GPC_KeyboardDevice.cpp
-	GPC_MouseDevice.cpp
 
 	GPC_Canvas.h
-	GPC_KeyboardDevice.h
-	GPC_MouseDevice.h
 )
 
 add_definitions(${GL_DEFINITIONS})

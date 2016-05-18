@@ -119,6 +119,7 @@ endif()
 		bf_blenloader
 		ge_blen_routines
 		bf_editor_datafiles
+		ge_ghost
 		ge_converter 
 		ge_logic_ketsji 
 		ge_phys_bullet 
@@ -128,7 +129,6 @@ endif()
 		ge_rasterizer
 		ge_logic_expressions 
 		ge_scenegraph
-		ge_ghost
 		bf_ikplugin
 		bf_intern_itasc
 		bf_intern_iksolver

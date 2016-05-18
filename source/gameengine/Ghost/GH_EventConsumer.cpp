@@ -86,7 +86,21 @@ bool GH_EventConsumer::processEvent(GHOST_IEvent *event)
 			break;
 
 		case GHOST_kEventWheel:
-			std::cout << "mouse wheel" << std::endl;
+			/* TODO
+			 	bool handled = false;
+	BLI_assert(event);
+	if (m_mouse) 
+	{
+		GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
+		GHOST_TEventWheelData* wheelData = static_cast<GHOST_TEventWheelData*>(eventData);
+		GPC_MouseDevice::TButtonId button;
+		if (wheelData->z > 0)
+			button = GPC_MouseDevice::buttonWheelUp;
+		else
+			button = GPC_MouseDevice::buttonWheelDown;
+		m_mouse->ConvertButtonEvent(button, true);
+		handled = true;
+	}*/
 			break;
 
 		case GHOST_kEventCursorMove:
@@ -105,6 +119,22 @@ bool GH_EventConsumer::processEvent(GHOST_IEvent *event)
 			HandleKeyEvent(eventData, false);
 			break;
 		}
+		/*case GHOST_kEventWindowSize:
+			{
+			GHOST_IWindow* window = event->getWindow();
+			if (!m_system->validWindow(window)) break;
+			if (m_canvas) {
+				GHOST_Rect bnds;
+				window->getClientBounds(bnds);
+				m_canvas->Resize(bnds.getWidth(), bnds.getHeight());
+				m_ketsjiengine->Resize();
+			}
+			}
+			break;*/
+		/*case GHOST_kEventWindowClose:
+		case GHOST_kEventQuit:
+			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
+			break;*/
 		default:
 			break;
 	}
