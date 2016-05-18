@@ -63,9 +63,6 @@
 #include "GH_EventConsumer.h"
 #include "GH_InputDevice.h"
 
-#include "PIL_time.h"
-
-
 extern "C" {
 	#include "DNA_object_types.h"
 	#include "DNA_view3d_types.h"
