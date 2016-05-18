@@ -1704,7 +1704,8 @@ void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, floa
 
 void RAS_OpenGLRasterizer::DisableForText()
 {
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); /* needed for texture fonts otherwise they render as wireframe */
+	SetLines(false); /* needed for texture fonts otherwise they render as wireframe */
+	SetFrontFace(true);
 
 	Disable(RAS_BLEND);
 	Disable(RAS_ALPHA_TEST);
