@@ -155,9 +155,10 @@ extern "C" {
 extern Material defmaterial;	/* material.c */
 }
 
+#include "wm_event_types.h"
+
 /* end of blender include block */
 
-#include "KX_BlenderInputDevice.h"
 #include "KX_ConvertProperties.h"
 
 #include "SG_Node.h"

@@ -42,7 +42,6 @@
 
 #include <iostream>
 #include <stdio.h>
-#include "KX_BlenderInputDevice.h"
 #include "KX_BlenderSystem.h"
 
 #include "PIL_time.h"
