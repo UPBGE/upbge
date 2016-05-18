@@ -241,7 +241,7 @@ void ImageRender::Render()
 
 	// The screen area that ImageViewport will copy is also the rendering zone
 	m_canvas->SetViewPort(m_position[0], m_position[1], m_position[0]+m_capSize[0]-1, m_position[1]+m_capSize[1]-1);
-	m_canvas->ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	m_canvas->ClearColor(0.247784f, 0.247784f, 0.247784f, 1.0f);
 	m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER|RAS_ICanvas::DEPTH_BUFFER);
 	m_rasterizer->BeginFrame(m_engine->GetClockTime());
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
@@ -332,14 +332,16 @@ void ImageRender::Render()
     }
 
 	// Render Background
-	const MT_Vector3 hor = m_scene->GetWorldInfo()->m_horizoncolor;
-	const MT_Vector3 zen = m_scene->GetWorldInfo()->m_zenithcolor;
-	m_scene->GetWorldInfo()->setHorizonColor(MT_Vector3(m_horizon[0], m_horizon[1], m_horizon[2]));
-	m_scene->GetWorldInfo()->setZenithColor(MT_Vector3(m_zenith[0], m_zenith[1], m_zenith[2]));
-	m_scene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
-	m_scene->GetWorldInfo()->RenderBackground(m_rasterizer);
-	m_scene->GetWorldInfo()->setHorizonColor(hor);
-	m_scene->GetWorldInfo()->setZenithColor(zen);
+	if (m_scene->GetWorldInfo()->m_hasworld) {
+		const MT_Vector3 hor = m_scene->GetWorldInfo()->m_horizoncolor;
+		const MT_Vector3 zen = m_scene->GetWorldInfo()->m_zenithcolor;
+		m_scene->GetWorldInfo()->setHorizonColor(MT_Vector3(m_horizon[0], m_horizon[1], m_horizon[2]));
+		m_scene->GetWorldInfo()->setZenithColor(MT_Vector3(m_zenith[0], m_zenith[1], m_zenith[2]));
+		m_scene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
+		m_scene->GetWorldInfo()->RenderBackground(m_rasterizer);
+		m_scene->GetWorldInfo()->setHorizonColor(hor);
+		m_scene->GetWorldInfo()->setZenithColor(zen);
+	}
 
 	m_scene->CalculateVisibleMeshes(m_rasterizer,m_camera);
 
