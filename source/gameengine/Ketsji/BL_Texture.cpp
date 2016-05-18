@@ -27,18 +27,19 @@
 #include "DNA_texture_types.h"
 
 #include "GPU_texture.h"
+#include "GPU_draw.h"
 
 BL_Texture::BL_Texture(MTex *mtex, bool cubemap)
 	:CValue(),
-	m_mtex(mtex),
-	m_gpuTex(NULL)
+	m_cubeMap(cubemap),
+	m_mtex(mtex)
 {
 	Tex *tex = m_mtex->tex;
 	Image *ima = tex->ima;
 	ImageUser& iuser = tex->iuser;
-	const int gltextarget = cubemap ? GetCubeMapTextureType() : GetTexture2DType();
+	const int gltextarget = m_cubeMap ? GetCubeMapTextureType() : GetTexture2DType();
 
-	m_gpuTex = ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : NULL;
+	m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : NULL);
 
 	// Initialize saved data.
 	m_name = STR_String(m_mtex->tex->id.name + 2);
@@ -54,10 +55,11 @@ BL_Texture::BL_Texture(MTex *mtex, bool cubemap)
 	m_savedData.parallaxbumpfac = m_mtex->parallaxbumpsc;
 	m_savedData.parallaxstepfac = m_mtex->parallaxsteps;
 	m_savedData.lodbias = m_mtex->lodbias;
-	
+
 	if (m_gpuTex) {
 		m_bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
 		m_savedData.bindcode = m_bindCode;
+		GPU_texture_ref(m_gpuTex);
 	}
 }
 
@@ -77,14 +79,43 @@ BL_Texture::~BL_Texture()
 	m_mtex->parallaxsteps = m_savedData.parallaxstepfac;
 	m_mtex->lodbias = m_savedData.lodbias;
 
-	if (m_gpuTex) {
-		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
+	GPUTexture *gputex = GetGPUTexture();
+
+	if (gputex) {
+		GPU_texture_set_opengl_bindcode(gputex, m_savedData.bindcode);
+		GPU_texture_free(m_gpuTex);
 	}
+}
+
+GPUTexture *BL_Texture::GetGPUTexture()
+{
+	/* Test if the texture is owned only by us, if it's the case then it means
+	 * that no materials use it anymore and that we have to get a pointer of 
+	 * the updated gpu texture used by materials.
+	 */
+	if (m_gpuTex && GPU_texture_ref_count(m_gpuTex) == 1) {
+		Tex *tex = m_mtex->tex;
+		Image *ima = tex->ima;
+		ImageUser& iuser = tex->iuser;
+
+		const int gltextarget = m_cubeMap ? GetCubeMapTextureType() : GetTexture2DType();
+
+		GPU_free_image(ima);
+
+		m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : NULL);
+
+		if (m_gpuTex) {
+			m_savedData.bindcode = GPU_texture_opengl_bindcode(m_gpuTex);
+			GPU_texture_ref(m_gpuTex);
+		}
+	}
+	return m_gpuTex;
 }
 
 bool BL_Texture::Ok()
 {
-	return (m_gpuTex != NULL);
+	GPUTexture *gputex = GetGPUTexture();
+	return (gputex != NULL);
 }
 
 MTex *BL_Texture::GetMTex()
@@ -97,9 +128,10 @@ Image *BL_Texture::GetImage()
 	return m_mtex->tex->ima;
 }
 
-unsigned int BL_Texture::GetTextureType() const
+unsigned int BL_Texture::GetTextureType()
 {
-	return GPU_texture_target(m_gpuTex);
+	GPUTexture *gputex = GetGPUTexture();
+	return GPU_texture_target(gputex);
 }
 
 void BL_Texture::ActivateTexture(int unit)
@@ -108,13 +140,15 @@ void BL_Texture::ActivateTexture(int unit)
 	 * we should reapply the bindcode in case of VideoTexture owned texture.
 	 * Without that every material that use this GPUTexture will then use
 	 * the VideoTexture texture, it's not wanted. */
-	GPU_texture_set_opengl_bindcode(m_gpuTex, m_bindCode);
-	GPU_texture_bind(m_gpuTex, unit);
+	GPUTexture *gputex = GetGPUTexture();
+	GPU_texture_set_opengl_bindcode(gputex, m_bindCode);
+	GPU_texture_bind(gputex, unit);
 }
 
 void BL_Texture::DisableTexture()
 {
-	GPU_texture_unbind(m_gpuTex);
+	GPUTexture *gputex = GetGPUTexture();
+	GPU_texture_unbind(gputex);
 }
 
 unsigned int BL_Texture::swapTexture(unsigned int bindcode)
