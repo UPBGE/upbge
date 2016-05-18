@@ -292,13 +292,13 @@ void KX_BlenderSceneConverter::ConvertScene(KX_Scene *destinationscene, RAS_IRas
 // (see KX_BlenderSceneConverter::ConvertScene)
 void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 {
-	// delete the scene first as it will stop the use of entities
-	scene->Release();
-
 	KX_WorldInfo *world = scene->GetWorldInfo();
 	if (world) {
 		delete world;
 	}
+
+	// delete the scene first as it will stop the use of entities
+	scene->Release();
 
 	// delete the entities of this scene
 
