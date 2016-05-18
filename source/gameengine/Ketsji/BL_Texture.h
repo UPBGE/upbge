@@ -36,6 +36,7 @@ class BL_Texture : public CValue, public RAS_Texture
 {
 	Py_Header
 private:
+	bool m_cubeMap;
 	MTex *m_mtex;
 	GPUTexture *m_gpuTex;
 
@@ -55,6 +56,8 @@ private:
 		float lodbias;
 	} m_savedData;
 
+	GPUTexture *GetGPUTexture();
+
 public:
 	BL_Texture(MTex *mtex, bool cubemap);
 	virtual ~BL_Texture();
@@ -73,7 +76,7 @@ public:
 	virtual MTex *GetMTex();
 	virtual Image *GetImage();
 
-	virtual unsigned int GetTextureType() const;
+	virtual unsigned int GetTextureType();
 
 	enum {MaxUnits = 8};
 

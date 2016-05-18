@@ -46,7 +46,7 @@ public:
 	virtual Image *GetImage() = 0;
 	STR_String& GetName();
 
-	virtual unsigned int GetTextureType() const = 0;
+	virtual unsigned int GetTextureType() = 0;
 
 	/// Return GL_TEXTURE_2D
 	static int GetCubeMapTextureType();

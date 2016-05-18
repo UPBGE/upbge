@@ -726,6 +726,11 @@ void GPU_texture_ref(GPUTexture *tex)
 	tex->refcount++;
 }
 
+int GPU_texture_ref_count(GPUTexture *tex)
+{
+	return tex->refcount;
+}
+
 int GPU_texture_target(const GPUTexture *tex)
 {
 	return tex->target;

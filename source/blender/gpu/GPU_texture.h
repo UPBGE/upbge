@@ -81,6 +81,7 @@ void GPU_invalid_tex_free(void);
 void GPU_texture_free(GPUTexture *tex);
 
 void GPU_texture_ref(GPUTexture *tex);
+int GPU_texture_ref_count(GPUTexture *tex);
 
 void GPU_texture_bind(GPUTexture *tex, int number);
 void GPU_texture_unbind(GPUTexture *tex);
