@@ -42,6 +42,7 @@ public:
 #ifdef WITH_PYTHON
 
 	KX_PYMETHOD_DOC(KX_2DFilter, setTexture);
+	KX_PYMETHOD_DOC(KX_2DFilter, setUniformTexture);
 
 #endif
 };
