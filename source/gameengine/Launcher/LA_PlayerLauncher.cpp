@@ -40,7 +40,9 @@
 #include "LA_PlayerLauncher.h"
 
 extern "C" {
-#include "BKE_sound.h"
+#  include "BKE_sound.h"
+
+#  include "BLI_fileops.h"
 }
 
 #include "KX_PythonInit.h"
@@ -52,9 +54,10 @@ extern "C" {
 #include "DEV_InputDevice.h"
 
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
-								 RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv)
+								 RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv, char *pythonMainLoop)
 	:LA_Launcher(system, maggie, scene, gs, stereoMode, argc, argv),
-	m_mainWindow(NULL)
+	m_mainWindow(NULL),
+	m_pythonMainLoop(pythonMainLoop)
 {
 }
 
@@ -282,6 +285,23 @@ void LA_PlayerLauncher::startFullScreen(
 	m_mainWindow->setState(GHOST_kWindowStateFullScreen);
 
 	InitEngine();
+}
+
+bool LA_PlayerLauncher::GetMainLoopPythonCode(char **pythonCode, char **pythonFileName)
+{
+	if (m_pythonMainLoop) {
+		if (BLI_is_file(m_pythonMainLoop)) {
+			size_t filesize = 0;
+			*pythonCode = (char *)BLI_file_read_text_as_mem(m_pythonMainLoop, 0, &filesize);
+			*pythonFileName = m_pythonMainLoop;
+			return true;
+		}
+		else {
+			std::cout << "Error: cannot yield control to Python: no file named '" << m_pythonMainLoop << "'" << std::endl;
+			return false;
+		}
+	}
+	return LA_Launcher::GetMainLoopPythonCode(pythonCode, pythonFileName);
 }
 
 RAS_IRasterizer::DrawType LA_PlayerLauncher::GetRasterizerDrawMode()

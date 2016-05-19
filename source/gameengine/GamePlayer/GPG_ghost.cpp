@@ -268,7 +268,8 @@ static void usage(const char* program, bool isBlenderPlayer)
 	printf("       show_properties                0         Show debug properties\n");
 	printf("       show_profile                   0         Show profiling information\n");
 	printf("       blender_material               0         Enable material settings\n");
-	printf("       ignore_deprecation_warnings    1         Ignore deprecation warnings\n");
+	printf("       ignore_deprecation_warnings    1         Ignore deprecation warnings\n\n");
+	printf("  -p: override python main loop script\n");
 	printf("\n");
 	printf("  - : all arguments after this are ignored, allowing python to access them from sys.argv\n");
 	printf("\n");
@@ -395,6 +396,7 @@ int main(
 	bool isBlenderPlayer = false; //true when lauching from blender or command line. false for bundled player
 	int validArguments=0;
 	bool samplesParFound = false;
+	char *pythonControllerFile = NULL;
 	GHOST_TUns16 aasamples = 0;
 	int alphaBackground = 0;
 	
@@ -797,6 +799,11 @@ int main(
 			{
 				i++;
 				alphaBackground = 1;
+			}
+			case 'p':
+			{
+				++i;
+				pythonControllerFile = argv[i++];
 				break;
 			}
 			default:  //not recognized
@@ -985,7 +992,7 @@ int main(
 							}
 						}
 
-						LA_PlayerLauncher launcher(system, maggie, scene, &gs, stereomode, argc, argv); /* this argc cant be argc_py_clamped, since python uses it */
+						LA_PlayerLauncher launcher(system, maggie, scene, &gs, stereomode, argc, argv, pythonControllerFile); /* this argc cant be argc_py_clamped, since python uses it */
 #ifdef WITH_PYTHON
 						if (!globalDict) {
 							globalDict = PyDict_New();

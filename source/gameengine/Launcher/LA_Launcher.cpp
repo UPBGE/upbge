@@ -413,6 +413,20 @@ void LA_Launcher::RenderEngine()
 	m_ketsjiEngine->Render();
 }
 
+bool LA_Launcher::GetMainLoopPythonCode(char **pythonCode, char **pythonFileName)
+{
+	*pythonFileName = KX_GetPythonMain(m_startScene);
+	if (*pythonFileName) {
+		*pythonCode = KX_GetPythonCode(m_maggie, *pythonFileName);
+		if (!*pythonCode) {
+			std::cerr << "ERROR: cannot yield control to Python: no Python text data block named '" << *pythonFileName << "'" << std::endl;
+			return false;
+		}
+		return true;
+	}
+	return false;
+}
+
 bool LA_Launcher::EngineNextFrame()
 {
 	// Update the state of the game engine.
@@ -459,25 +473,20 @@ bool LA_Launcher::EngineNextFrame()
 void LA_Launcher::EngineMainLoop()
 {
 #ifdef WITH_PYTHON
-	char *python_main = KX_GetPythonMain(m_startScene);
-	if (python_main) {
-		char *python_code = KX_GetPythonCode(m_maggie, python_main);
-		if (python_code) {
-			// Set python environement variable.
-			KX_SetActiveScene(m_kxStartScene);
-			PHY_SetActiveEnvironment(m_kxStartScene->GetPhysicsEnvironment());
+	char *pythonCode;
+	char *pythonFileName;
+	if (GetMainLoopPythonCode(&pythonCode, &pythonFileName)) {
+		// Set python environement variable.
+		KX_SetActiveScene(m_kxStartScene);
+		PHY_SetActiveEnvironment(m_kxStartScene->GetPhysicsEnvironment());
 
-			pynextframestate.state = this;
-			pynextframestate.func = &PythonEngineNextFrame;
+		pynextframestate.state = this;
+		pynextframestate.func = &PythonEngineNextFrame;
 
-			std::cout << "Yielding control to Python script '" << python_main << "'..." << std::endl;
-			PyRun_SimpleString(python_code);
-			std::cout << "Exit Python script '" << python_main << "'" << std::endl;
-			MEM_freeN(python_code);
-		}
-		else {
-			std::cerr << "ERROR: cannot yield control to Python: no Python text data block named '" << python_main << "'" << std::endl;
-		}
+		std::cout << "Yielding control to Python script '" << pythonFileName << "'..." << std::endl;
+		PyRun_SimpleString(pythonCode);
+		std::cout << "Exit Python script '" << pythonFileName << "'" << std::endl;
+		MEM_freeN(pythonCode);
 	}
 	else {
 		pynextframestate.state = NULL;

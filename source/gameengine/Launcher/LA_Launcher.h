@@ -111,6 +111,13 @@ protected:
 	/// Execute engine render, overrided to render background.
 	virtual void RenderEngine();
 
+	/** Return true if the user use a valid python script for main loop and copy the python code
+	 * to pythonCode and file name to pythonFileName. Else return false.
+	 * This function print itself error messages for invalid script name and only pythonCode
+	 * value must be freed.
+	 */
+	virtual bool GetMainLoopPythonCode(char **pythonCode, char **pythonFileName);
+
 	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty) = 0;
 	virtual RAS_IRasterizer::DrawType GetRasterizerDrawMode() = 0;
 	virtual bool GetUseAlwaysExpandFraming() = 0;

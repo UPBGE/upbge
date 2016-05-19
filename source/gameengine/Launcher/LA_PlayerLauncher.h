@@ -45,6 +45,11 @@ protected:
 	/// Main window.
 	GHOST_IWindow *m_mainWindow;
 
+	/// Override python script main loop file name.
+	char *m_pythonMainLoop;
+
+	virtual bool GetMainLoopPythonCode(char **pythonCode, char **pythonFileName);
+
 	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty);
 	virtual RAS_IRasterizer::DrawType GetRasterizerDrawMode();
 	virtual bool GetUseAlwaysExpandFraming();
@@ -53,7 +58,8 @@ protected:
 	virtual void ExitPython();
 
 public:
-	LA_PlayerLauncher(GHOST_ISystem* system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv);
+	LA_PlayerLauncher(GHOST_ISystem* system, Main *maggie, Scene *scene, GlobalSettings *gs,
+					  RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv, char *pythonMainLoop);
 	virtual ~LA_PlayerLauncher();
 
 	void startWindow(STR_String& title,
