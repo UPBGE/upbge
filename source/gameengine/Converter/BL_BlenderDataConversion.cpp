@@ -482,15 +482,8 @@ static KX_BlenderMaterial *ConvertMaterial(
 		uvsname[i] = STR_String(layers[i].name);
 	}
 
-	MTexPoly *mtexpoly = new MTexPoly();
-	memset(mtexpoly, 0, sizeof(MTexPoly));
-
-	if (tface) {
-		ME_MTEXFACE_CPY(mtexpoly, tface);
-	}
-
 	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, (mat ? &mat->game : NULL),
-														  mtexpoly, lightlayer, uvsname);
+														  tface, lightlayer, uvsname);
 
 	return kx_blmat;
 }

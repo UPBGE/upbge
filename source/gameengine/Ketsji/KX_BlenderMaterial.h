@@ -23,6 +23,7 @@ class KX_Scene;
 class BL_BlenderShader;
 class BL_Shader;
 struct Material;
+struct MTFace;
 
 #ifdef USE_MATHUTILS
 void KX_BlenderMaterial_Mathutils_Callback_Init(void);
@@ -37,7 +38,7 @@ public:
 			KX_Scene *scene,
 			Material *mat,
 			GameSettings *game,
-			MTexPoly *mtexpoly,
+			MTFace *mtface,
 			int lightlayer,
 			STR_String uvsname[RAS_Texture::MaxUnits]);
 

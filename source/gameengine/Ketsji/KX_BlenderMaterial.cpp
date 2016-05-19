@@ -48,12 +48,11 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		KX_Scene *scene,
 		Material *mat,
 		GameSettings *game,
-		MTexPoly *mtexpoly,
+		MTFace *mtface,
 		int lightlayer,
 		STR_String uvsname[RAS_Texture::MaxUnits])
 	:RAS_IPolyMaterial(mat->id.name, game),
 	m_material(mat),
-	m_mtexPoly(mtexpoly),
 	m_shader(NULL),
 	m_blenderShader(NULL),
 	m_scene(scene),
@@ -77,6 +76,13 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_savedData.specularalpha = m_material->spectra;
 
 	m_alphablend = mat->game.alpha_blend;
+
+	m_mtexPoly = new MTexPoly();
+	memset(m_mtexPoly, 0, sizeof(MTexPoly));
+
+	if (mtface) {
+		ME_MTEXFACE_CPY(m_mtexPoly, mtface);
+	}
 
 	// with ztransp enabled, enforce alpha blending mode
 	if ((mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (m_alphablend == GEMAT_SOLID)) {
@@ -120,6 +126,8 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 	m_material->emit = m_savedData.emit;
 	m_material->amb = m_savedData.ambient;
 	m_material->spectra = m_savedData.specularalpha;
+
+	delete m_mtexPoly;
 
 	// cleanup work
 	if (m_constructed) {
