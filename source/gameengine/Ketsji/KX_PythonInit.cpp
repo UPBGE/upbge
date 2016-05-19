@@ -1221,17 +1221,30 @@ static PyObject *gPyDrawLine(PyObject *, PyObject *args)
 
 	MT_Vector3 from;
 	MT_Vector3 to;
-	MT_Vector4 color;
+	MT_Vector3 color3;
+	MT_Vector4 color4;
+
 	if (!PyVecTo(ob_from, from))
 		return NULL;
 	if (!PyVecTo(ob_to, to))
 		return NULL;
-	if (!PyVecTo(ob_color, color))
-		return NULL;
 
-	KX_GetActiveEngine()->GetRasterizer()->DrawDebugLine(KX_GetActiveScene(), from, to, color);
-	
-	Py_RETURN_NONE;
+	// Allow conversion from vector 3d.
+	if (PyVecTo(ob_color, color3)) {
+		KX_GetActiveEngine()->GetRasterizer()->DrawDebugLine(KX_GetActiveScene(), from, to,
+															 MT_Vector4(color3.x(), color3.y(), color3.z(), 1.0f));
+		Py_RETURN_NONE;
+	}
+	else {
+		// Clear error message of the conversion from vector3d.
+		PyErr_Clear();
+		if (PyVecTo(ob_color, color4)) {
+			KX_GetActiveEngine()->GetRasterizer()->DrawDebugLine(KX_GetActiveScene(), from, to, color4);
+		}
+		Py_RETURN_NONE;
+	}
+
+	return NULL;
 }
 
 static PyObject *gPySetWindowSize(PyObject *, PyObject *args)
