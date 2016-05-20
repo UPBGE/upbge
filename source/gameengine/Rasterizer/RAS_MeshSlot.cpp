@@ -143,14 +143,25 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 			else {
 				// the deformer is not using vertex array (Modifier), release them
 				m_displayArrayBucket->Release();
-				m_displayArrayBucket = m_bucket->FindDisplayArrayBucket(NULL, m_mesh)->AddRef();
+				m_displayArrayBucket = m_bucket->FindDisplayArrayBucket(NULL);
+				if (m_displayArrayBucket) {
+					m_displayArrayBucket->AddRef();
+				}
+				else {
+					m_displayArrayBucket = new RAS_DisplayArrayBucket(m_bucket, NULL, m_mesh);
+				}
 			}
 		}
 
-		// Add the deformer user in the display array bucket.
-		m_displayArrayBucket->AddDeformer(deformer);
-		// Update m_displayArray to the display array bucket.
-		m_displayArray = m_displayArrayBucket ? m_displayArrayBucket->GetDisplayArray() : NULL;
+		if (m_displayArrayBucket) {
+			// Add the deformer user in the display array bucket.
+			m_displayArrayBucket->AddDeformer(deformer);
+			// Update m_displayArray to the display array bucket.
+			m_displayArray = m_displayArrayBucket->GetDisplayArray();
+		}
+		else {
+			m_displayArray = NULL;
+		}
 	}
 	m_pDeformer = deformer;
 }

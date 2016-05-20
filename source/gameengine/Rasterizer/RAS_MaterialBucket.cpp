@@ -246,7 +246,7 @@ void RAS_MaterialBucket::SetMeshUnmodified()
 	}
 }
 
-RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_DisplayArray *array, RAS_MeshObject *mesh)
+RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_DisplayArray *array)
 {
 	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
 		it != end; ++it)
@@ -256,8 +256,7 @@ RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_DisplayAr
 			return displayArrayBucket;
 		}
 	}
-	RAS_DisplayArrayBucket *displayArrayBucket = new RAS_DisplayArrayBucket(this, array, mesh);
-	return displayArrayBucket;
+	return NULL;
 }
 
 void RAS_MaterialBucket::AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)
