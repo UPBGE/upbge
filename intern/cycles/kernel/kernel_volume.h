@@ -631,7 +631,29 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 			max_steps = global_max_steps;
 			step_size = ray->t / (float)max_steps;
 		}
+#ifdef __KERNEL_CPU__
+		/* NOTE: For the branched path tracing it's possible to have direct
+		 * and indirect light integration both having volume segments allocated.
+		 * We detect this using index in the pre-allocated memory. Currently we
+		 * only support two segments allocated at a time, if more needed some
+		 * modifications to the KernelGlobals will be needed.
+		 *
+		 * This gives us restrictions that decoupled record should only happen
+		 * in the stack manner, meaning if there's subsequent call of decoupled
+		 * record it'll need to free memory before it's caller frees memory.
+		 */
+		const int index = kg->decoupled_volume_steps_index;
+		assert(index < sizeof(kg->decoupled_volume_steps) /
+		               sizeof(*kg->decoupled_volume_steps));
+		if(kg->decoupled_volume_steps[index] == NULL) {
+			kg->decoupled_volume_steps[index] =
+			        (VolumeStep*)malloc(sizeof(VolumeStep)*global_max_steps);
+		}
+		segment->steps = kg->decoupled_volume_steps[index];
+		++kg->decoupled_volume_steps_index;
+#else
 		segment->steps = (VolumeStep*)malloc(sizeof(VolumeStep)*max_steps);
+#endif
 		random_jitter_offset = lcg_step_float(&state->rng_congruential) * step_size;
 	}
 	else {
@@ -745,8 +767,18 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 
 ccl_device void kernel_volume_decoupled_free(KernelGlobals *kg, VolumeSegment *segment)
 {
-	if(segment->steps != &segment->stack_step)
+	if(segment->steps != &segment->stack_step) {
+#ifdef __KERNEL_CPU__
+		/* NOTE: We only allow free last allocated segment.
+		 * No random order of alloc/free is supported.
+		 */
+		assert(kg->decoupled_volume_steps_index > 0);
+		assert(segment->steps == kg->decoupled_volume_steps[kg->decoupled_volume_steps_index - 1]);
+		--kg->decoupled_volume_steps_index;
+#else
 		free(segment->steps);
+#endif
+	}
 }
 
 /* scattering for homogeneous and heterogeneous volumes, using decoupled ray

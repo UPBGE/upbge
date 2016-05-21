@@ -126,7 +126,7 @@ Light::Light()
 	use_transmission = true;
 	use_scatter = true;
 
-	shader = 0;
+	shader = NULL;
 	samples = 1;
 	max_bounces = 1024;
 
@@ -147,7 +147,7 @@ bool Light::has_contribution(Scene *scene)
 	if(type == LIGHT_BACKGROUND) {
 		return true;
 	}
-	return scene->shaders[shader]->has_surface_emission;
+	return (shader) ? shader->has_surface_emission : scene->default_light->has_surface_emission;
 }
 
 /* Light Manager */
@@ -180,7 +180,7 @@ void LightManager::disable_ineffective_light(Device *device, Scene *scene)
 		 * - If unsupported on a device
 		 * - If we don't need it (no HDRs etc.)
 		 */
-		Shader *shader = scene->shaders[scene->background->shader];
+		Shader *shader = (scene->background->shader) ? scene->background->shader : scene->default_background;
 		bool disable_mis = !(has_portal || shader->has_surface_spatial_varying) ||
 		                   !(device->info.advanced_shading);
 		if(disable_mis) {
@@ -223,9 +223,7 @@ void LightManager::device_update_distribution(Device *device, DeviceScene *dscen
 			continue;
 
 		/* skip if we have no emission shaders */
-		foreach(uint sindex, mesh->used_shaders) {
-			Shader *shader = scene->shaders[sindex];
-
+		foreach(Shader *shader, mesh->used_shaders) {
 			if(shader->use_mis && shader->has_surface_emission) {
 				have_emission = true;
 				break;
@@ -235,7 +233,9 @@ void LightManager::device_update_distribution(Device *device, DeviceScene *dscen
 		/* count triangles */
 		if(have_emission) {
 			for(size_t i = 0; i < mesh->triangles.size(); i++) {
-				Shader *shader = scene->shaders[mesh->shader[i]];
+				int shader_index = mesh->shader[i];
+				Shader *shader = (shader_index < mesh->used_shaders.size()) ?
+					mesh->used_shaders[shader_index] : scene->default_surface;
 
 				if(shader->use_mis && shader->has_surface_emission)
 					num_triangles++;
@@ -270,9 +270,7 @@ void LightManager::device_update_distribution(Device *device, DeviceScene *dscen
 		}
 
 		/* skip if we have no emission shaders */
-		foreach(uint sindex, mesh->used_shaders) {
-			Shader *shader = scene->shaders[sindex];
-
+		foreach(Shader *shader, mesh->used_shaders) {
 			if(shader->use_mis && shader->has_surface_emission) {
 				have_emission = true;
 				break;
@@ -307,7 +305,9 @@ void LightManager::device_update_distribution(Device *device, DeviceScene *dscen
 			}
 
 			for(size_t i = 0; i < mesh->triangles.size(); i++) {
-				Shader *shader = scene->shaders[mesh->shader[i]];
+				int shader_index = mesh->shader[i];
+				Shader *shader = (shader_index < mesh->used_shaders.size()) ?
+					mesh->used_shaders[shader_index] : scene->default_surface;
 
 				if(shader->use_mis && shader->has_surface_emission) {
 					distribution[offset].x = totarea;
@@ -604,7 +604,8 @@ void LightManager::device_update_points(Device *device,
 		}
 
 		float3 co = light->co;
-		int shader_id = scene->shader_manager->get_shader_id(light->shader);
+		Shader *shader = (light->shader) ? light->shader : scene->default_light;
+		int shader_id = scene->shader_manager->get_shader_id(shader);
 		float samples = __int_as_float(light->samples);
 		float max_bounces = __int_as_float(light->max_bounces);
 

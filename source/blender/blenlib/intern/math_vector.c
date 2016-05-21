@@ -336,6 +336,25 @@ void flip_v2_v2v2(float v[2], const float v1[2], const float v2[2])
 	v[1] = v1[1] + (v1[1] - v2[1]);
 }
 
+
+/********************************* Comparison ********************************/
+
+bool is_finite_v2(const float v[2])
+{
+	return (isfinite(v[0]) && isfinite(v[1]));
+}
+
+bool is_finite_v3(const float v[3])
+{
+	return (isfinite(v[0]) && isfinite(v[1]) && isfinite(v[2]));
+}
+
+bool is_finite_v4(const float v[4])
+{
+	return (isfinite(v[0]) && isfinite(v[1]) && isfinite(v[2]) && isfinite(v[3]));
+}
+
+
 /********************************** Angles ***********************************/
 
 /* Return the angle in radians between vecs 1-2 and 2-3 in radians
@@ -669,7 +688,7 @@ void ortho_basis_v3v3_v3(float r_n1[3], float r_n2[3], const float n[3])
 	if (f > eps) {
 		const float d = 1.0f / sqrtf(f);
 
-		BLI_assert(finite(d));
+		BLI_assert(isfinite(d));
 
 		r_n1[0] =  n[1] * d;
 		r_n1[1] = -n[0] * d;

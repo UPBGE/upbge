@@ -2361,6 +2361,89 @@ float hypot(float x, float y)
 	return sqrt(x*x + y*y);
 }
 
+void generated_from_orco(vec3 orco, out vec3 generated)
+{
+	generated = orco * 0.5 + vec3(0.5);
+}
+
+float integer_noise(int n)
+{
+	int nn;
+	n = (n + 1013) & 0x7fffffff;
+	n = (n >> 13) ^ n;
+	nn = (n * (n * n * 60493 + 19990303) + 1376312589) & 0x7fffffff;
+	return 0.5 * (float(nn) / 1073741824.0);
+}
+
+int floor_to_int(float x)
+{
+	return int(floor(x));
+}
+
+#ifdef BIT_OPERATIONS
+uint hash(uint kx, uint ky, uint kz)
+{
+#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
+#define final(a,b,c) \
+{ \
+	c ^= b; c -= rot(b,14); \
+	a ^= c; a -= rot(c,11); \
+	b ^= a; b -= rot(a,25); \
+	c ^= b; c -= rot(b,16); \
+	a ^= c; a -= rot(c,4);  \
+	b ^= a; b -= rot(a,14); \
+	c ^= b; c -= rot(b,24); \
+}
+	// now hash the data!
+	uint a, b, c, len = 3u;
+	a = b = c = 0xdeadbeefu + (len << 2u) + 13u;
+
+	c += kz;
+	b += ky;
+	a += kx;
+	final(a, b, c);
+
+	return c;
+#undef rot
+#undef final
+}
+
+uint hash(int kx, int ky, int kz)
+{
+	return hash(uint(kx), uint(ky), uint(kz));
+}
+
+float bits_to_01(uint bits)
+{
+	float x = float(bits) * (1.0 / float(0xffffffffu));
+	return x;
+}
+
+float cellnoise(vec3 p)
+{
+	int ix = floor_to_int(p.x);
+	int iy = floor_to_int(p.y);
+	int iz = floor_to_int(p.z);
+
+	return bits_to_01(hash(uint(ix), uint(iy), uint(iz)));
+}
+
+vec3 cellnoise_color(vec3 p)
+{
+	float r = cellnoise(p);
+	float g = cellnoise(vec3(p.y, p.x, p.z));
+	float b = cellnoise(vec3(p.y, p.z, p.x));
+
+	return vec3(r, g, b);
+}
+#endif  // BIT_OPERATIONS
+
+float floorfrac(float x, out int i)
+{
+	i = floor_to_int(x);
+	return x - i;
+}
+
 /*********** NEW SHADER NODES ***************/
 
 #define NUM_LIGHTS 3
@@ -2619,22 +2702,119 @@ void node_tex_coord_background(vec3 I, vec3 N, mat4 viewinvmat, mat4 obinvmat, v
 
 /* textures */
 
-void node_tex_gradient(vec3 co, out vec4 color, out float fac)
+float calc_gradient(vec3 p, int gradient_type)
 {
-	color = vec4(1.0);
-	fac = 1.0;
+	float x, y, z;
+	x = p.x;
+	y = p.y;
+	z = p.z;
+	if(gradient_type == 0) {  /* linear */
+		return x;
+	}
+	else if(gradient_type == 1) {  /* quadratic */
+		float r = max(x, 0.0);
+		return r*r;
+	}
+	else if(gradient_type == 2) {  /* easing */
+		float r = min(max(x, 0.0), 1.0);
+		float t = r*r;
+		return (3.0*t - 2.0*t*r);
+	}
+	else if(gradient_type == 3) {  /* diagonal */
+		return (x + y) * 0.5;
+	}
+	else if(gradient_type == 4) {  /* radial */
+		return atan(y, x) / (M_PI * 2) + 0.5;
+	}
+	else {
+		float r = max(1.0 - sqrt(x*x + y*y + z*z), 0.0);
+		if(gradient_type == 5) {  /* quadratic sphere */
+			return r*r;
+		}
+		else if(gradient_type == 6) {  /* sphere */
+			return r;
+		}
+	}
+	return 0.0;
+}
+
+void node_tex_gradient(vec3 co, float gradient_type, out vec4 color, out float fac)
+{
+	float f = calc_gradient(co, int(gradient_type));
+	f = clamp(f, 0.0, 1.0);
+
+	color = vec4(f, f, f, 1.0);
+	fac = f;
 }
 
 void node_tex_checker(vec3 co, vec4 color1, vec4 color2, float scale, out vec4 color, out float fac)
 {
-	color = vec4(1.0);
-	fac = 1.0;
+	vec3 p = co * scale;
+
+	/* Prevent precision issues on unit coordinates. */
+	p.x = (p.x + 0.000001)*0.999999;
+	p.y = (p.y + 0.000001)*0.999999;
+	p.z = (p.z + 0.000001)*0.999999;
+
+	int xi = abs(int(floor(p.x)));
+	int yi = abs(int(floor(p.y)));
+	int zi = abs(int(floor(p.z)));
+
+	bool check = ((xi % 2 == yi % 2) == bool(zi % 2));
+
+	color = check ? color1 : color2;
+	fac = check ? 1.0 : 0.0;
 }
 
-void node_tex_brick(vec3 co, vec4 color1, vec4 color2, vec4 mortar, float scale, float mortar_size, float bias, float brick_width, float row_height, out vec4 color, out float fac)
+vec2 calc_brick_texture(vec3 p, float mortar_size, float bias,
+                        float brick_width, float row_height,
+                        float offset_amount, int offset_frequency,
+                        float squash_amount, int squash_frequency)
 {
-	color = vec4(1.0);
-	fac = 1.0;
+	int bricknum, rownum;
+	float offset = 0.0;
+	float x, y;
+
+	rownum = floor_to_int(p.y / row_height);
+
+	if(offset_frequency != 0 && squash_frequency != 0) {
+		brick_width *= (rownum % squash_frequency != 0) ? 1.0 : squash_amount; /* squash */
+		offset = (rownum % offset_frequency != 0) ? 0.0 : (brick_width*offset_amount); /* offset */
+	}
+
+	bricknum = floor_to_int((p.x+offset) / brick_width);
+
+	x = (p.x+offset) - brick_width*bricknum;
+	y = p.y - row_height*rownum;
+
+	return vec2(clamp((integer_noise((rownum << 16) + (bricknum & 0xFFFF)) + bias), 0.0, 1.0),
+	            (x < mortar_size || y < mortar_size ||
+	             x > (brick_width - mortar_size) ||
+	             y > (row_height - mortar_size)) ? 1.0 : 0.0);
+}
+
+void node_tex_brick(vec3 co,
+                    vec4 color1, vec4 color2,
+                    vec4 mortar, float scale,
+                    float mortar_size, float bias,
+                    float brick_width, float row_height,
+                    float offset_amount, float offset_frequency,
+                    float squash_amount, float squash_frequency,
+                    out vec4 color, out float fac)
+{
+	vec2 f2 = calc_brick_texture(co*scale,
+	                             mortar_size, bias,
+	                             brick_width, row_height,
+	                             offset_amount, int(offset_frequency),
+	                             squash_amount, int(squash_frequency));
+	float tint = f2.x;
+	float f = f2.y;
+	if(f != 1.0) {
+		float facm = 1.0 - tint;
+		color1 = facm * color1 + tint * color2;
+	}
+	color = (f == 1.0) ? mortar : color1;
+	fac = f;
 }
 
 void node_tex_clouds(vec3 co, float size, out vec4 color, out float fac)
@@ -2685,10 +2865,65 @@ void node_tex_image_empty(vec3 co, out vec4 color, out float alpha)
 	alpha = 0.0;
 }
 
-void node_tex_magic(vec3 p, float scale, float distortion, out vec4 color, out float fac)
+void node_tex_magic(vec3 co, float scale, float distortion, float depth, out vec4 color, out float fac)
 {
-	color = vec4(1.0);
-	fac = 1.0;
+	vec3 p = co * scale;
+	float x = sin((p.x + p.y + p.z)*5.0);
+	float y = cos((-p.x + p.y - p.z)*5.0);
+	float z = -cos((-p.x - p.y + p.z)*5.0);
+
+	if(depth > 0) {
+		x *= distortion;
+		y *= distortion;
+		z *= distortion;
+		y = -cos(x-y+z);
+		y *= distortion;
+		if(depth > 1) {
+			x = cos(x-y-z);
+			x *= distortion;
+			if(depth > 2) {
+				z = sin(-x-y-z);
+				z *= distortion;
+				if(depth > 3) {
+					x = -cos(-x+y-z);
+					x *= distortion;
+					if(depth > 4) {
+						y = -sin(-x+y+z);
+						y *= distortion;
+						if(depth > 5) {
+							y = -cos(-x+y+z);
+							y *= distortion;
+							if(depth > 6) {
+								x = cos(x+y+z);
+								x *= distortion;
+								if(depth > 7) {
+									z = sin(x+y-z);
+									z *= distortion;
+									if(depth > 8) {
+										x = -cos(-x-y+z);
+										x *= distortion;
+										if(depth > 9) {
+											y = -sin(x-y+z);
+											y *= distortion;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if(distortion != 0.0) {
+		distortion *= 2.0;
+		x /= distortion;
+		y /= distortion;
+		z /= distortion;
+	}
+
+	color = vec4(0.5 - x, 0.5 - y, 0.f - z, 1.0);
+	fac = (color.x + color.y + color.z) / 3.0;
 }
 
 void node_tex_musgrave(vec3 co, float scale, float detail, float dimension, float lacunarity, float offset, float gain, out vec4 color, out float fac)
@@ -2697,10 +2932,116 @@ void node_tex_musgrave(vec3 co, float scale, float detail, float dimension, floa
 	fac = 1.0;
 }
 
+#ifdef BIT_OPERATIONS
+float noise_fade(float t)
+{
+	return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+}
+
+float noise_scale3(float result)
+{
+	return 0.9820 * result;
+}
+
+float noise_nerp(float t, float a, float b)
+{
+	return (1.0 - t) * a + t * b;
+}
+
+float noise_grad(uint hash, float x, float y, float z)
+{
+	uint h = hash & 15u;
+	float u = h < 8u ? x : y;
+	float vt = ((h == 12u) || (h == 14u)) ? x : z;
+	float v = h < 4u ? y : vt;
+	return (((h & 1u) != 0u) ? -u : u) + (((h & 2u) != 0u) ? -v : v);
+}
+
+float noise_perlin(float x, float y, float z)
+{
+	int X; float fx = floorfrac(x, X);
+	int Y; float fy = floorfrac(y, Y);
+	int Z; float fz = floorfrac(z, Z);
+
+	float u = noise_fade(fx);
+	float v = noise_fade(fy);
+	float w = noise_fade(fz);
+
+	float result;
+
+	result = noise_nerp(w, noise_nerp(v, noise_nerp(u, noise_grad(hash(X, Y, Z), fx, fy, fz ),
+	                                                noise_grad(hash(X+1, Y, Z), fx-1.0, fy, fz)),
+	                                  noise_nerp(u, noise_grad(hash(X, Y+1, Z), fx, fy - 1.0, fz),
+	                                             noise_grad(hash(X+1, Y+1, Z), fx-1.0, fy-1.0, fz))),
+	                    noise_nerp(v, noise_nerp(u, noise_grad(hash(X, Y, Z+1), fx, fy, fz-1.0),
+	                                             noise_grad(hash(X+1, Y, Z+1), fx-1.0, fy, fz-1.0)),
+	                               noise_nerp(u, noise_grad(hash(X, Y+1, Z+1), fx, fy-1.0, fz-1.0),
+	                                          noise_grad(hash(X+1, Y+1, Z+1), fx-1.0, fy-1.0, fz-1.0))));
+	return noise_scale3(result);
+}
+
+float noise(vec3 p)
+{
+	return 0.5 * noise_perlin(p.x, p.y, p.z) + 0.5;
+}
+
+float noise_turbulence(vec3 p, float octaves, int hard)
+{
+	float fscale = 1.0;
+	float amp = 1.0;
+	float sum = 0.0;
+	int i, n;
+	octaves = clamp(octaves, 0.0, 16.0);
+	n = int(octaves);
+	for (i = 0; i <= n; i++) {
+		float t = noise(fscale*p);
+		if (hard != 0) {
+			t = abs(2.0*t - 1.0);
+		}
+		sum += t*amp;
+		amp *= 0.5;
+		fscale *= 2.0;
+	}
+	float rmd = octaves - floor(octaves);
+	if  (rmd != 0.0) {
+		float t = noise(fscale*p);
+		if (hard != 0) {
+			t = abs(2.0*t - 1.0);
+		}
+		float sum2 = sum + t*amp;
+		sum *= (float(1 << n) / float((1 << (n+1)) - 1));
+		sum2 *= (float(1 << (n+1)) / float((1 << (n+2)) - 1));
+		return (1.0 - rmd)*sum + rmd*sum2;
+	}
+	else {
+		sum *= (float(1 << n) / float((1 << (n+1)) - 1));
+		return sum;
+	}
+}
+#endif  // BIT_OPERATIONS
+
 void node_tex_noise(vec3 co, float scale, float detail, float distortion, out vec4 color, out float fac)
 {
+#ifdef BIT_OPERATIONS
+	vec3 p = co * scale;
+	int hard = 0;
+	if (distortion != 0.0) {
+		vec3 r, offset = vec3(13.5, 13.5, 13.5);
+		r.x = noise(p + offset) * distortion;
+		r.y = noise(p) * distortion;
+		r.z = noise(p - offset) * distortion;
+		p += r;
+	}
+
+	fac = noise_turbulence(p, detail, hard);
+	color = vec4(fac,
+	             noise_turbulence(vec3(p.y, p.x, p.z), detail, hard),
+	             noise_turbulence(vec3(p.y, p.z, p.x), detail, hard),
+	             1);
+#else  // BIT_OPERATIONS
 	color = vec4(1.0);
 	fac = 1.0;
+#endif  // BIT_OPERATIONS
 }
 
 void node_tex_sky(vec3 co, out vec4 color)
@@ -2708,16 +3049,115 @@ void node_tex_sky(vec3 co, out vec4 color)
 	color = vec4(1.0);
 }
 
-void node_tex_voronoi(vec3 co, float scale, out vec4 color, out float fac)
+void node_tex_voronoi(vec3 co, float scale, float coloring, out vec4 color, out float fac)
 {
+#ifdef BIT_OPERATIONS
+	vec3 p = co * scale;
+	int xx, yy, zz, xi, yi, zi;
+	float da[4];
+	vec3 pa[4];
+
+	xi = floor_to_int(p[0]);
+	yi = floor_to_int(p[1]);
+	zi = floor_to_int(p[2]);
+
+	da[0] = 1e+10;
+	da[1] = 1e+10;
+	da[2] = 1e+10;
+	da[3] = 1e+10;
+
+	for (xx = xi - 1; xx <= xi + 1; xx++) {
+		for (yy = yi - 1; yy <= yi + 1; yy++) {
+			for (zz = zi - 1; zz <= zi + 1; zz++) {
+				vec3 ip = vec3(xx, yy, zz);
+				vec3 vp = cellnoise_color(ip);
+				vec3 pd = p - (vp + ip);
+				float d = dot(pd, pd);
+				vp += vec3(xx, yy, zz);
+				if (d < da[0]) {
+					da[3] = da[2];
+					da[2] = da[1];
+					da[1] = da[0];
+					da[0] = d;
+					pa[3] = pa[2];
+					pa[2] = pa[1];
+					pa[1] = pa[0];
+					pa[0] = vp;
+				}
+				else if (d < da[1]) {
+					da[3] = da[2];
+					da[2] = da[1];
+					da[1] = d;
+
+					pa[3] = pa[2];
+					pa[2] = pa[1];
+					pa[1] = vp;
+				}
+				else if (d < da[2]) {
+					da[3] = da[2];
+					da[2] = d;
+
+					pa[3] = pa[2];
+					pa[2] = vp;
+				}
+				else if (d < da[3]) {
+					da[3] = d;
+					pa[3] = vp;
+				}
+			}
+		}
+	}
+
+	if (coloring == 0.0) {
+		fac = abs(da[0]);
+		color = vec4(fac, fac, fac, 1);
+	}
+	else {
+		color = vec4(cellnoise_color(pa[0]), 1);
+		fac = (color.x + color.y + color.z) * (1.0 / 3.0);
+	}
+#else  // BIT_OPERATIONS
 	color = vec4(1.0);
 	fac = 1.0;
+#endif  // BIT_OPERATIONS
 }
 
-void node_tex_wave(vec3 co, float scale, float distortion, float detail, float detail_scale, out vec4 color, out float fac)
+#ifdef BIT_OPERATIONS
+float calc_wave(vec3 p, float distortion, float detail, float detail_scale, int wave_type, int wave_profile)
 {
+	float n;
+
+	if(wave_type == 0) /* type bands */
+		n = (p.x + p.y + p.z) * 10.0;
+	else /* type rings */
+		n = length(p) * 20.0;
+
+	if(distortion != 0.0)
+		n += distortion * noise_turbulence(p*detail_scale, detail, 0);
+
+	if(wave_profile == 0) { /* profile sin */
+		return 0.5 + 0.5 * sin(n);
+	}
+	else { /* profile saw */
+		n /= 2.0 * M_PI;
+		n -= int(n);
+		return (n < 0.0)? n + 1.0: n;
+	}
+}
+#endif  // BIT_OPERATIONS
+
+void node_tex_wave(vec3 co, float scale, float distortion, float detail, float detail_scale, float wave_type, float wave_profile, out vec4 color, out float fac)
+{
+#ifdef BIT_OPERATIONS
+	float f;
+	f = calc_wave(co*scale, distortion, detail, detail_scale, int(wave_type), int(wave_profile));
+
+	color = vec4(f, f, f, 1.0);
+	fac = f;
+#else  // BIT_OPERATIONS
 	color = vec4(1.0);
-	fac = 1.0;
+	fac = 1;
+#endif  // BIT_OPERATIONS
 }
 
 /* light path */

@@ -49,12 +49,15 @@ public:
 
 	enum Type { POINT = 0, TEXTURE = 1, VECTOR = 2, NORMAL = 3 };
 	Type type;
+	static ShaderEnum type_enum;
 
 	enum Mapping { NONE = 0, X = 1, Y = 2, Z = 3 };
 	Mapping x_mapping, y_mapping, z_mapping;
+	static ShaderEnum mapping_enum;
 
 	enum Projection { FLAT, CUBE, TUBE, SPHERE };
 	Projection projection;
+	static ShaderEnum projection_enum;
 
 	bool equals(const TextureMapping& other) {
 		return translation == other.translation &&
@@ -917,7 +920,7 @@ public:
 	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
 	virtual bool equals(const ShaderNode * /*other*/) { return false; }
 
-	float4 curves[RAMP_TABLE_SIZE];
+	array<float3> curves;
 	float min_x, max_x;
 };
 
@@ -928,14 +931,15 @@ public:
 	virtual int get_group() { return NODE_GROUP_LEVEL_3; }
 	virtual bool equals(const ShaderNode * /*other*/) { return false; }
 
-	float4 curves[RAMP_TABLE_SIZE];
+	array<float3> curves;
 	float min_x, max_x;
 };
 
 class RGBRampNode : public ShaderNode {
 public:
 	SHADER_NODE_CLASS(RGBRampNode)
-	float4 ramp[RAMP_TABLE_SIZE];
+	array<float3> ramp;
+	array<float> ramp_alpha;
 	bool interpolate;
 	virtual int get_group() { return NODE_GROUP_LEVEL_1; }
 	virtual bool equals(const ShaderNode * /*other*/) { return false; }
