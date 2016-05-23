@@ -58,24 +58,26 @@ void SCA_IInputDevice::ClearEvents()
 
 void SCA_IInputDevice::ReleaseMoveEvent()
 {
-	/* We raise the release mose move event if:
+	/* We raise the release mouse move event if:
 	 *   - there are only one value from the last call to Clear()
 	 *   - the last state was KX_ACTIVE
-	 * If the both are true then the KX_ACTIVE come from the last call to ClearEvent and must
+	 * If the both are true then the KX_ACTIVE come from the last call to ClearEvent must
 	 * be removed of the status list to avoid setting the mouse active for two frames.
 	 */
-	SCA_InputEvent &xevent = m_eventsTable[KX_MOUSEX];
-	if ((xevent.m_values.size() == 1) && (xevent.m_status[xevent.m_status.size() - 1] == SCA_InputEvent::KX_ACTIVE)) {
-		xevent.m_status.pop_back();
-		xevent.m_status.push_back(SCA_InputEvent::KX_NO_INPUTSTATUS);
-		xevent.m_queue.push_back(SCA_InputEvent::KX_JUSTRELEASED);
-	}
+	SCA_EnumInputs eventTypes[4] = {
+		KX_MOUSEX,
+		KX_MOUSEY,
+		KX_WHEELUPMOUSE,
+		KX_WHEELDOWNMOUSE
+	};
 
-	SCA_InputEvent &yevent = m_eventsTable[KX_MOUSEY];
-	if ((yevent.m_values.size() == 1) && (yevent.m_status[yevent.m_status.size() - 1] == SCA_InputEvent::KX_ACTIVE)) {
-		yevent.m_status.pop_back();
-		yevent.m_status.push_back(SCA_InputEvent::KX_NO_INPUTSTATUS);
-		yevent.m_queue.push_back(SCA_InputEvent::KX_JUSTRELEASED);
+	for (unsigned short i = 0; i < 4; ++i) {
+		SCA_InputEvent &event = m_eventsTable[eventTypes[i]];
+		if ((event.m_values.size() == 1) && (event.m_status[event.m_status.size() - 1] == SCA_InputEvent::KX_ACTIVE)) {
+			event.m_status.pop_back();
+			event.m_status.push_back(SCA_InputEvent::KX_NO_INPUTSTATUS);
+			event.m_queue.push_back(SCA_InputEvent::KX_JUSTRELEASED);
+		}
 	}
 }
 

@@ -184,21 +184,27 @@ void GH_InputDevice::ConvertEvent(int incode, int val, unsigned int unicode)
 void GH_InputDevice::ConvertMoveEvent(int x, int y)
 {
 	SCA_InputEvent &xevent = m_eventsTable[KX_MOUSEX];
-	if (xevent.m_values[xevent.m_values.size() - 1] != x) {
-		xevent.m_values.push_back(x);
-		if (xevent.m_status[xevent.m_status.size() - 1] != SCA_InputEvent::KX_ACTIVE) {
-			xevent.m_status.push_back(SCA_InputEvent::KX_ACTIVE);
-			xevent.m_queue.push_back(SCA_InputEvent::KX_JUSTACTIVATED);
-		}
+	xevent.m_values.push_back(x);
+	if (xevent.m_status[xevent.m_status.size() - 1] != SCA_InputEvent::KX_ACTIVE) {
+		xevent.m_status.push_back(SCA_InputEvent::KX_ACTIVE);
+		xevent.m_queue.push_back(SCA_InputEvent::KX_JUSTACTIVATED);
 	}
 
 	SCA_InputEvent &yevent = m_eventsTable[KX_MOUSEY];
-	if (yevent.m_values[yevent.m_values.size() - 1] != y) {
-		yevent.m_values.push_back(y);
-		if (yevent.m_status[yevent.m_status.size() - 1] != SCA_InputEvent::KX_ACTIVE) {
-			yevent.m_status.push_back(SCA_InputEvent::KX_ACTIVE);
-			yevent.m_queue.push_back(SCA_InputEvent::KX_JUSTACTIVATED);
-		}
+	yevent.m_values.push_back(y);
+	if (yevent.m_status[yevent.m_status.size() - 1] != SCA_InputEvent::KX_ACTIVE) {
+		yevent.m_status.push_back(SCA_InputEvent::KX_ACTIVE);
+		yevent.m_queue.push_back(SCA_InputEvent::KX_JUSTACTIVATED);
+	}
+}
+
+void GH_InputDevice::ConvertWheelEvent(int z)
+{
+	SCA_InputEvent &event = m_eventsTable[(z > 0) ? KX_WHEELUPMOUSE : KX_WHEELDOWNMOUSE];
+	event.m_values.push_back(z);
+	if (event.m_status[event.m_status.size() - 1] != SCA_InputEvent::KX_ACTIVE) {
+		event.m_status.push_back(SCA_InputEvent::KX_ACTIVE);
+		event.m_queue.push_back(SCA_InputEvent::KX_JUSTACTIVATED);
 	}
 }
 

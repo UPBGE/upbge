@@ -61,9 +61,16 @@ void GH_EventConsumer::HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindow
 {
 	GHOST_TEventCursorData *cursorData = (GHOST_TEventCursorData *)data;
 	GHOST_TInt32 x, y;
-	window->screenToClient(cursorData->x, cursorData->y, x, y);
+	window->screenToClient(cursorData->x, cursorData->y, x, y); // TODO add conversion for embedded BGE.
 
 	m_device->ConvertMoveEvent(x, y);
+}
+
+void GH_EventConsumer::HandleWheelEvent(GHOST_TEventDataPtr data)
+{
+	GHOST_TEventWheelData* wheelData = (GHOST_TEventWheelData *)data;
+
+	m_device->ConvertWheelEvent(wheelData->z);
 }
 
 void GH_EventConsumer::HandleButtonEvent(GHOST_TEventDataPtr data, bool down)
@@ -78,30 +85,22 @@ bool GH_EventConsumer::processEvent(GHOST_IEvent *event)
 	GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
 	switch (event->getType()) {
 		case GHOST_kEventButtonDown:
+		{
 			HandleButtonEvent(eventData, true);
 			break;
+		}
 
 		case GHOST_kEventButtonUp:
+		{
 			HandleButtonEvent(eventData, false);
 			break;
+		}
 
 		case GHOST_kEventWheel:
-			/* TODO
-			 	bool handled = false;
-	BLI_assert(event);
-	if (m_mouse) 
-	{
-		GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
-		GHOST_TEventWheelData* wheelData = static_cast<GHOST_TEventWheelData*>(eventData);
-		GPC_MouseDevice::TButtonId button;
-		if (wheelData->z > 0)
-			button = GPC_MouseDevice::buttonWheelUp;
-		else
-			button = GPC_MouseDevice::buttonWheelDown;
-		m_mouse->ConvertButtonEvent(button, true);
-		handled = true;
-	}*/
+		{
+			HandleWheelEvent(eventData);
 			break;
+		}
 
 		case GHOST_kEventCursorMove:
 		{

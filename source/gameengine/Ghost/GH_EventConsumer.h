@@ -43,6 +43,7 @@ private:
 
 	void HandleKeyEvent(GHOST_TEventDataPtr data, bool down);
 	void HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindow *window);
+	void HandleWheelEvent(GHOST_TEventDataPtr data);
 	void HandleButtonEvent(GHOST_TEventDataPtr data, bool down);
 
 public:

@@ -61,6 +61,7 @@ public:
 
 	void ConvertEvent(int incode, int val, unsigned int unicode);
 	void ConvertMoveEvent(int x, int y);
+	void ConvertWheelEvent(int z);
 
 	virtual void HookEscape();
 };
