@@ -151,11 +151,13 @@ static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWind
 
 	SCA_IInputDevice *inputDevice = ketsjiengine->GetInputDevice();
 
-	if (inputDevice->GetEvent((SCA_IInputDevice::SCA_EnumInputs)ketsjiengine->GetExitKey()).Find(SCA_InputEvent::KX_ACTIVE) ||
-		inputDevice->GetEvent(SCA_IInputDevice::KX_WINCLOSE).Find(SCA_InputEvent::KX_ACTIVE) ||
+	if (inputDevice->GetEvent((SCA_IInputDevice::SCA_EnumInputs)ketsjiengine->GetExitKey()).Find(SCA_InputEvent::KX_ACTIVE)) {
+		exitrequested = KX_EXIT_REQUEST_BLENDER_ESC;
+	}
+	else if (inputDevice->GetEvent(SCA_IInputDevice::KX_WINCLOSE).Find(SCA_InputEvent::KX_ACTIVE) ||
 		inputDevice->GetEvent(SCA_IInputDevice::KX_WINQUIT).Find(SCA_InputEvent::KX_ACTIVE))
 	{
-		exitrequested = KX_EXIT_REQUEST_BLENDER_ESC;
+		exitrequested = KX_EXIT_REQUEST_OUTSIDE;
 	}
 
 	// test for the ESC key

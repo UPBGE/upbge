@@ -705,11 +705,13 @@ void GPG_Application::EngineNextFrame()
 		m_system->processEvents(false);
 		m_system->dispatchEvents();
 
-		if (m_inputDevice->GetEvent((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiengine->GetExitKey()).Find(SCA_InputEvent::KX_ACTIVE) ||
-			m_inputDevice->GetEvent(SCA_IInputDevice::KX_WINCLOSE).Find(SCA_InputEvent::KX_ACTIVE) ||
+		if (m_inputDevice->GetEvent((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiengine->GetExitKey()).Find(SCA_InputEvent::KX_ACTIVE)) {
+			m_exitRequested = KX_EXIT_REQUEST_BLENDER_ESC;
+		}
+		else if (m_inputDevice->GetEvent(SCA_IInputDevice::KX_WINCLOSE).Find(SCA_InputEvent::KX_ACTIVE) ||
 			m_inputDevice->GetEvent(SCA_IInputDevice::KX_WINQUIT).Find(SCA_InputEvent::KX_ACTIVE))
 		{
-			m_exitRequested = KX_EXIT_REQUEST_BLENDER_ESC;
+			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
 		}
 	}
 	m_exitString = m_ketsjiengine->GetExitString();
