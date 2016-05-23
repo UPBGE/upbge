@@ -41,6 +41,7 @@ class GH_EventConsumer : public GHOST_IEventConsumer
 private:
 	GH_InputDevice *m_device;
 
+	void HandleWindowEvent(GHOST_TEventType type);
 	void HandleKeyEvent(GHOST_TEventDataPtr data, bool down);
 	void HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindow *window);
 	void HandleWheelEvent(GHOST_TEventDataPtr data);

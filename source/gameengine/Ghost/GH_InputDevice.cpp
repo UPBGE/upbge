@@ -158,6 +158,9 @@ GH_InputDevice::GH_InputDevice()
 	m_reverseKeyTranslateTable[GHOST_kButtonMaskMiddle] = KX_MIDDLEMOUSE;
 	m_reverseKeyTranslateTable[GHOST_kButtonMaskRight] = KX_RIGHTMOUSE;
 	m_reverseKeyTranslateTable[GHOST_kButtonMaskLeft] = KX_LEFTMOUSE;
+
+	m_reverseKeyTranslateTable[GHOST_kEventQuit] = KX_WINQUIT;
+	m_reverseKeyTranslateTable[GHOST_kEventWindowClose] = KX_WINCLOSE;
 }
 
 GH_InputDevice::~GH_InputDevice()

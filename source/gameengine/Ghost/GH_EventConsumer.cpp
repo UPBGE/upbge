@@ -49,6 +49,11 @@ GH_EventConsumer::~GH_EventConsumer()
 {
 }
 
+void GH_EventConsumer::HandleWindowEvent(GHOST_TEventType type)
+{
+	m_device->ConvertEvent(type, true, 0);
+}
+
 void GH_EventConsumer::HandleKeyEvent(GHOST_TEventDataPtr data, bool down)
 {
 	GHOST_TEventKeyData *keyData = (GHOST_TEventKeyData *)data;
@@ -130,10 +135,12 @@ bool GH_EventConsumer::processEvent(GHOST_IEvent *event)
 			}
 			}
 			break;*/
-		/*case GHOST_kEventWindowClose:
+		case GHOST_kEventWindowClose:
 		case GHOST_kEventQuit:
-			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
-			break;*/
+		{
+			HandleWindowEvent(event->getType());
+			break;
+		}
 		default:
 			break;
 	}
