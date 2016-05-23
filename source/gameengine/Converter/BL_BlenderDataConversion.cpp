@@ -196,30 +196,7 @@ static std::map<int, SCA_IInputDevice::SCA_EnumInputs> create_translate_table()
 	m[WHEELDOWNMOUSE	] =	SCA_IInputDevice::KX_WHEELDOWNMOUSE;
 	m[MOUSEX			] = SCA_IInputDevice::KX_MOUSEX;
 	m[MOUSEY			] =	SCA_IInputDevice::KX_MOUSEY;
-		
-	// TIMERS                                                                                                  
-		
-	m[TIMER0			] = SCA_IInputDevice::KX_TIMER0;                  
-	m[TIMER1			] = SCA_IInputDevice::KX_TIMER1;                  
-	m[TIMER2			] = SCA_IInputDevice::KX_TIMER2;                  
-		
-	// SYSTEM                                                                                                  
-		
-#if 0
-	/* **** XXX **** */
-	m[KEYBD				] = SCA_IInputDevice::KX_KEYBD;                  
-	m[RAWKEYBD			] = SCA_IInputDevice::KX_RAWKEYBD;                  
-	m[REDRAW			] = SCA_IInputDevice::KX_REDRAW;                  
-	m[INPUTCHANGE		] = SCA_IInputDevice::KX_INPUTCHANGE;                  
-	m[QFULL				] = SCA_IInputDevice::KX_QFULL;                  
-	m[WINFREEZE			] = SCA_IInputDevice::KX_WINFREEZE;                  
-	m[WINTHAW			] = SCA_IInputDevice::KX_WINTHAW;                  
-	m[WINCLOSE			] = SCA_IInputDevice::KX_WINCLOSE;                  
-	m[WINQUIT			] = SCA_IInputDevice::KX_WINQUIT;                  
-	m[Q_FIRSTTIME		] = SCA_IInputDevice::KX_Q_FIRSTTIME;                  
-	/* **** XXX **** */
-#endif
-		
+
 	// standard keyboard                                                                                       
 		
 	m[AKEY				] = SCA_IInputDevice::KX_AKEY;                  
