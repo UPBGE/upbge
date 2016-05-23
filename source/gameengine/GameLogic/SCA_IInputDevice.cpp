@@ -42,6 +42,9 @@ SCA_IInputDevice::SCA_IInputDevice()
 
 SCA_IInputDevice::~SCA_IInputDevice()
 {
+	for (int i = 0; i < SCA_IInputDevice::KX_MAX_KEYS; ++i) {
+		m_eventsTable[i].InvalidateProxy();
+	}
 }
 
 void SCA_IInputDevice::HookEscape()
