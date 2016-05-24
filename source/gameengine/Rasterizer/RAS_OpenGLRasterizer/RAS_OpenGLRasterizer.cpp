@@ -194,6 +194,33 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_STORAGE_TYPE storage, int storage
 	if (m_numgllights < 8)
 		m_numgllights = 8;
 
+	// Generate the VBO and IBO for screen overlay plane.
+	glGenBuffersARB(1, &m_overlayPlaneVBO);
+	glGenBuffersARB(1, &m_overlayPlaneIBO);
+
+	// Vertexes for screen plane, it contains the vertex position (3 floats) and the vertex uv after (2 floats, total size = 5 floats).
+	static const float vertices[] = {
+		//   3f position   |   2f UV
+		-1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
+		-1.0f,  1.0f, 1.0f, 0.0f, 1.0f,
+		 1.0f,  1.0f, 1.0f, 1.0f, 1.0f,
+		 1.0f, -1.0f, 1.0f, 1.0f, 0.0f
+	};
+	// Indices for screen plane.
+	static const GLubyte indices[] = {3, 2, 1, 0};
+
+	// Send indices in the sreen plane IBO.
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_overlayPlaneIBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+	// Send vertexes in the screen plane VBO.
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_overlayPlaneVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	// Unbind modified VBOs
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
+
 	PrintHardwareInfo();
 }
 
@@ -204,6 +231,10 @@ RAS_OpenGLRasterizer::~RAS_OpenGLRasterizer()
 
 	if (m_storage)
 		delete m_storage;
+
+	// Delete screen overlay plane VBO/IBO
+	glDeleteBuffersARB(1, &m_overlayPlaneVBO);
+	glDeleteBuffersARB(1, &m_overlayPlaneIBO);
 }
 
 void RAS_OpenGLRasterizer::Enable(RAS_IRasterizer::EnableBit bit)
@@ -319,30 +350,28 @@ void RAS_OpenGLRasterizer::Exit()
 
 void RAS_OpenGLRasterizer::DrawOverlayPlane()
 {
-	static const float vertices[] = {
-		-1.0f, -1.0f, 1.0f,
-		 1.0f, -1.0f, 1.0f,
-		-1.0f,  1.0f, 1.0f,
-		 1.0f,  1.0f, 1.0f
-	};
+	// Bind screen plane VBO/IBO
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_overlayPlaneVBO);
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_overlayPlaneIBO);
 
-	static const float uvs[] = {
-		0.0f, 0.0f,
-		1.0f, 0.0f,
-		0.0f, 1.0f,
-		1.0f, 1.0f
-	};
-
+	// Enable vertex/uv pointer.
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-	glVertexPointer(3, GL_FLOAT, 0, vertices);
-	glTexCoordPointer(2, GL_FLOAT, 0, uvs);
+	// Bind vertex/uv pointer with VBO offset. (position = 0, uv = 3*float, stride = 5*float).
+	glVertexPointer(3, GL_FLOAT, sizeof(float) * 5, 0);
+	glTexCoordPointer(2, GL_FLOAT, sizeof(float) * 5, ((char *)NULL) + sizeof(float) * 3);
 
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	// Draw in traignel fan mode to reduce IBO size.
+	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_BYTE, 0);
 
+	// Disable vertex/uv pointer.
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	// Unbind screen plane VBO/IBO.
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 }
 
 bool RAS_OpenGLRasterizer::BeginFrame(double time)

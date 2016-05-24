@@ -132,6 +132,11 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	void *m_lastauxinfo;
 	unsigned int m_numgllights;
 
+	/// VBO used to draw the overlay plane for world background or filters.
+	unsigned int m_overlayPlaneVBO;
+	/// IBO (indices) used to draw the overlay plane for world background or filters.
+	unsigned int m_overlayPlaneIBO;
+
 protected:
 	DrawType m_drawingmode;
 	ShadowType m_shadowMode;
