@@ -7,6 +7,7 @@ set(INC
 	../Ghost
 	../Ketsji
 	../Ketsji/KXNetwork
+	../Launcher
 	../Physics/Bullet
 	../Physics/Common
 	../Rasterizer

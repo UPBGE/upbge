@@ -61,7 +61,7 @@
 #include "GHOST_ISystem.h"
 #include "GH_EventConsumer.h"
 #include "GH_InputDevice.h"
-#include "GH_System.h"
+#include "LA_System.h"
 
 extern "C" {
 	#include "DNA_object_types.h"
@@ -348,7 +348,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 		//
 		// create a ketsji/blendersystem (only needed for timing and stuff)
-		GH_System *kxsystem = new GH_System();
+		KX_ISystem *kxsystem = new LA_System();
 
 		KX_NetworkMessageManager *networkMessageManager = new KX_NetworkMessageManager();
 

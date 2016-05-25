@@ -19,31 +19,24 @@
 #
 # The Original Code is: all of this file.
 #
-# Contributor(s): Jacques Beaurain.
+# Contributor(s): Tristan Porteries.
 #
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
 	.
-	../Expressions
-	../GameLogic
 	../Ketsji
-	../SceneGraph
 	../../blender/blenlib
-	../../../intern/ghost
 	../../../intern/string
 )
 
 set(INC_SYS
-	../../../intern/moto/include
 )
 
 set(SRC
-	GH_EventConsumer.cpp
-	GH_InputDevice.cpp
+	LA_System.cpp
 
-	GH_EventConsumer.h
-	GH_InputDevice.h
+	LA_System.h
 )
 
-blender_add_lib(ge_ghost "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_launcher "${SRC}" "${INC}" "${INC_SYS}")

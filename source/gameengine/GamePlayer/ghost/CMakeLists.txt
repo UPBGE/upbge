@@ -33,6 +33,7 @@ set(INC
 	../../GameLogic
 	../../Ketsji
 	../../Ketsji/KXNetwork
+	../../Launcher
 	../../Physics/Common
 	../../Rasterizer
 	../../Rasterizer/RAS_OpenGLRasterizer

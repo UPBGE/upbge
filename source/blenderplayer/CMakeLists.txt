@@ -120,6 +120,7 @@ endif()
 		ge_blen_routines
 		bf_editor_datafiles
 		ge_ghost
+		ge_launcher
 		ge_converter 
 		ge_logic_ketsji 
 		ge_phys_bullet 
