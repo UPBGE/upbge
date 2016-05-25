@@ -37,10 +37,8 @@ set(INC_SYS
 
 set(SRC
 	BL_KetsjiEmbedStart.cpp
-	BL_System.cpp
 	KX_BlenderCanvas.cpp
 
-	BL_System.h
 	KX_BlenderCanvas.h
 )
 

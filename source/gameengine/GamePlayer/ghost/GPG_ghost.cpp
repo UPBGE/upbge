@@ -106,7 +106,7 @@ extern char datatoc_bmonofont_ttf[];
 * End Blender include block
 **********************************/
 
-#include "BL_System.h"
+#include "LA_SystemCommandLine.h"
 #include "GPG_Application.h"
 
 #include "GHOST_ISystem.h"

@@ -1,0 +1,132 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): none yet.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file LA_Launcher.h
+ *  \ingroup player
+ */
+
+#ifndef __LA_LAUNCHER_H__
+#define __LA_LAUNCHER_H__
+
+#include "KX_KetsjiEngine.h"
+#include "KX_ISystem.h"
+#include "STR_String.h"
+
+class KX_Scene;
+class KX_ISystem;
+class KX_ISceneConverter;
+class KX_NetworkMessageManager;
+class RAS_ICanvas;
+class RAS_IRasterizer;
+class GH_EventConsumer;
+class GH_InputDevice;
+class GHOST_ISystem;
+class GHOST_IWindow;
+struct Scene;
+struct Main;
+
+class LA_Launcher
+{
+protected:
+	/// Initializes the game engine.
+	bool InitEngine(GHOST_IWindow *window, int stereoMode);
+
+	/// Starts the game engine.
+	bool StartEngine(void);
+
+	/// Stop the game engine.
+	void StopEngine(void);
+
+	/// Shuts the game engine down.
+	void ExitEngine(void);
+
+	short m_exitkey;
+
+	/// \section The game data.
+	STR_String m_startSceneName;
+	Scene *m_startScene;
+	Main *m_maggie;
+	KX_Scene *m_kxStartScene;
+
+	/// \section Exit state.
+	int m_exitRequested;
+	STR_String m_exitString;
+	GlobalSettings *m_globalSettings;
+
+	/// GHOST system abstraction.
+	GHOST_ISystem *m_system;
+
+	/// Engine construction state.
+	bool m_engineInitialized;
+	/// Engine state.
+	bool m_engineRunning;
+	/// Running on embedded window.
+	bool m_isEmbedded;
+
+	/// The gameengine itself.
+	KX_KetsjiEngine* m_ketsjiengine;
+	/// The game engine's system abstraction.
+	KX_ISystem* m_kxsystem;
+	/// The game engine's input device abstraction.
+	GH_InputDevice *m_inputDevice;
+	GH_EventConsumer *m_eventConsumer;
+	/// The game engine's canvas abstraction.
+	RAS_ICanvas *m_canvas;
+	/// The rasterizer.
+	RAS_IRasterizer *m_rasterizer;
+	/// Converts Blender data files.
+	KX_ISceneConverter *m_sceneConverter;
+	/// Manage messages.
+	KX_NetworkMessageManager *m_networkMessageManager;
+
+	/**
+	 * GameLogic.globalDict as a string so that loading new blend files can use the same dict.
+	 * Do this because python starts/stops when loading blend files.
+	 */
+	char *m_pyGlobalDictString;
+	int m_pyGlobalDictString_Length;
+	
+	/// argc and argv need to be passed on to python
+	int m_argc;
+	char **m_argv;
+
+public:
+	LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, int argc, char **argv);
+	virtual ~LA_Launcher();
+
+	int GetExitRequested(void);
+	const STR_String& GetExitString(void);
+	GlobalSettings *GetGlobalSettings(void);
+
+	inline KX_Scene *GetStartScene() const
+	{
+		return m_kxStartScene;
+	}
+
+	bool StartGameEngine(int stereoMode);
+	void StopGameEngine();
+	void EngineNextFrame();
+};
+
+#endif  // __LA_LAUNCHER_H__

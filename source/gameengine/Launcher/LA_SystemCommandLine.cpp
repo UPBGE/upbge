@@ -15,23 +15,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
  * The Original Code is: all of this file.
  *
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * Interface to the commandline arguments
  */
 
-/** \file gameengine/BlenderRoutines/BL_System.cpp
+/** \file gameengine/BlenderRoutines/LA_SystemCommandLine.cpp
  *  \ingroup blroutines
  */
 
 #include "STR_HashedString.h"
-#include "BL_System.h"
+#include "LA_SystemCommandLine.h"
 
 #include <map>
 

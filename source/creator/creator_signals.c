@@ -66,7 +66,7 @@
 
 /* for passing information between creator and gameengine */
 #ifdef WITH_GAMEENGINE
-#  include "BL_System.h"
+#  include "LA_SystemCommandLine.h"
 #else /* dummy */
 #  define SYS_SystemHandle int
 #endif

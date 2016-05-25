@@ -26,8 +26,8 @@
  *  \ingroup player
  */
 
-#ifndef __GH_SYSTEM_H__
-#define __GH_SYSTEM_H__
+#ifndef __LA_SYSTEM_H__
+#define __LA_SYSTEM_H__
 
 #include "KX_ISystem.h"
 
@@ -43,4 +43,4 @@ public:
 	virtual double GetTimeInSeconds();
 };
 
-#endif  /* __GH_SYSTEM_H__ */
+#endif  // __LA_SYSTEM_H__

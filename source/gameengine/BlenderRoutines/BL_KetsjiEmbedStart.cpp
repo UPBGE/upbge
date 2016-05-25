@@ -52,7 +52,6 @@
 
 #include "RAS_OpenGLRasterizer.h"
 
-#include "BL_System.h"
 #include "BL_BlenderDataConversion.h"
 
 #include "GPU_extensions.h"
@@ -61,7 +60,9 @@
 #include "GHOST_ISystem.h"
 #include "GH_EventConsumer.h"
 #include "GH_InputDevice.h"
+
 #include "LA_System.h"
+#include "LA_SystemCommandLine.h"
 
 extern "C" {
 	#include "DNA_object_types.h"

@@ -30,6 +30,7 @@ set(INC
 	../GameLogic
 	../Ketsji
 	../Ketsji/KXNetwork
+	../Launcher
 	../Physics/Bullet
 	../Physics/Dummy
 	../Physics/Common

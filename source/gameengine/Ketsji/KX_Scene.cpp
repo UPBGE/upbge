@@ -71,7 +71,7 @@
 #include "SCA_IController.h"
 #include "SCA_IActuator.h"
 #include "SG_Node.h"
-#include "BL_System.h"
+#include "LA_SystemCommandLine.h"
 #include "SG_Controller.h"
 #include "SG_IObject.h"
 #include "DNA_group_types.h"

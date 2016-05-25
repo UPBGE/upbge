@@ -30,6 +30,7 @@ set(INC
 	../Converter
 	../Expressions
 	../GameLogic
+	../Launcher
 	../Physics/Common
 	../Rasterizer
 	../Rasterizer/RAS_OpenGLRasterizer

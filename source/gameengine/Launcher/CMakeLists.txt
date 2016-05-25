@@ -25,18 +25,45 @@
 
 set(INC
 	.
+	../Converter
+	../Expressions
+	../GameLogic
+	../GamePlayer/common
+	../GamePlayer/ghost
+	../Ghost
 	../Ketsji
+	../Ketsji/KXNetwork
+	../Rasterizer
+	../Rasterizer/RAS_OpenGLRasterizer
+	../SceneGraph
+	../../blender/blenkernel
 	../../blender/blenlib
+	../../blender/gpu
+	../../blender/makesdna
+	../../../intern/ghost
 	../../../intern/string
 )
 
 set(INC_SYS
+	../../../intern/moto/include
 )
 
 set(SRC
+	LA_Launcher.cpp
+	LA_SystemCommandLine.cpp
 	LA_System.cpp
 
+	LA_Launcher.h
+	LA_SystemCommandLine.h
 	LA_System.h
 )
+
+if(WITH_AUDASPACE)
+	add_definitions(${AUDASPACE_DEFINITIONS})
+
+	list(APPEND INC_SYS
+		${AUDASPACE_C_INCLUDE_DIRS}
+	)
+endif()
 
 blender_add_lib(ge_launcher "${SRC}" "${INC}" "${INC_SYS}")

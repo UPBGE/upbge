@@ -67,8 +67,6 @@ extern "C"
  * End Blender include block
  **********************************/
 
-
-#include "BL_System.h"
 #include "KX_KetsjiEngine.h"
 
 // include files needed by "KX_BlenderSceneConverter.h"
@@ -84,7 +82,9 @@ extern "C"
 
 #include "GH_InputDevice.h"
 #include "GH_EventConsumer.h"
+
 #include "LA_System.h"
+#include "LA_SystemCommandLine.h"
 
 #include "GPG_Canvas.h" 
 
