@@ -100,9 +100,6 @@ extern "C"
 #  include AUD_DEVICE_H
 #endif
 
-static GHOST_ISystem* fSystem = 0;
-static const int kTimerFreq = 10;
-
 GPG_Application::GPG_Application(GHOST_ISystem* system)
 	: m_startSceneName(""), 
 	  m_startScene(0),
@@ -125,7 +122,7 @@ GPG_Application::GPG_Application(GHOST_ISystem* system)
 	  m_pyGlobalDictString(0),
 	  m_pyGlobalDictString_Length(0)
 {
-	fSystem = system;
+	m_system = system;
 }
 
 
@@ -139,7 +136,7 @@ GPG_Application::~GPG_Application(void)
 	}
 
 	exitEngine();
-	fSystem->disposeWindow(m_mainWindow);
+	m_system->disposeWindow(m_mainWindow);
 }
 
 
@@ -247,7 +244,7 @@ bool GPG_Application::startScreenSaverPreview(
 		}
 		glSettings.numOfAASamples = samples;
 
-		m_mainWindow = fSystem->createWindow(title, 0, 0, windowWidth, windowHeight, GHOST_kWindowStateMinimized,
+		m_mainWindow = m_system->createWindow(title, 0, 0, windowWidth, windowHeight, GHOST_kWindowStateMinimized,
 		                                     GHOST_kDrawingContextTypeOpenGL, glSettings);
 		if (!m_mainWindow) {
 			printf("error: could not create main window\n");
@@ -327,7 +324,7 @@ bool GPG_Application::startWindow(
 		glSettings.flags |= GHOST_glStereoVisual;
 	glSettings.numOfAASamples = samples;
 
-	m_mainWindow = fSystem->createWindow(title, windowLeft, windowTop, windowWidth, windowHeight, GHOST_kWindowStateNormal,
+	m_mainWindow = m_system->createWindow(title, windowLeft, windowTop, windowWidth, windowHeight, GHOST_kWindowStateNormal,
 	                                     GHOST_kDrawingContextTypeOpenGL, glSettings);
 	if (!m_mainWindow) {
 		printf("error: could not create main window\n");
@@ -363,7 +360,7 @@ bool GPG_Application::startEmbeddedWindow(
 
 	if (parentWindow != 0)
 		state = GHOST_kWindowStateEmbedded;
-	m_mainWindow = fSystem->createWindow(title, 0, 0, 0, 0, state,
+	m_mainWindow = m_system->createWindow(title, 0, 0, 0, 0, state,
 	                                     GHOST_kDrawingContextTypeOpenGL, glSettings, parentWindow);
 
 	if (!m_mainWindow) {
@@ -391,7 +388,7 @@ bool GPG_Application::startFullScreen(
 {
 	bool success;
 	GHOST_TUns32 sysWidth=0, sysHeight=0;
-	fSystem->getMainDisplayDimensions(sysWidth, sysHeight);
+	m_system->getMainDisplayDimensions(sysWidth, sysHeight);
 	// Create the main window
 	GHOST_DisplaySetting setting;
 	setting.xPixels = (useDesktop) ? sysWidth : width;
@@ -399,7 +396,7 @@ bool GPG_Application::startFullScreen(
 	setting.bpp = bpp;
 	setting.frequency = frequency;
 
-	fSystem->beginFullScreen(setting, &m_mainWindow, stereoVisual, samples);
+	m_system->beginFullScreen(setting, &m_mainWindow, stereoVisual, samples);
 	m_mainWindow->setCursorVisibility(false);
 	/* note that X11 ignores this (it uses a window internally for fullscreen) */
 	m_mainWindow->setState(GHOST_kWindowStateFullScreen);
