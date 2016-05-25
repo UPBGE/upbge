@@ -309,7 +309,26 @@ void LA_Launcher::StopEngine()
 	m_engineRunning = false;
 }
 
-void LA_Launcher::EngineNextFrame()
+#ifdef WITH_PYTHON
+
+static int GPG_PyNextFrame(void *state)
+{
+	LA_Launcher *launcher = (LA_Launcher *)state;
+	bool run = launcher.EngineNextFrame();
+	if (run) {
+		return 0;
+	}
+	else {
+		if (exitcode) {
+			fprintf(stderr, "Exit code %d: %s\n", launcher->GetExitCode(), launcher->GetExitRequested().ReadPtr());
+		}
+		return 1;
+	}
+}
+
+#endif
+
+bool LA_Launcher::EngineNextFrame()
 {
 	// Update the state of the game engine.
 	if (m_kxsystem && !m_exitRequested) {
@@ -333,8 +352,16 @@ void LA_Launcher::EngineNextFrame()
 		{
 			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
 		}
+		else {
+			m_exitRequested = KX_EXIT_REQUEST_NO_REQUEST;
+		}
 	}
 	m_exitString = m_ketsjiengine->GetExitString();
+
+	if (m_exitRequested != KX_EXIT_REQUEST_NO_REQUEST) {
+		return false;
+	}
+	return true;
 }
 
 void LA_Launcher::ExitEngine()

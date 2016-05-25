@@ -1123,10 +1123,7 @@ int main(
 								KX_SetActiveScene(startscene);
 								PHY_SetActiveEnvironment(startscene->GetPhysicsEnvironment());
 
-								gpg_nextframestate.system = system;
-								gpg_nextframestate.app = &app;
-								gpg_nextframestate.gs = &gs;
-								pynextframestate.state = &gpg_nextframestate;
+								pynextframestate.state = &app;
 								pynextframestate.func = &GPG_PyNextFrame;
 
 								printf("Yielding control to Python script '%s'...\n", python_main);
@@ -1141,8 +1138,11 @@ int main(
 						else {
 #endif // WITH_PYTHON
 							while (run) {
-								run = GPG_NextFrame(system, &app, exitcode, exitstring, &gs);
+								run = app.EngineNextFrame();
 							}
+							exitcode = app.GetExitRequested();
+							exitstring = app.GetExitString();
+							gs = *app.GetGlobalSettings();
 #ifdef WITH_PYTHON
 						}
 #endif // WITH_PYTHON

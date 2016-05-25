@@ -127,7 +127,7 @@ public:
 
 	bool StartGameEngine(int stereoMode);
 	void StopGameEngine();
-	void EngineNextFrame();
+	bool EngineNextFrame();
 };
 
 #endif  // __LA_LAUNCHER_H__
