@@ -38,11 +38,9 @@ set(SRC
 	BL_KetsjiEmbedStart.cpp
 	BL_System.cpp
 	KX_BlenderCanvas.cpp
-	KX_BlenderSystem.cpp
 
 	BL_System.h
 	KX_BlenderCanvas.h
-	KX_BlenderSystem.h
 )
 
 add_definitions(${GL_DEFINITIONS})

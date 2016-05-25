@@ -41,7 +41,6 @@
 #endif
 
 #include "KX_BlenderCanvas.h"
-#include "KX_BlenderSystem.h"
 
 #include "KX_KetsjiEngine.h"
 #include "KX_NetworkMessageManager.h"
@@ -62,6 +61,7 @@
 #include "GHOST_ISystem.h"
 #include "GH_EventConsumer.h"
 #include "GH_InputDevice.h"
+#include "GH_System.h"
 
 extern "C" {
 	#include "DNA_object_types.h"
@@ -348,7 +348,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 		//
 		// create a ketsji/blendersystem (only needed for timing and stuff)
-		KX_BlenderSystem* kxsystem = new KX_BlenderSystem();
+		GH_System *kxsystem = new GH_System();
 
 		KX_NetworkMessageManager *networkMessageManager = new KX_NetworkMessageManager();
 

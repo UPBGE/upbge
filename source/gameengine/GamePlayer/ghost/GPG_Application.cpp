@@ -84,9 +84,9 @@ extern "C"
 
 #include "GH_InputDevice.h"
 #include "GH_EventConsumer.h"
+#include "GH_System.h"
 
 #include "GPG_Canvas.h" 
-#include "GPG_System.h"
 
 #include "STR_String.h"
 
@@ -526,7 +526,7 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		BKE_sound_init(m_maggie);
 
 		// create a ketsjisystem (only needed for timing and stuff)
-		m_kxsystem = new GPG_System (m_system);
+		m_kxsystem = new GH_System();
 		if (!m_kxsystem)
 			goto initFailed;
 

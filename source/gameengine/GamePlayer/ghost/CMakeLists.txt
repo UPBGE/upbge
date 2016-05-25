@@ -62,12 +62,10 @@ set(INC_SYS
 set(SRC
 	GPG_Application.cpp
 	GPG_Canvas.cpp
-	GPG_System.cpp
 	GPG_ghost.cpp
 
 	GPG_Application.h
 	GPG_Canvas.h
-	GPG_System.h
 )
 
 add_definitions(${GL_DEFINITIONS})

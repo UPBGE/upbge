@@ -27,6 +27,7 @@ set(INC
 	.
 	../Expressions
 	../GameLogic
+	../Ketsji
 	../SceneGraph
 	../../blender/blenlib
 	../../../intern/ghost
@@ -40,9 +41,11 @@ set(INC_SYS
 set(SRC
 	GH_EventConsumer.cpp
 	GH_InputDevice.cpp
+	GH_System.cpp
 
 	GH_EventConsumer.h
 	GH_InputDevice.h
+	GH_System.h
 )
 
 blender_add_lib(ge_ghost "${SRC}" "${INC}" "${INC_SYS}")

@@ -40,6 +40,7 @@
 #include "KX_KetsjiEngine.h"
 
 class KX_KetsjiEngine;
+class KX_ISystem;
 class KX_Scene;
 class KX_ISceneConverter;
 class KX_NetworkMessageManager;
@@ -49,7 +50,6 @@ class GHOST_ISystem;
 class GHOST_ITimerTask;
 class GHOST_IWindow;
 class GPG_Canvas;
-class GPG_System;
 class GH_InputDevice;
 class GH_EventConsumer;
 struct Main;
@@ -143,7 +143,7 @@ protected:
 	/** the gameengine itself */
 	KX_KetsjiEngine* m_ketsjiengine;
 	/** The game engine's system abstraction. */
-	GPG_System* m_kxsystem;
+	KX_ISystem* m_kxsystem;
 	/** The game engine's input device abstraction. */
 	GH_InputDevice *m_inputDevice;
 	GH_EventConsumer *m_eventConsumer;
