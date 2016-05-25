@@ -30,38 +30,29 @@
  *  \brief GHOST Blender Player application declaration file.
  */
 
-#include "GHOST_IEventConsumer.h"
-#include "STR_String.h"
-
 #ifdef WIN32
 #include <wtypes.h>
 #endif
 
-#include "KX_KetsjiEngine.h"
+#include "LA_Launcher.h"
 
-class KX_KetsjiEngine;
-class KX_ISystem;
-class KX_Scene;
-class KX_ISceneConverter;
-class KX_NetworkMessageManager;
-class RAS_IRasterizer;
-class GHOST_IEvent;
-class GHOST_ISystem;
-class GHOST_ITimerTask;
-class GHOST_IWindow;
-class GPG_Canvas;
-class GH_InputDevice;
-class GH_EventConsumer;
-struct Main;
-struct Scene;
+#include "GHOST_Types.h"
 
-class GPG_Application
+class GPG_Application : public LA_Launcher
 {
-public:
-	GPG_Application(GHOST_ISystem* system);
-	~GPG_Application(void);
+protected:
+	/// Main window.
+	GHOST_IWindow *m_mainWindow;
 
-	bool SetGameEngineData(struct Main* maggie, struct Scene* scene, GlobalSettings* gs, int argc, char** argv);
+	virtual bool InitEngine(int stereoMode);
+	virtual void ExitEngine();
+
+	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty);
+
+public:
+	GPG_Application(GHOST_ISystem* system, Main *maggie, Scene *scene, GlobalSettings *gs, int argc, char **argv);
+	virtual ~GPG_Application();
+
 	bool startWindow(STR_String& title,
 	                 int windowLeft, int windowTop,
 	                 int windowWidth, int windowHeight,
@@ -79,91 +70,4 @@ public:
 	bool startScreenSaverPreview(HWND parentWindow,
 	                             const bool stereoVisual, const int stereoMode, const GHOST_TUns16 samples=0);
 #endif
-
-	int getExitRequested(void);
-	const STR_String& getExitString(void);
-	GlobalSettings* getGlobalSettings(void);
-
-	inline KX_Scene *GetStartScene() const
-	{
-		return m_kxStartScene;
-	}
-
-	bool StartGameEngine(int stereoMode);
-	void StopGameEngine();
-	void EngineNextFrame();
-
-protected:
-	/**
-	 * Initializes the game engine.
-	 */
-	bool initEngine(GHOST_IWindow* window, int stereoMode);
-
-	/**
-	 * Starts the game engine.
-	 */
-	bool startEngine(void);
-
-	/**
-	 * Stop the game engine.
-	 */
-	void stopEngine(void);
-
-	/**
-	 * Shuts the game engine down.
-	 */
-	void exitEngine(void);
-	short					m_exitkey;
-
-	/* The game data */
-	STR_String				m_startSceneName;
-	struct Scene*			m_startScene;
-	struct Main*			m_maggie;
-	KX_Scene *m_kxStartScene;
-
-	/* Exit state. */
-	int						m_exitRequested;
-	STR_String				m_exitString;
-	GlobalSettings*	m_globalSettings;
-
-	/* GHOST system abstraction. */
-	GHOST_ISystem*			m_system;
-	/* Main window. */
-	GHOST_IWindow*			m_mainWindow;
-	/* The cursor shape displayed. */
-	GHOST_TStandardCursor	m_cursor;
-
-	/** Engine construction state. */
-	bool m_engineInitialized;
-	/** Engine state. */
-	bool m_engineRunning;
-	/** Running on embedded window */
-	bool m_isEmbedded;
-
-	/** the gameengine itself */
-	KX_KetsjiEngine* m_ketsjiengine;
-	/** The game engine's system abstraction. */
-	KX_ISystem* m_kxsystem;
-	/** The game engine's input device abstraction. */
-	GH_InputDevice *m_inputDevice;
-	GH_EventConsumer *m_eventConsumer;
-	/** The game engine's canvas abstraction. */
-	GPG_Canvas* m_canvas;
-	/** the rasterizer */
-	RAS_IRasterizer* m_rasterizer;
-	/** Converts Blender data files. */
-	KX_ISceneConverter* m_sceneconverter;
-	/// Manage messages.
-	KX_NetworkMessageManager *m_networkMessageManager;
-
-	/*
-	 * GameLogic.globalDict as a string so that loading new blend files can use the same dict.
-	 * Do this because python starts/stops when loading blend files.
-	 */
-	char* m_pyGlobalDictString;
-	int m_pyGlobalDictString_Length;
-	
-	/* argc and argv need to be passed on to python */
-	int		m_argc;
-	char**	m_argv;
 };

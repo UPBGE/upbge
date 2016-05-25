@@ -113,7 +113,7 @@ const STR_String& LA_Launcher::GetExitString()
 	return m_exitString;
 }
 
-bool LA_Launcher::InitEngine(GHOST_IWindow *window, const int stereoMode)
+bool LA_Launcher::InitEngine(const int stereoMode)
 {
 	if (!m_engineInitialized) {
 		// Get and set the preferences.
@@ -122,14 +122,14 @@ bool LA_Launcher::InitEngine(GHOST_IWindow *window, const int stereoMode)
 			return false;
 		}
 
-		GameData *gm= &m_startScene->gm;
-		bool properties	= (SYS_GetCommandLineInt(syshandle, "show_properties", 0) != 0);
+		GameData *gm = &m_startScene->gm;
+		bool properties = (SYS_GetCommandLineInt(syshandle, "show_properties", 0) != 0);
 		bool profile = (SYS_GetCommandLineInt(syshandle, "show_profile", 0) != 0);
 
 		bool showPhysics = (gm->flag & GAME_SHOW_PHYSICS);
 		SYS_WriteCommandLineInt(syshandle, "show_physics", showPhysics);
 
-		bool fixed_framerate= (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm->flag & GAME_ENABLE_ALL_FRAMES)) != 0);
+		bool fixed_framerate = (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm->flag & GAME_ENABLE_ALL_FRAMES)) != 0);
 		bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
 		bool useLists = (SYS_GetCommandLineInt(syshandle, "displaylists", gm->flag & GAME_DISPLAY_LISTS) != 0) && GPU_display_list_support();
 		bool showBoundingBox = (SYS_GetCommandLineInt(syshandle, "show_bounding_box", gm->flag & GAME_SHOW_BOUNDING_BOX) != 0);
@@ -158,7 +158,7 @@ bool LA_Launcher::InitEngine(GHOST_IWindow *window, const int stereoMode)
 		m_rasterizer->SetEyeSeparation(m_startScene->gm.eyeseparation);
 
 		// Create the canvas, rasterizer and rendertools.
-		m_canvas = new GPG_Canvas(m_rasterizer, window);
+		m_canvas = CreateCanvas(m_rasterizer);
 
 		if (gm->vsync == VSYNC_ADAPTIVE) {
 			m_canvas->SetSwapInterval(-1);
@@ -246,7 +246,7 @@ bool LA_Launcher::StartEngine()
 		}
 
 		// Initialize 3D Audio Settings.
-		AUD_Device* device = BKE_sound_get_device();
+		AUD_Device *device = BKE_sound_get_device();
 		AUD_Device_setSpeedOfSound(device, m_startScene->audio.speed_of_sound);
 		AUD_Device_setDopplerFactor(device, m_startScene->audio.doppler_factor);
 		AUD_Device_setDistanceModel(device, AUD_DistanceModel(m_startScene->audio.distance_model));
@@ -381,4 +381,21 @@ void LA_Launcher::ExitEngine()
 
 	m_exitRequested = KX_EXIT_REQUEST_NO_REQUEST;
 	m_engineInitialized = false;
+}
+
+
+bool LA_Launcher::StartGameEngine(int stereoMode)
+{
+	bool success = InitEngine(stereoMode);
+
+	if (success) {
+		success = StartEngine();
+	}
+
+	return success;
+}
+
+void LA_Launcher::StopGameEngine()
+{
+	ExitEngine();
 }

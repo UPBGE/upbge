@@ -376,10 +376,10 @@ static bool GPG_NextFrame(GHOST_ISystem* system, GPG_Application *app, int &exit
 	system->processEvents(false);
 	system->dispatchEvents();
 	app->EngineNextFrame();
-	if ((exitcode = app->getExitRequested())) {
+	if ((exitcode = app->GetExitRequested())) {
 		run = false;
-		exitstring = app->getExitString();
-		*gs = *app->getGlobalSettings();
+		exitstring = app->GetExitString();
+		*gs = *app->GetGlobalSettings();
 	}
 	return run;
 }
@@ -892,7 +892,6 @@ int main(
 			{
 				int exitcode = KX_EXIT_REQUEST_NO_REQUEST;
 				STR_String exitstring = "";
-				GPG_Application app(system);
 				bool firstTimeRunning = true;
 				char filename[FILE_MAX];
 				char pathname[FILE_MAX];
@@ -1023,9 +1022,8 @@ int main(
 									scene->gm.dome.warptext = domeText;
 							}
 						}
-						
-						//					GPG_Application app (system, maggie, startscenename);
-						app.SetGameEngineData(maggie, scene, &gs, argc, argv); /* this argc cant be argc_py_clamped, since python uses it */
+
+						GPG_Application app(system, maggie, scene, &gs, argc, argv); /* this argc cant be argc_py_clamped, since python uses it */
 						BLI_strncpy(pathname, maggie->name, sizeof(pathname));
 						if (G.main != maggie) {
 							BLI_strncpy(G.main->name, maggie->name, sizeof(G.main->name));

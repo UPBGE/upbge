@@ -50,16 +50,17 @@ class LA_Launcher
 {
 protected:
 	/// Initializes the game engine.
-	bool InitEngine(GHOST_IWindow *window, int stereoMode);
+	virtual bool InitEngine(int stereoMode);
+	/// Shuts the game engine down.
+	virtual void ExitEngine();
 
 	/// Starts the game engine.
-	bool StartEngine(void);
+	bool StartEngine();
 
 	/// Stop the game engine.
-	void StopEngine(void);
+	void StopEngine();
 
-	/// Shuts the game engine down.
-	void ExitEngine(void);
+	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty) = 0;
 
 	short m_exitkey;
 
@@ -115,9 +116,9 @@ public:
 	LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, int argc, char **argv);
 	virtual ~LA_Launcher();
 
-	int GetExitRequested(void);
-	const STR_String& GetExitString(void);
-	GlobalSettings *GetGlobalSettings(void);
+	int GetExitRequested();
+	const STR_String& GetExitString();
+	GlobalSettings *GetGlobalSettings();
 
 	inline KX_Scene *GetStartScene() const
 	{
