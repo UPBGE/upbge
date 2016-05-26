@@ -352,6 +352,18 @@ bool GPG_Application::startFullScreen(
 	return success;
 }
 
+void GPG_Application::InitPython()
+{
+	
+}
+
+void GPG_Application::ExitPython()
+{
+#ifdef WITH_PYTHON
+	exitGamePlayerPythonScripting();
+#endif  // WITH_PYTHON
+}
+
 bool GPG_Application::InitEngine(int stereoMode)
 {
 	GPU_init();

@@ -48,6 +48,8 @@ protected:
 	virtual void ExitEngine();
 
 	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty);
+	virtual void InitPython();
+	virtual void ExitPython();
 
 public:
 	GPG_Application(GHOST_ISystem* system, Main *maggie, Scene *scene, GlobalSettings *gs, int argc, char **argv);

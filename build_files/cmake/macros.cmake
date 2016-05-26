@@ -574,6 +574,8 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_intern_ctr
 		bf_intern_utfconv
 		ge_blen_routines
+		ge_launcher
+		ge_blen_routines
 		ge_converter
 		ge_phys_dummy
 		ge_phys_bullet
@@ -583,7 +585,6 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_logic_ketsji
 		extern_recastnavigation
 		ge_ghost
-		ge_launcher
 		ge_logic
 		ge_oglrasterizer
 		ge_rasterizer

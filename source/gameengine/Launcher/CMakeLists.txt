@@ -25,6 +25,7 @@
 
 set(INC
 	.
+	../BlenderRoutines
 	../Converter
 	../Expressions
 	../GameLogic
@@ -40,6 +41,7 @@ set(INC
 	../../blender/blenlib
 	../../blender/gpu
 	../../blender/makesdna
+	../../blender/makesrna
 	../../../intern/ghost
 	../../../intern/string
 )
@@ -49,10 +51,12 @@ set(INC_SYS
 )
 
 set(SRC
+	LA_BlenderLauncher.cpp
 	LA_Launcher.cpp
 	LA_SystemCommandLine.cpp
 	LA_System.cpp
 
+	LA_BlenderLauncher.h
 	LA_Launcher.h
 	LA_SystemCommandLine.h
 	LA_System.h

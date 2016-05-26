@@ -370,44 +370,6 @@ static BlendFileData *load_game_data(const char *progname, char *filename = NULL
 	return bfd;
 }
 
-static bool GPG_NextFrame(GHOST_ISystem* system, GPG_Application *app, int &exitcode, STR_String &exitstring, GlobalSettings *gs)
-{
-	bool run = true;
-	system->processEvents(false);
-	system->dispatchEvents();
-	app->EngineNextFrame();
-	if ((exitcode = app->GetExitRequested())) {
-		run = false;
-		exitstring = app->GetExitString();
-		*gs = *app->GetGlobalSettings();
-	}
-	return run;
-}
-
-struct GPG_NextFrameState {
-	GHOST_ISystem* system;
-	GPG_Application *app;
-	GlobalSettings *gs;
-} gpg_nextframestate;
-
-#ifdef WITH_PYTHON
-
-static int GPG_PyNextFrame(void *state0)
-{
-	GPG_NextFrameState *state = (GPG_NextFrameState *) state0;
-	int exitcode;
-	STR_String exitstring;
-	bool run = GPG_NextFrame(state->system, state->app, exitcode, exitstring, state->gs);
-	if (run) return 0;  
-	else {
-		if (exitcode) 
-			fprintf(stderr, "Exit code %d: %s\n", exitcode, exitstring.ReadPtr());
-		return 1;
-	}
-}
-
-#endif
-
 int main(
 	int argc,
 #ifdef WIN32
@@ -1124,7 +1086,7 @@ int main(
 								PHY_SetActiveEnvironment(startscene->GetPhysicsEnvironment());
 
 								pynextframestate.state = &app;
-								pynextframestate.func = &GPG_PyNextFrame;
+								pynextframestate.func = &LA_Launcher::PythonEngineNextFrame;
 
 								printf("Yielding control to Python script '%s'...\n", python_main);
 								PyRun_SimpleString(python_code);

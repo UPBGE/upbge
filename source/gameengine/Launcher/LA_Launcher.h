@@ -31,6 +31,9 @@
 
 #include "KX_KetsjiEngine.h"
 #include "KX_ISystem.h"
+
+#include "RAS_IRasterizer.h"
+
 #include "STR_String.h"
 
 class KX_Scene;
@@ -49,19 +52,6 @@ struct Main;
 class LA_Launcher
 {
 protected:
-	/// Initializes the game engine.
-	virtual bool InitEngine(int stereoMode);
-	/// Shuts the game engine down.
-	virtual void ExitEngine();
-
-	/// Starts the game engine.
-	bool StartEngine();
-
-	/// Stop the game engine.
-	void StopEngine();
-
-	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty) = 0;
-
 	short m_exitkey;
 
 	/// \section The game data.
@@ -86,7 +76,7 @@ protected:
 	bool m_isEmbedded;
 
 	/// The gameengine itself.
-	KX_KetsjiEngine* m_ketsjiengine;
+	KX_KetsjiEngine* m_ketsjiEngine;
 	/// The game engine's system abstraction.
 	KX_ISystem* m_kxsystem;
 	/// The game engine's input device abstraction.
@@ -101,16 +91,33 @@ protected:
 	/// Manage messages.
 	KX_NetworkMessageManager *m_networkMessageManager;
 
-	/**
-	 * GameLogic.globalDict as a string so that loading new blend files can use the same dict.
-	 * Do this because python starts/stops when loading blend files.
-	 */
-	char *m_pyGlobalDictString;
-	int m_pyGlobalDictString_Length;
-	
+#ifdef WITH_PYTHON
+	PyObject *m_globalDict;
+	PyObject *m_gameLogic;
+	PyObject *m_gameLogicKeys;
+#endif  // WITH_PYTHON
+
 	/// argc and argv need to be passed on to python
 	int m_argc;
 	char **m_argv;
+
+	/// Initializes the game engine.
+	virtual bool InitEngine(int stereoMode);
+	/// Shuts the game engine down.
+	virtual void ExitEngine();
+
+	/// Starts the game engine.
+	bool StartEngine();
+
+	/// Stop the game engine.
+	void StopEngine();
+
+	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty) = 0;
+	virtual RAS_IRasterizer::DrawType GetRasterizerDrawMode() { return RAS_IRasterizer::RAS_TEXTURED; } 
+	virtual bool GetUseAlwaysExpandFraming() { return false; }
+	virtual void InitCamera() {}
+	virtual void InitPython() = 0;
+	virtual void ExitPython() = 0;
 
 public:
 	LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, int argc, char **argv);
@@ -128,6 +135,10 @@ public:
 	bool StartGameEngine(int stereoMode);
 	void StopGameEngine();
 	bool EngineNextFrame();
+
+#ifdef WITH_PYTHON
+	static int PythonEngineNextFrame(void *state);
+#endif  // WITH_PYTHON
 };
 
 #endif  // __LA_LAUNCHER_H__
