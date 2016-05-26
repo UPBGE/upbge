@@ -18,3 +18,14 @@ base class --- :class:`BL_Shader`
       :type index: integer
       :arg bindCode: The texture bind code/Id.
       :type bindCode: integer
+
+   .. method:: setUniformTexture(textureName, textureBindCode, index)
+
+      Set uniform sampler2D textureName in the 2D Filter fragment shader.
+
+      :arg name: Uniform sampler2D name in the 2D Filter.
+      :type name: string
+      :arg bindCode: The bind code/Id of the texture we want to bind.
+      :type bindCode: integer
+      :arg index: The emplacement in range 0 to 7 included where we want to assign the texture (optional argument).
+      :type index: integer
