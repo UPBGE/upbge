@@ -1193,7 +1193,6 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene)
 {
 	KX_SetActiveScene(scene);
 
-	const RAS_Rect& viewport = scene->GetSceneViewport();
 	// Set the scene viewport.
 	m_rasterizer->FlushDebugShapes(scene);
 
@@ -1202,6 +1201,7 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene)
 	scene->Render2DFilters(m_rasterizer, m_canvas);
 
 #ifdef WITH_PYTHON
+	const RAS_Rect& viewport = scene->GetSceneViewport();
 	// Set again the scene viewport.
 	m_canvas->SetViewPort(viewport.GetLeft(), viewport.GetBottom(), viewport.GetRight(), viewport.GetTop());
 
