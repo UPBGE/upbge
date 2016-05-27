@@ -48,14 +48,14 @@
 #  include "LinearMath/btIDebugDraw.h"
 #endif
 
+// nasty glob variable to connect scripting language
+// if there is a better way (without global), please do so!
+static PHY_IPhysicsEnvironment* g_CurrentActivePhysicsEnvironment = NULL;
+
 #ifdef WITH_PYTHON
 
 // macro copied from KX_PythonInit.cpp
 #define KX_MACRO_addTypesToDict(dict, name, name2) PyDict_SetItemString(dict, #name, item=PyLong_FromLong(name2)); Py_DECREF(item)
-
-// nasty glob variable to connect scripting language
-// if there is a better way (without global), please do so!
-static PHY_IPhysicsEnvironment* g_CurrentActivePhysicsEnvironment = NULL;
 
 
 PyDoc_STRVAR(PhysicsConstraints_module_documentation,
@@ -737,6 +737,8 @@ static void KX_RemovePythonConstraintBinding()
 }
 #endif
 
+#endif // WITH_PYTHON
+
 void	PHY_SetActiveEnvironment(class	PHY_IPhysicsEnvironment* env)
 {
 	g_CurrentActivePhysicsEnvironment = env;
@@ -747,4 +749,3 @@ PHY_IPhysicsEnvironment*	PHY_GetActiveEnvironment()
 	return g_CurrentActivePhysicsEnvironment;
 }
 
-#endif // WITH_PYTHON

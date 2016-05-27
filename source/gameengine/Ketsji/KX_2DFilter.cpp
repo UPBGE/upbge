@@ -41,6 +41,7 @@ bool KX_2DFilter::LinkProgram()
 	return RAS_2DFilter::LinkProgram();
 }
 
+#ifdef WITH_PYTHON
 
 PyTypeObject KX_2DFilter::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
@@ -95,3 +96,5 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode)")
 	m_textures[index] = bindCode;
 	Py_RETURN_NONE;
 }
+
+#endif  // WITH_PYTHON

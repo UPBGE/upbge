@@ -38,8 +38,9 @@
 
 PyMODINIT_FUNC initConstraintPythonBinding();
 
+#endif  /* WITH_PYTHON */
+
 void	PHY_SetActiveEnvironment(class	PHY_IPhysicsEnvironment* env);
 PHY_IPhysicsEnvironment*	PHY_GetActiveEnvironment();
-#endif  /* WITH_PYTHON */
 
 #endif  /* __KX_PYCONSTRAINTBINDING_H__ */

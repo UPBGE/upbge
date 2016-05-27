@@ -40,6 +40,8 @@
 #include "generic/py_capi_utils.h"
 #endif
 
+#include <string.h>
+
 #ifdef WITH_PYTHON
 
 PyDoc_STRVAR(class_documentation,
@@ -123,14 +125,9 @@ static struct PyModuleDef bge_types_module_def = {
 	NULL,  /* m_free */
 };
 
-#endif
-
 static int verify_class(PyObject *cls)
 {
-#ifdef WITH_PYTHON
 	return PyType_IsSubtype((PyTypeObject *)cls, &PythonComponentType);
-#endif
-	return 0;
 }
 
 static PythonComponentProperty *create_property(char *name)
@@ -142,6 +139,8 @@ static PythonComponentProperty *create_property(char *name)
 
 	return cprop;
 }
+
+#endif
 
 static PythonComponentProperty *copy_property(PythonComponentProperty *cprop)
 {
@@ -176,9 +175,9 @@ static void free_properties(ListBase *lb)
 	}
 }
 
+#ifdef WITH_PYTHON
 static void create_properties(PythonComponent *pycomp, PyObject *cls)
 {
-#ifdef WITH_PYTHON
 	PyObject *args_dict, *pyitems;
 	ListBase properties;
 	memset(&properties, 0, sizeof(ListBase));
@@ -352,8 +351,8 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 	// Set the new property list.
 	pycomp->properties = properties;
 
-#endif /* WITH_PYTHON */
 }
+#endif /* WITH_PYTHON */
 
 static bool load_component(PythonComponent *pc, ReportList *reports, char *filename)
 {
@@ -435,6 +434,10 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 	#undef ERROR
 
 #else
+
+	(void)pc;
+	(void)reports;
+	(void)filename;
 
 	return true;
 
@@ -586,6 +589,8 @@ void *BKE_python_component_argument_dict_new(PythonComponent *pc)
 	return args;
 
 #else
+
+	(void)pc;
 
 	return NULL;
 

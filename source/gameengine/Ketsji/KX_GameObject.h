@@ -118,9 +118,8 @@ protected:
 
 	MT_CmMatrix4x4						m_OpenGL_4x4Matrix;
 
-#ifdef WITH_PYTHON
 	CListValue							*m_components;
-#endif
+
 	std::vector<bRigidBodyJointConstraint*>	m_constraints;
 
 	CListValue*							m_pInstanceObjects;
