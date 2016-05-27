@@ -100,8 +100,9 @@ extern "C"
 #  include AUD_DEVICE_H
 #endif
 
-GPG_Application::GPG_Application(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, int argc, char **argv)
-	:LA_Launcher(system, maggie, scene, gs, argc, argv)
+GPG_Application::GPG_Application(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
+								 RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv)
+	:LA_Launcher(system, maggie, scene, gs, stereoMode, argc, argv)
 {
 }
 
@@ -170,7 +171,6 @@ static HWND findGhostWindowHWND(GHOST_IWindow* window)
 bool GPG_Application::startScreenSaverPreview(
 	HWND parentWindow,
 	const bool stereoVisual,
-	const int stereoMode,
 	const GHOST_TUns16 samples)
 {
 	bool success = false;
@@ -217,7 +217,7 @@ bool GPG_Application::startScreenSaverPreview(
 		 */
 		m_mainWindow->setClientSize(windowWidth, windowHeight);
 
-		success = InitEngine(stereoMode);
+		success = InitEngine();
 		if (success) {
 			success = StartEngine();
 		}
@@ -231,10 +231,9 @@ bool GPG_Application::startScreenSaverFullScreen(
 		int height,
 		int bpp,int frequency,
 		const bool stereoVisual,
-		const int stereoMode,
 		const GHOST_TUns16 samples)
 {
-	bool ret = startFullScreen(width, height, bpp, frequency, stereoVisual, stereoMode, samples);
+	bool ret = startFullScreen(width, height, bpp, frequency, stereoVisual, samples);
 	if (ret)
 	{
 		HWND ghost_hwnd = findGhostWindowHWND(m_mainWindow);
@@ -257,7 +256,6 @@ bool GPG_Application::startWindow(
         int windowWidth,
         int windowHeight,
         const bool stereoVisual,
-        const int stereoMode,
         const GHOST_TUns16 samples)
 {
 	GHOST_GLSettings glSettings = {0};
@@ -281,7 +279,7 @@ bool GPG_Application::startWindow(
 	m_mainWindow->setClientSize(windowWidth, windowHeight);
 	m_mainWindow->setCursorVisibility(false);
 
-	success = InitEngine(stereoMode);
+	success = InitEngine();
 	if (success) {
 		success = StartEngine();
 	}
@@ -292,7 +290,6 @@ bool GPG_Application::startEmbeddedWindow(
         STR_String& title,
         const GHOST_TEmbedderWindowID parentWindow,
         const bool stereoVisual,
-        const int stereoMode,
         const GHOST_TUns16 samples)
 {
 	GHOST_TWindowState state = GHOST_kWindowStateNormal;
@@ -313,7 +310,7 @@ bool GPG_Application::startEmbeddedWindow(
 	}
 	m_isEmbedded = true;
 
-	bool success = InitEngine(stereoMode);
+	bool success = InitEngine();
 	if (success) {
 		success = StartEngine();
 	}
@@ -326,7 +323,6 @@ bool GPG_Application::startFullScreen(
         int height,
         int bpp,int frequency,
         const bool stereoVisual,
-        const int stereoMode,
         const GHOST_TUns16 samples,
         bool useDesktop)
 {
@@ -345,7 +341,7 @@ bool GPG_Application::startFullScreen(
 	/* note that X11 ignores this (it uses a window internally for fullscreen) */
 	m_mainWindow->setState(GHOST_kWindowStateFullScreen);
 
-	success = InitEngine(stereoMode);
+	success = InitEngine();
 	if (success) {
 		success = StartEngine();
 	}
@@ -364,11 +360,11 @@ void GPG_Application::ExitPython()
 #endif  // WITH_PYTHON
 }
 
-bool GPG_Application::InitEngine(int stereoMode)
+bool GPG_Application::InitEngine()
 {
 	GPU_init();
 	BKE_sound_init(m_maggie);
-	return LA_Launcher::InitEngine(stereoMode);
+	return LA_Launcher::InitEngine();
 }
 
 void GPG_Application::ExitEngine()

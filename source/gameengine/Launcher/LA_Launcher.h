@@ -97,12 +97,15 @@ protected:
 	PyObject *m_gameLogicKeys;
 #endif  // WITH_PYTHON
 
+	/// The render stereo mode passed in constructor.
+	RAS_IRasterizer::StereoMode m_stereoMode;
+
 	/// argc and argv need to be passed on to python
 	int m_argc;
 	char **m_argv;
 
 	/// Initializes the game engine.
-	virtual bool InitEngine(int stereoMode);
+	virtual bool InitEngine();
 	/// Shuts the game engine down.
 	virtual void ExitEngine();
 
@@ -120,7 +123,7 @@ protected:
 	virtual void ExitPython() = 0;
 
 public:
-	LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, int argc, char **argv);
+	LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv);
 	virtual ~LA_Launcher();
 
 	int GetExitRequested();
@@ -132,7 +135,7 @@ public:
 		return m_kxStartScene;
 	}
 
-	bool StartGameEngine(int stereoMode);
+	bool StartGameEngine();
 	void StopGameEngine();
 	bool EngineNextFrame();
 

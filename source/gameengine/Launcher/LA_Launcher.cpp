@@ -62,7 +62,8 @@ extern "C" {
 #  include AUD_DEVICE_H
 #endif
 
-LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, int argc, char **argv)
+LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
+						 RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv)
 	:m_startSceneName(scene->id.name + 2), 
 	m_startScene(scene),
 	m_maggie(maggie),
@@ -85,6 +86,7 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 	m_gameLogic(NULL),
 	m_gameLogicKeys(NULL),
 #endif  // WITH_PYTHON
+	m_stereoMode(stereoMode),
 	m_argc(argc),
 	m_argv(argv)
 {
@@ -117,7 +119,7 @@ const STR_String& LA_Launcher::GetExitString()
 	return m_exitString;
 }
 
-bool LA_Launcher::InitEngine(const int stereoMode)
+bool LA_Launcher::InitEngine()
 {
 	if (!m_engineInitialized) {
 		// Get and set the preferences.
@@ -158,7 +160,7 @@ bool LA_Launcher::InitEngine(const int stereoMode)
 		m_rasterizer = new RAS_OpenGLRasterizer(raster_storage, storageInfo);
 
 		// Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI
-		m_rasterizer->SetStereoMode((RAS_IRasterizer::StereoMode) stereoMode);
+		m_rasterizer->SetStereoMode(m_stereoMode);
 		m_rasterizer->SetEyeSeparation(m_startScene->gm.eyeseparation);
 		m_rasterizer->SetDrawingMode(GetRasterizerDrawMode());
 
@@ -422,9 +424,9 @@ void LA_Launcher::ExitEngine()
 }
 
 
-bool LA_Launcher::StartGameEngine(int stereoMode)
+bool LA_Launcher::StartGameEngine()
 {
-	bool success = InitEngine(stereoMode);
+	bool success = InitEngine();
 
 	if (success) {
 		success = StartEngine();

@@ -29,7 +29,7 @@ protected:
 		int mipmap;
 	} m_savedData;
 
-	virtual bool InitEngine(int stereoMode);
+	virtual bool InitEngine();
 	virtual void ExitEngine();
 
 	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty);
@@ -40,7 +40,7 @@ protected:
 	virtual void ExitPython();
 
 public:
-	LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, int argc, char **argv,
-					   bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming);
+	LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_IRasterizer::StereoMode stereoMode, 
+					   int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming);
 	virtual ~LA_BlenderLauncher();
 };

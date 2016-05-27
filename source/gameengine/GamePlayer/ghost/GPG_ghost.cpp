@@ -985,7 +985,7 @@ int main(
 							}
 						}
 
-						GPG_Application app(system, maggie, scene, &gs, argc, argv); /* this argc cant be argc_py_clamped, since python uses it */
+						GPG_Application app(system, maggie, scene, &gs, stereomode, argc, argv); /* this argc cant be argc_py_clamped, since python uses it */
 						BLI_strncpy(pathname, maggie->name, sizeof(pathname));
 						if (G.main != maggie) {
 							BLI_strncpy(G.main->name, maggie->name, sizeof(G.main->name));
@@ -1001,13 +1001,13 @@ int main(
 								if (scr_saver_mode == SCREEN_SAVER_MODE_SAVER)
 								{
 									app.startScreenSaverFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
-									                               stereoWindow, stereomode, aasamples);
+									                               stereoWindow, aasamples);
 								}
 								else
 #endif
 								{
 									app.startFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
-									                    stereoWindow, stereomode, aasamples, (scene->gm.playerflag & GAME_PLAYER_DESKTOP_RESOLUTION));
+									                    stereoWindow, aasamples, (scene->gm.playerflag & GAME_PLAYER_DESKTOP_RESOLUTION));
 								}
 							}
 							else
@@ -1045,16 +1045,16 @@ int main(
 #ifdef WIN32
 								if (scr_saver_mode == SCREEN_SAVER_MODE_PREVIEW)
 								{
-									app.startScreenSaverPreview(scr_saver_hwnd, stereoWindow, stereomode, aasamples);
+									app.startScreenSaverPreview(scr_saver_hwnd, stereoWindow, aasamples);
 								}
 								else
 #endif
 								{
 									if (parentWindow != 0)
-										app.startEmbeddedWindow(title, parentWindow, stereoWindow, stereomode, aasamples);
+										app.startEmbeddedWindow(title, parentWindow, stereoWindow, aasamples);
 									else
 										app.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
-										                stereoWindow, stereomode, aasamples);
+										                stereoWindow, aasamples);
 
 									if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
 										GPU_set_mipmap(0);
@@ -1066,7 +1066,7 @@ int main(
 							}
 						}
 						else {
-							app.StartGameEngine(stereomode);
+							app.StartGameEngine();
 							exitcode = KX_EXIT_REQUEST_NO_REQUEST;
 						}
 

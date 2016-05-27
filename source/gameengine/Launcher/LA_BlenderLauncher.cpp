@@ -17,9 +17,9 @@ extern "C" {
 #  include "DNA_view3d_types.h"
 }
 
-LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, int argc, char **argv,
-									   bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming)
-	:LA_Launcher(system, maggie, scene, gs, argc, argv),
+LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_IRasterizer::StereoMode stereoMode, 
+									   int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming)
+	:LA_Launcher(system, maggie, scene, gs, stereoMode, argc, argv),
 	m_context(context),
 	m_ar(ar),
 	m_camFrame(camframe),
@@ -121,7 +121,7 @@ void LA_BlenderLauncher::ExitPython()
 #endif  // WITH_PYTHON
 }
 
-bool LA_BlenderLauncher::InitEngine(const int stereoMode)
+bool LA_BlenderLauncher::InitEngine()
 {
 	// Lock frame and camera enabled - storing global values.
 	m_savedData.sceneLayer = m_startScene->lay;
@@ -132,7 +132,7 @@ bool LA_BlenderLauncher::InitEngine(const int stereoMode)
 		m_startScene->camera = m_view3d->camera;
 	}
 
-	return LA_Launcher::InitEngine(stereoMode);
+	return LA_Launcher::InitEngine();
 }
 
 void LA_BlenderLauncher::ExitEngine()

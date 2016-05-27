@@ -306,7 +306,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 		Scene *scene = bfd ? bfd->curscene : (Scene *)BLI_findstring(&blenderdata->scene, startscenename, offsetof(ID, name) + 2);
 
-		int stereoMode = 0;
+		RAS_IRasterizer::StereoMode stereoMode = RAS_IRasterizer::RAS_STEREO_NOSTEREO;
 		if (scene) {
 			// Quad buffered needs a special window.
 			if (scene->gm.stereoflag == STEREO_ENABLED) {
@@ -317,8 +317,8 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		}
 
 		GHOST_ISystem *system = GHOST_ISystem::getSystem();
-		LA_BlenderLauncher launcher = LA_BlenderLauncher(system, blenderdata, startscene, &gs, 0, NULL, C, cam_frame, ar, always_use_expand_framing);
-		launcher.StartGameEngine(stereoMode);
+		LA_BlenderLauncher launcher = LA_BlenderLauncher(system, blenderdata, startscene, &gs, stereoMode, 0, NULL, C, cam_frame, ar, always_use_expand_framing);
+		launcher.StartGameEngine();
 
 		bool run = true;
 		while (run) {
