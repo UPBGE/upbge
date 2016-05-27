@@ -35,6 +35,7 @@
 #include "DNA_constraint_types.h"
 #include "EXP_PyObjectPlus.h"
 
+#include "SG_QList.h"
 #include <map>
 
 class SCA_IObject;
@@ -50,7 +51,7 @@ struct bPose;
  *            head = BL_ArmatureObject::m_controlledConstraints
  * SG_QList : not used
  */
-class BL_ArmatureConstraint	: public PyObjectPlus
+class BL_ArmatureConstraint : public SG_QList, public PyObjectPlus
 {
 	Py_Header
 

@@ -63,7 +63,7 @@ PyObjectPlus::~PyObjectPlus()
 #endif
 }
 
-PyObjectPlus::PyObjectPlus() : SG_QList()				// constructor
+PyObjectPlus::PyObjectPlus() // constructor
 {
 #ifdef WITH_PYTHON
 	m_proxy= NULL;

@@ -43,7 +43,6 @@
 #include "EXP_Python.h"
 #include "STR_String.h"
 #include "MT_Vector3.h"
-#include "SG_QList.h"
 #include <stddef.h>
 
 #ifdef WITH_PYTHON
@@ -554,19 +553,7 @@ public: \
 
 #endif
 
-
-// By making SG_QList the ultimate parent for PyObjectPlus objects, it
-// allows to put them in 2 different dynamic lists at the same time
-// The use of these links is interesting because they free of memory allocation
-// but it's very important not to mess up with them. If you decide that 
-// the SG_QList or SG_DList component is used for something for a certain class,
-// they cannot can be used for anything else at a parent level!
-// What these lists are and what they are used for must be carefully documented
-// at the level where they are used.
-// DON'T MAKE ANY USE OF THESE LIST AT THIS LEVEL, they are already used
-// at SCA_IActuator, SCA_ISensor, SCA_IController level which rules out the
-// possibility to use them at SCA_ILogicBrick, CValue and PyObjectPlus level.
-class PyObjectPlus : public SG_QList
+class PyObjectPlus
 {				// The PyObjectPlus abstract class
 	Py_Header							// Always start with Py_Header
 	

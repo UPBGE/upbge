@@ -35,6 +35,8 @@
 #include "DNA_action_types.h"
 #include "EXP_PyObjectPlus.h"
 
+#include "SG_QList.h"
+
 class SCA_IObject;
 class KX_GameObject;
 class BL_ArmatureObject;
@@ -43,7 +45,7 @@ struct bPoseChannel;
 struct Object;
 struct bPose;
 
-class BL_ArmatureChannel : public PyObjectPlus
+class BL_ArmatureChannel : public SG_QList, public PyObjectPlus
 {
 	// use Py_HeaderPtr since we use generic pointer in proxy
 	Py_HeaderPtr;

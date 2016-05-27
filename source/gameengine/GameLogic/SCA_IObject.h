@@ -35,6 +35,8 @@
 #define __SCA_IOBJECT_H__
 
 #include "EXP_Value.h"
+
+#include "SG_QList.h"
 #include <vector>
 
 class SCA_IObject;
