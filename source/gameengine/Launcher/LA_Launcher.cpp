@@ -54,6 +54,7 @@ extern "C" {
 #  include "GPU_extensions.h"
 
 #  include "BKE_sound.h"
+#  include "BKE_main.h"
 
 #  include "DNA_scene_types.h"
 }
@@ -227,6 +228,11 @@ bool LA_Launcher::StartEngine()
 	if (m_engineRunning) {
 		return false;
 	}
+
+#ifdef WITH_PYTHON
+	resetGamePythonPath();
+	setGamePythonPath(m_maggie->name);
+#endif
 
 	// Create a scene converter, create and convert the stratingscene.
 	m_sceneConverter = new KX_BlenderSceneConverter(m_maggie, m_ketsjiEngine);

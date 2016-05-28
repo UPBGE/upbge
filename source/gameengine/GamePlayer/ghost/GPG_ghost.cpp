@@ -990,9 +990,6 @@ int main(
 						if (G.main != maggie) {
 							BLI_strncpy(G.main->name, maggie->name, sizeof(G.main->name));
 						}
-#ifdef WITH_PYTHON
-						setGamePythonPath(G.main->name);
-#endif
 						if (firstTimeRunning) {
 							firstTimeRunning = false;
 

@@ -320,10 +320,16 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		LA_BlenderLauncher launcher = LA_BlenderLauncher(system, blenderdata, startscene, &gs, stereoMode, 0, NULL, C, cam_frame, ar, always_use_expand_framing);
 		launcher.StartGameEngine();
 
+		std::cout << std::endl << "Blender Game Engine Started" << std::endl;
 		bool run = true;
 		while (run) {
 			run = launcher.EngineNextFrame();
 		}
+		std::cout << "Blender Game Engine Finished" << std::endl;
+
+		exitrequested = launcher.GetExitRequested();
+		exitstring = launcher.GetExitString();
+		gs = *launcher.GetGlobalSettings();
 
 		launcher.StopGameEngine();
 	
