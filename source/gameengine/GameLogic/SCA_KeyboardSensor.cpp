@@ -234,9 +234,6 @@ bool SCA_KeyboardSensor::Evaluate()
 		/* done with key quals */
 	}
 
-	std::cout << "main : " << m_status[0] << ", qual 1 : " << m_status[1] << ", qual 2 : " << m_status[2] <<
-	", m_val : " << m_val << ", result : " << result << std::endl;
-
 	if (reset)
 		// force an event
 		result = true;
