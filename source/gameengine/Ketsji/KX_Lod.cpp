@@ -27,7 +27,8 @@
 #include "BLI_listbase.h"
 
 KX_LodList::KX_LodList(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter* converter, bool libloading)
-	:m_refcount(1)
+	:m_refcount(1),
+	m_lodListName(STR_String("lodlist"))
 {
 	if (BLI_listbase_count_ex(&ob->lodlevels, 2) > 1) {
 		LodLevel *lod = (LodLevel*)ob->lodlevels.first;
@@ -84,8 +85,42 @@ float KX_LodList::GetHysteresis(KX_Scene *scene, unsigned short level)
 	else {
 		hysteresis = scene->GetLodHysteresisValue() / 100.0f;
 	}
-
 	return MT_abs(lodnext.distance - lod.distance) * hysteresis;
+}
+
+// stuff for cvalue related things
+CValue *KX_LodList::Calc(VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
+CValue *KX_LodList::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
+const STR_String &KX_LodList::GetText()
+{
+	return GetName();
+}
+
+double KX_LodList::GetNumber()
+{
+	return -1.0;
+}
+
+STR_String &KX_LodList::GetName()
+{
+	return m_lodListName;
+}
+
+void KX_LodList::SetName(const char *name)
+{
+}
+
+CValue *KX_LodList::GetReplica()
+{
+	return NULL;
 }
 
 const KX_LodList::Level& KX_LodList::GetLevel(KX_Scene *scene, unsigned short previouslod, float distance2)
@@ -114,3 +149,56 @@ const KX_LodList::Level& KX_LodList::GetLevel(KX_Scene *scene, unsigned short pr
 	}
 	return m_lodLevelList[level];
 }
+
+#ifdef WITH_PYTHON
+
+PyTypeObject KX_LodList::Type = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	"KX_LodList",
+	sizeof(PyObjectPlus_Proxy),
+	0,
+	py_base_dealloc,
+	0,
+	0,
+	0,
+	0,
+	py_base_repr,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+	0, 0, 0, 0, 0, 0, 0,
+	Methods,
+	0,
+	0,
+	&CValue::Type,
+	0, 0, 0, 0, 0, 0,
+	py_base_new
+};
+
+PyMethodDef KX_LodList::Methods[] = {
+	KX_PYMETHODTABLE(KX_LodList, getLevelMeshName),
+	{ NULL, NULL } //Sentinel
+};
+
+PyAttributeDef KX_LodList::Attributes[] = {
+	//KX_PYATTRIBUTE_RW_FUNCTION("", KX_LodList, pyattr_get_, pyattr_set_),
+	{ NULL }    //Sentinel
+};
+
+KX_PYMETHODDEF_DOC(KX_LodList, getLevelMeshName, "getLevelMeshName(levelIndex)")
+{
+	int index;
+	if (!PyArg_ParseTuple(args, "i:index", &index)) {
+		PyErr_SetString(PyExc_ValueError, "KX_LodList.getLevelMeshName(levelIndex): KX_LodList, expected an int.");
+		return NULL;
+	}
+	if (index < 0 || index > m_lodLevelList.size() - 1 || m_lodLevelList.size() == 0) {
+		PyErr_SetString(PyExc_ValueError, "KX_LodList.getLevelMeshName(levelIndex): KX_LodList, expected an int in range len(lod levels list).");
+		return NULL;
+	}
+	Level level = m_lodLevelList[index];
+	RAS_MeshObject *rasmesh = level.meshobj;
+	STR_String name = rasmesh->GetName();
+	return PyUnicode_FromString(name);
+}
+
+#endif //WITH_PYTHON
