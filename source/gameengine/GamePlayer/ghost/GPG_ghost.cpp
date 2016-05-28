@@ -987,9 +987,6 @@ int main(
 
 						GPG_Application app(system, maggie, scene, &gs, stereomode, argc, argv); /* this argc cant be argc_py_clamped, since python uses it */
 						BLI_strncpy(pathname, maggie->name, sizeof(pathname));
-						if (G.main != maggie) {
-							BLI_strncpy(G.main->name, maggie->name, sizeof(G.main->name));
-						}
 						if (firstTimeRunning) {
 							firstTimeRunning = false;
 

@@ -232,15 +232,12 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 	Main* blenderdata = maggie1;
 
 	char* startscenename = startscene->id.name + 2;
-	char pathname[FILE_MAXDIR+FILE_MAXFILE], oldsce[FILE_MAXDIR + FILE_MAXFILE];
+	char pathname[FILE_MAXDIR+FILE_MAXFILE];
 	STR_String exitstring = "";
 	BlendFileData *bfd = NULL;
 
 	BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
-	BLI_strncpy(oldsce, G.main->name, sizeof(oldsce));
 #ifdef WITH_PYTHON
-	resetGamePythonPath(); // need this so running a second time wont use an old blendfiles path
-	setGamePythonPath(G.main->name);
 
 	// Acquire Python's GIL (global interpreter lock)
 	// so we can safely run Python code and API calls
@@ -291,11 +288,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				startscenename = bfd->curscene->id.name + 2;
 
 				if (blenderdata) {
-					BLI_strncpy(G.main->name, blenderdata->name, sizeof(G.main->name));
 					BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
-#ifdef WITH_PYTHON
-					setGamePythonPath(G.main->name);
-#endif
 				}
 			}
 			// else forget it, we can't find it
@@ -338,8 +331,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 	if (bfd) {
 		BLO_blendfiledata_free(bfd);
 	}
-
-	BLI_strncpy(G.main->name, oldsce, sizeof(G.main->name));
 
 #ifdef WITH_PYTHON
 
