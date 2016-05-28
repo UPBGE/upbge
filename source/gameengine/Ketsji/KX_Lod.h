@@ -21,15 +21,16 @@
  */
 
 #include "EXP_Value.h"
+#include "RAS_MeshObject.h"
 #include <vector>
 
-class RAS_MeshObject;
 class KX_Scene;
 class KX_BlenderSceneConverter;
 struct Object;
 
-class KX_LodList
+class KX_LodList: public CValue
 {
+	Py_Header
 public:
 	struct Level
 	{
@@ -56,9 +57,29 @@ private:
 
 	int m_refcount;
 
+	STR_String m_lodListName;
+
 public:
 	KX_LodList(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading);
 	virtual ~KX_LodList();
+
+	// stuff for cvalue related things
+	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
+	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+	virtual const STR_String& GetText();
+	virtual double GetNumber();
+	virtual STR_String& GetName();
+	virtual void SetName(const char *name); // Set the name of the value
+	virtual CValue *GetReplica();
+
+#ifdef WITH_PYTHON
+
+	//static PyObject *pyattr_get_(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	//static int pyattr_set_(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+
+	KX_PYMETHOD_DOC(KX_LodList, getLevelMeshName);
+
+#endif //WITH_PYTHON
 
 	/** Get lod level cooresponding to distance and previous level.
 	 * \param scene Scene used to get default hysteresis.

@@ -2055,6 +2055,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("debug",	KX_GameObject, pyattr_get_debug, pyattr_set_debug),
 	KX_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
 	KX_PYATTRIBUTE_RW_FUNCTION("debugRecursive",	KX_GameObject, pyattr_get_debugRecursive, pyattr_set_debugRecursive),
+	KX_PYATTRIBUTE_RO_FUNCTION("lod", KX_GameObject, pyattr_get_lodlist),
 	
 	/* experimental, don't rely on these yet */
 	KX_PYATTRIBUTE_RO_FUNCTION("sensors",		KX_GameObject, pyattr_get_sensors),
@@ -3273,6 +3274,17 @@ int KX_GameObject::pyattr_set_debugRecursive(void *self_v, const KX_PYATTRIBUTE_
 	self->SetUseDebugProperties(param, true);
 
 	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_GameObject::pyattr_get_lodlist(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject *self = static_cast<KX_GameObject*>(self_v);
+	if (!self->m_lodList) {
+		PyErr_SetString(PyExc_ValueError, "KX_GameObject.lod: there is no lod levels for this gameobject");
+		return NULL;
+	}
+
+	return self->m_lodList->GetProxy();
 }
 
 PyObject *KX_GameObject::PyApplyForce(PyObject *args)

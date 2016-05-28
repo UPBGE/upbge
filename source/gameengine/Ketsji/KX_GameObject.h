@@ -1114,6 +1114,7 @@ public:
 	static int			pyattr_set_linearDamping(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_angularDamping(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_angularDamping(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_lodlist(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 	/* Experimental! */
 	static PyObject*	pyattr_get_sensors(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
