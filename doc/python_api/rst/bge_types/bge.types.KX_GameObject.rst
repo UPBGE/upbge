@@ -502,6 +502,15 @@ base class --- :class:`SCA_IObject`
 
       :type: int
 
+   .. attribute:: lodManager
+
+      Return the lod manager of this object.
+      Needed to access to lod manager to set attributes of levels of detail of this object.
+      The lod manager is shared between instance objects and can be changed to use the lod levels of an other object.
+      If the lod manager is set to `None` the object's mesh backs to the mesh of the previous first lod level.
+
+      :type: :class:`KX_LodManager`
+
    .. method:: endObject()
 
       Delete this object, can be used in place of the EndObject Actuator.

@@ -15,38 +15,31 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor(s): Porteries Tristan.
+ * Contributor(s): Ulysse Martin, Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "EXP_Value.h"
+/** \file KX_LodManager.h
+ *  \ingroup ketsji
+ */
+
+#ifndef __KX_LOD_MANAGER_H__
+#define __KX_LOD_MANAGER_H__
+
+#include "EXP_PyObjectPlus.h"
 #include <vector>
 
-class RAS_MeshObject;
 class KX_Scene;
 class KX_BlenderSceneConverter;
+class KX_LodLevel;
 struct Object;
 
-class KX_LodList
+class KX_LodManager: public PyObjectPlus
 {
-public:
-	struct Level
-	{
-		float distance;
-		float hysteresis;
-		unsigned short level;
-		unsigned short flags;
-		RAS_MeshObject *meshobj;
-
-		enum {
-			// Use custom hysteresis for this level.
-			USE_HYST = (1 << 0),
-		};
-	};
-
+	Py_Header
 private:
-	std::vector<Level> m_lodLevelList;
+	std::vector<KX_LodLevel *> m_levels;
 
 	/** Get the hysteresis from the level or the scene.
 	 * \param scene Scene used to get default hysteresis.
@@ -56,29 +49,35 @@ private:
 
 	int m_refcount;
 
+	/// Factor applied to the distance from the camera to the object.
+	float m_distanceFactor;
+
 public:
-	KX_LodList(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading);
-	virtual ~KX_LodList();
+	KX_LodManager(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading);
+	virtual ~KX_LodManager();
+
+	/// Return number of lod levels.
+	unsigned int GetLevelCount() const;
+
+	/** Get lod level by index.
+	 * \param index The lod level index.
+	 */
+	KX_LodLevel *GetLevel(unsigned int index) const;
 
 	/** Get lod level cooresponding to distance and previous level.
 	 * \param scene Scene used to get default hysteresis.
 	 * \param previouslod Previous lod computed by this function before.
+	 *   Use -1 to disable the hysteresis when the lod manager has changed.
 	 * \param distance2 Squared distance object to the camera.
 	 */
-	const KX_LodList::Level& GetLevel(KX_Scene *scene, unsigned short previouslod, float distance2);
+	KX_LodLevel *GetLevel(KX_Scene *scene, short previouslod, float distance);
 
-	/// If it returns true, then the lod is useless then.
-	inline bool Empty() const
-	{
-		return m_lodLevelList.empty();
-	}
-
-	KX_LodList *AddRef()
+	KX_LodManager *AddRef()
 	{
 		++m_refcount;
 		return this;
 	}
-	KX_LodList *Release()
+	KX_LodManager *Release()
 	{
 		if (--m_refcount == 0) {
 			delete this;
@@ -86,4 +85,24 @@ public:
 		}
 		return this;
 	}
+
+#ifdef WITH_PYTHON
+
+	virtual PyObject *py_repr()
+	{
+		return PyUnicode_FromString("KX_LodManager");
+	}
+
+	static PyObject *pyattr_get_levels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+
+#endif //WITH_PYTHON
 };
+
+#ifdef WITH_PYTHON
+
+/// Utility python conversion function.
+bool ConvertPythonToLodManager(PyObject *value, KX_LodManager **object, bool py_none_ok, const char *error_prefix);
+
+#endif  // WITH_PYTHON
+
+#endif  // __KX_LOD_MANAGER_H__

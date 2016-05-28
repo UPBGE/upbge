@@ -59,6 +59,7 @@
 #include "KX_PyMath.h"
 #include "RAS_MeshObject.h"
 #include "SCA_IScene.h"
+#include "KX_LodManager.h"
 
 #include "RAS_IRasterizer.h"
 #include "RAS_ICanvas.h"
@@ -1789,11 +1790,12 @@ void KX_Scene::UpdateObjectLods()
 		return;
 
 	const MT_Vector3& cam_pos = m_active_camera->NodeGetWorldPosition();
+	const float lodfactor = m_active_camera->GetLodDistanceFactor();
 
 	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		KX_GameObject *gameobj = (KX_GameObject *)*it;
 		if (!gameobj->GetCulled()) {
-			gameobj->UpdateLod(cam_pos);
+			gameobj->UpdateLod(cam_pos, lodfactor);
 		}
 	}
 }
