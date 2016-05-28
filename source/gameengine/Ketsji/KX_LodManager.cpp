@@ -20,15 +20,14 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "KX_Lod.h"
+#include "KX_LodManager.h"
 #include "KX_Scene.h"
 #include "BL_BlenderDataConversion.h"
 #include "DNA_object_types.h"
 #include "BLI_listbase.h"
 
-KX_LodList::KX_LodList(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter* converter, bool libloading)
-	:m_refcount(1),
-	m_lodListName(STR_String("lodlist"))
+KX_LodManager::KX_LodManager(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter* converter, bool libloading)
+	:m_refcount(1)
 {
 	if (BLI_listbase_count_ex(&ob->lodlevels, 2) > 1) {
 		LodLevel *lod = (LodLevel*)ob->lodlevels.first;
@@ -40,8 +39,7 @@ KX_LodList::KX_LodList(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter* co
 			if (!lod->source || lod->source->type != OB_MESH) {
 				continue;
 			}
-
-			Level lodLevel;
+			unsigned short flag = ((lod->flags & OB_LOD_USE_HYST) != 0);
 
 			if (lod->flags & OB_LOD_USE_MESH) {
 				lodmesh = (Mesh*)lod->source->data;
@@ -50,80 +48,45 @@ KX_LodList::KX_LodList(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter* co
 			if (lod->flags & OB_LOD_USE_MAT) {
 				lodmatob = lod->source;
 			}
+			KX_LodLevel *lodLevel = new KX_LodLevel(lod->distance, lod->obhysteresis, level++,
+				BL_ConvertMesh(lodmesh, lodmatob, scene, converter, libloading), flag);
 
-			if (lod->flags & OB_LOD_USE_HYST) {
-				lodLevel.flags |= Level::USE_HYST;
-			}
-
-			lodLevel.level = level++;
-			lodLevel.meshobj = BL_ConvertMesh(lodmesh, lodmatob, scene, converter, libloading);
-			lodLevel.distance = lod->distance;
-			lodLevel.hysteresis = lod->obhysteresis;
 			m_lodLevelList.push_back(lodLevel);
 		}
 	}
 }
 
-KX_LodList::~KX_LodList()
+KX_LodManager::~KX_LodManager()
 {
+	for (int i = 0; i < m_lodLevelList.size(); i++) {
+		if (m_lodLevelList[i]) {
+			free(m_lodLevelList[i]);
+			m_lodLevelList[i] = NULL;
+		}
+	}
 }
 
-float KX_LodList::GetHysteresis(KX_Scene *scene, unsigned short level)
+float KX_LodManager::GetHysteresis(KX_Scene *scene, unsigned short level)
 {
 	if (!scene->IsActivedLodHysteresis()) {
 		return 0.0f;
 	}
 
-	const Level& lod = m_lodLevelList[level];
-	const Level& lodnext = m_lodLevelList[level + 1];
+	KX_LodLevel *lod = m_lodLevelList[level];
+	KX_LodLevel *lodnext = m_lodLevelList[level + 1];
 
 	float hysteresis = 0.0f;
 	// if exists, LoD level hysteresis will override scene hysteresis
-	if (lodnext.flags & Level::USE_HYST) {
-		hysteresis = lodnext.hysteresis;
+	if (lodnext->GetFlag() & KX_LodLevel::USE_HYST) {
+		hysteresis = lodnext->GetHysteresis();
 	}
 	else {
 		hysteresis = scene->GetLodHysteresisValue() / 100.0f;
 	}
-	return MT_abs(lodnext.distance - lod.distance) * hysteresis;
+	return MT_abs(lodnext->GetDistance() - lod->GetDistance()) * hysteresis;
 }
 
-// stuff for cvalue related things
-CValue *KX_LodList::Calc(VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-CValue *KX_LodList::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-const STR_String &KX_LodList::GetText()
-{
-	return GetName();
-}
-
-double KX_LodList::GetNumber()
-{
-	return -1.0;
-}
-
-STR_String &KX_LodList::GetName()
-{
-	return m_lodListName;
-}
-
-void KX_LodList::SetName(const char *name)
-{
-}
-
-CValue *KX_LodList::GetReplica()
-{
-	return NULL;
-}
-
-const KX_LodList::Level& KX_LodList::GetLevel(KX_Scene *scene, unsigned short previouslod, float distance2)
+KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, unsigned short previouslod, float distance2)
 {
 	unsigned short level = 0;
 	unsigned short count = m_lodLevelList.size();
@@ -133,14 +96,14 @@ const KX_LodList::Level& KX_LodList::GetLevel(KX_Scene *scene, unsigned short pr
 		}
 		else if (level == previouslod || level == (previouslod + 1)) {
 			const float hystvariance = GetHysteresis(scene, level);
-			const float newdistance = m_lodLevelList[level + 1].distance + hystvariance;
+			const float newdistance = m_lodLevelList[level + 1]->GetDistance() + hystvariance;
 			if (newdistance * newdistance > distance2) {
 				break;
 			}
 		}
 		else if (level == (previouslod - 1)) {
 			const float hystvariance = GetHysteresis(scene, level);
-			const float newdistance = m_lodLevelList[level + 1].distance - hystvariance;
+			const float newdistance = m_lodLevelList[level + 1]->GetDistance() - hystvariance;
 			if (newdistance * newdistance > distance2) {
 				break;
 			}
@@ -152,9 +115,9 @@ const KX_LodList::Level& KX_LodList::GetLevel(KX_Scene *scene, unsigned short pr
 
 #ifdef WITH_PYTHON
 
-PyTypeObject KX_LodList::Type = {
+PyTypeObject KX_LodManager::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	"KX_LodList",
+	"KX_LodManager",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -174,31 +137,27 @@ PyTypeObject KX_LodList::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_LodList::Methods[] = {
-	KX_PYMETHODTABLE(KX_LodList, getLevelMeshName),
+PyMethodDef KX_LodManager::Methods[] = {
+	//KX_PYMETHODTABLE(KX_LodManager, get...),
 	{ NULL, NULL } //Sentinel
 };
 
-PyAttributeDef KX_LodList::Attributes[] = {
-	//KX_PYATTRIBUTE_RW_FUNCTION("", KX_LodList, pyattr_get_, pyattr_set_),
+PyAttributeDef KX_LodManager::Attributes[] = {
+	KX_PYATTRIBUTE_RO_FUNCTION("lodLevel", KX_LodManager, pyattr_get_lodlevels),
 	{ NULL }    //Sentinel
 };
 
-KX_PYMETHODDEF_DOC(KX_LodList, getLevelMeshName, "getLevelMeshName(levelIndex)")
+PyObject *KX_LodManager::pyattr_get_lodlevels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	int index;
-	if (!PyArg_ParseTuple(args, "i:index", &index)) {
-		PyErr_SetString(PyExc_ValueError, "KX_LodList.getLevelMeshName(levelIndex): KX_LodList, expected an int.");
-		return NULL;
+	KX_LodManager* self = static_cast<KX_LodManager*>(self_v);
+	PyObject *levelList = PyList_New(self->m_lodLevelList.size());
+	if (self->m_lodLevelList.size() != 0) {
+		for (int i = 0; i < self->m_lodLevelList.size(); i++) {
+			PyList_SET_ITEM(levelList, i, self->m_lodLevelList[i]->GetProxy());
+		}
 	}
-	if (index < 0 || index > m_lodLevelList.size() - 1 || m_lodLevelList.size() == 0) {
-		PyErr_SetString(PyExc_ValueError, "KX_LodList.getLevelMeshName(levelIndex): KX_LodList, expected an int in range len(lod levels list).");
-		return NULL;
-	}
-	Level level = m_lodLevelList[index];
-	RAS_MeshObject *rasmesh = level.meshobj;
-	STR_String name = rasmesh->GetName();
-	return PyUnicode_FromString(name);
+
+	return levelList;
 }
 
 #endif //WITH_PYTHON

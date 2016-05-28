@@ -1,0 +1,117 @@
+/*
+* ***** BEGIN GPL LICENSE BLOCK *****
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+*
+* Contributor(s): Porteries Tristan.
+*
+* ***** END GPL LICENSE BLOCK *****
+*/
+
+#include "KX_LodLevel.h"
+
+KX_LodLevel::KX_LodLevel()
+{
+}
+
+KX_LodLevel::KX_LodLevel(float distance, float hysteresis, unsigned short level, RAS_MeshObject *meshobj, unsigned short flag)
+	:m_distance(distance),
+	m_hysteresis(hysteresis),
+	m_level(level),
+	m_meshobj(meshobj),
+	m_flags(flag)
+{
+}
+
+KX_LodLevel::~KX_LodLevel()
+{
+}
+
+// stuff for cvalue related things
+CValue *KX_LodLevel::Calc(VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
+CValue *KX_LodLevel::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
+const STR_String &KX_LodLevel::GetText()
+{
+	return GetName();
+}
+
+double KX_LodLevel::GetNumber()
+{
+	return -1.0;
+}
+
+STR_String &KX_LodLevel::GetName()
+{
+	return m_meshobj->GetName();
+}
+
+void KX_LodLevel::SetName(const char *name)
+{
+}
+
+CValue *KX_LodLevel::GetReplica()
+{
+	return NULL;
+}
+
+#ifdef WITH_PYTHON
+
+PyTypeObject KX_LodLevel::Type = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	"KX_LodLevel",
+	sizeof(PyObjectPlus_Proxy),
+	0,
+	py_base_dealloc,
+	0,
+	0,
+	0,
+	0,
+	py_base_repr,
+	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+	0, 0, 0, 0, 0, 0, 0,
+	Methods,
+	0,
+	0,
+	&CValue::Type,
+	0, 0, 0, 0, 0, 0,
+	py_base_new
+};
+
+PyMethodDef KX_LodLevel::Methods[] = {
+	//KX_PYMETHODTABLE(KX_LodLevel, getLevelMeshName),
+	{ NULL, NULL } //Sentinel
+};
+
+PyAttributeDef KX_LodLevel::Attributes[] = {
+	KX_PYATTRIBUTE_RO_FUNCTION("meshName", KX_LodLevel, pyattr_get_mesh_name),
+	{ NULL }    //Sentinel
+};
+
+PyObject *KX_LodLevel::pyattr_get_mesh_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
+	return PyUnicode_FromString(self->GetName());
+}
+
+#endif //WITH_PYTHON
