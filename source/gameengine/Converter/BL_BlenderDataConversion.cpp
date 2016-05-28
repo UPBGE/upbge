@@ -76,6 +76,7 @@
 #include "KX_Camera.h"
 #include "KX_EmptyObject.h"
 #include "KX_FontObject.h"
+#include "KX_LodManager.h"
 
 #include "RAS_ICanvas.h"
 #include "RAS_Polygon.h"
@@ -176,8 +177,6 @@ extern Material defmaterial;	/* material.c */
 
 #include "KX_NavMeshObject.h"
 #include "KX_ObstacleSimulation.h"
-
-#include "KX_Lod.h"
 
 #include "BLI_threads.h"
 
@@ -952,9 +951,9 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	}
 }
 
-static KX_LodList *lodlist_from_blenderobject(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading)
+static KX_LodManager *lodlist_from_blenderobject(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading)
 {
-	KX_LodList *lodList = new KX_LodList(ob, scene, converter, libloading);
+	KX_LodManager *lodList = new KX_LodManager(ob, scene, converter, libloading);
 	if (lodList->Empty()) {
 		lodList->Release();
 		return NULL;
@@ -1085,8 +1084,8 @@ static KX_GameObject *gameobject_from_blenderobject(
 		gameobj->AddMesh(meshobj);
 
 		// gather levels of detail
-		KX_LodList *lodList = lodlist_from_blenderobject(ob, kxscene, converter, libloading);
-		gameobj->SetLodList(lodList);
+		KX_LodManager *lodManager = lodlist_from_blenderobject(ob, kxscene, converter, libloading);
+		gameobj->SetLodManager(lodManager);
 
 		// for all objects: check whether they want to
 		// respond to updates
