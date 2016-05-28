@@ -51,7 +51,7 @@ struct bPose;
  *            head = BL_ArmatureObject::m_controlledConstraints
  * SG_QList : not used
  */
-class BL_ArmatureConstraint : public SG_QList, public PyObjectPlus
+class BL_ArmatureConstraint : public PyObjectPlus, public SG_QList
 {
 	Py_Header
 

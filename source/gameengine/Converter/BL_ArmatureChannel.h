@@ -45,7 +45,7 @@ struct bPoseChannel;
 struct Object;
 struct bPose;
 
-class BL_ArmatureChannel : public SG_QList, public PyObjectPlus
+class BL_ArmatureChannel : public PyObjectPlus, public SG_QList
 {
 	// use Py_HeaderPtr since we use generic pointer in proxy
 	Py_HeaderPtr;

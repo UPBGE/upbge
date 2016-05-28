@@ -40,7 +40,7 @@ class KX_NetworkMessageScene;
 class SCA_IScene;
 class SCA_LogicManager;
 
-class SCA_ILogicBrick : public SG_QList, public CValue
+class SCA_ILogicBrick : public CValue, public SG_QList
 {
 	Py_Header
 protected:
