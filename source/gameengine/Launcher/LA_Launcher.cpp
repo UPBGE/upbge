@@ -85,25 +85,24 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 #ifdef WITH_PYTHON
 	m_globalDict(NULL),
 	m_gameLogic(NULL),
-	m_gameLogicKeys(NULL),
 #endif  // WITH_PYTHON
 	m_stereoMode(stereoMode),
 	m_argc(argc),
 	m_argv(argv)
 {
-#ifdef WITH_PYTHON
-	m_globalDict = PyDict_New();
-#endif  // WITH_PYTHON
 }
 
 LA_Launcher::~LA_Launcher()
 {
 	ExitEngine();
-#ifdef WITH_PYTHON
-	PyDict_Clear(m_globalDict);
-	Py_DECREF(m_globalDict);
-#endif  // WITH_PYTHON
 }
+
+#ifdef WITH_PYTHON
+void LA_Launcher::SetPythonGlobalDict(PyObject *globalDict)
+{
+	m_globalDict = globalDict;
+}
+#endif  // WITH_PYTHON
 
 int LA_Launcher::GetExitRequested()
 {
@@ -251,7 +250,7 @@ bool LA_Launcher::StartEngine()
 
 #ifdef WITH_PYTHON
 		// Some python things.
-		setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, &m_gameLogicKeys, m_argc, m_argv);
+		setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv);
 #endif  // WITH_PYTHON
 
 		// Initialize Dome Settings.
@@ -354,6 +353,7 @@ bool LA_Launcher::EngineNextFrame()
 			// Render the frame.
 			m_ketsjiEngine->Render();
 		}
+
 		m_system->processEvents(false);
 		m_system->dispatchEvents();
 
@@ -364,9 +364,6 @@ bool LA_Launcher::EngineNextFrame()
 			m_inputDevice->GetEvent(SCA_IInputDevice::KX_WINQUIT).Find(SCA_InputEvent::KX_ACTIVE))
 		{
 			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
-		}
-		else {
-			m_exitRequested = KX_EXIT_REQUEST_NO_REQUEST;
 		}
 	}
 	m_exitString = m_ketsjiEngine->GetExitString();
@@ -416,11 +413,6 @@ void LA_Launcher::ExitEngine()
 
 	// Call this after we're sure nothing needs Python anymore (e.g., destructors).
 	ExitPython();
-
-#ifdef WITH_PYTHON
-	Py_DECREF(m_gameLogicKeys);
-	m_gameLogicKeys = NULL;
-#endif  // WITH_PYTHON
 
 	// Stop all remaining playing sounds.
 	AUD_Device_stopAll(BKE_sound_get_device());

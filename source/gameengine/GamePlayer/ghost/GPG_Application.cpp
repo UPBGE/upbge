@@ -369,9 +369,9 @@ bool GPG_Application::InitEngine()
 
 void GPG_Application::ExitEngine()
 {
-	GPU_exit();
-	BKE_sound_exit();
 	LA_Launcher::ExitEngine();
+	BKE_sound_exit();
+	GPU_exit();
 }
 
 RAS_ICanvas *GPG_Application::CreateCanvas(RAS_IRasterizer *rasty)

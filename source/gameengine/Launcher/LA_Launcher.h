@@ -94,7 +94,6 @@ protected:
 #ifdef WITH_PYTHON
 	PyObject *m_globalDict;
 	PyObject *m_gameLogic;
-	PyObject *m_gameLogicKeys;
 #endif  // WITH_PYTHON
 
 	/// The render stereo mode passed in constructor.
@@ -125,6 +124,11 @@ protected:
 public:
 	LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv);
 	virtual ~LA_Launcher();
+
+#ifdef WITH_PYTHON
+	/// Setup python global dictionnary, used oustide constructor to compile without python.
+	void SetPythonGlobalDict(PyObject *globalDict);
+#endif  // WITH_PYTHON
 
 	int GetExitRequested();
 	const STR_String& GetExitString();

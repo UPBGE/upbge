@@ -2245,7 +2245,7 @@ void exitGamePythonScripting()
 /* similar to the above functions except it sets up the namespace
  * and other more general things */
 void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
-                     PyObject *pyGlobalDict, PyObject **gameLogic, PyObject **gameLogic_keys, int argc, char** argv)
+                     PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char** argv)
 {
 	PyObject *modules, *dictionaryobject;
 
@@ -2262,8 +2262,6 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
 	/* is set in initGameLogicPythonBinding so only set here if we want it to persist between scenes */
 	if (pyGlobalDict)
 		PyDict_SetItemString(PyModule_GetDict(*gameLogic), "globalDict", pyGlobalDict); // Same as importing the module.
-
-	*gameLogic_keys = PyDict_Keys(PyModule_GetDict(*gameLogic));
 }
 
 static struct PyModuleDef Rasterizer_module_def = {

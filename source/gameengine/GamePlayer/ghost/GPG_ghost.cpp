@@ -868,6 +868,10 @@ int main(
 				// those may change during the game and persist after using Game Actuator
 				GlobalSettings gs;
 
+#ifdef WITH_PYTHON
+				PyObject *globalDict = PyDict_New();
+#endif  // WITH_PYTHON
+
 				do {
 					// Read the Blender file
 					BlendFileData *bfd;
@@ -986,6 +990,10 @@ int main(
 						}
 
 						GPG_Application app(system, maggie, scene, &gs, stereomode, argc, argv); /* this argc cant be argc_py_clamped, since python uses it */
+#ifdef WITH_PYTHON
+						app.SetPythonGlobalDict(globalDict);
+#endif  // WITH_PYTHON
+
 						BLI_strncpy(pathname, maggie->name, sizeof(pathname));
 						if (firstTimeRunning) {
 							firstTimeRunning = false;
@@ -1114,6 +1122,12 @@ int main(
 #endif // WITH_PYTHON
 					}
 				} while (exitcode == KX_EXIT_REQUEST_RESTART_GAME || exitcode == KX_EXIT_REQUEST_START_OTHER_GAME);
+
+#ifdef WITH_PYTHON
+
+				PyDict_Clear(globalDict);
+				Py_DECREF(globalDict);
+#endif
 			}
 
 			// Seg Fault; icon.c gIcons == 0

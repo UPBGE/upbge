@@ -51,7 +51,7 @@ PyObject *initGamePythonScripting(struct Main *maggie);
 void exitGamePlayerPythonScripting();
 void exitGamePythonScripting();
 void setupGamePython(KX_KetsjiEngine *ketsjiengine, Main *blenderdata,
-                     PyObject *pyGlobalDict, PyObject **gameLogic, PyObject **gameLogic_keys, int argc, char **argv);
+                     PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char **argv);
 void setGamePythonPath(const char *path);
 void resetGamePythonPath();
 void pathGamePythonConfig(char *path);

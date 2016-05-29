@@ -243,6 +243,8 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 	// so we can safely run Python code and API calls
 	PyGILState_STATE gilstate = PyGILState_Ensure();
 
+	PyObject *globalDict = PyDict_New();
+
 #endif
 
 	GlobalSettings gs;
@@ -311,6 +313,10 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 		GHOST_ISystem *system = GHOST_ISystem::getSystem();
 		LA_BlenderLauncher launcher = LA_BlenderLauncher(system, blenderdata, startscene, &gs, stereoMode, 0, NULL, C, cam_frame, ar, always_use_expand_framing);
+#ifdef WITH_PYTHON
+		launcher.SetPythonGlobalDict(globalDict);
+#endif  // WITH_PYTHON
+
 		launcher.StartGameEngine();
 
 		std::cout << std::endl << "Blender Game Engine Started" << std::endl;
@@ -333,6 +339,9 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 	}
 
 #ifdef WITH_PYTHON
+
+	PyDict_Clear(globalDict);
+	Py_DECREF(globalDict);
 
 	// Release Python's GIL
 	PyGILState_Release(gilstate);
