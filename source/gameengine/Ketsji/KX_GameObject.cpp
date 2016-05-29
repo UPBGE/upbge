@@ -62,6 +62,7 @@
 #include "KX_NetworkMessageScene.h" //Needed for sendMessage()
 #include "KX_ObstacleSimulation.h"
 #include "KX_Scene.h"
+#include "KX_LodLevel.h"
 #include "KX_LodManager.h"
 #include "KX_CollisionContactPoints.h"
 

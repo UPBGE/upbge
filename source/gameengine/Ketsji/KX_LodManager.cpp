@@ -21,6 +21,7 @@
  */
 
 #include "KX_LodManager.h"
+#include "KX_LodLevel.h"
 #include "KX_Scene.h"
 #include "BL_BlenderDataConversion.h"
 #include "DNA_object_types.h"

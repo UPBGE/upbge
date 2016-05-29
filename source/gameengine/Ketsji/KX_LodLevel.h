@@ -72,9 +72,9 @@ public:
 #ifdef WITH_PYTHON
 
 	static PyObject *pyattr_get_mesh_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	//static int pyattr_set_(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_use_hysteresis(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
-	//KX_PYMETHOD_DOC(KX_LodLevel, getMeshName);
+	//KX_PYMETHOD_DOC(KX_LodLevel, ...);
 
 #endif //WITH_PYTHON
 
