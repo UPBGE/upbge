@@ -103,6 +103,12 @@ protected:
 	int m_argc;
 	char **m_argv;
 
+	/// Saved data to restore at the game end.
+	struct SavedData {
+		int vsync;
+		RAS_IRasterizer::MipmapOption mipmap;
+	} m_savedData;
+
 	/// Initializes the game engine.
 	virtual bool InitEngine();
 	/// Shuts the game engine down.

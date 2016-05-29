@@ -164,8 +164,14 @@ bool LA_Launcher::InitEngine()
 		m_rasterizer->SetEyeSeparation(m_startScene->gm.eyeseparation);
 		m_rasterizer->SetDrawingMode(GetRasterizerDrawMode());
 
+		// Copy current mipmap mode to restore at the game end.
+		m_savedData.mipmap = m_rasterizer->GetMipmapping();
+
 		// Create the canvas, rasterizer and rendertools.
 		m_canvas = CreateCanvas(m_rasterizer);
+
+		// Copy current vsync mode to restore at the game end.
+		m_canvas->GetSwapInterval(m_savedData.vsync);
 
 		if (gm->vsync == VSYNC_ADAPTIVE) {
 			m_canvas->SetSwapInterval(-1);
@@ -383,6 +389,18 @@ void LA_Launcher::ExitEngine()
 	if (!m_engineInitialized) {
 		return;
 	}
+
+	// Do we will stop ?
+	if ((m_exitRequested != KX_EXIT_REQUEST_RESTART_GAME) && (m_exitRequested != KX_EXIT_REQUEST_START_OTHER_GAME)) {
+		// Then set the cursor back to normal here to avoid set the cursor visible between two game load.
+		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
+	}
+
+	// Set mipmap setting back to its original value.
+	m_rasterizer->SetMipmapping(m_savedData.mipmap);
+
+	// Set vsync mode back to original value.
+	m_canvas->SetSwapInterval(m_savedData.vsync);
 
 	if (m_ketsjiEngine) {
 		StopEngine();

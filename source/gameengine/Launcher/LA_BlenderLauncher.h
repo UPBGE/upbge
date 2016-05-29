@@ -22,12 +22,11 @@ protected:
 	int m_alwaysUseExpandFraming;
 	RAS_Rect m_areaRect;
 
-	struct SavedData {
+	/// Saved blender data to restore at the game end as m_savedData from LA_Launcher.
+	struct SavedBlenderData {
 		int sceneLayer;
 		Object *camera;
-		int vsync;
-		int mipmap;
-	} m_savedData;
+	} m_savedBlenderData;
 
 	virtual bool InitEngine();
 	virtual void ExitEngine();

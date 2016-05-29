@@ -124,8 +124,8 @@ void LA_BlenderLauncher::ExitPython()
 bool LA_BlenderLauncher::InitEngine()
 {
 	// Lock frame and camera enabled - storing global values.
-	m_savedData.sceneLayer = m_startScene->lay;
-	m_savedData.camera = m_startScene->camera;
+	m_savedBlenderData.sceneLayer = m_startScene->lay;
+	m_savedBlenderData.camera = m_startScene->camera;
 
 	if (m_view3d->scenelock == 0) {
 		m_startScene->lay = m_view3d->lay;
@@ -141,7 +141,7 @@ void LA_BlenderLauncher::ExitEngine()
 
 	// Lock frame and camera enabled - restoring global values.
 	if (m_view3d->scenelock == 0) {
-		m_startScene->lay = m_savedData.sceneLayer;
-		m_startScene->camera= m_savedData.camera;
+		m_startScene->lay = m_savedBlenderData.sceneLayer;
+		m_startScene->camera= m_savedBlenderData.camera;
 	}
 }
