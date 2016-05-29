@@ -178,6 +178,9 @@ bool LA_Launcher::InitEngine()
 		if (gm->flag & GAME_SHOW_MOUSE) {
 			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
 		}
+		else {
+			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
+		}
 
 		// Create the inputdevices.
 		m_inputDevice = new GH_InputDevice();
