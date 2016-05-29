@@ -21,11 +21,11 @@
  */
 
 #include "EXP_Value.h"
-#include "KX_LodLevel.h"
 #include <vector>
 
 class KX_Scene;
 class KX_BlenderSceneConverter;
+class KX_LodLevel;
 struct Object;
 
 class KX_LodManager: public PyObjectPlus

@@ -105,6 +105,9 @@ PyMethodDef KX_LodLevel::Methods[] = {
 
 PyAttributeDef KX_LodLevel::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("meshName", KX_LodLevel, pyattr_get_mesh_name),
+	KX_PYATTRIBUTE_RO_FUNCTION("useHysteresis", KX_LodLevel, pyattr_get_use_hysteresis),
+	KX_PYATTRIBUTE_FLOAT_RW("distance", 0.0f, 99999999.0f, KX_LodLevel, m_distance),
+	KX_PYATTRIBUTE_FLOAT_RW("hysteresis", 0.0f, 100.0f, KX_LodLevel, m_hysteresis),
 	{ NULL }    //Sentinel
 };
 
@@ -112,6 +115,13 @@ PyObject *KX_LodLevel::pyattr_get_mesh_name(void *self_v, const KX_PYATTRIBUTE_D
 {
 	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
 	return PyUnicode_FromString(self->GetName());
+}
+
+PyObject *KX_LodLevel::pyattr_get_use_hysteresis(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
+	int useHysteresis = self->GetFlag();
+	return PyBool_FromLong(useHysteresis);
 }
 
 #endif //WITH_PYTHON
