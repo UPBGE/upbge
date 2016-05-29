@@ -114,6 +114,9 @@ protected:
 	/// Shuts the game engine down.
 	virtual void ExitEngine();
 
+	/// Execute engine render, overrided to render background.
+	virtual void RenderEngine();
+
 	/// Starts the game engine.
 	bool StartEngine();
 
@@ -121,9 +124,9 @@ protected:
 	void StopEngine();
 
 	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty) = 0;
-	virtual RAS_IRasterizer::DrawType GetRasterizerDrawMode() { return RAS_IRasterizer::RAS_TEXTURED; } 
-	virtual bool GetUseAlwaysExpandFraming() { return false; }
-	virtual void InitCamera() {}
+	virtual RAS_IRasterizer::DrawType GetRasterizerDrawMode() = 0;
+	virtual bool GetUseAlwaysExpandFraming() = 0;
+	virtual void InitCamera() = 0;
 	virtual void InitPython() = 0;
 	virtual void ExitPython() = 0;
 

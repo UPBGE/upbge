@@ -348,9 +348,22 @@ bool GPG_Application::startFullScreen(
 	return success;
 }
 
+RAS_IRasterizer::DrawType GPG_Application::GetRasterizerDrawMode()
+{
+	return RAS_IRasterizer::RAS_TEXTURED;
+}
+
+bool GPG_Application::GetUseAlwaysExpandFraming()
+{
+	return false;
+}
+
+void GPG_Application::InitCamera()
+{
+}
+
 void GPG_Application::InitPython()
 {
-	
 }
 
 void GPG_Application::ExitPython()

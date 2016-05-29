@@ -20,6 +20,7 @@ protected:
 	wmWindowManager *m_windowManager;
 	wmWindow *m_window;
 	int m_alwaysUseExpandFraming;
+	bool m_drawLetterBox;
 	RAS_Rect m_areaRect;
 
 	/// Saved blender data to restore at the game end as m_savedData from LA_Launcher.
@@ -30,6 +31,7 @@ protected:
 
 	virtual bool InitEngine();
 	virtual void ExitEngine();
+	virtual void RenderEngine();
 
 	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty);
 	virtual RAS_IRasterizer::DrawType GetRasterizerDrawMode();

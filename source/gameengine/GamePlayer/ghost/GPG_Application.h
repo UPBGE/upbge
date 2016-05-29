@@ -48,6 +48,9 @@ protected:
 	virtual void ExitEngine();
 
 	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty);
+	virtual RAS_IRasterizer::DrawType GetRasterizerDrawMode();
+	virtual bool GetUseAlwaysExpandFraming();
+	virtual void InitCamera();
 	virtual void InitPython();
 	virtual void ExitPython();
 

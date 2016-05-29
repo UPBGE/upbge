@@ -349,6 +349,12 @@ int LA_Launcher::PythonEngineNextFrame(void *state)
 
 #endif
 
+void LA_Launcher::RenderEngine()
+{
+	// Render the frame.
+	m_ketsjiEngine->Render();
+}
+
 bool LA_Launcher::EngineNextFrame()
 {
 	// Update the state of the game engine.
@@ -359,8 +365,7 @@ bool LA_Launcher::EngineNextFrame()
 		// Kick the engine.
 		bool renderFrame = m_ketsjiEngine->NextFrame();
 		if (renderFrame) {
-			// Render the frame.
-			m_ketsjiEngine->Render();
+			RenderEngine();
 		}
 
 		m_system->processEvents(false);
