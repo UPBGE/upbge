@@ -30,6 +30,7 @@ class KX_LodLevel : public CValue
 private:
 
 	float m_distance;
+	float m_initialDistance;
 	float m_hysteresis;
 	unsigned short m_level;
 	unsigned short m_flags;
@@ -51,6 +52,12 @@ public:
 
 	float GetDistance() {
 		return m_distance;
+	}
+	void SetDistance(float dist) {
+		m_distance = dist;
+	}
+	float GetInitialDistance() {
+		return m_initialDistance;
 	}
 	float GetHysteresis() {
 		return m_hysteresis;

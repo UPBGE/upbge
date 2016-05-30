@@ -33,6 +33,7 @@ KX_LodLevel::KX_LodLevel(float distance, float hysteresis, unsigned short level,
 	m_meshobj(meshobj),
 	m_flags(flag)
 {
+	m_initialDistance = distance;
 }
 
 KX_LodLevel::~KX_LodLevel()
