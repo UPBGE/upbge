@@ -168,13 +168,11 @@ static HWND findGhostWindowHWND(GHOST_IWindow* window)
 	return found_ghost_window_hwnd;
 }
 
-bool GPG_Application::startScreenSaverPreview(
+void GPG_Application::startScreenSaverPreview(
 	HWND parentWindow,
 	const bool stereoVisual,
 	const GHOST_TUns16 samples)
 {
-	bool success = false;
-
 	RECT rc;
 	if (GetWindowRect(parentWindow, &rc))
 	{
@@ -217,39 +215,30 @@ bool GPG_Application::startScreenSaverPreview(
 		 */
 		m_mainWindow->setClientSize(windowWidth, windowHeight);
 
-		success = InitEngine();
-		if (success) {
-			success = StartEngine();
-		}
-
+		InitEngine();
 	}
-	return success;
 }
 
-bool GPG_Application::startScreenSaverFullScreen(
+void GPG_Application::startScreenSaverFullScreen(
 		int width,
 		int height,
 		int bpp,int frequency,
 		const bool stereoVisual,
 		const GHOST_TUns16 samples)
 {
-	bool ret = startFullScreen(width, height, bpp, frequency, stereoVisual, samples);
-	if (ret)
+	startFullScreen(width, height, bpp, frequency, stereoVisual, samples);
+	HWND ghost_hwnd = findGhostWindowHWND(m_mainWindow);
+	if (ghost_hwnd != NULL)
 	{
-		HWND ghost_hwnd = findGhostWindowHWND(m_mainWindow);
-		if (ghost_hwnd != NULL)
-		{
-			GetCursorPos(&scr_save_mouse_pos);
-			ghost_wnd_proc = (WNDPROC) GetWindowLongPtr(ghost_hwnd, GWLP_WNDPROC);
-			SetWindowLongPtr(ghost_hwnd,GWLP_WNDPROC, (uintptr_t) screenSaverWindowProc);
-		}
+		GetCursorPos(&scr_save_mouse_pos);
+		ghost_wnd_proc = (WNDPROC) GetWindowLongPtr(ghost_hwnd, GWLP_WNDPROC);
+		SetWindowLongPtr(ghost_hwnd,GWLP_WNDPROC, (uintptr_t) screenSaverWindowProc);
 	}
-	return ret;
 }
 
 #endif
 
-bool GPG_Application::startWindow(
+void GPG_Application::startWindow(
         STR_String& title,
         int windowLeft,
         int windowTop,
@@ -259,7 +248,6 @@ bool GPG_Application::startWindow(
         const GHOST_TUns16 samples)
 {
 	GHOST_GLSettings glSettings = {0};
-	bool success;
 	// Create the main window
 	//STR_String title ("Blender Player - GHOST");
 	if (stereoVisual)
@@ -279,14 +267,10 @@ bool GPG_Application::startWindow(
 	m_mainWindow->setClientSize(windowWidth, windowHeight);
 	m_mainWindow->setCursorVisibility(false);
 
-	success = InitEngine();
-	if (success) {
-		success = StartEngine();
-	}
-	return success;
+	InitEngine();
 }
 
-bool GPG_Application::startEmbeddedWindow(
+void GPG_Application::startEmbeddedWindow(
         STR_String& title,
         const GHOST_TEmbedderWindowID parentWindow,
         const bool stereoVisual,
@@ -308,17 +292,12 @@ bool GPG_Application::startEmbeddedWindow(
 		printf("error: could not create main window\n");
 		exit(-1);
 	}
-	m_isEmbedded = true;
 
-	bool success = InitEngine();
-	if (success) {
-		success = StartEngine();
-	}
-	return success;
+	InitEngine();
 }
 
 
-bool GPG_Application::startFullScreen(
+void GPG_Application::startFullScreen(
         int width,
         int height,
         int bpp,int frequency,
@@ -326,7 +305,6 @@ bool GPG_Application::startFullScreen(
         const GHOST_TUns16 samples,
         bool useDesktop)
 {
-	bool success;
 	GHOST_TUns32 sysWidth=0, sysHeight=0;
 	m_system->getMainDisplayDimensions(sysWidth, sysHeight);
 	// Create the main window
@@ -341,11 +319,7 @@ bool GPG_Application::startFullScreen(
 	/* note that X11 ignores this (it uses a window internally for fullscreen) */
 	m_mainWindow->setState(GHOST_kWindowStateFullScreen);
 
-	success = InitEngine();
-	if (success) {
-		success = StartEngine();
-	}
-	return success;
+	InitEngine();
 }
 
 RAS_IRasterizer::DrawType GPG_Application::GetRasterizerDrawMode()
@@ -373,11 +347,11 @@ void GPG_Application::ExitPython()
 #endif  // WITH_PYTHON
 }
 
-bool GPG_Application::InitEngine()
+void GPG_Application::InitEngine()
 {
 	GPU_init();
 	BKE_sound_init(m_maggie);
-	return LA_Launcher::InitEngine();
+	LA_Launcher::InitEngine();
 }
 
 void GPG_Application::ExitEngine()

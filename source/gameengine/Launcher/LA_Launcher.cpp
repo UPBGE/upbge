@@ -71,10 +71,7 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 	m_kxStartScene(NULL),
 	m_exitRequested(KX_EXIT_REQUEST_NO_REQUEST),
 	m_globalSettings(gs),
-	m_system(system), 
-	m_engineInitialized(false), 
-	m_engineRunning(false), 
-	m_isEmbedded(false),
+	m_system(system),
 	m_ketsjiEngine(NULL),
 	m_kxsystem(NULL), 
 	m_inputDevice(NULL),
@@ -94,7 +91,6 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 
 LA_Launcher::~LA_Launcher()
 {
-	ExitEngine();
 }
 
 #ifdef WITH_PYTHON
@@ -119,123 +115,107 @@ const STR_String& LA_Launcher::GetExitString()
 	return m_exitString;
 }
 
-bool LA_Launcher::InitEngine()
+void LA_Launcher::InitEngine()
 {
-	if (!m_engineInitialized) {
-		// Get and set the preferences.
-		SYS_SystemHandle syshandle = SYS_GetSystem();
-		if (!syshandle) {
-			return false;
-		}
+	// Get and set the preferences.
+	SYS_SystemHandle syshandle = SYS_GetSystem();
 
-		GameData *gm = &m_startScene->gm;
-		bool properties = (SYS_GetCommandLineInt(syshandle, "show_properties", 0) != 0);
-		bool profile = (SYS_GetCommandLineInt(syshandle, "show_profile", 0) != 0);
+	GameData *gm = &m_startScene->gm;
+	bool properties = (SYS_GetCommandLineInt(syshandle, "show_properties", 0) != 0);
+	bool profile = (SYS_GetCommandLineInt(syshandle, "show_profile", 0) != 0);
 
-		bool showPhysics = (gm->flag & GAME_SHOW_PHYSICS);
-		SYS_WriteCommandLineInt(syshandle, "show_physics", showPhysics);
+	bool showPhysics = (gm->flag & GAME_SHOW_PHYSICS);
+	SYS_WriteCommandLineInt(syshandle, "show_physics", showPhysics);
 
-		bool fixed_framerate = (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm->flag & GAME_ENABLE_ALL_FRAMES)) != 0);
-		bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
-		bool useLists = (SYS_GetCommandLineInt(syshandle, "displaylists", gm->flag & GAME_DISPLAY_LISTS) != 0) && GPU_display_list_support();
-		bool showBoundingBox = (SYS_GetCommandLineInt(syshandle, "show_bounding_box", gm->flag & GAME_SHOW_BOUNDING_BOX) != 0);
-		bool showArmatures = (SYS_GetCommandLineInt(syshandle, "show_armatures", gm->flag & GAME_SHOW_ARMATURES) != 0);
-		bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
-		bool restrictAnimFPS = (gm->flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
+	bool fixed_framerate = (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm->flag & GAME_ENABLE_ALL_FRAMES)) != 0);
+	bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
+	bool useLists = (SYS_GetCommandLineInt(syshandle, "displaylists", gm->flag & GAME_DISPLAY_LISTS) != 0) && GPU_display_list_support();
+	bool showBoundingBox = (SYS_GetCommandLineInt(syshandle, "show_bounding_box", gm->flag & GAME_SHOW_BOUNDING_BOX) != 0);
+	bool showArmatures = (SYS_GetCommandLineInt(syshandle, "show_armatures", gm->flag & GAME_SHOW_ARMATURES) != 0);
+	bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
+	bool restrictAnimFPS = (gm->flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
-		RAS_STORAGE_TYPE raster_storage = RAS_AUTO_STORAGE;
-		int storageInfo = RAS_STORAGE_INFO_NONE;
+	RAS_STORAGE_TYPE raster_storage = RAS_AUTO_STORAGE;
+	int storageInfo = RAS_STORAGE_INFO_NONE;
 
-		if (gm->raster_storage == RAS_STORE_VBO) {
-			raster_storage = RAS_VBO;
-		}
-		else if (gm->raster_storage == RAS_STORE_VA) {
-			raster_storage = RAS_VA;
-		}
+	if (gm->raster_storage == RAS_STORE_VBO) {
+		raster_storage = RAS_VBO;
+	}
+	else if (gm->raster_storage == RAS_STORE_VA) {
+		raster_storage = RAS_VA;
+	}
 
-		if (useLists) {
-			storageInfo |= RAS_STORAGE_USE_DISPLAY_LIST;
-		}
+	if (useLists) {
+		storageInfo |= RAS_STORAGE_USE_DISPLAY_LIST;
+	}
 
-		m_rasterizer = new RAS_OpenGLRasterizer(raster_storage, storageInfo);
+	m_rasterizer = new RAS_OpenGLRasterizer(raster_storage, storageInfo);
 
-		// Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI
-		m_rasterizer->SetStereoMode(m_stereoMode);
-		m_rasterizer->SetEyeSeparation(m_startScene->gm.eyeseparation);
-		m_rasterizer->SetDrawingMode(GetRasterizerDrawMode());
+	// Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI
+	m_rasterizer->SetStereoMode(m_stereoMode);
+	m_rasterizer->SetEyeSeparation(m_startScene->gm.eyeseparation);
+	m_rasterizer->SetDrawingMode(GetRasterizerDrawMode());
 
-		// Copy current mipmap mode to restore at the game end.
-		m_savedData.mipmap = m_rasterizer->GetMipmapping();
+	// Copy current mipmap mode to restore at the game end.
+	m_savedData.mipmap = m_rasterizer->GetMipmapping();
 
-		// Create the canvas, rasterizer and rendertools.
-		m_canvas = CreateCanvas(m_rasterizer);
+	// Create the canvas, rasterizer and rendertools.
+	m_canvas = CreateCanvas(m_rasterizer);
 
-		// Copy current vsync mode to restore at the game end.
-		m_canvas->GetSwapInterval(m_savedData.vsync);
+	// Copy current vsync mode to restore at the game end.
+	m_canvas->GetSwapInterval(m_savedData.vsync);
 
-		if (gm->vsync == VSYNC_ADAPTIVE) {
-			m_canvas->SetSwapInterval(-1);
-		}
-		else {
-			m_canvas->SetSwapInterval((gm->vsync == VSYNC_ON) ? 1 : 0);
-		}
+	if (gm->vsync == VSYNC_ADAPTIVE) {
+		m_canvas->SetSwapInterval(-1);
+	}
+	else {
+		m_canvas->SetSwapInterval((gm->vsync == VSYNC_ON) ? 1 : 0);
+	}
 
-		m_canvas->Init();
-		if (gm->flag & GAME_SHOW_MOUSE) {
-			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
-		}
-		else {
-			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
-		}
+	m_canvas->Init();
+	if (gm->flag & GAME_SHOW_MOUSE) {
+		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
+	}
+	else {
+		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
+	}
 
-		// Create the inputdevices.
-		m_inputDevice = new GH_InputDevice();
-		m_eventConsumer = new GH_EventConsumer(m_inputDevice);
-		m_system->addEventConsumer(m_eventConsumer);
+	// Create the inputdevices.
+	m_inputDevice = new GH_InputDevice();
+	m_eventConsumer = new GH_EventConsumer(m_inputDevice);
+	m_system->addEventConsumer(m_eventConsumer);
 
-		// Create a ketsjisystem (only needed for timing and stuff).
-		m_kxsystem = new LA_System();
+	// Create a ketsjisystem (only needed for timing and stuff).
+	m_kxsystem = new LA_System();
 
-		m_networkMessageManager = new KX_NetworkMessageManager();
-		
-		// Create the ketsjiengine.
-		m_ketsjiEngine = new KX_KetsjiEngine(m_kxsystem);
-		
-		// Set the devices.
-		m_ketsjiEngine->SetInputDevice(m_inputDevice);
-		m_ketsjiEngine->SetCanvas(m_canvas);
-		m_ketsjiEngine->SetRasterizer(m_rasterizer);
-		m_ketsjiEngine->SetNetworkMessageManager(m_networkMessageManager);
+	m_networkMessageManager = new KX_NetworkMessageManager();
+	
+	// Create the ketsjiengine.
+	m_ketsjiEngine = new KX_KetsjiEngine(m_kxsystem);
+	
+	// Set the devices.
+	m_ketsjiEngine->SetInputDevice(m_inputDevice);
+	m_ketsjiEngine->SetCanvas(m_canvas);
+	m_ketsjiEngine->SetRasterizer(m_rasterizer);
+	m_ketsjiEngine->SetNetworkMessageManager(m_networkMessageManager);
 
-		KX_KetsjiEngine::SetExitKey(ConvertKeyCode(gm->exitkey));
+	KX_KetsjiEngine::SetExitKey(ConvertKeyCode(gm->exitkey));
 #ifdef WITH_PYTHON
-		CValue::SetDeprecationWarnings(nodepwarnings);
+	CValue::SetDeprecationWarnings(nodepwarnings);
 #else
-		(void)nodepwarnings;
+	(void)nodepwarnings;
 #endif
 
-		m_ketsjiEngine->SetUseFixedTime(fixed_framerate);
-		m_ketsjiEngine->SetTimingDisplay(frameRate, profile, properties);
-		m_ketsjiEngine->SetRestrictAnimationFPS(restrictAnimFPS);
-		m_ketsjiEngine->SetShowBoundingBox(showBoundingBox);
-		m_ketsjiEngine->SetShowArmatures(showArmatures);
+	m_ketsjiEngine->SetUseFixedTime(fixed_framerate);
+	m_ketsjiEngine->SetTimingDisplay(frameRate, profile, properties);
+	m_ketsjiEngine->SetRestrictAnimationFPS(restrictAnimFPS);
+	m_ketsjiEngine->SetShowBoundingBox(showBoundingBox);
+	m_ketsjiEngine->SetShowArmatures(showArmatures);
 
-		// Set the global settings (carried over if restart/load new files).
-		m_ketsjiEngine->SetGlobalSettings(m_globalSettings);
+	// Set the global settings (carried over if restart/load new files).
+	m_ketsjiEngine->SetGlobalSettings(m_globalSettings);
 
-		InitCamera();
-
-		m_engineInitialized = true;
-	}
-
-	return m_engineInitialized;
-}
-
-bool LA_Launcher::StartEngine()
-{
-	if (m_engineRunning) {
-		return false;
-	}
+	InitCamera();
 
 #ifdef WITH_PYTHON
 	resetGamePythonPath();
@@ -244,73 +224,58 @@ bool LA_Launcher::StartEngine()
 
 	// Create a scene converter, create and convert the stratingscene.
 	m_sceneConverter = new KX_BlenderSceneConverter(m_maggie, m_ketsjiEngine);
-	if (m_sceneConverter) {
-		STR_String m_kxStartScenename = m_startSceneName.Ptr();
-		m_ketsjiEngine->SetSceneConverter(m_sceneConverter);
+	STR_String m_kxStartScenename = m_startSceneName.Ptr();
+	m_ketsjiEngine->SetSceneConverter(m_sceneConverter);
 
-		m_kxStartScene = new KX_Scene(m_inputDevice,
-			m_kxStartScenename,
-			m_startScene,
-			m_canvas,
-			m_networkMessageManager);
+	m_kxStartScene = new KX_Scene(m_inputDevice,
+		m_kxStartScenename,
+		m_startScene,
+		m_canvas,
+		m_networkMessageManager);
 
-		KX_SetActiveScene(m_kxStartScene);
-		KX_SetActiveEngine(m_ketsjiEngine);
+	KX_SetActiveScene(m_kxStartScene);
+	KX_SetActiveEngine(m_ketsjiEngine);
 
 #ifdef WITH_PYTHON
-		// Some python things.
-		setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv);
+	// Some python things.
+	setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv);
 #endif  // WITH_PYTHON
 
-		// Initialize Dome Settings.
-		if (m_startScene->gm.stereoflag == STEREO_DOME) {
-			m_ketsjiEngine->InitDome(m_startScene->gm.dome.res, m_startScene->gm.dome.mode, m_startScene->gm.dome.angle, m_startScene->gm.dome.resbuf, m_startScene->gm.dome.tilt, m_startScene->gm.dome.warptext);
-		}
-
-		// Initialize 3D Audio Settings.
-		AUD_Device *device = BKE_sound_get_device();
-		AUD_Device_setSpeedOfSound(device, m_startScene->audio.speed_of_sound);
-		AUD_Device_setDopplerFactor(device, m_startScene->audio.doppler_factor);
-		AUD_Device_setDistanceModel(device, AUD_DistanceModel(m_startScene->audio.distance_model));
-
-		m_sceneConverter->SetAlwaysUseExpandFraming(GetUseAlwaysExpandFraming());
-
-		m_sceneConverter->ConvertScene(
-			m_kxStartScene,
-			m_rasterizer,
-			m_canvas);
-		m_ketsjiEngine->AddScene(m_kxStartScene);
-		m_kxStartScene->Release();
-
-		m_rasterizer->Init();
-		m_ketsjiEngine->StartEngine(true);
-		m_engineRunning = true;
-		
-		/* Set the animation playback rate for ipo's and actions the 
-		 * framerate below should patch with FPS macro defined in blendef.h 
-		 * Could be in StartEngine set the framerate, we need the scene to do this.
-		 */
-		Scene *scene = m_kxStartScene->GetBlenderScene(); // needed for macro
-		m_ketsjiEngine->SetAnimFrameRate(FPS);
+	// Initialize Dome Settings.
+	if (m_startScene->gm.stereoflag == STEREO_DOME) {
+		m_ketsjiEngine->InitDome(m_startScene->gm.dome.res, m_startScene->gm.dome.mode, m_startScene->gm.dome.angle, m_startScene->gm.dome.resbuf, m_startScene->gm.dome.tilt, m_startScene->gm.dome.warptext);
 	}
-	
-	if (!m_engineRunning) {
-		StopEngine();
-	}
-	
-	return m_engineRunning;
+
+	// Initialize 3D Audio Settings.
+	AUD_Device *device = BKE_sound_get_device();
+	AUD_Device_setSpeedOfSound(device, m_startScene->audio.speed_of_sound);
+	AUD_Device_setDopplerFactor(device, m_startScene->audio.doppler_factor);
+	AUD_Device_setDistanceModel(device, AUD_DistanceModel(m_startScene->audio.distance_model));
+
+	m_sceneConverter->SetAlwaysUseExpandFraming(GetUseAlwaysExpandFraming());
+
+	m_sceneConverter->ConvertScene(
+		m_kxStartScene,
+		m_rasterizer,
+		m_canvas);
+	m_ketsjiEngine->AddScene(m_kxStartScene);
+	m_kxStartScene->Release();
+
+	m_rasterizer->Init();
+	m_ketsjiEngine->StartEngine(true);
+
+	/* Set the animation playback rate for ipo's and actions the 
+	 * framerate below should patch with FPS macro defined in blendef.h 
+	 * Could be in StartEngine set the framerate, we need the scene to do this.
+	 */
+	Scene *scene = m_kxStartScene->GetBlenderScene(); // needed for macro
+	m_ketsjiEngine->SetAnimFrameRate(FPS);
 }
 
 
-void LA_Launcher::StopEngine()
+void LA_Launcher::ExitEngine()
 {
 	m_ketsjiEngine->StopEngine();
-
-	if (m_sceneConverter) {
-		delete m_sceneConverter;
-		m_sceneConverter = NULL;
-	}
-
 
 #ifdef WITH_PYTHON
 
@@ -326,7 +291,58 @@ void LA_Launcher::StopEngine()
 
 #endif  // WITH_PYTHON
 
-	m_engineRunning = false;
+	// Do we will stop ?
+	if ((m_exitRequested != KX_EXIT_REQUEST_RESTART_GAME) && (m_exitRequested != KX_EXIT_REQUEST_START_OTHER_GAME)) {
+		// Then set the cursor back to normal here to avoid set the cursor visible between two game load.
+		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
+	}
+
+	// Set mipmap setting back to its original value.
+	m_rasterizer->SetMipmapping(m_savedData.mipmap);
+
+	// Set vsync mode back to original value.
+	m_canvas->SetSwapInterval(m_savedData.vsync);
+
+	if (m_sceneConverter) {
+		delete m_sceneConverter;
+		m_sceneConverter = NULL;
+	}
+	if (m_ketsjiEngine) {
+		delete m_ketsjiEngine;
+		m_ketsjiEngine = NULL;
+	}
+	if (m_kxsystem) {
+		delete m_kxsystem;
+		m_kxsystem = NULL;
+	}
+	if (m_inputDevice) {
+		delete m_inputDevice;
+		m_inputDevice = NULL;
+	}
+	if (m_eventConsumer) {
+		m_system->removeEventConsumer(m_eventConsumer);
+		delete m_eventConsumer;
+	}
+	if (m_rasterizer) {
+		delete m_rasterizer;
+		m_rasterizer = NULL;
+	}
+	if (m_canvas) {
+		delete m_canvas;
+		m_canvas = NULL;
+	}
+	if (m_networkMessageManager) {
+		delete m_networkMessageManager;
+		m_networkMessageManager = NULL;
+	}
+
+	// Call this after we're sure nothing needs Python anymore (e.g., destructors).
+	ExitPython();
+
+	// Stop all remaining playing sounds.
+	AUD_Device_stopAll(BKE_sound_get_device());
+
+	m_exitRequested = KX_EXIT_REQUEST_NO_REQUEST;
 }
 
 #ifdef WITH_PYTHON
@@ -386,80 +402,4 @@ bool LA_Launcher::EngineNextFrame()
 		return false;
 	}
 	return true;
-}
-
-void LA_Launcher::ExitEngine()
-{
-	// We only want to kill the engine if it has been initialized.
-	if (!m_engineInitialized) {
-		return;
-	}
-
-	// Do we will stop ?
-	if ((m_exitRequested != KX_EXIT_REQUEST_RESTART_GAME) && (m_exitRequested != KX_EXIT_REQUEST_START_OTHER_GAME)) {
-		// Then set the cursor back to normal here to avoid set the cursor visible between two game load.
-		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
-	}
-
-	// Set mipmap setting back to its original value.
-	m_rasterizer->SetMipmapping(m_savedData.mipmap);
-
-	// Set vsync mode back to original value.
-	m_canvas->SetSwapInterval(m_savedData.vsync);
-
-	if (m_ketsjiEngine) {
-		StopEngine();
-		delete m_ketsjiEngine;
-		m_ketsjiEngine = NULL;
-	}
-	if (m_kxsystem) {
-		delete m_kxsystem;
-		m_kxsystem = NULL;
-	}
-	if (m_inputDevice) {
-		delete m_inputDevice;
-		m_inputDevice = NULL;
-	}
-	if (m_eventConsumer) {
-		m_system->removeEventConsumer(m_eventConsumer);
-		delete m_eventConsumer;
-	}
-	if (m_rasterizer) {
-		delete m_rasterizer;
-		m_rasterizer = NULL;
-	}
-	if (m_canvas) {
-		delete m_canvas;
-		m_canvas = NULL;
-	}
-	if (m_networkMessageManager) {
-		delete m_networkMessageManager;
-		m_networkMessageManager = NULL;
-	}
-
-	// Call this after we're sure nothing needs Python anymore (e.g., destructors).
-	ExitPython();
-
-	// Stop all remaining playing sounds.
-	AUD_Device_stopAll(BKE_sound_get_device());
-
-	m_exitRequested = KX_EXIT_REQUEST_NO_REQUEST;
-	m_engineInitialized = false;
-}
-
-
-bool LA_Launcher::StartGameEngine()
-{
-	bool success = InitEngine();
-
-	if (success) {
-		success = StartEngine();
-	}
-
-	return success;
-}
-
-void LA_Launcher::StopGameEngine()
-{
-	ExitEngine();
 }

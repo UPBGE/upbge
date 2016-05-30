@@ -68,13 +68,6 @@ protected:
 	/// GHOST system abstraction.
 	GHOST_ISystem *m_system;
 
-	/// Engine construction state.
-	bool m_engineInitialized;
-	/// Engine state.
-	bool m_engineRunning;
-	/// Running on embedded window.
-	bool m_isEmbedded;
-
 	/// The gameengine itself.
 	KX_KetsjiEngine* m_ketsjiEngine;
 	/// The game engine's system abstraction.
@@ -109,19 +102,8 @@ protected:
 		RAS_IRasterizer::MipmapOption mipmap;
 	} m_savedData;
 
-	/// Initializes the game engine.
-	virtual bool InitEngine();
-	/// Shuts the game engine down.
-	virtual void ExitEngine();
-
 	/// Execute engine render, overrided to render background.
 	virtual void RenderEngine();
-
-	/// Starts the game engine.
-	bool StartEngine();
-
-	/// Stop the game engine.
-	void StopEngine();
 
 	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty) = 0;
 	virtual RAS_IRasterizer::DrawType GetRasterizerDrawMode() = 0;
@@ -148,8 +130,11 @@ public:
 		return m_kxStartScene;
 	}
 
-	bool StartGameEngine();
-	void StopGameEngine();
+	/// Initializes the game engine.
+	virtual void InitEngine();
+	/// Shuts the game engine down.
+	virtual void ExitEngine();
+
 	bool EngineNextFrame();
 
 #ifdef WITH_PYTHON

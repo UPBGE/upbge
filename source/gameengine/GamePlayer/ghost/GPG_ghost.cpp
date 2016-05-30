@@ -1068,7 +1068,7 @@ int main(
 							}
 						}
 						else {
-							app.StartGameEngine();
+							app.InitEngine();
 							exitcode = KX_EXIT_REQUEST_NO_REQUEST;
 						}
 
@@ -1110,7 +1110,7 @@ int main(
 #ifdef WITH_PYTHON
 						}
 #endif // WITH_PYTHON
-						app.StopGameEngine();
+						app.ExitEngine();
 
 						BLO_blendfiledata_free(bfd);
 						/* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */

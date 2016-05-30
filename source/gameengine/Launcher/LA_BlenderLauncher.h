@@ -29,8 +29,6 @@ protected:
 		Object *camera;
 	} m_savedBlenderData;
 
-	virtual bool InitEngine();
-	virtual void ExitEngine();
 	virtual void RenderEngine();
 
 	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty);
@@ -44,4 +42,7 @@ public:
 	LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_IRasterizer::StereoMode stereoMode, 
 					   int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming);
 	virtual ~LA_BlenderLauncher();
+
+	virtual void InitEngine();
+	virtual void ExitEngine();
 };

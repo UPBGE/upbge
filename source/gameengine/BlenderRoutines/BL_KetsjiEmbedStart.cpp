@@ -120,107 +120,6 @@ static BlendFileData *load_game_data(char *filename)
 	return bfd;
 }
 
-static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWindow *win, Scene *scene,
-							  ARegion *ar, GHOST_ISystem *system, int draw_letterbox)
-{
-	// first check if we want to exit
-	int exitrequested = ketsjiengine->GetExitCode();
-
-	// kick the engine
-	bool render = ketsjiengine->NextFrame();
-
-	if (render) {
-		if (draw_letterbox) {
-			RAS_IRasterizer *rasty = ketsjiengine->GetRasterizer();
-
-			// Clear screen to border color
-			// We do this here since we set the canvas to be within the frames. This means the engine
-			// itself is unaware of the extra space, so we clear the whole region for it.
-			rasty->SetClearColor(scene->gm.framing.col[0], scene->gm.framing.col[1], scene->gm.framing.col[2]);
-			rasty->SetViewport(ar->winrct.xmin, ar->winrct.ymin,
-			           BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
-			rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
-		}
-
-		// render the frame
-		ketsjiengine->Render();
-	}
-
-	system->processEvents(false);
-	system->dispatchEvents();
-
-	SCA_IInputDevice *inputDevice = ketsjiengine->GetInputDevice();
-
-	if (inputDevice->GetEvent((SCA_IInputDevice::SCA_EnumInputs)ketsjiengine->GetExitKey()).Find(SCA_InputEvent::KX_ACTIVE)) {
-		exitrequested = KX_EXIT_REQUEST_BLENDER_ESC;
-	}
-	else if (inputDevice->GetEvent(SCA_IInputDevice::KX_WINCLOSE).Find(SCA_InputEvent::KX_ACTIVE) ||
-		inputDevice->GetEvent(SCA_IInputDevice::KX_WINQUIT).Find(SCA_InputEvent::KX_ACTIVE))
-	{
-		exitrequested = KX_EXIT_REQUEST_OUTSIDE;
-	}
-
-	// test for the ESC key
-	//XXX while (qtest())
-	/*while (wmEvent *event= (wmEvent *)win->queue.first) {
-		short val = 0;
-		//unsigned short event = 0; //XXX extern_qread(&val);
-		unsigned int unicode = event->utf8_buf[0] ? BLI_str_utf8_as_unicode(event->utf8_buf) : event->ascii;
-
-		if (keyboarddevice->ConvertBlenderEvent(event->type, event->val, unicode))
-			exitrequested = KX_EXIT_REQUEST_BLENDER_ESC;*/
-
-		/* Coordinate conversion... where
-		 * should this really be?
-		 */
-		/*if (event->type == MOUSEMOVE) {*/
-			/* Note, not nice! XXX 2.5 event hack */
-			/*val = event->x - ar->winrct.xmin;
-			mousedevice->ConvertBlenderEvent(MOUSEX, val, 0);
-
-			val = ar->winy - (event->y - ar->winrct.ymin) - 1;
-			mousedevice->ConvertBlenderEvent(MOUSEY, val, 0);
-		}
-		else {
-			mousedevice->ConvertBlenderEvent(event->type, event->val, 0);
-		}
-
-		BLI_remlink(&win->queue, event);
-		wm_event_free(event);
-	}*/
-
-	if (win != CTX_wm_window(C)) {
-		exitrequested= KX_EXIT_REQUEST_OUTSIDE; /* window closed while bge runs */
-	}
-	return exitrequested;
-}
-
-
-#ifdef WITH_PYTHON
-static struct BL_KetsjiNextFrameState {
-	class KX_KetsjiEngine* ketsjiengine;
-	struct bContext *C;
-	struct wmWindow* win;
-	struct Scene* scene;
-	struct ARegion *ar;
-	GHOST_ISystem *system;
-	int draw_letterbox;
-} ketsjinextframestate;
-
-static int BL_KetsjiPyNextFrame(void *state0)
-{
-	BL_KetsjiNextFrameState *state = (BL_KetsjiNextFrameState *) state0;
-	return BL_KetsjiNextFrame(
-		state->ketsjiengine, 
-		state->C, 
-		state->win, 
-		state->scene, 
-		state->ar,
-		state->system,
-		state->draw_letterbox);
-}
-#endif
-
 
 extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *cam_frame, int always_use_expand_framing)
 {
@@ -317,7 +216,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		launcher.SetPythonGlobalDict(globalDict);
 #endif  // WITH_PYTHON
 
-		launcher.StartGameEngine();
+		launcher.InitEngine();
 
 		std::cout << std::endl << "Blender Game Engine Started" << std::endl;
 		bool run = true;
@@ -330,7 +229,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		exitstring = launcher.GetExitString();
 		gs = *launcher.GetGlobalSettings();
 
-		launcher.StopGameEngine();
+		launcher.ExitEngine();
 	
 	} while (exitrequested == KX_EXIT_REQUEST_RESTART_GAME || exitrequested == KX_EXIT_REQUEST_START_OTHER_GAME);
 	
