@@ -182,7 +182,7 @@ void LA_Launcher::InitEngine()
 
 	// Create the inputdevices.
 	m_inputDevice = new GH_InputDevice();
-	m_eventConsumer = new GH_EventConsumer(m_inputDevice);
+	m_eventConsumer = new GH_EventConsumer(m_inputDevice, m_canvas);
 	m_system->addEventConsumer(m_eventConsumer);
 
 	// Create a ketsjisystem (only needed for timing and stuff).

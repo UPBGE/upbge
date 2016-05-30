@@ -28,6 +28,7 @@ set(INC
 	../Expressions
 	../GameLogic
 	../Ketsji
+	../Rasterizer
 	../SceneGraph
 	../../blender/blenlib
 	../../../intern/ghost

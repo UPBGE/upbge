@@ -36,10 +36,13 @@
 
 class GH_InputDevice;
 
+class RAS_ICanvas;
+
 class GH_EventConsumer : public GHOST_IEventConsumer
 {
 private:
 	GH_InputDevice *m_device;
+	RAS_ICanvas *m_canvas;
 
 	void HandleWindowEvent(GHOST_TEventType type);
 	void HandleKeyEvent(GHOST_TEventDataPtr data, bool down);
@@ -48,7 +51,7 @@ private:
 	void HandleButtonEvent(GHOST_TEventDataPtr data, bool down);
 
 public:
-	GH_EventConsumer(GH_InputDevice *device);
+	GH_EventConsumer(GH_InputDevice *device, RAS_ICanvas *canvas);
 	virtual ~GH_EventConsumer();
 
 	virtual bool processEvent(GHOST_IEvent *event);

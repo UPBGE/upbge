@@ -168,28 +168,20 @@ int KX_BlenderCanvas::GetHeight(
 	return m_frame_rect.GetHeight();
 }
 
-int KX_BlenderCanvas::GetMouseX(int x)
+void KX_BlenderCanvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y)
 {
-	int left = GetWindowArea().GetLeft();
-	return x - (left - m_area_left);
-}
-
-int KX_BlenderCanvas::GetMouseY(int y)
-{
-	int top = GetWindowArea().GetTop();
-	return y - (m_area_top - top);
+	r_x = x - m_area_left;
+	r_y = m_area_top - y;
 }
 
 float KX_BlenderCanvas::GetMouseNormalizedX(int x)
 {
-	int can_x = GetMouseX(x);
-	return float(can_x)/this->GetWidth();
+	return float(x)/this->GetWidth();
 }
 
 float KX_BlenderCanvas::GetMouseNormalizedY(int y)
 {
-	int can_y = GetMouseY(y);
-	return float(can_y)/this->GetHeight();
+	return float(y)/this->GetHeight();
 }
 
 RAS_Rect &

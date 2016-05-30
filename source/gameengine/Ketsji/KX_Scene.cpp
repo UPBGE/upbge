@@ -175,8 +175,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_logicmgr = new SCA_LogicManager();
 	
 	m_timemgr = new SCA_TimeEventManager(m_logicmgr);
-	m_keyboardmgr = new SCA_KeyboardManager(m_logicmgr,inputDevice);
-	m_mousemgr = new SCA_MouseManager(m_logicmgr,inputDevice, canvas);
+	m_keyboardmgr = new SCA_KeyboardManager(m_logicmgr, inputDevice);
+	m_mousemgr = new SCA_MouseManager(m_logicmgr,inputDevice);
 	
 	SCA_ActuatorEventManager* actmgr = new SCA_ActuatorEventManager(m_logicmgr);
 	SCA_BasicEventManager* basicmgr = new SCA_BasicEventManager(m_logicmgr);

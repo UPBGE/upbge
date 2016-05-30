@@ -36,12 +36,15 @@
 #include "GHOST_IEvent.h"
 #include "GHOST_IWindow.h"
 
+#include "RAS_ICanvas.h"
+
 #include "BLI_string_utf8.h"
 
 #include <iostream>
 
-GH_EventConsumer::GH_EventConsumer(GH_InputDevice *device)
-	:m_device(device)
+GH_EventConsumer::GH_EventConsumer(GH_InputDevice *device, RAS_ICanvas *canvas)
+	:m_device(device),
+	m_canvas(canvas)
 {
 }
 
@@ -65,8 +68,8 @@ void GH_EventConsumer::HandleKeyEvent(GHOST_TEventDataPtr data, bool down)
 void GH_EventConsumer::HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindow *window)
 {
 	GHOST_TEventCursorData *cursorData = (GHOST_TEventCursorData *)data;
-	GHOST_TInt32 x, y;
-	window->screenToClient(cursorData->x, cursorData->y, x, y); // TODO add conversion for embedded BGE.
+	int x, y;
+	m_canvas->ConvertMousePosition(cursorData->x, cursorData->y, x, y);
 
 	m_device->ConvertMoveEvent(x, y);
 }

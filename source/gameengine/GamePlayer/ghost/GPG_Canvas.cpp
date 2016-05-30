@@ -166,6 +166,11 @@ bool GPG_Canvas::GetFullScreen()
 	return m_window->getState() == GHOST_kWindowStateFullScreen;
 }
 
+void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y)
+{
+	m_window->screenToClient(x, y, r_x, r_y);
+}
+
 float GPG_Canvas::GetMouseNormalizedX(int x)
 {
 	return float(x)/this->GetWidth();
