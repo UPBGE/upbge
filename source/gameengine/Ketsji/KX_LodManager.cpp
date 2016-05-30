@@ -28,7 +28,8 @@
 #include "BLI_listbase.h"
 
 KX_LodManager::KX_LodManager(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter* converter, bool libloading)
-	:m_refcount(1)
+	:m_refcount(1),
+	m_lodLevelsScale(1.0f)
 {
 	if (BLI_listbase_count_ex(&ob->lodlevels, 2) > 1) {
 		LodLevel *lod = (LodLevel*)ob->lodlevels.first;
@@ -145,6 +146,7 @@ PyMethodDef KX_LodManager::Methods[] = {
 
 PyAttributeDef KX_LodManager::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("lodLevel", KX_LodManager, pyattr_get_lodlevels),
+	KX_PYATTRIBUTE_RW_FUNCTION("lodLevelScale", KX_LodManager, pyattr_get_lod_levels_scale, pyattr_set_lod_levels_scale),
 	{ NULL }    //Sentinel
 };
 
@@ -159,6 +161,29 @@ PyObject *KX_LodManager::pyattr_get_lodlevels(void *self_v, const KX_PYATTRIBUTE
 	}
 
 	return levelList;
+}
+
+PyObject *KX_LodManager::pyattr_get_lod_levels_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_LodManager* self = static_cast<KX_LodManager*>(self_v);
+	return PyFloat_FromDouble(self->m_lodLevelsScale);
+}
+
+int KX_LodManager::pyattr_set_lod_levels_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_LodManager* self = static_cast<KX_LodManager*>(self_v);
+	float scale = PyFloat_AsDouble(value);
+	if (PyErr_Occurred()) {
+		PyErr_SetString(PyExc_ValueError, "KX_LodManager.lodLevelsScale: KX_LodManager expected a float");
+		return NULL;
+	}
+	if (self->m_lodLevelList.size() > 0) {
+		for (int i = 0; i < self->m_lodLevelList.size(); i++) {
+			self->m_lodLevelList[i]->SetDistance(self->m_lodLevelList[i]->GetInitialDistance() * scale);
+		}
+		self->m_lodLevelsScale = scale;
+	}
+	return PY_SET_ATTR_SUCCESS;
 }
 
 #endif //WITH_PYTHON

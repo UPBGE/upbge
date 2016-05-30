@@ -44,6 +44,8 @@ private:
 
 	int m_refcount;
 
+	float m_lodLevelsScale;
+
 public:
 	KX_LodManager(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading);
 	virtual ~KX_LodManager();
@@ -52,6 +54,8 @@ public:
 
 	static PyObject *pyattr_get_lodlevels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	//static int pyattr_set_(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_lod_levels_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_lod_levels_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 #endif //WITH_PYTHON
 
