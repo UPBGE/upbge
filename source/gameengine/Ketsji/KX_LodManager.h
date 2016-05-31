@@ -52,6 +52,11 @@ public:
 
 #ifdef WITH_PYTHON
 
+	virtual PyObject *py_repr()
+	{
+		return PyUnicode_FromString("KX_LodManager");
+	}
+
 	static PyObject *pyattr_get_lodlevels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	//static int pyattr_set_(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_lod_levels_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
