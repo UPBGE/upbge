@@ -85,4 +85,5 @@ public:
 		}
 		return this;
 	}
+	void SetScale(float scale);
 };

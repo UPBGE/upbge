@@ -143,6 +143,12 @@ base class --- :class:`PyObjectPlus`
 
       :type: Vector((gx, gy, gz))
 
+   .. attribute:: lodGlobalScale
+
+      All the scene objects with level of detail LOD scale.
+
+      :type: float
+
    .. method:: addObject(object, reference, time=0.0)
 
       Adds an object to the scene like the Add Object Actuator would.

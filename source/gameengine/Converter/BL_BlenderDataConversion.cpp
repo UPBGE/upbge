@@ -1086,6 +1086,10 @@ static KX_GameObject *gameobject_from_blenderobject(
 		// gather levels of detail
 		KX_LodManager *lodManager = lodlist_from_blenderobject(ob, kxscene, converter, libloading);
 		gameobj->SetLodManager(lodManager);
+		if (gameobj->GetLodManager()) {
+			KX_Scene *kxscene = gameobj->GetScene();
+			kxscene->LodObjectListAppend(gameobj);
+		}
 
 		// for all objects: check whether they want to
 		// respond to updates

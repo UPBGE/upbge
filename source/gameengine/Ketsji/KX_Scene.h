@@ -297,6 +297,10 @@ protected:
 	bool m_isActivedHysteresis;
 	int m_lodHysteresisValue;
 
+	float m_lodGlobalScale;
+
+	std::vector<KX_GameObject *>m_lodObjectList;
+
 public:
 	KX_Scene(class SCA_IInputDevice* keyboarddevice,
 		class SCA_IInputDevice* mousedevice,
@@ -553,6 +557,12 @@ public:
 	bool IsActivedLodHysteresis();
 	void SetLodHysteresisValue(int hysteresisvalue);
 	int GetLodHysteresisValue();
+
+	void SetGlobalLodScale(float scale);
+
+	void LodObjectListAppend(KX_GameObject *gameob) {
+		m_lodObjectList.push_back(gameob);
+	}
 	
 	// Update the activity box settings for objects in this scene, if needed.
 	void UpdateObjectActivity(void);
@@ -647,6 +657,8 @@ public:
 	static int			pyattr_set_drawing_setup_callback_pre(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_gravity(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_gravity(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_lod_global_scale(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_lod_global_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	virtual PyObject *py_repr(void) { return PyUnicode_From_STR_String(GetName()); }
 	
