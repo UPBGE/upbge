@@ -23,7 +23,7 @@
 #include "EXP_Value.h"
 #include "RAS_MeshObject.h"
 
-class KX_LodLevel : public PyObjectPlus
+class KX_LodLevel : public CValue
 {
 	Py_Header
 
@@ -40,6 +40,15 @@ public:
 	KX_LodLevel();
 	KX_LodLevel(float distance, float hysteresis, unsigned short level, RAS_MeshObject *meshobj, unsigned short flag);
 	virtual ~KX_LodLevel();
+
+	// stuff for cvalue related things
+	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
+	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+	virtual const STR_String& GetText();
+	virtual double GetNumber();
+	virtual STR_String& GetName();
+	virtual void SetName(const char *name); // Set the name of the value
+	virtual CValue *GetReplica();
 
 	float GetDistance() {
 		return m_distance;
