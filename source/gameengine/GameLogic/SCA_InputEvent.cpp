@@ -81,7 +81,9 @@ PyTypeObject SCA_InputEvent::Type = {
 	py_base_repr,
 	0,0,0,0,0,0,0,0,0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0,0,0,
+	tp_richcompare,
+	0,0,0,
 	Methods,
 	0,
 	0,
@@ -162,6 +164,42 @@ PyObject *SCA_InputEvent::pyattr_get_values(void *self_v, const KX_PYATTRIBUTE_D
 							 SCA_InputEvent::get_values_item_cb,
 							 NULL,
 							 NULL))->NewProxy(true);
+}
+
+PyObject *SCA_InputEvent::tp_richcompare(PyObject *a, PyObject *b, int op)
+{
+	if (op == Py_EQ || op == Py_NE) {
+		int val = -1;
+		SCA_InputEvent *event = NULL;
+		if (PyLong_Check(a)) {
+			val = PyLong_AsLong(a);
+			event = (SCA_InputEvent *)BGE_PROXY_REF(b);
+		}
+		else if (PyLong_Check(b)) {
+			val = PyLong_AsLong(b);
+			event = (SCA_InputEvent *)BGE_PROXY_REF(a);
+		}
+
+		if (val != -1 && event) {
+			if ((val == KX_ACTIVE) ||
+				(val == KX_NO_INPUTSTATUS) ||
+				(val == KX_JUSTACTIVATED) ||
+				(val == KX_JUSTRELEASED))
+			{
+				ShowDeprecationWarning("event == value", "value in event.status or value in event.queue");
+				bool found = event->Find((SCA_EnumInputs)val);
+				if (op == Py_NE) {
+					// Inverse returned value.
+					found = !found;
+				}
+				PyObject *ret = (found ? Py_True : Py_False);
+				Py_INCREF(ret);
+				return ret;
+			}
+		}
+	}
+
+	return Py_False;
 }
 
 #endif  // WITH_PYTHON

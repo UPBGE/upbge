@@ -74,6 +74,8 @@ public:
 	static PyObject *pyattr_get_status(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_queue(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+
+	static PyObject *tp_richcompare(PyObject *a, PyObject *b, int op);
 #endif
 };
 
