@@ -40,6 +40,41 @@ KX_LodLevel::~KX_LodLevel()
 {
 }
 
+// stuff for cvalue related things
+CValue *KX_LodLevel::Calc(VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
+CValue *KX_LodLevel::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
+const STR_String &KX_LodLevel::GetText()
+{
+	return GetName();
+}
+
+double KX_LodLevel::GetNumber()
+{
+	return -1.0;
+}
+
+STR_String &KX_LodLevel::GetName()
+{
+	return m_meshobj->GetName();
+}
+
+void KX_LodLevel::SetName(const char *name)
+{
+}
+
+CValue *KX_LodLevel::GetReplica()
+{
+	return NULL;
+}
+
 #ifdef WITH_PYTHON
 
 PyTypeObject KX_LodLevel::Type = {
@@ -80,7 +115,7 @@ PyAttributeDef KX_LodLevel::Attributes[] = {
 PyObject *KX_LodLevel::pyattr_get_mesh_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
-	return PyUnicode_FromString(self->m_meshobj->GetName());
+	return PyUnicode_FromString(self->GetName());
 }
 
 PyObject *KX_LodLevel::pyattr_get_use_hysteresis(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
