@@ -30,7 +30,7 @@
 
 KX_LodManager::KX_LodManager(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter* converter, bool libloading)
 	:m_refcount(1),
-	m_distanceScale(1.0f)
+	m_lodFactor(1.0f)
 {
 	if (BLI_listbase_count_ex(&ob->lodlevels, 2) > 1) {
 		LodLevel *lod = (LodLevel*)ob->lodlevels.first;
@@ -93,7 +93,7 @@ KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, unsigned short previouslod
 {
 	unsigned short level = 0;
 	unsigned short count = m_lodLevelList.size();
-	distance *= m_distanceScale;
+	distance2 *= m_lodFactor;
 
 	while (level < count) {
 		if (level == (count - 1)) {
@@ -102,14 +102,14 @@ KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, unsigned short previouslod
 		else if (level == previouslod || level == (previouslod + 1)) {
 			const float hystvariance = GetHysteresis(scene, level);
 			const float newdistance = m_lodLevelList[level + 1]->GetDistance() + hystvariance;
-			if (newdistance * newdistance > distance) {
+			if (newdistance * newdistance > distance2) {
 				break;
 			}
 		}
 		else if (level == (previouslod - 1)) {
 			const float hystvariance = GetHysteresis(scene, level);
 			const float newdistance = m_lodLevelList[level + 1]->GetDistance() - hystvariance;
-			if (newdistance * newdistance > distance) {
+			if (newdistance * newdistance > distance2) {
 				break;
 			}
 		}
@@ -149,7 +149,7 @@ PyMethodDef KX_LodManager::Methods[] = {
 
 PyAttributeDef KX_LodManager::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("lodLevel", KX_LodManager, pyattr_get_lodlevels),
-	KX_PYATTRIBUTE_FLOAT_RW("distanceScale", 0.0f, FLT_MAX, KX_LodManager, m_distanceScale),
+	KX_PYATTRIBUTE_FLOAT_RW("lodFactor", 0.0f, FLT_MAX, KX_LodManager, m_lodFactor),
 	{ NULL }    //Sentinel
 };
 

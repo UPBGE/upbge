@@ -44,7 +44,8 @@ private:
 
 	int m_refcount;
 
-	float m_distanceScale;
+	/// Factor applied to camera to object distance.
+	float m_lodFactor;
 
 public:
 	KX_LodManager(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading);
