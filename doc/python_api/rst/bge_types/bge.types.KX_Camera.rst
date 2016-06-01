@@ -27,6 +27,12 @@ base class --- :class:`KX_GameObject`
 
       :type: float
 
+   .. attribute:: lodFactor
+
+      The camera's level of detail factor value.
+
+      :type: float
+
    .. attribute:: fov
 
       The camera's field of view value.

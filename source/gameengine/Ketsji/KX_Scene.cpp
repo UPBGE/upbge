@@ -59,6 +59,7 @@
 #include "KX_PyMath.h"
 #include "RAS_MeshObject.h"
 #include "SCA_IScene.h"
+#include "KX_LodManager.h"
 
 #include "RAS_IRasterizer.h"
 #include "RAS_ICanvas.h"
@@ -1752,6 +1753,7 @@ void KX_Scene::RenderBuckets(const MT_Transform & cameratransform,
 	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
 		 * It's done just before the render to be sure of the object color and visibility. */
+		UpdateObjectLods((KX_GameObject *)*it);
 		((KX_GameObject *)*it)->UpdateBuckets();
 	}
 
@@ -1768,19 +1770,17 @@ void KX_Scene::RenderFonts()
 	}
 }
 
-void KX_Scene::UpdateObjectLods()
+void KX_Scene::UpdateObjectLods(KX_GameObject *gameobj)
 {
 	if (!m_active_camera)
 		return;
 
 	const MT_Vector3& cam_pos = m_active_camera->NodeGetWorldPosition();
 
-	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = (KX_GameObject *)*it;
-		if (!gameobj->GetCulled()) {
-			gameobj->UpdateLod(cam_pos);
-		}
-	}
+	
+	if (!gameobj->GetCulled()) {
+		gameobj->UpdateLod(cam_pos, m_active_camera->GetLodFactor());
+	}	
 }
 
 void KX_Scene::SetLodHysteresis(bool active)

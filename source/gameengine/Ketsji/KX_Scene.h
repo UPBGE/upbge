@@ -546,7 +546,7 @@ public:
 	void Resume();
 
 	/// Update the mesh for objects based on level of detail settings
-	void UpdateObjectLods();
+	void UpdateObjectLods(KX_GameObject *gameobj);
 
 	// LoD Hysteresis functions
 	void SetLodHysteresis(bool active);

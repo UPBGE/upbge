@@ -54,7 +54,7 @@
 //Forward declarations.
 struct KX_ClientObjectInfo;
 class KX_RayCast;
-class KX_LodList;
+class KX_LodManager;
 class RAS_MeshObject;
 class RAS_MeshUser;
 class PHY_IGraphicController;
@@ -89,7 +89,7 @@ protected:
 	STR_String							m_text;
 	int									m_layer;
 	std::vector<RAS_MeshObject*>		m_meshes;
-	KX_LodList							*m_lodList;
+	KX_LodManager						*m_lodManager;
 	int                                 m_currentLodLevel;
 	short								m_previousLodLevel;
 	RAS_MeshUser						*m_meshUser;
@@ -800,20 +800,20 @@ public:
 	/**
 	 * Set library of lod meshes
 	 */
-	void SetLodList(KX_LodList *lodList)
+	void SetLodManager(KX_LodManager *lodManager)
 	{
-		m_lodList = lodList;
+		m_lodManager = lodManager;
 	}
 
-	KX_LodList *GetLodList()
+	KX_LodManager *GetLodManager()
 	{
-		return m_lodList;
+		return m_lodManager;
 	}
 
 	/**
 	 * Updates the current lod level based on distance from camera.
 	 */
-	void UpdateLod(const MT_Vector3& cam_pos);
+	void UpdateLod(const MT_Vector3& cam_pos, float lodfactor);
 
 	/**
 	 * Pick out a mesh associated with the integer 'num'.
@@ -1114,6 +1114,7 @@ public:
 	static int			pyattr_set_linearDamping(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_angularDamping(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_angularDamping(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_lodmanager(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 	/* Experimental! */
 	static PyObject*	pyattr_get_sensors(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

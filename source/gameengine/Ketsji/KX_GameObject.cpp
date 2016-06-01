@@ -62,7 +62,8 @@
 #include "KX_NetworkMessageScene.h" //Needed for sendMessage()
 #include "KX_ObstacleSimulation.h"
 #include "KX_Scene.h"
-#include "KX_Lod.h"
+#include "KX_LodLevel.h"
+#include "KX_LodManager.h"
 #include "KX_CollisionContactPoints.h"
 
 #include "BKE_object.h"
@@ -102,7 +103,7 @@ KX_GameObject::KX_GameObject(
     : SCA_IObject(),
       m_bDyna(false),
       m_layer(0),
-      m_lodList(NULL),
+      m_lodManager(NULL),
       m_currentLodLevel(0),
       m_previousLodLevel(0),
       m_meshUser(NULL),
@@ -205,8 +206,8 @@ KX_GameObject::~KX_GameObject()
 	{
 		m_pInstanceObjects->Release();
 	}
-	if (m_lodList) {
-		m_lodList->Release();
+	if (m_lodManager) {
+		m_lodManager->Release();
 	}
 }
 
@@ -545,8 +546,8 @@ void KX_GameObject::ProcessReplica()
 	m_state = 0;
 
 	m_meshUser = NULL;
-	if (m_lodList) {
-		m_lodList->AddRef();
+	if (m_lodManager) {
+		m_lodManager->AddRef();
 	}
 
 #ifdef WITH_PYTHON
@@ -795,28 +796,28 @@ void KX_GameObject::RemoveMeshes()
 	m_meshes.clear();
 }
 
-void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos)
+void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
 {
 	// Handle dupligroups
 	if (m_pInstanceObjects) {
 		for (CListValue::iterator it = m_pInstanceObjects->GetBegin(), end = m_pInstanceObjects->GetEnd(); it != end; ++it) {
 			KX_GameObject *instob = (KX_GameObject *)*it;
-			instob->UpdateLod(cam_pos);
+			instob->UpdateLod(cam_pos, lodfactor);
 		}
 	}
 
-	if (!m_lodList) {
+	if (!m_lodManager) {
 		return;
 	}
 
 	KX_Scene *scene = GetScene();
-	float distance2 = NodeGetWorldPosition().distance2(cam_pos);
-
-	const KX_LodList::Level& lodLevel = m_lodList->GetLevel(scene, m_previousLodLevel, distance2);
-	const unsigned short level = lodLevel.level;
+	float dist = NodeGetWorldPosition().distance2(cam_pos);
+	dist /= lodfactor;
+	KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_previousLodLevel, dist);
+	const unsigned short level = lodLevel->GetLevel();
 
 	if (m_previousLodLevel != level) {
-		RAS_MeshObject *mesh = lodLevel.meshobj;
+		RAS_MeshObject *mesh = lodLevel->GetMesh();
 		if (mesh != m_meshes[0]) {
 			scene->ReplaceMesh(this, mesh, true, false);
 		}
@@ -2063,6 +2064,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("debug",	KX_GameObject, pyattr_get_debug, pyattr_set_debug),
 	KX_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
 	KX_PYATTRIBUTE_RW_FUNCTION("debugRecursive",	KX_GameObject, pyattr_get_debugRecursive, pyattr_set_debugRecursive),
+	KX_PYATTRIBUTE_RO_FUNCTION("lodManager", KX_GameObject, pyattr_get_lodmanager),
 	
 	/* experimental, don't rely on these yet */
 	KX_PYATTRIBUTE_RO_FUNCTION("sensors",		KX_GameObject, pyattr_get_sensors),
@@ -3281,6 +3283,17 @@ int KX_GameObject::pyattr_set_debugRecursive(void *self_v, const KX_PYATTRIBUTE_
 	self->SetUseDebugProperties(param, true);
 
 	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_GameObject::pyattr_get_lodmanager(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject *self = static_cast<KX_GameObject*>(self_v);
+	if (!self->m_lodManager) {
+		PyErr_SetString(PyExc_ValueError, "KX_GameObject.lod: there is no lod levels for this gameobject");
+		return NULL;
+	}
+
+	return self->m_lodManager->GetProxy();
 }
 
 PyObject *KX_GameObject::PyApplyForce(PyObject *args)
