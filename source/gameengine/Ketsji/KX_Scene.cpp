@@ -1779,7 +1779,7 @@ void KX_Scene::UpdateObjectLods()
 	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		KX_GameObject *gameobj = (KX_GameObject *)*it;
 		if (!gameobj->GetCulled()) {
-			gameobj->UpdateLod(cam_pos, m_active_camera->GetLodFactor());
+			gameobj->UpdateLod(cam_pos);
 		}
 	}
 }
@@ -2188,6 +2188,7 @@ PyMethodDef KX_Scene::Methods[] = {
 	KX_PYMETHODTABLE(KX_Scene, suspend),
 	KX_PYMETHODTABLE(KX_Scene, resume),
 	KX_PYMETHODTABLE(KX_Scene, drawObstacleSimulation),
+	KX_PYMETHODTABLE(KX_Scene, setLodScale),
 
 	
 	/* dict style access */

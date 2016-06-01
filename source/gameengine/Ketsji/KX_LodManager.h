@@ -44,7 +44,7 @@ private:
 
 	int m_refcount;
 
-	float m_lodLevelsScale;
+	float m_distanceScale;
 
 public:
 	KX_LodManager(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading);
@@ -59,8 +59,6 @@ public:
 
 	static PyObject *pyattr_get_lodlevels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	//static int pyattr_set_(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_lod_levels_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_lod_levels_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 #endif //WITH_PYTHON
 
@@ -69,7 +67,7 @@ public:
 	 * \param previouslod Previous lod computed by this function before.
 	 * \param distance2 Squared distance object to the camera.
 	 */
-	KX_LodLevel *GetLevel(KX_Scene *scene, unsigned short previouslod, float distance2);
+	KX_LodLevel *GetLevel(KX_Scene *scene, unsigned short previouslod, float distance);
 
 	/// If it returns true, then the lod is useless then.
 	inline bool Empty() const
@@ -90,5 +88,4 @@ public:
 		}
 		return this;
 	}
-	void SetScale(float scale);
 };
