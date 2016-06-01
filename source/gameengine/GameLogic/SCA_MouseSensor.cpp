@@ -225,7 +225,9 @@ KX_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
 "getButtonStatus(button)\n"
 "\tGet the given button's status (KX_INPUT_NONE, KX_INPUT_NONE, KX_INPUT_JUST_ACTIVATED, KX_INPUT_ACTIVE, KX_INPUT_JUST_RELEASED).\n")
 {
-	/*if (PyLong_Check(value))
+	ShowDeprecationWarning("sensor.getButtonStatus(button)", "logic.mouse.events[button]");
+
+	if (PyLong_Check(value))
 	{
 		SCA_IInputDevice::SCA_EnumInputs button = (SCA_IInputDevice::SCA_EnumInputs)PyLong_AsLong(value);
 		
@@ -238,8 +240,8 @@ KX_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
 		
 		SCA_IInputDevice* mousedev = ((SCA_MouseManager *)m_eventmgr)->GetInputDevice();
 		const SCA_InputEvent& event = mousedev->GetEvent(button);
-		return PyLong_FromLong(event.m_status);
-	}*/
+		return PyLong_FromLong(event.m_status[event.m_status.size() - 1]);
+	}
 	
 	Py_RETURN_NONE;
 }

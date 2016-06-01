@@ -329,7 +329,9 @@ KX_PYMETHODDEF_DOC_O(SCA_KeyboardSensor, getKeyStatus,
 "getKeyStatus(keycode)\n"
 "\tGet the given key's status (KX_NONE, KX_JUSTACTIVATED, KX_ACTIVE or KX_JUSTRELEASED).\n")
 {
-	/*if (!PyLong_Check(value)) {
+	ShowDeprecationWarning("sensor.getKeyStatus(button)", "logic.keyboard.events[button]");
+
+	if (!PyLong_Check(value)) {
 		PyErr_SetString(PyExc_ValueError, "sensor.getKeyStatus(int): Keyboard Sensor, expected an int");
 		return NULL;
 	}
@@ -345,7 +347,7 @@ KX_PYMETHODDEF_DOC_O(SCA_KeyboardSensor, getKeyStatus,
 	
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
 	const SCA_InputEvent & inevent = inputdev->GetEvent(keycode);
-	return PyLong_FromLong(inevent.m_status);*/
+	return PyLong_FromLong(inevent.m_status[inevent.m_status.size() - 1]);
 	Py_RETURN_NONE;
 }
 
