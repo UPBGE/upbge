@@ -36,14 +36,16 @@ CListWrapper::CListWrapper(void *client,
 						   int (*getSize)(void *),
 						   PyObject *(*getItem)(void *, int),
 						   const char *(*getItemName)(void *, int),
-						   bool (*setItem)(void *, int, PyObject *))
+						   bool (*setItem)(void *, int, PyObject *),
+						   int flag)
 :m_client(client),
 m_base(base),
 m_checkValid(checkValid),
 m_getSize(getSize),
 m_getItem(getItem),
 m_getItemName(getItemName),
-m_setItem(setItem)
+m_setItem(setItem),
+m_flag(flag)
 {
 	/* Incref to always have a existing pointer.
 	 * If there's no base python proxy it mean that we must manage the
@@ -98,6 +100,11 @@ bool CListWrapper::AllowSetItem()
 bool CListWrapper::AllowGetItemByName()
 {
 	return m_getItemName != NULL;
+}
+
+bool CListWrapper::AllowFindValue()
+{
+	return (m_flag & FLAG_FIND_VALUE);
 }
 
 // ================================================================
@@ -318,22 +325,26 @@ int CListWrapper::py_contains(PyObject *self, PyObject *key)
 		return -1;
 	}
 
-	if (!list->AllowGetItemByName()) {
-		PyErr_SetString(PyExc_SystemError, "CListWrapper's item type doesn't support access by key");
-		return -1;
+	if (PyUnicode_Check(key)) {
+		if (!list->AllowGetItemByName()) {
+			PyErr_SetString(PyExc_SystemError, "CListWrapper's item type doesn't support access by key");
+			return -1;
+		}
+
+		const char *name = _PyUnicode_AsString(key);
+
+		for (unsigned int i = 0, size = list->GetSize(); i < size; ++i) {
+			if (strcmp(list->GetItemName(i), name) == 0) {
+				return 1;
+			}
+		}
 	}
 
-	if (!PyUnicode_Check(key)) {
-		PyErr_SetString(PyExc_SystemError, "key in list, CListWrapper: key must be a string");
-		return -1;
-	}
-
-	const char *name = _PyUnicode_AsString(key);
-	int size = list->GetSize();
-
-	for (unsigned int i = 0; i < size; ++i) {
-		if (strcmp(list->GetItemName(i), name) == 0) {
-			return 1;
+	if (list->AllowFindValue()) {
+		for (unsigned int i = 0, size = list->GetSize(); i < size; ++i) {
+			if (PyObject_RichCompareBool(list->GetItem(i), key, Py_EQ) == 1) {
+				return 1;
+			}
 		}
 	}
 

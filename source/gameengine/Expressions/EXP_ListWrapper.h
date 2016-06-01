@@ -59,14 +59,24 @@ private:
 	/// Sets the nex item to the index place, return false when failed item conversion.
 	bool (*m_setItem)(void *, int, PyObject *);
 
+	/// Flags used to define special behaviours of the list.
+	int m_flag;
+
 public:
+	enum {
+		FLAG_NONE = 0,
+		/// Allow iterating on all items and compare the value of it with a research key.
+		FLAG_FIND_VALUE = (1 << 0)
+	};
+
 	CListWrapper(void *client,
 						PyObject *base,
 						bool (*checkValid)(void *),
 						int (*getSize)(void *),
 						PyObject *(*getItem)(void *, int),
 						const char *(*getItemName)(void *, int),
-						bool (*setItem)(void *, int, PyObject *));
+						bool (*setItem)(void *, int, PyObject *),
+						int flag = FLAG_NONE);
 	~CListWrapper();
 
 	/// \section Python Interface
@@ -77,6 +87,7 @@ public:
 	bool SetItem(int index, PyObject *item);
 	bool AllowSetItem();
 	bool AllowGetItemByName();
+	bool AllowFindValue();
 
 	/// \section CValue Inherited Functions.
 	virtual const STR_String &GetText();
