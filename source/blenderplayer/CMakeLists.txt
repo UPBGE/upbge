@@ -108,7 +108,6 @@ endif()
 	# Sort libraries
 	set(BLENDER_SORTED_LIBS
 		ge_player_ghost 
-		ge_player_common 
 		bf_intern_string 
 		bf_intern_ghost
 		bf_rna
@@ -123,7 +122,6 @@ endif()
 		ge_launcher
 		ge_ghost
 		ge_player_ghost
-		ge_player_common
 		ge_converter 
 		ge_logic_ketsji 
 		ge_phys_bullet 

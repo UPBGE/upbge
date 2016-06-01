@@ -23,5 +23,4 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-add_subdirectory(common)
 add_subdirectory(ghost)

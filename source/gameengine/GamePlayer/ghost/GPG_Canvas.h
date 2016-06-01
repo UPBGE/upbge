@@ -36,20 +36,75 @@
 #pragma warning (disable:4786)
 #endif  /* WIN32 */
 
-#include "GPC_Canvas.h"
+#include "RAS_ICanvas.h"
+#include "RAS_Rect.h"
 
 #include "GHOST_IWindow.h"
 
+class RAS_IRasterizer;
 
-class GPG_Canvas : public GPC_Canvas
+class GPG_Canvas : public RAS_ICanvas
 {
 protected:
-	/** GHOST window. */
+	/// GHOST window.
 	GHOST_IWindow* m_window;
+	/// Width of the context.
+	int m_width;
+	/// Height of the context.
+	int m_height;
+	/** Rect that defines the area used for rendering,
+	 * relative to the context.
+	 */
+	RAS_Rect m_displayarea;
+
+	int m_viewport[4];
 
 public:
 	GPG_Canvas(RAS_IRasterizer *rasty, GHOST_IWindow* window);
-	virtual ~GPG_Canvas(void);
+	virtual ~GPG_Canvas();
+
+	/**
+	 * \section Methods inherited from abstract base class RAS_ICanvas.
+	 */
+	
+	virtual int GetWidth() const
+	{
+		return m_width;
+	}
+
+	virtual int GetHeight() const
+	{
+		return m_height;
+	}
+
+	virtual const RAS_Rect &GetDisplayArea() const
+	{
+		return m_displayarea;
+	}
+
+	virtual void SetDisplayArea(RAS_Rect *rect)
+	{
+		m_displayarea= *rect;
+	}
+	
+	virtual RAS_Rect &GetWindowArea()
+	{
+		return m_displayarea;
+	}
+
+	virtual void BeginFrame();
+
+	/// Draws overlay banners and progress bars.
+	virtual void EndFrame();
+	
+	virtual void SetViewPort(int x1, int y1, int x2, int y2);
+	virtual void UpdateViewPort(int x1, int y1, int x2, int y2);
+	virtual const int *GetViewPort();
+
+	virtual void ClearColor(float r, float g, float b, float a);
+	virtual void ClearBuffer(int type);
+
+	virtual void MakeScreenShot(const char* filename);
 
 	virtual void Init(void);
 	virtual void SetMousePosition(int x, int y);
@@ -64,12 +119,13 @@ public:
 
 	virtual void GetDisplayDimensions(int &width, int &height);
 
+	virtual void Resize(int width, int height);
 	virtual void ResizeWindow(int width, int height);
 	virtual void SetFullScreen(bool enable);
 	virtual bool GetFullScreen();
 
-	bool BeginDraw() { return true; }
-	void EndDraw() {};
+	virtual bool BeginDraw();
+	virtual void EndDraw();
 };
 
 #endif  /* __GPG_CANVAS_H__ */
