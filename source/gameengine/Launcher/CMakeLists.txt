@@ -42,6 +42,7 @@ set(INC
 	../../blender/gpu
 	../../blender/makesdna
 	../../blender/makesrna
+	../../../intern/guardedalloc
 	../../../intern/ghost
 	../../../intern/string
 )

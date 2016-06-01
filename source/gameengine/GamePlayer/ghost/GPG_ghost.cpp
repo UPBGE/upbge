@@ -1073,53 +1073,17 @@ int main(
 						}
 
 						// Enter main loop
-						bool run = true;
-#ifdef WITH_PYTHON
-						char *python_main = NULL;
-						pynextframestate.state = NULL;
-						pynextframestate.func = NULL;
-						python_main = KX_GetPythonMain(scene);
-						if (python_main) {
-							char *python_code = KX_GetPythonCode(maggie, python_main);
-							if (python_code) {
-								// Set python environement variable.
-								KX_Scene *startscene = app.GetStartScene();
-								KX_SetActiveScene(startscene);
-								PHY_SetActiveEnvironment(startscene->GetPhysicsEnvironment());
+						app.EngineMainLoop();
 
-								pynextframestate.state = &app;
-								pynextframestate.func = &LA_Launcher::PythonEngineNextFrame;
+						exitcode = app.GetExitRequested();
+						exitstring = app.GetExitString();
+						gs = *app.GetGlobalSettings();
 
-								printf("Yielding control to Python script '%s'...\n", python_main);
-								PyRun_SimpleString(python_code);
-								printf("Exit Python script '%s'\n", python_main);
-								MEM_freeN(python_code);
-							}
-							else {
-								fprintf(stderr, "ERROR: cannot yield control to Python: no Python text data block named '%s'\n", python_main);
-							}
-						}
-						else {
-#endif // WITH_PYTHON
-							while (run) {
-								run = app.EngineNextFrame();
-							}
-							exitcode = app.GetExitRequested();
-							exitstring = app.GetExitString();
-							gs = *app.GetGlobalSettings();
-#ifdef WITH_PYTHON
-						}
-#endif // WITH_PYTHON
 						app.ExitEngine();
 
 						BLO_blendfiledata_free(bfd);
 						/* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */
 						G.main = NULL;
-#ifdef WITH_PYTHON
-						if (python_main) {
-							MEM_freeN(python_main);
-						}
-#endif // WITH_PYTHON
 					}
 				} while (exitcode == KX_EXIT_REQUEST_RESTART_GAME || exitcode == KX_EXIT_REQUEST_START_OTHER_GAME);
 

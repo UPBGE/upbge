@@ -135,7 +135,10 @@ public:
 	/// Shuts the game engine down.
 	virtual void ExitEngine();
 
+	/// Compute next frame.
 	bool EngineNextFrame();
+	/// Execute the loop of the engine, return when receive a exit request from the engine.
+	void EngineMainLoop();
 
 #ifdef WITH_PYTHON
 	static int PythonEngineNextFrame(void *state);

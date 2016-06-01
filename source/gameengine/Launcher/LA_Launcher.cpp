@@ -38,6 +38,8 @@
 #include "KX_KetsjiEngine.h"
 #include "KX_Globals.h"
 #include "KX_PythonInit.h"
+#include "KX_PythonMain.h"
+#include "KX_PyConstraintBinding.h"
 
 #include "KX_BlenderSceneConverter.h"
 #include "BL_BlenderDataConversion.h"
@@ -57,6 +59,8 @@ extern "C" {
 #  include "BKE_main.h"
 
 #  include "DNA_scene_types.h"
+
+#  include "MEM_guardedalloc.h"
 }
 
 #ifdef WITH_AUDASPACE
@@ -402,4 +406,42 @@ bool LA_Launcher::EngineNextFrame()
 		return false;
 	}
 	return true;
+}
+
+void LA_Launcher::EngineMainLoop()
+{
+#ifdef WITH_PYTHON
+	char *python_main = KX_GetPythonMain(m_startScene);
+	if (python_main) {
+		char *python_code = KX_GetPythonCode(m_maggie, python_main);
+		if (python_code) {
+			// Set python environement variable.
+			KX_SetActiveScene(m_kxStartScene);
+			PHY_SetActiveEnvironment(m_kxStartScene->GetPhysicsEnvironment());
+
+			pynextframestate.state = this;
+			pynextframestate.func = &PythonEngineNextFrame;
+
+			std::cout << "Yielding control to Python script '" << python_main << "'..." << std::endl;
+			PyRun_SimpleString(python_code);
+			std::cout << "Exit Python script '" << python_main << "'" << std::endl;
+			MEM_freeN(python_code);
+		}
+		else {
+			std::cerr << "ERROR: cannot yield control to Python: no Python text data block named '" << python_main << "'" << std::endl;
+		}
+	}
+	else {
+		pynextframestate.state = NULL;
+		pynextframestate.func = NULL;
+#endif
+
+		bool run = true;
+		while (run) {
+			run  = EngineNextFrame();
+		}
+
+#ifdef WITH_PYTHON
+	}
+#endif
 }

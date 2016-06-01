@@ -221,10 +221,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		launcher.InitEngine();
 
 		std::cout << std::endl << "Blender Game Engine Started" << std::endl;
-		bool run = true;
-		while (run) {
-			run = launcher.EngineNextFrame();
-		}
+		launcher.EngineMainLoop();
 		std::cout << "Blender Game Engine Finished" << std::endl;
 
 		exitrequested = launcher.GetExitRequested();

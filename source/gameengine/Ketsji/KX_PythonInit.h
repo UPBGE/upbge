@@ -65,9 +65,9 @@ void removeImportMain(struct Main *maggie);
 typedef int (*PyNextFrameFunc)(void *);
 
 struct PyNextFrameState {
-	/** can be either a GPG_NextFrameState or a BL_KetsjiNextFrameState */
+	/// Launcher currently used (LA_Launcher).
 	void *state;
-	/** can be either GPG_PyNextFrame or BL_KetsjiPyNextFrame */
+	/// Launcher python frame function (LA_Launcher::PythonEngineNextFrame).
 	PyNextFrameFunc func;
 };
 extern struct PyNextFrameState pynextframestate;
