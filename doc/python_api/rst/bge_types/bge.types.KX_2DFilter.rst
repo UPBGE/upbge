@@ -9,7 +9,7 @@ base class --- :class:`BL_Shader`
 
    2D filter shader object. Can be alterated with :class:`BL_Shader`'s functions.
 
-   .. method:: setTexture(index, bindCode)
+   .. method:: setTexture(index, bindCode, samplerName)
 
       Set specified texture bind code :data:`bindCode` in specified slot :data:`index`. Any call to :data:`setTexture`
       should be followed by a call to :data:`BL_Shader.setSampler` with the same :data:`index`.
@@ -18,3 +18,5 @@ base class --- :class:`BL_Shader`
       :type index: integer
       :arg bindCode: The texture bind code/Id.
       :type bindCode: integer
+      :arg samplerName: The shader sampler name set to :data:`index` if :data:`samplerName` is passed in the function. (optional)
+      :type samplerName: string
