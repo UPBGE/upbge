@@ -796,13 +796,13 @@ void KX_GameObject::RemoveMeshes()
 	m_meshes.clear();
 }
 
-void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos)
+void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
 {
 	// Handle dupligroups
 	if (m_pInstanceObjects) {
 		for (CListValue::iterator it = m_pInstanceObjects->GetBegin(), end = m_pInstanceObjects->GetEnd(); it != end; ++it) {
 			KX_GameObject *instob = (KX_GameObject *)*it;
-			instob->UpdateLod(cam_pos);
+			instob->UpdateLod(cam_pos, lodfactor);
 		}
 	}
 
@@ -811,9 +811,9 @@ void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos)
 	}
 
 	KX_Scene *scene = GetScene();
-	float distance2 = NodeGetWorldPosition().distance2(cam_pos);
-
-	KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_previousLodLevel, distance2);
+	float dist = NodeGetWorldPosition().distance2(cam_pos);
+	dist /= lodfactor;
+	KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_previousLodLevel, dist);
 	const unsigned short level = lodLevel->GetLevel();
 
 	if (m_previousLodLevel != level) {

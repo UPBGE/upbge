@@ -1779,7 +1779,7 @@ void KX_Scene::UpdateObjectLods()
 	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		KX_GameObject *gameobj = (KX_GameObject *)*it;
 		if (!gameobj->GetCulled()) {
-			gameobj->UpdateLod(cam_pos);
+			gameobj->UpdateLod(cam_pos, m_active_camera->GetLodFactor());
 		}
 	}
 }
@@ -2188,7 +2188,6 @@ PyMethodDef KX_Scene::Methods[] = {
 	KX_PYMETHODTABLE(KX_Scene, suspend),
 	KX_PYMETHODTABLE(KX_Scene, resume),
 	KX_PYMETHODTABLE(KX_Scene, drawObstacleSimulation),
-	KX_PYMETHODTABLE(KX_Scene, setLodScale),
 
 	
 	/* dict style access */
@@ -2629,42 +2628,6 @@ KX_PYMETHODDEF_DOC(KX_Scene, get, "")
 	
 	Py_INCREF(def);
 	return def;
-}
-
-KX_PYMETHODDEF_DOC(KX_Scene, setLodScale, "setLodScale(pythonObjectList, scale")
-{
-	PyObject *list;
-	KX_GameObject *gameobj;
-	float scale;
-	if (!PyArg_ParseTuple(args, "Of", &list, &scale)) {
-		PyErr_SetString(PyExc_ValueError, "KX_Scene.setLodScale(pythonObjectList, scale): KX_Scene expected a list of KX_GameObject and a float");
-		return NULL;
-	}
-
-	PyObject *iter = PyObject_GetIter(list);
-	if (!iter) {
-		PyErr_SetString(PyExc_ValueError, "KX_Scene.setLodScale(pythonObjectList, scale): KX_Scene expected a list of KX_GameObject and a float");
-		return NULL;
-	}
-
-	while (true) {
-		PyObject *next = PyIter_Next(iter);
-		if (!next) {
-			// nothing left in the iterator
-			break;
-		}
-
-		if (!ConvertPythonToGameObject(m_logicmgr, next, &gameobj, false, "KX_Scene.setLodScale(pythonObjectList, scale): KX_Scene expected a list of KX_GameObject and a float"))
-			return NULL;
-
-		if (!gameobj->GetLodManager()) {
-			PyErr_SetString(PyExc_ValueError, "Warning: KX_Scene.setLodScale(pythonObjectList, scale): One or several KX_GameObject in the python object list have no LOD");
-		}
-		if (gameobj->GetLodManager()) {
-			gameobj->GetLodManager()->SetScale(scale);
-		}
-	}
-	Py_RETURN_NONE;
 }
 
 #endif // WITH_PYTHON

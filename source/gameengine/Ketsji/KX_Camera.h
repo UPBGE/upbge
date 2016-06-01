@@ -82,6 +82,9 @@ protected:
 	 * Storage for the modelview matrix that is passed to the
 	 * rasterizer. */
 	MT_Matrix4x4 m_modelview_matrix;
+
+	/** Factor for level of detail*/
+	float m_lod_factor;
 	
 	/**
 	 * true if the view frustum (modelview/projection matrix)
@@ -218,6 +221,16 @@ public:
 	float				GetFocalLength() const;
 	/** Gets all camera data. */
 	RAS_CameraData*		GetCameraData();
+
+	/** Get level of detail factor */
+	float GetLodFactor() {
+		return m_lod_factor;
+	}
+
+	/** Set level of detail factor */
+	void SetLodFactor(float lodfactor) {
+		m_lod_factor = lodfactor;
+	}
 	
 	/**
 	 * Tests if the given sphere is inside this camera's view frustum.
@@ -328,6 +341,10 @@ public:
 	static PyObject*	pyattr_get_INSIDE(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_OUTSIDE(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_INTERSECT(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+
+	/** Level of detail factor get/set */
+	static PyObject*	pyattr_get_lod_factor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_lod_factor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif
 };
 

@@ -53,7 +53,8 @@ KX_Camera::KX_Camera(void* sgReplicationInfo,
       m_frustum_culling(frustum_culling),
       m_set_projection_matrix(false),
       m_set_frustum_center(false),
-      m_delete_node(delete_node)
+      m_delete_node(delete_node),
+	  m_lod_factor(1.0f)
 {
 	// setting a name would be nice...
 	m_name = "cam";
@@ -541,6 +542,7 @@ PyAttributeDef KX_Camera::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("perspective", KX_Camera, pyattr_get_perspective, pyattr_set_perspective),
 	
 	KX_PYATTRIBUTE_RW_FUNCTION("lens",	KX_Camera,	pyattr_get_lens, pyattr_set_lens),
+	KX_PYATTRIBUTE_RW_FUNCTION("lodFactor", KX_Camera, pyattr_get_lod_factor, pyattr_set_lod_factor),
 	KX_PYATTRIBUTE_RW_FUNCTION("fov",	KX_Camera,	pyattr_get_fov,  pyattr_set_fov),
 	KX_PYATTRIBUTE_RW_FUNCTION("ortho_scale",	KX_Camera,	pyattr_get_ortho_scale, pyattr_set_ortho_scale),
 	KX_PYATTRIBUTE_RW_FUNCTION("near",	KX_Camera,	pyattr_get_near, pyattr_set_near),
@@ -921,6 +923,24 @@ int KX_Camera::pyattr_set_use_viewport(void *self_v, const KX_PYATTRIBUTE_DEF *a
 	return PY_SET_ATTR_SUCCESS;
 }
 
+PyObject *KX_Camera::pyattr_get_lod_factor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
+	return PyFloat_FromDouble(self->GetLodFactor());
+}
+
+int KX_Camera::pyattr_set_lod_factor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
+	float factor = PyFloat_AsDouble(value);
+	if (factor == -1.0f && PyErr_Occurred()) {
+		PyErr_SetString(PyExc_AttributeError, "camera.lodScaleFactor = float: KX_Camera, expected a float");
+		return PY_SET_ATTR_FAIL;
+	}
+	CLAMP(factor, 0.001f, 100000.0f);
+	self->SetLodFactor(factor);
+	return PY_SET_ATTR_SUCCESS;
+}
 
 PyObject *KX_Camera::pyattr_get_projection_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
