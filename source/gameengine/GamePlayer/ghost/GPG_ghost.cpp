@@ -35,82 +35,64 @@
 #include <math.h>
 
 #ifdef __linux__
-#ifdef __alpha__
-#include <signal.h>
-#endif /* __alpha__ */
+#  ifdef __alpha__
+#    include <signal.h>
+#  endif /* __alpha__ */
 #endif /* __linux__ */
 
-#include "KX_KetsjiEngine.h"
-#include "KX_Globals.h"
-#include "KX_PythonInit.h"
-#include "KX_PythonMain.h"
-#include "KX_PyConstraintBinding.h" // for PHY_SetActiveEnvironment
-
-/**********************************
-* Begin Blender include block
-**********************************/
-#ifdef __cplusplus
 extern "C"
 {
-#endif  // __cplusplus
-#include "MEM_guardedalloc.h"
-#include "MEM_CacheLimiterC-Api.h"
+#  include "MEM_guardedalloc.h"
+#  include "MEM_CacheLimiterC-Api.h"
 
-#include "BLI_threads.h"
-#include "BLI_mempool.h"
-#include "BLI_blenlib.h"
+#  include "BLI_threads.h"
+#  include "BLI_mempool.h"
+#  include "BLI_blenlib.h"
 
-#include "DNA_scene_types.h"
-#include "DNA_userdef_types.h"
+#  include "DNA_scene_types.h"
 
-#include "BLO_readfile.h"
-#include "BLO_runtime.h"
+#  include "BLO_readfile.h"
+#  include "BLO_runtime.h"
 
-#include "BKE_appdir.h"
-#include "BKE_blender.h"
-#include "BKE_depsgraph.h"
-#include "BKE_global.h"
-#include "BKE_icons.h"
-#include "BKE_image.h"
-#include "BKE_node.h"
-#include "BKE_report.h"
-#include "BKE_library.h"
-#include "BKE_modifier.h"
-#include "BKE_material.h"
-#include "BKE_text.h"
-#include "BKE_sound.h"
+#  include "BKE_appdir.h"
+#  include "BKE_blender.h"
+#  include "BKE_depsgraph.h"
+#  include "BKE_global.h"
+#  include "BKE_icons.h"
+#  include "BKE_image.h"
+#  include "BKE_node.h"
+#  include "BKE_report.h"
+#  include "BKE_library.h"
+#  include "BKE_modifier.h"
+#  include "BKE_material.h"
+#  include "BKE_text.h"
+#  include "BKE_sound.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_moviecache.h"
-	
-#ifdef __APPLE__
+#  include "IMB_imbuf.h"
+#  include "IMB_moviecache.h"
+
+#  ifdef __APPLE__
 	int GHOST_HACK_getFirstFile(char buf[]);
-#endif
-	
-// For BLF
-#include "BLF_api.h"
-#include "BLT_translation.h"
-#include "BLT_lang.h"
-extern int datatoc_bfont_ttf_size;
-extern char datatoc_bfont_ttf[];
-extern int datatoc_bmonofont_ttf_size;
-extern char datatoc_bmonofont_ttf[];
+#  endif
 
-#ifdef __cplusplus
+// For BLF
+#  include "BLF_api.h"
+#  include "BLT_translation.h"
+#  include "BLT_lang.h"
+
+	extern int datatoc_bfont_ttf_size;
+	extern char datatoc_bfont_ttf[];
+	extern int datatoc_bmonofont_ttf_size;
+	extern char datatoc_bmonofont_ttf[];
+
 }
-#endif // __cplusplus
 
 #include "GPU_draw.h"
-
-/**********************************
-* End Blender include block
-**********************************/
 
 #include "LA_SystemCommandLine.h"
 #include "LA_PlayerLauncher.h"
 
 #include "GHOST_ISystem.h"
-#include "RAS_IRasterizer.h"
 
 #include "BKE_main.h"
 
