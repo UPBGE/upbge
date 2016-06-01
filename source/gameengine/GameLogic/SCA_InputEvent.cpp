@@ -121,7 +121,8 @@ PyObject *SCA_InputEvent::pyattr_get_status(void *self_v, const KX_PYATTRIBUTE_D
 							 SCA_InputEvent::get_status_size_cb,
 							 SCA_InputEvent::get_status_item_cb,
 							 NULL,
-							 NULL))->NewProxy(true);
+							 NULL,
+							 CListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
 }
 
 int SCA_InputEvent::get_queue_size_cb(void *self_v)
@@ -142,7 +143,8 @@ PyObject *SCA_InputEvent::pyattr_get_queue(void *self_v, const KX_PYATTRIBUTE_DE
 							 SCA_InputEvent::get_queue_size_cb,
 							 SCA_InputEvent::get_queue_item_cb,
 							 NULL,
-							 NULL))->NewProxy(true);
+							 NULL,
+							 CListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
 }
 
 int SCA_InputEvent::get_values_size_cb(void *self_v)
@@ -163,7 +165,8 @@ PyObject *SCA_InputEvent::pyattr_get_values(void *self_v, const KX_PYATTRIBUTE_D
 							 SCA_InputEvent::get_values_size_cb,
 							 SCA_InputEvent::get_values_item_cb,
 							 NULL,
-							 NULL))->NewProxy(true);
+							 NULL,
+							 CListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
 }
 
 PyObject *SCA_InputEvent::tp_richcompare(PyObject *a, PyObject *b, int op)
