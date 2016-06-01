@@ -46,8 +46,6 @@
 
 class SCA_IInputDevice 
 {
-
-	
 public:
 
 	SCA_IInputDevice();
@@ -211,6 +209,7 @@ public:
 
 protected:
 	SCA_InputEvent m_eventsTable[SCA_IInputDevice::KX_MAX_KEYS];
+	std::wstring m_text;
 
 public:
 	virtual SCA_InputEvent& GetEvent(SCA_IInputDevice::SCA_EnumInputs inputcode);
@@ -242,6 +241,8 @@ public:
 	virtual void ClearEvents();
 
 	virtual void ReleaseMoveEvent();
+
+	const std::wstring& GetText() const;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

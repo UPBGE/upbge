@@ -106,6 +106,7 @@ PyMethodDef SCA_PythonKeyboard::Methods[] = {
 PyAttributeDef SCA_PythonKeyboard::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("events", SCA_PythonKeyboard, pyattr_get_events),
 	KX_PYATTRIBUTE_RO_FUNCTION("active_events", SCA_PythonKeyboard, pyattr_get_active_events),
+	KX_PYATTRIBUTE_RO_FUNCTION("text", SCA_PythonKeyboard, pyattr_get_text),
 	{ NULL }	//Sentinel
 };
 
@@ -139,6 +140,13 @@ PyObject *SCA_PythonKeyboard::pyattr_get_active_events(void *self_v, const KX_PY
 	}
 	Py_INCREF(self->m_event_dict);
 	return self->m_event_dict;
+}
+
+PyObject *SCA_PythonKeyboard::pyattr_get_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_PythonKeyboard *self = (SCA_PythonKeyboard *)self_v;
+
+	return PyUnicode_FromWideChar(self->m_keyboard->GetText().data(), self->m_keyboard->GetText().size());
 }
 
 #endif

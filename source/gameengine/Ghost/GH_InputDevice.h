@@ -47,14 +47,21 @@ protected:
 	 * System dependent keyboard codes are stored as ints.
 	 */
 	std::map<int, SCA_EnumInputs> m_reverseKeyTranslateTable;
+	std::map<int, SCA_EnumInputs> m_reverseButtonTranslateTable;
+	std::map<int, SCA_EnumInputs> m_reverseWindowTranslateTable;
+
 	short m_exitkey;
 	bool m_hookesc;
+
+	void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
 
 public:
 	GH_InputDevice();
 	virtual ~GH_InputDevice();
 
-	void ConvertEvent(int incode, int val, unsigned int unicode);
+	void ConvertKeyEvent(int incode, int val, unsigned int unicode);
+	void ConvertButtonEvent(int incode, int val, unsigned int unicode);
+	void ConvertWindowEvent(int incode, int val, unsigned int unicode);
 	void ConvertMoveEvent(int x, int y);
 	void ConvertWheelEvent(int z);
 

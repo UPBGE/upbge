@@ -49,15 +49,14 @@ GH_EventConsumer::~GH_EventConsumer()
 
 void GH_EventConsumer::HandleWindowEvent(GHOST_TEventType type)
 {
-	m_device->ConvertEvent(type, true, 0);
+	m_device->ConvertWindowEvent(type, true, 0);
 }
 
 void GH_EventConsumer::HandleKeyEvent(GHOST_TEventDataPtr data, bool down)
 {
 	GHOST_TEventKeyData *keyData = (GHOST_TEventKeyData *)data;
 	unsigned int unicode = keyData->utf8_buf[0] ? BLI_str_utf8_as_unicode(keyData->utf8_buf) : keyData->ascii;
-
-	m_device->ConvertEvent(keyData->key, down, unicode);
+	m_device->ConvertKeyEvent(keyData->key, down, unicode);
 }
 
 void GH_EventConsumer::HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindow *window)
@@ -80,7 +79,7 @@ void GH_EventConsumer::HandleButtonEvent(GHOST_TEventDataPtr data, bool down)
 {
 	GHOST_TEventButtonData *buttonData = (GHOST_TEventButtonData *)data;
 
-	m_device->ConvertEvent(buttonData->button, down, 0);
+	m_device->ConvertButtonEvent(buttonData->button, down, 0);
 }
 
 bool GH_EventConsumer::processEvent(GHOST_IEvent *event)

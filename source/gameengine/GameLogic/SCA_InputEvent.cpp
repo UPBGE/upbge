@@ -43,6 +43,14 @@ SCA_InputEvent::SCA_InputEvent()
 	m_values.push_back(0); // TODO mouse default value.
 }
 
+SCA_InputEvent::SCA_InputEvent(int type)
+	:m_unicode(0),
+	m_type(type)
+{
+	m_status.push_back(KX_NONE);
+	m_values.push_back(0); // TODO mouse default value.
+}
+
 void SCA_InputEvent::Clear()
 {
 	SCA_EnumInputs status = m_status[m_status.size() - 1];

@@ -155,10 +155,11 @@ GH_InputDevice::GH_InputDevice()
 	m_reverseKeyTranslateTable[GHOST_kKeyRightShift] = KX_RIGHTSHIFTKEY;
 
 	// Mouse buttons.
-	m_reverseKeyTranslateTable[GHOST_kButtonMaskMiddle] = KX_MIDDLEMOUSE;
-	m_reverseKeyTranslateTable[GHOST_kButtonMaskRight] = KX_RIGHTMOUSE;
-	m_reverseKeyTranslateTable[GHOST_kButtonMaskLeft] = KX_LEFTMOUSE;
+	m_reverseButtonTranslateTable[GHOST_kButtonMaskMiddle] = KX_MIDDLEMOUSE;
+	m_reverseButtonTranslateTable[GHOST_kButtonMaskRight] = KX_RIGHTMOUSE;
+	m_reverseButtonTranslateTable[GHOST_kButtonMaskLeft] = KX_LEFTMOUSE;
 
+	// Window events.
 	m_reverseKeyTranslateTable[GHOST_kEventQuit] = KX_WINQUIT;
 	m_reverseKeyTranslateTable[GHOST_kEventWindowClose] = KX_WINCLOSE;
 }
@@ -167,13 +168,24 @@ GH_InputDevice::~GH_InputDevice()
 {
 }
 
-/** 
- * ConvertBPEvent translates Windows keyboard events into ketsji kbd events.
- * Extra event information is stored, like ramp-mode (just released/pressed)
- */
-void GH_InputDevice::ConvertEvent(int incode, int val, unsigned int unicode)
+void GH_InputDevice::ConvertKeyEvent(int incode, int val, unsigned int unicode)
 {
-	SCA_InputEvent &event = m_eventsTable[m_reverseKeyTranslateTable[incode]];
+	ConvertEvent(m_reverseKeyTranslateTable[incode], val, unicode);
+}
+
+void GH_InputDevice::ConvertButtonEvent(int incode, int val, unsigned int unicode)
+{
+	ConvertEvent(m_reverseButtonTranslateTable[incode], val, unicode);
+}
+
+void GH_InputDevice::ConvertWindowEvent(int incode, int val, unsigned int unicode)
+{
+	ConvertEvent(m_reverseWindowTranslateTable[incode], val, unicode);
+}
+
+void GH_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode)
+{
+	SCA_InputEvent &event = m_eventsTable[type];
 
 	if (event.m_values[event.m_values.size() - 1] != val) {
 		// The key event value changed, we considerate it as the real event.
@@ -181,6 +193,10 @@ void GH_InputDevice::ConvertEvent(int incode, int val, unsigned int unicode)
 		event.m_queue.push_back((val > 0) ? SCA_InputEvent::KX_JUSTACTIVATED : SCA_InputEvent::KX_JUSTRELEASED);
 		event.m_values.push_back(val);
 		event.m_unicode = unicode;
+
+		if (val > 0) {
+			m_text += (wchar_t)unicode;
+		}
 	}
 }
 

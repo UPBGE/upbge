@@ -51,6 +51,7 @@ public:
 	};
 
 	SCA_InputEvent();
+	SCA_InputEvent(int type);
 
 	/// Clear status, values and queue but keep status and value from before.
 	void Clear();
@@ -62,6 +63,7 @@ public:
 	std::vector<SCA_EnumInputs> m_queue;
 	std::vector<int> m_values;
 	unsigned int m_unicode;
+	int m_type;
 
 #ifdef WITH_PYTHON
 	static int get_status_size_cb(void *self_v);

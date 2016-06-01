@@ -36,7 +36,7 @@
 SCA_IInputDevice::SCA_IInputDevice()
 {
 	for (int i = 0; i < SCA_IInputDevice::KX_MAX_KEYS; ++i) {
-		m_eventsTable[i] = SCA_InputEvent();
+		m_eventsTable[i] = SCA_InputEvent(i);
 	}
 }
 
@@ -57,6 +57,7 @@ void SCA_IInputDevice::ClearEvents()
 	for (int i = 0; i < SCA_IInputDevice::KX_MAX_KEYS; ++i) {
 		m_eventsTable[i].Clear();
 	}
+	m_text.clear();
 }
 
 void SCA_IInputDevice::ReleaseMoveEvent()
@@ -82,6 +83,11 @@ void SCA_IInputDevice::ReleaseMoveEvent()
 			event.m_queue.push_back(SCA_InputEvent::KX_JUSTRELEASED);
 		}
 	}
+}
+
+const std::wstring& SCA_IInputDevice::GetText() const
+{
+	return m_text;
 }
 
 SCA_InputEvent& SCA_IInputDevice::GetEvent(SCA_IInputDevice::SCA_EnumInputs inputcode)
