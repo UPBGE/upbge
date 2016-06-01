@@ -78,7 +78,7 @@ void SCA_IInputDevice::ReleaseMoveEvent()
 		SCA_InputEvent &event = m_eventsTable[eventTypes[i]];
 		if ((event.m_values.size() == 1) && (event.m_status[event.m_status.size() - 1] == SCA_InputEvent::KX_ACTIVE)) {
 			event.m_status.pop_back();
-			event.m_status.push_back(SCA_InputEvent::KX_NO_INPUTSTATUS);
+			event.m_status.push_back(SCA_InputEvent::KX_NONE);
 			event.m_queue.push_back(SCA_InputEvent::KX_JUSTRELEASED);
 		}
 	}

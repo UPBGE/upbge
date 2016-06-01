@@ -231,13 +231,13 @@ public:
 	/**
 	 * Next frame: we calculate the new key states. This goes as follows:
 	 *
-	 * KX_NO_INPUTSTATUS -> KX_NO_INPUTSTATUS
+	 * KX_NONE -> KX_NONE
 	 * KX_JUSTACTIVATED  -> KX_ACTIVE
 	 * KX_ACTIVE         -> KX_ACTIVE
-	 * KX_JUSTRELEASED   -> KX_NO_INPUTSTATUS
+	 * KX_JUSTRELEASED   -> KX_NONE
 	 *
 	 * Getting new events provides the
-	 * KX_NO_INPUTSTATUS->KX_JUSTACTIVATED and
+	 * KX_NONE->KX_JUSTACTIVATED and
 	 * KX_ACTIVE->KX_JUSTRELEASED transitions.
 	 */
 	virtual void ClearEvents();

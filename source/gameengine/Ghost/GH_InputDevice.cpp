@@ -177,7 +177,7 @@ void GH_InputDevice::ConvertEvent(int incode, int val, unsigned int unicode)
 
 	if (event.m_values[event.m_values.size() - 1] != val) {
 		// The key event value changed, we considerate it as the real event.
-		event.m_status.push_back((val > 0) ? SCA_InputEvent::KX_ACTIVE : SCA_InputEvent::KX_NO_INPUTSTATUS);
+		event.m_status.push_back((val > 0) ? SCA_InputEvent::KX_ACTIVE : SCA_InputEvent::KX_NONE);
 		event.m_queue.push_back((val > 0) ? SCA_InputEvent::KX_JUSTACTIVATED : SCA_InputEvent::KX_JUSTRELEASED);
 		event.m_values.push_back(val);
 		event.m_unicode = unicode;

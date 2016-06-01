@@ -98,6 +98,8 @@ typedef void * wmUIHandlerRemoveFunc;
 	#include "../../blender/windowmanager/wm_event_system.h"
 }
 
+extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *cam_frame, int always_use_expand_framing);
+
 #ifdef WITH_AUDASPACE
 #  include AUD_DEVICE_H
 #endif

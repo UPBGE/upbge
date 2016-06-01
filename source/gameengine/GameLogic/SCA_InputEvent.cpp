@@ -39,7 +39,7 @@
 SCA_InputEvent::SCA_InputEvent()
 	:m_unicode(0)
 {
-	m_status.push_back(KX_NO_INPUTSTATUS);
+	m_status.push_back(KX_NONE);
 	m_values.push_back(0); // TODO mouse default value.
 }
 
@@ -58,7 +58,7 @@ void SCA_InputEvent::Clear()
 
 bool SCA_InputEvent::Find(SCA_EnumInputs inputenum) const
 {
-	if (inputenum == KX_NO_INPUTSTATUS || inputenum == KX_ACTIVE) {
+	if (inputenum == KX_NONE || inputenum == KX_ACTIVE) {
 		return std::count(m_status.begin(), m_status.end(), inputenum);
 	}
 	else {
@@ -185,7 +185,7 @@ PyObject *SCA_InputEvent::tp_richcompare(PyObject *a, PyObject *b, int op)
 
 		if (val != -1 && event) {
 			if ((val == KX_ACTIVE) ||
-				(val == KX_NO_INPUTSTATUS) ||
+				(val == KX_NONE) ||
 				(val == KX_JUSTACTIVATED) ||
 				(val == KX_JUSTRELEASED))
 			{
