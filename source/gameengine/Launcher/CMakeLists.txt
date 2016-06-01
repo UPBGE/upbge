@@ -29,8 +29,7 @@ set(INC
 	../Converter
 	../Expressions
 	../GameLogic
-	../GamePlayer/common
-	../GamePlayer/ghost
+	../GamePlayer
 	../Ghost
 	../Ketsji
 	../Ketsji/KXNetwork

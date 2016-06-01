@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/GamePlayer/ghost/GPG_Canvas.cpp
+/** \file gameengine/GamePlayer/GPG_Canvas.cpp
  *  \ingroup player
  */
 
