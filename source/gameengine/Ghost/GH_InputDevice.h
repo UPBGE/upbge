@@ -21,7 +21,7 @@
  */
 
 /** \file GH_InputDevice.h
- *  \ingroup player
+ *  \ingroup ghost
  */
 
 #ifndef __GH_KEYBOARDDEVICE_H__

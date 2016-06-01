@@ -15,18 +15,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/GamePlayer/common/GH_EventConsumer.cpp
- *  \ingroup player
+/** \file gameengine/Ghost/GH_EventConsumer.cpp
+ *  \ingroup ghost
  */
 
 

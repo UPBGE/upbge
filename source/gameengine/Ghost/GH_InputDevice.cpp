@@ -20,8 +20,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/GamePlayer/common/GH_InputDevice.cpp
- *  \ingroup player
+/** \file gameengine/Ghost/GH_InputDevice.cpp
+ *  \ingroup ghost
  */
 
 
