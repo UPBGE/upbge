@@ -811,8 +811,8 @@ void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
 	}
 
 	KX_Scene *scene = GetScene();
-	float distance = NodeGetWorldPosition().distance(cam_pos);
-	dist /= lodfactor;
+	float distance = NodeGetWorldPosition().distance2(cam_pos);
+	distance /= (lodfactor * lodfactor);
 	KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_previousLodLevel, distance);
 	const unsigned short level = lodLevel->GetLevel();
 

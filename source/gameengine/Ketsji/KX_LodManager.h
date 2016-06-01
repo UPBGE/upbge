@@ -67,7 +67,7 @@ public:
 	 * \param previouslod Previous lod computed by this function before.
 	 * \param distance2 Squared distance object to the camera.
 	 */
-	KX_LodLevel *GetLevel(KX_Scene *scene, unsigned short previouslod, float distance);
+	KX_LodLevel *GetLevel(KX_Scene *scene, unsigned short previouslod, float distance2);
 
 	/// If it returns true, then the lod is useless then.
 	inline bool Empty() const

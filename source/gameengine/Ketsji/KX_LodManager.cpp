@@ -89,7 +89,7 @@ float KX_LodManager::GetHysteresis(KX_Scene *scene, unsigned short level)
 	return MT_abs(lodnext->GetDistance() - lod->GetDistance()) * hysteresis;
 }
 
-KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, unsigned short previouslod, float distance)
+KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, unsigned short previouslod, float distance2)
 {
 	unsigned short level = 0;
 	unsigned short count = m_lodLevelList.size();
@@ -102,14 +102,14 @@ KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, unsigned short previouslod
 		else if (level == previouslod || level == (previouslod + 1)) {
 			const float hystvariance = GetHysteresis(scene, level);
 			const float newdistance = m_lodLevelList[level + 1]->GetDistance() + hystvariance;
-			if (newdistance > distance) {
+			if (newdistance * newdistance > distance) {
 				break;
 			}
 		}
 		else if (level == (previouslod - 1)) {
 			const float hystvariance = GetHysteresis(scene, level);
 			const float newdistance = m_lodLevelList[level + 1]->GetDistance() - hystvariance;
-			if (newdistance > distance) {
+			if (newdistance * newdistance > distance) {
 				break;
 			}
 		}

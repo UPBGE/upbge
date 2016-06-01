@@ -83,8 +83,8 @@ protected:
 	 * rasterizer. */
 	MT_Matrix4x4 m_modelview_matrix;
 
-	/** Factor for level of detail*/
-	float m_lod_factor;
+	/** Factor for level of detail */
+	float m_lodFactor;
 	
 	/**
 	 * true if the view frustum (modelview/projection matrix)
@@ -223,13 +223,15 @@ public:
 	RAS_CameraData*		GetCameraData();
 
 	/** Get level of detail factor */
-	float GetLodFactor() {
-		return m_lod_factor;
+	float GetLodFactor() const
+	{
+		return m_lodFactor;
 	}
 
 	/** Set level of detail factor */
-	void SetLodFactor(float lodfactor) {
-		m_lod_factor = lodfactor;
+	void SetLodFactor(float lodfactor)
+	{
+		m_lodFactor = lodfactor;
 	}
 	
 	/**

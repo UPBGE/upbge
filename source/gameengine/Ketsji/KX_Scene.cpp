@@ -1775,11 +1775,12 @@ void KX_Scene::UpdateObjectLods()
 		return;
 
 	const MT_Vector3& cam_pos = m_active_camera->NodeGetWorldPosition();
+	const float lodfactor = m_active_camera->GetLodFactor();
 
 	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		KX_GameObject *gameobj = (KX_GameObject *)*it;
 		if (!gameobj->GetCulled()) {
-			gameobj->UpdateLod(cam_pos);
+			gameobj->UpdateLod(cam_pos, lodfactor);
 		}
 	}
 }
@@ -2188,9 +2189,7 @@ PyMethodDef KX_Scene::Methods[] = {
 	KX_PYMETHODTABLE(KX_Scene, suspend),
 	KX_PYMETHODTABLE(KX_Scene, resume),
 	KX_PYMETHODTABLE(KX_Scene, drawObstacleSimulation),
-	KX_PYMETHODTABLE(KX_Scene, setLodScale),
 
-	
 	/* dict style access */
 	KX_PYMETHODTABLE(KX_Scene, get),
 	
