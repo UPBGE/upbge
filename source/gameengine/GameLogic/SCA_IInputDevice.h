@@ -213,7 +213,6 @@ protected:
 	SCA_InputEvent m_eventsTable[SCA_IInputDevice::KX_MAX_KEYS];
 
 public:
-	virtual bool	IsPressed(SCA_IInputDevice::SCA_EnumInputs inputcode)=0;
 	virtual SCA_InputEvent& GetEvent(SCA_IInputDevice::SCA_EnumInputs inputcode);
 
 	/**

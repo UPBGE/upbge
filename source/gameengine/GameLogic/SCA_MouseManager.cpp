@@ -51,8 +51,6 @@ SCA_MouseManager::SCA_MouseManager(SCA_LogicManager* logicmgr,
 	:	SCA_EventManager(logicmgr, MOUSE_EVENTMGR),
 		m_mousedevice (mousedev)
 {
-	m_xpos = 0;
-	m_ypos = 0;
 }
 
 
@@ -97,13 +95,4 @@ void SCA_MouseManager::NextFrame()
 			}
 		}
 	}
-}
-
-bool SCA_MouseManager::IsPressed(SCA_IInputDevice::SCA_EnumInputs inputcode)
-{
-	/* We should guard for non-mouse events maybe? A rather silly side       */
-	/* effect here is that position-change events are considered presses as  */
-	/* well.                                                                 */
-	
-	return m_mousedevice->IsPressed(inputcode);
 }

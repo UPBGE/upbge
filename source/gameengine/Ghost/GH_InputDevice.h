@@ -54,11 +54,6 @@ public:
 	GH_InputDevice();
 	virtual ~GH_InputDevice();
 
-	virtual bool IsPressed(SCA_IInputDevice::SCA_EnumInputs inputcode)
-	{
-		return false;
-	}
-
 	void ConvertEvent(int incode, int val, unsigned int unicode);
 	void ConvertMoveEvent(int x, int y);
 	void ConvertWheelEvent(int z);
