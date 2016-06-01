@@ -25,9 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPG_Application.h
- *  \ingroup player
- *  \brief GHOST Blender Player application declaration file.
+/** \file LA_PlayerLauncher.h
+ *  \ingroup launcher
  */
 
 #ifdef WIN32
@@ -38,7 +37,7 @@
 
 #include "GHOST_Types.h"
 
-class GPG_Application : public LA_Launcher
+class LA_PlayerLauncher : public LA_Launcher
 {
 protected:
 	/// Main window.
@@ -52,8 +51,8 @@ protected:
 	virtual void ExitPython();
 
 public:
-	GPG_Application(GHOST_ISystem* system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv);
-	virtual ~GPG_Application();
+	LA_PlayerLauncher(GHOST_ISystem* system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv);
+	virtual ~LA_PlayerLauncher();
 
 	void startWindow(STR_String& title,
 	                 int windowLeft, int windowTop,

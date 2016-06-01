@@ -23,11 +23,10 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * GHOST Blender Player application implementation file.
  */
 
-/** \file gameengine/GamePlayer/ghost/GPG_Application.cpp
- *  \ingroup player
+/** \file gameengine/Launcher/LA_PlayerLauncher.cpp
+ *  \ingroup launcher
  */
 
 
@@ -39,7 +38,7 @@
 #include "GPU_extensions.h"
 #include "GPU_init_exit.h"
 
-#include "GPG_Application.h"
+#include "LA_PlayerLauncher.h"
 #include "BL_BlenderDataConversion.h"
 
 #include <iostream>
@@ -54,11 +53,9 @@ extern "C"
 {
 #endif  // __cplusplus
 #include "BLI_blenlib.h"
-#include "BLO_readfile.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_sound.h"
-#include "IMB_imbuf.h"
 #include "DNA_scene_types.h"
 #ifdef __cplusplus
 }
@@ -100,13 +97,13 @@ extern "C"
 #  include AUD_DEVICE_H
 #endif
 
-GPG_Application::GPG_Application(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
+LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
 								 RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv)
 	:LA_Launcher(system, maggie, scene, gs, stereoMode, argc, argv)
 {
 }
 
-GPG_Application::~GPG_Application()
+LA_PlayerLauncher::~LA_PlayerLauncher()
 {
 }
 
@@ -168,7 +165,7 @@ static HWND findGhostWindowHWND(GHOST_IWindow* window)
 	return found_ghost_window_hwnd;
 }
 
-void GPG_Application::startScreenSaverPreview(
+void LA_PlayerLauncher::startScreenSaverPreview(
 	HWND parentWindow,
 	const bool stereoVisual,
 	const GHOST_TUns16 samples)
@@ -219,7 +216,7 @@ void GPG_Application::startScreenSaverPreview(
 	}
 }
 
-void GPG_Application::startScreenSaverFullScreen(
+void LA_PlayerLauncher::startScreenSaverFullScreen(
 		int width,
 		int height,
 		int bpp,int frequency,
@@ -238,7 +235,7 @@ void GPG_Application::startScreenSaverFullScreen(
 
 #endif
 
-void GPG_Application::startWindow(
+void LA_PlayerLauncher::startWindow(
         STR_String& title,
         int windowLeft,
         int windowTop,
@@ -270,7 +267,7 @@ void GPG_Application::startWindow(
 	InitEngine();
 }
 
-void GPG_Application::startEmbeddedWindow(
+void LA_PlayerLauncher::startEmbeddedWindow(
         STR_String& title,
         const GHOST_TEmbedderWindowID parentWindow,
         const bool stereoVisual,
@@ -297,7 +294,7 @@ void GPG_Application::startEmbeddedWindow(
 }
 
 
-void GPG_Application::startFullScreen(
+void LA_PlayerLauncher::startFullScreen(
         int width,
         int height,
         int bpp,int frequency,
@@ -322,46 +319,46 @@ void GPG_Application::startFullScreen(
 	InitEngine();
 }
 
-RAS_IRasterizer::DrawType GPG_Application::GetRasterizerDrawMode()
+RAS_IRasterizer::DrawType LA_PlayerLauncher::GetRasterizerDrawMode()
 {
 	return RAS_IRasterizer::RAS_TEXTURED;
 }
 
-bool GPG_Application::GetUseAlwaysExpandFraming()
+bool LA_PlayerLauncher::GetUseAlwaysExpandFraming()
 {
 	return false;
 }
 
-void GPG_Application::InitCamera()
+void LA_PlayerLauncher::InitCamera()
 {
 }
 
-void GPG_Application::InitPython()
+void LA_PlayerLauncher::InitPython()
 {
 }
 
-void GPG_Application::ExitPython()
+void LA_PlayerLauncher::ExitPython()
 {
 #ifdef WITH_PYTHON
 	exitGamePlayerPythonScripting();
 #endif  // WITH_PYTHON
 }
 
-void GPG_Application::InitEngine()
+void LA_PlayerLauncher::InitEngine()
 {
 	GPU_init();
 	BKE_sound_init(m_maggie);
 	LA_Launcher::InitEngine();
 }
 
-void GPG_Application::ExitEngine()
+void LA_PlayerLauncher::ExitEngine()
 {
 	LA_Launcher::ExitEngine();
 	BKE_sound_exit();
 	GPU_exit();
 }
 
-RAS_ICanvas *GPG_Application::CreateCanvas(RAS_IRasterizer *rasty)
+RAS_ICanvas *LA_PlayerLauncher::CreateCanvas(RAS_IRasterizer *rasty)
 {
 	return (new GPG_Canvas(rasty, m_mainWindow));
 }

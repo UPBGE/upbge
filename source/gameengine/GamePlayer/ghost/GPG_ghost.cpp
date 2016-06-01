@@ -107,7 +107,7 @@ extern char datatoc_bmonofont_ttf[];
 **********************************/
 
 #include "LA_SystemCommandLine.h"
-#include "GPG_Application.h"
+#include "LA_PlayerLauncher.h"
 
 #include "GHOST_ISystem.h"
 #include "RAS_IRasterizer.h"
@@ -989,9 +989,9 @@ int main(
 							}
 						}
 
-						GPG_Application app(system, maggie, scene, &gs, stereomode, argc, argv); /* this argc cant be argc_py_clamped, since python uses it */
+						LA_PlayerLauncher launcher(system, maggie, scene, &gs, stereomode, argc, argv); /* this argc cant be argc_py_clamped, since python uses it */
 #ifdef WITH_PYTHON
-						app.SetPythonGlobalDict(globalDict);
+						launcher.SetPythonGlobalDict(globalDict);
 #endif  // WITH_PYTHON
 
 						BLI_strncpy(pathname, maggie->name, sizeof(pathname));
@@ -1002,13 +1002,13 @@ int main(
 #ifdef WIN32
 								if (scr_saver_mode == SCREEN_SAVER_MODE_SAVER)
 								{
-									app.startScreenSaverFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
+									launcher.startScreenSaverFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
 									                               stereoWindow, aasamples);
 								}
 								else
 #endif
 								{
-									app.startFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
+									launcher.startFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
 									                    stereoWindow, aasamples, (scene->gm.playerflag & GAME_PLAYER_DESKTOP_RESOLUTION));
 								}
 							}
@@ -1047,15 +1047,15 @@ int main(
 #ifdef WIN32
 								if (scr_saver_mode == SCREEN_SAVER_MODE_PREVIEW)
 								{
-									app.startScreenSaverPreview(scr_saver_hwnd, stereoWindow, aasamples);
+									launcher.startScreenSaverPreview(scr_saver_hwnd, stereoWindow, aasamples);
 								}
 								else
 #endif
 								{
 									if (parentWindow != 0)
-										app.startEmbeddedWindow(title, parentWindow, stereoWindow, aasamples);
+										launcher.startEmbeddedWindow(title, parentWindow, stereoWindow, aasamples);
 									else
-										app.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
+										launcher.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
 										                stereoWindow, aasamples);
 
 									if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
@@ -1068,18 +1068,18 @@ int main(
 							}
 						}
 						else {
-							app.InitEngine();
+							launcher.InitEngine();
 							exitcode = KX_EXIT_REQUEST_NO_REQUEST;
 						}
 
 						// Enter main loop
-						app.EngineMainLoop();
+						launcher.EngineMainLoop();
 
-						exitcode = app.GetExitRequested();
-						exitstring = app.GetExitString();
-						gs = *app.GetGlobalSettings();
+						exitcode = launcher.GetExitRequested();
+						exitstring = launcher.GetExitString();
+						gs = *launcher.GetGlobalSettings();
 
-						app.ExitEngine();
+						launcher.ExitEngine();
 
 						BLO_blendfiledata_free(bfd);
 						/* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */
