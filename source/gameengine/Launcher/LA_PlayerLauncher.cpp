@@ -35,67 +35,19 @@
 #  include <windows.h>
 #endif
 
-#include "GPU_extensions.h"
 #include "GPU_init_exit.h"
 
 #include "LA_PlayerLauncher.h"
-#include "BL_BlenderDataConversion.h"
 
-#include <iostream>
-#include <BLI_utildefines.h>
-#include <stdlib.h>
-
-/**********************************
- * Begin Blender include block
- **********************************/
-#ifdef __cplusplus
-extern "C"
-{
-#endif  // __cplusplus
-#include "BLI_blenlib.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
+extern "C" {
 #include "BKE_sound.h"
-#include "DNA_scene_types.h"
-#ifdef __cplusplus
 }
-#endif // __cplusplus
-/**********************************
- * End Blender include block
- **********************************/
 
-#include "KX_KetsjiEngine.h"
-
-// include files needed by "KX_BlenderSceneConverter.h"
-#include "SCA_IActuator.h"
-#include "RAS_MeshObject.h"
-#include "RAS_OpenGLRasterizer.h"
-#include "KX_Globals.h"
 #include "KX_PythonInit.h"
-#include "KX_PyConstraintBinding.h"
-
-#include "KX_NetworkMessageManager.h"
-#include "KX_BlenderSceneConverter.h"
-
-#include "GH_InputDevice.h"
-#include "GH_EventConsumer.h"
-
-#include "LA_System.h"
-#include "LA_SystemCommandLine.h"
 
 #include "GPG_Canvas.h" 
 
-#include "STR_String.h"
-
 #include "GHOST_ISystem.h"
-#include "GHOST_IEvent.h"
-#include "GHOST_IEventConsumer.h"
-#include "GHOST_IWindow.h"
-#include "GHOST_Rect.h"
-
-#ifdef WITH_AUDASPACE
-#  include AUD_DEVICE_H
-#endif
 
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
 								 RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv)

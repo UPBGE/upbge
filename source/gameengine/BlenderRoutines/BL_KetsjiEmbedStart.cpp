@@ -30,79 +30,30 @@
  *  \ingroup blroutines
  */
 
-
-#include <signal.h>
-#include <stdlib.h>
-#include <stdio.h>
-
 #ifdef _MSC_VER
    /* don't show stl-warnings */
 #  pragma warning (disable:4786)
 #endif
 
-#include "KX_BlenderCanvas.h"
-
-#include "KX_KetsjiEngine.h"
-#include "KX_NetworkMessageManager.h"
-#include "KX_BlenderSceneConverter.h"
 #include "KX_PythonInit.h"
-#include "KX_PyConstraintBinding.h"
-#include "KX_PythonMain.h"
-#include "KX_Globals.h"
-
-#include "RAS_OpenGLRasterizer.h"
-
-#include "BL_BlenderDataConversion.h"
-
-#include "GPU_extensions.h"
-#include "EXP_Value.h"
 
 #include "GHOST_ISystem.h"
-#include "GH_EventConsumer.h"
-#include "GH_InputDevice.h"
 
 #include "LA_BlenderLauncher.h"
 
 extern "C" {
-	#include "DNA_object_types.h"
-	#include "DNA_view3d_types.h"
-	#include "DNA_screen_types.h"
-	#include "DNA_userdef_types.h"
-	#include "DNA_scene_types.h"
-	#include "DNA_windowmanager_types.h"
+#  include "DNA_scene_types.h"
 
-	#include "BKE_global.h"
-	#include "BKE_report.h"
-	#include "BKE_ipo.h"
-	#include "BKE_main.h"
-	#include "BKE_context.h"
-	#include "BKE_sound.h"
+#  include "BKE_report.h"
+#  include "BKE_main.h"
+#  include "BKE_context.h"
+#  include "BKE_sound.h"
 
-	/* avoid c++ conflict with 'new' */
-	#define new _new
-	#include "BKE_screen.h"
-	#undef new
+#  include "BLI_blenlib.h"
+#  include "BLO_readfile.h"
 
-	#include "MEM_guardedalloc.h"
-
-	#include "BLI_blenlib.h"
-	#include "BLO_readfile.h"
-
-	#include "../../blender/windowmanager/WM_types.h"
-	#include "../../blender/windowmanager/wm_window.h"
-
-/* avoid more includes (not used by BGE) */
-typedef void * wmUIHandlerFunc;
-typedef void * wmUIHandlerRemoveFunc;
-
-	#include "../../blender/windowmanager/wm_event_system.h"
+	void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *cam_frame, int always_use_expand_framing);
 }
-
-extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *cam_frame, int always_use_expand_framing);
-
-#ifdef WITH_AUDASPACE
-#  include AUD_DEVICE_H
-#endif
 
 static BlendFileData *load_game_data(char *filename)
 {
