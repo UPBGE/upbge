@@ -627,7 +627,6 @@ public:
 	KX_PYMETHOD_DOC(KX_Scene, resume);
 	KX_PYMETHOD_DOC(KX_Scene, get);
 	KX_PYMETHOD_DOC(KX_Scene, drawObstacleSimulation);
-	KX_PYMETHOD_DOC(KX_Scene, setLodScale);
 
 
 	/* attributes */

@@ -796,15 +796,14 @@ void KX_GameObject::RemoveMeshes()
 	m_meshes.clear();
 }
 
-void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos)
+void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
 {
 	if (!m_lodManager) {
 		return;
 	}
 
 	KX_Scene *scene = GetScene();
-	float distance2 = NodeGetWorldPosition().distance2(cam_pos);
-
+	const float distance2 = NodeGetWorldPosition().distance2(cam_pos) * (lodfactor * lodfactor);
 	KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_previousLodLevel, distance2);
 	const unsigned short level = lodLevel->GetLevel();
 

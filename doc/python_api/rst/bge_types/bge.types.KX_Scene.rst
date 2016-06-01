@@ -143,17 +143,6 @@ base class --- :class:`PyObjectPlus`
 
       :type: Vector((gx, gy, gz))
 
-   .. method:: setLodScale(pythonObjectList, scale)
-
-      Set LOD scale for all objects with LOD in the pythonObjectList.
-
-      :arg pythonObjectList: list of KX_GameObject with LOD to set 
-      :type: list
-      :arg scale: factor to scale initial LOD distance. If the initial distance of a
-      KX_GameObject in the list is 25.0 and the scale is 2.0, the LOD distance for
-      this KX_GameObject will become 50.0.
-      :type: float
-
    .. method:: addObject(object, reference, time=0.0)
 
       Adds an object to the scene like the Add Object Actuator would.

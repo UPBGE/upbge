@@ -813,7 +813,7 @@ public:
 	/**
 	 * Updates the current lod level based on distance from camera.
 	 */
-	void UpdateLod(const MT_Vector3& cam_pos);
+	void UpdateLod(const MT_Vector3& cam_pos, float lodfactor);
 
 	/**
 	 * Pick out a mesh associated with the integer 'num'.

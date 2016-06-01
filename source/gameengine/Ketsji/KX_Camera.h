@@ -82,7 +82,7 @@ protected:
 	 * Storage for the modelview matrix that is passed to the
 	 * rasterizer. */
 	MT_Matrix4x4 m_modelview_matrix;
-	
+
 	/**
 	 * true if the view frustum (modelview/projection matrix)
 	 * has changed - the clip planes (m_planes) will have to be
@@ -121,6 +121,10 @@ protected:
 	 * whether the camera should delete the node itself (only for shadow camera)
 	 */
 	bool         m_delete_node;
+
+
+	/** Factor for level of detail*/
+	float m_lodFactor;
 
 	/**
 	 * Extracts the camera clip frames from the projection and world-to-camera matrices.
@@ -218,6 +222,11 @@ public:
 	float				GetFocalLength() const;
 	/** Gets all camera data. */
 	RAS_CameraData*		GetCameraData();
+
+	/** Get level of detail factor */
+	float GetLodFactor() const;
+	/** Set level of detail factor */
+	void SetLodFactor(float lodfactor);
 	
 	/**
 	 * Tests if the given sphere is inside this camera's view frustum.
