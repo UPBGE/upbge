@@ -154,9 +154,7 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	m_ueberExecutionPriority(0),
 	m_blenderScene(scene),
 	m_isActivedHysteresis(false),
-	m_lodHysteresisValue(0),
-	m_lodGlobalScale(1.0f),
-	m_lodObjectList(NULL)
+	m_lodHysteresisValue(0)
 {
 	m_suspendedtime = 0.0;
 	m_suspendeddelta = 0.0;
@@ -1791,14 +1789,6 @@ void KX_Scene::SetLodHysteresis(bool active)
 	m_isActivedHysteresis = active;
 }
 
-void KX_Scene::SetGlobalLodScale(float scale)
-{
-	for (int i = 0; i < m_lodObjectList.size(); i++) {
-		m_lodObjectList[i]->GetLodManager()->SetScale(scale);
-		m_lodGlobalScale = scale;
-	}
-}
-
 bool KX_Scene::IsActivedLodHysteresis(void)
 {
 	return m_isActivedHysteresis;
@@ -2198,6 +2188,7 @@ PyMethodDef KX_Scene::Methods[] = {
 	KX_PYMETHODTABLE(KX_Scene, suspend),
 	KX_PYMETHODTABLE(KX_Scene, resume),
 	KX_PYMETHODTABLE(KX_Scene, drawObstacleSimulation),
+	KX_PYMETHODTABLE(KX_Scene, setLodScale),
 
 	
 	/* dict style access */
@@ -2510,27 +2501,6 @@ int KX_Scene::pyattr_set_gravity(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Scene::pyattr_get_lod_global_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_Scene* self = static_cast<KX_Scene*>(self_v);
-
-	return PyFloat_FromDouble(self->m_lodGlobalScale);
-}
-
-int KX_Scene::pyattr_set_lod_global_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_Scene* self = static_cast<KX_Scene*>(self_v);
-
-	float scale = PyFloat_AsDouble(value);
-	if (scale == -1.0f && PyErr_Occurred()) {
-		PyErr_SetString(PyExc_ValueError, "KX_Scene.lodGlobalScale: KX_Scene expected a float");
-		return NULL;
-	}
-	CLAMP(scale, 0.0f, 99999999.0f);
-	self->SetGlobalLodScale(scale);
-	return PY_SET_ATTR_SUCCESS;
-}
-
 PyAttributeDef KX_Scene::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("name",				KX_Scene, pyattr_get_name),
 	KX_PYATTRIBUTE_RO_FUNCTION("objects",			KX_Scene, pyattr_get_objects),
@@ -2544,7 +2514,6 @@ PyAttributeDef KX_Scene::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("post_draw",			KX_Scene, pyattr_get_drawing_callback_post, pyattr_set_drawing_callback_post),
 	KX_PYATTRIBUTE_RW_FUNCTION("pre_draw_setup",	KX_Scene, pyattr_get_drawing_setup_callback_pre, pyattr_set_drawing_setup_callback_pre),
 	KX_PYATTRIBUTE_RW_FUNCTION("gravity",			KX_Scene, pyattr_get_gravity, pyattr_set_gravity),
-	KX_PYATTRIBUTE_RW_FUNCTION("lodGlobalScale",	KX_Scene, pyattr_get_lod_global_scale, pyattr_set_lod_global_scale),
 	KX_PYATTRIBUTE_BOOL_RO("suspended",				KX_Scene, m_suspend),
 	KX_PYATTRIBUTE_BOOL_RO("activity_culling",		KX_Scene, m_activity_culling),
 	KX_PYATTRIBUTE_FLOAT_RW("activity_culling_radius", 0.5f, FLT_MAX, KX_Scene, m_activity_box_radius),
@@ -2660,6 +2629,42 @@ KX_PYMETHODDEF_DOC(KX_Scene, get, "")
 	
 	Py_INCREF(def);
 	return def;
+}
+
+KX_PYMETHODDEF_DOC(KX_Scene, setLodScale, "setLodScale(pythonObjectList, scale")
+{
+	PyObject *list;
+	KX_GameObject *gameobj;
+	float scale;
+	if (!PyArg_ParseTuple(args, "Of", &list, &scale)) {
+		PyErr_SetString(PyExc_ValueError, "KX_Scene.setLodScale(pythonObjectList, scale): KX_Scene expected a list of KX_GameObject and a float");
+		return NULL;
+	}
+
+	PyObject *iter = PyObject_GetIter(list);
+	if (!iter) {
+		PyErr_SetString(PyExc_ValueError, "KX_Scene.setLodScale(pythonObjectList, scale): KX_Scene expected a list of KX_GameObject and a float");
+		return NULL;
+	}
+
+	while (true) {
+		PyObject *next = PyIter_Next(iter);
+		if (!next) {
+			// nothing left in the iterator
+			break;
+		}
+
+		if (!ConvertPythonToGameObject(m_logicmgr, next, &gameobj, false, "KX_Scene.setLodScale(pythonObjectList, scale): KX_Scene expected a list of KX_GameObject and a float"))
+			return NULL;
+
+		if (!gameobj->GetLodManager()) {
+			PyErr_SetString(PyExc_ValueError, "Warning: KX_Scene.setLodScale(pythonObjectList, scale): One or several KX_GameObject in the python object list have no LOD");
+		}
+		if (gameobj->GetLodManager()) {
+			gameobj->GetLodManager()->SetScale(scale);
+		}
+	}
+	Py_RETURN_NONE;
 }
 
 #endif // WITH_PYTHON
