@@ -23,30 +23,18 @@
 #include "EXP_Value.h"
 #include <vector>
 
-class RAS_MeshObject;
 class KX_Scene;
 class KX_BlenderSceneConverter;
+class KX_LodLevel;
 struct Object;
 
-class KX_LodList
+class KX_LodManager: public PyObjectPlus
 {
+	Py_Header
 public:
-	struct Level
-	{
-		float distance;
-		float hysteresis;
-		unsigned short level;
-		unsigned short flags;
-		RAS_MeshObject *meshobj;
-
-		enum {
-			// Use custom hysteresis for this level.
-			USE_HYST = (1 << 0),
-		};
-	};
 
 private:
-	std::vector<Level> m_lodLevelList;
+	std::vector<KX_LodLevel *> m_lodLevelList;
 
 	/** Get the hysteresis from the level or the scene.
 	 * \param scene Scene used to get default hysteresis.
@@ -56,16 +44,31 @@ private:
 
 	int m_refcount;
 
+	/// Factor applied to camera to object distance.
+	float m_lodFactor;
+
 public:
-	KX_LodList(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading);
-	virtual ~KX_LodList();
+	KX_LodManager(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading);
+	virtual ~KX_LodManager();
+
+#ifdef WITH_PYTHON
+
+	virtual PyObject *py_repr()
+	{
+		return PyUnicode_FromString("KX_LodManager");
+	}
+
+	static PyObject *pyattr_get_lodlevels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	//static int pyattr_set_(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+
+#endif //WITH_PYTHON
 
 	/** Get lod level cooresponding to distance and previous level.
 	 * \param scene Scene used to get default hysteresis.
 	 * \param previouslod Previous lod computed by this function before.
 	 * \param distance2 Squared distance object to the camera.
 	 */
-	const KX_LodList::Level& GetLevel(KX_Scene *scene, unsigned short previouslod, float distance2);
+	KX_LodLevel *GetLevel(KX_Scene *scene, unsigned short previouslod, float distance2);
 
 	/// If it returns true, then the lod is useless then.
 	inline bool Empty() const
@@ -73,12 +76,12 @@ public:
 		return m_lodLevelList.empty();
 	}
 
-	KX_LodList *AddRef()
+	KX_LodManager *AddRef()
 	{
 		++m_refcount;
 		return this;
 	}
-	KX_LodList *Release()
+	KX_LodManager *Release()
 	{
 		if (--m_refcount == 0) {
 			delete this;
