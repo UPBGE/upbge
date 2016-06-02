@@ -797,14 +797,6 @@ void KX_GameObject::RemoveMeshes()
 
 void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos)
 {
-	// Handle dupligroups
-	if (m_pInstanceObjects) {
-		for (CListValue::iterator it = m_pInstanceObjects->GetBegin(), end = m_pInstanceObjects->GetEnd(); it != end; ++it) {
-			KX_GameObject *instob = (KX_GameObject *)*it;
-			instob->UpdateLod(cam_pos);
-		}
-	}
-
 	if (!m_lodList) {
 		return;
 	}

@@ -632,9 +632,6 @@ bool KX_KetsjiEngine::NextFrame()
 				SG_SetActiveStage(SG_STAGE_ACTUATOR_UPDATE);
 				scene->UpdateParents(m_frameTime);
 
-				// update levels of detail
-				scene->UpdateObjectLods();
-
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS2);
 				scene->GetPhysicsEnvironment()->BeginFrame();
@@ -1158,6 +1155,9 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 
 	m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 	SG_SetActiveStage(SG_STAGE_CULLING);
+
+	// update levels of detail
+	scene->UpdateObjectLods();
 
 	scene->CalculateVisibleMeshes(m_rasterizer, cam);
 
