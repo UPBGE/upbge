@@ -37,6 +37,8 @@
 
 #include "GHOST_Types.h"
 
+class GHOST_IWindow;
+
 class LA_PlayerLauncher : public LA_Launcher
 {
 protected:
@@ -74,4 +76,6 @@ public:
 
 	virtual void InitEngine();
 	virtual void ExitEngine();
+
+	virtual bool EngineNextFrame();
 };

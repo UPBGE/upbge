@@ -160,6 +160,7 @@ GH_InputDevice::GH_InputDevice()
 	m_reverseButtonTranslateTable[GHOST_kButtonMaskLeft] = KX_LEFTMOUSE;
 
 	// Window events.
+	m_reverseWindowTranslateTable[GHOST_kEventWindowSize] = KX_WINRESIZE;
 	m_reverseKeyTranslateTable[GHOST_kEventQuit] = KX_WINQUIT;
 	m_reverseKeyTranslateTable[GHOST_kEventWindowClose] = KX_WINCLOSE;
 }

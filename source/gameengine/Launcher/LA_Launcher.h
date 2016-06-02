@@ -43,7 +43,6 @@ class RAS_IRasterizer;
 class GH_EventConsumer;
 class GH_InputDevice;
 class GHOST_ISystem;
-class GHOST_IWindow;
 struct Scene;
 struct Main;
 
@@ -134,7 +133,7 @@ public:
 	virtual void ExitEngine();
 
 	/// Compute next frame.
-	bool EngineNextFrame();
+	virtual bool EngineNextFrame();
 	/// Execute the loop of the engine, return when receive a exit request from the engine.
 	void EngineMainLoop();
 

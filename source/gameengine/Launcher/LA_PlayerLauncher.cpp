@@ -49,6 +49,8 @@ extern "C" {
 
 #include "GHOST_ISystem.h"
 
+#include "GH_InputDevice.h"
+
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
 								 RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv)
 	:LA_Launcher(system, maggie, scene, gs, stereoMode, argc, argv)
@@ -308,6 +310,19 @@ void LA_PlayerLauncher::ExitEngine()
 	LA_Launcher::ExitEngine();
 	BKE_sound_exit();
 	GPU_exit();
+}
+
+bool LA_PlayerLauncher::EngineNextFrame()
+{
+	if (m_inputDevice->GetEvent(SCA_IInputDevice::KX_WINRESIZE).Find(SCA_InputEvent::KX_ACTIVE)) {
+		GHOST_Rect bnds;
+		m_mainWindow->getClientBounds(bnds);
+		m_canvas->Resize(bnds.getWidth(), bnds.getHeight());
+		m_ketsjiEngine->Resize();
+		m_inputDevice->ConvertEvent(SCA_IInputDevice::KX_WINRESIZE, 0, 0);
+	}
+
+	return LA_Launcher::EngineNextFrame();
 }
 
 RAS_ICanvas *LA_PlayerLauncher::CreateCanvas(RAS_IRasterizer *rasty)

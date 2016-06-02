@@ -101,6 +101,11 @@ void KX_BlenderCanvas::ResizeWindow(int width, int height)
 	// Not implemented for the embedded player
 }
 
+void KX_BlenderCanvas::Resize(int width, int height)
+{
+	// Not implemented for the embedded player
+}
+
 void KX_BlenderCanvas::SetFullScreen(bool enable)
 {
 	// Not implemented for the embedded player

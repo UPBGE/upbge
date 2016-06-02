@@ -53,8 +53,6 @@ protected:
 	short m_exitkey;
 	bool m_hookesc;
 
-	void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
-
 public:
 	GH_InputDevice();
 	virtual ~GH_InputDevice();
@@ -64,6 +62,7 @@ public:
 	void ConvertWindowEvent(int incode, int val, unsigned int unicode);
 	void ConvertMoveEvent(int x, int y);
 	void ConvertWheelEvent(int z);
+	void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
 
 	virtual void HookEscape();
 };

@@ -120,18 +120,7 @@ bool GH_EventConsumer::processEvent(GHOST_IEvent *event)
 			HandleKeyEvent(eventData, false);
 			break;
 		}
-		/*case GHOST_kEventWindowSize:
-			{
-			GHOST_IWindow* window = event->getWindow();
-			if (!m_system->validWindow(window)) break;
-			if (m_canvas) {
-				GHOST_Rect bnds;
-				window->getClientBounds(bnds);
-				m_canvas->Resize(bnds.getWidth(), bnds.getHeight());
-				m_ketsjiengine->Resize();
-			}
-			}
-			break;*/
+		case GHOST_kEventWindowSize:
 		case GHOST_kEventWindowClose:
 		case GHOST_kEventQuit:
 		{

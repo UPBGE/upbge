@@ -95,6 +95,8 @@ public:
 		int height
 	);
 
+	virtual void Resize(int width, int height);
+
 		void
 	SetFullScreen(
 		bool enable

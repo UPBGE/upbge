@@ -54,8 +54,13 @@ public:
 	enum SCA_EnumInputs {
 		KX_NOKEY = 0,
 
+		KX_BEGINWIN,
+
+		KX_WINRESIZE,
 		KX_WINCLOSE,
 		KX_WINQUIT,
+
+		KX_ENDWIN,
 
 		KX_BEGINKEY,
 

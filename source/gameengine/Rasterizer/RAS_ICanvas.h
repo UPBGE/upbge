@@ -240,6 +240,9 @@ public:
 		int height
 	)=0;
 
+	/// Resize the canvas without resizing the window.
+	virtual void Resize(int width, int height) = 0;
+
 	virtual
 		void
 	SetFullScreen(
