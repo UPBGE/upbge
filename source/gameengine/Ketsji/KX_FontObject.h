@@ -45,7 +45,8 @@ public:
 
 	virtual ~KX_FontObject();
 
-	void DrawFontText();
+	virtual void AddMeshUser();
+	virtual void UpdateBuckets();
 
 	/**
 	 * Inherited from CValue -- return a new copy of this

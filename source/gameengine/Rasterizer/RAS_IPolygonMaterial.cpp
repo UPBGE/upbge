@@ -43,7 +43,9 @@ RAS_IPolyMaterial::RAS_IPolyMaterial(
 	m_rasMode(0),
 	m_flag(0)
 {
-	m_drawingmode = ConvertFaceMode(game);
+	if (game) {
+		m_drawingmode = ConvertFaceMode(game);
+	}
 
 	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
 		m_textures[i] = NULL;
@@ -80,6 +82,11 @@ bool RAS_IPolyMaterial::IsAlphaShadow() const
 bool RAS_IPolyMaterial::IsWire() const
 {
 	return (m_rasMode & RAS_WIRE);
+}
+
+bool RAS_IPolyMaterial::IsText() const
+{
+	return (m_rasMode & RAS_TEXT);
 }
 
 void RAS_IPolyMaterial::GetRGBAColor(unsigned char *rgba) const

@@ -202,6 +202,7 @@ public:
 	virtual void IndexPrimitives(class RAS_MeshSlot *ms);
 	virtual void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void IndexPrimitives_3DText(class RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat);
+	virtual void IndexPrimitivesText(RAS_MeshSlot *ms);
 	virtual void DrawDerivedMesh(class RAS_MeshSlot *ms);
 
 	virtual void SetProjectionMatrix(MT_CmMatrix4x4 &mat);

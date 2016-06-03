@@ -58,7 +58,7 @@ private:
 	RAS_MaterialBucket *m_bucket;
 	/// The display array = list of vertexes and indexes.
 	RAS_DisplayArray *m_displayArray;
-	/// The parent mesh object.
+	/// The parent mesh object, it can be NULL for text objects.
 	RAS_MeshObject *m_mesh;
 	/// The list fo all visible mesh slots to render this frame.
 	RAS_MeshSlotList m_activeMeshSlots;
@@ -98,6 +98,7 @@ public:
 	/// \section Accesor
 	RAS_DisplayArray *GetDisplayArray() const;
 	RAS_MaterialBucket *GetMaterialBucket() const;
+	RAS_MeshObject *GetMesh() const;
 
 	/// \section Active Mesh Slots Management.
 	void ActivateMesh(RAS_MeshSlot *slot);

@@ -186,15 +186,18 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 		ms->m_mesh->SortPolygons(ms, cameratrans * MT_Transform(meshUser->GetMatrix()));
 
 	rasty->PushMatrix();
-	if (!ms->m_pDeformer || !ms->m_pDeformer->SkipVertexTransform()) {
+	if ((!ms->m_pDeformer || !ms->m_pDeformer->SkipVertexTransform()) && !m_material->IsText()) {
 		float mat[16];
 		rasty->GetTransform(meshUser->GetMatrix(), m_material->GetDrawingMode(), mat);
 		rasty->MultMatrix(mat);
 	}
 
 	if (m_material->GetDrawingMode() & RAS_IRasterizer::RAS_RENDER_3DPOLYGON_TEXT) {
-	    // for text drawing using faces
+		// for text drawing using faces
 		rasty->IndexPrimitives_3DText(ms, m_material);
+	}
+	else if (m_material->IsText()) {
+		rasty->IndexPrimitivesText(ms);
 	}
 	else {
 		rasty->IndexPrimitives(ms);
@@ -246,13 +249,13 @@ void RAS_MaterialBucket::SetMeshUnmodified()
 	}
 }
 
-RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_DisplayArray *array)
+RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_DisplayArray *array, RAS_MeshObject *mesh)
 {
 	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
 		it != end; ++it)
 	{
 		RAS_DisplayArrayBucket *displayArrayBucket = *it;
-		if (displayArrayBucket->GetDisplayArray() == array) {
+		if (displayArrayBucket->GetDisplayArray() == array && displayArrayBucket->GetMesh() == mesh) {
 			return displayArrayBucket;
 		}
 	}

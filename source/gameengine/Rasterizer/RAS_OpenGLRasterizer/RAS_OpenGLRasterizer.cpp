@@ -42,6 +42,7 @@
 #include "RAS_TexVert.h"
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
+#include "RAS_TextUser.h"
 #include "RAS_Polygon.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_ILightObject.h"
@@ -871,6 +872,31 @@ const MT_Matrix4x4& RAS_OpenGLRasterizer::GetViewInvMatrix() const
 bool RAS_OpenGLRasterizer::UseDisplayLists() const
 {
 	return m_storageInfo & RAS_STORAGE_USE_DISPLAY_LIST;
+}
+
+void RAS_OpenGLRasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
+{
+	RAS_TextUser *textUser = (RAS_TextUser *)ms->m_meshUser;
+
+	float mat[16];
+	memcpy(mat, textUser->GetMatrix(), sizeof(float) * 16);
+
+	const MT_Vector3& spacing = textUser->GetSpacing();
+	const MT_Vector3& offset = textUser->GetOffset();
+
+	mat[12] += offset[0];
+	mat[13] += offset[1];
+	mat[14] += offset[2];
+
+	for (unsigned short int i = 0, size = textUser->GetTexts().size(); i < size; ++i) {
+		if (i != 0) {
+			mat[12] -= spacing[0];
+			mat[13] -= spacing[1];
+			mat[14] -= spacing[2];
+		}
+		RenderText3D(textUser->GetFontId(), textUser->GetTexts()[i], textUser->GetSize(), textUser->GetDpi(),
+					 textUser->GetColor().getValue(), mat, textUser->GetAspect());
+	}
 }
 
 void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat)
