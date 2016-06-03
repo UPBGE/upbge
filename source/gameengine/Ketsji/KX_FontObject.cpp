@@ -35,9 +35,13 @@
 #include "KX_Scene.h"
 #include "KX_Globals.h"
 #include "KX_PythonInit.h"
+#include "KX_TextMaterial.h"
 #include "BLI_math.h"
 #include "EXP_StringValue.h"
 #include "RAS_IRasterizer.h"
+#include "RAS_BucketManager.h"
+#include "RAS_MaterialBucket.h"
+#include "RAS_TextUser.h"
 
 /* paths needed for font load */
 #include "BLI_blenlib.h"
@@ -113,6 +117,85 @@ void KX_FontObject::ProcessReplica()
 	KX_GameObject::ProcessReplica();
 }
 
+void KX_FontObject::AddMeshUser()
+{
+	m_meshUser = new RAS_TextUser(m_pClient_info);
+
+	// set the part of the mesh slot that never change
+	float *fl = GetOpenGLMatrixPtr()->getPointer();
+	m_meshUser->SetMatrix(fl);
+
+	RAS_BucketManager *bucketManager = GetScene()->GetBucketManager();
+	bool created = false;
+	RAS_MaterialBucket *bucket = bucketManager->FindBucket(GetTextMaterial(), created);
+
+	// If the material bucket is just created then we add a new mesh slot.
+	if (created) {
+		bucket->AddMesh(NULL);
+	}
+
+	/* We copy the original mesh slot which is at the begin of the list, if it's not the case it
+	 * doesn't matter as the mesh slot are all similar exepted their mesh user pointer which is
+	 * set to NULL in copy. By copying instead of adding a mesh slot we reuse the same display
+	 * array bucket.
+	 */
+	RAS_MeshSlot *ms = bucket->CopyMesh(*bucket->msBegin());
+	ms->SetMeshUser(m_meshUser);
+	ms->SetDeformer(NULL);
+	m_meshUser->AddMeshSlot(ms);
+}
+
+void KX_FontObject::UpdateBuckets()
+{
+	// Update datas and add mesh slot to be rendered only if the object is not culled.
+	if (m_bVisible && m_meshUser) {
+		if (m_pSGNode->IsDirty()) {
+			GetOpenGLMatrix();
+		}
+
+		// Allow for some logic brick control
+		if (GetProperty("Text")) {
+			m_text = split_string(GetProperty("Text")->GetText());
+		}
+
+		// update the animated color
+		GetObjectColor().getValue(m_color);
+
+		// Font Objects don't use the glsl shader, this color management code is copied from gpu_shader_material.glsl
+		float color[4];
+		if (m_do_color_management) {
+			linearrgb_to_srgb_v4(color, m_color);
+		}
+		else {
+			copy_v4_v4(color, m_color);
+		}
+
+		// HARDCODED MULTIPLICATION FACTOR - this will affect the render resolution directly
+		const float RES = BGE_FONT_RES * m_resolution;
+
+		const float size = m_fsize * NodeGetWorldScaling()[0] * RES;
+		const float aspect = m_fsize / size;
+
+		// Account for offset
+		MT_Vector3 offset = NodeGetWorldOrientation() * m_offset * NodeGetWorldScaling();
+		// Orient the spacing vector
+		MT_Vector3 spacing = MT_Vector3(0.0f, m_fsize * m_line_spacing, 0.0f);
+
+		RAS_TextUser *textUser = (RAS_TextUser *)m_meshUser;
+
+		textUser->SetColor(MT_Vector4(color));
+		textUser->SetFrontFace(!m_bIsNegativeScaling);
+		textUser->SetFontId(m_fontid);
+		textUser->SetSize(size);
+		textUser->SetDpi(m_dpi);
+		textUser->SetAspect(aspect);
+		textUser->SetOffset(offset);
+		textUser->SetSpacing(spacing);
+		textUser->SetTexts(m_text);
+		textUser->ActivateMeshSlots();
+	}
+}
+
 int GetFontId(VFont *vfont)
 {
 	PackedFile *packedfile = NULL;
@@ -156,57 +239,6 @@ int GetFontId(VFont *vfont)
 		fontid = BLF_load("default");
 
 	return fontid;
-}
-
-void KX_FontObject::DrawFontText()
-{
-	// Allow for some logic brick control
-	if (GetProperty("Text"))
-		m_text = split_string(GetProperty("Text")->GetText());
-
-	// only draws the text if visible
-	if (GetVisible() == 0) {
-		return;
-	}
-
-	// update the animated color
-	GetObjectColor().getValue(m_color);
-
-	// Font Objects don't use the glsl shader, this color management code is copied from gpu_shader_material.glsl
-	float color[4];
-	if (m_do_color_management) {
-		linearrgb_to_srgb_v4(color, m_color);
-	}
-	else {
-		copy_v4_v4(color, m_color);
-	}
-
-	// HARDCODED MULTIPLICATION FACTOR - this will affect the render resolution directly
-	const float RES = BGE_FONT_RES * m_resolution;
-
-	const float size = m_fsize * NodeGetWorldScaling()[0] * RES;
-	const float aspect = m_fsize / size;
-
-	/* Get a working copy of the OpenGLMatrix to use */
-	float *mat = GetOpenGLMatrix();
-
-	/* Account for offset */
-	MT_Vector3 offset = NodeGetWorldOrientation() * m_offset * NodeGetWorldScaling();
-	mat[12] += offset[0]; mat[13] += offset[1]; mat[14] += offset[2];
-
-	/* Orient the spacing vector */
-	MT_Vector3 spacing = MT_Vector3(0.0f, m_fsize * m_line_spacing, 0.0f);
-	spacing = NodeGetWorldOrientation() * spacing * NodeGetWorldScaling()[1];
-
-	/* Draw each line, taking spacing into consideration */
-	for (unsigned int i = 0; i < m_text.size(); ++i) {
-		if (i != 0) {
-			mat[12] -= spacing[0];
-			mat[13] -= spacing[1];
-			mat[14] -= spacing[2];
-		}
-		m_rasterizer->RenderText3D(m_fontid, m_text[i], int(size), m_dpi, color, mat, aspect);
-	}
 }
 
 #ifdef WITH_PYTHON

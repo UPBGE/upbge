@@ -298,8 +298,6 @@ void KX_KetsjiEngine::RenderDome()
 
 				// do the rendering
 				m_dome->RenderDomeFrame(scene, cam, i);
-				// render all the font objects for this scene
-				scene->RenderFonts();
 			}
 
 			list<class KX_Camera *> *cameras = scene->GetCameras();
@@ -315,8 +313,6 @@ void KX_KetsjiEngine::RenderDome()
 
 					// do the rendering
 					m_dome->RenderDomeFrame(scene, (*it), i);
-					// render all the font objects for this scene
-					scene->RenderFonts();
 				}
 
 				it++;
@@ -1183,9 +1179,6 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 #endif
 
 	scene->RenderBuckets(camtrans, m_rasterizer);
-
-	// render all the font objects for this scene
-	scene->RenderFonts();
 
 	if (scene->GetPhysicsEnvironment())
 		scene->GetPhysicsEnvironment()->DebugDrawWorld();

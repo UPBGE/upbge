@@ -1141,9 +1141,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		/* font objects have no bounding box */
 		gameobj = new KX_FontObject(kxscene,KX_Scene::m_callbacks, rendertools, ob, do_color_management);
 
-		/* add to the list only the visible fonts */
-		if ((ob->lay & kxscene->GetBlenderScene()->lay) != 0)
-			kxscene->AddFont(static_cast<KX_FontObject*>(gameobj));
+		kxscene->AddFont(static_cast<KX_FontObject*>(gameobj));
 		break;
 	}
 

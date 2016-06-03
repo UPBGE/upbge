@@ -721,7 +721,7 @@ public:
 	 * Update buckets to indicate that there is a new
 	 * user of this object's meshes.
 	 */
-		void
+	virtual void
 	AddMeshUser(
 	);
 	
@@ -730,7 +730,7 @@ public:
 	 * creating or duplicating the object, changing
 	 * visibility, object color, .. .
 	 */
-	void UpdateBuckets();
+	virtual void UpdateBuckets();
 
 	/**
 	 * Clear the meshes associated with this class

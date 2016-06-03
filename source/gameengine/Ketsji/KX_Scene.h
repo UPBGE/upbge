@@ -396,11 +396,6 @@ public:
 		KX_FontObject*
 	);
 
-	/** Render the fonts in this scene. */
-		void
-	RenderFonts(
-	);
-
 	/** Camera Routines */
 
 		std::list<class KX_Camera*>*

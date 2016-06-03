@@ -1749,15 +1749,6 @@ void KX_Scene::RenderBuckets(const MT_Transform & cameratransform,
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-void KX_Scene::RenderFonts()
-{
-	list<KX_FontObject*>::iterator it = m_fonts.begin();
-	while (it != m_fonts.end()) {
-		(*it)->DrawFontText();
-		++it;
-	}
-}
-
 void KX_Scene::UpdateObjectLods()
 {
 	if (!m_active_camera)

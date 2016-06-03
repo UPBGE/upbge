@@ -126,6 +126,11 @@ RAS_MaterialBucket *RAS_DisplayArrayBucket::GetMaterialBucket() const
 	return m_bucket;
 }
 
+RAS_MeshObject *RAS_DisplayArrayBucket::GetMesh() const
+{
+	return m_mesh;
+}
+
 void RAS_DisplayArrayBucket::ActivateMesh(RAS_MeshSlot *slot)
 {
 	m_activeMeshSlots.push_back(slot);
@@ -205,7 +210,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 		}
 	}
 
-	if (m_mesh->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED) {
+	if (m_mesh && m_mesh->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED) {
 		m_meshModified = true;
 	}
 
@@ -217,7 +222,9 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 
 void RAS_DisplayArrayBucket::SetMeshUnmodified()
 {
-	m_mesh->SetModifiedFlag(0);
+	if (m_mesh) {
+		m_mesh->SetModifiedFlag(0);
+	}
 }
 
 RAS_IStorageInfo *RAS_DisplayArrayBucket::GetStorageInfo() const

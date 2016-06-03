@@ -66,6 +66,7 @@ enum MaterialRasterizerModes
 	RAS_ZSORT = 4,
 	RAS_ALPHA = 8,
 	RAS_WIRE = 64,
+	RAS_TEXT = 128,
 	RAS_TWOSIDED = 512,
 };
 
@@ -107,6 +108,7 @@ public:
 	bool IsAlpha() const;
 	bool IsZSort() const;
 	bool IsWire() const;
+	bool IsText() const;
 	int GetDrawingMode() const;
 	virtual STR_String& GetName();
 	unsigned int GetFlag() const;
