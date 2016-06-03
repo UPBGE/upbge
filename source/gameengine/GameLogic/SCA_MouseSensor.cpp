@@ -145,6 +145,7 @@ bool SCA_MouseSensor::Evaluate()
 {
 	bool result = false;
 	bool reset = m_reset && m_level;
+	int previousval = m_val;
 	SCA_IInputDevice* mousedev = ((SCA_MouseManager *)m_eventmgr)->GetInputDevice();
 
 	m_reset = false;
@@ -156,22 +157,11 @@ bool SCA_MouseSensor::Evaluate()
 	case KX_MOUSESENSORMODE_WHEELDOWN:
 		{
 			const SCA_InputEvent& mevent = mousedev->GetEvent(m_hotkey);
-			if (mevent.Find(SCA_InputEvent::KX_JUSTACTIVATED)) {
+			if (mevent.Find(SCA_InputEvent::KX_ACTIVE)) {
 				m_val = 1;
-				result = true;
 			}
-			else if (mevent.Find(SCA_InputEvent::KX_JUSTRELEASED)) {
+			else {
 				m_val = 0;
-				result = true;
-			}
-			else if (mevent.Find(SCA_InputEvent::KX_ACTIVE) && m_val == 0) {
-				m_val = 1;
-				if (m_level)
-					result = true;
-			}
-			else if (m_val == 1) {
-				m_val = 0;
-				result = true;
 			}
 			break;
 		}
@@ -182,16 +172,18 @@ bool SCA_MouseSensor::Evaluate()
 
 			if (eventX.Find(SCA_InputEvent::KX_ACTIVE) || eventY.Find(SCA_InputEvent::KX_ACTIVE)) {
 				m_val = 1;
-				result = true;
 			} 
 			else {
 				m_val = 0;
-				result = true;
 			}
 			break;
 		}
 	default:
 		; /* error */
+	}
+
+	if (previousval != m_val) {
+		result = true;
 	}
 
 	if (reset)
