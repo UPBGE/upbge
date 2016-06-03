@@ -54,13 +54,11 @@ KX_BlenderCanvas::KX_BlenderCanvas(RAS_IRasterizer *rasty, wmWindowManager *wm, 
 	:RAS_ICanvas(rasty),
 	m_wm(wm),
 	m_win(win),
-	m_frame_rect(rect)
+	m_frame_rect(rect),
+	m_ar(ar)
 {
 	// initialize area so that it's available for game logic on frame 1 (ImageViewport)
 	m_area_rect = rect;
-	// area boundaries needed for mouse coordinates in Letterbox framing mode
-	m_area_left = ar->winrct.xmin;
-	m_area_top = ar->winrct.ymax;
 	m_frame = 1;
 
 	m_rasterizer->GetViewport(m_viewport);
@@ -175,8 +173,8 @@ int KX_BlenderCanvas::GetHeight(
 
 void KX_BlenderCanvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y)
 {
-	r_x = x - m_area_left;
-	r_y = m_area_top - y;
+	r_x = x - m_ar->winrct.xmin;
+	r_y = m_ar->winy - (y - m_ar->winrct.ymin) - 1;
 }
 
 float KX_BlenderCanvas::GetMouseNormalizedX(int x)
