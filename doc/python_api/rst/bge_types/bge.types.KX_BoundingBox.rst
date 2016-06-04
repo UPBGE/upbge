@@ -17,7 +17,7 @@ base class --- :class:`PyObjectPlus`
       owner = logic.getCurrentController().owner
       bounds = owner.bounds
       
-      # Desactivate auto update to allow modificate the bounds.
+      # Disable auto update to allow modify the bounds.
       bounds.autoUpdate = False
       
       print(bounds)
