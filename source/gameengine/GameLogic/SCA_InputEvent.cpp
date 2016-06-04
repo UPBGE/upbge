@@ -87,7 +87,8 @@ PyTypeObject SCA_InputEvent::Type = {
 	0,
 	0,
 	py_base_repr,
-	0,0,0,0,0,0,0,0,0,
+	&tp_as_number,
+	0,0,0,0,0,0,0,0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	0,0,0,
 	tp_richcompare,
@@ -110,6 +111,26 @@ PyAttributeDef SCA_InputEvent::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("values", SCA_InputEvent, pyattr_get_values),
 	{NULL} //Sentinel
 };
+
+PyNumberMethods SCA_InputEvent::tp_as_number = {
+	NULL, // nb_add
+	NULL, // nb_subtract
+	NULL, // nb_multiply
+	NULL, // nb_remainder
+	NULL, // nb_divmod
+	NULL, // nb_power
+	NULL, // nb_negative
+	NULL, // nb_positive
+	NULL, // nb_absolute
+	(inquiry)nb_bool, // nb_bool
+};
+
+int SCA_InputEvent::nb_bool(PyObject *self)
+{
+	SCA_InputEvent *event = (SCA_InputEvent *)BGE_PROXY_REF(self);
+	ShowDeprecationWarning("if event:", "if KX_INPUT_ACTIVE in event.status:  or  if event is not None:");
+	return event->Find(KX_ACTIVE) ? 1 : 0;
+}
 
 int SCA_InputEvent::get_status_size_cb(void *self_v)
 {

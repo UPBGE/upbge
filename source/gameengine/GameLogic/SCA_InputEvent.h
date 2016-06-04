@@ -78,6 +78,8 @@ public:
 	static PyObject *pyattr_get_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 	static PyObject *tp_richcompare(PyObject *a, PyObject *b, int op);
+	static PyNumberMethods tp_as_number;
+	static int nb_bool(PyObject *self);
 #endif
 };
 
