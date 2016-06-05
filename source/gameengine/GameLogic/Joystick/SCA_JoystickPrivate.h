@@ -33,6 +33,7 @@
 #define __SCA_JOYSTICKPRIVATE_H__
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "SCA_Joystick.h"
 
