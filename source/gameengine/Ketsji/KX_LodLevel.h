@@ -30,9 +30,8 @@ class KX_LodLevel : public PyObjectPlus
 private:
 
 	float m_distance;
-	float m_initialDistance;
 	float m_hysteresis;
-	unsigned short m_level;
+	short m_level;
 	unsigned short m_flags;
 	RAS_MeshObject *m_meshobj;
 
@@ -41,30 +40,19 @@ public:
 	KX_LodLevel(float distance, float hysteresis, unsigned short level, RAS_MeshObject *meshobj, unsigned short flag);
 	virtual ~KX_LodLevel();
 
-	float GetDistance() {
-		return m_distance;
-	}
-	void SetDistance(float dist) {
-		m_distance = dist;
-	}
-	float GetInitialDistance() {
-		return m_initialDistance;
-	}
-	float GetHysteresis() {
-		return m_hysteresis;
-	}
-	unsigned short GetLevel() {
-		return m_level;
-	}
-	unsigned short GetFlag() {
-		return m_flags;
-	}
-	RAS_MeshObject *GetMesh() {
-		return m_meshobj;
-	}
+	float GetDistance() const;
+	float GetHysteresis() const;
+	unsigned short GetLevel() const;
+	unsigned short GetFlag() const;
+	RAS_MeshObject *GetMesh() const;
+
 	enum {
-		// Use custom hysteresis for this level.
-		USE_HYST = (1 << 0),
+		/// Use custom hysteresis for this level.
+		USE_HYSTERESIS = (1 << 0),
+		/// Use a different mesh than original.
+		USE_MESH = (1 << 1),
+		/// Use a different material than original mesh.
+		USE_MATERIAL = (1 << 2)
 	};
 
 #ifdef WITH_PYTHON
@@ -74,10 +62,10 @@ public:
 		return PyUnicode_FromString(m_meshobj->GetName());
 	}
 
-	static PyObject *pyattr_get_mesh_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_mesh(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_use_hysteresis(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-
-	//KX_PYMETHOD_DOC(KX_LodLevel, ...);
+	static PyObject *pyattr_get_use_mesh(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_use_material(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif //WITH_PYTHON
 

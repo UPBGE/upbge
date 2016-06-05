@@ -51,18 +51,6 @@ public:
 	KX_LodManager(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading);
 	virtual ~KX_LodManager();
 
-#ifdef WITH_PYTHON
-
-	virtual PyObject *py_repr()
-	{
-		return PyUnicode_FromString("KX_LodManager");
-	}
-
-	static PyObject *pyattr_get_lodlevels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	//static int pyattr_set_(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-
-#endif //WITH_PYTHON
-
 	/** Get lod level cooresponding to distance and previous level.
 	 * \param scene Scene used to get default hysteresis.
 	 * \param previouslod Previous lod computed by this function before.
@@ -89,4 +77,22 @@ public:
 		}
 		return this;
 	}
+
+#ifdef WITH_PYTHON
+
+	virtual PyObject *py_repr()
+	{
+		return PyUnicode_FromString("KX_LodManager");
+	}
+
+	static PyObject *pyattr_get_levels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+
+#endif //WITH_PYTHON
 };
+
+#ifdef WITH_PYTHON
+
+/// Utility python conversion function.
+bool ConvertPythonToLodManager(PyObject *value, KX_LodManager **object, bool py_none_ok, const char *error_prefix);
+
+#endif  // WITH_PYTHON

@@ -796,6 +796,19 @@ void KX_GameObject::RemoveMeshes()
 	m_meshes.clear();
 }
 
+void KX_GameObject::SetLodManager(KX_LodManager *lodManager)
+{
+	// Reset lod level to avoid bugs on KX_LodManager::GetLevel.
+	m_previousLodLevel = 0;
+	m_currentLodLevel = 0;
+	m_lodManager = lodManager;
+}
+
+KX_LodManager *KX_GameObject::GetLodManager() const
+{
+	return m_lodManager;
+}
+
 void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
 {
 	if (!m_lodManager) {
@@ -2008,6 +2021,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 
 PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RO("currentLodLevel", KX_GameObject, m_currentLodLevel),
+	KX_PYATTRIBUTE_RW_FUNCTION("lodManager", KX_GameObject, pyattr_get_lodManager, pyattr_set_lodManager),
 	KX_PYATTRIBUTE_RW_FUNCTION("name",		KX_GameObject, pyattr_get_name, pyattr_set_name),
 	KX_PYATTRIBUTE_RO_FUNCTION("parent",	KX_GameObject, pyattr_get_parent),
 	KX_PYATTRIBUTE_RO_FUNCTION("groupMembers",	KX_GameObject, pyattr_get_group_members),
@@ -2055,8 +2069,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("debug",	KX_GameObject, pyattr_get_debug, pyattr_set_debug),
 	KX_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
 	KX_PYATTRIBUTE_RW_FUNCTION("debugRecursive",	KX_GameObject, pyattr_get_debugRecursive, pyattr_set_debugRecursive),
-	KX_PYATTRIBUTE_RO_FUNCTION("lodManager", KX_GameObject, pyattr_get_lodmanager),
-	
+
 	/* experimental, don't rely on these yet */
 	KX_PYATTRIBUTE_RO_FUNCTION("sensors",		KX_GameObject, pyattr_get_sensors),
 	KX_PYATTRIBUTE_RO_FUNCTION("controllers",	KX_GameObject, pyattr_get_controllers),
@@ -3276,15 +3289,25 @@ int KX_GameObject::pyattr_set_debugRecursive(void *self_v, const KX_PYATTRIBUTE_
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_GameObject::pyattr_get_lodmanager(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_GameObject::pyattr_get_lodManager(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+
+	return (self->m_lodManager) ? self->m_lodManager->GetProxy() : Py_None;
+}
+
+int KX_GameObject::pyattr_set_lodManager(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_GameObject *self = static_cast<KX_GameObject*>(self_v);
-	if (!self->m_lodManager) {
-		PyErr_SetString(PyExc_ValueError, "KX_GameObject.lod: there is no lod levels for this gameobject");
-		return NULL;
+
+	KX_LodManager *lodManager = NULL;
+	if (!ConvertPythonToLodManager(value, &lodManager, true, "gameobj.lodManager: KX_GameObject")) {
+		return PY_SET_ATTR_FAIL;
 	}
 
-	return self->m_lodManager->GetProxy();
+	self->SetLodManager(lodManager);
+
+	return PY_SET_ATTR_SUCCESS;
 }
 
 PyObject *KX_GameObject::PyApplyForce(PyObject *args)

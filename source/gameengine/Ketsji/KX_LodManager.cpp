@@ -26,7 +26,6 @@
 #include "BL_BlenderDataConversion.h"
 #include "DNA_object_types.h"
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 
 KX_LodManager::KX_LodManager(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter* converter, bool libloading)
 	:m_refcount(1),
@@ -42,14 +41,19 @@ KX_LodManager::KX_LodManager(Object *ob, KX_Scene* scene, KX_BlenderSceneConvert
 			if (!lod->source || lod->source->type != OB_MESH) {
 				continue;
 			}
-			unsigned short flag = ((lod->flags & OB_LOD_USE_HYST) != 0);
+			unsigned short flag = 0;
+			if (lod->flags & OB_LOD_USE_HYST) {
+				flag |= KX_LodLevel::USE_HYSTERESIS;
+			}
 
 			if (lod->flags & OB_LOD_USE_MESH) {
 				lodmesh = (Mesh*)lod->source->data;
+				flag |= KX_LodLevel::USE_MESH;
 			}
 
 			if (lod->flags & OB_LOD_USE_MAT) {
 				lodmatob = lod->source;
+				flag |= KX_LodLevel::USE_MATERIAL;
 			}
 			KX_LodLevel *lodLevel = new KX_LodLevel(lod->distance, lod->obhysteresis, level++,
 				BL_ConvertMesh(lodmesh, lodmatob, scene, converter, libloading), flag);
@@ -80,7 +84,7 @@ float KX_LodManager::GetHysteresis(KX_Scene *scene, unsigned short level)
 
 	float hysteresis = 0.0f;
 	// if exists, LoD level hysteresis will override scene hysteresis
-	if (lodnext->GetFlag() & KX_LodLevel::USE_HYST) {
+	if (lodnext->GetFlag() & KX_LodLevel::USE_HYSTERESIS) {
 		hysteresis = lodnext->GetHysteresis();
 	}
 	else {
@@ -143,17 +147,16 @@ PyTypeObject KX_LodManager::Type = {
 };
 
 PyMethodDef KX_LodManager::Methods[] = {
-	//KX_PYMETHODTABLE(KX_LodManager, get...),
-	{ NULL, NULL } //Sentinel
+	{NULL, NULL} // Sentinel
 };
 
 PyAttributeDef KX_LodManager::Attributes[] = {
-	KX_PYATTRIBUTE_RO_FUNCTION("lodLevel", KX_LodManager, pyattr_get_lodlevels),
+	KX_PYATTRIBUTE_RO_FUNCTION("Level", KX_LodManager, pyattr_get_levels),
 	KX_PYATTRIBUTE_FLOAT_RW("distanceFactor", 0.0f, FLT_MAX, KX_LodManager, m_distanceFactor),
-	{ NULL }    //Sentinel
+	{NULL} //Sentinel
 };
 
-PyObject *KX_LodManager::pyattr_get_lodlevels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_LodManager::pyattr_get_levels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_LodManager* self = static_cast<KX_LodManager*>(self_v);
 	PyObject *levelList = PyList_New(self->m_lodLevelList.size());
@@ -164,6 +167,50 @@ PyObject *KX_LodManager::pyattr_get_lodlevels(void *self_v, const KX_PYATTRIBUTE
 	}
 
 	return levelList;
+}
+
+bool ConvertPythonToLodManager(PyObject *value, KX_LodManager **object, bool py_none_ok, const char *error_prefix)
+{
+	if (value == NULL) {
+		PyErr_Format(PyExc_TypeError, "%s, python pointer NULL, should never happen", error_prefix);
+		*object = NULL;
+		return false;
+	}
+
+	if (value == Py_None) {
+		*object = NULL;
+
+		if (py_none_ok) {
+			return true;
+		}
+		else {
+			PyErr_Format(PyExc_TypeError, "%s, expected KX_LodManager, None is invalid", error_prefix);
+			return false;
+		}
+	}
+
+	if (PyObject_TypeCheck(value, &KX_LodManager::Type)) {
+		*object = static_cast<KX_LodManager *>BGE_PROXY_REF(value);
+
+		/* sets the error */
+		if (*object == NULL) {
+			PyErr_Format(PyExc_SystemError, "%s, " BGE_PROXY_ERROR_MSG, error_prefix);
+			return false;
+		}
+
+		return true;
+	}
+
+	*object = NULL;
+
+	if (py_none_ok) {
+		PyErr_Format(PyExc_TypeError, "%s, expect a KX_LodManager or None", error_prefix);
+	}
+	else {
+		PyErr_Format(PyExc_TypeError, "%s, expect a KX_LodManager", error_prefix);
+	}
+
+	return false;
 }
 
 #endif //WITH_PYTHON

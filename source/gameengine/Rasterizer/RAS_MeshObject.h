@@ -39,6 +39,7 @@
 
 #include <vector>
 #include <list>
+#include "EXP_Value.h"
 
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshMaterial.h"
@@ -56,7 +57,7 @@ class RAS_Polygon;
  * but the actual vertices and index arrays are stored in material
  * buckets, referenced by the list of RAS_MeshMaterials. */
 
-class RAS_MeshObject
+class RAS_MeshObject: public PyObjectPlus
 {
 private:
 	short m_modifiedFlag;
@@ -85,6 +86,12 @@ public:
 	// for now, meshes need to be in a certain layer (to avoid sorting on lights in realtime)
 	RAS_MeshObject(Mesh *mesh);
 	virtual ~RAS_MeshObject();
+#ifdef WITH_PYTHON
+	virtual PyObject *py_repr()
+	{
+		return PyUnicode_FromString(m_name);
+	}
+#endif // WITH_PYTTHON
 
 	// materials
 	int NumMaterials();

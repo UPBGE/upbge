@@ -9,11 +9,29 @@ base class --- :class:`PyObjectPlus`
 
    A single Lod Level for a KX_GameObject.
 
-   .. attribute:: meshName
+   .. attribute:: mesh
 
-      The name of the mesh used at this lod level.
+      The mesh used at this lod level.
 
-      :type: string (read only)
+      :type: :class:`RAS_MeshObject`(read only)
+
+   .. attribute:: level
+
+      The id of the KX_LodLevel.
+
+      :type: integer(read only)
+
+   .. attribute:: useMesh
+
+      Return True if this KX_LodLevel has a mesh, False if not.
+
+      :type: boolean(read only)
+
+   .. attribute:: useMaterial
+
+      Return True if this KX_LodLevel has a mesh with at least one material, False if not.
+
+      :type: boolean(read only)
 
    .. attribute:: useHysteresis
 
@@ -25,7 +43,7 @@ base class --- :class:`PyObjectPlus`
 
       Distance to begin using this level of detail.
 
-      :type: float (0.0 to 99999999.0)
+      :type: float (0.0 to infinite)
 
    .. attribute:: hysteresis
 

@@ -9,7 +9,7 @@ base class --- :class:`PyObjectPlus`
 
    This class contains a list of all levels of detail for a KX_GameObject.
 
-   .. attribute:: lodLevel
+   .. attribute:: levels
 
       Return the list of all levels of detail of the KX_GameObject.
       To select one level (:class:`KX_LodLevel`), you can do:
@@ -18,11 +18,8 @@ base class --- :class:`PyObjectPlus`
 
       :type: list (read only)
 
-   .. attribute:: lodLevelScale
+   .. attribute:: distanceFactor
 
-      Method to set the distance of all levels of detail for a game object at the same time.
-      For example, if a KX_GameObject has a lod1 with a distance = 25.0 and a lod2 with
-      a distance = 50.0 and you set the lodLevelScale to 2.0, lod1.distance will be equal to 50.0
-      and lod2 will be equal to 100.0.
+      Method to multiply the distance to the camera.
 
       :type: float

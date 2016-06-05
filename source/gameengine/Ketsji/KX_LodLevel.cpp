@@ -30,14 +30,38 @@ KX_LodLevel::KX_LodLevel(float distance, float hysteresis, unsigned short level,
 	:m_distance(distance),
 	m_hysteresis(hysteresis),
 	m_level(level),
-	m_meshobj(meshobj),
-	m_flags(flag)
+	m_flags(flag),
+	m_meshobj(meshobj)
 {
-	m_initialDistance = distance;
 }
 
 KX_LodLevel::~KX_LodLevel()
 {
+}
+
+float KX_LodLevel::GetDistance() const
+{
+	return m_distance;
+}
+
+float KX_LodLevel::GetHysteresis() const
+{
+	return m_hysteresis;
+}
+
+unsigned short KX_LodLevel::GetLevel() const
+{
+	return m_level;
+}
+
+unsigned short KX_LodLevel::GetFlag() const
+{
+	return m_flags;
+}
+
+RAS_MeshObject *KX_LodLevel::GetMesh() const
+{
+	return m_meshobj;
 }
 
 #ifdef WITH_PYTHON
@@ -65,29 +89,42 @@ PyTypeObject KX_LodLevel::Type = {
 };
 
 PyMethodDef KX_LodLevel::Methods[] = {
-	//KX_PYMETHODTABLE(KX_LodLevel, getLevelMeshName),
-	{ NULL, NULL } //Sentinel
+	{NULL, NULL} // Sentinel
 };
 
 PyAttributeDef KX_LodLevel::Attributes[] = {
-	KX_PYATTRIBUTE_RO_FUNCTION("meshName", KX_LodLevel, pyattr_get_mesh_name),
+	KX_PYATTRIBUTE_RO_FUNCTION("mesh", KX_LodLevel, pyattr_get_mesh),
+	KX_PYATTRIBUTE_SHORT_RO("level", KX_LodLevel, m_level),
+	KX_PYATTRIBUTE_FLOAT_RO("distance", KX_LodLevel, m_distance),
+	KX_PYATTRIBUTE_FLOAT_RO("hysteresis", KX_LodLevel, m_hysteresis),
 	KX_PYATTRIBUTE_RO_FUNCTION("useHysteresis", KX_LodLevel, pyattr_get_use_hysteresis),
-	KX_PYATTRIBUTE_FLOAT_RW("distance", 0.0f, 99999999.0f, KX_LodLevel, m_distance),
-	KX_PYATTRIBUTE_FLOAT_RW("hysteresis", 0.0f, 100.0f, KX_LodLevel, m_hysteresis),
-	{ NULL }    //Sentinel
+	KX_PYATTRIBUTE_RO_FUNCTION("useMesh", KX_LodLevel, pyattr_get_mesh),
+	KX_PYATTRIBUTE_RO_FUNCTION("useMaterial", KX_LodLevel, pyattr_get_use_material),
+	{NULL} // Sentinel
 };
 
-PyObject *KX_LodLevel::pyattr_get_mesh_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_LodLevel::pyattr_get_mesh(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
-	return PyUnicode_FromString(self->m_meshobj->GetName());
+	return self->m_meshobj->GetProxy();
 }
 
 PyObject *KX_LodLevel::pyattr_get_use_hysteresis(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
-	int useHysteresis = self->GetFlag();
-	return PyBool_FromLong(useHysteresis);
+	return PyBool_FromLong(self->GetFlag() & KX_LodLevel::USE_HYSTERESIS);
+}
+
+PyObject *KX_LodLevel::pyattr_get_use_mesh(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
+	return PyBool_FromLong(self->GetFlag() & KX_LodLevel::USE_MESH);
+}
+
+PyObject *KX_LodLevel::pyattr_get_use_material(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
+	return PyBool_FromLong(self->GetFlag() & KX_LodLevel::USE_MATERIAL);
 }
 
 #endif //WITH_PYTHON
