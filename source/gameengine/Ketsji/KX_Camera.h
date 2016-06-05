@@ -123,8 +123,8 @@ protected:
 	bool         m_delete_node;
 
 
-	/** Factor for level of detail*/
-	float m_lodFactor;
+	/** Disance factor for level of detail*/
+	float m_lodDistanceFactor;
 
 	/**
 	 * Extracts the camera clip frames from the projection and world-to-camera matrices.
@@ -224,9 +224,9 @@ public:
 	RAS_CameraData*		GetCameraData();
 
 	/** Get level of detail factor */
-	float GetLodFactor() const;
+	float GetLodDistanceFactor() const;
 	/** Set level of detail factor */
-	void SetLodFactor(float lodfactor);
+	void SetLodDistanceFactor(float lodfactor);
 	
 	/**
 	 * Tests if the given sphere is inside this camera's view frustum.

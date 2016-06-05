@@ -1790,7 +1790,7 @@ void KX_Scene::UpdateObjectLods()
 		return;
 
 	const MT_Vector3& cam_pos = m_active_camera->NodeGetWorldPosition();
-	const float lodfactor = m_active_camera->GetLodFactor();
+	const float lodfactor = m_active_camera->GetLodDistanceFactor();
 
 	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		KX_GameObject *gameobj = (KX_GameObject *)*it;

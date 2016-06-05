@@ -54,7 +54,7 @@ KX_Camera::KX_Camera(void* sgReplicationInfo,
       m_set_projection_matrix(false),
       m_set_frustum_center(false),
       m_delete_node(delete_node),
-	  m_lodFactor(1.0f)
+	  m_lodDistanceFactor(1.0f)
 {
 	// setting a name would be nice...
 	m_name = "cam";
@@ -265,14 +265,14 @@ RAS_CameraData*	KX_Camera::GetCameraData()
 	return &m_camdata; 
 }
 
-float KX_Camera::GetLodFactor() const
+float KX_Camera::GetLodDistanceFactor() const
 {
-	return m_lodFactor;
+	return m_lodDistanceFactor;
 }
 
-void KX_Camera::SetLodFactor(float lodfactor)
+void KX_Camera::SetLodDistanceFactor(float lodfactor)
 {
-	m_lodFactor = lodfactor;
+	m_lodDistanceFactor = lodfactor;
 }
 
 void KX_Camera::ExtractClipPlanes()
@@ -558,7 +558,7 @@ PyAttributeDef KX_Camera::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("far",	KX_Camera,	pyattr_get_far,  pyattr_set_far),
 	KX_PYATTRIBUTE_RW_FUNCTION("shift_x",	KX_Camera,	pyattr_get_shift_x, pyattr_set_shift_x),
 	KX_PYATTRIBUTE_RW_FUNCTION("shift_y",	KX_Camera,	pyattr_get_shift_y,  pyattr_set_shift_y),
-	KX_PYATTRIBUTE_FLOAT_RW("lodFactor", 0.0f, FLT_MAX, KX_Camera, m_lodFactor),
+	KX_PYATTRIBUTE_FLOAT_RW("lodDistanceFactor", 0.0f, FLT_MAX, KX_Camera, m_lodDistanceFactor),
 
 	KX_PYATTRIBUTE_RW_FUNCTION("useViewport",	KX_Camera,	pyattr_get_use_viewport,  pyattr_set_use_viewport),
 	
