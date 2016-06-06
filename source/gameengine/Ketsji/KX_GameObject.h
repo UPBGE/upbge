@@ -797,9 +797,11 @@ public:
 	}
 
 
-	/// Set library of lod meshes.
+	/** Set current lod manager, can be NULL.
+	 * If NULL the object's mesh backs to the original mesh.
+	 */
 	void SetLodManager(KX_LodManager *lodManager);
-	/// Get library of lod meshes.
+	/// Get current lod manager.
 	KX_LodManager *GetLodManager() const;
 
 	/**

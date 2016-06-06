@@ -15,20 +15,25 @@
 * along with this program; if not, write to the Free Software Foundation,
 * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* Contributor(s): Porteries Tristan.
+* Contributor(s): Ulysse Martin, Tristan Porteries.
 *
 * ***** END GPL LICENSE BLOCK *****
 */
 
-#include "EXP_Value.h"
+/** \file KX_LodLevel.h
+ *  \ingroup ketsji
+ */
+
+#ifndef __KX_LOD_LEVEL_H__
+#define __KX_LOD_LEVEL_H__
+
+#include "EXP_PyObjectPlus.h"
 #include "RAS_MeshObject.h"
 
 class KX_LodLevel : public PyObjectPlus
 {
 	Py_Header
-
 private:
-
 	float m_distance;
 	float m_hysteresis;
 	short m_level;
@@ -36,7 +41,6 @@ private:
 	RAS_MeshObject *m_meshobj;
 
 public:
-	KX_LodLevel();
 	KX_LodLevel(float distance, float hysteresis, unsigned short level, RAS_MeshObject *meshobj, unsigned short flag);
 	virtual ~KX_LodLevel();
 
@@ -67,6 +71,8 @@ public:
 	static PyObject *pyattr_get_use_mesh(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_use_material(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
-#endif //WITH_PYTHON
+#endif // WITH_PYTHON
 
 };
+
+#endif  // __KX_LOD_LEVEL_H__

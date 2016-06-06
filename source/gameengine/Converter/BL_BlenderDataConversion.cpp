@@ -953,8 +953,13 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 
 static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading)
 {
+	if (BLI_listbase_count_ex(&ob->lodlevels, 2) <= 1) {
+		return NULL;
+	}
+
 	KX_LodManager *lodManager = new KX_LodManager(ob, scene, converter, libloading);
-	if (lodManager->Empty()) {
+	// The lod manager is useless ?
+	if (lodManager->GetLevelCount() == 0) {
 		lodManager->Release();
 		return NULL;
 	}

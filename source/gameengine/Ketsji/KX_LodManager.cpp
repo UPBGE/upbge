@@ -15,9 +15,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor(s): Porteries Tristan.
+ * Contributor(s): Ulysse Martin, Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file gameengine/Ketsji/KX_LodManager.cpp
+ *  \ingroup ketsji
  */
 
 #include "KX_LodManager.h"
@@ -65,10 +69,8 @@ KX_LodManager::KX_LodManager(Object *ob, KX_Scene* scene, KX_BlenderSceneConvert
 
 KX_LodManager::~KX_LodManager()
 {
-	for (int i = 0; i < m_levels.size(); i++) {
-		if (m_levels[i]) {
-			delete m_levels[i];
-		}
+	for (std::vector<KX_LodLevel *>::iterator it = m_levels.begin(), end = m_levels.end(); it != end; ++it) {
+		delete *it;
 	}
 }
 
@@ -90,6 +92,16 @@ float KX_LodManager::GetHysteresis(KX_Scene *scene, unsigned short level)
 		hysteresis = scene->GetLodHysteresisValue() / 100.0f;
 	}
 	return MT_abs(lodnext->GetDistance() - lod->GetDistance()) * hysteresis;
+}
+
+unsigned int KX_LodManager::GetLevelCount() const
+{
+	return m_levels.size();
+}
+
+KX_LodLevel *KX_LodManager::GetLevel(unsigned int index) const
+{
+	return m_levels[index];
 }
 
 KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, unsigned short previouslod, float distance2)

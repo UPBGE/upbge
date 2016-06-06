@@ -801,6 +801,14 @@ void KX_GameObject::SetLodManager(KX_LodManager *lodManager)
 	// Reset lod level to avoid bugs on KX_LodManager::GetLevel.
 	m_previousLodLevel = 0;
 	m_currentLodLevel = 0;
+
+	// Restore object original mesh.
+	if (!lodManager && m_lodManager && m_lodManager->GetLevelCount() > 0) {
+		KX_Scene *scene = GetScene();
+		RAS_MeshObject *origmesh = m_lodManager->GetLevel(0)->GetMesh();
+		scene->ReplaceMesh(this, origmesh, true, false);
+	}
+
 	m_lodManager = lodManager;
 }
 

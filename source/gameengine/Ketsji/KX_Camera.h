@@ -123,7 +123,7 @@ protected:
 	bool         m_delete_node;
 
 
-	/** Disance factor for level of detail*/
+	/** Distance factor for level of detail*/
 	float m_lodDistanceFactor;
 
 	/**
@@ -223,9 +223,9 @@ public:
 	/** Gets all camera data. */
 	RAS_CameraData*		GetCameraData();
 
-	/** Get level of detail factor */
+	/** Get level of detail distance factor */
 	float GetLodDistanceFactor() const;
-	/** Set level of detail factor */
+	/** Set level of detail distance factor */
 	void SetLodDistanceFactor(float lodfactor);
 	
 	/**

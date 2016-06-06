@@ -15,16 +15,17 @@
 * along with this program; if not, write to the Free Software Foundation,
 * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* Contributor(s): Porteries Tristan.
+* Contributor(s): Ulysse Martin, Tristan Porteries.
 *
 * ***** END GPL LICENSE BLOCK *****
 */
 
-#include "KX_LodLevel.h"
+/** \file gameengine/Ketsji/KX_LodLevel.cpp
+ *  \ingroup ketsji
+ */
 
-KX_LodLevel::KX_LodLevel()
-{
-}
+#include "KX_LodLevel.h"
+#include "KX_MeshProxy.h"
 
 KX_LodLevel::KX_LodLevel(float distance, float hysteresis, unsigned short level, RAS_MeshObject *meshobj, unsigned short flag)
 	:m_distance(distance),
@@ -106,7 +107,8 @@ PyAttributeDef KX_LodLevel::Attributes[] = {
 PyObject *KX_LodLevel::pyattr_get_mesh(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_LodLevel *self = static_cast<KX_LodLevel *>(self_v);
-	return self->m_meshobj->GetProxy();
+	KX_MeshProxy *meshproxy = new KX_MeshProxy(self->GetMesh());
+	return meshproxy->NewProxy(true);
 }
 
 PyObject *KX_LodLevel::pyattr_get_use_hysteresis(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

@@ -15,12 +15,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor(s): Porteries Tristan.
+ * Contributor(s): Ulysse Martin, Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "EXP_Value.h"
+/** \file KX_LodManager.h
+ *  \ingroup ketsji
+ */
+
+#ifndef __KX_LOD_MANAGER_H__
+#define __KX_LOD_MANAGER_H__
+
+#include "EXP_PyObjectPlus.h"
 #include <vector>
 
 class KX_Scene;
@@ -31,8 +38,6 @@ struct Object;
 class KX_LodManager: public PyObjectPlus
 {
 	Py_Header
-public:
-
 private:
 	std::vector<KX_LodLevel *> m_levels;
 
@@ -51,18 +56,20 @@ public:
 	KX_LodManager(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading);
 	virtual ~KX_LodManager();
 
+	/// Return number of lod levels.
+	unsigned int GetLevelCount() const;
+
+	/** Get lod level by index.
+	 * \param index The lod level index.
+	 */
+	KX_LodLevel *GetLevel(unsigned int index) const;
+
 	/** Get lod level cooresponding to distance and previous level.
 	 * \param scene Scene used to get default hysteresis.
 	 * \param previouslod Previous lod computed by this function before.
 	 * \param distance2 Squared distance object to the camera.
 	 */
 	KX_LodLevel *GetLevel(KX_Scene *scene, unsigned short previouslod, float distance);
-
-	/// If it returns true, then the lod is useless then.
-	inline bool Empty() const
-	{
-		return m_levels.empty();
-	}
 
 	KX_LodManager *AddRef()
 	{
@@ -96,3 +103,5 @@ public:
 bool ConvertPythonToLodManager(PyObject *value, KX_LodManager **object, bool py_none_ok, const char *error_prefix);
 
 #endif  // WITH_PYTHON
+
+#endif  // __KX_LOD_MANAGER_H__

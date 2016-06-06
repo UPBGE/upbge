@@ -17,7 +17,7 @@ base class --- :class:`PyObjectPlus`
 
    .. attribute:: level
 
-      The id of the lod level. (read only)
+      The number of the lod level. (read only)
 
       :type: integer
 
@@ -41,7 +41,7 @@ base class --- :class:`PyObjectPlus`
 
    .. attribute:: useMaterial
 
-      Return True if the lod level uses a diferent mesh than the original object mesh material. (read only)
+      Return True if the lod level uses a different material than the original object mesh material. (read only)
 
       :type: boolean
 

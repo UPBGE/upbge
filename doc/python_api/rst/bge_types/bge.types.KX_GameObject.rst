@@ -498,7 +498,7 @@ base class --- :class:`SCA_IObject`
 
    .. attribute:: lodManager
 
-      Return the lod manager of this KX_GameObject.
+      Return the lod manager of this object.
       Needed to access to lod manager to set attributes of levels of detail of this object.
 
       :type: :class:`KX_LodManager`
