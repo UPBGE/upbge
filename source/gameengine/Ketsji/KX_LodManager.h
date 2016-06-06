@@ -34,7 +34,7 @@ class KX_LodManager: public PyObjectPlus
 public:
 
 private:
-	std::vector<KX_LodLevel *> m_lodLevelList;
+	std::vector<KX_LodLevel *> m_levels;
 
 	/** Get the hysteresis from the level or the scene.
 	 * \param scene Scene used to get default hysteresis.
@@ -61,7 +61,7 @@ public:
 	/// If it returns true, then the lod is useless then.
 	inline bool Empty() const
 	{
-		return m_lodLevelList.empty();
+		return m_levels.empty();
 	}
 
 	KX_LodManager *AddRef()

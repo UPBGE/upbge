@@ -58,17 +58,16 @@ KX_LodManager::KX_LodManager(Object *ob, KX_Scene* scene, KX_BlenderSceneConvert
 			KX_LodLevel *lodLevel = new KX_LodLevel(lod->distance, lod->obhysteresis, level++,
 				BL_ConvertMesh(lodmesh, lodmatob, scene, converter, libloading), flag);
 
-			m_lodLevelList.push_back(lodLevel);
+			m_levels.push_back(lodLevel);
 		}
 	}
 }
 
 KX_LodManager::~KX_LodManager()
 {
-	for (int i = 0; i < m_lodLevelList.size(); i++) {
-		if (m_lodLevelList[i]) {
-			free(m_lodLevelList[i]);
-			m_lodLevelList[i] = NULL;
+	for (int i = 0; i < m_levels.size(); i++) {
+		if (m_levels[i]) {
+			delete m_levels[i];
 		}
 	}
 }
@@ -79,8 +78,8 @@ float KX_LodManager::GetHysteresis(KX_Scene *scene, unsigned short level)
 		return 0.0f;
 	}
 
-	KX_LodLevel *lod = m_lodLevelList[level];
-	KX_LodLevel *lodnext = m_lodLevelList[level + 1];
+	KX_LodLevel *lod = m_levels[level];
+	KX_LodLevel *lodnext = m_levels[level + 1];
 
 	float hysteresis = 0.0f;
 	// if exists, LoD level hysteresis will override scene hysteresis
@@ -96,7 +95,7 @@ float KX_LodManager::GetHysteresis(KX_Scene *scene, unsigned short level)
 KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, unsigned short previouslod, float distance2)
 {
 	unsigned short level = 0;
-	unsigned short count = m_lodLevelList.size();
+	unsigned short count = m_levels.size();
 	distance2 *= (m_distanceFactor * m_distanceFactor);
 
 	while (level < count) {
@@ -105,21 +104,21 @@ KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, unsigned short previouslod
 		}
 		else if (level == previouslod || level == (previouslod + 1)) {
 			const float hystvariance = GetHysteresis(scene, level);
-			const float newdistance = m_lodLevelList[level + 1]->GetDistance() + hystvariance;
+			const float newdistance = m_levels[level + 1]->GetDistance() + hystvariance;
 			if (newdistance * newdistance > distance2) {
 				break;
 			}
 		}
 		else if (level == (previouslod - 1)) {
 			const float hystvariance = GetHysteresis(scene, level);
-			const float newdistance = m_lodLevelList[level + 1]->GetDistance() - hystvariance;
+			const float newdistance = m_levels[level + 1]->GetDistance() - hystvariance;
 			if (newdistance * newdistance > distance2) {
 				break;
 			}
 		}
 		++level;
 	}
-	return m_lodLevelList[level];
+	return m_levels[level];
 }
 
 #ifdef WITH_PYTHON
@@ -159,10 +158,10 @@ PyAttributeDef KX_LodManager::Attributes[] = {
 PyObject *KX_LodManager::pyattr_get_levels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_LodManager* self = static_cast<KX_LodManager*>(self_v);
-	PyObject *levelList = PyList_New(self->m_lodLevelList.size());
-	if (self->m_lodLevelList.size() != 0) {
-		for (int i = 0; i < self->m_lodLevelList.size(); i++) {
-			PyList_SET_ITEM(levelList, i, self->m_lodLevelList[i]->GetProxy());
+	PyObject *levelList = PyList_New(self->m_levels.size());
+	if (self->m_levels.size() != 0) {
+		for (int i = 0; i < self->m_levels.size(); i++) {
+			PyList_SET_ITEM(levelList, i, self->m_levels[i]->GetProxy());
 		}
 	}
 
