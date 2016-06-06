@@ -19,14 +19,18 @@
 
 #include "kernel_types.h"
 
+#include "node.h"
+
 CCL_NAMESPACE_BEGIN
 
 class Device;
 class DeviceScene;
 class Scene;
 
-class Integrator {
+class Integrator : public Node {
 public:
+	NODE_DECLARE;
+
 	int min_bounce;
 	int max_bounce;
 
@@ -47,7 +51,6 @@ public:
 	float filter_glossy;
 
 	int seed;
-	int layer_flag;
 
 	float sample_clamp_direct;
 	float sample_clamp_indirect;

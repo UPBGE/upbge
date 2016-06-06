@@ -96,9 +96,8 @@ public:
 
 private:
 	int tex_num_images[IMAGE_DATA_NUM_TYPES];
-	int tex_image_byte4_start;
-	int tex_image_float_start;
-	int tex_image_byte_start;
+	int tex_start_images[IMAGE_DATA_NUM_TYPES];
+
 	thread_mutex device_mutex;
 	int animation_frame;
 
@@ -107,10 +106,12 @@ private:
 	bool pack_images;
 
 	bool file_load_image_generic(Image *img, ImageInput **in, int &width, int &height, int &depth, int &components);
-	bool file_load_byte4_image(Image *img, device_vector<uchar4>& tex_img);
-	bool file_load_byte_image(Image *img, device_vector<uchar>& tex_img);
-	bool file_load_float4_image(Image *img, device_vector<float4>& tex_img);
-	bool file_load_float_image(Image *img, device_vector<float>& tex_img);
+
+	template<typename T>
+	bool file_load_byte_image(Image *img, ImageDataType type, device_vector<T>& tex_img);
+
+	template<typename T>
+	bool file_load_float_image(Image *img, ImageDataType type, device_vector<T>& tex_img);
 
 	int type_index_to_flattened_slot(int slot, ImageDataType type);
 	int flattened_slot_to_type_index(int flat_slot, ImageDataType *type);

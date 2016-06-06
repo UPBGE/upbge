@@ -44,7 +44,8 @@ float calculate_ssao_factor(float depth)
 	vec3 position = get_view_space_from_depth(uvcoordsvar.xy, viewvecs[0].xyz, viewvecs[1].xyz, depth);
 	vec3 normal = calculate_view_space_normal(position);
 
-	// find the offset in screen space by multiplying a point in camera space at the depth of the point by the projection matrix.
+	/* find the offset in screen space by multiplying a point
+	 * in camera space at the depth of the point by the projection matrix. */
 	vec2 offset;
 	float homcoord = gl_ProjectionMatrix[2][3] * position.z + gl_ProjectionMatrix[3][3];
 	offset.x = gl_ProjectionMatrix[0][0] * ssao_params.x / homcoord;
@@ -76,7 +77,7 @@ float calculate_ssao_factor(float depth)
 
 			/* use minor bias here to avoid self shadowing */
 			if (f > 0.05 * len + 0.0001)
-				factor += f * 1.0/(len * (1.0 + len * len * ssao_params.z));
+				factor += f * 1.0 / (len * (1.0 + len * len * ssao_params.z));
 		}
 	}
 

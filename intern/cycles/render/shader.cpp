@@ -69,12 +69,12 @@ static void beckmann_table_rows(float *table, int row_from, int row_to)
 
 		/* for a given incident vector
 		 * integrate P22_{omega_i}(x_slope, 1, 1), Eq. (10) */
-		slope_x[0] = -beckmann_table_slope_max();
+		slope_x[0] = (double)-beckmann_table_slope_max();
 		CDF_P22_omega_i[0] = 0;
 
 		for(int index_slope_x = 1; index_slope_x < DATA_TMP_SIZE; ++index_slope_x) {
 			/* slope_x */
-			slope_x[index_slope_x] = -beckmann_table_slope_max() + 2.0f * beckmann_table_slope_max() * index_slope_x/(DATA_TMP_SIZE - 1.0f);
+			slope_x[index_slope_x] = (double)(-beckmann_table_slope_max() + 2.0f * beckmann_table_slope_max() * index_slope_x/(DATA_TMP_SIZE - 1.0f));
 
 			/* dot product with incident vector */
 			float dot_product = fmaxf(0.0f, -(float)slope_x[index_slope_x]*sin_theta + cos_theta);
@@ -131,19 +131,35 @@ static void beckmann_table_build(vector<float>& table)
 
 /* Shader */
 
-Shader::Shader()
+NODE_DEFINE(Shader)
 {
-	name = "";
+	NodeType* type = NodeType::add("shader", create);
+
+	SOCKET_BOOLEAN(use_mis, "Use MIS", true);
+	SOCKET_BOOLEAN(use_transparent_shadow, "Use Transparent Shadow", true);
+	SOCKET_BOOLEAN(heterogeneous_volume, "Heterogeneous Volume", true);
+
+	static NodeEnum volume_sampling_method_enum;
+	volume_sampling_method_enum.insert("distance", VOLUME_SAMPLING_DISTANCE);
+	volume_sampling_method_enum.insert("equiangular", VOLUME_SAMPLING_EQUIANGULAR);
+	volume_sampling_method_enum.insert("multiple_importance", VOLUME_SAMPLING_MULTIPLE_IMPORTANCE);
+	SOCKET_ENUM(volume_sampling_method, "Volume Sampling Method", volume_sampling_method_enum, VOLUME_SAMPLING_DISTANCE);
+
+	static NodeEnum volume_interpolation_method_enum;
+	volume_interpolation_method_enum.insert("linear", VOLUME_INTERPOLATION_LINEAR);
+	volume_interpolation_method_enum.insert("cubic", VOLUME_INTERPOLATION_CUBIC);
+	SOCKET_ENUM(volume_interpolation_method, "Volume Interpolation Method", volume_interpolation_method_enum, VOLUME_INTERPOLATION_LINEAR);
+
+	return type;
+}
+
+Shader::Shader()
+: Node(node_type)
+{
 	pass_id = 0;
 
 	graph = NULL;
 	graph_bump = NULL;
-
-	use_mis = true;
-	use_transparent_shadow = true;
-	heterogeneous_volume = true;
-	volume_sampling_method = VOLUME_SAMPLING_DISTANCE;
-	volume_interpolation_method = VOLUME_INTERPOLATION_LINEAR;
 
 	has_surface = false;
 	has_surface_transparent = false;
@@ -440,7 +456,7 @@ void ShaderManager::add_default(Scene *scene)
 		ShaderGraph *graph = new ShaderGraph();
 
 		closure = graph->add(new DiffuseBsdfNode());
-		closure->input("Color")->value = make_float3(0.8f, 0.8f, 0.8f);
+		closure->input("Color")->set(make_float3(0.8f, 0.8f, 0.8f));
 		out = graph->output();
 
 		graph->connect(closure->output("BSDF"), out->input("Surface"));
@@ -457,8 +473,8 @@ void ShaderManager::add_default(Scene *scene)
 		ShaderGraph *graph = new ShaderGraph();
 
 		closure = graph->add(new EmissionNode());
-		closure->input("Color")->value = make_float3(0.8f, 0.8f, 0.8f);
-		closure->input("Strength")->value.x = 0.0f;
+		closure->input("Color")->set(make_float3(0.8f, 0.8f, 0.8f));
+		closure->input("Strength")->set(0.0f);
 		out = graph->output();
 
 		graph->connect(closure->output("Emission"), out->input("Surface"));

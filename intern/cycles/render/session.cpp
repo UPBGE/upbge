@@ -610,16 +610,16 @@ DeviceRequestedFeatures Session::get_requested_device_features()
 	/* TODO(sergey): Consider moving this to the Scene level. */
 	DeviceRequestedFeatures requested_features;
 	requested_features.experimental = params.experimental;
+
+	requested_features.max_closure = get_max_closure_count();
+	scene->shader_manager->get_requested_features(
+	        scene,
+	        &requested_features);
 	if(!params.background) {
+		/* Avoid too much re-compilations for viewport render. */
 		requested_features.max_closure = 64;
 		requested_features.max_nodes_group = NODE_GROUP_LEVEL_MAX;
 		requested_features.nodes_features = NODE_FEATURE_ALL;
-	}
-	else {
-		requested_features.max_closure = get_max_closure_count();
-		scene->shader_manager->get_requested_features(
-		        scene,
-		        &requested_features);
 	}
 
 	/* This features are not being tweaked as often as shaders,
@@ -630,7 +630,7 @@ DeviceRequestedFeatures Session::get_requested_device_features()
 	requested_features.use_camera_motion = scene->camera->use_motion;
 	foreach(Object *object, scene->objects) {
 		Mesh *mesh = object->mesh;
-		if(mesh->curves.size() > 0) {
+		if(mesh->num_curves()) {
 			requested_features.use_hair = true;
 		}
 		requested_features.use_object_motion |= object->use_motion | mesh->use_motion_blur;

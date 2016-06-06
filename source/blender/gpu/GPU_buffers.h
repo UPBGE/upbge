@@ -49,6 +49,7 @@ struct DerivedMesh;
 struct GSet;
 struct GPUVertPointLink;
 struct GPUDrawObject;
+struct GridCommonGPUBuffer;
 struct PBVH;
 struct MVert;
 
@@ -147,6 +148,7 @@ typedef struct GPUVertPointLink {
 /* used for GLSL materials */
 typedef struct GPUAttrib {
 	int index;
+	int info_index;
 	int size;
 	int type;
 } GPUAttrib;
@@ -158,9 +160,6 @@ GPUBuffer *GPU_buffer_alloc(size_t size);
 void GPU_buffer_free(GPUBuffer *buffer);
 
 void GPU_drawobject_free(struct DerivedMesh *dm);
-
-/* free special global multires grid buffer */
-void GPU_buffer_multires_free(bool force);
 
 /* flag that controls data type to fill buffer with, a modifier will prepare. */
 typedef enum {
@@ -178,6 +177,10 @@ typedef enum {
 	GPU_BINDING_ARRAY = 0,
 	GPU_BINDING_INDEX = 1,
 } GPUBindingType;
+
+typedef enum {
+	GPU_ATTR_INFO_SRGB = (1 << 0),
+} GPUAttrInfo;
 
 /* called before drawing */
 void GPU_vertex_setup(struct DerivedMesh *dm);
@@ -226,8 +229,9 @@ GPU_PBVH_Buffers *GPU_build_mesh_pbvh_buffers(
         const int *face_indices,
         const int  face_indices_len);
 
-GPU_PBVH_Buffers *GPU_build_grid_pbvh_buffers(int *grid_indices, int totgrid,
-                                    unsigned int **grid_hidden, int gridsize, const struct CCGKey *key);
+GPU_PBVH_Buffers *GPU_build_grid_pbvh_buffers(
+        int *grid_indices, int totgrid,unsigned int **grid_hidden, int gridsize, const struct CCGKey *key,
+        struct GridCommonGPUBuffer **grid_common_gpu_buffer);
 
 GPU_PBVH_Buffers *GPU_build_bmesh_pbvh_buffers(bool smooth_shading);
 
@@ -262,5 +266,6 @@ void GPU_init_draw_pbvh_BB(void);
 bool GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, struct GSet *bm_faces, bool show_diffuse_color);
 
 void GPU_free_pbvh_buffers(GPU_PBVH_Buffers *buffers);
+void GPU_free_pbvh_buffer_multires(struct GridCommonGPUBuffer **grid_common_gpu_buffer);
 
 #endif

@@ -17,17 +17,21 @@
 #ifndef __BACKGROUND_H__
 #define __BACKGROUND_H__
 
+#include "node.h"
+
 #include "util_types.h"
 
 CCL_NAMESPACE_BEGIN
 
 class Device;
 class DeviceScene;
-class Shader;
 class Scene;
+class Shader;
 
-class Background {
+class Background : public Node {
 public:
+	NODE_DECLARE;
+
 	float ao_factor;
 	float ao_distance;
 

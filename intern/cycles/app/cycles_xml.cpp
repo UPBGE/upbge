@@ -20,6 +20,8 @@
 #include <algorithm>
 #include <iterator>
 
+#include "node_xml.h"
+
 #include "background.h"
 #include "camera.h"
 #include "film.h"
@@ -29,6 +31,7 @@
 #include "mesh.h"
 #include "nodes.h"
 #include "object.h"
+#include "osl.h"
 #include "shader.h"
 #include "scene.h"
 
@@ -48,7 +51,7 @@ CCL_NAMESPACE_BEGIN
 
 /* XML reading state */
 
-struct XMLReadState {
+struct XMLReadState : public XMLReader {
 	Scene *scene;		/* scene pointer */
 	Transform tfm;		/* current transform state */
 	bool smooth;		/* smooth normal state */
@@ -212,25 +215,7 @@ static bool xml_equal_string(pugi::xml_node node, const char *name, const char *
 	return false;
 }
 
-static bool xml_read_enum(ustring *str, ShaderEnum& enm, pugi::xml_node node, const char *name)
-{
-	pugi::xml_attribute attr = node.attribute(name);
-
-	if(attr) {
-		ustring ustr(attr.value());
-
-		if(enm.exists(ustr)) {
-			*str = ustr;
-			return true;
-		}
-		else
-			fprintf(stderr, "Unknown value \"%s\" for attribute \"%s\".\n", ustr.c_str(), name);
-	}
-
-	return false;
-}
-
-static bool xml_read_enum_value(int *value, ShaderEnum& enm, pugi::xml_node node, const char *name)
+static bool xml_read_enum_value(int *value, NodeEnum& enm, pugi::xml_node node, const char *name)
 {
 	pugi::xml_attribute attr = node.attribute(name);
 
@@ -248,141 +233,16 @@ static bool xml_read_enum_value(int *value, ShaderEnum& enm, pugi::xml_node node
 	return false;
 }
 
-static ShaderSocketType xml_read_socket_type(pugi::xml_node node, const char *name)
-{
-	pugi::xml_attribute attr = node.attribute(name);
-
-	if(attr) {
-		string value = attr.value();
-		if(string_iequals(value, "float"))
-			return SHADER_SOCKET_FLOAT;
-		else if(string_iequals(value, "int"))
-			return SHADER_SOCKET_INT;
-		else if(string_iequals(value, "color"))
-			return SHADER_SOCKET_COLOR;
-		else if(string_iequals(value, "vector"))
-			return SHADER_SOCKET_VECTOR;
-		else if(string_iequals(value, "point"))
-			return SHADER_SOCKET_POINT;
-		else if(string_iequals(value, "normal"))
-			return SHADER_SOCKET_NORMAL;
-		else if(string_iequals(value, "closure color"))
-			return SHADER_SOCKET_CLOSURE;
-		else if(string_iequals(value, "string"))
-			return SHADER_SOCKET_STRING;
-		else
-			fprintf(stderr, "Unknown shader socket type \"%s\" for attribute \"%s\".\n", value.c_str(), name);
-	}
-	
-	return SHADER_SOCKET_UNDEFINED;
-}
-
-/* Film */
-
-static void xml_read_film(const XMLReadState& state, pugi::xml_node node)
-{
-	Film *film = state.scene->film;
-	
-	xml_read_float(&film->exposure, node, "exposure");
-
-	/* ToDo: Filter Type */
-	xml_read_float(&film->filter_width, node, "filter_width");
-}
-
-/* Integrator */
-
-static void xml_read_integrator(const XMLReadState& state, pugi::xml_node node)
-{
-	Integrator *integrator = state.scene->integrator;
-	
-	/* Branched Path */
-	bool branched = false;
-	xml_read_bool(&branched, node, "branched");
-
-	if(branched) {
-		integrator->method = Integrator::BRANCHED_PATH;
-
-		xml_read_int(&integrator->diffuse_samples, node, "diffuse_samples");
-		xml_read_int(&integrator->glossy_samples, node, "glossy_samples");
-		xml_read_int(&integrator->transmission_samples, node, "transmission_samples");
-		xml_read_int(&integrator->ao_samples, node, "ao_samples");
-		xml_read_int(&integrator->mesh_light_samples, node, "mesh_light_samples");
-		xml_read_int(&integrator->subsurface_samples, node, "subsurface_samples");
-		xml_read_int(&integrator->volume_samples, node, "volume_samples");
-		xml_read_bool(&integrator->sample_all_lights_direct, node, "sample_all_lights_direct");
-		xml_read_bool(&integrator->sample_all_lights_indirect, node, "sample_all_lights_indirect");
-	}
-	
-	/* Bounces */
-	xml_read_int(&integrator->min_bounce, node, "min_bounce");
-	xml_read_int(&integrator->max_bounce, node, "max_bounce");
-	
-	xml_read_int(&integrator->max_diffuse_bounce, node, "max_diffuse_bounce");
-	xml_read_int(&integrator->max_glossy_bounce, node, "max_glossy_bounce");
-	xml_read_int(&integrator->max_transmission_bounce, node, "max_transmission_bounce");
-	xml_read_int(&integrator->max_volume_bounce, node, "max_volume_bounce");
-	
-	/* Transparency */
-	xml_read_int(&integrator->transparent_min_bounce, node, "transparent_min_bounce");
-	xml_read_int(&integrator->transparent_max_bounce, node, "transparent_max_bounce");
-	xml_read_bool(&integrator->transparent_shadows, node, "transparent_shadows");
-	
-	/* Volume */
-	xml_read_float(&integrator->volume_step_size, node, "volume_step_size");
-	xml_read_int(&integrator->volume_max_steps, node, "volume_max_steps");
-	
-	/* Various Settings */
-	xml_read_bool(&integrator->caustics_reflective, node, "caustics_reflective");
-	xml_read_bool(&integrator->caustics_refractive, node, "caustics_refractive");
-	xml_read_float(&integrator->filter_glossy, node, "filter_glossy");
-	
-	xml_read_int(&integrator->seed, node, "seed");
-	xml_read_float(&integrator->sample_clamp_direct, node, "sample_clamp_direct");
-	xml_read_float(&integrator->sample_clamp_indirect, node, "sample_clamp_indirect");
-}
-
 /* Camera */
 
-static void xml_read_camera(const XMLReadState& state, pugi::xml_node node)
+static void xml_read_camera(XMLReadState& state, pugi::xml_node node)
 {
 	Camera *cam = state.scene->camera;
 
 	xml_read_int(&cam->width, node, "width");
 	xml_read_int(&cam->height, node, "height");
 
-	if(xml_read_float(&cam->fov, node, "fov"))
-		cam->fov = DEG2RADF(cam->fov);
-
-	xml_read_float(&cam->nearclip, node, "nearclip");
-	xml_read_float(&cam->farclip, node, "farclip");
-	xml_read_float(&cam->aperturesize, node, "aperturesize"); // 0.5*focallength/fstop
-	xml_read_float(&cam->focaldistance, node, "focaldistance");
-	xml_read_float(&cam->shuttertime, node, "shuttertime");
-	xml_read_float(&cam->aperture_ratio, node, "aperture_ratio");
-
-	if(xml_equal_string(node, "type", "orthographic"))
-		cam->type = CAMERA_ORTHOGRAPHIC;
-	else if(xml_equal_string(node, "type", "perspective"))
-		cam->type = CAMERA_PERSPECTIVE;
-	else if(xml_equal_string(node, "type", "panorama"))
-		cam->type = CAMERA_PANORAMA;
-
-	if(xml_equal_string(node, "panorama_type", "equirectangular"))
-		cam->panorama_type = PANORAMA_EQUIRECTANGULAR;
-	else if(xml_equal_string(node, "panorama_type", "fisheye_equidistant"))
-		cam->panorama_type = PANORAMA_FISHEYE_EQUIDISTANT;
-	else if(xml_equal_string(node, "panorama_type", "fisheye_equisolid"))
-		cam->panorama_type = PANORAMA_FISHEYE_EQUISOLID;
-
-	xml_read_float(&cam->fisheye_fov, node, "fisheye_fov");
-	xml_read_float(&cam->fisheye_lens, node, "fisheye_lens");
-
-	xml_read_bool(&cam->use_spherical_stereo, node, "use_spherical_stereo");
-	xml_read_float(&cam->interocular_distance, node, "interocular_distance");
-	xml_read_float(&cam->convergence_distance, node, "convergence_distance");
-
-	xml_read_float(&cam->sensorwidth, node, "sensorwidth");
-	xml_read_float(&cam->sensorheight, node, "sensorheight");
+	xml_read_node(state, cam, node);
 
 	cam->matrix = state.tfm;
 
@@ -403,8 +263,11 @@ static string xml_socket_name(const char *name)
 	return sname;
 }
 
-static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pugi::xml_node graph_node)
+static void xml_read_shader_graph(XMLReadState& state, Shader *shader, pugi::xml_node graph_node)
 {
+	xml_read_node(state, shader, graph_node);
+
+	ShaderManager *manager = state.scene->shader_manager;
 	ShaderGraph *graph = new ShaderGraph();
 
 	map<string, ShaderNode*> nodemap;
@@ -424,8 +287,8 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			xml_read_string(&img->filename, node, "src");
 			img->filename = path_join(state.base, img->filename);
 			
-			xml_read_enum(&img->color_space, ImageTextureNode::color_space_enum, node, "color_space");
-			xml_read_enum(&img->projection, ImageTextureNode::projection_enum, node, "projection");
+			xml_read_enum_value((int*)&img->color_space, ImageTextureNode::color_space_enum, node, "color_space");
+			xml_read_enum_value((int*)&img->projection, ImageTextureNode::projection_enum, node, "projection");
 			xml_read_float(&img->projection_blend, node, "projection_blend");
 
 			/* ToDo: Interpolation */
@@ -438,56 +301,40 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			xml_read_string(&env->filename, node, "src");
 			env->filename = path_join(state.base, env->filename);
 			
-			xml_read_enum(&env->color_space, EnvironmentTextureNode::color_space_enum, node, "color_space");
-			xml_read_enum(&env->projection, EnvironmentTextureNode::projection_enum, node, "projection");
+			xml_read_enum_value((int*)&env->color_space, EnvironmentTextureNode::color_space_enum, node, "color_space");
+			xml_read_enum_value((int*)&env->projection, EnvironmentTextureNode::projection_enum, node, "projection");
 
 			snode = env;
 		}
+#ifdef WITH_OSL
 		else if(string_iequals(node.name(), "osl_shader")) {
-			OSLScriptNode *osl = new OSLScriptNode();
+			if(manager->use_osl()) {
+				std::string filepath;
 
-			/* Source */
-			xml_read_string(&osl->filepath, node, "src");
-			if(path_is_relative(osl->filepath)) {
-				osl->filepath = path_join(state.base, osl->filepath);
-			}
+				if(xml_read_string(&filepath, node, "src")) {
+					if(path_is_relative(filepath)) {
+						filepath = path_join(state.base, filepath);
+					}
 
-			/* Generate inputs/outputs from node sockets
-			 *
-			 * Note: ShaderInput/ShaderOutput store shallow string copies only!
-			 * So we register them as ustring to ensure the pointer stays valid. */
-			/* read input values */
-			for(pugi::xml_node param = node.first_child(); param; param = param.next_sibling()) {
-				if(string_iequals(param.name(), "input")) {
-					string name;
-					if(!xml_read_string(&name, param, "name"))
-						continue;
-					
-					ShaderSocketType type = xml_read_socket_type(param, "type");
-					if(type == SHADER_SOCKET_UNDEFINED)
-						continue;
-					
-					osl->add_input(ustring(name).c_str(), type);
+					snode = ((OSLShaderManager*)manager)->osl_node(filepath);
+
+					if(!snode) {
+						fprintf(stderr, "Failed to create OSL node from \"%s\".\n", filepath.c_str());
+					}
 				}
-				else if(string_iequals(param.name(), "output")) {
-					string name;
-					if(!xml_read_string(&name, param, "name"))
-						continue;
-					
-					ShaderSocketType type = xml_read_socket_type(param, "type");
-					if(type == SHADER_SOCKET_UNDEFINED)
-						continue;
-					
-					osl->add_output(ustring(name).c_str(), type);
+				else {
+					fprintf(stderr, "OSL node missing \"src\" attribute.\n");
 				}
 			}
-			
-			snode = osl;
+			else {
+				fprintf(stderr, "OSL node without using --shadingsys osl.\n");
+			}
 		}
+#endif
 		else if(string_iequals(node.name(), "sky_texture")) {
 			SkyTextureNode *sky = new SkyTextureNode();
 			
-			xml_read_enum(&sky->type, SkyTextureNode::type_enum, node, "type");
+			xml_read_enum_value((int*)&sky->type, SkyTextureNode::type_enum, node, "type");
 			xml_read_float3(&sky->sun_direction, node, "sun_direction");
 			xml_read_float(&sky->turbidity, node, "turbidity");
 			xml_read_float(&sky->ground_albedo, node, "ground_albedo");
@@ -512,17 +359,17 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		}
 		else if(string_iequals(node.name(), "gradient_texture")) {
 			GradientTextureNode *blend = new GradientTextureNode();
-			xml_read_enum(&blend->type, GradientTextureNode::type_enum, node, "type");
+			xml_read_enum_value((int*)&blend->type, GradientTextureNode::type_enum, node, "type");
 			snode = blend;
 		}
 		else if(string_iequals(node.name(), "voronoi_texture")) {
 			VoronoiTextureNode *voronoi = new VoronoiTextureNode();
-			xml_read_enum(&voronoi->coloring, VoronoiTextureNode::coloring_enum, node, "coloring");
+			xml_read_enum_value((int*)&voronoi->coloring, VoronoiTextureNode::coloring_enum, node, "coloring");
 			snode = voronoi;
 		}
 		else if(string_iequals(node.name(), "musgrave_texture")) {
 			MusgraveTextureNode *musgrave = new MusgraveTextureNode();
-			xml_read_enum(&musgrave->type, MusgraveTextureNode::type_enum, node, "type");
+			xml_read_enum_value((int*)&musgrave->type, MusgraveTextureNode::type_enum, node, "type");
 			snode = musgrave;
 		}
 		else if(string_iequals(node.name(), "magic_texture")) {
@@ -532,8 +379,8 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		}
 		else if(string_iequals(node.name(), "wave_texture")) {
 			WaveTextureNode *wave = new WaveTextureNode();
-			xml_read_enum(&wave->type, WaveTextureNode::type_enum, node, "type");
-			xml_read_enum(&wave->profile, WaveTextureNode::profile_enum, node, "profile");
+			xml_read_enum_value((int*)&wave->type, WaveTextureNode::type_enum, node, "type");
+			xml_read_enum_value((int*)&wave->profile, WaveTextureNode::profile_enum, node, "profile");
 			snode = wave;
 		}
 		else if(string_iequals(node.name(), "normal")) {
@@ -568,7 +415,7 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		}
 		else if(string_iequals(node.name(), "anisotropic_bsdf")) {
 			AnisotropicBsdfNode *aniso = new AnisotropicBsdfNode();
-			xml_read_enum(&aniso->distribution, AnisotropicBsdfNode::distribution_enum, node, "distribution");
+			xml_read_enum_value((int*)&aniso->distribution, AnisotropicBsdfNode::distribution_enum, node, "distribution");
 			snode = aniso;
 		}
 		else if(string_iequals(node.name(), "diffuse_bsdf")) {
@@ -585,27 +432,27 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		}
 		else if(string_iequals(node.name(), "toon_bsdf")) {
 			ToonBsdfNode *toon = new ToonBsdfNode();
-			xml_read_enum(&toon->component, ToonBsdfNode::component_enum, node, "component");
+			xml_read_enum_value((int*)&toon->component, ToonBsdfNode::component_enum, node, "component");
 			snode = toon;
 		}
 		else if(string_iequals(node.name(), "glossy_bsdf")) {
 			GlossyBsdfNode *glossy = new GlossyBsdfNode();
-			xml_read_enum(&glossy->distribution, GlossyBsdfNode::distribution_enum, node, "distribution");
+			xml_read_enum_value((int*)&glossy->distribution, GlossyBsdfNode::distribution_enum, node, "distribution");
 			snode = glossy;
 		}
 		else if(string_iequals(node.name(), "glass_bsdf")) {
 			GlassBsdfNode *diel = new GlassBsdfNode();
-			xml_read_enum(&diel->distribution, GlassBsdfNode::distribution_enum, node, "distribution");
+			xml_read_enum_value((int*)&diel->distribution, GlassBsdfNode::distribution_enum, node, "distribution");
 			snode = diel;
 		}
 		else if(string_iequals(node.name(), "refraction_bsdf")) {
 			RefractionBsdfNode *diel = new RefractionBsdfNode();
-			xml_read_enum(&diel->distribution, RefractionBsdfNode::distribution_enum, node, "distribution");
+			xml_read_enum_value((int*)&diel->distribution, RefractionBsdfNode::distribution_enum, node, "distribution");
 			snode = diel;
 		}
 		else if(string_iequals(node.name(), "hair_bsdf")) {
 			HairBsdfNode *hair = new HairBsdfNode();
-			xml_read_enum(&hair->component, HairBsdfNode::component_enum, node, "component");
+			xml_read_enum_value((int*)&hair->component, HairBsdfNode::component_enum, node, "component");
 			snode = hair;
 		}
 		else if(string_iequals(node.name(), "emission")) {
@@ -683,7 +530,7 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		else if(string_iequals(node.name(), "mix")) {
 			/* ToDo: Tag Mix case for optimization */
 			MixNode *mix = new MixNode();
-			xml_read_enum(&mix->type, MixNode::type_enum, node, "type");
+			xml_read_enum_value((int*)&mix->type, MixNode::type_enum, node, "type");
 			xml_read_bool(&mix->use_clamp, node, "use_clamp");
 			snode = mix;
 		}
@@ -747,32 +594,32 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 		else if(string_iequals(node.name(), "normal_map")) {
 			NormalMapNode *nmap = new NormalMapNode;
 			xml_read_ustring(&nmap->attribute, node, "attribute");
-			xml_read_enum(&nmap->space, NormalMapNode::space_enum, node, "space");
+			xml_read_enum_value((int*)&nmap->space, NormalMapNode::space_enum, node, "space");
 			snode = nmap;
 		}
 		else if(string_iequals(node.name(), "tangent")) {
 			TangentNode *tangent = new TangentNode;
 			xml_read_ustring(&tangent->attribute, node, "attribute");
-			xml_read_enum(&tangent->direction_type, TangentNode::direction_type_enum, node, "direction_type");
-			xml_read_enum(&tangent->axis, TangentNode::axis_enum, node, "axis");
+			xml_read_enum_value((int*)&tangent->direction_type, TangentNode::direction_type_enum, node, "direction_type");
+			xml_read_enum_value((int*)&tangent->axis, TangentNode::axis_enum, node, "axis");
 			snode = tangent;
 		}
 		else if(string_iequals(node.name(), "math")) {
 			MathNode *math = new MathNode();
-			xml_read_enum(&math->type, MathNode::type_enum, node, "type");
+			xml_read_enum_value((int*)&math->type, MathNode::type_enum, node, "type");
 			xml_read_bool(&math->use_clamp, node, "use_clamp");
 			snode = math;
 		}
 		else if(string_iequals(node.name(), "vector_math")) {
 			VectorMathNode *vmath = new VectorMathNode();
-			xml_read_enum(&vmath->type, VectorMathNode::type_enum, node, "type");
+			xml_read_enum_value((int*)&vmath->type, VectorMathNode::type_enum, node, "type");
 			snode = vmath;
 		}
 		else if(string_iequals(node.name(), "vector_transform")) {
 			VectorTransformNode *vtransform = new VectorTransformNode();
-			xml_read_enum(&vtransform->type, VectorTransformNode::type_enum, node, "type");
-			xml_read_enum(&vtransform->convert_from, VectorTransformNode::convert_space_enum, node, "convert_from");
-			xml_read_enum(&vtransform->convert_to, VectorTransformNode::convert_space_enum, node, "convert_to");
+			xml_read_enum_value((int*)&vtransform->type, VectorTransformNode::type_enum, node, "type");
+			xml_read_enum_value((int*)&vtransform->convert_from, VectorTransformNode::convert_space_enum, node, "convert_from");
+			xml_read_enum_value((int*)&vtransform->convert_to, VectorTransformNode::convert_space_enum, node, "convert_to");
 			snode = vtransform;
 		}
 		else if(string_iequals(node.name(), "connect")) {
@@ -791,7 +638,7 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 					ShaderNode *fromnode = nodemap[from_tokens[0]];
 
 					foreach(ShaderOutput *out, fromnode->outputs)
-						if(string_iequals(xml_socket_name(out->name), from_tokens[1]))
+						if(string_iequals(xml_socket_name(out->name().c_str()), from_tokens[1]))
 							output = out;
 
 					if(!output)
@@ -804,7 +651,7 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 					ShaderNode *tonode = nodemap[to_tokens[0]];
 
 					foreach(ShaderInput *in, tonode->inputs)
-						if(string_iequals(xml_socket_name(in->name), to_tokens[1]))
+						if(string_iequals(xml_socket_name(in->name().c_str()), to_tokens[1]))
 							input = in;
 
 					if(!input)
@@ -836,20 +683,20 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			/* read input values */
 			for(pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
 				foreach(ShaderInput *in, snode->inputs) {
-					if(string_iequals(in->name, attr.name())) {
-						switch(in->type) {
-							case SHADER_SOCKET_FLOAT:
-							case SHADER_SOCKET_INT:
-								xml_read_float(&in->value.x, node, attr.name());
+					if(string_iequals(in->name().c_str(), attr.name())) {
+						switch(in->type()) {
+							case SocketType::FLOAT:
+							case SocketType::INT:
+								xml_read_float(&in->value_float(), node, attr.name());
 								break;
-							case SHADER_SOCKET_COLOR:
-							case SHADER_SOCKET_VECTOR:
-							case SHADER_SOCKET_POINT:
-							case SHADER_SOCKET_NORMAL:
-								xml_read_float3(&in->value, node, attr.name());
+							case SocketType::COLOR:
+							case SocketType::VECTOR:
+							case SocketType::POINT:
+							case SocketType::NORMAL:
+								xml_read_float3(&in->value(), node, attr.name());
 								break;
-							case SHADER_SOCKET_STRING:
-								xml_read_ustring( &in->value_string, node, attr.name() );
+							case SocketType::STRING:
+								xml_read_ustring( &in->value_string(), node, attr.name() );
 								break;
 							default:
 								break;
@@ -864,54 +711,22 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 	shader->tag_update(state.scene);
 }
 
-static void xml_read_shader(const XMLReadState& state, pugi::xml_node node)
+static void xml_read_shader(XMLReadState& state, pugi::xml_node node)
 {
 	Shader *shader = new Shader();
-
-	xml_read_string(&shader->name, node, "name");
-	xml_read_bool(&shader->use_mis, node, "use_mis");
-	xml_read_bool(&shader->use_transparent_shadow, node, "use_transparent_shadow");
-
-	/* Volume */
-	xml_read_bool(&shader->heterogeneous_volume, node, "heterogeneous_volume");
-	xml_read_int(&shader->volume_interpolation_method, node, "volume_interpolation_method");
-
-	if(xml_equal_string(node, "volume_sampling_method", "distance"))
-		shader->volume_sampling_method = VOLUME_SAMPLING_DISTANCE;
-	else if(xml_equal_string(node, "volume_sampling_method", "equiangular"))
-		shader->volume_sampling_method = VOLUME_SAMPLING_EQUIANGULAR;
-	else if(xml_equal_string(node, "volume_sampling_method", "multiple_importance"))
-		shader->volume_sampling_method = VOLUME_SAMPLING_MULTIPLE_IMPORTANCE;
-
 	xml_read_shader_graph(state, shader, node);
 	state.scene->shaders.push_back(shader);
 }
 
 /* Background */
 
-static void xml_read_background(const XMLReadState& state, pugi::xml_node node)
+static void xml_read_background(XMLReadState& state, pugi::xml_node node)
 {
 	/* Background Settings */
-	Background *bg = state.scene->background;
-
-	xml_read_float(&bg->ao_distance, node, "ao_distance");
-	xml_read_float(&bg->ao_factor, node, "ao_factor");
-
-	xml_read_bool(&bg->transparent, node, "transparent");
+	xml_read_node(state, state.scene->background, node);
 
 	/* Background Shader */
 	Shader *shader = state.scene->default_background;
-	
-	xml_read_bool(&shader->heterogeneous_volume, node, "heterogeneous_volume");
-	xml_read_int(&shader->volume_interpolation_method, node, "volume_interpolation_method");
-
-	if(xml_equal_string(node, "volume_sampling_method", "distance"))
-		shader->volume_sampling_method = VOLUME_SAMPLING_DISTANCE;
-	else if(xml_equal_string(node, "volume_sampling_method", "equiangular"))
-		shader->volume_sampling_method = VOLUME_SAMPLING_EQUIANGULAR;
-	else if(xml_equal_string(node, "volume_sampling_method", "multiple_importance"))
-		shader->volume_sampling_method = VOLUME_SAMPLING_MULTIPLE_IMPORTANCE;
-
 	xml_read_shader_graph(state, shader, node);
 }
 
@@ -1000,6 +815,11 @@ static void xml_read_mesh(const XMLReadState& state, pugi::xml_node node)
 		/* create vertices */
 		mesh->verts = P;
 
+		size_t num_triangles = 0;
+		for(size_t i = 0; i < nverts.size(); i++)
+			num_triangles += nverts[i]-2;
+		mesh->reserve_mesh(mesh->verts.size(), num_triangles);
+
 		/* create triangles */
 		int index_offset = 0;
 
@@ -1028,9 +848,9 @@ static void xml_read_mesh(const XMLReadState& state, pugi::xml_node node)
 			index_offset = 0;
 			for(size_t i = 0; i < nverts.size(); i++) {
 				for(int j = 0; j < nverts[i]-2; j++) {
-					int v0 = verts[index_offset];
-					int v1 = verts[index_offset + j + 1];
-					int v2 = verts[index_offset + j + 2];
+					int v0 = index_offset;
+					int v1 = index_offset + j + 1;
+					int v2 = index_offset + j + 2;
 
 					assert(v0*2+1 < (int)UV.size());
 					assert(v1*2+1 < (int)UV.size());
@@ -1114,47 +934,12 @@ static void xml_read_patch(const XMLReadState& state, pugi::xml_node node)
 
 /* Light */
 
-static void xml_read_light(const XMLReadState& state, pugi::xml_node node)
+static void xml_read_light(XMLReadState& state, pugi::xml_node node)
 {
 	Light *light = new Light();
+
 	light->shader = state.shader;
-
-	/* Light Type
-	 * 0: Point, 1: Sun, 3: Area, 5: Spot */
-	int type = 0;
-	xml_read_int(&type, node, "type");
-	light->type = (LightType)type;
-
-	/* Spot Light */
-	xml_read_float(&light->spot_angle, node, "spot_angle");
-	xml_read_float(&light->spot_smooth, node, "spot_smooth");
-
-	/* Area Light */
-	xml_read_float(&light->sizeu, node, "sizeu");
-	xml_read_float(&light->sizev, node, "sizev");
-	xml_read_float3(&light->axisu, node, "axisu");
-	xml_read_float3(&light->axisv, node, "axisv");
-
-	/* Portal? (Area light only) */
-	xml_read_bool(&light->is_portal, node, "is_portal");
-
-	/* Generic */
-	xml_read_float(&light->size, node, "size");
-	xml_read_float3(&light->dir, node, "dir");
-	xml_read_float3(&light->co, node, "P");
-	light->co = transform_point(&state.tfm, light->co);
-
-	/* Settings */
-	xml_read_bool(&light->cast_shadow, node, "cast_shadow");
-	xml_read_bool(&light->use_mis, node, "use_mis");
-	xml_read_int(&light->samples, node, "samples");
-	xml_read_int(&light->max_bounces, node, "max_bounces");
-
-	/* Ray Visibility */
-	xml_read_bool(&light->use_diffuse, node, "use_diffuse");
-	xml_read_bool(&light->use_glossy, node, "use_glossy");
-	xml_read_bool(&light->use_transmission, node, "use_transmission");
-	xml_read_bool(&light->use_scatter, node, "use_scatter");
+	xml_read_node(state, light, node);
 
 	state.scene->lights.push_back(light);
 }
@@ -1229,16 +1014,16 @@ static void xml_read_state(XMLReadState& state, pugi::xml_node node)
 
 /* Scene */
 
-static void xml_read_include(const XMLReadState& state, const string& src);
+static void xml_read_include(XMLReadState& state, const string& src);
 
-static void xml_read_scene(const XMLReadState& state, pugi::xml_node scene_node)
+static void xml_read_scene(XMLReadState& state, pugi::xml_node scene_node)
 {
 	for(pugi::xml_node node = scene_node.first_child(); node; node = node.next_sibling()) {
 		if(string_iequals(node.name(), "film")) {
-			xml_read_film(state, node);
+			xml_read_node(state, state.scene->film, node);
 		}
 		else if(string_iequals(node.name(), "integrator")) {
-			xml_read_integrator(state, node);
+			xml_read_node(state, state.scene->integrator, node);
 		}
 		else if(string_iequals(node.name(), "camera")) {
 			xml_read_camera(state, node);
@@ -1283,7 +1068,7 @@ static void xml_read_scene(const XMLReadState& state, pugi::xml_node scene_node)
 
 /* Include */
 
-static void xml_read_include(const XMLReadState& state, const string& src)
+static void xml_read_include(XMLReadState& state, const string& src)
 {
 	/* open XML document */
 	pugi::xml_document doc;

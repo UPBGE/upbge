@@ -36,59 +36,58 @@ ImageManager::ImageManager(const DeviceInfo& info)
 	osl_texture_system = NULL;
 	animation_frame = 0;
 
-	/* Set image limits */
+	/* In case of multiple devices used we need to know type of an actual
+	 * compute device.
+	 *
+	 * NOTE: We assume that all the devices are same type, otherwise we'll
+	 * be screwed on so many levels..
+	 */
+	DeviceType device_type = info.type;
+	if (device_type == DEVICE_MULTI) {
+		device_type = info.multi_devices[0].type;
+	}
 
-	/* CPU */
-	if(info.type == DEVICE_CPU) {
-		tex_num_images[IMAGE_DATA_TYPE_BYTE4] = TEX_NUM_BYTE4_IMAGES_CPU;
-		tex_num_images[IMAGE_DATA_TYPE_FLOAT4] = TEX_NUM_FLOAT4_IMAGES_CPU;
-		tex_num_images[IMAGE_DATA_TYPE_FLOAT] = TEX_NUM_FLOAT_IMAGES_CPU;
-		tex_num_images[IMAGE_DATA_TYPE_BYTE] = TEX_NUM_BYTE_IMAGES_CPU;
-		tex_image_byte4_start = TEX_IMAGE_BYTE4_START_CPU;
-		tex_image_float_start = TEX_IMAGE_FLOAT_START_CPU;
-		tex_image_byte_start = TEX_IMAGE_BYTE_START_CPU;
+	/* Set image limits */
+#define SET_TEX_IMAGES_LIMITS(ARCH) \
+	{ \
+		tex_num_images[IMAGE_DATA_TYPE_FLOAT4] = TEX_NUM_FLOAT4_ ## ARCH; \
+		tex_num_images[IMAGE_DATA_TYPE_BYTE4] = TEX_NUM_BYTE4_ ## ARCH; \
+		tex_num_images[IMAGE_DATA_TYPE_FLOAT] = TEX_NUM_FLOAT_ ## ARCH; \
+		tex_num_images[IMAGE_DATA_TYPE_BYTE] = TEX_NUM_BYTE_ ## ARCH; \
+		tex_start_images[IMAGE_DATA_TYPE_FLOAT4] = TEX_START_FLOAT4_ ## ARCH; \
+		tex_start_images[IMAGE_DATA_TYPE_BYTE4] = TEX_START_BYTE4_ ## ARCH; \
+		tex_start_images[IMAGE_DATA_TYPE_FLOAT] = TEX_START_FLOAT_ ## ARCH; \
+		tex_start_images[IMAGE_DATA_TYPE_BYTE] = TEX_START_BYTE_ ## ARCH; \
 	}
-	/* CUDA (Fermi) */
-	else if((info.type == DEVICE_CUDA || info.type == DEVICE_MULTI) && !info.has_bindless_textures) {
-		tex_num_images[IMAGE_DATA_TYPE_BYTE4] = TEX_NUM_BYTE4_IMAGES_CUDA;
-		tex_num_images[IMAGE_DATA_TYPE_FLOAT4] = TEX_NUM_FLOAT4_IMAGES_CUDA;
-		tex_num_images[IMAGE_DATA_TYPE_FLOAT] = TEX_NUM_FLOAT_IMAGES_CUDA;
-		tex_num_images[IMAGE_DATA_TYPE_BYTE] = TEX_NUM_BYTE_IMAGES_CUDA;
-		tex_image_byte4_start = TEX_IMAGE_BYTE4_START_CUDA;
-		tex_image_float_start = TEX_IMAGE_FLOAT_START_CUDA;
-		tex_image_byte_start = TEX_IMAGE_BYTE_START_CUDA;
+
+	if(device_type == DEVICE_CPU) {
+		SET_TEX_IMAGES_LIMITS(CPU);
 	}
-	/* CUDA (Kepler and above) */
-	else if((info.type == DEVICE_CUDA || info.type == DEVICE_MULTI) && info.has_bindless_textures) {
-		tex_num_images[IMAGE_DATA_TYPE_BYTE4] = TEX_NUM_BYTE4_IMAGES_CUDA_KEPLER;
-		tex_num_images[IMAGE_DATA_TYPE_FLOAT4] = TEX_NUM_FLOAT4_IMAGES_CUDA_KEPLER;
-		tex_num_images[IMAGE_DATA_TYPE_FLOAT] = TEX_NUM_FLOAT_IMAGES_CUDA_KEPLER;
-		tex_num_images[IMAGE_DATA_TYPE_BYTE] = TEX_NUM_BYTE_IMAGES_CUDA_KEPLER;
-		tex_image_byte4_start = TEX_IMAGE_BYTE4_START_CUDA_KEPLER;
-		tex_image_float_start = TEX_IMAGE_FLOAT_START_CUDA_KEPLER;
-		tex_image_byte_start = TEX_IMAGE_BYTE_START_CUDA_KEPLER;
+	else if(device_type == DEVICE_CUDA) {
+		if(info.has_bindless_textures) {
+			SET_TEX_IMAGES_LIMITS(CUDA_KEPLER);
+		}
+		else {
+			SET_TEX_IMAGES_LIMITS(CUDA);
+		}
 	}
-	/* OpenCL */
-	else if(info.pack_images) {
-		tex_num_images[IMAGE_DATA_TYPE_BYTE4] = TEX_NUM_BYTE4_IMAGES_OPENCL;
-		tex_num_images[IMAGE_DATA_TYPE_FLOAT4] = TEX_NUM_FLOAT4_IMAGES_OPENCL;
-		tex_num_images[IMAGE_DATA_TYPE_FLOAT] = TEX_NUM_FLOAT_IMAGES_OPENCL;
-		tex_num_images[IMAGE_DATA_TYPE_BYTE] = TEX_NUM_BYTE_IMAGES_OPENCL;
-		tex_image_byte4_start = TEX_IMAGE_BYTE4_START_OPENCL;
-		tex_image_float_start = TEX_IMAGE_FLOAT_START_OPENCL;
-		tex_image_byte_start = TEX_IMAGE_BYTE_START_OPENCL;
+	else if(device_type == DEVICE_OPENCL) {
+		SET_TEX_IMAGES_LIMITS(OPENCL);
 	}
-	/* Should never happen */
 	else {
-		tex_num_images[IMAGE_DATA_TYPE_BYTE4] = 0;
+		/* Should not happen. */
 		tex_num_images[IMAGE_DATA_TYPE_FLOAT4] = 0;
+		tex_num_images[IMAGE_DATA_TYPE_BYTE4] = 0;
 		tex_num_images[IMAGE_DATA_TYPE_FLOAT] = 0;
 		tex_num_images[IMAGE_DATA_TYPE_BYTE] = 0;
-		tex_image_byte4_start = 0;
-		tex_image_float_start = 0;
-		tex_image_byte_start = 0;
+		tex_start_images[IMAGE_DATA_TYPE_FLOAT4] = 0;
+		tex_start_images[IMAGE_DATA_TYPE_BYTE4] = 0;
+		tex_start_images[IMAGE_DATA_TYPE_FLOAT] = 0;
+		tex_start_images[IMAGE_DATA_TYPE_BYTE] = 0;
 		assert(0);
 	}
+
+#undef SET_TEX_IMAGES_LIMITS
 }
 
 ImageManager::~ImageManager()
@@ -141,19 +140,11 @@ ImageManager::ImageDataType ImageManager::get_image_metadata(const string& filen
 
 		if(is_float) {
 			is_linear = true;
-
-			if(channels > 1)
-				return IMAGE_DATA_TYPE_FLOAT4;
-			else
-				return IMAGE_DATA_TYPE_FLOAT;
+			return (channels > 1) ? IMAGE_DATA_TYPE_FLOAT4 : IMAGE_DATA_TYPE_FLOAT;
 		}
 		else {
-			if(channels > 1)
-				return IMAGE_DATA_TYPE_BYTE4;
-			else
-				return IMAGE_DATA_TYPE_BYTE;
+			return (channels > 1) ? IMAGE_DATA_TYPE_BYTE4 : IMAGE_DATA_TYPE_BYTE;
 		}
-
 	}
 
 	ImageInput *in = ImageInput::create(filename);
@@ -202,16 +193,10 @@ ImageManager::ImageDataType ImageManager::get_image_metadata(const string& filen
 	}
 
 	if(is_float) {
-		if(channels > 1)
-			return IMAGE_DATA_TYPE_FLOAT4;
-		else
-			return IMAGE_DATA_TYPE_FLOAT;
+		return (channels > 1) ? IMAGE_DATA_TYPE_FLOAT4 : IMAGE_DATA_TYPE_FLOAT;
 	}
 	else {
-		if(channels > 1)
-			return IMAGE_DATA_TYPE_BYTE4;
-		else
-			return IMAGE_DATA_TYPE_BYTE;
+		return (channels > 1) ? IMAGE_DATA_TYPE_BYTE4 : IMAGE_DATA_TYPE_BYTE;
 	}
 }
 
@@ -221,34 +206,20 @@ ImageManager::ImageDataType ImageManager::get_image_metadata(const string& filen
  * to device ones and vice versa. */
 int ImageManager::type_index_to_flattened_slot(int slot, ImageDataType type)
 {
-	if(type == IMAGE_DATA_TYPE_BYTE4)
-		return slot + tex_image_byte4_start;
-	else if(type == IMAGE_DATA_TYPE_FLOAT)
-		return slot + tex_image_float_start;
-	else if(type == IMAGE_DATA_TYPE_BYTE)
-		return slot + tex_image_byte_start;
-	else
-		return slot;
+	return slot + tex_start_images[type];
 }
 
 int ImageManager::flattened_slot_to_type_index(int flat_slot, ImageDataType *type)
 {
-	if(flat_slot >= tex_image_byte_start) {
-		*type = IMAGE_DATA_TYPE_BYTE;
-		return flat_slot - tex_image_byte_start;
+	for(int i = IMAGE_DATA_NUM_TYPES - 1; i >= 0; i--) {
+		if(flat_slot >= tex_start_images[i]) {
+			*type = (ImageDataType)i;
+			return flat_slot - tex_start_images[i];
+		}
 	}
-	else if(flat_slot >= tex_image_float_start) {
-		*type = IMAGE_DATA_TYPE_FLOAT;
-		return flat_slot - tex_image_float_start;
-	}
-	else if(flat_slot >= tex_image_byte4_start) {
-		*type = IMAGE_DATA_TYPE_BYTE4;
-		return flat_slot - tex_image_byte4_start;
-	}
-	else {
-		*type = IMAGE_DATA_TYPE_FLOAT4;
-		return flat_slot;
-	}
+
+	/* Should not happen. */
+	return flat_slot;
 }
 
 string ImageManager::name_from_type(int type)
@@ -294,7 +265,7 @@ int ImageManager::add_image(const string& filename,
 	if(type == IMAGE_DATA_TYPE_FLOAT || type == IMAGE_DATA_TYPE_FLOAT4)
 		is_float = true;
 
-	/* No single channel textures on Fermi GPUs, use available slots */
+	/* No single channel textures on CUDA (Fermi) and OpenCL, use available slots */
 	if(type == IMAGE_DATA_TYPE_FLOAT && tex_num_images[type] == 0)
 		type = IMAGE_DATA_TYPE_FLOAT4;
 	if(type == IMAGE_DATA_TYPE_BYTE && tex_num_images[type] == 0)
@@ -474,7 +445,8 @@ bool ImageManager::file_load_image_generic(Image *img, ImageInput **in, int &wid
 	return true;
 }
 
-bool ImageManager::file_load_byte4_image(Image *img, device_vector<uchar4>& tex_img)
+template<typename T>
+bool ImageManager::file_load_byte_image(Image *img, ImageDataType type, device_vector<T>& tex_img)
 {
 	ImageInput *in = NULL;
 	int width, height, depth, components;
@@ -512,92 +484,59 @@ bool ImageManager::file_load_byte4_image(Image *img, device_vector<uchar4>& tex_
 		builtin_image_pixels_cb(img->filename, img->builtin_data, pixels);
 	}
 
-	size_t num_pixels = ((size_t)width) * height * depth;
-	if(cmyk) {
-		/* CMYK */
-		for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-			pixels[i*4+2] = (pixels[i*4+2]*pixels[i*4+3])/255;
-			pixels[i*4+1] = (pixels[i*4+1]*pixels[i*4+3])/255;
-			pixels[i*4+0] = (pixels[i*4+0]*pixels[i*4+3])/255;
-			pixels[i*4+3] = 255;
+	/* Check if we actually have a byte4 slot, in case components == 1, but device
+	 * doesn't support single channel textures. */
+	if(type == IMAGE_DATA_TYPE_BYTE4) {
+		size_t num_pixels = ((size_t)width) * height * depth;
+		if(cmyk) {
+			/* CMYK */
+			for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
+				pixels[i*4+2] = (pixels[i*4+2]*pixels[i*4+3])/255;
+				pixels[i*4+1] = (pixels[i*4+1]*pixels[i*4+3])/255;
+				pixels[i*4+0] = (pixels[i*4+0]*pixels[i*4+3])/255;
+				pixels[i*4+3] = 255;
+			}
 		}
-	}
-	else if(components == 2) {
-		/* grayscale + alpha */
-		for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-			pixels[i*4+3] = pixels[i*2+1];
-			pixels[i*4+2] = pixels[i*2+0];
-			pixels[i*4+1] = pixels[i*2+0];
-			pixels[i*4+0] = pixels[i*2+0];
+		else if(components == 2) {
+			/* grayscale + alpha */
+			for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
+				pixels[i*4+3] = pixels[i*2+1];
+				pixels[i*4+2] = pixels[i*2+0];
+				pixels[i*4+1] = pixels[i*2+0];
+				pixels[i*4+0] = pixels[i*2+0];
+			}
 		}
-	}
-	else if(components == 3) {
-		/* RGB */
-		for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-			pixels[i*4+3] = 255;
-			pixels[i*4+2] = pixels[i*3+2];
-			pixels[i*4+1] = pixels[i*3+1];
-			pixels[i*4+0] = pixels[i*3+0];
+		else if(components == 3) {
+			/* RGB */
+			for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
+				pixels[i*4+3] = 255;
+				pixels[i*4+2] = pixels[i*3+2];
+				pixels[i*4+1] = pixels[i*3+1];
+				pixels[i*4+0] = pixels[i*3+0];
+			}
 		}
-	}
-	else if(components == 1) {
-		/* grayscale */
-		for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-			pixels[i*4+3] = 255;
-			pixels[i*4+2] = pixels[i];
-			pixels[i*4+1] = pixels[i];
-			pixels[i*4+0] = pixels[i];
+		else if(components == 1) {
+			/* grayscale */
+			for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
+				pixels[i*4+3] = 255;
+				pixels[i*4+2] = pixels[i];
+				pixels[i*4+1] = pixels[i];
+				pixels[i*4+0] = pixels[i];
+			}
 		}
-	}
 
-	if(img->use_alpha == false) {
-		for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-			pixels[i*4+3] = 255;
+		if(img->use_alpha == false) {
+			for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
+				pixels[i*4+3] = 255;
+			}
 		}
 	}
 
 	return true;
 }
 
-bool ImageManager::file_load_byte_image(Image *img, device_vector<uchar>& tex_img)
-{
-	ImageInput *in = NULL;
-	int width, height, depth, components;
-
-	if(!file_load_image_generic(img, &in, width, height, depth, components))
-		return false;
-
-	/* read BW pixels */
-	uchar *pixels = (uchar*)tex_img.resize(width, height, depth);
-	if(pixels == NULL) {
-		return false;
-	}
-
-	if(in) {
-		if(depth <= 1) {
-			int scanlinesize = width*components*sizeof(uchar);
-
-			in->read_image(TypeDesc::UINT8,
-			               (uchar*)pixels + (((size_t)height)-1)*scanlinesize,
-			               AutoStride,
-			               -scanlinesize,
-			               AutoStride);
-		}
-		else {
-			in->read_image(TypeDesc::UINT8, (uchar*)pixels);
-		}
-
-		in->close();
-		delete in;
-	}
-	else {
-		builtin_image_pixels_cb(img->filename, img->builtin_data, pixels);
-	}
-
-	return true;
-}
-
-bool ImageManager::file_load_float4_image(Image *img, device_vector<float4>& tex_img)
+template<typename T>
+bool ImageManager::file_load_float_image(Image *img, ImageDataType type, device_vector<T>& tex_img)
 {
 	ImageInput *in = NULL;
 	int width, height, depth, components;
@@ -655,88 +594,52 @@ bool ImageManager::file_load_float4_image(Image *img, device_vector<float4>& tex
 		builtin_image_float_pixels_cb(img->filename, img->builtin_data, pixels);
 	}
 
-	size_t num_pixels = ((size_t)width) * height * depth;
-	if(cmyk) {
-		/* CMYK */
-		for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-			pixels[i*4+3] = 255;
-			pixels[i*4+2] = (pixels[i*4+2]*pixels[i*4+3])/255;
-			pixels[i*4+1] = (pixels[i*4+1]*pixels[i*4+3])/255;
-			pixels[i*4+0] = (pixels[i*4+0]*pixels[i*4+3])/255;
+	/* Check if we actually have a float4 slot, in case components == 1, but device
+	 * doesn't support single channel textures. */
+	if(type == IMAGE_DATA_TYPE_FLOAT4) {
+		size_t num_pixels = ((size_t)width) * height * depth;
+		if(cmyk) {
+			/* CMYK */
+			for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
+				pixels[i*4+3] = 255;
+				pixels[i*4+2] = (pixels[i*4+2]*pixels[i*4+3])/255;
+				pixels[i*4+1] = (pixels[i*4+1]*pixels[i*4+3])/255;
+				pixels[i*4+0] = (pixels[i*4+0]*pixels[i*4+3])/255;
+			}
 		}
-	}
-	else if(components == 2) {
-		/* grayscale + alpha */
-		for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-			pixels[i*4+3] = pixels[i*2+1];
-			pixels[i*4+2] = pixels[i*2+0];
-			pixels[i*4+1] = pixels[i*2+0];
-			pixels[i*4+0] = pixels[i*2+0];
+		else if(components == 2) {
+			/* grayscale + alpha */
+			for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
+				pixels[i*4+3] = pixels[i*2+1];
+				pixels[i*4+2] = pixels[i*2+0];
+				pixels[i*4+1] = pixels[i*2+0];
+				pixels[i*4+0] = pixels[i*2+0];
+			}
 		}
-	}
-	else if(components == 3) {
-		/* RGB */
-		for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-			pixels[i*4+3] = 1.0f;
-			pixels[i*4+2] = pixels[i*3+2];
-			pixels[i*4+1] = pixels[i*3+1];
-			pixels[i*4+0] = pixels[i*3+0];
+		else if(components == 3) {
+			/* RGB */
+			for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
+				pixels[i*4+3] = 1.0f;
+				pixels[i*4+2] = pixels[i*3+2];
+				pixels[i*4+1] = pixels[i*3+1];
+				pixels[i*4+0] = pixels[i*3+0];
+			}
 		}
-	}
-	else if(components == 1) {
-		/* grayscale */
-		for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-			pixels[i*4+3] = 1.0f;
-			pixels[i*4+2] = pixels[i];
-			pixels[i*4+1] = pixels[i];
-			pixels[i*4+0] = pixels[i];
-		}
-	}
-
-	if(img->use_alpha == false) {
-		for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
-			pixels[i*4+3] = 1.0f;
-		}
-	}
-
-	return true;
-}
-
-bool ImageManager::file_load_float_image(Image *img, device_vector<float>& tex_img)
-{
-	ImageInput *in = NULL;
-	int width, height, depth, components;
-
-	if(!file_load_image_generic(img, &in, width, height, depth, components))
-		return false;
-
-	/* read BW pixels */
-	float *pixels = (float*)tex_img.resize(width, height, depth);
-	if(pixels == NULL) {
-		return false;
-	}
-
-	if(in) {
-		float *readpixels = pixels;
-
-		if(depth <= 1) {
-			int scanlinesize = width*components*sizeof(float);
-
-			in->read_image(TypeDesc::FLOAT,
-			               (uchar*)readpixels + (height-1)*scanlinesize,
-			               AutoStride,
-			               -scanlinesize,
-			               AutoStride);
-		}
-		else {
-			in->read_image(TypeDesc::FLOAT, (uchar*)readpixels);
+		else if(components == 1) {
+			/* grayscale */
+			for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
+				pixels[i*4+3] = 1.0f;
+				pixels[i*4+2] = pixels[i];
+				pixels[i*4+1] = pixels[i];
+				pixels[i*4+0] = pixels[i];
+			}
 		}
 
-		in->close();
-		delete in;
-	}
-	else {
-		builtin_image_float_pixels_cb(img->filename, img->builtin_data, pixels);
+		if(img->use_alpha == false) {
+			for(size_t i = num_pixels-1, pixel = 0; pixel < num_pixels; pixel++, i--) {
+				pixels[i*4+3] = 1.0f;
+			}
+		}
 	}
 
 	return true;
@@ -774,7 +677,7 @@ void ImageManager::device_load_image(Device *device, DeviceScene *dscene, ImageD
 			device->tex_free(tex_img);
 		}
 
-		if(!file_load_float4_image(img, tex_img)) {
+		if(!file_load_float_image(img, type, tex_img)) {
 			/* on failure to load, we set a 1x1 pixels pink image */
 			float *pixels = (float*)tex_img.resize(1, 1);
 
@@ -800,7 +703,7 @@ void ImageManager::device_load_image(Device *device, DeviceScene *dscene, ImageD
 			device->tex_free(tex_img);
 		}
 
-		if(!file_load_float_image(img, tex_img)) {
+		if(!file_load_float_image(img, type, tex_img)) {
 			/* on failure to load, we set a 1x1 pixels pink image */
 			float *pixels = (float*)tex_img.resize(1, 1);
 
@@ -823,7 +726,7 @@ void ImageManager::device_load_image(Device *device, DeviceScene *dscene, ImageD
 			device->tex_free(tex_img);
 		}
 
-		if(!file_load_byte4_image(img, tex_img)) {
+		if(!file_load_byte_image(img, type, tex_img)) {
 			/* on failure to load, we set a 1x1 pixels pink image */
 			uchar *pixels = (uchar*)tex_img.resize(1, 1);
 
@@ -849,7 +752,7 @@ void ImageManager::device_load_image(Device *device, DeviceScene *dscene, ImageD
 			device->tex_free(tex_img);
 		}
 
-		if(!file_load_byte_image(img, tex_img)) {
+		if(!file_load_byte_image(img, type, tex_img)) {
 			/* on failure to load, we set a 1x1 pixels pink image */
 			uchar *pixels = (uchar*)tex_img.resize(1, 1);
 

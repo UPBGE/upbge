@@ -344,7 +344,7 @@ createWindow(const STR_String& title,
 		const bool exclusive,
 		const GHOST_TEmbedderWindowID parentWindow)
 {
-	GHOST_WindowX11 *window = 0;
+	GHOST_WindowX11 *window = NULL;
 	
 	if (!m_display) return 0;
 	
@@ -366,7 +366,7 @@ createWindow(const STR_String& title,
 		}
 		else {
 			delete window;
-			window = 0;
+			window = NULL;
 		}
 	}
 	return window;

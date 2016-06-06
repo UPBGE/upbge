@@ -55,83 +55,83 @@ void main()
 {
 #if defined(USE_STIPPLE)
 #if defined(DRAW_LINE)
-    /* GLSL 1.3 */
-    if (!bool((1 << int(mod(t, 16))) & stipple_pattern))
-        discard;
+	/* GLSL 1.3 */
+	if (!bool((1 << int(mod(t, 16))) & stipple_pattern))
+		discard;
 #else
-        /* We have to use mod function and integer casting.
-         * This can be optimized further with the bitwise operations
-         * when GLSL 1.3 is supported. */
-        if (stipple_id == STIPPLE_HALFTONE ||
-            stipple_id == STIPPLE_S3D_INTERLACE_CHECKERBOARD ||
-            stipple_id == STIPPLE_S3D_INTERLACE_CHECKERBOARD_SWAP)
-        {
-            int result = int(mod(gl_FragCoord.x + gl_FragCoord.y, 2));
-            bool dis = result == 0;
-            if (stipple_id == STIPPLE_S3D_INTERLACE_CHECKERBOARD_SWAP)
-                dis = !dis;
-            if (dis)
-                discard;
-        }
-        else if (stipple_id == STIPPLE_QUARTTONE) {
-            int mody = int(mod(gl_FragCoord.y, 4));
-            int modx = int(mod(gl_FragCoord.x, 4));
-            if (mody == 0) {
-                if (modx != 2)
-                    discard;
-            }
-            else if (mody == 2){
-                if (modx != 0)
-                    discard;
-            }
-            else
-                discard;
-        }
-        else if (stipple_id == STIPPLE_CHECKER_8PX) {
-            int result = int(mod(int(gl_FragCoord.x)/8 + int(gl_FragCoord.y)/8, 2));
-            if (result != 0)
-                discard;
-        }
-        else if (stipple_id == STIPPLE_DIAG_STRIPES) {
-            int mody = int(mod(gl_FragCoord.y, 16));
-            int modx = int(mod(gl_FragCoord.x, 16));
-            if ((16 - modx > mody && mody > 8 - modx) || mody > 24 - modx)
-                discard;
-        }
-        else if (stipple_id == STIPPLE_DIAG_STRIPES_SWAP) {
-            int mody = int(mod(gl_FragCoord.y, 16));
-            int modx = int(mod(gl_FragCoord.x, 16));
-            if (!((16 - modx > mody && mody > 8 - modx) || mody > 24 - modx))
-                discard;
-        }
-        else if (stipple_id == STIPPLE_S3D_INTERLACE_ROW || stipple_id == STIPPLE_S3D_INTERLACE_ROW_SWAP) {
-            int result = int(mod(gl_FragCoord.y, 2));
-            bool dis = result == 0;
-            if (stipple_id == STIPPLE_S3D_INTERLACE_ROW_SWAP)
-                dis = !dis;
-            if (dis)
-                discard;
-        }
-        else if (stipple_id == STIPPLE_S3D_INTERLACE_COLUMN || stipple_id == STIPPLE_S3D_INTERLACE_COLUMN_SWAP) {
-            int result = int(mod(gl_FragCoord.x, 2));
-            bool dis = result != 0;
-            if (stipple_id == STIPPLE_S3D_INTERLACE_COLUMN_SWAP)
-                dis = !dis;
-            if (dis)
-                discard;
-        }
-        else if (stipple_id == STIPPLE_HEXAGON) {
-            int mody = int(mod(gl_FragCoord.y, 2));
-            int modx = int(mod(gl_FragCoord.x, 4));
-            if (mody != 0) {
-                if (modx != 1)
-                    discard;
-            }
-            else {
-                if (modx != 3)
-                    discard;
-            }
-        }
+	/* We have to use mod function and integer casting.
+	 * This can be optimized further with the bitwise operations
+	 * when GLSL 1.3 is supported. */
+	if (stipple_id == STIPPLE_HALFTONE ||
+	    stipple_id == STIPPLE_S3D_INTERLACE_CHECKERBOARD ||
+	    stipple_id == STIPPLE_S3D_INTERLACE_CHECKERBOARD_SWAP)
+	{
+		int result = int(mod(gl_FragCoord.x + gl_FragCoord.y, 2));
+		bool dis = result == 0;
+		if (stipple_id == STIPPLE_S3D_INTERLACE_CHECKERBOARD_SWAP)
+			dis = !dis;
+		if (dis)
+			discard;
+	}
+	else if (stipple_id == STIPPLE_QUARTTONE) {
+		int mody = int(mod(gl_FragCoord.y, 4));
+		int modx = int(mod(gl_FragCoord.x, 4));
+		if (mody == 0) {
+			if (modx != 2)
+				discard;
+		}
+		else if (mody == 2) {
+			if (modx != 0)
+				discard;
+		}
+		else
+			discard;
+	}
+	else if (stipple_id == STIPPLE_CHECKER_8PX) {
+		int result = int(mod(int(gl_FragCoord.x) / 8 + int(gl_FragCoord.y) / 8, 2));
+		if (result != 0)
+			discard;
+	}
+	else if (stipple_id == STIPPLE_DIAG_STRIPES) {
+		int mody = int(mod(gl_FragCoord.y, 16));
+		int modx = int(mod(gl_FragCoord.x, 16));
+		if ((16 - modx > mody && mody > 8 - modx) || mody > 24 - modx)
+			discard;
+	}
+	else if (stipple_id == STIPPLE_DIAG_STRIPES_SWAP) {
+		int mody = int(mod(gl_FragCoord.y, 16));
+		int modx = int(mod(gl_FragCoord.x, 16));
+		if (!((16 - modx > mody && mody > 8 - modx) || mody > 24 - modx))
+			discard;
+	}
+	else if (stipple_id == STIPPLE_S3D_INTERLACE_ROW || stipple_id == STIPPLE_S3D_INTERLACE_ROW_SWAP) {
+		int result = int(mod(gl_FragCoord.y, 2));
+		bool dis = result == 0;
+		if (stipple_id == STIPPLE_S3D_INTERLACE_ROW_SWAP)
+			dis = !dis;
+		if (dis)
+			discard;
+	}
+	else if (stipple_id == STIPPLE_S3D_INTERLACE_COLUMN || stipple_id == STIPPLE_S3D_INTERLACE_COLUMN_SWAP) {
+		int result = int(mod(gl_FragCoord.x, 2));
+		bool dis = result != 0;
+		if (stipple_id == STIPPLE_S3D_INTERLACE_COLUMN_SWAP)
+			dis = !dis;
+		if (dis)
+			discard;
+	}
+	else if (stipple_id == STIPPLE_HEXAGON) {
+		int mody = int(mod(gl_FragCoord.y, 2));
+		int modx = int(mod(gl_FragCoord.x, 4));
+		if (mody != 0) {
+			if (modx != 1)
+				discard;
+		}
+		else {
+			if (modx != 3)
+				discard;
+		}
+	}
 #endif /* !DRAW_LINE */
 #endif /* USE_STIPPLE */
 
@@ -158,7 +158,7 @@ void main()
 		/* diffuse light */
 		vec3 light_diffuse = gl_LightSource[i].diffuse.rgb;
 		float diffuse_bsdf = max(dot(N, light_direction), 0.0);
-		L_diffuse += light_diffuse*diffuse_bsdf;
+		L_diffuse += light_diffuse * diffuse_bsdf;
 
 #ifndef NO_SPECULAR
 		/* specular light */
@@ -166,7 +166,7 @@ void main()
 		vec3 H = gl_LightSource[i].halfVector.xyz;
 
 		float specular_bsdf = pow(max(dot(N, H), 0.0), gl_FrontMaterial.shininess);
-		L_specular += light_specular*specular_bsdf;
+		L_specular += light_specular * specular_bsdf;
 #endif
 	}
 #else
@@ -174,7 +174,7 @@ void main()
 
 #ifndef NO_SPECULAR
 	/* view vector computation, depends on orthographics or perspective */
-	vec3 V = (gl_ProjectionMatrix[3][3] == 0.0) ? normalize(varying_position): vec3(0.0, 0.0, -1.0);
+	vec3 V = (gl_ProjectionMatrix[3][3] == 0.0) ? normalize(varying_position) : vec3(0.0, 0.0, -1.0);
 #endif
 
 	for (int i = 0; i < NUM_SCENE_LIGHTS; i++) {
@@ -205,14 +205,14 @@ void main()
 			float distance = length(d);
 
 			intensity /= gl_LightSource[i].constantAttenuation +
-				gl_LightSource[i].linearAttenuation * distance +
-				gl_LightSource[i].quadraticAttenuation * distance * distance;
+			             gl_LightSource[i].linearAttenuation * distance +
+			             gl_LightSource[i].quadraticAttenuation * distance * distance;
 		}
 
 		/* diffuse light */
 		vec3 light_diffuse = gl_LightSource[i].diffuse.rgb;
 		float diffuse_bsdf = max(dot(N, light_direction), 0.0);
-		L_diffuse += light_diffuse*diffuse_bsdf*intensity;
+		L_diffuse += light_diffuse * diffuse_bsdf * intensity;
 
 #ifndef NO_SPECULAR
 		/* specular light */
@@ -220,7 +220,7 @@ void main()
 		vec3 H = normalize(light_direction - V);
 
 		float specular_bsdf = pow(max(dot(N, H), 0.0), gl_FrontMaterial.shininess);
-		L_specular += light_specular*specular_bsdf*intensity;
+		L_specular += light_specular * specular_bsdf * intensity;
 #endif
 	}
 #endif
@@ -250,7 +250,7 @@ void main()
 	vec3 L = gl_FrontLightModelProduct.sceneColor.rgb + L_diffuse;
 
 #ifndef NO_SPECULAR
-	L += L_specular*gl_FrontMaterial.specular.rgb;
+	L += L_specular * gl_FrontMaterial.specular.rgb;
 #endif
 
 	/* write out fragment color */

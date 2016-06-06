@@ -51,7 +51,7 @@ CCL_NAMESPACE_BEGIN
  */
 #define NODE_FEATURE_ALL        (NODE_FEATURE_VOLUME|NODE_FEATURE_HAIR|NODE_FEATURE_BUMP)
 
-typedef enum NodeType {
+typedef enum ShaderNodeType {
 	NODE_END = 0,
 	NODE_CLOSURE_BSDF,
 	NODE_CLOSURE_EMISSION,
@@ -127,7 +127,7 @@ typedef enum NodeType {
 	NODE_HAIR_INFO,
 	NODE_UVMAP,
 	NODE_TEX_VOXEL,
-} NodeType;
+} ShaderNodeType;
 
 typedef enum NodeAttributeType {
 	NODE_ATTR_FLOAT = 0,
@@ -343,12 +343,22 @@ typedef enum NodeNormalMapSpace {
 	NODE_NORMAL_MAP_BLENDER_WORLD,
 } NodeNormalMapSpace;
 
+typedef enum NodeImageColorSpace {
+	NODE_COLOR_SPACE_NONE  = 0,
+	NODE_COLOR_SPACE_COLOR = 1,
+} NodeImageColorSpace;
+
 typedef enum NodeImageProjection {
 	NODE_IMAGE_PROJ_FLAT   = 0,
 	NODE_IMAGE_PROJ_BOX    = 1,
 	NODE_IMAGE_PROJ_SPHERE = 2,
 	NODE_IMAGE_PROJ_TUBE   = 3,
 } NodeImageProjection;
+
+typedef enum NodeEnvironmentProjection {
+	NODE_ENVIRONMENT_EQUIRECTANGULAR = 0,
+	NODE_ENVIRONMENT_MIRROR_BALL = 1,
+} NodeEnvironmentProjection;
 
 typedef enum NodeBumpOffset {
 	NODE_BUMP_OFFSET_CENTER,
@@ -370,6 +380,9 @@ typedef enum ShaderType {
 /* Closure */
 
 typedef enum ClosureType {
+	/* Special type, flags generic node as a non-BSDF. */
+	CLOSURE_NONE_ID,
+
 	CLOSURE_BSDF_ID,
 
 	/* Diffuse */

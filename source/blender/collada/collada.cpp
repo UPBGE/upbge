@@ -46,6 +46,7 @@ int collada_import(bContext *C,
 				   const char *filepath,
 				   int import_units,
 				   int find_chains,
+				   int auto_connect,
 				   int fix_orientation,
 				   int min_chain_length)
 {
@@ -53,6 +54,7 @@ int collada_import(bContext *C,
 	ImportSettings import_settings;
 	import_settings.filepath         = (char *)filepath;
 	import_settings.import_units     = import_units != 0;
+	import_settings.auto_connect     = auto_connect != 0;
 	import_settings.find_chains      = find_chains != 0;
 	import_settings.fix_orientation  = fix_orientation != 0;
 	import_settings.min_chain_length = min_chain_length;
@@ -81,8 +83,9 @@ int collada_export(Scene *sce,
 				   int use_texture_copies,
 
                    int triangulate,
-                   int use_object_instantiation,
-                   int sort_by_name,
+				   int use_object_instantiation,
+				   int use_blender_profile,
+				   int sort_by_name,
 				   BC_export_transformation_type export_transformation_type,
                    int open_sim)
 {
@@ -105,6 +108,7 @@ int collada_export(Scene *sce,
 
 	export_settings.triangulate                = triangulate != 0;
 	export_settings.use_object_instantiation   = use_object_instantiation != 0;
+	export_settings.use_blender_profile        = use_blender_profile != 0;
 	export_settings.sort_by_name               = sort_by_name != 0;
 	export_settings.export_transformation_type = export_transformation_type;
 	export_settings.open_sim                   = open_sim != 0;

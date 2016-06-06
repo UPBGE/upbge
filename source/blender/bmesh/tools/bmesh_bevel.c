@@ -198,6 +198,12 @@ typedef struct BevelParams {
 
 // #include "bevdebug.c"
 
+/* some flags to re-enable old behavior for a while, in case fixes broke things not caught by regression tests */
+static int bev_debug_flags = 0;
+#define DEBUG_OLD_PLANE_SPECIAL (bev_debug_flags & 1)
+#define DEBUG_OLD_PROJ_TO_PERP_PLANE (bev_debug_flags & 2)
+#define DEBUG_OLD_FLAT_MID (bev_debug_flags & 4)
+
 /* Make a new BoundVert of the given kind, insert it at the end of the circular linked
  * list with entry point bv->boundstart, and return it. */
 static BoundVert *add_new_bound_vert(MemArena *mem_arena, VMesh *vm, const float co[3])
@@ -343,6 +349,36 @@ static EdgeHalf *next_bev(BevVert *bv, EdgeHalf *from_e)
 		}
 	} while ((e = e->next) != from_e);
 	return NULL;
+}
+
+/* return count of edges between e1 and e2 when going around bv CCW */
+static int count_ccw_edges_between(EdgeHalf *e1, EdgeHalf *e2)
+{
+	int cnt = 0;
+	EdgeHalf *e = e1;
+
+	do {
+		if (e == e2)
+			break;
+		e = e->next;
+		cnt++;
+	} while (e != e1);
+	return cnt;
+}
+
+/* Assume bme1 and bme2 both share some vert. Do they share a face?
+ * If they share a face then there is some loop around bme1 that is in a face
+ * where the next or previous edge in the face must be bme2. */
+static bool edges_face_connected_at_vert(BMEdge *bme1, BMEdge *bme2)
+{
+	BMLoop *l;
+	BMIter iter;
+
+	BM_ITER_ELEM(l, &iter, bme1, BM_LOOPS_OF_EDGE) {
+		if (l->prev->e == bme2 || l->next->e == bme2)
+			return true;
+	}
+	return false;
 }
 
 /* Return a good representative face (for materials, etc.) for faces
@@ -1015,15 +1051,21 @@ static void set_profile_params(BevelParams *bp, BevVert *bv, BoundVert *bndv)
 		sub_v3_v3v3(pro->proj_dir, e->e->v1->co, e->e->v2->co);
 		normalize_v3(pro->proj_dir);
 		project_to_edge(e->e, co1, co2, pro->midco);
-		/* put arc endpoints on plane with normal proj_dir, containing midco */
-		add_v3_v3v3(co3, co1, pro->proj_dir);
-		if (!isect_line_plane_v3(pro->coa, co1, co3, pro->midco, pro->proj_dir)) {
-			/* shouldn't happen */
-			copy_v3_v3(pro->coa, co1);
+		if (DEBUG_OLD_PROJ_TO_PERP_PLANE) {
+			/* put arc endpoints on plane with normal proj_dir, containing midco */
+			add_v3_v3v3(co3, co1, pro->proj_dir);
+			if (!isect_line_plane_v3(pro->coa, co1, co3, pro->midco, pro->proj_dir)) {
+				/* shouldn't happen */
+				copy_v3_v3(pro->coa, co1);
+			}
+			add_v3_v3v3(co3, co2, pro->proj_dir);
+			if (!isect_line_plane_v3(pro->cob, co2, co3, pro->midco, pro->proj_dir)) {
+				/* shouldn't happen */
+				copy_v3_v3(pro->cob, co2);
+			}
 		}
-		add_v3_v3v3(co3, co2, pro->proj_dir);
-		if (!isect_line_plane_v3(pro->cob, co2, co3, pro->midco, pro->proj_dir)) {
-			/* shouldn't happen */
+		else {
+			copy_v3_v3(pro->coa, co1);
 			copy_v3_v3(pro->cob, co2);
 		}
 		/* default plane to project onto is the one with triangle co1 - midco - co2 in it */
@@ -1036,19 +1078,48 @@ static void set_profile_params(BevelParams *bp, BevVert *bv, BoundVert *bndv)
 		if (l  <= BEVEL_EPSILON_BIG) {
 			/* co1 - midco -co2 are collinear.
 			 * Should be case that beveled edge is coplanar with two boundary verts.
+			 * We want to move the profile to that common plane, if possible.
+			 * That makes the multi-segment bevels curve nicely in that plane, as users expect.
+			 * The new midco should be either v (when neighbor edges are unbeveled)
+			 * or the intersection of the offset lines (if they are).
 			 * If the profile is going to lead into unbeveled edges on each side
 			 * (that is, both BoundVerts are "on-edge" points on non-beveled edges)
-			 * then in order to get curve in multi-segment case, change projection plane
-			 * to be that common plane, projection dir to be the plane normal,
-			 * and mid to be the original vertex.
-			 * Otherwise, we just want to linearly interpolate between co1 and co2.
 			 */
-			if (e->prev->is_bev || e->next->is_bev) {
+			if (DEBUG_OLD_PLANE_SPECIAL && (e->prev->is_bev || e->next->is_bev)) {
 				do_linear_interp = true;
 			}
 			else {
-				copy_v3_v3(pro->coa, co1);
-				copy_v3_v3(pro->midco, bv->v->co);
+				if (DEBUG_OLD_PROJ_TO_PERP_PLANE) {
+					copy_v3_v3(pro->coa, co1);
+					copy_v3_v3(pro->cob, co2);
+				}
+				if (DEBUG_OLD_FLAT_MID) {
+					copy_v3_v3(pro->midco, bv->v->co);
+				}
+				else {
+					copy_v3_v3(pro->midco, bv->v->co);
+					if (e->prev->is_bev && e->next->is_bev && bv->selcount >= 3) {
+						/* want mid at the meet point of next and prev offset edges */
+						float d3[3], d4[3], co4[3], meetco[3], isect2[3];
+						int isect_kind;
+
+						sub_v3_v3v3(d3, e->prev->e->v1->co, e->prev->e->v2->co);
+						sub_v3_v3v3(d4, e->next->e->v1->co, e->next->e->v2->co);
+						normalize_v3(d3);
+						normalize_v3(d4);
+						add_v3_v3v3(co3, co1, d3);
+						add_v3_v3v3(co4, co2, d4);
+						isect_kind = isect_line_line_v3(co1, co3, co2, co4, meetco, isect2);
+						if (isect_kind != 0) {
+							copy_v3_v3(pro->midco, meetco);
+						}
+						else {
+							/* offset lines are collinear - want linear interpolation */
+							mid_v3_v3v3(pro->midco, co1, co2);
+							do_linear_interp = true;
+						}
+					}
+				}
 				copy_v3_v3(pro->cob, co2);
 				sub_v3_v3v3(d1, pro->midco, co1);
 				normalize_v3(d1);
@@ -1557,7 +1628,7 @@ static void build_boundary_vertex_only(BevelParams *bp, BevVert *bv, bool constr
 		if (construct) {
 			v = add_new_bound_vert(bp->mem_arena, vm, co);
 			v->efirst = v->elast = e;
-			e->leftv = v;
+			e->leftv = e->rightv = v;
 		}
 		else {
 			adjust_bound_vert(e->leftv, co);
@@ -1637,7 +1708,7 @@ static void build_boundary_terminal_edge(BevelParams *bp, BevVert *bv, EdgeHalf 
 			v->efirst = e->prev;
 			v->elast = v->ebev = e;
 			e->leftv = v;
-			e->prev->leftv = v;
+			e->prev->leftv = e->prev->rightv = v;
 		}
 		else {
 			adjust_bound_vert(e->leftv, co);
@@ -1648,7 +1719,7 @@ static void build_boundary_terminal_edge(BevelParams *bp, BevVert *bv, EdgeHalf 
 			v = add_new_bound_vert(mem_arena, vm, co);
 			v->efirst = e->prev;
 			v->elast = e;
-			e->leftv = v;
+			e->leftv = e->rightv = v;
 			e->prev->rightv = v;
 		}
 		else {
@@ -1661,7 +1732,7 @@ static void build_boundary_terminal_edge(BevelParams *bp, BevVert *bv, EdgeHalf 
 			if (construct) {
 				v = add_new_bound_vert(mem_arena, vm, co);
 				v->efirst = v->elast = e;
-				e->leftv = v;
+				e->leftv = e->rightv = v;
 			}
 			else {
 				adjust_bound_vert(e->leftv, co);
@@ -3237,6 +3308,11 @@ static void build_vmesh(BevelParams *bp, BMesh *bm, BevVert *bv)
 				if (!weld)
 					create_mesh_bmvert(bm, vm, i, 0, k, bv->v);
 			}
+			else if (n == 2 && !v->ebev && vm->mesh_kind != M_ADJ) {
+				/* case of one edge beveled and this is the v without ebev */
+				/* want to copy the verts from other v, in reverse order */
+				copy_mesh_vert(vm, i, 0, k, 1 - i, 0, ns - k);
+			}
 		}
 	} while ((v = v->next) != vm->boundstart);
 
@@ -3305,6 +3381,219 @@ static float edge_face_angle(EdgeHalf *e)
 #define BM_BEVEL_EDGE_TAG_DISABLE(bme) BM_ELEM_API_FLAG_DISABLE( (bme), _FLAG_OVERLAP)
 #define BM_BEVEL_EDGE_TAG_TEST(bme)    BM_ELEM_API_FLAG_TEST(    (bme), _FLAG_OVERLAP)
 
+/* Try to extend the bv->edges[] array beyond i by finding more successor edges.
+ * This is a possibly exponential-time search, but it is only exponential in the number
+ * of "internal faces" at a vertex -- i.e., faces that bridge between the edges that naturally
+ * form a manifold cap around bv. It is rare to have more than one of these, so unlikely
+ * that the exponential time case will be hit in practice.
+ * Returns the new index i' where bv->edges[i'] ends the best path found.
+ * The path will have the tags of all of its edges set. */
+static int bevel_edge_order_extend(BMesh *bm, BevVert *bv, int i)
+{
+	BMEdge *bme, *bme2, *nextbme;
+	BMLoop *l;
+	BMIter iter;
+	int j, tryj, bestj, nsucs, sucindex, k;
+	BMEdge **sucs = NULL;
+	BMEdge **save_path = NULL;
+	BLI_array_staticdeclare(sucs, 4);  /* likely very few faces attached to same edge */
+	BLI_array_staticdeclare(save_path, BM_DEFAULT_NGON_STACK_SIZE);
+
+	bme = bv->edges[i].e;
+	/* fill sucs with all unmarked edges of bmes */
+	BM_ITER_ELEM(l, &iter, bme, BM_LOOPS_OF_EDGE) {
+		bme2 = (l->v == bv->v) ? l->prev->e : l->next->e;
+		if (!BM_BEVEL_EDGE_TAG_TEST(bme2)) {
+			BLI_array_append(sucs, bme2);
+		}
+	}
+	nsucs = BLI_array_count(sucs);
+
+	bestj = j = i;
+	for (sucindex = 0; sucindex < nsucs; sucindex++) {
+		nextbme = sucs[sucindex];
+		BLI_assert(nextbme != NULL);
+		BLI_assert(!BM_BEVEL_EDGE_TAG_TEST(nextbme));
+		BLI_assert(j + 1 < bv->edgecount);
+		bv->edges[j + 1].e = nextbme;
+		BM_BEVEL_EDGE_TAG_ENABLE(nextbme);
+		tryj = bevel_edge_order_extend(bm, bv, j + 1);
+		if (tryj > bestj || (tryj == bestj && edges_face_connected_at_vert(bv->edges[tryj].e, bv->edges[0].e))) {
+			bestj = tryj;
+			BLI_array_empty(save_path);
+			for (k = j + 1; k <= bestj; k++) {
+				BLI_array_append(save_path, bv->edges[k].e);
+			}
+		}
+		/* now reset to path only-going-to-j state */
+		for (k = j + 1; k <= tryj; k++) {
+			BM_BEVEL_EDGE_TAG_DISABLE(bv->edges[k].e);
+			bv->edges[k].e = NULL;
+		}
+	}
+	/* at this point we should be back at invariant on entrance: path up to j */
+	if (bestj > j) {
+		/* save_path should have from j + 1 to bestj inclusive edges to add to edges[] before returning */
+		for (k = j + 1; k <= bestj; k++) {
+			BLI_assert(save_path[k - (j + 1)] != NULL);
+			bv->edges[k].e = save_path[k - (j + 1)];
+			BM_BEVEL_EDGE_TAG_ENABLE(bv->edges[k].e);
+		}
+	}
+	BLI_array_free(sucs);
+	BLI_array_free(save_path);
+	return bestj;
+}
+
+/* See if we have usual case for bevel edge order:
+ * there is an ordering such that all the faces are between
+ * successive edges and form a manifold "cap" at bv.
+ * If this is the case, set bv->edges to such an order
+ * and return true; else return unmark any partial path and return false.
+ * Assume the first edge is already in bv->edges[0].e and it is tagged. */
+#ifdef FASTER_FASTORDER
+/* The alternative older code is O(n^2) where n = # of edges incident to bv->v.
+ * This implementation is O(n * m) where m = average number of faces attached to an edge incident to bv->v,
+ * which is almost certainly a small constant except in very strange cases. But this code produces different
+ * choices of ordering than the legacy system, leading to differences in vertex orders etc. in user models,
+ * so for now will continue to use the legacy code. */
+static bool fast_bevel_edge_order(BevVert *bv)
+{
+	int j, k, nsucs;
+	BMEdge *bme, *bme2, *bmenext;
+	BMIter iter;
+	BMLoop *l;
+
+	for (j = 1; j < bv->edgecount; j++) {
+		bme = bv->edges[j - 1].e;
+		bmenext = NULL;
+		nsucs = 0;
+		BM_ITER_ELEM(l, &iter, bme, BM_LOOPS_OF_EDGE) {
+			bme2 = (l->v == bv->v) ? l->prev->e : l->next->e;
+			if (!BM_BEVEL_EDGE_TAG_TEST(bme2)) {
+				nsucs++;
+				if (bmenext == NULL)
+					bmenext = bme2;
+			}
+		}
+		if (nsucs == 0 || (nsucs == 2 && j != 1) || nsucs > 2 ||
+		    (j == bv->edgecount - 1 && !edges_face_connected_at_vert(bmenext, bv->edges[0].e)))
+		{
+			for (k = 1; k < j; k++) {
+				BM_BEVEL_EDGE_TAG_DISABLE(bv->edges[k].e);
+				bv->edges[k].e = NULL;
+			}
+			return false;
+		}
+		bv->edges[j].e = bmenext;
+		BM_BEVEL_EDGE_TAG_ENABLE(bmenext);
+	}
+	return true;
+}
+#else
+static bool fast_bevel_edge_order(BevVert *bv)
+{
+	BMEdge *bme, *bme2, *first_suc;
+	BMIter iter, iter2;
+	BMFace *f;
+	EdgeHalf *e;
+	int i, k, ntot, num_shared_face;
+
+	ntot = bv->edgecount;
+
+	/* add edges to bv->edges in order that keeps adjacent edges sharing
+	 * a unique face, if possible */
+	e = &bv->edges[0];
+	bme = e->e;
+	if (!bme->l)
+		return false;
+	for (i = 1; i < ntot; i++) {
+		/* find an unflagged edge bme2 that shares a face f with previous bme */
+		num_shared_face = 0;
+		first_suc = NULL;  /* keep track of first successor to match legacy behavior */
+		BM_ITER_ELEM (bme2, &iter, bv->v, BM_EDGES_OF_VERT) {
+			if (BM_BEVEL_EDGE_TAG_TEST(bme2))
+				continue;
+			BM_ITER_ELEM (f, &iter2, bme2, BM_FACES_OF_EDGE) {
+				if (BM_face_edge_share_loop(f, bme)) {
+					num_shared_face++;
+					if (first_suc == NULL)
+						first_suc = bme2;
+				}
+			}
+			if (num_shared_face >= 3)
+				break;
+		}
+		if (num_shared_face == 1 || (i == 1 && num_shared_face == 2)) {
+			e = &bv->edges[i];
+			e->e = bme = first_suc;
+			BM_BEVEL_EDGE_TAG_ENABLE(bme);
+		}
+		else {
+			for (k = 1; k < i; k++) {
+				BM_BEVEL_EDGE_TAG_DISABLE(bv->edges[k].e);
+				bv->edges[k].e = NULL;
+			}
+			return false;
+		}
+	}
+	return true;
+}
+#endif
+
+/* Fill in bv->edges with a good ordering of non-wire edges around bv->v.
+ * Use only edges where BM_BEVEL_EDGE_TAG is disabled so far
+ * (if edge beveling, others are wire).
+ * first_bme is a good edge to start with.*/
+static void find_bevel_edge_order(BMesh *bm, BevVert *bv, BMEdge *first_bme)
+{
+	BMEdge *bme, *bme2;
+	BMIter iter;
+	BMFace *f;
+	EdgeHalf *e;
+	EdgeHalf *e2;
+	BMLoop *l;
+	int i, ntot;
+
+	ntot = bv->edgecount;
+	i = 0;
+	for (;;) {
+		BLI_assert(first_bme != NULL);
+		bv->edges[i].e = first_bme;
+		BM_BEVEL_EDGE_TAG_ENABLE(first_bme);
+		if (fast_bevel_edge_order(bv))
+			break;
+		i = bevel_edge_order_extend(bm, bv, i);
+		i++;
+		if (i >= bv->edgecount)
+			break;
+		/* Not done yet: find a new first_bme */
+		first_bme = NULL;
+		BM_ITER_ELEM(bme, &iter, bv->v, BM_EDGES_OF_VERT) {
+			if (BM_BEVEL_EDGE_TAG_TEST(bme))
+				continue;
+			if (!first_bme)
+				first_bme = bme;
+			if (BM_edge_face_count(bme) == 1) {
+				first_bme = bme;
+				break;
+			}
+		}
+	}
+	/* now fill in the faces ... */
+	for (i = 0; i < ntot; i++) {
+		e = &bv->edges[i];
+		e2 = (i == bv->edgecount - 1) ? &bv->edges[0] : &bv->edges[i + 1];
+		bme = e->e;
+		bme2 = e2->e;
+		BM_ITER_ELEM(l, &iter, bme, BM_LOOPS_OF_EDGE) {
+			f = l->f;
+			if ((l->prev->e == bme2 || l->next->e == bme2) && !e->fnext && !e2->fprev)
+				e->fnext = e2->fprev = f;
+		}
+	}
+}
+
 /*
  * Construction around the vertex
  */
@@ -3312,13 +3601,12 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 {
 	BMEdge *bme;
 	BevVert *bv;
-	BMEdge *bme2, *unflagged_bme, *first_bme;
-	BMFace *f;
+	BMEdge *first_bme;
 	BMVert *v1, *v2;
-	BMIter iter, iter2;
+	BMIter iter;
 	EdgeHalf *e;
 	float weight, z;
-	int i, found_shared_face, ccw_test_sum;
+	int i, ccw_test_sum;
 	int nsel = 0;
 	int ntot = 0;
 	int nwire = 0;
@@ -3398,47 +3686,12 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 	}
 	BLI_ghash_insert(bp->vert_hash, v, bv);
 
-	/* add edges to bv->edges in order that keeps adjacent edges sharing
-	 * a face, if possible */
-	i = 0;
+	find_bevel_edge_order(bm, bv, first_bme);
 
-	bme = first_bme;
-	BM_BEVEL_EDGE_TAG_ENABLE(bme);
-	e = &bv->edges[0];
-	e->e = bme;
+	/* fill in other attributes of EdgeHalfs */
 	for (i = 0; i < ntot; i++) {
-		if (i > 0) {
-			/* find an unflagged edge bme2 that shares a face f with previous bme */
-			found_shared_face = 0;
-			unflagged_bme = NULL;
-			BM_ITER_ELEM (bme2, &iter, v, BM_EDGES_OF_VERT) {
-				if (BM_BEVEL_EDGE_TAG_TEST(bme2))
-					continue;
-				if (!unflagged_bme)
-					unflagged_bme = bme2;
-				if (!bme->l)
-					continue;
-				BM_ITER_ELEM (f, &iter2, bme2, BM_FACES_OF_EDGE) {
-					if (BM_face_edge_share_loop(f, bme)) {
-						found_shared_face = 1;
-						break;
-					}
-				}
-				if (found_shared_face)
-					break;
-			}
-			e = &bv->edges[i];
-			if (found_shared_face) {
-				e->e = bme2;
-				e->fprev = f;
-				bv->edges[i - 1].fnext = f;
-			}
-			else {
-				e->e = unflagged_bme;
-			}
-		}
+		e = &bv->edges[i];
 		bme = e->e;
-		BM_BEVEL_EDGE_TAG_ENABLE(bme);
 		if (BM_elem_flag_test(bme, BM_ELEM_TAG) && !bp->vertex_only) {
 			e->is_bev = true;
 			e->seg = bp->seg;
@@ -3448,16 +3701,6 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 			e->seg = 0;
 		}
 		e->is_rev = (bme->v2 == v);
-	}
-	/* find wrap-around shared face */
-	BM_ITER_ELEM (f, &iter2, bme, BM_FACES_OF_EDGE) {
-		if (bv->edges[0].e->l && BM_face_edge_share_loop(f, bv->edges[0].e)) {
-			if (bv->edges[0].fnext == f)
-				continue;   /* if two shared faces, want the other one now */
-			bv->edges[ntot - 1].fnext = f;
-			bv->edges[0].fprev = f;
-			break;
-		}
 	}
 
 	/* now done with tag flag */
@@ -3586,6 +3829,7 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 	VMesh *vm;
 	int i, k, n;
 	bool do_rebuild = false;
+	bool go_ccw, corner3special;
 	BMVert *bmv;
 	BMEdge *bme, *bme_new, *bme_prev;
 	BMFace *f_new;
@@ -3600,47 +3844,88 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 		if (BM_elem_flag_test(l->v, BM_ELEM_TAG)) {
 			lprev = l->prev;
 			bv = find_bevvert(bp, l->v);
+			vm = bv->vmesh;
 			e = find_edge_half(bv, l->e);
 			bme = e->e;
 			eprev = find_edge_half(bv, lprev->e);
 			BLI_assert(e != NULL && eprev != NULL);
-			vstart = eprev->leftv;
-			if (e->is_bev)
-				vend = e->rightv;
-			else
+
+			/* which direction around our vertex do we travel to match orientation of f? */
+			if (e->prev == eprev) {
+				if (eprev->prev == e) {
+					/* valence 2 vertex: use f is one of e->fnext or e->fprev  to break tie */
+					go_ccw = (e->fnext != f);
+				}
+				else {
+					go_ccw = true;  /* going ccw around bv to trace this corner */
+				}
+			}
+			else if (eprev->prev == e) {
+				go_ccw = false;  /* going cw around bv to trace this corner */
+			}
+			else {
+				/* edges in face are non-contiguous in our ordering around bv.
+				 * Which way should we go when going from eprev to e? */
+				if (count_ccw_edges_between(eprev, e) < count_ccw_edges_between(e, eprev)) {
+					/* go counterclockewise from eprev to e */
+					go_ccw = true;
+				}
+				else {
+					/* go clockwise from eprev to e */
+					go_ccw = false;
+				}
+			}
+			if (go_ccw) {
+				vstart = eprev->rightv;
 				vend = e->leftv;
+			}
+			else {
+				vstart = eprev->leftv;
+				vend = e->rightv;
+			}
+			BLI_assert(vstart != NULL && vend != NULL);
 			v = vstart;
-			vm = bv->vmesh;
 			BLI_array_append(vv, v->nv.v);
 			BLI_array_append(ee, bme);
+			/* check for special case: multisegment 3rd face opposite a beveled edge with no vmesh */
+			corner3special = (vm->mesh_kind == M_NONE && v->ebev != e && v->ebev != eprev);
 			while (v != vend) {
-				if (vm->mesh_kind == M_NONE && v->ebev && v->ebev->seg > 1 && v->ebev != e && v->ebev != eprev) {
-					/* case of 3rd face opposite a beveled edge, with no vmesh */
-					i = v->index;
-					e = v->ebev;
-					for (k = 1; k < e->seg; k++) {
-						bmv = mesh_vert(vm, i, 0, k)->v;
-						BLI_array_append(vv, bmv);
-						BLI_array_append(ee, bme);
-						/* may want to merge UVs of these later */
-						if (!e->is_seam)
-							BLI_array_append(vv_fix, bmv);
+				if (go_ccw) {
+					if (vm->seg > 1) {
+						if (vm->mesh_kind == M_ADJ || bp->vertex_only || corner3special) {
+							i = v->index;
+							for (k = 1; k < vm->seg; k++) {
+								bmv = mesh_vert(vm, i, 0, k)->v;
+								BLI_array_append(vv, bmv);
+								BLI_array_append(ee, bme); /* TODO: maybe better edge here */
+								if (corner3special && v->ebev && !v->ebev->is_seam)
+									BLI_array_append(vv_fix, bmv);
+							}
+						}
 					}
+					v = v->next;
 				}
-				else if ((vm->mesh_kind == M_ADJ || bp->vertex_only) && vm->seg > 1 && !e->is_bev && !eprev->is_bev) {
-					BLI_assert(v->prev == vend);
-					i = vend->index;
-					for (k = vm->seg - 1; k > 0; k--) {
-						bmv = mesh_vert(vm, i, 0, k)->v;
-						BLI_array_append(vv, bmv);
-						BLI_array_append(ee, bme);
+				else {
+					/* going cw */
+					if (vm->seg > 1) {
+						if (vm->mesh_kind == M_ADJ || bp->vertex_only ||
+						    (vm->mesh_kind == M_NONE && v->ebev != e && v->ebev != eprev))
+						{
+							i = v->prev->index;
+							for (k = vm->seg - 1; k > 0; k--) {
+								bmv = mesh_vert(vm, i, 0, k)->v;
+								BLI_array_append(vv, bmv);
+								BLI_array_append(ee, bme);
+								if (corner3special && v->ebev && !v->ebev->is_seam)
+									BLI_array_append(vv_fix, bmv);
+							}
+						}
 					}
+					v = v->prev;
 				}
-				v = v->prev;
 				BLI_array_append(vv, v->nv.v);
 				BLI_array_append(ee, bme);
 			}
-
 			do_rebuild = true;
 		}
 		else {

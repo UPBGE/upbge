@@ -103,6 +103,7 @@ void VIEW3D_OT_enable_manipulator(struct wmOperatorType *ot);
 void VIEW3D_OT_render_border(struct wmOperatorType *ot);
 void VIEW3D_OT_clear_render_border(struct wmOperatorType *ot);
 void VIEW3D_OT_zoom_border(struct wmOperatorType *ot);
+void VIEW3D_OT_toggle_render(struct wmOperatorType *ot);
 
 void view3d_boxview_copy(ScrArea *sa, ARegion *ar);
 
@@ -157,6 +158,8 @@ enum {
 	V3D_CACHE_TEXT_GLOBALSPACE  = (1 << 3),
 	V3D_CACHE_TEXT_LOCALCLIP    = (1 << 4)
 };
+
+int view3d_effective_drawtype(const struct View3D *v3d);
 
 /* drawarmature.c */
 bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
