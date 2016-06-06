@@ -1540,9 +1540,24 @@ void KX_Scene::DrawDebug(RAS_IRasterizer *rasty)
 
 			if (!gameobj->GetCulled() && gameobj->GetMeshCount() != 0) {
 				const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
+				const MT_Vector3& position = gameobj->NodeGetWorldPosition();
+				const MT_Matrix3x3& orientation = gameobj->NodeGetWorldOrientation();
 				const SG_BBox& box = gameobj->GetSGNode()->BBox();
-				rasty->DrawDebugBox(this, gameobj->NodeGetWorldPosition(), gameobj->NodeGetWorldOrientation(),
-									box.GetMin() * scale, box.GetMax() * scale, MT_Vector4(1, 0, 1, 1));
+				const MT_Vector3& center = box.GetCenter();
+
+				rasty->DrawDebugBox(this, position, orientation, box.GetMin() * scale, box.GetMax() * scale,
+					MT_Vector4(1.0f, 0.0f, 1.0f, 1.0f));
+
+				// Render center in red, green and blue.
+				rasty->DrawDebugLine(this, orientation * center + position,
+					orientation * (center + MT_Vector3(1.0f, 0.0f, 0.0f)) + position,
+					MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
+				rasty->DrawDebugLine(this, orientation * center + position,
+					orientation * (center + MT_Vector3(0.0f, 1.0f, 0.0f)) + position,
+					MT_Vector4(0.0f, 1.0f, 0.0f, 1.0f));
+				rasty->DrawDebugLine(this, orientation * center + position,
+					orientation * (center + MT_Vector3(0.0f, 0.0f, 1.0f)) + position,
+					MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f));
 			}
 		}
 	}
