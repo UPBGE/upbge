@@ -7,16 +7,13 @@ base class --- :class:`PyObjectPlus`
 
 .. class:: KX_LodManager(PyObjectPlus)
 
-   This class contains a list of all levels of detail for a KX_GameObject.
+   This class contains a list of all levels of detail used by a game object.
 
    .. attribute:: levels
 
-      Return the list of all levels of detail of the KX_GameObject.
-      To select one level (:class:`KX_LodLevel`), you can do:
-      KX_GameObject.lodManager.lodLevel[index] and then you can set
-      individual attributes for this level of detail.
+      Return the list of all levels of detail of the lod manager.
 
-      :type: list (read only)
+      :type: list of :class:`KX_LodLevel`
 
    .. attribute:: distanceFactor
 

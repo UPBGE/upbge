@@ -498,12 +498,10 @@ base class --- :class:`SCA_IObject`
 
    .. attribute:: lodManager
 
-      Return the :class:`KX_LodManager` of this KX_GameObject.
-      We need to access lodManager to set attributes of levels of detail
-      for this KX_GameObject. Example:
-      KX_GameObject.lodManager.lodLevel[0].distance = 25.0.
+      Return the lod manager of this KX_GameObject.
+      Needed to access to lod manager to set attributes of levels of detail of this object.
 
-      :type: :class:`KX_LodManager` (read-only)
+      :type: :class:`KX_LodManager`
 
    .. method:: endObject()
 
