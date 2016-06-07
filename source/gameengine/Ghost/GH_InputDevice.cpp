@@ -31,7 +31,6 @@
 #include <iostream>
 
 GH_InputDevice::GH_InputDevice()
-	:m_hookesc(false)
 {
 	m_reverseKeyTranslateTable[GHOST_kKeyA] = AKEY;
 	m_reverseKeyTranslateTable[GHOST_kKeyB] = BKEY;
@@ -226,9 +225,4 @@ void GH_InputDevice::ConvertWheelEvent(int z)
 		event.m_status.push_back(SCA_InputEvent::ACTIVE);
 		event.m_queue.push_back(SCA_InputEvent::JUSTACTIVATED);
 	}
-}
-
-void GH_InputDevice::HookEscape()
-{
-	m_hookesc = true;
 }

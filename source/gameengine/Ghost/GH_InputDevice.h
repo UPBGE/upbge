@@ -50,9 +50,6 @@ protected:
 	std::map<int, SCA_EnumInputs> m_reverseButtonTranslateTable;
 	std::map<int, SCA_EnumInputs> m_reverseWindowTranslateTable;
 
-	short m_exitkey;
-	bool m_hookesc;
-
 public:
 	GH_InputDevice();
 	virtual ~GH_InputDevice();
@@ -63,8 +60,6 @@ public:
 	void ConvertMoveEvent(int x, int y);
 	void ConvertWheelEvent(int z);
 	void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
-
-	virtual void HookEscape();
 };
 
 #endif  /* __GH_KEYBOARDDEVICE_H__ */

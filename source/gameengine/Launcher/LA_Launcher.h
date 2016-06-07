@@ -49,8 +49,6 @@ struct Main;
 class LA_Launcher
 {
 protected:
-	short m_exitkey;
-
 	/// \section The game data.
 	STR_String m_startSceneName;
 	Scene *m_startScene;

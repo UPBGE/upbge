@@ -225,8 +225,6 @@ public:
 	 * Get the number of remapping events (just_activated, just_released)
 	 */
 	virtual int		GetNumJustEvents();
-	
-	virtual void		HookEscape();
 
 	/** Clear event:
 	 *     - Clear status and copy last status to first status.

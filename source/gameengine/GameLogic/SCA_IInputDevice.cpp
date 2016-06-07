@@ -47,11 +47,6 @@ SCA_IInputDevice::~SCA_IInputDevice()
 	}
 }
 
-void SCA_IInputDevice::HookEscape()
-{
-	BLI_assert(false && "This device does not support hooking escape.");
-}
-
 void SCA_IInputDevice::ClearEvents()
 {
 	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
