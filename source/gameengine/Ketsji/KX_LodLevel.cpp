@@ -99,7 +99,7 @@ PyAttributeDef KX_LodLevel::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_RO("distance", KX_LodLevel, m_distance),
 	KX_PYATTRIBUTE_FLOAT_RO("hysteresis", KX_LodLevel, m_hysteresis),
 	KX_PYATTRIBUTE_RO_FUNCTION("useHysteresis", KX_LodLevel, pyattr_get_use_hysteresis),
-	KX_PYATTRIBUTE_RO_FUNCTION("useMesh", KX_LodLevel, pyattr_get_mesh),
+	KX_PYATTRIBUTE_RO_FUNCTION("useMesh", KX_LodLevel, pyattr_get_use_mesh),
 	KX_PYATTRIBUTE_RO_FUNCTION("useMaterial", KX_LodLevel, pyattr_get_use_material),
 	{NULL} // Sentinel
 };
