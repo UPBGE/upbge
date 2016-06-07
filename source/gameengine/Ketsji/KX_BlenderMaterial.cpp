@@ -966,22 +966,24 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 
 	if (!m_shader) {
 		m_shader = new BL_Shader();
+		if (!m_shader->GetError()) {
+			// Set the material to use custom shader.
+			m_flag &= ~RAS_BLENDERGLSL;
+			m_scene->GetBucketManager()->ReleaseDisplayLists(this);
+		}
 	}
 
-	if (m_shader && !m_shader->GetError()) {
-		m_flag &= ~RAS_BLENDERGLSL;
-		m_scene->GetBucketManager()->ReleaseDisplayLists(this);
+	if (!m_shader->GetError()) {
 		return m_shader->GetProxy();
 	}
+	// We have a shader but invalid.
 	else {
 		// decref all references to the object
 		// then delete it!
 		// We will then go back to fixed functionality
 		// for this material
-		if (m_shader) {
-			delete m_shader; /* will handle python de-referencing */
-			m_shader = NULL;
-		}
+		delete m_shader; /* will handle python de-referencing */
+		m_shader = NULL;
 	}
 	Py_RETURN_NONE;
 }
