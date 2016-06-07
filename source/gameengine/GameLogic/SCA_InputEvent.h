@@ -15,21 +15,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
 /** \file SCA_InputEvent.h
  *  \ingroup gamelogic
- *  \brief Interface for input devices. The defines for keyboard/system/mouse events
- *   here are for internal use in the KX module.
- *
  */
 
 #ifndef __SCA_INPUTEVENT_H__
@@ -59,10 +51,15 @@ public:
 	/// Find an exisiting event or status.
 	bool Find(SCA_EnumInputs inputenum) const;
 
+	/// All recorded status during a frame, always contains one value.
 	std::vector<SCA_EnumInputs> m_status;
+	/// All recorded event for this input during a frame, can contain none value.
 	std::vector<SCA_EnumInputs> m_queue;
+	/// All recorded values of this input (used for mouse), always contains one value.
 	std::vector<int> m_values;
+	/// Keyboard unicode value.
 	unsigned int m_unicode;
+	/// Event type.
 	int m_type;
 
 #ifdef WITH_PYTHON
@@ -77,6 +74,7 @@ public:
 	static PyObject *pyattr_get_queue(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
+	/// \section Methodes for retro compatibility.
 	static PyObject *tp_richcompare(PyObject *a, PyObject *b, int op);
 	static PyNumberMethods tp_as_number;
 	static int nb_bool(PyObject *self);

@@ -27,9 +27,6 @@
 
 /** \file SCA_IInputDevice.h
  *  \ingroup gamelogic
- *  \brief Interface for input devices. The defines for keyboard/system/mouse events
- *   here are for internal use in the KX module.
- *
  */
 
 #ifndef __SCA_IINPUTDEVICE_H__
@@ -47,7 +44,6 @@
 class SCA_IInputDevice 
 {
 public:
-
 	SCA_IInputDevice();
 	virtual ~SCA_IInputDevice();
 
@@ -213,7 +209,9 @@ public:
 
 
 protected:
+	/// Table of all possible input.
 	SCA_InputEvent m_eventsTable[SCA_IInputDevice::KX_MAX_KEYS];
+	/// Typed text in unicode during a frame.
 	std::wstring m_text;
 
 public:
@@ -230,23 +228,20 @@ public:
 	virtual int		GetNumJustEvents();
 	
 	virtual void		HookEscape();
-	
-	/**
-	 * Next frame: we calculate the new key states. This goes as follows:
-	 *
-	 * KX_NONE -> KX_NONE
-	 * KX_JUSTACTIVATED  -> KX_ACTIVE
-	 * KX_ACTIVE         -> KX_ACTIVE
-	 * KX_JUSTRELEASED   -> KX_NONE
-	 *
-	 * Getting new events provides the
-	 * KX_NONE->KX_JUSTACTIVATED and
-	 * KX_ACTIVE->KX_JUSTRELEASED transitions.
+
+	/** Clear event:
+	 *     - Clear status and copy last status to first status.
+	 *     - Clear queue
+	 *     - Clear values and copy last value to first value.
 	 */
 	virtual void ClearEvents();
 
+	/** Manage move event like mouse by releasing if possible.
+	 * These kind of events are precise of one frame.
+	 */
 	virtual void ReleaseMoveEvent();
 
+	/// Return typed unicode text during a frame.
 	const std::wstring& GetText() const;
 
 

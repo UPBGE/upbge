@@ -43,7 +43,7 @@ class GH_InputDevice : public SCA_IInputDevice
 {
 protected:
 	/**
-	 * This map converts system dependent keyboard codes into Ketsji codes.
+	 * These maps converts system dependent keyboard codes into Ketsji codes.
 	 * System dependent keyboard codes are stored as ints.
 	 */
 	std::map<int, SCA_EnumInputs> m_reverseKeyTranslateTable;

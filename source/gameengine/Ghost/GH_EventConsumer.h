@@ -50,6 +50,7 @@ public:
 	GH_EventConsumer(GHOST_ISystem *system, GH_InputDevice *device, RAS_ICanvas *canvas);
 	virtual ~GH_EventConsumer();
 
+	/// Function called by GHOST to process all events.
 	virtual bool processEvent(GHOST_IEvent *event);
 };
 
