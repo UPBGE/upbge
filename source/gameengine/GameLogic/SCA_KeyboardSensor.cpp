@@ -159,6 +159,7 @@ bool SCA_KeyboardSensor::Evaluate()
 			const SCA_InputEvent & inevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) i);
 			if (inevent.Find(SCA_InputEvent::KX_ACTIVE)) {
 				active = true;
+				break;
 			}
 		}
 
@@ -169,14 +170,14 @@ bool SCA_KeyboardSensor::Evaluate()
 			if (active != m_status[0]) {
 				result = true;
 			}
-			else {
-				result = m_level;
-			}
 		}
 		// The keys are now disabled.
-		else if (active != m_status[0]) {
+		else {
 			m_val = 0;
-			result = true;
+			// The key was not disabled before.
+			if (active != m_status[0]) {
+				result = true;
+			}
 		}
 		m_status[0] = active;
 	}
