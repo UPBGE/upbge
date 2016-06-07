@@ -43,6 +43,10 @@ extern "C" {
 #  include "DNA_object_types.h"
 #  include "DNA_view3d_types.h"
 
+#  include "WM_types.h"
+#  include "WM_api.h"
+#  include "wm_event_system.h"
+
 #  include "BLI_rect.h"
 }
 
@@ -173,6 +177,9 @@ void LA_BlenderLauncher::ExitEngine()
 		m_startScene->lay = m_savedBlenderData.sceneLayer;
 		m_startScene->camera= m_savedBlenderData.camera;
 	}
+
+	// Free all window manager events unused.
+	wm_event_free_all(m_window);
 }
 
 void LA_BlenderLauncher::RenderEngine()
@@ -187,4 +194,12 @@ void LA_BlenderLauncher::RenderEngine()
 		m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
 	}
 	LA_Launcher::RenderEngine();
+}
+
+bool LA_BlenderLauncher::EngineNextFrame()
+{
+	// Free all window manager events unused.
+	wm_event_free_all(m_window);
+
+	return LA_Launcher::EngineNextFrame();
 }

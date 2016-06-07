@@ -71,4 +71,6 @@ public:
 
 	virtual void InitEngine();
 	virtual void ExitEngine();
+
+	virtual bool EngineNextFrame();
 };
