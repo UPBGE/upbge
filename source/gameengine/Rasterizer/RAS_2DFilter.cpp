@@ -339,8 +339,6 @@ void RAS_2DFilter::DrawOverlayPlane(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 
 	rasty->PushMatrix();
 	rasty->LoadIdentity();
-	rasty->SetMatrixMode(RAS_IRasterizer::RAS_TEXTURE);
-	rasty->LoadIdentity();
 	rasty->SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
 	rasty->PushMatrix();
 	rasty->LoadIdentity();
