@@ -39,7 +39,7 @@
 SCA_InputEvent::SCA_InputEvent()
 	:m_unicode(0)
 {
-	m_status.push_back(KX_NONE);
+	m_status.push_back(NONE);
 	m_values.push_back(0);
 }
 
@@ -47,7 +47,7 @@ SCA_InputEvent::SCA_InputEvent(int type)
 	:m_unicode(0),
 	m_type(type)
 {
-	m_status.push_back(KX_NONE);
+	m_status.push_back(NONE);
 	m_values.push_back(0);
 }
 
@@ -66,7 +66,7 @@ void SCA_InputEvent::Clear()
 
 bool SCA_InputEvent::Find(SCA_EnumInputs inputenum) const
 {
-	if (inputenum == KX_NONE || inputenum == KX_ACTIVE) {
+	if (inputenum == NONE || inputenum == ACTIVE) {
 		return std::count(m_status.begin(), m_status.end(), inputenum);
 	}
 	else {
@@ -129,7 +129,7 @@ int SCA_InputEvent::nb_bool(PyObject *self)
 {
 	SCA_InputEvent *event = (SCA_InputEvent *)BGE_PROXY_REF(self);
 	ShowDeprecationWarning("if event:", "if KX_INPUT_ACTIVE in event.status:  or  if event is not None:");
-	return event->Find(KX_ACTIVE) ? 1 : 0;
+	return event->Find(ACTIVE) ? 1 : 0;
 }
 
 int SCA_InputEvent::get_status_size_cb(void *self_v)
@@ -213,10 +213,10 @@ PyObject *SCA_InputEvent::tp_richcompare(PyObject *a, PyObject *b, int op)
 		}
 
 		if (val != -1 && event) {
-			if ((val == KX_ACTIVE) ||
-				(val == KX_NONE) ||
-				(val == KX_JUSTACTIVATED) ||
-				(val == KX_JUSTRELEASED))
+			if ((val == ACTIVE) ||
+				(val == NONE) ||
+				(val == JUSTACTIVATED) ||
+				(val == JUSTRELEASED))
 			{
 				ShowDeprecationWarning("event == value", "value in event.status or value in event.queue");
 				bool found = event->Find((SCA_EnumInputs)val);

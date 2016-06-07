@@ -33,136 +33,136 @@
 GH_InputDevice::GH_InputDevice()
 	:m_hookesc(false)
 {
-	m_reverseKeyTranslateTable[GHOST_kKeyA] = KX_AKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyB] = KX_BKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyC] = KX_CKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyD] = KX_DKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyE] = KX_EKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF] = KX_FKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyG] = KX_GKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyH] = KX_HKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyI] = KX_IKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyJ] = KX_JKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyK] = KX_KKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyL] = KX_LKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyM] = KX_MKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyN] = KX_NKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyO] = KX_OKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyP] = KX_PKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyQ] = KX_QKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyR] = KX_RKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyS] = KX_SKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyT] = KX_TKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyU] = KX_UKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyV] = KX_VKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyW] = KX_WKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyX] = KX_XKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyY] = KX_YKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyZ] = KX_ZKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyA] = AKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyB] = BKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyC] = CKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyD] = DKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyE] = EKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF] = FKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyG] = GKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyH] = HKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyI] = IKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyJ] = JKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyK] = KKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyL] = LKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyM] = MKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyN] = NKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyO] = OKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyP] = PKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyQ] = QKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyR] = RKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyS] = SKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyT] = TKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyU] = UKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyV] = VKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyW] = WKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyX] = XKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyY] = YKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyZ] = ZKEY;
 
-	m_reverseKeyTranslateTable[GHOST_kKey0] = KX_ZEROKEY;
-	m_reverseKeyTranslateTable[GHOST_kKey1] = KX_ONEKEY;
-	m_reverseKeyTranslateTable[GHOST_kKey2] = KX_TWOKEY;
-	m_reverseKeyTranslateTable[GHOST_kKey3] = KX_THREEKEY;
-	m_reverseKeyTranslateTable[GHOST_kKey4] = KX_FOURKEY;
-	m_reverseKeyTranslateTable[GHOST_kKey5] = KX_FIVEKEY;
-	m_reverseKeyTranslateTable[GHOST_kKey6] = KX_SIXKEY;
-	m_reverseKeyTranslateTable[GHOST_kKey7] = KX_SEVENKEY;
-	m_reverseKeyTranslateTable[GHOST_kKey8] = KX_EIGHTKEY;
-	m_reverseKeyTranslateTable[GHOST_kKey9] = KX_NINEKEY;
+	m_reverseKeyTranslateTable[GHOST_kKey0] = ZEROKEY;
+	m_reverseKeyTranslateTable[GHOST_kKey1] = ONEKEY;
+	m_reverseKeyTranslateTable[GHOST_kKey2] = TWOKEY;
+	m_reverseKeyTranslateTable[GHOST_kKey3] = THREEKEY;
+	m_reverseKeyTranslateTable[GHOST_kKey4] = FOURKEY;
+	m_reverseKeyTranslateTable[GHOST_kKey5] = FIVEKEY;
+	m_reverseKeyTranslateTable[GHOST_kKey6] = SIXKEY;
+	m_reverseKeyTranslateTable[GHOST_kKey7] = SEVENKEY;
+	m_reverseKeyTranslateTable[GHOST_kKey8] = EIGHTKEY;
+	m_reverseKeyTranslateTable[GHOST_kKey9] = NINEKEY;
 
 	// Middle keyboard area keys
-	m_reverseKeyTranslateTable[GHOST_kKeyPause] = KX_PAUSEKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyInsert] = KX_INSERTKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyDelete] = KX_DELKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyHome] = KX_HOMEKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyEnd] = KX_ENDKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyUpPage] = KX_PAGEUPKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyDownPage] = KX_PAGEDOWNKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyPause] = PAUSEKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyInsert] = INSERTKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyDelete] = DELKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyHome] = HOMEKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyEnd] = ENDKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyUpPage] = PAGEUPKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyDownPage] = PAGEDOWNKEY;
 
 	// Arrow keys
-	m_reverseKeyTranslateTable[GHOST_kKeyUpArrow] = KX_UPARROWKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyDownArrow] = KX_DOWNARROWKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyLeftArrow] = KX_LEFTARROWKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyRightArrow] = KX_RIGHTARROWKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyUpArrow] = UPARROWKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyDownArrow] = DOWNARROWKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyLeftArrow] = LEFTARROWKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyRightArrow] = RIGHTARROWKEY;
 
 	// Function keys
-	m_reverseKeyTranslateTable[GHOST_kKeyF1] = KX_F1KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF2] = KX_F2KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF3] = KX_F3KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF4] = KX_F4KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF5] = KX_F5KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF6] = KX_F6KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF7] = KX_F7KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF8] = KX_F8KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF9] = KX_F9KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF10] = KX_F10KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF11] = KX_F11KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF12] = KX_F12KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF13] = KX_F13KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF14] = KX_F14KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF15] = KX_F15KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF16] = KX_F16KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF17] = KX_F17KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF18] = KX_F18KEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyF19] = KX_F19KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF1] = F1KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF2] = F2KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF3] = F3KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF4] = F4KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF5] = F5KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF6] = F6KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF7] = F7KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF8] = F8KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF9] = F9KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF10] = F10KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF11] = F11KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF12] = F12KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF13] = F13KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF14] = F14KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF15] = F15KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF16] = F16KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF17] = F17KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF18] = F18KEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyF19] = F19KEY;
 
 	// Numpad keys
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpad0] = KX_PAD0;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpad1] = KX_PAD1;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpad2] = KX_PAD2;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpad3] = KX_PAD3;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpad4] = KX_PAD4;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpad5] = KX_PAD5;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpad6] = KX_PAD6;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpad7] = KX_PAD7;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpad8] = KX_PAD8;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpad9] = KX_PAD9;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpadAsterisk] = KX_PADASTERKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpadPlus] = KX_PADPLUSKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpadPeriod] = KX_PADPERIOD;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpadMinus] = KX_PADMINUS;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpadSlash] = KX_PADSLASHKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyNumpadEnter] = KX_PADENTER;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpad0] = PAD0;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpad1] = PAD1;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpad2] = PAD2;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpad3] = PAD3;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpad4] = PAD4;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpad5] = PAD5;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpad6] = PAD6;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpad7] = PAD7;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpad8] = PAD8;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpad9] = PAD9;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpadAsterisk] = PADASTERKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpadPlus] = PADPLUSKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpadPeriod] = PADPERIOD;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpadMinus] = PADMINUS;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpadSlash] = PADSLASHKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyNumpadEnter] = PADENTER;
 
 	// Other keys
-	m_reverseKeyTranslateTable[GHOST_kKeyCapsLock] = KX_CAPSLOCKKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyEsc] = KX_ESCKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyTab] = KX_TABKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeySpace] = KX_SPACEKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyEnter] = KX_RETKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyBackSpace] = KX_BACKSPACEKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeySemicolon] = KX_SEMICOLONKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyPeriod] = KX_PERIODKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyComma] = KX_COMMAKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyQuote] = KX_QUOTEKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyAccentGrave] = KX_ACCENTGRAVEKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyMinus] = KX_MINUSKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeySlash] = KX_SLASHKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyBackslash] = KX_BACKSLASHKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyEqual] = KX_EQUALKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyLeftBracket] = KX_LEFTBRACKETKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyRightBracket] = KX_RIGHTBRACKETKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyCapsLock] = CAPSLOCKKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyEsc] = ESCKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyTab] = TABKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeySpace] = SPACEKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyEnter] = RETKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyBackSpace] = BACKSPACEKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeySemicolon] = SEMICOLONKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyPeriod] = PERIODKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyComma] = COMMAKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyQuote] = QUOTEKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyAccentGrave] = ACCENTGRAVEKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyMinus] = MINUSKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeySlash] = SLASHKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyBackslash] = BACKSLASHKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyEqual] = EQUALKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyLeftBracket] = LEFTBRACKETKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyRightBracket] = RIGHTBRACKETKEY;
 
-	m_reverseKeyTranslateTable[GHOST_kKeyOS] = KX_OSKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyOS] = OSKEY;
 
 	// Modifier keys.
-	m_reverseKeyTranslateTable[GHOST_kKeyLeftControl] = KX_LEFTCTRLKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyRightControl] = KX_RIGHTCTRLKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyLeftAlt] = KX_LEFTALTKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyRightAlt] = KX_RIGHTALTKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyLeftShift] = KX_LEFTSHIFTKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyRightShift] = KX_RIGHTSHIFTKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyLeftControl] = LEFTCTRLKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyRightControl] = RIGHTCTRLKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyLeftAlt] = LEFTALTKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyRightAlt] = RIGHTALTKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyLeftShift] = LEFTSHIFTKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyRightShift] = RIGHTSHIFTKEY;
 
 	// Mouse buttons.
-	m_reverseButtonTranslateTable[GHOST_kButtonMaskMiddle] = KX_MIDDLEMOUSE;
-	m_reverseButtonTranslateTable[GHOST_kButtonMaskRight] = KX_RIGHTMOUSE;
-	m_reverseButtonTranslateTable[GHOST_kButtonMaskLeft] = KX_LEFTMOUSE;
+	m_reverseButtonTranslateTable[GHOST_kButtonMaskMiddle] = MIDDLEMOUSE;
+	m_reverseButtonTranslateTable[GHOST_kButtonMaskRight] = RIGHTMOUSE;
+	m_reverseButtonTranslateTable[GHOST_kButtonMaskLeft] = LEFTMOUSE;
 
 	// Window events.
-	m_reverseWindowTranslateTable[GHOST_kEventWindowSize] = KX_WINRESIZE;
-	m_reverseKeyTranslateTable[GHOST_kEventQuit] = KX_WINQUIT;
-	m_reverseKeyTranslateTable[GHOST_kEventWindowClose] = KX_WINCLOSE;
+	m_reverseWindowTranslateTable[GHOST_kEventWindowSize] = WINRESIZE;
+	m_reverseKeyTranslateTable[GHOST_kEventQuit] = WINQUIT;
+	m_reverseKeyTranslateTable[GHOST_kEventWindowClose] = WINCLOSE;
 }
 
 GH_InputDevice::~GH_InputDevice()
@@ -190,8 +190,8 @@ void GH_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val
 
 	if (event.m_values[event.m_values.size() - 1] != val) {
 		// The key event value changed, we considerate it as the real event.
-		event.m_status.push_back((val > 0) ? SCA_InputEvent::KX_ACTIVE : SCA_InputEvent::KX_NONE);
-		event.m_queue.push_back((val > 0) ? SCA_InputEvent::KX_JUSTACTIVATED : SCA_InputEvent::KX_JUSTRELEASED);
+		event.m_status.push_back((val > 0) ? SCA_InputEvent::ACTIVE : SCA_InputEvent::NONE);
+		event.m_queue.push_back((val > 0) ? SCA_InputEvent::JUSTACTIVATED : SCA_InputEvent::JUSTRELEASED);
 		event.m_values.push_back(val);
 		event.m_unicode = unicode;
 
@@ -203,28 +203,28 @@ void GH_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val
 
 void GH_InputDevice::ConvertMoveEvent(int x, int y)
 {
-	SCA_InputEvent &xevent = m_eventsTable[KX_MOUSEX];
+	SCA_InputEvent &xevent = m_eventsTable[MOUSEX];
 	xevent.m_values.push_back(x);
-	if (xevent.m_status[xevent.m_status.size() - 1] != SCA_InputEvent::KX_ACTIVE) {
-		xevent.m_status.push_back(SCA_InputEvent::KX_ACTIVE);
-		xevent.m_queue.push_back(SCA_InputEvent::KX_JUSTACTIVATED);
+	if (xevent.m_status[xevent.m_status.size() - 1] != SCA_InputEvent::ACTIVE) {
+		xevent.m_status.push_back(SCA_InputEvent::ACTIVE);
+		xevent.m_queue.push_back(SCA_InputEvent::JUSTACTIVATED);
 	}
 
-	SCA_InputEvent &yevent = m_eventsTable[KX_MOUSEY];
+	SCA_InputEvent &yevent = m_eventsTable[MOUSEY];
 	yevent.m_values.push_back(y);
-	if (yevent.m_status[yevent.m_status.size() - 1] != SCA_InputEvent::KX_ACTIVE) {
-		yevent.m_status.push_back(SCA_InputEvent::KX_ACTIVE);
-		yevent.m_queue.push_back(SCA_InputEvent::KX_JUSTACTIVATED);
+	if (yevent.m_status[yevent.m_status.size() - 1] != SCA_InputEvent::ACTIVE) {
+		yevent.m_status.push_back(SCA_InputEvent::ACTIVE);
+		yevent.m_queue.push_back(SCA_InputEvent::JUSTACTIVATED);
 	}
 }
 
 void GH_InputDevice::ConvertWheelEvent(int z)
 {
-	SCA_InputEvent &event = m_eventsTable[(z > 0) ? KX_WHEELUPMOUSE : KX_WHEELDOWNMOUSE];
+	SCA_InputEvent &event = m_eventsTable[(z > 0) ? WHEELUPMOUSE : WHEELDOWNMOUSE];
 	event.m_values.push_back(z);
-	if (event.m_status[event.m_status.size() - 1] != SCA_InputEvent::KX_ACTIVE) {
-		event.m_status.push_back(SCA_InputEvent::KX_ACTIVE);
-		event.m_queue.push_back(SCA_InputEvent::KX_JUSTACTIVATED);
+	if (event.m_status[event.m_status.size() - 1] != SCA_InputEvent::ACTIVE) {
+		event.m_status.push_back(SCA_InputEvent::ACTIVE);
+		event.m_queue.push_back(SCA_InputEvent::JUSTACTIVATED);
 	}
 }
 

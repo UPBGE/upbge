@@ -114,7 +114,7 @@ PyObject *SCA_PythonKeyboard::pyattr_get_events(void *self_v, const KX_PYATTRIBU
 {
 	SCA_PythonKeyboard* self = static_cast<SCA_PythonKeyboard*>(self_v);
 	
-	for (int i=SCA_IInputDevice::KX_BEGINKEY; i<=SCA_IInputDevice::KX_ENDKEY; i++)
+	for (int i=SCA_IInputDevice::BEGINKEY; i<=SCA_IInputDevice::ENDKEY; i++)
 	{
 		SCA_InputEvent & inevent = self->m_keyboard->GetEvent((SCA_IInputDevice::SCA_EnumInputs)i);
 		
@@ -130,11 +130,11 @@ PyObject *SCA_PythonKeyboard::pyattr_get_active_events(void *self_v, const KX_PY
 
 	PyDict_Clear(self->m_event_dict);
 	
-	for (int i=SCA_IInputDevice::KX_BEGINKEY; i<=SCA_IInputDevice::KX_ENDKEY; i++)
+	for (int i=SCA_IInputDevice::BEGINKEY; i<=SCA_IInputDevice::ENDKEY; i++)
 	{
 		SCA_InputEvent & inevent = self->m_keyboard->GetEvent((SCA_IInputDevice::SCA_EnumInputs)i);
 		
-		if (inevent.Find(SCA_InputEvent::KX_ACTIVE)) {
+		if (inevent.Find(SCA_InputEvent::ACTIVE)) {
 			PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), inevent.GetProxy());
 		}
 	}

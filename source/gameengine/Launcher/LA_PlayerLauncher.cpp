@@ -314,12 +314,12 @@ void LA_PlayerLauncher::ExitEngine()
 
 bool LA_PlayerLauncher::EngineNextFrame()
 {
-	if (m_inputDevice->GetEvent(SCA_IInputDevice::KX_WINRESIZE).Find(SCA_InputEvent::KX_ACTIVE)) {
+	if (m_inputDevice->GetEvent(SCA_IInputDevice::WINRESIZE).Find(SCA_InputEvent::ACTIVE)) {
 		GHOST_Rect bnds;
 		m_mainWindow->getClientBounds(bnds);
 		m_canvas->Resize(bnds.getWidth(), bnds.getHeight());
 		m_ketsjiEngine->Resize();
-		m_inputDevice->ConvertEvent(SCA_IInputDevice::KX_WINRESIZE, 0, 0);
+		m_inputDevice->ConvertEvent(SCA_IInputDevice::WINRESIZE, 0, 0);
 	}
 
 	return LA_Launcher::EngineNextFrame();

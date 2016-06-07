@@ -96,7 +96,7 @@ PyObject *SCA_PythonMouse::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_
 {
 	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
 	
-	for (int i=SCA_IInputDevice::KX_BEGINMOUSE; i<=SCA_IInputDevice::KX_ENDMOUSE; i++)
+	for (int i=SCA_IInputDevice::BEGINMOUSE; i<=SCA_IInputDevice::ENDMOUSE; i++)
 	{
 		SCA_InputEvent & inevent = self->m_mouse->GetEvent((SCA_IInputDevice::SCA_EnumInputs)i);
 		
@@ -112,11 +112,11 @@ PyObject *SCA_PythonMouse::pyattr_get_active_events(void *self_v, const KX_PYATT
 
 	PyDict_Clear(self->m_event_dict);
 	
-	for (int i=SCA_IInputDevice::KX_BEGINMOUSE; i<=SCA_IInputDevice::KX_ENDMOUSE; i++)
+	for (int i=SCA_IInputDevice::BEGINMOUSE; i<=SCA_IInputDevice::ENDMOUSE; i++)
 	{
 		SCA_InputEvent & inevent = self->m_mouse->GetEvent((SCA_IInputDevice::SCA_EnumInputs)i);
 		
-		if (inevent.Find(SCA_InputEvent::KX_ACTIVE)) {
+		if (inevent.Find(SCA_InputEvent::ACTIVE)) {
 			PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), inevent.GetProxy());
 		}
 	}
@@ -127,8 +127,8 @@ PyObject *SCA_PythonMouse::pyattr_get_active_events(void *self_v, const KX_PYATT
 PyObject *SCA_PythonMouse::pyattr_get_position(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
-	const SCA_InputEvent & xevent = self->m_mouse->GetEvent(SCA_IInputDevice::KX_MOUSEX);
-	const SCA_InputEvent & yevent = self->m_mouse->GetEvent(SCA_IInputDevice::KX_MOUSEY);
+	const SCA_InputEvent & xevent = self->m_mouse->GetEvent(SCA_IInputDevice::MOUSEX);
+	const SCA_InputEvent & yevent = self->m_mouse->GetEvent(SCA_IInputDevice::MOUSEY);
 
 	float x_coord, y_coord;
 

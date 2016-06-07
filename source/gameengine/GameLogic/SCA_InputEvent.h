@@ -36,10 +36,10 @@ class SCA_InputEvent : public PyObjectPlus
 Py_Header
 public:
 	enum SCA_EnumInputs {
-		KX_NONE = 0,
-		KX_JUSTACTIVATED,
-		KX_ACTIVE,
-		KX_JUSTRELEASED,
+		NONE = 0,
+		JUSTACTIVATED,
+		ACTIVE,
+		JUSTRELEASED,
 	};
 
 	SCA_InputEvent();

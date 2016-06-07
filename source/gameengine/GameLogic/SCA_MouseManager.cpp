@@ -81,9 +81,9 @@ void SCA_MouseManager::NextFrame()
 			if (!mousesensor->IsSuspended())
 			{
 				const SCA_InputEvent& event1 = 
-					m_mousedevice->GetEvent(SCA_IInputDevice::KX_MOUSEX);
+					m_mousedevice->GetEvent(SCA_IInputDevice::MOUSEX);
 				const SCA_InputEvent& event2 = 
-					m_mousedevice->GetEvent(SCA_IInputDevice::KX_MOUSEY);
+					m_mousedevice->GetEvent(SCA_IInputDevice::MOUSEY);
 
 				int mx = event1.m_values[event1.m_values.size() - 1];
 				int my = event2.m_values[event2.m_values.size() - 1];

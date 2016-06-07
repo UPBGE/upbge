@@ -35,14 +35,14 @@
 
 SCA_IInputDevice::SCA_IInputDevice()
 {
-	for (int i = 0; i < SCA_IInputDevice::KX_MAX_KEYS; ++i) {
+	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
 		m_eventsTable[i] = SCA_InputEvent(i);
 	}
 }
 
 SCA_IInputDevice::~SCA_IInputDevice()
 {
-	for (int i = 0; i < SCA_IInputDevice::KX_MAX_KEYS; ++i) {
+	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
 		m_eventsTable[i].InvalidateProxy();
 	}
 }
@@ -54,7 +54,7 @@ void SCA_IInputDevice::HookEscape()
 
 void SCA_IInputDevice::ClearEvents()
 {
-	for (int i = 0; i < SCA_IInputDevice::KX_MAX_KEYS; ++i) {
+	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
 		m_eventsTable[i].Clear();
 	}
 	m_text.clear();
@@ -64,23 +64,23 @@ void SCA_IInputDevice::ReleaseMoveEvent()
 {
 	/* We raise the release mouse move event if:
 	 *   - there are only one value from the last call to Clear()
-	 *   - the last state was KX_ACTIVE
-	 * If the both are true then the KX_ACTIVE come from the last call to ClearEvent must
+	 *   - the last state was ACTIVE
+	 * If the both are true then the ACTIVE come from the last call to ClearEvent must
 	 * be removed of the status list to avoid setting the mouse active for two frames.
 	 */
 	SCA_EnumInputs eventTypes[4] = {
-		KX_MOUSEX,
-		KX_MOUSEY,
-		KX_WHEELUPMOUSE,
-		KX_WHEELDOWNMOUSE
+		MOUSEX,
+		MOUSEY,
+		WHEELUPMOUSE,
+		WHEELDOWNMOUSE
 	};
 
 	for (unsigned short i = 0; i < 4; ++i) {
 		SCA_InputEvent &event = m_eventsTable[eventTypes[i]];
-		if ((event.m_values.size() == 1) && (event.m_status[event.m_status.size() - 1] == SCA_InputEvent::KX_ACTIVE)) {
+		if ((event.m_values.size() == 1) && (event.m_status[event.m_status.size() - 1] == SCA_InputEvent::ACTIVE)) {
 			event.m_status.pop_back();
-			event.m_status.push_back(SCA_InputEvent::KX_NONE);
-			event.m_queue.push_back(SCA_InputEvent::KX_JUSTRELEASED);
+			event.m_status.push_back(SCA_InputEvent::NONE);
+			event.m_queue.push_back(SCA_InputEvent::JUSTRELEASED);
 		}
 	}
 }
@@ -99,9 +99,9 @@ int SCA_IInputDevice::GetNumActiveEvents()
 {
 	int num = 0;
 
-	for (int i = 0; i < SCA_IInputDevice::KX_MAX_KEYS; ++i) {
+	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
 		const SCA_InputEvent& event = m_eventsTable[i];
-		if (event.Find(SCA_InputEvent::KX_ACTIVE)) {
+		if (event.Find(SCA_InputEvent::ACTIVE)) {
 			++num;
 		}
 	}
@@ -113,9 +113,9 @@ int SCA_IInputDevice::GetNumJustEvents()
 {
 	int num = 0;
 
-	for (int i = 0; i < SCA_IInputDevice::KX_MAX_KEYS; ++i) {
+	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
 		const SCA_InputEvent& event = m_eventsTable[i];
-		if (event.Find(SCA_InputEvent::KX_JUSTACTIVATED) || event.Find(SCA_InputEvent::KX_JUSTRELEASED)) {
+		if (event.Find(SCA_InputEvent::JUSTACTIVATED) || event.Find(SCA_InputEvent::JUSTRELEASED)) {
 			++num;
 		}
 	}
