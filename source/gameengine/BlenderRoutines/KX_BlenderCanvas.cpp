@@ -45,6 +45,8 @@
 
 #include "RAS_IRasterizer.h"
 
+#include "GHOST_IWindow.h"
+
 #include <assert.h>
 #include <iostream>
 
@@ -175,8 +177,15 @@ int KX_BlenderCanvas::GetHeight(
 	return m_frame_rect.GetHeight();
 }
 
-void KX_BlenderCanvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y)
+void KX_BlenderCanvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen)
 {
+	if (screen) {
+		int _x, _y;
+		((GHOST_IWindow *)m_win->ghostwin)->screenToClient(x, y, _x, _y);
+		x = _x;
+		y = _y;
+	}
+
 	r_x = x - m_ar->winrct.xmin;
 	r_y = m_ar->winy - (y - m_ar->winrct.ymin) - 1;
 }

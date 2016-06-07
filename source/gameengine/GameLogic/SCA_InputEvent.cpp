@@ -40,7 +40,7 @@ SCA_InputEvent::SCA_InputEvent()
 	:m_unicode(0)
 {
 	m_status.push_back(KX_NONE);
-	m_values.push_back(0); // TODO mouse default value.
+	m_values.push_back(0);
 }
 
 SCA_InputEvent::SCA_InputEvent(int type)
@@ -48,7 +48,7 @@ SCA_InputEvent::SCA_InputEvent(int type)
 	m_type(type)
 {
 	m_status.push_back(KX_NONE);
-	m_values.push_back(0); // TODO mouse default value.
+	m_values.push_back(0);
 }
 
 void SCA_InputEvent::Clear()

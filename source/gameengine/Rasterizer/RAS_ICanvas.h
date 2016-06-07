@@ -145,7 +145,14 @@ public:
 	GetHeight(
 	) const = 0;
 
-	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y) = 0;
+	/** Convert mouse coordinates from screen or client window to render area coordinates.
+	 * \param x The input X coordinate.
+	 * \param y The input Y coordinate.
+	 * \param r_x The mouse render area X coordinate.
+	 * \param r_y The mouse render area Y coordinate.
+	 * \param screen Set to true when the input coordinates come from the screen and not the client window.
+	 */
+	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen) = 0;
 
 	virtual
 		float

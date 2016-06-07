@@ -113,7 +113,7 @@ public:
 	virtual void SetSwapInterval(int interval);
 	virtual bool GetSwapInterval(int& intervalOut);
 
-	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y);
+	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
 	virtual float GetMouseNormalizedX(int x);
 	virtual float GetMouseNormalizedY(int y);
 

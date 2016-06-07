@@ -30,6 +30,7 @@
 #include "GHOST_IEventConsumer.h"
 
 class GH_InputDevice;
+class GHOST_ISystem;
 
 class RAS_ICanvas;
 
@@ -46,7 +47,7 @@ private:
 	void HandleButtonEvent(GHOST_TEventDataPtr data, bool down);
 
 public:
-	GH_EventConsumer(GH_InputDevice *device, RAS_ICanvas *canvas);
+	GH_EventConsumer(GHOST_ISystem *system, GH_InputDevice *device, RAS_ICanvas *canvas);
 	virtual ~GH_EventConsumer();
 
 	virtual bool processEvent(GHOST_IEvent *event);

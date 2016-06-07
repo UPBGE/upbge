@@ -30,6 +30,7 @@
 
 #include "GHOST_IEvent.h"
 #include "GHOST_IWindow.h"
+#include "GHOST_ISystem.h"
 
 #include "RAS_ICanvas.h"
 
@@ -37,10 +38,15 @@
 
 #include <iostream>
 
-GH_EventConsumer::GH_EventConsumer(GH_InputDevice *device, RAS_ICanvas *canvas)
+GH_EventConsumer::GH_EventConsumer(GHOST_ISystem *system, GH_InputDevice *device, RAS_ICanvas *canvas)
 	:m_device(device),
 	m_canvas(canvas)
 {
+	int cursorx, cursory;
+	system->getCursorPosition(cursorx, cursory);
+	int x, y;
+	m_canvas->ConvertMousePosition(cursorx, cursory, x, y, true);
+	m_device->ConvertMoveEvent(x, y);
 }
 
 GH_EventConsumer::~GH_EventConsumer()
@@ -63,7 +69,7 @@ void GH_EventConsumer::HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindow
 {
 	GHOST_TEventCursorData *cursorData = (GHOST_TEventCursorData *)data;
 	int x, y;
-	m_canvas->ConvertMousePosition(cursorData->x, cursorData->y, x, y);
+	m_canvas->ConvertMousePosition(cursorData->x, cursorData->y, x, y, false);
 
 	m_device->ConvertMoveEvent(x, y);
 }

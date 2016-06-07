@@ -38,6 +38,7 @@
 
 #include "BLI_string.h"
 #include "BLI_path_util.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_image.h"
 #include "MEM_guardedalloc.h"
@@ -299,7 +300,7 @@ bool GPG_Canvas::GetFullScreen()
 	return m_window->getState() == GHOST_kWindowStateFullScreen;
 }
 
-void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y)
+void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool UNUSED(screen))
 {
 	m_window->screenToClient(x, y, r_x, r_y);
 }

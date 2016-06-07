@@ -134,7 +134,7 @@ public:
 	GetHeight(
 	) const;
 
-	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y);
+	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
 
 		float
 	GetMouseNormalizedX(int x
