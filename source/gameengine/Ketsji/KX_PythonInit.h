@@ -52,9 +52,7 @@ void exitGamePlayerPythonScripting();
 void exitGamePythonScripting();
 void setupGamePython(KX_KetsjiEngine *ketsjiengine, Main *blenderdata,
                      PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char **argv);
-void setGamePythonPath(const char *path);
-void resetGamePythonPath();
-void pathGamePythonConfig(char *path);
+STR_String pathGamePythonConfig();
 int saveGamePythonConfig(char **marshal_buffer);
 int loadGamePythonConfig(char *marshal_buffer, int marshal_length);
 #endif

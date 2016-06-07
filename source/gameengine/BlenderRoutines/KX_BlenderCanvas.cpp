@@ -32,10 +32,14 @@
 #include "MEM_guardedalloc.h"
 
 #include "KX_BlenderCanvas.h"
+#include "KX_Globals.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
+
+#include "BLI_string.h"
+#include "BLI_path_util.h"
 
 #include "BKE_image.h"
 
@@ -318,6 +322,11 @@ void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 	else
 		BKE_imformat_defaults(im_format);
 
+	// create file path
+	char path[FILE_MAX];
+	BLI_strncpy(path, filename, FILE_MAX);
+	BLI_path_abs(path, KX_GetMainPath().ReadPtr());
+
 	/* save_screenshot() frees dumprect and im_format */
-	save_screenshot(filename, width, height, pixeldata, im_format);
+	save_screenshot(path, width, height, pixeldata, im_format);
 }

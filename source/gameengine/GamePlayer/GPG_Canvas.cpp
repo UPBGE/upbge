@@ -32,7 +32,12 @@
 #include "GPG_Canvas.h"
 #include "GHOST_ISystem.h"
 
+#include "KX_Globals.h"
+
 #include "RAS_IRasterizer.h"
+
+#include "BLI_string.h"
+#include "BLI_path_util.h"
 
 #include "BKE_image.h"
 #include "MEM_guardedalloc.h"
@@ -170,6 +175,11 @@ void GPG_Canvas::MakeScreenShot(const char* filename)
 	// initialize image file format data
 	ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData), "im_format");
 	BKE_imformat_defaults(im_format);
+
+	// create file path
+	char path[FILE_MAX];
+	BLI_strncpy(path, filename, FILE_MAX);
+	BLI_path_abs(path, KX_GetMainPath().ReadPtr());
 
 	/* save_screenshot() frees dumprect and im_format */
 	save_screenshot(filename, dumpsx, dumpsy, pixels, im_format);

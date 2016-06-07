@@ -28,8 +28,14 @@
 #include "KX_KetsjiEngine.h"
 #include "RAS_IRasterizer.h"
 
+extern "C" {
+#  include "BLI_blenlib.h"
+}
+
 static KX_KetsjiEngine *g_engine = NULL;
 static KX_Scene *g_scene = NULL;
+static STR_String g_mainPath = "";
+static STR_String g_origPath = "";
 
 void KX_SetActiveEngine(KX_KetsjiEngine *engine)
 {
@@ -41,6 +47,22 @@ void KX_SetActiveScene(KX_Scene *scene)
 	g_scene = scene;
 }
 
+void KX_SetMainPath(const STR_String& path)
+{
+	char cpath[FILE_MAX];
+	BLI_strncpy(cpath, path.ReadPtr(), sizeof(cpath));
+	BLI_cleanup_file(NULL, cpath);
+	g_mainPath = STR_String(cpath);
+}
+
+void KX_SetOrigPath(const STR_String& path)
+{
+	char cpath[FILE_MAX];
+	BLI_strncpy(cpath, path.ReadPtr(), sizeof(cpath));
+	BLI_cleanup_file(NULL, cpath);
+	g_origPath = STR_String(cpath);
+}
+
 KX_KetsjiEngine *KX_GetActiveEngine()
 {
 	return g_engine;
@@ -49,6 +71,16 @@ KX_KetsjiEngine *KX_GetActiveEngine()
 KX_Scene *KX_GetActiveScene()
 {
 	return g_scene;
+}
+
+const STR_String& KX_GetMainPath()
+{
+	return g_mainPath;
+}
+
+const STR_String& KX_GetOrigPath()
+{
+	return g_origPath;
 }
 
 void KX_RasterizerDrawDebugLine(const MT_Vector3& from,const MT_Vector3& to,const MT_Vector4& color)

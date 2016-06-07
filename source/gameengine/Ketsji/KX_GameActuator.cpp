@@ -134,16 +134,15 @@ bool KX_GameActuator::Update()
 #ifdef WITH_PYTHON
 			if (m_ketsjiengine)
 			{
-				char mashal_path[512];
 				char *marshal_buffer = NULL;
 				unsigned int marshal_length;
 				FILE *fp = NULL;
 				
-				pathGamePythonConfig(mashal_path);
+				STR_String marshal_path = pathGamePythonConfig();
 				marshal_length = saveGamePythonConfig(&marshal_buffer);
 				
 				if (marshal_length && marshal_buffer) {
-					fp = fopen(mashal_path, "wb");
+					fp = fopen(marshal_path.ReadPtr(), "wb");
 					if (fp) {
 						if (fwrite(marshal_buffer, 1, marshal_length, fp) != marshal_length) {
 							printf("Warning: could not write marshal data\n");
@@ -166,21 +165,20 @@ bool KX_GameActuator::Update()
 #ifdef WITH_PYTHON
 			if (m_ketsjiengine)
 			{
-				char mashal_path[512];
 				char *marshal_buffer;
 				int marshal_length;
 				FILE *fp = NULL;
 				int result;
 				
-				pathGamePythonConfig(mashal_path);
+				STR_String marshal_path = pathGamePythonConfig();
 				
-				fp = fopen(mashal_path, "rb");
+				fp = fopen(marshal_path, "rb");
 				if (fp) {
 					// obtain file size:
 					fseek (fp , 0 , SEEK_END);
 					marshal_length = ftell(fp);
 					if (marshal_length == -1) {
-						printf("warning: could not read position of '%s'\n", mashal_path);
+						printf("warning: could not read position of '%s'\n", marshal_path.ReadPtr());
 						fclose(fp);
 						break;
 					}
@@ -193,13 +191,13 @@ bool KX_GameActuator::Update()
 					if (result == marshal_length) {
 						loadGamePythonConfig(marshal_buffer, marshal_length);
 					} else {
-						printf("warning: could not read all of '%s'\n", mashal_path);
+						printf("warning: could not read all of '%s'\n", marshal_path.ReadPtr());
 					}
 					
 					free(marshal_buffer);
 					fclose(fp);
 				} else {
-					printf("warning: could not open '%s'\n", mashal_path);
+					printf("warning: could not open '%s'\n", marshal_path.ReadPtr());
 				}
 			}
 			break;

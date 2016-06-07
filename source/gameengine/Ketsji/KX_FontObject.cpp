@@ -33,6 +33,7 @@
 #include "DNA_curve_types.h"
 #include "DNA_vfont_types.h"
 #include "KX_Scene.h"
+#include "KX_Globals.h"
 #include "KX_PythonInit.h"
 #include "BLI_math.h"
 #include "EXP_StringValue.h"
@@ -146,7 +147,7 @@ int GetFontId(VFont *vfont)
 	// convert from absolute to relative
 	char expanded[256]; // font names can be bigger than FILE_MAX (240)
 	BLI_strncpy(expanded, filepath, 256);
-	BLI_path_abs(expanded, G.main->name);
+	BLI_path_abs(expanded, KX_GetMainPath().ReadPtr());
 
 	fontid = BLF_load(expanded);
 

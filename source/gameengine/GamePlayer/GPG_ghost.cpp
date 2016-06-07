@@ -89,6 +89,8 @@ extern "C"
 
 #include "GPU_draw.h"
 
+#include "KX_Globals.h"
+
 #include "LA_SystemCommandLine.h"
 #include "LA_PlayerLauncher.h"
 
@@ -880,6 +882,10 @@ int main(
 					}
 					else {
 						bfd = load_game_data(BKE_appdir_program_path(), filename[0]? filename: NULL);
+						// The file is valid and it's the original file name.
+						if (bfd) {
+							KX_SetOrigPath(bfd->main->name);
+						}
 					}
 
 #if defined(DEBUG)

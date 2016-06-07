@@ -220,8 +220,7 @@ void LA_Launcher::InitEngine()
 	InitCamera();
 
 #ifdef WITH_PYTHON
-	resetGamePythonPath();
-	setGamePythonPath(m_maggie->name);
+	KX_SetMainPath(STR_String(m_maggie->name));
 #endif
 
 	// Create a scene converter, create and convert the stratingscene.

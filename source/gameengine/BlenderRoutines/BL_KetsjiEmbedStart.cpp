@@ -36,6 +36,7 @@
 #endif
 
 #include "KX_PythonInit.h"
+#include "KX_Globals.h"
 
 #include "GHOST_ISystem.h"
 
@@ -89,6 +90,9 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 	BlendFileData *bfd = NULL;
 
 	BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
+
+	KX_SetOrigPath(STR_String(blenderdata->name));
+
 #ifdef WITH_PYTHON
 
 	// Acquire Python's GIL (global interpreter lock)

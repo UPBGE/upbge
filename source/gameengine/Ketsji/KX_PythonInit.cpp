@@ -154,9 +154,6 @@ extern "C" {
 
 #ifdef WITH_PYTHON
 
-static char gp_GamePythonPath[FILE_MAX] = "";
-static char gp_GamePythonPathOrig[FILE_MAX] = ""; // not super happy about this, but we need to remember the first loaded file for the global/dict load save
-
 static SCA_PythonKeyboard* gp_PythonKeyboard = NULL;
 static SCA_PythonMouse* gp_PythonMouse = NULL;
 static SCA_PythonJoystick* gp_PythonJoysticks[JOYINDEX_MAX] = {NULL};
@@ -230,7 +227,7 @@ static PyObject *gPyExpandPath(PyObject *, PyObject *args)
 		return NULL;
 
 	BLI_strncpy(expanded, filename, FILE_MAX);
-	BLI_path_abs(expanded, gp_GamePythonPath);
+	BLI_path_abs(expanded, KX_GetMainPath().ReadPtr());
 	return PyC_UnicodeFromByte(expanded);
 }
 
@@ -259,8 +256,6 @@ static PyObject *gPyEndGame(PyObject *)
 {
 	KX_GetActiveEngine()->RequestExit(KX_EXIT_REQUEST_QUIT_GAME);
 
-	//printf("%s\n", gp_GamePythonPath);
-
 	Py_RETURN_NONE;
 }
 
@@ -271,7 +266,7 @@ PyDoc_STRVAR(gPyRestartGame_doc,
 static PyObject *gPyRestartGame(PyObject *)
 {
 	KX_GetActiveEngine()->RequestExit(KX_EXIT_REQUEST_RESTART_GAME);
-	KX_GetActiveEngine()->SetNameNextGame(gp_GamePythonPath);
+	KX_GetActiveEngine()->SetNameNextGame(KX_GetMainPath());
 
 	Py_RETURN_NONE;
 }
@@ -282,17 +277,16 @@ PyDoc_STRVAR(gPySaveGlobalDict_doc,
 );
 static PyObject *gPySaveGlobalDict(PyObject *)
 {
-	char marshal_path[512];
 	char *marshal_buffer = NULL;
 	unsigned int marshal_length;
 	FILE *fp = NULL;
 
-	pathGamePythonConfig(marshal_path);
+	STR_String marshal_path = pathGamePythonConfig();
 	marshal_length = saveGamePythonConfig(&marshal_buffer);
 
 	if (marshal_length && marshal_buffer)
 	{
-		fp = fopen(marshal_path, "wb");
+		fp = fopen(marshal_path.ReadPtr(), "wb");
 
 		if (fp)
 		{
@@ -319,22 +313,21 @@ PyDoc_STRVAR(gPyLoadGlobalDict_doc,
 );
 static PyObject *gPyLoadGlobalDict(PyObject *)
 {
-	char marshal_path[512];
 	char *marshal_buffer = NULL;
 	int marshal_length;
 	FILE *fp = NULL;
 	int result;
 
-	pathGamePythonConfig(marshal_path);
+	STR_String marshal_path = pathGamePythonConfig();
 
-	fp = fopen(marshal_path, "rb");
+	fp = fopen(marshal_path.ReadPtr(), "rb");
 
 	if (fp) {
 		// obtain file size:
 		fseek (fp, 0, SEEK_END);
 		marshal_length = ftell(fp);
 		if (marshal_length == -1) {
-			printf("Warning: could not read position of '%s'\n", marshal_path);
+			printf("Warning: could not read position of '%s'\n", marshal_path.ReadPtr());
 			fclose(fp);
 			Py_RETURN_NONE;
 		}
@@ -347,13 +340,13 @@ static PyObject *gPyLoadGlobalDict(PyObject *)
 		if (result == marshal_length) {
 			loadGamePythonConfig(marshal_buffer, marshal_length);
 		} else {
-			printf("Warning: could not read all of '%s'\n", marshal_path);
+			printf("Warning: could not read all of '%s'\n", marshal_path.ReadPtr());
 		}
 
 		free(marshal_buffer);
 		fclose(fp);
 	} else {
-		printf("Warning: could not open '%s'\n", marshal_path);
+		printf("Warning: could not open '%s'\n", marshal_path.ReadPtr());
 	}
 
 	Py_RETURN_NONE;
@@ -561,7 +554,7 @@ static PyObject *gPySetTimeScale(PyObject *, PyObject *args)
 
 static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
 {
-	char cpath[sizeof(gp_GamePythonPath)];
+	char cpath[FILE_MAX];
 	char *searchpath = NULL;
 	PyObject *list, *value;
 
@@ -575,10 +568,10 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
 	
 	if (searchpath) {
 		BLI_strncpy(cpath, searchpath, FILE_MAX);
-		BLI_path_abs(cpath, gp_GamePythonPath);
+		BLI_path_abs(cpath, KX_GetMainPath().ReadPtr());
 	} else {
 		/* Get the dir only */
-		BLI_split_dir_part(gp_GamePythonPath, cpath, sizeof(cpath));
+		BLI_split_dir_part(KX_GetMainPath().ReadPtr(), cpath, sizeof(cpath));
 	}
 
 	if ((dp  = opendir(cpath)) == NULL) {
@@ -700,7 +693,7 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 		char abs_path[FILE_MAX];
 		// Make the path absolute
 		BLI_strncpy(abs_path, path, sizeof(abs_path));
-		BLI_path_abs(abs_path, gp_GamePythonPath);
+		BLI_path_abs(abs_path, KX_GetMainPath().ReadPtr());
 
 		if ((status=kx_scene->GetSceneConverter()->LinkBlendFilePath(abs_path, group, kx_scene, &err_str, options))) {
 			return status->GetProxy();
@@ -1920,11 +1913,11 @@ static void initPySysObjects__append(PyObject *sys_path, const char *filename)
 	char expanded[FILE_MAX];
 	
 	BLI_split_dir_part(filename, expanded, sizeof(expanded)); /* get the dir part of filename only */
-	BLI_path_abs(expanded, gp_GamePythonPath); /* filename from lib->filename is (always?) absolute, so this may not be needed but it wont hurt */
-	BLI_cleanup_file(gp_GamePythonPath, expanded); /* Don't use BLI_cleanup_dir because it adds a slash - BREAKS WIN32 ONLY */
+	BLI_path_abs(expanded, KX_GetMainPath().ReadPtr()); /* filename from lib->filename is (always?) absolute, so this may not be needed but it wont hurt */
+	BLI_cleanup_file(KX_GetMainPath().ReadPtr(), expanded); /* Don't use BLI_cleanup_dir because it adds a slash - BREAKS WIN32 ONLY */
 	item = PyC_UnicodeFromByte(expanded);
 	
-//	printf("SysPath - '%s', '%s', '%s'\n", expanded, filename, gp_GamePythonPath);
+//	printf("SysPath - '%s', '%s', '%s'\n", expanded, filename, KX_GetMainPath().ReadPtr());
 	
 	if (PySequence_Index(sys_path, item) == -1) {
 		PyErr_Clear(); /* PySequence_Index sets a ValueError */
@@ -1952,12 +1945,12 @@ static void initPySysObjects(Main *maggie)
 	
 	while (lib) {
 		/* lib->name wont work in some cases (on win32),
-		 * even when expanding with gp_GamePythonPath, using lib->filename is less trouble */
+		 * even when expanding with KX_GetMainPath(), using lib->filename is less trouble */
 		initPySysObjects__append(sys_path, lib->filepath);
 		lib= (Library *)lib->id.next;
 	}
 	
-	initPySysObjects__append(sys_path, gp_GamePythonPath);
+	initPySysObjects__append(sys_path, KX_GetMainPath().ReadPtr());
 	
 //	fprintf(stderr, "\nNew Path: %d ", PyList_GET_SIZE(sys_path));
 //	PyObject_Print(sys_path, stderr, 0);
@@ -2701,35 +2694,20 @@ int loadGamePythonConfig(char *marshal_buffer, int marshal_length)
 	return 0;
 }
 
-void pathGamePythonConfig(char *path)
+STR_String pathGamePythonConfig()
 {
-	int len = strlen(gp_GamePythonPathOrig); // Always use the first loaded blend filename
-	
-	BLI_strncpy(path, gp_GamePythonPathOrig, sizeof(gp_GamePythonPathOrig));
+	STR_String path = KX_GetOrigPath();
+	int len = path.Length();
 
 	/* replace extension */
-	if (BLI_testextensie(path, ".blend")) {
-		strcpy(path+(len-6), ".bgeconf");
-	} else {
-		strcpy(path+len, ".bgeconf");
+	if (BLI_testextensie(path.Ptr(), ".blend")) {
+		path = path.Left(len - 6) + STR_String(".bgeconf");
 	}
-}
+	else {
+		path += STR_String(".bgeconf");
+	}
 
-void setGamePythonPath(const char *path)
-{
-	BLI_strncpy(gp_GamePythonPath, path, sizeof(gp_GamePythonPath));
-	BLI_cleanup_file(NULL, gp_GamePythonPath); /* not absolutely needed but makes resolving path problems less confusing later */
-	
-	if (gp_GamePythonPathOrig[0] == '\0')
-		BLI_strncpy(gp_GamePythonPathOrig, path, sizeof(gp_GamePythonPathOrig));
-}
-
-// we need this so while blender is open (not blenderplayer)
-// loading new blendfiles will reset this on starting the
-// engine but loading blend files within the BGE wont overwrite gp_GamePythonPathOrig
-void resetGamePythonPath()
-{
-	gp_GamePythonPathOrig[0] = '\0';
+	return path;
 }
 
 #endif // WITH_PYTHON

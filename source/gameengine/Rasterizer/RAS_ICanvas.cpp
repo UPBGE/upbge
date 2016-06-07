@@ -48,7 +48,7 @@ struct ScreenshotTaskData
 	unsigned int *dumprect;
 	int dumpsx;
 	int dumpsy;
-	char *path;
+	char path[FILE_MAX];
 	ImageFormatData *im_format;
 };
 
@@ -98,30 +98,25 @@ void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskda
 	IMB_freeImBuf(ibuf);
 	// Dumprect is allocated in RAS_OpenGLRasterizer::MakeScreenShot with malloc(), we must use free() then.
 	free(task->dumprect);
-	MEM_freeN(task->path);
 	MEM_freeN(task->im_format);
 }
 
 
-void RAS_ICanvas::save_screenshot(const char *filename, int dumpsx, int dumpsy, unsigned int *dumprect,
+void RAS_ICanvas::save_screenshot(const char *path, int dumpsx, int dumpsy, unsigned int *dumprect,
                                   ImageFormatData * im_format)
 {
-	/* create file path */
-	char *path = (char *)MEM_mallocN(FILE_MAX, "screenshot-path");
-	BLI_strncpy(path, filename, FILE_MAX);
-	BLI_path_abs(path, G.main->name);
-	BLI_path_frame(path, m_frame, 0);
-	m_frame++;
-	BKE_image_path_ensure_ext_from_imtype(path, im_format->imtype);
-
 	/* Save the actual file in a different thread, so that the
 	 * game engine can keep running at full speed. */
 	ScreenshotTaskData *task = (ScreenshotTaskData *)MEM_mallocN(sizeof(ScreenshotTaskData), "screenshot-data");
 	task->dumprect = dumprect;
 	task->dumpsx = dumpsx;
 	task->dumpsy = dumpsy;
-	task->path = path;
 	task->im_format = im_format;
+
+	BLI_strncpy(task->path, path, FILE_MAX);
+	BLI_path_frame(task->path, m_frame, 0);
+	m_frame++;
+	BKE_image_path_ensure_ext_from_imtype(task->path, im_format->imtype);
 
 	BLI_task_pool_push(m_taskpool,
 	                   save_screenshot_thread_func,
