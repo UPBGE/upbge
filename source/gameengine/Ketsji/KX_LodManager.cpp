@@ -27,6 +27,9 @@
 #include "KX_LodManager.h"
 #include "KX_LodLevel.h"
 #include "KX_Scene.h"
+
+#include "EXP_ListWrapper.h"
+
 #include "BL_BlenderDataConversion.h"
 #include "DNA_object_types.h"
 #include "BLI_listbase.h"
@@ -167,17 +170,25 @@ PyAttributeDef KX_LodManager::Attributes[] = {
 	{NULL} //Sentinel
 };
 
+static int kx_lod_manager_get_levels_size_cb(void *self_v)
+{
+	return ((KX_LodManager *)self_v)->GetLevelCount();
+}
+
+static PyObject *kx_lod_manager_get_levels_item_cb(void *self_v, int index)
+{
+	return ((KX_LodManager *)self_v)->GetLevel(index)->GetProxy();
+}
+
 PyObject *KX_LodManager::pyattr_get_levels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_LodManager* self = static_cast<KX_LodManager*>(self_v);
-	PyObject *levelList = PyList_New(self->m_levels.size());
-	if (self->m_levels.size() != 0) {
-		for (int i = 0; i < self->m_levels.size(); i++) {
-			PyList_SET_ITEM(levelList, i, self->m_levels[i]->GetProxy());
-		}
-	}
-
-	return levelList;
+	return (new CListWrapper(self_v,
+							 ((KX_LodManager *)self_v)->GetProxy(),
+							 NULL,
+							 kx_lod_manager_get_levels_size_cb,
+							 kx_lod_manager_get_levels_item_cb,
+							 NULL,
+							 NULL))->NewProxy(true);
 }
 
 bool ConvertPythonToLodManager(PyObject *value, KX_LodManager **object, bool py_none_ok, const char *error_prefix)
