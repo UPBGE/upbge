@@ -160,8 +160,8 @@ GH_InputDevice::GH_InputDevice()
 
 	// Window events.
 	m_reverseWindowTranslateTable[GHOST_kEventWindowSize] = WINRESIZE;
-	m_reverseKeyTranslateTable[GHOST_kEventQuit] = WINQUIT;
-	m_reverseKeyTranslateTable[GHOST_kEventWindowClose] = WINCLOSE;
+	m_reverseWindowTranslateTable[GHOST_kEventQuit] = WINQUIT;
+	m_reverseWindowTranslateTable[GHOST_kEventWindowClose] = WINCLOSE;
 }
 
 GH_InputDevice::~GH_InputDevice()
@@ -173,14 +173,14 @@ void GH_InputDevice::ConvertKeyEvent(int incode, int val, unsigned int unicode)
 	ConvertEvent(m_reverseKeyTranslateTable[incode], val, unicode);
 }
 
-void GH_InputDevice::ConvertButtonEvent(int incode, int val, unsigned int unicode)
+void GH_InputDevice::ConvertButtonEvent(int incode, int val)
 {
-	ConvertEvent(m_reverseButtonTranslateTable[incode], val, unicode);
+	ConvertEvent(m_reverseButtonTranslateTable[incode], val, 0);
 }
 
-void GH_InputDevice::ConvertWindowEvent(int incode, int val, unsigned int unicode)
+void GH_InputDevice::ConvertWindowEvent(int incode)
 {
-	ConvertEvent(m_reverseWindowTranslateTable[incode], val, unicode);
+	ConvertEvent(m_reverseWindowTranslateTable[incode], 1, 0);
 }
 
 void GH_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode)

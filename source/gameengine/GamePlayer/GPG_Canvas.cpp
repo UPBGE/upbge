@@ -183,7 +183,7 @@ void GPG_Canvas::MakeScreenShot(const char* filename)
 	BLI_path_abs(path, KX_GetMainPath().ReadPtr());
 
 	/* save_screenshot() frees dumprect and im_format */
-	save_screenshot(filename, dumpsx, dumpsy, pixels, im_format);
+	save_screenshot(path, dumpsx, dumpsy, pixels, im_format);
 }
 
 void GPG_Canvas::Init()

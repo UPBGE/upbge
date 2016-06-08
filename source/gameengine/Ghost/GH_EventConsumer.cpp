@@ -42,6 +42,7 @@ GH_EventConsumer::GH_EventConsumer(GHOST_ISystem *system, GH_InputDevice *device
 	:m_device(device),
 	m_canvas(canvas)
 {
+	// Setup the default mouse position.
 	int cursorx, cursory;
 	system->getCursorPosition(cursorx, cursory);
 	int x, y;
@@ -55,7 +56,7 @@ GH_EventConsumer::~GH_EventConsumer()
 
 void GH_EventConsumer::HandleWindowEvent(GHOST_TEventType type)
 {
-	m_device->ConvertWindowEvent(type, true, 0);
+	m_device->ConvertWindowEvent(type);
 }
 
 void GH_EventConsumer::HandleKeyEvent(GHOST_TEventDataPtr data, bool down)
@@ -85,7 +86,7 @@ void GH_EventConsumer::HandleButtonEvent(GHOST_TEventDataPtr data, bool down)
 {
 	GHOST_TEventButtonData *buttonData = (GHOST_TEventButtonData *)data;
 
-	m_device->ConvertButtonEvent(buttonData->button, down, 0);
+	m_device->ConvertButtonEvent(buttonData->button, down);
 }
 
 bool GH_EventConsumer::processEvent(GHOST_IEvent *event)

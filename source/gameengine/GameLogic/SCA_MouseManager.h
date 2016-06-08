@@ -53,10 +53,6 @@ public:
 	SCA_MouseManager(class SCA_LogicManager* logicmgr,class SCA_IInputDevice* mousedev);
 	virtual ~SCA_MouseManager();
 
-	/**
-	 * Checks whether a mouse button is depressed. Ignores requests on non-
-	 * mouse related events. Can also flag mouse movement.
-	 */
 	virtual void 	NextFrame();
 	SCA_IInputDevice* GetInputDevice();
 

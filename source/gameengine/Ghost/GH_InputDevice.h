@@ -55,8 +55,8 @@ public:
 	virtual ~GH_InputDevice();
 
 	void ConvertKeyEvent(int incode, int val, unsigned int unicode);
-	void ConvertButtonEvent(int incode, int val, unsigned int unicode);
-	void ConvertWindowEvent(int incode, int val, unsigned int unicode);
+	void ConvertButtonEvent(int incode, int val);
+	void ConvertWindowEvent(int incode);
 	void ConvertMoveEvent(int x, int y);
 	void ConvertWheelEvent(int z);
 	void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
