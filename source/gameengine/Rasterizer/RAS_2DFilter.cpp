@@ -219,7 +219,7 @@ void RAS_2DFilter::BindTextures(RAS_ICanvas *canvas)
 		// Create and bind rendered texture.
 		glActiveTextureARB(GL_TEXTURE8);
 		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[RENDERED_TEXTURE]);
-		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
+		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
 		// Create and bind depth texture.
