@@ -75,6 +75,7 @@ void VBO::UpdateData()
 {
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
 	glBufferData(GL_ARRAY_BUFFER, m_stride * m_size, m_data->m_vertex.data(), GL_STATIC_DRAW);
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 }
 
 void VBO::UpdateIndices()
@@ -82,6 +83,7 @@ void VBO::UpdateIndices()
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_data->m_index.size() * sizeof(GLuint),
 	             m_data->m_index.data(), GL_STATIC_DRAW);
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 void VBO::SetMeshModified(RAS_IRasterizer::DrawType drawType, bool modified)
