@@ -238,46 +238,6 @@ bool SCA_KeyboardSensor::Evaluate()
 
 }
 
-void SCA_KeyboardSensor::AddToTargetProp(int keyIndex, int unicode)
-{
-	if (IsPrintable(keyIndex)) {
-		CValue* tprop = GetParent()->GetProperty(m_targetprop);
-
-		if (IsDelete(keyIndex)) {
-			/* Make a new property. Deletes can be ignored. */
-			if (tprop) {
-				/* overwrite the old property */
-				/* strip one char, if possible */
-				STR_String newprop = tprop->GetText();
-				int oldlength = newprop.Length();
-				if (oldlength >= 1 ) {
-					int newlength=oldlength;
-
-					BLI_str_cursor_step_prev_utf8(newprop, newprop.Length(), &newlength);
-					newprop.SetLength(newlength);
-
-					CStringValue * newstringprop = new CStringValue(newprop, m_targetprop);
-					GetParent()->SetProperty(m_targetprop, newstringprop);
-					newstringprop->Release();
-				}
-			}
-		}
-		else {
-			char utf8_buf[7];
-			size_t utf8_len;
-
-			utf8_len = BLI_str_utf8_from_unicode(unicode, utf8_buf);
-			utf8_buf[utf8_len] = '\0';
-
-			STR_String newprop = tprop ? (tprop->GetText() + utf8_buf) : utf8_buf;
-
-			CStringValue * newstringprop = new CStringValue(newprop, m_targetprop);
-			GetParent()->SetProperty(m_targetprop, newstringprop);
-			newstringprop->Release();
-		}
-	}
-}
-	
 /**
  * Tests whether shift is pressed
  */
@@ -289,15 +249,57 @@ bool SCA_KeyboardSensor::IsShifted(void)
 			inputdev->GetEvent(SCA_IInputDevice::LEFTSHIFTKEY).Find(SCA_InputEvent::ACTIVE));
 }
 
-void SCA_KeyboardSensor::LogKeystrokes(void) 
+void SCA_KeyboardSensor::LogKeystrokes()
 {
+	CValue *tprop = GetParent()->GetProperty(m_targetprop);
+
 	SCA_IInputDevice *inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
 
-	for (int i = SCA_IInputDevice::BEGINKEY ; i<= SCA_IInputDevice::ENDKEY;i++) {
-		const SCA_InputEvent & inevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) i);
-		if (inevent.Find(SCA_InputEvent::JUSTACTIVATED)) {
-			AddToTargetProp(i, inevent.m_unicode);
+	std::wstring typedtext = inputdev->GetText();
+	std::wstring proptext = L"";
+
+	{
+		const char *utf8buf = tprop->GetText().ReadPtr();
+		int utf8len = BLI_strlen_utf8(utf8buf);
+		if (utf8len != 0) {
+			wchar_t wcharbuf[utf8len + 1];
+			BLI_strncpy_wchar_from_utf8(wcharbuf, utf8buf, utf8len + 1);
+			proptext = wcharbuf;
 		}
+
+		/* Convert all typed key in the prop string, if the key are del or
+		 * backspace we remove the last string item.
+		 */
+		for (unsigned int i = 0, size = typedtext.size(); i < size; ++i) {
+			const wchar_t item = typedtext[i];
+			if (item == '\b' || item == 127) {
+				if (proptext.size()) {
+					proptext.resize(proptext.size() - 1);
+				}
+			}
+			else if (item == '\r') {
+				// Do nothing
+			}
+			else {
+				proptext.push_back(item);
+			}
+		}
+	}
+
+	{
+		STR_String newpropstr = "";
+
+		const wchar_t *cproptext = proptext.data();
+		size_t utf8len = BLI_wstrlen_utf8(cproptext);
+		if (utf8len != 0) {
+			char utf8buf[utf8len + 1];
+			BLI_strncpy_wchar_as_utf8(utf8buf, cproptext, utf8len + 1);
+			newpropstr = STR_String(utf8buf);
+		}
+
+		CStringValue *newstringprop = new CStringValue(newpropstr, m_targetprop);
+		GetParent()->SetProperty(m_targetprop, newstringprop);
+		newstringprop->Release();
 	}
 }
 

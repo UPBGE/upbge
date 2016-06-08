@@ -75,12 +75,7 @@ class SCA_KeyboardSensor : public SCA_ISensor
 	/**
 	 * Log the keystrokes from the current input buffer.
 	 */
-	void LogKeystrokes(void);
-	
-	/**
-	 * Adds this key-code to the target prop.
-	 */
-	void AddToTargetProp(int keyIndex, int unicode);
+	void LogKeystrokes();
 
 	/**
 	 * Tests whether shift is pressed.
