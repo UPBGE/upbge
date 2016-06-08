@@ -405,6 +405,7 @@ PyObject *SCA_KeyboardSensor::pyattr_get_events(void *self_v, const KX_PYATTRIBU
 		if (inevent.Find(SCA_InputEvent::ACTIVE))
 		{
 			PyObject *keypair = PyList_New(2);
+			PyList_SET_ITEM(keypair,0,PyLong_FromLong(i));
 			PyList_SET_ITEM(keypair,1,inevent.GetProxy());
 			PyList_Append(resultlist,keypair);
 			Py_DECREF(keypair);

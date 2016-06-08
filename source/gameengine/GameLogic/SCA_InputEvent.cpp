@@ -15,12 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -109,6 +104,7 @@ PyAttributeDef SCA_InputEvent::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("status", SCA_InputEvent, pyattr_get_status),
 	KX_PYATTRIBUTE_RO_FUNCTION("queue", SCA_InputEvent, pyattr_get_queue),
 	KX_PYATTRIBUTE_RO_FUNCTION("values", SCA_InputEvent, pyattr_get_values),
+	KX_PYATTRIBUTE_INT_RO("type", SCA_InputEvent, m_type),
 	{NULL} //Sentinel
 };
 
