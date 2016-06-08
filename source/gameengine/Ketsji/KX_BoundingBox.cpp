@@ -102,6 +102,109 @@ bool KX_BoundingBox::SetMin(MT_Vector3 min)
 	return true;
 }
 
+
+#ifdef USE_MATHUTILS
+
+#define MATHUTILS_VEC_CB_BOX_MIN 1
+#define MATHUTILS_VEC_CB_BOX_MAX 2
+
+static unsigned char mathutils_kxboundingbox_vector_cb_index = -1; /* index for our callbacks */
+
+static int mathutils_kxboundingbox_generic_check(BaseMathObject *bmo)
+{
+	KX_BoundingBox *self = static_cast<KX_BoundingBox *>BGE_PROXY_REF(bmo->cb_user);
+	if (!self)
+		return -1;
+
+	return 0;
+}
+
+static int mathutils_kxboundingbox_vector_get(BaseMathObject *bmo, int subtype)
+{
+	KX_BoundingBox *self = static_cast<KX_BoundingBox *>BGE_PROXY_REF(bmo->cb_user);
+	if (!self)
+		return -1;
+
+	switch (subtype) {
+		case MATHUTILS_VEC_CB_BOX_MIN:
+		{
+			self->GetMin().getValue(bmo->data);
+			break;
+		}
+		case MATHUTILS_VEC_CB_BOX_MAX:
+		{
+			self->GetMax().getValue(bmo->data);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int mathutils_kxboundingbox_vector_set(BaseMathObject *bmo, int subtype)
+{
+	KX_BoundingBox *self = static_cast<KX_BoundingBox *>BGE_PROXY_REF(bmo->cb_user);
+	if (!self)
+		return -1;
+
+	switch (subtype) {
+		case MATHUTILS_VEC_CB_BOX_MIN:
+		{
+			if (!self->SetMin(MT_Vector3(bmo->data))) {
+				PyErr_SetString(PyExc_AttributeError, "bounds.min = Vector: KX_BoundingBox, min bigger than max");
+				return -1;
+			}
+			break;
+		}
+		case MATHUTILS_VEC_CB_BOX_MAX:
+		{
+			if (!self->SetMax(MT_Vector3(bmo->data))) {
+				PyErr_SetString(PyExc_AttributeError, "bounds.max = Vector: KX_BoundingBox, max smaller than min");
+				return -1;
+			}
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int mathutils_kxboundingbox_vector_get_index(BaseMathObject *bmo, int subtype, int index)
+{
+	/* lazy, avoid repeteing the case statement */
+	if (mathutils_kxboundingbox_vector_get(bmo, subtype) == -1)
+		return -1;
+	return 0;
+}
+
+static int mathutils_kxboundingbox_vector_set_index(BaseMathObject *bmo, int subtype, int index)
+{
+	float f = bmo->data[index];
+
+	/* lazy, avoid repeateing the case statement */
+	if (mathutils_kxboundingbox_vector_get(bmo, subtype) == -1)
+		return -1;
+
+	bmo->data[index] = f;
+	return mathutils_kxboundingbox_vector_set(bmo, subtype);
+}
+
+static Mathutils_Callback mathutils_kxboundingbox_vector_cb = {
+	mathutils_kxboundingbox_generic_check,
+	mathutils_kxboundingbox_vector_get,
+	mathutils_kxboundingbox_vector_set,
+	mathutils_kxboundingbox_vector_get_index,
+	mathutils_kxboundingbox_vector_set_index
+};
+
+void KX_BoundingBox_Mathutils_Callback_Init()
+{
+	// register mathutils callbacks, ok to run more than once.
+	mathutils_kxboundingbox_vector_cb_index = Mathutils_RegisterCallback(&mathutils_kxboundingbox_vector_cb);
+}
+
+#endif  // USE_MATHUTILS
+
 PyTypeObject KX_BoundingBox::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	"KX_BoundingBox",
@@ -153,7 +256,13 @@ PyObject *KX_BoundingBox::pyattr_get_min(void *self_v, const KX_PYATTRIBUTE_DEF 
 		return NULL;
 	}
 
+#ifdef USE_MATHUTILS
+	return Vector_CreatePyObject_cb(
+	        BGE_PROXY_FROM_REF_BORROW(self_v), 3,
+	        mathutils_kxboundingbox_vector_cb_index, MATHUTILS_VEC_CB_BOX_MIN);
+#else
 	return PyObjectFrom(self->GetMin());
+#endif  // USE_MATHUTILS
 }
 
 int KX_BoundingBox::pyattr_set_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -182,7 +291,13 @@ PyObject *KX_BoundingBox::pyattr_get_max(void *self_v, const KX_PYATTRIBUTE_DEF 
 		return NULL;
 	}
 
+#ifdef USE_MATHUTILS
+	return Vector_CreatePyObject_cb(
+	        BGE_PROXY_FROM_REF_BORROW(self_v), 3,
+	        mathutils_kxboundingbox_vector_cb_index, MATHUTILS_VEC_CB_BOX_MAX);
+#else
 	return PyObjectFrom(self->GetMax());
+#endif  // USE_MATHUTILS
 }
 
 int KX_BoundingBox::pyattr_set_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)

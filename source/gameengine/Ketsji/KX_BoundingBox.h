@@ -30,6 +30,11 @@
 
 class KX_GameObject;
 
+#ifdef USE_MATHUTILS
+/// Setup mathutils callbacks.
+void KX_BoundingBox_Mathutils_Callback_Init();
+#endif
+
 /** \brief Temporary python proxy class to alterate the game object
  * bounding box/AABB. Any instance of this class is owned by python.
  */
