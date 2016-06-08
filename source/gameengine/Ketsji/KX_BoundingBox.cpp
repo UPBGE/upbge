@@ -78,14 +78,28 @@ float KX_BoundingBox::GetRadius() const
 	return box.GetRadius();
 }
 
-void KX_BoundingBox::SetMax(MT_Vector3 max)
+bool KX_BoundingBox::SetMax(MT_Vector3 max)
 {
-	m_owner->SetBoundsAabb(GetMin(), max);
+	const MT_Vector3& min = GetMin();
+
+	if (min.x() > max.x() || min.y() > max.y() || min.z() > max.z()) {
+		return false;
+	}
+
+	m_owner->SetBoundsAabb(min, max);
+	return true;
 }
 
-void KX_BoundingBox::SetMin(MT_Vector3 min)
+bool KX_BoundingBox::SetMin(MT_Vector3 min)
 {
-	m_owner->SetBoundsAabb(min, GetMax());
+	const MT_Vector3& max = GetMax();
+
+	if (min.x() > max.x() || min.y() > max.y() || min.z() > max.z()) {
+		return false;
+	}
+
+	m_owner->SetBoundsAabb(min, max);
+	return true;
 }
 
 PyTypeObject KX_BoundingBox::Type = {
@@ -153,7 +167,10 @@ int KX_BoundingBox::pyattr_set_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrd
 	if (!PyVecTo(value, min)) {
 		return PY_SET_ATTR_FAIL;
 	}
-	self->SetMin(min);
+	if (!self->SetMin(min)) {
+		PyErr_SetString(PyExc_AttributeError, "bounds.min = Vector: KX_BoundingBox, min bigger than max");
+		return PY_SET_ATTR_FAIL;
+	}
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -179,7 +196,10 @@ int KX_BoundingBox::pyattr_set_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrd
 	if (!PyVecTo(value, max)) {
 		return PY_SET_ATTR_FAIL;
 	}
-	self->SetMax(max);
+	if (!self->SetMax(max)) {
+		PyErr_SetString(PyExc_AttributeError, "bounds.max = Vector: KX_BoundingBox, max smaller than min");
+		return PY_SET_ATTR_FAIL;
+	}
 
 	return PY_SET_ATTR_SUCCESS;
 }

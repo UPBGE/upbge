@@ -59,10 +59,10 @@ public:
 	const MT_Vector3 GetCenter() const;
 	/// Return AABB radius.
 	float GetRadius() const;
-	/// Set AABB max.
-	void SetMax(MT_Vector3 max);
-	/// Set AABB min.
-	void SetMin(MT_Vector3 min);
+	/// Set AABB max, return false if the max is lesser than min.
+	bool SetMax(MT_Vector3 max);
+	/// Set AABB min, return true if the max is greater than max.
+	bool SetMin(MT_Vector3 min);
 
 	virtual PyObject *py_repr();
 
