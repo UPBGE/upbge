@@ -1549,14 +1549,14 @@ void KX_Scene::DrawDebug(RAS_IRasterizer *rasty)
 					MT_Vector4(1.0f, 0.0f, 1.0f, 1.0f));
 
 				// Render center in red, green and blue.
-				rasty->DrawDebugLine(this, orientation * center + position,
-					orientation * (center + MT_Vector3(1.0f, 0.0f, 0.0f)) + position,
+				rasty->DrawDebugLine(this, orientation * center * scale + position,
+					orientation * (center + MT_Vector3(1.0f, 0.0f, 0.0f)) * scale + position,
 					MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
-				rasty->DrawDebugLine(this, orientation * center + position,
-					orientation * (center + MT_Vector3(0.0f, 1.0f, 0.0f)) + position,
+				rasty->DrawDebugLine(this, orientation * center * scale + position,
+					orientation * (center + MT_Vector3(0.0f, 1.0f, 0.0f)) * scale  + position,
 					MT_Vector4(0.0f, 1.0f, 0.0f, 1.0f));
-				rasty->DrawDebugLine(this, orientation * center + position,
-					orientation * (center + MT_Vector3(0.0f, 0.0f, 1.0f)) + position,
+				rasty->DrawDebugLine(this, orientation * center * scale + position,
+					orientation * (center + MT_Vector3(0.0f, 0.0f, 1.0f)) * scale  + position,
 					MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f));
 			}
 		}
