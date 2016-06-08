@@ -216,16 +216,6 @@ protected:
 public:
 	virtual SCA_InputEvent& GetEvent(SCA_IInputDevice::SCA_EnumInputs inputcode);
 
-	/**
-	 * Count active events(active and just_activated)
-	 */
-	virtual int		GetNumActiveEvents();
-
-	/**
-	 * Get the number of remapping events (just_activated, just_released)
-	 */
-	virtual int		GetNumJustEvents();
-
 	/** Clear event:
 	 *     - Clear status and copy last status to first status.
 	 *     - Clear queue

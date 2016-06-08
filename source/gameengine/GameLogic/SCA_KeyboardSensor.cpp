@@ -291,27 +291,12 @@ bool SCA_KeyboardSensor::IsShifted(void)
 
 void SCA_KeyboardSensor::LogKeystrokes(void) 
 {
-	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
-	int num = inputdev->GetNumActiveEvents();
+	SCA_IInputDevice *inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
 
-	/* weird loop, this one... */
-	if (num > 0)
-	{
-		
-		int index = 0;
-		/* Check on all keys whether they were pushed. This does not
-		 * untangle the ordering, so don't type too fast :) */
-		for (int i=SCA_IInputDevice::BEGINKEY ; i<= SCA_IInputDevice::ENDKEY;i++)
-		{
-			const SCA_InputEvent & inevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) i);
-			if (inevent.Find(SCA_InputEvent::JUSTACTIVATED))
-			{
-				if (index < num)
-				{
-					AddToTargetProp(i, inevent.m_unicode);
-					index++;
-				}
-			}
+	for (int i = SCA_IInputDevice::BEGINKEY ; i<= SCA_IInputDevice::ENDKEY;i++) {
+		const SCA_InputEvent & inevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) i);
+		if (inevent.Find(SCA_InputEvent::JUSTACTIVATED)) {
+			AddToTargetProp(i, inevent.m_unicode);
 		}
 	}
 }

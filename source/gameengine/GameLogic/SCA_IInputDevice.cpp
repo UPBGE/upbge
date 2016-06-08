@@ -89,31 +89,3 @@ SCA_InputEvent& SCA_IInputDevice::GetEvent(SCA_IInputDevice::SCA_EnumInputs inpu
 {
 	return m_eventsTable[inputcode];
 }
-
-int SCA_IInputDevice::GetNumActiveEvents()
-{
-	int num = 0;
-
-	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
-		const SCA_InputEvent& event = m_eventsTable[i];
-		if (event.Find(SCA_InputEvent::ACTIVE)) {
-			++num;
-		}
-	}
-
-	return num;
-}
-
-int SCA_IInputDevice::GetNumJustEvents()
-{
-	int num = 0;
-
-	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
-		const SCA_InputEvent& event = m_eventsTable[i];
-		if (event.Find(SCA_InputEvent::JUSTACTIVATED) || event.Find(SCA_InputEvent::JUSTRELEASED)) {
-			++num;
-		}
-	}
-
-	return num;
-}
