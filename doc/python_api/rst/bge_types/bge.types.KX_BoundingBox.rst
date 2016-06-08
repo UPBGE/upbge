@@ -28,13 +28,13 @@ base class --- :class:`PyObjectPlus`
 
    .. attribute:: min
 
-      The minimal point of the bounding box.
+      The minimal point in x, y and z axis of the bounding box.
 
       :type: :class:`mathutils.Vector`
 
    .. attribute:: max
 
-      The maximal point of the bounding box.
+      The maximal point in x, y and z axis of the bounding box.
 
       :type: :class:`mathutils.Vector`
 
