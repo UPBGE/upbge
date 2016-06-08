@@ -280,25 +280,27 @@ bool KX_ObjectActuator::Update()
 			{
 				if (m_bitLocalFlag.AddOrSetLinV) {
 					parent->addLinearVelocity(m_linear_velocity,(m_bitLocalFlag.LinearVelocity) != 0);
-				} else {
+				}
+				else {
 					m_active_combined_velocity = true;
 					if (m_damping > 0) {
-						MT_Vector3 angV;
-						if (!m_angular_damping_active) {
+						MT_Vector3 linV;
+						if (!m_linear_damping_active) {
 							// delta and the start speed (depends on the existing speed in that direction)
-							angV = parent->GetAngularVelocity(m_bitLocalFlag.AngularVelocity);
+							linV = parent->GetLinearVelocity(m_bitLocalFlag.LinearVelocity);
 							// keep only the projection along the desired direction
-							m_current_angular_factor = angV.dot(m_angular_velocity)/m_angular_length2;
-							m_angular_damping_active = true;
+							m_current_linear_factor = linV.dot(m_linear_velocity) / m_linear_length2;
+							m_linear_damping_active = true;
 						}
-						if (m_current_angular_factor < 1.0f)
-							m_current_angular_factor += 1.0f/m_damping;
-						if (m_current_angular_factor > 1.0f)
-							m_current_angular_factor = 1.0f;
-						angV = m_current_angular_factor * m_angular_velocity;
-						parent->setAngularVelocity(angV,(m_bitLocalFlag.AngularVelocity) != 0);
-					} else {
-						parent->setAngularVelocity(m_angular_velocity,(m_bitLocalFlag.AngularVelocity) != 0);
+						if (m_current_linear_factor < 1.0f)
+							m_current_linear_factor += 1.0f / m_damping;
+						if (m_current_linear_factor > 1.0f)
+							m_current_linear_factor = 1.0f;
+						linV = m_current_linear_factor * m_linear_velocity;
+						parent->setLinearVelocity(linV, (m_bitLocalFlag.LinearVelocity) != 0);
+					}
+					else {
+						parent->setLinearVelocity(m_linear_velocity, (m_bitLocalFlag.LinearVelocity) != 0);
 					}
 				}
 			}
