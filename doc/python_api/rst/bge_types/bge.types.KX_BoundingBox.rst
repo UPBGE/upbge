@@ -15,16 +15,16 @@ base class --- :class:`PyObjectPlus`
       from mathutils import Vector
       
       owner = logic.getCurrentController().owner
-      bounds = owner.bounds
+      box = owner.cullingBox
       
-      # Disable auto update to allow modify the bounds.
-      bounds.autoUpdate = False
+      # Disable auto update to allow modify the box.
+      box.autoUpdate = False
       
-      print(bounds)
-      # Increase the height of the bounds of 1.
-      bounds.max = bounds.max + Vector((0, 0, 1))
+      print(box)
+      # Increase the height of the box of 1.
+      box.max = box.max + Vector((0, 0, 1))
       
-      print(bounds)
+      print(box)
 
    .. attribute:: min
 

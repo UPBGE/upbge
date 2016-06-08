@@ -266,7 +266,7 @@ base class --- :class:`SCA_IObject`
 
          Game logic will still run for invisible objects.
 
-   .. attribute:: bounds
+   .. attribute:: cullingBox
 
       The object's bounding volume box used for culling.
 
