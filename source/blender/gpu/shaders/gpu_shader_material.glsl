@@ -1389,7 +1389,9 @@ void mtex_cube_map(vec3 co, samplerCube ima, float lodbias, out float value, out
 	value = 1.0;
 }
 
-void mtex_cube_map_refl(samplerCube ima, vec3 vp, vec3 vn, float lodbias, mat4 viewmatrixinverse, mat4 viewmatrix, out float value, out vec4 color)
+void mtex_cube_map_refl(
+        samplerCube ima, vec3 vp, vec3 vn, float lodbias, mat4 viewmatrixinverse,
+        out float value, out vec4 color)
 {
 	vec3 viewdirection = vec3(viewmatrixinverse * vec4(vp, 0.0));
 	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vn, 0.0)).xyz;
