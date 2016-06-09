@@ -186,8 +186,8 @@ void KX_BlenderCanvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bo
 		y = _y;
 	}
 
-	r_x = x - m_ar->winrct.xmin;
-	r_y = m_ar->winy - (y - m_ar->winrct.ymin) - 1;
+	r_x = x - m_area_rect.GetLeft() - 1;
+	r_y = -y + m_area_rect.GetTop() - 1;
 }
 
 float KX_BlenderCanvas::GetMouseNormalizedX(int x)
@@ -313,8 +313,8 @@ void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 
 	int x = m_frame_rect.GetLeft();
 	int y = m_frame_rect.GetBottom();
-	int width = m_frame_rect.GetRight() - m_frame_rect.GetLeft();
-	int height = m_frame_rect.GetTop() - m_frame_rect.GetBottom();
+	int width = m_frame_rect.GetWidth();
+	int height = m_frame_rect.GetHeight();
 
 	pixeldata = m_rasterizer->MakeScreenshot(x, y, width, height);
 	if (!pixeldata) {
