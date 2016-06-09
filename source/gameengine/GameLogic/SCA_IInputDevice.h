@@ -86,7 +86,9 @@ public:
 		EKEY,
 		FKEY,
 		GKEY,
-		HKEY,
+		/* To avoid conflict with typedef HKEY (<windows.h>)
+		 * we rename HKEY to HKEY_ */
+		HKEY_,
 		IKEY,
 		JKEY,
 		KKEY,

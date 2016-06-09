@@ -2414,7 +2414,7 @@ PyMODINIT_FUNC initGameKeysPythonBinding()
 	KX_MACRO_addTypesToDict(d, EKEY, SCA_IInputDevice::EKEY);
 	KX_MACRO_addTypesToDict(d, FKEY, SCA_IInputDevice::FKEY);
 	KX_MACRO_addTypesToDict(d, GKEY, SCA_IInputDevice::GKEY);
-	KX_MACRO_addTypesToDict(d, HKEY, SCA_IInputDevice::HKEY);
+	KX_MACRO_addTypesToDict(d, HKEY, SCA_IInputDevice::HKEY_);
 	KX_MACRO_addTypesToDict(d, IKEY, SCA_IInputDevice::IKEY);
 	KX_MACRO_addTypesToDict(d, JKEY, SCA_IInputDevice::JKEY);
 	KX_MACRO_addTypesToDict(d, KKEY, SCA_IInputDevice::KKEY);

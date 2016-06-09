@@ -39,7 +39,7 @@ GH_InputDevice::GH_InputDevice()
 	m_reverseKeyTranslateTable[GHOST_kKeyE] = EKEY;
 	m_reverseKeyTranslateTable[GHOST_kKeyF] = FKEY;
 	m_reverseKeyTranslateTable[GHOST_kKeyG] = GKEY;
-	m_reverseKeyTranslateTable[GHOST_kKeyH] = HKEY;
+	m_reverseKeyTranslateTable[GHOST_kKeyH] = HKEY_;
 	m_reverseKeyTranslateTable[GHOST_kKeyI] = IKEY;
 	m_reverseKeyTranslateTable[GHOST_kKeyJ] = JKEY;
 	m_reverseKeyTranslateTable[GHOST_kKeyK] = KKEY;
