@@ -24,28 +24,17 @@
  *  \ingroup ghost
  */
 
-#ifndef __GH_KEYBOARDDEVICE_H__
-#define __GH_KEYBOARDDEVICE_H__
+#ifndef __GH_INPUTDEVICE_H__
+#define __GH_INPUTDEVICE_H__
 
 #include "SCA_IInputDevice.h"
 
 #include <map>
 
-
-/**
- * System independent implementation of SCA_IInputDevice.
- * System dependent keyboard devices need only to inherit this class
- * and fill the m_reverseKeyTranslateTable key translation map.
- * \see SCA_IInputDevice
- */
-
 class GH_InputDevice : public SCA_IInputDevice
 {
 protected:
-	/**
-	 * These maps converts system dependent keyboard codes into Ketsji codes.
-	 * System dependent keyboard codes are stored as ints.
-	 */
+	/// These maps converts GHOST input number to SCA input enum.
 	std::map<int, SCA_EnumInputs> m_reverseKeyTranslateTable;
 	std::map<int, SCA_EnumInputs> m_reverseButtonTranslateTable;
 	std::map<int, SCA_EnumInputs> m_reverseWindowTranslateTable;
@@ -62,4 +51,4 @@ public:
 	void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
 };
 
-#endif  /* __GH_KEYBOARDDEVICE_H__ */
+#endif  /* __GH_INPUTDEVICE_H__ */
