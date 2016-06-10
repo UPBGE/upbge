@@ -218,10 +218,10 @@ bool SCA_KeyboardSensor::Evaluate()
 		 */
 
 		// One of the third keys value from last logic frame changed.
-		if (m_status[0] != m_val || m_status[1] != qual[0] || m_status[2] != qual[1]) {
+		if (m_status[0] != (bool)m_val || m_status[1] != qual[0] || m_status[2] != qual[1]) {
 			result = true;
 		}
-		m_status[0] = m_val;
+		m_status[0] = (bool)m_val;
 		m_status[1] = qual[0];
 		m_status[2] = qual[1];
 
@@ -262,9 +262,10 @@ void SCA_KeyboardSensor::LogKeystrokes()
 		const char *utf8buf = tprop->GetText().ReadPtr();
 		int utf8len = BLI_strlen_utf8(utf8buf);
 		if (utf8len != 0) {
-			wchar_t wcharbuf[utf8len + 1];
+			wchar_t *wcharbuf = new wchar_t[utf8len + 1];
 			BLI_strncpy_wchar_from_utf8(wcharbuf, utf8buf, utf8len + 1);
 			proptext = wcharbuf;
+			delete wcharbuf;
 		}
 
 		/* Convert all typed key in the prop string, if the key are del or
@@ -292,9 +293,10 @@ void SCA_KeyboardSensor::LogKeystrokes()
 		const wchar_t *cproptext = proptext.data();
 		size_t utf8len = BLI_wstrlen_utf8(cproptext);
 		if (utf8len != 0) {
-			char utf8buf[utf8len + 1];
+			char *utf8buf = new char[utf8len + 1];
 			BLI_strncpy_wchar_as_utf8(utf8buf, cproptext, utf8len + 1);
 			newpropstr = STR_String(utf8buf);
+			delete utf8buf;
 		}
 
 		CStringValue *newstringprop = new CStringValue(newpropstr, m_targetprop);
