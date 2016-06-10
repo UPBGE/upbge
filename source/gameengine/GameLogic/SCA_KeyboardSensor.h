@@ -116,22 +116,4 @@ public:
 #endif
 };
 
-
-/**
- * Transform keycodes to something printable.
- */
-char ToCharacter(int keyIndex, bool shifted);
-
-/**
- * Determine whether this character can be printed. We cannot use
- * the library functions here, because we need to test our own
- * keycodes. */
-bool IsPrintable(int keyIndex);
-
-/**
- * Tests whether this is a delete key.
- */
-bool IsDelete(int keyIndex);
-
-
 #endif  /* __SCA_KEYBOARDSENSOR_H__ */

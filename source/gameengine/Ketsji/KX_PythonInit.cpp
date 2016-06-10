@@ -92,7 +92,6 @@ extern "C" {
 #include "SCA_IInputDevice.h"
 #include "SCA_PropertySensor.h"
 #include "SCA_RandomActuator.h"
-#include "SCA_KeyboardSensor.h" /* IsPrintable, ToCharacter */
 #include "SCA_JoystickManager.h" /* JOYINDEX_MAX */
 #include "SCA_PythonJoystick.h"
 #include "SCA_PythonKeyboard.h"
@@ -2362,17 +2361,12 @@ PyDoc_STRVAR(gPyEventToCharacter_doc,
 static PyObject *gPyEventToCharacter(PyObject *, PyObject *args)
 {
 	int event, shift;
-	if (!PyArg_ParseTuple(args,"ii:EventToCharacter", &event, &shift))
+	if (!PyArg_ParseTuple(args, "ii:EventToCharacter", &event, &shift)) {
 		return NULL;
-	
-	if (IsPrintable(event)) {
-		char ch[2] = {'\0', '\0'};
-		ch[0] = ToCharacter(event, (bool)shift);
-		return PyUnicode_FromString(ch);
 	}
-	else {
-		return PyUnicode_FromString("");
-	}
+
+	char character[2] = {SCA_IInputDevice::ConvertKeyToChar((SCA_IInputDevice::SCA_EnumInputs)event, (bool)shift), '\0'};
+	return PyUnicode_FromString(character);
 }
 
 

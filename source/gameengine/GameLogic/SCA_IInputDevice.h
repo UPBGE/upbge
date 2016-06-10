@@ -38,6 +38,9 @@
 
 #include "SCA_InputEvent.h"
 
+#include <map>
+// #include <pair>
+
 #define MOUSEX         MOUSEMOVE
 #define MOUSEY         ACTIONMOUSE
 
@@ -66,9 +69,8 @@ public:
 		COMMAKEY,
 		MINUSKEY,
 		PERIODKEY,
-		PLUSKEY,
-		ZEROKEY,
 
+		ZEROKEY,
 		ONEKEY,
 		TWOKEY,
 		THREEKEY,
@@ -149,7 +151,7 @@ public:
 		PAD5,
 		PAD7,
 		PAD9,
-		
+
 		PADPERIOD,
 		PADSLASHKEY,
 
@@ -215,6 +217,11 @@ protected:
 	/// Typed text in unicode during a frame.
 	std::wstring m_text;
 
+	/** Translation table used to get the character from a key number with shift or not.
+	 * Key -> (Character, Character shifted)
+	 */
+	static std::map<SCA_EnumInputs, std::pair<char, char> > m_keyToChar;
+
 public:
 	virtual SCA_InputEvent& GetEvent(SCA_IInputDevice::SCA_EnumInputs inputcode);
 
@@ -232,6 +239,8 @@ public:
 
 	/// Return typed unicode text during a frame.
 	const std::wstring& GetText() const;
+
+	static const char ConvertKeyToChar(SCA_EnumInputs input, bool shifted);
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
