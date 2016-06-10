@@ -564,15 +564,15 @@ static int mathutils_kxblendermaterial_color_get(BaseMathObject *bmo, int subtyp
 		case MATHUTILS_COL_CB_MATERIAL_DIFFUSE_COLOR:
 		{
 			bmo->data[0] = mat->r;
-			bmo->data[0] = mat->g;
-			bmo->data[0] = mat->b;
+			bmo->data[1] = mat->g;
+			bmo->data[2] = mat->b;
 			break;
 		}
 		case MATHUTILS_COL_CB_MATERIAL_SPECULAR_COLOR:
 		{
 			bmo->data[0] = mat->specr;
-			bmo->data[0] = mat->specg;
-			bmo->data[0] = mat->specb;
+			bmo->data[1] = mat->specg;
+			bmo->data[2] = mat->specb;
 			break;
 		}
 	}
