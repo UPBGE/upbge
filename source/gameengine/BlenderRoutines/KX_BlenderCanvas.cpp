@@ -302,7 +302,7 @@ void KX_BlenderCanvas::SetMousePosition(int x,int y)
 	int winY = m_frame_rect.GetBottom();
 	int winH = m_frame_rect.GetHeight();
 	
-	WM_cursor_warp(m_win, winX + x, winY + (winH-y));
+	WM_cursor_warp(m_win, winX + x + 1, winY + (winH-y - 1));
 }
 
 

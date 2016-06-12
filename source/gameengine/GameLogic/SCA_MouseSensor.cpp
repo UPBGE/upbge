@@ -172,6 +172,7 @@ bool SCA_MouseSensor::Evaluate()
 
 			if (eventX.Find(SCA_InputEvent::ACTIVE) || eventY.Find(SCA_InputEvent::ACTIVE)) {
 				m_val = 1;
+				result = true;
 			} 
 			else {
 				m_val = 0;
