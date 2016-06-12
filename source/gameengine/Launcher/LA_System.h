@@ -15,9 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
  * The Original Code is: all of this file.
  *
  * Contributor(s): none yet.
@@ -25,34 +22,25 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_BlenderMouseDevice.h
- *  \ingroup blroutines
+/** \file LA_System.h
+ *  \ingroup player
  */
 
-#ifndef __KX_BLENDERMOUSEDEVICE_H__
-#define __KX_BLENDERMOUSEDEVICE_H__
+#ifndef __LA_SYSTEM_H__
+#define __LA_SYSTEM_H__
 
-#include "KX_BlenderInputDevice.h"
+#include "KX_ISystem.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
-class KX_BlenderMouseDevice : public BL_BlenderInputDevice
+class LA_System : public KX_ISystem
 {
+private:
+	double m_starttime;
+
 public:
-	KX_BlenderMouseDevice();
-	virtual ~KX_BlenderMouseDevice();
+	LA_System();
+	virtual ~LA_System();
 
-	virtual bool	IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode);
-//	virtual const SCA_InputEvent&	GetEventValue(SCA_IInputDevice::KX_EnumInputs inputcode);
-	virtual bool	ConvertBlenderEvent(unsigned short incode, short val, unsigned int unicode);
-	virtual void	NextFrame();
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderMouseDevice")
-#endif
+	virtual double GetTimeInSeconds();
 };
 
-#endif  /* __KX_BLENDERMOUSEDEVICE_H__ */
+#endif  // __LA_SYSTEM_H__

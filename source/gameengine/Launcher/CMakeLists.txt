@@ -19,39 +19,58 @@
 #
 # The Original Code is: all of this file.
 #
-# Contributor(s): Jacques Beaurain.
+# Contributor(s): Tristan Porteries.
 #
 # ***** END GPL LICENSE BLOCK *****
 
-remove_extra_strict_flags()
+set(INC
+	.
+	../BlenderRoutines
+	../Converter
+	../Expressions
+	../GameLogic
+	../GamePlayer
+	../Ghost
+	../Ketsji
+	../Ketsji/KXNetwork
+	../Rasterizer
+	../Rasterizer/RAS_OpenGLRasterizer
+	../SceneGraph
+	../../blender/blenkernel
+	../../blender/blenlib
+	../../blender/gpu
+	../../blender/makesdna
+	../../blender/makesrna
+	../../blender/windowmanager
+	../../../intern/guardedalloc
+	../../../intern/ghost
+	../../../intern/string
+)
 
-# there are too many inter-includes so best define here
-if(WITH_PYTHON)
-	blender_include_dirs_sys("${PYTHON_INCLUDE_DIRS}")
-	add_definitions(-DWITH_PYTHON)
+set(INC_SYS
+	../../../intern/moto/include
+)
+
+set(SRC
+	LA_BlenderLauncher.cpp
+	LA_Launcher.cpp
+	LA_PlayerLauncher.cpp
+	LA_SystemCommandLine.cpp
+	LA_System.cpp
+
+	LA_BlenderLauncher.h
+	LA_Launcher.h
+	LA_PlayerLauncher.h
+	LA_SystemCommandLine.h
+	LA_System.h
+)
+
+if(WITH_AUDASPACE)
+	add_definitions(${AUDASPACE_DEFINITIONS})
+
+	list(APPEND INC_SYS
+		${AUDASPACE_C_INCLUDE_DIRS}
+	)
 endif()
 
-add_subdirectory(BlenderRoutines)
-add_subdirectory(Converter)
-add_subdirectory(Expressions)
-add_subdirectory(GameLogic)
-add_subdirectory(Ghost)
-add_subdirectory(Ketsji)
-add_subdirectory(Ketsji/KXNetwork)
-add_subdirectory(Launcher)
-add_subdirectory(Physics/Dummy)
-add_subdirectory(Rasterizer)
-add_subdirectory(Rasterizer/RAS_OpenGLRasterizer)
-add_subdirectory(SceneGraph)
-
-if(WITH_BULLET)
-	add_subdirectory(Physics/Bullet)
-endif()
-
-if(WITH_PYTHON)
-	add_subdirectory(VideoTexture)
-endif()
-
-if(WITH_PLAYER)
-	add_subdirectory(GamePlayer)
-endif()
+blender_add_lib(ge_launcher "${SRC}" "${INC}" "${INC_SYS}")

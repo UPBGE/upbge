@@ -30,110 +30,150 @@
  */
 
 
-#include <assert.h>
+#include "BLI_utildefines.h"
 #include "SCA_IInputDevice.h"
 
-SCA_IInputDevice::SCA_IInputDevice()
-	:
-	m_currentTable(0)
+/** Initialize conversion table key to char (shifted too), this function is a long function but
+ * is easier to maintain than key index conversion way.
+ */
+static std::map<SCA_IInputDevice::SCA_EnumInputs, std::pair<char, char> > createKeyToCharMap()
 {
-	ClearStatusTable(0);
-	ClearStatusTable(1);
+	std::map<SCA_IInputDevice::SCA_EnumInputs, std::pair<char, char> > map;
+
+	map[SCA_IInputDevice::RETKEY] = std::make_pair('\n', '\n');
+	map[SCA_IInputDevice::SPACEKEY] = std::make_pair(' ', ' ');
+	map[SCA_IInputDevice::COMMAKEY] = std::make_pair(',', '<');
+	map[SCA_IInputDevice::MINUSKEY] = std::make_pair('-', '_');
+	map[SCA_IInputDevice::PERIODKEY] = std::make_pair('.', '>');
+	map[SCA_IInputDevice::ZEROKEY] = std::make_pair('0', ')');
+	map[SCA_IInputDevice::ONEKEY] = std::make_pair('1', '!');
+	map[SCA_IInputDevice::TWOKEY] = std::make_pair('2', '@');
+	map[SCA_IInputDevice::THREEKEY] = std::make_pair('3', '#');
+	map[SCA_IInputDevice::FOURKEY] = std::make_pair('4', '$');
+	map[SCA_IInputDevice::FIVEKEY] = std::make_pair('5', '%');
+	map[SCA_IInputDevice::SIXKEY] = std::make_pair('6', '^');
+	map[SCA_IInputDevice::SEVENKEY] = std::make_pair('7', '&');
+	map[SCA_IInputDevice::EIGHTKEY] = std::make_pair('8', '*');
+	map[SCA_IInputDevice::NINEKEY] = std::make_pair('9', '(');
+	map[SCA_IInputDevice::AKEY] = std::make_pair('a', 'A');
+	map[SCA_IInputDevice::BKEY] = std::make_pair('b', 'B');
+	map[SCA_IInputDevice::CKEY] = std::make_pair('c', 'C');
+	map[SCA_IInputDevice::DKEY] = std::make_pair('d', 'D');
+	map[SCA_IInputDevice::EKEY] = std::make_pair('e', 'E');
+	map[SCA_IInputDevice::FKEY] = std::make_pair('f', 'F');
+	map[SCA_IInputDevice::GKEY] = std::make_pair('g', 'G');
+	map[SCA_IInputDevice::HKEY_] = std::make_pair('h', 'H');
+	map[SCA_IInputDevice::IKEY] = std::make_pair('i', 'I');
+	map[SCA_IInputDevice::JKEY] = std::make_pair('j', 'J');
+	map[SCA_IInputDevice::KKEY] = std::make_pair('k', 'K');
+	map[SCA_IInputDevice::LKEY] = std::make_pair('l', 'L');
+	map[SCA_IInputDevice::MKEY] = std::make_pair('m', 'M');
+	map[SCA_IInputDevice::NKEY] = std::make_pair('n', 'N');
+	map[SCA_IInputDevice::OKEY] = std::make_pair('o', 'O');
+	map[SCA_IInputDevice::PKEY] = std::make_pair('p', 'P');
+	map[SCA_IInputDevice::QKEY] = std::make_pair('q', 'Q');
+	map[SCA_IInputDevice::RKEY] = std::make_pair('r', 'R');
+	map[SCA_IInputDevice::SKEY] = std::make_pair('s', 'S');
+	map[SCA_IInputDevice::TKEY] = std::make_pair('t', 'T');
+	map[SCA_IInputDevice::UKEY] = std::make_pair('u', 'U');
+	map[SCA_IInputDevice::VKEY] = std::make_pair('v', 'V');
+	map[SCA_IInputDevice::WKEY] = std::make_pair('w', 'W');
+	map[SCA_IInputDevice::XKEY] = std::make_pair('x', 'X');
+	map[SCA_IInputDevice::YKEY] = std::make_pair('y', 'Y');
+	map[SCA_IInputDevice::ZKEY] = std::make_pair('z', 'Z');
+	map[SCA_IInputDevice::TABKEY] = std::make_pair('\t', '\t');
+	map[SCA_IInputDevice::SEMICOLONKEY] = std::make_pair(';', ':');
+	map[SCA_IInputDevice::QUOTEKEY] = std::make_pair('\'', '\"');
+	map[SCA_IInputDevice::ACCENTGRAVEKEY] = std::make_pair('`', '~');
+	map[SCA_IInputDevice::SLASHKEY] = std::make_pair('/', '?');
+	map[SCA_IInputDevice::BACKSLASHKEY] = std::make_pair('\\', '|');
+	map[SCA_IInputDevice::EQUALKEY] = std::make_pair('=', '+');
+	map[SCA_IInputDevice::LEFTBRACKETKEY] = std::make_pair('[', '{');
+	map[SCA_IInputDevice::RIGHTBRACKETKEY] = std::make_pair(']', '}');
+	map[SCA_IInputDevice::PAD1] = std::make_pair('1', '1');
+	map[SCA_IInputDevice::PAD2] = std::make_pair('2', '2');
+	map[SCA_IInputDevice::PAD3] = std::make_pair('3', '3');
+	map[SCA_IInputDevice::PAD4] = std::make_pair('4', '4');
+	map[SCA_IInputDevice::PAD5] = std::make_pair('5', '5');
+	map[SCA_IInputDevice::PAD6] = std::make_pair('6', '6');
+	map[SCA_IInputDevice::PAD7] = std::make_pair('7', '7');
+	map[SCA_IInputDevice::PAD9] = std::make_pair('8', '8');
+	map[SCA_IInputDevice::PAD0] = std::make_pair('9', '9');
+	map[SCA_IInputDevice::PADASTERKEY] = std::make_pair('*', '*');
+	map[SCA_IInputDevice::PADPERIOD] = std::make_pair('.', '.');
+	map[SCA_IInputDevice::PADSLASHKEY] = std::make_pair('/', '/');
+	map[SCA_IInputDevice::PADMINUS] = std::make_pair('-', '-');
+	map[SCA_IInputDevice::PADENTER] = std::make_pair('\n', '\n');
+	map[SCA_IInputDevice::PADPLUSKEY] = std::make_pair('+', '+');
+
+	return map;
 }
 
+std::map<SCA_IInputDevice::SCA_EnumInputs, std::pair<char, char> > SCA_IInputDevice::m_keyToChar = createKeyToCharMap();
 
+SCA_IInputDevice::SCA_IInputDevice()
+{
+	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
+		m_inputsTable[i] = SCA_InputEvent(i);
+	}
+}
 
 SCA_IInputDevice::~SCA_IInputDevice()
 {
-}
-
-void SCA_IInputDevice::HookEscape()
-{
-	assert(false && "This device does not support hooking escape.");
-}
-
-void SCA_IInputDevice::ClearStatusTable(int tableid)
-{
-	for (int i=0;i<SCA_IInputDevice::KX_MAX_KEYS;i++)
-		m_eventStatusTables[tableid][i]=SCA_InputEvent(SCA_InputEvent::KX_NO_INPUTSTATUS,0);
-}
-
-
-
-const SCA_InputEvent& SCA_IInputDevice::GetEventValue(SCA_IInputDevice::KX_EnumInputs inputcode)
-{
-//	cerr << "SCA_IInputDevice::GetEventValue" << endl;
-	return m_eventStatusTables[m_currentTable][inputcode];
-}
-
-
-
-int SCA_IInputDevice::GetNumActiveEvents()
-{
-	int num = 0;
-
-	//	cerr << "SCA_IInputDevice::GetNumActiveEvents" << endl;
-
-	for (int i=0;i<SCA_IInputDevice::KX_MAX_KEYS;i++)
-	{
-		const SCA_InputEvent& event = m_eventStatusTables[m_currentTable][i];
-		if ((event.m_status == SCA_InputEvent::KX_JUSTACTIVATED)
-			|| (event.m_status == SCA_InputEvent::KX_ACTIVE))
-			num++;
+	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
+		m_inputsTable[i].InvalidateProxy();
 	}
-
-	return num;
 }
 
-
-
-int SCA_IInputDevice::GetNumJustEvents()
+void SCA_IInputDevice::ClearInputs()
 {
-	int num = 0;
-
-	//	cerr << "SCA_IInputDevice::GetNumJustEvents" << endl;
-
-	for (int i=0;i<SCA_IInputDevice::KX_MAX_KEYS;i++)
-	{
-		const SCA_InputEvent& event = m_eventStatusTables[m_currentTable][i];
-		if ((event.m_status == SCA_InputEvent::KX_JUSTACTIVATED)
-			|| (event.m_status == SCA_InputEvent::KX_JUSTRELEASED))
-			num++;
+	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
+		m_inputsTable[i].Clear();
 	}
-
-	return num;
+	m_text.clear();
 }
 
-
-
-void SCA_IInputDevice::NextFrame()
+void SCA_IInputDevice::ReleaseMoveEvent()
 {
-	m_currentTable = 1 - m_currentTable;
+	/* We raise the release mouse move event if:
+	 *   - there are only one value from the last call to Clear()
+	 *   - the last state was ACTIVE
+	 * If the both are true then the ACTIVE come from the last call to ClearEvent must
+	 * be removed of the status list to avoid setting the mouse active for two frames.
+	 */
+	SCA_EnumInputs eventTypes[4] = {
+		MOUSEX,
+		MOUSEY,
+		WHEELUPMOUSE,
+		WHEELDOWNMOUSE
+	};
 
-	//	cerr << "SCA_IInputDevice::NextFrame " << GetNumActiveEvents() << endl;
-	
-	for (int i=0;i<SCA_IInputDevice::KX_MAX_KEYS;i++)
-	{
-		switch (m_eventStatusTables[1 - m_currentTable][i].m_status)
-		{
-		case SCA_InputEvent::KX_NO_INPUTSTATUS:
-			m_eventStatusTables[m_currentTable][i]
-				= SCA_InputEvent(SCA_InputEvent::KX_NO_INPUTSTATUS, 1);
-			break;
-		case SCA_InputEvent::KX_JUSTACTIVATED:
-			m_eventStatusTables[m_currentTable][i]
-				= SCA_InputEvent(SCA_InputEvent::KX_ACTIVE, 1);
-			break;
-		case SCA_InputEvent::KX_ACTIVE:
-			m_eventStatusTables[m_currentTable][i]
-				= SCA_InputEvent(SCA_InputEvent::KX_ACTIVE, 1);
-			break;
-		case SCA_InputEvent::KX_JUSTRELEASED:
-			m_eventStatusTables[m_currentTable][i]
-				= SCA_InputEvent(SCA_InputEvent::KX_NO_INPUTSTATUS, 1);
-			break;
-		default:
-			; /* error */
+	for (unsigned short i = 0; i < 4; ++i) {
+		SCA_InputEvent &event = m_inputsTable[eventTypes[i]];
+		if ((event.m_values.size() == 1) && (event.m_status[event.m_status.size() - 1] == SCA_InputEvent::ACTIVE)) {
+			event.m_status.pop_back();
+			event.m_status.push_back(SCA_InputEvent::NONE);
+			event.m_queue.push_back(SCA_InputEvent::JUSTRELEASED);
 		}
 	}
+}
+
+const std::wstring& SCA_IInputDevice::GetText() const
+{
+	return m_text;
+}
+
+const char SCA_IInputDevice::ConvertKeyToChar(SCA_IInputDevice::SCA_EnumInputs input, bool shifted)
+{
+	std::map<SCA_EnumInputs, std::pair<char, char> >::iterator it = m_keyToChar.find(input);
+	if (it == m_keyToChar.end()) {
+		return 0;
+	}
+
+	return (shifted) ? it->second.second : it->second.first;
+}
+
+SCA_InputEvent& SCA_IInputDevice::GetInput(SCA_IInputDevice::SCA_EnumInputs inputcode)
+{
+	return m_inputsTable[inputcode];
 }

@@ -65,9 +65,10 @@ SCA_KeyboardSensor::SCA_KeyboardSensor(SCA_KeyboardManager* keybdmgr,
 	 m_targetprop(targetProp),
 	 m_toggleprop(toggleProp)
 {
-	if (hotkey == exitKey)
-		keybdmgr->GetInputDevice()->HookEscape();
-//	SetDrawColor(0xff0000ff);
+	m_status[0] = false;
+	m_status[1] = false;
+	m_status[2] = false;
+
 	Init();
 }
 
@@ -128,10 +129,8 @@ bool SCA_KeyboardSensor::Evaluate()
 {
 	bool result    = false;
 	bool reset     = m_reset && m_level;
-	bool qual	   = true;
-	bool qual_change = false;
-	short int m_val_orig = m_val;
-	
+	bool qual[2] = {true, true};
+
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
 	//  	cerr << "SCA_KeyboardSensor::Eval event, sensing for "<< m_hotkey << " at device " << inputdev << "\n";
 
@@ -150,155 +149,63 @@ bool SCA_KeyboardSensor::Evaluate()
 	/* Now see whether events must be bounced. */
 	if (m_bAllKeys)
 	{
-		bool justactivated = false;
-		bool justreleased = false;
 		bool active = false;
 
-		for (int i=SCA_IInputDevice::KX_BEGINKEY ; i<= SCA_IInputDevice::KX_ENDKEY;i++)
-		{
-			const SCA_InputEvent & inevent = inputdev->GetEventValue((SCA_IInputDevice::KX_EnumInputs) i);
-			switch (inevent.m_status) 
-			{ 
-			case SCA_InputEvent::KX_JUSTACTIVATED:
-				justactivated = true;
-				break;
-			case SCA_InputEvent::KX_JUSTRELEASED:
-				justreleased = true;
-				break;
-			case SCA_InputEvent::KX_ACTIVE:
+		for (int i=SCA_IInputDevice::BEGINKEY ; i<= SCA_IInputDevice::ENDKEY;i++) {
+			const SCA_InputEvent & input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) i);
+			if (input.Find(SCA_InputEvent::ACTIVE)) {
 				active = true;
 				break;
-			case SCA_InputEvent::KX_NO_INPUTSTATUS:
-				/* do nothing */
-				break;
 			}
 		}
 
-		if (justactivated)
-		{
-			m_val=1;
-			result = true;
-		} else
-		{
-			if (justreleased)
-			{
-				m_val=(active)?1:0;
+		// One of all keys is active
+		if (active) {
+			m_val = 1;
+			// The keys was not enabled before.
+			if (active != m_status[0]) {
 				result = true;
-			} else
-			{
-				if (active)
-				{
-					if (m_val == 0)
-					{
-						m_val = 1;
-						if (m_level) {
-							result = true;
-						}
-					}
-				} else
-				{
-					if (m_val == 1)
-					{
-						m_val = 0;
-						result = true;
-					}
-				}
 			}
-			if (m_tap)
-				// special case for tap mode: only generate event for new activation
-				result = false;
 		}
+		// The keys are now disabled.
+		else {
+			m_val = 0;
+			// The key was not disabled before.
+			if (active != m_status[0]) {
+				result = true;
+			}
+		}
+		m_status[0] = active;
+	}
+	else {
+		const SCA_InputEvent & input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) m_hotkey);
 
-
-	} else
-	{
-
-	//		cerr << "======= SCA_KeyboardSensor::Evaluate:: peeking at key status" << endl;
-		const SCA_InputEvent & inevent = inputdev->GetEventValue(
-			(SCA_IInputDevice::KX_EnumInputs) m_hotkey);
-	
-	//		cerr << "======= SCA_KeyboardSensor::Evaluate:: status: " << inevent.m_status << endl;
-		
-		
 		/* Check qualifier keys
 		 * - see if the qualifiers we request are pressed - 'qual' true/false
 		 * - see if the qualifiers we request changed their state - 'qual_change' true/false
 		 */
 		if (m_qual > 0) {
-			const SCA_InputEvent & qualevent = inputdev->GetEventValue((SCA_IInputDevice::KX_EnumInputs) m_qual);
-			switch (qualevent.m_status) {
-				case SCA_InputEvent::KX_NO_INPUTSTATUS:
-					qual = false;
-					break;
-				case SCA_InputEvent::KX_JUSTRELEASED:
-					qual_change = true;
-					qual = false;
-					break;
-				case SCA_InputEvent::KX_JUSTACTIVATED:
-					qual_change = true;
-				case SCA_InputEvent::KX_ACTIVE:
-					/* do nothing */
-					break;
+			const SCA_InputEvent & qualevent = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) m_qual);
+			if (!qualevent.Find(SCA_InputEvent::ACTIVE)) {
+				qual[0] = false;
 			}
 		}
-		if (m_qual2 > 0 && qual==true) {
-			const SCA_InputEvent & qualevent = inputdev->GetEventValue((SCA_IInputDevice::KX_EnumInputs) m_qual2);
+		if (m_qual2 > 0) {
+			const SCA_InputEvent & qualevent = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) m_qual2);
 			/* copy of above */
-			switch (qualevent.m_status) {
-				case SCA_InputEvent::KX_NO_INPUTSTATUS:
-					qual = false;
-					break;
-				case SCA_InputEvent::KX_JUSTRELEASED:
-					qual_change = true;
-					qual = false;
-					break;
-				case SCA_InputEvent::KX_JUSTACTIVATED:
-					qual_change = true;
-				case SCA_InputEvent::KX_ACTIVE:
-					/* do nothing */
-					break;
+			if (!qualevent.Find(SCA_InputEvent::ACTIVE)) {
+				qual[1] = false;
 			}
 		}
 		/* done reading qualifiers */
-		
-		if (inevent.m_status == SCA_InputEvent::KX_NO_INPUTSTATUS)
-		{
-			if (m_val == 1)
-			{
-				// this situation may occur after a scene suspend: the keyboard release 
-				// event was not captured, produce now the event off
-				m_val = 0;
-				result = true;
-			}
-		} else
-		{
-			if (inevent.m_status == SCA_InputEvent::KX_JUSTACTIVATED)
-			{
-				m_val=1;
-				result = true;
-			} else
-			{
-				if (inevent.m_status == SCA_InputEvent::KX_JUSTRELEASED)
-				{
-					m_val = 0;
-					result = true;
-				} else 
-				{
-					if (inevent.m_status == SCA_InputEvent::KX_ACTIVE)
-					{
-						if (m_val == 0)
-						{
-							m_val = 1;
-							if (m_level) 
-							{
-								result = true;
-							}
-						}
-					}
-				}
-			}
+
+		if (input.Find(SCA_InputEvent::ACTIVE)) {
+			m_val = 1;
 		}
-		
+		else {
+			m_val = 0;
+		}
+
 		/* Modify the key state based on qual(s)
 		 * Tested carefully. don't touch unless your really sure.
 		 * note, this will only change the results if key modifiers are set.
@@ -309,22 +216,21 @@ bool SCA_KeyboardSensor::Evaluate()
 		 * When ANY of the modifiers or main key become inactive,
 		 *  - pulse false
 		 */
-		if (qual==false) { /* one of the qualifiers are not pressed */
-			if (m_val_orig && qual_change) { /* we were originally enabled, but a qualifier changed */
-				result = true;
-			} else {
-				result = false;
-			}
+
+		// One of the third keys value from last logic frame changed.
+		if (m_status[0] != (bool)m_val || m_status[1] != qual[0] || m_status[2] != qual[1]) {
+			result = true;
+		}
+		m_status[0] = (bool)m_val;
+		m_status[1] = qual[0];
+		m_status[2] = qual[1];
+
+		if (!qual[0] || !qual[1]) { /* one of the qualifiers are not pressed */
 			m_val = 0; /* since one of the qualifiers is not on, set the state to false */
-		} else {						/* we done have any qualifiers or they are all pressed */
-			if (m_val && qual_change) {	/* the main key state is true and our qualifier just changed */
-				result = true;
-			}
 		}
 		/* done with key quals */
-		
 	}
-	
+
 	if (reset)
 		// force an event
 		result = true;
@@ -332,46 +238,6 @@ bool SCA_KeyboardSensor::Evaluate()
 
 }
 
-void SCA_KeyboardSensor::AddToTargetProp(int keyIndex, int unicode)
-{
-	if (IsPrintable(keyIndex)) {
-		CValue* tprop = GetParent()->GetProperty(m_targetprop);
-
-		if (IsDelete(keyIndex)) {
-			/* Make a new property. Deletes can be ignored. */
-			if (tprop) {
-				/* overwrite the old property */
-				/* strip one char, if possible */
-				STR_String newprop = tprop->GetText();
-				int oldlength = newprop.Length();
-				if (oldlength >= 1 ) {
-					int newlength=oldlength;
-
-					BLI_str_cursor_step_prev_utf8(newprop, newprop.Length(), &newlength);
-					newprop.SetLength(newlength);
-
-					CStringValue * newstringprop = new CStringValue(newprop, m_targetprop);
-					GetParent()->SetProperty(m_targetprop, newstringprop);
-					newstringprop->Release();
-				}
-			}
-		}
-		else {
-			char utf8_buf[7];
-			size_t utf8_len;
-
-			utf8_len = BLI_str_utf8_from_unicode(unicode, utf8_buf);
-			utf8_buf[utf8_len] = '\0';
-
-			STR_String newprop = tprop ? (tprop->GetText() + utf8_buf) : utf8_buf;
-
-			CStringValue * newstringprop = new CStringValue(newprop, m_targetprop);
-			GetParent()->SetProperty(m_targetprop, newstringprop);
-			newstringprop->Release();
-		}
-	}
-}
-	
 /**
  * Tests whether shift is pressed
  */
@@ -379,46 +245,63 @@ bool SCA_KeyboardSensor::IsShifted(void)
 {
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
 	
-	if ( (inputdev->GetEventValue(SCA_IInputDevice::KX_RIGHTSHIFTKEY).m_status 
-		  == SCA_InputEvent::KX_ACTIVE)
-		 || (inputdev->GetEventValue(SCA_IInputDevice::KX_RIGHTSHIFTKEY).m_status 
-			 == SCA_InputEvent::KX_JUSTACTIVATED)
-		 || (inputdev->GetEventValue(SCA_IInputDevice::KX_LEFTSHIFTKEY).m_status 
-			 == SCA_InputEvent::KX_ACTIVE)
-		 || (inputdev->GetEventValue(SCA_IInputDevice::KX_LEFTSHIFTKEY).m_status 
-			 == SCA_InputEvent::KX_JUSTACTIVATED)
-		) {
-		return true;
-	}
-	else {
-		return false;
-	}
+	return (inputdev->GetInput(SCA_IInputDevice::RIGHTSHIFTKEY).Find(SCA_InputEvent::ACTIVE) ||
+			inputdev->GetInput(SCA_IInputDevice::LEFTSHIFTKEY).Find(SCA_InputEvent::ACTIVE));
 }
 
-void SCA_KeyboardSensor::LogKeystrokes(void) 
+void SCA_KeyboardSensor::LogKeystrokes()
 {
-	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
-	int num = inputdev->GetNumActiveEvents();
+	CValue *tprop = GetParent()->GetProperty(m_targetprop);
 
-	/* weird loop, this one... */
-	if (num > 0)
+	SCA_IInputDevice *inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
+
+	std::wstring typedtext = inputdev->GetText();
+	std::wstring proptext = L"";
+
 	{
-		
-		int index = 0;
-		/* Check on all keys whether they were pushed. This does not
-		 * untangle the ordering, so don't type too fast :) */
-		for (int i=SCA_IInputDevice::KX_BEGINKEY ; i<= SCA_IInputDevice::KX_ENDKEY;i++)
-		{
-			const SCA_InputEvent & inevent = inputdev->GetEventValue((SCA_IInputDevice::KX_EnumInputs) i);
-			if (inevent.m_status == SCA_InputEvent::KX_JUSTACTIVATED) //NO_INPUTSTATUS)
-			{
-				if (index < num)
-				{
-					AddToTargetProp(i, inevent.m_unicode);
-					index++;
+		const char *utf8buf = tprop->GetText().ReadPtr();
+		int utf8len = BLI_strlen_utf8(utf8buf);
+		if (utf8len != 0) {
+			wchar_t *wcharbuf = new wchar_t[utf8len + 1];
+			BLI_strncpy_wchar_from_utf8(wcharbuf, utf8buf, utf8len + 1);
+			proptext = wcharbuf;
+			delete wcharbuf;
+		}
+
+		/* Convert all typed key in the prop string, if the key are del or
+		 * backspace we remove the last string item.
+		 */
+		for (unsigned int i = 0, size = typedtext.size(); i < size; ++i) {
+			const wchar_t item = typedtext[i];
+			if (item == '\b' || item == 127) {
+				if (proptext.size()) {
+					proptext.resize(proptext.size() - 1);
 				}
 			}
+			else if (item == '\r') {
+				// Do nothing
+			}
+			else {
+				proptext.push_back(item);
+			}
 		}
+	}
+
+	{
+		STR_String newpropstr = "";
+
+		const wchar_t *cproptext = proptext.data();
+		size_t utf8len = BLI_wstrlen_utf8(cproptext);
+		if (utf8len != 0) {
+			char *utf8buf = new char[utf8len + 1];
+			BLI_strncpy_wchar_as_utf8(utf8buf, cproptext, utf8len + 1);
+			newpropstr = STR_String(utf8buf);
+			delete utf8buf;
+		}
+
+		CStringValue *newstringprop = new CStringValue(newpropstr, m_targetprop);
+		GetParent()->SetProperty(m_targetprop, newstringprop);
+		newstringprop->Release();
 	}
 }
 
@@ -430,25 +313,28 @@ void SCA_KeyboardSensor::LogKeystrokes(void)
 
 KX_PYMETHODDEF_DOC_O(SCA_KeyboardSensor, getKeyStatus,
 "getKeyStatus(keycode)\n"
-"\tGet the given key's status (KX_NO_INPUTSTATUS, KX_JUSTACTIVATED, KX_ACTIVE or KX_JUSTRELEASED).\n")
+"\tGet the given key's status (NONE, JUSTACTIVATED, ACTIVE or JUSTRELEASED).\n")
 {
+	ShowDeprecationWarning("sensor.getKeyStatus(keycode)", "logic.keyboard.events[keycode]");
+
 	if (!PyLong_Check(value)) {
 		PyErr_SetString(PyExc_ValueError, "sensor.getKeyStatus(int): Keyboard Sensor, expected an int");
 		return NULL;
 	}
 	
-	SCA_IInputDevice::KX_EnumInputs keycode = (SCA_IInputDevice::KX_EnumInputs)PyLong_AsLong(value);
+	SCA_IInputDevice::SCA_EnumInputs keycode = (SCA_IInputDevice::SCA_EnumInputs)PyLong_AsLong(value);
 	
-	if ((keycode < SCA_IInputDevice::KX_BEGINKEY) ||
-	    (keycode > SCA_IInputDevice::KX_ENDKEY))
+	if ((keycode < SCA_IInputDevice::BEGINKEY) ||
+	    (keycode > SCA_IInputDevice::ENDKEY))
 	{
 		PyErr_SetString(PyExc_AttributeError, "sensor.getKeyStatus(int): Keyboard Sensor, invalid keycode specified!");
 		return NULL;
 	}
 	
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
-	const SCA_InputEvent & inevent = inputdev->GetEventValue(keycode);
-	return PyLong_FromLong(inevent.m_status);
+	const SCA_InputEvent & input = inputdev->GetInput(keycode);
+	return PyLong_FromLong(input.m_status[input.m_status.size() - 1]);
+	Py_RETURN_NONE;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -484,32 +370,65 @@ PyMethodDef SCA_KeyboardSensor::Methods[] = {
 
 PyAttributeDef SCA_KeyboardSensor::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("events", SCA_KeyboardSensor, pyattr_get_events),
+	KX_PYATTRIBUTE_RO_FUNCTION("inputs", SCA_KeyboardSensor, pyattr_get_inputs),
 	KX_PYATTRIBUTE_BOOL_RW("useAllKeys",SCA_KeyboardSensor,m_bAllKeys),
-	KX_PYATTRIBUTE_INT_RW("key",0,SCA_IInputDevice::KX_ENDKEY,true,SCA_KeyboardSensor,m_hotkey),
-	KX_PYATTRIBUTE_SHORT_RW("hold1",0,SCA_IInputDevice::KX_ENDKEY,true,SCA_KeyboardSensor,m_qual),
-	KX_PYATTRIBUTE_SHORT_RW("hold2",0,SCA_IInputDevice::KX_ENDKEY,true,SCA_KeyboardSensor,m_qual2),
+	KX_PYATTRIBUTE_INT_RW("key",0,SCA_IInputDevice::ENDKEY,true,SCA_KeyboardSensor,m_hotkey),
+	KX_PYATTRIBUTE_SHORT_RW("hold1",0,SCA_IInputDevice::ENDKEY,true,SCA_KeyboardSensor,m_qual),
+	KX_PYATTRIBUTE_SHORT_RW("hold2",0,SCA_IInputDevice::ENDKEY,true,SCA_KeyboardSensor,m_qual2),
 	KX_PYATTRIBUTE_STRING_RW("toggleProperty",0,MAX_PROP_NAME,false,SCA_KeyboardSensor,m_toggleprop),
 	KX_PYATTRIBUTE_STRING_RW("targetProperty",0,MAX_PROP_NAME,false,SCA_KeyboardSensor,m_targetprop),
 	{ NULL }	//Sentinel
 };
 
 
-PyObject *SCA_KeyboardSensor::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_KeyboardSensor::pyattr_get_inputs(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_KeyboardSensor* self = static_cast<SCA_KeyboardSensor*>(self_v);
-	
+
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)self->m_eventmgr)->GetInputDevice();
 
 	PyObject *resultlist = PyList_New(0);
 	
-	for (int i=SCA_IInputDevice::KX_BEGINKEY ; i<= SCA_IInputDevice::KX_ENDKEY;i++)
+	for (int i=SCA_IInputDevice::BEGINKEY ; i<= SCA_IInputDevice::ENDKEY;i++)
 	{
-		const SCA_InputEvent & inevent = inputdev->GetEventValue((SCA_IInputDevice::KX_EnumInputs) i);
-		if (inevent.m_status != SCA_InputEvent::KX_NO_INPUTSTATUS)
+		SCA_InputEvent& input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) i);
+		if (input.Find(SCA_InputEvent::ACTIVE))
 		{
 			PyObject *keypair = PyList_New(2);
 			PyList_SET_ITEM(keypair,0,PyLong_FromLong(i));
-			PyList_SET_ITEM(keypair,1,PyLong_FromLong(inevent.m_status));
+			PyList_SET_ITEM(keypair,1,input.GetProxy());
+			PyList_Append(resultlist,keypair);
+			Py_DECREF(keypair);
+		}
+	}
+	return resultlist;
+}
+
+PyObject *SCA_KeyboardSensor::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_KeyboardSensor* self = static_cast<SCA_KeyboardSensor*>(self_v);
+
+	ShowDeprecationWarning("sensor.events", "sensor.inputs");
+
+	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)self->m_eventmgr)->GetInputDevice();
+
+	PyObject *resultlist = PyList_New(0);
+
+	for (int i=SCA_IInputDevice::BEGINKEY ; i<= SCA_IInputDevice::ENDKEY;i++)
+	{
+		SCA_InputEvent& input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) i);
+		int event = 0;
+		if (input.m_queue.size() > 0) {
+			event = input.m_queue[input.m_queue.size() - 1];
+		}
+		else {
+			event = input.m_status[input.m_status.size() - 1];
+		}
+
+		if (event != SCA_InputEvent::NONE) {
+			PyObject *keypair = PyList_New(2);
+			PyList_SET_ITEM(keypair,0,PyLong_FromLong(i));
+			PyList_SET_ITEM(keypair,1,PyLong_FromLong(event));
 			PyList_Append(resultlist,keypair);
 			Py_DECREF(keypair);
 		}
@@ -518,151 +437,3 @@ PyObject *SCA_KeyboardSensor::pyattr_get_events(void *self_v, const KX_PYATTRIBU
 }
 
 #endif // WITH_PYTHON
-
-/* Accessed from python */
-
-// this code looks ugly, please use an ordinary hashtable
-
-char ToCharacter(int keyIndex, bool shifted)
-{
-	/* numerals */
-	if ( (keyIndex >= SCA_IInputDevice::KX_ZEROKEY) 
-		 && (keyIndex <= SCA_IInputDevice::KX_NINEKEY) ) {
-		if (shifted) {
-			char numshift[] = ")!@#$%^&*(";
-			return numshift[keyIndex - '0']; 
-		} else {
-			return keyIndex - SCA_IInputDevice::KX_ZEROKEY + '0'; 
-		}
-	}
-	
-	/* letters... always lowercase... is that desirable? */
-	if ( (keyIndex >= SCA_IInputDevice::KX_AKEY) 
-		 && (keyIndex <= SCA_IInputDevice::KX_ZKEY) ) {
-		if (shifted) {
-			return keyIndex - SCA_IInputDevice::KX_AKEY + 'A'; 
-		} else {
-			return keyIndex - SCA_IInputDevice::KX_AKEY + 'a'; 
-		}
-	}
-	
-	if (keyIndex == SCA_IInputDevice::KX_SPACEKEY) {
-		return ' ';
-	}
-	if (keyIndex == SCA_IInputDevice::KX_RETKEY || keyIndex == SCA_IInputDevice::KX_PADENTER) {
-		return '\n';
-	}
-	
-	
-	if (keyIndex == SCA_IInputDevice::KX_PADASTERKEY) {
-		return '*';
-	}
-	
-	if (keyIndex == SCA_IInputDevice::KX_TABKEY) {
-		return '\t';
-	}
-	
-	/* comma to period */
-	char commatoperiod[] = ",-.";
-	char commatoperiodshifted[] = "<_>";
-	if (keyIndex == SCA_IInputDevice::KX_COMMAKEY) {
-		if (shifted) {
-			return commatoperiodshifted[0];
-		} else {
-			return commatoperiod[0];
-		}
-	}
-	if (keyIndex == SCA_IInputDevice::KX_MINUSKEY) {
-		if (shifted) {
-			return commatoperiodshifted[1];
-		} else {
-			return commatoperiod[1];
-		}
-	}
-	if (keyIndex == SCA_IInputDevice::KX_PERIODKEY) {
-		if (shifted) {
-			return commatoperiodshifted[2];
-		} else {
-			return commatoperiod[2];
-		}
-	}
-	
-	/* semicolon to rightbracket */
-	char semicolontorightbracket[] = ";\'`/\\=[]";
-	char semicolontorightbracketshifted[] = ":\"~\?|+{}";
-	if ((keyIndex >= SCA_IInputDevice::KX_SEMICOLONKEY) 
-		&& (keyIndex <= SCA_IInputDevice::KX_RIGHTBRACKETKEY)) {
-		if (shifted) {
-			return semicolontorightbracketshifted[keyIndex - SCA_IInputDevice::KX_SEMICOLONKEY];
-		} else {
-			return semicolontorightbracket[keyIndex - SCA_IInputDevice::KX_SEMICOLONKEY];
-		}
-	}
-	
-	/* keypad2 to padplus */
-	char pad2topadplus[] = "246813579. 0- +";
-	if ((keyIndex >= SCA_IInputDevice::KX_PAD2) 
-		&& (keyIndex <= SCA_IInputDevice::KX_PADPLUSKEY)) { 
-		return pad2topadplus[keyIndex - SCA_IInputDevice::KX_PAD2];
-	}
-
-	return '!';
-}
-
-
-
-/**
- * Determine whether this character can be printed. We cannot use
- * the library functions here, because we need to test our own
- * keycodes. */
-bool IsPrintable(int keyIndex)
-{
-	/* only print 
-	 * - numerals: KX_ZEROKEY to KX_NINEKEY
-	 * - alphas:   KX_AKEY to KX_ZKEY. 
-	 * - specials: KX_RETKEY, KX_PADASTERKEY, KX_PADCOMMAKEY to KX_PERIODKEY,
-	 *             KX_TABKEY, KX_SEMICOLONKEY to KX_RIGHTBRACKETKEY,
-	 *             KX_PAD2 to KX_PADPLUSKEY
-	 * - delete and backspace: also printable in the sense that they modify 
-	 *                         the string
-	 * - retkey: should this be printable?
-	 * - virgule: prints a space... don't know which key that's supposed
-	 *   to be...
-	 */
-	if ( ((keyIndex >= SCA_IInputDevice::KX_ZEROKEY) 
-		  && (keyIndex <= SCA_IInputDevice::KX_NINEKEY))
-		 || ((keyIndex >= SCA_IInputDevice::KX_AKEY) 
-			 && (keyIndex <= SCA_IInputDevice::KX_ZKEY)) 
-		 || (keyIndex == SCA_IInputDevice::KX_SPACEKEY) 
-		 || (keyIndex == SCA_IInputDevice::KX_RETKEY)
-		 || (keyIndex == SCA_IInputDevice::KX_PADENTER)
-		 || (keyIndex == SCA_IInputDevice::KX_PADASTERKEY) 
-		 || (keyIndex == SCA_IInputDevice::KX_TABKEY) 
-		 || ((keyIndex >= SCA_IInputDevice::KX_COMMAKEY) 
-			 && (keyIndex <= SCA_IInputDevice::KX_PERIODKEY)) 
-		 || ((keyIndex >= SCA_IInputDevice::KX_SEMICOLONKEY) 
-			 && (keyIndex <= SCA_IInputDevice::KX_RIGHTBRACKETKEY)) 
-		 || ((keyIndex >= SCA_IInputDevice::KX_PAD2) 
-			 && (keyIndex <= SCA_IInputDevice::KX_PADPLUSKEY)) 
-		 || (keyIndex == SCA_IInputDevice::KX_DELKEY)
-		 || (keyIndex == SCA_IInputDevice::KX_BACKSPACEKEY)
-		)
-	{
-		return true;
-	} else {
-		return false;
-	}
-}
-
-/**
- * Tests whether this is a delete key.
- */
-bool IsDelete(int keyIndex)
-{
-	if ( (keyIndex == SCA_IInputDevice::KX_DELKEY)
-		 || (keyIndex == SCA_IInputDevice::KX_BACKSPACEKEY) ) {
-		return true;
-	} else {
-		return false;
-	}
-}

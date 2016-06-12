@@ -23,5 +23,77 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-add_subdirectory(common)
-add_subdirectory(ghost)
+set(INC
+	.
+	..
+	../Ghost
+	../BlenderRoutines
+	../Converter
+	../Expressions
+	../GameLogic
+	../Ketsji
+	../Ketsji/KXNetwork
+	../Launcher
+	../Physics/Common
+	../Rasterizer
+	../Rasterizer/RAS_OpenGLRasterizer
+	../SceneGraph
+	../../blender
+	../../blender/blenfont
+	../../blender/blenkernel
+	../../blender/blenlib
+	../../blender/blenloader
+	../../blender/blentranslation
+	../../blender/gpu
+	../../blender/imbuf
+	../../blender/makesdna
+	../../blender/makesrna
+	../../../intern/ghost
+	../../../intern/guardedalloc
+	../../../intern/string
+	../../../intern/memutil
+)
+
+set(INC_SYS
+	../../../intern/moto/include
+	${PYTHON_INCLUDE_DIRS}
+	${BOOST_INCLUDE_DIR}
+)
+
+set(SRC
+	GPG_Canvas.cpp
+	GPG_ghost.cpp
+
+	GPG_Canvas.h
+)
+
+add_definitions(${GL_DEFINITIONS})
+
+if(WIN32)
+	blender_include_dirs(../../../intern/utfconv)
+endif()
+
+if(WITH_CODEC_FFMPEG)
+	add_definitions(-DWITH_FFMPEG)
+endif()
+
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_AUDASPACE)
+	add_definitions(${AUDASPACE_DEFINITIONS})
+
+	list(APPEND INC_SYS
+		${AUDASPACE_C_INCLUDE_DIRS}
+	)
+endif()
+
+if(WITH_SDL AND WITH_SDL_DYNLOAD)
+	list(APPEND INC
+		../../../extern/sdlew/include
+	)
+	add_definitions(-DWITH_SDL_DYNLOAD)
+endif()
+
+blender_add_lib_nolist(ge_player "${SRC}" "${INC}" "${INC_SYS}")

@@ -25,46 +25,26 @@
 
 set(INC
 	.
-	../ghost
-	../../BlenderRoutines
-	../../Converter
-	../../Expressions
-	../../GameLogic
-	../../Ketsji
-	../../Physics/Common
-	../../Rasterizer
-	../../Rasterizer/RAS_OpenGLRasterizer
-	../../SceneGraph
-	../../../blender
-	../../../blender/blenfont
-	../../../blender/blenkernel
-	../../../blender/blenlib
-	../../../blender/blenloader
-	../../../blender/gpu
-	../../../blender/imbuf
-	../../../blender/makesdna
-	../../../../intern/ghost
-	../../../../intern/guardedalloc
-	../../../../intern/string
+	../Expressions
+	../GameLogic
+	../Ketsji
+	../Rasterizer
+	../SceneGraph
+	../../blender/blenlib
+	../../../intern/ghost
+	../../../intern/string
 )
 
 set(INC_SYS
-	../../../../intern/moto/include
-	${PYTHON_INCLUDE_DIRS}
-	${PNG_INCLUDE_DIRS}
-	${ZLIB_INCLUDE_DIRS}
+	../../../intern/moto/include
 )
 
 set(SRC
-	GPC_Canvas.cpp
-	GPC_KeyboardDevice.cpp
-	GPC_MouseDevice.cpp
+	GH_EventConsumer.cpp
+	GH_InputDevice.cpp
 
-	GPC_Canvas.h
-	GPC_KeyboardDevice.h
-	GPC_MouseDevice.h
+	GH_EventConsumer.h
+	GH_InputDevice.h
 )
 
-add_definitions(${GL_DEFINITIONS})
-
-blender_add_lib_nolist(ge_player_common "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(ge_ghost "${SRC}" "${INC}" "${INC_SYS}")

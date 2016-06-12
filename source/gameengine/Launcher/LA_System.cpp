@@ -15,9 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
  * The Original Code is: all of this file.
  *
  * Contributor(s): none yet.
@@ -25,35 +22,25 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/BlenderRoutines/KX_BlenderSystem.cpp
- *  \ingroup blroutines
+/** \file gameengine/GamePlayer/ghost/LA_System.cpp
+ *  \ingroup player
  */
 
-
-#include "KX_ISystem.h"
-
-#ifdef _MSC_VER
-#  pragma warning (disable:4786)
-#endif
-
-#ifdef WIN32
-#include <windows.h>
-#endif
-
-#include <iostream>
-#include <stdio.h>
-#include "KX_BlenderInputDevice.h"
-#include "KX_BlenderSystem.h"
-
+#include "LA_System.h"
 #include "PIL_time.h"
 
-KX_BlenderSystem::KX_BlenderSystem()
-: KX_ISystem()
+LA_System::LA_System()
 {
 	m_starttime = PIL_check_seconds_timer();
 }
 
-double KX_BlenderSystem::GetTimeInSeconds()
+LA_System::~LA_System()
+{
+}
+
+double LA_System::GetTimeInSeconds()
 {
 	return PIL_check_seconds_timer() - m_starttime;
 }
+
+

@@ -32,14 +32,20 @@
 #include "MEM_guardedalloc.h"
 
 #include "KX_BlenderCanvas.h"
+#include "KX_Globals.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "BLI_string.h"
+#include "BLI_path_util.h"
+
 #include "BKE_image.h"
 
 #include "RAS_IRasterizer.h"
+
+#include "GHOST_IWindow.h"
 
 #include <assert.h>
 #include <iostream>
@@ -54,13 +60,11 @@ KX_BlenderCanvas::KX_BlenderCanvas(RAS_IRasterizer *rasty, wmWindowManager *wm, 
 	:RAS_ICanvas(rasty),
 	m_wm(wm),
 	m_win(win),
-	m_frame_rect(rect)
+	m_frame_rect(rect),
+	m_ar(ar)
 {
 	// initialize area so that it's available for game logic on frame 1 (ImageViewport)
 	m_area_rect = rect;
-	// area boundaries needed for mouse coordinates in Letterbox framing mode
-	m_area_left = ar->winrct.xmin;
-	m_area_top = ar->winrct.ymax;
 	m_frame = 1;
 
 	m_rasterizer->GetViewport(m_viewport);
@@ -97,6 +101,11 @@ void KX_BlenderCanvas::GetDisplayDimensions(int &width, int &height)
 }
 
 void KX_BlenderCanvas::ResizeWindow(int width, int height)
+{
+	// Not implemented for the embedded player
+}
+
+void KX_BlenderCanvas::Resize(int width, int height)
 {
 	// Not implemented for the embedded player
 }
@@ -168,28 +177,27 @@ int KX_BlenderCanvas::GetHeight(
 	return m_frame_rect.GetHeight();
 }
 
-int KX_BlenderCanvas::GetMouseX(int x)
+void KX_BlenderCanvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen)
 {
-	int left = GetWindowArea().GetLeft();
-	return x - (left - m_area_left);
-}
+	if (screen) {
+		int _x, _y;
+		((GHOST_IWindow *)m_win->ghostwin)->screenToClient(x, y, _x, _y);
+		x = _x;
+		y = _y;
+	}
 
-int KX_BlenderCanvas::GetMouseY(int y)
-{
-	int top = GetWindowArea().GetTop();
-	return y - (m_area_top - top);
+	r_x = x - m_area_rect.GetLeft() - 1;
+	r_y = -y + m_area_rect.GetTop() - 1;
 }
 
 float KX_BlenderCanvas::GetMouseNormalizedX(int x)
 {
-	int can_x = GetMouseX(x);
-	return float(can_x)/this->GetWidth();
+	return float(x)/this->GetWidth();
 }
 
 float KX_BlenderCanvas::GetMouseNormalizedY(int y)
 {
-	int can_y = GetMouseY(y);
-	return float(can_y)/this->GetHeight();
+	return float(y)/this->GetHeight();
 }
 
 RAS_Rect &
@@ -305,8 +313,8 @@ void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 
 	int x = m_frame_rect.GetLeft();
 	int y = m_frame_rect.GetBottom();
-	int width = m_frame_rect.GetRight() - m_frame_rect.GetLeft();
-	int height = m_frame_rect.GetTop() - m_frame_rect.GetBottom();
+	int width = m_frame_rect.GetWidth();
+	int height = m_frame_rect.GetHeight();
 
 	pixeldata = m_rasterizer->MakeScreenshot(x, y, width, height);
 	if (!pixeldata) {
@@ -323,6 +331,11 @@ void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 	else
 		BKE_imformat_defaults(im_format);
 
+	// create file path
+	char path[FILE_MAX];
+	BLI_strncpy(path, filename, FILE_MAX);
+	BLI_path_abs(path, KX_GetMainPath().ReadPtr());
+
 	/* save_screenshot() frees dumprect and im_format */
-	save_screenshot(filename, width, height, pixeldata, im_format);
+	save_screenshot(path, width, height, pixeldata, im_format);
 }

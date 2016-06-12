@@ -92,7 +92,6 @@ extern "C" {
 #include "SCA_IInputDevice.h"
 #include "SCA_PropertySensor.h"
 #include "SCA_RandomActuator.h"
-#include "SCA_KeyboardSensor.h" /* IsPrintable, ToCharacter */
 #include "SCA_JoystickManager.h" /* JOYINDEX_MAX */
 #include "SCA_PythonJoystick.h"
 #include "SCA_PythonKeyboard.h"
@@ -154,9 +153,6 @@ extern "C" {
 
 #ifdef WITH_PYTHON
 
-static char gp_GamePythonPath[FILE_MAX] = "";
-static char gp_GamePythonPathOrig[FILE_MAX] = ""; // not super happy about this, but we need to remember the first loaded file for the global/dict load save
-
 static SCA_PythonKeyboard* gp_PythonKeyboard = NULL;
 static SCA_PythonMouse* gp_PythonMouse = NULL;
 static SCA_PythonJoystick* gp_PythonJoysticks[JOYINDEX_MAX] = {NULL};
@@ -168,7 +164,7 @@ static struct {
 } gp_sys_backup = {NULL};
 
 /* Macro for building the keyboard translation */
-//#define KX_MACRO_addToDict(dict, name) PyDict_SetItemString(dict, #name, PyLong_FromLong(SCA_IInputDevice::KX_##name))
+//#define KX_MACRO_addToDict(dict, name) PyDict_SetItemString(dict, #name, PyLong_FromLong(SCA_IInputDevice::##name))
 //#define KX_MACRO_addToDict(dict, name) PyDict_SetItemString(dict, #name, item=PyLong_FromLong(name)); Py_DECREF(item)
 /* For the defines for types from logic bricks, we do stuff explicitly... */
 #define KX_MACRO_addTypesToDict(dict, name, value) KX_MACRO_addTypesToDict_fn(dict, #name, value)
@@ -230,7 +226,7 @@ static PyObject *gPyExpandPath(PyObject *, PyObject *args)
 		return NULL;
 
 	BLI_strncpy(expanded, filename, FILE_MAX);
-	BLI_path_abs(expanded, gp_GamePythonPath);
+	BLI_path_abs(expanded, KX_GetMainPath().ReadPtr());
 	return PyC_UnicodeFromByte(expanded);
 }
 
@@ -259,8 +255,6 @@ static PyObject *gPyEndGame(PyObject *)
 {
 	KX_GetActiveEngine()->RequestExit(KX_EXIT_REQUEST_QUIT_GAME);
 
-	//printf("%s\n", gp_GamePythonPath);
-
 	Py_RETURN_NONE;
 }
 
@@ -271,7 +265,7 @@ PyDoc_STRVAR(gPyRestartGame_doc,
 static PyObject *gPyRestartGame(PyObject *)
 {
 	KX_GetActiveEngine()->RequestExit(KX_EXIT_REQUEST_RESTART_GAME);
-	KX_GetActiveEngine()->SetNameNextGame(gp_GamePythonPath);
+	KX_GetActiveEngine()->SetNameNextGame(KX_GetMainPath());
 
 	Py_RETURN_NONE;
 }
@@ -282,17 +276,16 @@ PyDoc_STRVAR(gPySaveGlobalDict_doc,
 );
 static PyObject *gPySaveGlobalDict(PyObject *)
 {
-	char marshal_path[512];
 	char *marshal_buffer = NULL;
 	unsigned int marshal_length;
 	FILE *fp = NULL;
 
-	pathGamePythonConfig(marshal_path);
+	STR_String marshal_path = pathGamePythonConfig();
 	marshal_length = saveGamePythonConfig(&marshal_buffer);
 
 	if (marshal_length && marshal_buffer)
 	{
-		fp = fopen(marshal_path, "wb");
+		fp = fopen(marshal_path.ReadPtr(), "wb");
 
 		if (fp)
 		{
@@ -319,22 +312,21 @@ PyDoc_STRVAR(gPyLoadGlobalDict_doc,
 );
 static PyObject *gPyLoadGlobalDict(PyObject *)
 {
-	char marshal_path[512];
 	char *marshal_buffer = NULL;
 	int marshal_length;
 	FILE *fp = NULL;
 	int result;
 
-	pathGamePythonConfig(marshal_path);
+	STR_String marshal_path = pathGamePythonConfig();
 
-	fp = fopen(marshal_path, "rb");
+	fp = fopen(marshal_path.ReadPtr(), "rb");
 
 	if (fp) {
 		// obtain file size:
 		fseek (fp, 0, SEEK_END);
 		marshal_length = ftell(fp);
 		if (marshal_length == -1) {
-			printf("Warning: could not read position of '%s'\n", marshal_path);
+			printf("Warning: could not read position of '%s'\n", marshal_path.ReadPtr());
 			fclose(fp);
 			Py_RETURN_NONE;
 		}
@@ -347,13 +339,13 @@ static PyObject *gPyLoadGlobalDict(PyObject *)
 		if (result == marshal_length) {
 			loadGamePythonConfig(marshal_buffer, marshal_length);
 		} else {
-			printf("Warning: could not read all of '%s'\n", marshal_path);
+			printf("Warning: could not read all of '%s'\n", marshal_path.ReadPtr());
 		}
 
 		free(marshal_buffer);
 		fclose(fp);
 	} else {
-		printf("Warning: could not open '%s'\n", marshal_path);
+		printf("Warning: could not open '%s'\n", marshal_path.ReadPtr());
 	}
 
 	Py_RETURN_NONE;
@@ -561,7 +553,7 @@ static PyObject *gPySetTimeScale(PyObject *, PyObject *args)
 
 static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
 {
-	char cpath[sizeof(gp_GamePythonPath)];
+	char cpath[FILE_MAX];
 	char *searchpath = NULL;
 	PyObject *list, *value;
 
@@ -575,10 +567,10 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
 	
 	if (searchpath) {
 		BLI_strncpy(cpath, searchpath, FILE_MAX);
-		BLI_path_abs(cpath, gp_GamePythonPath);
+		BLI_path_abs(cpath, KX_GetMainPath().ReadPtr());
 	} else {
 		/* Get the dir only */
-		BLI_split_dir_part(gp_GamePythonPath, cpath, sizeof(cpath));
+		BLI_split_dir_part(KX_GetMainPath().ReadPtr(), cpath, sizeof(cpath));
 	}
 
 	if ((dp  = opendir(cpath)) == NULL) {
@@ -700,7 +692,7 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 		char abs_path[FILE_MAX];
 		// Make the path absolute
 		BLI_strncpy(abs_path, path, sizeof(abs_path));
-		BLI_path_abs(abs_path, gp_GamePythonPath);
+		BLI_path_abs(abs_path, KX_GetMainPath().ReadPtr());
 
 		if ((status=kx_scene->GetSceneConverter()->LinkBlendFilePath(abs_path, group, kx_scene, &err_str, options))) {
 			return status->GetProxy();
@@ -1500,11 +1492,11 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 
 	// Add keyboard and mouse attributes to this module
 	BLI_assert(!gp_PythonKeyboard);
-	gp_PythonKeyboard = new SCA_PythonKeyboard(KX_GetActiveEngine()->GetKeyboardDevice());
+	gp_PythonKeyboard = new SCA_PythonKeyboard(KX_GetActiveEngine()->GetInputDevice());
 	PyDict_SetItemString(d, "keyboard", gp_PythonKeyboard->NewProxy(true));
 
 	BLI_assert(!gp_PythonMouse);
-	gp_PythonMouse = new SCA_PythonMouse(KX_GetActiveEngine()->GetMouseDevice(), KX_GetActiveEngine()->GetCanvas());
+	gp_PythonMouse = new SCA_PythonMouse(KX_GetActiveEngine()->GetInputDevice(), KX_GetActiveEngine()->GetCanvas());
 	PyDict_SetItemString(d, "mouse", gp_PythonMouse->NewProxy(true));
 
 	PyObject* joylist = PyList_New(JOYINDEX_MAX);
@@ -1719,14 +1711,14 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, KX_DYN_SET_MASS, KX_SCA_DynamicActuator::KX_DYN_SET_MASS);
 
 	/* Input & Mouse Sensor */
-	KX_MACRO_addTypesToDict(d, KX_INPUT_NONE, SCA_InputEvent::KX_NO_INPUTSTATUS);
-	KX_MACRO_addTypesToDict(d, KX_INPUT_JUST_ACTIVATED, SCA_InputEvent::KX_JUSTACTIVATED);
-	KX_MACRO_addTypesToDict(d, KX_INPUT_ACTIVE, SCA_InputEvent::KX_ACTIVE);
-	KX_MACRO_addTypesToDict(d, KX_INPUT_JUST_RELEASED, SCA_InputEvent::KX_JUSTRELEASED);
+	KX_MACRO_addTypesToDict(d, KX_INPUT_NONE, SCA_InputEvent::NONE);
+	KX_MACRO_addTypesToDict(d, KX_INPUT_JUST_ACTIVATED, SCA_InputEvent::JUSTACTIVATED);
+	KX_MACRO_addTypesToDict(d, KX_INPUT_ACTIVE, SCA_InputEvent::ACTIVE);
+	KX_MACRO_addTypesToDict(d, KX_INPUT_JUST_RELEASED, SCA_InputEvent::JUSTRELEASED);
 	
-	KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_LEFT, SCA_IInputDevice::KX_LEFTMOUSE);
-	KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_MIDDLE, SCA_IInputDevice::KX_MIDDLEMOUSE);
-	KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_RIGHT, SCA_IInputDevice::KX_RIGHTMOUSE);
+	KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_LEFT, SCA_IInputDevice::LEFTMOUSE);
+	KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_MIDDLE, SCA_IInputDevice::MIDDLEMOUSE);
+	KX_MACRO_addTypesToDict(d, KX_MOUSE_BUT_RIGHT, SCA_IInputDevice::RIGHTMOUSE);
 
 	/* 2D Filter Actuator */
 	KX_MACRO_addTypesToDict(d, RAS_2DFILTER_ENABLED, RAS_2DFilterManager::FILTER_ENABLED);
@@ -1920,11 +1912,11 @@ static void initPySysObjects__append(PyObject *sys_path, const char *filename)
 	char expanded[FILE_MAX];
 	
 	BLI_split_dir_part(filename, expanded, sizeof(expanded)); /* get the dir part of filename only */
-	BLI_path_abs(expanded, gp_GamePythonPath); /* filename from lib->filename is (always?) absolute, so this may not be needed but it wont hurt */
-	BLI_cleanup_file(gp_GamePythonPath, expanded); /* Don't use BLI_cleanup_dir because it adds a slash - BREAKS WIN32 ONLY */
+	BLI_path_abs(expanded, KX_GetMainPath().ReadPtr()); /* filename from lib->filename is (always?) absolute, so this may not be needed but it wont hurt */
+	BLI_cleanup_file(KX_GetMainPath().ReadPtr(), expanded); /* Don't use BLI_cleanup_dir because it adds a slash - BREAKS WIN32 ONLY */
 	item = PyC_UnicodeFromByte(expanded);
 	
-//	printf("SysPath - '%s', '%s', '%s'\n", expanded, filename, gp_GamePythonPath);
+//	printf("SysPath - '%s', '%s', '%s'\n", expanded, filename, KX_GetMainPath().ReadPtr());
 	
 	if (PySequence_Index(sys_path, item) == -1) {
 		PyErr_Clear(); /* PySequence_Index sets a ValueError */
@@ -1952,12 +1944,12 @@ static void initPySysObjects(Main *maggie)
 	
 	while (lib) {
 		/* lib->name wont work in some cases (on win32),
-		 * even when expanding with gp_GamePythonPath, using lib->filename is less trouble */
+		 * even when expanding with KX_GetMainPath(), using lib->filename is less trouble */
 		initPySysObjects__append(sys_path, lib->filepath);
 		lib= (Library *)lib->id.next;
 	}
 	
-	initPySysObjects__append(sys_path, gp_GamePythonPath);
+	initPySysObjects__append(sys_path, KX_GetMainPath().ReadPtr());
 	
 //	fprintf(stderr, "\nNew Path: %d ", PyList_GET_SIZE(sys_path));
 //	PyObject_Print(sys_path, stderr, 0);
@@ -2245,7 +2237,7 @@ void exitGamePythonScripting()
 /* similar to the above functions except it sets up the namespace
  * and other more general things */
 void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
-                     PyObject *pyGlobalDict, PyObject **gameLogic, PyObject **gameLogic_keys, int argc, char** argv)
+                     PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char** argv)
 {
 	PyObject *modules, *dictionaryobject;
 
@@ -2262,8 +2254,6 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
 	/* is set in initGameLogicPythonBinding so only set here if we want it to persist between scenes */
 	if (pyGlobalDict)
 		PyDict_SetItemString(PyModule_GetDict(*gameLogic), "globalDict", pyGlobalDict); // Same as importing the module.
-
-	*gameLogic_keys = PyDict_Keys(PyModule_GetDict(*gameLogic));
 }
 
 static struct PyModuleDef Rasterizer_module_def = {
@@ -2371,17 +2361,12 @@ PyDoc_STRVAR(gPyEventToCharacter_doc,
 static PyObject *gPyEventToCharacter(PyObject *, PyObject *args)
 {
 	int event, shift;
-	if (!PyArg_ParseTuple(args,"ii:EventToCharacter", &event, &shift))
+	if (!PyArg_ParseTuple(args, "ii:EventToCharacter", &event, &shift)) {
 		return NULL;
-	
-	if (IsPrintable(event)) {
-		char ch[2] = {'\0', '\0'};
-		ch[0] = ToCharacter(event, (bool)shift);
-		return PyUnicode_FromString(ch);
 	}
-	else {
-		return PyUnicode_FromString("");
-	}
+
+	char character[2] = {SCA_IInputDevice::ConvertKeyToChar((SCA_IInputDevice::SCA_EnumInputs)event, (bool)shift), '\0'};
+	return PyUnicode_FromString(character);
 }
 
 
@@ -2416,137 +2401,137 @@ PyMODINIT_FUNC initGameKeysPythonBinding()
 
 	// XXXX Add constants here
 
-	KX_MACRO_addTypesToDict(d, AKEY, SCA_IInputDevice::KX_AKEY);
-	KX_MACRO_addTypesToDict(d, BKEY, SCA_IInputDevice::KX_BKEY);
-	KX_MACRO_addTypesToDict(d, CKEY, SCA_IInputDevice::KX_CKEY);
-	KX_MACRO_addTypesToDict(d, DKEY, SCA_IInputDevice::KX_DKEY);
-	KX_MACRO_addTypesToDict(d, EKEY, SCA_IInputDevice::KX_EKEY);
-	KX_MACRO_addTypesToDict(d, FKEY, SCA_IInputDevice::KX_FKEY);
-	KX_MACRO_addTypesToDict(d, GKEY, SCA_IInputDevice::KX_GKEY);
-	KX_MACRO_addTypesToDict(d, HKEY, SCA_IInputDevice::KX_HKEY);
-	KX_MACRO_addTypesToDict(d, IKEY, SCA_IInputDevice::KX_IKEY);
-	KX_MACRO_addTypesToDict(d, JKEY, SCA_IInputDevice::KX_JKEY);
-	KX_MACRO_addTypesToDict(d, KKEY, SCA_IInputDevice::KX_KKEY);
-	KX_MACRO_addTypesToDict(d, LKEY, SCA_IInputDevice::KX_LKEY);
-	KX_MACRO_addTypesToDict(d, MKEY, SCA_IInputDevice::KX_MKEY);
-	KX_MACRO_addTypesToDict(d, NKEY, SCA_IInputDevice::KX_NKEY);
-	KX_MACRO_addTypesToDict(d, OKEY, SCA_IInputDevice::KX_OKEY);
-	KX_MACRO_addTypesToDict(d, PKEY, SCA_IInputDevice::KX_PKEY);
-	KX_MACRO_addTypesToDict(d, QKEY, SCA_IInputDevice::KX_QKEY);
-	KX_MACRO_addTypesToDict(d, RKEY, SCA_IInputDevice::KX_RKEY);
-	KX_MACRO_addTypesToDict(d, SKEY, SCA_IInputDevice::KX_SKEY);
-	KX_MACRO_addTypesToDict(d, TKEY, SCA_IInputDevice::KX_TKEY);
-	KX_MACRO_addTypesToDict(d, UKEY, SCA_IInputDevice::KX_UKEY);
-	KX_MACRO_addTypesToDict(d, VKEY, SCA_IInputDevice::KX_VKEY);
-	KX_MACRO_addTypesToDict(d, WKEY, SCA_IInputDevice::KX_WKEY);
-	KX_MACRO_addTypesToDict(d, XKEY, SCA_IInputDevice::KX_XKEY);
-	KX_MACRO_addTypesToDict(d, YKEY, SCA_IInputDevice::KX_YKEY);
-	KX_MACRO_addTypesToDict(d, ZKEY, SCA_IInputDevice::KX_ZKEY);
+	KX_MACRO_addTypesToDict(d, AKEY, SCA_IInputDevice::AKEY);
+	KX_MACRO_addTypesToDict(d, BKEY, SCA_IInputDevice::BKEY);
+	KX_MACRO_addTypesToDict(d, CKEY, SCA_IInputDevice::CKEY);
+	KX_MACRO_addTypesToDict(d, DKEY, SCA_IInputDevice::DKEY);
+	KX_MACRO_addTypesToDict(d, EKEY, SCA_IInputDevice::EKEY);
+	KX_MACRO_addTypesToDict(d, FKEY, SCA_IInputDevice::FKEY);
+	KX_MACRO_addTypesToDict(d, GKEY, SCA_IInputDevice::GKEY);
+	KX_MACRO_addTypesToDict(d, HKEY, SCA_IInputDevice::HKEY_);
+	KX_MACRO_addTypesToDict(d, IKEY, SCA_IInputDevice::IKEY);
+	KX_MACRO_addTypesToDict(d, JKEY, SCA_IInputDevice::JKEY);
+	KX_MACRO_addTypesToDict(d, KKEY, SCA_IInputDevice::KKEY);
+	KX_MACRO_addTypesToDict(d, LKEY, SCA_IInputDevice::LKEY);
+	KX_MACRO_addTypesToDict(d, MKEY, SCA_IInputDevice::MKEY);
+	KX_MACRO_addTypesToDict(d, NKEY, SCA_IInputDevice::NKEY);
+	KX_MACRO_addTypesToDict(d, OKEY, SCA_IInputDevice::OKEY);
+	KX_MACRO_addTypesToDict(d, PKEY, SCA_IInputDevice::PKEY);
+	KX_MACRO_addTypesToDict(d, QKEY, SCA_IInputDevice::QKEY);
+	KX_MACRO_addTypesToDict(d, RKEY, SCA_IInputDevice::RKEY);
+	KX_MACRO_addTypesToDict(d, SKEY, SCA_IInputDevice::SKEY);
+	KX_MACRO_addTypesToDict(d, TKEY, SCA_IInputDevice::TKEY);
+	KX_MACRO_addTypesToDict(d, UKEY, SCA_IInputDevice::UKEY);
+	KX_MACRO_addTypesToDict(d, VKEY, SCA_IInputDevice::VKEY);
+	KX_MACRO_addTypesToDict(d, WKEY, SCA_IInputDevice::WKEY);
+	KX_MACRO_addTypesToDict(d, XKEY, SCA_IInputDevice::XKEY);
+	KX_MACRO_addTypesToDict(d, YKEY, SCA_IInputDevice::YKEY);
+	KX_MACRO_addTypesToDict(d, ZKEY, SCA_IInputDevice::ZKEY);
 	
-	KX_MACRO_addTypesToDict(d, ZEROKEY, SCA_IInputDevice::KX_ZEROKEY);
-	KX_MACRO_addTypesToDict(d, ONEKEY, SCA_IInputDevice::KX_ONEKEY);
-	KX_MACRO_addTypesToDict(d, TWOKEY, SCA_IInputDevice::KX_TWOKEY);
-	KX_MACRO_addTypesToDict(d, THREEKEY, SCA_IInputDevice::KX_THREEKEY);
-	KX_MACRO_addTypesToDict(d, FOURKEY, SCA_IInputDevice::KX_FOURKEY);
-	KX_MACRO_addTypesToDict(d, FIVEKEY, SCA_IInputDevice::KX_FIVEKEY);
-	KX_MACRO_addTypesToDict(d, SIXKEY, SCA_IInputDevice::KX_SIXKEY);
-	KX_MACRO_addTypesToDict(d, SEVENKEY, SCA_IInputDevice::KX_SEVENKEY);
-	KX_MACRO_addTypesToDict(d, EIGHTKEY, SCA_IInputDevice::KX_EIGHTKEY);
-	KX_MACRO_addTypesToDict(d, NINEKEY, SCA_IInputDevice::KX_NINEKEY);
+	KX_MACRO_addTypesToDict(d, ZEROKEY, SCA_IInputDevice::ZEROKEY);
+	KX_MACRO_addTypesToDict(d, ONEKEY, SCA_IInputDevice::ONEKEY);
+	KX_MACRO_addTypesToDict(d, TWOKEY, SCA_IInputDevice::TWOKEY);
+	KX_MACRO_addTypesToDict(d, THREEKEY, SCA_IInputDevice::THREEKEY);
+	KX_MACRO_addTypesToDict(d, FOURKEY, SCA_IInputDevice::FOURKEY);
+	KX_MACRO_addTypesToDict(d, FIVEKEY, SCA_IInputDevice::FIVEKEY);
+	KX_MACRO_addTypesToDict(d, SIXKEY, SCA_IInputDevice::SIXKEY);
+	KX_MACRO_addTypesToDict(d, SEVENKEY, SCA_IInputDevice::SEVENKEY);
+	KX_MACRO_addTypesToDict(d, EIGHTKEY, SCA_IInputDevice::EIGHTKEY);
+	KX_MACRO_addTypesToDict(d, NINEKEY, SCA_IInputDevice::NINEKEY);
 		
-	KX_MACRO_addTypesToDict(d, CAPSLOCKKEY, SCA_IInputDevice::KX_CAPSLOCKKEY);
+	KX_MACRO_addTypesToDict(d, CAPSLOCKKEY, SCA_IInputDevice::CAPSLOCKKEY);
 		
-	KX_MACRO_addTypesToDict(d, LEFTCTRLKEY, SCA_IInputDevice::KX_LEFTCTRLKEY);
-	KX_MACRO_addTypesToDict(d, LEFTALTKEY, SCA_IInputDevice::KX_LEFTALTKEY);
-	KX_MACRO_addTypesToDict(d, RIGHTALTKEY, SCA_IInputDevice::KX_RIGHTALTKEY);
-	KX_MACRO_addTypesToDict(d, RIGHTCTRLKEY, SCA_IInputDevice::KX_RIGHTCTRLKEY);
-	KX_MACRO_addTypesToDict(d, RIGHTSHIFTKEY, SCA_IInputDevice::KX_RIGHTSHIFTKEY);
-	KX_MACRO_addTypesToDict(d, LEFTSHIFTKEY, SCA_IInputDevice::KX_LEFTSHIFTKEY);
+	KX_MACRO_addTypesToDict(d, LEFTCTRLKEY, SCA_IInputDevice::LEFTCTRLKEY);
+	KX_MACRO_addTypesToDict(d, LEFTALTKEY, SCA_IInputDevice::LEFTALTKEY);
+	KX_MACRO_addTypesToDict(d, RIGHTALTKEY, SCA_IInputDevice::RIGHTALTKEY);
+	KX_MACRO_addTypesToDict(d, RIGHTCTRLKEY, SCA_IInputDevice::RIGHTCTRLKEY);
+	KX_MACRO_addTypesToDict(d, RIGHTSHIFTKEY, SCA_IInputDevice::RIGHTSHIFTKEY);
+	KX_MACRO_addTypesToDict(d, LEFTSHIFTKEY, SCA_IInputDevice::LEFTSHIFTKEY);
 		
-	KX_MACRO_addTypesToDict(d, ESCKEY, SCA_IInputDevice::KX_ESCKEY);
-	KX_MACRO_addTypesToDict(d, TABKEY, SCA_IInputDevice::KX_TABKEY);
-	KX_MACRO_addTypesToDict(d, RETKEY, SCA_IInputDevice::KX_RETKEY);
-	KX_MACRO_addTypesToDict(d, ENTERKEY, SCA_IInputDevice::KX_RETKEY);
-	KX_MACRO_addTypesToDict(d, SPACEKEY, SCA_IInputDevice::KX_SPACEKEY);
-	KX_MACRO_addTypesToDict(d, LINEFEEDKEY, SCA_IInputDevice::KX_LINEFEEDKEY);
-	KX_MACRO_addTypesToDict(d, BACKSPACEKEY, SCA_IInputDevice::KX_BACKSPACEKEY);
-	KX_MACRO_addTypesToDict(d, DELKEY, SCA_IInputDevice::KX_DELKEY);
-	KX_MACRO_addTypesToDict(d, SEMICOLONKEY, SCA_IInputDevice::KX_SEMICOLONKEY);
-	KX_MACRO_addTypesToDict(d, PERIODKEY, SCA_IInputDevice::KX_PERIODKEY);
-	KX_MACRO_addTypesToDict(d, COMMAKEY, SCA_IInputDevice::KX_COMMAKEY);
-	KX_MACRO_addTypesToDict(d, QUOTEKEY, SCA_IInputDevice::KX_QUOTEKEY);
-	KX_MACRO_addTypesToDict(d, ACCENTGRAVEKEY, SCA_IInputDevice::KX_ACCENTGRAVEKEY);
-	KX_MACRO_addTypesToDict(d, MINUSKEY, SCA_IInputDevice::KX_MINUSKEY);
-	KX_MACRO_addTypesToDict(d, SLASHKEY, SCA_IInputDevice::KX_SLASHKEY);
-	KX_MACRO_addTypesToDict(d, BACKSLASHKEY, SCA_IInputDevice::KX_BACKSLASHKEY);
-	KX_MACRO_addTypesToDict(d, EQUALKEY, SCA_IInputDevice::KX_EQUALKEY);
-	KX_MACRO_addTypesToDict(d, LEFTBRACKETKEY, SCA_IInputDevice::KX_LEFTBRACKETKEY);
-	KX_MACRO_addTypesToDict(d, RIGHTBRACKETKEY, SCA_IInputDevice::KX_RIGHTBRACKETKEY);
+	KX_MACRO_addTypesToDict(d, ESCKEY, SCA_IInputDevice::ESCKEY);
+	KX_MACRO_addTypesToDict(d, TABKEY, SCA_IInputDevice::TABKEY);
+	KX_MACRO_addTypesToDict(d, RETKEY, SCA_IInputDevice::RETKEY);
+	KX_MACRO_addTypesToDict(d, ENTERKEY, SCA_IInputDevice::RETKEY);
+	KX_MACRO_addTypesToDict(d, SPACEKEY, SCA_IInputDevice::SPACEKEY);
+	KX_MACRO_addTypesToDict(d, LINEFEEDKEY, SCA_IInputDevice::LINEFEEDKEY);
+	KX_MACRO_addTypesToDict(d, BACKSPACEKEY, SCA_IInputDevice::BACKSPACEKEY);
+	KX_MACRO_addTypesToDict(d, DELKEY, SCA_IInputDevice::DELKEY);
+	KX_MACRO_addTypesToDict(d, SEMICOLONKEY, SCA_IInputDevice::SEMICOLONKEY);
+	KX_MACRO_addTypesToDict(d, PERIODKEY, SCA_IInputDevice::PERIODKEY);
+	KX_MACRO_addTypesToDict(d, COMMAKEY, SCA_IInputDevice::COMMAKEY);
+	KX_MACRO_addTypesToDict(d, QUOTEKEY, SCA_IInputDevice::QUOTEKEY);
+	KX_MACRO_addTypesToDict(d, ACCENTGRAVEKEY, SCA_IInputDevice::ACCENTGRAVEKEY);
+	KX_MACRO_addTypesToDict(d, MINUSKEY, SCA_IInputDevice::MINUSKEY);
+	KX_MACRO_addTypesToDict(d, SLASHKEY, SCA_IInputDevice::SLASHKEY);
+	KX_MACRO_addTypesToDict(d, BACKSLASHKEY, SCA_IInputDevice::BACKSLASHKEY);
+	KX_MACRO_addTypesToDict(d, EQUALKEY, SCA_IInputDevice::EQUALKEY);
+	KX_MACRO_addTypesToDict(d, LEFTBRACKETKEY, SCA_IInputDevice::LEFTBRACKETKEY);
+	KX_MACRO_addTypesToDict(d, RIGHTBRACKETKEY, SCA_IInputDevice::RIGHTBRACKETKEY);
 		
-	KX_MACRO_addTypesToDict(d, LEFTARROWKEY, SCA_IInputDevice::KX_LEFTARROWKEY);
-	KX_MACRO_addTypesToDict(d, DOWNARROWKEY, SCA_IInputDevice::KX_DOWNARROWKEY);
-	KX_MACRO_addTypesToDict(d, RIGHTARROWKEY, SCA_IInputDevice::KX_RIGHTARROWKEY);
-	KX_MACRO_addTypesToDict(d, UPARROWKEY, SCA_IInputDevice::KX_UPARROWKEY);
+	KX_MACRO_addTypesToDict(d, LEFTARROWKEY, SCA_IInputDevice::LEFTARROWKEY);
+	KX_MACRO_addTypesToDict(d, DOWNARROWKEY, SCA_IInputDevice::DOWNARROWKEY);
+	KX_MACRO_addTypesToDict(d, RIGHTARROWKEY, SCA_IInputDevice::RIGHTARROWKEY);
+	KX_MACRO_addTypesToDict(d, UPARROWKEY, SCA_IInputDevice::UPARROWKEY);
 	
-	KX_MACRO_addTypesToDict(d, PAD2	, SCA_IInputDevice::KX_PAD2);
-	KX_MACRO_addTypesToDict(d, PAD4	, SCA_IInputDevice::KX_PAD4);
-	KX_MACRO_addTypesToDict(d, PAD6	, SCA_IInputDevice::KX_PAD6);
-	KX_MACRO_addTypesToDict(d, PAD8	, SCA_IInputDevice::KX_PAD8);
+	KX_MACRO_addTypesToDict(d, PAD2	, SCA_IInputDevice::PAD2);
+	KX_MACRO_addTypesToDict(d, PAD4	, SCA_IInputDevice::PAD4);
+	KX_MACRO_addTypesToDict(d, PAD6	, SCA_IInputDevice::PAD6);
+	KX_MACRO_addTypesToDict(d, PAD8	, SCA_IInputDevice::PAD8);
 		
-	KX_MACRO_addTypesToDict(d, PAD1	, SCA_IInputDevice::KX_PAD1);
-	KX_MACRO_addTypesToDict(d, PAD3	, SCA_IInputDevice::KX_PAD3);
-	KX_MACRO_addTypesToDict(d, PAD5	, SCA_IInputDevice::KX_PAD5);
-	KX_MACRO_addTypesToDict(d, PAD7	, SCA_IInputDevice::KX_PAD7);
-	KX_MACRO_addTypesToDict(d, PAD9	, SCA_IInputDevice::KX_PAD9);
+	KX_MACRO_addTypesToDict(d, PAD1	, SCA_IInputDevice::PAD1);
+	KX_MACRO_addTypesToDict(d, PAD3	, SCA_IInputDevice::PAD3);
+	KX_MACRO_addTypesToDict(d, PAD5	, SCA_IInputDevice::PAD5);
+	KX_MACRO_addTypesToDict(d, PAD7	, SCA_IInputDevice::PAD7);
+	KX_MACRO_addTypesToDict(d, PAD9	, SCA_IInputDevice::PAD9);
 		
-	KX_MACRO_addTypesToDict(d, PADPERIOD, SCA_IInputDevice::KX_PADPERIOD);
-	KX_MACRO_addTypesToDict(d, PADSLASHKEY, SCA_IInputDevice::KX_PADSLASHKEY);
-	KX_MACRO_addTypesToDict(d, PADASTERKEY, SCA_IInputDevice::KX_PADASTERKEY);
-		
-		
-	KX_MACRO_addTypesToDict(d, PAD0, SCA_IInputDevice::KX_PAD0);
-	KX_MACRO_addTypesToDict(d, PADMINUS, SCA_IInputDevice::KX_PADMINUS);
-	KX_MACRO_addTypesToDict(d, PADENTER, SCA_IInputDevice::KX_PADENTER);
-	KX_MACRO_addTypesToDict(d, PADPLUSKEY, SCA_IInputDevice::KX_PADPLUSKEY);
+	KX_MACRO_addTypesToDict(d, PADPERIOD, SCA_IInputDevice::PADPERIOD);
+	KX_MACRO_addTypesToDict(d, PADSLASHKEY, SCA_IInputDevice::PADSLASHKEY);
+	KX_MACRO_addTypesToDict(d, PADASTERKEY, SCA_IInputDevice::PADASTERKEY);
 		
 		
-	KX_MACRO_addTypesToDict(d, F1KEY,  SCA_IInputDevice::KX_F1KEY);
-	KX_MACRO_addTypesToDict(d, F2KEY,  SCA_IInputDevice::KX_F2KEY);
-	KX_MACRO_addTypesToDict(d, F3KEY,  SCA_IInputDevice::KX_F3KEY);
-	KX_MACRO_addTypesToDict(d, F4KEY,  SCA_IInputDevice::KX_F4KEY);
-	KX_MACRO_addTypesToDict(d, F5KEY,  SCA_IInputDevice::KX_F5KEY);
-	KX_MACRO_addTypesToDict(d, F6KEY,  SCA_IInputDevice::KX_F6KEY);
-	KX_MACRO_addTypesToDict(d, F7KEY,  SCA_IInputDevice::KX_F7KEY);
-	KX_MACRO_addTypesToDict(d, F8KEY,  SCA_IInputDevice::KX_F8KEY);
-	KX_MACRO_addTypesToDict(d, F9KEY,  SCA_IInputDevice::KX_F9KEY);
-	KX_MACRO_addTypesToDict(d, F10KEY, SCA_IInputDevice::KX_F10KEY);
-	KX_MACRO_addTypesToDict(d, F11KEY, SCA_IInputDevice::KX_F11KEY);
-	KX_MACRO_addTypesToDict(d, F12KEY, SCA_IInputDevice::KX_F12KEY);
-	KX_MACRO_addTypesToDict(d, F13KEY, SCA_IInputDevice::KX_F13KEY);
-	KX_MACRO_addTypesToDict(d, F14KEY, SCA_IInputDevice::KX_F14KEY);
-	KX_MACRO_addTypesToDict(d, F15KEY, SCA_IInputDevice::KX_F15KEY);
-	KX_MACRO_addTypesToDict(d, F16KEY, SCA_IInputDevice::KX_F16KEY);
-	KX_MACRO_addTypesToDict(d, F17KEY, SCA_IInputDevice::KX_F17KEY);
-	KX_MACRO_addTypesToDict(d, F18KEY, SCA_IInputDevice::KX_F18KEY);
-	KX_MACRO_addTypesToDict(d, F19KEY, SCA_IInputDevice::KX_F19KEY);
+	KX_MACRO_addTypesToDict(d, PAD0, SCA_IInputDevice::PAD0);
+	KX_MACRO_addTypesToDict(d, PADMINUS, SCA_IInputDevice::PADMINUS);
+	KX_MACRO_addTypesToDict(d, PADENTER, SCA_IInputDevice::PADENTER);
+	KX_MACRO_addTypesToDict(d, PADPLUSKEY, SCA_IInputDevice::PADPLUSKEY);
+		
+		
+	KX_MACRO_addTypesToDict(d, F1KEY,  SCA_IInputDevice::F1KEY);
+	KX_MACRO_addTypesToDict(d, F2KEY,  SCA_IInputDevice::F2KEY);
+	KX_MACRO_addTypesToDict(d, F3KEY,  SCA_IInputDevice::F3KEY);
+	KX_MACRO_addTypesToDict(d, F4KEY,  SCA_IInputDevice::F4KEY);
+	KX_MACRO_addTypesToDict(d, F5KEY,  SCA_IInputDevice::F5KEY);
+	KX_MACRO_addTypesToDict(d, F6KEY,  SCA_IInputDevice::F6KEY);
+	KX_MACRO_addTypesToDict(d, F7KEY,  SCA_IInputDevice::F7KEY);
+	KX_MACRO_addTypesToDict(d, F8KEY,  SCA_IInputDevice::F8KEY);
+	KX_MACRO_addTypesToDict(d, F9KEY,  SCA_IInputDevice::F9KEY);
+	KX_MACRO_addTypesToDict(d, F10KEY, SCA_IInputDevice::F10KEY);
+	KX_MACRO_addTypesToDict(d, F11KEY, SCA_IInputDevice::F11KEY);
+	KX_MACRO_addTypesToDict(d, F12KEY, SCA_IInputDevice::F12KEY);
+	KX_MACRO_addTypesToDict(d, F13KEY, SCA_IInputDevice::F13KEY);
+	KX_MACRO_addTypesToDict(d, F14KEY, SCA_IInputDevice::F14KEY);
+	KX_MACRO_addTypesToDict(d, F15KEY, SCA_IInputDevice::F15KEY);
+	KX_MACRO_addTypesToDict(d, F16KEY, SCA_IInputDevice::F16KEY);
+	KX_MACRO_addTypesToDict(d, F17KEY, SCA_IInputDevice::F17KEY);
+	KX_MACRO_addTypesToDict(d, F18KEY, SCA_IInputDevice::F18KEY);
+	KX_MACRO_addTypesToDict(d, F19KEY, SCA_IInputDevice::F19KEY);
 
-	KX_MACRO_addTypesToDict(d, OSKEY, SCA_IInputDevice::KX_OSKEY);
+	KX_MACRO_addTypesToDict(d, OSKEY, SCA_IInputDevice::OSKEY);
 		
-	KX_MACRO_addTypesToDict(d, PAUSEKEY,  SCA_IInputDevice::KX_PAUSEKEY);
-	KX_MACRO_addTypesToDict(d, INSERTKEY, SCA_IInputDevice::KX_INSERTKEY);
-	KX_MACRO_addTypesToDict(d, HOMEKEY,   SCA_IInputDevice::KX_HOMEKEY);
-	KX_MACRO_addTypesToDict(d, PAGEUPKEY, SCA_IInputDevice::KX_PAGEUPKEY);
-	KX_MACRO_addTypesToDict(d, PAGEDOWNKEY, SCA_IInputDevice::KX_PAGEDOWNKEY);
-	KX_MACRO_addTypesToDict(d, ENDKEY, SCA_IInputDevice::KX_ENDKEY);
+	KX_MACRO_addTypesToDict(d, PAUSEKEY,  SCA_IInputDevice::PAUSEKEY);
+	KX_MACRO_addTypesToDict(d, INSERTKEY, SCA_IInputDevice::INSERTKEY);
+	KX_MACRO_addTypesToDict(d, HOMEKEY,   SCA_IInputDevice::HOMEKEY);
+	KX_MACRO_addTypesToDict(d, PAGEUPKEY, SCA_IInputDevice::PAGEUPKEY);
+	KX_MACRO_addTypesToDict(d, PAGEDOWNKEY, SCA_IInputDevice::PAGEDOWNKEY);
+	KX_MACRO_addTypesToDict(d, ENDKEY, SCA_IInputDevice::ENDKEY);
 
 	// MOUSE
-	KX_MACRO_addTypesToDict(d, LEFTMOUSE, SCA_IInputDevice::KX_LEFTMOUSE);
-	KX_MACRO_addTypesToDict(d, MIDDLEMOUSE, SCA_IInputDevice::KX_MIDDLEMOUSE);
-	KX_MACRO_addTypesToDict(d, RIGHTMOUSE, SCA_IInputDevice::KX_RIGHTMOUSE);
-	KX_MACRO_addTypesToDict(d, WHEELUPMOUSE, SCA_IInputDevice::KX_WHEELUPMOUSE);
-	KX_MACRO_addTypesToDict(d, WHEELDOWNMOUSE, SCA_IInputDevice::KX_WHEELDOWNMOUSE);
-	KX_MACRO_addTypesToDict(d, MOUSEX, SCA_IInputDevice::KX_MOUSEX);
-	KX_MACRO_addTypesToDict(d, MOUSEY, SCA_IInputDevice::KX_MOUSEY);
+	KX_MACRO_addTypesToDict(d, LEFTMOUSE, SCA_IInputDevice::LEFTMOUSE);
+	KX_MACRO_addTypesToDict(d, MIDDLEMOUSE, SCA_IInputDevice::MIDDLEMOUSE);
+	KX_MACRO_addTypesToDict(d, RIGHTMOUSE, SCA_IInputDevice::RIGHTMOUSE);
+	KX_MACRO_addTypesToDict(d, WHEELUPMOUSE, SCA_IInputDevice::WHEELUPMOUSE);
+	KX_MACRO_addTypesToDict(d, WHEELDOWNMOUSE, SCA_IInputDevice::WHEELDOWNMOUSE);
+	KX_MACRO_addTypesToDict(d, MOUSEX, SCA_IInputDevice::MOUSEX);
+	KX_MACRO_addTypesToDict(d, MOUSEY, SCA_IInputDevice::MOUSEY);
 
 	// Check for errors
 	if (PyErr_Occurred())
@@ -2703,35 +2688,20 @@ int loadGamePythonConfig(char *marshal_buffer, int marshal_length)
 	return 0;
 }
 
-void pathGamePythonConfig(char *path)
+STR_String pathGamePythonConfig()
 {
-	int len = strlen(gp_GamePythonPathOrig); // Always use the first loaded blend filename
-	
-	BLI_strncpy(path, gp_GamePythonPathOrig, sizeof(gp_GamePythonPathOrig));
+	STR_String path = KX_GetOrigPath();
+	int len = path.Length();
 
 	/* replace extension */
-	if (BLI_testextensie(path, ".blend")) {
-		strcpy(path+(len-6), ".bgeconf");
-	} else {
-		strcpy(path+len, ".bgeconf");
+	if (BLI_testextensie(path.Ptr(), ".blend")) {
+		path = path.Left(len - 6) + STR_String(".bgeconf");
 	}
-}
+	else {
+		path += STR_String(".bgeconf");
+	}
 
-void setGamePythonPath(const char *path)
-{
-	BLI_strncpy(gp_GamePythonPath, path, sizeof(gp_GamePythonPath));
-	BLI_cleanup_file(NULL, gp_GamePythonPath); /* not absolutely needed but makes resolving path problems less confusing later */
-	
-	if (gp_GamePythonPathOrig[0] == '\0')
-		BLI_strncpy(gp_GamePythonPathOrig, path, sizeof(gp_GamePythonPathOrig));
-}
-
-// we need this so while blender is open (not blenderplayer)
-// loading new blendfiles will reset this on starting the
-// engine but loading blend files within the BGE wont overwrite gp_GamePythonPathOrig
-void resetGamePythonPath()
-{
-	gp_GamePythonPathOrig[0] = '\0';
+	return path;
 }
 
 #endif // WITH_PYTHON

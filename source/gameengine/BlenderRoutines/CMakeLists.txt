@@ -4,8 +4,10 @@ set(INC
 	../Converter
 	../Expressions
 	../GameLogic
+	../Ghost
 	../Ketsji
 	../Ketsji/KXNetwork
+	../Launcher
 	../Physics/Bullet
 	../Physics/Common
 	../Rasterizer
@@ -24,6 +26,7 @@ set(INC
 	../../blender/windowmanager
 	../../../intern/guardedalloc
 	../../../intern/string
+	../../../intern/ghost
 )
 
 set(INC_SYS
@@ -34,18 +37,9 @@ set(INC_SYS
 
 set(SRC
 	BL_KetsjiEmbedStart.cpp
-	BL_System.cpp
 	KX_BlenderCanvas.cpp
-	KX_BlenderKeyboardDevice.cpp
-	KX_BlenderMouseDevice.cpp
-	KX_BlenderSystem.cpp
 
-	BL_System.h
 	KX_BlenderCanvas.h
-	KX_BlenderInputDevice.h
-	KX_BlenderKeyboardDevice.h
-	KX_BlenderMouseDevice.h
-	KX_BlenderSystem.h
 )
 
 add_definitions(${GL_DEFINITIONS})

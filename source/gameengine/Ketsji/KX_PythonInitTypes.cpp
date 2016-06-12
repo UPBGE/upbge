@@ -81,6 +81,7 @@
 #include "SCA_ActuatorSensor.h"
 #include "SCA_AlwaysSensor.h"
 #include "SCA_DelaySensor.h"
+#include "SCA_InputEvent.h"
 #include "SCA_JoystickSensor.h"
 #include "SCA_KeyboardSensor.h"
 #include "SCA_MouseSensor.h"
@@ -270,6 +271,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, SCA_AlwaysSensor, init_getset);
 		PyType_Ready_Attr(dict, SCA_DelaySensor, init_getset);
 		PyType_Ready_Attr(dict, SCA_ILogicBrick, init_getset);
+		PyType_Ready_Attr(dict, SCA_InputEvent, init_getset);
 		PyType_Ready_Attr(dict, SCA_IObject, init_getset);
 		PyType_Ready_Attr(dict, SCA_ISensor, init_getset);
 		PyType_Ready_Attr(dict, SCA_JoystickSensor, init_getset);

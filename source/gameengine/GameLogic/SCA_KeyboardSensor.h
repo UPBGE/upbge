@@ -52,6 +52,7 @@ class SCA_KeyboardSensor : public SCA_ISensor
 	int							m_hotkey;
 	short int					m_qual,m_qual2;
 	short int					m_val;
+	bool m_status[3];
 	/**
 	 * If this toggle is true, all incoming key events generate a
 	 * response.
@@ -74,12 +75,7 @@ class SCA_KeyboardSensor : public SCA_ISensor
 	/**
 	 * Log the keystrokes from the current input buffer.
 	 */
-	void LogKeystrokes(void);
-	
-	/**
-	 * Adds this key-code to the target prop.
-	 */
-	void AddToTargetProp(int keyIndex, int unicode);
+	void LogKeystrokes();
 
 	/**
 	 * Tests whether shift is pressed.
@@ -117,25 +113,8 @@ public:
 	KX_PYMETHOD_DOC_O(SCA_KeyboardSensor,getKeyStatus);
 	
 	static PyObject*	pyattr_get_events(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_inputs(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
-
-
-/**
- * Transform keycodes to something printable.
- */
-char ToCharacter(int keyIndex, bool shifted);
-
-/**
- * Determine whether this character can be printed. We cannot use
- * the library functions here, because we need to test our own
- * keycodes. */
-bool IsPrintable(int keyIndex);
-
-/**
- * Tests whether this is a delete key.
- */
-bool IsDelete(int keyIndex);
-
 
 #endif  /* __SCA_KEYBOARDSENSOR_H__ */

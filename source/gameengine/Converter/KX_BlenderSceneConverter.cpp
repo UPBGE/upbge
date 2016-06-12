@@ -44,7 +44,7 @@
 #include "KX_PythonInit.h" // So we can handle adding new text datablocks for Python to import
 #include "BL_ActionActuator.h"
 
-#include "BL_System.h"
+#include "LA_SystemCommandLine.h"
 
 #include "DummyPhysicsEnvironment.h"
 

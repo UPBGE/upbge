@@ -155,9 +155,10 @@ extern "C" {
 extern Material defmaterial;	/* material.c */
 }
 
+#include "wm_event_types.h"
+
 /* end of blender include block */
 
-#include "KX_BlenderInputDevice.h"
 #include "KX_ConvertProperties.h"
 
 #include "SG_Node.h"
@@ -182,173 +183,149 @@ extern Material defmaterial;	/* material.c */
 
 static bool default_light_mode = 0;
 
-static std::map<int, SCA_IInputDevice::KX_EnumInputs> create_translate_table()
+static std::map<int, SCA_IInputDevice::SCA_EnumInputs> create_translate_table()
 {
-	std::map<int, SCA_IInputDevice::KX_EnumInputs> m;
+	std::map<int, SCA_IInputDevice::SCA_EnumInputs> m;
 		
 	/* The reverse table. In order to not confuse ourselves, we      */
 	/* immediately convert all events that come in to KX codes.      */
-	m[LEFTMOUSE			] =	SCA_IInputDevice::KX_LEFTMOUSE;
-	m[MIDDLEMOUSE		] =	SCA_IInputDevice::KX_MIDDLEMOUSE;
-	m[RIGHTMOUSE		] =	SCA_IInputDevice::KX_RIGHTMOUSE;
-	m[WHEELUPMOUSE		] =	SCA_IInputDevice::KX_WHEELUPMOUSE;
-	m[WHEELDOWNMOUSE	] =	SCA_IInputDevice::KX_WHEELDOWNMOUSE;
-	m[MOUSEX			] = SCA_IInputDevice::KX_MOUSEX;
-	m[MOUSEY			] =	SCA_IInputDevice::KX_MOUSEY;
-		
-	// TIMERS                                                                                                  
-		
-	m[TIMER0			] = SCA_IInputDevice::KX_TIMER0;                  
-	m[TIMER1			] = SCA_IInputDevice::KX_TIMER1;                  
-	m[TIMER2			] = SCA_IInputDevice::KX_TIMER2;                  
-		
-	// SYSTEM                                                                                                  
-		
-#if 0
-	/* **** XXX **** */
-	m[KEYBD				] = SCA_IInputDevice::KX_KEYBD;                  
-	m[RAWKEYBD			] = SCA_IInputDevice::KX_RAWKEYBD;                  
-	m[REDRAW			] = SCA_IInputDevice::KX_REDRAW;                  
-	m[INPUTCHANGE		] = SCA_IInputDevice::KX_INPUTCHANGE;                  
-	m[QFULL				] = SCA_IInputDevice::KX_QFULL;                  
-	m[WINFREEZE			] = SCA_IInputDevice::KX_WINFREEZE;                  
-	m[WINTHAW			] = SCA_IInputDevice::KX_WINTHAW;                  
-	m[WINCLOSE			] = SCA_IInputDevice::KX_WINCLOSE;                  
-	m[WINQUIT			] = SCA_IInputDevice::KX_WINQUIT;                  
-	m[Q_FIRSTTIME		] = SCA_IInputDevice::KX_Q_FIRSTTIME;                  
-	/* **** XXX **** */
-#endif
-		
+	m[LEFTMOUSE			] =	SCA_IInputDevice::LEFTMOUSE;
+	m[MIDDLEMOUSE		] =	SCA_IInputDevice::MIDDLEMOUSE;
+	m[RIGHTMOUSE		] =	SCA_IInputDevice::RIGHTMOUSE;
+	m[WHEELUPMOUSE		] =	SCA_IInputDevice::WHEELUPMOUSE;
+	m[WHEELDOWNMOUSE	] =	SCA_IInputDevice::WHEELDOWNMOUSE;
+	m[MOUSEX			] = SCA_IInputDevice::MOUSEX;
+	m[MOUSEY			] =	SCA_IInputDevice::MOUSEY;
+
 	// standard keyboard                                                                                       
 		
-	m[AKEY				] = SCA_IInputDevice::KX_AKEY;                  
-	m[BKEY				] = SCA_IInputDevice::KX_BKEY;                  
-	m[CKEY				] = SCA_IInputDevice::KX_CKEY;                  
-	m[DKEY				] = SCA_IInputDevice::KX_DKEY;                  
-	m[EKEY				] = SCA_IInputDevice::KX_EKEY;                  
-	m[FKEY				] = SCA_IInputDevice::KX_FKEY;                  
-	m[GKEY				] = SCA_IInputDevice::KX_GKEY;                  
-	m[HKEY				] = SCA_IInputDevice::KX_HKEY;                  
-	m[IKEY				] = SCA_IInputDevice::KX_IKEY;                  
-	m[JKEY				] = SCA_IInputDevice::KX_JKEY;                  
-	m[KKEY				] = SCA_IInputDevice::KX_KKEY;                  
-	m[LKEY				] = SCA_IInputDevice::KX_LKEY;                  
-	m[MKEY				] = SCA_IInputDevice::KX_MKEY;                  
-	m[NKEY				] = SCA_IInputDevice::KX_NKEY;                  
-	m[OKEY				] = SCA_IInputDevice::KX_OKEY;                  
-	m[PKEY				] = SCA_IInputDevice::KX_PKEY;                  
-	m[QKEY				] = SCA_IInputDevice::KX_QKEY;                  
-	m[RKEY				] = SCA_IInputDevice::KX_RKEY;                  
-	m[SKEY				] = SCA_IInputDevice::KX_SKEY;                  
-	m[TKEY				] = SCA_IInputDevice::KX_TKEY;                  
-	m[UKEY				] = SCA_IInputDevice::KX_UKEY;                  
-	m[VKEY				] = SCA_IInputDevice::KX_VKEY;                  
-	m[WKEY				] = SCA_IInputDevice::KX_WKEY;                  
-	m[XKEY				] = SCA_IInputDevice::KX_XKEY;                  
-	m[YKEY				] = SCA_IInputDevice::KX_YKEY;                  
-	m[ZKEY				] = SCA_IInputDevice::KX_ZKEY;                  
+	m[AKEY				] = SCA_IInputDevice::AKEY;                  
+	m[BKEY				] = SCA_IInputDevice::BKEY;                  
+	m[CKEY				] = SCA_IInputDevice::CKEY;                  
+	m[DKEY				] = SCA_IInputDevice::DKEY;                  
+	m[EKEY				] = SCA_IInputDevice::EKEY;                  
+	m[FKEY				] = SCA_IInputDevice::FKEY;                  
+	m[GKEY				] = SCA_IInputDevice::GKEY;                  
+	m[HKEY				] = SCA_IInputDevice::HKEY_;                  
+	m[IKEY				] = SCA_IInputDevice::IKEY;                  
+	m[JKEY				] = SCA_IInputDevice::JKEY;                  
+	m[KKEY				] = SCA_IInputDevice::KKEY;                  
+	m[LKEY				] = SCA_IInputDevice::LKEY;                  
+	m[MKEY				] = SCA_IInputDevice::MKEY;                  
+	m[NKEY				] = SCA_IInputDevice::NKEY;                  
+	m[OKEY				] = SCA_IInputDevice::OKEY;                  
+	m[PKEY				] = SCA_IInputDevice::PKEY;                  
+	m[QKEY				] = SCA_IInputDevice::QKEY;                  
+	m[RKEY				] = SCA_IInputDevice::RKEY;                  
+	m[SKEY				] = SCA_IInputDevice::SKEY;                  
+	m[TKEY				] = SCA_IInputDevice::TKEY;                  
+	m[UKEY				] = SCA_IInputDevice::UKEY;                  
+	m[VKEY				] = SCA_IInputDevice::VKEY;                  
+	m[WKEY				] = SCA_IInputDevice::WKEY;                  
+	m[XKEY				] = SCA_IInputDevice::XKEY;                  
+	m[YKEY				] = SCA_IInputDevice::YKEY;                  
+	m[ZKEY				] = SCA_IInputDevice::ZKEY;                  
 		
-	m[ZEROKEY			] = SCA_IInputDevice::KX_ZEROKEY;                  
-	m[ONEKEY			] = SCA_IInputDevice::KX_ONEKEY;                  
-	m[TWOKEY			] = SCA_IInputDevice::KX_TWOKEY;                  
-	m[THREEKEY			] = SCA_IInputDevice::KX_THREEKEY;                  
-	m[FOURKEY			] = SCA_IInputDevice::KX_FOURKEY;                  
-	m[FIVEKEY			] = SCA_IInputDevice::KX_FIVEKEY;                  
-	m[SIXKEY			] = SCA_IInputDevice::KX_SIXKEY;                  
-	m[SEVENKEY			] = SCA_IInputDevice::KX_SEVENKEY;                  
-	m[EIGHTKEY			] = SCA_IInputDevice::KX_EIGHTKEY;                  
-	m[NINEKEY			] = SCA_IInputDevice::KX_NINEKEY;                  
+	m[ZEROKEY			] = SCA_IInputDevice::ZEROKEY;                  
+	m[ONEKEY			] = SCA_IInputDevice::ONEKEY;                  
+	m[TWOKEY			] = SCA_IInputDevice::TWOKEY;                  
+	m[THREEKEY			] = SCA_IInputDevice::THREEKEY;                  
+	m[FOURKEY			] = SCA_IInputDevice::FOURKEY;                  
+	m[FIVEKEY			] = SCA_IInputDevice::FIVEKEY;                  
+	m[SIXKEY			] = SCA_IInputDevice::SIXKEY;                  
+	m[SEVENKEY			] = SCA_IInputDevice::SEVENKEY;                  
+	m[EIGHTKEY			] = SCA_IInputDevice::EIGHTKEY;                  
+	m[NINEKEY			] = SCA_IInputDevice::NINEKEY;                  
 		
-	m[CAPSLOCKKEY		] = SCA_IInputDevice::KX_CAPSLOCKKEY;                  
+	m[CAPSLOCKKEY		] = SCA_IInputDevice::CAPSLOCKKEY;                  
 		
-	m[LEFTCTRLKEY		] = SCA_IInputDevice::KX_LEFTCTRLKEY;                  
-	m[LEFTALTKEY		] = SCA_IInputDevice::KX_LEFTALTKEY;                  
-	m[RIGHTALTKEY		] = SCA_IInputDevice::KX_RIGHTALTKEY;                  
-	m[RIGHTCTRLKEY		] = SCA_IInputDevice::KX_RIGHTCTRLKEY;                  
-	m[RIGHTSHIFTKEY		] = SCA_IInputDevice::KX_RIGHTSHIFTKEY;                  
-	m[LEFTSHIFTKEY		] = SCA_IInputDevice::KX_LEFTSHIFTKEY;                  
+	m[LEFTCTRLKEY		] = SCA_IInputDevice::LEFTCTRLKEY;                  
+	m[LEFTALTKEY		] = SCA_IInputDevice::LEFTALTKEY;                  
+	m[RIGHTALTKEY		] = SCA_IInputDevice::RIGHTALTKEY;                  
+	m[RIGHTCTRLKEY		] = SCA_IInputDevice::RIGHTCTRLKEY;                  
+	m[RIGHTSHIFTKEY		] = SCA_IInputDevice::RIGHTSHIFTKEY;                  
+	m[LEFTSHIFTKEY		] = SCA_IInputDevice::LEFTSHIFTKEY;                  
 		
-	m[ESCKEY			] = SCA_IInputDevice::KX_ESCKEY;                  
-	m[TABKEY			] = SCA_IInputDevice::KX_TABKEY;                  
-	m[RETKEY			] = SCA_IInputDevice::KX_RETKEY;                  
-	m[SPACEKEY			] = SCA_IInputDevice::KX_SPACEKEY;                  
-	m[LINEFEEDKEY		] = SCA_IInputDevice::KX_LINEFEEDKEY;                  
-	m[BACKSPACEKEY		] = SCA_IInputDevice::KX_BACKSPACEKEY;                  
-	m[DELKEY			] = SCA_IInputDevice::KX_DELKEY;                  
-	m[SEMICOLONKEY		] = SCA_IInputDevice::KX_SEMICOLONKEY;                  
-	m[PERIODKEY			] = SCA_IInputDevice::KX_PERIODKEY;                  
-	m[COMMAKEY			] = SCA_IInputDevice::KX_COMMAKEY;                  
-	m[QUOTEKEY			] = SCA_IInputDevice::KX_QUOTEKEY;                  
-	m[ACCENTGRAVEKEY	] = SCA_IInputDevice::KX_ACCENTGRAVEKEY;                  
-	m[MINUSKEY			] = SCA_IInputDevice::KX_MINUSKEY;                  
-	m[PLUSKEY			] = SCA_IInputDevice::KX_PLUSKEY;
-	m[SLASHKEY			] = SCA_IInputDevice::KX_SLASHKEY;
-	m[BACKSLASHKEY		] = SCA_IInputDevice::KX_BACKSLASHKEY;                  
-	m[EQUALKEY			] = SCA_IInputDevice::KX_EQUALKEY;                  
-	m[LEFTBRACKETKEY	] = SCA_IInputDevice::KX_LEFTBRACKETKEY;                  
-	m[RIGHTBRACKETKEY	] = SCA_IInputDevice::KX_RIGHTBRACKETKEY;                  
+	m[ESCKEY			] = SCA_IInputDevice::ESCKEY;                  
+	m[TABKEY			] = SCA_IInputDevice::TABKEY;                  
+	m[RETKEY			] = SCA_IInputDevice::RETKEY;                  
+	m[SPACEKEY			] = SCA_IInputDevice::SPACEKEY;                  
+	m[LINEFEEDKEY		] = SCA_IInputDevice::LINEFEEDKEY;                  
+	m[BACKSPACEKEY		] = SCA_IInputDevice::BACKSPACEKEY;                  
+	m[DELKEY			] = SCA_IInputDevice::DELKEY;                  
+	m[SEMICOLONKEY		] = SCA_IInputDevice::SEMICOLONKEY;                  
+	m[PERIODKEY			] = SCA_IInputDevice::PERIODKEY;                  
+	m[COMMAKEY			] = SCA_IInputDevice::COMMAKEY;                  
+	m[QUOTEKEY			] = SCA_IInputDevice::QUOTEKEY;                  
+	m[ACCENTGRAVEKEY	] = SCA_IInputDevice::ACCENTGRAVEKEY;                  
+	m[MINUSKEY			] = SCA_IInputDevice::MINUSKEY;                  
+	m[SLASHKEY			] = SCA_IInputDevice::SLASHKEY;
+	m[BACKSLASHKEY		] = SCA_IInputDevice::BACKSLASHKEY;                  
+	m[EQUALKEY			] = SCA_IInputDevice::EQUALKEY;                  
+	m[LEFTBRACKETKEY	] = SCA_IInputDevice::LEFTBRACKETKEY;                  
+	m[RIGHTBRACKETKEY	] = SCA_IInputDevice::RIGHTBRACKETKEY;                  
 		
-	m[LEFTARROWKEY		] = SCA_IInputDevice::KX_LEFTARROWKEY;                  
-	m[DOWNARROWKEY		] = SCA_IInputDevice::KX_DOWNARROWKEY;                  
-	m[RIGHTARROWKEY		] = SCA_IInputDevice::KX_RIGHTARROWKEY;                  
-	m[UPARROWKEY		] = SCA_IInputDevice::KX_UPARROWKEY;                  
+	m[LEFTARROWKEY		] = SCA_IInputDevice::LEFTARROWKEY;                  
+	m[DOWNARROWKEY		] = SCA_IInputDevice::DOWNARROWKEY;                  
+	m[RIGHTARROWKEY		] = SCA_IInputDevice::RIGHTARROWKEY;                  
+	m[UPARROWKEY		] = SCA_IInputDevice::UPARROWKEY;                  
 		
-	m[PAD2				] = SCA_IInputDevice::KX_PAD2;                  
-	m[PAD4				] = SCA_IInputDevice::KX_PAD4;                  
-	m[PAD6				] = SCA_IInputDevice::KX_PAD6;                  
-	m[PAD8				] = SCA_IInputDevice::KX_PAD8;                  
+	m[PAD2				] = SCA_IInputDevice::PAD2;                  
+	m[PAD4				] = SCA_IInputDevice::PAD4;                  
+	m[PAD6				] = SCA_IInputDevice::PAD6;                  
+	m[PAD8				] = SCA_IInputDevice::PAD8;                  
 		
-	m[PAD1				] = SCA_IInputDevice::KX_PAD1;                  
-	m[PAD3				] = SCA_IInputDevice::KX_PAD3;                  
-	m[PAD5				] = SCA_IInputDevice::KX_PAD5;                  
-	m[PAD7				] = SCA_IInputDevice::KX_PAD7;                  
-	m[PAD9				] = SCA_IInputDevice::KX_PAD9;                  
+	m[PAD1				] = SCA_IInputDevice::PAD1;                  
+	m[PAD3				] = SCA_IInputDevice::PAD3;                  
+	m[PAD5				] = SCA_IInputDevice::PAD5;                  
+	m[PAD7				] = SCA_IInputDevice::PAD7;                  
+	m[PAD9				] = SCA_IInputDevice::PAD9;                  
 		
-	m[PADPERIOD			] = SCA_IInputDevice::KX_PADPERIOD;                  
-	m[PADSLASHKEY		] = SCA_IInputDevice::KX_PADSLASHKEY;                  
-	m[PADASTERKEY		] = SCA_IInputDevice::KX_PADASTERKEY;                  
+	m[PADPERIOD			] = SCA_IInputDevice::PADPERIOD;                  
+	m[PADSLASHKEY		] = SCA_IInputDevice::PADSLASHKEY;                  
+	m[PADASTERKEY		] = SCA_IInputDevice::PADASTERKEY;                  
 		
-	m[PAD0				] = SCA_IInputDevice::KX_PAD0;                  
-	m[PADMINUS			] = SCA_IInputDevice::KX_PADMINUS;                  
-	m[PADENTER			] = SCA_IInputDevice::KX_PADENTER;                  
-	m[PADPLUSKEY		] = SCA_IInputDevice::KX_PADPLUSKEY;                  
+	m[PAD0				] = SCA_IInputDevice::PAD0;                  
+	m[PADMINUS			] = SCA_IInputDevice::PADMINUS;                  
+	m[PADENTER			] = SCA_IInputDevice::PADENTER;                  
+	m[PADPLUSKEY		] = SCA_IInputDevice::PADPLUSKEY;                  
 		
 		
-	m[F1KEY				] = SCA_IInputDevice::KX_F1KEY;                  
-	m[F2KEY				] = SCA_IInputDevice::KX_F2KEY;                  
-	m[F3KEY				] = SCA_IInputDevice::KX_F3KEY;                  
-	m[F4KEY				] = SCA_IInputDevice::KX_F4KEY;                  
-	m[F5KEY				] = SCA_IInputDevice::KX_F5KEY;                  
-	m[F6KEY				] = SCA_IInputDevice::KX_F6KEY;                  
-	m[F7KEY				] = SCA_IInputDevice::KX_F7KEY;                  
-	m[F8KEY				] = SCA_IInputDevice::KX_F8KEY;                  
-	m[F9KEY				] = SCA_IInputDevice::KX_F9KEY;                  
-	m[F10KEY			] = SCA_IInputDevice::KX_F10KEY;                  
-	m[F11KEY			] = SCA_IInputDevice::KX_F11KEY;                  
-	m[F12KEY			] = SCA_IInputDevice::KX_F12KEY;
-	m[F13KEY			] = SCA_IInputDevice::KX_F13KEY;
-	m[F14KEY			] = SCA_IInputDevice::KX_F14KEY;
-	m[F15KEY			] = SCA_IInputDevice::KX_F15KEY;
-	m[F16KEY			] = SCA_IInputDevice::KX_F16KEY;
-	m[F17KEY			] = SCA_IInputDevice::KX_F17KEY;
-	m[F18KEY			] = SCA_IInputDevice::KX_F18KEY;
-	m[F19KEY			] = SCA_IInputDevice::KX_F19KEY;
+	m[F1KEY				] = SCA_IInputDevice::F1KEY;                  
+	m[F2KEY				] = SCA_IInputDevice::F2KEY;                  
+	m[F3KEY				] = SCA_IInputDevice::F3KEY;                  
+	m[F4KEY				] = SCA_IInputDevice::F4KEY;                  
+	m[F5KEY				] = SCA_IInputDevice::F5KEY;                  
+	m[F6KEY				] = SCA_IInputDevice::F6KEY;                  
+	m[F7KEY				] = SCA_IInputDevice::F7KEY;                  
+	m[F8KEY				] = SCA_IInputDevice::F8KEY;                  
+	m[F9KEY				] = SCA_IInputDevice::F9KEY;                  
+	m[F10KEY			] = SCA_IInputDevice::F10KEY;                  
+	m[F11KEY			] = SCA_IInputDevice::F11KEY;                  
+	m[F12KEY			] = SCA_IInputDevice::F12KEY;
+	m[F13KEY			] = SCA_IInputDevice::F13KEY;
+	m[F14KEY			] = SCA_IInputDevice::F14KEY;
+	m[F15KEY			] = SCA_IInputDevice::F15KEY;
+	m[F16KEY			] = SCA_IInputDevice::F16KEY;
+	m[F17KEY			] = SCA_IInputDevice::F17KEY;
+	m[F18KEY			] = SCA_IInputDevice::F18KEY;
+	m[F19KEY			] = SCA_IInputDevice::F19KEY;
 
-	m[OSKEY				] = SCA_IInputDevice::KX_OSKEY;
+	m[OSKEY				] = SCA_IInputDevice::OSKEY;
 
-	m[PAUSEKEY			] = SCA_IInputDevice::KX_PAUSEKEY;                  
-	m[INSERTKEY			] = SCA_IInputDevice::KX_INSERTKEY;                  
-	m[HOMEKEY			] = SCA_IInputDevice::KX_HOMEKEY;                  
-	m[PAGEUPKEY			] = SCA_IInputDevice::KX_PAGEUPKEY;                  
-	m[PAGEDOWNKEY		] = SCA_IInputDevice::KX_PAGEDOWNKEY;                  
-	m[ENDKEY			] = SCA_IInputDevice::KX_ENDKEY;
+	m[PAUSEKEY			] = SCA_IInputDevice::PAUSEKEY;                  
+	m[INSERTKEY			] = SCA_IInputDevice::INSERTKEY;                  
+	m[HOMEKEY			] = SCA_IInputDevice::HOMEKEY;                  
+	m[PAGEUPKEY			] = SCA_IInputDevice::PAGEUPKEY;                  
+	m[PAGEDOWNKEY		] = SCA_IInputDevice::PAGEDOWNKEY;                  
+	m[ENDKEY			] = SCA_IInputDevice::ENDKEY;
 
 	return m;
 }
 
-static std::map<int, SCA_IInputDevice::KX_EnumInputs> gReverseKeyTranslateTable = create_translate_table();
+static std::map<int, SCA_IInputDevice::SCA_EnumInputs> gReverseKeyTranslateTable = create_translate_table();
 
-SCA_IInputDevice::KX_EnumInputs ConvertKeyCode(int key_code)
+SCA_IInputDevice::SCA_EnumInputs ConvertKeyCode(int key_code)
 {
 	return gReverseKeyTranslateTable[key_code];
 }

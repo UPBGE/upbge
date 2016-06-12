@@ -27,9 +27,6 @@
 
 /** \file SCA_IInputDevice.h
  *  \ingroup gamelogic
- *  \brief Interface for input devices. The defines for keyboard/system/mouse events
- *   here are for internal use in the KX module.
- *
  */
 
 #ifndef __SCA_IINPUTDEVICE_H__
@@ -39,290 +36,211 @@
 #include "MEM_guardedalloc.h"
 #endif
 
-class SCA_InputEvent 
-{
-	
-public:
-	enum SCA_EnumInputs {
-	
-		KX_NO_INPUTSTATUS = 0,
-		KX_JUSTACTIVATED,
-		KX_ACTIVE,
-		KX_JUSTRELEASED,
-	};
+#include "SCA_InputEvent.h"
 
-	SCA_InputEvent(SCA_EnumInputs status=KX_NO_INPUTSTATUS,int eventval=0, int unicode=0)
-		:	m_status(status),
-		m_eventval(eventval),
-		m_unicode(unicode)
-	{
+#include <map>
+// #include <pair>
 
-	}
-
-	SCA_EnumInputs m_status;
-	int		m_eventval;
-	unsigned int m_unicode;
-};
-
-/* Originally from wm_event_types.h, now only used by GameEngine */
-#define MOUSEX		MOUSEMOVE
-#define MOUSEY		ACTIONMOUSE
+#define MOUSEX         MOUSEMOVE
+#define MOUSEY         ACTIONMOUSE
 
 class SCA_IInputDevice 
 {
-
-	
 public:
-
 	SCA_IInputDevice();
 	virtual ~SCA_IInputDevice();
 
-	enum KX_EnumInputs {
-	
-		KX_NOKEY = 0,
-	
-		// TIMERS 
-	
-		KX_TIMER0,
-		KX_TIMER1,
-		KX_TIMER2,
-	
-		// SYSTEM
+	enum SCA_EnumInputs {
+		NOKEY = 0,
 
-		/* Moved to avoid clashes with KX_RETKEY */
-		KX_KEYBD,
-		KX_RAWKEYBD,
-		KX_REDRAW,
-		KX_INPUTCHANGE,
-		KX_QFULL,
-		KX_WINFREEZE,
-		KX_WINTHAW,
-		/* thaw is 11 */
+		BEGINWIN,
 
-		/* move past retkey*/
-		KX_WINCLOSE = 14,
-		KX_WINQUIT,
-		KX_Q_FIRSTTIME,
-		/* sequence ends on 16 */
-	
-		// standard keyboard 
+		WINRESIZE,
+		WINCLOSE,
+		WINQUIT,
 
-		/* Because of the above preamble, KX_BEGINKEY is 15 ! This
-		 * means that KX_RETKEY on 13d (0Dh)) will double up with
-		 * KX_WINQUIT!  Why is it 13? Because ascii 13d is Ctrl-M aka
-		 * CR! Its little brother, LF has 10d (0Ah). This is
-		 * dangerous, since the keyboards start scanning at
-		 * KX_BEGINKEY. I think the keyboard system should push its
-		 * key events instead of demanding the user to poll the
-		 * table... But that's for another time... The fix for now is
-		 * to move the above system events into a 'safe' (ie. unused)
-		 * range. I am loathe to move it away from this 'magical'
-		 * coincidence.. it's probably exploited somewhere. I hope the
-		 * close and quit events don't mess up 'normal' kb code
-		 * scanning.
-		 * */
-		KX_BEGINKEY = 12,
+		ENDWIN,
 
-		KX_RETKEY = 13,
-		KX_SPACEKEY = 32,
-		KX_PADASTERKEY = 42,
-		KX_COMMAKEY = 44,
-		KX_MINUSKEY = 45,
-		KX_PERIODKEY = 46,
-		KX_PLUSKEY = 47,
-		KX_ZEROKEY = 48,
-		
-		KX_ONEKEY,		// =49
-		KX_TWOKEY,
-		KX_THREEKEY,
-		KX_FOURKEY,
-		KX_FIVEKEY,
-		KX_SIXKEY,
-		KX_SEVENKEY,
-		KX_EIGHTKEY,
-		KX_NINEKEY,		// = 57
+		BEGINKEY,
 
-		KX_AKEY = 97,
-		KX_BKEY,
-		KX_CKEY,
-		KX_DKEY,
-		KX_EKEY,
-		KX_FKEY,
-		KX_GKEY,
-		KX_HKEY,
-		KX_IKEY,
-		KX_JKEY,
-		KX_KKEY,
-		KX_LKEY,
-		KX_MKEY,
-		KX_NKEY, // =110
-		KX_OKEY,
-		KX_PKEY,
-		KX_QKEY,
-		KX_RKEY,
-		KX_SKEY,
-		KX_TKEY,
-		KX_UKEY,
-		KX_VKEY,
-		KX_WKEY,
-		KX_XKEY, // =120
-		KX_YKEY,
-		KX_ZKEY, // =122
-	
-		
-		
-		KX_CAPSLOCKKEY, // 123
-		
-		KX_LEFTCTRLKEY,	// 124
-		KX_LEFTALTKEY,
-		KX_RIGHTALTKEY,
-		KX_RIGHTCTRLKEY,
-		KX_RIGHTSHIFTKEY,
-		KX_LEFTSHIFTKEY,// 129
-		
-		KX_ESCKEY, // 130
-		KX_TABKEY, //131
-		
-		
-		KX_LINEFEEDKEY,	 // 132
-		KX_BACKSPACEKEY,
-		KX_DELKEY,
-		KX_SEMICOLONKEY, // 135
-		
-		
-		KX_QUOTEKEY,		//136
-		KX_ACCENTGRAVEKEY,	//137
-		
-		KX_SLASHKEY,		//138
-		KX_BACKSLASHKEY,
-		KX_EQUALKEY,
-		KX_LEFTBRACKETKEY,
-		KX_RIGHTBRACKETKEY,	// 142
-		
-		KX_LEFTARROWKEY, // 145
-		KX_DOWNARROWKEY,
-		KX_RIGHTARROWKEY,
-		KX_UPARROWKEY,		// 148
-	
-		KX_PAD2	,
-		KX_PAD4	,
-		KX_PAD6	,
-		KX_PAD8	,
-		
-		KX_PAD1	,
-		KX_PAD3	,
-		KX_PAD5	,
-		KX_PAD7	,
-		KX_PAD9	,
-		
-		KX_PADPERIOD,
-		KX_PADSLASHKEY,
-		
-		
-		
-		KX_PAD0	,
-		KX_PADMINUS,
-		KX_PADENTER,
-		KX_PADPLUSKEY,
-		
-		
-		KX_F1KEY ,
-		KX_F2KEY ,
-		KX_F3KEY ,
-		KX_F4KEY ,
-		KX_F5KEY ,
-		KX_F6KEY ,
-		KX_F7KEY ,
-		KX_F8KEY ,
-		KX_F9KEY ,
-		KX_F10KEY,
-		KX_F11KEY,
-		KX_F12KEY,
-		KX_F13KEY,
-		KX_F14KEY,
-		KX_F15KEY,
-		KX_F16KEY,
-		KX_F17KEY,
-		KX_F18KEY,
-		KX_F19KEY,
+		RETKEY,
+		SPACEKEY,
+		PADASTERKEY,
+		COMMAKEY,
+		MINUSKEY,
+		PERIODKEY,
 
-		KX_OSKEY,
-		
-		KX_PAUSEKEY,
-		KX_INSERTKEY,
-		KX_HOMEKEY ,
-		KX_PAGEUPKEY,
-		KX_PAGEDOWNKEY,
-		KX_ENDKEY,
+		ZEROKEY,
+		ONEKEY,
+		TWOKEY,
+		THREEKEY,
+		FOURKEY,
+		FIVEKEY,
+		SIXKEY,
+		SEVENKEY,
+		EIGHTKEY,
+		NINEKEY,
 
-		// MOUSE
-		KX_BEGINMOUSE,
-		
-		KX_BEGINMOUSEBUTTONS,
+		AKEY,
+		BKEY,
+		CKEY,
+		DKEY,
+		EKEY,
+		FKEY,
+		GKEY,
+		/* To avoid conflict with typedef HKEY (<windows.h>)
+		 * we rename HKEY to HKEY_ */
+		HKEY_,
+		IKEY,
+		JKEY,
+		KKEY,
+		LKEY,
+		MKEY,
+		NKEY,
+		OKEY,
+		PKEY,
+		QKEY,
+		RKEY,
+		SKEY,
+		TKEY,
+		UKEY,
+		VKEY,
+		WKEY,
+		XKEY,
+		YKEY,
+		ZKEY,
 
-		KX_LEFTMOUSE,
-		KX_MIDDLEMOUSE,
-		KX_RIGHTMOUSE,
-		
-		KX_ENDMOUSEBUTTONS,
-		
-		KX_WHEELUPMOUSE,
-		KX_WHEELDOWNMOUSE,
+		CAPSLOCKKEY,
 
-		KX_MOUSEX,
-		KX_MOUSEY,
-	
-		KX_ENDMOUSE,
+		LEFTCTRLKEY,
+		LEFTALTKEY,
+		RIGHTALTKEY,
+		RIGHTCTRLKEY,
+		RIGHTSHIFTKEY,
+		LEFTSHIFTKEY,
 
+		ESCKEY,
+		TABKEY,
 
+		LINEFEEDKEY,
+		BACKSPACEKEY,
+		DELKEY,
+		SEMICOLONKEY,
 
-		KX_MAX_KEYS
-		
+		QUOTEKEY,
+		ACCENTGRAVEKEY,
+
+		SLASHKEY,
+		BACKSLASHKEY,
+		EQUALKEY,
+		LEFTBRACKETKEY,
+		RIGHTBRACKETKEY,
+
+		LEFTARROWKEY,
+		DOWNARROWKEY,
+		RIGHTARROWKEY,
+		UPARROWKEY,
+
+		PAD2,
+		PAD4,
+		PAD6,
+		PAD8,
+
+		PAD1,
+		PAD3,
+		PAD5,
+		PAD7,
+		PAD9,
+
+		PADPERIOD,
+		PADSLASHKEY,
+
+		PAD0,
+		PADMINUS,
+		PADENTER,
+		PADPLUSKEY,
+
+		F1KEY,
+		F2KEY,
+		F3KEY,
+		F4KEY,
+		F5KEY,
+		F6KEY,
+		F7KEY,
+		F8KEY,
+		F9KEY,
+		F10KEY,
+		F11KEY,
+		F12KEY,
+		F13KEY,
+		F14KEY,
+		F15KEY,
+		F16KEY,
+		F17KEY,
+		F18KEY,
+		F19KEY,
+
+		OSKEY,
+
+		PAUSEKEY,
+		INSERTKEY,
+		HOMEKEY,
+		PAGEUPKEY,
+		PAGEDOWNKEY,
+		ENDKEY,
+
+		BEGINMOUSE,
+
+		BEGINMOUSEBUTTONS,
+
+		LEFTMOUSE,
+		MIDDLEMOUSE,
+		RIGHTMOUSE,
+
+		ENDMOUSEBUTTONS,
+
+		WHEELUPMOUSE,
+		WHEELDOWNMOUSE,
+
+		MOUSEX,
+		MOUSEY,
+
+		ENDMOUSE,
+
+		MAX_KEYS
 	}; // enum
 
 
 protected:
-	/**  
-	 * m_eventStatusTables are two tables that contain current and previous
-	 * status of all events
-	 */
+	/// Table of all possible input.
+	SCA_InputEvent m_inputsTable[SCA_IInputDevice::MAX_KEYS];
+	/// Typed text in unicode during a frame.
+	std::wstring m_text;
 
-	SCA_InputEvent	m_eventStatusTables[2][SCA_IInputDevice::KX_MAX_KEYS];
-	/**  
-	 * m_currentTable is index for m_keyStatusTable that toggle between 0 or 1
+	/** Translation table used to get the character from a key number with shift or not.
+	 * Key -> (Character, Character shifted)
 	 */
-	int				m_currentTable; 
-	void			ClearStatusTable(int tableid);
+	static std::map<SCA_EnumInputs, std::pair<char, char> > m_keyToChar;
 
 public:
-	virtual bool	IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode)=0;
-	virtual const SCA_InputEvent&	GetEventValue(SCA_IInputDevice::KX_EnumInputs inputcode);
+	virtual SCA_InputEvent& GetInput(SCA_IInputDevice::SCA_EnumInputs inputcode);
 
-	/**
-	 * Count active events(active and just_activated)
+	/** Clear inputs:
+	 *     - Clear status and copy last status to first status.
+	 *     - Clear queue
+	 *     - Clear values and copy last value to first value.
 	 */
-	virtual int		GetNumActiveEvents();
+	virtual void ClearInputs();
 
-	/**
-	 * Get the number of remapping events (just_activated, just_released)
+	/** Manage move event like mouse by releasing if possible.
+	 * These kind of events are precise of one frame.
 	 */
-	virtual int		GetNumJustEvents();
-	
-	virtual void		HookEscape();
-	
-	/**
-	 * Next frame: we calculate the new key states. This goes as follows:
-	 *
-	 * KX_NO_INPUTSTATUS -> KX_NO_INPUTSTATUS
-	 * KX_JUSTACTIVATED  -> KX_ACTIVE
-	 * KX_ACTIVE         -> KX_ACTIVE
-	 * KX_JUSTRELEASED   -> KX_NO_INPUTSTATUS
-	 *
-	 * Getting new events provides the
-	 * KX_NO_INPUTSTATUS->KX_JUSTACTIVATED and
-	 * KX_ACTIVE->KX_JUSTRELEASED transitions.
-	 */
-	virtual void	NextFrame();
+	virtual void ReleaseMoveEvent();
+
+	/// Return typed unicode text during a frame.
+	const std::wstring& GetText() const;
+
+	static const char ConvertKeyToChar(SCA_EnumInputs input, bool shifted);
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

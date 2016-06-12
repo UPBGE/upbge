@@ -115,8 +115,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 #ifdef WITH_PYTHON
 	m_pythondictionary(NULL),
 #endif
-	m_keyboarddevice(NULL),
-	m_mousedevice(NULL),
+	m_inputDevice(NULL),
 	m_bInitialized(false),
 	m_activecam(0),
 	m_bFixedTime(false),
@@ -190,16 +189,10 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 	m_scenes->Release();
 }
 
-void KX_KetsjiEngine::SetKeyboardDevice(SCA_IInputDevice *keyboarddevice)
+void KX_KetsjiEngine::SetInputDevice(SCA_IInputDevice *inputDevice)
 {
-	BLI_assert(keyboarddevice);
-	m_keyboarddevice = keyboarddevice;
-}
-
-void KX_KetsjiEngine::SetMouseDevice(SCA_IInputDevice *mousedevice)
-{
-	BLI_assert(mousedevice);
-	m_mousedevice = mousedevice;
+	BLI_assert(inputDevice);
+	m_inputDevice = inputDevice;
 }
 
 void KX_KetsjiEngine::SetCanvas(RAS_ICanvas *canvas)
@@ -578,6 +571,10 @@ bool KX_KetsjiEngine::NextFrame()
 
 		m_sceneconverter->MergeAsyncLoads();
 
+		if (m_inputDevice) {
+			m_inputDevice->ReleaseMoveEvent();
+		}
+
 		// for each scene, call the proceed functions
 		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
 			KX_Scene *scene = (KX_Scene *)*sceit;
@@ -656,11 +653,9 @@ bool KX_KetsjiEngine::NextFrame()
 
 		// update system devices
 		m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
-		if (m_keyboarddevice)
-			m_keyboarddevice->NextFrame();
-
-		if (m_mousedevice)
-			m_mousedevice->NextFrame();
+		if (m_inputDevice) {
+			m_inputDevice->ClearInputs();
+		}
 
 		UpdateSuspendedScenes();
 		// scene management
@@ -1500,8 +1495,7 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 
 KX_Scene *KX_KetsjiEngine::CreateScene(Scene *scene, bool libloading)
 {
-	KX_Scene *tmpscene = new KX_Scene(m_keyboarddevice,
-	                                  m_mousedevice,
+	KX_Scene *tmpscene = new KX_Scene(m_inputDevice,
 	                                  scene->id.name + 2,
 	                                  scene,
 	                                  m_canvas,

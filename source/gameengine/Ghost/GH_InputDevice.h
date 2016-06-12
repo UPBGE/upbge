@@ -15,51 +15,40 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file SCA_MouseManager.h
- *  \ingroup gamelogic
- *  \brief Manager for mouse events.
- *
+/** \file GH_InputDevice.h
+ *  \ingroup ghost
  */
 
-
-#ifndef __SCA_MOUSEMANAGER_H__
-#define __SCA_MOUSEMANAGER_H__
-
-
-#include "SCA_EventManager.h"
-
-#include <vector>
-
-using namespace std;
+#ifndef __GH_INPUTDEVICE_H__
+#define __GH_INPUTDEVICE_H__
 
 #include "SCA_IInputDevice.h"
 
+#include <map>
 
-class SCA_MouseManager : public SCA_EventManager
+class GH_InputDevice : public SCA_IInputDevice
 {
-	class 	SCA_IInputDevice*				m_mousedevice;
+protected:
+	/// These maps converts GHOST input number to SCA input enum.
+	std::map<int, SCA_EnumInputs> m_reverseKeyTranslateTable;
+	std::map<int, SCA_EnumInputs> m_reverseButtonTranslateTable;
+	std::map<int, SCA_EnumInputs> m_reverseWindowTranslateTable;
 
 public:
-	SCA_MouseManager(class SCA_LogicManager* logicmgr,class SCA_IInputDevice* mousedev);
-	virtual ~SCA_MouseManager();
+	GH_InputDevice();
+	virtual ~GH_InputDevice();
 
-	virtual void 	NextFrame();
-	SCA_IInputDevice* GetInputDevice();
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_MouseManager")
-#endif
+	void ConvertKeyEvent(int incode, int val, unsigned int unicode);
+	void ConvertButtonEvent(int incode, int val);
+	void ConvertWindowEvent(int incode);
+	void ConvertMoveEvent(int x, int y);
+	void ConvertWheelEvent(int z);
+	void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
 };
 
-#endif  /* __SCA_MOUSEMANAGER_H__ */
+#endif  /* __GH_INPUTDEVICE_H__ */

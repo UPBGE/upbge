@@ -78,10 +78,8 @@
 #include "KX_MovementSensor.h"
 #include "SCA_EventManager.h"
 #include "SCA_LogicManager.h"
-#include "KX_BlenderInputDevice.h"
 #include "KX_Scene.h"
 #include "EXP_IntValue.h"
-#include "KX_BlenderKeyboardDevice.h"
 #include "RAS_ICanvas.h"
 #include "PHY_IPhysicsEnvironment.h"
 

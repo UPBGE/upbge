@@ -320,11 +320,11 @@ void KX_MouseActuator::ProcessReplica()
 void KX_MouseActuator::getMousePosition(float* pos)
 {
 	BLI_assert(m_mouse);
-	const SCA_InputEvent & xevent = m_mouse->GetEventValue(SCA_IInputDevice::KX_MOUSEX);
-	const SCA_InputEvent & yevent = m_mouse->GetEventValue(SCA_IInputDevice::KX_MOUSEY);
+	const SCA_InputEvent & xevent = m_mouse->GetInput(SCA_IInputDevice::MOUSEX);
+	const SCA_InputEvent & yevent = m_mouse->GetInput(SCA_IInputDevice::MOUSEY);
 
-	pos[0] = m_canvas->GetMouseNormalizedX(xevent.m_eventval);
-	pos[1] = m_canvas->GetMouseNormalizedY(yevent.m_eventval);
+	pos[0] = m_canvas->GetMouseNormalizedX(xevent.m_values[xevent.m_values.size() - 1]);
+	pos[1] = m_canvas->GetMouseNormalizedY(yevent.m_values[yevent.m_values.size() - 1]);
 }
 
 void KX_MouseActuator::setMousePosition(float fx, float fy)

@@ -95,6 +95,8 @@ public:
 		int height
 	);
 
+	virtual void Resize(int width, int height);
+
 		void
 	SetFullScreen(
 		bool enable
@@ -132,13 +134,7 @@ public:
 	GetHeight(
 	) const;
 
-		int
-	GetMouseX(int x
-	);
-
-		int
-	GetMouseY(int y
-	);
+	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
 
 		float
 	GetMouseNormalizedX(int x
@@ -210,8 +206,7 @@ private:
 	struct wmWindow* m_win;
 	RAS_Rect	m_frame_rect;
 	RAS_Rect 	m_area_rect;
-	int			m_area_left;
-	int			m_area_top;
+	ARegion *m_ar;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

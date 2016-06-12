@@ -51,10 +51,8 @@ PyObject *initGamePythonScripting(struct Main *maggie);
 void exitGamePlayerPythonScripting();
 void exitGamePythonScripting();
 void setupGamePython(KX_KetsjiEngine *ketsjiengine, Main *blenderdata,
-                     PyObject *pyGlobalDict, PyObject **gameLogic, PyObject **gameLogic_keys, int argc, char **argv);
-void setGamePythonPath(const char *path);
-void resetGamePythonPath();
-void pathGamePythonConfig(char *path);
+                     PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char **argv);
+STR_String pathGamePythonConfig();
 int saveGamePythonConfig(char **marshal_buffer);
 int loadGamePythonConfig(char *marshal_buffer, int marshal_length);
 #endif
@@ -65,9 +63,9 @@ void removeImportMain(struct Main *maggie);
 typedef int (*PyNextFrameFunc)(void *);
 
 struct PyNextFrameState {
-	/** can be either a GPG_NextFrameState or a BL_KetsjiNextFrameState */
+	/// Launcher currently used (LA_Launcher).
 	void *state;
-	/** can be either GPG_PyNextFrame or BL_KetsjiPyNextFrame */
+	/// Launcher python frame function (LA_Launcher::PythonEngineNextFrame).
 	PyNextFrameFunc func;
 };
 extern struct PyNextFrameState pynextframestate;

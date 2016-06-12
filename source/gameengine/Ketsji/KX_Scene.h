@@ -298,8 +298,7 @@ protected:
 	int m_lodHysteresisValue;
 
 public:
-	KX_Scene(class SCA_IInputDevice* keyboarddevice,
-		class SCA_IInputDevice* mousedevice,
+	KX_Scene(SCA_IInputDevice *inputDevice,
 		const STR_String& scenename,
 		struct Scene* scene,
 		class RAS_ICanvas* canvas,

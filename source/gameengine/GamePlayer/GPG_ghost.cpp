@@ -26,7 +26,7 @@
  * Start up of the Blender Player on GHOST.
  */
 
-/** \file gameengine/GamePlayer/ghost/GPG_ghost.cpp
+/** \file gameengine/GamePlayer/GPG_ghost.cpp
  *  \ingroup player
  */
 
@@ -35,82 +35,66 @@
 #include <math.h>
 
 #ifdef __linux__
-#ifdef __alpha__
-#include <signal.h>
-#endif /* __alpha__ */
+#  ifdef __alpha__
+#    include <signal.h>
+#  endif /* __alpha__ */
 #endif /* __linux__ */
 
-#include "KX_KetsjiEngine.h"
-#include "KX_Globals.h"
-#include "KX_PythonInit.h"
-#include "KX_PythonMain.h"
-#include "KX_PyConstraintBinding.h" // for PHY_SetActiveEnvironment
-
-/**********************************
-* Begin Blender include block
-**********************************/
-#ifdef __cplusplus
 extern "C"
 {
-#endif  // __cplusplus
-#include "MEM_guardedalloc.h"
-#include "MEM_CacheLimiterC-Api.h"
+#  include "MEM_guardedalloc.h"
+#  include "MEM_CacheLimiterC-Api.h"
 
-#include "BLI_threads.h"
-#include "BLI_mempool.h"
-#include "BLI_blenlib.h"
+#  include "BLI_threads.h"
+#  include "BLI_mempool.h"
+#  include "BLI_blenlib.h"
 
-#include "DNA_scene_types.h"
-#include "DNA_userdef_types.h"
+#  include "DNA_scene_types.h"
 
-#include "BLO_readfile.h"
-#include "BLO_runtime.h"
+#  include "BLO_readfile.h"
+#  include "BLO_runtime.h"
 
-#include "BKE_appdir.h"
-#include "BKE_blender.h"
-#include "BKE_depsgraph.h"
-#include "BKE_global.h"
-#include "BKE_icons.h"
-#include "BKE_image.h"
-#include "BKE_node.h"
-#include "BKE_report.h"
-#include "BKE_library.h"
-#include "BKE_modifier.h"
-#include "BKE_material.h"
-#include "BKE_text.h"
-#include "BKE_sound.h"
+#  include "BKE_appdir.h"
+#  include "BKE_blender.h"
+#  include "BKE_depsgraph.h"
+#  include "BKE_global.h"
+#  include "BKE_icons.h"
+#  include "BKE_image.h"
+#  include "BKE_node.h"
+#  include "BKE_report.h"
+#  include "BKE_library.h"
+#  include "BKE_modifier.h"
+#  include "BKE_material.h"
+#  include "BKE_text.h"
+#  include "BKE_sound.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_moviecache.h"
-	
-#ifdef __APPLE__
+#  include "IMB_imbuf.h"
+#  include "IMB_moviecache.h"
+
+#  ifdef __APPLE__
 	int GHOST_HACK_getFirstFile(char buf[]);
-#endif
-	
-// For BLF
-#include "BLF_api.h"
-#include "BLT_translation.h"
-#include "BLT_lang.h"
-extern int datatoc_bfont_ttf_size;
-extern char datatoc_bfont_ttf[];
-extern int datatoc_bmonofont_ttf_size;
-extern char datatoc_bmonofont_ttf[];
+#  endif
 
-#ifdef __cplusplus
+// For BLF
+#  include "BLF_api.h"
+#  include "BLT_translation.h"
+#  include "BLT_lang.h"
+
+	extern int datatoc_bfont_ttf_size;
+	extern char datatoc_bfont_ttf[];
+	extern int datatoc_bmonofont_ttf_size;
+	extern char datatoc_bmonofont_ttf[];
+
 }
-#endif // __cplusplus
 
 #include "GPU_draw.h"
 
-/**********************************
-* End Blender include block
-**********************************/
+#include "KX_Globals.h"
 
-#include "BL_System.h"
-#include "GPG_Application.h"
+#include "LA_SystemCommandLine.h"
+#include "LA_PlayerLauncher.h"
 
 #include "GHOST_ISystem.h"
-#include "RAS_IRasterizer.h"
 
 #include "BKE_main.h"
 
@@ -369,44 +353,6 @@ static BlendFileData *load_game_data(const char *progname, char *filename = NULL
 	
 	return bfd;
 }
-
-static bool GPG_NextFrame(GHOST_ISystem* system, GPG_Application *app, int &exitcode, STR_String &exitstring, GlobalSettings *gs)
-{
-	bool run = true;
-	system->processEvents(false);
-	system->dispatchEvents();
-	app->EngineNextFrame();
-	if ((exitcode = app->getExitRequested())) {
-		run = false;
-		exitstring = app->getExitString();
-		*gs = *app->getGlobalSettings();
-	}
-	return run;
-}
-
-struct GPG_NextFrameState {
-	GHOST_ISystem* system;
-	GPG_Application *app;
-	GlobalSettings *gs;
-} gpg_nextframestate;
-
-#ifdef WITH_PYTHON
-
-static int GPG_PyNextFrame(void *state0)
-{
-	GPG_NextFrameState *state = (GPG_NextFrameState *) state0;
-	int exitcode;
-	STR_String exitstring;
-	bool run = GPG_NextFrame(state->system, state->app, exitcode, exitstring, state->gs);
-	if (run) return 0;  
-	else {
-		if (exitcode) 
-			fprintf(stderr, "Exit code %d: %s\n", exitcode, exitstring.ReadPtr());
-		return 1;
-	}
-}
-
-#endif
 
 int main(
 	int argc,
@@ -892,7 +838,6 @@ int main(
 			{
 				int exitcode = KX_EXIT_REQUEST_NO_REQUEST;
 				STR_String exitstring = "";
-				GPG_Application app(system);
 				bool firstTimeRunning = true;
 				char filename[FILE_MAX];
 				char pathname[FILE_MAX];
@@ -906,6 +851,10 @@ int main(
 				// fill the GlobalSettings with the first scene files
 				// those may change during the game and persist after using Game Actuator
 				GlobalSettings gs;
+
+#ifdef WITH_PYTHON
+				PyObject *globalDict = PyDict_New();
+#endif  // WITH_PYTHON
 
 				do {
 					// Read the Blender file
@@ -933,6 +882,10 @@ int main(
 					}
 					else {
 						bfd = load_game_data(BKE_appdir_program_path(), filename[0]? filename: NULL);
+						// The file is valid and it's the original file name.
+						if (bfd) {
+							KX_SetOrigPath(bfd->main->name);
+						}
 					}
 
 #if defined(DEBUG)
@@ -1023,16 +976,13 @@ int main(
 									scene->gm.dome.warptext = domeText;
 							}
 						}
-						
-						//					GPG_Application app (system, maggie, startscenename);
-						app.SetGameEngineData(maggie, scene, &gs, argc, argv); /* this argc cant be argc_py_clamped, since python uses it */
-						BLI_strncpy(pathname, maggie->name, sizeof(pathname));
-						if (G.main != maggie) {
-							BLI_strncpy(G.main->name, maggie->name, sizeof(G.main->name));
-						}
+
+						LA_PlayerLauncher launcher(system, maggie, scene, &gs, stereomode, argc, argv); /* this argc cant be argc_py_clamped, since python uses it */
 #ifdef WITH_PYTHON
-						setGamePythonPath(G.main->name);
-#endif
+						launcher.SetPythonGlobalDict(globalDict);
+#endif  // WITH_PYTHON
+
+						BLI_strncpy(pathname, maggie->name, sizeof(pathname));
 						if (firstTimeRunning) {
 							firstTimeRunning = false;
 
@@ -1040,14 +990,14 @@ int main(
 #ifdef WIN32
 								if (scr_saver_mode == SCREEN_SAVER_MODE_SAVER)
 								{
-									app.startScreenSaverFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
-									                               stereoWindow, stereomode, aasamples);
+									launcher.startScreenSaverFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
+									                               stereoWindow, aasamples);
 								}
 								else
 #endif
 								{
-									app.startFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
-									                    stereoWindow, stereomode, aasamples, (scene->gm.playerflag & GAME_PLAYER_DESKTOP_RESOLUTION));
+									launcher.startFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
+									                    stereoWindow, aasamples, (scene->gm.playerflag & GAME_PLAYER_DESKTOP_RESOLUTION));
 								}
 							}
 							else
@@ -1085,16 +1035,16 @@ int main(
 #ifdef WIN32
 								if (scr_saver_mode == SCREEN_SAVER_MODE_PREVIEW)
 								{
-									app.startScreenSaverPreview(scr_saver_hwnd, stereoWindow, stereomode, aasamples);
+									launcher.startScreenSaverPreview(scr_saver_hwnd, stereoWindow, aasamples);
 								}
 								else
 #endif
 								{
 									if (parentWindow != 0)
-										app.startEmbeddedWindow(title, parentWindow, stereoWindow, stereomode, aasamples);
+										launcher.startEmbeddedWindow(title, parentWindow, stereoWindow, aasamples);
 									else
-										app.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
-										                stereoWindow, stereomode, aasamples);
+										launcher.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
+										                stereoWindow, aasamples);
 
 									if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
 										GPU_set_mipmap(0);
@@ -1106,67 +1056,30 @@ int main(
 							}
 						}
 						else {
-							app.StartGameEngine(stereomode);
+							launcher.InitEngine();
 							exitcode = KX_EXIT_REQUEST_NO_REQUEST;
 						}
-						
-						// Add the application as event consumer
-						system->addEventConsumer(&app);
-						
+
 						// Enter main loop
-						bool run = true;
-#ifdef WITH_PYTHON
-						char *python_main = NULL;
-						pynextframestate.state = NULL;
-						pynextframestate.func = NULL;
-						python_main = KX_GetPythonMain(scene);
-						if (python_main) {
-							char *python_code = KX_GetPythonCode(maggie, python_main);
-							if (python_code) {
-								// Set python environement variable.
-								KX_Scene *startscene = app.GetStartScene();
-								KX_SetActiveScene(startscene);
-								PHY_SetActiveEnvironment(startscene->GetPhysicsEnvironment());
+						launcher.EngineMainLoop();
 
-								gpg_nextframestate.system = system;
-								gpg_nextframestate.app = &app;
-								gpg_nextframestate.gs = &gs;
-								pynextframestate.state = &gpg_nextframestate;
-								pynextframestate.func = &GPG_PyNextFrame;
+						exitcode = launcher.GetExitRequested();
+						exitstring = launcher.GetExitString();
+						gs = *launcher.GetGlobalSettings();
 
-								printf("Yielding control to Python script '%s'...\n", python_main);
-								PyRun_SimpleString(python_code);
-								printf("Exit Python script '%s'\n", python_main);
-								MEM_freeN(python_code);
-							}
-							else {
-								fprintf(stderr, "ERROR: cannot yield control to Python: no Python text data block named '%s'\n", python_main);
-							}
-						}
-						else {
-#endif // WITH_PYTHON
-							while (run) {
-								run = GPG_NextFrame(system, &app, exitcode, exitstring, &gs);
-							}
-#ifdef WITH_PYTHON
-						}
-#endif // WITH_PYTHON
-						app.StopGameEngine();
-
-						/* 'app' is freed automatic when out of scope.
-						 * removal is needed else the system will free an already freed value */
-						system->removeEventConsumer(&app);
+						launcher.ExitEngine();
 
 						BLO_blendfiledata_free(bfd);
 						/* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */
 						G.main = NULL;
-#ifdef WITH_PYTHON
-						if (python_main) {
-							MEM_freeN(python_main);
-						}
-#endif // WITH_PYTHON
 					}
 				} while (exitcode == KX_EXIT_REQUEST_RESTART_GAME || exitcode == KX_EXIT_REQUEST_START_OTHER_GAME);
+
+#ifdef WITH_PYTHON
+
+				PyDict_Clear(globalDict);
+				Py_DECREF(globalDict);
+#endif
 			}
 
 			// Seg Fault; icon.c gIcons == 0

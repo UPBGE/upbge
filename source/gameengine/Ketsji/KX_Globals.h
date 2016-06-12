@@ -29,15 +29,20 @@
 
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
+#include "STR_String.h"
 
 class KX_KetsjiEngine;
 class KX_Scene;
 
 void KX_SetActiveEngine(KX_KetsjiEngine *engine);
 void KX_SetActiveScene(KX_Scene *scene);
+void KX_SetMainPath(const STR_String& path);
+void KX_SetOrigPath(const STR_String& path);
 
 KX_KetsjiEngine *KX_GetActiveEngine();
 KX_Scene *KX_GetActiveScene();
+const STR_String& KX_GetMainPath();
+const STR_String& KX_GetOrigPath();
 
 void KX_RasterizerDrawDebugLine(const MT_Vector3 &from,const MT_Vector3 &to,const MT_Vector4 &color);
 void KX_RasterizerDrawDebugCircle(const MT_Vector3 &center, const MT_Scalar radius, const MT_Vector4 &color,

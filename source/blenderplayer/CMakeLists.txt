@@ -95,8 +95,7 @@ add_dependencies(blenderplayer makesdna)
 get_property(BLENDER_LINK_LIBS GLOBAL PROPERTY BLENDER_LINK_LIBS)
 
 list(APPEND BLENDER_LINK_LIBS
-	ge_player_common
-	ge_player_ghost
+	ge_player
 	blenkernel_blc
 )
 
@@ -107,8 +106,7 @@ endif()
 # if(UNIX)
 	# Sort libraries
 	set(BLENDER_SORTED_LIBS
-		ge_player_ghost 
-		ge_player_common 
+		ge_player 
 		bf_intern_string 
 		bf_intern_ghost
 		bf_rna
@@ -119,6 +117,10 @@ endif()
 		bf_blenloader
 		ge_blen_routines
 		bf_editor_datafiles
+		ge_ghost
+		ge_launcher
+		ge_ghost
+		ge_player
 		ge_converter 
 		ge_logic_ketsji 
 		ge_phys_bullet 

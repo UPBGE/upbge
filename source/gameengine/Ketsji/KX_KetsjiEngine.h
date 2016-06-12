@@ -91,8 +91,7 @@ private:
 	PyObject *m_pythondictionary;
 	PyObject *m_pyprofiledict;
 #endif
-	SCA_IInputDevice *m_keyboarddevice;
-	SCA_IInputDevice *m_mousedevice;
+	SCA_IInputDevice *m_inputDevice;
 	/// dome stereo mode
 	KX_Dome *m_dome;
 
@@ -248,8 +247,7 @@ public:
 	virtual ~KX_KetsjiEngine();
 
 	/// set the devices and stuff. the client must take care of creating these
-	void SetKeyboardDevice(SCA_IInputDevice *keyboarddevice);
-	void SetMouseDevice(SCA_IInputDevice *mousedevice);
+	void SetInputDevice(SCA_IInputDevice *inputDevice);
 	void SetCanvas(RAS_ICanvas *canvas);
 	void SetRasterizer(RAS_IRasterizer *rasterizer);
 	void SetNetworkMessageManager(KX_NetworkMessageManager *manager);
@@ -275,13 +273,9 @@ public:
 	{
 		return m_canvas;
 	}
-	SCA_IInputDevice *GetKeyboardDevice()
+	SCA_IInputDevice *GetInputDevice()
 	{
-		return m_keyboarddevice;
-	}
-	SCA_IInputDevice *GetMouseDevice()
-	{
-		return m_mousedevice;
+		return m_inputDevice;
 	}
 	KX_NetworkMessageManager *GetNetworkMessageManager() const
 	{

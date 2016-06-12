@@ -55,7 +55,7 @@ class SCA_MouseSensor : public SCA_ISensor
 	 */
 	int m_val;
 
-	SCA_IInputDevice::KX_EnumInputs m_hotkey;
+	SCA_IInputDevice::SCA_EnumInputs m_hotkey;
 	
 	/**
 	 * valid x coordinate, MUST be followed by y coordinate
@@ -98,7 +98,7 @@ class SCA_MouseSensor : public SCA_ISensor
 	virtual void Init();
 	virtual bool IsPositiveTrigger();
 	short int GetModeKey();
-	SCA_IInputDevice::KX_EnumInputs GetHotKey();
+	SCA_IInputDevice::SCA_EnumInputs GetHotKey();
 	void setX(short x);
 	void setY(short y);
 

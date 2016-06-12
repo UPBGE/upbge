@@ -44,18 +44,13 @@
 #include "SCA_MouseManager.h"
 #include "SCA_MouseSensor.h"
 #include "EXP_IntValue.h"
-#include "RAS_ICanvas.h"
 
 
 SCA_MouseManager::SCA_MouseManager(SCA_LogicManager* logicmgr,
-								   SCA_IInputDevice* mousedev,
-								   RAS_ICanvas* canvas)
+								   SCA_IInputDevice* mousedev)
 	:	SCA_EventManager(logicmgr, MOUSE_EVENTMGR),
-		m_mousedevice (mousedev),
-		m_canvas(canvas)
+		m_mousedevice (mousedev)
 {
-	m_xpos = 0;
-	m_ypos = 0;
 }
 
 
@@ -86,12 +81,12 @@ void SCA_MouseManager::NextFrame()
 			if (!mousesensor->IsSuspended())
 			{
 				const SCA_InputEvent& event1 = 
-					m_mousedevice->GetEventValue(SCA_IInputDevice::KX_MOUSEX);
+					m_mousedevice->GetInput(SCA_IInputDevice::MOUSEX);
 				const SCA_InputEvent& event2 = 
-					m_mousedevice->GetEventValue(SCA_IInputDevice::KX_MOUSEY);
+					m_mousedevice->GetInput(SCA_IInputDevice::MOUSEY);
 
-				int mx = this->m_canvas->GetMouseX(event1.m_eventval);
-				int my = this->m_canvas->GetMouseY(event2.m_eventval);
+				int mx = event1.m_values[event1.m_values.size() - 1];
+				int my = event2.m_values[event2.m_values.size() - 1];
 				
 				mousesensor->setX(mx);
 				mousesensor->setY(my);
@@ -100,13 +95,4 @@ void SCA_MouseManager::NextFrame()
 			}
 		}
 	}
-}
-
-bool SCA_MouseManager::IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode)
-{
-	/* We should guard for non-mouse events maybe? A rather silly side       */
-	/* effect here is that position-change events are considered presses as  */
-	/* well.                                                                 */
-	
-	return m_mousedevice->IsPressed(inputcode);
 }
