@@ -185,7 +185,7 @@ void GH_InputDevice::ConvertWindowEvent(int incode)
 
 void GH_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode)
 {
-	SCA_InputEvent &event = m_eventsTable[type];
+	SCA_InputEvent &event = m_inputsTable[type];
 
 	if (event.m_values[event.m_values.size() - 1] != val) {
 		// The key event value changed, we considerate it as the real event.
@@ -202,14 +202,14 @@ void GH_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val
 
 void GH_InputDevice::ConvertMoveEvent(int x, int y)
 {
-	SCA_InputEvent &xevent = m_eventsTable[MOUSEX];
+	SCA_InputEvent &xevent = m_inputsTable[MOUSEX];
 	xevent.m_values.push_back(x);
 	if (xevent.m_status[xevent.m_status.size() - 1] != SCA_InputEvent::ACTIVE) {
 		xevent.m_status.push_back(SCA_InputEvent::ACTIVE);
 		xevent.m_queue.push_back(SCA_InputEvent::JUSTACTIVATED);
 	}
 
-	SCA_InputEvent &yevent = m_eventsTable[MOUSEY];
+	SCA_InputEvent &yevent = m_inputsTable[MOUSEY];
 	yevent.m_values.push_back(y);
 	if (yevent.m_status[yevent.m_status.size() - 1] != SCA_InputEvent::ACTIVE) {
 		yevent.m_status.push_back(SCA_InputEvent::ACTIVE);
@@ -219,7 +219,7 @@ void GH_InputDevice::ConvertMoveEvent(int x, int y)
 
 void GH_InputDevice::ConvertWheelEvent(int z)
 {
-	SCA_InputEvent &event = m_eventsTable[(z > 0) ? WHEELUPMOUSE : WHEELDOWNMOUSE];
+	SCA_InputEvent &event = m_inputsTable[(z > 0) ? WHEELUPMOUSE : WHEELDOWNMOUSE];
 	event.m_values.push_back(z);
 	if (event.m_status[event.m_status.size() - 1] != SCA_InputEvent::ACTIVE) {
 		event.m_status.push_back(SCA_InputEvent::ACTIVE);

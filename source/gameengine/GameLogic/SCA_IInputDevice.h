@@ -213,7 +213,7 @@ public:
 
 protected:
 	/// Table of all possible input.
-	SCA_InputEvent m_eventsTable[SCA_IInputDevice::MAX_KEYS];
+	SCA_InputEvent m_inputsTable[SCA_IInputDevice::MAX_KEYS];
 	/// Typed text in unicode during a frame.
 	std::wstring m_text;
 
@@ -223,14 +223,14 @@ protected:
 	static std::map<SCA_EnumInputs, std::pair<char, char> > m_keyToChar;
 
 public:
-	virtual SCA_InputEvent& GetEvent(SCA_IInputDevice::SCA_EnumInputs inputcode);
+	virtual SCA_InputEvent& GetInput(SCA_IInputDevice::SCA_EnumInputs inputcode);
 
-	/** Clear event:
+	/** Clear inputs:
 	 *     - Clear status and copy last status to first status.
 	 *     - Clear queue
 	 *     - Clear values and copy last value to first value.
 	 */
-	virtual void ClearEvents();
+	virtual void ClearInputs();
 
 	/** Manage move event like mouse by releasing if possible.
 	 * These kind of events are precise of one frame.

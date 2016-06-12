@@ -114,21 +114,21 @@ std::map<SCA_IInputDevice::SCA_EnumInputs, std::pair<char, char> > SCA_IInputDev
 SCA_IInputDevice::SCA_IInputDevice()
 {
 	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
-		m_eventsTable[i] = SCA_InputEvent(i);
+		m_inputsTable[i] = SCA_InputEvent(i);
 	}
 }
 
 SCA_IInputDevice::~SCA_IInputDevice()
 {
 	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
-		m_eventsTable[i].InvalidateProxy();
+		m_inputsTable[i].InvalidateProxy();
 	}
 }
 
-void SCA_IInputDevice::ClearEvents()
+void SCA_IInputDevice::ClearInputs()
 {
 	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
-		m_eventsTable[i].Clear();
+		m_inputsTable[i].Clear();
 	}
 	m_text.clear();
 }
@@ -149,7 +149,7 @@ void SCA_IInputDevice::ReleaseMoveEvent()
 	};
 
 	for (unsigned short i = 0; i < 4; ++i) {
-		SCA_InputEvent &event = m_eventsTable[eventTypes[i]];
+		SCA_InputEvent &event = m_inputsTable[eventTypes[i]];
 		if ((event.m_values.size() == 1) && (event.m_status[event.m_status.size() - 1] == SCA_InputEvent::ACTIVE)) {
 			event.m_status.pop_back();
 			event.m_status.push_back(SCA_InputEvent::NONE);
@@ -173,7 +173,7 @@ const char SCA_IInputDevice::ConvertKeyToChar(SCA_IInputDevice::SCA_EnumInputs i
 	return (shifted) ? it->second.second : it->second.first;
 }
 
-SCA_InputEvent& SCA_IInputDevice::GetEvent(SCA_IInputDevice::SCA_EnumInputs inputcode)
+SCA_InputEvent& SCA_IInputDevice::GetInput(SCA_IInputDevice::SCA_EnumInputs inputcode)
 {
-	return m_eventsTable[inputcode];
+	return m_inputsTable[inputcode];
 }

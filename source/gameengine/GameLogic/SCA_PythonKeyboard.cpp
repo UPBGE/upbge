@@ -105,7 +105,9 @@ PyMethodDef SCA_PythonKeyboard::Methods[] = {
 
 PyAttributeDef SCA_PythonKeyboard::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("events", SCA_PythonKeyboard, pyattr_get_events),
+	KX_PYATTRIBUTE_RO_FUNCTION("inputs", SCA_PythonKeyboard, pyattr_get_inputs),
 	KX_PYATTRIBUTE_RO_FUNCTION("active_events", SCA_PythonKeyboard, pyattr_get_active_events),
+	KX_PYATTRIBUTE_RO_FUNCTION("activeInputs", SCA_PythonKeyboard, pyattr_get_active_inputs),
 	KX_PYATTRIBUTE_RO_FUNCTION("text", SCA_PythonKeyboard, pyattr_get_text),
 	{ NULL }	//Sentinel
 };
@@ -113,12 +115,55 @@ PyAttributeDef SCA_PythonKeyboard::Attributes[] = {
 PyObject *SCA_PythonKeyboard::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonKeyboard* self = static_cast<SCA_PythonKeyboard*>(self_v);
-	
+
+	ShowDeprecationWarning("keyboard.events", "keyboard.inputs");
+
 	for (int i=SCA_IInputDevice::BEGINKEY; i<=SCA_IInputDevice::ENDKEY; i++)
 	{
-		SCA_InputEvent & inevent = self->m_keyboard->GetEvent((SCA_IInputDevice::SCA_EnumInputs)i);
-		
-		PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), inevent.GetProxy());
+		SCA_InputEvent& input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+		int event = 0;
+		if (input.m_queue.size() > 0) {
+			event = input.m_queue[input.m_queue.size() - 1];
+		}
+		else {
+			event = input.m_status[input.m_status.size() - 1];
+		}
+
+		PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), PyLong_FromLong(event));
+	}
+	Py_INCREF(self->m_event_dict);
+	return self->m_event_dict;
+}
+
+PyObject *SCA_PythonKeyboard::pyattr_get_inputs(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_PythonKeyboard* self = static_cast<SCA_PythonKeyboard*>(self_v);
+
+	for (int i=SCA_IInputDevice::BEGINKEY; i<=SCA_IInputDevice::ENDKEY; i++)
+	{
+		SCA_InputEvent& input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+
+		PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), input.GetProxy());
+	}
+	Py_INCREF(self->m_event_dict);
+	return self->m_event_dict;
+}
+
+PyObject *SCA_PythonKeyboard::pyattr_get_active_inputs(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_PythonKeyboard* self = static_cast<SCA_PythonKeyboard*>(self_v);
+
+	ShowDeprecationWarning("keyboard.active_events", "keyboard.activeInputs");
+
+	PyDict_Clear(self->m_event_dict);
+
+	for (int i=SCA_IInputDevice::BEGINKEY; i<=SCA_IInputDevice::ENDKEY; i++)
+	{
+		SCA_InputEvent& input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+
+		if (input.Find(SCA_InputEvent::ACTIVE)) {
+			PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), input.GetProxy());
+		}
 	}
 	Py_INCREF(self->m_event_dict);
 	return self->m_event_dict;
@@ -129,13 +174,21 @@ PyObject *SCA_PythonKeyboard::pyattr_get_active_events(void *self_v, const KX_PY
 	SCA_PythonKeyboard* self = static_cast<SCA_PythonKeyboard*>(self_v);
 
 	PyDict_Clear(self->m_event_dict);
-	
+
 	for (int i=SCA_IInputDevice::BEGINKEY; i<=SCA_IInputDevice::ENDKEY; i++)
 	{
-		SCA_InputEvent & inevent = self->m_keyboard->GetEvent((SCA_IInputDevice::SCA_EnumInputs)i);
-		
-		if (inevent.Find(SCA_InputEvent::ACTIVE)) {
-			PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), inevent.GetProxy());
+		SCA_InputEvent& input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+
+		if (input.Find(SCA_InputEvent::ACTIVE)) {
+			int event = 0;
+			if (input.m_queue.size() > 0) {
+				event = input.m_queue[input.m_queue.size() - 1];
+			}
+			else {
+				event = input.m_status[input.m_status.size() - 1];
+			}
+
+			PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), PyLong_FromLong(event));
 		}
 	}
 	Py_INCREF(self->m_event_dict);

@@ -9,17 +9,33 @@ base class --- :class:`PyObjectPlus`
 
    The current keyboard.
 
+   .. attribute:: inputs
+
+      A dictionary containing the input of each keyboard key. (read-only).
+
+      :type: dictionary {:ref:`keycode<keyboard-keys>`::class:`SCA_InputEvent`, ...}
+
    .. attribute:: events
 
-      A dictionary containing the events of each keyboard key. (read-only).
+      A dictionary containing the status of each keyboard event or key. (read-only).
+
+      .. deprecated:: use :data:`inputs`
+
+      :type: dictionary {:ref:`keycode<keyboard-keys>`::ref:`status<input-status>`, ...}
+
+   .. attribute:: activeInputs
+
+      A dictionary containing the input of only the active keyboard keys. (read-only).
 
       :type: dictionary {:ref:`keycode<keyboard-keys>`::class:`SCA_InputEvent`, ...}
 
    .. attribute:: active_events
 
-      A dictionary containing the event of only the active keyboard keys. (read-only).
+      A dictionary containing the status of only the active keyboard events or keys. (read-only).
 
-      :type: dictionary {:ref:`keycode<keyboard-keys>`::class:`SCA_InputEvent`, ...}
+      .. deprecated:: use :data:`activeInputs`
+
+      :type: dictionary {:ref:`keycode<keyboard-keys>`::ref:`status<input-status>`, ...}
 
    .. attribute:: text
 

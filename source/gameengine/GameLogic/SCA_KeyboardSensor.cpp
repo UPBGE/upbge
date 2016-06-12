@@ -152,8 +152,8 @@ bool SCA_KeyboardSensor::Evaluate()
 		bool active = false;
 
 		for (int i=SCA_IInputDevice::BEGINKEY ; i<= SCA_IInputDevice::ENDKEY;i++) {
-			const SCA_InputEvent & inevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) i);
-			if (inevent.Find(SCA_InputEvent::ACTIVE)) {
+			const SCA_InputEvent & input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) i);
+			if (input.Find(SCA_InputEvent::ACTIVE)) {
 				active = true;
 				break;
 			}
@@ -178,20 +178,20 @@ bool SCA_KeyboardSensor::Evaluate()
 		m_status[0] = active;
 	}
 	else {
-		const SCA_InputEvent & inevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) m_hotkey);
+		const SCA_InputEvent & input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) m_hotkey);
 
 		/* Check qualifier keys
 		 * - see if the qualifiers we request are pressed - 'qual' true/false
 		 * - see if the qualifiers we request changed their state - 'qual_change' true/false
 		 */
 		if (m_qual > 0) {
-			const SCA_InputEvent & qualevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) m_qual);
+			const SCA_InputEvent & qualevent = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) m_qual);
 			if (!qualevent.Find(SCA_InputEvent::ACTIVE)) {
 				qual[0] = false;
 			}
 		}
 		if (m_qual2 > 0) {
-			const SCA_InputEvent & qualevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) m_qual2);
+			const SCA_InputEvent & qualevent = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) m_qual2);
 			/* copy of above */
 			if (!qualevent.Find(SCA_InputEvent::ACTIVE)) {
 				qual[1] = false;
@@ -199,7 +199,7 @@ bool SCA_KeyboardSensor::Evaluate()
 		}
 		/* done reading qualifiers */
 
-		if (inevent.Find(SCA_InputEvent::ACTIVE)) {
+		if (input.Find(SCA_InputEvent::ACTIVE)) {
 			m_val = 1;
 		}
 		else {
@@ -245,8 +245,8 @@ bool SCA_KeyboardSensor::IsShifted(void)
 {
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
 	
-	return (inputdev->GetEvent(SCA_IInputDevice::RIGHTSHIFTKEY).Find(SCA_InputEvent::ACTIVE) ||
-			inputdev->GetEvent(SCA_IInputDevice::LEFTSHIFTKEY).Find(SCA_InputEvent::ACTIVE));
+	return (inputdev->GetInput(SCA_IInputDevice::RIGHTSHIFTKEY).Find(SCA_InputEvent::ACTIVE) ||
+			inputdev->GetInput(SCA_IInputDevice::LEFTSHIFTKEY).Find(SCA_InputEvent::ACTIVE));
 }
 
 void SCA_KeyboardSensor::LogKeystrokes()
@@ -332,8 +332,8 @@ KX_PYMETHODDEF_DOC_O(SCA_KeyboardSensor, getKeyStatus,
 	}
 	
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
-	const SCA_InputEvent & inevent = inputdev->GetEvent(keycode);
-	return PyLong_FromLong(inevent.m_status[inevent.m_status.size() - 1]);
+	const SCA_InputEvent & input = inputdev->GetInput(keycode);
+	return PyLong_FromLong(input.m_status[input.m_status.size() - 1]);
 	Py_RETURN_NONE;
 }
 
@@ -370,6 +370,7 @@ PyMethodDef SCA_KeyboardSensor::Methods[] = {
 
 PyAttributeDef SCA_KeyboardSensor::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("events", SCA_KeyboardSensor, pyattr_get_events),
+	KX_PYATTRIBUTE_RO_FUNCTION("inputs", SCA_KeyboardSensor, pyattr_get_inputs),
 	KX_PYATTRIBUTE_BOOL_RW("useAllKeys",SCA_KeyboardSensor,m_bAllKeys),
 	KX_PYATTRIBUTE_INT_RW("key",0,SCA_IInputDevice::ENDKEY,true,SCA_KeyboardSensor,m_hotkey),
 	KX_PYATTRIBUTE_SHORT_RW("hold1",0,SCA_IInputDevice::ENDKEY,true,SCA_KeyboardSensor,m_qual),
@@ -380,22 +381,54 @@ PyAttributeDef SCA_KeyboardSensor::Attributes[] = {
 };
 
 
-PyObject *SCA_KeyboardSensor::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_KeyboardSensor::pyattr_get_inputs(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_KeyboardSensor* self = static_cast<SCA_KeyboardSensor*>(self_v);
-	
+
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)self->m_eventmgr)->GetInputDevice();
 
 	PyObject *resultlist = PyList_New(0);
 	
 	for (int i=SCA_IInputDevice::BEGINKEY ; i<= SCA_IInputDevice::ENDKEY;i++)
 	{
-		SCA_InputEvent & inevent = inputdev->GetEvent((SCA_IInputDevice::SCA_EnumInputs) i);
-		if (inevent.Find(SCA_InputEvent::ACTIVE))
+		SCA_InputEvent& input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) i);
+		if (input.Find(SCA_InputEvent::ACTIVE))
 		{
 			PyObject *keypair = PyList_New(2);
 			PyList_SET_ITEM(keypair,0,PyLong_FromLong(i));
-			PyList_SET_ITEM(keypair,1,inevent.GetProxy());
+			PyList_SET_ITEM(keypair,1,input.GetProxy());
+			PyList_Append(resultlist,keypair);
+			Py_DECREF(keypair);
+		}
+	}
+	return resultlist;
+}
+
+PyObject *SCA_KeyboardSensor::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_KeyboardSensor* self = static_cast<SCA_KeyboardSensor*>(self_v);
+
+	ShowDeprecationWarning("sensor.events", "sensor.inputs");
+
+	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)self->m_eventmgr)->GetInputDevice();
+
+	PyObject *resultlist = PyList_New(0);
+
+	for (int i=SCA_IInputDevice::BEGINKEY ; i<= SCA_IInputDevice::ENDKEY;i++)
+	{
+		SCA_InputEvent& input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) i);
+		int event = 0;
+		if (input.m_queue.size() > 0) {
+			event = input.m_queue[input.m_queue.size() - 1];
+		}
+		else {
+			event = input.m_status[input.m_status.size() - 1];
+		}
+
+		if (event != SCA_InputEvent::NONE) {
+			PyObject *keypair = PyList_New(2);
+			PyList_SET_ITEM(keypair,0,PyLong_FromLong(i));
+			PyList_SET_ITEM(keypair,1,PyLong_FromLong(event));
 			PyList_Append(resultlist,keypair);
 			Py_DECREF(keypair);
 		}

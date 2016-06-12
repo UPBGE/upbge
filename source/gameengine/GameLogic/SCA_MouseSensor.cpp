@@ -156,7 +156,7 @@ bool SCA_MouseSensor::Evaluate()
 	case KX_MOUSESENSORMODE_WHEELUP:
 	case KX_MOUSESENSORMODE_WHEELDOWN:
 		{
-			const SCA_InputEvent& mevent = mousedev->GetEvent(m_hotkey);
+			const SCA_InputEvent& mevent = mousedev->GetInput(m_hotkey);
 			if (mevent.Find(SCA_InputEvent::ACTIVE)) {
 				m_val = 1;
 			}
@@ -167,8 +167,8 @@ bool SCA_MouseSensor::Evaluate()
 		}
 	case KX_MOUSESENSORMODE_MOVEMENT:
 		{
-			const SCA_InputEvent& eventX = mousedev->GetEvent(SCA_IInputDevice::MOUSEX);
-			const SCA_InputEvent& eventY = mousedev->GetEvent(SCA_IInputDevice::MOUSEY);
+			const SCA_InputEvent& eventX = mousedev->GetInput(SCA_IInputDevice::MOUSEX);
+			const SCA_InputEvent& eventY = mousedev->GetInput(SCA_IInputDevice::MOUSEY);
 
 			if (eventX.Find(SCA_InputEvent::ACTIVE) || eventY.Find(SCA_InputEvent::ACTIVE)) {
 				m_val = 1;
@@ -231,7 +231,7 @@ KX_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
 		}
 		
 		SCA_IInputDevice* mousedev = ((SCA_MouseManager *)m_eventmgr)->GetInputDevice();
-		const SCA_InputEvent& event = mousedev->GetEvent(button);
+		const SCA_InputEvent& event = mousedev->GetInput(button);
 		return PyLong_FromLong(event.m_status[event.m_status.size() - 1]);
 	}
 	

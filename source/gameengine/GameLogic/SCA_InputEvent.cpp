@@ -82,11 +82,10 @@ PyTypeObject SCA_InputEvent::Type = {
 	0,
 	0,
 	py_base_repr,
-	&tp_as_number,
-	0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	0,0,0,
-	tp_richcompare,
+	0,
 	0,0,0,
 	Methods,
 	0,
@@ -107,26 +106,6 @@ PyAttributeDef SCA_InputEvent::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RO("type", SCA_InputEvent, m_type),
 	{NULL} //Sentinel
 };
-
-PyNumberMethods SCA_InputEvent::tp_as_number = {
-	NULL, // nb_add
-	NULL, // nb_subtract
-	NULL, // nb_multiply
-	NULL, // nb_remainder
-	NULL, // nb_divmod
-	NULL, // nb_power
-	NULL, // nb_negative
-	NULL, // nb_positive
-	NULL, // nb_absolute
-	(inquiry)nb_bool, // nb_bool
-};
-
-int SCA_InputEvent::nb_bool(PyObject *self)
-{
-	SCA_InputEvent *event = (SCA_InputEvent *)BGE_PROXY_REF(self);
-	ShowDeprecationWarning("if event:", "if KX_INPUT_ACTIVE in event.status:  or  if event is not None:");
-	return event->Find(ACTIVE) ? 1 : 0;
-}
 
 int SCA_InputEvent::get_status_size_cb(void *self_v)
 {
@@ -192,42 +171,6 @@ PyObject *SCA_InputEvent::pyattr_get_values(void *self_v, const KX_PYATTRIBUTE_D
 							 NULL,
 							 NULL,
 							 CListWrapper::FLAG_FIND_VALUE))->NewProxy(true);
-}
-
-PyObject *SCA_InputEvent::tp_richcompare(PyObject *a, PyObject *b, int op)
-{
-	if (op == Py_EQ || op == Py_NE) {
-		int val = -1;
-		SCA_InputEvent *event = NULL;
-		if (PyLong_Check(a)) {
-			val = PyLong_AsLong(a);
-			event = (SCA_InputEvent *)BGE_PROXY_REF(b);
-		}
-		else if (PyLong_Check(b)) {
-			val = PyLong_AsLong(b);
-			event = (SCA_InputEvent *)BGE_PROXY_REF(a);
-		}
-
-		if (val != -1 && event) {
-			if ((val == ACTIVE) ||
-				(val == NONE) ||
-				(val == JUSTACTIVATED) ||
-				(val == JUSTRELEASED))
-			{
-				ShowDeprecationWarning("event == value", "value in event.status or value in event.queue");
-				bool found = event->Find((SCA_EnumInputs)val);
-				if (op == Py_NE) {
-					// Inverse returned value.
-					found = !found;
-				}
-				PyObject *ret = (found ? Py_True : Py_False);
-				Py_INCREF(ret);
-				return ret;
-			}
-		}
-	}
-
-	return Py_False;
 }
 
 #endif  // WITH_PYTHON

@@ -63,6 +63,11 @@ public:
 	int m_type;
 
 #ifdef WITH_PYTHON
+	virtual PyObject *py_repr()
+	{
+		return PyUnicode_FromString("SCA_InputEvent");
+	}
+
 	static int get_status_size_cb(void *self_v);
 	static PyObject *get_status_item_cb(void *self_v, int index);
 	static int get_queue_size_cb(void *self_v);
@@ -73,11 +78,6 @@ public:
 	static PyObject *pyattr_get_status(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_queue(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-
-	/// \section Methodes for retro compatibility.
-	static PyObject *tp_richcompare(PyObject *a, PyObject *b, int op);
-	static PyNumberMethods tp_as_number;
-	static int nb_bool(PyObject *self);
 #endif
 };
 

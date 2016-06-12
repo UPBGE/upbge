@@ -654,7 +654,7 @@ bool KX_KetsjiEngine::NextFrame()
 		// update system devices
 		m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
 		if (m_inputDevice) {
-			m_inputDevice->ClearEvents();
+			m_inputDevice->ClearInputs();
 		}
 
 		UpdateSuspendedScenes();
