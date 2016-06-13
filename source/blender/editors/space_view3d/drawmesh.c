@@ -369,15 +369,18 @@ static bool set_draw_settings_cached(int clearcache, MTexPoly *texface, Material
 	}
 
 	if (c_badtex) lit = 0;
-	if (lit != c_lit || ma != c_ma) {
+	if (lit != c_lit || ma != c_ma || textured != c_textured) {
+		int options = GPU_SHADER_USE_COLOR;
+
+		if (c_textured && !c_badtex) {
+			options |= GPU_SHADER_TEXTURE_2D;
+		}
+		if (gtexdraw.two_sided_lighting) {
+			options |= GPU_SHADER_TWO_SIDED;
+		}
+
 		if (lit) {
-			int options = GPU_SHADER_LIGHTING | GPU_SHADER_USE_COLOR;
-
-			if (gtexdraw.two_sided_lighting)
-				options |= GPU_SHADER_TWO_SIDED;
-			if (c_textured && !c_badtex)
-				options |= GPU_SHADER_TEXTURE_2D;
-
+			options |= GPU_SHADER_LIGHTING;
 			if (!ma)
 				ma = give_current_material_or_def(NULL, 0);  /* default material */
 
@@ -385,11 +388,9 @@ static bool set_draw_settings_cached(int clearcache, MTexPoly *texface, Material
 			mul_v3_v3fl(specular, &ma->specr, ma->spec);
 
 			GPU_basic_shader_colors(NULL, specular, ma->har, 1.0f);
-			GPU_basic_shader_bind(options);
 		}
-		else {
-			GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
-		}
+
+		GPU_basic_shader_bind(options);
 
 		c_lit = lit;
 		c_ma = ma;
@@ -495,7 +496,6 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 
 	memcpy(Gtexdraw.obcol, obcol, sizeof(obcol));
 	set_draw_settings_cached(1, NULL, NULL, Gtexdraw);
-	glShadeModel(GL_SMOOTH);
 	glCullFace(GL_BACK);
 }
 
@@ -527,7 +527,6 @@ static void draw_textured_end(void)
 		GPU_set_tpage(NULL, 0, 0);
 	}
 
-	glShadeModel(GL_FLAT);
 	glDisable(GL_CULL_FACE);
 	GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
 
@@ -1311,8 +1310,8 @@ void draw_mesh_paint_weight_edges(RegionView3D *rv3d, DerivedMesh *dm,
 	}
 
 	glColor4ub(255, 255, 255, 96);
-	glEnable(GL_LINE_STIPPLE);
-	glLineStipple(1, 0xAAAA);
+	GPU_basic_shader_bind_enable(GPU_SHADER_LINE | GPU_SHADER_STIPPLE);
+	GPU_basic_shader_line_stipple(1, 0xAAAA);
 
 	dm->drawMappedEdges(dm, (DMSetDrawOptions)edgemask_cb, user_data);
 
@@ -1324,7 +1323,7 @@ void draw_mesh_paint_weight_edges(RegionView3D *rv3d, DerivedMesh *dm,
 		glEnable(GL_DEPTH_TEST);
 	}
 
-	glDisable(GL_LINE_STIPPLE);
+	GPU_basic_shader_bind_disable(GPU_SHADER_LINE | GPU_SHADER_STIPPLE);
 
 	if (use_alpha) {
 		glDisable(GL_BLEND);

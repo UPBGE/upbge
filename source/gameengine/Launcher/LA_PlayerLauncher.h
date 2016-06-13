@@ -59,13 +59,13 @@ public:
 	void startWindow(STR_String& title,
 	                 int windowLeft, int windowTop,
 	                 int windowWidth, int windowHeight,
-	                 const bool stereoVisual, const GHOST_TUns16 samples=0);
+	                 const bool stereoVisual, const int alphaBackground=0, const GHOST_TUns16 samples=0);
 	void startFullScreen(int width, int height,
 	                     int bpp, int frequency,
 	                     const bool stereoVisual,
-	                     const GHOST_TUns16 samples=0, bool useDesktop=false);
+	                     const int alphaBackground=0, const GHOST_TUns16 samples=0, bool useDesktop=false);
 	void startEmbeddedWindow(STR_String& title, const GHOST_TEmbedderWindowID parent_window,
-	                         const bool stereoVisual, const GHOST_TUns16 samples=0);
+	                         const bool stereoVisual, const int alphaBackground=0, const GHOST_TUns16 samples=0);
 #ifdef WIN32
 	void startScreenSaverFullScreen(int width, int height,
 	                                int bpp, int frequency,

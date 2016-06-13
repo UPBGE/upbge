@@ -593,7 +593,6 @@ void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, f
 	ymid1 = (y2 - y1) * 0.25f + y1;
 	ymid2 = (y2 - y1) * 0.65f + y1;
 	
-	glShadeModel(GL_SMOOTH);
 	glBegin(GL_QUADS);
 	
 	if (seq->flag & SEQ_INVALID_EFFECT) { col[0] = 255; col[1] = 0; col[2] = 255; }
@@ -1630,7 +1629,8 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	// NOTE: the gridlines are currently spaced every 25 frames, which is only fine for 25 fps, but maybe not for 30...
 	UI_view2d_constant_grid_draw(v2d);
 
-	if (sseq->draw_flag & SEQ_DRAW_BACKDROP) {
+	/* Only draw backdrop in pure sequence view. */
+	if (sseq->view == SEQ_VIEW_SEQUENCE && sseq->draw_flag & SEQ_DRAW_BACKDROP) {
 		draw_image_seq(C, scene, ar, sseq, scene->r.cfra, 0, false, true);
 		UI_view2d_view_ortho(v2d);
 	}

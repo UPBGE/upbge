@@ -1181,6 +1181,10 @@ static void emDM_drawMappedFaces(
 
 	/* if non zero we know a face was rendered */
 	if (poly_prev != GL_ZERO) glEnd();
+
+	if (draw_option_prev == DM_DRAW_OPTION_STIPPLE) {
+		GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
+	}
 }
 
 static void bmdm_get_tri_uv(BMLoop *ltri[3], MLoopUV *luv[3], const int cd_loop_uv_offset)
@@ -1236,8 +1240,6 @@ static void emDM_drawFacesTex_common(
 	// dummylcol.r = dummylcol.g = dummylcol.b = dummylcol.a = 255;  /* UNUSED */
 
 	/* always use smooth shading even for flat faces, else vertex colors wont interpolate */
-	glShadeModel(GL_SMOOTH);
-
 	BM_mesh_elem_index_ensure(bm, BM_FACE);
 
 	/* call again below is ok */
@@ -1384,8 +1386,6 @@ static void emDM_drawFacesTex_common(
 			}
 		}
 	}
-
-	glShadeModel(GL_FLAT);
 }
 
 static void emDM_drawFacesTex(
@@ -1524,8 +1524,6 @@ static void emDM_drawMappedFacesGLSL(
 	vertexNos = bmdm->vertexNos;
 	polyNos = bmdm->polyNos;
 
-	/* always use smooth shading even for flat faces, else vertex colors wont interpolate */
-	glShadeModel(GL_SMOOTH);
 	BM_mesh_elem_index_ensure(bm, (BM_VERT | BM_FACE) | (lnors ? BM_LOOP : 0));
 
 	for (i = 0; i < em->tottri; i++) {
@@ -1636,8 +1634,6 @@ static void emDM_drawMappedFacesMat(
 	vertexNos = bmdm->vertexNos;
 	polyNos = bmdm->polyNos;
 
-	/* always use smooth shading even for flat faces, else vertex colors wont interpolate */
-	glShadeModel(GL_SMOOTH);
 	BM_mesh_elem_index_ensure(bm, (BM_VERT | BM_FACE) | (lnors ? BM_LOOP : 0));
 
 	for (i = 0; i < em->tottri; i++) {

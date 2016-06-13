@@ -327,6 +327,13 @@ float glaGetOneFloat(int param)
 	return v;
 }
 
+int glaGetOneInt(int param)
+{
+	GLint v;
+	glGetIntegerv(param, &v);
+	return v;
+}
+
 void glaRasterPosSafe2f(float x, float y, float known_good_x, float known_good_y)
 {
 	GLubyte dummy = 0;
@@ -579,6 +586,10 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 	draw_h = min_ii(img_h - off_y, ceil((scissor[3] - rast_y) / yzoom));
 
 	if (draw_w > 0 && draw_h > 0) {
+
+		int bound_options;
+		GPU_BASIC_SHADER_DISABLE_AND_STORE(bound_options);
+
 		/* Don't use safe RasterPos (slower) if we can avoid it. */
 		if (rast_x >= 0 && rast_y >= 0) {
 			glRasterPos2f(rast_x, rast_y);
@@ -610,6 +621,8 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 		}
 		
 		glPixelStorei(GL_UNPACK_ROW_LENGTH,  0);
+
+		GPU_BASIC_SHADER_ENABLE_AND_RESTORE(bound_options);
 	}
 }
 

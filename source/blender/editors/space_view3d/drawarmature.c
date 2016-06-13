@@ -431,10 +431,9 @@ static void draw_bonevert_solid(void)
 		glNewList(displist, GL_COMPILE);
 		
 		qobj = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_FILL); 
-		glShadeModel(GL_SMOOTH);
+		gluQuadricDrawStyle(qobj, GLU_FILL);
+		/* Draw tips of a bone */
 		gluSphere(qobj, 0.05, 8, 5);
-		glShadeModel(GL_FLAT);
 		gluDeleteQuadric(qobj);  
 		
 		glEndList();
@@ -890,7 +889,6 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 		GPU_basic_shader_bind(GPU_SHADER_LIGHTING | GPU_SHADER_USE_COLOR);
 		
 		gluQuadricDrawStyle(qobj, GLU_FILL); 
-		glShadeModel(GL_SMOOTH);
 	}
 	else {
 		gluQuadricDrawStyle(qobj, GLU_SILHOUETTE); 
@@ -968,7 +966,6 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 	
 	/* restore */
 	if (dt == OB_SOLID) {
-		glShadeModel(GL_FLAT);
 		GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
 	}
 	
@@ -986,9 +983,10 @@ static GLubyte bm_dot7[] = {0x0, 0x38, 0x7C, 0xFE, 0xFE, 0xFE, 0x7C, 0x38};
 static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned int id,
                            bPoseChannel *pchan, EditBone *ebone)
 {
+	/* call this once, avoid constant changing */
+	BLI_assert(glaGetOneInt(GL_UNPACK_ALIGNMENT) == 1);
+
 	float length;
-	
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	
 	if (pchan) 
 		length = pchan->bone->length;
@@ -1769,7 +1767,6 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 		/* and draw blended distances */
 		if (arm->flag & ARM_POSEMODE) {
 			glEnable(GL_BLEND);
-			//glShadeModel(GL_SMOOTH);
 			
 			if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
 			
@@ -1792,7 +1789,6 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			
 			if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 			glDisable(GL_BLEND);
-			//glShadeModel(GL_FLAT);
 		}
 	}
 	
@@ -2216,7 +2212,6 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 		
 		/* and draw blended distances */
 		glEnable(GL_BLEND);
-		//glShadeModel(GL_SMOOTH);
 		
 		if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
 
@@ -2231,7 +2226,6 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 		
 		if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 		glDisable(GL_BLEND);
-		//glShadeModel(GL_FLAT);
 	}
 	
 	/* if solid we draw it first */
@@ -2699,6 +2693,11 @@ bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	if (v3d->flag2 & V3D_RENDER_OVERRIDE)
 		return true;
 
+	/* needed for 'draw_line_bone' which draws pixel. */
+	if (arm->drawtype == ARM_LINE) {
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	}
+
 	if (dt > OB_WIRE) {
 		/* we use color for solid lighting */
 		if (ELEM(arm->drawtype, ARM_LINE, ARM_WIRE)) {
@@ -2773,6 +2772,10 @@ bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 	}
 	/* restore */
 	glFrontFace(GL_CCW);
+
+	if (arm->drawtype == ARM_LINE) {
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+	}
 
 	return retval;
 }

@@ -110,7 +110,7 @@ static void generate_vert_coordinates(
 /* Note this modifies nos_new in-place. */
 static void mix_normals(
         const float mix_factor, MDeformVert *dvert, const int defgrp_index, const bool use_invert_vgroup,
-        const short mix_mode,
+        const float mix_limit, const short mix_mode,
         const int num_verts, MLoop *mloop, float (*nos_old)[3], float (*nos_new)[3], const int num_loops)
 {
 	/* Mix with org normals... */
@@ -143,7 +143,9 @@ static void mix_normals(
 			case MOD_NORMALEDIT_MIX_COPY:
 				break;
 		}
-		interp_v3_v3v3_slerp_safe(*no_new, *no_old, *no_new, fac);
+
+		interp_v3_v3v3_slerp_safe(*no_new, *no_old, *no_new,
+		                          (mix_limit < M_PI) ? min_ff(fac, mix_limit / angle_v3v3(*no_new, *no_old)) : fac);
 	}
 
 	MEM_SAFE_FREE(facs);
@@ -156,6 +158,7 @@ static bool polygons_check_flip(
         MPoly *mpoly, float (*polynors)[3], const int num_polys)
 {
 	MPoly *mp;
+	MDisps *mdisp = CustomData_get_layer(ldata, CD_MDISPS);
 	int i;
 	bool flipped = false;
 
@@ -174,7 +177,7 @@ static bool polygons_check_flip(
 
 		/* If average of new loop normals is opposed to polygon normal, flip polygon. */
 		if (dot_v3v3(polynors[i], norsum) < 0.0f) {
-			BKE_mesh_polygon_flip(mp, mloop, ldata);
+			BKE_mesh_polygon_flip_ex(mp, mloop, ldata, nos, mdisp, true);
 			negate_v3(polynors[i]);
 			flipped = true;
 		}
@@ -186,7 +189,7 @@ static bool polygons_check_flip(
 static void normalEditModifier_do_radial(
         NormalEditModifierData *smd, Object *ob, DerivedMesh *dm,
         short (*clnors)[2], float (*loopnors)[3], float (*polynors)[3],
-        const short mix_mode, const float mix_factor,
+        const short mix_mode, const float mix_factor, const float mix_limit,
         MDeformVert *dvert, const int defgrp_index, const bool use_invert_vgroup,
         MVert *mvert, const int num_verts, MEdge *medge, const int num_edges,
         MLoop *mloop, const int num_loops, MPoly *mpoly, const int num_polys)
@@ -265,11 +268,13 @@ static void normalEditModifier_do_radial(
 
 	if (loopnors) {
 		mix_normals(mix_factor, dvert, defgrp_index, use_invert_vgroup,
-		            mix_mode, num_verts, mloop, loopnors, nos, num_loops);
+		            mix_limit, mix_mode, num_verts, mloop, loopnors, nos, num_loops);
 	}
 
 	if (polygons_check_flip(mloop, nos, dm->getLoopDataLayout(dm), mpoly, polynors, num_polys)) {
 		dm->dirty |= DM_DIRTY_TESS_CDLAYERS;
+		/* We need to recompute vertex normals! */
+		dm->calcNormals(dm);
 	}
 
 	BKE_mesh_normals_loop_custom_set(mvert, num_verts, medge, num_edges, mloop, nos, num_loops,
@@ -283,7 +288,7 @@ static void normalEditModifier_do_radial(
 static void normalEditModifier_do_directional(
         NormalEditModifierData *smd, Object *ob, DerivedMesh *dm,
         short (*clnors)[2], float (*loopnors)[3], float (*polynors)[3],
-        const short mix_mode, const float mix_factor,
+        const short mix_mode, const float mix_factor, const float mix_limit,
         MDeformVert *dvert, const int defgrp_index, const bool use_invert_vgroup,
         MVert *mvert, const int num_verts, MEdge *medge, const int num_edges,
         MLoop *mloop, const int num_loops, MPoly *mpoly, const int num_polys)
@@ -342,7 +347,7 @@ static void normalEditModifier_do_directional(
 
 	if (loopnors) {
 		mix_normals(mix_factor, dvert, defgrp_index, use_invert_vgroup,
-		            mix_mode, num_verts, mloop, loopnors, nos, num_loops);
+		            mix_limit, mix_mode, num_verts, mloop, loopnors, nos, num_loops);
 	}
 
 	if (polygons_check_flip(mloop, nos, dm->getLoopDataLayout(dm), mpoly, polynors, num_polys)) {
@@ -384,7 +389,8 @@ static DerivedMesh *normalEditModifier_do(NormalEditModifierData *smd, Object *o
 	const bool use_invert_vgroup = ((smd->flag & MOD_NORMALEDIT_INVERT_VGROUP) != 0);
 	const bool use_current_clnors = !((smd->mix_mode == MOD_NORMALEDIT_MIX_COPY) &&
 	                                  (smd->mix_factor == 1.0f) &&
-	                                  (smd->defgrp_name[0] == '\0'));
+	                                  (smd->defgrp_name[0] == '\0') &&
+	                                  (smd->mix_limit == M_PI));
 
 	int defgrp_index;
 	MDeformVert *dvert;
@@ -439,13 +445,13 @@ static DerivedMesh *normalEditModifier_do(NormalEditModifierData *smd, Object *o
 	if (smd->mode == MOD_NORMALEDIT_MODE_RADIAL) {
 		normalEditModifier_do_radial(
 		            smd, ob, dm, clnors, loopnors, polynors,
-		            smd->mix_mode, smd->mix_factor, dvert, defgrp_index, use_invert_vgroup,
+		            smd->mix_mode, smd->mix_factor, smd->mix_limit, dvert, defgrp_index, use_invert_vgroup,
 		            mvert, num_verts, medge, num_edges, mloop, num_loops, mpoly, num_polys);
 	}
 	else if (smd->mode == MOD_NORMALEDIT_MODE_DIRECTIONAL) {
 		normalEditModifier_do_directional(
 		            smd, ob, dm, clnors, loopnors, polynors,
-		            smd->mix_mode, smd->mix_factor, dvert, defgrp_index, use_invert_vgroup,
+		            smd->mix_mode, smd->mix_factor, smd->mix_limit, dvert, defgrp_index, use_invert_vgroup,
 		            mvert, num_verts, medge, num_edges, mloop, num_loops, mpoly, num_polys);
 	}
 
@@ -464,6 +470,7 @@ static void initData(ModifierData *md)
 
 	smd->mix_mode = MOD_NORMALEDIT_MIX_COPY;
 	smd->mix_factor = 1.0f;
+	smd->mix_limit = M_PI;
 }
 
 static void copyData(ModifierData *md, ModifierData *target)

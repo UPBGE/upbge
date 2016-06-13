@@ -53,8 +53,6 @@
 #include "BKE_mesh.h"
 #include "BKE_pbvh.h"
 
-#include "DNA_userdef_types.h"
-
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
 #include "GPU_basic_shader.h"
@@ -1845,15 +1843,15 @@ void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
 	if (buffers->vert_buf) {
 		char *base = NULL;
 		char *index_base = NULL;
-		int bound_options = 0;
+		/* weak inspection of bound options, should not be necessary ideally */
+		const int bound_options_old = GPU_basic_shader_bound_options();
+		int bound_options_new = 0;
 		glEnableClientState(GL_VERTEX_ARRAY);
 		if (!wireframe) {
 			glEnableClientState(GL_NORMAL_ARRAY);
 			glEnableClientState(GL_COLOR_ARRAY);
 
-			/* weak inspection of bound options, should not be necessary ideally */
-			bound_options = GPU_basic_shader_bound_options();
-			GPU_basic_shader_bind(bound_options | GPU_SHADER_USE_COLOR);
+			bound_options_new |= GPU_SHADER_USE_COLOR;
 		}
 
 		GPU_buffer_bind(buffers->vert_buf, GPU_BINDING_ARRAY);
@@ -1865,10 +1863,18 @@ void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
 			GPU_buffer_bind(buffers->index_buf, GPU_BINDING_INDEX);
 		}
 
-		if (wireframe)
+		if (wireframe) {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		else
-			glShadeModel((buffers->smooth || buffers->face_indices_len) ? GL_SMOOTH : GL_FLAT);
+		}
+		else {
+			if ((buffers->smooth == false) && (buffers->face_indices_len == 0)) {
+				bound_options_new |= GPU_SHADER_FLAT_NORMAL;
+			}
+		}
+
+		if (bound_options_new & ~bound_options_old) {
+			GPU_basic_shader_bind(bound_options_old | bound_options_new);
+		}
 
 		if (buffers->tot_quad) {
 			const char *offset = base;
@@ -1942,7 +1948,10 @@ void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
 		if (!wireframe) {
 			glDisableClientState(GL_NORMAL_ARRAY);
 			glDisableClientState(GL_COLOR_ARRAY);
-			GPU_basic_shader_bind(bound_options);
+		}
+
+		if (bound_options_new & ~bound_options_old) {
+			GPU_basic_shader_bind(bound_options_old);
 		}
 	}
 }
