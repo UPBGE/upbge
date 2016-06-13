@@ -217,6 +217,9 @@ protected:
 	/// Typed text in unicode during a frame.
 	std::wstring m_text;
 
+	/// True when a sensor handle the same key as the exit key.
+	bool m_hookExitKey;
+
 	/** Translation table used to get the character from a key number with shift or not.
 	 * Key -> (Character, Character shifted)
 	 */
@@ -224,6 +227,9 @@ protected:
 
 public:
 	virtual SCA_InputEvent& GetInput(SCA_IInputDevice::SCA_EnumInputs inputcode);
+
+	void SetHookExitKey(bool hook);
+	bool GetHookExitKey() const;
 
 	/** Clear inputs:
 	 *     - Clear status and copy last status to first status.

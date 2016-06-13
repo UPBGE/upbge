@@ -388,7 +388,9 @@ bool LA_Launcher::EngineNextFrame()
 		m_system->processEvents(false);
 		m_system->dispatchEvents();
 
-		if (m_inputDevice->GetInput((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey()).Find(SCA_InputEvent::ACTIVE)) {
+		if (m_inputDevice->GetInput((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey()).Find(SCA_InputEvent::ACTIVE) &&
+			!m_inputDevice->GetHookExitKey())
+		{
 			m_inputDevice->ConvertEvent((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey(), 0, 0);
 			m_exitRequested = KX_EXIT_REQUEST_BLENDER_ESC;
 		}

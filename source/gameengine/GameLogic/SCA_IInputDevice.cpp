@@ -112,6 +112,7 @@ static std::map<SCA_IInputDevice::SCA_EnumInputs, std::pair<char, char> > create
 std::map<SCA_IInputDevice::SCA_EnumInputs, std::pair<char, char> > SCA_IInputDevice::m_keyToChar = createKeyToCharMap();
 
 SCA_IInputDevice::SCA_IInputDevice()
+	:m_hookExitKey(false)
 {
 	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
 		m_inputsTable[i] = SCA_InputEvent(i);
@@ -123,6 +124,16 @@ SCA_IInputDevice::~SCA_IInputDevice()
 	for (int i = 0; i < SCA_IInputDevice::MAX_KEYS; ++i) {
 		m_inputsTable[i].InvalidateProxy();
 	}
+}
+
+void SCA_IInputDevice::SetHookExitKey(bool hook)
+{
+	m_hookExitKey = hook;
+}
+
+bool SCA_IInputDevice::GetHookExitKey() const
+{
+	return m_hookExitKey;
 }
 
 void SCA_IInputDevice::ClearInputs()
