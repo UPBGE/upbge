@@ -383,6 +383,16 @@ bool LA_Launcher::EngineNextFrame()
 		// Kick the engine.
 		bool renderFrame = m_ketsjiEngine->NextFrame();
 		if (renderFrame) {
+#ifdef WITH_PYTHON
+			// Create python console debugging, renderFrame is to true when at least one logic step was done.
+			if (m_inputDevice->GetInput(SCA_IInputDevice::LEFTCTRLKEY).Find(SCA_InputEvent::ACTIVE) &&
+				m_inputDevice->GetInput(SCA_IInputDevice::LEFTALTKEY).Find(SCA_InputEvent::ACTIVE) &&
+				m_inputDevice->GetInput(SCA_IInputDevice::LEFTSHIFTKEY).Find(SCA_InputEvent::ACTIVE) &&
+				m_inputDevice->GetInput(SCA_IInputDevice::TKEY).Find(SCA_InputEvent::ACTIVE))
+			{
+				createPythonConsole();
+			}
+#endif
 			RenderEngine();
 		}
 

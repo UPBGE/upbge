@@ -55,6 +55,8 @@ void setupGamePython(KX_KetsjiEngine *ketsjiengine, Main *blenderdata,
 STR_String pathGamePythonConfig();
 void saveGamePythonConfig();
 void loadGamePythonConfig();
+
+void createPythonConsole();
 #endif
 
 void addImportMain(struct Main *maggie);
