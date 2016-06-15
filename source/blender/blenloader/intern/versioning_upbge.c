@@ -43,6 +43,8 @@
 
 #include "BLO_readfile.h"
 
+#include "wm_event_types.h"
+
 #include "readfile.h"
 
 #include "MEM_guardedalloc.h"
@@ -61,6 +63,16 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 						raySensor->mask = 0xFFFF;//all one, 'cause this was the previous behavior
 					}
 				}
+			}
+		}
+	}
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 9)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "pythonkeys[4]")) {
+			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->gm.pythonkeys[0] = LEFTCTRLKEY;
+				scene->gm.pythonkeys[1] = LEFTSHIFTKEY;
+				scene->gm.pythonkeys[2] = LEFTALTKEY;
+				scene->gm.pythonkeys[3] = TKEY;
 			}
 		}
 	}

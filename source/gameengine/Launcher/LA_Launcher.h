@@ -32,6 +32,8 @@
 
 #include "RAS_IRasterizer.h"
 
+#include "SCA_IInputDevice.h"
+
 #include "STR_String.h"
 
 class KX_Scene;
@@ -96,6 +98,13 @@ protected:
 		int vsync;
 		RAS_IRasterizer::MipmapOption mipmap;
 	} m_savedData;
+
+	struct PythonConsole {
+		bool use;
+		std::vector<SCA_IInputDevice::SCA_EnumInputs> keys;
+	} m_pythonConsole;
+
+	void HandlePythonConsole();
 
 	/// Execute engine render, overrided to render background.
 	virtual void RenderEngine();

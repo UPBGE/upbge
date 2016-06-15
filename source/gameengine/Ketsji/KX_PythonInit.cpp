@@ -2262,7 +2262,20 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
 	*gameLogic = PyDict_GetItemString(modules, "GameLogic");
 	/* is set in initGameLogicPythonBinding so only set here if we want it to persist between scenes */
 	if (pyGlobalDict)
-		PyDict_SetItemString(PyModule_GetDict(*gameLogic), "globalDict", pyGlobalDict); // Same as importing the module.
+		PyDict_SetItemString(PyModule_GetDict(*gameLogic), "globalDict", pyGlobalDict); // Same as importing the module.z
+}
+
+void createPythonConsole()
+{
+	// Use an external file, by this way the user can modify it.
+	char filepath[FILE_MAX];
+	BLI_strncpy(filepath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "bge"), sizeof(filepath));
+	BLI_path_append(filepath, sizeof(filepath), "interpreter.py");
+
+	FILE *fp = fopen(filepath, "r");
+	// Execute the file in python.
+	PyRun_SimpleFile(fp, filepath);
+	fclose(fp);
 }
 
 static struct PyModuleDef Rasterizer_module_def = {
