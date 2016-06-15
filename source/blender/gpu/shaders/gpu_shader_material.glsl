@@ -2318,10 +2318,61 @@ void test_shadowbuf(
 		//float bias = (1.5 - inp*inp)*shadowbias;
 		co.z -= shadowbias * co.w;
 
-		if (co.w > 0.0 && co.x > 0.0 && co.x / co.w < 1.0 && co.y > 0.0 && co.y / co.w < 1.0)
+		if (co.w > 0.0 && co.x > 0.0 && co.x / co.w < 1.0 && co.y > 0.0 && co.y / co.w < 1.0) {
 			result = shadow2DProj(shadowmap, co).x;
-		else
+		}
+		else {
 			result = 1.0;
+		}
+	}
+}
+
+void test_shadowbuf_pcf(
+        vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat, float samples, float samplesize, float shadowbias, float inp,
+        out float result)
+{
+	if (inp <= 0.0) {
+		result = 0.0;
+	}
+	else {
+		vec4 co = shadowpersmat * vec4(rco, 1.0);
+
+		//float bias = (1.5 - inp*inp)*shadowbias;
+		co.z -= shadowbias * co.w;
+
+		if (co.w > 0.0 && co.x > 0.0 && co.x / co.w < 1.0 && co.y > 0.0 && co.y / co.w < 1.0) {
+			float step = samplesize / samples;
+			float fullstep = samplesize - step * 0.95;
+			float halfsample = samplesize / 2.0 - step * 0.5 * 0.95;
+
+			result = 0.0;
+			for (float y = -halfsample; y <= halfsample; y += fullstep) {
+				for (float x = -halfsample; x <= halfsample; x += fullstep) {
+					result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.005, co.z, co.w)).x;
+				}
+			}
+
+			if (result > 0.0 && result < 4.0) {
+				float sampleoffset = halfsample - step;
+				for (float y = -sampleoffset; y <= sampleoffset; y += step) {
+					for (float x = -halfsample; x <= halfsample; x += step) {
+						result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.005, co.z, co.w)).x;
+					}
+				}
+				for (float y = -halfsample; y <= halfsample; y += fullstep) {
+					for (float x = -sampleoffset; x <= sampleoffset; x += step) {
+						result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.005, co.z, co.w)).x;
+					}
+				}
+				result /= (samples) * (samples);
+			}
+			else {
+				result /= 4.0;
+			}
+		}
+		else {
+			result = 1.0;
+		}
 	}
 }
 
@@ -2370,6 +2421,21 @@ void shadows_only(
 		float shadfac;
 
 		test_shadowbuf(rco, shadowmap, shadowpersmat, shadowbias, inp, shadfac);
+		result -= (1.0 - shadfac) * (vec3(1.0) - shadowcolor);
+	}
+}
+
+void shadows_only_pcf(
+        vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat,
+        float samples, float samplesize, float shadowbias, vec3 shadowcolor, float inp,
+        out vec3 result)
+{
+	result = vec3(1.0);
+
+	if (inp > 0.0) {
+		float shadfac;
+
+		test_shadowbuf_pcf(rco, shadowmap, shadowpersmat, samples, samplesize, shadowbias, inp, shadfac);
 		result -= (1.0 - shadfac) * (vec3(1.0) - shadowcolor);
 	}
 }

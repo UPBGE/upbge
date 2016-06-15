@@ -827,6 +827,9 @@ class DATA_PT_shadow_game(DataButtonsPanel, Panel):
         if lamp.ge_shadow_buffer_type == "VARIANCE":
             col.prop(lamp, "shadow_buffer_bleed_bias", text="Bleed Bias")
             col.prop(lamp, "shadow_buffer_sharp", text="Sharpness")
+        else:
+            col.prop(lamp, "shadow_buffer_samples", text="Samples")
+            col.prop(lamp, "shadow_buffer_soft", text="Soft")
 
         row = layout.row()
         row.label("Clipping:")
