@@ -2268,12 +2268,17 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
 void createPythonConsole()
 {
 	const char *script =
-		"import code\n"
-		"# BGE defines\n"
-		"import bge\n"
-		"scene = bge.logic.getCurrentScene()\n"
-		"# Launch interactive console\n"
-		"code.interact(local=locals())\n";
+		"import sys\n"
+		"import os\n"
+		"if os.isatty(sys.stdin.fileno()):\n"
+		"	import code\n"
+		"	# BGE defines\n"
+		"	import bge\n"
+		"	scene = bge.logic.getCurrentScene()\n"
+		"	# Launch interactive console\n"
+		"	code.interact(local=locals())\n"
+		"else:\n"
+		"	print(\"Can't run python interpreter without console\")\n";
 
 	PyRun_SimpleString(script);
 }
