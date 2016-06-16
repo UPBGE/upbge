@@ -56,6 +56,7 @@ STR_String pathGamePythonConfig();
 void saveGamePythonConfig();
 void loadGamePythonConfig();
 
+/// Create a python interpreter and stop the engine until the interpreter is active.
 void createPythonConsole();
 #endif
 
