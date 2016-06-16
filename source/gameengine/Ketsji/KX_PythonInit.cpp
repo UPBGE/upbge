@@ -2267,24 +2267,13 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
 
 void createPythonConsole()
 {
-	const char *script =
-		"import sys\n"
-		"import os\n"
-		"if os.isatty(sys.stdin.fileno()):\n"
-		"	import code\n"
-		"	# Autocompletion\n"
-		"	import rlcompleter\n"
-		"	import readline\n"
-		"	readline.parse_and_bind(\"tab: complete\")\n"
-		"	# BGE defines\n"
-		"	import bge\n"
-		"	scene = bge.logic.getCurrentScene()\n"
-		"	# Launch interactive console\n"
-		"	code.interact(local=locals())\n"
-		"else:\n"
-		"	print(\"Can't run python interpreter without console\")\n";
+	char filepath[FILE_MAX];
+	BLI_strncpy(filepath, BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "bge"), sizeof(filepath));
+	BLI_path_append(filepath, sizeof(filepath), "interpreter.py");
 
-	PyRun_SimpleString(script);
+	FILE *fp = fopen(filepath, "r");
+	PyRun_SimpleFile(fp, filepath);
+	fclose(fp);
 }
 
 static struct PyModuleDef Rasterizer_module_def = {
