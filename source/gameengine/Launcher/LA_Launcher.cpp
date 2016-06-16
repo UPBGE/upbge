@@ -390,7 +390,17 @@ bool LA_Launcher::EngineNextFrame()
 				m_inputDevice->GetInput(SCA_IInputDevice::LEFTSHIFTKEY).Find(SCA_InputEvent::ACTIVE) &&
 				m_inputDevice->GetInput(SCA_IInputDevice::TKEY).Find(SCA_InputEvent::ACTIVE))
 			{
+				m_system->toggleConsole(1);
 				createPythonConsole();
+				m_system->toggleConsole(0);
+
+				/* As we show the console, the release events of the shortcut keys can be not handled by the engine.
+				 * We simulate them.
+				 */
+				m_inputDevice->ConvertEvent(SCA_IInputDevice::LEFTCTRLKEY, 0, 0);
+				m_inputDevice->ConvertEvent(SCA_IInputDevice::LEFTALTKEY, 0, 0);
+				m_inputDevice->ConvertEvent(SCA_IInputDevice::LEFTSHIFTKEY, 0, 0);
+				m_inputDevice->ConvertEvent(SCA_IInputDevice::TKEY, 0, 0);
 			}
 #endif
 			RenderEngine();
