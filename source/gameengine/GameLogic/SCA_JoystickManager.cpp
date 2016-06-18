@@ -60,11 +60,6 @@ SCA_JoystickManager::~SCA_JoystickManager()
 
 void SCA_JoystickManager::NextFrame(double curtime,double deltatime)
 {
-	// We should always handle events in case we want to grab them with Python
-#ifdef WITH_SDL
-	SCA_Joystick::HandleEvents(); /* Handle all SDL Joystick events */
-#endif
-
 	if (m_sensors.Empty()) {
 		return;
 	}

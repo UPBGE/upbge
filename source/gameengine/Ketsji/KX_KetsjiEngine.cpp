@@ -63,6 +63,8 @@
 
 #include "KX_NetworkMessageScene.h"
 
+#include "Joystick/SCA_Joystick.h" // for SCA_Joystick::HandleEvents
+
 #include "KX_WorldInfo.h"
 #include "KX_ISceneConverter.h"
 #include "KX_TimeCategoryLogger.h"
@@ -574,6 +576,10 @@ bool KX_KetsjiEngine::NextFrame()
 		if (m_inputDevice) {
 			m_inputDevice->ReleaseMoveEvent();
 		}
+#ifdef WITH_SDL
+		// Handle all SDL Joystick events here to share they for all scenes proceed.
+		SCA_Joystick::HandleEvents();
+#endif
 
 		// for each scene, call the proceed functions
 		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
