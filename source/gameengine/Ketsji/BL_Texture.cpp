@@ -495,10 +495,6 @@ int BL_Texture::pyattr_set_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *att
 		PyErr_Format(PyExc_AttributeError, "texture.%s = int: BL_Texture, expected a unsigned int", attrdef->m_name);
 		return PY_SET_ATTR_FAIL;
 	}
-	if (!CheckBindCode(val)) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = int: BL_Texture, no texture coresponding to given bind code (%i).", attrdef->m_name, val);
-		return PY_SET_ATTR_FAIL;
-	}
 
 	self->m_bindCode = val;
 	return PY_SET_ATTR_SUCCESS;

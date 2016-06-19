@@ -53,9 +53,6 @@ public:
 	/// Return GL_TEXTURE_CUBE_MAP
 	static int GetTexture2DType();
 
-	// Check if bindcode is an existing texture
-	static bool CheckBindCode(int bindcode);
-
 	enum {MaxUnits = 8};
 
 	virtual void ActivateTexture(int unit) = 0;

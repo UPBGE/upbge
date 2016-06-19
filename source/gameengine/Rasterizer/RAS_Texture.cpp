@@ -52,11 +52,6 @@ int RAS_Texture::GetTexture2DType()
 	return GL_TEXTURE_2D;
 }
 
-bool RAS_Texture::CheckBindCode(int bindcode)
-{
-	return glIsTexture(bindcode);
-}
-
 void RAS_Texture::DesactiveTextures()
 {
 	glActiveTexture(GL_TEXTURE0);

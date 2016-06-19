@@ -89,11 +89,6 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, sampler
 		return NULL;
 	}
 
-	if (!RAS_Texture::CheckBindCode(bindCode)) {
-		PyErr_Format(PyExc_ValueError, "setTexture(index, bindCode, samplerName): KX_2DFilter, bindCode (%i) invalid", bindCode);
-		return NULL;
-	}
-
 	if (samplerName) {
 		int loc = GetUniformLocation(samplerName);
 
