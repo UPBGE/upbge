@@ -54,14 +54,6 @@ When the texture object is deleted, the new texture is deleted and the old textu
    :lines: 8-
 
 
-.. include:: __/examples/bge.texture.2.py
-   :start-line: 1
-   :end-line: 6
-
-.. literalinclude:: __/examples/bge.texture.2.py
-   :lines: 8-
-
-
 *************
 Video classes
 *************
