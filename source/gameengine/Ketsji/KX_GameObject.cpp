@@ -771,12 +771,13 @@ void KX_GameObject::AddMeshUser()
 
 void KX_GameObject::UpdateBuckets()
 {
-	if (GetSGNode() && m_meshUser) {
-		if (GetSGNode()->IsDirty())
+	// Update datas and add mesh slot to be rendered only if the object is not culled.
+	if (!m_bCulled && m_bVisible && m_meshUser) {
+		if (m_pSGNode->IsDirty()) {
 			GetOpenGLMatrix();
+		}
 
 		m_meshUser->SetColor(m_objectColor);
-		m_meshUser->SetCulled(m_bCulled || !m_bVisible);
 		m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
 		m_meshUser->ActivateMeshSlots();
 	}

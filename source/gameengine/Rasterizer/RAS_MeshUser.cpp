@@ -31,12 +31,10 @@
 
 RAS_MeshUser::RAS_MeshUser(void *clientobj)
 	:m_frontFace(true),
-	m_culled(true),
 	m_color(MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f)),
 	m_matrix(NULL),
 	m_clientObject(clientobj)
 {
-	
 }
 
 RAS_MeshUser::~RAS_MeshUser()
@@ -52,11 +50,6 @@ void RAS_MeshUser::AddMeshSlot(RAS_MeshSlot *meshSlot)
 bool RAS_MeshUser::GetFrontFace() const
 {
 	return m_frontFace;
-}
-
-bool RAS_MeshUser::GetCulled() const
-{
-	return m_culled;
 }
 
 const MT_Vector4& RAS_MeshUser::GetColor() const
@@ -84,11 +77,6 @@ void RAS_MeshUser::SetFrontFace(bool frontFace)
 	m_frontFace = frontFace;
 }
 
-void RAS_MeshUser::SetCulled(bool culled)
-{
-	m_culled = culled;
-}
-
 void RAS_MeshUser::SetColor(const MT_Vector4& color)
 {
 	m_color = color;
@@ -101,10 +89,8 @@ void RAS_MeshUser::SetMatrix(float *matrix)
 
 void RAS_MeshUser::ActivateMeshSlots()
 {
-	if (!m_culled) {
-		for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end; ++it) {
-			RAS_MeshSlot *ms = *it;
-			ms->m_displayArrayBucket->ActivateMesh(ms);
-		}
+	for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end; ++it) {
+		RAS_MeshSlot *ms = *it;
+		ms->m_displayArrayBucket->ActivateMesh(ms);
 	}
 }

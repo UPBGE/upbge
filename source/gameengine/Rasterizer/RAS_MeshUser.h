@@ -37,8 +37,6 @@ class RAS_MeshUser
 private:
 	/// OpenGL face wise.
 	bool m_frontFace;
-	/// Object culling flag.
-	bool m_culled;
 	/// Object color.
 	MT_Vector4 m_color;
 	/// Object transformation matrix.
@@ -54,14 +52,12 @@ public:
 
 	void AddMeshSlot(RAS_MeshSlot *meshSlot);
 	bool GetFrontFace() const;
-	bool GetCulled() const;
 	const MT_Vector4& GetColor() const;
 	float *GetMatrix() const;
 	void *GetClientObject() const;
 	RAS_MeshSlotList& GetMeshSlots();
 
 	void SetFrontFace(bool frontFace);
-	void SetCulled(bool culled);
 	void SetColor(const MT_Vector4& color);
 	void SetMatrix(float *matrix);
 
