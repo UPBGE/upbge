@@ -102,7 +102,6 @@ KX_GameObject::KX_GameObject(
         void* sgReplicationInfo,
         SG_Callbacks callbacks)
     : SCA_IObject(),
-      m_bDyna(false),
       m_layer(0),
       m_lodManager(NULL),
       m_currentLodLevel(0),
@@ -627,6 +626,14 @@ CValue* KX_GameObject::GetReplica()
 	replica->ProcessReplica();
 
 	return replica;
+}
+
+bool KX_GameObject::IsDynamic() const
+{
+	if (m_pPhysicsController) {
+		return m_pPhysicsController->IsDynamic();
+	}
+	return false;
 }
 
 bool KX_GameObject::IsDynamicsSuspended() const

@@ -83,7 +83,6 @@ class KX_GameObject : public SCA_IObject
 	Py_Header
 protected:
 
-	bool								m_bDyna;
 	KX_ClientObjectInfo*				m_pClient_info;
 	STR_String							m_name;
 	STR_String							m_text;
@@ -499,9 +498,8 @@ public:
 
 	PHY_IPhysicsController* GetPhysicsController();
 
-	void	SetPhysicsController(PHY_IPhysicsController*	physicscontroller,bool isDynamic)
+	void SetPhysicsController(PHY_IPhysicsController *physicscontroller)
 	{ 
-		m_bDyna = isDynamic;
 		m_pPhysicsController = physicscontroller;
 	}
 
@@ -640,11 +638,8 @@ public:
 			m_pSGNode = node; 
 		}
 	
-	//Is it a dynamic/physics object ?
-	bool	IsDynamic() const 
-	{ 
-		return m_bDyna; 
-	}
+	/// Is it a dynamic/physics object ?
+	bool IsDynamic() const;
 
 	bool IsDynamicsSuspended() const;
 

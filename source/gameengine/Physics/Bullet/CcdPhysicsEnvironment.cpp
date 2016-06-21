@@ -3325,7 +3325,7 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 	if (shapeInfo)
 		shapeInfo->Release();
 
-	gameobj->SetPhysicsController(physicscontroller, isbulletdyna);
+	gameobj->SetPhysicsController(physicscontroller);
 
 	physicscontroller->SetNewClientInfo(gameobj->getClientInfo());
 
