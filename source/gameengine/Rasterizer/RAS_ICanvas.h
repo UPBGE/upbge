@@ -49,13 +49,13 @@ class RAS_ICanvas
 {
 public:
 	enum BufferType {
-		COLOR_BUFFER=1,
-		DEPTH_BUFFER=2
+		COLOR_BUFFER = 1,
+		DEPTH_BUFFER = 2
 	};
 
 	enum RAS_MouseState
 	{
-		MOUSE_INVISIBLE=1,
+		MOUSE_INVISIBLE = 1,
 		MOUSE_WAIT,
 		MOUSE_NORMAL
 	};
@@ -63,20 +63,10 @@ public:
 	RAS_ICanvas(RAS_IRasterizer *rasty);
 	virtual ~RAS_ICanvas();
 
-	virtual 
-		void 
-	Init(
-	) = 0;
+	virtual void Init() = 0;
 
-	virtual 
-		void 
-	BeginFrame(
-	)=0;
-
-	virtual 
-		void 
-	EndFrame(
-	)=0;
+	virtual void BeginFrame() = 0;
+	virtual void EndFrame() = 0;
 
 	/**
 	 * Initializes the canvas for drawing.  Drawing to the canvas is
@@ -86,64 +76,23 @@ public:
 	 * \retval true Acquiring the canvas succeeded.
 	 *
 	 */
-
-	virtual 
-		bool 
-	BeginDraw(
-	)=0;
+	virtual bool BeginDraw() = 0;
 
 	/**
 	 * Unitializes the canvas for drawing.
 	 */
-
-	virtual 
-		void 
-	EndDraw(
-	)=0;
-
+	virtual void EndDraw() = 0;
 
 	/// probably needs some arguments for PS2 in future
-	virtual 
-		void 
-	SwapBuffers(
-	)=0;
-	
-	virtual
-		void
-	SetSwapInterval(
-		int interval
-	)=0;
+	virtual void SwapBuffers() = 0;
+	virtual void SetSwapInterval(int interval) = 0;
+	virtual bool GetSwapInterval(int& intervalOut) = 0;
 
-	virtual
-		bool
-	GetSwapInterval(
-		int& intervalOut
-	)=0;
- 
-	virtual 
-		void 
-	ClearBuffer(
-		int type
-	)=0;
+	virtual void ClearBuffer(int type) = 0;
+	virtual void ClearColor(float r, float g, float b, float a) = 0;
 
-	virtual 
-		void 
-	ClearColor(
-		float r,
-		float g,
-		float b,
-		float a
-	)=0;
-
-	virtual 
-		int	 
-	GetWidth(
-	) const = 0;
-
-	virtual 
-		int	 
-	GetHeight(
-	) const = 0;
+	virtual int GetWidth() const = 0;
+	virtual int GetHeight() const = 0;
 
 	/** Convert mouse coordinates from screen or client window to render area coordinates.
 	 * \param x The input X coordinate.
@@ -154,120 +103,62 @@ public:
 	 */
 	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen) = 0;
 
-	virtual
-		float
-	GetMouseNormalizedX(int x
-	)=0;
+	virtual float GetMouseNormalizedX(int x) = 0;
+	virtual float GetMouseNormalizedY(int y) = 0;
 
-	virtual
-		float
-	GetMouseNormalizedY(int y
-	)= 0;
-
-	virtual
-		const RAS_Rect &
-	GetDisplayArea(
-	) const = 0;
-
-	virtual
-		void
-	SetDisplayArea(RAS_Rect *rect
-	) = 0;
+	virtual const RAS_Rect &GetDisplayArea() const = 0;
+	virtual void SetDisplayArea(RAS_Rect *rect) = 0;
 
 	/**
 	 * Used to get canvas area within blender.
 	 */
-	virtual
-		RAS_Rect &
-	GetWindowArea(
-	) = 0;
+	virtual RAS_Rect &GetWindowArea() = 0;
 
 	/**
-	 * Set the visible view-port 
+	 * Set the visible view-port
 	 */
-
-	virtual
-		void
-	SetViewPort(
-		int x1, int y1,
-		int x2, int y2
-	) = 0;
+	virtual void SetViewPort(int x1, int y1, int x2, int y2) = 0;
 
 	/**
 	 * Update the Canvas' viewport (used when the viewport changes without using SetViewPort()
 	 * eg: Shadow buffers and FBOs
 	 */
-
-	virtual
-		void
-	UpdateViewPort(
-		int x1, int y1,
-		int x2, int y2
-	) = 0;
+	virtual void UpdateViewPort(int x1, int y1, int x2, int y2) = 0;
 
 	/**
 	 * Get the visible viewport
 	 */
-	virtual
-		const int*
-	GetViewPort() = 0;
+	virtual const int *GetViewPort() = 0;
 
-	virtual 
-		void 
-	SetMouseState(
-		RAS_MouseState mousestate
-	)=0;
+	virtual void SetMouseState(RAS_MouseState mousestate) = 0;
+	virtual void SetMousePosition(int x, int y) = 0;
 
-	virtual 
-		void 
-	SetMousePosition(
-		int x,
-		int y
-	)=0;
-
-	virtual
-		RAS_MouseState
-	GetMouseState()
+	virtual RAS_MouseState GetMouseState()
 	{
 		return m_mousestate;
 	}
 
-	virtual 
-		void 
-	MakeScreenShot(
-		const char* filename
-	)=0;
+	virtual void MakeScreenShot(const char *filename) = 0;
 
 	virtual void GetDisplayDimensions(int &width, int &height) = 0;
 
-	virtual
-		void 
-	ResizeWindow(
-		int width,
-		int height
-	)=0;
+	virtual void ResizeWindow(int width, int height) = 0;
 
 	/// Resize the canvas without resizing the window.
 	virtual void Resize(int width, int height) = 0;
 
-	virtual
-		void
-	SetFullScreen(
-		bool enable
-	)=0;
-
-	virtual
-		bool
-	GetFullScreen()=0;
+	virtual void SetFullScreen(bool enable) = 0;
+	virtual bool GetFullScreen() = 0;
 
 	RAS_IRasterizer *GetRasterizer()
 	{
 		return m_rasterizer;
 	}
-	
+
 protected:
 	RAS_MouseState m_mousestate;
-	int m_frame;  /// frame number for screenshots.
+	/// frame number for screenshots.
+	int m_frame;
 	TaskScheduler *m_taskscheduler;
 	TaskPool *m_taskpool;
 	RAS_IRasterizer *m_rasterizer;
@@ -284,11 +175,11 @@ protected:
 	 * @param im_format image format for the file; ownership is passed to this function, which also frees the data.
 	 */
 	void save_screenshot(const char *path, int dumpsx, int dumpsy, unsigned int *dumprect,
-	                     ImageFormatData * im_format);
+	                     ImageFormatData *im_format);
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_ICanvas")
 #endif
 };
 
-#endif  /* __RAS_ICANVAS_H__ */
+#endif  // __RAS_ICANVAS_H__

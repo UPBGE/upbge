@@ -36,15 +36,14 @@
 #include "MEM_guardedalloc.h"
 
 extern "C" {
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#  include "IMB_imbuf.h"
+#  include "IMB_imbuf_types.h"
 }
 
 #include <stdlib.h> // for free()
 
 // Task data for saving screenshots in a different thread.
-struct ScreenshotTaskData
-{
+struct ScreenshotTaskData {
 	unsigned int *dumprect;
 	int dumpsx;
 	int dumpsy;
@@ -103,7 +102,7 @@ void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskda
 
 
 void RAS_ICanvas::save_screenshot(const char *path, int dumpsx, int dumpsy, unsigned int *dumprect,
-                                  ImageFormatData * im_format)
+                                  ImageFormatData *im_format)
 {
 	/* Save the actual file in a different thread, so that the
 	 * game engine can keep running at full speed. */
