@@ -103,6 +103,7 @@ bool SCA_JoystickSensor::Evaluate()
 	SCA_Joystick *js = ((SCA_JoystickManager *)m_eventmgr)->GetJoystickDevice(m_joyindex);
 	bool result = false;
 	bool reset = m_reset && m_level;
+	int axis_single_index = m_axis;
 	
 	if (js==NULL) /* no joystick - don't do anything */
 		return false;
@@ -154,8 +155,12 @@ bool SCA_JoystickSensor::Evaluate()
 			}
 			break;
 		}
+		case KX_JOYSENSORMODE_SHOULDER_TRIGGER:
+		{
+			axis_single_index = m_axis + 4;
+			/* pass-through */
+		}
 		case KX_JOYSENSORMODE_AXIS_SINGLE:
-		//case KX_JOYSENSORMODE_SHOULDER_TRIGGER:
 		{
 			/* Like KX_JOYSENSORMODE_AXIS but don't pair up axis */
 			if (!js->IsTrigAxis() && !reset) /* No events from SDL? - don't bother */
@@ -163,7 +168,7 @@ bool SCA_JoystickSensor::Evaluate()
 			
 			/* No need for 'm_bAllEvents' check here since were only checking 1 axis */
 			js->cSetPrecision(m_precision);
-			if (js->aAxisIsPositive(m_axis-1)) { /* use zero based axis index internally */
+			if (js->aAxisIsPositive(axis_single_index - 1)) { /* use zero based axis index internally */
 				m_istrig = 1;
 				result = true;
 			}
@@ -175,28 +180,6 @@ bool SCA_JoystickSensor::Evaluate()
 			}
 			break;
 		}
-
-		case KX_JOYSENSORMODE_SHOULDER_TRIGGER:
-		{
-			/* Like KX_JOYSENSORMODE_AXIS but don't pair up axis */
-			if (!js->IsTrigAxis() && !reset) /* No events from SDL? - don't bother */
-				return false;
-
-			/* No need for 'm_bAllEvents' check here since were only checking 1 axis */
-			js->cSetPrecision(m_precision);
-			if (js->aAxisIsPositive(m_axis+3)) { /* use zero based axis index internally */
-				m_istrig = 1;
-				result = true;
-			}
-			else {
-				if (m_istrig) {
-					m_istrig = 0;
-					result = true;
-				}
-			}
-			break;
-		}
-
 		case KX_JOYSENSORMODE_BUTTON:
 		{
 			/* what is what!
