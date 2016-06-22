@@ -165,8 +165,10 @@ void init_sensor(bSensor *sens)
 	case SENS_JOYSTICK:
 		sens->data= MEM_callocN(sizeof(bJoystickSensor), "joysticksens");
 		js= sens->data;
+		js->type = SENS_JOY_AXIS;
         js->axis = SENS_JOY_LEFT_STICK;
         js->axis_single = SENS_JOY_LEFT_STICK_HORIZONTAL;
+		js->precision = 5000;
 		break;
 	default:
 		; /* this is very severe... I cannot make any memory for this        */

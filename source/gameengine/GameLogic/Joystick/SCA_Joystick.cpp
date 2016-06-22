@@ -79,14 +79,14 @@ void SCA_Joystick::Init()
 {
 #ifdef WITH_SDL
 
-	if (!(SDL_CHECK(SDL_InitSubSystem)) ||
+	if (!(SDL_CHECK(SDL_Init)) ||
 	    !(SDL_CHECK(SDL_GameControllerAddMapping)) ||
 	    !(SDL_CHECK(SDL_NumJoysticks))) {
 		return;
 	}
 
 	/* Initializing Game Controller related subsystems */
-	bool success = (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1 );
+	bool success = (SDL_Init(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1 );
 
 	if (success) {
 		/* Loading Game Controller mapping data base from a string */
@@ -117,7 +117,7 @@ void SCA_Joystick::Init()
 void SCA_Joystick::Close()
 {
 #ifdef WITH_SDL
-	SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
+	SDL_Quit();
 #endif
 }
 

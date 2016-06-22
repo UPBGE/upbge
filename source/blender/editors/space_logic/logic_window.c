@@ -1006,15 +1006,17 @@ static void draw_sensor_joystick(uiLayout *layout, PointerRNA *ptr)
 			col = uiLayoutColumn(layout, false);
 			uiItemR(col, ptr, "axis_number", 0, NULL, ICON_NONE);
 			uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_all_events") == false);
-			if (RNA_enum_get(ptr, "axis_number") != SENS_JOY_SHOULDER_TRIGGER)
-				uiItemR(col, ptr, "axis_direction", 0, NULL, ICON_NONE);
-			else
-				uiItemR(col, ptr, "axis_direction_trigger", 0, NULL, ICON_NONE);
+			uiItemR(col, ptr, "axis_direction", 0, NULL, ICON_NONE);
 			uiItemR(col, ptr, "axis_threshold", 0, NULL, ICON_NONE);
 			break;
 		case SENS_JOY_AXIS_SINGLE:
 			col = uiLayoutColumn(layout, false);
 			uiItemR(col, ptr, "single_axis_number", 0, NULL, ICON_NONE);
+			uiItemR(col, ptr, "axis_threshold", 0, NULL, ICON_NONE);
+			break;
+		case SENS_JOY_SHOULDER_TRIGGER:
+			col = uiLayoutColumn(layout, false);
+			uiItemR(col, ptr, "axis_trigger_number", 0, NULL, ICON_NONE);
 			uiItemR(col, ptr, "axis_threshold", 0, NULL, ICON_NONE);
 			break;
 	}

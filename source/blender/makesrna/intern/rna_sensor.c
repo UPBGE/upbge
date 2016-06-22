@@ -867,16 +867,16 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem event_type_joystick_items[] = {
-		{SENS_JOY_BUTTON, "BUTTON", 0, "Button", ""},
-		{SENS_JOY_AXIS, "AXIS", 0, "Axis", ""},
-		{SENS_JOY_AXIS_SINGLE, "AXIS_SINGLE", 0, "Single Axis", ""},
+	    {SENS_JOY_AXIS, "STICK_DIRECTIONS", 0, "Stick Directions", ""},
+	    {SENS_JOY_AXIS_SINGLE, "STICK_AXIS", 0, "Stick Axis", ""},
+	    {SENS_JOY_SHOULDER_TRIGGER, "SHOULDER_TRIGGERS", 0, "Shoulder Triggers", ""},
+		{SENS_JOY_BUTTON, "BUTTONS", 0, "Buttons", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
 	static EnumPropertyItem axis_items[] = {
 	    {SENS_JOY_LEFT_STICK, "LEFT_STICK", 0, "Left Stick", ""},
 	    {SENS_JOY_RIGHT_STICK, "RIGHT_STICK", 0, "Right Stick", ""},
-	    {SENS_JOY_SHOULDER_TRIGGER, "SHOULDER_TRIGGER", 0, "Shoulder Trigger", ""},
 	    {0, NULL, 0, NULL, NULL}
 	};
 
@@ -888,11 +888,9 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem axis_direction_items2[] = {
-		{SENS_JOY_LEFT_SHOULDER_TRIGGER_PRESS, "LEFT_SHOULDER_TRIGGER_PRESS", 0, "Left Shoulder Trigger Press", ""},
-		{SENS_JOY_RIGHT_SHOULDER_TRIGGER_PRESS, "RIGHT_SHOULDER_TRIGGER_PRESS", 0, "Right Shoulder Trigger Press", ""},
-		{SENS_JOY_LEFT_SHOULDER_TRIGGER_RELEASE, "LEFT_SHOULDER_TRIGGER_RELEASE", 0, "Left Shoulder Trigger Release", ""},
-		{SENS_JOY_RIGHT_SHOULDER_TRIGGER_RELEASE, "RIGHT_SHOULDER_TRIGGER_RELEASE", 0, "Right Shoulder Trigger Release", ""},
+	static EnumPropertyItem axis_trigger_items[] = {
+	    {SENS_JOY_LEFT_SHOULDER_TRIGGER, "LEFT_SHOULDER_TRIGGER", 0, "Left Shoulder Trigger", ""},
+	    {SENS_JOY_RIGHT_SHOULDER_TRIGGER, "RIGHT_SHOULDER_TRIGGER", 0, "Right Shoulder Trigger", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -901,8 +899,6 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 	    {SENS_JOY_LEFT_STICK_VERTICAL, "LEFT_STICK_VERTICAL", 0, "Left Stick Vertical", ""},
 	    {SENS_JOY_RIGHT_STICK_HORIZONTAL, "RIGHT_STICK_HORIZONTAL", 0, "Right Stick Horizontal", ""},
 	    {SENS_JOY_RIGHT_STICK_VERTICAL, "RIGHT_STICK_VERTICAL", 0, "Right Stick Vertical", ""},
-	    {SENS_JOY_LEFT_SHOULDER_TRIGGER, "LEFT_SHOULDER_TRIGGER", 0, "Left Shoulder Trigger", ""},
-	    {SENS_JOY_RIGHT_SHOULDER_TRIGGER, "RIGHT_SHOULDER_TRIGGER", 0, "Right Shoulder Trigger", ""},
 	    {0, NULL, 0, NULL, NULL}
 	};
 
@@ -952,39 +948,41 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "button_number", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "button");
 	RNA_def_property_enum_items(prop, button_items);
-	RNA_def_property_ui_text(prop, "Button", "Which button to use");
+	RNA_def_property_ui_text(prop, "Buttons", "Which button to use");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	/* Axis */
 	prop = RNA_def_property(srna, "axis_number", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "axis");
 	RNA_def_property_enum_items(prop, axis_items);
-	RNA_def_property_ui_text(prop, "Stick/Trigger", "Which Stick or trigger to use");
-	RNA_def_property_update(prop, NC_LOGIC, NULL);
-
-	prop = RNA_def_property(srna, "axis_threshold", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "precision");
-	RNA_def_property_ui_text(prop, "Axis Threshold", "Precision of the axis");
-	RNA_def_property_range(prop, 0, 32768);
+	RNA_def_property_ui_text(prop, "Stick", "Which Stick to use");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "axis_direction", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "axisf");
 	RNA_def_property_enum_items(prop, axis_direction_items);
-	RNA_def_property_ui_text(prop, "Axis Direction", "The direction of the axis");
+	RNA_def_property_ui_text(prop, "Stick Direction", "The direction of the stick");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	prop = RNA_def_property(srna, "axis_direction_trigger", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "axisf");
-	RNA_def_property_enum_items(prop, axis_direction_items2);
-	RNA_def_property_ui_text(prop, "Trigger Direction", "The direction of the trigger");
+	/* Triggers */
+	prop = RNA_def_property(srna, "axis_trigger_number", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "axis_single");
+	RNA_def_property_enum_items(prop, axis_trigger_items);
+	RNA_def_property_ui_text(prop, "Triggers", "Which trigger to detect");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	/* Single Axis */
 	prop = RNA_def_property(srna, "single_axis_number", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "axis_single");
 	RNA_def_property_enum_items(prop, axis_single_items);
-	RNA_def_property_ui_text(prop, "Stick/Trigger Axis", "Which stick or trigger single axis (vertical/horizontal/other) to detect");
+	RNA_def_property_ui_text(prop, "Stick Axis", "Which stick single axis (vertical/horizontal/other) to detect");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	/* Common */
+	prop = RNA_def_property(srna, "axis_threshold", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "precision");
+	RNA_def_property_ui_text(prop, "Threshold", "Threshold minimum to detect the stick/trigger");
+	RNA_def_property_range(prop, 0, 32768);
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
 
