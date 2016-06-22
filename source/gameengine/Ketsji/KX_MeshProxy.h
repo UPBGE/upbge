@@ -54,18 +54,13 @@ public:
 
 	void AppendModifiedFlag(short flag);
 
-	// stuff for cvalue related things
-	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	virtual const STR_String& GetText();
-	virtual double GetNumber();
 	virtual RAS_MeshObject *GetMesh()
 	{
 		return m_meshobj;
 	}
+
+	// stuff for cvalue related things
 	virtual STR_String& GetName();
-	virtual void SetName(const char *name); // Set the name of the value
-	virtual CValue *GetReplica();
 
 // stuff for python integration
 

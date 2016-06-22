@@ -35,12 +35,6 @@ public:
 	void Add(CValue* value);
 	void Insert(unsigned int i, CValue* value);
 
-	/** \attention not implemented yet :( */
-	virtual CValue* Calc(VALUE_OPERATOR op,CValue *val);
-	virtual CValue* CalcFinal(VALUE_DATA_TYPE dtype,
-							  VALUE_OPERATOR op,
-							  CValue* val);
-	virtual double GetNumber();
 	virtual int GetValueType();
 	virtual CValue* GetReplica();
 

@@ -228,8 +228,8 @@ public:
 	
 	
 	// Expression Calculation
-	virtual CValue*		Calc(VALUE_OPERATOR op, CValue *val) = 0;
-	virtual CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val) = 0;
+	virtual CValue*		Calc(VALUE_OPERATOR op, CValue *val);
+	virtual CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 	virtual void		SetOwnerExpression(class CExpression* expr);
 
 	
@@ -307,18 +307,18 @@ public:
 	 * \attention: not implemented */
 	virtual void		SetColorOperator(VALUE_OPERATOR op);
 
-	virtual const STR_String &	GetText() = 0;
-	virtual double		GetNumber() = 0;
+	virtual const STR_String &	GetText();
+	virtual double		GetNumber();
 	virtual int			GetValueType();												// Get Prop value type
 	double*				ZeroVector() { return m_sZeroVec; }
 	virtual double*		GetVector3(bool bGetTransformedVec = false);
 
 	virtual STR_String&	GetName() = 0;											// Retrieve the name of the value
-	virtual void		SetName(const char *name) = 0;								// Set the name of the value
+	virtual void		SetName(const char *name);								// Set the name of the value
 	/** Sets the value to this cvalue.
 	 * \attention this particular function should never be called. Why not abstract? */
 	virtual void		SetValue(CValue* newval);
-	virtual CValue*		GetReplica() =0;
+	virtual CValue*		GetReplica();
 	virtual void			ProcessReplica();
 	//virtual CValue*		Copy() = 0;
 	

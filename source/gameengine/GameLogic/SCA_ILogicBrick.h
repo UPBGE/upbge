@@ -76,7 +76,6 @@ public:
 	virtual CValue*	CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 
 	virtual const STR_String &	GetText();
-	virtual double		GetNumber();
 	virtual STR_String&	GetName();
 	virtual void		SetName(const char *);
 		

@@ -101,14 +101,11 @@ KX_PolyProxy::~KX_PolyProxy()
 
 
 // stuff for cvalue related things
-CValue*		KX_PolyProxy::Calc(VALUE_OPERATOR, CValue *) { return NULL;}
-CValue*		KX_PolyProxy::CalcFinal(VALUE_DATA_TYPE, VALUE_OPERATOR, CValue *) { return NULL;}
 static STR_String sPolyName = "polygone";
-const STR_String &	KX_PolyProxy::GetText() {return sPolyName;};
-double		KX_PolyProxy::GetNumber() { return -1;}
-STR_String&	KX_PolyProxy::GetName() { return sPolyName;}
-void		KX_PolyProxy::SetName(const char *) { };
-CValue*		KX_PolyProxy::GetReplica() { return NULL;}
+STR_String &KX_PolyProxy::GetName()
+{
+	return sPolyName;
+}
 
 // stuff for python integration
 

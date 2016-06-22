@@ -55,13 +55,7 @@ public:
 	KX_MeshProxy *GetMesh();
 
 	// stuff for cvalue related things
-	CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	const STR_String &  GetText();
-	double GetNumber();
 	STR_String& GetName();
-	void SetName(const char *name); // Set the name of the value
-	CValue *GetReplica();
 
 	static PyObject *pyattr_get_x(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_y(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

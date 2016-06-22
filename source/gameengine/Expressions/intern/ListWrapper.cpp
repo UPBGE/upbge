@@ -109,38 +109,9 @@ bool CListWrapper::AllowFindValue()
 
 // ================================================================
 
-const STR_String &CListWrapper::GetText()
-{
-	return pythonGeneratorList;
-}
-
-void CListWrapper::SetName(const char *name)
-{
-}
-
 STR_String &CListWrapper::GetName()
 {
 	return pythonGeneratorList;
-}
-
-CValue *CListWrapper::GetReplica()
-{
-	return NULL;
-}
-
-CValue *CListWrapper::Calc(VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-CValue *CListWrapper::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-double CListWrapper::GetNumber()
-{
-	return -1;
 }
 
 int CListWrapper::GetValueType()

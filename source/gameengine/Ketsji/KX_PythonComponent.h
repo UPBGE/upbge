@@ -45,13 +45,7 @@ public:
 	void SetGameObject(KX_GameObject *gameobj);
 
 	// stuff for cvalue related things
-	CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	const STR_String& GetText();
-	double GetNumber();
 	STR_String& GetName();
-	void SetName(const char *name); // Set the name of the value
-	CValue *GetReplica();
 
 	static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 	static int py_component_init(PyObjectPlus_Proxy *self, PyObject *args, PyObject *kwds);

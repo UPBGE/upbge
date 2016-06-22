@@ -98,15 +98,6 @@ ret: a new object containing the result of applying operator op to val and
 	return new CErrorValue (val->GetText() + op2str(op) + GetText());
 }
 
-
-
-double CErrorValue::GetNumber()
-{
-	return -1;
-}
-
-
-
 int CErrorValue::GetValueType()
 {
 	return VALUE_ERROR_TYPE;

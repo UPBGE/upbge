@@ -592,26 +592,11 @@ public:
 
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 
-	/** Inherited from CValue -- does nothing! */
-	CValue *Calc(VALUE_OPERATOR op, CValue *val);
-
-	/** Inherited from CValue -- does nothing! */
-	CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-
-	/**  Inherited from CValue -- does nothing! */
-	const STR_String& GetText();
-
-	/** Inherited from CValue -- does nothing! */
-	double GetNumber();
-
 	/**  Inherited from CValue -- returns the name of this object. */
-	STR_String& GetName();
+	virtual STR_String& GetName();
 
 	/** Inherited from CValue -- set the name of this object. */
-	void SetName(const char *name);
-
-	/** Inherited from CValue -- does nothing! */
-	virtual CValue *GetReplica();
+	virtual void SetName(const char *name);
 
 #ifdef WITH_PYTHON
 	/* --------------------------------------------------------------------- */

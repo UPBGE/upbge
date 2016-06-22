@@ -655,6 +655,16 @@ PyObject *CValue::ConvertKeysToPython(void)
 ///////////////////////////////////////////////////////////////////////////////////////////////
 /* These implementations were moved out of the header */
 
+CValue *CValue::Calc(VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
+CValue *CValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+{
+	return NULL;
+}
+
 void CValue::SetOwnerExpression(class CExpression* expr)
 {
 	/* intentionally empty */
@@ -668,4 +678,23 @@ void CValue::SetValue(CValue* newval)
 { 
 	// no one should get here
 	assertd(newval->GetNumber() == 10121969);
+}
+
+const STR_String &CValue::GetText()
+{
+	return GetName();
+}
+
+double CValue::GetNumber()
+{
+	return -1.0;
+}
+
+void CValue::SetName(const char *name)
+{
+}
+
+CValue *CValue::GetReplica()
+{
+	return NULL;
 }

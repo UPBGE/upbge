@@ -356,38 +356,9 @@ public:
 	 */
 
 	/**
-	 * Inherited from CValue -- does nothing!
+	 * Inherited from CValue
 	 */
-		CValue*
-	Calc(
-		VALUE_OPERATOR op,
-		CValue *val
-	);
-
-	/**
-	 * Inherited from CValue -- does nothing!
-	 */
-		CValue*
-	CalcFinal(
-		VALUE_DATA_TYPE dtype,
-		VALUE_OPERATOR op,
-		CValue *val
-	);
-
-	/**
-	 * Inherited from CValue -- does nothing!
-	 */
-	const 
-		STR_String &
-	GetText(
-	);
-
-	/**
-	 * Inherited from CValue -- does nothing!
-	 */
-		double
-	GetNumber(
-	);
+	virtual const STR_String &GetText();
 
 	/**
 	 * \section Inherited from CValue. These are the useful
@@ -397,33 +368,25 @@ public:
 	/**
 	 * Inherited from CValue -- returns the name of this object.
 	 */
-		STR_String&
-	GetName(
-	);
+	virtual STR_String& GetName();
 
 	/**
 	 * Inherited from CValue -- set the name of this object.
 	 */
-		void
-	SetName(
-		const char *name
-	);
+	virtual void SetName(const char *name);
 
 	/** 
 	 * Inherited from CValue -- return a new copy of this
 	 * instance allocated on the heap. Ownership of the new 
 	 * object belongs with the caller.
 	 */
-	virtual	CValue*
-	GetReplica(
-	);
+	virtual CValue *GetReplica();
 	
 	/**
-	 * Inherited from CValue -- Makes sure any internal 
+	 * Makes sure any internal 
 	 * data owned by this class is deep copied. Called internally
 	 */
-	virtual	void
-	ProcessReplica();
+	virtual void ProcessReplica();
 
 	/** 
 	 * Return the linear velocity of the game object.

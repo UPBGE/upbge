@@ -161,38 +161,9 @@ unsigned int BL_Texture::swapTexture(unsigned int bindcode)
 }
 
 // stuff for cvalue related things
-CValue *BL_Texture::Calc(VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-CValue *BL_Texture::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-const STR_String &BL_Texture::GetText()
-{
-	return GetName();
-}
-
-double BL_Texture::GetNumber()
-{
-	return -1.0;
-}
-
 STR_String &BL_Texture::GetName()
 {
 	return GetName();
-}
-
-void BL_Texture::SetName(const char *name)
-{
-}
-
-CValue *BL_Texture::GetReplica()
-{
-	return NULL;
 }
 
 #ifdef WITH_PYTHON

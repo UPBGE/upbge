@@ -218,39 +218,15 @@ KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
 	return info->m_gameobject;
 }
 
-CValue* KX_GameObject::	Calc(VALUE_OPERATOR op, CValue *val) 
-{
-	return NULL;
-}
-
-
-
-CValue* KX_GameObject::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-
-
 const STR_String & KX_GameObject::GetText()
 {
 	return m_text;
 }
 
-
-
-double KX_GameObject::GetNumber()
-{
-	return 0;
-}
-
-
-
 STR_String& KX_GameObject::GetName()
 {
 	return m_name;
 }
-
 
 /* Set the name of the value */
 void KX_GameObject::SetName(const char *name)

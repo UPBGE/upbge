@@ -90,13 +90,7 @@ public:
 	bool AllowFindValue();
 
 	/// \section CValue Inherited Functions.
-	virtual const STR_String &GetText();
-	virtual void SetName(const char *name);
 	virtual STR_String &GetName();
-	virtual CValue *GetReplica();
-	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	virtual double GetNumber();
 	virtual int GetValueType();
 	virtual PyObject *py_repr();
 

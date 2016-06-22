@@ -46,13 +46,7 @@ public:
 	virtual ~KX_CollisionContactPoint();
 
 	// stuff for cvalue related things
-	CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	const STR_String &GetText();
-	double GetNumber();
 	STR_String &GetName();
-	void SetName(const char *name); // Set the name of the value
-	CValue *GetReplica();
 
 #ifdef WITH_PYTHON
 

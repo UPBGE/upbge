@@ -228,31 +228,6 @@ bool CListValue::CheckEqual(CValue* first,CValue* second)
 /* ---------------------------------------------------------------------
  * Some stuff taken from the header
  * --------------------------------------------------------------------- */
-CValue* CListValue::Calc(VALUE_OPERATOR op,CValue *val)
-{
-	//assert(false); // todo: implement me!
-	static int error_printed =  0;
-	if (error_printed==0) {
-		fprintf(stderr, "CValueList::Calc not yet implemented\n");
-		error_printed = 1;
-	}
-	return NULL;
-}
-
-CValue* CListValue::CalcFinal(VALUE_DATA_TYPE dtype,
-							  VALUE_OPERATOR op,
-							  CValue* val)
-{
-	//assert(false); // todo: implement me!
-	static int error_printed =  0;
-	if (error_printed==0) {
-		fprintf(stderr, "CValueList::CalcFinal not yet implemented\n");
-		error_printed = 1;
-	}
-	return NULL;
-}
-
-
 
 void CListValue::Add(CValue* value)
 {
@@ -263,13 +238,6 @@ void CListValue::Insert(unsigned int i, CValue* value)
 {
 	m_pValueArray.insert(m_pValueArray.begin() + i, value);
 }
-
-double CListValue::GetNumber()
-{
-	return -1;
-}
-
-
 
 int CListValue::GetValueType()
 {

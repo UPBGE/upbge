@@ -497,40 +497,11 @@ KX_MeshProxy *KX_VertexProxy::GetMesh()
 }
 
 // stuff for cvalue related things
-CValue *KX_VertexProxy::Calc(VALUE_OPERATOR, CValue *val)
-{
-	return NULL;
-}
-
-CValue *KX_VertexProxy::CalcFinal(VALUE_DATA_TYPE, VALUE_OPERATOR, CValue *val)
-{
-	return NULL;
-}
-
 static STR_String sVertexName = "vertex";
-
-const STR_String& KX_VertexProxy::GetText()
-{
-	return sVertexName;
-}
-
-double KX_VertexProxy::GetNumber()
-{
-	return -1.0;
-}
 
 STR_String& KX_VertexProxy::GetName()
 {
 	return sVertexName;
-}
-
-void KX_VertexProxy::SetName(const char *name)
-{
-}
-
-CValue *KX_VertexProxy::GetReplica()
-{
-	return NULL;
 }
 
 // stuff for python integration

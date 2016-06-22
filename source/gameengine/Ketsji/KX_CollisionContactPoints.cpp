@@ -39,39 +39,11 @@ KX_CollisionContactPoint::~KX_CollisionContactPoint()
 {
 }
 
-CValue *KX_CollisionContactPoint::Calc(VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-CValue *KX_CollisionContactPoint::CalcFinal(VALUE_DATA_TYPE type, VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
 static STR_String sCollisionContactPointName = "CollisionContactPoint";
-const STR_String &KX_CollisionContactPoint::GetText()
-{
-	return sCollisionContactPointName;
-}
-
-double KX_CollisionContactPoint::GetNumber()
-{
-	return -1.0;
-}
 
 STR_String& KX_CollisionContactPoint::GetName()
 {
 	return sCollisionContactPointName;
-}
-
-void KX_CollisionContactPoint::SetName(const char *)
-{
-}
-
-CValue *KX_CollisionContactPoint::GetReplica()
-{
-	return NULL;
 }
 
 #ifdef WITH_PYTHON

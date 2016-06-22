@@ -90,8 +90,6 @@ CValue* SCA_ILogicBrick::Calc(VALUE_OPERATOR op, CValue *val)
 	return result;
 } 
 
-
-
 CValue* SCA_ILogicBrick::CalcFinal(VALUE_DATA_TYPE dtype,
 								   VALUE_OPERATOR op,
 								   CValue *val)
@@ -104,8 +102,6 @@ CValue* SCA_ILogicBrick::CalcFinal(VALUE_DATA_TYPE dtype,
 	return result;
 }
 
-
-
 const STR_String& SCA_ILogicBrick::GetText()
 { 
 	if (m_name.Length())
@@ -114,21 +110,10 @@ const STR_String& SCA_ILogicBrick::GetText()
 	return m_text;
 }
 
-
-
-double SCA_ILogicBrick::GetNumber()
-{
-	return -1;
-}
-
-
-
 STR_String& SCA_ILogicBrick::GetName()
 {
 	return m_name;
 }
-
-
 
 void SCA_ILogicBrick::SetName(const char *name)
 {

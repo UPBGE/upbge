@@ -107,38 +107,9 @@ KX_MeshProxy::~KX_MeshProxy()
 }
 
 // stuff for cvalue related things
-CValue *KX_MeshProxy::Calc(VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-CValue *KX_MeshProxy::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-const STR_String &  KX_MeshProxy::GetText()
-{
-	return m_meshobj->GetName();
-}
-
-double KX_MeshProxy::GetNumber()
-{
-	return -1.0;
-}
-
 STR_String& KX_MeshProxy::GetName()
 {
 	return m_meshobj->GetName();
-}
-
-void KX_MeshProxy::SetName(const char *name)
-{
-}
-
-CValue *KX_MeshProxy::GetReplica()
-{
-	return NULL;
 }
 
 // stuff for python integration

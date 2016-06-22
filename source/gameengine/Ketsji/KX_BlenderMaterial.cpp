@@ -502,38 +502,9 @@ void KX_BlenderMaterial::SetBlenderGLSLShader()
 	}
 }
 
-CValue *KX_BlenderMaterial::Calc(VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-CValue *KX_BlenderMaterial::CalcFinal(VALUE_DATA_TYPE type, VALUE_OPERATOR op, CValue *val)
-{
-	return NULL;
-}
-
-const STR_String &KX_BlenderMaterial::GetText()
-{
-	return m_name;
-}
-
-double KX_BlenderMaterial::GetNumber()
-{
-	return -1.0;
-}
-
 STR_String& KX_BlenderMaterial::GetName()
 {
 	return m_name;
-}
-
-void KX_BlenderMaterial::SetName(const char *)
-{
-}
-
-CValue *KX_BlenderMaterial::GetReplica()
-{
-	return NULL;
 }
 
 #ifdef USE_MATHUTILS

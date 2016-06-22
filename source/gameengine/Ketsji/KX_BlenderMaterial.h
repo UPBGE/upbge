@@ -75,13 +75,7 @@ public:
 	virtual void Replace_IScene(SCA_IScene *val);
 
 	// Stuff for cvalue related things.
-	CValue *Calc(VALUE_OPERATOR op, CValue *val);
-	CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	const STR_String &GetText();
-	double GetNumber();
-	STR_String &GetName();
-	void SetName(const char *name); // Set the name of the value
-	CValue *GetReplica();
+	virtual STR_String &GetName();
 
 #ifdef WITH_PYTHON
 

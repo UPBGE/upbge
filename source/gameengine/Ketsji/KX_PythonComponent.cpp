@@ -47,39 +47,9 @@ void KX_PythonComponent::SetGameObject(KX_GameObject *gameobj)
 	m_gameobj = gameobj;
 }
 
-// stuff for cvalue related things
-CValue *KX_PythonComponent::Calc(VALUE_OPERATOR, CValue *val)
-{
-	return NULL;
-}
-
-CValue *KX_PythonComponent::CalcFinal(VALUE_DATA_TYPE, VALUE_OPERATOR, CValue *val)
-{
-	return NULL;
-}
-
-const STR_String& KX_PythonComponent::GetText()
-{
-	return m_name;
-}
-
-double KX_PythonComponent::GetNumber()
-{
-	return -1.0;
-}
-
 STR_String& KX_PythonComponent::GetName()
 {
 	return m_name;
-}
-
-void KX_PythonComponent::SetName(const char *name)
-{
-}
-
-CValue *KX_PythonComponent::GetReplica()
-{
-	return NULL;
 }
 
 PyObject *KX_PythonComponent::py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
