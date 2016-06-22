@@ -241,6 +241,7 @@ public:
 		RAS_OFFSCREEN_EYE_LEFT1,
 		RAS_OFFSCREEN_EYE_RIGHT1,
 		RAS_OFFSCREEN_FINAL,
+		RAS_OFFSCREEN_BLIT_DEPTH,
 		RAS_OFFSCREEN_MAX,
 	};
 
@@ -682,6 +683,11 @@ public:
 	virtual void AddLight(RAS_ILightObject *lightobject) = 0;
 
 	virtual void RemoveLight(RAS_ILightObject *lightobject) = 0;
+
+	/** Set the current off screen depth to the global depth texture used by materials.
+	 * In case of mutlisample off screen a blit to RAS_OFFSCREEN_BLIT_DEPTH is procceed.
+	 */
+	virtual void UpdateGlobalDepthTexture() = 0;
 
 	virtual void MotionBlur() = 0;
 

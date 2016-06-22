@@ -50,6 +50,7 @@ class RAS_IStorage;
 class RAS_ICanvas;
 class RAS_OpenGLLight;
 struct GPUOffScreen;
+struct GPUTexture;
 struct GPUShader;
 
 #define RAS_MAX_TEXCO  8     /* match in BL_Material */
@@ -102,11 +103,12 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		void Bind(unsigned short index);
 		void RestoreScreen();
 		/// NOTE: This function has the side effect to leave the destination off screen bound.
-		void Blit(unsigned short srcindex, unsigned short dstindex);
+		void Blit(unsigned short srcindex, unsigned short dstindex, bool color, bool depth);
 		void BindTexture(unsigned short index, unsigned short slot, OffScreen type);
 		void UnbindTexture(unsigned short index, OffScreen type);
 		short GetCurrentIndex() const;
 		int GetSamples(unsigned short index);
+		GPUTexture *GetDepthTexture(unsigned short index);
 	};
 
 	struct OglDebugShape
@@ -404,6 +406,8 @@ public:
 
 	void RemoveLight(RAS_ILightObject *lightobject);
 	int ApplyLights(int objectlayer, const MT_Transform& viewmat);
+
+	virtual void UpdateGlobalDepthTexture();
 
 	void MotionBlur();
 

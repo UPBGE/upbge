@@ -291,6 +291,14 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
 
+			// Render soft particles after all other meshes.
+			if ((GetNumActiveMeshSlots(ALPHA_DEPTH_BUCKET) + GetNumActiveMeshSlots(ALPHA_DEPTH_INSTANCING_BUCKET)) > 0) {
+				rasty->UpdateGlobalDepthTexture();
+
+				RenderBasicBuckets(cameratrans, rasty, ALPHA_DEPTH_INSTANCING_BUCKET);
+				RenderSortedBuckets(cameratrans, rasty, ALPHA_DEPTH_BUCKET);
+			}
+
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 			break;
 		}
@@ -329,16 +337,25 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 
 	const bool useinstancing = material->UseInstancing();
 	if (!material->OnlyShadow()) {
-		if (material->IsAlpha())
-			m_buckets[useinstancing ? ALPHA_INSTANCING_BUCKET : ALPHA_BUCKET].push_back(bucket);
-		else
+		if (material->IsAlpha()) {
+			if (material->IsAlphaDepth()) {
+				m_buckets[useinstancing ? ALPHA_DEPTH_INSTANCING_BUCKET : ALPHA_DEPTH_BUCKET].push_back(bucket);
+			}
+			else {
+				m_buckets[useinstancing ? ALPHA_INSTANCING_BUCKET : ALPHA_BUCKET].push_back(bucket);
+			}
+		}
+		else {
 			m_buckets[useinstancing ? SOLID_INSTANCING_BUCKET : SOLID_BUCKET].push_back(bucket);
+		}
 	}
 	if (material->CastsShadows()) {
-		if (material->IsAlphaShadow())
+		if (material->IsAlphaShadow()) {
 			m_buckets[useinstancing ? ALPHA_SHADOW_INSTANCING_BUCKET : ALPHA_SHADOW_BUCKET].push_back(bucket);
-		else
+		}
+		else {
 			m_buckets[useinstancing ? SOLID_SHADOW_INSTANCING_BUCKET : SOLID_SHADOW_BUCKET].push_back(bucket);
+		}
 	}
 	if (material->IsText()) {
 		m_buckets[TEXT_BUCKET].push_back(bucket);

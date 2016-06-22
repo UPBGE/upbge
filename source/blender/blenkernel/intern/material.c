@@ -203,7 +203,9 @@ void BKE_material_init(Material *ma)
 	ma->game.face_orientation = 0;
 	ma->game.storage = GAME_STORAGE_SCENE;
 	ma->game.storage_flag = 0;
-	
+
+	ma->depthtranspfactor = 1.0f;
+
 	ma->mode = MA_TRACEBLE | MA_SHADBUF | MA_SHADOW | MA_RAYBIAS | MA_TANGENT_STR | MA_ZTRANSP;
 	ma->mode2 = MA_CASTSHADOW;
 	ma->shade_flag = MA_APPROX_OCCLUSION;

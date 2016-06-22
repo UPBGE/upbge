@@ -116,6 +116,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 
 	m_rasMode |= (mat->game.flag & GEMAT_BACKCULL) ? 0 : RAS_TWOSIDED;
 	m_rasMode |= (mat->material_type == MA_TYPE_WIRE) ? RAS_WIRE : 0;
+	m_rasMode |= (mat->mode2 & MA_DEPTH_TRANSP) ? RAS_DEPTH_ALPHA : 0;
 
 	// always zsort alpha + add
 	if (ELEM(m_alphablend, GEMAT_ALPHA, GEMAT_ALPHA_SORT, GEMAT_ADD) && (m_alphablend != GEMAT_CLIP)) {

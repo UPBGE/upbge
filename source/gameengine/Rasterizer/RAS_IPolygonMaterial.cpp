@@ -102,6 +102,11 @@ bool RAS_IPolyMaterial::IsAlpha() const
 	return (m_rasMode & (RAS_ALPHA | RAS_ZSORT));
 }
 
+bool RAS_IPolyMaterial::IsAlphaDepth() const
+{
+	return (m_rasMode & RAS_DEPTH_ALPHA);
+}
+
 bool RAS_IPolyMaterial::IsZSort() const
 {
 	return (m_rasMode & RAS_ZSORT);

@@ -321,9 +321,9 @@ inline void RAS_OpenGLRasterizer::OffScreens::RestoreScreen()
 	m_currentIndex = -1;
 }
 
-inline void RAS_OpenGLRasterizer::OffScreens::Blit(unsigned short srcindex, unsigned short dstindex)
+inline void RAS_OpenGLRasterizer::OffScreens::Blit(unsigned short srcindex, unsigned short dstindex, bool color, bool depth)
 {
-	GPU_offscreen_blit(GetOffScreen(srcindex), GetOffScreen(dstindex));
+	GPU_offscreen_blit(GetOffScreen(srcindex), GetOffScreen(dstindex), color, depth);
 }
 
 inline void RAS_OpenGLRasterizer::OffScreens::BindTexture(unsigned short index, unsigned short slot, OffScreen type)
@@ -360,6 +360,11 @@ inline short RAS_OpenGLRasterizer::OffScreens::GetCurrentIndex() const
 inline int RAS_OpenGLRasterizer::OffScreens::GetSamples(unsigned short index)
 {
 	return GPU_offscreen_samples(GetOffScreen(index));
+}
+
+inline GPUTexture *RAS_OpenGLRasterizer::OffScreens::GetDepthTexture(unsigned short index)
+{
+	return GPU_offscreen_depth_texture(GetOffScreen(index));
 }
 
 unsigned short RAS_IRasterizer::NextFilterOffScreen(unsigned short index)
@@ -558,6 +563,8 @@ void RAS_OpenGLRasterizer::Exit()
 	Disable(RAS_LIGHTING);
 	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)
 		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
+
+	GPU_texture_set_global_depth(NULL);
 
 	EndFrame();
 }
@@ -889,14 +896,14 @@ void RAS_OpenGLRasterizer::DrawOffScreen(unsigned short srcindex, unsigned short
 		m_offScreens.UnbindTexture(srcindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 	}
 	else {
-		m_offScreens.Blit(srcindex, dstindex);
+		m_offScreens.Blit(srcindex, dstindex, true, true);
 	}
 }
 
 void RAS_OpenGLRasterizer::DrawOffScreen(RAS_ICanvas *canvas, unsigned short index)
 {
 	if (m_offScreens.GetSamples(index) > 0) {
-		m_offScreens.Blit(index, RAS_OFFSCREEN_FINAL);
+		m_offScreens.Blit(index, RAS_OFFSCREEN_FINAL, true, false);
 		index = RAS_OFFSCREEN_FINAL;
 	}
 
@@ -918,13 +925,13 @@ void RAS_OpenGLRasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned sho
 {
 	if (m_offScreens.GetSamples(lefteyeindex) > 0) {
 		// Then lefteyeindex == RAS_OFFSCREEN_EYE_LEFT0.
-		m_offScreens.Blit(RAS_OFFSCREEN_EYE_LEFT0, RAS_OFFSCREEN_EYE_LEFT1);
+		m_offScreens.Blit(RAS_OFFSCREEN_EYE_LEFT0, RAS_OFFSCREEN_EYE_LEFT1, true, false);
 		lefteyeindex = RAS_OFFSCREEN_EYE_LEFT1;
 	}
 
 	if (m_offScreens.GetSamples(righteyeindex) > 0) {
 		// Then righteyeindex == RAS_OFFSCREEN_EYE_RIGHT0.
-		m_offScreens.Blit(RAS_OFFSCREEN_EYE_RIGHT0, RAS_OFFSCREEN_EYE_RIGHT1);
+		m_offScreens.Blit(RAS_OFFSCREEN_EYE_RIGHT0, RAS_OFFSCREEN_EYE_RIGHT1, true, false);
 		righteyeindex = RAS_OFFSCREEN_EYE_RIGHT1;
 	}
 
@@ -2246,6 +2253,19 @@ void RAS_OpenGLRasterizer::LoadMatrix(const float mat[16])
 void RAS_OpenGLRasterizer::LoadIdentity()
 {
 	glLoadIdentity();
+}
+
+void RAS_OpenGLRasterizer::UpdateGlobalDepthTexture()
+{
+	unsigned short index = m_offScreens.GetCurrentIndex();
+	if (m_offScreens.GetSamples(index)) {
+		m_offScreens.Blit(index, RAS_IRasterizer::RAS_OFFSCREEN_BLIT_DEPTH, false, true);
+		// Restore original off screen.
+		m_offScreens.Bind(index);
+		index = RAS_IRasterizer::RAS_OFFSCREEN_BLIT_DEPTH;
+	}
+
+	GPU_texture_set_global_depth(m_offScreens.GetDepthTexture(index));
 }
 
 void RAS_OpenGLRasterizer::MotionBlur()

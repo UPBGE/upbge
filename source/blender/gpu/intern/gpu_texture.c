@@ -46,7 +46,8 @@ static struct GPUTextureGlobal {
 	GPUTexture *invalid_tex_1D; /* texture used in place of invalid textures (not loaded correctly, missing) */
 	GPUTexture *invalid_tex_2D;
 	GPUTexture *invalid_tex_3D;
-} GG = {NULL, NULL, NULL};
+	GPUTexture *depth_tex;
+} GG = {NULL, NULL, NULL, NULL};
 
 /* GPUTexture */
 
@@ -575,12 +576,28 @@ GPUTexture *GPU_texture_create_1D_procedural(int w, const float *pixels, char er
 	return tex;
 }
 
+GPUTexture **GPU_texture_global_depth_ptr(void)
+{
+	return &GG.depth_tex;
+}
+
+void GPU_texture_set_global_depth(GPUTexture *depthtex)
+{
+	if (depthtex) {
+		GG.depth_tex = depthtex;
+	}
+	else {
+		GG.depth_tex = GG.invalid_tex_2D;
+	}
+}
+
 void GPU_invalid_tex_init(void)
 {
 	const float color[4] = {1.0f, 0.0f, 1.0f, 1.0f};
 	GG.invalid_tex_1D = GPU_texture_create_1D(1, color, NULL);
 	GG.invalid_tex_2D = GPU_texture_create_2D(1, 1, color, GPU_HDR_NONE, NULL);
 	GG.invalid_tex_3D = GPU_texture_create_3D(1, 1, 1, 4, color);
+	GG.depth_tex = GG.invalid_tex_2D;
 }
 
 void GPU_invalid_tex_bind(int mode)

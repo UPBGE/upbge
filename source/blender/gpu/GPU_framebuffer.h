@@ -101,7 +101,7 @@ void GPU_offscreen_bind(GPUOffScreen *ofs, bool save);
 void GPU_offscreen_bind_simple(GPUOffScreen *ofs);
 void GPU_offscreen_unbind(GPUOffScreen *ofs, bool restore);
 void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels);
-void GPU_offscreen_blit(GPUOffScreen *srcofs, GPUOffScreen *dstofs);
+void GPU_offscreen_blit(GPUOffScreen *srcofs, GPUOffScreen *dstofs, bool color, bool depth);
 int GPU_offscreen_width(const GPUOffScreen *ofs);
 int GPU_offscreen_height(const GPUOffScreen *ofs);
 int GPU_offscreen_samples(const GPUOffScreen *ofs);

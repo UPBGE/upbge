@@ -1822,6 +1822,18 @@ void lamp_visibility_clamp(float visifac, out float outvisifac)
 	outvisifac = (visifac < 0.001) ? 0.0 : visifac;
 }
 
+void shade_alpha_depth(vec3 vp, sampler2D ima, float alpha, float factor, out float outalpha)
+{
+	float depth = texture2D(ima, gl_FragCoord.xy / vec2(textureSize(ima, 0))).x;
+
+	vec4 depthvp = gl_ProjectionMatrix * vec4(vp.xy, vp.z - factor, 1.0);
+
+	float startfade = gl_FragCoord.z;
+	float endfade = (1.0 + depthvp.z / depthvp.w) * 0.5;
+
+	outalpha = alpha * smoothstep(startfade, endfade, depth);
+}
+
 void world_paper_view(vec3 vec, out vec3 outvec)
 {
 	vec3 nvec = normalize(vec);

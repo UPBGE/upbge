@@ -65,6 +65,7 @@ enum MaterialRasterizerModes
 	RAS_COLLIDER = 2,
 	RAS_ZSORT = 4,
 	RAS_ALPHA = 8,
+	RAS_DEPTH_ALPHA = 16,
 	RAS_WIRE = 64,
 	RAS_TEXT = 128,
 	RAS_TWOSIDED = 512,
@@ -109,6 +110,7 @@ public:
 	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty) = 0;
 
 	bool IsAlpha() const;
+	bool IsAlphaDepth() const;
 	bool IsZSort() const;
 	bool IsWire() const;
 	bool IsText() const;
