@@ -34,7 +34,7 @@
 
 #ifdef WIN32
 #pragma warning (disable:4786)
-#endif  /* WIN32 */
+#endif  // WIN32
 
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
@@ -47,7 +47,7 @@ class GPG_Canvas : public RAS_ICanvas
 {
 protected:
 	/// GHOST window.
-	GHOST_IWindow* m_window;
+	GHOST_IWindow *m_window;
 	/// Width of the context.
 	int m_width;
 	/// Height of the context.
@@ -60,13 +60,13 @@ protected:
 	int m_viewport[4];
 
 public:
-	GPG_Canvas(RAS_IRasterizer *rasty, GHOST_IWindow* window);
+	GPG_Canvas(RAS_IRasterizer *rasty, GHOST_IWindow *window);
 	virtual ~GPG_Canvas();
 
 	/**
 	 * \section Methods inherited from abstract base class RAS_ICanvas.
 	 */
-	
+
 	virtual int GetWidth() const
 	{
 		return m_width;
@@ -84,9 +84,9 @@ public:
 
 	virtual void SetDisplayArea(RAS_Rect *rect)
 	{
-		m_displayarea= *rect;
+		m_displayarea = *rect;
 	}
-	
+
 	virtual RAS_Rect &GetWindowArea()
 	{
 		return m_displayarea;
@@ -96,7 +96,7 @@ public:
 
 	/// Draws overlay banners and progress bars.
 	virtual void EndFrame();
-	
+
 	virtual void SetViewPort(int x1, int y1, int x2, int y2);
 	virtual void UpdateViewPort(int x1, int y1, int x2, int y2);
 	virtual const int *GetViewPort();
@@ -104,7 +104,7 @@ public:
 	virtual void ClearColor(float r, float g, float b, float a);
 	virtual void ClearBuffer(int type);
 
-	virtual void MakeScreenShot(const char* filename);
+	virtual void MakeScreenShot(const char *filename);
 
 	virtual void Init(void);
 	virtual void SetMousePosition(int x, int y);
@@ -128,4 +128,4 @@ public:
 	virtual void EndDraw();
 };
 
-#endif  /* __GPG_CANVAS_H__ */
+#endif  // __GPG_CANVAS_H__

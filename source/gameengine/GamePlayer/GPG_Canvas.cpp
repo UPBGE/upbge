@@ -46,16 +46,15 @@
 
 #include <assert.h>
 
-GPG_Canvas::GPG_Canvas(RAS_IRasterizer *rasty, GHOST_IWindow* window)
-	:RAS_ICanvas(rasty),
+GPG_Canvas::GPG_Canvas(RAS_IRasterizer *rasty, GHOST_IWindow *window)
+	: RAS_ICanvas(rasty),
 	m_window(window),
 	m_width(0),
 	m_height(0)
 {
 	m_rasterizer->GetViewport(m_viewport);
 
-	if (m_window)
-	{
+	if (m_window) {
 		GHOST_Rect bnds;
 		m_window->getClientBounds(bnds);
 		this->Resize(bnds.getWidth(), bnds.getHeight());
@@ -102,25 +101,25 @@ void GPG_Canvas::ClearColor(float r, float g, float b, float a)
 
 void GPG_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
 {
-		/*	x1 and y1 are the min pixel coordinate (e.g. 0)
-			x2 and y2 are the max pixel coordinate
-			the width,height is calculated including both pixels
-			therefore: max - min + 1
-		*/
-		
-		/* XXX, nasty, this needs to go somewhere else,
-		 * but where... definitely need to clean up this
-		 * whole canvas/rendertools mess.
-		 */
+	/*	x1 and y1 are the min pixel coordinate (e.g. 0)
+	    x2 and y2 are the max pixel coordinate
+	    the width,height is calculated including both pixels
+	    therefore: max - min + 1
+	 */
+
+	/* XXX, nasty, this needs to go somewhere else,
+	 * but where... definitely need to clean up this
+	 * whole canvas/rendertools mess.
+	 */
 	m_rasterizer->Enable(RAS_IRasterizer::RAS_SCISSOR_TEST);
-	
+
 	m_viewport[0] = x1;
 	m_viewport[1] = y1;
-	m_viewport[2] = x2-x1 + 1;
-	m_viewport[3] = y2-y1 + 1;
+	m_viewport[2] = x2 - x1 + 1;
+	m_viewport[3] = y2 - y1 + 1;
 
-	m_rasterizer->SetViewport(x1,y1,x2-x1 + 1,y2-y1 + 1);
-	m_rasterizer->SetScissor(x1,y1,x2-x1 + 1,y2-y1 + 1);
+	m_rasterizer->SetViewport(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
+	m_rasterizer->SetScissor(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
 }
 
 void GPG_Canvas::UpdateViewPort(int x1, int y1, int x2, int y2)
@@ -151,16 +150,18 @@ void GPG_Canvas::ClearBuffer(int type)
 {
 	unsigned int ogltype = 0;
 
-	if (type & RAS_ICanvas::COLOR_BUFFER )
+	if (type & RAS_ICanvas::COLOR_BUFFER) {
 		ogltype |= RAS_IRasterizer::RAS_COLOR_BUFFER_BIT;
+	}
 
-	if (type & RAS_ICanvas::DEPTH_BUFFER )
+	if (type & RAS_ICanvas::DEPTH_BUFFER) {
 		ogltype |= RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT;
+	}
 
 	m_rasterizer->Clear(ogltype);
 }
 
-void GPG_Canvas::MakeScreenShot(const char* filename)
+void GPG_Canvas::MakeScreenShot(const char *filename)
 {
 	// copy image data
 	unsigned int dumpsx = GetWidth();
@@ -188,8 +189,7 @@ void GPG_Canvas::MakeScreenShot(const char* filename)
 
 void GPG_Canvas::Init()
 {
-	if (m_window)
-	{
+	if (m_window) {
 		m_window->setDrawingContextType(GHOST_kDrawingContextTypeOpenGL);
 		assert(m_window->getDrawingContextType() == GHOST_kDrawingContextTypeOpenGL);
 	}
@@ -197,9 +197,8 @@ void GPG_Canvas::Init()
 
 void GPG_Canvas::SetMousePosition(int x, int y)
 {
-	GHOST_ISystem* system = GHOST_ISystem::getSystem();
-	if (system && m_window)
-	{
+	GHOST_ISystem *system = GHOST_ISystem::getSystem();
+	if (system && m_window) {
 		GHOST_TInt32 gx = (GHOST_TInt32)x;
 		GHOST_TInt32 gy = (GHOST_TInt32)y;
 		GHOST_TInt32 cx;
@@ -214,43 +213,42 @@ void GPG_Canvas::SetMouseState(RAS_MouseState mousestate)
 {
 	m_mousestate = mousestate;
 
-	if (m_window)
-	{
-		switch (mousestate)
-		{
-		case MOUSE_INVISIBLE:
-			m_window->setCursorVisibility(false);
-			break;
-		case MOUSE_WAIT:
-			m_window->setCursorShape(GHOST_kStandardCursorWait);
-			m_window->setCursorVisibility(true);
-			break;
-		case MOUSE_NORMAL:
-			m_window->setCursorShape(GHOST_kStandardCursorDefault);
-			m_window->setCursorVisibility(true);
-			break;
+	if (m_window) {
+		switch (mousestate) {
+			case MOUSE_INVISIBLE:
+				m_window->setCursorVisibility(false);
+				break;
+			case MOUSE_WAIT:
+				m_window->setCursorShape(GHOST_kStandardCursorWait);
+				m_window->setCursorVisibility(true);
+				break;
+			case MOUSE_NORMAL:
+				m_window->setCursorShape(GHOST_kStandardCursorDefault);
+				m_window->setCursorVisibility(true);
+				break;
 		}
 	}
 }
 
 void GPG_Canvas::SwapBuffers()
 {
-	if (m_window)
-	{
+	if (m_window) {
 		m_window->swapBuffers();
 	}
 }
 
 void GPG_Canvas::SetSwapInterval(int interval)
 {
-	if (m_window)
+	if (m_window) {
 		m_window->setSwapInterval(interval);
+	}
 }
 
 bool GPG_Canvas::GetSwapInterval(int& intervalOut)
 {
-	if (m_window)
+	if (m_window) {
 		return (bool)m_window->getSwapInterval(intervalOut);
+	}
 
 	return false;
 }
@@ -269,9 +267,8 @@ void GPG_Canvas::GetDisplayDimensions(int &width, int &height)
 
 void GPG_Canvas::ResizeWindow(int width, int height)
 {
-	if (m_window->getState() == GHOST_kWindowStateFullScreen)
-	{
-		GHOST_ISystem* system = GHOST_ISystem::getSystem();
+	if (m_window->getState() == GHOST_kWindowStateFullScreen) {
+		GHOST_ISystem *system = GHOST_ISystem::getSystem();
 		GHOST_DisplaySetting setting;
 		setting.xPixels = width;
 		setting.yPixels = height;
@@ -289,15 +286,17 @@ void GPG_Canvas::ResizeWindow(int width, int height)
 
 void GPG_Canvas::SetFullScreen(bool enable)
 {
-	if (enable)
+	if (enable) {
 		m_window->setState(GHOST_kWindowStateFullScreen);
-	else
+	}
+	else {
 		m_window->setState(GHOST_kWindowStateNormal);
+	}
 }
 
 bool GPG_Canvas::GetFullScreen()
 {
-	return m_window->getState() == GHOST_kWindowStateFullScreen;
+	return (m_window->getState() == GHOST_kWindowStateFullScreen);
 }
 
 void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool UNUSED(screen))
@@ -307,10 +306,10 @@ void GPG_Canvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool UNU
 
 float GPG_Canvas::GetMouseNormalizedX(int x)
 {
-	return float(x)/this->GetWidth();
+	return float(x) / this->GetWidth();
 }
 
 float GPG_Canvas::GetMouseNormalizedY(int y)
 {
-	return float(y)/this->GetHeight();
+	return float(y) / this->GetHeight();
 }
