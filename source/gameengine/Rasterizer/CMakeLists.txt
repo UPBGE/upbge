@@ -34,6 +34,7 @@ set(INC
 	../../blender/blenkernel
 	../../blender/gpu
 	../../blender/imbuf
+	../../blender/gpu
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
 	../../../intern/string

@@ -40,7 +40,10 @@
 #include "RAS_Polygon.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_IRasterizer.h"
+#include "RAS_ICanvas.h"
+#include "RAS_Rect.h"
 
+#include "GPU_texture.h"
 #include "RAS_BucketManager.h"
 
 #include <algorithm>
@@ -199,7 +202,7 @@ void RAS_BucketManager::RenderBasicBuckets(const MT_Transform& cameratrans, RAS_
 	}
 }
 
-void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)
+void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 {
 	switch (rasty->GetDrawingMode()) {
 		case RAS_IRasterizer::RAS_SHADOW:
@@ -286,10 +289,21 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			RenderBasicBuckets(cameratrans, rasty, SOLID_BUCKET);
 			RenderBasicBuckets(cameratrans, rasty, SOLID_INSTANCING_BUCKET);
 
-			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
-
 			RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
+
+			int width;
+			int height;
+			canvas->GetDisplayDimensions(width, height);
+
+			GPU_texture_global_depth_update(0, 0, width, height);
+
+			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
+			rasty->Disable(RAS_IRasterizer::RAS_DEPTH_TEST);
+// 			rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
+
+			RenderBasicBuckets(cameratrans, rasty, ALPHA_DEPTH_INSTANCING_BUCKET);
+			RenderSortedBuckets(cameratrans, rasty, ALPHA_DEPTH_BUCKET);
 
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 			break;
@@ -329,16 +343,23 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 
 	const bool useinstancing = material->UseInstancing();
 	if (!material->OnlyShadow()) {
-		if (material->IsAlpha())
+		if (material->IsAlphaDepth()) {
+			m_buckets[useinstancing ? ALPHA_DEPTH_INSTANCING_BUCKET : ALPHA_DEPTH_BUCKET].push_back(bucket);
+		}
+		else if (material->IsAlpha()) {
 			m_buckets[useinstancing ? ALPHA_INSTANCING_BUCKET : ALPHA_BUCKET].push_back(bucket);
-		else
+		}
+		else {
 			m_buckets[useinstancing ? SOLID_INSTANCING_BUCKET : SOLID_BUCKET].push_back(bucket);
+		}
 	}
 	if (material->CastsShadows()) {
-		if (material->IsAlphaShadow())
+		if (material->IsAlphaShadow()) {
 			m_buckets[useinstancing ? ALPHA_SHADOW_INSTANCING_BUCKET : ALPHA_SHADOW_BUCKET].push_back(bucket);
-		else
+		}
+		else {
 			m_buckets[useinstancing ? SOLID_SHADOW_INSTANCING_BUCKET : SOLID_SHADOW_BUCKET].push_back(bucket);
+		}
 	}
 	if (material->IsText()) {
 		m_buckets[TEXT_BUCKET].push_back(bucket);

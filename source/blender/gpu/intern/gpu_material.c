@@ -1922,6 +1922,12 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 			GPU_link(mat, "shade_add", shr->combined, shr->spec, &shr->combined);
 	}
 
+	if (ma->mode2 & MA_DEPTH_TRANSP) {
+		GPU_link(mat, "shade_alpha_depth", 
+				 GPU_dynamic_texture(GPU_texture_global_depth(), GPU_DYNAMIC_SAMPLER_2DDEPTH, ma),
+				 shi->alpha, GPU_uniform(&ma->depthtranspfactor), GPU_uniform(&ma->depthtranspoffset), &shr->alpha);
+	}
+
 	GPU_link(mat, "mtex_alpha_to_col", shr->combined, shr->alpha, &shr->combined);
 
 	if (ma->shade_flag & MA_OBCOLOR) {

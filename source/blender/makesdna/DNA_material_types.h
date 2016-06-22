@@ -197,8 +197,13 @@ typedef struct Material {
 	short paint_clone_slot;
 	short tot_slots;
 
+	/* Constants setting */
 	short constflag;
 	short pad4[2];
+
+	/* Depth transparency settings */
+	float depthtranspfactor;
+	float depthtranspoffset;
 
 	/* multiple tangent (Normal Map node) */
 	char nmap_tangent_names[9][64]; /* [MAX_MTFACE+1][MAX_NAME]; +1 for empty name */
@@ -327,6 +332,7 @@ typedef struct Material {
 #define MA_CASTSHADOW		(1 << 0)
 #define MA_MODE2_PIPELINE	(MA_CASTSHADOW)
 #define MA_TANGENT_CONCRETE	(1 << 1)
+#define MA_DEPTH_TRANSP (1 << 2)
 
 /* mapflag */
 #define MA_MAPFLAG_UVPROJECT (1 << 0)

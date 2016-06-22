@@ -901,6 +901,14 @@ class MATERIAL_PT_transp_game(MaterialButtonsPanel, Panel):
 
         layout.active = mat.use_transparency
 
+        split = layout.split()
+        col = split.column()
+        col.active = mat.use_depth_transparency
+        col.prop(mat, "depth_transp_factor", text="Depth Factor")
+        col.prop(mat, "depth_transp_offset", text="Depth Offset")
+        col = split.column()
+        col.prop(mat, "use_depth_transparency")
+
         if simple_material(base_mat):
             row = layout.row()
             row.prop(mat, "transparency_method", expand=True)
