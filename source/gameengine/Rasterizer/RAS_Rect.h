@@ -36,69 +36,73 @@
 #include "MEM_guardedalloc.h"
 #endif
 
-/** 
+/**
  * \section interface class.
  * RAS_Rect just encodes a simple rectangle.
  * \note Should be part of a generic library
  */
 class RAS_Rect
 {
-public:  // todo: make a decent class, and make private
-	int m_x1, m_y1;
-	int m_x2, m_y2;
+private:
+	int m_x1;
+	int m_y1;
+	int m_x2;
+	int m_y2;
 
 public:
-	RAS_Rect() : m_x1(0), m_y1(0), m_x2(0), m_y2(0) {}
-	int GetWidth(
-	) const {
+	RAS_Rect()
+		:m_x1(0),
+		m_y1(0),
+		m_x2(0),
+		m_y2(0)
+	{
+	}
+
+	int GetWidth() const
+	{
 		return m_x2 - m_x1;
 	}
-	int GetHeight(
-	) const {
+	int GetHeight() const
+	{
 		return m_y2 - m_y1;
 	}
-	int GetLeft(
-	) const {
+	int GetLeft() const
+	{
 		return m_x1;
 	}
-	int GetRight(
-	) const {
+	int GetRight() const
+	{
 		return m_x2;
 	}
-	int GetBottom(
-	) const {
+	int GetBottom() const
+	{
 		return m_y1;
 	}
-	int GetTop(
-	) const {
+	int GetTop() const
+	{
 		return m_y2;
 	}
 
-	void SetLeft(
-		int x1)
+	void SetLeft(int x1)
 	{
 		m_x1 = x1;
 	}
-	void SetBottom(
-		int y1)
+	void SetBottom(int y1)
 	{
 		m_y1 = y1;
 	}
-	void SetRight(
-		int x2)
+	void SetRight(int x2)
 	{
 		m_x2 = x2;
 	}
-	void SetTop(
-		int y2)
+	void SetTop(int y2)
 	{
 		m_y2 = y2;
 	}
-
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_Rect")
 #endif
 };
 
-#endif  /* __RAS_RECT_H__ */
+#endif  // __RAS_RECT_H__

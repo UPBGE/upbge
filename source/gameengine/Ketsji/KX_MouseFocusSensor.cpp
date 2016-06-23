@@ -283,25 +283,25 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 	m_kxengine->GetSceneViewport(m_kxscene, cam, area, viewport);
 	
 	/* Check if the mouse is in the viewport */
-	if ((	m_x < viewport.m_x2 &&	// less than right
-			m_x > viewport.m_x1 &&	// more than then left
-			m_y_inv < viewport.m_y2 &&	// below top
-			m_y_inv > viewport.m_y1) == 0)	// above bottom
+	if ((	m_x < viewport.GetRight() &&	// less than right
+			m_x > viewport.GetLeft() &&	// more than then left
+			m_y_inv < viewport.GetTop() &&	// below top
+			m_y_inv > viewport.GetBottom()) == 0)	// above bottom
 	{
 		return false;
 	}
 
-	float height = float(viewport.m_y2 - viewport.m_y1 + 1);
-	float width  = float(viewport.m_x2 - viewport.m_x1 + 1);
+	float height = float(viewport.GetTop() - viewport.GetBottom() + 1);
+	float width  = float(viewport.GetRight() - viewport.GetLeft() + 1);
 	
-	float x_lb = float(viewport.m_x1);
-	float y_lb = float(viewport.m_y1);
+	float x_lb = float(viewport.GetLeft());
+	float y_lb = float(viewport.GetBottom());
 
 	MT_Vector4 frompoint;
 	MT_Vector4 topoint;
 	
 	/* m_y_inv - inverting for a bounds check is only part of it, now make relative to view bounds */
-	m_y_inv = (viewport.m_y2 - m_y_inv) + viewport.m_y1;
+	m_y_inv = (viewport.GetTop() - m_y_inv) + viewport.GetBottom();
 	
 	
 	/* There's some strangeness I don't fully get here... These values

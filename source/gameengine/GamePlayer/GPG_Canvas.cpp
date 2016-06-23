@@ -88,10 +88,10 @@ void GPG_Canvas::Resize(int width, int height)
 	m_height = height;
 
 	// initialize area so that it's available for game logic on frame 1 (ImageViewport)
-	m_displayarea.m_x1 = 0;
-	m_displayarea.m_y1 = 0;
-	m_displayarea.m_x2 = width;
-	m_displayarea.m_y2 = height;
+	m_displayarea.SetLeft(0);
+	m_displayarea.SetBottom(0);
+	m_displayarea.SetRight(width);
+	m_displayarea.SetTop(height);
 }
 
 void GPG_Canvas::ClearColor(float r, float g, float b, float a)
