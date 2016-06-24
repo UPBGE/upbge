@@ -87,7 +87,9 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 #endif  // WITH_PYTHON
 	m_stereoMode(stereoMode),
 	m_argc(argc),
-	m_argv(argv)
+	m_argv(argv),
+	m_usePythonConsole(false),
+	m_numPythonConsoleKeys(0)
 {
 }
 
@@ -136,6 +138,15 @@ void LA_Launcher::InitEngine()
 	bool showArmatures = (SYS_GetCommandLineInt(syshandle, "show_armatures", gm->flag & GAME_SHOW_ARMATURES) != 0);
 	bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
 	bool restrictAnimFPS = (gm->flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
+
+	// Setup python console keys used as shortcut.
+	for (unsigned short i = 0; i < 4; ++i) {
+		m_pythonConsoleKeys[i] = ConvertKeyCode(gm->pythonkeys[i]);
+		if (m_pythonConsoleKeys[i] != SCA_IInputDevice::NOKEY) {
+			++m_numPythonConsoleKeys;
+		}
+	}
+	m_usePythonConsole = (gm->flag & GAME_PYTHON_CONSOLE);
 
 	RAS_STORAGE_TYPE raster_storage = RAS_AUTO_STORAGE;
 	int storageInfo = RAS_STORAGE_INFO_NONE;
@@ -347,6 +358,37 @@ void LA_Launcher::ExitEngine()
 	m_exitRequested = KX_EXIT_REQUEST_NO_REQUEST;
 }
 
+void LA_Launcher::CreatePythonConsole()
+{
+	if (!m_usePythonConsole) {
+		return;
+	}
+
+	int numkeyspressed = 0;
+	for (unsigned short i = 0; i < 4; ++i) {
+		if (m_pythonConsoleKeys[i] != SCA_IInputDevice::NOKEY && m_inputDevice->GetInput(m_pythonConsoleKeys[i]).Find(SCA_InputEvent::ACTIVE)) {
+			++numkeyspressed;
+		}
+	}
+
+	if (numkeyspressed < m_numPythonConsoleKeys) {
+		return;
+	}
+
+	m_system->toggleConsole(1);
+	createPythonConsole();
+	m_system->toggleConsole(0);
+
+	/* As we show the console, the release events of the shortcut keys can be not handled by the engine.
+	 * We simulate they them.
+	 */
+	for (unsigned short i = 0; i < 4; ++i) {
+		if (m_pythonConsoleKeys[i] != SCA_IInputDevice::NOKEY) {
+			m_inputDevice->ConvertEvent(m_pythonConsoleKeys[i], 0, 0);
+		}
+	}
+}
+
 #ifdef WITH_PYTHON
 
 int LA_Launcher::PythonEngineNextFrame(void *state)
@@ -379,30 +421,15 @@ bool LA_Launcher::EngineNextFrame()
 	if (m_kxsystem && !m_exitRequested) {
 		// First check if we want to exit.
 		m_exitRequested = m_ketsjiEngine->GetExitCode();
-		
+
+#ifdef WITH_PYTHON
+		// Check if we can create a python console debugging.
+		CreatePythonConsole();
+#endif
+
 		// Kick the engine.
 		bool renderFrame = m_ketsjiEngine->NextFrame();
 		if (renderFrame) {
-#ifdef WITH_PYTHON
-			// Create python console debugging, renderFrame is to true when at least one logic step was done.
-			if (m_inputDevice->GetInput(SCA_IInputDevice::LEFTCTRLKEY).Find(SCA_InputEvent::ACTIVE) &&
-				m_inputDevice->GetInput(SCA_IInputDevice::LEFTALTKEY).Find(SCA_InputEvent::ACTIVE) &&
-				m_inputDevice->GetInput(SCA_IInputDevice::LEFTSHIFTKEY).Find(SCA_InputEvent::ACTIVE) &&
-				m_inputDevice->GetInput(SCA_IInputDevice::TKEY).Find(SCA_InputEvent::ACTIVE))
-			{
-				m_system->toggleConsole(1);
-				createPythonConsole();
-				m_system->toggleConsole(0);
-
-				/* As we show the console, the release events of the shortcut keys can be not handled by the engine.
-				 * We simulate them.
-				 */
-				m_inputDevice->ConvertEvent(SCA_IInputDevice::LEFTCTRLKEY, 0, 0);
-				m_inputDevice->ConvertEvent(SCA_IInputDevice::LEFTALTKEY, 0, 0);
-				m_inputDevice->ConvertEvent(SCA_IInputDevice::LEFTSHIFTKEY, 0, 0);
-				m_inputDevice->ConvertEvent(SCA_IInputDevice::TKEY, 0, 0);
-			}
-#endif
 			RenderEngine();
 		}
 

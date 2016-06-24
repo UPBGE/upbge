@@ -4336,6 +4336,34 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_ARMATURES);
 	RNA_def_property_ui_text(prop, "Show Armatures", "Show a visualization of armatures");
 
+	prop = RNA_def_property(srna, "use_python_console", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_PYTHON_CONSOLE);
+	RNA_def_property_ui_text(prop, "Python Console", "Create a python interpreter console in game");
+
+	prop = RNA_def_property(srna, "python_console_key1", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[0]");
+	RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+	RNA_def_property_ui_text(prop, "Python Console Key", "First python console shortcut key");
+
+	prop = RNA_def_property(srna, "python_console_key2", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[1]");
+	RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+	RNA_def_property_ui_text(prop, "Python Console Key", "Second python console shortcut key");
+
+	prop = RNA_def_property(srna, "python_console_key3", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[2]");
+	RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+	RNA_def_property_ui_text(prop, "Python Console Key", "Third python console shortcut key");
+
+	prop = RNA_def_property(srna, "python_console_key4", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "pythonkeys[3]");
+	RNA_def_property_enum_items(prop, rna_enum_event_type_items);
+	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UI_EVENTS);
+	RNA_def_property_ui_text(prop, "Python Console Key", "Fourth python console shortcut key");
+
 	/* materials */
 	prop = RNA_def_property(srna, "use_glsl_lights", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_GLSL_NO_LIGHTS);
