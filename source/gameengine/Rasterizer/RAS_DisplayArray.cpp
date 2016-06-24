@@ -48,31 +48,24 @@ int RAS_DisplayArray::GetOpenGLPrimitiveType() const
 
 void RAS_DisplayArray::UpdateFrom(RAS_DisplayArray *other, int flag)
 {
-	if (flag & RAS_MeshObject::TANGENT_MODIFIED) {
+	if (flag & (RAS_MeshObject::POSITION_MODIFIED | RAS_MeshObject::NORMAL_MODIFIED | RAS_MeshObject::TANGENT_MODIFIED | RAS_MeshObject::UVS_MODIFIED | RAS_MeshObject::COLORS_MODIFIED)) {
 		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
-			m_vertex[i].SetTangent(MT_Vector4(other->m_vertex[i].getTangent()));
-		}
-	}
-	if (flag & RAS_MeshObject::UVS_MODIFIED) {
-		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
-			for (unsigned int uv = 0; uv < 8; ++uv) {
-				m_vertex[i].SetUV(uv, MT_Vector2(other->m_vertex[i].getUV(uv)));
+			switch (flag)
+			{
+			case RAS_MeshObject::POSITION_MODIFIED:
+				m_vertex[i].SetXYZ(MT_Vector3(other->m_vertex[i].getXYZ()));
+			case RAS_MeshObject::NORMAL_MODIFIED:
+				m_vertex[i].SetNormal(MT_Vector3(other->m_vertex[i].getNormal()));
+			case RAS_MeshObject::TANGENT_MODIFIED:
+				m_vertex[i].SetTangent(MT_Vector4(other->m_vertex[i].getTangent()));
+			case RAS_MeshObject::UVS_MODIFIED:
+				for (unsigned int uv = 0; uv < 8; ++uv) {
+					m_vertex[i].SetUV(uv, MT_Vector2(other->m_vertex[i].getUV(uv)));
+				}
+			case RAS_MeshObject::COLORS_MODIFIED:
+				m_vertex[i].SetRGBA(*((unsigned int *)other->m_vertex[i].getRGBA()));
 			}
 		}
 	}
-	if (flag & RAS_MeshObject::POSITION_MODIFIED) {
-		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
-			m_vertex[i].SetXYZ(MT_Vector3(other->m_vertex[i].getXYZ()));
-		}
-	}
-	if (flag & RAS_MeshObject::NORMAL_MODIFIED) {
-		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
-			m_vertex[i].SetNormal(MT_Vector3(other->m_vertex[i].getNormal()));
-		}
-	}
-	if (flag & RAS_MeshObject::COLORS_MODIFIED) {
-		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
-			m_vertex[i].SetRGBA(*((unsigned int *)other->m_vertex[i].getRGBA()));
-		}
-	}
 }
+
