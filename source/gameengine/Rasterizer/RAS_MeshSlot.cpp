@@ -103,17 +103,6 @@ RAS_DisplayArray *RAS_MeshSlot::GetDisplayArray()
 	return m_displayArray;
 }
 
-int RAS_MeshSlot::AddVertex(const RAS_TexVert& tv)
-{
-	m_displayArray->m_vertex.push_back(tv);
-	return (m_displayArray->m_vertex.size() - 1);
-}
-
-void RAS_MeshSlot::AddPolygonVertex(int offset)
-{
-	m_displayArray->m_index.push_back(offset);
-}
-
 void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 {
 	if (deformer && m_pDeformer != deformer) {

@@ -306,8 +306,8 @@ void RAS_MeshObject::AddLine(RAS_MaterialBucket *bucket, unsigned int v1, unsign
 	// create a new polygon
 	RAS_DisplayArray *darray = slot->GetDisplayArray();
 	darray->m_type = RAS_DisplayArray::LINES;
-	slot->AddPolygonVertex(v1);
-	slot->AddPolygonVertex(v2);
+	darray->m_index.push_back(v1);
+	darray->m_index.push_back(v2);
 }
 
 RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts, unsigned int indices[4],
@@ -329,9 +329,9 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 
 	if (visible && !bucket->IsWire()) {
 		// Add the first triangle.
-		slot->AddPolygonVertex(indices[0]);
-		slot->AddPolygonVertex(indices[1]);
-		slot->AddPolygonVertex(indices[2]);
+		darray->m_index.push_back(indices[0]);
+		darray->m_index.push_back(indices[1]);
+		darray->m_index.push_back(indices[2]);
 
 		poly->SetVertexOffset(0, indices[0]);
 		poly->SetVertexOffset(1, indices[1]);
@@ -339,9 +339,9 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 
 		if (numverts == 4) {
 			// Add the second triangle.
-			slot->AddPolygonVertex(indices[0]);
-			slot->AddPolygonVertex(indices[2]);
-			slot->AddPolygonVertex(indices[3]);
+			darray->m_index.push_back(indices[0]);
+			darray->m_index.push_back(indices[2]);
+			darray->m_index.push_back(indices[3]);
 
 			poly->SetVertexOffset(3, indices[3]);
 		}
@@ -395,7 +395,8 @@ unsigned int RAS_MeshObject::AddVertex(RAS_MaterialBucket *bucket, int i,
 	}
 
 	// no shared vertex found, add a new one
-	int offset = slot->AddVertex(texvert);
+	darray->m_vertex.push_back(texvert);
+	int offset = darray->m_vertex.size() - 1;
 
 	{ 	// Shared Vertex!
 		SharedVertex shared;

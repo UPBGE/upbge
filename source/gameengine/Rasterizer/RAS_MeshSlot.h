@@ -67,9 +67,6 @@ public:
 	void SetDeformer(RAS_Deformer *deformer);
 	void SetMeshUser(RAS_MeshUser *user);
 
-	int AddVertex(const RAS_TexVert& tv);
-	void AddPolygonVertex(int offset);
-
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MeshSlot")
 #endif
