@@ -1660,25 +1660,22 @@ void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, floa
 		// when new parenting for objects is done, this rotation
 		// will be moved into the object
 
-		MT_Vector3 objpos(&origmat[12]);
-		MT_Vector3 campos = GetCameraPosition();
-		MT_Vector3 dir = (campos - objpos).safe_normalized();
-		MT_Vector3 up(0.0f, 0.0f, 1.0f);
+		const MT_Vector3 objpos(&origmat[12]);
+		const MT_Vector3& campos = GetCameraPosition();
+		MT_Vector3 left = (campos - objpos).safe_normalized();
+		MT_Vector3 up = MT_Vector3(&origmat[8]).safe_normalized();
 
-		KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject);
 		// get scaling of halo object
-		MT_Vector3 scale = gameobj->NodeGetWorldScaling();
+		const MT_Vector3& scale = MT_Vector3(len_v3(&origmat[0]), len_v3(&origmat[4]), len_v3(&origmat[8]));
 
-		bool screenaligned = (objectdrawmode & RAS_IPolyMaterial::BILLBOARD_SCREENALIGNED) != 0;//false; //either screen or axisaligned
-		if (screenaligned) {
-			up = (up - up.dot(dir) * dir).safe_normalized();
+		if (objectdrawmode & RAS_IPolyMaterial::BILLBOARD_SCREENALIGNED) {
+			up = (up - up.dot(left) * left).safe_normalized();
 		}
 		else {
-			dir = (dir - up.dot(dir) * up).safe_normalized();
+			left = (left - up.dot(left) * up).safe_normalized();
 		}
 
-		MT_Vector3 left = dir.normalized();
-		dir = (up.cross(left)).normalized();
+		MT_Vector3 dir = (up.cross(left)).normalized();
 
 		// we have calculated the row vectors, now we keep
 		// local scaling into account:
@@ -1687,7 +1684,7 @@ void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, floa
 		dir *= scale[1];
 		up *= scale[2];
 
-		float tmpmat[16] = {
+		const float tmpmat[16] = {
 			left[0], left[1], left[2], 0.0f,
 			dir[0], dir[1], dir[2], 0.0f,
 			up[0], up[1], up[2], 0.0f,
@@ -1697,14 +1694,14 @@ void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, floa
 	}
 	else if (objectdrawmode & RAS_IPolyMaterial::SHADOW) {
 		// shadow must be cast to the ground, physics system needed here!
-		MT_Vector3 frompoint(&origmat[12]);
+		const MT_Vector3 frompoint(&origmat[12]);
 		KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)m_clientobject);
 		MT_Vector3 direction = MT_Vector3(0.0f, 0.0f, -1.0f);
 
 		direction.normalize();
 		direction *= 100000.0f;
 
-		MT_Vector3 topoint = frompoint + direction;
+		const MT_Vector3 topoint = frompoint + direction;
 
 		KX_Scene *kxscene = (KX_Scene *)m_auxilaryClientInfo;
 		PHY_IPhysicsEnvironment *physics_environment = kxscene->GetPhysicsEnvironment();
