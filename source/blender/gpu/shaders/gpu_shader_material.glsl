@@ -1834,7 +1834,7 @@ void shade_alpha_depth(sampler2D ima, float alpha, float factor, float offset, o
 {
 	ivec2 size = textureSize(ima, 0);
 	vec4 depth = texture2D(ima, gl_FragCoord.xy / size);
-	float thickness = get_view_space_z_from_depth(depth) - (gl_FragCoord.z / gl_FragCoord.w) + offset;
+	float thickness = get_view_space_z_from_depth(depth).z - (gl_FragCoord.z / gl_FragCoord.w) + offset;
 
 	outalpha = alpha * smoothstep(0.0, 1.0, thickness * factor);
 }
