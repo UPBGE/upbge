@@ -559,6 +559,8 @@ void RAS_OpenGLRasterizer::Exit()
 	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)
 		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
 
+	GPU_texture_global_depth_reset();
+
 	EndFrame();
 }
 

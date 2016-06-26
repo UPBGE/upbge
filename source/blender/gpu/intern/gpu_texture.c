@@ -576,22 +576,34 @@ GPUTexture *GPU_texture_create_1D_procedural(int w, const float *pixels, char er
 	return tex;
 }
 
-GPUTexture *GPU_texture_global_depth()
+GPUTexture *GPU_texture_global_depth(void)
 {
 	return GG.depthtex;
 }
 
-void GPU_texture_global_depth_init()
+void GPU_texture_global_depth_init(void)
 {
 	GG.depthtex = GPU_texture_create_depth(100, 100, NULL);
+
+	GPU_texture_bind(GG.depthtex, 0);
+	GPU_texture_filter_mode(GG.depthtex, false, false);
+	GPU_texture_unbind(GG.depthtex);
+
+	GPU_texture_global_depth_reset();
 }
 
 void GPU_texture_global_depth_update(int left, int bottom, int width, int height)
 {
-// 	printf("%s, left : %i, bottom : %i, width : %i, height : %i\n", __func__, left, bottom, width, height);
 	GPU_texture_bind(GG.depthtex, 0);
-	GPU_texture_filter_mode(GG.depthtex, false, false);
 	glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, left, bottom, width, height, 0);
+	GPU_texture_unbind(GG.depthtex);
+}
+
+void GPU_texture_global_depth_reset(void)
+{
+	static float pixels = 1.0;
+	GPU_texture_bind(GG.depthtex, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, 1, 1, 0, GL_DEPTH_COMPONENT, GL_FLOAT, &pixels);
 	GPU_texture_unbind(GG.depthtex);
 }
 

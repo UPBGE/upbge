@@ -292,11 +292,8 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
 
-			int width;
-			int height;
-			canvas->GetDisplayDimensions(width, height);
-
-			GPU_texture_global_depth_update(0, 0, width, height);
+			GPU_texture_global_depth_update(0, 0, canvas->GetWindowArea().GetLeft() + canvas->GetWidth(),
+											canvas->GetWindowArea().GetBottom() + canvas->GetHeight());
 
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
 			rasty->Disable(RAS_IRasterizer::RAS_DEPTH_TEST);

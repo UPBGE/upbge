@@ -83,6 +83,7 @@ GPUTexture *GPU_texture_from_preview(struct PreviewImage *prv, int mipmap);
 GPUTexture *GPU_texture_global_depth(void);
 void GPU_texture_global_depth_init(void);
 void GPU_texture_global_depth_update(int left, int bottom, int width, int height);
+void GPU_texture_global_depth_reset(void);
 void GPU_invalid_tex_init(void);
 void GPU_invalid_tex_bind(int mode);
 void GPU_invalid_tex_free(void);
