@@ -39,6 +39,7 @@
 #include "DNA_sdna_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_space_types.h"
+#include "DNA_material_types.h"
 
 #include "BKE_main.h"
 
@@ -81,6 +82,15 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 		if (!DNA_struct_elem_find(fd->filesdna, "GameSettings", "short", "storage")) {
 			for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
 				ma->game.storage = GAME_STORAGE_SCENE;
+			}
+		}
+
+		if (!(DNA_struct_elem_find(fd->filesdna, "Material", "float", "depthtranspfactor") &&
+			DNA_struct_elem_find(fd->filesdna, "Material", "float", "depthtranspoffset")))
+		{
+			for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
+				ma->depthtranspfactor = 1.0f;
+				ma->depthtranspoffset = 0.0f;
 			}
 		}
 
