@@ -84,6 +84,8 @@
 #include "RAS_BucketManager.h"
 #include "RAS_IPolygonMaterial.h"
 #include "KX_BlenderMaterial.h"
+#include "KX_CubeMapManager.h"
+#include "KX_CubeMap.h"
 #include "BL_Texture.h"
 
 #include "BKE_main.h"
@@ -1781,6 +1783,38 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		}
 		int layerMask = (groupobj.find(blenderobject) == groupobj.end()) ? activeLayerBitInfo : 0;
 		BL_CreatePhysicsObjectNew(gameobj,blenderobject,meshobj,kxscene,layerMask,converter,processCompoundChildren);
+	}
+
+	// Look at every material texture and ask to create realtime cube map.
+	for (CListValue::iterator it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = (KX_GameObject*)*it;
+
+		for (unsigned short i = 0, meshcount = gameobj->GetMeshCount(); i < meshcount; ++i) {
+			RAS_MeshObject *mesh = gameobj->GetMesh(i);
+
+			for (unsigned short j = 0, matcount = mesh->NumMaterials(); j < matcount; ++j) {
+				RAS_MeshMaterial *meshmat = mesh->GetMeshMaterial(j);
+				RAS_IPolyMaterial *polymat = meshmat->m_bucket->GetPolyMaterial();
+
+				for (unsigned short k = 0; k < RAS_Texture::MaxUnits; ++k) {
+					RAS_Texture *tex = polymat->GetTexture(k);
+
+					if (tex && tex->Ok() && tex->IsCubeMap() && tex->GetTex()->env->stype == ENV_REALT) {
+						EnvMap *env = tex->GetTex()->env;
+						KX_GameObject *viewpoint = gameobj;
+
+						if (env->object) {
+							KX_GameObject *obj = converter->FindGameObject(env->object);
+							if (obj) {
+								viewpoint = obj;
+							}
+						}
+
+						kxscene->GetCubeMapManager()->AddCubeMap(tex, viewpoint);
+					}
+				}
+			}
+		}
 	}
 
 	// Create and set bounding volume.

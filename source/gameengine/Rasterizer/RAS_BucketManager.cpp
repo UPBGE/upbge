@@ -327,7 +327,6 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			break;
 		}
 		case RAS_IRasterizer::RAS_SOLID:
-		case RAS_IRasterizer::RAS_DRAW_MAX:
 		case RAS_IRasterizer::RAS_TEXTURED:
 		{
 			/* Rendering solid and alpha (regular and instancing) materials
@@ -353,6 +352,10 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			}
 
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
+			break;
+		}
+		default:
+		{
 			break;
 		}
 	}

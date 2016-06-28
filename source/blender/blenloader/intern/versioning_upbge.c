@@ -96,5 +96,13 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 				scene->gm.raster_storage = GAME_STORAGE_VA;
 			}
 		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "EnvMap", "short", "flag")) {
+			for (Tex *tex = main->tex.first; tex; tex = tex->id.next) {
+				if (tex->env) {
+					tex->env->flag |= ENVMAP_AUTO_UPDATE;
+				}
+			}
+		}
 	}
 }

@@ -73,12 +73,14 @@ class KX_WorldInfo;
 class KX_Camera;
 class KX_GameObject;
 class KX_LightObject;
+class KX_CubeMapManager;
 class RAS_BucketManager;
 class RAS_MaterialBucket;
 class RAS_IPolyMaterial;
 class RAS_IRasterizer;
 class RAS_IRenderTools;
 class RAS_2DFilterManager;
+class KX_CubeMapManager;
 class KX_2DFilterManager;
 class SCA_JoystickManager;
 class btCollisionShape;
@@ -114,6 +116,7 @@ class KX_Scene : public CValue, public SCA_IScene
 	};
 
 protected:
+	KX_CubeMapManager *m_cubeMapManager;
 	RAS_BucketManager*	m_bucketmanager;
 	CListValue*			m_tempObjectList;
 
@@ -301,9 +304,11 @@ public:
 	~KX_Scene();
 
 	RAS_BucketManager* GetBucketManager();
+	KX_CubeMapManager *GetCubeMapManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const MT_Transform& cameratransform,
 	                   RAS_IRasterizer* rasty);
+	void RenderCubeMaps(RAS_IRasterizer *rasty);
 
 	/**
 	 * Update all transforms according to the scenegraph.

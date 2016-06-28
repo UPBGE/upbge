@@ -28,7 +28,11 @@
 #include "STR_String.h"
 
 struct MTex;
+struct Tex;
 struct Image;
+struct GPUTexture;
+
+class RAS_CubeMap;
 
 class RAS_Texture
 {
@@ -36,15 +40,23 @@ protected:
 	int m_bindCode;
 	STR_String m_name;
 
+	RAS_CubeMap *m_cubeMap;
+
 public:
 	RAS_Texture();
 	virtual ~RAS_Texture();
 
 	virtual bool Ok() const = 0;
+	virtual bool IsCubeMap() const = 0;
 
 	virtual MTex *GetMTex() const = 0;
+	virtual Tex *GetTex() const = 0;
 	virtual Image *GetImage() const = 0;
+	virtual GPUTexture *GetGPUTexture() const = 0;
 	STR_String& GetName();
+
+	void SetCubeMap(RAS_CubeMap *cubeMap);
+	RAS_CubeMap *GetCubeMap() const;
 
 	virtual unsigned int GetTextureType() = 0;
 
