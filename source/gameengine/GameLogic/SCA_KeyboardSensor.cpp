@@ -133,7 +133,7 @@ bool SCA_KeyboardSensor::Evaluate()
 {
 	bool result    = false;
 	bool reset     = m_reset && m_level;
-	bool qual[2] = {true, true};
+	bool qual[2] = {false, false};
 
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
 	//  	cerr << "SCA_KeyboardSensor::Eval event, sensing for "<< m_hotkey << " at device " << inputdev << "\n";
@@ -190,15 +190,15 @@ bool SCA_KeyboardSensor::Evaluate()
 		 */
 		if (m_qual > 0) {
 			const SCA_InputEvent & qualevent = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) m_qual);
-			if (!qualevent.Find(SCA_InputEvent::ACTIVE)) {
-				qual[0] = false;
+			if (qualevent.Find(SCA_InputEvent::ACTIVE)) {
+				qual[0] = true;
 			}
 		}
 		if (m_qual2 > 0) {
 			const SCA_InputEvent & qualevent = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) m_qual2);
 			/* copy of above */
-			if (!qualevent.Find(SCA_InputEvent::ACTIVE)) {
-				qual[1] = false;
+			if (qualevent.Find(SCA_InputEvent::ACTIVE)) {
+				qual[1] = true;
 			}
 		}
 		/* done reading qualifiers */
@@ -229,7 +229,7 @@ bool SCA_KeyboardSensor::Evaluate()
 		m_status[1] = qual[0];
 		m_status[2] = qual[1];
 
-		if (!qual[0] || !qual[1]) { /* one of the qualifiers are not pressed */
+		if ((m_qual > 0 && !qual[0]) || (m_qual2 > 0 && !qual[1])) { /* one of the used qualifiers are not pressed */
 			m_val = 0; /* since one of the qualifiers is not on, set the state to false */
 		}
 		/* done with key quals */
