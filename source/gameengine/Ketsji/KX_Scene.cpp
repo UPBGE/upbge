@@ -65,6 +65,7 @@
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
 #include "KX_2DFilterManager.h"
+#include "KX_CubeMapManager.h"
 #include "RAS_BucketManager.h"
 
 #include "EXP_FloatValue.h"
@@ -202,6 +203,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	
 	m_rootnode = NULL;
 
+	m_cubeMapManager = new KX_CubeMapManager(this);
 	m_bucketmanager=new RAS_BucketManager();
 	
 	bool showObstacleSimulation = (scene->gm.flag & GAME_SHOW_OBSTACLE_SIMULATION) != 0;
@@ -264,14 +266,6 @@ KX_Scene::~KX_Scene()
 	if (m_animatedlist)
 		m_animatedlist->Release();
 
-	if (m_cameralist) {
-		m_cameralist->Release();
-	}
-
-	if (m_fontlist) {
-		m_fontlist->Release();
-	}
-
 	if (m_filterManager) {
 		delete m_filterManager;
 	}
@@ -285,6 +279,10 @@ KX_Scene::~KX_Scene()
 	if (m_networkScene)
 		delete m_networkScene;
 	
+	if (m_cubeMapManager) {
+		delete m_cubeMapManager;
+	}
+
 	if (m_bucketmanager)
 	{
 		delete m_bucketmanager;
@@ -301,6 +299,38 @@ KX_Scene::~KX_Scene()
 	Py_CLEAR(m_draw_call_pre);
 	Py_CLEAR(m_draw_call_post);
 #endif
+}
+
+void KX_Scene::CreateGameobjWithCubeMapList()
+{
+	RAS_MeshMaterial *meshMat;
+	for (int i = 0; i< GetObjectList()->GetCount(); i++)
+	{
+		KX_GameObject* ob = (KX_GameObject*)GetObjectList()->GetValue(i);
+		RAS_MeshObject *mesh;
+		for (int j = 0; j < ob->GetMeshCount(); j++) {
+			mesh = ob->GetMesh(j);
+			for (unsigned int k = 0; k < mesh->NumMaterials(); k++) {
+				meshMat = mesh->GetMeshMaterial(k);
+				for (int l = 0; l < RAS_Texture::MaxUnits; l++) {
+					if (meshMat->m_bucket->GetIPolyMaterial()->GetTexture(l)) {
+						RAS_Texture *tex = meshMat->m_bucket->GetIPolyMaterial()->GetTexture(l);
+						if (tex && tex->GetTextureType() == GL_TEXTURE_CUBE_MAP &&
+							tex->GetMTex()->tex->env->stype == ENV_REALT) {
+							m_gameObjWithCubeMap->Add(ob);
+							ob->AddRef();
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+CListValue* KX_Scene::GetGameobjWithCubeMapList()
+{
+	return m_gameObjWithCubeMap;
 }
 
 STR_String& KX_Scene::GetName()
@@ -1391,17 +1421,19 @@ void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void* cul
 
 void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int layer)
 {
-	// Update the object boudning volume box if the object had a deformer.
-	for (int i = 0; i < m_objectlist->GetCount(); i++) {
-		KX_GameObject *gameobj = static_cast<KX_GameObject*>(m_objectlist->GetValue(i));
-		if (gameobj->GetDeformer()) {
-			/** Update all the deformer, not only per material.
-			 * One of the side effect is to clear some flags about AABB calculation.
-			 * like in KX_SoftBodyDeformer.
-			 */
-			gameobj->GetDeformer()->UpdateBuckets();
+	if (!rasty->GetRenderingCubeMaps()) {
+		// Update the object boudning volume box if the object had a deformer.
+		for (int i = 0; i < m_objectlist->GetCount(); i++) {
+			KX_GameObject *gameobj = static_cast<KX_GameObject*>(m_objectlist->GetValue(i));
+			if (gameobj->GetDeformer()) {
+				/** Update all the deformer, not only per material.
+				 * One of the side effect is to clear some flags about AABB calculation.
+				 * like in KX_SoftBodyDeformer.
+				 */
+				gameobj->GetDeformer()->UpdateBuckets();
+			}
+			gameobj->UpdateBounds();
 		}
-		gameobj->UpdateBounds();
 	}
 
 	bool dbvt_culling = false;
@@ -1683,6 +1715,11 @@ void KX_Scene::RenderBuckets(const MT_Transform & cameratransform,
 
 	m_bucketmanager->Renderbuckets(cameratransform,rasty);
 	KX_BlenderMaterial::EndFrame(rasty);
+}
+
+void KX_Scene::RenderCubeMaps(RAS_IRasterizer *rasty)
+{
+	m_cubeMapManager->Render(rasty);
 }
 
 void KX_Scene::UpdateObjectLods()

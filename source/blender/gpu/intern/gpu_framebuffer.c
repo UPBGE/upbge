@@ -129,6 +129,11 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 
 int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, int slot, char err_out[256])
 {
+	return GPU_framebuffer_texture_attach_target(fb, tex, GPU_texture_target(tex), slot, err_out);
+}
+
+int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, int target, int slot, char err_out[256])
+{
 	GLenum attachment;
 	GLenum error;
 
@@ -159,7 +164,7 @@ int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, int slot
 	while (glGetError() != GL_NO_ERROR) {}
 
 	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment, 
-		GPU_texture_target(tex), GPU_texture_opengl_bindcode(tex), 0);
+		target, GPU_texture_opengl_bindcode(tex), 0);
 
 	error = glGetError();
 

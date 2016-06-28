@@ -138,6 +138,11 @@ Image *BL_Texture::GetImage() const
 	return m_mtex->tex->ima;
 }
 
+GPUTexture *BL_Texture::GetGPUTexture()
+{
+	return m_gpuTex;
+}
+
 unsigned int BL_Texture::GetTextureType()
 {
 	return GPU_texture_target(m_gpuTex);

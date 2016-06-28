@@ -29,6 +29,7 @@
 
 struct MTex;
 struct Image;
+struct GPUTexture;
 
 class RAS_Texture
 {
@@ -44,6 +45,7 @@ public:
 
 	virtual MTex *GetMTex() const = 0;
 	virtual Image *GetImage() const = 0;
+	virtual GPUTexture *GetGPUTexture() = 0;
 	STR_String& GetName();
 
 	virtual unsigned int GetTextureType() = 0;

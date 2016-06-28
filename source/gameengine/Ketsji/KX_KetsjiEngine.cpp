@@ -1031,6 +1031,21 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 
 	scene->RenderBuckets(camtrans, m_rasterizer);
 
+
+	/* if we render cubemaps after rendering buckets,
+	 * as RenderCubeMaps uses RenderBuckets too,
+	 * we can disable some things in RenderBuckets
+	 * that cubemaps don't need as UpdateBuckets,
+	 * UpdateDeformer and maybe other things that
+	 * we don't need to repeat in RenderCubeMaps
+	 * process.
+	 */
+
+	// Disable useless functions when render cubemaps.
+	m_rasterizer->SetRenderingCubeMaps(true);
+	scene->RenderCubeMaps(m_rasterizer);
+	m_rasterizer->SetRenderingCubeMaps(false);
+
 	if (scene->GetPhysicsEnvironment())
 		scene->GetPhysicsEnvironment()->DebugDrawWorld();
 }

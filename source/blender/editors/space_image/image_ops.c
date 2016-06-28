@@ -2445,7 +2445,7 @@ static int image_new_exec(bContext *C, wmOperator *op)
 	}
 	else {
 		Tex *tex = CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
-		if (tex && tex->type == TEX_IMAGE) {
+		if (tex && tex->type & (TEX_IMAGE | TEX_ENVMAP)) {
 			if (tex->ima)
 				id_us_min(&tex->ima->id);
 			tex->ima = ima;
@@ -2546,15 +2546,15 @@ void IMAGE_OT_new(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_string(ot->srna, "name", IMA_DEF_NAME, MAX_ID_NAME - 2, "Name", "Image datablock name");
-	prop = RNA_def_int(ot->srna, "width", 1024, 1, INT_MAX, "Width", "Image width", 1, 16384);
+	prop = RNA_def_int(ot->srna, "width", 768, 1, INT_MAX, "Width", "Image width", 1, 16384);
 	RNA_def_property_subtype(prop, PROP_PIXEL);
-	prop = RNA_def_int(ot->srna, "height", 1024, 1, INT_MAX, "Height", "Image height", 1, 16384);
+	prop = RNA_def_int(ot->srna, "height", 512, 1, INT_MAX, "Height", "Image height", 1, 16384);
 	RNA_def_property_subtype(prop, PROP_PIXEL);
 	prop = RNA_def_float_color(ot->srna, "color", 4, NULL, 0.0f, FLT_MAX, "Color", "Default fill color", 0.0f, 1.0f);
 	RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);
 	RNA_def_property_float_array_default(prop, default_color);
 	RNA_def_boolean(ot->srna, "alpha", 1, "Alpha", "Create an image with an alpha channel");
-	RNA_def_enum(ot->srna, "generated_type", rna_enum_image_generated_type_items, IMA_GENTYPE_BLANK,
+	RNA_def_enum(ot->srna, "generated_type", rna_enum_image_generated_type_items, IMA_GENTYPE_GRID,
 	             "Generated Type", "Fill the image with a grid for UV map testing");
 	RNA_def_boolean(ot->srna, "float", 0, "32 bit Float", "Create image with 32 bit floating point bit depth");
 	prop = RNA_def_enum(ot->srna, "gen_context", gen_context_items, 0, "Gen Context", "Generation context");

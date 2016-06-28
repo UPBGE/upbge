@@ -256,8 +256,10 @@ void RAS_DisplayArrayBucket::RenderMeshSlots(const MT_Transform& cameratrans, RA
 		return;
 	}
 
-	// Update deformer and render settings.
-	UpdateActiveMeshSlots(rasty);
+	if (!rasty->GetRenderingCubeMaps()) {
+		// Update deformer and render settings.
+		UpdateActiveMeshSlots(rasty);
+	}
 
 	const RAS_IRasterizer::StorageType storage = GetStorageType();
 	rasty->BindPrimitives(storage, this);

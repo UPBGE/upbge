@@ -772,6 +772,7 @@ static void rna_def_environment_map(BlenderRNA *brna)
 		{ENV_STATIC, "STATIC", 0, "Static", "Calculate environment map only once"},
 		{ENV_ANIM, "ANIMATED", 0, "Animated", "Calculate environment map at each rendering"},
 		{ENV_LOAD, "IMAGE_FILE", 0, "Image File", "Load a saved environment map image from disk"},
+		{ENV_REALT, "REALTIME_REFL", 0, "Realtime Reflections", "Image generated for realtime reflections in the BGE"},
 		{0, NULL, 0, NULL, NULL}
 	};
 	

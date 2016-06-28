@@ -211,6 +211,9 @@ protected:
 	/* int m_last_alphablend; */
 	bool m_last_frontface;
 
+	/* Disable useless functions when rendering cubemaps */
+	bool m_renderingCubeMaps;
+
 	OverrideShaderType m_overrideShader;
 
 	/* Making use of a Strategy design pattern for storage behavior.
@@ -282,6 +285,7 @@ public:
 	virtual void SetProjectionMatrix(MT_CmMatrix4x4 &mat);
 	virtual void SetProjectionMatrix(const MT_Matrix4x4 &mat);
 	virtual void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Matrix3x3 &ori, const MT_Vector3 &pos, const MT_Vector3 &scale, bool perspective);
+	virtual void SetCubeMatrix(const MT_Matrix4x4 &mat);
 
 	virtual void SetViewport(int x, int y, int width, int height);
 	virtual void GetViewport(int *rect);
@@ -369,6 +373,9 @@ public:
 	virtual OverrideShaderType GetOverrideShader();
 	virtual void ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride);
 	virtual void DesactivateOverrideShaderInstancing();
+
+	virtual bool GetRenderingCubeMaps();
+	virtual void SetRenderingCubeMaps(bool renderingcubemaps);
 
 	/**
 	 * Render Tools

@@ -73,6 +73,7 @@ class KX_WorldInfo;
 class KX_Camera;
 class KX_GameObject;
 class KX_LightObject;
+class KX_CubeMapManager;
 class RAS_BucketManager;
 class RAS_MaterialBucket;
 class RAS_IPolyMaterial;
@@ -114,6 +115,7 @@ class KX_Scene : public CValue, public SCA_IScene
 	};
 
 protected:
+	KX_CubeMapManager *m_cubeMapManager;
 	RAS_BucketManager*	m_bucketmanager;
 	CListValue*			m_tempObjectList;
 
@@ -122,6 +124,7 @@ protected:
 	 * course of one frame. They are actually destroyed in 
 	 * LogicEndFrame() via a call to RemoveObject().
 	 */
+	CListValue* m_gameObjWithCubeMap;
 	CListValue*	m_euthanasyobjects;
 
 	CListValue*			m_objectlist;
@@ -300,10 +303,14 @@ public:
 	virtual
 	~KX_Scene();
 
+	void CreateGameobjWithCubeMapList();
+	CListValue* GetGameobjWithCubeMapList();
+
 	RAS_BucketManager* GetBucketManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const MT_Transform& cameratransform,
 	                   RAS_IRasterizer* rasty);
+	void RenderCubeMaps(RAS_IRasterizer *rasty);
 
 	/**
 	 * Update all transforms according to the scenegraph.
