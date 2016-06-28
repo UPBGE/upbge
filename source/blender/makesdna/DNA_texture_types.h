@@ -570,6 +570,7 @@ enum {
 #define ENV_STATIC	0
 #define ENV_ANIM	1
 #define ENV_LOAD	2
+#define ENV_REALT	3
 
 /* ok */
 #define ENV_NORMAL	1

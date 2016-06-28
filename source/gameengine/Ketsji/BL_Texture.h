@@ -67,6 +67,7 @@ public:
 
 	virtual MTex *GetMTex() const;
 	virtual Image *GetImage() const;
+	virtual GPUTexture *GetGPUTexture();
 
 	virtual unsigned int GetTextureType();
 

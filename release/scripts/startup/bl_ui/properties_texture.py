@@ -620,22 +620,28 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
             layout.template_ID(tex, "image", open="image.open")
             layout.template_image(tex, "image", tex.image_user, compact=True)
         else:
+            if env.source == 'REALTIME_REFL':
+                layout.template_ID(tex, "image", new="image.new", open="image.open")
+                layout.template_image(tex, "image", tex.image_user, compact=True)
             layout.prop(env, "mapping")
             if env.mapping == 'PLANE':
                 layout.prop(env, "zoom")
-            layout.prop(env, "viewpoint_object")
+            if env.source != 'REALTIME_REFL':
+                layout.prop(env, "viewpoint_object")
 
             split = layout.split()
 
             col = split.column()
             col.prop(env, "layers_ignore")
-            col.prop(env, "resolution")
-            col.prop(env, "depth")
+            if env.source != 'REALTIME_REFL':
+                col.prop(env, "resolution")
+                col.prop(env, "depth")
 
             col = split.column(align=True)
 
             col.label(text="Clipping:")
-            col.prop(env, "clip_start", text="Start")
+            if env.source != 'REALTIME_REFL':
+                col.prop(env, "clip_start", text="Start")
             col.prop(env, "clip_end", text="End")
 
 

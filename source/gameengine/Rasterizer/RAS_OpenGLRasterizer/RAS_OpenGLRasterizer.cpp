@@ -433,7 +433,8 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	m_attrib_num(0),
 	//m_last_alphablend(GPU_BLEND_SOLID),
 	m_last_frontface(true),
-	m_overrideShader(RAS_OVERRIDE_SHADER_NONE)
+	m_overrideShader(RAS_OVERRIDE_SHADER_NONE),
+	m_renderingCubeMaps(false)
 {
 	m_viewmatrix.setIdentity();
 	m_viewinvmatrix.setIdentity();
@@ -1551,6 +1552,15 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 	m_campos = pos;
 }
 
+void RAS_OpenGLRasterizer::SetCubeMatrix(const MT_Matrix4x4 &mat)
+{
+	MT_Scalar glviewmat[16];
+	mat.getValue(glviewmat);
+
+	SetMatrixMode(RAS_MODELVIEW);
+	LoadMatrix(glviewmat);
+}
+
 void RAS_OpenGLRasterizer::SetViewport(int x, int y, int width, int height)
 {
 	glViewport(x, y, width, height);
@@ -1832,6 +1842,16 @@ void RAS_OpenGLRasterizer::DesactivateOverrideShaderInstancing()
 	if (shader) {
 		GPU_shader_unbind_instancing_attrib(shader);
 	}
+}
+
+bool RAS_OpenGLRasterizer::GetRenderingCubeMaps()
+{
+	return m_renderingCubeMaps;
+}
+
+void RAS_OpenGLRasterizer::SetRenderingCubeMaps(bool renderingcubemaps)
+{
+	m_renderingCubeMaps = renderingcubemaps;
 }
 
 /**

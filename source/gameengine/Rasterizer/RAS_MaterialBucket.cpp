@@ -171,8 +171,9 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	rasty->SetFrontFace(meshUser->GetFrontFace());
 
 	// Inverse condition of in ActivateMaterial.
-	if (!((rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && !m_material->CastsShadows()) ||
-		(rasty->GetDrawingMode() != RAS_IRasterizer::RAS_SHADOW && m_material->OnlyShadow())))
+	if ((!((rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && !m_material->CastsShadows()) ||
+		(rasty->GetDrawingMode() != RAS_IRasterizer::RAS_SHADOW && m_material->OnlyShadow()))) &&
+		(!rasty->GetRenderingCubeMaps()))
 	{
 		bool uselights = m_material->UsesLighting(rasty);
 		rasty->ProcessLighting(uselights, cameratrans);

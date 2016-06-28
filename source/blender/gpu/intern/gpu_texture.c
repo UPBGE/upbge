@@ -245,7 +245,6 @@ static GPUTexture *GPU_texture_create_nD(
 	return tex;
 }
 
-
 GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, const float *fpixels)
 {
 	GLenum type, format, internalformat;

@@ -473,6 +473,8 @@ public:
 	virtual void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Matrix3x3 &ori,
 	                           const MT_Vector3 &pos, const MT_Vector3 &scale, bool perspective) = 0;
 
+	virtual void SetCubeMatrix(const MT_Matrix4x4 &mat) = 0;
+
 	/**
 	 * Get/Set viewport area
 	 */
@@ -495,6 +497,12 @@ public:
 	virtual void SetFog(short type, float start, float dist, float intensity, float color[3]) = 0;
 	virtual void DisplayFog() = 0;
 	virtual void EnableFog(bool enable) = 0;
+
+	/**
+	 * Disable useless functions when rendering cubemaps
+	 */
+	virtual bool GetRenderingCubeMaps() = 0;
+	virtual void SetRenderingCubeMaps(bool renderingcubemaps) = 0;
 	
 	/**
 	 * \param drawingmode = RAS_WIREFRAME, RAS_SOLID, RAS_SHADOW or RAS_TEXTURED.
