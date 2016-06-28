@@ -882,8 +882,8 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	// this constructor is used for automatic planar mirror
 	// create a camera, take all data by default, in any case we will recompute the frustum on each frame
 	RAS_CameraData camdata;
-	vector<RAS_TexVert*> mirrorVerts;
-	vector<RAS_TexVert*>::iterator it;
+	vector<RAS_ITexVert*> mirrorVerts;
+	vector<RAS_ITexVert*>::iterator it;
 	float mirrorArea = 0.f;
 	float mirrorNormal[3] = {0.f, 0.f, 0.f};
 	float mirrorUp[3];
@@ -911,7 +911,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 			RAS_Polygon* polygon = mesh->GetPolygon(polygonIndex);
 			if (polygon->GetMaterial()->GetPolyMaterial() == mat)
 			{
-				RAS_TexVert *v1, *v2, *v3, *v4;
+				RAS_ITexVert *v1, *v2, *v3, *v4;
 				float normal[3];
 				float area;
 				// this polygon is part of the mirror

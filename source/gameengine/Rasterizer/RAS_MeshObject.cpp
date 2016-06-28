@@ -54,7 +54,7 @@ struct RAS_MeshObject::polygonSlot
 
 	/* pnorm is the normal from the plane equation that the distance from is
 	 * used to sort again. */
-	void get(const RAS_TexVert *vertexarray, const unsigned int *indexarray,
+	void get(const RAS_ITexVert *vertexarray, const unsigned int *indexarray,
 	         int offset, int nvert, const MT_Vector3& pnorm)
 	{
 		MT_Vector3 center(0.0f, 0.0f, 0.0f);
@@ -130,11 +130,11 @@ void RAS_MeshObject::UpdateAabb()
 		if (!slot)
 			continue;
 
-		RAS_DisplayArray *array = slot->GetDisplayArray();
+		RAS_IDisplayArray *array = slot->GetDisplayArray();
 		// for each vertex
-		for (unsigned int i = 0; i < array->m_vertex.size(); ++i) {
-			RAS_TexVert& v = array->m_vertex[i];
-			MT_Vector3 vertpos = v.xyz();
+		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+			RAS_ITexVert *v = array->GetVertex(i);
+			MT_Vector3 vertpos = v->xyz();
 
 			// For the first vertex of the mesh, only initialize AABB.
 			if (first) {
@@ -272,7 +272,7 @@ int RAS_MeshObject::GetBlenderMaterialId(RAS_IPolyMaterial *mat)
 	return -1;
 }
 
-void RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index)
+void RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_TexVertFormat& format)
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
 
@@ -280,7 +280,7 @@ void RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index)
 	if (!mmat) {
 		RAS_MeshMaterial meshmat;
 		meshmat.m_bucket = bucket;
-		meshmat.m_baseslot = meshmat.m_bucket->AddMesh(this);
+		meshmat.m_baseslot = meshmat.m_bucket->AddMesh(this, format);
 		meshmat.m_index = index;
 		m_materials.push_back(meshmat);
 	}
@@ -294,10 +294,9 @@ void RAS_MeshObject::AddLine(RAS_MaterialBucket *bucket, unsigned int v1, unsign
 	RAS_MeshSlot *slot = mmat->m_baseslot;
 
 	// create a new polygon
-	RAS_DisplayArray *darray = slot->GetDisplayArray();
-	darray->m_type = RAS_DisplayArray::LINES;
-	darray->m_index.push_back(v1);
-	darray->m_index.push_back(v2);
+	RAS_IDisplayArray *darray = slot->GetDisplayArray();
+	darray->AddIndex(v1);
+	darray->AddIndex(v2);
 }
 
 RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts, unsigned int indices[4],
@@ -309,7 +308,7 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 	RAS_MeshSlot *slot = mmat->m_baseslot;
 
 	// create a new polygon
-	RAS_DisplayArray *darray = slot->GetDisplayArray();
+	RAS_IDisplayArray *darray = slot->GetDisplayArray();
 	RAS_Polygon *poly = new RAS_Polygon(bucket, darray, numverts);
 	m_polygons.push_back(poly);
 
@@ -319,9 +318,9 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 
 	if (visible && !bucket->IsWire()) {
 		// Add the first triangle.
-		darray->m_index.push_back(indices[0]);
-		darray->m_index.push_back(indices[1]);
-		darray->m_index.push_back(indices[2]);
+		darray->AddIndex(indices[0]);
+		darray->AddIndex(indices[1]);
+		darray->AddIndex(indices[2]);
 
 		poly->SetVertexOffset(0, indices[0]);
 		poly->SetVertexOffset(1, indices[1]);
@@ -329,9 +328,9 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 
 		if (numverts == 4) {
 			// Add the second triangle.
-			darray->m_index.push_back(indices[0]);
-			darray->m_index.push_back(indices[2]);
-			darray->m_index.push_back(indices[3]);
+			darray->AddIndex(indices[0]);
+			darray->AddIndex(indices[2]);
+			darray->AddIndex(indices[3]);
 
 			poly->SetVertexOffset(3, indices[3]);
 		}
@@ -340,20 +339,12 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 	return poly;
 }
 
-unsigned int RAS_MeshObject::AddVertex(RAS_MaterialBucket *bucket, int i,
-                               const MT_Vector3& xyz,
-                               const MT_Vector2 uvs[RAS_TexVert::MAX_UNIT],
-                               const MT_Vector4& tangent,
-                               const unsigned int rgba,
-                               const MT_Vector3& normal,
-                               bool flat,
-                               int origindex)
+unsigned int RAS_MeshObject::AddVertex(RAS_MaterialBucket *bucket, RAS_ITexVert *vertex)
 {
-	RAS_TexVert texvert(xyz, uvs, tangent, rgba, normal, flat, origindex);
-
 	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
 	RAS_MeshSlot *slot = mmat->m_baseslot;
-	RAS_DisplayArray *darray = slot->GetDisplayArray();
+	RAS_IDisplayArray *darray = slot->GetDisplayArray();
+	unsigned int origindex = vertex->getOrigIndex();
 
 	{	/* Shared Vertex! */
 		/* find vertices shared between faces, with the restriction
@@ -365,7 +356,7 @@ unsigned int RAS_MeshObject::AddVertex(RAS_MaterialBucket *bucket, int i,
 		for (it = sharedmap.begin(); it != sharedmap.end(); it++) {
 			if (it->m_darray != darray)
 				continue;
-			if (!it->m_darray->m_vertex[it->m_offset].closeTo(&texvert))
+			if (!it->m_darray->GetVertex(it->m_offset)->closeTo(vertex))
 				continue;
 
 			// found one, add it and we're done
@@ -374,8 +365,8 @@ unsigned int RAS_MeshObject::AddVertex(RAS_MaterialBucket *bucket, int i,
 	}
 
 	// no shared vertex found, add a new one
-	darray->m_vertex.push_back(texvert);
-	int offset = darray->m_vertex.size() - 1;
+	darray->AddVertex(vertex);
+	int offset = darray->GetVertexCount() - 1;
 
 	{ 	// Shared Vertex!
 		SharedVertex shared;
@@ -391,10 +382,10 @@ int RAS_MeshObject::NumVertices(RAS_IPolyMaterial *mat)
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(mat);
 	RAS_MeshSlot *slot = mmat->m_baseslot;
-	return slot->GetDisplayArray()->m_vertex.size();
+	return slot->GetDisplayArray()->GetVertexCount();
 }
 
-RAS_TexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
+RAS_ITexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
@@ -402,10 +393,10 @@ RAS_TexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
 		return NULL;
 
 	RAS_MeshSlot *slot = mmat->m_baseslot;
-	RAS_DisplayArray *array = slot->GetDisplayArray();
+	RAS_IDisplayArray *array = slot->GetDisplayArray();
 
-	if (index < array->m_vertex.size()) {
-		return &array->m_vertex[index];
+	if (index < array->GetVertexCount()) {
+		return array->GetVertex(index);
 	}
 
 	return NULL;
@@ -415,7 +406,7 @@ const float *RAS_MeshObject::GetVertexLocation(unsigned int orig_index)
 {
 	std::vector<SharedVertex>& sharedmap = m_sharedvertex_map[orig_index];
 	std::vector<SharedVertex>::iterator it = sharedmap.begin();
-	return it->m_darray->m_vertex[it->m_offset].getXYZ();
+	return it->m_darray->GetVertex(it->m_offset)->getXYZ();
 }
 
 RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deformer)
@@ -474,7 +465,7 @@ void RAS_MeshObject::SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transfor
 	// to avoid excessive state changes while drawing. e) would
 	// require splitting polygons.
 
-	RAS_DisplayArray *array = ms->GetDisplayArray();
+	RAS_IDisplayArray *array = ms->GetDisplayArray();
 
 	// If there's no vertex array it means that the we're using modifier deformer.
 	if (!array) {
@@ -482,7 +473,7 @@ void RAS_MeshObject::SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transfor
 	}
 
 	unsigned int nvert = 3;
-	unsigned int totpoly = array->m_index.size() / nvert;
+	unsigned int totpoly = array->GetIndexCount() / nvert;
 
 	if (totpoly <= 1)
 		return;
@@ -495,14 +486,14 @@ void RAS_MeshObject::SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transfor
 
 	// get indices and z into temporary array
 	for (unsigned int j = 0; j < totpoly; j++)
-		poly_slots[j].get(array->m_vertex.data(), array->m_index.data(), j * nvert, nvert, pnorm);
+		poly_slots[j].get(array->GetVertexPointer(), array->GetIndexPointer(), j * nvert, nvert, pnorm);
 
 	// sort (stable_sort might be better, if flickering happens?)
 	std::sort(poly_slots.begin(), poly_slots.end(), backtofront());
 
 	// get indices from temporary array again
 	for (unsigned int j = 0; j < totpoly; j++)
-		poly_slots[j].set(array->m_index.data(), j * nvert, nvert);
+		poly_slots[j].set((unsigned int *)array->GetIndexPointer(), j * nvert, nvert);
 }
 
 

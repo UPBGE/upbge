@@ -32,10 +32,8 @@
 
 #include "RAS_TexVert.h"
 #include "MT_Matrix4x4.h"
-#include "BLI_math.h"
 
-RAS_TexVert::RAS_TexVert(const MT_Vector3& xyz,
-						 const MT_Vector2 uvs[MAX_UNIT],
+RAS_ITexVert::RAS_ITexVert(const MT_Vector3& xyz,
 						 const MT_Vector4& tangent,
 						 const unsigned int rgba,
 						 const MT_Vector3& normal,
@@ -49,18 +47,14 @@ RAS_TexVert::RAS_TexVert(const MT_Vector3& xyz,
 	m_flag = (flat) ? FLAT : 0;
 	m_origindex = origindex;
 	m_softBodyIndex = -1;
-
-	for (int i = 0; i < MAX_UNIT; ++i) {
-		uvs[i].getValue(m_uvs[i]);
-	}
 }
 
-MT_Vector3 RAS_TexVert::xyz() const
+MT_Vector3 RAS_ITexVert::xyz() const
 {
 	return MT_Vector3(m_localxyz);
 }
 
-void RAS_TexVert::SetRGBA(const MT_Vector4& rgba)
+void RAS_ITexVert::SetRGBA(const MT_Vector4& rgba)
 {
 	unsigned char *colp = (unsigned char *)&m_rgba;
 	colp[0] = (unsigned char)(rgba[0] * 255.0f);
@@ -70,52 +64,42 @@ void RAS_TexVert::SetRGBA(const MT_Vector4& rgba)
 }
 
 
-void RAS_TexVert::SetXYZ(const MT_Vector3& xyz)
+void RAS_ITexVert::SetXYZ(const MT_Vector3& xyz)
 {
 	xyz.getValue(m_localxyz);
 }
 
-void RAS_TexVert::SetXYZ(const float xyz[3])
+void RAS_ITexVert::SetXYZ(const float xyz[3])
 {
 	copy_v3_v3(m_localxyz, xyz);
 }
 
-void RAS_TexVert::SetUV(int index, const MT_Vector2& uv)
-{
-	uv.getValue(m_uvs[index]);
-}
-
-void RAS_TexVert::SetUV(int index, const float uv[2])
-{
-	copy_v2_v2(m_uvs[index], uv);
-}
-
-void RAS_TexVert::SetRGBA(const unsigned int rgba)
+void RAS_ITexVert::SetRGBA(const unsigned int rgba)
 {
 	m_rgba = rgba;
 }
 
-void RAS_TexVert::SetFlag(const short flag)
+void RAS_ITexVert::SetFlag(const short flag)
 {
 	m_flag = flag;
 }
 
-void RAS_TexVert::SetNormal(const MT_Vector3& normal)
+void RAS_ITexVert::SetNormal(const MT_Vector3& normal)
 {
 	normal.getValue(m_normal);
 }
 
-void RAS_TexVert::SetTangent(const MT_Vector4& tangent)
+void RAS_ITexVert::SetTangent(const MT_Vector4& tangent)
 {
 	tangent.getValue(m_tangent);
 }
 
 // compare two vertices, and return true if both are almost identical (they can be shared)
-bool RAS_TexVert::closeTo(const RAS_TexVert *other)
+bool RAS_ITexVert::closeTo(const RAS_ITexVert *other)
 {
 	const float eps = FLT_EPSILON;
-	for (int i = 0; i < MAX_UNIT; i++) {
-		if (!compare_v2v2(m_uvs[i], other->m_uvs[i], eps)) {
+	for (int i = 0; i < std::min(getUVSize(), other->getUVSize()); i++) {
+		if (!compare_v2v2(getUV(i), other->getUV(i), eps)) {
 			return false;
 		}
 	}
@@ -130,19 +114,48 @@ bool RAS_TexVert::closeTo(const RAS_TexVert *other)
 		   );
 }
 
-short RAS_TexVert::getFlag() const
+short RAS_ITexVert::getFlag() const
 {
 	return m_flag;
 }
 
-void RAS_TexVert::Transform(const MT_Matrix4x4& mat, const MT_Matrix4x4& nmat)
+void RAS_ITexVert::Transform(const MT_Matrix4x4& mat, const MT_Matrix4x4& nmat)
 {
 	SetXYZ((mat * MT_Vector4(m_localxyz[0], m_localxyz[1], m_localxyz[2], 1.0f)).to3d());
 	SetNormal((nmat * MT_Vector4(m_normal[0], m_normal[1], m_normal[2], 1.0f)).to3d());
 	SetTangent((nmat * MT_Vector4(m_tangent[0], m_tangent[1], m_tangent[2], 1.0f)));
 }
 
-void RAS_TexVert::TransformUV(int index, const MT_Matrix4x4& mat)
+void RAS_ITexVert::TransformUV(int index, const MT_Matrix4x4& mat)
 {
-	SetUV(index, (mat * MT_Vector4(m_uvs[index][0], m_uvs[index][1], 0.0f, 1.0f)).to2d());
+	SetUV(index, (mat * MT_Vector4(getUV(index)[0], getUV(index)[1], 0.0f, 1.0f)).to2d());
 }
+
+RAS_ITexVertFactory::~RAS_ITexVertFactory()
+{
+}
+
+RAS_ITexVertFactory *RAS_ITexVertFactory::CreateFactory(const RAS_TexVertFormat& format)
+{
+	switch (format.UVSize) {
+		case 1:
+			return new RAS_TexVertFactory<RAS_TexVert<1> >();
+		case 2:
+			return new RAS_TexVertFactory<RAS_TexVert<2> >();
+		case 3:
+			return new RAS_TexVertFactory<RAS_TexVert<3> >();
+		case 4:
+			return new RAS_TexVertFactory<RAS_TexVert<4> >();
+		case 5:
+			return new RAS_TexVertFactory<RAS_TexVert<5> >();
+		case 6:
+			return new RAS_TexVertFactory<RAS_TexVert<6> >();
+		case 7:
+			return new RAS_TexVertFactory<RAS_TexVert<7> >();
+		case 8:
+			return new RAS_TexVertFactory<RAS_TexVert<8> >();
+	}
+
+	return NULL;
+}
+

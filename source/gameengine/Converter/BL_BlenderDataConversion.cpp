@@ -464,7 +464,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 	return kx_blmat;
 }
 
-static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace *tface, MCol *mcol, MTF_localLayer *layers, int lightlayer, unsigned int *rgb, MT_Vector2 uvs[4][RAS_TexVert::MAX_UNIT], const char *tfaceName, KX_Scene* scene, KX_BlenderSceneConverter *converter)
+static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace *tface, MCol *mcol, MTF_localLayer *layers, int lightlayer, unsigned int *rgb, MT_Vector2 uvs[4][RAS_ITexVert::MAX_UNIT], const char *tfaceName, KX_Scene* scene, KX_BlenderSceneConverter *converter)
 {
 	RAS_IPolyMaterial* polymat = converter->FindCachedPolyMaterial(scene, ma);
 
@@ -569,8 +569,12 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	meshobj->SetName(mesh->id.name + 2);
 	meshobj->m_sharedvertex_map.resize(totvert);
 
+	RAS_TexVertFormat vertformat;
+	vertformat.UVSize = 1;
+	RAS_ITexVertFactory *vertfactory = RAS_ITexVertFactory::CreateFactory(vertformat);
+
 	Material* ma = 0;
-	MT_Vector2 uvs[4][RAS_TexVert::MAX_UNIT];
+	MT_Vector2 uvs[4][RAS_ITexVert::MAX_UNIT];
 	unsigned int rgb[4] = {0};
 
 	MT_Vector3 pt[4];
@@ -588,7 +592,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	}
 
 	/* we need to manually initialize the uvs (MoTo doesn't do that) [#34550] */
-	for (unsigned int i = 0; i < RAS_TexVert::MAX_UNIT; i++) {
+	for (unsigned int i = 0; i < RAS_ITexVert::MAX_UNIT; i++) {
 		uvs[0][i] = uvs[1][i] = uvs[2][i] = uvs[3][i] = MT_Vector2(0.f, 0.f);
 	}
 
@@ -600,7 +604,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		}
 
 		RAS_MaterialBucket *bucket = material_from_mesh(ma, mface, tface, mcol, layers, lightlayer, rgb, uvs, tfaceName, scene, converter);
-		meshobj->AddMaterial(bucket, 0);
+		meshobj->AddMaterial(bucket, 0, vertformat);
 	}
 
 	for (int f=0;f<totface;f++,mface++)
@@ -658,7 +662,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		{
 
 			RAS_MaterialBucket* bucket = material_from_mesh(ma, mface, tface, mcol, layers, lightlayer, rgb, uvs, tfaceName, scene, converter);
-			meshobj->AddMaterial(bucket, mface->mat_nr);
+			meshobj->AddMaterial(bucket, mface->mat_nr, vertformat);
 
 			// set render flags
 			bool visible = ((ma->game.flag & GEMAT_INVISIBLE)==0);
@@ -671,12 +675,22 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			int nverts = (mface->v4)? 4: 3;
 
 			unsigned int indices[4]; // all indices of the poly, can be a tri or quad.
-			indices[0] = meshobj->AddVertex(bucket, 0, pt[0], uvs[0], tan[0], rgb[0], no[0], flat, mface->v1);
-			indices[1] = meshobj->AddVertex(bucket, 1, pt[1], uvs[1], tan[1], rgb[1], no[1], flat, mface->v2);
-			indices[2] = meshobj->AddVertex(bucket, 2, pt[2], uvs[2], tan[2], rgb[2], no[2], flat, mface->v3);
+			RAS_ITexVert *vert1 = vertfactory->CreateVertex(pt[0], uvs[0], tan[0], rgb[0], no[0], flat, mface->v1);
+			RAS_ITexVert *vert2 = vertfactory->CreateVertex(pt[1], uvs[1], tan[1], rgb[1], no[1], flat, mface->v2);
+			RAS_ITexVert *vert3 = vertfactory->CreateVertex(pt[2], uvs[2], tan[2], rgb[2], no[2], flat, mface->v3);
+
+			indices[0] = meshobj->AddVertex(bucket, vert1);
+			indices[1] = meshobj->AddVertex(bucket, vert2);
+			indices[2] = meshobj->AddVertex(bucket, vert3);
+
+			delete vert1;
+			delete vert2;
+			delete vert3;
 
 			if (nverts == 4) {
-				indices[3] = meshobj->AddVertex(bucket, 3, pt[3], uvs[3], tan[3], rgb[3], no[3], flat, mface->v4);
+				RAS_ITexVert *vert4 = vertfactory->CreateVertex(pt[3], uvs[3], tan[3], rgb[3], no[3], flat, mface->v4);
+				indices[3] = meshobj->AddVertex(bucket, vert4);
+				delete vert4;
 			}
 
 			if (bucket->IsWire() && visible) {
@@ -735,6 +749,8 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		delete []layers;
 	
 	dm->release(dm);
+
+	delete vertfactory;
 
 	converter->RegisterGameMesh(scene, meshobj, mesh);
 	return meshobj;

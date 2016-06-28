@@ -32,9 +32,9 @@
 #ifndef __RAS_POLYGON_H__
 #define __RAS_POLYGON_H__
 
-class RAS_DisplayArray;
+class RAS_IDisplayArray;
 class RAS_MaterialBucket;
-class RAS_TexVert;
+class RAS_ITexVert;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -44,7 +44,7 @@ class RAS_Polygon
 {
 	// location
 	RAS_MaterialBucket *m_bucket;
-	RAS_DisplayArray *m_darray;
+	RAS_IDisplayArray *m_darray;
 	unsigned int m_offset[4];
 	unsigned short m_numvert;
 	unsigned short m_polyflags;
@@ -56,13 +56,13 @@ public:
 		TWOSIDE = 4
 	};
 
-	RAS_Polygon(RAS_MaterialBucket *bucket, RAS_DisplayArray *darray, int numvert);
+	RAS_Polygon(RAS_MaterialBucket *bucket, RAS_IDisplayArray *darray, int numvert);
 	virtual ~RAS_Polygon()
 	{
 	}
 
 	int VertexCount();
-	RAS_TexVert *GetVertex(int i);
+	RAS_ITexVert *GetVertex(int i);
 
 	void SetVertexOffset(int i, unsigned int offset);
 	unsigned int GetVertexOffset(unsigned int i);
@@ -77,7 +77,7 @@ public:
 	void SetTwoside(bool twoside);
 
 	RAS_MaterialBucket *GetMaterial();
-	RAS_DisplayArray *GetDisplayArray();
+	RAS_IDisplayArray *GetDisplayArray();
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

@@ -32,30 +32,30 @@
 #ifndef __RAS_TEXVERT_H__
 #define __RAS_TEXVERT_H__
 
-
 #include "MT_Vector3.h"
 #include "MT_Vector2.h"
 #include "MT_Matrix4x4.h"
 #include "MT_Transform.h"
 
+#include "BLI_math.h"
+
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
 #endif
 
-class RAS_TexVert
+template <class Vertex>
+class RAS_DisplayArray;
+
+class RAS_ITexVert
 {
+protected:
 	float m_localxyz[3]; // 3 * 4 = 12
-	float m_uvs[8][2]; // 8 * 2 * 4 = 64    8 = MAX_UNIT
 	unsigned int m_rgba; // 4
 	float m_tangent[4]; // 4*4 = 16
 	float m_normal[3]; // 3*4 = 12
 	short m_flag; // 2
 	short m_softBodyIndex; //2
 	unsigned int m_origindex; // 4
-	char m_padding[12]; // 12
-	//---------
-	//      128
-	// 32 bytes alignment improves performance on ATI cards.
 
 public:
 	enum
@@ -66,24 +66,23 @@ public:
 
 	short getFlag() const;
 
-	RAS_TexVert()
+	RAS_ITexVert()
 	{
 	}
-	RAS_TexVert(const MT_Vector3& xyz,
-	            const MT_Vector2 uvs[MAX_UNIT],
+	RAS_ITexVert(const MT_Vector3& xyz,
 	            const MT_Vector4& tangent,
 	            const unsigned int rgba,
 	            const MT_Vector3& normal,
 	            const bool flat,
 	            const unsigned int origindex);
-	~RAS_TexVert()
+	virtual ~RAS_ITexVert()
 	{
 	}
 
-	const float *getUV(int unit) const
-	{
-		return m_uvs[unit];
-	}
+	virtual unsigned int GetMemorySize() const = 0;
+
+	virtual unsigned short getUVSize() const = 0;
+	virtual const float *getUV(int unit) const = 0;
 
 	const float *getXYZ() const
 	{
@@ -122,8 +121,8 @@ public:
 
 	void SetXYZ(const MT_Vector3& xyz);
 	void SetXYZ(const float xyz[3]);
-	void SetUV(int index, const MT_Vector2& uv);
-	void SetUV(int index, const float uv[2]);
+	virtual void SetUV(int index, const MT_Vector2& uv) = 0;
+	virtual void SetUV(int index, const float uv[2]) = 0;
 
 	void SetRGBA(const unsigned int rgba);
 	void SetNormal(const MT_Vector3& normal);
@@ -139,11 +138,106 @@ public:
 
 	// compare two vertices, to test if they can be shared, used for
 	// splitting up based on uv's, colors, etc
-	bool closeTo(const RAS_TexVert *other);
+	bool closeTo(const RAS_ITexVert *other);
+};
 
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_TexVert")
-#endif
+struct RAS_TexVertFormat
+{
+	unsigned int UVSize;
+};
+
+template <unsigned int UVSize>
+class RAS_TexVert : public RAS_ITexVert
+{
+friend class RAS_DisplayArray<RAS_TexVert<UVSize> >;
+
+private:
+	float m_uvs[UVSize][2];
+
+public:
+
+	RAS_TexVert()
+	{
+	}
+
+	RAS_TexVert(const MT_Vector3& xyz,
+	            const MT_Vector2 uvs[UVSize],
+	            const MT_Vector4& tangent,
+	            const unsigned int rgba,
+	            const MT_Vector3& normal,
+	            const bool flat,
+	            const unsigned int origindex)
+		:RAS_ITexVert(xyz, tangent, rgba, normal, flat, origindex)
+	{
+		for (int i = 0; i < UVSize; ++i) {
+			uvs[i].getValue(m_uvs[i]);
+		}
+	}
+
+	virtual ~RAS_TexVert()
+	{
+	}
+
+	virtual unsigned int GetMemorySize() const
+	{
+		return sizeof(RAS_TexVert<UVSize>);
+	}
+
+	virtual unsigned short getUVSize() const
+	{
+		return UVSize;
+	}
+
+	virtual const float *getUV(int unit) const
+	{
+		return m_uvs[unit];
+	}
+
+	virtual void SetUV(int index, const MT_Vector2& uv)
+	{
+		uv.getValue(m_uvs[index]);
+	}
+
+	virtual void SetUV(int index, const float uv[2])
+	{
+		copy_v2_v2(m_uvs[index], uv);
+	}
+};
+
+class RAS_ITexVertFactory
+{
+public:
+	virtual ~RAS_ITexVertFactory();
+	static RAS_ITexVertFactory *CreateFactory(const RAS_TexVertFormat& format);
+	virtual RAS_ITexVert *CreateVertex(
+				const MT_Vector3& xyz,
+				const MT_Vector2 uvs[RAS_ITexVert::MAX_UNIT],
+				const MT_Vector4& tangent,
+				const unsigned int rgba,
+				const MT_Vector3& normal,
+				const bool flat,
+				const unsigned int origindex) = 0;
+};
+
+template <class Vertex>
+class RAS_TexVertFactory : public RAS_ITexVertFactory
+{
+public:
+	virtual ~RAS_TexVertFactory()
+	{
+	}
+
+	virtual RAS_ITexVert *CreateVertex(
+				const MT_Vector3& xyz,
+				const MT_Vector2 uvs[RAS_ITexVert::MAX_UNIT],
+				const MT_Vector4& tangent,
+				const unsigned int rgba,
+				const MT_Vector3& normal,
+				const bool flat,
+				const unsigned int origindex)
+	{
+		return new Vertex(xyz, uvs, tangent, rgba, normal, flat, origindex);
+	}
 };
 
 #endif  /* __RAS_TEXVERT_H__ */

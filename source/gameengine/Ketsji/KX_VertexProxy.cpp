@@ -184,7 +184,7 @@ PyObject *KX_VertexProxy::pyattr_get_UV(void *self_v, const KX_PYATTRIBUTE_DEF *
 
 static int kx_vertex_proxy_get_uvs_size_cb(void *self_v)
 {
-	return RAS_TexVert::MAX_UNIT;
+	return RAS_ITexVert::MAX_UNIT;
 }
 
 static PyObject *kx_vertex_proxy_get_uvs_item_cb(void *self_v, int index)
@@ -428,7 +428,7 @@ int KX_VertexProxy::pyattr_set_uvs(void *self_v, const struct KX_PYATTRIBUTE_DEF
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PySequence_Check(value)) {
 		MT_Vector2 vec;
-		for (int i = 0; i < PySequence_Size(value) && i < RAS_TexVert::MAX_UNIT; ++i) {
+		for (int i = 0; i < PySequence_Size(value) && i < RAS_ITexVert::MAX_UNIT; ++i) {
 			if (PyVecTo(PySequence_GetItem(value, i), vec)) {
 				self->m_vertex->SetUV(i, vec);
 			}
@@ -472,7 +472,7 @@ int KX_VertexProxy::pyattr_set_normal(void *self_v, const struct KX_PYATTRIBUTE_
 	return PY_SET_ATTR_FAIL;
 }
 
-KX_VertexProxy::KX_VertexProxy(KX_MeshProxy *mesh, RAS_TexVert *vertex)
+KX_VertexProxy::KX_VertexProxy(KX_MeshProxy *mesh, RAS_ITexVert *vertex)
 	:m_vertex(vertex),
 	m_mesh(mesh)
 {
@@ -486,7 +486,7 @@ KX_VertexProxy::~KX_VertexProxy()
 	Py_DECREF(m_mesh->GetProxy());
 }
 
-RAS_TexVert *KX_VertexProxy::GetVertex()
+RAS_ITexVert *KX_VertexProxy::GetVertex()
 {
 	return m_vertex;
 }

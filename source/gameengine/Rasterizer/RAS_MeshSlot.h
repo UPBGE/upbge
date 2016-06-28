@@ -32,6 +32,8 @@
 #ifndef __RAS_MESH_SLOT_H__
 #define __RAS_MESH_SLOT_H__
 
+#include "RAS_TexVert.h"
+
 #include <vector>
 
 class RAS_MaterialBucket;
@@ -40,13 +42,12 @@ struct DerivedMesh;
 class RAS_Deformer;
 class RAS_MeshObject;
 class RAS_MeshUser;
-class RAS_DisplayArray;
-class RAS_TexVert;
+class RAS_IDisplayArray;
 
 class RAS_MeshSlot
 {
 private:
-	RAS_DisplayArray *m_displayArray;
+	RAS_IDisplayArray *m_displayArray;
 
 public:
 	// for rendering
@@ -61,9 +62,9 @@ public:
 	RAS_MeshSlot(const RAS_MeshSlot& slot);
 	virtual ~RAS_MeshSlot();
 
-	void init(RAS_MaterialBucket *bucket);
+	void init(RAS_MaterialBucket *bucket, RAS_TexVertFormat format);
 
-	RAS_DisplayArray *GetDisplayArray();
+	RAS_IDisplayArray *GetDisplayArray();
 	void SetDeformer(RAS_Deformer *deformer);
 	void SetMeshUser(RAS_MeshUser *user);
 

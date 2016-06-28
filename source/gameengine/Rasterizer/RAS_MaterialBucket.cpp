@@ -83,11 +83,11 @@ bool RAS_MaterialBucket::UseInstancing() const
 	return (m_material->UseInstancing());
 }
 
-RAS_MeshSlot *RAS_MaterialBucket::AddMesh(RAS_MeshObject *mesh)
+RAS_MeshSlot *RAS_MaterialBucket::AddMesh(RAS_MeshObject *mesh, const RAS_TexVertFormat& format)
 {
 	RAS_MeshSlot *ms = new RAS_MeshSlot();
 	ms->m_mesh = mesh;
-	ms->init(this);
+	ms->init(this, format);
 
 	m_meshSlots.push_back(ms);
 
@@ -245,7 +245,7 @@ void RAS_MaterialBucket::SetMeshUnmodified()
 	}
 }
 
-RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_DisplayArray *array, RAS_MeshObject *mesh)
+RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_IDisplayArray *array, RAS_MeshObject *mesh)
 {
 	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
 		it != end; ++it)

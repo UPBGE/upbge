@@ -452,11 +452,11 @@ bool CcdPhysicsController::CreateSoftbody()
 				mmat = rasMesh->GetMeshMaterial(m);
 
 				slot = mmat->m_baseslot;
-				RAS_DisplayArray *array = slot->GetDisplayArray();
+				RAS_IDisplayArray *array = slot->GetDisplayArray();
 
 				int index = 0;
-				for (i = 0; i < array->m_vertex.size(); i++, index++) {
-					RAS_TexVert *vertex = &array->m_vertex[i];
+				for (i = 0; i < array->GetVertexCount(); i++, index++) {
+					RAS_ITexVert *vertex = array->GetVertex(i);
 					//search closest index, and store it in vertex
 					vertex->setSoftBodyIndex(0);
 					btScalar maxDistSqr = 1e30;

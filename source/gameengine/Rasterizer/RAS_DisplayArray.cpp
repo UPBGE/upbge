@@ -31,7 +31,35 @@
 
 #include "glew-mx.h"
 
-int RAS_DisplayArray::GetOpenGLPrimitiveType() const
+RAS_IDisplayArray::~RAS_IDisplayArray()
+{
+}
+
+RAS_IDisplayArray *RAS_IDisplayArray::ConstructArray(RAS_IDisplayArray::PrimitiveType type, const RAS_TexVertFormat &format)
+{
+	switch (format.UVSize) {
+		case 1:
+			return new RAS_DisplayArray<RAS_TexVert<1> >(type);
+		case 2:
+			return new RAS_DisplayArray<RAS_TexVert<2> >(type);
+		case 3:
+			return new RAS_DisplayArray<RAS_TexVert<3> >(type);
+		case 4:
+			return new RAS_DisplayArray<RAS_TexVert<4> >(type);
+		case 5:
+			return new RAS_DisplayArray<RAS_TexVert<5> >(type);
+		case 6:
+			return new RAS_DisplayArray<RAS_TexVert<6> >(type);
+		case 7:
+			return new RAS_DisplayArray<RAS_TexVert<7> >(type);
+		case 8:
+			return new RAS_DisplayArray<RAS_TexVert<8> >(type);
+	};
+
+	return NULL;
+}
+
+int RAS_IDisplayArray::GetOpenGLPrimitiveType() const
 {
 	switch (m_type) {
 		case LINES:
@@ -46,33 +74,33 @@ int RAS_DisplayArray::GetOpenGLPrimitiveType() const
 	return 0;
 }
 
-void RAS_DisplayArray::UpdateFrom(RAS_DisplayArray *other, int flag)
+void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 {
 	if (flag & RAS_MeshObject::TANGENT_MODIFIED) {
-		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
-			m_vertex[i].SetTangent(MT_Vector4(other->m_vertex[i].getTangent()));
+		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
+			GetVertex(i)->SetTangent(MT_Vector4(other->GetVertex(i)->getTangent()));
 		}
 	}
 	if (flag & RAS_MeshObject::UVS_MODIFIED) {
-		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
-			for (unsigned int uv = 0; uv < 8; ++uv) {
-				m_vertex[i].SetUV(uv, MT_Vector2(other->m_vertex[i].getUV(uv)));
+		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
+			for (unsigned int uv = 0, uvcount = std::min(GetVertex(i)->getUVSize(), other->GetVertex(i)->getUVSize()); uv < uvcount; ++uv) {
+				GetVertex(i)->SetUV(uv, MT_Vector2(other->GetVertex(i)->getUV(uv)));
 			}
 		}
 	}
 	if (flag & RAS_MeshObject::POSITION_MODIFIED) {
-		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
-			m_vertex[i].SetXYZ(MT_Vector3(other->m_vertex[i].getXYZ()));
+		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
+			GetVertex(i)->SetXYZ(MT_Vector3(other->GetVertex(i)->getXYZ()));
 		}
 	}
 	if (flag & RAS_MeshObject::NORMAL_MODIFIED) {
-		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
-			m_vertex[i].SetNormal(MT_Vector3(other->m_vertex[i].getNormal()));
+		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
+			GetVertex(i)->SetNormal(MT_Vector3(other->GetVertex(i)->getNormal()));
 		}
 	}
 	if (flag & RAS_MeshObject::COLORS_MODIFIED) {
-		for (unsigned int i = 0; i < other->m_vertex.size(); ++i) {
-			m_vertex[i].SetRGBA(*((unsigned int *)other->m_vertex[i].getRGBA()));
+		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
+			GetVertex(i)->SetRGBA(*((unsigned int *)other->GetVertex(i)->getRGBA()));
 		}
 	}
 }

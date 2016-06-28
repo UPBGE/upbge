@@ -40,7 +40,7 @@
 #include <vector>
 
 class RAS_MaterialBucket;
-class RAS_DisplayArray;
+class RAS_IDisplayArray;
 class RAS_MeshObject;
 class RAS_Deformer;
 class RAS_IStorageInfo;
@@ -57,7 +57,7 @@ private:
 	/// The parent bucket.
 	RAS_MaterialBucket *m_bucket;
 	/// The display array = list of vertexes and indexes.
-	RAS_DisplayArray *m_displayArray;
+	RAS_IDisplayArray *m_displayArray;
 	/// The parent mesh object, it can be NULL for text objects.
 	RAS_MeshObject *m_mesh;
 	/// The list fo all visible mesh slots to render this frame.
@@ -83,7 +83,7 @@ private:
 	RAS_InstancingBuffer *m_instancingBuffer;
 
 public:
-	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array, RAS_MeshObject *mesh);
+	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array, RAS_MeshObject *mesh);
 	~RAS_DisplayArrayBucket();
 
 	/// \section Reference Count Management.
@@ -96,7 +96,7 @@ public:
 	void ProcessReplica();
 
 	/// \section Accesor
-	RAS_DisplayArray *GetDisplayArray() const;
+	RAS_IDisplayArray *GetDisplayArray() const;
 	RAS_MaterialBucket *GetMaterialBucket() const;
 	RAS_MeshObject *GetMesh() const;
 

@@ -36,7 +36,7 @@
 
 #include "SCA_IObject.h"
 
-class RAS_TexVert;
+class RAS_ITexVert;
 class KX_MeshProxy;
 
 class KX_VertexProxy : public CValue
@@ -44,14 +44,14 @@ class KX_VertexProxy : public CValue
 	Py_Header
 protected:
 
-	RAS_TexVert *m_vertex;
+	RAS_ITexVert *m_vertex;
 	KX_MeshProxy *m_mesh;
 
 public:
-	KX_VertexProxy(KX_MeshProxy *mesh, RAS_TexVert *vertex);
+	KX_VertexProxy(KX_MeshProxy *mesh, RAS_ITexVert *vertex);
 	virtual ~KX_VertexProxy();
 
-	RAS_TexVert *GetVertex();
+	RAS_ITexVert *GetVertex();
 	KX_MeshProxy *GetMesh();
 
 	// stuff for cvalue related things

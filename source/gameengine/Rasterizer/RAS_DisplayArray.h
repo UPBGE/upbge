@@ -36,20 +36,141 @@
 
 #include <vector>
 
-/// An array with data used for OpenGL drawing
-class RAS_DisplayArray
+class RAS_IDisplayArray
 {
 public:
-	std::vector<RAS_TexVert> m_vertex;
-	std::vector<unsigned int> m_index;
-
-	enum {
+	enum PrimitiveType {
 		TRIANGLES,
 		LINES,
-	} m_type;
+	};
 
+protected:
+	PrimitiveType m_type;
+
+public:
+	virtual ~RAS_IDisplayArray();
+
+	virtual RAS_IDisplayArray *GetReplica() = 0;
+
+	static RAS_IDisplayArray *ConstructArray(PrimitiveType type, const RAS_TexVertFormat &format);
+
+	virtual unsigned int GetVertexMemorySize() const = 0;
+	virtual void *GetVertexXYZOffset() const = 0;
+	virtual void *GetVertexNormalOffset() const = 0;
+	virtual void *GetVertexTangentOffset() const = 0;
+	virtual void *GetVertexUVOffset() const = 0;
+	virtual void *GetVertexColorOffset() const = 0;
+
+	virtual RAS_ITexVert *GetVertex(unsigned int index) const = 0;
+	virtual unsigned int GetIndex(unsigned int index) const = 0;
+
+	virtual const RAS_ITexVert *GetVertexPointer() const = 0;
+	virtual const unsigned int *GetIndexPointer() const = 0;
+
+	virtual void AddVertex(RAS_ITexVert *vert) = 0;
+	virtual void AddIndex(unsigned int index) = 0;
+
+	virtual unsigned int GetVertexCount() const = 0;
+	virtual unsigned int GetIndexCount() const = 0;
+
+	void UpdateFrom(RAS_IDisplayArray *other, int flag);
 	int GetOpenGLPrimitiveType() const;
-	void UpdateFrom(RAS_DisplayArray *other, int flag);
+};
+
+/// An array with data used for OpenGL drawing
+template <class Vertex>
+class RAS_DisplayArray : public RAS_IDisplayArray
+{
+private:
+	std::vector<Vertex> m_vertex;
+	std::vector<unsigned int> m_index;
+
+public:
+	friend Vertex;
+
+	RAS_DisplayArray(PrimitiveType type)
+	{
+		m_type = type;
+	}
+
+	virtual ~RAS_DisplayArray()
+	{
+	}
+
+	virtual RAS_IDisplayArray *GetReplica()
+	{
+		return new RAS_DisplayArray<Vertex>(*this);
+	}
+
+	virtual unsigned int GetVertexMemorySize() const
+	{
+		return sizeof(Vertex);
+	}
+
+	virtual void *GetVertexXYZOffset() const
+	{
+		return (void *)offsetof(Vertex, m_localxyz);
+	}
+
+	virtual void *GetVertexNormalOffset() const
+	{
+		return (void *)offsetof(Vertex, m_normal);
+	}
+
+	virtual void *GetVertexTangentOffset() const
+	{
+		return (void *)offsetof(Vertex, m_tangent);
+	}
+
+	virtual void *GetVertexUVOffset() const
+	{
+		return (void *)offsetof(Vertex, m_uvs);
+	}
+
+	virtual void *GetVertexColorOffset() const
+	{
+		return (void *)offsetof(Vertex, m_rgba);
+	}
+
+	virtual RAS_ITexVert *GetVertex(unsigned int index) const
+	{
+		return (RAS_ITexVert *)&m_vertex[index];
+	}
+
+	virtual unsigned int GetIndex(unsigned int index) const
+	{
+		return m_index[index];
+	}
+
+	virtual const RAS_ITexVert *GetVertexPointer() const
+	{
+		return (RAS_ITexVert *)m_vertex.data();
+	}
+
+	virtual const unsigned int *GetIndexPointer() const
+	{
+		return (unsigned int *)m_index.data();
+	}
+
+	virtual void AddVertex(RAS_ITexVert *vert)
+	{
+		m_vertex.push_back(*((Vertex *)vert));
+	}
+
+	virtual void AddIndex(unsigned int index)
+	{
+		m_index.push_back(index);
+	}
+
+	virtual unsigned int GetVertexCount() const
+	{
+		return m_vertex.size();
+	}
+
+	virtual unsigned int GetIndexCount() const
+	{
+		return m_index.size();
+	}
 };
 
 #endif  // __RAS_DISPLAY_ARRAY_H__

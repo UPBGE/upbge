@@ -50,7 +50,7 @@
 #  include <windows.h>
 #endif // WIN32
 
-RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_DisplayArray *array, RAS_MeshObject *mesh)
+RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array, RAS_MeshObject *mesh)
 	:m_refcount(1),
 	m_bucket(bucket),
 	m_displayArray(array),
@@ -111,12 +111,12 @@ void RAS_DisplayArrayBucket::ProcessReplica()
 	m_refcount = 1;
 	m_activeMeshSlots.clear();
 	if (m_displayArray) {
-		m_displayArray = new RAS_DisplayArray(*m_displayArray);
+		m_displayArray = m_displayArray->GetReplica();
 	}
 	m_bucket->AddDisplayArrayBucket(this);
 }
 
-RAS_DisplayArray *RAS_DisplayArrayBucket::GetDisplayArray() const
+RAS_IDisplayArray *RAS_DisplayArrayBucket::GetDisplayArray() const
 {
 	return m_displayArray;
 }

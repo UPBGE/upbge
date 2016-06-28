@@ -31,6 +31,7 @@
 #include "KX_NavMeshObject.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
+#include "RAS_TexVert.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"

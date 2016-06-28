@@ -89,33 +89,33 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 		return true;
 
 	slot = mmat->m_slots[(void *)m_gameobj->getClientInfo()];
-	RAS_DisplayArray *array = slot->GetDisplayArray();
-	RAS_DisplayArray *origarray = mmat->m_baseslot->GetDisplayArray();
+	RAS_IDisplayArray *array = slot->GetDisplayArray();
+	RAS_IDisplayArray *origarray = mmat->m_baseslot->GetDisplayArray();
 
 	btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
 
 	int index = 0;
-	for (i = 0; i < array->m_vertex.size(); i++, index++) {
-		RAS_TexVert& v = array->m_vertex[i];
-		RAS_TexVert& origvert = origarray->m_vertex[i];
+	for (i = 0; i < array->GetVertexCount(); i++, index++) {
+		RAS_ITexVert *v = array->GetVertex(i);
+		RAS_ITexVert *origvert = origarray->GetVertex(i);
 		/* The physics converter write the soft body index only in the original
 		 * vertex array because at this moment it doesn't know which is the
 		 * game object. It didn't cause any issues because it's always the same
 		 * vertex order.
 		 */
-		const unsigned int softbodyindex = origvert.getSoftBodyIndex();
+		const unsigned int softbodyindex = origvert->getSoftBodyIndex();
 
 		MT_Vector3 pt(
 		    nodes[softbodyindex].m_x.getX(),
 		    nodes[softbodyindex].m_x.getY(),
 		    nodes[softbodyindex].m_x.getZ());
-		v.SetXYZ(pt);
+		v->SetXYZ(pt);
 
 		MT_Vector3 normal(
 		    nodes[softbodyindex].m_n.getX(),
 		    nodes[softbodyindex].m_n.getY(),
 		    nodes[softbodyindex].m_n.getZ());
-		v.SetNormal(normal);
+		v->SetNormal(normal);
 
 		if (!m_gameobj->GetAutoUpdateBounds()) {
 			continue;

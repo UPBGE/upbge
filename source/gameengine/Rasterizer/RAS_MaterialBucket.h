@@ -66,7 +66,7 @@ public:
 	RAS_MeshSlotList::iterator msBegin();
 	RAS_MeshSlotList::iterator msEnd();
 
-	RAS_MeshSlot *AddMesh(RAS_MeshObject *mesh);
+	RAS_MeshSlot *AddMesh(RAS_MeshObject *mesh, const RAS_TexVertFormat& format);
 	RAS_MeshSlot *CopyMesh(RAS_MeshSlot *ms);
 	void RemoveMesh(RAS_MeshSlot *ms);
 	/// Remove all mesh slot using the given mesh object.
@@ -76,7 +76,7 @@ public:
 	unsigned int GetNumActiveMeshSlots();
 
 	/// Find a display array bucket for the given display array.
-	RAS_DisplayArrayBucket *FindDisplayArrayBucket(RAS_DisplayArray *array, RAS_MeshObject *mesh);
+	RAS_DisplayArrayBucket *FindDisplayArrayBucket(RAS_IDisplayArray *array, RAS_MeshObject *mesh);
 	void AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 	void RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 
