@@ -49,8 +49,6 @@
 
 bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *)
 {
-	size_t i;
-
 	// only apply once per frame if the mesh is actually modified
 	if ((m_pMeshObject->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED) &&
 		m_lastDeformUpdate != m_gameobj->GetLastFrame())
@@ -64,12 +62,13 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *)
 				continue;
 			}
 
-			RAS_DisplayArray *array = slot->GetDisplayArray();
+			RAS_IDisplayArray *array = slot->GetDisplayArray();
 
 			//	For each vertex
-			for (i = 0; i < array->m_vertex.size(); i++) {
-				RAS_TexVert& v = array->m_vertex[i];
-				v.SetXYZ(m_bmesh->mvert[v.getOrigIndex()].co);
+			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+				RAS_ITexVert *v = array->GetVertex(i);
+				const RAS_TexVertInfo& vinfo = array->GetVertexInfo(i);
+				v->SetXYZ(m_bmesh->mvert[vinfo.getOrigIndex()].co);
 			}
 		}
 
@@ -130,16 +129,20 @@ void BL_MeshDeformer::RecalcNormals()
 			continue;
 		}
 
-		RAS_DisplayArray *array = slot->GetDisplayArray();
+		RAS_IDisplayArray *array = slot->GetDisplayArray();
 
-		for (i = 0; i < array->m_index.size(); i += 3) {
-			RAS_TexVert& v1 = array->m_vertex[array->m_index[i]];
-			RAS_TexVert& v2 = array->m_vertex[array->m_index[i + 1]];
-			RAS_TexVert& v3 = array->m_vertex[array->m_index[i + 2]];
+		for (i = 0; i < array->GetIndexCount(); i += 3) {
+			const unsigned int indexes[3] = {array->GetIndex(i), array->GetIndex(i + 1), array->GetIndex(i + 2)};
+			RAS_ITexVert *v1 = array->GetVertex(indexes[0]);
+			RAS_ITexVert *v2 = array->GetVertex(indexes[1]);
+			RAS_ITexVert *v3 = array->GetVertex(indexes[2]);
+			const RAS_TexVertInfo& v1info = array->GetVertexInfo(indexes[0]);
+			const RAS_TexVertInfo& v2info = array->GetVertexInfo(indexes[1]);
+			const RAS_TexVertInfo& v3info = array->GetVertexInfo(indexes[2]);
 
-			const float *co1 = m_transverts[v1.getOrigIndex()];
-			const float *co2 = m_transverts[v2.getOrigIndex()];
-			const float *co3 = m_transverts[v3.getOrigIndex()];
+			const float *co1 = m_transverts[v1info.getOrigIndex()];
+			const float *co2 = m_transverts[v2info.getOrigIndex()];
+			const float *co3 = m_transverts[v3info.getOrigIndex()];
 
 			/* compute face normal */
 			float fnor[3], n1[3], n2[3];
@@ -158,20 +161,20 @@ void BL_MeshDeformer::RecalcNormals()
 			normalize_v3(fnor);
 
 			/* add to vertices for smooth normals */
-			float *vn1 = m_transnors[v1.getOrigIndex()];
-			float *vn2 = m_transnors[v2.getOrigIndex()];
-			float *vn3 = m_transnors[v3.getOrigIndex()];
+			float *vn1 = m_transnors[v1info.getOrigIndex()];
+			float *vn2 = m_transnors[v2info.getOrigIndex()];
+			float *vn3 = m_transnors[v3info.getOrigIndex()];
 
 			vn1[0] += fnor[0]; vn1[1] += fnor[1]; vn1[2] += fnor[2];
 			vn2[0] += fnor[0]; vn2[1] += fnor[1]; vn2[2] += fnor[2];
 			vn3[0] += fnor[0]; vn3[1] += fnor[1]; vn3[2] += fnor[2];
 
 			/* in case of flat - just assign, the vertices are split */
-			if (v1.getFlag() & RAS_TexVert::FLAT) {
+			if (v1info.getFlag() & RAS_TexVertInfo::FLAT) {
 				MT_Vector3 normal = MT_Vector3(fnor);
-				v1.SetNormal(normal);
-				v2.SetNormal(normal);
-				v3.SetNormal(normal);
+				v1->SetNormal(normal);
+				v2->SetNormal(normal);
+				v3->SetNormal(normal);
 			}
 		}
 	}
@@ -183,13 +186,14 @@ void BL_MeshDeformer::RecalcNormals()
 			continue;
 		}
 
-		RAS_DisplayArray *array = slot->GetDisplayArray();
+		RAS_IDisplayArray *array = slot->GetDisplayArray();
 
-		for (i = 0; i < array->m_vertex.size(); i++) {
-			RAS_TexVert& v = array->m_vertex[i];
+		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+			RAS_ITexVert *v = array->GetVertex(i);
+			const RAS_TexVertInfo& vinfo = array->GetVertexInfo(i);
 
-			if (!(v.getFlag() & RAS_TexVert::FLAT))
-				v.SetNormal(MT_Vector3(m_transnors[v.getOrigIndex()])); //.safe_normalized()
+			if (!(vinfo.getFlag() & RAS_TexVertInfo::FLAT))
+				v->SetNormal(MT_Vector3(m_transnors[vinfo.getOrigIndex()])); //.safe_normalized()
 		}
 	}
 }

@@ -118,10 +118,10 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 		return;
 	}
 
-	RAS_DisplayArray *array = arrayBucket->GetDisplayArray();
-	static const GLsizei stride = sizeof(RAS_TexVert);
+	RAS_IDisplayArray *array = arrayBucket->GetDisplayArray();
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::RAS_WIREFRAME;
-	RAS_TexVert *vertexarray = array->m_vertex.data();
+	const RAS_ITexVert *vertexarray = array->GetVertexPointer();
+	const unsigned int stride = array->GetVertexMemorySize();
 
 	if (!wireframe)
 		EnableTextures(true);
@@ -135,7 +135,7 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 	if (!wireframe) {
 		glEnableClientState(GL_COLOR_ARRAY);
 		glColorPointer(4, GL_UNSIGNED_BYTE, stride, vertexarray->getRGBA());
-		TexCoordPtr(vertexarray);
+		TexCoordPtr(vertexarray, stride);
 	}
 
 	if (displayList) {
@@ -174,8 +174,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 	}
 
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::RAS_WIREFRAME;
-	RAS_DisplayArray *array = ms->GetDisplayArray();
-	unsigned int *indexarray = array->m_index.data();
+	RAS_IDisplayArray *array = ms->GetDisplayArray();
 	RAS_IPolyMaterial *material = ms->m_bucket->GetPolyMaterial();
 
 	// colors
@@ -187,7 +186,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 		glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
 
 	// here the actual drawing takes places
-	glDrawElements(array->GetOpenGLPrimitiveType(), array->m_index.size(), GL_UNSIGNED_INT, indexarray);
+	glDrawElements(array->GetOpenGLPrimitiveType(), array->GetIndexCount(), GL_UNSIGNED_INT, array->GetIndexPointer());
 
 	if (displayList) {
 		displayList->End(m_drawingmode, RAS_DisplayList::DRAW_LIST);
@@ -196,11 +195,10 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 
 void RAS_StorageVA::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket)
 {
-	RAS_DisplayArray *array = arrayBucket->GetDisplayArray();
-	unsigned int *indexarray = array->m_index.data();
+	RAS_IDisplayArray *array = arrayBucket->GetDisplayArray();
 
 	// here the actual drawing takes places
-	glDrawElementsInstanced(array->GetOpenGLPrimitiveType(), array->m_index.size(), GL_UNSIGNED_INT, indexarray, arrayBucket->GetNumActiveMeshSlots());
+	glDrawElementsInstanced(array->GetOpenGLPrimitiveType(), array->GetIndexCount(), GL_UNSIGNED_INT, array->GetIndexPointer(), arrayBucket->GetNumActiveMeshSlots());
 }
 
 RAS_DisplayList *RAS_StorageVA::GetDisplayList(RAS_DisplayArrayBucket *arrayBucket)
@@ -218,7 +216,7 @@ RAS_DisplayList *RAS_StorageVA::GetDisplayList(RAS_DisplayArrayBucket *arrayBuck
 	return displayList;
 }
 
-void RAS_StorageVA::TexCoordPtr(const RAS_TexVert *tv)
+void RAS_StorageVA::TexCoordPtr(const RAS_ITexVert *tv, const unsigned int stride)
 {
 	/* note: this function must closely match EnableTextures to enable/disable
 	 * the right arrays, otherwise coordinate and attribute pointers from other
@@ -231,22 +229,22 @@ void RAS_StorageVA::TexCoordPtr(const RAS_TexVert *tv)
 			case RAS_IRasterizer::RAS_TEXCO_ORCO:
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 			{
-				glTexCoordPointer(3, GL_FLOAT, sizeof(RAS_TexVert), tv->getXYZ());
+				glTexCoordPointer(3, GL_FLOAT, stride, tv->getXYZ());
 				break;
 			}
 			case RAS_IRasterizer::RAS_TEXCO_UV:
 			{
-				glTexCoordPointer(2, GL_FLOAT, sizeof(RAS_TexVert), tv->getUV(unit));
+				glTexCoordPointer(2, GL_FLOAT, stride, tv->getUV(unit));
 				break;
 			}
 			case RAS_IRasterizer::RAS_TEXCO_NORM:
 			{
-				glTexCoordPointer(3, GL_FLOAT, sizeof(RAS_TexVert), tv->getNormal());
+				glTexCoordPointer(3, GL_FLOAT, stride, tv->getNormal());
 				break;
 			}
 			case RAS_IRasterizer::RAS_TEXTANGENT:
 			{
-				glTexCoordPointer(4, GL_FLOAT, sizeof(RAS_TexVert), tv->getTangent());
+				glTexCoordPointer(4, GL_FLOAT, stride, tv->getTangent());
 				break;
 			}
 			default:
@@ -256,33 +254,32 @@ void RAS_StorageVA::TexCoordPtr(const RAS_TexVert *tv)
 
 	glClientActiveTextureARB(GL_TEXTURE0_ARB);
 
-
 	for (unit = 0; unit < *m_attrib_num; unit++) {
 		switch (m_attrib[unit]) {
 			case RAS_IRasterizer::RAS_TEXCO_ORCO:
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 			{
-				glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getXYZ());
+				glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, stride, tv->getXYZ());
 				break;
 			}
 			case RAS_IRasterizer::RAS_TEXCO_UV:
 			{
-				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV(m_attrib_layer[unit]));
+				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, stride, tv->getUV(m_attrib_layer[unit]));
 				break;
 			}
 			case RAS_IRasterizer::RAS_TEXCO_NORM:
 			{
-				glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getNormal());
+				glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, stride, tv->getNormal());
 				break;
 			}
 			case RAS_IRasterizer::RAS_TEXTANGENT:
 			{
-				glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getTangent());
+				glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, stride, tv->getTangent());
 				break;
 			}
 			case RAS_IRasterizer::RAS_TEXCO_VCOL:
 			{
-				glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(RAS_TexVert), tv->getRGBA());
+				glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, tv->getRGBA());
 				break;
 			}
 			default:

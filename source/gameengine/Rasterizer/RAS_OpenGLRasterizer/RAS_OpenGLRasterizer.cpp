@@ -39,7 +39,7 @@
 
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
-#include "RAS_TexVert.h"
+#include "RAS_ITexVert.h"
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
 #include "RAS_TextUser.h"

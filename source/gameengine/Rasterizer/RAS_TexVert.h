@@ -15,12 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -32,118 +27,66 @@
 #ifndef __RAS_TEXVERT_H__
 #define __RAS_TEXVERT_H__
 
+#include "RAS_ITexVert.h"
 
-#include "MT_Vector3.h"
-#include "MT_Vector2.h"
-#include "MT_Matrix4x4.h"
-#include "MT_Transform.h"
+template <class Vertex>
+class RAS_DisplayArray;
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
-class RAS_TexVert
+// Struct used to pass the vertex format to functions.
+struct RAS_TexVertFormat
 {
-	float m_localxyz[3]; // 3 * 4 = 12
-	float m_uvs[8][2]; // 8 * 2 * 4 = 64    8 = MAX_UNIT
-	unsigned int m_rgba; // 4
-	float m_tangent[4]; // 4*4 = 16
-	float m_normal[3]; // 3*4 = 12
-	short m_flag; // 2
-	short m_softBodyIndex; //2
-	unsigned int m_origindex; // 4
-	char m_padding[12]; // 12
-	//---------
-	//      128
-	// 32 bytes alignment improves performance on ATI cards.
+	unsigned int UVSize;
+};
+
+template <unsigned int UVSize>
+class RAS_TexVert : public RAS_ITexVert
+{
+friend class RAS_DisplayArray<RAS_TexVert<UVSize> >;
+
+private:
+	float m_uvs[UVSize][2];
 
 public:
-	enum
-	{
-		FLAT = 1,
-		MAX_UNIT = 8
-	};
-
-	short getFlag() const;
 
 	RAS_TexVert()
 	{
 	}
+
 	RAS_TexVert(const MT_Vector3& xyz,
-	            const MT_Vector2 uvs[MAX_UNIT],
+	            const MT_Vector2 uvs[UVSize],
 	            const MT_Vector4& tangent,
 	            const unsigned int rgba,
-	            const MT_Vector3& normal,
-	            const bool flat,
-	            const unsigned int origindex);
-	~RAS_TexVert()
+	            const MT_Vector3& normal)
+		:RAS_ITexVert(xyz, tangent, rgba, normal)
+	{
+		for (int i = 0; i < UVSize; ++i) {
+			uvs[i].getValue(m_uvs[i]);
+		}
+	}
+
+	virtual ~RAS_TexVert()
 	{
 	}
 
-	const float *getUV(int unit) const
+	virtual const unsigned short getUVSize() const
+	{
+		return UVSize;
+	}
+
+	virtual const float *getUV(const int unit) const
 	{
 		return m_uvs[unit];
 	}
 
-	const float *getXYZ() const
+	virtual void SetUV(const int index, const MT_Vector2& uv)
 	{
-		return m_localxyz;
+		uv.getValue(m_uvs[index]);
 	}
 
-	const float *getNormal() const
+	virtual void SetUV(const int index, const float uv[2])
 	{
-		return m_normal;
+		copy_v2_v2(m_uvs[index], uv);
 	}
-
-	short int getSoftBodyIndex() const
-	{
-		return m_softBodyIndex;
-	}
-
-	void setSoftBodyIndex(short int sbIndex)
-	{
-		m_softBodyIndex = sbIndex;
-	}
-
-	const float *getTangent() const
-	{
-		return m_tangent;
-	}
-
-	const unsigned char *getRGBA() const
-	{
-		return (unsigned char *)&m_rgba;
-	}
-
-	unsigned int getOrigIndex() const
-	{
-		return m_origindex;
-	}
-
-	void SetXYZ(const MT_Vector3& xyz);
-	void SetXYZ(const float xyz[3]);
-	void SetUV(int index, const MT_Vector2& uv);
-	void SetUV(int index, const float uv[2]);
-
-	void SetRGBA(const unsigned int rgba);
-	void SetNormal(const MT_Vector3& normal);
-	void SetTangent(const MT_Vector4& tangent);
-	void SetFlag(const short flag);
-
-	void SetRGBA(const MT_Vector4& rgba);
-	MT_Vector3 xyz() const;
-
-	void Transform(const MT_Matrix4x4& mat,
-				   const MT_Matrix4x4& nmat);
-	void TransformUV(int index, const MT_Matrix4x4& mat);
-
-	// compare two vertices, to test if they can be shared, used for
-	// splitting up based on uv's, colors, etc
-	bool closeTo(const RAS_TexVert *other);
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_TexVert")
-#endif
 };
 
-#endif  /* __RAS_TEXVERT_H__ */
+#endif  // __RAS_TEXVERT_H__

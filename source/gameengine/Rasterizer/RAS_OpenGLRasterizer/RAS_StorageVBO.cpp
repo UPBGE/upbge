@@ -36,9 +36,9 @@ VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
 	:m_vaoInitialized(false)
 {
 	m_data = arrayBucket->GetDisplayArray();
-	m_size = m_data->m_vertex.size();
-	m_indices = m_data->m_index.size();
-	m_stride = sizeof(RAS_TexVert);
+	m_size = m_data->GetVertexCount();
+	m_indices = m_data->GetIndexCount();
+	m_stride = m_data->GetVertexMemorySize();
 
 	m_mode = m_data->GetOpenGLPrimitiveType();
 
@@ -55,11 +55,11 @@ VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
 	UpdateData();
 
 	// Establish offsets
-	m_vertex_offset = (void *)(((RAS_TexVert *)0)->getXYZ());
-	m_normal_offset = (void *)(((RAS_TexVert *)0)->getNormal());
-	m_tangent_offset = (void *)(((RAS_TexVert *)0)->getTangent());
-	m_color_offset = (void *)(((RAS_TexVert *)0)->getRGBA());
-	m_uv_offset = (void *)(((RAS_TexVert *)0)->getUV(0));
+	m_vertex_offset = m_data->GetVertexXYZOffset();
+	m_normal_offset = m_data->GetVertexNormalOffset();
+	m_tangent_offset = m_data->GetVertexTangentOffset();
+	m_color_offset = m_data->GetVertexColorOffset();
+	m_uv_offset = m_data->GetVertexUVOffset();
 }
 
 VBO::~VBO()
@@ -74,15 +74,15 @@ VBO::~VBO()
 void VBO::UpdateData()
 {
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
-	glBufferData(GL_ARRAY_BUFFER, m_stride * m_size, m_data->m_vertex.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, m_stride * m_size, m_data->GetVertexPointer(), GL_STATIC_DRAW);
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 }
 
 void VBO::UpdateIndices()
 {
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_data->m_index.size() * sizeof(GLuint),
-	             m_data->m_index.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices * sizeof(GLuint),
+	             m_data->GetIndexPointer(), GL_STATIC_DRAW);
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 

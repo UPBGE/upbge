@@ -445,20 +445,19 @@ bool CcdPhysicsController::CreateSoftbody()
 		if (rasMesh && !m_softbodyMappingDone) {
 			RAS_MeshMaterial *mmat;
 			RAS_MeshSlot *slot;
-			size_t i;
 
 			//for each material
 			for (int m = 0; m < rasMesh->NumMaterials(); m++) {
 				mmat = rasMesh->GetMeshMaterial(m);
 
 				slot = mmat->m_baseslot;
-				RAS_DisplayArray *array = slot->GetDisplayArray();
+				RAS_IDisplayArray *array = slot->GetDisplayArray();
 
-				int index = 0;
-				for (i = 0; i < array->m_vertex.size(); i++, index++) {
-					RAS_TexVert *vertex = &array->m_vertex[i];
+				for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+					RAS_ITexVert *vertex = array->GetVertex(i);
+					RAS_TexVertInfo& vertexInfo = array->GetVertexInfo(i);
 					//search closest index, and store it in vertex
-					vertex->setSoftBodyIndex(0);
+					vertexInfo.setSoftBodyIndex(0);
 					btScalar maxDistSqr = 1e30;
 					btSoftBody::tNodeArray& nodes(psb->m_nodes);
 					btVector3 xyz = btVector3(vertex->getXYZ()[0], vertex->getXYZ()[1], vertex->getXYZ()[2]);
@@ -467,7 +466,7 @@ bool CcdPhysicsController::CreateSoftbody()
 						if (distSqr < maxDistSqr) {
 							maxDistSqr = distSqr;
 
-							vertex->setSoftBodyIndex(n);
+							vertexInfo.setSoftBodyIndex(n);
 						}
 					}
 				}
@@ -2298,7 +2297,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, class RA
 			RAS_Polygon *poly = meshobj->GetPolygon(p);
 			if (poly->IsCollider()) {
 				for (i = 0; i < poly->VertexCount(); i++) {
-					v_orig = poly->GetVertex(i)->getOrigIndex();
+					v_orig = poly->GetVertexInfo(i).getOrigIndex();
 					if (!vert_tag_array[v_orig]) {
 						vert_tag_array[v_orig] = true;
 						vert_remap_array[v_orig] = tot_bt_verts;
@@ -2333,7 +2332,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, class RA
 				fv_pt = (poly->VertexCount() == 3 ? tri_verts : quad_verts);
 
 				for (; *fv_pt > -1; fv_pt++) {
-					v_orig = poly->GetVertex(*fv_pt)->getOrigIndex();
+					v_orig = poly->GetVertexInfo(*fv_pt).getOrigIndex();
 					if (vert_tag_array[v_orig]) {
 						if (transverts) {
 							/* deformed mesh, using RAS_TexVert locations would be too troublesome

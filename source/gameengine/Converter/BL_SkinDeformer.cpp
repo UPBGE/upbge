@@ -160,8 +160,8 @@ bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *mat)
 		return false;
 	}
 
-	RAS_DisplayArray *array = slot->GetDisplayArray();
-	RAS_DisplayArray *origarray = mmat->m_baseslot->GetDisplayArray();
+	RAS_IDisplayArray *array = slot->GetDisplayArray();
+	RAS_IDisplayArray *origarray = mmat->m_baseslot->GetDisplayArray();
 
 	/// Update vertex data from the original mesh.
 	array->UpdateFrom(origarray, modifiedFlag &
@@ -313,7 +313,7 @@ void BL_SkinDeformer::UpdateTransverts()
 
 	RAS_MeshMaterial *mmat;
 	RAS_MeshSlot *slot;
-	size_t i, nmat, imat;
+	size_t nmat, imat;
 	bool first = true;
 	if (m_transverts) {
 		// the vertex cache is unique to this deformer, no need to update it
@@ -327,17 +327,18 @@ void BL_SkinDeformer::UpdateTransverts()
 				continue;
 			}
 
-			RAS_DisplayArray *array = slot->GetDisplayArray();
+			RAS_IDisplayArray *array = slot->GetDisplayArray();
 
 			// for each vertex
 			// copy the untransformed data from the original mvert
-			for (i = 0; i < array->m_vertex.size(); i++) {
-				RAS_TexVert& v = array->m_vertex[i];
-				v.SetXYZ(m_transverts[v.getOrigIndex()]);
+			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+				RAS_ITexVert *v = array->GetVertex(i);
+				const RAS_TexVertInfo& vinfo = array->GetVertexInfo(i);
+				v->SetXYZ(m_transverts[vinfo.getOrigIndex()]);
 				if (m_copyNormals)
-					v.SetNormal(MT_Vector3(m_transnors[v.getOrigIndex()]));
+					v->SetNormal(MT_Vector3(m_transnors[vinfo.getOrigIndex()]));
 
-				MT_Vector3 vertpos = v.xyz();
+				MT_Vector3 vertpos = v->xyz();
 
 				if (!m_gameobj->GetAutoUpdateBounds()) {
 					continue;

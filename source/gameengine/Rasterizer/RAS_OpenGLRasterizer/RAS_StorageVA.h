@@ -93,7 +93,7 @@ protected:
 	RAS_DisplayList *GetDisplayList(RAS_DisplayArrayBucket *arrayBucket);
 
 	virtual void EnableTextures(bool enable);
-	virtual void TexCoordPtr(const RAS_TexVert *tv);
+	virtual void TexCoordPtr(const RAS_ITexVert *tv, const unsigned int stride);
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

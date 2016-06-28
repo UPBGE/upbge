@@ -83,22 +83,17 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 	}
 }
 
-void RAS_MeshSlot::init(RAS_MaterialBucket *bucket)
+void RAS_MeshSlot::init(RAS_MaterialBucket *bucket, const RAS_TexVertFormat& format)
 {
 	m_bucket = bucket;
 
-	m_displayArray = new RAS_DisplayArray();
-	if (bucket->IsWire()) {
-		m_displayArray->m_type = RAS_DisplayArray::LINES;
-	}
-	else {
-		m_displayArray->m_type = RAS_DisplayArray::TRIANGLES;
-	}
+	RAS_IDisplayArray::PrimitiveType type = (bucket->IsWire()) ? RAS_IDisplayArray::LINES : RAS_IDisplayArray::TRIANGLES;
+	m_displayArray = RAS_IDisplayArray::ConstructArray(type, format);
 
 	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, m_mesh);
 }
 
-RAS_DisplayArray *RAS_MeshSlot::GetDisplayArray()
+RAS_IDisplayArray *RAS_MeshSlot::GetDisplayArray()
 {
 	return m_displayArray;
 }

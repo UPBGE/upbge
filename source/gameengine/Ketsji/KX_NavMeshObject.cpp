@@ -31,6 +31,7 @@
 #include "KX_NavMeshObject.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
+#include "RAS_ITexVert.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -262,10 +263,10 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 			raspoly = meshobj->GetPolygon(p);
 			for (int v=0; v<raspoly->VertexCount()-2; v++)
 			{
-				poly[0] = raspoly->GetVertex(0)->getOrigIndex();
+				poly[0] = raspoly->GetVertexInfo(0).getOrigIndex();
 				for (size_t i=1; i<3; i++)
 				{
-					poly[i] = raspoly->GetVertex(v+i)->getOrigIndex();
+					poly[i] = raspoly->GetVertexInfo(v+i).getOrigIndex();
 				}
 				poly += 6;
 			}

@@ -15,12 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -32,24 +27,103 @@
 #ifndef __RAS_DISPLAY_ARRAY_H__
 #define __RAS_DISPLAY_ARRAY_H__
 
-#include "RAS_TexVert.h"
-
-#include <vector>
+#include "RAS_IDisplayArray.h"
 
 /// An array with data used for OpenGL drawing
-class RAS_DisplayArray
+template <class Vertex>
+class RAS_DisplayArray : public RAS_IDisplayArray
 {
+private:
+	std::vector<Vertex> m_vertexes;
+
 public:
-	std::vector<RAS_TexVert> m_vertex;
-	std::vector<unsigned int> m_index;
+	friend Vertex;
 
-	enum {
-		TRIANGLES,
-		LINES,
-	} m_type;
+	RAS_DisplayArray(PrimitiveType type)
+		:RAS_IDisplayArray(type)
+	{
+	}
 
-	int GetOpenGLPrimitiveType() const;
-	void UpdateFrom(RAS_DisplayArray *other, int flag);
+	virtual ~RAS_DisplayArray()
+	{
+	}
+
+	virtual RAS_IDisplayArray *GetReplica()
+	{
+		RAS_DisplayArray<Vertex> *replica = new RAS_DisplayArray<Vertex>(*this);
+		replica->UpdateCache();
+
+		return replica;
+	}
+
+	virtual unsigned int GetVertexMemorySize() const
+	{
+		return sizeof(Vertex);
+	}
+
+	virtual void *GetVertexXYZOffset() const
+	{
+		return (void *)offsetof(Vertex, m_localxyz);
+	}
+
+	virtual void *GetVertexNormalOffset() const
+	{
+		return (void *)offsetof(Vertex, m_normal);
+	}
+
+	virtual void *GetVertexTangentOffset() const
+	{
+		return (void *)offsetof(Vertex, m_tangent);
+	}
+
+	virtual void *GetVertexUVOffset() const
+	{
+		return (void *)offsetof(Vertex, m_uvs);
+	}
+
+	virtual void *GetVertexColorOffset() const
+	{
+		return (void *)offsetof(Vertex, m_rgba);
+	}
+
+	virtual RAS_ITexVert *GetVertexNoCache(unsigned int index) const
+	{
+		return (RAS_ITexVert *)&m_vertexes[index];
+	}
+
+	virtual const RAS_ITexVert *GetVertexPointer() const
+	{
+		return (RAS_ITexVert *)m_vertexes.data();
+	}
+
+	virtual void AddVertex(RAS_ITexVert *vert)
+	{
+		m_vertexes.push_back(*((Vertex *)vert));
+	}
+
+	virtual unsigned int GetVertexCount() const
+	{
+		return m_vertexes.size();
+	}
+
+	virtual RAS_ITexVert *CreateVertex(
+				const MT_Vector3& xyz,
+				const MT_Vector2 * const uvs,
+				const MT_Vector4& tangent,
+				const unsigned int rgba,
+				const MT_Vector3& normal)
+	{
+		return new Vertex(xyz, uvs, tangent, rgba, normal);
+	}
+
+	virtual void UpdateCache()
+	{
+		const unsigned int size = GetVertexCount();
+		m_vertexPtrs.resize(size);
+		for (unsigned int i = 0; i < size; ++i) {
+			m_vertexPtrs[i] = (RAS_ITexVert *)&m_vertexes[i];
+		}
+	}
 };
 
 #endif  // __RAS_DISPLAY_ARRAY_H__

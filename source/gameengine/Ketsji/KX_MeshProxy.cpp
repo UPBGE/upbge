@@ -170,7 +170,7 @@ PyObject *KX_MeshProxy::PyGetVertex(PyObject *args, PyObject *kwds)
 	if (!PyArg_ParseTuple(args, "ii:getVertex", &matindex, &vertexindex))
 		return NULL;
 
-	RAS_TexVert *vertex = m_meshobj->GetVertex(matindex, vertexindex);
+	RAS_ITexVert *vertex = m_meshobj->GetVertex(matindex, vertexindex);
 
 	if (vertex == NULL) {
 		PyErr_SetString(PyExc_ValueError, "mesh.getVertex(mat_idx, vert_idx): KX_MeshProxy, could not get a vertex at the given indices");
@@ -237,12 +237,11 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 		}
 
 		RAS_MeshSlot *slot = mit->m_baseslot;
-		RAS_DisplayArray *array = slot->GetDisplayArray();
+		RAS_IDisplayArray *array = slot->GetDisplayArray();
 		ok = true;
 
-		size_t i;
-		for (i = 0; i < array->m_vertex.size(); i++) {
-			RAS_TexVert *vert = &array->m_vertex[i];
+		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+			RAS_ITexVert *vert = array->GetVertex(i);
 			vert->Transform(transform, ntransform);
 		}
 
@@ -312,13 +311,11 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 		}
 
 		RAS_MeshSlot *slot = mit->m_baseslot;
-		RAS_DisplayArray *array = slot->GetDisplayArray();
+		RAS_IDisplayArray *array = slot->GetDisplayArray();
 		ok = true;
 
-		size_t i;
-
-		for (i = 0; i < array->m_vertex.size(); i++) {
-			RAS_TexVert *vert = &array->m_vertex[i];
+		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
+			RAS_ITexVert *vert = array->GetVertex(i);
 			if (uvindex_from != -1) {
 				vert->SetUV(uvindex, vert->getUV(uvindex_from));
 			}

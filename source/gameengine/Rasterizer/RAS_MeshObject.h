@@ -42,7 +42,6 @@
 
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshMaterial.h"
-#include "RAS_TexVert.h"
 #include "MT_Transform.h"
 #include "MT_Vector2.h"
 #include "STR_String.h"
@@ -51,6 +50,7 @@ struct Mesh;
 class RAS_MeshUser;
 class RAS_Deformer;
 class RAS_Polygon;
+class RAS_ITexVert;
 
 /* RAS_MeshObject is a mesh used for rendering. It stores polygons,
  * but the actual vertices and index arrays are stored in material
@@ -130,22 +130,23 @@ public:
 	}
 
 	// mesh construction
-	void AddMaterial(RAS_MaterialBucket *bucket, unsigned int index);
+	void AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_TexVertFormat& format);
 	void AddLine(RAS_MaterialBucket *bucket, unsigned int v1, unsigned int v2);
 	virtual RAS_Polygon *AddPolygon(RAS_MaterialBucket *bucket, int numverts, unsigned int indices[4],
 									bool visible, bool collider, bool twoside);
-	virtual unsigned int AddVertex(RAS_MaterialBucket *bucket, int i,
-						   const MT_Vector3& xyz,
-						   const MT_Vector2 uvs[RAS_TexVert::MAX_UNIT],
-						   const MT_Vector4& tangent,
-						   const unsigned int rgbacolor,
-						   const MT_Vector3& normal,
-						   bool flat,
-						   int origindex);
+	virtual unsigned int AddVertex(
+				RAS_MaterialBucket *bucket,
+				const MT_Vector3& xyz,
+				const MT_Vector2 * const uvs,
+				const MT_Vector4& tangent,
+				const unsigned int rgba,
+				const MT_Vector3& normal,
+				const bool flat,
+				const unsigned int origindex);
 
 	// vertex and polygon acces
 	int NumVertices(RAS_IPolyMaterial *mat);
-	RAS_TexVert *GetVertex(unsigned int matid, unsigned int index);
+	RAS_ITexVert *GetVertex(unsigned int matid, unsigned int index);
 	const float *GetVertexLocation(unsigned int orig_index);
 
 	int NumPolygons();
@@ -167,7 +168,7 @@ public:
 	// for construction to find shared vertices
 	struct SharedVertex
 	{
-		RAS_DisplayArray *m_darray;
+		RAS_IDisplayArray *m_darray;
 		int m_offset;
 	};
 
