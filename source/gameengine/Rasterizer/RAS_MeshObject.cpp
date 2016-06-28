@@ -350,17 +350,6 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 	return poly;
 }
 
-void RAS_MeshObject::SetVertexColor(RAS_IPolyMaterial *mat, MT_Vector4 rgba)
-{
-	RAS_MeshMaterial *mmat = GetMeshMaterial(mat);
-	RAS_MeshSlot *slot = mmat->m_baseslot;
-	RAS_DisplayArray *array = slot->GetDisplayArray();
-
-	for (unsigned int i = 0; i < array->m_vertex.size(); i++) {
-		array->m_vertex[i].SetRGBA(rgba);
-	}
-}
-
 unsigned int RAS_MeshObject::AddVertex(RAS_MaterialBucket *bucket, int i,
                                const MT_Vector3& xyz,
                                const MT_Vector2 uvs[RAS_TexVert::MAX_UNIT],
