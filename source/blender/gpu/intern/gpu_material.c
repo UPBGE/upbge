@@ -989,7 +989,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 				         GPU_uniform(&lamp->bias), GPU_uniform(&lamp->la->bleedbias), inp, &shadfac);
 			}
 			else {
-				if (lamp->la->samp > 1 && lamp->la->soft >= 0.01f) {
+				if (lamp->la->shadow_filter == LA_SHADOW_FILTER_PCF && lamp->la->samp > 1 && lamp->la->soft >= 0.01f) {
 					float samp = lamp->la->samp;
 					GPU_link(mat, "test_shadowbuf_pcf",
 				             GPU_builtin(GPU_VIEW_POSITION),
@@ -2792,7 +2792,7 @@ GPUNodeLink *GPU_lamp_get_data(
 			         GPU_uniform(lamp->shadow_color), inp, r_shadow);
 		}
 		else {
-			if (lamp->la->samp > 1 && lamp->la->soft >= 0.01f) {
+			if (lamp->la->shadow_filter == LA_SHADOW_FILTER_PCF && lamp->la->samp > 1 && lamp->la->soft >= 0.01f) {
 				float samp = lamp->la->samp;
 				GPU_link(mat, "shadows_only_pcf",
 			             GPU_builtin(GPU_VIEW_POSITION),

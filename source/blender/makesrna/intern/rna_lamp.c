@@ -545,6 +545,12 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_shadow_filter_type_items[] = {
+		{LA_SHADOW_FILTER_NONE, "NONE", 0, "None", "None filtering"},
+		{LA_SHADOW_FILTER_PCF, "PCF", 0, "PCF", "Percentage Closer Filtering"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	prop = RNA_def_property(srna, "use_shadow", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_use_shadow_get", "rna_use_shadow_set");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
@@ -637,6 +643,11 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 	RNA_def_property_ui_text(prop, "Shadow Map Type", "The shadow mapping algorithm used");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
+	prop = RNA_def_property(srna, "shadow_filter", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "shadow_filter");
+	RNA_def_property_enum_items(prop, prop_shadow_filter_type_items);
+	RNA_def_property_ui_text(prop, "Shadow Map Filter Type", "The shadow mapping filtering algorithm used");
+	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
 	prop = RNA_def_property(srna, "use_auto_clip_start", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "bufflag", LA_SHADBUF_AUTO_START);

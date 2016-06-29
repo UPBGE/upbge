@@ -820,6 +820,10 @@ class DATA_PT_shadow_game(DataButtonsPanel, Panel):
         col = layout.column()
         col.label("Buffer Type:")
         col.prop(lamp, "ge_shadow_buffer_type", text="", toggle=True)
+        if lamp.ge_shadow_buffer_type == "SIMPLE":
+            col.label("Filter Type:")
+            col.prop(lamp, "shadow_filter", text="", toggle=True)
+
         col.label("Quality:")
         col = layout.column(align=True)
         col.prop(lamp, "shadow_buffer_size", text="Size")
@@ -827,7 +831,7 @@ class DATA_PT_shadow_game(DataButtonsPanel, Panel):
         if lamp.ge_shadow_buffer_type == "VARIANCE":
             col.prop(lamp, "shadow_buffer_bleed_bias", text="Bleed Bias")
             col.prop(lamp, "shadow_buffer_sharp", text="Sharpness")
-        else:
+        elif lamp.shadow_filter == "PCF":
             col.prop(lamp, "shadow_buffer_samples", text="Samples")
             col.prop(lamp, "shadow_buffer_soft", text="Soft")
 
