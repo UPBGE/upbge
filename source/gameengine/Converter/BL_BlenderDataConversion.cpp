@@ -570,7 +570,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	meshobj->m_sharedvertex_map.resize(totvert);
 
 	RAS_TexVertFormat vertformat;
-	vertformat.UVSize = 1;
+	vertformat.UVSize = 8;
 	RAS_ITexVertFactory *vertfactory = RAS_ITexVertFactory::CreateFactory(vertformat);
 
 	Material* ma = 0;

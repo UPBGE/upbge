@@ -57,13 +57,11 @@ VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
 	UpdateData();
 
 	// Establish offsets
-	RAS_ITexVert *vert = m_data->GetVertex(0);
 	m_vertex_offset = m_data->GetVertexXYZOffset();
 	m_normal_offset = m_data->GetVertexNormalOffset();
 	m_tangent_offset = m_data->GetVertexTangentOffset();
 	m_color_offset = m_data->GetVertexColorOffset();
 	m_uv_offset = m_data->GetVertexUVOffset();
-	std::cout << m_vertex_offset << ", " << m_uv_offset << ", " << sizeof(RAS_TexVert<8+16>) << ", " << sizeof(RAS_ITexVert) << std::endl;
 }
 
 VBO::~VBO()
