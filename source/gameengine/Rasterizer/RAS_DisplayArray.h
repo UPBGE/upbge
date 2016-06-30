@@ -73,6 +73,15 @@ public:
 	virtual unsigned int GetVertexCount() const = 0;
 	virtual unsigned int GetIndexCount() const = 0;
 
+	virtual RAS_ITexVert *CreateVertex(
+				const MT_Vector3& xyz,
+				const MT_Vector2 uvs[RAS_ITexVert::MAX_UNIT],
+				const MT_Vector4& tangent,
+				const unsigned int rgba,
+				const MT_Vector3& normal,
+				const bool flat,
+				const unsigned int origindex) = 0;
+
 	void UpdateFrom(RAS_IDisplayArray *other, int flag);
 	int GetOpenGLPrimitiveType() const;
 };
@@ -170,6 +179,18 @@ public:
 	virtual unsigned int GetIndexCount() const
 	{
 		return m_index.size();
+	}
+
+	virtual RAS_ITexVert *CreateVertex(
+				const MT_Vector3& xyz,
+				const MT_Vector2 uvs[RAS_ITexVert::MAX_UNIT],
+				const MT_Vector4& tangent,
+				const unsigned int rgba,
+				const MT_Vector3& normal,
+				const bool flat,
+				const unsigned int origindex)
+	{
+		return new Vertex(xyz, uvs, tangent, rgba, normal, flat, origindex);
 	}
 };
 

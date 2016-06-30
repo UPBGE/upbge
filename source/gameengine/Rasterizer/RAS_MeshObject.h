@@ -135,7 +135,15 @@ public:
 	void AddLine(RAS_MaterialBucket *bucket, unsigned int v1, unsigned int v2);
 	virtual RAS_Polygon *AddPolygon(RAS_MaterialBucket *bucket, int numverts, unsigned int indices[4],
 									bool visible, bool collider, bool twoside);
-	virtual unsigned int AddVertex(RAS_MaterialBucket *bucket, RAS_ITexVert *vertex);
+	virtual unsigned int AddVertex(
+				RAS_MaterialBucket *bucket, 
+				const MT_Vector3& xyz,
+				const MT_Vector2 uvs[RAS_ITexVert::MAX_UNIT],
+				const MT_Vector4& tangent,
+				const unsigned int rgba,
+				const MT_Vector3& normal,
+				const bool flat,
+				const unsigned int origindex);
 
 	// vertex and polygon acces
 	int NumVertices(RAS_IPolyMaterial *mat);

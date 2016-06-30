@@ -48,32 +48,3 @@ RAS_ITexVert::RAS_ITexVert(const MT_Vector3& xyz,
 	m_origindex = origindex;
 	m_softBodyIndex = -1;
 }
-
-RAS_ITexVertFactory::~RAS_ITexVertFactory()
-{
-}
-
-RAS_ITexVertFactory *RAS_ITexVertFactory::CreateFactory(const RAS_TexVertFormat& format)
-{
-	switch (format.UVSize) {
-		case 1:
-			return new RAS_TexVertFactory<RAS_TexVert<1> >();
-		case 2:
-			return new RAS_TexVertFactory<RAS_TexVert<2> >();
-		case 3:
-			return new RAS_TexVertFactory<RAS_TexVert<3> >();
-		case 4:
-			return new RAS_TexVertFactory<RAS_TexVert<4> >();
-		case 5:
-			return new RAS_TexVertFactory<RAS_TexVert<5> >();
-		case 6:
-			return new RAS_TexVertFactory<RAS_TexVert<6> >();
-		case 7:
-			return new RAS_TexVertFactory<RAS_TexVert<7> >();
-		case 8:
-			return new RAS_TexVertFactory<RAS_TexVert<8> >();
-	}
-
-	return NULL;
-}
-

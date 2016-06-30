@@ -339,12 +339,20 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 	return poly;
 }
 
-unsigned int RAS_MeshObject::AddVertex(RAS_MaterialBucket *bucket, RAS_ITexVert *vertex)
+unsigned int RAS_MeshObject::AddVertex(
+				RAS_MaterialBucket *bucket,
+				const MT_Vector3& xyz,
+				const MT_Vector2 uvs[RAS_ITexVert::MAX_UNIT],
+				const MT_Vector4& tangent,
+				const unsigned int rgba,
+				const MT_Vector3& normal,
+				const bool flat,
+				const unsigned int origindex)
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
 	RAS_MeshSlot *slot = mmat->m_baseslot;
 	RAS_IDisplayArray *darray = slot->GetDisplayArray();
-	unsigned int origindex = vertex->getOrigIndex();
+	RAS_ITexVert *vertex = darray->CreateVertex(xyz, uvs, tangent, rgba, normal, flat, origindex); 
 
 	{	/* Shared Vertex! */
 		/* find vertices shared between faces, with the restriction
@@ -360,6 +368,7 @@ unsigned int RAS_MeshObject::AddVertex(RAS_MaterialBucket *bucket, RAS_ITexVert 
 				continue;
 
 			// found one, add it and we're done
+			delete vertex;
 			return it->m_offset;
 		}
 	}
@@ -375,6 +384,7 @@ unsigned int RAS_MeshObject::AddVertex(RAS_MaterialBucket *bucket, RAS_ITexVert 
 		m_sharedvertex_map[origindex].push_back(shared);
 	}
 
+	delete vertex;
 	return offset;
 }
 

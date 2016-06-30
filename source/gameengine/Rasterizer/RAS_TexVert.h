@@ -268,40 +268,4 @@ public:
 	}
 };
 
-class RAS_ITexVertFactory
-{
-public:
-	virtual ~RAS_ITexVertFactory();
-	static RAS_ITexVertFactory *CreateFactory(const RAS_TexVertFormat& format);
-	virtual RAS_ITexVert *CreateVertex(
-				const MT_Vector3& xyz,
-				const MT_Vector2 uvs[RAS_ITexVert::MAX_UNIT],
-				const MT_Vector4& tangent,
-				const unsigned int rgba,
-				const MT_Vector3& normal,
-				const bool flat,
-				const unsigned int origindex) = 0;
-};
-
-template <class Vertex>
-class RAS_TexVertFactory : public RAS_ITexVertFactory
-{
-public:
-	virtual ~RAS_TexVertFactory()
-	{
-	}
-
-	virtual RAS_ITexVert *CreateVertex(
-				const MT_Vector3& xyz,
-				const MT_Vector2 uvs[RAS_ITexVert::MAX_UNIT],
-				const MT_Vector4& tangent,
-				const unsigned int rgba,
-				const MT_Vector3& normal,
-				const bool flat,
-				const unsigned int origindex)
-	{
-		return new Vertex(xyz, uvs, tangent, rgba, normal, flat, origindex);
-	}
-};
-
 #endif  /* __RAS_TEXVERT_H__ */

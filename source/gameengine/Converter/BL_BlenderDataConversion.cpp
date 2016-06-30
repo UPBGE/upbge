@@ -571,7 +571,6 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 	RAS_TexVertFormat vertformat;
 	vertformat.UVSize = std::max(1, validLayers);
-	RAS_ITexVertFactory *vertfactory = RAS_ITexVertFactory::CreateFactory(vertformat);
 
 	Material* ma = 0;
 	MT_Vector2 uvs[4][RAS_ITexVert::MAX_UNIT];
@@ -675,22 +674,13 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			int nverts = (mface->v4)? 4: 3;
 
 			unsigned int indices[4]; // all indices of the poly, can be a tri or quad.
-			RAS_ITexVert *vert1 = vertfactory->CreateVertex(pt[0], uvs[0], tan[0], rgb[0], no[0], flat, mface->v1);
-			RAS_ITexVert *vert2 = vertfactory->CreateVertex(pt[1], uvs[1], tan[1], rgb[1], no[1], flat, mface->v2);
-			RAS_ITexVert *vert3 = vertfactory->CreateVertex(pt[2], uvs[2], tan[2], rgb[2], no[2], flat, mface->v3);
 
-			indices[0] = meshobj->AddVertex(bucket, vert1);
-			indices[1] = meshobj->AddVertex(bucket, vert2);
-			indices[2] = meshobj->AddVertex(bucket, vert3);
-
-			delete vert1;
-			delete vert2;
-			delete vert3;
+			indices[0] = meshobj->AddVertex(bucket, pt[0], uvs[0], tan[0], rgb[0], no[0], flat, mface->v1);
+			indices[1] = meshobj->AddVertex(bucket, pt[1], uvs[1], tan[1], rgb[1], no[1], flat, mface->v2);
+			indices[2] = meshobj->AddVertex(bucket, pt[2], uvs[2], tan[2], rgb[2], no[2], flat, mface->v3);
 
 			if (nverts == 4) {
-				RAS_ITexVert *vert4 = vertfactory->CreateVertex(pt[3], uvs[3], tan[3], rgb[3], no[3], flat, mface->v4);
-				indices[3] = meshobj->AddVertex(bucket, vert4);
-				delete vert4;
+				indices[3] = meshobj->AddVertex(bucket, pt[3], uvs[3], tan[3], rgb[3], no[3], flat, mface->v4);
 			}
 
 			if (bucket->IsWire() && visible) {
@@ -749,8 +739,6 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		delete []layers;
 	
 	dm->release(dm);
-
-	delete vertfactory;
 
 	converter->RegisterGameMesh(scene, meshobj, mesh);
 	return meshobj;
