@@ -161,13 +161,13 @@ PyObject *KX_VertexProxy::pyattr_get_v(void *self_v, const KX_PYATTRIBUTE_DEF *a
 PyObject *KX_VertexProxy::pyattr_get_u2(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-	return PyFloat_FromDouble(self->m_vertex->getUV(1)[0]);
+	return (self->m_vertex->getUVSize() > 1) ? PyFloat_FromDouble(self->m_vertex->getUV(1)[0]) : PyFloat_FromDouble(0.0f);
 }
 
 PyObject *KX_VertexProxy::pyattr_get_v2(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
-	return PyFloat_FromDouble(self->m_vertex->getUV(1)[1]);
+	return (self->m_vertex->getUVSize() > 1) ? PyFloat_FromDouble(self->m_vertex->getUV(1)[1]) : PyFloat_FromDouble(0.0f);
 }
 
 PyObject *KX_VertexProxy::pyattr_get_XYZ(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -184,7 +184,7 @@ PyObject *KX_VertexProxy::pyattr_get_UV(void *self_v, const KX_PYATTRIBUTE_DEF *
 
 static int kx_vertex_proxy_get_uvs_size_cb(void *self_v)
 {
-	return RAS_ITexVert::MAX_UNIT;
+	return ((KX_VertexProxy *)self_v)->GetVertex()->getUVSize();
 }
 
 static PyObject *kx_vertex_proxy_get_uvs_item_cb(void *self_v, int index)
@@ -307,11 +307,13 @@ int KX_VertexProxy::pyattr_set_u2(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 {
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
-		float val = PyFloat_AsDouble(value);
-		MT_Vector2 uv = MT_Vector2(self->m_vertex->getUV(1));
-		uv[0] = val;
-		self->m_vertex->SetUV(1, uv);
-		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
+		if (self->GetVertex()->getUVSize() > 1) {
+			float val = PyFloat_AsDouble(value);
+			MT_Vector2 uv = MT_Vector2(self->m_vertex->getUV(1));
+			uv[0] = val;
+			self->m_vertex->SetUV(1, uv);
+			self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
+		}
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -321,11 +323,13 @@ int KX_VertexProxy::pyattr_set_v2(void *self_v, const struct KX_PYATTRIBUTE_DEF 
 {
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
-		float val = PyFloat_AsDouble(value);
-		MT_Vector2 uv = MT_Vector2(self->m_vertex->getUV(1));
-		uv[1] = val;
-		self->m_vertex->SetUV(1, uv);
-		self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
+		if (self->GetVertex()->getUVSize() > 1) {
+			float val = PyFloat_AsDouble(value);
+			MT_Vector2 uv = MT_Vector2(self->m_vertex->getUV(1));
+			uv[1] = val;
+			self->m_vertex->SetUV(1, uv);
+			self->m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
+		}
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
@@ -428,7 +432,7 @@ int KX_VertexProxy::pyattr_set_uvs(void *self_v, const struct KX_PYATTRIBUTE_DEF
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PySequence_Check(value)) {
 		MT_Vector2 vec;
-		for (int i = 0; i < PySequence_Size(value) && i < RAS_ITexVert::MAX_UNIT; ++i) {
+		for (int i = 0; i < PySequence_Size(value) && i < self->GetVertex()->getUVSize(); ++i) {
 			if (PyVecTo(PySequence_GetItem(value, i), vec)) {
 				self->m_vertex->SetUV(i, vec);
 			}
@@ -582,7 +586,7 @@ PyObject *KX_VertexProxy::PySetUV1(PyObject *value)
 
 PyObject *KX_VertexProxy::PyGetUV2()
 {
-	return PyObjectFrom(MT_Vector2(m_vertex->getUV(1)));
+	return (m_vertex->getUVSize() > 1) ? PyObjectFrom(MT_Vector2(m_vertex->getUV(1))) : PyObjectFrom(MT_Vector2(0.0f, 0.0f));
 }
 
 PyObject *KX_VertexProxy::PySetUV2(PyObject *args)
@@ -591,8 +595,10 @@ PyObject *KX_VertexProxy::PySetUV2(PyObject *args)
 	if (!PyVecTo(args, vec))
 		return NULL;
 
-	m_vertex->SetUV(1, vec);
-	m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
+	if (m_vertex->getUVSize() > 1) {
+		m_vertex->SetUV(1, vec);
+		m_mesh->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
+	}
 	Py_RETURN_NONE;
 }
 
