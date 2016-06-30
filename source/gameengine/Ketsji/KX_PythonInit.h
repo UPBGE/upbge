@@ -53,8 +53,8 @@ void exitGamePythonScripting();
 void setupGamePython(KX_KetsjiEngine *ketsjiengine, Main *blenderdata,
                      PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char **argv);
 STR_String pathGamePythonConfig();
-int saveGamePythonConfig(char **marshal_buffer);
-int loadGamePythonConfig(char *marshal_buffer, int marshal_length);
+void saveGamePythonConfig();
+void loadGamePythonConfig();
 #endif
 
 void addImportMain(struct Main *maggie);

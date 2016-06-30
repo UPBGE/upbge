@@ -276,32 +276,7 @@ PyDoc_STRVAR(gPySaveGlobalDict_doc,
 );
 static PyObject *gPySaveGlobalDict(PyObject *)
 {
-	char *marshal_buffer = NULL;
-	unsigned int marshal_length;
-	FILE *fp = NULL;
-
-	STR_String marshal_path = pathGamePythonConfig();
-	marshal_length = saveGamePythonConfig(&marshal_buffer);
-
-	if (marshal_length && marshal_buffer)
-	{
-		fp = fopen(marshal_path.ReadPtr(), "wb");
-
-		if (fp)
-		{
-			if (fwrite(marshal_buffer, 1, marshal_length, fp) != marshal_length)
-				printf("Warning: could not write marshal data\n");
-
-			fclose(fp);
-		} else {
-			printf("Warning: could not open marshal file\n");
-		}
-	} else {
-		printf("Warning: could not create marshal buffer\n");
-	}
-
-	if (marshal_buffer)
-		delete [] marshal_buffer;
+	saveGamePythonConfig();
 
 	Py_RETURN_NONE;
 }
@@ -312,41 +287,7 @@ PyDoc_STRVAR(gPyLoadGlobalDict_doc,
 );
 static PyObject *gPyLoadGlobalDict(PyObject *)
 {
-	char *marshal_buffer = NULL;
-	int marshal_length;
-	FILE *fp = NULL;
-	int result;
-
-	STR_String marshal_path = pathGamePythonConfig();
-
-	fp = fopen(marshal_path.ReadPtr(), "rb");
-
-	if (fp) {
-		// obtain file size:
-		fseek (fp, 0, SEEK_END);
-		marshal_length = ftell(fp);
-		if (marshal_length == -1) {
-			printf("Warning: could not read position of '%s'\n", marshal_path.ReadPtr());
-			fclose(fp);
-			Py_RETURN_NONE;
-		}
-		rewind(fp);
-
-		marshal_buffer = (char*)malloc (sizeof(char)*marshal_length);
-
-		result = fread(marshal_buffer, 1, marshal_length, fp);
-
-		if (result == marshal_length) {
-			loadGamePythonConfig(marshal_buffer, marshal_length);
-		} else {
-			printf("Warning: could not read all of '%s'\n", marshal_path.ReadPtr());
-		}
-
-		free(marshal_buffer);
-		fclose(fp);
-	} else {
-		printf("Warning: could not open '%s'\n", marshal_path.ReadPtr());
-	}
+	loadGamePythonConfig();
 
 	Py_RETURN_NONE;
 }
@@ -2618,8 +2559,9 @@ PyMODINIT_FUNC initApplicationPythonBinding()
 
 
 // utility function for loading and saving the globalDict
-int saveGamePythonConfig( char **marshal_buffer)
+void saveGamePythonConfig()
 {
+	char *marshal_buffer = NULL;
 	int marshal_length = 0;
 	PyObject *gameLogic = PyImport_ImportModule("GameLogic");
 	if (gameLogic) {
@@ -2636,56 +2578,111 @@ int saveGamePythonConfig( char **marshal_buffer)
 				char *marshal_cstring;
 				
 				marshal_cstring = PyBytes_AsString(pyGlobalDictMarshal); // py3 uses byte arrays
-				marshal_length= PyBytes_Size(pyGlobalDictMarshal);
-				*marshal_buffer = new char[marshal_length + 1];
-				memcpy(*marshal_buffer, marshal_cstring, marshal_length);
+				marshal_length = PyBytes_Size(pyGlobalDictMarshal);
+				marshal_buffer = new char[marshal_length + 1];
+				memcpy(marshal_buffer, marshal_cstring, marshal_length);
 				Py_DECREF(pyGlobalDictMarshal);
-			} else {
-				printf("Error, bge.logic.globalDict could not be marshal'd\n");
 			}
-		} else {
-			printf("Error, bge.logic.globalDict was removed\n");
-		}
-		Py_DECREF(gameLogic);
-	} else {
-		PyErr_Clear();
-		printf("Error, bge.logic failed to import bge.logic.globalDict will be lost\n");
-	}
-	return marshal_length;
-}
-
-int loadGamePythonConfig(char *marshal_buffer, int marshal_length)
-{
-	/* Restore the dict */
-	if (marshal_buffer) {
-		PyObject *gameLogic = PyImport_ImportModule("GameLogic");
-
-		if (gameLogic) {
-			PyObject *pyGlobalDict = PyMarshal_ReadObjectFromString(marshal_buffer, marshal_length);
-			if (pyGlobalDict) {
-				PyObject *pyGlobalDict_orig = PyDict_GetItemString(PyModule_GetDict(gameLogic), "globalDict"); // Same as importing the module.
-				if (pyGlobalDict_orig) {
-					PyDict_Clear(pyGlobalDict_orig);
-					PyDict_Update(pyGlobalDict_orig, pyGlobalDict);
-				} else {
-					/* this should not happen, but cant find the original globalDict, just assign it then */
-					PyDict_SetItemString(PyModule_GetDict(gameLogic), "globalDict", pyGlobalDict); // Same as importing the module.
-				}
-				Py_DECREF(gameLogic);
-				Py_DECREF(pyGlobalDict);
-				return 1;
-			} else {
-				Py_DECREF(gameLogic);
-				PyErr_Clear();
-				printf("Error could not marshall string\n");
+			else {
+				printf("Error, bge.logic.globalDict could not be marshal'd\n");
 			}
 		}
 		else {
-			PyErr_Clear();
-			printf("Error, bge.logic failed to import bge.logic.globalDict will be lost\n");
+			printf("Error, bge.logic.globalDict was removed\n");
+		}
+		Py_DECREF(gameLogic);
+	}
+	else {
+		PyErr_Clear();
+		printf("Error, bge.logic failed to import bge.logic.globalDict will be lost\n");
+	}
+
+	STR_String marshal_path = pathGamePythonConfig();
+
+	if (marshal_length && marshal_buffer) {
+		FILE *fp = fopen(marshal_path.ReadPtr(), "wb");
+
+		if (fp) {
+			if (fwrite(marshal_buffer, 1, marshal_length, fp) != marshal_length) {
+				printf("Warning: could not write marshal data\n");
+			}
+
+			fclose(fp);
+		}
+		else {
+			printf("Warning: could not open marshal file\n");
 		}
 	}
-	return 0;
+	else {
+		printf("Warning: could not create marshal buffer\n");
+	}
+
+	if (marshal_buffer) {
+		delete [] marshal_buffer;
+	}
+}
+
+void loadGamePythonConfig()
+{
+	STR_String marshal_path = pathGamePythonConfig();
+
+	FILE *fp = fopen(marshal_path.ReadPtr(), "rb");
+
+	if (fp) {
+		// obtain file size:
+		fseek (fp, 0, SEEK_END);
+		size_t marshal_length = ftell(fp);
+		if (marshal_length == -1) {
+			printf("Warning: could not read position of '%s'\n", marshal_path.ReadPtr());
+			fclose(fp);
+			return;
+		}
+		rewind(fp);
+
+		char *marshal_buffer = (char*)malloc (sizeof(char)*marshal_length);
+
+		int result = fread(marshal_buffer, 1, marshal_length, fp);
+
+		if (result == marshal_length) {
+			/* Restore the dict */
+			PyObject *gameLogic = PyImport_ImportModule("GameLogic");
+
+			if (gameLogic) {
+				PyObject *pyGlobalDict = PyMarshal_ReadObjectFromString(marshal_buffer, marshal_length);
+				if (pyGlobalDict) {
+					PyObject *pyGlobalDict_orig = PyDict_GetItemString(PyModule_GetDict(gameLogic), "globalDict"); // Same as importing the module.
+					if (pyGlobalDict_orig) {
+						PyDict_Clear(pyGlobalDict_orig);
+						PyDict_Update(pyGlobalDict_orig, pyGlobalDict);
+					}
+					else {
+						/* this should not happen, but cant find the original globalDict, just assign it then */
+						PyDict_SetItemString(PyModule_GetDict(gameLogic), "globalDict", pyGlobalDict); // Same as importing the module.
+					}
+					Py_DECREF(gameLogic);
+					Py_DECREF(pyGlobalDict);
+				}
+				else {
+					Py_DECREF(gameLogic);
+					PyErr_Clear();
+					printf("Error could not marshall string\n");
+				}
+			}
+			else {
+				PyErr_Clear();
+				printf("Error, bge.logic failed to import bge.logic.globalDict will be lost\n");
+			}
+		}
+		else {
+			printf("Warning: could not read all of '%s'\n", marshal_path.ReadPtr());
+		}
+
+		free(marshal_buffer);
+		fclose(fp);
+	}
+	else {
+		printf("Warning: could not open '%s'\n", marshal_path.ReadPtr());
+	}
 }
 
 STR_String pathGamePythonConfig()

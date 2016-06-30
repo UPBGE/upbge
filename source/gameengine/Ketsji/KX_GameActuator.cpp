@@ -132,30 +132,8 @@ bool KX_GameActuator::Update()
 	case KX_GAME_SAVECFG:
 		{
 #ifdef WITH_PYTHON
-			if (m_ketsjiengine)
-			{
-				char *marshal_buffer = NULL;
-				unsigned int marshal_length;
-				FILE *fp = NULL;
-				
-				STR_String marshal_path = pathGamePythonConfig();
-				marshal_length = saveGamePythonConfig(&marshal_buffer);
-				
-				if (marshal_length && marshal_buffer) {
-					fp = fopen(marshal_path.ReadPtr(), "wb");
-					if (fp) {
-						if (fwrite(marshal_buffer, 1, marshal_length, fp) != marshal_length) {
-							printf("Warning: could not write marshal data\n");
-						}
-						fclose(fp);
-					} else {
-						printf("Warning: could not open marshal file\n");
-					}
-				} else {
-					printf("Warning: could not create marshal buffer\n");
-				}
-				if (marshal_buffer)
-					delete [] marshal_buffer;
+			if (m_ketsjiengine) {
+				saveGamePythonConfig();
 			}
 			break;
 #endif // WITH_PYTHON
@@ -163,42 +141,8 @@ bool KX_GameActuator::Update()
 	case KX_GAME_LOADCFG:
 		{
 #ifdef WITH_PYTHON
-			if (m_ketsjiengine)
-			{
-				char *marshal_buffer;
-				int marshal_length;
-				FILE *fp = NULL;
-				int result;
-				
-				STR_String marshal_path = pathGamePythonConfig();
-				
-				fp = fopen(marshal_path, "rb");
-				if (fp) {
-					// obtain file size:
-					fseek (fp , 0 , SEEK_END);
-					marshal_length = ftell(fp);
-					if (marshal_length == -1) {
-						printf("warning: could not read position of '%s'\n", marshal_path.ReadPtr());
-						fclose(fp);
-						break;
-					}
-					rewind(fp);
-					
-					marshal_buffer = (char*) malloc (sizeof(char)*marshal_length);
-					
-					result = fread (marshal_buffer, 1, marshal_length, fp);
-					
-					if (result == marshal_length) {
-						loadGamePythonConfig(marshal_buffer, marshal_length);
-					} else {
-						printf("warning: could not read all of '%s'\n", marshal_path.ReadPtr());
-					}
-					
-					free(marshal_buffer);
-					fclose(fp);
-				} else {
-					printf("warning: could not open '%s'\n", marshal_path.ReadPtr());
-				}
+			if (m_ketsjiengine) {
+				loadGamePythonConfig();
 			}
 			break;
 #endif // WITH_PYTHON
