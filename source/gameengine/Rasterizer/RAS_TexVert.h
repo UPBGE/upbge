@@ -78,8 +78,6 @@ public:
 	{
 	}
 
-	virtual const unsigned int GetMemorySize() const = 0;
-
 	virtual const unsigned short getUVSize() const = 0;
 	virtual const float *getUV(const int unit) const = 0;
 
@@ -240,11 +238,6 @@ public:
 
 	virtual ~RAS_TexVert()
 	{
-	}
-
-	virtual const unsigned int GetMemorySize() const
-	{
-		return sizeof(RAS_TexVert<UVSize>);
 	}
 
 	virtual const unsigned short getUVSize() const

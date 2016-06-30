@@ -121,7 +121,7 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 	RAS_IDisplayArray *array = arrayBucket->GetDisplayArray();
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::RAS_WIREFRAME;
 	const RAS_ITexVert *vertexarray = array->GetVertexPointer();
-	const unsigned int memorysize = vertexarray->GetMemorySize();
+	const unsigned int stride = array->GetVertexMemorySize();
 
 	if (!wireframe)
 		EnableTextures(true);
@@ -129,13 +129,13 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
 
-	glVertexPointer(3, GL_FLOAT, memorysize, vertexarray->getXYZ());
-	glNormalPointer(GL_FLOAT, memorysize, vertexarray->getNormal());
+	glVertexPointer(3, GL_FLOAT, stride, vertexarray->getXYZ());
+	glNormalPointer(GL_FLOAT, stride, vertexarray->getNormal());
 
 	if (!wireframe) {
 		glEnableClientState(GL_COLOR_ARRAY);
-		glColorPointer(4, GL_UNSIGNED_BYTE, memorysize, vertexarray->getRGBA());
-		TexCoordPtr(vertexarray);
+		glColorPointer(4, GL_UNSIGNED_BYTE, stride, vertexarray->getRGBA());
+		TexCoordPtr(vertexarray, stride);
 	}
 
 	if (displayList) {
@@ -216,13 +216,14 @@ RAS_DisplayList *RAS_StorageVA::GetDisplayList(RAS_DisplayArrayBucket *arrayBuck
 	return displayList;
 }
 
-void RAS_StorageVA::TexCoordPtr(const RAS_ITexVert *tv)
+void RAS_StorageVA::TexCoordPtr(const RAS_ITexVert *tv, const unsigned int stride)
 {
 	/* note: this function must closely match EnableTextures to enable/disable
 	 * the right arrays, otherwise coordinate and attribute pointers from other
 	 * materials can still be used and cause crashes */
 	int unit;
 
+<<<<<<< 65aae63b43e31ef6c83a0fe1c824d4cfa456cdfa
 	const unsigned int memorysize = tv->GetMemorySize();
 	for (unit = 0; unit < *m_texco_num; unit++) {
 		glClientActiveTextureARB(GL_TEXTURE0_ARB + unit);
@@ -242,6 +243,35 @@ void RAS_StorageVA::TexCoordPtr(const RAS_ITexVert *tv)
 			{
 				glTexCoordPointer(3, GL_FLOAT, memorysize, tv->getNormal());
 				break;
+=======
+	if (GLEW_ARB_multitexture) {
+		for (unit = 0; unit < *m_texco_num; unit++) {
+			glClientActiveTextureARB(GL_TEXTURE0_ARB + unit);
+			switch (m_texco[unit]) {
+				case RAS_IRasterizer::RAS_TEXCO_ORCO:
+				case RAS_IRasterizer::RAS_TEXCO_GLOB:
+				{
+					glTexCoordPointer(3, GL_FLOAT, stride, tv->getXYZ());
+					break;
+				}
+				case RAS_IRasterizer::RAS_TEXCO_UV:
+				{
+					glTexCoordPointer(2, GL_FLOAT, stride, tv->getUV(unit));
+					break;
+				}
+				case RAS_IRasterizer::RAS_TEXCO_NORM:
+				{
+					glTexCoordPointer(3, GL_FLOAT, stride, tv->getNormal());
+					break;
+				}
+				case RAS_IRasterizer::RAS_TEXTANGENT:
+				{
+					glTexCoordPointer(4, GL_FLOAT, stride, tv->getTangent());
+					break;
+				}
+				default:
+					break;
+>>>>>>> Fix memory vertex size for empty mesh in VA.
 			}
 			case RAS_IRasterizer::RAS_TEXTANGENT:
 			{
@@ -253,6 +283,7 @@ void RAS_StorageVA::TexCoordPtr(const RAS_ITexVert *tv)
 		}
 	}
 
+<<<<<<< 65aae63b43e31ef6c83a0fe1c824d4cfa456cdfa
 	glClientActiveTextureARB(GL_TEXTURE0_ARB);
 
 	for (unit = 0; unit < *m_attrib_num; unit++) {
@@ -282,6 +313,39 @@ void RAS_StorageVA::TexCoordPtr(const RAS_ITexVert *tv)
 			{
 				glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_TRUE, memorysize, tv->getRGBA());
 				break;
+=======
+	if (GLEW_ARB_vertex_program) {
+		for (unit = 0; unit < *m_attrib_num; unit++) {
+			switch (m_attrib[unit]) {
+				case RAS_IRasterizer::RAS_TEXCO_ORCO:
+				case RAS_IRasterizer::RAS_TEXCO_GLOB:
+				{
+					glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, stride, tv->getXYZ());
+					break;
+				}
+				case RAS_IRasterizer::RAS_TEXCO_UV:
+				{
+					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, stride, tv->getUV(m_attrib_layer[unit]));
+					break;
+				}
+				case RAS_IRasterizer::RAS_TEXCO_NORM:
+				{
+					glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, stride, tv->getNormal());
+					break;
+				}
+				case RAS_IRasterizer::RAS_TEXTANGENT:
+				{
+					glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, stride, tv->getTangent());
+					break;
+				}
+				case RAS_IRasterizer::RAS_TEXCO_VCOL:
+				{
+					glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_FALSE, stride, tv->getRGBA());
+					break;
+				}
+				default:
+					break;
+>>>>>>> Fix memory vertex size for empty mesh in VA.
 			}
 			default:
 				break;
