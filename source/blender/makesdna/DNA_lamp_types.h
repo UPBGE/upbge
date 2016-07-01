@@ -156,8 +156,9 @@ typedef struct Lamp {
 #define LA_STATIC_SHADOW (1 << 19)
 
 /* shadow_filter */
-#define LA_SHADOW_FILTER_NONE 0
-#define LA_SHADOW_FILTER_PCF 1
+#define LA_SHADOW_FILTER_NONE		0
+#define LA_SHADOW_FILTER_PCF		1
+#define LA_SHADOW_FILTER_PCF_BAIL	2
 
 /* layer_shadow */
 #define LA_LAYER_SHADOW_BOTH	0

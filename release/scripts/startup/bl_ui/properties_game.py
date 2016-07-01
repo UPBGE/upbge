@@ -831,7 +831,7 @@ class DATA_PT_shadow_game(DataButtonsPanel, Panel):
         if lamp.ge_shadow_buffer_type == "VARIANCE":
             col.prop(lamp, "shadow_buffer_bleed_bias", text="Bleed Bias")
             col.prop(lamp, "shadow_buffer_sharp", text="Sharpness")
-        elif lamp.shadow_filter == "PCF":
+        elif lamp.shadow_filter in ("PCF", "PCF_BAIL"):
             col.prop(lamp, "shadow_buffer_samples", text="Samples")
             col.prop(lamp, "shadow_buffer_soft", text="Soft")
 
