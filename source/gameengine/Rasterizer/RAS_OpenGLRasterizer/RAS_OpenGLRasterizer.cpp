@@ -1995,6 +1995,8 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 
 	pprint(" GL_ARB_texture_env_combine supported?  "<< (GLEW_ARB_texture_env_combine?"yes.":"no."));
 
-	pprint(" GL_ARB_texture_non_power_of_two supported  " << (GPU_full_non_power_of_two_support()?"yes.":"no."));
+	pprint(" GL_ARB_texture_non_power_of_two supported?  " << (GPU_full_non_power_of_two_support()?"yes.":"no."));
+
+	pprint(" GL_ARB_draw_instanced supported?  "<< (GLEW_ARB_draw_instanced?"yes.":"no."));
 }
 
