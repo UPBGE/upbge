@@ -174,7 +174,7 @@ public:
 	inline const bool closeTo(const RAS_ITexVert *other)
 	{
 		static const float eps = FLT_EPSILON;
-		for (int i = 0, size = std::min(getUVSize(), other->getUVSize()); i < size; ++i) {
+		for (int i = 0, size = min_ii(getUVSize(), other->getUVSize()); i < size; ++i) {
 			if (!compare_v2v2(getUV(i), other->getUV(i), eps)) {
 				return false;
 			}

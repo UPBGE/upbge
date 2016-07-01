@@ -83,7 +83,7 @@ void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 	}
 	if (flag & RAS_MeshObject::UVS_MODIFIED) {
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			for (unsigned int uv = 0, uvcount = std::min(GetVertex(i)->getUVSize(), other->GetVertex(i)->getUVSize()); uv < uvcount; ++uv) {
+			for (unsigned int uv = 0, uvcount = min_ii(GetVertex(i)->getUVSize(), other->GetVertex(i)->getUVSize()); uv < uvcount; ++uv) {
 				GetVertex(i)->SetUV(uv, MT_Vector2(other->GetVertex(i)->getUV(uv)));
 			}
 		}

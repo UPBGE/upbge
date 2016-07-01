@@ -570,7 +570,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	meshobj->m_sharedvertex_map.resize(totvert);
 
 	RAS_TexVertFormat vertformat;
-	vertformat.UVSize = std::max(1, validLayers);
+	vertformat.UVSize = max_ii(1, validLayers);
 
 	Material* ma = 0;
 	MT_Vector2 uvs[4][RAS_ITexVert::MAX_UNIT];
