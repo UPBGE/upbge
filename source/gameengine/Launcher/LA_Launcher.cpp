@@ -211,6 +211,7 @@ void LA_Launcher::InitEngine()
 	m_ketsjiEngine->SetUseFixedTime(fixed_framerate);
 	m_ketsjiEngine->SetTimingDisplay(frameRate, profile, properties);
 	m_ketsjiEngine->SetRestrictAnimationFPS(restrictAnimFPS);
+	m_ketsjiEngine->SetRender(true);
 	m_ketsjiEngine->SetShowBoundingBox(showBoundingBox);
 	m_ketsjiEngine->SetShowArmatures(showArmatures);
 

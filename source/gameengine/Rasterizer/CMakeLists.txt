@@ -80,6 +80,8 @@ set(SRC
 	RAS_IStorage.h
 	RAS_ILightObject.h
 	RAS_InstancingBuffer.h
+	RAS_IOffScreen.h
+	RAS_ISync.h
 	RAS_MaterialBucket.h
 	RAS_MeshMaterial.h
 	RAS_MeshObject.h
