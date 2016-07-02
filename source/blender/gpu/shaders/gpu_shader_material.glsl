@@ -2399,7 +2399,6 @@ void test_shadowbuf_pcf(
 					result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.005, co.z, co.w)).x;
 				}
 			}
-
 			result /= (samples * samples);
 		}
 		else {
@@ -2442,62 +2441,11 @@ void test_shadowbuf_vsm(
 	}
 }
 
-void shadows_only(
-        vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat,
-        float shadowbias, vec3 shadowcolor, float inp,
-        out vec3 result)
+void shadows_only(float inp, float shadfac, vec3 shadowcolor, out vec3 result)
 {
 	result = vec3(1.0);
 
 	if (inp > 0.0) {
-		float shadfac;
-
-		test_shadowbuf(rco, shadowmap, shadowpersmat, shadowbias, inp, shadfac);
-		result -= (1.0 - shadfac) * (vec3(1.0) - shadowcolor);
-	}
-}
-
-void shadows_only_pcf_early_bail(
-        vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat,
-        float samples, float samplesize, float shadowbias, vec3 shadowcolor, float inp,
-        out vec3 result)
-{
-	result = vec3(1.0);
-
-	if (inp > 0.0) {
-		float shadfac;
-
-		test_shadowbuf_pcf_early_bail(rco, shadowmap, shadowpersmat, samples, samplesize, shadowbias, inp, shadfac);
-		result -= (1.0 - shadfac) * (vec3(1.0) - shadowcolor);
-	}
-}
-
-void shadows_only_pcf(
-        vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat,
-        float samples, float samplesize, float shadowbias, vec3 shadowcolor, float inp,
-        out vec3 result)
-{
-	result = vec3(1.0);
-
-	if (inp > 0.0) {
-		float shadfac;
-
-		test_shadowbuf_pcf(rco, shadowmap, shadowpersmat, samples, samplesize, shadowbias, inp, shadfac);
-		result -= (1.0 - shadfac) * (vec3(1.0) - shadowcolor);
-	}
-}
-
-void shadows_only_vsm(
-        vec3 rco, sampler2D shadowmap, mat4 shadowpersmat,
-        float shadowbias, float bleedbias, vec3 shadowcolor, float inp,
-        out vec3 result)
-{
-	result = vec3(1.0);
-
-	if (inp > 0.0) {
-		float shadfac;
-
-		test_shadowbuf_vsm(rco, shadowmap, shadowpersmat, shadowbias, bleedbias, inp, shadfac);
 		result -= (1.0 - shadfac) * (vec3(1.0) - shadowcolor);
 	}
 }
