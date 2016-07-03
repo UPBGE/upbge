@@ -77,7 +77,7 @@ extern "C"
 {
 
 // The following prevents a linking error in debug mode for MSVC using the libs in CVS
-#if defined(WITH_OPENEXR) && defined(_WIN32) && defined(DEBUG) && !defined(__MINGW32__)
+#if defined(WITH_OPENEXR) && defined(_WIN32) && defined(DEBUG) && !defined(__MINGW32__) && _MSC_VER < 1900
 _CRTIMP void __cdecl _invalid_parameter_noinfo(void)
 {
 }
@@ -127,7 +127,7 @@ class Mem_IStream : public Imf::IStream
 {
 public:
 
-	Mem_IStream (unsigned char *exrbuf, size_t exrsize) :
+	Mem_IStream(unsigned char *exrbuf, size_t exrsize) :
 		IStream("dummy"), _exrpos(0), _exrsize(exrsize)
 	{
 		_exrbuf = exrbuf;

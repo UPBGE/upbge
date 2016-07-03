@@ -292,7 +292,6 @@ enum PathRayFlag {
 	PATH_RAY_CURVE = 512, /* visibility flag to define curve segments */
 	PATH_RAY_VOLUME_SCATTER = 1024, /* volume scattering */
 
-	/* note that these can use maximum 12 bits, the other are for layers */
 	PATH_RAY_ALL_VISIBILITY = (1|2|4|8|16|32|64|128|256|512|1024),
 
 	PATH_RAY_MIS_SKIP = 2048,
@@ -680,31 +679,34 @@ typedef enum ShaderContext {
 
 enum ShaderDataFlag {
 	/* runtime flags */
-	SD_BACKFACING     = (1 << 0),   /* backside of surface? */
-	SD_EMISSION       = (1 << 1),   /* have emissive closure? */
-	SD_BSDF           = (1 << 2),   /* have bsdf closure? */
-	SD_BSDF_HAS_EVAL  = (1 << 3),   /* have non-singular bsdf closure? */
-	SD_BSSRDF         = (1 << 4),   /* have bssrdf */
-	SD_HOLDOUT        = (1 << 5),   /* have holdout closure? */
-	SD_ABSORPTION     = (1 << 6),   /* have volume absorption closure? */
-	SD_SCATTER        = (1 << 7),   /* have volume phase closure? */
-	SD_AO             = (1 << 8),   /* have ao closure? */
-	SD_TRANSPARENT    = (1 << 9),  /* have transparent closure? */
+	SD_BACKFACING      = (1 << 0),   /* backside of surface? */
+	SD_EMISSION        = (1 << 1),   /* have emissive closure? */
+	SD_BSDF            = (1 << 2),   /* have bsdf closure? */
+	SD_BSDF_HAS_EVAL   = (1 << 3),   /* have non-singular bsdf closure? */
+	SD_BSSRDF          = (1 << 4),   /* have bssrdf */
+	SD_HOLDOUT         = (1 << 5),   /* have holdout closure? */
+	SD_ABSORPTION      = (1 << 6),   /* have volume absorption closure? */
+	SD_SCATTER         = (1 << 7),   /* have volume phase closure? */
+	SD_AO              = (1 << 8),   /* have ao closure? */
+	SD_TRANSPARENT     = (1 << 9),  /* have transparent closure? */
+	SD_BSDF_NEEDS_LCG  = (1 << 10),
+	SD_BSDF_HAS_CUSTOM = (1 << 11), /* are the custom variables relevant? */
 
 	SD_CLOSURE_FLAGS = (SD_EMISSION|SD_BSDF|SD_BSDF_HAS_EVAL|SD_BSSRDF|
-	                    SD_HOLDOUT|SD_ABSORPTION|SD_SCATTER|SD_AO),
+	                    SD_HOLDOUT|SD_ABSORPTION|SD_SCATTER|SD_AO|
+	                    SD_BSDF_NEEDS_LCG|SD_BSDF_HAS_CUSTOM),
 
 	/* shader flags */
-	SD_USE_MIS                = (1 << 10),  /* direct light sample */
-	SD_HAS_TRANSPARENT_SHADOW = (1 << 11),  /* has transparent shadow */
-	SD_HAS_VOLUME             = (1 << 12),  /* has volume shader */
-	SD_HAS_ONLY_VOLUME        = (1 << 13),  /* has only volume shader, no surface */
-	SD_HETEROGENEOUS_VOLUME   = (1 << 14),  /* has heterogeneous volume */
-	SD_HAS_BSSRDF_BUMP        = (1 << 15),  /* bssrdf normal uses bump */
-	SD_VOLUME_EQUIANGULAR     = (1 << 16),  /* use equiangular sampling */
-	SD_VOLUME_MIS             = (1 << 17),  /* use multiple importance sampling */
-	SD_VOLUME_CUBIC           = (1 << 18),  /* use cubic interpolation for voxels */
-	SD_HAS_BUMP               = (1 << 19),  /* has data connected to the displacement input */
+	SD_USE_MIS                = (1 << 12),  /* direct light sample */
+	SD_HAS_TRANSPARENT_SHADOW = (1 << 13),  /* has transparent shadow */
+	SD_HAS_VOLUME             = (1 << 14),  /* has volume shader */
+	SD_HAS_ONLY_VOLUME        = (1 << 15),  /* has only volume shader, no surface */
+	SD_HETEROGENEOUS_VOLUME   = (1 << 16),  /* has heterogeneous volume */
+	SD_HAS_BSSRDF_BUMP        = (1 << 17),  /* bssrdf normal uses bump */
+	SD_VOLUME_EQUIANGULAR     = (1 << 18),  /* use equiangular sampling */
+	SD_VOLUME_MIS             = (1 << 19),  /* use multiple importance sampling */
+	SD_VOLUME_CUBIC           = (1 << 20),  /* use cubic interpolation for voxels */
+	SD_HAS_BUMP               = (1 << 21),  /* has data connected to the displacement input */
 
 	SD_SHADER_FLAGS = (SD_USE_MIS|SD_HAS_TRANSPARENT_SHADOW|SD_HAS_VOLUME|
 	                   SD_HAS_ONLY_VOLUME|SD_HETEROGENEOUS_VOLUME|
@@ -712,13 +714,13 @@ enum ShaderDataFlag {
 	                   SD_VOLUME_CUBIC|SD_HAS_BUMP),
 
 	/* object flags */
-	SD_HOLDOUT_MASK             = (1 << 20),  /* holdout for camera rays */
-	SD_OBJECT_MOTION            = (1 << 21),  /* has object motion blur */
-	SD_TRANSFORM_APPLIED        = (1 << 22),  /* vertices have transform applied */
-	SD_NEGATIVE_SCALE_APPLIED   = (1 << 23),  /* vertices have negative scale applied */
-	SD_OBJECT_HAS_VOLUME        = (1 << 24),  /* object has a volume shader */
-	SD_OBJECT_INTERSECTS_VOLUME = (1 << 25),  /* object intersects AABB of an object with volume shader */
-	SD_OBJECT_HAS_VERTEX_MOTION = (1 << 26),  /* has position for motion vertices */
+	SD_HOLDOUT_MASK             = (1 << 22),  /* holdout for camera rays */
+	SD_OBJECT_MOTION            = (1 << 23),  /* has object motion blur */
+	SD_TRANSFORM_APPLIED        = (1 << 24),  /* vertices have transform applied */
+	SD_NEGATIVE_SCALE_APPLIED   = (1 << 25),  /* vertices have negative scale applied */
+	SD_OBJECT_HAS_VOLUME        = (1 << 26),  /* object has a volume shader */
+	SD_OBJECT_INTERSECTS_VOLUME = (1 << 27),  /* object intersects AABB of an object with volume shader */
+	SD_OBJECT_HAS_VERTEX_MOTION = (1 << 28),  /* has position for motion vertices */
 
 	SD_OBJECT_FLAGS = (SD_HOLDOUT_MASK|SD_OBJECT_MOTION|SD_TRANSFORM_APPLIED|
 	                   SD_NEGATIVE_SCALE_APPLIED|SD_OBJECT_HAS_VOLUME|
@@ -767,7 +769,7 @@ typedef ccl_addr_space struct ShaderData {
 	int type;
 
 	/* parametric coordinates
-	* - barycentric weights for triangles */
+	 * - barycentric weights for triangles */
 	float u;
 	float v;
 	/* object id if there is one, ~0 otherwise */
@@ -790,14 +792,14 @@ typedef ccl_addr_space struct ShaderData {
 #endif
 #ifdef __DPDU__
 	/* differential of P w.r.t. parametric coordinates. note that dPdu is
-	* not readily suitable as a tangent for shading on triangles. */
+	 * not readily suitable as a tangent for shading on triangles. */
 	float3 dPdu;
 	float3 dPdv;
 #endif
 
 #ifdef __OBJECT_MOTION__
 	/* object <-> world space transformations, cached to avoid
-	* re-interpolating them constantly for shading */
+	 * re-interpolating them constantly for shading */
 	Transform ob_tfm;
 	Transform ob_itfm;
 #endif
@@ -806,6 +808,9 @@ typedef ccl_addr_space struct ShaderData {
 	struct ShaderClosure closure[MAX_CLOSURE];
 	int num_closure;
 	float randb_closure;
+
+	/* LCG state for closures that require additional random numbers. */
+	uint lcg_state;
 
 	/* ray start position, only set for backgrounds */
 	float3 ray_P;
@@ -1166,11 +1171,11 @@ typedef ccl_addr_space struct DebugData {
 #define QUEUE_EMPTY_SLOT -1
 
 /*
-* Queue 1 - Active rays
-* Queue 2 - Background queue
-* Queue 3 - Shadow ray cast kernel - AO
-* Queeu 4 - Shadow ray cast kernel - direct lighting
-*/
+ * Queue 1 - Active rays
+ * Queue 2 - Background queue
+ * Queue 3 - Shadow ray cast kernel - AO
+ * Queeu 4 - Shadow ray cast kernel - direct lighting
+ */
 #define NUM_QUEUES 4
 
 /* Queue names */

@@ -310,6 +310,8 @@ void LA_PlayerLauncher::InitEngine()
 	GPU_init();
 	BKE_sound_init(m_maggie);
 	LA_Launcher::InitEngine();
+
+	m_rasterizer->PrintHardwareInfo();
 }
 
 void LA_PlayerLauncher::ExitEngine()

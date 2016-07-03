@@ -41,6 +41,8 @@ public:
 		IMAGE_DATA_TYPE_BYTE4 = 1,
 		IMAGE_DATA_TYPE_FLOAT = 2,
 		IMAGE_DATA_TYPE_BYTE = 3,
+		IMAGE_DATA_TYPE_HALF4 = 4,
+		IMAGE_DATA_TYPE_HALF = 5,
 
 		IMAGE_DATA_NUM_TYPES
 	};
@@ -113,9 +115,14 @@ private:
 	template<typename T>
 	bool file_load_float_image(Image *img, ImageDataType type, device_vector<T>& tex_img);
 
+	template<typename T>
+	bool file_load_half_image(Image *img, ImageDataType type, device_vector<T>& tex_img);
+
 	int type_index_to_flattened_slot(int slot, ImageDataType type);
 	int flattened_slot_to_type_index(int flat_slot, ImageDataType *type);
 	string name_from_type(int type);
+
+	uint8_t pack_image_options(ImageDataType type, size_t slot);
 
 	void device_load_image(Device *device, DeviceScene *dscene, ImageDataType type, int slot, Progress *progess);
 	void device_free_image(Device *device, DeviceScene *dscene, ImageDataType type, int slot);

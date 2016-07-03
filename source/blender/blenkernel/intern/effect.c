@@ -139,9 +139,6 @@ void free_partdeflect(PartDeflect *pd)
 	if (!pd)
 		return;
 
-	if (pd->tex)
-		id_us_min(&pd->tex->id);
-
 	if (pd->rng)
 		BLI_rng_free(pd->rng);
 
@@ -182,7 +179,7 @@ static void add_particles_to_effectors(ListBase **effectors, Scene *scene, Effec
 {
 	ParticleSettings *part= psys->part;
 
-	if ( !psys_check_enabled(ob, psys) )
+	if ( !psys_check_enabled(ob, psys, G.is_rendering) )
 		return;
 
 	if ( psys == psys_src && (part->flag & PART_SELF_EFFECT) == 0)

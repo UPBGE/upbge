@@ -336,6 +336,7 @@ EXTRA_SOURCE_FILES = (
     "../../../release/scripts/templates_py/ui_previews_custom_icon.py",
     "../examples/bge.constraints.py",
     "../examples/bge.texture.1.py",
+    "../examples/bge.texture.2.py",
     "../examples/bge.texture.py",
     "../examples/bmesh.ops.1.py",
     "../examples/bpy.app.translations.py",

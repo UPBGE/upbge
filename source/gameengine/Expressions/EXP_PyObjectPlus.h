@@ -72,7 +72,7 @@ typedef struct {
 		wlink.warn_done = true;                                               \
 		wlink.link = NULL;                                                    \
 		                                                                      \
-		if(wlink_last) {                                                      \
+		if (wlink_last) {                                                     \
 			wlink_last->link= (void *)&(wlink);                               \
 			PyObjectPlus::SetDeprecationWarningLinkLast(&(wlink));            \
 		}                                                                     \
@@ -194,7 +194,7 @@ public:                                                                       \
 	PyObject *Py##method_name(PyObject *args, PyObject *kwds);                 \
 	static PyObject *                                                          \
 	sPy##method_name(PyObject *self, PyObject *args, PyObject *kwds) {         \
-		if(BGE_PROXY_REF(self)==NULL) {                                        \
+		if (BGE_PROXY_REF(self)==NULL) {                                       \
 			PyErr_SetString(PyExc_RuntimeError,                                \
 			                #class_name "." #method_name "() - "               \
 			                BGE_PROXY_ERROR_MSG);                              \
@@ -207,7 +207,7 @@ public:                                                                       \
 	PyObject *Py##method_name(PyObject *args);                                 \
 	static PyObject*                                                           \
 	sPy##method_name(PyObject *self, PyObject *args) {                         \
-		if(BGE_PROXY_REF(self)==NULL) {                                        \
+		if (BGE_PROXY_REF(self)==NULL) {                                       \
 			PyErr_SetString(PyExc_RuntimeError,                                \
 			                #class_name "." #method_name "() - "               \
 			                BGE_PROXY_ERROR_MSG); return NULL;                 \
@@ -219,7 +219,7 @@ public:                                                                       \
 	PyObject *Py##method_name();                                               \
 	static PyObject*                                                           \
 	sPy##method_name(PyObject *self) {                                         \
-		if(BGE_PROXY_REF(self)==NULL) {                                        \
+		if (BGE_PROXY_REF(self)==NULL) {                                       \
 			PyErr_SetString(PyExc_RuntimeError,                                \
 			                #class_name "." #method_name "() - "               \
 			                BGE_PROXY_ERROR_MSG); return NULL;                 \
@@ -231,7 +231,7 @@ public:                                                                       \
 	PyObject *Py##method_name(PyObject *value);                                \
 	static PyObject*                                                           \
 	sPy##method_name(PyObject *self, PyObject *value) {                        \
-		if(BGE_PROXY_REF(self)==NULL) {                                        \
+		if (BGE_PROXY_REF(self)==NULL) {                                       \
 			PyErr_SetString(PyExc_RuntimeError,                                \
 			                #class_name "." #method_name "(value) - "          \
 			                BGE_PROXY_ERROR_MSG); return NULL;                 \
@@ -243,7 +243,7 @@ public:                                                                       \
 	PyObject *Py##method_name(PyObject *args, PyObject *kwds);                 \
 	static PyObject*                                                           \
 	sPy##method_name(PyObject *self, PyObject *args, PyObject *kwds) {         \
-		if(BGE_PROXY_REF(self)==NULL) {                                        \
+		if (BGE_PROXY_REF(self)==NULL) {                                       \
 			PyErr_SetString(PyExc_RuntimeError,                                \
 			                #class_name "." #method_name "(...) - "            \
 			                BGE_PROXY_ERROR_MSG); return NULL;                 \
@@ -256,7 +256,7 @@ public:                                                                       \
 	PyObject *Py##method_name(PyObject *args);                                 \
 	static PyObject*                                                           \
 	sPy##method_name(PyObject *self, PyObject *args) {                         \
-		if(BGE_PROXY_REF(self)==NULL) {                                        \
+		if (BGE_PROXY_REF(self)==NULL) {                                       \
 			PyErr_SetString(PyExc_RuntimeError,                                \
 			                #class_name "." #method_name "(...) - "            \
 			                BGE_PROXY_ERROR_MSG);                              \
@@ -270,7 +270,7 @@ public:                                                                       \
 	PyObject *Py##method_name(PyObject *value);                                \
 	static PyObject *                                                          \
 	sPy##method_name(PyObject *self, PyObject *value) {                        \
-		if(BGE_PROXY_REF(self)==NULL) {                                        \
+		if (BGE_PROXY_REF(self)==NULL) {                                       \
 			PyErr_SetString(PyExc_RuntimeError,                                \
 			                #class_name "." #method_name "(value) - "          \
 			                BGE_PROXY_ERROR_MSG);                              \
@@ -284,7 +284,7 @@ public:                                                                       \
 	PyObject *Py##method_name();                                               \
 	static PyObject *                                                          \
 	sPy##method_name(PyObject *self) {                                         \
-		if(BGE_PROXY_REF(self)==NULL) {                                        \
+		if (BGE_PROXY_REF(self)==NULL) {                                       \
 			PyErr_SetString(PyExc_RuntimeError,                                \
 			                #class_name "." #method_name "() - "               \
 			                BGE_PROXY_ERROR_MSG);                              \

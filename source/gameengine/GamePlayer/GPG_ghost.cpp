@@ -63,6 +63,7 @@ extern "C"
 #  include "BKE_node.h"
 #  include "BKE_report.h"
 #  include "BKE_library.h"
+#  include "BKE_library_remap.h"
 #  include "BKE_modifier.h"
 #  include "BKE_material.h"
 #  include "BKE_text.h"
@@ -413,8 +414,8 @@ int main(
 
 	/* Win32 Unicode Args */
 	/* NOTE: cannot use guardedalloc malloc here, as it's not yet initialized
-	*       (it depends on the args passed in, which is what we're getting here!)
-	*/
+	 *       (it depends on the args passed in, which is what we're getting here!)
+	 */
 	{
 		wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
 		argv = (char**)malloc(argc * sizeof(char *));

@@ -44,6 +44,7 @@ public:
 	KX_PYMETHOD_DOC(BL_Shader, setUniform3i);
 	KX_PYMETHOD_DOC(BL_Shader, setUniform2i);
 	KX_PYMETHOD_DOC(BL_Shader, setUniform1i);
+	KX_PYMETHOD_DOC(BL_Shader, setUniformEyef);
 	KX_PYMETHOD_DOC(BL_Shader, setUniformfv);
 	KX_PYMETHOD_DOC(BL_Shader, setUniformiv);
 	KX_PYMETHOD_DOC(BL_Shader, setUniformMatrix4);

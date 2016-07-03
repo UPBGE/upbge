@@ -3717,7 +3717,7 @@ static void project_paint_prepare_all_faces(
 		}
 
 		/* tfbase here should be non-null! */
-		BLI_assert (mloopuv_base != NULL);
+		BLI_assert(mloopuv_base != NULL);
 
 		if (is_face_sel && tpage) {
 			ProjPaintFaceCoSS coSS;
@@ -5858,7 +5858,9 @@ static int add_simple_uvs_exec(bContext *C, wmOperator *UNUSED(op))
 	Mesh *me = ob->data;
 	bool synch_selection = (scene->toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
 
-	BMesh *bm = BM_mesh_create(&bm_mesh_allocsize_default);
+	BMesh *bm = BM_mesh_create(
+	        &bm_mesh_allocsize_default,
+	        &((struct BMeshCreateParams){.use_toolflags = false,}));
 
 	/* turn synch selection off, since we are not in edit mode we need to ensure only the uv flags are tested */
 	scene->toolsettings->uv_flag &= ~UV_SYNC_SELECTION;

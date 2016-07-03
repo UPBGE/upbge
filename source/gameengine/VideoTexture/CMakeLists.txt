@@ -44,6 +44,9 @@ set(INC
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
 	../../../intern/string
+	../../../intern/decklink
+	../../../intern/gpudirect
+	../../../intern/atomic
 )
 
 set(INC_SYS
@@ -67,8 +70,10 @@ set(SRC
 	ImageViewport.cpp
 	PyTypeList.cpp
 	Texture.cpp
+	DeckLink.cpp
 	VideoBase.cpp
 	VideoFFmpeg.cpp
+	VideoDeckLink.cpp
 	blendVideoTex.cpp
 
 	BlendType.h
@@ -86,8 +91,10 @@ set(SRC
 	ImageViewport.h
 	PyTypeList.h
 	Texture.h
+	DeckLink.h
 	VideoBase.h
 	VideoFFmpeg.h
+	VideoDeckLink.h
 )
 
 if(WITH_CODEC_FFMPEG)
@@ -99,7 +106,13 @@ if(WITH_CODEC_FFMPEG)
 
 	remove_strict_flags_file(
 		VideoFFmpeg.cpp
+		VideoDeckLink
+		DeckLink
 	)
+endif()
+
+if(WITH_GAMEENGINE_DECKLINK)
+	add_definitions(-DWITH_GAMEENGINE_DECKLINK)
 endif()
 
 blender_add_lib(ge_videotex "${SRC}" "${INC}" "${INC_SYS}")

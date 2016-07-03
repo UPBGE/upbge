@@ -2676,6 +2676,20 @@ void flushTransSeq(TransInfo *t)
 				BKE_sequence_calc(t->scene, seq);
 			}
 		}
+
+		/* update effects inside meta's */
+		for (a = 0, seq_prev = NULL, td = t->data, td2d = t->data2d;
+		     a < t->total;
+		     a++, td++, td2d++, seq_prev = seq)
+		{
+			tdsq = (TransDataSeq *)td->extra;
+			seq = tdsq->seq;
+			if ((seq != seq_prev) && (seq->depth != 0)) {
+				if (seq->seq1 || seq->seq2 || seq->seq3) {
+					BKE_sequence_calc(t->scene, seq);
+				}
+			}
+		}
 	}
 
 	/* need to do the overlap check in a new loop otherwise adjacent strips
@@ -4920,44 +4934,47 @@ static void freeSeqData(TransInfo *t, TransCustomData *custom_data)
 			{
 				int overlap = 0;
 
-				seq_prev = NULL;
-				for (a = 0; a < t->total; a++, td++) {
+				for (a = 0, seq_prev = NULL; a < t->total; a++, td++, seq_prev = seq) {
 					seq = ((TransDataSeq *)td->extra)->seq;
 					if ((seq != seq_prev) && (seq->depth == 0) && (seq->flag & SEQ_OVERLAP)) {
 						overlap = 1;
 						break;
 					}
-					seq_prev = seq;
 				}
 
 				if (overlap) {
-					bool has_effect = false;
+					bool has_effect_root = false, has_effect_any = false;
 					for (seq = seqbasep->first; seq; seq = seq->next)
 						seq->tmp = NULL;
 
 					td = t->data;
-					seq_prev = NULL;
-					for (a = 0; a < t->total; a++, td++) {
+					for (a = 0, seq_prev = NULL; a < t->total; a++, td++, seq_prev = seq) {
 						seq = ((TransDataSeq *)td->extra)->seq;
 						if ((seq != seq_prev)) {
 							/* check effects strips, we cant change their time */
 							if ((seq->type & SEQ_TYPE_EFFECT) && seq->seq1) {
-								has_effect = true;
+								has_effect_any = true;
+								if (seq->depth == 0) {
+									has_effect_root = true;
+								}
 							}
 							else {
-								/* Tag seq with a non zero value, used by BKE_sequence_base_shuffle_time to identify the ones to shuffle */
-								seq->tmp = (void *)1;
+								/* Tag seq with a non zero value,
+								 * used by BKE_sequence_base_shuffle_time to identify the ones to shuffle */
+								if (seq->depth == 0) {
+									seq->tmp = (void *)1;
+								}
 							}
 						}
+
 					}
 
 					if (t->flag & T_ALT_TRANSFORM) {
 						int minframe = MAXFRAME;
 						td = t->data;
-						seq_prev = NULL;
-						for (a = 0; a < t->total; a++, td++) {
+						for (a = 0, seq_prev = NULL; a < t->total; a++, td++, seq_prev = seq) {
 							seq = ((TransDataSeq *)td->extra)->seq;
-							if ((seq != seq_prev)) {
+							if ((seq != seq_prev) && (seq->depth == 0)) {
 								minframe = min_ii(minframe, seq->startdisp);
 							}
 						}
@@ -4989,11 +5006,10 @@ static void freeSeqData(TransInfo *t, TransCustomData *custom_data)
 						BKE_sequence_base_shuffle_time(seqbasep, t->scene);
 					}
 
-					if (has_effect) {
+					if (has_effect_any) {
 						/* update effects strips based on strips just moved in time */
 						td = t->data;
-						seq_prev = NULL;
-						for (a = 0; a < t->total; a++, td++) {
+						for (a = 0, seq_prev = NULL; a < t->total; a++, td++, seq_prev = seq) {
 							seq = ((TransDataSeq *)td->extra)->seq;
 							if ((seq != seq_prev)) {
 								if ((seq->type & SEQ_TYPE_EFFECT) && seq->seq1) {
@@ -5001,13 +5017,14 @@ static void freeSeqData(TransInfo *t, TransCustomData *custom_data)
 								}
 							}
 						}
+					}
 
+					if (has_effect_root) {
 						/* now if any effects _still_ overlap, we need to move them up */
 						td = t->data;
-						seq_prev = NULL;
-						for (a = 0; a < t->total; a++, td++) {
+						for (a = 0, seq_prev = NULL; a < t->total; a++, td++, seq_prev = seq) {
 							seq = ((TransDataSeq *)td->extra)->seq;
-							if ((seq != seq_prev)) {
+							if ((seq != seq_prev) && (seq->depth == 0)) {
 								if ((seq->type & SEQ_TYPE_EFFECT) && seq->seq1) {
 									if (BKE_sequence_test_overlap(seqbasep, seq)) {
 										BKE_sequence_base_shuffle(seqbasep, seq, t->scene);
@@ -5874,6 +5891,7 @@ static void special_aftertrans_update__mesh(bContext *UNUSED(C), TransInfo *t)
 		BMEditMesh *em = BKE_editmesh_from_object(t->obedit);
 		BMesh *bm = em->bm;
 		char hflag;
+		bool has_face_sel = (bm->totfacesel != 0);
 
 		if (t->flag & T_MIRROR) {
 			TransData *td;
@@ -5897,8 +5915,10 @@ static void special_aftertrans_update__mesh(bContext *UNUSED(C), TransInfo *t)
 
 		EDBM_automerge(t->scene, t->obedit, true, hflag);
 
-		if ((em->selectmode & SCE_SELECT_VERTEX) == 0) {
-			EDBM_select_flush(em);
+		/* Special case, this is needed or faces won't re-select.
+		 * Flush selected edges to faces. */
+		if (has_face_sel && (em->selectmode == SCE_SELECT_FACE)) {
+			EDBM_selectmode_flush_ex(em, SCE_SELECT_EDGE);
 		}
 	}
 }
@@ -7587,7 +7607,7 @@ static void createTransPaintCurveVerts(bContext *C, TransInfo *t)
 
 	for (pcp = pc->points, i = 0; i < pc->tot_points; i++, pcp++) {
 		if (PC_IS_ANY_SEL(pcp)) {
-			PaintCurvePointToTransData (pcp, td, td2d, tdpc);
+			PaintCurvePointToTransData(pcp, td, td2d, tdpc);
 
 			if (pcp->bez.f2 & SELECT) {
 				td += 3;

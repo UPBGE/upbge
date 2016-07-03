@@ -400,7 +400,7 @@ static int wm_collada_import_exec(bContext *C, wmOperator *op)
 	        C, filename,
 	        import_units,
 	        find_chains,
-			auto_connect,
+	        auto_connect,
 	        fix_orientation,
 	        min_chain_length))
 	{
@@ -482,7 +482,7 @@ void WM_OT_collada_import(wmOperatorType *ot)
 
 	RNA_def_boolean(ot->srna,
 		"auto_connect", 0, "Auto Connect",
-		"set use_connect for parent bones which have exactly one child bone");
+		"Set use_connect for parent bones which have exactly one child bone");
 
 	RNA_def_int(ot->srna,
 		"min_chain_length",

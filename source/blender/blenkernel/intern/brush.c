@@ -202,37 +202,18 @@ Brush *BKE_brush_copy(Brush *brush)
 	return brushn;
 }
 
-/* not brush itself */
+/** Free (or release) any data used by this brush (does not free the brush itself). */
 void BKE_brush_free(Brush *brush)
 {
-	id_us_min((ID *)brush->mtex.tex);
-	id_us_min((ID *)brush->mask_mtex.tex);
-	id_us_min((ID *)brush->paint_curve);
-
-	if (brush->icon_imbuf)
+	if (brush->icon_imbuf) {
 		IMB_freeImBuf(brush->icon_imbuf);
-
-	BKE_previewimg_free(&(brush->preview));
+	}
 
 	curvemapping_free(brush->curve);
 
-	if (brush->gradient)
-		MEM_freeN(brush->gradient);
-}
+	MEM_SAFE_FREE(brush->gradient);
 
-/**
- * \note Currently users don't remove brushes from the UI (as is done for scene, text... etc)
- * This is only used by RNA, which can remove brushes.
- */
-void BKE_brush_unlink(Main *bmain, Brush *brush)
-{
-	Brush *brush_iter;
-
-	for (brush_iter = bmain->brush.first; brush_iter; brush_iter = brush_iter->id.next) {
-		if (brush_iter->toggle_brush == brush) {
-			brush_iter->toggle_brush = NULL;
-		}
-	}
+	BKE_previewimg_free(&(brush->preview));
 }
 
 static void extern_local_brush(Brush *brush)

@@ -32,6 +32,7 @@
  */
 
 struct ID;
+struct Main;
 
 /* Tips for the callback for cases it's gonna to modify the pointer. */
 enum {
@@ -52,7 +53,7 @@ enum {
 
 enum {
 	IDWALK_RET_NOP            = 0,
-	IDWALK_RET_STOP_ITER      = 1 << 0,  /* Completly top iteration. */
+	IDWALK_RET_STOP_ITER      = 1 << 0,  /* Completly stop iteration. */
 	IDWALK_RET_STOP_RECURSION = 1 << 1,  /* Stop recursion, that is, do not loop over ID used by current one. */
 };
 
@@ -74,5 +75,7 @@ void BKE_library_foreach_ID_link(struct ID *id, LibraryIDLinkCallback callback, 
 void BKE_library_update_ID_link_user(struct ID *id_dst, struct ID *id_src, const int cd_flag);
 
 int BKE_library_ID_use_ID(struct ID *id_user, struct ID *id_used);
+
+bool BKE_library_ID_is_indirectly_used(struct Main *bmain, void *idv);
 
 #endif  /* __BKE_LIBRARY_QUERY_H__ */

@@ -191,7 +191,7 @@ void		WM_ndof_deadzone_set(float deadzone);
 void		WM_event_add_notifier(const struct bContext *C, unsigned int type, void *reference);
 void		WM_main_add_notifier(unsigned int type, void *reference);
 void		WM_main_remove_notifier_reference(const void *reference);
-void		WM_main_remove_editor_id_reference(const struct ID *id);
+void		WM_main_remap_editor_id_reference(struct ID *old_id, struct ID *new_id);
 
 			/* reports */
 void        WM_report_banner_show(void);
@@ -412,12 +412,6 @@ void		wmOrtho2			(float x1, float x2, float y1, float y2);
 			/* use for conventions (avoid hard-coded offsets all over) */
 void		wmOrtho2_region_pixelspace(const struct ARegion *ar);
 void		wmOrtho2_pixelspace(const float x, const float y);
-
-			/* utilities */
-void		WM_framebuffer_index_set(int index);
-void		WM_framebuffer_index_get(int index, int *r_col);
-int			WM_framebuffer_to_index(unsigned int col);
-void		WM_framebuffer_to_index_array(unsigned int *col, const unsigned int size);
 
 			/* threaded Jobs Manager */
 enum {

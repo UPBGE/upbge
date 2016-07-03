@@ -129,8 +129,8 @@ class GRAPH_MT_view(Menu):
 
         layout.separator()
         layout.operator("screen.area_dupli")
-        layout.operator("screen.screen_full_area", text="Toggle Maximize Area")
-        layout.operator("screen.screen_full_area").use_hide_panels = True
+        layout.operator("screen.screen_full_area")
+        layout.operator("screen.screen_full_area", text="Toggle Fullscreen Area").use_hide_panels = True
 
 
 class GRAPH_MT_select(Menu):
@@ -153,6 +153,8 @@ class GRAPH_MT_select(Menu):
         props = layout.operator("graph.select_border", text="Border (Include Handles)")
         props.axis_range = False
         props.include_handles = True
+
+        layout.operator("graph.select_circle")
 
         layout.separator()
         layout.operator("graph.select_column", text="Columns on Selected Keys").mode = 'KEYS'

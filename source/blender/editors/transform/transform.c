@@ -1202,8 +1202,12 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				if (t->flag & T_PROP_EDIT) {
 					float fac = 1.0f + 0.005f *(event->y - event->prevy);
 					t->prop_size *= fac;
-					if (t->spacetype == SPACE_VIEW3D && t->persp != RV3D_ORTHO)
-						t->prop_size = min_ff(t->prop_size, ((View3D *)t->view)->far);
+					if (t->spacetype == SPACE_VIEW3D && t->persp != RV3D_ORTHO) {
+						t->prop_size = max_ff(min_ff(t->prop_size, ((View3D *)t->view)->far), T_PROP_SIZE_MIN);
+					}
+					else {
+						t->prop_size = max_ff(min_ff(t->prop_size, T_PROP_SIZE_MAX), T_PROP_SIZE_MIN);
+					}
 					calculatePropRatio(t);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
@@ -1212,8 +1216,12 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 			case TFM_MODAL_PROPSIZE_UP:
 				if (t->flag & T_PROP_EDIT) {
 					t->prop_size *= (t->modifiers & MOD_PRECISION) ? 1.01f : 1.1f;
-					if (t->spacetype == SPACE_VIEW3D && t->persp != RV3D_ORTHO)
+					if (t->spacetype == SPACE_VIEW3D && t->persp != RV3D_ORTHO) {
 						t->prop_size = min_ff(t->prop_size, ((View3D *)t->view)->far);
+					}
+					else {
+						t->prop_size = min_ff(t->prop_size, T_PROP_SIZE_MAX);
+					}
 					calculatePropRatio(t);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
@@ -1222,6 +1230,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 			case TFM_MODAL_PROPSIZE_DOWN:
 				if (t->flag & T_PROP_EDIT) {
 					t->prop_size /= (t->modifiers & MOD_PRECISION) ? 1.01f : 1.1f;
+					t->prop_size = max_ff(t->prop_size, T_PROP_SIZE_MIN);
 					calculatePropRatio(t);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
@@ -4144,7 +4153,12 @@ static void initSnapSpatial(TransInfo *t, float r_snap[3])
 			r_snap[2] = r_snap[1] * 0.1f;
 		}
 	}
-	else if (ELEM(t->spacetype, SPACE_IMAGE, SPACE_CLIP)) {
+	else if (t->spacetype == SPACE_IMAGE) {
+		r_snap[0] = 0.0f;
+		r_snap[1] = 0.0625f;
+		r_snap[2] = 0.03125f;
+	}
+	else if (t->spacetype == SPACE_CLIP) {
 		r_snap[0] = 0.0f;
 		r_snap[1] = 0.125f;
 		r_snap[2] = 0.0625f;
@@ -5361,7 +5375,9 @@ static void slide_origdata_init_data(
 		BMesh *bm = em->bm;
 
 		sod->origfaces = BLI_ghash_ptr_new(__func__);
-		sod->bm_origfaces = BM_mesh_create(&bm_mesh_allocsize_default);
+		sod->bm_origfaces = BM_mesh_create(
+		        &bm_mesh_allocsize_default,
+		        &((struct BMeshCreateParams){.use_toolflags = false,}));
 		/* we need to have matching customdata */
 		BM_mesh_copy_init_customdata(sod->bm_origfaces, bm, NULL);
 	}

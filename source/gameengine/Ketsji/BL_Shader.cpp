@@ -27,6 +27,7 @@
 #include "RAS_Texture.h" // for RAS_Texture::MaxUnits
 
 #include "KX_PyMath.h"
+#include "KX_PythonInit.h"
 
 #include <iostream>
 #define spit(x) std::cout << x << std::endl;
@@ -49,6 +50,7 @@ PyMethodDef BL_Shader::Methods[] = {
 	KX_PYMETHODTABLE(BL_Shader, validate),
 	// access functions
 	KX_PYMETHODTABLE(BL_Shader, isValid),
+	KX_PYMETHODTABLE(BL_Shader, setUniformEyef),
 	KX_PYMETHODTABLE(BL_Shader, setUniform1f),
 	KX_PYMETHODTABLE(BL_Shader, setUniform2f),
 	KX_PYMETHODTABLE(BL_Shader, setUniform3f),
@@ -299,6 +301,40 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform4f, "setUniform4f(name, fx,fy,fz, fw) ")
 #else
 			SetUniform(loc, array, 4);
 #endif
+		}
+		Py_RETURN_NONE;
+	}
+	return NULL;
+}
+
+KX_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
+{
+	if (mError) {
+		Py_RETURN_NONE;
+	}
+	const char *uniform;
+	if (PyArg_ParseTuple(args, "s:setUniformEyef", &uniform)) {
+		int loc = GetUniformLocation(uniform);
+		if (loc != -1) {
+			bool defined = false;
+			RAS_UniformVecDef::iterator it = mPreDef.begin();
+			while (it != mPreDef.end()) {
+				if ((*it)->mLoc == loc) {
+					defined = true;
+					break;
+				}
+				it++;
+			}
+
+			if (defined) {
+				Py_RETURN_NONE;
+			}
+
+			RAS_DefUniform *uni = new RAS_DefUniform();
+			uni->mLoc = loc;
+			uni->mType = EYE;
+			uni->mFlag = 0;
+			mPreDef.push_back(uni);
 		}
 		Py_RETURN_NONE;
 	}

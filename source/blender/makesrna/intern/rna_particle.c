@@ -341,7 +341,7 @@ static void rna_ParticleSystem_co_hair(ParticleSystem *particlesystem, Object *o
 		totchild = (int)((float)particlesystem->totchild * (float)(part->disp) / 100.0f);
 	}
 
-	if (part == NULL || pars == NULL || !psys_check_enabled(object, particlesystem))
+	if (part == NULL || pars == NULL || !psys_check_enabled(object, particlesystem, particlesystem->renderdata != NULL))
 		return;
 	
 	if (part->ren_as == PART_DRAW_OB || part->ren_as == PART_DRAW_GR || part->ren_as == PART_DRAW_NOT)
@@ -586,7 +586,7 @@ static void rna_ParticleSystem_set_resolution(ParticleSystem *particlesystem, Sc
 
 		psys_render_set(object, particlesystem, mat, mat, 1, 1, 0.f);
 		psmd->flag &= ~eParticleSystemFlag_psys_updated;
-		particle_system_update(scene, object, particlesystem);
+		particle_system_update(scene, object, particlesystem, true);
 	}
 	else {
 		ParticleSystemModifierData *psmd = psys_get_modifier(object, particlesystem);
@@ -596,7 +596,7 @@ static void rna_ParticleSystem_set_resolution(ParticleSystem *particlesystem, Sc
 		}
 		
 		psmd->flag &= ~eParticleSystemFlag_psys_updated;
-		particle_system_update(scene, object, particlesystem);
+		particle_system_update(scene, object, particlesystem, false);
 	}
 }
 
@@ -2635,35 +2635,35 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "normfac"); /*optional if prop names are the same */
 	RNA_def_property_range(prop, -1000.0f, 1000.0f);
 	RNA_def_property_ui_range(prop, 0, 100, 1, 3);
-	RNA_def_property_ui_text(prop, "Normal", "Let the surface normal give the particle a starting speed");
+	RNA_def_property_ui_text(prop, "Normal", "Let the surface normal give the particle a starting velocity");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
 	prop = RNA_def_property(srna, "object_factor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "obfac");
 	RNA_def_property_range(prop, -200.0f, 200.0f);
 	RNA_def_property_ui_range(prop, -1.0f, 1.0f, 0.1, 3);
-	RNA_def_property_ui_text(prop, "Object", "Let the object give the particle a starting speed");
+	RNA_def_property_ui_text(prop, "Object", "Let the object give the particle a starting velocity");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
 	prop = RNA_def_property(srna, "factor_random", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "randfac"); /*optional if prop names are the same */
 	RNA_def_property_range(prop, 0.0f, 200.0f);
 	RNA_def_property_ui_range(prop, 0, 100, 1, 3);
-	RNA_def_property_ui_text(prop, "Random", "Give the starting speed a random variation");
+	RNA_def_property_ui_text(prop, "Random", "Give the starting velocity a random variation");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
 	prop = RNA_def_property(srna, "particle_factor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "partfac");
 	RNA_def_property_range(prop, -200.0f, 200.0f);
 	RNA_def_property_ui_range(prop, -1.0f, 1.0f, 0.1, 3);
-	RNA_def_property_ui_text(prop, "Particle", "Let the target particle give the particle a starting speed");
+	RNA_def_property_ui_text(prop, "Particle", "Let the target particle give the particle a starting velocity");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
 	prop = RNA_def_property(srna, "tangent_factor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "tanfac");
 	RNA_def_property_range(prop, -1000.0f, 1000.0f);
 	RNA_def_property_ui_range(prop, -100, 100, 1, 2);
-	RNA_def_property_ui_text(prop, "Tangent", "Let the surface tangent give the particle a starting speed");
+	RNA_def_property_ui_text(prop, "Tangent", "Let the surface tangent give the particle a starting velocity");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
 	prop = RNA_def_property(srna, "tangent_phase", PROP_FLOAT, PROP_NONE);
@@ -2677,7 +2677,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	RNA_def_property_range(prop, -10.0f, 10.0f);
 	RNA_def_property_ui_text(prop, "Reactor",
 	                         "Let the vector away from the target particle's location give the particle "
-	                         "a starting speed");
+	                         "a starting velocity");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
 	prop = RNA_def_property(srna, "object_align_factor", PROP_FLOAT, PROP_VELOCITY);
@@ -2686,7 +2686,7 @@ static void rna_def_particle_settings(BlenderRNA *brna)
 	RNA_def_property_range(prop, -200.0f, 200.0f);
 	RNA_def_property_ui_range(prop, -100, 100, 1, 3);
 	RNA_def_property_ui_text(prop, "Object Aligned",
-	                         "Let the emitter object orientation give the particle a starting speed");
+	                         "Let the emitter object orientation give the particle a starting velocity");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
 	prop = RNA_def_property(srna, "angular_velocity_factor", PROP_FLOAT, PROP_NONE);

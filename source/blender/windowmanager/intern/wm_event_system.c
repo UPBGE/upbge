@@ -241,7 +241,7 @@ void WM_main_remove_notifier_reference(const void *reference)
 	}
 }
 
-void WM_main_remove_editor_id_reference(const ID *id)
+void WM_main_remap_editor_id_reference(ID *old_id, ID *new_id)
 {
 	Main *bmain = G.main;
 	bScreen *sc;
@@ -253,7 +253,7 @@ void WM_main_remove_editor_id_reference(const ID *id)
 			SpaceLink *sl;
 
 			for (sl = sa->spacedata.first; sl; sl = sl->next) {
-				ED_spacedata_id_unref(sl, id);
+				ED_spacedata_id_remap(sa, sl, old_id, new_id);
 			}
 		}
 	}
@@ -793,7 +793,10 @@ static int wm_operator_exec(bContext *C, wmOperator *op, const bool repeat, cons
 		wm_operator_finished(C, op, repeat);
 	}
 	else if (repeat == 0) {
-		WM_operator_free(op);
+		/* warning: modal from exec is bad practice, but avoid crashing. */
+		if (retval & (OPERATOR_FINISHED | OPERATOR_CANCELLED)) {
+			WM_operator_free(op);
+		}
 	}
 	
 	return retval | OPERATOR_HANDLED;

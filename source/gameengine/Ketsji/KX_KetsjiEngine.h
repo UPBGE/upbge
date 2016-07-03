@@ -143,6 +143,8 @@ private:
 	static double m_suspendedtime;
 	static double m_suspendeddelta;
 
+	static bool				m_doRender;  /* whether or not the scene should be rendered after the logic frame */
+
 	/// Key used to exit the BGE
 	static short m_exitkey;
 
@@ -218,6 +220,8 @@ private:
 	float m_overrideFrameColorG;
 	/// Blue component of framing bar color.
 	float m_overrideFrameColorB;
+	/// Alpha component of framing bar color.
+	float m_overrideFrameColorA;
 
 	/// Settings that doesn't go away with Game Actuator
 	GlobalSettings m_globalsettings;
@@ -240,7 +244,6 @@ private:
 	void RenderFrame(KX_Scene *scene, KX_Camera *cam);
 	void PostRenderScene(KX_Scene *scene);
 	void RenderDebugProperties();
-	void RenderShadowBuffers(KX_Scene *scene);
 
 public:
 	KX_KetsjiEngine(KX_ISystem *system);
@@ -296,6 +299,7 @@ public:
 	/// returns true if an update happened to indicate -> Render
 	bool NextFrame();
 	void Render();
+	void RenderShadowBuffers(KX_Scene *scene);
 
 	void StartEngine(bool clearIpo);
 	void StopEngine();
@@ -448,6 +452,16 @@ public:
 	static short GetExitKey();
 
 	/**
+	 * Activate or deactivates the render of the scene after the logic frame
+	 * \param render	true (render) or false (do not render)
+	 */
+	static void SetRender(bool render);
+	/**
+	 * Get the current render flag value
+	 */
+	static bool GetRender();
+
+	/**
 	 * \Sets the display for frame rate on or off.
 	 */
 	void SetShowFramerate(bool frameRate);
@@ -544,7 +558,7 @@ public:
 	 * \param g Green component of the override color.
 	 * \param b Blue component of the override color.
 	 */
-	void SetOverrideFrameColor(float r, float g, float b);
+	void SetOverrideFrameColor(float r, float g, float b, float a);
 
 	/**
 	 * Returns the color used for framing bar color instead of the one in the Blender file's scenes.
@@ -552,7 +566,7 @@ public:
 	 * \param g Green component of the override color.
 	 * \param b Blue component of the override color.
 	 */
-	void GetOverrideFrameColor(float& r, float& g, float& b) const;
+	void GetOverrideFrameColor(float& r, float& g, float& b, float& a) const;
 
 	KX_Scene *CreateScene(const STR_String& scenename);
 	KX_Scene *CreateScene(Scene *scene, bool libloading = false);

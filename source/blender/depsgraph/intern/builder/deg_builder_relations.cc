@@ -1075,7 +1075,7 @@ void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
 		OperationKey psys_key(&ob->id, DEPSNODE_TYPE_EVAL_PARTICLES, DEG_OPCODE_PSYS_EVAL, psys->name);
 
 		/* XXX: if particle system is later re-enabled, we must do full rebuild? */
-		if (!psys_check_enabled(ob, psys))
+		if (!psys_check_enabled(ob, psys, G.is_rendering))
 			continue;
 
 		/* TODO(sergey): Are all particle systems depends on time?
@@ -1316,7 +1316,8 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 
 			OperationKey done_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, DEG_OPCODE_BONE_DONE);
 			add_relation(solver_key, done_key, DEPSREL_TYPE_TRANSFORM, "IK Chain Result");
-		} else {
+		}
+		else {
 			OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, DEG_OPCODE_BONE_DONE);
 			add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Result");
 		}
@@ -1433,20 +1434,20 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	}
 
 	/* IK Solvers...
-	* - These require separate processing steps are pose-level
-	*   to be executed between chains of bones (i.e. once the
-	*   base transforms of a bunch of bones is done)
-	*
-	* - We build relations for these before the dependencies
-	*   between ops in the same component as it is necessary
-	*   to check whether such bones are in the same IK chain
-	*   (or else we get weird issues with either in-chain
-	*   references, or with bones being parented to IK'd bones)
-	*
-	* Unsolved Issues:
-	* - Care is needed to ensure that multi-headed trees work out the same as in ik-tree building
-	* - Animated chain-lengths are a problem...
-	*/
+	 * - These require separate processing steps are pose-level
+	 *   to be executed between chains of bones (i.e. once the
+	 *   base transforms of a bunch of bones is done)
+	 *
+	 * - We build relations for these before the dependencies
+	 *   between ops in the same component as it is necessary
+	 *   to check whether such bones are in the same IK chain
+	 *   (or else we get weird issues with either in-chain
+	 *   references, or with bones being parented to IK'd bones)
+	 *
+	 * Unsolved Issues:
+	 * - Care is needed to ensure that multi-headed trees work out the same as in ik-tree building
+	 * - Animated chain-lengths are a problem...
+	 */
 	RootPChanMap root_map;
 	bool pose_depends_on_local_transform = false;
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {

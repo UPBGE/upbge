@@ -85,7 +85,7 @@ static bool bm_face_split_by_concave(
 	BMFace  **faces_array = BLI_array_alloca(faces_array, faces_array_tot);
 	BMEdge  **edges_array = BLI_array_alloca(edges_array, edges_array_tot);
 	const int quad_method = 0, ngon_method = 0;  /* beauty */
-	LinkNode *r_faces_double = NULL;
+	LinkNode *faces_double = NULL;
 
 	float normal[3];
 	BLI_assert(f_base->len > 3);
@@ -96,7 +96,7 @@ static bool bm_face_split_by_concave(
 	        bm, f_base,
 	        faces_array, &faces_array_tot,
 	        edges_array, &edges_array_tot,
-	        &r_faces_double,
+	        &faces_double,
 	        quad_method, ngon_method, false,
 	        pf_arena,
 	        pf_heap, pf_ehash);
@@ -107,10 +107,10 @@ static bool bm_face_split_by_concave(
 		int i;
 		for (i = 0; i < faces_array_tot; i++) {
 			BMFace *f = faces_array[i];
-			BMO_elem_flag_enable(bm, f, FACE_OUT);
+			BMO_face_flag_enable(bm, f, FACE_OUT);
 		}
 	}
-	BMO_elem_flag_enable(bm, f_base, FACE_OUT);
+	BMO_face_flag_enable(bm, f_base, FACE_OUT);
 
 	if (edges_array_tot) {
 		int i;
@@ -120,7 +120,7 @@ static bool bm_face_split_by_concave(
 		for (i = 0; i < edges_array_tot; i++) {
 			BMLoop *l_pair[2];
 			BMEdge *e = edges_array[i];
-			BMO_elem_flag_enable(bm, e, EDGE_OUT);
+			BMO_edge_flag_enable(bm, e, EDGE_OUT);
 
 			if (BM_edge_is_contiguous(e) &&
 			    BM_edge_loop_pair(e, &l_pair[0], &l_pair[1]))
@@ -153,7 +153,7 @@ static bool bm_face_split_by_concave(
 					BMFace *f_new, *f_pair[2] = {l_pair[0]->f, l_pair[1]->f};
 					f_new = BM_faces_join(bm, f_pair, 2, true);
 					if (f_new) {
-						BMO_elem_flag_enable(bm, f_new, FACE_OUT);
+						BMO_face_flag_enable(bm, f_new, FACE_OUT);
 					}
 				}
 			}
@@ -162,6 +162,13 @@ static bool bm_face_split_by_concave(
 
 	BLI_heap_clear(pf_heap, NULL);
 	BLI_edgehash_clear_ex(pf_ehash, NULL, BLI_POLYFILL_ALLOC_NGON_RESERVE);
+
+	while (faces_double) {
+		LinkNode *next = faces_double->next;
+		BM_face_kill(bm, faces_double->link);
+		MEM_freeN(faces_double);
+		faces_double = next;
+	}
 
 	return true;
 }

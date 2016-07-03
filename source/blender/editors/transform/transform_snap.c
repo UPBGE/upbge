@@ -599,15 +599,15 @@ static void initSnappingMode(TransInfo *t)
 	if (t->spacetype == SPACE_VIEW3D) {
 		if (t->tsnap.object_context == NULL) {
 			t->tsnap.object_context = ED_transform_snap_object_context_create_view3d(
-					G.main, t->scene, SNAP_OBJECT_USE_CACHE,
-					t->ar, t->view);
+			        G.main, t->scene, SNAP_OBJECT_USE_CACHE,
+			        t->ar, t->view);
 
 			ED_transform_snap_object_context_set_editmesh_callbacks(
-					t->tsnap.object_context,
-					(bool (*)(BMVert *, void *))BM_elem_cb_check_hflag_disabled,
-					bm_edge_is_snap_target,
-					bm_face_is_snap_target,
-					SET_UINT_IN_POINTER((BM_ELEM_SELECT | BM_ELEM_HIDDEN)));
+			        t->tsnap.object_context,
+			        (bool (*)(BMVert *, void *))BM_elem_cb_check_hflag_disabled,
+			        bm_edge_is_snap_target,
+			        bm_face_is_snap_target,
+			        SET_UINT_IN_POINTER((BM_ELEM_SELECT | BM_ELEM_HIDDEN)));
 		}
 	}
 }
@@ -842,6 +842,14 @@ static void ApplySnapTranslation(TransInfo *t, float vec[3])
 			vec[1] = point[1] - t->tsnap.snapTarget[1];
 	}
 	else {
+		if (t->spacetype == SPACE_VIEW3D) {
+			if (t->options & CTX_PAINT_CURVE) {
+				if (ED_view3d_project_float_global(t->ar, point, point, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_OK) {
+					zero_v3(point);  /* no good answer here... */
+				}
+			}
+		}
+
 		sub_v3_v3v3(vec, point, t->tsnap.snapTarget);
 	}
 }

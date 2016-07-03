@@ -1173,7 +1173,7 @@ static void PE_update_selection(Scene *scene, Object *ob, int useflag)
 		}
 	}
 
-	psys_cache_edit_paths(scene, ob, edit, CFRA);
+	psys_cache_edit_paths(scene, ob, edit, CFRA, G.is_rendering);
 
 
 	/* disable update flag */
@@ -1289,7 +1289,7 @@ void PE_update_object(Scene *scene, Object *ob, int useflag)
 	PE_hide_keys_time(scene, edit, CFRA);
 
 	/* regenerate path caches */
-	psys_cache_edit_paths(scene, ob, edit, CFRA);
+	psys_cache_edit_paths(scene, ob, edit, CFRA, G.is_rendering);
 
 	/* disable update flag */
 	LOOP_POINTS {
@@ -1634,7 +1634,7 @@ static int select_random_exec(bContext *C, wmOperator *op)
 	int p;
 	int k;
 
-	const float randfac = RNA_float_get (op->ptr, "percent") / 100.0f;
+	const float randfac = RNA_float_get(op->ptr, "percent") / 100.0f;
 	const int seed = WM_operator_properties_select_random_seed_increment_get(op);
 	const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
 	RNG *rng;
@@ -2288,7 +2288,7 @@ static int remove_tagged_particles(Object *ob, ParticleSystem *psys, int mirror)
 			npoint= new_points= MEM_callocN(new_totpart * sizeof(PTCacheEditPoint), "PTCacheEditKey array");
 
 			if (ELEM(NULL, new_pars, new_points)) {
-				 /* allocation error! */
+				/* allocation error! */
 				if (new_pars)
 					MEM_freeN(new_pars);
 				if (new_points)

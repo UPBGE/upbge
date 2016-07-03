@@ -120,30 +120,25 @@ void BKE_armature_bonelist_free(ListBase *lb)
 	BLI_freelistN(lb);
 }
 
+/** Free (or release) any data used by this armature (does not free the armature itself). */
 void BKE_armature_free(bArmature *arm)
 {
-	if (arm) {
-		BKE_armature_bonelist_free(&arm->bonebase);
+	BKE_animdata_free(&arm->id, false);
 
-		/* free editmode data */
-		if (arm->edbo) {
-			BLI_freelistN(arm->edbo);
+	BKE_armature_bonelist_free(&arm->bonebase);
 
-			MEM_freeN(arm->edbo);
-			arm->edbo = NULL;
-		}
+	/* free editmode data */
+	if (arm->edbo) {
+		BLI_freelistN(arm->edbo);
 
-		/* free sketch */
-		if (arm->sketch) {
-			freeSketch(arm->sketch);
-			arm->sketch = NULL;
-		}
+		MEM_freeN(arm->edbo);
+		arm->edbo = NULL;
+	}
 
-		/* free animation data */
-		if (arm->adt) {
-			BKE_animdata_free(&arm->id);
-			arm->adt = NULL;
-		}
+	/* free sketch */
+	if (arm->sketch) {
+		freeSketch(arm->sketch);
+		arm->sketch = NULL;
 	}
 }
 
@@ -640,6 +635,7 @@ void b_bone_spline_setup(bPoseChannel *pchan, int rest, Mat4 result_array[MAX_BB
 
 	{
 		const float circle_factor = length * (cubic_tangent_factor_circle_v3(h1, h2) / 0.75f);
+
 		const float hlength1 = bone->ease1 * circle_factor;
 		const float hlength2 = bone->ease2 * circle_factor;
 

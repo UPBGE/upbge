@@ -208,10 +208,12 @@ eV3DProjStatus ED_view3d_project_float_global(const struct ARegion *ar, const fl
 eV3DProjStatus ED_view3d_project_float_object(const struct ARegion *ar, const float co[3], float r_co[2], const eV3DProjTest flag);
 
 float ED_view3d_calc_zfac(const struct RegionView3D *rv3d, const float co[3], bool *r_flip);
-bool ED_view3d_win_to_ray(const struct ARegion *ar, struct View3D *v3d, const float mval[2],
-                          float ray_start[3], float ray_normal[3], const bool do_clip);
-bool ED_view3d_win_to_ray_ex(const struct ARegion *ar, struct View3D *v3d, const float mval[2],
-                             float r_ray_co[3], float r_ray_normal[3], float r_ray_start[3], bool do_clip);
+bool ED_view3d_win_to_ray(
+        const struct ARegion *ar, const struct View3D *v3d, const float mval[2],
+        float ray_start[3], float ray_normal[3], const bool do_clip);
+bool ED_view3d_win_to_ray_ex(
+        const struct ARegion *ar, const struct View3D *v3d, const float mval[2],
+        float r_ray_co[3], float r_ray_normal[3], float r_ray_start[3], bool do_clip);
 void ED_view3d_global_to_vector(const struct RegionView3D *rv3d, const float coord[3], float vec[3]);
 void ED_view3d_win_to_3d(const struct ARegion *ar, const float depth_pt[3], const float mval[2], float out[3]);
 void ED_view3d_win_to_3d_int(const struct ARegion *ar, const float depth_pt[3], const int mval[2], float out[3]);
@@ -402,5 +404,7 @@ void ED_view3d_shade_update(struct Main *bmain, struct Scene *scene, struct View
 
 #define V3D_IS_ZBUF(v3d) \
 	(((v3d)->flag & V3D_ZBUF_SELECT) && ((v3d)->drawtype > OB_WIRE))
+
+void ED_view3d_id_remap(struct View3D *v3d, const struct ID *old_id, struct ID *new_id);
 
 #endif /* __ED_VIEW3D_H__ */
