@@ -1343,6 +1343,8 @@ Shader
 
 .. data:: CONSTANT_TIMER
 
+.. data:: EYE
+
    User a timer for the uniform value.
 
 .. data:: SHD_TANGENT
