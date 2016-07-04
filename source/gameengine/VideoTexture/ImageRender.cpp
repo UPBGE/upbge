@@ -192,8 +192,7 @@ bool ImageRender::Render()
 		return false;
 	}
 
-	if (!m_scene->IsShadowDone())
-		m_engine->RenderShadowBuffers(m_scene);
+	m_engine->RenderShadowBuffers(m_scene);
 
 	if (m_mirror)
 	{

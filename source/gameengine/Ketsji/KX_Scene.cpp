@@ -163,7 +163,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_activity_culling = false;
 	m_suspend = false;
 	m_isclearingZbuffer = true;
-	m_isShadowDone = false;
 	m_tempObjectList = new CListValue();
 	m_objectlist = new CListValue();
 	m_parentlist = new CListValue();

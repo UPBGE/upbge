@@ -652,9 +652,6 @@ bool KX_KetsjiEngine::NextFrame()
 			}
 
 			m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
-
-			// invalidates the shadow buffer from previous render/ImageRender because the scene has changed
-			scene->SetShadowDone(false);
 		}
 
 		m_logger->StartLog(tc_network, m_kxsystem->GetTimeInSeconds(), true);
@@ -1029,8 +1026,6 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			cam->Release();
 		}
 	}
-	/* remember that we have a valid shadow buffer for that scene */
-	scene->SetShadowDone(true);
 }
 
 // update graphics
