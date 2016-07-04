@@ -232,7 +232,9 @@ void gpu_extensions_init(void)
 	}
 
 	/* Enable globally cube map seamless to avoid edge on mipmapping */
-	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+	if (GLEW_ARB_seamless_cube_map) {
+		glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+	}
 
 	GPU_invalid_tex_init();
 	GPU_basic_shaders_init();
