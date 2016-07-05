@@ -62,11 +62,17 @@ SCA_JoystickManager::~SCA_JoystickManager()
 
 void SCA_JoystickManager::NextFrame(double curtime,double deltatime)
 {
+	if (SCA_Joystick::GetJoystickUpdateStatus()) {
+		for (int i = 0; i < JOYINDEX_MAX; i++) {
+			m_joystick[i] = SCA_Joystick::GetInstance(i);
+		}
+		SCA_Joystick::SetJoystickUpdateStatus(false);
+	}
+
 	if (m_sensors.Empty()) {
 		return;
 	}
 	else {
-		;
 		SG_DList::iterator<SCA_JoystickSensor> it(m_sensors);
 		for (it.begin();!it.end();++it)
 		{

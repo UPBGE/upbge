@@ -37,9 +37,20 @@
 #endif
 
 #ifdef WITH_SDL
+/* To convert sdl device mapping to instance mapping */
+static int GetInstanceFromMapping(int device_num, int instancemapping[])
+{
+	for (int i = 0; i < JOYINDEX_MAX; i++) {
+		if (device_num == instancemapping[i]) {
+			return i;
+		}
+	}
+	return -2;
+}
+
 void SCA_Joystick::OnAxisEvent(SDL_Event* sdl_event)
 {
-	if (sdl_event->caxis.axis >= JOYAXIS_MAX)
+	if (!this || sdl_event->caxis.axis >= JOYAXIS_MAX)
 		return;
 	
 	m_axis_array[sdl_event->caxis.axis] = sdl_event->caxis.value;
@@ -49,12 +60,16 @@ void SCA_Joystick::OnAxisEvent(SDL_Event* sdl_event)
 /* See notes below in the event loop */
 void SCA_Joystick::OnButtonEvent(SDL_Event* sdl_event)
 {
+	if (!this)
+		return;
 	m_istrig_button = 1;
 }
 
 
 void SCA_Joystick::OnNothing(SDL_Event* sdl_event)
 {
+	if (!this)
+		return;
 	m_istrig_axis = m_istrig_button = 0;
 }
 
@@ -66,14 +81,13 @@ void SCA_Joystick::HandleEvents(void)
 		return;
 	}
 
-	int i;
-	for (i=0; i<m_joynum; i++) { /* could use JOYINDEX_MAX but no reason to */
+	for (int i = 0; i < m_joynum; i++) {
 		if (SCA_Joystick::m_instance[i])
 			SCA_Joystick::m_instance[i]->OnNothing(&sdl_event);
 	}
 	
 	while (SDL_PollEvent(&sdl_event)) {
-		/* Note! m_instance[sdl_event.caxis.which]
+		/* Note! m_instance[instance]
 		 * will segfault if over JOYINDEX_MAX, not too nice but what are the chances? */
 		
 		/* Note!, with buttons, this wont care which button is pressed,
@@ -81,18 +95,44 @@ void SCA_Joystick::HandleEvents(void)
 		
 		/* Note!, if you manage to press and release a button within 1 logic tick
 		 * it wont work as it should */
+
+		/* Note!, we need to use GetInstanceFromMapping function for index conversion as
+		   sdl_event.cdevice.which returns correct index when is called from SDL_CONTROLLERDEVICEADDED event but
+		   it returns an accumulative index when is called from SDL_CONTROLLERDEVICEREMOVED, SDL_CONTROLLERAXISMOTION,
+		   SDL_CONTROLLERBUTTONUP or SDL_CONTROLLERBUTTONDOWN events */
+		int inst_mapping;
 		
 		switch (sdl_event.type) {
 			case SDL_CONTROLLERDEVICEADDED:
+				if (m_joynum != SDL_NumJoysticks()) {
+					for (int j = 0; j < JOYINDEX_MAX; j++) {
+						if (!SCA_Joystick::m_instance[j]) {
+							SCA_Joystick::m_instance[j] = new SCA_Joystick(j);
+							SCA_Joystick::m_instance[j]->CreateJoystickDevice();
+							m_joynum++;
+							m_instancemapping[j] = ++m_refCount;
+							SCA_Joystick::SetJoystickUpdateStatus(true);
+							break;
+						}
+					}
+				}
+				break;
 			case SDL_CONTROLLERDEVICEREMOVED:
-				/* pass */
+				inst_mapping = GetInstanceFromMapping(sdl_event.cdevice.which, m_instancemapping);
+				if (SCA_Joystick::m_instance[inst_mapping]) {
+					SCA_Joystick::m_instance[inst_mapping]->ReleaseInstance(inst_mapping);
+					m_joynum--;
+					SCA_Joystick::SetJoystickUpdateStatus(true);
+				}
 				break;
 			case SDL_CONTROLLERBUTTONDOWN:
 			case SDL_CONTROLLERBUTTONUP:
-				SCA_Joystick::m_instance[sdl_event.cbutton.which]->OnButtonEvent(&sdl_event);
+				inst_mapping = GetInstanceFromMapping(sdl_event.cdevice.which, m_instancemapping);
+				SCA_Joystick::m_instance[inst_mapping]->OnButtonEvent(&sdl_event);
 				break;
 			case SDL_CONTROLLERAXISMOTION:
-				SCA_Joystick::m_instance[sdl_event.caxis.which]->OnAxisEvent(&sdl_event);
+				inst_mapping = GetInstanceFromMapping(sdl_event.cdevice.which, m_instancemapping);
+				SCA_Joystick::m_instance[inst_mapping]->OnAxisEvent(&sdl_event);
 				break;
 			default:
 				/* ignore old SDL_JOYSTICKS events */

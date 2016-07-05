@@ -72,23 +72,34 @@ SCA_Joystick::~SCA_Joystick()
 }
 
 SCA_Joystick *SCA_Joystick::m_instance[JOYINDEX_MAX];
-int SCA_Joystick::m_joynum = 0;
-int SCA_Joystick::m_refCount = 0;
+int SCA_Joystick::m_joynum;
+int SCA_Joystick::m_refCount;
+int SCA_Joystick::m_instancemapping[JOYINDEX_MAX];
+bool SCA_Joystick::m_joystickupdatestatus;
+
 
 void SCA_Joystick::Init()
 {
 #ifdef WITH_SDL
 
-	if (!(SDL_CHECK(SDL_Init)) ||
+	if (!(SDL_CHECK(SDL_InitSubSystem)) ||
 	    !(SDL_CHECK(SDL_GameControllerAddMapping)) ||
 	    !(SDL_CHECK(SDL_NumJoysticks))) {
 		return;
 	}
 
 	/* Initializing Game Controller related subsystems */
-	bool success = (SDL_Init(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1 );
+	bool success = (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1 );
 
 	if (success) {
+		/*Initializing variables */
+		m_joynum = 0;
+		m_refCount = -1;
+		m_joystickupdatestatus = false;
+
+		for (int ins = 0; ins < JOYINDEX_MAX; ins++)
+			m_instancemapping[ins] = -1;
+
 		/* Loading Game Controller mapping data base from a string */
 		unsigned short i = 0;
 		const char *mapping_string = NULL;
@@ -99,13 +110,14 @@ void SCA_Joystick::Init()
 			i++;
 			mapping_string = controller_mappings[i];
 	    }
-		
+
 		/* Creating Game Controllers that are already connected */
 		m_joynum = SDL_NumJoysticks();
-		
-		for (int i = 0; i < m_joynum; i++) {
-			m_instance[i] = new SCA_Joystick(i);
-			m_instance[i]->CreateJoystickDevice();
+		printf("m_refCount = %i\n", m_refCount);
+		for (int j = 0; j < m_joynum; j++) {
+			m_instance[j] = new SCA_Joystick(j);
+			m_instance[j]->CreateJoystickDevice();
+			m_instancemapping[j] = ++m_refCount;
 		}
 	}
 	else {
@@ -117,7 +129,7 @@ void SCA_Joystick::Init()
 void SCA_Joystick::Close()
 {
 #ifdef WITH_SDL
-	SDL_Quit();
+	SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
 #endif
 }
 
@@ -231,9 +243,15 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 	joy_error = true;
 #else /* WITH_SDL */
 	if (!m_isinit) {
-		if (m_joyindex >= m_joynum ||
-		    !(SDL_CHECK(SDL_IsGameController) && SDL_CHECK(SDL_GameControllerOpen) &&
-		      SDL_CHECK(SDL_GameControllerEventState)) ||
+		if (m_joynum >= JOYINDEX_MAX) {
+			printf("Maximum quantity (8) of Game Controllers connected. It is not possible to set up additional ones.\n");
+			joy_error = true;
+		}
+
+		if (!joy_error &&
+		    !(SDL_CHECK(SDL_IsGameController) &&
+		    SDL_CHECK(SDL_GameControllerOpen) &&
+		    SDL_CHECK(SDL_GameControllerEventState)) &&
 		    !SDL_IsGameController(m_joyindex))
 		{
 			/* mapping instruccions if joystick is not a game controller */
@@ -245,32 +263,36 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 			joy_error = true;
 		}
 
-		m_private->m_gamecontroller = SDL_GameControllerOpen(m_joyindex);
-		if (!m_private->m_gamecontroller) {
-			joy_error = true;
+		if (!joy_error) {
+			m_private->m_gamecontroller = SDL_GameControllerOpen(m_joyindex);
+			if (!m_private->m_gamecontroller) {
+				joy_error = true;
+			}
 		}
 
-		SDL_GameControllerEventState(SDL_ENABLE);
-		printf("\nGame Controller (%s) with index %i: Initialized", GetName(), m_joyindex);
+		if (!joy_error) {
+			SDL_GameControllerEventState(SDL_ENABLE);
+			printf("\nGame Controller (%s) with index %i: Initialized", GetName(), m_joyindex);
 
-		/* A Game Controller has:
-		 *
-		 * 6 axis availables:	   AXIS_LEFTSTICK_X, AXIS_LEFTSTICK_Y,
-		 * (in order from 0 to 5)  AXIS_RIGHTSTICK_X, AXIS_RIGHTSTICK_Y,
-		 *						   AXIS_TRIGGERLEFT and AXIS_TRIGGERRIGHT.
-		 *
-		 * 15 buttons availables:  BUTTON_A, BUTTON_B, BUTTON_X, BUTTON_Y,
-		 * (in order from 0 to 14) BUTTON_BACK, BUTTON_GUIDE, BUTTON_START,
-		 *						   BUTTON_LEFTSTICK, BUTTON_RIGHTSTICK,
-		 *						   BUTTON_LEFTSHOULDER, BUTTON_RIGHTSHOULDER,
-		 *						   BUTTON_DPAD_UP, BUTTON_DPAD_DOWN,
-		 *						   BUTTON_DPAD_LEFT and BUTTON_DPAD_RIGHT.
-		 */
-		m_axismax = SDL_CONTROLLER_AXIS_MAX;
-		m_buttonmax = SDL_CONTROLLER_BUTTON_MAX;
+			/* A Game Controller has:
+			 *
+			 * 6 axis availables:	   AXIS_LEFTSTICK_X, AXIS_LEFTSTICK_Y,
+			 * (in order from 0 to 5)  AXIS_RIGHTSTICK_X, AXIS_RIGHTSTICK_Y,
+			 *						   AXIS_TRIGGERLEFT and AXIS_TRIGGERRIGHT.
+			 *
+			 * 15 buttons availables:  BUTTON_A, BUTTON_B, BUTTON_X, BUTTON_Y,
+			 * (in order from 0 to 14) BUTTON_BACK, BUTTON_GUIDE, BUTTON_START,
+			 *						   BUTTON_LEFTSTICK, BUTTON_RIGHTSTICK,
+			 *						   BUTTON_LEFTSHOULDER, BUTTON_RIGHTSHOULDER,
+			 *						   BUTTON_DPAD_UP, BUTTON_DPAD_DOWN,
+			 *						   BUTTON_DPAD_LEFT and BUTTON_DPAD_RIGHT.
+			 */
+			m_axismax = SDL_CONTROLLER_AXIS_MAX;
+			m_buttonmax = SDL_CONTROLLER_BUTTON_MAX;
+		}
 
 		/* Haptic configuration */
-		if (!SDL_CHECK(SDL_HapticOpen)) {
+		if (!joy_error && !SDL_CHECK(SDL_HapticOpen)) {
 			m_private->m_haptic = SDL_HapticOpen(m_joyindex);
 			if (!m_private->m_haptic) {
 				printf("Game Controller (%s) with index %i: Has not force feedback (vibration) available\n", GetName(), m_joyindex);
@@ -294,12 +316,8 @@ void SCA_Joystick::DestroyJoystickDevice(void)
 {
 #ifdef WITH_SDL
 	if (m_isinit) {
-		if (SDL_CHECK(SDL_GameControllerGetAttached) && SDL_CHECK(SDL_GameControllerClose) &&
-		    SDL_GameControllerGetAttached(m_private->m_gamecontroller))
-		{
-			if (SDL_CHECK(SDL_HapticClose) && SDL_CHECK(SDL_HapticOpened) &&
-			    SDL_HapticOpened(m_joyindex))
-			{
+		if (SDL_CHECK(SDL_GameControllerClose)) {
+			if (m_private->m_haptic && SDL_CHECK(SDL_HapticClose)) {
 				SDL_HapticClose(m_private->m_haptic);
 				m_private->m_haptic = NULL;
 			}
@@ -362,4 +380,22 @@ const char *SCA_Joystick::GetName()
 #else /* WITH_SDL */
 	return "";
 #endif /* WITH_SDL */
+}
+
+bool SCA_Joystick::GetJoystickUpdateStatus()
+{
+#ifdef WITH_SDL
+	return m_joystickupdatestatus;
+#else
+	return false;
+#endif
+}
+
+void SCA_Joystick::SetJoystickUpdateStatus(bool status)
+{
+#ifdef WITH_SDL
+	m_joystickupdatestatus = status;
+#else
+	return;
+#endif
 }
