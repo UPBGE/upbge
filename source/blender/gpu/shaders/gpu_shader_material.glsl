@@ -2348,7 +2348,7 @@ void test_shadowbuf_pcf_early_bail(
 			result = 0.0;
 			for (float y = -halfsample; y <= halfsample; y += fullstep) {
 				for (float x = -halfsample; x <= halfsample; x += fullstep) {
-					result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.005, co.z, co.w)).x;
+					result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.1, co.z, co.w)).x;
 				}
 			}
 
@@ -2356,12 +2356,12 @@ void test_shadowbuf_pcf_early_bail(
 				float sampleoffset = halfsample - step;
 				for (float y = -sampleoffset; y <= sampleoffset; y += step) {
 					for (float x = -halfsample; x <= halfsample; x += step) {
-						result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.005, co.z, co.w)).x;
+						result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.1, co.z, co.w)).x;
 					}
 				}
 				for (float y = -halfsample; y <= halfsample; y += fullstep) {
 					for (float x = -sampleoffset; x <= sampleoffset; x += step) {
-						result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.005, co.z, co.w)).x;
+						result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.1, co.z, co.w)).x;
 					}
 				}
 				result /= (samples * samples);
@@ -2396,7 +2396,7 @@ void test_shadowbuf_pcf(
 			result = 0.0;
 			for (float y = -halfsample; y <= halfsample; y += step) {
 				for (float x = -halfsample; x <= halfsample; x += step) {
-					result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.005, co.z, co.w)).x;
+					result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.1, co.z, co.w)).x;
 				}
 			}
 			result /= (samples * samples);
