@@ -103,7 +103,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilterManager, addFilter, " addFilter(index, type, fragm
 	}
 
 	if (GetFilterPass(index)) {
-		PyErr_Format(PyExc_ValueError, "filterManager.addFilter(index, type, fragmentProgram): KX_2DFilterManager, found exisiting filter in index (%i)", index);
+		PyErr_Format(PyExc_ValueError, "filterManager.addFilter(index, type, fragmentProgram): KX_2DFilterManager, found existing filter in index (%i)", index);
 		return NULL;
 	}
 
