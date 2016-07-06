@@ -34,7 +34,7 @@
 
 #ifdef WITH_PYTHON
 
-#include "SCA_IObject.h"
+#include "EXP_Value.h"
 
 class RAS_MeshObject;
 class SCA_LogicManager;

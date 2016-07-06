@@ -1,11 +1,11 @@
-KX_MeshProxy(SCA_IObject)
-=========================
+KX_MeshProxy(CValue)
+====================
 
 .. module:: bge.types
 
-base class --- :class:`SCA_IObject`
+base class --- :class:`CValue`
 
-.. class:: KX_MeshProxy(SCA_IObject)
+.. class:: KX_MeshProxy(CValue)
 
    A mesh object.
 
