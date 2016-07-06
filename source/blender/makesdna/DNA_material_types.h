@@ -197,7 +197,7 @@ typedef struct Material {
 	short paint_clone_slot;
 	short tot_slots;
 
-	/* Constants setting */
+	/* Constants settings */
 	short constflag;
 	short pad4[2];
 
@@ -332,7 +332,7 @@ typedef struct Material {
 #define MA_CASTSHADOW		(1 << 0)
 #define MA_MODE2_PIPELINE	(MA_CASTSHADOW)
 #define MA_TANGENT_CONCRETE	(1 << 1)
-#define MA_DEPTH_TRANSP (1 << 2)
+#define MA_DEPTH_TRANSP		(1 << 2)
 
 /* mapflag */
 #define MA_MAPFLAG_UVPROJECT (1 << 0)

@@ -40,10 +40,7 @@
 #include "RAS_Polygon.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_IRasterizer.h"
-#include "RAS_ICanvas.h"
-#include "RAS_Rect.h"
 
-#include "GPU_texture.h"
 #include "RAS_BucketManager.h"
 
 #include <algorithm>
@@ -292,16 +289,18 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
 
-			rasty->UpdateGlobalDepthTexture(canvas);
+			if ((GetNumActiveMeshSlots(ALPHA_DEPTH_BUCKET) + GetNumActiveMeshSlots(ALPHA_DEPTH_INSTANCING_BUCKET)) > 0) {
+				rasty->UpdateGlobalDepthTexture(canvas);
 
-			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
-			rasty->Disable(RAS_IRasterizer::RAS_DEPTH_TEST);
+				rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
+				rasty->Disable(RAS_IRasterizer::RAS_DEPTH_TEST);
 
-			RenderBasicBuckets(cameratrans, rasty, ALPHA_DEPTH_INSTANCING_BUCKET);
-			RenderSortedBuckets(cameratrans, rasty, ALPHA_DEPTH_BUCKET);
+				RenderBasicBuckets(cameratrans, rasty, ALPHA_DEPTH_INSTANCING_BUCKET);
+				RenderSortedBuckets(cameratrans, rasty, ALPHA_DEPTH_BUCKET);
 
-			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
-			rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
+				rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
+				rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
+			}
 			break;
 		}
 	}
@@ -339,11 +338,13 @@ RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, b
 
 	const bool useinstancing = material->UseInstancing();
 	if (!material->OnlyShadow()) {
-		if (material->IsAlphaDepth()) {
-			m_buckets[useinstancing ? ALPHA_DEPTH_INSTANCING_BUCKET : ALPHA_DEPTH_BUCKET].push_back(bucket);
-		}
-		else if (material->IsAlpha()) {
-			m_buckets[useinstancing ? ALPHA_INSTANCING_BUCKET : ALPHA_BUCKET].push_back(bucket);
+		if (material->IsAlpha()) {
+			if (material->IsAlphaDepth()) {
+				m_buckets[useinstancing ? ALPHA_DEPTH_INSTANCING_BUCKET : ALPHA_DEPTH_BUCKET].push_back(bucket);
+			}
+			else {
+				m_buckets[useinstancing ? ALPHA_INSTANCING_BUCKET : ALPHA_BUCKET].push_back(bucket);
+			}
 		}
 		else {
 			m_buckets[useinstancing ? SOLID_INSTANCING_BUCKET : SOLID_BUCKET].push_back(bucket);
