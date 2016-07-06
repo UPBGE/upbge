@@ -39,18 +39,18 @@
 #include "DNA_screen_types.h"
 #include "RAS_ICanvas.h"
 #include "RAS_IRasterizer.h"
-#include "RAS_IOffScreen.h"
 #include "RAS_ISync.h"
 
 #include "ImageViewport.h"
 
+class KX_OffScreen;
 
 /// class for render 3d scene
 class ImageRender : public ImageViewport
 {
 public:
 	/// constructor
-	ImageRender(KX_Scene *scene, KX_Camera *camera, PyRASOffScreen *offscreen);
+	ImageRender(KX_Scene *scene, KX_Camera *camera, KX_OffScreen *offscreen);
 	ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial * mat);
 
 	/// destructor
@@ -91,7 +91,7 @@ protected:
 	/// do we own the camera?
 	bool m_owncamera;
 	/// if offscreen render
-	PyRASOffScreen *m_offscreen;
+	KX_OffScreen *m_offscreen;
 	/// object to synchronize render even if no buffer transfer
 	RAS_ISync *m_sync;
 	/// for mirror operation

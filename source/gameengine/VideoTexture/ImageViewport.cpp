@@ -37,6 +37,7 @@
 
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
+#include "KX_OffScreen.h"
 #include "RAS_ICanvas.h"
 #include "Texture.h"
 #include "ImageBase.h"
@@ -46,14 +47,14 @@
 
 
 // constructor
-ImageViewport::ImageViewport (PyRASOffScreen *offscreen) : m_alpha(false), m_texInit(false)
+ImageViewport::ImageViewport (KX_OffScreen *offscreen) : m_alpha(false), m_texInit(false)
 {
 	// get viewport rectangle
 	if (offscreen) {
 		m_viewport[0] = 0;
 		m_viewport[1] = 0;
-		m_viewport[2] = offscreen->ofs->GetWidth();
-		m_viewport[3] = offscreen->ofs->GetHeight();
+		m_viewport[2] = offscreen->GetOffScreen()->GetWidth();
+		m_viewport[3] = offscreen->GetOffScreen()->GetHeight();
 	}
 	else {
 		RAS_Rect rect = KX_GetActiveEngine()->GetCanvas()->GetWindowArea();

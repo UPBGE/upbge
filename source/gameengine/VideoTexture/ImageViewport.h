@@ -35,15 +35,15 @@
 #include "Common.h"
 
 #include "ImageBase.h"
-#include "RAS_IOffScreen.h"
 
+class KX_OffScreen;
 
 /// class for viewport access
 class ImageViewport : public ImageBase
 {
 public:
 	/// constructor
-	ImageViewport (PyRASOffScreen *offscreen=NULL);
+	ImageViewport (KX_OffScreen *offscreen=NULL);
 
 	/// destructor
 	virtual ~ImageViewport (void);

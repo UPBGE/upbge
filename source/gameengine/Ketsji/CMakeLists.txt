@@ -103,6 +103,7 @@ set(SRC
 	KX_ObColorIpoSGController.cpp
 	KX_ObjectActuator.cpp
 	KX_ObstacleSimulation.cpp
+	KX_OffScreen.cpp
 	KX_OrientationInterpolator.cpp
 	KX_ParentActuator.cpp
 	KX_PolyProxy.cpp
@@ -187,6 +188,7 @@ set(SRC
 	KX_ObColorIpoSGController.h
 	KX_ObjectActuator.h
 	KX_ObstacleSimulation.h
+	KX_OffScreen.h
 	KX_OrientationInterpolator.h
 	KX_ParentActuator.h
 	KX_PhysicsEngineEnums.h

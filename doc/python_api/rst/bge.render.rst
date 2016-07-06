@@ -104,41 +104,6 @@ Constants
 
    The pixel buffer for offscreen render is a Texture. Argument to :func:`offScreenCreate`
 
-
-*****
-Types
-*****
-
-.. class:: RASOffScreen
-
-   An off-screen render buffer object. 
-
-   Use :func:`offScreenCreate` to create it.
-   Currently it can only be used in the :class:`bge.texture.ImageRender`
-   constructor to render on a FBO rather than the default viewport.
-
-  .. attribute:: width
-
-     The width in pixel of the FBO
-
-     :type: integer
-
-  .. attribute:: height
-
-     The height in pixel of the FBO
-
-     :type: integer
-
-  .. attribute:: color
-
-     The underlying OpenGL bind code of the texture object that holds
-     the rendered image, 0 if the FBO is using RenderBuffer.
-     The choice between RenderBuffer and Texture is determined
-     by the target argument of :func:`offScreenCreate`.
-
-     :type: integer
-
-
 *********
 Functions
 *********
@@ -431,5 +396,5 @@ Functions
       Otherwise the default is preferable as it's more widely supported by GPUs and more efficient.
       If the GPU does not support MSAA+Texture (e.g. Intel HD GPU), MSAA will be disabled.
    :type target: integer
-   :rtype: :class:`RASOffScreen`
+   :rtype: :class:`KX_OffScreen`
 

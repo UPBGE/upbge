@@ -32,8 +32,6 @@
 #ifndef __RAS_OFFSCREEN_H__
 #define __RAS_OFFSCREEN_H__
 
-#include "EXP_Python.h"
-
 class RAS_ICanvas;
 
 class MT_Transform;
@@ -71,14 +69,5 @@ public:
 	virtual int GetSamples() { return m_samples; }
 	virtual int GetColor() { return m_color; }
 };
-
-#ifdef WITH_PYTHON
-typedef struct {
-	PyObject_HEAD
-	RAS_IOffScreen *ofs;
-} PyRASOffScreen;
-
-extern PyTypeObject PyRASOffScreen_Type;
-#endif
 
 #endif  /* __RAS_OFFSCREEN_H__ */

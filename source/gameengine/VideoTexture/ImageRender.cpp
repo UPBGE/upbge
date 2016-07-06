@@ -39,11 +39,11 @@
 #include "glew-mx.h"
 
 #include "KX_Globals.h"
+#include "KX_OffScreen.h"
 #include "DNA_scene_types.h"
 #include "RAS_CameraData.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
-#include "RAS_IOffScreen.h"
 #include "RAS_ISync.h"
 #include "BLI_math.h"
 
@@ -66,7 +66,7 @@ ExpDesc MirrorHorizontalDesc(MirrorHorizontal, "Mirror is horizontal in local sp
 ExpDesc MirrorTooSmallDesc(MirrorTooSmall, "Mirror is too small");
 
 // constructor
-ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, PyRASOffScreen * offscreen) :
+ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, KX_OffScreen *offscreen) :
     ImageViewport(offscreen),
     m_render(true),
     m_done(false),
@@ -90,7 +90,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, PyRASOffScreen * 
 	m_canvas = m_engine->GetCanvas();
 	// keep a reference to the offscreen buffer
 	if (m_offscreen) {
-		Py_INCREF(m_offscreen);
+		Py_INCREF(m_offscreen->GetProxy());
 	}
 }
 
@@ -101,7 +101,7 @@ ImageRender::~ImageRender (void)
 		m_camera->Release();
 	if (m_sync)
 		delete m_sync;
-	Py_XDECREF(m_offscreen);
+	Py_XDECREF(m_offscreen->GetProxy());
 }
 
 // get horizon color
@@ -168,14 +168,14 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 		}
 	}
 	else if (m_offscreen) {
-		m_offscreen->ofs->Bind(RAS_IOffScreen::RAS_OFS_BIND_READ);
+		m_offscreen->GetOffScreen()->Bind(RAS_IOffScreen::RAS_OFS_BIND_READ);
 	}
 	// wait until all render operations are completed
 	WaitSync();
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
 	if (m_offscreen) {
-		m_offscreen->ofs->Unbind();
+		m_offscreen->GetOffScreen()->Unbind();
 	}
 }
 
@@ -265,9 +265,9 @@ bool ImageRender::Render()
 	// The screen area that ImageViewport will copy is also the rendering zone
 	if (m_offscreen) {
 		// bind the fbo and set the viewport to full size
-		m_offscreen->ofs->Bind(RAS_IOffScreen::RAS_OFS_BIND_RENDER);
+		m_offscreen->GetOffScreen()->Bind(RAS_IOffScreen::RAS_OFS_BIND_RENDER);
 		// this is needed to stop crashing in canvas check
-		m_canvas->UpdateViewPort(0, 0, m_offscreen->ofs->GetWidth(), m_offscreen->ofs->GetHeight());
+		m_canvas->UpdateViewPort(0, 0, m_offscreen->GetOffScreen()->GetWidth(), m_offscreen->GetOffScreen()->GetHeight());
 	}
 	else {
 		m_canvas->SetViewPort(m_position[0], m_position[1], m_position[0]+m_capSize[0]-1, m_position[1]+m_capSize[1]-1);
@@ -389,7 +389,7 @@ bool ImageRender::Render()
 
 	// In case multisample is active, blit the FBO
 	if (m_offscreen)
-		m_offscreen->ofs->Blit();
+		m_offscreen->GetOffScreen()->Blit();
 	// end of all render operations, let's create a sync object just in case
 	if (m_sync) {
 		// a sync from a previous render, should not happen
@@ -408,7 +408,7 @@ void ImageRender::Unbind()
 {
 	if (m_offscreen)
 	{
-		m_offscreen->ofs->Unbind();
+		m_offscreen->GetOffScreen()->Unbind();
 	}
 }
 
@@ -422,7 +422,7 @@ void ImageRender::WaitSync()
 	}
 	if (m_offscreen) {
 		// this is needed to finalize the image if the target is a texture
-		m_offscreen->ofs->MipMap();
+		m_offscreen->GetOffScreen()->MipMap();
 	}
 	// all rendered operation done and complete, invalidate render for next time
 	m_done = false;
@@ -449,12 +449,13 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	// camera object
 	PyObject *camera;
 	// offscreen buffer object
-	PyRASOffScreen *offscreen = NULL;
+	PyObject *pyoffscreen = Py_None;
+	KX_OffScreen *offscreen = NULL;
 	// parameter keywords
 	static const char *kwlist[] = {"sceneObj", "cameraObj", "ofsObj", NULL};
 	// get parameters
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|O",
-		const_cast<char**>(kwlist), &scene, &camera, &offscreen))
+		const_cast<char**>(kwlist), &scene, &camera, &pyoffscreen))
 		return -1;
 	try
 	{
@@ -470,9 +471,12 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 		// throw exception if camera is not available
 		if (cameraPtr == NULL) THRWEXCP(CameraInvalid, S_OK);
 
-		if (offscreen) {
-			if (Py_TYPE(offscreen) != &PyRASOffScreen_Type) {
+		if (pyoffscreen != Py_None) {
+			if (Py_TYPE(pyoffscreen) != &KX_OffScreen::Type) {
 				THRWEXCP(OffScreenInvalid, S_OK);
+			}
+			else {
+				offscreen = static_cast<KX_OffScreen *>BGE_PROXY_REF(pyoffscreen);
 			}
 		}
 		// get pointer to image structure
