@@ -81,6 +81,7 @@ GPUTexture *GPU_texture_from_blender(
         struct Image *ima, struct ImageUser *iuser, int textarget, bool is_data, double time, int mipmap);
 GPUTexture *GPU_texture_from_preview(struct PreviewImage *prv, int mipmap);
 GPUTexture *GPU_texture_global_depth(void);
+float *GPU_texture_global_depth_offset(void);
 void GPU_texture_global_depth_init(void);
 void GPU_texture_global_depth_update(int left, int bottom, int width, int height);
 void GPU_texture_global_depth_reset(void);

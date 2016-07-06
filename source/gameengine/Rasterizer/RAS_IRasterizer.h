@@ -683,6 +683,8 @@ public:
 
 	virtual void RemoveLight(RAS_ILightObject *lightobject) = 0;
 
+	virtual void UpdateGlobalDepthTexture(RAS_ICanvas *canvas) = 0;
+
 	virtual void MotionBlur() = 0;
 
 	virtual void SetClientObject(void *obj) = 0;

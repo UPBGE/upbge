@@ -47,7 +47,8 @@ static struct GPUTextureGlobal {
 	GPUTexture *invalid_tex_2D;
 	GPUTexture *invalid_tex_3D;
 	GPUTexture *depthtex;
-} GG = {NULL, NULL, NULL};
+	float depthtexoffset[2];
+} GG = {NULL, NULL, NULL, NULL, {0.0f, 0.0f}};
 
 /* GPUTexture */
 
@@ -581,6 +582,11 @@ GPUTexture *GPU_texture_global_depth(void)
 	return GG.depthtex;
 }
 
+float *GPU_texture_global_depth_offset(void)
+{
+	return GG.depthtexoffset;
+}
+
 void GPU_texture_global_depth_init(void)
 {
 	GG.depthtex = GPU_texture_create_depth(100, 100, NULL);
@@ -594,6 +600,9 @@ void GPU_texture_global_depth_init(void)
 
 void GPU_texture_global_depth_update(int left, int bottom, int width, int height)
 {
+	GG.depthtexoffset[0] = (float)left;
+	GG.depthtexoffset[1] = (float)bottom;
+
 	GPU_texture_bind(GG.depthtex, 0);
 	glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, left, bottom, width, height, 0);
 	GPU_texture_unbind(GG.depthtex);

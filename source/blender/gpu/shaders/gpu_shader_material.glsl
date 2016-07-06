@@ -1830,10 +1830,10 @@ vec4 get_view_space_z_from_depth(vec4 depth)
 	return vec4(gl_ProjectionMatrix[3][2]) / (d + vec4(gl_ProjectionMatrix[2][2]));
 }
 
-void shade_alpha_depth(sampler2D ima, float alpha, float factor, float offset, out float outalpha)
+void shade_alpha_depth(sampler2D ima, vec2 imaoffset, float alpha, float factor, float offset, out float outalpha)
 {
 	ivec2 size = textureSize(ima, 0);
-	vec4 depth = texture2D(ima, gl_FragCoord.xy / size);
+	vec4 depth = texture2D(ima, (gl_FragCoord.xy - imaoffset) / size);
 	float thickness = get_view_space_z_from_depth(depth).z - (gl_FragCoord.z / gl_FragCoord.w) + offset;
 
 	outalpha = alpha * smoothstep(0.0, 1.0, thickness * factor);

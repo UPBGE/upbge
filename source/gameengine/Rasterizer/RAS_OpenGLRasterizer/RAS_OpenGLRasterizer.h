@@ -405,6 +405,8 @@ public:
 	void RemoveLight(RAS_ILightObject *lightobject);
 	int ApplyLights(int objectlayer, const MT_Transform& viewmat);
 
+	virtual void UpdateGlobalDepthTexture(RAS_ICanvas *canvas);
+
 	void MotionBlur();
 
 	void SetClientObject(void *obj);

@@ -2250,6 +2250,11 @@ void RAS_OpenGLRasterizer::LoadIdentity()
 	glLoadIdentity();
 }
 
+void RAS_OpenGLRasterizer::UpdateGlobalDepthTexture(RAS_ICanvas *canvas)
+{
+	GPU_texture_global_depth_update(canvas->GetWindowArea().GetLeft(), canvas->GetWindowArea().GetBottom(), canvas->GetWidth(), canvas->GetHeight());
+}
+
 void RAS_OpenGLRasterizer::MotionBlur()
 {
 	int state = GetMotionBlurState();
