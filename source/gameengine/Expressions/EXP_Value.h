@@ -345,6 +345,8 @@ public:
 	virtual bool		IsCustomFlag2()											{ return m_ValFlags.CustomFlag2;}
 
 protected:
+	virtual void DestructFromPython();
+
 	virtual void		DisableRefCount();										// Disable reference counting for this value
 	//virtual void		AddDataToReplica(CValue* replica);
 	virtual				~CValue();

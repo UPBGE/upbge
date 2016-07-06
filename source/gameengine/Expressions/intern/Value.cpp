@@ -448,7 +448,12 @@ double*		CValue::GetVector3(bool bGetTransformedVec)
 // Release a reference to this value (when reference count reaches 0, the value is removed from the heap)
 //
 
-
+void CValue::DestructFromPython()
+{
+	// Avoid decrefing freed proxy in destructor.
+	m_proxy = NULL;
+	Release();
+}
 
 //
 // Disable reference counting for this value

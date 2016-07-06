@@ -90,7 +90,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, KX_OffScreen *off
 	m_canvas = m_engine->GetCanvas();
 	// keep a reference to the offscreen buffer
 	if (m_offscreen) {
-		Py_INCREF(m_offscreen->GetProxy());
+		m_offscreen->AddRef();
 	}
 }
 
@@ -101,7 +101,9 @@ ImageRender::~ImageRender (void)
 		m_camera->Release();
 	if (m_sync)
 		delete m_sync;
-	Py_XDECREF(m_offscreen->GetProxy());
+	if (m_offscreen) {
+		m_offscreen->Release();
+	}
 }
 
 // get horizon color

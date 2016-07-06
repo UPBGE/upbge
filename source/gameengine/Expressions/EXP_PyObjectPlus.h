@@ -556,7 +556,14 @@ public: \
 class PyObjectPlus
 {				// The PyObjectPlus abstract class
 	Py_Header							// Always start with Py_Header
-	
+
+protected:
+	/** Called when the object is freed from a python owner proxy.
+	 * It as effect to use reference count for deletion and to not
+	 * be every time deleted in CValue.
+	 */
+	virtual void DestructFromPython();
+
 public:
 	PyObjectPlus();
 	

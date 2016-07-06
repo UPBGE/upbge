@@ -98,6 +98,14 @@ void PyObjectPlus::InvalidateProxy()		// check typename of each parent
 #endif
 }
 
+void PyObjectPlus::DestructFromPython()
+{
+#ifdef WITH_PYTHON
+	// Need this to stop ~PyObjectPlus from decrefing m_proxy otherwise its decref'd twice and py-debug crashes
+	m_proxy = NULL;
+	delete this;
+#endif
+}
 
 #ifdef WITH_PYTHON
 
@@ -237,8 +245,7 @@ void PyObjectPlus::py_base_dealloc(PyObject *self)				// python wrapper
 		PyObjectPlus *self_plus= BGE_PROXY_REF(self);
 		if (self_plus) {
 			if (BGE_PROXY_PYOWNS(self)) { /* Does python own this?, then delete it  */
-				self_plus->m_proxy = NULL; /* Need this to stop ~PyObjectPlus from decrefing m_proxy otherwise its decref'd twice and py-debug crashes */
-				delete self_plus;
+				self_plus->DestructFromPython();
 			}
 			BGE_PROXY_REF(self)= NULL; // not really needed
 		}
