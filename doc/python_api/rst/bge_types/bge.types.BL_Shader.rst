@@ -179,8 +179,8 @@ base class --- :class:`PyObjectPlus`
 
       :arg name: the uniform name
       :type name: string
-      :arg type: uniform type
-      :type type: UNI_NONE, UNI_INT, UNI_FLOAT, UNI_INT2, UNI_FLOAT2, UNI_INT3, UNI_FLOAT3, UNI_INT4, UNI_FLOAT4, UNI_MAT3, UNI_MAT4, UNI_MAX
+      :arg type: uniform type, one of :ref:`these constants <shader-defined-uniform>`
+      :type type: integer
 
    .. method:: setUniformMatrix3(name, mat, transpose)
 

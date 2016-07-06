@@ -1325,6 +1325,8 @@ Navigation Mesh Draw Modes
 Shader
 ------
 
+.. _shader-defined-uniform:
+
 .. data:: VIEWMATRIX
 .. data:: VIEWMATRIX_INVERSE
 .. data:: VIEWMATRIX_INVERSETRANSPOSE
