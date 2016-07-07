@@ -59,6 +59,8 @@ extern "C" {
 #  include "DNA_scene_types.h"
 
 #  include "MEM_guardedalloc.h"
+
+#  include "wm_event_types.h"
 }
 
 #ifdef WITH_AUDASPACE
@@ -89,6 +91,7 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 	m_argc(argc),
 	m_argv(argv)
 {
+	m_pythonConsole.use = false;
 }
 
 LA_Launcher::~LA_Launcher()
@@ -136,6 +139,14 @@ void LA_Launcher::InitEngine()
 	bool showArmatures = (SYS_GetCommandLineInt(syshandle, "show_armatures", gm->flag & GAME_SHOW_ARMATURES) != 0);
 	bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
 	bool restrictAnimFPS = (gm->flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
+
+	// Setup python console keys used as shortcut.
+	for (unsigned short i = 0; i < 4; ++i) {
+		if (gm->pythonkeys[i] != EVENT_NONE) {
+			m_pythonConsole.keys.push_back(ConvertKeyCode(gm->pythonkeys[i]));
+		}
+	}
+	m_pythonConsole.use = (gm->flag & GAME_PYTHON_CONSOLE);
 
 	RAS_STORAGE_TYPE raster_storage = RAS_AUTO_STORAGE;
 	int storageInfo = RAS_STORAGE_INFO_NONE;
@@ -347,6 +358,30 @@ void LA_Launcher::ExitEngine()
 	m_exitRequested = KX_EXIT_REQUEST_NO_REQUEST;
 }
 
+void LA_Launcher::HandlePythonConsole()
+{
+	if (!m_pythonConsole.use) {
+		return;
+	}
+
+	for (unsigned short i = 0, size = m_pythonConsole.keys.size(); i < size; ++i) {
+		if (!m_inputDevice->GetInput(m_pythonConsole.keys[i]).Find(SCA_InputEvent::ACTIVE)) {
+			return;
+		}
+	}
+
+	m_system->toggleConsole(1);
+	createPythonConsole();
+	m_system->toggleConsole(0);
+
+	/* As we show the console, the release events of the shortcut keys can be not handled by the engine.
+	 * We simulate they them.
+	 */
+	for (unsigned short i = 0, size = m_pythonConsole.keys.size(); i < size; ++i) {
+		m_inputDevice->ConvertEvent(m_pythonConsole.keys[i], 0, 0);
+	}
+}
+
 #ifdef WITH_PYTHON
 
 int LA_Launcher::PythonEngineNextFrame(void *state)
@@ -379,7 +414,12 @@ bool LA_Launcher::EngineNextFrame()
 	if (m_kxsystem && !m_exitRequested) {
 		// First check if we want to exit.
 		m_exitRequested = m_ketsjiEngine->GetExitCode();
-		
+
+#ifdef WITH_PYTHON
+		// Check if we can create a python console debugging.
+		HandlePythonConsole();
+#endif
+
 		// Kick the engine.
 		bool renderFrame = m_ketsjiEngine->NextFrame();
 		if (renderFrame) {

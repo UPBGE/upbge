@@ -55,6 +55,9 @@ void setupGamePython(KX_KetsjiEngine *ketsjiengine, Main *blenderdata,
 STR_String pathGamePythonConfig();
 void saveGamePythonConfig();
 void loadGamePythonConfig();
+
+/// Create a python interpreter and stop the engine until the interpreter is active.
+void createPythonConsole();
 #endif
 
 void addImportMain(struct Main *maggie);

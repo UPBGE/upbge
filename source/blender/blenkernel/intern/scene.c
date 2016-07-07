@@ -99,6 +99,8 @@
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 
+#include "wm_event_types.h"
+
 #include "bmesh.h"
 
 const char *RE_engine_id_BLENDER_RENDER = "BLENDER_RENDER";
@@ -724,6 +726,11 @@ void BKE_scene_init(Scene *sce)
 	sce->gm.scehysteresis = 10;
 
 	sce->gm.exitkey = 218; // Blender key code for ESC
+
+	sce->gm.pythonkeys[0] = LEFTCTRLKEY;
+	sce->gm.pythonkeys[1] = LEFTSHIFTKEY;
+	sce->gm.pythonkeys[2] = LEFTALTKEY;
+	sce->gm.pythonkeys[3] = TKEY;
 
 	BKE_sound_create_scene(sce);
 

@@ -434,6 +434,26 @@ class RENDER_PT_game_system(RenderButtonsPanel, Panel):
         row.label("Exit Key")
         row.prop(gs, "exit_key", text="", event=True)
 
+class RENDER_PT_game_console(RenderButtonsPanel, Panel):
+    bl_label = "Python Console"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    def draw_header(self, context):
+        gs = context.scene.game_settings
+
+        self.layout.prop(gs, "use_python_console", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        gs = context.scene.game_settings
+        row = layout.row(align=True)
+        row.active = gs.use_python_console
+        row.label("Keys:")
+        row.prop(gs, "python_console_key1", text="", event=True)
+        row.prop(gs, "python_console_key2", text="", event=True)
+        row.prop(gs, "python_console_key3", text="", event=True)
+        row.prop(gs, "python_console_key4", text="", event=True)
 
 class RENDER_PT_game_display(RenderButtonsPanel, Panel):
     bl_label = "Display"
