@@ -59,9 +59,6 @@ class SCA_Joystick
 
 {
 	static SCA_Joystick *m_instance[JOYINDEX_MAX];
-	static int m_joynum;
-	static int m_refCount;
-	static int m_instancemapping[JOYINDEX_MAX];
 	static bool m_joystickupdatestatus;
 
 	class PrivateData;

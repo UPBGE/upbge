@@ -72,10 +72,7 @@ SCA_Joystick::~SCA_Joystick()
 }
 
 SCA_Joystick *SCA_Joystick::m_instance[JOYINDEX_MAX];
-int SCA_Joystick::m_joynum;
-int SCA_Joystick::m_refCount;
-int SCA_Joystick::m_instancemapping[JOYINDEX_MAX];
-bool SCA_Joystick::m_joystickupdatestatus;
+bool SCA_Joystick::m_joystickupdatestatus = false;
 
 
 void SCA_Joystick::Init()
@@ -92,13 +89,6 @@ void SCA_Joystick::Init()
 	bool success = (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1 );
 
 	if (success) {
-		/*Initializing variables */
-		m_joynum = 0;
-		m_refCount = -1;
-		m_joystickupdatestatus = false;
-
-		for (int ins = 0; ins < JOYINDEX_MAX; ins++)
-			m_instancemapping[ins] = -1;
 
 		/* Loading Game Controller mapping data base from a string */
 		unsigned short i = 0;
@@ -110,7 +100,7 @@ void SCA_Joystick::Init()
 			i++;
 			mapping_string = controller_mappings[i];
 	    }
-
+#if 0
 		/* Creating Game Controllers that are already connected */
 		m_joynum = SDL_NumJoysticks();
 		printf("m_refCount = %i\n", m_refCount);
@@ -119,6 +109,7 @@ void SCA_Joystick::Init()
 			m_instance[j]->CreateJoystickDevice();
 			m_instancemapping[j] = ++m_refCount;
 		}
+#endif
 	}
 	else {
 		printf("Error initializing SDL Game Controller: %s\n", SDL_GetError());
@@ -243,10 +234,6 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 	joy_error = true;
 #else /* WITH_SDL */
 	if (!m_isinit) {
-		if (m_joynum >= JOYINDEX_MAX) {
-			printf("Maximum quantity (8) of Game Controllers connected. It is not possible to set up additional ones.\n");
-			joy_error = true;
-		}
 
 		if (!joy_error &&
 		    !(SDL_CHECK(SDL_IsGameController) &&
@@ -270,8 +257,23 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 			}
 		}
 
+		SDL_Joystick *joy;
 		if (!joy_error) {
-			SDL_GameControllerEventState(SDL_ENABLE);
+			joy = SDL_GameControllerGetJoystick(m_private->m_gamecontroller);
+			if (!joy) {
+				joy_error = true;
+			}
+		}
+
+		if (!joy_error) {
+			m_private->m_instance_id = SDL_JoystickInstanceID(joy);
+			if (m_private->m_instance_id < 0){
+				joy_error = true;
+				printf("Joystick instanced failed: %s\n", SDL_GetError());
+			}
+		}
+
+		if (!joy_error) {
 			printf("\nGame Controller (%s) with index %i: Initialized", GetName(), m_joyindex);
 
 			/* A Game Controller has:
@@ -316,16 +318,18 @@ void SCA_Joystick::DestroyJoystickDevice(void)
 {
 #ifdef WITH_SDL
 	if (m_isinit) {
-		if (SDL_CHECK(SDL_GameControllerClose)) {
+
 			if (m_private->m_haptic && SDL_CHECK(SDL_HapticClose)) {
 				SDL_HapticClose(m_private->m_haptic);
 				m_private->m_haptic = NULL;
 			}
 
-			printf("Game Controller (%s) with index %i: Closed\n", GetName(), m_joyindex);
-			SDL_GameControllerClose(m_private->m_gamecontroller);
-			m_private->m_gamecontroller = NULL;
-		}
+			if (m_private->m_gamecontroller && SDL_CHECK(SDL_GameControllerClose)) {
+				printf("Game Controller (%s) with index %i: Closed\n", GetName(), m_joyindex);
+				SDL_GameControllerClose(m_private->m_gamecontroller);
+				m_private->m_gamecontroller = NULL;
+			}
+
 		m_isinit = false;
 	}
 #endif /* WITH_SDL */

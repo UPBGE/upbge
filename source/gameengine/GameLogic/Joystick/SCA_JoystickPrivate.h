@@ -45,6 +45,7 @@ public:
 	 * The Game controller
 	 */
 	SDL_GameController *m_gamecontroller;
+	SDL_JoystickID m_instance_id;
 	SDL_Haptic *m_haptic;
 	SDL_HapticEffect m_hapticeffect;
 

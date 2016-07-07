@@ -37,17 +37,6 @@
 #endif
 
 #ifdef WITH_SDL
-/* To convert sdl device mapping to instance mapping */
-static int GetInstanceFromMapping(int device_num, int instancemapping[])
-{
-	for (int i = 0; i < JOYINDEX_MAX; i++) {
-		if (device_num == instancemapping[i]) {
-			return i;
-		}
-	}
-	return -2;
-}
-
 void SCA_Joystick::OnAxisEvent(SDL_Event* sdl_event)
 {
 	if (!this || sdl_event->caxis.axis >= JOYAXIS_MAX)
@@ -81,7 +70,7 @@ void SCA_Joystick::HandleEvents(void)
 		return;
 	}
 
-	for (int i = 0; i < m_joynum; i++) {
+	for (int i = 0; i < JOYINDEX_MAX; i++) {
 		if (SCA_Joystick::m_instance[i])
 			SCA_Joystick::m_instance[i]->OnNothing(&sdl_event);
 	}
@@ -91,48 +80,60 @@ void SCA_Joystick::HandleEvents(void)
 		 * will segfault if over JOYINDEX_MAX, not too nice but what are the chances? */
 		
 		/* Note!, with buttons, this wont care which button is pressed,
-		 * only to set 'm_istrig_button', actual pressed buttons are detected by SDL_JoystickGetButton */
+		 * only to set 'm_istrig_button', actual pressed buttons are detected by SDL_ControllerGetButton */
 		
 		/* Note!, if you manage to press and release a button within 1 logic tick
 		 * it wont work as it should */
 
-		/* Note!, we need to use GetInstanceFromMapping function for index conversion as
-		   sdl_event.cdevice.which returns correct index when is called from SDL_CONTROLLERDEVICEADDED event but
-		   it returns an accumulative index when is called from SDL_CONTROLLERDEVICEREMOVED, SDL_CONTROLLERAXISMOTION,
-		   SDL_CONTROLLERBUTTONUP or SDL_CONTROLLERBUTTONDOWN events */
-		int inst_mapping;
+		/* Note!, we need to use SDL_JOYDEVICE ADDED to find new controllers as SDL_CONTROLLERDEVICEADDED
+		 * doesn't report about all devices connected at beginning. Additionally we capture all devices this
+		 * way and we can inform properly (with ways to solve it) if the joystick it is not a game controller */
 		
 		switch (sdl_event.type) {
-			case SDL_CONTROLLERDEVICEADDED:
-				if (m_joynum != SDL_NumJoysticks()) {
-					for (int j = 0; j < JOYINDEX_MAX; j++) {
-						if (!SCA_Joystick::m_instance[j]) {
-							SCA_Joystick::m_instance[j] = new SCA_Joystick(j);
-							SCA_Joystick::m_instance[j]->CreateJoystickDevice();
-							m_joynum++;
-							m_instancemapping[j] = ++m_refCount;
+			case SDL_JOYDEVICEADDED:
+				if (sdl_event.jdevice.which < JOYINDEX_MAX) {
+					if (!SCA_Joystick::m_instance[sdl_event.jdevice.which]) {
+						SCA_Joystick::m_instance[sdl_event.jdevice.which] = new SCA_Joystick(sdl_event.jdevice.which);
+						SCA_Joystick::m_instance[sdl_event.jdevice.which]->CreateJoystickDevice();
+						SCA_Joystick::SetJoystickUpdateStatus(true);
+						break;
+					}
+				}
+				else {
+					printf("Maximum quantity (8) of Game Controllers connected. It is not possible to set up additional ones.\n");
+				}
+				break;
+			case SDL_CONTROLLERDEVICEREMOVED:
+				for (int i = 0; i < JOYINDEX_MAX; i++) {
+					if (SCA_Joystick::m_instance[i]) {
+						if (sdl_event.cdevice.which == SCA_Joystick::m_instance[i]->m_private->m_instance_id) {
+							SCA_Joystick::m_instance[i]->ReleaseInstance(i);
 							SCA_Joystick::SetJoystickUpdateStatus(true);
 							break;
 						}
 					}
 				}
 				break;
-			case SDL_CONTROLLERDEVICEREMOVED:
-				inst_mapping = GetInstanceFromMapping(sdl_event.cdevice.which, m_instancemapping);
-				if (SCA_Joystick::m_instance[inst_mapping]) {
-					SCA_Joystick::m_instance[inst_mapping]->ReleaseInstance(inst_mapping);
-					m_joynum--;
-					SCA_Joystick::SetJoystickUpdateStatus(true);
-				}
-				break;
 			case SDL_CONTROLLERBUTTONDOWN:
 			case SDL_CONTROLLERBUTTONUP:
-				inst_mapping = GetInstanceFromMapping(sdl_event.cdevice.which, m_instancemapping);
-				SCA_Joystick::m_instance[inst_mapping]->OnButtonEvent(&sdl_event);
+				for (int i = 0; i < JOYINDEX_MAX; i++) {
+					if (SCA_Joystick::m_instance[i]) {
+						if (sdl_event.cdevice.which == SCA_Joystick::m_instance[i]->m_private->m_instance_id) {
+							SCA_Joystick::m_instance[i]->OnButtonEvent(&sdl_event);
+							break;
+						}
+					}
+				}
 				break;
 			case SDL_CONTROLLERAXISMOTION:
-				inst_mapping = GetInstanceFromMapping(sdl_event.cdevice.which, m_instancemapping);
-				SCA_Joystick::m_instance[inst_mapping]->OnAxisEvent(&sdl_event);
+				for (int i = 0; i < JOYINDEX_MAX; i++) {
+					if (SCA_Joystick::m_instance[i]) {
+						if (sdl_event.cdevice.which == SCA_Joystick::m_instance[i]->m_private->m_instance_id) {
+							SCA_Joystick::m_instance[i]->OnAxisEvent(&sdl_event);
+							break;
+						}
+					}
+				}
 				break;
 			default:
 				/* ignore old SDL_JOYSTICKS events */
