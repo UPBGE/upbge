@@ -67,7 +67,7 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 9)) {
-		if (!DNA_struct_elem_find(fd->filesdna, "GameData", "int", "pythonkeys")) {
+		if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "pythonkeys[4]")) {
 			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
 				scene->gm.pythonkeys[0] = LEFTCTRLKEY;
 				scene->gm.pythonkeys[1] = LEFTSHIFTKEY;

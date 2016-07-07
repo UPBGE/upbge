@@ -99,11 +99,12 @@ protected:
 		RAS_IRasterizer::MipmapOption mipmap;
 	} m_savedData;
 
-	bool m_usePythonConsole;
-	unsigned short m_numPythonConsoleKeys;
-	SCA_IInputDevice::SCA_EnumInputs m_pythonConsoleKeys[4];
+	struct PythonConsole {
+		bool use;
+		std::vector<SCA_IInputDevice::SCA_EnumInputs> keys;
+	} m_pythonConsole;
 
-	void CreatePythonConsole();
+	void HandlePythonConsole();
 
 	/// Execute engine render, overrided to render background.
 	virtual void RenderEngine();

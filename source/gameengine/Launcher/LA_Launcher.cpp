@@ -59,6 +59,8 @@ extern "C" {
 #  include "DNA_scene_types.h"
 
 #  include "MEM_guardedalloc.h"
+
+#  include "wm_event_types.h"
 }
 
 #ifdef WITH_AUDASPACE
@@ -87,10 +89,9 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 #endif  // WITH_PYTHON
 	m_stereoMode(stereoMode),
 	m_argc(argc),
-	m_argv(argv),
-	m_usePythonConsole(false),
-	m_numPythonConsoleKeys(0)
+	m_argv(argv)
 {
+	m_pythonConsole.use = false;
 }
 
 LA_Launcher::~LA_Launcher()
@@ -141,12 +142,11 @@ void LA_Launcher::InitEngine()
 
 	// Setup python console keys used as shortcut.
 	for (unsigned short i = 0; i < 4; ++i) {
-		m_pythonConsoleKeys[i] = ConvertKeyCode(gm->pythonkeys[i]);
-		if (m_pythonConsoleKeys[i] != SCA_IInputDevice::NOKEY) {
-			++m_numPythonConsoleKeys;
+		if (gm->pythonkeys[i] != EVENT_NONE) {
+			m_pythonConsole.keys.push_back(ConvertKeyCode(gm->pythonkeys[i]));
 		}
 	}
-	m_usePythonConsole = (gm->flag & GAME_PYTHON_CONSOLE);
+	m_pythonConsole.use = (gm->flag & GAME_PYTHON_CONSOLE);
 
 	RAS_STORAGE_TYPE raster_storage = RAS_AUTO_STORAGE;
 	int storageInfo = RAS_STORAGE_INFO_NONE;
@@ -358,21 +358,16 @@ void LA_Launcher::ExitEngine()
 	m_exitRequested = KX_EXIT_REQUEST_NO_REQUEST;
 }
 
-void LA_Launcher::CreatePythonConsole()
+void LA_Launcher::HandlePythonConsole()
 {
-	if (!m_usePythonConsole) {
+	if (!m_pythonConsole.use) {
 		return;
 	}
 
-	int numkeyspressed = 0;
-	for (unsigned short i = 0; i < 4; ++i) {
-		if (m_pythonConsoleKeys[i] != SCA_IInputDevice::NOKEY && m_inputDevice->GetInput(m_pythonConsoleKeys[i]).Find(SCA_InputEvent::ACTIVE)) {
-			++numkeyspressed;
+	for (unsigned short i = 0, size = m_pythonConsole.keys.size(); i < size; ++i) {
+		if (!m_inputDevice->GetInput(m_pythonConsole.keys[i]).Find(SCA_InputEvent::ACTIVE)) {
+			return;
 		}
-	}
-
-	if (numkeyspressed < m_numPythonConsoleKeys) {
-		return;
 	}
 
 	m_system->toggleConsole(1);
@@ -382,10 +377,8 @@ void LA_Launcher::CreatePythonConsole()
 	/* As we show the console, the release events of the shortcut keys can be not handled by the engine.
 	 * We simulate they them.
 	 */
-	for (unsigned short i = 0; i < 4; ++i) {
-		if (m_pythonConsoleKeys[i] != SCA_IInputDevice::NOKEY) {
-			m_inputDevice->ConvertEvent(m_pythonConsoleKeys[i], 0, 0);
-		}
+	for (unsigned short i = 0, size = m_pythonConsole.keys.size(); i < size; ++i) {
+		m_inputDevice->ConvertEvent(m_pythonConsole.keys[i], 0, 0);
 	}
 }
 
@@ -424,7 +417,7 @@ bool LA_Launcher::EngineNextFrame()
 
 #ifdef WITH_PYTHON
 		// Check if we can create a python console debugging.
-		CreatePythonConsole();
+		HandlePythonConsole();
 #endif
 
 		// Kick the engine.
