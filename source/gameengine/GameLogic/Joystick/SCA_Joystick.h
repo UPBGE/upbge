@@ -59,7 +59,6 @@ class SCA_Joystick
 
 {
 	static SCA_Joystick *m_instance[JOYINDEX_MAX];
-	static bool m_joystickupdatestatus;
 
 	class PrivateData;
 #ifdef WITH_SDL
@@ -134,8 +133,6 @@ public:
 
 	static SCA_Joystick *GetInstance(short joyindex);
 	static void HandleEvents(void);
-	static bool GetJoystickUpdateStatus();
-	static void SetJoystickUpdateStatus(bool status);
 	void ReleaseInstance(short joyindex);
 	static void Init();
 	static void Close();

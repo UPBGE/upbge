@@ -867,17 +867,17 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem event_type_joystick_items[] = {
-	    {SENS_JOY_AXIS, "STICK_DIRECTIONS", 0, "Stick Directions", ""},
-	    {SENS_JOY_AXIS_SINGLE, "STICK_AXIS", 0, "Stick Axis", ""},
-	    {SENS_JOY_SHOULDER_TRIGGER, "SHOULDER_TRIGGERS", 0, "Shoulder Triggers", ""},
+		{SENS_JOY_AXIS, "STICK_DIRECTIONS", 0, "Stick Directions", ""},
+		{SENS_JOY_AXIS_SINGLE, "STICK_AXIS", 0, "Stick Axis", ""},
+		{SENS_JOY_SHOULDER_TRIGGER, "SHOULDER_TRIGGERS", 0, "Shoulder Triggers", ""},
 		{SENS_JOY_BUTTON, "BUTTONS", 0, "Buttons", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
 	static EnumPropertyItem axis_items[] = {
-	    {SENS_JOY_LEFT_STICK, "LEFT_STICK", 0, "Left Stick", ""},
-	    {SENS_JOY_RIGHT_STICK, "RIGHT_STICK", 0, "Right Stick", ""},
-	    {0, NULL, 0, NULL, NULL}
+		{SENS_JOY_LEFT_STICK, "LEFT_STICK", 0, "Left Stick", ""},
+		{SENS_JOY_RIGHT_STICK, "RIGHT_STICK", 0, "Right Stick", ""},
+		{0, NULL, 0, NULL, NULL}
 	};
 
 	static EnumPropertyItem axis_direction_items[] = {
@@ -889,36 +889,36 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 	};
 
 	static EnumPropertyItem axis_trigger_items[] = {
-	    {SENS_JOY_LEFT_SHOULDER_TRIGGER, "LEFT_SHOULDER_TRIGGER", 0, "Left Shoulder Trigger", ""},
-	    {SENS_JOY_RIGHT_SHOULDER_TRIGGER, "RIGHT_SHOULDER_TRIGGER", 0, "Right Shoulder Trigger", ""},
+		{SENS_JOY_LEFT_SHOULDER_TRIGGER, "LEFT_SHOULDER_TRIGGER", 0, "Left Shoulder Trigger", ""},
+		{SENS_JOY_RIGHT_SHOULDER_TRIGGER, "RIGHT_SHOULDER_TRIGGER", 0, "Right Shoulder Trigger", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
 	static EnumPropertyItem axis_single_items[] = {
-	    {SENS_JOY_LEFT_STICK_HORIZONTAL, "LEFT_STICK_HORIZONTAL", 0, "Left Stick Horizontal", ""},
-	    {SENS_JOY_LEFT_STICK_VERTICAL, "LEFT_STICK_VERTICAL", 0, "Left Stick Vertical", ""},
-	    {SENS_JOY_RIGHT_STICK_HORIZONTAL, "RIGHT_STICK_HORIZONTAL", 0, "Right Stick Horizontal", ""},
-	    {SENS_JOY_RIGHT_STICK_VERTICAL, "RIGHT_STICK_VERTICAL", 0, "Right Stick Vertical", ""},
-	    {0, NULL, 0, NULL, NULL}
+		{SENS_JOY_LEFT_STICK_HORIZONTAL, "LEFT_STICK_HORIZONTAL", 0, "Left Stick Horizontal", ""},
+		{SENS_JOY_LEFT_STICK_VERTICAL, "LEFT_STICK_VERTICAL", 0, "Left Stick Vertical", ""},
+		{SENS_JOY_RIGHT_STICK_HORIZONTAL, "RIGHT_STICK_HORIZONTAL", 0, "Right Stick Horizontal", ""},
+		{SENS_JOY_RIGHT_STICK_VERTICAL, "RIGHT_STICK_VERTICAL", 0, "Right Stick Vertical", ""},
+		{0, NULL, 0, NULL, NULL}
 	};
 
 	static EnumPropertyItem button_items[] = {
-	    {SENS_JOY_BUTTON_A, "BUTTON_A", 0, "A", ""},
-	    {SENS_JOY_BUTTON_B, "BUTTON_B", 0, "B", ""},
-	    {SENS_JOY_BUTTON_X, "BUTTON_X", 0, "X", ""},
-	    {SENS_JOY_BUTTON_Y, "BUTTON_Y", 0, "Y", ""},
-	    {SENS_JOY_BUTTON_BACK, "BUTTON_BACK", 0, "Back", ""},
-	    {SENS_JOY_BUTTON_GUIDE, "BUTTON_GUIDE", 0, "Guide", ""},
-	    {SENS_JOY_BUTTON_START, "BUTTON_START", 0, "Start", ""},
-	    {SENS_JOY_BUTTON_STICK_LEFT, "BUTTON_STICK_LEFT", 0, "Left Stick", ""},
-	    {SENS_JOY_BUTTON_STICK_RIGHT, "BUTTON_STICK_RIGHT", 0, "Right Stick", ""},
-	    {SENS_JOY_BUTTON_SHOULDER_LEFT, "BUTTON_SHOULDER_LEFT", 0, "Left Shoulder", ""},
-	    {SENS_JOY_BUTTON_SHOULDER_RIGHT, "BUTTON_SHOULDER_RIGHT", 0, "Right Shoulder", ""},
-	    {SENS_JOY_BUTTON_DPAD_UP, "BUTTON_DPAD_UP", 0, "Dpad Up", ""},
-	    {SENS_JOY_BUTTON_DPAD_DOWN, "BUTTON_DPAD_DOWN", 0, "Dpad Down", ""},
-	    {SENS_JOY_BUTTON_DPAD_LEFT, "BUTTON_DPAD_LEFT", 0, "Dpad Left", ""},
-	    {SENS_JOY_BUTTON_DPAD_RIGHT, "BUTTON_DPAD_RIGHT", 0, "Dpad Right", ""},
-	    {0, NULL, 0, NULL, NULL}
+		{SENS_JOY_BUTTON_A, "BUTTON_A", 0, "A", ""},
+		{SENS_JOY_BUTTON_B, "BUTTON_B", 0, "B", ""},
+		{SENS_JOY_BUTTON_X, "BUTTON_X", 0, "X", ""},
+		{SENS_JOY_BUTTON_Y, "BUTTON_Y", 0, "Y", ""},
+		{SENS_JOY_BUTTON_BACK, "BUTTON_BACK", 0, "Back", ""},
+		{SENS_JOY_BUTTON_GUIDE, "BUTTON_GUIDE", 0, "Guide", ""},
+		{SENS_JOY_BUTTON_START, "BUTTON_START", 0, "Start", ""},
+		{SENS_JOY_BUTTON_STICK_LEFT, "BUTTON_STICK_LEFT", 0, "Left Stick", ""},
+		{SENS_JOY_BUTTON_STICK_RIGHT, "BUTTON_STICK_RIGHT", 0, "Right Stick", ""},
+		{SENS_JOY_BUTTON_SHOULDER_LEFT, "BUTTON_SHOULDER_LEFT", 0, "Left Shoulder", ""},
+		{SENS_JOY_BUTTON_SHOULDER_RIGHT, "BUTTON_SHOULDER_RIGHT", 0, "Right Shoulder", ""},
+		{SENS_JOY_BUTTON_DPAD_UP, "BUTTON_DPAD_UP", 0, "Dpad Up", ""},
+		{SENS_JOY_BUTTON_DPAD_DOWN, "BUTTON_DPAD_DOWN", 0, "Dpad Down", ""},
+		{SENS_JOY_BUTTON_DPAD_LEFT, "BUTTON_DPAD_LEFT", 0, "Dpad Left", ""},
+		{SENS_JOY_BUTTON_DPAD_RIGHT, "BUTTON_DPAD_RIGHT", 0, "Dpad Right", ""},
+		{0, NULL, 0, NULL, NULL}
 	};
 
 	srna = RNA_def_struct(brna, "JoystickSensor", "Sensor");
@@ -941,14 +941,14 @@ static void rna_def_joystick_sensor(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_all_events", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SENS_JOY_ANY_EVENT);
 	RNA_def_property_ui_text(prop, "All Events",
-	                         "Triggered by all events on this joystick's current type (axis/button)");
+							 "Triggered by all events on this joystick's current type (axis/button)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	/* Button */
 	prop = RNA_def_property(srna, "button_number", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "button");
 	RNA_def_property_enum_items(prop, button_items);
-	RNA_def_property_ui_text(prop, "Buttons", "Which button to use");
+	RNA_def_property_ui_text(prop, "Button", "Which button to use");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	/* Axis */

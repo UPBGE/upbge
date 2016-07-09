@@ -39,7 +39,7 @@
 #ifdef WITH_SDL
 void SCA_Joystick::OnAxisEvent(SDL_Event* sdl_event)
 {
-	if (!this || sdl_event->caxis.axis >= JOYAXIS_MAX)
+	if (sdl_event->caxis.axis >= JOYAXIS_MAX)
 		return;
 	
 	m_axis_array[sdl_event->caxis.axis] = sdl_event->caxis.value;
@@ -49,16 +49,12 @@ void SCA_Joystick::OnAxisEvent(SDL_Event* sdl_event)
 /* See notes below in the event loop */
 void SCA_Joystick::OnButtonEvent(SDL_Event* sdl_event)
 {
-	if (!this)
-		return;
 	m_istrig_button = 1;
 }
 
 
 void SCA_Joystick::OnNothing(SDL_Event* sdl_event)
 {
-	if (!this)
-		return;
 	m_istrig_axis = m_istrig_button = 0;
 }
 
@@ -95,8 +91,11 @@ void SCA_Joystick::HandleEvents(void)
 					if (!SCA_Joystick::m_instance[sdl_event.jdevice.which]) {
 						SCA_Joystick::m_instance[sdl_event.jdevice.which] = new SCA_Joystick(sdl_event.jdevice.which);
 						SCA_Joystick::m_instance[sdl_event.jdevice.which]->CreateJoystickDevice();
-						SCA_Joystick::SetJoystickUpdateStatus(true);
 						break;
+					}
+					else {
+						printf("Conflicts with Joysticks trying to use the same index.\n");
+						printf("Please, reconnect Joysticks in different order than before\n");
 					}
 				}
 				else {
@@ -108,7 +107,6 @@ void SCA_Joystick::HandleEvents(void)
 					if (SCA_Joystick::m_instance[i]) {
 						if (sdl_event.cdevice.which == SCA_Joystick::m_instance[i]->m_private->m_instance_id) {
 							SCA_Joystick::m_instance[i]->ReleaseInstance(i);
-							SCA_Joystick::SetJoystickUpdateStatus(true);
 							break;
 						}
 					}

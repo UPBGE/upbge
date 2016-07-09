@@ -166,8 +166,8 @@ void init_sensor(bSensor *sens)
 		sens->data= MEM_callocN(sizeof(bJoystickSensor), "joysticksens");
 		js= sens->data;
 		js->type = SENS_JOY_AXIS;
-        js->axis = SENS_JOY_LEFT_STICK;
-        js->axis_single = SENS_JOY_LEFT_STICK_HORIZONTAL;
+		js->axis = SENS_JOY_LEFT_STICK;
+		js->axis_single = SENS_JOY_LEFT_STICK_HORIZONTAL;
 		js->precision = 5000;
 		break;
 	default:

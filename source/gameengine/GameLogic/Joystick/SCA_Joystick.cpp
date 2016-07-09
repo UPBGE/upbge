@@ -72,16 +72,13 @@ SCA_Joystick::~SCA_Joystick()
 }
 
 SCA_Joystick *SCA_Joystick::m_instance[JOYINDEX_MAX];
-bool SCA_Joystick::m_joystickupdatestatus = false;
 
 
 void SCA_Joystick::Init()
 {
 #ifdef WITH_SDL
 
-	if (!(SDL_CHECK(SDL_InitSubSystem)) ||
-	    !(SDL_CHECK(SDL_GameControllerAddMapping)) ||
-	    !(SDL_CHECK(SDL_NumJoysticks))) {
+	if (!(SDL_CHECK(SDL_InitSubSystem)) || !(SDL_CHECK(SDL_GameControllerAddMapping))) {
 		return;
 	}
 
@@ -100,16 +97,6 @@ void SCA_Joystick::Init()
 			i++;
 			mapping_string = controller_mappings[i];
 	    }
-#if 0
-		/* Creating Game Controllers that are already connected */
-		m_joynum = SDL_NumJoysticks();
-		printf("m_refCount = %i\n", m_refCount);
-		for (int j = 0; j < m_joynum; j++) {
-			m_instance[j] = new SCA_Joystick(j);
-			m_instance[j]->CreateJoystickDevice();
-			m_instancemapping[j] = ++m_refCount;
-		}
-#endif
 	}
 	else {
 		printf("Error initializing SDL Game Controller: %s\n", SDL_GetError());
@@ -120,7 +107,9 @@ void SCA_Joystick::Init()
 void SCA_Joystick::Close()
 {
 #ifdef WITH_SDL
-	SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
+	if (!SDL_CHECK(SDL_QuitSubSystem)) {
+		SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
+}
 #endif
 }
 
@@ -204,7 +193,7 @@ bool SCA_Joystick::aButtonPressIsPositive(int button)
 {
 #ifdef WITH_SDL
 	if ((SDL_CHECK(SDL_GameControllerGetButton) &&
-	     SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)button)))
+		SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)button)))
 	{
 		return true;
 	}
@@ -217,7 +206,7 @@ bool SCA_Joystick::aButtonReleaseIsPositive(int button)
 {
 #ifdef WITH_SDL
 	if (!(SDL_CHECK(SDL_GameControllerGetButton) &&
-       SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)button)))
+		SDL_GameControllerGetButton(m_private->m_gamecontroller, (SDL_GameControllerButton)button)))
 	{
 		return true;
 	}
@@ -236,10 +225,12 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 	if (!m_isinit) {
 
 		if (!joy_error &&
-		    !(SDL_CHECK(SDL_IsGameController) &&
-		    SDL_CHECK(SDL_GameControllerOpen) &&
-		    SDL_CHECK(SDL_GameControllerEventState)) &&
-		    !SDL_IsGameController(m_joyindex))
+			!(SDL_CHECK(SDL_IsGameController) &&
+			SDL_CHECK(SDL_GameControllerOpen) &&
+			SDL_CHECK(SDL_GameControllerEventState) &&
+			SDL_CHECK(SDL_GameControllerGetJoystick) &&
+			SDL_CHECK(SDL_JoystickInstanceID)) &&
+			!SDL_IsGameController(m_joyindex))
 		{
 			/* mapping instruccions if joystick is not a game controller */
 			printf("Game Controller index %i: Could not be initialized\n", m_joyindex);
@@ -274,7 +265,7 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 		}
 
 		if (!joy_error) {
-			printf("\nGame Controller (%s) with index %i: Initialized", GetName(), m_joyindex);
+			printf("Game Controller (%s) with index %i: Initialized\n", GetName(), m_joyindex);
 
 			/* A Game Controller has:
 			 *
@@ -384,22 +375,4 @@ const char *SCA_Joystick::GetName()
 #else /* WITH_SDL */
 	return "";
 #endif /* WITH_SDL */
-}
-
-bool SCA_Joystick::GetJoystickUpdateStatus()
-{
-#ifdef WITH_SDL
-	return m_joystickupdatestatus;
-#else
-	return false;
-#endif
-}
-
-void SCA_Joystick::SetJoystickUpdateStatus(bool status)
-{
-#ifdef WITH_SDL
-	m_joystickupdatestatus = status;
-#else
-	return;
-#endif
 }

@@ -28,7 +28,6 @@ set(INC
 	../Expressions
 	../Rasterizer
 	../SceneGraph
-	../../blender/blenkernel
 	../../blender/blenlib
 	../../../intern/string
 	../../../intern/ghost

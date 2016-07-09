@@ -50,6 +50,8 @@
 #include "GH_EventConsumer.h"
 #include "GH_InputDevice.h"
 
+#include "SCA_Joystick.h"
+
 extern "C" {
 #  include "GPU_extensions.h"
 
@@ -200,6 +202,8 @@ void LA_Launcher::InitEngine()
 	m_ketsjiEngine->SetCanvas(m_canvas);
 	m_ketsjiEngine->SetRasterizer(m_rasterizer);
 	m_ketsjiEngine->SetNetworkMessageManager(m_networkMessageManager);
+
+	SCA_Joystick::Init();
 
 	KX_KetsjiEngine::SetExitKey(ConvertKeyCode(gm->exitkey));
 #ifdef WITH_PYTHON

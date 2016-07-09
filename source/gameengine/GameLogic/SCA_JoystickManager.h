@@ -34,15 +34,10 @@
 
 #include "SCA_EventManager.h"
 #include "Joystick/SCA_Joystick.h"
-#include <vector>
 
-using namespace std;
 class SCA_JoystickManager : public SCA_EventManager
 {
-	/**
-	 * SDL Joystick Class Instance
-	 */
-	SCA_Joystick *m_joystick[JOYINDEX_MAX];
+
 public:
 	SCA_JoystickManager(class SCA_LogicManager* logicmgr);
 	virtual ~SCA_JoystickManager();
