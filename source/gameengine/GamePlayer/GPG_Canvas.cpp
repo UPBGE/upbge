@@ -111,15 +111,12 @@ void GPG_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
 	 * but where... definitely need to clean up this
 	 * whole canvas/rendertools mess.
 	 */
-	m_rasterizer->Enable(RAS_IRasterizer::RAS_SCISSOR_TEST);
+// 	m_rasterizer->Enable(RAS_IRasterizer::RAS_SCISSOR_TEST);
 
 	m_viewport[0] = x1;
 	m_viewport[1] = y1;
 	m_viewport[2] = x2 - x1 + 1;
 	m_viewport[3] = y2 - y1 + 1;
-
-	m_rasterizer->SetViewport(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
-	m_rasterizer->SetScissor(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
 }
 
 void GPG_Canvas::UpdateViewPort(int x1, int y1, int x2, int y2)

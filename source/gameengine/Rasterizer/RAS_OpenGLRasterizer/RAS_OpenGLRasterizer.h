@@ -49,6 +49,8 @@
 class RAS_IStorage;
 class RAS_ICanvas;
 class RAS_OpenGLLight;
+struct GPUFrameBuffer;
+struct GPUTexture;
 
 #define RAS_MAX_TEXCO  8     /* match in BL_Material */
 #define RAS_MAX_ATTRIB 16    /* match in BL_BlenderShader */
@@ -137,6 +139,10 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, std::vector<OglDebugShape> > m_debugShapes;
 
+	GPUFrameBuffer *m_fbo;
+	GPUTexture *m_colortex;
+	GPUTexture *m_depthtex;
+
 protected:
 	DrawType m_drawingmode;
 	ShadowType m_shadowMode;
@@ -178,6 +184,9 @@ public:
 	virtual void SetClearDepth(float d);
 	virtual void SetColorMask(bool r, bool g, bool b, bool a);
 	virtual void EndFrame();
+	virtual void BindFBO(RAS_ICanvas *canvas);
+	virtual void UnbindFBO();
+	virtual void DrawFBO(RAS_ICanvas *canvas);
 	virtual void SetRenderArea(RAS_ICanvas *canvas);
 
 	virtual void SetStereoMode(const StereoMode stereomode);

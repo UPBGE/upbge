@@ -59,6 +59,8 @@
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 #include "GPU_shader.h"
+#include "GPU_framebuffer.h"
+#include "GPU_texture.h"
 
 #include "BLI_math_vector.h"
 #include "BLI_math_matrix.h"
@@ -224,6 +226,9 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	m_motionblurvalue(-1.0f),
 	m_clientobject(NULL),
 	m_auxilaryClientInfo(NULL),
+	m_fbo(NULL),
+	m_colortex(NULL),
+	m_depthtex(NULL),
 	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
 	m_texco_num(0),
@@ -254,6 +259,16 @@ RAS_OpenGLRasterizer::~RAS_OpenGLRasterizer()
 {
 	for (unsigned short i = 0; i < RAS_STORAGE_MAX; ++i) {
 		delete m_storages[i];
+	}
+
+	if (m_fbo) {
+		GPU_framebuffer_free(m_fbo);
+	}
+	if (m_colortex) {
+		GPU_texture_free(m_colortex);
+	}
+	if (m_depthtex) {
+		GPU_texture_free(m_depthtex);
 	}
 }
 
@@ -666,6 +681,76 @@ void RAS_OpenGLRasterizer::EndFrame()
 	Disable(RAS_MULTISAMPLE);
 
 	Disable(RAS_FOG);
+}
+
+void RAS_OpenGLRasterizer::BindFBO(RAS_ICanvas *canvas)
+{
+	const RAS_Rect& area = canvas->GetDisplayArea();
+	const int width = area.GetWidth() + 1;
+	const int height = area.GetHeight() + 1;
+
+	// Update or create for the first time the FBO textures.
+	if (!m_fbo) {
+		m_fbo = GPU_framebuffer_create();
+		m_colortex = GPU_texture_create_2D(width, height, NULL, GPU_HDR_NONE, NULL);
+		m_depthtex = GPU_texture_create_depth(width, height, NULL);
+		GPU_framebuffer_texture_attach(m_fbo, m_colortex, 0, NULL);
+		GPU_framebuffer_texture_attach(m_fbo, m_depthtex, 0, NULL);
+	}
+	else {
+		if (GPU_texture_width(m_colortex) != width || GPU_texture_height(m_colortex) != height) {
+			GPU_framebuffer_texture_detach(m_colortex);
+			GPU_texture_free(m_colortex);
+			m_colortex = GPU_texture_create_2D(width, height, NULL, GPU_HDR_NONE, NULL);
+			GPU_framebuffer_texture_attach(m_fbo, m_colortex, 0, NULL);
+		}
+		if (GPU_texture_width(m_depthtex) != width || GPU_texture_height(m_depthtex) != height) {
+			GPU_framebuffer_texture_detach(m_depthtex);
+			GPU_texture_free(m_depthtex);
+			m_depthtex = GPU_texture_create_depth(width, height, NULL);
+			GPU_framebuffer_texture_attach(m_fbo, m_depthtex, 0, NULL);
+		}
+	}
+
+	if (m_fbo) {
+// 		Disable(RAS_SCISSOR_TEST);
+		GPU_framebuffer_bind_no_save(m_fbo, 0);
+	}
+}
+
+void RAS_OpenGLRasterizer::UnbindFBO()
+{
+	if (m_fbo) {
+// 		GPU_framebuffer_texture_unbind(m_fbo, m_colortex);
+		GPU_framebuffer_restore();
+	}
+}
+
+void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas)
+{
+	if (!m_colortex) {
+		return;
+	}
+
+	const int *viewport = canvas->GetViewPort();
+	SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+	Enable(RAS_SCISSOR_TEST);
+	SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
+
+	PushMatrix();
+	LoadIdentity();
+	SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
+	PushMatrix();
+	LoadIdentity();
+
+	GPU_texture_bind(m_colortex, 0);
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	DrawOverlayPlane();
+	GPU_texture_unbind(m_colortex);
+
+	PopMatrix();
+	SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);
+	PopMatrix();
 }
 
 void RAS_OpenGLRasterizer::SetRenderArea(RAS_ICanvas *canvas)

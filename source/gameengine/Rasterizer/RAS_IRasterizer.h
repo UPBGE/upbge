@@ -310,6 +310,13 @@ public:
 	 */
 	virtual void EndFrame() = 0;
 
+	/// Bind frame buffer object.
+	virtual void BindFBO(RAS_ICanvas *canvas) = 0;
+	/// Unbind frame buffer object.
+	virtual void UnbindFBO() = 0;
+	/// Draw frame buffer object to screen.
+	virtual void DrawFBO(RAS_ICanvas *canvas) = 0;
+
 	/**
 	 * SetRenderArea sets the render area from the 2d canvas.
 	 * Returns true if only of subset of the canvas is used.
