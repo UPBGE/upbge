@@ -61,6 +61,8 @@
 #include "BKE_icons.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
+#include "BKE_library_query.h"
+#include "BKE_library_remap.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mesh.h"
@@ -220,12 +222,12 @@ Material *BKE_material_add(Main *bmain, const char *name)
 }
 
 /* XXX keep synced with next function */
-Material *BKE_material_copy(Material *ma)
+Material *BKE_material_copy(Main *bmain, Material *ma)
 {
 	Material *man;
 	int a;
 	
-	man = BKE_libblock_copy(&ma->id);
+	man = BKE_libblock_copy(bmain, &ma->id);
 	
 	id_lib_extern((ID *)man->group);
 	
@@ -243,14 +245,14 @@ Material *BKE_material_copy(Material *ma)
 	if (ma->preview) man->preview = BKE_previewimg_copy(ma->preview);
 
 	if (ma->nodetree) {
-		man->nodetree = ntreeCopyTree(ma->nodetree);
+		man->nodetree = ntreeCopyTree(bmain, ma->nodetree);
 	}
 
 	BLI_listbase_clear(&man->gpumaterial);
 	BLI_listbase_clear(&man->gpumaterialinstancing);
 	
-	if (ma->id.lib) {
-		BKE_id_lib_local_paths(G.main, ma->id.lib, &man->id);
+	if (ID_IS_LINKED_DATABLOCK(ma)) {
+		BKE_id_lib_local_paths(bmain, ma->id.lib, &man->id);
 	}
 
 	return man;
@@ -287,180 +289,51 @@ Material *localize_material(Material *ma)
 	return man;
 }
 
-static void extern_local_material(Material *ma)
+static int extern_local_material_callback(
+        void *UNUSED(user_data), struct ID *UNUSED(id_self), struct ID **id_pointer, int cd_flag)
 {
-	int i;
-	for (i = 0; i < MAX_MTEX; i++) {
-		if (ma->mtex[i]) id_lib_extern((ID *)ma->mtex[i]->tex);
+	/* We only tag usercounted ID usages as extern... Why? */
+	if ((cd_flag & IDWALK_USER) && *id_pointer) {
+		id_lib_extern(*id_pointer);
 	}
+	return IDWALK_RET_NOP;
 }
 
-void BKE_material_make_local(Material *ma)
+static void extern_local_material(Material *ma)
 {
-	Main *bmain = G.main;
-	Object *ob;
-	Mesh *me;
-	Curve *cu;
-	MetaBall *mb;
-	int a;
+	BKE_library_foreach_ID_link(&ma->id, extern_local_material_callback, NULL, 0);
+}
+
+void BKE_material_make_local(Main *bmain, Material *ma)
+{
 	bool is_local = false, is_lib = false;
 
 	/* - only lib users: do nothing
 	 * - only local users: set flag
 	 * - mixed: make copy
 	 */
-	
-	if (ma->id.lib == NULL) return;
 
-	/* One local user; set flag and return. */
-	if (ma->id.us == 1) {
-		id_clear_lib_data(bmain, &ma->id);
-		extern_local_material(ma);
+	if (!ID_IS_LINKED_DATABLOCK(ma)) {
 		return;
 	}
 
-	/* Check which other IDs reference this one to determine if it's used by
-	 * lib or local */
-	/* test objects */
-	ob = bmain->object.first;
-	while (ob) {
-		if (ob->mat) {
-			for (a = 0; a < ob->totcol; a++) {
-				if (ob->mat[a] == ma) {
-					if (ob->id.lib) is_lib = true;
-					else is_local = true;
-				}
-			}
-		}
-		ob = ob->id.next;
-	}
-	/* test meshes */
-	me = bmain->mesh.first;
-	while (me) {
-		if (me->mat) {
-			for (a = 0; a < me->totcol; a++) {
-				if (me->mat[a] == ma) {
-					if (me->id.lib) is_lib = true;
-					else is_local = true;
-				}
-			}
-		}
-		me = me->id.next;
-	}
-	/* test curves */
-	cu = bmain->curve.first;
-	while (cu) {
-		if (cu->mat) {
-			for (a = 0; a < cu->totcol; a++) {
-				if (cu->mat[a] == ma) {
-					if (cu->id.lib) is_lib = true;
-					else is_local = true;
-				}
-			}
-		}
-		cu = cu->id.next;
-	}
-	/* test mballs */
-	mb = bmain->mball.first;
-	while (mb) {
-		if (mb->mat) {
-			for (a = 0; a < mb->totcol; a++) {
-				if (mb->mat[a] == ma) {
-					if (mb->id.lib) is_lib = true;
-					else is_local = true;
-				}
-			}
-		}
-		mb = mb->id.next;
-	}
+	BKE_library_ID_test_usages(bmain, ma, &is_local, &is_lib);
 
-	/* Only local users. */
-	if (is_local && is_lib == false) {
-		id_clear_lib_data(bmain, &ma->id);
-		extern_local_material(ma);
-	}
-	/* Both user and local, so copy. */
-	else if (is_local && is_lib) {
-		Material *ma_new = BKE_material_copy(ma);
-
-		ma_new->id.us = 0;
-
-		/* Remap paths of new ID using old library as base. */
-		BKE_id_lib_local_paths(bmain, ma->id.lib, &ma_new->id);
-
-		/* do objects */
-		ob = bmain->object.first;
-		while (ob) {
-			if (ob->mat) {
-				for (a = 0; a < ob->totcol; a++) {
-					if (ob->mat[a] == ma) {
-						if (ob->id.lib == NULL) {
-							ob->mat[a] = ma_new;
-							id_us_plus(&ma_new->id);
-							id_us_min(&ma->id);
-						}
-					}
-				}
-			}
-			ob = ob->id.next;
+	if (is_local) {
+		if (!is_lib) {
+			id_clear_lib_data(bmain, &ma->id);
+			extern_local_material(ma);
 		}
-		/* do meshes */
-		me = bmain->mesh.first;
-		while (me) {
-			if (me->mat) {
-				for (a = 0; a < me->totcol; a++) {
-					if (me->mat[a] == ma) {
-						if (me->id.lib == NULL) {
-							me->mat[a] = ma_new;
-							id_us_plus(&ma_new->id);
-							id_us_min(&ma->id);
-						}
-					}
-				}
-			}
-			me = me->id.next;
-		}
-		/* do curves */
-		cu = bmain->curve.first;
-		while (cu) {
-			if (cu->mat) {
-				for (a = 0; a < cu->totcol; a++) {
-					if (cu->mat[a] == ma) {
-						if (cu->id.lib == NULL) {
-							cu->mat[a] = ma_new;
-							id_us_plus(&ma_new->id);
-							id_us_min(&ma->id);
-						}
-					}
-				}
-			}
-			cu = cu->id.next;
-		}
-		/* do mballs */
-		mb = bmain->mball.first;
-		while (mb) {
-			if (mb->mat) {
-				for (a = 0; a < mb->totcol; a++) {
-					if (mb->mat[a] == ma) {
-						if (mb->id.lib == NULL) {
-							mb->mat[a] = ma_new;
-							id_us_plus(&ma_new->id);
-							id_us_min(&ma->id);
-						}
-					}
-				}
-			}
-			mb = mb->id.next;
-		}
-	}
-}
+		else {
+			Material *ma_new = BKE_material_copy(bmain, ma);
 
-/* for curve, mball, mesh types */
-void extern_local_matarar(struct Material **matar, short totcol)
-{
-	short i;
-	for (i = 0; i < totcol; i++) {
-		id_lib_extern((ID *)matar[i]);
+			ma_new->id.us = 0;
+
+			/* Remap paths of new ID using old library as base. */
+			BKE_id_lib_local_paths(bmain, ma->id.lib, &ma_new->id);
+
+			BKE_libblock_remap(bmain, ma, ma_new, ID_REMAP_SKIP_INDIRECT_USAGE);
+		}
 	}
 }
 
@@ -616,7 +489,7 @@ void BKE_material_append_id(ID *id, Material *ma)
 		(*matar)[(*totcol)++] = ma;
 
 		id_us_plus((ID *)ma);
-		test_object_materials(G.main, id);
+		test_all_objects_materials(G.main, id);
 	}
 }
 
@@ -642,7 +515,7 @@ Material *BKE_material_pop_id(ID *id, int index_i, bool update_data)
 
 				(*totcol)--;
 				*matar = MEM_reallocN(*matar, sizeof(void *) * (*totcol));
-				test_object_materials(G.main, id);
+				test_all_objects_materials(G.main, id);
 			}
 
 			if (update_data) {
@@ -781,7 +654,19 @@ void BKE_material_resize_object(Object *ob, const short totcol, bool do_id_user)
 	if (ob->actcol > ob->totcol) ob->actcol = ob->totcol;
 }
 
-void test_object_materials(Main *bmain, ID *id)
+void test_object_materials(Object *ob, ID *id)
+{
+	/* make the ob mat-array same size as 'ob->data' mat-array */
+	const short *totcol;
+
+	if (id == NULL || (totcol = give_totcolp_id(id)) == NULL) {
+		return;
+	}
+
+	BKE_material_resize_object(ob, *totcol, false);
+}
+
+void test_all_objects_materials(Main *bmain, ID *id)
 {
 	/* make the ob mat-array same size as 'ob->data' mat-array */
 	Object *ob;
@@ -844,7 +729,7 @@ void assign_material_id(ID *id, Material *ma, short act)
 	if (ma)
 		id_us_plus(&ma->id);
 
-	test_object_materials(G.main, id);
+	test_all_objects_materials(G.main, id);
 }
 
 void assign_material(Object *ob, Material *ma, short act, int assign_type)
@@ -857,8 +742,8 @@ void assign_material(Object *ob, Material *ma, short act, int assign_type)
 	if (act < 1) act = 1;
 	
 	/* prevent crashing when using accidentally */
-	BLI_assert(ob->id.lib == NULL);
-	if (ob->id.lib) return;
+	BLI_assert(!ID_IS_LINKED_DATABLOCK(ob));
+	if (ID_IS_LINKED_DATABLOCK(ob)) return;
 	
 	/* test arraylens */
 	
@@ -929,7 +814,7 @@ void assign_material(Object *ob, Material *ma, short act, int assign_type)
 
 	if (ma)
 		id_us_plus(&ma->id);
-	test_object_materials(G.main, ob->data);
+	test_object_materials(ob, ob->data);
 }
 
 
@@ -1126,7 +1011,7 @@ static void do_init_render_material(Material *ma, int r_mode, float *amb)
 		Group *group;
 
 		for (group = G.main->group.first; group; group = group->id.next) {
-			if (!group->id.lib && STREQ(group->id.name, ma->group->id.name)) {
+			if (!ID_IS_LINKED_DATABLOCK(group) && STREQ(group->id.name, ma->group->id.name)) {
 				ma->group = group;
 			}
 		}
@@ -2163,7 +2048,7 @@ static void convert_tfacematerial(Main *main, Material *ma)
 			}
 			/* create a new material */
 			else {
-				mat_new = BKE_material_copy(ma);
+				mat_new = BKE_material_copy(main, ma);
 				if (mat_new) {
 					/* rename the material*/
 					BLI_strncpy(mat_new->id.name, idname, sizeof(mat_new->id.name));
@@ -2235,7 +2120,7 @@ int do_version_tface(Main *main)
 	
 	/* 1st part: marking mesh materials to update */
 	for (me = main->mesh.first; me; me = me->id.next) {
-		if (me->id.lib) continue;
+		if (ID_IS_LINKED_DATABLOCK(me)) continue;
 
 		/* get the active tface layer */
 		index = CustomData_get_active_layer_index(&me->fdata, CD_MTFACE);
@@ -2289,7 +2174,7 @@ int do_version_tface(Main *main)
 				 * at doversion time: direct_link might not have happened on it,
 				 * so ma->mtex is not pointing to valid memory yet.
 				 * later we could, but it's better not */
-				else if (ma->id.lib)
+				else if (ID_IS_LINKED_DATABLOCK(ma))
 					continue;
 				
 				/* material already marked as disputed */
@@ -2354,7 +2239,7 @@ int do_version_tface(Main *main)
 
 	/* we shouldn't loop through the materials created in the loop. make the loop stop at its original length) */
 	for (ma = main->mat.first, a = 0; ma; ma = ma->id.next, a++) {
-		if (ma->id.lib) continue;
+		if (ID_IS_LINKED_DATABLOCK(ma)) continue;
 
 		/* disputed material */
 		if (ma->game.flag == MAT_BGE_DISPUTED) {

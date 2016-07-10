@@ -76,6 +76,8 @@
 #include "BKE_material.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
+#include "BKE_library_query.h"
+#include "BKE_library_remap.h"
 #include "BKE_depsgraph.h"
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
@@ -3304,12 +3306,12 @@ void BKE_particlesettings_rough_curve_init(ParticleSettings *part)
 	part->roughcurve = cumap;
 }
 
-ParticleSettings *BKE_particlesettings_copy(ParticleSettings *part)
+ParticleSettings *BKE_particlesettings_copy(Main *bmain, ParticleSettings *part)
 {
 	ParticleSettings *partn;
 	int a;
 
-	partn = BKE_libblock_copy(&part->id);
+	partn = BKE_libblock_copy(bmain, &part->id);
 	partn->pd = MEM_dupallocN(part->pd);
 	partn->pd2 = MEM_dupallocN(part->pd2);
 	partn->effector_weights = MEM_dupallocN(part->effector_weights);
@@ -3332,73 +3334,57 @@ ParticleSettings *BKE_particlesettings_copy(ParticleSettings *part)
 
 	BLI_duplicatelist(&partn->dupliweights, &part->dupliweights);
 	
-	if (part->id.lib) {
-		BKE_id_lib_local_paths(G.main, part->id.lib, &partn->id);
+	if (ID_IS_LINKED_DATABLOCK(part)) {
+		BKE_id_lib_local_paths(bmain, part->id.lib, &partn->id);
 	}
 
 	return partn;
 }
 
-static void expand_local_particlesettings(ParticleSettings *part)
+static int extern_local_particlesettings_callback(
+        void *UNUSED(user_data), struct ID *UNUSED(id_self), struct ID **id_pointer, int cd_flag)
 {
-	int i;
-	id_lib_extern((ID *)part->dup_group);
-
-	for (i = 0; i < MAX_MTEX; i++) {
-		if (part->mtex[i]) id_lib_extern((ID *)part->mtex[i]->tex);
+	/* We only tag usercounted ID usages as extern... Why? */
+	if ((cd_flag & IDWALK_USER) && *id_pointer) {
+		id_lib_extern(*id_pointer);
 	}
+	return IDWALK_RET_NOP;
 }
 
-void BKE_particlesettings_make_local(ParticleSettings *part)
+static void expand_local_particlesettings(ParticleSettings *part)
 {
-	Main *bmain = G.main;
-	Object *ob;
+	BKE_library_foreach_ID_link(&part->id, extern_local_particlesettings_callback, NULL, 0);
+}
+
+void BKE_particlesettings_make_local(Main *bmain, ParticleSettings *part)
+{
 	bool is_local = false, is_lib = false;
 
 	/* - only lib users: do nothing
 	 * - only local users: set flag
 	 * - mixed: make copy
 	 */
-	
-	if (part->id.lib == 0) return;
-	if (part->id.us == 1) {
-		id_clear_lib_data(bmain, &part->id);
-		expand_local_particlesettings(part);
+
+	if (!ID_IS_LINKED_DATABLOCK(part)) {
 		return;
 	}
 
-	/* test objects */
-	for (ob = bmain->object.first; ob && ELEM(false, is_lib, is_local); ob = ob->id.next) {
-		ParticleSystem *psys = ob->particlesystem.first;
-		for (; psys; psys = psys->next) {
-			if (psys->part == part) {
-				if (ob->id.lib) is_lib = true;
-				else is_local = true;
-			}
+	BKE_library_ID_test_usages(bmain, part, &is_local, &is_lib);
+
+	if (is_local) {
+		if (!is_lib) {
+			id_clear_lib_data(bmain, &part->id);
+			expand_local_particlesettings(part);
 		}
-	}
-	
-	if (is_local && is_lib == false) {
-		id_clear_lib_data(bmain, &part->id);
-		expand_local_particlesettings(part);
-	}
-	else if (is_local && is_lib) {
-		ParticleSettings *part_new = BKE_particlesettings_copy(part);
-		part_new->id.us = 0;
+		else {
+			ParticleSettings *part_new = BKE_particlesettings_copy(bmain, part);
 
-		/* Remap paths of new ID using old library as base. */
-		BKE_id_lib_local_paths(bmain, part->id.lib, &part_new->id);
+			part_new->id.us = 0;
 
-		/* do objects */
-		for (ob = bmain->object.first; ob; ob = ob->id.next) {
-			ParticleSystem *psys;
-			for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-				if (psys->part == part && ob->id.lib == 0) {
-					psys->part = part_new;
-					id_us_plus(&part_new->id);
-					id_us_min(&part->id);
-				}
-			}
+			/* Remap paths of new ID using old library as base. */
+			BKE_id_lib_local_paths(bmain, part->id.lib, &part_new->id);
+
+			BKE_libblock_remap(bmain, part, part_new, ID_REMAP_SKIP_INDIRECT_USAGE);
 		}
 	}
 }

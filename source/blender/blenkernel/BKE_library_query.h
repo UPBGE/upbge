@@ -41,6 +41,12 @@ enum {
 	IDWALK_NEVER_SELF = (1 << 1),
 
 	/**
+	 * Indicates whether this is direct (i.e. by local data) or indirect (i.e. by linked data) usage.
+	 * \note Object proxies are half-local, half-linked...
+	 */
+	IDWALK_INDIRECT_USAGE = (1 << 2),
+
+	/**
 	 * Adjusts #ID.us reference-count.
 	 * \note keep in sync with 'newlibadr_us' use in readfile.c
 	 */
@@ -76,6 +82,10 @@ void BKE_library_update_ID_link_user(struct ID *id_dst, struct ID *id_src, const
 
 int BKE_library_ID_use_ID(struct ID *id_user, struct ID *id_used);
 
+bool BKE_library_idtype_can_use_idtype(const short id_type_owner, const short id_type_used);
+
+bool BKE_library_ID_is_locally_used(struct Main *bmain, void *idv);
 bool BKE_library_ID_is_indirectly_used(struct Main *bmain, void *idv);
+void BKE_library_ID_test_usages(struct Main *bmain, void *idv, bool *is_used_local, bool *is_used_linked);
 
 #endif  /* __BKE_LIBRARY_QUERY_H__ */

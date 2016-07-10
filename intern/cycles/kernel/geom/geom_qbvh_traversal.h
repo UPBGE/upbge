@@ -28,6 +28,14 @@
  *
  */
 
+#if BVH_FEATURE(BVH_HAIR)
+#  define NODE_INTERSECT qbvh_node_intersect
+#  define NODE_INTERSECT_ROBUST qbvh_node_intersect_robust
+#else
+#  define NODE_INTERSECT qbvh_aligned_node_intersect
+#  define NODE_INTERSECT_ROBUST qbvh_aligned_node_intersect_robust
+#endif
+
 ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
                                              const Ray *ray,
                                              Intersection *isect,
@@ -81,13 +89,17 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 	BVH_DEBUG_INIT();
 
 	ssef tnear(0.0f), tfar(ray->t);
+#if BVH_FEATURE(BVH_HAIR)
+	sse3f dir4(ssef(dir.x), ssef(dir.y), ssef(dir.z));
+#endif
 	sse3f idir4(ssef(idir.x), ssef(idir.y), ssef(idir.z));
 
 #ifdef __KERNEL_AVX2__
 	float3 P_idir = P*idir;
 	sse3f P_idir4 = sse3f(P_idir.x, P_idir.y, P_idir.z);
-#else
-	sse3f org = sse3f(ssef(P.x), ssef(P.y), ssef(P.z));
+#endif
+#if BVH_FEATURE(BVH_HAIR) || !defined(__KERNEL_AVX2__)
+	sse3f org4 = sse3f(ssef(P.x), ssef(P.y), ssef(P.z));
 #endif
 
 	/* Offsets to select the side that becomes the lower or upper bound. */
@@ -106,7 +118,13 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 		do {
 			/* Traverse internal nodes. */
 			while(nodeAddr >= 0 && nodeAddr != ENTRYPOINT_SENTINEL) {
-				if(UNLIKELY(nodeDist > isect->t)) {
+				float4 inodes = kernel_tex_fetch(__bvh_nodes, nodeAddr+0);
+
+				if(UNLIKELY(nodeDist > isect->t)
+#ifdef __VISIBILITY_FLAG__
+				   || (__float_as_uint(inodes.x) & visibility) == 0)
+#endif
+				{
 					/* Pop. */
 					nodeAddr = traversalStack[stackPtr].addr;
 					nodeDist = traversalStack[stackPtr].dist;
@@ -126,41 +144,62 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 					 *
 					 * Need to test if doing opposite would be any faster.
 					 */
-					traverseChild = qbvh_node_intersect_robust(kg,
-					                                           tnear,
-					                                           tfar,
+					traverseChild = NODE_INTERSECT_ROBUST(kg,
+					                                      tnear,
+					                                      tfar,
 #  ifdef __KERNEL_AVX2__
-					                                           P_idir4,
-#  else
-					                                           org,
+					                                      P_idir4,
 #  endif
-					                                           idir4,
-					                                           near_x, near_y, near_z,
-					                                           far_x, far_y, far_z,
-					                                           nodeAddr,
-					                                           difl,
-					                                           &dist);
+#  if BVH_FEATURE(BVH_HAIR) || !defined(__KERNEL_AVX2__)
+					                                      org4,
+#  endif
+#  if BVH_FEATURE(BVH_HAIR)
+					                                      dir4,
+#  endif
+					                                      idir4,
+					                                      near_x, near_y, near_z,
+					                                      far_x, far_y, far_z,
+					                                      nodeAddr,
+					                                      difl,
+					                                      &dist);
 				}
 				else
 #endif  /* BVH_HAIR_MINIMUM_WIDTH */
 				{
-					traverseChild = qbvh_node_intersect(kg,
-					                                    tnear,
-					                                    tfar,
+					traverseChild = NODE_INTERSECT(kg,
+					                               tnear,
+					                               tfar,
 #ifdef __KERNEL_AVX2__
-					                                    P_idir4,
-#else
-					                                    org,
+					                               P_idir4,
 #endif
-					                                    idir4,
-					                                    near_x, near_y, near_z,
-					                                    far_x, far_y, far_z,
-					                                    nodeAddr,
-					                                    &dist);
+#if BVH_FEATURE(BVH_HAIR) || !defined(__KERNEL_AVX2__)
+					                               org4,
+#endif
+#if BVH_FEATURE(BVH_HAIR)
+					                               dir4,
+#endif
+					                               idir4,
+					                               near_x, near_y, near_z,
+					                               far_x, far_y, far_z,
+					                               nodeAddr,
+					                               &dist);
 				}
 
 				if(traverseChild != 0) {
-					float4 cnodes = kernel_tex_fetch(__bvh_nodes, nodeAddr*BVH_QNODE_SIZE+6);
+					float4 cnodes;
+					/* TODO(sergey): Investigate whether moving cnodes upwards
+					 * gives a speedup (will be different cache pattern but will
+					 * avoid extra check here),
+					 */
+#if BVH_FEATURE(BVH_HAIR)
+					if(__float_as_uint(inodes.x) & PATH_RAY_NODE_UNALIGNED) {
+						cnodes = kernel_tex_fetch(__bvh_nodes, nodeAddr+13);
+					}
+					else
+#endif
+					{
+						cnodes = kernel_tex_fetch(__bvh_nodes, nodeAddr+7);
+					}
 
 					/* One child is hit, continue with that child. */
 					int r = __bscf(traverseChild);
@@ -258,10 +297,11 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 
 			/* If node is leaf, fetch triangle list. */
 			if(nodeAddr < 0) {
-				float4 leaf = kernel_tex_fetch(__bvh_leaf_nodes, (-nodeAddr-1)*BVH_QNODE_LEAF_SIZE);
+				float4 leaf = kernel_tex_fetch(__bvh_leaf_nodes, (-nodeAddr-1));
 
 #ifdef __VISIBILITY_FLAG__
-				if(UNLIKELY((nodeDist > isect->t) || ((__float_as_uint(leaf.z) & visibility) == 0)))
+				if(UNLIKELY((nodeDist > isect->t) ||
+				            ((__float_as_uint(leaf.z) & visibility) == 0)))
 #else
 				if(UNLIKELY((nodeDist > isect->t)))
 #endif
@@ -354,13 +394,18 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 					if(idir.y >= 0.0f) { near_y = 2; far_y = 3; } else { near_y = 3; far_y = 2; }
 					if(idir.z >= 0.0f) { near_z = 4; far_z = 5; } else { near_z = 5; far_z = 4; }
 					tfar = ssef(isect->t);
+#  if BVH_FEATURE(BVH_HAIR)
+					dir4 = sse3f(ssef(dir.x), ssef(dir.y), ssef(dir.z));
+#  endif
 					idir4 = sse3f(ssef(idir.x), ssef(idir.y), ssef(idir.z));
 #  ifdef __KERNEL_AVX2__
 					P_idir = P*idir;
 					P_idir4 = sse3f(P_idir.x, P_idir.y, P_idir.z);
-#  else
-					org = sse3f(ssef(P.x), ssef(P.y), ssef(P.z));
 #  endif
+#  if BVH_FEATURE(BVH_HAIR) || !defined(__KERNEL_AVX2__)
+					org4 = sse3f(ssef(P.x), ssef(P.y), ssef(P.z));
+#  endif
+
 					triangle_intersect_precalc(dir, &isect_precalc);
 
 					++stackPtr;
@@ -391,13 +436,18 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 			if(idir.y >= 0.0f) { near_y = 2; far_y = 3; } else { near_y = 3; far_y = 2; }
 			if(idir.z >= 0.0f) { near_z = 4; far_z = 5; } else { near_z = 5; far_z = 4; }
 			tfar = ssef(isect->t);
+#  if BVH_FEATURE(BVH_HAIR)
+			dir4 = sse3f(ssef(dir.x), ssef(dir.y), ssef(dir.z));
+#  endif
 			idir4 = sse3f(ssef(idir.x), ssef(idir.y), ssef(idir.z));
 #  ifdef __KERNEL_AVX2__
 			P_idir = P*idir;
 			P_idir4 = sse3f(P_idir.x, P_idir.y, P_idir.z);
-#  else
-			org = sse3f(ssef(P.x), ssef(P.y), ssef(P.z));
 #  endif
+#  if BVH_FEATURE(BVH_HAIR) || !defined(__KERNEL_AVX2__)
+			org4 = sse3f(ssef(P.x), ssef(P.y), ssef(P.z));
+#  endif
+
 			triangle_intersect_precalc(dir, &isect_precalc);
 
 			object = OBJECT_NONE;
@@ -410,3 +460,6 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 
 	return (isect->prim != PRIM_NONE);
 }
+
+#undef NODE_INTERSECT
+#undef NODE_INTERSECT_ROBUST

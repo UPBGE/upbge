@@ -848,11 +848,11 @@ Mask *BKE_mask_copy_nolib(Mask *mask)
 	return mask_new;
 }
 
-Mask *BKE_mask_copy(Mask *mask)
+Mask *BKE_mask_copy(Main *bmain, Mask *mask)
 {
 	Mask *mask_new;
 
-	mask_new = BKE_libblock_copy(&mask->id);
+	mask_new = BKE_libblock_copy(bmain, &mask->id);
 
 	BLI_listbase_clear(&mask_new->masklayers);
 
@@ -861,8 +861,8 @@ Mask *BKE_mask_copy(Mask *mask)
 	/* enable fake user by default */
 	id_fake_user_set(&mask->id);
 
-	if (mask->id.lib) {
-		BKE_id_lib_local_paths(G.main, mask->id.lib, &mask_new->id);
+	if (ID_IS_LINKED_DATABLOCK(mask)) {
+		BKE_id_lib_local_paths(bmain, mask->id.lib, &mask_new->id);
 	}
 
 	return mask_new;

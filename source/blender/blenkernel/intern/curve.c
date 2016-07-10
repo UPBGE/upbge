@@ -58,6 +58,8 @@
 #include "BKE_global.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
+#include "BKE_library_query.h"
+#include "BKE_library_remap.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_material.h"
@@ -172,12 +174,13 @@ Curve *BKE_curve_add(Main *bmain, const char *name, int type)
 	return cu;
 }
 
-Curve *BKE_curve_copy(Curve *cu)
+Curve *BKE_curve_copy(Main *bmain, Curve *cu)
 {
 	Curve *cun;
 	int a;
 
-	cun = BKE_libblock_copy(&cu->id);
+	cun = BKE_libblock_copy(bmain, &cu->id);
+
 	BLI_listbase_clear(&cun->nurb);
 	BKE_nurbList_duplicate(&(cun->nurb), &(cu->nurb));
 
@@ -191,8 +194,10 @@ Curve *BKE_curve_copy(Curve *cu)
 	cun->tb = MEM_dupallocN(cu->tb);
 	cun->bb = MEM_dupallocN(cu->bb);
 
-	cun->key = BKE_key_copy(cu->key);
-	if (cun->key) cun->key->from = (ID *)cun;
+	if (cu->key) {
+		cun->key = BKE_key_copy(bmain, cu->key);
+		cun->key->from = (ID *)cun;
+	}
 
 	cun->editnurb = NULL;
 	cun->editfont = NULL;
@@ -207,29 +212,30 @@ Curve *BKE_curve_copy(Curve *cu)
 	id_us_plus((ID *)cun->vfonti);
 	id_us_plus((ID *)cun->vfontbi);
 
-	if (cu->id.lib) {
-		BKE_id_lib_local_paths(G.main, cu->id.lib, &cun->id);
+	if (ID_IS_LINKED_DATABLOCK(cu)) {
+		BKE_id_lib_local_paths(bmain, cu->id.lib, &cun->id);
 	}
 
 	return cun;
 }
 
-static void extern_local_curve(Curve *cu)
+static int extern_local_curve_callback(
+        void *UNUSED(user_data), struct ID *UNUSED(id_self), struct ID **id_pointer, int cd_flag)
 {
-	id_lib_extern((ID *)cu->vfont);
-	id_lib_extern((ID *)cu->vfontb);
-	id_lib_extern((ID *)cu->vfonti);
-	id_lib_extern((ID *)cu->vfontbi);
-
-	if (cu->mat) {
-		extern_local_matarar(cu->mat, cu->totcol);
+	/* We only tag usercounted ID usages as extern... Why? */
+	if ((cd_flag & IDWALK_USER) && *id_pointer) {
+		id_lib_extern(*id_pointer);
 	}
+	return IDWALK_RET_NOP;
 }
 
-void BKE_curve_make_local(Curve *cu)
+static void extern_local_curve(Curve *cu)
 {
-	Main *bmain = G.main;
-	Object *ob;
+	BKE_library_foreach_ID_link(&cu->id, extern_local_curve_callback, NULL, 0);
+}
+
+void BKE_curve_make_local(Main *bmain, Curve *cu)
+{
 	bool is_local = false, is_lib = false;
 
 	/* - when there are only lib users: don't do
@@ -237,40 +243,29 @@ void BKE_curve_make_local(Curve *cu)
 	 * - mixed: do a copy
 	 */
 
-	if (cu->id.lib == NULL)
-		return;
-
-	if (cu->id.us == 1) {
-		id_clear_lib_data(bmain, &cu->id);
-		extern_local_curve(cu);
+	if (!ID_IS_LINKED_DATABLOCK(cu)) {
 		return;
 	}
 
-	for (ob = bmain->object.first; ob && ELEM(0, is_lib, is_local); ob = ob->id.next) {
-		if (ob->data == cu) {
-			if (ob->id.lib) is_lib = true;
-			else is_local = true;
-		}
-	}
+	BKE_library_ID_test_usages(bmain, cu, &is_local, &is_lib);
 
-	if (is_local && is_lib == false) {
-		id_clear_lib_data(bmain, &cu->id);
-		extern_local_curve(cu);
-	}
-	else if (is_local && is_lib) {
-		Curve *cu_new = BKE_curve_copy(cu);
-		cu_new->id.us = 0;
-
-		BKE_id_lib_local_paths(bmain, cu->id.lib, &cu_new->id);
-
-		for (ob = bmain->object.first; ob; ob = ob->id.next) {
-			if (ob->data == cu) {
-				if (ob->id.lib == NULL) {
-					ob->data = cu_new;
-					id_us_plus(&cu_new->id);
-					id_us_min(&cu->id);
-				}
+	if (is_local) {
+		if (!is_lib) {
+			id_clear_lib_data(bmain, &cu->id);
+			if (cu->key) {
+				BKE_key_make_local(bmain, cu->key);
 			}
+			extern_local_curve(cu);
+		}
+		else {
+			Curve *cu_new = BKE_curve_copy(bmain, cu);
+
+			cu_new->id.us = 0;
+
+			/* Remap paths of new ID using old library as base. */
+			BKE_id_lib_local_paths(bmain, cu->id.lib, &cu_new->id);
+
+			BKE_libblock_remap(bmain, cu, cu_new, ID_REMAP_SKIP_INDIRECT_USAGE);
 		}
 	}
 }
@@ -1397,7 +1392,7 @@ unsigned int BKE_curve_calc_coords_axis_len(
 }
 
 /**
- * Calcualte an array for the entire curve (cyclic or non-cyclic).
+ * Calculate an array for the entire curve (cyclic or non-cyclic).
  * \note Call for each axis.
  *
  * \param use_cyclic_duplicate_endpoint: Duplicate values at the beginning & end of the array.
