@@ -85,9 +85,6 @@ public:
 	void BeginFrame();
 	void EndFrame();
 
-	void ClearColor(float r,float g,float b,float a);
-	void ClearBuffer(int type);
-
 	int GetWidth() const;
 	int GetHeight() const;
 

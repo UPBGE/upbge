@@ -101,9 +101,6 @@ public:
 	virtual void UpdateViewPort(int x1, int y1, int x2, int y2);
 	virtual const int *GetViewPort();
 
-	virtual void ClearColor(float r, float g, float b, float a);
-	virtual void ClearBuffer(int type);
-
 	virtual void MakeScreenShot(const char *filename);
 
 	virtual void Init(void);

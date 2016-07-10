@@ -48,6 +48,8 @@
 /* Non-generated shaders */
 extern char datatoc_gpu_shader_basic_instancing_frag_glsl[];
 extern char datatoc_gpu_shader_basic_instancing_vert_glsl[];
+extern char datatoc_gpu_shader_frame_buffer_frag_glsl[];
+extern char datatoc_gpu_shader_frame_buffer_vert_glsl[];
 extern char datatoc_gpu_shader_smoke_vert_glsl[];
 extern char datatoc_gpu_shader_smoke_frag_glsl[];
 extern char datatoc_gpu_shader_vsm_store_vert_glsl[];
@@ -72,6 +74,9 @@ static struct GPUShadersGlobal {
 		GPUShader *smoke;
 		GPUShader *smoke_fire;
 		GPUShader *instancing;
+		GPUShader *draw_frame_buffer;
+		GPUShader *stereo_stipple;
+		GPUShader *stereo_anaglyph;
 		/* cache for shader fx. Those can exist in combinations so store them here */
 		GPUShader *fx_shaders[MAX_FX_SHADERS * 2];
 	} shaders;
@@ -746,7 +751,28 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 				GG.shaders.instancing = GPU_shader_create(
 					datatoc_gpu_shader_basic_instancing_vert_glsl, datatoc_gpu_shader_basic_instancing_frag_glsl,
 					NULL, NULL, NULL, 0, 0, 0);
-				retval = GG.shaders.instancing;
+			retval = GG.shaders.instancing;
+			break;
+		case GPU_SHADER_DRAW_FRAME_BUFFER:
+			if (!GG.shaders.draw_frame_buffer)
+				GG.shaders.draw_frame_buffer = GPU_shader_create(
+					datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl,
+					NULL, NULL, NULL, 0, 0, 0);
+			retval = GG.shaders.draw_frame_buffer;
+			break;
+		case GPU_SHADER_STEREO_STIPPLE:
+			if (!GG.shaders.stereo_stipple)
+				GG.shaders.stereo_stipple = GPU_shader_create(
+					datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl,
+					NULL, NULL, "#define STIPPLE;\n", 0, 0, 0);
+			retval = GG.shaders.stereo_stipple;
+			break;
+		case GPU_SHADER_STEREO_ANAGLYPH:
+			if (!GG.shaders.stereo_anaglyph)
+				GG.shaders.stereo_anaglyph = GPU_shader_create(
+					datatoc_gpu_shader_frame_buffer_vert_glsl, datatoc_gpu_shader_frame_buffer_frag_glsl,
+					NULL, NULL, "#define ANAGLYPH;\n", 0, 0, 0);
+			retval = GG.shaders.stereo_anaglyph;
 			break;
 	}
 
@@ -857,6 +883,21 @@ void GPU_shader_free_builtin_shaders(void)
 	if (GG.shaders.smoke_fire) {
 		GPU_shader_free(GG.shaders.smoke_fire);
 		GG.shaders.smoke_fire = NULL;
+	}
+
+	if (GG.shaders.draw_frame_buffer) {
+		GPU_shader_free(GG.shaders.draw_frame_buffer);
+		GG.shaders.draw_frame_buffer = NULL;
+	}
+
+	if (GG.shaders.stereo_stipple) {
+		GPU_shader_free(GG.shaders.stereo_stipple);
+		GG.shaders.stereo_stipple = NULL;
+	}
+
+	if (GG.shaders.stereo_anaglyph) {
+		GPU_shader_free(GG.shaders.stereo_anaglyph);
+		GG.shaders.stereo_anaglyph = NULL;
 	}
 
 	for (i = 0; i < 2 * MAX_FX_SHADERS; ++i) {

@@ -266,11 +266,6 @@ void KX_KetsjiEngine::StartEngine(bool clearIpo)
 
 void KX_KetsjiEngine::ClearFrame()
 {
-	// clear unless we're drawing overlapping stereo
-	if (m_rasterizer->InterlacedStereo() &&
-	    m_rasterizer->GetEye() == RAS_IRasterizer::RAS_STEREO_RIGHTEYE)
-		return;
-
 	// clear the viewports with the background color of the first scene
 	bool doclear = false;
 	RAS_Rect clearvp, area, viewport;
@@ -306,6 +301,8 @@ void KX_KetsjiEngine::ClearFrame()
 		firstscene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight(), clearvp.GetTop());
+		m_rasterizer->SetViewport(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetWidth() + 1, clearvp.GetHeight() + 1);
+		m_rasterizer->SetScissor(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetWidth() + 1, clearvp.GetHeight() + 1);
 		/* Grey color computed by linearrgb_to_srgb_v3_v3 with a color of 
 		 * 0.050, 0.050, 0.050 (the default world horizon color).
 		 */
@@ -316,18 +313,9 @@ void KX_KetsjiEngine::ClearFrame()
 
 bool KX_KetsjiEngine::BeginFrame()
 {
-	// set the area used for rendering (stereo can assign only a subset)
-	m_rasterizer->SetRenderArea(m_canvas);
+	m_rasterizer->BeginFrame(m_kxsystem->GetTimeInSeconds());
 
-	if (m_canvas->BeginDraw()) {
-		ClearFrame();
-
-		m_rasterizer->BeginFrame(m_kxsystem->GetTimeInSeconds());
-
-		return true;
-	}
-
-	return false;
+	return (m_canvas->BeginDraw());
 }
 
 void KX_KetsjiEngine::EndFrame()
@@ -578,6 +566,9 @@ void KX_KetsjiEngine::Render()
 	KX_Scene *firstscene = (KX_Scene *)m_scenes->GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 
+	const int width = m_canvas->GetWidth();
+	const int height = m_canvas->GetHeight();
+
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
 	SG_SetActiveStage(SG_STAGE_RENDER);
 
@@ -586,119 +577,149 @@ void KX_KetsjiEngine::Render()
 	if (m_hideCursor)
 		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
 
-	// clear the entire game screen with the border color
-	// only once per frame
-	m_canvas->BeginDraw();
-	if (m_rasterizer->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED) {
-		m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
-		if (m_overrideFrameColor) {
-			// Do not use the framing bar color set in the Blender scenes
-			m_canvas->ClearColor(
-				m_overrideFrameColorR,
-				m_overrideFrameColorG,
-				m_overrideFrameColorB,
-				m_overrideFrameColorA
-				);
-		}
-		else {
-			// Use the framing bar color set in the Blender scenes
-			m_canvas->ClearColor(
-			    framesettings.BarRed(),
-			    framesettings.BarGreen(),
-			    framesettings.BarBlue(),
-			    1.0f);
-		}
-		// clear the -whole- viewport
-		m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER | RAS_ICanvas::DEPTH_BUFFER);
+	BeginFrame();
+
+	for (CListValue::iterator sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
+		// shadow buffers
+		RenderShadowBuffers((KX_Scene *)*sceit);
 	}
 
-	m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_LEFTEYE);
+	// Update all off screen to the current canvas size.
+	m_rasterizer->UpdateOffScreens(m_canvas);
+	// Bind render off screen as default.
+	m_rasterizer->BindOffScreen(RAS_IRasterizer::RAS_OFFSCREEN_RENDER);
 
-	// BeginFrame() sets the actual drawing area. You can use a part of the window
-	if (!BeginFrame())
-		return;
+	// clear the entire game screen with the border color
+	// only once per frame
+	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
+	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
+	if (m_overrideFrameColor) {
+		// Do not use the framing bar color set in the Blender scenes
+		m_rasterizer->SetClearColor(
+			m_overrideFrameColorR,
+			m_overrideFrameColorG,
+			m_overrideFrameColorB,
+			m_overrideFrameColorA
+			);
+	}
+	else {
+		// Use the framing bar color set in the Blender scenes
+		m_rasterizer->SetClearColor(
+		    framesettings.BarRed(),
+		    framesettings.BarGreen(),
+		    framesettings.BarBlue(),
+		    1.0f);
+	}
+	// clear the -whole- viewport
+	m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+
+	// Clear the render area (without bars).
+	ClearFrame();
+
+	const RAS_IRasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
+	// Set to true when each eye needs to be rendered in a separated off screen.
+	const bool renderpereye = stereomode == RAS_IRasterizer::RAS_STEREO_INTERLACED ||
+							  stereomode == RAS_IRasterizer::RAS_STEREO_VINTERLACE ||
+							  stereomode == RAS_IRasterizer::RAS_STEREO_ANAGLYPH;
+
+	const unsigned short numeyepass = (stereomode != RAS_IRasterizer::RAS_STEREO_NOSTEREO) ? 2 : 1;
+
+	// The current bound eye off screen if we are using per eye stereo.
+	int eyefboindex[2] = {RAS_IRasterizer::RAS_OFFSCREEN_EYE_LEFT0, RAS_IRasterizer::RAS_OFFSCREEN_EYE_RIGHT0};
+
+	// Used to detect when a camera is the first rendered an then doesn't request a depth clear.
+	unsigned short pass = 0;
 
 	// for each scene, call the proceed functions
-	for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
+	for (CListValue::iterator sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
 		KX_Scene *scene = (KX_Scene *)*sceit;
 		KX_Camera *activecam = scene->GetActiveCamera();
+		CListValue *cameras = scene->GetCameraList();
+
+		const bool firstscene = (scene == m_scenes->GetFront());
+		const bool lastscene = (scene == m_scenes->GetBack());
+
 		// pass the scene's worldsettings to the rasterizer
 		scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 
-		// shadow buffers
-		RenderShadowBuffers(scene);
+		m_rasterizer->SetAuxilaryClientInfo(scene);
 
-		// Avoid drawing the scene with the active camera twice when its viewport is enabled
-		if (activecam && !activecam->GetViewport()) {
-			if (scene->IsClearingZBuffer())
-				m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+		for (unsigned short eyepass = 0; eyepass < numeyepass; ++eyepass) {
+			m_rasterizer->SetEye((eyepass == 0) ? RAS_IRasterizer::RAS_STEREO_LEFTEYE : RAS_IRasterizer::RAS_STEREO_RIGHTEYE);
+			// set the area used for rendering (stereo can assign only a subset)
+			m_rasterizer->SetRenderArea(m_canvas);
 
-			m_rasterizer->SetAuxilaryClientInfo(scene);
-
-			// do the rendering
-			RenderFrame(scene, activecam);
-		}
-
-		CListValue *cameras = scene->GetCameraList();
-
-		// Draw the scene once for each camera with an enabled viewport
-		for (CListValue::iterator it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-			KX_Camera *cam = (KX_Camera*)(*it);
-			if (cam->GetViewport()) {
-				if (scene->IsClearingZBuffer())
-					m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-
-				m_rasterizer->SetAuxilaryClientInfo(scene);
-
-				// do the rendering
-				RenderFrame(scene, cam);
+			// Choose unique off screen per eyes in case of stereo.
+			if (renderpereye) {
+				m_rasterizer->BindOffScreen(eyefboindex[eyepass]);
+				// Clear eye off screen only before the first scene render.
+				if (firstscene) {
+					m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+				}
 			}
-		}
-		PostRenderScene(scene);
-	}
 
-	// only one place that checks for stereo
-	if (m_rasterizer->Stereo()) {
-		m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_RIGHTEYE);
-
-		if (!BeginFrame())
-			return;
-
-		// for each scene, call the proceed functions
-		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
-			KX_Scene *scene = (KX_Scene *)*sceit;
-			KX_Camera *activecam = scene->GetActiveCamera();
-
-			// pass the scene's worldsettings to the rasterizer
-			scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
-
-			if (scene->IsClearingZBuffer())
-				m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-
-			// pass the scene, for picking and raycasting (shadows)
-			m_rasterizer->SetAuxilaryClientInfo(scene);
-
-			// do the rendering
-			//RenderFrame(scene);
-			RenderFrame(scene, activecam);
-
-			CListValue *cameras = scene->GetCameraList();
+			// Avoid drawing the scene with the active camera twice when its viewport is enabled
+			if (activecam && !activecam->GetViewport()) {
+				// do the rendering
+				RenderFrame(scene, activecam, pass++);
+			}
 
 			// Draw the scene once for each camera with an enabled viewport
 			for (CListValue::iterator it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
 				KX_Camera *cam = (KX_Camera*)(*it);
 				if (cam->GetViewport()) {
-					if (scene->IsClearingZBuffer())
-						m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-
-					m_rasterizer->SetAuxilaryClientInfo(scene);
-
 					// do the rendering
-					RenderFrame(scene, cam);
+					RenderFrame(scene, cam, pass++);
 				}
 			}
-			PostRenderScene(scene);
+
+			// Process filters per eye off screen.
+			if (renderpereye) {
+				int target;
+				if (m_rasterizer->GetOffScreenSamples(eyefboindex[eyepass]) > 0) {
+					/* Only RAS_OFFSCREEN_EYE_[LEFT/RIGHT]0 has possible multisamples so we target
+					 * RAS_OFFSCREEN_EYE_[LEFT/RIGHT]1 if it's the last scene. */
+					if (lastscene) {
+						target = RAS_IRasterizer::NextEyeOffScreen(eyefboindex[eyepass]);
+					}
+					/* In case of multisamples and filters we're sure that a blit to RAS_OFFSCREEN_FILTER0
+					 * will be done so we can target the same off screen than in input of the filter prossesing. */
+					else {
+						target = eyefboindex[eyepass];
+					}
+				}
+				else {
+					target = RAS_IRasterizer::NextEyeOffScreen(eyefboindex[eyepass]);
+				}
+
+				PostRenderScene(scene, target);
+
+				// If no filter was rendered the current used off screen can be unchanged.
+				eyefboindex[eyepass] = m_rasterizer->GetCurrentOffScreenIndex();
+			}
 		}
+
+		// Process filters for non-per eye off screen render.
+		if (!renderpereye) {
+			/* Choose final off screen target. This operation as effect only for multisamples render off screen.
+			 * If it's the last scene, we can render the last filter to a non-multisamples off screen.
+			 * Else reuse the (maybe) multisamples off screen for the next scene renders.
+			 */
+			const int target = lastscene ? RAS_IRasterizer::RAS_OFFSCREEN_FINAL : RAS_IRasterizer::RAS_OFFSCREEN_RENDER;
+			PostRenderScene(scene, target);
+		}
+	}
+
+	m_canvas->SetViewPort(0, 0, width, height);
+
+	// Compositing per eye off screens to screen.
+	if (renderpereye) {
+		m_rasterizer->DrawStereoOffScreen(m_canvas, eyefboindex[RAS_IRasterizer::RAS_STEREO_LEFTEYE], eyefboindex[RAS_IRasterizer::RAS_STEREO_RIGHTEYE]);
+	}
+	// Else simply draw the off screen to screen.
+	else {
+		const short fboindex = m_rasterizer->GetCurrentOffScreenIndex();
+		m_rasterizer->DrawOffScreen(m_canvas, fboindex);
 	}
 
 	EndFrame();
@@ -883,8 +904,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			SG_SetActiveStage(SG_STAGE_RENDER);
 
 			/* render */
-			m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-			m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
+			m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT | RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
 			scene->RenderBuckets(camtrans, m_rasterizer);
 
 			/* unbind framebuffer object, restore drawmode, free camera */
@@ -896,7 +916,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 }
 
 // update graphics
-void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
+void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned short pass)
 {
 	bool override_camera;
 	RAS_Rect viewport, area;
@@ -915,12 +935,19 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 
 	GetSceneViewport(scene, cam, area, viewport);
 
-	// store the computed viewport in the scene
-	scene->SetSceneViewport(viewport);
-
 	// set the viewport for this frame and scene
-	m_canvas->SetViewPort(viewport.GetLeft(), viewport.GetBottom(),
-	                      viewport.GetRight(), viewport.GetTop());
+	const int left = viewport.GetLeft();
+	const int bottom = viewport.GetBottom();
+	const int width = viewport.GetWidth();
+	const int height = viewport.GetHeight();
+	m_rasterizer->SetViewport(left, bottom, width + 1, height + 1);
+	m_rasterizer->SetScissor(left, bottom, width + 1, height + 1);
+
+	/* Clear the depth after setting the scene viewport/scissor
+	 * if it's not the first render pass. */
+	if (pass > 0) {
+		m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+	}
 
 	// see KX_BlenderMaterial::Activate
 	//m_rasterizer->SetAmbient();
@@ -1058,22 +1085,21 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 /*
  * To run once per scene
  */
-void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene)
+void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, unsigned short target)
 {
 	KX_SetActiveScene(scene);
 
-	// Set the scene viewport.
 	m_rasterizer->FlushDebugShapes(scene);
 
 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
-	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
-	scene->Render2DFilters(m_rasterizer, m_canvas);
+	const int width = m_canvas->GetWidth();
+	const int height = m_canvas->GetHeight();
+	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
+	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
+
+	scene->Render2DFilters(m_rasterizer, m_canvas, target);
 
 #ifdef WITH_PYTHON
-	const RAS_Rect& viewport = scene->GetSceneViewport();
-	// Set again the scene viewport.
-	m_canvas->SetViewPort(viewport.GetLeft(), viewport.GetBottom(), viewport.GetRight(), viewport.GetTop());
-
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 	scene->RunDrawingCallbacks(scene->GetPostDrawCB());
 
@@ -1176,10 +1202,6 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	if (tottime < 1e-6f) {
 		tottime = 1e-6f;
 	}
-
-	// Set viewport to entire canvas
-	RAS_Rect viewport;
-	m_canvas->SetViewPort(0, 0, int(m_canvas->GetWidth()), int(m_canvas->GetHeight()));
 
 	if (m_show_framerate || m_show_profile) {
 		// Title for profiling("Profile")

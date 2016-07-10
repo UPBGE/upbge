@@ -382,27 +382,7 @@ void KX_Scene::SetFramingType(RAS_FrameSettings & frame_settings)
 const RAS_FrameSettings& KX_Scene::GetFramingType() const 
 {
 	return m_frame_settings;
-};
-
-
-
-/**
- * Store the current scene's viewport on the 
- * game engine canvas.
- */
-void KX_Scene::SetSceneViewport(const RAS_Rect &viewport)
-{
-	m_viewport = viewport;
 }
-
-
-
-const RAS_Rect& KX_Scene::GetSceneViewport() const 
-{
-	return m_viewport;
-}
-
-
 
 void KX_Scene::SetWorldInfo(class KX_WorldInfo* worldinfo)
 {
@@ -2077,9 +2057,9 @@ RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 	return m_filterManager;
 }
 
-void KX_Scene::Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
+void KX_Scene::Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short target)
 {
-	m_filterManager->RenderFilters(rasty, canvas);
+	m_filterManager->RenderFilters(rasty, canvas, target);
 }
 
 #ifdef WITH_PYTHON

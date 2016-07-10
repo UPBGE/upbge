@@ -43,16 +43,8 @@ public:
 		MAX_PREDEFINED_UNIFORM_TYPE
 	};
 
-	enum RenderedTextureType {
-		RENDERED_TEXTURE = 0,
-		LUMINANCE_TEXTURE,
-		DEPTH_TEXTURE,
-		MAX_RENDERED_TEXTURE_TYPE
-	};
-
 protected:
 	int m_predefinedUniforms[MAX_PREDEFINED_UNIFORM_TYPE];
-	unsigned int m_renderedTextures[MAX_RENDERED_TEXTURE_TYPE];
 
 	std::vector<STR_String> m_properties;
 	std::vector<unsigned int> m_propertiesLoc;
@@ -70,13 +62,10 @@ protected:
 
 	virtual bool LinkProgram();
 	void ParseShaderProgram();
-	void InitializeTextures(RAS_ICanvas *canvas);
 	void BindUniforms(RAS_ICanvas *canvas);
-	void BindTextures(RAS_ICanvas *canvas);
-	void UnbindTextures();
-	void DrawOverlayPlane(RAS_IRasterizer *rasty, RAS_ICanvas *canvas);
+	void BindTextures(RAS_IRasterizer *rasty, unsigned short depthfbo, unsigned short colorfbo);
+	void UnbindTextures(RAS_IRasterizer *rasty, unsigned short depthfbo, unsigned short colorfbo);
 	void ComputeTextureOffsets(RAS_ICanvas *canvas);
-	void ReleaseTextures();
 
 public:
 	RAS_2DFilter(RAS_2DFilterData& data);
@@ -85,8 +74,16 @@ public:
 	/// Called by the filter manager when it has informations like the display size, a gl context...
 	void Initialize(RAS_ICanvas *canvas);
 
-	/// Starts executing the filter.
-	void Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas);
+	/** Starts executing the filter.
+	 * \param rasty The used rasterizer to call draw commands.
+	 * \param canvas The canvas containing screen viewport.
+	 * \param depthfbo The off screen used only for the depth texture input, 
+	 * the same for all filters of a scene.
+	 * \param colorfbo The off screen used only for the color texture input, unique per filters.
+	 * \param outputfbo The off screen used to draw the filter to.
+	 */
+	void Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short depthfbo,
+			   unsigned short colorfbo, unsigned short outputfbo);
 
 	/// Finalizes the execution stage of the filter.
 	void End();

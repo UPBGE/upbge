@@ -36,8 +36,9 @@
 #include "MEM_guardedalloc.h"
 #endif
 
+#include "RAS_IRasterizer.h" // for RAS_IRasterizer::HdrType
+
 class RAS_Rect;
-class RAS_IRasterizer;
 struct TaskScheduler;
 struct TaskPool;
 struct ImageFormatData;
@@ -48,11 +49,6 @@ struct ImageFormatData;
 class RAS_ICanvas
 {
 public:
-	enum BufferType {
-		COLOR_BUFFER = 1,
-		DEPTH_BUFFER = 2
-	};
-
 	enum RAS_MouseState
 	{
 		MOUSE_INVISIBLE = 1,
@@ -88,8 +84,11 @@ public:
 	virtual void SetSwapInterval(int interval) = 0;
 	virtual bool GetSwapInterval(int& intervalOut) = 0;
 
-	virtual void ClearBuffer(int type) = 0;
-	virtual void ClearColor(float r, float g, float b, float a) = 0;
+	void SetSamples(int samples);
+	int GetSamples() const;
+
+	void SetHdrType(RAS_IRasterizer::HdrType type);
+	RAS_IRasterizer::HdrType GetHdrType() const;
 
 	virtual int GetWidth() const = 0;
 	virtual int GetHeight() const = 0;
@@ -156,6 +155,9 @@ public:
 	}
 
 protected:
+	int m_samples;
+	RAS_IRasterizer::HdrType m_hdrType;
+
 	RAS_MouseState m_mousestate;
 	/// frame number for screenshots.
 	int m_frame;

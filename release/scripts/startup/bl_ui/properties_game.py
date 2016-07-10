@@ -328,7 +328,6 @@ class RENDER_PT_game_player(RenderButtonsPanel, Panel):
 
         col = layout.column()
         col.label(text="Quality:")
-        col.prop(gs, "samples")
         col = layout.column(align=True)
         col.prop(gs, "depth", text="Bit Depth", slider=False)
         col.prop(gs, "frequency", text="Refresh Rate", slider=False)
@@ -429,6 +428,12 @@ class RENDER_PT_game_system(RenderButtonsPanel, Panel):
 
         row = layout.row()
         row.prop(gs, "raster_storage")
+
+        row = layout.row()
+        row.prop(gs, "samples")
+
+        row = layout.row()
+        row.prop(gs, "hdr")
 
         row = layout.row()
         row.label("Exit Key")

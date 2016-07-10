@@ -53,7 +53,7 @@ extern "C" {
 
 LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_IRasterizer::StereoMode stereoMode, 
 									   int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming)
-	:LA_Launcher(system, maggie, scene, gs, stereoMode, argc, argv),
+	:LA_Launcher(system, maggie, scene, gs, stereoMode, scene->gm.aasamples, argc, argv),
 	m_context(context),
 	m_ar(ar),
 	m_camFrame(camframe),
@@ -196,7 +196,9 @@ void LA_BlenderLauncher::RenderEngine()
 		// itself is unaware of the extra space, so we clear the whole region for it.
 		m_rasterizer->SetClearColor(m_startScene->gm.framing.col[0], m_startScene->gm.framing.col[1], m_startScene->gm.framing.col[2]);
 		m_rasterizer->SetViewport(m_ar->winrct.xmin, m_ar->winrct.ymin,
-		           BLI_rcti_size_x(&m_ar->winrct), BLI_rcti_size_y(&m_ar->winrct));
+		           BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
+		m_rasterizer->SetScissor(m_ar->winrct.xmin, m_ar->winrct.ymin,
+		           BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
 		m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
 	}
 	LA_Launcher::RenderEngine();

@@ -238,8 +238,8 @@ private:
 	 */
 	void UpdateSuspendedScenes();
 
-	void RenderFrame(KX_Scene *scene, KX_Camera *cam);
-	void PostRenderScene(KX_Scene *scene);
+	void RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned short pass);
+	void PostRenderScene(KX_Scene *scene, unsigned short target);
 	void RenderDebugProperties();
 
 public:

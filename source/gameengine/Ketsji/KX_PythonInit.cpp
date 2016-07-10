@@ -76,7 +76,6 @@ extern "C" {
 #include "KX_PyConstraintBinding.h"
 
 #include "KX_KetsjiEngine.h"
-#include "KX_OffScreen.h"
 #include "KX_RadarSensor.h"
 #include "KX_RaySensor.h"
 #include "KX_MovementSensor.h"
@@ -1354,54 +1353,6 @@ static PyObject *gPyGetDisplayDimensions(PyObject *)
 	return result;
 }
 
-static PyObject *gPyOffScreenCreate(PyObject *UNUSED(self), PyObject *args, PyObject *kwds)
-{
-	int width;
-	int height;
-	int samples = 0;
-	int target = RAS_IOffScreen::RAS_OFS_RENDER_BUFFER;
-	const char *keywords[] = {"width", "height", "samples", "target", NULL};
-
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "ii|ii:RASOffscreen", (char **)keywords, &width, &height, &samples, &target)) {
-		return NULL;
-	}
-
-	if (width <= 0) {
-		PyErr_SetString(PyExc_ValueError, "negative 'width' given");
-		return NULL;
-	}
-
-	if (height <= 0) {
-		PyErr_SetString(PyExc_ValueError, "negative 'height' given");
-		return NULL;
-	}
-
-	if (samples < 0) {
-		PyErr_SetString(PyExc_ValueError, "negative 'samples' given");
-		return NULL;
-	}
-
-	if (target != RAS_IOffScreen::RAS_OFS_RENDER_BUFFER && target != RAS_IOffScreen::RAS_OFS_RENDER_TEXTURE) {
-		PyErr_SetString(PyExc_ValueError, "invalid 'target' given, can only be RAS_OFS_RENDER_BUFFER or RAS_OFS_RENDER_TEXTURE");
-		return NULL;
-	}
-
-	RAS_IRasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
-	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
-	if (!rasterizer) {
-		PyErr_SetString(PyExc_SystemError, "no rasterizer");
-		return NULL;
-	}
-
-	KX_OffScreen *ofs = new KX_OffScreen(rasterizer, canvas, width, height, samples, (RAS_IOffScreen::RAS_OFS_RENDER_TARGET)target);
-	if (!ofs->GetOffScreen()) {
-		PyErr_SetString(PyExc_SystemError, "creation failed");
-		return NULL;
-	}
-
-	return ofs->NewProxy(true);
-}
-
 PyDoc_STRVAR(Rasterizer_module_documentation,
 "This is the Python API for the game engine of Rasterizer"
 );
@@ -1456,7 +1407,6 @@ static struct PyMethodDef rasterizer_methods[] = {
 	{"showProperties",(PyCFunction) gPyShowProperties, METH_VARARGS, "show or hide the debug properties"},
 	{"autoDebugList",(PyCFunction) gPyAutoDebugList, METH_VARARGS, "enable or disable auto adding debug properties to the debug  list"},
 	{"clearDebugList",(PyCFunction) gPyClearDebugList, METH_NOARGS, "clears the debug property list"},
-	{"offScreenCreate", (PyCFunction) gPyOffScreenCreate, METH_VARARGS | METH_KEYWORDS, "create an offscreen buffer object, arguments are width and height in pixels"},
 	{ NULL, (PyCFunction) NULL, 0, NULL }
 };
 
@@ -2321,10 +2271,6 @@ PyMODINIT_FUNC initRasterizerPythonBinding()
 	/* stereoscopy */
 	KX_MACRO_addTypesToDict(d, LEFT_EYE, RAS_IRasterizer::RAS_STEREO_LEFTEYE);
 	KX_MACRO_addTypesToDict(d, RIGHT_EYE, RAS_IRasterizer::RAS_STEREO_RIGHTEYE);
-
-	/* offscreen render */
-	KX_MACRO_addTypesToDict(d, RAS_OFS_RENDER_BUFFER, RAS_IOffScreen::RAS_OFS_RENDER_BUFFER);
-	KX_MACRO_addTypesToDict(d, RAS_OFS_RENDER_TEXTURE, RAS_IOffScreen::RAS_OFS_RENDER_TEXTURE);
 
 
 	// XXXX Add constants here

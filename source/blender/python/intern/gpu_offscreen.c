@@ -376,7 +376,7 @@ static PyObject *pygpu_offscreen_new(PyObject *UNUSED(self), PyObject *args, PyO
 		return NULL;
 	}
 
-	ofs = GPU_offscreen_create(width, height, samples, err_out);
+	ofs = GPU_offscreen_create(width, height, samples, GPU_OFFSCREEN_DEPTH_COMPARE, GPU_HDR_NONE, err_out);
 
 	if (ofs == NULL) {
 		PyErr_Format(PyExc_RuntimeError,

@@ -2548,7 +2548,7 @@ GPULamp *GPU_lamp_from_blender(Scene *scene, Object *ob, Object *par)
 
 		if (lamp->la->shadowmap_type == LA_SHADMAP_VARIANCE) {
 			/* Shadow depth map */
-			lamp->depthtex = GPU_texture_create_depth(lamp->size, lamp->size, NULL);
+			lamp->depthtex = GPU_texture_create_depth(lamp->size, lamp->size, true, NULL);
 			if (!lamp->depthtex) {
 				gpu_lamp_shadow_free(lamp);
 				return lamp;
@@ -2605,7 +2605,7 @@ GPULamp *GPU_lamp_from_blender(Scene *scene, Object *ob, Object *par)
 			GPU_framebuffer_texture_unbind(lamp->blurfb, lamp->blurtex);
 		}
 		else {
-			lamp->tex = GPU_texture_create_depth(lamp->size, lamp->size, NULL);
+			lamp->tex = GPU_texture_create_depth(lamp->size, lamp->size, true, NULL);
 			if (!lamp->tex) {
 				gpu_lamp_shadow_free(lamp);
 				return lamp;

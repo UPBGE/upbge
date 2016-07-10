@@ -442,7 +442,7 @@ bool GPU_fx_compositor_initialize_passes(
 			return false;
 		}
 
-		if (!(fx->depth_buffer = GPU_texture_create_depth(w, h, err_out))) {
+		if (!(fx->depth_buffer = GPU_texture_create_depth(w, h, true, err_out))) {
 			printf("%.256s\n", err_out);
 			cleanup_fx_gl_data(fx, true);
 			return false;
@@ -644,7 +644,7 @@ void GPU_fx_compositor_setup_XRay_pass(GPUFX *fx, bool do_xray)
 
 	if (do_xray) {
 		if (!fx->depth_buffer_xray &&
-		    !(fx->depth_buffer_xray = GPU_texture_create_depth(fx->gbuffer_dim[0], fx->gbuffer_dim[1], err_out)))
+		    !(fx->depth_buffer_xray = GPU_texture_create_depth(fx->gbuffer_dim[0], fx->gbuffer_dim[1], true, err_out)))
 		{
 			printf("%.256s\n", err_out);
 			cleanup_fx_gl_data(fx, true);
