@@ -104,7 +104,9 @@ protected:
 		std::vector<SCA_IInputDevice::SCA_EnumInputs> keys;
 	} m_pythonConsole;
 
+#ifdef WITH_PYTHON
 	void HandlePythonConsole();
+#endif  // WITH_PYTHON
 
 	/// Execute engine render, overrided to render background.
 	virtual void RenderEngine();

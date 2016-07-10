@@ -358,6 +358,8 @@ void LA_Launcher::ExitEngine()
 	m_exitRequested = KX_EXIT_REQUEST_NO_REQUEST;
 }
 
+#ifdef WITH_PYTHON
+
 void LA_Launcher::HandlePythonConsole()
 {
 	if (!m_pythonConsole.use) {
@@ -381,8 +383,6 @@ void LA_Launcher::HandlePythonConsole()
 		m_inputDevice->ConvertEvent(m_pythonConsole.keys[i], 0, 0);
 	}
 }
-
-#ifdef WITH_PYTHON
 
 int LA_Launcher::PythonEngineNextFrame(void *state)
 {

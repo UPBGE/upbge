@@ -450,9 +450,11 @@ double*		CValue::GetVector3(bool bGetTransformedVec)
 
 void CValue::DestructFromPython()
 {
+#ifdef WITH_PYTHON
 	// Avoid decrefing freed proxy in destructor.
 	m_proxy = NULL;
 	Release();
+#endif  // WITH_PYTHON
 }
 
 //
