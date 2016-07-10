@@ -79,7 +79,8 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, KX_OffScreen *off
     m_mirror(NULL),
     m_clip(100.f),
     m_mirrorHalfWidth(0.f),
-    m_mirrorHalfHeight(0.f)
+    m_mirrorHalfHeight(0.f),
+	m_updateShadowBuffer(false)
 {
 	// initialize background color to scene background color as default
 	setHorizonFromScene(m_scene);
@@ -104,6 +105,18 @@ ImageRender::~ImageRender (void)
 	if (m_offscreen) {
 		m_offscreen->Release();
 	}
+}
+
+// get update shadow buffer
+bool ImageRender::getUpdateShadowBuffer()
+{
+	return m_updateShadowBuffer;
+}
+
+// set update shadow buffer
+void ImageRender::setUpdateShadowBuffer(bool refresh)
+{
+	m_updateShadowBuffer = refresh;
 }
 
 // get horizon color
@@ -194,7 +207,9 @@ bool ImageRender::Render()
 		return false;
 	}
 
-	m_engine->RenderShadowBuffers(m_scene);
+	if (m_updateShadowBuffer) {
+		m_engine->RenderShadowBuffers(m_scene);
+	}
 
 	if (m_mirror)
 	{
@@ -612,6 +627,20 @@ static int setZenith(PyImage *self, PyObject *value, void *closure)
 	return 0;
 }
 
+// get update shadow buffer
+static PyObject *getUpdateShadow(PyImage *self)
+{
+	return PyBool_FromLong(getImageRender(self)->getUpdateShadowBuffer());
+}
+
+// set update shadow buffer
+static int setUpdateShadow(PyImage *self, PyObject *value)
+{
+	ImageRender *imageRender = getImageRender(self);
+	imageRender->setUpdateShadowBuffer(PyLong_AsLong(value));
+	return NULL;
+}
+
 // methods structure
 static PyMethodDef imageRenderMethods[] =
 { // methods from ImageBase class
@@ -638,6 +667,7 @@ static PyGetSetDef imageRenderGetSets[] =
 	{(char*)"zbuff", (getter)Image_getZbuff, (setter)Image_setZbuff, (char*)"use depth buffer as texture", NULL},
 	{(char*)"depth", (getter)Image_getDepth, (setter)Image_setDepth, (char*)"get depth information from z-buffer using unsigned int precision", NULL},
 	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", NULL},
+	{(char*)"updateShadow", (getter)getUpdateShadow, (setter)setUpdateShadow, (char*)"update shadow buffers", NULL},
 	{NULL}
 };
 
@@ -803,6 +833,7 @@ static PyGetSetDef imageMirrorGetSets[] =
 	{(char*)"zbuff", (getter)Image_getZbuff, (setter)Image_setZbuff, (char*)"use depth buffer as texture", NULL},
 	{(char*)"depth", (getter)Image_getDepth, (setter)Image_setDepth, (char*)"get depth information from z-buffer using unsigned int precision", NULL},
 	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", NULL},
+	{(char*)"updateShadow", (getter)getUpdateShadow, (setter)setUpdateShadow, (char*)"update shadow buffers", NULL},
 	{NULL}
 };
 

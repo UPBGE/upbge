@@ -66,6 +66,12 @@ public:
 	/// set zenith color
 	void setZenith(float red, float green, float blue, float alpha);
 
+	/// get update shadow buffer
+	bool getUpdateShadowBuffer();
+	/// set update shadow buffer
+	void setUpdateShadowBuffer(bool refresh);
+
+
 	/// clipping distance
 	float getClip (void) { return m_clip; }
 	/// set whole buffer use
@@ -82,6 +88,8 @@ public:
 protected:
 	/// true if ready to render
 	bool m_render;
+	/// update shadow buffer?
+	bool m_updateShadowBuffer;
 	/// is render done already?
 	bool m_done;
 	/// rendered scene

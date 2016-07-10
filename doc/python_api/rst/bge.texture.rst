@@ -411,6 +411,12 @@ Image classes
 
       Deprecated use :py:meth:`bge.texture.ImageMirror.horizon` or :py:meth:`bge.texture.ImageMirror.zenith` instead.
 
+   .. attribute:: updateShadow
+
+      Choose to force shadow buffer update if there is a gap beetween image rendered and shadows.
+
+      :type: bool
+
    .. attribute:: capsize
 
       Size of render area.
