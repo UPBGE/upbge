@@ -69,6 +69,7 @@ ExpDesc MirrorTooSmallDesc(MirrorTooSmall, "Mirror is too small");
 ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, KX_OffScreen *offscreen) :
     ImageViewport(offscreen),
     m_render(true),
+    m_updateShadowBuffer(false),
     m_done(false),
     m_scene(scene),
     m_camera(camera),
@@ -79,8 +80,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, KX_OffScreen *off
     m_mirror(NULL),
     m_clip(100.f),
     m_mirrorHalfWidth(0.f),
-    m_mirrorHalfHeight(0.f),
-	m_updateShadowBuffer(false)
+    m_mirrorHalfHeight(0.f)
 {
 	// initialize background color to scene background color as default
 	setHorizonFromScene(m_scene);
