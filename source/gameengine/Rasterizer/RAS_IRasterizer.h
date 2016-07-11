@@ -92,7 +92,6 @@ public:
 	/**
 	 */
 	enum {
-		RAS_RENDER_3DPOLYGON_TEXT = 64, // GEMAT_TEXT
 		RAS_BACKCULL = 16, // GEMAT_BACKCULL
 	};
 
@@ -374,11 +373,6 @@ public:
 	 * bucket with the geometry instancing way.
 	 */
 	virtual void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket) = 0;
-
-	/**
-	 * IndexPrimitives_3DText will render text into the polygons.
-	 */
-	virtual void IndexPrimitives_3DText(class RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat) = 0;
 
 	/// Render text mesh slot using BLF functions.
 	virtual void IndexPrimitivesText(RAS_MeshSlot *ms) = 0;

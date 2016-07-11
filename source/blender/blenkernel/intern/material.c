@@ -1852,8 +1852,7 @@ static void decode_tfaceflag(Material *ma, int flag, int convertall)
 	/* Special Face Properties */
 	if ((flag & TF_TWOSIDE) == 0) (*game).flag |= GEMAT_BACKCULL;
 	if (flag & TF_INVISIBLE) (*game).flag |= GEMAT_INVISIBLE;
-	if (flag & TF_BMFONT) (*game).flag |= GEMAT_TEXT;
-	
+
 	/* Face Orientation */
 	if (flag & TF_BILLBOARD) (*game).face_orientation |= GEMAT_HALO;
 	else if (flag & TF_BILLBOARD2) (*game).face_orientation |= GEMAT_BILLBOARD;

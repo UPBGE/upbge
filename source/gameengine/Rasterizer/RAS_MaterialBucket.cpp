@@ -192,11 +192,7 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 		rasty->MultMatrix(mat);
 	}
 
-	if (m_material->GetDrawingMode() & RAS_IRasterizer::RAS_RENDER_3DPOLYGON_TEXT) {
-		// for text drawing using faces
-		rasty->IndexPrimitives_3DText(ms, m_material);
-	}
-	else if (m_material->IsText()) {
+	if (m_material->IsText()) {
 		rasty->IndexPrimitivesText(ms);
 	}
 	else {

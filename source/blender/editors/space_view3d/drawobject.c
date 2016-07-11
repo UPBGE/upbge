@@ -4051,10 +4051,6 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			else
 				dm->drawFacesGLSL(dm, GPU_object_material_bind);
 
-#if 0 /* XXX */
-			if (BKE_bproperty_object_get(ob, "Text"))
-				draw_mesh_text(ob, 1);
-#endif
 			GPU_object_material_unbind();
 
 			glFrontFace(GL_CCW);
