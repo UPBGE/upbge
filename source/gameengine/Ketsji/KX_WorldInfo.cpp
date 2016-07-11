@@ -163,12 +163,17 @@ void KX_WorldInfo::setAmbientColor(const MT_Vector3& ambientcolor)
 void KX_WorldInfo::UpdateBackGround(RAS_IRasterizer *rasty)
 {
 	if (m_hasworld) {
+		// Update World values for world material created in GPU_material_world/GPU_material_old_world.
 		m_scene->world->zenr = m_zenithcolor[0];
 		m_scene->world->zeng = m_zenithcolor[1];
 		m_scene->world->zenb = m_zenithcolor[2];
 		m_scene->world->horr = m_horizoncolor[0];
 		m_scene->world->horg = m_horizoncolor[1];
 		m_scene->world->horb = m_horizoncolor[2];
+
+		// Update GPUWorld values for regular materials.
+		GPU_horizon_update_color(m_horizoncolor.getValue());
+		GPU_zenith_update_color(m_zenithcolor.getValue());
 	}
 }
 

@@ -1882,8 +1882,8 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 							GPU_link(mat, "math_multiply", f, GPU_uniform(&world->ao_env_energy), &f);
 							GPU_link(mat, "shade_mul_value", f, shi->rgb, &fcol);
 							GPU_link(mat, "env_apply", shr->combined,
-							         GPU_dynamic_uniform(GPUWorld.horicol, GPU_DYNAMIC_HORIZON_COLOR, NULL),
-							         GPU_dynamic_uniform(GPUWorld.zencol, GPU_DYNAMIC_ZENITH_COLOR, NULL), fcol,
+							         GPU_select_uniform(GPUWorld.horicol, GPU_DYNAMIC_HORIZON_COLOR, NULL, ma),
+							         GPU_select_uniform(GPUWorld.zencol, GPU_DYNAMIC_ZENITH_COLOR, NULL, ma), fcol,
 							         GPU_builtin(GPU_VIEW_MATRIX), shi->vn, &shr->combined);
 						}
 					}

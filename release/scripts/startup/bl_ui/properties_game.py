@@ -635,6 +635,10 @@ class WORLD_PT_game_world(WorldButtonsPanel, Panel):
         col.active = world.use_sky_blend
         row.column().prop(world, "ambient_color")
 
+        row = layout.row()
+        row.prop(world, "exposure")
+        row.prop(world, "color_range")
+
 
 class WORLD_PT_game_environment_lighting(WorldButtonsPanel, Panel):
     bl_label = "Environment Lighting"
@@ -659,10 +663,6 @@ class WORLD_PT_game_environment_lighting(WorldButtonsPanel, Panel):
         split = layout.split()
         split.prop(light, "environment_energy", text="Energy")
         split.prop(light, "environment_color", text="")
-
-        row = layout.row()
-        row.prop(world, "exposure")
-        row.prop(world, "color_range")
 
 
 class WORLD_PT_game_mist(WorldButtonsPanel, Panel):
