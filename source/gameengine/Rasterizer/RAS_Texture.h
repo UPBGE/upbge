@@ -55,6 +55,7 @@ public:
 
 	enum {MaxUnits = 8};
 
+	virtual void CheckValidTexture() = 0;
 	virtual void ActivateTexture(int unit) = 0;
 	virtual void DisableTexture() = 0;
 

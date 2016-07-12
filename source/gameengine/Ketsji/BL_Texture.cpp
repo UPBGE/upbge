@@ -79,15 +79,13 @@ BL_Texture::~BL_Texture()
 	m_mtex->parallaxsteps = m_savedData.parallaxstepfac;
 	m_mtex->lodbias = m_savedData.lodbias;
 
-	GPUTexture *gputex = GetGPUTexture();
-
-	if (gputex) {
-		GPU_texture_set_opengl_bindcode(gputex, m_savedData.bindcode);
+	if (m_gpuTex) {
+		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
 		GPU_texture_free(m_gpuTex);
 	}
 }
 
-GPUTexture *BL_Texture::GetGPUTexture()
+void BL_Texture::CheckValidTexture()
 {
 	/* Test if the texture is owned only by us, if it's the case then it means
 	 * that no materials use it anymore and that we have to get a pointer of 
@@ -100,22 +98,27 @@ GPUTexture *BL_Texture::GetGPUTexture()
 
 		const int gltextarget = m_cubeMap ? GetCubeMapTextureType() : GetTexture2DType();
 
-		GPU_free_image(ima);
+		// Restore gpu texture original bind cdoe to make sure we will delete the right opengl texture.
+		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
+		GPU_texture_free(m_gpuTex);
 
 		m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : NULL);
 
 		if (m_gpuTex) {
-			m_savedData.bindcode = GPU_texture_opengl_bindcode(m_gpuTex);
+			int bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
+			// If our bind code was the same as the previous gpu texture bind code, then we update it to the new bind code.
+			if (m_bindCode == m_savedData.bindcode) {
+				m_bindCode = bindCode;
+			}
+			m_savedData.bindcode = bindCode;
 			GPU_texture_ref(m_gpuTex);
 		}
 	}
-	return m_gpuTex;
 }
 
 bool BL_Texture::Ok()
 {
-	GPUTexture *gputex = GetGPUTexture();
-	return (gputex != NULL);
+	return (m_gpuTex != NULL);
 }
 
 MTex *BL_Texture::GetMTex()
@@ -130,8 +133,7 @@ Image *BL_Texture::GetImage()
 
 unsigned int BL_Texture::GetTextureType()
 {
-	GPUTexture *gputex = GetGPUTexture();
-	return GPU_texture_target(gputex);
+	return GPU_texture_target(m_gpuTex);
 }
 
 void BL_Texture::ActivateTexture(int unit)
@@ -140,15 +142,13 @@ void BL_Texture::ActivateTexture(int unit)
 	 * we should reapply the bindcode in case of VideoTexture owned texture.
 	 * Without that every material that use this GPUTexture will then use
 	 * the VideoTexture texture, it's not wanted. */
-	GPUTexture *gputex = GetGPUTexture();
-	GPU_texture_set_opengl_bindcode(gputex, m_bindCode);
-	GPU_texture_bind(gputex, unit);
+	GPU_texture_set_opengl_bindcode(m_gpuTex, m_bindCode);
+	GPU_texture_bind(m_gpuTex, unit);
 }
 
 void BL_Texture::DisableTexture()
 {
-	GPUTexture *gputex = GetGPUTexture();
-	GPU_texture_unbind(gputex);
+	GPU_texture_unbind(m_gpuTex);
 }
 
 unsigned int BL_Texture::swapTexture(unsigned int bindcode)

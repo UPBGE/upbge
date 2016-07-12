@@ -245,12 +245,21 @@ void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 
 	m_shader->ApplyShader();
 
+	/** We make sure that all gpu textures are the same in material textures here
+	 * than in gpu material. This is dones in a separated loop because the texture
+	 * regeneration can overide bind settings of the previous texture.
+	 */
+	for (i = 0; i < RAS_Texture::MaxUnits; i++) {
+		if (m_textures[i] && m_textures[i]->Ok()) {
+			m_textures[i]->CheckValidTexture();
+		}
+	}
+
 	// for each enabled unit
 	for (i = 0; i < RAS_Texture::MaxUnits; i++) {
-		if (!m_textures[i] || !m_textures[i]->Ok()) {
-			continue;
+		if (m_textures[i] && m_textures[i]->Ok()) {
+			m_textures[i]->ActivateTexture(i);
 		}
-		m_textures[i]->ActivateTexture(i);
 	}
 
 	if (!m_userDefBlend) {

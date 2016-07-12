@@ -56,8 +56,6 @@ private:
 		float lodbias;
 	} m_savedData;
 
-	GPUTexture *GetGPUTexture();
-
 public:
 	BL_Texture(MTex *mtex, bool cubemap);
 	virtual ~BL_Texture();
@@ -74,6 +72,7 @@ public:
 
 	enum {MaxUnits = 8};
 
+	virtual void CheckValidTexture();
 	virtual void ActivateTexture(int unit);
 	virtual void DisableTexture();
 	unsigned int swapTexture(unsigned int bindcode);
