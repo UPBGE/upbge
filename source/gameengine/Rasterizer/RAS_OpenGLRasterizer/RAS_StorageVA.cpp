@@ -30,6 +30,7 @@
 #include "RAS_DisplayArray.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshUser.h"
+#include <algorithm>    // std::min_element, std::max_element
 
 #include "glew-mx.h"
 
@@ -186,8 +187,43 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 	else
 		glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
 
-	// here the actual drawing takes places
-	glDrawElements(array->GetOpenGLPrimitiveType(), array->m_index.size(), GL_UNSIGNED_INT, indexarray);
+	/* For big display lists, using only one draw call with glDrawElements can generate a bottleneck
+	 * in Vertex Array mode, and cause a performance decrease. So we split the array list into
+	 * several parts and make one draw call for each part with glDrawRageElements */
+	if (array->m_index.size() > 50000 && displayList) {
+		/* To find the right number of parts, we have to check that array->m_index.size() / number of parts is
+		 * divisible by 3 (because there are only triangles in the list and we don't want to make the cut/split
+		 * at after the first index of a triangle and before the last index of the triangle. This would cause 
+		 * drawing issues) */
+
+		int j = 3; // I choosed to begin with 3 parts to have a minimum split of 3 but we can change it to 2
+		int parts;
+		while (true)
+		{
+			if ((array->m_index.size() / j) % 3 == 0) {
+				parts = j;
+				break;
+			}
+			j++;
+		}
+
+		/* We have the the right number of parts, so let's call glGrawRangeElements for each part
+		 * Precision: all this code is runned only one time per mesh at game engine start as we use 
+		 * glCallList once the list is created */
+		for (int i = 0; i < parts; ++i) {
+
+			unsigned int mode = array->GetOpenGLPrimitiveType();
+			unsigned int start = *std::min_element(array->m_index.begin() + i * array->m_index.size() / parts, array->m_index.begin() + (i + 1) * array->m_index.size() / parts);
+			unsigned int end = *std::max_element(array->m_index.begin() + i * array->m_index.size() / parts, array->m_index.begin() + (i + 1) * array->m_index.size() / parts);
+			unsigned int offset = array->m_index.size() / parts * i;
+			unsigned int count = array->m_index.size() / parts;
+			glDrawRangeElements(mode, start, end, count, GL_UNSIGNED_INT, indexarray + offset);
+		}
+	}
+	else {
+		// here the actual drawing takes places
+		glDrawElements(array->GetOpenGLPrimitiveType(), array->m_index.size(), GL_UNSIGNED_INT, indexarray);
+	}
 
 	if (displayList) {
 		displayList->End(m_drawingmode, RAS_DisplayList::DRAW_LIST);
