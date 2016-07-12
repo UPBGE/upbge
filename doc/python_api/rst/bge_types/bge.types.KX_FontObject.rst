@@ -30,3 +30,15 @@ base class --- :class:`KX_GameObject`
 
       :type: string
 
+   .. attribute:: resolution
+
+      The resolution of the font police. .. warning:: (\n) High resolutions can use a lot of memory and may crash Blender.
+
+      :type: float (0.1 to 50.0)
+
+   .. attribute:: size
+
+      The size (scale factor) of the font object, scaled from font object origin (affects text resolution). .. warning:: (\n) High sizes can use a lot of memory and may crash Blender.
+
+      :type: float (0.0001 to 40.0)
+
