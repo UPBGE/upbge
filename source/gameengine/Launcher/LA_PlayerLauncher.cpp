@@ -53,12 +53,16 @@ extern "C" {
 
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
 								 RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv)
-	:LA_Launcher(system, maggie, scene, gs, stereoMode, argc, argv)
+	:LA_Launcher(system, maggie, scene, gs, stereoMode, argc, argv),
+	m_mainWindow(NULL)
 {
 }
 
 LA_PlayerLauncher::~LA_PlayerLauncher()
 {
+	if (m_mainWindow) {
+		m_system->disposeWindow(m_mainWindow);
+	}
 }
 
 #ifdef WIN32
