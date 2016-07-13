@@ -1126,6 +1126,8 @@ int main(
 
 	SYS_DeleteSystem(syshandle);
 
+	BLI_threadapi_exit();
+
 	int totblock= MEM_get_memory_blocks_in_use();
 	if (totblock!=0) {
 		printf("Error Totblock: %d\n",totblock);
