@@ -861,7 +861,7 @@ int main(
 				GlobalSettings gs;
 
 #ifdef WITH_PYTHON
-				PyObject *globalDict = PyDict_New();
+				PyObject *globalDict = NULL;
 #endif  // WITH_PYTHON
 
 				do {
@@ -987,6 +987,9 @@ int main(
 
 						LA_PlayerLauncher launcher(system, maggie, scene, &gs, stereomode, argc, argv); /* this argc cant be argc_py_clamped, since python uses it */
 #ifdef WITH_PYTHON
+						if (!globalDict) {
+							globalDict = PyDict_New();
+						}
 						launcher.SetPythonGlobalDict(globalDict);
 #endif  // WITH_PYTHON
 
@@ -1084,9 +1087,11 @@ int main(
 				} while (exitcode == KX_EXIT_REQUEST_RESTART_GAME || exitcode == KX_EXIT_REQUEST_START_OTHER_GAME);
 
 #ifdef WITH_PYTHON
-
-				PyDict_Clear(globalDict);
-				Py_DECREF(globalDict);
+				// If the globalDict is to NULL then python is certainly not initialized.
+				if (globalDict) {
+					PyDict_Clear(globalDict);
+					Py_DECREF(globalDict);
+				}
 #endif
 			}
 
