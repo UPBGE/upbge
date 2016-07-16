@@ -39,7 +39,7 @@ private:
 	PyObject* m_event_dict;
 #endif
 public:
-	SCA_PythonJoystick(class SCA_Joystick* joystick, int m_joyindex);
+	SCA_PythonJoystick(class SCA_Joystick* joystick, int joyindex);
 	virtual ~SCA_PythonJoystick();
 
 #ifdef WITH_PYTHON
