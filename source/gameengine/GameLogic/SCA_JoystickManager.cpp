@@ -43,7 +43,6 @@ SCA_JoystickManager::SCA_JoystickManager(class SCA_LogicManager* logicmgr)
 
 SCA_JoystickManager::~SCA_JoystickManager()
 {
-	SCA_Joystick::Close();
 }
 
 

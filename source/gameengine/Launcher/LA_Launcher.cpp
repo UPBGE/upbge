@@ -280,6 +280,7 @@ void LA_Launcher::InitEngine()
 
 void LA_Launcher::ExitEngine()
 {
+	SCA_Joystick::Close();
 	m_ketsjiEngine->StopEngine();
 
 #ifdef WITH_PYTHON

@@ -64,11 +64,7 @@ SCA_Joystick::SCA_Joystick(short index)
 
 
 SCA_Joystick::~SCA_Joystick()
-
 {
-#ifdef WITH_SDL
-	delete m_private;
-#endif
 }
 
 SCA_Joystick *SCA_Joystick::m_instance[JOYINDEX_MAX];
@@ -107,6 +103,12 @@ void SCA_Joystick::Init()
 void SCA_Joystick::Close()
 {
 #ifdef WITH_SDL
+	/* Closing possible connected Joysticks */
+	for (int i = 0; i < JOYINDEX_MAX; i++) {
+		m_instance[i]->ReleaseInstance(i);
+	}
+
+	/* Closing SDL Game controller system */
 	if (!SDL_CHECK(SDL_QuitSubSystem)) {
 		SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
 }
@@ -133,9 +135,10 @@ void SCA_Joystick::ReleaseInstance(short joyindex)
 #ifdef WITH_SDL
 	if (m_instance[joyindex]) {
 		m_instance[joyindex]->DestroyJoystickDevice();
+		delete m_private;
 		delete m_instance[joyindex];
-		m_instance[joyindex] = NULL;
 	}
+	m_instance[joyindex] = NULL;
 #endif /* WITH_SDL */
 }
 
