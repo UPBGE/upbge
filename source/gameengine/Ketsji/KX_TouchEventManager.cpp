@@ -223,8 +223,8 @@ void KX_TouchEventManager::NextFrame()
 			}
 			// Run python callbacks
 			const PHY_CollData *colldata = cit->colldata;
-			KX_CollisionContactPointList *contactPointList0 = new KX_CollisionContactPointList(colldata, true);
-			KX_CollisionContactPointList *contactPointList1 = new KX_CollisionContactPointList(colldata, false);
+			KX_CollisionContactPointList contactPointList0 = KX_CollisionContactPointList(colldata, true);
+			KX_CollisionContactPointList contactPointList1 = KX_CollisionContactPointList(colldata, false);
 			kxObj1->RunCollisionCallbacks(kxObj2, contactPointList0);
 			kxObj2->RunCollisionCallbacks(kxObj1, contactPointList1);
 		}

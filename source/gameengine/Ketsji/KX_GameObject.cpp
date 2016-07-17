@@ -1507,18 +1507,17 @@ void KX_GameObject::RegisterCollisionCallbacks()
 			pe->AddSensor(spc);
 	}
 }
-void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionContactPointList *contactPointList)
+void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionContactPointList& contactPointList)
 {
 #ifdef WITH_PYTHON
 	if (!m_collisionCallbacks || PyList_GET_SIZE(m_collisionCallbacks) == 0) {
-		delete contactPointList;
 		return;
 	}
 
-	CListWrapper *listWrapper = contactPointList->GetListWrapper();
+	CListWrapper *listWrapper = contactPointList.GetListWrapper();
 	PyObject *args[] = {collider->GetProxy(),
-						PyObjectFrom(contactPointList->GetCollData()->GetWorldPoint(0, contactPointList->GetFirstObject())),
-						PyObjectFrom(contactPointList->GetCollData()->GetNormal(0, contactPointList->GetFirstObject())),
+						PyObjectFrom(contactPointList.GetCollData()->GetWorldPoint(0, contactPointList.GetFirstObject())),
+						PyObjectFrom(contactPointList.GetCollData()->GetNormal(0, contactPointList.GetFirstObject())),
 						listWrapper->GetProxy()};
 	RunPythonCallBackList(m_collisionCallbacks, args, 1, ARRAY_SIZE(args));
 
@@ -1529,7 +1528,6 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionC
 	// Invalidate the collison contact point to avoid acces to it in next frame
 	listWrapper->InvalidateProxy();
 	delete listWrapper;
-	delete contactPointList;
 #endif
 }
 

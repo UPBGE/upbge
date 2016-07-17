@@ -889,7 +889,7 @@ public:
 
 	void RegisterCollisionCallbacks();
 	void UnregisterCollisionCallbacks();
-	void RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionContactPointList *contactPointList);
+	void RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionContactPointList& contactPointList);
 	/**
 	 * Stop making progress
 	 */
