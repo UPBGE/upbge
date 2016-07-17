@@ -2507,6 +2507,9 @@ btCollisionShape *CcdShapeConstructionInfo::CreateBulletShape(btScalar margin, b
 						m_triangleIndexVertexArray = collisionMeshData;
 					}
 					else {
+						if (m_triangleIndexVertexArray) {
+							delete m_triangleIndexVertexArray;
+						}
 						m_triangleIndexVertexArray = new btTriangleIndexVertexArray(
 						    m_polygonIndexArray.size(),
 						    m_triFaceArray.data(),
