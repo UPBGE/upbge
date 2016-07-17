@@ -1278,7 +1278,9 @@ static void do_material_tex(GPUShadeInput *shi)
 		if (ma->mtex[tex_nr]) {
 			mtex = ma->mtex[tex_nr];
 			tex = mtex->tex;
-			if (tex == NULL || !(mtex->texflag & MTEX_PARALLAX_UV) || !mtex->texco == TEXCO_UV) continue;
+			if (tex == NULL || !(mtex->texflag & MTEX_PARALLAX_UV) || mtex->texco != TEXCO_UV) {
+				continue;
+			}
 			GPU_link(mat, "texco_uv", GPU_attribute(CD_MTFACE, mtex->uvname), &texco_uv);
 			texco = texco_uv;
 			if (mtex->mapto & MAP_PARALLAX) {
