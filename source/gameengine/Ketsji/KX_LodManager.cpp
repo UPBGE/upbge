@@ -88,7 +88,7 @@ float KX_LodManager::GetHysteresis(KX_Scene *scene, unsigned short level)
 	float hysteresis = 0.0f;
 	// if exists, LoD level hysteresis will override scene hysteresis
 	if (lodnext->GetFlag() & KX_LodLevel::USE_HYSTERESIS) {
-		hysteresis = lodnext->GetHysteresis();
+		hysteresis = lodnext->GetHysteresis() / 100.0f;
 	}
 	else {
 		hysteresis = scene->GetLodHysteresisValue() / 100.0f;
