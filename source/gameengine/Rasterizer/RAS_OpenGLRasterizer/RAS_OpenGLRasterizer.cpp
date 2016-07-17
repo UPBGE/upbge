@@ -1796,14 +1796,11 @@ void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, floa
 
 void RAS_OpenGLRasterizer::DisableForText()
 {
+	SetAlphaBlend(GPU_BLEND_ALPHA);
 	SetLines(false); /* needed for texture fonts otherwise they render as wireframe */
 	SetFrontFace(true);
 
-	Disable(RAS_BLEND);
-	Disable(RAS_ALPHA_TEST);
-
-	Disable(RAS_LIGHTING);
-	Disable(RAS_COLOR_MATERIAL);
+	ProcessLighting(false, MT_Transform::Identity());
 
 	for (int i = 0; i < RAS_MAX_TEXCO; i++) {
 		glActiveTextureARB(GL_TEXTURE0_ARB + i);
@@ -1890,6 +1887,8 @@ void RAS_OpenGLRasterizer::RenderText3D(
 	BLF_draw(fontid, text, 65535);
 
 	BLF_disable(fontid, BLF_MATRIX | BLF_ASPECT);
+
+	SetAlphaBlend(GPU_BLEND_SOLID);
 }
 
 void RAS_OpenGLRasterizer::RenderText2D(
