@@ -109,7 +109,7 @@ void SCA_Joystick::Close()
 	}
 
 	/* Closing SDL Game controller system */
-	if (!SDL_CHECK(SDL_QuitSubSystem)) {
+	if (SDL_CHECK(SDL_QuitSubSystem)) {
 		SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC);
 }
 #endif
@@ -227,14 +227,16 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 #else /* WITH_SDL */
 	if (!m_isinit) {
 
-		if (!joy_error &&
-			!(SDL_CHECK(SDL_IsGameController) &&
+		if (!(SDL_CHECK(SDL_IsGameController) &&
 			SDL_CHECK(SDL_GameControllerOpen) &&
 			SDL_CHECK(SDL_GameControllerEventState) &&
 			SDL_CHECK(SDL_GameControllerGetJoystick) &&
-			SDL_CHECK(SDL_JoystickInstanceID)) &&
-			!SDL_IsGameController(m_joyindex))
+			SDL_CHECK(SDL_JoystickInstanceID)))
 		{
+			joy_error = true;
+		}
+
+		if (!joy_error && !SDL_IsGameController(m_joyindex)) {
 			/* mapping instruccions if joystick is not a game controller */
 			printf("Game Controller index %i: Could not be initialized\n", m_joyindex);
 			printf("Please, generate Xbox360 compatible mapping using antimicro or Steam big mode application\n");
@@ -288,7 +290,7 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 		}
 
 		/* Haptic configuration */
-		if (!joy_error && !SDL_CHECK(SDL_HapticOpen)) {
+		if (!joy_error && SDL_CHECK(SDL_HapticOpen)) {
 			m_private->m_haptic = SDL_HapticOpen(m_joyindex);
 			if (!m_private->m_haptic) {
 				printf("Game Controller (%s) with index %i: Has not force feedback (vibration) available\n", GetName(), m_joyindex);
