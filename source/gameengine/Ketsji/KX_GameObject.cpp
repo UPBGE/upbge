@@ -1510,8 +1510,10 @@ void KX_GameObject::RegisterCollisionCallbacks()
 void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionContactPointList *contactPointList)
 {
 #ifdef WITH_PYTHON
-	if (!m_collisionCallbacks || PyList_GET_SIZE(m_collisionCallbacks) == 0)
+	if (!m_collisionCallbacks || PyList_GET_SIZE(m_collisionCallbacks) == 0) {
+		delete contactPointList;
 		return;
+	}
 
 	CListWrapper *listWrapper = contactPointList->GetListWrapper();
 	PyObject *args[] = {collider->GetProxy(),
