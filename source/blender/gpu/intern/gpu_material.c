@@ -669,14 +669,14 @@ static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, GPULamp *lamp, GPUNode
 				GPU_link(mat, "lamp_visibility_spot_square",
 				         GPU_dynamic_uniform(lamp->dynvec, GPU_DYNAMIC_LAMP_DYNVEC, lamp->ob),
 				         GPU_dynamic_uniform((float *)lamp->dynimat, GPU_DYNAMIC_LAMP_DYNIMAT, lamp->ob),
-				GPU_select_uniform((float *)lamp->spotvec, GPU_DYNAMIC_LAMP_SPOTSCALE, lamp->ob, ma), *lv, &inpr);
+				         GPU_dynamic_uniform((float *)lamp->spotvec, GPU_DYNAMIC_LAMP_DYNSPOTSCALE, lamp->ob), *lv, &inpr);
 			}
 			else {
 				mat->dynproperty |= DYN_LAMP_VEC | DYN_LAMP_IMAT;
 				GPU_link(mat, "lamp_visibility_spot_circle",
 				         GPU_dynamic_uniform(lamp->dynvec, GPU_DYNAMIC_LAMP_DYNVEC, lamp->ob),
-				GPU_dynamic_uniform((float *)lamp->dynimat, GPU_DYNAMIC_LAMP_DYNIMAT, lamp->ob),
-				GPU_select_uniform((float *)lamp->spotvec, GPU_DYNAMIC_LAMP_SPOTSCALE, lamp->ob, ma), *lv, &inpr);
+				         GPU_dynamic_uniform((float *)lamp->dynimat, GPU_DYNAMIC_LAMP_DYNIMAT, lamp->ob),
+				         GPU_dynamic_uniform((float *)lamp->spotvec, GPU_DYNAMIC_LAMP_DYNSPOTSCALE, lamp->ob), *lv, &inpr);
 			}
 			
 			GPU_link(mat, "lamp_visibility_spot",
