@@ -2386,7 +2386,7 @@ void shade_light_texture(vec3 rco, sampler2D cookie, vec3 scale, float lodbias, 
 
 	vec4 co = shadowpersmat * vec4(rco, 1.0);
 
-	result = texture2DProj(cookie, co, lodbias);
+	result = texture2DProj(cookie, co * vec4(scale, 1.0), lodbias);
 }
 
 void shade_exposure_correct(vec3 col, float linfac, float logfac, out vec3 outcol)
