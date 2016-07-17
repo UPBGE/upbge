@@ -198,7 +198,14 @@ public:
 
 	~WrapperVehicle()
 	{
+		for (unsigned short i = 0, numWheels = GetNumWheels(); i < numWheels; ++i) {
+			btWheelInfo& info = m_vehicle->getWheelInfo(i);
+			PHY_IMotionState *motionState = (PHY_IMotionState *)info.m_clientInfo;
+			delete motionState;
+		}
+
 		delete m_vehicle;
+		delete m_raycaster;
 	}
 
 	btRaycastVehicle *GetVehicle()
@@ -2760,10 +2767,10 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 
 		case PHY_VEHICLE_CONSTRAINT:
 		{
-			btRaycastVehicle::btVehicleTuning *tuning = new btRaycastVehicle::btVehicleTuning();
+			const btRaycastVehicle::btVehicleTuning tuning = btRaycastVehicle::btVehicleTuning();
 			btRigidBody *chassis = rb0;
 			BlenderVehicleRaycaster *raycaster = new BlenderVehicleRaycaster(m_dynamicsWorld);
-			btRaycastVehicle *vehicle = new btRaycastVehicle(*tuning, chassis, raycaster);
+			btRaycastVehicle *vehicle = new btRaycastVehicle(tuning, chassis, raycaster);
 			WrapperVehicle *wrapperVehicle = new WrapperVehicle(vehicle, raycaster, ctrl0);
 			m_wrapperVehicles.push_back(wrapperVehicle);
 			m_dynamicsWorld->addVehicle(vehicle);
