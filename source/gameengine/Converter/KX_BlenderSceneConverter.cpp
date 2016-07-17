@@ -918,6 +918,10 @@ bool KX_BlenderSceneConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 		m_polymat_cache.erase(polymatcacheit);
 	}
 
+	// Delete from scene's world info.
+	delete from->GetWorldInfo();
+	from->SetWorldInfo(NULL);
+
 	return true;
 }
 
