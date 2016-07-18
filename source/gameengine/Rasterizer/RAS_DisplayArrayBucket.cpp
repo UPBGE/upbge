@@ -282,7 +282,7 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 	UpdateActiveMeshSlots(rasty);
 
 	// Bind the instancing buffer to work on it.
-	m_instancingBuffer->Bind();
+	m_instancingBuffer->Realloc(nummeshslots);
 
 	/* If the material use the transparency we must sort all mesh slots depending on the distance.
 	 * This code share the code used in RAS_BucketManager to do the sort.
@@ -308,6 +308,8 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 		// Fill the buffer with the original mesh slots.
 		m_instancingBuffer->Update(rasty, material->GetDrawingMode(), m_activeMeshSlots);
 	}
+
+	m_instancingBuffer->Bind();
 
 	// Bind all vertex attributs for the used material and the given buffer offset.
 	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {

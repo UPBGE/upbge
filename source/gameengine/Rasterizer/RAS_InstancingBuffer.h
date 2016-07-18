@@ -33,10 +33,12 @@
 
 class RAS_IRasterizer;
 
+struct GPUBuffer;
+
 class RAS_InstancingBuffer
 {
-	/// The OpenGL VBO identificator.
-	unsigned int m_vbo;
+	/// The OpenGL VBO.
+	GPUBuffer *m_vbo;
 	/// The matrix offset in the VBO.
 	void *m_matrixOffset;
 	/// The position offset in the VBO.
@@ -58,6 +60,8 @@ public:
 	RAS_InstancingBuffer();
 	virtual ~RAS_InstancingBuffer();
 
+	/// Realloc the VBO.
+	void Realloc(unsigned int size);
 	/// Bind the VBO before work on it.
 	void Bind();
 	/// Unbind the VBO after work on it.

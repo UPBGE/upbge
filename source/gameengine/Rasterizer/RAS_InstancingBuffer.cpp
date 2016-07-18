@@ -29,16 +29,20 @@
 #include "RAS_InstancingBuffer.h"
 #include "RAS_IRasterizer.h"
 #include "RAS_MeshUser.h"
-#include "glew-mx.h"
+
+extern "C" {
+	// To avoid include BKE_DerivedMesh.h.
+	typedef int (*DMSetMaterial)(int mat_nr, void *attribs);
+	#include "GPU_buffers.h"
+}
 
 RAS_InstancingBuffer::RAS_InstancingBuffer()
-	:m_matrixOffset(NULL),
+	:m_vbo(NULL),
+	m_matrixOffset(NULL),
 	m_positionOffset(NULL),
 	m_colorOffset(NULL),
 	m_stride(sizeof(RAS_InstancingBuffer::InstancingObject))
 {
-	glGenBuffersARB(1, &m_vbo);
-
 	m_matrixOffset = (void *)((InstancingObject *)NULL)->matrix;
 	m_positionOffset = (void *)((InstancingObject *)NULL)->position;
 	m_colorOffset = (void *)((InstancingObject *)NULL)->color;
@@ -46,23 +50,32 @@ RAS_InstancingBuffer::RAS_InstancingBuffer()
 
 RAS_InstancingBuffer::~RAS_InstancingBuffer()
 {
-	glDeleteBuffersARB(1, &m_vbo);
+	if (m_vbo) {
+		GPU_buffer_free(m_vbo);
+	}
+}
+
+void RAS_InstancingBuffer::Realloc(unsigned int size)
+{
+	if (m_vbo) {
+		GPU_buffer_free(m_vbo);
+	}
+	m_vbo = GPU_buffer_alloc(m_stride * size);
 }
 
 void RAS_InstancingBuffer::Bind()
 {
-	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+	GPU_buffer_bind(m_vbo, GPU_BINDING_ARRAY);
 }
 
 void RAS_InstancingBuffer::Unbind()
 {
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	GPU_buffer_unbind(m_vbo, GPU_BINDING_ARRAY);
 }
 
 void RAS_InstancingBuffer::Update(RAS_IRasterizer *rasty, int drawingmode, RAS_MeshSlotList &meshSlots)
 {
-	glBufferData(GL_ARRAY_BUFFER, sizeof(InstancingObject) * meshSlots.size(), 0, GL_DYNAMIC_DRAW);
-	InstancingObject *buffer = (InstancingObject *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+	InstancingObject *buffer = (InstancingObject *)GPU_buffer_lock_stream(m_vbo, GPU_BINDING_ARRAY);
 
 	for (unsigned int i = 0, size = meshSlots.size(); i < size; ++i) {
 		RAS_MeshSlot *ms = meshSlots[i];
@@ -90,5 +103,5 @@ void RAS_InstancingBuffer::Update(RAS_IRasterizer *rasty, int drawingmode, RAS_M
 		data.color[3] = color[3] * 255.0f;
 	}
 
-	glUnmapBuffer(GL_ARRAY_BUFFER);
+	GPU_buffer_unlock(m_vbo, GPU_BINDING_ARRAY);
 }
