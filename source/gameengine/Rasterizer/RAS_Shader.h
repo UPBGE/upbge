@@ -1,6 +1,6 @@
 
 /** \file RAS_Shader.h
- *  \ingroup ketsji
+ *  \ingroup bgerast
  */
 
 #ifndef __RAS_SHADER_H__
@@ -15,6 +15,7 @@
 #define SORT_UNIFORMS 1
 
 class RAS_IRasterizer;
+struct GPUShader;
 
 /**
  * RAS_Shader
@@ -94,7 +95,7 @@ protected:
 	typedef std::vector<RAS_Uniform *> RAS_UniformVec;
 	typedef std::vector<RAS_DefUniform *> RAS_UniformVecDef;
 
-	unsigned int mShader; // Shader object
+	GPUShader *m_shader;
 	bool mOk; // Valid and ok
 	bool mUse;
 	int mAttr; // Tangent attribute
@@ -149,6 +150,7 @@ public:
 	void SetSampler(int loc, int unit);
 	bool Ok() const;
 	unsigned int GetProg();
+	GPUShader *GetGPUShader();
 	void SetProg(bool enable);
 	void SetEnabled(bool enabled);
 	bool GetEnabled() const;

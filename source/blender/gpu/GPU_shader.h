@@ -48,6 +48,7 @@ enum {
 	GPU_SHADER_FLAGS_SPECIAL_OPENSUBDIV = (1 << 0),
 	GPU_SHADER_FLAGS_NEW_SHADING        = (1 << 1),
 	GPU_SHADER_FLAGS_SPECIAL_INSTANCING = (1 << 2),
+	GPU_SHADER_FLAGS_SPECIAL_RESET_LINE = (1 << 3),
 };
 
 GPUShader *GPU_shader_create(
@@ -65,10 +66,13 @@ GPUShader *GPU_shader_create_ex(
         const char *defines,
         int input, int output, int number,
         const int flags);
+char *GPU_shader_validate(GPUShader *shader);
 void GPU_shader_free(GPUShader *shader);
 
 void GPU_shader_bind(GPUShader *shader);
 void GPU_shader_unbind(void);
+
+int GPU_shader_program(GPUShader *shader);
 
 void *GPU_shader_get_interface(GPUShader *shader);
 void GPU_shader_set_interface(GPUShader *shader, void *interface);
@@ -80,9 +84,11 @@ void GPU_shader_uniform_vector_int(GPUShader *shader, int location, int length,
 
 void GPU_shader_uniform_texture(GPUShader *shader, int location, struct GPUTexture *tex);
 void GPU_shader_uniform_int(GPUShader *shader, int location, int value);
+void GPU_shader_uniform_float(GPUShader *shader, int location, float value);
 void GPU_shader_geometry_stage_primitive_io(GPUShader *shader, int input, int output, int number);
 
 int GPU_shader_get_attribute(GPUShader *shader, const char *name);
+void GPU_shader_bind_attribute(GPUShader *shader, int location, const char *name);
 
 void GPU_shader_bind_instancing_attrib(GPUShader *shader, void *matrixoffset, void *positionoffset, unsigned int stride);
 void GPU_shader_unbind_instancing_attrib(GPUShader *shader);

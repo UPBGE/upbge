@@ -287,6 +287,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	bool use_opensubdiv = false;
 #endif
 	bool use_instancing = (flags & GPU_SHADER_FLAGS_SPECIAL_INSTANCING) != 0;
+	bool resetline = (flags & GPU_SHADER_FLAGS_SPECIAL_RESET_LINE) != 0;
 	GLint status;
 	GLchar log[5000];
 	GLsizei length = 0;
@@ -325,7 +326,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	gpu_shader_standard_extensions(standard_extensions, geocode != NULL);
 
 	if (vertexcode) {
-		const char *source[5];
+		const char *source[6];
 		/* custom limit, may be too small, beware */
 		int num_source = 0;
 
@@ -334,6 +335,10 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		source[num_source++] = standard_defines;
 
 		if (defines) source[num_source++] = defines;
+		if (resetline) {
+			/* Print error message with the correct line number cooresponding to the passed code */
+			source[num_source++] = "#line 0\n";
+		}
 		source[num_source++] = vertexcode;
 
 		glAttachShader(shader->program, shader->vertex);
@@ -352,7 +357,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	}
 
 	if (fragcode) {
-		const char *source[7];
+		const char *source[8];
 		int num_source = 0;
 
 		source[num_source++] = gpu_shader_version();
@@ -373,6 +378,10 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 
 		if (defines) source[num_source++] = defines;
 		if (libcode) source[num_source++] = libcode;
+		if (resetline) {
+			/* Print error message with the correct line number cooresponding to the passed code */
+			source[num_source++] = "#line 0\n";
+		}
 		source[num_source++] = fragcode;
 
 		glAttachShader(shader->program, shader->fragment);
@@ -457,6 +466,23 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	return shader;
 }
 
+char *GPU_shader_validate(GPUShader *shader)
+{
+	int stat = 0;
+	glValidateProgram(shader->program);
+	glGetObjectParameterivARB(shader->program, GL_OBJECT_VALIDATE_STATUS_ARB, (GLint *)&stat);
+
+	if (stat > 0) {
+		int charlen = 0;
+		char *log = (char *)MEM_mallocN(stat, "GPU_shader_validate");
+
+		glGetInfoLogARB(shader->program, stat, (GLsizei *)&charlen, log);
+
+		return log;
+	}
+	return NULL;
+}
+
 void GPU_shader_bind(GPUShader *shader)
 {
 	GPU_ASSERT_NO_GL_ERRORS("Pre Shader Bind");
@@ -469,6 +495,11 @@ void GPU_shader_unbind(void)
 	GPU_ASSERT_NO_GL_ERRORS("Pre Shader Unbind");
 	glUseProgram(0);
 	GPU_ASSERT_NO_GL_ERRORS("Post Shader Unbind");
+}
+
+int GPU_shader_program(GPUShader *shader)
+{
+	return shader->program;
 }
 
 void GPU_shader_free(GPUShader *shader)
@@ -543,6 +574,14 @@ void GPU_shader_uniform_int(GPUShader *UNUSED(shader), int location, int value)
 	GPU_CHECK_ERRORS_AROUND(glUniform1i(location, value));
 }
 
+void GPU_shader_uniform_float(GPUShader *UNUSED(shader), int location, float value)
+{
+	if (location == -1)
+		return;
+
+	GPU_CHECK_ERRORS_AROUND(glUniform1f(location, value));
+}
+
 void GPU_shader_geometry_stage_primitive_io(GPUShader *shader, int input, int output, int number)
 {
 	if (GPU_geometry_shader_support_via_extension()) {
@@ -594,6 +633,11 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 	GPU_CHECK_ERRORS_AROUND(index = glGetAttribLocation(shader->program, name));
 
 	return index;
+}
+
+void GPU_shader_bind_attribute(GPUShader *shader, int location, const char *name)
+{
+	GPU_CHECK_ERRORS_AROUND(glBindAttribLocation(shader->program, location, name));
 }
 
 // Used only for VSM shader with geometry instancing support.
