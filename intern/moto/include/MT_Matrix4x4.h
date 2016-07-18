@@ -150,6 +150,13 @@ public:
                             m_el[3][0] * x, m_el[3][1] * y, m_el[3][2] * z, m_el[3][3] * w);
     }
 
+	static MT_Matrix4x4 Identity()
+	{
+		MT_Matrix4x4 mat;
+		mat.setIdentity();
+		return mat;
+	}
+
 	/**
 	 * Set this matrix to I.
 	 */

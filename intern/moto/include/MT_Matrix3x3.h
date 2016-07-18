@@ -189,6 +189,13 @@ public:
                             m_el[2][0] * x, m_el[2][1] * y, m_el[2][2] * z);
     }
     
+	static MT_Matrix3x3 Identity()
+	{
+		MT_Matrix3x3 mat;
+		mat.setIdentity();
+		return mat;
+	}
+
     void setIdentity() { 
         setValue(MT_Scalar(1.0f), MT_Scalar(0.0f), MT_Scalar(0.0f), 
                  MT_Scalar(0.0f), MT_Scalar(1.0f), MT_Scalar(0.0f), 
