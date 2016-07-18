@@ -128,6 +128,12 @@ struct GPUMaterial {
 
 	bool use_instancing;
 
+	bool use_hwskinning;
+	int hwskinweight;
+	int hwskinbonenum;
+	int hwskinindex;
+	int hwskinbonematrices;
+
 	ListBase lamps;
 	bool bound;
 
@@ -242,6 +248,7 @@ static int GPU_material_construct_end(GPUMaterial *material, const char *passnam
 			passname,
 			material->is_opensubdiv,
 			material->use_instancing,
+			material->use_hwskinning,
 			GPU_material_use_new_shading_nodes(material));
 
 		if (!material->pass)
@@ -281,6 +288,12 @@ static int GPU_material_construct_end(GPUMaterial *material, const char *passnam
 			material->ininstposloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
 			material->ininstmatloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
 			material->ininstcolloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_COLOR_ATTRIB));
+		}
+		if (material->use_hwskinning) {
+			material->hwskinweight = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_HARDWARE_SKINNING_WEIGHT));
+			material->hwskinindex = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_HARDWARE_SKINNING_INDEX));
+			material->hwskinbonenum = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_HARDWARE_SKINNING_BONENUM));
+			material->hwskinbonematrices = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_HARDWARE_SKINNING_BONEMATRICES));
 		}
 		return 1;
 	}
@@ -384,6 +397,39 @@ void GPU_material_unbind_instancing_attrib(GPUMaterial *material)
 	if (material->ininstcolloc != -1) {
 		glDisableVertexAttribArrayARB(material->ininstcolloc);
 		glVertexAttribDivisorARB(material->ininstcolloc, 0);
+	}
+}
+
+GPU_material_bind_hwskinning_attrib(GPUMaterial *material, void *weights, void *indexes, void *num_bones )
+{
+	if (material->hwskinweight != -1) {
+		glEnableVertexAttribArrayARB(material->hwskinweight);
+		glVertexAttribPointerARB(material->hwskinweight, 4, GL_FLOAT, GL_FALSE, sizeof(weights), weights);
+	}
+
+	if (material->hwskinindex != -1) {
+		glEnableVertexAttribArrayARB(material->hwskinindex);
+		glVertexAttribPointerARB(material->hwskinindex, 4, GL_FLOAT, GL_FALSE, sizeof(indexes), indexes);
+	}
+
+	if (material->hwskinbonenum != -1) {
+		glEnableVertexAttribArrayARB(material->hwskinbonenum);
+		glVertexAttribPointerARB(material->hwskinbonenum, 1, GL_FLOAT, GL_FALSE, sizeof(num_bones), &num_bones);
+	}
+}
+
+GPU_material_unbind_hwskinning_attrib(GPUMaterial *material)
+{
+	if (material->hwskinweight != -1) {
+		glDisableVertexAttribArray(material->hwskinweight);
+	}
+
+	if (material->hwskinindex != -1) {
+		glDisableVertexAttribArray(material->hwskinindex);
+	}
+
+	if (material->hwskinbonenum != -1) {
+		glDisableVertexAttribArray(material->hwskinbonenum);
 	}
 }
 
@@ -521,7 +567,6 @@ void GPU_material_bind_uniforms(
 		if (material->builtins & GPU_PARTICLE_ANG_VELOCITY) {
 			GPU_shader_uniform_vector(shader, material->partangvel, 3, 1, pi->angular_velocity);
 		}
-
 	}
 }
 
@@ -546,6 +591,11 @@ Scene *GPU_material_scene(GPUMaterial *material)
 GPUMatType GPU_Material_get_type(GPUMaterial *material)
 {
 	return material->type;
+}
+
+GPUShader *GPU_material_shader(GPUMaterial *material)
+{
+	return GPU_pass_shader(material->pass);
 }
 
 void GPU_material_vertex_attributes(GPUMaterial *material, GPUVertexAttribs *attribs)
@@ -2267,7 +2317,7 @@ GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo)
 }
 
 
-GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_opensubdiv, bool is_instancing)
+GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_opensubdiv, bool is_instancing, bool is_hwskinning)
 {
 	GPUMaterial *mat;
 	GPUNodeLink *outlink;
@@ -2295,6 +2345,7 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_open
 	mat->scene = scene;
 	mat->type = GPU_MATERIAL_TYPE_MESH;
 	mat->use_instancing = is_instancing;
+	mat->use_hwskinning = is_hwskinning;
 	mat->is_opensubdiv = use_opensubdiv;
 	mat->har = ma->har;
 

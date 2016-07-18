@@ -46,6 +46,12 @@
 
 #include "RAS_Deformer.h"
 
+struct SkinVertData {
+	float indexes[4];
+	float weights[4];
+	float num_bones;
+};
+
 struct Object;
 struct bPoseChannel;
 class RAS_MeshObject;
@@ -100,6 +106,10 @@ public:
 		return false;
 	}
 
+	virtual void HandleGPUUniforms(RAS_IRasterizer *rasty, RAS_MeshSlot& ms);
+	virtual void BeginHandleGPUAttribs(RAS_DisplayArray *array);
+	virtual void EndHandleGPUAttribs();
+
 protected:
 	BL_ArmatureObject *m_armobj; // Our parent object
 	float m_time;
@@ -111,6 +121,11 @@ protected:
 	bool m_copyNormals; // dirty flag so we know if Apply() needs to copy normal information (used for BGEDeformVerts())
 	bPoseChannel **m_dfnrToPC;
 	short m_deformflags;
+
+	// For hardware skinning
+	std::map<void*, SkinVertData*>	m_skinVertData;
+	float *m_poseMatrices;
+	struct GPUShader *m_shader;
 
 	void BlenderDeformVerts();
 	void BGEDeformVerts();

@@ -178,6 +178,9 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 	unsigned int *indexarray = array->m_index.data();
 	RAS_IPolyMaterial *material = ms->m_bucket->GetPolyMaterial();
 
+	if (ms->m_pDeformer)
+		ms->m_pDeformer->BeginHandleGPUAttribs(array);
+
 	// colors
 	if (!wireframe && material->UsesObjectColor()) {
 		const MT_Vector4& rgba = ms->m_meshUser->GetColor();
@@ -192,6 +195,9 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 	if (displayList) {
 		displayList->End(m_drawingmode, RAS_DisplayList::DRAW_LIST);
 	}
+
+	if (ms->m_pDeformer)
+		ms->m_pDeformer->EndHandleGPUAttribs();
 }
 
 void RAS_StorageVA::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket)

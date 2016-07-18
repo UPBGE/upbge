@@ -21,6 +21,13 @@ varying mat4 varinstinvlocaltoviewmat;
 uniform mat4 unfviewmat;
 #endif
 
+#ifdef USE_HARDWARE_SKINNING
+attribute vec4 weight;
+attribute vec4 index;
+attribute float numbones;
+uniform  mat4 bonematrices[100];
+#endif
+
 varying vec3 varposition;
 varying vec3 varnormal;
 
@@ -28,6 +35,30 @@ varying vec3 varnormal;
 varying float gl_ClipDistance[6];
 #endif
 
+void hardware_skinning(in vec4 position, in vec3 normal, out vec4 transpos, out vec3 transnorm)
+{
+	transpos = vec4(0.0);
+	transnorm = vec3(0.0);
+
+	vec4 curidx = index;
+	vec4 curweight = weight;
+
+	for (int i = 0; i < int(numbones); ++i)
+	{
+		mat4 m44 = bonematrices[int(curidx.x)];
+
+		transpos += m44 * position * curweight.x;
+
+		mat3 m33 = mat3(m44[0].xyz,
+						m44[1].xyz,
+						m44[2].xyz);
+
+		transnorm += m33 * normal * curweight.x;
+
+		curidx = curidx.yzwx;
+		curweight = curweight.yzwx;
+	}
+}
 
 /* Color, keep in sync with: gpu_shader_vertex_world.glsl */
 
@@ -101,6 +132,10 @@ void main()
 #ifndef USE_OPENSUBDIV
 	vec4 position = gl_Vertex;
 	vec3 normal = gl_Normal;
+#endif
+
+#ifdef USE_HARDWARE_SKINNING
+	hardware_skinning(gl_Vertex, gl_Normal, position, normal);
 #endif
 
 #ifdef USE_INSTANCING

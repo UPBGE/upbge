@@ -102,6 +102,7 @@ public:
 	virtual void Desactivate(RAS_IRasterizer *rasty) = 0;
 	virtual void ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride) = 0;
 	virtual void DesactivateInstancing() = 0;
+	virtual void ActivateHardwareSkinning(RAS_IRasterizer *rasty, struct void *deformvert) = 0;
 	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty) = 0;
 
 	bool IsAlpha() const;

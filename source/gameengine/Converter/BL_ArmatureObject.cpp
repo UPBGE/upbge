@@ -231,6 +231,7 @@ BL_ArmatureObject::BL_ArmatureObject(
 	m_drawDebug(false),
 	m_lastapplyframe(0.0)
 {
+	//m_vert_deform_type = ARM_VDEF_BGE_GPU;
 	m_origObjArma = armature; // Keep a copy of the original armature so we can fix drivers later
 	m_objArma = BKE_object_copy(G.main, armature);
 	m_objArma->data = BKE_armature_copy(G.main, (bArmature *)armature->data);

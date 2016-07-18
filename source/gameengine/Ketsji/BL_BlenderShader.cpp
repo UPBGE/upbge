@@ -110,6 +110,7 @@ void BL_BlenderShader::SetProg(bool enable, double time, RAS_IRasterizer *rasty)
 			viewinv.getValue((float *)viewinvmat);
 
 			GPU_material_bind(m_GPUMat, m_lightLayer, m_blenderScene->lay, time, 1, viewmat, viewinvmat, NULL, false);
+			rasty->SetCurrentProgram(GPU_material_shader(m_GPUMat));
 		}
 		else
 			GPU_material_unbind(m_GPUMat);

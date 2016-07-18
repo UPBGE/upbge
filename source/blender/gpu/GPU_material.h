@@ -53,6 +53,7 @@ struct GPUNode;
 struct GPUNodeLink;
 struct GPUNodeStack;
 struct GPUMaterial;
+struct GPUShader;
 struct GPUTexture;
 struct GPULamp;
 struct PreviewImage;
@@ -61,6 +62,7 @@ struct World;
 typedef struct GPUNode GPUNode;
 typedef struct GPUNodeLink GPUNodeLink;
 typedef struct GPUMaterial GPUMaterial;
+typedef struct GPUShader GPUShader;
 typedef struct GPULamp GPULamp;
 typedef struct GPUParticleInfo GPUParticleInfo;
 
@@ -106,6 +108,10 @@ typedef enum GPUBuiltin {
 	GPU_INSTANCING_COLOR_ATTRIB    = (1 << 20),
 	GPU_INSTANCING_MATRIX_ATTRIB   = (1 << 21),
 	GPU_INSTANCING_POSITION_ATTRIB = (1 << 22),
+	GPU_HARDWARE_SKINNING_WEIGHT   = (1 << 23),
+	GPU_HARDWARE_SKINNING_BONENUM  = (1 << 24),
+	GPU_HARDWARE_SKINNING_INDEX    = (1 << 25),
+	GPU_HARDWARE_SKINNING_BONEMATRICES = (1 << 26),
 } GPUBuiltin;
 
 typedef enum GPUOpenGLBuiltin {
@@ -242,7 +248,7 @@ GPUBlendMode GPU_material_alpha_blend(GPUMaterial *material, float obcol[4]);
 /* High level functions to create and use GPU materials */
 GPUMaterial *GPU_material_world(struct Scene *scene, struct World *wo);
 
-GPUMaterial *GPU_material_from_blender(struct Scene *scene, struct Material *ma, bool use_opensubdiv, bool is_instancing);
+GPUMaterial *GPU_material_from_blender(struct Scene *scene, struct Material *ma, bool use_opensubdiv, bool is_instancing, bool is_hwskinning);
 GPUMaterial *GPU_material_matcap(struct Scene *scene, struct Material *ma, bool use_opensubdiv);
 void GPU_material_free(struct ListBase *gpumaterial);
 
@@ -259,6 +265,7 @@ void GPU_material_unbind(GPUMaterial *material);
 bool GPU_material_bound(GPUMaterial *material);
 struct Scene *GPU_material_scene(GPUMaterial *material);
 GPUMatType GPU_Material_get_type(GPUMaterial *material);
+GPUShader *GPU_material_shader(GPUMaterial *material);
 
 void GPU_material_vertex_attributes(GPUMaterial *material,
 	struct GPUVertexAttribs *attrib);
@@ -380,6 +387,10 @@ void GPU_material_update_fvar_offset(GPUMaterial *gpu_material,
 /* Instancing material */
 void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
 void GPU_material_unbind_instancing_attrib(GPUMaterial *material);
+
+/* hardware skinning material */
+GPU_material_bind_hwskinning_attrib(GPUMaterial *material, void *weights, void *indexes, void *num_bones);
+GPU_material_unbind_hwskinning_attrib(GPUMaterial *material);
 
 #ifdef __cplusplus
 }

@@ -426,6 +426,14 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "ininstmatrix";
 	else if (builtin == GPU_INSTANCING_POSITION_ATTRIB)
 		return "ininstposition";
+	else if (builtin == GPU_HARDWARE_SKINNING_WEIGHT)
+		return "weight";
+	else if (builtin == GPU_HARDWARE_SKINNING_INDEX)
+		return "index";
+	else if (builtin == GPU_HARDWARE_SKINNING_BONENUM)
+		return "numbones";
+	else if (builtin == GPU_HARDWARE_SKINNING_BONEMATRICES)
+		return "bonematrices";
 	else
 		return "";
 }
@@ -1686,6 +1694,7 @@ GPUPass *GPU_generate_pass(
         const GPUMatType type, const char *UNUSED(name),
         const bool use_opensubdiv,
 		const bool use_instancing,
+        const bool use_hwskinning,
         const bool use_new_shading)
 {
 	GPUShader *shader;

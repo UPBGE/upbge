@@ -152,7 +152,8 @@ typedef enum eArmature_Drawtype {
 /* armature->gevertdeformer */
 typedef enum eArmature_VertDeformer {
 	ARM_VDEF_BLENDER = 0,
-	ARM_VDEF_BGE_CPU = 1
+	ARM_VDEF_BGE_CPU = 1,
+	ARM_VDEF_BGE_GPU = 2
 } eArmature_VertDeformer;
 
 /* armature->deformflag */

@@ -199,8 +199,9 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	else {
 		rasty->IndexPrimitives(ms);
 	}
-
 	rasty->PopMatrix();
+
+	ms->m_pDeformer->HandleGPUUniforms(rasty, ms);
 }
 
 void RAS_MaterialBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)

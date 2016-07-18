@@ -34,9 +34,14 @@
 
 #include "RAS_DisplayArrayBucket.h" // needed for RAS_DisplayArrayBucketList
 #include "MT_Transform.h"
+#include "STR_HashedString.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_IRasterizer.h"
+#include "RAS_Deformer.h"
 
 class RAS_IPolyMaterial;
 class RAS_IRasterizer;
+class RAS_Deformer;
 
 /* Contains a list of display arrays with the same material,
  * and a mesh slot for each mesh that uses display arrays in

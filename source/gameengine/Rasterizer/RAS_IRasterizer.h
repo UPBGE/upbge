@@ -59,6 +59,9 @@ class RAS_ISync;
  */
 class RAS_IRasterizer
 {
+private:
+	void *m_shader;
+
 public:
 	enum RAS_TEXT_RENDER_MODE {
 		RAS_TEXT_RENDER_NODEF = 0,
@@ -67,7 +70,7 @@ public:
 		RAS_TEXT_MAX,
 	};
 
-	RAS_IRasterizer() {}
+	RAS_IRasterizer() { m_shader = 0; }
 	virtual ~RAS_IRasterizer() {}
 
 	/**
@@ -551,6 +554,9 @@ public:
 	virtual OverrideShaderType GetOverrideShader() = 0;
 	virtual void ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride) = 0;
 	virtual void DesactivateOverrideShaderInstancing() = 0;
+
+	void SetCurrentProgram(void *val) { m_shader = val; }
+	void *GetCurrentProgram() { return m_shader; }
 
 	/**
 	 * Render Tools

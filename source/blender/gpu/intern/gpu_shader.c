@@ -243,6 +243,11 @@ static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH],
 		strcat(defines, "#define USE_NEW_SHADING\n");
 	}
 
+	int use_hwskinning = true; //XXX lordloki, remove later only for testing
+	if (use_hwskinning) {
+		strcat(defines, "#define USE_HARDWARE_SKINNING\n");
+	}
+
 	return;
 }
 
