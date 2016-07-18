@@ -1210,11 +1210,16 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 		}
 	}
 
-	bool negX = (scale[0] < 0.0f);
-	bool negY = (scale[1] < 0.0f);
-	bool negZ = (scale[2] < 0.0f);
-	if (negX || negY || negZ) {
-		m_viewmatrix.tscale((negX)?-1.0f:1.0f, (negY)?-1.0f:1.0f, (negZ)?-1.0f:1.0f, 1.0);
+	// Don't making variable negX/negY/negZ allow drastic time saving.
+	if (scale[0] < 0.0f || scale[1] < 0.0f || scale[2] < 0.0f) {
+		const bool negX = (scale[0] < 0.0f);
+		const bool negY = (scale[1] < 0.0f);
+		const bool negZ = (scale[2] < 0.0f);
+		m_viewmatrix.tscale((negX) ? -1.0f : 1.0f, (negY) ? -1.0f : 1.0f, (negZ) ? -1.0f : 1.0f, 1.0f);
+		m_camnegscale = negX ^ negY ^ negZ;
+	}
+	else {
+		m_camnegscale = false;
 	}
 	m_viewinvmatrix = m_viewmatrix;
 	m_viewinvmatrix.invert();
@@ -1226,7 +1231,6 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 	SetMatrixMode(RAS_MODELVIEW);
 	LoadMatrix(glviewmat);
 	m_campos = pos;
-	m_camnegscale = negX ^ negY ^ negZ;
 }
 
 void RAS_OpenGLRasterizer::SetViewport(int x, int y, int width, int height)
