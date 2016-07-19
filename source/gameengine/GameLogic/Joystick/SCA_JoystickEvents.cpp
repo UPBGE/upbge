@@ -37,45 +37,25 @@
 #endif
 
 #ifdef WITH_SDL
-void SCA_Joystick::OnAxisMotion(SDL_Event* sdl_event)
+void SCA_Joystick::OnAxisEvent(SDL_Event* sdl_event)
 {
-	if (sdl_event->jaxis.axis >= JOYAXIS_MAX)
+	if (sdl_event->caxis.axis >= JOYAXIS_MAX)
 		return;
 	
-	m_axis_array[sdl_event->jaxis.axis] = sdl_event->jaxis.value;
+	m_axis_array[sdl_event->caxis.axis] = sdl_event->caxis.value;
 	m_istrig_axis = 1;
 }
 
 /* See notes below in the event loop */
-void SCA_Joystick::OnHatMotion(SDL_Event* sdl_event)
+void SCA_Joystick::OnButtonEvent(SDL_Event* sdl_event)
 {
-	if (sdl_event->jhat.hat >= JOYHAT_MAX)
-		return;
-
-	m_hat_array[sdl_event->jhat.hat] = sdl_event->jhat.value;
-	m_istrig_hat = 1;
-}
-
-/* See notes below in the event loop */
-void SCA_Joystick::OnButtonUp(SDL_Event* sdl_event)
-{
-	m_istrig_button = 1;
-}
-
-
-void SCA_Joystick::OnButtonDown(SDL_Event* sdl_event)
-{
-	//if (sdl_event->jbutton.button > m_buttonmax) /* unsigned int so always above 0 */
-	//	return;
-	// sdl_event->jbutton.button;
-	
 	m_istrig_button = 1;
 }
 
 
 void SCA_Joystick::OnNothing(SDL_Event* sdl_event)
 {
-	m_istrig_axis = m_istrig_button = m_istrig_hat = 0;
+	m_istrig_axis = m_istrig_button = 0;
 }
 
 void SCA_Joystick::HandleEvents(void)
@@ -86,48 +66,75 @@ void SCA_Joystick::HandleEvents(void)
 		return;
 	}
 
-	int i;
-	for (i=0; i<m_joynum; i++) { /* could use JOYINDEX_MAX but no reason to */
+	for (int i = 0; i < JOYINDEX_MAX; i++) {
 		if (SCA_Joystick::m_instance[i])
 			SCA_Joystick::m_instance[i]->OnNothing(&sdl_event);
 	}
 	
 	while (SDL_PollEvent(&sdl_event)) {
-		/* Note! m_instance[sdl_event.jaxis.which]
+		/* Note! m_instance[instance]
 		 * will segfault if over JOYINDEX_MAX, not too nice but what are the chances? */
 		
 		/* Note!, with buttons, this wont care which button is pressed,
-		 * only to set 'm_istrig_button', actual pressed buttons are detected by SDL_JoystickGetButton */
+		 * only to set 'm_istrig_button', actual pressed buttons are detected by SDL_ControllerGetButton */
 		
 		/* Note!, if you manage to press and release a button within 1 logic tick
 		 * it wont work as it should */
+
+		/* Note!, we need to use SDL_JOYDEVICE ADDED to find new controllers as SDL_CONTROLLERDEVICEADDED
+		 * doesn't report about all devices connected at beginning. Additionally we capture all devices this
+		 * way and we can inform properly (with ways to solve it) if the joystick it is not a game controller */
 		
 		switch (sdl_event.type) {
-			case SDL_JOYAXISMOTION:
-				SCA_Joystick::m_instance[sdl_event.jaxis.which]->OnAxisMotion(&sdl_event);
-				break;
-			case SDL_JOYHATMOTION:
-				SCA_Joystick::m_instance[sdl_event.jhat.which]->OnHatMotion(&sdl_event);
-				break;
-			case SDL_JOYBUTTONUP:
-				SCA_Joystick::m_instance[sdl_event.jbutton.which]->OnButtonUp(&sdl_event);
-				break;
-			case SDL_JOYBUTTONDOWN:
-				SCA_Joystick::m_instance[sdl_event.jbutton.which]->OnButtonDown(&sdl_event);
-				break;
-#if 0	/* Not used yet */
-			case SDL_JOYBALLMOTION:
-				SCA_Joystick::m_instance[sdl_event.jball.which]->OnBallMotion(&sdl_event);
-				break;
-#endif
-#if SDL_VERSION_ATLEAST(2, 0, 0)
 			case SDL_JOYDEVICEADDED:
-			case SDL_JOYDEVICEREMOVED:
-				/* pass */
+				if (sdl_event.jdevice.which < JOYINDEX_MAX) {
+					if (!SCA_Joystick::m_instance[sdl_event.jdevice.which]) {
+						SCA_Joystick::m_instance[sdl_event.jdevice.which] = new SCA_Joystick(sdl_event.jdevice.which);
+						SCA_Joystick::m_instance[sdl_event.jdevice.which]->CreateJoystickDevice();
+						break;
+					}
+					else {
+						printf("Conflicts with Joysticks trying to use the same index.\n");
+						printf("Please, reconnect Joysticks in different order than before\n");
+					}
+				}
+				else {
+					printf("Maximum quantity (8) of Game Controllers connected. It is not possible to set up additional ones.\n");
+				}
 				break;
-#endif
+			case SDL_CONTROLLERDEVICEREMOVED:
+				for (int i = 0; i < JOYINDEX_MAX; i++) {
+					if (SCA_Joystick::m_instance[i]) {
+						if (sdl_event.cdevice.which == SCA_Joystick::m_instance[i]->m_private->m_instance_id) {
+							SCA_Joystick::m_instance[i]->ReleaseInstance(i);
+							break;
+						}
+					}
+				}
+				break;
+			case SDL_CONTROLLERBUTTONDOWN:
+			case SDL_CONTROLLERBUTTONUP:
+				for (int i = 0; i < JOYINDEX_MAX; i++) {
+					if (SCA_Joystick::m_instance[i]) {
+						if (sdl_event.cdevice.which == SCA_Joystick::m_instance[i]->m_private->m_instance_id) {
+							SCA_Joystick::m_instance[i]->OnButtonEvent(&sdl_event);
+							break;
+						}
+					}
+				}
+				break;
+			case SDL_CONTROLLERAXISMOTION:
+				for (int i = 0; i < JOYINDEX_MAX; i++) {
+					if (SCA_Joystick::m_instance[i]) {
+						if (sdl_event.cdevice.which == SCA_Joystick::m_instance[i]->m_private->m_instance_id) {
+							SCA_Joystick::m_instance[i]->OnAxisEvent(&sdl_event);
+							break;
+						}
+					}
+				}
+				break;
 			default:
-				printf("SCA_Joystick::HandleEvents, Unknown SDL event (%d), this should not happen\n", sdl_event.type);
+				/* ignore old SDL_JOYSTICKS events */
 				break;
 		}
 	}

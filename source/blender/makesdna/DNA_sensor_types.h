@@ -189,8 +189,6 @@ typedef struct bJoystickSensor {
 	short axis_single;
 	int axisf;
 	int button;
-	int hat;
-	int hatf;
 	int precision;
 } bJoystickSensor;
 
@@ -325,15 +323,34 @@ typedef struct bMovementSensor {
 #define SENS_JOY_ANY_EVENT		1
 
 #define SENS_JOY_BUTTON		0			/* axis type */
+#define SENS_JOY_BUTTON_PRESSED			0
+#define SENS_JOY_BUTTON_RELEASED		1
+#define SENS_JOY_BUTTON_A				0
+#define SENS_JOY_BUTTON_B				1
+#define SENS_JOY_BUTTON_X				2
+#define SENS_JOY_BUTTON_Y				3
+#define SENS_JOY_BUTTON_BACK			4
+#define SENS_JOY_BUTTON_GUIDE			5
+#define SENS_JOY_BUTTON_START			6
+#define SENS_JOY_BUTTON_STICK_LEFT		7
+#define SENS_JOY_BUTTON_STICK_RIGHT		8
+#define SENS_JOY_BUTTON_SHOULDER_LEFT	9
+#define SENS_JOY_BUTTON_SHOULDER_RIGHT	10
+#define SENS_JOY_BUTTON_DPAD_UP			11
+#define SENS_JOY_BUTTON_DPAD_DOWN		12
+#define SENS_JOY_BUTTON_DPAD_LEFT		13
+#define SENS_JOY_BUTTON_DPAD_RIGHT		14
 
 #define SENS_JOY_AXIS			1		/* axis type */
+#define SENS_JOY_LEFT_STICK			1
+#define SENS_JOY_RIGHT_STICK		2
 #define SENS_JOY_X_AXIS		0
 #define SENS_JOY_Y_AXIS		1
 #define SENS_JOY_NEG_X_AXIS     	2
 #define SENS_JOY_NEG_Y_AXIS     	3
 #define SENS_JOY_PRECISION		4
 
-#define SENS_JOY_HAT			2		/* axis type */
+#define SENS_JOY_HAT			2		/* axis type */ /* Unused all Hat related defines */
 #define SENS_JOY_HAT_DIR		0
 #define SENS_JOY_HAT_UP			1
 #define SENS_JOY_HAT_RIGHT		2
@@ -345,9 +362,15 @@ typedef struct bMovementSensor {
 #define SENS_JOY_HAT_UP_LEFT	SENS_JOY_HAT_UP | SENS_JOY_HAT_LEFT
 #define SENS_JOY_HAT_DOWN_LEFT	SENS_JOY_HAT_DOWN | SENS_JOY_HAT_LEFT
 
-
 #define SENS_JOY_AXIS_SINGLE	3		/* axis type */
+#define SENS_JOY_LEFT_STICK_HORIZONTAL	1
+#define SENS_JOY_LEFT_STICK_VERTICAL	2
+#define SENS_JOY_RIGHT_STICK_HORIZONTAL	3
+#define SENS_JOY_RIGHT_STICK_VERTICAL	4
 
+#define SENS_JOY_SHOULDER_TRIGGER	4	/* axis type */
+#define SENS_JOY_LEFT_SHOULDER_TRIGGER	1
+#define SENS_JOY_RIGHT_SHOULDER_TRIGGER	2
 
 #define SENS_DELAY_REPEAT		1
 // should match JOYINDEX_MAX in SCA_JoystickDefines.h */

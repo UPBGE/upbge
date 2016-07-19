@@ -36,17 +36,9 @@
 #undef main
 #endif
 
-#ifndef DEBUG
-#  define JOYSTICK_ECHO(x)
-#else
-#  include <iostream>
-#  define JOYSTICK_ECHO(x) std::cout << x << std::endl;
-#endif
-
 #define JOYINDEX_MAX			8
-#define JOYAXIS_MAX				16
-#define JOYBUT_MAX				18
-#define JOYHAT_MAX				4
+#define JOYAXIS_MAX				6
+#define JOYBUT_MAX				15
 
 #define JOYAXIS_RIGHT		0
 #define JOYAXIS_UP			1

@@ -32,29 +32,17 @@
 #include "SCA_JoystickSensor.h"
 #include "SCA_JoystickManager.h"
 #include "SCA_LogicManager.h"
-//#include <vector>
 #include "SCA_ISensor.h"
-
-//using namespace std;
 
 
 SCA_JoystickManager::SCA_JoystickManager(class SCA_LogicManager* logicmgr)
 	: SCA_EventManager(logicmgr, JOY_EVENTMGR)
 {
-	int i;
-	for (i=0; i<JOYINDEX_MAX; i++) {
-		m_joystick[i] = SCA_Joystick::GetInstance( i );
-	}
 }
 
 
 SCA_JoystickManager::~SCA_JoystickManager()
 {
-	int i;
-	for (i=0; i<JOYINDEX_MAX; i++) {
-		if (m_joystick[i])
-			m_joystick[i]->ReleaseInstance();
-	}
 }
 
 
@@ -64,7 +52,6 @@ void SCA_JoystickManager::NextFrame(double curtime,double deltatime)
 		return;
 	}
 	else {
-		;
 		SG_DList::iterator<SCA_JoystickSensor> it(m_sensors);
 		for (it.begin();!it.end();++it)
 		{
@@ -83,5 +70,5 @@ SCA_Joystick *SCA_JoystickManager::GetJoystickDevice( short int joyindex)
 	/*
 	 *Return the instance of SCA_Joystick for use
 	 */
-	return m_joystick[joyindex];
+	return SCA_Joystick::GetInstance(joyindex);
 }

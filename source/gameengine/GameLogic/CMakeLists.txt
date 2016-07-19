@@ -122,6 +122,7 @@ set(SRC
 	Joystick/SCA_Joystick.h
 	Joystick/SCA_JoystickDefines.h
 	Joystick/SCA_JoystickPrivate.h
+	Joystick/SCA_JoystickMappingdb.h
 )
 
 if(WITH_SDL)

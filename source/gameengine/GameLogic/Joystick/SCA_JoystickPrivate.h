@@ -31,6 +31,10 @@
 
 #ifndef __SCA_JOYSTICKPRIVATE_H__
 #define __SCA_JOYSTICKPRIVATE_H__
+
+#include <stdlib.h>
+#include <string.h>
+
 #include "SCA_Joystick.h"
 
 #ifdef WITH_SDL
@@ -38,13 +42,18 @@ class SCA_Joystick::PrivateData
 {
 public:
 	/*
-	 * The Joystick
+	 * The Game controller
 	 */
-	SDL_Joystick*	m_joystick;
+	SDL_GameController *m_gamecontroller;
+	SDL_JoystickID m_instance_id;
+	SDL_Haptic *m_haptic;
+	SDL_HapticEffect m_hapticeffect;
 
-	PrivateData()
-	: m_joystick(NULL)
+	PrivateData():
+	m_gamecontroller(NULL),
+	m_haptic(NULL)
 	{
+		memset(&m_hapticeffect, 0, sizeof(SDL_HapticEffect));
 	}
 };
 #endif /* WITH_SDL */

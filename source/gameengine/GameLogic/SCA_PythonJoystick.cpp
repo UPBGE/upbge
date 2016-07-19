@@ -35,9 +35,10 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_PythonJoystick::SCA_PythonJoystick(SCA_Joystick* joystick)
+SCA_PythonJoystick::SCA_PythonJoystick(SCA_Joystick* joystick, int joyindex)
 : PyObjectPlus(),
-m_joystick(joystick)
+  m_joystick(joystick),
+  m_joyindex(joyindex)
 {
 #ifdef WITH_PYTHON
 	m_event_dict = PyDict_New();
@@ -48,7 +49,7 @@ SCA_PythonJoystick::~SCA_PythonJoystick()
 {
 	// The joystick reference we got in the constructor was a new instance,
 	// so we release it here
-	m_joystick->ReleaseInstance();
+	m_joystick->ReleaseInstance(m_joyindex);
 
 #ifdef WITH_PYTHON
 	PyDict_Clear(m_event_dict);
@@ -108,14 +109,14 @@ PyAttributeDef SCA_PythonJoystick::Attributes[] = {
 // Use one function for numAxis, numButtons, and numHats
 PyObject* SCA_PythonJoystick::pyattr_get_num_x(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_PythonJoystick* self = static_cast<SCA_PythonJoystick*>(self_v);
-
 	if (strcmp(attrdef->m_name, "numButtons") == 0)
-		return PyLong_FromLong(self->m_joystick->GetNumberOfButtons());
+		return PyLong_FromLong(JOYBUT_MAX);
 	else if (strcmp(attrdef->m_name, "numAxis") == 0)
-		return PyLong_FromLong(self->m_joystick->GetNumberOfAxes());
-	else if (strcmp(attrdef->m_name, "numHats") == 0)
-		return PyLong_FromLong(self->m_joystick->GetNumberOfHats());
+		return PyLong_FromLong(JOYAXIS_MAX);
+	else if (strcmp(attrdef->m_name, "numHats") == 0) {
+		ShowDeprecationWarning("SCA_PythonJoystick.numHats", "SCA_PythonJoystick.numButtons");
+		return PyLong_FromLong(0);
+	}
 
 	// If we got here, we have a problem...
 	PyErr_SetString(PyExc_AttributeError, "invalid attribute");
@@ -126,7 +127,7 @@ PyObject* SCA_PythonJoystick::pyattr_get_active_buttons(void *self_v, const KX_P
 {
 	SCA_PythonJoystick* self = static_cast<SCA_PythonJoystick*>(self_v);
 	
-	const int button_number = self->m_joystick->GetNumberOfButtons();
+	const int button_number = JOYBUT_MAX;
 
 	PyObject *list = PyList_New(0);
 	PyObject *value;
@@ -139,28 +140,21 @@ PyObject* SCA_PythonJoystick::pyattr_get_active_buttons(void *self_v, const KX_P
 		}
 	}
 
+	/* XXX return list adapted to new names (A, B, X, Y, START, etc) */
 	return list;
 }
 
 PyObject* SCA_PythonJoystick::pyattr_get_hat_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_PythonJoystick* self = static_cast<SCA_PythonJoystick*>(self_v);
-	
-	int hat_index = self->m_joystick->GetNumberOfHats();
-	PyObject *list = PyList_New(hat_index);
-	
-	while (hat_index--) {
-		PyList_SET_ITEM(list, hat_index, PyLong_FromLong(self->m_joystick->GetHat(hat_index)));
-	}
-	
-	return list;
+	ShowDeprecationWarning("SCA_PythonJoystick.hatValues", "SCA_PythonJoystick.activeButtons");
+	return NULL;
 }
 
 PyObject* SCA_PythonJoystick::pyattr_get_axis_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonJoystick* self = static_cast<SCA_PythonJoystick*>(self_v);
 	
-	int axis_index = self->m_joystick->GetNumberOfAxes();
+	int axis_index = JOYAXIS_MAX;
 	PyObject *list = PyList_New(axis_index);
 	int position;
 	

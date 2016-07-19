@@ -29,6 +29,7 @@ set(INC
 	../Converter
 	../Expressions
 	../GameLogic
+	../GameLogic/Joystick
 	../GamePlayer
 	../Ghost
 	../Ketsji
