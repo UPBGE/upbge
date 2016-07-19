@@ -1,14 +1,18 @@
 import sys
 import os
-import rlcompleter
-import readline
 import bge
 import code
 
 # Check if a console exits.
 if os.isatty(sys.stdin.fileno()):
-	# Autocompletion with tab.
-	readline.parse_and_bind("tab: complete")
+	try:
+		import readline
+	except ImportError:
+		print("Can not enable autocompletion, readline module is missing")
+	else:
+		import rlcompleter
+		# Autocompletion with tab.
+		readline.parse_and_bind("tab: complete")
 
 	# BGE defines.
 	scene = bge.logic.getCurrentScene()
