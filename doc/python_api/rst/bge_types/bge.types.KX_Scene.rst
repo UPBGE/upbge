@@ -73,6 +73,12 @@ base class --- :class:`PyObjectPlus`
 
       :type: :class:`CListValue` of :class:`KX_Camera`
 
+   .. attribute:: texts
+
+      A list of texts in the scene, (read-only).
+
+      :type: :class:`CListValue` of :class:`KX_FontObject`
+	  
    .. attribute:: active_camera
 
       The current active camera.
