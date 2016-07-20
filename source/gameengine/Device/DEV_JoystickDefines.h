@@ -25,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file SCA_JoystickDefines.h
- *  \ingroup gamelogic
+/** \file DEV_JoystickDefines.h
+ *  \ingroup device
  */
 
 #ifndef __SCA_JOYSTICKDEFINES_H__

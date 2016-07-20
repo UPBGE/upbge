@@ -20,13 +20,13 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ghost/GH_EventConsumer.cpp
- *  \ingroup ghost
+/** \file gameengine/Device/DEV_EventConsumer.cpp
+ *  \ingroup device
  */
 
 
-#include "GH_EventConsumer.h"
-#include "GH_InputDevice.h"
+#include "DEV_EventConsumer.h"
+#include "DEV_InputDevice.h"
 
 #include "GHOST_IEvent.h"
 #include "GHOST_IWindow.h"
@@ -38,7 +38,7 @@
 
 #include <iostream>
 
-GH_EventConsumer::GH_EventConsumer(GHOST_ISystem *system, GH_InputDevice *device, RAS_ICanvas *canvas)
+DEV_EventConsumer::DEV_EventConsumer(GHOST_ISystem *system, DEV_InputDevice *device, RAS_ICanvas *canvas)
 	:m_device(device),
 	m_canvas(canvas)
 {
@@ -50,23 +50,23 @@ GH_EventConsumer::GH_EventConsumer(GHOST_ISystem *system, GH_InputDevice *device
 	m_device->ConvertMoveEvent(x, y);
 }
 
-GH_EventConsumer::~GH_EventConsumer()
+DEV_EventConsumer::~DEV_EventConsumer()
 {
 }
 
-void GH_EventConsumer::HandleWindowEvent(GHOST_TEventType type)
+void DEV_EventConsumer::HandleWindowEvent(GHOST_TEventType type)
 {
 	m_device->ConvertWindowEvent(type);
 }
 
-void GH_EventConsumer::HandleKeyEvent(GHOST_TEventDataPtr data, bool down)
+void DEV_EventConsumer::HandleKeyEvent(GHOST_TEventDataPtr data, bool down)
 {
 	GHOST_TEventKeyData *keyData = (GHOST_TEventKeyData *)data;
 	unsigned int unicode = keyData->utf8_buf[0] ? BLI_str_utf8_as_unicode(keyData->utf8_buf) : keyData->ascii;
 	m_device->ConvertKeyEvent(keyData->key, down, unicode);
 }
 
-void GH_EventConsumer::HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindow *window)
+void DEV_EventConsumer::HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindow *window)
 {
 	GHOST_TEventCursorData *cursorData = (GHOST_TEventCursorData *)data;
 	int x, y;
@@ -75,21 +75,21 @@ void GH_EventConsumer::HandleCursorEvent(GHOST_TEventDataPtr data, GHOST_IWindow
 	m_device->ConvertMoveEvent(x, y);
 }
 
-void GH_EventConsumer::HandleWheelEvent(GHOST_TEventDataPtr data)
+void DEV_EventConsumer::HandleWheelEvent(GHOST_TEventDataPtr data)
 {
 	GHOST_TEventWheelData* wheelData = (GHOST_TEventWheelData *)data;
 
 	m_device->ConvertWheelEvent(wheelData->z);
 }
 
-void GH_EventConsumer::HandleButtonEvent(GHOST_TEventDataPtr data, bool down)
+void DEV_EventConsumer::HandleButtonEvent(GHOST_TEventDataPtr data, bool down)
 {
 	GHOST_TEventButtonData *buttonData = (GHOST_TEventButtonData *)data;
 
 	m_device->ConvertButtonEvent(buttonData->button, down);
 }
 
-bool GH_EventConsumer::processEvent(GHOST_IEvent *event)
+bool DEV_EventConsumer::processEvent(GHOST_IEvent *event)
 {
 	GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
 	switch (event->getType()) {

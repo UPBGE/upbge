@@ -14,12 +14,7 @@
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
-# The Original Code is Copyright (C) 2006, Blender Foundation
-# All rights reserved.
-#
-# The Original Code is: all of this file.
-#
-# Contributor(s): Jacques Beaurain.
+# Contributor(s): Tristan Porteries.
 #
 # ***** END GPL LICENSE BLOCK *****
 
@@ -40,11 +35,25 @@ set(INC_SYS
 )
 
 set(SRC
-	GH_EventConsumer.cpp
-	GH_InputDevice.cpp
+	DEV_EventConsumer.cpp
+	DEV_InputDevice.cpp
+	DEV_Joystick.cpp
+	DEV_JoystickEvents.cpp
 
-	GH_EventConsumer.h
-	GH_InputDevice.h
+	DEV_EventConsumer.h
+	DEV_InputDevice.h
+	DEV_Joystick.h
+	DEV_JoystickDefines.h
+	DEV_JoystickPrivate.h
+	DEV_JoystickMappingdb.h
 )
 
-blender_add_lib(ge_ghost "${SRC}" "${INC}" "${INC_SYS}")
+if(WITH_SDL)
+	list(APPEND INC_SYS
+		${SDL_INCLUDE_DIR}
+	)
+
+	add_definitions(-DWITH_SDL)
+endif()
+
+blender_add_lib(ge_device "${SRC}" "${INC}" "${INC_SYS}")

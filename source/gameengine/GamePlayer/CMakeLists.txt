@@ -26,9 +26,9 @@
 set(INC
 	.
 	..
-	../Ghost
 	../BlenderRoutines
 	../Converter
+	../Device
 	../Expressions
 	../GameLogic
 	../Ketsji

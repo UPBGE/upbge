@@ -1509,7 +1509,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 
 	PyObject* joylist = PyList_New(JOYINDEX_MAX);
 	for (int i=0; i<JOYINDEX_MAX; ++i) {
-		SCA_Joystick *joy = SCA_Joystick::GetInstance(i);
+		DEV_Joystick *joy = DEV_Joystick::GetInstance(i);
 		PyObject *item;
 
 		if (joy && joy->Connected()) {

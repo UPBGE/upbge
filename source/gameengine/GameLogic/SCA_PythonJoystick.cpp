@@ -26,7 +26,7 @@
 
 
 #include "SCA_PythonJoystick.h"
-#include "./Joystick/SCA_Joystick.h"
+#include "DEV_Joystick.h"
 #include "SCA_IInputDevice.h"
 
 //#include "GHOST_C-api.h"
@@ -35,7 +35,7 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-SCA_PythonJoystick::SCA_PythonJoystick(SCA_Joystick* joystick, int joyindex)
+SCA_PythonJoystick::SCA_PythonJoystick(DEV_Joystick* joystick, int joyindex)
 : PyObjectPlus(),
   m_joystick(joystick),
   m_joyindex(joyindex)

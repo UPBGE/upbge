@@ -49,7 +49,7 @@ extern "C" {
 
 #include "GHOST_ISystem.h"
 
-#include "GH_InputDevice.h"
+#include "DEV_InputDevice.h"
 
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
 								 RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv)

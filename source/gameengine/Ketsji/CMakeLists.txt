@@ -28,6 +28,7 @@ set(INC
 	KXNetwork
 	../BlenderRoutines
 	../Converter
+	../Device
 	../Expressions
 	../GameLogic
 	../Launcher

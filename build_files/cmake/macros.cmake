@@ -584,7 +584,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		extern_curve_fit_nd
 		ge_logic_ketsji
 		extern_recastnavigation
-		ge_ghost
+		ge_device
 		ge_logic
 		ge_oglrasterizer
 		ge_rasterizer

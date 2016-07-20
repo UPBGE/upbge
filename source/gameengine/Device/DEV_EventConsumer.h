@@ -20,8 +20,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GH_EventConsumer.h
- *  \ingroup ghost
+/** \file DEV_EventConsumer.h
+ *  \ingroup device
  */
 
 #ifndef __GH_EVENTCONSUMER_H__
@@ -29,15 +29,15 @@
 
 #include "GHOST_IEventConsumer.h"
 
-class GH_InputDevice;
+class DEV_InputDevice;
 class GHOST_ISystem;
 
 class RAS_ICanvas;
 
-class GH_EventConsumer : public GHOST_IEventConsumer
+class DEV_EventConsumer : public GHOST_IEventConsumer
 {
 private:
-	GH_InputDevice *m_device;
+	DEV_InputDevice *m_device;
 	RAS_ICanvas *m_canvas;
 
 	void HandleWindowEvent(GHOST_TEventType type);
@@ -47,8 +47,8 @@ private:
 	void HandleButtonEvent(GHOST_TEventDataPtr data, bool down);
 
 public:
-	GH_EventConsumer(GHOST_ISystem *system, GH_InputDevice *device, RAS_ICanvas *canvas);
-	virtual ~GH_EventConsumer();
+	DEV_EventConsumer(GHOST_ISystem *system, DEV_InputDevice *device, RAS_ICanvas *canvas);
+	virtual ~DEV_EventConsumer();
 
 	/// Function called by GHOST to process all events.
 	virtual bool processEvent(GHOST_IEvent *event);

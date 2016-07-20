@@ -47,10 +47,10 @@
 #include "GHOST_ISystem.h"
 #include "GHOST_IWindow.h"
 
-#include "GH_EventConsumer.h"
-#include "GH_InputDevice.h"
+#include "DEV_EventConsumer.h"
+#include "DEV_InputDevice.h"
 
-#include "SCA_Joystick.h"
+#include "DEV_Joystick.h"
 
 extern "C" {
 #  include "GPU_extensions.h"
@@ -196,8 +196,8 @@ void LA_Launcher::InitEngine()
 	}
 
 	// Create the inputdevices.
-	m_inputDevice = new GH_InputDevice();
-	m_eventConsumer = new GH_EventConsumer(m_system, m_inputDevice, m_canvas);
+	m_inputDevice = new DEV_InputDevice();
+	m_eventConsumer = new DEV_EventConsumer(m_system, m_inputDevice, m_canvas);
 	m_system->addEventConsumer(m_eventConsumer);
 
 	// Create a ketsjisystem (only needed for timing and stuff).
@@ -214,7 +214,7 @@ void LA_Launcher::InitEngine()
 	m_ketsjiEngine->SetRasterizer(m_rasterizer);
 	m_ketsjiEngine->SetNetworkMessageManager(m_networkMessageManager);
 
-	SCA_Joystick::Init();
+	DEV_Joystick::Init();
 
 	KX_KetsjiEngine::SetExitKey(ConvertKeyCode(gm->exitkey));
 #ifdef WITH_PYTHON
@@ -292,7 +292,7 @@ void LA_Launcher::InitEngine()
 
 void LA_Launcher::ExitEngine()
 {
-	SCA_Joystick::Close();
+	DEV_Joystick::Close();
 	m_ketsjiEngine->StopEngine();
 
 #ifdef WITH_PYTHON

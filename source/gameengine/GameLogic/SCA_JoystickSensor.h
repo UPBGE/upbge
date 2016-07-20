@@ -34,7 +34,7 @@
 #define __JOYSENSOR_H__
 
 #include "SCA_ISensor.h"
-#include "Joystick/SCA_JoystickDefines.h"
+#include "DEV_JoystickDefines.h"
 
 class SCA_JoystickSensor :public SCA_ISensor
 {

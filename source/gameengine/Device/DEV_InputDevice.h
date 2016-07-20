@@ -20,8 +20,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GH_InputDevice.h
- *  \ingroup ghost
+/** \file DEV_InputDevice.h
+ *  \ingroup device
  */
 
 #ifndef __GH_INPUTDEVICE_H__
@@ -31,7 +31,7 @@
 
 #include <map>
 
-class GH_InputDevice : public SCA_IInputDevice
+class DEV_InputDevice : public SCA_IInputDevice
 {
 protected:
 	/// These maps converts GHOST input number to SCA input enum.
@@ -40,8 +40,8 @@ protected:
 	std::map<int, SCA_EnumInputs> m_reverseWindowTranslateTable;
 
 public:
-	GH_InputDevice();
-	virtual ~GH_InputDevice();
+	DEV_InputDevice();
+	virtual ~DEV_InputDevice();
 
 	void ConvertKeyEvent(int incode, int val, unsigned int unicode);
 	void ConvertButtonEvent(int incode, int val);

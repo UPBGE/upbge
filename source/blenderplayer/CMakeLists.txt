@@ -117,12 +117,11 @@ endif()
 		bf_blenloader
 		ge_blen_routines
 		bf_editor_datafiles
-		ge_ghost
 		ge_launcher
-		ge_ghost
 		ge_player
 		ge_converter 
 		ge_logic_ketsji 
+		ge_device
 		ge_phys_bullet 
 		ge_phys_dummy
 		ge_logic 

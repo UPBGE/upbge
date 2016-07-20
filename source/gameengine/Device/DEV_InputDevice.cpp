@@ -20,17 +20,17 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ghost/GH_InputDevice.cpp
- *  \ingroup ghost
+/** \file gameengine/Device/DEV_InputDevice.cpp
+ *  \ingroup device
  */
 
 
-#include "GH_InputDevice.h"
+#include "DEV_InputDevice.h"
 #include "GHOST_Types.h"
 
 #include <iostream>
 
-GH_InputDevice::GH_InputDevice()
+DEV_InputDevice::DEV_InputDevice()
 {
 	m_reverseKeyTranslateTable[GHOST_kKeyA] = AKEY;
 	m_reverseKeyTranslateTable[GHOST_kKeyB] = BKEY;
@@ -164,26 +164,26 @@ GH_InputDevice::GH_InputDevice()
 	m_reverseWindowTranslateTable[GHOST_kEventWindowClose] = WINCLOSE;
 }
 
-GH_InputDevice::~GH_InputDevice()
+DEV_InputDevice::~DEV_InputDevice()
 {
 }
 
-void GH_InputDevice::ConvertKeyEvent(int incode, int val, unsigned int unicode)
+void DEV_InputDevice::ConvertKeyEvent(int incode, int val, unsigned int unicode)
 {
 	ConvertEvent(m_reverseKeyTranslateTable[incode], val, unicode);
 }
 
-void GH_InputDevice::ConvertButtonEvent(int incode, int val)
+void DEV_InputDevice::ConvertButtonEvent(int incode, int val)
 {
 	ConvertEvent(m_reverseButtonTranslateTable[incode], val, 0);
 }
 
-void GH_InputDevice::ConvertWindowEvent(int incode)
+void DEV_InputDevice::ConvertWindowEvent(int incode)
 {
 	ConvertEvent(m_reverseWindowTranslateTable[incode], 1, 0);
 }
 
-void GH_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode)
+void DEV_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode)
 {
 	SCA_InputEvent &event = m_inputsTable[type];
 
@@ -200,7 +200,7 @@ void GH_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val
 	}
 }
 
-void GH_InputDevice::ConvertMoveEvent(int x, int y)
+void DEV_InputDevice::ConvertMoveEvent(int x, int y)
 {
 	SCA_InputEvent &xevent = m_inputsTable[MOUSEX];
 	xevent.m_values.push_back(x);
@@ -217,7 +217,7 @@ void GH_InputDevice::ConvertMoveEvent(int x, int y)
 	}
 }
 
-void GH_InputDevice::ConvertWheelEvent(int z)
+void DEV_InputDevice::ConvertWheelEvent(int z)
 {
 	SCA_InputEvent &event = m_inputsTable[(z > 0) ? WHEELUPMOUSE : WHEELDOWNMOUSE];
 	event.m_values.push_back(z);

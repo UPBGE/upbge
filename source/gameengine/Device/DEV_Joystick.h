@@ -25,14 +25,14 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file SCA_Joystick.h
- *  \ingroup gamelogic
+/** \file DEV_Joystick.h
+ *  \ingroup device
  */
 
 #ifndef __SCA_JOYSTICK_H__
 #define __SCA_JOYSTICK_H__
 
-#include "SCA_JoystickDefines.h"
+#include "DEV_JoystickDefines.h"
 #ifdef WITH_SDL
 /* SDL force defines __SSE__ and __SSE2__ flags, which generates warnings
  * because we pass those defines via command line as well. For until there's
@@ -55,10 +55,10 @@
  * The underlying joystick should only be removed when the last scene is removed
  */
 
-class SCA_Joystick
+class DEV_Joystick
 
 {
-	static SCA_Joystick *m_instance[JOYINDEX_MAX];
+	static DEV_Joystick *m_instance[JOYINDEX_MAX];
 
 	class PrivateData;
 #ifdef WITH_SDL
@@ -125,13 +125,13 @@ class SCA_Joystick
 	 */
 	int pGetAxis(int axisnum, int udlr);
 
-	SCA_Joystick(short index);
+	DEV_Joystick(short index);
 
-	~SCA_Joystick();
+	~DEV_Joystick();
 	
 public:
 
-	static SCA_Joystick *GetInstance(short joyindex);
+	static DEV_Joystick *GetInstance(short joyindex);
 	static void HandleEvents(void);
 	void ReleaseInstance(short joyindex);
 	static void Init();

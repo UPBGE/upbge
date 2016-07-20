@@ -42,8 +42,8 @@ class KX_ISceneConverter;
 class KX_NetworkMessageManager;
 class RAS_ICanvas;
 class RAS_IRasterizer;
-class GH_EventConsumer;
-class GH_InputDevice;
+class DEV_EventConsumer;
+class DEV_InputDevice;
 class GHOST_ISystem;
 struct Scene;
 struct Main;
@@ -70,8 +70,8 @@ protected:
 	/// The game engine's system abstraction.
 	KX_ISystem* m_kxsystem;
 	/// The game engine's input device abstraction.
-	GH_InputDevice *m_inputDevice;
-	GH_EventConsumer *m_eventConsumer;
+	DEV_InputDevice *m_inputDevice;
+	DEV_EventConsumer *m_eventConsumer;
 	/// The game engine's canvas abstraction.
 	RAS_ICanvas *m_canvas;
 	/// The rasterizer.

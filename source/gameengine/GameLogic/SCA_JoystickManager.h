@@ -33,7 +33,7 @@
 #define __SCA_JOYSTICKMANAGER_H__
 
 #include "SCA_EventManager.h"
-#include "Joystick/SCA_Joystick.h"
+#include "DEV_Joystick.h"
 
 class SCA_JoystickManager : public SCA_EventManager
 {
@@ -42,7 +42,7 @@ public:
 	SCA_JoystickManager(class SCA_LogicManager* logicmgr);
 	virtual ~SCA_JoystickManager();
 	virtual void NextFrame(double curtime,double deltatime);
-	SCA_Joystick* GetJoystickDevice(short int joyindex);
+	DEV_Joystick* GetJoystickDevice(short int joyindex);
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

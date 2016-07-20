@@ -100,7 +100,7 @@ bool SCA_JoystickSensor::IsPositiveTrigger()
 
 bool SCA_JoystickSensor::Evaluate()
 {
-	SCA_Joystick *js = ((SCA_JoystickManager *)m_eventmgr)->GetJoystickDevice(m_joyindex);
+	DEV_Joystick *js = ((SCA_JoystickManager *)m_eventmgr)->GetJoystickDevice(m_joyindex);
 	bool result = false;
 	bool reset = m_reset && m_level;
 	int axis_single_index = m_axis;
@@ -281,7 +281,7 @@ const char SCA_JoystickSensor::GetButtonActiveList_doc[] =
 "\tReturns a list containing the indices of the button currently pressed.\n";
 PyObject *SCA_JoystickSensor::PyGetButtonActiveList( )
 {
-	SCA_Joystick *joy = ((SCA_JoystickManager *)m_eventmgr)->GetJoystickDevice(m_joyindex);
+	DEV_Joystick *joy = ((SCA_JoystickManager *)m_eventmgr)->GetJoystickDevice(m_joyindex);
 	PyObject *ls = PyList_New(0);
 	PyObject *value;
 	int i;
@@ -304,7 +304,7 @@ const char SCA_JoystickSensor::GetButtonStatus_doc[] =
 "\tReturns a bool of the current pressed state of the specified button.\n";
 PyObject *SCA_JoystickSensor::PyGetButtonStatus( PyObject *args )
 {
-	SCA_Joystick *joy = ((SCA_JoystickManager *)m_eventmgr)->GetJoystickDevice(m_joyindex);
+	DEV_Joystick *joy = ((SCA_JoystickManager *)m_eventmgr)->GetJoystickDevice(m_joyindex);
 	int index;
 	
 	if (!PyArg_ParseTuple(args, "i:getButtonStatus", &index)) {
@@ -319,7 +319,7 @@ PyObject *SCA_JoystickSensor::PyGetButtonStatus( PyObject *args )
 PyObject *SCA_JoystickSensor::pyattr_get_axis_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_JoystickSensor* self = static_cast<SCA_JoystickSensor*>(self_v);
-	SCA_Joystick *joy = ((SCA_JoystickManager *)self->m_eventmgr)->GetJoystickDevice(self->m_joyindex);
+	DEV_Joystick *joy = ((SCA_JoystickManager *)self->m_eventmgr)->GetJoystickDevice(self->m_joyindex);
 	
 	int axis_index = (joy ? JOYAXIS_MAX : 0);
 	PyObject *list = PyList_New(axis_index);
@@ -334,7 +334,7 @@ PyObject *SCA_JoystickSensor::pyattr_get_axis_values(void *self_v, const KX_PYAT
 PyObject *SCA_JoystickSensor::pyattr_get_axis_single(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_JoystickSensor* self = static_cast<SCA_JoystickSensor*>(self_v);
-	SCA_Joystick *joy = ((SCA_JoystickManager *)self->m_eventmgr)->GetJoystickDevice(self->m_joyindex);
+	DEV_Joystick *joy = ((SCA_JoystickManager *)self->m_eventmgr)->GetJoystickDevice(self->m_joyindex);
 	
 	if (self->m_joymode != KX_JOYSENSORMODE_AXIS_SINGLE) {
 		PyErr_SetString(PyExc_AttributeError, "val = sensor.axisSingle: Joystick Sensor, not 'Single Axis' type");
@@ -365,14 +365,14 @@ PyObject *SCA_JoystickSensor::pyattr_get_hat_single(void *self_v, const KX_PYATT
 PyObject *SCA_JoystickSensor::pyattr_get_num_axis(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_JoystickSensor* self = static_cast<SCA_JoystickSensor*>(self_v);
-	SCA_Joystick *joy = ((SCA_JoystickManager *)self->m_eventmgr)->GetJoystickDevice(self->m_joyindex);
+	DEV_Joystick *joy = ((SCA_JoystickManager *)self->m_eventmgr)->GetJoystickDevice(self->m_joyindex);
 	return PyLong_FromLong( joy ? JOYAXIS_MAX : 0 );
 }
 
 PyObject *SCA_JoystickSensor::pyattr_get_num_buttons(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_JoystickSensor* self = static_cast<SCA_JoystickSensor*>(self_v);
-	SCA_Joystick *joy = ((SCA_JoystickManager *)self->m_eventmgr)->GetJoystickDevice(self->m_joyindex);
+	DEV_Joystick *joy = ((SCA_JoystickManager *)self->m_eventmgr)->GetJoystickDevice(self->m_joyindex);
 	return PyLong_FromLong( joy ? JOYBUT_MAX : 0 );
 }
 
@@ -385,7 +385,7 @@ PyObject *SCA_JoystickSensor::pyattr_get_num_hats(void *self_v, const KX_PYATTRI
 PyObject *SCA_JoystickSensor::pyattr_get_connected(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_JoystickSensor* self = static_cast<SCA_JoystickSensor*>(self_v);
-	SCA_Joystick *joy = ((SCA_JoystickManager *)self->m_eventmgr)->GetJoystickDevice(self->m_joyindex);
+	DEV_Joystick *joy = ((SCA_JoystickManager *)self->m_eventmgr)->GetJoystickDevice(self->m_joyindex);
 	return PyBool_FromLong( joy ? joy->Connected() : 0 );
 }
 

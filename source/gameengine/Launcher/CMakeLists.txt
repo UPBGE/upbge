@@ -27,11 +27,10 @@ set(INC
 	.
 	../BlenderRoutines
 	../Converter
+	../Device
 	../Expressions
 	../GameLogic
-	../GameLogic/Joystick
 	../GamePlayer
-	../Ghost
 	../Ketsji
 	../Ketsji/KXNetwork
 	../Rasterizer

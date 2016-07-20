@@ -63,7 +63,7 @@
 
 #include "KX_NetworkMessageScene.h"
 
-#include "Joystick/SCA_Joystick.h" // for SCA_Joystick::HandleEvents
+#include "DEV_Joystick.h" // for DEV_Joystick::HandleEvents
 
 #include "KX_WorldInfo.h"
 #include "KX_ISceneConverter.h"
@@ -577,7 +577,7 @@ bool KX_KetsjiEngine::NextFrame()
 		}
 #ifdef WITH_SDL
 		// Handle all SDL Joystick events here to share they for all scenes proceed.
-		SCA_Joystick::HandleEvents();
+		DEV_Joystick::HandleEvents();
 #endif
 
 		// for each scene, call the proceed functions

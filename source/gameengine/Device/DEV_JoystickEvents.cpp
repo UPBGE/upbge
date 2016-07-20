@@ -25,19 +25,19 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/GameLogic/Joystick/SCA_JoystickEvents.cpp
- *  \ingroup gamelogic
+/** \file gameengine/Device/DEV_JoystickEvents.cpp
+ *  \ingroup device
  */
 
-#include "SCA_Joystick.h"
-#include "SCA_JoystickPrivate.h"
+#include "DEV_Joystick.h"
+#include "DEV_JoystickPrivate.h"
 
 #ifdef _MSC_VER
 #  include <cstdio> /* printf */
 #endif
 
 #ifdef WITH_SDL
-void SCA_Joystick::OnAxisEvent(SDL_Event* sdl_event)
+void DEV_Joystick::OnAxisEvent(SDL_Event* sdl_event)
 {
 	if (sdl_event->caxis.axis >= JOYAXIS_MAX)
 		return;
@@ -47,18 +47,18 @@ void SCA_Joystick::OnAxisEvent(SDL_Event* sdl_event)
 }
 
 /* See notes below in the event loop */
-void SCA_Joystick::OnButtonEvent(SDL_Event* sdl_event)
+void DEV_Joystick::OnButtonEvent(SDL_Event* sdl_event)
 {
 	m_istrig_button = 1;
 }
 
 
-void SCA_Joystick::OnNothing(SDL_Event* sdl_event)
+void DEV_Joystick::OnNothing(SDL_Event* sdl_event)
 {
 	m_istrig_axis = m_istrig_button = 0;
 }
 
-void SCA_Joystick::HandleEvents(void)
+void DEV_Joystick::HandleEvents(void)
 {
 	SDL_Event		sdl_event;
 
@@ -67,8 +67,8 @@ void SCA_Joystick::HandleEvents(void)
 	}
 
 	for (int i = 0; i < JOYINDEX_MAX; i++) {
-		if (SCA_Joystick::m_instance[i])
-			SCA_Joystick::m_instance[i]->OnNothing(&sdl_event);
+		if (DEV_Joystick::m_instance[i])
+			DEV_Joystick::m_instance[i]->OnNothing(&sdl_event);
 	}
 	
 	while (SDL_PollEvent(&sdl_event)) {
@@ -88,9 +88,9 @@ void SCA_Joystick::HandleEvents(void)
 		switch (sdl_event.type) {
 			case SDL_JOYDEVICEADDED:
 				if (sdl_event.jdevice.which < JOYINDEX_MAX) {
-					if (!SCA_Joystick::m_instance[sdl_event.jdevice.which]) {
-						SCA_Joystick::m_instance[sdl_event.jdevice.which] = new SCA_Joystick(sdl_event.jdevice.which);
-						SCA_Joystick::m_instance[sdl_event.jdevice.which]->CreateJoystickDevice();
+					if (!DEV_Joystick::m_instance[sdl_event.jdevice.which]) {
+						DEV_Joystick::m_instance[sdl_event.jdevice.which] = new DEV_Joystick(sdl_event.jdevice.which);
+						DEV_Joystick::m_instance[sdl_event.jdevice.which]->CreateJoystickDevice();
 						break;
 					}
 					else {
@@ -104,9 +104,9 @@ void SCA_Joystick::HandleEvents(void)
 				break;
 			case SDL_CONTROLLERDEVICEREMOVED:
 				for (int i = 0; i < JOYINDEX_MAX; i++) {
-					if (SCA_Joystick::m_instance[i]) {
-						if (sdl_event.cdevice.which == SCA_Joystick::m_instance[i]->m_private->m_instance_id) {
-							SCA_Joystick::m_instance[i]->ReleaseInstance(i);
+					if (DEV_Joystick::m_instance[i]) {
+						if (sdl_event.cdevice.which == DEV_Joystick::m_instance[i]->m_private->m_instance_id) {
+							DEV_Joystick::m_instance[i]->ReleaseInstance(i);
 							break;
 						}
 					}
@@ -115,9 +115,9 @@ void SCA_Joystick::HandleEvents(void)
 			case SDL_CONTROLLERBUTTONDOWN:
 			case SDL_CONTROLLERBUTTONUP:
 				for (int i = 0; i < JOYINDEX_MAX; i++) {
-					if (SCA_Joystick::m_instance[i]) {
-						if (sdl_event.cdevice.which == SCA_Joystick::m_instance[i]->m_private->m_instance_id) {
-							SCA_Joystick::m_instance[i]->OnButtonEvent(&sdl_event);
+					if (DEV_Joystick::m_instance[i]) {
+						if (sdl_event.cdevice.which == DEV_Joystick::m_instance[i]->m_private->m_instance_id) {
+							DEV_Joystick::m_instance[i]->OnButtonEvent(&sdl_event);
 							break;
 						}
 					}
@@ -125,9 +125,9 @@ void SCA_Joystick::HandleEvents(void)
 				break;
 			case SDL_CONTROLLERAXISMOTION:
 				for (int i = 0; i < JOYINDEX_MAX; i++) {
-					if (SCA_Joystick::m_instance[i]) {
-						if (sdl_event.cdevice.which == SCA_Joystick::m_instance[i]->m_private->m_instance_id) {
-							SCA_Joystick::m_instance[i]->OnAxisEvent(&sdl_event);
+					if (DEV_Joystick::m_instance[i]) {
+						if (sdl_event.cdevice.which == DEV_Joystick::m_instance[i]->m_private->m_instance_id) {
+							DEV_Joystick::m_instance[i]->OnAxisEvent(&sdl_event);
 							break;
 						}
 					}

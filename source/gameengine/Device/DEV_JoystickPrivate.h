@@ -25,15 +25,15 @@
  * ***** END GPL LICENSE BLOCK *****
  */
  
-/** \file SCA_JoystickPrivate.h
- *  \ingroup gamelogic
+/** \file DEV_JoystickPrivate.h
+ *  \ingroup device
  */
 
 #ifndef __SCA_JOYSTICKPRIVATE_H__
 #define __SCA_JOYSTICKPRIVATE_H__
 
 #ifdef WITH_SDL
-class SCA_Joystick::PrivateData
+class DEV_Joystick::PrivateData
 {
 public:
 	/*

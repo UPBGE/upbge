@@ -26,6 +26,7 @@
 set(INC
 	.
 	../BlenderRoutines
+	../Device
 	../Expressions
 	../GameLogic
 	../Ketsji

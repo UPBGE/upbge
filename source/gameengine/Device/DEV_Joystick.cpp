@@ -25,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/GameLogic/Joystick/SCA_Joystick.cpp
- *  \ingroup gamelogic
+/** \file gameengine/Device/DEV_Joystick.cpp
+ *  \ingroup device
  */
 
 #ifdef WITH_SDL
@@ -36,15 +36,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "SCA_Joystick.h"
-#include "SCA_JoystickPrivate.h"
-#include "SCA_JoystickMappingdb.h"
+#include "DEV_Joystick.h"
+#include "DEV_JoystickPrivate.h"
+#include "DEV_JoystickMappingdb.h"
 
 #ifdef WITH_SDL
 #  define SDL_CHECK(x) ((x) != (void *)0)
 #endif
 
-SCA_Joystick::SCA_Joystick(short index)
+DEV_Joystick::DEV_Joystick(short index)
 	:
 	m_joyindex(index),
 	m_prec(3200),
@@ -63,14 +63,14 @@ SCA_Joystick::SCA_Joystick(short index)
 }
 
 
-SCA_Joystick::~SCA_Joystick()
+DEV_Joystick::~DEV_Joystick()
 {
 }
 
-SCA_Joystick *SCA_Joystick::m_instance[JOYINDEX_MAX];
+DEV_Joystick *DEV_Joystick::m_instance[JOYINDEX_MAX];
 
 
-void SCA_Joystick::Init()
+void DEV_Joystick::Init()
 {
 #ifdef WITH_SDL
 
@@ -100,7 +100,7 @@ void SCA_Joystick::Init()
 #endif
 }
 
-void SCA_Joystick::Close()
+void DEV_Joystick::Close()
 {
 #ifdef WITH_SDL
 	/* Closing possible connected Joysticks */
@@ -115,7 +115,7 @@ void SCA_Joystick::Close()
 #endif
 }
 
-SCA_Joystick *SCA_Joystick::GetInstance(short joyindex)
+DEV_Joystick *DEV_Joystick::GetInstance(short joyindex)
 {
 #ifndef WITH_SDL
 	return NULL;
@@ -130,7 +130,7 @@ SCA_Joystick *SCA_Joystick::GetInstance(short joyindex)
 #endif /* WITH_SDL */
 }
 
-void SCA_Joystick::ReleaseInstance(short joyindex)
+void DEV_Joystick::ReleaseInstance(short joyindex)
 {
 #ifdef WITH_SDL
 	if (m_instance[joyindex]) {
@@ -142,18 +142,18 @@ void SCA_Joystick::ReleaseInstance(short joyindex)
 #endif /* WITH_SDL */
 }
 
-void SCA_Joystick::cSetPrecision(int val)
+void DEV_Joystick::cSetPrecision(int val)
 {
 	m_prec = val;
 }
 
 
-bool SCA_Joystick::aAxisPairIsPositive(int axis)
+bool DEV_Joystick::aAxisPairIsPositive(int axis)
 {
 	return (pAxisTest(axis) > m_prec) ? true:false;
 }
 
-bool SCA_Joystick::aAxisPairDirectionIsPositive(int axis, int dir)
+bool DEV_Joystick::aAxisPairDirectionIsPositive(int axis, int dir)
 {
 
 	int res;
@@ -169,12 +169,12 @@ bool SCA_Joystick::aAxisPairDirectionIsPositive(int axis, int dir)
 		return (res < -m_prec) ? true : false;
 }
 
-bool SCA_Joystick::aAxisIsPositive(int axis_single)
+bool DEV_Joystick::aAxisIsPositive(int axis_single)
 {
 	return abs(m_axis_array[axis_single]) > m_prec ? true:false;
 }
 
-bool SCA_Joystick::aAnyButtonPressIsPositive(void)
+bool DEV_Joystick::aAnyButtonPressIsPositive(void)
 {
 #ifdef WITH_SDL
 	if (!(SDL_CHECK(SDL_GameControllerGetButton))) {
@@ -192,7 +192,7 @@ bool SCA_Joystick::aAnyButtonPressIsPositive(void)
 	return false;
 }
 
-bool SCA_Joystick::aButtonPressIsPositive(int button)
+bool DEV_Joystick::aButtonPressIsPositive(int button)
 {
 #ifdef WITH_SDL
 	if ((SDL_CHECK(SDL_GameControllerGetButton) &&
@@ -205,7 +205,7 @@ bool SCA_Joystick::aButtonPressIsPositive(int button)
 }
 
 
-bool SCA_Joystick::aButtonReleaseIsPositive(int button)
+bool DEV_Joystick::aButtonReleaseIsPositive(int button)
 {
 #ifdef WITH_SDL
 	if (!(SDL_CHECK(SDL_GameControllerGetButton) &&
@@ -217,7 +217,7 @@ bool SCA_Joystick::aButtonReleaseIsPositive(int button)
 	return false;
 }
 
-bool SCA_Joystick::CreateJoystickDevice(void)
+bool DEV_Joystick::CreateJoystickDevice(void)
 {
 	bool joy_error = false;
 
@@ -310,7 +310,7 @@ bool SCA_Joystick::CreateJoystickDevice(void)
 }
 
 
-void SCA_Joystick::DestroyJoystickDevice(void)
+void DEV_Joystick::DestroyJoystickDevice(void)
 {
 #ifdef WITH_SDL
 	if (m_isinit) {
@@ -331,7 +331,7 @@ void SCA_Joystick::DestroyJoystickDevice(void)
 #endif /* WITH_SDL */
 }
 
-int SCA_Joystick::Connected(void)
+int DEV_Joystick::Connected(void)
 {
 #ifdef WITH_SDL
 	if (m_isinit &&
@@ -344,7 +344,7 @@ int SCA_Joystick::Connected(void)
 	return 0;
 }
 
-int SCA_Joystick::pGetAxis(int axisnum, int udlr)
+int DEV_Joystick::pGetAxis(int axisnum, int udlr)
 {
 #ifdef WITH_SDL
 	return m_axis_array[(axisnum*2)+udlr];
@@ -352,7 +352,7 @@ int SCA_Joystick::pGetAxis(int axisnum, int udlr)
 	return 0;
 }
 
-int SCA_Joystick::pAxisTest(int axisnum)
+int DEV_Joystick::pAxisTest(int axisnum)
 {
 #ifdef WITH_SDL
 	/* Use ints instead of shorts here to avoid problems when we get -32768.
@@ -373,7 +373,7 @@ int SCA_Joystick::pAxisTest(int axisnum)
 #endif /* WITH_SDL */
 }
 
-const char *SCA_Joystick::GetName()
+const char *DEV_Joystick::GetName()
 {
 #ifdef WITH_SDL
 	return (SDL_CHECK(SDL_GameControllerName)) ? SDL_GameControllerName(m_private->m_gamecontroller) : "";

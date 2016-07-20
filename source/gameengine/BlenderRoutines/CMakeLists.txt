@@ -2,9 +2,9 @@
 set(INC
 	.
 	../Converter
+	../Device
 	../Expressions
 	../GameLogic
-	../Ghost
 	../Ketsji
 	../Ketsji/KXNetwork
 	../Launcher

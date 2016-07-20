@@ -25,6 +25,7 @@
 
 set(INC
 	.
+	../Device
 	../Expressions
 	../Rasterizer
 	../SceneGraph
@@ -77,8 +78,6 @@ set(SRC
 	SCA_TimeEventManager.cpp
 	SCA_XNORController.cpp
 	SCA_XORController.cpp
-	Joystick/SCA_Joystick.cpp
-	Joystick/SCA_JoystickEvents.cpp
 
 	SCA_2DFilterActuator.h
 	SCA_ANDController.h
@@ -119,10 +118,6 @@ set(SRC
 	SCA_TimeEventManager.h
 	SCA_XNORController.h
 	SCA_XORController.h
-	Joystick/SCA_Joystick.h
-	Joystick/SCA_JoystickDefines.h
-	Joystick/SCA_JoystickPrivate.h
-	Joystick/SCA_JoystickMappingdb.h
 )
 
 if(WITH_SDL)
