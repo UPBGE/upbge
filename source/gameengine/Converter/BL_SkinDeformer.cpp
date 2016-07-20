@@ -495,17 +495,47 @@ void BL_SkinDeformer::BeginHandleGPUAttribs(RAS_DisplayArray *array)
 		int i = 0;
 		for (vit = array->m_vertex.begin(); vit != array->m_vertex.end(); ++i, ++vit) {
 			MDeformVert* dv = &m_bmesh->dvert[vit->getOrigIndex()];
-			MDeformWeight *dw = dv->dw;
+			if (dv->totweight <= 4) {
+				// We have no more than four weights, just copy them over.
+				skinverts[i].num_bones = dv->totweight;
 
-			skinverts[i].num_bones = dv->totweight;
-			if (skinverts[i].num_bones > 4) {
-				//printf("More than four bone influences found for vert: %d\n", dv->totweight);
-				skinverts[i].num_bones = 4;
-			}
+				MDeformWeight *dw = dv->dw;
+				for (int j = 0; j < dv->totweight && j < 4; ++j, ++dw) {
+					skinverts[i].indexes[j] = dw->def_nr;
+					skinverts[i].weights[j] = dw->weight;
+				}
+			} else {
+				// We have more than four weights, pick the four most influential bones
+				float indexes[4] = {-1.f};
+				float weights[4] = {0.f};
 
-			for (int j = 0; j < dv->totweight && j < 4; ++j, ++dw) {
-				skinverts[i].indexes[j] = dw->def_nr;
-				skinverts[i].weights[j] = dw->weight;
+				int j;
+				for (j = 0; j < 4; ++j) {
+					float maxval = -1;
+					float maxidx = -1;
+
+					MDeformWeight *dw = dv->dw;
+					for (int k = 0; k < dv->totweight; ++k, ++dw) {
+						if (dw->weight > maxval && !ELEM4(dw->def_nr, indexes[0], indexes[1], indexes[2], indexes[3])) {
+							maxval = dw->weight;
+							maxidx = dw->def_nr;
+						}
+					}
+
+					if (maxval <= 0) break;
+
+					indexes[j] = maxidx;
+					weights[j] = maxval;
+
+					dw = dv->dw;
+				}
+
+				skinverts[i].num_bones = j;
+
+				normalize_vn(weights, 4);
+
+				memcpy(skinverts[i].indexes, indexes, 4*sizeof(float));
+				memcpy(skinverts[i].weights, weights, 4*sizeof(float));
 			}
 		}
 	}
