@@ -280,7 +280,7 @@ void KX_KetsjiEngine::RenderDome()
 		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
 			scene = (KX_Scene *)*sceit;
 			KX_SetActiveScene(scene);
-			KX_Camera *cam = scene->GetActiveCamera();
+			KX_Camera *activecam = scene->GetActiveCamera();
 
 			// pass the scene's worldsettings to the rasterizer
 			scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
@@ -290,32 +290,30 @@ void KX_KetsjiEngine::RenderDome()
 				RenderShadowBuffers(scene);
 			}
 			// Avoid drawing the scene with the active camera twice when its viewport is enabled
-			if (cam && !cam->GetViewport()) {
+			if (activecam && !activecam->GetViewport()) {
 				if (scene->IsClearingZBuffer())
 					m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
 				m_rasterizer->SetAuxilaryClientInfo(scene);
 
 				// do the rendering
-				m_dome->RenderDomeFrame(scene, cam, i);
+				m_dome->RenderDomeFrame(scene, activecam, i);
 			}
 
-			list<class KX_Camera *> *cameras = scene->GetCameras();
+			CListValue *cameras = scene->GetCameraList();
 
 			// Draw the scene once for each camera with an enabled viewport
-			list<KX_Camera *>::iterator it = cameras->begin();
-			while (it != cameras->end()) {
-				if ((*it)->GetViewport()) {
+			for (CListValue::iterator it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
+				KX_Camera *cam = (KX_Camera*)(*it);
+				if (cam->GetViewport()) {
 					if (scene->IsClearingZBuffer())
 						m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
 					m_rasterizer->SetAuxilaryClientInfo(scene);
 
 					// do the rendering
-					m_dome->RenderDomeFrame(scene, (*it), i);
+					m_dome->RenderDomeFrame(scene, cam, i);
 				}
-
-				it++;
 			}
 			// Part of PostRenderScene()
 			m_rasterizer->MotionBlur();
@@ -399,11 +397,11 @@ void KX_KetsjiEngine::ClearFrame()
 	for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
 		KX_Scene *scene = (KX_Scene *)*sceit;
 		//const RAS_FrameSettings &framesettings = scene->GetFramingType();
-		list<class KX_Camera *> *cameras = scene->GetCameras();
+		CListValue* cameras = scene->GetCameraList();
 
-		list<KX_Camera *>::iterator it;
-		for (it = cameras->begin(); it != cameras->end(); it++) {
-			GetSceneViewport(scene, (*it), area, viewport);
+		for (CListValue::iterator it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
+			KX_Camera *cam = (KX_Camera*)(*it);
+			GetSceneViewport(scene, cam, area, viewport);
 
 			if (!doclear) {
 				clearvp = viewport;
@@ -746,7 +744,7 @@ void KX_KetsjiEngine::Render()
 	// for each scene, call the proceed functions
 	for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
 		KX_Scene *scene = (KX_Scene *)*sceit;
-		KX_Camera *cam = scene->GetActiveCamera();
+		KX_Camera *activecam = scene->GetActiveCamera();
 		// pass the scene's worldsettings to the rasterizer
 		scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 
@@ -754,32 +752,30 @@ void KX_KetsjiEngine::Render()
 		RenderShadowBuffers(scene);
 
 		// Avoid drawing the scene with the active camera twice when its viewport is enabled
-		if (cam && !cam->GetViewport()) {
+		if (activecam && !activecam->GetViewport()) {
 			if (scene->IsClearingZBuffer())
 				m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
 			m_rasterizer->SetAuxilaryClientInfo(scene);
 
 			// do the rendering
-			RenderFrame(scene, cam);
+			RenderFrame(scene, activecam);
 		}
 
-		list<class KX_Camera *> *cameras = scene->GetCameras();
+		CListValue *cameras = scene->GetCameraList();
 
 		// Draw the scene once for each camera with an enabled viewport
-		list<KX_Camera *>::iterator it = cameras->begin();
-		while (it != cameras->end()) {
-			if ((*it)->GetViewport()) {
+		for (CListValue::iterator it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
+			KX_Camera *cam = (KX_Camera*)(*it);
+			if (cam->GetViewport()) {
 				if (scene->IsClearingZBuffer())
 					m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
 				m_rasterizer->SetAuxilaryClientInfo(scene);
 
 				// do the rendering
-				RenderFrame(scene, (*it));
+				RenderFrame(scene, cam);
 			}
-
-			it++;
 		}
 		PostRenderScene(scene);
 	}
@@ -794,7 +790,7 @@ void KX_KetsjiEngine::Render()
 		// for each scene, call the proceed functions
 		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
 			KX_Scene *scene = (KX_Scene *)*sceit;
-			KX_Camera *cam = scene->GetActiveCamera();
+			KX_Camera *activecam = scene->GetActiveCamera();
 
 			// pass the scene's worldsettings to the rasterizer
 			scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
@@ -807,24 +803,22 @@ void KX_KetsjiEngine::Render()
 
 			// do the rendering
 			//RenderFrame(scene);
-			RenderFrame(scene, cam);
+			RenderFrame(scene, activecam);
 
-			list<class KX_Camera *> *cameras = scene->GetCameras();
+			CListValue *cameras = scene->GetCameraList();
 
 			// Draw the scene once for each camera with an enabled viewport
-			list<KX_Camera *>::iterator it = cameras->begin();
-			while (it != cameras->end()) {
-				if ((*it)->GetViewport()) {
+			for (CListValue::iterator it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
+				KX_Camera *cam = (KX_Camera*)(*it);
+				if (cam->GetViewport()) {
 					if (scene->IsClearingZBuffer())
 						m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
 					m_rasterizer->SetAuxilaryClientInfo(scene);
 
 					// do the rendering
-					RenderFrame(scene, (*it));
+					RenderFrame(scene, cam);
 				}
-
-				it++;
 			}
 			PostRenderScene(scene);
 		}
@@ -1275,7 +1269,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 			activecam->NodeUpdateGS(0.0f);
 		}
 
-		scene->AddCamera(activecam);
+		scene->GetCameraList()->Add(activecam->AddRef());
 		scene->SetActiveCamera(activecam);
 		scene->GetObjectList()->Add(activecam->AddRef());
 		scene->GetRootParentList()->Add(activecam->AddRef());

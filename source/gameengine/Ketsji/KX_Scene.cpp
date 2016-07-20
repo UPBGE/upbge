@@ -170,6 +170,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_inactivelist = new CListValue();
 	m_euthanasyobjects = new CListValue();
 	m_animatedlist = new CListValue();
+	m_cameralist = new CListValue();
+	m_fontlist = new CListValue();
 
 	m_filterManager = new KX_2DFilterManager();
 	m_logicmgr = new SCA_LogicManager();
@@ -262,6 +264,14 @@ KX_Scene::~KX_Scene()
 	if (m_animatedlist)
 		m_animatedlist->Release();
 
+	if (m_cameralist) {
+		m_cameralist->Release();
+	}
+
+	if (m_fontlist) {
+		m_fontlist->Release();
+	}
+
 	if (m_filterManager) {
 		delete m_filterManager;
 	}
@@ -348,12 +358,14 @@ SCA_TimeEventManager* KX_Scene::GetTimeEventManager()
 	return m_timemgr;
 }
 
-
-
- 
-list<class KX_Camera*>* KX_Scene::GetCameras()
+CListValue* KX_Scene::GetCameraList()
 {
-	return &m_cameras;
+	return m_cameralist;
+}
+
+CListValue* KX_Scene::GetFontList()
+{
+	return m_fontlist;
 }
 
 void KX_Scene::SetFramingType(RAS_FrameSettings & frame_settings)
@@ -531,7 +543,7 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_IObject* node, class CVal
 	if (newobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT)
 		m_lightlist->Add(newobj->AddRef());
 	else if (newobj->GetGameObjectType()==SCA_IObject::OBJ_TEXT)
-		AddFont((KX_FontObject*)newobj);
+		m_fontlist->Add(newobj->AddRef());
 	newobj->AddMeshUser();
 
 	// logic cannot be replicated, until the whole hierarchy is replicated.
@@ -1104,15 +1116,6 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 
 	newobj->RemoveMeshes();
 
-	switch (newobj->GetGameObjectType()) {
-		case SCA_IObject::OBJ_CAMERA:
-			m_cameras.remove((KX_Camera *)newobj);
-			break;
-		case SCA_IObject::OBJ_TEXT:
-			m_fonts.remove((KX_FontObject *)newobj);
-			break;
-	}
-
 	ret = 1;
 	if (newobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(newobj))
 		ret = newobj->Release();
@@ -1128,6 +1131,12 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 		ret = newobj->Release();
 	if (m_animatedlist->RemoveValue(newobj))
 		ret = newobj->Release();
+	if (m_fontlist->RemoveValue(newobj)) {
+		ret = newobj->Release();
+	}
+	if (m_cameralist->RemoveValue(newobj)) {
+		ret = newobj->Release();
+	}
 
 	/* Warning 'newobj' maye be freed now, only compare, don't access */
 
@@ -1303,56 +1312,6 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 	gameobj->UpdateBounds(true);
 }
 
-/* Font Object routines */
-void KX_Scene::AddFont(KX_FontObject* font)
-{
-	if (!FindFont(font))
-		m_fonts.push_back(font);
-}
-
-KX_FontObject* KX_Scene::FindFont(KX_FontObject* font)
-{
-	list<KX_FontObject*>::iterator it = m_fonts.begin();
-
-	while ((it != m_fonts.end()) && ((*it) != font))
-	{
-		++it;
-	}
-
-	return ((it == m_fonts.end()) ? NULL : (*it));
-}
-
-
-/* Camera Object routines */
-KX_Camera* KX_Scene::FindCamera(KX_Camera* cam)
-{
-	list<KX_Camera*>::iterator it = m_cameras.begin();
-
-	while ((it != m_cameras.end()) && ((*it) != cam)) {
-		it++;
-	}
-
-	return ((it == m_cameras.end()) ? NULL : (*it));
-}
-
-
-KX_Camera* KX_Scene::FindCamera(STR_String& name)
-{
-	list<KX_Camera*>::iterator it = m_cameras.begin();
-
-	while ((it != m_cameras.end()) && ((*it)->GetName() != name)) {
-		it++;
-	}
-
-	return ((it == m_cameras.end()) ? NULL : (*it));
-}
-
-void KX_Scene::AddCamera(KX_Camera* cam)
-{
-	if (!FindCamera(cam))
-		m_cameras.push_back(cam);
-}
-
 
 KX_Camera* KX_Scene::GetActiveCamera()
 {
@@ -1364,8 +1323,8 @@ KX_Camera* KX_Scene::GetActiveCamera()
 void KX_Scene::SetActiveCamera(KX_Camera* cam)
 {
 	// only set if the cam is in the active list? Or add it otherwise?
-	if (!FindCamera(cam)) {
-		AddCamera(cam);
+	if (!m_cameralist->SearchValue(cam)) {
+		m_cameralist->Add(cam->AddRef());
 		if (cam) std::cout << "Added cam " << cam->GetName() << std::endl;
 	} 
 
@@ -1374,13 +1333,15 @@ void KX_Scene::SetActiveCamera(KX_Camera* cam)
 
 void KX_Scene::SetCameraOnTop(KX_Camera* cam)
 {
-	if (!FindCamera(cam)) {
+	if (!m_cameralist->SearchValue(cam)) {
 		// adding is always done at the back, so that's all that needs to be done
-		AddCamera(cam);
+		m_cameralist->Add(cam->AddRef());
 		if (cam) std::cout << "Added cam " << cam->GetName() << std::endl;
-	} else {
-		m_cameras.remove(cam);
-		m_cameras.push_back(cam);
+	}
+	else {
+		// no release and addref just change camera place
+		m_cameralist->RemoveValue(cam);
+		m_cameralist->Add(cam);
 	}
 }
 
@@ -1980,9 +1941,6 @@ static void MergeScene_GameObject(KX_GameObject* gameobj, KX_Scene *to, KX_Scene
 	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT)
 		((KX_LightObject*)gameobj)->UpdateScene(to);
 
-	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_CAMERA)
-		to->AddCamera((KX_Camera*)gameobj);
-
 	// All armatures should be in the animated object list to be umpdated.
 	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
 		to->AddAnimatedObject(gameobj);
@@ -2074,6 +2032,12 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 	GetLightList()->MergeList(other->GetLightList());
 	other->GetLightList()->ReleaseAndRemoveAll();
+
+	GetCameraList()->MergeList(other->GetCameraList());
+	other->GetCameraList()->ReleaseAndRemoveAll();
+
+	GetFontList()->MergeList(other->GetFontList());
+	other->GetFontList()->ReleaseAndRemoveAll();
 
 	/* move materials across, assume they both use the same scene-converters
 	 * Do this after lights are merged so materials can use the lights in shaders
@@ -2337,25 +2301,16 @@ PyObject *KX_Scene::pyattr_get_world(void *self_v, const KX_PYATTRIBUTE_DEF *att
 	}
 }
 
+PyObject *KX_Scene::pyattr_get_texts(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_Scene *self = static_cast<KX_Scene *>(self_v);
+	return self->GetFontList()->GetProxy();
+}
+
 PyObject *KX_Scene::pyattr_get_cameras(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	/* With refcounts in this case...
-	 * the new CListValue is owned by python, so its possible python holds onto it longer then the BGE
-	 * however this is the same with "scene.objects + []", when you make a copy by adding lists.
-	 */
-	
-	KX_Scene* self = static_cast<KX_Scene*>(self_v);
-	CListValue* clist = new CListValue();
-	
-	/* return self->GetCameras()->GetProxy(); */
-	
-	list<KX_Camera*>::iterator it = self->GetCameras()->begin();
-	while (it != self->GetCameras()->end()) {
-		clist->Add((*it)->AddRef());
-		it++;
-	}
-	
-	return clist->NewProxy(true);
+	KX_Scene *self = static_cast<KX_Scene *>(self_v);
+	return self->GetCameraList()->GetProxy();
 }
 
 PyObject *KX_Scene::pyattr_get_active_camera(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -2486,8 +2441,9 @@ PyAttributeDef KX_Scene::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("objects",			KX_Scene, pyattr_get_objects),
 	KX_PYATTRIBUTE_RO_FUNCTION("objectsInactive",	KX_Scene, pyattr_get_objects_inactive),
 	KX_PYATTRIBUTE_RO_FUNCTION("lights",			KX_Scene, pyattr_get_lights),
+	KX_PYATTRIBUTE_RO_FUNCTION("texts",				KX_Scene, pyattr_get_texts),
 	KX_PYATTRIBUTE_RO_FUNCTION("cameras",			KX_Scene, pyattr_get_cameras),
-	KX_PYATTRIBUTE_RO_FUNCTION("filterManager", KX_Scene, pyattr_get_filter_manager),
+	KX_PYATTRIBUTE_RO_FUNCTION("filterManager",		KX_Scene, pyattr_get_filter_manager),
 	KX_PYATTRIBUTE_RO_FUNCTION("world",				KX_Scene, pyattr_get_world),
 	KX_PYATTRIBUTE_RW_FUNCTION("active_camera",		KX_Scene, pyattr_get_active_camera, pyattr_set_active_camera),
 	KX_PYATTRIBUTE_RW_FUNCTION("pre_draw",			KX_Scene, pyattr_get_drawing_callback_pre, pyattr_set_drawing_callback_pre),

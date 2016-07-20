@@ -129,23 +129,16 @@ protected:
 	CListValue*			m_lightlist;
 	CListValue*			m_inactivelist;	// all objects that are not in the active layer
 	CListValue*			m_animatedlist; // all animated objects
+
+	/// The set of cameras for this scene
+	CListValue *m_cameralist;
+	/// The set of fonts for this scene
+	CListValue *m_fontlist;
 	
 	SG_QList			m_sghead;		// list of nodes that needs scenegraph update
 										// the Dlist is not object that must be updated
 										// the Qlist is for objects that needs to be rescheduled
 										// for updates after udpate is over (slow parent, bone parent)
-
-
-	/**
-	 * The set of cameras for this scene
-	 */
-	std::list<class KX_Camera*>       m_cameras;
-
-	/**
-	 * The set of fonts for this scene
-	 */
-	std::list<class KX_FontObject*>   m_fonts;
-
 
 	/**
 	 * Various SCA managers used by the scene
@@ -382,44 +375,8 @@ public:
 	GetTimeEventManager(
 	);
 
-	/** Font Routines */
-
-	/** Find a font in the scene by pointer. */
-		KX_FontObject*              
-	FindFont(
-		KX_FontObject*
-	);
-
-	/** Add a camera to this scene. */
-		void                    
-	AddFont(
-		KX_FontObject*
-	);
-
-	/** Camera Routines */
-
-		std::list<class KX_Camera*>*
-	GetCameras(
-	);
- 
-
-	/** Find a camera in the scene by pointer. */
-		KX_Camera*              
-	FindCamera(
-		KX_Camera*
-	);
-
-	/** Find a scene in the scene by name. */
-		KX_Camera*              
-	FindCamera(
-		STR_String&
-	);
-
-	/** Add a camera to this scene. */
-		void                    
-	AddCamera(
-		KX_Camera*
-	);
+	CListValue *GetCameraList();
+	CListValue *GetFontList();
 
 	/** Find the currently active camera. */
 		KX_Camera*
@@ -613,6 +570,7 @@ public:
 	static PyObject*	pyattr_get_objects(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_objects_inactive(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_lights(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_texts(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_cameras(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_filter_manager(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_world(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);

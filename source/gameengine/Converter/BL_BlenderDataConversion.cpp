@@ -1040,7 +1040,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		
 		//don't add a reference: the camera list in kxscene->m_cameras is not released at the end
 		//gamecamera->AddRef();
-		kxscene->AddCamera(gamecamera);
+		kxscene->GetCameraList()->Add(gamecamera->AddRef());
 		
 		break;
 	}
@@ -1141,7 +1141,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		/* font objects have no bounding box */
 		gameobj = new KX_FontObject(kxscene,KX_Scene::m_callbacks, rendertools, ob, do_color_management);
 
-		kxscene->AddFont(static_cast<KX_FontObject*>(gameobj));
+		kxscene->GetFontList()->Add(gameobj->AddRef());
 		break;
 	}
 

@@ -998,7 +998,7 @@ bool ConvertPythonToCamera(KX_Scene *scene, PyObject *value, KX_Camera **object,
 	
 	if (PyUnicode_Check(value)) {
 		STR_String value_str = _PyUnicode_AsString(value);
-		*object = scene->FindCamera(value_str);
+		*object = (KX_Camera*)scene->GetCameraList()->FindValue(value_str);
 		
 		if (*object) {
 			return true;

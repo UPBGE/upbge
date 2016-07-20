@@ -372,20 +372,18 @@ bool KX_MouseFocusSensor::ParentObjectHasFocus()
 	m_hitPosition.setValue(0,0,0);
 	m_hitNormal.setValue(1,0,0);
 	
-	KX_Camera *cam= m_kxscene->GetActiveCamera();
+	KX_Camera *activecam = m_kxscene->GetActiveCamera();
 	
-	if (ParentObjectHasFocusCamera(cam))
+	if (ParentObjectHasFocusCamera(activecam))
 		return true;
 
-	list<class KX_Camera*>* cameras = m_kxscene->GetCameras();
-	list<KX_Camera*>::iterator it = cameras->begin();
+	CListValue *cameras = m_kxscene->GetCameraList();
 	
-	while (it != cameras->end()) {
-		if (((*it) != cam) && (*it)->GetViewport())
-			if (ParentObjectHasFocusCamera(*it))
+	for (CListValue::iterator it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
+		KX_Camera *cam = (KX_Camera*)(*it);
+		if ((cam != activecam) && cam->GetViewport())
+			if (ParentObjectHasFocusCamera(cam))
 				return true;
-		
-		it++;
 	}
 	
 	return false;
