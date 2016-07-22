@@ -341,6 +341,7 @@ public:
 	 * Sets which eye buffer subsequent primitives will be rendered to.
 	 */
 	virtual void SetEye(const StereoEye eye) = 0;
+	virtual void DisableStereo() = 0;
 	virtual StereoEye GetEye() = 0;
 
 	/**

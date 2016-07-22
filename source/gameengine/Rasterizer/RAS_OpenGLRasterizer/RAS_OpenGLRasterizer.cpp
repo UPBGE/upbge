@@ -393,6 +393,7 @@ void RAS_OpenGLRasterizer::DrawOverlayPlane()
 
 bool RAS_OpenGLRasterizer::BeginFrame(double time)
 {
+	std::cout << __func__ << std::endl;
 	m_time = time;
 
 	// Blender camera routine destroys the settings
@@ -488,6 +489,7 @@ void RAS_OpenGLRasterizer::Clear(int clearbit)
 		glclearbit |= GL_STENCIL_BUFFER_BIT;
 	}
 
+	std::cout << __func__ << ", " << clearbit << std::endl;
 	glClear(glclearbit);
 }
 
@@ -685,9 +687,9 @@ void RAS_OpenGLRasterizer::EndFrame()
 
 void RAS_OpenGLRasterizer::BindFBO(RAS_ICanvas *canvas)
 {
-	const RAS_Rect& area = canvas->GetDisplayArea();
-	const int width = area.GetWidth() + 1;
-	const int height = area.GetHeight() + 1;
+	const int width = canvas->GetWidth() + 1;
+	const int height = canvas->GetHeight() + 1;
+	std::cout << __func__ << ", " << width << ", " << height << std::endl;
 
 	// Update or create for the first time the FBO textures.
 	if (!m_fbo) {
@@ -713,7 +715,6 @@ void RAS_OpenGLRasterizer::BindFBO(RAS_ICanvas *canvas)
 	}
 
 	if (m_fbo) {
-// 		Disable(RAS_SCISSOR_TEST);
 		GPU_framebuffer_bind_no_save(m_fbo, 0);
 	}
 }
@@ -721,7 +722,6 @@ void RAS_OpenGLRasterizer::BindFBO(RAS_ICanvas *canvas)
 void RAS_OpenGLRasterizer::UnbindFBO()
 {
 	if (m_fbo) {
-// 		GPU_framebuffer_texture_unbind(m_fbo, m_colortex);
 		GPU_framebuffer_restore();
 	}
 }
@@ -758,6 +758,8 @@ void RAS_OpenGLRasterizer::SetRenderArea(RAS_ICanvas *canvas)
 	if (canvas == NULL) {
 		return;
 	}
+
+	std::cout << __func__ << std::endl;
 
 	RAS_Rect area;
 	// only above/below stereo method needs viewport adjustment
@@ -857,6 +859,8 @@ void RAS_OpenGLRasterizer::SetRenderArea(RAS_ICanvas *canvas)
 			break;
 		}
 	}
+	std::cout << "area : " << area.GetLeft() << ", " << area.GetBottom() << ", " << area.GetWidth() << ", " << area.GetHeight() 
+		<< ", " << m_curreye << std::endl;
 }
 
 void RAS_OpenGLRasterizer::SetStereoMode(const StereoMode stereomode)
@@ -921,6 +925,19 @@ void RAS_OpenGLRasterizer::SetEye(const StereoEye eye)
 			if (m_curreye == RAS_STEREO_RIGHTEYE)
 				Clear(RAS_DEPTH_BUFFER_BIT);
 			break;
+		}
+		default:
+			break;
+	}
+}
+
+void RAS_OpenGLRasterizer::DisableStereo()
+{
+	switch (m_stereomode) {
+		case RAS_STEREO_VINTERLACE:
+		case RAS_STEREO_INTERLACED:
+		{
+			Disable(RAS_POLYGON_STIPPLE);
 		}
 		default:
 			break;
@@ -1356,6 +1373,7 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 
 void RAS_OpenGLRasterizer::SetViewport(int x, int y, int width, int height)
 {
+	std::cout << __func__ << ", " << x << ", " << y << ", " << width << ", " << height << std::endl;
 	glViewport(x, y, width, height);
 }
 
@@ -1366,6 +1384,7 @@ void RAS_OpenGLRasterizer::GetViewport(int *rect)
 
 void RAS_OpenGLRasterizer::SetScissor(int x, int y, int width, int height)
 {
+	std::cout << __func__ << ", " << x << ", " << y << ", " << width << ", " << height << std::endl;
 	glScissor(x, y, width, height);
 }
 

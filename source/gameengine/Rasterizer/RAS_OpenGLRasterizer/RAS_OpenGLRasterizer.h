@@ -194,6 +194,7 @@ public:
 	virtual bool Stereo();
 	virtual bool InterlacedStereo();
 	virtual void SetEye(const StereoEye eye);
+	virtual void DisableStereo();
 	virtual StereoEye GetEye();
 	virtual void SetEyeSeparation(const float eyeseparation);
 	virtual float GetEyeSeparation();

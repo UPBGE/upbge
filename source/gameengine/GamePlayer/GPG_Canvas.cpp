@@ -129,7 +129,7 @@ void GPG_Canvas::UpdateViewPort(int x1, int y1, int x2, int y2)
 
 const int *GPG_Canvas::GetViewPort()
 {
-#ifdef DEBUG
+#if 0
 	// If we're in a debug build, we might as well make sure our values don't differ
 	// from what the gpu thinks we have. This could lead to nasty, hard to find bugs.
 	int viewport[4];

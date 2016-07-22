@@ -306,6 +306,8 @@ void KX_KetsjiEngine::ClearFrame()
 		firstscene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight(), clearvp.GetTop());
+		m_rasterizer->SetViewport(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight() + 1, clearvp.GetTop() + 1);
+		m_rasterizer->SetScissor(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight() + 1, clearvp.GetTop() + 1);
 		/* Grey color computed by linearrgb_to_srgb_v3_v3 with a color of 
 		 * 0.050, 0.050, 0.050 (the default world horizon color).
 		 */
@@ -316,9 +318,6 @@ void KX_KetsjiEngine::ClearFrame()
 
 bool KX_KetsjiEngine::BeginFrame()
 {
-	// set the area used for rendering (stereo can assign only a subset)
-	m_rasterizer->SetRenderArea(m_canvas);
-
 	if (m_canvas->BeginDraw()) {
 		ClearFrame();
 
@@ -597,8 +596,8 @@ void KX_KetsjiEngine::Render()
 	// only once per frame
 	m_canvas->BeginDraw();
 	if (m_rasterizer->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED) {
-		m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
-		m_rasterizer->SetScissor(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
+		m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+		m_rasterizer->SetScissor(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 		if (m_overrideFrameColor) {
 			// Do not use the framing bar color set in the Blender scenes
 			m_canvas->ClearColor(
@@ -620,11 +619,14 @@ void KX_KetsjiEngine::Render()
 		m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER | RAS_ICanvas::DEPTH_BUFFER);
 	}
 
+	if (!BeginFrame()) {
+		return;
+	}
+
 	m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_LEFTEYE);
 
-	// BeginFrame() sets the actual drawing area. You can use a part of the window
-	if (!BeginFrame())
-		return;
+	// set the area used for rendering (stereo can assign only a subset)
+	m_rasterizer->SetRenderArea(m_canvas);
 
 	// for each scene, call the proceed functions
 	for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
@@ -662,16 +664,12 @@ void KX_KetsjiEngine::Render()
 		PostRenderScene(scene);
 	}
 
-	m_rasterizer->UnbindFBO();
-	m_rasterizer->DrawFBO(m_canvas);
-
 	// only one place that checks for stereo
 	if (m_rasterizer->Stereo()) {
-		m_rasterizer->BindFBO(m_canvas);
 		m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_RIGHTEYE);
 
-		if (!BeginFrame())
-			return;
+		// set the area used for rendering (stereo can assign only a subset)
+		m_rasterizer->SetRenderArea(m_canvas);
 
 		// for each scene, call the proceed functions
 		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
@@ -708,9 +706,11 @@ void KX_KetsjiEngine::Render()
 			}
 			PostRenderScene(scene);
 		}
-		m_rasterizer->UnbindFBO();
-		m_rasterizer->DrawFBO(m_canvas);
+		m_rasterizer->DisableStereo();
 	}
+
+	m_rasterizer->UnbindFBO();
+	m_rasterizer->DrawFBO(m_canvas);
 
 	EndFrame();
 }
@@ -930,10 +930,8 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 	scene->SetSceneViewport(viewport);
 
 	// set the viewport for this frame and scene
-	m_rasterizer->SetViewport(area.GetLeft(), area.GetBottom(),
-	                      area.GetWidth() + 1, area.GetHeight() + 1);
-	m_rasterizer->SetScissor(area.GetLeft(), area.GetBottom(),
-	                      area.GetWidth() + 1, area.GetHeight() + 1);
+	m_rasterizer->SetViewport(area.GetLeft(), area.GetBottom(), area.GetWidth() + 1, area.GetHeight() + 1);
+	m_rasterizer->SetScissor(area.GetLeft(), area.GetBottom(), area.GetWidth() + 1, area.GetHeight() + 1);
 
 	// see KX_BlenderMaterial::Activate
 	//m_rasterizer->SetAmbient();
@@ -1062,6 +1060,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 	scene->RunDrawingCallbacks(scene->GetPreDrawCB());
 #endif
 
+	std::cout << "render" << std::endl;
 	scene->RenderBuckets(camtrans, m_rasterizer);
 
 	if (scene->GetPhysicsEnvironment())
