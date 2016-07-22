@@ -36,6 +36,8 @@
 #include "MEM_guardedalloc.h"
 #endif
 
+#include <iostream>
+
 /**
  * \section interface class.
  * RAS_Rect just encodes a simple rectangle.
@@ -104,5 +106,12 @@ public:
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_Rect")
 #endif
 };
+
+inline std::ostream& operator<<(std::ostream& os, const RAS_Rect& rect)
+{
+	os << "(" << rect.GetLeft() << ", " << rect.GetBottom() << ", " << rect.GetWidth() << ", " << rect.GetLeft() << ")";
+	return os;
+}
+
 
 #endif  // __RAS_RECT_H__
