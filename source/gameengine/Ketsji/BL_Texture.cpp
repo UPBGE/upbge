@@ -87,11 +87,18 @@ BL_Texture::~BL_Texture()
 
 void BL_Texture::CheckValidTexture()
 {
-	/* Test if the texture is owned only by us, if it's the case then it means
-	 * that no materials use it anymore and that we have to get a pointer of 
-	 * the updated gpu texture used by materials.
+	if (!m_gpuTex) {
+		return;
+	}
+
+	/* Test if the gpu texture is the same in the image which own it, if it's not
+	 * the case then it means that no materials use it anymore and that we have to
+	 * get a pointer of the updated gpu texture used by materials.
+	 * The gpu texture in the image can be NULL or an already different loaded
+	 * gpu texture. In both cases we call GPU_texture_from_blender.
 	 */
-	if (m_gpuTex && GPU_texture_ref_count(m_gpuTex) == 1) {
+	int target = m_cubeMap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
+	if (m_gpuTex != m_mtex->tex->ima->gputexture[target]) {
 		Tex *tex = m_mtex->tex;
 		Image *ima = tex->ima;
 		ImageUser& iuser = tex->iuser;
