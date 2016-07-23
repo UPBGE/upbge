@@ -31,13 +31,13 @@ public:
 	class RAS_Uniform
 	{
 	private:
-		int mLoc; // Uniform location
+		int m_loc; // Uniform location
 		unsigned int m_count; // Number of items
-		void *mData; // Memory allocated for variable
-		bool mDirty; // Caching variable
-		int mType; // Enum UniformTypes
-		bool mTranspose; // Transpose matrices
-		const int mDataLen; // Length of our data
+		void *m_data; // Memory allocated for variable
+		bool m_dirty; // Caching variable
+		int m_type; // Enum UniformTypes
+		bool m_transpose; // Transpose matrices
+		const int m_dataLen; // Length of our data
 	public:
 		RAS_Uniform(int data_size);
 		~RAS_Uniform();
@@ -60,7 +60,7 @@ public:
 		void Apply(RAS_Shader *shader);
 		void SetData(int location, int type, unsigned int count, bool transpose = false);
 		int GetLocation();
-		void *getData();
+		void *GetData();
 
 	#ifdef WITH_CXX_GUARDEDALLOC
 		MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_Uniform")
@@ -76,15 +76,15 @@ public:
 	public:
 		RAS_DefUniform()
 			:
-			mType(0),
-			mLoc(0),
-			mFlag(0)
+			m_type(0),
+			m_loc(0),
+			m_flag(0)
 		{
 		}
 
-		int mType;
-		int mLoc;
-		unsigned int mFlag;
+		int m_type;
+		int m_loc;
+		unsigned int m_flag;
 
 	#ifdef WITH_CXX_GUARDEDALLOC
 		MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_DefUniform")
@@ -96,17 +96,17 @@ protected:
 	typedef std::vector<RAS_DefUniform *> RAS_UniformVecDef;
 
 	GPUShader *m_shader;
-	bool mOk; // Valid and ok
-	bool mUse;
-	int mAttr; // Tangent attribute
+	bool m_ok; // Valid and ok
+	bool m_use;
+	int m_attr; // Tangent attribute
 	STR_String m_vertProg; // Vertex program string
 	STR_String m_fragProg; // Fragment program string
-	bool mError;
-	bool mDirty;
+	bool m_error;
+	bool m_dirty;
 
 	// Stored uniform variables
-	RAS_UniformVec mUniforms;
-	RAS_UniformVecDef mPreDef;
+	RAS_UniformVec m_uniforms;
+	RAS_UniformVecDef m_preDef;
 
 	// Compiles and links the shader
 	virtual bool LinkProgram();

@@ -88,7 +88,7 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 {
 	/* The shader must be initialized at the first frame when the canvas is set.
 	 * to solve this we initialize filter at the frist render frame. */
-	if (!mOk && !mError) {
+	if (!m_ok && !m_error) {
 		LinkProgram();
 	}
 	if (Ok() && !m_uniformInitialized) {

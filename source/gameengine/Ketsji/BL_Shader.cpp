@@ -117,7 +117,7 @@ int BL_Shader::pyattr_set_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrde
 
 KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProgram)")
 {
-	if (m_shader != 0 && mOk) {
+	if (m_shader != 0 && m_ok) {
 		// already set...
 		Py_RETURN_NONE;
 	}
@@ -131,13 +131,13 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 
 		if (LinkProgram()) {
 			SetProg(true);
-			mUse = apply != 0;
+			m_use = apply != 0;
 			Py_RETURN_NONE;
 		}
 
 		m_vertProg = "";
 		m_fragProg = "";
-		mUse = 0;
+		m_use = 0;
 		Py_RETURN_NONE;
 	}
 	return NULL;
@@ -153,7 +153,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, delSource, "delSource( )")
 
 KX_PYMETHODDEF_DOC(BL_Shader, isValid, "isValid()")
 {
-	return PyBool_FromLong((m_shader != 0 && mOk));
+	return PyBool_FromLong((m_shader != 0 && m_ok));
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, getVertexProg, "getVertexProg( )")
@@ -168,7 +168,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, getFragmentProg, "getFragmentProg( )")
 
 KX_PYMETHODDEF_DOC(BL_Shader, validate, "validate()")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -185,7 +185,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, validate, "validate()")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -213,7 +213,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
 /// access functions
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform1f, "setUniform1f(name, fx)")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -237,7 +237,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform1f, "setUniform1f(name, fx)")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform2f, "setUniform2f(name, fx, fy)")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -261,7 +261,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform2f, "setUniform2f(name, fx, fy)")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform3f, "setUniform3f(name, fx,fy,fz) ")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -285,7 +285,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform3f, "setUniform3f(name, fx,fy,fz) ")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform4f, "setUniform4f(name, fx,fy,fz, fw) ")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -309,7 +309,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform4f, "setUniform4f(name, fx,fy,fz, fw) ")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 	const char *uniform;
@@ -317,9 +317,9 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
 		int loc = GetUniformLocation(uniform);
 		if (loc != -1) {
 			bool defined = false;
-			RAS_UniformVecDef::iterator it = mPreDef.begin();
-			while (it != mPreDef.end()) {
-				if ((*it)->mLoc == loc) {
+			RAS_UniformVecDef::iterator it = m_preDef.begin();
+			while (it != m_preDef.end()) {
+				if ((*it)->m_loc == loc) {
 					defined = true;
 					break;
 				}
@@ -331,10 +331,10 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
 			}
 
 			RAS_DefUniform *uni = new RAS_DefUniform();
-			uni->mLoc = loc;
-			uni->mType = EYE;
-			uni->mFlag = 0;
-			mPreDef.push_back(uni);
+			uni->m_loc = loc;
+			uni->m_type = EYE;
+			uni->m_flag = 0;
+			m_preDef.push_back(uni);
 		}
 		Py_RETURN_NONE;
 	}
@@ -343,7 +343,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform1i, "setUniform1i(name, ix)")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -367,7 +367,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform1i, "setUniform1i(name, ix)")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform2i, "setUniform2i(name, ix, iy)")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -391,7 +391,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform2i, "setUniform2i(name, ix, iy)")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform3i, "setUniform3i(name, ix,iy,iz) ")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -415,7 +415,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform3i, "setUniform3i(name, ix,iy,iz) ")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform4i, "setUniform4i(name, ix,iy,iz, iw) ")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -439,7 +439,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform4i, "setUniform4i(name, ix,iy,iz, iw) ")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformfv, "setUniformfv(float (list2 or list3 or list4))")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -509,7 +509,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformfv, "setUniformfv(float (list2 or list3 
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 or list3 or list4))")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -598,7 +598,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 o
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
                    "setUniformMatrix4(uniform_name, mat-4x4, transpose(row-major=true, col-major=false)")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -647,7 +647,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix3,
                    "setUniformMatrix3(uniform_name, list[3x3], transpose(row-major=true, col-major=false)")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -692,7 +692,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix3,
 
 KX_PYMETHODDEF_DOC(BL_Shader, setAttrib, "setAttrib(enum)")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -709,15 +709,15 @@ KX_PYMETHODDEF_DOC(BL_Shader, setAttrib, "setAttrib(enum)")
 		return NULL;
 	}
 
-	mAttr = attr;
-	BindAttribute("Tangent", mAttr);
+	m_attr = attr;
+	BindAttribute("Tangent", m_attr);
 	Py_RETURN_NONE;
 }
 
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformDef, "setUniformDef(name, enum)")
 {
-	if (mError) {
+	if (m_error) {
 		Py_RETURN_NONE;
 	}
 
@@ -728,9 +728,9 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformDef, "setUniformDef(name, enum)")
 
 		if (loc != -1) {
 			bool defined = false;
-			RAS_UniformVecDef::iterator it = mPreDef.begin();
-			while (it != mPreDef.end()) {
-				if ((*it)->mLoc == loc) {
+			RAS_UniformVecDef::iterator it = m_preDef.begin();
+			while (it != m_preDef.end()) {
+				if ((*it)->m_loc == loc) {
 					defined = true;
 					break;
 				}
@@ -742,10 +742,10 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformDef, "setUniformDef(name, enum)")
 			}
 
 			RAS_DefUniform *uni = new RAS_DefUniform();
-			uni->mLoc = loc;
-			uni->mType = nloc;
-			uni->mFlag = 0;
-			mPreDef.push_back(uni);
+			uni->m_loc = loc;
+			uni->m_type = nloc;
+			uni->m_flag = 0;
+			m_preDef.push_back(uni);
 			Py_RETURN_NONE;
 		}
 	}
