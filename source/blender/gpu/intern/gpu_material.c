@@ -1246,7 +1246,7 @@ static void do_material_tex(GPUShadeInput *shi)
 	GPUNodeLink *texco_global, *texco_uv = NULL;
 	GPUNodeLink *newnor, *orn;
 	float one = 1.0f;
-	GPUNodeLink *parco;
+	GPUNodeLink *parco = NULL;
 	int rgbnor, talpha;
 	bool init_done = false;
 	float discard;
@@ -1294,9 +1294,6 @@ static void do_material_tex(GPUShadeInput *shi)
 					GPU_select_uniform(&mtex->parallaxbumpsc, GPU_DYNAMIC_TEX_PARALLAXBUMP, NULL, ma),
 					GPU_uniform(&discard),
 					&parco);
-			}
-			else {
-				parco = NULL;
 			}
 		}
 	}
