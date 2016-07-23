@@ -32,6 +32,8 @@
 #ifndef __SCA_JOYSTICKPRIVATE_H__
 #define __SCA_JOYSTICKPRIVATE_H__
 
+#include <memory> // We have to include that on Windows to make memset available
+
 #ifdef WITH_SDL
 class DEV_Joystick::PrivateData
 {
