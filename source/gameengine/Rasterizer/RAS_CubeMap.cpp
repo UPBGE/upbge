@@ -111,11 +111,11 @@ RAS_CubeMap::RAS_CubeMap(KX_GameObject *gameobj, RAS_IRasterizer *rasty)
 	if (m_texture) { // Get CubeMap Texture
 		m_mtex = m_texture->GetMTex();
 		m_mtex->lodbias = -20.0f;
-		m_clipend = m_mtex->tex->env->clipend;
+		float clipend = m_mtex->tex->env->clipend;
 		m_layer = m_mtex->tex->env->notlay;
 		m_cubeMapTexture = m_texture->GetGPUTexture();
 		
-		m_proj = rasty->GetFrustumMatrix(-0.001f, 0.001f, -0.001f, 0.001f, 0.001f, m_clipend, 1.0f);
+		m_proj = rasty->GetFrustumMatrix(-0.001f, 0.001f, -0.001f, 0.001f, 0.001f, clipend, 1.0f);
 	}
 }
 
@@ -133,11 +133,6 @@ RAS_CubeMap::~RAS_CubeMap()
 KX_GameObject *RAS_CubeMap::GetGameObj()
 {
 	return m_gameobj;
-}
-
-float RAS_CubeMap::GetClipEnd()
-{
-	return m_clipend;
 }
 
 MT_Matrix4x4 RAS_CubeMap::GetProj()

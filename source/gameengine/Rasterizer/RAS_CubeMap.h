@@ -50,7 +50,7 @@ private:
 	MTex *m_mtex;
 	KX_GameObject *m_gameobj;
 	GPUFrameBuffer *m_fbo;
-	float m_clipend;
+
 	MT_Matrix4x4 m_proj;
 
 	/* layer to cull */
@@ -68,7 +68,7 @@ public:
 	void UnbindFace();
 
 	void SetFaceViewMatPos(MT_Vector3 pos, int faceindex);
-	float GetClipEnd();
+
 	MT_Matrix4x4 GetProj();
 	short GetLayer();
 };
