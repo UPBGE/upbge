@@ -91,6 +91,12 @@ public:
 	#endif
 	};
 
+	enum ProgramType {
+		VERTEX_PROGRAM = 0,
+		FRAGMENT_PROGRAM,
+		MAX_PROGRAM
+	};
+
 protected:
 	typedef std::vector<RAS_Uniform *> RAS_UniformVec;
 	typedef std::vector<RAS_DefUniform *> RAS_UniformVecDef;
@@ -99,8 +105,7 @@ protected:
 	bool m_ok; // Valid and ok
 	bool m_use;
 	int m_attr; // Tangent attribute
-	STR_String m_vertProg; // Vertex program string
-	STR_String m_fragProg; // Fragment program string
+	STR_String m_progs[MAX_PROGRAM];
 	bool m_error;
 	bool m_dirty;
 

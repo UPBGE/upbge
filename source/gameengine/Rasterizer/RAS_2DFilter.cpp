@@ -64,8 +64,8 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 		m_textures[i] = 0;
 	}
 
-	m_vertProg = STR_String(VertexShader);
-	m_fragProg = data.shaderText;
+	m_progs[VERTEX_PROGRAM] = STR_String(VertexShader);
+	m_progs[FRAGMENT_PROGRAM] = data.shaderText;
 }
 
 void RAS_2DFilter::ReleaseTextures()

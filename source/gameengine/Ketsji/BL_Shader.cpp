@@ -126,8 +126,8 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 	int apply = 0;
 
 	if (PyArg_ParseTuple(args, "ssi:setSource", &v, &f, &apply)) {
-		m_vertProg = STR_String(v);
-		m_fragProg = STR_String(f);
+		m_progs[VERTEX_PROGRAM] = STR_String(v);
+		m_progs[FRAGMENT_PROGRAM] = STR_String(f);
 
 		if (LinkProgram()) {
 			SetProg(true);
@@ -135,8 +135,8 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 			Py_RETURN_NONE;
 		}
 
-		m_vertProg = "";
-		m_fragProg = "";
+		m_progs[VERTEX_PROGRAM] = "";
+		m_progs[FRAGMENT_PROGRAM] = "";
 		m_use = 0;
 		Py_RETURN_NONE;
 	}
@@ -158,12 +158,12 @@ KX_PYMETHODDEF_DOC(BL_Shader, isValid, "isValid()")
 
 KX_PYMETHODDEF_DOC(BL_Shader, getVertexProg, "getVertexProg( )")
 {
-	return PyUnicode_FromString(m_vertProg.ReadPtr());
+	return PyUnicode_FromString(m_progs[VERTEX_PROGRAM].ReadPtr());
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, getFragmentProg, "getFragmentProg( )")
 {
-	return PyUnicode_FromString(m_fragProg.ReadPtr());
+	return PyUnicode_FromString(m_progs[FRAGMENT_PROGRAM].ReadPtr());
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, validate, "validate()")

@@ -166,11 +166,12 @@ RAS_Shader::RAS_Shader()
 	m_ok(0),
 	m_use(0),
 	m_attr(0),
-	m_vertProg(""),
-	m_fragProg(""),
 	m_error(0),
 	m_dirty(true)
 {
+	for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
+		m_progs[i] = "";
+	}
 }
 
 RAS_Shader::~RAS_Shader()
@@ -286,12 +287,12 @@ bool RAS_Shader::LinkProgram()
 		goto program_error;
 	}
 
-	if (m_vertProg.IsEmpty() || m_fragProg.IsEmpty()) {
+	if (m_progs[VERTEX_PROGRAM].IsEmpty() || m_progs[FRAGMENT_PROGRAM].IsEmpty()) {
 		spit("Invalid GLSL sources");
 		return false;
 	}
 
-	m_shader = GPU_shader_create_ex(m_vertProg.ReadPtr(), m_fragProg.ReadPtr(), NULL, NULL, NULL, 0, 0, 0, GPU_SHADER_FLAGS_SPECIAL_RESET_LINE);
+	m_shader = GPU_shader_create_ex(m_progs[VERTEX_PROGRAM].ReadPtr(), m_progs[FRAGMENT_PROGRAM].ReadPtr(), NULL, NULL, NULL, 0, 0, 0, GPU_SHADER_FLAGS_SPECIAL_RESET_LINE);
 	if (!m_shader) {
 		goto program_error;
 	}
