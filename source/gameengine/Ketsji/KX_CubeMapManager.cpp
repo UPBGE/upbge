@@ -34,7 +34,6 @@ KX_CubeMapManager::KX_CubeMapManager(KX_Scene *scene)
 	m_initCubeMaps(false)
 {
 	RAS_CameraData camdata = RAS_CameraData();
-	camdata.m_clipend = 10.0f;
 	m_camera = new KX_Camera(m_scene, KX_Scene::m_callbacks, camdata);
 }
 
