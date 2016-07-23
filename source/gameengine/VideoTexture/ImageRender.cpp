@@ -636,7 +636,7 @@ static int setUpdateShadow(PyImage *self, PyObject *value)
 {
 	ImageRender *imageRender = getImageRender(self);
 	imageRender->setUpdateShadowBuffer(PyLong_AsLong(value));
-	return NULL;
+	return 0;
 }
 
 // methods structure
