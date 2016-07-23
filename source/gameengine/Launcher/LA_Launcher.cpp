@@ -367,6 +367,7 @@ void LA_Launcher::ExitEngine()
 
 void LA_Launcher::HandlePythonConsole()
 {
+#ifndef WITH_PYTHON_SECURITY
 	if (!m_pythonConsole.use) {
 		return;
 	}
@@ -387,6 +388,7 @@ void LA_Launcher::HandlePythonConsole()
 	for (unsigned short i = 0, size = m_pythonConsole.keys.size(); i < size; ++i) {
 		m_inputDevice->ConvertEvent(m_pythonConsole.keys[i], 0, 0);
 	}
+#endif
 }
 
 int LA_Launcher::PythonEngineNextFrame(void *state)
@@ -491,7 +493,7 @@ void LA_Launcher::EngineMainLoop()
 	else {
 		pynextframestate.state = NULL;
 		pynextframestate.func = NULL;
-#endif
+#endif  // WITH_PYTHON
 
 		bool run = true;
 		while (run) {

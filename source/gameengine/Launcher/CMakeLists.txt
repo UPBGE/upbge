@@ -65,6 +65,10 @@ set(SRC
 	LA_System.h
 )
 
+if(WITH_PYTHON_SECURITY)
+	add_definitions(-DWITH_PYTHON_SECURITY)
+endif()
+
 if(WITH_AUDASPACE)
 	add_definitions(${AUDASPACE_DEFINITIONS})
 

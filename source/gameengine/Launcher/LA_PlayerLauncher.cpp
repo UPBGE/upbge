@@ -289,6 +289,7 @@ void LA_PlayerLauncher::startFullScreen(
 
 bool LA_PlayerLauncher::GetMainLoopPythonCode(char **pythonCode, char **pythonFileName)
 {
+#ifndef WITH_PYTHON_SECURITY
 	if (m_pythonMainLoop) {
 		if (BLI_is_file(m_pythonMainLoop)) {
 			size_t filesize = 0;
@@ -301,6 +302,7 @@ bool LA_PlayerLauncher::GetMainLoopPythonCode(char **pythonCode, char **pythonFi
 			return false;
 		}
 	}
+#endif
 	return LA_Launcher::GetMainLoopPythonCode(pythonCode, pythonFileName);
 }
 
