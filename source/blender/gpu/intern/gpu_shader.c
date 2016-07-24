@@ -336,7 +336,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 
 		if (defines) source[num_source++] = defines;
 		if (resetline) {
-			/* Print error message with the correct line number cooresponding to the passed code */
+			/* Print error message with the correct line number corresponding to the passed code */
 			source[num_source++] = "#line 0\n";
 		}
 		source[num_source++] = vertexcode;
@@ -379,7 +379,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		if (defines) source[num_source++] = defines;
 		if (libcode) source[num_source++] = libcode;
 		if (resetline) {
-			/* Print error message with the correct line number cooresponding to the passed code */
+			/* Print error message with the correct line number corresponding to the passed code */
 			source[num_source++] = "#line 0\n";
 		}
 		source[num_source++] = fragcode;
