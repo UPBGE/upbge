@@ -64,6 +64,9 @@ public:
 
 	KX_GameObject *GetGameObj();
 
+	void BeginRender();
+	void EndRender();
+
 	void BindFace(RAS_IRasterizer *rasty, unsigned short index, const MT_Vector3& objpos);
 	void UnbindFace();
 

@@ -749,7 +749,8 @@ void GPU_texture_generate_mipmap(GPUTexture *tex)
 		glActiveTexture(GL_TEXTURE0);
 	}
 
-	GPU_ASSERT_NO_GL_ERRORS("Post Texture Unbind");}
+	GPU_ASSERT_NO_GL_ERRORS("Post Texture Unbind");
+}
 
 void GPU_texture_free(GPUTexture *tex)
 {
