@@ -28,6 +28,7 @@ public:
 
 	// -----------------------------------
 	KX_PYMETHOD_DOC(BL_Shader, setSource);
+	KX_PYMETHOD_DOC(BL_Shader, setSourceList);
 	KX_PYMETHOD_DOC(BL_Shader, delSource);
 	KX_PYMETHOD_DOC(BL_Shader, getVertexProg);
 	KX_PYMETHOD_DOC(BL_Shader, getFragmentProg);

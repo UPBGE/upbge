@@ -44,6 +44,7 @@ BL_Shader::~BL_Shader()
 PyMethodDef BL_Shader::Methods[] = {
 	// creation
 	KX_PYMETHODTABLE(BL_Shader, setSource),
+	KX_PYMETHODTABLE(BL_Shader, setSourceList),
 	KX_PYMETHODTABLE(BL_Shader, delSource),
 	KX_PYMETHODTABLE(BL_Shader, getVertexProg),
 	KX_PYMETHODTABLE(BL_Shader, getFragmentProg),
@@ -115,9 +116,9 @@ int BL_Shader::pyattr_set_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrde
 	return PY_SET_ATTR_SUCCESS;
 }
 
-KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProgram)")
+KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProgram, apply)")
 {
-	if (m_shader != 0 && m_ok) {
+	if (m_shader && m_ok) {
 		// already set...
 		Py_RETURN_NONE;
 	}
@@ -128,6 +129,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 	if (PyArg_ParseTuple(args, "ssi:setSource", &v, &f, &apply)) {
 		m_progs[VERTEX_PROGRAM] = STR_String(v);
 		m_progs[FRAGMENT_PROGRAM] = STR_String(f);
+		m_progs[GEOMETRY_PROGRAM] = "";
 
 		if (LinkProgram()) {
 			SetProg(true);
@@ -143,6 +145,58 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 	return NULL;
 }
 
+KX_PYMETHODDEF_DOC(BL_Shader, setSourceList, " setSourceList(sources, apply)")
+{
+	if (m_shader && m_ok) {
+		// already set...
+		Py_RETURN_NONE;
+	}
+
+	PyObject *pydict;
+	int apply = 0;
+
+	if (!PyArg_ParseTuple(args, "O!i:setSourceList", &PyDict_Type, &pydict, &apply)) {
+		return NULL;
+	}
+
+	bool error = false;
+	static const char *progname[MAX_PROGRAM] = {"vertex", "fragment", "geometry"};
+	static const bool optional[MAX_PROGRAM] = {false, false, true};
+
+	for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
+		PyObject *pyprog = PyDict_GetItemString(pydict, progname[i]);
+		if (!optional[i]) {
+			if (!pyprog) {
+				error = true;
+				PyErr_Format(PyExc_SystemError, "setSourceList(sources, apply): BL_Shader, non optional %s program missing", progname[i]);
+				break;
+			}
+			else if (!PyUnicode_Check(pyprog)) {
+				error = true;
+				PyErr_Format(PyExc_SystemError, "setSourceList(sources, apply): BL_Shader, non optional %s program is not a string", progname[i]);
+				break;
+			}
+		}
+		if (pyprog) {
+			m_progs[i] = STR_String(_PyUnicode_AsString(pyprog));
+		}
+	}
+
+	if (error) {
+		for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
+			m_progs[i] = "";
+		}
+		m_use = 0;
+		return NULL;
+	}
+
+	if (LinkProgram()) {
+		SetProg(true);
+		m_use = apply != 0;
+	}
+
+	Py_RETURN_NONE;
+}
 
 KX_PYMETHODDEF_DOC(BL_Shader, delSource, "delSource( )")
 {
@@ -153,7 +207,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, delSource, "delSource( )")
 
 KX_PYMETHODDEF_DOC(BL_Shader, isValid, "isValid()")
 {
-	return PyBool_FromLong((m_shader != 0 && m_ok));
+	return PyBool_FromLong((m_shader && m_ok));
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, getVertexProg, "getVertexProg( )")
@@ -172,7 +226,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, validate, "validate()")
 		Py_RETURN_NONE;
 	}
 
-	if (m_shader == 0) {
+	if (!m_shader) {
 		PyErr_SetString(PyExc_TypeError, "shader.validate(): BL_Shader, invalid shader object");
 		return NULL;
 	}
@@ -704,7 +758,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setAttrib, "setAttrib(enum)")
 
 	attr = SHD_TANGENT; // user input is ignored for now, there is only 1 attr
 
-	if (m_shader == 0) {
+	if (!m_shader) {
 		PyErr_SetString(PyExc_ValueError, "shader.setAttrib() BL_Shader, invalid shader object");
 		return NULL;
 	}
