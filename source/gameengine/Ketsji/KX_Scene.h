@@ -80,6 +80,7 @@ class RAS_IPolyMaterial;
 class RAS_IRasterizer;
 class RAS_IRenderTools;
 class RAS_2DFilterManager;
+class RAS_CubeMapManager;
 class KX_2DFilterManager;
 class SCA_JoystickManager;
 class btCollisionShape;
@@ -124,7 +125,6 @@ protected:
 	 * course of one frame. They are actually destroyed in 
 	 * LogicEndFrame() via a call to RemoveObject().
 	 */
-	CListValue* m_gameObjWithCubeMap;
 	CListValue*	m_euthanasyobjects;
 
 	CListValue*			m_objectlist;
@@ -303,10 +303,10 @@ public:
 	virtual
 	~KX_Scene();
 
-	void CreateGameobjWithCubeMapList();
-	CListValue* GetGameobjWithCubeMapList();
+	void CreateGameobjWithCubeMapList(RAS_IRasterizer *rasty);
 
 	RAS_BucketManager* GetBucketManager();
+	RAS_CubeMapManager *GetCubeMapManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const MT_Transform& cameratransform,
 	                   RAS_IRasterizer* rasty);

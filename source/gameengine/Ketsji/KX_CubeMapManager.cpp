@@ -44,7 +44,7 @@ KX_CubeMapManager::~KX_CubeMapManager()
 
 void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubeMap)
 {
-	KX_GameObject *gameobj = cubeMap->GetGameObj();
+	KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)cubeMap->GetClientObject());
 	MT_Vector3 pos = gameobj->NodeGetWorldPosition();
 
 	/* We hide the gameobject in the case backface culling is disabled -> we can't see through
@@ -59,13 +59,12 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubeM
 	 * so we have to get/set the right projection matrix from cubeMap each time
 	 * we render a cubeMap
 	 */
-	rasty->SetProjectionMatrix(cubeMap->GetProj());
-	m_camera->SetProjectionMatrix(cubeMap->GetProj());
+	rasty->SetProjectionMatrix(cubeMap->GetProjection());
+	m_camera->SetProjectionMatrix(cubeMap->GetProjection());
 
 	cubeMap->BeginRender();
 
 	for (unsigned short i = 0; i < 6; ++i) {
-
 		cubeMap->BindFace(rasty, i, pos);
 
 		/* For Culling we need also to set the camera orientation */
@@ -91,16 +90,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubeM
 void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
 {
 	if (!m_initCubeMaps) {
-		/* We need to create cubeMaps here because when we make "new KX_CubeMapManager" in KX_Scene,
-		 * the scene isn't initialized yet so KX_Scene::m_objectList is empty and we need it in
-		 * CreateGameobjWithCubeMapList function
-		 */
-		m_scene->CreateGameobjWithCubeMapList();
-
-		for (CListValue::iterator it = m_scene->GetGameobjWithCubeMapList()->GetBegin(), end = m_scene->GetGameobjWithCubeMapList()->GetEnd(); it != end; ++it) {
-			RAS_CubeMap *cubeMap = new RAS_CubeMap(((KX_GameObject *)*it), rasty);
-			AddCubeMap(cubeMap);
-		}
+		m_scene->CreateGameobjWithCubeMapList(rasty);
 		m_initCubeMaps = true;
 	}
 	

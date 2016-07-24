@@ -29,26 +29,22 @@
 *  \ingroup bgerast
 */
 
-#include "glew-mx.h"
-#include <vector>
-#include <stdio.h>
 #include "MT_Matrix4x4.h"
 
-class KX_GameObject;
+#include <vector>
+
 class RAS_Texture;
 class RAS_IRasterizer;
 
 struct GPUFrameBuffer;
 struct GPUTexture;
-struct MTex;
 
 class RAS_CubeMap
 {
 private:
 	RAS_Texture *m_texture;
 	GPUTexture *m_cubeMapTexture;
-	MTex *m_mtex;
-	KX_GameObject *m_gameobj;
+	void *m_clientobj;
 	GPUFrameBuffer *m_fbo;
 
 	MT_Matrix4x4 m_proj;
@@ -57,12 +53,10 @@ private:
 	short m_layer;
 
 public:
-	RAS_CubeMap(KX_GameObject *gameobj, RAS_IRasterizer *rasty);
+	RAS_CubeMap(void *clientobj, RAS_Texture *texture, RAS_IRasterizer *rasty);
 	virtual ~RAS_CubeMap();
 
-	RAS_Texture *FindCubeMap();
-
-	KX_GameObject *GetGameObj();
+	void *GetClientObject();
 
 	void BeginRender();
 	void EndRender();
@@ -72,14 +66,13 @@ public:
 
 	void SetFaceViewMatPos(MT_Vector3 pos, int faceindex);
 
-	MT_Matrix4x4 GetProj();
+	const MT_Matrix4x4& GetProjection();
 	short GetLayer();
 };
 
 class RAS_CubeMapManager
 {
 protected:
-	
 	std::vector<RAS_CubeMap *> m_cubeMaps;
 
 public:
@@ -91,7 +84,7 @@ public:
 	static MT_Matrix3x3 camOri2[6];
 
 	void AddCubeMap(RAS_CubeMap *cubeMap);
-	void RemoveCubeMap(RAS_CubeMap *cubeMap);
+	void RemoveCubeMap(void *clientobj);
 
 	void RestoreFrameBuffer();
 };
