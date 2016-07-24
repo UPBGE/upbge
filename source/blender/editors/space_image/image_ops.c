@@ -2411,6 +2411,9 @@ static int image_new_exec(bContext *C, wmOperator *op)
 				id_us_min(&tex->ima->id);
 			tex->ima = ima;
 			ED_area_tag_redraw(CTX_wm_area(C));
+			DAG_id_tag_update(&tex->id, 0);
+			WM_main_add_notifier(NC_TEXTURE, tex);
+			WM_main_add_notifier(NC_MATERIAL | ND_SHADING_DRAW, NULL);
 		}
 	}
 
