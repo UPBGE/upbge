@@ -175,6 +175,15 @@ void RAS_CubeMap::SetFaceViewMatPos(MT_Vector3 pos, int faceindex)
 	RAS_CubeMapManager::facesViewMat[faceindex][2][3] = -newpos[2];
 }
 
+void RAS_CubeMap::BeginRender()
+{
+}
+
+void RAS_CubeMap::EndRender()
+{
+	GPU_texture_generate_mipmap(m_cubeMapTexture, 0);
+}
+
 void RAS_CubeMap::BindFace(RAS_IRasterizer *rasty, unsigned short index, const MT_Vector3& objpos)
 {
 	static GLenum m_cube_map_target[6] = {

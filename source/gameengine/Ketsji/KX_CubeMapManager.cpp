@@ -62,6 +62,8 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubeM
 	rasty->SetProjectionMatrix(cubeMap->GetProj());
 	m_camera->SetProjectionMatrix(cubeMap->GetProj());
 
+	cubeMap->BeginRender();
+
 	for (unsigned short i = 0; i < 6; ++i) {
 
 		cubeMap->BindFace(rasty, i, pos);
@@ -80,6 +82,8 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubeM
 
 		cubeMap->UnbindFace();
 	}
+
+	cubeMap->EndRender();
 
 	gameobj->SetVisible(true, true);
 }
