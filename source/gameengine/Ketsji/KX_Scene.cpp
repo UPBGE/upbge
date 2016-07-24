@@ -301,36 +301,31 @@ KX_Scene::~KX_Scene()
 #endif
 }
 
-void KX_Scene::CreateGameobjWithCubeMapList()
+void KX_Scene::CreateGameobjWithCubeMapList(RAS_IRasterizer *rasty)
 {
-	RAS_MeshMaterial *meshMat;
-	for (int i = 0; i< GetObjectList()->GetCount(); i++)
-	{
-		KX_GameObject* ob = (KX_GameObject*)GetObjectList()->GetValue(i);
-		RAS_MeshObject *mesh;
-		for (int j = 0; j < ob->GetMeshCount(); j++) {
-			mesh = ob->GetMesh(j);
-			for (unsigned int k = 0; k < mesh->NumMaterials(); k++) {
-				meshMat = mesh->GetMeshMaterial(k);
-				for (int l = 0; l < RAS_Texture::MaxUnits; l++) {
-					if (meshMat->m_bucket->GetIPolyMaterial()->GetTexture(l)) {
-						RAS_Texture *tex = meshMat->m_bucket->GetIPolyMaterial()->GetTexture(l);
-						if (tex && tex->GetTextureType() == GL_TEXTURE_CUBE_MAP &&
-							tex->GetMTex()->tex->env->stype == ENV_REALT) {
-							m_gameObjWithCubeMap->Add(ob);
-							ob->AddRef();
-							break;
-						}
+	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+		KX_GameObject *ob = (KX_GameObject*)*it;
+
+		for (unsigned short j = 0, meshcount = ob->GetMeshCount(); j < meshcount; ++j) {
+			RAS_MeshObject *mesh = ob->GetMesh(j);
+
+			for (unsigned short k = 0, matcount = mesh->NumMaterials(); k < matcount; ++k) {
+				RAS_MeshMaterial * meshMat = mesh->GetMeshMaterial(k);
+
+				for (unsigned short l = 0; l < RAS_Texture::MaxUnits; ++l) {
+					RAS_IPolyMaterial *polymat = meshMat->m_bucket->GetIPolyMaterial();
+					RAS_Texture *tex = polymat->GetTexture(l);
+
+					if (tex && tex->Ok() && tex->GetTextureType() == GL_TEXTURE_CUBE_MAP &&
+						tex->GetMTex()->tex->env->stype == ENV_REALT) {
+						RAS_CubeMap *cubeMap = new RAS_CubeMap(ob->getClientInfo(), tex, rasty);
+						m_cubeMapManager->AddCubeMap(cubeMap);
+						break;
 					}
 				}
 			}
 		}
 	}
-}
-
-CListValue* KX_Scene::GetGameobjWithCubeMapList()
-{
-	return m_gameObjWithCubeMap;
 }
 
 STR_String& KX_Scene::GetName()
@@ -349,6 +344,10 @@ RAS_BucketManager* KX_Scene::GetBucketManager()
 	return m_bucketmanager;
 }
 
+RAS_CubeMapManager *KX_Scene::GetCubeMapManager()
+{
+	return m_cubeMapManager;
+}
 
 CListValue* KX_Scene::GetTempObjectList()
 {
@@ -1125,6 +1124,8 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 	}
 
 	newobj->RemoveMeshes();
+
+	m_cubeMapManager->RemoveCubeMap(newobj->getClientInfo());
 
 	ret = 1;
 	if (newobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(newobj))

@@ -38,6 +38,9 @@
 #include "GPU_framebuffer.h"
 #include "GPU_draw.h"
 
+#include "BKE_image.h"
+#include "BKE_global.h"
+
 #include "KX_GameObject.h"
 
 MT_Matrix4x4 bottomFaceViewMat(
@@ -100,42 +103,34 @@ MT_Matrix4x4 RAS_CubeMapManager::facesViewMat[6] = { topFaceViewMat, bottomFaceV
 MT_Matrix3x3 RAS_CubeMapManager::camOri[6] = { topCamOri, bottomCamOri, frontCamOri, backCamOri, rightCamOri, leftCamOri };
 MT_Matrix3x3 RAS_CubeMapManager::camOri2[6] = { topCamOri, bottomCamOri, frontCamOri, backCamOri, leftCamOri, rightCamOri };
 
-RAS_CubeMap::RAS_CubeMap(KX_GameObject *gameobj, RAS_IRasterizer *rasty)
-	:m_texture(NULL),
+RAS_CubeMap::RAS_CubeMap(void *clientobj, RAS_Texture *texture, RAS_IRasterizer *rasty)
+	:m_texture(texture),
 	m_cubeMapTexture(NULL),
-	m_gameobj(gameobj)
+	m_clientobj(clientobj)
 {
-	m_texture = FindCubeMap();
 	m_fbo = GPU_framebuffer_create();
 
-	if (m_texture) { // Get CubeMap Texture
-		m_mtex = m_texture->GetMTex();
-		m_mtex->lodbias = -20.0f;
-		float clipend = m_mtex->tex->env->clipend;
-		m_layer = m_mtex->tex->env->notlay;
-		m_cubeMapTexture = m_texture->GetGPUTexture();
-		
-		m_proj = rasty->GetFrustumMatrix(-0.001f, 0.001f, -0.001f, 0.001f, 0.001f, clipend, 1.0f);
-	}
+	MTex *mtex = m_texture->GetMTex();
+	float clipend = mtex->tex->env->clipend;
+	m_layer = mtex->tex->env->notlay;
+
+	m_cubeMapTexture = m_texture->GetGPUTexture();
+
+	m_proj = rasty->GetFrustumMatrix(-0.001f, 0.001f, -0.001f, 0.001f, 0.001f, clipend, 1.0f);
 }
 
 RAS_CubeMap::~RAS_CubeMap()
 {
+	GPU_free_image(m_texture->GetImage());
 	GPU_framebuffer_free(m_fbo);
-	Tex *tex = m_mtex->tex;
-	Image *ima = tex->ima;
-	ImageUser& iuser = tex->iuser;
-	const int gltextarget = GL_TEXTURE_CUBE_MAP;
-	GPU_free_image(ima);
-	m_cubeMapTexture = GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true);
 }
 
-KX_GameObject *RAS_CubeMap::GetGameObj()
+void *RAS_CubeMap::GetClientObject()
 {
-	return m_gameobj;
+	return m_clientobj;
 }
 
-MT_Matrix4x4 RAS_CubeMap::GetProj()
+const MT_Matrix4x4& RAS_CubeMap::GetProjection()
 {
 	return m_proj;
 }
@@ -143,28 +138,6 @@ MT_Matrix4x4 RAS_CubeMap::GetProj()
 short RAS_CubeMap::GetLayer()
 {
 	return m_layer;
-}
-
-RAS_Texture *RAS_CubeMap::FindCubeMap()
-{
-	RAS_Texture *texWithCubemap = NULL;
-	RAS_MeshMaterial *meshMat;
-	for (int i = 0; i < m_gameobj->GetMeshCount(); i++) {
-		RAS_MeshObject *mesh = m_gameobj->GetMesh(i);
-		for (unsigned int j = 0; j < mesh->NumMaterials(); j++) {
-			meshMat = mesh->GetMeshMaterial(j);
-			for (int k = 0; k < RAS_Texture::MaxUnits; k++) {
-				if (meshMat->m_bucket->GetIPolyMaterial()->GetTexture(k)) {
-					RAS_Texture *tex = meshMat->m_bucket->GetIPolyMaterial()->GetTexture(k);
-					if (tex->GetTextureType() == tex->GetCubeMapTextureType()) {
-						texWithCubemap = tex;
-						break;
-					}
-				}
-			}
-		}
-	}
-	return texWithCubemap;
 }
 
 void RAS_CubeMap::SetFaceViewMatPos(MT_Vector3 pos, int faceindex)
@@ -226,11 +199,15 @@ void RAS_CubeMapManager::AddCubeMap(RAS_CubeMap *cubeMap)
 	m_cubeMaps.push_back(cubeMap);
 }
 
-void RAS_CubeMapManager::RemoveCubeMap(RAS_CubeMap *cubeMap)
+void RAS_CubeMapManager::RemoveCubeMap(void *clientobj)
 {
-	std::vector<RAS_CubeMap *>::iterator it = std::find(m_cubeMaps.begin(), m_cubeMaps.end(), cubeMap);
-	if (it != m_cubeMaps.end()) {
+	for (std::vector<RAS_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
+		RAS_CubeMap *cubeMap = *it;
+		if (cubeMap->GetClientObject() == clientobj) {
+			delete cubeMap;
+		}
 		m_cubeMaps.erase(it);
+		break;
 	}
 }
 
