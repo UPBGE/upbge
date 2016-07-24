@@ -283,6 +283,10 @@ void RAS_Shader::DeleteShader()
 
 bool RAS_Shader::LinkProgram()
 {
+	const char *vert;
+	const char *frag;
+	const char *geom;
+
 	if (m_error) {
 		goto program_error;
 	}
@@ -292,7 +296,10 @@ bool RAS_Shader::LinkProgram()
 		return false;
 	}
 
-	m_shader = GPU_shader_create_ex(m_progs[VERTEX_PROGRAM].ReadPtr(), m_progs[FRAGMENT_PROGRAM].ReadPtr(), NULL, NULL, NULL, 0, 0, 0, GPU_SHADER_FLAGS_SPECIAL_RESET_LINE);
+	vert = m_progs[VERTEX_PROGRAM].ReadPtr();
+	frag = m_progs[FRAGMENT_PROGRAM].ReadPtr();
+	geom = (m_progs[GEOMETRY_PROGRAM] == "") ? NULL : m_progs[GEOMETRY_PROGRAM].ReadPtr();
+	m_shader = GPU_shader_create_ex(vert, frag, geom, NULL, NULL, 0, 0, 0, GPU_SHADER_FLAGS_SPECIAL_RESET_LINE);
 	if (!m_shader) {
 		goto program_error;
 	}
@@ -302,10 +309,12 @@ bool RAS_Shader::LinkProgram()
 	return true;
 
 program_error:
+{
 	m_ok = 0;
 	m_use = 0;
 	m_error = 1;
 	return false;
+}
 }
 
 void RAS_Shader::ValidateProgram()

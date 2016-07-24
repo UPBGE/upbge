@@ -44,6 +44,7 @@ BL_Shader::~BL_Shader()
 PyMethodDef BL_Shader::Methods[] = {
 	// creation
 	KX_PYMETHODTABLE(BL_Shader, setSource),
+	KX_PYMETHODTABLE(BL_Shader, setSourceDict),
 	KX_PYMETHODTABLE(BL_Shader, delSource),
 	KX_PYMETHODTABLE(BL_Shader, getVertexProg),
 	KX_PYMETHODTABLE(BL_Shader, getFragmentProg),
@@ -115,7 +116,7 @@ int BL_Shader::pyattr_set_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrde
 	return PY_SET_ATTR_SUCCESS;
 }
 
-KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProgram)")
+KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProgram, apply)")
 {
 	if (m_shader != 0 && m_ok) {
 		// already set...
@@ -128,6 +129,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 	if (PyArg_ParseTuple(args, "ssi:setSource", &v, &f, &apply)) {
 		m_progs[VERTEX_PROGRAM] = STR_String(v);
 		m_progs[FRAGMENT_PROGRAM] = STR_String(f);
+		m_progs[GEOMETRY_PROGRAM] = "";
 
 		if (LinkProgram()) {
 			SetProg(true);
@@ -143,6 +145,47 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 	return NULL;
 }
 
+KX_PYMETHODDEF_DOC(BL_Shader, setSourceDict, " setSourceDict(sources, apply)")
+{
+	if (m_shader != 0 && m_ok) {
+		// already set...
+		Py_RETURN_NONE;
+	}
+
+	PyObject *pydict;
+	int apply = 0;
+
+	if (PyArg_ParseTuple(args, "O!i:setSourceDict", &PyDict_Type, &pydict, &apply)) {
+		bool error = false;
+		static const char *progname[MAX_PROGRAM] = {"vertex", "fragment", "geometry"};
+		static const bool progneeded[MAX_PROGRAM] = {true, true, false};
+
+		for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
+			PyObject *pyprog = PyDict_GetItemString(pydict, progname[i]);
+			if (!pyprog) {
+				error = progneeded[i];
+			}
+			else {
+				m_progs[i] = STR_String(_PyUnicode_AsString(pyprog));
+			}
+		}
+
+		if (!error && LinkProgram()) {
+			SetProg(true);
+			m_use = apply != 0;
+		}
+
+		if (error) {
+			for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
+				m_progs[i] = "";
+			}
+			m_use = 0;
+			return NULL;
+		}
+		Py_RETURN_NONE;
+	}
+	return NULL;
+}
 
 KX_PYMETHODDEF_DOC(BL_Shader, delSource, "delSource( )")
 {
