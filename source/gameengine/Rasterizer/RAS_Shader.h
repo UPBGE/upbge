@@ -94,6 +94,7 @@ public:
 	enum ProgramType {
 		VERTEX_PROGRAM = 0,
 		FRAGMENT_PROGRAM,
+		GEOMETRY_PROGRAM,
 		MAX_PROGRAM
 	};
 

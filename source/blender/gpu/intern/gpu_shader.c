@@ -400,7 +400,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	}
 
 	if (geocode) {
-		const char *source[6];
+		const char *source[7];
 		int num_source = 0;
 
 		source[num_source++] = gpu_shader_version();
@@ -408,6 +408,10 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		source[num_source++] = standard_defines;
 
 		if (defines) source[num_source++] = defines;
+		if (resetline) {
+			/* Print error message with the correct line number corresponding to the passed code */
+			source[num_source++] = "#line 0\n";
+		}
 		source[num_source++] = geocode;
 
 		glAttachShader(shader->program, shader->geometry);
