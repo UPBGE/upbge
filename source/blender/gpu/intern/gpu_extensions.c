@@ -71,6 +71,7 @@ static struct GPUGlobal {
 	GLint maxtexsize;
 	GLint maxcubemapsize;
 	GLint maxtextures;
+	GLint maxvertexcomponents;
 	bool extdisabled;
 	int colordepth;
 	int samples_color_texture_max;
@@ -122,6 +123,11 @@ int GPU_max_cube_map_size(void)
 	return GG.maxcubemapsize;
 }
 
+int GPU_max_vertex_uniform_components(void)
+{
+	return GG.maxvertexcomponents;
+}
+
 void GPU_get_dfdy_factors(float fac[2])
 {
 	copy_v2_v2(fac, GG.dfdyfactors);
@@ -136,6 +142,8 @@ void gpu_extensions_init(void)
 
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &GG.maxtexsize);
 	glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, &GG.maxcubemapsize);
+
+	glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &GG.maxvertexcomponents);
 
 	if (GLEW_EXT_texture_filter_anisotropic)
 		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &GG.max_anisotropy);
@@ -229,6 +237,13 @@ void gpu_extensions_init(void)
 	else {
 		GG.dfdyfactors[0] = 1.0;
 		GG.dfdyfactors[1] = 1.0;
+	}
+
+	/* AMD/ATI cards need GL_MAX_*_UNIFORM_COMPONENTS divided by 4:
+	 * https://www.opengl.org/wiki_132/index.php?title=GLSL_Uniform#Implementation_limits
+	 */
+	if (GG.device == GPU_DEVICE_ATI) {
+		GG.maxvertexcomponents /= 4;
 	}
 
 	/* Enable globally cube map seamless to avoid edge on mipmapping */

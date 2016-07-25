@@ -25,7 +25,7 @@ uniform mat4 unfviewmat;
 attribute vec4 weight;
 attribute vec4 index;
 attribute float numbones;
-uniform  mat4 bonematrices[100];
+uniform  mat4 bonematrices[128];
 #endif
 
 varying vec3 varposition;

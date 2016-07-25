@@ -537,6 +537,11 @@ bool BL_ArmatureObject::UpdateTimestep(double curtime)
 	return false;
 }
 
+void BL_ArmatureObject::SetVertDeformType(int deform_type)
+{
+	m_vert_deform_type = deform_type;
+}
+
 void BL_ArmatureObject::GetPose(bPose **pose)
 {
 	/* If the caller supplies a null pose, create a new one. */

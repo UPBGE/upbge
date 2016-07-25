@@ -102,6 +102,8 @@ BL_SkinDeformer::BL_SkinDeformer(BL_DeformableGameObject *gameobj,
 {
 	copy_m4_m4(m_obmat, bmeshobj->obmat);
 	m_deformflags = get_deformflags(bmeshobj);
+
+	VerifyHardwareSkinning();
 }
 
 BL_SkinDeformer::BL_SkinDeformer(
@@ -128,6 +130,27 @@ BL_SkinDeformer::BL_SkinDeformer(
 	// simulate a pure replacement of the mesh.
 	copy_m4_m4(m_obmat, bmeshobj_new->obmat);
 	m_deformflags = get_deformflags(bmeshobj_new);
+
+	VerifyHardwareSkinning();
+}
+
+void BL_SkinDeformer::VerifyHardwareSkinning()
+{
+	if (m_armobj && m_armobj->GetVertDeformType() == ARM_VDEF_BGE_GPU) {
+		// Check to see if we can do this skinning in hardware, and fallback to software if we cannot.
+		// Each matrix is sixteen components, and we don't want to use more than half of the available components.
+		// We consider a maximum of 128 bones too.
+		int defbase_tot = BLI_countlist(&m_objMesh->defbase);
+		int max = GPU_max_vertex_uniform_components() / 32;
+		if (max > 128)
+			max = 128;
+
+		if (defbase_tot > max) {
+			printf("Skinned mesh with %d bones not supported by hardware (max: %d): %s. Using software skinning.\n",
+			       defbase_tot, max, m_objMesh->id.name);
+			m_armobj->SetVertDeformType(ARM_VDEF_BGE_CPU);
+		}
+	}
 }
 
 BL_SkinDeformer::~BL_SkinDeformer()

@@ -129,6 +129,7 @@ protected:
 
 	void BlenderDeformVerts();
 	void BGEDeformVerts();
+	void VerifyHardwareSkinning();
 
 	void UpdateTransverts();
 
