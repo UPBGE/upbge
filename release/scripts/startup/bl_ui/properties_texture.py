@@ -1160,6 +1160,9 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
             col = split.column()
             factor_but(col, "use_map_zenith_up", "zenith_up_factor", "Zenith Up")
             factor_but(col, "use_map_zenith_down", "zenith_down_factor", "Zenith Down")
+
+            col = split.column()
+            col.prop(tex, "lod_bias")
         elif isinstance(idblock, ParticleSettings):
             split = layout.split()
 
