@@ -2090,16 +2090,16 @@ static void do_world_tex(GPUShadeInput *shi, struct World *wo, GPUNodeLink **hor
 			if (ofs[0] != 0.0f || ofs[1] != 0.0f || ofs[2] != 0.0f)
 				GPU_link(mat, "mtex_mapping_ofs", texco, GPU_uniform(ofs), &texco);
 			if (mtex->texco == TEXCO_EQUIRECTMAP) {
-				GPU_link(mat, "node_tex_environment_equirectangular", texco, GPU_image(tex->ima, &tex->iuser, false), &trgb);
+				GPU_link(mat, "node_tex_environment_equirectangular", texco, GPU_image(tex->ima, &tex->iuser, false), GPU_uniform(&mtex->lodbias), &trgb);
 			}
 			else if (mtex->texco == TEXCO_ANGMAP) {
-				GPU_link(mat, "node_tex_environment_mirror_ball", texco, GPU_image(tex->ima, &tex->iuser, false), &trgb);
+				GPU_link(mat, "node_tex_environment_mirror_ball", texco, GPU_image(tex->ima, &tex->iuser, false), GPU_uniform(&mtex->lodbias), &trgb);
 			}
 			else {
 				if (tex->type == TEX_ENVMAP)
-					GPU_link(mat, "mtex_cube_map", texco, GPU_cube_map(tex->ima, &tex->iuser, false), GPU_uniform(&zero), &tin, &trgb);
+					GPU_link(mat, "mtex_cube_map", texco, GPU_cube_map(tex->ima, &tex->iuser, false), GPU_uniform(&mtex->lodbias), &tin, &trgb);
 				else if (tex->type == TEX_IMAGE)
-					GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false), GPU_uniform(&zero), &tin, &trgb);
+					GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false), GPU_uniform(&mtex->lodbias), &tin, &trgb);
 			}
 			rgbnor = TEX_RGB;
 			if (tex->type == TEX_IMAGE || tex->type == TEX_ENVMAP)
