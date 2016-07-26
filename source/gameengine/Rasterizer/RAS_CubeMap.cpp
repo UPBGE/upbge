@@ -38,6 +38,8 @@
 #include "GPU_framebuffer.h"
 #include "GPU_draw.h"
 
+#include "glew-mx.h"
+
 #include "BKE_image.h"
 #include "BKE_global.h"
 

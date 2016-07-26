@@ -316,7 +316,7 @@ void KX_Scene::CreateGameobjWithCubeMapList(RAS_IRasterizer *rasty)
 					RAS_IPolyMaterial *polymat = meshMat->m_bucket->GetIPolyMaterial();
 					RAS_Texture *tex = polymat->GetTexture(l);
 
-					if (tex && tex->Ok() && tex->GetTextureType() == GL_TEXTURE_CUBE_MAP &&
+					if (tex && tex->Ok() && tex->GetTextureType() == RAS_Texture::GetCubeMapTextureType() &&
 						tex->GetMTex()->tex->env->stype == ENV_REALT) {
 						RAS_CubeMap *cubeMap = new RAS_CubeMap(ob->getClientInfo(), tex, rasty);
 						m_cubeMapManager->AddCubeMap(cubeMap);
