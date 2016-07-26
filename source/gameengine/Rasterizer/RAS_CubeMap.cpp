@@ -119,6 +119,10 @@ RAS_CubeMap::RAS_CubeMap(void *clientobj, RAS_Texture *texture, RAS_IRasterizer 
 	m_cubeMapTexture = m_texture->GetGPUTexture();
 	// Increment reference to make sure the gpu texture will not be freed by someone else.
 	GPU_texture_ref(m_cubeMapTexture);
+	// Disable mipmaping.
+	GPU_texture_bind(m_cubeMapTexture, 0);
+	GPU_texture_filter_mode(m_cubeMapTexture, false, false);
+	GPU_texture_unbind(m_cubeMapTexture);
 
 	m_proj = rasty->GetFrustumMatrix(-0.001f, 0.001f, -0.001f, 0.001f, 0.001f, clipend, 1.0f);
 }
@@ -159,7 +163,6 @@ void RAS_CubeMap::BeginRender()
 
 void RAS_CubeMap::EndRender()
 {
-	GPU_texture_generate_mipmap(m_cubeMapTexture, 0);
 }
 
 void RAS_CubeMap::BindFace(RAS_IRasterizer *rasty, unsigned short index, const MT_Vector3& objpos)
