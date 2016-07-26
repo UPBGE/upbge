@@ -631,6 +631,42 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	debugShapes.clear();
 }
 
+void RAS_OpenGLRasterizer::DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
+{
+	OglDebugShape line;
+	line.m_type = OglDebugShape::LINE;
+	line.m_pos = from;
+	line.m_param = to;
+	line.m_color = color;
+	m_debugShapes[scene].push_back(line);
+}
+
+void RAS_OpenGLRasterizer::DrawDebugCircle(SCA_IScene *scene, const MT_Vector3 &center, const MT_Scalar radius,
+		const MT_Vector4 &color, const MT_Vector3 &normal, int nsector)
+{
+	OglDebugShape line;
+	line.m_type = OglDebugShape::CIRCLE;
+	line.m_pos = center;
+	line.m_param = normal;
+	line.m_color = color;
+	line.m_param2.x() = radius;
+	line.m_param2.y() = (float)nsector;
+	m_debugShapes[scene].push_back(line);
+}
+
+void RAS_OpenGLRasterizer::DrawDebugBox(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
+		const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color)
+{
+	OglDebugShape box;
+	box.m_type = OglDebugShape::BOX;
+	box.m_pos = pos;
+	box.m_rot = rot;
+	box.m_param = min;
+	box.m_param2 = max;
+	box.m_color = color;
+	m_debugShapes[scene].push_back(box);
+}
+
 void RAS_OpenGLRasterizer::EndFrame()
 {
 	SetColorMask(true, true, true, true);

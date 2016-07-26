@@ -66,33 +66,6 @@ enum RAS_STORAGE_INFO
 	RAS_STORAGE_USE_DISPLAY_LIST = (1 << 0),
 };
 
-struct OglDebugShape
-{
-	enum SHAPE_TYPE
-	{
-		LINE,
-		CIRCLE,
-		BOX,
-	};
-	SHAPE_TYPE m_type;
-	MT_Vector3 m_pos;
-	MT_Matrix3x3 m_rot;
-	MT_Vector3 m_param;
-	MT_Vector3 m_param2;
-	MT_Vector4 m_color;
-};
-
-// All info used to compute the ray cast transform matrix.
-struct RayCastTranform
-{
-	/// The object scale.
-	MT_Vector3 scale;
-	/// The original object matrix.
-	float *origmat;
-	/// The output matrix.
-	float *mat;
-};
-
 /**
  * 3D rendering device context.
  */
@@ -109,6 +82,33 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		virtual ~ScreenPlane();
 
 		void Render();
+	};
+
+	struct OglDebugShape
+	{
+		enum SHAPE_TYPE
+		{
+			LINE,
+			CIRCLE,
+			BOX,
+		};
+		SHAPE_TYPE m_type;
+		MT_Vector3 m_pos;
+		MT_Matrix3x3 m_rot;
+		MT_Vector3 m_param;
+		MT_Vector3 m_param2;
+		MT_Vector4 m_color;
+	};
+
+	// All info used to compute the ray cast transform matrix.
+	struct RayCastTranform
+	{
+		/// The object scale.
+		MT_Vector3 scale;
+		/// The original object matrix.
+		float *origmat;
+		/// The output matrix.
+		float *mat;
 	};
 
 	/* fogging vars */
@@ -148,6 +148,9 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 
 	/// Class used to render a screen plane.
 	ScreenPlane m_screenPlane;
+
+	// We store each debug shape by scene.
+	std::map<SCA_IScene *, std::vector<OglDebugShape> > m_debugShapes;
 
 protected:
 	DrawType m_drawingmode;
@@ -258,44 +261,11 @@ public:
 	virtual void SetPolygonOffset(float mult, float add);
 
 	virtual void FlushDebugShapes(SCA_IScene *scene);
-
-	virtual void DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
-	{
-		OglDebugShape line;
-		line.m_type = OglDebugShape::LINE;
-		line.m_pos = from;
-		line.m_param = to;
-		line.m_color = color;
-		m_debugShapes[scene].push_back(line);
-	}
-
+	virtual void DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color);
 	virtual void DrawDebugCircle(SCA_IScene *scene, const MT_Vector3 &center, const MT_Scalar radius,
-	                             const MT_Vector4 &color, const MT_Vector3 &normal, int nsector)
-	{
-		OglDebugShape line;
-		line.m_type = OglDebugShape::CIRCLE;
-		line.m_pos = center;
-		line.m_param = normal;
-		line.m_color = color;
-		line.m_param2.x() = radius;
-		line.m_param2.y() = (float)nsector;
-		m_debugShapes[scene].push_back(line);
-	}
+	                             const MT_Vector4 &color, const MT_Vector3 &normal, int nsector);
 	virtual void DrawDebugBox(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
-							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color)
-	{
-		OglDebugShape box;
-		box.m_type = OglDebugShape::BOX;
-		box.m_pos = pos;
-		box.m_rot = rot;
-		box.m_param = min;
-		box.m_param2 = max;
-		box.m_color = color;
-		m_debugShapes[scene].push_back(box);
-	}
-
-	// We store each debug shape by scene.
-	std::map<SCA_IScene *, std::vector<OglDebugShape> > m_debugShapes;
+							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color);
 
 	virtual void SetTexCoordNum(int num);
 	virtual void SetAttribNum(int num);
