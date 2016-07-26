@@ -98,6 +98,19 @@ struct RayCastTranform
  */
 class RAS_OpenGLRasterizer : public RAS_IRasterizer
 {
+	class ScreenPlane
+	{
+	private:
+		unsigned int m_vbo;
+		unsigned int m_ibo;
+
+	public:
+		ScreenPlane();
+		virtual ~ScreenPlane();
+
+		void Render();
+	};
+
 	/* fogging vars */
 	bool m_fogenabled;
 
@@ -133,10 +146,8 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	void *m_lastauxinfo;
 	unsigned int m_numgllights;
 
-	/// VBO used to draw the overlay plane for world background or filters.
-	unsigned int m_overlayPlaneVBO;
-	/// IBO (indices) used to draw the overlay plane for world background or filters.
-	unsigned int m_overlayPlaneIBO;
+	/// Class used to render a screen plane.
+	ScreenPlane m_screenPlane;
 
 protected:
 	DrawType m_drawingmode;
