@@ -25,10 +25,12 @@
 #ifndef __KX_CUBEMAPMANAGER_H__
 #define __KX_CUBEMAPMANAGER_H__
 
-#include "RAS_CubeMap.h"
+#include "RAS_CubeMapManager.h"
 
 class KX_Camera;
 class KX_Scene;
+
+class RAS_IRasterizer;
 
 class KX_CubeMapManager : public RAS_CubeMapManager
 {

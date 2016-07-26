@@ -25,8 +25,10 @@
 #include "KX_CubeMapManager.h"
 #include "KX_Camera.h"
 #include "KX_Scene.h"
+
 #include "EXP_ListValue.h"
 
+#include "RAS_CubeMap.h"
 #include "RAS_IRasterizer.h"
 
 KX_CubeMapManager::KX_CubeMapManager(KX_Scene *scene)
