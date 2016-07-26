@@ -47,11 +47,6 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubeM
 	KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)cubeMap->GetClientObject());
 	MT_Vector3 pos = gameobj->NodeGetWorldPosition();
 
-	/* We hide the gameobject in the case backface culling is disabled -> we can't see through
-	 * the object faces if the camera is inside the gameobject
-	 */
-	gameobj->SetVisible(false, true);
-
 	/* For Culling we need first to set the camera position at the object position */
 	m_camera->NodeSetWorldPosition(pos);
 	
@@ -83,8 +78,6 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubeM
 	}
 
 	cubeMap->EndRender();
-
-	gameobj->SetVisible(true, true);
 }
 
 void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
@@ -93,9 +86,23 @@ void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
 		m_scene->CreateGameobjWithCubeMapList(rasty);
 		m_initCubeMaps = true;
 	}
-	
+
+	// Hide all cube map objects.
+	for (std::vector<RAS_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
+		RAS_CubeMap *cubeMap = *it;
+		KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)cubeMap->GetClientObject());
+		gameobj->SetVisible(false, true);
+	}
+
 	for (std::vector<RAS_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
 		RenderCubeMap(rasty, *it);
+	}
+
+	// Unhide all cube map objects.
+	for (std::vector<RAS_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
+		RAS_CubeMap *cubeMap = *it;
+		KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)cubeMap->GetClientObject());
+		gameobj->SetVisible(true, true);
 	}
 
 	RestoreFrameBuffer();
