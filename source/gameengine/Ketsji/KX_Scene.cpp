@@ -64,6 +64,7 @@
 #include "RAS_IRasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
+#include "RAS_CubeMap.h"
 #include "KX_2DFilterManager.h"
 #include "KX_CubeMapManager.h"
 #include "RAS_BucketManager.h"

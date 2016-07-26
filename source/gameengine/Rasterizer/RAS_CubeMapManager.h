@@ -20,50 +20,37 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file RAS_CubeMap.h
+/** \file RAS_CubeMapManager.h
 *  \ingroup bgerast
 */
 
-#ifndef __RAS_CUBEMAP_H__
-#define __RAS_CUBEMAP_H__
+#ifndef __RAS_CUBEMAPMANAGER_H__
+#define __RAS_CUBEMAPMANAGER_H__
 
 #include "MT_Matrix4x4.h"
 
-class RAS_Texture;
-class RAS_IRasterizer;
+#include <vector>
 
-struct GPUFrameBuffer;
-struct GPUTexture;
+class RAS_CubeMap;
 
-class RAS_CubeMap
+class RAS_CubeMapManager
 {
-private:
-	RAS_Texture *m_texture;
-	GPUTexture *m_cubeMapTexture;
-	void *m_clientobj;
-	GPUFrameBuffer *m_fbo;
-
-	MT_Matrix4x4 m_proj;
-
-	/* layer to cull */
-	short m_layer;
+protected:
+	std::vector<RAS_CubeMap *> m_cubeMaps;
 
 public:
-	RAS_CubeMap(void *clientobj, RAS_Texture *texture, RAS_IRasterizer *rasty);
-	virtual ~RAS_CubeMap();
+	RAS_CubeMapManager();
+	virtual ~RAS_CubeMapManager();
 
-	void *GetClientObject();
+	static MT_Matrix4x4 facesViewMat[6];
+	static MT_Matrix3x3 camOri[6];
+	static MT_Matrix3x3 camOri2[6];
 
-	void BeginRender();
-	void EndRender();
+	void AddCubeMap(RAS_CubeMap *cubeMap);
+	void RemoveCubeMap(void *clientobj);
 
-	void BindFace(RAS_IRasterizer *rasty, unsigned short index, const MT_Vector3& objpos);
-	void UnbindFace();
-
-	void SetFaceViewMatPos(MT_Vector3 pos, int faceindex);
-
-	const MT_Matrix4x4& GetProjection();
-	short GetLayer();
+	void RestoreFrameBuffer();
 };
 
-#endif  // __RAS_CUBEMAP_H__
+#endif  // __RAS_CUBEMAPMANAGER_H__
+
