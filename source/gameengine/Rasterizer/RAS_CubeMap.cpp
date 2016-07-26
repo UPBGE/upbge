@@ -117,12 +117,15 @@ RAS_CubeMap::RAS_CubeMap(void *clientobj, RAS_Texture *texture, RAS_IRasterizer 
 	m_layer = mtex->tex->env->notlay;
 
 	m_cubeMapTexture = m_texture->GetGPUTexture();
+	// Increment reference to make sure the gpu texture will not be freed by someone else.
+	GPU_texture_ref(m_cubeMapTexture);
 
 	m_proj = rasty->GetFrustumMatrix(-0.001f, 0.001f, -0.001f, 0.001f, 0.001f, clipend, 1.0f);
 }
 
 RAS_CubeMap::~RAS_CubeMap()
 {
+	GPU_texture_free(m_cubeMapTexture);
 	GPU_free_image(m_texture->GetImage());
 	GPU_framebuffer_free(m_fbo);
 }
@@ -207,9 +210,9 @@ void RAS_CubeMapManager::RemoveCubeMap(void *clientobj)
 		RAS_CubeMap *cubeMap = *it;
 		if (cubeMap->GetClientObject() == clientobj) {
 			delete cubeMap;
+			m_cubeMaps.erase(it);
+			break;
 		}
-		m_cubeMaps.erase(it);
-		break;
 	}
 }
 
