@@ -24,8 +24,8 @@
  *  \ingroup device
  */
 
-#ifndef __GH_INPUTDEVICE_H__
-#define __GH_INPUTDEVICE_H__
+#ifndef __DEV_INPUTDEVICE_H__
+#define __DEV_INPUTDEVICE_H__
 
 #include "SCA_IInputDevice.h"
 
@@ -51,4 +51,4 @@ public:
 	void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
 };
 
-#endif  /* __GH_INPUTDEVICE_H__ */
+#endif  /* __DEV_INPUTDEVICE_H__ */

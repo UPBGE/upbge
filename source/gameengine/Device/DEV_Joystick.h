@@ -29,8 +29,8 @@
  *  \ingroup device
  */
 
-#ifndef __SCA_JOYSTICK_H__
-#define __SCA_JOYSTICK_H__
+#ifndef __DEV_JOYSTICK_H__
+#define __DEV_JOYSTICK_H__
 
 #include "DEV_JoystickDefines.h"
 #ifdef WITH_SDL
@@ -180,5 +180,5 @@ public:
 	const char *GetName();
 };
 
-#endif
+#endif /* __DEV_JOYSTICK_H__ */
 

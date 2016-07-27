@@ -29,8 +29,8 @@
  *  \ingroup device
  */
 
-#ifndef __SCA_JOYSTICKDEFINES_H__
-#define __SCA_JOYSTICKDEFINES_H__
+#ifndef __DEV_JOYSTICKDEFINES_H__
+#define __DEV_JOYSTICKDEFINES_H__
 
 #ifdef main
 #undef main
@@ -45,4 +45,4 @@
 #define JOYAXIS_DOWN		3
 #define JOYAXIS_LEFT		2
 
-#endif
+#endif /* __DEV_JOYSTICKDEFINES_H__ */

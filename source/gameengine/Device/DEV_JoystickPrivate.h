@@ -29,8 +29,8 @@
  *  \ingroup device
  */
 
-#ifndef __SCA_JOYSTICKPRIVATE_H__
-#define __SCA_JOYSTICKPRIVATE_H__
+#ifndef __DEV_JOYSTICKPRIVATE_H__
+#define __DEV_JOYSTICKPRIVATE_H__
 
 #include <memory> // We have to include that on Windows to make memset available
 
@@ -55,4 +55,4 @@ public:
 };
 #endif /* WITH_SDL */
 
-#endif
+#endif /* __DEV_JOYSTICKPRIVATE_H__ */

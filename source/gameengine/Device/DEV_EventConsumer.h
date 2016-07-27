@@ -24,8 +24,8 @@
  *  \ingroup device
  */
 
-#ifndef __GH_EVENTCONSUMER_H__
-#define __GH_EVENTCONSUMER_H__
+#ifndef __DEV_EVENTCONSUMER_H__
+#define __DEV_EVENTCONSUMER_H__
 
 #include "GHOST_IEventConsumer.h"
 
@@ -54,4 +54,4 @@ public:
 	virtual bool processEvent(GHOST_IEvent *event);
 };
 
-#endif  // __GH_EVENTCONSUMER_H__
+#endif  // __DEV_EVENTCONSUMER_H__
