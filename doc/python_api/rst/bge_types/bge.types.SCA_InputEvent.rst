@@ -9,26 +9,6 @@ base class --- :class:`PyObjectPlus`
 
    Events for a keyboard or mouse input.
 
-   For compatibility the user can still use `==` operator to this class, same as `if event`.
-   The both behaviours raise a deprecation message.
-   This compatibility obligate the user to be very explicit when comparing or testing this class.
-   For example to test if a event variable is not `None` the only way is:
-
-   .. code-block:: python
-
-      import bge
-
-      event = None
-      if some_test:
-          event = bge.logic.keyboard.events[bge.events.AKEY]
-      elif some_other_test:
-          event = bge.logic.keyboard.events[bge.events.BKEY]
-
-      # The user must use "is not None".
-      if event is not None:
-          do_something()
-
-
    .. attribute:: status
 
       A list of existing status of the input from the last frame.
@@ -59,8 +39,8 @@ base class --- :class:`PyObjectPlus`
 
          import bge
 
-         x = bge.logic.mouse.events[bge.events.MOUSEX].values[-1]
-         y = bge.logic.mouse.events[bge.events.MOUSEY].values[-1]
+         x = bge.logic.mouse.inputs[bge.events.MOUSEX].values[-1]
+         y = bge.logic.mouse.inputs[bge.events.MOUSEY].values[-1]
 
          print("Mouse non-normalized position: x: {0}, y: {1}".format(x, y))
 
