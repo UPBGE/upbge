@@ -458,19 +458,6 @@ public:
 	) const;
 
 	/**
-	 * Store the current scene's viewport on the 
-	 * game engine canvas.
-	 */
-	void SetSceneViewport(const RAS_Rect &viewport);
-
-	/**
-	 * Get the current scene's viewport on the
-	 * game engine canvas. This maintained 
-	 * externally in KX_GameEngine
-	 */
-	const RAS_Rect& GetSceneViewport() const;
-	
-	/**
 	 * \section Accessors to different scenes of this scene
 	 */
 	void SetNetworkMessageScene(KX_NetworkMessageScene *newScene);

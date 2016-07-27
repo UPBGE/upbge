@@ -226,9 +226,6 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	m_motionblurvalue(-1.0f),
 	m_clientobject(NULL),
 	m_auxilaryClientInfo(NULL),
-	m_fbo(NULL),
-	m_colortex(NULL),
-	m_depthtex(NULL),
 	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
 	m_texco_num(0),
@@ -253,6 +250,10 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	glGetIntegerv(GL_MAX_LIGHTS, (GLint *)&m_numgllights);
 	if (m_numgllights < 8)
 		m_numgllights = 8;
+
+	for (unsigned short i = 0; i < RAS_OFFSCREEN_MAX; ++i) {
+		m_offScreens[i] = NULL;
+	}
 }
 
 RAS_OpenGLRasterizer::~RAS_OpenGLRasterizer()
@@ -261,14 +262,10 @@ RAS_OpenGLRasterizer::~RAS_OpenGLRasterizer()
 		delete m_storages[i];
 	}
 
-	if (m_fbo) {
-		GPU_framebuffer_free(m_fbo);
-	}
-	if (m_colortex) {
-		GPU_texture_free(m_colortex);
-	}
-	if (m_depthtex) {
-		GPU_texture_free(m_depthtex);
+	for (unsigned short i = 0; i < RAS_OFFSCREEN_MAX; ++i) {
+		if (m_offScreens[i]) {
+			GPU_offscreen_free(m_offScreens[i]);
+		}
 	}
 }
 
@@ -685,52 +682,35 @@ void RAS_OpenGLRasterizer::EndFrame()
 	Disable(RAS_FOG);
 }
 
-void RAS_OpenGLRasterizer::BindFBO(RAS_ICanvas *canvas)
+void RAS_OpenGLRasterizer::BindFBO(RAS_ICanvas *canvas, unsigned short index)
 {
 	const int width = canvas->GetWidth() + 1;
 	const int height = canvas->GetHeight() + 1;
 	std::cout << __func__ << ", " << width << ", " << height << std::endl;
 
 	// Update or create for the first time the FBO textures.
-	if (!m_fbo) {
-		m_fbo = GPU_framebuffer_create();
-		m_colortex = GPU_texture_create_2D(width, height, NULL, GPU_HDR_NONE, NULL);
-		m_depthtex = GPU_texture_create_depth(width, height, NULL);
-		GPU_framebuffer_texture_attach(m_fbo, m_colortex, 0, NULL);
-		GPU_framebuffer_texture_attach(m_fbo, m_depthtex, 0, NULL);
-	}
-	else {
-		if (GPU_texture_width(m_colortex) != width || GPU_texture_height(m_colortex) != height) {
-			GPU_framebuffer_texture_detach(m_colortex);
-			GPU_texture_free(m_colortex);
-			m_colortex = GPU_texture_create_2D(width, height, NULL, GPU_HDR_NONE, NULL);
-			GPU_framebuffer_texture_attach(m_fbo, m_colortex, 0, NULL);
+	if (!m_offScreens[index] ||
+		GPU_offscreen_width(m_offScreens[index]) != width ||
+		GPU_offscreen_height(m_offScreens[index]) != height)
+	{
+		if (m_offScreens[index]) {
+			GPU_offscreen_free(m_offScreens[index]);
 		}
-		if (GPU_texture_width(m_depthtex) != width || GPU_texture_height(m_depthtex) != height) {
-			GPU_framebuffer_texture_detach(m_depthtex);
-			GPU_texture_free(m_depthtex);
-			m_depthtex = GPU_texture_create_depth(width, height, NULL);
-			GPU_framebuffer_texture_attach(m_fbo, m_depthtex, 0, NULL);
-		}
+		m_offScreens[index] = GPU_offscreen_create(width, height, 0, NULL);
 	}
 
-	if (m_fbo) {
-		GPU_framebuffer_bind_no_save(m_fbo, 0);
-	}
+	GPU_offscreen_bind(m_offScreens[index], false);
+	Enable(RAS_SCISSOR_TEST);
 }
 
-void RAS_OpenGLRasterizer::UnbindFBO()
+void RAS_OpenGLRasterizer::UnbindFBO(unsigned short index)
 {
-	if (m_fbo) {
-		GPU_framebuffer_restore();
-	}
+	GPU_offscreen_unbind(m_offScreens[index], true);
 }
 
-void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas)
+void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 {
-	if (!m_colortex) {
-		return;
-	}
+	std::cout << __func__ << std::endl;
 
 	const int *viewport = canvas->GetViewPort();
 	SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
@@ -743,10 +723,11 @@ void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas)
 	PushMatrix();
 	LoadIdentity();
 
-	GPU_texture_bind(m_colortex, 0);
+	GPUTexture *colortex = GPU_offscreen_texture(m_offScreens[index]);
+	GPU_texture_bind(colortex, 0);
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 	DrawOverlayPlane();
-	GPU_texture_unbind(m_colortex);
+	GPU_texture_unbind(colortex);
 
 	PopMatrix();
 	SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);

@@ -306,6 +306,7 @@ void KX_KetsjiEngine::ClearFrame()
 		firstscene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight(), clearvp.GetTop());
+		std::cout << __func__ << ", " << clearvp.GetLeft() << ", " << clearvp.GetBottom() << ", " << clearvp.GetRight() << ", " << clearvp.GetTop() << std::endl;
 		m_rasterizer->SetViewport(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight() + 1, clearvp.GetTop() + 1);
 		m_rasterizer->SetScissor(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight() + 1, clearvp.GetTop() + 1);
 		/* Grey color computed by linearrgb_to_srgb_v3_v3 with a color of 
@@ -590,7 +591,7 @@ void KX_KetsjiEngine::Render()
 		RenderShadowBuffers((KX_Scene *)*sceit);
 	}
 
-	m_rasterizer->BindFBO(m_canvas);
+	m_rasterizer->BindFBO(m_canvas, 0);
 
 	// clear the entire game screen with the border color
 	// only once per frame
@@ -709,8 +710,8 @@ void KX_KetsjiEngine::Render()
 		m_rasterizer->DisableStereo();
 	}
 
-	m_rasterizer->UnbindFBO();
-	m_rasterizer->DrawFBO(m_canvas);
+	m_rasterizer->UnbindFBO(0);
+	m_rasterizer->DrawFBO(m_canvas, 0);
 
 	EndFrame();
 }
@@ -812,11 +813,17 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect
 		area = userviewport;
 	}
 	else if (!m_overrideCam || (scene->GetName() != m_overrideSceneName) ||  m_overrideCamUseOrtho) {
+		RAS_Rect fullarea;
+		fullarea.SetLeft(0);
+		fullarea.SetBottom(0);
+		fullarea.SetRight(int(m_canvas->GetWidth()));
+		fullarea.SetTop(int(m_canvas->GetHeight()));
+
 		RAS_FramingManager::ComputeViewport(
 		    scene->GetFramingType(),
-		    m_canvas->GetDisplayArea(),
+		    fullarea,
 		    viewport);
-
+		std::cout << __func__ << ", " << viewport.GetLeft() << ", " << viewport.GetBottom() << ", " << viewport.GetWidth() << ", " << viewport.GetHeight() << std::endl;
 		area = m_canvas->GetDisplayArea();
 	}
 	else {
@@ -925,9 +932,6 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 #endif
 
 	GetSceneViewport(scene, cam, area, viewport);
-
-	// store the computed viewport in the scene
-	scene->SetSceneViewport(viewport);
 
 	// set the viewport for this frame and scene
 	m_rasterizer->SetViewport(area.GetLeft(), area.GetBottom(), area.GetWidth() + 1, area.GetHeight() + 1);
@@ -1082,7 +1086,7 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene)
 	scene->Render2DFilters(m_rasterizer, m_canvas);
 
 #ifdef WITH_PYTHON
-	const RAS_Rect& viewport = scene->GetSceneViewport();
+// 	const RAS_Rect& viewport = scene->GetSceneViewport();
 	// Set again the scene viewport.
 // 	m_canvas->SetViewPort(viewport.GetLeft(), viewport.GetBottom(), viewport.GetRight(), viewport.GetTop());
 

@@ -78,6 +78,8 @@ void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels);
 int GPU_offscreen_width(const GPUOffScreen *ofs);
 int GPU_offscreen_height(const GPUOffScreen *ofs);
 int GPU_offscreen_color_texture(const GPUOffScreen *ofs);
+struct GPUTexture *GPU_offscreen_texture(const GPUOffScreen *ofs);
+struct GPUTexture *GPU_offscreen_depth_texture(const GPUOffScreen *ofs);
 
 #ifdef __cplusplus
 }
