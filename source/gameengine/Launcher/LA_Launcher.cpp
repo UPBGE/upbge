@@ -373,9 +373,17 @@ void LA_Launcher::HandlePythonConsole()
 		}
 	}
 
+	// Pop the console window for windows.
 	m_system->toggleConsole(1);
+
 	createPythonConsole();
+
+	// Hide the console window for windows.
 	m_system->toggleConsole(0);
+
+	// Set the game engine windows on top of all other and active.
+	SetWindowOrder(1);
+
 
 	/* As we show the console, the release events of the shortcut keys can be not handled by the engine.
 	 * We simulate they them.

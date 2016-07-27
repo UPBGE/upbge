@@ -331,6 +331,11 @@ void LA_PlayerLauncher::ExitPython()
 #endif  // WITH_PYTHON
 }
 
+void LA_PlayerLauncher::SetWindowOrder(short order)
+{
+	m_mainWindow->setOrder((order == 0) ? GHOST_kWindowOrderBottom : GHOST_kWindowOrderTop);
+}
+
 void LA_PlayerLauncher::InitEngine()
 {
 	GPU_init();

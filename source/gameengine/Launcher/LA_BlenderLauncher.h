@@ -64,6 +64,8 @@ protected:
 	virtual void InitPython();
 	virtual void ExitPython();
 
+	virtual void SetWindowOrder(short order);
+
 public:
 	LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_IRasterizer::StereoMode stereoMode, 
 					   int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming);

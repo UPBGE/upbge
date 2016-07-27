@@ -57,6 +57,8 @@ protected:
 	virtual void InitPython();
 	virtual void ExitPython();
 
+	virtual void SetWindowOrder(short order);
+
 public:
 	LA_PlayerLauncher(GHOST_ISystem* system, Main *maggie, Scene *scene, GlobalSettings *gs,
 					  RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv, char *pythonMainLoop);

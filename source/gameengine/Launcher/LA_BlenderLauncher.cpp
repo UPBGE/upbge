@@ -46,6 +46,7 @@ extern "C" {
 #  include "WM_types.h"
 #  include "WM_api.h"
 #  include "wm_event_system.h"
+#  include "wm_window.h"
 
 #  include "BLI_rect.h"
 }
@@ -152,6 +153,11 @@ void LA_BlenderLauncher::ExitPython()
 	exitGamePythonScripting();
 
 #endif  // WITH_PYTHON
+}
+
+void LA_BlenderLauncher::SetWindowOrder(short order)
+{
+	wm_window_set_order(m_window, order);
 }
 
 void LA_BlenderLauncher::InitEngine()
