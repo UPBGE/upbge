@@ -65,6 +65,10 @@ extern "C" {
 #  include "wm_event_types.h"
 }
 
+#ifdef WIN32
+#  include <Windows.h>
+#endif
+
 #ifdef WITH_AUDASPACE
 #  include AUD_DEVICE_H
 #endif
@@ -372,6 +376,10 @@ void LA_Launcher::HandlePythonConsole()
 			return;
 		}
 	}
+
+#ifdef WIN32 // We Use this function to avoid Blender window freeze when we launch python console from Windows.
+       DisableProcessWindowsGhosting();
+#endif
 
 	// Pop the console window for windows.
 	m_system->toggleConsole(1);
