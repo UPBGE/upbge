@@ -4009,15 +4009,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem dome_modes_items[] = {
-		{DOME_FISHEYE, "FISHEYE", 0, "Fisheye", ""},
-		{DOME_TRUNCATED_FRONT, "TRUNCATED_FRONT", 0, "Front-Truncated", ""},
-		{DOME_TRUNCATED_REAR, "TRUNCATED_REAR", 0, "Rear-Truncated", ""},
-		{DOME_ENVMAP, "ENVMAP", 0, "Cube Map", ""},
-		{DOME_PANORAM_SPH, "PANORAM_SPH", 0, "Spherical Panoramic", ""},
-		{0, NULL, 0, NULL, NULL}
-	};
-		
 	static EnumPropertyItem stereo_modes_items[] = {
 		{STEREO_QUADBUFFERED, "QUADBUFFERED", 0, "Quad-Buffer", ""},
 		{STEREO_ABOVEBELOW, "ABOVEBELOW", 0, "Above-Below", ""},
@@ -4032,7 +4023,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	static EnumPropertyItem stereo_items[] = {
 		{STEREO_NOSTEREO, "NONE", 0, "None", "Disable Stereo and Dome environments"},
 		{STEREO_ENABLED, "STEREO", 0, "Stereo", "Enable Stereo environment"},
-		{STEREO_DOME, "DOME", 0, "Dome", "Enable Dome environment"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -4167,48 +4157,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Eye Separation",
 	                         "Set the distance between the eyes - the camera focal distance/30 should be fine");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
-	
-	/* Dome */
-	prop = RNA_def_property(srna, "dome_mode", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "dome.mode");
-	RNA_def_property_enum_items(prop, dome_modes_items);
-	RNA_def_property_ui_text(prop, "Dome Mode", "Dome physical configurations");
-	RNA_def_property_update(prop, NC_SCENE, NULL);
-	
-	prop = RNA_def_property(srna, "dome_tessellation", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "dome.res");
-	RNA_def_property_ui_range(prop, 1, 8, 1, 1);
-	RNA_def_property_int_default(prop, 4);
-	RNA_def_property_ui_text(prop, "Tessellation", "Tessellation level - check the generated mesh in wireframe mode");
-	RNA_def_property_update(prop, NC_SCENE, NULL);
-	
-	prop = RNA_def_property(srna, "dome_buffer_resolution", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "dome.resbuf");
-	RNA_def_property_ui_range(prop, 0.1, 1.0, 0.1, 2);
-	RNA_def_property_float_default(prop, 1.0f);
-	RNA_def_property_ui_text(prop, "Buffer Resolution", "Buffer Resolution - decrease it to increase speed");
-	RNA_def_property_update(prop, NC_SCENE, NULL);
-	
-	prop = RNA_def_property(srna, "dome_angle", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "dome.angle");
-	RNA_def_property_ui_range(prop, 90, 250, 1, 1);
-	RNA_def_property_int_default(prop, 180);
-	RNA_def_property_ui_text(prop, "Angle", "Field of View of the Dome - it only works in mode Fisheye and Truncated");
-	RNA_def_property_update(prop, NC_SCENE, NULL);
-	
-	prop = RNA_def_property(srna, "dome_tilt", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "dome.tilt");
-	RNA_def_property_ui_range(prop, -180, 180, 1, 1);
-	RNA_def_property_ui_text(prop, "Tilt", "Camera rotation in horizontal axis");
-	RNA_def_property_update(prop, NC_SCENE, NULL);
-	
-	prop = RNA_def_property(srna, "dome_text", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "dome.warptext");
-	RNA_def_property_struct_type(prop, "Text");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Warp Data", "Custom Warp Mesh data file");
-	RNA_def_property_update(prop, NC_SCENE, NULL);
-	
+
 	/* physics */
 	prop = RNA_def_property(srna, "physics_engine", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "physicsEngine");

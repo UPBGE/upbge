@@ -191,7 +191,6 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 		
 		id_us_plus((ID *)scen->world);
 		id_us_plus((ID *)scen->set);
-		/* id_us_plus((ID *)scen->gm.dome.warptext); */  /* XXX Not refcounted? see readfile.c */
 
 		scen->ed = NULL;
 		scen->theDag = NULL;
@@ -679,12 +678,6 @@ void BKE_scene_init(Scene *sce)
 	sce->gm.stereoflag = STEREO_NOSTEREO;
 	sce->gm.stereomode = STEREO_ANAGLYPH;
 	sce->gm.eyeseparation = 0.10;
-
-	sce->gm.dome.angle = 180;
-	sce->gm.dome.mode = DOME_FISHEYE;
-	sce->gm.dome.res = 4;
-	sce->gm.dome.resbuf = 1.0f;
-	sce->gm.dome.tilt = 0;
 
 	sce->gm.xplay = 640;
 	sce->gm.yplay = 480;

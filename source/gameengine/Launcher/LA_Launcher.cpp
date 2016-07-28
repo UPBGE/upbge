@@ -258,11 +258,6 @@ void LA_Launcher::InitEngine()
 	setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv);
 #endif  // WITH_PYTHON
 
-	// Initialize Dome Settings.
-	if (m_startScene->gm.stereoflag == STEREO_DOME) {
-		m_ketsjiEngine->InitDome(m_startScene->gm.dome.res, m_startScene->gm.dome.mode, m_startScene->gm.dome.angle, m_startScene->gm.dome.resbuf, m_startScene->gm.dome.tilt, m_startScene->gm.dome.warptext);
-	}
-
 	// Initialize 3D Audio Settings.
 	AUD_Device *device = BKE_sound_get_device();
 	AUD_Device_setSpeedOfSound(device, m_startScene->audio.speed_of_sound);

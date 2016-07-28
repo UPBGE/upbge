@@ -47,7 +47,6 @@ class KX_TimeCategoryLogger;
 class KX_ISystem;
 class KX_ISceneConverter;
 class KX_NetworkMessageManager;
-class KX_Dome;
 class CListValue;
 class RAS_ICanvas;
 class RAS_IRasterizer;
@@ -92,8 +91,6 @@ private:
 	PyObject *m_pyprofiledict;
 #endif
 	SCA_IInputDevice *m_inputDevice;
-	/// dome stereo mode
-	KX_Dome *m_dome;
 
 	/// Lists of scenes scheduled to be removed at the end of the frame.
 	std::vector<STR_String> m_removingScenes;
@@ -289,12 +286,6 @@ public:
 	{
 		return m_taskscheduler;
 	}
-
-	/// Dome functions
-	void InitDome(short res, short mode, short angle, float resbuf, short tilt, struct Text *text);
-	void EndDome();
-	void RenderDome();
-	bool m_usedome;
 
 	/// returns true if an update happened to indicate -> Render
 	bool NextFrame();

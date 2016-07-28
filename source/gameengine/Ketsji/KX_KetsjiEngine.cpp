@@ -55,7 +55,6 @@
 #include "MT_Transform.h"
 #include "SCA_IInputDevice.h"
 #include "KX_Camera.h"
-#include "KX_Dome.h"
 #include "KX_Light.h"
 #include "KX_Globals.h"
 #include "KX_PyConstraintBinding.h"
@@ -156,8 +155,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_overrideFrameColorR(0.0f),
 	m_overrideFrameColorG(0.0f),
 	m_overrideFrameColorB(0.0f),
-	m_overrideFrameColorA(0.0f),
-	m_usedome(false)
+	m_overrideFrameColorA(0.0f)
 {
 	// Initialize the time logger
 	m_logger = new KX_TimeCategoryLogger(25);
@@ -180,8 +178,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 KX_KetsjiEngine::~KX_KetsjiEngine()
 {
 	delete m_logger;
-	if (m_usedome)
-		delete m_dome;
 
 #ifdef WITH_PYTHON
 	Py_CLEAR(m_pyprofiledict);
@@ -238,121 +234,6 @@ void KX_KetsjiEngine::SetSceneConverter(KX_ISceneConverter *sceneconverter)
 {
 	BLI_assert(sceneconverter);
 	m_sceneconverter = sceneconverter;
-}
-
-void KX_KetsjiEngine::InitDome(short res, short mode, short angle, float resbuf, short tilt, struct Text *text)
-{
-	m_dome = new KX_Dome(m_canvas, m_rasterizer, this, res, mode, angle, resbuf, tilt, text);
-	m_usedome = true;
-}
-
-void KX_KetsjiEngine::RenderDome()
-{
-	const int *viewport = m_canvas->GetViewPort();
-
-	m_dome->SetViewPort(viewport);
-
-	KX_Scene *firstscene = (KX_Scene *)m_scenes->GetFront();
-	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
-
-	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
-
-	// hiding mouse cursor each frame
-	// (came back when going out of focus and then back in again)
-	if (m_hideCursor)
-		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
-
-	// clear the entire game screen with the border color
-	// only once per frame
-
-	m_canvas->BeginDraw();
-
-	// BeginFrame() sets the actual drawing area. You can use a part of the window
-	if (!BeginFrame())
-		return;
-
-	KX_Scene *scene;
-
-	int n_renders = m_dome->GetNumberRenders(); // usually 4 or 6
-	for (int i = 0; i < n_renders; i++) {
-		m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER | RAS_ICanvas::DEPTH_BUFFER);
-		// for each scene, call the proceed functions
-		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
-			scene = (KX_Scene *)*sceit;
-			KX_SetActiveScene(scene);
-			KX_Camera *activecam = scene->GetActiveCamera();
-
-			// pass the scene's worldsettings to the rasterizer
-			scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
-
-			// shadow buffers
-			if (i == 0) {
-				RenderShadowBuffers(scene);
-			}
-			// Avoid drawing the scene with the active camera twice when its viewport is enabled
-			if (activecam && !activecam->GetViewport()) {
-				if (scene->IsClearingZBuffer())
-					m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-
-				m_rasterizer->SetAuxilaryClientInfo(scene);
-
-				// do the rendering
-				m_dome->RenderDomeFrame(scene, activecam, i);
-			}
-
-			CListValue *cameras = scene->GetCameraList();
-
-			// Draw the scene once for each camera with an enabled viewport
-			for (CListValue::iterator it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-				KX_Camera *cam = (KX_Camera*)(*it);
-				if (cam->GetViewport()) {
-					if (scene->IsClearingZBuffer())
-						m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-
-					m_rasterizer->SetAuxilaryClientInfo(scene);
-
-					// do the rendering
-					m_dome->RenderDomeFrame(scene, cam, i);
-				}
-			}
-			// Part of PostRenderScene()
-			m_rasterizer->MotionBlur();
-			scene->Render2DFilters(m_rasterizer, m_canvas);
-			// no RunDrawingCallBacks
-			// no FlushDebugLines
-		}
-		m_dome->BindImages(i);
-	}
-
-	m_canvas->EndFrame();//XXX do we really need that?
-
-	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
-
-	if (m_overrideFrameColor) {
-		// Do not use the framing bar color set in the Blender scenes
-		m_canvas->ClearColor(
-			m_overrideFrameColorR,
-			m_overrideFrameColorG,
-			m_overrideFrameColorB,
-			m_overrideFrameColorA
-			);
-	}
-	else {
-		// Use the framing bar color set in the Blender scenes
-		m_canvas->ClearColor(
-		    framesettings.BarRed(),
-		    framesettings.BarGreen(),
-		    framesettings.BarBlue(),
-		    1.0f);
-	}
-	m_dome->Draw();
-
-	// Draw Callback for the last scene
-#ifdef WITH_PYTHON
-	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
-	scene->RunDrawingCallbacks(scene->GetPostDrawCB());
-#endif
-	EndFrame();
 }
 
 /**
@@ -694,10 +575,6 @@ void KX_KetsjiEngine::UpdateSuspendedScenes()
 
 void KX_KetsjiEngine::Render()
 {
-	if (m_usedome) {
-		RenderDome();
-		return;
-	}
 	KX_Scene *firstscene = (KX_Scene *)m_scenes->GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 

@@ -242,17 +242,6 @@ static void usage(const char* program, bool isBlenderPlayer)
 	printf("                   vinterlace       (Vertical interlace for autostereo display)\n");
 	printf("                   hwpageflip       (Quad buffered shutter glasses)\n");
 	printf("       Example: -s sidebyside  or  -s vinterlace\n\n");
-	printf("  -D: start player in dome mode\n");
-	printf("       --Optional parameters--\n");
-	printf("       angle    = field of view in degrees\n");
-	printf("       tilt     = tilt angle in degrees\n");
-	printf("       warpdata = a file to use for warping the image (absolute path)\n");
-	printf("       mode: fisheye                (Fisheye)\n");
-	printf("             truncatedfront         (Front-Truncated)\n");
-	printf("             truncatedrear          (Rear-Truncated)\n");
-	printf("             cubemap                (Cube Map)\n");
-	printf("             sphericalpanoramic     (Spherical Panoramic)\n");
-	printf("       Example: -D  or  -D mode cubemap\n\n");
 	printf("  -m: maximum anti-aliasing (eg. 2,4,8,16)\n\n");
 	printf("  -i: parent window's ID\n\n");
 #ifdef _WIN32
@@ -378,12 +367,6 @@ int main(
 	RAS_IRasterizer::StereoMode stereomode = RAS_IRasterizer::RAS_STEREO_NOSTEREO;
 	bool stereoWindow = false;
 	bool stereoParFound = false;
-	int stereoFlag = STEREO_NOSTEREO;
-	int domeFov = -1;
-	int domeTilt = -200;
-	int domeMode = 0;
-	char* domeWarp = NULL;
-	Text *domeText  = NULL;
 	int windowLeft = 100;
 	int windowTop = 100;
 	int windowWidth = 640;
@@ -701,12 +684,10 @@ int main(
 				if ((i + 1) <= validArguments)
 				{
 					stereoParFound = true;
-					stereoFlag = STEREO_ENABLED;
 
 					if (!strcmp(argv[i], "nostereo"))  // may not be redundant if the file has different setting
 					{
 						stereomode = RAS_IRasterizer::RAS_STEREO_NOSTEREO;
-						stereoFlag = STEREO_NOSTEREO;
 					}
 
 					// only the hardware pageflip method needs a stereo window
@@ -749,49 +730,6 @@ int main(
 				{
 					error = true;
 					printf("error: too few options for stereo argument.\n");
-				}
-				break;
-			}
-			case 'D': //dome mode
-			{
-				stereoFlag = STEREO_DOME;
-				stereomode = RAS_IRasterizer::RAS_STEREO_DOME;
-				i++;
-				if ((i + 1) <= validArguments)
-				{
-					if (!strcmp(argv[i], "angle")) {
-						i++;
-						domeFov = atoi(argv[i++]);
-					}
-					if (!strcmp(argv[i], "tilt")) {
-						i++;
-						domeTilt = atoi(argv[i++]);
-					}
-					if (!strcmp(argv[i], "warpdata")) {
-						i++;
-						domeWarp = argv[i++];
-					}
-					if (!strcmp(argv[i], "mode")) {
-						i++;
-						if (!strcmp(argv[i], "fisheye"))
-							domeMode = DOME_FISHEYE;
-							
-						else if (!strcmp(argv[i], "truncatedfront"))
-							domeMode = DOME_TRUNCATED_FRONT;
-							
-						else if (!strcmp(argv[i], "truncatedrear"))
-							domeMode = DOME_TRUNCATED_REAR;
-							
-						else if (!strcmp(argv[i], "cubemap"))
-							domeMode = DOME_ENVMAP;
-							
-						else if (!strcmp(argv[i], "sphericalpanoramic"))
-							domeMode = DOME_PANORAM_SPH;
-
-						else
-							printf("error: %s is not a valid dome mode.\n", argv[i]);
-					}
-					i++;
 				}
 				break;
 			}
@@ -956,7 +894,7 @@ int main(
 						}
 						
 						
-						// Check whether the game should be displayed in stereo (dome included)
+						// Check whether the game should be displayed in stereo
 						if (!stereoParFound) {
 							// Only use file settings when command line did not override
 							if (scene->gm.stereoflag == STEREO_ENABLED) {
@@ -971,26 +909,6 @@ int main(
 
 						if (!samplesParFound)
 							aasamples = scene->gm.aasamples;
-
-						// Dome specific settings
-						if (stereoFlag == STEREO_DOME) {
-							stereomode = RAS_IRasterizer::RAS_STEREO_DOME;
-							scene->gm.stereoflag = STEREO_DOME;
-							if (domeFov > 89)
-								scene->gm.dome.angle = domeFov;
-							if (domeTilt > -180)
-								scene->gm.dome.tilt = domeTilt;
-							if (domeMode > 0)
-								scene->gm.dome.mode = domeMode;
-							if (domeWarp) {
-								//XXX to do: convert relative to absolute path
-								domeText= BKE_text_load(G.main, domeWarp, "");
-								if (!domeText)
-									printf("error: invalid warpdata text file - %s\n", domeWarp);
-								else
-									scene->gm.dome.warptext = domeText;
-							}
-						}
 
 						LA_PlayerLauncher launcher(system, maggie, scene, &gs, stereomode, argc, argv, pythonControllerFile); /* this argc cant be argc_py_clamped, since python uses it */
 #ifdef WITH_PYTHON

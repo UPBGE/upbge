@@ -5738,9 +5738,7 @@ static void lib_link_scene(FileData *fd, Main *main)
 					fls->group = newlibadr_us(fd, sce->id.lib, fls->group);
 				}
 			}
-			/*Game Settings: Dome Warp Text*/
-			sce->gm.dome.warptext = newlibadr(fd, sce->id.lib, sce->gm.dome.warptext);
-			
+
 			/* Motion Tracking */
 			sce->clip = newlibadr_us(fd, sce->id.lib, sce->clip);
 
@@ -9382,10 +9380,7 @@ static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)
 			expand_doit(fd, mainvar, lineset->linestyle);
 		}
 	}
-	
-	if (sce->r.dometext)
-		expand_doit(fd, mainvar, sce->gm.dome.warptext);
-	
+
 	if (sce->gpd)
 		expand_doit(fd, mainvar, sce->gpd);
 		

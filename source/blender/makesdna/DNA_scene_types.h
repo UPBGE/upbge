@@ -699,13 +699,6 @@ typedef struct RenderData {
 	short jp2_preset  DNA_DEPRECATED, jp2_depth  DNA_DEPRECATED;  /*deprecated*/
 	int rpad3;
 
-	/* Dome variables */ //  XXX deprecated since 2.5
-	short domeres  DNA_DEPRECATED, domemode  DNA_DEPRECATED;	//  XXX deprecated since 2.5
-	short domeangle  DNA_DEPRECATED, dometilt  DNA_DEPRECATED;	//  XXX deprecated since 2.5
-	float domeresbuf  DNA_DEPRECATED;	//  XXX deprecated since 2.5
-	float pad2;
-	struct Text *dometext  DNA_DEPRECATED;	//  XXX deprecated since 2.5
-
 	/* Freestyle line thickness options */
 	int line_thickness_mode;
 	float unit_line_thickness; /* in pixels */
@@ -753,23 +746,6 @@ typedef struct RenderProfile {
 } RenderProfile;
 
 /* *************************************************************** */
-/* Game Engine - Dome */
-
-typedef struct GameDome {
-	short res, mode;
-	short angle, tilt;
-	float resbuf, pad2;
-	struct Text *warptext;
-} GameDome;
-
-#define DOME_FISHEYE			1
-#define DOME_TRUNCATED_FRONT	2
-#define DOME_TRUNCATED_REAR		3
-#define DOME_ENVMAP				4
-#define DOME_PANORAM_SPH		5
-#define DOME_NUM_MODES			6
-
-/* *************************************************************** */
 /* Game Engine */
 
 typedef struct GameFraming {
@@ -812,8 +788,6 @@ typedef struct GameData {
 	short depth, attrib, rt1, rt2;
 	short aasamples, pad4[3];
 
-	/* stereo/dome mode */
-	struct GameDome dome;
 	short stereoflag, stereomode;
 	float eyeseparation;
 	RecastData recastData;
@@ -852,16 +826,13 @@ typedef struct GameData {
 
 #define STEREO_NOSTEREO		1
 #define STEREO_ENABLED		2
-#define STEREO_DOME			3
 
-//#define STEREO_NOSTEREO		 1
 #define STEREO_QUADBUFFERED 2
 #define STEREO_ABOVEBELOW	 3
 #define STEREO_INTERLACED	 4
 #define STEREO_ANAGLYPH		5
 #define STEREO_SIDEBYSIDE	6
 #define STEREO_VINTERLACE	7
-//#define STEREO_DOME		8
 #define STEREO_3DTVTOPBOTTOM 9
 
 /* physicsEngine */
