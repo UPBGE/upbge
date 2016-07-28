@@ -53,6 +53,6 @@ public:
 		memset(&m_hapticeffect, 0, sizeof(SDL_HapticEffect));
 	}
 };
-#endif /* WITH_SDL */
+#endif // WITH_SDL
 
-#endif /* __DEV_JOYSTICKPRIVATE_H__ */
+#endif // __DEV_JOYSTICKPRIVATE_H__

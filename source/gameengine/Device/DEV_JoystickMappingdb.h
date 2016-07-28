@@ -168,4 +168,4 @@ static const char *controller_mappings[] =
 	NULL
 };
 
-#endif /* DEV_JOYSTICKMAPPINGDB_H */
+#endif // DEV_JOYSTICKMAPPINGDB_H

@@ -45,4 +45,4 @@
 #define JOYAXIS_DOWN		3
 #define JOYAXIS_LEFT		2
 
-#endif /* __DEV_JOYSTICKDEFINES_H__ */
+#endif // __DEV_JOYSTICKDEFINES_H__

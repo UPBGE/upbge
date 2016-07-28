@@ -180,5 +180,5 @@ public:
 	const char *GetName();
 };
 
-#endif /* __DEV_JOYSTICK_H__ */
+#endif // __DEV_JOYSTICK_H__
 

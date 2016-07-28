@@ -51,4 +51,4 @@ public:
 	void ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int val, unsigned int unicode);
 };
 
-#endif  /* __DEV_INPUTDEVICE_H__ */
+#endif  // __DEV_INPUTDEVICE_H__
