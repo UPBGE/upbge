@@ -289,7 +289,7 @@ void LA_PlayerLauncher::startFullScreen(
 
 bool LA_PlayerLauncher::GetMainLoopPythonCode(char **pythonCode, char **pythonFileName)
 {
-#ifndef WITH_PYTHON_SECURITY
+#ifndef WITH_GAMEENGINE_SECURITY
 	if (m_pythonMainLoop) {
 		if (BLI_is_file(m_pythonMainLoop)) {
 			size_t filesize = 0;

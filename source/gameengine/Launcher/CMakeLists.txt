@@ -65,8 +65,8 @@ set(SRC
 	LA_System.h
 )
 
-if(WITH_PYTHON_SECURITY)
-	add_definitions(-DWITH_PYTHON_SECURITY)
+if(WITH_GAMEENGINE_SECURITY)
+	add_definitions(-DWITH_GAMEENGINE_SECURITY)
 endif()
 
 if(WITH_AUDASPACE)

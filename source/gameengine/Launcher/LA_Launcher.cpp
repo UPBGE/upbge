@@ -362,7 +362,7 @@ void LA_Launcher::ExitEngine()
 
 void LA_Launcher::HandlePythonConsole()
 {
-#ifndef WITH_PYTHON_SECURITY
+#ifndef WITH_GAMEENGINE_SECURITY
 	if (!m_pythonConsole.use) {
 		return;
 	}
