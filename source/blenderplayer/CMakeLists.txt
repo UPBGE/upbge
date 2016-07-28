@@ -140,8 +140,6 @@ endif()
 		bf_imbuf
 		bf_avi 
 		ge_logic_network 
-		ge_logic_ngnetwork 
-		ge_logic_loopbacknetwork 
 		extern_bullet 
 		bf_intern_guardedalloc 
 		bf_intern_memutil 

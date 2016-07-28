@@ -591,8 +591,6 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_logic_expressions
 		ge_scenegraph
 		ge_logic_network
-		ge_logic_ngnetwork
-		ge_logic_loopbacknetwork
 		bf_intern_moto
 		extern_openjpeg
 		ge_videotex
@@ -685,7 +683,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 	endif()
 
 	if(WITH_BULLET AND NOT WITH_SYSTEM_BULLET)
-		list_insert_after(BLENDER_SORTED_LIBS "ge_logic_ngnetwork" "extern_bullet")
+		list(APPEND BLENDER_SORTED_LIBS extern_bullet)
 	endif()
 
 	if(WITH_GAMEENGINE_DECKLINK)
