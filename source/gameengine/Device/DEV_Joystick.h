@@ -168,7 +168,14 @@ public:
 	bool IsTrigButton(void) {
 		return m_istrig_button;
 	}
-	
+
+#ifdef WITH_SDL
+	PrivateData *GetPrivate()
+	{
+		return m_private;
+	}
+#endif
+
 	/**
 	 * Test if the joystick is connected
 	 */

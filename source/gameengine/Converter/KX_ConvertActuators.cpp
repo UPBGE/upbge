@@ -63,6 +63,7 @@
 #include "KX_CameraActuator.h"
 #include "KX_GameActuator.h"
 #include "KX_StateActuator.h"
+#include "KX_VibrationActuator.h"
 #include "KX_VisibilityActuator.h"
 #include "KX_SCA_AddObjectActuator.h"
 #include "KX_SCA_EndObjectActuator.h"
@@ -856,7 +857,20 @@ void BL_ConvertActuators(const char* maggiename,
 				baseact = tmprandomact;
 			}
 			break;
+		case ACT_VIBRATION:
+		{
+			bVibrationActuator *vib_act = (bVibrationActuator *)bact->data;
+			KX_VibrationActuator * tmp_vib_act = NULL;
 
+			int joyindex = vib_act->joyindex;
+			float strength = vib_act->strength;
+			int duration = vib_act->duration;
+
+			tmp_vib_act = new KX_VibrationActuator(gameobj, joyindex, strength, duration);
+
+			baseact = tmp_vib_act;
+		}
+		break;
 		case ACT_VISIBILITY:
 		{
 			bVisibilityActuator *vis_act = (bVisibilityActuator *) bact->data;

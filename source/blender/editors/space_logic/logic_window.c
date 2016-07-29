@@ -423,6 +423,8 @@ static const char *actuator_name(int type)
 		return N_("Message");
 	case ACT_GAME:
 		return N_("Game");
+	case ACT_VIBRATION:
+		return N_("Vibration");
 	case ACT_VISIBILITY:
 		return N_("Visibility");
 	case ACT_2DFILTER:
@@ -2031,6 +2033,16 @@ static void draw_actuator_state(uiLayout *layout, PointerRNA *ptr)
 	uiTemplateLayers(split, ptr, "states", &settings_ptr, "used_states", 0);
 }
 
+static void draw_actuator_vibration(uiLayout *layout, PointerRNA *ptr)
+{
+	uiLayout *row;
+	row = uiLayoutRow(layout, false);
+
+	uiItemR(row, ptr, "joy_strength", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "joy_duration", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "joy_index", 0, NULL, ICON_NONE);
+}
+
 static void draw_actuator_visibility(uiLayout *layout, PointerRNA *ptr)
 {
 	uiLayout *row;
@@ -2204,6 +2216,9 @@ static void draw_brick_actuator(uiLayout *layout, PointerRNA *ptr, bContext *C)
 			break;
 		case ACT_STATE:
 			draw_actuator_state(box, ptr);
+			break;
+		case ACT_VIBRATION:
+			draw_actuator_vibration(box, ptr);
 			break;
 		case ACT_VISIBILITY:
 			draw_actuator_visibility(box, ptr);
