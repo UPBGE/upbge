@@ -168,7 +168,7 @@ public:
 	bool IsTrigButton(void) {
 		return m_istrig_button;
 	}
-
+	
 	/**
 	 * We could add many optionnal arguments to this function
 	 * to take into account different sort of vibrations. But I
