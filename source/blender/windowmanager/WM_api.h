@@ -114,6 +114,8 @@ void		WM_autosave_init(struct wmWindowManager *wm);
 void		WM_recover_last_session(struct bContext *C, struct ReportList *reports);
 void		WM_file_tag_modified(const struct bContext *C);
 
+void        WM_lib_reload(struct Library *lib, struct bContext *C, struct ReportList *reports);
+
 			/* mouse cursors */
 void		WM_cursor_set(struct wmWindow *win, int curs);
 void		WM_cursor_modal_set(struct wmWindow *win, int curs);
@@ -385,9 +387,7 @@ void		WM_gestures_remove(struct bContext *C);
 			/* fileselecting support */
 void		WM_event_add_fileselect(struct bContext *C, struct wmOperator *op);
 void		WM_event_fileselect_event(struct wmWindowManager *wm, void *ophandle, int eventval);
-#ifndef NDEBUG
 void		WM_event_print(const struct wmEvent *event);
-#endif
 
 void		WM_operator_region_active_win_set(struct bContext *C);
 

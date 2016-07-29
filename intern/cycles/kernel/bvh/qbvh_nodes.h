@@ -22,27 +22,27 @@ struct QBVHStackItem {
 /* TOOD(sergey): Investigate if using intrinsics helps for both
  * stack item swap and float comparison.
  */
-ccl_device_inline void qbvh_item_swap(QBVHStackItem *__restrict a,
-                                      QBVHStackItem *__restrict b)
+ccl_device_inline void qbvh_item_swap(QBVHStackItem *ccl_restrict a,
+                                      QBVHStackItem *ccl_restrict b)
 {
 	QBVHStackItem tmp = *a;
 	*a = *b;
 	*b = tmp;
 }
 
-ccl_device_inline void qbvh_stack_sort(QBVHStackItem *__restrict s1,
-                                       QBVHStackItem *__restrict s2,
-                                       QBVHStackItem *__restrict s3)
+ccl_device_inline void qbvh_stack_sort(QBVHStackItem *ccl_restrict s1,
+                                       QBVHStackItem *ccl_restrict s2,
+                                       QBVHStackItem *ccl_restrict s3)
 {
 	if(s2->dist < s1->dist) { qbvh_item_swap(s2, s1); }
 	if(s3->dist < s2->dist) { qbvh_item_swap(s3, s2); }
 	if(s2->dist < s1->dist) { qbvh_item_swap(s2, s1); }
 }
 
-ccl_device_inline void qbvh_stack_sort(QBVHStackItem *__restrict s1,
-                                       QBVHStackItem *__restrict s2,
-                                       QBVHStackItem *__restrict s3,
-                                       QBVHStackItem *__restrict s4)
+ccl_device_inline void qbvh_stack_sort(QBVHStackItem *ccl_restrict s1,
+                                       QBVHStackItem *ccl_restrict s2,
+                                       QBVHStackItem *ccl_restrict s3,
+                                       QBVHStackItem *ccl_restrict s4)
 {
 	if(s2->dist < s1->dist) { qbvh_item_swap(s2, s1); }
 	if(s4->dist < s3->dist) { qbvh_item_swap(s4, s3); }
@@ -53,9 +53,9 @@ ccl_device_inline void qbvh_stack_sort(QBVHStackItem *__restrict s1,
 
 /* Axis-aligned nodes intersection */
 
-ccl_device_inline int qbvh_aligned_node_intersect(KernelGlobals *__restrict kg,
-                                                  const ssef& tnear,
-                                                  const ssef& tfar,
+ccl_device_inline int qbvh_aligned_node_intersect(KernelGlobals *ccl_restrict kg,
+                                                  const ssef& isect_near,
+                                                  const ssef& isect_far,
 #ifdef __KERNEL_AVX2__
                                                   const sse3f& org_idir,
 #else
@@ -68,10 +68,10 @@ ccl_device_inline int qbvh_aligned_node_intersect(KernelGlobals *__restrict kg,
                                                   const int far_x,
                                                   const int far_y,
                                                   const int far_z,
-                                                  const int nodeAddr,
-                                                  ssef *__restrict dist)
+                                                  const int node_addr,
+                                                  ssef *ccl_restrict dist)
 {
-	const int offset = nodeAddr + 1;
+	const int offset = node_addr + 1;
 #ifdef __KERNEL_AVX2__
 	const ssef tnear_x = msub(kernel_tex_fetch_ssef(__bvh_nodes, offset+near_x), idir.x, org_idir.x);
 	const ssef tnear_y = msub(kernel_tex_fetch_ssef(__bvh_nodes, offset+near_y), idir.y, org_idir.y);
@@ -89,24 +89,24 @@ ccl_device_inline int qbvh_aligned_node_intersect(KernelGlobals *__restrict kg,
 #endif
 
 #ifdef __KERNEL_SSE41__
-	const ssef tNear = maxi(maxi(tnear_x, tnear_y), maxi(tnear_z, tnear));
-	const ssef tFar = mini(mini(tfar_x, tfar_y), mini(tfar_z, tfar));
-	const sseb vmask = cast(tNear) > cast(tFar);
+	const ssef tnear = maxi(maxi(tnear_x, tnear_y), maxi(tnear_z, isect_near));
+	const ssef tfar = mini(mini(tfar_x, tfar_y), mini(tfar_z, isect_far));
+	const sseb vmask = cast(tnear) > cast(tfar);
 	int mask = (int)movemask(vmask)^0xf;
 #else
-	const ssef tNear = max4(tnear_x, tnear_y, tnear_z, tnear);
-	const ssef tFar = min4(tfar_x, tfar_y, tfar_z, tfar);
-	const sseb vmask = tNear <= tFar;
+	const ssef tnear = max4(tnear_x, tnear_y, tnear_z, isect_near);
+	const ssef tfar = min4(tfar_x, tfar_y, tfar_z, isect_far);
+	const sseb vmask = tnear <= tfar;
 	int mask = (int)movemask(vmask);
 #endif
-	*dist = tNear;
+	*dist = tnear;
 	return mask;
 }
 
 ccl_device_inline int qbvh_aligned_node_intersect_robust(
-        KernelGlobals *__restrict kg,
-        const ssef& tnear,
-        const ssef& tfar,
+        KernelGlobals *ccl_restrict kg,
+        const ssef& isect_near,
+        const ssef& isect_far,
 #ifdef __KERNEL_AVX2__
         const sse3f& P_idir,
 #else
@@ -119,11 +119,11 @@ ccl_device_inline int qbvh_aligned_node_intersect_robust(
         const int far_x,
         const int far_y,
         const int far_z,
-        const int nodeAddr,
+        const int node_addr,
         const float difl,
-        ssef *__restrict dist)
+        ssef *ccl_restrict dist)
 {
-	const int offset = nodeAddr + 1;
+	const int offset = node_addr + 1;
 #ifdef __KERNEL_AVX2__
 	const ssef tnear_x = msub(kernel_tex_fetch_ssef(__bvh_nodes, offset+near_x), idir.x, P_idir.x);
 	const ssef tnear_y = msub(kernel_tex_fetch_ssef(__bvh_nodes, offset+near_y), idir.y, P_idir.y);
@@ -142,19 +142,19 @@ ccl_device_inline int qbvh_aligned_node_intersect_robust(
 
 	const float round_down = 1.0f - difl;
 	const float round_up = 1.0f + difl;
-	const ssef tNear = max4(tnear_x, tnear_y, tnear_z, tnear);
-	const ssef tFar = min4(tfar_x, tfar_y, tfar_z, tfar);
-	const sseb vmask = round_down*tNear <= round_up*tFar;
-	*dist = tNear;
+	const ssef tnear = max4(tnear_x, tnear_y, tnear_z, isect_near);
+	const ssef tfar = min4(tfar_x, tfar_y, tfar_z, isect_far);
+	const sseb vmask = round_down*tnear <= round_up*tfar;
+	*dist = tnear;
 	return (int)movemask(vmask);
 }
 
 /* Unaligned nodes intersection */
 
 ccl_device_inline int qbvh_unaligned_node_intersect(
-        KernelGlobals *__restrict kg,
-        const ssef& tnear,
-        const ssef& tfar,
+        KernelGlobals *ccl_restrict kg,
+        const ssef& isect_near,
+        const ssef& isect_far,
 #ifdef __KERNEL_AVX2__
         const sse3f& org_idir,
 #endif
@@ -167,10 +167,10 @@ ccl_device_inline int qbvh_unaligned_node_intersect(
         const int far_x,
         const int far_y,
         const int far_z,
-        const int nodeAddr,
-        ssef *__restrict dist)
+        const int node_addr,
+        ssef *ccl_restrict dist)
 {
-	const int offset = nodeAddr;
+	const int offset = node_addr;
 	const ssef tfm_x_x = kernel_tex_fetch_ssef(__bvh_nodes, offset+1);
 	const ssef tfm_x_y = kernel_tex_fetch_ssef(__bvh_nodes, offset+2);
 	const ssef tfm_x_z = kernel_tex_fetch_ssef(__bvh_nodes, offset+3);
@@ -215,10 +215,10 @@ ccl_device_inline int qbvh_unaligned_node_intersect(
 	const ssef tfar_x = maxi(tlower_x, tupper_x);
 	const ssef tfar_y = maxi(tlower_y, tupper_y);
 	const ssef tfar_z = maxi(tlower_z, tupper_z);
-	const ssef tNear = max4(tnear, tnear_x, tnear_y, tnear_z);
-	const ssef tFar = min4(tfar, tfar_x, tfar_y, tfar_z);
-	const sseb vmask = tNear <= tFar;
-	*dist = tNear;
+	const ssef tnear = max4(isect_near, tnear_x, tnear_y, tnear_z);
+	const ssef tfar = min4(isect_far, tfar_x, tfar_y, tfar_z);
+	const sseb vmask = tnear <= tfar;
+	*dist = tnear;
 	return movemask(vmask);
 #else
 	const ssef tnear_x = min(tlower_x, tupper_x);
@@ -227,18 +227,18 @@ ccl_device_inline int qbvh_unaligned_node_intersect(
 	const ssef tfar_x = max(tlower_x, tupper_x);
 	const ssef tfar_y = max(tlower_y, tupper_y);
 	const ssef tfar_z = max(tlower_z, tupper_z);
-	const ssef tNear = max4(tnear, tnear_x, tnear_y, tnear_z);
-	const ssef tFar = min4(tfar, tfar_x, tfar_y, tfar_z);
-	const sseb vmask = tNear <= tFar;
-	*dist = tNear;
+	const ssef tnear = max4(isect_near, tnear_x, tnear_y, tnear_z);
+	const ssef tfar = min4(isect_far, tfar_x, tfar_y, tfar_z);
+	const sseb vmask = tnear <= tfar;
+	*dist = tnear;
 	return movemask(vmask);
 #endif
 }
 
 ccl_device_inline int qbvh_unaligned_node_intersect_robust(
-        KernelGlobals *__restrict kg,
-        const ssef& tnear,
-        const ssef& tfar,
+        KernelGlobals *ccl_restrict kg,
+        const ssef& isect_near,
+        const ssef& isect_far,
 #ifdef __KERNEL_AVX2__
         const sse3f& P_idir,
 #endif
@@ -251,11 +251,11 @@ ccl_device_inline int qbvh_unaligned_node_intersect_robust(
         const int far_x,
         const int far_y,
         const int far_z,
-        const int nodeAddr,
+        const int node_addr,
         const float difl,
-        ssef *__restrict dist)
+        ssef *ccl_restrict dist)
 {
-	const int offset = nodeAddr;
+	const int offset = node_addr;
 	const ssef tfm_x_x = kernel_tex_fetch_ssef(__bvh_nodes, offset+1);
 	const ssef tfm_x_y = kernel_tex_fetch_ssef(__bvh_nodes, offset+2);
 	const ssef tfm_x_z = kernel_tex_fetch_ssef(__bvh_nodes, offset+3);
@@ -311,10 +311,10 @@ ccl_device_inline int qbvh_unaligned_node_intersect_robust(
 	const ssef tfar_y = max(tlower_y, tupper_y);
 	const ssef tfar_z = max(tlower_z, tupper_z);
 #endif
-	const ssef tNear = max4(tnear, tnear_x, tnear_y, tnear_z);
-	const ssef tFar = min4(tfar, tfar_x, tfar_y, tfar_z);
-	const sseb vmask = round_down*tNear <= round_up*tFar;
-	*dist = tNear;
+	const ssef tnear = max4(isect_near, tnear_x, tnear_y, tnear_z);
+	const ssef tfar = min4(isect_far, tfar_x, tfar_y, tfar_z);
+	const sseb vmask = round_down*tnear <= round_up*tfar;
+	*dist = tnear;
 	return movemask(vmask);
 }
 
@@ -324,9 +324,9 @@ ccl_device_inline int qbvh_unaligned_node_intersect_robust(
  */
 
 ccl_device_inline int qbvh_node_intersect(
-        KernelGlobals *__restrict kg,
-        const ssef& tnear,
-        const ssef& tfar,
+        KernelGlobals *ccl_restrict kg,
+        const ssef& isect_near,
+        const ssef& isect_far,
 #ifdef __KERNEL_AVX2__
         const sse3f& org_idir,
 #endif
@@ -339,15 +339,15 @@ ccl_device_inline int qbvh_node_intersect(
         const int far_x,
         const int far_y,
         const int far_z,
-        const int nodeAddr,
-        ssef *__restrict dist)
+        const int node_addr,
+        ssef *ccl_restrict dist)
 {
-	const int offset = nodeAddr;
+	const int offset = node_addr;
 	const float4 node = kernel_tex_fetch(__bvh_nodes, offset);
 	if(__float_as_uint(node.x) & PATH_RAY_NODE_UNALIGNED) {
 		return qbvh_unaligned_node_intersect(kg,
-		                                     tnear,
-		                                     tfar,
+		                                     isect_near,
+		                                     isect_far,
 #ifdef __KERNEL_AVX2__
 		                                     org_idir,
 #endif
@@ -356,13 +356,13 @@ ccl_device_inline int qbvh_node_intersect(
 		                                     idir,
 		                                     near_x, near_y, near_z,
 		                                     far_x, far_y, far_z,
-		                                     nodeAddr,
+		                                     node_addr,
 		                                     dist);
 	}
 	else {
 		return qbvh_aligned_node_intersect(kg,
-		                                   tnear,
-		                                   tfar,
+		                                   isect_near,
+		                                   isect_far,
 #ifdef __KERNEL_AVX2__
 		                                   org_idir,
 #else
@@ -371,15 +371,15 @@ ccl_device_inline int qbvh_node_intersect(
 		                                   idir,
 		                                   near_x, near_y, near_z,
 		                                   far_x, far_y, far_z,
-		                                   nodeAddr,
+		                                   node_addr,
 		                                   dist);
 	}
 }
 
 ccl_device_inline int qbvh_node_intersect_robust(
-        KernelGlobals *__restrict kg,
-        const ssef& tnear,
-        const ssef& tfar,
+        KernelGlobals *ccl_restrict kg,
+        const ssef& isect_near,
+        const ssef& isect_far,
 #ifdef __KERNEL_AVX2__
         const sse3f& P_idir,
 #endif
@@ -392,16 +392,16 @@ ccl_device_inline int qbvh_node_intersect_robust(
         const int far_x,
         const int far_y,
         const int far_z,
-        const int nodeAddr,
+        const int node_addr,
         const float difl,
-        ssef *__restrict dist)
+        ssef *ccl_restrict dist)
 {
-	const int offset = nodeAddr;
+	const int offset = node_addr;
 	const float4 node = kernel_tex_fetch(__bvh_nodes, offset);
 	if(__float_as_uint(node.x) & PATH_RAY_NODE_UNALIGNED) {
 		return qbvh_unaligned_node_intersect_robust(kg,
-		                                            tnear,
-		                                            tfar,
+		                                            isect_near,
+		                                            isect_far,
 #ifdef __KERNEL_AVX2__
 		                                            P_idir,
 #endif
@@ -410,14 +410,14 @@ ccl_device_inline int qbvh_node_intersect_robust(
 		                                            idir,
 		                                            near_x, near_y, near_z,
 		                                            far_x, far_y, far_z,
-		                                            nodeAddr,
+		                                            node_addr,
 		                                            difl,
 		                                            dist);
 	}
 	else {
 		return qbvh_aligned_node_intersect_robust(kg,
-		                                          tnear,
-		                                          tfar,
+		                                          isect_near,
+		                                          isect_far,
 #ifdef __KERNEL_AVX2__
 		                                          P_idir,
 #else
@@ -426,7 +426,7 @@ ccl_device_inline int qbvh_node_intersect_robust(
 		                                          idir,
 		                                          near_x, near_y, near_z,
 		                                          far_x, far_y, far_z,
-		                                          nodeAddr,
+		                                          node_addr,
 		                                          difl,
 		                                          dist);
 	}

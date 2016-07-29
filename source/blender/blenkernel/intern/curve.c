@@ -202,72 +202,19 @@ Curve *BKE_curve_copy(Main *bmain, Curve *cu)
 	cun->editnurb = NULL;
 	cun->editfont = NULL;
 
-#if 0   // XXX old animation system
-	/* single user ipo too */
-	if (cun->ipo) cun->ipo = copy_ipo(cun->ipo);
-#endif // XXX old animation system
-
 	id_us_plus((ID *)cun->vfont);
 	id_us_plus((ID *)cun->vfontb);
 	id_us_plus((ID *)cun->vfonti);
 	id_us_plus((ID *)cun->vfontbi);
 
-	if (ID_IS_LINKED_DATABLOCK(cu)) {
-		BKE_id_lib_local_paths(bmain, cu->id.lib, &cun->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &cu->id, &cun->id);
 
 	return cun;
 }
 
-static int extern_local_curve_callback(
-        void *UNUSED(user_data), struct ID *UNUSED(id_self), struct ID **id_pointer, int cd_flag)
+void BKE_curve_make_local(Main *bmain, Curve *cu, const bool lib_local)
 {
-	/* We only tag usercounted ID usages as extern... Why? */
-	if ((cd_flag & IDWALK_USER) && *id_pointer) {
-		id_lib_extern(*id_pointer);
-	}
-	return IDWALK_RET_NOP;
-}
-
-static void extern_local_curve(Curve *cu)
-{
-	BKE_library_foreach_ID_link(&cu->id, extern_local_curve_callback, NULL, 0);
-}
-
-void BKE_curve_make_local(Main *bmain, Curve *cu)
-{
-	bool is_local = false, is_lib = false;
-
-	/* - when there are only lib users: don't do
-	 * - when there are only local users: set flag
-	 * - mixed: do a copy
-	 */
-
-	if (!ID_IS_LINKED_DATABLOCK(cu)) {
-		return;
-	}
-
-	BKE_library_ID_test_usages(bmain, cu, &is_local, &is_lib);
-
-	if (is_local) {
-		if (!is_lib) {
-			id_clear_lib_data(bmain, &cu->id);
-			if (cu->key) {
-				BKE_key_make_local(bmain, cu->key);
-			}
-			extern_local_curve(cu);
-		}
-		else {
-			Curve *cu_new = BKE_curve_copy(bmain, cu);
-
-			cu_new->id.us = 0;
-
-			/* Remap paths of new ID using old library as base. */
-			BKE_id_lib_local_paths(bmain, cu->id.lib, &cu_new->id);
-
-			BKE_libblock_remap(bmain, cu, cu_new, ID_REMAP_SKIP_INDIRECT_USAGE);
-		}
-	}
+	BKE_id_make_local_generic(bmain, &cu->id, true, lib_local);
 }
 
 /* Get list of nurbs from editnurbs structure */

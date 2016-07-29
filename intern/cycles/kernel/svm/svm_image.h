@@ -115,16 +115,16 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 			nix = svm_image_texture_wrap_periodic(ix+1, width);
 			niy = svm_image_texture_wrap_periodic(iy+1, height);
 		}
-		else if(extension == EXTENSION_CLIP) {
-			if(x < 0.0f || y < 0.0f || x > 1.0f || y > 1.0f)
-				return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
-		}
-		else { /* EXTENSION_EXTEND */
-			ix = svm_image_texture_wrap_clamp(ix, width);
-			iy = svm_image_texture_wrap_clamp(iy, height);
-
+		else {
+			if(extension == EXTENSION_CLIP) {
+				if(x < 0.0f || y < 0.0f || x > 1.0f || y > 1.0f) {
+					return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+				}
+			}
 			nix = svm_image_texture_wrap_clamp(ix+1, width);
 			niy = svm_image_texture_wrap_clamp(iy+1, height);
+			ix = svm_image_texture_wrap_clamp(ix, width);
+			iy = svm_image_texture_wrap_clamp(iy, height);
 		}
 
 		r = (1.0f - ty)*(1.0f - tx)*svm_image_texture_read(kg, id, offset + ix + iy*width);
@@ -271,9 +271,6 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 		case 87: r = kernel_tex_image_interp(__tex_image_byte4_087, x, y); break;
 		case 88: r = kernel_tex_image_interp(__tex_image_byte4_088, x, y); break;
 		case 89: r = kernel_tex_image_interp(__tex_image_byte4_089, x, y); break;
-		case 90: r = kernel_tex_image_interp(__tex_image_byte4_090, x, y); break;
-		case 91: r = kernel_tex_image_interp(__tex_image_byte4_091, x, y); break;
-		case 92: r = kernel_tex_image_interp(__tex_image_byte4_092, x, y); break;
 		default:
 			kernel_assert(0);
 			return make_float4(0.0f, 0.0f, 0.0f, 0.0f);

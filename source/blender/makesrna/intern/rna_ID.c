@@ -64,10 +64,10 @@ EnumPropertyItem rna_enum_id_type_items[] = {
 	{ID_LT, "LATTICE", ICON_LATTICE_DATA, "Lattice", ""},
 	{ID_MSK, "MASK", ICON_MOD_MASK, "Mask", ""},
 	{ID_MA, "MATERIAL", ICON_MATERIAL_DATA, "Material", ""},
-	{ID_MB, "META", ICON_META_DATA, "MetaBall", ""},
+	{ID_MB, "META", ICON_META_DATA, "Metaball", ""},
 	{ID_ME, "MESH", ICON_MESH_DATA, "Mesh", ""},
-	{ID_MC, "MOVIECLIP", ICON_CLIP, "MovieClip", ""},
-	{ID_NT, "NODETREE", ICON_NODETREE, "NodeTree", ""},
+	{ID_MC, "MOVIECLIP", ICON_CLIP, "Movie Clip", ""},
+	{ID_NT, "NODETREE", ICON_NODETREE, "Node Tree", ""},
 	{ID_OB, "OBJECT", ICON_OBJECT_DATA, "Object", ""},
 	{ID_PC, "PAINTCURVE", ICON_CURVE_BEZCURVE, "Paint Curve", ""},
 	{ID_PAL, "PALETTE", ICON_COLOR, "Palette", ""},
@@ -698,7 +698,7 @@ static void rna_ImagePreview_icon_pixels_float_set(PointerRNA *ptr, const float 
 static int rna_ImagePreview_icon_id_get(PointerRNA *ptr)
 {
 	/* Using a callback here allows us to only generate icon matching that preview when icon_id is requested. */
-	return BKE_icon_preview_ensure((PreviewImage *)(ptr->data));
+	return BKE_icon_preview_ensure(ptr->id.data, (PreviewImage *)(ptr->data));
 }
 static void rna_ImagePreview_icon_reload(PreviewImage *prv)
 {
@@ -1024,6 +1024,7 @@ static void rna_def_ID(BlenderRNA *brna)
 static void rna_def_library(BlenderRNA *brna)
 {
 	StructRNA *srna;
+	FunctionRNA *func;
 	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "Library", "ID");
@@ -1042,6 +1043,10 @@ static void rna_def_library(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "packed_file", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "packedfile");
 	RNA_def_property_ui_text(prop, "Packed File", "");
+
+	func = RNA_def_function(srna, "reload", "WM_lib_reload");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_CONTEXT);
+	RNA_def_function_ui_description(func, "Reload this library and all its linked datablocks");
 }
 void RNA_def_ID(BlenderRNA *brna)
 {

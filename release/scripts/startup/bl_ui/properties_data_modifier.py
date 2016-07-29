@@ -151,21 +151,16 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = split.column()
         col.label(text="Operation:")
         col.prop(md, "operation", text="")
+        row = layout.row()
+        row.label("Solver:")
+        row.prop(md, "solver", expand=True)
 
         col = split.column()
         col.label(text="Object:")
         col.prop(md, "object", text="")
 
-        """
-        layout.prop(md, "use_bmesh")
-        if md.use_bmesh:
-            box = layout.box()
-            box.label("BMesh Options:")
-            box.prop(md, "use_bmesh_separate")
-            box.prop(md, "use_bmesh_dissolve")
-            box.prop(md, "use_bmesh_connect_regions")
-            box.prop(md, "threshold")
-        """
+        if md.solver == 'BMESH':
+            layout.prop(md, "double_threshold")
 
     def BUILD(self, layout, ob, md):
         split = layout.split()
@@ -884,9 +879,21 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         split = layout.split()
         col = split.column()
-        col.label(text="Subdivisions:")
-        col.prop(md, "levels", text="View")
-        col.prop(md, "render_levels", text="Render")
+
+        engine = bpy.context.scene.render.engine
+        if engine == "CYCLES" and md == ob.modifiers[-1] and bpy.context.scene.cycles.feature_set == "EXPERIMENTAL":
+            col.label(text="Preview:")
+            col.prop(md, "levels", text="Levels")
+            col.label(text="Render:")
+            col.prop(ob.cycles, "use_adaptive_subdivision", text="Adaptive")
+            if ob.cycles.use_adaptive_subdivision:
+                col.prop(ob.cycles, "dicing_rate")
+            else:
+                col.prop(md, "render_levels", text="Levels")
+        else:
+            col.label(text="Subdivisions:")
+            col.prop(md, "levels", text="View")
+            col.prop(md, "render_levels", text="Render")
 
         col = split.column()
         col.label(text="Options:")

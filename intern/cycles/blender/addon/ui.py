@@ -401,6 +401,7 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
 
         col.label(text="Acceleration structure:")
         col.prop(cscene, "debug_use_spatial_splits")
+        col.prop(cscene, "debug_use_hair_bvh")
 
 
 class CyclesRender_PT_layer_options(CyclesButtonsPanel, Panel):
@@ -458,7 +459,9 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
         col.prop(rl, "use_pass_z")
         col.prop(rl, "use_pass_mist")
         col.prop(rl, "use_pass_normal")
-        col.prop(rl, "use_pass_vector")
+        row = col.row()
+        row.prop(rl, "use_pass_vector")
+        row.active = not rd.use_motion_blur
         col.prop(rl, "use_pass_uv")
         col.prop(rl, "use_pass_object_index")
         col.prop(rl, "use_pass_material_index")
@@ -704,14 +707,6 @@ class Cycles_PT_mesh_displacement(CyclesButtonsPanel, Panel):
         sub = col.column(align=True)
         sub.label(text="Displacement:")
         sub.prop(cdata, "displacement_method", text="")
-
-        col = split.column()
-        sub = col.column(align=True)
-        sub.label(text="Subdivision:")
-        sub.prop(cdata, "subdivision_type", text="")
-
-        if cdata.subdivision_type != 'NONE':
-            sub.prop(cdata, "dicing_rate")
 
 class CyclesObject_PT_motion_blur(CyclesButtonsPanel, Panel):
     bl_label = "Motion Blur"

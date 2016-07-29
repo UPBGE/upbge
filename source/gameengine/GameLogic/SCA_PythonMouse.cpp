@@ -111,7 +111,13 @@ PyObject *SCA_PythonMouse::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_
 			event = input.m_status[input.m_status.size() - 1];
 		}
 
-		PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), PyLong_FromLong(event));
+		PyObject *key = PyLong_FromLong(i);
+		PyObject *value = PyLong_FromLong(event);
+
+		PyDict_SetItem(self->m_event_dict, key, value);
+
+		Py_DECREF(key);
+		Py_DECREF(value);
 	}
 	Py_INCREF(self->m_event_dict);
 	return self->m_event_dict;
@@ -125,7 +131,11 @@ PyObject *SCA_PythonMouse::pyattr_get_inputs(void *self_v, const KX_PYATTRIBUTE_
 	{
 		SCA_InputEvent& input = self->m_mouse->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
-		PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), input.GetProxy());
+		PyObject *key = PyLong_FromLong(i);
+
+		PyDict_SetItem(self->m_event_dict, key, input.GetProxy());
+
+		Py_DECREF(key);
 	}
 	Py_INCREF(self->m_event_dict);
 	return self->m_event_dict;
@@ -151,7 +161,14 @@ PyObject *SCA_PythonMouse::pyattr_get_active_events(void *self_v, const KX_PYATT
 			else {
 				event = input.m_status[input.m_status.size() - 1];
 			}
-			PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), PyLong_FromLong(event));
+
+			PyObject *key = PyLong_FromLong(i);
+			PyObject *value = PyLong_FromLong(event);
+
+			PyDict_SetItem(self->m_event_dict, key, value);
+
+			Py_DECREF(key);
+			Py_DECREF(value);
 		}
 	}
 	Py_INCREF(self->m_event_dict);
@@ -169,7 +186,13 @@ PyObject *SCA_PythonMouse::pyattr_get_active_inputs(void *self_v, const KX_PYATT
 		SCA_InputEvent& input = self->m_mouse->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
 		if (input.Find(SCA_InputEvent::ACTIVE)) {
-			PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), input.GetProxy());
+			SCA_InputEvent& input = self->m_mouse->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+
+			PyObject *key = PyLong_FromLong(i);
+
+			PyDict_SetItem(self->m_event_dict, key, input.GetProxy());
+
+			Py_DECREF(key);
 		}
 	}
 	Py_INCREF(self->m_event_dict);

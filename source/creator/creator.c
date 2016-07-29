@@ -42,6 +42,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_genfile.h"
+
 #include "BLI_args.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -169,9 +171,9 @@ static void callback_main_atexit(void *user_data)
 #ifdef WIN32
 	if (app_init_data->argv) {
 		while (app_init_data->argv_num) {
-			free(app_init_data->argv[--app_init_data->argv_num]);
+			free((void *)app_init_data->argv[--app_init_data->argv_num]);
 		}
-		free(app_init_data->argv);
+		free((void *)app_init_data->argv);
 		app_init_data->argv = NULL;
 	}
 #endif
@@ -349,6 +351,8 @@ int main(
 	BKE_appdir_program_path_init(argv[0]);
 
 	BLI_threadapi_init();
+
+	DNA_sdna_current_init();
 
 	BKE_blender_globals_init();  /* blender.c */
 

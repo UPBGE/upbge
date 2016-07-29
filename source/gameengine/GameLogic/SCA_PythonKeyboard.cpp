@@ -129,7 +129,13 @@ PyObject *SCA_PythonKeyboard::pyattr_get_events(void *self_v, const KX_PYATTRIBU
 			event = input.m_status[input.m_status.size() - 1];
 		}
 
-		PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), PyLong_FromLong(event));
+		PyObject *key = PyLong_FromLong(i);
+		PyObject *value = PyLong_FromLong(event);
+
+		PyDict_SetItem(self->m_event_dict, key, value);
+
+		Py_DECREF(key);
+		Py_DECREF(value);
 	}
 	Py_INCREF(self->m_event_dict);
 	return self->m_event_dict;
@@ -143,7 +149,11 @@ PyObject *SCA_PythonKeyboard::pyattr_get_inputs(void *self_v, const KX_PYATTRIBU
 	{
 		SCA_InputEvent& input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
-		PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), input.GetProxy());
+		PyObject *key = PyLong_FromLong(i);
+
+		PyDict_SetItem(self->m_event_dict, key, input.GetProxy());
+
+		Py_DECREF(key);
 	}
 	Py_INCREF(self->m_event_dict);
 	return self->m_event_dict;
@@ -162,7 +172,11 @@ PyObject *SCA_PythonKeyboard::pyattr_get_active_inputs(void *self_v, const KX_PY
 		SCA_InputEvent& input = self->m_keyboard->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
 
 		if (input.Find(SCA_InputEvent::ACTIVE)) {
-			PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), input.GetProxy());
+			PyObject *key = PyLong_FromLong(i);
+
+			PyDict_SetItem(self->m_event_dict, key, input.GetProxy());
+
+			Py_DECREF(key);
 		}
 	}
 	Py_INCREF(self->m_event_dict);
@@ -188,7 +202,13 @@ PyObject *SCA_PythonKeyboard::pyattr_get_active_events(void *self_v, const KX_PY
 				event = input.m_status[input.m_status.size() - 1];
 			}
 
-			PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), PyLong_FromLong(event));
+			PyObject *key = PyLong_FromLong(i);
+			PyObject *value = PyLong_FromLong(event);
+
+			PyDict_SetItem(self->m_event_dict, key, value);
+
+			Py_DECREF(key);
+			Py_DECREF(value);
 		}
 	}
 	Py_INCREF(self->m_event_dict);

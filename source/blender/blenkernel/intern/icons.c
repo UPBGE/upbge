@@ -221,6 +221,24 @@ PreviewImage *BKE_previewimg_copy(PreviewImage *prv)
 	return prv_img;
 }
 
+/** Duplicate preview image from \a id and clear icon_id, to be used by datablock copy functions. */
+void BKE_previewimg_id_copy(ID *new_id, ID *old_id)
+{
+	PreviewImage **old_prv_p = BKE_previewimg_id_get_p(old_id);
+	PreviewImage **new_prv_p = BKE_previewimg_id_get_p(new_id);
+
+	if (old_prv_p && *old_prv_p) {
+		BLI_assert(new_prv_p != NULL && ELEM(*new_prv_p, NULL, *old_prv_p));
+//		const int new_icon_id = get_next_free_id();
+
+//		if (new_icon_id == 0) {
+//			return;  /* Failure. */
+//		}
+		*new_prv_p = BKE_previewimg_copy(*old_prv_p);
+		new_id->icon_id = (*new_prv_p)->icon_id = 0;
+	}
+}
+
 PreviewImage **BKE_previewimg_id_get_p(ID *id)
 {
 	switch (GS(id->name)) {
@@ -423,10 +441,26 @@ void BKE_icon_changed(int id)
 	}
 }
 
-int BKE_icon_id_ensure(struct ID *id)
+static int icon_id_ensure_create_icon(struct ID *id)
 {
 	Icon *new_icon = NULL;
 
+	new_icon = MEM_mallocN(sizeof(Icon), __func__);
+
+	new_icon->obj = id;
+	new_icon->type = GS(id->name);
+
+	/* next two lines make sure image gets created */
+	new_icon->drawinfo = NULL;
+	new_icon->drawinfo_free = NULL;
+
+	BLI_ghash_insert(gIcons, SET_INT_IN_POINTER(id->icon_id), new_icon);
+
+	return id->icon_id;
+}
+
+int BKE_icon_id_ensure(struct ID *id)
+{
 	if (!id || G.background)
 		return 0;
 
@@ -440,38 +474,51 @@ int BKE_icon_id_ensure(struct ID *id)
 		return 0;
 	}
 
-	new_icon = MEM_mallocN(sizeof(Icon), __func__);
+	/* Ensure we synchronize ID icon_id with its previewimage if it has one. */
+	PreviewImage **p_prv = BKE_previewimg_id_get_p(id);
+	if (p_prv && *p_prv) {
+		BLI_assert(ELEM((*p_prv)->icon_id, 0, id->icon_id));
+		(*p_prv)->icon_id = id->icon_id;
+	}
 
-	new_icon->obj = id;
-	new_icon->type = GS(id->name);
-	
-	/* next two lines make sure image gets created */
-	new_icon->drawinfo = NULL;
-	new_icon->drawinfo_free = NULL;
-
-	BLI_ghash_insert(gIcons, SET_INT_IN_POINTER(id->icon_id), new_icon);
-	
-	return id->icon_id;
+	return icon_id_ensure_create_icon(id);
 }
 
 /**
  * Return icon id of given preview, or create new icon if not found.
  */
-int BKE_icon_preview_ensure(PreviewImage *preview)
+int BKE_icon_preview_ensure(ID *id, PreviewImage *preview)
 {
 	Icon *new_icon = NULL;
 
 	if (!preview || G.background)
 		return 0;
 
-	if (preview->icon_id)
+	if (id) {
+		BLI_assert(BKE_previewimg_id_ensure(id) == preview);
+	}
+
+	if (preview->icon_id) {
+		BLI_assert(!id || !id->icon_id || id->icon_id == preview->icon_id);
 		return preview->icon_id;
+	}
+
+	if (id && id->icon_id) {
+		preview->icon_id = id->icon_id;
+		return preview->icon_id;
+	}
 
 	preview->icon_id = get_next_free_id();
 
 	if (!preview->icon_id) {
 		printf("%s: Internal error - not enough IDs\n", __func__);
 		return 0;
+	}
+
+	/* Ensure we synchronize ID icon_id with its previewimage if available, and generate suitable 'ID' icon. */
+	if (id) {
+		id->icon_id = preview->icon_id;
+		return icon_id_ensure_create_icon(id);
 	}
 
 	new_icon = MEM_mallocN(sizeof(Icon), __func__);

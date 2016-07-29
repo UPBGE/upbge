@@ -3312,6 +3312,7 @@ ParticleSettings *BKE_particlesettings_copy(Main *bmain, ParticleSettings *part)
 	int a;
 
 	partn = BKE_libblock_copy(bmain, &part->id);
+
 	partn->pd = MEM_dupallocN(part->pd);
 	partn->pd2 = MEM_dupallocN(part->pd2);
 	partn->effector_weights = MEM_dupallocN(part->effector_weights);
@@ -3334,59 +3335,14 @@ ParticleSettings *BKE_particlesettings_copy(Main *bmain, ParticleSettings *part)
 
 	BLI_duplicatelist(&partn->dupliweights, &part->dupliweights);
 	
-	if (ID_IS_LINKED_DATABLOCK(part)) {
-		BKE_id_lib_local_paths(bmain, part->id.lib, &partn->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &part->id, &partn->id);
 
 	return partn;
 }
 
-static int extern_local_particlesettings_callback(
-        void *UNUSED(user_data), struct ID *UNUSED(id_self), struct ID **id_pointer, int cd_flag)
+void BKE_particlesettings_make_local(Main *bmain, ParticleSettings *part, const bool lib_local)
 {
-	/* We only tag usercounted ID usages as extern... Why? */
-	if ((cd_flag & IDWALK_USER) && *id_pointer) {
-		id_lib_extern(*id_pointer);
-	}
-	return IDWALK_RET_NOP;
-}
-
-static void expand_local_particlesettings(ParticleSettings *part)
-{
-	BKE_library_foreach_ID_link(&part->id, extern_local_particlesettings_callback, NULL, 0);
-}
-
-void BKE_particlesettings_make_local(Main *bmain, ParticleSettings *part)
-{
-	bool is_local = false, is_lib = false;
-
-	/* - only lib users: do nothing
-	 * - only local users: set flag
-	 * - mixed: make copy
-	 */
-
-	if (!ID_IS_LINKED_DATABLOCK(part)) {
-		return;
-	}
-
-	BKE_library_ID_test_usages(bmain, part, &is_local, &is_lib);
-
-	if (is_local) {
-		if (!is_lib) {
-			id_clear_lib_data(bmain, &part->id);
-			expand_local_particlesettings(part);
-		}
-		else {
-			ParticleSettings *part_new = BKE_particlesettings_copy(bmain, part);
-
-			part_new->id.us = 0;
-
-			/* Remap paths of new ID using old library as base. */
-			BKE_id_lib_local_paths(bmain, part->id.lib, &part_new->id);
-
-			BKE_libblock_remap(bmain, part, part_new, ID_REMAP_SKIP_INDIRECT_USAGE);
-		}
-	}
+	BKE_id_make_local_generic(bmain, &part->id, true, lib_local);
 }
 
 /************************************************/

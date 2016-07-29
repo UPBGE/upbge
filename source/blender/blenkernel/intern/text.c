@@ -491,11 +491,14 @@ Text *BKE_text_copy(Main *bmain, Text *ta)
 
 	init_undo_text(tan);
 
-	if (ID_IS_LINKED_DATABLOCK(ta)) {
-		BKE_id_lib_local_paths(bmain, ta->id.lib, &tan->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &ta->id, &tan->id);
 
 	return tan;
+}
+
+void BKE_text_make_local(Main *bmain, Text *text, const bool lib_local)
+{
+	BKE_id_make_local_generic(bmain, &text->id, true, lib_local);
 }
 
 void BKE_text_clear(Text *text) /* called directly from rna */

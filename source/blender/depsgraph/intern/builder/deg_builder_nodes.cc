@@ -296,14 +296,15 @@ void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 	for (Base *base = (Base *)scene->base.first; base; base = base->next) {
 		Object *ob = base->object;
 
+		/* object itself */
+		build_object(scene, base, ob);
+
 		/* object that this is a proxy for */
 		// XXX: the way that proxies work needs to be completely reviewed!
 		if (ob->proxy) {
 			ob->proxy->proxy_from = ob;
+			build_object(scene, base, ob->proxy);
 		}
-
-		/* object itself */
-		build_object(scene, base, ob);
 
 		/* Object dupligroup. */
 		if (ob->dup_group) {
@@ -397,12 +398,12 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 {
 	if (ob->id.tag & LIB_TAG_DOIT) {
 		IDDepsNode *id_node = m_graph->find_id_node(&ob->id);
-		id_node->layers = base->lay;
+		id_node->layers |= base->lay;
 		return;
 	}
 
 	IDDepsNode *id_node = add_id_node(&ob->id);
-	id_node->layers = base->lay;
+	id_node->layers |= base->lay;
 	ob->customdata_mask = 0;
 
 	/* standard components */
@@ -441,7 +442,7 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 			}
 
 			case OB_ARMATURE: /* Pose */
-				if (ob->id.lib != NULL && ob->proxy_from != NULL) {
+				if (ID_IS_LINKED_DATABLOCK(ob) && ob->proxy_from != NULL) {
 					build_proxy_rig(ob);
 				}
 				else {
@@ -484,12 +485,6 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	/* grease pencil */
 	if (ob->gpd) {
 		build_gpencil(ob->gpd);
-	}
-
-	if (ob->proxy != NULL) {
-		add_operation_node(&ob->id, DEPSNODE_TYPE_PROXY, DEPSOP_TYPE_POST,
-		                   function_bind(BKE_object_eval_proxy_backlink, _1, ob),
-		                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
 	}
 }
 
@@ -985,11 +980,6 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 
 	// TODO: "Done" operation
 
-	/* ShapeKeys */
-	Key *key = BKE_key_from_object(ob);
-	if (key)
-		build_shapekeys(key);
-
 	/* Modifiers */
 	if (ob->modifiers.first) {
 		ModifierData *md;
@@ -1023,6 +1013,12 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 
 	if (obdata->tag & LIB_TAG_DOIT) {
 		return;
+	}
+
+	/* ShapeKeys */
+	Key *key = BKE_key_from_object(ob);
+	if (key) {
+		build_shapekeys(key);
 	}
 
 	build_animdata(obdata);

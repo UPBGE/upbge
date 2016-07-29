@@ -570,6 +570,7 @@ class VIEW3D_PT_tools_curveedit_options_stroke(View3DPanel, Panel):
         if cps.curve_type == 'BEZIER':
             col.label("Bezier Options:")
             col.prop(cps, "error_threshold")
+            col.prop(cps, "fit_method")
             col.prop(cps, "use_corners_detect")
 
             col = layout.column()
@@ -1607,7 +1608,7 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
 
 class VIEW3D_PT_sculpt_symmetry(Panel, View3DPaintPanel):
     bl_category = "Tools"
-    bl_label = "Symmetry / Lock"
+    bl_label = "Symmetry/Lock"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod

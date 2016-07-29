@@ -55,7 +55,7 @@ void BKE_icons_init(int first_dyn_id);
 /* return icon id for library object or create new icon if not found */
 int BKE_icon_id_ensure(struct ID *id);
 
-int BKE_icon_preview_ensure(struct PreviewImage *preview);
+int BKE_icon_preview_ensure(struct ID *id, struct PreviewImage *preview);
 
 /* retrieve icon for id */
 struct Icon *BKE_icon_get(int icon_id);
@@ -98,6 +98,8 @@ struct PreviewImage *BKE_previewimg_create(void);
 
 /* create a copy of the preview image */
 struct PreviewImage *BKE_previewimg_copy(struct PreviewImage *prv);
+
+void BKE_previewimg_id_copy(struct ID *new_id, struct ID *old_id);
 
 /* retrieve existing or create new preview image */
 struct PreviewImage *BKE_previewimg_id_ensure(struct ID *id);

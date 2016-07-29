@@ -119,59 +119,14 @@ MetaBall *BKE_mball_copy(Main *bmain, MetaBall *mb)
 	mbn->editelems = NULL;
 	mbn->lastelem = NULL;
 	
-	if (ID_IS_LINKED_DATABLOCK(mb)) {
-		BKE_id_lib_local_paths(bmain, mb->id.lib, &mbn->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &mb->id, &mbn->id);
 
 	return mbn;
 }
 
-static int extern_local_mball_callback(
-        void *UNUSED(user_data), struct ID *UNUSED(id_self), struct ID **id_pointer, int cd_flag)
+void BKE_mball_make_local(Main *bmain, MetaBall *mb, const bool lib_local)
 {
-	/* We only tag usercounted ID usages as extern... Why? */
-	if ((cd_flag & IDWALK_USER) && *id_pointer) {
-		id_lib_extern(*id_pointer);
-	}
-	return IDWALK_RET_NOP;
-}
-
-static void extern_local_mball(MetaBall *mb)
-{
-	BKE_library_foreach_ID_link(&mb->id, extern_local_mball_callback, NULL, 0);
-}
-
-void BKE_mball_make_local(Main *bmain, MetaBall *mb)
-{
-	bool is_local = false, is_lib = false;
-
-	/* - only lib users: do nothing
-	 * - only local users: set flag
-	 * - mixed: make copy
-	 */
-
-	if (!ID_IS_LINKED_DATABLOCK(mb)) {
-		return;
-	}
-
-	BKE_library_ID_test_usages(bmain, mb, &is_local, &is_lib);
-
-	if (is_local) {
-		if (!is_lib) {
-			id_clear_lib_data(bmain, &mb->id);
-			extern_local_mball(mb);
-		}
-		else {
-			MetaBall *mb_new = BKE_mball_copy(bmain, mb);
-
-			mb_new->id.us = 0;
-
-			/* Remap paths of new ID using old library as base. */
-			BKE_id_lib_local_paths(bmain, mb->id.lib, &mb_new->id);
-
-			BKE_libblock_remap(bmain, mb, mb_new, ID_REMAP_SKIP_INDIRECT_USAGE);
-		}
-	}
+	BKE_id_make_local_generic(bmain, &mb->id, true, lib_local);
 }
 
 /* most simple meta-element adding function

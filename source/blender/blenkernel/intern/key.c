@@ -170,9 +170,7 @@ Key *BKE_key_copy(Main *bmain, Key *key)
 		kb = kb->next;
 	}
 
-	if (ID_IS_LINKED_DATABLOCK(key)) {
-		BKE_id_lib_local_paths(bmain, key->id.lib, &keyn->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &key->id, &keyn->id);
 
 	return keyn;
 }
@@ -200,18 +198,6 @@ Key *BKE_key_copy_nolib(Key *key)
 	}
 	
 	return keyn;
-}
-
-void BKE_key_make_local(Main *bmain, Key *key)
-{
-	/* Note that here for now we simply just make it local...
-	 * Sounds fishy behavior, but since skeys are not *real* IDs... */
-
-	if (!ID_IS_LINKED_DATABLOCK(key)) {
-		return;
-	}
-
-	id_clear_lib_data(bmain, &key->id);
 }
 
 /* Sort shape keys and Ipo curves after a change.  This assumes that at most

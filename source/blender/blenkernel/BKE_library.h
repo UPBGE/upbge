@@ -80,14 +80,17 @@ void id_us_min(struct ID *id);
 void id_fake_user_set(struct ID *id);
 void id_fake_user_clear(struct ID *id);
 
-bool id_make_local(struct Main *bmain, struct ID *id, bool test);
+void BKE_id_make_local_generic(struct Main *bmain, struct ID *id, const bool id_in_mainlist, const bool lib_local);
+bool id_make_local(struct Main *bmain, struct ID *id, const bool test, const bool force_local);
 bool id_single_user(struct bContext *C, struct ID *id, struct PointerRNA *ptr, struct PropertyRNA *prop);
 bool id_copy(struct Main *bmain, struct ID *id, struct ID **newid, bool test);
 void id_sort_by_name(struct ListBase *lb, struct ID *id);
+void BKE_id_expand_local(struct ID *id);
+void BKE_id_copy_ensure_local(struct Main *bmain, struct ID *old_id, struct ID *new_id);
 
 bool new_id(struct ListBase *lb, struct ID *id, const char *name);
 void id_clear_lib_data(struct Main *bmain, struct ID *id);
-void id_clear_lib_data_ex(struct Main *bmain, struct ID *id, bool id_in_mainlist);
+void id_clear_lib_data_ex(struct Main *bmain, struct ID *id, const bool id_in_mainlist);
 
 struct ListBase *which_libbase(struct Main *mainlib, short type);
 

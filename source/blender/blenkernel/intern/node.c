@@ -1211,7 +1211,6 @@ static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool ski
 	}
 	else {
 		newtree = BKE_libblock_copy_nolib(&ntree->id, true);
-		newtree->id.lib = NULL;	/* same as owning datablock id.lib */
 	}
 
 	id_us_plus((ID *)newtree->gpd);
@@ -1291,9 +1290,7 @@ static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool ski
 	/* node tree will generate its own interface type */
 	newtree->interface_type = NULL;
 	
-	if (ID_IS_LINKED_DATABLOCK(ntree)) {
-		BKE_id_lib_local_paths(bmain, ntree->id.lib, &newtree->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &ntree->id, &newtree->id);
 
 	return newtree;
 }
@@ -1950,52 +1947,9 @@ bNodeTree *ntreeFromID(ID *id)
 	}
 }
 
-static int extern_local_ntree_callback(
-        void *UNUSED(user_data), struct ID *UNUSED(id_self), struct ID **id_pointer, int cd_flag)
+void ntreeMakeLocal(Main *bmain, bNodeTree *ntree, bool id_in_mainlist, const bool lib_local)
 {
-	/* We only tag usercounted ID usages as extern... Why? */
-	if ((cd_flag & IDWALK_USER) && *id_pointer) {
-		id_lib_extern(*id_pointer);
-	}
-	return IDWALK_RET_NOP;
-}
-
-static void extern_local_ntree(bNodeTree *ntree)
-{
-	BKE_library_foreach_ID_link(&ntree->id, extern_local_ntree_callback, NULL, 0);
-}
-
-void ntreeMakeLocal(Main *bmain, bNodeTree *ntree, bool id_in_mainlist)
-{
-	bool is_lib = false, is_local = false;
-	
-	/* - only lib users: do nothing
-	 * - only local users: set flag
-	 * - mixed: make copy
-	 */
-
-	if (!ID_IS_LINKED_DATABLOCK(ntree)) {
-		return;
-	}
-
-	BKE_library_ID_test_usages(bmain, ntree, &is_local, &is_lib);
-
-	if (is_local) {
-		if (!is_lib) {
-			id_clear_lib_data_ex(bmain, (ID *)ntree, id_in_mainlist);
-			extern_local_ntree(ntree);
-		}
-		else {
-			bNodeTree *ntree_new = ntreeCopyTree(bmain, ntree);
-
-			ntree_new->id.us = 0;
-
-			/* Remap paths of new ID using old library as base. */
-			BKE_id_lib_local_paths(bmain, ntree->id.lib, &ntree_new->id);
-
-			BKE_libblock_remap(bmain, ntree, ntree_new, ID_REMAP_SKIP_INDIRECT_USAGE);
-		}
-	}
+	BKE_id_make_local_generic(bmain, &ntree->id, id_in_mainlist, lib_local);
 }
 
 int ntreeNodeExists(bNodeTree *ntree, bNode *testnode)

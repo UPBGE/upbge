@@ -440,7 +440,16 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 				/* object->proxy is refcounted, but not object->proxy_group... *sigh* */
 				CALLBACK_INVOKE(object->proxy, IDWALK_USER);
 				CALLBACK_INVOKE(object->proxy_group, IDWALK_NOP);
+
+				/* Special case!
+				 * Since this field is set/owned by 'user' of this ID (and not ID itself), it is only indirect usage
+				 * if proxy object is linked... Twisted. */
+				if (object->proxy_from) {
+					data.cd_flag = ID_IS_LINKED_DATABLOCK(object->proxy_from) ? IDWALK_INDIRECT_USAGE : 0;
+				}
 				CALLBACK_INVOKE(object->proxy_from, IDWALK_NOP);
+				data.cd_flag = data_cd_flag;
+
 				CALLBACK_INVOKE(object->poselib, IDWALK_USER);
 
 				data.cd_flag |= proxy_cd_flag;
@@ -628,6 +637,10 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 
 			case ID_KE:
 			{
+				/* XXX Only ID pointer from shapekeys is the 'from' one, which is not actually ID usage.
+				 * Maybe we should even nuke it from here, not 100% sure yet...
+				 * (see also foreach_libblock_id_users_callback).
+				 */
 				Key *key = (Key *) id;
 				CALLBACK_INVOKE_ID(key->from, IDWALK_NOP);
 				break;
@@ -854,9 +867,10 @@ void BKE_library_update_ID_link_user(ID *id_dst, ID *id_src, const int cd_flag)
 
 /**
  * Say whether given \a id_type_owner can use (in any way) a datablock of \a id_type_used.
+ *
+ * This is a 'simplified' abstract version of #BKE_library_foreach_ID_link() above, quite useful to reduce
+ * useless iterations in some cases.
  */
-/* This is a 'simplified' abstract version of BKE_library_foreach_ID_link() above, quite useful to reduce
- * useless ietrations in some cases. */
 bool BKE_library_idtype_can_use_idtype(const short id_type_owner, const short id_type_used)
 {
 	if (id_type_used == ID_AC) {
@@ -939,9 +953,17 @@ typedef struct IDUsersIter {
 	int count_direct, count_indirect;  /* Set by callback. */
 } IDUsersIter;
 
-static int foreach_libblock_id_users_callback(void *user_data, ID *UNUSED(self_id), ID **id_p, int cb_flag)
+static int foreach_libblock_id_users_callback(void *user_data, ID *self_id, ID **id_p, int cb_flag)
 {
 	IDUsersIter *iter = user_data;
+
+	/* XXX This is actually some kind of hack...
+	 * Issue is, only ID pointer from shapekeys is the 'from' one, which is not actually ID usage.
+	 * Maybe we should even nuke it from BKE_library_foreach_ID_link, not 100% sure yet...
+	 */
+	if (GS(self_id->name) == ID_KE) {
+		return IDWALK_RET_NOP;
+	}
 
 	if (*id_p && (*id_p == iter->id)) {
 #if 0
@@ -1003,6 +1025,10 @@ static bool library_ID_is_used(Main *bmain, void *idv, const bool check_linked)
 		}
 
 		for (; id_curr && !is_defined; id_curr = id_curr->next) {
+			if (id_curr == id) {
+				/* We are not interested in self-usages (mostly from drivers or bone constraints...). */
+				continue;
+			}
 			iter.curr_id = id_curr;
 			BKE_library_foreach_ID_link(
 			            id_curr, foreach_libblock_id_users_callback, &iter, IDWALK_NOP);
@@ -1051,6 +1077,10 @@ void BKE_library_ID_test_usages(Main *bmain, void *idv, bool *is_used_local, boo
 		}
 
 		for (; id_curr && !is_defined; id_curr = id_curr->next) {
+			if (id_curr == id) {
+				/* We are not interested in self-usages (mostly from drivers or bone constraints...). */
+				continue;
+			}
 			iter.curr_id = id_curr;
 			BKE_library_foreach_ID_link(id_curr, foreach_libblock_id_users_callback, &iter, IDWALK_NOP);
 

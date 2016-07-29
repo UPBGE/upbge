@@ -97,11 +97,14 @@ Group *BKE_group_copy(Main *bmain, Group *group)
 	/* Do not copy group's preview (same behavior as for objects). */
 	groupn->preview = NULL;
 
-	if (ID_IS_LINKED_DATABLOCK(group)) {
-		BKE_id_lib_local_paths(bmain, group->id.lib, &groupn->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &group->id, &groupn->id);
 
 	return groupn;
+}
+
+void BKE_group_make_local(Main *bmain, Group *group, const bool lib_local)
+{
+	BKE_id_make_local_generic(bmain, &group->id, true, lib_local);
 }
 
 /* external */

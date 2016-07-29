@@ -242,18 +242,16 @@ Material *BKE_material_copy(Main *bmain, Material *ma)
 	if (ma->ramp_col) man->ramp_col = MEM_dupallocN(ma->ramp_col);
 	if (ma->ramp_spec) man->ramp_spec = MEM_dupallocN(ma->ramp_spec);
 	
-	if (ma->preview) man->preview = BKE_previewimg_copy(ma->preview);
-
 	if (ma->nodetree) {
 		man->nodetree = ntreeCopyTree(bmain, ma->nodetree);
 	}
 
+	BKE_previewimg_id_copy(&man->id, &ma->id);
+
 	BLI_listbase_clear(&man->gpumaterial);
 	BLI_listbase_clear(&man->gpumaterialinstancing);
-	
-	if (ID_IS_LINKED_DATABLOCK(ma)) {
-		BKE_id_lib_local_paths(bmain, ma->id.lib, &man->id);
-	}
+
+	BKE_id_copy_ensure_local(bmain, &ma->id, &man->id);
 
 	return man;
 }
@@ -289,52 +287,9 @@ Material *localize_material(Material *ma)
 	return man;
 }
 
-static int extern_local_material_callback(
-        void *UNUSED(user_data), struct ID *UNUSED(id_self), struct ID **id_pointer, int cd_flag)
+void BKE_material_make_local(Main *bmain, Material *ma, const bool lib_local)
 {
-	/* We only tag usercounted ID usages as extern... Why? */
-	if ((cd_flag & IDWALK_USER) && *id_pointer) {
-		id_lib_extern(*id_pointer);
-	}
-	return IDWALK_RET_NOP;
-}
-
-static void extern_local_material(Material *ma)
-{
-	BKE_library_foreach_ID_link(&ma->id, extern_local_material_callback, NULL, 0);
-}
-
-void BKE_material_make_local(Main *bmain, Material *ma)
-{
-	bool is_local = false, is_lib = false;
-
-	/* - only lib users: do nothing
-	 * - only local users: set flag
-	 * - mixed: make copy
-	 */
-
-	if (!ID_IS_LINKED_DATABLOCK(ma)) {
-		return;
-	}
-
-	BKE_library_ID_test_usages(bmain, ma, &is_local, &is_lib);
-
-	if (is_local) {
-		if (!is_lib) {
-			id_clear_lib_data(bmain, &ma->id);
-			extern_local_material(ma);
-		}
-		else {
-			Material *ma_new = BKE_material_copy(bmain, ma);
-
-			ma_new->id.us = 0;
-
-			/* Remap paths of new ID using old library as base. */
-			BKE_id_lib_local_paths(bmain, ma->id.lib, &ma_new->id);
-
-			BKE_libblock_remap(bmain, ma, ma_new, ID_REMAP_SKIP_INDIRECT_USAGE);
-		}
-	}
+	BKE_id_make_local_generic(bmain, &ma->id, true, lib_local);
 }
 
 Material ***give_matarar(Object *ob)
@@ -591,18 +546,6 @@ Material *give_current_material(Object *ob, short act)
 	return ma;
 }
 
-ID *material_from(Object *ob, short act)
-{
-
-	if (ob == NULL) return NULL;
-
-	if (ob->totcol == 0) return ob->data;
-	if (act == 0) act = 1;
-
-	if (ob->matbits[act - 1]) return (ID *)ob;
-	else return ob->data;
-}
-
 Material *give_node_material(Material *ma)
 {
 	if (ma && ma->use_nodes && ma->nodetree) {
@@ -804,17 +747,18 @@ void assign_material(Object *ob, Material *ma, short act, int assign_type)
 		if (mao)
 			id_us_min(&mao->id);
 		ob->mat[act - 1] = ma;
+		test_object_materials(ob, ob->data);
 	}
 	else {  /* in data */
 		mao = (*matarar)[act - 1];
 		if (mao)
 			id_us_min(&mao->id);
 		(*matarar)[act - 1] = ma;
+		test_all_objects_materials(G.main, ob->data);  /* Data may be used by several objects... */
 	}
 
 	if (ma)
 		id_us_plus(&ma->id);
-	test_object_materials(ob, ob->data);
 }
 
 
@@ -908,7 +852,11 @@ void assign_matarar(struct Object *ob, struct Material ***matar, short totcol)
 	int actcol_orig = ob->actcol;
 	short i;
 
-	while (object_remove_material_slot(ob)) {}
+	while ((ob->totcol > totcol) &&
+	       BKE_object_material_slot_remove(ob))
+	{
+		/* pass */
+	}
 
 	/* now we have the right number of slots */
 	for (i = 0; i < totcol; i++)
@@ -921,7 +869,7 @@ void assign_matarar(struct Object *ob, struct Material ***matar, short totcol)
 }
 
 
-short find_material_index(Object *ob, Material *ma)
+short BKE_object_material_slot_find_index(Object *ob, Material *ma)
 {
 	Material ***matarar;
 	short a, *totcolp;
@@ -941,7 +889,7 @@ short find_material_index(Object *ob, Material *ma)
 	return 0;
 }
 
-bool object_add_material_slot(Object *ob)
+bool BKE_object_material_slot_add(Object *ob)
 {
 	if (ob == NULL) return false;
 	if (ob->totcol >= MAXMAT) return false;
@@ -1223,7 +1171,7 @@ void material_drivers_update(Scene *scene, Material *ma, float ctime)
 	ma->id.tag &= ~LIB_TAG_DOIT;
 }
 
-bool object_remove_material_slot(Object *ob)
+bool BKE_object_material_slot_remove(Object *ob)
 {
 	Material *mao, ***matarar;
 	Object *obt;

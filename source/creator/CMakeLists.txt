@@ -222,6 +222,8 @@ if(WITH_BUILDINFO)
 	add_dependencies(buildinfoobj buildinfo)
 endif()
 
+add_cc_flags_custom_test(blender)
+
 # message(STATUS "Configuring blender")
 if(WITH_PYTHON_MODULE)
 	add_definitions(-DWITH_PYTHON_MODULE)
@@ -244,7 +246,7 @@ if(WITH_PYTHON_MODULE)
 		set_target_properties(
 			blender
 			PROPERTIES
-				MACOSX_BUNDLE
+				MACOSX_BUNDLE TRUE
 				LINK_FLAGS_RELEASE "${PLATFORM_LINKFLAGS}"
 				LINK_FLAGS_DEBUG "${PLATFORM_LINKFLAGS_DEBUG}"
 		)

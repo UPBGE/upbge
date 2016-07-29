@@ -866,7 +866,6 @@ Tex *BKE_texture_copy(Main *bmain, Tex *tex)
 	if (texn->pd) texn->pd = BKE_texture_pointdensity_copy(texn->pd);
 	if (texn->vd) texn->vd = MEM_dupallocN(texn->vd);
 	if (texn->ot) texn->ot = BKE_texture_ocean_copy(texn->ot);
-	if (tex->preview) texn->preview = BKE_previewimg_copy(tex->preview);
 
 	if (tex->nodetree) {
 		if (tex->nodetree->execdata) {
@@ -874,10 +873,10 @@ Tex *BKE_texture_copy(Main *bmain, Tex *tex)
 		}
 		texn->nodetree = ntreeCopyTree(bmain, tex->nodetree);
 	}
-	
-	if (ID_IS_LINKED_DATABLOCK(tex)) {
-		BKE_id_lib_local_paths(bmain, tex->id.lib, &texn->id);
-	}
+
+	BKE_previewimg_id_copy(&texn->id, &tex->id);
+
+	BKE_id_copy_ensure_local(bmain, &tex->id, &texn->id);
 
 	return texn;
 }
@@ -918,52 +917,9 @@ Tex *BKE_texture_localize(Tex *tex)
 
 /* ------------------------------------------------------------------------- */
 
-static int extern_local_texture_callback(
-        void *UNUSED(user_data), struct ID *UNUSED(id_self), struct ID **id_pointer, int cd_flag)
+void BKE_texture_make_local(Main *bmain, Tex *tex, const bool lib_local)
 {
-	/* We only tag usercounted ID usages as extern... Why? */
-	if ((cd_flag & IDWALK_USER) && *id_pointer) {
-		id_lib_extern(*id_pointer);
-	}
-	return IDWALK_RET_NOP;
-}
-
-static void extern_local_texture(Tex *tex)
-{
-	BKE_library_foreach_ID_link(&tex->id, extern_local_texture_callback, NULL, 0);
-}
-
-void BKE_texture_make_local(Main *bmain, Tex *tex)
-{
-	bool is_local = false, is_lib = false;
-
-	/* - only lib users: do nothing
-	 * - only local users: set flag
-	 * - mixed: make copy
-	 */
-
-	if (!ID_IS_LINKED_DATABLOCK(tex)) {
-		return;
-	}
-
-	BKE_library_ID_test_usages(bmain, tex, &is_local, &is_lib);
-
-	if (is_local) {
-		if (!is_lib) {
-			id_clear_lib_data(bmain, &tex->id);
-			extern_local_texture(tex);
-		}
-		else {
-			Tex *tex_new = BKE_texture_copy(bmain, tex);
-
-			tex_new->id.us = 0;
-
-			/* Remap paths of new ID using old library as base. */
-			BKE_id_lib_local_paths(bmain, tex->id.lib, &tex_new->id);
-
-			BKE_libblock_remap(bmain, tex, tex_new, ID_REMAP_SKIP_INDIRECT_USAGE);
-		}
-	}
+	BKE_id_make_local_generic(bmain, &tex->id, true, lib_local);
 }
 
 Tex *give_current_object_texture(Object *ob)

@@ -144,36 +144,9 @@ void BKE_armature_free(bArmature *arm)
 	}
 }
 
-void BKE_armature_make_local(Main *bmain, bArmature *arm)
+void BKE_armature_make_local(Main *bmain, bArmature *arm, const bool lib_local)
 {
-	bool is_local = false, is_lib = false;
-
-	/* - only lib users: do nothing
-	 * - only local users: set flag
-	 * - mixed: make copy
-	 */
-
-	if (!ID_IS_LINKED_DATABLOCK(arm)) {
-		return;
-	}
-
-	BKE_library_ID_test_usages(bmain, arm, &is_local, &is_lib);
-
-	if (is_local) {
-		if (!is_lib) {
-			id_clear_lib_data(bmain, &arm->id);
-		}
-		else {
-			bArmature *arm_new = BKE_armature_copy(bmain, arm);
-
-			arm_new->id.us = 0;
-
-			/* Remap paths of new ID using old library as base. */
-			BKE_id_lib_local_paths(bmain, arm->id.lib, &arm_new->id);
-
-			BKE_libblock_remap(bmain, arm, arm_new, ID_REMAP_SKIP_INDIRECT_USAGE);
-		}
-	}
+	BKE_id_make_local_generic(bmain, &arm->id, true, lib_local);
 }
 
 static void copy_bonechildren(Bone *newBone, Bone *oldBone, Bone *actBone, Bone **newActBone)
@@ -221,9 +194,7 @@ bArmature *BKE_armature_copy(Main *bmain, bArmature *arm)
 	newArm->act_edbone = NULL;
 	newArm->sketch = NULL;
 
-	if (ID_IS_LINKED_DATABLOCK(arm)) {
-		BKE_id_lib_local_paths(bmain, arm->id.lib, &newArm->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &arm->id, &newArm->id);
 
 	return newArm;
 }
@@ -1932,6 +1903,17 @@ static int rebuild_pose_bone(bPose *pose, Bone *bone, bPoseChannel *parchan, int
 	return counter;
 }
 
+/**
+ * Clear pointers of object's pose (needed in remap case, since we cannot always wait for a complete pose rebuild).
+ */
+void BKE_pose_clear_pointers(bPose *pose)
+{
+	for (bPoseChannel *pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
+		pchan->bone = NULL;
+		pchan->child = NULL;
+	}
+}
+
 /* only after leave editmode, duplicating, validating older files, library syncing */
 /* NOTE: pose->flag is set for it */
 void BKE_pose_rebuild(Object *ob, bArmature *arm)
@@ -1952,10 +1934,7 @@ void BKE_pose_rebuild(Object *ob, bArmature *arm)
 	pose = ob->pose;
 
 	/* clear */
-	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
-		pchan->bone = NULL;
-		pchan->child = NULL;
-	}
+	BKE_pose_clear_pointers(pose);
 
 	/* first step, check if all channels are there */
 	for (bone = arm->bonebase.first; bone; bone = bone->next) {

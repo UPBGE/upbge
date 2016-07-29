@@ -78,8 +78,8 @@ void BKE_camera_init(Camera *cam)
 	/* stereoscopy 3d */
 	cam->stereo.interocular_distance = 0.065f;
 	cam->stereo.convergence_distance = 30.f * 0.065f;
-	cam->stereo.pole_merge_angle_from = DEG2RAD(60.0f);
-	cam->stereo.pole_merge_angle_to = DEG2RAD(75.0f);
+	cam->stereo.pole_merge_angle_from = DEG2RADF(60.0f);
+	cam->stereo.pole_merge_angle_to = DEG2RADF(75.0f);
 }
 
 void *BKE_camera_add(Main *bmain, const char *name)
@@ -99,45 +99,14 @@ Camera *BKE_camera_copy(Main *bmain, Camera *cam)
 	
 	camn = BKE_libblock_copy(bmain, &cam->id);
 
-	id_lib_extern((ID *)camn->dof_ob);
-
-	if (ID_IS_LINKED_DATABLOCK(cam)) {
-		BKE_id_lib_local_paths(bmain, cam->id.lib, &camn->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &cam->id, &camn->id);
 
 	return camn;
 }
 
-void BKE_camera_make_local(Main *bmain, Camera *cam)
+void BKE_camera_make_local(Main *bmain, Camera *cam, const bool lib_local)
 {
-	bool is_local = false, is_lib = false;
-
-	/* - only lib users: do nothing
-	 * - only local users: set flag
-	 * - mixed: make copy
-	 */
-
-	if (!ID_IS_LINKED_DATABLOCK(cam)) {
-		return;
-	}
-
-	BKE_library_ID_test_usages(bmain, cam, &is_local, &is_lib);
-
-	if (is_local) {
-		if (!is_lib) {
-			id_clear_lib_data(bmain, &cam->id);
-		}
-		else {
-			Camera *cam_new = BKE_camera_copy(bmain, cam);
-
-			cam_new->id.us = 0;
-
-			/* Remap paths of new ID using old library as base. */
-			BKE_id_lib_local_paths(bmain, cam->id.lib, &cam_new->id);
-
-			BKE_libblock_remap(bmain, cam, cam_new, ID_REMAP_SKIP_INDIRECT_USAGE);
-		}
-	}
+	BKE_id_make_local_generic(bmain, &cam->id, true, lib_local);
 }
 
 /** Free (or release) any data used by this camera (does not free the camera itself). */

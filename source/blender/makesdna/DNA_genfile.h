@@ -69,25 +69,38 @@ typedef enum eSDNA_Type {
  * For use with #DNA_struct_reconstruct & #DNA_struct_get_compareflags
  */
 enum eSDNA_StructCompare {
+	/* Struct has disappeared (values of this struct type will not be loaded by the current Blender) */
 	SDNA_CMP_REMOVED    = 0,
+	/* Struct is the same (can be loaded with straight memory copy after any necessary endian conversion) */
 	SDNA_CMP_EQUAL      = 1,
+	/* Struct is different in some way (needs to be copied/converted field by field) */
 	SDNA_CMP_NOT_EQUAL  = 2,
 };
 
 struct SDNA *DNA_sdna_from_data(
         const void *data, const int datalen,
-        bool do_endian_swap, bool data_alloc);
+        bool do_endian_swap, bool data_alloc,
+        const char **r_error_message);
 void DNA_sdna_free(struct SDNA *sdna);
 
-int DNA_struct_find_nr(struct SDNA *sdna, const char *str);
-void DNA_struct_switch_endian(struct SDNA *oldsdna, int oldSDNAnr, char *data);
-char *DNA_struct_get_compareflags(struct SDNA *sdna, struct SDNA *newsdna);
-void *DNA_struct_reconstruct(struct SDNA *newsdna, struct SDNA *oldsdna, char *compflags, int oldSDNAnr, int blocks, void *data);
+/* Access for current Blender versions SDNA*/
+void               DNA_sdna_current_init(void);
+/* borrowed reference */
+const struct SDNA *DNA_sdna_current_get(void);
+void               DNA_sdna_current_free(void);
+
+int DNA_struct_find_nr_ex(const struct SDNA *sdna, const char *str, unsigned int *index_last);
+int DNA_struct_find_nr(const struct SDNA *sdna, const char *str);
+void DNA_struct_switch_endian(const struct SDNA *oldsdna, int oldSDNAnr, char *data);
+const char *DNA_struct_get_compareflags(const struct SDNA *sdna, const struct SDNA *newsdna);
+void *DNA_struct_reconstruct(
+        const struct SDNA *newsdna, const struct SDNA *oldsdna,
+        const char *compflags, int oldSDNAnr, int blocks, const void *data);
 
 int DNA_elem_array_size(const char *str);
 int DNA_elem_offset(struct SDNA *sdna, const char *stype, const char *vartype, const char *name);
 
-bool DNA_struct_elem_find(struct SDNA *sdna, const char *stype, const char *vartype, const char *name);
+bool DNA_struct_elem_find(const struct SDNA *sdna, const char *stype, const char *vartype, const char *name);
 
 
 int DNA_elem_type_size(const eSDNA_Type elem_nr);

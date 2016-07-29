@@ -395,7 +395,7 @@ static void edbm_ripsel_deselect_helper(BMesh *bm, EdgeLoopPair *eloop_pairs,
  * return an un-ordered array of loop pairs
  * use for rebuilding face-fill
  *
- * \note the method currenly used fails for edges with 3+ face users and gives
+ * \note the method currently used fails for edges with 3+ face users and gives
  *       nasty holes in the mesh, there isnt a good way of knowing ahead of time
  *       which loops will be split apart (its possible to figure out but quite involved).
  *       So for now this is a known limitation of current rip-fill option.
@@ -748,10 +748,8 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 			}
 
 			if (do_fill) {
-				if (do_fill) {
-					/* match extrude vert-order */
-					BM_edge_create(bm, vout[1], vout[0], NULL, BM_CREATE_NOP);
-				}
+				/* match extrude vert-order */
+				BM_edge_create(bm, vout[1], vout[0], NULL, BM_CREATE_NOP);
 			}
 
 			MEM_freeN(vout);

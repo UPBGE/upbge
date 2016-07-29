@@ -1170,13 +1170,10 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 
 	copy_object_lod(obn, ob);
 	
-
 	/* Copy runtime surve data. */
 	obn->curve_cache = NULL;
 
-	if (ID_IS_LINKED_DATABLOCK(ob)) {
-		BKE_id_lib_local_paths(bmain, ob->id.lib, &obn->id);
-	}
+	BKE_id_copy_ensure_local(bmain, &ob->id, &obn->id);
 
 	/* Do not copy object's preview (mostly due to the fact renderers create temp copy of objects). */
 	obn->preview = NULL;
@@ -1190,28 +1187,14 @@ Object *BKE_object_copy(Main *bmain, Object *ob)
 	return BKE_object_copy_ex(bmain, ob, false);
 }
 
-static int extern_local_object_callback(
-        void *UNUSED(user_data), struct ID *UNUSED(id_self), struct ID **id_pointer, int cd_flag)
-{
-	/* We only tag usercounted ID usages as extern... Why? */
-	if ((cd_flag & IDWALK_USER) && *id_pointer) {
-		id_lib_extern(*id_pointer);
-	}
-	return IDWALK_RET_NOP;
-}
-
-static void extern_local_object(Object *ob)
-{
-	BKE_library_foreach_ID_link(&ob->id, extern_local_object_callback, NULL, 0);
-}
-
-void BKE_object_make_local(Main *bmain, Object *ob)
+void BKE_object_make_local(Main *bmain, Object *ob, const bool lib_local)
 {
 	bool is_local = false, is_lib = false;
 
-	/* - only lib users: do nothing
+	/* - only lib users: do nothing (unless force_local is set)
 	 * - only local users: set flag
 	 * - mixed: make copy
+	 * In case we make a whole lib's content local, we always want to localize, and we skip remapping (done later).
 	 */
 
 	if (!ID_IS_LINKED_DATABLOCK(ob)) {
@@ -1220,11 +1203,10 @@ void BKE_object_make_local(Main *bmain, Object *ob)
 
 	BKE_library_ID_test_usages(bmain, ob, &is_local, &is_lib);
 
-	if (is_local) {
+	if (lib_local || is_local) {
 		if (!is_lib) {
 			id_clear_lib_data(bmain, &ob->id);
-			ob->preview = NULL;
-			extern_local_object(ob);
+			BKE_id_expand_local(&ob->id);
 		}
 		else {
 			Object *ob_new = BKE_object_copy(bmain, ob);
@@ -1232,10 +1214,9 @@ void BKE_object_make_local(Main *bmain, Object *ob)
 			ob_new->id.us = 0;
 			ob_new->proxy = ob_new->proxy_from = ob_new->proxy_group = NULL;
 
-			/* Remap paths of new ID using old library as base. */
-			BKE_id_lib_local_paths(bmain, ob->id.lib, &ob_new->id);
-
-			BKE_libblock_remap(bmain, ob, ob_new, ID_REMAP_SKIP_INDIRECT_USAGE);
+			if (!lib_local) {
+				BKE_libblock_remap(bmain, ob, ob_new, ID_REMAP_SKIP_INDIRECT_USAGE);
+			}
 		}
 	}
 }

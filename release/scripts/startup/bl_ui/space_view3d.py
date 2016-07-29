@@ -367,6 +367,7 @@ class VIEW3D_MT_snap(Menu):
         layout.operator("view3d.snap_selected_to_grid", text="Selection to Grid")
         layout.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor").use_offset = False
         layout.operator("view3d.snap_selected_to_cursor", text="Selection to Cursor (Offset)").use_offset = True
+        layout.operator("view3d.snap_selected_to_active", text="Selection to Active")
 
         layout.separator()
 
@@ -2471,6 +2472,7 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
 
         layout.operator("mesh.edge_face_add")
         layout.operator("mesh.subdivide")
+        layout.operator("mesh.subdivide_edgering")
         layout.operator("mesh.unsubdivide")
 
         layout.separator()
