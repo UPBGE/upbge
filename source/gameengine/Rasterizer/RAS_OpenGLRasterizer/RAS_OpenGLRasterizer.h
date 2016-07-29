@@ -139,6 +139,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	std::map<SCA_IScene *, std::vector<OglDebugShape> > m_debugShapes;
 
 	GPUOffScreen *m_offScreens[RAS_OFFSCREEN_MAX];
+	short m_currentFBO;
 
 protected:
 	DrawType m_drawingmode;
@@ -181,9 +182,14 @@ public:
 	virtual void SetClearDepth(float d);
 	virtual void SetColorMask(bool r, bool g, bool b, bool a);
 	virtual void EndFrame();
+
 	virtual void BindFBO(RAS_ICanvas *canvas, unsigned short index);
 	virtual void UnbindFBO(unsigned short index);
 	virtual void DrawFBO(RAS_ICanvas *canvas, unsigned short index);
+	virtual void BindFBOTexture(unsigned short index, unsigned short slot, OffScreen type);
+	virtual void UnbindFBOTexture(unsigned short index, OffScreen type);
+	virtual short GetCurrentFBOIndex() const;
+
 	virtual void SetRenderArea(RAS_ICanvas *canvas);
 
 	virtual void SetStereoMode(const StereoMode stereomode);

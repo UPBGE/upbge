@@ -83,6 +83,7 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 
 void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 {
+	std::cout << __func__ << std::endl;
 	for (RAS_PassTo2DFilter::iterator it = m_filters.begin(), end = m_filters.end(); it != end; ++it) {
 		RAS_2DFilter *filter = it->second;
 		filter->Start(rasty, canvas);

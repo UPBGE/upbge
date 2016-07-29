@@ -710,8 +710,9 @@ void KX_KetsjiEngine::Render()
 		m_rasterizer->DisableStereo();
 	}
 
-	m_rasterizer->UnbindFBO(0);
-	m_rasterizer->DrawFBO(m_canvas, 0);
+	const short fboindex = m_rasterizer->GetCurrentFBOIndex();
+	m_rasterizer->UnbindFBO(fboindex);
+	m_rasterizer->DrawFBO(m_canvas, fboindex);
 
 	EndFrame();
 }
@@ -1082,7 +1083,9 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene)
 	m_rasterizer->FlushDebugShapes(scene);
 
 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
-// 	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
+	m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
+	m_rasterizer->SetScissor(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
+
 	scene->Render2DFilters(m_rasterizer, m_canvas);
 
 #ifdef WITH_PYTHON

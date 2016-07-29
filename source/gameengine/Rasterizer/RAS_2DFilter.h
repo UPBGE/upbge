@@ -72,8 +72,8 @@ protected:
 	void ParseShaderProgram();
 	void InitializeTextures(RAS_ICanvas *canvas);
 	void BindUniforms(RAS_ICanvas *canvas);
-	void BindTextures(RAS_ICanvas *canvas);
-	void UnbindTextures();
+	void BindTextures(RAS_IRasterizer *rasty, unsigned short fboindex);
+	void UnbindTextures(RAS_IRasterizer *rasty, unsigned short fboindex);
 	void DrawOverlayPlane(RAS_IRasterizer *rasty, RAS_ICanvas *canvas);
 	void ComputeTextureOffsets(RAS_ICanvas *canvas);
 	void ReleaseTextures();

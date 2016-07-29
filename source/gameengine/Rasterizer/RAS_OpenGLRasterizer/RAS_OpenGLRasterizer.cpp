@@ -226,6 +226,7 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	m_motionblurvalue(-1.0f),
 	m_clientobject(NULL),
 	m_auxilaryClientInfo(NULL),
+	m_currentFBO(-1),
 	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
 	m_texco_num(0),
@@ -686,7 +687,7 @@ void RAS_OpenGLRasterizer::BindFBO(RAS_ICanvas *canvas, unsigned short index)
 {
 	const int width = canvas->GetWidth() + 1;
 	const int height = canvas->GetHeight() + 1;
-	std::cout << __func__ << ", " << width << ", " << height << std::endl;
+	std::cout << __func__ << ", " << width << ", " << height << ", " << index << std::endl;
 
 	// Update or create for the first time the FBO textures.
 	if (!m_offScreens[index] ||
@@ -701,16 +702,22 @@ void RAS_OpenGLRasterizer::BindFBO(RAS_ICanvas *canvas, unsigned short index)
 
 	GPU_offscreen_bind(m_offScreens[index], false);
 	Enable(RAS_SCISSOR_TEST);
+
+	m_currentFBO = index;
 }
 
 void RAS_OpenGLRasterizer::UnbindFBO(unsigned short index)
 {
+	std::cout << __func__ << ", " << index << std::endl;
+
 	GPU_offscreen_unbind(m_offScreens[index], true);
+
+	m_currentFBO = -1;
 }
 
 void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 {
-	std::cout << __func__ << std::endl;
+	std::cout << __func__ << ", " << index << std::endl;
 
 	const int *viewport = canvas->GetViewPort();
 	SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
@@ -732,6 +739,35 @@ void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 	PopMatrix();
 	SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);
 	PopMatrix();
+}
+
+void RAS_OpenGLRasterizer::BindFBOTexture(unsigned short index, unsigned short slot, OffScreen type)
+{
+	GPUTexture *tex = NULL;
+	if (type == RAS_OFFSCREEN_COLOR) {
+		tex = GPU_offscreen_texture(m_offScreens[index]);
+	}
+	else if (type == RAS_OFFSCREEN_DEPTH) {
+		tex = GPU_offscreen_depth_texture(m_offScreens[index]);
+	}
+	GPU_texture_bind(tex, slot);
+}
+
+void RAS_OpenGLRasterizer::UnbindFBOTexture(unsigned short index, OffScreen type)
+{
+	GPUTexture *tex = NULL;
+	if (type == RAS_OFFSCREEN_COLOR) {
+		tex = GPU_offscreen_texture(m_offScreens[index]);
+	}
+	else if (type == RAS_OFFSCREEN_DEPTH) {
+		tex = GPU_offscreen_depth_texture(m_offScreens[index]);
+	}
+	GPU_texture_unbind(tex);
+}
+
+short RAS_OpenGLRasterizer::GetCurrentFBOIndex() const
+{
+	return m_currentFBO;
 }
 
 void RAS_OpenGLRasterizer::SetRenderArea(RAS_ICanvas *canvas)
