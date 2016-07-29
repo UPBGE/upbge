@@ -25,16 +25,16 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file KX_VibrationActuator.h
+/** \file SCA_VibrationActuator.h
 *  \ingroup ketsji
 */
 
-#ifndef __KX_VIBRATIONACTUATOR_H__
-#define __KX_VIBRATIONACTUATOR_H__
+#ifndef __SCA_VIBRATIONACTUATOR_H__
+#define __SCA_VIBRATIONACTUATOR_H__
 
 #include "SCA_IActuator.h"
 
-class KX_VibrationActuator : public SCA_IActuator
+class SCA_VibrationActuator : public SCA_IActuator
 {
 	Py_Header
 
@@ -46,9 +46,9 @@ private:
 
 public:
 
-	KX_VibrationActuator(SCA_IObject* gameobj, int joyindex, float strength, int duration);
+	SCA_VibrationActuator(SCA_IObject* gameobj, int joyindex, float strength, int duration);
 
-	virtual	~KX_VibrationActuator(void);
+	virtual	~SCA_VibrationActuator(void);
 
 	virtual CValue*	GetReplica(void);
 

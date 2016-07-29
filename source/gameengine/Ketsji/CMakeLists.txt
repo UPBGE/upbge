@@ -138,7 +138,6 @@ set(SRC
 	KX_TrackToActuator.cpp
 	KX_VehicleWrapper.cpp
 	KX_VertexProxy.cpp
-	KX_VibrationActuator.cpp
 	KX_VisibilityActuator.cpp
 	KX_WorldInfo.cpp
 	KX_WorldIpoController.cpp
@@ -225,7 +224,6 @@ set(SRC
 	KX_TrackToActuator.h
 	KX_VehicleWrapper.h
 	KX_VertexProxy.h
-	KX_VibrationActuator.h
 	KX_VisibilityActuator.h
 	KX_WorldInfo.h
 	KX_WorldIpoController.h

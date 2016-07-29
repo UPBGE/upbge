@@ -1,11 +1,11 @@
-KX_VibrationActuator(SCA_IActuator)
+SCA_VibrationActuator(SCA_IActuator)
 ====================================
 
 .. module:: bge.types
 
 base class --- :class:`SCA_IActuator`
 
-.. class:: KX_VibrationActuator(SCA_IActuator)
+.. class:: SCA_VibrationActuator(SCA_IActuator)
 
    Vibration Actuator.
 

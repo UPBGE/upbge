@@ -25,12 +25,12 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file gameengine/Ketsji/KX_VibrationActuator.cpp
+/** \file gameengine/Ketsji/SCA_VibrationActuator.cpp
 *  \ingroup ketsji
 */
 
 
-#include "KX_VibrationActuator.h"
+#include "SCA_VibrationActuator.h"
 #include "SCA_JoystickManager.h"
 #include "DEV_JoystickPrivate.h"
 #include <iostream> //std::cout
@@ -38,7 +38,7 @@
 	#include "SDL.h"
 #endif // WITH_SDL
 
-KX_VibrationActuator::KX_VibrationActuator(SCA_IObject* gameobj, int joyindex, float strength, int duration)
+SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject* gameobj, int joyindex, float strength, int duration)
 	: SCA_IActuator(gameobj, KX_ACT_VIBRATION),
 	m_joyindex(joyindex),
 	m_strength(strength),
@@ -46,18 +46,18 @@ KX_VibrationActuator::KX_VibrationActuator(SCA_IObject* gameobj, int joyindex, f
 {
 }
 
-KX_VibrationActuator::~KX_VibrationActuator(void)
+SCA_VibrationActuator::~SCA_VibrationActuator(void)
 {
 }
 
-CValue* KX_VibrationActuator::GetReplica(void)
+CValue* SCA_VibrationActuator::GetReplica(void)
 {
-	KX_VibrationActuator* replica = new KX_VibrationActuator(*this);
+	SCA_VibrationActuator* replica = new SCA_VibrationActuator(*this);
 	replica->ProcessReplica();
 	return replica;
 }
 
-bool KX_VibrationActuator::Update()
+bool SCA_VibrationActuator::Update()
 {
 #ifdef WITH_SDL
 
@@ -107,9 +107,9 @@ bool KX_VibrationActuator::Update()
 
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject KX_VibrationActuator::Type = {
+PyTypeObject SCA_VibrationActuator::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	"KX_VibrationActuator",
+	"SCA_VibrationActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -129,14 +129,14 @@ PyTypeObject KX_VibrationActuator::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_VibrationActuator::Methods[] = {
+PyMethodDef SCA_VibrationActuator::Methods[] = {
 	{ NULL, NULL } //Sentinel
 };
 
-PyAttributeDef KX_VibrationActuator::Attributes[] = {
-	KX_PYATTRIBUTE_INT_RW("duration", 0, INT_MAX, true, KX_VibrationActuator, m_duration),
-	KX_PYATTRIBUTE_INT_RW("joyindex", 0, 7, true, KX_VibrationActuator, m_joyindex),
-	KX_PYATTRIBUTE_FLOAT_RW("strength", 0.0, 1.0, KX_VibrationActuator, m_strength),
+PyAttributeDef SCA_VibrationActuator::Attributes[] = {
+	KX_PYATTRIBUTE_INT_RW("duration", 0, INT_MAX, true, SCA_VibrationActuator, m_duration),
+	KX_PYATTRIBUTE_INT_RW("joyindex", 0, 7, true, SCA_VibrationActuator, m_joyindex),
+	KX_PYATTRIBUTE_FLOAT_RW("strength", 0.0, 1.0, SCA_VibrationActuator, m_strength),
 	{ NULL }	//Sentinel
 };
 

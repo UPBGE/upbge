@@ -50,6 +50,7 @@
 #include "SCA_PropertyActuator.h"
 #include "SCA_LogicManager.h"
 #include "SCA_RandomActuator.h"
+#include "SCA_VibrationActuator.h"
 #include "SCA_2DFilterActuator.h"
 
 #include "RAS_2DFilterManager.h" // for filter type.
@@ -63,7 +64,6 @@
 #include "KX_CameraActuator.h"
 #include "KX_GameActuator.h"
 #include "KX_StateActuator.h"
-#include "KX_VibrationActuator.h"
 #include "KX_VisibilityActuator.h"
 #include "KX_SCA_AddObjectActuator.h"
 #include "KX_SCA_EndObjectActuator.h"
@@ -860,13 +860,13 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_VIBRATION:
 		{
 			bVibrationActuator *vib_act = (bVibrationActuator *)bact->data;
-			KX_VibrationActuator * tmp_vib_act = NULL;
+			SCA_VibrationActuator * tmp_vib_act = NULL;
 
 			int joyindex = vib_act->joyindex;
 			float strength = vib_act->strength;
 			int duration = vib_act->duration;
 
-			tmp_vib_act = new KX_VibrationActuator(gameobj, joyindex, strength, duration);
+			tmp_vib_act = new SCA_VibrationActuator(gameobj, joyindex, strength, duration);
 
 			baseact = tmp_vib_act;
 		}
