@@ -43,6 +43,7 @@ private:
 	int m_joyindex;
 	float m_strength;
 	int m_duration;
+	float m_remainingduration;
 
 public:
 

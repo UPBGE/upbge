@@ -32,17 +32,16 @@
 
 #include "SCA_VibrationActuator.h"
 #include "SCA_JoystickManager.h"
-#include "DEV_JoystickPrivate.h"
+
 #include <iostream> //std::cout
-#ifdef WITH_SDL
-	#include "SDL.h"
-#endif // WITH_SDL
+
 
 SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject* gameobj, int joyindex, float strength, int duration)
 	: SCA_IActuator(gameobj, KX_ACT_VIBRATION),
 	m_joyindex(joyindex),
 	m_strength(strength),
-	m_duration(duration)
+	m_duration(duration),
+	m_remainingduration(0.0f)
 {
 }
 
@@ -59,8 +58,6 @@ CValue* SCA_VibrationActuator::GetReplica(void)
 
 bool SCA_VibrationActuator::Update()
 {
-#ifdef WITH_SDL
-
 	/* Can't init instance in constructor because m_joystick list is not available yet */
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
 	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex) ? mgr->GetJoystickDevice(m_joyindex) : NULL;
@@ -68,34 +65,20 @@ bool SCA_VibrationActuator::Update()
 	if (!instance) {
 		return false;
 	}
+
 	bool bNegativeEvent = IsNegativeEvent();
-
-	if (bNegativeEvent) {
-		return false;
-	}
 	
-	SDL_Haptic *haptic;
-
-	// Open the device
-	haptic = instance->GetPrivate()->m_haptic;
-	if (haptic == NULL) {
-		return false;
+	if (bNegativeEvent) {
+		instance->RumblePlay(m_strength, m_duration);
+		m_remainingduration = m_duration / 1000.0f * 60.0f;
 	}
-
-	// Initialize simple rumble
-	if (SDL_HapticRumbleInit(haptic) != 0) {
-		return false;
+	else {
+		m_remainingduration -= 1.0f;
 	}
-
-	// Play effect at strength for m_duration frame
-	if (SDL_HapticRumblePlay(haptic, m_strength, m_duration) != 0)
-		return false;
 
 	RemoveAllEvents();
 
-	return true;
-
-#endif // WITH_SDL
+	return m_remainingduration > 0.0f;
 }
 
 #ifdef WITH_PYTHON
