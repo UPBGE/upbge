@@ -24,6 +24,10 @@
  *  \ingroup launcher
  */
 
+#ifdef WIN32
+#  include <Windows.h>
+#endif
+
 #include "LA_Launcher.h"
 #include "LA_System.h"
 #include "LA_SystemCommandLine.h"
@@ -64,10 +68,6 @@ extern "C" {
 
 #  include "wm_event_types.h"
 }
-
-#ifdef WIN32
-#  include <Windows.h>
-#endif
 
 #ifdef WITH_AUDASPACE
 #  include AUD_DEVICE_H
