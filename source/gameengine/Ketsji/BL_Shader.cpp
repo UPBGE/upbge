@@ -158,12 +158,19 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSourceDict, " setSourceDict(sources, apply)")
 	if (PyArg_ParseTuple(args, "O!i:setSourceDict", &PyDict_Type, &pydict, &apply)) {
 		bool error = false;
 		static const char *progname[MAX_PROGRAM] = {"vertex", "fragment", "geometry"};
-		static const bool progneeded[MAX_PROGRAM] = {true, true, false};
+		static const bool optional[MAX_PROGRAM] = {false, false, true};
 
 		for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
 			PyObject *pyprog = PyDict_GetItemString(pydict, progname[i]);
-			if (!pyprog) {
-				error = progneeded[i];
+			if (!optional[i]) {
+				if (!pyprog) {
+					error = true;
+					PyErr_Format(PyExc_SystemError, "setSourceDict(sources, apply): BL_Shader, non optional %s program missing", progname[i]);
+				}
+				else if (!PyUnicode_Check(pyprog)) {
+					error = true;
+					PyErr_Format(PyExc_SystemError, "setSourceDict(sources, apply): BL_Shader, non optional %s program is not a string", progname[i]);
+				}
 			}
 			else {
 				m_progs[i] = STR_String(_PyUnicode_AsString(pyprog));
