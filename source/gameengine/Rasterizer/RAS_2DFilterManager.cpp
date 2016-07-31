@@ -25,6 +25,7 @@
  */
 
 #include "RAS_ICanvas.h"
+#include "RAS_IRasterizer.h"
 #include "RAS_2DFilterManager.h"
 #include "RAS_2DFilter.h"
 
@@ -84,11 +85,29 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 {
 	std::cout << __func__ << std::endl;
+	rasty->Disable(RAS_IRasterizer::RAS_DEPTH_TEST);
+	rasty->Disable(RAS_IRasterizer::RAS_BLEND);
+	rasty->Disable(RAS_IRasterizer::RAS_ALPHA_TEST);
+
+	rasty->SetLines(false);
+
+	rasty->PushMatrix();
+	rasty->LoadIdentity();
+	rasty->SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
+	rasty->PushMatrix();
+	rasty->LoadIdentity();
+
 	for (RAS_PassTo2DFilter::iterator it = m_filters.begin(), end = m_filters.end(); it != end; ++it) {
 		RAS_2DFilter *filter = it->second;
 		filter->Start(rasty, canvas);
 		filter->End();
 	}
+
+	rasty->PopMatrix();
+	rasty->SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);
+	rasty->PopMatrix();
+
+	rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
 }
 
 RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)

@@ -625,6 +625,8 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 		glEnd();
 	}
 
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
 	if (light) {
 		Enable(RAS_LIGHTING);
 	}
@@ -683,22 +685,28 @@ void RAS_OpenGLRasterizer::EndFrame()
 	Disable(RAS_FOG);
 }
 
-void RAS_OpenGLRasterizer::BindFBO(RAS_ICanvas *canvas, unsigned short index)
+void RAS_OpenGLRasterizer::UpdateFBOs(RAS_ICanvas *canvas)
 {
-	const int width = canvas->GetWidth() + 1;
-	const int height = canvas->GetHeight() + 1;
-	std::cout << __func__ << ", " << width << ", " << height << ", " << index << std::endl;
+	for (unsigned short i = 0; i < RAS_OFFSCREEN_MAX; ++i) {
+		const int width = canvas->GetWidth() + 1;
+		const int height = canvas->GetHeight() + 1;
 
-	// Update or create for the first time the FBO textures.
-	if (!m_offScreens[index] ||
-		GPU_offscreen_width(m_offScreens[index]) != width ||
-		GPU_offscreen_height(m_offScreens[index]) != height)
-	{
-		if (m_offScreens[index]) {
-			GPU_offscreen_free(m_offScreens[index]);
+		// Update or create for the first time the FBO textures.
+		if (!m_offScreens[i] ||
+			GPU_offscreen_width(m_offScreens[i]) != width ||
+			GPU_offscreen_height(m_offScreens[i]) != height)
+		{
+			if (m_offScreens[i]) {
+				GPU_offscreen_free(m_offScreens[i]);
+			}
+			m_offScreens[i] = GPU_offscreen_create(width, height, 0, false, NULL);
 		}
-		m_offScreens[index] = GPU_offscreen_create(width, height, 0, NULL);
 	}
+}
+
+void RAS_OpenGLRasterizer::BindFBO(unsigned short index)
+{
+	std::cout << __func__ << ", " << index << std::endl;
 
 	GPU_offscreen_bind(m_offScreens[index], false);
 	Enable(RAS_SCISSOR_TEST);
@@ -710,9 +718,14 @@ void RAS_OpenGLRasterizer::UnbindFBO(unsigned short index)
 {
 	std::cout << __func__ << ", " << index << std::endl;
 
-	GPU_offscreen_unbind(m_offScreens[index], true);
+	GPU_offscreen_unbind(m_offScreens[index], false);
 
 	m_currentFBO = -1;
+}
+
+void RAS_OpenGLRasterizer::BlitFBO(unsigned short srcindex, unsigned short dstindex)
+{
+	GPU_offscreen_blit(m_offScreens[srcindex], m_offScreens[dstindex]);
 }
 
 void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
@@ -732,8 +745,9 @@ void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 
 	GPUTexture *colortex = GPU_offscreen_texture(m_offScreens[index]);
 	GPU_texture_bind(colortex, 0);
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
 	DrawOverlayPlane();
+
 	GPU_texture_unbind(colortex);
 
 	PopMatrix();

@@ -92,7 +92,7 @@ static void GPU_glTexSubImageEmpty(GLenum target, GLenum format, int x, int y, i
 
 static GPUTexture *GPU_texture_create_nD(
         int w, int h, int n, const float *fpixels, int depth,
-        GPUHDRType hdr_type, int components, int samples,
+        GPUHDRType hdr_type, int components, int samples, bool compare,
         char err_out[256])
 {
 	GLenum type, format, internalformat;
@@ -222,8 +222,10 @@ static GPUTexture *GPU_texture_create_nD(
 	if (depth) {
 		glTexParameteri(tex->target_base, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(tex->target_base, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(tex->target_base, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE);
-		glTexParameteri(tex->target_base, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+		if (compare) {
+			glTexParameteri(tex->target_base, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE);
+			glTexParameteri(tex->target_base, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+		}
 		glTexParameteri(tex->target_base, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);
 	}
 	else {
@@ -471,7 +473,7 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 
 GPUTexture *GPU_texture_create_1D(int w, const float *fpixels, char err_out[256])
 {
-	GPUTexture *tex = GPU_texture_create_nD(w, 1, 1, fpixels, 0, GPU_HDR_NONE, 4, 0, err_out);
+	GPUTexture *tex = GPU_texture_create_nD(w, 1, 1, fpixels, 0, GPU_HDR_NONE, 4, 0, false, err_out);
 
 	if (tex)
 		GPU_texture_unbind(tex);
@@ -481,7 +483,7 @@ GPUTexture *GPU_texture_create_1D(int w, const float *fpixels, char err_out[256]
 
 GPUTexture *GPU_texture_create_2D(int w, int h, const float *fpixels, GPUHDRType hdr, char err_out[256])
 {
-	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, fpixels, 0, hdr, 4, 0, err_out);
+	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, fpixels, 0, hdr, 4, 0, false, err_out);
 
 	if (tex)
 		GPU_texture_unbind(tex);
@@ -491,7 +493,7 @@ GPUTexture *GPU_texture_create_2D(int w, int h, const float *fpixels, GPUHDRType
 GPUTexture *GPU_texture_create_2D_multisample(
         int w, int h, const float *fpixels, GPUHDRType hdr, int samples, char err_out[256])
 {
-	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, fpixels, 0, hdr, 4, samples, err_out);
+	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, fpixels, 0, hdr, 4, samples, false, err_out);
 
 	if (tex)
 		GPU_texture_unbind(tex);
@@ -499,18 +501,18 @@ GPUTexture *GPU_texture_create_2D_multisample(
 	return tex;
 }
 
-GPUTexture *GPU_texture_create_depth(int w, int h, char err_out[256])
+GPUTexture *GPU_texture_create_depth(int w, int h, bool compare, char err_out[256])
 {
-	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, NULL, 1, GPU_HDR_NONE, 1, 0, err_out);
+	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, NULL, 1, GPU_HDR_NONE, 1, 0, compare, err_out);
 
 	if (tex)
 		GPU_texture_unbind(tex);
 	
 	return tex;
 }
-GPUTexture *GPU_texture_create_depth_multisample(int w, int h, int samples, char err_out[256])
+GPUTexture *GPU_texture_create_depth_multisample(int w, int h, int samples, bool compare, char err_out[256])
 {
-	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, NULL, 1, GPU_HDR_NONE, 1, samples, err_out);
+	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, NULL, 1, GPU_HDR_NONE, 1, samples, compare, err_out);
 
 	if (tex)
 		GPU_texture_unbind(tex);
@@ -523,7 +525,7 @@ GPUTexture *GPU_texture_create_depth_multisample(int w, int h, int samples, char
  */
 GPUTexture *GPU_texture_create_vsm_shadow_map(int size, char err_out[256])
 {
-	GPUTexture *tex = GPU_texture_create_nD(size, size, 2, NULL, 0, GPU_HDR_FULL_FLOAT, 2, 0, err_out);
+	GPUTexture *tex = GPU_texture_create_nD(size, size, 2, NULL, 0, GPU_HDR_FULL_FLOAT, 2, 0, false, err_out);
 
 	if (tex) {
 		/* Now we tweak some of the settings */
@@ -538,7 +540,7 @@ GPUTexture *GPU_texture_create_vsm_shadow_map(int size, char err_out[256])
 
 GPUTexture *GPU_texture_create_2D_procedural(int w, int h, const float *pixels, bool repeat, char err_out[256])
 {
-	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, pixels, 0, GPU_HDR_HALF_FLOAT, 2, 0, err_out);
+	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, pixels, 0, GPU_HDR_HALF_FLOAT, 2, 0, false, err_out);
 
 	if (tex) {
 		/* Now we tweak some of the settings */
@@ -557,7 +559,7 @@ GPUTexture *GPU_texture_create_2D_procedural(int w, int h, const float *pixels, 
 
 GPUTexture *GPU_texture_create_1D_procedural(int w, const float *pixels, char err_out[256])
 {
-	GPUTexture *tex = GPU_texture_create_nD(w, 0, 1, pixels, 0, GPU_HDR_HALF_FLOAT, 2, 0, err_out);
+	GPUTexture *tex = GPU_texture_create_nD(w, 0, 1, pixels, 0, GPU_HDR_HALF_FLOAT, 2, 0, false, err_out);
 
 	if (tex) {
 		/* Now we tweak some of the settings */

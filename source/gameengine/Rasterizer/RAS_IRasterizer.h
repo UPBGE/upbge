@@ -317,10 +317,13 @@ public:
 	 */
 	virtual void EndFrame() = 0;
 
+	virtual void UpdateFBOs(RAS_ICanvas *canvas) = 0;
 	/// Bind frame buffer object.
-	virtual void BindFBO(RAS_ICanvas *canvas, unsigned short index) = 0;
+	virtual void BindFBO(unsigned short index) = 0;
 	/// Unbind frame buffer object.
 	virtual void UnbindFBO(unsigned short index) = 0;
+	/// Blit FBO to another.
+	virtual void BlitFBO(unsigned short srcindex, unsigned short dstindex) = 0;
 	/// Draw frame buffer object to screen.
 	virtual void DrawFBO(RAS_ICanvas *canvas, unsigned short index) = 0;
 	/// Bind frame buffer object texture.

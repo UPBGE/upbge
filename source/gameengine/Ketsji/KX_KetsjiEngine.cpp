@@ -266,11 +266,6 @@ void KX_KetsjiEngine::StartEngine(bool clearIpo)
 
 void KX_KetsjiEngine::ClearFrame()
 {
-	// clear unless we're drawing overlapping stereo
-	if (m_rasterizer->InterlacedStereo() &&
-	    m_rasterizer->GetEye() == RAS_IRasterizer::RAS_STEREO_RIGHTEYE)
-		return;
-
 	// clear the viewports with the background color of the first scene
 	bool doclear = false;
 	RAS_Rect clearvp, area, viewport;
@@ -306,9 +301,9 @@ void KX_KetsjiEngine::ClearFrame()
 		firstscene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight(), clearvp.GetTop());
-		std::cout << __func__ << ", " << clearvp.GetLeft() << ", " << clearvp.GetBottom() << ", " << clearvp.GetRight() << ", " << clearvp.GetTop() << std::endl;
-		m_rasterizer->SetViewport(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight() + 1, clearvp.GetTop() + 1);
-		m_rasterizer->SetScissor(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight() + 1, clearvp.GetTop() + 1);
+		std::cout << __func__ << ", " << clearvp.GetLeft() << ", " << clearvp.GetBottom() << ", " << clearvp.GetWidth() << ", " << clearvp.GetHeight() << std::endl;
+		m_rasterizer->SetViewport(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetWidth() + 1, clearvp.GetHeight() + 1);
+		m_rasterizer->SetScissor(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetWidth() + 1, clearvp.GetHeight() + 1);
 		/* Grey color computed by linearrgb_to_srgb_v3_v3 with a color of 
 		 * 0.050, 0.050, 0.050 (the default world horizon color).
 		 */
@@ -591,13 +586,15 @@ void KX_KetsjiEngine::Render()
 		RenderShadowBuffers((KX_Scene *)*sceit);
 	}
 
-	m_rasterizer->BindFBO(m_canvas, 0);
+	m_rasterizer->UpdateFBOs(m_canvas);
+	m_rasterizer->BindFBO(0);
 
 	// clear the entire game screen with the border color
 	// only once per frame
 	m_canvas->BeginDraw();
 	if (m_rasterizer->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED) {
 		m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+		m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
 		m_rasterizer->SetScissor(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 		if (m_overrideFrameColor) {
 			// Do not use the framing bar color set in the Blender scenes
@@ -625,8 +622,6 @@ void KX_KetsjiEngine::Render()
 	}
 
 	m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_LEFTEYE);
-
-	// set the area used for rendering (stereo can assign only a subset)
 	m_rasterizer->SetRenderArea(m_canvas);
 
 	// for each scene, call the proceed functions
@@ -711,6 +706,7 @@ void KX_KetsjiEngine::Render()
 	}
 
 	const short fboindex = m_rasterizer->GetCurrentFBOIndex();
+	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
 	m_rasterizer->UnbindFBO(fboindex);
 	m_rasterizer->DrawFBO(m_canvas, fboindex);
 
@@ -814,15 +810,9 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect
 		area = userviewport;
 	}
 	else if (!m_overrideCam || (scene->GetName() != m_overrideSceneName) ||  m_overrideCamUseOrtho) {
-		RAS_Rect fullarea;
-		fullarea.SetLeft(0);
-		fullarea.SetBottom(0);
-		fullarea.SetRight(int(m_canvas->GetWidth()));
-		fullarea.SetTop(int(m_canvas->GetHeight()));
-
 		RAS_FramingManager::ComputeViewport(
 		    scene->GetFramingType(),
-		    fullarea,
+		    m_canvas->GetDisplayArea(),
 		    viewport);
 		std::cout << __func__ << ", " << viewport.GetLeft() << ", " << viewport.GetBottom() << ", " << viewport.GetWidth() << ", " << viewport.GetHeight() << std::endl;
 		area = m_canvas->GetDisplayArea();
@@ -935,8 +925,8 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 	GetSceneViewport(scene, cam, area, viewport);
 
 	// set the viewport for this frame and scene
-	m_rasterizer->SetViewport(area.GetLeft(), area.GetBottom(), area.GetWidth() + 1, area.GetHeight() + 1);
-	m_rasterizer->SetScissor(area.GetLeft(), area.GetBottom(), area.GetWidth() + 1, area.GetHeight() + 1);
+	m_rasterizer->SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
 
 	// see KX_BlenderMaterial::Activate
 	//m_rasterizer->SetAmbient();
@@ -1084,7 +1074,7 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene)
 
 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
 	m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
-	m_rasterizer->SetScissor(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
+// 	m_rasterizer->SetScissor(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 
 	scene->Render2DFilters(m_rasterizer, m_canvas);
 

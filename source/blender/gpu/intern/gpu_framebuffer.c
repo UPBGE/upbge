@@ -29,6 +29,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+#include "BLI_math_base.h"
 
 #include "BKE_global.h"
 
@@ -452,7 +453,7 @@ struct GPUOffScreen {
 	GPUTexture *depth;
 };
 
-GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, char err_out[256])
+GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, bool compare, char err_out[256])
 {
 	GPUOffScreen *ofs;
 
@@ -479,7 +480,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, char err_
 		}
 	}
 
-	ofs->depth = GPU_texture_create_depth_multisample(width, height, samples, err_out);
+	ofs->depth = GPU_texture_create_depth_multisample(width, height, samples, compare, err_out);
 	if (!ofs->depth) {
 		GPU_offscreen_free(ofs);
 		return NULL;
@@ -619,6 +620,17 @@ finally:
 	else {
 		glReadPixels(0, 0, w, h, GL_RGBA, type, pixels);
 	}
+}
+
+void GPU_offscreen_blit(GPUOffScreen *srcofs, GPUOffScreen *dstofs)
+{
+	glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, srcofs->fb->object);
+	glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER_EXT, dstofs->fb->object);
+
+	int height = min_ff(GPU_offscreen_height(srcofs), GPU_offscreen_height(dstofs));
+	int width = min_ff(GPU_offscreen_width(srcofs), GPU_offscreen_width(dstofs));
+
+	glBlitFramebufferEXT(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 }
 
 int GPU_offscreen_width(const GPUOffScreen *ofs)

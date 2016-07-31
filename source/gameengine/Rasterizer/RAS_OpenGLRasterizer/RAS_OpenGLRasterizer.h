@@ -183,8 +183,10 @@ public:
 	virtual void SetColorMask(bool r, bool g, bool b, bool a);
 	virtual void EndFrame();
 
-	virtual void BindFBO(RAS_ICanvas *canvas, unsigned short index);
+	virtual void UpdateFBOs(RAS_ICanvas *canvas);
+	virtual void BindFBO(unsigned short index);
 	virtual void UnbindFBO(unsigned short index);
+	virtual void BlitFBO(unsigned short srcindex, unsigned short dstindex);
 	virtual void DrawFBO(RAS_ICanvas *canvas, unsigned short index);
 	virtual void BindFBOTexture(unsigned short index, unsigned short slot, OffScreen type);
 	virtual void UnbindFBOTexture(unsigned short index, OffScreen type);

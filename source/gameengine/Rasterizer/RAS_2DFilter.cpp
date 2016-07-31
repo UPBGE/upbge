@@ -104,20 +104,33 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 {
 	Initialize(canvas);
 
-	if (Ok()) {
-		const unsigned short fboindex = rasty->GetCurrentFBOIndex();
-		rasty->UnbindFBO(fboindex);
-		rasty->BindFBO(canvas, 1 - fboindex);
-		SetProg(true);
-		BindTextures(rasty, fboindex);
-		BindUniforms(canvas);
-		MT_Matrix4x4 mat;
-		mat.setIdentity();
-		Update(rasty, mat);
-		ApplyShader();
-		DrawOverlayPlane(rasty, canvas);
-		UnbindTextures(rasty, fboindex);
+	if (!Ok()) {
+		return;
 	}
+
+	const unsigned short fboindex = rasty->GetCurrentFBOIndex();
+	rasty->UnbindFBO(fboindex);
+
+	rasty->Disable(RAS_IRasterizer::RAS_SCISSOR_TEST);
+	rasty->BlitFBO(fboindex, 1 - fboindex);
+	rasty->Enable(RAS_IRasterizer::RAS_SCISSOR_TEST);
+
+	rasty->BindFBO(1 - fboindex);
+
+	SetProg(true);
+
+	BindTextures(rasty, fboindex);
+	BindUniforms(canvas);
+
+	MT_Matrix4x4 mat;
+	mat.setIdentity();
+	Update(rasty, mat);
+
+	ApplyShader();
+
+	rasty->DrawOverlayPlane();
+
+	UnbindTextures(rasty, fboindex);
 }
 
 void RAS_2DFilter::End()
@@ -315,7 +328,17 @@ void RAS_2DFilter::DrawOverlayPlane(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 
 	rasty->SetLines(false);
 
+	rasty->PushMatrix();
+	rasty->LoadIdentity();
+	rasty->SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
+	rasty->PushMatrix();
+	rasty->LoadIdentity();
+
 	rasty->DrawOverlayPlane();
+
+	rasty->PopMatrix();
+	rasty->SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);
+	rasty->PopMatrix();
 
 	rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
 }
