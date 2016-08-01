@@ -210,6 +210,100 @@ void RAS_OpenGLRasterizer::ScreenPlane::Render()
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 }
 
+RAS_OpenGLRasterizer::ScreenFBO::ScreenFBO()
+	:m_currentIndex(-1)
+{
+	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_OFFSCREEN_MAX; ++i) {
+		m_offScreens[i] = NULL;
+	}
+}
+
+RAS_OpenGLRasterizer::ScreenFBO::~ScreenFBO()
+{
+	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_OFFSCREEN_MAX; ++i) {
+		if (m_offScreens[i]) {
+			GPU_offscreen_free(m_offScreens[i]);
+		}
+	}
+}
+
+void RAS_OpenGLRasterizer::ScreenFBO::Update(RAS_ICanvas *canvas)
+{
+	const int width = canvas->GetWidth() + 1;
+	const int height = canvas->GetHeight() + 1;
+
+	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_OFFSCREEN_MAX; ++i) {
+		// Update or create for the first time the FBO textures.
+		if (!m_offScreens[i] ||
+			GPU_offscreen_width(m_offScreens[i]) != width ||
+			GPU_offscreen_height(m_offScreens[i]) != height)
+		{
+			if (m_offScreens[i]) {
+				GPU_offscreen_free(m_offScreens[i]);
+			}
+			m_offScreens[i] = GPU_offscreen_create(width, height, 0, false, NULL);
+		}
+	}
+}
+
+void RAS_OpenGLRasterizer::ScreenFBO::Bind(unsigned short index)
+{
+	GPU_offscreen_bind(m_offScreens[index], false);
+
+	m_currentIndex = index;
+}
+
+void RAS_OpenGLRasterizer::ScreenFBO::Unbind(unsigned short index)
+{
+	GPU_offscreen_unbind(m_offScreens[index], false);
+
+	m_currentIndex = -1;
+}
+
+void RAS_OpenGLRasterizer::ScreenFBO::BeginDraw(unsigned short index)
+{
+	BindTexture(index, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+}
+
+void RAS_OpenGLRasterizer::ScreenFBO::EndDraw(unsigned short index)
+{
+	UnbindTexture(index, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+}
+
+void RAS_OpenGLRasterizer::ScreenFBO::Blit(unsigned short srcindex, unsigned short dstindex)
+{
+	GPU_offscreen_blit(m_offScreens[srcindex], m_offScreens[dstindex]);
+}
+
+void RAS_OpenGLRasterizer::ScreenFBO::BindTexture(unsigned short index, unsigned short slot, OffScreen type)
+{
+	GPUTexture *tex = NULL;
+	if (type == RAS_IRasterizer::RAS_OFFSCREEN_COLOR) {
+		tex = GPU_offscreen_texture(m_offScreens[index]);
+	}
+	else if (type == RAS_IRasterizer::RAS_OFFSCREEN_DEPTH) {
+		tex = GPU_offscreen_depth_texture(m_offScreens[index]);
+	}
+	GPU_texture_bind(tex, slot);
+}
+
+void RAS_OpenGLRasterizer::ScreenFBO::UnbindTexture(unsigned short index, OffScreen type)
+{
+	GPUTexture *tex = NULL;
+	if (type == RAS_IRasterizer::RAS_OFFSCREEN_COLOR) {
+		tex = GPU_offscreen_texture(m_offScreens[index]);
+	}
+	else if (type == RAS_IRasterizer::RAS_OFFSCREEN_DEPTH) {
+		tex = GPU_offscreen_depth_texture(m_offScreens[index]);
+	}
+	GPU_texture_unbind(tex);
+}
+
+unsigned short RAS_OpenGLRasterizer::ScreenFBO::GetCurrentIndex() const
+{
+	return m_currentIndex;
+}
+
 RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	: m_fogenabled(false),
 	m_time(0.0f),
@@ -226,7 +320,6 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	m_motionblurvalue(-1.0f),
 	m_clientobject(NULL),
 	m_auxilaryClientInfo(NULL),
-	m_currentFBO(-1),
 	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
 	m_texco_num(0),
@@ -251,22 +344,12 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	glGetIntegerv(GL_MAX_LIGHTS, (GLint *)&m_numgllights);
 	if (m_numgllights < 8)
 		m_numgllights = 8;
-
-	for (unsigned short i = 0; i < RAS_OFFSCREEN_MAX; ++i) {
-		m_offScreens[i] = NULL;
-	}
 }
 
 RAS_OpenGLRasterizer::~RAS_OpenGLRasterizer()
 {
 	for (unsigned short i = 0; i < RAS_STORAGE_MAX; ++i) {
 		delete m_storages[i];
-	}
-
-	for (unsigned short i = 0; i < RAS_OFFSCREEN_MAX; ++i) {
-		if (m_offScreens[i]) {
-			GPU_offscreen_free(m_offScreens[i]);
-		}
 	}
 }
 
@@ -687,45 +770,29 @@ void RAS_OpenGLRasterizer::EndFrame()
 
 void RAS_OpenGLRasterizer::UpdateFBOs(RAS_ICanvas *canvas)
 {
-	for (unsigned short i = 0; i < RAS_OFFSCREEN_MAX; ++i) {
-		const int width = canvas->GetWidth() + 1;
-		const int height = canvas->GetHeight() + 1;
-
-		// Update or create for the first time the FBO textures.
-		if (!m_offScreens[i] ||
-			GPU_offscreen_width(m_offScreens[i]) != width ||
-			GPU_offscreen_height(m_offScreens[i]) != height)
-		{
-			if (m_offScreens[i]) {
-				GPU_offscreen_free(m_offScreens[i]);
-			}
-			m_offScreens[i] = GPU_offscreen_create(width, height, 0, false, NULL);
-		}
-	}
+	m_screenFBO.Update(canvas);
 }
 
 void RAS_OpenGLRasterizer::BindFBO(unsigned short index)
 {
 	std::cout << __func__ << ", " << index << std::endl;
 
-	GPU_offscreen_bind(m_offScreens[index], false);
-	Enable(RAS_SCISSOR_TEST);
+	m_screenFBO.Bind(index);
 
-	m_currentFBO = index;
+	/// GPU_offscreen_bind disable the scissor test, we renable it.
+	Enable(RAS_SCISSOR_TEST);
 }
 
 void RAS_OpenGLRasterizer::UnbindFBO(unsigned short index)
 {
 	std::cout << __func__ << ", " << index << std::endl;
 
-	GPU_offscreen_unbind(m_offScreens[index], false);
-
-	m_currentFBO = -1;
+	m_screenFBO.Unbind(index);
 }
 
 void RAS_OpenGLRasterizer::BlitFBO(unsigned short srcindex, unsigned short dstindex)
 {
-	GPU_offscreen_blit(m_offScreens[srcindex], m_offScreens[dstindex]);
+	m_screenFBO.Blit(srcindex, dstindex);
 }
 
 void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
@@ -739,49 +806,32 @@ void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 
 	PushMatrix();
 	LoadIdentity();
-	SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
+	SetMatrixMode(RAS_PROJECTION);
 	PushMatrix();
 	LoadIdentity();
 
-	GPUTexture *colortex = GPU_offscreen_texture(m_offScreens[index]);
-	GPU_texture_bind(colortex, 0);
-
+	m_screenFBO.BeginDraw(index);
 	DrawOverlayPlane();
-
-	GPU_texture_unbind(colortex);
+	m_screenFBO.EndDraw(index);
 
 	PopMatrix();
-	SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);
+	SetMatrixMode(RAS_MODELVIEW);
 	PopMatrix();
 }
 
 void RAS_OpenGLRasterizer::BindFBOTexture(unsigned short index, unsigned short slot, OffScreen type)
 {
-	GPUTexture *tex = NULL;
-	if (type == RAS_OFFSCREEN_COLOR) {
-		tex = GPU_offscreen_texture(m_offScreens[index]);
-	}
-	else if (type == RAS_OFFSCREEN_DEPTH) {
-		tex = GPU_offscreen_depth_texture(m_offScreens[index]);
-	}
-	GPU_texture_bind(tex, slot);
+	m_screenFBO.BindTexture(index, slot, type);
 }
 
 void RAS_OpenGLRasterizer::UnbindFBOTexture(unsigned short index, OffScreen type)
 {
-	GPUTexture *tex = NULL;
-	if (type == RAS_OFFSCREEN_COLOR) {
-		tex = GPU_offscreen_texture(m_offScreens[index]);
-	}
-	else if (type == RAS_OFFSCREEN_DEPTH) {
-		tex = GPU_offscreen_depth_texture(m_offScreens[index]);
-	}
-	GPU_texture_unbind(tex);
+	m_screenFBO.UnbindTexture(index, type);
 }
 
 short RAS_OpenGLRasterizer::GetCurrentFBOIndex() const
 {
-	return m_currentFBO;
+	return m_screenFBO.GetCurrentIndex();
 }
 
 void RAS_OpenGLRasterizer::SetRenderArea(RAS_ICanvas *canvas)

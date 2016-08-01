@@ -72,6 +72,27 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		void Render();
 	};
 
+	class ScreenFBO
+	{
+	private:
+		GPUOffScreen *m_offScreens[RAS_OFFSCREEN_MAX];
+		short m_currentIndex;
+
+	public:
+		ScreenFBO();
+		virtual ~ScreenFBO();
+
+		void Update(RAS_ICanvas *canvas);
+		void Bind(unsigned short index);
+		void Unbind(unsigned short index);
+		void BeginDraw(unsigned short index);
+		void EndDraw(unsigned short index);
+		void Blit(unsigned short srcindex, unsigned short dstindex);
+		void BindTexture(unsigned short index, unsigned short slot, OffScreen type);
+		void UnbindTexture(unsigned short index, OffScreen type);
+		unsigned short GetCurrentIndex() const;
+	};
+
 	struct OglDebugShape
 	{
 		enum SHAPE_TYPE
@@ -138,8 +159,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, std::vector<OglDebugShape> > m_debugShapes;
 
-	GPUOffScreen *m_offScreens[RAS_OFFSCREEN_MAX];
-	short m_currentFBO;
+	ScreenFBO m_screenFBO;
 
 protected:
 	DrawType m_drawingmode;
