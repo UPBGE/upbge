@@ -474,7 +474,6 @@ void RAS_OpenGLRasterizer::DrawOverlayPlane()
 
 bool RAS_OpenGLRasterizer::BeginFrame(double time)
 {
-	std::cout << __func__ << std::endl;
 	m_time = time;
 
 	// Blender camera routine destroys the settings
@@ -570,7 +569,6 @@ void RAS_OpenGLRasterizer::Clear(int clearbit)
 		glclearbit |= GL_STENCIL_BUFFER_BIT;
 	}
 
-	std::cout << __func__ << ", " << clearbit << std::endl;
 	glClear(glclearbit);
 }
 
@@ -775,8 +773,6 @@ void RAS_OpenGLRasterizer::UpdateFBOs(RAS_ICanvas *canvas)
 
 void RAS_OpenGLRasterizer::BindFBO(unsigned short index)
 {
-	std::cout << __func__ << ", " << index << std::endl;
-
 	m_screenFBO.Bind(index);
 
 	/// GPU_offscreen_bind disable the scissor test, we renable it.
@@ -785,8 +781,6 @@ void RAS_OpenGLRasterizer::BindFBO(unsigned short index)
 
 void RAS_OpenGLRasterizer::UnbindFBO(unsigned short index)
 {
-	std::cout << __func__ << ", " << index << std::endl;
-
 	m_screenFBO.Unbind(index);
 }
 
@@ -797,8 +791,6 @@ void RAS_OpenGLRasterizer::BlitFBO(unsigned short srcindex, unsigned short dstin
 
 void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 {
-	std::cout << __func__ << ", " << index << std::endl;
-
 	const int *viewport = canvas->GetViewPort();
 	SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 	Enable(RAS_SCISSOR_TEST);
@@ -839,8 +831,6 @@ void RAS_OpenGLRasterizer::SetRenderArea(RAS_ICanvas *canvas)
 	if (canvas == NULL) {
 		return;
 	}
-
-	std::cout << __func__ << std::endl;
 
 	RAS_Rect area;
 	// only above/below stereo method needs viewport adjustment
@@ -940,8 +930,6 @@ void RAS_OpenGLRasterizer::SetRenderArea(RAS_ICanvas *canvas)
 			break;
 		}
 	}
-	std::cout << "area : " << area.GetLeft() << ", " << area.GetBottom() << ", " << area.GetWidth() << ", " << area.GetHeight() 
-		<< ", " << m_curreye << std::endl;
 }
 
 void RAS_OpenGLRasterizer::SetStereoMode(const StereoMode stereomode)
@@ -1454,7 +1442,6 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 
 void RAS_OpenGLRasterizer::SetViewport(int x, int y, int width, int height)
 {
-	std::cout << __func__ << ", " << x << ", " << y << ", " << width << ", " << height << std::endl;
 	glViewport(x, y, width, height);
 }
 
@@ -1465,7 +1452,6 @@ void RAS_OpenGLRasterizer::GetViewport(int *rect)
 
 void RAS_OpenGLRasterizer::SetScissor(int x, int y, int width, int height)
 {
-	std::cout << __func__ << ", " << x << ", " << y << ", " << width << ", " << height << std::endl;
 	glScissor(x, y, width, height);
 }
 

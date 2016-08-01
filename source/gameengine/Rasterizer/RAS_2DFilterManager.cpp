@@ -84,7 +84,6 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 
 void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 {
-	std::cout << __func__ << std::endl;
 	rasty->Disable(RAS_IRasterizer::RAS_DEPTH_TEST);
 	rasty->Disable(RAS_IRasterizer::RAS_BLEND);
 	rasty->Disable(RAS_IRasterizer::RAS_ALPHA_TEST);

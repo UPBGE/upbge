@@ -301,7 +301,6 @@ void KX_KetsjiEngine::ClearFrame()
 		firstscene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight(), clearvp.GetTop());
-		std::cout << __func__ << ", " << clearvp.GetLeft() << ", " << clearvp.GetBottom() << ", " << clearvp.GetWidth() << ", " << clearvp.GetHeight() << std::endl;
 		m_rasterizer->SetViewport(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetWidth() + 1, clearvp.GetHeight() + 1);
 		m_rasterizer->SetScissor(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetWidth() + 1, clearvp.GetHeight() + 1);
 		/* Grey color computed by linearrgb_to_srgb_v3_v3 with a color of 
@@ -818,7 +817,6 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect
 		    scene->GetFramingType(),
 		    m_canvas->GetDisplayArea(),
 		    viewport);
-		std::cout << __func__ << ", " << viewport.GetLeft() << ", " << viewport.GetBottom() << ", " << viewport.GetWidth() << ", " << viewport.GetHeight() << std::endl;
 		area = m_canvas->GetDisplayArea();
 	}
 	else {
@@ -1059,7 +1057,6 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 	scene->RunDrawingCallbacks(scene->GetPreDrawCB());
 #endif
 
-	std::cout << "render" << std::endl;
 	scene->RenderBuckets(camtrans, m_rasterizer);
 
 	if (scene->GetPhysicsEnvironment())
