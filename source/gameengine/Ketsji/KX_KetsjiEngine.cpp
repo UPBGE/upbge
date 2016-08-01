@@ -629,20 +629,20 @@ void KX_KetsjiEngine::Render()
 
 		unsigned short numpass = m_rasterizer->Stereo() ? 2 : 1;
 
+		// pass the scene's worldsettings to the rasterizer
+		scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
+
+		m_rasterizer->SetAuxilaryClientInfo(scene);
+
 		for (unsigned short pass = 0; pass < numpass; ++pass) {
 			m_rasterizer->SetEye((pass == 0) ? RAS_IRasterizer::RAS_STEREO_LEFTEYE : RAS_IRasterizer::RAS_STEREO_RIGHTEYE);
 			// set the area used for rendering (stereo can assign only a subset)
 			m_rasterizer->SetRenderArea(m_canvas);
 
-			// pass the scene's worldsettings to the rasterizer
-			scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
-
 			// Avoid drawing the scene with the active camera twice when its viewport is enabled
 			if (activecam && !activecam->GetViewport()) {
 				if (scene->IsClearingZBuffer())
 					m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-
-				m_rasterizer->SetAuxilaryClientInfo(scene);
 
 				// do the rendering
 				RenderFrame(scene, activecam);
@@ -654,8 +654,6 @@ void KX_KetsjiEngine::Render()
 				if (cam->GetViewport()) {
 					if (scene->IsClearingZBuffer())
 						m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-
-					m_rasterizer->SetAuxilaryClientInfo(scene);
 
 					// do the rendering
 					RenderFrame(scene, cam);
@@ -1079,8 +1077,8 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene)
 	m_rasterizer->FlushDebugShapes(scene);
 
 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
-	m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
-	m_rasterizer->SetScissor(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
+	m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+	m_rasterizer->SetScissor(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 
 	scene->Render2DFilters(m_rasterizer, m_canvas);
 
