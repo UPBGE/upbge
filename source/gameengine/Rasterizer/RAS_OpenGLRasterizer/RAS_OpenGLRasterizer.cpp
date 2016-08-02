@@ -793,6 +793,8 @@ void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 	SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 	SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
 
+	SetDepthFunc(RAS_ALWAYS);
+
 	PushMatrix();
 	LoadIdentity();
 	SetMatrixMode(RAS_PROJECTION);
@@ -804,6 +806,8 @@ void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 	PopMatrix();
 	SetMatrixMode(RAS_MODELVIEW);
 	PopMatrix();
+
+	SetDepthFunc(RAS_LEQUAL);
 }
 
 void RAS_OpenGLRasterizer::BindFBOTexture(unsigned short index, unsigned short slot, OffScreen type)
