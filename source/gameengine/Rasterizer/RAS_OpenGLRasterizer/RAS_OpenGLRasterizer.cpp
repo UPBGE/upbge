@@ -260,21 +260,6 @@ void RAS_OpenGLRasterizer::ScreenFBO::Unbind(unsigned short index)
 	m_currentIndex = -1;
 }
 
-void RAS_OpenGLRasterizer::ScreenFBO::BeginDraw(unsigned short index)
-{
-	BindTexture(index, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-}
-
-void RAS_OpenGLRasterizer::ScreenFBO::EndDraw(unsigned short index)
-{
-	UnbindTexture(index, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-}
-
-void RAS_OpenGLRasterizer::ScreenFBO::Blit(unsigned short srcindex, unsigned short dstindex)
-{
-	GPU_offscreen_blit(m_offScreens[srcindex], m_offScreens[dstindex]);
-}
-
 void RAS_OpenGLRasterizer::ScreenFBO::BindTexture(unsigned short index, unsigned short slot, OffScreen type)
 {
 	GPUTexture *tex = NULL;
@@ -784,16 +769,28 @@ void RAS_OpenGLRasterizer::UnbindFBO(unsigned short index)
 	m_screenFBO.Unbind(index);
 }
 
-void RAS_OpenGLRasterizer::BlitFBO(unsigned short srcindex, unsigned short dstindex)
+void RAS_OpenGLRasterizer::DrawFBO(unsigned short index)
 {
-	m_screenFBO.Blit(srcindex, dstindex);
+	m_screenFBO.BindTexture(index, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+	m_screenFBO.BindTexture(index, 1, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
+
+	SetOverrideShader(RAS_OVERRIDE_SHADER_COPY_FBO);
+
+	/* All uniforms of the shader are set when creating the shader.
+	 * colortex must be 0 and depthtex must be 1.
+	 */
+
+	DrawOverlayPlane();
+	SetOverrideShader(RAS_OVERRIDE_SHADER_NONE);
+
+	m_screenFBO.UnbindTexture(index, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+	m_screenFBO.UnbindTexture(index, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
 }
 
 void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 {
 	const int *viewport = canvas->GetViewPort();
 	SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-	Enable(RAS_SCISSOR_TEST);
 	SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
 
 	PushMatrix();
@@ -802,9 +799,7 @@ void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 	PushMatrix();
 	LoadIdentity();
 
-	m_screenFBO.BeginDraw(index);
-	DrawOverlayPlane();
-	m_screenFBO.EndDraw(index);
+	DrawFBO(index);
 
 	PopMatrix();
 	SetMatrixMode(RAS_MODELVIEW);
@@ -1613,34 +1608,51 @@ RAS_IRasterizer::MipmapOption RAS_OpenGLRasterizer::GetMipmapping()
 	}
 }
 
+GPUShader *RAS_OpenGLRasterizer::GetOverrideGPUShader(OverrideShaderType type)
+{
+	GPUShader *shader = NULL;
+	switch (type) {
+		case RAS_OVERRIDE_SHADER_NONE:
+		case RAS_OVERRIDE_SHADER_BASIC:
+		{
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_BASIC_INSTANCING:
+		{
+			shader = GPU_shader_get_builtin_shader(GPU_SHADER_INSTANCING);
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:
+		{
+			shader = GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE);
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING:
+		{
+			shader = GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING);
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_COPY_FBO:
+		{
+			shader = GPU_shader_get_builtin_shader(GPU_SHADER_COPY_FBO);
+		}
+	}
+
+	return shader;
+}
+
 void RAS_OpenGLRasterizer::SetOverrideShader(RAS_OpenGLRasterizer::OverrideShaderType type)
 {
 	if (type == m_overrideShader) {
 		return;
 	}
 
-	switch (type) {
-		case RAS_OVERRIDE_SHADER_NONE:
-		case RAS_OVERRIDE_SHADER_BASIC:
-		{
-			GPU_shader_unbind();
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_BASIC_INSTANCING:
-		{
-			GPU_shader_bind(GPU_shader_get_builtin_shader(GPU_SHADER_INSTANCING));
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:
-		{
-			GPU_shader_bind(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE));
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING:
-		{
-			GPU_shader_bind(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING));
-			break;
-		}
+	GPUShader *shader = GetOverrideGPUShader(type);
+	if (shader) {
+		GPU_shader_bind(shader);
+	}
+	else {
+		GPU_shader_unbind();
 	}
 	m_overrideShader = type;
 }
@@ -1652,47 +1664,17 @@ RAS_IRasterizer::OverrideShaderType RAS_OpenGLRasterizer::GetOverrideShader()
 
 void RAS_OpenGLRasterizer::ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride)
 {
-	switch (m_overrideShader) {
-		case RAS_OVERRIDE_SHADER_NONE:
-		case RAS_OVERRIDE_SHADER_BASIC:
-		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:
-		{
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_BASIC_INSTANCING:
-		{
-			GPU_shader_bind_instancing_attrib(GPU_shader_get_builtin_shader(GPU_SHADER_INSTANCING),
-					matrixoffset, positionoffset, stride);
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING:
-		{
-			GPU_shader_bind_instancing_attrib(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING),
-					matrixoffset, positionoffset, stride);
-			break;
-		}
+	GPUShader *shader = GetOverrideGPUShader(m_overrideShader);
+	if (shader) {
+		GPU_shader_bind_instancing_attrib(shader, matrixoffset, positionoffset, stride);
 	}
 }
 
 void RAS_OpenGLRasterizer::DesactivateOverrideShaderInstancing()
 {
-	switch (m_overrideShader) {
-		case RAS_OVERRIDE_SHADER_NONE:
-		case RAS_OVERRIDE_SHADER_BASIC:
-		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:
-		{
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_BASIC_INSTANCING:
-		{
-			GPU_shader_unbind_instancing_attrib(GPU_shader_get_builtin_shader(GPU_SHADER_INSTANCING));
-			break;
-		}
-		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING:
-		{
-			GPU_shader_unbind_instancing_attrib(GPU_shader_get_builtin_shader(GPU_SHADER_VSM_STORE_INSTANCING));
-			break;
-		}
+	GPUShader *shader = GetOverrideGPUShader(m_overrideShader);
+	if (shader) {
+		GPU_shader_unbind_instancing_attrib(shader);
 	}
 }
 

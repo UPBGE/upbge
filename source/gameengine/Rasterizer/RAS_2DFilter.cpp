@@ -111,11 +111,10 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 	const unsigned short fboindex = rasty->GetCurrentFBOIndex();
 	rasty->UnbindFBO(fboindex);
 
-	rasty->Disable(RAS_IRasterizer::RAS_SCISSOR_TEST);
-	rasty->BlitFBO(fboindex, 1 - fboindex);
-	rasty->Enable(RAS_IRasterizer::RAS_SCISSOR_TEST);
-
 	rasty->BindFBO(1 - fboindex);
+	rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
+	rasty->DrawFBO(fboindex);
+	rasty->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
 
 	SetProg(true);
 

@@ -50,6 +50,7 @@ class RAS_IStorage;
 class RAS_ICanvas;
 class RAS_OpenGLLight;
 struct GPUOffScreen;
+struct GPUShader;
 
 #define RAS_MAX_TEXCO  8     /* match in BL_Material */
 #define RAS_MAX_ATTRIB 16    /* match in BL_BlenderShader */
@@ -85,9 +86,6 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		void Update(RAS_ICanvas *canvas);
 		void Bind(unsigned short index);
 		void Unbind(unsigned short index);
-		void BeginDraw(unsigned short index);
-		void EndDraw(unsigned short index);
-		void Blit(unsigned short srcindex, unsigned short dstindex);
 		void BindTexture(unsigned short index, unsigned short slot, OffScreen type);
 		void UnbindTexture(unsigned short index, OffScreen type);
 		unsigned short GetCurrentIndex() const;
@@ -178,6 +176,8 @@ protected:
 	 * Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
 	RAS_IStorage *m_storages[RAS_STORAGE_MAX];
 
+	GPUShader *GetOverrideGPUShader(OverrideShaderType type);
+
 public:
 	double GetTime();
 	RAS_OpenGLRasterizer();
@@ -206,7 +206,7 @@ public:
 	virtual void UpdateFBOs(RAS_ICanvas *canvas);
 	virtual void BindFBO(unsigned short index);
 	virtual void UnbindFBO(unsigned short index);
-	virtual void BlitFBO(unsigned short srcindex, unsigned short dstindex);
+	virtual void DrawFBO(unsigned short index);
 	virtual void DrawFBO(RAS_ICanvas *canvas, unsigned short index);
 	virtual void BindFBOTexture(unsigned short index, unsigned short slot, OffScreen type);
 	virtual void UnbindFBOTexture(unsigned short index, OffScreen type);

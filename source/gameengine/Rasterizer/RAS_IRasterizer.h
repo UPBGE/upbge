@@ -159,6 +159,7 @@ public:
 		RAS_OVERRIDE_SHADER_BASIC_INSTANCING,
 		RAS_OVERRIDE_SHADER_SHADOW_VARIANCE,
 		RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING,
+		RAS_OVERRIDE_SHADER_COPY_FBO,
 	};
 
 	enum ShadowType {
@@ -322,8 +323,10 @@ public:
 	virtual void BindFBO(unsigned short index) = 0;
 	/// Unbind frame buffer object.
 	virtual void UnbindFBO(unsigned short index) = 0;
-	/// Blit FBO to another.
-	virtual void BlitFBO(unsigned short srcindex, unsigned short dstindex) = 0;
+	/** Draw frame buffer object without set projeciton matrix or viewport.
+	 * Used to copy thie frame buffer object to another.
+	 */
+	virtual void DrawFBO(unsigned short index) = 0;
 	/// Draw frame buffer object to screen.
 	virtual void DrawFBO(RAS_ICanvas *canvas, unsigned short index) = 0;
 	/// Bind frame buffer object texture.

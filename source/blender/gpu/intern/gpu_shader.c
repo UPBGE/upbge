@@ -48,6 +48,8 @@
 /* Non-generated shaders */
 extern char datatoc_gpu_shader_basic_instancing_frag_glsl[];
 extern char datatoc_gpu_shader_basic_instancing_vert_glsl[];
+extern char datatoc_gpu_shader_copy_fbo_frag_glsl[];
+extern char datatoc_gpu_shader_copy_fbo_vert_glsl[];
 extern char datatoc_gpu_shader_smoke_vert_glsl[];
 extern char datatoc_gpu_shader_smoke_frag_glsl[];
 extern char datatoc_gpu_shader_vsm_store_vert_glsl[];
@@ -72,6 +74,7 @@ static struct GPUShadersGlobal {
 		GPUShader *smoke;
 		GPUShader *smoke_fire;
 		GPUShader *instancing;
+		GPUShader *copyfbo;
 		/* cache for shader fx. Those can exist in combinations so store them here */
 		GPUShader *fx_shaders[MAX_FX_SHADERS * 2];
 	} shaders;
@@ -746,7 +749,20 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 				GG.shaders.instancing = GPU_shader_create(
 					datatoc_gpu_shader_basic_instancing_vert_glsl, datatoc_gpu_shader_basic_instancing_frag_glsl,
 					NULL, NULL, NULL, 0, 0, 0);
-				retval = GG.shaders.instancing;
+			retval = GG.shaders.instancing;
+			break;
+		case GPU_SHADER_COPY_FBO:
+			if (!GG.shaders.copyfbo) {
+				GPUShader *copyfbo = GG.shaders.copyfbo = GPU_shader_create(
+					datatoc_gpu_shader_copy_fbo_vert_glsl, datatoc_gpu_shader_copy_fbo_frag_glsl,
+					NULL, NULL, NULL, 0, 0, 0);
+
+				GPU_shader_bind(copyfbo);
+				GPU_shader_uniform_int(copyfbo, GPU_shader_get_uniform(copyfbo, "colortex"), 0);
+				GPU_shader_uniform_int(copyfbo, GPU_shader_get_uniform(copyfbo, "depthtex"), 1);
+				GPU_shader_unbind();
+			}
+			retval = GG.shaders.copyfbo;
 			break;
 	}
 
