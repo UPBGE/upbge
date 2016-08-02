@@ -313,13 +313,7 @@ void KX_KetsjiEngine::ClearFrame()
 
 bool KX_KetsjiEngine::BeginFrame()
 {
-	if (m_canvas->BeginDraw()) {
-		ClearFrame();
-
-		m_rasterizer->BeginFrame(m_kxsystem->GetTimeInSeconds());
-
-		return true;
-	}
+	m_rasterizer->BeginFrame(m_kxsystem->GetTimeInSeconds());
 
 	return false;
 }
@@ -580,6 +574,8 @@ void KX_KetsjiEngine::Render()
 	if (m_hideCursor)
 		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
 
+	BeginFrame();
+
 	for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
 		// shadow buffers
 		RenderShadowBuffers((KX_Scene *)*sceit);
@@ -616,9 +612,8 @@ void KX_KetsjiEngine::Render()
 		m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER | RAS_ICanvas::DEPTH_BUFFER);
 	}
 
-	if (!BeginFrame()) {
-		return;
-	}
+	m_canvas->BeginDraw();
+	ClearFrame();
 
 	// for each scene, call the proceed functions
 	for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
