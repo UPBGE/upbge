@@ -49,7 +49,6 @@
 #include "MT_CmMatrix4x4.h"
 
 #include "RAS_OpenGLLight.h"
-#include "RAS_OpenGLOffScreen.h"
 #include "RAS_OpenGLSync.h"
 
 #include "RAS_StorageVA.h"
@@ -1036,19 +1035,6 @@ void RAS_OpenGLRasterizer::SetFocalLength(const float focallength)
 float RAS_OpenGLRasterizer::GetFocalLength()
 {
 	return m_focallength;
-}
-
-RAS_IOffScreen *RAS_OpenGLRasterizer::CreateOffScreen(RAS_ICanvas *canvas, int width, int height, int samples, int target)
-{
-	RAS_IOffScreen *ofs;
-
-	ofs = new RAS_OpenGLOffScreen(canvas);
-
-	if (!ofs->Create(width, height, samples, (RAS_IOffScreen::RAS_OFS_RENDER_TARGET)target)) {
-		delete ofs;
-		return NULL;
-	}
-	return ofs;
 }
 
 RAS_ISync *RAS_OpenGLRasterizer::CreateSync(int type)

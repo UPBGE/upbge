@@ -705,6 +705,32 @@ void GPU_texture_filter_mode(GPUTexture *tex, bool compare, bool use_filter)
 	GPU_ASSERT_NO_GL_ERRORS("Post Texture Unbind");
 }
 
+void GPU_texture_generate_mipmap(GPUTexture *tex)
+{
+	if (tex->number >= GPU_max_textures()) {
+		fprintf(stderr, "Not enough texture slots.\n");
+		return;
+	}
+
+	if (tex->number == -1) {
+		return;
+	}
+
+	GPU_ASSERT_NO_GL_ERRORS("Pre Texture Unbind");
+
+	GLenum arbnumber = (GLenum)((GLuint)GL_TEXTURE0 + tex->number);
+	if (tex->number != 0) {
+		glActiveTexture(arbnumber);
+	}
+
+	glGenerateMipmap(tex->target);
+
+	if (tex->number != 0) {
+		glActiveTexture(GL_TEXTURE0);
+	}
+
+	GPU_ASSERT_NO_GL_ERRORS("Post Texture Unbind");}
+
 void GPU_texture_free(GPUTexture *tex)
 {
 	tex->refcount--;

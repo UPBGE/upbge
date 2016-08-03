@@ -376,12 +376,6 @@ public:
 	virtual float GetFocalLength() = 0;
 
 	/**
-	 * Create an offscreen render buffer that can be used as target for render.
-	 * For the time being, it is only used in VideoTexture for custom render.
-	 */
-	virtual RAS_IOffScreen *CreateOffScreen(RAS_ICanvas *canvas, int width, int height, int samples, int target) = 0;
-
-	/**
 	 * Create a sync object
 	 * For use with offscreen render
 	 */

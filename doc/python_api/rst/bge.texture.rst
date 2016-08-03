@@ -373,7 +373,7 @@ Image classes
 
       :type: bool
 
-.. class:: ImageMirror(scene, observer, mirror, material=0)
+.. class:: ImageMirror(scene, observer, mirror, material=0, width, height, samples)
 
    Image source from mirror.
 
@@ -416,6 +416,18 @@ Image classes
       Choose to force shadow buffer update if there is a gap beetween image rendered and shadows.
 
       :type: bool
+
+   .. attribute:: colorBindCode
+
+      Off-screen color texture bind code.
+
+      :type: integer
+
+   .. attribute:: depthBindCode
+
+      Off-screen depth texture bind code.
+
+      :type: integer
 
    .. attribute:: capsize
 
@@ -608,7 +620,7 @@ Image classes
 
       :type: bool
 
-.. class:: ImageRender(scene, camera)
+.. class:: ImageRender(scene, camera, width, height, samples)
 
    Image source from render.
    The render is done on a custom framebuffer object if fbo is specified,
@@ -618,8 +630,12 @@ Image classes
    :type scene: :class:`~bge.types.KX_Scene`
    :arg camera: Camera from which the image has to be taken.
    :type camera: :class:`~bge.types.KX_Camera`
-   :arg fbo: Off-screen render buffer object (optional)
-   :type fbo: :class:`~bge.render.RASOffScreen`
+   :arg width: Off-screen render buffer width (optional).
+   :type width: integer
+   :arg height: Off-screen render buffer height (optional).
+   :type height: integer
+   :arg samples: Off-screen render buffer samples (optional).
+   :type samples: integer
 
    .. attribute:: alpha
 
@@ -652,6 +668,18 @@ Image classes
       Choose to force shadow buffer update if there is a gap beetween image rendered and shadows.
 
       :type: bool
+
+   .. attribute:: colorBindCode
+
+      Off-screen color texture bind code.
+
+      :type: integer
+
+   .. attribute:: depthBindCode
+
+      Off-screen depth texture bind code.
+
+      :type: integer
 
    .. attribute:: capsize
 

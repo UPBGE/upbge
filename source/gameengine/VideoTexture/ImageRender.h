@@ -43,15 +43,15 @@
 
 #include "ImageViewport.h"
 
-class KX_OffScreen;
+struct GPUOffScreen;
 
 /// class for render 3d scene
 class ImageRender : public ImageViewport
 {
 public:
 	/// constructor
-	ImageRender(KX_Scene *scene, KX_Camera *camera, KX_OffScreen *offscreen);
-	ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial * mat);
+	ImageRender(KX_Scene *scene, KX_Camera *camera, unsigned int width, unsigned int height, unsigned short samples);
+	ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial * mat, unsigned int width, unsigned int height, unsigned short samples);
 
 	/// destructor
 	virtual ~ImageRender (void);
@@ -70,6 +70,11 @@ public:
 	bool getUpdateShadowBuffer();
 	/// set update shadow buffer
 	void setUpdateShadowBuffer(bool refresh);
+
+	/// Get color off screen bind code.
+	int GetColorBindCode() const;
+	/// Get depth off screen bind code.
+	int GetDepthBindCode() const;
 
 
 	/// clipping distance
@@ -98,8 +103,13 @@ protected:
 	KX_Camera * m_camera;
 	/// do we own the camera?
 	bool m_owncamera;
-	/// if offscreen render
-	KX_OffScreen *m_offscreen;
+
+	// Number of samples used in FBO.
+	int m_samples;
+
+	GPUOffScreen *m_offScreen;
+	GPUOffScreen *m_blitOffScreen;
+
 	/// object to synchronize render even if no buffer transfer
 	RAS_ISync *m_sync;
 	/// for mirror operation

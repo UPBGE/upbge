@@ -36,14 +36,13 @@
 
 #include "ImageBase.h"
 
-class KX_OffScreen;
-
 /// class for viewport access
 class ImageViewport : public ImageBase
 {
 public:
 	/// constructor
-	ImageViewport (KX_OffScreen *offscreen=NULL);
+	ImageViewport (unsigned int width, unsigned int height);
+	ImageViewport();
 
 	/// destructor
 	virtual ~ImageViewport (void);
@@ -72,6 +71,8 @@ public:
 	virtual bool loadImage(unsigned int *buffer, unsigned int size, unsigned int format, double ts);
 
 protected:
+	unsigned int m_width;
+	unsigned int m_height;
 	/// frame buffer rectangle
 	GLint m_viewport[4];
 
