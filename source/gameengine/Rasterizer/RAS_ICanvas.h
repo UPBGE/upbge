@@ -88,6 +88,9 @@ public:
 	virtual void SetSwapInterval(int interval) = 0;
 	virtual bool GetSwapInterval(int& intervalOut) = 0;
 
+	void SetSamples(int samples);
+	int GetSamples() const;
+
 	virtual void ClearBuffer(int type) = 0;
 	virtual void ClearColor(float r, float g, float b, float a) = 0;
 
@@ -156,6 +159,8 @@ public:
 	}
 
 protected:
+	int m_samples;
+
 	RAS_MouseState m_mousestate;
 	/// frame number for screenshots.
 	int m_frame;

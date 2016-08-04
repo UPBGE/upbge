@@ -54,8 +54,8 @@ extern "C" {
 #include "DEV_InputDevice.h"
 
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
-								 RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv, char *pythonMainLoop)
-	:LA_Launcher(system, maggie, scene, gs, stereoMode, argc, argv),
+								 RAS_IRasterizer::StereoMode stereoMode, int samples, int argc, char **argv, char *pythonMainLoop)
+	:LA_Launcher(system, maggie, scene, gs, stereoMode, samples, argc, argv),
 	m_mainWindow(NULL),
 	m_pythonMainLoop(pythonMainLoop)
 {
@@ -128,8 +128,7 @@ static HWND findGhostWindowHWND(GHOST_IWindow* window)
 
 void LA_PlayerLauncher::startScreenSaverPreview(
 	HWND parentWindow,
-	const bool stereoVisual,
-	const GHOST_TUns16 samples)
+	const bool stereoVisual)
 {
 	RECT rc;
 	if (GetWindowRect(parentWindow, &rc))
@@ -142,7 +141,6 @@ void LA_PlayerLauncher::startScreenSaverPreview(
 		if (stereoVisual) {
 			glSettings.flags |= GHOST_glStereoVisual;
 		}
-		glSettings.numOfAASamples = samples;
 
 		m_mainWindow = m_system->createWindow(title, 0, 0, windowWidth, windowHeight, GHOST_kWindowStateMinimized,
 		                                     GHOST_kDrawingContextTypeOpenGL, glSettings);
@@ -181,10 +179,9 @@ void LA_PlayerLauncher::startScreenSaverFullScreen(
 		int width,
 		int height,
 		int bpp,int frequency,
-		const bool stereoVisual,
-		const GHOST_TUns16 samples)
+		const bool stereoVisual)
 {
-	startFullScreen(width, height, bpp, frequency, stereoVisual, 0, samples);
+	startFullScreen(width, height, bpp, frequency, stereoVisual, 0);
 	HWND ghost_hwnd = findGhostWindowHWND(m_mainWindow);
 	if (ghost_hwnd != NULL)
 	{
@@ -203,8 +200,7 @@ void LA_PlayerLauncher::startWindow(
         int windowWidth,
         int windowHeight,
         const bool stereoVisual,
-		const int alphaBackground,
-        const GHOST_TUns16 samples)
+		const int alphaBackground)
 {
 	GHOST_GLSettings glSettings = {0};
 	// Create the main window
@@ -213,7 +209,6 @@ void LA_PlayerLauncher::startWindow(
 		glSettings.flags |= GHOST_glStereoVisual;
 	if (alphaBackground)
 		glSettings.flags |= GHOST_glAlphaBackground;
-	glSettings.numOfAASamples = samples;
 
 	m_mainWindow = m_system->createWindow(title, windowLeft, windowTop, windowWidth, windowHeight, GHOST_kWindowStateNormal,
 	                                     GHOST_kDrawingContextTypeOpenGL, glSettings);
@@ -235,8 +230,7 @@ void LA_PlayerLauncher::startEmbeddedWindow(
         STR_String& title,
         const GHOST_TEmbedderWindowID parentWindow,
         const bool stereoVisual,
-		const int alphaBackground,
-        const GHOST_TUns16 samples)
+		const int alphaBackground)
 {
 	GHOST_TWindowState state = GHOST_kWindowStateNormal;
 	GHOST_GLSettings glSettings = {0};
@@ -245,7 +239,6 @@ void LA_PlayerLauncher::startEmbeddedWindow(
 		glSettings.flags |= GHOST_glStereoVisual;
 	if (alphaBackground)
 		glSettings.flags |= GHOST_glAlphaBackground;
-	glSettings.numOfAASamples = samples;
 
 	if (parentWindow != 0)
 		state = GHOST_kWindowStateEmbedded;
@@ -267,7 +260,6 @@ void LA_PlayerLauncher::startFullScreen(
         int bpp,int frequency,
         const bool stereoVisual,
 		const int alphaBackground,
-        const GHOST_TUns16 samples,
         bool useDesktop)
 {
 	GHOST_TUns32 sysWidth=0, sysHeight=0;
@@ -279,7 +271,7 @@ void LA_PlayerLauncher::startFullScreen(
 	setting.bpp = bpp;
 	setting.frequency = frequency;
 
-	m_system->beginFullScreen(setting, &m_mainWindow, stereoVisual, alphaBackground, samples);
+	m_system->beginFullScreen(setting, &m_mainWindow, stereoVisual, alphaBackground);
 	m_mainWindow->setCursorVisibility(false);
 	/* note that X11 ignores this (it uses a window internally for fullscreen) */
 	m_mainWindow->setState(GHOST_kWindowStateFullScreen);

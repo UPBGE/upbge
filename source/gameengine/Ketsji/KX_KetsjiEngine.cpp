@@ -699,7 +699,6 @@ void KX_KetsjiEngine::Render()
 
 	const short fboindex = m_rasterizer->GetCurrentFBOIndex();
 	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
-	m_rasterizer->RestoreFBO();
 	m_rasterizer->DrawFBO(m_canvas, fboindex);
 
 	EndFrame();

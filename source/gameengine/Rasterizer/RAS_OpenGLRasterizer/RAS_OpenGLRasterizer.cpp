@@ -230,17 +230,20 @@ void RAS_OpenGLRasterizer::ScreenFBO::Update(RAS_ICanvas *canvas)
 {
 	const int width = canvas->GetWidth() + 1;
 	const int height = canvas->GetHeight() + 1;
+	const int samples = canvas->GetSamples();
 
 	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_OFFSCREEN_MAX; ++i) {
 		// Update or create for the first time the FBO textures.
+		const bool renderofs = (i == RAS_OFFSCREEN_RENDER);
 		if (!m_offScreens[i] ||
 			GPU_offscreen_width(m_offScreens[i]) != width ||
-			GPU_offscreen_height(m_offScreens[i]) != height)
+			GPU_offscreen_height(m_offScreens[i]) != height ||
+			(renderofs && GPU_offscreen_samples(m_offScreens[i]) != samples))
 		{
 			if (m_offScreens[i]) {
 				GPU_offscreen_free(m_offScreens[i]);
 			}
-			m_offScreens[i] = GPU_offscreen_create(width, height, (i == 0) ? 0 : 0, false, NULL);
+			m_offScreens[i] = GPU_offscreen_create(width, height, renderofs ? samples : 0, false, NULL);
 		}
 	}
 }
@@ -807,7 +810,16 @@ void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 	PushMatrix();
 	LoadIdentity();
 
-	DrawFBO(index, 0);
+	if (m_screenFBO.GetSamples(index) > 0) {
+		BindFBO(RAS_OFFSCREEN_FINAL);
+		DrawFBO(index, RAS_OFFSCREEN_FINAL);
+		RestoreFBO();
+		DrawFBO(RAS_OFFSCREEN_FINAL, 0);
+	}
+	else {
+		RestoreFBO();
+		DrawFBO(index, 0);
+	}
 
 	PopMatrix();
 	SetMatrixMode(RAS_MODELVIEW);

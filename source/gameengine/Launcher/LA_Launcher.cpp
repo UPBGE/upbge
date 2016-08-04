@@ -75,7 +75,7 @@ extern "C" {
 #endif
 
 LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
-						 RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv)
+						 RAS_IRasterizer::StereoMode stereoMode, int samples, int argc, char **argv)
 	:m_startSceneName(scene->id.name + 2), 
 	m_startScene(scene),
 	m_maggie(maggie),
@@ -94,6 +94,7 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 	m_globalDict(NULL),
 	m_gameLogic(NULL),
 #endif  // WITH_PYTHON
+	m_samples(samples),
 	m_stereoMode(stereoMode),
 	m_argc(argc),
 	m_argv(argv)
@@ -178,6 +179,9 @@ void LA_Launcher::InitEngine()
 	else {
 		m_canvas->SetSwapInterval((gm->vsync == VSYNC_ON) ? 1 : 0);
 	}
+
+	// Set canvas multisamples.
+	m_canvas->SetSamples(m_samples);
 
 	m_canvas->Init();
 	if (gm->flag & GAME_SHOW_MOUSE) {

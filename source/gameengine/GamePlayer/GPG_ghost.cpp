@@ -912,7 +912,7 @@ int main(
 						if (!samplesParFound)
 							aasamples = scene->gm.aasamples;
 
-						LA_PlayerLauncher launcher(system, maggie, scene, &gs, stereomode, argc, argv, pythonControllerFile); /* this argc cant be argc_py_clamped, since python uses it */
+						LA_PlayerLauncher launcher(system, maggie, scene, &gs, stereomode, aasamples, argc, argv, pythonControllerFile); /* this argc cant be argc_py_clamped, since python uses it */
 #ifdef WITH_PYTHON
 						if (!globalDict) {
 							globalDict = PyDict_New();
@@ -929,13 +929,13 @@ int main(
 								if (scr_saver_mode == SCREEN_SAVER_MODE_SAVER)
 								{
 									launcher.startScreenSaverFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
-									                               stereoWindow, aasamples);
+									                               stereoWindow);
 								}
 								else
 #endif
 								{
 									launcher.startFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
-									                    stereoWindow, alphaBackground, aasamples, (scene->gm.playerflag & GAME_PLAYER_DESKTOP_RESOLUTION));
+									                    stereoWindow, alphaBackground, (scene->gm.playerflag & GAME_PLAYER_DESKTOP_RESOLUTION));
 								}
 							}
 							else
@@ -973,16 +973,16 @@ int main(
 #ifdef WIN32
 								if (scr_saver_mode == SCREEN_SAVER_MODE_PREVIEW)
 								{
-									launcher.startScreenSaverPreview(scr_saver_hwnd, stereoWindow, aasamples);
+									launcher.startScreenSaverPreview(scr_saver_hwnd, stereoWindow);
 								}
 								else
 #endif
 								{
 									if (parentWindow != 0)
-										launcher.startEmbeddedWindow(title, parentWindow, stereoWindow, aasamples);
+										launcher.startEmbeddedWindow(title, parentWindow, stereoWindow);
 									else
 										launcher.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
-										                stereoWindow, alphaBackground, aasamples);
+										                stereoWindow, alphaBackground);
 
 									if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
 										GPU_set_mipmap(0);
