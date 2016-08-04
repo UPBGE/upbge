@@ -635,9 +635,6 @@ void KX_KetsjiEngine::Render()
 
 			// Avoid drawing the scene with the active camera twice when its viewport is enabled
 			if (activecam && !activecam->GetViewport()) {
-				if (scene->IsClearingZBuffer())
-					m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-
 				// do the rendering
 				RenderFrame(scene, activecam);
 			}
@@ -646,9 +643,6 @@ void KX_KetsjiEngine::Render()
 			for (CListValue::iterator it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
 				KX_Camera *cam = (KX_Camera*)(*it);
 				if (cam->GetViewport()) {
-					if (scene->IsClearingZBuffer())
-						m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-
 					// do the rendering
 					RenderFrame(scene, cam);
 				}
@@ -924,6 +918,10 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 	// set the viewport for this frame and scene
 	m_rasterizer->SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
 	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+
+	if (scene->IsClearingZBuffer()) {
+		m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+	}
 
 	// see KX_BlenderMaterial::Activate
 	//m_rasterizer->SetAmbient();
