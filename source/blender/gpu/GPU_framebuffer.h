@@ -58,6 +58,7 @@ void GPU_framebuffer_free(GPUFrameBuffer *fb);
 bool GPU_framebuffer_check_valid(GPUFrameBuffer *fb, char err_out[256]);
 
 void GPU_framebuffer_bind_no_save(GPUFrameBuffer *fb, int slot);
+void GPU_framebuffer_bind_simple(GPUFrameBuffer *fb);
 
 bool GPU_framebuffer_bound(GPUFrameBuffer *fb);
 
@@ -73,6 +74,7 @@ void GPU_framebuffer_blur(
 GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, bool compare, char err_out[256]);
 void GPU_offscreen_free(GPUOffScreen *ofs);
 void GPU_offscreen_bind(GPUOffScreen *ofs, bool save);
+void GPU_offscreen_bind_simple(GPUOffScreen *ofs);
 void GPU_offscreen_unbind(GPUOffScreen *ofs, bool restore);
 void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels);
 void GPU_offscreen_blit(GPUOffScreen *srcofs, GPUOffScreen *dstofs);

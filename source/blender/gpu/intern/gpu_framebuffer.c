@@ -313,6 +313,16 @@ void GPU_framebuffer_bind_no_save(GPUFrameBuffer *fb, int slot)
 	GG.currentfb = fb->object;
 }
 
+void GPU_framebuffer_bind_simple(GPUFrameBuffer *fb)
+{
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	/* last bound prevails here, better allow explicit control here too */
+	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
+	glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
+
+	GG.currentfb = fb->object;
+}
+
 bool GPU_framebuffer_bound(GPUFrameBuffer *fb)
 {
 	return fb->object == GG.currentfb;
@@ -536,6 +546,11 @@ void GPU_offscreen_bind(GPUOffScreen *ofs, bool save)
 	else {
 		GPU_framebuffer_bind_no_save(ofs->fb, 0);
 	}
+}
+
+void GPU_offscreen_bind_simple(GPUOffScreen *ofs)
+{
+	GPU_framebuffer_bind_simple(ofs->fb);
 }
 
 void GPU_offscreen_unbind(GPUOffScreen *ofs, bool restore)

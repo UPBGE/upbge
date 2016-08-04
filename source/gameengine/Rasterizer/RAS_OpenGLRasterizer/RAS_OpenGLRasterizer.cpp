@@ -240,23 +240,16 @@ void RAS_OpenGLRasterizer::ScreenFBO::Update(RAS_ICanvas *canvas)
 			if (m_offScreens[i]) {
 				GPU_offscreen_free(m_offScreens[i]);
 			}
-			m_offScreens[i] = GPU_offscreen_create(width, height, (i == 0) ? 16 : 0, false, NULL);
+			m_offScreens[i] = GPU_offscreen_create(width, height, (i == 0) ? 0 : 0, false, NULL);
 		}
 	}
 }
 
 void RAS_OpenGLRasterizer::ScreenFBO::Bind(unsigned short index)
 {
-	GPU_offscreen_bind(m_offScreens[index], false);
+	GPU_offscreen_bind_simple(m_offScreens[index]);
 
 	m_currentIndex = index;
-}
-
-void RAS_OpenGLRasterizer::ScreenFBO::Unbind(unsigned short index)
-{
-	GPU_offscreen_unbind(m_offScreens[index], false);
-
-	m_currentIndex = -1;
 }
 
 void RAS_OpenGLRasterizer::ScreenFBO::Blit(unsigned short srcindex, unsigned short dstindex)
@@ -490,6 +483,8 @@ bool RAS_OpenGLRasterizer::BeginFrame(double time)
 	glShadeModel(GL_SMOOTH);
 
 	Enable(RAS_MULTISAMPLE);
+
+	Enable(RAS_SCISSOR_TEST);
 
 	Enable(RAS_DEPTH_TEST);
 	SetDepthFunc(RAS_LEQUAL);
@@ -768,14 +763,11 @@ void RAS_OpenGLRasterizer::UpdateFBOs(RAS_ICanvas *canvas)
 void RAS_OpenGLRasterizer::BindFBO(unsigned short index)
 {
 	m_screenFBO.Bind(index);
-
-	/// GPU_offscreen_bind disable the scissor test, we renable it.
-	Enable(RAS_SCISSOR_TEST);
 }
 
-void RAS_OpenGLRasterizer::UnbindFBO(unsigned short index)
+void RAS_OpenGLRasterizer::RestoreFBO()
 {
-	m_screenFBO.Unbind(index);
+	GPU_framebuffer_restore();
 }
 
 void RAS_OpenGLRasterizer::DrawFBO(unsigned short srcindex, unsigned short dstindex)

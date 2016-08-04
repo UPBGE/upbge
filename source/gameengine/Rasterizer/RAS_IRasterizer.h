@@ -325,7 +325,7 @@ public:
 	/// Bind frame buffer object.
 	virtual void BindFBO(unsigned short index) = 0;
 	/// Unbind frame buffer object.
-	virtual void UnbindFBO(unsigned short index) = 0;
+	virtual void RestoreFBO() = 0;
 	/** Draw frame buffer object without set projeciton matrix or viewport.
 	 * Used to copy thie frame buffer object to another.
 	 */

@@ -110,8 +110,6 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 
 	unsigned short srcfboindex = rasty->GetCurrentFBOIndex();
 
-	rasty->UnbindFBO(srcfboindex);
-
 	if (srcfboindex == RAS_IRasterizer::RAS_OFFSCREEN_RENDER && rasty->GetFBOSamples(srcfboindex) > 0) {
 		/* Copy render FBO to first filter FBO. This operation can be done by a simple
 		 * quad draw with a special shader or by bliting FBO for multisamples.
@@ -119,7 +117,6 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 
 		rasty->BindFBO(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
 		rasty->DrawFBO(srcfboindex, RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
-		rasty->UnbindFBO(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
 
 		srcfboindex = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
 	}
