@@ -198,14 +198,16 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 			return;
 		}
 	}
-	GPU_offscreen_bind(m_offScreen, false);
+
+	GPUOffScreen *ofs = (m_samples > 0) ? m_blitOffScreen : m_offScreen;
+	GPU_offscreen_bind(ofs, false);
 
 	// wait until all render operations are completed
 	WaitSync();
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
 
-	GPU_offscreen_unbind(m_offScreen, false);
+	GPU_offscreen_unbind(ofs, false);
 }
 
 bool ImageRender::Render()
