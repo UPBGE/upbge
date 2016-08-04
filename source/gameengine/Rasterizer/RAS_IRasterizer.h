@@ -234,7 +234,10 @@ public:
 		RAS_OFFSCREEN_COLOR = 0,
 		RAS_OFFSCREEN_DEPTH = 1,
 
-		RAS_OFFSCREEN_MAX = 4,
+		RAS_OFFSCREEN_RENDER = 0,
+		RAS_OFFSCREEN_FILTER0,
+		RAS_OFFSCREEN_FILTER1,
+		RAS_OFFSCREEN_MAX,
 	};
 
 	/**
@@ -326,7 +329,7 @@ public:
 	/** Draw frame buffer object without set projeciton matrix or viewport.
 	 * Used to copy thie frame buffer object to another.
 	 */
-	virtual void DrawFBO(unsigned short index) = 0;
+	virtual void DrawFBO(unsigned short srcindex, unsigned short dstindex) = 0;
 	/// Draw frame buffer object to screen.
 	virtual void DrawFBO(RAS_ICanvas *canvas, unsigned short index) = 0;
 	/// Bind frame buffer object texture.
@@ -335,6 +338,8 @@ public:
 	virtual void UnbindFBOTexture(unsigned short index, OffScreen type) = 0;
 	/// Return current frame buffer object used index.
 	virtual short GetCurrentFBOIndex() const = 0;
+	/// Return frame buffer samples numbers.
+	virtual int GetFBOSamples(unsigned short index) const = 0;
 
 	/**
 	 * SetRenderArea sets the render area from the 2d canvas.

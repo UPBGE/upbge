@@ -240,7 +240,7 @@ void RAS_OpenGLRasterizer::ScreenFBO::Update(RAS_ICanvas *canvas)
 			if (m_offScreens[i]) {
 				GPU_offscreen_free(m_offScreens[i]);
 			}
-			m_offScreens[i] = GPU_offscreen_create(width, height, 0, false, NULL);
+			m_offScreens[i] = GPU_offscreen_create(width, height, (i == 0) ? 16 : 0, false, NULL);
 		}
 	}
 }
@@ -257,6 +257,11 @@ void RAS_OpenGLRasterizer::ScreenFBO::Unbind(unsigned short index)
 	GPU_offscreen_unbind(m_offScreens[index], false);
 
 	m_currentIndex = -1;
+}
+
+void RAS_OpenGLRasterizer::ScreenFBO::Blit(unsigned short srcindex, unsigned short dstindex)
+{
+	GPU_offscreen_blit(m_offScreens[srcindex], m_offScreens[dstindex]);
 }
 
 void RAS_OpenGLRasterizer::ScreenFBO::BindTexture(unsigned short index, unsigned short slot, OffScreen type)
@@ -286,6 +291,11 @@ void RAS_OpenGLRasterizer::ScreenFBO::UnbindTexture(unsigned short index, OffScr
 unsigned short RAS_OpenGLRasterizer::ScreenFBO::GetCurrentIndex() const
 {
 	return m_currentIndex;
+}
+
+int RAS_OpenGLRasterizer::ScreenFBO::GetSamples(unsigned short index) const
+{
+	return GPU_offscreen_samples(m_offScreens[index]);
 }
 
 RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
@@ -768,22 +778,27 @@ void RAS_OpenGLRasterizer::UnbindFBO(unsigned short index)
 	m_screenFBO.Unbind(index);
 }
 
-void RAS_OpenGLRasterizer::DrawFBO(unsigned short index)
+void RAS_OpenGLRasterizer::DrawFBO(unsigned short srcindex, unsigned short dstindex)
 {
-	m_screenFBO.BindTexture(index, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-	m_screenFBO.BindTexture(index, 1, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
+	if (m_screenFBO.GetSamples(srcindex) == 0) {
+		m_screenFBO.BindTexture(srcindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_screenFBO.BindTexture(srcindex, 1, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
 
-	SetOverrideShader(RAS_OVERRIDE_SHADER_COPY_FBO);
+		SetOverrideShader(RAS_OVERRIDE_SHADER_COPY_FBO);
 
-	/* All uniforms of the shader are set when creating the shader.
-	 * colortex must be 0 and depthtex must be 1.
-	 */
+		/* All uniforms of the shader are set when creating the shader.
+		 * colortex must be 0 and depthtex must be 1.
+		 */
 
-	DrawOverlayPlane();
-	SetOverrideShader(RAS_OVERRIDE_SHADER_NONE);
+		DrawOverlayPlane();
+		SetOverrideShader(RAS_OVERRIDE_SHADER_NONE);
 
-	m_screenFBO.UnbindTexture(index, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-	m_screenFBO.UnbindTexture(index, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
+		m_screenFBO.UnbindTexture(srcindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_screenFBO.UnbindTexture(srcindex, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
+	}
+	else {
+		m_screenFBO.Blit(srcindex, dstindex);
+	}
 }
 
 void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
@@ -800,7 +815,7 @@ void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 	PushMatrix();
 	LoadIdentity();
 
-	DrawFBO(index);
+	DrawFBO(index, 0);
 
 	PopMatrix();
 	SetMatrixMode(RAS_MODELVIEW);
@@ -822,6 +837,11 @@ void RAS_OpenGLRasterizer::UnbindFBOTexture(unsigned short index, OffScreen type
 short RAS_OpenGLRasterizer::GetCurrentFBOIndex() const
 {
 	return m_screenFBO.GetCurrentIndex();
+}
+
+int RAS_OpenGLRasterizer::GetFBOSamples(unsigned short index) const
+{
+	return m_screenFBO.GetSamples(index);
 }
 
 void RAS_OpenGLRasterizer::SetRenderArea(RAS_ICanvas *canvas)

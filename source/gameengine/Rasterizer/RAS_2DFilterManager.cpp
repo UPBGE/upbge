@@ -88,7 +88,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 		return;
 	}
 
-	rasty->Disable(RAS_IRasterizer::RAS_DEPTH_TEST);
+	rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
 	rasty->Disable(RAS_IRasterizer::RAS_BLEND);
 	rasty->Disable(RAS_IRasterizer::RAS_ALPHA_TEST);
 
@@ -110,7 +110,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 	rasty->SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);
 	rasty->PopMatrix();
 
-	rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
+	rasty->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
 }
 
 RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)

@@ -582,7 +582,7 @@ void KX_KetsjiEngine::Render()
 	}
 
 	m_rasterizer->UpdateFBOs(m_canvas);
-	m_rasterizer->BindFBO(0);
+	m_rasterizer->BindFBO(RAS_IRasterizer::RAS_OFFSCREEN_RENDER);
 
 	// clear the entire game screen with the border color
 	// only once per frame

@@ -86,9 +86,11 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		void Update(RAS_ICanvas *canvas);
 		void Bind(unsigned short index);
 		void Unbind(unsigned short index);
+		void Blit(unsigned short srcindex, unsigned short dstindex);
 		void BindTexture(unsigned short index, unsigned short slot, OffScreen type);
 		void UnbindTexture(unsigned short index, OffScreen type);
 		unsigned short GetCurrentIndex() const;
+		int GetSamples(unsigned short index) const;
 	};
 
 	struct OglDebugShape
@@ -206,11 +208,12 @@ public:
 	virtual void UpdateFBOs(RAS_ICanvas *canvas);
 	virtual void BindFBO(unsigned short index);
 	virtual void UnbindFBO(unsigned short index);
-	virtual void DrawFBO(unsigned short index);
+	virtual void DrawFBO(unsigned short srcindex, unsigned short dstindex);
 	virtual void DrawFBO(RAS_ICanvas *canvas, unsigned short index);
 	virtual void BindFBOTexture(unsigned short index, unsigned short slot, OffScreen type);
 	virtual void UnbindFBOTexture(unsigned short index, OffScreen type);
 	virtual short GetCurrentFBOIndex() const;
+	virtual int GetFBOSamples(unsigned short index) const;
 
 	virtual void SetRenderArea(RAS_ICanvas *canvas);
 

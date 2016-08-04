@@ -451,6 +451,7 @@ struct GPUOffScreen {
 	GPUFrameBuffer *fb;
 	GPUTexture *color;
 	GPUTexture *depth;
+	int samples;
 };
 
 GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, bool compare, char err_out[256])
@@ -479,6 +480,8 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, bool comp
 			samples = 0;
 		}
 	}
+
+	ofs->samples = samples;
 
 	ofs->depth = GPU_texture_create_depth_multisample(width, height, samples, compare, err_out);
 	if (!ofs->depth) {
@@ -631,6 +634,7 @@ void GPU_offscreen_blit(GPUOffScreen *srcofs, GPUOffScreen *dstofs)
 	int width = min_ff(GPU_offscreen_width(srcofs), GPU_offscreen_width(dstofs));
 
 	glBlitFramebufferEXT(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, dstofs->fb->object);
 }
 
 int GPU_offscreen_width(const GPUOffScreen *ofs)
@@ -641,6 +645,11 @@ int GPU_offscreen_width(const GPUOffScreen *ofs)
 int GPU_offscreen_height(const GPUOffScreen *ofs)
 {
 	return GPU_texture_height(ofs->color);
+}
+
+int GPU_offscreen_samples(const GPUOffScreen *ofs)
+{
+	return ofs->samples;
 }
 
 int GPU_offscreen_color_texture(const GPUOffScreen *ofs)

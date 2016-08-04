@@ -108,17 +108,36 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 		return;
 	}
 
-	const unsigned short fboindex = rasty->GetCurrentFBOIndex();
-	rasty->UnbindFBO(fboindex);
+	unsigned short srcfboindex = rasty->GetCurrentFBOIndex();
 
-	rasty->BindFBO(1 - fboindex);
-	rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
-	rasty->DrawFBO(fboindex);
-	rasty->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
+	rasty->UnbindFBO(srcfboindex);
+
+	if (srcfboindex == RAS_IRasterizer::RAS_OFFSCREEN_RENDER && rasty->GetFBOSamples(srcfboindex) > 0) {
+		/* Copy render FBO to first filter FBO. This operation can be done by a simple
+		 * quad draw with a special shader or by bliting FBO for multisamples.
+		 */
+
+		rasty->BindFBO(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
+		rasty->DrawFBO(srcfboindex, RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
+		rasty->UnbindFBO(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
+
+		srcfboindex = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
+	}
+
+	unsigned short dstfboindex = 0;
+	if (srcfboindex == RAS_IRasterizer::RAS_OFFSCREEN_FILTER0) {
+		dstfboindex = RAS_IRasterizer::RAS_OFFSCREEN_FILTER1;
+	}
+	else {
+		dstfboindex = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
+	}
+
+	rasty->BindFBO(dstfboindex);
+	rasty->DrawFBO(srcfboindex, dstfboindex);
 
 	SetProg(true);
 
-	BindTextures(rasty, fboindex);
+	BindTextures(rasty, srcfboindex);
 	BindUniforms(canvas);
 
 	MT_Matrix4x4 mat;
@@ -129,7 +148,7 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 
 	rasty->DrawOverlayPlane();
 
-	UnbindTextures(rasty, fboindex);
+	UnbindTextures(rasty, srcfboindex);
 }
 
 void RAS_2DFilter::End()
