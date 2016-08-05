@@ -91,9 +91,6 @@ public:
 	void SetSamples(int samples);
 	int GetSamples() const;
 
-	virtual void ClearBuffer(int type) = 0;
-	virtual void ClearColor(float r, float g, float b, float a) = 0;
-
 	virtual int GetWidth() const = 0;
 	virtual int GetHeight() const = 0;
 

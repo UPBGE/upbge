@@ -197,6 +197,8 @@ void LA_BlenderLauncher::RenderEngine()
 		m_rasterizer->SetClearColor(m_startScene->gm.framing.col[0], m_startScene->gm.framing.col[1], m_startScene->gm.framing.col[2]);
 		m_rasterizer->SetViewport(m_ar->winrct.xmin, m_ar->winrct.ymin,
 		           BLI_rcti_size_x(&m_ar->winrct), BLI_rcti_size_y(&m_ar->winrct));
+		m_rasterizer->SetScissor(m_ar->winrct.xmin, m_ar->winrct.ymin,
+		           BLI_rcti_size_x(&m_ar->winrct), BLI_rcti_size_y(&m_ar->winrct));
 		m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
 	}
 	LA_Launcher::RenderEngine();

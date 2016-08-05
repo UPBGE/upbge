@@ -593,7 +593,7 @@ void KX_KetsjiEngine::Render()
 		m_rasterizer->SetScissor(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 		if (m_overrideFrameColor) {
 			// Do not use the framing bar color set in the Blender scenes
-			m_canvas->ClearColor(
+			m_rasterizer->SetClearColor(
 				m_overrideFrameColorR,
 				m_overrideFrameColorG,
 				m_overrideFrameColorB,
@@ -602,14 +602,14 @@ void KX_KetsjiEngine::Render()
 		}
 		else {
 			// Use the framing bar color set in the Blender scenes
-			m_canvas->ClearColor(
+			m_rasterizer->SetClearColor(
 			    framesettings.BarRed(),
 			    framesettings.BarGreen(),
 			    framesettings.BarBlue(),
 			    1.0f);
 		}
 		// clear the -whole- viewport
-		m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER | RAS_ICanvas::DEPTH_BUFFER);
+		m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 	}
 
 	m_canvas->BeginDraw();
@@ -882,8 +882,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			SG_SetActiveStage(SG_STAGE_RENDER);
 
 			/* render */
-			m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-			m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
+			m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT | RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
 			scene->RenderBuckets(camtrans, m_rasterizer);
 
 			/* unbind framebuffer object, restore drawmode, free camera */

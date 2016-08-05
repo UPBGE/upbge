@@ -94,11 +94,6 @@ void GPG_Canvas::Resize(int width, int height)
 	m_displayarea.SetTop(height);
 }
 
-void GPG_Canvas::ClearColor(float r, float g, float b, float a)
-{
-	m_rasterizer->SetClearColor(r, g, b, a);
-}
-
 void GPG_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
 {
 	/*	x1 and y1 are the min pixel coordinate (e.g. 0)
@@ -106,12 +101,6 @@ void GPG_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
 	    the width,height is calculated including both pixels
 	    therefore: max - min + 1
 	 */
-
-	/* XXX, nasty, this needs to go somewhere else,
-	 * but where... definitely need to clean up this
-	 * whole canvas/rendertools mess.
-	 */
-// 	m_rasterizer->Enable(RAS_IRasterizer::RAS_SCISSOR_TEST);
 
 	m_viewport[0] = x1;
 	m_viewport[1] = y1;
@@ -129,33 +118,7 @@ void GPG_Canvas::UpdateViewPort(int x1, int y1, int x2, int y2)
 
 const int *GPG_Canvas::GetViewPort()
 {
-#if 0
-	// If we're in a debug build, we might as well make sure our values don't differ
-	// from what the gpu thinks we have. This could lead to nasty, hard to find bugs.
-	int viewport[4];
-	m_rasterizer->GetViewport(viewport);
-	assert(viewport[0] == m_viewport[0]);
-	assert(viewport[1] == m_viewport[1]);
-	assert(viewport[2] == m_viewport[2]);
-	assert(viewport[3] == m_viewport[3]);
-#endif
-
 	return m_viewport;
-}
-
-void GPG_Canvas::ClearBuffer(int type)
-{
-	unsigned int ogltype = 0;
-
-	if (type & RAS_ICanvas::COLOR_BUFFER) {
-		ogltype |= RAS_IRasterizer::RAS_COLOR_BUFFER_BIT;
-	}
-
-	if (type & RAS_ICanvas::DEPTH_BUFFER) {
-		ogltype |= RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT;
-	}
-
-	m_rasterizer->Clear(ogltype);
 }
 
 void GPG_Canvas::MakeScreenShot(const char *filename)

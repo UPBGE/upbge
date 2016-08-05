@@ -200,14 +200,14 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 	}
 
 	GPUOffScreen *ofs = (m_samples > 0) ? m_blitOffScreen : m_offScreen;
-	GPU_offscreen_bind(ofs, false);
+	GPU_offscreen_bind_simple(ofs);
 
 	// wait until all render operations are completed
 	WaitSync();
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
 
-	GPU_offscreen_unbind(ofs, false);
+	GPU_framebuffer_restore();
 }
 
 bool ImageRender::Render()
@@ -297,12 +297,13 @@ bool ImageRender::Render()
 
 	// The screen area that ImageViewport will copy is also the rendering zone
 	// bind the fbo and set the viewport to full size
-	GPU_offscreen_bind(m_offScreen, false);
+	GPU_offscreen_bind_simple(m_offScreen);
 
 	m_rasterizer->SetViewport(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
+	m_rasterizer->SetScissor(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
 
-	m_canvas->ClearColor(0.247784f, 0.247784f, 0.247784f, 1.0f);
-	m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER|RAS_ICanvas::DEPTH_BUFFER);
+	m_rasterizer->SetClearColor(0.247784f, 0.247784f, 0.247784f, 1.0f);
+	m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 	m_rasterizer->BeginFrame(m_engine->GetClockTime());
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
@@ -435,7 +436,7 @@ bool ImageRender::Render()
 
 void ImageRender::Unbind()
 {
-	GPU_offscreen_unbind(m_offScreen, false);
+	GPU_framebuffer_restore();
 }
 
 void ImageRender::WaitSync()

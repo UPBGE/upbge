@@ -378,9 +378,7 @@ bool RAS_OpenGLRasterizer::Init()
 
 	SetFrontFace(true);
 
-	SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	SetColorMask(true, true, true, true);
-	Clear(RAS_COLOR_BUFFER_BIT | RAS_DEPTH_BUFFER_BIT);
 
 	glShadeModel(GL_SMOOTH);
 
