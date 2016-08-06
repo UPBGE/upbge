@@ -648,7 +648,13 @@ void KX_KetsjiEngine::Render()
 				}
 			}
 		}
-		PostRenderScene(scene);
+
+		/* Choose final FBO target. This operation as effect only for multisamples render FBO.
+		 * If it's the last scene, we can render the last filter to a non-multisamples FBO.
+		 * Else reuse the (maybe) multisamples FBO for the next scene renders.
+		 */
+		const int target = (scene == m_scenes->GetBack()) ? RAS_IRasterizer::RAS_OFFSCREEN_FINAL : RAS_IRasterizer::RAS_OFFSCREEN_RENDER;
+		PostRenderScene(scene, target);
 	}
 #if 0
 	// only one place that checks for stereo
@@ -1057,7 +1063,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 /*
  * To run once per scene
  */
-void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene)
+void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, int target)
 {
 	KX_SetActiveScene(scene);
 
@@ -1068,7 +1074,7 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene)
 	m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 	m_rasterizer->SetScissor(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
 
-	scene->Render2DFilters(m_rasterizer, m_canvas);
+	scene->Render2DFilters(m_rasterizer, m_canvas, target);
 
 #ifdef WITH_PYTHON
 // 	const RAS_Rect& viewport = scene->GetSceneViewport();

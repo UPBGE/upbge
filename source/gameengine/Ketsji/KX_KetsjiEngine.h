@@ -239,7 +239,7 @@ private:
 	void UpdateSuspendedScenes();
 
 	void RenderFrame(KX_Scene *scene, KX_Camera *cam);
-	void PostRenderScene(KX_Scene *scene);
+	void PostRenderScene(KX_Scene *scene, int target);
 	void RenderDebugProperties();
 
 public:

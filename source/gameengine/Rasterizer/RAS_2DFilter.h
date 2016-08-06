@@ -50,6 +50,15 @@ public:
 		MAX_RENDERED_TEXTURE_TYPE
 	};
 
+	enum PassFlag {
+		/// First rendered filter.
+		PASS_BEGIN = 1 << 0,
+		/// A middle rendered filter.
+		PASS_MIDDLE = 1 << 1,
+		/// Last rendered filter.
+		PASS_END = 1 << 2
+	};
+
 protected:
 	int m_predefinedUniforms[MAX_PREDEFINED_UNIFORM_TYPE];
 	unsigned int m_renderedTextures[MAX_RENDERED_TEXTURE_TYPE];
@@ -85,7 +94,7 @@ public:
 	void Initialize(RAS_ICanvas *canvas);
 
 	/// Starts executing the filter.
-	void Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas);
+	void Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, short flag, int target);
 
 	/// Finalizes the execution stage of the filter.
 	void End();

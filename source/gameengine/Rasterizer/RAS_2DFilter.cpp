@@ -100,7 +100,7 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 	}
 }
 
-void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
+void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, short flag, int target)
 {
 	Initialize(canvas);
 
@@ -109,8 +109,9 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 	}
 
 	unsigned short srcfboindex = rasty->GetCurrentFBOIndex();
+	unsigned short dstfboindex = 0;
 
-	if (srcfboindex == RAS_IRasterizer::RAS_OFFSCREEN_RENDER && rasty->GetFBOSamples(srcfboindex) > 0) {
+	if (flag & PASS_BEGIN) {
 		/* Copy render FBO to first filter FBO. This operation can be done by a simple
 		 * quad draw with a special shader or by bliting FBO for multisamples.
 		 */
@@ -121,12 +122,17 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 		srcfboindex = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
 	}
 
-	unsigned short dstfboindex = 0;
-	if (srcfboindex == RAS_IRasterizer::RAS_OFFSCREEN_FILTER0) {
-		dstfboindex = RAS_IRasterizer::RAS_OFFSCREEN_FILTER1;
+	// If it's the last rendered filter we can render directly to the final or render FBO.
+	if (flag & PASS_END) {
+		dstfboindex = target;
 	}
 	else {
-		dstfboindex = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
+		if (srcfboindex == RAS_IRasterizer::RAS_OFFSCREEN_FILTER0) {
+			dstfboindex = RAS_IRasterizer::RAS_OFFSCREEN_FILTER1;
+		}
+		else {
+			dstfboindex = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
+		}
 	}
 
 	rasty->BindFBO(dstfboindex);

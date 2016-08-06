@@ -527,7 +527,7 @@ public:
 	 * 2D Filters
 	 */
 	RAS_2DFilterManager *Get2DFilterManager() const;
-	void Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas);
+	void Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, int target);
 
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 

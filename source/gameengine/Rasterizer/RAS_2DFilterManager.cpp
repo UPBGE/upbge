@@ -82,7 +82,7 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 	return (it != m_filters.end()) ? it->second : NULL;
 }
 
-void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
+void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, int target)
 {
 	if (m_filters.size() == 0) {
 		return;
@@ -100,9 +100,29 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 	rasty->PushMatrix();
 	rasty->LoadIdentity();
 
-	for (RAS_PassTo2DFilter::iterator it = m_filters.begin(), end = m_filters.end(); it != end; ++it) {
+	// Used to know if a filter is the last of the container.
+	RAS_PassTo2DFilter::const_iterator pend = m_filters.end();
+	--pend;
+
+	for (RAS_PassTo2DFilter::iterator begin = m_filters.begin(), it = begin, end = m_filters.end(); it != end; ++it) {
 		RAS_2DFilter *filter = it->second;
-		filter->Start(rasty, canvas);
+
+		/* Falg used by the filter render to know if it's the first rendered
+		 * or the last or a middle one. The flag can said that the filter is
+		 * both the first and the last.
+		 */
+		short flag = 0;
+		if (it == begin) {
+			flag |= RAS_2DFilter::PASS_BEGIN;
+		}
+		if (it == pend) {
+			flag |= RAS_2DFilter::PASS_END;
+		}
+		else {
+			flag |= RAS_2DFilter::PASS_MIDDLE;
+		}
+
+		filter->Start(rasty, canvas, flag, target);
 		filter->End();
 	}
 

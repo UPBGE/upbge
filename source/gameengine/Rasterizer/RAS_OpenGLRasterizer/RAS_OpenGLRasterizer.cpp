@@ -796,6 +796,13 @@ void RAS_OpenGLRasterizer::DrawFBO(unsigned short srcindex, unsigned short dstin
 
 void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 {
+	const bool samples = (m_screenFBO.GetSamples(index) > 0);
+
+	if (samples) {
+		BindFBO(RAS_OFFSCREEN_FINAL);
+		DrawFBO(index, RAS_OFFSCREEN_FINAL);
+	}
+
 	const int *viewport = canvas->GetViewPort();
 	SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 	SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
@@ -808,16 +815,9 @@ void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 	PushMatrix();
 	LoadIdentity();
 
-	if (m_screenFBO.GetSamples(index) > 0) {
-		BindFBO(RAS_OFFSCREEN_FINAL);
-		DrawFBO(index, RAS_OFFSCREEN_FINAL);
-		RestoreFBO();
-		DrawFBO(RAS_OFFSCREEN_FINAL, 0);
-	}
-	else {
-		RestoreFBO();
-		DrawFBO(index, 0);
-	}
+	RestoreFBO();
+	DrawFBO(samples ? RAS_OFFSCREEN_FINAL : index, 0);
+
 
 	PopMatrix();
 	SetMatrixMode(RAS_MODELVIEW);
