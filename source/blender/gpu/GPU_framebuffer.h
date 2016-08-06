@@ -71,7 +71,12 @@ void GPU_framebuffer_blur(
  * - wrapper around framebuffer and texture for simple offscreen drawing
  * - changes size if graphics card can't support it */
 
-GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, bool compare, char err_out[256]);
+typedef enum GPUOffScreenMode {
+	GPU_OFFSCREEN_MODE_NONE = 0,
+	GPU_OFFSCREEN_DEPTH_COMPARE = 1 << 0,
+} GPUOffScreenMode;
+
+GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, int mode, char err_out[256]);
 void GPU_offscreen_free(GPUOffScreen *ofs);
 void GPU_offscreen_bind(GPUOffScreen *ofs, bool save);
 void GPU_offscreen_bind_simple(GPUOffScreen *ofs);

@@ -61,6 +61,12 @@ typedef enum GPUHDRType {
 	GPU_HDR_FULL_FLOAT = (1 << 1),
 } GPUHDRType;
 
+typedef enum GPUTextureMode {
+	GPU_TEXTURE_MODE_NONE = 0,
+	GPU_TEXTURE_DEPTH = 1 << 0,
+	GPU_TEXTURE_DEPTH_COMPARE = 1 << 1,
+} GPUTextureMode;
+
 GPUTexture *GPU_texture_create_1D(int w, const float *pixels, char err_out[256]);
 GPUTexture *GPU_texture_create_2D(int w, int h, const float *pixels, GPUHDRType hdr, char err_out[256]);
 GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, const float *fpixels);

@@ -464,7 +464,7 @@ struct GPUOffScreen {
 	int samples;
 };
 
-GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, bool compare, char err_out[256])
+GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, int mode, char err_out[256])
 {
 	GPUOffScreen *ofs;
 
@@ -493,7 +493,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, bool comp
 
 	ofs->samples = samples;
 
-	ofs->depth = GPU_texture_create_depth_multisample(width, height, samples, compare, err_out);
+	ofs->depth = GPU_texture_create_depth_multisample(width, height, samples, (mode & GPU_OFFSCREEN_DEPTH_COMPARE), err_out);
 	if (!ofs->depth) {
 		GPU_offscreen_free(ofs);
 		return NULL;

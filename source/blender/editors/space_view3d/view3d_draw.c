@@ -1386,7 +1386,7 @@ static void backdrawview3d(Scene *scene, wmWindow *win, ARegion *ar, View3D *v3d
 		}
 
 		if (!rv3d->gpuoffscreen) {
-			rv3d->gpuoffscreen = GPU_offscreen_create(w, h, 0, false, error);
+			rv3d->gpuoffscreen = GPU_offscreen_create(w, h, 0, GPU_OFFSCREEN_DEPTH_COMPARE, error);
 
 			if (!rv3d->gpuoffscreen)
 				fprintf(stderr, "Failed to create offscreen selection buffer for multisample: %s\n", error);
@@ -3326,7 +3326,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
 
 	if (own_ofs) {
 		/* bind */
-		ofs = GPU_offscreen_create(sizex, sizey, full_samples ? 0 : samples, false, err_out);
+		ofs = GPU_offscreen_create(sizex, sizey, full_samples ? 0 : samples, GPU_OFFSCREEN_DEPTH_COMPARE, err_out);
 		if (ofs == NULL) {
 			return NULL;
 		}
