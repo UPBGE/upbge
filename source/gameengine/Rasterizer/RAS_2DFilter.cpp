@@ -65,6 +65,8 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 
 	m_progs[VERTEX_PROGRAM] = STR_String(VertexShader);
 	m_progs[FRAGMENT_PROGRAM] = data.shaderText;
+
+	LinkProgram();
 }
 
 void RAS_2DFilter::ReleaseTextures()
@@ -85,11 +87,8 @@ RAS_2DFilter::~RAS_2DFilter()
 
 void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 {
-	/* The shader must be initialized at the first frame when the canvas is set.
+	/* The shader must be initialized at the first frame when the canvas is accesible.
 	 * to solve this we initialize filter at the frist render frame. */
-	if (!m_ok && !m_error) {
-		LinkProgram();
-	}
 	if (Ok() && !m_uniformInitialized) {
 		ParseShaderProgram();
 		ReleaseTextures();
