@@ -36,7 +36,6 @@
 
 static char predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_TYPE][40] = {
 	"bgl_RenderedTexture", // RENDERED_TEXTURE_UNIFORM
-	"bgl_LuminanceTexture", // LUMINANCE_TEXTURE_UNIFORM
 	"bgl_DepthTexture", // DEPTH_TEXTURE_UNIFORM
 	"bgl_RenderedTextureWidth", // RENDERED_TEXTURE_WIDTH_UNIFORM
 	"bgl_RenderedTextureHeight", // RENDERED_TEXTURE_HEIGHT_UNIFORM
@@ -180,15 +179,6 @@ void RAS_2DFilter::InitializeTextures(RAS_ICanvas *canvas)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 	}
-	if (m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM] != -1) {
-		glGenTextures(1, &m_renderedTextures[LUMINANCE_TEXTURE]);
-		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[LUMINANCE_TEXTURE]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, texturewidth, textureheight, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-	}
 }
 
 /* Fill the textureOffsets array with values used by the shaders to get texture samples
@@ -227,12 +217,6 @@ void RAS_2DFilter::BindTextures(RAS_ICanvas *canvas)
 		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[DEPTH_TEXTURE]);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
 	}
-	if (m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM] != -1) {
-		// Create and bind luminance texture.
-		glActiveTextureARB(GL_TEXTURE10);
-		glBindTexture(GL_TEXTURE_2D, m_renderedTextures[LUMINANCE_TEXTURE]);
-		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE16, textureleft, texturebottom, (GLuint)texturewidth, (GLuint)textureheight, 0);
-	}
 
 	// Bind custom textures.
 	for (unsigned short i = 0; i < 8; ++i) {
@@ -253,11 +237,6 @@ void RAS_2DFilter::UnbindTextures()
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
 		// Create and bind depth texture.
 		glActiveTextureARB(GL_TEXTURE9);
-		glBindTexture(GL_TEXTURE_2D, 0);
-	}
-	if (m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM] != -1) {
-		// Create and bind luminance texture.
-		glActiveTextureARB(GL_TEXTURE10);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 
@@ -282,9 +261,6 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
 		SetUniform(m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM], 9);
-	}
-	if (m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM] != -1) {
-		SetUniform(m_predefinedUniforms[LUMINANCE_TEXTURE_UNIFORM], 10);
 	}
 	if (m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM] != -1) {
 		// Bind rendered texture width.
