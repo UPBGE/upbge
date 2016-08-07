@@ -31,7 +31,8 @@
 #include "SCA_VibrationActuator.h"
 #include "SCA_JoystickManager.h"
 
-#include <iostream> //std::cout
+#include <iostream> // both includes
+#include <ctime>    // seems needed https://openclassrooms.com/courses/time-h-et-ses-fonctions
 
 
 SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject* gameobj, int joyindex, float strength, int duration)
@@ -39,7 +40,7 @@ SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject* gameobj, int joyindex,
 	m_joyindex(joyindex),
 	m_strength(strength),
 	m_duration(duration),
-	m_remainingduration(0.0f)
+	m_endtime(0.0f)
 {
 }
 
@@ -65,18 +66,15 @@ bool SCA_VibrationActuator::Update()
 	}
 
 	bool bNegativeEvent = IsNegativeEvent();
-	
+
 	if (bNegativeEvent) {
 		instance->RumblePlay(m_strength, m_duration);
-		m_remainingduration = m_duration / 1000.0f * 60.0f;
-	}
-	else {
-		m_remainingduration -= 1.0f;
+		m_endtime = std::clock() + m_duration;
 	}
 
 	RemoveAllEvents();
 
-	return m_remainingduration > 0.0f;
+	return m_endtime > std::clock();
 }
 
 #ifdef WITH_PYTHON
