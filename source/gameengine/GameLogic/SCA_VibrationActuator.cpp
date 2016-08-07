@@ -58,7 +58,7 @@ bool SCA_VibrationActuator::Update()
 {
 	/* Can't init instance in constructor because m_joystick list is not available yet */
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
-	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex) ? mgr->GetJoystickDevice(m_joyindex) : NULL;
+	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);
 
 	if (!instance) {
 		return false;
