@@ -37,6 +37,7 @@ extern "C" {
 #endif
 
 typedef struct GPUFrameBuffer GPUFrameBuffer;
+typedef struct GPURenderBuffer GPURenderBuffer;
 typedef struct GPUOffScreen GPUOffScreen;
 typedef struct GPUTexture GPUTexture;
 
@@ -57,6 +58,8 @@ void GPU_framebuffer_texture_unbind(GPUFrameBuffer *fb, struct GPUTexture *tex);
 void GPU_framebuffer_free(GPUFrameBuffer *fb);
 bool GPU_framebuffer_check_valid(GPUFrameBuffer *fb, char err_out[256]);
 
+int GPU_framebuffer_renderbuffer_attach(GPUFrameBuffer *fb, GPURenderBuffer *rb, int slot, char err_out[256]);
+
 void GPU_framebuffer_bind_no_save(GPUFrameBuffer *fb, int slot);
 void GPU_framebuffer_bind_simple(GPUFrameBuffer *fb);
 
@@ -67,13 +70,27 @@ void GPU_framebuffer_blur(
         GPUFrameBuffer *fb, struct GPUTexture *tex,
         GPUFrameBuffer *blurfb, struct GPUTexture *blurtex);
 
+typedef enum GPURenderBufferType {
+	GPU_RENDER_BUFFER_COLOR = 0,
+	GPU_RENDER_BUFFER_DEPTH = 1,
+} GPURenderBufferType;
+
+GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPURenderBufferType type, char err_out[256]);
+void GPU_renderbuffer_free(GPURenderBuffer *rb);
+int GPU_renderbuffer_bindcode(const GPURenderBuffer *rb);
+bool GPU_renderbuffer_depth(const GPURenderBuffer *rb);
+int GPU_renderbuffer_width(const GPURenderBuffer *rb);
+int GPU_renderbuffer_height(const GPURenderBuffer *rb);
+
+
 /* GPU OffScreen
  * - wrapper around framebuffer and texture for simple offscreen drawing
  * - changes size if graphics card can't support it */
 
 typedef enum GPUOffScreenMode {
 	GPU_OFFSCREEN_MODE_NONE = 0,
-	GPU_OFFSCREEN_DEPTH_COMPARE = 1 << 0,
+	GPU_OFFSCREE_RENDERBUFFER = 1 << 0,
+	GPU_OFFSCREEN_DEPTH_COMPARE = 1 << 1,
 } GPUOffScreenMode;
 
 GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, int mode, char err_out[256]);
