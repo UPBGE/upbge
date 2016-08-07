@@ -337,17 +337,7 @@ void RAS_2DFilter::DrawOverlayPlane(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
 
 	rasty->SetLines(false);
 
-	rasty->PushMatrix();
-	rasty->LoadIdentity();
-	rasty->SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
-	rasty->PushMatrix();
-	rasty->LoadIdentity();
-
 	rasty->DrawOverlayPlane();
-
-	rasty->PopMatrix();
-	rasty->SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);
-	rasty->PopMatrix();
 
 	rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
 }
