@@ -809,19 +809,8 @@ void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 
 	SetDepthFunc(RAS_ALWAYS);
 
-	PushMatrix();
-	LoadIdentity();
-	SetMatrixMode(RAS_PROJECTION);
-	PushMatrix();
-	LoadIdentity();
-
 	RestoreFBO();
 	DrawFBO(samples ? RAS_OFFSCREEN_FINAL : index, 0);
-
-
-	PopMatrix();
-	SetMatrixMode(RAS_MODELVIEW);
-	PopMatrix();
 
 	SetDepthFunc(RAS_LEQUAL);
 }

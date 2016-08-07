@@ -334,32 +334,3 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 		}
 	}
 }
-
-void RAS_2DFilter::DrawOverlayPlane(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
-{
-	/*RAS_Rect scissor_rect = canvas->GetDisplayArea();
-	rasty->SetScissor(scissor_rect.GetLeft() + canvas->GetViewPort()[0], 
-			  scissor_rect.GetBottom() + canvas->GetViewPort()[1],
-			  scissor_rect.GetWidth() + 1,
-			  scissor_rect.GetHeight() + 1);*/
-
-	rasty->Disable(RAS_IRasterizer::RAS_DEPTH_TEST);
-	rasty->Disable(RAS_IRasterizer::RAS_BLEND);
-	rasty->Disable(RAS_IRasterizer::RAS_ALPHA_TEST);
-
-	rasty->SetLines(false);
-
-	rasty->PushMatrix();
-	rasty->LoadIdentity();
-	rasty->SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
-	rasty->PushMatrix();
-	rasty->LoadIdentity();
-
-	rasty->DrawOverlayPlane();
-
-	rasty->PopMatrix();
-	rasty->SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);
-	rasty->PopMatrix();
-
-	rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
-}

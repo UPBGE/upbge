@@ -94,12 +94,6 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 
 	rasty->SetLines(false);
 
-	rasty->PushMatrix();
-	rasty->LoadIdentity();
-	rasty->SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
-	rasty->PushMatrix();
-	rasty->LoadIdentity();
-
 	// Used to know if a filter is the last of the container.
 	RAS_PassTo2DFilter::const_iterator pend = m_filters.end();
 	--pend;
@@ -125,10 +119,6 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 		filter->Start(rasty, canvas, flag, target);
 		filter->End();
 	}
-
-	rasty->PopMatrix();
-	rasty->SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);
-	rasty->PopMatrix();
 
 	rasty->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
 }
