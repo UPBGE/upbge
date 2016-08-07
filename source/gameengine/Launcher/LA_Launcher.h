@@ -97,6 +97,7 @@ protected:
 	struct SavedData {
 		int vsync;
 		RAS_IRasterizer::MipmapOption mipmap;
+		int anisotropic;
 	} m_savedData;
 
 	struct PythonConsole {

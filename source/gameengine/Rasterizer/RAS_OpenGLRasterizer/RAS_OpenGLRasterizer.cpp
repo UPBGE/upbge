@@ -244,8 +244,6 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_STORAGE_TYPE storage, int storage
 	}
 	hinterlace_mask[32] = 0;
 
-	m_prevafvalue = GPU_get_anisotropic();
-
 	if (m_storage_type == RAS_VBO /*|| m_storage_type == RAS_AUTO_STORAGE && GLEW_ARB_vertex_buffer_object*/) {
 		m_storage = new RAS_StorageVBO(&m_texco_num, m_texco, &m_attrib_num, m_attrib, m_attrib_layer);
 	}
@@ -264,9 +262,6 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_STORAGE_TYPE storage, int storage
 
 RAS_OpenGLRasterizer::~RAS_OpenGLRasterizer()
 {
-	// Restore the previous AF value
-	GPU_set_anisotropic(m_prevafvalue);
-
 	if (m_storage)
 		delete m_storage;
 }

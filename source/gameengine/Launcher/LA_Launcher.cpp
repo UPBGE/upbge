@@ -175,6 +175,8 @@ void LA_Launcher::InitEngine()
 	m_rasterizer->SetEyeSeparation(m_startScene->gm.eyeseparation);
 	m_rasterizer->SetDrawingMode(GetRasterizerDrawMode());
 
+	// Copy current anisotropic level to restore it at the game end.
+	m_savedData.anisotropic = m_rasterizer->GetAnisotropicFiltering();
 	// Copy current mipmap mode to restore at the game end.
 	m_savedData.mipmap = m_rasterizer->GetMipmapping();
 
@@ -313,6 +315,9 @@ void LA_Launcher::ExitEngine()
 		// Then set the cursor back to normal here to avoid set the cursor visible between two game load.
 		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
 	}
+
+	// Set anisotropic settign back to its original value.
+	m_rasterizer->SetAnisotropicFiltering(m_savedData.anisotropic);
 
 	// Set mipmap setting back to its original value.
 	m_rasterizer->SetMipmapping(m_savedData.mipmap);
