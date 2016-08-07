@@ -24,7 +24,7 @@
 */
 
 /** \file gameengine/Ketsji/SCA_VibrationActuator.cpp
-*  \ingroup ketsji
+*  \ingroup GameLogic
 */
 
 

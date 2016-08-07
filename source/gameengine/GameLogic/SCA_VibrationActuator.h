@@ -24,7 +24,7 @@
 */
 
 /** \file SCA_VibrationActuator.h
-*  \ingroup ketsji
+*  \ingroup GameLogic
 */
 
 #ifndef __SCA_VIBRATIONACTUATOR_H__
