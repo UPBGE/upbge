@@ -187,6 +187,12 @@ void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 					glEnableVertexAttribArrayARB(unit);
 					break;
 				}
+				case RAS_IRasterizer::RAS_TEXCO_VCOL:
+				{
+					glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_TRUE, m_stride, m_color_offset);
+					glEnableVertexAttribArrayARB(unit);
+					break;
+				}
 				default:
 					break;
 			}
