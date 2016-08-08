@@ -615,7 +615,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, int mode,
 
 	ofs->samples = samples;
 
-	if (mode & GPU_OFFSCREE_RENDERBUFFER) {
+	if (mode & GPU_OFFSCREEN_RENDERBUFFER) {
 		ofs->rbcolor = GPU_renderbuffer_create(width, height, samples, GPU_RENDER_BUFFER_COLOR, err_out);
 		if (!ofs->rbcolor) {
 			GPU_offscreen_free(ofs);

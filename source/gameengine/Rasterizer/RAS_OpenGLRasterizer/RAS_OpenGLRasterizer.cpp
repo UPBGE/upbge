@@ -244,7 +244,7 @@ void RAS_OpenGLRasterizer::ScreenFBO::Update(RAS_ICanvas *canvas)
 				GPU_offscreen_free(m_offScreens[i]);
 			}
 			m_offScreens[i] = GPU_offscreen_create(width, height, renderofs ? samples : 0,
-												   (renderofs && (samples > 0)) ? GPU_OFFSCREE_RENDERBUFFER : GPU_OFFSCREEN_MODE_NONE, NULL);
+												   (renderofs && (samples > 0)) ? GPU_OFFSCREEN_RENDERBUFFER : GPU_OFFSCREEN_MODE_NONE, NULL);
 		}
 	}
 }

@@ -89,7 +89,7 @@ int GPU_renderbuffer_height(const GPURenderBuffer *rb);
 
 typedef enum GPUOffScreenMode {
 	GPU_OFFSCREEN_MODE_NONE = 0,
-	GPU_OFFSCREE_RENDERBUFFER = 1 << 0,
+	GPU_OFFSCREEN_RENDERBUFFER = 1 << 0,
 	GPU_OFFSCREEN_DEPTH_COMPARE = 1 << 1,
 } GPUOffScreenMode;
 
