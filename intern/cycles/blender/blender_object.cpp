@@ -329,14 +329,16 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 			/* object transformation */
 			if(tfm != object->tfm) {
 				VLOG(1) << "Object " << b_ob.name() << " motion detected.";
-				if(motion_time == -1.0f) {
-					object->motion.pre = tfm;
+				if(motion_time == -1.0f || motion_time == 1.0f) {
 					object->use_motion = true;
 				}
-				else if(motion_time == 1.0f) {
-					object->motion.post = tfm;
-					object->use_motion = true;
-				}
+			}
+
+			if(motion_time == -1.0f) {
+				object->motion.pre = tfm;
+			}
+			else if(motion_time == 1.0f) {
+				object->motion.post = tfm;
 			}
 
 			/* mesh deformation */
@@ -395,8 +397,8 @@ Object *BlenderSync::sync_object(BL::Object& b_parent,
 		object->name = b_ob.name().c_str();
 		object->pass_id = b_ob.pass_index();
 		object->tfm = tfm;
-		object->motion.pre = tfm;
-		object->motion.post = tfm;
+		object->motion.pre = transform_empty();
+		object->motion.post = transform_empty();
 		object->use_motion = false;
 
 		/* motion blur */

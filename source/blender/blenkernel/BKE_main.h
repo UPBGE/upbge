@@ -103,6 +103,7 @@ typedef struct Main {
 	ListBase movieclip;
 	ListBase mask;
 	ListBase linestyle;
+	ListBase cachefiles;
 
 	char id_tag_update[256];
 

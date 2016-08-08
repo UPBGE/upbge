@@ -605,6 +605,8 @@ class PARTICLE_PT_physics(ParticleButtonsPanel, Panel):
             row.prop(part, "use_size_deflect")
             row.prop(part, "use_die_on_collision")
 
+            layout.prop(part, "collision_group")
+
             if part.physics_type == 'FLUID':
                 fluid = part.fluid
 
@@ -713,6 +715,8 @@ class PARTICLE_PT_physics(ParticleButtonsPanel, Panel):
             col.prop(boids, "land_ave_max", slider=True)
             col.prop(boids, "land_personal_space")
             col.prop(boids, "land_stick_force")
+
+            layout.prop(part, "collision_group")
 
             split = layout.split()
 

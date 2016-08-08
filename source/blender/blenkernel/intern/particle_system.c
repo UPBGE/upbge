@@ -2183,7 +2183,6 @@ static void basic_rotate(ParticleSettings *part, ParticleData *pa, float dfra, f
  *     http://en.wikipedia.org/wiki/Newton's_method
  *
  ************************************************/
-#define COLLISION_MAX_COLLISIONS	10
 #define COLLISION_MIN_RADIUS 0.001f
 #define COLLISION_MIN_DISTANCE 0.0001f
 #define COLLISION_ZERO 0.00001f
@@ -2570,10 +2569,6 @@ void BKE_psys_collision_neartest_cb(void *userdata, int index, const BVHTreeRay 
 	pce.inside = 0;
 	pce.index = index;
 
-	/* don't collide with same face again */
-	if (col->hit == col->current && col->pce.index == index && col->pce.tot == 3)
-		return;
-
 	collision = collision_sphere_to_tri(col, ray->radius, &pce, &t);
 	if (col->pce.inside == 0) {
 		collision += collision_sphere_to_edges(col, ray->radius, &pce, &t);
@@ -2609,8 +2604,17 @@ static int collision_detect(ParticleData *pa, ParticleCollision *col, BVHTreeRay
 		hit->dist = col->original_ray_length = 0.000001f;
 
 	for (coll = colliders->first; coll; coll=coll->next) {
-		/* for boids: don't check with current ground object */
-		if (coll->ob == col->skip)
+		/* for boids: don't check with current ground object; also skip if permeated */
+		bool skip = false;
+
+		for (int i = 0; i < col->skip_count; i++) {
+			if (coll->ob == col->skip[i]) {
+				skip = true;
+				break;
+			}
+		}
+
+		if (skip)
 			continue;
 
 		/* particles should not collide with emitter at birth */
@@ -2746,7 +2750,7 @@ static int collision_response(ParticleData *pa, ParticleCollision *col, BVHTreeR
 		if (through==0 && ((vc_dot>0.0f && v0_dot>0.0f && vc_dot>v0_dot) || (vc_dot<0.0f && v0_dot<0.0f && vc_dot<v0_dot)))
 			mul_v3_v3fl(v0_nor, pce->nor, vc_dot);
 		else if (v0_dot > 0.f)
-			mul_v3_v3fl(v0_nor, pce->nor, vc_dot + (through ? -1.0f : 1.0f) * v0_dot);
+			mul_v3_v3fl(v0_nor, pce->nor, vc_dot + v0_dot);
 		else
 			mul_v3_v3fl(v0_nor, pce->nor, vc_dot + (through ? 1.0f : -1.0f) * v0_dot);
 
@@ -2801,8 +2805,10 @@ static int collision_response(ParticleData *pa, ParticleCollision *col, BVHTreeR
 		col->f = f;
 	}
 
-	col->prev = col->hit;
-	col->prev_index = hit->index;
+	/* if permeability random roll succeeded, disable collider for this sim step */
+	if (through) {
+		col->skip[col->skip_count++] = col->hit;
+	}
 
 	return 1;
 }
@@ -2863,16 +2869,16 @@ static void collision_check(ParticleSimulationData *sim, int p, float dfra, floa
 	if (part->phystype == PART_PHYS_BOIDS && part->boids->options & BOID_ALLOW_LAND) {
 		col.boid = 1;
 		col.boid_z = pa->state.co[2];
-		col.skip = pa->boid->ground;
+		col.skip[col.skip_count++] = pa->boid->ground;
 	}
 
 	/* 10 iterations to catch multiple collisions */
-	while (collision_count < COLLISION_MAX_COLLISIONS) {
+	while (collision_count < PARTICLE_COLLISION_MAX_COLLISIONS) {
 		if (collision_detect(pa, &col, &hit, sim->colliders)) {
 			
 			collision_count++;
 
-			if (collision_count == COLLISION_MAX_COLLISIONS)
+			if (collision_count == PARTICLE_COLLISION_MAX_COLLISIONS)
 				collision_fail(pa, &col);
 			else if (collision_response(pa, &col, &hit, part->flag & PART_DIE_ON_COL, part->flag & PART_ROT_DYN)==0)
 				return;
@@ -3311,7 +3317,7 @@ static float get_base_time_step(ParticleSettings *part)
 	return 1.0f / (float) (part->subframes + 1);
 }
 /* Update time step size to suit current conditions. */
-static float update_timestep(ParticleSystem *psys, ParticleSimulationData *sim, float t_frac)
+static void update_timestep(ParticleSystem *psys, ParticleSimulationData *sim)
 {
 	float dt_target;
 	if (sim->courant_num == 0.0f)
@@ -3331,7 +3337,10 @@ static float update_timestep(ParticleSystem *psys, ParticleSimulationData *sim, 
 		psys->dt_frac = interpf(dt_target, psys->dt_frac, TIMESTEP_EXPANSION_FACTOR);
 	else
 		psys->dt_frac = dt_target;
+}
 
+static float sync_timestep(ParticleSystem *psys, float t_frac)
+{
 	/* Sync with frame end if it's close. */
 	if (t_frac == 1.0f)
 		return psys->dt_frac;
@@ -3493,7 +3502,7 @@ static void dynamics_step(ParticleSimulationData *sim, float cfra)
 	psys_update_effectors(sim);
 
 	if (part->type != PART_HAIR)
-		sim->colliders = get_collider_cache(sim->scene, sim->ob, NULL);
+		sim->colliders = get_collider_cache(sim->scene, sim->ob, part->collision_group);
 
 	/* initialize physics type specific stuff */
 	switch (part->phystype) {
@@ -3991,7 +4000,9 @@ static void system_step(ParticleSimulationData *sim, float cfra, const bool use_
 				printf("%f,%f,%f,%f\n", cfra+dframe+t_frac - 1.f, t_frac, dt_frac, sim->courant_num);
 #endif
 				if (part->time_flag & PART_TIME_AUTOSF)
-					dt_frac = update_timestep(psys, sim, t_frac);
+					update_timestep(psys, sim);
+				/* Even without AUTOSF dt_frac may not add up to 1.0 due to float precision. */
+				dt_frac = sync_timestep(psys, t_frac);
 			}
 		}
 	}

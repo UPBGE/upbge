@@ -45,6 +45,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_brush_types.h"
+#include "DNA_cachefile_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_group_types.h"
 #include "DNA_gpencil_types.h"
@@ -56,6 +57,7 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_node_types.h"
@@ -81,6 +83,7 @@
 #include "BKE_bpath.h"
 #include "BKE_brush.h"
 #include "BKE_camera.h"
+#include "BKE_cachefile.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
@@ -103,6 +106,7 @@
 #include "BKE_main.h"
 #include "BKE_mball.h"
 #include "BKE_mask.h"
+#include "BKE_movieclip.h"
 #include "BKE_node.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
@@ -331,8 +335,10 @@ void BKE_id_make_local_generic(Main *bmain, ID *id, const bool id_in_mainlist, c
  */
 bool id_make_local(Main *bmain, ID *id, const bool test, const bool lib_local)
 {
-	if (id->tag & LIB_TAG_INDIRECT)
+	/* We don't care whether ID is directly or indirectly linked in case we are making a whole lib local... */
+	if (!lib_local && (id->tag & LIB_TAG_INDIRECT)) {
 		return false;
+	}
 
 	switch ((ID_Type)GS(id->name)) {
 		case ID_SCE:
@@ -407,6 +413,9 @@ bool id_make_local(Main *bmain, ID *id, const bool test, const bool lib_local)
 		case ID_GD:
 			if (!test) BKE_gpencil_make_local(bmain, (bGPdata *)id, lib_local);
 			return true;
+		case ID_MC:
+			if (!test) BKE_movieclip_make_local(bmain, (MovieClip *)id, lib_local);
+			return true;
 		case ID_MSK:
 			if (!test) BKE_mask_make_local(bmain, (Mask *)id, lib_local);
 			return true;
@@ -419,8 +428,9 @@ bool id_make_local(Main *bmain, ID *id, const bool test, const bool lib_local)
 		case ID_PC:
 			if (!test) BKE_paint_curve_make_local(bmain, (PaintCurve *)id, lib_local);
 			return true;
-		case ID_MC:
-			return false;  /* TODO missing implementation */
+		case ID_CF:
+			if (!test) BKE_cachefile_make_local(bmain, (CacheFile *)id, lib_local);
+			return true;
 		case ID_SCR:
 		case ID_LI:
 		case ID_KE:
@@ -508,7 +518,10 @@ bool id_copy(Main *bmain, ID *id, ID **newid, bool test)
 			if (!test) *newid = (ID *)BKE_particlesettings_copy(bmain, (ParticleSettings *)id);
 			return true;
 		case ID_GD:
-			if (!test) *newid = (ID *)gpencil_data_duplicate(bmain, (bGPdata *)id, false);
+			if (!test) *newid = (ID *)BKE_gpencil_data_duplicate(bmain, (bGPdata *)id, false);
+			return true;
+		case ID_MC:
+			if (!test) *newid = (ID *)BKE_movieclip_copy(bmain, (MovieClip *)id);
 			return true;
 		case ID_MSK:
 			if (!test) *newid = (ID *)BKE_mask_copy(bmain, (Mask *)id);
@@ -522,6 +535,9 @@ bool id_copy(Main *bmain, ID *id, ID **newid, bool test)
 		case ID_PC:
 			if (!test) *newid = (ID *)BKE_paint_curve_copy(bmain, (PaintCurve *)id);
 			return true;
+		case ID_CF:
+			if (!test) *newid = (ID *)BKE_cachefile_copy(bmain, (CacheFile *)id);
+			return true;
 		case ID_SCE:
 		case ID_LI:
 		case ID_SCR:
@@ -529,7 +545,6 @@ bool id_copy(Main *bmain, ID *id, ID **newid, bool test)
 			return false;  /* can't be copied from here */
 		case ID_VF:
 		case ID_SO:
-		case ID_MC:
 			return false;  /* not implemented */
 		case ID_IP:
 			return false;  /* deprecated */
@@ -635,6 +650,8 @@ ListBase *which_libbase(Main *mainlib, short type)
 			return &(mainlib->palettes);
 		case ID_PC:
 			return &(mainlib->paintcurves);
+		case ID_CF:
+			return &(mainlib->cachefiles);
 	}
 	return NULL;
 }
@@ -758,6 +775,7 @@ int set_listbasepointers(Main *main, ListBase **lb)
 
 	lb[a++] = &(main->armature);
 
+	lb[a++] = &(main->cachefiles);
 	lb[a++] = &(main->mesh);
 	lb[a++] = &(main->curve);
 	lb[a++] = &(main->mball);
@@ -909,6 +927,9 @@ void *BKE_libblock_alloc_notest(short type)
 		case ID_PC:
 			id = MEM_callocN(sizeof(PaintCurve), "Paint Curve");
 			break;
+		case ID_CF:
+			id = MEM_callocN(sizeof(CacheFile), "Cache File");
+			break;
 	}
 	return id;
 }
@@ -1034,6 +1055,9 @@ void BKE_libblock_init_empty(ID *id)
 			break;
 		case ID_LS:
 			BKE_linestyle_init((FreestyleLineStyle *)id);
+			break;
+		case ID_CF:
+			BKE_cachefile_init((CacheFile *)id);
 			break;
 		case ID_KE:
 			/* Shapekeys are a complex topic too - they depend on their 'user' data type...
@@ -1222,6 +1246,7 @@ void BKE_main_free(Main *mainvar)
 				case  31: BKE_libblock_free_ex(mainvar, id, false); break;
 				case  32: BKE_libblock_free_ex(mainvar, id, false); break;
 				case  33: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  34: BKE_libblock_free_ex(mainvar, id, false); break;
 				default:
 					BLI_assert(0);
 					break;
@@ -1635,22 +1660,20 @@ void BKE_library_make_local(Main *bmain, const Library *lib, const bool untagged
 	for (a = set_listbasepointers(bmain, lbarray); a--; ) {
 		id = lbarray[a]->first;
 
-		if (!id || !BKE_idcode_is_linkable(GS(id->name))) {
-			/* Do not explicitely make local non-linkable IDs (shapekeys, in fact), they are assumed to be handled
-			 * by real datablocks responsible of them. */
-			continue;
-		}
+		/* Do not explicitly make local non-linkable IDs (shapekeys, in fact), they are assumed to be handled
+		 * by real datablocks responsible of them. */
+		const bool do_skip = (id && !BKE_idcode_is_linkable(GS(id->name)));
 
 		for (; id; id = id_next) {
 			id->newid = NULL;
 			id_next = id->next;  /* id is possibly being inserted again */
-			
+
 			/* The check on the second line (LIB_TAG_PRE_EXISTING) is done so its
 			 * possible to tag data you don't want to be made local, used for
 			 * appending data, so any libdata already linked wont become local
 			 * (very nasty to discover all your links are lost after appending)  
 			 * */
-			if (id->tag & (LIB_TAG_EXTERN | LIB_TAG_INDIRECT | LIB_TAG_NEW) &&
+			if (!do_skip && id->tag & (LIB_TAG_EXTERN | LIB_TAG_INDIRECT | LIB_TAG_NEW) &&
 			    ((untagged_only == false) || !(id->tag & LIB_TAG_PRE_EXISTING)))
 			{
 				if (lib == NULL || id->lib == lib) {

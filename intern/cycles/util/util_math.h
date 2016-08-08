@@ -690,6 +690,15 @@ ccl_device_inline float average(const float3 a)
 	return reduce_add(a)*(1.0f/3.0f);
 }
 
+ccl_device_inline bool isequal_float3(const float3 a, const float3 b)
+{
+#ifdef __KERNEL_OPENCL__
+	return all(a == b);
+#else
+	return a == b;
+#endif
+}
+
 /* Float4 Vector */
 
 #ifdef __KERNEL_SSE__
@@ -1468,10 +1477,10 @@ ccl_device bool ray_triangle_intersect(
 	return true;
 }
 
-ccl_device bool ray_triangle_intersect_uv(
-	float3 ray_P, float3 ray_D, float ray_t,
-	float3 v0, float3 v1, float3 v2,
-	float *isect_u, float *isect_v, float *isect_t)
+ccl_device_inline bool ray_triangle_intersect_uv(
+        float3 ray_P, float3 ray_D, float ray_t,
+        float3 v0, float3 v1, float3 v2,
+        float *isect_u, float *isect_v, float *isect_t)
 {
 	/* Calculate intersection */
 	float3 e1 = v1 - v0;

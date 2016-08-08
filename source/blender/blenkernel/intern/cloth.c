@@ -58,6 +58,7 @@ static void cloth_to_object (Object *ob,  ClothModifierData *clmd, float (*verte
 static void cloth_from_mesh ( ClothModifierData *clmd, DerivedMesh *dm );
 static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *dm, float framenr, int first);
 static void cloth_update_springs( ClothModifierData *clmd );
+static void cloth_update_verts( Object *ob, ClothModifierData *clmd, DerivedMesh *dm );
 static void cloth_update_spring_lengths( ClothModifierData *clmd, DerivedMesh *dm );
 static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm );
 static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm );
@@ -96,6 +97,7 @@ void cloth_init(ClothModifierData *clmd )
 	clmd->sim_parms->avg_spring_len = 0.0;
 	clmd->sim_parms->presets = 2; /* cotton as start setting */
 	clmd->sim_parms->timescale = 1.0f; /* speed factor, describes how fast cloth moves */
+	clmd->sim_parms->time_scale = 1.0f; /* multiplies cloth speed */
 	clmd->sim_parms->reset = 0;
 	clmd->sim_parms->vel_damping = 1.0f; /* 1.0 = no damping, 0.0 = fully dampened */
 	
@@ -368,10 +370,13 @@ static int do_step_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *resul
 
 	effectors = pdInitEffectors(clmd->scene, ob, NULL, clmd->sim_parms->effector_weights, true);
 
+	if (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_DYNAMIC_BASEMESH )
+		cloth_update_verts ( ob, clmd, result );
+
 	/* Support for dynamic vertex groups, changing from frame to frame */
 	cloth_apply_vgroup ( clmd, result );
 
-	if ( clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_SEW )
+	if ( clmd->sim_parms->flags & (CLOTH_SIMSETTINGS_FLAG_SEW | CLOTH_SIMSETTINGS_FLAG_DYNAMIC_BASEMESH) )
 		cloth_update_spring_lengths ( clmd, result );
 
 	cloth_update_springs( clmd );
@@ -407,7 +412,7 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 
 	BKE_ptcache_id_from_cloth(&pid, ob, clmd);
 	BKE_ptcache_id_time(&pid, scene, framenr, &startframe, &endframe, &timescale);
-	clmd->sim_parms->timescale= timescale;
+	clmd->sim_parms->timescale= timescale * clmd->sim_parms->time_scale;
 
 	if (clmd->sim_parms->reset || (clmd->clothObject && dm->getNumVerts(dm) != clmd->clothObject->mvert_num)) {
 		clmd->sim_parms->reset = 0;
@@ -804,7 +809,7 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 	clmd->clothObject->springs = NULL;
 	clmd->clothObject->numsprings = -1;
 
-	if ( clmd->sim_parms->shapekey_rest )
+	if ( clmd->sim_parms->shapekey_rest && !(clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_DYNAMIC_BASEMESH ) )
 		shapekey_rest = dm->getVertDataArray ( dm, CD_CLOTH_ORCO );
 
 	mvert = dm->getVertArray (dm);
@@ -1178,6 +1183,20 @@ static void cloth_update_springs( ClothModifierData *clmd )
 	}
 	
 	cloth_hair_update_bending_targets(clmd);
+}
+
+/* Update rest verts, for dynamically deformable cloth */
+static void cloth_update_verts( Object *ob, ClothModifierData *clmd, DerivedMesh *dm )
+{
+	unsigned int i = 0;
+	MVert *mvert = dm->getVertArray (dm);
+	ClothVertex *verts = clmd->clothObject->verts;
+
+	/* vertex count is already ensured to match */
+	for ( i = 0; i < dm->getNumVerts(dm); i++, verts++ ) {
+		copy_v3_v3(verts->xrest, mvert[i].co);
+		mul_m4_v3(ob->obmat, verts->xrest);
+	}
 }
 
 /* Update spring rest lenght, for dynamically deformable cloth */

@@ -305,7 +305,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			library_foreach_animationData(&data, adt);
 		}
 
-		switch (GS(id->name)) {
+		switch ((ID_Type)GS(id->name)) {
 			case ID_LI:
 			{
 				Library *lib = (Library *) id;
@@ -497,8 +497,12 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					BKE_particlesystem_id_loop(psys, library_foreach_particlesystemsObjectLooper, &data);
 				}
 
-				if (object->soft && object->soft->effector_weights) {
-					CALLBACK_INVOKE(object->soft->effector_weights->group, IDWALK_NOP);
+				if (object->soft) {
+					CALLBACK_INVOKE(object->soft->collision_group, IDWALK_NOP);
+
+					if (object->soft->effector_weights) {
+						CALLBACK_INVOKE(object->soft->effector_weights->group, IDWALK_NOP);
+					}
 				}
 
 				BKE_sca_sensors_id_loop(&object->sensors, library_foreach_sensorsObjectLooper, &data);
@@ -713,6 +717,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 				CALLBACK_INVOKE(psett->dup_group, IDWALK_NOP);
 				CALLBACK_INVOKE(psett->dup_ob, IDWALK_NOP);
 				CALLBACK_INVOKE(psett->bb_ob, IDWALK_NOP);
+				CALLBACK_INVOKE(psett->collision_group, IDWALK_NOP);
 
 				for (i = 0; i < MAX_MTEX; i++) {
 					if (psett->mtex[i]) {
@@ -835,6 +840,25 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 				}
 				break;
 			}
+
+			/* Nothing needed for those... */
+			case ID_IM:
+			case ID_VF:
+			case ID_TXT:
+			case ID_SO:
+			case ID_AR:
+			case ID_AC:
+			case ID_GD:
+			case ID_WM:
+			case ID_PAL:
+			case ID_PC:
+			case ID_CF:
+				break;
+
+			/* Deprecated. */
+			case ID_IP:
+				break;
+
 		}
 	} while ((id = (flag & IDWALK_RECURSE) ? BLI_LINKSTACK_POP(data.ids_todo) : NULL));
 
@@ -877,7 +901,7 @@ bool BKE_library_idtype_can_use_idtype(const short id_type_owner, const short id
 		return id_type_can_have_animdata(id_type_owner);
 	}
 
-	switch (id_type_owner) {
+	switch ((ID_Type)id_type_owner) {
 		case ID_LI:
 			return ELEM(id_type_used, ID_LI);
 		case ID_SCE:
@@ -936,9 +960,24 @@ bool BKE_library_idtype_can_use_idtype(const short id_type_owner, const short id
 			return ELEM(id_type_used, ID_MC);  /* WARNING! mask->parent.id, not typed. */
 		case ID_LS:
 			return (ELEM(id_type_used, ID_TE, ID_OB) || BKE_library_idtype_can_use_idtype(ID_NT, id_type_used));
-		default:
+		case ID_IM:
+		case ID_VF:
+		case ID_TXT:
+		case ID_SO:
+		case ID_AR:
+		case ID_AC:
+		case ID_GD:
+		case ID_WM:
+		case ID_PAL:
+		case ID_PC:
+		case ID_CF:
+			/* Those types never use/reference other IDs... */
+			return false;
+		case ID_IP:
+			/* Deprecated... */
 			return false;
 	}
+	return false;
 }
 
 

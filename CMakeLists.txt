@@ -328,6 +328,10 @@ option(WITH_CODEC_AVI           "Enable Blenders own AVI file support (raw/jpeg)
 option(WITH_CODEC_FFMPEG        "Enable FFMPeg Support (http://ffmpeg.org)" ${_init_CODEC_FFMPEG})
 option(WITH_CODEC_SNDFILE       "Enable libsndfile Support (http://www.mega-nerd.com/libsndfile)" OFF)
 
+# Alembic support
+option(WITH_ALEMBIC             "Enable Alembic Support" OFF)
+option(WITH_ALEMBIC_HDF5        "Enable Legacy Alembic Support (not officially supported)" OFF)
+
 if(APPLE)
 	option(WITH_CODEC_QUICKTIME     "Enable Quicktime Support" ON)
 endif()
@@ -398,6 +402,7 @@ option(WITH_CYCLES					"Enable Cycles Render Engine" ON)
 option(WITH_CYCLES_STANDALONE		"Build Cycles standalone application" OFF)
 option(WITH_CYCLES_STANDALONE_GUI	"Build Cycles standalone with GUI" OFF)
 option(WITH_CYCLES_OSL				"Build Cycles with OSL support" ${_init_CYCLES_OSL})
+option(WITH_CYCLES_OPENSUBDIV		"Build Cycles with OpenSubdiv support" ON)
 option(WITH_CYCLES_CUDA_BINARIES	"Build Cycles CUDA binaries" OFF)
 set(CYCLES_CUDA_BINARIES_ARCH sm_20 sm_21 sm_30 sm_35 sm_37 sm_50 sm_52 CACHE STRING "CUDA architectures to build binaries for")
 mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
@@ -723,6 +728,11 @@ endif()
 if(WITH_OPENIMAGEIO)
 	set(WITH_IMAGE_OPENEXR ON)
 	set(WITH_IMAGE_TIFF ON)
+endif()
+
+# auto enable alembic linking dependencies
+if(WITH_ALEMBIC)
+	set(WITH_IMAGE_OPENEXR ON)
 endif()
 
 # don't store paths to libs for portable distribution
@@ -1105,6 +1115,21 @@ if(UNIX AND NOT APPLE)
 		endif()
 	endif()
 
+	if(WITH_ALEMBIC)
+		set(ALEMBIC_ROOT_DIR ${LIBDIR}/alembic)
+		find_package_wrapper(Alembic)
+
+		if(WITH_ALEMBIC_HDF5)
+			set(HDF5_ROOT_DIR ${LIBDIR}/hdf5)
+			find_package_wrapper(HDF5)
+		endif()
+
+		if(NOT ALEMBIC_FOUND OR (WITH_ALEMBIC_HDF5 AND NOT HDF5_FOUND))
+			set(WITH_ALEMBIC OFF)
+			set(WITH_ALEMBIC_HDF5 OFF)
+		endif()
+	endif()
+
 	if(WITH_BOOST)
 		# uses in build instructions to override include and library variables
 		if(NOT BOOST_CUSTOM)
@@ -1340,10 +1365,8 @@ elseif(WIN32)
 		# MSVC11 needs _ALLOW_KEYWORD_MACROS to build
 		add_definitions(-D_ALLOW_KEYWORD_MACROS)
 
-		if(CMAKE_CL_64)
-			# We want to support Vista level ABI for x64
-			add_definitions(-D_WIN32_WINNT=0x600)
-		endif()
+		# We want to support Vista level ABI 
+		add_definitions(-D_WIN32_WINNT=0x600)
 
 		# Make cmake find the msvc redistributables
 		set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
@@ -1674,6 +1697,21 @@ elseif(WIN32)
 			set(OPENVDB_LIBPATH ${LIBDIR}/openvdb/lib)
 		endif()
 
+		if(WITH_ALEMBIC)
+			set(ALEMBIC_ROOT_DIR ${LIBDIR}/alembic)
+			find_package(Alembic)
+
+			if(WITH_ALEMBIC_HDF5)
+				set(HDF5_ROOT_DIR ${LIBDIR}/hdf5)
+				find_package(HDF5)
+			endif()
+
+			if(NOT ALEMBIC_FOUND OR (WITH_ALEMBIC_HDF5 AND NOT HDF5_FOUND))
+				set(WITH_ALEMBIC OFF)
+				set(WITH_ALEMBIC_HDF5 OFF)
+			endif()
+		endif()
+
 		if(WITH_MOD_CLOTH_ELTOPO)
 			set(LAPACK ${LIBDIR}/lapack)
 			# set(LAPACK_INCLUDE_DIR ${LAPACK}/include)
@@ -1973,6 +2011,21 @@ elseif(WIN32)
 			set(OPENVDB_DEFINITIONS)
 		endif()
 
+		if(WITH_ALEMBIC)
+			set(ALEMBIC_ROOT_DIR ${LIBDIR}/alembic)
+			find_package_wrapper(Alembic)
+
+			if(WITH_ALEMBIC_HDF5)
+				set(HDF5_ROOT_DIR ${LIBDIR}/hdf5)
+				find_package_wrapper(HDF5)
+			endif()
+
+			if(NOT ALEMBIC_FOUND OR (WITH_ALEMBIC_HDF5 AND NOT HDF5_FOUND))
+				set(WITH_ALEMBIC OFF)
+				set(WITH_ALEMBIC_HDF5 OFF)
+			endif()
+		endif()
+
 		set(PLATFORM_LINKFLAGS "-Xlinker --stack=2097152")
 
 		## DISABLE - causes linking errors 
@@ -2054,6 +2107,20 @@ elseif(APPLE)
 			set(OPENAL_INCLUDE_DIR "${LIBDIR}/openal/include")
 		else()
 			set(WITH_OPENAL OFF)
+		endif()
+	endif()
+
+	if(WITH_ALEMBIC)
+		set(ALEMBIC_ROOT_DIR ${LIBDIR}/alembic)
+		find_package(Alembic)
+		if(WITH_ALEMBIC_HDF5)
+			set(HDF5_ROOT_DIR ${LIBDIR}/hdf5)
+			find_package(HDF5)
+		endif()
+
+		if(NOT ALEMBIC_FOUND OR (WITH_ALEMBIC_HDF5 AND NOT HDF5_FOUND))
+			set(WITH_ALEMBIC OFF)
+			set(WITH_ALEMBIC_HDF5 OFF)
 		endif()
 	endif()
 
@@ -2465,6 +2532,11 @@ if(WITH_CYCLES)
 				"Configure LLVM or disable WITH_CYCLES_OSL"
 			)
 		endif()
+	endif()
+
+	if(WITH_CYCLES_OPENSUBDIV AND NOT WITH_OPENSUBDIV)
+		message(STATUS "WITH_CYCLES_OPENSUBDIV requires WITH_OPENSUBDIV to be ON, turning OFF")
+		set(WITH_CYCLES_OPENSUBDIV OFF)
 	endif()
 endif()
 
@@ -3229,6 +3301,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_FREESTYLE)
 	info_cfg_option(WITH_OPENCOLORIO)
 	info_cfg_option(WITH_OPENVDB)
+	info_cfg_option(WITH_ALEMBIC)
 
 	info_cfg_text("Compiler Options:")
 	info_cfg_option(WITH_BUILDINFO)

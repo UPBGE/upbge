@@ -775,6 +775,13 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
                 default='LINEAR',
                 )
 
+        cls.displacement_method = EnumProperty(
+                name="Displacement Method",
+                description="Method to use for the displacement",
+                items=enum_displacement_methods,
+                default='BUMP',
+                )
+
     @classmethod
     def unregister(cls):
         del bpy.types.Material.cycles
@@ -952,13 +959,6 @@ class CyclesMeshSettings(bpy.types.PropertyGroup):
                 type=cls,
                 )
 
-        cls.displacement_method = EnumProperty(
-                name="Displacement Method",
-                description="Method to use for the displacement",
-                items=enum_displacement_methods,
-                default='BUMP',
-                )
-
     @classmethod
     def unregister(cls):
         del bpy.types.Mesh.cycles
@@ -1012,7 +1012,6 @@ class CyclesObjectSettings(bpy.types.PropertyGroup):
                 min=0.1, max=1000.0,
                 default=1.0,
                 )
-
 
     @classmethod
     def unregister(cls):
