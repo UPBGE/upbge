@@ -2004,6 +2004,9 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 		glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS_ARB, (GLint*)&max);
 		pprint("  Max vertex texture units." << max);
 
+		glGetIntegerv(GL_MAX_VERTEX_ATTRIBS_ARB, (GLint*)&max);
+		pprint("  Max vertex attribs." << max);
+
 		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS_ARB, (GLint*)&max);
 		pprint("  Max combined texture units." << max);
 		pprint("");
