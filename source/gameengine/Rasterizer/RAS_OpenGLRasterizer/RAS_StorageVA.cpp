@@ -302,7 +302,6 @@ void RAS_StorageVA::EnableTextures(bool enable)
 	attrib_num = *m_attrib_num;
 
 	for (unit = 0; unit < texco_num; unit++) {
-		glClientActiveTextureARB(GL_TEXTURE0_ARB + unit);
 
 		switch (texco[unit]) {
 			case RAS_IRasterizer::RAS_TEXCO_ORCO:
@@ -311,6 +310,7 @@ void RAS_StorageVA::EnableTextures(bool enable)
 			case RAS_IRasterizer::RAS_TEXCO_NORM:
 			case RAS_IRasterizer::RAS_TEXTANGENT:
 			{
+				glClientActiveTextureARB(GL_TEXTURE0_ARB + unit);
 				if (enable) {
 					glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				}
@@ -321,7 +321,6 @@ void RAS_StorageVA::EnableTextures(bool enable)
 			}
 			default:
 			{
-				glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 				break;
 			}
 		}
