@@ -638,6 +638,10 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, int mode,
 			GPU_offscreen_free(ofs);
 			return NULL;
 		}
+
+		GPU_texture_bind(ofs->color, 0);
+		GPU_texture_filter_mode(ofs->color, false, mode & GPU_OFFSCREEN_MIPMAP);
+		GPU_texture_unbind(ofs->color);
 	}
 
 	if (mode & GPU_OFFSCREEN_RENDERBUFFER_DEPTH) {
@@ -663,6 +667,10 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, int mode,
 			GPU_offscreen_free(ofs);
 			return NULL;
 		}
+
+		GPU_texture_bind(ofs->depth, 0);
+		GPU_texture_filter_mode(ofs->depth, mode & GPU_OFFSCREEN_DEPTH_COMPARE, mode & GPU_OFFSCREEN_MIPMAP);
+		GPU_texture_unbind(ofs->depth);
 	}
 
 	/* check validity at the very end! */

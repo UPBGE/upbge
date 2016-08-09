@@ -3,6 +3,8 @@ uniform sampler2D depthtex;
 
 void main()
 {
-	gl_FragColor = texture2D(colortex, gl_TexCoord[0].xy);
-	gl_FragDepth = texture2D(depthtex, gl_TexCoord[0].xy).x;
+	ivec2 size = textureSize(colortex, 0);
+	ivec2 co = ivec2(size * gl_TexCoord[0].xy);
+	gl_FragColor = texelFetch(colortex, co, 0);
+	gl_FragDepth = texelFetch(depthtex, co, 0).x;
 }
