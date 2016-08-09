@@ -364,7 +364,6 @@ void RAS_StorageVA::EnableTextures(bool enable)
 				}
 				default:
 				{
-					glDisableVertexAttribArrayARB(unit);
 					break;
 				}
 			}
