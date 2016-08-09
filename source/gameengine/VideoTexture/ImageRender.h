@@ -73,9 +73,6 @@ public:
 
 	/// Get color off screen bind code.
 	int GetColorBindCode() const;
-	/// Get depth off screen bind code.
-	int GetDepthBindCode() const;
-
 
 	/// clipping distance
 	float getClip (void) { return m_clip; }

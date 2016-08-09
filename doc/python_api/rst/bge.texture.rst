@@ -423,12 +423,6 @@ Image classes
 
       :type: integer
 
-   .. attribute:: depthBindCode
-
-      Off-screen depth texture bind code.
-
-      :type: integer
-
    .. attribute:: capsize
 
       Size of render area.
@@ -672,12 +666,6 @@ Image classes
    .. attribute:: colorBindCode
 
       Off-screen color texture bind code.
-
-      :type: integer
-
-   .. attribute:: depthBindCode
-
-      Off-screen depth texture bind code.
 
       :type: integer
 

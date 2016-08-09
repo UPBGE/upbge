@@ -93,9 +93,9 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
 
-	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, false, NULL);
+	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
 	if (m_samples > 0) {
-		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, false, NULL);
+		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
 	}
 }
 
@@ -116,11 +116,6 @@ ImageRender::~ImageRender (void)
 int ImageRender::GetColorBindCode() const
 {
 	return GPU_texture_opengl_bindcode(GPU_offscreen_texture((m_samples > 0) ? m_blitOffScreen : m_offScreen));
-}
-
-int ImageRender::GetDepthBindCode() const
-{
-	return GPU_texture_opengl_bindcode(GPU_offscreen_depth_texture((m_samples > 0) ? m_blitOffScreen : m_offScreen));
 }
 
 // get update shadow buffer
@@ -650,11 +645,6 @@ static PyObject *getColorBindCode(PyImage *self, void *closure)
 	return PyLong_FromLong(getImageRender(self)->GetColorBindCode());
 }
 
-static PyObject *getDepthBindCode(PyImage *self, void *closure)
-{
-	return PyLong_FromLong(getImageRender(self)->GetDepthBindCode());
-}
-
 // methods structure
 static PyMethodDef imageRenderMethods[] =
 { // methods from ImageBase class
@@ -683,7 +673,6 @@ static PyGetSetDef imageRenderGetSets[] =
 	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", NULL},
 	{(char*)"updateShadow", (getter)getUpdateShadow, (setter)setUpdateShadow, (char*)"update shadow buffers", NULL},
 	{(char*)"colorBindCode", (getter)getColorBindCode, NULL, (char*)"Off-screen color texture bind code", NULL},
-	{(char*)"depthBindCode", (getter)getDepthBindCode, NULL, (char*)"Off-screen depth texture bind code", NULL},
 	{NULL}
 };
 
