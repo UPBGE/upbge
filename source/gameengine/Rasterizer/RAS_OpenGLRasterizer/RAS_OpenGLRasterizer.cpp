@@ -244,7 +244,7 @@ void RAS_OpenGLRasterizer::ScreenFBO::Update(RAS_ICanvas *canvas)
 				GPU_offscreen_free(m_offScreens[i]);
 			}
 
-			int mode = GPU_OFFSCREEN_MODE_NONE/* | GPU_OFFSCREEN_MIPMAP*/;
+			int mode = GPU_OFFSCREEN_MODE_NONE | GPU_OFFSCREEN_MIPMAP;
 			if (renderofs && (samples > 0)) {
 				mode |= GPU_OFFSCREEN_RENDERBUFFER_COLOR | GPU_OFFSCREEN_RENDERBUFFER_DEPTH;
 			}

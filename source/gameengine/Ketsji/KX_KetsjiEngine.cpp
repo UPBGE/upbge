@@ -566,6 +566,9 @@ void KX_KetsjiEngine::Render()
 	KX_Scene *firstscene = (KX_Scene *)m_scenes->GetFront();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 
+	const int width = m_canvas->GetWidth();
+	const int height = m_canvas->GetHeight();
+
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
 	SG_SetActiveStage(SG_STAGE_RENDER);
 
@@ -576,7 +579,7 @@ void KX_KetsjiEngine::Render()
 
 	BeginFrame();
 
-	for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
+	for (CListValue::iterator sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
 		// shadow buffers
 		RenderShadowBuffers((KX_Scene *)*sceit);
 	}
@@ -588,9 +591,8 @@ void KX_KetsjiEngine::Render()
 	// only once per frame
 	m_canvas->BeginDraw();
 	if (m_rasterizer->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED) {
-		m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
-		m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
-		m_rasterizer->SetScissor(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+		m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
+		m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
 		if (m_overrideFrameColor) {
 			// Do not use the framing bar color set in the Blender scenes
 			m_rasterizer->SetClearColor(
@@ -615,28 +617,31 @@ void KX_KetsjiEngine::Render()
 	m_canvas->BeginDraw();
 	ClearFrame();
 
+	// Used to detect when a camera is the first rendered an then doesn't request a depth clear.
+	unsigned short pass = 0;
+
 	// for each scene, call the proceed functions
-	for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
+	for (CListValue::iterator sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
 		KX_Scene *scene = (KX_Scene *)*sceit;
 		KX_Camera *activecam = scene->GetActiveCamera();
 		CListValue *cameras = scene->GetCameraList();
 
-		unsigned short numpass = m_rasterizer->Stereo() ? 2 : 1;
+		const unsigned short numeyepass = m_rasterizer->Stereo() ? 2 : 1;
 
 		// pass the scene's worldsettings to the rasterizer
 		scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 
 		m_rasterizer->SetAuxilaryClientInfo(scene);
 
-		for (unsigned short pass = 0; pass < numpass; ++pass) {
-			m_rasterizer->SetEye((pass == 0) ? RAS_IRasterizer::RAS_STEREO_LEFTEYE : RAS_IRasterizer::RAS_STEREO_RIGHTEYE);
+		for (unsigned short eyepass = 0; eyepass < numeyepass; ++eyepass) {
+			m_rasterizer->SetEye((eyepass == 0) ? RAS_IRasterizer::RAS_STEREO_LEFTEYE : RAS_IRasterizer::RAS_STEREO_RIGHTEYE);
 			// set the area used for rendering (stereo can assign only a subset)
 			m_rasterizer->SetRenderArea(m_canvas);
 
 			// Avoid drawing the scene with the active camera twice when its viewport is enabled
 			if (activecam && !activecam->GetViewport()) {
 				// do the rendering
-				RenderFrame(scene, activecam);
+				RenderFrame(scene, activecam, pass++);
 			}
 
 			// Draw the scene once for each camera with an enabled viewport
@@ -644,7 +649,7 @@ void KX_KetsjiEngine::Render()
 				KX_Camera *cam = (KX_Camera*)(*it);
 				if (cam->GetViewport()) {
 					// do the rendering
-					RenderFrame(scene, cam);
+					RenderFrame(scene, cam, pass++);
 				}
 			}
 		}
@@ -704,7 +709,7 @@ void KX_KetsjiEngine::Render()
 #endif
 
 	const short fboindex = m_rasterizer->GetCurrentFBOIndex();
-	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
+	m_canvas->SetViewPort(0, 0, width, height);
 	m_rasterizer->DrawFBO(m_canvas, fboindex);
 
 	EndFrame();
@@ -900,7 +905,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 }
 
 // update graphics
-void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
+void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, int pass)
 {
 	bool override_camera;
 	RAS_Rect viewport, area;
@@ -920,10 +925,12 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam)
 	GetSceneViewport(scene, cam, area, viewport);
 
 	// set the viewport for this frame and scene
-	m_rasterizer->SetViewport(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
-	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), viewport.GetWidth() + 1, viewport.GetHeight() + 1);
+	const int width = m_canvas->GetWidth();
+	const int height = m_canvas->GetHeight();
+	m_rasterizer->SetViewport(viewport.GetLeft(), viewport.GetBottom(), width + 1, height + 1);
+	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), width + 1, height + 1);
 
-	if (scene->IsClearingZBuffer()) {
+	if (pass > 0) {
 		m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 	}
 
