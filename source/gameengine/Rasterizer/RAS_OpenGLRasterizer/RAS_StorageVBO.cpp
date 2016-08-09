@@ -162,43 +162,41 @@ void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 	}
 	glClientActiveTextureARB(GL_TEXTURE0_ARB);
 
-	if (GLEW_ARB_vertex_program) {
-		for (unit = 0; unit < attrib_num; ++unit) {
-			switch (attrib[unit]) {
-				case RAS_IRasterizer::RAS_TEXCO_ORCO:
-				case RAS_IRasterizer::RAS_TEXCO_GLOB:
-				{
-					glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, m_stride, m_vertex_offset);
-					glEnableVertexAttribArrayARB(unit);
-					break;
-				}
-				case RAS_IRasterizer::RAS_TEXCO_UV:
-				{
-					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, m_stride, (void *)((intptr_t)m_uv_offset + attrib_layer[unit] * sizeof(GLfloat) * 2));
-					glEnableVertexAttribArrayARB(unit);
-					break;
-				}
-				case RAS_IRasterizer::RAS_TEXCO_NORM:
-				{
-					glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, m_stride, m_normal_offset);
-					glEnableVertexAttribArrayARB(unit);
-					break;
-				}
-				case RAS_IRasterizer::RAS_TEXTANGENT:
-				{
-					glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, m_stride, m_tangent_offset);
-					glEnableVertexAttribArrayARB(unit);
-					break;
-				}
-				case RAS_IRasterizer::RAS_TEXCO_VCOL:
-				{
-					glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_TRUE, m_stride, m_color_offset);
-					glEnableVertexAttribArrayARB(unit);
-					break;
-				}
-				default:
-					break;
+	for (unit = 0; unit < attrib_num; ++unit) {
+		switch (attrib[unit]) {
+			case RAS_IRasterizer::RAS_TEXCO_ORCO:
+			case RAS_IRasterizer::RAS_TEXCO_GLOB:
+			{
+				glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, m_stride, m_vertex_offset);
+				glEnableVertexAttribArrayARB(unit);
+				break;
 			}
+			case RAS_IRasterizer::RAS_TEXCO_UV:
+			{
+				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, m_stride, (void *)((intptr_t)m_uv_offset + attrib_layer[unit] * sizeof(GLfloat) * 2));
+				glEnableVertexAttribArrayARB(unit);
+				break;
+			}
+			case RAS_IRasterizer::RAS_TEXCO_NORM:
+			{
+				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, m_stride, m_normal_offset);
+				glEnableVertexAttribArrayARB(unit);
+				break;
+			}
+			case RAS_IRasterizer::RAS_TEXTANGENT:
+			{
+				glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, m_stride, m_tangent_offset);
+				glEnableVertexAttribArrayARB(unit);
+				break;
+			}
+			case RAS_IRasterizer::RAS_TEXCO_VCOL:
+			{
+				glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_TRUE, m_stride, m_color_offset);
+				glEnableVertexAttribArrayARB(unit);
+				break;
+			}
+			default:
+				break;
 		}
 	}
 }
@@ -227,11 +225,9 @@ void VBO::Unbind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num
 	}
 	glClientActiveTextureARB(GL_TEXTURE0_ARB);
 
-	if (GLEW_ARB_vertex_program) {
-		for (unsigned int unit = 0; unit < attrib_num; ++unit) {
-			if (attrib[unit] != RAS_IRasterizer::RAS_TEXCO_DISABLE) {
-				glDisableVertexAttribArrayARB(unit);
-			}
+	for (unsigned int unit = 0; unit < attrib_num; ++unit) {
+		if (attrib[unit] != RAS_IRasterizer::RAS_TEXCO_DISABLE) {
+			glDisableVertexAttribArrayARB(unit);
 		}
 	}
 
