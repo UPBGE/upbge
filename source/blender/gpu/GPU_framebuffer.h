@@ -92,7 +92,6 @@ typedef enum GPUOffScreenMode {
 	GPU_OFFSCREEN_RENDERBUFFER_COLOR = 1 << 0,
 	GPU_OFFSCREEN_RENDERBUFFER_DEPTH = 1 << 1,
 	GPU_OFFSCREEN_DEPTH_COMPARE = 1 << 2,
-	GPU_OFFSCREEN_MIPMAP = 1 << 3
 } GPUOffScreenMode;
 
 GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, int mode, char err_out[256]);
