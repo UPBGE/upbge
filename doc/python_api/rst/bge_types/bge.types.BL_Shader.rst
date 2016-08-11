@@ -67,7 +67,7 @@ base class --- :class:`PyObjectPlus`
       :arg index: Texture sample index.
       :type index: integer
 
-   .. method:: setSource(vertexProgram, fragmentProgram)
+   .. method:: setSource(vertexProgram, fragmentProgram, apply)
 
       Set the vertex and fragment programs
 
@@ -75,6 +75,28 @@ base class --- :class:`PyObjectPlus`
       :type vertexProgram: string
       :arg fragmentProgram: Fragment program
       :type fragmentProgram: string
+      :arg apply: Enable the shader.
+      :type apply: boolean
+
+   .. method:: setSourceList(sources, apply)
+
+      Set the vertex, fragment and geometry shader programs.
+
+      :arg sources: Dictionary of all programs. The keys :data:`vertex`, :data:`fragment` and :data:`geometry` represent shader programs of the same name.
+          :data:`geometry` is an optional program.
+          This dictionary can be similar to:
+
+          .. code-block:: python
+
+             sources = {
+                 "vertex" : vertexProgram,
+                 "fragment" : fragmentProgram,
+                 "geometry" : geometryProgram
+             }
+
+      :type sources: dict
+      :arg apply: Enable the shader.
+      :type apply: boolean
 
    .. method:: setUniform1f(name, fx)
 
