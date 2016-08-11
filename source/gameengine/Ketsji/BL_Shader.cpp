@@ -166,15 +166,16 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSourceList, " setSourceList(sources, apply)")
 				if (!pyprog) {
 					error = true;
 					PyErr_Format(PyExc_SystemError, "setSourceList(sources, apply): BL_Shader, non optional %s program missing", progname[i]);
+					break;
 				}
 				else if (!PyUnicode_Check(pyprog)) {
 					error = true;
 					PyErr_Format(PyExc_SystemError, "setSourceList(sources, apply): BL_Shader, non optional %s program is not a string", progname[i]);
+					break;
 				}
 			}
-			else {
-				m_progs[i] = STR_String(_PyUnicode_AsString(pyprog));
-			}
+
+			m_progs[i] = STR_String(_PyUnicode_AsString(pyprog));
 		}
 
 		if (!error && LinkProgram()) {
