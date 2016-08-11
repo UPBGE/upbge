@@ -315,12 +315,14 @@ void GPU_framebuffer_bind_no_save(GPUFrameBuffer *fb, int slot)
 
 void GPU_framebuffer_bind_simple(GPUFrameBuffer *fb)
 {
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
-	/* last bound prevails here, better allow explicit control here too */
-	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
-	glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
+	if (GG.currentfb != fb->object) {
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+		/* last bound prevails here, better allow explicit control here too */
+		glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
+		glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
 
-	GG.currentfb = fb->object;
+		GG.currentfb = fb->object;
+	}
 }
 
 bool GPU_framebuffer_bound(GPUFrameBuffer *fb)
