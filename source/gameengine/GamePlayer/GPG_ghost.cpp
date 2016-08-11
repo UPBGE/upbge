@@ -257,7 +257,6 @@ static void usage(const char* program, bool isBlenderPlayer)
 	printf("       show_framerate                 0         Show the frame rate\n");
 	printf("       show_properties                0         Show debug properties\n");
 	printf("       show_profile                   0         Show profiling information\n");
-	printf("       blender_material               0         Enable material settings\n");
 	printf("       ignore_deprecation_warnings    1         Ignore deprecation warnings\n\n");
 	printf("  -p: override python main loop script\n");
 	printf("\n");
