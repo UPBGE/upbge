@@ -44,7 +44,7 @@ BL_Shader::~BL_Shader()
 PyMethodDef BL_Shader::Methods[] = {
 	// creation
 	KX_PYMETHODTABLE(BL_Shader, setSource),
-	KX_PYMETHODTABLE(BL_Shader, setSourceDict),
+	KX_PYMETHODTABLE(BL_Shader, setSourceList),
 	KX_PYMETHODTABLE(BL_Shader, delSource),
 	KX_PYMETHODTABLE(BL_Shader, getVertexProg),
 	KX_PYMETHODTABLE(BL_Shader, getFragmentProg),
@@ -145,7 +145,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 	return NULL;
 }
 
-KX_PYMETHODDEF_DOC(BL_Shader, setSourceDict, " setSourceDict(sources, apply)")
+KX_PYMETHODDEF_DOC(BL_Shader, setSourceList, " setSourceList(sources, apply)")
 {
 	if (m_shader != 0 && m_ok) {
 		// already set...
@@ -155,7 +155,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSourceDict, " setSourceDict(sources, apply)")
 	PyObject *pydict;
 	int apply = 0;
 
-	if (PyArg_ParseTuple(args, "O!i:setSourceDict", &PyDict_Type, &pydict, &apply)) {
+	if (PyArg_ParseTuple(args, "O!i:setSourceList", &PyDict_Type, &pydict, &apply)) {
 		bool error = false;
 		static const char *progname[MAX_PROGRAM] = {"vertex", "fragment", "geometry"};
 		static const bool optional[MAX_PROGRAM] = {false, false, true};
@@ -165,11 +165,11 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSourceDict, " setSourceDict(sources, apply)")
 			if (!optional[i]) {
 				if (!pyprog) {
 					error = true;
-					PyErr_Format(PyExc_SystemError, "setSourceDict(sources, apply): BL_Shader, non optional %s program missing", progname[i]);
+					PyErr_Format(PyExc_SystemError, "setSourceList(sources, apply): BL_Shader, non optional %s program missing", progname[i]);
 				}
 				else if (!PyUnicode_Check(pyprog)) {
 					error = true;
-					PyErr_Format(PyExc_SystemError, "setSourceDict(sources, apply): BL_Shader, non optional %s program is not a string", progname[i]);
+					PyErr_Format(PyExc_SystemError, "setSourceList(sources, apply): BL_Shader, non optional %s program is not a string", progname[i]);
 				}
 			}
 			else {
