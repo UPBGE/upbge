@@ -231,14 +231,31 @@ void RAS_OpenGLRasterizer::ScreenFBO::Update(RAS_ICanvas *canvas)
 	const int width = canvas->GetWidth() + 1;
 	const int height = canvas->GetHeight() + 1;
 	const int samples = canvas->GetSamples();
+	GPUHDRType hdr = GPU_HDR_NONE;
+	switch (canvas->GetHdrType()) {
+		case RAS_HDR_NONE:
+		{
+			hdr = GPU_HDR_NONE;
+			break;
+		}
+		case RAS_HDR_HALF_FLOAT:
+		{
+			hdr = GPU_HDR_HALF_FLOAT;
+			break;
+		}
+		case RAS_HDR_FULL_FLOAT:
+		{
+			hdr = GPU_HDR_FULL_FLOAT;
+			break;
+		}
+	}
 
 	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_OFFSCREEN_MAX; ++i) {
 		// Update or create for the first time the FBO textures.
 		const bool renderofs = (i == RAS_OFFSCREEN_RENDER);
 		if (!m_offScreens[i] ||
 			GPU_offscreen_width(m_offScreens[i]) != width ||
-			GPU_offscreen_height(m_offScreens[i]) != height ||
-			(renderofs && GPU_offscreen_samples(m_offScreens[i]) != samples))
+			GPU_offscreen_height(m_offScreens[i]) != height)
 		{
 			if (m_offScreens[i]) {
 				GPU_offscreen_free(m_offScreens[i]);
@@ -249,7 +266,7 @@ void RAS_OpenGLRasterizer::ScreenFBO::Update(RAS_ICanvas *canvas)
 				mode = GPU_OFFSCREEN_RENDERBUFFER_COLOR | GPU_OFFSCREEN_RENDERBUFFER_DEPTH;
 			}
 
-			m_offScreens[i] = GPU_offscreen_create(width, height, renderofs ? samples : 0, GPU_HDR_NONE, mode, NULL);
+			m_offScreens[i] = GPU_offscreen_create(width, height, renderofs ? samples : 0, hdr, mode, NULL);
 		}
 	}
 }

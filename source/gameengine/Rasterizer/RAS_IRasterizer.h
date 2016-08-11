@@ -241,6 +241,12 @@ public:
 		RAS_OFFSCREEN_MAX,
 	};
 
+	enum HdrType {
+		RAS_HDR_NONE = 0,
+		RAS_HDR_HALF_FLOAT,
+		RAS_HDR_FULL_FLOAT
+	};
+
 	/**
 	 * Enable capability
 	 * \param bit Enable bit

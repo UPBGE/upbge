@@ -93,6 +93,16 @@ int RAS_ICanvas::GetSamples() const
 	return m_samples;
 }
 
+void RAS_ICanvas::SetHdrType(RAS_IRasterizer::HdrType type)
+{
+	m_hdrType = type;
+}
+
+RAS_IRasterizer::HdrType RAS_ICanvas::GetHdrType() const
+{
+	return m_hdrType;
+}
+
 void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskdata, int UNUSED(threadid))
 {
 	ScreenshotTaskData *task = static_cast<ScreenshotTaskData *>(taskdata);

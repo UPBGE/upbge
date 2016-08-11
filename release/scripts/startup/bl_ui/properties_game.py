@@ -329,6 +329,8 @@ class RENDER_PT_game_player(RenderButtonsPanel, Panel):
         col = layout.column()
         col.label(text="Quality:")
         col.prop(gs, "samples")
+        col = layout.column()
+        col.prop(gs, "hdr")
         col = layout.column(align=True)
         col.prop(gs, "depth", text="Bit Depth", slider=False)
         col.prop(gs, "frequency", text="Refresh Rate", slider=False)

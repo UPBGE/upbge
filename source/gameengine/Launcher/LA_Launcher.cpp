@@ -183,6 +183,26 @@ void LA_Launcher::InitEngine()
 	// Set canvas multisamples.
 	m_canvas->SetSamples(m_samples);
 
+	RAS_IRasterizer::HdrType hdrtype = RAS_IRasterizer::RAS_HDR_NONE;
+	switch (gm->hdr) {
+		case GAME_HDR_NONE:
+		{
+			hdrtype = RAS_IRasterizer::RAS_HDR_NONE;
+			break;
+		}
+		case GAME_HDR_HALF_FLOAT:
+		{
+			hdrtype = RAS_IRasterizer::RAS_HDR_HALF_FLOAT;
+			break;
+		}
+		case GAME_HDR_FULL_FLOAT:
+		{
+			hdrtype = RAS_IRasterizer::RAS_HDR_FULL_FLOAT;
+			break;
+		}
+	}
+	m_canvas->SetHdrType(hdrtype);
+
 	m_canvas->Init();
 	if (gm->flag & GAME_SHOW_MOUSE) {
 		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);

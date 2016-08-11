@@ -4324,6 +4324,13 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem hdr_items[] = {
+		{GAME_HDR_NONE, "HDR_NONE", 0, "None", "8 bits per channel"},
+		{GAME_HDR_HALF_FLOAT, "HDR_HALF_FLOAT", 0, "Half", "16 bits per channel"},
+		{GAME_HDR_FULL_FLOAT, "HDR_FULL_FLOAT", 0, "Full", "32 bits per channel"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	static EnumPropertyItem framing_types_items[] = {
 		{SCE_GAMEFRAMING_BARS, "LETTERBOX", 0, "Letterbox",
 		                       "Show the entire viewport in the display window, using bar horizontally or vertically"},
@@ -4405,7 +4412,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "aasamples");
 	RNA_def_property_enum_items(prop, aasamples_items);
 	RNA_def_property_ui_text(prop, "AA Samples", "The number of AA Samples to use for MSAA");
-	
+
+	prop = RNA_def_property(srna, "hdr", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "hdr");
+	RNA_def_property_enum_items(prop, hdr_items);
+	RNA_def_property_ui_text(prop, "HDR", "The precision of screen display");
+
 	prop = RNA_def_property(srna, "depth", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "depth");
 	RNA_def_property_range(prop, 8, 32);
