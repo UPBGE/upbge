@@ -590,29 +590,27 @@ void KX_KetsjiEngine::Render()
 	// clear the entire game screen with the border color
 	// only once per frame
 	m_canvas->BeginDraw();
-	if (m_rasterizer->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED) {
-		m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
-		m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
-		if (m_overrideFrameColor) {
-			// Do not use the framing bar color set in the Blender scenes
-			m_rasterizer->SetClearColor(
-				m_overrideFrameColorR,
-				m_overrideFrameColorG,
-				m_overrideFrameColorB,
-				m_overrideFrameColorA
-				);
-		}
-		else {
-			// Use the framing bar color set in the Blender scenes
-			m_rasterizer->SetClearColor(
-			    framesettings.BarRed(),
-			    framesettings.BarGreen(),
-			    framesettings.BarBlue(),
-			    1.0f);
-		}
-		// clear the -whole- viewport
-		m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
+	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
+	if (m_overrideFrameColor) {
+		// Do not use the framing bar color set in the Blender scenes
+		m_rasterizer->SetClearColor(
+			m_overrideFrameColorR,
+			m_overrideFrameColorG,
+			m_overrideFrameColorB,
+			m_overrideFrameColorA
+			);
 	}
+	else {
+		// Use the framing bar color set in the Blender scenes
+		m_rasterizer->SetClearColor(
+		    framesettings.BarRed(),
+		    framesettings.BarGreen(),
+		    framesettings.BarBlue(),
+		    1.0f);
+	}
+	// clear the -whole- viewport
+	m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
 	m_canvas->BeginDraw();
 	ClearFrame();
