@@ -36,10 +36,11 @@
 extern "C" {
 #endif
 
+#include "GPU_texture.h"
+
 typedef struct GPUFrameBuffer GPUFrameBuffer;
 typedef struct GPURenderBuffer GPURenderBuffer;
 typedef struct GPUOffScreen GPUOffScreen;
-typedef struct GPUTexture GPUTexture;
 
 /* GPU Framebuffer
  * - this is a wrapper for an OpenGL framebuffer object (FBO). in practice
@@ -75,7 +76,7 @@ typedef enum GPURenderBufferType {
 	GPU_RENDER_BUFFER_DEPTH = 1,
 } GPURenderBufferType;
 
-GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPURenderBufferType type, char err_out[256]);
+GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPUHDRType hdrtype, GPURenderBufferType type, char err_out[256]);
 void GPU_renderbuffer_free(GPURenderBuffer *rb);
 int GPU_renderbuffer_bindcode(const GPURenderBuffer *rb);
 bool GPU_renderbuffer_depth(const GPURenderBuffer *rb);
@@ -94,7 +95,7 @@ typedef enum GPUOffScreenMode {
 	GPU_OFFSCREEN_DEPTH_COMPARE = 1 << 2,
 } GPUOffScreenMode;
 
-GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, int mode, char err_out[256]);
+GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRType hdrtype, int mode, char err_out[256]);
 void GPU_offscreen_free(GPUOffScreen *ofs);
 void GPU_offscreen_bind(GPUOffScreen *ofs, bool save);
 void GPU_offscreen_bind_simple(GPUOffScreen *ofs);

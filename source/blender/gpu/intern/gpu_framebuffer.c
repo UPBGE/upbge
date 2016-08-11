@@ -499,7 +499,7 @@ struct GPURenderBuffer {
 	unsigned int bindcode;
 };
 
-GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPURenderBufferType type, char err_out[256])
+GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPUHDRType hdrtype, GPURenderBufferType type, char err_out[256])
 {
 	GPURenderBuffer *rb = MEM_callocN(sizeof(GPURenderBuffer), "GPURenderBuffer");
 
@@ -534,11 +534,30 @@ GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPU
 		rb->depth = true;
 	}
 	else {
+		GLenum internalformat;
+		switch (hdrtype) {
+			case GPU_HDR_NONE:
+			{
+				internalformat = GL_RGBA8;
+				break;
+			}
+			/* the following formats rely on ARB_texture_float or OpenGL 3.0 */
+			case GPU_HDR_HALF_FLOAT:
+			{
+				internalformat = GL_RGBA16F_ARB;
+				break;
+			}
+			case GPU_HDR_FULL_FLOAT:
+			{
+				internalformat = GL_RGBA32F_ARB;
+				break;
+			}
+		}
 		if (samples > 0) {
-			glRenderbufferStorageMultisampleEXT(GL_RENDERBUFFER_EXT, samples, GL_RGBA8, width, height);
+			glRenderbufferStorageMultisampleEXT(GL_RENDERBUFFER_EXT, samples, internalformat, width, height);
 		}
 		else {
-			glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_RGBA8, width, height);
+			glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, internalformat, width, height);
 		}
 	}
 
@@ -588,7 +607,7 @@ struct GPUOffScreen {
 	int samples;
 };
 
-GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, int mode, char err_out[256])
+GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRType hdrtype, int mode, char err_out[256])
 {
 	GPUOffScreen *ofs;
 
@@ -618,7 +637,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, int mode,
 	ofs->samples = samples;
 
 	if (mode & GPU_OFFSCREEN_RENDERBUFFER_COLOR) {
-		ofs->rbcolor = GPU_renderbuffer_create(width, height, samples, GPU_RENDER_BUFFER_COLOR, err_out);
+		ofs->rbcolor = GPU_renderbuffer_create(width, height, samples, hdrtype, GPU_RENDER_BUFFER_COLOR, err_out);
 		if (!ofs->rbcolor) {
 			GPU_offscreen_free(ofs);
 			return NULL;
@@ -630,7 +649,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, int mode,
 		}
 	}
 	else {
-		ofs->color = GPU_texture_create_2D_multisample(width, height, NULL, GPU_HDR_NONE, samples, err_out);
+		ofs->color = GPU_texture_create_2D_multisample(width, height, NULL, hdrtype, samples, err_out);
 		if (!ofs->color) {
 			GPU_offscreen_free(ofs);
 			return NULL;
@@ -643,7 +662,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, int mode,
 	}
 
 	if (mode & GPU_OFFSCREEN_RENDERBUFFER_DEPTH) {
-		ofs->rbdepth = GPU_renderbuffer_create(width, height, samples, GPU_RENDER_BUFFER_DEPTH, err_out);
+		ofs->rbdepth = GPU_renderbuffer_create(width, height, samples, GPU_HDR_NONE, GPU_RENDER_BUFFER_DEPTH, err_out);
 		if (!ofs->rbdepth) {
 			GPU_offscreen_free(ofs);
 			return NULL;

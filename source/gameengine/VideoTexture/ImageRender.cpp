@@ -93,9 +93,9 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
 
-	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
+	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
 	if (m_samples > 0) {
-		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
+		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
 	}
 }
 
@@ -862,9 +862,9 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
     m_mirror(mirror),
     m_clip(100.f)
 {
-	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, false, NULL);
+	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
 	if (m_samples > 0) {
-		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, false, NULL);
+		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
 	}
 
 	// this constructor is used for automatic planar mirror

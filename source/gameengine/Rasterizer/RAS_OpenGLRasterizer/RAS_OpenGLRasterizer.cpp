@@ -249,7 +249,7 @@ void RAS_OpenGLRasterizer::ScreenFBO::Update(RAS_ICanvas *canvas)
 				mode = GPU_OFFSCREEN_RENDERBUFFER_COLOR | GPU_OFFSCREEN_RENDERBUFFER_DEPTH;
 			}
 
-			m_offScreens[i] = GPU_offscreen_create(width, height, renderofs ? samples : 0, mode, NULL);
+			m_offScreens[i] = GPU_offscreen_create(width, height, renderofs ? samples : 0, GPU_HDR_NONE, mode, NULL);
 		}
 	}
 }
