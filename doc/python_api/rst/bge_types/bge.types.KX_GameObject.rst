@@ -272,6 +272,12 @@ base class --- :class:`SCA_IObject`
 
       :type: :class:`KX_BoundingBox`
 
+   .. attribute:: culled
+
+      Returns True if the object is culled, False if not.
+
+      :type: boolean
+
    .. attribute:: record_animation
 
       Record animation for this object.
