@@ -1437,21 +1437,16 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 		}
 
 		// test culling through Bullet
-		MT_Vector4 planes[6];
 		// get the clip planes
-		MT_Vector4* cplanes = cam->GetNormalizedClipPlanes();
+		const MT_Vector4* cplanes = cam->GetNormalizedClipPlanes();
 		// and convert
-		planes[0].setValue(cplanes[4].getValue());	// near
-		planes[1].setValue(cplanes[5].getValue());	// far
-		planes[2].setValue(cplanes[0].getValue());	// left
-		planes[3].setValue(cplanes[1].getValue());	// right
-		planes[4].setValue(cplanes[2].getValue());	// top
-		planes[5].setValue(cplanes[3].getValue());	// bottom
+		MT_Vector4 planes[6] = {cplanes[4], cplanes[5], cplanes[0], cplanes[1], cplanes[2], cplanes[3]};
+
 		CullingInfo info(layer);
 
-		float mvmat[16] = {0};
+		float mvmat[16] = {0.0f};
 		cam->GetModelviewMatrix().getValue(mvmat);
-		float pmat[16] = {0};
+		float pmat[16] = {0.0f};
 		cam->GetProjectionMatrix().getValue(pmat);
 
 		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback,&info,planes,6,m_dbvt_occlusion_res,
