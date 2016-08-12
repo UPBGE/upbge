@@ -155,44 +155,47 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSourceList, " setSourceList(sources, apply)")
 	PyObject *pydict;
 	int apply = 0;
 
-	if (PyArg_ParseTuple(args, "O!i:setSourceList", &PyDict_Type, &pydict, &apply)) {
-		bool error = false;
-		static const char *progname[MAX_PROGRAM] = {"vertex", "fragment", "geometry"};
-		static const bool optional[MAX_PROGRAM] = {false, false, true};
+	if (!PyArg_ParseTuple(args, "O!i:setSourceList", &PyDict_Type, &pydict, &apply)) {
+		return NULL;
+	}
 
-		for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
-			PyObject *pyprog = PyDict_GetItemString(pydict, progname[i]);
-			if (!optional[i]) {
-				if (!pyprog) {
-					error = true;
-					PyErr_Format(PyExc_SystemError, "setSourceList(sources, apply): BL_Shader, non optional %s program missing", progname[i]);
-					break;
-				}
-				else if (!PyUnicode_Check(pyprog)) {
-					error = true;
-					PyErr_Format(PyExc_SystemError, "setSourceList(sources, apply): BL_Shader, non optional %s program is not a string", progname[i]);
-					break;
-				}
+	bool error = false;
+	static const char *progname[MAX_PROGRAM] = {"vertex", "fragment", "geometry"};
+	static const bool optional[MAX_PROGRAM] = {false, false, true};
+
+	for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
+		PyObject *pyprog = PyDict_GetItemString(pydict, progname[i]);
+		if (!optional[i]) {
+			if (!pyprog) {
+				error = true;
+				PyErr_Format(PyExc_SystemError, "setSourceList(sources, apply): BL_Shader, non optional %s program missing", progname[i]);
+				break;
 			}
-
+			else if (!PyUnicode_Check(pyprog)) {
+				error = true;
+				PyErr_Format(PyExc_SystemError, "setSourceList(sources, apply): BL_Shader, non optional %s program is not a string", progname[i]);
+				break;
+			}
+		}
+		if (pyprog) {
 			m_progs[i] = STR_String(_PyUnicode_AsString(pyprog));
 		}
-
-		if (!error && LinkProgram()) {
-			SetProg(true);
-			m_use = apply != 0;
-		}
-
-		if (error) {
-			for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
-				m_progs[i] = "";
-			}
-			m_use = 0;
-			return NULL;
-		}
-		Py_RETURN_NONE;
 	}
-	return NULL;
+
+	if (error) {
+		for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
+			m_progs[i] = "";
+		}
+		m_use = 0;
+		return NULL;
+	}
+
+	if (LinkProgram()) {
+		SetProg(true);
+		m_use = apply != 0;
+	}
+
+	Py_RETURN_NONE;
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, delSource, "delSource( )")
