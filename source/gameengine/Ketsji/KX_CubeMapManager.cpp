@@ -95,10 +95,17 @@ void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
 		m_scene->CreateGameobjWithCubeMapList(rasty);
 		m_initCubeMaps = true;
 	}
-	
+
+	// Copy current stereo mode.
+	const RAS_IRasterizer::StereoMode steremode = rasty->GetStereoMode();
+	rasty->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
+
 	for (std::vector<RAS_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
 		RenderCubeMap(rasty, *it);
 	}
+
+	// Restore stereo mode.
+	rasty->SetStereoMode(steremode);
 
 	RestoreFrameBuffer();
 }
