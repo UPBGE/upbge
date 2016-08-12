@@ -885,6 +885,21 @@ void GPU_shader_free_builtin_shaders(void)
 		GG.shaders.smoke_fire = NULL;
 	}
 
+	if (GG.shaders.copyfbo) {
+		GPU_shader_free(GG.shaders.copyfbo);
+		GG.shaders.copyfbo = NULL;
+	}
+
+	if (GG.shaders.stereo_stipple) {
+		GPU_shader_free(GG.shaders.stereo_stipple);
+		GG.shaders.stereo_stipple = NULL;
+	}
+
+	if (GG.shaders.stereo_anaglyph) {
+		GPU_shader_free(GG.shaders.stereo_anaglyph);
+		GG.shaders.stereo_anaglyph = NULL;
+	}
+
 	for (i = 0; i < 2 * MAX_FX_SHADERS; ++i) {
 		if (GG.shaders.fx_shaders[i]) {
 			GPU_shader_free(GG.shaders.fx_shaders[i]);

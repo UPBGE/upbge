@@ -1694,36 +1694,42 @@ void RAS_OpenGLRasterizer::InitOverrideShadersInterface()
 
 	// Copy FBO shader.
 	{
-		OverrideShaderCopyFBOInterface *interface = (OverrideShaderCopyFBOInterface *)MEM_mallocN(sizeof(OverrideShaderCopyFBOInterface), "OverrideShaderCopyFBOInterface");
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_COPY_FBO);
+		if (!GPU_shader_get_interface(shader)) {
+			OverrideShaderCopyFBOInterface *interface = (OverrideShaderCopyFBOInterface *)MEM_mallocN(sizeof(OverrideShaderCopyFBOInterface), "OverrideShaderCopyFBOInterface");
 
-		interface->colorTexLoc = GPU_shader_get_uniform(shader, "colortex");
-		interface->depthTexLoc = GPU_shader_get_uniform(shader, "depthtex");
+			interface->colorTexLoc = GPU_shader_get_uniform(shader, "colortex");
+			interface->depthTexLoc = GPU_shader_get_uniform(shader, "depthtex");
 
-		GPU_shader_set_interface(shader, interface);
+			GPU_shader_set_interface(shader, interface);
+		}
 	}
 
 	// Stipple stereo shader.
 	{
-		OverrideShaderStereoStippleInterface *interface = (OverrideShaderStereoStippleInterface *)MEM_mallocN(sizeof(OverrideShaderStereoStippleInterface), "OverrideShaderStereoStippleInterface");
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_STIPPLE);
+		if (!GPU_shader_get_interface(shader)) {
+			OverrideShaderStereoStippleInterface *interface = (OverrideShaderStereoStippleInterface *)MEM_mallocN(sizeof(OverrideShaderStereoStippleInterface), "OverrideShaderStereoStippleInterface");
 
-		interface->leftEyeTexLoc = GPU_shader_get_uniform(shader, "lefteyetex");
-		interface->rightEyeTexLoc = GPU_shader_get_uniform(shader, "righteyetex");
-		interface->stippleIdLoc = GPU_shader_get_uniform(shader, "stippleid");
+			interface->leftEyeTexLoc = GPU_shader_get_uniform(shader, "lefteyetex");
+			interface->rightEyeTexLoc = GPU_shader_get_uniform(shader, "righteyetex");
+			interface->stippleIdLoc = GPU_shader_get_uniform(shader, "stippleid");
 
-		GPU_shader_set_interface(shader, interface);
+			GPU_shader_set_interface(shader, interface);
+		}
 	}
 
 	// Anaglyph stereo shader.
 	{
-		OverrideShaderStereoAnaglyph *interface = (OverrideShaderStereoAnaglyph *)MEM_mallocN(sizeof(OverrideShaderStereoAnaglyph), "OverrideShaderStereoAnaglyph");
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_ANAGLYPH);
+		if (!GPU_shader_get_interface(shader)) {
+			OverrideShaderStereoAnaglyph *interface = (OverrideShaderStereoAnaglyph *)MEM_mallocN(sizeof(OverrideShaderStereoAnaglyph), "OverrideShaderStereoAnaglyph");
 
-		interface->leftEyeTexLoc = GPU_shader_get_uniform(shader, "lefteyetex");
-		interface->rightEyeTexLoc = GPU_shader_get_uniform(shader, "righteyetex");
+			interface->leftEyeTexLoc = GPU_shader_get_uniform(shader, "lefteyetex");
+			interface->rightEyeTexLoc = GPU_shader_get_uniform(shader, "righteyetex");
 
-		GPU_shader_set_interface(shader, interface);
+			GPU_shader_set_interface(shader, interface);
+		}
 	}
 }
 
