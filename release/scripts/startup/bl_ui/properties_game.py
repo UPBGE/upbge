@@ -454,6 +454,7 @@ class RENDER_PT_game_display(RenderButtonsPanel, Panel):
         flow.prop(gs, "show_armatures", text="Debug Armatures")
         flow.prop(gs, "use_deprecation_warnings")
         flow.prop(gs, "show_mouse", text="Mouse Cursor")
+        flow.prop(gs, "apply_modifiers", text="Apply Modifiers")
 
         col = layout.column()
         col.label(text="Framing:")

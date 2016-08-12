@@ -1076,40 +1076,47 @@ static KX_GameObject *gameobject_from_blenderobject(
 		gameobj->SetIgnoreActivityCulling(ignoreActivityCulling);
 		gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);
 
-		// two options exists for deform: shape keys and armature
-		// only support relative shape key
-		bool bHasShapeKey = mesh->key != NULL && mesh->key->type==KEY_RELATIVE;
-		bool bHasDvert = mesh->dvert != NULL && ob->defbase.first;
-		bool bHasArmature = (BL_ModifierDeformer::HasArmatureDeformer(ob) && ob->parent && ob->parent->type == OB_ARMATURE && bHasDvert);
-		bool bHasModifier = BL_ModifierDeformer::HasCompatibleDeformer(ob);
+		if (!converter->GetApplyModifiers()) {
+
+			// two options exists for deform: shape keys and armature
+			// only support relative shape key
+			bool bHasShapeKey = mesh->key != NULL && mesh->key->type == KEY_RELATIVE;
+			bool bHasDvert = mesh->dvert != NULL && ob->defbase.first;
+			bool bHasArmature = (BL_ModifierDeformer::HasArmatureDeformer(ob) && ob->parent && ob->parent->type == OB_ARMATURE && bHasDvert);
+			bool bHasModifier = BL_ModifierDeformer::HasCompatibleDeformer(ob);
 #ifdef WITH_BULLET
-		bool bHasSoftBody = (!ob->parent && (ob->gameflag & OB_SOFT_BODY));
+			bool bHasSoftBody = (!ob->parent && (ob->gameflag & OB_SOFT_BODY));
 #endif
-		if (bHasModifier) {
-			BL_ModifierDeformer *dcont = new BL_ModifierDeformer((BL_DeformableGameObject *)gameobj,
-																kxscene->GetBlenderScene(), ob,	meshobj);
-			((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
-		} else if (bHasShapeKey) {
-			// not that we can have shape keys without dvert! 
-			BL_ShapeDeformer *dcont = new BL_ShapeDeformer((BL_DeformableGameObject*)gameobj, 
-															ob, meshobj);
-			((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
-		} else if (bHasArmature) {
-			BL_SkinDeformer *dcont = new BL_SkinDeformer((BL_DeformableGameObject*)gameobj,
-															ob, meshobj);
-			((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
-		} else if (bHasDvert) {
-			// this case correspond to a mesh that can potentially deform but not with the
-			// object to which it is attached for the moment. A skin mesh was created in
-			// BL_ConvertMesh() so must create a deformer too!
-			BL_MeshDeformer *dcont = new BL_MeshDeformer((BL_DeformableGameObject*)gameobj,
-														  ob, meshobj);
-			((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
+			if (bHasModifier) {
+				BL_ModifierDeformer *dcont = new BL_ModifierDeformer((BL_DeformableGameObject *)gameobj,
+					kxscene->GetBlenderScene(), ob, meshobj);
+				((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
+			}
+			else if (bHasShapeKey) {
+				// not that we can have shape keys without dvert! 
+				BL_ShapeDeformer *dcont = new BL_ShapeDeformer((BL_DeformableGameObject*)gameobj,
+					ob, meshobj);
+				((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
+			}
+			else if (bHasArmature) {
+				BL_SkinDeformer *dcont = new BL_SkinDeformer((BL_DeformableGameObject*)gameobj,
+					ob, meshobj);
+				((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
+			}
+			else if (bHasDvert) {
+				// this case correspond to a mesh that can potentially deform but not with the
+				// object to which it is attached for the moment. A skin mesh was created in
+				// BL_ConvertMesh() so must create a deformer too!
+				BL_MeshDeformer *dcont = new BL_MeshDeformer((BL_DeformableGameObject*)gameobj,
+					ob, meshobj);
+				((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
 #ifdef WITH_BULLET
-		} else if (bHasSoftBody) {
-			KX_SoftBodyDeformer *dcont = new KX_SoftBodyDeformer(meshobj, (BL_DeformableGameObject*)gameobj);
-			((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
+			}
+			else if (bHasSoftBody) {
+				KX_SoftBodyDeformer *dcont = new KX_SoftBodyDeformer(meshobj, (BL_DeformableGameObject*)gameobj);
+				((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
 #endif
+			}
 		}
 		break;
 	}

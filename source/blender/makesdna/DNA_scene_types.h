@@ -877,6 +877,7 @@ typedef struct GameData {
 #define GAME_SHOW_ARMATURES					(1 << 19)
 #define GAME_PYTHON_CONSOLE					(1 << 20)
 #define GAME_GLSL_NO_ENV_LIGHTING			(1 << 18)
+#define GAME_APPLY_MODIFIERS				(1 << 21)
 /* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
 
 /* GameData.playerflag */

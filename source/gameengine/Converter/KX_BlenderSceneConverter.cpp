@@ -118,15 +118,34 @@ typedef struct ThreadInfo {
 
 KX_BlenderSceneConverter::KX_BlenderSceneConverter(
 							Main *maggie,
-							KX_KetsjiEngine *engine)
+							KX_KetsjiEngine *engine,
+							bool applyModifiers)
 							:m_maggie(maggie),
 							m_ketsjiEngine(engine),
+							m_applyModifiers(applyModifiers),
 							m_alwaysUseExpandFraming(false)
 {
 	BKE_main_id_tag_all(maggie, LIB_TAG_DOIT, false);  /* avoid re-tagging later on */
 	m_newfilename = "";
 	m_threadinfo = new ThreadInfo();
 	m_threadinfo->m_pool = BLI_task_pool_create(engine->GetTaskScheduler(), NULL);
+
+	const char *script =
+		"import bpy\n"
+		"bpy.ops.object.select_all(action = 'SELECT')\n"
+		"selected = bpy.context.selected_objects\n"
+		"for ob in selected :\n"
+		"	bpy.context.scene.objects.active = ob\n"
+		"	if ob.modifiers :\n"
+		"		clone_mesh = ob.data\n"
+		"		clone_mesh.name = ob.name + '_clone'\n"
+		"		new_mesh = ob.to_mesh(bpy.context.scene, True, 'PREVIEW')\n"
+		"		new_mesh.name = ob.name + '_new'\n"
+		"		ob.data = new_mesh\n"
+		"bpy.ops.object.select_all(action = 'DESELECT')\n";
+	if (m_applyModifiers) {
+		PyRun_SimpleString(script);
+	}
 }
 
 KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
@@ -172,6 +191,23 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 		BLI_task_pool_free(m_threadinfo->m_pool);
 		delete m_threadinfo;
 	}
+	const char *script =
+		"import bpy\n"
+		"bpy.ops.object.select_all(action = 'SELECT')\n"
+		"selected = bpy.context.selected_objects\n"
+		"for ob in selected :\n"
+		"	bpy.context.scene.objects.active = ob\n"
+		"	clone_mesh = bpy.data.meshes.get(ob.name + '_clone')\n"
+		"	if clone_mesh:\n"
+		"		ob.data = clone_mesh\n"
+		"		ob.data.name = clone_mesh.name[:-6]\n"
+		"	new_mesh = bpy.data.meshes.get(ob.name + '_new')\n"
+		"	if new_mesh:\n"
+		"		bpy.data.meshes.remove(new_mesh)\n"
+		"bpy.ops.object.select_all(action = 'DESELECT')\n";
+	if (m_applyModifiers) {
+		PyRun_SimpleString(script);
+	}
 }
 
 void KX_BlenderSceneConverter::SetNewFileName(const STR_String &filename)
@@ -184,6 +220,11 @@ bool KX_BlenderSceneConverter::TryAndLoadNewFile()
 	bool result = false;
 
 	return result;
+}
+
+bool KX_BlenderSceneConverter::GetApplyModifiers()
+{
+	return m_applyModifiers;
 }
 
 Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const STR_String &name)

@@ -95,7 +95,8 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 #endif  // WITH_PYTHON
 	m_stereoMode(stereoMode),
 	m_argc(argc),
-	m_argv(argv)
+	m_argv(argv),
+	m_applyModifiers(false)
 {
 	m_pythonConsole.use = false;
 }
@@ -243,10 +244,16 @@ void LA_Launcher::InitEngine()
 
 #ifdef WITH_PYTHON
 	KX_SetMainPath(STR_String(m_maggie->name));
+	/* If Blender isn't built WITH_PYTHON,
+	 * m_applyModifiers will always be false (see LA_Launcher constructor)
+	 * and then the python scripts to apply/restore modifiers in
+	 * KX_BlenderSceneConverter won't be executed.
+	 */
+	m_applyModifiers = (gm->flag & GAME_APPLY_MODIFIERS) != 0;
 #endif
 
 	// Create a scene converter, create and convert the stratingscene.
-	m_sceneConverter = new KX_BlenderSceneConverter(m_maggie, m_ketsjiEngine);
+	m_sceneConverter = new KX_BlenderSceneConverter(m_maggie, m_ketsjiEngine, m_applyModifiers);
 	STR_String m_kxStartScenename = m_startSceneName.Ptr();
 	m_ketsjiEngine->SetSceneConverter(m_sceneConverter);
 

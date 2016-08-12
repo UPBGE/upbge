@@ -4615,6 +4615,12 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_MOUSE);
 	RNA_def_property_ui_text(prop, "Show Mouse", "Start player with a visible mouse cursor");
 
+	prop = RNA_def_property(srna, "apply_modifiers", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_APPLY_MODIFIERS);
+	RNA_def_property_ui_text(prop, "Apply Modifiers", "Apply modifiers at game engine start. WARNING: Experimental feature."
+		" This uses a lot of RAM and is not adapted if there are big meshes with modifiers in the scene."
+		" It can freeze Blender and crash computer. Adults only. Enable only if you are 18+.");
+
 	prop = RNA_def_property(srna, "use_frame_rate", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_ENABLE_ALL_FRAMES);
 	RNA_def_property_ui_text(prop, "Use Frame Rate",
