@@ -923,10 +923,12 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, int pass)
 	GetSceneViewport(scene, cam, area, viewport);
 
 	// set the viewport for this frame and scene
-	const int width = m_canvas->GetWidth();
-	const int height = m_canvas->GetHeight();
-	m_rasterizer->SetViewport(viewport.GetLeft(), viewport.GetBottom(), width + 1, height + 1);
-	m_rasterizer->SetScissor(viewport.GetLeft(), viewport.GetBottom(), width + 1, height + 1);
+	const int left = viewport.GetLeft();
+	const int bottom = viewport.GetBottom();
+	const int width = viewport.GetWidth();
+	const int height = viewport.GetHeight();
+	m_rasterizer->SetViewport(left, bottom, width + 1, height + 1);
+	m_rasterizer->SetScissor(left, bottom, width + 1, height + 1);
 
 	if (pass > 0) {
 		m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
@@ -1076,8 +1078,10 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, int target)
 	m_rasterizer->FlushDebugShapes(scene);
 
 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
-	m_rasterizer->SetViewport(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
-	m_rasterizer->SetScissor(0, 0, m_canvas->GetWidth() + 1, m_canvas->GetHeight() + 1);
+	const int width = m_canvas->GetWidth();
+	const int height = m_canvas->GetHeight();
+	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
+	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
 
 	scene->Render2DFilters(m_rasterizer, m_canvas, target);
 
