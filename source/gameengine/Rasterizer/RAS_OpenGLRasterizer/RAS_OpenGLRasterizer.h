@@ -211,9 +211,6 @@ protected:
 	/* int m_last_alphablend; */
 	bool m_last_frontface;
 
-	/* Disable useless functions when rendering cubemaps */
-	bool m_renderingCubeMaps;
-
 	OverrideShaderType m_overrideShader;
 
 	/* Making use of a Strategy design pattern for storage behavior.
@@ -372,9 +369,6 @@ public:
 	virtual OverrideShaderType GetOverrideShader();
 	virtual void ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride);
 	virtual void DesactivateOverrideShaderInstancing();
-
-	virtual bool GetRenderingCubeMaps();
-	virtual void SetRenderingCubeMaps(bool renderingcubemaps);
 
 	/**
 	 * Render Tools
