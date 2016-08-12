@@ -32,32 +32,32 @@
 #include "GPU_framebuffer.h"
 #include "GPU_draw.h"
 
-MT_Matrix4x4 bottomFaceViewMat(
+static const MT_Matrix4x4 bottomFaceViewMat(
 	-1.0f, 0.0f, 0.0f, 0.0f,
 	0.0f, -1.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 1.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
-MT_Matrix4x4 topFaceViewMat(
+static const MT_Matrix4x4 topFaceViewMat(
 	1.0f, 0.0f, 0.0f, 0.0f,
 	0.0f, -1.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, -1.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
-MT_Matrix4x4 rightFaceViewMat(
+static const MT_Matrix4x4 rightFaceViewMat(
 	1.0f, 0.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 1.0f, 0.0f,
 	0.0f, -1.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
-MT_Matrix4x4 leftFaceViewMat(
+static const MT_Matrix4x4 leftFaceViewMat(
 	1.0f, 0.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, -1.0f, 0.0f,
 	0.0f, 1.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
-MT_Matrix4x4 backFaceViewMat(
+static const MT_Matrix4x4 backFaceViewMat(
 	0.0f, 0.0f, 1.0f, 0.0f,
 	0.0f, -1.0f, 0.0f, 0.0f,
 	1.0f, 0.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
-MT_Matrix4x4 frontFaceViewMat(
+static const MT_Matrix4x4 frontFaceViewMat(
 	0.0f, 0.0f, -1.0f, 0.0f,
 	0.0f, -1.0f, 0.0f, 0.0f,
 	-1.0f, 0.0f, 0.0f, 0.0f,
