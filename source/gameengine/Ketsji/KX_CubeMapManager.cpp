@@ -25,6 +25,7 @@
 #include "KX_CubeMapManager.h"
 #include "KX_Camera.h"
 #include "KX_Scene.h"
+#include "KX_Globals.h"
 
 #include "EXP_ListValue.h"
 
@@ -76,6 +77,10 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubeM
 		MT_Matrix4x4 viewmat(trans);
 		m_camera->SetModelviewMatrix(viewmat);
 		m_scene->CalculateVisibleMeshes(rasty, m_camera, cubeMap->GetLayer());
+
+		/* Update animations to use the culling of each faces, BL_ActionManager avoid redundants
+		 * updates internally. */
+		KX_GetActiveEngine()->UpdateAnimations(m_scene);
 
 		/* Now the objects are culled and we can render the scene */
 		m_scene->GetWorldInfo()->RenderBackground(rasty);

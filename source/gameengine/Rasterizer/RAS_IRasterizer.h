@@ -497,18 +497,12 @@ public:
 	virtual void EnableFog(bool enable) = 0;
 
 	/**
-	 * Disable useless functions when rendering cubemaps
-	 */
-	virtual bool GetRenderingCubeMaps() = 0;
-	virtual void SetRenderingCubeMaps(bool renderingcubemaps) = 0;
-	
-	/**
-	 * \param drawingmode = RAS_WIREFRAME, RAS_SOLID, RAS_SHADOW or RAS_TEXTURED.
+	 * \param drawingmode = RAS_WIREFRAME, RAS_SOLID, RAS_SHADOW, RAS_TEXTURED or RAS_CUBEMAP.
 	 */
 	virtual void SetDrawingMode(DrawType drawingmode) = 0;
 
 	/**
-	 * \return the current drawing mode: RAS_WIREFRAME, RAS_SOLID RAS_SHADOW or RAS_TEXTURED.
+	 * \return the current drawing mode: RAS_WIREFRAME, RAS_SOLID RAS_SHADOW, RAS_TEXTURED or RAS_CUBEMAP.
 	 */
 	virtual DrawType GetDrawingMode() = 0;
 

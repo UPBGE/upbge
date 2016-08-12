@@ -1423,19 +1423,17 @@ void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void* cul
 
 void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int layer)
 {
-	if (!rasty->GetRenderingCubeMaps()) {
-		// Update the object boudning volume box if the object had a deformer.
-		for (int i = 0; i < m_objectlist->GetCount(); i++) {
-			KX_GameObject *gameobj = static_cast<KX_GameObject*>(m_objectlist->GetValue(i));
-			if (gameobj->GetDeformer()) {
-				/** Update all the deformer, not only per material.
-				 * One of the side effect is to clear some flags about AABB calculation.
-				 * like in KX_SoftBodyDeformer.
-				 */
-				gameobj->GetDeformer()->UpdateBuckets();
-			}
-			gameobj->UpdateBounds();
+	// Update the object boudning volume box if the object had a deformer.
+	for (int i = 0; i < m_objectlist->GetCount(); i++) {
+		KX_GameObject *gameobj = static_cast<KX_GameObject*>(m_objectlist->GetValue(i));
+		if (gameobj->GetDeformer()) {
+			/** Update all the deformer, not only per material.
+			 * One of the side effect is to clear some flags about AABB calculation.
+			 * like in KX_SoftBodyDeformer.
+			 */
+			gameobj->GetDeformer()->UpdateBuckets();
 		}
+		gameobj->UpdateBounds();
 	}
 
 	bool dbvt_culling = false;
