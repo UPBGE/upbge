@@ -561,6 +561,23 @@ void KX_KetsjiEngine::UpdateSuspendedScenes()
 	}
 }
 
+static int getNextEyeFBO(int srcfbo)
+{
+	if (srcfbo == RAS_IRasterizer::RAS_OFFSCREEN_EYE_LEFT0) {
+		return RAS_IRasterizer::RAS_OFFSCREEN_EYE_LEFT1;
+	}
+	else if (srcfbo == RAS_IRasterizer::RAS_OFFSCREEN_EYE_LEFT1) {
+		return RAS_IRasterizer::RAS_OFFSCREEN_EYE_LEFT0;
+	}
+	else if (srcfbo == RAS_IRasterizer::RAS_OFFSCREEN_EYE_RIGHT0) {
+		return RAS_IRasterizer::RAS_OFFSCREEN_EYE_RIGHT1;
+	}
+	else if (srcfbo == RAS_IRasterizer::RAS_OFFSCREEN_EYE_RIGHT1) {
+		return RAS_IRasterizer::RAS_OFFSCREEN_EYE_RIGHT0;
+	}
+	return 0;
+}
+
 void KX_KetsjiEngine::Render()
 {
 	KX_Scene *firstscene = (KX_Scene *)m_scenes->GetFront();
@@ -615,6 +632,16 @@ void KX_KetsjiEngine::Render()
 	m_canvas->BeginDraw();
 	ClearFrame();
 
+	const RAS_IRasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
+	// Set to true when each eye needs to be rendered in a separated FBO.
+	const bool renderpereye = stereomode == RAS_IRasterizer::RAS_STEREO_INTERLACED ||
+							  stereomode == RAS_IRasterizer::RAS_STEREO_VINTERLACE ||
+							  stereomode == RAS_IRasterizer::RAS_STEREO_ANAGLYPH;
+
+	const unsigned short numeyepass = (stereomode != RAS_IRasterizer::RAS_STEREO_NOSTEREO) ? 2 : 1;
+
+	int eyefboindex[2] = {RAS_IRasterizer::RAS_OFFSCREEN_EYE_LEFT0, RAS_IRasterizer::RAS_OFFSCREEN_EYE_RIGHT0};
+
 	// Used to detect when a camera is the first rendered an then doesn't request a depth clear.
 	unsigned short pass = 0;
 
@@ -624,7 +651,8 @@ void KX_KetsjiEngine::Render()
 		KX_Camera *activecam = scene->GetActiveCamera();
 		CListValue *cameras = scene->GetCameraList();
 
-		const unsigned short numeyepass = m_rasterizer->Stereo() ? 2 : 1;
+		const bool firstscene = (scene == m_scenes->GetFront());
+		const bool lastscene = (scene == m_scenes->GetBack());
 
 		// pass the scene's worldsettings to the rasterizer
 		scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
@@ -635,6 +663,15 @@ void KX_KetsjiEngine::Render()
 			m_rasterizer->SetEye((eyepass == 0) ? RAS_IRasterizer::RAS_STEREO_LEFTEYE : RAS_IRasterizer::RAS_STEREO_RIGHTEYE);
 			// set the area used for rendering (stereo can assign only a subset)
 			m_rasterizer->SetRenderArea(m_canvas);
+
+			// Choose unique FBO per eyes in case of stereo.
+			if (renderpereye) {
+				m_rasterizer->BindFBO(eyefboindex[eyepass]);
+				// Clear eye FBO only before the first scene render.
+				if (firstscene) {
+					m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+				}
+			}
 
 			// Avoid drawing the scene with the active camera twice when its viewport is enabled
 			if (activecam && !activecam->GetViewport()) {
@@ -650,14 +687,42 @@ void KX_KetsjiEngine::Render()
 					RenderFrame(scene, cam, pass++);
 				}
 			}
+
+			// Process filters per eye FBO.
+			if (renderpereye) {
+				int target;
+				if (m_rasterizer->GetFBOSamples(eyefboindex[eyepass]) > 0) {
+					/* Only RAS_OFFSCREEN_EYE_[LEFT/RIGHT]0 has possible multisamples so we target
+					 * RAS_OFFSCREEN_EYE_[LEFT/RIGHT]1 if it's the last scene. */
+					if (lastscene) {
+						target = getNextEyeFBO(eyefboindex[eyepass]);
+					}
+					/* In case of multisamples we're sure that a blit to RAS_OFFSCREEN_FILTER0 will be done
+					 * so we can target the same FBO than in input of filter prossesing. */
+					else {
+						target = eyefboindex[eyepass];
+					}
+				}
+				else {
+					target = getNextEyeFBO(eyefboindex[eyepass]);
+				}
+
+				PostRenderScene(scene, target);
+
+				// If no filter was ran the current used FBO can be unchanged.
+				eyefboindex[eyepass] = m_rasterizer->GetCurrentFBOIndex();
+			}
 		}
 
-		/* Choose final FBO target. This operation as effect only for multisamples render FBO.
-		 * If it's the last scene, we can render the last filter to a non-multisamples FBO.
-		 * Else reuse the (maybe) multisamples FBO for the next scene renders.
-		 */
-		const int target = (scene == m_scenes->GetBack()) ? RAS_IRasterizer::RAS_OFFSCREEN_FINAL : RAS_IRasterizer::RAS_OFFSCREEN_RENDER;
-		PostRenderScene(scene, target);
+		// Process filters for non-per eye FBO render.
+		if (!renderpereye) {
+			/* Choose final FBO target. This operation as effect only for multisamples render FBO.
+			 * If it's the last scene, we can render the last filter to a non-multisamples FBO.
+			 * Else reuse the (maybe) multisamples FBO for the next scene renders.
+			 */
+			const int target = lastscene ? RAS_IRasterizer::RAS_OFFSCREEN_FINAL : RAS_IRasterizer::RAS_OFFSCREEN_RENDER;
+			PostRenderScene(scene, target);
+		}
 	}
 #if 0
 	// only one place that checks for stereo
@@ -706,9 +771,17 @@ void KX_KetsjiEngine::Render()
 	}
 #endif
 
-	const short fboindex = m_rasterizer->GetCurrentFBOIndex();
 	m_canvas->SetViewPort(0, 0, width, height);
-	m_rasterizer->DrawFBO(m_canvas, fboindex);
+
+	// Compositing per eye FBOs to screen.
+	if (renderpereye) {
+		m_rasterizer->DrawStereoFBO(m_canvas, eyefboindex[RAS_IRasterizer::RAS_STEREO_LEFTEYE], eyefboindex[RAS_IRasterizer::RAS_STEREO_RIGHTEYE]);
+	}
+	// Else simply draw to screen.
+	else {
+		const short fboindex = m_rasterizer->GetCurrentFBOIndex();
+		m_rasterizer->DrawFBO(m_canvas, fboindex);
+	}
 
 	EndFrame();
 }

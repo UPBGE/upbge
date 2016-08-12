@@ -106,7 +106,6 @@ public:
 		RAS_STEREO_ANAGLYPH,
 		RAS_STEREO_SIDEBYSIDE,
 		RAS_STEREO_VINTERLACE,
-		RAS_STEREO_DOME,
 		RAS_STEREO_3DTVTOPBOTTOM,
 
 		RAS_STEREO_MAXSTEREO
@@ -135,7 +134,7 @@ public:
 	 * Render pass identifiers for stereo.
 	 */
 	enum StereoEye {
-		RAS_STEREO_LEFTEYE = 1,
+		RAS_STEREO_LEFTEYE = 0,
 		RAS_STEREO_RIGHTEYE,
 	};
 
@@ -159,7 +158,6 @@ public:
 		RAS_OVERRIDE_SHADER_BASIC_INSTANCING,
 		RAS_OVERRIDE_SHADER_SHADOW_VARIANCE,
 		RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING,
-		RAS_OVERRIDE_SHADER_COPY_FBO,
 	};
 
 	enum ShadowType {
@@ -237,6 +235,10 @@ public:
 		RAS_OFFSCREEN_RENDER = 0,
 		RAS_OFFSCREEN_FILTER0,
 		RAS_OFFSCREEN_FILTER1,
+		RAS_OFFSCREEN_EYE_LEFT0,
+		RAS_OFFSCREEN_EYE_RIGHT0,
+		RAS_OFFSCREEN_EYE_LEFT1,
+		RAS_OFFSCREEN_EYE_RIGHT1,
 		RAS_OFFSCREEN_FINAL,
 		RAS_OFFSCREEN_MAX,
 	};
@@ -339,6 +341,8 @@ public:
 	virtual void DrawFBO(unsigned short srcindex, unsigned short dstindex) = 0;
 	/// Draw frame buffer object to screen.
 	virtual void DrawFBO(RAS_ICanvas *canvas, unsigned short index) = 0;
+	/// Draw each stereo frame buffer object to screen.
+		virtual void DrawStereoFBO(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex) = 0;
 	/// Bind frame buffer object texture.
 	virtual void BindFBOTexture(unsigned short index, unsigned short slot, OffScreen type) = 0;
 	/// Unbind frame buffer object texture.
@@ -366,13 +370,11 @@ public:
 	 */
 	virtual bool Stereo() = 0;
 	virtual StereoMode GetStereoMode() = 0;
-	virtual bool InterlacedStereo() = 0;
 
 	/**
 	 * Sets which eye buffer subsequent primitives will be rendered to.
 	 */
 	virtual void SetEye(const StereoEye eye) = 0;
-	virtual void DisableStereo() = 0;
 	virtual StereoEye GetEye() = 0;
 
 	/**

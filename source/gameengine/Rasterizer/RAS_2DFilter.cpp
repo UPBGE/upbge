@@ -112,7 +112,7 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, short flag
 	unsigned short dstfboindex = 0;
 
 	// Copy render FBO to first filter FBO, because it used multisamples.
-	if (flag & PASS_BEGIN && rasty->GetFBOSamples(srcfboindex)) {
+	if ((flag & PASS_BEGIN && rasty->GetFBOSamples(srcfboindex))) {
 		rasty->BindFBO(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
 		rasty->DrawFBO(srcfboindex, RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
 

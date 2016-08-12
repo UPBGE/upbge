@@ -119,6 +119,25 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		float *mat;
 	};
 
+	struct OverrideShaderCopyFBOInterface
+	{
+		int colorTexLoc;
+		int depthTexLoc;
+	};
+
+	struct OverrideShaderStereoStippleInterface
+	{
+		int leftEyeTexLoc;
+		int rightEyeTexLoc;
+		int stippleIdLoc;
+	};
+
+	struct OverrideShaderStereoAnaglyph
+	{
+		int leftEyeTexLoc;
+		int rightEyeTexLoc;
+	};
+
 	/* fogging vars */
 	bool m_fogenabled;
 
@@ -177,6 +196,8 @@ protected:
 	 * Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
 	RAS_IStorage *m_storages[RAS_STORAGE_MAX];
 
+	void InitOverrideShadersInterface();
+
 	GPUShader *GetOverrideGPUShader(OverrideShaderType type);
 
 public:
@@ -209,6 +230,7 @@ public:
 	virtual void RestoreFBO();
 	virtual void DrawFBO(unsigned short srcindex, unsigned short dstindex);
 	virtual void DrawFBO(RAS_ICanvas *canvas, unsigned short index);
+	virtual void DrawStereoFBO(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex);
 	virtual void BindFBOTexture(unsigned short index, unsigned short slot, OffScreen type);
 	virtual void UnbindFBOTexture(unsigned short index, OffScreen type);
 	virtual short GetCurrentFBOIndex() const;
@@ -219,9 +241,7 @@ public:
 	virtual void SetStereoMode(const StereoMode stereomode);
 	virtual RAS_IRasterizer::StereoMode GetStereoMode();
 	virtual bool Stereo();
-	virtual bool InterlacedStereo();
 	virtual void SetEye(const StereoEye eye);
-	virtual void DisableStereo();
 	virtual StereoEye GetEye();
 	virtual void SetEyeSeparation(const float eyeseparation);
 	virtual float GetEyeSeparation();

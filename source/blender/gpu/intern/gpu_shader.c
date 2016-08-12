@@ -75,6 +75,8 @@ static struct GPUShadersGlobal {
 		GPUShader *smoke_fire;
 		GPUShader *instancing;
 		GPUShader *copyfbo;
+		GPUShader *stereo_stipple;
+		GPUShader *stereo_anaglyph;
 		/* cache for shader fx. Those can exist in combinations so store them here */
 		GPUShader *fx_shaders[MAX_FX_SHADERS * 2];
 	} shaders;
@@ -752,17 +754,25 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 			retval = GG.shaders.instancing;
 			break;
 		case GPU_SHADER_COPY_FBO:
-			if (!GG.shaders.copyfbo) {
-				GPUShader *copyfbo = GG.shaders.copyfbo = GPU_shader_create(
+			if (!GG.shaders.copyfbo)
+				GG.shaders.copyfbo = GPU_shader_create(
 					datatoc_gpu_shader_copy_fbo_vert_glsl, datatoc_gpu_shader_copy_fbo_frag_glsl,
 					NULL, NULL, NULL, 0, 0, 0);
-
-				GPU_shader_bind(copyfbo);
-				GPU_shader_uniform_int(copyfbo, GPU_shader_get_uniform(copyfbo, "colortex"), 0);
-				GPU_shader_uniform_int(copyfbo, GPU_shader_get_uniform(copyfbo, "depthtex"), 1);
-				GPU_shader_unbind();
-			}
 			retval = GG.shaders.copyfbo;
+			break;
+		case GPU_SHADER_STEREO_STIPPLE:
+			if (!GG.shaders.stereo_stipple)
+				GG.shaders.stereo_stipple = GPU_shader_create(
+					datatoc_gpu_shader_copy_fbo_vert_glsl, datatoc_gpu_shader_copy_fbo_frag_glsl,
+					NULL, NULL, "#define STIPPLE;\n", 0, 0, 0);
+			retval = GG.shaders.stereo_stipple;
+			break;
+		case GPU_SHADER_STEREO_ANAGLYPH:
+			if (!GG.shaders.stereo_anaglyph)
+				GG.shaders.stereo_anaglyph = GPU_shader_create(
+					datatoc_gpu_shader_copy_fbo_vert_glsl, datatoc_gpu_shader_copy_fbo_frag_glsl,
+					NULL, NULL, "#define ANAGLYPH;\n", 0, 0, 0);
+			retval = GG.shaders.stereo_anaglyph;
 			break;
 	}
 
