@@ -158,7 +158,7 @@ void *RAS_Shader::RAS_Uniform::GetData()
 
 bool RAS_Shader::Ok()const
 {
-	return (m_shader != 0 && m_ok && m_use);
+	return (m_shader && m_ok && m_use);
 }
 
 RAS_Shader::RAS_Shader()

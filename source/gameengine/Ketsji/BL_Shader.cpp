@@ -118,7 +118,7 @@ int BL_Shader::pyattr_set_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrde
 
 KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProgram, apply)")
 {
-	if (m_shader != 0 && m_ok) {
+	if (m_shader && m_ok) {
 		// already set...
 		Py_RETURN_NONE;
 	}
@@ -147,7 +147,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 
 KX_PYMETHODDEF_DOC(BL_Shader, setSourceList, " setSourceList(sources, apply)")
 {
-	if (m_shader != 0 && m_ok) {
+	if (m_shader && m_ok) {
 		// already set...
 		Py_RETURN_NONE;
 	}
@@ -207,7 +207,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, delSource, "delSource( )")
 
 KX_PYMETHODDEF_DOC(BL_Shader, isValid, "isValid()")
 {
-	return PyBool_FromLong((m_shader != 0 && m_ok));
+	return PyBool_FromLong((m_shader && m_ok));
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, getVertexProg, "getVertexProg( )")
@@ -226,7 +226,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, validate, "validate()")
 		Py_RETURN_NONE;
 	}
 
-	if (m_shader == 0) {
+	if (!m_shader) {
 		PyErr_SetString(PyExc_TypeError, "shader.validate(): BL_Shader, invalid shader object");
 		return NULL;
 	}
@@ -758,7 +758,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setAttrib, "setAttrib(enum)")
 
 	attr = SHD_TANGENT; // user input is ignored for now, there is only 1 attr
 
-	if (m_shader == 0) {
+	if (!m_shader) {
 		PyErr_SetString(PyExc_ValueError, "shader.setAttrib() BL_Shader, invalid shader object");
 		return NULL;
 	}
