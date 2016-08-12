@@ -44,7 +44,6 @@ public:
 
 	static MT_Matrix4x4 facesViewMat[6];
 	static MT_Matrix3x3 camOri[6];
-	static MT_Matrix3x3 camOri2[6];
 
 	void AddCubeMap(RAS_CubeMap *cubeMap);
 	void RemoveCubeMap(void *clientobj);

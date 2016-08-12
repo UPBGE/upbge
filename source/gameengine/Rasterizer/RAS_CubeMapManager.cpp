@@ -63,34 +63,15 @@ MT_Matrix4x4 frontFaceViewMat(
 	-1.0f, 0.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
 
-static MT_Matrix3x3 bottomCamOri(
-	-1.0f, 0.0f, 0.0f,
-	0.0f, -1.0f, 0.0f,
-	0.0f, 0.0f, 1.0f);
-static MT_Matrix3x3 topCamOri(
-	1.0f, 0.0f, 0.0f,
-	0.0f, -1.0f, 0.0f,
-	0.0f, 0.0f, -1.0f);
-static MT_Matrix3x3 rightCamOri(
-	1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 1.0f,
-	0.0f, -1.0f, 0.0f);
-static MT_Matrix3x3 leftCamOri(
-	1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, -1.0f,
-	0.0f, 1.0f, 0.0f);
-static MT_Matrix3x3 backCamOri(
-	0.0f, 0.0f, 1.0f,
-	0.0f, -1.0f, 0.0f,
-	1.0f, 0.0f, 0.0f);
-static MT_Matrix3x3 frontCamOri(
-	0.0f, 0.0f, -1.0f,
-	0.0f, -1.0f, 0.0f,
-	-1.0f, 0.0f, 0.0f);
-
-MT_Matrix4x4 RAS_CubeMapManager::facesViewMat[6] = { topFaceViewMat, bottomFaceViewMat, frontFaceViewMat, backFaceViewMat, rightFaceViewMat, leftFaceViewMat };
-MT_Matrix3x3 RAS_CubeMapManager::camOri[6] = { topCamOri, bottomCamOri, frontCamOri, backCamOri, rightCamOri, leftCamOri };
-MT_Matrix3x3 RAS_CubeMapManager::camOri2[6] = { topCamOri, bottomCamOri, frontCamOri, backCamOri, leftCamOri, rightCamOri };
+MT_Matrix4x4 RAS_CubeMapManager::facesViewMat[6] = {topFaceViewMat, bottomFaceViewMat, frontFaceViewMat, backFaceViewMat, rightFaceViewMat, leftFaceViewMat};
+MT_Matrix3x3 RAS_CubeMapManager::camOri[6] = {
+	topFaceViewMat.to3x3(),
+	bottomFaceViewMat.to3x3(),
+	frontFaceViewMat.to3x3(),
+	backFaceViewMat.to3x3(),
+	leftFaceViewMat.to3x3(),
+	rightFaceViewMat.to3x3()
+};
 
 RAS_CubeMapManager::RAS_CubeMapManager()
 {

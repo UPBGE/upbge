@@ -60,8 +60,6 @@ public:
 	void BindFace(RAS_IRasterizer *rasty, unsigned short index, const MT_Vector3& objpos);
 	void UnbindFace();
 
-	void SetFaceViewMatPos(MT_Vector3 pos, int faceindex);
-
 	const MT_Matrix4x4& GetProjection();
 	short GetLayer();
 };

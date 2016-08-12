@@ -1552,15 +1552,6 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 	m_campos = pos;
 }
 
-void RAS_OpenGLRasterizer::SetCubeMatrix(const MT_Matrix4x4 &mat)
-{
-	MT_Scalar glviewmat[16];
-	mat.getValue(glviewmat);
-
-	SetMatrixMode(RAS_MODELVIEW);
-	LoadMatrix(glviewmat);
-}
-
 void RAS_OpenGLRasterizer::SetViewport(int x, int y, int width, int height)
 {
 	glViewport(x, y, width, height);
