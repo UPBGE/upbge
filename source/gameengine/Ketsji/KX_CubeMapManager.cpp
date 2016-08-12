@@ -70,7 +70,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubeM
 		cubeMap->BindFace(rasty, i, pos);
 
 		/* For Culling we need also to set the camera orientation */
-		m_camera->NodeSetGlobalOrientation(camOri2[i]);
+		m_camera->NodeSetGlobalOrientation(camOri[i]);
 		m_camera->NodeUpdateGS(0.0f);
 		MT_Transform trans(m_camera->GetWorldToCamera());
 		MT_Matrix4x4 viewmat(trans);

@@ -81,14 +81,6 @@ short RAS_CubeMap::GetLayer()
 	return m_layer;
 }
 
-void RAS_CubeMap::SetFaceViewMatPos(MT_Vector3 pos, int faceindex)
-{
-	MT_Vector3 newpos = RAS_CubeMapManager::camOri[faceindex] * pos;
-	RAS_CubeMapManager::facesViewMat[faceindex][0][3] = -newpos[0];
-	RAS_CubeMapManager::facesViewMat[faceindex][1][3] = -newpos[1];
-	RAS_CubeMapManager::facesViewMat[faceindex][2][3] = -newpos[2];
-}
-
 void RAS_CubeMap::BeginRender()
 {
 }
@@ -99,7 +91,7 @@ void RAS_CubeMap::EndRender()
 
 void RAS_CubeMap::BindFace(RAS_IRasterizer *rasty, unsigned short index, const MT_Vector3& objpos)
 {
-	static GLenum m_cube_map_target[6] = {
+	static const GLenum m_cube_map_target[6] = {
 		GL_TEXTURE_CUBE_MAP_POSITIVE_Z_ARB,
 		GL_TEXTURE_CUBE_MAP_NEGATIVE_Z_ARB,
 		GL_TEXTURE_CUBE_MAP_POSITIVE_X_ARB,
@@ -113,8 +105,14 @@ void RAS_CubeMap::BindFace(RAS_IRasterizer *rasty, unsigned short index, const M
 
 	rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
 
-	SetFaceViewMatPos(objpos, index);
-	rasty->SetCubeMatrix(RAS_CubeMapManager::facesViewMat[index]);
+	const MT_Matrix4x4 posmat = MT_Matrix4x4(1.0f, 0.0f, 0.0f, -objpos[0],
+									   0.0f, 1.0f, 0.0f, -objpos[1],
+									   0.0f, 0.0f, 1.0f, -objpos[2],
+									   0.0f, 0.0f, 0.0f, 1.0f);
+	const MT_Matrix4x4 viewmat = RAS_CubeMapManager::facesViewMat[index] * posmat;
+	const MT_Matrix3x3& rot = RAS_CubeMapManager::camOri[index];
+
+	rasty->SetViewMatrix(viewmat, rot, objpos, MT_Vector3(1.0f, 1.0f, 1.0f), true);
 }
 
 void RAS_CubeMap::UnbindFace()
