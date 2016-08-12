@@ -621,7 +621,9 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRTyp
 
 	if (samples) {
 		if (!GLEW_EXT_framebuffer_multisample ||
-		    !GLEW_ARB_texture_multisample ||
+			/* Disable multisample for texture and not render buffers
+			 * when it's not supported */
+		    (!GLEW_ARB_texture_multisample && (!(mode & GPU_OFFSCREEN_RENDERBUFFER_COLOR) || !(mode & GPU_OFFSCREEN_RENDERBUFFER_DEPTH))) ||
 		    /* Only needed for GPU_offscreen_read_pixels.
 		     * We could add an arg if we intend to use multi-sample
 		     * offscreen buffers w/o reading their pixels */
