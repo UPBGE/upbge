@@ -98,17 +98,6 @@ bool KX_TextMaterial::UseInstancing() const
 	return false;
 }
 
-bool KX_TextMaterial::UseDisplayLists() const
-{
-	return false;
-}
-
-RAS_IRasterizer::StorageType KX_TextMaterial::GetStorageType() const
-{
-	// This value is invalid because this function must be never called for texts.
-	return RAS_IRasterizer::RAS_STORAGE_NONE;
-}
-
 void KX_TextMaterial::ReleaseMaterial()
 {
 }

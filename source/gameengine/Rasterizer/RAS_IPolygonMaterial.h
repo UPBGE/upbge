@@ -57,6 +57,7 @@ enum MaterialProps
 	RAS_CASTSHADOW = (1 << 4),
 	RAS_ONLYSHADOW = (1 << 5),
 	RAS_OBJECTCOLOR = (1 << 6),
+	RAS_DISPLAYLISTS = (1 << 7)
 };
 
 enum MaterialRasterizerModes
@@ -82,6 +83,9 @@ protected:
 	unsigned int m_flag;
 
 	RAS_Texture *m_textures[RAS_Texture::MaxUnits];
+
+	/// The storage type used to render with this material.
+	RAS_IRasterizer::StorageType m_storageType;
 
 public:
 
@@ -116,6 +120,8 @@ public:
 	bool CastsShadows() const;
 	bool OnlyShadow() const;
 	RAS_Texture *GetTexture(unsigned int index);
+	bool UseDisplayLists() const;
+	RAS_IRasterizer::StorageType GetStorageType() const;
 
 	virtual const STR_String& GetTextureName() const = 0;
 	virtual Material *GetBlenderMaterial() const = 0;
@@ -123,8 +129,6 @@ public:
 	virtual MTexPoly *GetMTexPoly() const = 0;
 	virtual Scene *GetBlenderScene() const = 0;
 	virtual bool UseInstancing() const = 0;
-	virtual bool UseDisplayLists() const = 0;
-	virtual RAS_IRasterizer::StorageType GetStorageType() const = 0;
 	virtual void ReleaseMaterial() = 0;
 	virtual void GetRGBAColor(unsigned char *rgba) const;
 	virtual bool UsesLighting(RAS_IRasterizer *rasty) const;

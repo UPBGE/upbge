@@ -59,9 +59,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_scene(scene),
 	m_userDefBlend(false),
 	m_constructed(false),
-	m_lightLayer(lightlayer),
-	m_storageType(RAS_IRasterizer::RAS_STORAGE_NONE),
-	m_useDisplayLists(false)
+	m_lightLayer(lightlayer)
 {
 	// Save material data to restore on exit
 	m_savedData.r = m_material->r;
@@ -92,10 +90,10 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	if (storage == RAS_STORE_SCENE) {
 		Scene *blenderScene = scene->GetBlenderScene();
 		storage = blenderScene->gm.raster_storage;
-		m_useDisplayLists = (blenderScene->gm.flag & GAME_DISPLAY_LISTS) != 0;
+		m_flag |= (blenderScene->gm.flag & GAME_DISPLAY_LISTS) ? RAS_DISPLAYLISTS : 0;
 	}
 	else {
-		m_useDisplayLists = (game->storage_flag & GEMAT_DISPLAY_LISTS) != 0;
+		m_flag |= (game->storage_flag & GEMAT_DISPLAY_LISTS) ? RAS_DISPLAYLISTS : 0;
 	}
 
 	switch (storage) {
@@ -383,16 +381,6 @@ bool KX_BlenderMaterial::UseInstancing() const
 	}
 	// The material is in conversion, we use the blender material flag then.
 	return m_material->shade_flag & MA_INSTANCING;
-}
-
-bool KX_BlenderMaterial::UseDisplayLists() const
-{
-	return m_useDisplayLists;
-}
-
-RAS_IRasterizer::StorageType KX_BlenderMaterial::GetStorageType() const
-{
-	return m_storageType;
 }
 
 void KX_BlenderMaterial::ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
