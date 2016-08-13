@@ -201,7 +201,7 @@ void BKE_material_init(Material *ma)
 	ma->game.flag = GEMAT_BACKCULL;
 	ma->game.alpha_blend = 0;
 	ma->game.face_orientation = 0;
-	ma->game.storage = RAS_STORE_SCENE;
+	ma->game.storage = GAME_STORAGE_SCENE;
 	ma->game.storage_flag = 0;
 	
 	ma->mode = MA_TRACEBLE | MA_SHADBUF | MA_SHADOW | MA_RAYBIAS | MA_TANGENT_STR | MA_ZTRANSP;

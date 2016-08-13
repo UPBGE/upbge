@@ -87,7 +87,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 
 	short storage = game->storage;
 	// If the material storage is set to RAS_STORE_SCENE then we use the storage set in scene.
-	if (storage == RAS_STORE_SCENE) {
+	if (storage == GAME_STORAGE_SCENE) {
 		Scene *blenderScene = scene->GetBlenderScene();
 		storage = blenderScene->gm.raster_storage;
 		m_flag |= (blenderScene->gm.flag & GAME_DISPLAY_LISTS) ? RAS_DISPLAYLISTS : 0;
@@ -97,12 +97,12 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	}
 
 	switch (storage) {
-		case RAS_STORE_VA:
+		case GAME_STORAGE_VA:
 		{
 			m_storageType = RAS_IRasterizer::RAS_STORAGE_VA;
 			break;
 		}
-		case RAS_STORE_VBO:
+		case GAME_STORAGE_VBO:
 		{
 			m_storageType = RAS_IRasterizer::RAS_STORAGE_VBO;
 			break;

@@ -255,12 +255,12 @@ typedef struct Material {
 
 /* Raster storage */
 #ifdef DNA_DEPRECATED
-#   define RAS_STORE_AUTO		0
-#   define RAS_STORE_IMMEDIATE	1
+#   define GAME_STORAGE_AUTO		0
+#   define GAME_STORAGE_IMMEDIATE	1
 #endif
-#define RAS_STORE_VA		2
-#define RAS_STORE_VBO		3
-#define RAS_STORE_SCENE		4
+#define GAME_STORAGE_VA		2
+#define GAME_STORAGE_VBO		3
+#define GAME_STORAGE_SCENE		4
 
 #define GEMAT_DISPLAY_LISTS (1 << 0)
 
