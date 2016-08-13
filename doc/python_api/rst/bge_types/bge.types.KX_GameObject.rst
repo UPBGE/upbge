@@ -274,7 +274,11 @@ base class --- :class:`SCA_IObject`
 
    .. attribute:: culled
 
-      Returns True if the object is culled, False if not.
+      Returns True if the object is culled, else False.
+
+      .. warning::
+
+         This variable returns an invalid value if it is called outside the scene's callbacks :data:`KX_Scene.pre_draw` and :data:`KX_Scene.post_draw`.
 
       :type: boolean
 
