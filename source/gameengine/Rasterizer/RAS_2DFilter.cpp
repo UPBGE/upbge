@@ -28,11 +28,13 @@
 
 #include "BLI_utildefines.h" // for STRINGIFY
 
-#include "RAS_OpenGLFilters/RAS_VertexShader2DFilter.h"
-
 #include "EXP_Value.h"
 
 #include "glew-mx.h"
+
+extern "C" {
+	extern char datatoc_RAS_VertexShader2DFilter_glsl[];
+}
 
 static char predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_TYPE][40] = {
 	"bgl_RenderedTexture", // RENDERED_TEXTURE_UNIFORM
@@ -63,7 +65,7 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 		m_textures[i] = 0;
 	}
 
-	m_progs[VERTEX_PROGRAM] = STR_String(VertexShader);
+	m_progs[VERTEX_PROGRAM] = STR_String(datatoc_RAS_VertexShader2DFilter_glsl);
 	m_progs[FRAGMENT_PROGRAM] = data.shaderText;
 
 	LinkProgram();

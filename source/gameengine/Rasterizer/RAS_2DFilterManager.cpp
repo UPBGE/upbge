@@ -34,17 +34,18 @@
 
 #include "glew-mx.h"
 
-#include "RAS_OpenGLFilters/RAS_Blur2DFilter.h"
-#include "RAS_OpenGLFilters/RAS_Sharpen2DFilter.h"
-#include "RAS_OpenGLFilters/RAS_Dilation2DFilter.h"
-#include "RAS_OpenGLFilters/RAS_Erosion2DFilter.h"
-#include "RAS_OpenGLFilters/RAS_Laplacian2DFilter.h"
-#include "RAS_OpenGLFilters/RAS_Sobel2DFilter.h"
-#include "RAS_OpenGLFilters/RAS_Prewitt2DFilter.h"
-#include "RAS_OpenGLFilters/RAS_GrayScale2DFilter.h"
-#include "RAS_OpenGLFilters/RAS_Sepia2DFilter.h"
-#include "RAS_OpenGLFilters/RAS_Invert2DFilter.h"
-
+extern "C" {
+	extern char datatoc_RAS_Blur2DFilter_glsl[];
+	extern char datatoc_RAS_Sharpen2DFilter_glsl[];
+	extern char datatoc_RAS_Dilation2DFilter_glsl[];
+	extern char datatoc_RAS_Erosion2DFilter_glsl[];
+	extern char datatoc_RAS_Laplacian2DFilter_glsl[];
+	extern char datatoc_RAS_Sobel2DFilter_glsl[];
+	extern char datatoc_RAS_Prewitt2DFilter_glsl[];
+	extern char datatoc_RAS_GrayScale2DFilter_glsl[];
+	extern char datatoc_RAS_Sepia2DFilter_glsl[];
+	extern char datatoc_RAS_Invert2DFilter_glsl[];
+}
 
 RAS_2DFilterManager::RAS_2DFilterManager()
 {
@@ -97,34 +98,34 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 		case RAS_2DFilterManager::FILTER_MOTIONBLUR:
 			break;
 		case RAS_2DFilterManager::FILTER_BLUR:
-			shaderSource = BlurFragmentShader;
+			shaderSource = datatoc_RAS_Blur2DFilter_glsl;
 			break;
 		case RAS_2DFilterManager::FILTER_SHARPEN:
-			shaderSource = SharpenFragmentShader;
+			shaderSource = datatoc_RAS_Sharpen2DFilter_glsl;
 			break;
 		case RAS_2DFilterManager::FILTER_DILATION:
-			shaderSource = DilationFragmentShader;
+			shaderSource = datatoc_RAS_Dilation2DFilter_glsl;
 			break;
 		case RAS_2DFilterManager::FILTER_EROSION:
-			shaderSource = ErosionFragmentShader;
+			shaderSource = datatoc_RAS_Erosion2DFilter_glsl;
 			break;
 		case RAS_2DFilterManager::FILTER_LAPLACIAN:
-			shaderSource = LaplacianFragmentShader;
+			shaderSource = datatoc_RAS_Laplacian2DFilter_glsl;
 			break;
 		case RAS_2DFilterManager::FILTER_SOBEL:
-			shaderSource = SobelFragmentShader;
+			shaderSource = datatoc_RAS_Sobel2DFilter_glsl;
 			break;
 		case RAS_2DFilterManager::FILTER_PREWITT:
-			shaderSource = PrewittFragmentShader;
+			shaderSource = datatoc_RAS_Prewitt2DFilter_glsl;
 			break;
 		case RAS_2DFilterManager::FILTER_GRAYSCALE:
-			shaderSource = GrayScaleFragmentShader;
+			shaderSource = datatoc_RAS_GrayScale2DFilter_glsl;
 			break;
 		case RAS_2DFilterManager::FILTER_SEPIA:
-			shaderSource = SepiaFragmentShader;
+			shaderSource = datatoc_RAS_Sepia2DFilter_glsl;
 			break;
 		case RAS_2DFilterManager::FILTER_INVERT:
-			shaderSource = InvertFragmentShader;
+			shaderSource = datatoc_RAS_Invert2DFilter_glsl;
 			break;
 	}
 	if (!shaderSource) {

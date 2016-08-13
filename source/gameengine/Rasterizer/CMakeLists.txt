@@ -95,18 +95,19 @@ set(SRC
 	RAS_Texture.h
 	RAS_TextUser.h
 	RAS_TexVert.h
-	RAS_OpenGLFilters/RAS_Blur2DFilter.h
-	RAS_OpenGLFilters/RAS_Dilation2DFilter.h
-	RAS_OpenGLFilters/RAS_Erosion2DFilter.h
-	RAS_OpenGLFilters/RAS_GrayScale2DFilter.h
-	RAS_OpenGLFilters/RAS_Invert2DFilter.h
-	RAS_OpenGLFilters/RAS_Laplacian2DFilter.h
-	RAS_OpenGLFilters/RAS_Prewitt2DFilter.h
-	RAS_OpenGLFilters/RAS_Sepia2DFilter.h
-	RAS_OpenGLFilters/RAS_Sharpen2DFilter.h
-	RAS_OpenGLFilters/RAS_Sobel2DFilter.h
-	RAS_OpenGLFilters/RAS_VertexShader2DFilter.h
 )
+
+data_to_c_simple(RAS_OpenGLFilters/RAS_Blur2DFilter.glsl SRC)
+data_to_c_simple(RAS_OpenGLFilters/RAS_Dilation2DFilter.glsl SRC)
+data_to_c_simple(RAS_OpenGLFilters/RAS_Erosion2DFilter.glsl SRC)
+data_to_c_simple(RAS_OpenGLFilters/RAS_GrayScale2DFilter.glsl SRC)
+data_to_c_simple(RAS_OpenGLFilters/RAS_Invert2DFilter.glsl SRC)
+data_to_c_simple(RAS_OpenGLFilters/RAS_Laplacian2DFilter.glsl SRC)
+data_to_c_simple(RAS_OpenGLFilters/RAS_Prewitt2DFilter.glsl SRC)
+data_to_c_simple(RAS_OpenGLFilters/RAS_Sepia2DFilter.glsl SRC)
+data_to_c_simple(RAS_OpenGLFilters/RAS_Sharpen2DFilter.glsl SRC)
+data_to_c_simple(RAS_OpenGLFilters/RAS_Sobel2DFilter.glsl SRC)
+data_to_c_simple(RAS_OpenGLFilters/RAS_VertexShader2DFilter.glsl SRC)
 
 add_definitions(${GL_DEFINITIONS})
 
