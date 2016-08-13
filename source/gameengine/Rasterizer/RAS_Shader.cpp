@@ -308,13 +308,13 @@ bool RAS_Shader::LinkProgram()
 	m_error = 0;
 	return true;
 
-program_error:
-{
-	m_ok = 0;
-	m_use = 0;
-	m_error = 1;
-	return false;
-}
+	program_error:
+	{
+		m_ok = 0;
+		m_use = 0;
+		m_error = 1;
+		return false;
+	}
 }
 
 void RAS_Shader::ValidateProgram()
