@@ -132,6 +132,12 @@ KX_BlenderSceneConverter::KX_BlenderSceneConverter(
 
 	const char *script =
 		"import bpy\n"
+		"selectedOb = bpy.data.texts.new('selectedobjects')\n"
+		"activeOb = bpy.data.texts.new('activeobject')\n"
+		"for ob in bpy.context.selected_objects:\n"
+		"	selectedOb.write(ob.name+',')\n"
+		"	if ob == bpy.context.active_object:\n"
+		"		activeOb.write(ob.name)\n"
 		"bpy.ops.object.select_all(action = 'SELECT')\n"
 		"selected = bpy.context.selected_objects\n"
 		"for ob in selected :\n"
@@ -193,6 +199,11 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 	}
 	const char *script =
 		"import bpy\n"
+		"selectedObText = [txt for txt in bpy.data.texts if txt.name == 'selectedobjects'][0]\n"
+		"activeObText = [txt for txt in bpy.data.texts if txt.name == 'activeobject'][0]\n"
+		"selectedObNames = selectedObText.lines[0].body.split(',')\n"
+		"activeObName = activeObText.lines[0].body\n"
+		"activeOb = None\n"
 		"bpy.ops.object.select_all(action = 'SELECT')\n"
 		"selected = bpy.context.selected_objects\n"
 		"for ob in selected :\n"
@@ -204,7 +215,17 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 		"	new_mesh = bpy.data.meshes.get(ob.name + '_new')\n"
 		"	if new_mesh:\n"
 		"		bpy.data.meshes.remove(new_mesh)\n"
-		"bpy.ops.object.select_all(action = 'DESELECT')\n";
+		"	if ob.name in selectedObNames:\n"
+		"		ob.select = True\n"
+		"	else:\n"
+		"		ob.select = False\n"
+		"	if ob.name in activeObName:\n"
+		"		activeOb = ob\n"
+		"selectedObText.user_clear()\n"
+		"bpy.data.texts.remove(selectedObText)\n"
+		"activeObText.user_clear()\n"
+		"bpy.data.texts.remove(activeObText)\n"
+		"bpy.context.scene.objects.active = activeOb\n";
 	if (m_applyModifiers) {
 		PyRun_SimpleString(script);
 	}
