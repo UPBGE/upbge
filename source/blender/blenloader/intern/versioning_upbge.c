@@ -84,4 +84,11 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 10)) {
+		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+			if (scene->gm.raster_storage == RAS_STORE_AUTO || scene->gm.raster_storage == RAS_STORE_IMMEDIATE) {
+				scene->gm.raster_storage = RAS_STORE_VA;
+			}
+		}
+	}
 }

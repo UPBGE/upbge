@@ -254,8 +254,10 @@ typedef struct Material {
 #define MA_CONSTANT_MIST		(1 << 4)
 
 /* Raster storage */
-#define RAS_STORE_AUTO		0
-#define RAS_STORE_IMMEDIATE	1
+#ifdef DNA_DEPRECATED
+#   define RAS_STORE_AUTO		0
+#   define RAS_STORE_IMMEDIATE	1
+#endif
 #define RAS_STORE_VA		2
 #define RAS_STORE_VBO		3
 #define RAS_STORE_SCENE		4

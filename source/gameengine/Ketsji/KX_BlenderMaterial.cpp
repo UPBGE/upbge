@@ -97,8 +97,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	}
 
 	switch (storage) {
-		// Currently the AUTO mode is equivalent to VA storage.
-		case RAS_STORE_AUTO:
 		case RAS_STORE_VA:
 		{
 			m_storageType = RAS_IRasterizer::RAS_STORAGE_VA;

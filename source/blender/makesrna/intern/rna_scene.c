@@ -4372,7 +4372,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	};
 
 	static EnumPropertyItem storage_items[] = {
-		{RAS_STORE_AUTO, "AUTO", 0, "Auto Select", "Choose the best supported mode"},
 		{RAS_STORE_VA, "VERTEX_ARRAY", 0, "Vertex Arrays", "Usually the best choice (good performance with display lists)"},
 		{RAS_STORE_VBO, "VERTEX_BUFFER_OBJECT", 0, "Vertex Buffer Objects",
 		                "Typically slower than vertex arrays with display lists, requires at least OpenGL 1.4"},
