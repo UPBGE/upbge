@@ -154,20 +154,6 @@ void LA_Launcher::InitEngine()
 	}
 	m_pythonConsole.use = (gm->flag & GAME_PYTHON_CONSOLE);
 
-	/*RAS_STORAGE_TYPE raster_storage = RAS_AUTO_STORAGE;
-	int storageInfo = RAS_STORAGE_INFO_NONE;
-
-	if (gm->raster_storage == RAS_STORE_VBO) {
-		raster_storage = RAS_VBO;
-	}
-	else if (gm->raster_storage == RAS_STORE_VA) {
-		raster_storage = RAS_VA;
-	}
-
-	if (useLists) {
-		storageInfo |= RAS_STORAGE_USE_DISPLAY_LIST;
-	}*/
-
 	m_rasterizer = new RAS_OpenGLRasterizer();
 
 	// Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI
