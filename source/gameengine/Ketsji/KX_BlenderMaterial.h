@@ -125,7 +125,6 @@ private:
 	unsigned int m_blendFunc[2];
 	bool m_constructed; // if false, don't clean on exit
 	int m_lightLayer;
-
 	STR_String m_uvsName[RAS_Texture::MaxUnits];
 
 	struct {

@@ -1596,9 +1596,6 @@ static void game_set_commmandline_options(GameData *gm)
 		test = (gm->flag & GAME_IGNORE_DEPRECATION_WARNINGS);
 		SYS_WriteCommandLineInt(syshandle, "ignore_deprecation_warnings", test);
 
-		test = (gm->flag & GAME_DISPLAY_LISTS);
-		SYS_WriteCommandLineInt(syshandle, "displaylists", test);
-
 		test = (gm->flag & GAME_SHOW_BOUNDING_BOX);
 		SYS_WriteCommandLineInt(syshandle, "show_bounding_box", test);
 		test = (gm->flag & GAME_SHOW_ARMATURES);
