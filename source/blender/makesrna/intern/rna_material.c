@@ -888,6 +888,14 @@ static void rna_def_material_gamesettings(BlenderRNA *brna)
 		{GEMAT_SHADOW, "SHADOW", 0, "Shadow", "Faces are used for shadow"},
 		{0, NULL, 0, NULL, NULL}
 	};
+
+	static EnumPropertyItem storage_items[] = {
+		{GAME_STORAGE_VA, "VERTEX_ARRAY", 0, "Vertex Arrays", "Usually the best choice (good performance with display lists)"},
+		{GAME_STORAGE_VBO, "VERTEX_BUFFER_OBJECT", 0, "Vertex Buffer Objects",
+		                "Typically slower than vertex arrays with display lists, requires at least OpenGL 1.4"},
+		{GAME_STORAGE_SCENE, "SCENE", 0, "Scene Default", "Use scene storage mode"},
+		{0, NULL, 0, NULL, NULL}
+	};
 	
 	srna = RNA_def_struct(brna, "MaterialGameSettings", NULL);
 	RNA_def_struct_sdna(srna, "GameSettings");
@@ -917,6 +925,16 @@ static void rna_def_material_gamesettings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "physics", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GEMAT_NOPHYSICS); /* use bitflags */
 	RNA_def_property_ui_text(prop, "Physics", "Use physics properties of materials ");
+
+	prop = RNA_def_property(srna, "storage", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "storage");
+	RNA_def_property_enum_items(prop, storage_items);
+	RNA_def_property_ui_text(prop, "Storage", "Set the storage mode used by the rasterizer");
+
+	prop = RNA_def_property(srna, "use_display_lists", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "storage_flag", GEMAT_DISPLAY_LISTS);
+	RNA_def_property_ui_text(prop, "Display Lists",
+	                         "Use display lists to speed up rendering by keeping geometry on the GPU");
 }
 
 static void rna_def_material_colors(StructRNA *srna)

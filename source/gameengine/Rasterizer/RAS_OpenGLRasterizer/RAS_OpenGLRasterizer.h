@@ -53,19 +53,6 @@ class RAS_OpenGLLight;
 #define RAS_MAX_TEXCO  8     /* match in BL_Material */
 #define RAS_MAX_ATTRIB 16    /* match in BL_BlenderShader */
 
-enum RAS_STORAGE_TYPE
-{
-	RAS_AUTO_STORAGE,
-	RAS_VA,
-	RAS_VBO,
-};
-
-enum RAS_STORAGE_INFO
-{
-	RAS_STORAGE_INFO_NONE = 0,
-	RAS_STORAGE_USE_DISPLAY_LIST = (1 << 0),
-};
-
 /**
  * 3D rendering device context.
  */
@@ -165,13 +152,11 @@ protected:
 
 	/* Making use of a Strategy design pattern for storage behavior.
 	 * Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
-	int m_storage_type;
-	RAS_IStorage *m_storage;
-	int m_storageInfo;
+	RAS_IStorage *m_storages[RAS_STORAGE_MAX];
 
 public:
 	double GetTime();
-	RAS_OpenGLRasterizer(RAS_STORAGE_TYPE storage, int storageInfo);
+	RAS_OpenGLRasterizer();
 	virtual ~RAS_OpenGLRasterizer();
 
 	virtual void Enable(EnableBit bit);
@@ -209,10 +194,10 @@ public:
 	virtual RAS_ISync *CreateSync(int type);
 	virtual void SwapBuffers(RAS_ICanvas *canvas);
 
-	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
-	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
-	virtual void IndexPrimitives(class RAS_MeshSlot *ms);
-	virtual void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket);
+	virtual void BindPrimitives(StorageType storage, RAS_DisplayArrayBucket *arrayBucket);
+	virtual void UnbindPrimitives(StorageType storage, RAS_DisplayArrayBucket *arrayBucket);
+	virtual void IndexPrimitives(StorageType storage, RAS_MeshSlot *ms);
+	virtual void IndexPrimitivesInstancing(StorageType storage, RAS_DisplayArrayBucket *arrayBucket);
 	virtual void IndexPrimitivesText(RAS_MeshSlot *ms);
 	virtual void DrawDerivedMesh(class RAS_MeshSlot *ms);
 
@@ -272,8 +257,6 @@ public:
 
 	const MT_Matrix4x4 &GetViewMatrix() const;
 	const MT_Matrix4x4 &GetViewInvMatrix() const;
-
-	virtual bool UseDisplayLists() const;
 
 	virtual void EnableMotionBlur(float motionblurvalue);
 	virtual void DisableMotionBlur();

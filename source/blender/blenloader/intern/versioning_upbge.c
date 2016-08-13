@@ -34,6 +34,7 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_genfile.h"
+#include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_sensor_types.h"
@@ -73,6 +74,19 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 				scene->gm.pythonkeys[1] = LEFTSHIFTKEY;
 				scene->gm.pythonkeys[2] = LEFTALTKEY;
 				scene->gm.pythonkeys[3] = TKEY;
+			}
+		}
+	}
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 10)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "GameSettings", "short", "storage")) {
+			for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
+				ma->game.storage = GAME_STORAGE_SCENE;
+			}
+		}
+
+		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+			if (scene->gm.raster_storage == GAME_STORAGE_AUTO || scene->gm.raster_storage == GAME_STORAGE_IMMEDIATE) {
+				scene->gm.raster_storage = GAME_STORAGE_VA;
 			}
 		}
 	}

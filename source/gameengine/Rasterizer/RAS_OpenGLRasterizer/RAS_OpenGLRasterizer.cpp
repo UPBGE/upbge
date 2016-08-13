@@ -208,7 +208,7 @@ void RAS_OpenGLRasterizer::ScreenPlane::Render()
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 }
 
-RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_STORAGE_TYPE storage, int storageInfo)
+RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	: m_fogenabled(false),
 	m_time(0.0f),
 	m_campos(0.0f, 0.0f, 0.0f),
@@ -230,9 +230,7 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_STORAGE_TYPE storage, int storage
 	m_attrib_num(0),
 	//m_last_alphablend(GPU_BLEND_SOLID),
 	m_last_frontface(true),
-	m_overrideShader(RAS_OVERRIDE_SHADER_NONE),
-	m_storage_type(storage),
-	m_storageInfo(storageInfo)
+	m_overrideShader(RAS_OVERRIDE_SHADER_NONE)
 {
 	m_viewmatrix.setIdentity();
 	m_viewinvmatrix.setIdentity();
@@ -244,16 +242,8 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_STORAGE_TYPE storage, int storage
 	}
 	hinterlace_mask[32] = 0;
 
-	if (m_storage_type == RAS_VBO /*|| m_storage_type == RAS_AUTO_STORAGE && GLEW_ARB_vertex_buffer_object*/) {
-		m_storage = new RAS_StorageVBO(&m_texco_num, m_texco, &m_attrib_num, m_attrib, m_attrib_layer);
-	}
-	else if ((m_storage_type == RAS_VA) || (m_storage_type == RAS_AUTO_STORAGE)) {
-		m_storage = new RAS_StorageVA(&m_texco_num, m_texco, &m_attrib_num, m_attrib, m_attrib_layer);
-	}
-	else {
-		printf("Unknown rasterizer storage type, falling back to vertex arrays\n");
-		m_storage = new RAS_StorageVA(&m_texco_num, m_texco, &m_attrib_num, m_attrib, m_attrib_layer);
-	}
+	m_storages[RAS_STORAGE_VA] = new RAS_StorageVA(&m_texco_num, m_texco, &m_attrib_num, m_attrib, m_attrib_layer);
+	m_storages[RAS_STORAGE_VBO] = new RAS_StorageVBO(&m_texco_num, m_texco, &m_attrib_num, m_attrib, m_attrib_layer);
 
 	glGetIntegerv(GL_MAX_LIGHTS, (GLint *)&m_numgllights);
 	if (m_numgllights < 8)
@@ -262,8 +252,9 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_STORAGE_TYPE storage, int storage
 
 RAS_OpenGLRasterizer::~RAS_OpenGLRasterizer()
 {
-	if (m_storage)
-		delete m_storage;
+	for (unsigned short i = 0; i < RAS_STORAGE_MAX; ++i) {
+		delete m_storages[i];
+	}
 }
 
 void RAS_OpenGLRasterizer::Enable(RAS_IRasterizer::EnableBit bit)
@@ -288,7 +279,6 @@ void RAS_OpenGLRasterizer::SetBlendFunc(BlendFunc src, BlendFunc dst)
 
 bool RAS_OpenGLRasterizer::Init()
 {
-	bool storage_init;
 	GPU_state_init();
 
 	m_ambr = 0.0f;
@@ -308,9 +298,11 @@ bool RAS_OpenGLRasterizer::Init()
 
 	glShadeModel(GL_SMOOTH);
 
-	storage_init = m_storage->Init();
+	for (unsigned short i = 0; i < RAS_STORAGE_MAX; ++i) {
+		m_storages[i]->Init();
+	}
 
-	return (true && storage_init);
+	return (true);
 }
 
 void RAS_OpenGLRasterizer::SetAmbientColor(float color[3])
@@ -353,7 +345,9 @@ void RAS_OpenGLRasterizer::DisplayFog()
 
 void RAS_OpenGLRasterizer::Exit()
 {
-	m_storage->Exit();
+	for (unsigned short i = 0; i < RAS_STORAGE_MAX; ++i) {
+		m_storages[i]->Exit();
+	}
 
 	Enable(RAS_CULL_FACE);
 	Enable(RAS_DEPTH_TEST);
@@ -424,7 +418,10 @@ bool RAS_OpenGLRasterizer::BeginFrame(double time)
 void RAS_OpenGLRasterizer::SetDrawingMode(RAS_IRasterizer::DrawType drawingmode)
 {
 	m_drawingmode = drawingmode;
-	m_storage->SetDrawingMode(drawingmode);
+
+	for (unsigned short i = 0; i < RAS_STORAGE_MAX; ++i) {
+		m_storages[i]->SetDrawingMode(drawingmode);
+	}
 }
 
 RAS_IRasterizer::DrawType RAS_OpenGLRasterizer::GetDrawingMode()
@@ -911,11 +908,6 @@ const MT_Matrix4x4& RAS_OpenGLRasterizer::GetViewInvMatrix() const
 	return m_viewinvmatrix;
 }
 
-bool RAS_OpenGLRasterizer::UseDisplayLists() const
-{
-	return m_storageInfo & RAS_STORAGE_USE_DISPLAY_LIST;
-}
-
 void RAS_OpenGLRasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
 {
 	RAS_TextUser *textUser = (RAS_TextUser *)ms->m_meshUser;
@@ -971,31 +963,31 @@ void RAS_OpenGLRasterizer::SetAttrib(TexCoGen coords, int unit, int layer)
 	}
 }
 
-void RAS_OpenGLRasterizer::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
+void RAS_OpenGLRasterizer::BindPrimitives(StorageType storage, RAS_DisplayArrayBucket *arrayBucket)
 {
 	if (arrayBucket && arrayBucket->GetDisplayArray()) {
-		m_storage->BindPrimitives(arrayBucket);
+		m_storages[storage]->BindPrimitives(arrayBucket);
 	}
 }
 
-void RAS_OpenGLRasterizer::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
+void RAS_OpenGLRasterizer::UnbindPrimitives(StorageType storage, RAS_DisplayArrayBucket *arrayBucket)
 {
 	if (arrayBucket && arrayBucket->GetDisplayArray()) {
-		m_storage->UnbindPrimitives(arrayBucket);
+		m_storages[storage]->UnbindPrimitives(arrayBucket);
 	}
 }
 
-void RAS_OpenGLRasterizer::IndexPrimitives(RAS_MeshSlot *ms)
+void RAS_OpenGLRasterizer::IndexPrimitives(StorageType storage, RAS_MeshSlot *ms)
 {
 	if (ms->m_pDerivedMesh)
 		DrawDerivedMesh(ms);
 	else
-		m_storage->IndexPrimitives(ms);
+		m_storages[storage]->IndexPrimitives(ms);
 }
 
-void RAS_OpenGLRasterizer::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket)
+void RAS_OpenGLRasterizer::IndexPrimitivesInstancing(StorageType storage, RAS_DisplayArrayBucket *arrayBucket)
 {
-	m_storage->IndexPrimitivesInstancing(arrayBucket);
+	m_storages[storage]->IndexPrimitivesInstancing(arrayBucket);
 }
 
 

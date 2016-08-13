@@ -31,7 +31,6 @@
 
 
 #include "RAS_IPolygonMaterial.h"
-#include "RAS_IRasterizer.h"
 
 #include "DNA_material_types.h"
 
@@ -41,7 +40,8 @@ RAS_IPolyMaterial::RAS_IPolyMaterial(
 	:m_name(name),
 	m_alphablend(0),
 	m_rasMode(0),
-	m_flag(0)
+	m_flag(0),
+	m_storageType(RAS_IRasterizer::RAS_STORAGE_NONE)
 {
 	if (game) {
 		m_drawingmode = ConvertFaceMode(game);
@@ -146,4 +146,14 @@ bool RAS_IPolyMaterial::UsesObjectColor() const
 RAS_Texture *RAS_IPolyMaterial::GetTexture(unsigned int index)
 {
 	return m_textures[index];
+}
+
+bool RAS_IPolyMaterial::UseDisplayLists() const
+{
+	return (m_flag & RAS_DISPLAYLISTS);
+}
+
+RAS_IRasterizer::StorageType RAS_IPolyMaterial::GetStorageType() const
+{
+	return m_storageType;
 }

@@ -683,6 +683,15 @@ class MATERIAL_PT_game_settings(MaterialButtonsPanel, Panel):
         col.prop(mat, "use_constant_world")
         col.prop(mat, "use_constant_mist")
 
+        col = layout.column()
+        col.label(text="Storage:")
+
+        row = col.row()
+        row.prop(game, "storage", text="")
+        col = row.column()
+        col.active = game.storage not in ("VERTEX_BUFFER_OBJECT", "SCENE")
+        col.prop(game, "use_display_lists")
+
 
 class MATERIAL_PT_physics(MaterialButtonsPanel, Panel):
     bl_label = "Physics"

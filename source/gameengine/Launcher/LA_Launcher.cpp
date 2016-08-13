@@ -63,6 +63,7 @@ extern "C" {
 #  include "BKE_main.h"
 
 #  include "DNA_scene_types.h"
+#  include "DNA_material_types.h"
 
 #  include "MEM_guardedalloc.h"
 
@@ -140,7 +141,6 @@ void LA_Launcher::InitEngine()
 
 	bool fixed_framerate = (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm->flag & GAME_ENABLE_ALL_FRAMES)) != 0);
 	bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
-	bool useLists = (SYS_GetCommandLineInt(syshandle, "displaylists", gm->flag & GAME_DISPLAY_LISTS) != 0) && GPU_display_list_support();
 	bool showBoundingBox = (SYS_GetCommandLineInt(syshandle, "show_bounding_box", gm->flag & GAME_SHOW_BOUNDING_BOX) != 0);
 	bool showArmatures = (SYS_GetCommandLineInt(syshandle, "show_armatures", gm->flag & GAME_SHOW_ARMATURES) != 0);
 	bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
@@ -154,21 +154,7 @@ void LA_Launcher::InitEngine()
 	}
 	m_pythonConsole.use = (gm->flag & GAME_PYTHON_CONSOLE);
 
-	RAS_STORAGE_TYPE raster_storage = RAS_AUTO_STORAGE;
-	int storageInfo = RAS_STORAGE_INFO_NONE;
-
-	if (gm->raster_storage == RAS_STORE_VBO) {
-		raster_storage = RAS_VBO;
-	}
-	else if (gm->raster_storage == RAS_STORE_VA) {
-		raster_storage = RAS_VA;
-	}
-
-	if (useLists) {
-		storageInfo |= RAS_STORAGE_USE_DISPLAY_LIST;
-	}
-
-	m_rasterizer = new RAS_OpenGLRasterizer(raster_storage, storageInfo);
+	m_rasterizer = new RAS_OpenGLRasterizer();
 
 	// Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI
 	m_rasterizer->SetStereoMode(m_stereoMode);
