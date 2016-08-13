@@ -231,10 +231,6 @@ typedef struct Material {
 #define GEMAT_BILLBOARD		1024 /* BILLBOARD_AXISALIGNED */
 #define GEMAT_SHADOW		2048 /* SHADOW */
 
-// Use Textures - not defined directly in the UI
-#define GEMAT_TEX		4096 /* KX_TEX */
-
-
 /* **************** MATERIAL ********************* */
 
 /* maximum number of materials per material array.
