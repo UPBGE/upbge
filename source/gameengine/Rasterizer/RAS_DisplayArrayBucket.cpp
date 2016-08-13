@@ -188,7 +188,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 
 	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
 
-	if (!rasty->UseDisplayLists()) {
+	if (!material->UseDisplayLists()) {
 		m_useDisplayList = false;
 	}
 
@@ -245,6 +245,11 @@ void RAS_DisplayArrayBucket::DestructStorageInfo()
 	}
 }
 
+RAS_IRasterizer::StorageType RAS_DisplayArrayBucket::GetStorageType() const
+{
+	return m_bucket->GetPolyMaterial()->GetStorageType();
+}
+
 void RAS_DisplayArrayBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)
 {
 	if (m_activeMeshSlots.size() == 0) {
@@ -254,14 +259,15 @@ void RAS_DisplayArrayBucket::RenderMeshSlots(const MT_Transform& cameratrans, RA
 	// Update deformer and render settings.
 	UpdateActiveMeshSlots(rasty);
 
-	rasty->BindPrimitives(this);
+	const RAS_IRasterizer::StorageType storage = GetStorageType();
+	rasty->BindPrimitives(storage, this);
 
 	for (RAS_MeshSlotList::iterator it = m_activeMeshSlots.begin(), end = m_activeMeshSlots.end(); it != end; ++it) {
 		RAS_MeshSlot *ms = *it;
 		m_bucket->RenderMeshSlot(cameratrans, rasty, ms);
 	}
 
-	rasty->UnbindPrimitives(this);
+	rasty->UnbindPrimitives(storage, this);
 }
 
 void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, bool alpha)
@@ -334,9 +340,10 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 	// Unbind the buffer to avoid conflict with the render after.
 	m_instancingBuffer->Unbind();
 
-	rasty->BindPrimitives(this);
+	const RAS_IRasterizer::StorageType storage = GetStorageType();
+	rasty->BindPrimitives(storage, this);
 
-	rasty->IndexPrimitivesInstancing(this);
+	rasty->IndexPrimitivesInstancing(storage, this);
 	// Unbind vertex attributs.
 	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
 		material->DesactivateInstancing();
@@ -345,6 +352,6 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 		rasty->DesactivateOverrideShaderInstancing();
 	}
 
-	rasty->UnbindPrimitives(this);
+	rasty->UnbindPrimitives(storage, this);
 }
 

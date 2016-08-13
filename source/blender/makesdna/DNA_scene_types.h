@@ -845,12 +845,6 @@ typedef struct GameData {
 #define OBSTSIMULATION_TOI_rays		1
 #define OBSTSIMULATION_TOI_cells	2
 
-/* Raster storage */
-#define RAS_STORE_AUTO		0
-#define RAS_STORE_IMMEDIATE	1
-#define RAS_STORE_VA		2
-#define RAS_STORE_VBO		3
-
 /* vsync */
 #define VSYNC_ON	0
 #define VSYNC_OFF	1

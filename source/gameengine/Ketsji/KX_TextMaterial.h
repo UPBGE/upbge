@@ -48,6 +48,8 @@ public:
 	virtual MTexPoly *GetMTexPoly() const;
 	virtual Scene *GetBlenderScene() const;
 	virtual bool UseInstancing() const;
+	virtual bool UseDisplayLists() const;
+	virtual RAS_IRasterizer::StorageType GetStorageType() const;
 	virtual void ReleaseMaterial();
 
 	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,

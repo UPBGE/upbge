@@ -80,7 +80,8 @@ typedef struct GameSettings {
 	int flag;
 	int alpha_blend;
 	int face_orientation;
-	int pad1;
+	short storage;
+	short storage_flag;
 } GameSettings;
 
 typedef struct TexPaintSlot {
@@ -251,6 +252,15 @@ typedef struct Material {
 #define MA_CONSTANT_TEXTURE		(1 << 2)
 #define MA_CONSTANT_WORLD		(1 << 3)
 #define MA_CONSTANT_MIST		(1 << 4)
+
+/* Raster storage */
+#define RAS_STORE_AUTO		0
+#define RAS_STORE_IMMEDIATE	1
+#define RAS_STORE_VA		2
+#define RAS_STORE_VBO		3
+#define RAS_STORE_SCENE		4
+
+#define GEMAT_DISPLAY_LISTS (1 << 0)
 
 /* flag */
 		/* for render */

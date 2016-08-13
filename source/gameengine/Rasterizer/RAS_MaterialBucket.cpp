@@ -196,7 +196,7 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 		rasty->IndexPrimitivesText(ms);
 	}
 	else {
-		rasty->IndexPrimitives(ms);
+		rasty->IndexPrimitives(ms->m_displayArrayBucket->GetStorageType(), ms);
 	}
 
 	rasty->PopMatrix();

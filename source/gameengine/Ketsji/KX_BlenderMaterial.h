@@ -55,6 +55,8 @@ public:
 	void ActivateBlenderShaders(RAS_IRasterizer *rasty);
 
 	virtual bool UseInstancing() const;
+	virtual bool UseDisplayLists() const;
+	virtual RAS_IRasterizer::StorageType GetStorageType() const;
 	virtual const STR_String& GetTextureName() const;
 	virtual Material *GetBlenderMaterial() const;
 	virtual Image *GetBlenderImage() const;
@@ -125,6 +127,12 @@ private:
 	unsigned int m_blendFunc[2];
 	bool m_constructed; // if false, don't clean on exit
 	int m_lightLayer;
+
+	/// The storage type used to render with this material.
+	RAS_IRasterizer::StorageType m_storageType;
+	/// Allow display list for the used storage.
+	bool m_useDisplayLists;
+
 	STR_String m_uvsName[RAS_Texture::MaxUnits];
 
 	struct {

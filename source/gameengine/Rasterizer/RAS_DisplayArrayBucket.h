@@ -33,12 +33,12 @@
 #define __RAS_DISPLAY_MATERIAL_BUCKET_H__
 
 #include "RAS_MeshSlot.h" // needed for RAS_MeshSlotList
+#include "RAS_IRasterizer.h" // needed for RAS_IRasterizer::StorageType
 
 #include "MT_Transform.h"
 
 #include <vector>
 
-class RAS_IRasterizer;
 class RAS_MaterialBucket;
 class RAS_DisplayArray;
 class RAS_MeshObject;
@@ -126,6 +126,7 @@ public:
 	RAS_IStorageInfo *GetStorageInfo() const;
 	void SetStorageInfo(RAS_IStorageInfo *info);
 	void DestructStorageInfo();
+	RAS_IRasterizer::StorageType GetStorageType() const;
 
 	/// Render all mesh slots for solid render.
 	void RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);

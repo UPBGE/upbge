@@ -43,6 +43,7 @@
 #include "DNA_texture_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_scene_types.h"
 
 KX_BlenderMaterial::KX_BlenderMaterial(
 		KX_Scene *scene,
@@ -58,7 +59,9 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_scene(scene),
 	m_userDefBlend(false),
 	m_constructed(false),
-	m_lightLayer(lightlayer)
+	m_lightLayer(lightlayer),
+	m_storageType(RAS_IRasterizer::RAS_STORAGE_NONE),
+	m_useDisplayLists(false)
 {
 	// Save material data to restore on exit
 	m_savedData.r = m_material->r;
@@ -83,6 +86,32 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	if (mtface) {
 		ME_MTEXFACE_CPY(m_mtexPoly, mtface);
 	}
+
+	short storage = game->storage;
+	// If the material storage is set to RAS_STORE_SCENE then we use the storage set in scene.
+	if (storage == RAS_STORE_SCENE) {
+		Scene *blenderScene = scene->GetBlenderScene();
+		storage = blenderScene->gm.raster_storage;
+		m_useDisplayLists = (blenderScene->gm.flag & GAME_DISPLAY_LISTS) != 0;
+	}
+	else {
+		m_useDisplayLists = (game->storage_flag & GEMAT_DISPLAY_LISTS) != 0;
+	}
+
+	switch (storage) {
+		// Currently the AUTO mode is equivalent to VA storage.
+		case RAS_STORE_AUTO:
+		case RAS_STORE_VA:
+		{
+			m_storageType = RAS_IRasterizer::RAS_STORAGE_VA;
+			break;
+		}
+		case RAS_STORE_VBO:
+		{
+			m_storageType = RAS_IRasterizer::RAS_STORAGE_VBO;
+			break;
+		}
+	};
 
 	// with ztransp enabled, enforce alpha blending mode
 	if ((mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (m_alphablend == GEMAT_SOLID)) {
@@ -354,6 +383,16 @@ bool KX_BlenderMaterial::UseInstancing() const
 	}
 	// The material is in conversion, we use the blender material flag then.
 	return m_material->shade_flag & MA_INSTANCING;
+}
+
+bool KX_BlenderMaterial::UseDisplayLists() const
+{
+	return m_useDisplayLists;
+}
+
+RAS_IRasterizer::StorageType KX_BlenderMaterial::GetStorageType() const
+{
+	return m_storageType;
 }
 
 void KX_BlenderMaterial::ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)

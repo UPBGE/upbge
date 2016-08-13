@@ -33,6 +33,7 @@
 #define __RAS_IPOLYGONMATERIAL_H__
 
 #include "RAS_Texture.h"
+#include "RAS_IRasterizer.h"
 
 #include "STR_String.h"
 
@@ -42,8 +43,6 @@
 
 #include "MT_Vector4.h"
 
-class RAS_IRasterizer;
-class RAS_MeshSlot;
 struct MTexPoly;
 struct Material;
 struct Image;
@@ -124,6 +123,8 @@ public:
 	virtual MTexPoly *GetMTexPoly() const = 0;
 	virtual Scene *GetBlenderScene() const = 0;
 	virtual bool UseInstancing() const = 0;
+	virtual bool UseDisplayLists() const = 0;
+	virtual RAS_IRasterizer::StorageType GetStorageType() const = 0;
 	virtual void ReleaseMaterial() = 0;
 	virtual void GetRGBAColor(unsigned char *rgba) const;
 	virtual bool UsesLighting(RAS_IRasterizer *rasty) const;

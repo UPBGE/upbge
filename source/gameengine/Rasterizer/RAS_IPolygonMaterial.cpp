@@ -31,7 +31,6 @@
 
 
 #include "RAS_IPolygonMaterial.h"
-#include "RAS_IRasterizer.h"
 
 #include "DNA_material_types.h"
 
