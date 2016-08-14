@@ -170,6 +170,14 @@ public:
 	}
 	
 	/**
+	 * We could add many optionnal arguments to this function
+	 * to take into account different sort of vibrations. But I
+	 * propose to keep the UI simple with only force, duration,
+	 * and joyindex and make the other SDL options available
+	 * for rumble only via a python API.
+	 */
+	bool RumblePlay(float strength, int duration);
+	/**
 	 * Test if the joystick is connected
 	 */
 	int Connected(void);
