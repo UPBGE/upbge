@@ -350,7 +350,7 @@ public:
 	/// Return current frame buffer object used index.
 	virtual short GetCurrentFBOIndex() const = 0;
 	/// Return frame buffer samples numbers.
-	virtual int GetFBOSamples(unsigned short index) const = 0;
+	virtual int GetFBOSamples(unsigned short index) = 0;
 
 	/**
 	 * SetRenderArea sets the render area from the 2d canvas.

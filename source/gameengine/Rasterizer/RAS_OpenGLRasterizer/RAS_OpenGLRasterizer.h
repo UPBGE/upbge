@@ -79,6 +79,13 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		GPUOffScreen *m_offScreens[RAS_OFFSCREEN_MAX];
 		short m_currentIndex;
 
+		unsigned int m_width;
+		unsigned int m_height;
+		unsigned short m_samples;
+		short m_hdr;
+
+		GPUOffScreen *GetOffScreen(unsigned short index);
+
 	public:
 		ScreenFBO();
 		virtual ~ScreenFBO();
@@ -89,7 +96,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		void BindTexture(unsigned short index, unsigned short slot, OffScreen type);
 		void UnbindTexture(unsigned short index, OffScreen type);
 		unsigned short GetCurrentIndex() const;
-		int GetSamples(unsigned short index) const;
+		int GetSamples(unsigned short index);
 	};
 
 	struct OglDebugShape
@@ -234,7 +241,7 @@ public:
 	virtual void BindFBOTexture(unsigned short index, unsigned short slot, OffScreen type);
 	virtual void UnbindFBOTexture(unsigned short index, OffScreen type);
 	virtual short GetCurrentFBOIndex() const;
-	virtual int GetFBOSamples(unsigned short index) const;
+	virtual int GetFBOSamples(unsigned short index);
 
 	virtual void SetRenderArea(RAS_ICanvas *canvas);
 
