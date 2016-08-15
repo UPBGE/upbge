@@ -43,15 +43,6 @@ public:
 		MAX_PREDEFINED_UNIFORM_TYPE
 	};
 
-	enum PassFlag {
-		/// First rendered filter.
-		PASS_BEGIN = 1 << 0,
-		/// A middle rendered filter.
-		PASS_MIDDLE = 1 << 1,
-		/// Last rendered filter.
-		PASS_END = 1 << 2
-	};
-
 protected:
 	int m_predefinedUniforms[MAX_PREDEFINED_UNIFORM_TYPE];
 
@@ -72,8 +63,8 @@ protected:
 	virtual bool LinkProgram();
 	void ParseShaderProgram();
 	void BindUniforms(RAS_ICanvas *canvas);
-	void BindTextures(RAS_IRasterizer *rasty, unsigned short fboindex);
-	void UnbindTextures(RAS_IRasterizer *rasty, unsigned short fboindex);
+	void BindTextures(RAS_IRasterizer *rasty, unsigned short inputfbo, unsigned short fboindex);
+	void UnbindTextures(RAS_IRasterizer *rasty, unsigned short inputfbo, unsigned short fboindex);
 	void ComputeTextureOffsets(RAS_ICanvas *canvas);
 
 public:
@@ -84,7 +75,8 @@ public:
 	void Initialize(RAS_ICanvas *canvas);
 
 	/// Starts executing the filter.
-	void Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, short flag, int target);
+	void Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short inputfbo,
+			   unsigned short srcfbo, unsigned short outputfbo);
 
 	/// Finalizes the execution stage of the filter.
 	void End();

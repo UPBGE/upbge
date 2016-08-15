@@ -82,7 +82,8 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 	}
 }
 
-void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, short flag, int target)
+void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short inputfbo,
+						 unsigned short srcfbo, unsigned short outputfbo)
 {
 	if (!Ok()) {
 		return;
@@ -90,36 +91,11 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, short flag
 
 	Initialize(canvas);
 
-	unsigned short srcfboindex = rasty->GetCurrentFBOIndex();
-	unsigned short dstfboindex = 0;
-
-	// Copy render FBO to first filter FBO, because it used multisamples.
-	if ((flag & PASS_BEGIN && rasty->GetFBOSamples(srcfboindex))) {
-		rasty->BindFBO(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
-		rasty->DrawFBO(srcfboindex, RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
-
-		srcfboindex = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
-	}
-
-	// If it's the last rendered filter we can render directly to the final or render FBO.
-	if (flag & PASS_END) {
-		dstfboindex = target;
-	}
-	else {
-		if (srcfboindex == RAS_IRasterizer::RAS_OFFSCREEN_FILTER0) {
-			dstfboindex = RAS_IRasterizer::RAS_OFFSCREEN_FILTER1;
-		}
-		else {
-			dstfboindex = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
-		}
-	}
-
-	rasty->BindFBO(dstfboindex);
-	rasty->DrawFBO(srcfboindex, dstfboindex);
+	rasty->BindFBO(outputfbo);
 
 	SetProg(true);
 
-	BindTextures(rasty, srcfboindex);
+	BindTextures(rasty, inputfbo, srcfbo);
 	BindUniforms(canvas);
 
 	MT_Matrix4x4 mat;
@@ -130,7 +106,7 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, short flag
 
 	rasty->DrawOverlayPlane();
 
-	UnbindTextures(rasty, srcfboindex);
+	UnbindTextures(rasty, inputfbo, srcfbo);
 }
 
 void RAS_2DFilter::End()
@@ -189,13 +165,13 @@ void RAS_2DFilter::ComputeTextureOffsets(RAS_ICanvas *canvas)
 	}
 }
 
-void RAS_2DFilter::BindTextures(RAS_IRasterizer *rasty, unsigned short fboindex)
+void RAS_2DFilter::BindTextures(RAS_IRasterizer *rasty, unsigned short inputfbo, unsigned short fboindex)
 {
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
 		rasty->BindFBOTexture(fboindex, 8, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-		rasty->BindFBOTexture(fboindex, 9, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
+		rasty->BindFBOTexture(inputfbo, 9, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
 	}
 
 	// Bind custom textures.
@@ -207,13 +183,13 @@ void RAS_2DFilter::BindTextures(RAS_IRasterizer *rasty, unsigned short fboindex)
 	}
 }
 
-void RAS_2DFilter::UnbindTextures(RAS_IRasterizer *rasty, unsigned short fboindex)
+void RAS_2DFilter::UnbindTextures(RAS_IRasterizer *rasty, unsigned short inputfbo, unsigned short fboindex)
 {
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
 		rasty->UnbindFBOTexture(fboindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-		rasty->UnbindFBOTexture(fboindex, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
+		rasty->UnbindFBOTexture(inputfbo, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
 	}
 
 	// Bind custom textures.

@@ -88,6 +88,9 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 		return;
 	}
 
+	unsigned short srcfbo = rasty->GetCurrentFBOIndex();
+	unsigned short inputfbo = srcfbo;
+
 	rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
 	rasty->Disable(RAS_IRasterizer::RAS_BLEND);
 	rasty->Disable(RAS_IRasterizer::RAS_ALPHA_TEST);
@@ -101,22 +104,38 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 	for (RAS_PassTo2DFilter::iterator begin = m_filters.begin(), it = begin, end = m_filters.end(); it != end; ++it) {
 		RAS_2DFilter *filter = it->second;
 
-		/* Falg used by the filter render to know if it's the first rendered
-		 * or the last or a middle one. The flag can said that the filter is
-		 * both the first and the last.
-		 */
-		short flag = 0;
+		unsigned short outputfbo;
 		if (it == begin) {
-			flag |= RAS_2DFilter::PASS_BEGIN;
-		}
-		if (it == pend) {
-			flag |= RAS_2DFilter::PASS_END;
+			if (rasty->GetFBOSamples(srcfbo)) {
+				rasty->BindFBO(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
+				rasty->DrawFBO(srcfbo, RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
+
+				srcfbo = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
+				inputfbo = srcfbo;
+			}
 		}
 		else {
-			flag |= RAS_2DFilter::PASS_MIDDLE;
+			if (srcfbo == RAS_IRasterizer::RAS_OFFSCREEN_FILTER0) {
+				srcfbo = RAS_IRasterizer::RAS_OFFSCREEN_FILTER1;
+			}
+			else {
+				srcfbo = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
+			}
 		}
 
-		filter->Start(rasty, canvas, flag, target);
+		if (it == pend) {
+			outputfbo = target;
+		}
+		else {
+			if (srcfbo == RAS_IRasterizer::RAS_OFFSCREEN_FILTER0) {
+				outputfbo = RAS_IRasterizer::RAS_OFFSCREEN_FILTER1;
+			}
+			else {
+				outputfbo = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
+			}
+		}
+
+		filter->Start(rasty, canvas, inputfbo, srcfbo, outputfbo);
 		filter->End();
 	}
 

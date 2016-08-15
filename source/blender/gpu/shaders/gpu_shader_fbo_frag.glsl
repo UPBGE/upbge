@@ -3,7 +3,9 @@ uniform sampler2D lefteyetex;
 uniform sampler2D righteyetex;
 #else
 uniform sampler2D colortex;
+#  ifdef DEPTH
 uniform sampler2D depthtex;
+#  endif
 #endif
 
 #ifdef STIPPLE
@@ -39,6 +41,8 @@ void main()
 	gl_FragColor = vec4(texture2D(lefteyetex, co).r, texture2D(righteyetex, co).gb, 1.0);
 #else
 	gl_FragColor = texture2D(colortex, co);
+#  ifdef DEPTH
 	gl_FragDepth = texture2D(depthtex, co).x;
+#  endif
 #endif
 }

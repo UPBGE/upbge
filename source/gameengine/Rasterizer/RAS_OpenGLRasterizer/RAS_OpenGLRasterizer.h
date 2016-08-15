@@ -129,7 +129,6 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	struct OverrideShaderCopyFBOInterface
 	{
 		int colorTexLoc;
-		int depthTexLoc;
 	};
 
 	struct OverrideShaderStereoStippleInterface

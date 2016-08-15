@@ -820,21 +820,18 @@ void RAS_OpenGLRasterizer::DrawFBO(unsigned short srcindex, unsigned short dstin
 {
 	if (m_screenFBO.GetSamples(srcindex) == 0) {
 		m_screenFBO.BindTexture(srcindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-		m_screenFBO.BindTexture(srcindex, 1, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
 
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_COPY_FBO);
 		GPU_shader_bind(shader);
 
 		OverrideShaderCopyFBOInterface *interface = (OverrideShaderCopyFBOInterface *)GPU_shader_get_interface(shader);
 		GPU_shader_uniform_int(shader, interface->colorTexLoc, 0);
-		GPU_shader_uniform_int(shader, interface->depthTexLoc, 1);
 
 		DrawOverlayPlane();
 
 		GPU_shader_unbind();
 
 		m_screenFBO.UnbindTexture(srcindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-		m_screenFBO.UnbindTexture(srcindex, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
 	}
 	else {
 		m_screenFBO.Blit(srcindex, dstindex);
@@ -1716,7 +1713,6 @@ void RAS_OpenGLRasterizer::InitOverrideShadersInterface()
 			OverrideShaderCopyFBOInterface *interface = (OverrideShaderCopyFBOInterface *)MEM_mallocN(sizeof(OverrideShaderCopyFBOInterface), "OverrideShaderCopyFBOInterface");
 
 			interface->colorTexLoc = GPU_shader_get_uniform(shader, "colortex");
-			interface->depthTexLoc = GPU_shader_get_uniform(shader, "depthtex");
 
 			GPU_shader_set_interface(shader, interface);
 		}
