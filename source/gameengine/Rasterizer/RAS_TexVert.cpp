@@ -29,9 +29,7 @@
  *  \ingroup bgerast
  */
 
-
 #include "RAS_TexVert.h"
-#include "MT_Matrix4x4.h"
 
 RAS_ITexVert::RAS_ITexVert(const MT_Vector3& xyz,
 						 const MT_Vector4& tangent,

@@ -32,8 +32,6 @@
 
 #include "glew-mx.h"
 
-#include <iostream>
-
 VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
 	:m_vaoInitialized(false)
 {

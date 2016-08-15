@@ -342,7 +342,7 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 unsigned int RAS_MeshObject::AddVertex(
 				RAS_MaterialBucket *bucket,
 				const MT_Vector3& xyz,
-				const MT_Vector2 uvs[RAS_ITexVert::MAX_UNIT],
+				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
 				const unsigned int rgba,
 				const MT_Vector3& normal,
@@ -352,7 +352,7 @@ unsigned int RAS_MeshObject::AddVertex(
 	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
 	RAS_MeshSlot *slot = mmat->m_baseslot;
 	RAS_IDisplayArray *darray = slot->GetDisplayArray();
-	RAS_ITexVert *vertex = darray->CreateVertex(xyz, uvs, tangent, rgba, normal, flat, origindex); 
+	RAS_ITexVert *vertex = darray->CreateVertex(xyz, uvs, tangent, rgba, normal, flat, origindex);
 
 	{	/* Shared Vertex! */
 		/* find vertices shared between faces, with the restriction

@@ -42,7 +42,6 @@
 
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshMaterial.h"
-#include "RAS_TexVert.h"
 #include "MT_Transform.h"
 #include "MT_Vector2.h"
 #include "STR_String.h"
@@ -136,9 +135,9 @@ public:
 	virtual RAS_Polygon *AddPolygon(RAS_MaterialBucket *bucket, int numverts, unsigned int indices[4],
 									bool visible, bool collider, bool twoside);
 	virtual unsigned int AddVertex(
-				RAS_MaterialBucket *bucket, 
+				RAS_MaterialBucket *bucket,
 				const MT_Vector3& xyz,
-				const MT_Vector2 uvs[RAS_ITexVert::MAX_UNIT],
+				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
 				const unsigned int rgba,
 				const MT_Vector3& normal,

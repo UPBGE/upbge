@@ -62,7 +62,7 @@ public:
 	RAS_MeshSlot(const RAS_MeshSlot& slot);
 	virtual ~RAS_MeshSlot();
 
-	void init(RAS_MaterialBucket *bucket, RAS_TexVertFormat format);
+	void init(RAS_MaterialBucket *bucket, const RAS_TexVertFormat& format);
 
 	RAS_IDisplayArray *GetDisplayArray();
 	void SetDeformer(RAS_Deformer *deformer);

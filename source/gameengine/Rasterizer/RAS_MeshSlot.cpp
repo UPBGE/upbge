@@ -83,7 +83,7 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 	}
 }
 
-void RAS_MeshSlot::init(RAS_MaterialBucket *bucket, RAS_TexVertFormat format)
+void RAS_MeshSlot::init(RAS_MaterialBucket *bucket, const RAS_TexVertFormat& format)
 {
 	m_bucket = bucket;
 

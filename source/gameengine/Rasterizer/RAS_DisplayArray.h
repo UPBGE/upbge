@@ -75,7 +75,7 @@ public:
 
 	virtual RAS_ITexVert *CreateVertex(
 				const MT_Vector3& xyz,
-				const MT_Vector2 uvs[RAS_ITexVert::MAX_UNIT],
+				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
 				const unsigned int rgba,
 				const MT_Vector3& normal,
@@ -183,7 +183,7 @@ public:
 
 	virtual RAS_ITexVert *CreateVertex(
 				const MT_Vector3& xyz,
-				const MT_Vector2 uvs[RAS_ITexVert::MAX_UNIT],
+				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
 				const unsigned int rgba,
 				const MT_Vector3& normal,
