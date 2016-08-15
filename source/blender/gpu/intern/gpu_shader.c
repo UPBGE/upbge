@@ -48,8 +48,8 @@
 /* Non-generated shaders */
 extern char datatoc_gpu_shader_basic_instancing_frag_glsl[];
 extern char datatoc_gpu_shader_basic_instancing_vert_glsl[];
-extern char datatoc_gpu_shader_copy_fbo_frag_glsl[];
-extern char datatoc_gpu_shader_copy_fbo_vert_glsl[];
+extern char datatoc_gpu_shader_fbo_frag_glsl[];
+extern char datatoc_gpu_shader_fbo_vert_glsl[];
 extern char datatoc_gpu_shader_smoke_vert_glsl[];
 extern char datatoc_gpu_shader_smoke_frag_glsl[];
 extern char datatoc_gpu_shader_vsm_store_vert_glsl[];
@@ -756,21 +756,21 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 		case GPU_SHADER_COPY_FBO:
 			if (!GG.shaders.copyfbo)
 				GG.shaders.copyfbo = GPU_shader_create(
-					datatoc_gpu_shader_copy_fbo_vert_glsl, datatoc_gpu_shader_copy_fbo_frag_glsl,
+					datatoc_gpu_shader_fbo_vert_glsl, datatoc_gpu_shader_fbo_frag_glsl,
 					NULL, NULL, NULL, 0, 0, 0);
 			retval = GG.shaders.copyfbo;
 			break;
 		case GPU_SHADER_STEREO_STIPPLE:
 			if (!GG.shaders.stereo_stipple)
 				GG.shaders.stereo_stipple = GPU_shader_create(
-					datatoc_gpu_shader_copy_fbo_vert_glsl, datatoc_gpu_shader_copy_fbo_frag_glsl,
+					datatoc_gpu_shader_fbo_vert_glsl, datatoc_gpu_shader_fbo_frag_glsl,
 					NULL, NULL, "#define STIPPLE;\n", 0, 0, 0);
 			retval = GG.shaders.stereo_stipple;
 			break;
 		case GPU_SHADER_STEREO_ANAGLYPH:
 			if (!GG.shaders.stereo_anaglyph)
 				GG.shaders.stereo_anaglyph = GPU_shader_create(
-					datatoc_gpu_shader_copy_fbo_vert_glsl, datatoc_gpu_shader_copy_fbo_frag_glsl,
+					datatoc_gpu_shader_fbo_vert_glsl, datatoc_gpu_shader_fbo_frag_glsl,
 					NULL, NULL, "#define ANAGLYPH;\n", 0, 0, 0);
 			retval = GG.shaders.stereo_anaglyph;
 			break;
