@@ -91,7 +91,7 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 {
 	/* The shader must be initialized at the first frame when the canvas is accesible.
 	 * to solve this we initialize filter at the frist render frame. */
-	if (Ok() && !m_uniformInitialized) {
+	if (!m_uniformInitialized) {
 		ParseShaderProgram();
 		ReleaseTextures();
 		InitializeTextures(canvas);
@@ -102,11 +102,11 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 
 void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, short flag, int target)
 {
-	Initialize(canvas);
-
 	if (!Ok()) {
 		return;
 	}
+
+	Initialize(canvas);
 
 	unsigned short srcfboindex = rasty->GetCurrentFBOIndex();
 	unsigned short dstfboindex = 0;
@@ -286,9 +286,6 @@ void RAS_2DFilter::UnbindTextures(RAS_IRasterizer *rasty, unsigned short fboinde
 
 void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 {
-	const unsigned int texturewidth = canvas->GetWidth() + 1;
-	const unsigned int textureheight = canvas->GetHeight() + 1;
-
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
 		SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM], 8);
 	}
@@ -297,10 +294,12 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 	}
 	if (m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM] != -1) {
 		// Bind rendered texture width.
+		const unsigned int texturewidth = canvas->GetWidth() + 1;
 		SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_WIDTH_UNIFORM], (float)texturewidth);
 	}
 	if (m_predefinedUniforms[RENDERED_TEXTURE_HEIGHT_UNIFORM] != -1) {
 		// Bind rendered texture height.
+		const unsigned int textureheight = canvas->GetHeight() + 1;
 		SetUniform(m_predefinedUniforms[RENDERED_TEXTURE_HEIGHT_UNIFORM], (float)textureheight);
 	}
 	if (m_predefinedUniforms[TEXTURE_COORDINATE_OFFSETS_UNIFORM] != -1) {
