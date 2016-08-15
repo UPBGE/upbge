@@ -121,11 +121,11 @@ RAS_MeshObject::~RAS_MeshObject()
 {
 	std::vector<RAS_Polygon *>::iterator it;
 
-	for (it = m_Polygons.begin(); it != m_Polygons.end(); it++)
+	for (it = m_polygons.begin(); it != m_polygons.end(); it++)
 		delete (*it);
 
 	m_sharedvertex_map.clear();
-	m_Polygons.clear();
+	m_polygons.clear();
 	m_materials.clear();
 }
 
@@ -204,12 +204,12 @@ RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(unsigned int matid)
 
 int RAS_MeshObject::NumPolygons()
 {
-	return m_Polygons.size();
+	return m_polygons.size();
 }
 
 RAS_Polygon *RAS_MeshObject::GetPolygon(int num) const
 {
-	return m_Polygons[num];
+	return m_polygons[num];
 }
 
 std::list<RAS_MeshMaterial>::iterator RAS_MeshObject::GetFirstMaterial()
@@ -321,7 +321,7 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 	// create a new polygon
 	RAS_DisplayArray *darray = slot->GetDisplayArray();
 	RAS_Polygon *poly = new RAS_Polygon(bucket, darray, numverts);
-	m_Polygons.push_back(poly);
+	m_polygons.push_back(poly);
 
 	poly->SetVisible(visible);
 	poly->SetCollider(collider);
@@ -520,7 +520,7 @@ bool RAS_MeshObject::HasColliderPolygon()
 {
 	int numpolys = NumPolygons();
 	for (int p = 0; p < numpolys; p++) {
-		if (m_Polygons[p]->IsCollider())
+		if (m_polygons[p]->IsCollider())
 			return true;
 	}
 

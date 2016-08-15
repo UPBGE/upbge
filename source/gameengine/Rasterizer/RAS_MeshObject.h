@@ -67,7 +67,7 @@ private:
 	STR_String m_name;
 	static STR_String s_emptyname;
 
-	std::vector<RAS_Polygon *> m_Polygons;
+	std::vector<RAS_Polygon *> m_polygons;
 
 	/* polygon sorting */
 	struct polygonSlot;
