@@ -415,6 +415,7 @@ bool ImageRender::Render()
 		GPU_offscreen_blit(m_offScreen, m_blitOffScreen);
 	}
 
+#ifdef WITH_GAMEENGINE_GPU_SYNC
 	// end of all render operations, let's create a sync object just in case
 	if (m_sync) {
 		// a sync from a previous render, should not happen
@@ -422,6 +423,8 @@ bool ImageRender::Render()
 		m_sync = NULL;
 	}
 	m_sync = m_rasterizer->CreateSync(RAS_ISync::RAS_SYNC_TYPE_FENCE);
+#endif
+
 	// remember that we have done render
 	m_done = true;
 	// the image is not available at this stage
@@ -436,12 +439,14 @@ void ImageRender::Unbind()
 
 void ImageRender::WaitSync()
 {
+#ifdef WITH_GAMEENGINE_GPU_SYNC
 	if (m_sync) {
 		m_sync->Wait();
 		// done with it, deleted it
 		delete m_sync;
 		m_sync = NULL;
 	}
+#endif
 
 	// this is needed to finalize the image if the target is a texture
 	GPU_texture_generate_mipmap(GPU_offscreen_texture((m_samples > 0) ? m_blitOffScreen : m_offScreen));
