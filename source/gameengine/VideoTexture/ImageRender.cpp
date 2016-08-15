@@ -115,7 +115,7 @@ ImageRender::~ImageRender (void)
 
 int ImageRender::GetColorBindCode() const
 {
-	return GPU_texture_opengl_bindcode(GPU_offscreen_texture((m_samples > 0) ? m_blitOffScreen : m_offScreen));
+	return GPU_offscreen_color_texture((m_samples > 0) ? m_blitOffScreen : m_offScreen);
 }
 
 // get update shadow buffer
