@@ -3673,6 +3673,10 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "cd_flag", ME_CDFLAG_EDGE_CREASE);
 	RNA_def_property_ui_text(prop, "Store Edge Crease", "");
 
+	prop = RNA_def_property(srna, "apply_modifiers_at_ge_start", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "cd_flag", ME_CDFLAG_APPLY_MODIF);
+	RNA_def_property_ui_text(prop, "Apply modifiers at GE start", "");
+
 
 	/* readonly editmesh info - use for extrude menu */
 	prop = RNA_def_property(srna, "total_vert_sel", PROP_INT, PROP_UNSIGNED);

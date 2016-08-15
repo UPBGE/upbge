@@ -383,6 +383,7 @@ class DATA_PT_customdata(MeshButtonsPanel, Panel):
         col.prop(me, "use_customdata_vertex_bevel")
         col.prop(me, "use_customdata_edge_bevel")
         col.prop(me, "use_customdata_edge_crease")
+        col.prop(me, "apply_modifiers_at_ge_start")
 
 
 class DATA_PT_custom_props_mesh(MeshButtonsPanel, PropertyPanel, Panel):

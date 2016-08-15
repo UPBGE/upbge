@@ -56,7 +56,6 @@ protected:
 	Scene *m_startScene;
 	Main *m_maggie;
 	KX_Scene *m_kxStartScene;
-	bool m_applyModifiers;
 
 	/// \section Exit state.
 	int m_exitRequested;

@@ -1074,10 +1074,9 @@ static KX_GameObject *gameobject_from_blenderobject(
 		bool ignoreActivityCulling =  
 			((ob->gameflag2 & OB_NEVER_DO_ACTIVITY_CULLING)!=0);
 		gameobj->SetIgnoreActivityCulling(ignoreActivityCulling);
-		gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);
+		gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);		
 
-		if (!converter->GetApplyModifiers()) {
-
+		if ((mesh->cd_flag & ME_CDFLAG_APPLY_MODIF) == 0) {
 			// two options exists for deform: shape keys and armature
 			// only support relative shape key
 			bool bHasShapeKey = mesh->key != NULL && mesh->key->type == KEY_RELATIVE;

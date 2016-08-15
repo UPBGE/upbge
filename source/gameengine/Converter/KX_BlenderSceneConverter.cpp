@@ -118,11 +118,9 @@ typedef struct ThreadInfo {
 
 KX_BlenderSceneConverter::KX_BlenderSceneConverter(
 							Main *maggie,
-							KX_KetsjiEngine *engine,
-							bool applyModifiers)
+							KX_KetsjiEngine *engine)
 							:m_maggie(maggie),
 							m_ketsjiEngine(engine),
-							m_applyModifiers(applyModifiers),
 							m_alwaysUseExpandFraming(false)
 {
 	BKE_main_id_tag_all(maggie, LIB_TAG_DOIT, false);  /* avoid re-tagging later on */
@@ -143,15 +141,16 @@ KX_BlenderSceneConverter::KX_BlenderSceneConverter(
 		"for ob in selected :\n"
 		"	bpy.context.scene.objects.active = ob\n"
 		"	if ob.modifiers :\n"
-		"		clone_mesh = ob.data\n"
-		"		clone_mesh.name = ob.name + '_clone'\n"
-		"		new_mesh = ob.to_mesh(bpy.context.scene, True, 'PREVIEW')\n"
-		"		new_mesh.name = ob.name + '_new'\n"
-		"		ob.data = new_mesh\n"
+		"		if ob.data.apply_modifiers_at_ge_start :\n"
+		"			clone_mesh = ob.data\n"
+		"			clone_mesh.name = ob.name + '_clone'\n"
+		"			new_mesh = ob.to_mesh(bpy.context.scene, True, 'PREVIEW')\n"
+		"			new_mesh.name = ob.name + '_new'\n"
+		"			ob.data = new_mesh\n"
 		"bpy.ops.object.select_all(action = 'DESELECT')\n";
-	if (m_applyModifiers) {
+#ifdef WITH_PYTHON
 		PyRun_SimpleString(script);
-	}
+#endif
 }
 
 KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
@@ -219,16 +218,16 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 		"		ob.select = True\n"
 		"	else:\n"
 		"		ob.select = False\n"
-		"	if ob.name in activeObName:\n"
+		"	if ob.name == activeObName:\n"
 		"		activeOb = ob\n"
 		"selectedObText.user_clear()\n"
 		"bpy.data.texts.remove(selectedObText)\n"
 		"activeObText.user_clear()\n"
 		"bpy.data.texts.remove(activeObText)\n"
 		"bpy.context.scene.objects.active = activeOb\n";
-	if (m_applyModifiers) {
+#ifdef WITH_PYTHON
 		PyRun_SimpleString(script);
-	}
+#endif
 }
 
 void KX_BlenderSceneConverter::SetNewFileName(const STR_String &filename)
@@ -241,11 +240,6 @@ bool KX_BlenderSceneConverter::TryAndLoadNewFile()
 	bool result = false;
 
 	return result;
-}
-
-bool KX_BlenderSceneConverter::GetApplyModifiers()
-{
-	return m_applyModifiers;
 }
 
 Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const STR_String &name)

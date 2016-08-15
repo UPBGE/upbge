@@ -90,13 +90,11 @@ class KX_BlenderSceneConverter : public KX_ISceneConverter
 	STR_String				m_newfilename;
 	class KX_KetsjiEngine*	m_ketsjiEngine;
 	bool					m_alwaysUseExpandFraming;
-	bool					m_applyModifiers;
 
 public:
 	KX_BlenderSceneConverter(
 		Main* maggie,
-		class KX_KetsjiEngine* engine,
-		bool applymodifiers
+		class KX_KetsjiEngine* engine
 	);
 
 	virtual ~KX_BlenderSceneConverter();
@@ -115,8 +113,6 @@ public:
 
 	void SetNewFileName(const STR_String& filename);
 	bool TryAndLoadNewFile();
-
-	bool GetApplyModifiers();
 
 	void SetAlwaysUseExpandFraming(bool to_what);
 	
