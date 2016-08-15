@@ -29,7 +29,6 @@
  *  \ingroup bgerast
  */
 
-#include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 
 #include "RAS_MeshObject.h"
@@ -106,15 +105,6 @@ RAS_MeshObject::RAS_MeshObject(Mesh *mesh)
 	m_needUpdateAabb(true),
 	m_mesh(mesh)
 {
-	if (m_mesh && m_mesh->key) {
-		KeyBlock *kb;
-		int count = 0;
-		// initialize weight cache for shape objects
-		// count how many keys in this mesh
-		for (kb = (KeyBlock *)m_mesh->key->block.first; kb; kb = (KeyBlock *)kb->next)
-			count++;
-		m_cacheWeightIndex.resize(count, -1);
-	}
 }
 
 RAS_MeshObject::~RAS_MeshObject()

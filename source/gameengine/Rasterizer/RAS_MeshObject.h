@@ -77,7 +77,6 @@ private:
 	void UpdateAabb();
 
 protected:
-	std::vector<int> m_cacheWeightIndex;
 	std::list<RAS_MeshMaterial> m_materials;
 	Mesh *m_mesh;
 
