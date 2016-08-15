@@ -3289,6 +3289,7 @@ if(FIRST_RUN)
 
 	info_cfg_text("Build Options:")
 	info_cfg_option(WITH_GAMEENGINE)
+	info_cfg_option(WITH_GAMEENGINE_SECURITY)
 	info_cfg_option(WITH_PLAYER)
 	info_cfg_option(WITH_BULLET)
 	info_cfg_option(WITH_IK_SOLVER)
