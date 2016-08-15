@@ -724,52 +724,6 @@ void KX_KetsjiEngine::Render()
 			PostRenderScene(scene, target);
 		}
 	}
-#if 0
-	// only one place that checks for stereo
-	if (m_rasterizer->Stereo()) {
-		m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_RIGHTEYE);
-
-		// set the area used for rendering (stereo can assign only a subset)
-		m_rasterizer->SetRenderArea(m_canvas);
-
-		// for each scene, call the proceed functions
-		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
-			KX_Scene *scene = (KX_Scene *)*sceit;
-			KX_Camera *activecam = scene->GetActiveCamera();
-
-			// pass the scene's worldsettings to the rasterizer
-			scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
-
-			if (scene->IsClearingZBuffer())
-				m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-
-			// pass the scene, for picking and raycasting (shadows)
-			m_rasterizer->SetAuxilaryClientInfo(scene);
-
-			// do the rendering
-			//RenderFrame(scene);
-			RenderFrame(scene, activecam);
-
-			CListValue *cameras = scene->GetCameraList();
-
-			// Draw the scene once for each camera with an enabled viewport
-			for (CListValue::iterator it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-				KX_Camera *cam = (KX_Camera*)(*it);
-				if (cam->GetViewport()) {
-					if (scene->IsClearingZBuffer())
-						m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-
-					m_rasterizer->SetAuxilaryClientInfo(scene);
-
-					// do the rendering
-					RenderFrame(scene, cam);
-				}
-			}
-			PostRenderScene(scene);
-		}
-		m_rasterizer->DisableStereo();
-	}
-#endif
 
 	m_canvas->SetViewPort(0, 0, width, height);
 

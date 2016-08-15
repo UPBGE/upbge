@@ -43,13 +43,6 @@ public:
 		MAX_PREDEFINED_UNIFORM_TYPE
 	};
 
-	enum RenderedTextureType {
-		RENDERED_TEXTURE = 0,
-		LUMINANCE_TEXTURE,
-		DEPTH_TEXTURE,
-		MAX_RENDERED_TEXTURE_TYPE
-	};
-
 	enum PassFlag {
 		/// First rendered filter.
 		PASS_BEGIN = 1 << 0,
@@ -61,7 +54,6 @@ public:
 
 protected:
 	int m_predefinedUniforms[MAX_PREDEFINED_UNIFORM_TYPE];
-	unsigned int m_renderedTextures[MAX_RENDERED_TEXTURE_TYPE];
 
 	std::vector<STR_String> m_properties;
 	std::vector<unsigned int> m_propertiesLoc;
@@ -79,12 +71,10 @@ protected:
 
 	virtual bool LinkProgram();
 	void ParseShaderProgram();
-	void InitializeTextures(RAS_ICanvas *canvas);
 	void BindUniforms(RAS_ICanvas *canvas);
 	void BindTextures(RAS_IRasterizer *rasty, unsigned short fboindex);
 	void UnbindTextures(RAS_IRasterizer *rasty, unsigned short fboindex);
 	void ComputeTextureOffsets(RAS_ICanvas *canvas);
-	void ReleaseTextures();
 
 public:
 	RAS_2DFilter(RAS_2DFilterData& data);
