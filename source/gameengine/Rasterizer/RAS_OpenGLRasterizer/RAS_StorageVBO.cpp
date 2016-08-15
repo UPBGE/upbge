@@ -287,7 +287,7 @@ void RAS_StorageVBO::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 void RAS_StorageVBO::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
 	VBO *vbo = GetVBO(arrayBucket);
-	vbo->Unbind(*m_attrib_num, m_texco, *m_texco_num, m_attrib, m_drawingmode);
+	vbo->Unbind(*m_texco_num, m_texco, *m_attrib_num, m_attrib, m_drawingmode);
 }
 
 void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot *ms)
