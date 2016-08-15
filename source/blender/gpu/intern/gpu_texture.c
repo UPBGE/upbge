@@ -135,7 +135,7 @@ static GPUTexture *GPU_texture_create_nD(
 	tex->number = 0;
 	glBindTexture(tex->target, tex->bindcode);
 
-	if (mode & GPU_TEXTURE_DEPTH) {
+	if (tex->depth) {
 		type = GL_UNSIGNED_BYTE;
 		format = GL_DEPTH_COMPONENT;
 		internalformat = GL_DEPTH_COMPONENT;
@@ -219,7 +219,7 @@ static GPUTexture *GPU_texture_create_nD(
 	if (pixels)
 		MEM_freeN(pixels);
 
-	if (mode & GPU_TEXTURE_DEPTH) {
+	if (tex->depth) {
 		glTexParameteri(tex->target_base, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(tex->target_base, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		if (mode & GPU_TEXTURE_DEPTH_COMPARE) {
