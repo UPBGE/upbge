@@ -45,7 +45,7 @@ class RAS_Polygon
 	// location
 	RAS_MaterialBucket *m_bucket;
 	RAS_DisplayArray *m_darray;
-	unsigned short m_offset[4];
+	unsigned int m_offset[4];
 	unsigned short m_numvert;
 	unsigned short m_polyflags;
 
@@ -64,8 +64,8 @@ public:
 	int VertexCount();
 	RAS_TexVert *GetVertex(int i);
 
-	void SetVertexOffset(int i, unsigned short offset);
-	unsigned int GetVertexOffset(unsigned short i);
+	void SetVertexOffset(int i, unsigned int offset);
+	unsigned int GetVertexOffset(unsigned int i);
 
 	bool IsVisible();
 	void SetVisible(bool visible);

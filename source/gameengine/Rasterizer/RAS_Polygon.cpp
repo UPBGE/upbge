@@ -51,7 +51,7 @@ int RAS_Polygon::VertexCount()
 	return m_numvert;
 }
 
-void RAS_Polygon::SetVertexOffset(int i, unsigned short offset)
+void RAS_Polygon::SetVertexOffset(int i, unsigned int offset)
 {
 	m_offset[i] = offset;
 }
@@ -61,7 +61,7 @@ RAS_TexVert *RAS_Polygon::GetVertex(int i)
 	return &m_darray->m_vertex[m_offset[i]];
 }
 
-unsigned int RAS_Polygon::GetVertexOffset(unsigned short i)
+unsigned int RAS_Polygon::GetVertexOffset(unsigned int i)
 {
 	return m_offset[i];
 }
