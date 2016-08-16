@@ -22,7 +22,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file RAS_DisplayArray.cpp
+/** \file RAS_IDisplayArray.cpp
  *  \ingroup bgerast
  */
 
@@ -30,6 +30,10 @@
 #include "RAS_MeshObject.h"
 
 #include "glew-mx.h"
+
+RAS_IDisplayArray::RAS_IDisplayArray()
+{
+}
 
 RAS_IDisplayArray::~RAS_IDisplayArray()
 {

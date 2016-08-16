@@ -42,7 +42,7 @@
 #include "KX_BlenderSceneConverter.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
-#include "RAS_TexVert.h"
+#include "RAS_ITexVert.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"

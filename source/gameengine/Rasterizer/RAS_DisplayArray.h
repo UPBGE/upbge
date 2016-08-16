@@ -32,59 +32,9 @@
 #ifndef __RAS_DISPLAY_ARRAY_H__
 #define __RAS_DISPLAY_ARRAY_H__
 
-#include "RAS_TexVert.h"
+#include "RAS_IDisplayArray.h"
 
 #include <vector>
-
-class RAS_IDisplayArray
-{
-public:
-	enum PrimitiveType {
-		TRIANGLES,
-		LINES,
-	};
-
-protected:
-	PrimitiveType m_type;
-
-public:
-	virtual ~RAS_IDisplayArray();
-
-	virtual RAS_IDisplayArray *GetReplica() = 0;
-
-	static RAS_IDisplayArray *ConstructArray(PrimitiveType type, const RAS_TexVertFormat &format);
-
-	virtual unsigned int GetVertexMemorySize() const = 0;
-	virtual void *GetVertexXYZOffset() const = 0;
-	virtual void *GetVertexNormalOffset() const = 0;
-	virtual void *GetVertexTangentOffset() const = 0;
-	virtual void *GetVertexUVOffset() const = 0;
-	virtual void *GetVertexColorOffset() const = 0;
-
-	virtual RAS_ITexVert *GetVertex(unsigned int index) const = 0;
-	virtual unsigned int GetIndex(unsigned int index) const = 0;
-
-	virtual const RAS_ITexVert *GetVertexPointer() const = 0;
-	virtual const unsigned int *GetIndexPointer() const = 0;
-
-	virtual void AddVertex(RAS_ITexVert *vert) = 0;
-	virtual void AddIndex(unsigned int index) = 0;
-
-	virtual unsigned int GetVertexCount() const = 0;
-	virtual unsigned int GetIndexCount() const = 0;
-
-	virtual RAS_ITexVert *CreateVertex(
-				const MT_Vector3& xyz,
-				const MT_Vector2 * const uvs,
-				const MT_Vector4& tangent,
-				const unsigned int rgba,
-				const MT_Vector3& normal,
-				const bool flat,
-				const unsigned int origindex) = 0;
-
-	void UpdateFrom(RAS_IDisplayArray *other, int flag);
-	int GetOpenGLPrimitiveType() const;
-};
 
 /// An array with data used for OpenGL drawing
 template <class Vertex>

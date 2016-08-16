@@ -25,11 +25,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Rasterizer/RAS_TexVert.cpp
+/** \file gameengine/Rasterizer/RAS_ITexVert.cpp
  *  \ingroup bgerast
  */
 
-#include "RAS_TexVert.h"
+#include "RAS_ITexVert.h"
 
 RAS_ITexVert::RAS_ITexVert(const MT_Vector3& xyz,
 						 const MT_Vector4& tangent,

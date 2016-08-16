@@ -49,7 +49,6 @@ set(INC_SYS
 set(SRC
 	RAS_2DFilterManager.cpp
 	RAS_BucketManager.cpp
-	RAS_DisplayArray.cpp
 	RAS_DisplayArrayBucket.cpp
 	RAS_FramingManager.cpp
 	RAS_IPolygonMaterial.cpp
@@ -62,8 +61,9 @@ set(SRC
 	RAS_Shader.cpp
 	RAS_Texture.cpp
 	RAS_TextUser.cpp
-	RAS_TexVert.cpp
 	RAS_ICanvas.cpp
+	RAS_IDisplayArray.cpp
+	RAS_ITexVert.cpp
 	RAS_2DFilterData.cpp
 	RAS_2DFilter.cpp
  
@@ -77,12 +77,14 @@ set(SRC
 	RAS_DisplayArrayBucket.h
 	RAS_FramingManager.h
 	RAS_ICanvas.h
+	RAS_IDisplayArray.h
 	RAS_IPolygonMaterial.h
 	RAS_IRasterizer.h
 	RAS_IStorage.h
 	RAS_ILightObject.h
 	RAS_InstancingBuffer.h
 	RAS_ISync.h
+	RAS_ITexVert.h
 	RAS_MaterialBucket.h
 	RAS_MeshMaterial.h
 	RAS_MeshObject.h

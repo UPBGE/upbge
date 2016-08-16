@@ -33,7 +33,7 @@
 
 #include "KX_VertexProxy.h"
 #include "KX_MeshProxy.h"
-#include "RAS_TexVert.h"
+#include "RAS_ITexVert.h"
 #include "RAS_MeshObject.h"
 
 #include "KX_PyMath.h"
