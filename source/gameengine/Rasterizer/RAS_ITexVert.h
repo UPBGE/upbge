@@ -38,52 +38,25 @@
 
 #include "BLI_math.h"
 
-class RAS_ITexVert
+class RAS_TexVertInfo
 {
-protected:
-	float m_localxyz[3]; // 3 * 4 = 12
-	unsigned int m_rgba; // 4
-	float m_tangent[4]; // 4*4 = 16
-	float m_normal[3]; // 3*4 = 12
-	short m_flag; // 2
-	short m_softBodyIndex; //2
-	unsigned int m_origindex; // 4
-
 public:
-	enum
-	{
+	enum {
 		FLAT = 1,
-		MAX_UNIT = 8
 	};
 
-	RAS_ITexVert()
+private:
+	unsigned int m_origindex; // 4
+	short m_softBodyIndex; //2
+	short m_flag; // 2
+
+public:
+	RAS_TexVertInfo(unsigned int origindex, bool flat);
+	~RAS_TexVertInfo();
+
+	inline const unsigned int getOrigIndex() const
 	{
-	}
-	RAS_ITexVert(const MT_Vector3& xyz,
-	            const MT_Vector4& tangent,
-	            const unsigned int rgba,
-	            const MT_Vector3& normal,
-	            const bool flat,
-	            const unsigned int origindex);
-
-	virtual ~RAS_ITexVert()
-	{
-	}
-
-	virtual const unsigned short getUVSize() const = 0;
-	virtual const float *getUV(const int unit) const = 0;
-
-	virtual void SetUV(const int index, const MT_Vector2& uv) = 0;
-	virtual void SetUV(const int index, const float uv[2]) = 0;
-
-	inline const float *getXYZ() const
-	{
-		return m_localxyz;
-	}
-
-	inline const float *getNormal() const
-	{
-		return m_normal;
+		return m_origindex;
 	}
 
 	inline short int getSoftBodyIndex() const
@@ -101,6 +74,52 @@ public:
 		return m_flag;
 	}
 
+	inline void SetFlag(const short flag)
+	{
+		m_flag = flag;
+	}
+};
+
+class RAS_ITexVert
+{
+public:
+	enum {
+		MAX_UNIT = 8
+	};
+
+protected:
+	float m_tangent[4]; // 4*4 = 16
+	float m_localxyz[3]; // 3 * 4 = 12
+	float m_normal[3]; // 3*4 = 12
+	unsigned int m_rgba; // 4
+
+public:
+	RAS_ITexVert()
+	{
+	}
+	RAS_ITexVert(const MT_Vector3& xyz,
+	            const MT_Vector4& tangent,
+	            const unsigned int rgba,
+	            const MT_Vector3& normal);
+
+	virtual ~RAS_ITexVert();
+
+	virtual const unsigned short getUVSize() const = 0;
+	virtual const float *getUV(const int unit) const = 0;
+
+	virtual void SetUV(const int index, const MT_Vector2& uv) = 0;
+	virtual void SetUV(const int index, const float uv[2]) = 0;
+
+	inline const float *getXYZ() const
+	{
+		return m_localxyz;
+	}
+
+	inline const float *getNormal() const
+	{
+		return m_normal;
+	}
+
 	inline const float *getTangent() const
 	{
 		return m_tangent;
@@ -109,11 +128,6 @@ public:
 	inline const unsigned char *getRGBA() const
 	{
 		return (unsigned char *)&m_rgba;
-	}
-
-	inline const unsigned int getOrigIndex() const
-	{
-		return m_origindex;
 	}
 
 	inline MT_Vector3 xyz() const
@@ -144,11 +158,6 @@ public:
 	inline void SetRGBA(const unsigned int rgba)
 	{
 		m_rgba = rgba;
-	}
-
-	inline void SetFlag(const short flag)
-	{
-		m_flag = flag;
 	}
 
 	inline void SetNormal(const MT_Vector3& normal)

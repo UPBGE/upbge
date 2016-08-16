@@ -31,18 +31,28 @@
 
 #include "RAS_ITexVert.h"
 
+RAS_TexVertInfo::RAS_TexVertInfo(unsigned int origindex, bool flat)
+	:m_origindex(origindex),
+	m_softBodyIndex(-1)
+{
+	m_flag = (flat) ? FLAT : 0;
+}
+
+RAS_TexVertInfo::~RAS_TexVertInfo()
+{
+}
+
 RAS_ITexVert::RAS_ITexVert(const MT_Vector3& xyz,
 						 const MT_Vector4& tangent,
 						 const unsigned int rgba,
-						 const MT_Vector3& normal,
-						 const bool flat,
-						 const unsigned int origindex)
+						 const MT_Vector3& normal)
 {
 	xyz.getValue(m_localxyz);
 	SetRGBA(rgba);
 	SetNormal(normal);
 	SetTangent(tangent);
-	m_flag = (flat) ? FLAT : 0;
-	m_origindex = origindex;
-	m_softBodyIndex = -1;
+}
+
+RAS_ITexVert::~RAS_ITexVert()
+{
 }

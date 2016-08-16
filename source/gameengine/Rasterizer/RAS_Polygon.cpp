@@ -35,7 +35,7 @@
 
 #include "RAS_Polygon.h"
 #include "RAS_MaterialBucket.h"
-#include "RAS_DisplayArray.h"
+#include "RAS_IDisplayArray.h"
 
 RAS_Polygon::RAS_Polygon(RAS_MaterialBucket *bucket, RAS_IDisplayArray *darray, int numvert)
 	:m_bucket(bucket),
@@ -59,6 +59,11 @@ void RAS_Polygon::SetVertexOffset(int i, unsigned int offset)
 RAS_ITexVert *RAS_Polygon::GetVertex(int i)
 {
 	return m_darray->GetVertex(m_offset[i]);
+}
+
+RAS_TexVertInfo& RAS_Polygon::GetVertexInfo(unsigned int i)
+{
+	return m_darray->GetVertexInfo(m_offset[i]);
 }
 
 unsigned int RAS_Polygon::GetVertexOffset(unsigned int i)

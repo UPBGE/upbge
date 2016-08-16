@@ -97,13 +97,13 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 	int index = 0;
 	for (i = 0; i < array->GetVertexCount(); i++, index++) {
 		RAS_ITexVert *v = array->GetVertex(i);
-		RAS_ITexVert *origvert = origarray->GetVertex(i);
+		const RAS_TexVertInfo& vinfo = origarray->GetVertexInfo(i);
 		/* The physics converter write the soft body index only in the original
 		 * vertex array because at this moment it doesn't know which is the
 		 * game object. It didn't cause any issues because it's always the same
 		 * vertex order.
 		 */
-		const unsigned int softbodyindex = origvert->getSoftBodyIndex();
+		const unsigned int softbodyindex = vinfo.getSoftBodyIndex();
 
 		MT_Vector3 pt(
 		    nodes[softbodyindex].m_x.getX(),

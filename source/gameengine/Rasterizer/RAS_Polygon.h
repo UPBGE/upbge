@@ -35,6 +35,7 @@
 class RAS_IDisplayArray;
 class RAS_MaterialBucket;
 class RAS_ITexVert;
+class RAS_TexVertInfo;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -63,6 +64,7 @@ public:
 
 	int VertexCount();
 	RAS_ITexVert *GetVertex(int i);
+	RAS_TexVertInfo& GetVertexInfo(unsigned int i);
 
 	void SetVertexOffset(int i, unsigned int offset);
 	unsigned int GetVertexOffset(unsigned int i);

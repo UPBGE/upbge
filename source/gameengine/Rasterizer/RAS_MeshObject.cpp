@@ -352,7 +352,7 @@ unsigned int RAS_MeshObject::AddVertex(
 	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
 	RAS_MeshSlot *slot = mmat->m_baseslot;
 	RAS_IDisplayArray *darray = slot->GetDisplayArray();
-	RAS_ITexVert *vertex = darray->CreateVertex(xyz, uvs, tangent, rgba, normal, flat, origindex);
+	RAS_ITexVert *vertex = darray->CreateVertex(xyz, uvs, tangent, rgba, normal);
 
 	{	/* Shared Vertex! */
 		/* find vertices shared between faces, with the restriction
@@ -375,6 +375,9 @@ unsigned int RAS_MeshObject::AddVertex(
 
 	// no shared vertex found, add a new one
 	darray->AddVertex(vertex);
+	const RAS_TexVertInfo info(origindex, flat);
+	darray->AddVertexInfo(info);
+
 	int offset = darray->GetVertexCount() - 1;
 
 	{ 	// Shared Vertex!

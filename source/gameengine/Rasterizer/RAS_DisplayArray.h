@@ -34,8 +34,6 @@
 
 #include "RAS_IDisplayArray.h"
 
-#include <vector>
-
 /// An array with data used for OpenGL drawing
 template <class Vertex>
 class RAS_DisplayArray : public RAS_IDisplayArray
@@ -136,11 +134,9 @@ public:
 				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
 				const unsigned int rgba,
-				const MT_Vector3& normal,
-				const bool flat,
-				const unsigned int origindex)
+				const MT_Vector3& normal)
 	{
-		return new Vertex(xyz, uvs, tangent, rgba, normal, flat, origindex);
+		return new Vertex(xyz, uvs, tangent, rgba, normal);
 	}
 };
 

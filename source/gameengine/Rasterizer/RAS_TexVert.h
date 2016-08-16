@@ -60,10 +60,8 @@ public:
 	            const MT_Vector2 uvs[UVSize],
 	            const MT_Vector4& tangent,
 	            const unsigned int rgba,
-	            const MT_Vector3& normal,
-	            const bool flat,
-	            const unsigned int origindex)
-		:RAS_ITexVert(xyz, tangent, rgba, normal, flat, origindex)
+	            const MT_Vector3& normal)
+		:RAS_ITexVert(xyz, tangent, rgba, normal)
 	{
 		for (int i = 0; i < UVSize; ++i) {
 			uvs[i].getValue(m_uvs[i]);

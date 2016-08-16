@@ -33,6 +33,7 @@
 #define __RAS_IDISPLAY_ARRAY_H__
 
 #include "RAS_TexVert.h"
+#include <vector>
 
 class RAS_IDisplayArray
 {
@@ -44,6 +45,8 @@ public:
 
 protected:
 	PrimitiveType m_type;
+
+	std::vector<RAS_TexVertInfo> m_vertexInfo;
 
 public:
 	RAS_IDisplayArray();
@@ -62,12 +65,15 @@ public:
 
 	virtual RAS_ITexVert *GetVertex(unsigned int index) const = 0;
 	virtual unsigned int GetIndex(unsigned int index) const = 0;
+	const RAS_TexVertInfo& GetVertexInfo(unsigned int index) const;
+	RAS_TexVertInfo& GetVertexInfo(unsigned int index);
 
 	virtual const RAS_ITexVert *GetVertexPointer() const = 0;
 	virtual const unsigned int *GetIndexPointer() const = 0;
 
 	virtual void AddVertex(RAS_ITexVert *vert) = 0;
 	virtual void AddIndex(unsigned int index) = 0;
+	void AddVertexInfo(const RAS_TexVertInfo& info);
 
 	virtual unsigned int GetVertexCount() const = 0;
 	virtual unsigned int GetIndexCount() const = 0;
@@ -77,9 +83,7 @@ public:
 				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
 				const unsigned int rgba,
-				const MT_Vector3& normal,
-				const bool flat,
-				const unsigned int origindex) = 0;
+				const MT_Vector3& normal) = 0;
 
 	void UpdateFrom(RAS_IDisplayArray *other, int flag);
 	int GetOpenGLPrimitiveType() const;
