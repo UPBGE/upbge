@@ -127,6 +127,30 @@ KX_BlenderSceneConverter::KX_BlenderSceneConverter(
 	m_newfilename = "";
 	m_threadinfo = new ThreadInfo();
 	m_threadinfo->m_pool = BLI_task_pool_create(engine->GetTaskScheduler(), NULL);
+
+	const char *script =
+		"import bpy\n"
+		"selectedOb = bpy.data.texts.new('selectedobjects')\n"
+		"activeOb = bpy.data.texts.new('activeobject')\n"
+		"for ob in bpy.context.selected_objects:\n"
+		"	selectedOb.write(ob.name+',')\n"
+		"	if ob == bpy.context.active_object:\n"
+		"		activeOb.write(ob.name)\n"
+		"bpy.ops.object.select_all(action = 'SELECT')\n"
+		"selected = bpy.context.selected_objects\n"
+		"for ob in selected :\n"
+		"	bpy.context.scene.objects.active = ob\n"
+		"	if ob.modifiers :\n"
+		"		if ob.data.apply_modifiers_at_ge_start :\n"
+		"			clone_mesh = ob.data\n"
+		"			clone_mesh.name = ob.name + '_clone'\n"
+		"			new_mesh = ob.to_mesh(bpy.context.scene, True, 'PREVIEW')\n"
+		"			new_mesh.name = ob.name + '_new'\n"
+		"			ob.data = new_mesh\n"
+		"bpy.ops.object.select_all(action = 'DESELECT')\n";
+#ifdef WITH_PYTHON
+		PyRun_SimpleString(script);
+#endif
 }
 
 KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
@@ -172,6 +196,38 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 		BLI_task_pool_free(m_threadinfo->m_pool);
 		delete m_threadinfo;
 	}
+	const char *script =
+		"import bpy\n"
+		"selectedObText = [txt for txt in bpy.data.texts if txt.name == 'selectedobjects'][0]\n"
+		"activeObText = [txt for txt in bpy.data.texts if txt.name == 'activeobject'][0]\n"
+		"selectedObNames = selectedObText.lines[0].body.split(',')\n"
+		"activeObName = activeObText.lines[0].body\n"
+		"activeOb = None\n"
+		"bpy.ops.object.select_all(action = 'SELECT')\n"
+		"selected = bpy.context.selected_objects\n"
+		"for ob in selected :\n"
+		"	bpy.context.scene.objects.active = ob\n"
+		"	clone_mesh = bpy.data.meshes.get(ob.name + '_clone')\n"
+		"	if clone_mesh:\n"
+		"		ob.data = clone_mesh\n"
+		"		ob.data.name = clone_mesh.name[:-6]\n"
+		"	new_mesh = bpy.data.meshes.get(ob.name + '_new')\n"
+		"	if new_mesh:\n"
+		"		bpy.data.meshes.remove(new_mesh)\n"
+		"	if ob.name in selectedObNames:\n"
+		"		ob.select = True\n"
+		"	else:\n"
+		"		ob.select = False\n"
+		"	if ob.name == activeObName:\n"
+		"		activeOb = ob\n"
+		"selectedObText.user_clear()\n"
+		"bpy.data.texts.remove(selectedObText)\n"
+		"activeObText.user_clear()\n"
+		"bpy.data.texts.remove(activeObText)\n"
+		"bpy.context.scene.objects.active = activeOb\n";
+#ifdef WITH_PYTHON
+		PyRun_SimpleString(script);
+#endif
 }
 
 void KX_BlenderSceneConverter::SetNewFileName(const STR_String &filename)
