@@ -330,27 +330,27 @@ public:
 	 */
 	virtual void EndFrame() = 0;
 
-	virtual void UpdateFBOs(RAS_ICanvas *canvas) = 0;
+	virtual void UpdateScreenFrameBuffers(RAS_ICanvas *canvas) = 0;
 	/// Bind frame buffer object.
-	virtual void BindFBO(unsigned short index) = 0;
+	virtual void BindScreenFrameBuffer(unsigned short index) = 0;
 	/// Unbind frame buffer object.
-	virtual void RestoreFBO() = 0;
+	virtual void RestoreScreenFrameBuffer() = 0;
 	/** Draw frame buffer object without set projeciton matrix or viewport.
 	 * Used to copy thie frame buffer object to another.
 	 */
-	virtual void DrawFBO(unsigned short srcindex, unsigned short dstindex) = 0;
+	virtual void DrawScreenFrameBuffer(unsigned short srcindex, unsigned short dstindex) = 0;
 	/// Draw frame buffer object to screen.
-	virtual void DrawFBO(RAS_ICanvas *canvas, unsigned short index) = 0;
+	virtual void DrawScreenFrameBuffer(RAS_ICanvas *canvas, unsigned short index) = 0;
 	/// Draw each stereo frame buffer object to screen.
-		virtual void DrawStereoFBO(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex) = 0;
+		virtual void DrawStereoScreenFrameBuffer(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex) = 0;
 	/// Bind frame buffer object texture.
-	virtual void BindFBOTexture(unsigned short index, unsigned short slot, OffScreen type) = 0;
+	virtual void BindScreenFrameBufferTexture(unsigned short index, unsigned short slot, OffScreen type) = 0;
 	/// Unbind frame buffer object texture.
-	virtual void UnbindFBOTexture(unsigned short index, OffScreen type) = 0;
+	virtual void UnbindScreenFrameBufferTexture(unsigned short index, OffScreen type) = 0;
 	/// Return current frame buffer object used index.
-	virtual short GetCurrentFBOIndex() const = 0;
+	virtual short GetCurrentScreenFrameBufferIndex() const = 0;
 	/// Return frame buffer samples numbers.
-	virtual int GetFBOSamples(unsigned short index) = 0;
+	virtual int GetScreenFrameBufferSamples(unsigned short index) = 0;
 
 	/**
 	 * SetRenderArea sets the render area from the 2d canvas.

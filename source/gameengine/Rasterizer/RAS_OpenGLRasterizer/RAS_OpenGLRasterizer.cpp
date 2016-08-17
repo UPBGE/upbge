@@ -210,7 +210,7 @@ void RAS_OpenGLRasterizer::ScreenPlane::Render()
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 }
 
-RAS_OpenGLRasterizer::ScreenFBO::ScreenFBO()
+RAS_OpenGLRasterizer::ScreenFrameBuffers::ScreenFrameBuffers()
 	:m_currentIndex(-1)
 {
 	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_OFFSCREEN_MAX; ++i) {
@@ -218,7 +218,7 @@ RAS_OpenGLRasterizer::ScreenFBO::ScreenFBO()
 	}
 }
 
-RAS_OpenGLRasterizer::ScreenFBO::~ScreenFBO()
+RAS_OpenGLRasterizer::ScreenFrameBuffers::~ScreenFrameBuffers()
 {
 	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_OFFSCREEN_MAX; ++i) {
 		if (m_offScreens[i]) {
@@ -227,7 +227,7 @@ RAS_OpenGLRasterizer::ScreenFBO::~ScreenFBO()
 	}
 }
 
-GPUOffScreen *RAS_OpenGLRasterizer::ScreenFBO::GetOffScreen(unsigned short index)
+GPUOffScreen *RAS_OpenGLRasterizer::ScreenFrameBuffers::GetOffScreen(unsigned short index)
 {
 	if (!m_offScreens[index]) {
 		// The offscreen need to be created now.
@@ -249,7 +249,7 @@ GPUOffScreen *RAS_OpenGLRasterizer::ScreenFBO::GetOffScreen(unsigned short index
 	return m_offScreens[index];
 }
 
-void RAS_OpenGLRasterizer::ScreenFBO::Update(RAS_ICanvas *canvas)
+void RAS_OpenGLRasterizer::ScreenFrameBuffers::Update(RAS_ICanvas *canvas)
 {
 	const unsigned int width = canvas->GetWidth() + 1;
 	const unsigned int height = canvas->GetHeight() + 1;
@@ -289,19 +289,19 @@ void RAS_OpenGLRasterizer::ScreenFBO::Update(RAS_ICanvas *canvas)
 	}
 }
 
-void RAS_OpenGLRasterizer::ScreenFBO::Bind(unsigned short index)
+void RAS_OpenGLRasterizer::ScreenFrameBuffers::Bind(unsigned short index)
 {
 	GPU_offscreen_bind_simple(GetOffScreen(index));
 
 	m_currentIndex = index;
 }
 
-void RAS_OpenGLRasterizer::ScreenFBO::Blit(unsigned short srcindex, unsigned short dstindex)
+void RAS_OpenGLRasterizer::ScreenFrameBuffers::Blit(unsigned short srcindex, unsigned short dstindex)
 {
 	GPU_offscreen_blit(GetOffScreen(srcindex), GetOffScreen(dstindex));
 }
 
-void RAS_OpenGLRasterizer::ScreenFBO::BindTexture(unsigned short index, unsigned short slot, OffScreen type)
+void RAS_OpenGLRasterizer::ScreenFrameBuffers::BindTexture(unsigned short index, unsigned short slot, OffScreen type)
 {
 	GPUTexture *tex = NULL;
 	GPUOffScreen *ofs = GetOffScreen(index);
@@ -314,7 +314,7 @@ void RAS_OpenGLRasterizer::ScreenFBO::BindTexture(unsigned short index, unsigned
 	GPU_texture_bind(tex, slot);
 }
 
-void RAS_OpenGLRasterizer::ScreenFBO::UnbindTexture(unsigned short index, OffScreen type)
+void RAS_OpenGLRasterizer::ScreenFrameBuffers::UnbindTexture(unsigned short index, OffScreen type)
 {
 	GPUTexture *tex = NULL;
 	GPUOffScreen *ofs = GetOffScreen(index);
@@ -327,12 +327,12 @@ void RAS_OpenGLRasterizer::ScreenFBO::UnbindTexture(unsigned short index, OffScr
 	GPU_texture_unbind(tex);
 }
 
-unsigned short RAS_OpenGLRasterizer::ScreenFBO::GetCurrentIndex() const
+unsigned short RAS_OpenGLRasterizer::ScreenFrameBuffers::GetCurrentIndex() const
 {
 	return m_currentIndex;
 }
 
-int RAS_OpenGLRasterizer::ScreenFBO::GetSamples(unsigned short index)
+int RAS_OpenGLRasterizer::ScreenFrameBuffers::GetSamples(unsigned short index)
 {
 	return GPU_offscreen_samples(GetOffScreen(index));
 }
@@ -801,25 +801,25 @@ void RAS_OpenGLRasterizer::EndFrame()
 	Disable(RAS_FOG);
 }
 
-void RAS_OpenGLRasterizer::UpdateFBOs(RAS_ICanvas *canvas)
+void RAS_OpenGLRasterizer::UpdateScreenFrameBuffers(RAS_ICanvas *canvas)
 {
-	m_screenFBO.Update(canvas);
+	m_screenFrameBuffers.Update(canvas);
 }
 
-void RAS_OpenGLRasterizer::BindFBO(unsigned short index)
+void RAS_OpenGLRasterizer::BindScreenFrameBuffer(unsigned short index)
 {
-	m_screenFBO.Bind(index);
+	m_screenFrameBuffers.Bind(index);
 }
 
-void RAS_OpenGLRasterizer::RestoreFBO()
+void RAS_OpenGLRasterizer::RestoreScreenFrameBuffer()
 {
 	GPU_framebuffer_restore();
 }
 
-void RAS_OpenGLRasterizer::DrawFBO(unsigned short srcindex, unsigned short dstindex)
+void RAS_OpenGLRasterizer::DrawScreenFrameBuffer(unsigned short srcindex, unsigned short dstindex)
 {
-	if (m_screenFBO.GetSamples(srcindex) == 0) {
-		m_screenFBO.BindTexture(srcindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+	if (m_screenFrameBuffers.GetSamples(srcindex) == 0) {
+		m_screenFrameBuffers.BindTexture(srcindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_COPY_FBO);
 		GPU_shader_bind(shader);
@@ -831,20 +831,20 @@ void RAS_OpenGLRasterizer::DrawFBO(unsigned short srcindex, unsigned short dstin
 
 		GPU_shader_unbind();
 
-		m_screenFBO.UnbindTexture(srcindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_screenFrameBuffers.UnbindTexture(srcindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 	}
 	else {
-		m_screenFBO.Blit(srcindex, dstindex);
+		m_screenFrameBuffers.Blit(srcindex, dstindex);
 	}
 }
 
-void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
+void RAS_OpenGLRasterizer::DrawScreenFrameBuffer(RAS_ICanvas *canvas, unsigned short index)
 {
-	const bool samples = (GetFBOSamples(index) > 0);
+	const bool samples = (GetScreenFrameBufferSamples(index) > 0);
 
 	if (samples) {
-		BindFBO(RAS_OFFSCREEN_FINAL);
-		DrawFBO(index, RAS_OFFSCREEN_FINAL);
+		BindScreenFrameBuffer(RAS_OFFSCREEN_FINAL);
+		DrawScreenFrameBuffer(index, RAS_OFFSCREEN_FINAL);
 	}
 
 	const int *viewport = canvas->GetViewPort();
@@ -853,25 +853,25 @@ void RAS_OpenGLRasterizer::DrawFBO(RAS_ICanvas *canvas, unsigned short index)
 
 	SetDepthFunc(RAS_ALWAYS);
 
-	RestoreFBO();
-	DrawFBO(samples ? RAS_OFFSCREEN_FINAL : index, 0);
+	RestoreScreenFrameBuffer();
+	DrawScreenFrameBuffer(samples ? RAS_OFFSCREEN_FINAL : index, 0);
 
 	SetDepthFunc(RAS_LEQUAL);
 }
 
-void RAS_OpenGLRasterizer::DrawStereoFBO(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex)
+void RAS_OpenGLRasterizer::DrawStereoScreenFrameBuffer(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex)
 {
-	if (GetFBOSamples(lefteyeindex) > 0) {
+	if (GetScreenFrameBufferSamples(lefteyeindex) > 0) {
 		// Then lefteyeindex == RAS_OFFSCREEN_EYE_LEFT0.
-		BindFBO(RAS_OFFSCREEN_EYE_LEFT1);
-		DrawFBO(RAS_OFFSCREEN_EYE_LEFT0, RAS_OFFSCREEN_EYE_LEFT1);
+		BindScreenFrameBuffer(RAS_OFFSCREEN_EYE_LEFT1);
+		DrawScreenFrameBuffer(RAS_OFFSCREEN_EYE_LEFT0, RAS_OFFSCREEN_EYE_LEFT1);
 		lefteyeindex = RAS_OFFSCREEN_EYE_LEFT1;
 	}
 
-	if (GetFBOSamples(righteyeindex) > 0) {
+	if (GetScreenFrameBufferSamples(righteyeindex) > 0) {
 		// Then righteyeindex == RAS_OFFSCREEN_EYE_RIGHT0.
-		BindFBO(RAS_OFFSCREEN_EYE_RIGHT1);
-		DrawFBO(RAS_OFFSCREEN_EYE_RIGHT0, RAS_OFFSCREEN_EYE_RIGHT1);
+		BindScreenFrameBuffer(RAS_OFFSCREEN_EYE_RIGHT1);
+		DrawScreenFrameBuffer(RAS_OFFSCREEN_EYE_RIGHT0, RAS_OFFSCREEN_EYE_RIGHT1);
 		righteyeindex = RAS_OFFSCREEN_EYE_RIGHT1;
 	}
 
@@ -881,7 +881,7 @@ void RAS_OpenGLRasterizer::DrawStereoFBO(RAS_ICanvas *canvas, unsigned short lef
 
 	SetDepthFunc(RAS_ALWAYS);
 
-	RestoreFBO();
+	RestoreScreenFrameBuffer();
 
 	if (m_stereomode == RAS_STEREO_VINTERLACE || m_stereomode == RAS_STEREO_INTERLACED) {
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_STIPPLE);
@@ -889,8 +889,8 @@ void RAS_OpenGLRasterizer::DrawStereoFBO(RAS_ICanvas *canvas, unsigned short lef
 
 		OverrideShaderStereoStippleInterface *interface = (OverrideShaderStereoStippleInterface *)GPU_shader_get_interface(shader);
 
-		m_screenFBO.BindTexture(lefteyeindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-		m_screenFBO.BindTexture(righteyeindex, 1, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_screenFrameBuffers.BindTexture(lefteyeindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_screenFrameBuffers.BindTexture(righteyeindex, 1, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 
 		GPU_shader_uniform_int(shader, interface->leftEyeTexLoc, 0);
 		GPU_shader_uniform_int(shader, interface->rightEyeTexLoc, 1);
@@ -900,8 +900,8 @@ void RAS_OpenGLRasterizer::DrawStereoFBO(RAS_ICanvas *canvas, unsigned short lef
 
 		GPU_shader_unbind();
 
-		m_screenFBO.UnbindTexture(lefteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-		m_screenFBO.UnbindTexture(righteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_screenFrameBuffers.UnbindTexture(lefteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_screenFrameBuffers.UnbindTexture(righteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 	}
 	else if (m_stereomode == RAS_STEREO_ANAGLYPH) {
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_ANAGLYPH);
@@ -909,8 +909,8 @@ void RAS_OpenGLRasterizer::DrawStereoFBO(RAS_ICanvas *canvas, unsigned short lef
 
 		OverrideShaderStereoAnaglyph *interface = (OverrideShaderStereoAnaglyph *)GPU_shader_get_interface(shader);
 
-		m_screenFBO.BindTexture(lefteyeindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-		m_screenFBO.BindTexture(righteyeindex, 1, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_screenFrameBuffers.BindTexture(lefteyeindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_screenFrameBuffers.BindTexture(righteyeindex, 1, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 
 		GPU_shader_uniform_int(shader, interface->leftEyeTexLoc, 0);
 		GPU_shader_uniform_int(shader, interface->rightEyeTexLoc, 1);
@@ -919,31 +919,31 @@ void RAS_OpenGLRasterizer::DrawStereoFBO(RAS_ICanvas *canvas, unsigned short lef
 
 		GPU_shader_unbind();
 
-		m_screenFBO.UnbindTexture(lefteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-		m_screenFBO.UnbindTexture(righteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_screenFrameBuffers.UnbindTexture(lefteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_screenFrameBuffers.UnbindTexture(righteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 	}
 
 	SetDepthFunc(RAS_LEQUAL);
 }
 
-void RAS_OpenGLRasterizer::BindFBOTexture(unsigned short index, unsigned short slot, OffScreen type)
+void RAS_OpenGLRasterizer::BindScreenFrameBufferTexture(unsigned short index, unsigned short slot, OffScreen type)
 {
-	m_screenFBO.BindTexture(index, slot, type);
+	m_screenFrameBuffers.BindTexture(index, slot, type);
 }
 
-void RAS_OpenGLRasterizer::UnbindFBOTexture(unsigned short index, OffScreen type)
+void RAS_OpenGLRasterizer::UnbindScreenFrameBufferTexture(unsigned short index, OffScreen type)
 {
-	m_screenFBO.UnbindTexture(index, type);
+	m_screenFrameBuffers.UnbindTexture(index, type);
 }
 
-short RAS_OpenGLRasterizer::GetCurrentFBOIndex() const
+short RAS_OpenGLRasterizer::GetCurrentScreenFrameBufferIndex() const
 {
-	return m_screenFBO.GetCurrentIndex();
+	return m_screenFrameBuffers.GetCurrentIndex();
 }
 
-int RAS_OpenGLRasterizer::GetFBOSamples(unsigned short index)
+int RAS_OpenGLRasterizer::GetScreenFrameBufferSamples(unsigned short index)
 {
-	return m_screenFBO.GetSamples(index);
+	return m_screenFrameBuffers.GetSamples(index);
 }
 
 void RAS_OpenGLRasterizer::SetRenderArea(RAS_ICanvas *canvas)

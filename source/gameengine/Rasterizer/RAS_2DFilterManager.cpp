@@ -88,7 +88,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 		return;
 	}
 
-	unsigned short srcfbo = rasty->GetCurrentFBOIndex();
+	unsigned short srcfbo = rasty->GetCurrentScreenFrameBufferIndex();
 	unsigned short inputfbo = srcfbo;
 
 	rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
@@ -106,9 +106,9 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 
 		unsigned short outputfbo;
 		if (it == begin) {
-			if (rasty->GetFBOSamples(srcfbo)) {
-				rasty->BindFBO(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
-				rasty->DrawFBO(srcfbo, RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
+			if (rasty->GetScreenFrameBufferSamples(srcfbo)) {
+				rasty->BindScreenFrameBuffer(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
+				rasty->DrawScreenFrameBuffer(srcfbo, RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
 
 				srcfbo = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
 				inputfbo = srcfbo;

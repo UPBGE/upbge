@@ -601,8 +601,8 @@ void KX_KetsjiEngine::Render()
 		RenderShadowBuffers((KX_Scene *)*sceit);
 	}
 
-	m_rasterizer->UpdateFBOs(m_canvas);
-	m_rasterizer->BindFBO(RAS_IRasterizer::RAS_OFFSCREEN_RENDER);
+	m_rasterizer->UpdateScreenFrameBuffers(m_canvas);
+	m_rasterizer->BindScreenFrameBuffer(RAS_IRasterizer::RAS_OFFSCREEN_RENDER);
 
 	// clear the entire game screen with the border color
 	// only once per frame
@@ -666,7 +666,7 @@ void KX_KetsjiEngine::Render()
 
 			// Choose unique FBO per eyes in case of stereo.
 			if (renderpereye) {
-				m_rasterizer->BindFBO(eyefboindex[eyepass]);
+				m_rasterizer->BindScreenFrameBuffer(eyefboindex[eyepass]);
 				// Clear eye FBO only before the first scene render.
 				if (firstscene) {
 					m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
@@ -691,7 +691,7 @@ void KX_KetsjiEngine::Render()
 			// Process filters per eye FBO.
 			if (renderpereye) {
 				int target;
-				if (m_rasterizer->GetFBOSamples(eyefboindex[eyepass]) > 0) {
+				if (m_rasterizer->GetScreenFrameBufferSamples(eyefboindex[eyepass]) > 0) {
 					/* Only RAS_OFFSCREEN_EYE_[LEFT/RIGHT]0 has possible multisamples so we target
 					 * RAS_OFFSCREEN_EYE_[LEFT/RIGHT]1 if it's the last scene. */
 					if (lastscene) {
@@ -709,8 +709,8 @@ void KX_KetsjiEngine::Render()
 
 				PostRenderScene(scene, target);
 
-				// If no filter was ran the current used FBO can be unchanged.
-				eyefboindex[eyepass] = m_rasterizer->GetCurrentFBOIndex();
+				// If no filter was rendered the current used FBO can be unchanged.
+				eyefboindex[eyepass] = m_rasterizer->GetCurrentScreenFrameBufferIndex();
 			}
 		}
 
@@ -729,12 +729,12 @@ void KX_KetsjiEngine::Render()
 
 	// Compositing per eye FBOs to screen.
 	if (renderpereye) {
-		m_rasterizer->DrawStereoFBO(m_canvas, eyefboindex[RAS_IRasterizer::RAS_STEREO_LEFTEYE], eyefboindex[RAS_IRasterizer::RAS_STEREO_RIGHTEYE]);
+		m_rasterizer->DrawStereoScreenFrameBuffer(m_canvas, eyefboindex[RAS_IRasterizer::RAS_STEREO_LEFTEYE], eyefboindex[RAS_IRasterizer::RAS_STEREO_RIGHTEYE]);
 	}
 	// Else simply draw to screen.
 	else {
-		const short fboindex = m_rasterizer->GetCurrentFBOIndex();
-		m_rasterizer->DrawFBO(m_canvas, fboindex);
+		const short fboindex = m_rasterizer->GetCurrentScreenFrameBufferIndex();
+		m_rasterizer->DrawScreenFrameBuffer(m_canvas, fboindex);
 	}
 
 	EndFrame();
