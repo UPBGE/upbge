@@ -293,7 +293,8 @@ bool LA_PlayerLauncher::GetMainLoopPythonCode(char **pythonCode, char **pythonFi
 	if (m_pythonMainLoop) {
 		if (BLI_is_file(m_pythonMainLoop)) {
 			size_t filesize = 0;
-			*pythonCode = (char *)BLI_file_read_text_as_mem(m_pythonMainLoop, 0, &filesize);
+			*pythonCode = (char *)BLI_file_read_text_as_mem(m_pythonMainLoop, 1, &filesize);
+			(*pythonCode)[filesize] = '\0';
 			*pythonFileName = m_pythonMainLoop;
 			return true;
 		}
