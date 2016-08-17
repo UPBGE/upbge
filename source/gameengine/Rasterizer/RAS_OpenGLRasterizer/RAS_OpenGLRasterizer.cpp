@@ -965,24 +965,26 @@ void RAS_OpenGLRasterizer::SetAttrib(TexCoGen coords, int unit, int layer)
 
 void RAS_OpenGLRasterizer::BindPrimitives(StorageType storage, RAS_DisplayArrayBucket *arrayBucket)
 {
-	if (arrayBucket && arrayBucket->GetDisplayArray()) {
+	if (arrayBucket && arrayBucket->GetDisplayArray() && storage != RAS_STORAGE_NONE) {
 		m_storages[storage]->BindPrimitives(arrayBucket);
 	}
 }
 
 void RAS_OpenGLRasterizer::UnbindPrimitives(StorageType storage, RAS_DisplayArrayBucket *arrayBucket)
 {
-	if (arrayBucket && arrayBucket->GetDisplayArray()) {
+	if (arrayBucket && arrayBucket->GetDisplayArray() && storage != RAS_STORAGE_NONE) {
 		m_storages[storage]->UnbindPrimitives(arrayBucket);
 	}
 }
 
 void RAS_OpenGLRasterizer::IndexPrimitives(StorageType storage, RAS_MeshSlot *ms)
 {
-	if (ms->m_pDerivedMesh)
+	if (ms->m_pDerivedMesh) {
 		DrawDerivedMesh(ms);
-	else
+	}
+	else if (storage != RAS_STORAGE_NONE) {
 		m_storages[storage]->IndexPrimitives(ms);
+	}
 }
 
 void RAS_OpenGLRasterizer::IndexPrimitivesInstancing(StorageType storage, RAS_DisplayArrayBucket *arrayBucket)
