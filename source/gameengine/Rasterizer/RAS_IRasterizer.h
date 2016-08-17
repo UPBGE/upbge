@@ -254,7 +254,7 @@ public:
 	 * \param index The input frame buffer, can be a non-filter frame buffer.
 	 * \return The output filter frame buffer.
 	 */
-	static unsigned short NextFilterScreenFrameBuffer(unsigned short index);
+	static unsigned short NextFilterOffScreen(unsigned short index);
 
 
 	/** Return the output frame buffer normally used for the input frame buffer
@@ -262,7 +262,7 @@ public:
 	 * \param index The input eye frame buffer, can NOT be a non-eye frame buffer.
 	 * \return The output eye frame buffer.
 	 */
-	static unsigned short NextEyeScreenFrameBuffer(unsigned short index);
+	static unsigned short NextEyeOffScreen(unsigned short index);
 
 	/**
 	 * Enable capability
@@ -345,27 +345,27 @@ public:
 	 */
 	virtual void EndFrame() = 0;
 
-	virtual void UpdateScreenFrameBuffers(RAS_ICanvas *canvas) = 0;
+	virtual void UpdateOffScreens(RAS_ICanvas *canvas) = 0;
 	/// Bind frame buffer object.
-	virtual void BindScreenFrameBuffer(unsigned short index) = 0;
+	virtual void BindOffScreen(unsigned short index) = 0;
 	/// Unbind frame buffer object.
 	virtual void RestoreScreenFrameBuffer() = 0;
 	/** Draw frame buffer object without set projeciton matrix or viewport.
 	 * Used to copy thie frame buffer object to another.
 	 */
-	virtual void DrawScreenFrameBuffer(unsigned short srcindex, unsigned short dstindex) = 0;
+	virtual void DrawOffScreen(unsigned short srcindex, unsigned short dstindex) = 0;
 	/// Draw frame buffer object to screen.
-	virtual void DrawScreenFrameBuffer(RAS_ICanvas *canvas, unsigned short index) = 0;
+	virtual void DrawOffScreen(RAS_ICanvas *canvas, unsigned short index) = 0;
 	/// Draw each stereo frame buffer object to screen.
-	virtual void DrawStereoScreenFrameBuffer(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex) = 0;
+	virtual void DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex) = 0;
 	/// Bind frame buffer object texture.
-	virtual void BindScreenFrameBufferTexture(unsigned short index, unsigned short slot, OffScreen type) = 0;
+	virtual void BindOffScreenTexture(unsigned short index, unsigned short slot, OffScreen type) = 0;
 	/// Unbind frame buffer object texture.
-	virtual void UnbindScreenFrameBufferTexture(unsigned short index, OffScreen type) = 0;
+	virtual void UnbindOffScreenTexture(unsigned short index, OffScreen type) = 0;
 	/// Return current frame buffer object used index.
-	virtual short GetCurrentScreenFrameBufferIndex() const = 0;
+	virtual short GetCurrentOffScreenIndex() const = 0;
 	/// Return frame buffer samples numbers.
-	virtual int GetScreenFrameBufferSamples(unsigned short index) = 0;
+	virtual int GetOffScreenSamples(unsigned short index) = 0;
 
 	/**
 	 * SetRenderArea sets the render area from the 2d canvas.

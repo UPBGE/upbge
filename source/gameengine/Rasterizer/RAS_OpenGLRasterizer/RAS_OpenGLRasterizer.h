@@ -73,7 +73,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		void Render();
 	};
 
-	class ScreenFrameBuffers
+	class OffScreens
 	{
 	private:
 		GPUOffScreen *m_offScreens[RAS_OFFSCREEN_MAX];
@@ -87,15 +87,15 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		GPUOffScreen *GetOffScreen(unsigned short index);
 
 	public:
-		ScreenFrameBuffers();
-		virtual ~ScreenFrameBuffers();
+		OffScreens();
+		virtual ~OffScreens();
 
 		void Update(RAS_ICanvas *canvas);
 		void Bind(unsigned short index);
 		void Blit(unsigned short srcindex, unsigned short dstindex);
 		void BindTexture(unsigned short index, unsigned short slot, OffScreen type);
 		void UnbindTexture(unsigned short index, OffScreen type);
-		unsigned short GetCurrentIndex() const;
+		short GetCurrentIndex() const;
 		int GetSamples(unsigned short index);
 	};
 
@@ -183,7 +183,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, std::vector<OglDebugShape> > m_debugShapes;
 
-	ScreenFrameBuffers m_screenFrameBuffers;
+	OffScreens m_screenFrameBuffers;
 
 protected:
 	DrawType m_drawingmode;
@@ -231,16 +231,16 @@ public:
 	virtual void SetColorMask(bool r, bool g, bool b, bool a);
 	virtual void EndFrame();
 
-	virtual void UpdateScreenFrameBuffers(RAS_ICanvas *canvas);
-	virtual void BindScreenFrameBuffer(unsigned short index);
+	virtual void UpdateOffScreens(RAS_ICanvas *canvas);
+	virtual void BindOffScreen(unsigned short index);
 	virtual void RestoreScreenFrameBuffer();
-	virtual void DrawScreenFrameBuffer(unsigned short srcindex, unsigned short dstindex);
-	virtual void DrawScreenFrameBuffer(RAS_ICanvas *canvas, unsigned short index);
-	virtual void DrawStereoScreenFrameBuffer(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex);
-	virtual void BindScreenFrameBufferTexture(unsigned short index, unsigned short slot, OffScreen type);
-	virtual void UnbindScreenFrameBufferTexture(unsigned short index, OffScreen type);
-	virtual short GetCurrentScreenFrameBufferIndex() const;
-	virtual int GetScreenFrameBufferSamples(unsigned short index);
+	virtual void DrawOffScreen(unsigned short srcindex, unsigned short dstindex);
+	virtual void DrawOffScreen(RAS_ICanvas *canvas, unsigned short index);
+	virtual void DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex);
+	virtual void BindOffScreenTexture(unsigned short index, unsigned short slot, OffScreen type);
+	virtual void UnbindOffScreenTexture(unsigned short index, OffScreen type);
+	virtual short GetCurrentOffScreenIndex() const;
+	virtual int GetOffScreenSamples(unsigned short index);
 
 	virtual void SetRenderArea(RAS_ICanvas *canvas);
 

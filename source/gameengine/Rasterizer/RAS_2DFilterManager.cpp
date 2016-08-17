@@ -88,7 +88,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 		return;
 	}
 
-	unsigned short srcfbo = rasty->GetCurrentScreenFrameBufferIndex();
+	unsigned short srcfbo = rasty->GetCurrentOffScreenIndex();
 	unsigned short inputfbo = srcfbo;
 
 	rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
@@ -106,23 +106,23 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 
 		unsigned short outputfbo;
 		if (it == begin) {
-			if (rasty->GetScreenFrameBufferSamples(srcfbo)) {
-				rasty->BindScreenFrameBuffer(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
-				rasty->DrawScreenFrameBuffer(srcfbo, RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
+			if (rasty->GetOffScreenSamples(srcfbo)) {
+				rasty->BindOffScreen(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
+				rasty->DrawOffScreen(srcfbo, RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
 
 				srcfbo = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
 				inputfbo = srcfbo;
 			}
 		}
 		else {
-			srcfbo = RAS_IRasterizer::NextFilterScreenFrameBuffer(srcfbo);
+			srcfbo = RAS_IRasterizer::NextFilterOffScreen(srcfbo);
 		}
 
 		if (it == pend) {
 			outputfbo = target;
 		}
 		else {
-			outputfbo = RAS_IRasterizer::NextFilterScreenFrameBuffer(srcfbo);
+			outputfbo = RAS_IRasterizer::NextFilterOffScreen(srcfbo);
 		}
 
 		filter->Start(rasty, canvas, inputfbo, srcfbo, outputfbo);

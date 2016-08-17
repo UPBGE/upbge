@@ -91,7 +91,7 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned s
 
 	Initialize(canvas);
 
-	rasty->BindScreenFrameBuffer(outputfbo);
+	rasty->BindOffScreen(outputfbo);
 
 	SetProg(true);
 
@@ -168,10 +168,10 @@ void RAS_2DFilter::ComputeTextureOffsets(RAS_ICanvas *canvas)
 void RAS_2DFilter::BindTextures(RAS_IRasterizer *rasty, unsigned short inputfbo, unsigned short fboindex)
 {
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
-		rasty->BindScreenFrameBufferTexture(fboindex, 8, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		rasty->BindOffScreenTexture(fboindex, 8, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-		rasty->BindScreenFrameBufferTexture(inputfbo, 9, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
+		rasty->BindOffScreenTexture(inputfbo, 9, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
 	}
 
 	// Bind custom textures.
@@ -186,10 +186,10 @@ void RAS_2DFilter::BindTextures(RAS_IRasterizer *rasty, unsigned short inputfbo,
 void RAS_2DFilter::UnbindTextures(RAS_IRasterizer *rasty, unsigned short inputfbo, unsigned short fboindex)
 {
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
-		rasty->UnbindScreenFrameBufferTexture(fboindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		rasty->UnbindOffScreenTexture(fboindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
-		rasty->UnbindScreenFrameBufferTexture(inputfbo, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
+		rasty->UnbindOffScreenTexture(inputfbo, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
 	}
 
 	// Bind custom textures.
