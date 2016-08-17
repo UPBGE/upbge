@@ -840,10 +840,10 @@ void RAS_OpenGLRasterizer::DrawScreenFrameBuffer(unsigned short srcindex, unsign
 
 void RAS_OpenGLRasterizer::DrawScreenFrameBuffer(RAS_ICanvas *canvas, unsigned short index)
 {
-	const bool samples = (GetScreenFrameBufferSamples(index) > 0);
+	const bool samples = (m_screenFrameBuffers.GetSamples(index) > 0);
 
 	if (samples) {
-		BindScreenFrameBuffer(RAS_OFFSCREEN_FINAL);
+		m_screenFrameBuffers.Bind(RAS_OFFSCREEN_FINAL);
 		DrawScreenFrameBuffer(index, RAS_OFFSCREEN_FINAL);
 	}
 
@@ -861,16 +861,16 @@ void RAS_OpenGLRasterizer::DrawScreenFrameBuffer(RAS_ICanvas *canvas, unsigned s
 
 void RAS_OpenGLRasterizer::DrawStereoScreenFrameBuffer(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex)
 {
-	if (GetScreenFrameBufferSamples(lefteyeindex) > 0) {
+	if (m_screenFrameBuffers.GetSamples(lefteyeindex) > 0) {
 		// Then lefteyeindex == RAS_OFFSCREEN_EYE_LEFT0.
-		BindScreenFrameBuffer(RAS_OFFSCREEN_EYE_LEFT1);
+		m_screenFrameBuffers.Bind(RAS_OFFSCREEN_EYE_LEFT1);
 		DrawScreenFrameBuffer(RAS_OFFSCREEN_EYE_LEFT0, RAS_OFFSCREEN_EYE_LEFT1);
 		lefteyeindex = RAS_OFFSCREEN_EYE_LEFT1;
 	}
 
-	if (GetScreenFrameBufferSamples(righteyeindex) > 0) {
+	if (m_screenFrameBuffers.GetSamples(righteyeindex) > 0) {
 		// Then righteyeindex == RAS_OFFSCREEN_EYE_RIGHT0.
-		BindScreenFrameBuffer(RAS_OFFSCREEN_EYE_RIGHT1);
+		m_screenFrameBuffers.Bind(RAS_OFFSCREEN_EYE_RIGHT1);
 		DrawScreenFrameBuffer(RAS_OFFSCREEN_EYE_RIGHT0, RAS_OFFSCREEN_EYE_RIGHT1);
 		righteyeindex = RAS_OFFSCREEN_EYE_RIGHT1;
 	}
