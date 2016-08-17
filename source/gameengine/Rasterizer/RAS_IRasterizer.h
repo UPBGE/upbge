@@ -357,7 +357,7 @@ public:
 	/// Draw frame buffer object to screen.
 	virtual void DrawScreenFrameBuffer(RAS_ICanvas *canvas, unsigned short index) = 0;
 	/// Draw each stereo frame buffer object to screen.
-		virtual void DrawStereoScreenFrameBuffer(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex) = 0;
+	virtual void DrawStereoScreenFrameBuffer(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex) = 0;
 	/// Bind frame buffer object texture.
 	virtual void BindScreenFrameBufferTexture(unsigned short index, unsigned short slot, OffScreen type) = 0;
 	/// Unbind frame buffer object texture.
