@@ -249,7 +249,7 @@ GPUOffScreen *RAS_OpenGLRasterizer::ScreenFrameBuffers::GetOffScreen(unsigned sh
 	return m_offScreens[index];
 }
 
-void RAS_OpenGLRasterizer::ScreenFrameBuffers::Update(RAS_ICanvas *canvas)
+inline void RAS_OpenGLRasterizer::ScreenFrameBuffers::Update(RAS_ICanvas *canvas)
 {
 	const unsigned int width = canvas->GetWidth() + 1;
 	const unsigned int height = canvas->GetHeight() + 1;
@@ -289,19 +289,19 @@ void RAS_OpenGLRasterizer::ScreenFrameBuffers::Update(RAS_ICanvas *canvas)
 	}
 }
 
-void RAS_OpenGLRasterizer::ScreenFrameBuffers::Bind(unsigned short index)
+inline void RAS_OpenGLRasterizer::ScreenFrameBuffers::Bind(unsigned short index)
 {
 	GPU_offscreen_bind_simple(GetOffScreen(index));
 
 	m_currentIndex = index;
 }
 
-void RAS_OpenGLRasterizer::ScreenFrameBuffers::Blit(unsigned short srcindex, unsigned short dstindex)
+inline void RAS_OpenGLRasterizer::ScreenFrameBuffers::Blit(unsigned short srcindex, unsigned short dstindex)
 {
 	GPU_offscreen_blit(GetOffScreen(srcindex), GetOffScreen(dstindex));
 }
 
-void RAS_OpenGLRasterizer::ScreenFrameBuffers::BindTexture(unsigned short index, unsigned short slot, OffScreen type)
+inline void RAS_OpenGLRasterizer::ScreenFrameBuffers::BindTexture(unsigned short index, unsigned short slot, OffScreen type)
 {
 	GPUTexture *tex = NULL;
 	GPUOffScreen *ofs = GetOffScreen(index);
@@ -314,7 +314,7 @@ void RAS_OpenGLRasterizer::ScreenFrameBuffers::BindTexture(unsigned short index,
 	GPU_texture_bind(tex, slot);
 }
 
-void RAS_OpenGLRasterizer::ScreenFrameBuffers::UnbindTexture(unsigned short index, OffScreen type)
+inline void RAS_OpenGLRasterizer::ScreenFrameBuffers::UnbindTexture(unsigned short index, OffScreen type)
 {
 	GPUTexture *tex = NULL;
 	GPUOffScreen *ofs = GetOffScreen(index);
@@ -327,12 +327,12 @@ void RAS_OpenGLRasterizer::ScreenFrameBuffers::UnbindTexture(unsigned short inde
 	GPU_texture_unbind(tex);
 }
 
-unsigned short RAS_OpenGLRasterizer::ScreenFrameBuffers::GetCurrentIndex() const
+inline unsigned short RAS_OpenGLRasterizer::ScreenFrameBuffers::GetCurrentIndex() const
 {
 	return m_currentIndex;
 }
 
-int RAS_OpenGLRasterizer::ScreenFrameBuffers::GetSamples(unsigned short index)
+inline int RAS_OpenGLRasterizer::ScreenFrameBuffers::GetSamples(unsigned short index)
 {
 	return GPU_offscreen_samples(GetOffScreen(index));
 }
