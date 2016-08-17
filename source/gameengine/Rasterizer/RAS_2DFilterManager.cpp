@@ -115,24 +115,14 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 			}
 		}
 		else {
-			if (srcfbo == RAS_IRasterizer::RAS_OFFSCREEN_FILTER0) {
-				srcfbo = RAS_IRasterizer::RAS_OFFSCREEN_FILTER1;
-			}
-			else {
-				srcfbo = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
-			}
+			srcfbo = RAS_IRasterizer::NextFilterScreenFrameBuffer(srcfbo);
 		}
 
 		if (it == pend) {
 			outputfbo = target;
 		}
 		else {
-			if (srcfbo == RAS_IRasterizer::RAS_OFFSCREEN_FILTER0) {
-				outputfbo = RAS_IRasterizer::RAS_OFFSCREEN_FILTER1;
-			}
-			else {
-				outputfbo = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
-			}
+			outputfbo = RAS_IRasterizer::NextFilterScreenFrameBuffer(srcfbo);
 		}
 
 		filter->Start(rasty, canvas, inputfbo, srcfbo, outputfbo);

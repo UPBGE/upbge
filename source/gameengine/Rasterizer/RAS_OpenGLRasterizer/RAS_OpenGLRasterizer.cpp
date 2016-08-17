@@ -337,6 +337,50 @@ inline int RAS_OpenGLRasterizer::ScreenFrameBuffers::GetSamples(unsigned short i
 	return GPU_offscreen_samples(GetOffScreen(index));
 }
 
+unsigned short RAS_IRasterizer::NextFilterScreenFrameBuffer(unsigned short index)
+{
+	switch (index) {
+		case RAS_OFFSCREEN_FILTER0:
+		{
+			return RAS_OFFSCREEN_FILTER1;
+		}
+		case RAS_OFFSCREEN_FILTER1:
+		{
+			return RAS_OFFSCREEN_FILTER0;
+		}
+	}
+
+	// Passing a non-filter frame buffer is allowed.
+	return RAS_OFFSCREEN_FILTER0;
+}
+
+unsigned short RAS_IRasterizer::NextEyeScreenFrameBuffer(unsigned short index)
+{
+	switch (index) {
+		case RAS_OFFSCREEN_EYE_LEFT0:
+		{
+			return RAS_OFFSCREEN_EYE_LEFT1;
+		}
+		case RAS_OFFSCREEN_EYE_LEFT1:
+		{
+			return RAS_OFFSCREEN_EYE_LEFT0;
+		}
+		case RAS_OFFSCREEN_EYE_RIGHT0:
+		{
+			return RAS_OFFSCREEN_EYE_RIGHT1;
+		}
+		case RAS_OFFSCREEN_EYE_RIGHT1:
+		{
+			return RAS_OFFSCREEN_EYE_RIGHT0;
+		}
+	}
+
+	// Passing a non-eye frame buffer is disallowed.
+	BLI_assert(false);
+
+	return RAS_OFFSCREEN_EYE_LEFT0;
+}
+
 RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	: m_fogenabled(false),
 	m_time(0.0f),

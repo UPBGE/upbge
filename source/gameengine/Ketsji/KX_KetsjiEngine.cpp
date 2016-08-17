@@ -561,23 +561,6 @@ void KX_KetsjiEngine::UpdateSuspendedScenes()
 	}
 }
 
-static int getNextEyeFBO(int srcfbo)
-{
-	if (srcfbo == RAS_IRasterizer::RAS_OFFSCREEN_EYE_LEFT0) {
-		return RAS_IRasterizer::RAS_OFFSCREEN_EYE_LEFT1;
-	}
-	else if (srcfbo == RAS_IRasterizer::RAS_OFFSCREEN_EYE_LEFT1) {
-		return RAS_IRasterizer::RAS_OFFSCREEN_EYE_LEFT0;
-	}
-	else if (srcfbo == RAS_IRasterizer::RAS_OFFSCREEN_EYE_RIGHT0) {
-		return RAS_IRasterizer::RAS_OFFSCREEN_EYE_RIGHT1;
-	}
-	else if (srcfbo == RAS_IRasterizer::RAS_OFFSCREEN_EYE_RIGHT1) {
-		return RAS_IRasterizer::RAS_OFFSCREEN_EYE_RIGHT0;
-	}
-	return 0;
-}
-
 void KX_KetsjiEngine::Render()
 {
 	KX_Scene *firstscene = (KX_Scene *)m_scenes->GetFront();
@@ -695,7 +678,7 @@ void KX_KetsjiEngine::Render()
 					/* Only RAS_OFFSCREEN_EYE_[LEFT/RIGHT]0 has possible multisamples so we target
 					 * RAS_OFFSCREEN_EYE_[LEFT/RIGHT]1 if it's the last scene. */
 					if (lastscene) {
-						target = getNextEyeFBO(eyefboindex[eyepass]);
+						target = RAS_IRasterizer::NextEyeScreenFrameBuffer(eyefboindex[eyepass]);
 					}
 					/* In case of multisamples we're sure that a blit to RAS_OFFSCREEN_FILTER0 will be done
 					 * so we can target the same FBO than in input of filter prossesing. */
@@ -704,7 +687,7 @@ void KX_KetsjiEngine::Render()
 					}
 				}
 				else {
-					target = getNextEyeFBO(eyefboindex[eyepass]);
+					target = RAS_IRasterizer::NextEyeScreenFrameBuffer(eyefboindex[eyepass]);
 				}
 
 				PostRenderScene(scene, target);

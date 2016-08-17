@@ -249,6 +249,21 @@ public:
 		RAS_HDR_FULL_FLOAT
 	};
 
+	/** Return the output frame buffer normally used for the input frame buffer
+	 * index in case of filters render.
+	 * \param index The input frame buffer, can be a non-filter frame buffer.
+	 * \return The output filter frame buffer.
+	 */
+	static unsigned short NextFilterScreenFrameBuffer(unsigned short index);
+
+
+	/** Return the output frame buffer normally used for the input frame buffer
+	 * index in case of per eye stereo render.
+	 * \param index The input eye frame buffer, can NOT be a non-eye frame buffer.
+	 * \return The output eye frame buffer.
+	 */
+	static unsigned short NextEyeScreenFrameBuffer(unsigned short index);
+
 	/**
 	 * Enable capability
 	 * \param bit Enable bit
