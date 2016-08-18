@@ -100,6 +100,7 @@ public:
 	 */
 	enum StereoMode {
 		RAS_STEREO_NOSTEREO = 1,
+		// WARNING: Not yet supported.
 		RAS_STEREO_QUADBUFFERED,
 		RAS_STEREO_ABOVEBELOW,
 		RAS_STEREO_INTERLACED,
@@ -345,13 +346,14 @@ public:
 	 */
 	virtual void EndFrame() = 0;
 
+	/// Update dimensions of all frame buffer objects.
 	virtual void UpdateOffScreens(RAS_ICanvas *canvas) = 0;
 	/// Bind frame buffer object.
 	virtual void BindOffScreen(unsigned short index) = 0;
 	/// Unbind frame buffer object.
 	virtual void RestoreScreenFrameBuffer() = 0;
-	/** Draw frame buffer object without set projeciton matrix or viewport.
-	 * Used to copy thie frame buffer object to another.
+	/** Draw frame buffer object without set viewport.
+	 * Used to copy the frame buffer object to another.
 	 */
 	virtual void DrawOffScreen(unsigned short srcindex, unsigned short dstindex) = 0;
 	/// Draw frame buffer object to screen.
@@ -362,7 +364,7 @@ public:
 	virtual void BindOffScreenTexture(unsigned short index, unsigned short slot, OffScreen type) = 0;
 	/// Unbind frame buffer object texture.
 	virtual void UnbindOffScreenTexture(unsigned short index, OffScreen type) = 0;
-	/// Return current frame buffer object used index.
+	/// Return current frame buffer object index.
 	virtual short GetCurrentOffScreenIndex() const = 0;
 	/// Return frame buffer samples numbers.
 	virtual int GetOffScreenSamples(unsigned short index) = 0;

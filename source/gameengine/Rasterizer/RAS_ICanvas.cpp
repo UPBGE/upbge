@@ -62,7 +62,8 @@ void save_screenshot_thread_func(TaskPool *__restrict pool, void *taskdata, int 
 
 
 RAS_ICanvas::RAS_ICanvas(RAS_IRasterizer *rasty)
-	:m_samples(0)
+	:m_samples(0),
+	m_hdrType(RAS_IRasterizer::RAS_HDR_NONE)
 {
 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
 	m_taskpool = BLI_task_pool_create(m_taskscheduler, NULL);

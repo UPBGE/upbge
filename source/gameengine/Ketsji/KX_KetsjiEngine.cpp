@@ -315,7 +315,7 @@ bool KX_KetsjiEngine::BeginFrame()
 {
 	m_rasterizer->BeginFrame(m_kxsystem->GetTimeInSeconds());
 
-	return false;
+	return (m_canvas->BeginDraw());
 }
 
 void KX_KetsjiEngine::EndFrame()
@@ -589,7 +589,6 @@ void KX_KetsjiEngine::Render()
 
 	// clear the entire game screen with the border color
 	// only once per frame
-	m_canvas->BeginDraw();
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
 	if (m_overrideFrameColor) {
@@ -612,7 +611,6 @@ void KX_KetsjiEngine::Render()
 	// clear the -whole- viewport
 	m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
-	m_canvas->BeginDraw();
 	ClearFrame();
 
 	const RAS_IRasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
@@ -623,6 +621,7 @@ void KX_KetsjiEngine::Render()
 
 	const unsigned short numeyepass = (stereomode != RAS_IRasterizer::RAS_STEREO_NOSTEREO) ? 2 : 1;
 
+	// The current bound eye FBO if we are using per eye stereo.
 	int eyefboindex[2] = {RAS_IRasterizer::RAS_OFFSCREEN_EYE_LEFT0, RAS_IRasterizer::RAS_OFFSCREEN_EYE_RIGHT0};
 
 	// Used to detect when a camera is the first rendered an then doesn't request a depth clear.
@@ -680,8 +679,8 @@ void KX_KetsjiEngine::Render()
 					if (lastscene) {
 						target = RAS_IRasterizer::NextEyeOffScreen(eyefboindex[eyepass]);
 					}
-					/* In case of multisamples we're sure that a blit to RAS_OFFSCREEN_FILTER0 will be done
-					 * so we can target the same FBO than in input of filter prossesing. */
+					/* In case of multisamples and filters we're sure that a blit to RAS_OFFSCREEN_FILTER0
+					 * will be done so we can target the same FBO than in input of the filter prossesing. */
 					else {
 						target = eyefboindex[eyepass];
 					}
@@ -913,7 +912,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 }
 
 // update graphics
-void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, int pass)
+void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned short pass)
 {
 	bool override_camera;
 	RAS_Rect viewport, area;
@@ -940,6 +939,8 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, int pass)
 	m_rasterizer->SetViewport(left, bottom, width + 1, height + 1);
 	m_rasterizer->SetScissor(left, bottom, width + 1, height + 1);
 
+	/* Clear the depth after setting the scene viewport/scissor
+	 * if it's not the first render pass. */
 	if (pass > 0) {
 		m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 	}
@@ -1080,11 +1081,10 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, int pass)
 /*
  * To run once per scene
  */
-void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, int target)
+void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, unsigned short target)
 {
 	KX_SetActiveScene(scene);
 
-	// Set the scene viewport.
 	m_rasterizer->FlushDebugShapes(scene);
 
 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
@@ -1096,10 +1096,6 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, int target)
 	scene->Render2DFilters(m_rasterizer, m_canvas, target);
 
 #ifdef WITH_PYTHON
-// 	const RAS_Rect& viewport = scene->GetSceneViewport();
-	// Set again the scene viewport.
-// 	m_canvas->SetViewPort(viewport.GetLeft(), viewport.GetBottom(), viewport.GetRight(), viewport.GetTop());
-
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 	scene->RunDrawingCallbacks(scene->GetPostDrawCB());
 
@@ -1202,10 +1198,6 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	if (tottime < 1e-6f) {
 		tottime = 1e-6f;
 	}
-
-	// Set viewport to entire canvas
-	RAS_Rect viewport;
-// 	m_canvas->SetViewPort(0, 0, int(m_canvas->GetWidth()), int(m_canvas->GetHeight()));
 
 	if (m_show_framerate || m_show_profile) {
 		// Title for profiling("Profile")

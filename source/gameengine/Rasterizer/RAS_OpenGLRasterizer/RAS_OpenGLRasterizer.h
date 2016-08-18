@@ -73,22 +73,30 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		void Render();
 	};
 
+	/// Internal manager of off screens.
 	class OffScreens
 	{
 	private:
+		/// All the off screens used.
 		GPUOffScreen *m_offScreens[RAS_OFFSCREEN_MAX];
+		/// THe current off screen index.
 		short m_currentIndex;
 
+		/// The last width.
 		unsigned int m_width;
+		/// The last height.
 		unsigned int m_height;
+		/// The number of samples.
 		unsigned short m_samples;
+		/// The HDR quality.
 		short m_hdr;
 
+		/// Return or create off screen for the given index.
 		GPUOffScreen *GetOffScreen(unsigned short index);
 
 	public:
 		OffScreens();
-		virtual ~OffScreens();
+		~OffScreens();
 
 		void Update(RAS_ICanvas *canvas);
 		void Bind(unsigned short index);
@@ -126,7 +134,9 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		float *mat;
 	};
 
-	struct OverrideShaderCopyFBOInterface
+	/// \section Interfaces used for frame buffer shaders.
+
+	struct OverrideShaderDrawFrameBufferInterface
 	{
 		int colorTexLoc;
 	};

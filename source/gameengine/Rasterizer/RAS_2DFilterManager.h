@@ -62,7 +62,7 @@ public:
 	virtual ~RAS_2DFilterManager();
 
 	/// Applies the filters to the scene.
-	void RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, int target);
+	void RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short target);
 
 	/// Add a filter to the stack of filters managed by this object.
 	RAS_2DFilter *AddFilter(RAS_2DFilterData& filterData);

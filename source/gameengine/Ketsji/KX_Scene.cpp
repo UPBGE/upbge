@@ -2057,7 +2057,7 @@ RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 	return m_filterManager;
 }
 
-void KX_Scene::Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, int target)
+void KX_Scene::Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short target)
 {
 	m_filterManager->RenderFilters(rasty, canvas, target);
 }

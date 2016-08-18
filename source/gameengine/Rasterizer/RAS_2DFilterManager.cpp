@@ -82,7 +82,7 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 	return (it != m_filters.end()) ? it->second : NULL;
 }
 
-void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, int target)
+void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short target)
 {
 	if (m_filters.size() == 0) {
 		return;
@@ -106,6 +106,8 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 
 		unsigned short outputfbo;
 		if (it == begin) {
+			/* Set source FBO to RAS_OFFSCREEN_FILTER0 in case of multisample and blit,
+			 * else keep the original source FBO. */
 			if (rasty->GetOffScreenSamples(srcfbo)) {
 				rasty->BindOffScreen(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
 				rasty->DrawOffScreen(srcfbo, RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
@@ -119,6 +121,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 		}
 
 		if (it == pend) {
+			// Render to the targeted FBO for the last filter.
 			outputfbo = target;
 		}
 		else {

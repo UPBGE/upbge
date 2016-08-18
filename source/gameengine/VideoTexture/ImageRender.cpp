@@ -105,6 +105,11 @@ ImageRender::~ImageRender (void)
 	if (m_owncamera)
 		m_camera->Release();
 
+#ifdef WITH_GAMEENGINE_GPU_SYNC
+	if (m_sync)
+		delete m_sync;
+#endif
+
 	if (m_offScreen) {
 		GPU_offscreen_free(m_offScreen);
 	}
@@ -744,8 +749,9 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	// parameter keywords
 	static const char *kwlist[] = {"scene", "observer", "mirror", "material", "width", "height", "samples", NULL};
 	// get parameters
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|h",
-	                                 const_cast<char**>(kwlist), &scene, &observer, &mirror, &materialID, &width, &height, &samples))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|hiii",
+	                                 const_cast<char**>(kwlist), &scene, &observer, &mirror, &materialID,
+									 &width, &height, &samples))
 		return -1;
 	try
 	{

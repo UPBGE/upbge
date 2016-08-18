@@ -86,7 +86,7 @@ protected:
 	PyObject *m_gameLogic;
 #endif  // WITH_PYTHON
 
-	/// The number of render FBO samples
+	/// The number of render samples.
 	int m_samples;
 
 	/// The render stereo mode passed in constructor.
@@ -132,7 +132,7 @@ protected:
 	virtual void SetWindowOrder(short order) = 0;
 
 public:
-	LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, 
+	LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
 				RAS_IRasterizer::StereoMode stereoMode, int samples, int argc, char **argv);
 	virtual ~LA_Launcher();
 

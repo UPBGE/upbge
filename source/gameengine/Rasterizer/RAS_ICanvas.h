@@ -36,7 +36,7 @@
 #include "MEM_guardedalloc.h"
 #endif
 
-#include "RAS_IRasterizer.h" // for RAS_IRasterizer::OffScreen
+#include "RAS_IRasterizer.h" // for RAS_IRasterizer::HdrType
 
 class RAS_Rect;
 struct TaskScheduler;

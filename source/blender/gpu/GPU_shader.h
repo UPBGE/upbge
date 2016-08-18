@@ -101,7 +101,7 @@ typedef enum GPUBuiltinShader {
 	GPU_SHADER_SMOKE                = 3,
 	GPU_SHADER_SMOKE_FIRE           = 4,
 	GPU_SHADER_INSTANCING           = 5,
-	GPU_SHADER_COPY_FBO             = 6,
+	GPU_SHADER_DRAW_FRAME_BUFFER             = 6,
 	GPU_SHADER_STEREO_STIPPLE       = 7,
 	GPU_SHADER_STEREO_ANAGLYPH      = 8,
 } GPUBuiltinShader;

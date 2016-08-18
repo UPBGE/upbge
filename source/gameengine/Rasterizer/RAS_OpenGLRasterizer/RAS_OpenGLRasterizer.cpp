@@ -211,7 +211,11 @@ void RAS_OpenGLRasterizer::ScreenPlane::Render()
 }
 
 RAS_OpenGLRasterizer::OffScreens::OffScreens()
-	:m_currentIndex(-1)
+	:m_currentIndex(-1),
+	m_width(0),
+	m_height(0),
+	m_samples(0),
+	m_hdr(RAS_HDR_NONE)
 {
 	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_OFFSCREEN_MAX; ++i) {
 		m_offScreens[i] = NULL;
@@ -785,8 +789,6 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 		glEnd();
 	}
 
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-
 	if (light) {
 		Enable(RAS_LIGHTING);
 	}
@@ -865,10 +867,10 @@ void RAS_OpenGLRasterizer::DrawOffScreen(unsigned short srcindex, unsigned short
 	if (m_screenFrameBuffers.GetSamples(srcindex) == 0) {
 		m_screenFrameBuffers.BindTexture(srcindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 
-		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_COPY_FBO);
+		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER);
 		GPU_shader_bind(shader);
 
-		OverrideShaderCopyFBOInterface *interface = (OverrideShaderCopyFBOInterface *)GPU_shader_get_interface(shader);
+		OverrideShaderDrawFrameBufferInterface *interface = (OverrideShaderDrawFrameBufferInterface *)GPU_shader_get_interface(shader);
 		GPU_shader_uniform_int(shader, interface->colorTexLoc, 0);
 
 		DrawOverlayPlane();
@@ -884,11 +886,10 @@ void RAS_OpenGLRasterizer::DrawOffScreen(unsigned short srcindex, unsigned short
 
 void RAS_OpenGLRasterizer::DrawOffScreen(RAS_ICanvas *canvas, unsigned short index)
 {
-	const bool samples = (m_screenFrameBuffers.GetSamples(index) > 0);
-
-	if (samples) {
+	if (m_screenFrameBuffers.GetSamples(index) > 0) {
 		m_screenFrameBuffers.Bind(RAS_OFFSCREEN_FINAL);
 		DrawOffScreen(index, RAS_OFFSCREEN_FINAL);
+		index = RAS_OFFSCREEN_FINAL;
 	}
 
 	const int *viewport = canvas->GetViewPort();
@@ -898,7 +899,7 @@ void RAS_OpenGLRasterizer::DrawOffScreen(RAS_ICanvas *canvas, unsigned short ind
 	SetDepthFunc(RAS_ALWAYS);
 
 	RestoreScreenFrameBuffer();
-	DrawOffScreen(samples ? RAS_OFFSCREEN_FINAL : index, 0);
+	DrawOffScreen(index, 0);
 
 	SetDepthFunc(RAS_LEQUAL);
 }
@@ -1117,46 +1118,6 @@ bool RAS_OpenGLRasterizer::Stereo()
 void RAS_OpenGLRasterizer::SetEye(const StereoEye eye)
 {
 	m_curreye = eye;
-	/*switch (m_stereomode)
-	{
-		case RAS_STEREO_QUADBUFFERED:
-		{
-			glDrawBuffer(m_curreye == RAS_STEREO_LEFTEYE ? GL_BACK_LEFT : GL_BACK_RIGHT);
-			break;
-		}
-		case RAS_STEREO_ANAGLYPH:
-		{
-			if (m_curreye == RAS_STEREO_LEFTEYE) {
-				SetColorMask(true, false, false, false);
-			}
-			else {
-				//glAccum(GL_LOAD, 1.0f);
-				SetColorMask(false, true, true, false);
-				Clear(RAS_DEPTH_BUFFER_BIT);
-			}
-			break;
-		}
-		case RAS_STEREO_VINTERLACE:
-		{
-			// OpenGL stippling is deprecated, it is no longer possible to affect all shaders
-			// this way, offscreen rendering and then compositing may be the better solution
-			Enable(RAS_POLYGON_STIPPLE);
-			glPolygonStipple((const GLubyte *)((m_curreye == RAS_STEREO_LEFTEYE) ? left_eye_vinterlace_mask : right_eye_vinterlace_mask));
-			if (m_curreye == RAS_STEREO_RIGHTEYE)
-				Clear(RAS_DEPTH_BUFFER_BIT);
-			break;
-		}
-		case RAS_STEREO_INTERLACED:
-		{
-			Enable(RAS_POLYGON_STIPPLE);
-			glPolygonStipple((const GLubyte *)&hinterlace_mask[m_curreye == RAS_STEREO_LEFTEYE ? 0 : 1]);
-			if (m_curreye == RAS_STEREO_RIGHTEYE)
-				Clear(RAS_DEPTH_BUFFER_BIT);
-			break;
-		}
-		default:
-			break;
-	}*/
 }
 
 RAS_IRasterizer::StereoEye RAS_OpenGLRasterizer::GetEye()
@@ -1750,11 +1711,11 @@ void RAS_OpenGLRasterizer::InitOverrideShadersInterface()
 {
 	// Find uniform location for FBO shaders.
 
-	// Copy FBO shader.
+	// Draw frame buffer shader.
 	{
-		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_COPY_FBO);
+		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER);
 		if (!GPU_shader_get_interface(shader)) {
-			OverrideShaderCopyFBOInterface *interface = (OverrideShaderCopyFBOInterface *)MEM_mallocN(sizeof(OverrideShaderCopyFBOInterface), "OverrideShaderCopyFBOInterface");
+			OverrideShaderDrawFrameBufferInterface *interface = (OverrideShaderDrawFrameBufferInterface *)MEM_mallocN(sizeof(OverrideShaderDrawFrameBufferInterface), "OverrideShaderDrawFrameBufferInterface");
 
 			interface->colorTexLoc = GPU_shader_get_uniform(shader, "colortex");
 
