@@ -237,7 +237,6 @@ void gpu_extensions_init(void)
 		glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	}
 
-	GPU_texture_global_depth_init();
 	GPU_invalid_tex_init();
 	GPU_basic_shaders_init();
 }

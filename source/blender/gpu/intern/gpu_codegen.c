@@ -375,7 +375,7 @@ static int codegen_input_has_texture(GPUInput *input)
 	else if (input->ima || input->prv)
 		return 1;
 	else
-		return input->tex != NULL;
+		return (input->tex != NULL || input->texptr != NULL);
 }
 
 const char *GPU_builtin_name(GPUBuiltin builtin)
@@ -483,6 +483,10 @@ static void codegen_set_unique_ids(ListBase *nodes)
 					codegen_set_texid(bindhash, input, &texid, input->prv);
 				}
 				else if (input->tex) {
+					/* input is user created texture, check tex pointer */
+					codegen_set_texid(bindhash, input, &texid, input->tex);
+				}
+				else if (input->texptr) {
 					/* input is user created texture, check tex pointer */
 					codegen_set_texid(bindhash, input, &texid, input->tex);
 				}
@@ -991,15 +995,16 @@ static void gpu_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 				continue;
 			}
 
-			if (input->ima || input->tex || input->prv)
+			if (input->ima || input->tex || input->prv || input->texptr) {
 				BLI_snprintf(input->shadername, sizeof(input->shadername), "samp%d", input->texid);
+			}
 			else
 				BLI_snprintf(input->shadername, sizeof(input->shadername), "unf%d", input->id);
 
 			/* pass non-dynamic uniforms to opengl */
 			extract = 0;
 
-			if (input->ima || input->tex || input->prv) {
+			if (input->ima || input->tex || input->prv || input->texptr) {
 				if (input->bindtex)
 					extract = 1;
 			}
@@ -1054,6 +1059,10 @@ void GPU_pass_bind(GPUPass *pass, double time, int mipmap)
 			GPU_texture_bind(input->tex, input->texid);
 			GPU_shader_uniform_texture(shader, input->shaderloc, input->tex);
 		}
+		else if (input->texptr && *input->texptr && input->bindtex) {
+			GPU_texture_bind(*input->texptr, input->texid);
+			GPU_shader_uniform_texture(shader, input->shaderloc, *input->texptr);
+		}
 	}
 }
 
@@ -1068,7 +1077,7 @@ void GPU_pass_update_uniforms(GPUPass *pass)
 
 	/* pass dynamic inputs to opengl, others were removed */
 	for (input = inputs->first; input; input = input->next) {
-		if (!(input->ima || input->tex || input->prv)) {
+		if (!(input->ima || input->tex || input->prv || input->texptr)) {
 			GPU_shader_uniform_vector(shader, input->shaderloc, input->type, 1,
 				input->dynamicvec);
 		}
@@ -1087,6 +1096,9 @@ void GPU_pass_unbind(GPUPass *pass)
 	for (input = inputs->first; input; input = input->next) {
 		if (input->tex && input->bindtex)
 			GPU_texture_unbind(input->tex);
+		if (input->texptr && *input->texptr && input->bindtex) {
+			GPU_texture_unbind(*input->texptr);
+		}
 
 		if (input->ima || input->prv)
 			input->tex = NULL;
@@ -1186,6 +1198,18 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType 
 		input->source = GPU_SOURCE_TEX;
 
 		input->tex = link->dynamictex;
+		input->textarget = GL_TEXTURE_2D;
+		input->textype = type;
+		input->dynamictex = true;
+		input->dynamicdata = link->ptr2;
+		MEM_freeN(link);
+	}
+	else if (link->dynamictexptr) {
+		/* dynamic texture, GPUTexture is updated/deleted externally */
+		input->type = type;
+		input->source = GPU_SOURCE_TEX;
+
+		input->texptr = link->dynamictexptr;
 		input->textarget = GL_TEXTURE_2D;
 		input->textype = type;
 		input->dynamictex = true;
@@ -1502,6 +1526,18 @@ GPUNodeLink *GPU_dynamic_texture(GPUTexture *tex, GPUDynamicType dynamictype, vo
 
 	link->dynamic = true;
 	link->dynamictex = tex;
+	link->dynamictype = dynamictype;
+	link->ptr2 = data;
+
+	return link;
+}
+
+GPUNodeLink *GPU_dynamic_texture_ptr(GPUTexture **tex, GPUDynamicType dynamictype, void *data)
+{
+	GPUNodeLink *link = GPU_node_link_create();
+
+	link->dynamic = true;
+	link->dynamictexptr = tex;
 	link->dynamictype = dynamictype;
 	link->ptr2 = data;
 

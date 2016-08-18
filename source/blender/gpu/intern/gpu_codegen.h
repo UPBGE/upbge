@@ -102,6 +102,7 @@ struct GPUNodeLink {
 	int users;
 
 	struct GPUTexture *dynamictex;
+	struct GPUTexture **dynamictexptr;
 
 	GPUBuiltin builtin;
 	GPUOpenGLBuiltin oglbuiltin;
@@ -142,6 +143,7 @@ typedef struct GPUInput {
 	GPUDynamicType dynamictype;  /* origin of the dynamic uniform */
 	void *dynamicdata;           /* data source of the dynamic uniform */
 	struct GPUTexture *tex;      /* input texture, only set at runtime */
+	struct GPUTexture **texptr;
 	int shaderloc;               /* id from opengl */
 	char shadername[32];         /* name in shader */
 

@@ -1918,7 +1918,7 @@ void RNA_def_material(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "depth_transp_factor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "depthtranspfactor");
-	RNA_def_property_range(prop, 0, FLT_MAX);
+	RNA_def_property_range(prop, 0.001f, FLT_MAX);
 	RNA_def_property_ui_text(prop, "Depth Transparency Factor", "");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 

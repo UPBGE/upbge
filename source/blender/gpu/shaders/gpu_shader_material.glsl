@@ -1822,14 +1822,30 @@ void lamp_visibility_clamp(float visifac, out float outvisifac)
 	outvisifac = (visifac < 0.001) ? 0.0 : visifac;
 }
 
-void shade_alpha_depth(sampler2D ima, vec2 imaoffset, float alpha, float factor, float offset, out float outalpha)
+float calculate_view_position(vec2 co, float depth, ivec2 size)
 {
-	ivec2 size = textureSize(ima, 0);
-	vec4 depth = texture2D(ima, (gl_FragCoord.xy - imaoffset) / size);
-	float z = (vec4(gl_ProjectionMatrix[3][2]) / ((2.0 * depth - vec4(1.0)) + vec4(gl_ProjectionMatrix[2][2]))).z;
-	float thickness = z - (gl_FragCoord.z / gl_FragCoord.w) + offset;
+    const float tau = 0.7;
+    const float n   = 0.1;        // zNear
+    const float f   = 100.0;      // zFar
+    float scale     = 0.3;
 
-	outalpha = alpha * smoothstep(0.0, 1.0, thickness * factor);
+    float d1  = n*f/(f - depth*(f-n));
+    float d2  = n*f/(f - gl_FragCoord.z*(f-n));
+    float dz  = min ( 0.5, scale * ( d1 - d2 ) / gl_FragCoord.w);
+
+    return dz;
+}
+
+void shade_alpha_depth(vec3 vp, sampler2D ima, float alpha, float factor, float offset, out float outalpha)
+{
+	vec4 depth = texelFetch(ima, ivec2(gl_FragCoord.xy), 0);
+
+	vec4 fadeDepth = gl_ProjectionMatrix * vec4(vp.xy, vp.z - factor, 1.0);
+
+	float startfade = gl_FragCoord.z + offset * gl_FragCoord.w;
+	float endfade = (1.0 + fadeDepth.z / fadeDepth.w) * 0.5;
+
+	outalpha = alpha * smoothstep(startfade, endfade, depth);
 }
 
 void world_paper_view(vec3 vec, out vec3 outvec)

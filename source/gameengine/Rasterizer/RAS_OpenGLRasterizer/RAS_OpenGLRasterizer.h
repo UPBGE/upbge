@@ -50,6 +50,7 @@ class RAS_IStorage;
 class RAS_ICanvas;
 class RAS_OpenGLLight;
 struct GPUOffScreen;
+struct GPUTexture;
 struct GPUShader;
 
 #define RAS_MAX_TEXCO  8     /* match in BL_Material */
@@ -107,6 +108,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		void UnbindTexture(unsigned short index, OffScreen type);
 		short GetCurrentIndex() const;
 		int GetSamples(unsigned short index);
+		GPUTexture *GetDepthTexture(unsigned short index);
 	};
 
 	struct OglDebugShape

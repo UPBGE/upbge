@@ -1924,8 +1924,8 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 	if (ma->mode2 & MA_DEPTH_TRANSP) {
 		GPU_link(mat, "shade_alpha_depth",
-				 GPU_dynamic_texture(GPU_texture_global_depth(), GPU_DYNAMIC_SAMPLER_2DBUFFER, ma),
-				 GPU_dynamic_uniform(GPU_texture_global_depth_offset(), GPU_DYNAMIC_SAMPLER_2DOFFSET, NULL),
+				 GPU_builtin(GPU_VIEW_POSITION),
+				 GPU_dynamic_texture_ptr(GPU_texture_global_depth_ptr(), GPU_DYNAMIC_SAMPLER_2DBUFFER, ma),
 				 shi->alpha, GPU_uniform(&ma->depthtranspfactor), GPU_uniform(&ma->depthtranspoffset), &shr->alpha);
 	}
 

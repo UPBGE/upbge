@@ -362,6 +362,11 @@ inline int RAS_OpenGLRasterizer::OffScreens::GetSamples(unsigned short index)
 	return GPU_offscreen_samples(GetOffScreen(index));
 }
 
+inline GPUTexture *RAS_OpenGLRasterizer::OffScreens::GetDepthTexture(unsigned short index)
+{
+	return GPU_offscreen_depth_texture(GetOffScreen(index));
+}
+
 unsigned short RAS_IRasterizer::NextFilterOffScreen(unsigned short index)
 {
 	switch (index) {
@@ -559,7 +564,7 @@ void RAS_OpenGLRasterizer::Exit()
 	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)
 		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
 
-	GPU_texture_global_depth_reset();
+	GPU_texture_set_global_depth(NULL);
 
 	EndFrame();
 }
@@ -2252,7 +2257,7 @@ void RAS_OpenGLRasterizer::LoadIdentity()
 
 void RAS_OpenGLRasterizer::UpdateGlobalDepthTexture(RAS_ICanvas *canvas)
 {
-	GPU_texture_global_depth_update(canvas->GetWindowArea().GetLeft(), canvas->GetWindowArea().GetBottom(), canvas->GetWidth(), canvas->GetHeight());
+	GPU_texture_set_global_depth(m_screenFrameBuffers.GetDepthTexture(m_screenFrameBuffers.GetCurrentIndex()));
 }
 
 void RAS_OpenGLRasterizer::MotionBlur()
