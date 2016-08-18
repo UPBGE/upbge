@@ -2257,7 +2257,15 @@ void RAS_OpenGLRasterizer::LoadIdentity()
 
 void RAS_OpenGLRasterizer::UpdateGlobalDepthTexture(RAS_ICanvas *canvas)
 {
-	GPU_texture_set_global_depth(m_screenFrameBuffers.GetDepthTexture(m_screenFrameBuffers.GetCurrentIndex()));
+	unsigned short index = m_offScreens.GetCurrentIndex();
+	if (m_offScreens.GetSamples(index)) {
+		m_offScreens.Blit(index, RAS_IRasterizer::RAS_OFFSCREEN_BLIT_DEPTH);
+		// Restore original FBO.
+		m_offScreens.Bind(index);
+		index = RAS_IRasterizer::RAS_OFFSCREEN_BLIT_DEPTH;
+	}
+
+	GPU_texture_set_global_depth(m_offScreens.GetDepthTexture(index));
 }
 
 void RAS_OpenGLRasterizer::MotionBlur()
