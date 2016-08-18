@@ -849,12 +849,12 @@ void RAS_OpenGLRasterizer::EndFrame()
 
 void RAS_OpenGLRasterizer::UpdateOffScreens(RAS_ICanvas *canvas)
 {
-	m_screenFrameBuffers.Update(canvas);
+	m_offScreens.Update(canvas);
 }
 
 void RAS_OpenGLRasterizer::BindOffScreen(unsigned short index)
 {
-	m_screenFrameBuffers.Bind(index);
+	m_offScreens.Bind(index);
 }
 
 void RAS_OpenGLRasterizer::RestoreScreenFrameBuffer()
@@ -864,8 +864,8 @@ void RAS_OpenGLRasterizer::RestoreScreenFrameBuffer()
 
 void RAS_OpenGLRasterizer::DrawOffScreen(unsigned short srcindex, unsigned short dstindex)
 {
-	if (m_screenFrameBuffers.GetSamples(srcindex) == 0) {
-		m_screenFrameBuffers.BindTexture(srcindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+	if (m_offScreens.GetSamples(srcindex) == 0) {
+		m_offScreens.BindTexture(srcindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER);
 		GPU_shader_bind(shader);
@@ -877,17 +877,17 @@ void RAS_OpenGLRasterizer::DrawOffScreen(unsigned short srcindex, unsigned short
 
 		GPU_shader_unbind();
 
-		m_screenFrameBuffers.UnbindTexture(srcindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_offScreens.UnbindTexture(srcindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 	}
 	else {
-		m_screenFrameBuffers.Blit(srcindex, dstindex);
+		m_offScreens.Blit(srcindex, dstindex);
 	}
 }
 
 void RAS_OpenGLRasterizer::DrawOffScreen(RAS_ICanvas *canvas, unsigned short index)
 {
-	if (m_screenFrameBuffers.GetSamples(index) > 0) {
-		m_screenFrameBuffers.Bind(RAS_OFFSCREEN_FINAL);
+	if (m_offScreens.GetSamples(index) > 0) {
+		m_offScreens.Bind(RAS_OFFSCREEN_FINAL);
 		DrawOffScreen(index, RAS_OFFSCREEN_FINAL);
 		index = RAS_OFFSCREEN_FINAL;
 	}
@@ -906,16 +906,16 @@ void RAS_OpenGLRasterizer::DrawOffScreen(RAS_ICanvas *canvas, unsigned short ind
 
 void RAS_OpenGLRasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex)
 {
-	if (m_screenFrameBuffers.GetSamples(lefteyeindex) > 0) {
+	if (m_offScreens.GetSamples(lefteyeindex) > 0) {
 		// Then lefteyeindex == RAS_OFFSCREEN_EYE_LEFT0.
-		m_screenFrameBuffers.Bind(RAS_OFFSCREEN_EYE_LEFT1);
+		m_offScreens.Bind(RAS_OFFSCREEN_EYE_LEFT1);
 		DrawOffScreen(RAS_OFFSCREEN_EYE_LEFT0, RAS_OFFSCREEN_EYE_LEFT1);
 		lefteyeindex = RAS_OFFSCREEN_EYE_LEFT1;
 	}
 
-	if (m_screenFrameBuffers.GetSamples(righteyeindex) > 0) {
+	if (m_offScreens.GetSamples(righteyeindex) > 0) {
 		// Then righteyeindex == RAS_OFFSCREEN_EYE_RIGHT0.
-		m_screenFrameBuffers.Bind(RAS_OFFSCREEN_EYE_RIGHT1);
+		m_offScreens.Bind(RAS_OFFSCREEN_EYE_RIGHT1);
 		DrawOffScreen(RAS_OFFSCREEN_EYE_RIGHT0, RAS_OFFSCREEN_EYE_RIGHT1);
 		righteyeindex = RAS_OFFSCREEN_EYE_RIGHT1;
 	}
@@ -934,8 +934,8 @@ void RAS_OpenGLRasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned sho
 
 		OverrideShaderStereoStippleInterface *interface = (OverrideShaderStereoStippleInterface *)GPU_shader_get_interface(shader);
 
-		m_screenFrameBuffers.BindTexture(lefteyeindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-		m_screenFrameBuffers.BindTexture(righteyeindex, 1, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_offScreens.BindTexture(lefteyeindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_offScreens.BindTexture(righteyeindex, 1, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 
 		GPU_shader_uniform_int(shader, interface->leftEyeTexLoc, 0);
 		GPU_shader_uniform_int(shader, interface->rightEyeTexLoc, 1);
@@ -945,8 +945,8 @@ void RAS_OpenGLRasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned sho
 
 		GPU_shader_unbind();
 
-		m_screenFrameBuffers.UnbindTexture(lefteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-		m_screenFrameBuffers.UnbindTexture(righteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_offScreens.UnbindTexture(lefteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_offScreens.UnbindTexture(righteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 	}
 	else if (m_stereomode == RAS_STEREO_ANAGLYPH) {
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_ANAGLYPH);
@@ -954,8 +954,8 @@ void RAS_OpenGLRasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned sho
 
 		OverrideShaderStereoAnaglyph *interface = (OverrideShaderStereoAnaglyph *)GPU_shader_get_interface(shader);
 
-		m_screenFrameBuffers.BindTexture(lefteyeindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-		m_screenFrameBuffers.BindTexture(righteyeindex, 1, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_offScreens.BindTexture(lefteyeindex, 0, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_offScreens.BindTexture(righteyeindex, 1, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 
 		GPU_shader_uniform_int(shader, interface->leftEyeTexLoc, 0);
 		GPU_shader_uniform_int(shader, interface->rightEyeTexLoc, 1);
@@ -964,8 +964,8 @@ void RAS_OpenGLRasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned sho
 
 		GPU_shader_unbind();
 
-		m_screenFrameBuffers.UnbindTexture(lefteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
-		m_screenFrameBuffers.UnbindTexture(righteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_offScreens.UnbindTexture(lefteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		m_offScreens.UnbindTexture(righteyeindex, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
 	}
 
 	SetDepthFunc(RAS_LEQUAL);
@@ -973,22 +973,22 @@ void RAS_OpenGLRasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned sho
 
 void RAS_OpenGLRasterizer::BindOffScreenTexture(unsigned short index, unsigned short slot, OffScreen type)
 {
-	m_screenFrameBuffers.BindTexture(index, slot, type);
+	m_offScreens.BindTexture(index, slot, type);
 }
 
 void RAS_OpenGLRasterizer::UnbindOffScreenTexture(unsigned short index, OffScreen type)
 {
-	m_screenFrameBuffers.UnbindTexture(index, type);
+	m_offScreens.UnbindTexture(index, type);
 }
 
 short RAS_OpenGLRasterizer::GetCurrentOffScreenIndex() const
 {
-	return m_screenFrameBuffers.GetCurrentIndex();
+	return m_offScreens.GetCurrentIndex();
 }
 
 int RAS_OpenGLRasterizer::GetOffScreenSamples(unsigned short index)
 {
-	return m_screenFrameBuffers.GetSamples(index);
+	return m_offScreens.GetSamples(index);
 }
 
 void RAS_OpenGLRasterizer::SetRenderArea(RAS_ICanvas *canvas)

@@ -193,7 +193,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, std::vector<OglDebugShape> > m_debugShapes;
 
-	OffScreens m_screenFrameBuffers;
+	OffScreens m_offScreens;
 
 protected:
 	DrawType m_drawingmode;
