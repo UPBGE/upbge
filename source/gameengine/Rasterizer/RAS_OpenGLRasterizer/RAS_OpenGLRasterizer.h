@@ -100,6 +100,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 
 		void Update(RAS_ICanvas *canvas);
 		void Bind(unsigned short index);
+		/// NOTE: This function has the side effect to leave the destination FBO bound.
 		void Blit(unsigned short srcindex, unsigned short dstindex);
 		void BindTexture(unsigned short index, unsigned short slot, OffScreen type);
 		void UnbindTexture(unsigned short index, OffScreen type);

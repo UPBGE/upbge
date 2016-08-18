@@ -887,8 +887,7 @@ void RAS_OpenGLRasterizer::DrawOffScreen(unsigned short srcindex, unsigned short
 void RAS_OpenGLRasterizer::DrawOffScreen(RAS_ICanvas *canvas, unsigned short index)
 {
 	if (m_offScreens.GetSamples(index) > 0) {
-		m_offScreens.Bind(RAS_OFFSCREEN_FINAL);
-		DrawOffScreen(index, RAS_OFFSCREEN_FINAL);
+		m_offScreens.Blit(index, RAS_OFFSCREEN_FINAL);
 		index = RAS_OFFSCREEN_FINAL;
 	}
 
@@ -908,15 +907,13 @@ void RAS_OpenGLRasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned sho
 {
 	if (m_offScreens.GetSamples(lefteyeindex) > 0) {
 		// Then lefteyeindex == RAS_OFFSCREEN_EYE_LEFT0.
-		m_offScreens.Bind(RAS_OFFSCREEN_EYE_LEFT1);
-		DrawOffScreen(RAS_OFFSCREEN_EYE_LEFT0, RAS_OFFSCREEN_EYE_LEFT1);
+		m_offScreens.Blit(RAS_OFFSCREEN_EYE_LEFT0, RAS_OFFSCREEN_EYE_LEFT1);
 		lefteyeindex = RAS_OFFSCREEN_EYE_LEFT1;
 	}
 
 	if (m_offScreens.GetSamples(righteyeindex) > 0) {
 		// Then righteyeindex == RAS_OFFSCREEN_EYE_RIGHT0.
-		m_offScreens.Bind(RAS_OFFSCREEN_EYE_RIGHT1);
-		DrawOffScreen(RAS_OFFSCREEN_EYE_RIGHT0, RAS_OFFSCREEN_EYE_RIGHT1);
+		m_offScreens.Blit(RAS_OFFSCREEN_EYE_RIGHT0, RAS_OFFSCREEN_EYE_RIGHT1);
 		righteyeindex = RAS_OFFSCREEN_EYE_RIGHT1;
 	}
 
