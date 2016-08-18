@@ -833,7 +833,9 @@ void GPU_offscreen_blit(GPUOffScreen *srcofs, GPUOffScreen *dstofs)
 	int width = min_ff(GPU_offscreen_width(srcofs), GPU_offscreen_width(dstofs));
 
 	glBlitFramebufferEXT(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, dstofs->fb->object);
+
+	// Call GPU_framebuffer_bind_simple to change GG.currentfb.
+	GPU_framebuffer_bind_simple(dstofs->fb);
 }
 
 int GPU_offscreen_width(const GPUOffScreen *ofs)
