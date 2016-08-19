@@ -98,15 +98,6 @@
 
 extern Material defmaterial; /* from material.c */
 
-/* Text Rendering */
-
-static void gpu_mcol(unsigned int ucol)
-{
-	/* mcol order is swapped */
-	const char *cp = (char *)&ucol;
-	glColor3ub(cp[3], cp[2], cp[1]);
-}
-
 /* Checking powers of two for images since OpenGL ES requires it */
 
 static bool is_power_of_2_resolution(int w, int h)
