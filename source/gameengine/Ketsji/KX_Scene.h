@@ -344,7 +344,7 @@ public:
 	 * \section Logic stuff
 	 * Initiate an update of the logic system.
 	 */
-	void LogicBeginFrame(double curtime);
+	void LogicBeginFrame(double curtime, double framestep);
 	void LogicUpdateFrame(double curtime, bool frame);
 	void UpdateAnimations(double curtime);
 

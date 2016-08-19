@@ -1491,7 +1491,7 @@ void KX_Scene::DrawDebug(RAS_IRasterizer *rasty)
 }
 
 // logic stuff
-void KX_Scene::LogicBeginFrame(double curtime)
+void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 {
 	// have a look at temp objects ...
 	int lastobj = m_tempObjectList->GetCount() - 1;
@@ -1503,7 +1503,7 @@ void KX_Scene::LogicBeginFrame(double curtime)
 		
 		if (propval)
 		{
-			float timeleft = (float)(propval->GetNumber() - 1.0/KX_KetsjiEngine::GetTicRate());
+			float timeleft = propval->GetNumber() - framestep;
 			
 			if (timeleft > 0)
 			{
@@ -1520,7 +1520,7 @@ void KX_Scene::LogicBeginFrame(double curtime)
 			// all object is the tempObjectList should have a clock
 		}
 	}
-	m_logicmgr->BeginFrame(curtime, 1.0/KX_KetsjiEngine::GetTicRate());
+	m_logicmgr->BeginFrame(curtime, framestep);
 }
 
 void KX_Scene::AddAnimatedObject(CValue* gameobj)

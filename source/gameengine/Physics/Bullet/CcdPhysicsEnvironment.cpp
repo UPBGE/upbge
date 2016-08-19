@@ -796,8 +796,8 @@ public:
 void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
 {
 	std::set<CcdPhysicsController *>::iterator it;
-	// Add epsilon to the tick rate for numerical stability
-	int numIter = (int)(interval * (KX_KetsjiEngine::GetTicRate() + 0.001f));
+
+	const float step = interval * KX_KetsjiEngine::GetTicRate();
 
 	for (it = m_controllers.begin(); it != m_controllers.end(); it++) {
 		CcdPhysicsController *ctrl = (*it);
@@ -849,66 +849,64 @@ void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
 					btVector3 normal = resultCallback.m_hitNormalWorld;
 					normal.normalize();
 
-					for (int i = 0; i < numIter; i++) {
-						if (ctrl->GetConstructionInfo().m_do_fh) {
-							btVector3 lspot = cl_object->getCenterOfMassPosition() +
-							                  rayDirLocal * resultCallback.m_closestHitFraction;
+					if (ctrl->GetConstructionInfo().m_do_fh) {
+						btVector3 lspot = cl_object->getCenterOfMassPosition() +
+						                  rayDirLocal * resultCallback.m_closestHitFraction;
 
-							lspot -= hit_object->getCenterOfMassPosition();
-							btVector3 rel_vel = cl_object->getLinearVelocity() - hit_object->getVelocityInLocalPoint(lspot);
-							btScalar rel_vel_ray = ray_dir.dot(rel_vel);
-							btScalar spring_extent = 1.0f - distance / hitObjShapeProps.m_fh_distance;
+						lspot -= hit_object->getCenterOfMassPosition();
+						btVector3 rel_vel = cl_object->getLinearVelocity() - hit_object->getVelocityInLocalPoint(lspot);
+						btScalar rel_vel_ray = ray_dir.dot(rel_vel);
+						btScalar spring_extent = 1.0f - distance / hitObjShapeProps.m_fh_distance;
 
-							btScalar i_spring = spring_extent * hitObjShapeProps.m_fh_spring;
-							btScalar i_damp =   rel_vel_ray * hitObjShapeProps.m_fh_damping;
+						btScalar i_spring = spring_extent * hitObjShapeProps.m_fh_spring;
+						btScalar i_damp =   rel_vel_ray * hitObjShapeProps.m_fh_damping;
 
-							cl_object->setLinearVelocity(cl_object->getLinearVelocity() + (-(i_spring + i_damp) * ray_dir));
-							if (hitObjShapeProps.m_fh_normal) {
-								cl_object->setLinearVelocity(cl_object->getLinearVelocity() + (i_spring + i_damp) * (normal - normal.dot(ray_dir) * ray_dir));
-							}
-
-							btVector3 lateral = rel_vel - rel_vel_ray * ray_dir;
-
-							if (ctrl->GetConstructionInfo().m_do_anisotropic) {
-								//Bullet basis contains no scaling/shear etc.
-								const btMatrix3x3& lcs = cl_object->getCenterOfMassTransform().getBasis();
-								btVector3 loc_lateral = lateral * lcs;
-								const btVector3& friction_scaling = cl_object->getAnisotropicFriction();
-								loc_lateral *= friction_scaling;
-								lateral = lcs * loc_lateral;
-							}
-
-							btScalar rel_vel_lateral = lateral.length();
-
-							if (rel_vel_lateral > SIMD_EPSILON) {
-								btScalar friction_factor = hit_object->getFriction();//cl_object->getFriction();
-
-								btScalar max_friction = friction_factor * btMax(btScalar(0.0), i_spring);
-								
-								btScalar rel_mom_lateral = rel_vel_lateral / cl_object->getInvMass();
-
-								btVector3 friction = (rel_mom_lateral > max_friction) ?
-								                     -lateral * (max_friction / rel_vel_lateral) :
-								                     -lateral;
-
-								cl_object->applyCentralImpulse(friction);
-							}
+						cl_object->setLinearVelocity(cl_object->getLinearVelocity() + (-(i_spring + i_damp) * ray_dir) * step);
+						if (hitObjShapeProps.m_fh_normal) {
+							cl_object->setLinearVelocity(cl_object->getLinearVelocity() + (i_spring + i_damp) * (normal - normal.dot(ray_dir) * ray_dir) * step);
 						}
 
+						btVector3 lateral = rel_vel - rel_vel_ray * ray_dir;
 
-						if (ctrl->GetConstructionInfo().m_do_rot_fh) {
-							btVector3 up2 = cl_object->getWorldTransform().getBasis().getColumn(2);
-
-							btVector3 t_spring = up2.cross(normal) * hitObjShapeProps.m_fh_spring;
-							btVector3 ang_vel = cl_object->getAngularVelocity();
-
-							// only rotations that tilt relative to the normal are damped
-							ang_vel -= ang_vel.dot(normal) * normal;
-
-							btVector3 t_damp = ang_vel * hitObjShapeProps.m_fh_damping;
-
-							cl_object->setAngularVelocity(cl_object->getAngularVelocity() + (t_spring - t_damp));
+						if (ctrl->GetConstructionInfo().m_do_anisotropic) {
+							//Bullet basis contains no scaling/shear etc.
+							const btMatrix3x3& lcs = cl_object->getCenterOfMassTransform().getBasis();
+							btVector3 loc_lateral = lateral * lcs;
+							const btVector3& friction_scaling = cl_object->getAnisotropicFriction();
+							loc_lateral *= friction_scaling;
+							lateral = lcs * loc_lateral;
 						}
+
+						btScalar rel_vel_lateral = lateral.length();
+
+						if (rel_vel_lateral > SIMD_EPSILON) {
+							btScalar friction_factor = hit_object->getFriction();//cl_object->getFriction();
+
+							btScalar max_friction = friction_factor * btMax(btScalar(0.0), i_spring);
+							
+							btScalar rel_mom_lateral = rel_vel_lateral / cl_object->getInvMass();
+
+							btVector3 friction = (rel_mom_lateral > max_friction) ?
+							                     -lateral * (max_friction / rel_vel_lateral) :
+							                     -lateral;
+
+							cl_object->applyCentralImpulse(friction * step);
+						}
+					}
+
+
+					if (ctrl->GetConstructionInfo().m_do_rot_fh) {
+						btVector3 up2 = cl_object->getWorldTransform().getBasis().getColumn(2);
+
+						btVector3 t_spring = up2.cross(normal) * hitObjShapeProps.m_fh_spring;
+						btVector3 ang_vel = cl_object->getAngularVelocity();
+
+						// only rotations that tilt relative to the normal are damped
+						ang_vel -= ang_vel.dot(normal) * normal;
+
+						btVector3 t_damp = ang_vel * hitObjShapeProps.m_fh_damping;
+
+						cl_object->setAngularVelocity(cl_object->getAngularVelocity() + (t_spring - t_damp) * step);
 					}
 				}
 			}

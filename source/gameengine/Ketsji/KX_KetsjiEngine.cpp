@@ -121,7 +121,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_inputDevice(NULL),
 	m_bInitialized(false),
 	m_activecam(0),
-	m_bFixedTime(false),
+	m_fixedFramerate(false),
 	m_useExternalClock(false),
 	m_firstframe(true),
 	m_frameTime(0.0f),
@@ -315,18 +315,14 @@ void KX_KetsjiEngine::EndFrame()
 
 bool KX_KetsjiEngine::NextFrame()
 {
-	double timestep = m_timescale / m_ticrate;
-	double framestep = timestep;
 
 	m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
 
 	/*
-	 * Clock advancement. There is basically three case:
+	 * Clock advancement. There is basically two case:
 	 *   - m_useExternalClock is true, the user is responsible to advance the time
 	 *   manually using setClockTime, so here, we do not do anything.
-	 *   - m_useExternalClock is false, m_bFixedTime is true, we advance for one
-	 *   timestep, which already handle the time scaling parameter
-	 *   - m_useExternalClock is false, m_bFixedTime is false, we consider how much
+	 *   - m_useExternalClock is false, we consider how much
 	 *   time has elapsed since last call and we scale this time by the time
 	 *   scaling parameter. If m_timescale is 1.0 (default value), the clock
 	 *   corresponds to the computer clock.
@@ -338,6 +334,7 @@ bool KX_KetsjiEngine::NextFrame()
 	 *   - ticrate 
 	 *   - max_physic_frame
 	 *   - max_logic_frame
+	 *   - fixed_framerate
 	 * XXX The logic over computation framestep is definitively not clear (and
 	 * I'm not even sure it is correct). If needed frame is strictly greater
 	 * than max_physics_frame, we are doing a jump in game time, but keeping
@@ -346,16 +343,16 @@ bool KX_KetsjiEngine::NextFrame()
 	 *
 	 * XXX render.fps is not considred anywhere.
 	 */
+
+	double timestep = m_timescale / m_ticrate;
 	if (!m_useExternalClock) {
-		if (m_bFixedTime) {
-			m_clockTime += timestep;
-		}
-		else {
-			double current_time = m_kxsystem->GetTimeInSeconds();
-			double dt = current_time - m_previousRealTime;
-			m_previousRealTime = current_time;
-			// m_clockTime += dt;
-			m_clockTime += dt * m_timescale;
+		double current_time = m_kxsystem->GetTimeInSeconds();
+		double dt = current_time - m_previousRealTime;
+		m_previousRealTime = current_time;
+		m_clockTime += dt * m_timescale;
+
+		if (!m_fixedFramerate) {
+			timestep = dt * m_timescale;
 		}
 	}
 
@@ -366,15 +363,22 @@ bool KX_KetsjiEngine::NextFrame()
 		return false;
 	}
 
-	// Compute the number of logic frames to do each update (fixed tic bricks)
-	int frames = int(deltatime * m_ticrate / m_timescale + 1e-6);
+	// In case of non-fixed framerate, we always proceed one frame.
+	int frames = 1;
+
+	// Compute the number of logic frames to do each update in case of fixed framerate.
+	if (m_fixedFramerate) {
+		frames = int(deltatime * m_ticrate / m_timescale + 1e-6);
+	}
+
 //	if (frames>1)
 //		printf("****************************************");
 //	printf("dt = %f, deltatime = %f, frames = %d\n",dt, deltatime,frames);
 	
 //	if (!frames)
 //		PIL_sleep_ms(1);
-	KX_SceneList::iterator sceneit;
+
+	double framestep = timestep;
 
 	if (frames > m_maxPhysicsFrame) {
 		m_frameTime += (frames - m_maxPhysicsFrame) * timestep;
@@ -436,7 +440,7 @@ bool KX_KetsjiEngine::NextFrame()
 				// Process sensors, and controllers
 				m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_CONTROLLER);
-				scene->LogicBeginFrame(m_frameTime);
+				scene->LogicBeginFrame(m_frameTime, framestep);
 
 				// Scenegraph needs to be updated again, because Logic Controllers
 				// can affect the local matrices.
@@ -1488,9 +1492,9 @@ void KX_KetsjiEngine::ResumeScene(const STR_String& scenename)
 	}
 }
 
-void KX_KetsjiEngine::SetUseFixedTime(bool bUseFixedTime)
+void KX_KetsjiEngine::SetUseFixedFramerate(bool fixedFramerate)
 {
-	m_bFixedTime = bUseFixedTime;
+	m_fixedFramerate = fixedFramerate;
 }
 
 void KX_KetsjiEngine::SetUseExternalClock(bool useExternalClock)
@@ -1498,9 +1502,9 @@ void KX_KetsjiEngine::SetUseExternalClock(bool useExternalClock)
 	m_useExternalClock = useExternalClock;
 }
 
-bool KX_KetsjiEngine::GetUseFixedTime(void) const
+bool KX_KetsjiEngine::GetUseFixedFramerate(void) const
 {
-	return m_bFixedTime;
+	return m_fixedFramerate;
 }
 
 bool KX_KetsjiEngine::GetUseExternalClock(void) const
