@@ -38,7 +38,6 @@
 #include <vector>
 
 class SCA_IScene;
-class RAS_ICanvas;
 
 class RAS_BucketManager
 {
@@ -86,7 +85,7 @@ public:
 	RAS_BucketManager();
 	virtual ~RAS_BucketManager();
 
-	void Renderbuckets(const MT_Transform & cameratrans, RAS_IRasterizer *rasty, RAS_ICanvas *canvas);
+	void Renderbuckets(const MT_Transform & cameratrans, RAS_IRasterizer *rasty);
 
 	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
 

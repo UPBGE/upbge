@@ -85,9 +85,7 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 
-		if (!(DNA_struct_elem_find(fd->filesdna, "Material", "float", "depthtranspfactor") &&
-			DNA_struct_elem_find(fd->filesdna, "Material", "float", "depthtranspoffset")))
-		{
+		if (!DNA_struct_elem_find(fd->filesdna, "Material", "float", "depthtranspfactor")) {
 			for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
 				ma->depthtranspfactor = 1.0f;
 			}

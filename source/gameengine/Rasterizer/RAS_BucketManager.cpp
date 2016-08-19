@@ -199,7 +199,7 @@ void RAS_BucketManager::RenderBasicBuckets(const MT_Transform& cameratrans, RAS_
 	}
 }
 
-void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
+void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)
 {
 	switch (rasty->GetDrawingMode()) {
 		case RAS_IRasterizer::RAS_SHADOW:
@@ -286,19 +286,20 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			RenderBasicBuckets(cameratrans, rasty, SOLID_BUCKET);
 			RenderBasicBuckets(cameratrans, rasty, SOLID_INSTANCING_BUCKET);
 
+			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
+
 			RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
 
+			// Render soft particles after all other kind of geometry render.
 			if ((GetNumActiveMeshSlots(ALPHA_DEPTH_BUCKET) + GetNumActiveMeshSlots(ALPHA_DEPTH_INSTANCING_BUCKET)) > 0) {
-				rasty->UpdateGlobalDepthTexture(canvas);
-
-				rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
+				rasty->UpdateGlobalDepthTexture();
 
 				RenderBasicBuckets(cameratrans, rasty, ALPHA_DEPTH_INSTANCING_BUCKET);
 				RenderSortedBuckets(cameratrans, rasty, ALPHA_DEPTH_BUCKET);
-
-				rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 			}
+
+			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 			break;
 		}
 	}

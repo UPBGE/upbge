@@ -410,7 +410,7 @@ bool ImageRender::Render()
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_scene->RenderBuckets(camtrans, m_rasterizer, m_canvas);
+	m_scene->RenderBuckets(camtrans, m_rasterizer);
 
 	// restore the canvas area now that the render is completed
 	m_canvas->GetWindowArea() = area;

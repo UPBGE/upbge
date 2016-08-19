@@ -2255,7 +2255,7 @@ void RAS_OpenGLRasterizer::LoadIdentity()
 	glLoadIdentity();
 }
 
-void RAS_OpenGLRasterizer::UpdateGlobalDepthTexture(RAS_ICanvas *canvas)
+void RAS_OpenGLRasterizer::UpdateGlobalDepthTexture()
 {
 	unsigned short index = m_offScreens.GetCurrentIndex();
 	if (m_offScreens.GetSamples(index)) {
