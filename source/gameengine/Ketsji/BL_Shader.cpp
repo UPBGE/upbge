@@ -222,7 +222,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, getFragmentProg, "getFragmentProg( )")
 
 KX_PYMETHODDEF_DOC(BL_Shader, validate, "validate()")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -239,7 +239,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, validate, "validate()")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -267,7 +267,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
 /// access functions
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform1f, "setUniform1f(name, fx)")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -291,7 +291,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform1f, "setUniform1f(name, fx)")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform2f, "setUniform2f(name, fx, fy)")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -315,7 +315,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform2f, "setUniform2f(name, fx, fy)")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform3f, "setUniform3f(name, fx,fy,fz) ")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -339,7 +339,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform3f, "setUniform3f(name, fx,fy,fz) ")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform4f, "setUniform4f(name, fx,fy,fz, fw) ")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -363,7 +363,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform4f, "setUniform4f(name, fx,fy,fz, fw) ")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 	const char *uniform;
@@ -397,7 +397,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform1i, "setUniform1i(name, ix)")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -421,7 +421,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform1i, "setUniform1i(name, ix)")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform2i, "setUniform2i(name, ix, iy)")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -445,7 +445,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform2i, "setUniform2i(name, ix, iy)")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform3i, "setUniform3i(name, ix,iy,iz) ")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -469,7 +469,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform3i, "setUniform3i(name, ix,iy,iz) ")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform4i, "setUniform4i(name, ix,iy,iz, iw) ")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -493,7 +493,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform4i, "setUniform4i(name, ix,iy,iz, iw) ")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformfv, "setUniformfv(float (list2 or list3 or list4))")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -563,7 +563,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformfv, "setUniformfv(float (list2 or list3 
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 or list3 or list4))")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -652,7 +652,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 o
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
                    "setUniformMatrix4(uniform_name, mat-4x4, transpose(row-major=true, col-major=false)")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -701,7 +701,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix3,
                    "setUniformMatrix3(uniform_name, list[3x3], transpose(row-major=true, col-major=false)")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -746,7 +746,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix3,
 
 KX_PYMETHODDEF_DOC(BL_Shader, setAttrib, "setAttrib(enum)")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
@@ -771,7 +771,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setAttrib, "setAttrib(enum)")
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformDef, "setUniformDef(name, enum)")
 {
-	if (m_error) {
+	if (!m_shader) {
 		Py_RETURN_NONE;
 	}
 
