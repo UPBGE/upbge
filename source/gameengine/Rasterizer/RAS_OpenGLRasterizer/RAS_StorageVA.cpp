@@ -179,7 +179,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 	RAS_IPolyMaterial *material = ms->m_bucket->GetPolyMaterial();
 
 	if (ms->m_pDeformer)
-		ms->m_pDeformer->BeginHandleGPUAttribs(array);
+		ms->m_pDeformer->BeginHandleGPUAttribs(array, material);
 
 	// colors
 	if (!wireframe && material->UsesObjectColor()) {
@@ -197,7 +197,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot *ms)
 	}
 
 	if (ms->m_pDeformer)
-		ms->m_pDeformer->EndHandleGPUAttribs();
+		ms->m_pDeformer->EndHandleGPUAttribs(material);
 }
 
 void RAS_StorageVA::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket)

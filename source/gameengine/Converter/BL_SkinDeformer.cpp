@@ -70,6 +70,7 @@ extern "C" {
 
 #define __NLA_DEFNORMALS
 //#undef __NLA_DEFNORMALS
+#define MAX_NUMBER_OF_BONES_ON_GPU 128
 
 static short get_deformflags(Object *bmeshobj)
 {
@@ -132,25 +133,6 @@ BL_SkinDeformer::BL_SkinDeformer(
 	m_deformflags = get_deformflags(bmeshobj_new);
 
 	VerifyHardwareSkinning();
-}
-
-void BL_SkinDeformer::VerifyHardwareSkinning()
-{
-	if (m_armobj && m_armobj->GetVertDeformType() == ARM_VDEF_BGE_GPU) {
-		// Check to see if we can do this skinning in hardware, and fallback to software if we cannot.
-		// Each matrix is sixteen components, and we don't want to use more than half of the available components.
-		// We consider a maximum of 128 bones too.
-		int defbase_tot = BLI_countlist(&m_objMesh->defbase);
-		int max = GPU_max_vertex_uniform_components() / 32;
-		if (max > 128)
-			max = 128;
-
-		if (defbase_tot > max) {
-			printf("Skinned mesh with %d bones not supported by hardware (max: %d): %s. Using software skinning.\n",
-			       defbase_tot, max, m_objMesh->id.name);
-			m_armobj->SetVertDeformType(ARM_VDEF_BGE_CPU);
-		}
-	}
 }
 
 BL_SkinDeformer::~BL_SkinDeformer()
@@ -460,9 +442,29 @@ void BL_SkinDeformer::SetArmature(BL_ArmatureObject *armobj)
 	m_armobj = armobj;
 }
 
-void BL_SkinDeformer::HandleGPUUniforms(RAS_IRasterizer *rasty, RAS_MeshSlot &ms)
+/* Hardware Skinning */
+void BL_SkinDeformer::VerifyHardwareSkinning()
 {
-	if (m_armobj->GetVertDeformType() != ARM_VDEF_BGE_GPU)
+	if (m_armobj && m_armobj->GetVertDeformType() == ARM_VDEF_BGE_GPU) {
+		// Check to see if we can do this skinning in hardware, and fallback to software if we cannot.
+		// Each matrix is sixteen components, and we don't want to use more than half of the available components.
+		// We consider a maximum of 128 bones too.
+		int defbase_tot = BLI_countlist(&m_objMesh->defbase);
+		int max = GPU_max_vertex_uniform_components() / 32;
+		if (max > MAX_NUMBER_OF_BONES_ON_GPU)
+			max = MAX_NUMBER_OF_BONES_ON_GPU;
+
+		if (defbase_tot > max) {
+			printf("Skinned mesh with %d bones not supported by hardware (max: %d): %s. Using software skinning.\n",
+			       defbase_tot, max, m_objMesh->id.name);
+			m_armobj->SetVertDeformType(ARM_VDEF_BGE_CPU);
+		}
+	}
+}
+
+void BL_SkinDeformer::HandleGPUUniforms(RAS_IRasterizer *rasty, RAS_MeshSlot &ms, RAS_IPolyMaterial *poly_mat)
+{
+	if ((m_armobj->GetVertDeformType() != ARM_VDEF_BGE_GPU) || !poly_mat)
 		return;
 
 	int defbase_tot = BLI_countlist(&m_objMesh->defbase);
@@ -494,19 +496,18 @@ void BL_SkinDeformer::HandleGPUUniforms(RAS_IRasterizer *rasty, RAS_MeshSlot &ms
 
 
 	GPUShader *shader = (GPUShader *)rasty->GetCurrentProgram();
-	m_shader = shader;
+	m_shader = shader; //???? why?
 
-	int loc = GPU_shader_get_uniform(shader, "useshwskin");
-	GPU_shader_uniform_int(shader, loc, 1);
-
-	loc = GPU_shader_get_uniform(shader, "bonematrices");
-	GPU_shader_uniform_vector(shader, loc, 16, defbase_tot, m_poseMatrices);
+	GPUMaterial *gpu_mat = GPU_material_from_blender(poly_mat->GetBlenderScene(), poly_mat->GetBlenderMaterial(), false, false, true);
+	if (gpu_mat->hwskinbonematrices =! -1) {
+		GPU_shader_uniform_vector(shader, gpu_mat->hwskinbonematrices, 16, defbase_tot, m_poseMatrices);
+	}
 }
 
 
-void BL_SkinDeformer::BeginHandleGPUAttribs(RAS_DisplayArray *array)
+void BL_SkinDeformer::BeginHandleGPUAttribs(RAS_DisplayArray *array, RAS_IPolyMaterial *poly_mat)
 {
-	if (m_armobj->GetVertDeformType() != ARM_VDEF_BGE_GPU)
+	if ((m_armobj->GetVertDeformType() != ARM_VDEF_BGE_GPU) || !poly_mat)
 		return;
 
 	SkinVertData *skinverts = m_skinVertData[array];
@@ -563,13 +564,18 @@ void BL_SkinDeformer::BeginHandleGPUAttribs(RAS_DisplayArray *array)
 		}
 	}
 
-	GPU_material_bind_hwskinning_attrib(GPUMaterial *material, skinverts[0].weights, skinverts[0].indexes, skinverts[0].num_bones );
+	GPUMaterial *gpu_mat = GPU_material_from_blender(poly_mat->GetBlenderScene(), poly_mat->GetBlenderMaterial(), false, false, true);
+	GPU_material_bind_hwskinning_attrib(gpu_mat, skinverts[0].weights, skinverts[0].indexes, skinverts[0].num_bones );
 }
 
-void BL_SkinDeformer::EndHandleGPUAttribs()
+void BL_SkinDeformer::EndHandleGPUAttribs(RAS_IPolyMaterial *poly_mat)
 {
-	if (m_armobj->GetVertDeformType() != ARM_VDEF_BGE_GPU)
+	if ((m_armobj->GetVertDeformType() != ARM_VDEF_BGE_GPU) || !poly_mat)
 		return;
-
-	GPU_material_unbind_hwskinning_attrib(GPUMaterial *material)
+	
+	GPU_material_unbind_hwskinning_attrib(GPU_material_from_blender(poly_mat->GetBlenderScene(),
+																	poly_mat->GetBlenderMaterial(),
+																	false, 
+																	false, 
+																	true));
 }

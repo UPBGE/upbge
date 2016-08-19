@@ -1729,6 +1729,9 @@ GPUPass *GPU_generate_pass(
 	if (use_instancing) {
 		flags |= GPU_SHADER_FLAGS_SPECIAL_INSTANCING;
 	}
+	if (use_hwskinning) {
+		flags |= GPU_SHADER_FLAGS_SPECIAL_HWSKINNING;
+	}
 	shader = GPU_shader_create_ex(vertexcode,
 	                              fragmentcode,
 	                              geometrycode,

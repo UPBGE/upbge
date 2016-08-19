@@ -192,6 +192,7 @@ static void gpu_shader_standard_extensions(char defines[MAX_EXT_DEFINE_LENGTH], 
 static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH],
                                         bool use_opensubdiv,
 										bool use_instancing,
+										bool use_hwskinning,
                                         bool use_new_shading)
 {
 	/* some useful defines to detect GPU type */
@@ -243,7 +244,6 @@ static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH],
 		strcat(defines, "#define USE_NEW_SHADING\n");
 	}
 
-	int use_hwskinning = true; //XXX lordloki, remove later only for testing
 	if (use_hwskinning) {
 		strcat(defines, "#define USE_HARDWARE_SKINNING\n");
 	}
@@ -292,6 +292,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	bool use_opensubdiv = false;
 #endif
 	bool use_instancing = (flags & GPU_SHADER_FLAGS_SPECIAL_INSTANCING) != 0;
+	bool use_hwskinning = (flags & GPU_SHADER_FLAGS_SPECIAL_HWSKINNING) != 0;
 	GLint status;
 	GLchar log[5000];
 	GLsizei length = 0;
@@ -326,6 +327,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	gpu_shader_standard_defines(standard_defines,
 	                            use_opensubdiv,
 								use_instancing,
+								use_hwskinning,
 	                            (flags & GPU_SHADER_FLAGS_NEW_SHADING) != 0);
 	gpu_shader_standard_extensions(standard_extensions, geocode != NULL);
 

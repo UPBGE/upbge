@@ -106,9 +106,9 @@ public:
 		aabbMax = m_aabbMax;
 	}
 
-	virtual void HandleGPUUniforms(RAS_IRasterizer *rasty, RAS_MeshSlot& ms) {}
-	virtual void BeginHandleGPUAttribs(RAS_DisplayArray *array) {}
-	virtual void EndHandleGPUAttribs() {}
+	virtual void HandleGPUUniforms(RAS_IRasterizer *rasty, RAS_MeshSlot& ms, RAS_IPolyMaterial *poly_mat) {}
+	virtual void BeginHandleGPUAttribs(RAS_DisplayArray *array, RAS_IPolyMaterial *poly_mat) {}
+	virtual void EndHandleGPUAttribs(RAS_IPolyMaterial *poly_mat) {}
 
 protected:
 	class RAS_MeshObject	*m_pMesh;
