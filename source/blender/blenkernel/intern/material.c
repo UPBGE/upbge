@@ -205,7 +205,6 @@ void BKE_material_init(Material *ma)
 	ma->game.storage_flag = 0;
 
 	ma->depthtranspfactor = 1.0f;
-	ma->depthtranspoffset = 0.0f;
 
 	ma->mode = MA_TRACEBLE | MA_SHADBUF | MA_SHADOW | MA_RAYBIAS | MA_TANGENT_STR | MA_ZTRANSP;
 	ma->mode2 = MA_CASTSHADOW;

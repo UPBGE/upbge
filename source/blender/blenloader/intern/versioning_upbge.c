@@ -90,7 +90,6 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 		{
 			for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
 				ma->depthtranspfactor = 1.0f;
-				ma->depthtranspoffset = 0.0f;
 			}
 		}
 

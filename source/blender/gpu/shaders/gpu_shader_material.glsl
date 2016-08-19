@@ -1836,13 +1836,13 @@ float calculate_view_position(vec2 co, float depth, ivec2 size)
     return dz;
 }
 
-void shade_alpha_depth(vec3 vp, sampler2D ima, float alpha, float factor, float offset, out float outalpha)
+void shade_alpha_depth(vec3 vp, sampler2D ima, float alpha, float factor, out float outalpha)
 {
 	vec4 depth = texelFetch(ima, ivec2(gl_FragCoord.xy), 0);
 
 	vec4 fadeDepth = gl_ProjectionMatrix * vec4(vp.xy, vp.z - factor, 1.0);
 
-	float startfade = gl_FragCoord.z + offset * gl_FragCoord.w;
+	float startfade = gl_FragCoord.z * gl_FragCoord.w;
 	float endfade = (1.0 + fadeDepth.z / fadeDepth.w) * 0.5;
 
 	outalpha = alpha * smoothstep(startfade, endfade, depth);

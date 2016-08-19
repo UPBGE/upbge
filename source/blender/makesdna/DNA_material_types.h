@@ -203,7 +203,6 @@ typedef struct Material {
 
 	/* Depth transparency settings */
 	float depthtranspfactor;
-	float depthtranspoffset;
 
 	/* multiple tangent (Normal Map node) */
 	char nmap_tangent_names[9][64]; /* [MAX_MTFACE+1][MAX_NAME]; +1 for empty name */
