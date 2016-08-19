@@ -156,14 +156,13 @@ void *RAS_Shader::RAS_Uniform::GetData()
 	return m_data;
 }
 
-bool RAS_Shader::Ok()const
+bool RAS_Shader::Ok() const
 {
-	return (m_shader && m_ok && m_use);
+	return (m_shader && m_use);
 }
 
 RAS_Shader::RAS_Shader()
 	:m_shader(NULL),
-	m_ok(0),
 	m_use(0),
 	m_attr(0),
 	m_error(0),
@@ -277,7 +276,6 @@ void RAS_Shader::DeleteShader()
 	if (m_shader) {
 		GPU_shader_free(m_shader);
 		m_shader = NULL;
-		m_ok = false;
 	}
 }
 
@@ -304,13 +302,11 @@ bool RAS_Shader::LinkProgram()
 		goto program_error;
 	}
 
-	m_ok = 1;
 	m_error = 0;
 	return true;
 
 	program_error:
 	{
-		m_ok = 0;
 		m_use = 0;
 		m_error = 1;
 		return false;
@@ -349,7 +345,7 @@ void RAS_Shader::SetSampler(int loc, int unit)
 
 void RAS_Shader::SetProg(bool enable)
 {
-	if (m_shader && m_ok && enable) {
+	if (m_shader && enable) {
 		GPU_shader_bind(m_shader);
 	}
 	else {
