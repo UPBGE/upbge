@@ -72,8 +72,8 @@ void GPU_framebuffer_blur(
         GPUFrameBuffer *blurfb, struct GPUTexture *blurtex);
 
 typedef enum GPURenderBufferType {
-	GPU_RENDER_BUFFERCOLOR = 0,
-	GPU_RENDER_BUFFERDEPTH = 1,
+	GPU_RENDERBUFFER_COLOR = 0,
+	GPU_RENDERBUFFER_DEPTH = 1,
 } GPURenderBufferType;
 
 GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPUHDRType hdrtype, GPURenderBufferType type, char err_out[256]);

@@ -524,7 +524,7 @@ GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPU
 
 	glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, rb->bindcode);
 
-	if (type == GPU_RENDER_BUFFERDEPTH) {
+	if (type == GPU_RENDERBUFFER_DEPTH) {
 		if (samples > 0) {
 			glRenderbufferStorageMultisampleEXT(GL_RENDERBUFFER_EXT, samples, GL_DEPTH_COMPONENT, width, height);
 		}
@@ -644,7 +644,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRTyp
 	ofs->samples = samples;
 
 	if (mode & GPU_OFFSCREEN_RENDERBUFFER_COLOR) {
-		ofs->rbcolor = GPU_renderbuffer_create(width, height, samples, hdrtype, GPU_RENDER_BUFFERCOLOR, err_out);
+		ofs->rbcolor = GPU_renderbuffer_create(width, height, samples, hdrtype, GPU_RENDERBUFFER_COLOR, err_out);
 		if (!ofs->rbcolor) {
 			GPU_offscreen_free(ofs);
 			return NULL;
@@ -669,7 +669,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRTyp
 	}
 
 	if (mode & GPU_OFFSCREEN_RENDERBUFFER_DEPTH) {
-		ofs->rbdepth = GPU_renderbuffer_create(width, height, samples, GPU_HDR_NONE, GPU_RENDER_BUFFERDEPTH, err_out);
+		ofs->rbdepth = GPU_renderbuffer_create(width, height, samples, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, err_out);
 		if (!ofs->rbdepth) {
 			GPU_offscreen_free(ofs);
 			return NULL;
