@@ -53,7 +53,10 @@ RAS_CubeMap::RAS_CubeMap(void *clientobj, RAS_Texture *texture, RAS_IRasterizer 
 	m_layers(0xFFFF)
 {
 	MTex *mtex = m_texture->GetMTex();
-	float clipend = mtex->tex->env->clipend;
+
+	const float clipstart = mtex->tex->env->clipsta;
+	const float clipend = mtex->tex->env->clipend;
+
 	m_layers = ~mtex->tex->env->notlay;
 
 	m_cubeMapTexture = m_texture->GetGPUTexture();
@@ -64,7 +67,7 @@ RAS_CubeMap::RAS_CubeMap(void *clientobj, RAS_Texture *texture, RAS_IRasterizer 
 	GPU_texture_filter_mode(m_cubeMapTexture, false, false);
 	GPU_texture_unbind(m_cubeMapTexture);
 
-	m_proj = rasty->GetFrustumMatrix(-0.001f, 0.001f, -0.001f, 0.001f, 0.001f, clipend, 1.0f);
+	m_proj = rasty->GetFrustumMatrix(-clipstart, clipstart, -clipstart, clipstart, clipstart, clipend, 1.0f, true);
 
 	for (unsigned short i = 0; i < 6; ++i) {
 		m_fbos[i] = GPU_framebuffer_create();
