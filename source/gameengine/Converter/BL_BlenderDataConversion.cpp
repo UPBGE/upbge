@@ -535,7 +535,10 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		for (int j = 0; j < RAS_Texture::MaxUnits; j++) {
 			MTex *mtex = mesh->mat[i]->mtex[j];
 			if (mtex && mtex->tex->env) {
-				rendersmooth = mtex->tex->env->stype == ENV_REALT;
+				if (mtex->tex->env->stype == ENV_REALT) {
+					rendersmooth = true;
+					break;
+				}
 			}
 		}
 	}
