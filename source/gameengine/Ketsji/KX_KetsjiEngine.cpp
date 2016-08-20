@@ -1205,7 +1205,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		                           m_canvas->GetWidth() /* RdV, TODO ?? */,
 		                           m_canvas->GetHeight() /* RdV, TODO ?? */);
 
-		debugtxt.Format("%5.1fms (%.1ffps)", tottime * 1000.0f, 1.0f / tottime);
+		debugtxt.Format("%5.2fms (%.1ffps)", tottime * 1000.0f, 1.0f / tottime);
 		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
 		                           debugtxt.ReadPtr(),
 		                           xcoord + const_xindent + profile_indent,
