@@ -640,8 +640,7 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
             col = split.column(align=True)
 
             col.label(text="Clipping:")
-            if env.source != 'REALTIME_REFL':
-                col.prop(env, "clip_start", text="Start")
+            col.prop(env, "clip_start", text="Start")
             col.prop(env, "clip_end", text="End")
 
 
