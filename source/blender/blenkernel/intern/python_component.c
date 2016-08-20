@@ -234,14 +234,14 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 		}
 		else if (PySet_Check(pyvalue)) {
 			PyObject *iterator = PyObject_GetIter(pyvalue), *v = NULL;
-			int j = 0;
+			unsigned int j = 0;
 			cprop->type = CPROP_TYPE_SET;
 
 			memset(&cprop->enumval, 0, sizeof(ListBase));
 			// Iterate to convert every enums to char.
 			while ((v = PyIter_Next(iterator))) {
 				if (!PyUnicode_Check(v)) {
-					printf("Enum property \"%s\" contains a non-string item (%i)\n", name, j);
+					printf("Enum property \"%s\" contains a non-string item (%u)\n", name, j);
 					continue;
 				}
 
@@ -283,7 +283,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 						cprop->vec[j] = PyFloat_AsDouble(item);
 					}
 					else {
-						printf("Sequence property \"%s\" contains a non-float item (%i)\n", name, j);
+						printf("Sequence property \"%s\" contains a non-float item (%u)\n", name, j);
 					}
 					Py_DECREF(item);
 				}
