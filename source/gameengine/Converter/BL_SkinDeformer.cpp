@@ -63,8 +63,6 @@ extern "C" {
 #include "GPU_material.h"
 #include "GPU_extensions.h"
 
-#include <GL/glew.h>
-
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 

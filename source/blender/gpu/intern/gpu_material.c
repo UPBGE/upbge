@@ -400,7 +400,7 @@ void GPU_material_unbind_instancing_attrib(GPUMaterial *material)
 	}
 }
 
-GPU_material_bind_hwskinning_attrib(GPUMaterial *material, void *weights, void *indexes, void *num_bones )
+void GPU_material_bind_hwskinning_attrib(GPUMaterial *material, void *weights, void *indexes, void *num_bones )
 {
 	if (material->hwskinweight != -1) {
 		glEnableVertexAttribArrayARB(material->hwskinweight);
@@ -418,7 +418,7 @@ GPU_material_bind_hwskinning_attrib(GPUMaterial *material, void *weights, void *
 	}
 }
 
-GPU_material_unbind_hwskinning_attrib(GPUMaterial *material)
+void GPU_material_unbind_hwskinning_attrib(GPUMaterial *material)
 {
 	if (material->hwskinweight != -1) {
 		glDisableVertexAttribArray(material->hwskinweight);
@@ -516,8 +516,7 @@ void GPU_material_bind(
 	}
 }
 
-void GPU_material_bind_uniforms(
-        GPUMaterial *material, float obmat[4][4], float viewmat[4][4], float obcol[4],
+void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[4][4], float viewmat[4][4], float obcol[4],
         float autobumpscale, GPUParticleInfo *pi)
 {
 	if (material->pass) {
@@ -566,6 +565,9 @@ void GPU_material_bind_uniforms(
 		}
 		if (material->builtins & GPU_PARTICLE_ANG_VELOCITY) {
 			GPU_shader_uniform_vector(shader, material->partangvel, 3, 1, pi->angular_velocity);
+		}
+		if (material->builtins & GPU_HARDWARE_SKINNING_BONEMATRICES) {
+			GPU_shader_uniform_vector(shader, material->hwskinbonematrices, 16, defbase_tot, poseMatrices);
 		}
 	}
 }
@@ -2868,7 +2870,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 	int liblen, fraglen;
 
 	/* TODO(sergey): How to determine whether we need OSD or not here? */
-	GPUMaterial *mat = GPU_material_from_blender(scene, ma, false, false);
+	GPUMaterial *mat = GPU_material_from_blender(scene, ma, false, false, false);
 	GPUPass *pass = (mat) ? mat->pass : NULL;
 
 	if (pass && pass->fragmentcode && pass->vertexcode) {

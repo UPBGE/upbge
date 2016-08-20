@@ -389,8 +389,8 @@ void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffs
 void GPU_material_unbind_instancing_attrib(GPUMaterial *material);
 
 /* hardware skinning material */
-GPU_material_bind_hwskinning_attrib(GPUMaterial *material, void *weights, void *indexes, void *num_bones);
-GPU_material_unbind_hwskinning_attrib(GPUMaterial *material);
+void GPU_material_bind_hwskinning_attrib(GPUMaterial *material, void *weights, void *indexes, void *num_bones);
+void GPU_material_unbind_hwskinning_attrib(GPUMaterial *material);
 
 #ifdef __cplusplus
 }
