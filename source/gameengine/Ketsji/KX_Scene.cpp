@@ -267,6 +267,14 @@ KX_Scene::~KX_Scene()
 	if (m_animatedlist)
 		m_animatedlist->Release();
 
+	if (m_cameralist) {
+		m_cameralist->Release();
+	}
+
+	if (m_fontlist) {
+		m_fontlist->Release();
+	}
+
 	if (m_filterManager) {
 		delete m_filterManager;
 	}
@@ -314,7 +322,7 @@ void KX_Scene::CreateGameobjWithCubeMapList(RAS_IRasterizer *rasty)
 				RAS_MeshMaterial * meshMat = mesh->GetMeshMaterial(k);
 
 				for (unsigned short l = 0; l < RAS_Texture::MaxUnits; ++l) {
-					RAS_IPolyMaterial *polymat = meshMat->m_bucket->GetIPolyMaterial();
+					RAS_IPolyMaterial *polymat = meshMat->m_bucket->GetPolyMaterial();
 					RAS_Texture *tex = polymat->GetTexture(l);
 
 					if (tex && tex->Ok() && tex->GetTextureType() == RAS_Texture::GetCubeMapTextureType() &&
