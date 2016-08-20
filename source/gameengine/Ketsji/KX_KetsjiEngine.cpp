@@ -436,7 +436,7 @@ bool KX_KetsjiEngine::NextFrame()
 				// Process sensors, and controllers
 				m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_CONTROLLER);
-				scene->LogicBeginFrame(m_frameTime);
+				scene->LogicBeginFrame(m_frameTime, framestep);
 
 				// Scenegraph needs to be updated again, because Logic Controllers
 				// can affect the local matrices.
