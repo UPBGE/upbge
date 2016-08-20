@@ -33,6 +33,7 @@ class RAS_Texture;
 class RAS_IRasterizer;
 
 struct GPUFrameBuffer;
+struct GPURenderBuffer;
 struct GPUTexture;
 
 class RAS_CubeMap
@@ -41,7 +42,8 @@ private:
 	RAS_Texture *m_texture;
 	GPUTexture *m_cubeMapTexture;
 	void *m_clientobj;
-	GPUFrameBuffer *m_fbo;
+	GPUFrameBuffer *m_fbos[6];
+	GPURenderBuffer *m_rbs[6];
 
 	MT_Matrix4x4 m_proj;
 

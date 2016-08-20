@@ -105,6 +105,8 @@ void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
 		return;
 	}
 
+	rasty->Disable(RAS_IRasterizer::RAS_SCISSOR_TEST);
+
 	// Copy current stereo mode.
 	const RAS_IRasterizer::StereoMode steremode = rasty->GetStereoMode();
 	rasty->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
@@ -115,6 +117,8 @@ void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
 
 	// Restore stereo mode.
 	rasty->SetStereoMode(steremode);
+
+	rasty->Enable(RAS_IRasterizer::RAS_SCISSOR_TEST);
 
 	rasty->RestoreScreenFrameBuffer();
 }
