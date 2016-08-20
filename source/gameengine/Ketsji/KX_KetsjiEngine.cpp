@@ -533,8 +533,11 @@ void KX_KetsjiEngine::Render()
 	BeginFrame();
 
 	for (CListValue::iterator sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
+		KX_Scene *scene = (KX_Scene *)*sceit;
 		// shadow buffers
-		RenderShadowBuffers((KX_Scene *)*sceit);
+		RenderShadowBuffers(scene);
+		// cubemaps
+		scene->RenderCubeMaps(m_rasterizer);
 	}
 
 	// Update all off screen to the current canvas size.
@@ -878,8 +881,6 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 	bool isfirstscene = (scene == m_scenes->GetFront());
 
 	KX_SetActiveScene(scene);
-
-	scene->RenderCubeMaps(m_rasterizer);
 
 #ifdef WITH_PYTHON
 	scene->RunDrawingCallbacks(scene->GetPreDrawSetupCB());

@@ -82,11 +82,6 @@ public:
 
 	RAS_DisplayArrayBucketList& GetDisplayArrayBucketList();
 
-	RAS_IPolyMaterial *GetIPolyMaterial()
-	{
-		return m_material;
-	}
-
 private:
 	RAS_MeshSlotList m_meshSlots; // all the mesh slots
 	RAS_IPolyMaterial *m_material;

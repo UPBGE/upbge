@@ -495,14 +495,14 @@ public:
 	virtual void SetFog(short type, float start, float dist, float intensity, float color[3]) = 0;
 	virtual void DisplayFog() = 0;
 	virtual void EnableFog(bool enable) = 0;
-
+	
 	/**
-	 * \param drawingmode = RAS_WIREFRAME, RAS_SOLID, RAS_SHADOW, RAS_TEXTURED or RAS_CUBEMAP.
+	 * \param drawingmode = RAS_WIREFRAME, RAS_SOLID, RAS_SHADOW or RAS_TEXTURED.
 	 */
 	virtual void SetDrawingMode(DrawType drawingmode) = 0;
 
 	/**
-	 * \return the current drawing mode: RAS_WIREFRAME, RAS_SOLID RAS_SHADOW, RAS_TEXTURED or RAS_CUBEMAP.
+	 * \return the current drawing mode: RAS_WIREFRAME, RAS_SOLID RAS_SHADOW or RAS_TEXTURED.
 	 */
 	virtual DrawType GetDrawingMode() = 0;
 
