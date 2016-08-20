@@ -47,8 +47,8 @@ private:
 
 	MT_Matrix4x4 m_proj;
 
-	/* layer to cull */
-	short m_layer;
+	/// Layers to render.
+	unsigned int m_layers;
 
 public:
 	RAS_CubeMap(void *clientobj, RAS_Texture *texture, RAS_IRasterizer *rasty);
@@ -63,7 +63,7 @@ public:
 	void UnbindFace();
 
 	const MT_Matrix4x4& GetProjection();
-	short GetLayer();
+	unsigned int GetLayers() const;
 };
 
 #endif  // __RAS_CUBEMAP_H__
