@@ -214,7 +214,7 @@ RAS_OpenGLRasterizer::OffScreens::OffScreens()
 	:m_currentIndex(-1),
 	m_width(0),
 	m_height(0),
-	m_samples(0),
+	m_samples(-1),
 	m_hdr(RAS_HDR_NONE)
 {
 	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_OFFSCREEN_MAX; ++i) {
@@ -236,18 +236,30 @@ GPUOffScreen *RAS_OpenGLRasterizer::OffScreens::GetOffScreen(unsigned short inde
 	if (!m_offScreens[index]) {
 		// The offscreen need to be created now.
 
-		// Check if the FBO index can support samples.
+		// Check if the off screen index can support samples.
 		const bool sampleofs = index == RAS_OFFSCREEN_RENDER ||
 							   index == RAS_OFFSCREEN_EYE_LEFT0 ||
 							   index == RAS_OFFSCREEN_EYE_RIGHT0;
 
-		// Get FBO mode : render buffer support for multisampled FBOs.
-		int mode = GPU_OFFSCREEN_MODE_NONE;
-		if (sampleofs && (m_samples > 0)) {
-			mode = GPU_OFFSCREEN_RENDERBUFFER_COLOR | GPU_OFFSCREEN_RENDERBUFFER_DEPTH;
-		}
+		/* Some GPUs doesn't support high multisample value with GL_RGBA16F or GL_RGBA32F.
+		 * To avoid crashing we check if the off screen was created and if not decremente
+		 * the multisample value and try to create the off screen to find a supported value.
+		 */
+		for (short samples = m_samples; samples >= 0; --samples) {
+			// Get off screen mode : render buffer support for multisampled off screen.
+			int mode = GPU_OFFSCREEN_MODE_NONE;
+			if (sampleofs && (samples > 0)) {
+				mode = GPU_OFFSCREEN_RENDERBUFFER_COLOR | GPU_OFFSCREEN_RENDERBUFFER_DEPTH;
+			}
 
-		m_offScreens[index] = GPU_offscreen_create(m_width, m_height, sampleofs ? m_samples : 0, (GPUHDRType)m_hdr, mode, NULL);
+			char errout[256];
+			GPUOffScreen *ofs = GPU_offscreen_create(m_width, m_height, sampleofs ? samples : 0, (GPUHDRType)m_hdr, mode, errout);
+			if (ofs) {
+				m_offScreens[index] = ofs;
+				m_samples = samples;
+				break;
+			}
+		}
 	}
 
 	return m_offScreens[index];
@@ -265,7 +277,12 @@ inline void RAS_OpenGLRasterizer::OffScreens::Update(RAS_ICanvas *canvas)
 
 	m_width = width;
 	m_height = height;
-	m_samples = canvas->GetSamples();
+
+	// The samples value was not yet set.
+	if (m_samples == -1) {
+		m_samples = canvas->GetSamples();
+	}
+
 	switch (canvas->GetHdrType()) {
 		case RAS_HDR_NONE:
 		{
@@ -284,7 +301,7 @@ inline void RAS_OpenGLRasterizer::OffScreens::Update(RAS_ICanvas *canvas)
 		}
 	}
 
-	// Destruct all FBOs.
+	// Destruct all off screens.
 	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_OFFSCREEN_MAX; ++i) {
 		if (m_offScreens[i]) {
 			GPU_offscreen_free(m_offScreens[i]);

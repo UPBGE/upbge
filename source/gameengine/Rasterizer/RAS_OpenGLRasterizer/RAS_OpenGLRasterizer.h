@@ -86,8 +86,8 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		unsigned int m_width;
 		/// The last height.
 		unsigned int m_height;
-		/// The number of samples.
-		unsigned short m_samples;
+		/// The number of wanted/supported samples.
+		short m_samples;
 		/// The HDR quality.
 		short m_hdr;
 
