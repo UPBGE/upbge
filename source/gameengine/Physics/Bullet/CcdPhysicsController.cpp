@@ -1016,6 +1016,10 @@ void CcdPhysicsController::RefreshCollisions()
 void CcdPhysicsController::SuspendDynamics(bool ghost)
 {
 	btRigidBody *body = GetRigidBody();
+	btSoftBody *sBody = GetSoftBody();
+	if (sBody) {
+		sBody->setActivationState(ISLAND_SLEEPING);
+	}
 	if (body && !m_suspended && !GetConstructionInfo().m_bSensor && GetPhysicsEnvironment()->IsActiveCcdPhysicsController(this)) {
 		btBroadphaseProxy *handle = body->getBroadphaseHandle();
 
@@ -1037,6 +1041,12 @@ void CcdPhysicsController::SuspendDynamics(bool ghost)
 void CcdPhysicsController::RestoreDynamics()
 {
 	btRigidBody *body = GetRigidBody();
+	btSoftBody *sBody = GetSoftBody();
+	if (sBody) {
+		if (!sBody->isActive()) {
+			sBody->setActivationState(ACTIVE_TAG);
+		}
+	}
 	if (body && m_suspended && GetPhysicsEnvironment()->IsActiveCcdPhysicsController(this)) {
 		// before make sure any position change that was done in this logic frame are accounted for
 		SetTransform();
