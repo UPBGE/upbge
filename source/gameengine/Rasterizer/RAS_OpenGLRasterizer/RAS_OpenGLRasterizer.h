@@ -194,6 +194,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, std::vector<OglDebugShape> > m_debugShapes;
 
+	/// Class used to manage off screens.
 	OffScreens m_offScreens;
 
 protected:
@@ -213,8 +214,10 @@ protected:
 	 * Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
 	RAS_IStorage *m_storages[RAS_STORAGE_MAX];
 
+	/// Initialize custom shader interface containing uniform location.
 	void InitOverrideShadersInterface();
 
+	/// Return GPUShader coresponding to the override shader enumeration.
 	GPUShader *GetOverrideGPUShader(OverrideShaderType type);
 
 public:

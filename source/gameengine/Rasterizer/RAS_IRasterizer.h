@@ -346,27 +346,49 @@ public:
 	 */
 	virtual void EndFrame() = 0;
 
-	/// Update dimensions of all frame buffer objects.
+	/// Update dimensions of all off screens.
 	virtual void UpdateOffScreens(RAS_ICanvas *canvas) = 0;
-	/// Bind frame buffer object.
+	/// Bind the off screen at the given index.
 	virtual void BindOffScreen(unsigned short index) = 0;
-	/// Unbind frame buffer object.
+	/// Unbind the off screen at the given index.
 	virtual void RestoreScreenFrameBuffer() = 0;
-	/** Draw frame buffer object without set viewport.
+
+	/** Draw off screen without set viewport.
 	 * Used to copy the frame buffer object to another.
+	 * \param srcindex The input off screen index.
+	 * \param dstindex The output off screen index.
 	 */
 	virtual void DrawOffScreen(unsigned short srcindex, unsigned short dstindex) = 0;
-	/// Draw frame buffer object to screen.
+
+	/** Draw off screen at the given index to screen.
+	 * \param canvas The canvas containing the screen viewport.
+	 * \param index The off screen index to read from.
+	 */
 	virtual void DrawOffScreen(RAS_ICanvas *canvas, unsigned short index) = 0;
-	/// Draw each stereo frame buffer object to screen.
+
+	/** Draw each stereo off screen to screen.
+	 * \param canvas The canvas containing the screen viewport.
+	 * \param lefteyeindex The left off screen index.
+	 * \param righteyeindex The right off screen index.
+	 */
 	virtual void DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex) = 0;
-	/// Bind frame buffer object texture.
+
+	/** Bind the off screen texture at the given index and slot.
+	 * \param index The off screen index.
+	 * \param slot The texture slot to bind the texture.
+	 * \param type The texture type: RAS_OFFSCREEN_COLOR or RAS_OFFSCREEN_DEPTH.
+	 */
 	virtual void BindOffScreenTexture(unsigned short index, unsigned short slot, OffScreen type) = 0;
-	/// Unbind frame buffer object texture.
+
+	/** Unbind the off screen texture at the given index and slot.
+	 * \param index The off screen index.
+	 * \param type The texture type: RAS_OFFSCREEN_COLOR or RAS_OFFSCREEN_DEPTH.
+	 */
 	virtual void UnbindOffScreenTexture(unsigned short index, OffScreen type) = 0;
-	/// Return current frame buffer object index.
+
+	/// Return current off screen index.
 	virtual short GetCurrentOffScreenIndex() const = 0;
-	/// Return frame buffer samples numbers.
+	/// Return the off screenn samples numbers at the given index.
 	virtual int GetOffScreenSamples(unsigned short index) = 0;
 
 	/**
