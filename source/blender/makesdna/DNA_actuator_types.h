@@ -461,7 +461,8 @@ typedef struct bActuator {
 #define ACT_EDOB_ENABLE_RB		2
 #define ACT_EDOB_DISABLE_RB		3
 #define ACT_EDOB_SET_MASS		4
-
+#define ACT_EDOB_RESTORE_PHY	5
+#define ACT_EDOB_SUSPEND_PHY	6
 
 /* SceneActuator->type */
 #define ACT_SCENE_RESTART		0

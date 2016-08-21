@@ -120,23 +120,33 @@ bool KX_SCA_DynamicActuator::Update()
 
 	switch (m_dyn_operation)
 	{
-		case 0:
+		case KX_DYN_RESTORE_DYNAMICS:
 			// Child objects must be static, so we block changing to dynamic
 			if (!obj->GetParent())
 				controller->RestoreDynamics();
 			break;
-		case 1:
+		case KX_DYN_DISABLE_DYNAMICS:
 			controller->SuspendDynamics();
 			break;
-		case 2:
+		case KX_DYN_ENABLE_RIGID_BODY:
 			controller->SetRigidBody(true);
 			break;
-		case 3:
+		case KX_DYN_DISABLE_RIGID_BODY:
 			controller->SetRigidBody(false);
 			break;
-		case 4:
+		case KX_DYN_SET_MASS:
 			controller->SetMass(m_setmass);
 			break;
+		case KX_DYN_RESTORE_PHYSICS:
+		{
+			controller->RestorePhysics();
+			break;
+		}
+		case KX_DYN_DISABLE_PHYSICS:
+		{
+			controller->SuspendPhysics();
+			break;
+		}
 	}
 
 	return false;

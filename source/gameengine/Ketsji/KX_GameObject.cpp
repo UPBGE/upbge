@@ -615,7 +615,7 @@ bool KX_GameObject::IsDynamic() const
 bool KX_GameObject::IsDynamicsSuspended() const
 {
 	if (m_pPhysicsController)
-		return m_pPhysicsController->IsSuspended();
+		return m_pPhysicsController->IsDynamicsSuspended();
 	return false;
 }
 
@@ -1973,6 +1973,8 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"getReactionForce", (PyCFunction) KX_GameObject::sPyGetReactionForce, METH_NOARGS},
 	{"alignAxisToVect",(PyCFunction) KX_GameObject::sPyAlignAxisToVect, METH_VARARGS},
 	{"getAxisVect",(PyCFunction) KX_GameObject::sPyGetAxisVect, METH_O},
+	{"suspendPhysics", (PyCFunction)KX_GameObject::sPySuspendPhysics, METH_NOARGS},
+	{"restorePhysics", (PyCFunction)KX_GameObject::sPyRestorePhysics,METH_NOARGS},
 	{"suspendDynamics", (PyCFunction)KX_GameObject::sPySuspendDynamics, METH_VARARGS},
 	{"restoreDynamics", (PyCFunction)KX_GameObject::sPyRestoreDynamics,METH_NOARGS},
 	{"enableRigidBody", (PyCFunction)KX_GameObject::sPyEnableRigidBody,METH_NOARGS},
@@ -3586,7 +3588,21 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
 	return NULL;
 }
 
+PyObject *KX_GameObject::PySuspendPhysics()
+{
+	if (GetPhysicsController()) {
+		GetPhysicsController()->SuspendPhysics();
+	}
+	Py_RETURN_NONE;
+}
 
+PyObject *KX_GameObject::PyRestorePhysics()
+{
+	if (GetPhysicsController()) {
+		GetPhysicsController()->RestorePhysics();
+	}
+	Py_RETURN_NONE;
+}
 
 PyObject *KX_GameObject::PySuspendDynamics(PyObject *args)
 {

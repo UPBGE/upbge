@@ -729,9 +729,17 @@ base class --- :class:`SCA_IObject`
       :arg angular_damping: Angular ("rotational") damping factor.
       :type angular_damping: float ??? [0, 1]
 
-   .. method:: suspendDynamics([ghost])
+   .. method:: suspendPhysics()
 
       Suspends physics for this object.
+
+   .. method:: restorePhysics()
+
+      Resumes physics for this object. Also reinstates collisions.
+
+   .. method:: suspendDynamics([ghost])
+
+      Suspends dynamics physics for this object.
 
       :arg ghost: When set to `True`, collisions with the object will be ignored, similar to the "ghost" checkbox in
           Blender. When `False` (the default), the object becomes static but still collide with other objects.
@@ -741,7 +749,7 @@ base class --- :class:`SCA_IObject`
 
    .. method:: restoreDynamics()
 
-      Resumes physics for this object. Also reinstates collisions; the object will no longer be a ghost.
+      Resumes dynamics physics for this object. Also reinstates collisions; the object will no longer be a ghost.
 
       .. note::
 

@@ -1348,6 +1348,8 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
 		{ACT_EDOB_ENABLE_RB, "ENABLERIGIDBODY", 0, "Enable Rigid Body", ""},
 		{ACT_EDOB_DISABLE_RB, "DISABLERIGIDBODY", 0, "Disable Rigid Body", ""},
 		{ACT_EDOB_SET_MASS, "SETMASS", 0, "Set Mass", ""},
+		{ACT_EDOB_RESTORE_PHY, "RESTOREPHY", 0, "Restore Physics", ""},
+		{ACT_EDOB_SUSPEND_PHY, "SUSPENDPHY", 0, "Suspend Physics", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
