@@ -63,8 +63,8 @@ protected:
 	virtual bool LinkProgram();
 	void ParseShaderProgram();
 	void BindUniforms(RAS_ICanvas *canvas);
-	void BindTextures(RAS_IRasterizer *rasty, unsigned short inputfbo, unsigned short fboindex);
-	void UnbindTextures(RAS_IRasterizer *rasty, unsigned short inputfbo, unsigned short fboindex);
+	void BindTextures(RAS_IRasterizer *rasty, unsigned short depthfbo, unsigned short colorfbo);
+	void UnbindTextures(RAS_IRasterizer *rasty, unsigned short depthfbo, unsigned short colorfbo);
 	void ComputeTextureOffsets(RAS_ICanvas *canvas);
 
 public:
@@ -74,9 +74,16 @@ public:
 	/// Called by the filter manager when it has informations like the display size, a gl context...
 	void Initialize(RAS_ICanvas *canvas);
 
-	/// Starts executing the filter.
-	void Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short inputfbo,
-			   unsigned short srcfbo, unsigned short outputfbo);
+	/** Starts executing the filter.
+	 * \param rasty The used rasterizer to call draw commands.
+	 * \param canvas The canvas containing screen viewport.
+	 * \param depthfbo The off screen used only for the depth texture input, 
+	 * the same for all filters of a scene.
+	 * \param colorfbo The off screen used only for the color texture input, unique per filters.
+	 * \param outputfbo The off screen used to draw the filter to.
+	 */
+	void Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short depthfbo,
+			   unsigned short colorfbo, unsigned short outputfbo);
 
 	/// Finalizes the execution stage of the filter.
 	void End();

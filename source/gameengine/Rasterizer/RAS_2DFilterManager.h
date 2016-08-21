@@ -61,7 +61,11 @@ public:
 	RAS_2DFilterManager();
 	virtual ~RAS_2DFilterManager();
 
-	/// Applies the filters to the scene.
+	/** Applies the filters to the scene.
+	 * \param rasty The rasterizer used for draw commands.
+	 * \param canvas The canvas containing the screen viewport.
+	 * \param target The off screen used as output of the last filters.
+	 */
 	void RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short target);
 
 	/// Add a filter to the stack of filters managed by this object.

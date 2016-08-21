@@ -79,7 +79,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	private:
 		/// All the off screens used.
 		GPUOffScreen *m_offScreens[RAS_OFFSCREEN_MAX];
-		/// THe current off screen index.
+		/// The current off screen index.
 		short m_currentIndex;
 
 		/// The last width.
@@ -87,7 +87,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		/// The last height.
 		unsigned int m_height;
 		/// The number of wanted/supported samples.
-		short m_samples;
+		int m_samples;
 		/// The HDR quality.
 		short m_hdr;
 
@@ -100,7 +100,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 
 		void Update(RAS_ICanvas *canvas);
 		void Bind(unsigned short index);
-		/// NOTE: This function has the side effect to leave the destination FBO bound.
+		/// NOTE: This function has the side effect to leave the destination off screen bound.
 		void Blit(unsigned short srcindex, unsigned short dstindex);
 		void BindTexture(unsigned short index, unsigned short slot, OffScreen type);
 		void UnbindTexture(unsigned short index, OffScreen type);

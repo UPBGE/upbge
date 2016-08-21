@@ -584,7 +584,9 @@ void KX_KetsjiEngine::Render()
 		RenderShadowBuffers((KX_Scene *)*sceit);
 	}
 
+	// Update all off screen to the current canvas size.
 	m_rasterizer->UpdateOffScreens(m_canvas);
+	// Bind render off screen as default.
 	m_rasterizer->BindOffScreen(RAS_IRasterizer::RAS_OFFSCREEN_RENDER);
 
 	// clear the entire game screen with the border color
@@ -611,17 +613,18 @@ void KX_KetsjiEngine::Render()
 	// clear the -whole- viewport
 	m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
+	// Clear the render area (without bars).
 	ClearFrame();
 
 	const RAS_IRasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
-	// Set to true when each eye needs to be rendered in a separated FBO.
+	// Set to true when each eye needs to be rendered in a separated off screen.
 	const bool renderpereye = stereomode == RAS_IRasterizer::RAS_STEREO_INTERLACED ||
 							  stereomode == RAS_IRasterizer::RAS_STEREO_VINTERLACE ||
 							  stereomode == RAS_IRasterizer::RAS_STEREO_ANAGLYPH;
 
 	const unsigned short numeyepass = (stereomode != RAS_IRasterizer::RAS_STEREO_NOSTEREO) ? 2 : 1;
 
-	// The current bound eye FBO if we are using per eye stereo.
+	// The current bound eye off screen if we are using per eye stereo.
 	int eyefboindex[2] = {RAS_IRasterizer::RAS_OFFSCREEN_EYE_LEFT0, RAS_IRasterizer::RAS_OFFSCREEN_EYE_RIGHT0};
 
 	// Used to detect when a camera is the first rendered an then doesn't request a depth clear.
@@ -646,10 +649,10 @@ void KX_KetsjiEngine::Render()
 			// set the area used for rendering (stereo can assign only a subset)
 			m_rasterizer->SetRenderArea(m_canvas);
 
-			// Choose unique FBO per eyes in case of stereo.
+			// Choose unique off screen per eyes in case of stereo.
 			if (renderpereye) {
 				m_rasterizer->BindOffScreen(eyefboindex[eyepass]);
-				// Clear eye FBO only before the first scene render.
+				// Clear eye off screen only before the first scene render.
 				if (firstscene) {
 					m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 				}
@@ -670,7 +673,7 @@ void KX_KetsjiEngine::Render()
 				}
 			}
 
-			// Process filters per eye FBO.
+			// Process filters per eye off screen.
 			if (renderpereye) {
 				int target;
 				if (m_rasterizer->GetOffScreenSamples(eyefboindex[eyepass]) > 0) {
@@ -680,7 +683,7 @@ void KX_KetsjiEngine::Render()
 						target = RAS_IRasterizer::NextEyeOffScreen(eyefboindex[eyepass]);
 					}
 					/* In case of multisamples and filters we're sure that a blit to RAS_OFFSCREEN_FILTER0
-					 * will be done so we can target the same FBO than in input of the filter prossesing. */
+					 * will be done so we can target the same off screen than in input of the filter prossesing. */
 					else {
 						target = eyefboindex[eyepass];
 					}
@@ -691,16 +694,16 @@ void KX_KetsjiEngine::Render()
 
 				PostRenderScene(scene, target);
 
-				// If no filter was rendered the current used FBO can be unchanged.
+				// If no filter was rendered the current used off screen can be unchanged.
 				eyefboindex[eyepass] = m_rasterizer->GetCurrentOffScreenIndex();
 			}
 		}
 
-		// Process filters for non-per eye FBO render.
+		// Process filters for non-per eye off screen render.
 		if (!renderpereye) {
-			/* Choose final FBO target. This operation as effect only for multisamples render FBO.
-			 * If it's the last scene, we can render the last filter to a non-multisamples FBO.
-			 * Else reuse the (maybe) multisamples FBO for the next scene renders.
+			/* Choose final off screen target. This operation as effect only for multisamples render off screen.
+			 * If it's the last scene, we can render the last filter to a non-multisamples off screen.
+			 * Else reuse the (maybe) multisamples off screen for the next scene renders.
 			 */
 			const int target = lastscene ? RAS_IRasterizer::RAS_OFFSCREEN_FINAL : RAS_IRasterizer::RAS_OFFSCREEN_RENDER;
 			PostRenderScene(scene, target);
@@ -709,11 +712,11 @@ void KX_KetsjiEngine::Render()
 
 	m_canvas->SetViewPort(0, 0, width, height);
 
-	// Compositing per eye FBOs to screen.
+	// Compositing per eye off screens to screen.
 	if (renderpereye) {
 		m_rasterizer->DrawStereoOffScreen(m_canvas, eyefboindex[RAS_IRasterizer::RAS_STEREO_LEFTEYE], eyefboindex[RAS_IRasterizer::RAS_STEREO_RIGHTEYE]);
 	}
-	// Else simply draw to screen.
+	// Else simply draw the off screen to screen.
 	else {
 		const short fboindex = m_rasterizer->GetCurrentOffScreenIndex();
 		m_rasterizer->DrawOffScreen(m_canvas, fboindex);
@@ -823,6 +826,7 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect
 		    scene->GetFramingType(),
 		    m_canvas->GetDisplayArea(),
 		    viewport);
+
 		area = m_canvas->GetDisplayArea();
 	}
 	else {

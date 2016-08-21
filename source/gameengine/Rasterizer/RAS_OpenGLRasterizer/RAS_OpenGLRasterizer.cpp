@@ -232,7 +232,7 @@ GPUOffScreen *RAS_OpenGLRasterizer::OffScreens::GetOffScreen(unsigned short inde
 		 * To avoid crashing we check if the off screen was created and if not decremente
 		 * the multisample value and try to create the off screen to find a supported value.
 		 */
-		for (short samples = m_samples; samples >= 0; --samples) {
+		for (int samples = m_samples; samples >= 0; --samples) {
 			// Get off screen mode : render buffer support for multisampled off screen.
 			int mode = GPU_OFFSCREEN_MODE_NONE;
 			if (sampleofs && (samples > 0)) {
