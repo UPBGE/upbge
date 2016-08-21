@@ -134,19 +134,6 @@ static int openGLBlendFuncEnums[] = {
 	GL_SRC_ALPHA_SATURATE // RAS_SRC_ALPHA_SATURATE
 };
 
-/**
- *  32x32 bit masks for vinterlace stereo mode
- */
-static GLuint left_eye_vinterlace_mask[32];
-static GLuint right_eye_vinterlace_mask[32];
-
-/**
- *  32x32 bit masks for hinterlace stereo mode.
- *  Left eye = &hinterlace_mask[0]
- *  Right eye = &hinterlace_mask[1]
- */
-static GLuint hinterlace_mask[33];
-
 RAS_OpenGLRasterizer::ScreenPlane::ScreenPlane()
 {
 	// Generate the VBO and IBO for screen overlay plane.
@@ -428,13 +415,6 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 {
 	m_viewmatrix.setIdentity();
 	m_viewinvmatrix.setIdentity();
-
-	for (int i = 0; i < 32; i++) {
-		left_eye_vinterlace_mask[i] = 0x55555555;
-		right_eye_vinterlace_mask[i] = 0xAAAAAAAA;
-		hinterlace_mask[i] = (i & 1) * 0xFFFFFFFF;
-	}
-	hinterlace_mask[32] = 0;
 
 	m_storages[RAS_STORAGE_VA] = new RAS_StorageVA(&m_texco_num, m_texco, &m_attrib_num, m_attrib, m_attrib_layer);
 	m_storages[RAS_STORAGE_VBO] = new RAS_StorageVBO(&m_texco_num, m_texco, &m_attrib_num, m_attrib, m_attrib_layer);
