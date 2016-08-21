@@ -461,6 +461,7 @@ int BL_Texture::pyattr_set_lod_bias(void *self_v, const KX_PYATTRIBUTE_DEF *attr
 PyObject *BL_Texture::pyattr_get_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	self->CheckValidTexture();
 	return PyLong_FromLong(self->m_bindCode);
 }
 
