@@ -29,6 +29,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+#include "BLI_math_base.h"
 
 #include "BKE_global.h"
 
@@ -312,6 +313,18 @@ void GPU_framebuffer_bind_no_save(GPUFrameBuffer *fb, int slot)
 	GG.currentfb = fb->object;
 }
 
+void GPU_framebuffer_bind_simple(GPUFrameBuffer *fb)
+{
+	if (GG.currentfb != fb->object) {
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+		/* last bound prevails here, better allow explicit control here too */
+		glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
+		glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
+
+		GG.currentfb = fb->object;
+	}
+}
+
 bool GPU_framebuffer_bound(GPUFrameBuffer *fb)
 {
 	return fb->object == GG.currentfb;
@@ -336,6 +349,37 @@ bool GPU_framebuffer_check_valid(GPUFrameBuffer *fb, char err_out[256])
 	}
 	
 	return true;
+}
+
+int GPU_framebuffer_renderbuffer_attach(GPUFrameBuffer *fb, GPURenderBuffer *rb, int slot, char err_out[256])
+{
+	GLenum attachement;
+	GLenum error;
+
+	if (GPU_renderbuffer_depth(rb)) {
+		attachement = GL_DEPTH_ATTACHMENT_EXT;
+	}
+	else {
+		attachement = GL_COLOR_ATTACHMENT0_EXT + slot;
+	}
+
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	GG.currentfb = fb->object;
+
+	/* Clean glError buffer. */
+	while (glGetError() != GL_NO_ERROR) {}
+
+	glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, attachement, GL_RENDERBUFFER_EXT, GPU_renderbuffer_bindcode(rb));
+
+	error = glGetError();
+
+	if (error == GL_INVALID_OPERATION) {
+		GPU_framebuffer_restore();
+		GPU_print_framebuffer_error(error, err_out);
+		return 0;
+	}
+
+	return 1;
 }
 
 void GPU_framebuffer_free(GPUFrameBuffer *fb)
@@ -444,15 +488,126 @@ void GPU_framebuffer_blur(
 	GPU_shader_unbind();
 }
 
+/* GPURenderBuffer */
+
+struct GPURenderBuffer {
+	int width;
+	int height;
+	int samples;
+
+	bool depth;
+	unsigned int bindcode;
+};
+
+GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPUHDRType hdrtype, GPURenderBufferType type, char err_out[256])
+{
+	GPURenderBuffer *rb = MEM_callocN(sizeof(GPURenderBuffer), "GPURenderBuffer");
+
+	glGenRenderbuffers(1, &rb->bindcode);
+
+	if (!rb->bindcode) {
+		if (err_out) {
+			BLI_snprintf(err_out, 256, "GPURenderBuffer: render buffer create failed: %d",
+				(int)glGetError());
+		}
+		else {
+			fprintf(stderr, "GPURenderBuffer: render buffer create failed: %d\n",
+				(int)glGetError());
+		}
+		GPU_renderbuffer_free(rb);
+		return NULL;
+	}
+
+	rb->width = width;
+	rb->height = height;
+	rb->samples = samples;
+
+	glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, rb->bindcode);
+
+	if (type == GPU_RENDERBUFFER_DEPTH) {
+		if (samples > 0) {
+			glRenderbufferStorageMultisampleEXT(GL_RENDERBUFFER_EXT, samples, GL_DEPTH_COMPONENT, width, height);
+		}
+		else {
+			glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_DEPTH_COMPONENT, width, height);
+		}
+		rb->depth = true;
+	}
+	else {
+		GLenum internalformat = GL_RGBA8;
+		switch (hdrtype) {
+			case GPU_HDR_NONE:
+			{
+				internalformat = GL_RGBA8;
+				break;
+			}
+			/* the following formats rely on ARB_texture_float or OpenGL 3.0 */
+			case GPU_HDR_HALF_FLOAT:
+			{
+				internalformat = GL_RGBA16F_ARB;
+				break;
+			}
+			case GPU_HDR_FULL_FLOAT:
+			{
+				internalformat = GL_RGBA32F_ARB;
+				break;
+			}
+		}
+		if (samples > 0) {
+			glRenderbufferStorageMultisampleEXT(GL_RENDERBUFFER_EXT, samples, internalformat, width, height);
+		}
+		else {
+			glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, internalformat, width, height);
+		}
+	}
+
+	glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, 0);
+
+	return rb;
+}
+
+void GPU_renderbuffer_free(GPURenderBuffer *rb)
+{
+	if (rb->bindcode) {
+		glDeleteRenderbuffersEXT(1, &rb->bindcode);
+	}
+
+	MEM_freeN(rb);
+}
+
+int GPU_renderbuffer_bindcode(const GPURenderBuffer *rb)
+{
+	return rb->bindcode;
+}
+
+bool GPU_renderbuffer_depth(const GPURenderBuffer *rb)
+{
+	return rb->depth;
+}
+
+int GPU_renderbuffer_width(const GPURenderBuffer *rb)
+{
+	return rb->width;
+}
+
+int GPU_renderbuffer_height(const GPURenderBuffer *rb)
+{
+	return rb->height;
+}
+
+
 /* GPUOffScreen */
 
 struct GPUOffScreen {
 	GPUFrameBuffer *fb;
 	GPUTexture *color;
 	GPUTexture *depth;
+	GPURenderBuffer *rbcolor;
+	GPURenderBuffer *rbdepth;
+	int samples;
 };
 
-GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, char err_out[256])
+GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRType hdrtype, int mode, char err_out[256])
 {
 	GPUOffScreen *ofs;
 
@@ -466,41 +621,78 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, char err_
 
 	if (samples) {
 		if (!GLEW_EXT_framebuffer_multisample ||
-		    !GLEW_ARB_texture_multisample ||
+			/* Disable multisample for texture and not render buffers
+			 * when it's not supported */
+		    (!GLEW_ARB_texture_multisample && (!(mode & GPU_OFFSCREEN_RENDERBUFFER_COLOR) || !(mode & GPU_OFFSCREEN_RENDERBUFFER_DEPTH))) ||
 		    /* Only needed for GPU_offscreen_read_pixels.
 		     * We could add an arg if we intend to use multi-sample
 		     * offscreen buffers w/o reading their pixels */
-		    !GLEW_EXT_framebuffer_blit ||
+		    !GLEW_EXT_framebuffer_blit
+
+	/* Some GPUs works even without this extension. */
+#if 0
 		    /* This is required when blitting from a multi-sampled buffers,
 		     * even though we're not scaling. */
-		    !GLEW_EXT_framebuffer_multisample_blit_scaled)
+		    || !GLEW_EXT_framebuffer_multisample_blit_scaled
+#endif
+			)
 		{
 			samples = 0;
 		}
 	}
 
-	ofs->depth = GPU_texture_create_depth_multisample(width, height, samples, err_out);
-	if (!ofs->depth) {
-		GPU_offscreen_free(ofs);
-		return NULL;
+	ofs->samples = samples;
+
+	if (mode & GPU_OFFSCREEN_RENDERBUFFER_COLOR) {
+		ofs->rbcolor = GPU_renderbuffer_create(width, height, samples, hdrtype, GPU_RENDERBUFFER_COLOR, err_out);
+		if (!ofs->rbcolor) {
+			GPU_offscreen_free(ofs);
+			return NULL;
+		}
+
+		if (!GPU_framebuffer_renderbuffer_attach(ofs->fb, ofs->rbcolor, 0, err_out)) {
+			GPU_offscreen_free(ofs);
+			return NULL;
+		}
+	}
+	else {
+		ofs->color = GPU_texture_create_2D_multisample(width, height, NULL, hdrtype, samples, err_out);
+		if (!ofs->color) {
+			GPU_offscreen_free(ofs);
+			return NULL;
+		}
+
+		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->color, 0, err_out)) {
+			GPU_offscreen_free(ofs);
+			return NULL;
+		}
 	}
 
-	if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->depth, 0, err_out)) {
-		GPU_offscreen_free(ofs);
-		return NULL;
+	if (mode & GPU_OFFSCREEN_RENDERBUFFER_DEPTH) {
+		ofs->rbdepth = GPU_renderbuffer_create(width, height, samples, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, err_out);
+		if (!ofs->rbdepth) {
+			GPU_offscreen_free(ofs);
+			return NULL;
+		}
+
+		if (!GPU_framebuffer_renderbuffer_attach(ofs->fb, ofs->rbdepth, 0, err_out)) {
+			GPU_offscreen_free(ofs);
+			return NULL;
+		}
+	}
+	else {
+		ofs->depth = GPU_texture_create_depth_multisample(width, height, samples, (mode & GPU_OFFSCREEN_DEPTH_COMPARE), err_out);
+		if (!ofs->depth) {
+			GPU_offscreen_free(ofs);
+			return NULL;
+		}
+
+		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->depth, 0, err_out)) {
+			GPU_offscreen_free(ofs);
+			return NULL;
+		}
 	}
 
-	ofs->color = GPU_texture_create_2D_multisample(width, height, NULL, GPU_HDR_NONE, samples, err_out);
-	if (!ofs->color) {
-		GPU_offscreen_free(ofs);
-		return NULL;
-	}
-
-	if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->color, 0, err_out)) {
-		GPU_offscreen_free(ofs);
-		return NULL;
-	}
-	
 	/* check validity at the very end! */
 	if (!GPU_framebuffer_check_valid(ofs->fb, err_out)) {
 		GPU_offscreen_free(ofs);
@@ -520,6 +712,12 @@ void GPU_offscreen_free(GPUOffScreen *ofs)
 		GPU_texture_free(ofs->color);
 	if (ofs->depth)
 		GPU_texture_free(ofs->depth);
+	if (ofs->rbcolor) {
+		GPU_renderbuffer_free(ofs->rbcolor);
+	}
+	if (ofs->rbdepth) {
+		GPU_renderbuffer_free(ofs->rbdepth);
+	}
 	
 	MEM_freeN(ofs);
 }
@@ -532,6 +730,11 @@ void GPU_offscreen_bind(GPUOffScreen *ofs, bool save)
 	else {
 		GPU_framebuffer_bind_no_save(ofs->fb, 0);
 	}
+}
+
+void GPU_offscreen_bind_simple(GPUOffScreen *ofs)
+{
+	GPU_framebuffer_bind_simple(ofs->fb);
 }
 
 void GPU_offscreen_unbind(GPUOffScreen *ofs, bool restore)
@@ -621,18 +824,63 @@ finally:
 	}
 }
 
+void GPU_offscreen_blit(GPUOffScreen *srcofs, GPUOffScreen *dstofs)
+{
+	glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, srcofs->fb->object);
+	glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER_EXT, dstofs->fb->object);
+
+	int height = min_ff(GPU_offscreen_height(srcofs), GPU_offscreen_height(dstofs));
+	int width = min_ff(GPU_offscreen_width(srcofs), GPU_offscreen_width(dstofs));
+
+	glBlitFramebufferEXT(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+
+	// Call GPU_framebuffer_bind_simple to change GG.currentfb.
+	GPU_framebuffer_bind_simple(dstofs->fb);
+}
+
 int GPU_offscreen_width(const GPUOffScreen *ofs)
 {
-	return GPU_texture_width(ofs->color);
+	if (ofs->color) {
+		return GPU_texture_width(ofs->color);
+	}
+	else if (ofs->rbcolor) {
+		return GPU_renderbuffer_width(ofs->rbcolor);
+	}
+
+	// Should never happen.
+	return 0;
 }
 
 int GPU_offscreen_height(const GPUOffScreen *ofs)
 {
-	return GPU_texture_height(ofs->color);
+	if (ofs->color) {
+		return GPU_texture_height(ofs->color);
+	}
+	else if (ofs->rbcolor) {
+		return GPU_renderbuffer_height(ofs->rbcolor);
+	}
+
+	// Should never happen.
+	return 0;
+}
+
+int GPU_offscreen_samples(const GPUOffScreen *ofs)
+{
+	return ofs->samples;
 }
 
 int GPU_offscreen_color_texture(const GPUOffScreen *ofs)
 {
 	return GPU_texture_opengl_bindcode(ofs->color);
+}
+
+GPUTexture *GPU_offscreen_texture(const GPUOffScreen *ofs)
+{
+	return ofs->color;
+}
+
+GPUTexture *GPU_offscreen_depth_texture(const GPUOffScreen *ofs)
+{
+	return ofs->depth;
 }
 

@@ -49,6 +49,8 @@
 class RAS_IStorage;
 class RAS_ICanvas;
 class RAS_OpenGLLight;
+struct GPUOffScreen;
+struct GPUShader;
 
 #define RAS_MAX_TEXCO  8     /* match in BL_Material */
 #define RAS_MAX_ATTRIB 16    /* match in BL_BlenderShader */
@@ -69,6 +71,41 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		virtual ~ScreenPlane();
 
 		void Render();
+	};
+
+	/// Internal manager of off screens.
+	class OffScreens
+	{
+	private:
+		/// All the off screens used.
+		GPUOffScreen *m_offScreens[RAS_OFFSCREEN_MAX];
+		/// The current off screen index.
+		short m_currentIndex;
+
+		/// The last width.
+		unsigned int m_width;
+		/// The last height.
+		unsigned int m_height;
+		/// The number of wanted/supported samples.
+		int m_samples;
+		/// The HDR quality.
+		short m_hdr;
+
+		/// Return or create off screen for the given index.
+		GPUOffScreen *GetOffScreen(unsigned short index);
+
+	public:
+		OffScreens();
+		~OffScreens();
+
+		void Update(RAS_ICanvas *canvas);
+		void Bind(unsigned short index);
+		/// NOTE: This function has the side effect to leave the destination off screen bound.
+		void Blit(unsigned short srcindex, unsigned short dstindex);
+		void BindTexture(unsigned short index, unsigned short slot, OffScreen type);
+		void UnbindTexture(unsigned short index, OffScreen type);
+		short GetCurrentIndex() const;
+		int GetSamples(unsigned short index);
 	};
 
 	struct OglDebugShape
@@ -96,6 +133,26 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		float *origmat;
 		/// The output matrix.
 		float *mat;
+	};
+
+	/// \section Interfaces used for frame buffer shaders.
+
+	struct OverrideShaderDrawFrameBufferInterface
+	{
+		int colorTexLoc;
+	};
+
+	struct OverrideShaderStereoStippleInterface
+	{
+		int leftEyeTexLoc;
+		int rightEyeTexLoc;
+		int stippleIdLoc;
+	};
+
+	struct OverrideShaderStereoAnaglyph
+	{
+		int leftEyeTexLoc;
+		int rightEyeTexLoc;
 	};
 
 	/* fogging vars */
@@ -137,6 +194,9 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, std::vector<OglDebugShape> > m_debugShapes;
 
+	/// Class used to manage off screens.
+	OffScreens m_offScreens;
+
 protected:
 	DrawType m_drawingmode;
 	ShadowType m_shadowMode;
@@ -153,6 +213,12 @@ protected:
 	/* Making use of a Strategy design pattern for storage behavior.
 	 * Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
 	RAS_IStorage *m_storages[RAS_STORAGE_MAX];
+
+	/// Initialize custom shader interface containing uniform location.
+	void InitOverrideShadersInterface();
+
+	/// Return GPUShader coresponding to the override shader enumeration.
+	GPUShader *GetOverrideGPUShader(OverrideShaderType type);
 
 public:
 	double GetTime();
@@ -178,19 +244,29 @@ public:
 	virtual void SetClearDepth(float d);
 	virtual void SetColorMask(bool r, bool g, bool b, bool a);
 	virtual void EndFrame();
+
+	virtual void UpdateOffScreens(RAS_ICanvas *canvas);
+	virtual void BindOffScreen(unsigned short index);
+	virtual void RestoreScreenFrameBuffer();
+	virtual void DrawOffScreen(unsigned short srcindex, unsigned short dstindex);
+	virtual void DrawOffScreen(RAS_ICanvas *canvas, unsigned short index);
+	virtual void DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex);
+	virtual void BindOffScreenTexture(unsigned short index, unsigned short slot, OffScreen type);
+	virtual void UnbindOffScreenTexture(unsigned short index, OffScreen type);
+	virtual short GetCurrentOffScreenIndex() const;
+	virtual int GetOffScreenSamples(unsigned short index);
+
 	virtual void SetRenderArea(RAS_ICanvas *canvas);
 
 	virtual void SetStereoMode(const StereoMode stereomode);
 	virtual RAS_IRasterizer::StereoMode GetStereoMode();
 	virtual bool Stereo();
-	virtual bool InterlacedStereo();
 	virtual void SetEye(const StereoEye eye);
 	virtual StereoEye GetEye();
 	virtual void SetEyeSeparation(const float eyeseparation);
 	virtual float GetEyeSeparation();
 	virtual void SetFocalLength(const float focallength);
 	virtual float GetFocalLength();
-	virtual RAS_IOffScreen *CreateOffScreen(RAS_ICanvas *canvas, int width, int height, int samples, int target);
 	virtual RAS_ISync *CreateSync(int type);
 	virtual void SwapBuffers(RAS_ICanvas *canvas);
 

@@ -61,25 +61,25 @@ protected:
 
 public:
 	LA_PlayerLauncher(GHOST_ISystem* system, Main *maggie, Scene *scene, GlobalSettings *gs,
-					  RAS_IRasterizer::StereoMode stereoMode, int argc, char **argv, char *pythonMainLoop);
+					  RAS_IRasterizer::StereoMode stereoMode, int samples, int argc, char **argv, char *pythonMainLoop);
 	virtual ~LA_PlayerLauncher();
 
 	void startWindow(STR_String& title,
 	                 int windowLeft, int windowTop,
 	                 int windowWidth, int windowHeight,
-	                 const bool stereoVisual, const int alphaBackground=0, const GHOST_TUns16 samples=0);
+	                 const bool stereoVisual, const int alphaBackground=0);
 	void startFullScreen(int width, int height,
 	                     int bpp, int frequency,
 	                     const bool stereoVisual,
-	                     const int alphaBackground=0, const GHOST_TUns16 samples=0, bool useDesktop=false);
+	                     const int alphaBackground=0, bool useDesktop=false);
 	void startEmbeddedWindow(STR_String& title, const GHOST_TEmbedderWindowID parent_window,
-	                         const bool stereoVisual, const int alphaBackground=0, const GHOST_TUns16 samples=0);
+	                         const bool stereoVisual, const int alphaBackground=0);
 #ifdef WIN32
 	void startScreenSaverFullScreen(int width, int height,
 	                                int bpp, int frequency,
-	                                const bool stereoVisual, const GHOST_TUns16 samples=0);
+	                                const bool stereoVisual);
 	void startScreenSaverPreview(HWND parentWindow,
-	                             const bool stereoVisual, const GHOST_TUns16 samples=0);
+	                             const bool stereoVisual);
 #endif
 
 	virtual void InitEngine();

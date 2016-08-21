@@ -35,11 +35,12 @@
 #include <float.h>
 #include <math.h>
 
+#include "GPU_framebuffer.h"
+#include "GPU_texture.h"
 
 #include "glew-mx.h"
 
 #include "KX_Globals.h"
-#include "KX_OffScreen.h"
 #include "DNA_scene_types.h"
 #include "RAS_CameraData.h"
 #include "RAS_MeshObject.h"
@@ -66,15 +67,17 @@ ExpDesc MirrorHorizontalDesc(MirrorHorizontal, "Mirror is horizontal in local sp
 ExpDesc MirrorTooSmallDesc(MirrorTooSmall, "Mirror is too small");
 
 // constructor
-ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, KX_OffScreen *offscreen) :
-    ImageViewport(offscreen),
+ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int width, unsigned int height, unsigned short samples) :
+    ImageViewport(width, height),
     m_render(true),
     m_updateShadowBuffer(false),
     m_done(false),
     m_scene(scene),
     m_camera(camera),
     m_owncamera(false),
-    m_offscreen(offscreen),
+    m_samples(samples),
+    m_offScreen(NULL),
+    m_blitOffScreen(NULL),
     m_sync(NULL),
     m_observer(NULL),
     m_mirror(NULL),
@@ -89,9 +92,10 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, KX_OffScreen *off
 	m_engine = KX_GetActiveEngine();
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
-	// keep a reference to the offscreen buffer
-	if (m_offscreen) {
-		m_offscreen->AddRef();
+
+	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
+	if (m_samples > 0) {
+		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
 	}
 }
 
@@ -100,11 +104,23 @@ ImageRender::~ImageRender (void)
 {
 	if (m_owncamera)
 		m_camera->Release();
+
+#ifdef WITH_GAMEENGINE_GPU_SYNC
 	if (m_sync)
 		delete m_sync;
-	if (m_offscreen) {
-		m_offscreen->Release();
+#endif
+
+	if (m_offScreen) {
+		GPU_offscreen_free(m_offScreen);
 	}
+	if (m_blitOffScreen) {
+		GPU_offscreen_free(m_blitOffScreen);
+	}
+}
+
+int ImageRender::GetColorBindCode() const
+{
+	return GPU_offscreen_color_texture((m_samples > 0) ? m_blitOffScreen : m_offScreen);
 }
 
 // get update shadow buffer
@@ -182,16 +198,16 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 			return;
 		}
 	}
-	else if (m_offscreen) {
-		m_offscreen->GetOffScreen()->Bind(RAS_IOffScreen::RAS_OFS_BIND_READ);
-	}
+
+	GPUOffScreen *ofs = (m_samples > 0) ? m_blitOffScreen : m_offScreen;
+	GPU_offscreen_bind_simple(ofs);
+
 	// wait until all render operations are completed
 	WaitSync();
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
-	if (m_offscreen) {
-		m_offscreen->GetOffScreen()->Unbind();
-	}
+
+	GPU_framebuffer_restore();
 }
 
 bool ImageRender::Render()
@@ -280,17 +296,14 @@ bool ImageRender::Render()
 	RAS_Rect area = m_canvas->GetWindowArea();
 
 	// The screen area that ImageViewport will copy is also the rendering zone
-	if (m_offscreen) {
-		// bind the fbo and set the viewport to full size
-		m_offscreen->GetOffScreen()->Bind(RAS_IOffScreen::RAS_OFS_BIND_RENDER);
-		// this is needed to stop crashing in canvas check
-		m_canvas->UpdateViewPort(0, 0, m_offscreen->GetOffScreen()->GetWidth(), m_offscreen->GetOffScreen()->GetHeight());
-	}
-	else {
-		m_canvas->SetViewPort(m_position[0], m_position[1], m_position[0]+m_capSize[0]-1, m_position[1]+m_capSize[1]-1);
-	}
-	m_canvas->ClearColor(0.247784f, 0.247784f, 0.247784f, 1.0f);
-	m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER|RAS_ICanvas::DEPTH_BUFFER);
+	// bind the fbo and set the viewport to full size
+	GPU_offscreen_bind_simple(m_offScreen);
+
+	m_rasterizer->SetViewport(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
+	m_rasterizer->SetScissor(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
+
+	m_rasterizer->SetClearColor(0.247784f, 0.247784f, 0.247784f, 1.0f);
+	m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 	m_rasterizer->BeginFrame(m_engine->GetClockTime());
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
@@ -403,8 +416,11 @@ bool ImageRender::Render()
 	m_canvas->EndFrame();
 
 	// In case multisample is active, blit the FBO
-	if (m_offscreen)
-		m_offscreen->GetOffScreen()->Blit();
+	if (m_samples > 0) {
+		GPU_offscreen_blit(m_offScreen, m_blitOffScreen);
+	}
+
+#ifdef WITH_GAMEENGINE_GPU_SYNC
 	// end of all render operations, let's create a sync object just in case
 	if (m_sync) {
 		// a sync from a previous render, should not happen
@@ -412,6 +428,8 @@ bool ImageRender::Render()
 		m_sync = NULL;
 	}
 	m_sync = m_rasterizer->CreateSync(RAS_ISync::RAS_SYNC_TYPE_FENCE);
+#endif
+
 	// remember that we have done render
 	m_done = true;
 	// the image is not available at this stage
@@ -421,24 +439,23 @@ bool ImageRender::Render()
 
 void ImageRender::Unbind()
 {
-	if (m_offscreen)
-	{
-		m_offscreen->GetOffScreen()->Unbind();
-	}
+	GPU_framebuffer_restore();
 }
 
 void ImageRender::WaitSync()
 {
+#ifdef WITH_GAMEENGINE_GPU_SYNC
 	if (m_sync) {
 		m_sync->Wait();
 		// done with it, deleted it
 		delete m_sync;
 		m_sync = NULL;
 	}
-	if (m_offscreen) {
-		// this is needed to finalize the image if the target is a texture
-		m_offscreen->GetOffScreen()->MipMap();
-	}
+#endif
+
+	// this is needed to finalize the image if the target is a texture
+	GPU_texture_generate_mipmap(GPU_offscreen_texture((m_samples > 0) ? m_blitOffScreen : m_offScreen));
+
 	// all rendered operation done and complete, invalidate render for next time
 	m_done = false;
 }
@@ -463,14 +480,16 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	PyObject *scene;
 	// camera object
 	PyObject *camera;
-	// offscreen buffer object
-	PyObject *pyoffscreen = Py_None;
-	KX_OffScreen *offscreen = NULL;
+
+	const RAS_Rect& rect = KX_GetActiveEngine()->GetCanvas()->GetWindowArea();
+	int width = rect.GetWidth();
+	int height = rect.GetHeight();
+	int samples = 0;
 	// parameter keywords
-	static const char *kwlist[] = {"sceneObj", "cameraObj", "ofsObj", NULL};
+	static const char *kwlist[] = {"sceneObj", "cameraObj", "width", "height", "samples", NULL};
 	// get parameters
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|O",
-		const_cast<char**>(kwlist), &scene, &camera, &pyoffscreen))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|iii",
+		const_cast<char**>(kwlist), &scene, &camera, &width, &height, &samples))
 		return -1;
 	try
 	{
@@ -486,19 +505,11 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 		// throw exception if camera is not available
 		if (cameraPtr == NULL) THRWEXCP(CameraInvalid, S_OK);
 
-		if (pyoffscreen != Py_None) {
-			if (Py_TYPE(pyoffscreen) != &KX_OffScreen::Type) {
-				THRWEXCP(OffScreenInvalid, S_OK);
-			}
-			else {
-				offscreen = static_cast<KX_OffScreen *>BGE_PROXY_REF(pyoffscreen);
-			}
-		}
 		// get pointer to image structure
 		PyImage *self = reinterpret_cast<PyImage*>(pySelf);
 		// create source object
 		if (self->m_image != NULL) delete self->m_image;
-		self->m_image = new ImageRender(scenePtr, cameraPtr, offscreen);
+		self->m_image = new ImageRender(scenePtr, cameraPtr, width, height, samples);
 	}
 	catch (Exception & exp)
 	{
@@ -639,6 +650,11 @@ static int setUpdateShadow(PyImage *self, PyObject *value)
 	return 0;
 }
 
+static PyObject *getColorBindCode(PyImage *self, void *closure)
+{
+	return PyLong_FromLong(getImageRender(self)->GetColorBindCode());
+}
+
 // methods structure
 static PyMethodDef imageRenderMethods[] =
 { // methods from ImageBase class
@@ -666,6 +682,7 @@ static PyGetSetDef imageRenderGetSets[] =
 	{(char*)"depth", (getter)Image_getDepth, (setter)Image_setDepth, (char*)"get depth information from z-buffer using unsigned int precision", NULL},
 	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", NULL},
 	{(char*)"updateShadow", (getter)getUpdateShadow, (setter)setUpdateShadow, (char*)"update shadow buffers", NULL},
+	{(char*)"colorBindCode", (getter)getColorBindCode, NULL, (char*)"Off-screen color texture bind code", NULL},
 	{NULL}
 };
 
@@ -723,11 +740,18 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	PyObject *mirror;
 	// material of the mirror
 	short materialID = 0;
+
+	const RAS_Rect& rect = KX_GetActiveEngine()->GetCanvas()->GetWindowArea();
+	int width = rect.GetWidth();
+	int height = rect.GetHeight();
+	int samples = 0;
+
 	// parameter keywords
-	static const char *kwlist[] = {"scene", "observer", "mirror", "material", NULL};
+	static const char *kwlist[] = {"scene", "observer", "mirror", "material", "width", "height", "samples", NULL};
 	// get parameters
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|h",
-	                                 const_cast<char**>(kwlist), &scene, &observer, &mirror, &materialID))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|hiii",
+	                                 const_cast<char**>(kwlist), &scene, &observer, &mirror, &materialID,
+									 &width, &height, &samples))
 		return -1;
 	try
 	{
@@ -777,7 +801,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 			delete self->m_image;
 			self->m_image = NULL;
 		}
-		self->m_image = new ImageRender(scenePtr, observerPtr, mirrorPtr, material);
+		self->m_image = new ImageRender(scenePtr, observerPtr, mirrorPtr, material, width, height, samples);
 	}
 	catch (Exception & exp)
 	{
@@ -837,16 +861,23 @@ static PyGetSetDef imageMirrorGetSets[] =
 
 
 // constructor
-ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial *mat) :
-    ImageViewport(),
+ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial *mat, unsigned int width, unsigned int height, unsigned short samples) :
+    ImageViewport(width, height),
     m_render(false),
     m_done(false),
     m_scene(scene),
-    m_offscreen(NULL),
+    m_samples(samples),
+    m_offScreen(NULL),
+    m_blitOffScreen(NULL),
     m_observer(observer),
     m_mirror(mirror),
     m_clip(100.f)
 {
+	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
+	if (m_samples > 0) {
+		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
+	}
+
 	// this constructor is used for automatic planar mirror
 	// create a camera, take all data by default, in any case we will recompute the frustum on each frame
 	RAS_CameraData camdata;

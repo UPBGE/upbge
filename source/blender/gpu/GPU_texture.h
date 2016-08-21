@@ -61,16 +61,22 @@ typedef enum GPUHDRType {
 	GPU_HDR_FULL_FLOAT = (1 << 1),
 } GPUHDRType;
 
+typedef enum GPUTextureMode {
+	GPU_TEXTURE_MODE_NONE = 0,
+	GPU_TEXTURE_DEPTH = 1 << 0,
+	GPU_TEXTURE_DEPTH_COMPARE = 1 << 1,
+} GPUTextureMode;
+
 GPUTexture *GPU_texture_create_1D(int w, const float *pixels, char err_out[256]);
 GPUTexture *GPU_texture_create_2D(int w, int h, const float *pixels, GPUHDRType hdr, char err_out[256]);
 GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, const float *fpixels);
-GPUTexture *GPU_texture_create_depth(int w, int h, char err_out[256]);
+GPUTexture *GPU_texture_create_depth(int w, int h, bool compare, char err_out[256]);
 GPUTexture *GPU_texture_create_vsm_shadow_map(int size, char err_out[256]);
 GPUTexture *GPU_texture_create_2D_procedural(int w, int h, const float *pixels, bool repeat, char err_out[256]);
 GPUTexture *GPU_texture_create_1D_procedural(int w, const float *pixels, char err_out[256]);
 GPUTexture *GPU_texture_create_2D_multisample(
         int w, int h, const float *pixels, GPUHDRType hdr, int samples, char err_out[256]);
-GPUTexture *GPU_texture_create_depth_multisample(int w, int h, int samples, char err_out[256]);
+GPUTexture *GPU_texture_create_depth_multisample(int w, int h, int samples, bool compare, char err_out[256]);
 GPUTexture *GPU_texture_from_blender(
         struct Image *ima, struct ImageUser *iuser, int textarget, bool is_data, double time, int mipmap);
 GPUTexture *GPU_texture_from_preview(struct PreviewImage *prv, int mipmap);
@@ -88,6 +94,7 @@ void GPU_texture_unbind(GPUTexture *tex);
 int GPU_texture_bound_number(GPUTexture *tex);
 
 void GPU_texture_filter_mode(GPUTexture *tex, bool compare, bool use_filter);
+void GPU_texture_generate_mipmap(GPUTexture *tex);
 
 struct GPUFrameBuffer *GPU_texture_framebuffer(GPUTexture *tex);
 int GPU_texture_framebuffer_attachment(GPUTexture *tex);

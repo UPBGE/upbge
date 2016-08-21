@@ -134,34 +134,10 @@ void KX_BlenderCanvas::EndDraw()
 
 void KX_BlenderCanvas::BeginFrame()
 {
-	m_rasterizer->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
-	m_rasterizer->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
 }
 
 void KX_BlenderCanvas::EndFrame()
 {
-	m_rasterizer->Disable(RAS_IRasterizer::RAS_FOG);
-}
-
-
-void KX_BlenderCanvas::ClearColor(float r, float g, float b, float a)
-{
-	m_rasterizer->SetClearColor(r, g, b, a);
-}
-
-void KX_BlenderCanvas::ClearBuffer(int type)
-{
-	unsigned int rastype = 0;
-
-	if (type & RAS_ICanvas::COLOR_BUFFER) {
-		rastype |= RAS_IRasterizer::RAS_COLOR_BUFFER_BIT;
-	}
-
-	if (type & RAS_ICanvas::DEPTH_BUFFER) {
-		rastype |= RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT;
-	}
-
-	m_rasterizer->Clear(rastype);
 }
 
 int KX_BlenderCanvas::GetWidth() const
@@ -223,9 +199,6 @@ void KX_BlenderCanvas::SetViewPort(int x1, int y1, int x2, int y2)
 	m_viewport[1] = miny + y1;
 	m_viewport[2] = vp_width;
 	m_viewport[3] = vp_height;
-
-	m_rasterizer->SetViewport(minx + x1, miny + y1, vp_width, vp_height);
-	m_rasterizer->SetScissor(minx + x1, miny + y1, vp_width, vp_height);
 }
 
 void KX_BlenderCanvas::UpdateViewPort(int x1, int y1, int x2, int y2)
@@ -238,17 +211,6 @@ void KX_BlenderCanvas::UpdateViewPort(int x1, int y1, int x2, int y2)
 
 const int *KX_BlenderCanvas::GetViewPort()
 {
-#ifdef DEBUG
-	// If we're in a debug build, we might as well make sure our values don't differ
-	// from what the gpu thinks we have. This could lead to nasty, hard to find bugs.
-	int viewport[4];
-	m_rasterizer->GetViewport(viewport);
-	assert(viewport[0] == m_viewport[0]);
-	assert(viewport[1] == m_viewport[1]);
-	assert(viewport[2] == m_viewport[2]);
-	assert(viewport[3] == m_viewport[3]);
-#endif
-
 	return m_viewport;
 }
 

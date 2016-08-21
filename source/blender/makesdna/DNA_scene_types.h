@@ -787,7 +787,9 @@ typedef struct GameData {
 	struct GameFraming framing;
 	short playerflag, xplay, yplay, freqplay;
 	short depth, attrib, rt1, rt2;
-	short aasamples, pad4[3];
+	short aasamples;
+	short hdr;
+	short pad4[2];
 
 	short stereoflag, stereomode;
 	float eyeseparation;
@@ -888,6 +890,11 @@ enum {
 
 /* GameData.lodflag */
 #define SCE_LOD_USE_HYST		(1 << 0)
+
+/* GameData.hdr */
+#define GAME_HDR_NONE		0
+#define GAME_HDR_HALF_FLOAT	1
+#define GAME_HDR_FULL_FLOAT	2
 
 /* UV Paint */
 #define UV_SCULPT_LOCK_BORDERS				1

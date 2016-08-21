@@ -37,7 +37,6 @@
 
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
-#include "KX_OffScreen.h"
 #include "RAS_ICanvas.h"
 #include "Texture.h"
 #include "ImageBase.h"
@@ -46,31 +45,30 @@
 #include "ImageViewport.h"
 
 
-// constructor
-ImageViewport::ImageViewport (KX_OffScreen *offscreen) : m_alpha(false), m_texInit(false)
+ImageViewport::ImageViewport()
 {
-	// get viewport rectangle
-	if (offscreen) {
-		m_viewport[0] = 0;
-		m_viewport[1] = 0;
-		m_viewport[2] = offscreen->GetOffScreen()->GetWidth();
-		m_viewport[3] = offscreen->GetOffScreen()->GetHeight();
-	}
-	else {
-		RAS_Rect rect = KX_GetActiveEngine()->GetCanvas()->GetWindowArea();
-		m_viewport[0] = rect.GetLeft();
-		m_viewport[1] = rect.GetBottom();
-		m_viewport[2] = rect.GetWidth();
-		m_viewport[3] = rect.GetHeight();
-	}
 	
+}
+
+// constructor
+ImageViewport::ImageViewport(unsigned int width, unsigned int height)
+	:m_width(width),
+	m_height(height),
+	m_alpha(false),
+	m_texInit(false)
+{
+	m_viewport[0] = 0;
+	m_viewport[1] = 0;
+	m_viewport[2] = width;
+	m_viewport[3] = height;
+
 	//glGetIntegerv(GL_VIEWPORT, m_viewport);
 	// create buffer for viewport image
 	// Warning: this buffer is also used to get the depth buffer as an array of
 	//          float (1 float = 4 bytes per pixel)
 	m_viewportImage = new BYTE [4 * getViewportSize()[0] * getViewportSize()[1]];
 	// set attributes
-	setWhole((offscreen) ? true : false);
+	setWhole(true);
 }
 
 // destructor
@@ -398,7 +396,6 @@ int ImageViewport_setCaptureSize(PyImage *self, PyObject *value, void *closure)
 	// success
 	return 0;
 }
-
 
 // methods structure
 static PyMethodDef imageViewportMethods[] =

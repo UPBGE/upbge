@@ -100,13 +100,13 @@ public:
 	 */
 	enum StereoMode {
 		RAS_STEREO_NOSTEREO = 1,
+		// WARNING: Not yet supported.
 		RAS_STEREO_QUADBUFFERED,
 		RAS_STEREO_ABOVEBELOW,
 		RAS_STEREO_INTERLACED,
 		RAS_STEREO_ANAGLYPH,
 		RAS_STEREO_SIDEBYSIDE,
 		RAS_STEREO_VINTERLACE,
-		RAS_STEREO_DOME,
 		RAS_STEREO_3DTVTOPBOTTOM,
 
 		RAS_STEREO_MAXSTEREO
@@ -135,7 +135,7 @@ public:
 	 * Render pass identifiers for stereo.
 	 */
 	enum StereoEye {
-		RAS_STEREO_LEFTEYE = 1,
+		RAS_STEREO_LEFTEYE = 0,
 		RAS_STEREO_RIGHTEYE,
 	};
 
@@ -229,6 +229,42 @@ public:
 		RAS_STORAGE_MAX
 	};
 
+	enum OffScreen {
+		RAS_OFFSCREEN_COLOR = 0,
+		RAS_OFFSCREEN_DEPTH = 1,
+
+		RAS_OFFSCREEN_RENDER = 0,
+		RAS_OFFSCREEN_FILTER0,
+		RAS_OFFSCREEN_FILTER1,
+		RAS_OFFSCREEN_EYE_LEFT0,
+		RAS_OFFSCREEN_EYE_RIGHT0,
+		RAS_OFFSCREEN_EYE_LEFT1,
+		RAS_OFFSCREEN_EYE_RIGHT1,
+		RAS_OFFSCREEN_FINAL,
+		RAS_OFFSCREEN_MAX,
+	};
+
+	enum HdrType {
+		RAS_HDR_NONE = 0,
+		RAS_HDR_HALF_FLOAT,
+		RAS_HDR_FULL_FLOAT
+	};
+
+	/** Return the output frame buffer normally used for the input frame buffer
+	 * index in case of filters render.
+	 * \param index The input frame buffer, can be a non-filter frame buffer.
+	 * \return The output filter frame buffer.
+	 */
+	static unsigned short NextFilterOffScreen(unsigned short index);
+
+
+	/** Return the output frame buffer normally used for the input frame buffer
+	 * index in case of per eye stereo render.
+	 * \param index The input eye frame buffer, can NOT be a non-eye frame buffer.
+	 * \return The output eye frame buffer.
+	 */
+	static unsigned short NextEyeOffScreen(unsigned short index);
+
 	/**
 	 * Enable capability
 	 * \param bit Enable bit
@@ -310,6 +346,51 @@ public:
 	 */
 	virtual void EndFrame() = 0;
 
+	/// Update dimensions of all off screens.
+	virtual void UpdateOffScreens(RAS_ICanvas *canvas) = 0;
+	/// Bind the off screen at the given index.
+	virtual void BindOffScreen(unsigned short index) = 0;
+	/// Unbind the off screen at the given index.
+	virtual void RestoreScreenFrameBuffer() = 0;
+
+	/** Draw off screen without set viewport.
+	 * Used to copy the frame buffer object to another.
+	 * \param srcindex The input off screen index.
+	 * \param dstindex The output off screen index.
+	 */
+	virtual void DrawOffScreen(unsigned short srcindex, unsigned short dstindex) = 0;
+
+	/** Draw off screen at the given index to screen.
+	 * \param canvas The canvas containing the screen viewport.
+	 * \param index The off screen index to read from.
+	 */
+	virtual void DrawOffScreen(RAS_ICanvas *canvas, unsigned short index) = 0;
+
+	/** Draw each stereo off screen to screen.
+	 * \param canvas The canvas containing the screen viewport.
+	 * \param lefteyeindex The left off screen index.
+	 * \param righteyeindex The right off screen index.
+	 */
+	virtual void DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex) = 0;
+
+	/** Bind the off screen texture at the given index and slot.
+	 * \param index The off screen index.
+	 * \param slot The texture slot to bind the texture.
+	 * \param type The texture type: RAS_OFFSCREEN_COLOR or RAS_OFFSCREEN_DEPTH.
+	 */
+	virtual void BindOffScreenTexture(unsigned short index, unsigned short slot, OffScreen type) = 0;
+
+	/** Unbind the off screen texture at the given index and slot.
+	 * \param index The off screen index.
+	 * \param type The texture type: RAS_OFFSCREEN_COLOR or RAS_OFFSCREEN_DEPTH.
+	 */
+	virtual void UnbindOffScreenTexture(unsigned short index, OffScreen type) = 0;
+
+	/// Return current off screen index.
+	virtual short GetCurrentOffScreenIndex() const = 0;
+	/// Return the off screenn samples numbers at the given index.
+	virtual int GetOffScreenSamples(unsigned short index) = 0;
+
 	/**
 	 * SetRenderArea sets the render area from the 2d canvas.
 	 * Returns true if only of subset of the canvas is used.
@@ -328,7 +409,6 @@ public:
 	 */
 	virtual bool Stereo() = 0;
 	virtual StereoMode GetStereoMode() = 0;
-	virtual bool InterlacedStereo() = 0;
 
 	/**
 	 * Sets which eye buffer subsequent primitives will be rendered to.
@@ -347,12 +427,6 @@ public:
 	 */
 	virtual void SetFocalLength(const float focallength) = 0;
 	virtual float GetFocalLength() = 0;
-
-	/**
-	 * Create an offscreen render buffer that can be used as target for render.
-	 * For the time being, it is only used in VideoTexture for custom render.
-	 */
-	virtual RAS_IOffScreen *CreateOffScreen(RAS_ICanvas *canvas, int width, int height, int samples, int target) = 0;
 
 	/**
 	 * Create a sync object
