@@ -64,6 +64,7 @@ class BL_ActionManager;
 struct Object;
 class KX_ObstacleSimulation;
 class KX_CollisionContactPointList;
+class CcdPhysicsController;
 struct bAction;
 
 #ifdef WITH_PYTHON
@@ -111,6 +112,7 @@ protected:
 	bool								m_autoUpdateBounds;
 
 	PHY_IPhysicsController*				m_pPhysicsController;
+	CcdPhysicsController*				m_pSavedPhysicsController;
 	PHY_IGraphicController*				m_pGraphicController;
 
 	SG_Node*							m_pSGNode;
@@ -1072,6 +1074,8 @@ public:
 	static int			pyattr_set_angularDamping(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_lodManager(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_lodManager(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_suspend_physics(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_suspend_physics(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	/* Experimental! */
 	static PyObject*	pyattr_get_sensors(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

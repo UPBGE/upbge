@@ -70,6 +70,9 @@
 #include "BKE_object.h"
 #include "BKE_python_component.h"
 
+#include "CcdPhysicsController.h"
+#include "CcdPhysicsEnvironment.h"
+
 #include "BL_ActionManager.h"
 #include "BL_Action.h"
 
@@ -120,7 +123,8 @@ KX_GameObject::KX_GameObject(
       m_components(NULL),
       m_pInstanceObjects(NULL),
       m_pDupliGroupObject(NULL),
-      m_actionManager(NULL)
+      m_actionManager(NULL),
+	  m_pSavedPhysicsController(NULL)
 #ifdef WITH_PYTHON
     , m_attr_dict(NULL),
     m_collisionCallbacks(NULL)
@@ -2064,6 +2068,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("debug",	KX_GameObject, pyattr_get_debug, pyattr_set_debug),
 	KX_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
 	KX_PYATTRIBUTE_RW_FUNCTION("debugRecursive",	KX_GameObject, pyattr_get_debugRecursive, pyattr_set_debugRecursive),
+	KX_PYATTRIBUTE_RW_FUNCTION("suspendPhysics", KX_GameObject, pyattr_get_suspend_physics, pyattr_set_suspend_physics),
 
 	/* experimental, don't rely on these yet */
 	KX_PYATTRIBUTE_RO_FUNCTION("sensors",		KX_GameObject, pyattr_get_sensors),
@@ -2554,6 +2559,36 @@ PyObject *KX_GameObject::pyattr_get_is_suspend_dynamics(void *self_v, const KX_P
 	}
 
 	return PyBool_FromLong(self->IsDynamicsSuspended());
+}
+
+PyObject *KX_GameObject::pyattr_get_suspend_physics(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+	return PyBool_FromLong(self->m_suspendedPhysics);
+}
+
+int KX_GameObject::pyattr_set_suspend_physics(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+
+	bool suspend = PyLong_AsLong(value);
+	if (!suspend) {
+		if (self->m_pSavedPhysicsController) {
+			CcdPhysicsEnvironment *env = (CcdPhysicsEnvironment *)self->GetScene()->GetPhysicsEnvironment();
+			env->AddCcdPhysicsController(self->m_pSavedPhysicsController);
+			self->m_suspendedPhysics = false;
+		}
+	}
+	else {
+		self->m_pSavedPhysicsController = (CcdPhysicsController *)self->GetPhysicsController();
+		CcdPhysicsEnvironment *env = (CcdPhysicsEnvironment *)self->GetScene()->GetPhysicsEnvironment();
+		if (self->GetPhysicsController()) {
+			env->RemoveCcdPhysicsController((CcdPhysicsController *)self->GetPhysicsController());
+			self->m_suspendedPhysics = true;
+		}
+	}
+
+	return PY_SET_ATTR_SUCCESS;
 }
 
 PyObject *KX_GameObject::pyattr_get_lin_vel_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

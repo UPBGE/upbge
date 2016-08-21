@@ -49,6 +49,7 @@ SCA_IObject::SCA_IObject():
 	m_firstState(NULL)
 {
 	m_suspended = false;
+	m_suspendedPhysics = false;
 }
 
 SCA_IObject::~SCA_IObject()
