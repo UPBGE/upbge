@@ -171,7 +171,7 @@ RAS_OpenGLRasterizer::ScreenPlane::~ScreenPlane()
 	glDeleteBuffersARB(1, &m_ibo);
 }
 
-void RAS_OpenGLRasterizer::ScreenPlane::Render()
+inline void RAS_OpenGLRasterizer::ScreenPlane::Render()
 {
 	// Bind screen plane VBO/IBO
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo);
