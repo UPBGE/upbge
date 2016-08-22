@@ -2064,6 +2064,9 @@ void RAS_OpenGLRasterizer::DisableForText()
 	SetLines(false); /* needed for texture fonts otherwise they render as wireframe */
 	SetFrontFace(true);
 
+	Enable(RAS_CULL_FACE);
+	glCullFace(GL_BACK);
+
 	ProcessLighting(false, MT_Transform::Identity());
 
 	for (int i = 0; i < RAS_MAX_TEXCO; i++) {
