@@ -900,7 +900,43 @@ int main(
 						if (!stereoParFound) {
 							// Only use file settings when command line did not override
 							if (scene->gm.stereoflag == STEREO_ENABLED) {
-								stereomode = (RAS_IRasterizer::StereoMode) scene->gm.stereomode;
+								switch (scene->gm.stereomode) {
+									case STEREO_QUADBUFFERED:
+									{
+										stereomode = RAS_IRasterizer::RAS_STEREO_QUADBUFFERED;
+										break;
+									}
+									case STEREO_ABOVEBELOW:
+									{
+										stereomode = RAS_IRasterizer::RAS_STEREO_ABOVEBELOW;
+										break;
+									}
+									case STEREO_INTERLACED:
+									{
+										stereomode = RAS_IRasterizer::RAS_STEREO_INTERLACED;
+										break;
+									}
+									case STEREO_ANAGLYPH:
+									{
+										stereomode = RAS_IRasterizer::RAS_STEREO_ANAGLYPH;
+										break;
+									}
+									case STEREO_SIDEBYSIDE:
+									{
+										stereomode = RAS_IRasterizer::RAS_STEREO_SIDEBYSIDE;
+										break;
+									}
+									case STEREO_VINTERLACE:
+									{
+										stereomode = RAS_IRasterizer::RAS_STEREO_VINTERLACE;
+										break;
+									}
+									case STEREO_3DTVTOPBOTTOM:
+									{
+										stereomode = RAS_IRasterizer::RAS_STEREO_3DTVTOPBOTTOM;
+										break;
+									}
+								}
 								if (stereomode == RAS_IRasterizer::RAS_STEREO_QUADBUFFERED)
 									stereoWindow = true;
 							}
