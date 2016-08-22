@@ -350,8 +350,6 @@ public:
 	virtual void UpdateOffScreens(RAS_ICanvas *canvas) = 0;
 	/// Bind the off screen at the given index.
 	virtual void BindOffScreen(unsigned short index) = 0;
-	/// Unbind the off screen at the given index.
-	virtual void RestoreScreenFrameBuffer() = 0;
 
 	/** Draw off screen without set viewport.
 	 * Used to copy the frame buffer object to another.

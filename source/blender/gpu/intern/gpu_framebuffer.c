@@ -827,6 +827,9 @@ void GPU_offscreen_blit(GPUOffScreen *srcofs, GPUOffScreen *dstofs)
 	glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, srcofs->fb->object);
 	glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER_EXT, dstofs->fb->object);
 
+	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
+	glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
+
 	int height = min_ff(GPU_offscreen_height(srcofs), GPU_offscreen_height(dstofs));
 	int width = min_ff(GPU_offscreen_width(srcofs), GPU_offscreen_width(dstofs));
 

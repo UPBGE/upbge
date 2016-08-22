@@ -220,6 +220,8 @@ RAS_OpenGLRasterizer::OffScreens::~OffScreens()
 
 GPUOffScreen *RAS_OpenGLRasterizer::OffScreens::GetOffScreen(unsigned short index)
 {
+	const short lastIndex = m_currentIndex;
+
 	if (!m_offScreens[index]) {
 		// The offscreen need to be created now.
 
@@ -247,7 +249,15 @@ GPUOffScreen *RAS_OpenGLRasterizer::OffScreens::GetOffScreen(unsigned short inde
 				break;
 			}
 		}
+
+		/* Creating an off screen restore the default frame buffer object.
+		 * We have to rebind the last off screen. */
+		if (lastIndex != -1) {
+			Bind(lastIndex);
+		}
 	}
+
+	BLI_assert(lastIndex == m_currentIndex);
 
 	return m_offScreens[index];
 }
@@ -302,6 +312,13 @@ inline void RAS_OpenGLRasterizer::OffScreens::Bind(unsigned short index)
 	GPU_offscreen_bind_simple(GetOffScreen(index));
 
 	m_currentIndex = index;
+}
+
+inline void RAS_OpenGLRasterizer::OffScreens::RestoreScreen()
+{
+	GPU_framebuffer_restore();
+
+	m_currentIndex = -1;
 }
 
 inline void RAS_OpenGLRasterizer::OffScreens::Blit(unsigned short srcindex, unsigned short dstindex)
@@ -854,11 +871,6 @@ void RAS_OpenGLRasterizer::BindOffScreen(unsigned short index)
 	m_offScreens.Bind(index);
 }
 
-void RAS_OpenGLRasterizer::RestoreScreenFrameBuffer()
-{
-	GPU_framebuffer_restore();
-}
-
 void RAS_OpenGLRasterizer::DrawOffScreen(unsigned short srcindex, unsigned short dstindex)
 {
 	if (m_offScreens.GetSamples(srcindex) == 0) {
@@ -894,7 +906,7 @@ void RAS_OpenGLRasterizer::DrawOffScreen(RAS_ICanvas *canvas, unsigned short ind
 
 	SetDepthFunc(RAS_ALWAYS);
 
-	RestoreScreenFrameBuffer();
+	m_offScreens.RestoreScreen();
 	DrawOffScreen(index, 0);
 
 	SetDepthFunc(RAS_LEQUAL);
@@ -920,7 +932,7 @@ void RAS_OpenGLRasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned sho
 
 	SetDepthFunc(RAS_ALWAYS);
 
-	RestoreScreenFrameBuffer();
+	m_offScreens.RestoreScreen();
 
 	if (m_stereomode == RAS_STEREO_VINTERLACE || m_stereomode == RAS_STEREO_INTERLACED) {
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_STIPPLE);
