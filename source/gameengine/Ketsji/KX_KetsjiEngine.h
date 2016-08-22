@@ -590,7 +590,6 @@ protected:
 	void PostProcessScene(KX_Scene *scene);
 
 	bool BeginFrame();
-	void ClearFrame();
 	void EndFrame();
 
 #ifdef WITH_CXX_GUARDEDALLOC

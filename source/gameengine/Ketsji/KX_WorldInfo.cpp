@@ -225,6 +225,14 @@ void KX_WorldInfo::RenderBackground(RAS_IRasterizer *rasty)
 			rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
 		}
 	}
+	// Else render a dummy gray background.
+	else {
+		/* Grey color computed by linearrgb_to_srgb_v3_v3 with a color of
+		 * 0.050, 0.050, 0.050 (the default world horizon color).
+		 */
+		rasty->SetClearColor(0.247784f, 0.247784f, 0.247784f, 1.0f);
+		rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
+	}
 }
 
 #ifdef WITH_PYTHON

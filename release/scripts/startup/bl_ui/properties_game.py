@@ -463,8 +463,7 @@ class RENDER_PT_game_display(RenderButtonsPanel, Panel):
         col = layout.column()
         col.label(text="Framing:")
         col.row().prop(gs, "frame_type", expand=True)
-        if gs.frame_type == 'LETTERBOX':
-            col.prop(gs, "frame_color", text="")
+        col.prop(gs, "frame_color", text="")
 
 
 class SceneButtonsPanel:
