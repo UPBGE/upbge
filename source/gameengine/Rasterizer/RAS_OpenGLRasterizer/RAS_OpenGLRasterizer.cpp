@@ -2078,7 +2078,8 @@ void RAS_OpenGLRasterizer::DisableForText()
 {
 	SetAlphaBlend(GPU_BLEND_ALPHA);
 	SetLines(false); /* needed for texture fonts otherwise they render as wireframe */
-	SetFrontFace(true);
+
+	Enable(RAS_CULL_FACE);
 
 	ProcessLighting(false, MT_Transform::Identity());
 
@@ -2149,6 +2150,7 @@ void RAS_OpenGLRasterizer::RenderText3D(
 {
 	/* gl prepping */
 	DisableForText();
+	SetFrontFace(true);
 
 	/* the actual drawing */
 	glColor4fv(color);
@@ -2181,6 +2183,7 @@ void RAS_OpenGLRasterizer::RenderText2D(
 	 * behind quite as neatly as we'd have wanted to. I don't know
 	 * what cause it, though :/ .*/
 	DisableForText();
+	SetFrontFace(true);
 	Disable(RAS_DEPTH_TEST);
 
 	SetMatrixMode(RAS_PROJECTION);
