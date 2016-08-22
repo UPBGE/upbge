@@ -264,53 +264,6 @@ void KX_KetsjiEngine::StartEngine(bool clearIpo)
 	}
 }
 
-void KX_KetsjiEngine::ClearFrame()
-{
-	// clear the viewports with the background color of the first scene
-	bool doclear = false;
-	RAS_Rect clearvp, area, viewport;
-
-	for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
-		KX_Scene *scene = (KX_Scene *)*sceit;
-		//const RAS_FrameSettings &framesettings = scene->GetFramingType();
-		CListValue* cameras = scene->GetCameraList();
-
-		for (CListValue::iterator it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-			KX_Camera *cam = (KX_Camera*)(*it);
-			GetSceneViewport(scene, cam, area, viewport);
-
-			if (!doclear) {
-				clearvp = viewport;
-				doclear = true;
-			}
-			else {
-				if (viewport.GetLeft() < clearvp.GetLeft())
-					clearvp.SetLeft(viewport.GetLeft());
-				if (viewport.GetBottom() < clearvp.GetBottom())
-					clearvp.SetBottom(viewport.GetBottom());
-				if (viewport.GetRight() > clearvp.GetRight())
-					clearvp.SetRight(viewport.GetRight());
-				if (viewport.GetTop() > clearvp.GetTop())
-					clearvp.SetTop(viewport.GetTop());
-			}
-		}
-	}
-
-	if (doclear) {
-		KX_Scene *firstscene = (KX_Scene *)m_scenes->GetFront();
-		firstscene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
-
-		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetRight(), clearvp.GetTop());
-		m_rasterizer->SetViewport(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetWidth() + 1, clearvp.GetHeight() + 1);
-		m_rasterizer->SetScissor(clearvp.GetLeft(), clearvp.GetBottom(), clearvp.GetWidth() + 1, clearvp.GetHeight() + 1);
-		/* Grey color computed by linearrgb_to_srgb_v3_v3 with a color of 
-		 * 0.050, 0.050, 0.050 (the default world horizon color).
-		 */
-		m_rasterizer->SetClearColor(0.247784f, 0.247784f, 0.247784f, 1.0f);
-		m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);		
-	}
-}
-
 bool KX_KetsjiEngine::BeginFrame()
 {
 	m_rasterizer->BeginFrame(m_kxsystem->GetTimeInSeconds());
@@ -612,9 +565,6 @@ void KX_KetsjiEngine::Render()
 	}
 	// clear the -whole- viewport
 	m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-
-	// Clear the render area (without bars).
-	ClearFrame();
 
 	const RAS_IRasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
 	// Set to true when each eye needs to be rendered in a separated off screen.
@@ -1044,7 +994,10 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 	cam->SetModelviewMatrix(viewmat);
 
 	if (isfirstscene) {
-		scene->GetWorldInfo()->RenderBackground(m_rasterizer);
+		KX_WorldInfo *worldInfo = scene->GetWorldInfo();
+		// Update background and render it.
+		worldInfo->UpdateBackGround(m_rasterizer);
+		worldInfo->RenderBackground(m_rasterizer);
 	}
 
 	// The following actually reschedules all vertices to be
