@@ -302,8 +302,6 @@ bool ImageRender::Render()
 	m_rasterizer->SetViewport(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
 	m_rasterizer->SetScissor(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
 
-	m_rasterizer->SetClearColor(0.247784f, 0.247784f, 0.247784f, 1.0f);
-	m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 	m_rasterizer->BeginFrame(m_engine->GetClockTime());
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
@@ -394,7 +392,7 @@ bool ImageRender::Render()
 	}
 
 	// Render Background
-	if (m_scene->GetWorldInfo()->m_hasworld) {
+	if (m_scene->GetWorldInfo()) {
 		const MT_Vector3 hor = m_scene->GetWorldInfo()->m_horizoncolor;
 		const MT_Vector3 zen = m_scene->GetWorldInfo()->m_zenithcolor;
 		m_scene->GetWorldInfo()->setHorizonColor(MT_Vector3(m_horizon[0], m_horizon[1], m_horizon[2]));
