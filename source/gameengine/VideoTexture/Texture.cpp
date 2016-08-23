@@ -242,6 +242,10 @@ static int Texture_init(Texture *self, PyObject *args, PyObject *kwds)
 			{
 				// get blender material texture
 				self->m_matTexture = mat->GetTexture(texID);
+				if (!self->m_matTexture) {
+					PyErr_SetString(PyExc_ValueError, "Texture::Texture_init : Texture not found in this texture slot");
+					return -1;
+				}
 				self->m_imgTexture = self->m_matTexture->GetImage();
 				self->m_useMatTexture = true;
 			}
@@ -289,9 +293,8 @@ PyObject *Texture_close(Texture * self)
 		self->m_orgSaved = false;
 		// restore original texture code
 		if (self->m_useMatTexture) {
-			self->m_matTexture->SetBindCode(self->m_orgTex);
 			if (self->m_imgTexture) {
-				// This is requierd for texture used in blender material.
+				// This is required for texture used in blender material.
 				self->m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = self->m_orgImg;
 			}
 		}
