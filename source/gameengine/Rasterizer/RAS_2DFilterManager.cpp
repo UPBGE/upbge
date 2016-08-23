@@ -92,6 +92,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 	unsigned short colorfbo = rasty->GetCurrentOffScreenIndex();
 	unsigned short depthfbo = colorfbo;
 
+	rasty->Disable(RAS_IRasterizer::RAS_CULL_FACE);
 	rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
 	rasty->Disable(RAS_IRasterizer::RAS_BLEND);
 	rasty->Disable(RAS_IRasterizer::RAS_ALPHA_TEST);
@@ -137,6 +138,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 	}
 
 	rasty->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
+	rasty->Enable(RAS_IRasterizer::RAS_CULL_FACE);
 }
 
 RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)

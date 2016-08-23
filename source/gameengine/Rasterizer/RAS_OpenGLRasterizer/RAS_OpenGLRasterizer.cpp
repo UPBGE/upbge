@@ -904,12 +904,14 @@ void RAS_OpenGLRasterizer::DrawOffScreen(RAS_ICanvas *canvas, unsigned short ind
 	SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 	SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
 
+	Disable(RAS_CULL_FACE);
 	SetDepthFunc(RAS_ALWAYS);
 
 	m_offScreens.RestoreScreen();
 	DrawOffScreen(index, 0);
 
 	SetDepthFunc(RAS_LEQUAL);
+	Enable(RAS_CULL_FACE);
 }
 
 void RAS_OpenGLRasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex)
@@ -930,6 +932,7 @@ void RAS_OpenGLRasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned sho
 	SetViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 	SetScissor(viewport[0], viewport[1], viewport[2], viewport[3]);
 
+	Disable(RAS_CULL_FACE);
 	SetDepthFunc(RAS_ALWAYS);
 
 	m_offScreens.RestoreScreen();
@@ -975,6 +978,7 @@ void RAS_OpenGLRasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned sho
 	}
 
 	SetDepthFunc(RAS_LEQUAL);
+	Enable(RAS_CULL_FACE);
 }
 
 void RAS_OpenGLRasterizer::BindOffScreenTexture(unsigned short index, unsigned short slot, OffScreen type)
