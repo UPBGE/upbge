@@ -23,6 +23,7 @@
  */
 
 #include "BL_Texture.h"
+#include "KX_CubeMap.h"
 
 #include "DNA_texture_types.h"
 
@@ -220,6 +221,7 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxStep", BL_Texture, pyattr_get_parallax_step, pyattr_set_parallax_step),
 	KX_PYATTRIBUTE_RW_FUNCTION("lodBias", BL_Texture, pyattr_get_lod_bias, pyattr_set_lod_bias),
 	KX_PYATTRIBUTE_RW_FUNCTION("bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
+	KX_PYATTRIBUTE_RO_FUNCTION("cubeMap", BL_Texture, pyattr_get_cube_map),
 	{ NULL }    //Sentinel
 };
 
@@ -482,6 +484,12 @@ int BL_Texture::pyattr_set_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *att
 
 	self->m_bindCode = val;
 	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_cube_map(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return ((KX_CubeMap *)self->GetCubeMap())->GetProxy();
 }
 
 #endif  // WITH_PYTHON
