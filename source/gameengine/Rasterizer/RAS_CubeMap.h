@@ -39,22 +39,23 @@ struct GPUTexture;
 class RAS_CubeMap
 {
 private:
-	RAS_Texture *m_texture;
 	GPUTexture *m_cubeMapTexture;
-	void *m_clientobj;
 	GPUFrameBuffer *m_fbos[6];
 	GPURenderBuffer *m_rbs[6];
 
+protected:
+	RAS_Texture *m_texture;
 	MT_Matrix4x4 m_proj;
 
 	/// Layers to render.
 	unsigned int m_layers;
 
 public:
-	RAS_CubeMap(void *clientobj, RAS_Texture *texture, RAS_IRasterizer *rasty);
+	RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty);
 	virtual ~RAS_CubeMap();
 
-	void *GetClientObject();
+	static MT_Matrix4x4 facesViewMat[6];
+	static MT_Matrix3x3 camOri[6];
 
 	void BeginRender();
 	void EndRender();

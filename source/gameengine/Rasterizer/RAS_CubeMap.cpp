@@ -37,6 +37,47 @@
 
 #include "glew-mx.h"
 
+static const MT_Matrix4x4 bottomFaceViewMat(
+	-1.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, -1.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 1.0f, 0.0f,
+	0.0f, 0.0f, 0.0f, 1.0f);
+static const MT_Matrix4x4 topFaceViewMat(
+	1.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, -1.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, -1.0f, 0.0f,
+	0.0f, 0.0f, 0.0f, 1.0f);
+static const MT_Matrix4x4 rightFaceViewMat(
+	1.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 1.0f, 0.0f,
+	0.0f, -1.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 0.0f, 1.0f);
+static const MT_Matrix4x4 leftFaceViewMat(
+	1.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, -1.0f, 0.0f,
+	0.0f, 1.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 0.0f, 1.0f);
+static const MT_Matrix4x4 backFaceViewMat(
+	0.0f, 0.0f, 1.0f, 0.0f,
+	0.0f, -1.0f, 0.0f, 0.0f,
+	1.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 0.0f, 1.0f);
+static const MT_Matrix4x4 frontFaceViewMat(
+	0.0f, 0.0f, -1.0f, 0.0f,
+	0.0f, -1.0f, 0.0f, 0.0f,
+	-1.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 0.0f, 1.0f);
+
+MT_Matrix4x4 RAS_CubeMap::facesViewMat[6] = {topFaceViewMat, bottomFaceViewMat, frontFaceViewMat, backFaceViewMat, rightFaceViewMat, leftFaceViewMat};
+MT_Matrix3x3 RAS_CubeMap::camOri[6] = {
+	topFaceViewMat.to3x3(),
+	bottomFaceViewMat.to3x3(),
+	frontFaceViewMat.to3x3(),
+	backFaceViewMat.to3x3(),
+	leftFaceViewMat.to3x3(),
+	rightFaceViewMat.to3x3()
+};
+
 static const GLenum cubeMapTargets[6] = {
 	GL_TEXTURE_CUBE_MAP_POSITIVE_Z_ARB,
 	GL_TEXTURE_CUBE_MAP_NEGATIVE_Z_ARB,
@@ -46,10 +87,9 @@ static const GLenum cubeMapTargets[6] = {
 	GL_TEXTURE_CUBE_MAP_NEGATIVE_Y_ARB,
 };
 
-RAS_CubeMap::RAS_CubeMap(void *clientobj, RAS_Texture *texture, RAS_IRasterizer *rasty)
-	:m_texture(texture),
-	m_cubeMapTexture(NULL),
-	m_clientobj(clientobj),
+RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty)
+	:m_cubeMapTexture(NULL),
+	m_texture(texture),
 	m_layers(0xFFFF)
 {
 	MTex *mtex = m_texture->GetMTex();
@@ -90,11 +130,6 @@ RAS_CubeMap::~RAS_CubeMap()
 	}
 }
 
-void *RAS_CubeMap::GetClientObject()
-{
-	return m_clientobj;
-}
-
 const MT_Matrix4x4& RAS_CubeMap::GetProjection()
 {
 	return m_proj;
@@ -123,8 +158,8 @@ void RAS_CubeMap::BindFace(RAS_IRasterizer *rasty, unsigned short index, const M
 									   0.0f, 1.0f, 0.0f, -objpos[1],
 									   0.0f, 0.0f, 1.0f, -objpos[2],
 									   0.0f, 0.0f, 0.0f, 1.0f);
-	const MT_Matrix4x4 viewmat = RAS_CubeMapManager::facesViewMat[index] * posmat;
-	const MT_Matrix3x3& rot = RAS_CubeMapManager::camOri[index];
+	const MT_Matrix4x4 viewmat = facesViewMat[index] * posmat;
+	const MT_Matrix3x3& rot = camOri[index];
 
 	rasty->SetViewMatrix(viewmat, rot, objpos, MT_Vector3(1.0f, 1.0f, 1.0f), true);
 }

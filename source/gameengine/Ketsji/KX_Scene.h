@@ -80,7 +80,7 @@ class RAS_IPolyMaterial;
 class RAS_IRasterizer;
 class RAS_IRenderTools;
 class RAS_2DFilterManager;
-class RAS_CubeMapManager;
+class KX_CubeMapManager;
 class KX_2DFilterManager;
 class SCA_JoystickManager;
 class btCollisionShape;
@@ -306,7 +306,7 @@ public:
 	void CreateGameobjWithCubeMapList(RAS_IRasterizer *rasty);
 
 	RAS_BucketManager* GetBucketManager();
-	RAS_CubeMapManager *GetCubeMapManager();
+	KX_CubeMapManager *GetCubeMapManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const MT_Transform& cameratransform,
 	                   RAS_IRasterizer* rasty);

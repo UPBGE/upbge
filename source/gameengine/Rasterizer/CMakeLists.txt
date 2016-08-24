@@ -50,7 +50,7 @@ set(SRC
 	RAS_2DFilterManager.cpp
 	RAS_BucketManager.cpp
 	RAS_CubeMap.cpp
-	RAS_CubeMapManager.cpp
+	RAS_DisplayArray.cpp
 	RAS_DisplayArrayBucket.cpp
 	RAS_FramingManager.cpp
 	RAS_IPolygonMaterial.cpp
@@ -75,7 +75,6 @@ set(SRC
 	RAS_BucketManager.h
 	RAS_CameraData.h
 	RAS_CubeMap.h
-	RAS_CubeMapManager.h
 	RAS_Deformer.h
 	RAS_DisplayArray.h
 	RAS_DisplayArrayBucket.h
