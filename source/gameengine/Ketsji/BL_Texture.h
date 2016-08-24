@@ -36,7 +36,7 @@ class BL_Texture : public CValue, public RAS_Texture
 {
 	Py_Header
 private:
-	bool m_cubeMap;
+	bool m_isCubeMap;
 	MTex *m_mtex;
 	GPUTexture *m_gpuTex;
 
@@ -57,7 +57,7 @@ private:
 	} m_savedData;
 
 public:
-	BL_Texture(MTex *mtex, bool cubemap);
+	BL_Texture(MTex *mtex, bool isCubeMap);
 	virtual ~BL_Texture();
 
 	// stuff for cvalue related things
