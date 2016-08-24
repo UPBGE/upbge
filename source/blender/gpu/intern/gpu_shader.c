@@ -66,6 +66,7 @@ extern char datatoc_gpu_shader_fx_dof_hq_vert_glsl[];
 extern char datatoc_gpu_shader_fx_dof_hq_geo_glsl[];
 extern char datatoc_gpu_shader_fx_depth_resolve_glsl[];
 extern char datatoc_gpu_shader_fx_lib_glsl[];
+extern char datatoc_gpu_shader_lib_glsl[];
 
 static struct GPUShadersGlobal {
 	struct {
@@ -340,6 +341,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		source[num_source++] = gpu_shader_version();
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
+		source[num_source++] = datatoc_gpu_shader_lib_glsl;
 
 		if (defines) source[num_source++] = defines;
 		if (resetline) {
@@ -370,6 +372,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		source[num_source++] = gpu_shader_version();
 		source[num_source++] = standard_extensions;
 		source[num_source++] = standard_defines;
+		source[num_source++] = datatoc_gpu_shader_lib_glsl;
 
 #ifdef WITH_OPENSUBDIV
 		/* TODO(sergey): Move to fragment shader source code generation. */
