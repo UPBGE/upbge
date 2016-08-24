@@ -76,6 +76,7 @@ public:
 	virtual void CheckValidTexture();
 	virtual void ActivateTexture(int unit);
 	virtual void DisableTexture();
+
 	unsigned int swapTexture(unsigned int bindcode);
 
 #ifdef WITH_PYTHON
@@ -106,6 +107,7 @@ public:
 	static int pyattr_set_lod_bias(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_cube_map(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif  // WITH_PYTHON
 };

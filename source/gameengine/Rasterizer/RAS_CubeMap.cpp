@@ -25,7 +25,6 @@
 */
 
 #include "RAS_CubeMap.h"
-#include "RAS_CubeMapManager.h"
 #include "RAS_Texture.h"
 #include "RAS_IRasterizer.h"
 
@@ -112,7 +111,7 @@ RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty)
 	for (unsigned short i = 0; i < 6; ++i) {
 		m_fbos[i] = GPU_framebuffer_create();
 		m_rbs[i] = GPU_renderbuffer_create(GPU_texture_width(m_cubeMapTexture), GPU_texture_height(m_cubeMapTexture),
-										   0, GPU_HDR_NONE, GPU_RENDER_BUFFERDEPTH, NULL);
+										   0, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, NULL);
 
 		GPU_framebuffer_texture_attach_target(m_fbos[i], m_cubeMapTexture, cubeMapTargets[i], 0, NULL);
 		GPU_framebuffer_renderbuffer_attach(m_fbos[i], m_rbs[i], 0, NULL);

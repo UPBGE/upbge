@@ -31,11 +31,15 @@ struct MTex;
 struct Image;
 struct GPUTexture;
 
+class RAS_CubeMap;
+
 class RAS_Texture
 {
 protected:
 	int m_bindCode;
 	STR_String m_name;
+
+	RAS_CubeMap *m_cubeMap;
 
 public:
 	RAS_Texture();
@@ -47,6 +51,9 @@ public:
 	virtual Image *GetImage() const = 0;
 	virtual GPUTexture *GetGPUTexture() = 0;
 	STR_String& GetName();
+
+	void SetCubeMap(RAS_CubeMap *cubeMap);
+	RAS_CubeMap *GetCubeMap() const;
 
 	virtual unsigned int GetTextureType() = 0;
 

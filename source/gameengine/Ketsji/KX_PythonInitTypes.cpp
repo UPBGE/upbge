@@ -53,6 +53,7 @@
 #include "KX_CharacterWrapper.h"
 #include "KX_ConstraintActuator.h"
 #include "KX_ConstraintWrapper.h"
+#include "KX_CubeMap.h"
 #include "KX_GameActuator.h"
 #include "KX_LibLoadStatus.h"
 #include "KX_Light.h"
@@ -227,6 +228,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, KX_CharacterWrapper, init_getset);
 		PyType_Ready_Attr(dict, KX_ConstraintActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_ConstraintWrapper, init_getset);
+		PyType_Ready_Attr(dict, KX_CubeMap, init_getset);
 		PyType_Ready_Attr(dict, KX_GameActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_GameObject, init_getset);
 		PyType_Ready_Attr(dict, KX_LibLoadStatus, init_getset);
