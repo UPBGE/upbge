@@ -25,24 +25,31 @@
 #ifndef __KX_CUBEMAPMANAGER_H__
 #define __KX_CUBEMAPMANAGER_H__
 
-#include "RAS_CubeMapManager.h"
+#include <vector>
 
+class KX_GameObject;
 class KX_Camera;
 class KX_Scene;
+class KX_CubeMap;
 
 class RAS_IRasterizer;
 
-class KX_CubeMapManager : public RAS_CubeMapManager
+class KX_CubeMapManager
 {
 private:
+	std::vector<KX_CubeMap *> m_cubeMaps;
+
 	KX_Camera *m_camera;
 	KX_Scene *m_scene;
 
-	void RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubemap);
+	void RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubemap);
 
 public:
 	KX_CubeMapManager(KX_Scene *scene);
 	virtual ~KX_CubeMapManager();
+
+	void AddCubeMap(KX_CubeMap *cubeMap);
+	void RemoveCubeMap(KX_GameObject *gameobj);
 
 	void Render(RAS_IRasterizer *rasty);
 

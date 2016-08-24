@@ -626,8 +626,8 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
             layout.prop(env, "mapping")
             if env.mapping == 'PLANE':
                 layout.prop(env, "zoom")
-            if env.source != 'REALTIME_REFL':
-                layout.prop(env, "viewpoint_object")
+
+            layout.prop(env, "viewpoint_object")
 
             split = layout.split()
 

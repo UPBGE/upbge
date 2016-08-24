@@ -326,7 +326,7 @@ RAS_BucketManager* KX_Scene::GetBucketManager()
 	return m_bucketmanager;
 }
 
-RAS_CubeMapManager *KX_Scene::GetCubeMapManager()
+KX_CubeMapManager *KX_Scene::GetCubeMapManager()
 {
 	return m_cubeMapManager;
 }
@@ -1107,7 +1107,7 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 
 	newobj->RemoveMeshes();
 
-	m_cubeMapManager->RemoveCubeMap(newobj->getClientInfo());
+	m_cubeMapManager->RemoveCubeMap(newobj);
 
 	ret = 1;
 	if (newobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(newobj))

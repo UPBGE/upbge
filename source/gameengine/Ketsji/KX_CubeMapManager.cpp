@@ -26,10 +26,10 @@
 #include "KX_Camera.h"
 #include "KX_Scene.h"
 #include "KX_Globals.h"
+#include "KX_CubeMap.h"
 
 #include "EXP_ListValue.h"
 
-#include "RAS_CubeMap.h"
 #include "RAS_IRasterizer.h"
 
 KX_CubeMapManager::KX_CubeMapManager(KX_Scene *scene)
@@ -41,12 +41,33 @@ KX_CubeMapManager::KX_CubeMapManager(KX_Scene *scene)
 
 KX_CubeMapManager::~KX_CubeMapManager()
 {
+	for (std::vector<KX_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
+		delete *it;
+	}
+
 	delete m_camera;
 }
 
-void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubeMap)
+void KX_CubeMapManager::AddCubeMap(KX_CubeMap *cubeMap)
 {
-	KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)cubeMap->GetClientObject());
+	m_cubeMaps.push_back(cubeMap);
+}
+
+void KX_CubeMapManager::RemoveCubeMap(KX_GameObject *gameobj)
+{
+	for (std::vector<KX_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
+		KX_CubeMap *cubeMap = *it;
+		if (cubeMap->GetGameObject() == gameobj) {
+			delete cubeMap;
+			m_cubeMaps.erase(it);
+			break;
+		}
+	}
+}
+
+void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMap)
+{
+	KX_GameObject *gameobj = cubeMap->GetGameObject();
 	MT_Vector3 pos = gameobj->NodeGetWorldPosition();
 
 	/* We hide the gameobject in the case backface culling is disabled -> we can't see through
@@ -70,7 +91,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubeM
 		cubeMap->BindFace(rasty, i, pos);
 
 		/* For Culling we need also to set the camera orientation */
-		m_camera->NodeSetGlobalOrientation(camOri[i]);
+		m_camera->NodeSetGlobalOrientation(RAS_CubeMap::camOri[i]);
 		m_camera->NodeUpdateGS(0.0f);
 		MT_Transform trans(m_camera->GetWorldToCamera());
 		MT_Matrix4x4 viewmat(trans);
@@ -105,7 +126,7 @@ void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
 	const RAS_IRasterizer::StereoMode steremode = rasty->GetStereoMode();
 	rasty->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
 
-	for (std::vector<RAS_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
+	for (std::vector<KX_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
 		RenderCubeMap(rasty, *it);
 	}
 
