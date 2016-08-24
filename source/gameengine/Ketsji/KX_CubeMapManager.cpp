@@ -33,8 +33,7 @@
 #include "RAS_IRasterizer.h"
 
 KX_CubeMapManager::KX_CubeMapManager(KX_Scene *scene)
-	:m_scene(scene),
-	m_initCubeMaps(false)
+	:m_scene(scene)
 {
 	RAS_CameraData camdata = RAS_CameraData();
 	m_camera = new KX_Camera(m_scene, KX_Scene::m_callbacks, camdata);
@@ -96,11 +95,6 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubeM
 
 void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
 {
-	if (!m_initCubeMaps) {
-		m_scene->CreateGameobjWithCubeMapList(rasty);
-		m_initCubeMaps = true;
-	}
-
 	if (m_cubeMaps.size() == 0) {
 		return;
 	}

@@ -310,33 +310,6 @@ KX_Scene::~KX_Scene()
 #endif
 }
 
-void KX_Scene::CreateGameobjWithCubeMapList(RAS_IRasterizer *rasty)
-{
-	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *ob = (KX_GameObject*)*it;
-
-		for (unsigned short j = 0, meshcount = ob->GetMeshCount(); j < meshcount; ++j) {
-			RAS_MeshObject *mesh = ob->GetMesh(j);
-
-			for (unsigned short k = 0, matcount = mesh->NumMaterials(); k < matcount; ++k) {
-				RAS_MeshMaterial * meshMat = mesh->GetMeshMaterial(k);
-
-				for (unsigned short l = 0; l < RAS_Texture::MaxUnits; ++l) {
-					RAS_IPolyMaterial *polymat = meshMat->m_bucket->GetPolyMaterial();
-					RAS_Texture *tex = polymat->GetTexture(l);
-
-					if (tex && tex->Ok() && tex->GetTextureType() == RAS_Texture::GetCubeMapTextureType() &&
-						tex->GetMTex()->tex->env->stype == ENV_REALT) {
-						RAS_CubeMap *cubeMap = new RAS_CubeMap(ob->getClientInfo(), tex, rasty);
-						m_cubeMapManager->AddCubeMap(cubeMap);
-						break;
-					}
-				}
-			}
-		}
-	}
-}
-
 STR_String& KX_Scene::GetName()
 {
 	return m_sceneName;
