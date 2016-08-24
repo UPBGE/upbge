@@ -190,6 +190,12 @@ typedef struct bGameActuator {
 	char loadaniname[64];
 } bGameActuator;
 
+typedef struct bVibrationActuator {
+	int joyindex;
+	float strength;
+	int duration;
+} bVibrationActuator;
+
 typedef struct bVisibilityActuator {
 	/** bit 0: Is this object visible? 
 	 ** bit 1: Apply recursively  
@@ -329,6 +335,7 @@ typedef struct bActuator {
 #define ACT_ARMATURE	23
 #define ACT_STEERING    24
 #define ACT_MOUSE		25
+#define ACT_VIBRATION	26
 
 /* actuator flag */
 #define ACT_SHOW		1
