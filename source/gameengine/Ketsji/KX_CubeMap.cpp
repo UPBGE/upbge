@@ -26,6 +26,7 @@
 
 #include "KX_CubeMap.h"
 #include "KX_GameObject.h"
+#include "KX_Globals.h"
 #include "KX_BlenderSceneConverter.h"
 
 #include "RAS_Texture.h"
@@ -34,7 +35,7 @@
 
 KX_CubeMap::KX_CubeMap(KX_BlenderSceneConverter *converter, KX_GameObject *gameobj, RAS_Texture *texture, RAS_IRasterizer *rasty)
 	:RAS_CubeMap(texture, rasty),
-	m_object(gameobj)
+	m_viewpointObject(gameobj)
 {
 	MTex *mtex = m_texture->GetMTex();
 
@@ -42,7 +43,7 @@ KX_CubeMap::KX_CubeMap(KX_BlenderSceneConverter *converter, KX_GameObject *gameo
 	if (env->object) {
 		KX_GameObject *obj = converter->FindGameObject(env->object);
 		if (obj) {
-			m_object = obj;
+			m_viewpointObject = obj;
 		}
 	}
 
@@ -59,9 +60,14 @@ STR_String& KX_CubeMap::GetName()
 	return m_texture->GetName();
 }
 
-KX_GameObject *KX_CubeMap::GetGameObject() const
+KX_GameObject *KX_CubeMap::GetViewpointObject() const
 {
-	return m_object;
+	return m_viewpointObject;
+}
+
+void KX_CubeMap::SetViewpointObject(KX_GameObject *gameobj)
+{
+	m_viewpointObject = gameobj;
 }
 
 #ifdef WITH_PYTHON
@@ -93,7 +99,29 @@ PyMethodDef KX_CubeMap::Methods[] = {
 };
 
 PyAttributeDef KX_CubeMap::Attributes[] = {
+	KX_PYATTRIBUTE_RW_FUNCTION("viewpointObject", KX_CubeMap, pyattr_get_viewpoint_object, pyattr_set_viewpoint_object),
 	{NULL} // Sentinel
 };
+
+PyObject *KX_CubeMap::pyattr_get_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
+	return self->GetViewpointObject()->GetProxy();
+}
+
+
+int KX_CubeMap::pyattr_set_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
+	KX_GameObject *gameobj;
+
+	SCA_LogicManager *logicmgr = KX_GetActiveScene()->GetLogicManager();
+
+	if (!ConvertPythonToGameObject(logicmgr, value, &gameobj, false, "cubeMap.object = value: KX_CubeMap"))
+		return PY_SET_ATTR_FAIL;
+	
+	self->SetViewpointObject(gameobj);
+	return PY_SET_ATTR_SUCCESS;
+}
 
 #endif  // WITH_PYTHON

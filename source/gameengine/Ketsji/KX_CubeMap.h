@@ -33,11 +33,11 @@
 class KX_BlenderSceneConverter;
 class KX_GameObject;
 
-class KX_CubeMap : public RAS_CubeMap, public CValue
+class KX_CubeMap : public CValue, public RAS_CubeMap
 {
 	Py_Header
 private:
-	KX_GameObject *m_object;
+	KX_GameObject *m_viewpointObject;
 
 public:
 	KX_CubeMap(KX_BlenderSceneConverter *converter, KX_GameObject *gameobj, RAS_Texture *texture, RAS_IRasterizer *rasty);
@@ -45,7 +45,11 @@ public:
 
 	virtual STR_String& GetName();
 
-	KX_GameObject *GetGameObject() const;
+	KX_GameObject *GetViewpointObject() const;
+	void SetViewpointObject(KX_GameObject *gameobj);
+
+	static PyObject *pyattr_get_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 };
 
 #endif  // __KX_CUBEMAP_H__

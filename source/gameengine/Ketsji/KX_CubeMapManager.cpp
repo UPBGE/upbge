@@ -57,7 +57,7 @@ void KX_CubeMapManager::RemoveCubeMap(KX_GameObject *gameobj)
 {
 	for (std::vector<KX_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
 		KX_CubeMap *cubeMap = *it;
-		if (cubeMap->GetGameObject() == gameobj) {
+		if (cubeMap->GetViewpointObject() == gameobj) {
 			delete cubeMap;
 			m_cubeMaps.erase(it);
 			break;
@@ -67,7 +67,7 @@ void KX_CubeMapManager::RemoveCubeMap(KX_GameObject *gameobj)
 
 void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMap)
 {
-	KX_GameObject *gameobj = cubeMap->GetGameObject();
+	KX_GameObject *gameobj = cubeMap->GetViewpointObject();
 	MT_Vector3 pos = gameobj->NodeGetWorldPosition();
 
 	/* We hide the gameobject in the case backface culling is disabled -> we can't see through

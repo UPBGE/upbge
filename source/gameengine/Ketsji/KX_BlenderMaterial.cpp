@@ -215,13 +215,6 @@ void KX_BlenderMaterial::InitTextures()
 		MTex *mtex = m_material->mtex[i];
 		if (mtex) {
 			bool isCubeMap = (mtex->tex->type == TEX_ENVMAP && mtex->tex->env->stype & (ENV_LOAD | ENV_REALT));
-			/*RAS_CubeMap *cubeMap = NULL;
-
-			if (isCubeMap && mtex->tex->env->stype & ENV_REALT) {
-				KX_GameObject *gameobj = scene->GetSceneConverter()->FindGameObject()
-				cubeMap = new RAS_CubeMap(ob->getClientInfo(), tex, rasty)
-			}*/
-
 			BL_Texture *texture = new BL_Texture(mtex, isCubeMap);
 			m_textures[i] = texture;
 		}
