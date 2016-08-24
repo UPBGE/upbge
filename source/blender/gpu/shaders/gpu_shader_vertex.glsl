@@ -108,9 +108,10 @@ void main()
 						vec4(ininstmatrix[1], ininstposition.y),
 						vec4(ininstmatrix[2], ininstposition.z),
 						vec4(0.0, 0.0, 0.0, 1.0));
+
 	varinstmat = transpose(instmat);
-	varinstinvmat = inverse(varinstmat);
 	varinstlocaltoviewmat = unfviewmat * varinstmat;
+	varinstinvmat = inverse(varinstmat);
 	varinstinvlocaltoviewmat = inverse(varinstlocaltoviewmat);
 	varinstcolor = ininstcolor;
 
