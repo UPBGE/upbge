@@ -170,7 +170,7 @@ unsigned int BL_Texture::swapTexture(unsigned int bindcode)
 // stuff for cvalue related things
 STR_String &BL_Texture::GetName()
 {
-	return GetName();
+	return RAS_Texture::GetName();
 }
 
 #ifdef WITH_PYTHON
