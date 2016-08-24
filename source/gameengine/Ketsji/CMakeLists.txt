@@ -80,6 +80,7 @@ set(SRC
 	KX_CharacterWrapper.cpp
 	KX_ConstraintActuator.cpp
 	KX_ConstraintWrapper.cpp
+	KX_CubeMap.cpp
 	KX_CubeMapManager.cpp
 	KX_EmptyObject.cpp
 	KX_FontObject.cpp
@@ -160,6 +161,7 @@ set(SRC
 	KX_ClientObjectInfo.h
 	KX_ConstraintActuator.h
 	KX_ConstraintWrapper.h
+	KX_CubeMap.h
 	KX_CubeMapManager.h
 	KX_EmptyObject.h
 	KX_FontObject.h

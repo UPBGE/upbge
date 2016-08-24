@@ -38,8 +38,6 @@ private:
 	KX_Camera *m_camera;
 	KX_Scene *m_scene;
 
-	bool m_initCubeMaps;
-	
 	void RenderCubeMap(RAS_IRasterizer *rasty, RAS_CubeMap *cubemap);
 
 public:
