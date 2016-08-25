@@ -489,7 +489,12 @@ int BL_Texture::pyattr_set_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *att
 PyObject *BL_Texture::pyattr_get_cube_map(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
-	return ((KX_CubeMap *)self->GetCubeMap())->GetProxy();
+	KX_CubeMap *cubeMap = (KX_CubeMap *)self->GetCubeMap();
+	if (cubeMap) {
+		return cubeMap->GetProxy();
+	}
+
+	Py_RETURN_NONE;
 }
 
 #endif  // WITH_PYTHON
