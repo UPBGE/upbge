@@ -67,6 +67,9 @@ void KX_CubeMapManager::RemoveCubeMap(KX_GameObject *gameobj)
 
 void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMap)
 {
+	if (!cubeMap->GetUpdate()) {
+		return;
+	}
 	KX_GameObject *gameobj = cubeMap->GetViewpointObject();
 	MT_Vector3 pos = gameobj->NodeGetWorldPosition();
 
