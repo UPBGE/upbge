@@ -88,15 +88,23 @@ static const GLenum cubeMapTargets[6] = {
 
 RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty)
 	:m_cubeMapTexture(NULL),
+	m_useMipmap(false),
 	m_texture(texture)
 {
+	EnvMap *env = m_texture->GetMTex()->tex->env;
+
+	m_useMipmap = (env->flag & ENVMAP_MIPMAP) != 0;
+
 	m_cubeMapTexture = m_texture->GetGPUTexture();
 	// Increment reference to make sure the gpu texture will not be freed by someone else.
 	GPU_texture_ref(m_cubeMapTexture);
-	// Disable mipmaping.
-	GPU_texture_bind(m_cubeMapTexture, 0);
-	GPU_texture_filter_mode(m_cubeMapTexture, false, false);
-	GPU_texture_unbind(m_cubeMapTexture);
+
+	if (!m_useMipmap) {
+		// Disable mipmaping.
+		GPU_texture_bind(m_cubeMapTexture, 0);
+		GPU_texture_filter_mode(m_cubeMapTexture, false, false);
+		GPU_texture_unbind(m_cubeMapTexture);
+	}
 
 	for (unsigned short i = 0; i < 6; ++i) {
 		m_fbos[i] = GPU_framebuffer_create();
@@ -125,6 +133,11 @@ void RAS_CubeMap::BeginRender()
 
 void RAS_CubeMap::EndRender()
 {
+	if (m_useMipmap) {
+		GPU_texture_bind(m_cubeMapTexture, 0);
+		GPU_texture_generate_mipmap(m_cubeMapTexture);
+		GPU_texture_unbind(m_cubeMapTexture);
+	}
 }
 
 void RAS_CubeMap::BindFace(RAS_IRasterizer *rasty, unsigned short index, const MT_Vector3& objpos)

@@ -645,6 +645,7 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
             col.prop(env, "clip_start", text="Start")
             col.prop(env, "clip_end", text="End")
 
+            col.prop(env, "use_mipmap")
 
 class TEXTURE_PT_envmap_sampling(TextureTypePanel, Panel):
     bl_label = "Environment Map Sampling"

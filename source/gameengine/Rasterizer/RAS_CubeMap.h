@@ -43,6 +43,9 @@ private:
 	GPUFrameBuffer *m_fbos[6];
 	GPURenderBuffer *m_rbs[6];
 
+	// True if we regenerate mipmap every render.
+	bool m_useMipmap;
+
 protected:
 	RAS_Texture *m_texture;
 
