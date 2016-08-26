@@ -36,7 +36,7 @@
 KX_CubeMap::KX_CubeMap(KX_BlenderSceneConverter *converter, KX_GameObject *gameobj, RAS_Texture *texture, RAS_IRasterizer *rasty)
 	:RAS_CubeMap(texture, rasty),
 	m_viewpointObject(gameobj),
-	m_update(true)
+	m_autoUpdate(true)
 {
 	MTex *mtex = m_texture->GetMTex();
 
@@ -71,9 +71,9 @@ void KX_CubeMap::SetViewpointObject(KX_GameObject *gameobj)
 	m_viewpointObject = gameobj;
 }
 
-bool KX_CubeMap::GetUpdate()
+bool KX_CubeMap::NeedUpdate() const
 {
-	return m_update;
+	return m_autoUpdate;
 }
 
 #ifdef WITH_PYTHON
@@ -106,7 +106,8 @@ PyMethodDef KX_CubeMap::Methods[] = {
 
 PyAttributeDef KX_CubeMap::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("viewpointObject", KX_CubeMap, pyattr_get_viewpoint_object, pyattr_set_viewpoint_object),
-	KX_PYATTRIBUTE_BOOL_RW("update", KX_CubeMap, m_update),
+	KX_PYATTRIBUTE_BOOL_RW("autoUpdate", KX_CubeMap, m_autoUpdate),
+	KX_PYATTRIBUTE_INT_RW("ignoreLayers", 0, (1 << 20) - 1, true, KX_CubeMap, m_ignoreLayers),
 	{NULL} // Sentinel
 };
 

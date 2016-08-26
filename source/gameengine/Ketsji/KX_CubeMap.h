@@ -38,7 +38,7 @@ class KX_CubeMap : public CValue, public RAS_CubeMap
 	Py_Header
 private:
 	KX_GameObject *m_viewpointObject;
-	bool m_update;
+	bool m_autoUpdate;
 
 public:
 	KX_CubeMap(KX_BlenderSceneConverter *converter, KX_GameObject *gameobj, RAS_Texture *texture, RAS_IRasterizer *rasty);
@@ -48,8 +48,8 @@ public:
 
 	KX_GameObject *GetViewpointObject() const;
 	void SetViewpointObject(KX_GameObject *gameobj);
-	/* We can use python to choose to not update cubemaps */
-	bool GetUpdate();
+	// Return true when this cube map need to be updated.
+	bool NeedUpdate() const;
 
 	static PyObject *pyattr_get_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);

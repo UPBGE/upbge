@@ -89,14 +89,14 @@ static const GLenum cubeMapTargets[6] = {
 RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty)
 	:m_cubeMapTexture(NULL),
 	m_texture(texture),
-	m_layers(0xFFFF)
+	m_ignoreLayers(0)
 {
 	MTex *mtex = m_texture->GetMTex();
 
 	const float clipstart = mtex->tex->env->clipsta;
 	const float clipend = mtex->tex->env->clipend;
 
-	m_layers = ~mtex->tex->env->notlay;
+	m_ignoreLayers = mtex->tex->env->notlay;
 
 	m_cubeMapTexture = m_texture->GetGPUTexture();
 	// Increment reference to make sure the gpu texture will not be freed by someone else.
@@ -134,9 +134,9 @@ const MT_Matrix4x4& RAS_CubeMap::GetProjection()
 	return m_proj;
 }
 
-unsigned int RAS_CubeMap::GetLayers() const
+int RAS_CubeMap::GetIgnoreLayers() const
 {
-	return m_layers;
+	return m_ignoreLayers;
 }
 
 void RAS_CubeMap::BeginRender()
