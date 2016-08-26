@@ -38,7 +38,18 @@ class KX_CubeMap : public CValue, public RAS_CubeMap
 	Py_Header
 private:
 	KX_GameObject *m_viewpointObject;
+
+	MT_Matrix4x4 m_projection;
+
+	bool m_invalidProjection;
+	/// Layers to ignore during render.
+	int m_ignoreLayers;
+
+	float m_clipStart;
+	float m_clipEnd;
+
 	bool m_autoUpdate;
+	bool m_forceUpdate;
 
 public:
 	KX_CubeMap(KX_BlenderSceneConverter *converter, KX_GameObject *gameobj, RAS_Texture *texture, RAS_IRasterizer *rasty);
@@ -48,11 +59,32 @@ public:
 
 	KX_GameObject *GetViewpointObject() const;
 	void SetViewpointObject(KX_GameObject *gameobj);
+
+	float GetClipStart() const;
+	float GetClipEnd() const;
+	void SetClipStart(float start);
+	void SetClipEnd(float end);
+
+	void SetInvalidProjectionMatrix(bool invalid);
+	bool GetInvalidProjectionMatrix() const;
+	void SetProjectionMatrix(const MT_Matrix4x4& projection);
+	const MT_Matrix4x4& GetProjectionMatrix() const;
+
+	int GetIgnoreLayers() const;
+
 	// Return true when this cube map need to be updated.
-	bool NeedUpdate() const;
+	bool NeedUpdate();
+
+#ifdef WITH_PYTHON
+	KX_PYMETHOD_DOC_NOARGS(KX_CubeMap, update);
 
 	static PyObject *pyattr_get_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_clip_start(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_clip_start(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_clip_end(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_clip_end(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+#endif
 };
 
 #endif  // __KX_CUBEMAP_H__

@@ -849,6 +849,10 @@ static void rna_def_environment_map(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Validity", "True if this map is ready for use, False if it needs rendering");
 
+	prop = RNA_def_property(srna, "auto_update", PROP_BOOLEAN, 0);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", ENVMAP_AUTO_UPDATE);
+	RNA_def_property_ui_text(prop, "Auto Update", "True if the cube map is updated every frame");
+
 	RNA_api_environment_map(srna);
 }
 

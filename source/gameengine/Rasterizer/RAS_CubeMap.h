@@ -45,10 +45,6 @@ private:
 
 protected:
 	RAS_Texture *m_texture;
-	MT_Matrix4x4 m_proj;
-
-	/// Layers to ignore during render.
-	int m_ignoreLayers;
 
 public:
 	RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty);
@@ -62,9 +58,6 @@ public:
 
 	void BindFace(RAS_IRasterizer *rasty, unsigned short index, const MT_Vector3& objpos);
 	void UnbindFace();
-
-	const MT_Matrix4x4& GetProjection();
-	int GetIgnoreLayers() const;
 };
 
 #endif  // __RAS_CUBEMAP_H__
