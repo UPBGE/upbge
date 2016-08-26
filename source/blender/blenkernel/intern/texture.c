@@ -650,6 +650,7 @@ void BKE_texture_default(Tex *tex)
 		tex->env->clipend = 100;
 		tex->env->cuberes = 512;
 		tex->env->depth = 0;
+		tex->env->flag = ENVMAP_AUTO_UPDATE;
 	}
 
 	if (tex->pd) {
@@ -1260,7 +1261,8 @@ EnvMap *BKE_texture_envmap_add(void)
 	env->clipend = 100.0;
 	env->cuberes = 512;
 	env->viewscale = 0.5;
-	
+	env->flag = ENVMAP_AUTO_UPDATE;
+
 	return env;
 } 
 

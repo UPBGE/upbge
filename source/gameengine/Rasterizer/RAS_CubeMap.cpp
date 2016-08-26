@@ -88,16 +88,8 @@ static const GLenum cubeMapTargets[6] = {
 
 RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty)
 	:m_cubeMapTexture(NULL),
-	m_texture(texture),
-	m_ignoreLayers(0)
+	m_texture(texture)
 {
-	MTex *mtex = m_texture->GetMTex();
-
-	const float clipstart = mtex->tex->env->clipsta;
-	const float clipend = mtex->tex->env->clipend;
-
-	m_ignoreLayers = mtex->tex->env->notlay;
-
 	m_cubeMapTexture = m_texture->GetGPUTexture();
 	// Increment reference to make sure the gpu texture will not be freed by someone else.
 	GPU_texture_ref(m_cubeMapTexture);
@@ -105,8 +97,6 @@ RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty)
 	GPU_texture_bind(m_cubeMapTexture, 0);
 	GPU_texture_filter_mode(m_cubeMapTexture, false, false);
 	GPU_texture_unbind(m_cubeMapTexture);
-
-	m_proj = rasty->GetFrustumMatrix(-clipstart, clipstart, -clipstart, clipstart, clipstart, clipend, 1.0f, true);
 
 	for (unsigned short i = 0; i < 6; ++i) {
 		m_fbos[i] = GPU_framebuffer_create();
@@ -127,16 +117,6 @@ RAS_CubeMap::~RAS_CubeMap()
 		GPU_framebuffer_free(m_fbos[i]);
 		GPU_renderbuffer_free(m_rbs[i]);
 	}
-}
-
-const MT_Matrix4x4& RAS_CubeMap::GetProjection()
-{
-	return m_proj;
-}
-
-int RAS_CubeMap::GetIgnoreLayers() const
-{
-	return m_ignoreLayers;
 }
 
 void RAS_CubeMap::BeginRender()

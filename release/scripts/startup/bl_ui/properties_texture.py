@@ -636,6 +636,8 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
             if env.source != 'REALTIME_REFL':
                 col.prop(env, "resolution")
                 col.prop(env, "depth")
+            else:
+                col.prop(env, "auto_update")
 
             col = split.column(align=True)
 

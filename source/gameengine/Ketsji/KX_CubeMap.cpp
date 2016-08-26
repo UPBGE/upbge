@@ -36,7 +36,12 @@
 KX_CubeMap::KX_CubeMap(KX_BlenderSceneConverter *converter, KX_GameObject *gameobj, RAS_Texture *texture, RAS_IRasterizer *rasty)
 	:RAS_CubeMap(texture, rasty),
 	m_viewpointObject(gameobj),
-	m_autoUpdate(true)
+	m_invalidProjection(true),
+	m_ignoreLayers(0),
+	m_clipStart(0.0f),
+	m_clipEnd(0.0f),
+	m_autoUpdate(true),
+	m_forceUpdate(true)
 {
 	MTex *mtex = m_texture->GetMTex();
 
@@ -47,6 +52,13 @@ KX_CubeMap::KX_CubeMap(KX_BlenderSceneConverter *converter, KX_GameObject *gameo
 			m_viewpointObject = obj;
 		}
 	}
+
+	m_ignoreLayers = env->notlay;
+
+	m_clipStart = env->clipsta;
+	m_clipEnd = env->clipend;
+
+	m_autoUpdate = (env->flag & ENVMAP_AUTO_UPDATE) != 0;
 
 	m_texture->SetCubeMap(this);
 }
@@ -71,9 +83,57 @@ void KX_CubeMap::SetViewpointObject(KX_GameObject *gameobj)
 	m_viewpointObject = gameobj;
 }
 
-bool KX_CubeMap::NeedUpdate() const
+void KX_CubeMap::SetInvalidProjectionMatrix(bool invalid)
 {
-	return m_autoUpdate;
+	m_invalidProjection = invalid;
+}
+
+bool KX_CubeMap::GetInvalidProjectionMatrix() const
+{
+	return m_invalidProjection;
+}
+
+void KX_CubeMap::SetProjectionMatrix(const MT_Matrix4x4& projection)
+{
+	m_projection = projection;
+}
+
+const MT_Matrix4x4& KX_CubeMap::GetProjectionMatrix() const
+{
+	return m_projection;
+}
+
+int KX_CubeMap::GetIgnoreLayers() const
+{
+	return m_ignoreLayers;
+}
+
+float KX_CubeMap::GetClipStart() const
+{
+	return m_clipStart;
+}
+
+float KX_CubeMap::GetClipEnd() const
+{
+	return m_clipEnd;
+}
+
+void KX_CubeMap::SetClipStart(float start)
+{
+	m_clipStart = start;
+}
+
+void KX_CubeMap::SetClipEnd(float end)
+{
+	m_clipEnd = end;
+}
+
+bool KX_CubeMap::NeedUpdate()
+{
+	bool result = m_autoUpdate || m_forceUpdate;
+	m_forceUpdate = false;
+
+	return result;
 }
 
 #ifdef WITH_PYTHON
@@ -101,6 +161,7 @@ PyTypeObject KX_CubeMap::Type = {
 };
 
 PyMethodDef KX_CubeMap::Methods[] = {
+	KX_PYMETHODTABLE_NOARGS(KX_CubeMap, update),
 	{NULL, NULL} // Sentinel
 };
 
@@ -108,8 +169,16 @@ PyAttributeDef KX_CubeMap::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("viewpointObject", KX_CubeMap, pyattr_get_viewpoint_object, pyattr_set_viewpoint_object),
 	KX_PYATTRIBUTE_BOOL_RW("autoUpdate", KX_CubeMap, m_autoUpdate),
 	KX_PYATTRIBUTE_INT_RW("ignoreLayers", 0, (1 << 20) - 1, true, KX_CubeMap, m_ignoreLayers),
+	KX_PYATTRIBUTE_RW_FUNCTION("clipStart", KX_CubeMap, pyattr_get_clip_start, pyattr_set_clip_start),
+	KX_PYATTRIBUTE_RW_FUNCTION("clipEnd", KX_CubeMap, pyattr_get_clip_end, pyattr_set_clip_end),
 	{NULL} // Sentinel
 };
+
+KX_PYMETHODDEF_DOC_NOARGS(KX_CubeMap, update, "update(): Set the cube map to be updated next frame.\n")
+{
+	m_forceUpdate = true;
+	Py_RETURN_NONE;
+}
 
 PyObject *KX_CubeMap::pyattr_get_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
@@ -129,6 +198,50 @@ int KX_CubeMap::pyattr_set_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_D
 		return PY_SET_ATTR_FAIL;
 	
 	self->SetViewpointObject(gameobj);
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_CubeMap::pyattr_get_clip_start(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
+	return PyFloat_FromDouble(self->GetClipStart());
+}
+
+int KX_CubeMap::pyattr_set_clip_start(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
+
+	if (!PyFloat_Check(value)) {
+		return PY_SET_ATTR_FAIL;
+	}
+
+	const float val = PyFloat_AsDouble(value);
+
+	self->SetClipStart(val);
+	self->SetInvalidProjectionMatrix(true);
+
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_CubeMap::pyattr_get_clip_end(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
+	return PyFloat_FromDouble(self->GetClipEnd());
+}
+
+int KX_CubeMap::pyattr_set_clip_end(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
+
+	if (!PyFloat_Check(value)) {
+		return PY_SET_ATTR_FAIL;
+	}
+
+	const float val = PyFloat_AsDouble(value);
+
+	self->SetClipEnd(val);
+	self->SetInvalidProjectionMatrix(true);
+
 	return PY_SET_ATTR_SUCCESS;
 }
 
