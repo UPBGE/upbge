@@ -47,8 +47,8 @@ protected:
 	RAS_Texture *m_texture;
 	MT_Matrix4x4 m_proj;
 
-	/// Layers to render.
-	unsigned int m_layers;
+	/// Layers to ignore during render.
+	int m_ignoreLayers;
 
 public:
 	RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty);
@@ -64,7 +64,7 @@ public:
 	void UnbindFace();
 
 	const MT_Matrix4x4& GetProjection();
-	unsigned int GetLayers() const;
+	int GetIgnoreLayers() const;
 };
 
 #endif  // __RAS_CUBEMAP_H__

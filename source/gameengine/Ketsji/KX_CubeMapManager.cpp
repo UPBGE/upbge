@@ -67,9 +67,11 @@ void KX_CubeMapManager::RemoveCubeMap(KX_GameObject *gameobj)
 
 void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMap)
 {
-	if (!cubeMap->GetUpdate()) {
+	// Doesn't need update.
+	if (!cubeMap->NeedUpdate()) {
 		return;
 	}
+
 	KX_GameObject *gameobj = cubeMap->GetViewpointObject();
 	MT_Vector3 pos = gameobj->NodeGetWorldPosition();
 
@@ -99,7 +101,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 		MT_Transform trans(m_camera->GetWorldToCamera());
 		MT_Matrix4x4 viewmat(trans);
 		m_camera->SetModelviewMatrix(viewmat);
-		m_scene->CalculateVisibleMeshes(rasty, m_camera, cubeMap->GetLayers());
+		m_scene->CalculateVisibleMeshes(rasty, m_camera, cubeMap->GetIgnoreLayers());
 
 		/* Update animations to use the culling of each faces, BL_ActionManager avoid redundants
 		 * updates internally. */
