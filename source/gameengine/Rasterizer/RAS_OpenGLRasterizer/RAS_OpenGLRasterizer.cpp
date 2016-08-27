@@ -2260,7 +2260,7 @@ void RAS_OpenGLRasterizer::UpdateGlobalDepthTexture()
 	unsigned short index = m_offScreens.GetCurrentIndex();
 	if (m_offScreens.GetSamples(index)) {
 		m_offScreens.Blit(index, RAS_IRasterizer::RAS_OFFSCREEN_BLIT_DEPTH);
-		// Restore original FBO.
+		// Restore original off screen.
 		m_offScreens.Bind(index);
 		index = RAS_IRasterizer::RAS_OFFSCREEN_BLIT_DEPTH;
 	}
