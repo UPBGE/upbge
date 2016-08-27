@@ -108,7 +108,7 @@ public:
 				const MT_Vector3& xyz,
 				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
-				const unsigned int rgba,
+				const unsigned int *rgba,
 				const MT_Vector3& normal)
 	{
 		return new Vertex(xyz, uvs, tangent, rgba, normal);

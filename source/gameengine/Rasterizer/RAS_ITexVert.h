@@ -91,7 +91,6 @@ protected:
 	float m_tangent[4]; // 4*4 = 16
 	float m_localxyz[3]; // 3 * 4 = 12
 	float m_normal[3]; // 3*4 = 12
-	unsigned int m_rgba; // 4
 
 public:
 	RAS_ITexVert()
@@ -99,16 +98,21 @@ public:
 	}
 	RAS_ITexVert(const MT_Vector3& xyz,
 	            const MT_Vector4& tangent,
-	            const unsigned int rgba,
 	            const MT_Vector3& normal);
 
 	virtual ~RAS_ITexVert();
 
-	virtual const unsigned short getUVSize() const = 0;
+	virtual const unsigned short getUvSize() const = 0;
 	virtual const float *getUV(const int unit) const = 0;
 
 	virtual void SetUV(const int index, const MT_Vector2& uv) = 0;
 	virtual void SetUV(const int index, const float uv[2]) = 0;
+
+	virtual const unsigned short getColorSize() const = 0;
+	virtual const unsigned char *getRGBA(const int index) const = 0;
+
+	virtual void SetRGBA(const int index, const unsigned int rgba) = 0;
+	virtual void SetRGBA(const int index, const MT_Vector4& rgba) = 0;
 
 	inline const float *getXYZ() const
 	{
@@ -125,25 +129,10 @@ public:
 		return m_tangent;
 	}
 
-	inline const unsigned char *getRGBA() const
-	{
-		return (unsigned char *)&m_rgba;
-	}
-
 	inline MT_Vector3 xyz() const
 	{
 		return MT_Vector3(m_localxyz);
 	}
-
-	inline void SetRGBA(const MT_Vector4& rgba)
-	{
-		unsigned char *colp = (unsigned char *)&m_rgba;
-		colp[0] = (unsigned char)(rgba[0] * 255.0f);
-		colp[1] = (unsigned char)(rgba[1] * 255.0f);
-		colp[2] = (unsigned char)(rgba[2] * 255.0f);
-		colp[3] = (unsigned char)(rgba[3] * 255.0f);
-	}
-
 
 	inline void SetXYZ(const MT_Vector3& xyz)
 	{
@@ -153,11 +142,6 @@ public:
 	inline void SetXYZ(const float xyz[3])
 	{
 		copy_v3_v3(m_localxyz, xyz);
-	}
-
-	inline void SetRGBA(const unsigned int rgba)
-	{
-		m_rgba = rgba;
 	}
 
 	inline void SetNormal(const MT_Vector3& normal)
@@ -175,15 +159,20 @@ public:
 	inline const bool closeTo(const RAS_ITexVert *other)
 	{
 		static const float eps = FLT_EPSILON;
-		for (int i = 0, size = min_ii(getUVSize(), other->getUVSize()); i < size; ++i) {
+		for (int i = 0, size = min_ii(getUvSize(), other->getUvSize()); i < size; ++i) {
 			if (!compare_v2v2(getUV(i), other->getUV(i), eps)) {
+				return false;
+			}
+		}
+
+		for (int i = 0, size = min_ii(getColorSize(), other->getColorSize()); i < size; ++i) {
+			if (!compare_rgb_uchar(getRGBA(i), other->getRGBA(i), 0)) {
 				return false;
 			}
 		}
 
 		return (/* m_flag == other->m_flag && */
 				/* at the moment the face only stores the smooth/flat setting so don't bother comparing it */
-				(m_rgba == other->m_rgba) &&
 				compare_v3v3(m_normal, other->m_normal, eps) &&
 				compare_v3v3(m_tangent, other->m_tangent, eps)
 				/* don't bother comparing m_localxyz since we know there from the same vert */

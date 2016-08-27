@@ -132,7 +132,7 @@ void KX_FontObject::AddMeshUser()
 	// If the material bucket is just created then we add a new mesh slot.
 	if (created) {
 		RAS_TexVertFormat format;
-		format.UVSize = 1;
+		format.uvSize = 1;
 		bucket->AddMesh(NULL, NULL, format);
 	}
 

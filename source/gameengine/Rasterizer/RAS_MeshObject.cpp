@@ -104,17 +104,15 @@ struct RAS_MeshObject::fronttoback
 
 STR_String RAS_MeshObject::s_emptyname = "";
 
-RAS_MeshObject::RAS_MeshObject(Mesh *mesh, STR_String uvsname[RAS_Texture::MaxUnits])
+RAS_MeshObject::RAS_MeshObject(Mesh *mesh, LayerList& layers)
 	:m_modifiedFlag(MESH_MODIFIED),
 	m_needUpdateAabb(true),
 	m_aabbMax(0.0f, 0.0f, 0.0f),
 	m_aabbMin(0.0f, 0.0f, 0.0f),
 	m_name(mesh->id.name + 2),
+	m_layers(layers),
 	m_mesh(mesh)
 {
-	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
-		m_uvsName[i] = uvsname[i];
-	}
 }
 
 RAS_MeshObject::~RAS_MeshObject()
@@ -338,7 +336,7 @@ unsigned int RAS_MeshObject::AddVertex(
 				const MT_Vector3& xyz,
 				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
-				const unsigned int rgba,
+				const unsigned int *rgba,
 				const MT_Vector3& normal,
 				const bool flat,
 				const unsigned int origindex)
@@ -457,9 +455,9 @@ void RAS_MeshObject::EndConversion()
 	}
 }
 
-const STR_String *RAS_MeshObject::GetUvsName() const
+const RAS_MeshObject::LayerList& RAS_MeshObject::GetLayers() const
 {
-	return m_uvsName;
+	return m_layers;
 }
 
 void RAS_MeshObject::GenerateAttribLayers()

@@ -123,7 +123,7 @@ public:
 				const MT_Vector3& xyz,
 				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
-				const unsigned int rgba,
+				const unsigned int *rgba,
 				const MT_Vector3& normal) = 0;
 
 	/** Copy vertex data from an other display array. Different vertex type is allowed.

@@ -332,23 +332,6 @@ SCA_IInputDevice::SCA_EnumInputs ConvertKeyCode(int key_code)
 	return gReverseKeyTranslateTable[key_code];
 }
 
-static unsigned int KX_rgbaint2uint_new(unsigned int icol)
-{
-	union
-	{
-		unsigned int integer;
-		unsigned char cp[4];
-	} out_color, in_color;
-	
-	in_color.integer = icol;
-	out_color.cp[0] = in_color.cp[3]; // red
-	out_color.cp[1] = in_color.cp[2]; // green
-	out_color.cp[2] = in_color.cp[1]; // blue
-	out_color.cp[3] = in_color.cp[0]; // alpha
-	
-	return out_color.integer;
-}
-
 /* Now the real converting starts... */
 static unsigned int KX_Mcol2uint_new(MCol col)
 {
@@ -387,32 +370,25 @@ static void SetDefaultLightMode(Scene* scene)
 
 static void GetRGB(
         MFace* mface,
-        MCol* mmcol,
-        unsigned int c[4])
+		const RAS_MeshObject::LayerList& layers,
+        unsigned int c[4][RAS_ITexVert::MAX_UNIT])
 {
-	unsigned int color = 0xFFFFFFFFL;
-	if (mmcol) {
-		c[0] = KX_Mcol2uint_new(mmcol[0]);
-		c[1] = KX_Mcol2uint_new(mmcol[1]);
-		c[2] = KX_Mcol2uint_new(mmcol[2]);
-		if (mface->v4)
-			c[3] = KX_Mcol2uint_new(mmcol[3]);
-	}
-	else { // backup white
-		c[0] = KX_rgbaint2uint_new(color);
-		c[1] = KX_rgbaint2uint_new(color);
-		c[2] = KX_rgbaint2uint_new(color);
-		if (mface->v4)
-			c[3] = KX_rgbaint2uint_new( color );
+	for (RAS_MeshObject::LayerList::const_iterator it = layers.begin(), end = layers.end(); it != end; ++it) {
+		const RAS_MeshObject::Layer& layer = *it;
+		if (!layer.color) {
+			continue;
+		}
+
+		c[0][layer.index] = KX_Mcol2uint_new(layer.color[0]);
+		c[1][layer.index] = KX_Mcol2uint_new(layer.color[1]);
+		c[2][layer.index] = KX_Mcol2uint_new(layer.color[2]);
+		if (mface->v4) {
+			c[3][layer.index] = KX_Mcol2uint_new(layer.color[3]);
+		}
 	}
 }
 
-typedef struct MTF_localLayer {
-	MTFace *face;
-	const char *name;
-} MTF_localLayer;
-
-static void GetUVs(MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Vector2 uvs[4][RAS_Texture::MaxUnits])
+static void GetUVs(const RAS_MeshObject::LayerList& layers, MFace *mface, MTFace *tface, MT_Vector2 uvs[4][RAS_Texture::MaxUnits])
 {
 	if (tface) {
 		uvs[0][0].setValue(tface->uv[0]);
@@ -426,21 +402,21 @@ static void GetUVs(MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Vecto
 		uvs[0][0] = uvs[1][0] = uvs[2][0] = uvs[3][0] = MT_Vector2(0.0f, 0.0f);
 	}
 
-	for (int lay = 0; lay < MAX_MTFACE; ++lay) {
-		MTF_localLayer& layer = layers[lay];
+	for (RAS_MeshObject::LayerList::const_iterator it = layers.begin(), end = layers.end(); it != end; ++it) {
+		const RAS_MeshObject::Layer& layer = *it;
 		if (!layer.face) {
-			break;
+			continue;
 		}
 
-		uvs[0][lay].setValue(layer.face->uv[0]);
-		uvs[1][lay].setValue(layer.face->uv[1]);
-		uvs[2][lay].setValue(layer.face->uv[2]);
+		uvs[0][layer.index].setValue(layer.face->uv[0]);
+		uvs[1][layer.index].setValue(layer.face->uv[1]);
+		uvs[2][layer.index].setValue(layer.face->uv[2]);
 
 		if (mface->v4) {
-			uvs[3][lay].setValue(layer.face->uv[3]);
+			uvs[3][layer.index].setValue(layer.face->uv[3]);
 		}
 		else {
-			uvs[3][lay].setValue(0.0f, 0.0f);
+			uvs[3][layer.index].setValue(0.0f, 0.0f);
 		}
 	}
 }
@@ -456,12 +432,15 @@ static KX_BlenderMaterial *ConvertMaterial(
 	return kx_blmat;
 }
 
-static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace *tface, MCol *mcol, MTF_localLayer *layers, int lightlayer, unsigned int *rgb, MT_Vector2 uvs[4][RAS_ITexVert::MAX_UNIT], const char *tfaceName, KX_Scene* scene, KX_BlenderSceneConverter *converter)
+static RAS_MaterialBucket *material_from_mesh(
+	Material *ma, MFace *mface, MTFace *tface, const RAS_MeshObject::LayerList& layers, int lightlayer,
+	unsigned int rgb[4][RAS_ITexVert::MAX_UNIT], MT_Vector2 uvs[4][RAS_ITexVert::MAX_UNIT],
+	KX_Scene* scene, KX_BlenderSceneConverter *converter)
 {
 	RAS_IPolyMaterial* polymat = converter->FindCachedPolyMaterial(scene, ma);
 
 	if (mface) {
-		GetRGB(mface, mcol, rgb);
+		GetRGB(mface, layers, rgb);
 
 		GetUVs(layers, mface, tface, uvs);
 	}
@@ -509,14 +488,12 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 	MFace *mface = dm->getTessFaceArray(dm);
 	MTFace *tface = static_cast<MTFace*>(dm->getTessFaceDataArray(dm, CD_MTFACE));
-	MCol *mcol = static_cast<MCol*>(dm->getTessFaceDataArray(dm, CD_MCOL));
 	MPoly *mpolyarray = (MPoly *)dm->getPolyArray(dm);
 	MLoop *mlooparray = (MLoop *)dm->getLoopArray(dm);
 	MEdge *medgearray = (MEdge *)dm->getEdgeArray(dm);
 	int *mfaceTompoly = (int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
 	float (*tangent)[4] = NULL;
 	int totface = dm->getNumTessFaces(dm);
-	const char *tfaceName = "";
 
 	/* needs to be rewritten for loopdata */
 	if (tface) {
@@ -532,48 +509,52 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	}
 
 	// Extract avaiable layers
-	MTF_localLayer *layers =  new MTF_localLayer[MAX_MTFACE];
-	for (int lay=0; lay<MAX_MTFACE; lay++) {
-		layers[lay].face = 0;
-		layers[lay].name = "";
-	}
+	RAS_MeshObject::LayerList layers;
 
-	int validLayers = 0;
+	unsigned short uvLayers = 0;
+	unsigned short colorLayers = 0;
 	for (int i=0; i<dm->faceData.totlayer; i++)
 	{
-		if (dm->faceData.layers[i].type == CD_MTFACE)
+		if (dm->faceData.layers[i].type == CD_MTFACE || dm->faceData.layers[i].type == CD_MCOL)
 		{
-			if (validLayers >= MAX_MTFACE) {
+			if (uvLayers > MAX_MTFACE) {
 				printf("%s: corrupted mesh %s - too many CD_MTFACE layers\n", __func__, mesh->id.name);
 				break;
 			}
 
-			layers[validLayers].face = (MTFace*)(dm->faceData.layers[i].data);
-			layers[validLayers].name = dm->faceData.layers[i].name;
-			if (tface == layers[validLayers].face)
-				tfaceName = layers[validLayers].name;
-			validLayers++;
+			if (colorLayers > MAX_MCOL) {
+				printf("%s: corrupted mesh %s - too many CD_MCOL layers\n", __func__, mesh->id.name);
+				break;
+			}
+
+			RAS_MeshObject::Layer layer = {NULL, NULL, 0, dm->faceData.layers[i].name};
+
+			if (dm->faceData.layers[i].type == CD_MCOL) {
+				layer.color = (MCol *)(dm->faceData.layers[i].data);
+				layer.index = colorLayers;
+				++colorLayers;
+			}
+			else {
+				layer.face = (MTFace*)(dm->faceData.layers[i].data);
+				layer.index = uvLayers;
+				++uvLayers;
+			}
+
+			layers.push_back(layer);
 		}
 	}
 
-
-	STR_String uvsname[RAS_Texture::MaxUnits];
-	// foreach MTex
-	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
-		// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
-		uvsname[i] = STR_String(layers[i].name);
-	}
-
-	meshobj = new RAS_MeshObject(mesh, uvsname);
+	meshobj = new RAS_MeshObject(mesh, layers);
 
 	meshobj->m_sharedvertex_map.resize(totvert);
 
 	RAS_TexVertFormat vertformat;
-	vertformat.UVSize = max_ii(1, validLayers);
+	vertformat.uvSize = max_ii(1, uvLayers);
+	vertformat.colorSize = max_ii(1, colorLayers);
 
 	Material* ma = 0;
 	MT_Vector2 uvs[4][RAS_ITexVert::MAX_UNIT];
-	unsigned int rgb[4] = {0};
+	unsigned int rgb[4][RAS_ITexVert::MAX_UNIT];
 
 	MT_Vector3 pt[4];
 	MT_Vector3 no[4];
@@ -592,6 +573,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	/* we need to manually initialize the uvs (MoTo doesn't do that) [#34550] */
 	for (unsigned int i = 0; i < RAS_ITexVert::MAX_UNIT; i++) {
 		uvs[0][i] = uvs[1][i] = uvs[2][i] = uvs[3][i] = MT_Vector2(0.f, 0.f);
+		rgb[0][i] = rgb[1][i] = rgb[2][i] = rgb[3][i] = 0xffffffffL;
 	}
 
 	if (totface == 0) {
@@ -601,7 +583,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			ma = &defmaterial;
 		}
 
-		RAS_MaterialBucket *bucket = material_from_mesh(ma, mface, tface, mcol, layers, lightlayer, rgb, uvs, tfaceName, scene, converter);
+		RAS_MaterialBucket *bucket = material_from_mesh(ma, mface, tface, layers, lightlayer, rgb, uvs, scene, converter);
 		meshobj->AddMaterial(bucket, 0, vertformat);
 	}
 
@@ -659,7 +641,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 		{
 
-			RAS_MaterialBucket* bucket = material_from_mesh(ma, mface, tface, mcol, layers, lightlayer, rgb, uvs, tfaceName, scene, converter);
+			RAS_MaterialBucket* bucket = material_from_mesh(ma, mface, tface, layers, lightlayer, rgb, uvs, scene, converter);
 			RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, mface->mat_nr, vertformat);
 
 			// set render flags
@@ -709,15 +691,16 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 		if (tface) 
 			tface++;
-		if (mcol)
-			mcol+=4;
 
-		for (int lay=0; lay<MAX_MTFACE; lay++)
-		{
-			MTF_localLayer &layer = layers[lay];
-			if (layer.face == 0) break;
+		for (RAS_MeshObject::LayerList::iterator it = layers.begin(), end = layers.end(); it != end; ++it) {
+			RAS_MeshObject::Layer &layer = *it;
 
-			layer.face++;
+			if (layer.face) {
+				++layer.face;
+			}
+			if (layer.color) {
+				layer.color += 4;
+			}
 		}
 	}
 	// keep meshobj->m_sharedvertex_map for reinstance phys mesh.
@@ -737,9 +720,6 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	// Find attributes layer (currently only UVs) by materials for this mesh.
 	meshobj->GenerateAttribLayers();
 
-	if (layers)
-		delete []layers;
-	
 	dm->release(dm);
 
 	converter->RegisterGameMesh(scene, meshobj, mesh);

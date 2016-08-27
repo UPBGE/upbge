@@ -263,8 +263,8 @@ void RAS_DisplayArrayBucket::GenerateAttribLayers()
 	}
 
 	RAS_IPolyMaterial *polymat = m_bucket->GetPolyMaterial();
-	const STR_String *uvsname = m_mesh->GetUvsName();
-	m_attribLayers = polymat->GetAttribLayers(uvsname);
+	const RAS_MeshObject::LayerList& layers = m_mesh->GetLayers();
+	m_attribLayers = polymat->GetAttribLayers(layers);
 }
 
 void RAS_DisplayArrayBucket::SetAttribLayers(RAS_IRasterizer *rasty) const

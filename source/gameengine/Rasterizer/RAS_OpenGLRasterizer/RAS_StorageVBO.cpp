@@ -197,7 +197,7 @@ void VBO::Bind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRaster
 			}
 			case RAS_IRasterizer::RAS_TEXCO_VCOL:
 			{
-				glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_TRUE, m_stride, m_color_offset);
+				glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_TRUE, m_stride, (void *)((intptr_t)m_color_offset + storageAttribs->layers[unit] * sizeof(GLuint)));
 				glEnableVertexAttribArrayARB(unit);
 				break;
 			}

@@ -44,11 +44,9 @@ RAS_TexVertInfo::~RAS_TexVertInfo()
 
 RAS_ITexVert::RAS_ITexVert(const MT_Vector3& xyz,
 						 const MT_Vector4& tangent,
-						 const unsigned int rgba,
 						 const MT_Vector3& normal)
 {
 	xyz.getValue(m_localxyz);
-	SetRGBA(rgba);
 	SetNormal(normal);
 	SetTangent(tangent);
 }

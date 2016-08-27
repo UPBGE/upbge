@@ -35,16 +35,18 @@ class RAS_DisplayArray;
 // Struct used to pass the vertex format to functions.
 struct RAS_TexVertFormat
 {
-	unsigned int UVSize;
+	unsigned int uvSize;
+	unsigned int colorSize;
 };
 
-template <unsigned int UVSize>
+template <unsigned int uvSize, unsigned int colorSize>
 class RAS_TexVert : public RAS_ITexVert
 {
-friend class RAS_DisplayArray<RAS_TexVert<UVSize> >;
+friend class RAS_DisplayArray<RAS_TexVert<uvSize, colorSize> >;
 
 private:
-	float m_uvs[UVSize][2];
+	float m_uvs[uvSize][2];
+	unsigned int m_rgba[colorSize];
 
 public:
 
@@ -53,14 +55,18 @@ public:
 	}
 
 	RAS_TexVert(const MT_Vector3& xyz,
-	            const MT_Vector2 uvs[UVSize],
+	            const MT_Vector2 uvs[uvSize],
 	            const MT_Vector4& tangent,
-	            const unsigned int rgba,
+				const unsigned int rgba[colorSize],
 	            const MT_Vector3& normal)
-		:RAS_ITexVert(xyz, tangent, rgba, normal)
+		:RAS_ITexVert(xyz, tangent, normal)
 	{
-		for (int i = 0; i < UVSize; ++i) {
+		for (int i = 0; i < uvSize; ++i) {
 			uvs[i].getValue(m_uvs[i]);
+		}
+
+		for (unsigned short i = 0; i < colorSize; ++i) {
+			m_rgba[i] = rgba[i];
 		}
 	}
 
@@ -68,9 +74,9 @@ public:
 	{
 	}
 
-	virtual const unsigned short getUVSize() const
+	virtual const unsigned short getUvSize() const
 	{
-		return UVSize;
+		return uvSize;
 	}
 
 	virtual const float *getUV(const int unit) const
@@ -86,6 +92,30 @@ public:
 	virtual void SetUV(const int index, const float uv[2])
 	{
 		copy_v2_v2(m_uvs[index], uv);
+	}
+
+	virtual const unsigned short getColorSize() const
+	{
+		return colorSize;
+	}
+
+	virtual const unsigned char *getRGBA(const int index) const
+	{
+		return (unsigned char *)&m_rgba[index];
+	}
+
+	virtual void SetRGBA(const int index, const unsigned int rgba)
+	{
+		m_rgba[index] = rgba;
+	}
+
+	virtual void SetRGBA(const int index, const MT_Vector4& rgba)
+	{
+		unsigned char *colp = (unsigned char *)&m_rgba[index];
+		colp[0] = (unsigned char)(rgba[0] * 255.0f);
+		colp[1] = (unsigned char)(rgba[1] * 255.0f);
+		colp[2] = (unsigned char)(rgba[2] * 255.0f);
+		colp[3] = (unsigned char)(rgba[3] * 255.0f);
 	}
 };
 

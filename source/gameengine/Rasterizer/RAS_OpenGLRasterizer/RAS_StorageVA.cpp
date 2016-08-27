@@ -130,7 +130,7 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 
 	if (!wireframe) {
 		glEnableClientState(GL_COLOR_ARRAY);
-		glColorPointer(4, GL_UNSIGNED_BYTE, stride, vertexarray->getRGBA());
+		glColorPointer(4, GL_UNSIGNED_BYTE, stride, vertexarray->getRGBA(0));
 		TexCoordPtr(vertexarray, stride);
 	}
 
@@ -279,7 +279,7 @@ void RAS_StorageVA::TexCoordPtr(const RAS_ITexVert *tv, const unsigned int strid
 			}
 			case RAS_IRasterizer::RAS_TEXCO_VCOL:
 			{
-				glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, tv->getRGBA());
+				glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, tv->getRGBA(m_storageAttribs->layers[unit]));
 				break;
 			}
 			default:

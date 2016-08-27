@@ -60,30 +60,41 @@ BL_BlenderShader::~BL_BlenderShader()
 		GPU_material_unbind(m_GPUMat);
 }
 
-const RAS_IRasterizer::AttribLayerList BL_BlenderShader::GetAttribLayers(const STR_String uvsname[RAS_Texture::MaxUnits]) const
+const RAS_IRasterizer::AttribLayerList BL_BlenderShader::GetAttribLayers(const RAS_MeshObject::LayerList& layers) const
 {
-	RAS_IRasterizer::AttribLayerList uvLayers;
+	RAS_IRasterizer::AttribLayerList attribLayers;
 	GPUVertexAttribs attribs;
 	GPU_material_vertex_attributes(m_GPUMat, &attribs);
 
 	for (unsigned int i = 0; i < attribs.totlayer; ++i) {
-		if (attribs.layer[i].type == CD_MTFACE) {
+		if (attribs.layer[i].type == CD_MTFACE || attribs.layer[i].type == CD_MCOL) {
 			const char *attribname = attribs.layer[i].name;
 			if (strlen(attribname) == 0) {
 				// The attribut use the default UV = the first one.
-				uvLayers[attribs.layer[i].glindex] = 0;
+				attribLayers[attribs.layer[i].glindex] = 0;
 				continue;
 			}
-			for (unsigned int j = 0; j < RAS_Texture::MaxUnits; ++j) {
-				if (strcmp(uvsname[j], attribname) == 0) {
-					uvLayers[attribs.layer[i].glindex] = j;
+
+			for (RAS_MeshObject::LayerList::const_iterator it = layers.begin(), end = layers.end();
+				 it != end; ++it)
+			{
+				const RAS_MeshObject::Layer& layer = *it;
+				bool found = false;
+				if (attribs.layer[i].type == CD_MTFACE && layer.face && layer.name == attribname) {
+					found = true;
+				}
+				else if (attribs.layer[i].type == CD_MCOL && layer.color && layer.name == attribname) {
+					found = true;
+				}
+				if (found) {
+					attribLayers[attribs.layer[i].glindex] = layer.index;
 					break;
 				}
 			}
 		}
 	}
 
-	return uvLayers;
+	return attribLayers;
 }
 
 void BL_BlenderShader::ReloadMaterial()

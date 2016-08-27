@@ -38,29 +38,36 @@ RAS_IDisplayArray::~RAS_IDisplayArray()
 {
 }
 
+#define NEW_DISPLAY_ARRAY_UV(vertformat, uv, color, primtype) \
+	if (vertformat.uvSize == uv && vertformat.colorSize == color) { \
+		return new RAS_DisplayArray<RAS_TexVert<uv, color> >(primtype); \
+	}
+
+#define NEW_DISPLAY_ARRAY_COLOR(vertformat, color, primtype) \
+	NEW_DISPLAY_ARRAY_UV(format, color, 1, type); \
+	NEW_DISPLAY_ARRAY_UV(format, color, 2, type); \
+	NEW_DISPLAY_ARRAY_UV(format, color, 3, type); \
+	NEW_DISPLAY_ARRAY_UV(format, color, 4, type); \
+	NEW_DISPLAY_ARRAY_UV(format, color, 5, type); \
+	NEW_DISPLAY_ARRAY_UV(format, color, 6, type); \
+	NEW_DISPLAY_ARRAY_UV(format, color, 7, type); \
+	NEW_DISPLAY_ARRAY_UV(format, color, 8, type);
+
 RAS_IDisplayArray *RAS_IDisplayArray::ConstructArray(RAS_IDisplayArray::PrimitiveType type, const RAS_TexVertFormat &format)
 {
-	switch (format.UVSize) {
-		case 1:
-			return new RAS_DisplayArray<RAS_TexVert<1> >(type);
-		case 2:
-			return new RAS_DisplayArray<RAS_TexVert<2> >(type);
-		case 3:
-			return new RAS_DisplayArray<RAS_TexVert<3> >(type);
-		case 4:
-			return new RAS_DisplayArray<RAS_TexVert<4> >(type);
-		case 5:
-			return new RAS_DisplayArray<RAS_TexVert<5> >(type);
-		case 6:
-			return new RAS_DisplayArray<RAS_TexVert<6> >(type);
-		case 7:
-			return new RAS_DisplayArray<RAS_TexVert<7> >(type);
-		case 8:
-			return new RAS_DisplayArray<RAS_TexVert<8> >(type);
-	};
+	NEW_DISPLAY_ARRAY_COLOR(format, 1, type);
+	NEW_DISPLAY_ARRAY_COLOR(format, 2, type);
+	NEW_DISPLAY_ARRAY_COLOR(format, 3, type);
+	NEW_DISPLAY_ARRAY_COLOR(format, 4, type);
+	NEW_DISPLAY_ARRAY_COLOR(format, 5, type);
+	NEW_DISPLAY_ARRAY_COLOR(format, 6, type);
+	NEW_DISPLAY_ARRAY_COLOR(format, 7, type);
+	NEW_DISPLAY_ARRAY_COLOR(format, 8, type);
 
 	return NULL;
 }
+#undef NEW_DISPLAY_ARRAY_UV
+#undef NEW_DISPLAY_ARRAY_COLOR
 
 int RAS_IDisplayArray::GetOpenGLPrimitiveType() const
 {
@@ -86,7 +93,7 @@ void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 	}
 	if (flag & RAS_MeshObject::UVS_MODIFIED) {
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			for (unsigned int uv = 0, uvcount = min_ii(GetVertex(i)->getUVSize(), other->GetVertex(i)->getUVSize()); uv < uvcount; ++uv) {
+			for (unsigned int uv = 0, uvcount = min_ii(GetVertex(i)->getUvSize(), other->GetVertex(i)->getUvSize()); uv < uvcount; ++uv) {
 				GetVertex(i)->SetUV(uv, MT_Vector2(other->GetVertex(i)->getUV(uv)));
 			}
 		}
@@ -103,7 +110,11 @@ void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 	}
 	if (flag & RAS_MeshObject::COLORS_MODIFIED) {
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			GetVertex(i)->SetRGBA(*((unsigned int *)other->GetVertex(i)->getRGBA()));
+			for (unsigned int color = 0, colorcount = min_ii(GetVertex(i)->getColorSize(), other->GetVertex(i)->getColorSize());
+				 color < colorcount; ++color)
+			{
+				GetVertex(i)->SetRGBA(color, *((unsigned int *)other->GetVertex(i)->getRGBA(color)));
+			}
 		}
 	}
 }

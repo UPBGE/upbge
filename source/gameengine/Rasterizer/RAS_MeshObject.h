@@ -47,11 +47,13 @@
 #include "MT_Vector2.h"
 #include "STR_String.h"
 
-struct Mesh;
 class RAS_MeshUser;
 class RAS_Deformer;
 class RAS_Polygon;
 class RAS_ITexVert;
+struct Mesh;
+struct MTFace;
+struct MCol;
 
 /* RAS_MeshObject is a mesh used for rendering. It stores polygons,
  * but the actual vertices and index arrays are stored in material
@@ -59,6 +61,20 @@ class RAS_ITexVert;
 
 class RAS_MeshObject
 {
+public:
+	/** Additionals data stored in mesh layers. These datas can be the colors layer or the
+	 * UV map layers. They are used to find attribute's layers index by looking for similar
+	 * attribute's names in shader and names of the mesh layers here.
+	 */
+	struct Layer {
+		MTFace *face;
+		MCol *color;
+		unsigned short index;
+		STR_String name;
+	};
+
+	typedef std::vector<Layer> LayerList;
+
 private:
 	short m_modifiedFlag;
 	bool m_needUpdateAabb;
@@ -68,7 +84,7 @@ private:
 	STR_String m_name;
 	static STR_String s_emptyname;
 
-	STR_String m_uvsName[RAS_Texture::MaxUnits];
+	std::vector<Layer> m_layers;
 
 	std::vector<RAS_Polygon *> m_polygons;
 
@@ -85,7 +101,7 @@ protected:
 
 public:
 	// for now, meshes need to be in a certain layer (to avoid sorting on lights in realtime)
-	RAS_MeshObject(Mesh *mesh, STR_String uvsname[RAS_Texture::MaxUnits]);
+	RAS_MeshObject(Mesh *mesh, LayerList& layers);
 	virtual ~RAS_MeshObject();
 
 	// materials
@@ -139,7 +155,7 @@ public:
 				const MT_Vector3& xyz,
 				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
-				const unsigned int rgba,
+				const unsigned int *rgba,
 				const MT_Vector3& normal,
 				const bool flat,
 				const unsigned int origindex);
@@ -157,8 +173,8 @@ public:
 	void RemoveFromBuckets(void *clientobj);
 	void EndConversion();
 
-	/// Return the list of Uvs names.
-	const STR_String *GetUvsName() const;
+	/// Return the list of blender's layers.
+	const LayerList& GetLayers() const;
 
 	/** Generate attribute's layers for every material use by this mesh.
 	 * WARNING: Always call when shader in the material are valid.

@@ -33,6 +33,7 @@
 #define __BL_BLENDERSHADER_H__
 
 #include "RAS_IRasterizer.h"
+#include "RAS_MeshObject.h"
 #include "RAS_Texture.h" // for MaxUnits
 #include "STR_String.h"
 
@@ -75,10 +76,10 @@ public:
 	void SetAttribs(RAS_IRasterizer *ras);
 
 	/** Return a map of the corresponding attribut layer for a given attribut index.
-	 * \param uvsname The list of the UV's name of a mesh used to link with uv material attributes.
-	 * \return The map of attributes layer.
+	 * \param layers The list of the mesh layers used to link with uv and color material attributes.
+	 * \return The map of attributes layers.
 	 */
-	const RAS_IRasterizer::AttribLayerList GetAttribLayers(const STR_String uvsname[RAS_Texture::MaxUnits]) const;
+	const RAS_IRasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayerList& layers) const;
 
 	void Update(RAS_MeshSlot *ms, RAS_IRasterizer * rasty);
 

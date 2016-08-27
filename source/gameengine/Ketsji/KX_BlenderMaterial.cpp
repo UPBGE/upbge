@@ -520,14 +520,14 @@ void KX_BlenderMaterial::UpdateIPO(
 	m_material->spectra = (float)specalpha;
 }
 
-const RAS_IRasterizer::AttribLayerList KX_BlenderMaterial::GetAttribLayers(const STR_String uvsname[RAS_Texture::MaxUnits]) const
+const RAS_IRasterizer::AttribLayerList KX_BlenderMaterial::GetAttribLayers(const RAS_MeshObject::LayerList& layers) const
 {
 	if (m_blenderShader && m_blenderShader->Ok()) {
-		return m_blenderShader->GetAttribLayers(uvsname);
+		return m_blenderShader->GetAttribLayers(layers);
 	}
 
-	static const RAS_IRasterizer::AttribLayerList uvLayers;
-	return uvLayers;
+	static const RAS_IRasterizer::AttribLayerList attribLayers;
+	return attribLayers;
 }
 
 void KX_BlenderMaterial::Replace_IScene(SCA_IScene *val)
