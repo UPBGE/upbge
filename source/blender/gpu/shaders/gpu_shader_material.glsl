@@ -1828,7 +1828,7 @@ void shade_alpha_depth(vec3 vp, sampler2D ima, float alpha, float factor, out fl
 
 	vec4 depthvp = gl_ProjectionMatrix * vec4(vp.xy, vp.z - factor, 1.0);
 
-	float startfade = gl_FragCoord.z * gl_FragCoord.w;
+	float startfade = gl_FragCoord.z;
 	float endfade = (1.0 + depthvp.z / depthvp.w) * 0.5;
 
 	outalpha = alpha * smoothstep(startfade, endfade, depth);
