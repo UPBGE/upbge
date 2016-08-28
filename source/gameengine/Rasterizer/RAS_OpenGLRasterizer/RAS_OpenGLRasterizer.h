@@ -103,7 +103,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 		void Bind(unsigned short index);
 		void RestoreScreen();
 		/// NOTE: This function has the side effect to leave the destination off screen bound.
-		void Blit(unsigned short srcindex, unsigned short dstindex);
+		void Blit(unsigned short srcindex, unsigned short dstindex, bool color, bool depth);
 		void BindTexture(unsigned short index, unsigned short slot, OffScreen type);
 		void UnbindTexture(unsigned short index, OffScreen type);
 		short GetCurrentIndex() const;

@@ -822,8 +822,10 @@ finally:
 	}
 }
 
-void GPU_offscreen_blit(GPUOffScreen *srcofs, GPUOffScreen *dstofs)
+void GPU_offscreen_blit(GPUOffScreen *srcofs, GPUOffScreen *dstofs, bool color, bool depth)
 {
+	BLI_assert(color || depth);
+
 	glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, srcofs->fb->object);
 	glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER_EXT, dstofs->fb->object);
 
@@ -833,7 +835,16 @@ void GPU_offscreen_blit(GPUOffScreen *srcofs, GPUOffScreen *dstofs)
 	int height = min_ff(GPU_offscreen_height(srcofs), GPU_offscreen_height(dstofs));
 	int width = min_ff(GPU_offscreen_width(srcofs), GPU_offscreen_width(dstofs));
 
-	glBlitFramebufferEXT(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+
+	int mask = 0;
+	if (color) {
+		mask |= GL_COLOR_BUFFER_BIT;
+	}
+	if (depth) {
+		mask |= GL_DEPTH_BUFFER_BIT;
+	}
+
+	glBlitFramebufferEXT(0, 0, width, height, 0, 0, width, height, mask, GL_NEAREST);
 
 	// Call GPU_framebuffer_bind_simple to change GG.currentfb.
 	GPU_framebuffer_bind_simple(dstofs->fb);

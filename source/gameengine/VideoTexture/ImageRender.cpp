@@ -418,7 +418,7 @@ bool ImageRender::Render()
 
 	// In case multisample is active, blit the FBO
 	if (m_samples > 0) {
-		GPU_offscreen_blit(m_offScreen, m_blitOffScreen);
+		GPU_offscreen_blit(m_offScreen, m_blitOffScreen, true, true);
 	}
 
 #ifdef WITH_GAMEENGINE_GPU_SYNC
