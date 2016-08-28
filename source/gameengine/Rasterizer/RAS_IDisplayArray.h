@@ -15,12 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -48,11 +43,11 @@ protected:
 	PrimitiveType m_type;
 
 	/// The vertex infos unused for rendering, e.g original or soft body index, flag.
-	std::vector<RAS_TexVertInfo> m_vertexInfo;
+	std::vector<RAS_TexVertInfo> m_vertexInfos;
 	/// Cached vertex pointer. This list is constructed with the function UpdateCache.
-	std::vector<RAS_ITexVert *> m_vertexPtr;
+	std::vector<RAS_ITexVert *> m_vertexPtrs;
 	/// The inidices used for rendering.
-	std::vector<unsigned int> m_index;
+	std::vector<unsigned int> m_indices;
 
 public:
 	RAS_IDisplayArray(PrimitiveType type);
@@ -73,53 +68,55 @@ public:
 	virtual void *GetVertexUVOffset() const = 0;
 	virtual void *GetVertexColorOffset() const = 0;
 
-	/// Return a vertex pointer without using the cache.
+	/** Return a vertex pointer without using the cache. Used to get
+	 * a vertex pointer during contruction.
+	 */
 	virtual RAS_ITexVert *GetVertexNoCache(const unsigned int index) const = 0;
 
 	inline RAS_ITexVert *GetVertex(const unsigned int index) const
 	{
-		return m_vertexPtr[index];
+		return m_vertexPtrs[index];
 	}
 
 	inline unsigned int GetIndex(unsigned int index) const
 	{
-		return m_index[index];
+		return m_indices[index];
 	}
 
 	inline const RAS_TexVertInfo& GetVertexInfo(const unsigned int index) const
 	{
-		return m_vertexInfo[index];
+		return m_vertexInfos[index];
 	}
 
 	inline RAS_TexVertInfo& GetVertexInfo(const unsigned int index)
 	{
-		return m_vertexInfo[index];
+		return m_vertexInfos[index];
 	}
 
 	virtual void AddVertex(RAS_ITexVert *vert) = 0;
 
 	inline void AddIndex(const unsigned int index)
 	{
-		m_index.push_back(index);
+		m_indices.push_back(index);
 	}
 
 	inline void AddVertexInfo(const RAS_TexVertInfo& info)
 	{
-		m_vertexInfo.push_back(info);
+		m_vertexInfos.push_back(info);
 	}
 
 	virtual const RAS_ITexVert *GetVertexPointer() const = 0;
 
 	inline const unsigned int *GetIndexPointer() const
 	{
-		return (unsigned int *)m_index.data();
+		return (unsigned int *)m_indices.data();
 	}
 
 	virtual unsigned int GetVertexCount() const = 0;
 
 	inline unsigned int GetIndexCount() const
 	{
-		return m_index.size();
+		return m_indices.size();
 	}
 
 	virtual RAS_ITexVert *CreateVertex(
@@ -135,7 +132,7 @@ public:
 	 */
 	void UpdateFrom(RAS_IDisplayArray *other, int flag);
 
-	/// Copy vertex pointer to the cache list m_vertexPtr.
+	/// Copy vertex pointer to the cache list m_vertexPtrs.
 	virtual void UpdateCache() = 0;
 
 	int GetOpenGLPrimitiveType() const;

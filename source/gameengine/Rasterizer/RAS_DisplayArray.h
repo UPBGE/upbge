@@ -15,12 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -39,7 +34,7 @@ template <class Vertex>
 class RAS_DisplayArray : public RAS_IDisplayArray
 {
 private:
-	std::vector<Vertex> m_vertex;
+	std::vector<Vertex> m_vertexes;
 
 public:
 	friend Vertex;
@@ -90,22 +85,22 @@ public:
 
 	virtual RAS_ITexVert *GetVertexNoCache(unsigned int index) const
 	{
-		return (RAS_ITexVert *)&m_vertex[index];
+		return (RAS_ITexVert *)&m_vertexes[index];
 	}
 
 	virtual const RAS_ITexVert *GetVertexPointer() const
 	{
-		return (RAS_ITexVert *)m_vertex.data();
+		return (RAS_ITexVert *)m_vertexes.data();
 	}
 
 	virtual void AddVertex(RAS_ITexVert *vert)
 	{
-		m_vertex.push_back(*((Vertex *)vert));
+		m_vertexes.push_back(*((Vertex *)vert));
 	}
 
 	virtual unsigned int GetVertexCount() const
 	{
-		return m_vertex.size();
+		return m_vertexes.size();
 	}
 
 	virtual RAS_ITexVert *CreateVertex(
@@ -121,9 +116,9 @@ public:
 	virtual void UpdateCache()
 	{
 		const unsigned int size = GetVertexCount();
-		m_vertexPtr.resize(size);
+		m_vertexPtrs.resize(size);
 		for (unsigned int i = 0; i < size; ++i) {
-			m_vertexPtr[i] = (RAS_ITexVert *)&m_vertex[i];
+			m_vertexPtrs[i] = (RAS_ITexVert *)&m_vertexes[i];
 		}
 	}
 };
