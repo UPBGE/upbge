@@ -44,10 +44,14 @@ public:
 	};
 
 protected:
+	/// The display array primitive type.
 	PrimitiveType m_type;
 
+	/// The vertex infos unused for rendering, e.g original or soft body index, flag.
 	std::vector<RAS_TexVertInfo> m_vertexInfo;
+	/// Cached vertex pointer. This list is constructed with the function UpdateCache.
 	std::vector<RAS_ITexVert *> m_vertexPtr;
+	/// The inidices used for rendering.
 	std::vector<unsigned int> m_index;
 
 public:
@@ -56,6 +60,10 @@ public:
 
 	virtual RAS_IDisplayArray *GetReplica() = 0;
 
+	/** Construct the display array coresponding of the vertex of the given format.
+	 * \param type The type of primitives, one of the enumeration PrimitiveType.
+	 * \param format The format of vertex to use.
+	 */
 	static RAS_IDisplayArray *ConstructArray(PrimitiveType type, const RAS_TexVertFormat &format);
 
 	virtual unsigned int GetVertexMemorySize() const = 0;
@@ -65,6 +73,7 @@ public:
 	virtual void *GetVertexUVOffset() const = 0;
 	virtual void *GetVertexColorOffset() const = 0;
 
+	/// Return a vertex pointer without using the cache.
 	virtual RAS_ITexVert *GetVertexNoCache(const unsigned int index) const = 0;
 
 	inline RAS_ITexVert *GetVertex(const unsigned int index) const
@@ -120,8 +129,13 @@ public:
 				const unsigned int rgba,
 				const MT_Vector3& normal) = 0;
 
+	/** Copy vertex data from an other display array. Different vertex type is allowed.
+	 * \param other The other display array to copy from.
+	 * \param flag The flag coresponding to datas to copy.
+	 */
 	void UpdateFrom(RAS_IDisplayArray *other, int flag);
 
+	/// Copy vertex pointer to the cache list m_vertexPtr.
 	virtual void UpdateCache() = 0;
 
 	int GetOpenGLPrimitiveType() const;
