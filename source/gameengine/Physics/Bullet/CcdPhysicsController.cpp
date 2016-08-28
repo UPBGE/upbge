@@ -1019,6 +1019,13 @@ void CcdPhysicsController::SuspendDynamics(bool ghost)
 	btSoftBody *sBody = GetSoftBody();
 	if (sBody) {
 		sBody->setActivationState(ISLAND_SLEEPING);
+		m_savedCollisionFlags = sBody->getCollisionFlags();
+		m_savedMass = GetMass();
+		GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
+			0.0f,
+			((ghost) ? btCollisionObject::CF_NO_CONTACT_RESPONSE : (m_savedCollisionFlags & btCollisionObject::CF_NO_CONTACT_RESPONSE)),
+			NULL,
+			NULL);
 	}
 	if (body && !m_suspended && !GetConstructionInfo().m_bSensor && GetPhysicsEnvironment()->IsActiveCcdPhysicsController(this)) {
 		btBroadphaseProxy *handle = body->getBroadphaseHandle();
@@ -1045,6 +1052,11 @@ void CcdPhysicsController::RestoreDynamics()
 	if (sBody) {
 		if (!sBody->isActive()) {
 			sBody->setActivationState(ACTIVE_TAG);
+			GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
+				m_savedMass,
+				(m_savedCollisionFlags & btCollisionObject::CF_NO_CONTACT_RESPONSE),
+				NULL,
+				NULL);
 		}
 	}
 	if (body && m_suspended && GetPhysicsEnvironment()->IsActiveCcdPhysicsController(this)) {
