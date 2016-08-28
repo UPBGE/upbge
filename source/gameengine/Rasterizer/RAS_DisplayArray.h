@@ -50,7 +50,10 @@ public:
 
 	virtual RAS_IDisplayArray *GetReplica()
 	{
-		return new RAS_DisplayArray<Vertex>(*this);
+		RAS_DisplayArray<Vertex> *replica = new RAS_DisplayArray<Vertex>(*this);
+		replica->UpdateCache();
+
+		return replica;
 	}
 
 	virtual unsigned int GetVertexMemorySize() const
