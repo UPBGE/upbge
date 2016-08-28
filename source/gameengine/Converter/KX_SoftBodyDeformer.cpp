@@ -75,7 +75,6 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 	//printf("apply\n");
 	RAS_MeshMaterial *mmat;
 	RAS_MeshSlot *slot;
-	size_t i;
 
 	// update the vertex in m_transverts
 	Update();
@@ -94,8 +93,7 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 
 	btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
 
-	int index = 0;
-	for (i = 0; i < array->GetVertexCount(); i++, index++) {
+	for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 		RAS_ITexVert *v = array->GetVertex(i);
 		const RAS_TexVertInfo& vinfo = origarray->GetVertexInfo(i);
 		/* The physics converter write the soft body index only in the original

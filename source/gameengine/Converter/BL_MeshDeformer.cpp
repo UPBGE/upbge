@@ -188,7 +188,7 @@ void BL_MeshDeformer::RecalcNormals()
 
 		RAS_IDisplayArray *array = slot->GetDisplayArray();
 
-		for (i = 0; i < array->GetVertexCount(); i++) {
+		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 			RAS_ITexVert *v = array->GetVertex(i);
 			const RAS_TexVertInfo& vinfo = array->GetVertexInfo(i);
 

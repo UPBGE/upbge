@@ -445,7 +445,6 @@ bool CcdPhysicsController::CreateSoftbody()
 		if (rasMesh && !m_softbodyMappingDone) {
 			RAS_MeshMaterial *mmat;
 			RAS_MeshSlot *slot;
-			size_t i;
 
 			//for each material
 			for (int m = 0; m < rasMesh->NumMaterials(); m++) {
@@ -454,8 +453,7 @@ bool CcdPhysicsController::CreateSoftbody()
 				slot = mmat->m_baseslot;
 				RAS_IDisplayArray *array = slot->GetDisplayArray();
 
-				int index = 0;
-				for (i = 0; i < array->GetVertexCount(); i++, index++) {
+				for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 					RAS_ITexVert *vertex = array->GetVertex(i);
 					RAS_TexVertInfo& vertexInfo = array->GetVertexInfo(i);
 					//search closest index, and store it in vertex

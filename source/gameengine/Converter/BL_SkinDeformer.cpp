@@ -313,7 +313,7 @@ void BL_SkinDeformer::UpdateTransverts()
 
 	RAS_MeshMaterial *mmat;
 	RAS_MeshSlot *slot;
-	size_t i, nmat, imat;
+	size_t nmat, imat;
 	bool first = true;
 	if (m_transverts) {
 		// the vertex cache is unique to this deformer, no need to update it
@@ -331,7 +331,7 @@ void BL_SkinDeformer::UpdateTransverts()
 
 			// for each vertex
 			// copy the untransformed data from the original mvert
-			for (i = 0; i < array->GetVertexCount(); i++) {
+			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 				RAS_ITexVert *v = array->GetVertex(i);
 				const RAS_TexVertInfo& vinfo = array->GetVertexInfo(i);
 				v->SetXYZ(m_transverts[vinfo.getOrigIndex()]);
