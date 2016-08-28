@@ -464,12 +464,8 @@ void RAS_MeshObject::EndConversion()
 		RAS_MeshMaterial *mmat = GetMeshMaterial(imat);
 
 		RAS_MeshSlot *slot = mmat->m_baseslot;
-		if (!slot)
-			continue;
-
-		RAS_IDisplayArray *array = slot->GetDisplayArray();
-		if (array) {
-			array->UpdateCache();
+		if (slot && slot->GetDisplayArray()) {
+			slot->GetDisplayArray()->UpdateCache();
 		}
 	}
 }

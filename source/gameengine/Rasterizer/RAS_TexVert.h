@@ -32,6 +32,7 @@
 template <class Vertex>
 class RAS_DisplayArray;
 
+// Struct used to pass the vertex format to functions.
 struct RAS_TexVertFormat
 {
 	unsigned int UVSize;

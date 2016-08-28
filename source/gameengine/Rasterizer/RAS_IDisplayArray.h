@@ -44,9 +44,9 @@ protected:
 
 	/// The vertex infos unused for rendering, e.g original or soft body index, flag.
 	std::vector<RAS_TexVertInfo> m_vertexInfos;
-	/// Cached vertex pointer. This list is constructed with the function UpdateCache.
+	/// Cached vertex pointers. This list is constructed with the function UpdateCache.
 	std::vector<RAS_ITexVert *> m_vertexPtrs;
-	/// The inidices used for rendering.
+	/// The indices used for rendering.
 	std::vector<unsigned int> m_indices;
 
 public:
@@ -132,7 +132,7 @@ public:
 	 */
 	void UpdateFrom(RAS_IDisplayArray *other, int flag);
 
-	/// Copy vertex pointer to the cache list m_vertexPtrs.
+	/// Copy vertex pointers to the cache list m_vertexPtrs.
 	virtual void UpdateCache() = 0;
 
 	int GetOpenGLPrimitiveType() const;
