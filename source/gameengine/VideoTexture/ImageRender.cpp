@@ -299,10 +299,13 @@ bool ImageRender::Render()
 	// bind the fbo and set the viewport to full size
 	GPU_offscreen_bind_simple(m_offScreen);
 
+	m_rasterizer->BeginFrame(m_engine->GetClockTime());
+
 	m_rasterizer->SetViewport(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
 	m_rasterizer->SetScissor(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
 
-	m_rasterizer->BeginFrame(m_engine->GetClockTime());
+	m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
 	m_rasterizer->DisplayFog();
