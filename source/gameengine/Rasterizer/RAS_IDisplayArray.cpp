@@ -31,7 +31,8 @@
 
 #include "glew-mx.h"
 
-RAS_IDisplayArray::RAS_IDisplayArray()
+RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type)
+	:m_type(type)
 {
 }
 
@@ -61,21 +62,6 @@ RAS_IDisplayArray *RAS_IDisplayArray::ConstructArray(RAS_IDisplayArray::Primitiv
 	};
 
 	return NULL;
-}
-
-const RAS_TexVertInfo& RAS_IDisplayArray::GetVertexInfo(unsigned int index) const
-{
-	return m_vertexInfo[index];
-}
-
-RAS_TexVertInfo& RAS_IDisplayArray::GetVertexInfo(unsigned int index)
-{
-	return m_vertexInfo[index];
-}
-
-void RAS_IDisplayArray::AddVertexInfo(const RAS_TexVertInfo& info)
-{
-	m_vertexInfo.push_back(info);
 }
 
 int RAS_IDisplayArray::GetOpenGLPrimitiveType() const

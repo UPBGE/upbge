@@ -40,14 +40,13 @@ class RAS_DisplayArray : public RAS_IDisplayArray
 {
 private:
 	std::vector<Vertex> m_vertex;
-	std::vector<unsigned int> m_index;
 
 public:
 	friend Vertex;
 
 	RAS_DisplayArray(PrimitiveType type)
+		:RAS_IDisplayArray(type)
 	{
-		m_type = type;
 	}
 
 	virtual ~RAS_DisplayArray()
@@ -89,14 +88,9 @@ public:
 		return (void *)offsetof(Vertex, m_rgba);
 	}
 
-	virtual RAS_ITexVert *GetVertex(unsigned int index) const
+	virtual RAS_ITexVert *GetVertexNoCache(unsigned int index) const
 	{
 		return (RAS_ITexVert *)&m_vertex[index];
-	}
-
-	virtual unsigned int GetIndex(unsigned int index) const
-	{
-		return m_index[index];
 	}
 
 	virtual const RAS_ITexVert *GetVertexPointer() const
@@ -104,29 +98,14 @@ public:
 		return (RAS_ITexVert *)m_vertex.data();
 	}
 
-	virtual const unsigned int *GetIndexPointer() const
-	{
-		return (unsigned int *)m_index.data();
-	}
-
 	virtual void AddVertex(RAS_ITexVert *vert)
 	{
 		m_vertex.push_back(*((Vertex *)vert));
 	}
 
-	virtual void AddIndex(unsigned int index)
-	{
-		m_index.push_back(index);
-	}
-
 	virtual unsigned int GetVertexCount() const
 	{
 		return m_vertex.size();
-	}
-
-	virtual unsigned int GetIndexCount() const
-	{
-		return m_index.size();
 	}
 
 	virtual RAS_ITexVert *CreateVertex(
@@ -137,6 +116,15 @@ public:
 				const MT_Vector3& normal)
 	{
 		return new Vertex(xyz, uvs, tangent, rgba, normal);
+	}
+
+	virtual void UpdateCache()
+	{
+		const unsigned int size = GetVertexCount();
+		m_vertexPtr.resize(size);
+		for (unsigned int i = 0; i < size; ++i) {
+			m_vertexPtr[i] = (RAS_ITexVert *)&m_vertex[i];
+		}
 	}
 };
 

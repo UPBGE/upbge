@@ -47,9 +47,11 @@ protected:
 	PrimitiveType m_type;
 
 	std::vector<RAS_TexVertInfo> m_vertexInfo;
+	std::vector<RAS_ITexVert *> m_vertexPtr;
+	std::vector<unsigned int> m_index;
 
 public:
-	RAS_IDisplayArray();
+	RAS_IDisplayArray(PrimitiveType type);
 	virtual ~RAS_IDisplayArray();
 
 	virtual RAS_IDisplayArray *GetReplica() = 0;
@@ -63,20 +65,53 @@ public:
 	virtual void *GetVertexUVOffset() const = 0;
 	virtual void *GetVertexColorOffset() const = 0;
 
-	virtual RAS_ITexVert *GetVertex(unsigned int index) const = 0;
-	virtual unsigned int GetIndex(unsigned int index) const = 0;
-	const RAS_TexVertInfo& GetVertexInfo(unsigned int index) const;
-	RAS_TexVertInfo& GetVertexInfo(unsigned int index);
+	virtual RAS_ITexVert *GetVertexNoCache(const unsigned int index) const = 0;
 
-	virtual const RAS_ITexVert *GetVertexPointer() const = 0;
-	virtual const unsigned int *GetIndexPointer() const = 0;
+	inline RAS_ITexVert *GetVertex(const unsigned int index) const
+	{
+		return m_vertexPtr[index];
+	}
+
+	inline unsigned int GetIndex(unsigned int index) const
+	{
+		return m_index[index];
+	}
+
+	inline const RAS_TexVertInfo& GetVertexInfo(const unsigned int index) const
+	{
+		return m_vertexInfo[index];
+	}
+
+	inline RAS_TexVertInfo& GetVertexInfo(const unsigned int index)
+	{
+		return m_vertexInfo[index];
+	}
 
 	virtual void AddVertex(RAS_ITexVert *vert) = 0;
-	virtual void AddIndex(unsigned int index) = 0;
-	void AddVertexInfo(const RAS_TexVertInfo& info);
+
+	inline void AddIndex(const unsigned int index)
+	{
+		m_index.push_back(index);
+	}
+
+	inline void AddVertexInfo(const RAS_TexVertInfo& info)
+	{
+		m_vertexInfo.push_back(info);
+	}
+
+	virtual const RAS_ITexVert *GetVertexPointer() const = 0;
+
+	inline const unsigned int *GetIndexPointer() const
+	{
+		return (unsigned int *)m_index.data();
+	}
 
 	virtual unsigned int GetVertexCount() const = 0;
-	virtual unsigned int GetIndexCount() const = 0;
+
+	inline unsigned int GetIndexCount() const
+	{
+		return m_index.size();
+	}
 
 	virtual RAS_ITexVert *CreateVertex(
 				const MT_Vector3& xyz,
@@ -86,6 +121,9 @@ public:
 				const MT_Vector3& normal) = 0;
 
 	void UpdateFrom(RAS_IDisplayArray *other, int flag);
+
+	virtual void UpdateCache() = 0;
+
 	int GetOpenGLPrimitiveType() const;
 };
 

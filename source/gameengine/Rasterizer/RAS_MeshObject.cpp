@@ -364,7 +364,7 @@ unsigned int RAS_MeshObject::AddVertex(
 		for (it = sharedmap.begin(); it != sharedmap.end(); it++) {
 			if (it->m_darray != darray)
 				continue;
-			if (!it->m_darray->GetVertex(it->m_offset)->closeTo(vertex))
+			if (!it->m_darray->GetVertexNoCache(it->m_offset)->closeTo(vertex))
 				continue;
 
 			// found one, add it and we're done
@@ -458,6 +458,20 @@ void RAS_MeshObject::EndConversion()
 	vector<vector<SharedVertex> >   shared_null(0);
 	shared_null.swap(m_sharedvertex_map);   /* really free the memory */
 #endif
+
+	unsigned int nmat = NumMaterials();
+	for (unsigned int imat = 0; imat < nmat; ++imat) {
+		RAS_MeshMaterial *mmat = GetMeshMaterial(imat);
+
+		RAS_MeshSlot *slot = mmat->m_baseslot;
+		if (!slot)
+			continue;
+
+		RAS_IDisplayArray *array = slot->GetDisplayArray();
+		if (array) {
+			array->UpdateCache();
+		}
+	}
 }
 
 void RAS_MeshObject::SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transform)
