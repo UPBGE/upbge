@@ -140,7 +140,8 @@ void LA_Launcher::InitEngine()
 	bool showPhysics = (gm->flag & GAME_SHOW_PHYSICS);
 	SYS_WriteCommandLineInt(syshandle, "show_physics", showPhysics);
 
-	bool fixed_framerate = (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm->flag & GAME_ENABLE_ALL_FRAMES)) != 0);
+	// WARNING: Fixed time is the opposite of fixed framerate.
+	bool fixed_framerate = (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm->flag & GAME_ENABLE_ALL_FRAMES)) == 0);
 	bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
 	bool showBoundingBox = (SYS_GetCommandLineInt(syshandle, "show_bounding_box", gm->flag & GAME_SHOW_BOUNDING_BOX) != 0);
 	bool showArmatures = (SYS_GetCommandLineInt(syshandle, "show_armatures", gm->flag & GAME_SHOW_ARMATURES) != 0);
@@ -239,7 +240,7 @@ void LA_Launcher::InitEngine()
 	(void)nodepwarnings;
 #endif
 
-	m_ketsjiEngine->SetUseFixedTime(fixed_framerate);
+	m_ketsjiEngine->SetUseFixedFramerate(fixed_framerate);
 	m_ketsjiEngine->SetTimingDisplay(frameRate, profile, properties);
 	m_ketsjiEngine->SetRender(true);
 	m_ketsjiEngine->SetRestrictAnimationFPS(restrictAnimFPS);

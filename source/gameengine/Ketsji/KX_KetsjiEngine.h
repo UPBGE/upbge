@@ -108,7 +108,7 @@ private:
 
 	bool m_bInitialized;
 	int m_activecam;
-	bool m_bFixedTime;
+	bool m_fixedFramerate;
 	bool m_useExternalClock;
 
 	bool m_firstframe;
@@ -330,16 +330,16 @@ public:
 	void UpdateAnimations(KX_Scene *scene);
 
 	/**
-	 * Sets display of all frames.
-	 * \param bUseFixedTime	New setting for display all frames.
+	 * Sets display of fixed frames.
+	 * \param fixedFramerate New setting for display all frames.
 	 */
-	void SetUseFixedTime(bool bUseFixedTime);
+	void SetUseFixedFramerate(bool fixedFramerate);
 
 	/**
-	 * Returns display of all frames.
+	 * Returns display of fixed frames.
 	 * \return Current setting for display all frames.
 	 */
-	bool GetUseFixedTime(void) const;
+	bool GetUseFixedFramerate(void) const;
 
 	/**
 	 * Sets if the BGE relies on a external clock or its own internal clock
