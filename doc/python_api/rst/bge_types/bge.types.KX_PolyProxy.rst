@@ -137,3 +137,10 @@ base class --- :class:`SCA_IObject`
       :return: mesh proxy
       :rtype: :class:`MeshProxy`
 
+   .. method:: getVertices()
+
+      Returns the list of vertices of this polygon.
+
+      :return: vertex proxy list
+      :rtype: :class:`KX_VertexProxy` list
+

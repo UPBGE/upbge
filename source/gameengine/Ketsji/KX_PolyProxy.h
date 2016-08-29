@@ -68,6 +68,7 @@ public:
 	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy,getMaterialName)
 	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy,getTextureName)
 	KX_PYMETHOD_DOC(KX_PolyProxy,getVertexIndex)
+	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getVertices)
 	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy,getMesh)
 	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy,getMaterial)
 

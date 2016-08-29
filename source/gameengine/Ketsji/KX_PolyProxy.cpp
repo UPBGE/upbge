@@ -35,6 +35,7 @@
 #include "KX_PolyProxy.h"
 #include "KX_MeshProxy.h"
 #include "RAS_MeshObject.h"
+#include "KX_VertexProxy.h"
 #include "RAS_Polygon.h"
 #include "KX_BlenderMaterial.h"
 
@@ -72,6 +73,7 @@ PyMethodDef KX_PolyProxy::Methods[] = {
 	KX_PYMETHODTABLE(KX_PolyProxy,getVertexIndex),
 	KX_PYMETHODTABLE_NOARGS(KX_PolyProxy,getMesh),
 	KX_PYMETHODTABLE_NOARGS(KX_PolyProxy,getMaterial),
+	KX_PYMETHODTABLE_NOARGS(KX_PolyProxy, getVertices),
 	{NULL,NULL} //Sentinel
 };
 
@@ -250,6 +252,31 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMesh,
 {
 	KX_MeshProxy* meshproxy = new KX_MeshProxy((RAS_MeshObject*)m_mesh);
 	return meshproxy->NewProxy(true);
+}
+
+KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getVertices,
+	"getVertices() : returns a list of vertex proxy\n")
+{
+	KX_MeshProxy* meshproxy = new KX_MeshProxy((RAS_MeshObject*)m_mesh);
+
+	RAS_MaterialBucket* polyBucket = m_polygon->GetMaterial();
+	unsigned int matid;
+	for (matid = 0; matid < (unsigned int)m_mesh->NumMaterials(); matid++)
+	{
+		RAS_MeshMaterial* meshMat = m_mesh->GetMeshMaterial(matid);
+		if (meshMat->m_bucket == polyBucket)
+			// found it
+			break;
+	}
+
+	PyObject *vertList = PyList_New(m_polygon->VertexCount());
+
+	for (int i = 0; i < m_polygon->VertexCount(); i++) {
+		int vertindex = m_polygon->GetVertexOffset(i);
+		KX_VertexProxy *vert = new KX_VertexProxy(meshproxy, (RAS_TexVert *)(m_mesh->GetVertex(matid, vertindex)));
+		PyList_SetItem(vertList, i, vert->NewProxy(true));
+	}
+	return vertList;
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterial,
