@@ -1922,7 +1922,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 			GPU_link(mat, "shade_add", shr->combined, shr->spec, &shr->combined);
 	}
 
-	if (ma->mode2 & MA_DEPTH_TRANSP) {
+	if (ma->mode & MA_TRANSP && ma->mode2 & MA_DEPTH_TRANSP) {
 		GPU_link(mat, "shade_alpha_depth",
 				 GPU_builtin(GPU_VIEW_POSITION),
 				 GPU_dynamic_texture_ptr(GPU_texture_global_depth_ptr(), GPU_DYNAMIC_SAMPLER_2DBUFFER, ma),
