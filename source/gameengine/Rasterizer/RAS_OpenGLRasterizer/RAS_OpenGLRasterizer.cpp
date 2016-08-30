@@ -878,6 +878,11 @@ void RAS_OpenGLRasterizer::BindOffScreen(unsigned short index)
 	m_offScreens.Bind(index);
 }
 
+void RAS_OpenGLRasterizer::RestoreScreenFrameBuffer()
+{
+	m_offScreens.RestoreScreen();
+}
+
 void RAS_OpenGLRasterizer::DrawOffScreen(unsigned short srcindex, unsigned short dstindex)
 {
 	if (m_offScreens.GetSamples(srcindex) == 0) {

@@ -352,6 +352,9 @@ public:
 	/// Bind the off screen at the given index.
 	virtual void BindOffScreen(unsigned short index) = 0;
 
+	/// Restore default screen frame buffer.
+	virtual void RestoreScreenFrameBuffer() = 0;
+
 	/** Draw off screen without set viewport.
 	 * Used to copy the frame buffer object to another.
 	 * \param srcindex The input off screen index.
