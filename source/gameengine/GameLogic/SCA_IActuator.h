@@ -82,6 +82,7 @@ public:
 		KX_ACT_ACTION,
 		KX_ACT_CD,
 		KX_ACT_GAME,
+		KX_ACT_VIBRATION,
 		KX_ACT_VISIBILITY,
 		KX_ACT_2DFILTER,
 		KX_ACT_PARENT,
@@ -140,6 +141,11 @@ public:
 	bool IsNegativeEvent() const
 	{
 		return !m_posevent && m_negevent;
+	}
+
+	bool IsPositiveEvent() const
+	{
+		return m_posevent && !m_negevent;
 	}
 
 	virtual ~SCA_IActuator();

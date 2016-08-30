@@ -40,6 +40,8 @@
 #include "DEV_JoystickPrivate.h"
 #include "DEV_JoystickMappingdb.h"
 
+#include <iostream> //std::cout
+
 #ifdef WITH_SDL
 #  define SDL_CHECK(x) ((x) != (void *)0)
 #endif
@@ -214,6 +216,27 @@ bool DEV_Joystick::aButtonReleaseIsPositive(int button)
 		return true;
 	}
 #endif
+	return false;
+}
+
+bool DEV_Joystick::RumblePlay(float strength, int duration)
+{
+#ifdef WITH_SDL
+	if (m_private->m_haptic == NULL) {
+		return false;
+	}
+
+	// Initialize simple rumble
+	if (SDL_HapticRumbleInit(m_private->m_haptic) != 0) {
+		return false;
+	}
+
+	// Play effect at strength for m_duration milliseconds
+	if (SDL_HapticRumblePlay(m_private->m_haptic, strength, duration) != 0) {
+		return false;
+	}
+	return true;
+#endif // WITH_SDL
 	return false;
 }
 

@@ -76,6 +76,7 @@ set(SRC
 	SCA_RandomNumberGenerator.cpp
 	SCA_RandomSensor.cpp
 	SCA_TimeEventManager.cpp
+	SCA_VibrationActuator.cpp
 	SCA_XNORController.cpp
 	SCA_XORController.cpp
 
@@ -116,6 +117,7 @@ set(SRC
 	SCA_RandomNumberGenerator.h
 	SCA_RandomSensor.h
 	SCA_TimeEventManager.h
+	SCA_VibrationActuator.h
 	SCA_XNORController.h
 	SCA_XORController.h
 )
