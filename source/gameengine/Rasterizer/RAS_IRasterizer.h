@@ -684,6 +684,9 @@ public:
 
 	virtual void RemoveLight(RAS_ILightObject *lightobject) = 0;
 
+	/** Set the current off screen depth to the global depth texture used by materials.
+	 * In case of mutlisample off screen a blit to RAS_OFFSCREEN_BLIT_DEPTH is procceed.
+	 */
 	virtual void UpdateGlobalDepthTexture() = 0;
 
 	virtual void MotionBlur() = 0;

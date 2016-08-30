@@ -291,7 +291,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
 
-			// Render soft particles after all other kind of geometry render.
+			// Render soft particles after all other meshes.
 			if ((GetNumActiveMeshSlots(ALPHA_DEPTH_BUCKET) + GetNumActiveMeshSlots(ALPHA_DEPTH_INSTANCING_BUCKET)) > 0) {
 				rasty->UpdateGlobalDepthTexture();
 
