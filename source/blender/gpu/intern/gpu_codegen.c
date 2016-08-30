@@ -488,7 +488,7 @@ static void codegen_set_unique_ids(ListBase *nodes)
 				}
 				else if (input->texptr) {
 					/* input is user created texture, check tex pointer */
-					codegen_set_texid(bindhash, input, &texid, input->tex);
+					codegen_set_texid(bindhash, input, &texid, input->texptr);
 				}
 
 				/* make sure this pixel is defined exactly once */
