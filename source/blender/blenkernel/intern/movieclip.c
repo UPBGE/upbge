@@ -1033,7 +1033,7 @@ static ImBuf *get_stable_cached_frame(MovieClip *clip, MovieClipUser *user, ImBu
 
 	stableibuf = cache->stabilized.ibuf;
 
-	BKE_tracking_stabilization_data_get(&clip->tracking, clip_framenr, stableibuf->x, stableibuf->y, tloc, &tscale, &tangle);
+	BKE_tracking_stabilization_data_get(clip, clip_framenr, stableibuf->x, stableibuf->y, tloc, &tscale, &tangle);
 
 	/* check for stabilization parameters */
 	if (tscale != cache->stabilized.scale ||
@@ -1057,7 +1057,7 @@ static ImBuf *put_stabilized_frame_to_cache(MovieClip *clip, MovieClipUser *user
 	float tloc[2], tscale, tangle;
 	int clip_framenr = BKE_movieclip_remap_scene_to_clip_frame(clip, framenr);
 
-	stableibuf = BKE_tracking_stabilize_frame(&clip->tracking, clip_framenr, ibuf, tloc, &tscale, &tangle);
+	stableibuf = BKE_tracking_stabilize_frame(clip, clip_framenr, ibuf, tloc, &tscale, &tangle);
 
 	copy_v2_v2(cache->stabilized.loc, tloc);
 
@@ -1247,8 +1247,6 @@ static void free_buffers(MovieClip *clip)
 		IMB_free_anim(clip->anim);
 		clip->anim = NULL;
 	}
-
-	BKE_animdata_free((ID *) clip, false);
 }
 
 void BKE_movieclip_clear_cache(MovieClip *clip)
@@ -1269,8 +1267,6 @@ void BKE_movieclip_reload(MovieClip *clip)
 {
 	/* clear cache */
 	free_buffers(clip);
-
-	clip->tracking.stabilization.ok = false;
 
 	/* update clip source */
 	detect_clip_source(clip);
@@ -1489,6 +1485,7 @@ void BKE_movieclip_free(MovieClip *clip)
 	free_buffers(clip);
 
 	BKE_tracking_free(&clip->tracking);
+	BKE_animdata_free((ID *) clip, false);
 }
 
 MovieClip *BKE_movieclip_copy(Main *bmain, MovieClip *clip)

@@ -297,7 +297,7 @@ public:
 			cuda_error_message("CUDA nvcc compiler version could not be parsed.");
 			return false;
 		}
-		if(cuda_version < 60) {
+		if(cuda_version < 75) {
 			printf("Unsupported CUDA version %d.%d detected, "
 			       "you need CUDA 7.5 or newer.\n",
 			       major, minor);
@@ -576,6 +576,7 @@ public:
 			case TYPE_UINT: format = CU_AD_FORMAT_UNSIGNED_INT32; break;
 			case TYPE_INT: format = CU_AD_FORMAT_SIGNED_INT32; break;
 			case TYPE_FLOAT: format = CU_AD_FORMAT_FLOAT; break;
+			case TYPE_HALF: format = CU_AD_FORMAT_HALF; break;
 			default: assert(0); return;
 		}
 
@@ -747,8 +748,12 @@ public:
 				}
 
 				/* Resize once */
-				if(flat_slot >= bindless_mapping.size())
-					bindless_mapping.resize(4096); /*TODO(dingto): Make this a variable */
+				if(flat_slot >= bindless_mapping.size()) {
+					/* Allocate some slots in advance, to reduce amount
+					 * of re-allocations.
+					 */
+					bindless_mapping.resize(flat_slot + 128);
+				}
 
 				/* Set Mapping and tag that we need to (re-)upload to device */
 				bindless_mapping.get_data()[flat_slot] = (uint)tex;

@@ -33,6 +33,7 @@ set(INC
 	../makesrna
 	../windowmanager
 	../../../intern/guardedalloc
+	../../../intern/utfconv
 )
 
 set(INC_SYS
@@ -40,7 +41,7 @@ set(INC_SYS
 	${HDF5_INCLUDE_DIRS}
 	${OPENEXR_INCLUDE_DIRS}
 )
-if(APPLE)
+if(APPLE OR WIN32)
 	list(APPEND INC_SYS
 		${BOOST_INCLUDE_DIR}
 	)

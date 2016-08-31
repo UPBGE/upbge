@@ -30,6 +30,10 @@
 
 #include <Alembic/AbcCoreOgawa/All.h>
 
+#ifdef WIN32
+#  include "utfconv.h"
+#endif
+
 #include "abc_camera.h"
 #include "abc_curves.h"
 #include "abc_hair.h"
@@ -44,6 +48,7 @@ extern "C" {
 #include "DNA_curve_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"  /* for FILE_MAX */
 
@@ -65,6 +70,54 @@ extern "C" {
 
 using Alembic::Abc::TimeSamplingPtr;
 using Alembic::Abc::OBox3dProperty;
+
+
+/* ************************************************************************** */
+
+/* This kinda duplicates CreateArchiveWithInfo, but Alembic does not seem to
+ * have a version supporting streams. */
+static Alembic::Abc::OArchive create_archive(std::ostream *ostream,
+                                             const std::string &filename,
+                                             const std::string &scene_name,
+                                             const Alembic::Abc::Argument &arg0,
+                                             const Alembic::Abc::Argument &arg1,
+                                             bool ogawa)
+{
+    Alembic::Abc::MetaData md = GetMetaData(arg0, arg1);
+    md.set(Alembic::Abc::kApplicationNameKey, "Blender");
+	md.set(Alembic::Abc::kUserDescriptionKey, scene_name);
+
+    time_t raw_time;
+    time(&raw_time);
+    char buffer[128];
+
+#if defined _WIN32 || defined _WIN64
+    ctime_s(buffer, 128, &raw_time);
+#else
+    ctime_r(&raw_time, buffer);
+#endif
+
+    const std::size_t buffer_len = strlen(buffer);
+    if (buffer_len > 0 && buffer[buffer_len - 1] == '\n') {
+        buffer[buffer_len - 1] = '\0';
+    }
+
+    md.set(Alembic::Abc::kDateWrittenKey, buffer);
+
+	Alembic::Abc::ErrorHandler::Policy policy = GetErrorHandlerPolicyFromArgs(arg0, arg1);
+
+#ifdef WITH_ALEMBIC_HDF5
+	if (!ogawa) {
+		return Alembic::Abc::OArchive(Alembic::AbcCoreHDF5::WriteArchive(), filename, md, policy);
+	}
+#else
+	static_cast<void>(filename);
+	static_cast<void>(ogawa);
+#endif
+
+	Alembic::AbcCoreOgawa::WriteArchive archive_writer;
+	return Alembic::Abc::OArchive(archive_writer(ostream, md), Alembic::Abc::kWrapExisting, policy);
+}
 
 /* ************************************************************************** */
 
@@ -175,7 +228,7 @@ void AbcExporter::getShutterSamples(double step, bool time_relative,
 	/* sample all frame */
 	if (shutter_open == 0.0 && shutter_close == 1.0) {
 		for (double t = 0; t < 1.0; t += step) {
-			samples.push_back(t / time_factor);
+			samples.push_back((t + m_settings.frame_start) / time_factor);
 		}
 	}
 	else {
@@ -184,7 +237,7 @@ void AbcExporter::getShutterSamples(double step, bool time_relative,
 		const double time_inc = (shutter_close - shutter_open) / nsamples;
 
 		for (double t = shutter_open; t <= shutter_close; t += time_inc) {
-			samples.push_back(t / time_factor);
+			samples.push_back((t + m_settings.frame_start) / time_factor);
 		}
 	}
 }
@@ -246,25 +299,24 @@ void AbcExporter::operator()(Main *bmain, float &progress, bool &was_canceled)
 
 	Alembic::Abc::Argument arg(md);
 
-#ifdef WITH_ALEMBIC_HDF5
-	if (!m_settings.export_ogawa) {
-		m_archive = Alembic::Abc::CreateArchiveWithInfo(Alembic::AbcCoreHDF5::WriteArchive(),
-		                                                m_filename,
-		                                                "Blender",
-		                                                scene_name,
-		                                                Alembic::Abc::ErrorHandler::kThrowPolicy,
-		                                                arg);
-	}
-	else
+	/* Use stream to support unicode character paths on Windows. */
+	if (m_settings.export_ogawa) {
+#ifdef WIN32
+		UTF16_ENCODE(m_filename);
+		std::wstring wstr(m_filename_16);
+		m_out_file.open(wstr.c_str(), std::ios::out | std::ios::binary);
+		UTF16_UN_ENCODE(m_filename);
+#else
+		m_out_file.open(m_filename, std::ios::out | std::ios::binary);
 #endif
-	{
-		m_archive = Alembic::Abc::CreateArchiveWithInfo(Alembic::AbcCoreOgawa::WriteArchive(),
-		                                                m_filename,
-		                                                "Blender",
-		                                                scene_name,
-		                                                Alembic::Abc::ErrorHandler::kThrowPolicy,
-		                                                arg);
 	}
+
+	m_archive = create_archive(&m_out_file,
+	                           m_filename,
+	                           scene_name,
+	                           Alembic::Abc::ErrorHandler::kThrowPolicy,
+	                           arg,
+	                           m_settings.export_ogawa);
 
 	/* Create time samplings for transforms and shapes. */
 
@@ -325,16 +377,18 @@ void AbcExporter::operator()(Main *bmain, float &progress, bool &was_canceled)
 			break;
 		}
 
-		double f = *begin;
-		setCurrentFrame(bmain, f);
+		const double frame = *begin;
 
-		if (shape_frames.count(f) != 0) {
+		/* 'frame' is offset by start frame, so need to cancel the offset. */
+		setCurrentFrame(bmain, frame - m_settings.frame_start);
+
+		if (shape_frames.count(frame) != 0) {
 			for (int i = 0, e = m_shapes.size(); i != e; ++i) {
 				m_shapes[i]->write();
 			}
 		}
 
-		if (xform_frames.count(f) == 0) {
+		if (xform_frames.count(frame) == 0) {
 			continue;
 		}
 

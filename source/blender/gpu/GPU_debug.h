@@ -34,8 +34,6 @@
 
 #include "GPU_glew.h"
 
-#include "BLI_utildefines.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -62,7 +60,7 @@ void GPU_assert_no_gl_errors(const char *file, int line, const char *str);
 
 
 /* inserts a debug marker message for the debug context messaging system */
-void GPU_string_marker(size_t size, const char *str);
+void GPU_string_marker(const char *str);
 
 #ifdef __cplusplus
 }

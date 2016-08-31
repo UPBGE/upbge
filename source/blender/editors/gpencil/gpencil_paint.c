@@ -164,9 +164,6 @@ typedef struct tGPsdata {
 
 /* ------ */
 
-/* maximum sizes of gp-session buffer */
-#define GP_STROKE_BUFFER_MAX    5000
-
 /* Macros for accessing sensitivity thresholds... */
 /* minimum number of pixels mouse should move before new point created */
 #define MIN_MANHATTEN_PX    (U.gp_manhattendist)
@@ -924,7 +921,7 @@ static void gp_stroke_newfrombuffer(tGPsdata *p)
 	bGPDpalette *palette = BKE_gpencil_palette_getactive(p->gpd);
 	bGPDpalettecolor *palcolor = BKE_gpencil_palettecolor_getactive(palette);
 	gps->palcolor = palcolor;
-	strcpy(gps->colorname, palcolor->info);
+	BLI_strncpy(gps->colorname, palcolor->info, sizeof(gps->colorname));
 
 	/* add stroke to frame, usually on tail of the listbase, but if on back is enabled the stroke is added on listbase head 
 	* because the drawing order is inverse and the head stroke is the first to draw. This is very useful for artist
@@ -2313,6 +2310,7 @@ static void gpencil_move_last_stroke_to_back(bContext *C)
 static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	tGPsdata *p = op->customdata;
+	ToolSettings *ts = CTX_data_tool_settings(C);
 	int estate = OPERATOR_PASS_THROUGH; /* default exit state - pass through to support MMB view nav, etc. */
 	
 	/* if (event->type == NDOF_MOTION)
@@ -2366,9 +2364,11 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		/* exit() ends the current stroke before cleaning up */
 		/* printf("\t\tGP - end of paint op + end of stroke\n"); */
 		/* if drawing polygon and enable on back, must move stroke */
-		if ((p->scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) && (p->paintmode == GP_PAINTMODE_DRAW_POLY)) {
-			if (p->flags & GP_PAINTFLAG_STROKEADDED) {
-				gpencil_move_last_stroke_to_back(C);
+		if (ts) {
+			if ((ts->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) && (p->paintmode == GP_PAINTMODE_DRAW_POLY)) {
+				if (p->flags & GP_PAINTFLAG_STROKEADDED) {
+					gpencil_move_last_stroke_to_back(C);
+				}
 			}
 		}
 		p->status = GP_STATUS_DONE;
@@ -2428,9 +2428,11 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			else {
 				/* printf("\t\tGP - end of stroke + op\n"); */
 				/* if drawing polygon and enable on back, must move stroke */
-				if ((p->scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) && (p->paintmode == GP_PAINTMODE_DRAW_POLY)) {
-					if (p->flags & GP_PAINTFLAG_STROKEADDED) {
-						gpencil_move_last_stroke_to_back(C);
+				if (ts) {
+					if ((ts->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) && (p->paintmode == GP_PAINTMODE_DRAW_POLY)) {
+						if (p->flags & GP_PAINTFLAG_STROKEADDED) {
+							gpencil_move_last_stroke_to_back(C);
+						}
 					}
 				}
 				p->status = GP_STATUS_DONE;
@@ -2514,9 +2516,11 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				 *       region (as above)
 				 */
 				/* if drawing polygon and enable on back, must move stroke */
-				if ((p->scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) && (p->paintmode == GP_PAINTMODE_DRAW_POLY)) {
-					if (p->flags & GP_PAINTFLAG_STROKEADDED) {
-						gpencil_move_last_stroke_to_back(C);
+				if (ts) {
+					if ((ts->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) && (p->paintmode == GP_PAINTMODE_DRAW_POLY)) {
+						if (p->flags & GP_PAINTFLAG_STROKEADDED) {
+							gpencil_move_last_stroke_to_back(C);
+						}
 					}
 				}
 				p->status = GP_STATUS_DONE;

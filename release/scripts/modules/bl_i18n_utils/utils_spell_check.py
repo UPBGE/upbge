@@ -153,7 +153,7 @@ class SpellChecker:
         "realtime",
         "rekey",
         "remesh",
-        "reprojection",
+        "reprojection", "reproject",
         "resize",
         "restpose",
         "retarget", "retargets", "retargeting", "retargeted",
@@ -197,6 +197,7 @@ class SpellChecker:
         "unmute",
         "unpremultiply",
         "unprojected",
+        "unprotect",
         "unreacted",
         "unregister",
         "unselected", "unselectable",
@@ -476,6 +477,12 @@ class SpellChecker:
         "wpaint",
         "uvwarp",
 
+        # UOC (Ugly Operator Categories)
+        "cachefile",
+        "paintcurve",
+        "ptcache",
+        "dpaint",
+
         # Algorithm/library names
         "ashikhmin",  # Ashikhmin-Shirley
         "beckmann",
@@ -493,6 +500,7 @@ class SpellChecker:
         "musgrave",
         "nayar",
         "netravali",
+        "ogawa",
         "oren",
         "preetham",
         "prewitt",

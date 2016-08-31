@@ -2737,19 +2737,18 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 			return;
 		}
 
+		/* only calculate something when we advanced a single frame */
+		/* don't simulate if viewing start frame, but scene frame is not real start frame */
+		bool can_simulate = (framenr == (int)smd->time + 1) && (framenr == scene->r.cfra);
+
 		/* try to read from cache */
-		if (BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT) {
+		if (BKE_ptcache_read(&pid, (float)framenr, can_simulate) == PTCACHE_READ_EXACT) {
 			BKE_ptcache_validate(cache, framenr);
 			smd->time = framenr;
 			return;
 		}
 
-		/* only calculate something when we advanced a single frame */
-		if (framenr != (int)smd->time + 1)
-			return;
-
-		/* don't simulate if viewing start frame, but scene frame is not real start frame */
-		if (framenr != scene->r.cfra)
+		if (!can_simulate)
 			return;
 
 #ifdef DEBUG_TIME
@@ -3052,9 +3051,15 @@ float smoke_get_velocity_at(struct Object *ob, float position[3], float velocity
 int smoke_get_data_flags(SmokeDomainSettings *sds)
 {
 	int flags = 0;
-	if (smoke_has_heat(sds->fluid)) flags |= SM_ACTIVE_HEAT;
-	if (smoke_has_fuel(sds->fluid)) flags |= SM_ACTIVE_FIRE;
-	if (smoke_has_colors(sds->fluid)) flags |= SM_ACTIVE_COLORS;
+
+	if (sds->fluid) {
+		if (smoke_has_heat(sds->fluid))
+			flags |= SM_ACTIVE_HEAT;
+		if (smoke_has_fuel(sds->fluid))
+			flags |= SM_ACTIVE_FIRE;
+		if (smoke_has_colors(sds->fluid))
+			flags |= SM_ACTIVE_COLORS;
+	}
 
 	return flags;
 }

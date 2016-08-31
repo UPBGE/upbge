@@ -45,7 +45,7 @@ namespace Far {
 		setNumBaseVertices(refiner, mesh.verts.size());
 		setNumBaseFaces(refiner, mesh.subd_faces.size());
 
-		ccl::Mesh::SubdFace* face = &mesh.subd_faces[0];
+		const ccl::Mesh::SubdFace* face = mesh.subd_faces.data();
 
 		for(int i = 0; i < mesh.subd_faces.size(); i++, face++) {
 			setNumBaseFaceVertices(refiner, i, face->num_corners);
@@ -57,7 +57,7 @@ namespace Far {
 	template<>
 	bool TopologyRefinerFactory<ccl::Mesh>::assignComponentTopology(TopologyRefiner& refiner, ccl::Mesh const& mesh)
 	{
-		ccl::Mesh::SubdFace* face = &mesh.subd_faces[0];
+		const ccl::Mesh::SubdFace* face = mesh.subd_faces.data();
 
 		for(int i = 0; i < mesh.subd_faces.size(); i++, face++) {
 			IndexArray face_verts = getBaseFaceVertices(refiner, i);
@@ -195,7 +195,7 @@ public:
 			verts[i].value = mesh->verts[i];
 		}
 
-		OsdValue<float3>* src = &verts[0];
+		OsdValue<float3>* src = verts.data();
 		for(int i = 0; i < refiner->GetMaxLevel(); i++) {
 			OsdValue<float3>* dest = src + refiner->GetLevel(i).GetNumVertices();
 			Far::PrimvarRefiner(*refiner).Interpolate(i+1, src, dest);
@@ -219,7 +219,7 @@ public:
 			attr.resize(num_refiner_verts + num_local_points);
 			attr.flags |= ATTR_FINAL_SIZE;
 
-			char* src = &attr.buffer[0];
+			char* src = attr.buffer.data();
 
 			for(int i = 0; i < refiner->GetMaxLevel(); i++) {
 				char* dest = src + refiner->GetLevel(i).GetNumVertices() * attr.data_sizeof();
@@ -299,7 +299,9 @@ void Mesh::tessellate(DiagSplit *split)
 	bool need_packed_patch_table = false;
 
 	if(subdivision_type == SUBDIVISION_CATMULL_CLARK) {
-		osd_data.build_from_mesh(this);
+		if(subd_faces.size()) {
+			osd_data.build_from_mesh(this);
+		}
 	}
 	else
 #endif
@@ -468,7 +470,7 @@ void Mesh::tessellate(DiagSplit *split)
 				/* keep subdivision for corner attributes disabled for now */
 				attr.flags &= ~ATTR_SUBDIVIDED;
 			}
-			else {
+			else if(subd_faces.size()) {
 				osd_data.subdivide_attribute(attr);
 
 				need_packed_patch_table = true;

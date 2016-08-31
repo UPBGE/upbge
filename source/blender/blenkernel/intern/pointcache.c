@@ -1137,13 +1137,13 @@ static int ptcache_smoke_openvdb_read(struct OpenVDBReader *reader, void *smoke_
 
 		OpenVDB_import_grid_fl(reader, "density", &dens, sds->res_wt);
 
-		if (fluid_fields & SM_ACTIVE_FIRE) {
+		if (cache_fields & SM_ACTIVE_FIRE) {
 			OpenVDB_import_grid_fl(reader, "flame", &flame, sds->res_wt);
 			OpenVDB_import_grid_fl(reader, "fuel", &fuel, sds->res_wt);
 			OpenVDB_import_grid_fl(reader, "react", &react, sds->res_wt);
 		}
 
-		if (fluid_fields & SM_ACTIVE_COLORS) {
+		if (cache_fields & SM_ACTIVE_COLORS) {
 			OpenVDB_import_grid_vec(reader, "color", &r, &g, &b, sds->res_wt);
 		}
 
@@ -2632,7 +2632,7 @@ static int ptcache_interpolate(PTCacheID *pid, float cfra, int cfra1, int cfra2)
 }
 /* reads cache from disk or memory */
 /* possible to get old or interpolated result */
-int BKE_ptcache_read(PTCacheID *pid, float cfra)
+int BKE_ptcache_read(PTCacheID *pid, float cfra, bool no_extrapolate_old)
 {
 	int cfrai = (int)floor(cfra), cfra1=0, cfra2=0;
 	int ret = 0;
@@ -2658,10 +2658,17 @@ int BKE_ptcache_read(PTCacheID *pid, float cfra)
 		return 0;
 
 	/* don't read old cache if already simulated past cached frame */
-	if (cfra1 == 0 && cfra2 && cfra2 <= pid->cache->simframe)
-		return 0;
-	if (cfra1 && cfra1 == cfra2)
-		return 0;
+	if (no_extrapolate_old) {
+		if (cfra1 == 0 && cfra2 && cfra2 <= pid->cache->simframe)
+			return 0;
+		if (cfra1 && cfra1 == cfra2)
+			return 0;
+	}
+	else {
+		/* avoid calling interpolate between the same frame values */
+		if (cfra1 && cfra1 == cfra2)
+			cfra1 = 0;
+	}
 
 	if (cfra1) {
 		if (pid->file_type == PTCACHE_FILE_OPENVDB && pid->read_openvdb_stream) {

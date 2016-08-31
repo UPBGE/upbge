@@ -806,7 +806,10 @@ static void create_subd_mesh(Scene *scene,
 	}
 
 	/* set subd params */
-	SubdParams sdparams(mesh);
+	if(!mesh->subd_params) {
+		mesh->subd_params = new SubdParams(mesh);
+	}
+	SubdParams& sdparams = *mesh->subd_params;
 
 	PointerRNA cobj = RNA_pointer_get(&b_ob.ptr, "cycles");
 
@@ -816,10 +819,6 @@ static void create_subd_mesh(Scene *scene,
 	scene->camera->update();
 	sdparams.camera = scene->camera;
 	sdparams.objecttoworld = get_transform(b_ob.matrix_world());
-
-	/* tesselate */
-	DiagSplit dsplit(sdparams);
-	mesh->tessellate(&dsplit);
 }
 
 /* Sync */
@@ -968,7 +967,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object& b_ob,
 			BL::Modifier mod = b_ob.modifiers[b_ob.modifiers.length()-1];
 			bool enabled = preview ? mod.show_viewport() : mod.show_render();
 
-			if(enabled && mod.type() == BL::Modifier::type_SUBSURF && RNA_int_get(&cobj, "use_adaptive_subdivision")) {
+			if(enabled && mod.type() == BL::Modifier::type_SUBSURF && RNA_boolean_get(&cobj, "use_adaptive_subdivision")) {
 				BL::SubsurfModifier subsurf(mod);
 
 				if(subsurf.subdivision_type() == BL::SubsurfModifier::subdivision_type_CATMULL_CLARK) {

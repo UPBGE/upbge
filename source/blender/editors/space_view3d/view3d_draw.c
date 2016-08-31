@@ -646,6 +646,7 @@ static void draw_view_axis(RegionView3D *rv3d, rcti *rect)
 	glDisable(GL_BLEND);
 }
 
+#ifdef WITH_INPUT_NDOF
 /* draw center and axis of rotation for ongoing 3D mouse navigation */
 static void draw_rotation_guide(RegionView3D *rv3d)
 {
@@ -750,6 +751,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 	glDisable(GL_POINT_SMOOTH);
 	glDepthMask(1);
 }
+#endif /* WITH_INPUT_NDOF */
 
 static void draw_view_icon(RegionView3D *rv3d, rcti *rect)
 {
@@ -950,9 +952,11 @@ static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 			UI_ThemeColor(TH_TEXT_HI);
 	}
 	else {
-		/* no object */		
-		/* color is always white */
-		UI_ThemeColor(TH_TEXT_HI);
+		/* no object */
+		if (ED_gpencil_has_keyframe_v3d(scene, NULL, cfra))
+			UI_ThemeColor(TH_TIME_GP_KEYFRAME);
+		else
+			UI_ThemeColor(TH_TEXT_HI);
 	}
 
 	if (markern) {
@@ -3926,10 +3930,11 @@ static void view3d_main_region_draw_objects(const bContext *C, Scene *scene, Vie
 		BDR_drawSketch(C);
 	}
 
+#ifdef WITH_INPUT_NDOF
 	if ((U.ndof_flag & NDOF_SHOW_GUIDE) && ((rv3d->viewlock & RV3D_LOCKED) == 0) && (rv3d->persp != RV3D_CAMOB))
 		/* TODO: draw something else (but not this) during fly mode */
 		draw_rotation_guide(rv3d);
-
+#endif
 }
 
 static bool is_cursor_visible(Scene *scene)

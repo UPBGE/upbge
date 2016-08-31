@@ -439,12 +439,23 @@ static void rna_GPencil_stroke_point_select_set(PointerRNA *ptr, const int value
 	}
 }
 
-static void rna_GPencil_stroke_point_add(bGPDstroke *stroke, int count)
+static void rna_GPencil_stroke_point_add(bGPDstroke *stroke, int count, float pressure, float strength)
 {
 	if (count > 0) {
+		/* create space at the end of the array for extra points */
 		stroke->points = MEM_recallocN_id(stroke->points,
 		                                  sizeof(bGPDspoint) * (stroke->totpoints + count),
 		                                  "gp_stroke_points");
+		
+		/* init the pressure and strength values so that old scripts won't need to
+		 * be modified to give these initial values...
+		 */
+		for (int i = 0; i < count; i++) {
+			bGPDspoint *pt = stroke->points + (stroke->totpoints + i);
+			pt->pressure = pressure;
+			pt->strength = strength;
+		}
+		
 		stroke->totpoints += count;
 	}
 }
@@ -482,7 +493,9 @@ static void rna_GPencil_stroke_point_pop(bGPDstroke *stroke, ReportList *reports
 static bGPDstroke *rna_GPencil_stroke_new(bGPDframe *frame, const char *colorname)
 {
 	bGPDstroke *stroke = MEM_callocN(sizeof(bGPDstroke), "gp_stroke");
-	strcpy(stroke->colorname, colorname);
+	if (colorname) {
+		BLI_strncpy(stroke->colorname, colorname, sizeof(stroke->colorname));
+	}
 	stroke->palcolor = NULL;
 	stroke->flag |= GP_STROKE_RECALC_COLOR;
 	BLI_addtail(&frame->strokes, stroke);
@@ -886,9 +899,7 @@ static void rna_def_gpencil_stroke_point(BlenderRNA *brna)
 static void rna_def_gpencil_stroke_points_api(BlenderRNA *brna, PropertyRNA *cprop)
 {
 	StructRNA *srna;
-
 	FunctionRNA *func;
-	/* PropertyRNA *parm; */
 
 	RNA_def_property_srna(cprop, "GPencilStrokePoints");
 	srna = RNA_def_struct(brna, "GPencilStrokePoints", NULL);
@@ -898,6 +909,8 @@ static void rna_def_gpencil_stroke_points_api(BlenderRNA *brna, PropertyRNA *cpr
 	func = RNA_def_function(srna, "add", "rna_GPencil_stroke_point_add");
 	RNA_def_function_ui_description(func, "Add a new grease pencil stroke point");
 	RNA_def_int(func, "count", 1, 0, INT_MAX, "Number", "Number of points to add to the stroke", 0, INT_MAX);
+	RNA_def_float(func, "pressure", 1.0f, 0.0f, 1.0f, "Pressure", "Pressure for newly created points", 0.0f, 1.0f);
+	RNA_def_float(func, "strength", 1.0f, 0.0f, 1.0f, "Strength", "Color intensity (alpha factor) for newly created points", 0.0f, 1.0f);
 
 	func = RNA_def_function(srna, "pop", "rna_GPencil_stroke_point_pop");
 	RNA_def_function_ui_description(func, "Remove a grease pencil stroke point");
@@ -918,19 +931,19 @@ static void rna_def_gpencil_triangle(BlenderRNA *brna)
 	/* point v1 */
 	prop = RNA_def_property(srna, "v1", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "v1");
-	RNA_def_property_ui_text(prop, "v1", "First triangle vertice index");
+	RNA_def_property_ui_text(prop, "v1", "First triangle vertex index");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	/* point v2 */
 	prop = RNA_def_property(srna, "v2", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "v2");
-	RNA_def_property_ui_text(prop, "v2", "Second triangle vertice index");
+	RNA_def_property_ui_text(prop, "v2", "Second triangle vertex index");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	/* point v3 */
 	prop = RNA_def_property(srna, "v3", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "v3");
-	RNA_def_property_ui_text(prop, "v3", "Third triangle vertice index");
+	RNA_def_property_ui_text(prop, "v3", "Third triangle vertex index");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 
@@ -1145,7 +1158,8 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	// TODO: replace these with a "draw type" combo (i.e. strokes only, filled strokes, strokes + fills, volumetric)?
 	prop = RNA_def_property(srna, "use_volumetric_strokes", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_LAYER_VOLUMETRIC);
-	RNA_def_property_ui_text(prop, "Volumetric Strokes", "Draw strokes as a series of circular blobs, resulting in a volumetric effect");
+	RNA_def_property_ui_text(prop, "Volumetric Strokes",
+	                         "Draw strokes as a series of circular blobs, resulting in a volumetric effect");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 	
 	prop = RNA_def_property(srna, "opacity", PROP_FLOAT, PROP_NONE);
@@ -1174,7 +1188,7 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "thickness");
 	//RNA_def_property_range(prop, 1, 10); /* 10 px limit comes from Windows OpenGL limits for natively-drawn strokes */
 	RNA_def_property_int_funcs(prop, NULL, NULL, "rna_GPencilLayer_line_width_range");
-	RNA_def_property_ui_text(prop, "Thickness", "Thickness change to apply current strokes (in pixels)");
+	RNA_def_property_ui_text(prop, "Thickness", "Thickness change to apply to current strokes (in pixels)");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 	
 	/* Onion-Skinning */
@@ -1241,8 +1255,8 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "unlock_color", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_LAYER_UNLOCK_COLOR);
 	RNA_def_property_ui_icon(prop, ICON_RESTRICT_COLOR_OFF, 1);
-	RNA_def_property_ui_text(prop, "Unlock color", "Unprotect colors selected from further editing "
-	                         "and/or frame changes");
+	RNA_def_property_ui_text(prop, "Unlock Color",
+	                         "Unprotect selected colors from further editing and/or frame changes");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, NULL);
 
 
@@ -1299,7 +1313,7 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "inverse");
 	RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_4x4);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_ui_text(prop, "MatrixInverse", "Parent inverse transformation matrix");
+	RNA_def_property_ui_text(prop, "Inverse Matrix", "Parent inverse transformation matrix");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
 	/* read only parented flag */
@@ -1381,8 +1395,9 @@ static void rna_def_gpencil_palettecolor(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 
 	/* Name */
-	prop = RNA_def_property(srna, "info", PROP_STRING, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Info", "Color name");
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "info");
+	RNA_def_property_ui_text(prop, "Name", "Color name");
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_GPencilPaletteColor_info_set");
 	RNA_def_struct_name_property(srna, prop);
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");

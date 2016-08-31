@@ -31,6 +31,7 @@
 #endif
 
 #include <cuda.h>
+#include <cuda_fp16.h>
 #include <float.h>
 
 /* Qualifier wrappers for different names on different devices */
@@ -47,6 +48,7 @@
 #define ccl_may_alias
 #define ccl_addr_space
 #define ccl_restrict __restrict__
+#define ccl_align(n) __align__(n)
 
 /* No assert supported for CUDA */
 
@@ -65,6 +67,7 @@ typedef texture<float, 1> texture_float;
 typedef texture<uint, 1> texture_uint;
 typedef texture<int, 1> texture_int;
 typedef texture<uint4, 1> texture_uint4;
+typedef texture<uchar, 1> texture_uchar;
 typedef texture<uchar4, 1> texture_uchar4;
 typedef texture<float4, 2> texture_image_float4;
 typedef texture<float4, 3> texture_image3d_float4;

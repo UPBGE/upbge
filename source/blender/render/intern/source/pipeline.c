@@ -2785,6 +2785,7 @@ static void do_render_all_options(Render *re)
 
 	/* ensure no images are in memory from previous animated sequences */
 	BKE_image_all_free_anim_ibufs(re->r.cfra);
+	BKE_sequencer_all_free_anim_ibufs(re->r.cfra);
 
 	if (RE_engine_render(re, 1)) {
 		/* in this case external render overrides all */
@@ -3057,6 +3058,13 @@ bool RE_is_rendering_allowed(Scene *scene, Object *camera_override, ReportList *
 		}
 	}
 #endif
+
+	if (RE_seq_render_active(scene, &scene->r)) {
+		if (scene->r.mode & R_BORDER) {
+			BKE_report(reports, RPT_ERROR, "Border rendering is not supported by sequencer");
+			return false;
+		}
+	}
 
 	/* layer flag tests */
 	if (!render_scene_has_layers_to_render(scene)) {

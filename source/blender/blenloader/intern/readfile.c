@@ -2708,6 +2708,7 @@ static void lib_link_cachefiles(FileData *fd, Main *bmain)
 
 		BLI_listbase_clear(&cache_file->object_paths);
 		cache_file->handle = NULL;
+		cache_file->handle_mutex = NULL;
 
 		if (cache_file->adt) {
 			lib_link_animdata(fd, &cache_file->id, cache_file->adt);
@@ -2718,6 +2719,7 @@ static void lib_link_cachefiles(FileData *fd, Main *bmain)
 static void direct_link_cachefile(FileData *fd, CacheFile *cache_file)
 {
 	cache_file->handle = NULL;
+	cache_file->handle_mutex = NULL;
 
 	/* relink animdata */
 	cache_file->adt = newdataadr(fd, cache_file->adt);
@@ -4776,7 +4778,7 @@ static void lib_link_object(FileData *fd, Main *main)
 				/* Only expand so as not to loose any object materials that might be set. */
 				if (totcol_data && (*totcol_data > ob->totcol)) {
 					/* printf("'%s' %d -> %d\n", ob->id.name, ob->totcol, *totcol_data); */
-					BKE_material_resize_object(ob, *totcol_data, false);
+					BKE_material_resize_object(main, ob, *totcol_data, false);
 				}
 			}
 			
@@ -6719,10 +6721,13 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					 * since it gets initialized later */
 					sima->iuser.scene = NULL;
 					
-					sima->scopes.waveform_1 = NULL;
-					sima->scopes.waveform_2 = NULL;
-					sima->scopes.waveform_3 = NULL;
-					sima->scopes.vecscope = NULL;
+#if 0
+					/* Those are allocated and freed by space code, no need to handle them here. */
+					MEM_SAFE_FREE(sima->scopes.waveform_1);
+					MEM_SAFE_FREE(sima->scopes.waveform_2);
+					MEM_SAFE_FREE(sima->scopes.waveform_3);
+					MEM_SAFE_FREE(sima->scopes.vecscope);
+#endif
 					sima->scopes.ok = 0;
 					
 					/* NOTE: pre-2.5, this was local data not lib data, but now we need this as lib data
@@ -7500,7 +7505,7 @@ static void direct_link_movieclip(FileData *fd, MovieClip *clip)
 	clip->tracking_context = NULL;
 	clip->tracking.stats = NULL;
 
-	clip->tracking.stabilization.ok = 0;
+	/* Needed for proper versioning, will be NULL for all newer files anyway. */
 	clip->tracking.stabilization.rot_track = newdataadr(fd, clip->tracking.stabilization.rot_track);
 
 	clip->tracking.dopesheet.ok = 0;
