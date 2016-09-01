@@ -33,9 +33,9 @@
 
 #include "DNA_texture_types.h"
 
-KX_CubeMap::KX_CubeMap(KX_BlenderSceneConverter *converter, KX_GameObject *gameobj, RAS_Texture *texture, RAS_IRasterizer *rasty)
+KX_CubeMap::KX_CubeMap(KX_GameObject *viewpoint, RAS_Texture *texture, RAS_IRasterizer *rasty)
 	:RAS_CubeMap(texture, rasty),
-	m_viewpointObject(gameobj),
+	m_viewpointObject(viewpoint),
 	m_invalidProjection(true),
 	m_ignoreLayers(0),
 	m_clipStart(0.0f),
@@ -44,14 +44,7 @@ KX_CubeMap::KX_CubeMap(KX_BlenderSceneConverter *converter, KX_GameObject *gameo
 	m_forceUpdate(true)
 {
 	MTex *mtex = m_texture->GetMTex();
-
 	EnvMap *env = mtex->tex->env;
-	if (env->object) {
-		KX_GameObject *obj = converter->FindGameObject(env->object);
-		if (obj) {
-			m_viewpointObject = obj;
-		}
-	}
 
 	m_ignoreLayers = env->notlay;
 
