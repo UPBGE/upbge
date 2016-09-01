@@ -87,3 +87,9 @@ base class --- :class:`CValue`
 
       :type: integer
 
+   .. attribute:: cubeMap
+
+      Realtime cube map.
+
+      :type: :class:`KX_CubeMap`
+
