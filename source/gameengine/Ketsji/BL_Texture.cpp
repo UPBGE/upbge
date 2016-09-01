@@ -129,6 +129,11 @@ bool BL_Texture::Ok() const
 	return (m_gpuTex != NULL);
 }
 
+bool BL_Texture::IsCubeMap() const
+{
+	return m_isCubeMap;
+}
+
 MTex *BL_Texture::GetMTex() const
 {
 	return m_mtex;
@@ -139,7 +144,7 @@ Image *BL_Texture::GetImage() const
 	return m_mtex->tex->ima;
 }
 
-GPUTexture *BL_Texture::GetGPUTexture()
+GPUTexture *BL_Texture::GetGPUTexture() const
 {
 	return m_gpuTex;
 }

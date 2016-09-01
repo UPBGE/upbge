@@ -528,23 +528,6 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	int totface = dm->getNumTessFaces(dm);
 	const char *tfaceName = "";
 
-	/* objects with realtime cubemaps must ne rendered smooth */
-	bool rendersmooth = false;
-	
-	int totcol = mesh->totcol;
-	for (int i = 0; i < totcol; i++) {
-		Material *mat = mesh->mat[i];
-		for (int j = 0; j < RAS_Texture::MaxUnits; j++) {
-			MTex *mtex = mesh->mat[i]->mtex[j];
-			if (mtex && mtex->tex->env) {
-				if (mtex->tex->env->stype == ENV_REALT) {
-					rendersmooth = true;
-					break;
-				}
-			}
-		}
-	}
-
 	/* needs to be rewritten for loopdata */
 	if (tface) {
 		if (CustomData_get_layer_index(&dm->faceData, CD_TANGENT) == -1) {
@@ -633,7 +616,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		pt[2].setValue(mvert[mface->v3].co);
 		if (mface->v4) pt[3].setValue(mvert[mface->v4].co);
 
-		if (mface->flag & ME_SMOOTH || rendersmooth) {
+		if (mface->flag & ME_SMOOTH) {
 			float n0[3], n1[3], n2[3], n3[3];
 
 			normal_short_to_float_v3(n0, mvert[mface->v1].no);
@@ -1815,9 +1798,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 					RAS_IPolyMaterial *polymat = meshMat->m_bucket->GetPolyMaterial();
 					RAS_Texture *tex = polymat->GetTexture(l);
 
-					if (tex && tex->Ok() && tex->GetTextureType() == RAS_Texture::GetCubeMapTextureType() &&
-						tex->GetMTex()->tex->env->stype == ENV_REALT)
-					{
+					if (tex && tex->Ok() && tex->IsCubeMap() && tex->GetMTex()->tex->env->stype == ENV_REALT) {
 						KX_CubeMap *cubeMap = new KX_CubeMap(converter, gameobj, tex, rendertools);
 						kxscene->GetCubeMapManager()->AddCubeMap(cubeMap);
 						break;
