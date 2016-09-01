@@ -782,6 +782,13 @@ static void rna_def_environment_map(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_mipmap_items[] = {
+		{PROP_NONE, "NONE", 0, "None", "No Mipmap"},
+		{ENVMAP_MIPMAP_LINEAR, "ENVMAP_LINEAR", 0, "Linear", "Linear Filter for CubeMap"},
+		{ENVMAP_MIPMAP_FULL, "ENVMAP_MIPMAP", 0, "Full", "Support of LodBias"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "EnvironmentMap", NULL);
 	RNA_def_struct_sdna(srna, "EnvMap");
 	RNA_def_struct_ui_text(srna, "EnvironmentMap",
@@ -853,9 +860,11 @@ static void rna_def_environment_map(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ENVMAP_AUTO_UPDATE);
 	RNA_def_property_ui_text(prop, "Auto Update", "True if the cube map is updated every frame");
 
-	prop = RNA_def_property(srna, "use_mipmap", PROP_BOOLEAN, 0);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", ENVMAP_MIPMAP);
-	RNA_def_property_ui_text(prop, "Use mipmap", "True if the cube map use mipmapping");
+	prop = RNA_def_property(srna, "mipmap", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "mipmap");
+	RNA_def_property_enum_items(prop, prop_mipmap_items);
+	RNA_def_property_ui_text(prop, "Mipmap", "");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
 	RNA_api_environment_map(srna);
 }
