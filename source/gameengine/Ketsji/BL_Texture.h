@@ -64,10 +64,11 @@ public:
 	virtual STR_String& GetName();
 
 	virtual bool Ok() const;
+	virtual bool IsCubeMap() const;
 
 	virtual MTex *GetMTex() const;
 	virtual Image *GetImage() const;
-	virtual GPUTexture *GetGPUTexture();
+	virtual GPUTexture *GetGPUTexture() const;
 
 	virtual unsigned int GetTextureType();
 

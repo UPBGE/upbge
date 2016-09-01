@@ -46,10 +46,11 @@ public:
 	virtual ~RAS_Texture();
 
 	virtual bool Ok() const = 0;
+	virtual bool IsCubeMap() const = 0;
 
 	virtual MTex *GetMTex() const = 0;
 	virtual Image *GetImage() const = 0;
-	virtual GPUTexture *GetGPUTexture() = 0;
+	virtual GPUTexture *GetGPUTexture() const = 0;
 	STR_String& GetName();
 
 	void SetCubeMap(RAS_CubeMap *cubeMap);
