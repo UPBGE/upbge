@@ -83,11 +83,10 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 	/* For Culling we need first to set the camera position at the object position */
 	m_camera->NodeSetWorldPosition(pos);
 
-	/* For each cubeMap, environment texture clipend value is not necessarly the same
-	 * so we have to get/set the right projection matrix from cubeMap each time
-	 * we render a cubeMap
+	/* When we update clipstart or clipend values,
+	 * or if the projection matrix is not computed yet,
+	 * we have to compute projection matrix
 	 */
-
 	if (cubeMap->GetInvalidProjectionMatrix()) {
 		const float clipstart = cubeMap->GetClipStart();
 		const float clipend = cubeMap->GetClipEnd();
@@ -96,6 +95,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 		cubeMap->SetInvalidProjectionMatrix(false);
 	}
 
+	/* Else we use the projection matrix stored in KX_CubeMap */
 	rasty->SetProjectionMatrix(cubeMap->GetProjectionMatrix());
 	m_camera->SetProjectionMatrix(cubeMap->GetProjectionMatrix());
 
