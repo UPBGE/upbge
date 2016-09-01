@@ -86,7 +86,7 @@ public:
 		return (void *)offsetof(Vertex, m_rgba);
 	}
 
-	virtual RAS_ITexVert *GetVertexNoCache(unsigned int index) const
+	virtual RAS_ITexVert *GetVertexNoCache(const unsigned int index) const
 	{
 		return (RAS_ITexVert *)&m_vertexes[index];
 	}
