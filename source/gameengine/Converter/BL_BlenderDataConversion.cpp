@@ -1793,9 +1793,9 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 			for (unsigned short k = 0, matcount = mesh->NumMaterials(); k < matcount; ++k) {
 				RAS_MeshMaterial *meshMat = mesh->GetMeshMaterial(k);
+				RAS_IPolyMaterial *polymat = meshMat->m_bucket->GetPolyMaterial();
 
 				for (unsigned short l = 0; l < RAS_Texture::MaxUnits; ++l) {
-					RAS_IPolyMaterial *polymat = meshMat->m_bucket->GetPolyMaterial();
 					RAS_Texture *tex = polymat->GetTexture(l);
 
 					if (tex && tex->Ok() && tex->IsCubeMap() && tex->GetMTex()->tex->env->stype == ENV_REALT) {

@@ -186,7 +186,6 @@ PyObject *KX_CubeMap::pyattr_get_viewpoint_object(void *self_v, const KX_PYATTRI
 	return self->GetViewpointObject()->GetProxy();
 }
 
-
 int KX_CubeMap::pyattr_set_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
@@ -196,7 +195,7 @@ int KX_CubeMap::pyattr_set_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_D
 
 	if (!ConvertPythonToGameObject(logicmgr, value, &gameobj, false, "cubeMap.object = value: KX_CubeMap"))
 		return PY_SET_ATTR_FAIL;
-	
+
 	self->SetViewpointObject(gameobj);
 	return PY_SET_ATTR_SUCCESS;
 }
