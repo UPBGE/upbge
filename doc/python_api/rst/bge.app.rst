@@ -31,7 +31,7 @@ Module to access application values that remain unchanged during runtime.
 
 .. data:: upbge_version
 
-   The UPBGE version as a tuple of 3 ints, eg. (2, 75, 1).
+   The UPBGE version as a tuple of 3 ints, eg. (0, 0, 3).
 
    .. note:: Version tuples can be compared simply with (in)equality symbols;
              for example, ``(0, 0, 2) <= (0, 0, 3)`` returns True (lexical order).
