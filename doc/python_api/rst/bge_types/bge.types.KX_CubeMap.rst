@@ -1,5 +1,5 @@
-KX_CubeMap(CValue, RAS_CubeMap)
-======================
+KX_CubeMap(CValue)
+==================
 
 .. module:: bge.types
 
@@ -8,6 +8,30 @@ base class --- :class:`CValue`
 .. class:: KX_CubeMap(CValue)
 
    Python API for realtime cube map textures.
+
+   .. code-block:: python
+
+      import bge
+
+      scene = bge.logic.getCurrentScene()
+      # The object using a realtime cube map in its material.
+      obj = scene.objects["Suzanne"]
+
+      mat = obj.meshes[0].materials[0]
+      # Obtain the realtime cube map from the material texture.
+      cubemap = mat.textures[0].cubeMap
+
+      # Set the render position to the "Cube" object position.
+      cubemap.viewpointObject = scene.objects["Cube"]
+
+      # Change the culling clip start and clip end.
+      cubemap.clipStart = 5.0
+      cubemap.clipEnd = 20.0
+
+      # Disable per frame update.
+      cubemap.autoUpdate = False
+      # Ask to update for this frame only.
+      cubemap.update()
 
    .. attribute:: autoUpdate
 
