@@ -40,10 +40,10 @@ public:
 	RAS_Texture();
 	virtual ~RAS_Texture();
 
-	virtual bool Ok() = 0;
+	virtual bool Ok() const = 0;
 
-	virtual MTex *GetMTex() = 0;
-	virtual Image *GetImage() = 0;
+	virtual MTex *GetMTex() const = 0;
+	virtual Image *GetImage() const = 0;
 	STR_String& GetName();
 
 	virtual unsigned int GetTextureType() = 0;

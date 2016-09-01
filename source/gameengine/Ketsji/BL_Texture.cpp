@@ -123,17 +123,17 @@ void BL_Texture::CheckValidTexture()
 	}
 }
 
-bool BL_Texture::Ok()
+bool BL_Texture::Ok() const
 {
 	return (m_gpuTex != NULL);
 }
 
-MTex *BL_Texture::GetMTex()
+MTex *BL_Texture::GetMTex() const
 {
 	return m_mtex;
 }
 
-Image *BL_Texture::GetImage()
+Image *BL_Texture::GetImage() const
 {
 	return m_mtex->tex->ima;
 }

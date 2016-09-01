@@ -63,10 +63,10 @@ public:
 	// stuff for cvalue related things
 	virtual STR_String& GetName();
 
-	virtual bool Ok();
+	virtual bool Ok() const;
 
-	virtual MTex *GetMTex();
-	virtual Image *GetImage();
+	virtual MTex *GetMTex() const;
+	virtual Image *GetImage() const;
 
 	virtual unsigned int GetTextureType();
 
