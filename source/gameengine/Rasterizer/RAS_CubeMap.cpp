@@ -127,10 +127,6 @@ RAS_CubeMap::~RAS_CubeMap()
 	}
 }
 
-void RAS_CubeMap::BeginRender()
-{
-}
-
 void RAS_CubeMap::EndRender()
 {
 	if (m_useMipmap) {
