@@ -1799,7 +1799,17 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 					RAS_Texture *tex = polymat->GetTexture(l);
 
 					if (tex && tex->Ok() && tex->IsCubeMap() && tex->GetMTex()->tex->env->stype == ENV_REALT) {
-						KX_CubeMap *cubeMap = new KX_CubeMap(converter, gameobj, tex, rendertools);
+						EnvMap *env = tex->GetMTex()->tex->env;
+						KX_GameObject *viewpoint = gameobj;
+
+						if (env->object) {
+							KX_GameObject *obj = converter->FindGameObject(env->object);
+							if (obj) {
+								viewpoint = obj;
+							}
+						}
+
+						KX_CubeMap *cubeMap = new KX_CubeMap(viewpoint, tex, rendertools);
 						kxscene->GetCubeMapManager()->AddCubeMap(cubeMap);
 					}
 				}
