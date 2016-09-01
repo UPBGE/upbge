@@ -1801,7 +1801,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 					if (tex && tex->Ok() && tex->IsCubeMap() && tex->GetMTex()->tex->env->stype == ENV_REALT) {
 						KX_CubeMap *cubeMap = new KX_CubeMap(converter, gameobj, tex, rendertools);
 						kxscene->GetCubeMapManager()->AddCubeMap(cubeMap);
-						break;
 					}
 				}
 			}
