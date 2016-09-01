@@ -99,8 +99,6 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 	rasty->SetProjectionMatrix(cubeMap->GetProjectionMatrix());
 	m_camera->SetProjectionMatrix(cubeMap->GetProjectionMatrix());
 
-	cubeMap->BeginRender();
-
 	for (unsigned short i = 0; i < 6; ++i) {
 		cubeMap->BindFace(rasty, i, pos);
 
