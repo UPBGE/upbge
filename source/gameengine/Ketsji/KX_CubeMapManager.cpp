@@ -68,7 +68,7 @@ void KX_CubeMapManager::RemoveCubeMap(KX_GameObject *gameobj)
 void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMap)
 {
 	// Doesn't need update.
-	if (!cubeMap->NeedUpdate()) {
+	if (!cubeMap->NeedUpdate() || !cubeMap->GetEnabled()) {
 		return;
 	}
 
