@@ -45,6 +45,12 @@ base class --- :class:`CValue`
 
       :type: :class:`KX_GameObject`
 
+   .. attribute:: enabled
+
+      Enable the cube map to render the scene.
+
+      :type: boolean
+
    .. attribute:: ignoreLayers
 
       The layers to ignore when rendering the cube map.

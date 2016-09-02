@@ -42,6 +42,9 @@ private:
 	MT_Matrix4x4 m_projection;
 
 	bool m_invalidProjection;
+
+	/// The cube map is used by the user.
+	bool m_enabled;
 	/// Layers to ignore during render.
 	int m_ignoreLayers;
 
@@ -70,6 +73,7 @@ public:
 	void SetProjectionMatrix(const MT_Matrix4x4& projection);
 	const MT_Matrix4x4& GetProjectionMatrix() const;
 
+	bool GetEnabled() const;
 	int GetIgnoreLayers() const;
 
 	// Return true when this cube map need to be updated.
