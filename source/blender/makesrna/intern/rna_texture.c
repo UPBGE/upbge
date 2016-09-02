@@ -783,7 +783,7 @@ static void rna_def_environment_map(BlenderRNA *brna)
 	};
 
 	static EnumPropertyItem prop_mipmap_items[] = {
-		{PROP_NONE, "NONE", 0, "None", "No Mipmap"},
+		{ENVMAP_MIPMAP_NONE, "NONE", 0, "None", "No Mipmap"},
 		{ENVMAP_MIPMAP_LINEAR, "ENVMAP_LINEAR", 0, "Linear", "Linear Filter for CubeMap"},
 		{ENVMAP_MIPMAP_FULL, "ENVMAP_MIPMAP", 0, "Full", "Support of LodBias"},
 		{0, NULL, 0, NULL, NULL}

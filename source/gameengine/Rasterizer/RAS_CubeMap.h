@@ -45,8 +45,6 @@ private:
 
 	// True if we regenerate mipmap every render.
 	bool m_useMipmap;
-	// Use GL_LINEAR Filter for cubeMap texture?
-	bool m_useLinear;
 
 protected:
 	RAS_Texture *m_texture;
