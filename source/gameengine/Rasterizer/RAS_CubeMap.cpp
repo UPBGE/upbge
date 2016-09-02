@@ -89,13 +89,11 @@ static const GLenum cubeMapTargets[6] = {
 RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty)
 	:m_cubeMapTexture(NULL),
 	m_useMipmap(false),
-	m_useLinear(false),
 	m_texture(texture)
 {
 	EnvMap *env = m_texture->GetMTex()->tex->env;
 
 	m_useMipmap = (env->mipmap & ENVMAP_MIPMAP_FULL) != 0;
-	m_useLinear = !m_useMipmap && (env->mipmap & ENVMAP_MIPMAP_LINEAR) != 0;
 
 	m_cubeMapTexture = m_texture->GetGPUTexture();
 	// Increment reference to make sure the gpu texture will not be freed by someone else.
@@ -104,7 +102,7 @@ RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty)
 	if (!m_useMipmap) {
 		// Disable mipmaping.
 		GPU_texture_bind(m_cubeMapTexture, 0);
-		GPU_texture_filter_mode(m_cubeMapTexture, false, m_useLinear);
+		GPU_texture_filter_mode(m_cubeMapTexture, false, (env->mipmap & ENVMAP_MIPMAP_LINEAR) != 0);
 		GPU_texture_unbind(m_cubeMapTexture);
 	}
 
