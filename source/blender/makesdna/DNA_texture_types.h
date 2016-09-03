@@ -140,7 +140,7 @@ typedef struct EnvMap {
 	short cuberes, depth;
 	int ok, lastframe;
 	short recalc, lastsize;
-	int flag, mipmap;
+	int flag, filtering;
 } EnvMap;
 
 typedef struct PointDensity {
@@ -477,11 +477,11 @@ typedef struct ColorMapping {
 /* **************** ENVMAP ********************* */
 
 /* flag */
-#define ENVMAP_AUTO_UPDATE (1 << 0)
+#define ENVMAP_AUTO_UPDATE	(1 << 0)
 /* mipmap */
 #define ENVMAP_MIPMAP_NONE		0
 #define ENVMAP_MIPMAP_LINEAR	(1 << 0)
-#define ENVMAP_MIPMAP_FULL		(1 << 1)
+#define ENVMAP_MIPMAP_MIPMAP	(1 << 1)
 
 /* **************** MTEX ********************* */
 

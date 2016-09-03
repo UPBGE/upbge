@@ -303,8 +303,6 @@ public:
 	virtual
 	~KX_Scene();
 
-	void CreateGameobjWithCubeMapList(RAS_IRasterizer *rasty);
-
 	RAS_BucketManager* GetBucketManager();
 	KX_CubeMapManager *GetCubeMapManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
