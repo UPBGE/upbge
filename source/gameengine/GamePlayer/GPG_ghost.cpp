@@ -578,12 +578,28 @@ int main(
 			}
 			case 'd': //debug on
 			{
-				i++;
-				G.debug |= G_DEBUG;
-				MEM_set_memory_debug();
+				++i;
+
+				if (strcmp(argv[i], "gpu") == 0) {
+					G.debug |= G_DEBUG_GPU | G_DEBUG;
+					++i;
+				}
+				else if (strcmp(argv[i], "memory") == 0) {
+					G.debug |= G_DEBUG;
+
+					std::cout << "Switching to fully guarded memory allocator." << std::endl;
+					MEM_use_guarded_allocator();
+
+					MEM_set_memory_debug();
 #ifndef NDEBUG
-				BLI_mempool_set_memory_debug();
+					BLI_mempool_set_memory_debug();
 #endif
+					++i;
+				}
+				else {
+					std::cout << "error: debug mode '" << argv[i] << "' unrecognized."  << std::endl;
+				}
+
 				break;
 			}
 			case 'f': //fullscreen mode
