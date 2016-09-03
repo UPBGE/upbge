@@ -93,7 +93,7 @@ RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty)
 {
 	EnvMap *env = m_texture->GetMTex()->tex->env;
 
-	m_useMipmap = (env->mipmap & ENVMAP_MIPMAP_FULL) != 0;
+	m_useMipmap = (env->filtering & ENVMAP_MIPMAP_MIPMAP) != 0;
 
 	m_cubeMapTexture = m_texture->GetGPUTexture();
 	// Increment reference to make sure the gpu texture will not be freed by someone else.
@@ -102,7 +102,7 @@ RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty)
 	if (!m_useMipmap) {
 		// Disable mipmaping.
 		GPU_texture_bind(m_cubeMapTexture, 0);
-		GPU_texture_filter_mode(m_cubeMapTexture, false, (env->mipmap & ENVMAP_MIPMAP_LINEAR) != 0);
+		GPU_texture_filter_mode(m_cubeMapTexture, false, (env->filtering & ENVMAP_MIPMAP_LINEAR) != 0);
 		GPU_texture_unbind(m_cubeMapTexture);
 	}
 

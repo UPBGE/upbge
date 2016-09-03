@@ -644,9 +644,9 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
             col.label(text="Clipping:")
             col.prop(env, "clip_start", text="Start")
             col.prop(env, "clip_end", text="End")
-            
+
             row = layout.row()
-            row.prop(env, "mipmap", expand=False)
+            row.prop(env, "filtering", expand=False)
 
 
 class TEXTURE_PT_envmap_sampling(TextureTypePanel, Panel):
