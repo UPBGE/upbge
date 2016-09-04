@@ -15,10 +15,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
+ * Contributor(s): Ulysse Martin, Tristan Porteries.
+ *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file BL_Texture.h
+/** \file KX_CubeMapManager.h
  *  \ingroup ketsji
  */
 
@@ -37,9 +39,15 @@ class RAS_IRasterizer;
 class KX_CubeMapManager
 {
 private:
+	/// All existing realtime cube map of this scene.
 	std::vector<KX_CubeMap *> m_cubeMaps;
 
+	/** The camera used for realtime cube map render.
+	 * this camera is own by the cube map manager.
+	 */
 	KX_Camera *m_camera;
+
+	/// The scene we are rendering for.
 	KX_Scene *m_scene;
 
 	void RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubemap);
@@ -49,10 +57,10 @@ public:
 	virtual ~KX_CubeMapManager();
 
 	void AddCubeMap(KX_CubeMap *cubeMap);
-	void RemoveCubeMap(KX_GameObject *gameobj);
+	/// Invalidate cube map using the given game object as viewpoint object.
+	void InvalidateCubeMapViewpoint(KX_GameObject *gameobj);
 
 	void Render(RAS_IRasterizer *rasty);
-
 };
 
 #endif // __KX_CUBEMAPMANAGER_H__
