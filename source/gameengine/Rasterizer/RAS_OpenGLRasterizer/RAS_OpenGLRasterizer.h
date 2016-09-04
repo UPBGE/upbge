@@ -250,7 +250,6 @@ public:
 
 	virtual void UpdateOffScreens(RAS_ICanvas *canvas);
 	virtual void BindOffScreen(unsigned short index);
-	virtual void RestoreScreenFrameBuffer();
 	virtual void DrawOffScreen(unsigned short srcindex, unsigned short dstindex);
 	virtual void DrawOffScreen(RAS_ICanvas *canvas, unsigned short index);
 	virtual void DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex);

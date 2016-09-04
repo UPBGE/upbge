@@ -64,7 +64,7 @@ private:
 	bool m_forceUpdate;
 
 public:
-	KX_CubeMap(KX_GameObject *viewpoint, RAS_Texture *texture, RAS_IRasterizer *rasty);
+	KX_CubeMap(RAS_Texture *texture, KX_GameObject *viewpoint);
 	virtual ~KX_CubeMap();
 
 	virtual STR_String& GetName();

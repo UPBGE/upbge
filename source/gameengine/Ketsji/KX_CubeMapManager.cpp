@@ -37,7 +37,7 @@
 KX_CubeMapManager::KX_CubeMapManager(KX_Scene *scene)
 	:m_scene(scene)
 {
-	RAS_CameraData camdata = RAS_CameraData();
+	const RAS_CameraData& camdata = RAS_CameraData();
 	m_camera = new KX_Camera(m_scene, KX_Scene::m_callbacks, camdata);
 }
 
@@ -69,24 +69,24 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 {
 	KX_GameObject *viewpoint = cubeMap->GetViewpointObject();
 
-	// Doesn't need update.
+	// Doesn't need (or can) update.
 	if (!cubeMap->NeedUpdate() || !cubeMap->GetEnabled() || !viewpoint) {
 		return;
 	}
 
-	MT_Vector3 pos = viewpoint->NodeGetWorldPosition();
+	const MT_Vector3& position = viewpoint->NodeGetWorldPosition();
 
 	/* We hide the viewpoint object in the case backface culling is disabled -> we can't see through
-	 * the object faces if the camera is inside the gameobject
+	 * the object faces if the camera is inside the gameobject.
 	 */
 	viewpoint->SetVisible(false, true);
 
-	/* For Culling we need first to set the camera position at the object position */
-	m_camera->NodeSetWorldPosition(pos);
+	// For Culling we need first to set the camera position at the object position.
+	m_camera->NodeSetWorldPosition(position);
 
 	/* When we update clipstart or clipend values,
 	 * or if the projection matrix is not computed yet,
-	 * we have to compute projection matrix
+	 * we have to compute projection matrix.
 	 */
 	if (cubeMap->GetInvalidProjectionMatrix()) {
 		const float clipstart = cubeMap->GetClipStart();
@@ -96,20 +96,21 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 		cubeMap->SetInvalidProjectionMatrix(false);
 	}
 
-	/* Else we use the projection matrix stored in KX_CubeMap */
+	// Else we use the projection matrix stored in KX_CubeMap.
 	rasty->SetProjectionMatrix(cubeMap->GetProjectionMatrix());
 	m_camera->SetProjectionMatrix(cubeMap->GetProjectionMatrix());
 
 	cubeMap->BeginRender();
 
 	for (unsigned short i = 0; i < 6; ++i) {
-		cubeMap->BindFace(rasty, i, pos);
+		cubeMap->BindFace(rasty, i, position);
 
-		/* For Culling we need also to set the camera orientation */
-		m_camera->NodeSetGlobalOrientation(RAS_CubeMap::camOri[i]);
+		// For Culling we need also to set the camera orientation.
+		m_camera->NodeSetGlobalOrientation(RAS_CubeMap::faceViewMatrices3x3[i]);
 		m_camera->NodeUpdateGS(0.0f);
-		MT_Transform trans(m_camera->GetWorldToCamera());
-		MT_Matrix4x4 viewmat(trans);
+
+		const MT_Transform trans(m_camera->GetWorldToCamera());
+		const MT_Matrix4x4 viewmat(trans);
 		m_camera->SetModelviewMatrix(viewmat);
 		m_scene->CalculateVisibleMeshes(rasty, m_camera, ~cubeMap->GetIgnoreLayers());
 
@@ -117,7 +118,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 		 * updates internally. */
 		KX_GetActiveEngine()->UpdateAnimations(m_scene);
 
-		/* Now the objects are culled and we can render the scene */
+		// Now the objects are culled and we can render the scene.
 		m_scene->GetWorldInfo()->RenderBackground(rasty);
 		m_scene->RenderBuckets(trans, rasty);
 
@@ -135,20 +136,20 @@ void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
 		return;
 	}
 
+	// Disable scissor to not bother with scissor box.
 	rasty->Disable(RAS_IRasterizer::RAS_SCISSOR_TEST);
 
 	// Copy current stereo mode.
 	const RAS_IRasterizer::StereoMode steremode = rasty->GetStereoMode();
+	// Disable stereo for realtime cube maps.
 	rasty->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
 
 	for (std::vector<KX_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
 		RenderCubeMap(rasty, *it);
 	}
 
-	// Restore stereo mode.
+	// Restore previous stereo mode.
 	rasty->SetStereoMode(steremode);
 
 	rasty->Enable(RAS_IRasterizer::RAS_SCISSOR_TEST);
-
-	rasty->RestoreScreenFrameBuffer();
 }

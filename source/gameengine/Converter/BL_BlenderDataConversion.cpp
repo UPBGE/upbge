@@ -1792,8 +1792,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			RAS_MeshObject *mesh = gameobj->GetMesh(j);
 
 			for (unsigned short k = 0, matcount = mesh->NumMaterials(); k < matcount; ++k) {
-				RAS_MeshMaterial *meshMat = mesh->GetMeshMaterial(k);
-				RAS_IPolyMaterial *polymat = meshMat->m_bucket->GetPolyMaterial();
+				RAS_MeshMaterial *meshmat = mesh->GetMeshMaterial(k);
+				RAS_IPolyMaterial *polymat = meshmat->m_bucket->GetPolyMaterial();
 
 				for (unsigned short l = 0; l < RAS_Texture::MaxUnits; ++l) {
 					RAS_Texture *tex = polymat->GetTexture(l);
@@ -1809,7 +1809,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							}
 						}
 
-						KX_CubeMap *cubeMap = new KX_CubeMap(viewpoint, tex, rendertools);
+						KX_CubeMap *cubeMap = new KX_CubeMap(tex, viewpoint);
 						kxscene->GetCubeMapManager()->AddCubeMap(cubeMap);
 					}
 				}

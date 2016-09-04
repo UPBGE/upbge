@@ -48,16 +48,16 @@ static const MT_Matrix4x4 topFaceViewMat(
 	0.0f, 0.0f, -1.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
 
-static const MT_Matrix4x4 rightFaceViewMat(
-	1.0f, 0.0f, 0.0f, 0.0f,
+static const MT_Matrix4x4 leftFaceViewMat(
+	-1.0f, 0.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 1.0f, 0.0f,
-	0.0f, -1.0f, 0.0f, 0.0f,
+	0.0f, 1.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
 
-static const MT_Matrix4x4 leftFaceViewMat(
-	1.0f, 0.0f, 0.0f, 0.0f,
+static const MT_Matrix4x4 rightFaceViewMat(
+	-1.0f, 0.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, -1.0f, 0.0f,
-	0.0f, 1.0f, 0.0f, 0.0f,
+	0.0f, -1.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
 
 static const MT_Matrix4x4 backFaceViewMat(
@@ -73,7 +73,7 @@ static const MT_Matrix4x4 frontFaceViewMat(
 	0.0f, 0.0f, 0.0f, 1.0f);
 
 
-const MT_Matrix4x4 RAS_CubeMap::facesViewMat[6] = {
+const MT_Matrix4x4 RAS_CubeMap::faceViewMatrices4x4[6] = {
 	topFaceViewMat,
 	bottomFaceViewMat,
 	frontFaceViewMat,
@@ -82,13 +82,13 @@ const MT_Matrix4x4 RAS_CubeMap::facesViewMat[6] = {
 	leftFaceViewMat
 };
 
-const MT_Matrix3x3 RAS_CubeMap::camOri[6] = {
+const MT_Matrix3x3 RAS_CubeMap::faceViewMatrices3x3[6] = {
 	topFaceViewMat.to3x3(),
 	bottomFaceViewMat.to3x3(),
 	frontFaceViewMat.to3x3(),
 	backFaceViewMat.to3x3(),
-	leftFaceViewMat.to3x3(),
-	rightFaceViewMat.to3x3()
+	rightFaceViewMat.to3x3(),
+	leftFaceViewMat.to3x3()
 };
 
 static const GLenum cubeMapTargets[6] = {
@@ -100,7 +100,7 @@ static const GLenum cubeMapTargets[6] = {
 	GL_TEXTURE_CUBE_MAP_NEGATIVE_Y_ARB,
 };
 
-RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty)
+RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture)
 	:m_gpuTex(NULL),
 	m_useMipmap(false),
 	m_texture(texture)
@@ -196,8 +196,8 @@ void RAS_CubeMap::BindFace(RAS_IRasterizer *rasty, unsigned short index, const M
 									   0.0f, 1.0f, 0.0f, -objpos[1],
 									   0.0f, 0.0f, 1.0f, -objpos[2],
 									   0.0f, 0.0f, 0.0f, 1.0f);
-	const MT_Matrix4x4 viewmat = facesViewMat[index] * posmat;
-	const MT_Matrix3x3& rot = camOri[index];
+	const MT_Matrix4x4 viewmat = faceViewMatrices4x4[index] * posmat;
+	const MT_Matrix3x3& rot = faceViewMatrices3x3[index];
 
 	rasty->SetViewMatrix(viewmat, rot, objpos, MT_Vector3(1.0f, 1.0f, 1.0f), true);
 }
