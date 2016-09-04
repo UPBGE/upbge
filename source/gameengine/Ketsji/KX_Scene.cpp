@@ -1107,7 +1107,7 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 
 	newobj->RemoveMeshes();
 
-	m_cubeMapManager->RemoveCubeMap(newobj);
+	m_cubeMapManager->InvalidateCubeMapViewpoint(newobj);
 
 	ret = 1;
 	if (newobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(newobj))

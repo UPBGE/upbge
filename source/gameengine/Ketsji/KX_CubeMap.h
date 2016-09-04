@@ -21,8 +21,8 @@
 */
 
 /** \file KX_CubeMap.h
-*  \ingroup ketsji
-*/
+ *  \ingroup ketsji
+ */
 
 #ifndef __KX_CUBEMAP_H__
 #define __KX_CUBEMAP_H__
@@ -30,17 +30,20 @@
 #include "RAS_CubeMap.h"
 #include "EXP_Value.h"
 
-class KX_BlenderSceneConverter;
 class KX_GameObject;
 
 class KX_CubeMap : public CValue, public RAS_CubeMap
 {
 	Py_Header
+
 private:
+	/// The object used to render from its position.
 	KX_GameObject *m_viewpointObject;
 
+	/// The camera projection matrix depending on clip start/end.
 	MT_Matrix4x4 m_projection;
 
+	/// True if the projection matrix is invalid and need to be recomputed.
 	bool m_invalidProjection;
 
 	/// The cube map is used by the user.
@@ -48,10 +51,16 @@ private:
 	/// Layers to ignore during render.
 	int m_ignoreLayers;
 
+	/// View clip start.
 	float m_clipStart;
+	/// View clip end.
 	float m_clipEnd;
 
+	/// True if the realtime cube map is updated every frame.
 	bool m_autoUpdate;
+	/** True if the realtime cube map need to be updated for the next frame.
+	 * Generally used when m_autoUpdate is to false.
+	 */
 	bool m_forceUpdate;
 
 public:

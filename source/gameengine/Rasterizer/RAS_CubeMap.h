@@ -39,23 +39,34 @@ struct GPUTexture;
 class RAS_CubeMap
 {
 private:
-	GPUTexture *m_cubeMapTexture;
+	GPUTexture *m_gpuTex;
 	GPUFrameBuffer *m_fbos[6];
 	GPURenderBuffer *m_rbs[6];
 
 	// True if we regenerate mipmap every render.
 	bool m_useMipmap;
 
+	/// Recreate and attach frame buffer objects to the cube map texture.
+	void AttachTexture();
+	/// Free and detach frame buffer objects and render buffer to the cube map texture.
+	void DetachTexture();
+	/** Obtain the latest cube map texture, if it's not the same as before,
+	 * then detach the previous cube map texture and attach the new one.
+	 */
+	void GetValidTexture();
+
 protected:
+	/// The material texture owning the cube map texture.
 	RAS_Texture *m_texture;
 
 public:
 	RAS_CubeMap(RAS_Texture *texture, RAS_IRasterizer *rasty);
 	virtual ~RAS_CubeMap();
 
-	static MT_Matrix4x4 facesViewMat[6];
-	static MT_Matrix3x3 camOri[6];
+	static const MT_Matrix4x4 facesViewMat[6];
+	static const MT_Matrix3x3 camOri[6];
 
+	void BeginRender();
 	void EndRender();
 
 	void BindFace(RAS_IRasterizer *rasty, unsigned short index, const MT_Vector3& objpos);

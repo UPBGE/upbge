@@ -21,13 +21,12 @@
 */
 
 /** \file KX_CubeMap.cpp
-*  \ingroup ketsji
-*/
+ *  \ingroup ketsji
+ */
 
 #include "KX_CubeMap.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
-#include "KX_BlenderSceneConverter.h"
 
 #include "RAS_Texture.h"
 
@@ -36,8 +35,8 @@
 KX_CubeMap::KX_CubeMap(KX_GameObject *viewpoint, RAS_Texture *texture, RAS_IRasterizer *rasty)
 	:RAS_CubeMap(texture, rasty),
 	m_viewpointObject(viewpoint),
-	m_enabled(true),
 	m_invalidProjection(true),
+	m_enabled(true),
 	m_ignoreLayers(0),
 	m_clipStart(0.0f),
 	m_clipEnd(0.0f),
@@ -183,17 +182,21 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_CubeMap, update, "update(): Set the cube map to be 
 PyObject *KX_CubeMap::pyattr_get_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
-	return self->GetViewpointObject()->GetProxy();
+	KX_GameObject *gameobj = self->GetViewpointObject();
+	if (gameobj) {
+		return gameobj->GetProxy();
+	}
+	Py_RETURN_NONE;
 }
 
 int KX_CubeMap::pyattr_set_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
-	KX_GameObject *gameobj;
+	KX_GameObject *gameobj = NULL;
 
 	SCA_LogicManager *logicmgr = KX_GetActiveScene()->GetLogicManager();
 
-	if (!ConvertPythonToGameObject(logicmgr, value, &gameobj, false, "cubeMap.object = value: KX_CubeMap"))
+	if (!ConvertPythonToGameObject(logicmgr, value, &gameobj, true, "cubeMap.object = value: KX_CubeMap"))
 		return PY_SET_ATTR_FAIL;
 
 	self->SetViewpointObject(gameobj);

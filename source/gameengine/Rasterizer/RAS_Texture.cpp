@@ -36,6 +36,10 @@ RAS_Texture::RAS_Texture()
 
 RAS_Texture::~RAS_Texture()
 {
+	if (m_cubeMap) {
+		delete m_cubeMap;
+		m_cubeMap = NULL;
+	}
 }
 
 STR_String& RAS_Texture::GetName()

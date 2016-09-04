@@ -15,10 +15,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
+ * Contributor(s): Ulysse Martin, Tristan Porteries.
+ *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/BL_Texture.cpp
+/** \file gameengine/Ketsji/KX_CubeMapManager.cpp
  *  \ingroup ketsji
  */
 
@@ -53,32 +55,31 @@ void KX_CubeMapManager::AddCubeMap(KX_CubeMap *cubeMap)
 	m_cubeMaps.push_back(cubeMap);
 }
 
-void KX_CubeMapManager::RemoveCubeMap(KX_GameObject *gameobj)
+void KX_CubeMapManager::InvalidateCubeMapViewpoint(KX_GameObject *gameobj)
 {
 	for (std::vector<KX_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
 		KX_CubeMap *cubeMap = *it;
 		if (cubeMap->GetViewpointObject() == gameobj) {
-			delete cubeMap;
-			m_cubeMaps.erase(it);
-			break;
+			cubeMap->SetViewpointObject(NULL);
 		}
 	}
 }
 
 void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMap)
 {
+	KX_GameObject *viewpoint = cubeMap->GetViewpointObject();
+
 	// Doesn't need update.
-	if (!cubeMap->NeedUpdate() || !cubeMap->GetEnabled()) {
+	if (!cubeMap->NeedUpdate() || !cubeMap->GetEnabled() || !viewpoint) {
 		return;
 	}
 
-	KX_GameObject *gameobj = cubeMap->GetViewpointObject();
-	MT_Vector3 pos = gameobj->NodeGetWorldPosition();
+	MT_Vector3 pos = viewpoint->NodeGetWorldPosition();
 
-	/* We hide the gameobject in the case backface culling is disabled -> we can't see through
+	/* We hide the viewpoint object in the case backface culling is disabled -> we can't see through
 	 * the object faces if the camera is inside the gameobject
 	 */
-	gameobj->SetVisible(false, true);
+	viewpoint->SetVisible(false, true);
 
 	/* For Culling we need first to set the camera position at the object position */
 	m_camera->NodeSetWorldPosition(pos);
@@ -98,6 +99,8 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 	/* Else we use the projection matrix stored in KX_CubeMap */
 	rasty->SetProjectionMatrix(cubeMap->GetProjectionMatrix());
 	m_camera->SetProjectionMatrix(cubeMap->GetProjectionMatrix());
+
+	cubeMap->BeginRender();
 
 	for (unsigned short i = 0; i < 6; ++i) {
 		cubeMap->BindFace(rasty, i, pos);
@@ -123,7 +126,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 
 	cubeMap->EndRender();
 
-	gameobj->SetVisible(true, true);
+	viewpoint->SetVisible(true, true);
 }
 
 void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
