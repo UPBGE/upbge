@@ -43,7 +43,7 @@ private:
 	std::vector<KX_CubeMap *> m_cubeMaps;
 
 	/** The camera used for realtime cube map render.
-	 * this camera is own by the cube map manager.
+	 * This camera is own by the cube map manager.
 	 */
 	KX_Camera *m_camera;
 

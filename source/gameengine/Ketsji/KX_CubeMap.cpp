@@ -32,8 +32,8 @@
 
 #include "DNA_texture_types.h"
 
-KX_CubeMap::KX_CubeMap(KX_GameObject *viewpoint, RAS_Texture *texture, RAS_IRasterizer *rasty)
-	:RAS_CubeMap(texture, rasty),
+KX_CubeMap::KX_CubeMap(RAS_Texture *texture, KX_GameObject *viewpoint)
+	:RAS_CubeMap(texture),
 	m_viewpointObject(viewpoint),
 	m_invalidProjection(true),
 	m_enabled(true),

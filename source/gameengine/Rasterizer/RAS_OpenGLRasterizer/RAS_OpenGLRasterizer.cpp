@@ -878,11 +878,6 @@ void RAS_OpenGLRasterizer::BindOffScreen(unsigned short index)
 	m_offScreens.Bind(index);
 }
 
-void RAS_OpenGLRasterizer::RestoreScreenFrameBuffer()
-{
-	m_offScreens.RestoreScreen();
-}
-
 void RAS_OpenGLRasterizer::DrawOffScreen(unsigned short srcindex, unsigned short dstindex)
 {
 	if (m_offScreens.GetSamples(srcindex) == 0) {
@@ -1489,7 +1484,7 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetOrthoMatrix(
 
 // next arguments probably contain redundant info, for later...
 void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
-                                         const MT_Matrix3x3 & camOrientMat3x3,
+                                         const MT_Matrix3x3 & faceViewMatrices3x3entMat3x3,
                                          const MT_Vector3 & pos,
 					 const MT_Vector3 & scale,
                                          bool perspective)
@@ -1504,9 +1499,9 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 		MT_Vector3 eyeline;
 
 		// actual viewDir
-		viewDir = camOrientMat3x3 * unitViewDir;  // this is the moto convention, vector on right hand side
+		viewDir = faceViewMatrices3x3entMat3x3 * unitViewDir;  // this is the moto convention, vector on right hand side
 		// actual viewup vec
-		viewupVec = camOrientMat3x3 * unitViewupVec;
+		viewupVec = faceViewMatrices3x3entMat3x3 * unitViewupVec;
 
 		// vector between eyes
 		eyeline = viewDir.cross(viewupVec);
