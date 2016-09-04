@@ -2449,12 +2449,15 @@ static int image_new_exec(bContext *C, wmOperator *op)
 			if (tex->ima)
 				id_us_min(&tex->ima->id);
 			if (tex->type == TEX_ENVMAP) {
-				if (ima->gen_x != ima->gen_y * 3 / 2) {
+				/* Here we control that envmap width = 3 / 2 * envmap height and that
+				 * envmap height is a power of 2 to be sure to have a supported envmap resolution.
+				 */
+				if (!(ima->gen_x == ceil(ima->gen_y * 3 / 2) && ((ima->gen_y & (ima->gen_y - 1)) == 0))) {
 					int previous = pow(2, ceil(log(ima->gen_y) / log(2))) / 2;
 					ima->gen_y = previous;
 					ima->gen_x = previous * 3 / 2;
+					BKE_image_signal(ima, NULL, IMA_SIGNAL_FREE);
 				}
-				BKE_image_signal(ima, NULL, IMA_SIGNAL_FREE);
 			}
 			tex->ima = ima;
 			ED_area_tag_redraw(CTX_wm_area(C));
