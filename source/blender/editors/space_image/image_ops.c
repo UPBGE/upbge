@@ -2355,6 +2355,7 @@ static int image_new_exec(bContext *C, wmOperator *op)
 	Object *obedit;
 	Image *ima;
 	Main *bmain;
+	Tex *tex;
 	PointerRNA ptr, idptr;
 	PropertyRNA *prop;
 	char _name[MAX_ID_NAME - 2];
@@ -2369,6 +2370,8 @@ static int image_new_exec(bContext *C, wmOperator *op)
 	scene = CTX_data_scene(C);
 	obedit = CTX_data_edit_object(C);
 	bmain = CTX_data_main(C);
+
+	tex = CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
 
 	prop = RNA_struct_find_property(op->ptr, "name");
 	RNA_property_string_get(op->ptr, prop, name);
@@ -2387,6 +2390,19 @@ static int image_new_exec(bContext *C, wmOperator *op)
 
 	if (!alpha)
 		color[3] = 1.0f;
+
+	if (tex && tex->type == TEX_ENVMAP) {
+		/* Here we control that envmap width = 3 / 2 * envmap height and that
+		 * envmap height is a power of 2 to be sure to have a supported envmap resolution.
+		 */
+		if (!(width == ceil(height * 3 / 2) && ((height & (height - 1)) == 0))) {
+			int previous = pow(2, ceil(log(height) / log(2))) / 2;
+			height = previous;
+			width = previous * 3 / 2;
+
+			BKE_report(op->reports, RPT_ERROR, "Invalid image size for cube map texture user, down to a valid size");
+		}
+	}
 
 	ima = BKE_image_add_generated(bmain, width, height, name, alpha ? 32 : 24, floatbuf, gen_type, color, stereo3d);
 
@@ -2444,21 +2460,10 @@ static int image_new_exec(bContext *C, wmOperator *op)
 		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);		
 	}
 	else {
-		Tex *tex = CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data;
-		if (tex && tex->type == TEX_IMAGE || tex->type == TEX_ENVMAP) {
+		if (tex && tex->type == TEX_IMAGE) {
 			if (tex->ima)
 				id_us_min(&tex->ima->id);
-			if (tex->type == TEX_ENVMAP) {
-				/* Here we control that envmap width = 3 / 2 * envmap height and that
-				 * envmap height is a power of 2 to be sure to have a supported envmap resolution.
-				 */
-				if (!(ima->gen_x == ceil(ima->gen_y * 3 / 2) && ((ima->gen_y & (ima->gen_y - 1)) == 0))) {
-					int previous = pow(2, ceil(log(ima->gen_y) / log(2))) / 2;
-					ima->gen_y = previous;
-					ima->gen_x = previous * 3 / 2;
-					BKE_image_signal(ima, NULL, IMA_SIGNAL_FREE);
-				}
-			}
+
 			tex->ima = ima;
 			ED_area_tag_redraw(CTX_wm_area(C));
 			DAG_id_tag_update(&tex->id, 0);

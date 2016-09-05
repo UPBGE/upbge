@@ -109,6 +109,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 		m_camera->NodeSetGlobalOrientation(RAS_CubeMap::faceViewMatrices3x3[i]);
 		m_camera->NodeUpdateGS(0.0f);
 
+		// Setup camera modelview matrix for culling planes.
 		const MT_Transform trans(m_camera->GetWorldToCamera());
 		const MT_Matrix4x4 viewmat(trans);
 		m_camera->SetModelviewMatrix(viewmat);
