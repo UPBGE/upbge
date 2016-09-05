@@ -112,6 +112,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 		const MT_Transform trans(m_camera->GetWorldToCamera());
 		const MT_Matrix4x4 viewmat(trans);
 		m_camera->SetModelviewMatrix(viewmat);
+
 		m_scene->CalculateVisibleMeshes(rasty, m_camera, ~cubeMap->GetIgnoreLayers());
 
 		/* Update animations to use the culling of each faces, BL_ActionManager avoid redundants
