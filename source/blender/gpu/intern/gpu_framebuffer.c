@@ -432,7 +432,7 @@ void GPU_framebuffer_renderbuffer_detach(GPURenderBuffer *rb)
 
 	glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, attachment, GL_RENDERBUFFER_EXT, 0);
 
-	GPU_texture_framebuffer_set(rb, NULL, -1);
+	GPU_renderbuffer_framebuffer_set(rb, NULL, -1);
 }
 
 void GPU_framebuffer_free(GPUFrameBuffer *fb)

@@ -105,6 +105,10 @@ RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture)
 	m_useMipmap(false),
 	m_texture(texture)
 {
+	for (unsigned short i = 0; i < 6; ++i) {
+		m_fbos[i] = NULL;
+		m_rbs[i] = NULL;
+	}
 	GetValidTexture();
 }
 
@@ -134,11 +138,21 @@ void RAS_CubeMap::DetachTexture()
 {
 	if (m_gpuTex) {
 		for (unsigned short i = 0; i < 6; ++i) {
-			GPU_framebuffer_texture_detach_target(m_gpuTex, cubeMapTargets[i]);
-			GPU_framebuffer_renderbuffer_detach(m_rbs[i]);
+			if (m_fbos[i]) {
+				GPU_framebuffer_texture_detach_target(m_gpuTex, cubeMapTargets[i]);
+			}
+			if (m_rbs[i]) {
+				GPU_framebuffer_renderbuffer_detach(m_rbs[i]);
+			}
 
-			GPU_framebuffer_free(m_fbos[i]);
-			GPU_renderbuffer_free(m_rbs[i]);
+			if (m_fbos[i]) {
+				GPU_framebuffer_free(m_fbos[i]);
+				m_fbos[i] = NULL;
+			}
+			if (m_rbs[i]) {
+				GPU_renderbuffer_free(m_rbs[i]);
+				m_rbs[i] = NULL;
+			}
 		}
 
 		GPU_texture_free(m_gpuTex);
