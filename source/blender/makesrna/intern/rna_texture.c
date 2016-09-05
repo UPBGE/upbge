@@ -772,7 +772,7 @@ static void rna_def_environment_map(BlenderRNA *brna)
 		{ENV_STATIC, "STATIC", 0, "Static", "Calculate environment map only once"},
 		{ENV_ANIM, "ANIMATED", 0, "Animated", "Calculate environment map at each rendering"},
 		{ENV_LOAD, "IMAGE_FILE", 0, "Image File", "Load a saved environment map image from disk"},
-		{ENV_REALT, "REALTIME_REFL", 0, "Realtime Reflections", "Image generated for realtime reflections in the game engine"},
+		{ENV_REALT, "REALTIME", 0, "Realtime", "Image generated for realtime reflections in the game engine"},
 		{0, NULL, 0, NULL, NULL}
 	};
 	
@@ -863,8 +863,7 @@ static void rna_def_environment_map(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "filtering", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "filtering");
 	RNA_def_property_enum_items(prop, prop_filtering_items);
-	RNA_def_property_ui_text(prop, "Filtering", "Texture filtering methode");
-	RNA_def_property_update(prop, 0, "rna_Texture_update");
+	RNA_def_property_ui_text(prop, "Filtering", "Texture filtering method");
 
 	RNA_api_environment_map(srna);
 }

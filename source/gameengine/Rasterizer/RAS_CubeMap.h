@@ -38,11 +38,16 @@ struct GPUTexture;
 
 class RAS_CubeMap
 {
+public:
+	enum {
+		NUM_FACES = 6
+	};
+
 private:
 	/// Cube map texture to attach to frame buffer objects.
 	GPUTexture *m_gpuTex;
-	GPUFrameBuffer *m_fbos[6];
-	GPURenderBuffer *m_rbs[6];
+	GPUFrameBuffer *m_fbos[NUM_FACES];
+	GPURenderBuffer *m_rbs[NUM_FACES];
 
 	// True if we regenerate mipmap every render.
 	bool m_useMipmap;
@@ -61,10 +66,8 @@ protected:
 	RAS_Texture *m_texture;
 
 public:
-	/// Face view matrices in 4x4 matrices.
-	static const MT_Matrix4x4 faceViewMatrices4x4[6];
-	/// Face view matrices in 3x3 matrices (used for camera orientation).
-	static const MT_Matrix3x3 faceViewMatrices3x3[6];
+	/// Face view matrices in 3x3 matrices.
+	static const MT_Matrix3x3 faceViewMatrices3x3[NUM_FACES];
 
 	RAS_CubeMap(RAS_Texture *texture);
 	virtual ~RAS_CubeMap();
@@ -72,8 +75,7 @@ public:
 	void BeginRender();
 	void EndRender();
 
-	void BindFace(RAS_IRasterizer *rasty, unsigned short index, const MT_Vector3& objpos);
-	void UnbindFace();
+	void BindFace(RAS_IRasterizer *rasty, unsigned short index);
 };
 
 #endif  // __RAS_CUBEMAP_H__

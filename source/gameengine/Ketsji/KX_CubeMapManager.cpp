@@ -96,14 +96,14 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 		cubeMap->SetInvalidProjectionMatrix(false);
 	}
 
-	// Else we use the projection matrix stored in KX_CubeMap.
+	// Else we use the projection matrix stored in the cube map.
 	rasty->SetProjectionMatrix(cubeMap->GetProjectionMatrix());
 	m_camera->SetProjectionMatrix(cubeMap->GetProjectionMatrix());
 
 	cubeMap->BeginRender();
 
 	for (unsigned short i = 0; i < 6; ++i) {
-		cubeMap->BindFace(rasty, i, position);
+		cubeMap->BindFace(rasty, i);
 
 		// For Culling we need also to set the camera orientation.
 		m_camera->NodeSetGlobalOrientation(RAS_CubeMap::faceViewMatrices3x3[i]);
@@ -114,6 +114,8 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 		const MT_Matrix4x4 viewmat(trans);
 		m_camera->SetModelviewMatrix(viewmat);
 
+		rasty->SetViewMatrix(viewmat, RAS_CubeMap::faceViewMatrices3x3[i], position, MT_Vector3(1.0f, 1.0f, 1.0f), true);
+
 		m_scene->CalculateVisibleMeshes(rasty, m_camera, ~cubeMap->GetIgnoreLayers());
 
 		/* Update animations to use the culling of each faces, BL_ActionManager avoid redundants
@@ -123,8 +125,6 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 		// Now the objects are culled and we can render the scene.
 		m_scene->GetWorldInfo()->RenderBackground(rasty);
 		m_scene->RenderBuckets(trans, rasty);
-
-		cubeMap->UnbindFace();
 	}
 
 	cubeMap->EndRender();

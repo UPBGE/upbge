@@ -2463,7 +2463,6 @@ static int image_new_exec(bContext *C, wmOperator *op)
 		if (tex && tex->type == TEX_IMAGE) {
 			if (tex->ima)
 				id_us_min(&tex->ima->id);
-
 			tex->ima = ima;
 			ED_area_tag_redraw(CTX_wm_area(C));
 			DAG_id_tag_update(&tex->id, 0);

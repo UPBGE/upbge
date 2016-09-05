@@ -36,44 +36,37 @@
 
 #include "glew-mx.h"
 
-static const MT_Matrix4x4 topFaceViewMat(
-	1.0f, 0.0f, 0.0f, 0.0f,
-	0.0f, -1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, -1.0f, 0.0f,
-	0.0f, 0.0f, 0.0f, 1.0f);
+static const MT_Matrix3x3 topFaceViewMat(
+	1.0f, 0.0f, 0.0f,
+	0.0f, -1.0f, 0.0f,
+	0.0f, 0.0f, -1.0f);
 
-static const MT_Matrix4x4 bottomFaceViewMat(
-	-1.0f, 0.0f, 0.0f, 0.0f,
-	0.0f, -1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 1.0f, 0.0f,
-	0.0f, 0.0f, 0.0f, 1.0f);
+static const MT_Matrix3x3 bottomFaceViewMat(
+	-1.0f, 0.0f, 0.0f,
+	0.0f, -1.0f, 0.0f,
+	0.0f, 0.0f, 1.0f);
 
-static const MT_Matrix4x4 frontFaceViewMat(
-	0.0f, 0.0f, -1.0f, 0.0f,
-	0.0f, -1.0f, 0.0f, 0.0f,
-	-1.0f, 0.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 0.0f, 1.0f);
+static const MT_Matrix3x3 frontFaceViewMat(
+	0.0f, 0.0f, -1.0f,
+	0.0f, -1.0f, 0.0f,
+	-1.0f, 0.0f, 0.0f);
 
-static const MT_Matrix4x4 backFaceViewMat(
-	0.0f, 0.0f, 1.0f, 0.0f,
-	0.0f, -1.0f, 0.0f, 0.0f,
-	1.0f, 0.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 0.0f, 1.0f);
+static const MT_Matrix3x3 backFaceViewMat(
+	0.0f, 0.0f, 1.0f,
+	0.0f, -1.0f, 0.0f,
+	1.0f, 0.0f, 0.0f);
 
-static const MT_Matrix4x4 rightFaceViewMat(
-	1.0f, 0.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 1.0f, 0.0f,
-	0.0f, -1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 0.0f, 1.0f);
+static const MT_Matrix3x3 rightFaceViewMat(
+	1.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, -1.0f,
+	0.0f, 1.0f, 0.0f);
 
-static const MT_Matrix4x4 leftFaceViewMat(
-	1.0f, 0.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, -1.0f, 0.0f,
-	0.0f, 1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 0.0f, 1.0f);
+static const MT_Matrix3x3 leftFaceViewMat(
+	1.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 1.0f,
+	0.0f, -1.0f, 0.0f);
 
-
-const MT_Matrix4x4 RAS_CubeMap::faceViewMatrices4x4[6] = {
+const MT_Matrix3x3 RAS_CubeMap::faceViewMatrices3x3[RAS_CubeMap::NUM_FACES] = {
 	topFaceViewMat,
 	bottomFaceViewMat,
 	frontFaceViewMat,
@@ -82,16 +75,7 @@ const MT_Matrix4x4 RAS_CubeMap::faceViewMatrices4x4[6] = {
 	leftFaceViewMat
 };
 
-const MT_Matrix3x3 RAS_CubeMap::faceViewMatrices3x3[6] = {
-	faceViewMatrices4x4[0].to3x3().transposed(),
-	faceViewMatrices4x4[1].to3x3().transposed(),
-	faceViewMatrices4x4[2].to3x3().transposed(),
-	faceViewMatrices4x4[3].to3x3().transposed(),
-	faceViewMatrices4x4[4].to3x3().transposed(),
-	faceViewMatrices4x4[5].to3x3().transposed()
-};
-
-static const GLenum cubeMapTargets[6] = {
+static const GLenum cubeMapTargets[RAS_CubeMap::NUM_FACES] = {
 	GL_TEXTURE_CUBE_MAP_POSITIVE_Z_ARB,
 	GL_TEXTURE_CUBE_MAP_NEGATIVE_Z_ARB,
 	GL_TEXTURE_CUBE_MAP_POSITIVE_X_ARB,
@@ -105,7 +89,7 @@ RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture)
 	m_useMipmap(false),
 	m_texture(texture)
 {
-	for (unsigned short i = 0; i < 6; ++i) {
+	for (unsigned short i = 0; i < NUM_FACES; ++i) {
 		m_fbos[i] = NULL;
 		m_rbs[i] = NULL;
 	}
@@ -116,6 +100,9 @@ RAS_CubeMap::~RAS_CubeMap()
 {
 	DetachTexture();
 
+	/* This call has for side effect to ask regeneration of all textures
+	 * depending of this image.
+	 */
 	GPU_free_image(m_texture->GetImage());
 }
 
@@ -124,7 +111,7 @@ void RAS_CubeMap::AttachTexture()
 	// Increment reference to make sure the gpu texture will not be freed by someone else.
 	GPU_texture_ref(m_gpuTex);
 
-	for (unsigned short i = 0; i < 6; ++i) {
+	for (unsigned short i = 0; i < NUM_FACES; ++i) {
 		m_fbos[i] = GPU_framebuffer_create();
 		m_rbs[i] = GPU_renderbuffer_create(GPU_texture_width(m_gpuTex), GPU_texture_height(m_gpuTex),
 										   0, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, NULL);
@@ -136,27 +123,29 @@ void RAS_CubeMap::AttachTexture()
 
 void RAS_CubeMap::DetachTexture()
 {
-	if (m_gpuTex) {
-		for (unsigned short i = 0; i < 6; ++i) {
-			if (m_fbos[i]) {
-				GPU_framebuffer_texture_detach_target(m_gpuTex, cubeMapTargets[i]);
-			}
-			if (m_rbs[i]) {
-				GPU_framebuffer_renderbuffer_detach(m_rbs[i]);
-			}
+	if (!m_gpuTex) {
+		return;
+	}
 
-			if (m_fbos[i]) {
-				GPU_framebuffer_free(m_fbos[i]);
-				m_fbos[i] = NULL;
-			}
-			if (m_rbs[i]) {
-				GPU_renderbuffer_free(m_rbs[i]);
-				m_rbs[i] = NULL;
-			}
+	for (unsigned short i = 0; i < NUM_FACES; ++i) {
+		if (m_fbos[i]) {
+			GPU_framebuffer_texture_detach_target(m_gpuTex, cubeMapTargets[i]);
+		}
+		if (m_rbs[i]) {
+			GPU_framebuffer_renderbuffer_detach(m_rbs[i]);
 		}
 
-		GPU_texture_free(m_gpuTex);
+		if (m_fbos[i]) {
+			GPU_framebuffer_free(m_fbos[i]);
+			m_fbos[i] = NULL;
+		}
+		if (m_rbs[i]) {
+			GPU_renderbuffer_free(m_rbs[i]);
+			m_rbs[i] = NULL;
+		}
 	}
+
+	GPU_texture_free(m_gpuTex);
 }
 
 void RAS_CubeMap::GetValidTexture()
@@ -176,12 +165,12 @@ void RAS_CubeMap::GetValidTexture()
 	AttachTexture();
 
 	EnvMap *env = m_texture->GetMTex()->tex->env;
-	m_useMipmap = (env->filtering & ENVMAP_MIPMAP_MIPMAP) != 0 && GPU_get_mipmap();
+	m_useMipmap = (env->filtering == ENVMAP_MIPMAP_MIPMAP) && GPU_get_mipmap();
 
 	if (!m_useMipmap) {
 		// Disable mipmaping.
 		GPU_texture_bind(m_gpuTex, 0);
-		GPU_texture_filter_mode(m_gpuTex, false, (env->filtering & ENVMAP_MIPMAP_LINEAR) != 0);
+		GPU_texture_filter_mode(m_gpuTex, false, (env->filtering == ENVMAP_MIPMAP_LINEAR));
 		GPU_texture_unbind(m_gpuTex);
 	}
 }
@@ -200,22 +189,9 @@ void RAS_CubeMap::EndRender()
 	}
 }
 
-void RAS_CubeMap::BindFace(RAS_IRasterizer *rasty, unsigned short index, const MT_Vector3& objpos)
+void RAS_CubeMap::BindFace(RAS_IRasterizer *rasty, unsigned short index)
 {
 	GPU_framebuffer_bind_no_save(m_fbos[index], 0);
 
 	rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-
-	const MT_Matrix4x4 posmat = MT_Matrix4x4(1.0f, 0.0f, 0.0f, -objpos[0],
-									   0.0f, 1.0f, 0.0f, -objpos[1],
-									   0.0f, 0.0f, 1.0f, -objpos[2],
-									   0.0f, 0.0f, 0.0f, 1.0f);
-	const MT_Matrix4x4 viewmat = faceViewMatrices4x4[index] * posmat;
-	const MT_Matrix3x3& rot = faceViewMatrices3x3[index];
-
-	rasty->SetViewMatrix(viewmat, rot, objpos, MT_Vector3(1.0f, 1.0f, 1.0f), true);
-}
-
-void RAS_CubeMap::UnbindFace()
-{
 }

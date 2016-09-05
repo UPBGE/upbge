@@ -39,7 +39,7 @@ class RAS_IRasterizer;
 class KX_CubeMapManager
 {
 private:
-	/// All existing realtime cube map of this scene.
+	/// All existing realtime cube maps of this scene.
 	std::vector<KX_CubeMap *> m_cubeMaps;
 
 	/** The camera used for realtime cube map render.

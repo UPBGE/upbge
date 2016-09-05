@@ -478,10 +478,10 @@ typedef struct ColorMapping {
 
 /* flag */
 #define ENVMAP_AUTO_UPDATE	(1 << 0)
-/* mipmap */
+/* filtering */
 #define ENVMAP_MIPMAP_NONE		0
-#define ENVMAP_MIPMAP_LINEAR	(1 << 0)
-#define ENVMAP_MIPMAP_MIPMAP	(1 << 1)
+#define ENVMAP_MIPMAP_LINEAR	1
+#define ENVMAP_MIPMAP_MIPMAP	2
 
 /* **************** MTEX ********************* */
 
