@@ -36,28 +36,22 @@
 
 #include "glew-mx.h"
 
-static const MT_Matrix4x4 bottomFaceViewMat(
-	-1.0f, 0.0f, 0.0f, 0.0f,
-	0.0f, -1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 1.0f, 0.0f,
-	0.0f, 0.0f, 0.0f, 1.0f);
-
 static const MT_Matrix4x4 topFaceViewMat(
 	1.0f, 0.0f, 0.0f, 0.0f,
 	0.0f, -1.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, -1.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
 
-static const MT_Matrix4x4 leftFaceViewMat(
-	-1.0f, 0.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 1.0f, 0.0f,
+static const MT_Matrix4x4 bottomFaceViewMat(
+	1.0f, 0.0f, 0.0f, 0.0f,
 	0.0f, 1.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 1.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
 
-static const MT_Matrix4x4 rightFaceViewMat(
-	-1.0f, 0.0f, 0.0f, 0.0f,
+static const MT_Matrix4x4 frontFaceViewMat(
 	0.0f, 0.0f, -1.0f, 0.0f,
 	0.0f, -1.0f, 0.0f, 0.0f,
+	-1.0f, 0.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
 
 static const MT_Matrix4x4 backFaceViewMat(
@@ -66,10 +60,16 @@ static const MT_Matrix4x4 backFaceViewMat(
 	1.0f, 0.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
 
-static const MT_Matrix4x4 frontFaceViewMat(
-	0.0f, 0.0f, -1.0f, 0.0f,
+static const MT_Matrix4x4 rightFaceViewMat(
+	1.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 1.0f, 0.0f,
 	0.0f, -1.0f, 0.0f, 0.0f,
-	-1.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 0.0f, 1.0f);
+
+static const MT_Matrix4x4 leftFaceViewMat(
+	1.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, -1.0f, 0.0f,
+	0.0f, 1.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
 
 
