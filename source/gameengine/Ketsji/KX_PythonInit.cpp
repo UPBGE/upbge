@@ -2228,6 +2228,32 @@ void createPythonConsole()
 	PyRun_SimpleFile(fp, filepath);
 }
 
+void updatePythonJoysticks(short index, bool addrem)
+{
+	DEV_Joystick *joy = DEV_Joystick::GetInstance(index);
+	PyObject *gameLogic = PyImport_ImportModule("GameLogic");
+	PyObject *pythonJoyList = PyDict_GetItemString(PyModule_GetDict(gameLogic), "joysticks");
+	PyObject *item;
+
+	if (addrem) {
+		if (joy && joy->Connected()) {
+			gp_PythonJoysticks[index] = new SCA_PythonJoystick(joy, index);
+			item = gp_PythonJoysticks[index]->NewProxy(true);
+		}
+		else {
+			item = Py_None;
+		}
+	}
+	else {
+			if (joy) {
+				joy->ReleaseInstance(index);
+			}
+			item = Py_None;
+	}
+	Py_INCREF(item);
+	PyList_SET_ITEM(pythonJoyList, index, item);
+}
+
 static struct PyModuleDef Rasterizer_module_def = {
 	PyModuleDef_HEAD_INIT,
 	"Rasterizer",  /* m_name */

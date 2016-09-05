@@ -132,7 +132,7 @@ class DEV_Joystick
 public:
 
 	static DEV_Joystick *GetInstance(short joyindex);
-	static void HandleEvents(void);
+	static short HandleEvents(short (&index)[8], short (&addrem)[8]);
 	void ReleaseInstance(short joyindex);
 	static void Init();
 	static void Close();
