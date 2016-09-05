@@ -242,7 +242,7 @@ void VBO::Draw()
 
 void VBO::DrawInstancing(unsigned int numinstance)
 {
-	glDrawElementsInstanced(m_mode, m_indices, GL_UNSIGNED_INT, 0, numinstance);
+	glDrawElementsInstancedARB(m_mode, m_indices, GL_UNSIGNED_INT, 0, numinstance);
 }
 
 RAS_StorageVBO::RAS_StorageVBO(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer) :

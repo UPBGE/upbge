@@ -198,7 +198,7 @@ void RAS_StorageVA::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucke
 	RAS_IDisplayArray *array = arrayBucket->GetDisplayArray();
 
 	// here the actual drawing takes places
-	glDrawElementsInstanced(array->GetOpenGLPrimitiveType(), array->GetIndexCount(), GL_UNSIGNED_INT, array->GetIndexPointer(), arrayBucket->GetNumActiveMeshSlots());
+	glDrawElementsInstancedARB(array->GetOpenGLPrimitiveType(), array->GetIndexCount(), GL_UNSIGNED_INT, array->GetIndexPointer(), arrayBucket->GetNumActiveMeshSlots());
 }
 
 RAS_DisplayList *RAS_StorageVA::GetDisplayList(RAS_DisplayArrayBucket *arrayBucket)
