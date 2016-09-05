@@ -43,8 +43,8 @@ static const MT_Matrix4x4 topFaceViewMat(
 	0.0f, 0.0f, 0.0f, 1.0f);
 
 static const MT_Matrix4x4 bottomFaceViewMat(
-	1.0f, 0.0f, 0.0f, 0.0f,
-	0.0f, 1.0f, 0.0f, 0.0f,
+	-1.0f, 0.0f, 0.0f, 0.0f,
+	0.0f, -1.0f, 0.0f, 0.0f,
 	0.0f, 0.0f, 1.0f, 0.0f,
 	0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -83,12 +83,12 @@ const MT_Matrix4x4 RAS_CubeMap::faceViewMatrices4x4[6] = {
 };
 
 const MT_Matrix3x3 RAS_CubeMap::faceViewMatrices3x3[6] = {
-	topFaceViewMat.to3x3(),
-	bottomFaceViewMat.to3x3(),
-	frontFaceViewMat.to3x3(),
-	backFaceViewMat.to3x3(),
-	rightFaceViewMat.to3x3(),
-	leftFaceViewMat.to3x3()
+	faceViewMatrices4x4[0].to3x3().transposed(),
+	faceViewMatrices4x4[1].to3x3().transposed(),
+	faceViewMatrices4x4[2].to3x3().transposed(),
+	faceViewMatrices4x4[3].to3x3().transposed(),
+	faceViewMatrices4x4[4].to3x3().transposed(),
+	faceViewMatrices4x4[5].to3x3().transposed()
 };
 
 static const GLenum cubeMapTargets[6] = {
