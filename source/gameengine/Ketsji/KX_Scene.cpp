@@ -1686,11 +1686,14 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 
 
 void KX_Scene::RenderBuckets(const MT_Transform & cameratransform,
-                             class RAS_IRasterizer* rasty)
+                             class RAS_IRasterizer* rasty, bool renderingshadows)
 {
 	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
 		 * It's done just before the render to be sure of the object color and visibility. */
+		if (!((KX_GameObject *)*it)->GetCastShadows() && renderingshadows) {
+			((KX_GameObject *)*it)->SetCulled(true);
+		}
 		((KX_GameObject *)*it)->UpdateBuckets();
 	}
 

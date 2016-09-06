@@ -124,7 +124,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 
 		// Now the objects are culled and we can render the scene.
 		m_scene->GetWorldInfo()->RenderBackground(rasty);
-		m_scene->RenderBuckets(trans, rasty);
+		m_scene->RenderBuckets(trans, rasty, false);
 	}
 
 	cubeMap->EndRender();

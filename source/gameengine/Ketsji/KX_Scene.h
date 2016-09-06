@@ -307,7 +307,7 @@ public:
 	KX_CubeMapManager *GetCubeMapManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const MT_Transform& cameratransform,
-	                   RAS_IRasterizer* rasty);
+	                   RAS_IRasterizer* rasty, bool renderingshadows);
 	void RenderCubeMaps(RAS_IRasterizer *rasty);
 
 	/**
