@@ -28,6 +28,7 @@
 #include "STR_String.h"
 
 struct MTex;
+struct Tex;
 struct Image;
 struct GPUTexture;
 
@@ -49,6 +50,7 @@ public:
 	virtual bool IsCubeMap() const = 0;
 
 	virtual MTex *GetMTex() const = 0;
+	virtual Tex *GetTex() const = 0;
 	virtual Image *GetImage() const = 0;
 	virtual GPUTexture *GetGPUTexture() const = 0;
 	STR_String& GetName();

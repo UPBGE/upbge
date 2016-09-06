@@ -28,10 +28,6 @@
 #include "RAS_Texture.h"
 #include "EXP_Value.h"
 
-struct MTex;
-struct Image;
-struct GPUTexture;
-
 class BL_Texture : public CValue, public RAS_Texture
 {
 	Py_Header
@@ -67,6 +63,7 @@ public:
 	virtual bool IsCubeMap() const;
 
 	virtual MTex *GetMTex() const;
+	virtual Tex *GetTex() const;
 	virtual Image *GetImage() const;
 	virtual GPUTexture *GetGPUTexture() const;
 

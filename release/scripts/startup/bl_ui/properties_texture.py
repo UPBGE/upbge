@@ -620,7 +620,7 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
             layout.template_ID(tex, "image", open="image.open")
             layout.template_image(tex, "image", tex.image_user, compact=True)
         else:
-            if env.source == 'REALTIME_REFL':
+            if env.source == 'REALTIME':
                 layout.template_ID(tex, "image", new="image.new", open="image.open")
                 layout.template_image(tex, "image", tex.image_user, compact=True)
             layout.prop(env, "mapping")
@@ -633,7 +633,7 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
 
             col = split.column()
             col.prop(env, "layers_ignore")
-            if env.source != 'REALTIME_REFL':
+            if env.source != 'REALTIME':
                 col.prop(env, "resolution")
                 col.prop(env, "depth")
             else:

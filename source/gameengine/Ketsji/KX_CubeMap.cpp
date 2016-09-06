@@ -52,13 +52,10 @@ KX_CubeMap::KX_CubeMap(RAS_Texture *texture, KX_GameObject *viewpoint)
 	m_clipEnd = env->clipend;
 
 	m_autoUpdate = (env->flag & ENVMAP_AUTO_UPDATE) != 0;
-
-	m_texture->SetCubeMap(this);
 }
 
 KX_CubeMap::~KX_CubeMap()
 {
-	m_texture->SetCubeMap(NULL);
 }
 
 STR_String& KX_CubeMap::GetName()

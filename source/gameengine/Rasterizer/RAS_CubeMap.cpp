@@ -175,6 +175,11 @@ void RAS_CubeMap::GetValidTexture()
 	}
 }
 
+RAS_Texture *RAS_CubeMap::GetTexture() const
+{
+	return m_texture;
+}
+
 void RAS_CubeMap::BeginRender()
 {
 	GetValidTexture();

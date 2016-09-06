@@ -35,12 +35,16 @@ class KX_Scene;
 class KX_CubeMap;
 
 class RAS_IRasterizer;
+class RAS_Texture;
 
 class KX_CubeMapManager
 {
 private:
 	/// All existing realtime cube maps of this scene.
 	std::vector<KX_CubeMap *> m_cubeMaps;
+
+	/// All material textures using a cube map.
+	std::vector<RAS_Texture *> m_textureUsers;
 
 	/** The camera used for realtime cube map render.
 	 * This camera is own by the cube map manager.
@@ -56,7 +60,10 @@ public:
 	KX_CubeMapManager(KX_Scene *scene);
 	virtual ~KX_CubeMapManager();
 
-	void AddCubeMap(KX_CubeMap *cubeMap);
+	/** Add and create a cube map if none existing cube map was using the same
+	 * texture containing in the material texture passed.
+	 */
+	void AddCubeMap(RAS_Texture *texture, KX_GameObject *gameobj);
 	/// Invalidate cube map using the given game object as viewpoint object.
 	void InvalidateCubeMapViewpoint(KX_GameObject *gameobj);
 

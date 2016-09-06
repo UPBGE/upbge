@@ -1798,8 +1798,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 				for (unsigned short l = 0; l < RAS_Texture::MaxUnits; ++l) {
 					RAS_Texture *tex = polymat->GetTexture(l);
 
-					if (tex && tex->Ok() && tex->IsCubeMap() && tex->GetMTex()->tex->env->stype == ENV_REALT) {
-						EnvMap *env = tex->GetMTex()->tex->env;
+					if (tex && tex->Ok() && tex->IsCubeMap() && tex->GetTex()->env->stype == ENV_REALT) {
+						EnvMap *env = tex->GetTex()->env;
 						KX_GameObject *viewpoint = gameobj;
 
 						if (env->object) {
@@ -1809,8 +1809,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							}
 						}
 
-						KX_CubeMap *cubeMap = new KX_CubeMap(tex, viewpoint);
-						kxscene->GetCubeMapManager()->AddCubeMap(cubeMap);
+						kxscene->GetCubeMapManager()->AddCubeMap(tex, viewpoint);
 					}
 				}
 			}

@@ -62,7 +62,13 @@ private:
 	void GetValidTexture();
 
 protected:
-	/// The material texture owning the cube map texture.
+	/** One of the material texture owning the cube map texture.
+	 * This material texture is used to get its gpu texture, image.
+	 * These values are shared between all materail textures of one
+	 * one texture. In the same way the CheckValidTexture from
+	 * RAS_Texture produce the same result with an other material
+	 * texture using a common texture.
+	 */
 	RAS_Texture *m_texture;
 
 public:
@@ -71,6 +77,8 @@ public:
 
 	RAS_CubeMap(RAS_Texture *texture);
 	virtual ~RAS_CubeMap();
+
+	RAS_Texture *GetTexture() const;
 
 	void BeginRender();
 	void EndRender();

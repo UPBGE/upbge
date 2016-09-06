@@ -139,6 +139,11 @@ MTex *BL_Texture::GetMTex() const
 	return m_mtex;
 }
 
+Tex *BL_Texture::GetTex() const
+{
+	return m_mtex->tex;
+}
+
 Image *BL_Texture::GetImage() const
 {
 	return m_mtex->tex->ima;
