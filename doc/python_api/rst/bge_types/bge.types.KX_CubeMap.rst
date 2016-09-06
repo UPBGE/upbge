@@ -28,6 +28,9 @@ base class --- :class:`CValue`
       cubemap.clipStart = 5.0
       cubemap.clipEnd = 20.0
 
+      # Disable render on third layer.
+      cubemap.ignoreLayers = (1 << 2)
+
       # Disable per frame update.
       cubemap.autoUpdate = False
       # Ask to update for this frame only.
