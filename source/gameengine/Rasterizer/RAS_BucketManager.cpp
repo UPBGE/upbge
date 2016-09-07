@@ -69,6 +69,7 @@ bool RAS_BucketManager::fronttoback::operator()(const sortedmeshslot &a, const s
 
 RAS_BucketManager::RAS_BucketManager()
 {
+	ClearNumActiveMeshSlotsCache();
 }
 
 RAS_BucketManager::~RAS_BucketManager()
@@ -82,12 +83,28 @@ RAS_BucketManager::~RAS_BucketManager()
 
 unsigned int RAS_BucketManager::GetNumActiveMeshSlots(BucketType bucketType)
 {
-	unsigned int count = 0;
+	int count = m_cachedNumActiveMeshSlots[bucketType];
+	if (count != -1) {
+		return count;
+	}
+
+	count = 0;
 	BucketList& buckets = m_buckets[bucketType];
 	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
 		count += (*it)->GetNumActiveMeshSlots();
 	}
+
+	// Update cache value.
+	m_cachedNumActiveMeshSlots[bucketType] = count;
+
 	return count;
+}
+
+void RAS_BucketManager::ClearNumActiveMeshSlotsCache()
+{
+	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
+		m_cachedNumActiveMeshSlots[i] = -1;
+	}
 }
 
 void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, RAS_BucketManager::BucketType bucketType,
@@ -201,6 +218,8 @@ void RAS_BucketManager::RenderBasicBuckets(const MT_Transform& cameratrans, RAS_
 
 void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)
 {
+	ClearNumActiveMeshSlotsCache();
+
 	switch (rasty->GetDrawingMode()) {
 		case RAS_IRasterizer::RAS_SHADOW:
 		{

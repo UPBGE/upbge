@@ -80,6 +80,10 @@ protected:
 	};
 
 	BucketList m_buckets[NUM_BUCKET_TYPE];
+	/** Cached values computed by GetNumActiveMeshSlots.
+	 * -1 mean that the cache value is invalid.
+	 */
+	int m_cachedNumActiveMeshSlots[NUM_BUCKET_TYPE];
 
 public:
 	RAS_BucketManager();
@@ -104,6 +108,9 @@ public:
 
 private:
 	unsigned int GetNumActiveMeshSlots(BucketType bucketType);
+	/// Clear the active mesh count cache.
+	void ClearNumActiveMeshSlotsCache();
+
 	void OrderBuckets(const MT_Transform& cameratrans, RAS_BucketManager::BucketType bucketType,
 	                  std::vector<sortedmeshslot>& slots, bool alpha, RAS_IRasterizer *rasty);
 
