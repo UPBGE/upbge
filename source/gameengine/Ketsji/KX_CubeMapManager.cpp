@@ -152,7 +152,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 
 void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
 {
-	if (m_cubeMaps.size() == 0) {
+	if (m_cubeMaps.size() == 0 || rasty->GetDrawingMode() != RAS_IRasterizer::RAS_TEXTURED) {
 		return;
 	}
 
