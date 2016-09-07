@@ -88,7 +88,7 @@ base class --- :class:`SCA_IObject`
 
    .. attribute:: suspendPhysics
 
-      Suspend/Restore object's physics.
+      Suspend/Restore object's physics. If the physics is suspended, physics attributes/methods can't be set/executed.
 
       :type: boolean
 
