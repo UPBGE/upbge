@@ -1788,15 +1788,15 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	for (CListValue::iterator it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
 		KX_GameObject *gameobj = (KX_GameObject*)*it;
 
-		for (unsigned short j = 0, meshcount = gameobj->GetMeshCount(); j < meshcount; ++j) {
-			RAS_MeshObject *mesh = gameobj->GetMesh(j);
+		for (unsigned short i = 0, meshcount = gameobj->GetMeshCount(); i < meshcount; ++i) {
+			RAS_MeshObject *mesh = gameobj->GetMesh(i);
 
-			for (unsigned short k = 0, matcount = mesh->NumMaterials(); k < matcount; ++k) {
-				RAS_MeshMaterial *meshmat = mesh->GetMeshMaterial(k);
+			for (unsigned short j = 0, matcount = mesh->NumMaterials(); j < matcount; ++j) {
+				RAS_MeshMaterial *meshmat = mesh->GetMeshMaterial(j);
 				RAS_IPolyMaterial *polymat = meshmat->m_bucket->GetPolyMaterial();
 
-				for (unsigned short l = 0; l < RAS_Texture::MaxUnits; ++l) {
-					RAS_Texture *tex = polymat->GetTexture(l);
+				for (unsigned short k = 0; k < RAS_Texture::MaxUnits; ++k) {
+					RAS_Texture *tex = polymat->GetTexture(k);
 
 					if (tex && tex->Ok() && tex->IsCubeMap() && tex->GetTex()->env->stype == ENV_REALT) {
 						EnvMap *env = tex->GetTex()->env;

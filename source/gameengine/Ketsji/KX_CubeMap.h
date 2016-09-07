@@ -30,9 +30,9 @@
 #include "RAS_CubeMap.h"
 #include "EXP_Value.h"
 
-struct EnvMap;
-
 class KX_GameObject;
+
+struct EnvMap;
 
 class KX_CubeMap : public CValue, public RAS_CubeMap
 {

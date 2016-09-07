@@ -645,8 +645,9 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
             col.prop(env, "clip_start", text="Start")
             col.prop(env, "clip_end", text="End")
 
-            row = layout.row()
-            row.prop(env, "filtering", expand=False)
+            if env.source == 'REALTIME':
+                row = layout.row()
+                row.prop(env, "filtering", expand=False)
 
 
 class TEXTURE_PT_envmap_sampling(TextureTypePanel, Panel):
