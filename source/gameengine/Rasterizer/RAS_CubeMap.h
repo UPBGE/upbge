@@ -29,6 +29,8 @@
 
 #include "MT_Matrix4x4.h"
 
+#include <vector>
+
 class RAS_Texture;
 class RAS_IRasterizer;
 
@@ -62,23 +64,19 @@ private:
 	void GetValidTexture();
 
 protected:
-	/** One of the material texture owning the cube map texture.
-	 * This material texture is used to get its gpu texture, image.
-	 * These values are shared between all materail textures of one
-	 * one texture. In the same way the CheckValidTexture from
-	 * RAS_Texture produce the same result with an other material
-	 * texture using a common texture.
-	 */
-	RAS_Texture *m_texture;
+	/// All the material texture users.
+	std::vector<RAS_Texture *> m_textureUsers;
 
 public:
 	/// Face view matrices in 3x3 matrices.
 	static const MT_Matrix3x3 faceViewMatrices3x3[NUM_FACES];
 
-	RAS_CubeMap(RAS_Texture *texture);
+	RAS_CubeMap();
 	virtual ~RAS_CubeMap();
 
-	RAS_Texture *GetTexture() const;
+	const std::vector<RAS_Texture *>& GetTextureUsers() const;
+
+	void AddTextureUser(RAS_Texture *texture);
 
 	void BeginRender();
 	void EndRender();

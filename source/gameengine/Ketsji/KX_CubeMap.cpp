@@ -32,8 +32,8 @@
 
 #include "DNA_texture_types.h"
 
-KX_CubeMap::KX_CubeMap(RAS_Texture *texture, KX_GameObject *viewpoint)
-	:RAS_CubeMap(texture),
+KX_CubeMap::KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint)
+	:RAS_CubeMap(),
 	m_viewpointObject(viewpoint),
 	m_invalidProjection(true),
 	m_enabled(true),
@@ -43,9 +43,6 @@ KX_CubeMap::KX_CubeMap(RAS_Texture *texture, KX_GameObject *viewpoint)
 	m_autoUpdate(true),
 	m_forceUpdate(true)
 {
-	MTex *mtex = m_texture->GetMTex();
-	EnvMap *env = mtex->tex->env;
-
 	m_ignoreLayers = env->notlay;
 
 	m_clipStart = env->clipsta;
@@ -58,9 +55,10 @@ KX_CubeMap::~KX_CubeMap()
 {
 }
 
+static STR_String cubeMapName = "KX_CubeMap";
 STR_String& KX_CubeMap::GetName()
 {
-	return m_texture->GetName();
+	return cubeMapName;
 }
 
 KX_GameObject *KX_CubeMap::GetViewpointObject() const

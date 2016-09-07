@@ -43,9 +43,6 @@ private:
 	/// All existing realtime cube maps of this scene.
 	std::vector<KX_CubeMap *> m_cubeMaps;
 
-	/// All material textures using a cube map.
-	std::vector<RAS_Texture *> m_textureUsers;
-
 	/** The camera used for realtime cube map render.
 	 * This camera is own by the cube map manager.
 	 */

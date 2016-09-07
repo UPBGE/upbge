@@ -84,16 +84,14 @@ static const GLenum cubeMapTargets[RAS_CubeMap::NUM_FACES] = {
 	GL_TEXTURE_CUBE_MAP_NEGATIVE_Y_ARB,
 };
 
-RAS_CubeMap::RAS_CubeMap(RAS_Texture *texture)
+RAS_CubeMap::RAS_CubeMap()
 	:m_gpuTex(NULL),
-	m_useMipmap(false),
-	m_texture(texture)
+	m_useMipmap(false)
 {
 	for (unsigned short i = 0; i < NUM_FACES; ++i) {
 		m_fbos[i] = NULL;
 		m_rbs[i] = NULL;
 	}
-	GetValidTexture();
 }
 
 RAS_CubeMap::~RAS_CubeMap()
@@ -103,7 +101,12 @@ RAS_CubeMap::~RAS_CubeMap()
 	/* This call has for side effect to ask regeneration of all textures
 	 * depending of this image.
 	 */
-	GPU_free_image(m_texture->GetImage());
+	for (std::vector<RAS_Texture *>::iterator it = m_textureUsers.begin(), end = m_textureUsers.end(); it != end; ++it) {
+		RAS_Texture *texture = *it;
+		// Invalidate the cube map in each material texture users.
+		texture->SetCubeMap(NULL);
+		GPU_free_image(texture->GetImage());
+	}
 }
 
 void RAS_CubeMap::AttachTexture()
@@ -150,8 +153,11 @@ void RAS_CubeMap::DetachTexture()
 
 void RAS_CubeMap::GetValidTexture()
 {
-	m_texture->CheckValidTexture();
-	GPUTexture *gputex = m_texture->GetGPUTexture();
+	BLI_assert(m_textureUsers.size() > 0);
+
+	RAS_Texture *texture = m_textureUsers[0];
+	texture->CheckValidTexture();
+	GPUTexture *gputex = texture->GetGPUTexture();
 
 	if (m_gpuTex == gputex) {
 		// The gpu texture is the same.
@@ -164,7 +170,7 @@ void RAS_CubeMap::GetValidTexture()
 
 	AttachTexture();
 
-	EnvMap *env = m_texture->GetMTex()->tex->env;
+	EnvMap *env = texture->GetMTex()->tex->env;
 	m_useMipmap = (env->filtering == ENVMAP_MIPMAP_MIPMAP) && GPU_get_mipmap();
 
 	if (!m_useMipmap) {
@@ -175,9 +181,15 @@ void RAS_CubeMap::GetValidTexture()
 	}
 }
 
-RAS_Texture *RAS_CubeMap::GetTexture() const
+const std::vector<RAS_Texture *>& RAS_CubeMap::GetTextureUsers() const
 {
-	return m_texture;
+	return m_textureUsers;
+}
+
+void RAS_CubeMap::AddTextureUser(RAS_Texture *texture)
+{
+	m_textureUsers.push_back(texture);
+	texture->SetCubeMap(this);
 }
 
 void RAS_CubeMap::BeginRender()

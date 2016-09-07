@@ -30,6 +30,8 @@
 #include "RAS_CubeMap.h"
 #include "EXP_Value.h"
 
+struct EnvMap;
+
 class KX_GameObject;
 
 class KX_CubeMap : public CValue, public RAS_CubeMap
@@ -64,7 +66,7 @@ private:
 	bool m_forceUpdate;
 
 public:
-	KX_CubeMap(RAS_Texture *texture, KX_GameObject *viewpoint);
+	KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint);
 	virtual ~KX_CubeMap();
 
 	virtual STR_String& GetName();

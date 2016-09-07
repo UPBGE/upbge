@@ -35,6 +35,8 @@
 #include "RAS_IRasterizer.h"
 #include "RAS_Texture.h"
 
+#include "DNA_texture_types.h"
+
 KX_CubeMapManager::KX_CubeMapManager(KX_Scene *scene)
 	:m_scene(scene)
 {
@@ -44,11 +46,6 @@ KX_CubeMapManager::KX_CubeMapManager(KX_Scene *scene)
 
 KX_CubeMapManager::~KX_CubeMapManager()
 {
-	for (std::vector<RAS_Texture *>::iterator it = m_textureUsers.begin(), end = m_textureUsers.end(); it != end; ++it) {
-		// Invalidate the cube map in each material texture users.
-		(*it)->SetCubeMap(NULL);
-	}
-
 	for (std::vector<KX_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
 		delete *it;
 	}
@@ -58,17 +55,20 @@ KX_CubeMapManager::~KX_CubeMapManager()
 
 void KX_CubeMapManager::AddCubeMap(RAS_Texture *texture, KX_GameObject *gameobj)
 {
-	m_textureUsers.push_back(texture);
-
 	for (std::vector<KX_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
 		KX_CubeMap *cubeMap = *it;
-		if (cubeMap->GetTexture()->GetTex() == texture->GetTex()) {
-			texture->SetCubeMap(cubeMap);
-			return;
+		const std::vector<RAS_Texture *>& textures = cubeMap->GetTextureUsers();
+		for (std::vector<RAS_Texture *>::const_iterator it = textures.begin(), end = textures.end(); it != end; ++it) {
+			if ((*it)->GetTex() == texture->GetTex()) {
+				cubeMap->AddTextureUser(texture);
+				return;
+			}
 		}
 	}
 
-	KX_CubeMap *cubeMap = new KX_CubeMap(texture, gameobj);
+	EnvMap *env = texture->GetTex()->env;
+	KX_CubeMap *cubeMap = new KX_CubeMap(env, gameobj);
+	cubeMap->AddTextureUser(texture);
 	texture->SetCubeMap(cubeMap);
 	m_cubeMaps.push_back(cubeMap);
 }
