@@ -33,7 +33,6 @@
 #include "glew-mx.h"
 
 VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
-	:m_vaoInitialized(false)
 {
 	m_data = arrayBucket->GetDisplayArray();
 	m_size = m_data->GetVertexCount();
@@ -47,8 +46,11 @@ VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
 	// Generate Buffers
 	glGenBuffersARB(1, &m_ibo);
 	glGenBuffersARB(1, &m_vbo_id);
-	// Generate Vertex Array Object
-	glGenVertexArrays(1, &m_vao);
+
+	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_DRAW_MAX; ++i) {
+		m_vaos[i] = 0;
+		m_vaoInitialized[i] = false;
+	}
 
 	// Fill the buffers with initial data
 	UpdateIndices();
@@ -66,8 +68,10 @@ VBO::~VBO()
 {
 	glDeleteBuffersARB(1, &m_ibo);
 	glDeleteBuffersARB(1, &m_vbo_id);
-	if (m_vao) {
-		glDeleteVertexArrays(1, &m_vao);
+	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_DRAW_MAX; ++i) {
+		if (m_vaos[i]) {
+			glDeleteVertexArrays(1, &m_vaos[i]);
+		}
 	}
 }
 
@@ -89,7 +93,7 @@ void VBO::UpdateIndices()
 void VBO::SetMeshModified(RAS_IRasterizer::DrawType drawType, bool modified)
 {
 	if (modified) {
-		m_vaoInitialized = false;
+		m_vaoInitialized[drawType] = false;
 	}
 }
 
@@ -97,11 +101,15 @@ void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 			   int *attrib_layer, RAS_IRasterizer::DrawType drawingmode)
 {
 	if (m_useVao) {
-		glBindVertexArray(m_vao);
-		if (m_vaoInitialized) {
+		if (!m_vaos[drawingmode]) {
+			// Generate Vertex Array Object
+			glGenVertexArrays(1, &m_vaos[drawingmode]);
+		}
+		glBindVertexArray(m_vaos[drawingmode]);
+		if (m_vaoInitialized[drawingmode]) {
 			return;
 		}
-		m_vaoInitialized = true;
+		m_vaoInitialized[drawingmode] = true;
 	}
 
 	bool wireframe = (drawingmode == RAS_IRasterizer::RAS_WIREFRAME);

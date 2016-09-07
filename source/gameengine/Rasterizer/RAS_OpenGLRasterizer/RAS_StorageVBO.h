@@ -61,12 +61,12 @@ private:
 	GLenum m_mode;
 	GLuint m_ibo;
 	GLuint m_vbo_id;
-	/// The VAO id allocated by OpenGL.
-	GLuint m_vao;
+	/// The VAOs id allocated by OpenGL.
+	GLuint m_vaos[RAS_IRasterizer::RAS_DRAW_MAX];
 	/// Set to true when the VBO can use VAO (the GPU support VAO and there's no geometry instancing).
 	bool m_useVao;
 	/// Set to true when the VAO was already filled in a VBO::Bind() call.
-	bool m_vaoInitialized;
+	bool m_vaoInitialized[RAS_IRasterizer::RAS_DRAW_MAX];
 
 	void *m_vertex_offset;
 	void *m_normal_offset;
