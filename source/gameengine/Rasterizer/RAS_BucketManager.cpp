@@ -227,12 +227,20 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 
+			/* Rendering solid regular materials with an override shader for
+			 * variance shadow or an empty shader.
+			 */
+
 			if (GetNumActiveMeshSlots(SOLID_SHADOW_BUCKET) != 0) {
 				rasty->SetOverrideShader(isVarianceShadow ?
 				                         RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE :
 				                         RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
 			}
 			RenderBasicBuckets(cameratrans, rasty, SOLID_SHADOW_BUCKET);
+
+			/* Rendering solid instancing materials with a different override
+			 * shader for variance and simple shadow.
+			 */
 
 			if (GetNumActiveMeshSlots(SOLID_SHADOW_INSTANCING_BUCKET) != 0) {
 				rasty->SetOverrideShader(isVarianceShadow ?
@@ -242,23 +250,33 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			RenderBasicBuckets(cameratrans, rasty, SOLID_SHADOW_INSTANCING_BUCKET);
 
 			if (isVarianceShadow) {
+				/* Rendering alpha shadow instancing materials with an override
+				 * shader for variance shadow.
+				 */
+
 				if (GetNumActiveMeshSlots(ALPHA_SHADOW_INSTANCING_BUCKET) != 0) {
 					rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING);
 				}
 				RenderBasicBuckets(cameratrans, rasty, ALPHA_SHADOW_INSTANCING_BUCKET);
 
+				/* Rendering alpha shadow regular materials with an override
+				 * shader for variance shadow and ordering.
+				 */
+
 				if (GetNumActiveMeshSlots(ALPHA_SHADOW_BUCKET) != 0) {
 					rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE);
 				}
-
 				RenderSortedBuckets(cameratrans, rasty, ALPHA_SHADOW_BUCKET);
 
 				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE);
 			}
 			else {
+				// Rendering alpha shadow materials (including instancing) with their shaders.
+
 				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE);
 
 				RenderBasicBuckets(cameratrans, rasty, ALPHA_SHADOW_INSTANCING_BUCKET);
+				// Render alpha shadow regular materials with ordering.
 				RenderSortedBuckets(cameratrans, rasty, ALPHA_SHADOW_BUCKET);
 			}
 
@@ -268,18 +286,23 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 		{
 			rasty->SetLines(true);
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
+
+			// Rendering solid regular materials with an empty override shader.
+
 			if (GetNumActiveMeshSlots(SOLID_BUCKET) != 0) {
 				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
 			}
-
 			RenderBasicBuckets(cameratrans, rasty, SOLID_BUCKET);
+
+			/* Rendering solid, alpha and alpha depth instancing materials
+			 * with an override shader.
+			 */
 
 			if ((GetNumActiveMeshSlots(SOLID_INSTANCING_BUCKET) +
 				GetNumActiveMeshSlots(ALPHA_INSTANCING_BUCKET) +
 				GetNumActiveMeshSlots(ALPHA_DEPTH_INSTANCING_BUCKET)) != 0) {
 				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC_INSTANCING);
 			}
-
 			RenderBasicBuckets(cameratrans, rasty, SOLID_INSTANCING_BUCKET);
 
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
@@ -287,10 +310,13 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
 			RenderBasicBuckets(cameratrans, rasty, ALPHA_DEPTH_INSTANCING_BUCKET);
 
+			/* Rendering alpha and alpha depth regular materials with
+			 * an empty shader and ordering.
+			 */
+
 			if ((GetNumActiveMeshSlots(ALPHA_BUCKET) + GetNumActiveMeshSlots(ALPHA_DEPTH_BUCKET)) != 0) {
 				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
 			}
-
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_DEPTH_BUCKET);
 
@@ -304,6 +330,10 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 		case RAS_IRasterizer::RAS_DRAW_MAX:
 		case RAS_IRasterizer::RAS_TEXTURED:
 		{
+			/* Rendering solid and alpha (regular and instancing) materials
+			 * with their shaders.
+			 */
+
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 
 			RenderBasicBuckets(cameratrans, rasty, SOLID_BUCKET);
@@ -314,7 +344,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
 
-			// Render soft particles after all other meshes.
+			// Render soft particles after all other materials.
 			if ((GetNumActiveMeshSlots(ALPHA_DEPTH_BUCKET) + GetNumActiveMeshSlots(ALPHA_DEPTH_INSTANCING_BUCKET)) > 0) {
 				rasty->UpdateGlobalDepthTexture();
 
