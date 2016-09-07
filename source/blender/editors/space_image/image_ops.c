@@ -2460,7 +2460,7 @@ static int image_new_exec(bContext *C, wmOperator *op)
 		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);		
 	}
 	else {
-		if (tex && tex->type == TEX_IMAGE) {
+		if (tex && (tex->type == TEX_IMAGE || tex->type == TEX_ENVMAP)) {
 			if (tex->ima)
 				id_us_min(&tex->ima->id);
 			tex->ima = ima;
