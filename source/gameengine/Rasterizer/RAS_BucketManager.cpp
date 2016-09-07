@@ -274,7 +274,9 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 
 			RenderBasicBuckets(cameratrans, rasty, SOLID_BUCKET);
 
-			if ((GetNumActiveMeshSlots(SOLID_INSTANCING_BUCKET) + GetNumActiveMeshSlots(ALPHA_INSTANCING_BUCKET)) != 0) {
+			if ((GetNumActiveMeshSlots(SOLID_INSTANCING_BUCKET) +
+				GetNumActiveMeshSlots(ALPHA_INSTANCING_BUCKET) +
+				GetNumActiveMeshSlots(ALPHA_DEPTH_INSTANCING_BUCKET)) != 0) {
 				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC_INSTANCING);
 			}
 
@@ -283,12 +285,14 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
 
 			RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
+			RenderBasicBuckets(cameratrans, rasty, ALPHA_DEPTH_INSTANCING_BUCKET);
 
-			if (GetNumActiveMeshSlots(ALPHA_BUCKET)) {
+			if ((GetNumActiveMeshSlots(ALPHA_BUCKET) + GetNumActiveMeshSlots(ALPHA_DEPTH_BUCKET)) != 0) {
 				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
 			}
 
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
+			RenderSortedBuckets(cameratrans, rasty, ALPHA_DEPTH_BUCKET);
 
 			rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE);
 
