@@ -200,13 +200,6 @@ public:
 			+ m_el[3][c] * v[3];
     }
 
-	MT_Matrix3x3 to3x3() const
-	{
-		return MT_Matrix3x3(m_el[0][0], m_el[0][1], m_el[0][2],
-							m_el[1][0], m_el[1][1], m_el[1][2],
-							m_el[2][0], m_el[2][1], m_el[2][2]);
-	}
-
 	/* I'll postpone this for now... - nzc*/ 
 /*      MT_Scalar    determinant() const; */
 /*  	MT_Matrix4x4 adjoint() const; */
