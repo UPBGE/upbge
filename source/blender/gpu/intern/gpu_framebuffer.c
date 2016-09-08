@@ -51,6 +51,8 @@ struct GPUFrameBuffer {
 	GLuint object;
 	GPUTexture *colortex[GPU_FB_MAX_SLOTS];
 	GPUTexture *depthtex;
+	GPURenderBuffer *colorrb[GPU_FB_MAX_SLOTS];
+	GPURenderBuffer *depthrb;
 };
 
 static void GPU_print_framebuffer_error(GLenum status, char err_out[256])
@@ -129,6 +131,11 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 
 int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, int slot, char err_out[256])
 {
+	return GPU_framebuffer_texture_attach_target(fb, tex, GPU_texture_target(tex), slot, err_out);
+}
+
+int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, int target, int slot, char err_out[256])
+{
 	GLenum attachment;
 	GLenum error;
 
@@ -159,7 +166,7 @@ int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, int slot
 	while (glGetError() != GL_NO_ERROR) {}
 
 	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment, 
-		GPU_texture_target(tex), GPU_texture_opengl_bindcode(tex), 0);
+		target, GPU_texture_opengl_bindcode(tex), 0);
 
 	error = glGetError();
 
@@ -180,6 +187,11 @@ int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, int slot
 }
 
 void GPU_framebuffer_texture_detach(GPUTexture *tex)
+{
+	GPU_framebuffer_texture_detach_target(tex, GPU_texture_target(tex));
+}
+
+void GPU_framebuffer_texture_detach_target(GPUTexture *tex, int target)
 {
 	GLenum attachment;
 	GPUFrameBuffer *fb = GPU_texture_framebuffer(tex);
@@ -203,7 +215,7 @@ void GPU_framebuffer_texture_detach(GPUTexture *tex)
 		attachment = GL_COLOR_ATTACHMENT0_EXT + fb_attachment;
 	}
 
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment, GPU_texture_target(tex), 0, 0);
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment, target, 0, 0);
 
 	GPU_texture_framebuffer_set(tex, NULL, -1);
 }
@@ -354,6 +366,13 @@ int GPU_framebuffer_renderbuffer_attach(GPUFrameBuffer *fb, GPURenderBuffer *rb,
 	GLenum attachement;
 	GLenum error;
 
+	if (slot >= GPU_FB_MAX_SLOTS) {
+		fprintf(stderr,
+		        "Attaching to index %d framebuffer slot unsupported. "
+		        "Use at most %d\n", slot, GPU_FB_MAX_SLOTS);
+		return 0;
+	}
+
 	if (GPU_renderbuffer_depth(rb)) {
 		attachement = GL_DEPTH_ATTACHMENT_EXT;
 	}
@@ -377,7 +396,43 @@ int GPU_framebuffer_renderbuffer_attach(GPUFrameBuffer *fb, GPURenderBuffer *rb,
 		return 0;
 	}
 
+	if (GPU_renderbuffer_depth(rb))
+		fb->depthrb = rb;
+	else
+		fb->colorrb[slot] = rb;
+
+	GPU_renderbuffer_framebuffer_set(rb, fb, slot);
+
 	return 1;
+}
+
+void GPU_framebuffer_renderbuffer_detach(GPURenderBuffer *rb)
+{
+	GLenum attachment;
+	GPUFrameBuffer *fb = GPU_renderbuffer_framebuffer(rb);
+	int fb_attachment = GPU_renderbuffer_framebuffer_attachment(rb);
+
+	if (!fb)
+		return;
+
+	if (GG.currentfb != fb->object) {
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+		GG.currentfb = fb->object;
+	}
+
+	if (GPU_renderbuffer_depth(rb)) {
+		fb->depthrb = NULL;
+		attachment = GL_DEPTH_ATTACHMENT_EXT;
+	}
+	else {
+		BLI_assert(fb->colorrb[fb_attachment] == rb);
+		fb->colorrb[fb_attachment] = NULL;
+		attachment = GL_COLOR_ATTACHMENT0_EXT + fb_attachment;
+	}
+
+	glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, attachment, GL_RENDERBUFFER_EXT, 0);
+
+	GPU_renderbuffer_framebuffer_set(rb, NULL, -1);
 }
 
 void GPU_framebuffer_free(GPUFrameBuffer *fb)
@@ -389,6 +444,15 @@ void GPU_framebuffer_free(GPUFrameBuffer *fb)
 	for (i = 0; i < GPU_FB_MAX_SLOTS; i++) {
 		if (fb->colortex[i]) {
 			GPU_framebuffer_texture_detach(fb->colortex[i]);
+		}
+	}
+
+	if (fb->depthrb)
+		GPU_framebuffer_renderbuffer_detach(fb->depthrb);
+
+	for (i = 0; i < GPU_FB_MAX_SLOTS; i++) {
+		if (fb->colorrb[i]) {
+			GPU_framebuffer_renderbuffer_detach(fb->colorrb[i]);
 		}
 	}
 
@@ -493,6 +557,8 @@ struct GPURenderBuffer {
 	int height;
 	int samples;
 
+	GPUFrameBuffer *fb; /* GPUFramebuffer this render buffer is attached to */
+	int fb_attachment;  /* slot the render buffer is attached to */
 	bool depth;
 	unsigned int bindcode;
 };
@@ -571,6 +637,22 @@ void GPU_renderbuffer_free(GPURenderBuffer *rb)
 	}
 
 	MEM_freeN(rb);
+}
+
+GPUFrameBuffer *GPU_renderbuffer_framebuffer(GPURenderBuffer *rb)
+{
+	return rb->fb;
+}
+
+int GPU_renderbuffer_framebuffer_attachment(GPURenderBuffer *rb)
+{
+	return rb->fb_attachment;
+}
+
+void GPU_renderbuffer_framebuffer_set(GPURenderBuffer *rb, GPUFrameBuffer *fb, int attachement)
+{
+	rb->fb = fb;
+	rb->fb_attachment = attachement;
 }
 
 int GPU_renderbuffer_bindcode(const GPURenderBuffer *rb)

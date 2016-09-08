@@ -23,21 +23,22 @@
  */
 
 #include "BL_Texture.h"
+#include "KX_CubeMap.h"
 
 #include "DNA_texture_types.h"
 
 #include "GPU_texture.h"
 #include "GPU_draw.h"
 
-BL_Texture::BL_Texture(MTex *mtex, bool cubemap)
+BL_Texture::BL_Texture(MTex *mtex, bool isCubeMap)
 	:CValue(),
-	m_cubeMap(cubemap),
+	m_isCubeMap(isCubeMap),
 	m_mtex(mtex)
 {
 	Tex *tex = m_mtex->tex;
 	Image *ima = tex->ima;
 	ImageUser& iuser = tex->iuser;
-	const int gltextarget = m_cubeMap ? GetCubeMapTextureType() : GetTexture2DType();
+	const int gltextarget = m_isCubeMap ? GetCubeMapTextureType() : GetTexture2DType();
 
 	m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : NULL);
 
@@ -97,13 +98,13 @@ void BL_Texture::CheckValidTexture()
 	 * The gpu texture in the image can be NULL or an already different loaded
 	 * gpu texture. In both cases we call GPU_texture_from_blender.
 	 */
-	int target = m_cubeMap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
+	int target = m_isCubeMap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
 	if (m_gpuTex != m_mtex->tex->ima->gputexture[target]) {
 		Tex *tex = m_mtex->tex;
 		Image *ima = tex->ima;
 		ImageUser& iuser = tex->iuser;
 
-		const int gltextarget = m_cubeMap ? GetCubeMapTextureType() : GetTexture2DType();
+		const int gltextarget = m_isCubeMap ? GetCubeMapTextureType() : GetTexture2DType();
 
 		// Restore gpu texture original bind cdoe to make sure we will delete the right opengl texture.
 		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
@@ -128,6 +129,11 @@ bool BL_Texture::Ok() const
 	return (m_gpuTex != NULL);
 }
 
+bool BL_Texture::IsCubeMap() const
+{
+	return m_isCubeMap;
+}
+
 MTex *BL_Texture::GetMTex() const
 {
 	return m_mtex;
@@ -136,6 +142,11 @@ MTex *BL_Texture::GetMTex() const
 Image *BL_Texture::GetImage() const
 {
 	return m_mtex->tex->ima;
+}
+
+GPUTexture *BL_Texture::GetGPUTexture() const
+{
+	return m_gpuTex;
 }
 
 unsigned int BL_Texture::GetTextureType()
@@ -215,6 +226,7 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxStep", BL_Texture, pyattr_get_parallax_step, pyattr_set_parallax_step),
 	KX_PYATTRIBUTE_RW_FUNCTION("lodBias", BL_Texture, pyattr_get_lod_bias, pyattr_set_lod_bias),
 	KX_PYATTRIBUTE_RW_FUNCTION("bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
+	KX_PYATTRIBUTE_RO_FUNCTION("cubeMap", BL_Texture, pyattr_get_cube_map),
 	{ NULL }    //Sentinel
 };
 
@@ -477,6 +489,17 @@ int BL_Texture::pyattr_set_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *att
 
 	self->m_bindCode = val;
 	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_cube_map(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	KX_CubeMap *cubeMap = (KX_CubeMap *)self->GetCubeMap();
+	if (cubeMap) {
+		return cubeMap->GetProxy();
+	}
+
+	Py_RETURN_NONE;
 }
 
 #endif  // WITH_PYTHON

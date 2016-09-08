@@ -533,8 +533,11 @@ void KX_KetsjiEngine::Render()
 	BeginFrame();
 
 	for (CListValue::iterator sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
+		KX_Scene *scene = (KX_Scene *)*sceit;
 		// shadow buffers
-		RenderShadowBuffers((KX_Scene *)*sceit);
+		RenderShadowBuffers(scene);
+		// cubemaps
+		scene->RenderCubeMaps(m_rasterizer);
 	}
 
 	// Update all off screen to the current canvas size.
@@ -855,7 +858,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 			/* render */
 			m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT | RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
-			scene->RenderBuckets(camtrans, m_rasterizer);
+			scene->RenderBuckets(camtrans, m_rasterizer, true);
 
 			/* unbind framebuffer object, restore drawmode, free camera */
 			raslight->UnbindShadowBuffer();
@@ -1029,7 +1032,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 	scene->RunDrawingCallbacks(scene->GetPreDrawCB());
 #endif
 
-	scene->RenderBuckets(camtrans, m_rasterizer);
+	scene->RenderBuckets(camtrans, m_rasterizer, false);
 
 	if (scene->GetPhysicsEnvironment())
 		scene->GetPhysicsEnvironment()->DebugDrawWorld();

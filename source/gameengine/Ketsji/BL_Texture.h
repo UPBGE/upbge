@@ -36,7 +36,7 @@ class BL_Texture : public CValue, public RAS_Texture
 {
 	Py_Header
 private:
-	bool m_cubeMap;
+	bool m_isCubeMap;
 	MTex *m_mtex;
 	GPUTexture *m_gpuTex;
 
@@ -57,16 +57,18 @@ private:
 	} m_savedData;
 
 public:
-	BL_Texture(MTex *mtex, bool cubemap);
+	BL_Texture(MTex *mtex, bool isCubeMap);
 	virtual ~BL_Texture();
 
 	// stuff for cvalue related things
 	virtual STR_String& GetName();
 
 	virtual bool Ok() const;
+	virtual bool IsCubeMap() const;
 
 	virtual MTex *GetMTex() const;
 	virtual Image *GetImage() const;
+	virtual GPUTexture *GetGPUTexture() const;
 
 	virtual unsigned int GetTextureType();
 
@@ -75,6 +77,7 @@ public:
 	virtual void CheckValidTexture();
 	virtual void ActivateTexture(int unit);
 	virtual void DisableTexture();
+
 	unsigned int swapTexture(unsigned int bindcode);
 
 #ifdef WITH_PYTHON
@@ -105,6 +108,7 @@ public:
 	static int pyattr_set_lod_bias(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_cube_map(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif  // WITH_PYTHON
 };

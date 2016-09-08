@@ -64,7 +64,9 @@
 #include "RAS_IRasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
+#include "RAS_CubeMap.h"
 #include "KX_2DFilterManager.h"
+#include "KX_CubeMapManager.h"
 #include "RAS_BucketManager.h"
 
 #include "EXP_FloatValue.h"
@@ -202,6 +204,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	
 	m_rootnode = NULL;
 
+	m_cubeMapManager = new KX_CubeMapManager(this);
 	m_bucketmanager=new RAS_BucketManager();
 	
 	bool showObstacleSimulation = (scene->gm.flag & GAME_SHOW_OBSTACLE_SIMULATION) != 0;
@@ -285,6 +288,10 @@ KX_Scene::~KX_Scene()
 	if (m_networkScene)
 		delete m_networkScene;
 	
+	if (m_cubeMapManager) {
+		delete m_cubeMapManager;
+	}
+
 	if (m_bucketmanager)
 	{
 		delete m_bucketmanager;
@@ -319,6 +326,10 @@ RAS_BucketManager* KX_Scene::GetBucketManager()
 	return m_bucketmanager;
 }
 
+KX_CubeMapManager *KX_Scene::GetCubeMapManager()
+{
+	return m_cubeMapManager;
+}
 
 CListValue* KX_Scene::GetTempObjectList()
 {
@@ -1096,6 +1107,8 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 
 	newobj->RemoveMeshes();
 
+	m_cubeMapManager->InvalidateCubeMapViewpoint(newobj);
+
 	ret = 1;
 	if (newobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(newobj))
 		ret = newobj->Release();
@@ -1673,16 +1686,24 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 
 
 void KX_Scene::RenderBuckets(const MT_Transform & cameratransform,
-                             class RAS_IRasterizer* rasty)
+                             class RAS_IRasterizer* rasty, bool renderingshadows)
 {
 	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
 		 * It's done just before the render to be sure of the object color and visibility. */
+		if (!((KX_GameObject *)*it)->GetCastShadows() && renderingshadows) {
+			((KX_GameObject *)*it)->SetCulled(true);
+		}
 		((KX_GameObject *)*it)->UpdateBuckets();
 	}
 
 	m_bucketmanager->Renderbuckets(cameratransform,rasty);
 	KX_BlenderMaterial::EndFrame(rasty);
+}
+
+void KX_Scene::RenderCubeMaps(RAS_IRasterizer *rasty)
+{
+	m_cubeMapManager->Render(rasty);
 }
 
 void KX_Scene::UpdateObjectLods()
