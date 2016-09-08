@@ -474,10 +474,11 @@ typedef struct ColorMapping {
 #define TEX_PR_OTHER	1
 #define TEX_PR_BOTH		2
 
-/* **************** ENVMAP ********************* */
+/* **************** ENVMAP ****************** */
 
 /* flag */
 #define ENVMAP_AUTO_UPDATE	(1 << 0)
+
 /* filtering */
 #define ENVMAP_MIPMAP_NONE		0
 #define ENVMAP_MIPMAP_LINEAR	1

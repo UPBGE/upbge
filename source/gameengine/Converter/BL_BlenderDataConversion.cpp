@@ -1785,6 +1785,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		BL_CreatePhysicsObjectNew(gameobj,blenderobject,meshobj,kxscene,layerMask,converter,processCompoundChildren);
 	}
 
+	// Look at every material texture and ask to create realtime cube map.
 	for (CListValue::iterator it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
 		KX_GameObject *gameobj = (KX_GameObject*)*it;
 

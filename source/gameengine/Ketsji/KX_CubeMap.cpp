@@ -28,8 +28,6 @@
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 
-#include "RAS_Texture.h"
-
 #include "DNA_texture_types.h"
 
 KX_CubeMap::KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint)
@@ -208,11 +206,12 @@ int KX_CubeMap::pyattr_set_clip_start(void *self_v, const KX_PYATTRIBUTE_DEF *at
 {
 	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
 
-	if (!PyFloat_Check(value)) {
+	const float val = PyFloat_AsDouble(value);
+
+	if (val <= 0.0f) {
+		PyErr_SetString(PyExc_AttributeError, "cubeMap.clipStart = float: KX_CubeMap, expected a float grater than zero");
 		return PY_SET_ATTR_FAIL;
 	}
-
-	const float val = PyFloat_AsDouble(value);
 
 	self->SetClipStart(val);
 	self->SetInvalidProjectionMatrix(true);
@@ -230,11 +229,12 @@ int KX_CubeMap::pyattr_set_clip_end(void *self_v, const KX_PYATTRIBUTE_DEF *attr
 {
 	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
 
-	if (!PyFloat_Check(value)) {
+	const float val = PyFloat_AsDouble(value);
+
+	if (val <= 0.0f) {
+		PyErr_SetString(PyExc_AttributeError, "cubeMap.clipEnd = float: KX_CubeMap, expected a float grater than zero");
 		return PY_SET_ATTR_FAIL;
 	}
-
-	const float val = PyFloat_AsDouble(value);
 
 	self->SetClipEnd(val);
 	self->SetInvalidProjectionMatrix(true);

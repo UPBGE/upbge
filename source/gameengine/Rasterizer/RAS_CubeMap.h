@@ -27,7 +27,7 @@
 #ifndef __RAS_CUBEMAP_H__
 #define __RAS_CUBEMAP_H__
 
-#include "MT_Matrix4x4.h"
+#include "MT_Matrix3x3.h"
 
 #include <vector>
 

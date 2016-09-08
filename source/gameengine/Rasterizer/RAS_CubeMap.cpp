@@ -155,6 +155,9 @@ void RAS_CubeMap::GetValidTexture()
 {
 	BLI_assert(m_textureUsers.size() > 0);
 
+	/* The gpu texture returned by all material textures are the same.
+	 * We can so use the first material texture user.
+	 */
 	RAS_Texture *texture = m_textureUsers[0];
 	texture->CheckValidTexture();
 	GPUTexture *gputex = texture->GetGPUTexture();

@@ -30,6 +30,8 @@
 #include "RAS_CubeMap.h"
 #include "EXP_Value.h"
 
+#include "MT_Matrix4x4.h"
+
 class KX_GameObject;
 
 struct EnvMap;
