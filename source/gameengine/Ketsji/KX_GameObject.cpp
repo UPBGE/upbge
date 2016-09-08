@@ -1567,6 +1567,25 @@ void KX_GameObject::Suspend()
 	}
 }
 
+void KX_GameObject::SuspendPhysics()
+{
+	if (GetPhysicsController()) {
+		m_pSavedPhysicsController = (CcdPhysicsController *)GetPhysicsController();
+		CcdPhysicsEnvironment *env = (CcdPhysicsEnvironment *)GetScene()->GetPhysicsEnvironment();
+		env->RemoveCcdPhysicsController((CcdPhysicsController *)GetPhysicsController());
+		m_suspendedPhysics = true;
+	}
+}
+
+void KX_GameObject::ResumePhysics()
+{
+	if (m_pSavedPhysicsController && !GetPhysicsController()) {
+		CcdPhysicsEnvironment *env = (CcdPhysicsEnvironment *)GetScene()->GetPhysicsEnvironment();
+		env->AddCcdPhysicsController(m_pSavedPhysicsController);
+		m_suspendedPhysics = false;
+	}
+}
+
 static void walk_children(SG_Node* node, CListValue* list, bool recursive)
 {
 	if (!node)
@@ -2576,19 +2595,10 @@ int KX_GameObject::pyattr_set_suspend_physics(void *self_v, const KX_PYATTRIBUTE
 
 	bool suspend = PyLong_AsLong(value);
 	if (!suspend) {
-		if (self->m_pSavedPhysicsController && !self->GetPhysicsController()) {
-			CcdPhysicsEnvironment *env = (CcdPhysicsEnvironment *)self->GetScene()->GetPhysicsEnvironment();
-			env->AddCcdPhysicsController(self->m_pSavedPhysicsController);
-			self->m_suspendedPhysics = false;
-		}
+		self->ResumePhysics();
 	}
 	else {
-		if (self->GetPhysicsController()) {
-			self->m_pSavedPhysicsController = (CcdPhysicsController *)self->GetPhysicsController();
-			CcdPhysicsEnvironment *env = (CcdPhysicsEnvironment *)self->GetScene()->GetPhysicsEnvironment();			
-			env->RemoveCcdPhysicsController((CcdPhysicsController *)self->GetPhysicsController());
-			self->m_suspendedPhysics = true;
-		}
+		self->SuspendPhysics();
 	}
 
 	return PY_SET_ATTR_SUCCESS;

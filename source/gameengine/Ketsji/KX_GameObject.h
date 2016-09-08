@@ -610,6 +610,9 @@ public:
 
 	bool IsDynamicsSuspended() const;
 
+	void SuspendPhysics();
+	void ResumePhysics();
+
 	/**
 	 * Check if this object has a vertex parent relationship
 	 */
