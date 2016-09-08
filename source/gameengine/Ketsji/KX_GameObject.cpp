@@ -123,8 +123,7 @@ KX_GameObject::KX_GameObject(
       m_components(NULL),
       m_pInstanceObjects(NULL),
       m_pDupliGroupObject(NULL),
-      m_actionManager(NULL),
-	  m_pSavedPhysicsController(NULL)
+      m_actionManager(NULL)
 #ifdef WITH_PYTHON
     , m_attr_dict(NULL),
     m_collisionCallbacks(NULL)
@@ -1570,7 +1569,6 @@ void KX_GameObject::Suspend()
 void KX_GameObject::SuspendPhysics()
 {
 	if (GetPhysicsController()) {
-		m_pSavedPhysicsController = (CcdPhysicsController *)GetPhysicsController();
 		CcdPhysicsEnvironment *env = (CcdPhysicsEnvironment *)GetScene()->GetPhysicsEnvironment();
 		env->RemoveCcdPhysicsController((CcdPhysicsController *)GetPhysicsController());
 		m_suspendedPhysics = true;
@@ -1579,9 +1577,9 @@ void KX_GameObject::SuspendPhysics()
 
 void KX_GameObject::ResumePhysics()
 {
-	if (m_pSavedPhysicsController && !GetPhysicsController()) {
+	if (!GetPhysicsController()) {
 		CcdPhysicsEnvironment *env = (CcdPhysicsEnvironment *)GetScene()->GetPhysicsEnvironment();
-		env->AddCcdPhysicsController(m_pSavedPhysicsController);
+		env->AddCcdPhysicsController((CcdPhysicsController *)m_pPhysicsController);
 		m_suspendedPhysics = false;
 	}
 }

@@ -112,7 +112,6 @@ protected:
 	bool								m_autoUpdateBounds;
 
 	PHY_IPhysicsController*				m_pPhysicsController;
-	CcdPhysicsController*				m_pSavedPhysicsController;
 	PHY_IGraphicController*				m_pGraphicController;
 
 	SG_Node*							m_pSGNode;
