@@ -63,6 +63,7 @@
 #include "KX_NetworkMessageScene.h"
 
 #include "DEV_Joystick.h" // for DEV_Joystick::HandleEvents
+#include "KX_PythonInit.h" // for updatePythonJoysticks
 
 #include "KX_WorldInfo.h"
 #include "KX_ISceneConverter.h"
@@ -397,7 +398,18 @@ bool KX_KetsjiEngine::NextFrame()
 		}
 #ifdef WITH_SDL
 		// Handle all SDL Joystick events here to share they for all scenes proceed.
-		DEV_Joystick::HandleEvents();
+		short num_updateneeded, index[8], addrem[8];
+		num_updateneeded = DEV_Joystick::HandleEvents(index, addrem);
+		for (int i = 0; i < num_updateneeded; i++) {
+			if (addrem[i] =! 0) {
+				if (addrem[i] == 1) {
+					updatePythonJoysticks(index[i], true);
+				}
+				else {
+					updatePythonJoysticks(index[i], false);
+				}
+			}
+		}
 #endif
 
 		// for each scene, call the proceed functions

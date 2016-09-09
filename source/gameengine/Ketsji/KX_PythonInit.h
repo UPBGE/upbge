@@ -58,6 +58,9 @@ void loadGamePythonConfig();
 
 /// Create a python interpreter and stop the engine until the interpreter is active.
 void createPythonConsole();
+
+// Update Python Joysticks
+void updatePythonJoysticks(short index, bool addrem);
 #endif
 
 void addImportMain(struct Main *maggie);
