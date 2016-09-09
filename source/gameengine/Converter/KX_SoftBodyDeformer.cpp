@@ -69,7 +69,7 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 		return false;
 
 	btSoftBody *softBody = ctrl->GetSoftBody();
-	if (!softBody)
+	if (!softBody || !softBody->isActive())
 		return false;
 
 	//printf("apply\n");
