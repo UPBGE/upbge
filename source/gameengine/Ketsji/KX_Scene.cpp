@@ -73,7 +73,6 @@
 #include "SCA_IController.h"
 #include "SCA_IActuator.h"
 #include "SG_Node.h"
-#include "LA_SystemCommandLine.h"
 #include "SG_Controller.h"
 #include "SG_IObject.h"
 #include "DNA_group_types.h"
@@ -191,14 +190,8 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_logicmgr->RegisterEventManager(m_timemgr);
 	m_logicmgr->RegisterEventManager(basicmgr);
 
-
-	SYS_SystemHandle hSystem = SYS_GetSystem();
-	bool nojoystick= SYS_GetCommandLineInt(hSystem,"nojoystick",0);
-	if (!nojoystick)
-	{
-		SCA_JoystickManager *joymgr	= new SCA_JoystickManager(m_logicmgr);
-		m_logicmgr->RegisterEventManager(joymgr);
-	}
+	SCA_JoystickManager *joymgr = new SCA_JoystickManager(m_logicmgr);
+	m_logicmgr->RegisterEventManager(joymgr);
 
 	m_networkScene = new KX_NetworkMessageScene(messageManager);
 	
