@@ -256,6 +256,7 @@ static void usage(const char* program, bool isBlenderPlayer)
 	printf("       ------------------------------------------------------------------------\n");
 	printf("       fixedtime                      0         \"Enable all frames\"\n");
 	printf("       nomipmap                       0         Disable mipmaps\n");
+	printf("       wireframe                      0         Wireframe render\n");
 	printf("       show_framerate                 0         Show the frame rate\n");
 	printf("       show_properties                0         Show debug properties\n");
 	printf("       show_profile                   0         Show profiling information\n");

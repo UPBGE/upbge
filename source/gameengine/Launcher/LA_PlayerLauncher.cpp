@@ -38,6 +38,7 @@
 #include "GPU_init_exit.h"
 
 #include "LA_PlayerLauncher.h"
+#include "LA_SystemCommandLine.h"
 
 extern "C" {
 #  include "BKE_sound.h"
@@ -301,6 +302,13 @@ bool LA_PlayerLauncher::GetMainLoopPythonCode(char **pythonCode, char **pythonFi
 
 RAS_IRasterizer::DrawType LA_PlayerLauncher::GetRasterizerDrawMode()
 {
+	const SYS_SystemHandle& syshandle = SYS_GetSystem();
+	const bool wireframe = SYS_GetCommandLineInt(syshandle, "wireframe", 0);
+
+	if (wireframe) {
+		return RAS_IRasterizer::RAS_WIREFRAME;
+	}
+
 	return RAS_IRasterizer::RAS_TEXTURED;
 }
 
