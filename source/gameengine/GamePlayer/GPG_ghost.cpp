@@ -248,7 +248,9 @@ static void usage(const char* program, bool isBlenderPlayer)
 #ifdef _WIN32
 	printf("  -c: keep console window open\n\n");
 #endif
-	printf("  -d: turn debugging on\n\n");
+	printf("  -d: debugging options:\n");
+	printf("       memory        Debug memory leaks\n");
+	printf("       gpu           Debug gpu error and warnings\n\n");
 	printf("  -g: game engine options:\n\n");
 	printf("       Name                       Default      Description\n");
 	printf("       ------------------------------------------------------------------------\n");
