@@ -584,6 +584,28 @@ void Mesh::add_vertex_normals()
 	}
 }
 
+void Mesh::add_undisplaced()
+{
+	AttributeSet& attrs = (subdivision_type == SUBDIVISION_NONE) ? attributes : subd_attributes;
+
+	/* don't compute if already there */
+	if(attrs.find(ATTR_STD_POSITION_UNDISPLACED)) {
+		return;
+	}
+
+	/* get attribute */
+	Attribute *attr = attrs.add(ATTR_STD_POSITION_UNDISPLACED);
+	attr->flags |= ATTR_SUBDIVIDED;
+
+	float3 *data = attr->data_float3();
+
+	/* copy verts */
+	size_t size = attr->buffer_size(this, (subdivision_type == SUBDIVISION_NONE) ? ATTR_PRIM_TRIANGLE : ATTR_PRIM_SUBD);
+	if(size) {
+		memcpy(data, verts.data(), size);
+	}
+}
+
 void Mesh::pack_normals(Scene *scene, uint *tri_shader, float4 *vnormal)
 {
 	Attribute *attr_vN = attributes.find(ATTR_STD_VERTEX_NORMAL);
@@ -610,7 +632,7 @@ void Mesh::pack_normals(Scene *scene, uint *tri_shader, float4 *vnormal)
 			last_smooth = smooth[i];
 			Shader *shader = (last_shader < used_shaders.size()) ?
 				used_shaders[last_shader] : scene->default_surface;
-			shader_id = scene->shader_manager->get_shader_id(shader, this, last_smooth);
+			shader_id = scene->shader_manager->get_shader_id(shader, last_smooth);
 		}
 
 		tri_shader[i] = shader_id;
@@ -679,7 +701,7 @@ void Mesh::pack_curves(Scene *scene, float4 *curve_key_co, float4 *curve_data, s
 		int shader_id = curve_shader[i];
 		Shader *shader = (shader_id < used_shaders.size()) ?
 			used_shaders[shader_id] : scene->default_surface;
-		shader_id = scene->shader_manager->get_shader_id(shader, this, false);
+		shader_id = scene->shader_manager->get_shader_id(shader, false);
 
 		curve_data[i] = make_float4(
 			__int_as_float(curve.first_key + curvekey_offset),
@@ -1681,6 +1703,10 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 		if(mesh->need_update) {
 			mesh->add_face_normals();
 			mesh->add_vertex_normals();
+
+			if(mesh->need_attribute(scene, ATTR_STD_POSITION_UNDISPLACED)) {
+				mesh->add_undisplaced();
+			}
 
 			if(progress.get_cancel()) return;
 		}
