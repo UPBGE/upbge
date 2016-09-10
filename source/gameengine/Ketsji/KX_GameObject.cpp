@@ -464,9 +464,9 @@ bool KX_GameObject::IsActionDone(short layer)
 	return GetActionManager()->IsActionDone(layer);
 }
 
-void KX_GameObject::UpdateActionManager(float curtime)
+void KX_GameObject::UpdateActionManager(float curtime, bool applyToObject)
 {
-	GetActionManager()->Update(curtime);
+	GetActionManager()->Update(curtime, applyToObject);
 }
 
 void KX_GameObject::UpdateActionIPOs()

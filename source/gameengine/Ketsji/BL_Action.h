@@ -68,9 +68,11 @@ private:
 	short m_ipo_flags;
 
 	bool m_done;
+	/** Set to true when the last action update applies transformations
+	 * to the object.
+	 */
+	bool m_appliedToObject;
 	bool m_calc_localtime;
-	/// Set to true when m_starttime is initialized in Update.
-	bool m_initializedTime;
 
 	void ClearControllerList();
 	void InitIPO();
@@ -101,8 +103,11 @@ public:
 	bool IsDone();
 	/**
 	 * Update the action's frame, etc.
+	 * \param curtime The current time used to compute the action's' frame.
+	 * \param applyToObject Set to true when the action must be applied to the object,
+	 * else it only manages action's' time/end.
 	 */
-	void Update(float curtime);
+	void Update(float curtime, bool applyToObject);
 	/**
 	 * Update object IPOs (note: not thread-safe!)
 	 */

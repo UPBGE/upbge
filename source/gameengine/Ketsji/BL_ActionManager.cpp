@@ -148,18 +148,15 @@ bool BL_ActionManager::IsActionDone(short layer)
 	return action ? action->IsDone() : true;
 }
 
-void BL_ActionManager::Update(float curtime)
+void BL_ActionManager::Update(float curtime, bool applyToObject)
 {
 	if (m_prevUpdate == curtime)
 		return;
 	m_prevUpdate = curtime;
 
 	BL_ActionMap::iterator it;
-	for (it = m_layers.begin(); it != m_layers.end(); ++it)
-	{
-		if (!it->second->IsDone()) {
-			it->second->Update(curtime);
-		}
+	for (it = m_layers.begin(); it != m_layers.end(); ++it) {
+		it->second->Update(curtime, applyToObject);
 	}
 }
 

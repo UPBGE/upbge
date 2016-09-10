@@ -322,8 +322,10 @@ public:
 
 	/**
 	 * Kick the object's action manager
+	 * \param curtime The current time used to compute the actions frame.
+	 * \param applyObject Set to true if the actions must transform this object, else it only manages actions' frames.
 	 */
-	void UpdateActionManager(float curtime);
+	void UpdateActionManager(float curtime, bool applyObject);
 
 	/**
 	 * Have the action manager update IPOs

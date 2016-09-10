@@ -1579,8 +1579,10 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 		children->Release();
 	}
 
+	// If the object is a culled armature, then we manage only the animation time and end of its animations.
+	gameobj->UpdateActionManager(curtime, needs_update);
+
 	if (needs_update) {
-		gameobj->UpdateActionManager(curtime);
 		children = gameobj->GetChildren();
 		parent = gameobj->GetParent();
 
@@ -1595,7 +1597,11 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 			if (child->GetDeformer()) {
 				child->GetDeformer()->Update();
 			}
+
+			// Since animations are updated after culling test, it must recomputes the openGL matrix here.
+			child->UpdateBuckets();
 		}
+		gameobj->UpdateBuckets();
 
 		children->Release();
 	}

@@ -33,6 +33,7 @@
 #include "BL_ShapeDeformer.h"
 #include "KX_IpoConvert.h"
 #include "KX_GameObject.h"
+#include "KX_Globals.h"
 
 #include "SG_Controller.h"
 
@@ -76,8 +77,8 @@ BL_Action::BL_Action(class KX_GameObject* gameobj)
 	m_blendmode(ACT_BLEND_BLEND),
 	m_ipo_flags(0),
 	m_done(true),
-	m_calc_localtime(true),
-	m_initializedTime(false)
+	m_appliedToObject(true),
+	m_calc_localtime(true)
 {
 }
 
@@ -244,7 +245,7 @@ bool BL_Action::Play(const char* name,
 	}
 
 	// Now that we have an action, we have something we can play
-	m_starttime = -1.f; // We get the start time on our first update
+	m_starttime = KX_GetActiveEngine()->GetFrameTime() - kxscene->getSuspendedDelta();
 	m_startframe = m_localframe = start;
 	m_endframe = end;
 	m_blendin = blendin;
@@ -256,7 +257,7 @@ bool BL_Action::Play(const char* name,
 	m_layer_weight = layer_weight;
 	
 	m_done = false;
-	m_initializedTime = false;
+	m_appliedToObject = false;
 
 	return true;
 }
@@ -376,20 +377,14 @@ void BL_Action::BlendShape(Key* key, float srcweight, std::vector<float>& blends
 	//printf("\n");
 }
 
-void BL_Action::Update(float curtime)
+void BL_Action::Update(float curtime, bool applyToObject)
 {
-	// Don't bother if we're done with the animation
-	if (m_done)
+	// Don't bother if we're done with the animation and if the animation was already applied to the object.
+	if (m_done && m_appliedToObject) {
 		return;
+	}
 
 	curtime -= (float)KX_KetsjiEngine::GetSuspendedDelta();
-
-	// Grab the start time here so we don't end up with a negative m_localframe when
-	// suspending and resuming scenes.
-	if (!m_initializedTime) {
-		m_starttime = curtime;
-		m_initializedTime = true;
-	}
 
 	if (m_calc_localtime)
 		SetLocalTime(curtime);
@@ -422,6 +417,12 @@ void BL_Action::Update(float curtime)
 
 				break;
 		}
+	}
+
+	m_appliedToObject = applyToObject;
+	// In case of culled armatures (doesn't requesting to transform the object) we only manages time.
+	if (!applyToObject) {
+		return;
 	}
 
 	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
