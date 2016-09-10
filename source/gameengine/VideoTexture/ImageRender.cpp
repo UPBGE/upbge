@@ -865,6 +865,7 @@ static PyGetSetDef imageMirrorGetSets[] =
 ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial *mat, unsigned int width, unsigned int height, unsigned short samples) :
     ImageViewport(width, height),
     m_render(false),
+    m_updateShadowBuffer(false),
     m_done(false),
     m_scene(scene),
     m_samples(samples),
