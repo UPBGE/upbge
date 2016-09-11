@@ -1344,7 +1344,12 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms)
 		SetLines(true);
 	}
 
-	current_polymat->EnableInstancing(false);
+	if (m_overrideShader != RAS_OVERRIDE_SHADER_NONE) {
+		EnableOverrideShaderInstancing(false);
+	}
+	else {
+		current_polymat->EnableInstancing(false);
+	}
 
 	bool wireframe = (m_drawingmode == RAS_WIREFRAME);
 	if (current_polymat->GetFlag() & RAS_BLENDERGLSL) {
@@ -1818,6 +1823,18 @@ void RAS_OpenGLRasterizer::SetOverrideShader(RAS_OpenGLRasterizer::OverrideShade
 RAS_IRasterizer::OverrideShaderType RAS_OpenGLRasterizer::GetOverrideShader()
 {
 	return m_overrideShader;
+}
+
+void RAS_OpenGLRasterizer::EnableOverrideShaderInstancing(bool enable)
+{
+	GPUShader *shader = GetOverrideGPUShader(m_overrideShader);
+	if (shader) {
+		// Same name than for GPU_INSTANCING_MODE.
+		const int loc = GPU_shader_get_uniform(shader, "unfinstmode");
+		if (loc != -1) {
+			GPU_shader_uniform_int(shader, loc, (enable) ? 1 : 0);
+		}
+	}
 }
 
 void RAS_OpenGLRasterizer::ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride)

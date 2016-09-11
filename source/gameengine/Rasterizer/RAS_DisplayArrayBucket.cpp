@@ -333,6 +333,7 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 			m_instancingBuffer->GetStride());
 	}
 	else {
+		rasty->EnableOverrideShaderInstancing(true);
 		rasty->ActivateOverrideShaderInstancing(
 			m_instancingBuffer->GetMatrixOffset(),
 			m_instancingBuffer->GetPositionOffset(),
