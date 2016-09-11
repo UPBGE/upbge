@@ -1448,7 +1448,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	
 	PyDict_SetItemString(d, "globalDict", item=PyDict_New()); Py_DECREF(item);
 
-	// Add keyboard and mouse attributes to this module
+	// Add keyboard, mouse and joysticks attributes to this module
 	BLI_assert(!gp_PythonKeyboard);
 	gp_PythonKeyboard = new SCA_PythonKeyboard(KX_GetActiveEngine()->GetInputDevice());
 	PyDict_SetItemString(d, "keyboard", gp_PythonKeyboard->NewProxy(true));
@@ -1457,24 +1457,9 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	gp_PythonMouse = new SCA_PythonMouse(KX_GetActiveEngine()->GetInputDevice(), KX_GetActiveEngine()->GetCanvas());
 	PyDict_SetItemString(d, "mouse", gp_PythonMouse->NewProxy(true));
 
-	PyObject* joylist = PyList_New(JOYINDEX_MAX);
-	for (int i=0; i<JOYINDEX_MAX; ++i) {
-		DEV_Joystick *joy = DEV_Joystick::GetInstance(i);
-		PyObject *item;
-
-		if (joy && joy->Connected()) {
-			gp_PythonJoysticks[i] = new SCA_PythonJoystick(joy, i);
-			item = gp_PythonJoysticks[i]->NewProxy(true);
-		}
-		else {
-			if (joy) {
-				joy->ReleaseInstance(i);
-			}
-			item = Py_None;
-		}
-
-		Py_INCREF(item);
-		PyList_SET_ITEM(joylist, i, item);
+	PyObject *joylist = PyList_New(JOYINDEX_MAX);
+	for (unsigned short i = 0; i < JOYINDEX_MAX; ++i) {
+		PyList_SET_ITEM(joylist, i, Py_None);
 	}
 	PyDict_SetItemString(d, "joysticks", joylist);
 
@@ -2228,30 +2213,36 @@ void createPythonConsole()
 	PyRun_SimpleFile(fp, filepath);
 }
 
-void updatePythonJoysticks(short index, bool addrem)
+void updatePythonJoysticks(short (&addrem)[JOYINDEX_MAX])
 {
-	DEV_Joystick *joy = DEV_Joystick::GetInstance(index);
 	PyObject *gameLogic = PyImport_ImportModule("GameLogic");
 	PyObject *pythonJoyList = PyDict_GetItemString(PyModule_GetDict(gameLogic), "joysticks");
-	PyObject *item;
 
-	if (addrem) {
-		if (joy && joy->Connected()) {
-			gp_PythonJoysticks[index] = new SCA_PythonJoystick(joy, index);
-			item = gp_PythonJoysticks[index]->NewProxy(true);
+	for (unsigned short i = 0; i < JOYINDEX_MAX; ++i) {
+		if (addrem[i] == 0) {
+			continue;
 		}
-		else {
-			item = Py_None;
-		}
-	}
-	else {
-			if (joy) {
-				joy->ReleaseInstance(index);
+
+		PyObject *item = Py_None;
+
+		if (addrem[i] == 1) {
+			DEV_Joystick *joy = DEV_Joystick::GetInstance(i);
+			if (joy && joy->Connected()) {
+				gp_PythonJoysticks[i] = new SCA_PythonJoystick(joy, i);
+				item = gp_PythonJoysticks[i]->NewProxy(true);
 			}
-			item = Py_None;
+		}
+		else if (addrem[i] == 2) {
+			if (gp_PythonJoysticks[i]) {
+				delete gp_PythonJoysticks[i];
+				gp_PythonJoysticks[i] = NULL;
+			}
+		}
+
+		PyList_SET_ITEM(pythonJoyList, i, item);
 	}
-	Py_INCREF(item);
-	PyList_SET_ITEM(pythonJoyList, index, item);
+
+	Py_DECREF(gameLogic);
 }
 
 static struct PyModuleDef Rasterizer_module_def = {

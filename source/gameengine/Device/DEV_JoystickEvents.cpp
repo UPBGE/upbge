@@ -58,10 +58,10 @@ void DEV_Joystick::OnNothing(SDL_Event* sdl_event)
 	m_istrig_axis = m_istrig_button = 0;
 }
 
-short DEV_Joystick::HandleEvents(short (&index)[8], short (&addrem)[8])
+bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
 {
 	SDL_Event		sdl_event;
-	short num_updateneeded = 0;
+	bool remap = false;
 
 	if (SDL_PollEvent == (void*)0) {
 		return 0;
@@ -92,9 +92,8 @@ short DEV_Joystick::HandleEvents(short (&index)[8], short (&addrem)[8])
 					if (!DEV_Joystick::m_instance[sdl_event.jdevice.which]) {
 						DEV_Joystick::m_instance[sdl_event.jdevice.which] = new DEV_Joystick(sdl_event.jdevice.which);
 						DEV_Joystick::m_instance[sdl_event.jdevice.which]->CreateJoystickDevice();
-						index[num_updateneeded] = sdl_event.jdevice.which;
-						addrem[num_updateneeded] = 1;
-						num_updateneeded++;
+						addrem[sdl_event.jdevice.which] = 1;
+						remap = true;
 						break;
 					}
 					else {
@@ -111,9 +110,8 @@ short DEV_Joystick::HandleEvents(short (&index)[8], short (&addrem)[8])
 					if (DEV_Joystick::m_instance[i]) {
 						if (sdl_event.cdevice.which == DEV_Joystick::m_instance[i]->m_private->m_instance_id) {
 							DEV_Joystick::m_instance[i]->ReleaseInstance(i);
-							index[num_updateneeded] = i;
-							addrem[num_updateneeded] = -1;
-							num_updateneeded++;
+							addrem[i] = 2;
+							remap = true;
 							break;
 						}
 					}
@@ -145,6 +143,6 @@ short DEV_Joystick::HandleEvents(short (&index)[8], short (&addrem)[8])
 				break;
 		}
 	}
-	return num_updateneeded;
+	return remap;
 }
 #endif /* WITH_SDL */

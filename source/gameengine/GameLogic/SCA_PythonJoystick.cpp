@@ -47,10 +47,6 @@ SCA_PythonJoystick::SCA_PythonJoystick(DEV_Joystick* joystick, int joyindex)
 
 SCA_PythonJoystick::~SCA_PythonJoystick()
 {
-	// The joystick reference we got in the constructor was a new instance,
-	// so we release it here
-	m_joystick->ReleaseInstance(m_joyindex);
-
 #ifdef WITH_PYTHON
 	PyDict_Clear(m_event_dict);
 	Py_DECREF(m_event_dict);

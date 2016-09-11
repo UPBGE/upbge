@@ -36,6 +36,8 @@
 #include "STR_String.h"
 #include "MT_Vector3.h"
 
+#include "DEV_JoystickDefines.h" // For JOYINDEX_MAX
+
 class KX_KetsjiEngine;
 
 #ifdef WITH_PYTHON
@@ -60,7 +62,7 @@ void loadGamePythonConfig();
 void createPythonConsole();
 
 // Update Python Joysticks
-void updatePythonJoysticks(short index, bool addrem);
+void updatePythonJoysticks(short (&addrem)[JOYINDEX_MAX]);
 #endif
 
 void addImportMain(struct Main *maggie);

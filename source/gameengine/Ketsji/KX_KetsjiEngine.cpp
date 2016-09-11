@@ -397,18 +397,10 @@ bool KX_KetsjiEngine::NextFrame()
 			m_inputDevice->ReleaseMoveEvent();
 		}
 #ifdef WITH_SDL
-		// Handle all SDL Joystick events here to share they for all scenes proceed.
-		short num_updateneeded, index[8], addrem[8];
-		num_updateneeded = DEV_Joystick::HandleEvents(index, addrem);
-		for (int i = 0; i < num_updateneeded; i++) {
-			if (addrem[i] =! 0) {
-				if (addrem[i] == 1) {
-					updatePythonJoysticks(index[i], true);
-				}
-				else {
-					updatePythonJoysticks(index[i], false);
-				}
-			}
+		// Handle all SDL Joystick events here to share them for all scenes properly.
+		short addrem[JOYINDEX_MAX] = {0};
+		if (DEV_Joystick::HandleEvents(addrem)) {
+			updatePythonJoysticks(addrem);
 		}
 #endif
 
