@@ -79,6 +79,7 @@ public:
 
 	/// Return true if the shader uses a special vertex shader for geometry instancing.
 	bool UseInstancing() const;
+	void EnableInstancing(bool enable);
 	void ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
 	void DesactivateInstancing();
 

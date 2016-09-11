@@ -174,6 +174,11 @@ bool RAS_DisplayArrayBucket::UseVao() const
 	return m_useVao;
 }
 
+bool RAS_DisplayArrayBucket::HasDeformer() const
+{
+	return m_deformerList.size() > 0;
+}
+
 bool RAS_DisplayArrayBucket::IsMeshModified() const
 {
 	return m_meshModified;
@@ -319,6 +324,7 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 
 	// Bind all vertex attributs for the used material and the given buffer offset.
 	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
+		material->EnableInstancing(true);
 		material->ActivateInstancing(
 			rasty,
 			m_instancingBuffer->GetMatrixOffset(),

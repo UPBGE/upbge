@@ -205,6 +205,13 @@ bool BL_BlenderShader::UseInstancing() const
 	return (GPU_instanced_drawing_support() && (m_mat->shade_flag & MA_INSTANCING));
 }
 
+void BL_BlenderShader::EnableInstancing(bool enable)
+{
+	if (Ok()) {
+		GPU_material_enable_instancing(m_GPUMat, enable);
+	}
+}
+
 void BL_BlenderShader::ActivateInstancing(void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
 {
 	if (Ok()) {

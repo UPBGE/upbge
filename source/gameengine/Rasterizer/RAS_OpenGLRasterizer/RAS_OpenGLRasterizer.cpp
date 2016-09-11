@@ -1344,6 +1344,8 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms)
 		SetLines(true);
 	}
 
+	current_polymat->EnableInstancing(false);
+
 	bool wireframe = (m_drawingmode == RAS_WIREFRAME);
 	if (current_polymat->GetFlag() & RAS_BLENDERGLSL) {
 		// GetMaterialIndex return the original mface material index,

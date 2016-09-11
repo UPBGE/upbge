@@ -106,6 +106,7 @@ typedef enum GPUBuiltin {
 	GPU_INSTANCING_COLOR_ATTRIB    = (1 << 20),
 	GPU_INSTANCING_MATRIX_ATTRIB   = (1 << 21),
 	GPU_INSTANCING_POSITION_ATTRIB = (1 << 22),
+	GPU_INSTANCING_MODE            = (1 << 23),
 } GPUBuiltin;
 
 typedef enum GPUOpenGLBuiltin {
@@ -379,6 +380,7 @@ void GPU_material_update_fvar_offset(GPUMaterial *gpu_material,
 #endif
 
 /* Instancing material */
+void GPU_material_enable_instancing(GPUMaterial *material, bool enable);
 void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
 void GPU_material_unbind_instancing_attrib(GPUMaterial *material);
 

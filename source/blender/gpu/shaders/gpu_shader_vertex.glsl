@@ -19,6 +19,13 @@ varying mat4 varinstlocaltoviewmat;
 varying mat4 varinstinvlocaltoviewmat;
 
 uniform mat4 unfviewmat;
+uniform vec4 unfobcolor;
+uniform mat4 unfobmat;
+uniform mat4 unfinvobmat;
+uniform mat4 unflocaltoviewmat;
+uniform mat4 unfinvlocaltoviewmat;
+
+uniform int unfinstmode;
 #endif
 
 varying vec3 varposition;
@@ -104,18 +111,27 @@ void main()
 #endif
 
 #ifdef USE_INSTANCING
-	mat4 instmat = mat4(vec4(ininstmatrix[0], ininstposition.x),
-						vec4(ininstmatrix[1], ininstposition.y),
-						vec4(ininstmatrix[2], ininstposition.z),
-						vec4(0.0, 0.0, 0.0, 1.0));
-	varinstmat = transpose(instmat);
-	varinstinvmat = inverse(varinstmat);
-	varinstlocaltoviewmat = unfviewmat * varinstmat;
-	varinstinvlocaltoviewmat = inverse(varinstlocaltoviewmat);
-	varinstcolor = ininstcolor;
+	if (unfinstmode == 0) {
+		varinstcolor = unfobcolor;
+		varinstmat = unfobmat;
+		varinstinvmat = unfinvobmat;
+		varinstlocaltoviewmat = unflocaltoviewmat;
+		varinstinvlocaltoviewmat = unfinvlocaltoviewmat;
+	}
+	else {
+		mat4 instmat = mat4(vec4(ininstmatrix[0], ininstposition.x),
+							vec4(ininstmatrix[1], ininstposition.y),
+							vec4(ininstmatrix[2], ininstposition.z),
+							vec4(0.0, 0.0, 0.0, 1.0));
+		varinstmat = transpose(instmat);
+		varinstinvmat = inverse(varinstmat);
+		varinstlocaltoviewmat = unfviewmat * varinstmat;
+		varinstinvlocaltoviewmat = inverse(varinstlocaltoviewmat);
+		varinstcolor = ininstcolor;
 
-	position *= instmat;
-	normal *= ininstmatrix;
+		position *= instmat;
+		normal *= ininstmatrix;
+	}
 #endif
 
 	vec4 co = gl_ModelViewMatrix * position;
