@@ -242,7 +242,7 @@ if(APPLE)
 else()
 	option(WITH_GAMEENGINE_DECKLINK "Support BlackMagicDesign DeckLink cards in the Game Engine" ON)
 endif()
-option(WITH_PLAYER        "Build Player" OFF)
+option(WITH_PLAYER        "Build Player" ON)
 option(WITH_OPENCOLORIO   "Enable OpenColorIO color management" ${_init_OPENCOLORIO})
 
 # Compositor
