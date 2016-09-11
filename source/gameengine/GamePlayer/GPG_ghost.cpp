@@ -187,7 +187,225 @@ static BOOL scr_saver_init(int argc, char **argv)
 	return ret;
 }
 
-#endif /* WIN32 */
+#define SCR_SAVE_MOUSE_MOVE_THRESHOLD 15
+
+static HWND found_ghost_window_hwnd;
+static GHOST_IWindow* ghost_window_to_find;
+static WNDPROC ghost_wnd_proc;
+static POINT scr_save_mouse_pos;
+
+static LRESULT CALLBACK screenSaverWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	BOOL close = false;
+	switch (uMsg)
+	{
+		case WM_MOUSEMOVE:
+		{ 
+			POINT pt; 
+			GetCursorPos(&pt);
+			LONG dx = scr_save_mouse_pos.x - pt.x;
+			LONG dy = scr_save_mouse_pos.y - pt.y;
+			if (abs(dx) > SCR_SAVE_MOUSE_MOVE_THRESHOLD
+			        || abs(dy) > SCR_SAVE_MOUSE_MOVE_THRESHOLD)
+			{
+				close = true;
+			}
+			scr_save_mouse_pos = pt;
+			break;
+		}
+		case WM_LBUTTONDOWN: 
+		case WM_MBUTTONDOWN: 
+		case WM_RBUTTONDOWN: 
+		case WM_KEYDOWN:
+			close = true;
+	}
+	if (close)
+		PostMessage(hwnd,WM_CLOSE,0,0);
+	return CallWindowProc(ghost_wnd_proc, hwnd, uMsg, wParam, lParam);
+}
+
+BOOL CALLBACK findGhostWindowHWNDProc(HWND hwnd, LPARAM lParam)
+{
+	GHOST_IWindow *p = (GHOST_IWindow*) GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	BOOL ret = true;
+	if (p == ghost_window_to_find)
+	{
+		found_ghost_window_hwnd = hwnd;
+		ret = false;
+	}
+	return ret;
+}
+
+static HWND findGhostWindowHWND(GHOST_IWindow* window)
+{
+	found_ghost_window_hwnd = NULL;
+	ghost_window_to_find = window;
+	EnumWindows(findGhostWindowHWNDProc, NULL);
+	return found_ghost_window_hwnd;
+}
+
+static GHOST_IWindow *startScreenSaverPreview(
+	GHOST_ISystem *system,
+	HWND parentWindow,
+	const bool stereoVisual)
+{
+	RECT rc;
+	if (GetWindowRect(parentWindow, &rc))
+	{
+		int windowWidth = rc.right - rc.left;
+		int windowHeight = rc.bottom - rc.top;
+		STR_String title = "";
+		GHOST_GLSettings glSettings = {0};
+
+		if (stereoVisual) {
+			glSettings.flags |= GHOST_glStereoVisual;
+		}
+
+		GHOST_IWindow *window = system->createWindow(title, 0, 0, windowWidth, windowHeight, GHOST_kWindowStateMinimized,
+		                                     GHOST_kDrawingContextTypeOpenGL, glSettings);
+		if (!window) {
+			printf("error: could not create main window\n");
+			exit(-1);
+		}
+
+		HWND ghost_hwnd = findGhostWindowHWND(window);
+		if (!ghost_hwnd) {
+			printf("error: could find main window\n");
+			exit(-1);
+		}
+
+		SetParent(ghost_hwnd, parentWindow);
+		LONG_PTR style = GetWindowLongPtr(ghost_hwnd, GWL_STYLE);
+		LONG_PTR exstyle = GetWindowLongPtr(ghost_hwnd, GWL_EXSTYLE);
+
+		RECT adjrc = { 0, 0, windowWidth, windowHeight };
+		AdjustWindowRectEx(&adjrc, style, false, exstyle);
+
+		style = (style & (~(WS_POPUP|WS_OVERLAPPEDWINDOW|WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_THICKFRAME|WS_MINIMIZEBOX|WS_MAXIMIZEBOX|WS_TILEDWINDOW ))) | WS_CHILD;
+		SetWindowLongPtr(ghost_hwnd, GWL_STYLE, style);
+		SetWindowPos(ghost_hwnd, NULL, adjrc.left, adjrc.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE|SWP_NOACTIVATE);
+
+		/* Check the size of the client rectangle of the window and resize the window
+		 * so that the client rectangle has the size requested.
+		 */
+		window->setClientSize(windowWidth, windowHeight);
+
+		return window;
+	}
+
+	return NULL;
+}
+
+static GHOST_IWindow *startScreenSaverFullScreen(
+		GHOST_ISystem *system,
+		int width,
+		int height,
+		int bpp,int frequency,
+		const bool stereoVisual)
+{
+	GHOST_IWindow *window = startFullScreen(system, width, height, bpp, frequency, stereoVisual, 0);
+	HWND ghost_hwnd = findGhostWindowHWND(window);
+	if (ghost_hwnd != NULL)
+	{
+		GetCursorPos(&scr_save_mouse_pos);
+		ghost_wnd_proc = (WNDPROC) GetWindowLongPtr(ghost_hwnd, GWLP_WNDPROC);
+		SetWindowLongPtr(ghost_hwnd,GWLP_WNDPROC, (uintptr_t) screenSaverWindowProc);
+	}
+
+	return window;
+}
+
+#endif  // WIN32
+
+static GHOST_IWindow *startWindow(
+		GHOST_ISystem *system,
+        STR_String& title,
+        int windowLeft,
+        int windowTop,
+        int windowWidth,
+        int windowHeight,
+        const bool stereoVisual,
+		const int alphaBackground)
+{
+	GHOST_GLSettings glSettings = {0};
+	// Create the main window
+	//STR_String title ("Blender Player - GHOST");
+	if (stereoVisual)
+		glSettings.flags |= GHOST_glStereoVisual;
+	if (alphaBackground)
+		glSettings.flags |= GHOST_glAlphaBackground;
+
+	GHOST_IWindow *window = system->createWindow(title, windowLeft, windowTop, windowWidth, windowHeight, GHOST_kWindowStateNormal,
+	                                     GHOST_kDrawingContextTypeOpenGL, glSettings);
+	if (!window) {
+		printf("error: could not create main window\n");
+		exit(-1);
+	}
+
+	/* Check the size of the client rectangle of the window and resize the window
+	 * so that the client rectangle has the size requested.
+	 */
+	window->setClientSize(windowWidth, windowHeight);
+	window->setCursorVisibility(false);
+
+	return window;
+}
+
+static GHOST_IWindow *startEmbeddedWindow(
+		GHOST_ISystem *system,
+        STR_String& title,
+        const GHOST_TEmbedderWindowID parentWindow,
+        const bool stereoVisual,
+		const int alphaBackground)
+{
+	GHOST_TWindowState state = GHOST_kWindowStateNormal;
+	GHOST_GLSettings glSettings = {0};
+
+	if (stereoVisual)
+		glSettings.flags |= GHOST_glStereoVisual;
+	if (alphaBackground)
+		glSettings.flags |= GHOST_glAlphaBackground;
+
+	if (parentWindow != 0)
+		state = GHOST_kWindowStateEmbedded;
+	GHOST_IWindow *window = system->createWindow(title, 0, 0, 0, 0, state,
+	                                     GHOST_kDrawingContextTypeOpenGL, glSettings, parentWindow);
+
+	if (!window) {
+		printf("error: could not create main window\n");
+		exit(-1);
+	}
+
+	return window;
+}
+
+
+static GHOST_IWindow *startFullScreen(
+		GHOST_ISystem *system,
+        int width,
+        int height,
+        int bpp,int frequency,
+        const bool stereoVisual,
+		const int alphaBackground,
+        bool useDesktop)
+{
+	GHOST_TUns32 sysWidth=0, sysHeight=0;
+	system->getMainDisplayDimensions(sysWidth, sysHeight);
+	// Create the main window
+	GHOST_DisplaySetting setting;
+	setting.xPixels = (useDesktop) ? sysWidth : width;
+	setting.yPixels = (useDesktop) ? sysHeight : height;
+	setting.bpp = bpp;
+	setting.frequency = frequency;
+
+	GHOST_IWindow *window = NULL;
+	system->beginFullScreen(setting, &window, stereoVisual, alphaBackground);
+	window->setCursorVisibility(false);
+	/* note that X11 ignores this (it uses a window internally for fullscreen) */
+	window->setState(GHOST_kWindowStateFullScreen);
+
+	return window;
+}
 
 static void usage(const char* program, bool isBlenderPlayer)
 {
@@ -376,6 +594,7 @@ int main(
 	int windowHeight = 480;
 	GHOST_TUns32 fullScreenWidth = 0;
 	GHOST_TUns32 fullScreenHeight= 0;
+	GHOST_IWindow *window = NULL;
 	int fullScreenBpp = 32;
 	int fullScreenFrequency = 60;
 	GHOST_TEmbedderWindowID parentWindow = 0;
@@ -967,14 +1186,6 @@ int main(
 						if (!samplesParFound)
 							aasamples = scene->gm.aasamples;
 
-						LA_PlayerLauncher launcher(system, maggie, scene, &gs, stereomode, aasamples, argc, argv, pythonControllerFile); /* this argc cant be argc_py_clamped, since python uses it */
-#ifdef WITH_PYTHON
-						if (!globalDict) {
-							globalDict = PyDict_New();
-						}
-						launcher.SetPythonGlobalDict(globalDict);
-#endif  // WITH_PYTHON
-
 						BLI_strncpy(pathname, maggie->name, sizeof(pathname));
 						if (firstTimeRunning) {
 							firstTimeRunning = false;
@@ -983,14 +1194,15 @@ int main(
 #ifdef WIN32
 								if (scr_saver_mode == SCREEN_SAVER_MODE_SAVER)
 								{
-									launcher.startScreenSaverFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
-									                               stereoWindow);
+									window = startScreenSaverFullScreen(system, fullScreenWidth, fullScreenHeight,
+																		fullScreenBpp, fullScreenFrequency, stereoWindow);
 								}
 								else
 #endif
 								{
-									launcher.startFullScreen(fullScreenWidth, fullScreenHeight, fullScreenBpp, fullScreenFrequency,
-									                    stereoWindow, alphaBackground, (scene->gm.playerflag & GAME_PLAYER_DESKTOP_RESOLUTION));
+									window = startFullScreen(system, fullScreenWidth, fullScreenHeight, fullScreenBpp,
+															 fullScreenFrequency, stereoWindow, alphaBackground,
+															 (scene->gm.playerflag & GAME_PLAYER_DESKTOP_RESOLUTION));
 								}
 							}
 							else
@@ -1028,16 +1240,16 @@ int main(
 #ifdef WIN32
 								if (scr_saver_mode == SCREEN_SAVER_MODE_PREVIEW)
 								{
-									launcher.startScreenSaverPreview(scr_saver_hwnd, stereoWindow);
+									window = startScreenSaverPreview(system, scr_saver_hwnd, stereoWindow);
 								}
 								else
 #endif
 								{
 									if (parentWindow != 0)
-										launcher.startEmbeddedWindow(title, parentWindow, stereoWindow);
+										window = startEmbeddedWindow(system, title, parentWindow, stereoWindow, alphaBackground);
 									else
-										launcher.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
-										                stereoWindow, alphaBackground);
+										window = startWindow(system, title, windowLeft, windowTop, windowWidth,
+															 windowHeight, stereoWindow, alphaBackground);
 
 									if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
 										GPU_set_mipmap(0);
@@ -1048,10 +1260,18 @@ int main(
 								}
 							}
 						}
-						else {
-							launcher.InitEngine();
-							exitcode = KX_EXIT_REQUEST_NO_REQUEST;
+
+						// This argc cant be argc_py_clamped, since python uses it.
+						LA_PlayerLauncher launcher(system, window, maggie, scene, &gs, stereomode, aasamples,
+												   argc, argv, pythonControllerFile);
+#ifdef WITH_PYTHON
+						if (!globalDict) {
+							globalDict = PyDict_New();
 						}
+						launcher.SetPythonGlobalDict(globalDict);
+#endif  // WITH_PYTHON
+
+						launcher.InitEngine();
 
 						// Enter main loop
 						launcher.EngineMainLoop();
@@ -1079,6 +1299,10 @@ int main(
 
 			// Seg Fault; icon.c gIcons == 0
 			BKE_icons_free();
+
+			if (window) {
+				system->disposeWindow(window);
+			}
 
 			// Dispose the system
 			GHOST_ISystem::disposeSystem();

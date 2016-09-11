@@ -137,7 +137,7 @@ public:
 	virtual ~LA_Launcher();
 
 #ifdef WITH_PYTHON
-	/// Setup python global dictionnary, used oustide constructor to compile without python.
+	/// Setup python global dictionnary, used outside constructor to compile without python.
 	void SetPythonGlobalDict(PyObject *globalDict);
 #endif  // WITH_PYTHON
 
