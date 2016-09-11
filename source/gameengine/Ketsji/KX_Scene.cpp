@@ -1590,11 +1590,7 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 			if (child->GetDeformer()) {
 				child->GetDeformer()->Update();
 			}
-
-			// Since animations are updated after culling test, it must recomputes the openGL matrix here.
-			child->UpdateBuckets();
 		}
-		gameobj->UpdateBuckets();
 
 		children->Release();
 	}
