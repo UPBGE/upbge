@@ -51,6 +51,9 @@ public:
 	/// Find an exisiting event or status.
 	bool Find(SCA_EnumInputs inputenum) const;
 
+	/// Compare the last event or status with passed value.
+	bool End(SCA_EnumInputs inputenum) const;
+
 	/// All recorded status during a frame, always contains one value.
 	std::vector<SCA_EnumInputs> m_status;
 	/// All recorded event for this input during a frame, can contain none value.

@@ -69,6 +69,19 @@ bool SCA_InputEvent::Find(SCA_EnumInputs inputenum) const
 	}
 }
 
+bool SCA_InputEvent::End(SCA_EnumInputs inputenum) const
+{
+	if (inputenum == NONE || inputenum == ACTIVE) {
+		return m_status[m_status.size() - 1] == inputenum;
+	}
+	else {
+		if (m_queue.size() > 0) {
+			return m_queue[m_queue.size() - 1] == inputenum;
+		}
+		return false;
+	}
+}
+
 #ifdef WITH_PYTHON
 
 PyTypeObject SCA_InputEvent::Type = {

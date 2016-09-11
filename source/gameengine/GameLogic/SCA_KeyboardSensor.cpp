@@ -133,7 +133,6 @@ bool SCA_KeyboardSensor::Evaluate()
 {
 	bool result    = false;
 	bool reset     = m_reset && m_level;
-	bool qual[2] = {false, false};
 
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
 	//  	cerr << "SCA_KeyboardSensor::Eval event, sensing for "<< m_hotkey << " at device " << inputdev << "\n";
@@ -153,35 +152,31 @@ bool SCA_KeyboardSensor::Evaluate()
 	/* Now see whether events must be bounced. */
 	if (m_bAllKeys)
 	{
-		bool active = false;
+		bool status = false;
+		bool events = false;
 
-		for (int i=SCA_IInputDevice::BEGINKEY ; i<= SCA_IInputDevice::ENDKEY;i++) {
-			const SCA_InputEvent & input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) i);
-			if (input.Find(SCA_InputEvent::ACTIVE)) {
-				active = true;
+		for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; ++i) {
+			const SCA_InputEvent& input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+			if (input.End(SCA_InputEvent::ACTIVE)) {
+				status = true;
 				break;
 			}
 		}
 
-		// One of all keys is active
-		if (active) {
-			m_val = 1;
-			// The keys was not enabled before.
-			if (active != m_status[0]) {
-				result = true;
+		for (int i = SCA_IInputDevice::BEGINKEY; i <= SCA_IInputDevice::ENDKEY; ++i) {
+			const SCA_InputEvent& input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs)i);
+			if (input.m_queue.size() > 0) {
+				events = true;
+				break;
 			}
 		}
-		// The keys are now disabled.
-		else {
-			m_val = 0;
-			// The key was not disabled before.
-			if (active != m_status[0]) {
-				result = true;
-			}
-		}
-		m_status[0] = active;
+
+		m_val = status;
+		result = events;
 	}
 	else {
+		bool status[3] = {false, false, false};
+		bool events[3] = {false, false, false};
 		const SCA_InputEvent & input = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) m_hotkey);
 
 		/* Check qualifier keys
@@ -190,25 +185,19 @@ bool SCA_KeyboardSensor::Evaluate()
 		 */
 		if (m_qual > 0) {
 			const SCA_InputEvent & qualevent = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) m_qual);
-			if (qualevent.Find(SCA_InputEvent::ACTIVE)) {
-				qual[0] = true;
-			}
+			status[1] = qualevent.End(SCA_InputEvent::ACTIVE);
+			events[1] = (qualevent.m_queue.size() > 0);
 		}
 		if (m_qual2 > 0) {
 			const SCA_InputEvent & qualevent = inputdev->GetInput((SCA_IInputDevice::SCA_EnumInputs) m_qual2);
 			/* copy of above */
-			if (qualevent.Find(SCA_InputEvent::ACTIVE)) {
-				qual[1] = true;
-			}
+			status[2] = qualevent.End(SCA_InputEvent::ACTIVE);
+			events[2] = (qualevent.m_queue.size() > 0);
 		}
 		/* done reading qualifiers */
 
-		if (input.Find(SCA_InputEvent::ACTIVE)) {
-			m_val = 1;
-		}
-		else {
-			m_val = 0;
-		}
+		status[0] = input.End(SCA_InputEvent::ACTIVE);
+		events[0] = (input.m_queue.size() > 0);
 
 		/* Modify the key state based on qual(s)
 		 * Tested carefully. don't touch unless your really sure.
@@ -222,15 +211,15 @@ bool SCA_KeyboardSensor::Evaluate()
 		 */
 
 		// One of the third keys value from last logic frame changed.
-		if (m_status[0] != (bool)m_val || m_status[1] != qual[0] || m_status[2] != qual[1]) {
+		if (events[0] || events[1] || events[2]) {
 			result = true;
 		}
-		m_status[0] = (bool)m_val;
-		m_status[1] = qual[0];
-		m_status[2] = qual[1];
 
-		if ((m_qual > 0 && !qual[0]) || (m_qual2 > 0 && !qual[1])) { /* one of the used qualifiers are not pressed */
-			m_val = 0; /* since one of the qualifiers is not on, set the state to false */
+		if (!status[0] || (m_qual > 0 && !status[0]) || (m_qual2 > 0 && !status[1])) { /* one of the used qualifiers are not pressed */
+			m_val = false; /* since one of the qualifiers is not on, set the state to false */
+		}
+		else {
+			m_val = true;
 		}
 		/* done with key quals */
 	}
