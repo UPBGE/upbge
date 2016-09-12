@@ -21,8 +21,5 @@ if os.isatty(sys.stdin.fileno()):
 	else:
 		print("Python interpreter started.") #TODO: find OSX shortcut.
 
-	# BGE defines.
-	scene = bge.logic.getCurrentScene()
-
 	# Launch interactive console with current locals.
 	code.interact(local=locals())
