@@ -296,14 +296,46 @@ static GHOST_IWindow *startScreenSaverPreview(
 	return NULL;
 }
 
+#endif  // WIN32
+
+static GHOST_IWindow *startFullScreen(
+		GHOST_ISystem *system,
+        int width,
+        int height,
+        int bpp,int frequency,
+        const bool stereoVisual,
+		const int alphaBackground,
+        bool useDesktop)
+{
+	GHOST_TUns32 sysWidth=0, sysHeight=0;
+	system->getMainDisplayDimensions(sysWidth, sysHeight);
+	// Create the main window
+	GHOST_DisplaySetting setting;
+	setting.xPixels = (useDesktop) ? sysWidth : width;
+	setting.yPixels = (useDesktop) ? sysHeight : height;
+	setting.bpp = bpp;
+	setting.frequency = frequency;
+
+	GHOST_IWindow *window = NULL;
+	system->beginFullScreen(setting, &window, stereoVisual, alphaBackground);
+	window->setCursorVisibility(false);
+	/* note that X11 ignores this (it uses a window internally for fullscreen) */
+	window->setState(GHOST_kWindowStateFullScreen);
+
+	return window;
+}
+
+#ifdef WIN32
+
 static GHOST_IWindow *startScreenSaverFullScreen(
 		GHOST_ISystem *system,
 		int width,
 		int height,
 		int bpp,int frequency,
-		const bool stereoVisual)
+		const bool stereoVisual,
+		const int alphaBackground)
 {
-	GHOST_IWindow *window = startFullScreen(system, width, height, bpp, frequency, stereoVisual, 0);
+	GHOST_IWindow *window = startFullScreen(system, width, height, bpp, frequency, stereoVisual, alphaBackground, 0);
 	HWND ghost_hwnd = findGhostWindowHWND(window);
 	if (ghost_hwnd != NULL)
 	{
@@ -375,34 +407,6 @@ static GHOST_IWindow *startEmbeddedWindow(
 		printf("error: could not create main window\n");
 		exit(-1);
 	}
-
-	return window;
-}
-
-
-static GHOST_IWindow *startFullScreen(
-		GHOST_ISystem *system,
-        int width,
-        int height,
-        int bpp,int frequency,
-        const bool stereoVisual,
-		const int alphaBackground,
-        bool useDesktop)
-{
-	GHOST_TUns32 sysWidth=0, sysHeight=0;
-	system->getMainDisplayDimensions(sysWidth, sysHeight);
-	// Create the main window
-	GHOST_DisplaySetting setting;
-	setting.xPixels = (useDesktop) ? sysWidth : width;
-	setting.yPixels = (useDesktop) ? sysHeight : height;
-	setting.bpp = bpp;
-	setting.frequency = frequency;
-
-	GHOST_IWindow *window = NULL;
-	system->beginFullScreen(setting, &window, stereoVisual, alphaBackground);
-	window->setCursorVisibility(false);
-	/* note that X11 ignores this (it uses a window internally for fullscreen) */
-	window->setState(GHOST_kWindowStateFullScreen);
 
 	return window;
 }
@@ -1195,7 +1199,8 @@ int main(
 								if (scr_saver_mode == SCREEN_SAVER_MODE_SAVER)
 								{
 									window = startScreenSaverFullScreen(system, fullScreenWidth, fullScreenHeight,
-																		fullScreenBpp, fullScreenFrequency, stereoWindow);
+																		fullScreenBpp, fullScreenFrequency, stereoWindow,
+																		alphaBackground);
 								}
 								else
 #endif
