@@ -116,6 +116,7 @@ public:
 	/// \section Render Infos
 	bool UseDisplayList() const;
 	bool UseVao() const;
+	bool HasDeformer() const;
 	bool IsMeshModified() const;
 
 	/// Update render infos.

@@ -426,6 +426,8 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "ininstmatrix";
 	else if (builtin == GPU_INSTANCING_POSITION_ATTRIB)
 		return "ininstposition";
+	else if (builtin == GPU_INSTANCING_MODE)
+		return "unfinstmode";
 	else
 		return "";
 }
@@ -1741,6 +1743,10 @@ GPUPass *GPU_generate_pass(
 
 	gpu_nodes_get_vertex_attributes(nodes, attribs);
 	gpu_nodes_get_builtin_flag(nodes, builtins);
+	if (use_instancing) {
+		*builtins |= (GPU_OBJECT_MATRIX | GPU_INVERSE_OBJECT_MATRIX | GPU_LOC_TO_VIEW_MATRIX |
+					 GPU_INVERSE_LOC_TO_VIEW_MATRIX | GPU_OBCOLOR);
+	}
 
 	/* generate code and compile with opengl */
 	fragmentcode = code_generate_fragment(nodes, outlink->output);

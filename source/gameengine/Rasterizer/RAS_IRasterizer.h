@@ -624,6 +624,7 @@ public:
 
 	virtual void SetOverrideShader(OverrideShaderType type) = 0;
 	virtual OverrideShaderType GetOverrideShader() = 0;
+	virtual void EnableOverrideShaderInstancing(bool enable) = 0;
 	virtual void ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride) = 0;
 	virtual void DesactivateOverrideShaderInstancing() = 0;
 

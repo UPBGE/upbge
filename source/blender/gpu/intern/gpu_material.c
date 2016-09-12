@@ -125,6 +125,7 @@ struct GPUMaterial {
 	int ininstposloc;
 	int ininstmatloc;
 	int ininstcolloc;
+	int instmodeloc;
 
 	bool use_instancing;
 
@@ -251,6 +252,12 @@ static int GPU_material_construct_end(GPUMaterial *material, const char *passnam
 		
 		GPUShader *shader = GPU_pass_shader(material->pass);
 
+		if (material->use_instancing) {
+			material->ininstposloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
+			material->ininstmatloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
+			material->ininstcolloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_COLOR_ATTRIB));
+			material->instmodeloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_INSTANCING_MODE));
+		}
 		if (material->builtins & GPU_VIEW_MATRIX)
 			material->viewmatloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_VIEW_MATRIX));
 		if (material->builtins & GPU_INVERSE_VIEW_MATRIX)
@@ -277,11 +284,6 @@ static int GPU_material_construct_end(GPUMaterial *material, const char *passnam
 			material->partvel = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_VELOCITY));
 		if (material->builtins & GPU_PARTICLE_ANG_VELOCITY)
 			material->partangvel = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_ANG_VELOCITY));
-		if (material->use_instancing) {
-			material->ininstposloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
-			material->ininstmatloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
-			material->ininstcolloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_COLOR_ATTRIB));
-		}
 		return 1;
 	}
 	else {
@@ -330,6 +332,12 @@ bool GPU_lamp_override_visible(GPULamp *lamp, SceneRenderLayer *srl, Material *m
 		return BKE_group_object_exists(ma->group, lamp->ob);
 	else
 		return true;
+}
+
+void GPU_material_enable_instancing(GPUMaterial *material, bool enable)
+{
+	GPUShader *shader = GPU_pass_shader(material->pass);
+	GPU_shader_uniform_int(shader, material->instmodeloc, (enable) ? 1 : 0);
 }
 
 void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
