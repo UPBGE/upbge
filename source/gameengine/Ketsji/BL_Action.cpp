@@ -78,7 +78,8 @@ BL_Action::BL_Action(class KX_GameObject* gameobj)
 	m_ipo_flags(0),
 	m_done(true),
 	m_appliedToObject(true),
-	m_calc_localtime(true)
+	m_calc_localtime(true),
+	m_prevUpdate(-1.0f)
 {
 }
 
@@ -259,6 +260,8 @@ bool BL_Action::Play(const char* name,
 	m_done = false;
 	m_appliedToObject = false;
 
+	m_prevUpdate = -1.0f;
+
 	return true;
 }
 
@@ -379,10 +382,13 @@ void BL_Action::BlendShape(Key* key, float srcweight, std::vector<float>& blends
 
 void BL_Action::Update(float curtime, bool applyToObject)
 {
-	// Don't bother if we're done with the animation and if the animation was already applied to the object.
-	if (m_done && m_appliedToObject) {
+	/* Don't bother if we're done with the animation and if the animation was already applied to the object.
+	 * of if the animation made a double update for the same time and that it was applied to the object.
+	 */
+	if ((m_done && m_appliedToObject) || (m_prevUpdate == curtime && m_appliedToObject)) {
 		return;
 	}
+	m_prevUpdate = curtime;
 
 	curtime -= (float)KX_KetsjiEngine::GetSuspendedDelta();
 

@@ -31,8 +31,7 @@
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
 
 BL_ActionManager::BL_ActionManager(class KX_GameObject *obj):
-	m_obj(obj),
-	m_prevUpdate(-1.0f)
+	m_obj(obj)
 {
 }
 
@@ -150,10 +149,6 @@ bool BL_ActionManager::IsActionDone(short layer)
 
 void BL_ActionManager::Update(float curtime, bool applyToObject)
 {
-	if (m_prevUpdate == curtime)
-		return;
-	m_prevUpdate = curtime;
-
 	BL_ActionMap::iterator it;
 	for (it = m_layers.begin(); it != m_layers.end(); ++it) {
 		it->second->Update(curtime, applyToObject);

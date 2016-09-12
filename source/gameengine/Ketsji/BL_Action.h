@@ -74,6 +74,9 @@ private:
 	bool m_appliedToObject;
 	bool m_calc_localtime;
 
+	// The last update time to avoid double animation update.
+	float m_prevUpdate;
+
 	void ClearControllerList();
 	void InitIPO();
 	void SetLocalTime(float curtime);
