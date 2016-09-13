@@ -206,6 +206,7 @@ protected:
 };
 
 extern ExpDesc MaterialNotAvailDesc;
+extern ExpDesc TextureNotAvailDesc;
 extern ExpDesc ImageSizesNotMatchDesc;
 extern ExpDesc ImageHasExportsDesc;
 extern ExpDesc InvalidColorChannelDesc;

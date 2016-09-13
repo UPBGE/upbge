@@ -209,6 +209,7 @@ void registerAllExceptions(void)
 {
 	errGenerDesc.registerDesc();
 	errNFoundDesc.registerDesc();
+	TextureNotAvailDesc.registerDesc();
 	MaterialNotAvailDesc.registerDesc();
 	ImageSizesNotMatchDesc.registerDesc();
 	ImageHasExportsDesc.registerDesc();
