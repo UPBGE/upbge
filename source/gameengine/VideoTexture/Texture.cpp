@@ -242,6 +242,10 @@ static int Texture_init(Texture *self, PyObject *args, PyObject *kwds)
 			{
 				// get blender material texture
 				self->m_matTexture = mat->GetTexture(texID);
+				if (!self->m_matTexture) {
+					PyErr_SetString(PyExc_ValueError, "Texture::Texture_init : Texture not found in this texture slot");
+					return -1;
+				}
 				self->m_imgTexture = self->m_matTexture->GetImage();
 				self->m_useMatTexture = true;
 			}
