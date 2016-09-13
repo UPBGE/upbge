@@ -33,6 +33,8 @@
 #include <windows.h>
 #endif
 
+#include "glew-mx.h"
+
 #include "VideoBase.h"
 
 #include "FilterSource.h"

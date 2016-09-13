@@ -50,7 +50,6 @@
 
 #include "ImageRender.h"
 #include "ImageBase.h"
-#include "BlendType.h"
 #include "Exception.h"
 #include "Texture.h"
 
@@ -468,12 +467,6 @@ inline ImageRender * getImageRender (PyImage *self)
 
 // python methods
 
-// Blender Scene type
-static BlendType<KX_Scene> sceneType ("KX_Scene");
-// Blender Camera type
-static BlendType<KX_Camera> cameraType ("KX_Camera");
-
-
 // object initialization
 static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 {
@@ -496,15 +489,18 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	{
 		// get scene pointer
 		KX_Scene * scenePtr (NULL);
-		if (scene != NULL) scenePtr = sceneType.checkType(scene);
-		// throw exception if scene is not available
-		if (scenePtr == NULL) THRWEXCP(SceneInvalid, S_OK);
+		if (!PyObject_TypeCheck(scene, &KX_Scene::Type)) {
+			THRWEXCP(SceneInvalid, S_OK);
+		}
+		else {
+			scenePtr = static_cast<KX_Scene *>BGE_PROXY_REF(scene);
+		}
 
 		// get camera pointer
 		KX_Camera * cameraPtr (NULL);
-		if (camera != NULL) cameraPtr = cameraType.checkType(camera);
-		// throw exception if camera is not available
-		if (cameraPtr == NULL) THRWEXCP(CameraInvalid, S_OK);
+		if (!ConvertPythonToCamera(scenePtr, camera, &cameraPtr, false, "")) {
+			THRWEXCP(CameraInvalid, S_OK);
+		}
 
 		// get pointer to image structure
 		PyImage *self = reinterpret_cast<PyImage*>(pySelf);
@@ -768,28 +764,24 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 		
 		// get observer pointer
 		KX_GameObject * observerPtr (NULL);
-		if (observer != NULL && PyObject_TypeCheck(observer, &KX_GameObject::Type))
-			observerPtr = static_cast<KX_GameObject*>BGE_PROXY_REF(observer);
-		else if (observer != NULL && PyObject_TypeCheck(observer, &KX_Camera::Type))
-			observerPtr = static_cast<KX_Camera*>BGE_PROXY_REF(observer);
-		else
+		if (!ConvertPythonToGameObject(scenePtr->GetLogicManager(), observer, &observerPtr, false, "")) {
 			THRWEXCP(ObserverInvalid, S_OK);
+		}
 		
 		if (observerPtr==NULL) /* in case the python proxy reference is invalid */
 			THRWEXCP(ObserverInvalid, S_OK);
 
 		// get mirror pointer
 		KX_GameObject * mirrorPtr (NULL);
-		if (mirror != NULL && PyObject_TypeCheck(mirror, &KX_GameObject::Type))
-			mirrorPtr = static_cast<KX_GameObject*>BGE_PROXY_REF(mirror);
-		else
+		if (!ConvertPythonToGameObject(scenePtr->GetLogicManager(), mirror, &mirrorPtr, false, "")) {
 			THRWEXCP(MirrorInvalid, S_OK);
+		}
 		
 		if (mirrorPtr==NULL) /* in case the python proxy reference is invalid */
 			THRWEXCP(MirrorInvalid, S_OK);
 
 		// locate the material in the mirror
-		RAS_IPolyMaterial * material = getMaterial(mirror, materialID);
+		RAS_IPolyMaterial * material = getMaterial(mirrorPtr, materialID);
 		if (material == NULL)
 			THRWEXCP(MaterialNotAvail, S_OK);
 

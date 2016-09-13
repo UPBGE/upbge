@@ -77,7 +77,6 @@ set(SRC
 	VideoDeckLink.cpp
 	blendVideoTex.cpp
 
-	BlendType.h
 	Common.h
 	Exception.h
 	FilterBase.h

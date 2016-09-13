@@ -31,25 +31,27 @@
 #ifndef __TEXTURE_H__
 #define __TEXTURE_H__
 
-#include "EXP_PyObjectPlus.h"
-#include <structmember.h>
+#include "EXP_Value.h"
 
 #include "DNA_image_types.h"
 
 #include "ImageBase.h"
-#include "BlendType.h"
 #include "Exception.h"
-
 
 struct ImBuf;
 class RAS_Texture;
 class RAS_IPolyMaterial;
+class KX_Scene;
+class KX_GameObject;
 
 // type Texture declaration
-struct Texture
+class Texture : public CValue
 {
-	PyObject_HEAD
+	Py_Header
+protected:
+	virtual void DestructFromPython();
 
+public:
 	// texture is using blender material
 	bool m_useMatTexture;
 
@@ -69,6 +71,8 @@ struct Texture
 	// texture for blender materials
 	RAS_Texture * m_matTexture;
 
+	KX_Scene *m_scene;
+
 	// use mipmapping
 	bool m_mipmap;
 
@@ -79,18 +83,34 @@ struct Texture
 
 	// image source
 	PyImage * m_source;
+
+	Texture();
+	virtual ~Texture();
+
+	virtual STR_String& GetName();
+
+	void Close();
+	void SetSource(PyImage *source);
+
+	static void FreeAllTextures(KX_Scene *scene);
+
+	KX_PYMETHOD_DOC(Texture, close);
+	KX_PYMETHOD_DOC(Texture, refresh);
+
+	static PyObject *pyattr_get_mipmap(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_mipmap(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_source(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_source(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_bindId(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_bindId(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 };
-
-
-// Texture type description
-extern PyTypeObject TextureType;
 
 // load texture
 void loadTexture(unsigned int texId, unsigned int *texture, short *size,
                  bool mipmap = false);
 
 // get material
-RAS_IPolyMaterial *getMaterial(PyObject *obj, short matID);
+RAS_IPolyMaterial *getMaterial(KX_GameObject *gameObj, short matID);
 
 // get material ID
 short getMaterialID(PyObject *obj, const char *name);

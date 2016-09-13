@@ -36,6 +36,7 @@ set(INC
 	../Rasterizer
 	../Rasterizer/RAS_OpenGLRasterizer
 	../SceneGraph
+	../VideoTexture
 	../../blender/blenkernel
 	../../blender/blenlib
 	../../blender/gpu

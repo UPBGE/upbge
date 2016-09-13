@@ -112,6 +112,7 @@
 #include "KX_MouseActuator.h"
 #include "KX_CollisionContactPoints.h"
 #include "EXP_ListWrapper.h"
+#include "Texture.h"
 
 static void PyType_Attr_Set(PyGetSetDef *attr_getset, PyAttributeDef *attr)
 {
@@ -295,6 +296,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, SCA_PythonJoystick, init_getset);
 		PyType_Ready_Attr(dict, SCA_PythonKeyboard, init_getset);
 		PyType_Ready_Attr(dict, SCA_PythonMouse, init_getset);
+		PyType_Ready_Attr(dict, Texture, init_getset);
 	}
 
 #ifdef USE_MATHUTILS

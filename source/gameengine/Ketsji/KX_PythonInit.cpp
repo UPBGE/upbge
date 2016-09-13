@@ -1995,13 +1995,13 @@ PyMODINIT_FUNC initBGE(void)
 	PyDict_SetItemString(sys_modules, mod_full, submodule);
 	Py_INCREF(submodule);
 
-	mod_full = "bge.texture";
-	PyModule_AddObject(mod, SUBMOD, (submodule = initVideoTexturePythonBinding()));
+	mod_full = "bge.types";
+	PyModule_AddObject(mod, SUBMOD, (submodule = initGameTypesPythonBinding()));
 	PyDict_SetItemString(sys_modules, mod_full, submodule);
 	Py_INCREF(submodule);
 
-	mod_full = "bge.types";
-	PyModule_AddObject(mod, SUBMOD, (submodule = initGameTypesPythonBinding()));
+	mod_full = "bge.texture";
+	PyModule_AddObject(mod, SUBMOD, (submodule = initVideoTexturePythonBinding()));
 	PyDict_SetItemString(sys_modules, mod_full, submodule);
 	Py_INCREF(submodule);
 

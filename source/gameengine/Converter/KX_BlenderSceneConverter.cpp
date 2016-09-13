@@ -64,6 +64,11 @@
 #include "BLI_winstuff.h"
 #endif
 
+#ifdef WITH_PYTHON
+#  include "Texture.h" // For FreeAllTextures. Must be included after BLI_winstuff.h.
+#endif  // WITH_PYTHON
+
+
 /* This list includes only data type definitions */
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"
@@ -296,6 +301,10 @@ void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 	if (world) {
 		delete world;
 	}
+
+#ifdef WITH_PYTHON
+	Texture::FreeAllTextures(scene);
+#endif  // WITH_PYTHON
 
 	// delete the scene first as it will stop the use of entities
 	scene->Release();

@@ -42,7 +42,6 @@
 #include "DeckLinkAPI.h"
 
 #include "ImageBase.h"
-#include "BlendType.h"
 #include "Exception.h"
 
 

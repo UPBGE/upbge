@@ -40,8 +40,6 @@
 
 #include "FilterBase.h"
 
-#include "glew-mx.h"
-
 // forward declarations
 struct PyImage;
 class ImageSource;

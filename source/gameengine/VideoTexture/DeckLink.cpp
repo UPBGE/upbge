@@ -53,6 +53,8 @@
 
 #include <memory.h>
 
+#include "glew-mx.h"
+
 // macro for exception handling and logging
 #define CATCH_EXCP catch (Exception & exp) \
 { exp.report(); return NULL; }

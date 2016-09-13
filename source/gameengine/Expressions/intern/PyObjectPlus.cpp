@@ -55,11 +55,7 @@
 PyObjectPlus::~PyObjectPlus()
 {
 #ifdef WITH_PYTHON
-	if (m_proxy) {
-		BGE_PROXY_REF(m_proxy)= NULL;
-		Py_DECREF(m_proxy);			/* Remove own reference, python may still have 1 */
-	}
-//	assert(ob_refcnt==0);
+	InvalidateProxy();
 #endif
 }
 
@@ -91,9 +87,12 @@ void PyObjectPlus::InvalidateProxy()		// check typename of each parent
 {
 #ifdef WITH_PYTHON
 	if (m_proxy) {
-		BGE_PROXY_REF(m_proxy)=NULL;
-		Py_DECREF(m_proxy);
-		m_proxy= NULL;
+		BGE_PROXY_REF(m_proxy) = NULL;
+		// Decrement proxy only if python doesn't own it.
+		if (!BGE_PROXY_PYOWNS(m_proxy)) {
+			Py_DECREF(m_proxy);
+		}
+		m_proxy = NULL;
 	}
 #endif
 }
@@ -101,8 +100,6 @@ void PyObjectPlus::InvalidateProxy()		// check typename of each parent
 void PyObjectPlus::DestructFromPython()
 {
 #ifdef WITH_PYTHON
-	// Need this to stop ~PyObjectPlus from decrefing m_proxy otherwise its decref'd twice and py-debug crashes
-	m_proxy = NULL;
 	delete this;
 #endif
 }

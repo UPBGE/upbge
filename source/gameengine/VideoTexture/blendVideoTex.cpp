@@ -199,8 +199,6 @@ PyMODINIT_FUNC initVideoTexturePythonBinding(void)
 		return NULL;
 	if (!pyFilterTypes.ready()) 
 		return NULL;
-	if (PyType_Ready(&TextureType) < 0) 
-		return NULL;
 #ifdef WITH_GAMEENGINE_DECKLINK
 	if (PyType_Ready(&DeckLinkType) < 0)
 		return NULL;
@@ -216,8 +214,7 @@ PyMODINIT_FUNC initVideoTexturePythonBinding(void)
 	pyImageTypes.reg(m);
 	pyFilterTypes.reg(m);
 
-	Py_INCREF(&TextureType);
-	PyModule_AddObject(m, "Texture", (PyObject *)&TextureType);
+	PyModule_AddObject(m, "Texture", (PyObject *)&Texture::Type);
 #ifdef WITH_GAMEENGINE_DECKLINK
 	Py_INCREF(&DeckLinkType);
 	PyModule_AddObject(m, "DeckLink", (PyObject *)&DeckLinkType);
