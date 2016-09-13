@@ -23,7 +23,7 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file gameengine/Ketsji/SCA_VibrationActuator.cpp
+/** \file gameengine/GameLogic/SCA_VibrationActuator.cpp
 *  \ingroup GameLogic
 */
 
@@ -32,7 +32,7 @@
 #include "SCA_JoystickManager.h"
 #include "PIL_time.h" // Module to get real time in Game Engine
 
-SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject* gameobj, int joyindex, float strength, int duration)
+SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, int joyindex, float strength, int duration)
 	: SCA_IActuator(gameobj, KX_ACT_VIBRATION),
 	m_joyindex(joyindex),
 	m_strength(strength),
@@ -47,7 +47,7 @@ SCA_VibrationActuator::~SCA_VibrationActuator(void)
 
 CValue* SCA_VibrationActuator::GetReplica(void)
 {
-	SCA_VibrationActuator* replica = new SCA_VibrationActuator(*this);
+	SCA_VibrationActuator *replica = new SCA_VibrationActuator(*this);
 	replica->ProcessReplica();
 	return replica;
 }
