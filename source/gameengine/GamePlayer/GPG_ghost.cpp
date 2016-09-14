@@ -1327,6 +1327,7 @@ int main(
 
 	// Cleanup
 	RNA_exit();
+	DNA_sdna_current_free();
 	BLF_exit();
 
 #ifdef WITH_INTERNATIONAL
