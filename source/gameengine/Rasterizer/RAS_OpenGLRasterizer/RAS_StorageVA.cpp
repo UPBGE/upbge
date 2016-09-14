@@ -121,6 +121,9 @@ void RAS_StorageVA::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 	RAS_IDisplayArray *array = arrayBucket->GetDisplayArray();
 	bool wireframe = m_drawingmode <= RAS_IRasterizer::RAS_WIREFRAME;
 	const RAS_ITexVert *vertexarray = array->GetVertexPointer();
+	if (!vertexarray) {
+		return;
+	}
 	const unsigned int stride = array->GetVertexMemorySize();
 
 	if (!wireframe)
