@@ -41,7 +41,8 @@ KX_CubeMapManager::KX_CubeMapManager(KX_Scene *scene)
 	:m_scene(scene)
 {
 	const RAS_CameraData& camdata = RAS_CameraData();
-	m_camera = new KX_Camera(m_scene, KX_Scene::m_callbacks, camdata);
+	m_camera = new KX_Camera(m_scene, KX_Scene::m_callbacks, camdata, true, true);
+	m_camera->SetName("__cubemap_cam__");
 }
 
 KX_CubeMapManager::~KX_CubeMapManager()
@@ -50,7 +51,7 @@ KX_CubeMapManager::~KX_CubeMapManager()
 		delete *it;
 	}
 
-	delete m_camera;
+	m_camera->Release();
 }
 
 void KX_CubeMapManager::AddCubeMap(RAS_Texture *texture, KX_GameObject *gameobj)
