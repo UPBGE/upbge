@@ -103,6 +103,8 @@ STR_String RAS_MeshObject::s_emptyname = "";
 RAS_MeshObject::RAS_MeshObject(Mesh *mesh)
 	:m_modifiedFlag(MESH_MODIFIED),
 	m_needUpdateAabb(true),
+	m_aabbMax(0.0f, 0.0f, 0.0f),
+	m_aabbMin(0.0f, 0.0f, 0.0f),
 	m_mesh(mesh)
 {
 }
