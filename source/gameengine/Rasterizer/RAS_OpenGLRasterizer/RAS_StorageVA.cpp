@@ -218,6 +218,11 @@ RAS_DisplayList *RAS_StorageVA::GetDisplayList(RAS_DisplayArrayBucket *arrayBuck
 
 void RAS_StorageVA::TexCoordPtr(const RAS_ITexVert *tv, const unsigned int stride)
 {
+	// Can be NULL for empty display arrays.
+	if (!tv) {
+		return;
+	}
+
 	/* note: this function must closely match EnableTextures to enable/disable
 	 * the right arrays, otherwise coordinate and attribute pointers from other
 	 * materials can still be used and cause crashes */
