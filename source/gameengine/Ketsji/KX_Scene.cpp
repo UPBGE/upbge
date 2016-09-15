@@ -1686,6 +1686,9 @@ void KX_Scene::RenderBuckets(const MT_Transform & cameratransform,
 	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
 		 * It's done just before the render to be sure of the object color and visibility. */
+		if (!((KX_GameObject *)*it)->GetCastShadows() && !rasty->GetRenderingShadows()) {
+			((KX_GameObject *)*it)->SetCulled(true);
+		}
 		((KX_GameObject *)*it)->UpdateBuckets();
 	}
 

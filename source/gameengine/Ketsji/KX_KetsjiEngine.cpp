@@ -1044,7 +1044,9 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 	scene->RunDrawingCallbacks(scene->GetPreDrawCB());
 #endif
 
+	m_rasterizer->SetRenderingShadows(true);
 	scene->RenderBuckets(camtrans, m_rasterizer);
+	m_rasterizer->SetRenderingShadows(false);
 
 	if (scene->GetPhysicsEnvironment())
 		scene->GetPhysicsEnvironment()->DebugDrawWorld();
