@@ -39,6 +39,7 @@
 #include "DEV_Joystick.h"
 #include "DEV_JoystickPrivate.h"
 #include "DEV_JoystickMappingdb.h"
+#include "KX_VibrationEffectProxy.h"
 
 #include <iostream> //std::cout
 
@@ -61,12 +62,17 @@ DEV_Joystick::DEV_Joystick(short index)
 	
 #ifdef WITH_SDL
 	m_private = new PrivateData();
+	m_effectproxy = new KX_VibrationEffectProxy(this);
 #endif
 }
 
 
 DEV_Joystick::~DEV_Joystick()
 {
+#ifdef WITH_SDL
+	m_effectproxy->Release();
+	m_effectproxy = NULL;
+#endif
 }
 
 DEV_Joystick *DEV_Joystick::m_instance[JOYINDEX_MAX];

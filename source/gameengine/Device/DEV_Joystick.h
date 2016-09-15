@@ -48,6 +48,8 @@
 #  endif
 #endif
 
+class KX_VibrationEffectProxy;
+
 /**
  * Basic Joystick class
  * I will make this class a singleton because there should be only one joystick
@@ -60,10 +62,6 @@ class DEV_Joystick
 {
 	static DEV_Joystick *m_instance[JOYINDEX_MAX];
 
-	class PrivateData;
-#ifdef WITH_SDL
-	PrivateData		*m_private;
-#endif
 	int				m_joyindex;
 
 	/** 
@@ -125,11 +123,11 @@ class DEV_Joystick
 	 */
 	int pGetAxis(int axisnum, int udlr);
 
+public:
+
 	DEV_Joystick(short index);
 
 	~DEV_Joystick();
-	
-public:
 
 	static DEV_Joystick *GetInstance(short joyindex);
 	static short HandleEvents(short (&index)[8], short (&addrem)[8]);
@@ -146,6 +144,20 @@ public:
 	bool aAnyButtonPressIsPositive(void);
 	bool aButtonPressIsPositive(int button);
 	bool aButtonReleaseIsPositive(int button);
+
+	class PrivateData;
+#ifdef WITH_SDL
+	PrivateData	*m_private;
+	PrivateData *GetPrivate()
+	{
+		return m_private;
+	}
+	KX_VibrationEffectProxy *m_effectproxy;
+	KX_VibrationEffectProxy *GetEffectProxy()
+	{
+		return m_effectproxy;
+	}
+#endif
 
 	/**
 	 * precision is default '3200' which is overridden by input

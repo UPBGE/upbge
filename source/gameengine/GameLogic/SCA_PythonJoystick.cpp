@@ -28,6 +28,7 @@
 #include "SCA_PythonJoystick.h"
 #include "DEV_Joystick.h"
 #include "SCA_IInputDevice.h"
+#include "../Ketsji/KX_VibrationEffectProxy.h"
 
 //#include "GHOST_C-api.h"
 
@@ -103,8 +104,16 @@ PyAttributeDef SCA_PythonJoystick::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("hatValues", SCA_PythonJoystick, pyattr_get_hat_values),
 	KX_PYATTRIBUTE_RO_FUNCTION("axisValues", SCA_PythonJoystick, pyattr_get_axis_values),
 	KX_PYATTRIBUTE_RO_FUNCTION("name", SCA_PythonJoystick, pyattr_get_name),
+	KX_PYATTRIBUTE_RO_FUNCTION("effect", SCA_PythonJoystick, pyattr_get_effect),
 	{ NULL }	//Sentinel
 };
+
+PyObject *SCA_PythonJoystick::pyattr_get_effect(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_PythonJoystick *self = static_cast<SCA_PythonJoystick *>(self_v);
+	DEV_Joystick *joy = self->m_joystick;
+	return joy->GetEffectProxy()->GetProxy();
+}
 
 // Use one function for numAxis, numButtons, and numHats
 PyObject* SCA_PythonJoystick::pyattr_get_num_x(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
