@@ -897,7 +897,7 @@ int main(
 					printf("error: too few options for parent window argument.\n");
 				}
 #if defined(DEBUG)
-				printf("XWindows ID = %d\n", parentWindow);
+				printf("XWindows ID = %d\n", int(parentWindow));
 #endif // defined(DEBUG)
 				break;
 			}
