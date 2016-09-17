@@ -209,6 +209,9 @@ static void Texture_dealloc(Texture *self)
 ExceptionID MaterialNotAvail;
 ExpDesc MaterialNotAvailDesc(MaterialNotAvail, "Texture material is not available");
 
+ExceptionID TextureNotAvail;
+ExpDesc TextureNotAvailDesc(TextureNotAvail, "Texture is not available");
+
 // Texture object initialization
 static int Texture_init(Texture *self, PyObject *args, PyObject *kwds)
 {
@@ -243,8 +246,7 @@ static int Texture_init(Texture *self, PyObject *args, PyObject *kwds)
 				// get blender material texture
 				self->m_matTexture = mat->GetTexture(texID);
 				if (!self->m_matTexture) {
-					PyErr_SetString(PyExc_ValueError, "Texture::Texture_init : Texture not found in this texture slot");
-					return -1;
+					THRWEXCP(TextureNotAvail, S_OK);
 				}
 				self->m_imgTexture = self->m_matTexture->GetImage();
 				self->m_useMatTexture = true;

@@ -97,5 +97,6 @@ short getMaterialID(PyObject *obj, const char *name);
 
 // Exceptions
 extern ExceptionID MaterialNotAvail;
+extern ExceptionID TextureNotAvail;
 
 #endif
