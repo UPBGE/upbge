@@ -181,7 +181,7 @@ class DATA_PT_pose_library(ArmatureButtonsPanel, Panel):
             # list of poses in pose library
             row = layout.row()
             row.template_list("UI_UL_list", "pose_markers", poselib, "pose_markers",
-                              poselib.pose_markers, "active_index", rows=3)
+                              poselib.pose_markers, "active_index", rows=5)
 
             # column of operators for active pose
             # - goes beside list
@@ -200,6 +200,10 @@ class DATA_PT_pose_library(ArmatureButtonsPanel, Panel):
                 col.operator("poselib.apply_pose", icon='ZOOM_SELECTED', text="").pose_index = poselib.pose_markers.active_index
 
             col.operator("poselib.action_sanitize", icon='HELP', text="")  # XXX: put in menu?
+
+            if pose_marker_active is not None:
+                col.operator("poselib.pose_move", icon='TRIA_UP', text="").direction = 'UP'
+                col.operator("poselib.pose_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
 
 
 # TODO: this panel will soon be deprecated too

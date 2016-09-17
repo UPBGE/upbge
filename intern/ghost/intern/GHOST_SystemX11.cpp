@@ -912,18 +912,25 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 			 *
 			 * To address this, we:
 			 *
-			 *     - Try to get a 'number' key_sym using XLookupKeysym (with or without shift modifier).
+			 *     - Try to get a 'number' key_sym using XLookupKeysym (with virtual shift modifier),
+			 *       in a very restrictive set of cases.
 			 *     - Fallback to XLookupString to get a key_sym from active user-defined keymap.
 			 *
-			 * Note that this enforces users to use an ascii-compatible keymap with Blender - but at least it gives
-			 * predictable and consistent results.
+			 * Note that:
+			 *     - This effectively 'lock' main number keys to always output number events (except when using alt-gr).
+			 *     - This enforces users to use an ascii-compatible keymap with Blender - but at least it gives
+			 *       predictable and consistent results.
 			 *
 			 * Also, note that nothing in XLib sources [1] makes it obvious why those two functions give different
 			 * key_sym results...
 			 *
 			 * [1] http://cgit.freedesktop.org/xorg/lib/libX11/tree/src/KeyBind.c
 			 */
-			if ((xke->keycode >= 10 && xke->keycode < 20)) {
+			/* Mode_switch 'modifier' is AltGr - when this one or Shift are enabled, we do not want to apply
+			 * that 'forced number' hack. */
+			const unsigned int mode_switch_mask = XkbKeysymToModifiers(xke->display, XK_Mode_switch);
+			const unsigned int number_hack_forbidden_kmods_mask = mode_switch_mask | ShiftMask;
+			if ((xke->keycode >= 10 && xke->keycode < 20) && ((xke->state & number_hack_forbidden_kmods_mask) == 0)) {
 				key_sym = XLookupKeysym(xke, ShiftMask);
 				if (!((key_sym >= XK_0) && (key_sym <= XK_9))) {
 					key_sym = XLookupKeysym(xke, 0);
@@ -937,8 +944,49 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 				ascii = '\0';
 			}
 
-			if ((gkey = convertXKey(key_sym)) == GHOST_kKeyUnknown) {
-				gkey = convertXKey(key_sym_str);
+			/* Only allow a limited set of keys from XLookupKeysym, all others we take from XLookupString,
+			 * unless it gives unknown key... */
+			gkey = convertXKey(key_sym);
+			switch (gkey) {
+				case GHOST_kKeyRightAlt:
+				case GHOST_kKeyLeftAlt:
+				case GHOST_kKeyRightShift:
+				case GHOST_kKeyLeftShift:
+				case GHOST_kKeyRightControl:
+				case GHOST_kKeyLeftControl:
+				case GHOST_kKeyOS:
+				case GHOST_kKey0:
+				case GHOST_kKey1:
+				case GHOST_kKey2:
+				case GHOST_kKey3:
+				case GHOST_kKey4:
+				case GHOST_kKey5:
+				case GHOST_kKey6:
+				case GHOST_kKey7:
+				case GHOST_kKey8:
+				case GHOST_kKey9:
+				case GHOST_kKeyNumpad0:
+				case GHOST_kKeyNumpad1:
+				case GHOST_kKeyNumpad2:
+				case GHOST_kKeyNumpad3:
+				case GHOST_kKeyNumpad4:
+				case GHOST_kKeyNumpad5:
+				case GHOST_kKeyNumpad6:
+				case GHOST_kKeyNumpad7:
+				case GHOST_kKeyNumpad8:
+				case GHOST_kKeyNumpad9:
+				case GHOST_kKeyNumpadPeriod:
+				case GHOST_kKeyNumpadEnter:
+				case GHOST_kKeyNumpadPlus:
+				case GHOST_kKeyNumpadMinus:
+				case GHOST_kKeyNumpadAsterisk:
+				case GHOST_kKeyNumpadSlash:
+					break;
+				default:
+					GHOST_TKey gkey_str = convertXKey(key_sym_str);
+					if (gkey_str != GHOST_kKeyUnknown) {
+						gkey = gkey_str;
+					}
 			}
 #else
 			/* In keyboards like latin ones,
@@ -1620,6 +1668,7 @@ convertXKey(KeySym key)
 		switch (key) {
 			GXMAP(type, XK_BackSpace,    GHOST_kKeyBackSpace);
 			GXMAP(type, XK_Tab,          GHOST_kKeyTab);
+			GXMAP(type, XK_ISO_Left_Tab, GHOST_kKeyTab);
 			GXMAP(type, XK_Return,       GHOST_kKeyEnter);
 			GXMAP(type, XK_Escape,       GHOST_kKeyEsc);
 			GXMAP(type, XK_space,        GHOST_kKeySpace);
