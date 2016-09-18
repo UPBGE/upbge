@@ -1451,6 +1451,11 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		kxscene->SetLodHysteresisValue(blenderscene->gm.scehysteresis);
 	}
 
+	// convert world
+	KX_WorldInfo* worldinfo = new KX_WorldInfo(blenderscene, blenderscene->world);
+	worldinfo->UpdateWorldSettings(rendertools);
+	kxscene->SetWorldInfo(worldinfo);
+
 	int activeLayerBitInfo = blenderscene->lay;
 	
 	// list of all object converted, active and inactive
@@ -1898,10 +1903,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	/* cleanup converted set of group objects */
 	convertedlist->Release();
 	sumolist->Release();
-
-	// convert world
-	KX_WorldInfo* worldinfo = new KX_WorldInfo(blenderscene, blenderscene->world);
-	kxscene->SetWorldInfo(worldinfo);
 
 	// Set the physics environment so KX_PythonComponent.start() can use bge.constraints
 	KX_Scene *currentScene = KX_GetActiveScene();
