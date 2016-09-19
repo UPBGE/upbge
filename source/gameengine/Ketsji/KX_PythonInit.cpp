@@ -1451,11 +1451,11 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	// Add keyboard, mouse and joysticks attributes to this module
 	BLI_assert(!gp_PythonKeyboard);
 	gp_PythonKeyboard = new SCA_PythonKeyboard(KX_GetActiveEngine()->GetInputDevice());
-	PyDict_SetItemString(d, "keyboard", gp_PythonKeyboard->NewProxy(true));
+	PyDict_SetItemString(d, "keyboard", gp_PythonKeyboard->GetProxy());
 
 	BLI_assert(!gp_PythonMouse);
 	gp_PythonMouse = new SCA_PythonMouse(KX_GetActiveEngine()->GetInputDevice(), KX_GetActiveEngine()->GetCanvas());
-	PyDict_SetItemString(d, "mouse", gp_PythonMouse->NewProxy(true));
+	PyDict_SetItemString(d, "mouse", gp_PythonMouse->GetProxy());
 
 	PyObject *joylist = PyList_New(JOYINDEX_MAX);
 	for (unsigned short i = 0; i < JOYINDEX_MAX; ++i) {
@@ -2229,7 +2229,7 @@ void updatePythonJoysticks(short (&addrem)[JOYINDEX_MAX])
 			DEV_Joystick *joy = DEV_Joystick::GetInstance(i);
 			if (joy && joy->Connected()) {
 				gp_PythonJoysticks[i] = new SCA_PythonJoystick(joy, i);
-				item = gp_PythonJoysticks[i]->NewProxy(true);
+				item = gp_PythonJoysticks[i]->GetProxy();
 			}
 		}
 		else if (addrem[i] == 2) {
@@ -2239,7 +2239,7 @@ void updatePythonJoysticks(short (&addrem)[JOYINDEX_MAX])
 			}
 		}
 
-		PyList_SET_ITEM(pythonJoyList, i, item);
+		PyList_SetItem(pythonJoyList, i, item);
 	}
 
 	Py_DECREF(gameLogic);
