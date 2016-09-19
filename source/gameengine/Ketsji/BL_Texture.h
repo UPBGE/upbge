@@ -53,7 +53,7 @@ private:
 	} m_savedData;
 
 public:
-	BL_Texture(MTex *mtex, bool isCubeMap);
+	BL_Texture(MTex *mtex);
 	virtual ~BL_Texture();
 
 	// stuff for cvalue related things

@@ -30,12 +30,16 @@
 #include "GPU_texture.h"
 #include "GPU_draw.h"
 
-BL_Texture::BL_Texture(MTex *mtex, bool isCubeMap)
+BL_Texture::BL_Texture(MTex *mtex)
 	:CValue(),
-	m_isCubeMap(isCubeMap),
-	m_mtex(mtex)
+	m_isCubeMap(false),
+	m_mtex(mtex),
+	m_gpuTex(NULL)
 {
 	Tex *tex = m_mtex->tex;
+	EnvMap *env = tex->env;
+	m_isCubeMap = (env && tex->type == TEX_ENVMAP && (env->stype == ENV_LOAD || env->stype == ENV_REALT));
+
 	Image *ima = tex->ima;
 	ImageUser& iuser = tex->iuser;
 	const int gltextarget = m_isCubeMap ? GetCubeMapTextureType() : GetTexture2DType();

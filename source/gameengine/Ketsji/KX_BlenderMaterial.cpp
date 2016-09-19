@@ -213,10 +213,9 @@ void KX_BlenderMaterial::InitTextures()
 	int i;
 	for (i = 0; i < RAS_Texture::MaxUnits; i++) {
 		MTex *mtex = m_material->mtex[i];
-		if (mtex) {
+		if (mtex && mtex->tex) {
 			Tex *tex = mtex->tex;
-			const bool isCubeMap = (tex->type == TEX_ENVMAP && (tex->env->stype == ENV_LOAD || tex->env->stype == ENV_REALT));
-			BL_Texture *texture = new BL_Texture(mtex, isCubeMap);
+			BL_Texture *texture = new BL_Texture(mtex);
 			m_textures[i] = texture;
 		}
 	}
