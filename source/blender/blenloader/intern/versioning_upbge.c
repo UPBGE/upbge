@@ -67,7 +67,19 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 				}
 			}
 		}
+		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+			/* Previous value of GAME_GLSL_NO_ENV_LIGHTING was 1 << 18, it was conflicting
+			 * with GAME_SHOW_BOUNDING_BOX. To fix this issue, we replace 1 << 18 by
+			 * 1 << 21 (the new value) when the file come from blender not UPBGE.
+			 */
+			if (scene->gm.flag & (1 << 18)) {
+				scene->gm.flag |= GAME_GLSL_NO_ENV_LIGHTING;
+				/* Disable bit 18 */
+				scene->gm.flag &= ~(1 << 18);
+			}
+		}
 	}
+
 	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 9)) {
 		if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "pythonkeys[4]")) {
 			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
