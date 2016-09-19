@@ -482,9 +482,7 @@ bool LA_Launcher::EngineNextFrame()
 			m_inputDevice->ConvertEvent((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey(), 0, 0);
 			m_exitRequested = KX_EXIT_REQUEST_BLENDER_ESC;
 		}
-		else if (m_inputDevice->GetInput(SCA_IInputDevice::WINCLOSE).Find(SCA_InputEvent::ACTIVE) ||
-			m_inputDevice->GetInput(SCA_IInputDevice::WINQUIT).Find(SCA_InputEvent::ACTIVE))
-		{
+		else if (m_inputDevice->GetInput(SCA_IInputDevice::WINQUIT).Find(SCA_InputEvent::ACTIVE)) {
 			m_inputDevice->ConvertEvent(SCA_IInputDevice::WINCLOSE, 0, 0);
 			m_inputDevice->ConvertEvent(SCA_IInputDevice::WINQUIT, 0, 0);
 			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
