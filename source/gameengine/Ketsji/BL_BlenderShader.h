@@ -32,17 +32,15 @@
 #ifndef __BL_BLENDERSHADER_H__
 #define __BL_BLENDERSHADER_H__
 
-#include "BL_Texture.h" // for MaxUnits
+#include "RAS_IRasterizer.h"
+#include "RAS_Texture.h" // for MaxUnits
 #include "STR_String.h"
 
 struct Material;
 struct Scene;
 struct GPUMaterial;
 class KX_Scene;
-class RAS_IRasterizer;
 class RAS_MeshSlot;
-
-#define BL_MAX_ATTRIB 16
 
 /**
  * BL_BlenderShader
@@ -57,14 +55,14 @@ private:
 	int m_alphaBlend;
 	GPUMaterial *m_GPUMat;
 
-	/** The cooresponding uv layer index to the given attribut index.
-	 * If the attribut doesn't use UV info it will return -1. */
-	int m_uvLayers[BL_MAX_ATTRIB];
+	/// The material attributes passed to the rasterizer.
+	RAS_IRasterizer::TexCoGenList m_attribs;
 
-	void ParseAttribs(STR_String uvsname[RAS_Texture::MaxUnits]);
+	/// Generate the material atrributes onto m_attibs.
+	void ParseAttribs();
 
 public:
-	BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer, STR_String uvsname[RAS_Texture::MaxUnits]);
+	BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer);
 	virtual ~BL_BlenderShader();
 
 	bool Ok() const
@@ -73,8 +71,15 @@ public:
 	}
 	void SetProg(bool enable, double time = 0.0, RAS_IRasterizer *rasty = NULL);
 
-	int GetAttribNum();
+	int GetAttribNum() const;
 	void SetAttribs(RAS_IRasterizer *ras);
+
+	/** Return a map of the corresponding attribut layer for a given attribut index.
+	 * \param uvsname The list of the UV's name of a mesh used to link with uv material attributes.
+	 * \return The map of attributes layer.
+	 */
+	const RAS_IRasterizer::AttribLayerList GetAttribLayers(const STR_String uvsname[RAS_Texture::MaxUnits]) const;
+
 	void Update(RAS_MeshSlot *ms, RAS_IRasterizer * rasty);
 
 	/// Return true if the shader uses a special vertex shader for geometry instancing.

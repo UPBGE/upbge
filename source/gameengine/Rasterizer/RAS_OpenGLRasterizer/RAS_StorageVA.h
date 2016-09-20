@@ -29,7 +29,7 @@
 #define __KX_VERTEXARRAYSTORAGE
 
 #include "RAS_IStorage.h"
-#include "RAS_DisplayArrayBucket.h"
+#include "RAS_OpenGLRasterizer.h"
 
 class RAS_DisplayList : public RAS_IStorageInfo
 {
@@ -64,7 +64,7 @@ public:
 class RAS_StorageVA : public RAS_IStorage
 {
 public:
-	RAS_StorageVA(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer);
+	RAS_StorageVA(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs);
 	virtual ~RAS_StorageVA();
 
 	virtual bool Init();
@@ -83,12 +83,7 @@ public:
 protected:
 	RAS_IRasterizer::DrawType m_drawingmode;
 
-	int *m_texco_num;
-	int *m_attrib_num;
-
-	RAS_IRasterizer::TexCoGen *m_texco;
-	RAS_IRasterizer::TexCoGen *m_attrib;
-	int *m_attrib_layer;
+	RAS_OpenGLRasterizer::StorageAttribs *m_storageAttribs;
 
 	RAS_DisplayList *GetDisplayList(RAS_DisplayArrayBucket *arrayBucket);
 

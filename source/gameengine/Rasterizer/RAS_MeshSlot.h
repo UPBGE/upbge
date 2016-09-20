@@ -41,6 +41,7 @@ class RAS_DisplayArrayBucket;
 struct DerivedMesh;
 class RAS_Deformer;
 class RAS_MeshObject;
+class RAS_MeshMaterial;
 class RAS_MeshUser;
 class RAS_IDisplayArray;
 
@@ -54,6 +55,7 @@ public:
 	RAS_MaterialBucket *m_bucket;
 	RAS_DisplayArrayBucket *m_displayArrayBucket;
 	RAS_MeshObject *m_mesh;
+	RAS_MeshMaterial *m_meshMaterial;
 	RAS_Deformer *m_pDeformer;
 	DerivedMesh *m_pDerivedMesh;
 	RAS_MeshUser *m_meshUser;
@@ -62,7 +64,7 @@ public:
 	RAS_MeshSlot(const RAS_MeshSlot& slot);
 	virtual ~RAS_MeshSlot();
 
-	void init(RAS_MaterialBucket *bucket, const RAS_TexVertFormat& format);
+	void init(RAS_MaterialBucket *bucket, RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, const RAS_TexVertFormat& format);
 
 	RAS_IDisplayArray *GetDisplayArray();
 	void SetDeformer(RAS_Deformer *deformer);

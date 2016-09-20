@@ -39,8 +39,7 @@ public:
 			Material *mat,
 			GameSettings *game,
 			MTFace *mtface,
-			int lightlayer,
-			STR_String uvsname[RAS_Texture::MaxUnits]);
+			int lightlayer);
 
 	virtual ~KX_BlenderMaterial();
 
@@ -71,6 +70,8 @@ public:
 	// for ipos
 	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha);
+
+	virtual const RAS_IRasterizer::AttribLayerList GetAttribLayers(const STR_String uvsname[RAS_Texture::MaxUnits]) const;
 
 	virtual void Replace_IScene(SCA_IScene *val);
 
@@ -125,7 +126,6 @@ private:
 	unsigned int m_blendFunc[2];
 	bool m_constructed; // if false, don't clean on exit
 	int m_lightLayer;
-	STR_String m_uvsName[RAS_Texture::MaxUnits];
 
 	struct {
 		float r, g, b, a;

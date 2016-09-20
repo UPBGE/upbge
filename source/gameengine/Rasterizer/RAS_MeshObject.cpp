@@ -280,11 +280,12 @@ void RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index,
 
 	// none found, create a new one
 	if (!mmat) {
-		RAS_MeshMaterial meshmat;
-		meshmat.m_bucket = bucket;
-		meshmat.m_baseslot = meshmat.m_bucket->AddMesh(this, format);
-		meshmat.m_index = index;
-		m_materials.push_back(meshmat);
+		m_materials.push_back(RAS_MeshMaterial());
+		// Using list.back() to get a pointer.
+		RAS_MeshMaterial *meshmat = &m_materials.back();
+		meshmat->m_bucket = bucket;
+		meshmat->m_index = index;
+		meshmat->m_baseslot = meshmat->m_bucket->AddMesh(this, meshmat, format);
 	}
 }
 
@@ -461,14 +462,23 @@ void RAS_MeshObject::EndConversion()
 	shared_null.swap(m_sharedvertex_map);   /* really free the memory */
 #endif
 
-	unsigned int nmat = NumMaterials();
-	for (unsigned int imat = 0; imat < nmat; ++imat) {
+	for (unsigned int imat = 0, nmat = NumMaterials(); imat < nmat; ++imat) {
 		RAS_MeshMaterial *mmat = GetMeshMaterial(imat);
 
 		RAS_MeshSlot *slot = mmat->m_baseslot;
 		if (slot && slot->GetDisplayArray()) {
 			slot->GetDisplayArray()->UpdateCache();
 		}
+	}
+}
+
+void RAS_MeshObject::GenerateAttribLayers(const STR_String uvsname[RAS_Texture::MaxUnits])
+{
+	for (unsigned int imat = 0, nmat = NumMaterials(); imat < nmat; ++imat) {
+		RAS_MeshMaterial *mmat = GetMeshMaterial(imat);
+		RAS_IPolyMaterial *polymat = mmat->m_bucket->GetPolyMaterial();
+
+		mmat->m_attribLayers = polymat->GetAttribLayers(uvsname);
 	}
 }
 

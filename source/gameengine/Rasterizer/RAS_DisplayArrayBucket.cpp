@@ -50,11 +50,12 @@
 #  include <windows.h>
 #endif // WIN32
 
-RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array, RAS_MeshObject *mesh)
+RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array, RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat)
 	:m_refcount(1),
 	m_bucket(bucket),
 	m_displayArray(array),
 	m_mesh(mesh),
+	m_meshMaterial(meshmat),
 	m_useDisplayList(false),
 	m_useVao(false),
 	m_meshModified(false),
@@ -129,6 +130,11 @@ RAS_MaterialBucket *RAS_DisplayArrayBucket::GetMaterialBucket() const
 RAS_MeshObject *RAS_DisplayArrayBucket::GetMesh() const
 {
 	return m_mesh;
+}
+
+RAS_MeshMaterial *RAS_DisplayArrayBucket::GetMeshMaterial() const
+{
+	return m_meshMaterial;
 }
 
 void RAS_DisplayArrayBucket::ActivateMesh(RAS_MeshSlot *slot)
@@ -248,6 +254,15 @@ void RAS_DisplayArrayBucket::DestructStorageInfo()
 RAS_IRasterizer::StorageType RAS_DisplayArrayBucket::GetStorageType() const
 {
 	return m_bucket->GetPolyMaterial()->GetStorageType();
+}
+
+void RAS_DisplayArrayBucket::SetAttribLayers(RAS_IRasterizer *rasty) const
+{
+	if (!m_meshMaterial) {
+		return;
+	}
+
+	rasty->SetAttribLayers(m_meshMaterial->m_attribLayers);
 }
 
 void RAS_DisplayArrayBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)

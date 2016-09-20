@@ -42,6 +42,7 @@
 
 #include "RAS_MaterialBucket.h"
 #include "RAS_MeshMaterial.h"
+#include "RAS_Texture.h"
 #include "MT_Transform.h"
 #include "MT_Vector2.h"
 #include "STR_String.h"
@@ -157,6 +158,8 @@ public:
 
 	void RemoveFromBuckets(void *clientobj);
 	void EndConversion();
+
+	void GenerateAttribLayers(const STR_String uvsname[RAS_Texture::MaxUnits]);
 
 	// polygon sorting by Z for alpha
 	void SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transform);

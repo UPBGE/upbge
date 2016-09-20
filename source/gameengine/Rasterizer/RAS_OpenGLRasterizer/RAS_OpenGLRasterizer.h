@@ -53,14 +53,20 @@ struct GPUOffScreen;
 struct GPUTexture;
 struct GPUShader;
 
-#define RAS_MAX_TEXCO  8     /* match in BL_Material */
-#define RAS_MAX_ATTRIB 16    /* match in BL_BlenderShader */
-
 /**
  * 3D rendering device context.
  */
 class RAS_OpenGLRasterizer : public RAS_IRasterizer
 {
+public:
+	struct StorageAttribs
+	{
+		TexCoGenList attribs;
+		TexCoGenList texcos;
+		AttribLayerList layers;
+	};
+
+private:
 	class ScreenPlane
 	{
 	private:
@@ -203,11 +209,9 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 protected:
 	DrawType m_drawingmode;
 	ShadowType m_shadowMode;
-	TexCoGen m_texco[RAS_MAX_TEXCO];
-	TexCoGen m_attrib[RAS_MAX_ATTRIB];
-	int m_attrib_layer[RAS_MAX_ATTRIB];
-	int m_texco_num;
-	int m_attrib_num;
+
+	StorageAttribs m_storageAttribs;
+
 	/* int m_last_alphablend; */
 	bool m_last_frontface;
 
@@ -328,10 +332,12 @@ public:
 	virtual void DrawDebugBox(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
 							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color);
 
-	virtual void SetTexCoordNum(int num);
-	virtual void SetAttribNum(int num);
-	virtual void SetTexCoord(TexCoGen coords, int unit);
-	virtual void SetAttrib(TexCoGen coords, int unit, int layer = 0);
+	virtual void ClearTexCoords();
+	virtual void ClearAttribs();
+	virtual void ClearAttribLayers();
+	virtual void SetTexCoords(const TexCoGenList& texcos);
+	virtual void SetAttribs(const TexCoGenList& attribs);
+	virtual void SetAttribLayers(const RAS_IRasterizer::AttribLayerList& layers);
 
 	const MT_Matrix4x4 &GetViewMatrix() const;
 	const MT_Matrix4x4 &GetViewInvMatrix() const;

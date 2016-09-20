@@ -83,11 +83,10 @@ bool RAS_MaterialBucket::UseInstancing() const
 	return (m_material->UseInstancing());
 }
 
-RAS_MeshSlot *RAS_MaterialBucket::AddMesh(RAS_MeshObject *mesh, const RAS_TexVertFormat& format)
+RAS_MeshSlot *RAS_MaterialBucket::AddMesh(RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, const RAS_TexVertFormat& format)
 {
 	RAS_MeshSlot *ms = new RAS_MeshSlot();
-	ms->m_mesh = mesh;
-	ms->init(this, format);
+	ms->init(this, mesh, meshmat, format);
 
 	m_meshSlots.push_back(ms);
 

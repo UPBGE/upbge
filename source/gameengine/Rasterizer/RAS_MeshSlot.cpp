@@ -74,6 +74,7 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 	m_pDerivedMesh = NULL;
 	m_meshUser = NULL;
 	m_mesh = slot.m_mesh;
+	m_meshMaterial = slot.m_meshMaterial;
 	m_bucket = slot.m_bucket;
 	m_displayArrayBucket = slot.m_displayArrayBucket;
 	m_displayArray = slot.m_displayArray;
@@ -83,14 +84,17 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 	}
 }
 
-void RAS_MeshSlot::init(RAS_MaterialBucket *bucket, const RAS_TexVertFormat& format)
+void RAS_MeshSlot::init(RAS_MaterialBucket *bucket, RAS_MeshObject *mesh,
+						RAS_MeshMaterial *meshmat, const RAS_TexVertFormat& format)
 {
 	m_bucket = bucket;
+	m_mesh = mesh;
+	m_meshMaterial = meshmat;
 
 	RAS_IDisplayArray::PrimitiveType type = (bucket->IsWire()) ? RAS_IDisplayArray::LINES : RAS_IDisplayArray::TRIANGLES;
 	m_displayArray = RAS_IDisplayArray::ConstructArray(type, format);
 
-	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, m_mesh);
+	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, m_mesh, meshmat);
 }
 
 RAS_IDisplayArray *RAS_MeshSlot::GetDisplayArray()
@@ -106,9 +110,8 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 			m_displayArrayBucket->Release();
 			m_displayArrayBucket = NULL;
 			// then hook to the base ones
-			RAS_MeshMaterial *mmat = m_mesh->GetMeshMaterial(m_bucket->GetPolyMaterial());
-			if (mmat && mmat->m_baseslot) {
-				m_displayArrayBucket = mmat->m_baseslot->m_displayArrayBucket->AddRef();
+			if (m_meshMaterial && m_meshMaterial->m_baseslot) {
+				m_displayArrayBucket = m_meshMaterial->m_baseslot->m_displayArrayBucket->AddRef();
 			}
 		}
 		else {
@@ -132,7 +135,7 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 					m_displayArrayBucket->AddRef();
 				}
 				else {
-					m_displayArrayBucket = new RAS_DisplayArrayBucket(m_bucket, NULL, m_mesh);
+					m_displayArrayBucket = new RAS_DisplayArrayBucket(m_bucket, NULL, m_mesh, m_meshMaterial);
 				}
 			}
 		}

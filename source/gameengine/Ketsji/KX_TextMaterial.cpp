@@ -107,6 +107,12 @@ void KX_TextMaterial::UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar h
 {
 }
 
+const RAS_IRasterizer::AttribLayerList KX_TextMaterial::GetAttribLayers(const STR_String uvsname[RAS_Texture::MaxUnits]) const
+{
+	static const RAS_IRasterizer::AttribLayerList uvLayers;
+	return uvLayers;
+}
+
 void KX_TextMaterial::Replace_IScene(SCA_IScene *val)
 {
 }

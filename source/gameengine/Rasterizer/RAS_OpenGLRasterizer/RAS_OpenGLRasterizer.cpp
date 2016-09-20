@@ -429,8 +429,6 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	m_auxilaryClientInfo(NULL),
 	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
-	m_texco_num(0),
-	m_attrib_num(0),
 	//m_last_alphablend(GPU_BLEND_SOLID),
 	m_last_frontface(true),
 	m_overrideShader(RAS_OVERRIDE_SHADER_NONE)
@@ -438,8 +436,8 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	m_viewmatrix.setIdentity();
 	m_viewinvmatrix.setIdentity();
 
-	m_storages[RAS_STORAGE_VA] = new RAS_StorageVA(&m_texco_num, m_texco, &m_attrib_num, m_attrib, m_attrib_layer);
-	m_storages[RAS_STORAGE_VBO] = new RAS_StorageVBO(&m_texco_num, m_texco, &m_attrib_num, m_attrib, m_attrib_layer);
+	m_storages[RAS_STORAGE_VA] = new RAS_StorageVA(&m_storageAttribs);
+	m_storages[RAS_STORAGE_VBO] = new RAS_StorageVBO(&m_storageAttribs);
 
 	glGetIntegerv(GL_MAX_LIGHTS, (GLint *)&m_numgllights);
 	if (m_numgllights < 8)
@@ -1215,39 +1213,41 @@ void RAS_OpenGLRasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
 	}
 }
 
-void RAS_OpenGLRasterizer::SetTexCoordNum(int num)
+void RAS_OpenGLRasterizer::ClearTexCoords()
 {
-	m_texco_num = num;
-	if (m_texco_num > RAS_MAX_TEXCO)
-		m_texco_num = RAS_MAX_TEXCO;
+	m_storageAttribs.texcos.clear();
 }
 
-void RAS_OpenGLRasterizer::SetAttribNum(int num)
+void RAS_OpenGLRasterizer::ClearAttribs()
 {
-	m_attrib_num = num;
-	if (m_attrib_num > RAS_MAX_ATTRIB)
-		m_attrib_num = RAS_MAX_ATTRIB;
+	m_storageAttribs.attribs.clear();
 }
 
-void RAS_OpenGLRasterizer::SetTexCoord(TexCoGen coords, int unit)
+void RAS_OpenGLRasterizer::ClearAttribLayers()
 {
-	// this changes from material to material
-	if (unit < RAS_MAX_TEXCO)
-		m_texco[unit] = coords;
+	m_storageAttribs.layers.clear();
 }
 
-void RAS_OpenGLRasterizer::SetAttrib(TexCoGen coords, int unit, int layer)
+void RAS_OpenGLRasterizer::SetTexCoords(const TexCoGenList& texcos)
 {
-	// this changes from material to material
-	if (unit < RAS_MAX_ATTRIB) {
-		m_attrib[unit] = coords;
-		m_attrib_layer[unit] = layer;
-	}
+	m_storageAttribs.texcos = texcos;
+}
+
+void RAS_OpenGLRasterizer::SetAttribs(const TexCoGenList& attribs)
+{
+	m_storageAttribs.attribs = attribs;
+}
+
+void RAS_OpenGLRasterizer::SetAttribLayers(const RAS_IRasterizer::AttribLayerList& layers)
+{
+	m_storageAttribs.layers = layers;
 }
 
 void RAS_OpenGLRasterizer::BindPrimitives(StorageType storage, RAS_DisplayArrayBucket *arrayBucket)
 {
 	if (arrayBucket && arrayBucket->GetDisplayArray() && storage != RAS_STORAGE_NONE) {
+		// Set the proper uv layer for uv attributes.
+		arrayBucket->SetAttribLayers(this);
 		m_storages[storage]->BindPrimitives(arrayBucket);
 	}
 }
@@ -2090,7 +2090,7 @@ void RAS_OpenGLRasterizer::DisableForText()
 
 	ProcessLighting(false, MT_Transform::Identity());
 
-	for (int i = 0; i < RAS_MAX_TEXCO; i++) {
+	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
 		glActiveTextureARB(GL_TEXTURE0_ARB + i);
 
 		if (GLEW_ARB_texture_cube_map) {

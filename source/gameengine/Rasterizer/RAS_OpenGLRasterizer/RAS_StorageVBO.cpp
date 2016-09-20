@@ -97,8 +97,7 @@ void VBO::SetMeshModified(RAS_IRasterizer::DrawType drawType, bool modified)
 	}
 }
 
-void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib,
-			   int *attrib_layer, RAS_IRasterizer::DrawType drawingmode)
+void VBO::Bind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)
 {
 	if (m_useVao) {
 		if (!m_vaos[drawingmode]) {
@@ -113,7 +112,6 @@ void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 	}
 
 	bool wireframe = (drawingmode == RAS_IRasterizer::RAS_WIREFRAME);
-	int unit;
 
 	// Bind buffers
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
@@ -133,8 +131,8 @@ void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 		glColorPointer(4, GL_UNSIGNED_BYTE, m_stride, m_color_offset);
 	}
 
-	for (unit = 0; unit < texco_num; ++unit) {
-		switch (texco[unit]) {
+	for (unsigned short unit = 0, size = storageAttribs->texcos.size(); unit < size; ++unit) {
+		switch (storageAttribs->texcos[unit]) {
 			case RAS_IRasterizer::RAS_TEXCO_ORCO:
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 			{
@@ -170,8 +168,8 @@ void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 	}
 	glClientActiveTextureARB(GL_TEXTURE0_ARB);
 
-	for (unit = 0; unit < attrib_num; ++unit) {
-		switch (attrib[unit]) {
+	for (unsigned short unit = 0, size = storageAttribs->attribs.size(); unit < size; ++unit) {
+		switch (storageAttribs->attribs[unit]) {
 			case RAS_IRasterizer::RAS_TEXCO_ORCO:
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 			{
@@ -181,7 +179,7 @@ void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 			}
 			case RAS_IRasterizer::RAS_TEXCO_UV:
 			{
-				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, m_stride, (void *)((intptr_t)m_uv_offset + attrib_layer[unit] * sizeof(GLfloat) * 2));
+				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, m_stride, (void *)((intptr_t)m_uv_offset + storageAttribs->layers[unit] * sizeof(GLfloat) * 2));
 				glEnableVertexAttribArrayARB(unit);
 				break;
 			}
@@ -209,7 +207,7 @@ void VBO::Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, 
 	}
 }
 
-void VBO::Unbind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib, RAS_IRasterizer::DrawType drawingmode)
+void VBO::Unbind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)
 {
 	if (m_useVao) {
 		glBindVertexArray(0);
@@ -225,16 +223,16 @@ void VBO::Unbind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num
 	}
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
-	for (unsigned int unit = 0; unit < texco_num; ++unit) {
-		if (texco[unit] != RAS_IRasterizer::RAS_TEXCO_DISABLE) {
+	for (unsigned short unit = 0, size = storageAttribs->texcos.size(); unit < size; ++unit) {
+		if (storageAttribs->texcos[unit] != RAS_IRasterizer::RAS_TEXCO_DISABLE) {
 			glClientActiveTextureARB(GL_TEXTURE0_ARB + unit);
 			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
 	}
 	glClientActiveTextureARB(GL_TEXTURE0_ARB);
 
-	for (unsigned int unit = 0; unit < attrib_num; ++unit) {
-		if (attrib[unit] != RAS_IRasterizer::RAS_TEXCO_DISABLE) {
+	for (unsigned short unit = 0, size = storageAttribs->attribs.size(); unit < size; ++unit) {
+		if (storageAttribs->attribs[unit] != RAS_IRasterizer::RAS_TEXCO_DISABLE) {
 			glDisableVertexAttribArrayARB(unit);
 		}
 	}
@@ -253,13 +251,9 @@ void VBO::DrawInstancing(unsigned int numinstance)
 	glDrawElementsInstancedARB(m_mode, m_indices, GL_UNSIGNED_INT, 0, numinstance);
 }
 
-RAS_StorageVBO::RAS_StorageVBO(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer) :
-	m_drawingmode(RAS_IRasterizer::RAS_TEXTURED),
-	m_texco_num(texco_num),
-	m_attrib_num(attrib_num),
-	m_texco(texco),
-	m_attrib(attrib),
-	m_attrib_layer(attrib_layer)
+RAS_StorageVBO::RAS_StorageVBO(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs)
+	:m_drawingmode(RAS_IRasterizer::RAS_TEXTURED),
+	m_storageAttribs(storageAttribs)
 {
 }
 
@@ -289,13 +283,13 @@ VBO *RAS_StorageVBO::GetVBO(RAS_DisplayArrayBucket *arrayBucket)
 void RAS_StorageVBO::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
 	VBO *vbo = GetVBO(arrayBucket);
-	vbo->Bind(*m_texco_num, m_texco, *m_attrib_num, m_attrib, m_attrib_layer, m_drawingmode);
+	vbo->Bind(m_storageAttribs, m_drawingmode);
 }
 
 void RAS_StorageVBO::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
 	VBO *vbo = GetVBO(arrayBucket);
-	vbo->Unbind(*m_texco_num, m_texco, *m_attrib_num, m_attrib, m_drawingmode);
+	vbo->Unbind(m_storageAttribs, m_drawingmode);
 }
 
 void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot *ms)

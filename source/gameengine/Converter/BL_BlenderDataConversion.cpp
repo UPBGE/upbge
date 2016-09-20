@@ -448,20 +448,10 @@ static void GetUVs(MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Vecto
 static KX_BlenderMaterial *ConvertMaterial(
 	Material *mat,
 	MTFace *tface,
-	MTF_localLayer *layers,
 	int lightlayer,
 	KX_Scene *scene)
 {
-	STR_String uvsname[RAS_Texture::MaxUnits];
-
-	// foreach MTex
-	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
-		// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
-		uvsname[i] = STR_String(layers[i].name);
-	}
-
-	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, (mat ? &mat->game : NULL),
-														  tface, lightlayer, uvsname);
+	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, (mat ? &mat->game : NULL), tface, lightlayer);
 
 	return kx_blmat;
 }
@@ -477,7 +467,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace
 	}
 
 	if (!polymat) {
-		polymat = ConvertMaterial(ma, tface, layers, lightlayer, scene);
+		polymat = ConvertMaterial(ma, tface, lightlayer, scene);
 		converter->CachePolyMaterial(scene, ma, polymat);
 	}
 	
@@ -736,6 +726,16 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			mit->m_bucket->GetPolyMaterial()->OnConstruction();
 		}
 	}
+
+	STR_String uvsname[RAS_Texture::MaxUnits];
+	// foreach MTex
+	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
+		// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
+		uvsname[i] = STR_String(layers[i].name);
+	}
+
+	// Find attributes layer (currently only UVs) by materials for this mesh.
+	meshobj->GenerateAttribLayers(uvsname);
 
 	if (layers)
 		delete []layers;

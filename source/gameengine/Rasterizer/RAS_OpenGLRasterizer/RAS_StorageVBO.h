@@ -41,10 +41,8 @@ public:
 	VBO(RAS_DisplayArrayBucket *arrayBucket);
 	virtual ~VBO();
 
-	void Bind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib,
-			  int *attrib_layer, RAS_IRasterizer::DrawType drawingmode);
-	void Unbind(int texco_num, RAS_IRasterizer::TexCoGen *texco, int attrib_num, RAS_IRasterizer::TexCoGen *attrib,
-				RAS_IRasterizer::DrawType drawingmode);
+	void Bind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode);
+	void Unbind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode);
 	void Draw();
 	void DrawInstancing(unsigned int numinstance);
 
@@ -78,7 +76,7 @@ private:
 class RAS_StorageVBO : public RAS_IStorage
 {
 public:
-	RAS_StorageVBO(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer);
+	RAS_StorageVBO(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs);
 	virtual ~RAS_StorageVBO();
 
 	virtual bool Init();
@@ -97,12 +95,7 @@ public:
 protected:
 	RAS_IRasterizer::DrawType m_drawingmode;
 
-	int *m_texco_num;
-	int *m_attrib_num;
-
-	RAS_IRasterizer::TexCoGen *m_texco;
-	RAS_IRasterizer::TexCoGen *m_attrib;
-	int *m_attrib_layer;
+	RAS_OpenGLRasterizer::StorageAttribs *m_storageAttribs;
 
 	VBO *GetVBO(RAS_DisplayArrayBucket *arrayBucket);
 

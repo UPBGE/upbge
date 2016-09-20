@@ -45,6 +45,8 @@
 #include "MEM_guardedalloc.h"
 #endif
 
+#include <map>
+
 class RAS_ICanvas;
 class RAS_IPolyMaterial;
 class RAS_MeshSlot;
@@ -130,6 +132,9 @@ public:
 		RAS_TEXCO_VCOL,     /* < Vertex Color */
 		RAS_TEXCO_DISABLE,  /* < Disable this texture unit (cached) */
 	};
+
+	typedef std::vector<TexCoGen> TexCoGenList;
+	typedef std::map<unsigned short, unsigned short> AttribLayerList;
 
 	/**
 	 * Render pass identifiers for stereo.
@@ -597,11 +602,19 @@ public:
 	virtual void DrawDebugBox(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
 							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color) = 0;
 	virtual void FlushDebugShapes(SCA_IScene *scene) = 0;
-	
-	virtual void SetTexCoordNum(int num) = 0;
-	virtual void SetAttribNum(int num) = 0;
-	virtual void SetTexCoord(TexCoGen coords, int unit) = 0;
-	virtual void SetAttrib(TexCoGen coords, int unit, int layer = 0) = 0;
+
+	/// Clear the material texture coordinates list used by storages.
+	virtual void ClearTexCoords() = 0;
+	/// Clear the material attributes list used by storages.
+	virtual void ClearAttribs() = 0;
+	/// Clear the material attribut layers list used with material attributes by storages.
+	virtual void ClearAttribLayers() = 0;
+	/// Set the material texture coordinates list used by storages.
+	virtual void SetTexCoords(const TexCoGenList& texcos) = 0;
+	/// Set the material attributes list used by storages.
+	virtual void SetAttribs(const TexCoGenList& attribs) = 0;
+	/// Set the material attribut layers used with material attributes by storages.
+	virtual void SetAttribLayers(const RAS_IRasterizer::AttribLayerList& layers) = 0;
 
 	virtual const MT_Matrix4x4 &GetViewMatrix() const = 0;
 	virtual const MT_Matrix4x4 &GetViewInvMatrix() const = 0;

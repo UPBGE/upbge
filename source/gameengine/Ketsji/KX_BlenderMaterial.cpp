@@ -50,8 +50,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		Material *mat,
 		GameSettings *game,
 		MTFace *mtface,
-		int lightlayer,
-		STR_String uvsname[RAS_Texture::MaxUnits])
+		int lightlayer)
 	:RAS_IPolyMaterial(mat->id.name, game),
 	m_material(mat),
 	m_shader(NULL),
@@ -130,10 +129,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_flag |= (((mat->mode2 & MA_CASTSHADOW) && (mat->mode & MA_SHADBUF)) != 0) ? RAS_CASTSHADOW : 0;
 	m_flag |= ((mat->mode & MA_ONLYCAST) != 0) ? RAS_ONLYSHADOW : 0;
 	m_flag |= ((m_material->shade_flag & MA_OBCOLOR) != 0) ? RAS_OBJECTCOLOR : 0;
-
-	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
-		m_uvsName[i] = uvsname[i];
-	}
 }
 
 KX_BlenderMaterial::~KX_BlenderMaterial()
@@ -351,6 +346,7 @@ void KX_BlenderMaterial::Activate(RAS_IRasterizer *rasty)
 		ActivateBlenderShaders(rasty);
 	}
 }
+
 void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 {
 	if (m_shader && m_shader->Ok()) {
@@ -365,8 +361,8 @@ void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
 		m_blenderShader->SetProg(false);
 	}
 	// Make sure no one will use the attributs set by this material.
-	rasty->SetTexCoordNum(0);
-	rasty->SetAttribNum(0);
+	rasty->ClearTexCoords();
+	rasty->ClearAttribs();
 }
 
 bool KX_BlenderMaterial::UseInstancing() const
@@ -450,15 +446,15 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_IRasterizer *rasty) const
 
 void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 {
-	ras->SetAttribNum(0);
 	if (m_shader->GetAttribute() == BL_Shader::SHD_TANGENT) {
-		ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, 0);
-		ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, 1);
-		ras->SetAttribNum(2);
+		RAS_IRasterizer::TexCoGenList attribs(2);
+		attribs[0] = RAS_IRasterizer::RAS_TEXCO_DISABLE;
+		attribs[1] = RAS_IRasterizer::RAS_TEXTANGENT;
+
+		ras->SetAttribs(attribs);
 	}
 
-	ras->SetTexCoordNum(RAS_Texture::MaxUnits);
-
+	RAS_IRasterizer::TexCoGenList texcos(RAS_Texture::MaxUnits);
 	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
 		RAS_Texture *texture = m_textures[i];
 		/* Here textures can return false to Ok() because we're looking only at
@@ -468,25 +464,26 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 		if (texture) {
 			MTex *mtex = texture->GetMTex();
 			if (mtex->texco & (TEXCO_OBJECT | TEXCO_REFL)) {
-				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_GEN, i);
+				texcos[i] = RAS_IRasterizer::RAS_TEXCO_GEN;
 			}
 			else if (mtex->texco & (TEXCO_ORCO | TEXCO_GLOB)) {
-				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_ORCO, i);
+				texcos[i] = RAS_IRasterizer::RAS_TEXCO_ORCO;
 			}
 			else if (mtex->texco & TEXCO_UV) {
-				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_UV, i);
+				texcos[i] = RAS_IRasterizer::RAS_TEXCO_UV;
 			}
 			else if (mtex->texco & TEXCO_NORM) {
-				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_NORM, i);
+				texcos[i] = RAS_IRasterizer::RAS_TEXCO_NORM;
 			}
 			else if (mtex->texco & TEXCO_TANGENT) {
-				ras->SetTexCoord(RAS_IRasterizer::RAS_TEXTANGENT, i);
+				texcos[i] = RAS_IRasterizer::RAS_TEXTANGENT;
 			}
 		}
 		else {
-			ras->SetTexCoord(RAS_IRasterizer::RAS_TEXCO_DISABLE, i);
+			texcos[i] = RAS_IRasterizer::RAS_TEXCO_DISABLE;
 		}
 	}
+	ras->SetTexCoords(texcos);
 }
 
 void KX_BlenderMaterial::UpdateIPO(
@@ -518,6 +515,16 @@ void KX_BlenderMaterial::UpdateIPO(
 	m_material->spectra = (float)specalpha;
 }
 
+const RAS_IRasterizer::AttribLayerList KX_BlenderMaterial::GetAttribLayers(const STR_String uvsname[RAS_Texture::MaxUnits]) const
+{
+	if (m_blenderShader && m_blenderShader->Ok()) {
+		return m_blenderShader->GetAttribLayers(uvsname);
+	}
+
+	static const RAS_IRasterizer::AttribLayerList uvLayers;
+	return uvLayers;
+}
+
 void KX_BlenderMaterial::Replace_IScene(SCA_IScene *val)
 {
 	m_scene = static_cast<KX_Scene *>(val);
@@ -528,7 +535,7 @@ void KX_BlenderMaterial::Replace_IScene(SCA_IScene *val)
 void KX_BlenderMaterial::SetBlenderGLSLShader()
 {
 	if (!m_blenderShader)
-		m_blenderShader = new BL_BlenderShader(m_scene, m_material, m_lightLayer, m_uvsName);
+		m_blenderShader = new BL_BlenderShader(m_scene, m_material, m_lightLayer);
 
 	if (!m_blenderShader->Ok()) {
 		delete m_blenderShader;

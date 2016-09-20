@@ -88,13 +88,9 @@ void RAS_DisplayList::End(RAS_IRasterizer::DrawType drawmode, LIST_TYPE type)
 	glCallList(m_list[drawmode][type]);
 }
 
-RAS_StorageVA::RAS_StorageVA(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer) :
-	m_drawingmode(RAS_IRasterizer::RAS_TEXTURED),
-	m_texco_num(texco_num),
-	m_attrib_num(attrib_num),
-	m_texco(texco),
-	m_attrib(attrib),
-	m_attrib_layer(attrib_layer)
+RAS_StorageVA::RAS_StorageVA(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs)
+	:m_drawingmode(RAS_IRasterizer::RAS_TEXTURED),
+	m_storageAttribs(storageAttribs)
 {
 }
 
@@ -226,11 +222,10 @@ void RAS_StorageVA::TexCoordPtr(const RAS_ITexVert *tv, const unsigned int strid
 	/* note: this function must closely match EnableTextures to enable/disable
 	 * the right arrays, otherwise coordinate and attribute pointers from other
 	 * materials can still be used and cause crashes */
-	int unit;
 
-	for (unit = 0; unit < *m_texco_num; unit++) {
+	for (unsigned short unit = 0, size = m_storageAttribs->texcos.size(); unit < size; ++unit) {
 		glClientActiveTextureARB(GL_TEXTURE0_ARB + unit);
-		switch (m_texco[unit]) {
+		switch (m_storageAttribs->texcos[unit]) {
 			case RAS_IRasterizer::RAS_TEXCO_ORCO:
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 			{
@@ -259,8 +254,8 @@ void RAS_StorageVA::TexCoordPtr(const RAS_ITexVert *tv, const unsigned int strid
 
 	glClientActiveTextureARB(GL_TEXTURE0_ARB);
 
-	for (unit = 0; unit < *m_attrib_num; unit++) {
-		switch (m_attrib[unit]) {
+	for (unsigned short unit = 0, size = m_storageAttribs->attribs.size(); unit < size; ++unit) {
+		switch (m_storageAttribs->attribs[unit]) {
 			case RAS_IRasterizer::RAS_TEXCO_ORCO:
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 			{
@@ -269,7 +264,7 @@ void RAS_StorageVA::TexCoordPtr(const RAS_ITexVert *tv, const unsigned int strid
 			}
 			case RAS_IRasterizer::RAS_TEXCO_UV:
 			{
-				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, stride, tv->getUV(m_attrib_layer[unit]));
+				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, stride, tv->getUV(m_storageAttribs->layers[unit]));
 				break;
 			}
 			case RAS_IRasterizer::RAS_TEXCO_NORM:
@@ -295,17 +290,8 @@ void RAS_StorageVA::TexCoordPtr(const RAS_ITexVert *tv, const unsigned int strid
 
 void RAS_StorageVA::EnableTextures(bool enable)
 {
-	RAS_IRasterizer::TexCoGen *texco, *attrib;
-	int unit, texco_num, attrib_num;
-
-	texco = m_texco;
-	texco_num = *m_texco_num;
-	attrib = m_attrib;
-	attrib_num = *m_attrib_num;
-
-	for (unit = 0; unit < texco_num; unit++) {
-
-		switch (texco[unit]) {
+	for (unsigned short unit = 0, size = m_storageAttribs->texcos.size(); unit < size; ++unit) {
+		switch (m_storageAttribs->texcos[unit]) {
 			case RAS_IRasterizer::RAS_TEXCO_ORCO:
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 			case RAS_IRasterizer::RAS_TEXCO_UV:
@@ -330,8 +316,8 @@ void RAS_StorageVA::EnableTextures(bool enable)
 
 	glClientActiveTextureARB(GL_TEXTURE0_ARB);
 
-	for (unit = 0; unit < attrib_num; unit++) {
-		switch (attrib[unit]) {
+	for (unsigned short unit = 0, size = m_storageAttribs->attribs.size(); unit < size; ++unit) {
+		switch (m_storageAttribs->attribs[unit]) {
 			case RAS_IRasterizer::RAS_TEXCO_ORCO:
 			case RAS_IRasterizer::RAS_TEXCO_GLOB:
 			case RAS_IRasterizer::RAS_TEXCO_UV:

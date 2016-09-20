@@ -42,6 +42,7 @@
 class RAS_MaterialBucket;
 class RAS_IDisplayArray;
 class RAS_MeshObject;
+class RAS_MeshMaterial;
 class RAS_Deformer;
 class RAS_IStorageInfo;
 class RAS_InstancingBuffer;
@@ -60,6 +61,8 @@ private:
 	RAS_IDisplayArray *m_displayArray;
 	/// The parent mesh object, it can be NULL for text objects.
 	RAS_MeshObject *m_mesh;
+	/// The material mesh.
+	RAS_MeshMaterial *m_meshMaterial;
 	/// The list fo all visible mesh slots to render this frame.
 	RAS_MeshSlotList m_activeMeshSlots;
 	/// The list of all deformer usign this display array.
@@ -83,7 +86,7 @@ private:
 	RAS_InstancingBuffer *m_instancingBuffer;
 
 public:
-	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array, RAS_MeshObject *mesh);
+	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array, RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat);
 	~RAS_DisplayArrayBucket();
 
 	/// \section Reference Count Management.
@@ -99,6 +102,7 @@ public:
 	RAS_IDisplayArray *GetDisplayArray() const;
 	RAS_MaterialBucket *GetMaterialBucket() const;
 	RAS_MeshObject *GetMesh() const;
+	RAS_MeshMaterial *GetMeshMaterial() const;
 
 	/// \section Active Mesh Slots Management.
 	void ActivateMesh(RAS_MeshSlot *slot);
@@ -127,6 +131,8 @@ public:
 	void SetStorageInfo(RAS_IStorageInfo *info);
 	void DestructStorageInfo();
 	RAS_IRasterizer::StorageType GetStorageType() const;
+
+	void SetAttribLayers(RAS_IRasterizer *rasty) const;
 
 	/// Render all mesh slots for solid render.
 	void RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);
