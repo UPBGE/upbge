@@ -214,7 +214,6 @@ void KX_BlenderMaterial::InitTextures()
 	for (i = 0; i < RAS_Texture::MaxUnits; i++) {
 		MTex *mtex = m_material->mtex[i];
 		if (mtex && mtex->tex) {
-			Tex *tex = mtex->tex;
 			BL_Texture *texture = new BL_Texture(mtex);
 			m_textures[i] = texture;
 		}
