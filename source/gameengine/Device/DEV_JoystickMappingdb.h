@@ -32,6 +32,9 @@
  * - Last commit updated: 02 September 2016, https://github.com/gabomdq/SDL_GameControllerDB/commit/58ee3e3ab8975682d60a104e351bfd0cc01fa4c6
  * - Also it was added fix from issue #86, https://github.com/gabomdq/SDL_GameControllerDB/issues/86
  */
+
+#ifdef WITH_SDL
+
 static const char *controller_mappings[] =
 {
 #if defined(WIN32)
@@ -190,5 +193,7 @@ static const char *controller_mappings[] =
 #endif
 	NULL
 };
+
+#endif  // WITH_SDL
 
 #endif // DEV_JOYSTICKMAPPINGDB_H
