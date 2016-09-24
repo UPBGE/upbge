@@ -1121,12 +1121,10 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 
 	BLI_listbase_clear(&obn->prop);
 	BKE_bproperty_copy_list(&obn->prop, &ob->prop);
-	
-	copy_sensors(&obn->sensors, &ob->sensors);
-	copy_controllers(&obn->controllers, &ob->controllers);
-	copy_actuators(&obn->actuators, &ob->actuators);
+
+	BKE_sca_logic_copy(obn, ob);
 	BKE_python_component_copy_list(&obn->components, &ob->components);
-	
+
 	if (ob->pose) {
 		copy_object_pose(obn, ob);
 		/* backwards compat... non-armatures can get poses in older files? */

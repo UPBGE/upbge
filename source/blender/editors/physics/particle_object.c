@@ -697,6 +697,9 @@ static bool remap_hair_emitter(Scene *scene, Object *ob, ParticleSystem *psys,
 		dm = target_psmd->dm_deformed;
 	}
 	target_dm = target_psmd->dm_final;
+	if (dm == NULL) {
+		return false;
+	}
 	/* don't modify the original vertices */
 	dm = CDDM_copy(dm);
 
@@ -993,7 +996,13 @@ static void remove_particle_systems_from_object(Object *ob_to)
 }
 
 /* single_psys_from is optional, if NULL all psys of ob_from are copied */
-static bool copy_particle_systems_to_object(Scene *scene, Object *ob_from, ParticleSystem *single_psys_from, Object *ob_to, int space)
+static bool copy_particle_systems_to_object(Main *bmain,
+                                            Scene *scene,
+                                            Object *ob_from,
+                                            ParticleSystem *single_psys_from,
+                                            Object *ob_to,
+                                            int space,
+                                            bool duplicate_settings)
 {
 	ModifierData *md;
 	ParticleSystem *psys_start = NULL, *psys, *psys_from;
@@ -1070,6 +1079,11 @@ static bool copy_particle_systems_to_object(Scene *scene, Object *ob_from, Parti
 		
 		if (psys_from->edit)
 			copy_particle_edit(scene, ob_to, psys, psys_from);
+
+		if (duplicate_settings) {
+			id_us_min(&psys->part->id);
+			psys->part = BKE_particlesettings_copy(bmain, psys->part);
+		}
 	}
 	MEM_freeN(tmp_psys);
 	
@@ -1097,8 +1111,9 @@ static bool copy_particle_systems_to_object(Scene *scene, Object *ob_from, Parti
 				BLI_assert(false);
 				break;
 		}
-		
-		remap_hair_emitter(scene, ob_from, psys_from, ob_to, psys, psys->edit, from_mat, to_mat, psys_from->flag & PSYS_GLOBAL_HAIR, psys->flag & PSYS_GLOBAL_HAIR);
+		if (ob_from != ob_to) {
+			remap_hair_emitter(scene, ob_from, psys_from, ob_to, psys, psys->edit, from_mat, to_mat, psys_from->flag & PSYS_GLOBAL_HAIR, psys->flag & PSYS_GLOBAL_HAIR);
+		}
 		
 		/* tag for recalc */
 //		psys->recalc |= PSYS_RECALC_RESET;
@@ -1130,6 +1145,7 @@ static int copy_particle_systems_exec(bContext *C, wmOperator *op)
 	const int space = RNA_enum_get(op->ptr, "space");
 	const bool remove_target_particles = RNA_boolean_get(op->ptr, "remove_target_particles");
 	const bool use_active = RNA_boolean_get(op->ptr, "use_active");
+	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	Object *ob_from = ED_object_active_context(C);
 	ParticleSystem *psys_from = use_active ? CTX_data_pointer_get_type(C, "particle_system", &RNA_ParticleSystem).data : NULL;
@@ -1145,7 +1161,7 @@ static int copy_particle_systems_exec(bContext *C, wmOperator *op)
 				remove_particle_systems_from_object(ob_to);
 				changed = true;
 			}
-			if (copy_particle_systems_to_object(scene, ob_from, psys_from, ob_to, space))
+			if (copy_particle_systems_to_object(bmain, scene, ob_from, psys_from, ob_to, space, false))
 				changed = true;
 			else
 				fail++;
@@ -1186,4 +1202,43 @@ void PARTICLE_OT_copy_particle_systems(wmOperatorType *ot)
 	RNA_def_enum(ot->srna, "space", space_items, PAR_COPY_SPACE_OBJECT, "Space", "Space transform for copying from one object to another");
 	RNA_def_boolean(ot->srna, "remove_target_particles", true, "Remove Target Particles", "Remove particle systems on the target objects");
 	RNA_def_boolean(ot->srna, "use_active", false, "Use Active", "Use the active particle system from the context");
+}
+
+static int duplicate_particle_systems_poll(bContext *C)
+{
+	if (!ED_operator_object_active_editable(C)) {
+		return false;
+	}
+	Object *ob = ED_object_active_context(C);
+	if (BLI_listbase_is_empty(&ob->particlesystem)) {
+		return false;
+	}
+	return true;
+}
+
+static int duplicate_particle_systems_exec(bContext *C, wmOperator *op)
+{
+	const bool duplicate_settings = RNA_boolean_get(op->ptr, "use_duplicate_settings");
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = ED_object_active_context(C);
+	ParticleSystem *psys = CTX_data_pointer_get_type(C, "particle_system", &RNA_ParticleSystem).data;
+	copy_particle_systems_to_object(CTX_data_main(C), scene, ob, psys, ob,
+	                                PAR_COPY_SPACE_OBJECT, duplicate_settings);
+	return OPERATOR_FINISHED;
+}
+
+void PARTICLE_OT_duplicate_particle_system(wmOperatorType *ot)
+{
+	ot->name = "Duplicate Particle Systems";
+	ot->description = "Duplicate particle system within the active object";
+	ot->idname = "PARTICLE_OT_duplicate_particle_system";
+
+	ot->poll = duplicate_particle_systems_poll;
+	ot->exec = duplicate_particle_systems_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "use_duplicate_settings", false, "Duplicate Settings",
+	                "Duplicate settings as well, so new particle system uses own settings");
 }
