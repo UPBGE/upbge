@@ -282,12 +282,6 @@ base class --- :class:`SCA_IObject`
 
       :type: boolean
 
-   .. attribute:: record_animation
-
-      Record animation for this object.
-
-      :type: boolean
-
    .. attribute:: color
 
       The object color of the object. [r, g, b, a]
@@ -731,9 +725,9 @@ base class --- :class:`SCA_IObject`
       Sets both the :py:attr:`linearDamping` and :py:attr:`angularDamping` simultaneously. This is more efficient than setting both properties individually.
 
       :arg linear_damping: Linear ("translational") damping factor.
-      :type linear_damping: float ∈ [0, 1]
+      :type linear_damping: float ??? [0, 1]
       :arg angular_damping: Angular ("rotational") damping factor.
-      :type angular_damping: float ∈ [0, 1]
+      :type angular_damping: float ??? [0, 1]
 
    .. method:: suspendDynamics([ghost])
 
