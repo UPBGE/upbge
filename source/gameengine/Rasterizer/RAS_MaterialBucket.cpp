@@ -112,11 +112,11 @@ void RAS_MaterialBucket::RemoveMesh(RAS_MeshSlot *ms)
 
 void RAS_MaterialBucket::RemoveMeshObject(RAS_MeshObject *mesh)
 {
-	for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(), end = m_meshSlots.end(); it != end;) {
+	for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(); it != m_meshSlots.end();) {
 		RAS_MeshSlot *ms = *it;
 		if (ms->m_mesh == mesh) {
 			delete ms;
-			m_meshSlots.erase(it++);
+			it = m_meshSlots.erase(it);
 		}
 		else {
 			++it;

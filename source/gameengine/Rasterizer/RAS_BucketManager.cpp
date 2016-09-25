@@ -455,10 +455,10 @@ void RAS_BucketManager::RemoveMaterial(RAS_IPolyMaterial *mat)
 {
 	for (unsigned short i = 0; i < NUM_BUCKET_TYPE; ++i) {
 		BucketList& buckets = m_buckets[i];
-		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ) {
+		for (BucketList::iterator it = buckets.begin(); it != buckets.end();) {
 			RAS_MaterialBucket *bucket = *it;
 			if (mat == bucket->GetPolyMaterial()) {
-				buckets.erase(it++);
+				it = buckets.erase(it);
 				if (i == ALL_BUCKET) {
 					delete bucket;
 				}
