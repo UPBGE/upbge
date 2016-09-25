@@ -58,7 +58,8 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_scene(scene),
 	m_userDefBlend(false),
 	m_constructed(false),
-	m_lightLayer(lightlayer)
+	m_lightLayer(lightlayer),
+	m_materialEnabled(true)
 {
 	// Save material data to restore on exit
 	m_savedData.r = m_material->r;
@@ -229,6 +230,16 @@ void KX_BlenderMaterial::OnConstruction()
 	m_blendFunc[0] = 0;
 	m_blendFunc[1] = 0;
 	m_constructed = true;
+}
+
+void KX_BlenderMaterial::SetEnabled(bool enable)
+{
+	m_materialEnabled = enable;
+}
+
+bool KX_BlenderMaterial::GetEnabled()
+{
+	return m_materialEnabled;
 }
 
 void KX_BlenderMaterial::EndFrame(RAS_IRasterizer *rasty)
@@ -680,6 +691,7 @@ PyAttributeDef KX_BlenderMaterial::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("emit", KX_BlenderMaterial, pyattr_get_emit, pyattr_set_emit),
 	KX_PYATTRIBUTE_RW_FUNCTION("ambient", KX_BlenderMaterial, pyattr_get_ambient, pyattr_set_ambient),
 	KX_PYATTRIBUTE_RW_FUNCTION("specularAlpha", KX_BlenderMaterial, pyattr_get_specular_alpha, pyattr_set_specular_alpha),
+	KX_PYATTRIBUTE_RW_FUNCTION("enabled", KX_BlenderMaterial, pyattr_get_material_enabled, pyattr_set_material_enabled),
 
 	{NULL} //Sentinel
 };
@@ -956,6 +968,26 @@ int KX_BlenderMaterial::pyattr_set_ambient(void *self_v, const KX_PYATTRIBUTE_DE
 	CLAMP(val, 0.0f, 1.0f);
 
 	self->GetBlenderMaterial()->amb = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_BlenderMaterial::pyattr_get_material_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
+	return PyBool_FromLong(self->GetEnabled());
+}
+
+int KX_BlenderMaterial::pyattr_set_material_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
+	float val = PyLong_AsLong(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "material.%s = bool: KX_BlenderMaterial, expected a boolean", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->SetEnabled(bool(val));
 	return PY_SET_ATTR_SUCCESS;
 }
 

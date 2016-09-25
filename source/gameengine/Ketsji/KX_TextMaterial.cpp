@@ -120,3 +120,12 @@ void KX_TextMaterial::Replace_IScene(SCA_IScene *val)
 void KX_TextMaterial::OnConstruction()
 {
 }
+
+void KX_TextMaterial::SetEnabled(bool enable)
+{
+}
+
+bool KX_TextMaterial::GetEnabled()
+{
+	return true;
+}

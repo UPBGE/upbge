@@ -48,6 +48,8 @@ public:
 	virtual void ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
 	virtual void DesactivateInstancing();
 	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty);
+	virtual void SetEnabled(bool enable);
+	virtual bool GetEnabled();
 
 	void ActivateShaders(RAS_IRasterizer *rasty);
 
@@ -103,6 +105,8 @@ public:
 	static int pyattr_set_ambient(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_specular_alpha(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_specular_alpha(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_material_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_material_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	KX_PYMETHOD_DOC(KX_BlenderMaterial, getShader);
 	KX_PYMETHOD_DOC(KX_BlenderMaterial, getTextureBindcode);
@@ -125,6 +129,7 @@ private:
 	bool m_userDefBlend;
 	unsigned int m_blendFunc[2];
 	bool m_constructed; // if false, don't clean on exit
+	bool m_materialEnabled;
 	int m_lightLayer;
 
 	struct {
