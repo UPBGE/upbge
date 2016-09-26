@@ -50,6 +50,7 @@ public:
 	static PyObject*	pyattr_get_hat_values(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_axis_values(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_name(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_effect(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 
