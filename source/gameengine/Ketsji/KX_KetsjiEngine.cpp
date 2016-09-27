@@ -265,11 +265,11 @@ void KX_KetsjiEngine::StartEngine(bool clearIpo)
 	}
 }
 
-bool KX_KetsjiEngine::BeginFrame()
+void KX_KetsjiEngine::BeginFrame()
 {
 	m_rasterizer->BeginFrame(m_kxsystem->GetTimeInSeconds());
 
-	return (m_canvas->BeginDraw());
+	m_canvas->BeginDraw();
 }
 
 void KX_KetsjiEngine::EndFrame()

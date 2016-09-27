@@ -72,7 +72,7 @@ public:
 	 * \retval true Acquiring the canvas succeeded.
 	 *
 	 */
-	virtual bool BeginDraw() = 0;
+	virtual void BeginDraw() = 0;
 
 	/**
 	 * Unitializes the canvas for drawing.

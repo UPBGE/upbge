@@ -119,12 +119,11 @@ bool KX_BlenderCanvas::GetFullScreen()
 	return false;
 }
 
-bool KX_BlenderCanvas::BeginDraw()
+void KX_BlenderCanvas::BeginDraw()
 {
 	// in case of multi-window we need to ensure we are drawing to the correct
 	// window always, because it may change in window event handling
 	wm_window_make_drawable(m_wm, m_win);
-	return true;
 }
 
 void KX_BlenderCanvas::EndDraw()

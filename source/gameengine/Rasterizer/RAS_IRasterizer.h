@@ -310,7 +310,7 @@ public:
 	/**
 	 * Init initializes the renderer.
 	 */
-	virtual bool Init() = 0;
+	virtual void Init() = 0;
 
 	/**
 	 * Exit cleans up the renderer.
@@ -325,7 +325,7 @@ public:
 	/**
 	 * BeginFrame is called at the start of each frame.
 	 */
-	virtual bool BeginFrame(double time) = 0;
+	virtual void BeginFrame(double time) = 0;
 
 	/**
 	 * Clears a specified set of buffers

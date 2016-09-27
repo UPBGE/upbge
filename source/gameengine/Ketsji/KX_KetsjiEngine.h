@@ -589,7 +589,7 @@ protected:
 	void ReplaceScheduledScenes(void);
 	void PostProcessScene(KX_Scene *scene);
 
-	bool BeginFrame();
+	void BeginFrame();
 	void EndFrame();
 
 #ifdef WITH_CXX_GUARDEDALLOC

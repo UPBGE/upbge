@@ -473,7 +473,7 @@ void RAS_OpenGLRasterizer::SetBlendFunc(BlendFunc src, BlendFunc dst)
 	glBlendFunc(openGLBlendFuncEnums[src], openGLBlendFuncEnums[dst]);
 }
 
-bool RAS_OpenGLRasterizer::Init()
+void RAS_OpenGLRasterizer::Init()
 {
 	GPU_state_init();
 
@@ -495,8 +495,6 @@ bool RAS_OpenGLRasterizer::Init()
 	for (unsigned short i = 0; i < RAS_STORAGE_MAX; ++i) {
 		m_storages[i]->Init();
 	}
-
-	return (true);
 }
 
 void RAS_OpenGLRasterizer::SetAmbientColor(float color[3])
@@ -572,7 +570,7 @@ void RAS_OpenGLRasterizer::DrawOverlayPlane()
 	m_screenPlane.Render();
 }
 
-bool RAS_OpenGLRasterizer::BeginFrame(double time)
+void RAS_OpenGLRasterizer::BeginFrame(double time)
 {
 	m_time = time;
 
@@ -609,8 +607,6 @@ bool RAS_OpenGLRasterizer::BeginFrame(double time)
 	m_lastlighting = true; /* force disable in DisableOpenGLLights() */
 
 	DisableOpenGLLights();
-
-	return true;
 }
 
 void RAS_OpenGLRasterizer::SetDrawingMode(RAS_IRasterizer::DrawType drawingmode)

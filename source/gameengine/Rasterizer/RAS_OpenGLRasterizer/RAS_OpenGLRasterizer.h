@@ -242,10 +242,10 @@ public:
 
 	virtual unsigned int *MakeScreenshot(int x, int y, int width, int height);
 
-	virtual bool Init();
+	virtual void Init();
 	virtual void Exit();
 	virtual void DrawOverlayPlane();
-	virtual bool BeginFrame(double time);
+	virtual void BeginFrame(double time);
 	virtual void Clear(int clearbit);
 	virtual void SetClearColor(float r, float g, float b, float a=1.0f);
 	virtual void SetClearDepth(float d);

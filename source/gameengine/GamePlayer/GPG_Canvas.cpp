@@ -73,9 +73,8 @@ void GPG_Canvas::EndFrame()
 {
 }
 
-bool GPG_Canvas::BeginDraw()
+void GPG_Canvas::BeginDraw()
 {
-	return true;
 }
 
 void GPG_Canvas::EndDraw()

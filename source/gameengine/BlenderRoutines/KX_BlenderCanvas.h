@@ -114,7 +114,7 @@ public:
 
 	void MakeScreenShot(const char *filename);
 
-	bool BeginDraw();
+	void BeginDraw();
 	void EndDraw();
 
 private:

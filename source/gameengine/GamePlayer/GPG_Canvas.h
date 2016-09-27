@@ -121,7 +121,7 @@ public:
 	virtual void SetFullScreen(bool enable);
 	virtual bool GetFullScreen();
 
-	virtual bool BeginDraw();
+	virtual void BeginDraw();
 	virtual void EndDraw();
 };
 
