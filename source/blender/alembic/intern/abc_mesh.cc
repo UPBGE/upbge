@@ -146,19 +146,6 @@ static void get_topology(DerivedMesh *dm,
 	}
 }
 
-static void get_material_indices(DerivedMesh *dm, std::vector<int32_t> &indices)
-{
-	indices.clear();
-	indices.reserve(dm->getNumTessFaces(dm));
-
-	MPoly *mpolys = dm->getPolyArray(dm);
-
-	for (int i = 1, e = dm->getNumPolys(dm); i < e; ++i) {
-		MPoly *mpoly = &mpolys[i];
-		indices.push_back(mpoly->mat_nr);
-	}
-}
-
 static void get_creases(DerivedMesh *dm,
                         std::vector<int32_t> &indices,
                         std::vector<int32_t> &lengths,
@@ -859,7 +846,10 @@ static void read_mverts(CDStreamConfig &config, const AbcMeshData &mesh_data)
 	const P3fArraySamplePtr &positions = mesh_data.positions;
 	const N3fArraySamplePtr &normals = mesh_data.vertex_normals;
 
-	if (config.weight != 0.0f && mesh_data.ceil_positions) {
+	if (   config.weight != 0.0f
+	    && mesh_data.ceil_positions != NULL
+	    && mesh_data.ceil_positions->size() == positions->size())
+	{
 		read_mverts_interp(mverts, positions, mesh_data.ceil_positions, config.weight);
 		return;
 	}
