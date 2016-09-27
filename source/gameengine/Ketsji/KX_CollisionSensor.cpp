@@ -28,16 +28,16 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_TouchSensor.cpp
+/** \file gameengine/Ketsji/KX_CollisionSensor.cpp
  *  \ingroup ketsji
  */
 
 
-#include "KX_TouchSensor.h"
+#include "KX_CollisionSensor.h"
 #include "SCA_EventManager.h"
 #include "SCA_LogicManager.h"
 #include "KX_GameObject.h"
-#include "KX_TouchEventManager.h"
+#include "KX_CollisionEventManager.h"
 
 #include "PHY_IPhysicsController.h"
 
@@ -51,14 +51,14 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-void KX_TouchSensor::SynchronizeTransform()
+void KX_CollisionSensor::SynchronizeTransform()
 {
 	// the touch sensor does not require any synchronization: it uses
 	// the same physical object which is already synchronized by Blender
 }
 
 
-void KX_TouchSensor::EndFrame()
+void KX_CollisionSensor::EndFrame()
 {
 	m_colliders->ReleaseAndRemoveAll();
 	m_hitObject = NULL;
@@ -66,14 +66,14 @@ void KX_TouchSensor::EndFrame()
 	m_bColliderHash = 0;
 }
 
-void KX_TouchSensor::UnregisterToManager()
+void KX_CollisionSensor::UnregisterToManager()
 {
 	// before unregistering the sensor, make sure we release all references
 	EndFrame();
 	SCA_ISensor::UnregisterToManager();
 }
 
-bool KX_TouchSensor::Evaluate()
+bool KX_CollisionSensor::Evaluate()
 {
 	bool result = false;
 	bool reset = m_reset && m_level;
@@ -89,7 +89,7 @@ bool KX_TouchSensor::Evaluate()
 		// force an event
 		result = true;
 	
-	if (m_bTouchPulse) { /* pulse on changes to the colliders */
+	if (m_bCollisionPulse) { /* pulse on changes to the colliders */
 		int count = m_colliders->GetCount();
 		
 		if (m_bLastCount!=count || m_bColliderHash!=m_bLastColliderHash) {
@@ -101,16 +101,16 @@ bool KX_TouchSensor::Evaluate()
 	return result;
 }
 
-KX_TouchSensor::KX_TouchSensor(SCA_EventManager* eventmgr,KX_GameObject* gameobj,bool bFindMaterial,bool bTouchPulse,const STR_String& touchedpropname)
+KX_CollisionSensor::KX_CollisionSensor(SCA_EventManager* eventmgr,KX_GameObject* gameobj,bool bFindMaterial,bool bCollisionPulse,const STR_String& touchedpropname)
 :SCA_ISensor(gameobj,eventmgr),
 m_touchedpropname(touchedpropname),
 m_bFindMaterial(bFindMaterial),
-m_bTouchPulse(bTouchPulse),
+m_bCollisionPulse(bCollisionPulse),
 m_hitMaterial("")
 /*m_sumoObj(sumoObj),*/
 {
-//	KX_TouchEventManager* touchmgr = (KX_TouchEventManager*) eventmgr;
-//	m_resptable = touchmgr->GetResponseTable();
+//	KX_CollisionEventManager* collisionmgr = (KX_CollisionEventManager*) eventmgr;
+//	m_resptable = collisionmgr->GetResponseTable();
 	
 //	m_solidHandle = m_sumoObj->getObjectHandle();
 
@@ -126,7 +126,7 @@ m_hitMaterial("")
 	Init();
 }
 
-void KX_TouchSensor::Init()
+void KX_CollisionSensor::Init()
 {
 	m_bCollision = false;
 	m_bTriggered = false;
@@ -137,27 +137,27 @@ void KX_TouchSensor::Init()
 	m_reset = true;
 }
 
-KX_TouchSensor::~KX_TouchSensor()
+KX_CollisionSensor::~KX_CollisionSensor()
 {
 	//DT_ClearObjectResponse(m_resptable,m_solidHandle);
 	m_colliders->Release();
 }
 
-CValue* KX_TouchSensor::GetReplica() 
+CValue* KX_CollisionSensor::GetReplica() 
 {
-	KX_TouchSensor* replica = new KX_TouchSensor(*this);
+	KX_CollisionSensor* replica = new KX_CollisionSensor(*this);
 	replica->ProcessReplica();
 	return replica;
 }
 
-void KX_TouchSensor::ProcessReplica()
+void KX_CollisionSensor::ProcessReplica()
 {
 	SCA_ISensor::ProcessReplica();
 	m_colliders = new CListValue();
 	Init();
 }
 
-void	KX_TouchSensor::ReParent(SCA_IObject* parent)
+void	KX_CollisionSensor::ReParent(SCA_IObject* parent)
 {
 	KX_GameObject *gameobj = static_cast<KX_GameObject *>(parent);
 	PHY_IPhysicsController *sphy = ((KX_GameObject*)parent)->GetPhysicsController();
@@ -173,35 +173,35 @@ void	KX_TouchSensor::ReParent(SCA_IObject* parent)
 	SCA_ISensor::ReParent(parent);
 }
 
-void KX_TouchSensor::RegisterSumo(KX_TouchEventManager *touchman)
+void KX_CollisionSensor::RegisterSumo(KX_CollisionEventManager *collisionman)
 {
 	if (m_physCtrl)
 	{
-		if (touchman->GetPhysicsEnvironment()->RequestCollisionCallback(m_physCtrl))
+		if (collisionman->GetPhysicsEnvironment()->RequestCollisionCallback(m_physCtrl))
 		{
 			KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*>(m_physCtrl->GetNewClientInfo());
 			if (client_info->isSensor())
-				touchman->GetPhysicsEnvironment()->AddSensor(m_physCtrl);
+				collisionman->GetPhysicsEnvironment()->AddSensor(m_physCtrl);
 		}
 	}
 }
-void KX_TouchSensor::UnregisterSumo(KX_TouchEventManager* touchman)
+void KX_CollisionSensor::UnregisterSumo(KX_CollisionEventManager* collisionman)
 {
 	if (m_physCtrl)
 	{
-		if (touchman->GetPhysicsEnvironment()->RemoveCollisionCallback(m_physCtrl))
+		if (collisionman->GetPhysicsEnvironment()->RemoveCollisionCallback(m_physCtrl))
 		{
 			// no more sensor on the controller, can remove it if it is a sensor object
 			KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*>(m_physCtrl->GetNewClientInfo());
 			if (client_info->isSensor())
-				touchman->GetPhysicsEnvironment()->RemoveSensor(m_physCtrl);
+				collisionman->GetPhysicsEnvironment()->RemoveSensor(m_physCtrl);
 		}
 	}
 }
 
 // this function is called only for sensor objects
 // return true if the controller can collide with the object
-bool	KX_TouchSensor::BroadPhaseSensorFilterCollision(void*obj1,void*obj2)
+bool	KX_CollisionSensor::BroadPhaseSensorFilterCollision(void*obj1,void*obj2)
 {
 	assert(obj1==m_physCtrl && obj2);
 
@@ -239,9 +239,9 @@ bool	KX_TouchSensor::BroadPhaseSensorFilterCollision(void*obj1,void*obj2)
 	return found;
 }
 
-bool	KX_TouchSensor::NewHandleCollision(void*object1,void*object2,const PHY_CollData* colldata)
+bool	KX_CollisionSensor::NewHandleCollision(void*object1,void*object2,const PHY_CollData* colldata)
 {
-//	KX_TouchEventManager* toucheventmgr = (KX_TouchEventManager*)m_eventmgr;
+//	KX_CollisionEventManager* toucheventmgr = (KX_CollisionEventManager*)m_eventmgr;
 	KX_GameObject* parent = (KX_GameObject*)GetParent();
 
 	// need the mapping from PHY_IPhysicsController to gameobjects now
@@ -285,13 +285,13 @@ bool	KX_TouchSensor::NewHandleCollision(void*object1,void*object2,const PHY_Coll
 			if (!m_colliders->SearchValue(gameobj)) {
 				m_colliders->Add(gameobj->AddRef());
 				
-				if (m_bTouchPulse)
+				if (m_bCollisionPulse)
 					m_bColliderHash += (uint_ptr)(static_cast<void *>(&gameobj));
 			}
 			m_bTriggered = true;
 			m_hitObject = gameobj;
 			m_hitMaterial = hitMaterial;
-			//printf("KX_TouchSensor::HandleCollision\n");
+			//printf("KX_CollisionSensor::HandleCollision\n");
 		}
 		
 	} 
@@ -304,9 +304,9 @@ bool	KX_TouchSensor::NewHandleCollision(void*object1,void*object2,const PHY_Coll
 /* Python functions                                                          */
 /* ------------------------------------------------------------------------- */
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject KX_TouchSensor::Type = {
+PyTypeObject KX_CollisionSensor::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	"KX_TouchSensor",
+	"KX_CollisionSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -326,25 +326,25 @@ PyTypeObject KX_TouchSensor::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_TouchSensor::Methods[] = {
+PyMethodDef KX_CollisionSensor::Methods[] = {
 	{NULL,NULL} //Sentinel
 };
 
-PyAttributeDef KX_TouchSensor::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW("propName",0,MAX_PROP_NAME,false,KX_TouchSensor,m_touchedpropname),
-	KX_PYATTRIBUTE_BOOL_RW("useMaterial",KX_TouchSensor,m_bFindMaterial),
-	KX_PYATTRIBUTE_BOOL_RW("usePulseCollision",KX_TouchSensor,m_bTouchPulse),
-	KX_PYATTRIBUTE_STRING_RO("hitMaterial", KX_TouchSensor, m_hitMaterial),
-	KX_PYATTRIBUTE_RO_FUNCTION("hitObject", KX_TouchSensor, pyattr_get_object_hit),
-	KX_PYATTRIBUTE_RO_FUNCTION("hitObjectList", KX_TouchSensor, pyattr_get_object_hit_list),
+PyAttributeDef KX_CollisionSensor::Attributes[] = {
+	KX_PYATTRIBUTE_STRING_RW("propName",0,MAX_PROP_NAME,false,KX_CollisionSensor,m_touchedpropname),
+	KX_PYATTRIBUTE_BOOL_RW("useMaterial",KX_CollisionSensor,m_bFindMaterial),
+	KX_PYATTRIBUTE_BOOL_RW("usePulseCollision",KX_CollisionSensor,m_bCollisionPulse),
+	KX_PYATTRIBUTE_STRING_RO("hitMaterial", KX_CollisionSensor, m_hitMaterial),
+	KX_PYATTRIBUTE_RO_FUNCTION("hitObject", KX_CollisionSensor, pyattr_get_object_hit),
+	KX_PYATTRIBUTE_RO_FUNCTION("hitObjectList", KX_CollisionSensor, pyattr_get_object_hit_list),
 	{ NULL }	//Sentinel
 };
 
 /* Python API */
 
-PyObject *KX_TouchSensor::pyattr_get_object_hit(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CollisionSensor::pyattr_get_object_hit(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_TouchSensor* self = static_cast<KX_TouchSensor*>(self_v);
+	KX_CollisionSensor* self = static_cast<KX_CollisionSensor*>(self_v);
 	
 	if (self->m_hitObject)
 		return self->m_hitObject->GetProxy();
@@ -352,9 +352,9 @@ PyObject *KX_TouchSensor::pyattr_get_object_hit(void *self_v, const KX_PYATTRIBU
 		Py_RETURN_NONE;
 }
 
-PyObject *KX_TouchSensor::pyattr_get_object_hit_list(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CollisionSensor::pyattr_get_object_hit_list(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_TouchSensor* self = static_cast<KX_TouchSensor*>(self_v);
+	KX_CollisionSensor* self = static_cast<KX_CollisionSensor*>(self_v);
 	return self->m_colliders->GetProxy();
 }
 

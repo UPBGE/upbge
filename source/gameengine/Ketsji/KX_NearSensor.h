@@ -33,13 +33,13 @@
 #ifndef __KX_NEARSENSOR_H__
 #define __KX_NEARSENSOR_H__
 
-#include "KX_TouchSensor.h"
+#include "KX_CollisionSensor.h"
 #include "KX_ClientObjectInfo.h"
 
 class KX_Scene;
 class PHY_CollData;
 
-class KX_NearSensor : public KX_TouchSensor
+class KX_NearSensor : public KX_CollisionSensor
 {
 	Py_Header
 protected:

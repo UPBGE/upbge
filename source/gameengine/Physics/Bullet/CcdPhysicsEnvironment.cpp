@@ -2243,7 +2243,7 @@ void CcdPhysicsEnvironment::RemoveSensor(PHY_IPhysicsController *ctrl)
 	RemoveCcdPhysicsController((CcdPhysicsController *)ctrl);
 }
 
-void CcdPhysicsEnvironment::AddTouchCallback(int response_class, PHY_ResponseCallback callback, void *user)
+void CcdPhysicsEnvironment::AddCollisionCallback(int response_class, PHY_ResponseCallback callback, void *user)
 {
 	m_triggerCallbacks[response_class] = callback;
 	m_triggerCallbacksUserPtrs[response_class] = user;

@@ -1,11 +1,11 @@
-KX_TouchSensor(SCA_ISensor)
+KX_CollisionSensor(SCA_ISensor)
 ===========================
 
 .. module:: bge.types
 
 base class --- :class:`SCA_ISensor`
 
-.. class:: KX_TouchSensor(SCA_ISensor)
+.. class:: KX_CollisionSensor(SCA_ISensor)
 
    Touch sensor detects collisions between objects.
 

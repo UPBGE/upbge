@@ -42,7 +42,7 @@ See the sensor's reference for available methods:
    * :class:`~bge.types.KX_NetworkMessageSensor`
    * :class:`~bge.types.KX_RadarSensor`
    * :class:`~bge.types.KX_RaySensor`
-   * :class:`~bge.types.KX_TouchSensor`
+   * :class:`~bge.types.KX_CollisionSensor`
    * :class:`~bge.types.SCA_DelaySensor`
    * :class:`~bge.types.SCA_JoystickSensor`
    * :class:`~bge.types.SCA_KeyboardSensor`

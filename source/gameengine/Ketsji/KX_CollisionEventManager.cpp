@@ -25,42 +25,42 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_TouchEventManager.cpp
+/** \file gameengine/Ketsji/KX_CollisionEventManager.cpp
  *  \ingroup ketsji
  */
 
 
-#include "KX_TouchEventManager.h"
+#include "KX_CollisionEventManager.h"
 #include "SCA_ISensor.h"
-#include "KX_TouchSensor.h"
+#include "KX_CollisionSensor.h"
 #include "KX_GameObject.h"
 #include "KX_CollisionContactPoints.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IPhysicsController.h"
 
 
-KX_TouchEventManager::KX_TouchEventManager(class SCA_LogicManager* logicmgr,
+KX_CollisionEventManager::KX_CollisionEventManager(class SCA_LogicManager* logicmgr,
 	PHY_IPhysicsEnvironment* physEnv)
 	: SCA_EventManager(logicmgr, TOUCH_EVENTMGR),
 	  m_physEnv(physEnv)
 {
-	//notm_scene->addTouchCallback(STATIC_RESPONSE, KX_TouchEventManager::collisionResponse, this);
+	//notm_scene->addCollisionCallback(STATIC_RESPONSE, KX_CollisionEventManager::collisionResponse, this);
 
-	//m_scene->addTouchCallback(OBJECT_RESPONSE, KX_TouchEventManager::collisionResponse, this);
-	//m_scene->addTouchCallback(SENSOR_RESPONSE, KX_TouchEventManager::collisionResponse, this);
+	//m_scene->addCollisionCallback(OBJECT_RESPONSE, KX_CollisionEventManager::collisionResponse, this);
+	//m_scene->addCollisionCallback(SENSOR_RESPONSE, KX_CollisionEventManager::collisionResponse, this);
 
-	m_physEnv->AddTouchCallback(PHY_OBJECT_RESPONSE, KX_TouchEventManager::newCollisionResponse, this);
-	m_physEnv->AddTouchCallback(PHY_SENSOR_RESPONSE, KX_TouchEventManager::newCollisionResponse, this);
-	m_physEnv->AddTouchCallback(PHY_BROADPH_RESPONSE, KX_TouchEventManager::newBroadphaseResponse, this);
+	m_physEnv->AddCollisionCallback(PHY_OBJECT_RESPONSE, KX_CollisionEventManager::newCollisionResponse, this);
+	m_physEnv->AddCollisionCallback(PHY_SENSOR_RESPONSE, KX_CollisionEventManager::newCollisionResponse, this);
+	m_physEnv->AddCollisionCallback(PHY_BROADPH_RESPONSE, KX_CollisionEventManager::newBroadphaseResponse, this);
 
 }
 
-KX_TouchEventManager::~KX_TouchEventManager()
+KX_CollisionEventManager::~KX_CollisionEventManager()
 {
 	RemoveNewCollisions();
 }
 
-void KX_TouchEventManager::RemoveNewCollisions()
+void KX_CollisionEventManager::RemoveNewCollisions()
 {
 	for (std::set<NewCollision>::iterator it = m_newCollisions.begin(), end = m_newCollisions.end(); it != end; ++it) {
 		delete it->colldata;
@@ -68,7 +68,7 @@ void KX_TouchEventManager::RemoveNewCollisions()
 	m_newCollisions.clear();
 }
 
-bool	KX_TouchEventManager::NewHandleCollision(void* object1, void* object2, const PHY_CollData *coll_data)
+bool	KX_CollisionEventManager::NewHandleCollision(void* object1, void* object2, const PHY_CollData *coll_data)
 {
 
 	PHY_IPhysicsController* obj1 = static_cast<PHY_IPhysicsController*>(object1);
@@ -80,17 +80,17 @@ bool	KX_TouchEventManager::NewHandleCollision(void* object1, void* object2, cons
 }
 
 
-bool	 KX_TouchEventManager::newCollisionResponse(void *client_data, 
+bool	 KX_CollisionEventManager::newCollisionResponse(void *client_data, 
 							void *object1,
 							void *object2,
 							const PHY_CollData *coll_data)
 {
-	KX_TouchEventManager *touchmgr = (KX_TouchEventManager *) client_data;
-	touchmgr->NewHandleCollision(object1, object2, coll_data);
+	KX_CollisionEventManager *collisionmgr = (KX_CollisionEventManager *) client_data;
+	collisionmgr->NewHandleCollision(object1, object2, coll_data);
 	return false;
 }
 
-bool	 KX_TouchEventManager::newBroadphaseResponse(void *client_data, 
+bool	 KX_CollisionEventManager::newBroadphaseResponse(void *client_data, 
 							void *object1,
 							void *object2,
 							const PHY_CollData *coll_data)
@@ -126,8 +126,8 @@ bool	 KX_TouchEventManager::newBroadphaseResponse(void *client_data,
 		if (info1->m_sensors.size() == 1)
 		{
 			// only one sensor for this type of object
-			KX_TouchSensor* touchsensor = static_cast<KX_TouchSensor*>(*info1->m_sensors.begin());
-			return touchsensor->BroadPhaseFilterCollision(object1, object2);
+			KX_CollisionSensor* collisionsensor = static_cast<KX_CollisionSensor*>(*info1->m_sensors.begin());
+			return collisionsensor->BroadPhaseFilterCollision(object1, object2);
 		}
 		break;
 	case KX_ClientObjectInfo::OBSENSOR:
@@ -140,8 +140,8 @@ bool	 KX_TouchEventManager::newBroadphaseResponse(void *client_data,
 		{
 			if ((*it)->GetSensorType() == SCA_ISensor::ST_TOUCH) 
 			{
-				KX_TouchSensor* touchsensor = static_cast<KX_TouchSensor*>(*it);
-				if (touchsensor->BroadPhaseSensorFilterCollision(object1, object2))
+				KX_CollisionSensor* collisionsensor = static_cast<KX_CollisionSensor*>(*it);
+				if (collisionsensor->BroadPhaseSensorFilterCollision(object1, object2))
 					return true;
 			}
 		}
@@ -158,27 +158,27 @@ bool	 KX_TouchEventManager::newBroadphaseResponse(void *client_data,
 	return true;
 }
 
-void KX_TouchEventManager::RegisterSensor(SCA_ISensor* sensor)
+void KX_CollisionEventManager::RegisterSensor(SCA_ISensor* sensor)
 {
-	KX_TouchSensor* touchsensor = static_cast<KX_TouchSensor*>(sensor);
-	if (m_sensors.AddBack(touchsensor))
+	KX_CollisionSensor* collisionsensor = static_cast<KX_CollisionSensor*>(sensor);
+	if (m_sensors.AddBack(collisionsensor))
 		// the sensor was effectively inserted, register it
-		touchsensor->RegisterSumo(this);
+		collisionsensor->RegisterSumo(this);
 }
 
-void KX_TouchEventManager::RemoveSensor(SCA_ISensor* sensor)
+void KX_CollisionEventManager::RemoveSensor(SCA_ISensor* sensor)
 {
-	KX_TouchSensor* touchsensor = static_cast<KX_TouchSensor*>(sensor);
-	if (touchsensor->Delink())
+	KX_CollisionSensor* collisionsensor = static_cast<KX_CollisionSensor*>(sensor);
+	if (collisionsensor->Delink())
 		// the sensor was effectively removed, unregister it
-		touchsensor->UnregisterSumo(this);
+		collisionsensor->UnregisterSumo(this);
 }
 
 
 
-void KX_TouchEventManager::EndFrame()
+void KX_CollisionEventManager::EndFrame()
 {
-	SG_DList::iterator<KX_TouchSensor> it(m_sensors);
+	SG_DList::iterator<KX_CollisionSensor> it(m_sensors);
 	for (it.begin();!it.end();++it)
 	{
 		(*it)->EndFrame();
@@ -187,9 +187,9 @@ void KX_TouchEventManager::EndFrame()
 
 
 
-void KX_TouchEventManager::NextFrame()
+void KX_CollisionEventManager::NextFrame()
 {
-		SG_DList::iterator<KX_TouchSensor> it(m_sensors);
+		SG_DList::iterator<KX_CollisionSensor> it(m_sensors);
 		for (it.begin();!it.end();++it)
 			(*it)->SynchronizeTransform();
 		
@@ -208,7 +208,7 @@ void KX_TouchEventManager::NextFrame()
 			// Invoke sensor response for each object
 			if (client_info) {
 				for ( sit = client_info->m_sensors.begin(); sit != client_info->m_sensors.end(); ++sit) {
-					static_cast<KX_TouchSensor*>(*sit)->NewHandleCollision(ctrl1, ctrl2, NULL);
+					static_cast<KX_CollisionSensor*>(*sit)->NewHandleCollision(ctrl1, ctrl2, NULL);
 				}
 			}
 
@@ -218,7 +218,7 @@ void KX_TouchEventManager::NextFrame()
 			KX_GameObject *kxObj2 = KX_GameObject::GetClientObject(client_info);
 			if (client_info) {
 				for ( sit = client_info->m_sensors.begin(); sit != client_info->m_sensors.end(); ++sit) {
-					static_cast<KX_TouchSensor*>(*sit)->NewHandleCollision(ctrl2, ctrl1, NULL);
+					static_cast<KX_CollisionSensor*>(*sit)->NewHandleCollision(ctrl2, ctrl1, NULL);
 				}
 			}
 			// Run python callbacks
@@ -235,17 +235,17 @@ void KX_TouchEventManager::NextFrame()
 	RemoveNewCollisions();
 }
 
-KX_TouchEventManager::NewCollision::NewCollision(PHY_IPhysicsController *first,
+KX_CollisionEventManager::NewCollision::NewCollision(PHY_IPhysicsController *first,
                                                  PHY_IPhysicsController *second,
                                                  const PHY_CollData *colldata)
     : first(first), second(second), colldata(colldata)
 {}
 
-KX_TouchEventManager::NewCollision::NewCollision(const NewCollision &to_copy)
+KX_CollisionEventManager::NewCollision::NewCollision(const NewCollision &to_copy)
 	: first(to_copy.first), second(to_copy.second), colldata(to_copy.colldata)
 {}
 
-bool KX_TouchEventManager::NewCollision::operator<(const NewCollision &other) const
+bool KX_CollisionEventManager::NewCollision::operator<(const NewCollision &other) const
 {
 	//see strict weak ordering: https://support.microsoft.com/en-us/kb/949171
 	if (first == other.first) {

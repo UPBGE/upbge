@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_TouchEventManager.h
+/** \file KX_CollisionEventManager.h
  *  \ingroup ketsji
  */
 
@@ -34,7 +34,7 @@
 
 
 #include "SCA_EventManager.h"
-#include "KX_TouchSensor.h"
+#include "KX_CollisionSensor.h"
 #include "KX_GameObject.h"
 
 #include <vector>
@@ -43,7 +43,7 @@
 class SCA_ISensor;
 class PHY_IPhysicsEnvironment;
 
-class KX_TouchEventManager : public SCA_EventManager
+class KX_CollisionEventManager : public SCA_EventManager
 {
 	/**
 	 * Contains two colliding objects and the first contact point.
@@ -89,9 +89,9 @@ class KX_TouchEventManager : public SCA_EventManager
 	void RemoveNewCollisions();
 
 public:
-	KX_TouchEventManager(class SCA_LogicManager* logicmgr,  
+	KX_CollisionEventManager(class SCA_LogicManager* logicmgr,  
 		PHY_IPhysicsEnvironment* physEnv);
-	virtual ~KX_TouchEventManager();
+	virtual ~KX_CollisionEventManager();
 	virtual void NextFrame();
 	virtual void	EndFrame();
 	virtual void RegisterSensor(SCA_ISensor* sensor);
@@ -101,7 +101,7 @@ public:
 
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_TouchEventManager")
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_CollisionEventManager")
 #endif
 };
 

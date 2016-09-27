@@ -213,7 +213,7 @@ public:
 	//Methods for gamelogic collision/physics callbacks
 	virtual void AddSensor(PHY_IPhysicsController *ctrl);
 	virtual void RemoveSensor(PHY_IPhysicsController *ctrl);
-	virtual void AddTouchCallback(int response_class, PHY_ResponseCallback callback, void *user);
+	virtual void AddCollisionCallback(int response_class, PHY_ResponseCallback callback, void *user);
 	virtual bool RequestCollisionCallback(PHY_IPhysicsController *ctrl);
 	virtual bool RemoveCollisionCallback(PHY_IPhysicsController *ctrl);
 	//These two methods are used *solely* to create controllers for Near/Radar sensor! Don't use for anything else

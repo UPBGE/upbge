@@ -61,7 +61,7 @@
 #include "SCA_KeyboardSensor.h"
 #include "SCA_MouseSensor.h"
 #include "SCA_AlwaysSensor.h"
-#include "KX_TouchSensor.h"
+#include "KX_CollisionSensor.h"
 #include "KX_NearSensor.h"
 #include "KX_RadarSensor.h"
 #include "KX_MouseFocusSensor.h"
@@ -168,24 +168,24 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					{
 						// collision sensor can sense both materials and properties.
 
-						bool bFindMaterial = false, bTouchPulse = false;
+						bool bFindMaterial = false, bCollisionPulse = false;
 
-						bCollisionSensor* blendertouchsensor = (bCollisionSensor*)sens->data;
+						bCollisionSensor* blendercollisionsensor = (bCollisionSensor*)sens->data;
 
-						bFindMaterial = (blendertouchsensor->mode & SENS_COLLISION_MATERIAL);
-						bTouchPulse = (blendertouchsensor->mode & SENS_COLLISION_PULSE);
+						bFindMaterial = (blendercollisionsensor->mode & SENS_COLLISION_MATERIAL);
+						bCollisionPulse = (blendercollisionsensor->mode & SENS_COLLISION_PULSE);
 
 
 						const STR_String touchPropOrMatName = bFindMaterial ?
-															  blendertouchsensor->materialName : blendertouchsensor->name;
+															  blendercollisionsensor->materialName : blendercollisionsensor->name;
 
 
 						if (gameobj->GetPhysicsController())
 						{
-							gamesensor = new KX_TouchSensor(eventmgr,
+							gamesensor = new KX_CollisionSensor(eventmgr,
 								gameobj,
 								bFindMaterial,
-								bTouchPulse,
+								bCollisionPulse,
 								touchPropOrMatName);
 						}
 
@@ -228,7 +228,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						bool bFindMaterial = false;
 						PHY_IPhysicsController* physCtrl = kxscene->GetPhysicsEnvironment()->CreateSphereController(radius,wpos);
 
-						//will be done in KX_TouchEventManager::RegisterSensor()
+						//will be done in KX_CollisionEventManager::RegisterSensor()
 						//if (isInActiveLayer)
 						//	kxscene->GetPhysicsEnvironment()->addSensor(physCtrl);
 

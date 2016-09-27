@@ -2400,7 +2400,7 @@ PyObject* KX_GameObject::pyattr_get_collisionCallbacks(void *self_v, const KX_PY
 	if (self->m_collisionCallbacks == NULL)
 	{
 		self->m_collisionCallbacks = PyList_New(0);
-		// Subscribe to collision update from KX_TouchManager
+		// Subscribe to collision update from KX_CollisionEventManager
 		self->RegisterCollisionCallbacks();
 	}
 	Py_INCREF(self->m_collisionCallbacks);

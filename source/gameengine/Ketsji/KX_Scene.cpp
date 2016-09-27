@@ -49,7 +49,7 @@
 #include "SCA_TimeEventManager.h"
 #include "SCA_2DFilterActuator.h"
 #include "SCA_PythonController.h"
-#include "KX_TouchEventManager.h"
+#include "KX_CollisionEventManager.h"
 #include "SCA_KeyboardManager.h"
 #include "SCA_MouseManager.h"
 #include "SCA_ActuatorEventManager.h"
@@ -1805,8 +1805,8 @@ void KX_Scene::SetPhysicsEnvironment(class PHY_IPhysicsEnvironment* physEnv)
 {
 	m_physicsEnvironment = physEnv;
 	if (m_physicsEnvironment) {
-		KX_TouchEventManager* touchmgr = new KX_TouchEventManager(m_logicmgr, physEnv);
-		m_logicmgr->RegisterEventManager(touchmgr);
+		KX_CollisionEventManager* collisionmgr = new KX_CollisionEventManager(m_logicmgr, physEnv);
+		m_logicmgr->RegisterEventManager(collisionmgr);
 	}
 }
  
@@ -1840,7 +1840,7 @@ static void MergeScene_LogicBrick(SCA_ILogicBrick* brick, KX_Scene *from, KX_Sce
 	brick->Replace_NetworkScene(to->GetNetworkMessageScene());
 	brick->SetLogicManager(to->GetLogicManager());
 
-	// If we end up replacing a KX_TouchEventManager, we need to make sure
+	// If we end up replacing a KX_CollisionEventManager, we need to make sure
 	// physics controllers are properly in place. In other words, do this
 	// after merging physics controllers!
 	SCA_ISensor *sensor=  dynamic_cast<class SCA_ISensor *>(brick);

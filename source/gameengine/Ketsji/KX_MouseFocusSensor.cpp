@@ -65,7 +65,7 @@ KX_MouseFocusSensor::KX_MouseFocusSensor(SCA_MouseManager* eventmgr,
                                          int starty,
 										 short int mousemode,
 										 int focusmode,
-										 bool bTouchPulse,
+										 bool bCollisionPulse,
 										 const STR_String& propname,
 										 bool bFindMaterial,
 										 bool bXRay,
@@ -74,7 +74,7 @@ KX_MouseFocusSensor::KX_MouseFocusSensor(SCA_MouseManager* eventmgr,
 										 SCA_IObject* gameobj)
 	: SCA_MouseSensor(eventmgr, startx, starty, mousemode, gameobj),
 	  m_focusmode(focusmode),
-	  m_bTouchPulse(bTouchPulse),
+	  m_bCollisionPulse(bCollisionPulse),
 	  m_bXRay(bXRay),
 	  m_bFindMaterial(bFindMaterial),
 	  m_propertyname(propname),
@@ -121,7 +121,7 @@ bool KX_MouseFocusSensor::Evaluate()
 			if (!m_mouse_over_in_previous_frame) {
 				result = true;
 			}
-			else if (m_bTouchPulse && (m_hitObject != m_hitObject_Last)) {
+			else if (m_bCollisionPulse && (m_hitObject != m_hitObject_Last)) {
 				result = true;
 			}
 		} 
@@ -455,7 +455,7 @@ PyAttributeDef KX_MouseFocusSensor::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("hitPosition",	KX_MouseFocusSensor, pyattr_get_hit_position),
 	KX_PYATTRIBUTE_RO_FUNCTION("hitNormal",		KX_MouseFocusSensor, pyattr_get_hit_normal),
 	KX_PYATTRIBUTE_RO_FUNCTION("hitUV",		KX_MouseFocusSensor, pyattr_get_hit_uv),
-	KX_PYATTRIBUTE_BOOL_RW("usePulseFocus",	KX_MouseFocusSensor, m_bTouchPulse),
+	KX_PYATTRIBUTE_BOOL_RW("usePulseFocus",	KX_MouseFocusSensor, m_bCollisionPulse),
 	KX_PYATTRIBUTE_BOOL_RW("useXRay",		KX_MouseFocusSensor, m_bXRay),
 	KX_PYATTRIBUTE_BOOL_RW("useMaterial", KX_MouseFocusSensor, m_bFindMaterial),
 	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, KX_MouseFocusSensor, m_propertyname),

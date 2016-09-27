@@ -58,7 +58,7 @@ class KX_MouseFocusSensor : public SCA_MouseSensor
 						int starty,
 						short int mousemode,
 						int focusmode,
-						bool bTouchPulse,
+						bool bCollisionPulse,
 						const STR_String& propname,
 						bool bFindMaterial,
 						bool bXRay,
@@ -138,7 +138,7 @@ class KX_MouseFocusSensor : public SCA_MouseSensor
 	/**
 	 * Flags whether changes in hit object should trigger a pulse
 	 */
-	bool m_bTouchPulse;
+	bool m_bCollisionPulse;
 	
 	/**
 	 * Flags get through other objects

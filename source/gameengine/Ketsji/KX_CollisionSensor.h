@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_TouchSensor.h
+/** \file KX_CollisionSensor.h
  *  \ingroup ketsji
  *  \brief Senses touch and collision events
  */
@@ -46,9 +46,9 @@ typedef unsigned __int64 uint_ptr;
 typedef unsigned long uint_ptr;
 #endif
 
-class KX_TouchEventManager;
+class KX_CollisionEventManager;
 
-class KX_TouchSensor : public SCA_ISensor
+class KX_CollisionSensor : public SCA_ISensor
 {
 protected:
 	Py_Header
@@ -58,7 +58,7 @@ protected:
 	 */
 	STR_String				m_touchedpropname;
 	bool					m_bFindMaterial;
-	bool					m_bTouchPulse;		/* changes in the colliding objects trigger pulses */
+	bool					m_bCollisionPulse;		/* changes in the colliding objects trigger pulses */
 	
 	class PHY_IPhysicsController*	m_physCtrl;
 
@@ -66,7 +66,7 @@ protected:
 	bool					m_bTriggered;
 	bool					m_bLastTriggered;
 
-	// Use with m_bTouchPulse to detect changes
+	// Use with m_bCollisionPulse to detect changes
 	int						m_bLastCount;		/* size of m_colliders last tick */
 	uint_ptr				m_bColliderHash;	/* hash collision objects pointers to trigger in case one object collides and another takes its place */
 	uint_ptr				m_bLastColliderHash;
@@ -76,12 +76,12 @@ protected:
 	STR_String				m_hitMaterial;
 	
 public:
-	KX_TouchSensor(class SCA_EventManager* eventmgr,
+	KX_CollisionSensor(class SCA_EventManager* eventmgr,
 		class KX_GameObject* gameobj,
 		bool bFindMaterial,
-		bool bTouchPulse,
+		bool bCollisionPulse,
 		const STR_String& touchedpropname);
-	virtual ~KX_TouchSensor();
+	virtual ~KX_CollisionSensor();
 
 	virtual CValue* GetReplica();
 	virtual void ProcessReplica();
@@ -90,8 +90,8 @@ public:
 	virtual void Init();
 	virtual void ReParent(SCA_IObject* parent);
 	
-	virtual void RegisterSumo(KX_TouchEventManager* touchman);
-	virtual void UnregisterSumo(KX_TouchEventManager* touchman);
+	virtual void RegisterSumo(KX_CollisionEventManager* collisionman);
+	virtual void UnregisterSumo(KX_CollisionEventManager* collisionman);
 	virtual void UnregisterToManager();
 
 #if 0

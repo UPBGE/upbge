@@ -79,7 +79,7 @@ enum MaterialRasterizerModes
 class RAS_IPolyMaterial
 {
 protected:
-	STR_String m_name; // also needed for touchsensor
+	STR_String m_name; // also needed for collisionsensor
 	int m_drawingmode;
 	int m_alphablend;
 	int m_rasMode;

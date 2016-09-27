@@ -93,7 +93,7 @@ public:
 	virtual void RemoveSensor(PHY_IPhysicsController *ctrl)
 	{
 	}
-	virtual void AddTouchCallback(int response_class, PHY_ResponseCallback callback, void *user)
+	virtual void AddCollisionCallback(int response_class, PHY_ResponseCallback callback, void *user)
 	{
 	}
 	virtual bool RequestCollisionCallback(PHY_IPhysicsController *ctrl)

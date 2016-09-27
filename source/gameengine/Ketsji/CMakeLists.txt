@@ -135,8 +135,8 @@ set(SRC
 	KX_TextMaterial.cpp
 	KX_TimeCategoryLogger.cpp
 	KX_TimeLogger.cpp
-	KX_TouchEventManager.cpp
-	KX_TouchSensor.cpp
+	KX_CollisionEventManager.cpp
+	KX_CollisionSensor.cpp
 	KX_TrackToActuator.cpp
 	KX_VehicleWrapper.cpp
 	KX_VertexProxy.cpp
@@ -222,8 +222,8 @@ set(SRC
 	KX_TextMaterial.h
 	KX_TimeCategoryLogger.h
 	KX_TimeLogger.h
-	KX_TouchEventManager.h
-	KX_TouchSensor.h
+	KX_CollisionEventManager.h
+	KX_CollisionSensor.h
 	KX_TrackToActuator.h
 	KX_VehicleWrapper.h
 	KX_VertexProxy.h

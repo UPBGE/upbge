@@ -36,7 +36,7 @@
 #include "KX_NearSensor.h"
 #include "SCA_LogicManager.h"
 #include "KX_GameObject.h"
-#include "KX_TouchEventManager.h"
+#include "KX_CollisionEventManager.h"
 #include "KX_Scene.h" // needed to create a replica
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IPhysicsController.h"
@@ -49,7 +49,7 @@ KX_NearSensor::KX_NearSensor(SCA_EventManager* eventmgr,
 							 bool bFindMaterial,
 							 const STR_String& touchedpropname,
 							 PHY_IPhysicsController* ctrl)
-							:KX_TouchSensor(eventmgr,
+							:KX_CollisionSensor(eventmgr,
 							 gameobj,
 							 bFindMaterial,
 							 false,
@@ -99,7 +99,7 @@ CValue* KX_NearSensor::GetReplica()
 
 void KX_NearSensor::ProcessReplica()
 {
-	KX_TouchSensor::ProcessReplica();
+	KX_CollisionSensor::ProcessReplica();
 	
 	m_client_info = new KX_ClientObjectInfo(m_client_info->m_gameobject, KX_ClientObjectInfo::SENSOR);
 	
@@ -108,7 +108,7 @@ void KX_NearSensor::ProcessReplica()
 		m_physCtrl = m_physCtrl->GetReplicaForSensors();
 		if (m_physCtrl)
 		{
-			//static_cast<KX_TouchEventManager*>(m_eventmgr)->GetPhysicsEnvironment()->addSensor(replica->m_physCtrl);
+			//static_cast<KX_CollisionEventManager*>(m_eventmgr)->GetPhysicsEnvironment()->addSensor(replica->m_physCtrl);
 			m_physCtrl->SetMargin(m_Margin);
 			m_physCtrl->SetNewClientInfo(m_client_info);
 		}
@@ -130,10 +130,10 @@ void KX_NearSensor::ReParent(SCA_IObject* parent)
 KX_NearSensor::~KX_NearSensor()
 {
 	// for nearsensor, the sensor is the 'owner' of sumoobj
-	// for touchsensor, it's the parent
+	// for collisionsensor, it's the parent
 	if (m_physCtrl)
 	{
-		//static_cast<KX_TouchEventManager*>(m_eventmgr)->GetPhysicsEnvironment()->removeSensor(m_physCtrl);
+		//static_cast<KX_CollisionEventManager*>(m_eventmgr)->GetPhysicsEnvironment()->removeSensor(m_physCtrl);
 		delete m_physCtrl;
 		m_physCtrl = NULL;
 	}
@@ -210,7 +210,7 @@ bool	KX_NearSensor::BroadPhaseFilterCollision(void*obj1,void*obj2)
 
 bool	KX_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *coll_data)
 {
-//	KX_TouchEventManager* toucheventmgr = static_cast<KX_TouchEventManager*>(m_eventmgr);
+//	KX_CollisionEventManager* toucheventmgr = static_cast<KX_CollisionEventManager*>(m_eventmgr);
 //	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
 	
 	// need the mapping from PHY_IPhysicsController to gameobjects now
@@ -273,7 +273,7 @@ PyTypeObject KX_NearSensor::Type = {
 	Methods,
 	0,
 	0,
-	&KX_TouchSensor::Type,
+	&KX_CollisionSensor::Type,
 	0,0,0,0,0,0,
 	py_base_new
 };
