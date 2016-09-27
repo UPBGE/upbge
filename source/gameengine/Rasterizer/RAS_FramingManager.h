@@ -43,27 +43,27 @@ class RAS_Rect;
  * This is a value type describing the framing used
  * by a particular scene in the game engine.
  * Each KX_Scene contains a RAS_FrameSetting describing
- * how the frustum and viewport are to be modified 
+ * how the frustum and viewport are to be modified
  * depending on the canvas size.
  *
  * e_frame_scale means that the viewport is set to the current
- * canvas size. If the view frustum aspect ratio is different 
+ * canvas size. If the view frustum aspect ratio is different
  * to the canvas aspect this will lead to stretching.
  *
- * e_frame_extend means that the best fit viewport will be 
+ * e_frame_extend means that the best fit viewport will be
  * computed based upon the design aspect ratio
- * and the view frustum will be adjusted so that 
+ * and the view frustum will be adjusted so that
  * more of the scene is visible.
  *
  * e_frame_bars means that the best fit viewport will be
  * be computed based upon the design aspect ratio.
  */
 
-class RAS_FrameSettings 
+class RAS_FrameSettings
 {
-public :
+public:
 	/**
-	 * enum defining the policy to use 
+	 * enum defining the policy to use
 	 * in each axis.
 	 */
 	enum RAS_FrameType {
@@ -71,7 +71,7 @@ public :
 		e_frame_extend,
 		e_frame_bars
 	};
-	
+
 	/**
 	 * Constructor
 	 */
@@ -82,78 +82,66 @@ public :
 		float bar_g,
 		float bar_b,
 		unsigned int design_aspect_width,
-		unsigned int design_aspect_height 
-	):
-		m_frame_type(frame_type),
+		unsigned int design_aspect_height)
+		:m_frame_type(frame_type),
 		m_bar_r(bar_r),
 		m_bar_g(bar_g),
 		m_bar_b(bar_b),
 		m_design_aspect_width(design_aspect_width),
 		m_design_aspect_height(design_aspect_height)
 	{
-	};
+	}
 
-	RAS_FrameSettings(
-	):
-		m_frame_type(e_frame_scale),
+	RAS_FrameSettings()
+		:m_frame_type(e_frame_scale),
 		m_bar_r(0),
 		m_bar_g(0),
 		m_bar_b(0),
 		m_design_aspect_width(1),
 		m_design_aspect_height(1)
 	{
-	};
+	}
 
 	/**
 	 * Accessors
 	 */
 
-	const
-		RAS_FrameType &
-	FrameType(
-	) const {
+	const RAS_FrameType &FrameType() const
+	{
 		return m_frame_type;
-	};
+	}
 
-		void
-	SetFrameType(
-		RAS_FrameType type
-	) {
+	void SetFrameType(RAS_FrameType type)
+	{
 		m_frame_type = type;
-	};
-	
-		float
-	BarRed(
-	) const {
+	}
+
+	float BarRed() const
+	{
 		return m_bar_r;
-	};
-		
-		float
-	BarGreen(
-	) const {
+	}
+
+	float BarGreen() const
+	{
 		return m_bar_g;
-	};
+	}
 
-		float
-	BarBlue(
-	) const {
+	float BarBlue() const
+	{
 		return m_bar_b;
-	};
+	}
 
-		unsigned int
-	DesignAspectWidth(
-	) const {
+	unsigned int DesignAspectWidth() const
+	{
 		return m_design_aspect_width;
-	};
+	}
 
-		unsigned int
-	DesignAspectHeight(
-	) const {
+	unsigned int DesignAspectHeight() const
+	{
 		return m_design_aspect_height;
-	};
+	}
 
-private :
-
+private:
 	RAS_FrameType m_frame_type;
 	float m_bar_r;
 	float m_bar_g;
@@ -161,17 +149,16 @@ private :
 	unsigned int m_design_aspect_width;
 	unsigned int m_design_aspect_height;
 
-
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_FrameSettings")
 #endif
-}; 
+};
 
 struct RAS_FrameFrustum
 {
-	float camnear,camfar;
-	float x1,y1;
-	float x2,y2;
+	float camnear, camfar;
+	float x1, y1;
+	float x2, y2;
 };
 
 /* must match R_CULLING_... from DNA_scene_types.h */
@@ -193,8 +180,8 @@ enum RAS_SensorFit
 /**
  * \section RAS_FramingManager
  * This class helps to compute a view frustum
- * and a viewport rectangle given the 
- * above settings and a description of the 
+ * and a viewport rectangle given the
+ * above settings and a description of the
  * current canvas dimensions.
  *
  * You do not have to instantiate this class
@@ -203,32 +190,25 @@ enum RAS_SensorFit
 
 class RAS_FramingManager
 {
-public :
-
+public:
 	/**
 	 * Compute a viewport given
 	 * a RAS_FrameSettings and a description of the
 	 * canvas.
 	 */
 
-	static
-		void
-	ComputeViewport(
+	static void ComputeViewport(
 		const RAS_FrameSettings &settings,
 		const RAS_Rect &availableViewport,
-		RAS_Rect &viewport
-	);
+		RAS_Rect &viewport);
 
-	
 	/**
 	 * compute a frustum given a valid viewport,
-	 * RAS_FrameSettings, canvas description 
+	 * RAS_FrameSettings, canvas description
 	 * and camera description
 	 */
 
-	static
-		void
-	ComputeOrtho(
+	static void ComputeOrtho(
 		const RAS_FrameSettings &settings,
 		const RAS_Rect &availableViewport,
 		const RAS_Rect &viewport,
@@ -238,12 +218,9 @@ public :
 		const short sensor_fit,
 		const float shift_x,
 		const float shift_y,
-		RAS_FrameFrustum &frustum
-	);
+		RAS_FrameFrustum &frustum);
 
-	static
-		void
-	ComputeFrustum(
+	static void ComputeFrustum(
 		const RAS_FrameSettings &settings,
 		const RAS_Rect &availableViewport,
 		const RAS_Rect &viewport,
@@ -253,12 +230,9 @@ public :
 		const float shift_y,
 		const float camnear,
 		const float camfar,
-		RAS_FrameFrustum &frustum
-	);
+		RAS_FrameFrustum &frustum);
 
-	static
-		void
-	ComputeDefaultFrustum(
+	static void ComputeDefaultFrustum(
 		const float camnear,
 		const float camfar,
 		const float lens,
@@ -267,12 +241,9 @@ public :
 		const float shift_x,
 		const float shift_y,
 		const float design_aspect_ratio,
-		RAS_FrameFrustum & frustum
-	);
+		RAS_FrameFrustum & frustum);
 
-	static
-		void
-	ComputeDefaultOrtho(
+	static void ComputeDefaultOrtho(
 		const float camnear,
 		const float camfar,
 		const float scale,
@@ -280,32 +251,22 @@ public :
 		const short sensor_fit,
 		const float shift_x,
 		const float shift_y,
-		RAS_FrameFrustum & frustum
-	);
+		RAS_FrameFrustum & frustum);
 
-private :
-
-	static
-		void
-	ComputeBestFitViewRect(
+private:
+	static void ComputeBestFitViewRect(
 		const RAS_Rect &availableViewport,
 		const float design_aspect_ratio,
-		RAS_Rect &viewport
-	);
-
-
+		RAS_Rect &viewport);
 
 	/**
 	 * Private constructor - this class is not meant
 	 * for instantiation.
 	 */
 
-	RAS_FramingManager(
-	);
+	RAS_FramingManager();
 
-	RAS_FramingManager(
-		const RAS_FramingManager &
-	);
+	RAS_FramingManager(const RAS_FramingManager &);
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
