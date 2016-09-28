@@ -64,7 +64,6 @@ class BL_ActionManager;
 struct Object;
 class KX_ObstacleSimulation;
 class KX_CollisionContactPointList;
-class CcdPhysicsController;
 struct bAction;
 
 #ifdef WITH_PYTHON
@@ -609,9 +608,6 @@ public:
 
 	bool IsDynamicsSuspended() const;
 
-	void SuspendPhysics();
-	void ResumePhysics();
-
 	/**
 	 * Check if this object has a vertex parent relationship
 	 */
@@ -963,6 +959,8 @@ public:
 	KX_PYMETHOD_O(KX_GameObject,SetState);
 	KX_PYMETHOD_VARARGS(KX_GameObject,AlignAxisToVect);
 	KX_PYMETHOD_O(KX_GameObject,GetAxisVect);
+	KX_PYMETHOD_NOARGS(KX_GameObject,SuspendPhysics);
+	KX_PYMETHOD_NOARGS(KX_GameObject,RestorePhysics);
 	KX_PYMETHOD_VARARGS(KX_GameObject,SuspendDynamics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,RestoreDynamics);
 	KX_PYMETHOD_NOARGS(KX_GameObject,EnableRigidBody);
@@ -1076,8 +1074,6 @@ public:
 	static int			pyattr_set_angularDamping(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_lodManager(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_lodManager(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_suspend_physics(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_suspend_physics(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	/* Experimental! */
 	static PyObject*	pyattr_get_sensors(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

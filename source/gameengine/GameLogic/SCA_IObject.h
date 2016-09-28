@@ -97,11 +97,6 @@ protected:
 	bool m_suspended;
 
 	/**
-	 * Suspended Physics?
-	 */
-	bool m_suspendedPhysics;
-
-	/**
 	 * init state of object (used when object is created)
 	 */
 	unsigned int			m_initState;
