@@ -86,7 +86,6 @@ protected:
 
 	int m_ccdMode;
 	int m_solverType;
-	int m_profileTimings;
 	bool m_enableSatCollisionDetection;
 
 	float m_deactivationTime;
@@ -324,8 +323,6 @@ protected:
 	class btGhostPairCallback *m_ghostPairCallback;
 
 	class btDispatcher *m_ownDispatcher;
-
-	bool m_scalingPropagated;
 
 	virtual void ExportFile(const char *filename);
 

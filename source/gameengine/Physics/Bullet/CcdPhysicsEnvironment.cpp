@@ -444,8 +444,6 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(bool useDbvtCulling, btDispatcher *
 	m_numTimeSubSteps(1),
 	m_ccdMode(0),
 	m_solverType(-1),
-	m_profileTimings(0),
-	m_enableSatCollisionDetection(false),
 	m_deactivationTime(2.0f),
 	m_linearDeactivationThreshold(0.8f),
 	m_angularDeactivationThreshold(1.0f),
@@ -454,8 +452,7 @@ CcdPhysicsEnvironment::CcdPhysicsEnvironment(bool useDbvtCulling, btDispatcher *
 	m_ownPairCache(NULL),
 	m_filterCallback(NULL),
 	m_ghostPairCallback(NULL),
-	m_ownDispatcher(NULL),
-	m_scalingPropagated(false)
+	m_ownDispatcher(NULL)
 {
 	for (int i = 0; i < PHY_NUM_RESPONSE; i++) {
 		m_triggerCallbacks[i] = NULL;
