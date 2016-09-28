@@ -653,7 +653,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		{
 
 			RAS_MaterialBucket* bucket = material_from_mesh(ma, mface, tface, mcol, layers, lightlayer, rgb, uvs, tfaceName, scene, converter);
-			meshobj->AddMaterial(bucket, mface->mat_nr, vertformat);
+			RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, mface->mat_nr, vertformat);
 
 			// set render flags
 			bool visible = ((ma->game.flag & GEMAT_INVISIBLE)==0);
@@ -667,12 +667,12 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 			unsigned int indices[4]; // all indices of the poly, can be a tri or quad.
 
-			indices[0] = meshobj->AddVertex(bucket, pt[0], uvs[0], tan[0], rgb[0], no[0], flat, mface->v1);
-			indices[1] = meshobj->AddVertex(bucket, pt[1], uvs[1], tan[1], rgb[1], no[1], flat, mface->v2);
-			indices[2] = meshobj->AddVertex(bucket, pt[2], uvs[2], tan[2], rgb[2], no[2], flat, mface->v3);
+			indices[0] = meshobj->AddVertex(meshmat, pt[0], uvs[0], tan[0], rgb[0], no[0], flat, mface->v1);
+			indices[1] = meshobj->AddVertex(meshmat, pt[1], uvs[1], tan[1], rgb[1], no[1], flat, mface->v2);
+			indices[2] = meshobj->AddVertex(meshmat, pt[2], uvs[2], tan[2], rgb[2], no[2], flat, mface->v3);
 
 			if (nverts == 4) {
-				indices[3] = meshobj->AddVertex(bucket, pt[3], uvs[3], tan[3], rgb[3], no[3], flat, mface->v4);
+				indices[3] = meshobj->AddVertex(meshmat, pt[3], uvs[3], tan[3], rgb[3], no[3], flat, mface->v4);
 			}
 
 			if (bucket->IsWire() && visible) {
@@ -691,13 +691,13 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 						// If 2 vertices are the same as an edge, we add a line in the mesh.
 						if (ELEM(medge->v1, mfaceindices[j], mfaceindices[k]) &&
 							ELEM(medge->v2, mfaceindices[j], mfaceindices[k])) {
-							meshobj->AddLine(bucket, indices[j], indices[k]);
+							meshobj->AddLine(meshmat, indices[j], indices[k]);
 							break;
 						}
 					}
 				}
 			}
-			meshobj->AddPolygon(bucket, nverts, indices, visible, collider, twoside);
+			meshobj->AddPolygon(meshmat, nverts, indices, visible, collider, twoside);
 		}
 
 		if (tface) 
@@ -721,9 +721,9 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	// pre calculate texture generation
 	// However, we want to delay this if we're libloading so we can make sure we have the right scene.
 	if (!libloading) {
-		for (list<RAS_MeshMaterial>::iterator mit = meshobj->GetFirstMaterial();
+		for (std::vector<RAS_MeshMaterial *>::iterator mit = meshobj->GetFirstMaterial();
 			mit != meshobj->GetLastMaterial(); ++ mit) {
-			mit->m_bucket->GetPolyMaterial()->OnConstruction();
+			(*mit)->m_bucket->GetPolyMaterial()->OnConstruction();
 		}
 	}
 

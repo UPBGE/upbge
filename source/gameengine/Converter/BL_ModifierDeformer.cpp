@@ -221,7 +221,7 @@ bool BL_ModifierDeformer::Update(void)
 	return bShapeUpdate;
 }
 
-bool BL_ModifierDeformer::Apply(RAS_IPolyMaterial *mat)
+bool BL_ModifierDeformer::Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat)
 {
 	if (!Update())
 		return false;

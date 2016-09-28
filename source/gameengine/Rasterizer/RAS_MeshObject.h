@@ -78,7 +78,7 @@ private:
 	void UpdateAabb();
 
 protected:
-	std::list<RAS_MeshMaterial> m_materials;
+	std::vector<RAS_MeshMaterial *> m_materials;
 	Mesh *m_mesh;
 
 public:
@@ -92,12 +92,10 @@ public:
 	const STR_String& GetTextureName(unsigned int matid);
 
 	RAS_MeshMaterial *GetMeshMaterial(unsigned int matid);
-	RAS_MeshMaterial *GetMeshMaterial(RAS_IPolyMaterial *mat);
-	/// Return the material position in the mesh, like in blender.
-	int GetBlenderMaterialId(RAS_IPolyMaterial *mat);
+	RAS_MeshMaterial *GetMeshMaterialBlenderIndex(unsigned int index);
 
-	std::list<RAS_MeshMaterial>::iterator GetFirstMaterial();
-	std::list<RAS_MeshMaterial>::iterator GetLastMaterial();
+	std::vector<RAS_MeshMaterial *>::iterator GetFirstMaterial();
+	std::vector<RAS_MeshMaterial *>::iterator GetLastMaterial();
 
 	// name
 	void SetName(const char *name);
@@ -131,12 +129,12 @@ public:
 	}
 
 	// mesh construction
-	void AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_TexVertFormat& format);
-	void AddLine(RAS_MaterialBucket *bucket, unsigned int v1, unsigned int v2);
-	virtual RAS_Polygon *AddPolygon(RAS_MaterialBucket *bucket, int numverts, unsigned int indices[4],
+	RAS_MeshMaterial *AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_TexVertFormat& format);
+	void AddLine(RAS_MeshMaterial *meshmat, unsigned int v1, unsigned int v2);
+	virtual RAS_Polygon *AddPolygon(RAS_MeshMaterial *meshmat, int numverts, unsigned int indices[4],
 									bool visible, bool collider, bool twoside);
 	virtual unsigned int AddVertex(
-				RAS_MaterialBucket *bucket,
+				RAS_MeshMaterial *meshmat,
 				const MT_Vector3& xyz,
 				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
@@ -146,7 +144,6 @@ public:
 				const unsigned int origindex);
 
 	// vertex and polygon acces
-	int NumVertices(RAS_IPolyMaterial *mat);
 	RAS_ITexVert *GetVertex(unsigned int matid, unsigned int index);
 	const float *GetVertexLocation(unsigned int orig_index);
 

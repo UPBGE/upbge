@@ -46,6 +46,8 @@
 
 struct DerivedMesh;
 class RAS_MeshObject;
+class RAS_IPolyMaterial;
+class RAS_MeshMaterial;
 
 class RAS_Deformer
 {
@@ -60,7 +62,7 @@ public:
 
 	virtual ~RAS_Deformer() {}
 	virtual void Relink(std::map<void *, void *>& map) = 0;
-	virtual bool Apply(class RAS_IPolyMaterial *polymat)=0;
+	virtual bool Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat) = 0;
 	virtual bool Update(void)=0;
 	virtual bool UpdateBuckets(void)=0;
 	virtual RAS_Deformer *GetReplica()=0;

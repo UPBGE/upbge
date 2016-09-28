@@ -46,7 +46,7 @@ class RAS_MeshMaterial
 public:
 	RAS_MeshSlot *m_baseslot;
 	RAS_MaterialBucket *m_bucket;
-	/// The material index position in the mesh.
+	/// The blender material index position in the mesh.
 	unsigned int m_index;
 	RAS_IRasterizer::AttribLayerList m_attribLayers;
 

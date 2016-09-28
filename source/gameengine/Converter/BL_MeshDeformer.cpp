@@ -47,17 +47,18 @@
 #include "STR_HashedString.h"
 #include "BLI_math.h"
 
-bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *)
+bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *UNUSED(polymat), RAS_MeshMaterial *UNUSED(meshmat))
 {
 	// only apply once per frame if the mesh is actually modified
 	if ((m_pMeshObject->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED) &&
 		m_lastDeformUpdate != m_gameobj->GetLastFrame())
 	{
 		// For each material
-		for (list<RAS_MeshMaterial>::iterator mit = m_pMeshObject->GetFirstMaterial();
+		for (std::vector<RAS_MeshMaterial *>::iterator mit = m_pMeshObject->GetFirstMaterial();
 		     mit != m_pMeshObject->GetLastMaterial(); ++mit)
 		{
-			RAS_MeshSlot *slot = mit->m_slots[(void *)m_gameobj->getClientInfo()];
+			RAS_MeshMaterial *meshmat = *mit;
+			RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
 			if (!slot) {
 				continue;
 			}
@@ -116,7 +117,7 @@ void BL_MeshDeformer::RecalcNormals()
 	 * gives area-weight normals which often look better anyway, and use
 	 * GL_NORMALIZE so we don't have to do per vertex normalization either
 	 * since the GPU can do it faster */
-	list<RAS_MeshMaterial>::iterator mit;
+	std::vector<RAS_MeshMaterial *>::iterator mit;
 	size_t i;
 
 	/* set vertex normals to zero */
@@ -124,7 +125,8 @@ void BL_MeshDeformer::RecalcNormals()
 
 	/* add face normals to vertices. */
 	for (mit = m_pMeshObject->GetFirstMaterial(); mit != m_pMeshObject->GetLastMaterial(); ++mit) {
-		RAS_MeshSlot *slot = mit->m_slots[(void *)m_gameobj->getClientInfo()];
+		RAS_MeshMaterial *meshmat = *mit;
+		RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
 		if (!slot) {
 			continue;
 		}
@@ -181,7 +183,8 @@ void BL_MeshDeformer::RecalcNormals()
 
 	/* assign smooth vertex normals */
 	for (mit = m_pMeshObject->GetFirstMaterial(); mit != m_pMeshObject->GetLastMaterial(); ++mit) {
-		RAS_MeshSlot *slot = mit->m_slots[(void *)m_gameobj->getClientInfo()];
+		RAS_MeshMaterial *meshmat = *mit;
+		RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
 		if (!slot) {
 			continue;
 		}

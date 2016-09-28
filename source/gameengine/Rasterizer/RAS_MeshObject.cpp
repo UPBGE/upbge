@@ -118,6 +118,10 @@ RAS_MeshObject::~RAS_MeshObject()
 
 	m_sharedvertex_map.clear();
 	m_polygons.clear();
+
+	for (std::vector<RAS_MeshMaterial *>::iterator it = m_materials.begin(), end = m_materials.end(); it != end; ++it) {
+		delete *it;
+	}
 	m_materials.clear();
 }
 
@@ -183,12 +187,20 @@ const STR_String& RAS_MeshObject::GetMaterialName(unsigned int matid)
 
 RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(unsigned int matid)
 {
-	if ((m_materials.empty() == false) && (matid < m_materials.size())) {
-		std::list<RAS_MeshMaterial>::iterator it = m_materials.begin();
-		while (matid--) {
-			++it;
+	if (m_materials.size() > matid) {
+		return m_materials[matid];
+	}
+
+	return NULL;
+}
+
+RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterialBlenderIndex(unsigned int index)
+{
+	for (std::vector<RAS_MeshMaterial *>::iterator mit = m_materials.begin(); mit != m_materials.end(); mit++) {
+		RAS_MeshMaterial *meshmat = *mit;
+		if (meshmat->m_index == index) {
+			return meshmat;
 		}
-		return &*it;
 	}
 
 	return NULL;
@@ -204,12 +216,12 @@ RAS_Polygon *RAS_MeshObject::GetPolygon(int num) const
 	return m_polygons[num];
 }
 
-std::list<RAS_MeshMaterial>::iterator RAS_MeshObject::GetFirstMaterial()
+std::vector<RAS_MeshMaterial *>::iterator RAS_MeshObject::GetFirstMaterial()
 {
 	return m_materials.begin();
 }
 
-std::list<RAS_MeshMaterial>::iterator RAS_MeshObject::GetLastMaterial()
+std::vector<RAS_MeshMaterial *>::iterator RAS_MeshObject::GetLastMaterial()
 {
 	return m_materials.end();
 }
@@ -252,49 +264,26 @@ const STR_String& RAS_MeshObject::GetTextureName(unsigned int matid)
 	return s_emptyname;
 }
 
-RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(RAS_IPolyMaterial *mat)
+RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_TexVertFormat& format)
 {
-	// find a mesh material
-	for (std::list<RAS_MeshMaterial>::iterator mit = m_materials.begin(); mit != m_materials.end(); mit++) {
-		if (mit->m_bucket->GetPolyMaterial() == mat)
-			return &*mit;
-	}
-
-	return NULL;
-}
-
-int RAS_MeshObject::GetBlenderMaterialId(RAS_IPolyMaterial *mat)
-{
-	// find a mesh material
-	for (std::list<RAS_MeshMaterial>::iterator mit = m_materials.begin(); mit != m_materials.end(); ++mit) {
-		if (mit->m_bucket->GetPolyMaterial() == mat)
-			return mit->m_index;
-	}
-
-	return -1;
-}
-
-void RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_TexVertFormat& format)
-{
-	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
+	RAS_MeshMaterial *meshmat = GetMeshMaterialBlenderIndex(index);
 
 	// none found, create a new one
-	if (!mmat) {
-		m_materials.push_back(RAS_MeshMaterial());
-		// Using list.back() to get a pointer.
-		RAS_MeshMaterial *meshmat = &m_materials.back();
+	if (!meshmat) {
+		meshmat = new RAS_MeshMaterial();
+		m_materials.push_back(meshmat);
 		meshmat->m_bucket = bucket;
 		meshmat->m_index = index;
 		meshmat->m_baseslot = meshmat->m_bucket->AddMesh(this, meshmat, format);
 	}
+
+	return meshmat;
 }
 
-void RAS_MeshObject::AddLine(RAS_MaterialBucket *bucket, unsigned int v1, unsigned int v2)
+void RAS_MeshObject::AddLine(RAS_MeshMaterial *meshmat, unsigned int v1, unsigned int v2)
 {
-	// find a mesh material
-	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
 	// add it to the bucket, this also adds new display arrays
-	RAS_MeshSlot *slot = mmat->m_baseslot;
+	RAS_MeshSlot *slot = meshmat->m_baseslot;
 
 	// create a new polygon
 	RAS_IDisplayArray *darray = slot->GetDisplayArray();
@@ -302,13 +291,12 @@ void RAS_MeshObject::AddLine(RAS_MaterialBucket *bucket, unsigned int v1, unsign
 	darray->AddIndex(v2);
 }
 
-RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts, unsigned int indices[4],
+RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MeshMaterial *meshmat, int numverts, unsigned int indices[4],
 										bool visible, bool collider, bool twoside)
 {
-	// find a mesh material
-	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
 	// add it to the bucket, this also adds new display arrays
-	RAS_MeshSlot *slot = mmat->m_baseslot;
+	RAS_MeshSlot *slot = meshmat->m_baseslot;
+	RAS_MaterialBucket *bucket = meshmat->m_bucket;
 
 	// create a new polygon
 	RAS_IDisplayArray *darray = slot->GetDisplayArray();
@@ -343,7 +331,7 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 }
 
 unsigned int RAS_MeshObject::AddVertex(
-				RAS_MaterialBucket *bucket,
+				RAS_MeshMaterial *meshmat,
 				const MT_Vector3& xyz,
 				const MT_Vector2 * const uvs,
 				const MT_Vector4& tangent,
@@ -352,8 +340,7 @@ unsigned int RAS_MeshObject::AddVertex(
 				const bool flat,
 				const unsigned int origindex)
 {
-	RAS_MeshMaterial *mmat = GetMeshMaterial(bucket->GetPolyMaterial());
-	RAS_MeshSlot *slot = mmat->m_baseslot;
+	RAS_MeshSlot *slot = meshmat->m_baseslot;
 	RAS_IDisplayArray *darray = slot->GetDisplayArray();
 	RAS_ITexVert *vertex = darray->CreateVertex(xyz, uvs, tangent, rgba, normal);
 
@@ -394,13 +381,6 @@ unsigned int RAS_MeshObject::AddVertex(
 	return offset;
 }
 
-int RAS_MeshObject::NumVertices(RAS_IPolyMaterial *mat)
-{
-	RAS_MeshMaterial *mmat = GetMeshMaterial(mat);
-	RAS_MeshSlot *slot = mmat->m_baseslot;
-	return slot->GetDisplayArray()->GetVertexCount();
-}
-
 RAS_ITexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
@@ -428,11 +408,12 @@ const float *RAS_MeshObject::GetVertexLocation(unsigned int orig_index)
 RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deformer)
 {
 	RAS_MeshUser *meshUser = new RAS_MeshUser(clientobj);
-	for (std::list<RAS_MeshMaterial>::iterator it = m_materials.begin(); it != m_materials.end(); ++it) {
-		RAS_MeshSlot *ms = it->m_bucket->CopyMesh(it->m_baseslot);
+	for (std::vector<RAS_MeshMaterial *>::iterator it = m_materials.begin(); it != m_materials.end(); ++it) {
+		RAS_MeshMaterial *meshmat = *it;
+		RAS_MeshSlot *ms = meshmat->m_bucket->CopyMesh(meshmat->m_baseslot);
 		ms->SetMeshUser(meshUser);
 		ms->SetDeformer(deformer);
-		it->m_slots[clientobj] = ms;
+		meshmat->m_slots[clientobj] = ms;
 		meshUser->AddMeshSlot(ms);
 	}
 	return meshUser;
@@ -440,17 +421,18 @@ RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deforme
 
 void RAS_MeshObject::RemoveFromBuckets(void *clientobj)
 {
-	for (std::list<RAS_MeshMaterial>::iterator it = m_materials.begin(); it != m_materials.end(); ++it) {
-		std::map<void *, RAS_MeshSlot *>::iterator msit = it->m_slots.find(clientobj);
+	for (std::vector<RAS_MeshMaterial *>::iterator it = m_materials.begin(); it != m_materials.end(); ++it) {
+		RAS_MeshMaterial *meshmat = *it;
+		std::map<void *, RAS_MeshSlot *>::iterator msit = meshmat->m_slots.find(clientobj);
 
-		if (msit == it->m_slots.end()) {
+		if (msit == meshmat->m_slots.end()) {
 			continue;
 		}
 
 		RAS_MeshSlot *ms = msit->second;
 
-		it->m_bucket->RemoveMesh(ms);
-		it->m_slots.erase(clientobj);
+		meshmat->m_bucket->RemoveMesh(ms);
+		meshmat->m_slots.erase(clientobj);
 	}
 }
 

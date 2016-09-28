@@ -206,7 +206,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 	for (RAS_DeformerList::iterator it = m_deformerList.begin(), end = m_deformerList.end(); it != end; ++it) {
 		RAS_Deformer *deformer = *it;
 
-		deformer->Apply(material);
+		deformer->Apply(material, m_meshMaterial);
 
 		// Test if one of deformers is dynamic.
 		if (deformer->IsDynamic()) {

@@ -62,7 +62,7 @@ void KX_SoftBodyDeformer::Relink(std::map<void *, void *>& map)
 	}
 }
 
-bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
+bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat)
 {
 	CcdPhysicsController *ctrl = (CcdPhysicsController *)m_gameobj->GetPhysicsController();
 	if (!ctrl)
@@ -72,24 +72,16 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat)
 	if (!softBody)
 		return false;
 
-	//printf("apply\n");
-	RAS_MeshMaterial *mmat;
-	RAS_MeshSlot *slot;
-
 	// update the vertex in m_transverts
 	Update();
 
-	// The vertex cache can only be updated for this deformer:
-	// Duplicated objects with more than one ploymaterial (=multiple mesh slot per object)
-	// share the same mesh (=the same cache). As the rendering is done per polymaterial
-	// cycling through the objects, the entire mesh cache cannot be updated in one shot.
-	mmat = m_pMeshObject->GetMeshMaterial(polymat);
-	if (!mmat->m_slots[(void *)m_gameobj->getClientInfo()])
-		return true;
+	RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
+	if (!slot) {
+		return false;
+	}
 
-	slot = mmat->m_slots[(void *)m_gameobj->getClientInfo()];
 	RAS_IDisplayArray *array = slot->GetDisplayArray();
-	RAS_IDisplayArray *origarray = mmat->m_baseslot->GetDisplayArray();
+	RAS_IDisplayArray *origarray = meshmat->m_baseslot->GetDisplayArray();
 
 	btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
 

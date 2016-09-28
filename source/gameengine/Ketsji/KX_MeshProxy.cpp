@@ -154,9 +154,10 @@ PyObject *KX_MeshProxy::PyGetVertexArrayLength(PyObject *args, PyObject *kwds)
 	RAS_MeshMaterial *mmat = m_meshobj->GetMeshMaterial(matid); /* can be NULL*/
 
 	if (mmat) {
-		RAS_IPolyMaterial *mat = mmat->m_bucket->GetPolyMaterial();
-		if (mat)
-			length = m_meshobj->NumVertices(mat);
+		RAS_IDisplayArray *array = mmat->m_baseslot->GetDisplayArray();
+		if (array) {
+			length = array->GetVertexCount();
+		}
 	}
 
 	return PyLong_FromLong(length);
@@ -222,7 +223,7 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 
 	/* transform mesh verts */
 	unsigned int mit_index = 0;
-	for (list<RAS_MeshMaterial>::iterator mit = m_meshobj->GetFirstMaterial();
+	for (std::vector<RAS_MeshMaterial *>::iterator mit = m_meshobj->GetFirstMaterial();
 	     (mit != m_meshobj->GetLastMaterial());
 	     ++mit, ++mit_index)
 	{
@@ -236,7 +237,7 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 			continue;
 		}
 
-		RAS_MeshSlot *slot = mit->m_baseslot;
+		RAS_MeshSlot *slot = (*mit)->m_baseslot;
 		RAS_IDisplayArray *array = slot->GetDisplayArray();
 		ok = true;
 
@@ -296,7 +297,7 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 
 	/* transform mesh verts */
 	unsigned int mit_index = 0;
-	for (list<RAS_MeshMaterial>::iterator mit = m_meshobj->GetFirstMaterial();
+	for (std::vector<RAS_MeshMaterial *>::iterator mit = m_meshobj->GetFirstMaterial();
 	     (mit != m_meshobj->GetLastMaterial());
 	     ++mit, ++mit_index)
 	{
@@ -310,7 +311,7 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 			continue;
 		}
 
-		RAS_MeshSlot *slot = mit->m_baseslot;
+		RAS_MeshSlot *slot = (*mit)->m_baseslot;
 		RAS_IDisplayArray *array = slot->GetDisplayArray();
 		ok = true;
 
@@ -356,10 +357,10 @@ PyObject *KX_MeshProxy::pyattr_get_materials(void *self_v, const KX_PYATTRIBUTE_
 
 	PyObject *materials = PyList_New(tot);
 
-	list<RAS_MeshMaterial>::iterator mit = self->m_meshobj->GetFirstMaterial();
+	std::vector<RAS_MeshMaterial *>::iterator mit = self->m_meshobj->GetFirstMaterial();
 
 	for (i = 0; i < tot; mit++, i++) {
-		RAS_IPolyMaterial *polymat = mit->m_bucket->GetPolyMaterial();
+		RAS_IPolyMaterial *polymat = (*mit)->m_bucket->GetPolyMaterial();
 		KX_BlenderMaterial *mat = static_cast<KX_BlenderMaterial *>(polymat);
 		PyList_SET_ITEM(materials, i, mat->GetProxy());
 	}

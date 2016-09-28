@@ -141,10 +141,10 @@ void BL_SkinDeformer::Relink(std::map<void *, void *>& map)
 	BL_MeshDeformer::Relink(map);
 }
 
-bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *mat)
+bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat)
 {
 	// if we don't use a vertex array we does nothing.
-	if (!UseVertexArray() || !mat) {
+	if (!UseVertexArray() || !polymat || !meshmat) {
 		return false;
 	}
 
@@ -154,14 +154,13 @@ bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *mat)
 		return false;
 	}
 
-	RAS_MeshMaterial *mmat = m_pMeshObject->GetMeshMaterial(mat);
-	RAS_MeshSlot *slot = mmat->m_slots[(void *)m_gameobj->getClientInfo()];
+	RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
 	if (!slot) {
 		return false;
 	}
 
 	RAS_IDisplayArray *array = slot->GetDisplayArray();
-	RAS_IDisplayArray *origarray = mmat->m_baseslot->GetDisplayArray();
+	RAS_IDisplayArray *origarray = meshmat->m_baseslot->GetDisplayArray();
 
 	/// Update vertex data from the original mesh.
 	array->UpdateFrom(origarray, modifiedFlag &

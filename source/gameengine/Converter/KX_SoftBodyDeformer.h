@@ -66,7 +66,7 @@ public:
 	}
 
 	virtual void Relink(std::map<void *, void *>& map);
-	virtual bool Apply(RAS_IPolyMaterial *polymat);
+	virtual bool Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat);
 	virtual bool Update()
 	{
 		m_bDynamic = true;
