@@ -117,4 +117,16 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
+
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 11)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "MTex", "float", "ior")) {
+			for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
+				for (unsigned short a = 0; a < MAX_MTEX; ++a) {
+					if (ma->mtex[a]) {
+						ma->mtex[a]->ior = 1.0f;
+					}
+				}
+			}
+		}
+	}
 }

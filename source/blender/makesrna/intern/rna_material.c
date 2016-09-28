@@ -842,6 +842,20 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
 	RNA_def_property_ui_text(prop, "Reflection Factor", "Amount texture affects brightness of out-scattered light");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "ior", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "ior");
+	RNA_def_property_range(prop, 1.0, 50.0);
+	RNA_def_property_ui_range(prop, 1.0, 50.0, 1, 2);
+	RNA_def_property_ui_text(prop, "Refraction Indice", "Indice of refraction");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "refraction_ratio", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "refrratio");
+	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 2);
+	RNA_def_property_ui_text(prop, "Refraction Ratio", "Amount refraction mixed with reflection");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
 	/* end volume material */
 	

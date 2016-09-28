@@ -93,3 +93,14 @@ base class --- :class:`CValue`
 
       :type: :class:`KX_CubeMap`
 
+   .. attribute:: ior
+
+      Index Of Refraction used to compute refraction.
+
+      :type: float (1.0 to 50.0)
+
+   .. attribute:: refractionRatio
+
+      Amount refraction mixed with reflection.
+
+      :type: float (0.0 to 1.0)
