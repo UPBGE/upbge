@@ -60,6 +60,8 @@ BL_Texture::BL_Texture(MTex *mtex)
 	m_savedData.parallaxbumpfac = m_mtex->parallaxbumpsc;
 	m_savedData.parallaxstepfac = m_mtex->parallaxsteps;
 	m_savedData.lodbias = m_mtex->lodbias;
+	m_savedData.ior = m_mtex->ior;
+	m_savedData.ratio = m_mtex->refrratio;
 
 	if (m_gpuTex) {
 		m_bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -83,6 +85,8 @@ BL_Texture::~BL_Texture()
 	m_mtex->parallaxbumpsc = m_savedData.parallaxbumpfac;
 	m_mtex->parallaxsteps = m_savedData.parallaxstepfac;
 	m_mtex->lodbias = m_savedData.lodbias;
+	m_mtex->ior = m_savedData.ior;
+	m_mtex->refrratio = m_savedData.ratio;
 
 	if (m_gpuTex) {
 		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
@@ -236,6 +240,8 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("lodBias", BL_Texture, pyattr_get_lod_bias, pyattr_set_lod_bias),
 	KX_PYATTRIBUTE_RW_FUNCTION("bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
 	KX_PYATTRIBUTE_RO_FUNCTION("cubeMap", BL_Texture, pyattr_get_cube_map),
+	KX_PYATTRIBUTE_RW_FUNCTION("ior", BL_Texture, pyattr_get_ior, pyattr_set_ior),
+	KX_PYATTRIBUTE_RW_FUNCTION("refractionRatio", BL_Texture, pyattr_get_refraction_ratio, pyattr_set_refraction_ratio),
 	{ NULL }    //Sentinel
 };
 
@@ -509,6 +515,47 @@ PyObject *BL_Texture::pyattr_get_cube_map(void *self_v, const KX_PYATTRIBUTE_DEF
 	}
 
 	Py_RETURN_NONE;
+}
+
+PyObject *BL_Texture::pyattr_get_ior(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->ior);
+}
+
+int BL_Texture::pyattr_set_ior(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 1.0, 50.0);
+	self->GetMTex()->ior = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_refraction_ratio(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->refrratio);
+}
+
+int BL_Texture::pyattr_set_refraction_ratio(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+	CLAMP(val, 0.0, 1.0);
+	self->GetMTex()->refrratio = val;
+	return PY_SET_ATTR_SUCCESS;
 }
 
 #endif  // WITH_PYTHON

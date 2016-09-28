@@ -1106,6 +1106,12 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
                 col.label(text="Mipmapping:")
                 col.prop(tex, "lod_bias")
 
+                sub = col.column()
+                sub.active = (tex.texture_coords == "REFLECTION")
+                sub.label(text="Refraction:")
+                sub.prop(tex, "ior", text="IOR")
+                sub.prop(tex, "refraction_ratio", text="Ratio")
+
                 #~ sub = col.column()
                 #~ sub.active = tex.use_map_translucency or tex.map_emit or tex.map_alpha or tex.map_raymir or tex.map_hardness or tex.map_ambient or tex.map_specularity or tex.map_reflection or tex.map_mirror
                 #~ sub.prop(tex, "default_value", text="Amount", slider=True)

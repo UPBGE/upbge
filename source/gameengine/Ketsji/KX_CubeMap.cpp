@@ -35,17 +35,12 @@ KX_CubeMap::KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint)
 	m_viewpointObject(viewpoint),
 	m_invalidProjection(true),
 	m_enabled(true),
-	m_ignoreLayers(0),
-	m_clipStart(0.0f),
-	m_clipEnd(0.0f),
+	m_ignoreLayers(env->notlay),
+	m_clipStart(env->clipsta),
+	m_clipEnd(env->clipend),
 	m_autoUpdate(true),
 	m_forceUpdate(true)
 {
-	m_ignoreLayers = env->notlay;
-
-	m_clipStart = env->clipsta;
-	m_clipEnd = env->clipend;
-
 	m_autoUpdate = (env->flag & ENVMAP_AUTO_UPDATE) != 0;
 }
 

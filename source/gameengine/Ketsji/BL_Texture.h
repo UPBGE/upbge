@@ -50,6 +50,8 @@ private:
 		float parallaxbumpfac;
 		float parallaxstepfac;
 		float lodbias;
+		float ior;
+		float ratio;
 	} m_savedData;
 
 public:
@@ -106,6 +108,10 @@ public:
 	static PyObject *pyattr_get_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_cube_map(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_ior(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_ior(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_refraction_ratio(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_refraction_ratio(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 #endif  // WITH_PYTHON
 };

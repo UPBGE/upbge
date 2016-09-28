@@ -1391,11 +1391,13 @@ static void do_material_tex(GPUShadeInput *shi)
 							 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma), &tin, &trgb);
 				}
 				else {
-					GPU_link(mat, "mtex_cube_map_refl",
+					GPU_link(mat, "mtex_cube_map_refl_refr",
 					         GPU_cube_map(tex->ima, &tex->iuser, false), shi->view, shi->vn,
 							 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma),
-					         GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
-					         &tin, &trgb);
+							 GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
+							 GPU_select_uniform(&mtex->ior, GPU_DYNAMIC_TEX_IOR, NULL, ma),
+							 GPU_select_uniform(&mtex->refrratio, GPU_DYNAMIC_TEX_REFRRATIO, NULL, ma),
+							 &tin, &trgb);
 				}
 				rgbnor = TEX_RGB;
 

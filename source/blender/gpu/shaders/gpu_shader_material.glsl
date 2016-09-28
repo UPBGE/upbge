@@ -1392,14 +1392,48 @@ void mtex_cube_map_refl_from_refldir(
         value = 1.0;
 }
 
+vec4 mtex_cube_map_refl_color(samplerCube ima, mat4 viewmatrixinverse, float lodbias, vec3 vn, vec3 viewdirection)
+{
+	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vn, 0.0)).xyz;
+	vec3 reflecteddirection = reflect(viewdirection, normaldirection);
+	vec4 col = textureCube(ima, reflecteddirection, lodbias);
+	return col;
+}
+
+vec4 mtex_cube_map_refr_color(samplerCube ima, mat4 viewmatrixinverse, float ior, float lodbias, vec3 vn, vec3 viewdirection)
+{
+	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vec3(vn.x, vn.y, -vn.z), 0.0)).xyz;
+	vec3 refracteddirection = refract(viewdirection, normaldirection, 1.0 / ior);
+	vec4 col = textureCube(ima, refracteddirection, lodbias);
+	return col;
+}
+
 void mtex_cube_map_refl(
         samplerCube ima, vec3 vp, vec3 vn, float lodbias, mat4 viewmatrixinverse,
         out float value, out vec4 color)
 {
 	vec3 viewdirection = vec3(viewmatrixinverse * vec4(vp, 0.0));
-	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vn, 0.0)).xyz;
-	vec3 reflecteddirection = reflect(viewdirection, normaldirection);
-	color = textureCube(ima, reflecteddirection, lodbias);
+	color = mtex_cube_map_refl_color(ima, viewmatrixinverse, lodbias, vn, viewdirection);
+	value = 1.0;
+}
+
+void mtex_cube_map_refl_refr(
+        samplerCube ima, vec3 vp, vec3 vn, float lodbias, mat4 viewmatrixinverse,
+        float ior, float ratio, out float value, out vec4 color)
+{
+	vec3 viewdirection = vec3(viewmatrixinverse * vec4(vp, 0.0));
+
+	if (ratio <= 0.0) {
+		color = mtex_cube_map_refl_color(ima, viewmatrixinverse, lodbias, vn, viewdirection);
+	}
+	else if (ratio >= 1.0) {
+		color = mtex_cube_map_refr_color(ima, viewmatrixinverse, ior, lodbias, vn, viewdirection);
+	}
+	else {
+		vec4 refl = mtex_cube_map_refl_color(ima, viewmatrixinverse, lodbias, vn, viewdirection);
+		vec4 refr = mtex_cube_map_refr_color(ima, viewmatrixinverse, ior, lodbias, vn, viewdirection);
+		color = mix(refl, refr, ratio);
+	}
 	value = 1.0;
 }
 
