@@ -67,6 +67,13 @@ public:
 	unsigned int *getImage(unsigned int texId = 0, double timestamp=-1.0);
 	/// get image size
 	short * getSize(void) { return m_size; }
+
+	/// Get the image format type.
+	unsigned int GetFormat()
+	{
+		return m_format;
+	}
+
 	/// get image buffer size
 	unsigned long getBuffSize(void)
 	{ return m_size[0] * m_size[1] * sizeof(unsigned int); }
@@ -118,6 +125,8 @@ protected:
 	unsigned int * m_image;
 	/// image buffer size
 	unsigned int m_imgSize;
+	/// Image format type.
+	unsigned int m_format;
 	/// image size
 	short m_size[2];
 	/// image is available

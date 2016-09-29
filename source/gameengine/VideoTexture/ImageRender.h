@@ -50,8 +50,8 @@ class ImageRender : public ImageViewport
 {
 public:
 	/// constructor
-	ImageRender(KX_Scene *scene, KX_Camera *camera, unsigned int width, unsigned int height, unsigned short samples);
-	ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial * mat, unsigned int width, unsigned int height, unsigned short samples);
+	ImageRender(KX_Scene *scene, KX_Camera *camera, unsigned int width, unsigned int height, unsigned short samples, int hrd);
+	ImageRender(KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial * mat, unsigned int width, unsigned int height, unsigned short samples, int hrd);
 
 	/// destructor
 	virtual ~ImageRender (void);
@@ -139,7 +139,7 @@ protected:
 	MT_Vector4 m_zenith;
 
 	/// render 3d scene to image
-	virtual void calcImage (unsigned int texId, double ts) { calcViewport(texId, ts, GL_RGBA); }
+	virtual void calcImage (unsigned int texId, double ts, unsigned int format) { calcViewport(texId, ts, format); }
 
 	/// render 3d scene to image
 	virtual void calcViewport (unsigned int texId, double ts, unsigned int format);

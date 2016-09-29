@@ -66,7 +66,7 @@ ExpDesc MirrorHorizontalDesc(MirrorHorizontal, "Mirror is horizontal in local sp
 ExpDesc MirrorTooSmallDesc(MirrorTooSmall, "Mirror is too small");
 
 // constructor
-ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int width, unsigned int height, unsigned short samples) :
+ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int width, unsigned int height, unsigned short samples, int hdr) :
     ImageViewport(width, height),
     m_render(true),
     m_updateShadowBuffer(false),
@@ -93,9 +93,23 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
 
-	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
+	GPUHDRType type;
+	if (hdr == RAS_IRasterizer::RAS_HDR_HALF_FLOAT) {
+		type = GPU_HDR_HALF_FLOAT;
+		m_format = GL_RGBA16F_ARB;
+	}
+	else if (hdr == RAS_IRasterizer::RAS_HDR_FULL_FLOAT) {
+		type = GPU_HDR_FULL_FLOAT;
+		m_format = GL_RGBA32F_ARB;
+	}
+	else {
+		type = GPU_HDR_NONE;
+		m_format = GL_RGBA8;
+	}
+
+	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
 	if (m_samples > 0) {
-		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
+		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
 		m_finalOffScreen = m_blitOffScreen;
 	}
 	else {
@@ -483,11 +497,12 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	int width = rect.GetWidth();
 	int height = rect.GetHeight();
 	int samples = 0;
+	int hdr = 0;
 	// parameter keywords
-	static const char *kwlist[] = {"sceneObj", "cameraObj", "width", "height", "samples", NULL};
+	static const char *kwlist[] = {"sceneObj", "cameraObj", "width", "height", "samples", "hdr", NULL};
 	// get parameters
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|iii",
-		const_cast<char**>(kwlist), &scene, &camera, &width, &height, &samples))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|iiii",
+		const_cast<char**>(kwlist), &scene, &camera, &width, &height, &samples, &hdr))
 		return -1;
 	try
 	{
@@ -510,7 +525,7 @@ static int ImageRender_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 		PyImage *self = reinterpret_cast<PyImage*>(pySelf);
 		// create source object
 		if (self->m_image != NULL) delete self->m_image;
-		self->m_image = new ImageRender(scenePtr, cameraPtr, width, height, samples);
+		self->m_image = new ImageRender(scenePtr, cameraPtr, width, height, samples, hdr);
 	}
 	catch (Exception & exp)
 	{
@@ -746,13 +761,14 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	int width = rect.GetWidth();
 	int height = rect.GetHeight();
 	int samples = 0;
+	int hdr = 0;
 
 	// parameter keywords
-	static const char *kwlist[] = {"scene", "observer", "mirror", "material", "width", "height", "samples", NULL};
+	static const char *kwlist[] = {"scene", "observer", "mirror", "material", "width", "height", "samples", "hdr", NULL};
 	// get parameters
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|hiii",
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|hiiii",
 	                                 const_cast<char**>(kwlist), &scene, &observer, &mirror, &materialID,
-									 &width, &height, &samples))
+									 &width, &height, &samples, &hdr))
 		return -1;
 	try
 	{
@@ -798,7 +814,7 @@ static int ImageMirror_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 			delete self->m_image;
 			self->m_image = NULL;
 		}
-		self->m_image = new ImageRender(scenePtr, observerPtr, mirrorPtr, material, width, height, samples);
+		self->m_image = new ImageRender(scenePtr, observerPtr, mirrorPtr, material, width, height, samples, hdr);
 	}
 	catch (Exception & exp)
 	{
@@ -858,7 +874,7 @@ static PyGetSetDef imageMirrorGetSets[] =
 
 
 // constructor
-ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial *mat, unsigned int width, unsigned int height, unsigned short samples) :
+ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObject *mirror, RAS_IPolyMaterial *mat, unsigned int width, unsigned int height, unsigned short samples, int hdr) :
     ImageViewport(width, height),
     m_render(false),
     m_updateShadowBuffer(false),
@@ -872,9 +888,23 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
     m_mirror(mirror),
     m_clip(100.f)
 {
-	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
+	GPUHDRType type;
+	if (hdr == RAS_IRasterizer::RAS_HDR_HALF_FLOAT) {
+		type = GPU_HDR_HALF_FLOAT;
+		m_format = GL_RGBA16F_ARB;
+	}
+	else if (hdr == RAS_IRasterizer::RAS_HDR_FULL_FLOAT) {
+		type = GPU_HDR_FULL_FLOAT;
+		m_format = GL_RGBA32F_ARB;
+	}
+	else {
+		type = GPU_HDR_NONE;
+		m_format = GL_RGBA8;
+	}
+
+	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
 	if (m_samples > 0) {
-		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
+		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
 		m_finalOffScreen = m_blitOffScreen;
 	}
 	else {

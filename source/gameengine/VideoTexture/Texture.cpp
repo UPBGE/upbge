@@ -164,7 +164,7 @@ void Texture::SetSource(PyImage *source)
 
 // load texture
 void loadTexture(unsigned int texId, unsigned int *texture, short *size,
-                 bool mipmap)
+                 bool mipmap, unsigned int format)
 {
 	// load texture for rendering
 	glBindTexture(GL_TEXTURE_2D, texId);
@@ -182,7 +182,7 @@ void loadTexture(unsigned int texId, unsigned int *texture, short *size,
 		for (i = 0; i < ibuf->miptot; i++) {
 			ImBuf *mip = IMB_getmipmap(ibuf, i);
 
-			glTexImage2D(GL_TEXTURE_2D, i,  GL_RGBA,  mip->x, mip->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, mip->rect);
+			glTexImage2D(GL_TEXTURE_2D, i, format, mip->x, mip->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, mip->rect);
 		}
 		IMB_freeImBuf(ibuf);
 	} 
@@ -190,7 +190,7 @@ void loadTexture(unsigned int texId, unsigned int *texture, short *size,
 	{
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA, size[0], size[1], 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
+		glTexImage2D( GL_TEXTURE_2D, 0, format, size[0], size[1], 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
 	}
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 }
@@ -437,7 +437,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 						texture = m_scaledImBuf->rect;
 					}
 					// load texture for rendering
-					loadTexture(m_actTex, texture, size, m_mipmap);
+					loadTexture(m_actTex, texture, size, m_mipmap, m_source->m_image->GetFormat());
 				}
 				// refresh texture source, if required
 				if (refreshSource) {

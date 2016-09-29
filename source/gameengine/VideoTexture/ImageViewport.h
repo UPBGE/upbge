@@ -95,7 +95,7 @@ protected:
 	bool m_texInit;
 
 	/// capture image from viewport
-	virtual void calcImage (unsigned int texId, double ts) { calcViewport(texId, ts, GL_RGBA); }
+	virtual void calcImage (unsigned int texId, double ts) { calcViewport(texId, ts, m_format);	}
 
 	/// capture image from viewport
 	virtual void calcViewport (unsigned int texId, double ts, unsigned int format);
