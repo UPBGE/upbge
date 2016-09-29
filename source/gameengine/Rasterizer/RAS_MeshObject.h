@@ -68,6 +68,8 @@ private:
 	STR_String m_name;
 	static STR_String s_emptyname;
 
+	STR_String m_uvsName[RAS_Texture::MaxUnits];
+
 	std::vector<RAS_Polygon *> m_polygons;
 
 	/* polygon sorting */
@@ -83,7 +85,7 @@ protected:
 
 public:
 	// for now, meshes need to be in a certain layer (to avoid sorting on lights in realtime)
-	RAS_MeshObject(Mesh *mesh);
+	RAS_MeshObject(Mesh *mesh, STR_String uvsname[RAS_Texture::MaxUnits]);
 	virtual ~RAS_MeshObject();
 
 	// materials
@@ -98,7 +100,6 @@ public:
 	std::vector<RAS_MeshMaterial *>::iterator GetLastMaterial();
 
 	// name
-	void SetName(const char *name);
 	STR_String& GetName();
 
 	/// Modification categories.
@@ -156,7 +157,13 @@ public:
 	void RemoveFromBuckets(void *clientobj);
 	void EndConversion();
 
-	void GenerateAttribLayers(const STR_String uvsname[RAS_Texture::MaxUnits]);
+	/// Return the list of Uvs names.
+	const STR_String *GetUvsName() const;
+
+	/** Generate attribute's layers for every material use by this mesh.
+	 * WARNING: Always call when shader in the material are valid.
+	 */
+	void GenerateAttribLayers();
 
 	// polygon sorting by Z for alpha
 	void SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transform);

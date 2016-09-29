@@ -68,6 +68,7 @@ public:
 
 	RAS_MeshSlot *AddMesh(RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, const RAS_TexVertFormat& format);
 	RAS_MeshSlot *CopyMesh(RAS_MeshSlot *ms);
+	void AddMesh(RAS_MeshSlot *ms);
 	void RemoveMesh(RAS_MeshSlot *ms);
 	/// Remove all mesh slot using the given mesh object.
 	void RemoveMeshObject(RAS_MeshObject *mesh);
@@ -81,6 +82,8 @@ public:
 	void RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 
 	RAS_DisplayArrayBucketList& GetDisplayArrayBucketList();
+
+	void MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_MaterialBucket *bucket);
 
 private:
 	RAS_MeshSlotList m_meshSlots; // all the mesh slots

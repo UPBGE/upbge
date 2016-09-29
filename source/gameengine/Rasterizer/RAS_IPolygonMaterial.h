@@ -132,6 +132,7 @@ public:
 	virtual Image *GetBlenderImage() const = 0;
 	virtual MTexPoly *GetMTexPoly() const = 0;
 	virtual Scene *GetBlenderScene() const = 0;
+	virtual SCA_IScene *GetScene() const = 0;
 	virtual bool UseInstancing() const = 0;
 	virtual void ReleaseMaterial() = 0;
 	virtual void GetRGBAColor(unsigned char *rgba) const;
