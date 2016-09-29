@@ -531,8 +531,6 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		tangent = (float(*)[4])dm->getTessFaceDataArray(dm, CD_TANGENT);
 	}
 
-	meshobj = new RAS_MeshObject(mesh);
-
 	// Extract avaiable layers
 	MTF_localLayer *layers =  new MTF_localLayer[MAX_MTFACE];
 	for (int lay=0; lay<MAX_MTFACE; lay++) {
@@ -558,7 +556,16 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		}
 	}
 
-	meshobj->SetName(mesh->id.name + 2);
+
+	STR_String uvsname[RAS_Texture::MaxUnits];
+	// foreach MTex
+	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
+		// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
+		uvsname[i] = STR_String(layers[i].name);
+	}
+
+	meshobj = new RAS_MeshObject(mesh, uvsname);
+
 	meshobj->m_sharedvertex_map.resize(totvert);
 
 	RAS_TexVertFormat vertformat;
@@ -727,15 +734,8 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		}
 	}
 
-	STR_String uvsname[RAS_Texture::MaxUnits];
-	// foreach MTex
-	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
-		// Store the uv name for later find the UV layer cooresponding to the attrib name. See BL_BlenderShader::ParseAttribs.
-		uvsname[i] = STR_String(layers[i].name);
-	}
-
 	// Find attributes layer (currently only UVs) by materials for this mesh.
-	meshobj->GenerateAttribLayers(uvsname);
+	meshobj->GenerateAttribLayers();
 
 	if (layers)
 		delete []layers;

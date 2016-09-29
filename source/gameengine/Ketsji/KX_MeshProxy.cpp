@@ -33,9 +33,11 @@
 #ifdef WITH_PYTHON
 
 #include "KX_MeshProxy.h"
+#include "KX_Scene.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
+#include "RAS_BucketManager.h"
 #include "SCA_LogicManager.h"
 
 #include "KX_VertexProxy.h"
@@ -79,7 +81,7 @@ PyMethodDef KX_MeshProxy::Methods[] = {
 	{"getPolygon", (PyCFunction) KX_MeshProxy::sPyGetPolygon, METH_VARARGS},
 	{"transform", (PyCFunction) KX_MeshProxy::sPyTransform, METH_VARARGS},
 	{"transformUV", (PyCFunction) KX_MeshProxy::sPyTransformUV, METH_VARARGS},
-
+	{"replaceMaterial", (PyCFunction) KX_MeshProxy::sPyReplaceMaterial, METH_VARARGS},
 	{NULL, NULL} //Sentinel
 };
 
@@ -344,6 +346,46 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 	}
 
 	m_meshobj->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
+
+	Py_RETURN_NONE;
+}
+
+PyObject *KX_MeshProxy::PyReplaceMaterial(PyObject *args, PyObject *kwds)
+{
+	unsigned short matindex;
+	PyObject *pymat;
+	KX_BlenderMaterial *mat;
+
+	if (!PyArg_ParseTuple(args, "iO:replaceMaterial", &matindex, &pymat) ||
+		!ConvertPythonToMaterial(pymat, &mat, false, "mesh.replaceMaterial(...): invalid material")) {
+		return NULL;
+	}
+
+
+	RAS_MeshMaterial *meshmat = m_meshobj->GetMeshMaterial(matindex);
+	if (!meshmat) {
+		PyErr_Format(PyExc_ValueError, "Invalid material index %d", matindex);
+		return NULL;
+	}
+
+	KX_Scene *scene = (KX_Scene *)meshmat->m_bucket->GetPolyMaterial()->GetScene();
+	if (scene != mat->GetScene()) {
+		PyErr_Format(PyExc_ValueError, "Mesh successor scene doesn't match current mesh scene");
+		return NULL;
+	}
+
+	RAS_BucketManager *bucketmgr = scene->GetBucketManager();
+	bool created = false;
+	RAS_MaterialBucket *bucket = bucketmgr->FindBucket(mat, created);
+
+	// Must never create the material bucket.
+	BLI_assert(created == false);
+
+	// Avoid replacing the by the same material bucket.
+	if (meshmat->m_bucket != bucket) {
+		meshmat->m_bucket->MoveDisplayArrayBucket(meshmat, bucket);
+		meshmat->m_bucket = bucket;
+	}
 
 	Py_RETURN_NONE;
 }

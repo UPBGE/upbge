@@ -32,8 +32,6 @@
 #ifndef __RAS_MESH_MATERIAL_H__
 #define __RAS_MESH_MATERIAL_H__
 
-#include "RAS_IRasterizer.h" // For AttribLayerList.
-
 #include <map>
 #include <vector>
 
@@ -48,7 +46,6 @@ public:
 	RAS_MaterialBucket *m_bucket;
 	/// The blender material index position in the mesh.
 	unsigned int m_index;
-	RAS_IRasterizer::AttribLayerList m_attribLayers;
 
 	/// the KX_GameObject is used as a key here
 	std::map<void *, RAS_MeshSlot *> m_slots;

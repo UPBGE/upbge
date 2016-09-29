@@ -33,7 +33,7 @@
 #define __RAS_DISPLAY_MATERIAL_BUCKET_H__
 
 #include "RAS_MeshSlot.h" // needed for RAS_MeshSlotList
-#include "RAS_IRasterizer.h" // needed for RAS_IRasterizer::StorageType
+#include "RAS_IRasterizer.h" // needed for RAS_IRasterizer::StorageType and RAS_IRasterizer::AttribLayerList
 
 #include "MT_Transform.h"
 
@@ -82,7 +82,11 @@ private:
 	 */
 	RAS_IStorageInfo *m_storageInfo;
 
+	/// The vertex buffer object containing all the datas used for the instancing rendering.
 	RAS_InstancingBuffer *m_instancingBuffer;
+
+	/// The attribute's layers used by the couple mesh material.
+	RAS_IRasterizer::AttribLayerList m_attribLayers;
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array, RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat);
@@ -131,12 +135,20 @@ public:
 	void DestructStorageInfo();
 	RAS_IRasterizer::StorageType GetStorageType() const;
 
+	/** Generate the attribute's layers for the used mesh and material couple.
+	 * WARNING: Always call when shader in the material are valid.
+	 */
+	void GenerateAttribLayers();
+
 	void SetAttribLayers(RAS_IRasterizer *rasty) const;
 
 	/// Render all mesh slots for solid render.
 	void RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);
 	/// Render all mesh slots with geometry instancing render.
 	void RenderMeshSlotsInstancing(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, bool alpha);
+
+	/// Replace the material bucket of this display array bucket by the one given.
+	void ChangeMaterialBucket(RAS_MaterialBucket *bucket);
 };
 
 typedef std::vector<RAS_DisplayArrayBucket *> RAS_DisplayArrayBucketList;

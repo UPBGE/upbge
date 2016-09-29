@@ -132,3 +132,16 @@ base class --- :class:`CValue`
       :arg uv_index_from: optional uv index to copy from, -1 to transform the current uv.
       :type uv_index_from: integer
 
+   .. method:: replaceMaterial(matid, material)
+
+      Replace the material in slot :data:`matid` by the material :data:`material`.
+
+      :arg matid: The material index.
+      :type matid: integer
+      :arg material: The material replacement.
+      :type material: :class:`KX_BlenderMaterial`
+
+      .. warning::
+
+         Changing the material of a mesh used by many objects can be slow. This function should be not called every frames
+

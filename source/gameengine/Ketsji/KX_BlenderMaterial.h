@@ -61,6 +61,7 @@ public:
 	virtual bool UsesLighting(RAS_IRasterizer *rasty) const;
 	virtual void GetRGBAColor(unsigned char *rgba) const;
 	virtual Scene *GetBlenderScene() const;
+	virtual SCA_IScene *GetScene() const;
 	virtual void ReleaseMaterial();
 
 	unsigned int *GetBlendFunc()
@@ -151,5 +152,7 @@ private:
 	// cleanup stuff
 	void OnExit();
 };
+
+bool ConvertPythonToMaterial(PyObject *value, KX_BlenderMaterial **material, bool py_none_ok, const char *error_prefix);
 
 #endif

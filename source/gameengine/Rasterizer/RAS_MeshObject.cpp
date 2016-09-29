@@ -35,8 +35,12 @@
 #include "RAS_MeshUser.h"
 #include "RAS_Polygon.h"
 #include "RAS_IPolygonMaterial.h"
+#include "RAS_BucketManager.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_Deformer.h"
+
+#include "SCA_IScene.h"
+
 #include "MT_Vector3.h"
 
 #include <algorithm>
@@ -100,13 +104,17 @@ struct RAS_MeshObject::fronttoback
 
 STR_String RAS_MeshObject::s_emptyname = "";
 
-RAS_MeshObject::RAS_MeshObject(Mesh *mesh)
+RAS_MeshObject::RAS_MeshObject(Mesh *mesh, STR_String uvsname[RAS_Texture::MaxUnits])
 	:m_modifiedFlag(MESH_MODIFIED),
 	m_needUpdateAabb(true),
 	m_aabbMax(0.0f, 0.0f, 0.0f),
 	m_aabbMin(0.0f, 0.0f, 0.0f),
+	m_name(mesh->id.name + 2),
 	m_mesh(mesh)
 {
+	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
+		m_uvsName[i] = uvsname[i];
+	}
 }
 
 RAS_MeshObject::~RAS_MeshObject()
@@ -224,11 +232,6 @@ std::vector<RAS_MeshMaterial *>::iterator RAS_MeshObject::GetFirstMaterial()
 std::vector<RAS_MeshMaterial *>::iterator RAS_MeshObject::GetLastMaterial()
 {
 	return m_materials.end();
-}
-
-void RAS_MeshObject::SetName(const char *name)
-{
-	m_name = name;
 }
 
 STR_String& RAS_MeshObject::GetName()
@@ -454,13 +457,17 @@ void RAS_MeshObject::EndConversion()
 	}
 }
 
-void RAS_MeshObject::GenerateAttribLayers(const STR_String uvsname[RAS_Texture::MaxUnits])
+const STR_String *RAS_MeshObject::GetUvsName() const
 {
-	for (unsigned int imat = 0, nmat = NumMaterials(); imat < nmat; ++imat) {
-		RAS_MeshMaterial *mmat = GetMeshMaterial(imat);
-		RAS_IPolyMaterial *polymat = mmat->m_bucket->GetPolyMaterial();
+	return m_uvsName;
+}
 
-		mmat->m_attribLayers = polymat->GetAttribLayers(uvsname);
+void RAS_MeshObject::GenerateAttribLayers()
+{
+	for (std::vector<RAS_MeshMaterial *>::iterator it = m_materials.begin(), end = m_materials.end(); it != end; ++it) {
+		RAS_MeshSlot *slot = (*it)->m_baseslot;
+		RAS_DisplayArrayBucket *displayArrayBucket = slot->m_displayArrayBucket;
+		displayArrayBucket->GenerateAttribLayers();
 	}
 }
 

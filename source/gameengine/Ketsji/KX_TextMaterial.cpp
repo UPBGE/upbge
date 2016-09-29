@@ -93,6 +93,11 @@ Scene *KX_TextMaterial::GetBlenderScene() const
 	return NULL;
 }
 
+SCA_IScene *KX_TextMaterial::GetScene() const
+{
+	return NULL;
+}
+
 bool KX_TextMaterial::UseInstancing() const
 {
 	return false;

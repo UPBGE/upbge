@@ -256,13 +256,20 @@ RAS_IRasterizer::StorageType RAS_DisplayArrayBucket::GetStorageType() const
 	return m_bucket->GetPolyMaterial()->GetStorageType();
 }
 
-void RAS_DisplayArrayBucket::SetAttribLayers(RAS_IRasterizer *rasty) const
+void RAS_DisplayArrayBucket::GenerateAttribLayers()
 {
-	if (!m_meshMaterial) {
+	if (!m_mesh) {
 		return;
 	}
 
-	rasty->SetAttribLayers(m_meshMaterial->m_attribLayers);
+	RAS_IPolyMaterial *polymat = m_bucket->GetPolyMaterial();
+	const STR_String *uvsname = m_mesh->GetUvsName();
+	m_attribLayers = polymat->GetAttribLayers(uvsname);
+}
+
+void RAS_DisplayArrayBucket::SetAttribLayers(RAS_IRasterizer *rasty) const
+{
+	rasty->SetAttribLayers(m_attribLayers);
 }
 
 void RAS_DisplayArrayBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)
@@ -370,3 +377,13 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 	rasty->UnbindPrimitives(storage, this);
 }
 
+void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)
+{
+	m_bucket = bucket;
+
+	/// Regenerate the attribute's layers using the new material.
+	GenerateAttribLayers();
+
+	/// Free the storage info because the attribute's layer may changed.
+	DestructStorageInfo();
+}

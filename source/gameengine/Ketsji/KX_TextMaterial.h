@@ -47,6 +47,7 @@ public:
 	virtual Image *GetBlenderImage() const;
 	virtual MTexPoly *GetMTexPoly() const;
 	virtual Scene *GetBlenderScene() const;
+	virtual SCA_IScene *GetScene() const;
 	virtual bool UseInstancing() const;
 	virtual void ReleaseMaterial();
 
