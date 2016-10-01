@@ -46,8 +46,32 @@
 
 
 ImageViewport::ImageViewport()
+	:m_alpha(false),
+	m_texInit(false)
 {
-	
+	/* Because this constructor is called from python direclty without any arguments
+	 * the viewport should be the one of the final screen with gaps.
+	 * To do this we use the canvas viewport.
+	 */
+
+	RAS_ICanvas *canvas = KX_GetActiveEngine()->GetCanvas();
+	const int *viewport = canvas->GetViewPort();
+
+	m_viewport[0] = viewport[0];
+	m_viewport[1] = viewport[1];
+	m_viewport[2] = viewport[2];
+	m_viewport[3] = viewport[3];
+
+	m_width = m_viewport[2] - m_viewport[0];
+	m_height = m_viewport[3] - m_viewport[1];
+
+	//glGetIntegerv(GL_VIEWPORT, m_viewport);
+	// create buffer for viewport image
+	// Warning: this buffer is also used to get the depth buffer as an array of
+	//          float (1 float = 4 bytes per pixel)
+	m_viewportImage = new BYTE [4 * getViewportSize()[0] * getViewportSize()[1]];
+	// set attributes
+	setWhole(true);
 }
 
 // constructor
@@ -59,8 +83,8 @@ ImageViewport::ImageViewport(unsigned int width, unsigned int height)
 {
 	m_viewport[0] = 0;
 	m_viewport[1] = 0;
-	m_viewport[2] = width;
-	m_viewport[3] = height;
+	m_viewport[2] = m_width;
+	m_viewport[3] = m_height;
 
 	//glGetIntegerv(GL_VIEWPORT, m_viewport);
 	// create buffer for viewport image
