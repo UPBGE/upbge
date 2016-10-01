@@ -80,7 +80,6 @@ class RAS_IPolyMaterial;
 class RAS_IRasterizer;
 class RAS_IRenderTools;
 class RAS_2DFilterManager;
-class KX_CubeMapManager;
 class KX_2DFilterManager;
 class SCA_JoystickManager;
 class btCollisionShape;
