@@ -30,7 +30,8 @@
 RAS_Texture::RAS_Texture()
 	:m_bindCode(-1),
 	m_name(""),
-	m_cubeMap(NULL)
+	m_cubeMap(NULL),
+	m_planar(NULL)
 {
 }
 
@@ -51,6 +52,16 @@ void RAS_Texture::SetCubeMap(RAS_CubeMap *cubeMap)
 RAS_CubeMap *RAS_Texture::GetCubeMap() const
 {
 	return m_cubeMap;
+}
+
+void RAS_Texture::SetPlanar(RAS_Planar *planar)
+{
+	m_planar = planar;
+}
+
+RAS_Planar *RAS_Texture::GetPlanar() const
+{
+	return m_planar;
 }
 
 int RAS_Texture::GetCubeMapTextureType()
