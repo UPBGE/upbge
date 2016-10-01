@@ -37,8 +37,6 @@ private:
 	std::vector<Vertex> m_vertexes;
 
 public:
-	friend Vertex;
-
 	RAS_DisplayArray(PrimitiveType type)
 		:RAS_IDisplayArray(type)
 	{
