@@ -42,6 +42,7 @@ class ImageViewport : public ImageBase
 public:
 	/// constructor
 	ImageViewport (unsigned int width, unsigned int height);
+	/// Constructor called from python.
 	ImageViewport();
 
 	/// destructor
