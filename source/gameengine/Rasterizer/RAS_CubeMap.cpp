@@ -32,6 +32,8 @@
 #include "GPU_framebuffer.h"
 #include "GPU_draw.h"
 
+#include "BKE_image.h"
+
 #include "DNA_texture_types.h"
 
 #include "glew-mx.h"
@@ -105,7 +107,10 @@ RAS_CubeMap::~RAS_CubeMap()
 		RAS_Texture *texture = *it;
 		// Invalidate the cube map in each material texture users.
 		texture->SetCubeMap(NULL);
-		GPU_free_image(texture->GetImage());
+		/* Use BKE_image_free_buffers to free the bind code and also the cached frames which
+		 * freed by image_free_cached_frames.
+		 */
+		BKE_image_free_buffers(texture->GetImage());
 	}
 }
 
