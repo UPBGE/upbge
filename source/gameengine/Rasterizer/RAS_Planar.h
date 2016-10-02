@@ -28,11 +28,14 @@
 #define __RAS_PLANAR_H__
 
 #include "MT_Matrix3x3.h"
+#include "MT_Vector3.h"
 
 #include <vector>
 
 class RAS_Texture;
 class RAS_IRasterizer;
+class RAS_IPolyMaterial;
+class KX_GameObject;
 
 struct GPUFrameBuffer;
 struct GPURenderBuffer;
@@ -46,8 +49,8 @@ public:
 private:
 	/// Cube map texture to attach to frame buffer objects.
 	GPUTexture *m_gpuTex;
-	GPUFrameBuffer *m_fbos[2];
-	GPURenderBuffer *m_rbs[2];
+	GPUFrameBuffer *m_fbo;
+	GPURenderBuffer *m_rb;
 
 	/// Recreate and attach frame buffer objects and render buffers to the cube map texture.
 	void AttachTexture();
@@ -58,13 +61,20 @@ private:
 	*/
 	void GetValidTexture();
 
+	float m_mirrorHalfWidth;
+	float m_mirrorHalfHeight;
+	MT_Vector3 m_mirrorPos;              // mirror center position in local space
+	MT_Vector3 m_mirrorZ;               // mirror Z axis in local space
+	MT_Vector3 m_mirrorY;               // mirror Y axis in local space
+	MT_Vector3 m_mirrorX;               // mirror X axis in local space
+
 protected:
 	/// All the material texture users.
 	std::vector<RAS_Texture *> m_textureUsers;
 
 public:
 
-	RAS_Planar();
+	RAS_Planar(KX_GameObject *gameobj, RAS_IPolyMaterial *mat);
 	virtual ~RAS_Planar();
 
 	const std::vector<RAS_Texture *>& GetTextureUsers() const;
@@ -74,7 +84,14 @@ public:
 	void BeginRender();
 	void EndRender();
 
-	void BindFace(RAS_IRasterizer *rasty, unsigned short index);
+	void BindFace(RAS_IRasterizer *rasty);
+
+	float GetMirrorHalfWidth();
+	float GetMirrorHalfHeight();
+	MT_Vector3 GetMirrorPos();
+	MT_Vector3 GetMirrorZ();
+	MT_Vector3 GetMirrorY();
+	MT_Vector3 GetMirrorX();
 };
 
 #endif  // __RAS_PLANAR_H__

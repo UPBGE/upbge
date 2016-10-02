@@ -36,6 +36,7 @@ class KX_Planar;
 
 class RAS_IRasterizer;
 class RAS_Texture;
+class RAS_IPolyMaterial;
 
 class KX_PlanarManager
 {
@@ -60,7 +61,7 @@ public:
 	/** Add and create a planar if none existing planar was using the same
 	* texture containing in the material texture passed.
 	*/
-	void AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, int type);
+	void AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, RAS_IPolyMaterial *polymat, int type, int width, int height);
 
 	void Render(RAS_IRasterizer *rasty);
 };

@@ -33,6 +33,7 @@
 #include "MT_Matrix4x4.h"
 
 class KX_GameObject;
+class RAS_IPolyMaterial;
 
 struct Tex;
 
@@ -67,13 +68,16 @@ private:
 	*/
 	bool m_forceUpdate;
 
+	int m_width;
+	int m_height;
+
 public:
-	KX_Planar(Tex *tex, KX_GameObject *viewpoint, int type);
+	KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat, int type, int width, int height);
 	virtual ~KX_Planar();
 
 	virtual STR_String& GetName();
 
-	KX_GameObject *GetViewpointObject() const;
+	KX_GameObject *GetMirrorObject() const;
 
 	float GetClipStart() const;
 	float GetClipEnd() const;
@@ -89,6 +93,11 @@ public:
 
 	// Return true when this planar need to be updated.
 	bool NeedUpdate();
+
+	short CalcSize(short size);
+
+	short GetWidth();
+	short GetHeight();
 
 #ifdef WITH_PYTHON
 	KX_PYMETHOD_DOC_NOARGS(KX_Planar, update);

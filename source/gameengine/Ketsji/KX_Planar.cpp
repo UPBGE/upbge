@@ -30,8 +30,8 @@
 
 #include "DNA_texture_types.h"
 
-KX_Planar::KX_Planar(Tex *tex, KX_GameObject *viewpoint, int type)
-	:RAS_Planar(),
+KX_Planar::KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat, int type, int width, int height)
+	:RAS_Planar(viewpoint, polymat),
 	m_viewpointObject(viewpoint),
 	m_invalidProjection(true),
 	m_enabled(true),
@@ -39,11 +39,16 @@ KX_Planar::KX_Planar(Tex *tex, KX_GameObject *viewpoint, int type)
 	m_clipEnd(0.0f),
 	m_autoUpdate(true),
 	m_forceUpdate(true),
-	m_type(type)
+	m_type(type),
+	m_width(width),
+	m_height(height)
 {
 
 	m_clipStart = tex->clipsta;
 	m_clipEnd = tex->clipend;
+
+	m_width = CalcSize(m_width);
+	m_height = CalcSize(m_height);
 
 	m_autoUpdate = (tex->flag & TEX_AUTO_UPDATE) != 0;
 }
@@ -58,7 +63,7 @@ STR_String& KX_Planar::GetName()
 	return planarName;
 }
 
-KX_GameObject *KX_Planar::GetViewpointObject() const
+KX_GameObject *KX_Planar::GetMirrorObject() const
 {
 	return m_viewpointObject;
 }
@@ -114,6 +119,26 @@ bool KX_Planar::NeedUpdate()
 	m_forceUpdate = false;
 
 	return result;
+}
+
+short KX_Planar::CalcSize(short size)
+{
+	// while there is more than 1 bit in size value
+	while ((size & (size - 1)) != 0)
+		// clear last bit
+		size = size & (size - 1);
+	// return result
+	return size;
+}
+
+short KX_Planar::GetWidth()
+{
+	return m_width;
+}
+
+short KX_Planar::GetHeight()
+{
+	return m_height;
 }
 
 #ifdef WITH_PYTHON
