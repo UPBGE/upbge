@@ -1409,6 +1409,13 @@ void mtex_image(vec3 texco, sampler2D ima, float lodbias, out float value, out v
 	value = 1.0;
 }
 
+void mtex_image_refl(vec3 texco, sampler2D ima, float lodbias, vec3 vn, out float value, out vec4 color)
+{
+	vec2 uv = vec2(-texco.x, texco.y);
+	color = texture2D(ima, uv, lodbias);
+	value = 1.0;
+}
+
 void mtex_normal(vec3 texco, sampler2D ima, float lodbias, out vec3 normal)
 {
 	// The invert of the red channel is to make

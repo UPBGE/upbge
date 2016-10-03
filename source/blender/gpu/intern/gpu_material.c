@@ -1385,8 +1385,19 @@ static void do_material_tex(GPUShadeInput *shi)
 			     ((tex->type == TEX_ENVMAP) && (mtex->texco == TEXCO_REFL))))
 			{
 				if (tex->type == TEX_IMAGE) {
-					GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false),
-							 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma), &tin, &trgb);
+					if (tex->planarflag & TEX_PLANAR_REFLECTION) {
+						GPU_link(mat, "mtex_image_refl", texco, GPU_image(tex->ima, &tex->iuser, false),
+							GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma),
+							shi->vn, &tin, &trgb);
+					}
+					else if (tex->planarflag & TEX_PLANAR_REFRACTION) {
+						GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false),
+							GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma), &tin, &trgb);
+					}
+					else {
+						GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false),
+							GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma), &tin, &trgb);
+					}
 				}
 				else {
 					GPU_link(mat, "mtex_cube_map_refl",
