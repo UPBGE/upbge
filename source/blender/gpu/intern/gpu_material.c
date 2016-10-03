@@ -116,6 +116,7 @@ struct GPUMaterial {
 	int localtoviewmatloc, invlocaltoviewmatloc;
 	int obcolloc, obautobumpscaleloc;
 	int cameratexcofacloc;
+	int cscoords;
 
 	int partscalarpropsloc;
 	int partcoloc;
@@ -248,7 +249,7 @@ static int GPU_material_construct_end(GPUMaterial *material, const char *passnam
 			return 0;
 
 		gpu_material_set_attrib_id(material);
-		
+
 		GPUShader *shader = GPU_pass_shader(material->pass);
 
 		if (material->builtins & GPU_VIEW_MATRIX)
@@ -277,6 +278,8 @@ static int GPU_material_construct_end(GPUMaterial *material, const char *passnam
 			material->partvel = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_VELOCITY));
 		if (material->builtins & GPU_PARTICLE_ANG_VELOCITY)
 			material->partangvel = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_ANG_VELOCITY));
+		if (material->builtins & GPU_CLIP_SPACE_COORDS)
+			material->cscoords = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_CLIP_SPACE_COORDS));
 		if (material->use_instancing) {
 			material->ininstposloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_POSITION_ATTRIB));
 			material->ininstmatloc = GPU_shader_get_attribute(shader, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
@@ -1386,10 +1389,12 @@ static void do_material_tex(GPUShadeInput *shi)
 			{
 				if (tex->type == TEX_IMAGE) {
 					if (tex->planarflag & TEX_PLANAR_REFLECTION) {
-						GPU_link(mat, "mtex_image_refl", texco, GPU_image(tex->ima, &tex->iuser, false),
+						GPU_link(mat, "mtex_image_refl",
+							GPU_image(tex->ima, &tex->iuser, false),
 							GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma),
+							GPU_builtin(GPU_CLIP_SPACE_COORDS),
 							GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
-							shi->view, shi->vn, &tin, &trgb);
+							shi->vn, &tin, &trgb);
 					}
 					else if (tex->planarflag & TEX_PLANAR_REFRACTION) {
 						GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false),

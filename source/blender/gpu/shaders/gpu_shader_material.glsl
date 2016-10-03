@@ -1409,14 +1409,12 @@ void mtex_image(vec3 texco, sampler2D ima, float lodbias, out float value, out v
 	value = 1.0;
 }
 
-void mtex_image_refl(vec3 texco, sampler2D ima, float lodbias, mat4 viewmatrixinverse, vec3 vp, vec3 vn, out float value, out vec4 color)
+void mtex_image_refl(sampler2D ima, float lodbias, vec4 clipSpace, mat4 viewmatrixinverse, vec3 vn, out float value, out vec4 color)
 {
-	vec2 uv = vec2(-texco.x, texco.y);
-	vec3 viewdirection = vec3(viewmatrixinverse * vec4(vp, 0.0));
-	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vn, 0.0)).xyz;
-	vec3 ref = reflect(viewdirection, normaldirection);
+	vec3 N = normalize(viewmatrixinverse * vec4(vn, 1.0)).xyz;
+	vec2 ndc = clamp((clipSpace.xy / clipSpace.w) * 0.5 + 0.5, 0.001, 0.999);
 
-	color = texture2D(ima, uv, lodbias);
+	color = texture2D(ima, vec2(ndc.x, -ndc.y) + N.xy, lodbias);
 	value = 1.0;
 }
 

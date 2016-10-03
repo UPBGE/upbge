@@ -106,6 +106,7 @@ typedef enum GPUBuiltin {
 	GPU_INSTANCING_COLOR_ATTRIB    = (1 << 20),
 	GPU_INSTANCING_MATRIX_ATTRIB   = (1 << 21),
 	GPU_INSTANCING_POSITION_ATTRIB = (1 << 22),
+	GPU_CLIP_SPACE_COORDS          = (1 << 23)
 } GPUBuiltin;
 
 typedef enum GPUOpenGLBuiltin {
