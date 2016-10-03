@@ -1388,7 +1388,8 @@ static void do_material_tex(GPUShadeInput *shi)
 					if (tex->planarflag & TEX_PLANAR_REFLECTION) {
 						GPU_link(mat, "mtex_image_refl", texco, GPU_image(tex->ima, &tex->iuser, false),
 							GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma),
-							shi->vn, &tin, &trgb);
+							GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
+							shi->view, shi->vn, &tin, &trgb);
 					}
 					else if (tex->planarflag & TEX_PLANAR_REFRACTION) {
 						GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, &tex->iuser, false),
