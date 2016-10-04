@@ -2613,6 +2613,7 @@ static void gpu_update_lamps_shadows_world(Scene *scene, View3D *v3d)
 		GPU_horizon_update_color(&world->horr);
 		GPU_ambient_update_color(&world->ambr);
 		GPU_zenith_update_color(&world->zenr);
+		GPU_update_exposure_range(world->exp, world->range);
 	}
 }
 

@@ -89,6 +89,8 @@ static struct GPUWorld {
 	float horicol[3];
 	float ambcol[4];
 	float zencol[3];
+	float logfac;
+	float linfac;
 } GPUWorld;
 
 struct GPUMaterial {
@@ -1830,13 +1832,18 @@ void GPU_zenith_update_color(float color[3])
 	copy_v3_v3(GPUWorld.zencol, color);
 }
 
+void GPU_update_exposure_range(float exp, float range)
+{
+	GPUWorld.linfac = 1.0f + powf((2.0f * exp + 0.5f), -10.0f);
+	GPUWorld.logfac = log((GPUWorld.linfac - 1.0f) / GPUWorld.linfac) / range;
+}
+
 void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 {
 	GPUMaterial *mat = shi->gpumat;
-	GPUNodeLink *emit, *ulinfac, *ulogfac, *mistfac;
+	GPUNodeLink *emit, *mistfac;
 	Material *ma = shi->mat;
 	World *world = mat->scene->world;
-	float linfac, logfac;
 
 	mat->dynproperty |= DYN_LAMP_CO;
 	memset(shr, 0, sizeof(*shr));
@@ -1874,18 +1881,14 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 		if (world) {
 			/* exposure correction */
-			if (world->exp != 0.0f || world->range != 1.0f) {
-				linfac = 1.0f + powf((2.0f * world->exp + 0.5f), -10);
-				logfac = logf((linfac - 1.0f) / linfac) / world->range;
-
-				GPU_link(mat, "set_value", GPU_uniform(&linfac), &ulinfac);
-				GPU_link(mat, "set_value", GPU_uniform(&logfac), &ulogfac);
-
-				GPU_link(mat, "shade_exposure_correct", shr->combined,
-					ulinfac, ulogfac, &shr->combined);
-				GPU_link(mat, "shade_exposure_correct", shr->spec,
-					ulinfac, ulogfac, &shr->spec);
-			}
+			GPU_link(mat, "shade_exposure_correct", shr->combined,
+					 GPU_select_uniform(&GPUWorld.linfac, GPU_DYNAMIC_WORLD_LINFAC, NULL, ma),
+					 GPU_select_uniform(&GPUWorld.logfac, GPU_DYNAMIC_WORLD_LOGFAC, NULL, ma),
+					 &shr->combined);
+			GPU_link(mat, "shade_exposure_correct", shr->spec,
+					 GPU_select_uniform(&GPUWorld.linfac, GPU_DYNAMIC_WORLD_LINFAC, NULL, ma),
+					 GPU_select_uniform(&GPUWorld.logfac, GPU_DYNAMIC_WORLD_LOGFAC, NULL, ma),
+					 &shr->spec);
 
 			/* environment lighting */
 			if (!(mat->scene->gm.flag & GAME_GLSL_NO_ENV_LIGHTING) &&

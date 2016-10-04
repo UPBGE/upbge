@@ -73,6 +73,8 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 		setHorizonColor(MT_Vector3(blenderworld->horr, blenderworld->horg, blenderworld->horb));
 		setZenithColor(MT_Vector3(blenderworld->zenr, blenderworld->zeng, blenderworld->zenb));
 		setAmbientColor(MT_Vector3(blenderworld->ambr, blenderworld->ambg, blenderworld->ambb));
+		setExposure(blenderworld->exp);
+		setRange(blenderworld->range);
 	}
 	else {
 		m_hasworld = false;
@@ -136,6 +138,17 @@ void KX_WorldInfo::setMistIntensity(float intensity)
 {
 	m_mistintensity = intensity;
 }
+
+void KX_WorldInfo::setExposure(float exposure)
+{
+	m_exposure = exposure;
+}
+
+void KX_WorldInfo::setRange(float range)
+{
+	m_range = range;
+}
+
 void KX_WorldInfo::setMistColor(const MT_Vector3& mistcolor)
 {
 	m_mistcolor = mistcolor;
@@ -174,6 +187,7 @@ void KX_WorldInfo::UpdateBackGround(RAS_IRasterizer *rasty)
 		// Update GPUWorld values for regular materials.
 		GPU_horizon_update_color(m_horizoncolor.getValue());
 		GPU_zenith_update_color(m_zenithcolor.getValue());
+		GPU_update_exposure_range(m_exposure, m_range);
 	}
 }
 
@@ -182,6 +196,7 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_IRasterizer *rasty)
 	if (m_hasworld) {
 		rasty->SetAmbientColor(m_con_ambientcolor.getValue());
 		GPU_ambient_update_color(m_ambientcolor.getValue());
+		GPU_update_exposure_range(m_exposure, m_range);
 
 		if (m_hasmist) {
 			rasty->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_con_mistcolor.getValue());
@@ -290,6 +305,8 @@ PyAttributeDef KX_WorldInfo::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("backgroundColor", KX_WorldInfo, pyattr_get_horizon_color, pyattr_set_horizon_color), // DEPRECATED use horizoncolor/zenithColor instead.
 	KX_PYATTRIBUTE_RW_FUNCTION("zenithColor", KX_WorldInfo, pyattr_get_zenith_color, pyattr_set_zenith_color),
 	KX_PYATTRIBUTE_RW_FUNCTION("ambientColor", KX_WorldInfo, pyattr_get_ambient_color, pyattr_set_ambient_color),
+	KX_PYATTRIBUTE_FLOAT_RW("exposure", 0.0f, 1.0f, KX_WorldInfo, m_exposure),
+	KX_PYATTRIBUTE_FLOAT_RW("range", 0.2f, 5.0f, KX_WorldInfo, m_range),
 	{ NULL } /* Sentinel */
 };
 
@@ -456,7 +473,6 @@ void KX_WorldInfo_Mathutils_Callback_Init()
 	mathutils_world_color_cb_index = Mathutils_RegisterCallback(&mathutils_world_color_cb);
 }
 #endif // USE_MATHUTILS
-
 
 PyObject *KX_WorldInfo::pyattr_get_mist_typeconst(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
