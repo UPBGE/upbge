@@ -334,7 +334,9 @@ void BL_ConvertActuators(const char* maggiename,
 				{
 					bSound* sound = soundact->sound;
 					bool is3d = soundact->flag & ACT_SND_3D_SOUND ? true : false;
+#ifdef WITH_AUDASPACE
 					AUD_Sound* snd_sound = NULL;
+#endif  // WITH_AUDASPACE
 					KX_3DSoundSettings settings;
 					settings.cone_inner_angle = RAD2DEGF(soundact->sound3D.cone_inner_angle);
 					settings.cone_outer_angle = RAD2DEGF(soundact->sound3D.cone_outer_angle);
@@ -353,6 +355,7 @@ void BL_ConvertActuators(const char* maggiename,
 					}
 					else
 					{
+#ifdef WITH_AUDASPACE
 						snd_sound = sound->playback_handle;
 
 						// if sound shall be 3D but isn't mono, we have to make it mono!
@@ -360,20 +363,25 @@ void BL_ConvertActuators(const char* maggiename,
 						{
 							snd_sound = AUD_Sound_rechannel(snd_sound, AUD_CHANNELS_MONO);
 						}
+#endif  // WITH_AUDASPACE
 					}
 					KX_SoundActuator* tmpsoundact =
 						new KX_SoundActuator(gameobj,
+#ifdef WITH_AUDASPACE
 						snd_sound,
+#endif  // WITH_AUDASPACE
 						soundact->volume,
 						(float)(expf((soundact->pitch / 12.0f) * (float)M_LN2)),
 						is3d,
 						settings,
 						soundActuatorType);
 
+#ifdef WITH_AUDASPACE
 					// if we made it mono, we have to free it
 					if (sound && snd_sound && snd_sound != sound->playback_handle) {
 						AUD_Sound_free(snd_sound);
 					}
+#endif  // WITH_AUDASPACE
 
 					tmpsoundact->SetName(bact->name);
 					baseact = tmpsoundact;

@@ -279,11 +279,13 @@ void LA_Launcher::InitEngine()
 	setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv);
 #endif  // WITH_PYTHON
 
+#ifdef WITH_AUDASPACE
 	// Initialize 3D Audio Settings.
 	AUD_Device *device = BKE_sound_get_device();
 	AUD_Device_setSpeedOfSound(device, m_startScene->audio.speed_of_sound);
 	AUD_Device_setDopplerFactor(device, m_startScene->audio.doppler_factor);
 	AUD_Device_setDistanceModel(device, AUD_DistanceModel(m_startScene->audio.distance_model));
+#endif  // WITH_AUDASPACE
 
 	m_sceneConverter->SetAlwaysUseExpandFraming(GetUseAlwaysExpandFraming());
 
@@ -380,8 +382,10 @@ void LA_Launcher::ExitEngine()
 	// Call this after we're sure nothing needs Python anymore (e.g., destructors).
 	ExitPython();
 
+#ifdef WITH_AUDASPACE
 	// Stop all remaining playing sounds.
 	AUD_Device_stopAll(BKE_sound_get_device());
+#endif  // WITH_AUDASPACE
 
 	m_exitRequested = KX_EXIT_REQUEST_NO_REQUEST;
 }

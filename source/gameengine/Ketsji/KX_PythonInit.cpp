@@ -57,7 +57,10 @@ extern "C" {
 
 	#  include "marshal.h" /* python header for loading/saving dicts */
 }
-#include "../../../../intern/audaspace/intern/AUD_PyInit.h"
+
+#ifdef WITH_AUDASPACE
+#  include "../../../../intern/audaspace/intern/AUD_PyInit.h"
+#endif  // WITH_AUDASPACE
 
 #endif  /* WITH_PYTHON */
 
@@ -2016,7 +2019,9 @@ static struct _inittab bge_internal_modules[] = {
 	{"mathutils", PyInit_mathutils},
 	{"bgl", BPyInit_bgl},
 	{"blf", BPyInit_blf},
+#ifdef WITH_AUDASPACE
 	{"aud", AUD_initPython},
+#endif  // WITH_AUDASPACE
 	{NULL, NULL}
 };
 
