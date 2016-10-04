@@ -69,6 +69,8 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 		m_miststart = blenderworld->miststa;
 		m_mistdistance = blenderworld->mistdist;
 		m_mistintensity = blenderworld->misi;
+		m_exposure = blenderworld->exp;
+		m_range = blenderworld->range;
 		setMistColor(MT_Vector3(blenderworld->horr, blenderworld->horg, blenderworld->horb));
 		setHorizonColor(MT_Vector3(blenderworld->horr, blenderworld->horg, blenderworld->horb));
 		setZenithColor(MT_Vector3(blenderworld->zenr, blenderworld->zeng, blenderworld->zenb));
@@ -136,6 +138,17 @@ void KX_WorldInfo::setMistIntensity(float intensity)
 {
 	m_mistintensity = intensity;
 }
+
+void KX_WorldInfo::setExposure(float exposure)
+{
+	m_exposure = exposure;
+}
+
+void KX_WorldInfo::setRange(float range)
+{
+	m_range = range;
+}
+
 void KX_WorldInfo::setMistColor(const MT_Vector3& mistcolor)
 {
 	m_mistcolor = mistcolor;
@@ -290,6 +303,8 @@ PyAttributeDef KX_WorldInfo::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("backgroundColor", KX_WorldInfo, pyattr_get_horizon_color, pyattr_set_horizon_color), // DEPRECATED use horizoncolor/zenithColor instead.
 	KX_PYATTRIBUTE_RW_FUNCTION("zenithColor", KX_WorldInfo, pyattr_get_zenith_color, pyattr_set_zenith_color),
 	KX_PYATTRIBUTE_RW_FUNCTION("ambientColor", KX_WorldInfo, pyattr_get_ambient_color, pyattr_set_ambient_color),
+	KX_PYATTRIBUTE_FLOAT_RW("exposure", 0.0f, 1.0f, KX_WorldInfo, m_exposure),
+	KX_PYATTRIBUTE_FLOAT_RW("range", 0.2f, 5.0f, KX_WorldInfo, m_range),
 	{ NULL } /* Sentinel */
 };
 
@@ -456,7 +471,6 @@ void KX_WorldInfo_Mathutils_Callback_Init()
 	mathutils_world_color_cb_index = Mathutils_RegisterCallback(&mathutils_world_color_cb);
 }
 #endif // USE_MATHUTILS
-
 
 PyObject *KX_WorldInfo::pyattr_get_mist_typeconst(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {

@@ -57,6 +57,8 @@ class KX_WorldInfo : public PyObjectPlus
 	float m_miststart;
 	float m_mistdistance;
 	float m_mistintensity;
+	float m_range;
+	float m_exposure;
 	MT_Vector3 m_mistcolor;
 	MT_Vector3 m_horizoncolor;
 	MT_Vector3 m_zenithcolor;
@@ -89,6 +91,8 @@ public:
 	void setMistStart(float d);
 	void setMistDistance(float d);
 	void setMistIntensity(float intensity);
+	void setExposure(float exposure);
+	void setRange(float range);
 	void setMistColor(const MT_Vector3& mistcolor);
 	void setHorizonColor(const MT_Vector3& horizoncolor);
 	void setZenithColor(const MT_Vector3& zenithcolor);
