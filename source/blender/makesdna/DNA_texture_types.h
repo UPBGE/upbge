@@ -76,7 +76,7 @@ typedef struct MTex {
 	
 	/* material */
 	float norfac, dispfac, warpfac;
-	float parallaxuv, parallaxsteps, parallaxbumpsc, padpfac;
+	float parallaxsteps, parallaxbumpsc;
 	float colspecfac, mirrfac, alphafac;
 	float difffac, specfac, emitfac, hardfac;
 	float raymirrfac, translfac, ambfac;

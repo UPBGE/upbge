@@ -1082,7 +1082,6 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
                 factor_but(col, "use_map_hardness", "hardness_factor", "Hardness")
 
                 col.label(text = "Parallax:")
-                factor_but(col, "use_parallax_uv", "parallax_uv_shift", "Height Scale")
                 factor_but(col, "use_map_parallax", "parallax_steps", "Steps")
                 factor_but(col, "use_map_parallax", "parallax_bump_scale", "Bump Scale")
                 col.prop(tex, "parallax_uv_discard", text = "Discard Edges")

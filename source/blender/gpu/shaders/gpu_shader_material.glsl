@@ -3733,13 +3733,13 @@ vec2 parallax_scale(vec2 texuv, vec2 size)
 	return (texuv * size) + (vec2(1.0) - size) / 2.0;
 }
 
-void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler2D ima, float scale, float numsteps, float bumpscale, float discarduv, out vec3 ptexcoord)
+void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler2D ima, float numsteps, float bumpscale, float discarduv, out vec3 ptexcoord)
 {
 	vec3 binormal = cross(-vn, tangent.xyz) * tangent.w;
 	vec3 vvec = vec3(dot(tangent.xyz, vp), dot(binormal, vp), dot(-vn, vp));
 	vec3 vv = normalize(vvec);
 	float height = texture2D(ima, parallax_scale(texco.xy, size.xy)).a;
-	vec2 texuv = texco.xy + height * scale * 0.005;
+	vec2 texuv = texco.xy;
 	float h = 1.0;
 	float numeyesteps = mix(numsteps * 2.0, numsteps, vv.z);
 	float step = 1.0 / numeyesteps;
