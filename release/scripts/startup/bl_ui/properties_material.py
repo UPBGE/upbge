@@ -712,9 +712,12 @@ class MATERIAL_PT_physics(MaterialButtonsPanel, Panel):
         phys = context.material.physics  # don't use node material
 
         split = layout.split()
-        row = split.row()
-        row.prop(phys, "friction")
-        row.prop(phys, "elasticity", slider=True)
+        col = split.column()
+        col.prop(phys, "friction")
+        col.prop(phys, "rolling_friction")
+
+        col = split.column()
+        col.prop(phys, "elasticity", slider=True)
 
         row = layout.row()
         row.label(text="Force Field:")

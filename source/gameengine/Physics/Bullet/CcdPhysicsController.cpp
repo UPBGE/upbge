@@ -529,6 +529,7 @@ void CcdPhysicsController::CreateRigidbody()
 	rbci.m_linearDamping = m_cci.m_linearDamping;
 	rbci.m_angularDamping = m_cci.m_angularDamping;
 	rbci.m_friction = m_cci.m_friction;
+	rbci.m_rollingFriction = m_cci.m_rollingFriction;
 	rbci.m_restitution = m_cci.m_restitution;
 	m_object = new btRigidBody(rbci);
 

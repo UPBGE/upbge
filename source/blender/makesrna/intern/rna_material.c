@@ -1783,11 +1783,16 @@ static void rna_def_material_physics(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "Material");
 	RNA_def_struct_nested(brna, srna, "Material");
 	RNA_def_struct_ui_text(srna, "Material Physics", "Physics settings for a Material data-block");
-	
+
 	prop = RNA_def_property(srna, "friction", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "friction");
 	RNA_def_property_range(prop, 0, 100);
 	RNA_def_property_ui_text(prop, "Friction", "Coulomb friction coefficient, when inside the physics distance area");
+
+	prop = RNA_def_property(srna, "rolling_friction", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "rolling_friction");
+	RNA_def_property_range(prop, 0, 100);
+	RNA_def_property_ui_text(prop, "Rolling Friction", "Coulomb friction coefficient of rounded shapes");
 
 	prop = RNA_def_property(srna, "elasticity", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "reflect");
