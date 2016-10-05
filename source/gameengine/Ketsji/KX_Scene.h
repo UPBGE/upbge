@@ -100,13 +100,20 @@ class KX_ObstacleSimulation;
  * */
 class KX_Scene : public CValue, public SCA_IScene
 {
+public:
+	enum DrawingCallbackType {
+		PRE_DRAW = 0,
+		POST_DRAW,
+		PRE_DRAW_SETUP,
+		MAX_DRAW_CALLBACK
+	};
+
+private:
 	Py_Header
 
 #ifdef WITH_PYTHON
 	PyObject*	m_attr_dict;
-	PyObject*	m_draw_call_pre;
-	PyObject*	m_draw_call_post;
-	PyObject*	m_draw_setup_call_pre;
+	PyObject*	m_drawCallbacks[MAX_DRAW_CALLBACK];
 #endif
 
 	struct CullingInfo {
@@ -585,11 +592,7 @@ public:
 	/**
 	 * Run the registered python drawing functions.
 	 */
-	void RunDrawingCallbacks(PyObject *cb_list);
-	
-	PyObject *GetPreDrawCB() { return m_draw_call_pre; }
-	PyObject *GetPostDrawCB() { return m_draw_call_post; }
-	PyObject *GetPreDrawSetupCB() { return m_draw_setup_call_pre; }
+	void RunDrawingCallbacks(DrawingCallbackType callbackType, KX_Camera *camera);
 #endif
 
 	/**

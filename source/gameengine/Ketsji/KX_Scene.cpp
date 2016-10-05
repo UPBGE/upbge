@@ -215,9 +215,10 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	
 #ifdef WITH_PYTHON
 	m_attr_dict = NULL;
-	m_draw_call_pre = NULL;
-	m_draw_call_post = NULL;
-	m_draw_setup_call_pre = NULL;
+
+	for (unsigned short i = 0; i < MAX_DRAW_CALLBACK; ++i) {
+		m_drawCallbacks[i] = NULL;
+	}
 #endif
 }
 
@@ -298,8 +299,9 @@ KX_Scene::~KX_Scene()
 	}
 
 	/* these may be NULL but the macro checks */
-	Py_CLEAR(m_draw_call_pre);
-	Py_CLEAR(m_draw_call_post);
+	for (unsigned short i = 0; i < MAX_DRAW_CALLBACK; ++i) {
+		Py_CLEAR(m_drawCallbacks[i]);
+	}
 #endif
 }
 
@@ -2077,12 +2079,20 @@ void KX_Scene::Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsi
 
 #ifdef WITH_PYTHON
 
-void KX_Scene::RunDrawingCallbacks(PyObject *cb_list)
+void KX_Scene::RunDrawingCallbacks(DrawingCallbackType callbackType, KX_Camera *camera)
 {
-	if (!cb_list || PyList_GET_SIZE(cb_list) == 0)
+	PyObject *list = m_drawCallbacks[callbackType];
+	if (!list || PyList_GET_SIZE(list) == 0) {
 		return;
+	}
 
-	RunPythonCallBackList(cb_list, NULL, 0, 0);
+	if (camera) {
+		PyObject *args[1] = {camera->GetProxy()};
+		RunPythonCallBackList(list, args, 0, 1);
+	}
+	else {
+		RunPythonCallBackList(list, NULL, 0, 0);
+	}
 }
 
 //----------------------------------------------------------------------------
@@ -2328,31 +2338,31 @@ PyObject *KX_Scene::pyattr_get_drawing_callback_pre(void *self_v, const KX_PYATT
 {
 	KX_Scene* self = static_cast<KX_Scene*>(self_v);
 
-	if (self->m_draw_call_pre==NULL)
-		self->m_draw_call_pre= PyList_New(0);
-	Py_INCREF(self->m_draw_call_pre);
-	return self->m_draw_call_pre;
+	if (self->m_drawCallbacks[PRE_DRAW] ==NULL)
+		self->m_drawCallbacks[PRE_DRAW] = PyList_New(0);
+	Py_INCREF(self->m_drawCallbacks[PRE_DRAW]);
+	return self->m_drawCallbacks[PRE_DRAW];
 }
 
 PyObject *KX_Scene::pyattr_get_drawing_callback_post(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Scene* self = static_cast<KX_Scene*>(self_v);
 
-	if (self->m_draw_call_post==NULL)
-		self->m_draw_call_post= PyList_New(0);
-	Py_INCREF(self->m_draw_call_post);
-	return self->m_draw_call_post;
+	if (self->m_drawCallbacks[POST_DRAW] ==NULL)
+		self->m_drawCallbacks[POST_DRAW] = PyList_New(0);
+	Py_INCREF(self->m_drawCallbacks[POST_DRAW]);
+	return self->m_drawCallbacks[POST_DRAW];
 }
 
 PyObject *KX_Scene::pyattr_get_drawing_setup_callback_pre(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Scene* self = static_cast<KX_Scene*>(self_v);
 
-	if (self->m_draw_setup_call_pre == NULL)
-		self->m_draw_setup_call_pre = PyList_New(0);
+	if (self->m_drawCallbacks[PRE_DRAW_SETUP] == NULL)
+		self->m_drawCallbacks[PRE_DRAW_SETUP] = PyList_New(0);
 
-	Py_INCREF(self->m_draw_setup_call_pre);
-	return self->m_draw_setup_call_pre;
+	Py_INCREF(self->m_drawCallbacks[PRE_DRAW_SETUP]);
+	return self->m_drawCallbacks[PRE_DRAW_SETUP];
 }
 
 int KX_Scene::pyattr_set_drawing_callback_pre(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -2364,10 +2374,10 @@ int KX_Scene::pyattr_set_drawing_callback_pre(void *self_v, const KX_PYATTRIBUTE
 		PyErr_SetString(PyExc_ValueError, "Expected a list");
 		return PY_SET_ATTR_FAIL;
 	}
-	Py_XDECREF(self->m_draw_call_pre);
+	Py_XDECREF(self->m_drawCallbacks[PRE_DRAW]);
 
 	Py_INCREF(value);
-	self->m_draw_call_pre = value;
+	self->m_drawCallbacks[PRE_DRAW] = value;
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -2381,10 +2391,10 @@ int KX_Scene::pyattr_set_drawing_callback_post(void *self_v, const KX_PYATTRIBUT
 		PyErr_SetString(PyExc_ValueError, "Expected a list");
 		return PY_SET_ATTR_FAIL;
 	}
-	Py_XDECREF(self->m_draw_call_post);
+	Py_XDECREF(self->m_drawCallbacks[POST_DRAW]);
 
 	Py_INCREF(value);
-	self->m_draw_call_post = value;
+	self->m_drawCallbacks[POST_DRAW] = value;
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -2398,10 +2408,10 @@ int KX_Scene::pyattr_set_drawing_setup_callback_pre(void *self_v, const KX_PYATT
 		return PY_SET_ATTR_FAIL;
 	}
 
-	Py_XDECREF(self->m_draw_setup_call_pre);
+	Py_XDECREF(self->m_drawCallbacks[PRE_DRAW_SETUP]);
 	Py_INCREF(value);
 
-	self->m_draw_setup_call_pre = value;
+	self->m_drawCallbacks[PRE_DRAW_SETUP] = value;
 	return PY_SET_ATTR_SUCCESS;
 }
 
