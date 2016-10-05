@@ -1312,7 +1312,6 @@ static void do_material_tex(GPUShadeInput *shi)
 					GPU_builtin(GPU_VIEW_POSITION), GPU_attribute(CD_TANGENT, ""),
 					GPU_builtin(GPU_VIEW_NORMAL), GPU_uniform(mtex->size),
 					GPU_image(tex->ima, &tex->iuser, false), 
-					GPU_uniform(&mtex->parallaxuv),
 					GPU_select_uniform(&mtex->parallaxsteps, GPU_DYNAMIC_TEX_PARALLAXSTEP, NULL, ma),
 					GPU_select_uniform(&mtex->parallaxbumpsc, GPU_DYNAMIC_TEX_PARALLAXBUMP, NULL, ma),
 					GPU_uniform(&discard),
