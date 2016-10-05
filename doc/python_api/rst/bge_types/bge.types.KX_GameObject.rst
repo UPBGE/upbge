@@ -86,6 +86,12 @@ base class --- :class:`SCA_IObject`
 
       .. seealso:: :py:meth:`suspendDynamics` and :py:meth:`restoreDynamics` allow you to change the state.
 
+   .. attribute:: suspendPhysics
+
+      Suspend/Restore object's physics. If the physics is suspended, physics attributes/methods can't be set/executed.
+
+      :type: boolean
+
    .. attribute:: linearDamping
 
       The object's linear damping, also known as translational damping. Can be set simultaneously with angular damping using the :py:meth:`setDamping` method.

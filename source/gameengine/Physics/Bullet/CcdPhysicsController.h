@@ -710,6 +710,8 @@ public:
 
 	virtual void ResolveCombinedVelocities(float linvelX, float linvelY, float linvelZ, float angVelX, float angVelY, float angVelZ);
 	virtual void RefreshCollisions();
+	virtual void SuspendPhysics();
+	virtual void RestorePhysics();
 	virtual void SuspendDynamics(bool ghost);
 	virtual void RestoreDynamics();
 
@@ -844,10 +846,12 @@ public:
 		return GetConstructionInfo().m_bDyna;
 	}
 
-	virtual bool IsSuspended() const
+	virtual bool IsDynamicsSuspended() const
 	{
 		return m_suspended;
 	}
+
+	virtual bool IsPhysicsSuspended();
 
 	virtual bool IsCompound()
 	{

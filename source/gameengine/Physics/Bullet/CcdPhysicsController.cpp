@@ -996,7 +996,7 @@ void CcdPhysicsController::ResolveCombinedVelocities(float linvelX, float linvel
 void CcdPhysicsController::RefreshCollisions()
 {
 	// the object is in an inactive layer so it's useless to update it and can cause problems
-	if (!GetPhysicsEnvironment()->IsActiveCcdPhysicsController(this))
+	if (IsPhysicsSuspended())
 		return;
 
 	btSoftRigidDynamicsWorld *dw = GetPhysicsEnvironment()->GetDynamicsWorld();
@@ -1012,10 +1012,20 @@ void CcdPhysicsController::RefreshCollisions()
 	GetPhysicsEnvironment()->UpdateCcdPhysicsController(this, GetMass(), m_object->getCollisionFlags(), handle->m_collisionFilterGroup, handle->m_collisionFilterMask);
 }
 
+void CcdPhysicsController::SuspendPhysics()
+{
+	GetPhysicsEnvironment()->RemoveCcdPhysicsController(this);
+}
+
+void CcdPhysicsController::RestorePhysics()
+{
+	GetPhysicsEnvironment()->AddCcdPhysicsController(this);
+}
+
 void CcdPhysicsController::SuspendDynamics(bool ghost)
 {
 	btRigidBody *body = GetRigidBody();
-	if (body && !m_suspended && !GetConstructionInfo().m_bSensor && GetPhysicsEnvironment()->IsActiveCcdPhysicsController(this)) {
+	if (body && !m_suspended && !GetConstructionInfo().m_bSensor && !IsPhysicsSuspended()) {
 		btBroadphaseProxy *handle = body->getBroadphaseHandle();
 
 		m_savedCollisionFlags = body->getCollisionFlags();
@@ -1036,7 +1046,7 @@ void CcdPhysicsController::SuspendDynamics(bool ghost)
 void CcdPhysicsController::RestoreDynamics()
 {
 	btRigidBody *body = GetRigidBody();
-	if (body && m_suspended && GetPhysicsEnvironment()->IsActiveCcdPhysicsController(this)) {
+	if (body && m_suspended && !IsPhysicsSuspended()) {
 		// before make sure any position change that was done in this logic frame are accounted for
 		SetTransform();
 		GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
@@ -1116,7 +1126,7 @@ MT_Scalar CcdPhysicsController::GetMass()
 void CcdPhysicsController::SetMass(MT_Scalar newmass)
 {
 	btRigidBody *body = GetRigidBody();
-	if (body && !m_suspended && newmass > MT_EPSILON && GetMass() > MT_EPSILON) {
+	if (body && !m_suspended && !IsPhysicsSuspended() && (newmass > MT_EPSILON && GetMass() > MT_EPSILON)) {
 		btBroadphaseProxy *handle = body->getBroadphaseHandle();
 		GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
 		                                                    newmass,
@@ -1598,6 +1608,11 @@ PHY_IPhysicsController *CcdPhysicsController::GetReplicaForSensors()
 
 	CcdPhysicsController *replica = new CcdPhysicsController(cinfo);
 	return replica;
+}
+
+bool CcdPhysicsController::IsPhysicsSuspended()
+{
+	return !GetPhysicsEnvironment()->IsActiveCcdPhysicsController(this);
 }
 
 /* Refresh the physics object from either an object or a mesh.

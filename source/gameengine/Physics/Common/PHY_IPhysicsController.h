@@ -98,6 +98,8 @@ public:
 	virtual void SetDamping(float linear, float angular) = 0;
 
 	virtual void RefreshCollisions() = 0;
+	virtual void SuspendPhysics() = 0;
+	virtual void RestorePhysics() = 0;
 	virtual void SuspendDynamics(bool ghost = false) = 0;
 	virtual void RestoreDynamics() = 0;
 
@@ -143,7 +145,8 @@ public:
 
 	virtual bool IsDynamic() = 0;
 	virtual bool IsCompound() = 0;
-	virtual bool IsSuspended() const = 0;
+	virtual bool IsDynamicsSuspended() const = 0;
+	virtual bool IsPhysicsSuspended() = 0;
 
 	virtual bool ReinstancePhysicsShape(KX_GameObject *from_gameobj, RAS_MeshObject *from_meshobj, bool dupli = false) = 0;
 	virtual void ReplacePhysicsShape(PHY_IPhysicsController *phyctrl) = 0;
