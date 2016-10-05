@@ -83,3 +83,15 @@ base class --- :class:`PyObjectPlus`
       The color of the ambient light. Black = [0.0, 0.0, 0.0], White = [1.0, 1.0, 1.0].
 
       :type: :class:`mathutils.Color`
+      
+   .. attribute:: exposure
+
+      Amount of exponential color correction for light.
+
+      :type: float
+      
+   .. attribute:: range
+
+      The color range that will be mapped to 0 - 1.
+
+      :type: float
