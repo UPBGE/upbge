@@ -252,6 +252,7 @@ struct CcdConstructionInfo {
 		m_clamp_angvel_max(0.0f),
 		m_restitution(0.1f),
 		m_friction(0.5f),
+		m_rollingFriction(0.0f),
 		m_linearDamping(0.1f),
 		m_angularDamping(0.1f),
 		m_margin(0.06f),
@@ -321,6 +322,7 @@ struct CcdConstructionInfo {
 	btScalar m_clamp_angvel_max;
 	btScalar m_restitution;
 	btScalar m_friction;
+	btScalar m_rollingFriction;
 	btScalar m_linearDamping;
 	btScalar m_angularDamping;
 	btScalar m_margin;

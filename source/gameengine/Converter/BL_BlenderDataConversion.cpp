@@ -761,7 +761,8 @@ static PHY_MaterialProps *CreateMaterialFromBlenderObject(struct Object* blender
 		BLI_assert(0.0f <= blendermat->reflect && blendermat->reflect <= 1.0f);
 	
 		materialProps->m_restitution = blendermat->reflect;
-		materialProps->m_friction = blendermat->friction;
+		materialProps->m_friction = blendermat->friction; 
+		materialProps->m_rollingFriction = blendermat->rolling_friction;
 		materialProps->m_fh_spring = blendermat->fh;
 		materialProps->m_fh_damping = blendermat->xyfrict;
 		materialProps->m_fh_distance = blendermat->fhdist;
@@ -771,6 +772,7 @@ static PHY_MaterialProps *CreateMaterialFromBlenderObject(struct Object* blender
 		//give some defaults
 		materialProps->m_restitution = 0.f;
 		materialProps->m_friction = 0.5;
+		materialProps->m_rollingFriction = 0.0f;
 		materialProps->m_fh_spring = 0.f;
 		materialProps->m_fh_damping = 0.f;
 		materialProps->m_fh_distance = 0.f;

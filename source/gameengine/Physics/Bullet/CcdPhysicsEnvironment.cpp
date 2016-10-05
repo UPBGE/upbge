@@ -3285,6 +3285,7 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 	ci.m_collisionShape = bm;
 	ci.m_shapeInfo = shapeInfo;
 	ci.m_friction = smmaterial->m_friction;//tweak the friction a bit, so the default 0.5 works nice
+	ci.m_rollingFriction = smmaterial->m_rollingFriction;
 	ci.m_restitution = smmaterial->m_restitution;
 	ci.m_physicsEnv = this;
 	// drag / damping is inverted
