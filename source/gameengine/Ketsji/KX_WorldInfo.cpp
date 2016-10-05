@@ -65,16 +65,18 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 		m_savedData.zenithColor[0] = blenderworld->zenr;
 		m_savedData.zenithColor[1] = blenderworld->zeng;
 		m_savedData.zenithColor[2] = blenderworld->zenb;
+		m_savedData.exposure = blenderworld->exp;
+		m_savedData.range = blenderworld->range;
 		m_misttype = blenderworld->mistype;
 		m_miststart = blenderworld->miststa;
 		m_mistdistance = blenderworld->mistdist;
 		m_mistintensity = blenderworld->misi;
-		m_exposure = blenderworld->exp;
-		m_range = blenderworld->range;
 		setMistColor(MT_Vector3(blenderworld->horr, blenderworld->horg, blenderworld->horb));
 		setHorizonColor(MT_Vector3(blenderworld->horr, blenderworld->horg, blenderworld->horb));
 		setZenithColor(MT_Vector3(blenderworld->zenr, blenderworld->zeng, blenderworld->zenb));
 		setAmbientColor(MT_Vector3(blenderworld->ambr, blenderworld->ambg, blenderworld->ambb));
+		setExposure(blenderworld->exp);
+		setRange(blenderworld->range);
 	}
 	else {
 		m_hasworld = false;
@@ -91,6 +93,8 @@ KX_WorldInfo::~KX_WorldInfo()
 		m_scene->world->zenr = m_savedData.zenithColor[0];
 		m_scene->world->zeng = m_savedData.zenithColor[1];
 		m_scene->world->zenb = m_savedData.zenithColor[2];
+		m_scene->world->exp = m_savedData.exposure;
+		m_scene->world->range = m_savedData.range;
 	}
 }
 
@@ -183,6 +187,8 @@ void KX_WorldInfo::UpdateBackGround(RAS_IRasterizer *rasty)
 		m_scene->world->horr = m_horizoncolor[0];
 		m_scene->world->horg = m_horizoncolor[1];
 		m_scene->world->horb = m_horizoncolor[2];
+		m_scene->world->exp = m_exposure;
+		m_scene->world->range = m_range;
 
 		// Update GPUWorld values for regular materials.
 		GPU_horizon_update_color(m_horizoncolor.getValue());

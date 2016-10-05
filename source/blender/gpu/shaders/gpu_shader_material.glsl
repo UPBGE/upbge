@@ -504,6 +504,14 @@ void curves_rgb(float fac, vec4 col, sampler2D curvemap, out vec4 outcol)
 	outcol.a = col.a;
 }
 
+void set_linfac(float inlinfac, float exposure, out float linfac) {
+	linfac = 1.0 + pow((2.0 * exposure + 0.5), -10.0);
+}
+
+void set_logfac(float inlinfac, float range, out float logfac) {
+	logfac = log((inlinfac - 1.0) / inlinfac) / range;
+}
+
 void set_value(float val, out float outval)
 {
 	outval = val;

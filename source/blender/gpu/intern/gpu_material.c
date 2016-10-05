@@ -1836,7 +1836,6 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 	GPUNodeLink *emit, *ulinfac, *ulogfac, *mistfac;
 	Material *ma = shi->mat;
 	World *world = mat->scene->world;
-	float linfac, logfac;
 
 	mat->dynproperty |= DYN_LAMP_CO;
 	memset(shr, 0, sizeof(*shr));
@@ -1874,18 +1873,23 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 		if (world) {
 			/* exposure correction */
-			if (world->exp != 0.0f || world->range != 1.0f) {
-				linfac = 1.0f + powf((2.0f * world->exp + 0.5f), -10);
-				logfac = logf((linfac - 1.0f) / linfac) / world->range;
+			float zero = 0;
+			GPU_link(mat, "set_value", GPU_uniform(&zero), &ulinfac);
+			GPU_link(mat, "set_value", GPU_uniform(&zero), &ulogfac);
 
-				GPU_link(mat, "set_value", GPU_uniform(&linfac), &ulinfac);
-				GPU_link(mat, "set_value", GPU_uniform(&logfac), &ulogfac);
+			GPU_link(mat, "set_linfac",
+					 ulinfac,
+					 GPU_select_uniform(&world->exp, GPU_DYNAMIC_WORLD_EXPOSURE, NULL, ma),
+					 &ulinfac);
+			GPU_link(mat, "set_logfac",
+					 ulinfac,
+					 GPU_select_uniform(&world->range, GPU_DYNAMIC_WORLD_RANGE, NULL, ma),
+					 &ulogfac);
 
-				GPU_link(mat, "shade_exposure_correct", shr->combined,
-					ulinfac, ulogfac, &shr->combined);
-				GPU_link(mat, "shade_exposure_correct", shr->spec,
-					ulinfac, ulogfac, &shr->spec);
-			}
+			GPU_link(mat, "shade_exposure_correct", shr->combined,
+					 ulinfac, ulogfac, &shr->combined);
+			GPU_link(mat, "shade_exposure_correct", shr->spec,
+					 ulinfac, ulogfac, &shr->spec);
 
 			/* environment lighting */
 			if (!(mat->scene->gm.flag & GAME_GLSL_NO_ENV_LIGHTING) &&

@@ -82,6 +82,7 @@ public:
 	struct {
 		MT_Vector3 horizonColor;
 		MT_Vector3 zenithColor;
+		float range, exposure;
 	} m_savedData;
 
 	const STR_String &GetName();
