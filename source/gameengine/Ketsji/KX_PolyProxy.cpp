@@ -73,7 +73,6 @@ PyMethodDef KX_PolyProxy::Methods[] = {
 	KX_PYMETHODTABLE(KX_PolyProxy,getVertexIndex),
 	KX_PYMETHODTABLE_NOARGS(KX_PolyProxy,getMesh),
 	KX_PYMETHODTABLE_NOARGS(KX_PolyProxy,getMaterial),
-	KX_PYMETHODTABLE_NOARGS(KX_PolyProxy, getVertices),
 	{NULL,NULL} //Sentinel
 };
 
@@ -88,6 +87,7 @@ PyAttributeDef KX_PolyProxy::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("v4", KX_PolyProxy, pyattr_get_v4),
 	KX_PYATTRIBUTE_RO_FUNCTION("visible", KX_PolyProxy, pyattr_get_visible),
 	KX_PYATTRIBUTE_RO_FUNCTION("collide", KX_PolyProxy, pyattr_get_collide),
+	KX_PYATTRIBUTE_RO_FUNCTION("vertices", KX_PolyProxy, pyattr_get_vertices),
 	{ NULL }	//Sentinel
 };
 
@@ -179,6 +179,31 @@ PyObject *KX_PolyProxy::pyattr_get_collide(void *self_v, const KX_PYATTRIBUTE_DE
 	return self->PyisCollider();
 }
 
+PyObject *KX_PolyProxy::pyattr_get_vertices(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_PolyProxy* self = static_cast<KX_PolyProxy*>(self_v);
+	KX_MeshProxy* meshproxy = new KX_MeshProxy((RAS_MeshObject*)self->m_mesh);
+
+	RAS_MaterialBucket* polyBucket = self->m_polygon->GetMaterial();
+	unsigned int matid;
+	for (matid = 0; matid < (unsigned int)self->m_mesh->NumMaterials(); matid++)
+	{
+		RAS_MeshMaterial* meshMat = self->m_mesh->GetMeshMaterial(matid);
+		if (meshMat->m_bucket == polyBucket)
+			// found it
+			break;
+	}
+
+	PyObject *vertList = PyList_New(self->m_polygon->VertexCount());
+
+	for (int i = 0; i < self->m_polygon->VertexCount(); i++) {
+		int vertindex = self->m_polygon->GetVertexOffset(i);
+		KX_VertexProxy *vert = new KX_VertexProxy(meshproxy, (RAS_TexVert *)(self->m_mesh->GetVertex(matid, vertindex)));
+		PyList_SetItem(vertList, i, vert->NewProxy(true));
+	}
+	return vertList;
+}
+
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialIndex,
 "getMaterialIndex() : return the material index of the polygon in the mesh\n")
 {
@@ -252,31 +277,6 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMesh,
 {
 	KX_MeshProxy* meshproxy = new KX_MeshProxy((RAS_MeshObject*)m_mesh);
 	return meshproxy->NewProxy(true);
-}
-
-KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getVertices,
-	"getVertices() : returns a list of vertex proxy\n")
-{
-	KX_MeshProxy* meshproxy = new KX_MeshProxy((RAS_MeshObject*)m_mesh);
-
-	RAS_MaterialBucket* polyBucket = m_polygon->GetMaterial();
-	unsigned int matid;
-	for (matid = 0; matid < (unsigned int)m_mesh->NumMaterials(); matid++)
-	{
-		RAS_MeshMaterial* meshMat = m_mesh->GetMeshMaterial(matid);
-		if (meshMat->m_bucket == polyBucket)
-			// found it
-			break;
-	}
-
-	PyObject *vertList = PyList_New(m_polygon->VertexCount());
-
-	for (int i = 0; i < m_polygon->VertexCount(); i++) {
-		int vertindex = m_polygon->GetVertexOffset(i);
-		KX_VertexProxy *vert = new KX_VertexProxy(meshproxy, (RAS_TexVert *)(m_mesh->GetVertex(matid, vertindex)));
-		PyList_SetItem(vertList, i, vert->NewProxy(true));
-	}
-	return vertList;
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterial,
