@@ -187,12 +187,11 @@ void KX_WorldInfo::UpdateBackGround(RAS_IRasterizer *rasty)
 		m_scene->world->horr = m_horizoncolor[0];
 		m_scene->world->horg = m_horizoncolor[1];
 		m_scene->world->horb = m_horizoncolor[2];
-		m_scene->world->exp = m_exposure;
-		m_scene->world->range = m_range;
 
 		// Update GPUWorld values for regular materials.
 		GPU_horizon_update_color(m_horizoncolor.getValue());
 		GPU_zenith_update_color(m_zenithcolor.getValue());
+		GPU_update_world_exp_and_range(m_exposure, m_range);
 	}
 }
 
@@ -201,6 +200,7 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_IRasterizer *rasty)
 	if (m_hasworld) {
 		rasty->SetAmbientColor(m_con_ambientcolor.getValue());
 		GPU_ambient_update_color(m_ambientcolor.getValue());
+		GPU_update_world_exp_and_range(m_exposure, m_range);
 
 		if (m_hasmist) {
 			rasty->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_con_mistcolor.getValue());
