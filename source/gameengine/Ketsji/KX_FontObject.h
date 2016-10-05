@@ -60,6 +60,9 @@ public:
 		return OBJ_TEXT;
 	}
 
+	/// Return text dimensions in blender unit.
+	const MT_Vector2 GetTextDimensions();
+
 protected:
 	std::vector<STR_String> m_text;
 	Object *m_object;
@@ -79,6 +82,7 @@ protected:
 #ifdef WITH_PYTHON
 	static PyObject *pyattr_get_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_dimensions(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 

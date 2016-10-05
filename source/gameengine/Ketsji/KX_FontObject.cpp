@@ -36,6 +36,7 @@
 #include "KX_Globals.h"
 #include "KX_PythonInit.h"
 #include "KX_TextMaterial.h"
+#include "KX_PyMath.h"
 #include "BLI_math.h"
 #include "EXP_StringValue.h"
 #include "RAS_IRasterizer.h"
@@ -173,6 +174,7 @@ void KX_FontObject::UpdateBuckets()
 			copy_v4_v4(color, m_color);
 		}
 
+
 		// HARDCODED MULTIPLICATION FACTOR - this will affect the render resolution directly
 		const float RES = BGE_FONT_RES * m_resolution;
 
@@ -197,6 +199,30 @@ void KX_FontObject::UpdateBuckets()
 		textUser->SetTexts(m_text);
 		textUser->ActivateMeshSlots();
 	}
+}
+
+const MT_Vector2 KX_FontObject::GetTextDimensions()
+{
+	MT_Vector2 dimensions(0.0f, 0.0f);
+
+	for (std::vector<STR_String>::iterator it = m_text.begin(); it != m_text.end(); ++it) {
+		float w = 0.0f, h = 0.0f;
+		const STR_String& text = *it;
+
+		BLF_width_and_height(m_fontid, text.ReadPtr(), text.Length(), &w, &h);
+		dimensions.x() = std::max(dimensions.x(), w);
+		dimensions.y() += h + m_line_spacing;
+	}
+
+	// XXX: Quick hack to convert the size to BU
+	dimensions /= 10.0f;
+
+	// Scale the width and height by the object's scale
+	const MT_Vector3& scale = NodeGetLocalScaling();
+	dimensions.x() *= fabs(scale.x());
+	dimensions.y() *= fabs(scale.y());
+
+	return dimensions;
 }
 
 int GetFontId(VFont *vfont)
@@ -285,6 +311,7 @@ PyMethodDef KX_FontObject::Methods[] = {
 PyAttributeDef KX_FontObject::Attributes[] = {
 	//KX_PYATTRIBUTE_STRING_RW("text", 0, 280, false, KX_FontObject, m_text[0]), //arbitrary limit. 280 = 140 unicode chars in unicode
 	KX_PYATTRIBUTE_RW_FUNCTION("text", KX_FontObject, pyattr_get_text, pyattr_set_text),
+	KX_PYATTRIBUTE_RO_FUNCTION("dimensions", KX_FontObject, pyattr_get_dimensions),
 	KX_PYATTRIBUTE_FLOAT_RW("size", 0.0001f, 40.0f, KX_FontObject, m_fsize),
 	KX_PYATTRIBUTE_FLOAT_RW("resolution", 0.1f, 50.0f, KX_FontObject, m_resolution),
 	/* KX_PYATTRIBUTE_INT_RW("dpi", 0, 10000, false, KX_FontObject, m_dpi), */// no real need for expose this I think
@@ -322,6 +349,12 @@ int KX_FontObject::pyattr_set_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrd
 	}
 
 	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_FontObject::pyattr_get_dimensions(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
+	return PyObjectFrom(self->GetTextDimensions());
 }
 
 #endif // WITH_PYTHON

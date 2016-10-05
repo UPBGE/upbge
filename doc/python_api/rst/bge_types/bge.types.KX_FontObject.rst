@@ -50,3 +50,9 @@ base class --- :class:`KX_GameObject`
 
       :type: float (0.0001 to 40.0)
 
+   .. attribute:: dimensions
+
+      The size (width and height) of the current text in Blender Units.
+
+      :type: :class:`mathutils.Vector`
+
