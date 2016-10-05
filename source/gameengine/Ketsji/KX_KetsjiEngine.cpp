@@ -891,7 +891,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 	KX_SetActiveScene(scene);
 
 #ifdef WITH_PYTHON
-	scene->RunDrawingCallbacks(scene->GetPreDrawSetupCB());
+	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW_SETUP, cam);
 #endif
 
 	GetSceneViewport(scene, cam, area, viewport);
@@ -1037,7 +1037,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 	// Run any pre-drawing python callbacks
-	scene->RunDrawingCallbacks(scene->GetPreDrawCB());
+	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW, cam);
 #endif
 
 	scene->RenderBuckets(camtrans, m_rasterizer);
@@ -1065,7 +1065,10 @@ void KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, unsigned short target)
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
-	scene->RunDrawingCallbacks(scene->GetPostDrawCB());
+	/* We can't deduce what camera should be passed to the python callbacks
+	 * because the post draw callbacks are per scenes and not per cameras.
+	 */
+	scene->RunDrawingCallbacks(KX_Scene::POST_DRAW, NULL);
 
 	// Python draw callback can also call debug draw functions, so we have to clear debug shapes.
 	m_rasterizer->FlushDebugShapes(scene);

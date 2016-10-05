@@ -127,7 +127,7 @@ base class --- :class:`PyObjectPlus`
 
    .. attribute:: pre_draw
 
-      A list of callables to be run before the render step.
+      A list of callables to be run before the render step. The callbacks can take as argument the rendered camera.
 
       :type: list
 
@@ -139,7 +139,8 @@ base class --- :class:`PyObjectPlus`
 
    .. attribute:: pre_draw_setup
 
-      A list of callables to be run before the drawing setup (i.e., before the model view and projection matrices are computed).
+      A list of callables to be run before the drawing setup (i.e., before the model view and projection matrices are computed). 
+      The callbacks can take as argument the rendered camera.
 
       :type: list
 
