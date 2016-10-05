@@ -53,6 +53,7 @@
 extern "C" {
 #include "BLF_api.h"
 }
+#include "python_utildefines.h"
 
 #define BGE_FONT_RES 100
 
@@ -103,6 +104,32 @@ KX_FontObject::~KX_FontObject()
 {
 	//remove font from the scene list
 	//it's handled in KX_Scene::NewRemoveObject
+}
+
+MT_Vector2 KX_FontObject::GetTextSize()
+{
+	float width = 0, height = 0;
+
+	for (std::vector<STR_String>::iterator it = m_text.begin();
+		 it != m_text.end(); ++it)
+	{
+		float w = 0, h = 0;
+		STR_String text = (*it);
+
+		BLF_width_and_height(m_fontid, text.ReadPtr(), text.Length(), &w, &h);
+		width = std::max(width, w);
+		height += h + m_line_spacing;
+	}
+
+	// XXX: Quick hack to convert the size to BU
+	width /= 10;
+	height /= 10;
+
+	// Scale the width and height by the object's scale
+	MT_Vector3 localScale = this->GetSGNode()->GetLocalScale();
+	width *= localScale.x() / localScale.z();
+	height *= localScale.y() / localScale.z();
+	return MT_Vector2(width, height);
 }
 
 CValue *KX_FontObject::GetReplica()
@@ -171,6 +198,7 @@ void KX_FontObject::UpdateBuckets()
 		else {
 			copy_v4_v4(color, m_color);
 		}
+
 
 		// HARDCODED MULTIPLICATION FACTOR - this will affect the render resolution directly
 		const float RES = BGE_FONT_RES * m_resolution;
@@ -278,6 +306,7 @@ PyTypeObject KX_FontObject::Type = {
 };
 
 PyMethodDef KX_FontObject::Methods[] = {
+	{ "getTextSize", (PyCFunction)KX_FontObject::sPyGetTextSize, METH_NOARGS },
 	{NULL, NULL} //Sentinel
 };
 
@@ -289,6 +318,17 @@ PyAttributeDef KX_FontObject::Attributes[] = {
 	/* KX_PYATTRIBUTE_INT_RW("dpi", 0, 10000, false, KX_FontObject, m_dpi), */// no real need for expose this I think
 	{NULL}    //Sentinel
 };
+
+PyObject *KX_FontObject::PyGetTextSize()
+{
+	MT_Vector2 size = GetTextSize();
+	PyObject *ret;
+	ret = PyTuple_New(2);
+	PyTuple_SET_ITEMS(ret,
+			PyFloat_FromDouble(size.x()),
+			PyFloat_FromDouble(size.y()));
+	return ret;
+}
 
 PyObject *KX_FontObject::pyattr_get_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
