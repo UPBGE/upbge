@@ -35,45 +35,30 @@
 #include "SG_Controller.h"
 #include "SG_ParentRelation.h"
 
-SG_Spatial::
-SG_Spatial(
-	void* clientobj,
-	void* clientinfo,
-	SG_Callbacks& callbacks
-): 
-
-	SG_IObject(clientobj,clientinfo,callbacks),
-	m_localPosition(0.0f,0.0f,0.0f),
-	m_localRotation(1.0f,0.0f,0.0f,0.0f,1.0f,0.0f,0.0f,0.0f,1.0f),
-	m_localScaling(1.0f,1.0f,1.0f),
-	
-	m_worldPosition(0.0f,0.0f,0.0f),
-	m_worldRotation(1.0f,0.0f,0.0f,0.0f,1.0f,0.0f,0.0f,0.0f,1.0f),
-	m_worldScaling(1.0f,1.0f,1.0f),
-
-	m_parent_relation (NULL),
-	
+SG_Spatial::SG_Spatial(void *clientobj, void *clientinfo, SG_Callbacks& callbacks)
+	:SG_IObject(clientobj, clientinfo, callbacks),
+	m_localPosition(0.0f, 0.0f, 0.0f),
+	m_localRotation(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+	m_localScaling(1.0f, 1.0f, 1.0f),
+	m_worldPosition(0.0f, 0.0f, 0.0f),
+	m_worldRotation(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+	m_worldScaling(1.0f, 1.0f, 1.0f),
+	m_parent_relation(NULL),
 	m_bbox(MT_Vector3(-1.0f, -1.0f, -1.0f), MT_Vector3(1.0f, 1.0f, 1.0f)),
 	m_modified(false),
 	m_ogldirty(false)
 {
 }
 
-SG_Spatial::
-SG_Spatial(
-	const SG_Spatial& other
-) : 
-	SG_IObject(other),
+SG_Spatial::SG_Spatial(const SG_Spatial& other)
+	:SG_IObject(other),
 	m_localPosition(other.m_localPosition),
 	m_localRotation(other.m_localRotation),
 	m_localScaling(other.m_localScaling),
-	
 	m_worldPosition(other.m_worldPosition),
 	m_worldRotation(other.m_worldRotation),
 	m_worldScaling(other.m_worldScaling),
-	
 	m_parent_relation(NULL),
-	
 	m_bbox(other.m_bbox),
 	m_modified(false),
 	m_ogldirty(false)
@@ -81,36 +66,24 @@ SG_Spatial(
 	// duplicate the parent relation for this object
 	m_parent_relation = other.m_parent_relation->NewCopy();
 }
-	
-SG_Spatial::
-~SG_Spatial()
+
+SG_Spatial::~SG_Spatial()
 {
-	delete (m_parent_relation);
+	delete m_parent_relation;
 }
 
-	void
-SG_Spatial::
-SetParentRelation(
-	SG_ParentRelation *relation
-) {
-	delete (m_parent_relation);
+void SG_Spatial::SetParentRelation(SG_ParentRelation *relation)
+{
+	delete m_parent_relation;
 	m_parent_relation = relation;
 	SetModified();
 }
-
 
 /**
  * Update Spatial Data.
  * Calculates WorldTransform., (either doing its self or using the linked SGControllers)
  */
-
-
-	bool
-SG_Spatial::
-UpdateSpatialData(
-	        const SG_Spatial *parent,
-	        double time,
-	        bool& parentUpdated)
+bool SG_Spatial::UpdateSpatialData(const SG_Spatial *parent, double time, bool& parentUpdated)
 {
 	bool bComputesWorldTransform = false;
 
@@ -119,18 +92,19 @@ UpdateSpatialData(
 	SGControllerList::iterator cit = GetSGControllerList().begin();
 	SGControllerList::const_iterator c_end = GetSGControllerList().end();
 
-	for (;cit!=c_end;++cit)
-	{
-		if ((*cit)->Update(time))
+	for (; cit != c_end; ++cit) {
+		if ((*cit)->Update(time)) {
 			bComputesWorldTransform = true;
+		}
 	}
 
 	// If none of the objects updated our values then we ask the
 	// parent_relation object owned by this class to update
 	// our world coordinates.
 
-	if (!bComputesWorldTransform)
+	if (!bComputesWorldTransform) {
 		bComputesWorldTransform = ComputeWorldTransforms(parent, parentUpdated);
+	}
 
 	return bComputesWorldTransform;
 }
@@ -138,17 +112,10 @@ UpdateSpatialData(
 /**
  * Position and translation methods
  */
-
-
-	void 
-SG_Spatial::
-RelativeTranslate(
-	const MT_Vector3& trans,
-	const SG_Spatial *parent,
-	bool local
-) {
+void SG_Spatial::RelativeTranslate(const MT_Vector3& trans, const SG_Spatial *parent, bool local)
+{
 	if (local) {
-			m_localPosition += m_localRotation * trans;
+		m_localPosition += m_localRotation * trans;
 	}
 	else {
 		if (parent) {
@@ -161,46 +128,36 @@ RelativeTranslate(
 	SetModified();
 }
 
-
 /**
  * Scaling methods.
- */ 
-
+ */
 
 /**
  * Orientation and rotation methods.
  */
-
-
-	void 
-SG_Spatial::
-RelativeRotate(
-	const MT_Matrix3x3& rot,
-	bool local
-) {
+void SG_Spatial::RelativeRotate(const MT_Matrix3x3& rot, bool local)
+{
 	m_localRotation = m_localRotation * (
-	local ? 
-		rot 
-	:
-	(GetWorldOrientation().inverse() * rot * GetWorldOrientation()));
+		local ?
+		rot
+		:
+		(GetWorldOrientation().inverse() * rot * GetWorldOrientation()));
 	SetModified();
 }
 
-
-
 MT_Transform SG_Spatial::GetWorldTransform() const
 {
-	return MT_Transform(m_worldPosition, 
-		m_worldRotation.scaled(
-		m_worldScaling[0], m_worldScaling[1], m_worldScaling[2]));
+	return MT_Transform(m_worldPosition,
+	                    m_worldRotation.scaled(
+							m_worldScaling[0], m_worldScaling[1], m_worldScaling[2]));
 }
 
 bool SG_Spatial::inside(const MT_Vector3 &point) const
 {
 	MT_Scalar radius = m_worldScaling[m_worldScaling.closestAxis()] * m_bbox.GetRadius();
-	return (m_worldPosition.distance2(point) <= radius*radius) ?
-		m_bbox.transform(GetWorldTransform()).inside(point) :
-		false;
+	return (m_worldPosition.distance2(point) <= radius * radius) ?
+	       m_bbox.transform(GetWorldTransform()).inside(point) :
+	       false;
 }
 
 void SG_Spatial::getBBox(MT_Vector3 *box) const
@@ -212,4 +169,3 @@ void SG_Spatial::getAABBox(MT_Vector3 *box) const
 {
 	m_bbox.getaa(box, GetWorldTransform());
 }
-

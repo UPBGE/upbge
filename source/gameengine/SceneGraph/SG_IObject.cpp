@@ -37,75 +37,55 @@
 
 SG_Stage gSG_Stage = SG_STAGE_UNKNOWN;
 
-SG_IObject::
-SG_IObject(
-	void* clientobj,
-	void* clientinfo,
-	SG_Callbacks& callbacks
-): 
-	SG_QList(),
+SG_IObject::SG_IObject(void *clientobj, void *clientinfo, SG_Callbacks& callbacks)
+	:SG_QList(),
 	m_SGclientObject(clientobj),
 	m_SGclientInfo(clientinfo)
 {
 	m_callbacks = callbacks;
 }
 
-SG_IObject::
-SG_IObject(
-	const SG_IObject &other
-) :
-	SG_QList(),
+SG_IObject::SG_IObject(const SG_IObject &other)
+	:SG_QList(),
 	m_SGclientObject(other.m_SGclientObject),
 	m_SGclientInfo(other.m_SGclientInfo),
-	m_callbacks(other.m_callbacks) 
+	m_callbacks(other.m_callbacks)
 {
 	//nothing to do
 }
 
-	void 
-SG_IObject::
-AddSGController(
-	SG_Controller* cont
-) {
+void SG_IObject::AddSGController(SG_Controller *cont)
+{
 	m_SGcontrollers.push_back(cont);
 }
 
-	void
-SG_IObject::
-RemoveSGController(
-	SG_Controller* cont
-) {
+void SG_IObject::RemoveSGController(SG_Controller *cont)
+{
 	SGControllerList::iterator contit;
 
 	m_SGcontrollers.erase(std::remove(m_SGcontrollers.begin(), m_SGcontrollers.end(), cont));
 }
 
-	void
-SG_IObject::
-RemoveAllControllers(
-) { 
-	m_SGcontrollers.clear(); 
+void SG_IObject::RemoveAllControllers()
+{
+	m_SGcontrollers.clear();
 }
 
 void SG_IObject::SetControllerTime(double time)
 {
 	SGControllerList::iterator contit;
-	for (contit = m_SGcontrollers.begin();contit!=m_SGcontrollers.end();++contit)
+	for (contit = m_SGcontrollers.begin(); contit != m_SGcontrollers.end(); ++contit)
 	{
 		(*contit)->SetSimulatedTime(time);
 	}
 }
 
 /// Needed for replication
-
-
-SG_IObject::
-~SG_IObject()
+SG_IObject::~SG_IObject()
 {
 	SGControllerList::iterator contit;
 
-	for (contit = m_SGcontrollers.begin();contit!=m_SGcontrollers.end();++contit)
-	{
+	for (contit = m_SGcontrollers.begin(); contit != m_SGcontrollers.end(); ++contit) {
 		delete (*contit);
 	}
 }

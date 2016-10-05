@@ -28,14 +28,14 @@
 /** \file SG_Node.h
  *  \ingroup bgesg
  */
- 
+
 #ifndef __SG_NODE_H__
 #define __SG_NODE_H__
 
 #include "SG_Spatial.h"
 #include <vector>
 
-typedef std::vector<SG_Node*> NodeList;
+typedef std::vector<SG_Node *> NodeList;
 
 /**
  * Scenegraph node.
@@ -43,18 +43,9 @@ typedef std::vector<SG_Node*> NodeList;
 class SG_Node : public SG_Spatial
 {
 public:
-	SG_Node(
-		void* clientobj,
-		void* clientinfo,
-		SG_Callbacks& callbacks
-	);
-
-	SG_Node(
-		const SG_Node & other
-	);
-
+	SG_Node(void *clientobj, void *clientinfo, SG_Callbacks& callbacks);
+	SG_Node(const SG_Node & other);
 	virtual ~SG_Node();
-
 
 	/**
 	 * Add a child to this object. This also informs the child of
@@ -62,38 +53,27 @@ public:
 	 * This just stores a pointer to the child and does not
 	 * make a deep copy.
 	 */
+	void AddChild(SG_Node *child);
 
-		void
-	AddChild(
-		SG_Node* child
-	);
-
-	/** 
+	/**
 	 * Remove a child node from this object. This just removes the child
 	 * pointer from the list of children - it does not destroy the child.
 	 * This does not inform the child that this node is no longer it's parent.
 	 * If the node was not a child of this object no action is performed.
 	 */
-
-		void
-	RemoveChild(
-		SG_Node* child
-	);
+	void RemoveChild(SG_Node *child);
 
 	/**
 	 * Return true if the node is the ancestor of child
 	 */
-		bool
-	IsAncessor(
-		const SG_Node* child
-	) const;
-	/** 
+	bool IsAncessor(const SG_Node *child) const;
+
+	/**
 	 * Get the current list of children. Do not use this interface for
 	 * adding or removing children please use the methods of this class for
 	 * that.
 	 * \return a reference to the list of children of this node.
 	 */
-	
 	NodeList& GetSGChildren()
 	{
 		return this->m_children;
@@ -103,16 +83,14 @@ public:
 	 * Get the current list of children.
 	 * \return a const reference to the current list of children of this node.
 	 */
-
 	const NodeList& GetSGChildren() const
 	{
 		return this->m_children;
 	}
 
-	/** 
+	/**
 	 * Clear the list of children associated with this node
 	 */
-
 	void ClearSGChildren()
 	{
 		m_children.clear();
@@ -121,17 +99,15 @@ public:
 	/**
 	 * return the parent of this node if it exists.
 	 */
-		
-	SG_Node* GetSGParent() const 
-	{ 
+	SG_Node *GetSGParent() const
+	{
 		return m_SGparent;
 	}
 
 	/**
-	 * Set the parent of this node. 
+	 * Set the parent of this node.
 	 */
-
-	void SetSGParent(SG_Node* parent)
+	void SetSGParent(SG_Node *parent)
 	{
 		m_SGparent = parent;
 	}
@@ -139,70 +115,46 @@ public:
 	/**
 	 * Return the top node in this node's Scene graph hierarchy
 	 */
-	
-	const 
-		SG_Node* 
-	GetRootSGParent(
-	) const;
+	const SG_Node *GetRootSGParent() const;
 
 	/**
 	 * Disconnect this node from it's parent
 	 */
-
-		void
-	DisconnectFromParent(
-	);
+	void DisconnectFromParent();
 
 	/**
 	 * Return vertex parent status.
 	 */
 	bool IsVertexParent()
 	{
-		if (m_parent_relation)
-		{
+		if (m_parent_relation) {
 			return m_parent_relation->IsVertexRelation();
 		}
 		return false;
 	}
 
-
 	/**
 	 * Return slow parent status.
 	 */
-
 	bool IsSlowParent()
 	{
-		if (m_parent_relation)
-		{
+		if (m_parent_relation) {
 			return m_parent_relation->IsSlowRelation();
 		}
 		return false;
 	}
 
-
-
-
 	/**
 	 * Update the spatial data of this node. Iterate through
 	 * the children of this node and update their world data.
 	 */
-
-		void
-	UpdateWorldData(
-		double time,
-		bool parentUpdated=false
-	);
+	void UpdateWorldData(double time, bool parentUpdated = false);
 
 	/**
 	 * Update the simulation time of this node. Iterate through
 	 * the children nodes and update their simulated time.
 	 */
-
-		void
-	SetSimulatedTime(
-		double time,
-		bool recurse
-	);
+	void SetSimulatedTime(double time, bool recurse);
 
 	/**
 	 * Schedule this node for update by placing it in head queue
@@ -212,15 +164,15 @@ public:
 		// Put top parent in front of list to make sure they are updated before their
 		// children => the children will be udpated and removed from the list before
 		// we get to them, should they be in the list too.
-		return (m_SGparent)?head.AddBack(this):head.AddFront(this);
+		return (m_SGparent) ? head.AddBack(this) : head.AddFront(this);
 	}
 
 	/**
 	 * Used during Scenegraph update
 	 */
-	static SG_Node* GetNextScheduled(SG_QList& head)
+	static SG_Node *GetNextScheduled(SG_QList& head)
 	{
-		return static_cast<SG_Node*>(head.Remove());
+		return static_cast<SG_Node *>(head.Remove());
 	}
 
 	/**
@@ -235,29 +187,21 @@ public:
 	/**
 	 * Used during Scenegraph update
 	 */
-	static SG_Node* GetNextRescheduled(SG_QList& head)
+	static SG_Node *GetNextRescheduled(SG_QList& head)
 	{
-		return static_cast<SG_Node*>(head.QRemove());
+		return static_cast<SG_Node *>(head.QRemove());
 	}
 
 	/**
 	 * Node replication functions.
 	 */
+	SG_Node *GetSGReplica();
 
-		SG_Node*
-	GetSGReplica(
-	);
+	void Destruct();
 
-		void
-	Destruct(
-	);
-	
 private:
 
-		void
-	ProcessSGReplica(
-		SG_Node** replica
-	);
+	void ProcessSGReplica(SG_Node **replica);
 
 	/**
 	 * The list of children of this node.
@@ -267,12 +211,11 @@ private:
 	/**
 	 * The parent of this node may be NULL
 	 */
-	SG_Node* m_SGparent;
-
+	SG_Node *m_SGparent;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_Node")
 #endif
 };
 
-#endif  /* __SG_NODE_H__ */
+#endif  // __SG_NODE_H__

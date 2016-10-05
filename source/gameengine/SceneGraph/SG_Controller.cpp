@@ -31,16 +31,12 @@
 
 #include "SG_Controller.h"
 
-	void 
-SG_Controller::
-SetObject(SG_IObject* obj)
+void SG_Controller::SetObject(SG_IObject *obj)
 {
 	m_pObject = obj; // no checks yet ?
 }
 
-	void
-SG_Controller::
-ClearObject(
-) {
+void SG_Controller::ClearObject()
+{
 	m_pObject = NULL;
 }

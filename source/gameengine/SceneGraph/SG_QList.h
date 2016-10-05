@@ -28,7 +28,7 @@
 /** \file SG_QList.h
  *  \ingroup bgesg
  */
- 
+
 #ifndef __SG_QLIST_H__
 #define __SG_QLIST_H__
 
@@ -40,50 +40,56 @@
  */
 class SG_QList : public SG_DList
 {
-protected :
-	SG_QList* m_fqlink;
-	SG_QList* m_bqlink;
+protected:
+	SG_QList *m_fqlink;
+	SG_QList *m_bqlink;
 
 public:
 	template<typename T> class iterator
 	{
-	private:
-		SG_QList&	m_head;
-		T*			m_current;
-	public:
+private:
+		SG_QList&   m_head;
+		T *m_current;
+public:
 		typedef iterator<T> _myT;
-		iterator(SG_QList& head, SG_QList* current=NULL) : m_head(head) { m_current = (T*)current; }
-		~iterator() {}
+		iterator(SG_QList& head, SG_QList *current = NULL)
+			:m_head(head)
+		{
+			m_current = (T *)current;
+		}
+		~iterator()
+		{
+		}
 
 		void begin()
 		{
-			m_current = (T*)m_head.QPeek();
+			m_current = (T *)m_head.QPeek();
 		}
 		void back()
 		{
-			m_current = (T*)m_head.QBack();
+			m_current = (T *)m_head.QBack();
 		}
 		bool end()
 		{
-			return (m_current == (T*)m_head.Self());
+			return (m_current == (T *)m_head.Self());
 		}
-		bool add_back(T* item)
+		bool add_back(T *item)
 		{
 			return m_current->QAddBack(item);
 		}
-		T* operator*()
+		T *operator*()
 		{
 			return m_current;
 		}
 		_myT& operator++()
 		{
-			m_current = (T*)m_current->QPeek();
+			m_current = (T *)m_current->QPeek();
 			return *this;
 		}
 		_myT& operator--()
 		{
 			// no check on NULL! make sure you don't try to increment beyond end
-			m_current = (T*)m_current->QBack();
+			m_current = (T *)m_current->QBack();
 			return *this;
 		}
 	};
@@ -103,22 +109,24 @@ public:
 
 	inline bool QEmpty()               // Check for empty queue
 	{
-		return ( m_fqlink == this );
+		return (m_fqlink == this);
 	}
-	bool QAddBack( SG_QList *item )  // Add to the back
+	bool QAddBack(SG_QList *item)    // Add to the back
 	{
-		if (!item->QEmpty())
+		if (!item->QEmpty()) {
 			return false;
+		}
 		item->m_bqlink = m_bqlink;
 		item->m_fqlink = this;
 		m_bqlink->m_fqlink = item;
 		m_bqlink = item;
 		return true;
 	}
-	bool QAddFront( SG_QList *item )  // Add to the back
+	bool QAddFront(SG_QList *item)    // Add to the back
 	{
-		if (!item->Empty())
+		if (!item->Empty()) {
 			return false;
+		}
 		item->m_fqlink = m_fqlink;
 		item->m_bqlink = this;
 		m_fqlink->m_bqlink = item;
@@ -127,11 +135,10 @@ public:
 	}
 	SG_QList *QRemove()           // Remove from the front
 	{
-		if (QEmpty())
-		{
+		if (QEmpty()) {
 			return NULL;
 		}
-		SG_QList* item = m_fqlink;
+		SG_QList *item = m_fqlink;
 		m_fqlink = item->m_fqlink;
 		m_fqlink->m_bqlink = this;
 		item->m_fqlink = item->m_bqlink = item;
@@ -139,26 +146,26 @@ public:
 	}
 	bool QDelink()             // Remove from the middle
 	{
-		if (QEmpty())
+		if (QEmpty()) {
 			return false;
+		}
 		m_bqlink->m_fqlink = m_fqlink;
 		m_fqlink->m_bqlink = m_bqlink;
 		m_fqlink = m_bqlink = this;
 		return true;
 	}
-	inline SG_QList *QPeek()			// Look at front without removing
+	inline SG_QList *QPeek()            // Look at front without removing
 	{
 		return m_fqlink;
 	}
-	inline SG_QList *QBack()			// Look at front without removing
+	inline SG_QList *QBack()            // Look at front without removing
 	{
 		return m_bqlink;
 	}
-
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_QList")
 #endif
 };
 
-#endif  /* __SG_QLIST_H__ */
+#endif  // __SG_QLIST_H__
