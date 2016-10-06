@@ -88,10 +88,10 @@ base class --- :class:`PyObjectPlus`
 
       Amount of exponential color correction for light.
 
-      :type: float
+      :type: float (0 - 1)
       
    .. attribute:: range
 
       The color range that will be mapped to 0 - 1.
 
-      :type: float
+      :type: float (0.2 - 5.0)
