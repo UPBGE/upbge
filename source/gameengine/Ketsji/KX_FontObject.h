@@ -45,7 +45,7 @@ public:
 
 	virtual ~KX_FontObject();
 
-	MT_Vector2 GetTextSize();
+	const MT_Vector2 GetTextDimensions();
 
 	virtual void AddMeshUser();
 	virtual void UpdateBuckets();
@@ -81,8 +81,7 @@ protected:
 #ifdef WITH_PYTHON
 	static PyObject *pyattr_get_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-
-	KX_PYMETHOD_NOARGS(KX_FontObject, GetTextSize)
+	static PyObject *pyattr_get_text_dimensions(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 

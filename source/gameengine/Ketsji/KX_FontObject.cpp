@@ -36,6 +36,7 @@
 #include "KX_Globals.h"
 #include "KX_PythonInit.h"
 #include "KX_TextMaterial.h"
+#include "KX_PyMath.h"
 #include "BLI_math.h"
 #include "EXP_StringValue.h"
 #include "RAS_IRasterizer.h"
@@ -53,7 +54,6 @@
 extern "C" {
 #include "BLF_api.h"
 }
-#include "python_utildefines.h"
 
 #define BGE_FONT_RES 100
 
@@ -106,7 +106,7 @@ KX_FontObject::~KX_FontObject()
 	//it's handled in KX_Scene::NewRemoveObject
 }
 
-MT_Vector2 KX_FontObject::GetTextSize()
+const MT_Vector2 KX_FontObject::GetTextDimensions()
 {
 	float width = 0, height = 0;
 
@@ -126,9 +126,9 @@ MT_Vector2 KX_FontObject::GetTextSize()
 	height /= 10;
 
 	// Scale the width and height by the object's scale
-	MT_Vector3 localScale = this->GetSGNode()->GetLocalScale();
-	width *= localScale.x() / localScale.z();
-	height *= localScale.y() / localScale.z();
+	MT_Vector3 scale = NodeGetLocalScaling();
+	width *= scale.x();
+	height *= scale.y();
 	return MT_Vector2(width, height);
 }
 
@@ -306,28 +306,23 @@ PyTypeObject KX_FontObject::Type = {
 };
 
 PyMethodDef KX_FontObject::Methods[] = {
-	{ "getTextSize", (PyCFunction)KX_FontObject::sPyGetTextSize, METH_NOARGS },
 	{NULL, NULL} //Sentinel
 };
 
 PyAttributeDef KX_FontObject::Attributes[] = {
 	//KX_PYATTRIBUTE_STRING_RW("text", 0, 280, false, KX_FontObject, m_text[0]), //arbitrary limit. 280 = 140 unicode chars in unicode
 	KX_PYATTRIBUTE_RW_FUNCTION("text", KX_FontObject, pyattr_get_text, pyattr_set_text),
+	KX_PYATTRIBUTE_RO_FUNCTION("textDimensions", KX_FontObject, pyattr_get_text_dimensions),
 	KX_PYATTRIBUTE_FLOAT_RW("size", 0.0001f, 40.0f, KX_FontObject, m_fsize),
 	KX_PYATTRIBUTE_FLOAT_RW("resolution", 0.1f, 50.0f, KX_FontObject, m_resolution),
 	/* KX_PYATTRIBUTE_INT_RW("dpi", 0, 10000, false, KX_FontObject, m_dpi), */// no real need for expose this I think
 	{NULL}    //Sentinel
 };
 
-PyObject *KX_FontObject::PyGetTextSize()
+PyObject *KX_FontObject::pyattr_get_text_dimensions(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	MT_Vector2 size = GetTextSize();
-	PyObject *ret;
-	ret = PyTuple_New(2);
-	PyTuple_SET_ITEMS(ret,
-			PyFloat_FromDouble(size.x()),
-			PyFloat_FromDouble(size.y()));
-	return ret;
+	KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
+	return PyObjectFrom(self->GetTextDimensions());
 }
 
 PyObject *KX_FontObject::pyattr_get_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

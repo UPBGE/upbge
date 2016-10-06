@@ -50,10 +50,9 @@ base class --- :class:`KX_GameObject`
 
       :type: float (0.0001 to 40.0)
 
-   .. method:: getTextSize()
+   .. attribute:: textDimensions
 
       Gets the size (width and height) of the current text in Blender Units.
 
-      :return: A tuple containing the width and the height.
-      :rtype: tuple(2)
+      :type: :class:`mathutils.Vector`
 
