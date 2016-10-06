@@ -1838,8 +1838,9 @@ static int mathutils_kxgameob_vector_set(BaseMathObject *bmo, int subtype)
 			self->NodeUpdateGS(0.f);
 			break;
 		case MATHUTILS_VEC_CB_SCALE_GLOBAL:
-			PyErr_SetString(PyExc_AttributeError, "KX_GameObject.worldScale is read-only");
-			return -1;
+			self->NodeSetWorldScale(MT_Vector3(bmo->data));
+			self->NodeUpdateGS(0.0f);
+			break;
 		case MATHUTILS_VEC_CB_INERTIA_LOCAL:
 			/* read only */
 			break;
