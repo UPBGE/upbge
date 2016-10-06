@@ -915,6 +915,11 @@ bool KX_BlenderSceneConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 	std::map<KX_Scene *, std::vector<RAS_MeshObject *> >::iterator meshit = m_meshobjects.find(from);
 	if (meshit != m_meshobjects.end()) {
 		std::vector<RAS_MeshObject *> &meshlist = meshit->second;
+		// Generate mesh to material attribute's layers since the materials are constructed now.
+		for (std::vector<RAS_MeshObject *>::iterator it = meshlist.begin(), end = meshlist.end(); it != end; ++it) {
+			(*it)->GenerateAttribLayers();
+		}
+
 		std::vector<RAS_MeshObject *> &meshtolist = m_meshobjects[to];
 		meshtolist.insert(meshtolist.end(), meshlist.begin(), meshlist.end());
 		m_meshobjects.erase(meshit);
