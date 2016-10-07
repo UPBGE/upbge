@@ -52,7 +52,6 @@ typedef std::vector<RAS_Deformer *> RAS_DeformerList;
 class RAS_DisplayArrayBucket
 {
 private:
-	unsigned int m_vbo;
 	/// The number of mesh slot using it.
 	unsigned int m_refcount;
 	/// The parent bucket.
