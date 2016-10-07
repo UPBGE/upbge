@@ -47,7 +47,7 @@ KX_Planar::KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *poly
 	m_clipStart = tex->clipsta;
 	m_clipEnd = tex->clipend;
 
-	m_autoUpdate = (tex->flag & TEX_AUTO_UPDATE) != 0;
+	m_autoUpdate = (tex->autoupdate & TEX_AUTO_UPDATE) != 0;
 }
 
 KX_Planar::~KX_Planar()

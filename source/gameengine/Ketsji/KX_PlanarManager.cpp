@@ -81,10 +81,10 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	KX_GameObject *mirror = planar->GetMirrorObject();
 	KX_GameObject *observer = m_scene->GetActiveCamera();
 
-	//// Doesn't need (or can) update.
-	//if (!planar->NeedUpdate() || !planar->GetEnabled() || !mirror) {
-	//	return;
-	//}
+	// Doesn't need (or can) update.
+	if (!planar->NeedUpdate() || !planar->GetEnabled() || !mirror) {
+		return;
+	}
 
 	// Hide mirror object while rendering
 	mirror->SetVisible(false, true);
