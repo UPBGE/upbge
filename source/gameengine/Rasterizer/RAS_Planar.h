@@ -82,6 +82,9 @@ public:
 
 	void BindFace(RAS_IRasterizer *rasty);
 
+	void EnableClipPlane(MT_Vector3 &mirrorWorldZ, MT_Scalar &mirrorPlaneDTerm, int planartype);
+	void DisableClipPlane(int planartype);
+
 	MT_Vector3 GetMirrorPos();
 	MT_Vector3 GetMirrorZ();
 };

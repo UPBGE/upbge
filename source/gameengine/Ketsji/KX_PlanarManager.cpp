@@ -37,8 +37,6 @@
 
 #include "DNA_texture_types.h"
 
-#include "glew-mx.h"
-
 KX_PlanarManager::KX_PlanarManager(KX_Scene *scene)
 	:m_scene(scene)
 {
@@ -137,20 +135,7 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 
 	m_camera->GetSGNode()->UpdateWorldData(0.0);
 
-	// initializing clipping planes for reflection and refraction
-	float offset = 0.1f; //geometry clipping offset
-	double plane1[4] = { mirrorWorldZ[0], mirrorWorldZ[1], mirrorWorldZ[2], mirrorPlaneDTerm + offset };
-	double plane2[4] = { mirrorWorldZ[0], mirrorWorldZ[1], mirrorWorldZ[2], -mirrorPlaneDTerm + offset };
-
-	if (planar->GetPlanarType() == TEX_PLANAR_REFLECTION) {
-		glClipPlane(GL_CLIP_PLANE0, plane2);
-		glEnable(GL_CLIP_PLANE0);
-		glFrontFace(GL_CW);
-	}
-	else {
-		glClipPlane(GL_CLIP_PLANE0, plane1);
-		glEnable(GL_CLIP_PLANE0);
-	}
+	planar->EnableClipPlane(mirrorWorldZ, mirrorPlaneDTerm, planar->GetPlanarType());
 
 	// Begin rendering stuff
 	planar->BeginRender();
@@ -200,10 +185,7 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 
 	planar->EndRender();
 
-	glDisable(GL_CLIP_PLANE0);
-	if (planar->GetPlanarType() == TEX_PLANAR_REFLECTION) {
-		glFrontFace(GL_CCW);
-	}	
+	planar->DisableClipPlane(planar->GetPlanarType());
 
 	mirror->SetVisible(true, true);
 }
