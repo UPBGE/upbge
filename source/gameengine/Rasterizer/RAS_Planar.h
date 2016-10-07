@@ -47,21 +47,26 @@ public:
 
 
 private:
-	/// Cube map texture to attach to frame buffer objects.
+	/// Planar texture to attach to frame buffer objects.
 	GPUTexture *m_gpuTex;
+
+	/// Planar FBO and RBO
 	GPUFrameBuffer *m_fbo;
 	GPURenderBuffer *m_rb;
 
-	/// Recreate and attach frame buffer objects and render buffers to the cube map texture.
+	/// Recreate and attach frame buffer objects and render buffers to the planar texture.
 	void AttachTexture();
-	/// Free and detach frame buffer objects and render buffer to the cube map texture.
+	/// Free and detach frame buffer objects and render buffer to the planar texture.
 	void DetachTexture();
-	/** Obtain the latest cube map texture, if it's not the same as before,
-	* then detach the previous cube map texture and attach the new one.
+	/** Obtain the latest planar texture, if it's not the same as before,
+	* then detach the previous planar texture and attach the new one.
 	*/
 	void GetValidTexture();
 
-	MT_Vector3 m_mirrorPos;              // mirror center position in local space
+	/// mirror center position in local space
+	MT_Vector3 m_mirrorPos;
+
+	/// mirror normal vector
 	MT_Vector3 m_mirrorZ;
 
 protected:

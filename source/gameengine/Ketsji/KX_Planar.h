@@ -45,6 +45,7 @@ private:
 	/// The object used to render from its position.
 	KX_GameObject *m_viewpointObject;
 
+	/// planar type (tex->planarflag -> reflection or refraction)
 	int m_type;
 
 	/// The camera projection matrix depending on clip start/end.
@@ -68,6 +69,7 @@ private:
 	*/
 	bool m_forceUpdate;
 
+	/// GPUTexture width and height (used to set viewport)
 	int m_width;
 	int m_height;
 
