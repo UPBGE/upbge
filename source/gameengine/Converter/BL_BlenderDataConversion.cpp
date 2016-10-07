@@ -1821,7 +1821,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 						kxscene->GetCubeMapManager()->AddCubeMap(tex, viewpoint);
 					}
-					if (tex && tex->Ok() && (tex->GetTex()->planarflag & (TEX_PLANAR_REFLECTION | TEX_PLANAR_REFRACTION))) {
+					if (tex && tex->Ok() && ((tex->GetTex()->planarflag == TEX_PLANAR_REFLECTION) ||
+						(tex->GetTex()->planarflag == TEX_PLANAR_REFRACTION))) {
 						KX_GameObject *viewpoint = gameobj;
 						int width = GPU_texture_width(tex->GetGPUTexture());
 						int height = GPU_texture_height(tex->GetGPUTexture());

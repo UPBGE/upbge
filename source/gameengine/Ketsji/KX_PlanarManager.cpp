@@ -152,7 +152,7 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 		glEnable(GL_CLIP_PLANE0);
 	}
 
-
+	// Begin rendering stuff
 	planar->BeginRender();
 	planar->BindFace(rasty);
 
@@ -165,7 +165,19 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	rasty->SetAuxilaryClientInfo(m_scene);
 	rasty->DisplayFog();
 
-	MT_Matrix4x4 projmat = m_scene->GetActiveCamera()->GetProjectionMatrix();
+	/* When we update clipstart or clipend values,
+	* or if the projection matrix is not computed yet,
+	* we have to compute projection matrix.
+	*/
+	if (planar->GetInvalidProjectionMatrix()) {
+		const float clipstart = planar->GetClipStart();
+		const float clipend = planar->GetClipEnd();
+		const MT_Matrix4x4& proj = rasty->GetFrustumMatrix(-clipstart, clipstart, -clipstart, clipstart, clipstart, clipend, 1.0f, true);
+		planar->SetProjectionMatrix(proj);
+		planar->SetInvalidProjectionMatrix(false);
+	}
+
+	MT_Matrix4x4 projmat = planar->GetProjectionMatrix();
 
 	m_camera->SetProjectionMatrix(projmat);
 

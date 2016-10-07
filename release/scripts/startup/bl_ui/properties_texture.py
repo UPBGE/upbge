@@ -932,7 +932,7 @@ class TEXTURE_PT_image_planar(TextureTypePanel, Panel):
     bl_label = "Planar Reflection / Refraction"
     bl_options = {'DEFAULT_CLOSED'}
     tex_type = 'IMAGE'
-    COMPAT_ENGINES = {'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):
 

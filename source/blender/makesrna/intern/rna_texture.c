@@ -1370,16 +1370,16 @@ static void rna_def_texture_image(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "planar_clip_start", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "clipsta");
-	RNA_def_property_range(prop, 0.0, FLT_MAX);
-	RNA_def_property_ui_range(prop, 0.0, FLT_MAX, 1, 2);
-	RNA_def_property_ui_text(prop, "Clip Start", "Clip Start for planar Reflection");
+	RNA_def_property_range(prop, 0.001, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.01, 50, 100, 2);
+	RNA_def_property_ui_text(prop, "Clip Start", "Objects nearer than this are not visible to map");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
 	prop = RNA_def_property(srna, "planar_clip_end", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "clipend");
-	RNA_def_property_range(prop, 0.0, FLT_MAX);
-	RNA_def_property_ui_range(prop, 0.0, FLT_MAX, 1, 2);
-	RNA_def_property_ui_text(prop, "Clip End", "Clip End for planar Reflection");
+	RNA_def_property_range(prop, 0.01, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.10, 20000, 100, 2);
+	RNA_def_property_ui_text(prop, "Clip End", "Objects further than this are not visible to map");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
 	prop = RNA_def_property(srna, "use_planar_auto_update", PROP_BOOLEAN, PROP_NONE);
