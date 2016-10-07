@@ -217,7 +217,7 @@ typedef struct Tex {
 	
 	float noisesize, turbul;
 	float bright, contrast, saturation, rfac, gfac, bfac;
-	float filtersize, clipsta, clipend;
+	float filtersize;
 
 	/* newnoise: musgrave parameters */
 	float mg_H, mg_lacunarity, mg_octaves, mg_offset, mg_gain;
@@ -256,6 +256,7 @@ typedef struct Tex {
 
 	/* Planar Reflections */
 	int planarflag, autoupdate;
+	float clipsta, clipend;
 	
 	struct ImageUser iuser;
 	
@@ -477,12 +478,12 @@ typedef struct ColorMapping {
 #define TEX_PR_BOTH		2
 
 /* Tex->autoupdate */
-#define TEX_AUTO_UPDATE	(1 << 0)
+#define TEX_AUTO_UPDATE (1 << 0)
 
 /* Tex->planarflag */
-#define TEX_PLANAR_NONE			0
-#define TEX_PLANAR_REFLECTION	1
-#define TEX_PLANAR_REFRACTION	2
+#define TEX_PLANAR_NONE         0
+#define TEX_PLANAR_REFLECTION   1
+#define TEX_PLANAR_REFRACTION   2
 
 /* **************** ENVMAP ****************** */
 

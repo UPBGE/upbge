@@ -15,7 +15,7 @@
 * along with this program; if not, write to the Free Software Foundation,
 * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* Contributor(s): Ulysse Martin, Tristan Porteries.
+* Contributor(s): Ulysse Martin, Tristan Porteries, Martins Upitis.
 *
 * ***** END GPL LICENSE BLOCK *****
 */
@@ -61,12 +61,8 @@ private:
 	*/
 	void GetValidTexture();
 
-	float m_mirrorHalfWidth;
-	float m_mirrorHalfHeight;
 	MT_Vector3 m_mirrorPos;              // mirror center position in local space
-	MT_Vector3 m_mirrorZ;               // mirror Z axis in local space
-	MT_Vector3 m_mirrorY;               // mirror Y axis in local space
-	MT_Vector3 m_mirrorX;               // mirror X axis in local space
+	MT_Vector3 m_mirrorZ;
 
 protected:
 	/// All the material texture users.
@@ -86,12 +82,8 @@ public:
 
 	void BindFace(RAS_IRasterizer *rasty);
 
-	float GetMirrorHalfWidth();
-	float GetMirrorHalfHeight();
 	MT_Vector3 GetMirrorPos();
 	MT_Vector3 GetMirrorZ();
-	MT_Vector3 GetMirrorY();
-	MT_Vector3 GetMirrorX();
 };
 
 #endif  // __RAS_PLANAR_H__

@@ -15,7 +15,7 @@
 * along with this program; if not, write to the Free Software Foundation,
 * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* Contributor(s): Ulysse Martin, Tristan Porteries.
+* Contributor(s): Ulysse Martin, Tristan Porteries, Martins Upitis.
 *
 * ***** END GPL LICENSE BLOCK *****
 */
@@ -170,14 +170,7 @@ RAS_Planar::RAS_Planar(KX_GameObject *mirror, RAS_IPolyMaterial *mat)
 		if (vec[2] > back)
 			back = vec[2];
 	}
-	// now store this information in the object for later rendering
-	m_mirrorHalfWidth = (right - left)*0.5f;
-	m_mirrorHalfHeight = (top - bottom)*0.5f;
-	if (m_mirrorHalfWidth < 0.01f || m_mirrorHalfHeight < 0.01f)
-	{
-		// mirror too small
-		std::cout << "mirror too small" << std::endl;
-	}
+
 	// mirror position in mirror coord
 	vec[0] = (left + right)*0.5f;
 	vec[1] = (top + bottom)*0.5f;
@@ -189,8 +182,6 @@ RAS_Planar::RAS_Planar(KX_GameObject *mirror, RAS_IPolyMaterial *mat)
 	m_mirrorPos.setValue(vec[0], vec[1], vec[2]);
 	// mirror normal vector (pointed towards the back of the mirror) in local space
 	m_mirrorZ.setValue(-mirrorNormal[0], -mirrorNormal[1], -mirrorNormal[2]);
-	m_mirrorY.setValue(mirrorUp[0], mirrorUp[1], mirrorUp[2]);
-	m_mirrorX = m_mirrorY.cross(m_mirrorZ);
 }
 
 RAS_Planar::~RAS_Planar()
@@ -203,7 +194,7 @@ RAS_Planar::~RAS_Planar()
 	for (std::vector<RAS_Texture *>::iterator it = m_textureUsers.begin(), end = m_textureUsers.end(); it != end; ++it) {
 		RAS_Texture *texture = *it;
 		// Invalidate the cube map in each material texture users.
-		texture->SetCubeMap(NULL);
+		texture->SetPlanar(NULL);
 		BKE_image_free_buffers(texture->GetImage());
 	}
 }
@@ -303,16 +294,6 @@ void RAS_Planar::BindFace(RAS_IRasterizer *rasty)
 	rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 }
 
-float RAS_Planar::GetMirrorHalfWidth()
-{
-	return m_mirrorHalfWidth;
-}
-
-float RAS_Planar::GetMirrorHalfHeight()
-{
-	return m_mirrorHalfHeight;
-}
-
 MT_Vector3 RAS_Planar::GetMirrorPos()
 {
 	return m_mirrorPos;
@@ -323,13 +304,4 @@ MT_Vector3 RAS_Planar::GetMirrorZ()
 	return m_mirrorZ;
 }
 
-MT_Vector3 RAS_Planar::GetMirrorY()
-{
-	return m_mirrorY;
-}
-
-MT_Vector3 RAS_Planar::GetMirrorX()
-{
-	return m_mirrorX;
-}
 

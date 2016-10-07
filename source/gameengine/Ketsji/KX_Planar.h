@@ -15,7 +15,7 @@
 * along with this program; if not, write to the Free Software Foundation,
 * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* Contributor(s): Ulysse Martin, Tristan Porteries.
+* Contributor(s): Ulysse Martin, Tristan Porteries, Martins Upitis.
 *
 * ***** END GPL LICENSE BLOCK *****
 */
@@ -45,7 +45,7 @@ private:
 	/// The object used to render from its position.
 	KX_GameObject *m_viewpointObject;
 
-	short m_type;
+	int m_type;
 
 	/// The camera projection matrix depending on clip start/end.
 	MT_Matrix4x4 m_projection;
@@ -94,10 +94,10 @@ public:
 	// Return true when this planar need to be updated.
 	bool NeedUpdate();
 
-	short CalcSize(short size);
-
 	short GetWidth();
 	short GetHeight();
+
+	int GetPlanarType();
 
 #ifdef WITH_PYTHON
 	KX_PYMETHOD_DOC_NOARGS(KX_Planar, update);
