@@ -183,7 +183,7 @@ ccl_device_inline void microfacet_ggx_sample_slopes(
 	*slope_y = S * z * safe_sqrtf(1.0f + (*slope_x)*(*slope_x));
 }
 
-ccl_device_inline float3 microfacet_sample_stretched(
+ccl_device_forceinline float3 microfacet_sample_stretched(
 	KernelGlobals *kg, const float3 omega_i,
 	const float alpha_x, const float alpha_y,
 	const float randu, const float randv,
@@ -267,7 +267,7 @@ ccl_device bool bsdf_microfacet_merge(const ShaderClosure *a, const ShaderClosur
 	       (isequal_float3(bsdf_a->T, bsdf_b->T)) &&
 	       (bsdf_a->ior == bsdf_b->ior) &&
 	       ((!bsdf_a->extra && !bsdf_b->extra) ||
-            ((bsdf_a->extra && bsdf_b->extra) &&
+	        ((bsdf_a->extra && bsdf_b->extra) &&
 	         (isequal_float3(bsdf_a->extra->color, bsdf_b->extra->color))));
 }
 

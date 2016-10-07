@@ -1,6 +1,5 @@
 /*
- * Adapted from code Copyright 2009-2010 NVIDIA Corporation
- * Modifications Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +21,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Don't inline intersect functions on GPU, this is faster */
 #ifdef __KERNEL_GPU__
-#  define ccl_device_intersect ccl_device_noinline
+#  define ccl_device_intersect ccl_device_forceinline
 #else
 #  define ccl_device_intersect ccl_device_inline
 #endif

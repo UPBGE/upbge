@@ -355,7 +355,7 @@ void LbmFsgrSolver::fineAdvance()
 //! fine step function
 /*****************************************************************************/
 void 
-LbmFsgrSolver::mainLoop(int lev)
+LbmFsgrSolver::mainLoop(const int lev)
 {
 	// loops over _only inner_ cells  -----------------------------------------------------------------------------------
 	
@@ -376,13 +376,16 @@ LbmFsgrSolver::mainLoop(int lev)
   // main loop region
 	const bool doReduce = true;
 	const int gridLoopBound=1;
+	int calcNumInvIfCells = 0;
+	LbmFloat calcInitialMass = 0;
 	GRID_REGION_INIT();
 #if PARALLEL==1
-#pragma omp parallel default(shared) num_threads(mNumOMPThreads) \
+	const int gDebugLevel = ::gDebugLevel;
+#pragma omp parallel default(none) num_threads(mNumOMPThreads) \
   reduction(+: \
 	  calcCurrentMass,calcCurrentVolume, \
 		calcCellsFilled,calcCellsEmptied, \
-		calcNumUsedCells )
+		calcNumUsedCells,calcNumInvIfCells,calcInitialMass)
 	GRID_REGION_START();
 #else // PARALLEL==1
 	GRID_REGION_START();
@@ -468,7 +471,7 @@ LbmFsgrSolver::mainLoop(int lev)
 				calcCurrentMass += iniRho; 
 				calcCurrentVolume += 1.0; 
 				calcNumUsedCells++;
-				mInitialMass += iniRho;
+				calcInitialMass += iniRho;
 				// dont treat cell until next step
 				continue;
 			} 
@@ -479,7 +482,7 @@ LbmFsgrSolver::mainLoop(int lev)
 			if(isnotValid) {
 				// remove fluid cells, shouldnt be here anyway
 				LbmFloat fluidRho = m[0]; FORDF1 { fluidRho += m[l]; }
-				mInitialMass -= fluidRho;
+				calcInitialMass -= fluidRho;
 				const LbmFloat iniRho = 0.0;
 				RAC(tcel, dMass) = RAC(tcel, dFfrac) = iniRho;
 				RAC(tcel, dFlux) = FLUX_INIT;
@@ -608,8 +611,8 @@ LbmFsgrSolver::mainLoop(int lev)
 		// read distribution funtions of adjacent cells = stream step
 		DEFAULT_STREAM;
 
-		if((nbored & CFFluid)==0) { newFlag |= CFNoNbFluid; mNumInvIfCells++; }
-		if((nbored & CFEmpty)==0) { newFlag |= CFNoNbEmpty; mNumInvIfCells++; }
+		if((nbored & CFFluid)==0) { newFlag |= CFNoNbFluid; calcNumInvIfCells++; }
+		if((nbored & CFEmpty)==0) { newFlag |= CFNoNbEmpty; calcNumInvIfCells++; }
 
 		// calculate mass exchange for interface cells 
 		LbmFloat myfrac = RAC(ccel,dFfrac);
@@ -809,7 +812,7 @@ LbmFsgrSolver::mainLoop(int lev)
 			// fill if cells in inflow region
 			if(myfrac<0.5) { 
 				mass += 0.25; 
-				mInitialMass += 0.25;
+				calcInitialMass += 0.25;
 			}
 			const int OId = oldFlag>>24;
 			const LbmVec vel(mObjectSpeeds[OId]);
@@ -865,10 +868,8 @@ LbmFsgrSolver::mainLoop(int lev)
 			// physical drop model
 			if(mPartUsePhysModel) {
 				LbmFloat realWorldFac = (mLevel[lev].simCellSize / mLevel[lev].timestep);
-				LbmFloat rux = (ux * realWorldFac);
-				LbmFloat ruy = (uy * realWorldFac);
-				LbmFloat ruz = (uz * realWorldFac);
-				LbmFloat rl = norm(ntlVec3Gfx(rux,ruy,ruz));
+				LbmVec ru(ux * realWorldFac, uy * realWorldFac, uz * realWorldFac);
+				LbmFloat rl = norm(ru);
 				basethresh *= rl;
 
 				// reduce probability in outer region?
@@ -960,14 +961,15 @@ LbmFsgrSolver::mainLoop(int lev)
 				// average normal & velocity 
 				// -> mostly along velocity dir, many into surface
 				// fluid velocity (not normalized!)
-				LbmVec flvelVel = LbmVec(ux,uy,uz);
+				LbmVec flvelVel(ux,uy,uz);
 				LbmFloat flvelLen = norm(flvelVel);
 				// surface normal
-				LbmVec normVel = LbmVec(surfaceNormal[0],surfaceNormal[1],surfaceNormal[2]);
+				LbmVec normVel(surfaceNormal[0],surfaceNormal[1],surfaceNormal[2]);
 				normalize(normVel);
 				LbmFloat normScale = (0.01+flvelLen);
 				// jitter vector, 0.2 * flvel
-				LbmVec jittVel = LbmVec(jx,jy,jz)*(0.05+flvelLen)*0.1;
+				LbmVec jittVel(jx,jy,jz);
+				jittVel *= (0.05+flvelLen)*0.1;
 				// weighten velocities
 				const LbmFloat flvelWeight = 0.9;
 				LbmVec newpartVel = normVel*normScale*(1.-flvelWeight) + flvelVel*(flvelWeight) + jittVel; 
@@ -1013,7 +1015,7 @@ LbmFsgrSolver::mainLoop(int lev)
 		if( (mass) <= (rho * (   -FSGR_MAGICNR)) ) { ifemptied = 1; }
 
 		if(oldFlag & (CFMbndOutflow)) {
-			mInitialMass -= mass;
+			calcInitialMass -= mass;
 			mass = myfrac = 0.0;
 			iffilled = 0; ifemptied = 1;
 		}
@@ -1105,6 +1107,8 @@ LbmFsgrSolver::mainLoop(int lev)
 	mNumFilledCells  = calcCellsFilled;
 	mNumEmptiedCells = calcCellsEmptied;
 	mNumUsedCells = calcNumUsedCells;
+	mNumInvIfCells += calcNumInvIfCells;
+	mInitialMass += calcInitialMass;
 }
 
 
@@ -1121,7 +1125,8 @@ LbmFsgrSolver::preinitGrids()
 	
 		GRID_REGION_INIT();
 #if PARALLEL==1
-#pragma omp parallel default(shared) num_threads(mNumOMPThreads) \
+	const int gDebugLevel = ::gDebugLevel;
+#pragma omp parallel default(none) num_threads(mNumOMPThreads) \
   reduction(+: \
 	  calcCurrentMass,calcCurrentVolume, \
 		calcCellsFilled,calcCellsEmptied, \
@@ -1158,7 +1163,8 @@ LbmFsgrSolver::standingFluidPreinit()
 
 	GRID_REGION_INIT();
 #if PARALLEL==1
-#pragma omp parallel default(shared) num_threads(mNumOMPThreads) \
+	const int gDebugLevel = ::gDebugLevel;
+#pragma omp parallel default(none) num_threads(mNumOMPThreads) \
   reduction(+: \
 	  calcCurrentMass,calcCurrentVolume, \
 		calcCellsFilled,calcCellsEmptied, \
