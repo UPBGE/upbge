@@ -141,14 +141,14 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	planar->BeginRender();
 	planar->BindFace(rasty);
 
-	rasty->BeginFrame(KX_GetActiveEngine()->GetClockTime());
+	//rasty->BeginFrame(KX_GetActiveEngine()->GetClockTime());
 
 	rasty->SetViewport(0, 0, planar->GetWidth(), planar->GetHeight());
 	rasty->SetScissor(0, 0, planar->GetWidth(), planar->GetHeight());
 
-	m_scene->GetWorldInfo()->UpdateWorldSettings(rasty);
-	rasty->SetAuxilaryClientInfo(m_scene);
-	rasty->DisplayFog();
+	//m_scene->GetWorldInfo()->UpdateWorldSettings(rasty);
+	//rasty->SetAuxilaryClientInfo(m_scene);
+	//rasty->DisplayFog();
 
 	/* When we update clipstart or clipend values,
 	* or if the projection matrix is not computed yet,

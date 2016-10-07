@@ -261,8 +261,6 @@ void RAS_Planar::GetValidTexture()
 
 	AttachTexture();
 
-	Image *ima = texture->GetMTex()->tex->ima;
-
 	GPU_texture_bind(m_gpuTex, 0);
 	GPU_texture_filter_mode(m_gpuTex, false, true);
 	GPU_texture_unbind(m_gpuTex);
