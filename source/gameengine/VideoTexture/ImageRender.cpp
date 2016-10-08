@@ -77,6 +77,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
     m_samples(samples),
     m_offScreen(NULL),
     m_blitOffScreen(NULL),
+    m_finalOffScreen(NULL),
     m_sync(NULL),
     m_observer(NULL),
     m_mirror(NULL),
@@ -95,6 +96,10 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
 	if (m_samples > 0) {
 		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
+		m_finalOffScreen = m_blitOffScreen;
+	}
+	else {
+		m_finalOffScreen = m_offScreen;
 	}
 }
 
@@ -119,7 +124,7 @@ ImageRender::~ImageRender (void)
 
 int ImageRender::GetColorBindCode() const
 {
-	return GPU_offscreen_color_texture((m_samples > 0) ? m_blitOffScreen : m_offScreen);
+	return GPU_offscreen_color_texture(m_finalOffScreen);
 }
 
 // get update shadow buffer
@@ -198,8 +203,7 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 		}
 	}
 
-	GPUOffScreen *ofs = (m_samples > 0) ? m_blitOffScreen : m_offScreen;
-	GPU_offscreen_bind_simple(ofs);
+	GPU_offscreen_bind_simple(m_finalOffScreen);
 
 	// wait until all render operations are completed
 	WaitSync();
@@ -454,7 +458,7 @@ void ImageRender::WaitSync()
 #endif
 
 	// this is needed to finalize the image if the target is a texture
-	GPU_texture_generate_mipmap(GPU_offscreen_texture((m_samples > 0) ? m_blitOffScreen : m_offScreen));
+	GPU_texture_generate_mipmap(GPU_offscreen_texture(m_finalOffScreen));
 
 	// all rendered operation done and complete, invalidate render for next time
 	m_done = false;
@@ -863,6 +867,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
     m_samples(samples),
     m_offScreen(NULL),
     m_blitOffScreen(NULL),
+    m_finalOffScreen(NULL),
     m_observer(observer),
     m_mirror(mirror),
     m_clip(100.f)
@@ -870,6 +875,10 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
 	if (m_samples > 0) {
 		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, GPU_HDR_NONE, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
+		m_finalOffScreen = m_blitOffScreen;
+	}
+	else {
+		m_finalOffScreen = m_offScreen;
 	}
 
 	// this constructor is used for automatic planar mirror

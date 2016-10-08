@@ -104,8 +104,14 @@ protected:
 	// Number of samples used in FBO.
 	int m_samples;
 
+	/// The rendered off screen, can be multisampled.
 	GPUOffScreen *m_offScreen;
+	/// The non multisampled off screen used when bliting, can be NULL.
 	GPUOffScreen *m_blitOffScreen;
+	/** The pointer to the final off screen without multisamples, can
+	 * be m_offScreen or m_blitOffScreen in case of mutlisamples.
+	 */
+	GPUOffScreen *m_finalOffScreen;
 
 	/// object to synchronize render even if no buffer transfer
 	RAS_ISync *m_sync;
