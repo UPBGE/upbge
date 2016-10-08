@@ -170,13 +170,19 @@ public:
 	}
 	
 	/**
-	 * We could add many optionnal arguments to this function
-	 * to take into account different sort of vibrations. But I
-	 * propose to keep the UI simple with only force, duration,
-	 * and joyindex and make the other SDL options available
-	 * for rumble only via a python API.
+	 * Force Feedback - Vibration
+	 * We could add many optional arguments to these functions
+	 * to take into account different sort of vibrations. But we
+	 * propose to keep the UI simple with only joyindex, force (in both motors),
+	 * and duration. If it is requested we can incorported different 
+	 * types of vibration (sinus, periodic, custom, etc) in a future as the code 
+	 * structure is prepared for it.
 	 */
-	bool RumblePlay(float strength, int duration);
+	bool RumblePlay(unsigned short mode, float strength[2], unsigned int duration);
+	bool RumbleUpdate(unsigned short mode, float strength[2], unsigned int duration);
+	bool RumbleStop(void);
+	int GetRumbleStatus(void);
+
 	/**
 	 * Test if the joystick is connected
 	 */
