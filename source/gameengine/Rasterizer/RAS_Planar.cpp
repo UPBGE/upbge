@@ -217,7 +217,6 @@ void RAS_Planar::DetachTexture()
 	if (!m_gpuTex) {
 		return;
 	}
-
 	
 	if (m_fbo) {
 		GPU_framebuffer_texture_detach_target(m_gpuTex, GL_TEXTURE_2D);
@@ -262,7 +261,7 @@ void RAS_Planar::GetValidTexture()
 	AttachTexture();
 
 	GPU_texture_bind(m_gpuTex, 0);
-	GPU_texture_filter_mode(m_gpuTex, false, true);
+	GPU_texture_filter_mode(m_gpuTex, false, false);
 	GPU_texture_unbind(m_gpuTex);
 }
 
@@ -274,6 +273,7 @@ const std::vector<RAS_Texture *>& RAS_Planar::GetTextureUsers() const
 void RAS_Planar::AddTextureUser(RAS_Texture *texture)
 {
 	m_textureUsers.push_back(texture);
+	texture->SetPlanar(this);
 }
 
 void RAS_Planar::BeginRender()
