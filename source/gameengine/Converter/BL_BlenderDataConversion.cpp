@@ -1352,12 +1352,14 @@ static void bl_ConvertBlenderObject_Single(
 
 		gameobj->NodeUpdateGS(0);
 		gameobj->AddMeshUser();
+		gameobj->SetIsInActiveLayer(true);
 	}
 	else
 	{
 		//we must store this object otherwise it will be deleted
 		//at the end of this function if it is not a root object
 		inactivelist->Add(gameobj->AddRef());
+		gameobj->SetIsInActiveLayer(false);
 	}
 }
 
