@@ -282,12 +282,12 @@ RAS_DisplayArrayBucketList& RAS_MaterialBucket::GetDisplayArrayBucketList()
 
 void RAS_MaterialBucket::MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_MaterialBucket *bucket)
 {
-	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
-		it != end; ++it)
+	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(); it != m_displayArrayBucketList.end();)
 	{
 		// In case of deformers, multiple display array bucket can use the same mesh and material.
 		RAS_DisplayArrayBucket *displayArrayBucket = *it;
 		if ((*it)->GetMeshMaterial() != meshmat) {
+			++it;
 			continue;
 		}
 
@@ -305,6 +305,6 @@ void RAS_MaterialBucket::MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_M
 
 		displayArrayBucket->ChangeMaterialBucket(bucket);
 		bucket->AddDisplayArrayBucket(displayArrayBucket);
-		RemoveDisplayArrayBucket(displayArrayBucket);
+		it = m_displayArrayBucketList.erase(it);
 	}
 }
