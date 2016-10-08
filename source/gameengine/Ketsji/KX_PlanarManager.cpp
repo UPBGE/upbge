@@ -56,16 +56,16 @@ KX_PlanarManager::~KX_PlanarManager()
 
 void KX_PlanarManager::AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, RAS_IPolyMaterial *polymat, int type, int width, int height)
 {
-	for (std::vector<KX_Planar *>::iterator it = m_planars.begin(), end = m_planars.end(); it != end; ++it) {
-		KX_Planar *planar = *it;
-		const std::vector<RAS_Texture *>& textures = planar->GetTextureUsers();
-		for (std::vector<RAS_Texture *>::const_iterator it = textures.begin(), end = textures.end(); it != end; ++it) {
-			if ((*it)->GetTex() == texture->GetTex()) {
-				planar->AddTextureUser(texture);
-				return;
-			}
-		}
-	}
+	//for (std::vector<KX_Planar *>::iterator it = m_planars.begin(), end = m_planars.end(); it != end; ++it) {
+	//	KX_Planar *planar = *it;
+	//	const std::vector<RAS_Texture *>& textures = planar->GetTextureUsers();
+	//	for (std::vector<RAS_Texture *>::const_iterator it = textures.begin(), end = textures.end(); it != end; ++it) {
+	//		if ((*it)->GetTex() == texture->GetTex()) {
+	//			planar->AddTextureUser(texture);
+	//			return;
+	//		}
+	//	}
+	//}/////////////////////////////why?
 
 	Tex *tex = texture->GetTex();
 	KX_Planar *kxplanar = new KX_Planar(tex, gameobj, polymat, type, width, height);
