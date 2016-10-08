@@ -108,28 +108,28 @@ KX_FontObject::~KX_FontObject()
 
 const MT_Vector2 KX_FontObject::GetTextDimensions()
 {
-	float width = 0, height = 0;
+	MT_Vector2 dimensions;
 
 	for (std::vector<STR_String>::iterator it = m_text.begin();
 		 it != m_text.end(); ++it)
 	{
-		float w = 0, h = 0;
+		float w = 0.0f, h = 0.0f;
 		STR_String text = (*it);
 
 		BLF_width_and_height(m_fontid, text.ReadPtr(), text.Length(), &w, &h);
-		width = std::max(width, w);
-		height += h + m_line_spacing;
+		dimensions.x() = std::max(dimensions.x(), w);
+		dimensions.y() += h + m_line_spacing;
 	}
 
 	// XXX: Quick hack to convert the size to BU
-	width /= 10;
-	height /= 10;
+	dimensions /= 10.0f;
 
 	// Scale the width and height by the object's scale
 	MT_Vector3 scale = NodeGetLocalScaling();
-	width *= scale.x();
-	height *= scale.y();
-	return MT_Vector2(width, height);
+	dimensions.x() *= scale.x();
+	dimensions.y() *= scale.y();
+
+	return dimensions;
 }
 
 CValue *KX_FontObject::GetReplica()
