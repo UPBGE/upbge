@@ -1741,6 +1741,16 @@ void KX_GameObject::Relink(std::map<void *, void *>& map_parameter)
 	}
 }
 
+#ifdef WITH_PYTHON
+
+#define PYTHON_CHECK_PHYSICS_CONTROLLER(obj, attr, ret) \
+	if (!(obj)->GetPhysicsController()) { \
+		PyErr_Format(PyExc_AttributeError, "KX_GameObject.%s, is missing a physics controller", (attr)); \
+		return (ret); \
+	}
+
+#endif
+
 #ifdef USE_MATHUTILS
 
 /* These require an SGNode */
@@ -1772,8 +1782,6 @@ static int mathutils_kxgameob_vector_get(BaseMathObject *bmo, int subtype)
 	if (self == NULL)
 		return -1;
 
-#define PHYS_ERR(attr) PyErr_SetString(PyExc_AttributeError, "KX_GameObject." attr ", is missing a physics controller")
-
 	switch (subtype) {
 		case MATHUTILS_VEC_CB_POS_LOCAL:
 			self->NodeGetLocalPosition().getValue(bmo->data);
@@ -1788,26 +1796,26 @@ static int mathutils_kxgameob_vector_get(BaseMathObject *bmo, int subtype)
 			self->NodeGetWorldScaling().getValue(bmo->data);
 			break;
 		case MATHUTILS_VEC_CB_INERTIA_LOCAL:
-			if (!self->GetPhysicsController()) return PHYS_ERR("localInertia"), -1;
+			PYTHON_CHECK_PHYSICS_CONTROLLER(self, "localInertia", -1);
 			self->GetPhysicsController()->GetLocalInertia().getValue(bmo->data);
 			break;
 		case MATHUTILS_VEC_CB_OBJECT_COLOR:
 			self->GetObjectColor().getValue(bmo->data);
 			break;
 		case MATHUTILS_VEC_CB_LINVEL_LOCAL:
-			if (!self->GetPhysicsController()) return PHYS_ERR("localLinearVelocity"), -1;
+			PYTHON_CHECK_PHYSICS_CONTROLLER(self, "localLinearVelocity", -1);
 			self->GetLinearVelocity(true).getValue(bmo->data);
 			break;
 		case MATHUTILS_VEC_CB_LINVEL_GLOBAL:
-			if (!self->GetPhysicsController()) return PHYS_ERR("worldLinearVelocity"), -1;
+			PYTHON_CHECK_PHYSICS_CONTROLLER(self, "worldLinearVelocity", -1);
 			self->GetLinearVelocity(false).getValue(bmo->data);
 			break;
 		case MATHUTILS_VEC_CB_ANGVEL_LOCAL:
-			if (!self->GetPhysicsController()) return PHYS_ERR("localLinearVelocity"), -1;
+			PYTHON_CHECK_PHYSICS_CONTROLLER(self, "localLinearVelocity", -1);
 			self->GetAngularVelocity(true).getValue(bmo->data);
 			break;
 		case MATHUTILS_VEC_CB_ANGVEL_GLOBAL:
-			if (!self->GetPhysicsController()) return PHYS_ERR("worldLinearVelocity"), -1;
+			PYTHON_CHECK_PHYSICS_CONTROLLER(self, "worldLinearVelocity", -1);
 			self->GetAngularVelocity(false).getValue(bmo->data);
 			break;
 			
@@ -2394,10 +2402,7 @@ PyObject* KX_GameObject::pyattr_get_collisionCallbacks(void *self_v, const KX_PY
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
 
 	// Only objects with a physics controller should have collision callbacks
-	if (!self->GetPhysicsController()) {
-		PyErr_SetString(PyExc_AttributeError, "KX_GameObject.collisionCallbacks: attribute only available for objects with collisions enabled");
-		return NULL;
-	}
+	PYTHON_CHECK_PHYSICS_CONTROLLER(self, "collisionCallbacks", NULL);
 
 	// Return the existing callbacks
 	if (self->m_collisionCallbacks == NULL)
@@ -2415,10 +2420,7 @@ int KX_GameObject::pyattr_set_collisionCallbacks(void *self_v, const KX_PYATTRIB
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
 
 	// Only objects with a physics controller should have collision callbacks
-	if (!self->GetPhysicsController()) {
-		PyErr_SetString(PyExc_AttributeError, "KX_GameObject.collisionCallbacks: attribute only available for objects with collisions enabled");
-		return PY_SET_ATTR_FAIL;
-	}
+	PYTHON_CHECK_PHYSICS_CONTROLLER(self, "collisionCallbacks", PY_SET_ATTR_FAIL);
 
 	if (!PyList_CheckExact(value))
 	{
@@ -2551,10 +2553,7 @@ PyObject *KX_GameObject::pyattr_get_is_suspend_dynamics(void *self_v, const KX_P
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
 
 	// Only objects with a physics controller can be suspended
-	if (!self->GetPhysicsController()) {
-		PyErr_SetString(PyExc_AttributeError, "This object has not Physics Controller");
-		return NULL;
-	}
+	PYTHON_CHECK_PHYSICS_CONTROLLER(self, attrdef->m_name, NULL);
 
 	return PyBool_FromLong(self->IsDynamicsSuspended());
 }
@@ -3551,14 +3550,11 @@ PyObject *KX_GameObject::PySetCollisionMargin(PyObject *value)
 		PyErr_SetString(PyExc_TypeError, "expected a float");
 		return NULL;
 	}
-	
-	if (m_pPhysicsController)
-	{
-		m_pPhysicsController->SetMargin(collisionMargin);
-		Py_RETURN_NONE;
-	}
-	PyErr_SetString(PyExc_RuntimeError, "This object has no physics controller");
-	return NULL;
+
+	PYTHON_CHECK_PHYSICS_CONTROLLER(this, "setCollisionMargin", NULL);
+
+	m_pPhysicsController->SetMargin(collisionMargin);
+	Py_RETURN_NONE;
 }
 
 
@@ -3568,12 +3564,9 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
 	PyObject *pyattach;
 	PyObject *pyimpulse;
 	int local = 0;
-	
-	if (!m_pPhysicsController)	{
-		PyErr_SetString(PyExc_RuntimeError, "This object has no physics controller");
-		return NULL;
-	}
-	
+
+	PYTHON_CHECK_PHYSICS_CONTROLLER(this, "applyImpulse", NULL);
+
 	if (PyArg_ParseTuple(args, "OO|i:applyImpulse", &pyattach, &pyimpulse, &local))
 	{
 		MT_Vector3  attach;
