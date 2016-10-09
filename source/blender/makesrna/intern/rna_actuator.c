@@ -1744,10 +1744,16 @@ static void rna_def_vibration_actuator(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Vibration Actuator", "Actuator to set vibration of a joystick");
 	RNA_def_struct_sdna_from(srna, "bVibrationActuator", "data");
 
-	prop = RNA_def_property(srna, "joy_strength", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "joy_strength_left", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "strength");
 	RNA_def_property_range(prop, 0.0, 1.0);
-	RNA_def_property_ui_text(prop, "Strength", "Joystick vibration strength");
+	RNA_def_property_ui_text(prop, "Strength Low Freq", "Joystick vibration strength for low frequency motor");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop = RNA_def_property(srna, "joy_strength_right", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "strength_right");
+	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_ui_text(prop, "Strength High Freq", "Joystick vibration strength for high frequency motor");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "joy_duration", PROP_INT, PROP_NONE);

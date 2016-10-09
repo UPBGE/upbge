@@ -33,7 +33,7 @@
 #endif
 #include <memory> // We have to include that on Windows to make memset available
 
-bool DEV_Joystick::RumblePlay(unsigned short mode, float strength[2], unsigned int duration)
+bool DEV_Joystick::RumblePlay(float strength[2], unsigned int duration)
 {
 #ifdef WITH_SDL
 	unsigned int effects;

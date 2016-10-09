@@ -192,7 +192,7 @@ typedef struct bGameActuator {
 
 typedef struct bVibrationActuator {
 	int joyindex;
-	float strength;
+	float strength, strength_right, pad1;
 	int duration;
 } bVibrationActuator;
 

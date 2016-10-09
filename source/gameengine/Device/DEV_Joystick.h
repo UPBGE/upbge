@@ -178,8 +178,8 @@ public:
 	 * types of vibration (sinus, periodic, custom, etc) in a future as the code 
 	 * structure is prepared for it.
 	 */
-	bool RumblePlay(unsigned short mode, float strength[2], unsigned int duration);
-	bool RumbleUpdate(unsigned short mode, float strength[2], unsigned int duration);
+	bool RumblePlay(float strength[2], unsigned int duration);
+	bool RumbleUpdate(float strength[2], unsigned int duration);
 	bool RumbleStop(void);
 	int GetRumbleStatus(void);
 

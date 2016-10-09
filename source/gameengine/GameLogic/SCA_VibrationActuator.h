@@ -40,12 +40,13 @@ private:
 
 	int m_joyindex;
 	float m_strength;
+	float m_strength_right;
 	int m_duration;
 	float m_endtime;
 
 public:
 
-	SCA_VibrationActuator(SCA_IObject *gameobj, int joyindex, float strength, int duration);
+	SCA_VibrationActuator(SCA_IObject *gameobj, int joyindex, float strength, float strength_right, int duration);
 
 	virtual	~SCA_VibrationActuator(void);
 
