@@ -57,36 +57,8 @@ bool DEV_Joystick::RumblePlay(unsigned short mode, float strength[2], unsigned i
 		}
 
 		m_private->m_hapticeffect.leftright.length = duration;
-
-		switch (mode) {
-			case JOYMOTORS_BOTH_EQUAL:
-			{
-				m_private->m_hapticeffect.leftright.large_magnitude = (unsigned int) (strength[0] * 0x7FFF);
-				m_private->m_hapticeffect.leftright.small_magnitude = (unsigned int) (strength[0] * 0x7FFF);
-				break;
-			}
-			case JOYMOTORS_BOTH_NOTEQUAL:
-			{
-				m_private->m_hapticeffect.leftright.large_magnitude = (unsigned int) (strength[0] * 0x7FFF);
-				m_private->m_hapticeffect.leftright.small_magnitude = (unsigned int) (strength[1] * 0x7FFF);
-				break;
-			}
-			case JOYMOTORS_ONLY_LARGE:
-			{
-				m_private->m_hapticeffect.leftright.large_magnitude = (unsigned int) (strength[0] * 0x7FFF);
-				m_private->m_hapticeffect.leftright.small_magnitude = 0;
-				break;
-			}
-			case JOYMOTORS_ONLY_SMALL:
-			{
-				m_private->m_hapticeffect.leftright.large_magnitude = 0;
-				m_private->m_hapticeffect.leftright.small_magnitude = (unsigned int) (strength[1] * 0x7FFF);
-				break;
-			}
-			default:
-				printf ("Not available vibration mode found\n");
-				break;
-		}
+		m_private->m_hapticeffect.leftright.large_magnitude = (unsigned int) (strength[0] * 0x7FFF);
+		m_private->m_hapticeffect.leftright.small_magnitude = (unsigned int) (strength[1] * 0x7FFF);
 		run_by_effect = true;
 
 	}
@@ -163,6 +135,7 @@ bool DEV_Joystick::RumblePlay(unsigned short mode, float strength[2], unsigned i
 
 void DEV_Joystick::RumbleUpdate(unsigned short mode, float strength[2], unsigned int duration)
 {
+#ifdef WITH_SDL
 	if (m_private->m_hapticeffect_status == JOYHAPTIC_PLAYING_EFFECT) {
 		m_private->m_hapticeffect_status == JOYHAPTIC_UPDATING_EFFECT;
 	} 
@@ -173,12 +146,13 @@ void DEV_Joystick::RumbleUpdate(unsigned short mode, float strength[2], unsigned
 	if (DEV_Joystick::RumblePlay(mode, strength, duration)) {
 		return true;
 	}
-	
+#endif
 	return false;
 }
 
 bool DEV_Joystick::RumbleStop()
 {
+#ifdef WITH_SDL
 	if (m_private->m_hapticeffect_status == JOYHAPTIC_PLAYING_EFFECT ||
 		m_private->m_hapticeffect_status == JOYHAPTIC_UPDATING_EFFECT)
 	{
@@ -194,10 +168,14 @@ bool DEV_Joystick::RumbleStop()
 		m_private->m_hapticeffect_status = JOYHAPTIC_STOPPED;
 		return true;
 	}
+#endif
 	return false;
 }
 
 int DEV_Joystick::GetRumbleStatus()
 {
+#ifdef WITH_SDL
 	return m_private->m_hapticeffect_status;
+#endif
+	return -1;
 }
