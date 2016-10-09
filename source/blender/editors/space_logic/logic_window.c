@@ -2038,10 +2038,11 @@ static void draw_actuator_vibration(uiLayout *layout, PointerRNA *ptr)
 	uiLayout *row;
 	row = uiLayoutRow(layout, false);
 
-	uiItemR(row, ptr, "joy_strength", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "joy_index", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "joy_duration", 0, NULL, ICON_NONE);
 	row = uiLayoutRow(layout, false);
-	uiItemR(row, ptr, "joy_index", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "joy_strength_left", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "joy_strength_right", 0, NULL, ICON_NONE);
 }
 
 static void draw_actuator_visibility(uiLayout *layout, PointerRNA *ptr)
