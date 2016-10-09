@@ -50,7 +50,7 @@ public:
 	PrivateData()
 		:m_gamecontroller(NULL),
 		m_haptic(NULL),
-		m_hapticeffect_status(JOYHAPTIC_STOPPED);
+		m_hapticeffect_status(JOYHAPTIC_STOPPED)
 	{
 	}
 };

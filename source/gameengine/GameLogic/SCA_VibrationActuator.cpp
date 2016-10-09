@@ -32,10 +32,11 @@
 #include "SCA_JoystickManager.h"
 #include "PIL_time.h" // Module to get real time in Game Engine
 
-SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, int joyindex, float strength, int duration)
+SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, int joyindex, float strength, float strength_right, int duration)
 	: SCA_IActuator(gameobj, KX_ACT_VIBRATION),
 	m_joyindex(joyindex),
 	m_strength(strength),
+    m_strength_right(strength_right),
 	m_duration(duration),
 	m_endtime(0.0f)
 {
@@ -65,7 +66,10 @@ bool SCA_VibrationActuator::Update()
 	bool bPositiveEvent = IsPositiveEvent();
 
 	if (bPositiveEvent) {
-		instance->RumblePlay(m_strength, m_duration);
+		float strength[2];
+		strength[0] = m_strength;
+		strength[1] = m_strength_right;
+		instance->RumblePlay(strength, m_duration);
 		m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
 	}
 

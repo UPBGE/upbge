@@ -872,9 +872,10 @@ void BL_ConvertActuators(const char* maggiename,
 
 			int joyindex = vib_act->joyindex;
 			float strength = vib_act->strength;
+			float strength_right = vib_act->strength_right;
 			int duration = vib_act->duration;
 
-			tmp_vib_act = new SCA_VibrationActuator(gameobj, joyindex, strength, duration);
+			tmp_vib_act = new SCA_VibrationActuator(gameobj, joyindex, strength, strength_right, duration);
 
 			baseact = tmp_vib_act;
 		}

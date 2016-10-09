@@ -419,6 +419,7 @@ void init_actuator(bActuator *act)
 	bArmatureActuator *arma;
 	bMouseActuator *ma;
 	bEditObjectActuator *eoa;
+	bVibrationActuator *via;
 	
 	if (act->data) MEM_freeN(act->data);
 	act->data= NULL;
@@ -479,6 +480,8 @@ void init_actuator(bActuator *act)
 		break;
 	case ACT_VIBRATION:
 		act->data = MEM_callocN(sizeof(bVibrationActuator), "vibration act");
+		via->duration = 500; //millisecons
+		via->strength = 0.4;
 		break;
 	case ACT_VISIBILITY:
 		act->data= MEM_callocN(sizeof(bVisibilityActuator), "visibility act");
