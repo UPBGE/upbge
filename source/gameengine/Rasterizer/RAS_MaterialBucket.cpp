@@ -282,29 +282,29 @@ RAS_DisplayArrayBucketList& RAS_MaterialBucket::GetDisplayArrayBucketList()
 
 void RAS_MaterialBucket::MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_MaterialBucket *bucket)
 {
-	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(); it != m_displayArrayBucketList.end();)
+	for (RAS_DisplayArrayBucketList::iterator dit = m_displayArrayBucketList.begin(); dit != m_displayArrayBucketList.end();)
 	{
 		// In case of deformers, multiple display array bucket can use the same mesh and material.
-		RAS_DisplayArrayBucket *displayArrayBucket = *it;
-		if ((*it)->GetMeshMaterial() != meshmat) {
-			++it;
+		RAS_DisplayArrayBucket *displayArrayBucket = *dit;
+		if (displayArrayBucket->GetMeshMaterial() != meshmat) {
+			++dit;
 			continue;
 		}
 
-		for (RAS_MeshSlotList::iterator it = m_meshSlots.begin(); it != m_meshSlots.end();) {
-			RAS_MeshSlot *ms = *it;
+		for (RAS_MeshSlotList::iterator mit = m_meshSlots.begin(); mit != m_meshSlots.end();) {
+			RAS_MeshSlot *ms = *mit;
 			if (ms->m_displayArrayBucket == displayArrayBucket) {
 				ms->m_bucket = bucket;
 				bucket->AddMesh(ms);
-				it = m_meshSlots.erase(it);
+				mit = m_meshSlots.erase(mit);
 			}
 			else {
-				++it;
+				++mit;
 			}
 		}
 
 		displayArrayBucket->ChangeMaterialBucket(bucket);
 		bucket->AddDisplayArrayBucket(displayArrayBucket);
-		it = m_displayArrayBucketList.erase(it);
+		dit = m_displayArrayBucketList.erase(dit);
 	}
 }
