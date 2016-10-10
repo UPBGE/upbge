@@ -356,7 +356,7 @@ PyObject *KX_MeshProxy::PyReplaceMaterial(PyObject *args, PyObject *kwds)
 	PyObject *pymat;
 	KX_BlenderMaterial *mat;
 
-	if (!PyArg_ParseTuple(args, "iO:replaceMaterial", &matindex, &pymat) ||
+	if (!PyArg_ParseTuple(args, "hO:replaceMaterial", &matindex, &pymat) ||
 		!ConvertPythonToMaterial(pymat, &mat, false, "mesh.replaceMaterial(...): invalid material")) {
 		return NULL;
 	}
