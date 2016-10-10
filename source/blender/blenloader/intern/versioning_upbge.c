@@ -122,6 +122,7 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 				tex->autoupdate = 1;
 				tex->clipsta = 0.1f;
 				tex->clipend = 100.0f;
+				tex->clippingoffset = 0.1f;
 			}
 		}
 	}

@@ -257,6 +257,7 @@ typedef struct Tex {
 	/* Planar Reflections */
 	int planarflag, autoupdate;
 	float clipsta, clipend;
+	float clippingoffset, pad2;
 	
 	struct ImageUser iuser;
 	

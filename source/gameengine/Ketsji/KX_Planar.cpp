@@ -47,6 +47,8 @@ KX_Planar::KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *poly
 	m_clipStart = tex->clipsta;
 	m_clipEnd = tex->clipend;
 
+	m_clippingOffset = tex->clippingoffset;
+
 	m_autoUpdate = (tex->autoupdate & TEX_AUTO_UPDATE) != 0;
 }
 
@@ -98,6 +100,11 @@ float KX_Planar::GetClipStart() const
 float KX_Planar::GetClipEnd() const
 {
 	return m_clipEnd;
+}
+
+float KX_Planar::GetClippingOffset() const
+{
+	return m_clippingOffset;
 }
 
 void KX_Planar::SetClipStart(float start)

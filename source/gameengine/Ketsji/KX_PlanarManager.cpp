@@ -135,17 +135,8 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	m_camera->GetSGNode()->SetLocalOrientation(ori);
 
 	m_camera->GetSGNode()->UpdateWorldData(0.0);
-	std::cout << "//////////////////BEGIN//////////////////////////" << std::endl;
-	std::cout << "camOri: " << m_camera->NodeGetWorldOrientation() << std::endl;
-	std::cout << "camPos: " << m_camera->NodeGetWorldPosition() << std::endl;
-	std::cout << "observerOri: " << observer->NodeGetWorldOrientation() << std::endl;
-	std::cout << "observerPos: " << observer->NodeGetWorldPosition() << std::endl;
-	std::cout << "mirrorPos: " << mirror->NodeGetWorldPosition() << std::endl;
-	std::cout << "mirrorZ: " << mirrorWorldZ << std::endl;
-	std::cout << "mirrorDterm: " << mirrorPlaneDTerm << std::endl;
-	std::cout << "planartype: " << planar->GetPlanarType() << std::endl;
 	
-	planar->EnableClipPlane(mirrorWorldZ, mirrorPlaneDTerm, planar->GetPlanarType());
+	planar->EnableClipPlane(mirrorWorldZ, mirrorPlaneDTerm, planar->GetPlanarType(), planar->GetClippingOffset());
 
 	// Begin rendering stuff
 	planar->BeginRender();
@@ -179,9 +170,6 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 
 	MT_Transform camtrans(m_camera->GetWorldToCamera());
 	MT_Matrix4x4 viewmat(camtrans);
-
-	std::cout << "ViewMatrix: " << viewmat << std::endl;
-	std::cout << "///////////////////////END//////////////////////" << std::endl;
 
 	rasty->SetViewMatrix(viewmat, m_camera->NodeGetWorldOrientation(), m_camera->NodeGetWorldPosition(), m_camera->NodeGetLocalScaling(), m_camera->GetCameraData()->m_perspective);
 	m_camera->SetModelviewMatrix(viewmat);

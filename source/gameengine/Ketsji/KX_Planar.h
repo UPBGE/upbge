@@ -62,6 +62,9 @@ private:
 	/// View clip end.
 	float m_clipEnd;
 
+	/// Geometry clipping offset
+	float m_clippingOffset;
+
 	/// True if the realtime cube map is updated every frame.
 	bool m_autoUpdate;
 	/** True if the realtime cube map need to be updated for the next frame.
@@ -83,6 +86,8 @@ public:
 
 	float GetClipStart() const;
 	float GetClipEnd() const;
+	float GetClippingOffset() const;
+
 	void SetClipStart(float start);
 	void SetClipEnd(float end);
 
