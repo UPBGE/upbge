@@ -83,9 +83,10 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	if (!planar->NeedUpdate() || !planar->GetEnabled() || !mirror) {
 		return;
 	}
-
-	// Hide mirror object while rendering
-	mirror->SetVisible(false, true);
+	if (planar->GetPlanarType() == TEX_PLANAR_REFRACTION) {
+		// Hide mirror object while rendering
+		mirror->SetVisible(false, true);
+	}
 
 	// mirror mode, compute camera position and orientation
 	// convert mirror position and normal in world space
