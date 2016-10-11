@@ -928,6 +928,32 @@ class TEXTURE_PT_ocean(TextureTypePanel, Panel):
         col.prop(ot, "ocean_object")
         col.prop(ot, "output")
 
+class TEXTURE_PT_image_planar(TextureTypePanel, Panel):
+    bl_label = "Planar Refle/ractions"
+    bl_options = {'DEFAULT_CLOSED'}
+    tex_type = 'IMAGE'
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    def draw(self, context):
+
+        layout = self.layout
+
+        idblock = context_tex_datablock(context)
+        tex = context.texture
+
+        split = layout.split()
+
+        row = split.row()
+        row.label(text="Planar Type:")
+        row.prop(tex, "planar_type")
+
+        row = layout.split()
+        row.label(text="Clipping:")
+        row.prop(tex, "planar_clip_start", text="Start")
+        row.prop(tex, "planar_clip_end", text="End")
+
+        row = layout.split()
+        row.prop(tex, "use_planar_auto_update")
 
 class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
     bl_label = "Mapping"
@@ -1031,7 +1057,6 @@ class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
             row = layout.row()
             row.column().prop(tex, "offset")
             row.column().prop(tex, "scale")
-
 
 class TEXTURE_PT_influence(TextureSlotPanel, Panel):
     bl_label = "Influence"
@@ -1244,7 +1269,6 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
             sub = row.row()
             sub.active = (tex.use_map_normal or tex.use_map_warp) and not (tex.texture.type == 'IMAGE' and tex.texture.use_normal_map) and ((tex.bump_method in {'BUMP_LOW_QUALITY', 'BUMP_MEDIUM_QUALITY', 'BUMP_BEST_QUALITY'}) or (tex.texture.type == 'IMAGE' and tex.texture.use_derivative_map))
             sub.prop(tex, "bump_objectspace", text="Space")
-
 
 class TEXTURE_PT_custom_props(TextureButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}

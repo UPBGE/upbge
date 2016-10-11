@@ -23,6 +23,7 @@ uniform mat4 unfviewmat;
 
 varying vec3 varposition;
 varying vec3 varnormal;
+varying vec4 varclipspace;
 
 #ifdef CLIP_WORKAROUND
 varying float gl_ClipDistance[6];
@@ -122,7 +123,8 @@ void main()
 
 	varposition = co.xyz;
 	varnormal = normalize(gl_NormalMatrix * normal);
-	gl_Position = gl_ProjectionMatrix * co;
+	varclipspace = gl_ProjectionMatrix * co;
+	gl_Position = varclipspace;
 
 #ifdef CLIP_WORKAROUND
 	int i;

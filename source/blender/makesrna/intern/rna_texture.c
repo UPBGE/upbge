@@ -1236,6 +1236,13 @@ static void rna_def_texture_image(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_image_planar_options[] = {
+		{TEX_PLANAR_NONE, "NONE", 0, "None", "No Planar Reflection"},
+		{TEX_PLANAR_REFLECTION, "REFLECTION", 0, "Reflection", "Planar Reflection"},
+		{TEX_PLANAR_REFRACTION, "REFRACTION", 0, "Refraction", "Planar Refraction"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "ImageTexture", "Texture");
 	RNA_def_struct_ui_text(srna, "Image Texture", "");
 	RNA_def_struct_sdna(srna, "Tex");
@@ -1353,6 +1360,31 @@ static void rna_def_texture_image(BlenderRNA *brna)
 	RNA_def_property_range(prop, -10.0, 10.0);
 	RNA_def_property_ui_range(prop, -10.0, 10.0, 1, 2);
 	RNA_def_property_ui_text(prop, "Crop Maximum Y", "Maximum Y value to crop the image");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
+	prop = RNA_def_property(srna, "planar_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "planarflag");
+	RNA_def_property_enum_items(prop, prop_image_planar_options);
+	RNA_def_property_ui_text(prop, "", "Planar effect type");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
+	prop = RNA_def_property(srna, "planar_clip_start", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "clipsta");
+	RNA_def_property_range(prop, 0.0, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0, FLT_MAX, 1, 2);
+	RNA_def_property_ui_text(prop, "Clip Start", "Clip Start for planar Reflection");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
+	prop = RNA_def_property(srna, "planar_clip_end", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "clipend");
+	RNA_def_property_range(prop, 0.0, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0, FLT_MAX, 1, 2);
+	RNA_def_property_ui_text(prop, "Clip End", "Clip End for planar Reflection");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
+	prop = RNA_def_property(srna, "use_planar_auto_update", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "autoupdate", TEX_AUTO_UPDATE);
+	RNA_def_property_ui_text(prop, "Auto Update", "Auto Update planar reflections");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
 	prop = RNA_def_property(srna, "image", PROP_POINTER, PROP_NONE);
