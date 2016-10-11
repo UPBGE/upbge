@@ -135,8 +135,6 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	m_camera->GetSGNode()->SetLocalOrientation(ori);
 
 	m_camera->GetSGNode()->UpdateWorldData(0.0);
-	
-	planar->EnableClipPlane(mirrorWorldZ, mirrorPlaneDTerm, planar->GetPlanarType(), planar->GetClippingOffset());
 
 	// Begin rendering stuff
 	planar->BeginRender();
@@ -178,6 +176,8 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	m_scene->CalculateVisibleMeshes(rasty, m_camera);
 
 	KX_GetActiveEngine()->UpdateAnimations(m_scene);
+
+	planar->EnableClipPlane(mirrorWorldZ, mirrorPlaneDTerm, planar->GetPlanarType(), planar->GetClippingOffset());
 
 	// Now the objects are culled and we can render the scene.
 	m_scene->GetWorldInfo()->RenderBackground(rasty);

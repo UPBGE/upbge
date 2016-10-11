@@ -307,13 +307,13 @@ void RAS_Planar::EnableClipPlane(MT_Vector3 &mirrorWorldZ, MT_Scalar &mirrorPlan
 	// initializing clipping planes for reflection and refraction
 
 	if (planartype == TEX_PLANAR_REFLECTION) {
-		double plane[4] = { mirrorWorldZ[0], mirrorWorldZ[1], mirrorWorldZ[2], -mirrorPlaneDTerm + clippingOffset };
+		double plane[4] = { -mirrorWorldZ[0], -mirrorWorldZ[1], -mirrorWorldZ[2], mirrorPlaneDTerm + clippingOffset };
 		glClipPlane(GL_CLIP_PLANE0, plane);
 		glEnable(GL_CLIP_PLANE0);
 		glFrontFace(GL_CW);
 	}
 	else {
-		double plane[4] = { mirrorWorldZ[0], mirrorWorldZ[1], mirrorWorldZ[2], mirrorPlaneDTerm + clippingOffset };
+		double plane[4] = { mirrorWorldZ[0], mirrorWorldZ[1], mirrorWorldZ[2], -mirrorPlaneDTerm + clippingOffset };
 		glClipPlane(GL_CLIP_PLANE0, plane);
 		glEnable(GL_CLIP_PLANE0);
 	}
