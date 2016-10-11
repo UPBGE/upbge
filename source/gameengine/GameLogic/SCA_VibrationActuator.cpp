@@ -32,9 +32,10 @@
 #include "SCA_JoystickManager.h"
 #include "PIL_time.h" // Module to get real time in Game Engine
 
-SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, int joyindex, float strength, float strength_right, int duration)
+SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, short mode, int joyindex, float strength, float strength_right, int duration)
 	: SCA_IActuator(gameobj, KX_ACT_VIBRATION),
 	m_joyindex(joyindex),
+	m_mode(mode),
 	m_strength(strength),
     m_strength_right(strength_right),
 	m_duration(duration),
@@ -66,11 +67,32 @@ bool SCA_VibrationActuator::Update()
 	bool bPositiveEvent = IsPositiveEvent();
 
 	if (bPositiveEvent) {
-		float strength[2];
-		strength[0] = m_strength;
-		strength[1] = m_strength_right;
-		instance->RumblePlay(strength, m_duration);
-		m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
+		switch (m_mode) {
+			case KX_ACT_VIBRATION_PLAY:
+			{
+				float strength[2];
+				strength[0] = m_strength;
+				strength[1] = m_strength_right;
+				instance->RumblePlay(strength, m_duration);
+				m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
+				break;
+			}
+			case KX_ACT_VIBRATION_UPDATE:
+			{
+				float strength[2];
+				strength[0] = m_strength;
+				strength[1] = m_strength_right;
+				instance->RumbleUpdate(strength, m_duration);
+				m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
+				break;
+			}
+			case KX_ACT_VIBRATION_STOP:
+			{
+				instance->RumbleStop();
+				m_endtime = 0.0f;
+			}
+		}
+
 	}
 
 	RemoveAllEvents();
@@ -110,13 +132,18 @@ PyTypeObject SCA_VibrationActuator::Type = {
 };
 
 PyMethodDef SCA_VibrationActuator::Methods[] = {
+	KX_PYMETHODTABLE_NOARGS(KX_VibrationActuator, playVibration),
+	KX_PYMETHODTABLE_NOARGS(KX_VibrationActuator, updateVibration),
+	KX_PYMETHODTABLE_NOARGS(KX_VibrationActuator, stopVibration),
 	{ NULL, NULL } //Sentinel
 };
 
 PyAttributeDef SCA_VibrationActuator::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RW("duration", 0, INT_MAX, true, SCA_VibrationActuator, m_duration),
 	KX_PYATTRIBUTE_INT_RW("joyindex", 0, 7, true, SCA_VibrationActuator, m_joyindex),
-	KX_PYATTRIBUTE_FLOAT_RW("strength", 0.0, 1.0, SCA_VibrationActuator, m_strength),
+	KX_PYATTRIBUTE_FLOAT_RW("strengthLeft", 0.0, 1.0, SCA_VibrationActuator, m_strength),
+	KX_PYATTRIBUTE_FLOAT_RW("strengthRight", 0.0, 1.0, SCA_VibrationActuator, m_strength_right),
+	KX_PYATTRIBUTE_RO_FUNCTION("statusVibration", KX_VibrationActuator, pyattr_get_statusVibration),
 	{ NULL }	//Sentinel
 };
 
