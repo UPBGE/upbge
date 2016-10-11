@@ -133,9 +133,13 @@ bool DEV_Joystick::RumblePlay(float strength[2], unsigned int duration)
 	return false;
 }
 
-void DEV_Joystick::RumbleUpdate(unsigned short mode, float strength[2], unsigned int duration)
+bool DEV_Joystick::RumbleUpdate(unsigned short mode, float strength[2], unsigned int duration)
 {
 #ifdef WITH_SDL
+	if (m_private->m_hapticeffect_status == JOYHAPTIC_STOPPED) {
+		return false;
+	}
+
 	if (m_private->m_hapticeffect_status == JOYHAPTIC_PLAYING_EFFECT) {
 		m_private->m_hapticeffect_status == JOYHAPTIC_UPDATING_EFFECT;
 	} 
@@ -145,6 +149,9 @@ void DEV_Joystick::RumbleUpdate(unsigned short mode, float strength[2], unsigned
 
 	if (DEV_Joystick::RumblePlay(mode, strength, duration)) {
 		return true;
+	}
+	else {
+		printf("Updating vibration was not possible\n");
 	}
 #endif
 	return false;
