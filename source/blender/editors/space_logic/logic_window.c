@@ -2057,6 +2057,7 @@ static void draw_actuator_vibration(uiLayout *layout, PointerRNA *ptr)
 			uiItemR(row, ptr, "joy_index", 0, NULL, ICON_NONE);
 			break;
 		}
+	}
 }
 
 static void draw_actuator_visibility(uiLayout *layout, PointerRNA *ptr)

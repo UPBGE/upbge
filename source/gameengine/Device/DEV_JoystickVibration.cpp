@@ -65,9 +65,9 @@ bool DEV_Joystick::RumblePlay(float strength[2], unsigned int duration)
 	// Some Game Controllers only supports large/small magnitude motors using a custom effect
 	else if ((effects & SDL_HAPTIC_CUSTOM) && m_private->m_hapticeffect_status != JOYHAPTIC_UPDATING_RUMBLE) {
 
-		unsigned int data[2]; // data = channels * samples
-		data[0] = (unsigned int) (strength[0] * 0x7FFF);
-		data[1] = (unsigned int) (strength[1] * 0x7FFF);
+		Uint16 data[2]; // data = channels * samples
+		data[0] = (Uint16) (strength[0] * 0x7FFF);
+		data[1] = (Uint16) (strength[1] * 0x7FFF);
 
 		if (m_private->m_hapticeffect_status != JOYHAPTIC_UPDATING_EFFECT) {
 			m_private->m_hapticeffect.type = SDL_HAPTIC_CUSTOM;
@@ -86,7 +86,7 @@ bool DEV_Joystick::RumblePlay(float strength[2], unsigned int duration)
 
 		if (m_private->m_hapticeffect_status == JOYHAPTIC_UPDATING_EFFECT) {
 			if (SDL_HapticUpdateEffect(m_private->m_haptic, m_private->m_hapticeffect_id, &m_private->m_hapticeffect) == 0) {
-				m_private->m_hapticeffect_status == JOYHAPTIC_PLAYING_EFFECT;
+				m_private->m_hapticeffect_status = JOYHAPTIC_PLAYING_EFFECT;
 				new_effect = false;
 			}
 			else {
@@ -120,7 +120,7 @@ bool DEV_Joystick::RumblePlay(float strength[2], unsigned int duration)
 		}
 
 		// Play effect at strength for m_duration milliseconds
-		if (SDL_HapticRumblePlay(m_private->m_haptic, strength[0], duration[0]) != 0) {
+		if (SDL_HapticRumblePlay(m_private->m_haptic, strength[0], duration) != 0) {
 			m_private->m_hapticeffect_status = JOYHAPTIC_STOPPED;
 			return false;
 		}
@@ -133,7 +133,7 @@ bool DEV_Joystick::RumblePlay(float strength[2], unsigned int duration)
 	return false;
 }
 
-bool DEV_Joystick::RumbleUpdate(unsigned short mode, float strength[2], unsigned int duration)
+bool DEV_Joystick::RumbleUpdate(float strength[2], unsigned int duration)
 {
 #ifdef WITH_SDL
 	if (m_private->m_hapticeffect_status == JOYHAPTIC_STOPPED) {
@@ -141,13 +141,13 @@ bool DEV_Joystick::RumbleUpdate(unsigned short mode, float strength[2], unsigned
 	}
 
 	if (m_private->m_hapticeffect_status == JOYHAPTIC_PLAYING_EFFECT) {
-		m_private->m_hapticeffect_status == JOYHAPTIC_UPDATING_EFFECT;
+		m_private->m_hapticeffect_status = JOYHAPTIC_UPDATING_EFFECT;
 	} 
 	else if (m_private->m_hapticeffect_status == JOYHAPTIC_PLAYING_RUMBLE) {
-		m_private->m_hapticeffect_status == JOYHAPTIC_UPDATING_RUMBLE;
+		m_private->m_hapticeffect_status = JOYHAPTIC_UPDATING_RUMBLE;
 	}
 
-	if (DEV_Joystick::RumblePlay(mode, strength, duration)) {
+	if (DEV_Joystick::RumblePlay(strength, duration)) {
 		return true;
 	}
 	else {
