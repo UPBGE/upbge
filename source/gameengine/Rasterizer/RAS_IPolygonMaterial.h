@@ -126,6 +126,7 @@ public:
 	RAS_Texture *GetTexture(unsigned int index);
 	bool UseDisplayLists() const;
 	RAS_IRasterizer::StorageType GetStorageType() const;
+	void SetRasMode(int mode);
 
 	virtual const STR_String& GetTextureName() const = 0;
 	virtual Material *GetBlenderMaterial() const = 0;

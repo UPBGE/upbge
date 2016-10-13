@@ -1824,6 +1824,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 					if (tex && tex->Ok() && ((tex->GetTex()->planarflag == TEX_PLANAR_REFLECTION) ||
 						(tex->GetTex()->planarflag == TEX_PLANAR_REFRACTION))) {
 						KX_GameObject *viewpoint = gameobj;
+						// Prevent two sided rendering on mirror's material to avoid artifacts
+						polymat->SetRasMode(0);
 						int width = GPU_texture_width(tex->GetGPUTexture());
 						int height = GPU_texture_height(tex->GetGPUTexture());
 						kxscene->GetPlanarManager()->AddPlanar(tex, gameobj, polymat, tex->GetTex()->planarflag, width, height);
