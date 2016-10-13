@@ -173,7 +173,7 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 
 	KX_GetActiveEngine()->UpdateAnimations(m_scene);
 
-	planar->EnableClipPlane(mirrorWorldZ, mirrorPlaneDTerm, planar->GetPlanarType(), planar->GetClippingOffset());
+	planar->EnableClipPlane(mirrorWorldZ, mirrorPlaneDTerm, planar->GetPlanarType());
 
 	for (std::vector<KX_Planar *>::iterator it = m_planars.begin(), end = m_planars.end(); it != end; ++it) {
 		KX_Planar *p = *it;

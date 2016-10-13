@@ -302,18 +302,18 @@ MT_Vector3 RAS_Planar::GetMirrorZ()
 	return m_mirrorZ;
 }
 
-void RAS_Planar::EnableClipPlane(MT_Vector3 &mirrorWorldZ, MT_Scalar &mirrorPlaneDTerm, int planartype, float clippingOffset)
+void RAS_Planar::EnableClipPlane(MT_Vector3 &mirrorWorldZ, MT_Scalar &mirrorPlaneDTerm, int planartype)
 {
 	// initializing clipping planes for reflection and refraction
-	
+	static float offset = 0.1f;
 	if (planartype == TEX_PLANAR_REFLECTION) {
-		double plane[4] = { -mirrorWorldZ[0], -mirrorWorldZ[1], -mirrorWorldZ[2], mirrorPlaneDTerm + clippingOffset };
+		double plane[4] = { -mirrorWorldZ[0], -mirrorWorldZ[1], -mirrorWorldZ[2], mirrorPlaneDTerm + offset };
 		glClipPlane(GL_CLIP_PLANE0, plane);
 		glEnable(GL_CLIP_PLANE0);
 		glFrontFace(GL_CW);
 	}
 	else {
-		double plane[4] = { mirrorWorldZ[0], mirrorWorldZ[1], mirrorWorldZ[2], -mirrorPlaneDTerm + clippingOffset };
+		double plane[4] = { mirrorWorldZ[0], mirrorWorldZ[1], mirrorWorldZ[2], -mirrorPlaneDTerm + offset };
 		glClipPlane(GL_CLIP_PLANE0, plane);
 		glEnable(GL_CLIP_PLANE0);
 	}

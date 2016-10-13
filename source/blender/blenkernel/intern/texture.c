@@ -648,7 +648,7 @@ void BKE_texture_default(Tex *tex)
 	tex->clipend = 100.0f;
 	tex->autoupdate = 1;
 	tex->planarflag = TEX_PLANAR_NONE;
-	tex->clippingoffset = 0.1f;
+	tex->planarcull = 0;
 
 	if (tex->env) {
 		tex->env->stype = ENV_ANIM;

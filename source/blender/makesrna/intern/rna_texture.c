@@ -1382,13 +1382,6 @@ static void rna_def_texture_image(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Clip End", "Objects further than this are not visible to map");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
-	prop = RNA_def_property(srna, "planar_clip_offset", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "clippingoffset");
-	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
-	RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, 2);
-	RNA_def_property_ui_text(prop, "Geometry clipping offset", "If reflections doesn't work correctly use this :P");
-	RNA_def_property_update(prop, 0, "rna_Texture_update");
-
 	prop = RNA_def_property(srna, "use_planar_auto_update", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "autoupdate", TEX_AUTO_UPDATE);
 	RNA_def_property_ui_text(prop, "Auto Update", "Auto Update planar reflections");

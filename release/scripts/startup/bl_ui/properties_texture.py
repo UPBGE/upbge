@@ -953,10 +953,6 @@ class TEXTURE_PT_image_planar(TextureTypePanel, Panel):
         row.prop(tex, "planar_clip_end", text="End")
 
         row = layout.split()
-        row.label(text="Geometry clipping offset:")
-        row.prop(tex, "planar_clip_offset", text="Offset")
-
-        row = layout.split()
         row.prop(tex, "use_planar_auto_update")
         row.prop(tex, "use_planar_reflect_cull")
 

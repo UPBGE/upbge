@@ -69,9 +69,6 @@ private:
 	/// mirror normal vector
 	MT_Vector3 m_mirrorZ;
 
-	/// Geometry clipping offset
-	float m_clippingOffset;
-
 protected:
 	/// All the material texture users.
 	std::vector<RAS_Texture *> m_textureUsers;
@@ -90,7 +87,7 @@ public:
 
 	void BindFace(RAS_IRasterizer *rasty);
 
-	void EnableClipPlane(MT_Vector3 &mirrorWorldZ, MT_Scalar &mirrorPlaneDTerm, int planartype, float clippingOffset);
+	void EnableClipPlane(MT_Vector3 &mirrorWorldZ, MT_Scalar &mirrorPlaneDTerm, int planartype);
 	void DisableClipPlane(int planartype);
 
 	MT_Vector3 GetMirrorPos();
