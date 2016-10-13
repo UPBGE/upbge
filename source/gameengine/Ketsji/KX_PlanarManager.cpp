@@ -83,10 +83,6 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	if (!planar->NeedUpdate() || !planar->GetEnabled() || !mirror) {
 		return;
 	}
-	if (planar->GetPlanarType() == TEX_PLANAR_REFRACTION) {
-		// Hide mirror object while rendering
-		mirror->SetVisible(false, true);
-	}
 
 	// mirror mode, compute camera position and orientation
 	// convert mirror position and normal in world space
@@ -143,7 +139,7 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	//rasty->BeginFrame(KX_GetActiveEngine()->GetClockTime());
 
 	rasty->SetViewport(0, 0, planar->GetWidth(), planar->GetHeight());
-	rasty->SetScissor(0, 0, planar->GetWidth(), planar->GetHeight());
+	//rasty->SetScissor(0, 0, planar->GetWidth(), planar->GetHeight());
 
 	//m_scene->GetWorldInfo()->UpdateWorldSettings(rasty);
 	//rasty->SetAuxilaryClientInfo(m_scene);
@@ -179,6 +175,13 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 
 	planar->EnableClipPlane(mirrorWorldZ, mirrorPlaneDTerm, planar->GetPlanarType(), planar->GetClippingOffset());
 
+	for (std::vector<KX_Planar *>::iterator it = m_planars.begin(), end = m_planars.end(); it != end; ++it) {
+		KX_Planar *p = *it;
+		if (p->GetPlanarType() == TEX_PLANAR_REFRACTION) {
+			p->GetMirrorObject()->SetVisible(false, false);
+		}
+	}
+
 	// Now the objects are culled and we can render the scene.
 	m_scene->GetWorldInfo()->RenderBackground(rasty);
 
@@ -186,9 +189,15 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 
 	planar->EndRender();
 
+	for (std::vector<KX_Planar *>::iterator it = m_planars.begin(), end = m_planars.end(); it != end; ++it) {
+		KX_Planar *p = *it;
+		if (p->GetPlanarType() == TEX_PLANAR_REFRACTION) {
+			p->GetMirrorObject()->SetVisible(true, false);
+		}
+	}
+
 	planar->DisableClipPlane(planar->GetPlanarType());
 
-	mirror->SetVisible(true, true);
 }
 
 void KX_PlanarManager::Render(RAS_IRasterizer *rasty)

@@ -305,7 +305,7 @@ MT_Vector3 RAS_Planar::GetMirrorZ()
 void RAS_Planar::EnableClipPlane(MT_Vector3 &mirrorWorldZ, MT_Scalar &mirrorPlaneDTerm, int planartype, float clippingOffset)
 {
 	// initializing clipping planes for reflection and refraction
-
+	
 	if (planartype == TEX_PLANAR_REFLECTION) {
 		double plane[4] = { -mirrorWorldZ[0], -mirrorWorldZ[1], -mirrorWorldZ[2], mirrorPlaneDTerm + clippingOffset };
 		glClipPlane(GL_CLIP_PLANE0, plane);
@@ -325,6 +325,28 @@ void RAS_Planar::DisableClipPlane(int planartype)
 	if (planartype == TEX_PLANAR_REFLECTION) {
 		glFrontFace(GL_CCW);
 	}
+}
+
+void RAS_Planar::CullFrontFace()
+{
+	if (!m_gpuTex) {
+		return;
+	}
+	GPU_texture_bind(m_gpuTex, 0);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_FRONT);
+	GPU_texture_unbind(m_gpuTex);
+}
+
+void RAS_Planar::CullBackFace()
+{
+	if (!m_gpuTex) {
+		return;
+	}
+	GPU_texture_bind(m_gpuTex, 0);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	GPU_texture_unbind(m_gpuTex);
 }
 
 
