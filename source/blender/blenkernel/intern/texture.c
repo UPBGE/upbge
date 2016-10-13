@@ -646,9 +646,10 @@ void BKE_texture_default(Tex *tex)
 	/* planar reflections */
 	tex->clipsta = 0.1f;
 	tex->clipend = 100.0f;
-	tex->autoupdate = 1;
+	tex->autoupdate |= TEX_AUTO_UPDATE;
 	tex->planarflag = TEX_PLANAR_NONE;
 	tex->planarcull = 0;
+	tex->planarfiltering = TEX_MIPMAP_NONE;
 
 	if (tex->env) {
 		tex->env->stype = ENV_ANIM;

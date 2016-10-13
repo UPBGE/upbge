@@ -948,6 +948,10 @@ class TEXTURE_PT_image_planar(TextureTypePanel, Panel):
         row.prop(tex, "planar_type")
 
         row = layout.split()
+        row.label(text="Planar Filtering:")
+        row.prop(tex, "planar_filtering")
+
+        row = layout.split()
         row.label(text="Clipping:")
         row.prop(tex, "planar_clip_start", text="Start")
         row.prop(tex, "planar_clip_end", text="End")

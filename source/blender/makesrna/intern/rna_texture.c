@@ -1243,6 +1243,13 @@ static void rna_def_texture_image(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_planar_filtering_items[] = {
+		{TEX_MIPMAP_NONE, "NONE", 0, "None", "None texture filtering"},
+		{TEX_MIPMAP_LINEAR, "LINEAR", 0, "Linear Filtering", "Linear texture filtering"},
+		{TEX_MIPMAP_MIPMAP, "MIPMAP", 0, "Mipmap Filtering", "Mipmap texture filtering"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "ImageTexture", "Texture");
 	RNA_def_struct_ui_text(srna, "Image Texture", "");
 	RNA_def_struct_sdna(srna, "Tex");
@@ -1366,6 +1373,12 @@ static void rna_def_texture_image(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "planarflag");
 	RNA_def_property_enum_items(prop, prop_image_planar_options);
 	RNA_def_property_ui_text(prop, "", "Planar effect type");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
+	prop = RNA_def_property(srna, "planar_filtering", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "planarfiltering");
+	RNA_def_property_enum_items(prop, prop_planar_filtering_items);
+	RNA_def_property_ui_text(prop, "", "Planar texture filtering options");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
 	prop = RNA_def_property(srna, "planar_clip_start", PROP_FLOAT, PROP_NONE);

@@ -69,6 +69,9 @@ private:
 	/// mirror normal vector
 	MT_Vector3 m_mirrorZ;
 
+	/// Use mipmapping?
+	bool m_useMipmap;
+
 protected:
 	/// All the material texture users.
 	std::vector<RAS_Texture *> m_textureUsers;

@@ -257,7 +257,7 @@ typedef struct Tex {
 	/* Planar Reflections */
 	int planarflag, autoupdate;
 	float clipsta, clipend;
-	int planarcull, pad2;
+	int planarcull, planarfiltering;
 	
 	struct ImageUser iuser;
 	
@@ -488,6 +488,11 @@ typedef struct ColorMapping {
 
 /* Tex->planarcull */
 #define TEX_PLANAR_REFLECT_CULL 1
+
+/* Tex->filtering */
+#define TEX_MIPMAP_NONE		0
+#define TEX_MIPMAP_LINEAR	1
+#define TEX_MIPMAP_MIPMAP	2
 
 /* **************** ENVMAP ****************** */
 

@@ -235,7 +235,7 @@ void RAS_Planar::DetachTexture()
 	}
 	
 
-	//GPU_texture_free(m_gpuTex);
+	//GPU_texture_free(m_gpuTex); //////// WARNING: Don't uncomment this for planars.
 }
 
 void RAS_Planar::GetValidTexture()
@@ -260,9 +260,15 @@ void RAS_Planar::GetValidTexture()
 
 	AttachTexture();
 
-	GPU_texture_bind(m_gpuTex, 0);
-	GPU_texture_filter_mode(m_gpuTex, false, false);
-	GPU_texture_unbind(m_gpuTex);
+	Tex *tex = texture->GetTex();
+	m_useMipmap = (tex->planarfiltering == TEX_MIPMAP_MIPMAP) && GPU_get_mipmap();
+
+	if (!m_useMipmap) {
+		// Disable mipmaping.
+		GPU_texture_bind(m_gpuTex, 0);
+		GPU_texture_filter_mode(m_gpuTex, false, (tex->planarfiltering == TEX_MIPMAP_LINEAR));
+		GPU_texture_unbind(m_gpuTex);
+	}
 }
 
 const std::vector<RAS_Texture *>& RAS_Planar::GetTextureUsers() const
@@ -283,6 +289,11 @@ void RAS_Planar::BeginRender()
 
 void RAS_Planar::EndRender()
 {
+	if (m_useMipmap) {
+		GPU_texture_bind(m_gpuTex, 0);
+		GPU_texture_generate_mipmap(m_gpuTex);
+		GPU_texture_unbind(m_gpuTex);
+	}
 }
 
 void RAS_Planar::BindFace(RAS_IRasterizer *rasty)
