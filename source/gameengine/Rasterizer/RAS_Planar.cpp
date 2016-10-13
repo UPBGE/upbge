@@ -20,7 +20,7 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file RAS_CubeMap.cpp
+/** \file RAS_Planar.cpp
 *  \ingroup bgerast
 */
 
@@ -193,7 +193,7 @@ RAS_Planar::~RAS_Planar()
 	*/
 	for (std::vector<RAS_Texture *>::iterator it = m_textureUsers.begin(), end = m_textureUsers.end(); it != end; ++it) {
 		RAS_Texture *texture = *it;
-		// Invalidate the cube map in each material texture users.
+		// Invalidate the planar in each material texture users.
 		texture->SetPlanar(NULL);
 		BKE_image_free_buffers(texture->GetImage());
 	}

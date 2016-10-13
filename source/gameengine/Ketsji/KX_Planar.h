@@ -54,7 +54,7 @@ private:
 	/// True if the projection matrix is invalid and need to be recomputed.
 	bool m_invalidProjection;
 
-	/// The cube map is used by the user.
+	/// The planar is used by the user.
 	bool m_enabled;
 
 	/// View clip start.
@@ -62,9 +62,9 @@ private:
 	/// View clip end.
 	float m_clipEnd;
 
-	/// True if the realtime cube map is updated every frame.
+	/// True if the realtime planar is updated every frame.
 	bool m_autoUpdate;
-	/** True if the realtime cube map need to be updated for the next frame.
+	/** True if the realtime planar need to be updated for the next frame.
 	* Generally used when m_autoUpdate is to false.
 	*/
 	bool m_forceUpdate;

@@ -2363,3 +2363,4 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 
 	pprint(" GL_ARB_draw_instanced supported?  "<< (GLEW_ARB_draw_instanced?"yes.":"no."));
 }
+

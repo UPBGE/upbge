@@ -1244,7 +1244,7 @@ static void rna_def_texture_image(BlenderRNA *brna)
 	};
 
 	static EnumPropertyItem prop_planar_filtering_items[] = {
-		{TEX_MIPMAP_NONE, "NONE", 0, "None", "None texture filtering"},
+		{TEX_MIPMAP_NONE, "NONE", 0, "None", "No texture filtering"},
 		{TEX_MIPMAP_LINEAR, "LINEAR", 0, "Linear Filtering", "Linear texture filtering"},
 		{TEX_MIPMAP_MIPMAP, "MIPMAP", 0, "Mipmap Filtering", "Mipmap texture filtering"},
 		{0, NULL, 0, NULL, NULL}
@@ -1385,14 +1385,14 @@ static void rna_def_texture_image(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "clipsta");
 	RNA_def_property_range(prop, 0.001, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.01, 50, 100, 2);
-	RNA_def_property_ui_text(prop, "Clip Start", "Objects nearer than this are not visible to map");
+	RNA_def_property_ui_text(prop, "Clip Start", "Clip start of the planars reflections rendering camera");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
 	prop = RNA_def_property(srna, "planar_clip_end", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "clipend");
 	RNA_def_property_range(prop, 0.01, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.10, 20000, 100, 2);
-	RNA_def_property_ui_text(prop, "Clip End", "Objects further than this are not visible to map");
+	RNA_def_property_ui_text(prop, "Clip End", "Clip end of the planars reflections rendering camera");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
 	prop = RNA_def_property(srna, "use_planar_auto_update", PROP_BOOLEAN, PROP_NONE);

@@ -478,6 +478,7 @@ typedef struct ColorMapping {
 #define TEX_PR_OTHER	1
 #define TEX_PR_BOTH		2
 
+/* FOR PLANAR REFLECTIONS/REFRACTIONS */
 /* Tex->autoupdate */
 #define TEX_AUTO_UPDATE (1 << 0)
 
@@ -489,10 +490,11 @@ typedef struct ColorMapping {
 /* Tex->planarcull */
 #define TEX_PLANAR_REFLECT_CULL 1
 
-/* Tex->filtering */
-#define TEX_MIPMAP_NONE		0
-#define TEX_MIPMAP_LINEAR	1
-#define TEX_MIPMAP_MIPMAP	2
+/* Tex->planarfiltering */
+#define TEX_MIPMAP_NONE     0
+#define TEX_MIPMAP_LINEAR   1
+#define TEX_MIPMAP_MIPMAP   2
+/* END FOR PLANAR REFLECTIONS/REFRACTIONS */
 
 /* **************** ENVMAP ****************** */
 
