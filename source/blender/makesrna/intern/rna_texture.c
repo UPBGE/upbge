@@ -1394,6 +1394,11 @@ static void rna_def_texture_image(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Auto Update", "Auto Update planar reflections");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
+	prop = RNA_def_property(srna, "use_planar_reflect_cull", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "planarcull", TEX_PLANAR_REFLECT_CULL);
+	RNA_def_property_ui_text(prop, "Cull Reflections", "Cull reflections of other mirrors on this mirror");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
 	prop = RNA_def_property(srna, "image", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "ima");
 	RNA_def_property_struct_type(prop, "Image");

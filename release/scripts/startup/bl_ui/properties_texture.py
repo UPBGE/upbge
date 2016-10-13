@@ -958,6 +958,7 @@ class TEXTURE_PT_image_planar(TextureTypePanel, Panel):
 
         row = layout.split()
         row.prop(tex, "use_planar_auto_update")
+        row.prop(tex, "use_planar_reflect_cull")
 
 class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
     bl_label = "Mapping"

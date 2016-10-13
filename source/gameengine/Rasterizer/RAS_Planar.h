@@ -95,9 +95,6 @@ public:
 
 	MT_Vector3 GetMirrorPos();
 	MT_Vector3 GetMirrorZ();
-
-	void CullFrontFace();
-	void CullBackFace();
 };
 
 #endif  // __RAS_PLANAR_H__

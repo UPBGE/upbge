@@ -50,6 +50,8 @@ KX_Planar::KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *poly
 	m_clippingOffset = tex->clippingoffset;
 
 	m_autoUpdate = (tex->autoupdate & TEX_AUTO_UPDATE) != 0;
+
+	m_cullReflections = (tex->planarcull & TEX_PLANAR_REFLECT_CULL) != 0;
 }
 
 KX_Planar::~KX_Planar()
@@ -138,6 +140,11 @@ short KX_Planar::GetHeight()
 int KX_Planar::GetPlanarType()
 {
 	return m_type;
+}
+
+bool KX_Planar::GetCullReflections()
+{
+	return m_cullReflections;
 }
 
 #ifdef WITH_PYTHON

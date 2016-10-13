@@ -257,7 +257,8 @@ typedef struct Tex {
 	/* Planar Reflections */
 	int planarflag, autoupdate;
 	float clipsta, clipend;
-	float clippingoffset, pad2;
+	float clippingoffset;
+	int planarcull;
 	
 	struct ImageUser iuser;
 	
@@ -485,6 +486,9 @@ typedef struct ColorMapping {
 #define TEX_PLANAR_NONE         0
 #define TEX_PLANAR_REFLECTION   1
 #define TEX_PLANAR_REFRACTION   2
+
+/* Tex->planarcull */
+#define TEX_PLANAR_REFLECT_CULL 1
 
 /* **************** ENVMAP ****************** */
 

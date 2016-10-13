@@ -76,6 +76,9 @@ private:
 	int m_width;
 	int m_height;
 
+	/// Cull reflections from other mirrors
+	bool m_cullReflections;
+
 public:
 	KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat, int type, int width, int height);
 	virtual ~KX_Planar();
@@ -105,6 +108,8 @@ public:
 	short GetHeight();
 
 	int GetPlanarType();
+
+	bool GetCullReflections();
 
 #ifdef WITH_PYTHON
 	KX_PYMETHOD_DOC_NOARGS(KX_Planar, update);

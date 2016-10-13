@@ -327,26 +327,5 @@ void RAS_Planar::DisableClipPlane(int planartype)
 	}
 }
 
-void RAS_Planar::CullFrontFace()
-{
-	if (!m_gpuTex) {
-		return;
-	}
-	GPU_texture_bind(m_gpuTex, 0);
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
-	GPU_texture_unbind(m_gpuTex);
-}
-
-void RAS_Planar::CullBackFace()
-{
-	if (!m_gpuTex) {
-		return;
-	}
-	GPU_texture_bind(m_gpuTex, 0);
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-	GPU_texture_unbind(m_gpuTex);
-}
 
 

@@ -180,6 +180,11 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 		if (p->GetPlanarType() == TEX_PLANAR_REFRACTION) {
 			p->GetMirrorObject()->SetVisible(false, false);
 		}
+		else {
+			if (p != planar && planar->GetCullReflections()) {
+				p->GetMirrorObject()->SetVisible(false, false);
+			}
+		}
 	}
 
 	// Now the objects are culled and we can render the scene.
@@ -193,6 +198,11 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 		KX_Planar *p = *it;
 		if (p->GetPlanarType() == TEX_PLANAR_REFRACTION) {
 			p->GetMirrorObject()->SetVisible(true, false);
+		}
+		else {
+			if (p != planar && planar->GetCullReflections()) {
+				p->GetMirrorObject()->SetVisible(true, false);
+			}
 		}
 	}
 
