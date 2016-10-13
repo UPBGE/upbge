@@ -235,7 +235,7 @@ void RAS_Planar::DetachTexture()
 	}
 	
 
-	GPU_texture_free(m_gpuTex);
+	//GPU_texture_free(m_gpuTex);
 }
 
 void RAS_Planar::GetValidTexture()
