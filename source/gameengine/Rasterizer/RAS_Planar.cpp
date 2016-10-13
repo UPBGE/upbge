@@ -49,26 +49,26 @@ RAS_Planar::RAS_Planar(KX_GameObject *mirror, RAS_IPolyMaterial *mat)
 	m_fbo = NULL;
 	m_rb = NULL;
 
-	vector<RAS_ITexVert*> mirrorVerts;
-	vector<RAS_ITexVert*>::iterator it;
+	vector<RAS_ITexVert *> mirrorVerts;
+	vector<RAS_ITexVert *>::iterator it;
 
-	float mirrorArea = 0.f;
-	float mirrorNormal[3] = { 0.f, 0.f, 0.f };
+	float mirrorArea = 0.0f;
+	float mirrorNormal[3] = { 0.0f, 0.0f, 0.0f };
 	float mirrorUp[3];
 	float dist, vec[3], axis[3];
-	float zaxis[3] = { 0.f, 0.f, 1.f };
-	float yaxis[3] = { 0.f, 1.f, 0.f };
+	float zaxis[3] = { 0.0f, 0.0f, 1.0f };
+	float yaxis[3] = { 0.0f, 1.0f, 0.0f };
 	float mirrorMat[3][3];
 	float left, right, top, bottom, back;
 	
 	// locate the vertex assigned to mat and do following calculation in mesh coordinates
 	for (int meshIndex = 0; meshIndex < mirror->GetMeshCount(); meshIndex++)
 	{
-		RAS_MeshObject*	mesh = mirror->GetMesh(meshIndex);
+		RAS_MeshObject *mesh = mirror->GetMesh(meshIndex);
 		int numPolygons = mesh->NumPolygons();
 		for (int polygonIndex = 0; polygonIndex < numPolygons; polygonIndex++)
 		{
-			RAS_Polygon* polygon = mesh->GetPolygon(polygonIndex);
+			RAS_Polygon *polygon = mesh->GetPolygon(polygonIndex);
 			if (polygon->GetMaterial()->GetPolyMaterial() == mat)
 			{
 				RAS_ITexVert *v1, *v2, *v3, *v4;
@@ -84,10 +84,10 @@ RAS_Planar::RAS_Planar(KX_GameObject *mirror, RAS_IPolyMaterial *mat)
 				if (polygon->VertexCount() == 4) {
 					v4 = polygon->GetVertex(3);
 					mirrorVerts.push_back(v4);
-					area = normal_quad_v3(normal, (float*)v1->getXYZ(), (float*)v2->getXYZ(), (float*)v3->getXYZ(), (float*)v4->getXYZ());
+					area = normal_quad_v3(normal, (float *)v1->getXYZ(), (float *)v2->getXYZ(), (float *)v3->getXYZ(), (float *)v4->getXYZ());
 				}
 				else {
-					area = normal_tri_v3(normal, (float*)v1->getXYZ(), (float*)v2->getXYZ(), (float*)v3->getXYZ());
+					area = normal_tri_v3(normal, (float *)v1->getXYZ(), (float *)v2->getXYZ(), (float *)v3->getXYZ());
 				}
 				area = fabs(area);
 				mirrorArea += area;
@@ -103,7 +103,7 @@ RAS_Planar::RAS_Planar(KX_GameObject *mirror, RAS_IPolyMaterial *mat)
 	}
 	// compute average normal of mirror faces
 	mul_v3_fl(mirrorNormal, 1.0f / mirrorArea);
-	if (normalize_v3(mirrorNormal) == 0.f)
+	if (normalize_v3(mirrorNormal) == 0.0f)
 	{
 		// no normal
 		std::cout << "no normal found" << std::endl;
@@ -136,7 +136,7 @@ RAS_Planar::RAS_Planar(KX_GameObject *mirror, RAS_IPolyMaterial *mat)
 		copy_v3_v3(vec, mirrorNormal);
 		mul_v3_fl(vec, dist);
 		sub_v3_v3v3(mirrorUp, axis, vec);
-		if (normalize_v3(mirrorUp) == 0.f)
+		if (normalize_v3(mirrorUp) == 0.0f)
 		{
 			// should not happen
 			std::cout << "mirror horizontal" << std::endl;
@@ -157,7 +157,7 @@ RAS_Planar::RAS_Planar(KX_GameObject *mirror, RAS_IPolyMaterial *mat)
 	back = -FLT_MAX; // most backward vertex (=highest Z coord in mirror space)
 	for (it = mirrorVerts.begin(); it != mirrorVerts.end(); it++)
 	{
-		copy_v3_v3(vec, (float*)(*it)->getXYZ());
+		copy_v3_v3(vec, (float *)(*it)->getXYZ());
 		mul_m3_v3(mirrorMat, vec);
 		if (vec[0] < left)
 			left = vec[0];
@@ -172,8 +172,8 @@ RAS_Planar::RAS_Planar(KX_GameObject *mirror, RAS_IPolyMaterial *mat)
 	}
 
 	// mirror position in mirror coord
-	vec[0] = (left + right)*0.5f;
-	vec[1] = (top + bottom)*0.5f;
+	vec[0] = (left + right) * 0.5f;
+	vec[1] = (top + bottom) * 0.5f;
 	vec[2] = back;
 	// convert it in local space: transpose again the matrix to get back to mirror to local transform
 	transpose_m3(mirrorMat);
@@ -337,6 +337,3 @@ void RAS_Planar::DisableClipPlane(int planartype)
 		glFrontFace(GL_CCW);
 	}
 }
-
-
-
