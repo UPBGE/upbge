@@ -50,6 +50,7 @@
 #include "SCA_LogicManager.h"
 
 #include "EXP_PyObjectPlus.h"
+#include "EXP_ListWrapper.h"
 
 PyTypeObject KX_MeshProxy::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
@@ -89,6 +90,7 @@ PyAttributeDef KX_MeshProxy::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("materials",     KX_MeshProxy, pyattr_get_materials),
 	KX_PYATTRIBUTE_RO_FUNCTION("numPolygons",   KX_MeshProxy, pyattr_get_numPolygons),
 	KX_PYATTRIBUTE_RO_FUNCTION("numMaterials",  KX_MeshProxy, pyattr_get_numMaterials),
+	KX_PYATTRIBUTE_RO_FUNCTION("polygons", KX_MeshProxy, pyattr_get_polygons),
 
 	{NULL}    //Sentinel
 };
@@ -115,6 +117,36 @@ STR_String& KX_MeshProxy::GetName()
 }
 
 // stuff for python integration
+static int kx_mesh_proxy_get_polygons_size_cb(void *self_v)
+{
+	return ((KX_MeshProxy *)self_v)->GetMesh()->NumPolygons();
+}
+
+static PyObject *kx_mesh_proxy_get_polygons_item_cb(void *self_v, int index)
+{
+	KX_MeshProxy *self = static_cast<KX_MeshProxy *>(self_v);
+	RAS_Polygon *polygon = self->GetMesh()->GetPolygon(index);
+	PyObject *polyob;
+	polyob = (new KX_PolyProxy(self->GetMesh(), polygon))->NewProxy(true);
+	return polyob;
+}
+
+static const char *kx_mesh_proxy_get_polygons_item_name_cb(void *self_v, int index)
+{
+	const char *name = "poly" + (char)(index);
+	return name;
+}
+
+PyObject *KX_MeshProxy::pyattr_get_polygons(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	return (new CListWrapper(self_v,
+		((KX_PolyProxy *)self_v)->GetProxy(),
+		NULL,
+		kx_mesh_proxy_get_polygons_size_cb,
+		kx_mesh_proxy_get_polygons_item_cb,
+		kx_mesh_proxy_get_polygons_item_name_cb,
+		NULL))->NewProxy(true);
+}
 PyObject *KX_MeshProxy::PyGetMaterialName(PyObject *args, PyObject *kwds)
 {
 	int matid = 1;
