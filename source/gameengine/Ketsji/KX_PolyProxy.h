@@ -54,6 +54,9 @@ public:
 	// stuff for cvalue related things
 	virtual STR_String& GetName();
 
+	RAS_Polygon *GetPolygon();
+	RAS_MeshObject *GetMeshObject();
+
 // stuff for python integration
 	static PyObject *pyattr_get_material_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_texture_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
@@ -65,6 +68,7 @@ public:
 	static PyObject *pyattr_get_v4(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_collide(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_vertices(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy,getMaterialIndex)
 	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy,getNumVertex)
