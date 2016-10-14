@@ -131,12 +131,6 @@ static PyObject *kx_mesh_proxy_get_polygons_item_cb(void *self_v, int index)
 	return polyob;
 }
 
-static const char *kx_mesh_proxy_get_polygons_item_name_cb(void *self_v, int index)
-{
-	const char *name = "poly" + (char)(index);
-	return name;
-}
-
 PyObject *KX_MeshProxy::pyattr_get_polygons(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new CListWrapper(self_v,
@@ -144,7 +138,7 @@ PyObject *KX_MeshProxy::pyattr_get_polygons(void *self_v, const KX_PYATTRIBUTE_D
 		NULL,
 		kx_mesh_proxy_get_polygons_size_cb,
 		kx_mesh_proxy_get_polygons_item_cb,
-		kx_mesh_proxy_get_polygons_item_name_cb,
+		NULL,
 		NULL))->NewProxy(true);
 }
 PyObject *KX_MeshProxy::PyGetMaterialName(PyObject *args, PyObject *kwds)

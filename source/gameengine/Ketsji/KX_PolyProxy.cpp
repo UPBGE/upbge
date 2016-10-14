@@ -209,14 +209,8 @@ static PyObject *kx_poly_proxy_get_vertices_item_cb(void *self_v, int index)
 			// found it
 			break;
 	}
-	KX_VertexProxy *vert = new KX_VertexProxy(meshproxy, (RAS_TexVert *)(self->GetMeshObject()->GetVertex(matid, vertindex)));
+	KX_VertexProxy *vert = new KX_VertexProxy(meshproxy, (RAS_ITexVert *)(self->GetMeshObject()->GetVertex(matid, vertindex)));
 	return vert->GetProxy();
-}
-
-static const char *kx_poly_proxy_get_vertices_item_name_cb(void *self_v, int index)
-{
-	const char *name = "vert" + (char)(index);
-	return name;
 }
 
 PyObject *KX_PolyProxy::pyattr_get_vertices(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -226,7 +220,7 @@ PyObject *KX_PolyProxy::pyattr_get_vertices(void *self_v, const KX_PYATTRIBUTE_D
 		NULL,
 		kx_poly_proxy_get_vertices_size_cb,
 		kx_poly_proxy_get_vertices_item_cb,
-		kx_poly_proxy_get_vertices_item_name_cb,
+		NULL,
 		NULL))->NewProxy(true);
 }
 
