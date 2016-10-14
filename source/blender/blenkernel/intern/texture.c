@@ -643,6 +643,13 @@ void BKE_texture_default(Tex *tex)
 	tex->vn_mexp = 2.5;
 	tex->vn_distm = 0;
 	tex->vn_coltype = 0;
+	/* planar reflections */
+	tex->clipsta = 0.1f;
+	tex->clipend = 100.0f;
+	tex->autoupdate |= TEX_AUTO_UPDATE;
+	tex->planarflag = TEX_PLANAR_NONE;
+	tex->planarcull = 0;
+	tex->planarfiltering = TEX_MIPMAP_NONE;
 
 	if (tex->env) {
 		tex->env->stype = ENV_ANIM;

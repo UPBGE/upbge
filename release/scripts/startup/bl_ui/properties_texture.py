@@ -928,6 +928,37 @@ class TEXTURE_PT_ocean(TextureTypePanel, Panel):
         col.prop(ot, "ocean_object")
         col.prop(ot, "output")
 
+class TEXTURE_PT_image_planar(TextureTypePanel, Panel):
+    bl_label = "Planar Reflection / Refraction"
+    bl_options = {'DEFAULT_CLOSED'}
+    tex_type = 'IMAGE'
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    def draw(self, context):
+
+        layout = self.layout
+
+        idblock = context_tex_datablock(context)
+        tex = context.texture
+
+        split = layout.split()
+
+        row = split.row()
+        row.label(text="Planar Type:")
+        row.prop(tex, "planar_type")
+
+        row = layout.split()
+        row.label(text="Planar Filtering:")
+        row.prop(tex, "planar_filtering")
+
+        row = layout.split()
+        row.label(text="Clipping:")
+        row.prop(tex, "planar_clip_start", text="Start")
+        row.prop(tex, "planar_clip_end", text="End")
+
+        row = layout.split()
+        row.prop(tex, "use_planar_auto_update")
+        row.prop(tex, "use_planar_reflect_cull")
 
 class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
     bl_label = "Mapping"

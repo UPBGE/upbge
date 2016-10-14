@@ -32,6 +32,7 @@ struct Tex;
 struct Image;
 struct GPUTexture;
 
+class RAS_Planar;
 class RAS_CubeMap;
 
 class RAS_Texture
@@ -40,6 +41,7 @@ protected:
 	int m_bindCode;
 	STR_String m_name;
 
+	RAS_Planar *m_planar;
 	RAS_CubeMap *m_cubeMap;
 
 public:
@@ -57,6 +59,9 @@ public:
 
 	void SetCubeMap(RAS_CubeMap *cubeMap);
 	RAS_CubeMap *GetCubeMap() const;
+
+	void SetPlanar(RAS_Planar *planar);
+	RAS_Planar *GetPlanar() const;
 
 	virtual unsigned int GetTextureType() = 0;
 
