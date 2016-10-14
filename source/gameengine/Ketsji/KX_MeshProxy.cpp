@@ -198,7 +198,7 @@ PyObject *KX_MeshProxy::PyGetPolygon(PyObject *args, PyObject *kwds)
 
 	RAS_Polygon *polygon = m_meshobj->GetPolygon(polyindex);
 	if (polygon) {
-		polyob = (new KX_PolyProxy(m_meshobj, polygon))->NewProxy(true);
+		polyob = (new KX_PolyProxy(this, polygon))->NewProxy(true);
 	}
 	else {
 		PyErr_SetString(PyExc_AttributeError, "mesh.getPolygon(int): KX_MeshProxy, polygon is NULL, unknown reason");

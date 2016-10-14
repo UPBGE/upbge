@@ -89,14 +89,17 @@ PyAttributeDef KX_PolyProxy::Attributes[] = {
 	{ NULL }	//Sentinel
 };
 
-KX_PolyProxy::KX_PolyProxy(const RAS_MeshObject*mesh, RAS_Polygon* polygon)
-:	m_polygon(polygon),
-	m_mesh((RAS_MeshObject*)mesh)
+KX_PolyProxy::KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_Polygon* polygon)
+	:m_meshProxy(meshProxy),
+	m_polygon(polygon),
+	m_mesh(meshProxy->GetMesh())
 {
+	Py_INCREF(m_meshProxy->GetProxy());
 }
 
 KX_PolyProxy::~KX_PolyProxy()
 {
+	Py_DECREF(m_meshProxy->GetProxy());
 }
 
 
@@ -248,8 +251,7 @@ KX_PYMETHODDEF_DOC(KX_PolyProxy, getVertexIndex,
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMesh,
 "getMesh() : returns a mesh proxy\n")
 {
-	KX_MeshProxy* meshproxy = new KX_MeshProxy((RAS_MeshObject*)m_mesh);
-	return meshproxy->NewProxy(true);
+	return m_meshProxy->GetProxy();
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterial,

@@ -64,7 +64,7 @@ public:
 	bool					m_hitFound;
 	MT_Vector3				m_hitPoint;
 	MT_Vector3				m_hitNormal;
-	const RAS_MeshObject*	m_hitMesh;
+	RAS_MeshObject *m_hitMesh;
 	int						m_hitPolygon;
 	int                     m_hitUVOK;		// !=0 if UV coordinate in m_hitUV is valid
 	MT_Vector2				m_hitUV;

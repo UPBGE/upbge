@@ -4011,9 +4011,10 @@ KX_PYMETHODDEF_DOC(KX_GameObject, rayCast,
 			{
 				if (callback.m_hitMesh)
 				{
+					KX_MeshProxy *meshProxy = new KX_MeshProxy(callback.m_hitMesh);
 					// if this field is set, then we can trust that m_hitPolygon is a valid polygon
 					RAS_Polygon* polygon = callback.m_hitMesh->GetPolygon(callback.m_hitPolygon);
-					KX_PolyProxy* polyproxy = new KX_PolyProxy(callback.m_hitMesh, polygon);
+					KX_PolyProxy* polyproxy = new KX_PolyProxy(meshProxy, polygon);
 					PyTuple_SET_ITEM(returnValue, 3, polyproxy->NewProxy(true));
 					if (poly == 2)
 					{

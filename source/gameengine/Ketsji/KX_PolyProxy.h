@@ -36,14 +36,19 @@
 
 #include "SCA_IObject.h"
 
+class KX_MeshProxy;
+class RAS_MeshObject;
+class RAS_Polygon;
+
 class KX_PolyProxy	: public CValue
 {
 	Py_Header
 protected:
-	class RAS_Polygon*		m_polygon;
-	class RAS_MeshObject*	m_mesh;
+	KX_MeshProxy *m_meshProxy;
+	RAS_Polygon*		m_polygon;
+	RAS_MeshObject*	m_mesh;
 public:
-	KX_PolyProxy(const class RAS_MeshObject*mesh, class RAS_Polygon* polygon);
+	KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_Polygon *polygon);
 	virtual ~KX_PolyProxy();
 
 	// stuff for cvalue related things
