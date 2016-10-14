@@ -195,10 +195,11 @@ KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, stopVibration,
 
 
 /* Attribute getting -------------------------------------------- */
-PyObject *SCA_VibrationActuator::pyattr_get_statusVibration(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_VibrationActuator::pyattr_get_statusVibration(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
-	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);
+	SCA_VibrationActuator *self = static_cast<SCA_VibrationActuator *>(self_v);
+	SCA_JoystickManager *mgr = (SCA_JoystickManager *)self->GetLogicManager();
+	DEV_Joystick *instance = mgr->GetJoystickDevice(self->m_joyindex);
 
 	int result_value = instance->GetRumbleStatus();
 
