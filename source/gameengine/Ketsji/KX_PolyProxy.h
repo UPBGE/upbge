@@ -49,6 +49,9 @@ public:
 	// stuff for cvalue related things
 	virtual STR_String& GetName();
 
+	RAS_Polygon *GetPolygon();
+	RAS_MeshObject *GetMeshObject();
+
 // stuff for python integration
 	static PyObject *pyattr_get_material_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_texture_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
