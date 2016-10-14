@@ -1911,12 +1911,16 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 									GPU_select_uniform(GPUWorld.zencol, GPU_DYNAMIC_ZENITH_COLOR, NULL, ma), fcol,
 									GPU_builtin(GPU_VIEW_MATRIX), shi->vn, &shr->combined);
 							}
+							
 							else if (world->aocolor == WO_AOSKYTEX) {
 								Image *ima = NULL;
 								MTex *mtex;
-								if (world->mtex[0] && world->mtex[0]->tex && world->mtex[0]->tex->ima) {
-									mtex = world->mtex[0];
-									ima = world->mtex[0]->tex->ima;
+								for (int i = 0; i < MAX_MTEX; i++) {
+									mtex = world->mtex[i];
+									if (mtex && mtex->tex && mtex->tex->ima && mtex->tex->type == TEX_ENVMAP) {
+										ima = world->mtex[i]->tex->ima;
+										break;
+									}
 								}
 								if (ima) {
 									GPU_link(mat, "env_apply_world_tex_color", shr->combined,
