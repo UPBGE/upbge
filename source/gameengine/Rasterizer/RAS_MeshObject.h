@@ -76,7 +76,6 @@ public:
 	typedef std::vector<Layer> LayerList;
 
 private:
-	short m_modifiedFlag;
 	bool m_needUpdateAabb;
 	MT_Vector3 m_aabbMax;
 	MT_Vector3 m_aabbMin;
@@ -109,7 +108,7 @@ public:
 	const STR_String& GetMaterialName(unsigned int matid);
 	const STR_String& GetTextureName(unsigned int matid);
 
-	RAS_MeshMaterial *GetMeshMaterial(unsigned int matid);
+	RAS_MeshMaterial *GetMeshMaterial(unsigned int matid) const;
 	RAS_MeshMaterial *GetMeshMaterialBlenderIndex(unsigned int index);
 
 	std::vector<RAS_MeshMaterial *>::iterator GetFirstMaterial();
@@ -118,26 +117,11 @@ public:
 	// name
 	STR_String& GetName();
 
-	/// Modification categories.
-	enum {
-		POSITION_MODIFIED = 1 << 0, // Vertex position modified.
-		NORMAL_MODIFIED = 1 << 1, // Vertex normal modified.
-		UVS_MODIFIED = 1 << 2, // Vertex UVs modified.
-		COLORS_MODIFIED = 1 << 3, // Vertex colors modified.
-		TANGENT_MODIFIED = 1 << 4, // Vertex tangent modified.
-		AABB_MODIFIED = POSITION_MODIFIED,
-		MESH_MODIFIED = POSITION_MODIFIED | NORMAL_MODIFIED | UVS_MODIFIED |
-						COLORS_MODIFIED | TANGENT_MODIFIED
-	};
-
 	/// Return mesh modified flag.
-	short GetModifiedFlag() const;
+	unsigned short GetModifiedFlag() const;
 	/** Mix mesh modified flag with a new flag.
 	 * \param flag The flag to mix.
 	 */
-	void AppendModifiedFlag(short flag);
-	/// Set the mesh modified flag.
-	void SetModifiedFlag(short flag);
 
 	// original blender mesh
 	Mesh *GetMesh()
@@ -161,6 +145,7 @@ public:
 				const unsigned int origindex);
 
 	// vertex and polygon acces
+	RAS_IDisplayArray *GetDisplayArray(unsigned int matid) const;
 	RAS_ITexVert *GetVertex(unsigned int matid, unsigned int index);
 	const float *GetVertexLocation(unsigned int orig_index);
 

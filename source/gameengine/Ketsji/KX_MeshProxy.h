@@ -52,8 +52,6 @@ public:
 	KX_MeshProxy(RAS_MeshObject *mesh);
 	virtual ~KX_MeshProxy();
 
-	void AppendModifiedFlag(short flag);
-
 	virtual RAS_MeshObject *GetMesh()
 	{
 		return m_meshobj;

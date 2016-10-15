@@ -148,12 +148,6 @@ bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshma
 		return false;
 	}
 
-	const short modifiedFlag = m_pMeshObject->GetModifiedFlag();
-	// No modifications ?
-	if (modifiedFlag == 0) {
-		return false;
-	}
-
 	RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
 	if (!slot) {
 		return false;
@@ -162,11 +156,17 @@ bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshma
 	RAS_IDisplayArray *array = slot->GetDisplayArray();
 	RAS_IDisplayArray *origarray = meshmat->m_baseslot->GetDisplayArray();
 
+	const short modifiedFlag = origarray->GetModifiedFlag();
+	// No modifications ?
+	if (modifiedFlag == RAS_IDisplayArray::NONE_MODIFIED) {
+		return false;
+	}
+
 	/// Update vertex data from the original mesh.
 	array->UpdateFrom(origarray, modifiedFlag &
-					 (RAS_MeshObject::TANGENT_MODIFIED |
-					  RAS_MeshObject::UVS_MODIFIED |
-					  RAS_MeshObject::COLORS_MODIFIED));
+					 (RAS_IDisplayArray::TANGENT_MODIFIED |
+					  RAS_IDisplayArray::UVS_MODIFIED |
+					  RAS_IDisplayArray::COLORS_MODIFIED));
 
 	// We do everything in UpdateInternal() now so we can thread it.
 	// All that is left is telling the rasterizer if we've changed the mesh

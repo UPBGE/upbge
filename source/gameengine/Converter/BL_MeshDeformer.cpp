@@ -50,9 +50,7 @@
 bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *UNUSED(polymat), RAS_MeshMaterial *UNUSED(meshmat))
 {
 	// only apply once per frame if the mesh is actually modified
-	if ((m_pMeshObject->GetModifiedFlag() & RAS_MeshObject::MESH_MODIFIED) &&
-		m_lastDeformUpdate != m_gameobj->GetLastFrame())
-	{
+	if (m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
 		// For each material
 		for (std::vector<RAS_MeshMaterial *>::iterator mit = m_pMeshObject->GetFirstMaterial();
 		     mit != m_pMeshObject->GetLastMaterial(); ++mit)
@@ -64,6 +62,9 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *UNUSED(polymat), RAS_MeshMaterial
 			}
 
 			RAS_IDisplayArray *array = slot->GetDisplayArray();
+			if (array->GetModifiedFlag() == RAS_IDisplayArray::NONE_MODIFIED) {
+				continue;
+			}
 
 			//	For each vertex
 			for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {

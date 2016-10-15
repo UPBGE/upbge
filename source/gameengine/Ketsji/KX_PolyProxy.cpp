@@ -103,10 +103,10 @@ PyAttributeDef KX_PolyProxy::Attributes[] = {
 	{ NULL }	//Sentinel
 };
 
-KX_PolyProxy::KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_Polygon* polygon)
+KX_PolyProxy::KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_MeshObject *mesh, RAS_Polygon* polygon)
 	:m_meshProxy(meshProxy),
 	m_polygon(polygon),
-	m_mesh(meshProxy->GetMesh())
+	m_mesh(mesh)
 {
 	Py_INCREF(m_meshProxy->GetProxy());
 }
@@ -202,10 +202,11 @@ static int kx_poly_proxy_get_vertices_size_cb(void *self_v)
 static PyObject *kx_poly_proxy_get_vertices_item_cb(void *self_v, int index)
 {
 	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
-	KX_MeshProxy *meshproxy = self->GetMeshProxy();
 	RAS_Polygon *polygon = self->GetPolygon();
 	int vertindex = polygon->GetVertexOffset(index);
-	KX_VertexProxy *vert = new KX_VertexProxy(meshproxy, polygon->GetDisplayArray()->GetVertex(vertindex));
+	RAS_IDisplayArray *array = polygon->GetDisplayArray();
+	KX_VertexProxy *vert = new KX_VertexProxy(array, array->GetVertex(vertindex));
+
 	return vert->GetProxy();
 }
 

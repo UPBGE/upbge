@@ -102,8 +102,7 @@ struct RAS_MeshObject::fronttoback
 STR_String RAS_MeshObject::s_emptyname = "";
 
 RAS_MeshObject::RAS_MeshObject(Mesh *mesh, LayerList& layers)
-	:m_modifiedFlag(0),
-	m_needUpdateAabb(true),
+	:m_needUpdateAabb(true),
 	m_aabbMax(0.0f, 0.0f, 0.0f),
 	m_aabbMin(0.0f, 0.0f, 0.0f),
 	m_name(mesh->id.name + 2),
@@ -188,7 +187,7 @@ const STR_String& RAS_MeshObject::GetMaterialName(unsigned int matid)
 	return s_emptyname;
 }
 
-RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(unsigned int matid)
+RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(unsigned int matid) const
 {
 	if (m_materials.size() > matid) {
 		return m_materials[matid];
@@ -234,22 +233,18 @@ STR_String& RAS_MeshObject::GetName()
 	return m_name;
 }
 
-short RAS_MeshObject::GetModifiedFlag() const
+unsigned short RAS_MeshObject::GetModifiedFlag() const
 {
-	return m_modifiedFlag;
-}
-
-void RAS_MeshObject::AppendModifiedFlag(short flag)
-{
-	SetModifiedFlag(m_modifiedFlag | flag);
-}
-
-void RAS_MeshObject::SetModifiedFlag(short flag)
-{
-	m_modifiedFlag = flag;
-	if (m_modifiedFlag & AABB_MODIFIED) {
-		m_needUpdateAabb = true;
+	unsigned short modifiedFlag = RAS_IDisplayArray::NONE_MODIFIED;
+	for (std::vector<RAS_MeshMaterial *>::const_iterator it = m_materials.begin(), end = m_materials.end(); it != end; ++it) {
+		RAS_MeshSlot *slot = (*it)->m_baseslot;
+		RAS_IDisplayArray *array = slot->GetDisplayArray();
+		if (array) {
+			modifiedFlag |= array->GetModifiedFlag();
+		}
 	}
+
+	return modifiedFlag;
 }
 
 const STR_String& RAS_MeshObject::GetTextureName(unsigned int matid)
@@ -379,7 +374,7 @@ unsigned int RAS_MeshObject::AddVertex(
 	return offset;
 }
 
-RAS_ITexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
+RAS_IDisplayArray *RAS_MeshObject::GetDisplayArray(unsigned int matid) const
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
@@ -388,6 +383,13 @@ RAS_ITexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
 
 	RAS_MeshSlot *slot = mmat->m_baseslot;
 	RAS_IDisplayArray *array = slot->GetDisplayArray();
+
+	return array;
+}
+
+RAS_ITexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
+{
+	RAS_IDisplayArray *array = GetDisplayArray(matid);
 
 	if (index < array->GetVertexCount()) {
 		return array->GetVertex(index);

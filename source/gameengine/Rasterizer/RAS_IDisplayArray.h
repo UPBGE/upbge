@@ -41,6 +41,8 @@ public:
 protected:
 	/// The display array primitive type.
 	PrimitiveType m_type;
+	/// Modification flag.
+	unsigned short m_modifiedFlag;
 
 	/// The vertex infos unused for rendering, e.g original or soft body index, flag.
 	std::vector<RAS_TexVertInfo> m_vertexInfos;
@@ -143,6 +145,28 @@ public:
 	virtual void UpdateCache() = 0;
 
 	int GetOpenGLPrimitiveType() const;
+
+	/// Modification categories.
+	enum {
+		NONE_MODIFIED = 0,
+		POSITION_MODIFIED = 1 << 0, // Vertex position modified.
+		NORMAL_MODIFIED = 1 << 1, // Vertex normal modified.
+		UVS_MODIFIED = 1 << 2, // Vertex UVs modified.
+		COLORS_MODIFIED = 1 << 3, // Vertex colors modified.
+		TANGENT_MODIFIED = 1 << 4, // Vertex tangent modified.
+		AABB_MODIFIED = POSITION_MODIFIED,
+		MESH_MODIFIED = POSITION_MODIFIED | NORMAL_MODIFIED | UVS_MODIFIED |
+						COLORS_MODIFIED | TANGENT_MODIFIED
+	};
+
+	/// Return display array modified flag.
+	unsigned short GetModifiedFlag() const;
+	/** Mix display array modified flag with a new flag.
+	 * \param flag The flag to mix.
+	 */
+	void AppendModifiedFlag(unsigned short flag);
+	/// Set the display array modified flag.
+	void SetModifiedFlag(unsigned short flag);
 };
 
 #endif  // __RAS_IDISPLAY_ARRAY_H__

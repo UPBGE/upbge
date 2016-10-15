@@ -134,10 +134,10 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *me
 		}
 	}
 
-	array->UpdateFrom(origarray, m_pMeshObject->GetModifiedFlag() &
-					 (RAS_MeshObject::TANGENT_MODIFIED |
-					  RAS_MeshObject::UVS_MODIFIED |
-					  RAS_MeshObject::COLORS_MODIFIED));
+	array->UpdateFrom(origarray, origarray->GetModifiedFlag() &
+					 (RAS_IDisplayArray::TANGENT_MODIFIED |
+					  RAS_IDisplayArray::UVS_MODIFIED |
+					  RAS_IDisplayArray::COLORS_MODIFIED));
 
 	return true;
 }

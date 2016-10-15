@@ -95,11 +95,6 @@ PyAttributeDef KX_MeshProxy::Attributes[] = {
 	{NULL}    //Sentinel
 };
 
-void KX_MeshProxy::AppendModifiedFlag(short flag)
-{
-	m_meshobj->AppendModifiedFlag(flag);
-}
-
 KX_MeshProxy::KX_MeshProxy(RAS_MeshObject *mesh)
 	:CValue(),
 	m_meshobj(mesh)
@@ -125,8 +120,9 @@ static int kx_mesh_proxy_get_polygons_size_cb(void *self_v)
 static PyObject *kx_mesh_proxy_get_polygons_item_cb(void *self_v, int index)
 {
 	KX_MeshProxy *self = static_cast<KX_MeshProxy *>(self_v);
-	RAS_Polygon *polygon = self->GetMesh()->GetPolygon(index);
-	PyObject *polyob = (new KX_PolyProxy(self, polygon))->NewProxy(true);
+	RAS_MeshObject *mesh = self->GetMesh();
+	RAS_Polygon *polygon = mesh->GetPolygon(index);
+	PyObject *polyob = (new KX_PolyProxy(self, mesh, polygon))->NewProxy(true);
 	return polyob;
 }
 
@@ -188,14 +184,15 @@ PyObject *KX_MeshProxy::PyGetVertex(PyObject *args, PyObject *kwds)
 	if (!PyArg_ParseTuple(args, "ii:getVertex", &matindex, &vertexindex))
 		return NULL;
 
-	RAS_ITexVert *vertex = m_meshobj->GetVertex(matindex, vertexindex);
-
-	if (vertex == NULL) {
+	RAS_IDisplayArray *array = m_meshobj->GetDisplayArray(matindex);
+	if (vertexindex < 0 || vertexindex >= array->GetVertexCount()) {
 		PyErr_SetString(PyExc_ValueError, "mesh.getVertex(mat_idx, vert_idx): KX_MeshProxy, could not get a vertex at the given indices");
 		return NULL;
 	}
 
-	return (new KX_VertexProxy(this, vertex))->NewProxy(true);
+	RAS_ITexVert *vertex = array->GetVertex(vertexindex);
+
+	return (new KX_VertexProxy(array, vertex))->NewProxy(true);
 }
 
 PyObject *KX_MeshProxy::PyGetPolygon(PyObject *args, PyObject *kwds)
@@ -213,7 +210,7 @@ PyObject *KX_MeshProxy::PyGetPolygon(PyObject *args, PyObject *kwds)
 
 	RAS_Polygon *polygon = m_meshobj->GetPolygon(polyindex);
 	if (polygon) {
-		polyob = (new KX_PolyProxy(this, polygon))->NewProxy(true);
+		polyob = (new KX_PolyProxy(this, m_meshobj, polygon))->NewProxy(true);
 	}
 	else {
 		PyErr_SetString(PyExc_AttributeError, "mesh.getPolygon(int): KX_MeshProxy, polygon is NULL, unknown reason");
@@ -263,6 +260,10 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 			vert->Transform(transform, ntransform);
 		}
 
+		array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED |
+								  RAS_IDisplayArray::NORMAL_MODIFIED |
+								  RAS_IDisplayArray::TANGENT_MODIFIED);
+
 		/* if we set a material index, quit when done */
 		if (matindex == mit_index) {
 			break;
@@ -274,10 +275,6 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 		             "mesh.transform(...): invalid material index %d", matindex);
 		return NULL;
 	}
-
-	m_meshobj->AppendModifiedFlag(RAS_MeshObject::POSITION_MODIFIED |
-	                              RAS_MeshObject::NORMAL_MODIFIED |
-	                              RAS_MeshObject::TANGENT_MODIFIED);
 
 	Py_RETURN_NONE;
 }
@@ -348,6 +345,8 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 			}
 		}
 
+		array->AppendModifiedFlag(RAS_IDisplayArray::UVS_MODIFIED);
+
 		/* if we set a material index, quit when done */
 		if (matindex == mit_index) {
 			break;
@@ -359,8 +358,6 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 		             "mesh.transformUV(...): invalid material index %d", matindex);
 		return NULL;
 	}
-
-	m_meshobj->AppendModifiedFlag(RAS_MeshObject::UVS_MODIFIED);
 
 	Py_RETURN_NONE;
 }

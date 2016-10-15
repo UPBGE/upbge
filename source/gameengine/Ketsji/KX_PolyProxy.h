@@ -48,7 +48,7 @@ protected:
 	RAS_Polygon* m_polygon;
 	RAS_MeshObject*	m_mesh;
 public:
-	KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_Polygon *polygon);
+	KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_MeshObject *mesh, RAS_Polygon *polygon);
 	virtual ~KX_PolyProxy();
 
 	// stuff for cvalue related things

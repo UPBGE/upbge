@@ -34,25 +34,25 @@
 
 #ifdef WITH_PYTHON
 
-#include "SCA_IObject.h"
+#include "EXP_Value.h"
 
 class RAS_ITexVert;
-class KX_MeshProxy;
+class RAS_IDisplayArray;
 
 class KX_VertexProxy : public CValue
 {
 	Py_Header
-protected:
 
+protected:
 	RAS_ITexVert *m_vertex;
-	KX_MeshProxy *m_mesh;
+	RAS_IDisplayArray *m_array;
 
 public:
-	KX_VertexProxy(KX_MeshProxy *mesh, RAS_ITexVert *vertex);
+	KX_VertexProxy(RAS_IDisplayArray *array, RAS_ITexVert *vertex);
 	virtual ~KX_VertexProxy();
 
 	RAS_ITexVert *GetVertex();
-	KX_MeshProxy *GetMesh();
+	RAS_IDisplayArray *GetDisplayArray();
 
 	// stuff for cvalue related things
 	STR_String& GetName();

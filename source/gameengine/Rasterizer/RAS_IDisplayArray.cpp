@@ -30,7 +30,8 @@
 #include "glew-mx.h"
 
 RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type)
-	:m_type(type)
+	:m_type(type),
+	m_modifiedFlag(NONE_MODIFIED)
 {
 }
 
@@ -86,12 +87,12 @@ int RAS_IDisplayArray::GetOpenGLPrimitiveType() const
 
 void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 {
-	if (flag & RAS_MeshObject::TANGENT_MODIFIED) {
+	if (flag & TANGENT_MODIFIED) {
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
 			GetVertex(i)->SetTangent(MT_Vector4(other->GetVertex(i)->getTangent()));
 		}
 	}
-	if (flag & RAS_MeshObject::UVS_MODIFIED) {
+	if (flag & UVS_MODIFIED) {
 		const unsigned short uvSize = min_ii(GetVertexUvSize(), other->GetVertexUvSize());
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
 			for (unsigned int uv = 0; uv < uvSize; ++uv) {
@@ -99,17 +100,17 @@ void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 			}
 		}
 	}
-	if (flag & RAS_MeshObject::POSITION_MODIFIED) {
+	if (flag & POSITION_MODIFIED) {
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
 			GetVertex(i)->SetXYZ(MT_Vector3(other->GetVertex(i)->getXYZ()));
 		}
 	}
-	if (flag & RAS_MeshObject::NORMAL_MODIFIED) {
+	if (flag & NORMAL_MODIFIED) {
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
 			GetVertex(i)->SetNormal(MT_Vector3(other->GetVertex(i)->getNormal()));
 		}
 	}
-	if (flag & RAS_MeshObject::COLORS_MODIFIED) {
+	if (flag & COLORS_MODIFIED) {
 		const unsigned short colorSize = min_ii(GetVertexColorSize(), other->GetVertexColorSize());
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
 			for (unsigned int color = 0; color < colorSize; ++color) {
@@ -117,4 +118,19 @@ void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 			}
 		}
 	}
+}
+
+unsigned short RAS_IDisplayArray::GetModifiedFlag() const
+{
+	return m_modifiedFlag;
+}
+
+void RAS_IDisplayArray::AppendModifiedFlag(unsigned short flag)
+{
+	SetModifiedFlag(m_modifiedFlag | flag);
+}
+
+void RAS_IDisplayArray::SetModifiedFlag(unsigned short flag)
+{
+	m_modifiedFlag = flag;
 }
