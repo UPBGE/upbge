@@ -61,6 +61,12 @@ base class --- :class:`CValue`
 
       :type: integer
 
+   .. attribute:: polygons
+
+      Returns the list of polygons of this mesh.
+
+      :type: class:`KX_PolyProxy` list (read only)
+
    .. method:: getMaterialName(matid)
 
       Gets the name of the specified material.
