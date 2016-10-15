@@ -74,6 +74,7 @@ class KX_Camera;
 class KX_GameObject;
 class KX_LightObject;
 class KX_CubeMapManager;
+class RAS_BoundingBoxManager;
 class RAS_BucketManager;
 class RAS_MaterialBucket;
 class RAS_IPolyMaterial;
@@ -124,6 +125,10 @@ private:
 protected:
 	KX_CubeMapManager *m_cubeMapManager;
 	RAS_BucketManager*	m_bucketmanager;
+
+	/// Manager used to update all the mesh bounding box.
+	RAS_BoundingBoxManager *m_boundingBoxManager;
+
 	CListValue*			m_tempObjectList;
 
 	/**
@@ -311,6 +316,7 @@ public:
 
 	RAS_BucketManager* GetBucketManager();
 	KX_CubeMapManager *GetCubeMapManager();
+	RAS_BoundingBoxManager *GetBoundingBoxManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const MT_Transform& cameratransform,
 	                   RAS_IRasterizer* rasty);

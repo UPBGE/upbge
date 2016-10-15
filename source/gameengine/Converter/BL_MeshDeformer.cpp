@@ -92,6 +92,7 @@ BL_MeshDeformer::~BL_MeshDeformer()
 
 void BL_MeshDeformer::ProcessReplica()
 {
+	RAS_Deformer::ProcessReplica();
 	m_transverts = NULL;
 	m_transnors = NULL;
 	m_tvtot = 0;

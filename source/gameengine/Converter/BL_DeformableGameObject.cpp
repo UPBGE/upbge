@@ -32,8 +32,10 @@
 
 #include "BL_DeformableGameObject.h"
 #include "BL_ShapeDeformer.h"
+#include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
 #include "RAS_MaterialBucket.h"
+#include "RAS_BoundingBoxManager.h"
 
 
 BL_DeformableGameObject::~BL_DeformableGameObject()
@@ -107,6 +109,8 @@ void BL_DeformableGameObject::SetDeformer(class RAS_Deformer* deformer)
 		for (RAS_MeshSlotList::iterator it = meshSlots.begin(), end = meshSlots.end(); it != end; ++it) {
 			(*it)->SetDeformer(deformer);
 		}
+		RAS_BoundingBox *boundingBox = (m_pDeformer) ? m_pDeformer->GetBoundingBox() : m_meshes[0]->GetBoundingBox();
+		m_meshUser->SetBoundingBox(boundingBox);
 	}
 }
 

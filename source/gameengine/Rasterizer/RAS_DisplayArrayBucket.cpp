@@ -184,7 +184,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 	// Reset values to default.
 	m_useDisplayList = true;
 	m_useVao = true;
-	bool meshModified = false;
+	bool arrayModified = false;
 
 	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
 
@@ -205,21 +205,22 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 		// Test if one of deformers is dynamic.
 		if (deformer->IsDynamic()) {
 			m_useDisplayList = false;
-			meshModified = true;
+			arrayModified = true;
 		}
 	}
 
 	if (m_displayArray && m_displayArray->GetModifiedFlag() & RAS_IDisplayArray::MESH_MODIFIED) {
-		meshModified = true;
+		arrayModified = true;
 	}
 
 	// Set the storage info modified if the mesh is modified.
-	if (m_storageInfo && meshModified) {
+	if (arrayModified && m_storageInfo) {
+		std::cout << "modified" << std::endl;
 		m_storageInfo->SetDataModified(rasty->GetDrawingMode(), RAS_IStorageInfo::VERTEX_DATA);
 	}
 }
 
-void RAS_DisplayArrayBucket::SetMeshUnmodified()
+void RAS_DisplayArrayBucket::SetDisplayArrayUnmodified()
 {
 	if (m_displayArray) {
 		m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);

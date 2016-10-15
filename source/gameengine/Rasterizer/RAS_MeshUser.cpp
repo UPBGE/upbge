@@ -28,11 +28,13 @@
 
 #include "RAS_MeshUser.h"
 #include "RAS_DisplayArrayBucket.h"
+#include "RAS_BoundingBox.h"
 
 RAS_MeshUser::RAS_MeshUser(void *clientobj)
 	:m_frontFace(true),
 	m_color(MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f)),
 	m_matrix(NULL),
+	m_boundingBox(NULL),
 	m_clientObject(clientobj)
 {
 }
@@ -40,6 +42,10 @@ RAS_MeshUser::RAS_MeshUser(void *clientobj)
 RAS_MeshUser::~RAS_MeshUser()
 {
 	m_meshSlots.clear();
+
+	if (m_boundingBox) {
+		m_boundingBox->RemoveUser();
+	}
 }
 
 void RAS_MeshUser::AddMeshSlot(RAS_MeshSlot *meshSlot)
@@ -60,6 +66,11 @@ const MT_Vector4& RAS_MeshUser::GetColor() const
 float *RAS_MeshUser::GetMatrix() const
 {
 	return m_matrix;
+}
+
+RAS_BoundingBox *RAS_MeshUser::GetBoundingBox() const
+{
+	return m_boundingBox;
 }
 
 void *RAS_MeshUser::GetClientObject() const
@@ -85,6 +96,19 @@ void RAS_MeshUser::SetColor(const MT_Vector4& color)
 void RAS_MeshUser::SetMatrix(float *matrix)
 {
 	m_matrix = matrix;
+}
+
+void RAS_MeshUser::SetBoundingBox(RAS_BoundingBox *boundingBox)
+{
+	if (m_boundingBox) {
+		m_boundingBox->RemoveUser();
+	}
+
+	m_boundingBox = boundingBox;
+
+	if (m_boundingBox) {
+		m_boundingBox->AddUser();
+	}
 }
 
 void RAS_MeshUser::ActivateMeshSlots()

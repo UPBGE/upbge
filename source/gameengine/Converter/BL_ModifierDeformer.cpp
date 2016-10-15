@@ -38,6 +38,7 @@
 #include "STR_HashedString.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_MeshObject.h"
+#include "RAS_BoundingBox.h"
 #include "PHY_IGraphicController.h"
 
 #include "DNA_armature_types.h"
@@ -201,8 +202,7 @@ bool BL_ModifierDeformer::Update(void)
 				float min[3], max[3];
 				INIT_MINMAX(min, max);
 				m_dm->getMinMax(m_dm, min, max);
-				m_aabbMin = MT_Vector3(min);
-				m_aabbMax = MT_Vector3(max);
+				m_boundingBox->SetAabb(MT_Vector3(min), MT_Vector3(max));
 			}
 		}
 		m_lastModifierUpdate = m_gameobj->GetLastFrame();
@@ -218,6 +218,7 @@ bool BL_ModifierDeformer::Update(void)
 			slot->m_pDerivedMesh = m_dm;
 		}
 	}
+
 	return bShapeUpdate;
 }
 

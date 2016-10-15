@@ -873,7 +873,7 @@ public:
 	 * \param force Force the AABB update even if the object doesn't allow auto update or if the mesh is
 	 * not modified like in the case of mesh replacement.
 	 */
-	void UpdateBounds(bool force = false);
+	void UpdateBounds(bool force);
 	void SetBoundsAabb(MT_Vector3 aabbMin, MT_Vector3 aabbMax);
 	void GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) const;
 

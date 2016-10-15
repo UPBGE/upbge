@@ -38,8 +38,7 @@
 
 #include "DNA_mesh_types.h"
 #include "KX_GameObject.h"
-#include "BL_MeshDeformer.h"
-#include "KX_SoftBodyDeformer.h"
+#include "RAS_Deformer.h"
 #include <vector>
 
 struct Key;

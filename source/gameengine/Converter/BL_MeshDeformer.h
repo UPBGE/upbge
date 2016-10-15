@@ -33,6 +33,8 @@
 #define __BL_MESHDEFORMER_H__
 
 #include "RAS_Deformer.h"
+#include "RAS_BoundingBoxManager.h"
+#include "BL_DeformableGameObject.h"
 #include "DNA_object_types.h"
 #include "DNA_key_types.h"
 #include "MT_Vector3.h"
@@ -66,6 +68,9 @@ public:
 		m_gameobj(gameobj),
 		m_lastDeformUpdate(-1.0)
 	{
+		KX_Scene *scene = m_gameobj->GetScene();
+		RAS_BoundingBoxManager *boundingBoxManager = scene->GetBoundingBoxManager();
+		m_boundingBox = boundingBoxManager->CreateBoundingBox();
 	}
 
 	virtual ~BL_MeshDeformer();

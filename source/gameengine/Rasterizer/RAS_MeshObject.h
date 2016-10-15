@@ -51,6 +51,8 @@ class RAS_MeshUser;
 class RAS_Deformer;
 class RAS_Polygon;
 class RAS_ITexVert;
+class RAS_BoundingBox;
+class RAS_BoundingBoxManager;
 struct Mesh;
 struct MTFace;
 struct MCol;
@@ -76,10 +78,6 @@ public:
 	typedef std::vector<Layer> LayerList;
 
 private:
-	bool m_needUpdateAabb;
-	MT_Vector3 m_aabbMax;
-	MT_Vector3 m_aabbMin;
-
 	STR_String m_name;
 	static STR_String s_emptyname;
 
@@ -92,7 +90,8 @@ private:
 	struct backtofront;
 	struct fronttoback;
 
-	void UpdateAabb();
+	/// The mesh bounding box.
+	RAS_BoundingBox *m_boundingBox;
 
 protected:
 	std::vector<RAS_MeshMaterial *> m_materials;
@@ -116,12 +115,6 @@ public:
 
 	// name
 	STR_String& GetName();
-
-	/// Return mesh modified flag.
-	unsigned short GetModifiedFlag() const;
-	/** Mix mesh modified flag with a new flag.
-	 * \param flag The flag to mix.
-	 */
 
 	// original blender mesh
 	Mesh *GetMesh()
@@ -152,11 +145,12 @@ public:
 	int NumPolygons();
 	RAS_Polygon *GetPolygon(int num) const;
 
+	RAS_BoundingBox *GetBoundingBox() const;
 	// buckets
 	RAS_MeshUser *AddMeshUser(void *clientobj, RAS_Deformer *deformer);
 
 	void RemoveFromBuckets(void *clientobj);
-	void EndConversion();
+	void EndConversion(RAS_BoundingBoxManager *boundingBoxManager);
 
 	/// Return the list of blender's layers.
 	const LayerList& GetLayers() const;
@@ -170,8 +164,6 @@ public:
 	void SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transform);
 
 	bool HasColliderPolygon();
-
-	void GetAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax);
 
 	// for construction to find shared vertices
 	struct SharedVertex

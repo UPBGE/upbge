@@ -82,6 +82,7 @@
 #include "RAS_Polygon.h"
 #include "RAS_TexVert.h"
 #include "RAS_BucketManager.h"
+#include "RAS_BoundingBoxManager.h"
 #include "RAS_IPolygonMaterial.h"
 #include "KX_BlenderMaterial.h"
 #include "KX_CubeMapManager.h"
@@ -708,7 +709,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	// keep meshobj->m_sharedvertex_map for reinstance phys mesh.
 	// 2.49a and before it did: meshobj->m_sharedvertex_map.clear();
 	// but this didnt save much ram. - Campbell
-	meshobj->EndConversion();
+	meshobj->EndConversion(scene->GetBoundingBoxManager());
 
 	// pre calculate texture generation
 	// However, we want to delay this if we're libloading so we can make sure we have the right scene.
@@ -1793,8 +1794,10 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			// AABB Box : min/max.
 			MT_Vector3 aabbMin;
 			MT_Vector3 aabbMax;
+			// Get the mesh bounding box for none deformer.
+			RAS_BoundingBox *boundingBox = meshobj->GetBoundingBox();
 			// Get the AABB.
-			meshobj->GetAabb(aabbMin, aabbMax);
+			boundingBox->GetAabb(aabbMin, aabbMax);
 			gameobj->SetBoundsAabb(aabbMin, aabbMax);
 		}
 		else if (gameobj->GetMeshCount() > 0) {

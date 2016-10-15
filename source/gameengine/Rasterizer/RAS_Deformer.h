@@ -44,6 +44,8 @@
 #include "MEM_guardedalloc.h"
 #endif
 
+#include "RAS_BoundingBox.h"
+
 struct DerivedMesh;
 class RAS_MeshObject;
 class RAS_IPolyMaterial;
@@ -55,18 +57,23 @@ public:
 	RAS_Deformer()
 		:m_pMesh(NULL),
 		m_bDynamic(false),
-		m_aabbMin(0.0f, 0.0f, 0.0f),
-		m_aabbMax(0.0f, 0.0f, 0.0f)
+		m_boundingBox(NULL)
 	{
 	}
 
-	virtual ~RAS_Deformer() {}
+	virtual ~RAS_Deformer()
+	{
+	}
+
 	virtual void Relink(std::map<void *, void *>& map) = 0;
 	virtual bool Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat) = 0;
 	virtual bool Update(void)=0;
 	virtual bool UpdateBuckets(void)=0;
 	virtual RAS_Deformer *GetReplica()=0;
-	virtual void ProcessReplica()=0;
+	virtual void ProcessReplica()
+	{
+		m_boundingBox = m_boundingBox->GetReplica();
+	}
 	virtual bool SkipVertexTransform()
 	{
 		return false;
@@ -99,18 +106,17 @@ public:
 	}
 	virtual float (* GetTransVerts(int *tot))[3]	{	*tot= 0; return NULL; }
 
-	virtual void GetAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) const
+	RAS_BoundingBox *GetBoundingBox() const
 	{
-		aabbMin = m_aabbMin;
-		aabbMax = m_aabbMax;
+		return m_boundingBox;
 	}
 
 protected:
 	class RAS_MeshObject	*m_pMesh;
 	bool  m_bDynamic;
 
-	MT_Vector3 m_aabbMin;
-	MT_Vector3 m_aabbMax;
+	/// Deformer bounding box.
+	RAS_BoundingBox *m_boundingBox;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_Deformer")

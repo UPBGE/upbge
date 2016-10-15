@@ -240,13 +240,13 @@ void RAS_MaterialBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IR
 	}
 }
 
-void RAS_MaterialBucket::SetMeshUnmodified()
+void RAS_MaterialBucket::SetDisplayArrayUnmodified()
 {
 	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
 		it != end; ++it)
 	{
 		RAS_DisplayArrayBucket *displayArrayBucket = *it;
-		displayArrayBucket->SetMeshUnmodified();
+		displayArrayBucket->SetDisplayArrayUnmodified();
 	}
 }
 

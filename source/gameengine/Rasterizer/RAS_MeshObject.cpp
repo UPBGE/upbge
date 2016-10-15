@@ -33,6 +33,7 @@
 
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
+#include "RAS_BoundingBoxManager.h"
 #include "RAS_Polygon.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_BucketManager.h"
@@ -102,11 +103,9 @@ struct RAS_MeshObject::fronttoback
 STR_String RAS_MeshObject::s_emptyname = "";
 
 RAS_MeshObject::RAS_MeshObject(Mesh *mesh, LayerList& layers)
-	:m_needUpdateAabb(true),
-	m_aabbMax(0.0f, 0.0f, 0.0f),
-	m_aabbMin(0.0f, 0.0f, 0.0f),
-	m_name(mesh->id.name + 2),
+	:m_name(mesh->id.name + 2),
 	m_layers(layers),
+	m_boundingBox(NULL),
 	m_mesh(mesh)
 {
 }
@@ -125,51 +124,6 @@ RAS_MeshObject::~RAS_MeshObject()
 		delete *it;
 	}
 	m_materials.clear();
-}
-
-void RAS_MeshObject::UpdateAabb()
-{
-	bool first = true;
-	unsigned int nmat = NumMaterials();
-	for (unsigned int imat = 0; imat < nmat; ++imat) {
-		RAS_MeshMaterial *mmat = GetMeshMaterial(imat);
-
-		RAS_MeshSlot *slot = mmat->m_baseslot;
-		if (!slot)
-			continue;
-
-		RAS_IDisplayArray *array = slot->GetDisplayArray();
-		// for each vertex
-		for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
-			RAS_ITexVert *v = array->GetVertex(i);
-			MT_Vector3 vertpos = v->xyz();
-
-			// For the first vertex of the mesh, only initialize AABB.
-			if (first) {
-				m_aabbMin = m_aabbMax = vertpos;
-				first = false;
-			}
-			else {
-				m_aabbMin.x() = std::min(m_aabbMin.x(), vertpos.x());
-				m_aabbMin.y() = std::min(m_aabbMin.y(), vertpos.y());
-				m_aabbMin.z() = std::min(m_aabbMin.z(), vertpos.z());
-				m_aabbMax.x() = std::max(m_aabbMax.x(), vertpos.x());
-				m_aabbMax.y() = std::max(m_aabbMax.y(), vertpos.y());
-				m_aabbMax.z() = std::max(m_aabbMax.z(), vertpos.z());
-			}
-		}
-	}
-}
-
-void RAS_MeshObject::GetAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax)
-{
-	if (m_needUpdateAabb) {
-		UpdateAabb();
-		m_needUpdateAabb = false;
-	}
-
-	aabbMin = m_aabbMin;
-	aabbMax = m_aabbMax;
 }
 
 int RAS_MeshObject::NumMaterials()
@@ -231,20 +185,6 @@ std::vector<RAS_MeshMaterial *>::iterator RAS_MeshObject::GetLastMaterial()
 STR_String& RAS_MeshObject::GetName()
 {
 	return m_name;
-}
-
-unsigned short RAS_MeshObject::GetModifiedFlag() const
-{
-	unsigned short modifiedFlag = RAS_IDisplayArray::NONE_MODIFIED;
-	for (std::vector<RAS_MeshMaterial *>::const_iterator it = m_materials.begin(), end = m_materials.end(); it != end; ++it) {
-		RAS_MeshSlot *slot = (*it)->m_baseslot;
-		RAS_IDisplayArray *array = slot->GetDisplayArray();
-		if (array) {
-			modifiedFlag |= array->GetModifiedFlag();
-		}
-	}
-
-	return modifiedFlag;
 }
 
 const STR_String& RAS_MeshObject::GetTextureName(unsigned int matid)
@@ -405,9 +345,18 @@ const float *RAS_MeshObject::GetVertexLocation(unsigned int orig_index)
 	return it->m_darray->GetVertex(it->m_offset)->getXYZ();
 }
 
+RAS_BoundingBox *RAS_MeshObject::GetBoundingBox() const
+{
+	return m_boundingBox;
+}
+
 RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deformer)
 {
 	RAS_MeshUser *meshUser = new RAS_MeshUser(clientobj);
+
+	RAS_BoundingBox *boundingBox = (deformer) ? deformer->GetBoundingBox() : m_boundingBox;
+	meshUser->SetBoundingBox(boundingBox);
+
 	for (std::vector<RAS_MeshMaterial *>::iterator it = m_materials.begin(); it != m_materials.end(); ++it) {
 		RAS_MeshMaterial *meshmat = *it;
 		RAS_MeshSlot *ms = meshmat->m_bucket->CopyMesh(meshmat->m_baseslot);
@@ -436,7 +385,7 @@ void RAS_MeshObject::RemoveFromBuckets(void *clientobj)
 	}
 }
 
-void RAS_MeshObject::EndConversion()
+void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 {
 #if 0
 	m_sharedvertex_map.clear(); // SharedVertex
@@ -444,14 +393,22 @@ void RAS_MeshObject::EndConversion()
 	shared_null.swap(m_sharedvertex_map);   /* really free the memory */
 #endif
 
-	for (unsigned int imat = 0, nmat = NumMaterials(); imat < nmat; ++imat) {
-		RAS_MeshMaterial *mmat = GetMeshMaterial(imat);
+	RAS_IDisplayArrayList arrayList;
 
-		RAS_MeshSlot *slot = mmat->m_baseslot;
-		if (slot && slot->GetDisplayArray()) {
-			slot->GetDisplayArray()->UpdateCache();
+	// Construct a list of all the display arrays used by this mesh.
+	for (std::vector<RAS_MeshMaterial *>::iterator it = m_materials.begin(), end = m_materials.end(); it != end; ++it) {
+		RAS_MeshMaterial *meshmat = *it;
+
+		RAS_IDisplayArray *array = meshmat->m_baseslot->GetDisplayArray();
+		if (array) {
+			array->UpdateCache();
+			arrayList.push_back(array);
 		}
 	}
+
+	// Construct the bounding box of this mesh without deformers.
+	m_boundingBox = boundingBoxManager->CreateMeshBoundingBox(arrayList);
+	m_boundingBox->Update(true);
 }
 
 const RAS_MeshObject::LayerList& RAS_MeshObject::GetLayers() const

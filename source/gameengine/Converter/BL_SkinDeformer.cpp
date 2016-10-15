@@ -42,6 +42,7 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
+#include "RAS_BoundingBox.h"
 
 //#include "BL_ArmatureController.h"
 #include "BL_DeformableGameObject.h"
@@ -316,6 +317,10 @@ void BL_SkinDeformer::UpdateTransverts()
 	size_t nmat, imat;
 	bool first = true;
 	if (m_transverts) {
+		// AABB Box : min/max.
+		MT_Vector3 aabbMin;
+		MT_Vector3 aabbMax;
+
 		// the vertex cache is unique to this deformer, no need to update it
 		// if it wasn't updated! We must update all the materials at once
 		// because we will not get here again for the other material
@@ -346,19 +351,21 @@ void BL_SkinDeformer::UpdateTransverts()
 
 				// For the first vertex of the mesh, only initialize AABB.
 				if (first) {
-					m_aabbMin = m_aabbMax = vertpos;
+					aabbMin = aabbMax = vertpos;
 					first = false;
 				}
 				else {
-					m_aabbMin.x() = std::min(m_aabbMin.x(), vertpos.x());
-					m_aabbMin.y() = std::min(m_aabbMin.y(), vertpos.y());
-					m_aabbMin.z() = std::min(m_aabbMin.z(), vertpos.z());
-					m_aabbMax.x() = std::max(m_aabbMax.x(), vertpos.x());
-					m_aabbMax.y() = std::max(m_aabbMax.y(), vertpos.y());
-					m_aabbMax.z() = std::max(m_aabbMax.z(), vertpos.z());
+					aabbMin.x() = std::min(aabbMin.x(), vertpos.x());
+					aabbMin.y() = std::min(aabbMin.y(), vertpos.y());
+					aabbMin.z() = std::min(aabbMin.z(), vertpos.z());
+					aabbMax.x() = std::max(aabbMax.x(), vertpos.x());
+					aabbMax.y() = std::max(aabbMax.y(), vertpos.y());
+					aabbMax.z() = std::max(aabbMax.z(), vertpos.z());
 				}
 			}
 		}
+
+		m_boundingBox->SetAabb(aabbMin, aabbMax);
 
 		if (m_copyNormals)
 			m_copyNormals = false;

@@ -43,6 +43,7 @@
 #include "KX_FontObject.h"  // only for their ::Type
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
+#include "RAS_BoundingBoxManager.h"
 #include "RAS_Deformer.h"
 #include "RAS_IDisplayArray.h"
 #include "RAS_Polygon.h"
@@ -1429,27 +1430,20 @@ const MT_Vector3& KX_GameObject::NodeGetLocalPosition() const
 
 void KX_GameObject::UpdateBounds(bool force)
 {
-	RAS_Deformer *deformer = GetDeformer();
-	bool meshModified = ((m_meshes.size() > 0) && (m_meshes[0]->GetModifiedFlag() & RAS_IDisplayArray::AABB_MODIFIED)) ||
-						(deformer && deformer->IsDynamic());
+	if ((!m_autoUpdateBounds && !force) || !m_meshUser) {
+		return;
+	}
 
-	if (!(m_autoUpdateBounds && meshModified) && !force) {
+	RAS_BoundingBox *boundingBox = m_meshUser->GetBoundingBox();
+	if (!boundingBox || !boundingBox->GetModified()) {
 		return;
 	}
 
 	// AABB Box : min/max.
-	MT_Vector3 aabbMin(0.0f, 0.0f, 0.0f);
-	MT_Vector3 aabbMax(0.0f, 0.0f, 0.0f);
+	MT_Vector3 aabbMin;
+	MT_Vector3 aabbMax;
 
-	// Get the mesh deforme AABB.
-	if (deformer) {
-		// Can return an empty AABB if not updated.
-		deformer->GetAabb(aabbMin, aabbMax);
-	}
-	// Get the mesh AABB if there's a mesh or the deformer return an invalid AABB.
-	if ((aabbMin == aabbMax) && (m_meshes.size() > 0)) {
-		m_meshes[0]->GetAabb(aabbMin, aabbMax);
-	}
+	boundingBox->GetAabb(aabbMin, aabbMax);
 
 	SetBoundsAabb(aabbMin, aabbMax);
 }

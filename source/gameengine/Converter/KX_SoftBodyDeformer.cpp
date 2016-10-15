@@ -39,6 +39,7 @@
 #include "KX_SoftBodyDeformer.h"
 #include "RAS_MeshObject.h"
 #include "RAS_DisplayArray.h"
+#include "RAS_BoundingBox.h"
 
 #ifdef WITH_BULLET
 
@@ -85,6 +86,16 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *me
 
 	btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
 
+
+	if (m_needUpdateAabb) {
+		m_boundingBox->SetAabb(MT_Vector3(0.0f, 0.0f, 0.0f), MT_Vector3(0.0f, 0.0f, 0.0f));
+		m_needUpdateAabb = false;
+	}
+
+	// AABB Box : min/max.
+	MT_Vector3 aabbMin;
+	MT_Vector3 aabbMax;
+
 	for (unsigned int i = 0, size = array->GetVertexCount(); i < size; ++i) {
 		RAS_ITexVert *v = array->GetVertex(i);
 		const RAS_TexVertInfo& vinfo = origarray->GetVertexInfo(i);
@@ -118,19 +129,17 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *me
 
 		// Extract object transform from the vertex position.
 		pt = (pt - pos) * rot * invertscale;
-
 		// if the AABB need an update.
-		if (m_needUpdateAABB) {
-			m_aabbMin = m_aabbMax = pt;
-			m_needUpdateAABB = false;
+		if (i == 0) {
+			aabbMin = aabbMax = pt;
 		}
 		else {
-			m_aabbMin.x() = std::min(m_aabbMin.x(), pt.x());
-			m_aabbMin.y() = std::min(m_aabbMin.y(), pt.y());
-			m_aabbMin.z() = std::min(m_aabbMin.z(), pt.z());
-			m_aabbMax.x() = std::max(m_aabbMax.x(), pt.x());
-			m_aabbMax.y() = std::max(m_aabbMax.y(), pt.y());
-			m_aabbMax.z() = std::max(m_aabbMax.z(), pt.z());
+			aabbMin.x() = std::min(aabbMin.x(), pt.x());
+			aabbMin.y() = std::min(aabbMin.y(), pt.y());
+			aabbMin.z() = std::min(aabbMin.z(), pt.z());
+			aabbMax.x() = std::max(aabbMax.x(), pt.x());
+			aabbMax.y() = std::max(aabbMax.y(), pt.y());
+			aabbMax.z() = std::max(aabbMax.z(), pt.z());
 		}
 	}
 
@@ -138,6 +147,8 @@ bool KX_SoftBodyDeformer::Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *me
 					 (RAS_IDisplayArray::TANGENT_MODIFIED |
 					  RAS_IDisplayArray::UVS_MODIFIED |
 					  RAS_IDisplayArray::COLORS_MODIFIED));
+
+	m_boundingBox->ExtendAabb(aabbMin, aabbMax);
 
 	return true;
 }

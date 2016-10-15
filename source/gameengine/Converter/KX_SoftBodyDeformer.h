@@ -37,10 +37,10 @@
 #endif
 
 #include "RAS_Deformer.h"
+#include "RAS_BoundingBoxManager.h"
 #include "BL_DeformableGameObject.h"
 #include <vector>
 
-class BL_DeformableGameObject;
 class RAS_MeshObject;
 class RAS_IPolyMaterial;
 
@@ -51,14 +51,17 @@ class KX_SoftBodyDeformer : public RAS_Deformer
 	/** Set to true to request an AABB update in Apply(mat).
 	 * Used to compute a fully AABB and not for only one material.
 	 */
-	bool m_needUpdateAABB;
+	bool m_needUpdateAabb;
 
 public:
 	KX_SoftBodyDeformer(RAS_MeshObject *pMeshObject, BL_DeformableGameObject *gameobj)
 		:m_pMeshObject(pMeshObject),
 		m_gameobj(gameobj),
-		m_needUpdateAABB(true)
+		m_needUpdateAabb(true)
 	{
+		KX_Scene *scene = m_gameobj->GetScene();
+		RAS_BoundingBoxManager *boundingBoxManager = scene->GetBoundingBoxManager();
+		m_boundingBox = boundingBoxManager->CreateBoundingBox();
 	}
 
 	virtual ~KX_SoftBodyDeformer()
@@ -75,7 +78,7 @@ public:
 	virtual bool UpdateBuckets()
 	{
 		// invalidate the AABB for each read acces.
-		m_needUpdateAABB = true;
+		m_needUpdateAabb = true;
 		// this is to update the mesh slots outside the rasterizer,
 		// no need to do it for this deformer, it's done in any case in Apply()
 		return false;
@@ -89,6 +92,7 @@ public:
 	}
 	virtual void ProcessReplica()
 	{
+		RAS_Deformer::ProcessReplica();
 		// we have two pointers to deal with but we cannot do it now, will be done in Relink
 		m_bDynamic = false;
 	}

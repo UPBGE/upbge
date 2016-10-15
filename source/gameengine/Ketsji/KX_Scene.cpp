@@ -65,6 +65,7 @@
 #include "RAS_CubeMap.h"
 #include "KX_2DFilterManager.h"
 #include "KX_CubeMapManager.h"
+#include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
 
 #include "EXP_FloatValue.h"
@@ -199,6 +200,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 
 	m_cubeMapManager = new KX_CubeMapManager(this);
 	m_bucketmanager=new RAS_BucketManager();
+	m_boundingBoxManager = new RAS_BoundingBoxManager();
 	
 	bool showObstacleSimulation = (scene->gm.flag & GAME_SHOW_OBSTACLE_SIMULATION) != 0;
 	switch (scene->gm.obstacleSimulation)
@@ -291,6 +293,10 @@ KX_Scene::~KX_Scene()
 		delete m_bucketmanager;
 	}
 
+	if (m_boundingBoxManager) {
+		delete m_boundingBoxManager;
+	}
+
 #ifdef WITH_PYTHON
 	if (m_attr_dict) {
 		PyDict_Clear(m_attr_dict);
@@ -324,6 +330,11 @@ RAS_BucketManager* KX_Scene::GetBucketManager()
 KX_CubeMapManager *KX_Scene::GetCubeMapManager()
 {
 	return m_cubeMapManager;
+}
+
+RAS_BoundingBoxManager *KX_Scene::GetBoundingBoxManager()
+{
+	return m_boundingBoxManager;
 }
 
 CListValue* KX_Scene::GetTempObjectList()
@@ -1403,9 +1414,11 @@ void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void* cul
 
 void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int layer)
 {
+	m_boundingBoxManager->Update(false);
+
 	// Update the object boudning volume box if the object had a deformer.
-	for (int i = 0; i < m_objectlist->GetCount(); i++) {
-		KX_GameObject *gameobj = static_cast<KX_GameObject*>(m_objectlist->GetValue(i));
+	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = static_cast<KX_GameObject*>(*it);
 		if (gameobj->GetDeformer()) {
 			/** Update all the deformer, not only per material.
 			 * One of the side effect is to clear some flags about AABB calculation.
@@ -1413,8 +1426,10 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 			 */
 			gameobj->GetDeformer()->UpdateBuckets();
 		}
-		gameobj->UpdateBounds();
+		gameobj->UpdateBounds(false);
 	}
+
+	m_boundingBoxManager->ClearModified();
 
 	bool dbvt_culling = false;
 	if (m_dbvt_culling) 
@@ -1423,8 +1438,8 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 		 * since DBVT culling will only set it to false.
 		 * This is similar to what RAS_BucketManager does for RAS_MeshSlot culling.
 		 */
-		for (int i = 0; i < m_objectlist->GetCount(); i++) {
-			KX_GameObject *gameobj = static_cast<KX_GameObject*>(m_objectlist->GetValue(i));
+		for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+			KX_GameObject *gameobj = static_cast<KX_GameObject*>(*it);
 			gameobj->SetCulled(true);
 		}
 
@@ -1969,6 +1984,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 
 	GetBucketManager()->MergeBucketManager(other->GetBucketManager(), this);
+	GetBoundingBoxManager()->Merge(other->GetBoundingBoxManager());
 
 
 	/* active + inactive == all ??? - lets hope so */

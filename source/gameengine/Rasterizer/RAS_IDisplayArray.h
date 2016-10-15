@@ -169,4 +169,6 @@ public:
 	void SetModifiedFlag(unsigned short flag);
 };
 
+typedef std::vector<RAS_IDisplayArray *> RAS_IDisplayArrayList;
+
 #endif  // __RAS_IDISPLAY_ARRAY_H__

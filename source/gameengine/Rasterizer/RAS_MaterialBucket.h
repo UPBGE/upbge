@@ -73,7 +73,7 @@ public:
 	/// Remove all mesh slot using the given mesh object.
 	void RemoveMeshObject(RAS_MeshObject *mesh);
 	/// Set the mesh object as unmodified flag.
-	void SetMeshUnmodified();
+	void SetDisplayArrayUnmodified();
 	unsigned int GetNumActiveMeshSlots();
 
 	/// Find a display array bucket for the given display array.
