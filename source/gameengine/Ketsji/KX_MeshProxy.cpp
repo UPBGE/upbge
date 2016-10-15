@@ -126,21 +126,10 @@ static PyObject *kx_mesh_proxy_get_polygons_item_cb(void *self_v, int index)
 {
 	KX_MeshProxy *self = static_cast<KX_MeshProxy *>(self_v);
 	RAS_Polygon *polygon = self->GetMesh()->GetPolygon(index);
-	PyObject *polyob;
-	polyob = (new KX_PolyProxy(self, polygon))->NewProxy(true);
+	PyObject *polyob = (new KX_PolyProxy(self, polygon))->NewProxy(true);
 	return polyob;
 }
 
-PyObject *KX_MeshProxy::pyattr_get_polygons(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	return (new CListWrapper(self_v,
-		((KX_PolyProxy *)self_v)->GetProxy(),
-		NULL,
-		kx_mesh_proxy_get_polygons_size_cb,
-		kx_mesh_proxy_get_polygons_item_cb,
-		NULL,
-		NULL))->NewProxy(true);
-}
 PyObject *KX_MeshProxy::PyGetMaterialName(PyObject *args, PyObject *kwds)
 {
 	int matid = 1;
@@ -445,6 +434,17 @@ PyObject *KX_MeshProxy::pyattr_get_numPolygons(void *self_v, const KX_PYATTRIBUT
 {
 	KX_MeshProxy *self = static_cast<KX_MeshProxy *> (self_v);
 	return PyLong_FromLong(self->m_meshobj->NumPolygons());
+}
+
+PyObject *KX_MeshProxy::pyattr_get_polygons(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	return (new CListWrapper(self_v,
+		((KX_MeshProxy *)self_v)->GetProxy(),
+		NULL,
+		kx_mesh_proxy_get_polygons_size_cb,
+		kx_mesh_proxy_get_polygons_item_cb,
+		NULL,
+		NULL))->NewProxy(true);
 }
 
 /* a close copy of ConvertPythonToGameObject but for meshes */

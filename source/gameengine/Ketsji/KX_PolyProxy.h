@@ -55,7 +55,6 @@ public:
 	virtual STR_String& GetName();
 
 	RAS_Polygon *GetPolygon();
-	RAS_MeshObject *GetMeshObject();
 	KX_MeshProxy *GetMeshProxy();
 
 	// stuff for python integration

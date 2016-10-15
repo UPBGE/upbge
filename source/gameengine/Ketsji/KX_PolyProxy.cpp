@@ -35,6 +35,7 @@
 #include "KX_PolyProxy.h"
 #include "KX_MeshProxy.h"
 #include "RAS_MeshObject.h"
+#include "RAS_IDisplayArray.h"
 #include "KX_VertexProxy.h"
 #include "RAS_Polygon.h"
 #include "KX_BlenderMaterial.h"
@@ -45,11 +46,6 @@
 RAS_Polygon *KX_PolyProxy::GetPolygon()
 {
 	return m_polygon;
-}
-
-RAS_MeshObject *KX_PolyProxy::GetMeshObject()
-{
-	return m_mesh;
 }
 
 KX_MeshProxy *KX_PolyProxy::GetMeshProxy()
@@ -207,17 +203,9 @@ static PyObject *kx_poly_proxy_get_vertices_item_cb(void *self_v, int index)
 {
 	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
 	KX_MeshProxy *meshproxy = self->GetMeshProxy();
-	int vertindex = self->GetPolygon()->GetVertexOffset(index);
-	RAS_MaterialBucket *polyBucket = self->GetPolygon()->GetMaterial();
-	unsigned int matid;
-	for (matid = 0; matid < (unsigned int)self->GetMeshObject()->NumMaterials(); matid++)
-	{
-		RAS_MeshMaterial *meshMat = self->GetMeshObject()->GetMeshMaterial(matid);
-		if (meshMat->m_bucket == polyBucket)
-			// found it
-			break;
-	}
-	KX_VertexProxy *vert = new KX_VertexProxy(meshproxy, (RAS_ITexVert *)(self->GetMeshObject()->GetVertex(matid, vertindex)));
+	RAS_Polygon *polygon = self->GetPolygon();
+	int vertindex = polygon->GetVertexOffset(index);
+	KX_VertexProxy *vert = new KX_VertexProxy(meshproxy, polygon->GetDisplayArray()->GetVertex(vertindex));
 	return vert->GetProxy();
 }
 
