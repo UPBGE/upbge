@@ -35,10 +35,27 @@
 #include "KX_PolyProxy.h"
 #include "KX_MeshProxy.h"
 #include "RAS_MeshObject.h"
+#include "KX_VertexProxy.h"
 #include "RAS_Polygon.h"
 #include "KX_BlenderMaterial.h"
+#include "EXP_ListWrapper.h"
 
 #include "KX_PyMath.h"
+
+RAS_Polygon *KX_PolyProxy::GetPolygon()
+{
+	return m_polygon;
+}
+
+RAS_MeshObject *KX_PolyProxy::GetMeshObject()
+{
+	return m_mesh;
+}
+
+KX_MeshProxy *KX_PolyProxy::GetMeshProxy()
+{
+	return m_meshProxy;
+}
 
 PyTypeObject KX_PolyProxy::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
@@ -86,6 +103,7 @@ PyAttributeDef KX_PolyProxy::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("v4", KX_PolyProxy, pyattr_get_v4),
 	KX_PYATTRIBUTE_RO_FUNCTION("visible", KX_PolyProxy, pyattr_get_visible),
 	KX_PYATTRIBUTE_RO_FUNCTION("collide", KX_PolyProxy, pyattr_get_collide),
+	KX_PYATTRIBUTE_RO_FUNCTION("vertices", KX_PolyProxy, pyattr_get_vertices),
 	{ NULL }	//Sentinel
 };
 
@@ -178,6 +196,40 @@ PyObject *KX_PolyProxy::pyattr_get_collide(void *self_v, const KX_PYATTRIBUTE_DE
 {
 	KX_PolyProxy* self = static_cast<KX_PolyProxy*>(self_v);
 	return self->PyisCollider();
+}
+
+static int kx_poly_proxy_get_vertices_size_cb(void *self_v)
+{
+	return ((KX_PolyProxy *)self_v)->GetPolygon()->VertexCount();
+}
+
+static PyObject *kx_poly_proxy_get_vertices_item_cb(void *self_v, int index)
+{
+	KX_PolyProxy *self = static_cast<KX_PolyProxy *>(self_v);
+	KX_MeshProxy *meshproxy = self->GetMeshProxy();
+	int vertindex = self->GetPolygon()->GetVertexOffset(index);
+	RAS_MaterialBucket *polyBucket = self->GetPolygon()->GetMaterial();
+	unsigned int matid;
+	for (matid = 0; matid < (unsigned int)self->GetMeshObject()->NumMaterials(); matid++)
+	{
+		RAS_MeshMaterial *meshMat = self->GetMeshObject()->GetMeshMaterial(matid);
+		if (meshMat->m_bucket == polyBucket)
+			// found it
+			break;
+	}
+	KX_VertexProxy *vert = new KX_VertexProxy(meshproxy, (RAS_ITexVert *)(self->GetMeshObject()->GetVertex(matid, vertindex)));
+	return vert->GetProxy();
+}
+
+PyObject *KX_PolyProxy::pyattr_get_vertices(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	return (new CListWrapper(self_v,
+		((KX_PolyProxy *)self_v)->GetProxy(),
+		NULL,
+		kx_poly_proxy_get_vertices_size_cb,
+		kx_poly_proxy_get_vertices_item_cb,
+		NULL,
+		NULL))->NewProxy(true);
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialIndex,
