@@ -120,8 +120,7 @@ KX_GameObject::KX_GameObject(
       m_components(NULL),
       m_pInstanceObjects(NULL),
       m_pDupliGroupObject(NULL),
-      m_actionManager(NULL),
-	  m_isInActiveLayer(NULL)
+      m_actionManager(NULL)
 #ifdef WITH_PYTHON
     , m_attr_dict(NULL),
     m_collisionCallbacks(NULL)
@@ -233,16 +232,6 @@ STR_String& KX_GameObject::GetName()
 void KX_GameObject::SetName(const char *name)
 {
 	m_name = name;
-}
-
-bool KX_GameObject::IsInActiveLayer()
-{
-	return m_isInActiveLayer;
-}
-
-void KX_GameObject::SetIsInActiveLayer(bool isInActiveLayer)
-{
-	m_isInActiveLayer = isInActiveLayer;
 }
 
 PHY_IPhysicsController* KX_GameObject::GetPhysicsController()
@@ -3542,7 +3531,7 @@ PyObject *KX_GameObject::PySetParent(PyObject *args)
 	if (!ConvertPythonToGameObject(logicmgr, pyobj, &obj, true, "gameOb.setParent(obj): KX_GameObject"))
 		return NULL;
 
-	if (!obj->IsInActiveLayer()) {
+	if (obj->GetScene()->GetInactiveList()->SearchValue((CValue *)obj)) {
 		PyErr_SetString(PyExc_ValueError, "Warning: you are trying to parent an object to another in an inactive layer\n"
 			"Please use the exact reference to the object/instance you want to parent your object to\n"
 			"Example: Instead of using setParent('string'), use setParent(myInstancedObject) where myInstancedObject\n"

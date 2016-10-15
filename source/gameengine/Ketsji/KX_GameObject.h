@@ -109,7 +109,6 @@ protected:
 	bool								m_bOccluder;
 
 	bool								m_autoUpdateBounds;
-	bool								m_isInActiveLayer;
 
 	PHY_IPhysicsController*				m_pPhysicsController;
 	PHY_IGraphicController*				m_pGraphicController;
@@ -608,9 +607,6 @@ public:
 	bool IsDynamic() const;
 
 	bool IsDynamicsSuspended() const;
-
-	bool IsInActiveLayer();
-	void SetIsInActiveLayer(bool isInActiveLayer);
 
 	/**
 	 * Check if this object has a vertex parent relationship

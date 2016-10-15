@@ -883,7 +883,6 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 
 	// add to 'rootparent' list (this is the list of top hierarchy objects, updated each frame)
 	m_parentlist->Add(replica->AddRef());
-	replica->SetIsInActiveLayer(true);
 
 	// recurse replication into children nodes
 
@@ -893,8 +892,6 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 	for (NodeList::iterator childit = children.begin();!(childit==children.end());++childit)
 	{
 		SG_Node* orgnode = (*childit);
-		KX_GameObject *chil = (KX_GameObject *)(*childit);
-		chil->SetIsInActiveLayer(true);
 		SG_Node* childreplicanode = orgnode->GetSGReplica();
 		if (childreplicanode)
 			replica->GetSGNode()->AddChild(childreplicanode);
