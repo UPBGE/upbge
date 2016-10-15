@@ -3531,11 +3531,10 @@ PyObject *KX_GameObject::PySetParent(PyObject *args)
 	if (!ConvertPythonToGameObject(logicmgr, pyobj, &obj, true, "gameOb.setParent(obj): KX_GameObject"))
 		return NULL;
 
-	if (obj->GetScene()->GetInactiveList()->SearchValue((CValue *)obj)) {
-		PyErr_SetString(PyExc_ValueError, "Warning: you are trying to parent an object to another in an inactive layer\n"
-			"Please use the exact reference to the object/instance you want to parent your object to\n"
-			"Example: Instead of using setParent('string'), use setParent(myInstancedObject) where myInstancedObject\n"
-			"is a KX_GameObject in an active layer.");
+	if (obj->GetScene()->GetInactiveList()->SearchValue((CValue *)obj) ||
+		GetScene()->GetInactiveList()->SearchValue((CValue *)this)) {
+		PyErr_SetString(PyExc_ValueError, "Warning: KX_GameObject.setParent is not allowed for\n"
+			"objects that are in an inactive layer");
 		return NULL;
 	}
 
