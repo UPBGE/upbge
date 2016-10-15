@@ -309,10 +309,10 @@ void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 		rasty->SetCullFace(false);
 	}
 	else if (IsCullFace()) {
-		rasty->SetCullFace(false);
+		rasty->SetCullFace(true);
 	}
 	else {
-		rasty->SetCullFace(true);
+		rasty->SetCullFace(false);
 	}
 
 	ActivateGLMaterials(rasty);
@@ -327,10 +327,10 @@ void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 		rasty->SetCullFace(false);
 	}
 	else if (IsCullFace()) {
-		rasty->SetCullFace(false);
+		rasty->SetCullFace(true);
 	}
 	else {
-		rasty->SetCullFace(true);
+		rasty->SetCullFace(false);
 	}
 
 	ActivateGLMaterials(rasty);
