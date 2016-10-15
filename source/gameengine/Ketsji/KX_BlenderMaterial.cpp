@@ -313,7 +313,7 @@ void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 	if (IsWire()) {
 		rasty->SetCullFace(false);
 	}
-	else if (m_rasMode & RAS_TWOSIDED) {
+	else if (IsCullFace()) {
 		rasty->SetCullFace(false);
 	}
 	else {
@@ -331,7 +331,7 @@ void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 	if (IsWire()) {
 		rasty->SetCullFace(false);
 	}
-	else if (m_rasMode & RAS_TWOSIDED) {
+	else if (IsCullFace()) {
 		rasty->SetCullFace(false);
 	}
 	else {

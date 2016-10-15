@@ -117,6 +117,7 @@ public:
 	bool IsZSort() const;
 	bool IsWire() const;
 	bool IsText() const;
+	bool IsCullFace() const;
 	int GetDrawingMode() const;
 	virtual STR_String& GetName();
 	unsigned int GetFlag() const;

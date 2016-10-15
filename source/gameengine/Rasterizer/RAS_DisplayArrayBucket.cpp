@@ -353,6 +353,9 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 			m_instancingBuffer->GetMatrixOffset(),
 			m_instancingBuffer->GetPositionOffset(),
 			m_instancingBuffer->GetStride());
+
+		// Set cull face without activating the material.
+		rasty->SetCullFace(material->IsCullFace());
 	}
 
 	/* It's a major issue of the geometry instancing : we can't manage face wise.
