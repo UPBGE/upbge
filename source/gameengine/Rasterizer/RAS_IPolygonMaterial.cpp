@@ -89,6 +89,11 @@ bool RAS_IPolyMaterial::IsText() const
 	return (m_rasMode & RAS_TEXT);
 }
 
+bool RAS_IPolyMaterial::IsCullFace() const
+{
+	return !(m_rasMode & RAS_TWOSIDED);
+}
+
 void RAS_IPolyMaterial::GetRGBAColor(unsigned char *rgba) const
 {
 	*rgba++ = 0xFF;

@@ -170,15 +170,14 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 	rasty->SetFrontFace(meshUser->GetFrontFace());
 
 	// Inverse condition of in ActivateMaterial.
-	if (!(rasty->GetDrawingMode() == RAS_IRasterizer::RAS_SHADOW && !m_material->CastsShadows()) ||
-		(rasty->GetDrawingMode() != RAS_IRasterizer::RAS_SHADOW && m_material->OnlyShadow()))
-	{
+	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
 		bool uselights = m_material->UsesLighting(rasty);
 		rasty->ProcessLighting(uselights, cameratrans);
-	}
-
-	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
 		m_material->ActivateMeshSlot(ms, rasty);
+	}
+	else {
+		// Set cull face without activating the material.
+		rasty->SetCullFace(m_material->IsCullFace());
 	}
 
 	if (IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID)
