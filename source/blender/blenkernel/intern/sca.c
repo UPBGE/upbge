@@ -480,6 +480,7 @@ void init_actuator(bActuator *act)
 		break;
 	case ACT_VIBRATION:
 		act->data = MEM_callocN(sizeof(bVibrationActuator), "vibration act");
+		via = act->data;
 		via->duration = 500; //milliseconds
 		via->strength = 0.4;
 		break;
