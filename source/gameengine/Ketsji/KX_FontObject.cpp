@@ -133,6 +133,7 @@ void KX_FontObject::AddMeshUser()
 	if (created) {
 		RAS_TexVertFormat format;
 		format.uvSize = 1;
+		format.colorSize = 1;
 		bucket->AddMesh(NULL, NULL, format);
 	}
 
