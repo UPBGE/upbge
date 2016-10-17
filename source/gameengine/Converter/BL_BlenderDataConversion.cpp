@@ -932,6 +932,22 @@ static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene,
 	return lodManager;
 }
 
+static KX_LodManager *cubemap_lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading)
+{
+	if (BLI_listbase_count_ex(&ob->cubemaplodlevels, 2) <= 1) {
+		return NULL;
+	}
+
+	KX_LodManager *lodManager = new KX_LodManager(ob, scene, converter, libloading);
+	// The lod manager is useless ?
+	if (lodManager->GetLevelCount() <= 1) {
+		lodManager->Release();
+		return NULL;
+	}
+
+	return lodManager;
+}
+
 static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_IRasterizer *rasterizer, KX_BlenderSceneConverter *converter)
 {
 	RAS_ILightObject *lightobj = rasterizer->CreateLight();
@@ -1056,6 +1072,8 @@ static KX_GameObject *gameobject_from_blenderobject(
 		// gather levels of detail
 		KX_LodManager *lodManager = lodmanager_from_blenderobject(ob, kxscene, converter, libloading);
 		gameobj->SetLodManager(lodManager);
+		KX_LodManager *cubemaplodManager = cubemap_lodmanager_from_blenderobject(ob, kxscene, converter, libloading);
+		gameobj->SetCubeMapLodManager(cubemaplodManager);
 
 		// for all objects: check whether they want to
 		// respond to updates

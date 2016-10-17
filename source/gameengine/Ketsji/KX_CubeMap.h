@@ -67,6 +67,11 @@ private:
 	 */
 	bool m_forceUpdate;
 
+	/// Use level of detail
+	bool m_useLod;
+	/// Level of detail distance factor
+	float m_lodFactor;
+
 public:
 	KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint);
 	virtual ~KX_CubeMap();
@@ -80,6 +85,8 @@ public:
 	float GetClipEnd() const;
 	void SetClipStart(float start);
 	void SetClipEnd(float end);
+	float GetLodFactor() const;
+	bool GetUseLod() const;
 
 	void SetInvalidProjectionMatrix(bool invalid);
 	bool GetInvalidProjectionMatrix() const;

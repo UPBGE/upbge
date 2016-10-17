@@ -104,8 +104,11 @@ KX_GameObject::KX_GameObject(
     : SCA_IObject(),
       m_layer(0),
       m_lodManager(NULL),
+	  m_cubeMapsLodManager(NULL),
       m_currentLodLevel(0),
       m_previousLodLevel(0),
+	  m_cubeMapCurrentLodLevel(0),
+	  m_cubeMapPreviousLodLevel(0),
       m_meshUser(NULL),
       m_pBlenderObject(NULL),
       m_pBlenderGroupObject(NULL),
@@ -208,6 +211,9 @@ KX_GameObject::~KX_GameObject()
 	}
 	if (m_lodManager) {
 		m_lodManager->Release();
+	}
+	if (m_cubeMapsLodManager) {
+		m_cubeMapsLodManager->Release();
 	}
 }
 
@@ -525,6 +531,9 @@ void KX_GameObject::ProcessReplica()
 	if (m_lodManager) {
 		m_lodManager->AddRef();
 	}
+	if (m_cubeMapsLodManager) {
+		m_cubeMapsLodManager->AddRef();
+	}
 
 #ifdef WITH_PYTHON
 	if (m_attr_dict)
@@ -820,6 +829,58 @@ void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
 		}
 		m_currentLodLevel = level;
 		m_previousLodLevel = level;
+	}
+}
+
+void KX_GameObject::SetCubeMapLodManager(KX_LodManager *lodManager)
+{
+	// Reset lod level to avoid bugs on KX_LodManager::GetLevel.
+	m_cubeMapPreviousLodLevel = -1;
+	m_cubeMapCurrentLodLevel = 0;
+
+	// Restore object original mesh.
+	if (!lodManager && m_cubeMapsLodManager && m_cubeMapsLodManager->GetLevelCount() > 0) {
+		KX_Scene *scene = GetScene();
+		RAS_MeshObject *origmesh = m_cubeMapsLodManager->GetLevel(0)->GetMesh();
+		scene->ReplaceMesh(this, origmesh, true, false);
+	}
+
+	m_cubeMapsLodManager = lodManager;
+}
+
+KX_LodManager *KX_GameObject::GetCubeMapLodManager() const
+{
+	return m_cubeMapsLodManager;
+}
+
+void KX_GameObject::UpdateCubeMapLod(const MT_Vector3& cam_pos, float lodfactor, bool reset)
+{
+	if (!m_cubeMapsLodManager) {
+		return;
+	}
+	KX_Scene *scene = GetScene();
+	if (reset) {
+		KX_LodLevel *lodLevel = m_cubeMapsLodManager->GetLevel(scene, 0, 0);
+		RAS_MeshObject *mesh = lodLevel->GetMesh();
+		if (mesh) {
+				scene->ReplaceMesh(this, mesh, true, false);
+		}
+		m_cubeMapCurrentLodLevel = 0;
+		m_cubeMapPreviousLodLevel = 0;
+		return;
+	}
+
+	const float distance2 = NodeGetWorldPosition().distance2(cam_pos) * (lodfactor * lodfactor);
+	KX_LodLevel *lodLevel = m_cubeMapsLodManager->GetLevel(scene, m_cubeMapPreviousLodLevel, distance2);
+	const unsigned short level = lodLevel->GetLevel();
+
+	if (m_cubeMapPreviousLodLevel != level) {
+		RAS_MeshObject *mesh = lodLevel->GetMesh();
+		if (mesh != m_meshes[0]) {
+			scene->ReplaceMesh(this, mesh, true, false);
+		}
+		m_cubeMapCurrentLodLevel = level;
+		m_cubeMapPreviousLodLevel = level;
 	}
 }
 

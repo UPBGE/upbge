@@ -299,6 +299,9 @@ typedef struct Object {
 	ListBase lodlevels;		/* contains data for levels of detail */
 	LodLevel *currentlod;
 
+	ListBase cubemaplodlevels;		/* contains data for cubemap levels of detail */
+	LodLevel *currentcubemaplod;
+
 	struct PreviewImage *preview;
 
 	struct Mesh *gamePredefinedBound;

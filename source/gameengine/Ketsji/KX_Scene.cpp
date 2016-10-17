@@ -1716,6 +1716,24 @@ void KX_Scene::UpdateObjectLods()
 	}
 }
 
+void KX_Scene::UpdateObjectLodsForCubeMapsRendering(const MT_Vector3 &camPos, float lodDistanceFactor)
+{
+	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = (KX_GameObject *)*it;
+		if (!gameobj->GetCulled()) {
+			gameobj->UpdateCubeMapLod(camPos, lodDistanceFactor, false);
+		}
+	}
+}
+
+void KX_Scene::ResetObjectLodsAfterCubeMapRendering()
+{
+	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = (KX_GameObject *)*it;		
+		gameobj->UpdateCubeMapLod(gameobj->NodeGetWorldPosition(), 1.0f, true);
+	}
+}
+
 void KX_Scene::SetLodHysteresis(bool active)
 {
 	m_isActivedHysteresis = active;

@@ -496,6 +496,8 @@ public:
 
 	/// Update the mesh for objects based on level of detail settings
 	void UpdateObjectLods();
+	void UpdateObjectLodsForCubeMapsRendering(const MT_Vector3 &camPos, float lodDistanceFactor);
+	void ResetObjectLodsAfterCubeMapRendering();
 
 	// LoD Hysteresis functions
 	void SetLodHysteresis(bool active);

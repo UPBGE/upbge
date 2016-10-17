@@ -2161,7 +2161,6 @@ static void rna_def_object_lodlevel(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
 }
 
-
 static void rna_def_object(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -2840,6 +2839,13 @@ static void rna_def_object(BlenderRNA *brna)
 	/* Levels of Detail */
 	prop = RNA_def_property(srna, "lod_levels", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "lodlevels", NULL);
+	RNA_def_property_struct_type(prop, "LodLevel");
+	RNA_def_property_ui_text(prop, "Level of Detail Levels", "A collection of detail levels to automatically switch between");
+	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
+
+	/* Levels of Detail Cube Maps*/
+	prop = RNA_def_property(srna, "cubemap_lod_levels", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "cubemaplodlevels", NULL);
 	RNA_def_property_struct_type(prop, "LodLevel");
 	RNA_def_property_ui_text(prop, "Level of Detail Levels", "A collection of detail levels to automatically switch between");
 	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);

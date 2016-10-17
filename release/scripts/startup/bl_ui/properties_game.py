@@ -917,6 +917,46 @@ class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
         row.operator("object.lod_add", text="Add", icon='ZOOMIN')
         row.menu("OBJECT_MT_lod_tools", text="", icon='TRIA_DOWN')
 
+class OBJECT_PT_levels_of_detail_cubemap(ObjectButtonsPanel, Panel):
+    bl_label = "Levels of Detail Cube Map"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.render.engine in cls.COMPAT_ENGINES
+
+    def draw(self, context):
+        layout = self.layout
+        ob = context.object
+        gs = context.scene.game_settings
+
+        col = layout.column()
+
+        for i, level in enumerate(ob.cubemap_lod_levels):
+            if i == 0:
+                continue
+            box = col.box()
+            row = box.row()
+            row.prop(level, "object", text="")
+            row.operator("object.cubemap_lod_remove", text="", icon='PANEL_CLOSE').index = i
+
+            row = box.row()
+            row.prop(level, "distance")
+            row = row.row(align=True)
+            row.prop(level, "use_mesh", text="")
+            row.prop(level, "use_material", text="")
+
+            row = box.row()
+            row.active = gs.use_scene_hysteresis
+            row.prop(level, "use_object_hysteresis", text="Hysteresis Override")
+            row = box.row()
+            row.active = gs.use_scene_hysteresis and level.use_object_hysteresis
+            row.prop(level, "object_hysteresis_percentage", text="")
+
+        row = col.row(align=True)
+        row.operator("object.cubemap_lod_add", text="Add", icon='ZOOMIN')
+        row.menu("OBJECT_MT_lod_tools", text="", icon='TRIA_DOWN')
+
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

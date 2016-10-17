@@ -137,6 +137,11 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 
 		m_scene->CalculateVisibleMeshes(rasty, m_camera, ~cubeMap->GetIgnoreLayers());
 
+		/* Update objects LOD from cubemap camera position while rendering cube map */
+		if (cubeMap->GetUseLod()) {
+			m_scene->UpdateObjectLodsForCubeMapsRendering(position, cubeMap->GetLodFactor());
+		}
+
 		/* Update animations to use the culling of each faces, BL_ActionManager avoid redundants
 		 * updates internally. */
 		KX_GetActiveEngine()->UpdateAnimations(m_scene);
@@ -149,6 +154,9 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 	cubeMap->EndRender();
 
 	viewpoint->SetVisible(true, true);
+	if (cubeMap->GetUseLod()) {
+		m_scene->ResetObjectLodsAfterCubeMapRendering();
+	}
 }
 
 void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)

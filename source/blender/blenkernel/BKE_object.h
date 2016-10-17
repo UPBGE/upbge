@@ -105,6 +105,13 @@ bool BKE_object_lod_is_usable(struct Object *ob, struct Scene *scene);
 struct Object *BKE_object_lod_meshob_get(struct Object *ob, struct Scene *scene);
 struct Object *BKE_object_lod_matob_get(struct Object *ob, struct Scene *scene);
 
+//CubeMap LOD
+void BKE_object_cubemap_lod_add(struct Object *ob);
+void BKE_object_cubemap_lod_sort(struct Object *ob);
+bool BKE_object_cubemap_lod_remove(struct Object *ob, int level);
+struct Object *BKE_object_cubemap_lod_meshob_get(struct Object *ob, struct Scene *scene);
+struct Object *BKE_object_cubemap_lod_matob_get(struct Object *ob, struct Scene *scene);
+
 struct Object *BKE_object_copy_ex(struct Main *bmain, struct Object *ob, bool copy_caches);
 struct Object *BKE_object_copy(struct Main *bmain, struct Object *ob);
 void BKE_object_make_local(struct Main *bmain, struct Object *ob, const bool lib_local);

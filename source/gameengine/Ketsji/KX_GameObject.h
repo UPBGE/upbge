@@ -89,8 +89,11 @@ protected:
 	int									m_layer;
 	std::vector<RAS_MeshObject*>		m_meshes;
 	KX_LodManager						*m_lodManager;
+	KX_LodManager						*m_cubeMapsLodManager;
 	short								m_currentLodLevel;
 	short								m_previousLodLevel;
+	short								m_cubeMapPreviousLodLevel;
+	short								m_cubeMapCurrentLodLevel;
 	RAS_MeshUser						*m_meshUser;
 	struct Object*						m_pBlenderObject;
 	struct Object*						m_pBlenderGroupObject;
@@ -764,10 +767,22 @@ public:
 	/// Get current lod manager.
 	KX_LodManager *GetLodManager() const;
 
+	/** Set current cube map lod manager, can be NULL.
+	* If NULL the object's mesh backs to the mesh of the previous first lod level.
+	*/
+	void SetCubeMapLodManager(KX_LodManager *lodManager);
+	/// Get current cube map lod manager.
+	KX_LodManager *GetCubeMapLodManager() const;
+
 	/**
 	 * Updates the current lod level based on distance from camera.
 	 */
 	void UpdateLod(const MT_Vector3& cam_pos, float lodfactor);
+
+	/**
+	* Updates the current lod level based on distance from cube map camera.
+	*/
+	void UpdateCubeMapLod(const MT_Vector3& cam_pos, float lodfactor, bool reset);
 
 	/**
 	 * Pick out a mesh associated with the integer 'num'.
