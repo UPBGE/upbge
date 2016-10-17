@@ -1138,7 +1138,7 @@ static void copy_object_cubemap_lod(Object *obn, Object *ob)
 	if (obn->cubemaplodlevels.first)
 		((LodLevel *)obn->cubemaplodlevels.first)->source = obn;
 
-	obn->currentlod = (LodLevel *)obn->cubemaplodlevels.first;
+	obn->currentcubemaplod = (LodLevel *)obn->cubemaplodlevels.first;
 }
 
 bool BKE_object_pose_context_check(Object *ob)
