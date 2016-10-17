@@ -88,8 +88,15 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 {
 	KX_GameObject *viewpoint = cubeMap->GetViewpointObject();
 
-	// Doesn't need (or can) update.
-	if (!cubeMap->NeedUpdate() || !cubeMap->GetEnabled() || !viewpoint) {
+	/* Doesn't need (or can) update.
+	 * About viewpoint->GetCulled() -> viewpoint is the cubemap object. As cubemaps are rendered before
+	 * scene->CalculateVisibleMeshes(), cubemaps are rendered even if the cubemap viewpoint object is culled.
+	 * But this is an enormous performance loose. So we can at least get the previous frame culling status
+	 * of viewpoint object to prevent cubemaps rendering even if the viewpoint object culling state
+	 * is inexact.
+	 */
+
+	if (!cubeMap->NeedUpdate() || !cubeMap->GetEnabled() || !viewpoint || viewpoint->GetCulled()) {
 		return;
 	}
 
