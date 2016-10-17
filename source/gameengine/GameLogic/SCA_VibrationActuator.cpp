@@ -59,6 +59,7 @@ bool SCA_VibrationActuator::Update()
 	/* Can't init instance in constructor because m_joystick list is not available yet */
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
 	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);
+	bool result;
 
 	if (!instance) {
 		return false;
@@ -97,7 +98,14 @@ bool SCA_VibrationActuator::Update()
 
 	RemoveAllEvents();
 
-	return PIL_check_seconds_timer() * 1000.0f < m_endtime;
+	result = PIL_check_seconds_timer() * 1000.0f < m_endtime;
+
+	if (!result) {
+		instance->RumbleStop();
+		m_endtime = 0.0f;
+	}
+
+	return result;
 }
 
 #ifdef WITH_PYTHON
