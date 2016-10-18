@@ -44,8 +44,15 @@ bool DEV_Joystick::RumblePlay(float strength[2], unsigned int duration)
 		return false;
 	}
 
+	// Managing vibration logic
 	if (m_private->m_hapticeffect_status == JOYHAPTIC_STOPPED) {
 		memset(&m_private->m_hapticeffect, 0, sizeof(SDL_HapticEffect)); // 0 is safe default
+	}
+	else if (m_private->m_hapticeffect_status == JOYHAPTIC_PLAYING_EFFECT) {
+		m_private->m_hapticeffect_status = JOYHAPTIC_UPDATING_EFFECT;
+	}
+	else if (m_private->m_hapticeffect_status == JOYHAPTIC_PLAYING_RUMBLE) {
+		m_private->m_hapticeffect_status = JOYHAPTIC_UPDATING_RUMBLE;
 	}
 
 	// Checking supported effects
@@ -130,30 +137,6 @@ bool DEV_Joystick::RumblePlay(float strength[2], unsigned int duration)
 
 	return true;
 #endif // WITH_SDL
-	return false;
-}
-
-bool DEV_Joystick::RumbleUpdate(float strength[2], unsigned int duration)
-{
-#ifdef WITH_SDL
-	if (m_private->m_hapticeffect_status == JOYHAPTIC_STOPPED) {
-		return false;
-	}
-
-	if (m_private->m_hapticeffect_status == JOYHAPTIC_PLAYING_EFFECT) {
-		m_private->m_hapticeffect_status = JOYHAPTIC_UPDATING_EFFECT;
-	} 
-	else if (m_private->m_hapticeffect_status == JOYHAPTIC_PLAYING_RUMBLE) {
-		m_private->m_hapticeffect_status = JOYHAPTIC_UPDATING_RUMBLE;
-	}
-
-	if (DEV_Joystick::RumblePlay(strength, duration)) {
-		return true;
-	}
-	else {
-		printf("Updating vibration was not possible\n");
-	}
-#endif
 	return false;
 }
 

@@ -78,15 +78,6 @@ bool SCA_VibrationActuator::Update()
 				m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
 				break;
 			}
-			case KX_ACT_VIBRATION_UPDATE:
-			{
-				float strength[2];
-				strength[0] = m_strength;
-				strength[1] = m_strength_right;
-				instance->RumbleUpdate(strength, m_duration);
-				m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
-				break;
-			}
 			case KX_ACT_VIBRATION_STOP:
 			{
 				instance->RumbleStop();
@@ -141,7 +132,6 @@ PyTypeObject SCA_VibrationActuator::Type = {
 
 PyMethodDef SCA_VibrationActuator::Methods[] = {
 	KX_PYMETHODTABLE_NOARGS(SCA_VibrationActuator, playVibration),
-	KX_PYMETHODTABLE_NOARGS(SCA_VibrationActuator, updateVibration),
 	KX_PYMETHODTABLE_NOARGS(SCA_VibrationActuator, stopVibration),
 	{ NULL, NULL } //Sentinel
 };
@@ -167,22 +157,6 @@ KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, playVibration,
 	strength[0] = m_strength;
 	strength[1] = m_strength_right;
 	instance->RumblePlay(strength, m_duration);
-	m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
-
-	Py_RETURN_NONE;
-}
-
-KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, updateVibration,
-"updateVibration()\n"
-"\tUpdates the joystick vibration.\n")
-{
-	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
-	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);
-	float strength[2];
-
-	strength[0] = m_strength;
-	strength[1] = m_strength_right;
-	instance->RumbleUpdate(strength, m_duration);
 	m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
 
 	Py_RETURN_NONE;

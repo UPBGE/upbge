@@ -1742,7 +1742,6 @@ static void rna_def_vibration_actuator(BlenderRNA *brna)
 
 	static EnumPropertyItem prop_mode_items[] = {
 		{ACT_VIBRATION_PLAY, "PLAY", 0, "Play", ""},
-		{ACT_VIBRATION_UPDATE, "UPDATE", 0, "Update", ""},
 		{ACT_VIBRATION_STOP, "STOP", 0, "Stop", ""},
 		{0, NULL, 0, NULL, NULL}
 	};

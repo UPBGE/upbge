@@ -591,7 +591,6 @@ typedef struct bActuator {
 
 /* vibrationactuator->type */
 #define ACT_VIBRATION_PLAY		0
-#define ACT_VIBRATION_UPDATE	1
-#define ACT_VIBRATION_STOP		2
+#define ACT_VIBRATION_STOP		1
 
 #endif  /* __DNA_ACTUATOR_TYPES_H__ */
