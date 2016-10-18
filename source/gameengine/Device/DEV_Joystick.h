@@ -179,7 +179,6 @@ public:
 	 * structure is prepared for it.
 	 */
 	bool RumblePlay(float strength[2], unsigned int duration);
-	bool RumbleUpdate(float strength[2], unsigned int duration);
 	bool RumbleStop(void);
 	int GetRumbleStatus(void);
 

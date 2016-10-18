@@ -877,11 +877,6 @@ void BL_ConvertActuators(const char* maggiename,
 					mode = SCA_VibrationActuator::KX_ACT_VIBRATION_PLAY;
 					break;
 				}
-				case ACT_VIBRATION_UPDATE:
-				{
-					mode = SCA_VibrationActuator::KX_ACT_VIBRATION_UPDATE;
-					break;
-				}
 				case ACT_VIBRATION_STOP:
 				{
 					mode = SCA_VibrationActuator::KX_ACT_VIBRATION_STOP;

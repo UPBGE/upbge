@@ -2042,7 +2042,6 @@ static void draw_actuator_vibration(uiLayout *layout, PointerRNA *ptr)
 
 	switch (RNA_enum_get(ptr, "mode")) {
 		case ACT_VIBRATION_PLAY:
-		case ACT_VIBRATION_UPDATE:
 		{
 			uiItemR(row, ptr, "joy_index", 0, NULL, ICON_NONE);
 			row = uiLayoutRow(layout, false);

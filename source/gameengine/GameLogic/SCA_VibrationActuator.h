@@ -50,7 +50,6 @@ public:
 	enum KX_ACT_VIBRATION_MODE {
 		KX_ACT_VIBRATION_NODEF = 0,
 		KX_ACT_VIBRATION_PLAY,
-		KX_ACT_VIBRATION_UPDATE,
 		KX_ACT_VIBRATION_STOP,
 		KX_ACT_VIBRATION_MAX
 	};
@@ -66,7 +65,6 @@ public:
 #ifdef WITH_PYTHON
 
 	KX_PYMETHOD_DOC_NOARGS(SCA_VibrationActuator, playVibration);
-	KX_PYMETHOD_DOC_NOARGS(SCA_VibrationActuator, updateVibration);
 	KX_PYMETHOD_DOC_NOARGS(SCA_VibrationActuator, stopVibration);
 
 	static PyObject *pyattr_get_statusVibration(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
