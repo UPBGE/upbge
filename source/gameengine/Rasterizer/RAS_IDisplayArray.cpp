@@ -44,14 +44,14 @@ RAS_IDisplayArray::~RAS_IDisplayArray()
 	}
 
 #define NEW_DISPLAY_ARRAY_COLOR(vertformat, color, primtype) \
-	NEW_DISPLAY_ARRAY_UV(format, color, 1, type); \
-	NEW_DISPLAY_ARRAY_UV(format, color, 2, type); \
-	NEW_DISPLAY_ARRAY_UV(format, color, 3, type); \
-	NEW_DISPLAY_ARRAY_UV(format, color, 4, type); \
-	NEW_DISPLAY_ARRAY_UV(format, color, 5, type); \
-	NEW_DISPLAY_ARRAY_UV(format, color, 6, type); \
-	NEW_DISPLAY_ARRAY_UV(format, color, 7, type); \
-	NEW_DISPLAY_ARRAY_UV(format, color, 8, type);
+	NEW_DISPLAY_ARRAY_UV(format, 1, color, type); \
+	NEW_DISPLAY_ARRAY_UV(format, 2, color, type); \
+	NEW_DISPLAY_ARRAY_UV(format, 3, color, type); \
+	NEW_DISPLAY_ARRAY_UV(format, 4, color, type); \
+	NEW_DISPLAY_ARRAY_UV(format, 5, color, type); \
+	NEW_DISPLAY_ARRAY_UV(format, 6, color, type); \
+	NEW_DISPLAY_ARRAY_UV(format, 7, color, type); \
+	NEW_DISPLAY_ARRAY_UV(format, 8, color, type);
 
 RAS_IDisplayArray *RAS_IDisplayArray::ConstructArray(RAS_IDisplayArray::PrimitiveType type, const RAS_TexVertFormat &format)
 {
