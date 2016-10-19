@@ -318,8 +318,13 @@ void KX_GameObject::SetParent(KX_GameObject* obj, bool addToCompound, bool ghost
 		obj->GetSGNode() &&		// object is not zombi
 		GetSGNode()->GetSGParent() != obj->GetSGNode() &&	// not already parented to same object
 		!GetSGNode()->IsAncessor(obj->GetSGNode()) && 		// no parenting loop
-		this != obj)										// not the object itself
+		this != obj) // not the object itself
 	{
+		if (!(GetScene()->GetInactiveList()->SearchValue(obj) != GetScene()->GetObjectList()->SearchValue(this))) {
+			std::cout << "Warning: Child and Parent are not in the same gameobjects list (active or inactive).\n" <<
+				"This operation is forbidden." << std::endl;
+			return;
+		}
 		// Make sure the objects have some scale
 		MT_Vector3 scale1 = NodeGetWorldScaling();
 		MT_Vector3 scale2 = obj->NodeGetWorldScaling();
@@ -3530,13 +3535,6 @@ PyObject *KX_GameObject::PySetParent(PyObject *args)
 	}
 	if (!ConvertPythonToGameObject(logicmgr, pyobj, &obj, true, "gameOb.setParent(obj): KX_GameObject"))
 		return NULL;
-
-	if (obj->GetScene()->GetInactiveList()->SearchValue((CValue *)obj) ||
-		GetScene()->GetInactiveList()->SearchValue((CValue *)this)) {
-		PyErr_SetString(PyExc_ValueError, "Warning: KX_GameObject.setParent is not allowed for\n"
-			"objects that are in an inactive layer");
-		return NULL;
-	}
 
 	if (obj)
 		SetParent(obj, addToCompound, ghost);
