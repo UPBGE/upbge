@@ -92,7 +92,7 @@ public:
 	bool GetEnabled() const;
 	int GetIgnoreLayers() const;
 
-	bool ViewPointObjIsCubeMapObj();
+	KX_GameObject *GetGameObject();
 
 	// Return true when this cube map need to be updated.
 	bool NeedUpdate();

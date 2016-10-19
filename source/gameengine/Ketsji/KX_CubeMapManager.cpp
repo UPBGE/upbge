@@ -89,14 +89,12 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 	KX_GameObject *viewpoint = cubeMap->GetViewpointObject();
 
 	/* Doesn't need (or can) update.
-	 * About viewpoint->GetCulled() -> If the viewpoint object is the cubemap object: Cubemaps are rendered before
-	 * scene->CalculateVisibleMeshes() so we can't really prevent cubemap rendering (if the viewpoint object is
-	 * the cubemap object and) if this object is Culled. However, we can get previous frame culling state of this
+	 * About cubemapobj->GetCulled() -> Cubemaps are rendered before
+	 * scene->CalculateVisibleMeshes() so we can't really prevent cubemap rendering if
+	 * cubemap object is culled. However, we can get previous frame culling state of this
 	 * object and prevent cubemap rendering if this object was culled at the previous frame.
-	 * But if the viewpoint object is not the cubemap object, we can't prevent cubemap rendering because the
-	 * cubemap texture has to be rendered even if the viewpoint object is outside frustum.
 	 */
-	if (!cubeMap->NeedUpdate() || !cubeMap->GetEnabled() || !viewpoint || (viewpoint->GetCulled() && cubeMap->ViewPointObjIsCubeMapObj())) {
+	if (!cubeMap->NeedUpdate() || !cubeMap->GetEnabled() || !viewpoint || cubeMap->GetGameObject()->GetCulled()) {
 		return;
 	}
 

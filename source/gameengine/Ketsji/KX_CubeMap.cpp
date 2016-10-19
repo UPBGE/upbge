@@ -123,9 +123,9 @@ bool KX_CubeMap::NeedUpdate()
 	return result;
 }
 
-bool KX_CubeMap::ViewPointObjIsCubeMapObj()
+KX_GameObject *KX_CubeMap::GetGameObject()
 {
-	return m_viewpointObject == m_cubeMapObject;
+	return m_cubeMapObject;
 }
 
 #ifdef WITH_PYTHON
