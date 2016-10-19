@@ -105,7 +105,7 @@ struct RAS_MeshObject::fronttoback
 STR_String RAS_MeshObject::s_emptyname = "";
 
 RAS_MeshObject::RAS_MeshObject(Mesh *mesh, LayerList& layers)
-	:m_modifiedFlag(MESH_MODIFIED),
+	:m_modifiedFlag(0),
 	m_needUpdateAabb(true),
 	m_aabbMax(0.0f, 0.0f, 0.0f),
 	m_aabbMin(0.0f, 0.0f, 0.0f),
