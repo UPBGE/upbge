@@ -67,6 +67,8 @@ public:
 	virtual void *GetVertexTangentOffset() const = 0;
 	virtual void *GetVertexUVOffset() const = 0;
 	virtual void *GetVertexColorOffset() const = 0;
+	virtual unsigned short GetVertexUvSize() const = 0;
+	virtual unsigned short GetVertexColorSize() const = 0;
 
 	/** Return a vertex pointer without using the cache. Used to get
 	 * a vertex pointer during contruction.

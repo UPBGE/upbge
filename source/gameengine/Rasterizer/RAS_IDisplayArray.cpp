@@ -92,8 +92,9 @@ void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 		}
 	}
 	if (flag & RAS_MeshObject::UVS_MODIFIED) {
+		const unsigned short uvSize = min_ii(GetVertexUvSize(), other->GetVertexUvSize());
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			for (unsigned int uv = 0, uvcount = min_ii(GetVertex(i)->getUvSize(), other->GetVertex(i)->getUvSize()); uv < uvcount; ++uv) {
+			for (unsigned int uv = 0; uv < uvSize; ++uv) {
 				GetVertex(i)->SetUV(uv, MT_Vector2(other->GetVertex(i)->getUV(uv)));
 			}
 		}
@@ -109,9 +110,9 @@ void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 		}
 	}
 	if (flag & RAS_MeshObject::COLORS_MODIFIED) {
+		const unsigned short colorSize = min_ii(GetVertexColorSize(), other->GetVertexColorSize());
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			for (unsigned int color = 0, colorcount = min_ii(GetVertex(i)->getColorSize(), other->GetVertex(i)->getColorSize());
-				 color < colorcount; ++color)
+			for (unsigned int color = 0; color < colorSize; ++color)
 			{
 				GetVertex(i)->SetRGBA(color, *((unsigned int *)other->GetVertex(i)->getRGBA(color)));
 			}

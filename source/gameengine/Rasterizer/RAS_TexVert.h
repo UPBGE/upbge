@@ -43,29 +43,33 @@ template <unsigned int uvSize, unsigned int colorSize>
 class RAS_TexVert : public RAS_ITexVert
 {
 friend class RAS_DisplayArray<RAS_TexVert<uvSize, colorSize> >;
+public:
+	enum {
+		UvSize = uvSize,
+		ColorSize = colorSize
+	};
 
 private:
-	float m_uvs[uvSize][2];
-	unsigned int m_rgba[colorSize];
+	float m_uvs[UvSize][2];
+	unsigned int m_rgba[ColorSize];
 
 public:
-
 	RAS_TexVert()
 	{
 	}
 
 	RAS_TexVert(const MT_Vector3& xyz,
-	            const MT_Vector2 uvs[uvSize],
+	            const MT_Vector2 uvs[UvSize],
 	            const MT_Vector4& tangent,
-				const unsigned int rgba[colorSize],
+				const unsigned int rgba[ColorSize],
 	            const MT_Vector3& normal)
 		:RAS_ITexVert(xyz, tangent, normal)
 	{
-		for (int i = 0; i < uvSize; ++i) {
+		for (int i = 0; i < UvSize; ++i) {
 			uvs[i].getValue(m_uvs[i]);
 		}
 
-		for (unsigned short i = 0; i < colorSize; ++i) {
+		for (unsigned short i = 0; i < ColorSize; ++i) {
 			m_rgba[i] = rgba[i];
 		}
 	}
@@ -76,7 +80,7 @@ public:
 
 	virtual const unsigned short getUvSize() const
 	{
-		return uvSize;
+		return UvSize;
 	}
 
 	virtual const float *getUV(const int unit) const
@@ -96,7 +100,7 @@ public:
 
 	virtual const unsigned short getColorSize() const
 	{
-		return colorSize;
+		return ColorSize;
 	}
 
 	virtual const unsigned char *getRGBA(const int index) const
