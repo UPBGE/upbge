@@ -85,28 +85,31 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short depthfbo,
 						 unsigned short colorfbo, unsigned short outputfbo)
 {
-	if (!Ok()) {
-		return;
-	}
-
-	Initialize(canvas);
-
 	rasty->BindOffScreen(outputfbo);
 
-	SetProg(true);
+	if (Ok()) {
+		Initialize(canvas);
 
-	BindTextures(rasty, depthfbo, colorfbo);
-	BindUniforms(canvas);
+		SetProg(true);
 
-	MT_Matrix4x4 mat;
-	mat.setIdentity();
-	Update(rasty, mat);
+		BindTextures(rasty, depthfbo, colorfbo);
+		BindUniforms(canvas);
 
-	ApplyShader();
+		MT_Matrix4x4 mat;
+		mat.setIdentity();
+		Update(rasty, mat);
 
-	rasty->DrawOverlayPlane();
+		ApplyShader();
 
-	UnbindTextures(rasty, depthfbo, colorfbo);
+		rasty->DrawOverlayPlane();
+
+		UnbindTextures(rasty, depthfbo, colorfbo);
+	}
+	else {
+		/* If the filter shader is invalid we simply draw the color off screen to
+		 * the output off screen. */
+		rasty->DrawOffScreen(colorfbo, outputfbo);
+	}
 }
 
 void RAS_2DFilter::End()
