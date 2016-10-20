@@ -108,6 +108,11 @@ public:
 		return (unsigned char *)&m_rgba[index];
 	}
 
+	virtual const unsigned int getRawRGBA(const int index) const
+	{
+		return m_rgba[index];
+	}
+
 	virtual void SetRGBA(const int index, const unsigned int rgba)
 	{
 		m_rgba[index] = rgba;

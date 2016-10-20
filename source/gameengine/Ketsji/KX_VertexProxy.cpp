@@ -378,7 +378,7 @@ int KX_VertexProxy::pyattr_set_r(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		unsigned int icol = *((const unsigned int *)self->m_vertex->getRGBA(0));
+		unsigned int icol = self->m_vertex->getRawRGBA(0);
 		unsigned char *cp = (unsigned char *)&icol;
 		val *= 255.0f;
 		cp[0] = (unsigned char)val;
@@ -394,7 +394,7 @@ int KX_VertexProxy::pyattr_set_g(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		unsigned int icol = *((const unsigned int *)self->m_vertex->getRGBA(0));
+		unsigned int icol = self->m_vertex->getRawRGBA(0);
 		unsigned char *cp = (unsigned char *)&icol;
 		val *= 255.0f;
 		cp[1] = (unsigned char)val;
@@ -410,7 +410,7 @@ int KX_VertexProxy::pyattr_set_b(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		unsigned int icol = *((const unsigned int *)self->m_vertex->getRGBA(0));
+		unsigned int icol = self->m_vertex->getRawRGBA(0);
 		unsigned char *cp = (unsigned char *)&icol;
 		val *= 255.0f;
 		cp[2] = (unsigned char)val;
@@ -426,7 +426,7 @@ int KX_VertexProxy::pyattr_set_a(void *self_v, const struct KX_PYATTRIBUTE_DEF *
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	if (PyFloat_Check(value)) {
 		float val = PyFloat_AsDouble(value);
-		unsigned int icol = *((const unsigned int *)self->m_vertex->getRGBA(0));
+		unsigned int icol = self->m_vertex->getRawRGBA(0);
 		unsigned char *cp = (unsigned char *)&icol;
 		val *= 255.0f;
 		cp[3] = (unsigned char)val;
@@ -602,8 +602,8 @@ PyObject *KX_VertexProxy::PySetNormal(PyObject *value)
 
 PyObject *KX_VertexProxy::PyGetRGBA()
 {
-	int *rgba = (int *)m_vertex->getRGBA(0);
-	return PyLong_FromLong(*rgba);
+	const unsigned int rgba = m_vertex->getRawRGBA(0);
+	return PyLong_FromLong(rgba);
 }
 
 PyObject *KX_VertexProxy::PySetRGBA(PyObject *value)

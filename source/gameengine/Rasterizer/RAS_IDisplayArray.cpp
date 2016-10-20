@@ -112,9 +112,8 @@ void RAS_IDisplayArray::UpdateFrom(RAS_IDisplayArray *other, int flag)
 	if (flag & RAS_MeshObject::COLORS_MODIFIED) {
 		const unsigned short colorSize = min_ii(GetVertexColorSize(), other->GetVertexColorSize());
 		for (unsigned int i = 0, size = other->GetVertexCount(); i < size; ++i) {
-			for (unsigned int color = 0; color < colorSize; ++color)
-			{
-				GetVertex(i)->SetRGBA(color, *((unsigned int *)other->GetVertex(i)->getRGBA(color)));
+			for (unsigned int color = 0; color < colorSize; ++color) {
+				GetVertex(i)->SetRGBA(color, other->GetVertex(i)->getRawRGBA(color));
 			}
 		}
 	}

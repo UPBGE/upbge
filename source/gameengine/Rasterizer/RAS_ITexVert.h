@@ -110,6 +110,7 @@ public:
 
 	virtual const unsigned short getColorSize() const = 0;
 	virtual const unsigned char *getRGBA(const int index) const = 0;
+	virtual const unsigned int getRawRGBA(const int index) const = 0;
 
 	virtual void SetRGBA(const int index, const unsigned int rgba) = 0;
 	virtual void SetRGBA(const int index, const MT_Vector4& rgba) = 0;
@@ -166,7 +167,7 @@ public:
 		}
 
 		for (int i = 0, size = min_ii(getColorSize(), other->getColorSize()); i < size; ++i) {
-			if (!compare_rgb_uchar(getRGBA(i), other->getRGBA(i), 0)) {
+			if (getRawRGBA(i) != other->getRawRGBA(i)) {
 				return false;
 			}
 		}
