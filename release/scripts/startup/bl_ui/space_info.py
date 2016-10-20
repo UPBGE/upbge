@@ -331,7 +331,7 @@ class INFO_MT_help(Menu):
                 ).url = "https://developer.blender.org/maniphest/task/edit/form/1"
         layout.separator()
 
-        layout.operator("wm.url_open", text="Python API Reference", icon='URL').url = "https://pythonapi.upbge.fr/"
+        layout.operator("wm.url_open", text="Python API Reference", icon='URL').url = "https://pythonapi.upbge.org/"
         layout.operator("wm.operator_cheat_sheet", icon='TEXT')
         layout.operator("wm.sysinfo", icon='TEXT')
         layout.separator()
