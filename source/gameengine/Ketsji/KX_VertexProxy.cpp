@@ -227,6 +227,7 @@ static int kx_vertex_proxy_get_colors_size_cb(void *self_v)
 static PyObject *kx_vertex_proxy_get_colors_item_cb(void *self_v, int index)
 {
 	MT_Vector4 color = MT_Vector4(((KX_VertexProxy *)self_v)->GetVertex()->getRGBA(index));
+	color /= 255.0f;
 	return PyObjectFrom(color);
 }
 
@@ -259,7 +260,7 @@ PyObject *KX_VertexProxy::pyattr_get_color(void *self_v, const KX_PYATTRIBUTE_DE
 {
 	KX_VertexProxy *self = static_cast<KX_VertexProxy *>(self_v);
 	const unsigned char *colp = self->m_vertex->getRGBA(0);
-	MT_Vector4 color(colp[0], colp[1], colp[2], colp[3]);
+	MT_Vector4 color(colp);
 	color /= 255.0f;
 	return PyObjectFrom(color);
 }
