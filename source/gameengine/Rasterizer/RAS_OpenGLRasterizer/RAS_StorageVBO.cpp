@@ -90,13 +90,6 @@ void VBO::UpdateIndices()
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-void VBO::SetMeshModified(RAS_IRasterizer::DrawType drawType, bool modified)
-{
-	if (modified) {
-		m_vaoInitialized[drawType] = false;
-	}
-}
-
 void VBO::Bind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)
 {
 	if (m_useVao) {

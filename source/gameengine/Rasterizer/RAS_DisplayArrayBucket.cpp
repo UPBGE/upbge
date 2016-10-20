@@ -211,7 +211,6 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 		// Test if one of deformers is dynamic.
 		if (deformer->IsDynamic()) {
 			m_useDisplayList = false;
-			m_useVao = false;
 			m_meshModified = true;
 		}
 	}

@@ -49,8 +49,6 @@ public:
 	void UpdateData();
 	void UpdateIndices();
 
-	virtual void SetMeshModified(RAS_IRasterizer::DrawType drawType, bool modified);
-
 private:
 	RAS_IDisplayArray *m_data;
 	GLuint m_size;
