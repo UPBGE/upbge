@@ -394,6 +394,8 @@ public:
 	virtual short GetCurrentOffScreenIndex() const = 0;
 	/// Return the off screenn samples numbers at the given index.
 	virtual int GetOffScreenSamples(unsigned short index) = 0;
+	/// Return offscreen color texture bindcode
+	virtual int GetOffscreenColorBindCode(unsigned short offscreenindex) = 0;
 
 	/**
 	 * SetRenderArea sets the render area from the 2d canvas.

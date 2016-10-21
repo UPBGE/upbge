@@ -47,7 +47,8 @@ static char predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_TYPE][40
 RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 	:m_properties(data.propertyNames),
 	m_gameObject(data.gameObject),
-	m_uniformInitialized(false)
+	m_uniformInitialized(false),
+	m_colorBindCode(-1)
 {
 	for(unsigned int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
 		m_textureOffsets[i] = 0;
@@ -82,9 +83,18 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 	}
 }
 
+int RAS_2DFilter::GetColorBindCode()
+{
+	return m_colorBindCode;
+}
+
 void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short depthfbo,
 						 unsigned short colorfbo, unsigned short outputfbo)
 {
+	if (m_colorBindCode == -1) {
+		m_colorBindCode = rasty->GetOffscreenColorBindCode(outputfbo);
+	}
+
 	rasty->BindOffScreen(outputfbo);
 
 	if (Ok()) {

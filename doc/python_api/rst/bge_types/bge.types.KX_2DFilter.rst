@@ -31,3 +31,9 @@ base class --- :class:`BL_Shader`
       :type bindCode: integer
       :arg samplerName: The shader sampler name set to :data:`index` if :data:`samplerName` is passed in the function. (optional)
       :type samplerName: string
+
+   .. attribute:: colorBindCode
+
+      Get the bindcode of the texture rendered in this filter.
+
+      :type: integer

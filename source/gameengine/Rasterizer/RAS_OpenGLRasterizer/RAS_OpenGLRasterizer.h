@@ -98,9 +98,6 @@ private:
 		/// The HDR quality.
 		short m_hdr;
 
-		/// Return or create off screen for the given index.
-		GPUOffScreen *GetOffScreen(unsigned short index);
-
 	public:
 		OffScreens();
 		~OffScreens();
@@ -115,6 +112,9 @@ private:
 		short GetCurrentIndex() const;
 		int GetSamples(unsigned short index);
 		GPUTexture *GetDepthTexture(unsigned short index);
+
+		/// Return or create off screen for the given index.
+		GPUOffScreen *GetOffScreen(unsigned short index);
 	};
 
 	struct OglDebugShape
@@ -261,6 +261,7 @@ public:
 	virtual void UnbindOffScreenTexture(unsigned short index, OffScreen type);
 	virtual short GetCurrentOffScreenIndex() const;
 	virtual int GetOffScreenSamples(unsigned short index);
+	virtual int GetOffscreenColorBindCode(unsigned short offscreenindex);
 
 	virtual void SetRenderArea(RAS_ICanvas *canvas);
 

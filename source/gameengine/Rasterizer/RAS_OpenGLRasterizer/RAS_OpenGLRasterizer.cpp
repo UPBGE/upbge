@@ -1002,6 +1002,12 @@ int RAS_OpenGLRasterizer::GetOffScreenSamples(unsigned short index)
 	return m_offScreens.GetSamples(index);
 }
 
+int RAS_OpenGLRasterizer::GetOffscreenColorBindCode(unsigned short offscreenindex)
+{
+	GPUOffScreen *ofs = m_offScreens.GetOffScreen(offscreenindex);
+	return GPU_offscreen_color_texture(ofs);
+}
+
 void RAS_OpenGLRasterizer::SetRenderArea(RAS_ICanvas *canvas)
 {
 	if (canvas == NULL) {
