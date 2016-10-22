@@ -283,6 +283,12 @@ VBO *RAS_StorageVBO::GetVBO(RAS_DisplayArrayBucket *arrayBucket)
 void RAS_StorageVBO::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
 	VBO *vbo = GetVBO(arrayBucket);
+
+	// Update the vbo if the mesh is modified or use a dynamic deformer.
+	if (arrayBucket->IsMeshModified()) {
+		vbo->UpdateData();
+	}
+
 	vbo->Bind(m_storageAttribs, m_drawingmode);
 }
 
@@ -297,22 +303,12 @@ void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot *ms)
 	RAS_DisplayArrayBucket *arrayBucket = ms->m_displayArrayBucket;
 	VBO *vbo = GetVBO(arrayBucket);
 
-	// Update the vbo if the mesh is modified or use a dynamic deformer.
-	if (arrayBucket->IsMeshModified()) {
-		vbo->UpdateData();
-	}
-
 	vbo->Draw();
 }
 
 void RAS_StorageVBO::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket)
 {
 	VBO *vbo = GetVBO(arrayBucket);
-
-	// Update the vbo if the mesh is modified or use a dynamic deformer.
-	if (arrayBucket->IsMeshModified()) {
-		vbo->UpdateData();
-	}
 
 	vbo->DrawInstancing(arrayBucket->GetNumActiveMeshSlots());
 }
