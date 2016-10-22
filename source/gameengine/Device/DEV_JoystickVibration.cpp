@@ -33,7 +33,7 @@
 #endif
 #include <memory> // We have to include that on Windows to make memset available
 
-bool DEV_Joystick::RumblePlay(float strength[2], unsigned int duration)
+bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigned int duration)
 {
 #ifdef WITH_SDL
 	unsigned int effects;
@@ -64,8 +64,8 @@ bool DEV_Joystick::RumblePlay(float strength[2], unsigned int duration)
 		}
 
 		m_private->m_hapticeffect.leftright.length = duration;
-		m_private->m_hapticeffect.leftright.large_magnitude = (unsigned int) (strength[0] * 0x7FFF);
-		m_private->m_hapticeffect.leftright.small_magnitude = (unsigned int) (strength[1] * 0x7FFF);
+		m_private->m_hapticeffect.leftright.large_magnitude = (unsigned int) (strength_left * 0x7FFF);
+		m_private->m_hapticeffect.leftright.small_magnitude = (unsigned int) (strength_right * 0x7FFF);
 		run_by_effect = true;
 
 	}
@@ -73,8 +73,8 @@ bool DEV_Joystick::RumblePlay(float strength[2], unsigned int duration)
 	else if ((effects & SDL_HAPTIC_CUSTOM) && m_private->m_hapticeffect_status != JOYHAPTIC_UPDATING_RUMBLE) {
 
 		Uint16 data[2]; // data = channels * samples
-		data[0] = (Uint16) (strength[0] * 0x7FFF);
-		data[1] = (Uint16) (strength[1] * 0x7FFF);
+		data[0] = (Uint16) (strength_left * 0x7FFF);
+		data[1] = (Uint16) (strength_right * 0x7FFF);
 
 		if (m_private->m_hapticeffect_status != JOYHAPTIC_UPDATING_EFFECT) {
 			m_private->m_hapticeffect.type = SDL_HAPTIC_CUSTOM;
@@ -127,7 +127,7 @@ bool DEV_Joystick::RumblePlay(float strength[2], unsigned int duration)
 		}
 
 		// Play effect at strength for m_duration milliseconds
-		if (SDL_HapticRumblePlay(m_private->m_haptic, strength[0], duration) != 0) {
+		if (SDL_HapticRumblePlay(m_private->m_haptic, strength_left, duration) != 0) {
 			m_private->m_hapticeffect_status = JOYHAPTIC_STOPPED;
 			return false;
 		}

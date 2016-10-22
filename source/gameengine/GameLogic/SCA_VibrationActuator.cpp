@@ -71,10 +71,7 @@ bool SCA_VibrationActuator::Update()
 		switch (m_mode) {
 			case KX_ACT_VIBRATION_PLAY:
 			{
-				float strength[2];
-				strength[0] = m_strength;
-				strength[1] = m_strength_right;
-				instance->RumblePlay(strength, m_duration);
+				instance->RumblePlay(m_strength, m_strength_right, m_duration);
 				m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
 				break;
 			}
@@ -152,11 +149,8 @@ KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, startVibration,
 {
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
 	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);
-	float strength[2];
 
-	strength[0] = m_strength;
-	strength[1] = m_strength_right;
-	instance->RumblePlay(strength, m_duration);
+	instance->RumblePlay(m_strength, m_strength_right, m_duration);
 	m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
 
 	Py_RETURN_NONE;
