@@ -180,7 +180,7 @@ public:
 	 */
 	bool RumblePlay(float strength[2], unsigned int duration);
 	bool RumbleStop(void);
-	int GetRumbleStatus(void);
+	bool GetRumbleStatus(void);
 
 	/**
 	 * Test if the joystick is connected

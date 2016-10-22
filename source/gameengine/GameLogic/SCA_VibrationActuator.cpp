@@ -131,7 +131,7 @@ PyTypeObject SCA_VibrationActuator::Type = {
 };
 
 PyMethodDef SCA_VibrationActuator::Methods[] = {
-	KX_PYMETHODTABLE_NOARGS(SCA_VibrationActuator, playVibration),
+	KX_PYMETHODTABLE_NOARGS(SCA_VibrationActuator, startVibration),
 	KX_PYMETHODTABLE_NOARGS(SCA_VibrationActuator, stopVibration),
 	{ NULL, NULL } //Sentinel
 };
@@ -141,13 +141,13 @@ PyAttributeDef SCA_VibrationActuator::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RW("joyindex", 0, 7, true, SCA_VibrationActuator, m_joyindex),
 	KX_PYATTRIBUTE_FLOAT_RW("strengthLeft", 0.0, 1.0, SCA_VibrationActuator, m_strength),
 	KX_PYATTRIBUTE_FLOAT_RW("strengthRight", 0.0, 1.0, SCA_VibrationActuator, m_strength_right),
-	KX_PYATTRIBUTE_RO_FUNCTION("statusVibration", SCA_VibrationActuator, pyattr_get_statusVibration),
+	KX_PYATTRIBUTE_RO_FUNCTION("isVibrating", SCA_VibrationActuator, pyattr_get_statusVibration),
 	{ NULL }	//Sentinel
 };
 
 /* Methods ----------------------------------------------------------------- */
-KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, playVibration,
-"playVibration()\n"
+KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, startVibration,
+"startVibration()\n"
 "\tStarts the joystick vibration.\n")
 {
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
@@ -183,10 +183,7 @@ PyObject *SCA_VibrationActuator::pyattr_get_statusVibration(void *self_v, const 
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)self->GetLogicManager();
 	DEV_Joystick *instance = mgr->GetJoystickDevice(self->m_joyindex);
 
-	int result_value = instance->GetRumbleStatus();
-
-	PyObject *result = PyLong_FromLong(result_value);
-	return result;
+	return PyBool_FromLong(instance->GetRumbleStatus());
 }
 
 #endif // WITH_PYTHON

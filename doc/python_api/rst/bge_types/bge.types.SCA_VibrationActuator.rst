@@ -9,9 +9,21 @@ base class --- :class:`SCA_IActuator`
 
    Vibration Actuator.
 
-   .. attribute:: strength
+   .. attribute:: joyindex
 
-      Strength of the joystick vibration.
+      Joystick index.
+
+      :type: integer (0 to 7)
+
+   .. attribute:: strengthLeft
+
+      Strength of the Low frequency joystick's motor (placed at left position usually).
+
+      :type: float (0.0 to 1.0)
+
+   .. attribute:: strengthRight
+
+      Strength of the High frequency joystick's motor (placed at right position usually).
 
       :type: float (0.0 to 1.0)
 
@@ -21,9 +33,20 @@ base class --- :class:`SCA_IActuator`
 
       :type: integer (0 to infinite)
 
-   .. attribute:: joyindex
+   .. attribute:: isVibrating
 
-      Joystick index.
+      Check status of joystick vibration
 
-      :type: integer (0 to 7)
+      :type: bool (true vibrating and false stopped)
 
+   .. method:: startVibration()
+
+      Starts the vibration.
+
+      :return: None
+
+   .. method:: stopVibration()
+
+      Stops the vibration.
+
+      :return: None
