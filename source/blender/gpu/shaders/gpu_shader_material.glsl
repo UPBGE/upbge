@@ -515,13 +515,13 @@ float half_lambert(in vec3 vect1, in vec3 vect2)
 	return product * 0.5 + 0.5;
 }
 
-vec3 sub_scatter_fs(float brightness, vec3 lightcol, float scale, vec3 radius, vec3 col, float i, vec3 view, vec3 lv, vec3 vert, vec3 lightpos, vec3 normal)
+vec3 sub_scatter_fs(float brightness, float visifac, vec3 lightcol, float scale, vec3 radius, vec3 col, float i, vec3 view, vec3 lv, vec3 normal)
 {
 	vec3 extinctioncoefficient = radius * 0.1;
-	float attenuation = (1.0 / distance(lightpos, vert)) * brightness;
+	float attenuation = visifac * brightness;
 	vec3 evec = normalize(-view);
 
-	vec3 dotLN = vec3(i);
+	vec3 dotLN = vec3(half_lambert(lv, -normal) * attenuation);
 	dotLN *= col;
 
 	vec3 indirectlightcomponent = vec3(scale * max(0.0, dot(-normal, lv)));
@@ -535,9 +535,9 @@ vec3 sub_scatter_fs(float brightness, vec3 lightcol, float scale, vec3 radius, v
 	return finalcol;
 }
 
-void set_sss(float brightness, vec3 lightcol, float scale, vec3 radius, vec3 col, float i, vec3 view, vec3 lv, vec3 normal, vec3 vert, vec3 lightpos, out vec4 outcol)
+void set_sss(float brightness, float visifac, vec3 lightcol, float scale, vec3 radius, vec3 col, float i, vec3 view, vec3 lv, vec3 normal, out vec4 outcol)
 {
-	outcol = vec4(sub_scatter_fs(brightness, lightcol, scale, radius, col, i, view, lv, vert, lightpos, normal), 1.0);
+	outcol = vec4(sub_scatter_fs(brightness, visifac, lightcol, scale, radius, col, i, view, lv, normal), 1.0);
 }
 
 void set_rgb(vec3 col, out vec3 outcol)
