@@ -64,7 +64,7 @@ public:
 
 #ifdef WITH_PYTHON
 
-	KX_PYMETHOD_DOC_NOARGS(SCA_VibrationActuator, playVibration);
+	KX_PYMETHOD_DOC_NOARGS(SCA_VibrationActuator, startVibration);
 	KX_PYMETHOD_DOC_NOARGS(SCA_VibrationActuator, stopVibration);
 
 	static PyObject *pyattr_get_statusVibration(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
