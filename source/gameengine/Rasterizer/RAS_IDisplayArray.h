@@ -80,9 +80,14 @@ public:
 		return m_vertexPtrs[index];
 	}
 
-	inline unsigned int GetIndex(unsigned int index) const
+	inline unsigned int GetIndex(const unsigned int index) const
 	{
 		return m_indices[index];
+	}
+
+	inline void SetIndex(const unsigned int index, const unsigned int value)
+	{
+		m_indices[index] = value;
 	}
 
 	inline const RAS_TexVertInfo& GetVertexInfo(const unsigned int index) const

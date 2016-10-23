@@ -58,15 +58,13 @@ struct RAS_MeshObject::polygonSlot
 
 	/* pnorm is the normal from the plane equation that the distance from is
 	 * used to sort again. */
-	void get(const RAS_ITexVert *vertexarray, const unsigned int *indexarray,
-	         int offset, int nvert, const MT_Vector3& pnorm)
+	void get(RAS_IDisplayArray *array, int offset, int nvert, const MT_Vector3& pnorm)
 	{
 		MT_Vector3 center(0.0f, 0.0f, 0.0f);
-		int i;
 
-		for (i = 0; i < nvert; i++) {
-			m_index[i] = indexarray[offset + i];
-			center += MT_Vector3(vertexarray[m_index[i]].getXYZ());
+		for (unsigned short i = 0; i < nvert; ++i) {
+			m_index[i] = array->GetIndex(offset + i);
+			center += array->GetVertex(m_index[i])->xyz();
 		}
 
 		/* note we don't divide center by the number of vertices, since all
@@ -75,12 +73,11 @@ struct RAS_MeshObject::polygonSlot
 		m_z = MT_dot(pnorm, center);
 	}
 
-	void set(unsigned int *indexarray, int offset, int nvert)
+	void set(RAS_IDisplayArray *array, int offset, int nvert)
 	{
-		int i;
-
-		for (i = 0; i < nvert; i++)
-			indexarray[offset + i] = m_index[i];
+		for (unsigned short i = 0; i < nvert; ++i) {
+			array->SetIndex(offset + i, m_index[i]);
+		}
 	}
 };
 
@@ -508,14 +505,14 @@ void RAS_MeshObject::SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transfor
 
 	// get indices and z into temporary array
 	for (unsigned int j = 0; j < totpoly; j++)
-		poly_slots[j].get(array->GetVertexPointer(), array->GetIndexPointer(), j * nvert, nvert, pnorm);
+		poly_slots[j].get(array, j * nvert, nvert, pnorm);
 
 	// sort (stable_sort might be better, if flickering happens?)
 	std::sort(poly_slots.begin(), poly_slots.end(), backtofront());
 
 	// get indices from temporary array again
 	for (unsigned int j = 0; j < totpoly; j++)
-		poly_slots[j].set((unsigned int *)array->GetIndexPointer(), j * nvert, nvert);
+		poly_slots[j].set(array, j * nvert, nvert);
 }
 
 
