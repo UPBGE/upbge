@@ -198,6 +198,13 @@ void VBO::Bind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRaster
 				break;
 		}
 	}
+
+	/* VAO don't track the VBO state and the attributes don't need a bound VBO to be used in a render.
+	 * So we unbind the VBO here because they will not be unbound in VBO::Unbind. */
+	if (m_useVao) {
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
+	}
 }
 
 void VBO::Unbind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)
