@@ -251,6 +251,7 @@ void BL_SkinDeformer::BGEDeformVerts()
 	for (int i = 0; i < m_bmesh->totvert; ++i, dv++) {
 		float contrib = 0.0f, weight, max_weight = -1.0f;
 		bPoseChannel *pchan = NULL;
+		Eigen::Vector3f normorg(m_bmesh->mvert[i].no[0], m_bmesh->mvert[i].no[1], m_bmesh->mvert[i].no[2]);
 		Eigen::Map<Eigen::Vector3f> norm = Eigen::Vector3f::Map(m_transnors[i]);
 		Eigen::Vector4f vec(0.0f, 0.0f, 0.0f, 1.0f);
 		Eigen::Vector4f co(m_transverts[i][0],
@@ -290,7 +291,7 @@ void BL_SkinDeformer::BGEDeformVerts()
 		}
 
 		// Update Vertex Normal
-		norm = norm_chan_mat.topLeftCorner<3, 3>() * norm;
+		norm = norm_chan_mat.topLeftCorner<3, 3>() * normorg;
 
 		co.noalias() += vec / contrib;
 		co[3] = 1.0f; // Make sure we have a 1 for the w component!
@@ -372,12 +373,6 @@ bool BL_SkinDeformer::UpdateInternal(bool shape_applied)
 		if (!shape_applied) {
 			/* store verts locally */
 			VerifyStorage();
-
-			/* duplicate */
-			for (int v = 0; v < m_bmesh->totvert; v++) {
-				copy_v3_v3(m_transverts[v], m_bmesh->mvert[v].co);
-				normal_short_to_float_v3(m_transnors[v], m_bmesh->mvert[v].no);
-			}
 		}
 
 		m_armobj->ApplyPose();
