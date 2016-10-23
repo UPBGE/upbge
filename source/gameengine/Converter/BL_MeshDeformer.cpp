@@ -214,5 +214,10 @@ void BL_MeshDeformer::VerifyStorage()
 		m_transnors = new float[m_bmesh->totvert][3];
 		m_tvtot = m_bmesh->totvert;
 	}
+
+	for (unsigned int v = 0; v < m_bmesh->totvert; v++) {
+		copy_v3_v3(m_transverts[v], m_bmesh->mvert[v].co);
+		normal_short_to_float_v3(m_transnors[v], m_bmesh->mvert[v].no);
+	}
 }
 
