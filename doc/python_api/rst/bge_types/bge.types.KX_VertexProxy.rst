@@ -45,6 +45,12 @@ base class --- :class:`SCA_IObject`
 
       Black = [0.0, 0.0, 0.0, 1.0], White = [1.0, 1.0, 1.0, 1.0]
 
+   .. attribute:: colors
+
+      The color list of the vertex.
+
+      :type: list of Vector((r, g, b, a))
+
    .. attribute:: x
 
       The x coordinate of the vertex.
