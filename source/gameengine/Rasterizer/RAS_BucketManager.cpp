@@ -266,7 +266,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 				if (GetNumActiveMeshSlots(ALPHA_SHADOW_BUCKET) != 0) {
 					rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE);
 				}
-				RenderSortedBuckets(cameratrans, rasty, ALPHA_SHADOW_BUCKET);
+				RenderBasicBuckets(cameratrans, rasty, ALPHA_SHADOW_BUCKET);
 
 				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE);
 			}
@@ -277,7 +277,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 
 				RenderBasicBuckets(cameratrans, rasty, ALPHA_SHADOW_INSTANCING_BUCKET);
 				// Render alpha shadow regular materials with ordering.
-				RenderSortedBuckets(cameratrans, rasty, ALPHA_SHADOW_BUCKET);
+				RenderBasicBuckets(cameratrans, rasty, ALPHA_SHADOW_BUCKET);
 			}
 
 			break;
