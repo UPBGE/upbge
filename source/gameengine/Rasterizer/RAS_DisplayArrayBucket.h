@@ -123,12 +123,13 @@ public:
 	/// \section Render Infos
 	bool UseDisplayList() const;
 	bool UseVao() const;
-	bool IsMeshModified() const;
 
 	/// Update render infos.
 	void UpdateActiveMeshSlots(RAS_IRasterizer *rasty);
 	/// Set the mesh object as unmodified flag.
 	void SetMeshUnmodified();
+	/// Notice the storage info that the indices list (polygons) changed.
+	void SetPolygonsModified(RAS_IRasterizer *rasty);
 
 	RAS_IStorageInfo *GetStorageInfo() const;
 	void SetStorageInfo(RAS_IStorageInfo *info);

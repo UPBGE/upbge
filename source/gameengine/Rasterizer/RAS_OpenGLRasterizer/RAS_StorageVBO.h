@@ -41,6 +41,8 @@ public:
 	VBO(RAS_DisplayArrayBucket *arrayBucket);
 	virtual ~VBO();
 
+	virtual void SetDataModified(RAS_IRasterizer::DrawType drawmode, DataType dataType);
+
 	void Bind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode);
 	void Unbind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode);
 	void Draw();
@@ -63,6 +65,9 @@ private:
 	bool m_useVao;
 	/// Set to true when the VAO was already filled in a VBO::Bind() call.
 	bool m_vaoInitialized[RAS_IRasterizer::RAS_DRAW_MAX];
+
+	/// Set to true when the VBO/VAO is bound.
+	bool m_bound;
 
 	void *m_vertex_offset;
 	void *m_normal_offset;

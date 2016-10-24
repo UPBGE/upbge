@@ -33,6 +33,7 @@
 #include "glew-mx.h"
 
 VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
+	:m_bound(false)
 {
 	m_data = arrayBucket->GetDisplayArray();
 	m_size = m_data->GetVertexCount();
@@ -75,6 +76,22 @@ VBO::~VBO()
 	}
 }
 
+void VBO::SetDataModified(RAS_IRasterizer::DrawType drawmode, DataType dataType)
+{
+	switch (dataType) {
+		case VERTEX_DATA:
+		{
+			UpdateData();
+			break;
+		}
+		case INDEX_DATA:
+		{
+			UpdateIndices();
+			break;
+		}
+	}
+}
+
 void VBO::UpdateData()
 {
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
@@ -84,14 +101,22 @@ void VBO::UpdateData()
 
 void VBO::UpdateIndices()
 {
-	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices * sizeof(GLuint),
-	             m_data->GetIndexPointer(), GL_STATIC_DRAW);
-	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER, 0);
+	/* This function can be called when the VBO/VAO is already bound (in case of polygon sort).
+	 * In this case we must not unbound the element array buffer. */
+	if (!m_bound) {
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
+	}
+
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices * sizeof(GLuint), m_data->GetIndexPointer(), GL_STATIC_DRAW);
+
+	if (!m_bound) {
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER, 0);
+	}
 }
 
 void VBO::Bind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)
 {
+	m_bound = true;
 	if (m_useVao) {
 		if (!m_vaos[drawingmode]) {
 			// Generate Vertex Array Object
@@ -208,6 +233,7 @@ void VBO::Bind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRaster
 
 void VBO::Unbind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)
 {
+	m_bound = false;
 	if (m_useVao) {
 		glBindVertexArray(0);
 		return;
@@ -282,11 +308,6 @@ VBO *RAS_StorageVBO::GetVBO(RAS_DisplayArrayBucket *arrayBucket)
 void RAS_StorageVBO::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
 	VBO *vbo = GetVBO(arrayBucket);
-
-	// Update the vbo if the mesh is modified or use a dynamic deformer.
-	if (arrayBucket->IsMeshModified()) {
-		vbo->UpdateData();
-	}
 
 	vbo->Bind(m_storageAttribs, m_drawingmode);
 }

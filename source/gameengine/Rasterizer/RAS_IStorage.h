@@ -44,6 +44,11 @@ class RAS_DisplayArrayBucket;
 class RAS_IStorageInfo
 {
 public:
+	enum DataType {
+		VERTEX_DATA,
+		INDEX_DATA
+	};
+
 	RAS_IStorageInfo()
 	{
 	}
@@ -51,9 +56,7 @@ public:
 	{
 	}
 
-	virtual void SetMeshModified(RAS_IRasterizer::DrawType drawType, bool modified)
-	{
-	}
+	virtual void SetDataModified(RAS_IRasterizer::DrawType drawType, DataType dataType) = 0;
 };
 
 class RAS_IStorage

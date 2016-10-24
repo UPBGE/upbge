@@ -185,8 +185,10 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 		rasty->SetCullFace(m_material->IsCullFace());
 	}
 
-	if (IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID)
+	if (IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID) {
 		ms->m_mesh->SortPolygons(ms, cameratrans * MT_Transform(meshUser->GetMatrix()));
+		ms->m_displayArrayBucket->SetPolygonsModified(rasty);
+	}
 
 	rasty->PushMatrix();
 	if ((!ms->m_pDeformer || !ms->m_pDeformer->SkipVertexTransform()) && !m_material->IsText()) {

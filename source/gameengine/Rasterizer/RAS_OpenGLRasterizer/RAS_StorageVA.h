@@ -50,7 +50,7 @@ public:
 	RAS_DisplayList();
 	virtual ~RAS_DisplayList();
 
-	virtual void SetMeshModified(RAS_IRasterizer::DrawType drawmode, bool modified);
+	virtual void SetDataModified(RAS_IRasterizer::DrawType drawmode, DataType dataType);
 
 	/** Return true if the list already exists and was called.
 	 * False mean : we need call all opengl functions and finish

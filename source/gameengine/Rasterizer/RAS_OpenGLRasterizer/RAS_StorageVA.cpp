@@ -60,11 +60,9 @@ void RAS_DisplayList::RemoveAllList(RAS_IRasterizer::DrawType drawmode)
 	}
 }
 
-void RAS_DisplayList::SetMeshModified(RAS_IRasterizer::DrawType drawmode, bool modified)
+void RAS_DisplayList::SetDataModified(RAS_IRasterizer::DrawType drawmode, DataType dataType)
 {
-	if (modified) {
-		RemoveAllList(drawmode);
-	}
+	RemoveAllList(drawmode);
 }
 
 bool RAS_DisplayList::Draw(RAS_IRasterizer::DrawType drawmode, LIST_TYPE type)
