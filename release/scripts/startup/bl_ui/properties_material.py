@@ -847,7 +847,6 @@ class MATERIAL_PT_game_options(MaterialButtonsPanel, Panel):
         split = layout.split()
 
         col = split.column()
-        col.prop(mat, "use_mist")
         if simple_material(base_mat):
             col.prop(mat, "invert_z")
             sub = col.row()
@@ -862,11 +861,7 @@ class MATERIAL_PT_game_options(MaterialButtonsPanel, Panel):
         row.prop(mat, "use_light_group_local", text="Local")
 
         col = split.column()
-        col.prop(mat, "use_face_texture")
-        sub = col.column()
-        sub.active = mat.use_face_texture
-        sub.prop(mat, "use_face_texture_alpha")
-        col.separator()
+        col.prop(mat, "use_mist")
         col.prop(mat, "use_vertex_color_paint")
         col.prop(mat, "use_vertex_color_light")
         col.prop(mat, "use_object_color")
