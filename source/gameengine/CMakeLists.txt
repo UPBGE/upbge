@@ -32,6 +32,7 @@ if(WITH_PYTHON)
 endif()
 
 add_subdirectory(BlenderRoutines)
+add_subdirectory(Common)
 add_subdirectory(Converter)
 add_subdirectory(Device)
 add_subdirectory(Expressions)

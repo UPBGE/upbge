@@ -26,6 +26,7 @@
 set(INC
 	.
 	../BlenderRoutines
+	../Common
 	../Device
 	../Expressions
 	../GameLogic

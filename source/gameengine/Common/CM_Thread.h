@@ -20,30 +20,30 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file EXP_Thread.h
- *  \ingroup expressions
+/** \file CM_Thread.h
+ *  \ingroup common
  */
 
-#ifndef __EXP_THREAD_H__
-#define __EXP_THREAD_H__
+#ifndef __CM_THREAD_H__
+#define __CM_THREAD_H__
 
 #include "BLI_threads.h"
 
-class CThreadLock
+class CM_ThreadLock
 {
 public:
-	CThreadLock();
-	virtual ~CThreadLock();
+	CM_ThreadLock();
+	virtual ~CM_ThreadLock();
 
 	virtual void Lock() = 0;
 	virtual void Unlock() = 0;
 };
 
-class CThreadSpinLock : public CThreadLock
+class CM_ThreadSpinLock : public CM_ThreadLock
 {
 public:
-	CThreadSpinLock();
-	virtual ~CThreadSpinLock();
+	CM_ThreadSpinLock();
+	virtual ~CM_ThreadSpinLock();
 
 	virtual void Lock();
 	virtual void Unlock();
@@ -52,11 +52,11 @@ private:
 	SpinLock m_spinlock;
 };
 
-class CThreadMutex : public CThreadLock
+class CM_ThreadMutex : public CM_ThreadLock
 {
 public:
-	CThreadMutex();
-	virtual ~CThreadMutex();
+	CM_ThreadMutex();
+	virtual ~CM_ThreadMutex();
 
 	virtual void Lock();
 	virtual void Unlock();
@@ -65,4 +65,4 @@ private:
 	ThreadMutex m_mutex;
 };
 
-#endif // __EXP_THREAD_H__
+#endif // __CM_THREAD_H__

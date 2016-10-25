@@ -113,12 +113,11 @@ extern "C" {
 }
 
 #include "BLI_task.h"
-#include "EXP_Thread.h"
+#include "CM_Thread.h"
 
-// This is used to avoid including BLI_task.h in KX_BlenderSceneConverter.h
 typedef struct ThreadInfo {
 	TaskPool *m_pool;
-	CThreadMutex m_mutex;
+	CM_ThreadMutex m_mutex;
 } ThreadInfo;
 
 KX_BlenderSceneConverter::KX_BlenderSceneConverter(

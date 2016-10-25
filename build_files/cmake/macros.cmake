@@ -640,6 +640,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_logic
 		ge_oglrasterizer
 		ge_rasterizer
+		ge_common
 		ge_logic_expressions
 		ge_scenegraph
 		ge_logic_network

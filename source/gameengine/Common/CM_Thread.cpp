@@ -20,56 +20,56 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Expressions/intern/Thread.cpp
- *  \ingroup expressions
+/** \file gameengine/Common/CM_Thread.cpp
+ *  \ingroup common
  */
 
-#include "EXP_Thread.h"
+#include "CM_Thread.h"
 
-CThreadLock::CThreadLock()
+CM_ThreadLock::CM_ThreadLock()
 {
 }
 
-CThreadLock::~CThreadLock()
+CM_ThreadLock::~CM_ThreadLock()
 {
 }
 
-CThreadSpinLock::CThreadSpinLock()
+CM_ThreadSpinLock::CM_ThreadSpinLock()
 {
 	BLI_spin_init(&m_spinlock);
 }
 
-CThreadSpinLock::~CThreadSpinLock()
+CM_ThreadSpinLock::~CM_ThreadSpinLock()
 {
 	BLI_spin_end(&m_spinlock);
 }
 
-void CThreadSpinLock::Lock()
+void CM_ThreadSpinLock::Lock()
 {
 	BLI_spin_lock(&m_spinlock);
 }
 
-void CThreadSpinLock::Unlock()
+void CM_ThreadSpinLock::Unlock()
 {
 	BLI_spin_unlock(&m_spinlock);
 }
 
-CThreadMutex::CThreadMutex()
+CM_ThreadMutex::CM_ThreadMutex()
 {
 	BLI_mutex_init(&m_mutex);
 }
 
-CThreadMutex::~CThreadMutex()
+CM_ThreadMutex::~CM_ThreadMutex()
 {
 	BLI_mutex_end(&m_mutex);
 }
 
-void CThreadMutex::Lock()
+void CM_ThreadMutex::Lock()
 {
 	BLI_mutex_lock(&m_mutex);
 }
 
-void CThreadMutex::Unlock()
+void CM_ThreadMutex::Unlock()
 {
 	BLI_mutex_unlock(&m_mutex);
 }
