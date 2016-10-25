@@ -143,6 +143,10 @@ bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigne
 bool DEV_Joystick::RumbleStop()
 {
 #ifdef WITH_SDL
+	if (m_private->m_haptic == NULL) {
+		return false;
+	}
+
 	if (m_private->m_hapticeffect_status == JOYHAPTIC_PLAYING_EFFECT ||
 		m_private->m_hapticeffect_status == JOYHAPTIC_UPDATING_EFFECT)
 	{

@@ -145,6 +145,10 @@ KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, startVibration,
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
 	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);
 
+	if (!instance) {
+		Py_RETURN_NONE;
+	}
+
 	instance->RumblePlay(m_strength, m_strength_right, m_duration);
 	m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
 
@@ -157,6 +161,10 @@ KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, stopVibration,
 {
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
 	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);
+
+	if (!instance) {
+		Py_RETURN_NONE;
+	}
 
 	instance->RumbleStop();
 	m_endtime = 0.0f;
@@ -171,6 +179,10 @@ PyObject *SCA_VibrationActuator::pyattr_get_statusVibration(void *self_v, const 
 	SCA_VibrationActuator *self = static_cast<SCA_VibrationActuator *>(self_v);
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)self->GetLogicManager();
 	DEV_Joystick *instance = mgr->GetJoystickDevice(self->m_joyindex);
+
+	if (!instance) {
+		return Py_False;
+	}
 
 	return PyBool_FromLong(instance->GetRumbleStatus());
 }
