@@ -76,6 +76,7 @@ bool SCA_VibrationActuator::Update()
 			{
 				instance->RumbleStop();
 				m_endtime = 0.0f;
+				break;
 			}
 		}
 
