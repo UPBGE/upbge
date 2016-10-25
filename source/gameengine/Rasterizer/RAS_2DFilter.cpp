@@ -91,9 +91,7 @@ int RAS_2DFilter::GetColorBindCode()
 void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short depthfbo,
 						 unsigned short colorfbo, unsigned short outputfbo)
 {
-	if (m_colorBindCode == -1) {
-		m_colorBindCode = rasty->GetOffscreenColorBindCode(outputfbo);
-	}
+	m_colorBindCode = rasty->GetOffscreenColorBindCode(outputfbo);
 
 	rasty->BindOffScreen(outputfbo);
 
