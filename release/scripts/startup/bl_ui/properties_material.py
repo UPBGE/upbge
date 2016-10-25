@@ -692,45 +692,6 @@ class MATERIAL_PT_game_settings(MaterialButtonsPanel, Panel):
         col.active = game.storage not in ("VERTEX_BUFFER_OBJECT", "SCENE")
         col.prop(game, "use_display_lists")
 
-
-class MATERIAL_PT_physics(MaterialButtonsPanel, Panel):
-    bl_label = "Physics"
-    COMPAT_ENGINES = {'BLENDER_GAME'}
-
-    def draw_header(self, context):
-        game = context.material.game_settings
-        self.layout.prop(game, "physics", text="")
-
-    @classmethod
-    def poll(cls, context):
-        return context.material and (context.scene.render.engine in cls.COMPAT_ENGINES)
-
-    def draw(self, context):
-        layout = self.layout
-        layout.active = context.material.game_settings.physics
-
-        phys = context.material.physics  # don't use node material
-
-        split = layout.split()
-        col = split.column()
-        col.prop(phys, "friction")
-        col.prop(phys, "rolling_friction")
-
-        col = split.column()
-        col.prop(phys, "elasticity", slider=True)
-
-        row = layout.row()
-        row.label(text="Force Field:")
-
-        row = layout.row()
-        row.prop(phys, "fh_force")
-        row.prop(phys, "fh_damping", slider=True)
-
-        row = layout.row()
-        row.prop(phys, "fh_distance")
-        row.prop(phys, "use_fh_normal")
-
-
 class MATERIAL_PT_strand(MaterialButtonsPanel, Panel):
     bl_label = "Strand"
     bl_options = {'DEFAULT_CLOSED'}

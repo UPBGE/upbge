@@ -728,43 +728,6 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	return meshobj;
 }
 
-	
-	
-static PHY_MaterialProps *CreateMaterialFromBlenderObject(struct Object* blenderobject)
-{
-	PHY_MaterialProps *materialProps = new PHY_MaterialProps;
-	
-	BLI_assert(materialProps && "Create physics material properties failed");
-		
-	Material* blendermat = give_current_material(blenderobject, 1);
-		
-	if (blendermat)
-	{
-		BLI_assert(0.0f <= blendermat->reflect && blendermat->reflect <= 1.0f);
-	
-		materialProps->m_restitution = blendermat->reflect;
-		materialProps->m_friction = blendermat->friction;
-		materialProps->m_rollingFriction = blendermat->rolling_friction;
-		materialProps->m_fh_spring = blendermat->fh;
-		materialProps->m_fh_damping = blendermat->xyfrict;
-		materialProps->m_fh_distance = blendermat->fhdist;
-		materialProps->m_fh_normal = (blendermat->dynamode & MA_FH_NOR) != 0;
-	}
-	else {
-		//give some defaults
-		materialProps->m_restitution = 0.f;
-		materialProps->m_friction = 0.5;
-		materialProps->m_rollingFriction = 0.0f;
-		materialProps->m_fh_spring = 0.f;
-		materialProps->m_fh_damping = 0.f;
-		materialProps->m_fh_distance = 0.f;
-		materialProps->m_fh_normal = false;
-
-	}
-	
-	return materialProps;
-}
-
 static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blenderobject)
 {
 	PHY_ShapeProps *shapeProps = new PHY_ShapeProps;
@@ -804,6 +767,14 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 	shapeProps->m_jump_speed = blenderobject->jump_speed;
 	shapeProps->m_fall_speed = blenderobject->fall_speed;
 	shapeProps->m_max_jumps = blenderobject->max_jumps;
+
+	shapeProps->m_restitution = blenderobject->reflect;
+	shapeProps->m_friction = blenderobject->friction;
+	shapeProps->m_rollingFriction = blenderobject->rolling_friction;
+	shapeProps->m_fh_spring = blenderobject->fh;
+	shapeProps->m_fh_damping = blenderobject->xyfrict;
+	shapeProps->m_fh_distance = blenderobject->fhdist;
+	shapeProps->m_fh_normal = (blenderobject->dynamode & OB_FH_NOR) != 0;
 
 	return shapeProps;
 }
@@ -892,17 +863,13 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	PHY_ShapeProps* shapeprops =
 			CreateShapePropsFromBlenderObject(blenderobject);
 
-	
-	PHY_MaterialProps* smmaterial = 
-		CreateMaterialFromBlenderObject(blenderobject);
-
 	DerivedMesh* dm = NULL;
 	if (gameobj->GetDeformer())
 		dm = gameobj->GetDeformer()->GetPhysicsMesh();
 
 	class PHY_IMotionState* motionstate = new KX_MotionState(gameobj->GetSGNode());
 
-	kxscene->GetPhysicsEnvironment()->ConvertObject(gameobj, meshobj, dm, kxscene, shapeprops, smmaterial, motionstate, activeLayerBitInfo, isCompoundChild, hasCompoundChildren);
+	kxscene->GetPhysicsEnvironment()->ConvertObject(gameobj, meshobj, dm, kxscene, shapeprops, motionstate, activeLayerBitInfo, isCompoundChild, hasCompoundChildren);
 
 	bool isActor = (blenderobject->gameflag & OB_ACTOR)!=0;
 	bool isSensor = (blenderobject->gameflag & OB_SENSOR) != 0;
@@ -911,7 +878,6 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 		(isActor) ? KX_ClientObjectInfo::ACTOR : KX_ClientObjectInfo::STATIC;
 
 	delete shapeprops;
-	delete smmaterial;
 	if (dm) {
 		dm->needsFree = 1;
 		dm->release(dm);

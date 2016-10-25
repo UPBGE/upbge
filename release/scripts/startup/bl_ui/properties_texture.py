@@ -649,7 +649,7 @@ class TEXTURE_PT_envmap_sampling(TextureTypePanel, Panel):
     bl_label = "Environment Map Sampling"
     bl_options = {'DEFAULT_CLOSED'}
     tex_type = 'ENVIRONMENT_MAP'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def draw(self, context):
         layout = self.layout

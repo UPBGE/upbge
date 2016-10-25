@@ -635,6 +635,7 @@ void BKE_object_init(Object *ob)
 	ob->gameflag = OB_PROP | OB_COLLISION;
 	ob->gameflag2 = 0;
 	ob->margin = 0.04f;
+	ob->friction = 0.5;
 	ob->init_state = 1;
 	ob->state = 1;
 	ob->obstacleRad = 1.0f;

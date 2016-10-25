@@ -148,11 +148,6 @@ static PointerRNA rna_Material_strand_get(PointerRNA *ptr)
 	return rna_pointer_inherit_refine(ptr, &RNA_MaterialStrand, ptr->id.data);
 }
 
-static PointerRNA rna_Material_physics_get(PointerRNA *ptr)
-{
-	return rna_pointer_inherit_refine(ptr, &RNA_MaterialPhysics, ptr->id.data);
-}
-
 static void rna_Material_type_set(PointerRNA *ptr, int value)
 {
 	Material *ma = (Material *)ptr->data;
@@ -935,10 +930,6 @@ static void rna_def_material_gamesettings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "face_orientation", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, prop_face_orientation_items);
 	RNA_def_property_ui_text(prop, "Face Orientations", "Especial face orientation options");
-
-	prop = RNA_def_property(srna, "physics", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GEMAT_NOPHYSICS); /* use bitflags */
-	RNA_def_property_ui_text(prop, "Physics", "Use physics properties of materials ");
 
 	prop = RNA_def_property(srna, "storage", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "storage");
@@ -1788,55 +1779,6 @@ static void rna_def_material_strand(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 }
 
-static void rna_def_material_physics(BlenderRNA *brna)
-{
-	StructRNA *srna;
-	PropertyRNA *prop;
-	
-	srna = RNA_def_struct(brna, "MaterialPhysics", NULL);
-	RNA_def_struct_sdna(srna, "Material");
-	RNA_def_struct_nested(brna, srna, "Material");
-	RNA_def_struct_ui_text(srna, "Material Physics", "Physics settings for a Material data-block");
-
-	prop = RNA_def_property(srna, "friction", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "friction");
-	RNA_def_property_range(prop, 0, 100);
-	RNA_def_property_ui_text(prop, "Friction", "Coulomb friction coefficient, when inside the physics distance area");
-
-	prop = RNA_def_property(srna, "rolling_friction", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "rolling_friction");
-	RNA_def_property_range(prop, 0, 100);
-	RNA_def_property_ui_text(prop, "Rolling Friction", "Coulomb friction coefficient of rounded shapes");
-
-	prop = RNA_def_property(srna, "elasticity", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "reflect");
-	RNA_def_property_range(prop, 0, 1);
-	RNA_def_property_ui_text(prop, "Elasticity", "Elasticity of collisions");
-
-	/* FH/Force Field Settings */
-	prop = RNA_def_property(srna, "use_fh_normal", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "dynamode", MA_FH_NOR);
-	RNA_def_property_ui_text(prop, "Align to Normal",
-	                         "Align dynamic game objects along the surface normal, "
-	                         "when inside the physics distance area");
-
-	prop = RNA_def_property(srna, "fh_force", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "fh");
-	RNA_def_property_range(prop, 0, 1);
-	RNA_def_property_ui_range(prop, 0.0, 1.0, 10, 2);
-	RNA_def_property_ui_text(prop, "Force", "Upward spring force, when inside the physics distance area");
-	
-	prop = RNA_def_property(srna, "fh_distance", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "fhdist");
-	RNA_def_property_range(prop, 0, 20);
-	RNA_def_property_ui_text(prop, "Distance", "Distance of the physics area");
-	
-	prop = RNA_def_property(srna, "fh_damping", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "xyfrict");
-	RNA_def_property_range(prop, 0, 1);
-	RNA_def_property_ui_text(prop, "Damping", "Damping of the spring force, when inside the physics distance area");
-}
-
 void RNA_def_material(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -2185,12 +2127,6 @@ void RNA_def_material(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "MaterialStrand");
 	RNA_def_property_pointer_funcs(prop, "rna_Material_strand_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Strand", "Strand settings for the material");
-	
-	prop = RNA_def_property(srna, "physics", PROP_POINTER, PROP_NONE);
-	RNA_def_property_flag(prop, PROP_NEVER_NULL);
-	RNA_def_property_struct_type(prop, "MaterialPhysics");
-	RNA_def_property_pointer_funcs(prop, "rna_Material_physics_get", NULL, NULL, NULL);
-	RNA_def_property_ui_text(prop, "Physics", "Game physics settings");
 
 	/* game settings */
 	prop = RNA_def_property(srna, "game_settings", PROP_POINTER, PROP_NONE);
@@ -2246,7 +2182,6 @@ void RNA_def_material(BlenderRNA *brna)
 	rna_def_material_sss(brna);
 	rna_def_material_mtex(brna);
 	rna_def_material_strand(brna);
-	rna_def_material_physics(brna);
 	rna_def_material_gamesettings(brna);
 
 	RNA_api_material(srna);

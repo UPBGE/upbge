@@ -132,7 +132,6 @@ void BKE_material_init(Material *ma)
 	ma->flaresize = ma->subsize = 1.0;
 	ma->flareboost = 1;
 	ma->seed2 = 6;
-	ma->friction = 0.5;
 	ma->refrac = 4.0;
 	ma->roughness = 0.5;
 	ma->param[0] = 0.5;

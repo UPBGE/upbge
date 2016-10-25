@@ -171,11 +171,6 @@ typedef struct Material {
 	struct Group *group;	/* light group */
 	struct PreviewImage *preview;
 
-	/* dynamic properties */
-	float friction, rolling_friction, fh, reflect;
-	float fhdist, xyfrict;
-	short dynamode, pad2[3];
-
 	/* subsurface scattering */
 	float sss_radius[3], sss_col[3];
 	float sss_error, sss_scale, sss_ior;
@@ -364,10 +359,6 @@ typedef struct Material {
 #define MA_SPEC_BLINN		2
 #define MA_SPEC_TOON		3
 #define MA_SPEC_WARDISO		4
-
-/* dynamode */
-// #define MA_DRAW_DYNABUTS    1		/* deprecated */
-#define MA_FH_NOR	        2
 
 /* ramps */
 #define MA_RAMP_IN_SHADER	0

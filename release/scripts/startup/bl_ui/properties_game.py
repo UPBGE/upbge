@@ -78,8 +78,19 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(game, "mass")
             col.prop(game, "radius")
             col.prop(game, "form_factor")
+            col.prop(game, "elasticity", slider=True)
+
+            col.label(text="Linear velocity:")
+            sub = col.column(align=True)
+            sub.prop(game, "velocity_min", text="Minimum")
+            sub.prop(game, "velocity_max", text="Maximum")
 
             col = split.column()
+            col.label(text="Friction:")
+            col.prop(game, "friction")
+            col.prop(game, "rolling_friction")
+            col.separator()
+
             sub = col.column()
             sub.prop(game, "use_anisotropic_friction")
             subsub = sub.column()
@@ -87,12 +98,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             subsub.prop(game, "friction_coefficients", text="", slider=True)
 
             split = layout.split()
-
             col = split.column()
-            col.label(text="Linear velocity:")
-            sub = col.column(align=True)
-            sub.prop(game, "velocity_min", text="Minimum")
-            sub.prop(game, "velocity_max", text="Maximum")
             col.label(text="Angular velocity:")
             sub = col.column(align=True)
             sub.prop(game, "angular_velocity_min", text="Minimum")
@@ -106,20 +112,22 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
             layout.separator()
 
-            split = layout.split()
+            col = layout.column()
 
-            col = split.column()
             col.label(text="Lock Translation:")
-            col.prop(game, "lock_location_x", text="X")
-            col.prop(game, "lock_location_y", text="Y")
-            col.prop(game, "lock_location_z", text="Z")
+            row = col.row()
+            row.prop(game, "lock_location_x", text="X")
+            row.prop(game, "lock_location_y", text="Y")
+            row.prop(game, "lock_location_z", text="Z")
 
         if physics_type == 'RIGID_BODY':
-            col = split.column()
+            col = layout.column()
+
             col.label(text="Lock Rotation:")
-            col.prop(game, "lock_rotation_x", text="X")
-            col.prop(game, "lock_rotation_y", text="Y")
-            col.prop(game, "lock_rotation_z", text="Z")
+            row = col.row()
+            row.prop(game, "lock_rotation_x", text="X")
+            row.prop(game, "lock_rotation_y", text="Y")
+            row.prop(game, "lock_rotation_z", text="Z")
 
         elif physics_type == 'SOFT_BODY':
             col = layout.column()
@@ -170,6 +178,9 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = split.column()
             col.label(text="Attributes:")
             col.prop(game, "radius")
+            col.label(text="Friction:")
+            col.prop(game, "friction")
+            col.prop(game, "rolling_friction")
 
             col = split.column()
             sub = col.column()
@@ -194,6 +205,18 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
             layout.operator("mesh.navmesh_reset")
             layout.operator("mesh.navmesh_clear")
+
+        if physics_type in {"STATIC", "DYNAMIC", "RIGID_BODY"}:
+            row = layout.row()
+            row.label(text="Force Field:")
+
+            row = layout.row()
+            row.prop(game, "fh_force")
+            row.prop(game, "fh_damping", slider=True)
+
+            row = layout.row()
+            row.prop(game, "fh_distance")
+            row.prop(game, "use_fh_normal")
 
 
 class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):

@@ -2909,7 +2909,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 	return ccdPhysEnv;
 }
 
-void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject *meshobj, DerivedMesh *dm, KX_Scene *kxscene, PHY_ShapeProps *shapeprops, PHY_MaterialProps *smmaterial, PHY_IMotionState *motionstate, int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
+void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject *meshobj, DerivedMesh *dm, KX_Scene *kxscene, PHY_ShapeProps *shapeprops, PHY_IMotionState *motionstate, int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
 {
 	Object *blenderobject = gameobj->GetBlenderObject();
 
@@ -3281,9 +3281,9 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 
 	ci.m_collisionShape = bm;
 	ci.m_shapeInfo = shapeInfo;
-	ci.m_friction = smmaterial->m_friction;//tweak the friction a bit, so the default 0.5 works nice
-	ci.m_rollingFriction = smmaterial->m_rollingFriction;
-	ci.m_restitution = smmaterial->m_restitution;
+	ci.m_friction = shapeprops->m_friction;//tweak the friction a bit, so the default 0.5 works nice
+	ci.m_rollingFriction = shapeprops->m_rollingFriction;
+	ci.m_restitution = shapeprops->m_restitution;
 	ci.m_physicsEnv = this;
 	// drag / damping is inverted
 	ci.m_linearDamping = 1.0f - shapeprops->m_lin_drag;
@@ -3297,10 +3297,10 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 	//do Fh, do Rot Fh
 	ci.m_do_fh = shapeprops->m_do_fh;
 	ci.m_do_rot_fh = shapeprops->m_do_rot_fh;
-	ci.m_fh_damping = smmaterial->m_fh_damping;
-	ci.m_fh_distance = smmaterial->m_fh_distance;
-	ci.m_fh_normal = smmaterial->m_fh_normal;
-	ci.m_fh_spring = smmaterial->m_fh_spring;
+	ci.m_fh_damping = shapeprops->m_fh_damping;
+	ci.m_fh_distance = shapeprops->m_fh_distance;
+	ci.m_fh_normal = shapeprops->m_fh_normal;
+	ci.m_fh_spring = shapeprops->m_fh_spring;
 
 	ci.m_collisionFilterGroup =
 	    (isbulletsensor) ? short(CcdConstructionInfo::SensorFilter) :

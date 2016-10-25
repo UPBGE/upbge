@@ -287,7 +287,6 @@ public:
 	                           DerivedMesh *dm,
 	                           KX_Scene *kxscene,
 	                           PHY_ShapeProps *shapeprops,
-	                           PHY_MaterialProps *smmaterial,
 	                           PHY_IMotionState *motionstate,
 	                           int activeLayerBitInfo,
 	                           bool isCompoundChild,
