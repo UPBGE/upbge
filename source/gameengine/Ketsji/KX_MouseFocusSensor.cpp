@@ -36,8 +36,6 @@
 #  pragma warning(disable:4786)
 #endif
 
-#include <stdio.h>
-
 #include "MT_Vector3.h"
 #include "RAS_FramingManager.h"
 #include "RAS_ICanvas.h"
@@ -53,8 +51,9 @@
 #include "PHY_IPhysicsController.h"
 #include "PHY_IPhysicsEnvironment.h"
 
-
 #include "KX_ClientObjectInfo.h"
+
+#include "CM_Message.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
@@ -206,7 +205,7 @@ bool KX_MouseFocusSensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(
 	{
 		// Unknown type of object, skip it.
 		// Should not occur as the sensor objects are filtered in RayTest()
-		printf("Invalid client type %d found ray casting\n", client->m_type);
+		CM_Error("invalid client type " << client->m_type << " found ray casting");
 		return false;
 	}
 	if (m_bXRay && m_propertyname.Length() != 0)

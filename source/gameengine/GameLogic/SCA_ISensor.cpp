@@ -32,16 +32,13 @@
  *  \ingroup gamelogic
  */
 
-
-#include <stddef.h>
-
 #include "SCA_ISensor.h"
 #include "SCA_EventManager.h"
 #include "SCA_LogicManager.h"
 // needed for IsTriggered()
 #include "SCA_PythonController.h"
 
-#include <stdio.h>
+#include "CM_Message.h"
 
 /* Native functions */
 void	SCA_ISensor::ReParent(SCA_IObject* parent)
@@ -147,7 +144,7 @@ void SCA_ISensor::Resume()
 
 void SCA_ISensor::Init()
 {
-	printf("Sensor %s has no init function, please report this bug to Blender.org\n", m_name.Ptr());
+	CM_LogicBrickError(this, "sensor " << m_name << " has no init function, please report this bug to Blender.org");
 }
 
 void SCA_ISensor::DecLink()
@@ -155,7 +152,7 @@ void SCA_ISensor::DecLink()
 	m_links--;
 	if (m_links < 0) 
 	{
-		printf("Warning: sensor %s has negative m_links: %d\n", m_name.Ptr(), m_links);
+		CM_LogicBrickWarning(this, "sensor " << m_name << " has negative m_links: " << m_links);
 		m_links = 0;
 	}
 	if (!m_links)
@@ -203,9 +200,8 @@ void SCA_ISensor::UnlinkController(SCA_IController* controller)
 			return;
 		}
 	}
-	printf("Missing link from sensor %s:%s to controller %s:%s\n", 
-		m_gameobj->GetName().ReadPtr(), GetName().ReadPtr(), 
-		controller->GetParent()->GetName().ReadPtr(), controller->GetName().ReadPtr());
+	CM_LogicBrickWarning(this, "missing link from sensor " << m_gameobj->GetName() << ":" << GetName()
+		<< " to controller " << controller->GetParent()->GetName() << ":" << controller->GetName());
 }
 
 void SCA_ISensor::UnlinkAllControllers()

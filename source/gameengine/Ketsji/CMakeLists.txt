@@ -27,6 +27,7 @@ set(INC
 	.
 	KXNetwork
 	../BlenderRoutines
+	../Common
 	../Converter
 	../Device
 	../Expressions

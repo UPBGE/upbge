@@ -25,6 +25,7 @@
 
 set(INC
 	.
+	../Common
 	../Expressions
 	../Ketsji
 	../SceneGraph
@@ -37,6 +38,7 @@ set(INC
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
 	../../../intern/string
+	../../../intern/termcolor
 )
 
 set(INC_SYS

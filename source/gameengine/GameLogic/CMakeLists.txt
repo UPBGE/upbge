@@ -25,12 +25,14 @@
 
 set(INC
 	.
+	../Common
 	../Device
 	../Expressions
 	../Rasterizer
 	../SceneGraph
 	../../blender/blenlib
 	../../../intern/string
+	../../../intern/termcolor
 	../../../intern/ghost
 )
 

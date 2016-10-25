@@ -20,6 +20,7 @@
 
 set(INC
 	.
+	../Common
 	../Expressions
 	../GameLogic
 	../Ketsji
@@ -28,6 +29,7 @@ set(INC
 	../../blender/blenlib
 	../../../intern/ghost
 	../../../intern/string
+	../../../intern/termcolor
 )
 
 set(INC_SYS

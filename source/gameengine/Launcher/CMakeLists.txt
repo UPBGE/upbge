@@ -26,6 +26,7 @@
 set(INC
 	.
 	../BlenderRoutines
+	../Common
 	../Converter
 	../Device
 	../Expressions
@@ -46,6 +47,7 @@ set(INC
 	../../../intern/guardedalloc
 	../../../intern/ghost
 	../../../intern/string
+	../../../intern/termcolor
 )
 
 set(INC_SYS

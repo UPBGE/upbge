@@ -22,8 +22,6 @@
  *  \ingroup bgerast
  */
 
-#include <iostream>
-#include <cstring>
 #include "RAS_Shader.h"
 #include "RAS_IRasterizer.h"
 
@@ -32,7 +30,7 @@
 
 #include "GPU_shader.h"
 
-#define spit(x) std::cout << x << std::endl;
+#include "CM_Message.h"
 
 #define UNIFORM_MAX_LEN (int)sizeof(float) * 16
 
@@ -290,7 +288,7 @@ bool RAS_Shader::LinkProgram()
 	}
 
 	if (m_progs[VERTEX_PROGRAM].IsEmpty() || m_progs[FRAGMENT_PROGRAM].IsEmpty()) {
-		spit("Invalid GLSL sources");
+		CM_Error("invalid GLSL sources");
 		return false;
 	}
 
@@ -317,8 +315,7 @@ void RAS_Shader::ValidateProgram()
 {
 	char *log = GPU_shader_validate(m_shader);
 	if (log) {
-		spit("---- GLSL Validation ----");
-		spit(log);
+		CM_Debug("---- GLSL Validation ----\n" << log);
 		MEM_freeN(log);
 	}
 }
@@ -485,7 +482,7 @@ int RAS_Shader::GetUniformLocation(const char *name, bool debug)
 	int location = GPU_shader_get_uniform(m_shader, name);
 
 	if (location == -1 && debug) {
-		spit("Invalid uniform value: " << name << ".");
+		CM_Error("invalid uniform value: " << name << ".");
 	}
 
 	return location;

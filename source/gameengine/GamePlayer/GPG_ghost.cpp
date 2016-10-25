@@ -31,7 +31,6 @@
  */
 
 
-#include <iostream>
 #include <math.h>
 
 #ifdef __linux__
@@ -116,6 +115,8 @@ extern "C"
 #ifdef WITH_SDL_DYNLOAD
 #  include "sdlew.h"
 #endif
+
+#include "CM_Message.h"
 
 const int kMinWindowWidth = 100;
 const int kMinWindowHeight = 100;
@@ -264,13 +265,13 @@ static GHOST_IWindow *startScreenSaverPreview(
 		GHOST_IWindow *window = system->createWindow(title, 0, 0, windowWidth, windowHeight, GHOST_kWindowStateMinimized,
 		                                     GHOST_kDrawingContextTypeOpenGL, glSettings);
 		if (!window) {
-			printf("error: could not create main window\n");
+			CM_Error("could not create main window");
 			exit(-1);
 		}
 
 		HWND ghost_hwnd = findGhostWindowHWND(window);
 		if (!ghost_hwnd) {
-			printf("error: could find main window\n");
+			CM_Error("could find main window");
 			exit(-1);
 		}
 
@@ -370,7 +371,7 @@ static GHOST_IWindow *startWindow(
 	GHOST_IWindow *window = system->createWindow(title, windowLeft, windowTop, windowWidth, windowHeight, GHOST_kWindowStateNormal,
 	                                     GHOST_kDrawingContextTypeOpenGL, glSettings);
 	if (!window) {
-		printf("error: could not create main window\n");
+		CM_Error("could not create main window");
 		exit(-1);
 	}
 
@@ -404,7 +405,7 @@ static GHOST_IWindow *startEmbeddedWindow(
 	                                     GHOST_kDrawingContextTypeOpenGL, glSettings, parentWindow);
 
 	if (!window) {
-		printf("error: could not create main window\n");
+		CM_Error("could not create main window");
 		exit(-1);
 	}
 
@@ -431,65 +432,65 @@ static void usage(const char* program, bool isBlenderPlayer)
 		example_pathname = "/home/user/";
 #endif
 	}
-	printf("\n");
-	printf("usage:   %s [--options] %s\n\n", program, example_filename);
-	printf("Available options are: [-w [w h l t]] [-f [fw fh fb ff]] %s[-g gamengineoptions] ", consoleoption);
-	printf("[-s stereomode] [-m aasamples]\n");
-	printf("Optional parameters must be passed in order.\n");
-	printf("Default values are set in the blend file.\n\n");
-	printf("  -h: Prints this command summary\n\n");
-	printf("  -w: display in a window\n");
-	printf("       --Optional parameters--\n"); 
-	printf("       w = window width\n");
-	printf("       h = window height\n");
-	printf("       l = window left coordinate\n");
-	printf("       t = window top coordinate\n");
-	printf("       Note: To define 'w' or 'h', both must be used.");
-	printf("Also, to define 'l' or 't', all four parameters must be used.\n");
-	printf("       Example: -w   or  -w 500 300  or  -w 500 300 0 0\n\n");
-	printf("  -f: start game in fullscreen mode\n");
-	printf("       --Optional parameters--\n");
-	printf("       fw = fullscreen mode pixel width    (use 0 to detect automatically)\n");
-	printf("       fh = fullscreen mode pixel height   (use 0 to detect automatically)\n");
-	printf("       fb = fullscreen mode bits per pixel (default unless set in the blend file: 32)\n");
-	printf("       ff = fullscreen mode frequency      (default unless set in the blend file: 60)\n");
-	printf("       Note: To define 'fw'' or 'fh'', both must be used.\n");
-	printf("       Example: -f  or  -f 1024 768  or  -f 0 0 16  or  -f 1024 728 16 30\n\n");
-	printf("  -s: start player in stereoscopy mode (requires 3D capable hardware)\n");
-	printf("       stereomode: nostereo         (default unless stereo is set in the blend file)\n");
-	printf("                   anaglyph         (Red-Blue glasses)\n");
-	printf("                   sidebyside       (Left Right)\n");
-	printf("                   syncdoubling     (Above Below)\n");
-	printf("                   3dtvtopbottom    (Squashed Top-Bottom for passive glasses)\n");
-	printf("                   interlace        (Interlace horizontally)\n");
-	printf("                   vinterlace       (Vertical interlace for autostereo display)\n");
-	printf("                   hwpageflip       (Quad buffered shutter glasses)\n");
-	printf("       Example: -s sidebyside  or  -s vinterlace\n\n");
-	printf("  -m: maximum anti-aliasing (eg. 2,4,8,16)\n\n");
-	printf("  -i: parent window's ID\n\n");
+	CM_Message(std::endl)
+	CM_Message("usage:   " << program << " [--options] " << example_filename << std::endl);
+	CM_Message("Available options are: [-w [w h l t]] [-f [fw fh fb ff]] " << consoleoption << "[-g gamengineoptions] "
+		<< "[-s stereomode] [-m aasamples]");
+	CM_Message("Optional parameters must be passed in order.");
+	CM_Message("Default values are set in the blend file." << std::endl);
+	CM_Message("  -h: Prints this command summary" << std::endl);
+	CM_Message("  -w: display in a window");
+	CM_Message("       --Optional parameters--");
+	CM_Message("       w = window width");
+	CM_Message("       h = window height");
+	CM_Message("       l = window left coordinate");
+	CM_Message("       t = window top coordinate");
+	CM_Message("       Note: To define 'w' or 'h', both must be used."
+		<< "Also, to define 'l' or 't', all four parameters must be used.");
+	CM_Message("       Example: -w   or  -w 500 300  or  -w 500 300 0 0" << std::endl);
+	CM_Message("  -f: start game in fullscreen mode");
+	CM_Message("       --Optional parameters--");
+	CM_Message("       fw = fullscreen mode pixel width    (use 0 to detect automatically)");
+	CM_Message("       fh = fullscreen mode pixel height   (use 0 to detect automatically)");
+	CM_Message("       fb = fullscreen mode bits per pixel (default unless set in the blend file: 32)");
+	CM_Message("       ff = fullscreen mode frequency      (default unless set in the blend file: 60)");
+	CM_Message("       Note: To define 'fw'' or 'fh'', both must be used.");
+	CM_Message("       Example: -f  or  -f 1024 768  or  -f 0 0 16  or  -f 1024 728 16 30" << std::endl);
+	CM_Message("  -s: start player in stereoscopy mode (requires 3D capable hardware)");
+	CM_Message("       stereomode: nostereo         (default unless stereo is set in the blend file)");
+	CM_Message("                   anaglyph         (Red-Blue glasses)");
+	CM_Message("                   sidebyside       (Left Right)");
+	CM_Message("                   syncdoubling     (Above Below)");
+	CM_Message("                   3dtvtopbottom    (Squashed Top-Bottom for passive glasses)");
+	CM_Message("                   interlace        (Interlace horizontally)");
+	CM_Message("                   vinterlace       (Vertical interlace for autostereo display)");
+	CM_Message("                   hwpageflip       (Quad buffered shutter glasses)");
+	CM_Message("       Example: -s sidebyside  or  -s vinterlace" << std::endl);
+	CM_Message("  -m: maximum anti-aliasing (eg. 2,4,8,16)" << std::endl);
+	CM_Message("  -i: parent window's ID" << std::endl);
 #ifdef _WIN32
-	printf("  -c: keep console window open\n\n");
+	CM_Message("  -c: keep console window open" << std::endl);
 #endif
-	printf("  -d: debugging options:\n");
-	printf("       memory        Debug memory leaks\n");
-	printf("       gpu           Debug gpu error and warnings\n\n");
-	printf("  -g: game engine options:\n\n");
-	printf("       Name                       Default      Description\n");
-	printf("       ------------------------------------------------------------------------\n");
-	printf("       fixedtime                      0         \"Enable all frames\"\n");
-	printf("       nomipmap                       0         Disable mipmaps\n");
-	printf("       wireframe                      0         Wireframe render\n");
-	printf("       show_framerate                 0         Show the frame rate\n");
-	printf("       show_properties                0         Show debug properties\n");
-	printf("       show_profile                   0         Show profiling information\n");
-	printf("       ignore_deprecation_warnings    1         Ignore deprecation warnings\n\n");
-	printf("  -p: override python main loop script\n");
-	printf("\n");
-	printf("  - : all arguments after this are ignored, allowing python to access them from sys.argv\n");
-	printf("\n");
-	printf("example: %s -w 320 200 10 10 -g noaudio %s%s\n", program, example_pathname, example_filename);
-	printf("example: %s -g show_framerate = 0 %s%s\n", program, example_pathname, example_filename);
-	printf("example: %s -i 232421 -m 16 %s%s\n\n", program, example_pathname, example_filename);
+	CM_Message("  -d: debugging options:");
+	CM_Message("       memory        Debug memory leaks");
+	CM_Message("       gpu           Debug gpu error and warnings" << std::endl);
+	CM_Message("  -g: game engine options:" << std::endl);
+	CM_Message("       Name                       Default      Description");
+	CM_Message("       ------------------------------------------------------------------------");
+	CM_Message("       fixedtime                      0         \"Enable all frames\"");
+	CM_Message("       nomipmap                       0         Disable mipmaps");
+	CM_Message("       wireframe                      0         Wireframe render");
+	CM_Message("       show_framerate                 0         Show the frame rate");
+	CM_Message("       show_properties                0         Show debug properties");
+	CM_Message("       show_profile                   0         Show profiling information");
+	CM_Message("       ignore_deprecation_warnings    1         Ignore deprecation warnings" << std::endl);
+	CM_Message("  -p: override python main loop script");
+	CM_Message(std::endl);
+	CM_Message("  - : all arguments after this are ignored, allowing python to access them from sys.argv");
+	CM_Message(std::endl);
+	CM_Message("example: " << program << " -w 320 200 10 10 -g noaudio " << example_pathname << example_filename);
+	CM_Message("example: " << program << " -g show_framerate = 0 " << example_pathname << example_filename);
+	CM_Message("example: " << program << " -i 232421 -m 16 " << example_pathname << example_filename);
 }
 
 static void get_filename(int argc, char **argv, char *filename)
@@ -560,7 +561,7 @@ static BlendFileData *load_game_data(const char *progname, char *filename = NULL
 	if (!bfd && filename) {
 		bfd = load_game_data(filename);
 		if (!bfd) {
-			printf("Loading %s failed: ", filename);
+			CM_Error("loading " << filename << " failed: ");
 			BKE_reports_print(&reports, RPT_ERROR);
 		}
 	}
@@ -687,7 +688,7 @@ int main(
 
 	// Parse command line options
 #if defined(DEBUG)
-	printf("argv[0] = '%s'\n", argv[0]);
+	CM_Debug("argv[0] = '" << argv[0] << "'");
 #endif
 
 #ifdef WIN32
@@ -743,8 +744,8 @@ int main(
 
 	/* Parsing command line arguments (can be set from WM_OT_blenderplayer_start) */
 #if defined(DEBUG)
-		printf("Parsing command line arguments...\n");
-		printf("Num of arguments is: %i\n", validArguments-1); //-1 because i starts at 1
+		CM_Debug("parsing command line arguments...");
+		CM_Debug("num of arguments is: " << validArguments - 1); //-1 because i starts at 1
 #endif
 
 	for (i = 1; (i < validArguments) && !error 
@@ -755,7 +756,7 @@ int main(
 
 	{
 #if defined(DEBUG)
-		printf("argv[%d] = '%s'\n", i, argv[i]);
+		CM_Debug("argv[" << i << "] = '" << argv[i] << "'");
 #endif
 		if (argv[i][0] == '-')
 		{
@@ -785,14 +786,14 @@ int main(
 							SYS_WriteCommandLineFloat(syshandle, paramname, atof(argv[i]));
 							SYS_WriteCommandLineString(syshandle, paramname, argv[i]);
 #if defined(DEBUG)
-							printf("%s = '%s'\n", paramname, argv[i]);
+							CM_Debug(paramname << " = '" << argv[i] << "'");
 #endif
 							i++;
 						}
 						else
 						{
 							error = true;
-							printf("error: argument assignment %s without value.\n", paramname);
+							CM_Error("argument assignment " << paramname << " without value.");
 						}
 					}
 					else
@@ -847,7 +848,7 @@ int main(
 				else if ((i + 1) <= validArguments && argv[i][0] != '-' && argv[i+1][0] != '-')
 				{
 					error = true;
-					printf("error: to define fullscreen width or height, both options must be used.\n");
+					CM_Error("to define fullscreen width or height, both options must be used.");
 				}
 				break;
 			}
@@ -871,13 +872,13 @@ int main(
 					else if ((i + 1) <= validArguments && argv[i][0] != '-' && argv[i+1][0] != '-')
 					{
 						error = true;
-						printf("error: to define the window left or right coordinates, both options must be used.\n");
+						CM_Error("to define the window left or right coordinates, both options must be used.");
 					}
 				}
 				else if ((i + 1) <= validArguments && argv[i][0] != '-' && argv[i+1][0] != '-')
 				{
 					error = true;
-					printf("error: to define the window's width or height, both options must be used.\n");
+					CM_Error("to define the window's width or height, both options must be used.");
 				}
 				break;
 			}
@@ -894,10 +895,10 @@ int main(
 					parentWindow = (GHOST_TEmbedderWindowID)atoll(argv[i++]);
 				else {
 					error = true;
-					printf("error: too few options for parent window argument.\n");
+					CM_Error("too few options for parent window argument.");
 				}
 #if defined(DEBUG)
-				printf("XWindows ID = %d\n", int(parentWindow));
+				CM_Debug("XWindows ID = " << int(parentWindow));
 #endif // defined(DEBUG)
 				break;
 			}
@@ -910,7 +911,7 @@ int main(
 				else
 				{
 					error = true;
-					printf("error: No argument supplied for -m");
+					CM_Error("no argument supplied for -m");
 				}
 				break;
 			}
@@ -965,7 +966,7 @@ int main(
 					else
 					{
 						error = true;
-						printf("error: stereomode '%s' unrecognized.\n", argv[i]);
+						CM_Error("stereomode '" << argv[i] << "' unrecognized.");
 					}
 
 					i++;
@@ -973,7 +974,7 @@ int main(
 				else
 				{
 					error = true;
-					printf("error: too few options for stereo argument.\n");
+					CM_Error("too few options for stereo argument.");
 				}
 				break;
 			}
@@ -990,7 +991,7 @@ int main(
 			}
 			default:  //not recognized
 			{
-				printf("Unknown argument: %s\n", argv[i++]);
+				CM_Warning("unknown argument: " << argv[i++]);
 				break;
 			}
 			}
@@ -1004,7 +1005,7 @@ int main(
 	if ((windowWidth < kMinWindowWidth) || (windowHeight < kMinWindowHeight))
 	{
 		error = true;
-		printf("error: window size too small.\n");
+		CM_Error("window size too small.");
 	}
 	
 	if (error )
@@ -1088,7 +1089,7 @@ int main(
 					}
 
 #if defined(DEBUG)
-					printf("Game data loaded from %s\n", filename);
+					CM_Debug("game data loaded from " << filename);
 #endif
 					
 					if (!bfd) {
@@ -1323,7 +1324,7 @@ int main(
 		}
 		else {
 			error = true;
-			printf("error: couldn't create a system.\n");
+			CM_Error("couldn't create a system.");
 		}
 	}
 
@@ -1356,7 +1357,7 @@ int main(
 
 	int totblock= MEM_get_memory_blocks_in_use();
 	if (totblock!=0) {
-		printf("Error Totblock: %d\n",totblock);
+		CM_Error("totblock: " << totblock);
 		MEM_set_error_callback(mem_error_cb);
 		MEM_printmemlist();
 	}

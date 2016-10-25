@@ -25,18 +25,25 @@
 
 set(INC
 	.
+	../Expressions
+	../GameLogic
+	../SceneGraph
 	../../blender/blenlib
+	../../blender/python/generic
 	../../../intern/guardedalloc
 	../../../intern/string
+	../../../intern/termcolor
 )
 
 set(INC_SYS
-
+	../../../intern/moto/include
 )
 
 set(SRC
+	CM_Message.cpp
 	CM_Thread.cpp
 
+	CM_Message.h
 	CM_Thread.h
 )
 

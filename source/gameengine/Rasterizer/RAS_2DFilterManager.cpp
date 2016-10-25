@@ -29,9 +29,7 @@
 #include "RAS_2DFilterManager.h"
 #include "RAS_2DFilter.h"
 
-#include "BLI_utildefines.h" // for STRINGIFY
-
-#include <iostream>
+#include "CM_Message.h"
 
 #include "glew-mx.h"
 
@@ -184,7 +182,7 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 			result = NewFilter(filterData);
 		}
 		else {
-			std::cout << "Cannot create filter for mode: " << filterData.filterMode << "." << std::endl;
+			CM_Error("cannot create filter for mode: " << filterData.filterMode << ".");
 		}
 	}
 	else {

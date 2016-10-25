@@ -43,7 +43,7 @@
 #include "KX_Globals.h" // KX_GetActiveScene
 #include "RAS_MeshObject.h"
 
-#include <stdio.h>
+#include "CM_Message.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
@@ -88,7 +88,7 @@ KX_ConstraintActuator::KX_ConstraintActuator(SCA_IObject *gameobj,
 			MT_Scalar len = m_refDirVector.length();
 			if (MT_fuzzyZero(len)) {
 				// missing a valid direction
-				std::cout << "WARNING: Constraint actuator " << GetName() << ":  There is no valid reference direction!" << std::endl;
+				CM_LogicBrickWarning(this, "there is no valid reference direction!");
 				m_locrot = KX_ACT_CONSTRAINT_NODEF;
 			} else {
 				m_refDirection[0] /= len;
@@ -159,7 +159,7 @@ bool KX_ConstraintActuator::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSE
 	{
 		// Unknown type of object, skip it.
 		// Should not occur as the sensor objects are filtered in RayTest()
-		printf("Invalid client type %d found in ray casting\n", client->m_type);
+		CM_LogicBrickError(this, "invalid client type " << client->m_type << " found in ray casting");
 		return false;
 	}
 	// no X-Ray function yet
@@ -337,7 +337,7 @@ bool KX_ConstraintActuator::Update(double curtime, bool frame)
 				PHY_IPhysicsController *spc = obj->GetPhysicsController();
 
 				if (!pe) {
-					std::cout << "WARNING: Constraint actuator " << GetName() << ":  There is no physics environment!" << std::endl;
+					CM_LogicBrickWarning(this, "there is no physics environment!");
 					goto CHECK_TIME;
 				}	 
 				if (!spc) {
@@ -449,7 +449,7 @@ bool KX_ConstraintActuator::Update(double curtime, bool frame)
 				PHY_IPhysicsController *spc = obj->GetPhysicsController();
 
 				if (!pe) {
-					std::cout << "WARNING: Constraint actuator " << GetName() << ":  There is no physics environment!" << std::endl;
+					CM_LogicBrickWarning(this, "there is no physics environment!");
 					goto CHECK_TIME;
 				}	 
 				if (!spc || !spc->IsDynamic()) {

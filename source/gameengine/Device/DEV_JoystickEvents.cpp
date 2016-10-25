@@ -32,9 +32,7 @@
 #include "DEV_Joystick.h"
 #include "DEV_JoystickPrivate.h"
 
-#ifdef _MSC_VER
-#  include <cstdio> /* printf */
-#endif
+#include "CM_Message.h"
 
 #ifdef WITH_SDL
 void DEV_Joystick::OnAxisEvent(SDL_Event* sdl_event)
@@ -97,12 +95,12 @@ bool DEV_Joystick::HandleEvents(short (&addrem)[JOYINDEX_MAX])
 						break;
 					}
 					else {
-						printf("Conflicts with Joysticks trying to use the same index.\n");
-						printf("Please, reconnect Joysticks in different order than before\n");
+						CM_Warning("conflicts with Joysticks trying to use the same index."
+						<< " Please, reconnect Joysticks in different order than before");
 					}
 				}
 				else {
-					printf("Maximum quantity (8) of Game Controllers connected. It is not possible to set up additional ones.\n");
+					CM_Warning("maximum quantity (8) of Game Controllers connected. It is not possible to set up additional ones.");
 				}
 				break;
 			case SDL_CONTROLLERDEVICEREMOVED:

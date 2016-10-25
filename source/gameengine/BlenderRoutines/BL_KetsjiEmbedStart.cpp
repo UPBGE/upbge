@@ -42,6 +42,8 @@
 
 #include "LA_BlenderLauncher.h"
 
+#include "CM_Message.h"
+
 extern "C" {
 #  include "DNA_scene_types.h"
 
@@ -65,7 +67,7 @@ static BlendFileData *load_game_data(char *filename)
 	bfd= BLO_read_from_file(filename, &reports);
 
 	if (!bfd) {
-		printf("Loading %s failed: ", filename);
+		CM_Error("loading " << filename << " failed: ");
 		BKE_reports_print(&reports, RPT_ERROR);
 	}
 
@@ -211,9 +213,9 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 		launcher.InitEngine();
 
-		std::cout << std::endl << "Blender Game Engine Started" << std::endl;
+		CM_Message(std::endl << "Blender Game Engine Started");
 		launcher.EngineMainLoop();
-		std::cout << "Blender Game Engine Finished" << std::endl;
+		CM_Message("Blender Game Engine Finished");
 
 		exitrequested = launcher.GetExitRequested();
 		exitstring = launcher.GetExitString();

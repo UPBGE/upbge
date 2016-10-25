@@ -76,9 +76,7 @@ void DrawRasterizerLine(const float *from, const float *to, int color);
 
 #include "BulletDynamics/ConstraintSolver/btContactConstraint.h"
 
-
-#include <stdio.h>
-#include <string.h>     // for memset
+#include "CM_Message.h"
 
 // This was copied from the old KX_ConvertPhysicsObjects
 #ifdef WIN32
@@ -1995,7 +1993,7 @@ void CcdPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env)
 {
 	CcdPhysicsEnvironment *other = dynamic_cast<CcdPhysicsEnvironment *>(other_env);
 	if (other == NULL) {
-		printf("KX_Scene::MergeScene: Other scene is not using Bullet physics, not merging physics.\n");
+		CM_Error("other scene is not using Bullet physics, not merging physics.");
 		return;
 	}
 

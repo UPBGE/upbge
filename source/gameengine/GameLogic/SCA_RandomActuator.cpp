@@ -33,7 +33,6 @@
  */
 
 
-#include <stddef.h>
 #include <math.h>
 
 #include "EXP_BoolValue.h"
@@ -42,6 +41,8 @@
 #include "SCA_IActuator.h"
 #include "SCA_RandomActuator.h"
 #include "MT_Transform.h"
+
+#include "CM_Message.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
@@ -236,7 +237,7 @@ bool SCA_RandomActuator::Update()
 		static bool randomWarning = false;
 		if (!randomWarning) {
 			randomWarning = true;
-			std::cout << "RandomActuator '" << GetName() << "' has an unknown distribution." << std::endl;
+			CM_LogicBrickWarning(this, "unknown distribution.");
 		}
 		return false;
 	}

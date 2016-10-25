@@ -1,0 +1,42 @@
+                          //  termcolor  //
+
+               a library for printing colored messages
+
+                          by Igor Kalnitsky
+
+
+    ~ What is termcolor?
+
+      Termcolor is a header-only C++ library for printing colored
+      messages to the terminal. Written just for fun with a help of
+      the Force.
+
+      And yeah, it's BSD licensed so you are free to do whatever you
+      want as long as copyright sticks around!
+
+
+    ~ How to use?
+
+      Add `termcolor.hpp` to the project and use provided stream
+      manimulators from the `termcolor` namespace.
+
+      For example:
+
+          std::cout << termcolor::red << termcolor::on_blue
+                    << "Red text on blue background!"
+                    << termcolor::reset << std::endl;
+
+      Please, don't forgot to reset termcolor's settings on the stream!
+
+
+    ~ What terminals are supported?
+
+      Termcolor supports ANSI color formatting. This formatting is
+      supported by most popular terminals on Linux, Unix and Mac OS.
+      On Windows, WinAPI is used instead, however, some limitations
+      are applied. Check the docs for details!
+
+
+    ~ Where the docs?
+
+      https://termcolor.readthedocs.io/

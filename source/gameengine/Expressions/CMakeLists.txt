@@ -25,10 +25,12 @@
 
 set(INC
 	.
+	../Common
 	../SceneGraph
 	../../blender/blenlib
 	../../../intern/guardedalloc
 	../../../intern/string
+	../../../intern/termcolor
 )
 
 set(INC_SYS

@@ -40,8 +40,7 @@
 #include "EXP_InputParser.h"
 #include "MT_Transform.h" // for fuzzyZero
 
-#include <stdio.h>
-
+#include "CM_Message.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
@@ -107,7 +106,7 @@ void SCA_ExpressionController::Trigger(SCA_LogicManager* logicmgr)
 		{
 			if (value->IsError())
 			{
-				printf("%s\n", value->GetText().ReadPtr());
+				CM_LogicBrickError(this, value->GetText());
 			} else
 			{
 				float num = (float)value->GetNumber();

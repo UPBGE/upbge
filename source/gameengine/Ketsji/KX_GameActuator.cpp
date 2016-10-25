@@ -33,8 +33,6 @@
  */
 
 
-#include <stddef.h>
-
 #include "SCA_IActuator.h"
 #include "KX_GameActuator.h"
 //#include <iostream>
@@ -43,8 +41,7 @@
 #include "KX_PythonInit.h" /* for config load/saving */
 #include "RAS_ICanvas.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+#include "CM_Message.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
@@ -154,7 +151,7 @@ bool KX_GameActuator::Update()
 				canvas->MakeScreenShot(m_filename);
 			}
 			else {
-				printf("KX_GAME_SCREENSHOT error: Rasterizer not available");
+				CM_LogicBrickError(this, "KX_GAME_SCREENSHOT Rasterizer not available");
 			}
 			break;
 		}

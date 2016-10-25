@@ -65,6 +65,8 @@ extern "C" {
 
 #include "MT_Matrix4x4.h"
 
+#include "CM_Message.h"
+
 /** 
  * Move here pose function for game engine so that we can mix with GE objects
  * Principle is as follow:
@@ -91,7 +93,7 @@ static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 		return;
 	}
 	else if (*dst==src) {
-		printf("game_copy_pose source and target are the same\n");
+		CM_Warning("game_copy_pose source and target are the same");
 		*dst=NULL;
 		return;
 	}

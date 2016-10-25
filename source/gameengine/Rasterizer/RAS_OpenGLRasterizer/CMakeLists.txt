@@ -27,6 +27,7 @@ set(INC
 	..
 	# XXX Remove these <<<
 	../../BlenderRoutines
+	../../Common
 	../../Expressions
 	../../GameLogic
 	../../Ketsji

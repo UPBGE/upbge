@@ -35,8 +35,6 @@
 #  pragma warning (disable:4786)
 #endif
 
-#include <stdio.h>
-
 #include "KX_Scene.h"
 #include "KX_Globals.h"
 #include "BLI_utildefines.h"
@@ -104,6 +102,8 @@
 #include "KX_Light.h"
 
 #include "BLI_task.h"
+
+#include "CM_Message.h"
 
 static void *KX_SceneReplicationFunc(SG_IObject* node,void* gameobj,void* scene)
 {
@@ -456,7 +456,7 @@ void KX_Scene::RemoveNodeDestructObject(class SG_IObject* node,class CValue* gam
 		// This should not happen anymore since we use proxy object for Python
 		// confident enough to put an assert?
 		//assert(false);
-		printf("Zombie object! name=%s\n", orgobj->GetName().ReadPtr());
+		CM_Warning("zombie object! name=" << orgobj->GetName());
 		orgobj->SetSGNode(NULL);
 		PHY_IGraphicController* ctrl = orgobj->GetGraphicController();
 		if (ctrl)
@@ -1155,7 +1155,7 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 	RAS_MeshObject* mesh = static_cast<RAS_MeshObject*>(meshobj);
 
 	if (!gameobj) {
-		std::cout << "KX_Scene::ReplaceMesh Warning: invalid object, doing nothing" << std::endl;
+		CM_FunctionWarning("invalid object, doing nothing");
 		return;
 	}
 
@@ -1201,7 +1201,7 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 			
 			if (oldblendobj==NULL) {
 				if (bHasModifier || bHasShapeKey || bHasDvert || bHasArmature) {
-					std::cout << "warning: ReplaceMesh() new mesh is not used in an object from the current scene, you will get incorrect behavior" << std::endl;
+					CM_FunctionWarning("new mesh is not used in an object from the current scene, you will get incorrect behavior");
 					bHasShapeKey= bHasDvert= bHasArmature=bHasModifier= false;
 				}
 			}
@@ -1313,8 +1313,10 @@ void KX_Scene::SetActiveCamera(KX_Camera* cam)
 	// only set if the cam is in the active list? Or add it otherwise?
 	if (!m_cameralist->SearchValue(cam)) {
 		m_cameralist->Add(cam->AddRef());
-		if (cam) std::cout << "Added cam " << cam->GetName() << std::endl;
-	} 
+		if (cam) {
+			CM_Debug("added cam " << cam->GetName());
+		}
+	}
 
 	m_active_camera = cam;
 }
@@ -1324,7 +1326,9 @@ void KX_Scene::SetCameraOnTop(KX_Camera* cam)
 	if (!m_cameralist->SearchValue(cam)) {
 		// adding is always done at the back, so that's all that needs to be done
 		m_cameralist->Add(cam->AddRef());
-		if (cam) std::cout << "Added cam " << cam->GetName() << std::endl;
+		if (cam) {
+			CM_Debug("added cam " << cam->GetName());
+		}
 	}
 	else {
 		// no release and addref just change camera place
@@ -1954,13 +1958,12 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 	if ((env==NULL) != (env_other==NULL)) /* TODO - even when both scenes have NONE physics, the other is loaded with bullet enabled, ??? */
 	{
-		printf("KX_Scene::MergeScene: physics scenes type differ, aborting\n");
-		printf("\tsource %d, terget %d\n", (int)(env!=NULL), (int)(env_other!=NULL));
+		CM_FunctionError("physics scenes type differ, aborting\n\tsource " << (int)(env!=NULL) << ", target " << (int)(env_other!=NULL));
 		return false;
 	}
 
 	if (GetSceneConverter() != other->GetSceneConverter()) {
-		printf("KX_Scene::MergeScene: converters differ, aborting\n");
+		CM_FunctionError("converters differ, aborting");
 		return false;
 	}
 

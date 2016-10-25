@@ -55,6 +55,8 @@ extern "C" {
 #include "BLF_api.h"
 }
 
+#include "CM_Message.h"
+
 #define BGE_FONT_RES 100
 
 /* proptotype */
@@ -235,7 +237,7 @@ int GetFontId(VFont *vfont)
 		fontid = BLF_load_mem(vfont->name, (unsigned char *)packedfile->data, packedfile->size);
 
 		if (fontid == -1) {
-			printf("ERROR: packed font \"%s\" could not be loaded.\n", vfont->name);
+			CM_Error("packed font \"" << vfont->name << "\" could not be loaded");
 			fontid = BLF_load("default");
 		}
 		return fontid;

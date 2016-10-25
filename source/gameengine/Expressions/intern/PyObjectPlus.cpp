@@ -44,13 +44,13 @@
  * http://www.python.org/doc/PyCPP.html
  *
  * ----------------------------- */
-#include <stdlib.h>
-#include <stddef.h>
 
 #include "EXP_PyObjectPlus.h"
 #include "STR_String.h"
 #include "MT_Vector3.h"
 #include "MEM_guardedalloc.h"
+
+#include "CM_Message.h"
 
 PyObjectPlus::~PyObjectPlus()
 {
@@ -1200,8 +1200,7 @@ void PyObjectPlus::SetDeprecationWarnings(bool ignoreDeprecationWarnings)
 
 void PyObjectPlus::ShowDeprecationWarning_func(const char *old_way, const char *new_way)
 {
-	printf("Method %s is deprecated, please use %s instead.\n", old_way, new_way);
-	PyC_LineSpit();
+	CM_PythonWarning("method " << old_way << " is deprecated, please use " << new_way << " instead.");
 }
 
 void PyObjectPlus::ClearDeprecationWarning()

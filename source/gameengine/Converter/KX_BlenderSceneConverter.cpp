@@ -114,6 +114,7 @@ extern "C" {
 
 #include "BLI_task.h"
 #include "CM_Thread.h"
+#include "CM_Message.h"
 
 typedef struct ThreadInfo {
 	TaskPool *m_pool;
@@ -617,7 +618,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 	
 		for (mesh = (ID *)main_newlib->mesh.first; mesh; mesh = (ID *)mesh->next ) {
 			if (options & LIB_LOAD_VERBOSE)
-				printf("MeshName: %s\n", mesh->name + 2);
+				CM_Debug("mesh name: " << mesh->name + 2);
 			RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)mesh, NULL, scene_merge, this, false); // For now only use the libloading option for scenes, which need to handle materials/shaders
 			scene_merge->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 		}
@@ -628,7 +629,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 
 		for (action= (ID *)main_newlib->action.first; action; action = (ID *)action->next) {
 			if (options & LIB_LOAD_VERBOSE)
-				printf("ActionName: %s\n", action->name + 2);
+				CM_Debug("action name: " << action->name + 2);
 			scene_merge->GetLogicManager()->RegisterActionName(action->name + 2, action);
 		}
 	}
@@ -640,7 +641,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 
 		for (scene = (ID *)main_newlib->scene.first; scene; scene = (ID *)scene->next ) {
 			if (options & LIB_LOAD_VERBOSE)
-				printf("SceneName: %s\n", scene->name + 2);
+				CM_Debug("scene name: " << scene->name + 2);
 			
 			if (options & LIB_LOAD_ASYNC) {
 				scenes->push_back((Scene *)scene);
@@ -672,7 +673,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 
 			for (action = (ID *)main_newlib->action.first; action; action = (ID *)action->next) {
 				if (options & LIB_LOAD_VERBOSE)
-					printf("ActionName: %s\n", action->name + 2);
+					CM_Debug("action name: " << action->name + 2);
 				scene_merge->GetLogicManager()->RegisterActionName(action->name + 2, action);
 			}
 		}
@@ -704,7 +705,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		m_threadinfo->m_mutex.Unlock();
 
 		if (!finished) {
-			printf("Library (%s) is currently being loaded asynchronously, and cannot be freed until this process is done\n", maggie->name);
+			CM_Error("Library (" << maggie->name << ") is currently being loaded asynchronously, and cannot be freed until this process is done");
 			return false;
 		}
 	}
@@ -797,7 +798,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 						if (size_before != obs->GetCount())
 							ob_idx--;
 						else {
-							printf("ERROR COULD NOT REMOVE \"%s\"\n", gameobj->GetName().ReadPtr());
+							CM_Error("could not remove \"" << gameobj->GetName() << "\"");
 						}
 					}
 					else {
@@ -960,15 +961,15 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
 	}
 
 	if (me == NULL) {
-		printf("Could not be found \"%s\"\n", name);
+		CM_Error("could not be found \"" << name << "\"");
 		return NULL;
 	}
 
 	/* Watch this!, if its used in the original scene can cause big troubles */
 	if (me->us > 0) {
 #ifdef DEBUG
-		printf("Mesh has a user \"%s\"\n", name);
-#endif
+		CM_Debug("mesh has a user \"" << name << "\"");
+#endif  // DEBUG
 		me = (ID*)BKE_mesh_copy(from_maggie, (Mesh*)me);
 		id_us_min(me);
 	}

@@ -27,7 +27,7 @@
 
 #include "glew-mx.h"
 
-#include <stdio.h>
+#include "CM_Message.h"
 
 #include "RAS_OpenGLSync.h"
 
@@ -44,20 +44,20 @@ RAS_OpenGLSync::~RAS_OpenGLSync()
 bool RAS_OpenGLSync::Create(RAS_SYNC_TYPE type)
 {
 	if (m_sync) {
-		printf("RAS_OpenGLSync::Create(): sync already exists, destroy first\n");
+		CM_FunctionError("sync already exists, destroy first");
 		return false;
 	}
 	if (type != RAS_SYNC_TYPE_FENCE) {
-		printf("RAS_OpenGLSync::Create(): only RAS_SYNC_TYPE_FENCE are currently supported\n");
+		CM_FunctionError("only RAS_SYNC_TYPE_FENCE are currently supported");
 		return false;
 	}
 	if (!GLEW_ARB_sync) {
-		printf("RAS_OpenGLSync::Create(): ARB_sync extension is needed to create sync object\n");
+		CM_FunctionError("ARB_sync extension is needed to create sync object");
 		return false;
 	}
 	m_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 	if (!m_sync) {
-		printf("RAS_OpenGLSync::Create(): glFenceSync() failed");
+		CM_FunctionError("glFenceSync() failed");
 		return false;
 	}
 	return true;

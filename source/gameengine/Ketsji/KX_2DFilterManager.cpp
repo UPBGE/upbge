@@ -27,6 +27,8 @@
 #include "KX_2DFilterManager.h"
 #include "KX_2DFilter.h"
 
+#include "CM_Message.h"
+
 KX_2DFilterManager::KX_2DFilterManager()
 {
 }
@@ -113,7 +115,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilterManager, addFilter, " addFilter(index, type, fragm
 	}
 
 	if (strlen(frag) > 0 && type != FILTER_CUSTOMFILTER) {
-		std::cout << "filterManager.addFilter(index, type, fragmentProgram): KX_2DFilterManager, Warning non-empty fragment program with non-custom filter type" << std::endl;
+		CM_PythonFunctionWarning("KX_2DFilterManager", "addFilter", "non-empty fragment program with non-custom filter type");
 	}
 
 	RAS_2DFilterData data;

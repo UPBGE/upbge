@@ -31,7 +31,7 @@
 
 
 #include "SCA_IActuator.h"
-#include <stdio.h>
+#include "CM_Message.h"
 
 using namespace std;
 
@@ -101,7 +101,7 @@ void SCA_IActuator::DecLink()
 	m_links--;
 	if (m_links < 0) 
 	{
-		printf("Warning: actuator %s has negative m_links: %d\n", m_name.Ptr(), m_links);
+		CM_LogicBrickWarning(this, "actuator " << m_name << " has negative m_links: " << m_links);
 		m_links = 0;
 	}
 }
@@ -123,9 +123,8 @@ void SCA_IActuator::UnlinkController(SCA_IController* controller)
 			return;
 		}
 	}
-	printf("Missing link from actuator %s:%s to controller %s:%s\n", 
-		m_gameobj->GetName().ReadPtr(), GetName().ReadPtr(), 
-		controller->GetParent()->GetName().ReadPtr(), controller->GetName().ReadPtr());
+	CM_LogicBrickWarning(this, "Missing link from actuator " << m_gameobj->GetName() << ":"
+		<< GetName() << " to controller " << controller->GetParent()->GetName() << ":" << controller->GetName());
 }
 
 void SCA_IActuator::UnlinkAllControllers()

@@ -32,9 +32,6 @@
  *  \ingroup gamelogic
  */
 
-
-#include <stddef.h>
-
 #include "SCA_PythonController.h"
 #include "SCA_LogicManager.h"
 #include "SCA_ISensor.h"
@@ -46,8 +43,7 @@
 #include "eval.h"
 #endif // WITH_PYTHON
 
-#include <algorithm>
-
+#include "CM_Message.h"
 
 // initialize static member variables
 SCA_PythonController* SCA_PythonController::m_sCurrentController = NULL;
@@ -269,14 +265,7 @@ void SCA_PythonController::ErrorPrint(const char *error_msg)
 	// was attached to is gone (e.g., removed by LibFree()). Also, GetName()
 	// can be a bad pointer if GetParent() is NULL, so better be safe and
 	// flag it as unavailable as well
-	const char *obj_name, *ctr_name;
-	if (GetParent()) {
-		obj_name = GetParent()->GetName().ReadPtr();
-		ctr_name = GetName().ReadPtr();
-	} else {
-		obj_name = ctr_name = "Unavailable";
-	}
-	printf("%s - object '%s', controller '%s':\n", error_msg, obj_name, ctr_name);
+	CM_LogicBrickError(this, error_msg);
 	PyErr_Print();
 	
 	/* Added in 2.48a, the last_traceback can reference Objects for example, increasing
@@ -325,7 +314,7 @@ bool SCA_PythonController::Import()
 	function_string= strrchr(mod_path, '.');
 
 	if (function_string == NULL) {
-		printf("Python module name formatting error in object '%s', controller '%s':\n\texpected 'SomeModule.Func', got '%s'\n", GetParent()->GetName().Ptr(), GetName().Ptr(), m_scriptText.Ptr());
+		CM_LogicBrickError(this, "python module name formatting expected 'SomeModule.Func', got '" << m_scriptText << "'");
 		return false;
 	}
 
@@ -356,16 +345,16 @@ bool SCA_PythonController::Import()
 
 	if (m_function==NULL) {
 		if (PyErr_Occurred())
-			ErrorPrint("Python controller found the module but could not access the function");
+			ErrorPrint("python controller found the module but could not access the function");
 		else
-			printf("Python module error in object '%s', controller '%s':\n '%s' module found but function missing\n", GetParent()->GetName().Ptr(), GetName().Ptr(), m_scriptText.Ptr());
+			CM_LogicBrickError(this, "python module '" << m_scriptText << "' found but function missing");
 		return false;
 	}
 	
 	if (!PyCallable_Check(m_function)) {
 		Py_DECREF(m_function);
 		m_function = NULL;
-		printf("Python module function error in object '%s', controller '%s':\n '%s' not callable\n", GetParent()->GetName().Ptr(), GetName().Ptr(), m_scriptText.Ptr());
+		CM_LogicBrickError(this, "python module function '" << m_scriptText << "' not callable");
 		return false;
 	}
 	
@@ -377,7 +366,8 @@ bool SCA_PythonController::Import()
 	if (m_function_argc > 1) {
 		Py_DECREF(m_function);
 		m_function = NULL;
-		printf("Python module function in object '%s', controller '%s':\n '%s' takes %d args, should be zero or 1 controller arg\n", GetParent()->GetName().Ptr(), GetName().Ptr(), m_scriptText.Ptr(), m_function_argc);
+		CM_LogicBrickError(this, "python module function:\n '" << m_scriptText << "' takes " << m_function_argc
+		<< " args, should be zero or 1 controller arg");
 		return false;
 	}
 	

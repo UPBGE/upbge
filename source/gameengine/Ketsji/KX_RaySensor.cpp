@@ -47,8 +47,7 @@
 #include "DNA_sensor_types.h"
 #include "RAS_MeshObject.h"
 
-#include <stdio.h>
-
+#include "CM_Message.h"
 
 KX_RaySensor::KX_RaySensor(class SCA_EventManager* eventmgr,
 					SCA_IObject* gameobj,
@@ -167,7 +166,7 @@ bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 	{
 		// Unknown type of object, skip it.
 		// Should not occur as the sensor objects are filtered in RayTest()
-		printf("Invalid client type %d found ray casting\n", client->m_type);
+		CM_Error("invalid client type " << client->m_type << " found ray casting");
 		return false;
 	}
 
@@ -273,10 +272,8 @@ bool KX_RaySensor::Evaluate()
 	MT_Vector3 topoint = frompoint + (m_distance) * todir;
 	PHY_IPhysicsEnvironment* pe = m_scene->GetPhysicsEnvironment();
 
-	if (!pe)
-	{
-		std::cout << "WARNING: Ray sensor " << GetName() << ":  There is no physics environment!" << std::endl;
-		std::cout << "         Check universe for malfunction." << std::endl;
+	if (!pe) {
+		CM_LogicBrickWarning(this, "there is no physics environment! Check universe for malfunction.");
 		return false;
 	} 
 

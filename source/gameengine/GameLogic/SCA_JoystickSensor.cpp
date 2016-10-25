@@ -37,11 +37,7 @@
 
 #include "EXP_PyObjectPlus.h"
 
-#include <stdio.h>
-#include <stddef.h>
-#include <iostream>
-
-
+#include "CM_Message.h"
 
 SCA_JoystickSensor::SCA_JoystickSensor(class SCA_JoystickManager* eventmgr,
 									   SCA_IObject* gameobj,
@@ -58,12 +54,6 @@ SCA_JoystickSensor::SCA_JoystickSensor(class SCA_JoystickManager* eventmgr,
 									   m_joyindex(joyindex),
 									   m_bAllEvents(allevents)
 {
-/*
-std::cout << " axis "		<< m_axis		<< std::endl;
-std::cout << " axis flag "	<< m_axisf		<< std::endl;
-std::cout << " precision "	<< m_precision	<< std::endl;
-std::cout << " button " 	<< m_button 	<< std::endl;
-*/
 	Init();
 }
 
@@ -202,7 +192,7 @@ bool SCA_JoystickSensor::Evaluate()
 		}
 			/* test for ball anyone ?*/
 		default:
-			printf("Error invalid switch statement\n");
+			CM_LogicBrickError(this, "invalid switch statement");
 			break;
 	}
 	

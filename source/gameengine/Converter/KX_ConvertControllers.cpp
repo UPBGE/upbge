@@ -65,6 +65,7 @@
 
 /* end of blender include block */
 
+#include "CM_Message.h"
 
 	static void
 LinkControllerToActuators(
@@ -183,7 +184,8 @@ void BL_ConvertControllers(
 					pyctrl->SetScriptName(pycont->module); /* will be something like module.func so using it as the name is OK */
 
 					if (pycont->flag & CONT_PY_DEBUG) {
-						printf("\nDebuging \"%s\", module for object %s\n\texpect worse performance.\n", pycont->module, blenderobject->id.name+2);
+						CM_Warning("debuging \"" << pycont->module << "\", module for object " << blenderobject->id.name+2
+							<< " expect worse performance.");
 						pyctrl->SetDebug(true);
 					}
 				}

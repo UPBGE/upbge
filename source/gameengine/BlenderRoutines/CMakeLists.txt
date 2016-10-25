@@ -1,6 +1,7 @@
 
 set(INC
 	.
+	../Common
 	../Converter
 	../Device
 	../Expressions
@@ -26,6 +27,7 @@ set(INC
 	../../blender/windowmanager
 	../../../intern/guardedalloc
 	../../../intern/string
+	../../../intern/termcolor
 	../../../intern/ghost
 )
 

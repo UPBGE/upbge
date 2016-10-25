@@ -39,6 +39,7 @@
 #include "KX_IpoConvert.h"
 
 #include <map>
+#include <iostream>
 
 using namespace std;
 
@@ -155,19 +156,18 @@ public:
 	virtual void FinalizeAsyncLoads();
 	void AddScenesToMergeQueue(class KX_LibLoadStatus *status);
  
-	void PrintStats() {
-		printf("BGE STATS!\n");
-
-		printf("\nAssets...\n");
-		printf("\t m_polymaterials: %d\n", (int)m_polymaterials.size());
-		printf("\t m_meshobjects: %d\n", (int)m_meshobjects.size());
-
-		printf("\nMappings...\n");
-		printf("\t m_map_blender_to_gameobject: %d\n", (int)m_map_blender_to_gameobject.size());
-		printf("\t m_map_mesh_to_gamemesh: %d\n", (int)m_map_mesh_to_gamemesh.size());
-		printf("\t m_map_blender_to_gameactuator: %d\n", (int)m_map_blender_to_gameactuator.size());
-		printf("\t m_map_blender_to_gamecontroller: %d\n", (int)m_map_blender_to_gamecontroller.size());
-		printf("\t m_map_blender_to_gameAdtList: %d\n", (int)m_map_blender_to_gameAdtList.size());
+	void PrintStats()
+	{
+		CM_Message("BGE STATS!");
+		CM_Message(std::endl << "Assets...");
+		CM_Message("\t m_polymaterials: " << (int)m_polymaterials.size());
+		CM_Message("\t m_meshobjects: " << (int)m_meshobjects.size());
+		CM_Message(std::endl << "Mappings...");
+		CM_Message("\t m_map_blender_to_gameobject: " << (int)m_map_blender_to_gameobject.size());
+		CM_Message("\t m_map_mesh_to_gamemesh: " << (int)m_map_mesh_to_gamemesh.size());
+		CM_Message("\t m_map_blender_to_gameactuator: " << (int)m_map_blender_to_gameactuator.size());
+		CM_Message("\t m_map_blender_to_gamecontroller: " << (int)m_map_blender_to_gamecontroller.size());
+		CM_Message("\t m_map_blender_to_gameAdtList: " << (int)m_map_blender_to_gameAdtList.size());
 
 #ifdef WITH_CXX_GUARDEDALLOC
 		MEM_printmemlist_pydict();

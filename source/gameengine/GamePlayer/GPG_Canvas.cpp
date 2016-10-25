@@ -44,7 +44,7 @@
 #include "MEM_guardedalloc.h"
 #include "DNA_space_types.h"
 
-#include <assert.h>
+#include "CM_Message.h"
 
 GPG_Canvas::GPG_Canvas(RAS_IRasterizer *rasty, GHOST_IWindow *window)
 	: RAS_ICanvas(rasty),
@@ -129,7 +129,7 @@ void GPG_Canvas::MakeScreenShot(const char *filename)
 	unsigned int *pixels = m_rasterizer->MakeScreenshot(0, 0, dumpsx, dumpsy);
 
 	if (!pixels) {
-		std::cout << "Cannot allocate pixels array" << std::endl;
+		CM_Error("cannot allocate pixels array");
 		return;
 	}
 
@@ -150,7 +150,7 @@ void GPG_Canvas::Init()
 {
 	if (m_window) {
 		m_window->setDrawingContextType(GHOST_kDrawingContextTypeOpenGL);
-		assert(m_window->getDrawingContextType() == GHOST_kDrawingContextTypeOpenGL);
+		BLI_assert(m_window->getDrawingContextType() == GHOST_kDrawingContextTypeOpenGL);
 	}
 }
 

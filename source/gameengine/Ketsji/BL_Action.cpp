@@ -24,8 +24,7 @@
  *  \ingroup ketsji
  */
 
-#include <cstdlib>
-#include <stdio.h>
+#include "CM_Message.h"
 
 #include "BL_Action.h"
 #include "BL_ArmatureObject.h"
@@ -135,7 +134,7 @@ bool BL_Action::Play(const char* name,
 	m_action = (bAction*)kxscene->GetLogicManager()->GetActionByName(name);
 	if (!m_action)
 	{
-		printf("Failed to load action: %s\n", name);
+		CM_Error("failed to load action: " << name);
 		m_done = true;
 		return false;
 	}

@@ -30,8 +30,6 @@
  */
 
 
-#include <stddef.h>
-
 #include "SCA_IController.h"
 #include "SCA_LogicManager.h"
 #include "SCA_IActuator.h"
@@ -39,7 +37,7 @@
 #include "EXP_PyObjectPlus.h"
 #include "EXP_ListWrapper.h"
 
-#include <stdio.h>
+#include "CM_Message.h"
 
 SCA_IController::SCA_IController(SCA_IObject* gameobj)
 	:
@@ -127,9 +125,8 @@ void	SCA_IController::UnlinkActuator(class SCA_IActuator* actua)
 			return;
 		}
 	}
-	printf("Missing link from controller %s:%s to actuator %s:%s\n", 
-		m_gameobj->GetName().ReadPtr(), GetName().ReadPtr(), 
-		actua->GetParent()->GetName().ReadPtr(), actua->GetName().ReadPtr());
+	CM_LogicBrickWarning(this, "missing link from controller " << m_gameobj->GetName() << ":" << GetName()
+		<< " to actuator " << actua->GetParent()->GetName() << ":" << actua->GetName());
 }
 
 void SCA_IController::LinkToSensor(SCA_ISensor* sensor)
@@ -157,9 +154,8 @@ void SCA_IController::UnlinkSensor(class SCA_ISensor* sensor)
 			return;
 		}
 	}
-	printf("Missing link from controller %s:%s to sensor %s:%s\n", 
-		m_gameobj->GetName().ReadPtr(), GetName().ReadPtr(), 
-		sensor->GetParent()->GetName().ReadPtr(), sensor->GetName().ReadPtr());
+	CM_LogicBrickWarning(this, "missing link from controller " << m_gameobj->GetName() << ":" << GetName()
+		<< " to sensor " << sensor->GetParent()->GetName() << ":" << sensor->GetName());
 }
 
 

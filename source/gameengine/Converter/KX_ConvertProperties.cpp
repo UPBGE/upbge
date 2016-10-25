@@ -59,6 +59,8 @@ extern "C" {
 	#include "BKE_property.h"
 }
 
+#include "CM_Message.h"
+
 /* prototype */
 void BL_ConvertTextProperty(Object* object, KX_FontObject* fontobj,SCA_TimeEventManager* timemgr,SCA_IScene* scene, bool isInActiveLayer);
 
@@ -142,13 +144,15 @@ void BL_ConvertProperties(Object* object,KX_GameObject* gameobj,SCA_TimeEventMan
 		/* Warn if we double up on attributes, this isn't quite right since it wont find inherited attributes however there arnt many */
 		for (PyAttributeDef *attrdef = KX_GameObject::Attributes; attrdef->m_name; attrdef++) {
 			if (strcmp(prop->name, attrdef->m_name)==0) {
-				printf("Warning! user defined property name \"%s\" is also a python attribute for object \"%s\"\n\tUse ob[\"%s\"] syntax to avoid conflict\n", prop->name, object->id.name+2, prop->name);
+				CM_Warning("user defined property name \"" << prop->name << "\" is also a python attribute for object \""
+					<< object->id.name+2 << "\". Use ob[\"" << prop->name << "\"] syntax to avoid conflict");
 				break;
 			}
 		}
 		for (PyMethodDef *methdef = KX_GameObject::Methods; methdef->ml_name; methdef++) {
 			if (strcmp(prop->name, methdef->ml_name)==0) {
-				printf("Warning! user defined property name \"%s\" is also a python method for object \"%s\"\n\tUse ob[\"%s\"] syntax to avoid conflict\n", prop->name, object->id.name+2, prop->name);
+				CM_Warning("user defined property name \"" << prop->name << "\" is also a python method for object \""
+					<< object->id.name+2 << "\". Use ob[\"" << prop->name << "\"] syntax to avoid conflict");
 				break;
 			}
 		}

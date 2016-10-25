@@ -47,7 +47,6 @@
 #include "KX_NavMeshObject.h"
 #include "KX_MeshProxy.h"
 #include "KX_PolyProxy.h"
-#include <stdio.h> // printf
 #include "SG_Controller.h"
 #include "PHY_IGraphicController.h"
 #include "SG_Node.h"
@@ -91,6 +90,8 @@
 #include "KX_SG_NodeRelationships.h"
 
 #include "BLI_math.h"
+
+#include "CM_Message.h"
 
 static MT_Vector3 dummy_point= MT_Vector3(0.0f, 0.0f, 0.0f);
 static MT_Vector3 dummy_scaling = MT_Vector3(1.0f, 1.0f, 1.0f);
@@ -321,8 +322,7 @@ void KX_GameObject::SetParent(KX_GameObject* obj, bool addToCompound, bool ghost
 		this != obj) // not the object itself
 	{
 		if (!(GetScene()->GetInactiveList()->SearchValue(obj) != GetScene()->GetObjectList()->SearchValue(this))) {
-			std::cout << "Warning: Child and Parent are not in the same gameobjects list (active or inactive).\n" <<
-				"This operation is forbidden." << std::endl;
+			CM_FunctionWarning("child and parent are not in the same game objects list (active or inactive). This operation is forbidden.");
 			return;
 		}
 		// Make sure the objects have some scale
@@ -1074,7 +1074,7 @@ void KX_GameObject::AlignAxisToVect(const MT_Vector3& dir, int axis, float fac)
 	len = vect.length();
 	if (MT_fuzzyZero(len))
 	{
-		cout << "alignAxisToVect() Error: Null vector!\n";
+		CM_FunctionError("null vector!");
 		return;
 	}
 	
@@ -1139,7 +1139,7 @@ void KX_GameObject::AlignAxisToVect(const MT_Vector3& dir, int axis, float fac)
 			y = z.cross(x);
 			break;
 		default: // invalid axis specified
-			cout << "alignAxisToVect(): Invalid axis '" << axis <<"'\n";
+			CM_FunctionWarning("invalid axis '" << axis <<"'");
 			return;
 	}
 	x.normalize(); // normalize the new base vectors
@@ -1476,7 +1476,7 @@ void KX_GameObject::GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) cons
 void KX_GameObject::UnregisterCollisionCallbacks()
 {
 	if (!GetPhysicsController()) {
-		printf("Warning, trying to unregister collision callbacks for object without collisions: %s!\n", GetName().ReadPtr());
+		CM_Warning("trying to unregister collision callbacks for object without collisions: " << GetName());
 		return;
 	}
 
@@ -1496,7 +1496,7 @@ void KX_GameObject::UnregisterCollisionCallbacks()
 void KX_GameObject::RegisterCollisionCallbacks()
 {
 	if (!GetPhysicsController()) {
-		printf("Warning, trying to register collision callbacks for object without collisions: %s!\n", GetName().ReadPtr());
+		CM_Warning("trying to register collision callbacks for object without collisions: " << GetName());
 		return;
 	}
 
@@ -1643,7 +1643,7 @@ void KX_GameObject::InitComponents()
 			if (PyErr_Occurred()) {
 				PyErr_Print();
 			}
-			printf("Coulding import the module '%s'\n", pc->module);
+			CM_Error("coulding import the module '" << pc->module << "'");
 			pc = pc->next;
 			continue;
 		}
@@ -1654,14 +1654,14 @@ void KX_GameObject::InitComponents()
 			if (PyErr_Occurred()) {
 				PyErr_Print();
 			}
-			printf("Python module found, but failed to find the component '%s'\n", pc->name);
+			CM_Error("python module found, but failed to find the component '" << pc->name << "'");
 			pc = pc->next;
 			continue;
 		}
 
 		// Lastly make sure we have a class and it's an appropriate sub type
 		if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject*)&KX_PythonComponent::Type)) {
-			printf("%s.%s is not a KX_PythonComponent subclass\n", pc->module, pc->name);
+			CM_Error(pc->module << "." << pc->name << " is not a KX_PythonComponent subclass");
 			pc = pc->next;
 			continue;
 		}
@@ -3800,7 +3800,7 @@ bool KX_GameObject::NeedRayCast(KX_ClientObjectInfo *client, RayCastData *rayDat
 	{
 		// Unknown type of object, skip it.
 		// Should not occur as the sensor objects are filtered in RayTest()
-		printf("Invalid client type %d found in ray casting\n", client->m_type);
+		CM_Error("invalid client type " << client->m_type << " found in ray casting");
 		return false;
 	}
 	
@@ -4077,7 +4077,8 @@ static void layer_check(short &layer, const char *method_name)
 {
 	if (layer < 0 || layer >= MAX_ACTION_LAYERS)
 	{
-		printf("KX_GameObject.%s(): given layer (%d) is out of range (0 - %d), setting to 0.\n", method_name, layer, MAX_ACTION_LAYERS-1);
+		CM_PythonFunctionWarning("KX_GameObject", method_name, "given layer (" << layer
+			<< ") is out of range (0 - " << (MAX_ACTION_LAYERS - 1) << "), setting to 0.");
 		layer = 0;
 	}
 }
@@ -4103,19 +4104,22 @@ KX_PYMETHODDEF_DOC(KX_GameObject, playAction,
 
 	if (play_mode < 0 || play_mode > BL_Action::ACT_MODE_MAX)
 	{
-		printf("KX_GameObject.playAction(): given play_mode (%d) is out of range (0 - %d), setting to ACT_MODE_PLAY", play_mode, BL_Action::ACT_MODE_MAX-1);
+		CM_PythonFunctionWarning("KX_GameObject", "playAction", "given play_mode (" << play_mode << ") is out of range (0 - "
+			<< (BL_Action::ACT_MODE_MAX - 1) << "), setting to ACT_MODE_PLAY");
 		play_mode = BL_Action::ACT_MODE_PLAY;
 	}
 
 	if (blend_mode < 0 || blend_mode > BL_Action::ACT_BLEND_MAX)
 	{
-		printf("KX_GameObject.playAction(): given blend_mode (%d) is out of range (0 - %d), setting to ACT_BLEND_BLEND", blend_mode, BL_Action::ACT_BLEND_MAX-1);
+		CM_PythonFunctionWarning("KX_GameObject", "playAction", "given blend_mode (" << blend_mode << ") is out of range (0 - "
+			<< (BL_Action::ACT_BLEND_MAX - 1) << "), setting to ACT_BLEND_BLEND");
 		blend_mode = BL_Action::ACT_BLEND_BLEND;
 	}
 
 	if (layer_weight < 0.f || layer_weight > 1.f)
 	{
-		printf("KX_GameObject.playAction(): given layer_weight (%f) is out of range (0.0 - 1.0), setting to 0.0", layer_weight);
+		CM_PythonFunctionWarning("KX_GameObject", "playAction", "given layer_weight (" << layer_weight
+			<< ") is out of range (0.0 - 1.0), setting to 0.0");
 		layer_weight = 0.f;
 	}
 

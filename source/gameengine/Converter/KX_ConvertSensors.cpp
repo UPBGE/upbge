@@ -31,8 +31,6 @@
  * Conversion of Blender data blocks to KX sensor system
  */
 
-#include <stdio.h>
-
 #ifdef _MSC_VER
 #  pragma warning (disable:4786)
 #endif
@@ -85,6 +83,8 @@
 
 #include "KX_KetsjiEngine.h"
 #include "BL_BlenderDataConversion.h"
+
+#include "CM_Message.h"
 
 void BL_ConvertSensors(struct Object* blenderobject,
 					   class KX_GameObject* gameobj,
@@ -576,7 +576,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 							joysticktype  = SCA_JoystickSensor::KX_JOYSENSORMODE_SHOULDER_TRIGGER;
 							break;
 						default:
-							printf("Error: bad case statement\n");
+							CM_Error("bad case statement");
 							break;
 						}
 						gamesensor = new SCA_JoystickSensor(
@@ -591,7 +591,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					}
 					else
 					{
-						printf("Error there was a problem finding the event manager\n");
+						CM_Error("problem finding the event manager");
 					}
 
 					break;
@@ -641,18 +641,18 @@ void BL_ConvertSensors(struct Object* blenderobject,
 								logicmgr->RegisterToSensor(gamecont,gamesensor);
 							}
 							else {
-								printf("Warning, sensor \"%s\" could not find its controller "
-									   "(link %d of %d) from object \"%s\"\n"
-									   "\tthere has been an error converting the blender controller for the game engine,"
-									   "logic may be incorrect\n", sens->name, i+1, sens->totlinks, blenderobject->id.name+2);
+								CM_Warning("Warning, sensor \"" << sens->name << "\" could not find its controller (link "
+									<< (i + 1) << " of " << sens->totlinks << ") from object \"" << blenderobject->id.name+2
+									<< "\". There has been an error converting the blender controller for the game engine, "
+									<< "logic may be incorrect");
 							}
 						}
 					}
 					else {
-						printf("Warning, sensor \"%s\" has lost a link to a controller "
-							   "(link %d of %d) from object \"%s\"\n"
-							   "\tpossible causes are partially appended objects or an error reading the file,"
-							   "logic may be incorrect\n", sens->name, i+1, sens->totlinks, blenderobject->id.name+2);
+						CM_Warning("Warning, sensor \"" << sens->name << "\" has lost a link to a controller (link "
+							<< (i + 1) << " of " << sens->totlinks << ") from object \"" << blenderobject->id.name+2
+							<< "\". Possible causes are partially appended objects or an error reading the file, "
+							<< "logic may be incorrect");
 					}
 				}
 				// special case: Keyboard sensor with no link

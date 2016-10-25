@@ -51,6 +51,8 @@ extern "C" {
 #include "DetourStatNavMeshBuilder.h"
 #include "KX_ObstacleSimulation.h"
 
+#include "CM_Message.h"
+
 #define MAX_PATH_LEN 256
 static const float polyPickExt[3] = {2, 4, 2};
 
@@ -100,7 +102,7 @@ void KX_NavMeshObject::ProcessReplica()
 	KX_GameObject::ProcessReplica();
 	m_navMesh = NULL;  /* without this, building frees the navmesh we copied from */
 	if (!BuildNavMesh()) {
-		std::cout << "Error in " << __func__ << ": unable to build navigation mesh" << std::endl;
+		CM_FunctionError("unable to build navigation mesh");
 		return;
 	}
 	KX_ObstacleSimulation* obssimulation = GetScene()->GetObstacleSimulation();
@@ -178,7 +180,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 						int idxInPoly = polyFindVertex(poly, vertsPerPoly, newVertexIdx);
 						if (idxInPoly==-1)
 						{
-							printf("Building NavMeshObject: Error! Can't find vertex in polygon\n");
+							CM_Error("building NavMeshObject, can't find vertex in polygon\n");
 							return false;
 						}
 						dtri[k] = idxInPoly;
@@ -293,7 +295,7 @@ bool KX_NavMeshObject::BuildNavMesh()
 
 	if (GetMeshCount()==0)
 	{
-		printf("Can't find mesh for navmesh object: %s\n", m_name.ReadPtr());
+		CM_Error("can't find mesh for navmesh object: " << m_name);
 		return false;
 	}
 
@@ -305,7 +307,7 @@ bool KX_NavMeshObject::BuildNavMesh()
 							dmeshes, dvertices, ndvertsuniq, dtris, ndtris, vertsPerPoly ) 
 			|| vertsPerPoly<3)
 	{
-		printf("Can't build navigation mesh data for object:%s\n", m_name.ReadPtr());
+		CM_Error("can't build navigation mesh data for object: " << m_name);
 		if (vertices) {
 			delete[] vertices;
 		}
@@ -329,7 +331,7 @@ bool KX_NavMeshObject::BuildNavMesh()
 	}
 
 	if (!buildMeshAdjacency(polys, npolys, nverts, vertsPerPoly)) {
-		std::cout << __func__ << ": unable to build mesh adjacency information." << std::endl;
+		CM_FunctionError("unable to build mesh adjacency information.");
 		delete[] vertices;
 		return false;
 	}

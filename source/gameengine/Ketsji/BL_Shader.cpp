@@ -29,8 +29,7 @@
 #include "KX_PyMath.h"
 #include "KX_PythonInit.h"
 
-#include <iostream>
-#define spit(x) std::cout << x << std::endl;
+#include "CM_Message.h"
 
 BL_Shader::BL_Shader()
 {
@@ -251,7 +250,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
 
 		if (loc != -1) {
 			if (index >= RAS_Texture::MaxUnits || index < 0) {
-				spit("Invalid texture sample index: " << index);
+				CM_Warning("invalid texture sample index: " << index);
 			}
 #ifdef SORT_UNIFORMS
 			SetUniformiv(loc, RAS_Uniform::UNI_INT, &index, (sizeof(int)), 1);

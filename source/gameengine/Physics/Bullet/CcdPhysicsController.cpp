@@ -20,6 +20,8 @@
 #include <stdint.h>
 #endif
 
+#include "CM_Message.h"
+
 #include "CcdPhysicsController.h"
 #include "btBulletDynamicsCommon.h"
 #include "BulletCollision/CollisionDispatch/btGhostObject.h"

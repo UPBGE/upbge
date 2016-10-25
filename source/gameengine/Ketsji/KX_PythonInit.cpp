@@ -125,7 +125,9 @@ extern "C" {
 
 #include "EXP_PyObjectPlus.h"
 
-#include "KX_PythonInitTypes.h" 
+#include "KX_PythonInitTypes.h"
+
+#include "CM_Message.h"
 
 /* we only need this to get a list of libraries from the main struct */
 #include "DNA_ID.h"
@@ -534,7 +536,7 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
 
 	if ((dp  = opendir(cpath)) == NULL) {
 		/* todo, show the errno, this shouldnt happen anyway if the blendfile is readable */
-		fprintf(stderr, "Could not read directory (%s) failed, code %d (%s)\n", cpath, errno, strerror(errno));
+		CM_Error("could not read directory (" << cpath << ") failed, code " << errno << " (" << strerror(errno) << ")");
 		return list;
 	}
 	
@@ -612,7 +614,7 @@ static PyObject *pyPrintExt(PyObject *,PyObject *,PyObject *)
 	if (rasterizer)
 		rasterizer->PrintHardwareInfo();
 	else
-		printf("Warning: no rasterizer detected for PrintGLInfo!\n");
+		CM_Error("no rasterizer detected for PrintGLInfo!");
 
 	Py_RETURN_NONE;
 }
@@ -2642,17 +2644,17 @@ void saveGamePythonConfig()
 				Py_DECREF(pyGlobalDictMarshal);
 			}
 			else {
-				printf("Error, bge.logic.globalDict could not be marshal'd\n");
+				CM_Error("bge.logic.globalDict could not be marshal'd");
 			}
 		}
 		else {
-			printf("Error, bge.logic.globalDict was removed\n");
+			CM_Error("bge.logic.globalDict was removed");
 		}
 		Py_DECREF(gameLogic);
 	}
 	else {
 		PyErr_Clear();
-		printf("Error, bge.logic failed to import bge.logic.globalDict will be lost\n");
+		CM_Error("bge.logic failed to import bge.logic.globalDict will be lost");
 	}
 
 	STR_String marshal_path = pathGamePythonConfig();
@@ -2662,17 +2664,17 @@ void saveGamePythonConfig()
 
 		if (fp) {
 			if (fwrite(marshal_buffer, 1, marshal_length, fp) != marshal_length) {
-				printf("Warning: could not write marshal data\n");
+				CM_Error("could not write marshal data");
 			}
 
 			fclose(fp);
 		}
 		else {
-			printf("Warning: could not open marshal file\n");
+			CM_Error("could not open marshal file");
 		}
 	}
 	else {
-		printf("Warning: could not create marshal buffer\n");
+		CM_Error("could not create marshal buffer");
 	}
 
 	if (marshal_buffer) {
@@ -2691,7 +2693,7 @@ void loadGamePythonConfig()
 		fseek (fp, 0, SEEK_END);
 		size_t marshal_length = ftell(fp);
 		if (marshal_length == -1) {
-			printf("Warning: could not read position of '%s'\n", marshal_path.ReadPtr());
+			CM_Error("could not read position of '" << marshal_path << "'");
 			fclose(fp);
 			return;
 		}
@@ -2723,23 +2725,23 @@ void loadGamePythonConfig()
 				else {
 					Py_DECREF(gameLogic);
 					PyErr_Clear();
-					printf("Error could not marshall string\n");
+					CM_Error("could not marshall string");
 				}
 			}
 			else {
 				PyErr_Clear();
-				printf("Error, bge.logic failed to import bge.logic.globalDict will be lost\n");
+				CM_Error("bge.logic failed to import bge.logic.globalDict will be lost");
 			}
 		}
 		else {
-			printf("Warning: could not read all of '%s'\n", marshal_path.ReadPtr());
+			CM_Error("could not read all of '" << marshal_path.ReadPtr() << "'");
 		}
 
 		free(marshal_buffer);
 		fclose(fp);
 	}
 	else {
-		printf("Warning: could not open '%s'\n", marshal_path.ReadPtr());
+		CM_Error("could not open '" << marshal_path.ReadPtr() << "'");
 	}
 }
 

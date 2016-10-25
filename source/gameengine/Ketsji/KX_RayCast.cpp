@@ -31,9 +31,6 @@
  */
 
 
-#include <stdlib.h>
-#include <stdio.h>
-
 #include "KX_RayCast.h"
 
 #include "MT_Vector3.h"
@@ -41,6 +38,8 @@
 
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IPhysicsController.h"
+
+#include "CM_Message.h"
 
 KX_RayCast::KX_RayCast(PHY_IPhysicsController* ignoreController, bool faceNormal, bool faceUV)
 	:PHY_IRayCastFilterCallback(ignoreController, faceNormal, faceUV)
@@ -81,9 +80,8 @@ bool KX_RayCast::RayTest(PHY_IPhysicsEnvironment* physics_environment, const MT_
 	{
 		KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo*>(hit_controller->GetNewClientInfo());
 		
-		if (!info)
-		{
-			printf("no info!\n");
+		if (!info) {
+			CM_Error("no info!");
 			BLI_assert(info && "Physics controller with no client object info");
 			break;
 		}

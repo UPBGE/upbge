@@ -54,6 +54,8 @@ extern "C" {
 
 #include "DEV_InputDevice.h"
 
+#include "CM_Message.h"
+
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, GHOST_IWindow *window, Main *maggie, Scene *scene, GlobalSettings *gs,
 								 RAS_IRasterizer::StereoMode stereoMode, int samples, int argc, char **argv, char *pythonMainLoop)
 	:LA_Launcher(system, maggie, scene, gs, stereoMode, samples, argc, argv),
@@ -78,7 +80,7 @@ bool LA_PlayerLauncher::GetMainLoopPythonCode(char **pythonCode, char **pythonFi
 			return true;
 		}
 		else {
-			std::cout << "Error: cannot yield control to Python: no file named '" << m_pythonMainLoop << "'" << std::endl;
+			CM_Error("cannot yield control to Python: no file named '" << m_pythonMainLoop << "'");
 			return false;
 		}
 	}

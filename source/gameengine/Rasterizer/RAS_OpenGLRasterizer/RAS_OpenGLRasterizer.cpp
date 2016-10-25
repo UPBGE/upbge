@@ -2296,71 +2296,69 @@ void RAS_OpenGLRasterizer::SetAuxilaryClientInfo(void *inf)
 
 void RAS_OpenGLRasterizer::PrintHardwareInfo()
 {
-	#define pprint(x) std::cout << x << std::endl;
-
-	pprint("GL_VENDOR: " << glGetString(GL_VENDOR));
-	pprint("GL_RENDERER: " << glGetString(GL_RENDERER));
-	pprint("GL_VERSION:  " << glGetString(GL_VERSION));
+	CM_Message("GL_VENDOR: " << glGetString(GL_VENDOR));
+	CM_Message("GL_RENDERER: " << glGetString(GL_RENDERER));
+	CM_Message("GL_VERSION:  " << glGetString(GL_VERSION));
 	bool support=0;
-	pprint("Supported Extensions...");
-	pprint(" GL_ARB_shader_objects supported?       "<< (GLEW_ARB_shader_objects?"yes.":"no."));
+	CM_Message("Supported Extensions...");
+	CM_Message(" GL_ARB_shader_objects supported?       "<< (GLEW_ARB_shader_objects?"yes.":"no."));
 
 	support= GLEW_ARB_vertex_shader;
-	pprint(" GL_ARB_vertex_shader supported?        "<< (support?"yes.":"no."));
+	CM_Message(" GL_ARB_vertex_shader supported?        "<< (support?"yes.":"no."));
 	if (support) {
-		pprint(" ----------Details----------");
+		CM_Message(" ----------Details----------");
 		int max=0;
 		glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS_ARB, (GLint*)&max);
-		pprint("  Max uniform components." << max);
+		CM_Message("  Max uniform components." << max);
 
 		glGetIntegerv(GL_MAX_VARYING_FLOATS_ARB, (GLint*)&max);
-		pprint("  Max varying floats." << max);
+		CM_Message("  Max varying floats." << max);
 
 		glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS_ARB, (GLint*)&max);
-		pprint("  Max vertex texture units." << max);
+		CM_Message("  Max vertex texture units." << max);
 
 		glGetIntegerv(GL_MAX_VERTEX_ATTRIBS_ARB, (GLint*)&max);
-		pprint("  Max vertex attribs." << max);
+		CM_Message("  Max vertex attribs." << max);
 
 		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS_ARB, (GLint*)&max);
-		pprint("  Max combined texture units." << max);
-		pprint("");
+		CM_Message("  Max combined texture units." << max);
+		CM_Message("");
 	}
 
 	support=GLEW_ARB_fragment_shader;
-	pprint(" GL_ARB_fragment_shader supported?      "<< (support?"yes.":"no."));
+	CM_Message(" GL_ARB_fragment_shader supported?      "<< (support?"yes.":"no."));
 	if (support) {
-		pprint(" ----------Details----------");
+		CM_Message(" ----------Details----------");
 		int max=0;
 		glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS_ARB, (GLint*)&max);
-		pprint("  Max uniform components." << max);
-		pprint("");
+		CM_Message("  Max uniform components." << max);
+		CM_Message("");
 	}
 
 	support = GLEW_ARB_texture_cube_map;
-	pprint(" GL_ARB_texture_cube_map supported?     "<< (support?"yes.":"no."));
+	CM_Message(" GL_ARB_texture_cube_map supported?     "<< (support?"yes.":"no."));
 	if (support) {
-		pprint(" ----------Details----------");
+		CM_Message(" ----------Details----------");
 		int size=0;
 		glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE_ARB, (GLint*)&size);
-		pprint("  Max cubemap size." << size);
-		pprint("");
+		CM_Message("  Max cubemap size." << size);
+		CM_Message("");
 	}
 
 	support = GLEW_ARB_multitexture;
-	pprint(" GL_ARB_multitexture supported?         "<< (support?"yes.":"no."));
+	CM_Message(" GL_ARB_multitexture supported?         "<< (support?"yes.":"no."));
 	if (support) {
-		pprint(" ----------Details----------");
+		CM_Message(" ----------Details----------");
 		int units=0;
 		glGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, (GLint*)&units);
-		pprint("  Max texture units available.  " << units);
-		pprint("");
+		CM_Message("  Max texture units available.  " << units);
+		CM_Message("");
 	}
 
-	pprint(" GL_ARB_texture_env_combine supported?  "<< (GLEW_ARB_texture_env_combine?"yes.":"no."));
+	CM_Message(" GL_ARB_texture_env_combine supported?  "<< (GLEW_ARB_texture_env_combine?"yes.":"no."));
 
-	pprint(" GL_ARB_texture_non_power_of_two supported?  " << (GPU_full_non_power_of_two_support()?"yes.":"no."));
+	CM_Message(" GL_ARB_texture_non_power_of_two supported?  " << (GPU_full_non_power_of_two_support()?"yes.":"no."));
 
-	pprint(" GL_ARB_draw_instanced supported?  "<< (GLEW_ARB_draw_instanced?"yes.":"no."));
+	CM_Message(" GL_ARB_draw_instanced supported?  "<< (GLEW_ARB_draw_instanced?"yes.":"no."));
 }
 

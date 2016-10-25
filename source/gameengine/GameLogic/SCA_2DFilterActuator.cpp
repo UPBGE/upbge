@@ -27,15 +27,13 @@
  */
 
 
-#include <stddef.h>
-
 #include "SCA_IActuator.h"
 #include "SCA_2DFilterActuator.h"
 #include "RAS_2DFilterData.h"
 #include "RAS_2DFilterManager.h"
 #include "RAS_2DFilter.h"
 
-#include <iostream>
+#include "CM_Message.h"
 
 SCA_2DFilterActuator::SCA_2DFilterActuator(
         SCA_IObject *gameobj,
@@ -123,9 +121,8 @@ bool SCA_2DFilterActuator::Update()
 				m_filterManager->AddFilter(info);
 			}
 			else {
-				std::cout << "Object: " << m_gameobj->GetName() << ", actuator: " << m_name <<
-					". Warning: 2D Filter for pass index: " <<  m_int_arg << 
-					" already exists, do nothing." << std::endl;
+				CM_LogicBrickWarning(this, "2D Filter for pass index: " <<  m_int_arg << 
+					" already exists, do nothing.");
 			}
 			break;
 		}

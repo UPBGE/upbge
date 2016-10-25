@@ -52,6 +52,7 @@ set(INC
 	../../blender/windowmanager
 	../../../intern/guardedalloc
 	../../../intern/string
+	../../../intern/termcolor
 )
 
 set(INC_SYS

@@ -33,14 +33,11 @@
 #  include <SDL.h>
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "DEV_Joystick.h"
 #include "DEV_JoystickPrivate.h"
 #include "DEV_JoystickMappingdb.h"
 
-#include <iostream> //std::cout
+#include "CM_Message.h"
 
 #ifdef WITH_SDL
 #  define SDL_CHECK(x) ((x) != (void *)0)
@@ -97,7 +94,7 @@ void DEV_Joystick::Init()
 	    }
 	}
 	else {
-		printf("Error initializing SDL Game Controller: %s\n", SDL_GetError());
+		CM_Error("initializing SDL Game Controller: " << SDL_GetError());
 	}
 #endif
 }
@@ -124,7 +121,7 @@ DEV_Joystick *DEV_Joystick::GetInstance(short joyindex)
 #else  /* WITH_SDL */
 
 	if (joyindex < 0 || joyindex >= JOYINDEX_MAX) {
-		printf("Error-invalid joystick index: %i\n", joyindex);
+		CM_Error("invalid joystick index: " << joyindex);
 		return NULL;
 	}
 
@@ -261,10 +258,10 @@ bool DEV_Joystick::CreateJoystickDevice(void)
 
 		if (!joy_error && !SDL_IsGameController(m_joyindex)) {
 			/* mapping instruccions if joystick is not a game controller */
-			printf("Game Controller index %i: Could not be initialized\n", m_joyindex);
-			printf("Please, generate Xbox360 compatible mapping using antimicro or Steam big mode application\n");
-			printf("and after set, the SDL controller variable before you launch the executable, i.e:\n");
-			printf("export SDL_GAMECONTROLLERCONFIG=\"[the string you received from controllermap]\"\n");
+			CM_Error("Game Controller index " << m_joyindex << ": Could not be initialized\n"
+			<< "Please, generate Xbox360 compatible mapping using antimicro or Steam big mode application\n"
+			<< "and after set, the SDL controller variable before you launch the executable, i.e:\n"
+			<< "export SDL_GAMECONTROLLERCONFIG=\"[the string you received from controllermap]\"");
 			/* Need this so python args can return empty lists */
 			joy_error = true;
 		}
@@ -288,12 +285,12 @@ bool DEV_Joystick::CreateJoystickDevice(void)
 			m_private->m_instance_id = SDL_JoystickInstanceID(joy);
 			if (m_private->m_instance_id < 0){
 				joy_error = true;
-				printf("Joystick instanced failed: %s\n", SDL_GetError());
+				CM_Error("joystick instanced failed: " << SDL_GetError());
 			}
 		}
 
 		if (!joy_error) {
-			printf("Game Controller (%s) with index %i: Initialized\n", GetName(), m_joyindex);
+			CM_Debug("Game Controller (" << GetName() << ") with index " << m_joyindex << " initialized");
 
 			/* A Game Controller has:
 			 *
@@ -316,7 +313,8 @@ bool DEV_Joystick::CreateJoystickDevice(void)
 		if (!joy_error && SDL_CHECK(SDL_HapticOpen)) {
 			m_private->m_haptic = SDL_HapticOpen(m_joyindex);
 			if (!m_private->m_haptic) {
-				printf("Game Controller (%s) with index %i: Has not force feedback (vibration) available\n", GetName(), m_joyindex);
+				CM_Warning("Game Controller (" << GetName() << ") with index " << m_joyindex
+					<< " has not force feedback (vibration) available");
 			}
 		}
 	}
@@ -344,7 +342,7 @@ void DEV_Joystick::DestroyJoystickDevice(void)
 			}
 
 			if (m_private->m_gamecontroller && SDL_CHECK(SDL_GameControllerClose)) {
-				printf("Game Controller (%s) with index %i: Closed\n", GetName(), m_joyindex);
+				CM_Debug("Game Controller (" << GetName() << ") with index " << m_joyindex << " closed");
 				SDL_GameControllerClose(m_private->m_gamecontroller);
 				m_private->m_gamecontroller = NULL;
 			}

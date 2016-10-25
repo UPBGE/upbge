@@ -32,14 +32,14 @@
  *  \ingroup ketsji
  */
 
-#include <stdio.h>
-
 #include "KX_ObjectActuator.h"
 #include "KX_GameObject.h"
 #include "KX_PyMath.h" // For PyVecTo - should this include be put in PyObjectPlus?
 #include "PHY_IPhysicsController.h"
 #include "PHY_ICharacter.h"
 #include "PHY_IPhysicsEnvironment.h"
+
+#include "CM_Message.h"
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
@@ -92,7 +92,7 @@ KX_ObjectActuator(
 
 		if (!character)
 		{
-			printf("Character motion enabled on non-character object (%s), falling back to simple motion.\n", parent->GetName().Ptr());
+			CM_LogicBrickWarning(this, "character motion enabled on non-character object, falling back to simple motion.");
 			m_bitLocalFlag.CharacterMotion = false;
 		}
 	}

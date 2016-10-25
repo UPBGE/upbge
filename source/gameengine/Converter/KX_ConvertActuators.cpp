@@ -79,6 +79,8 @@
 #include "EXP_IntValue.h"
 #include "KX_GameObject.h"
 
+#include "CM_Message.h"
+
 /* This little block needed for linking to Blender... */
 #include "BKE_text.h"
 #include "BLI_blenlib.h"
@@ -347,11 +349,9 @@ void BL_ConvertActuators(const char* maggiename,
 					settings.reference_distance = soundact->sound3D.reference_distance;
 					settings.rolloff_factor = soundact->sound3D.rolloff_factor;
 
-					if (!sound)
-					{
-						std::cout <<	"WARNING: Sound actuator \"" << bact->name <<
-										"\" from object \"" <<  blenderobject->id.name+2 <<
-										"\" has no sound datablock." << std::endl;
+					if (!sound) {
+						CM_Warning("sound actuator \"" << bact->name << "\" from object \"" <<  blenderobject->id.name+2
+							<< "\" has no sound datablock.");
 					}
 					else
 					{
@@ -432,7 +432,8 @@ void BL_ConvertActuators(const char* maggiename,
 						{
 							if (editobact->ob->lay & activeLayerBitInfo)
 							{
-								fprintf(stderr, "Warning, object \"%s\" from AddObject actuator \"%s\" is not in a hidden layer.\n", objectname.Ptr(), uniquename.Ptr());
+								CM_Warning("object \"" << objectname << "\" from AddObject actuator \"" << uniquename
+									<< "\" is not in a hidden layer.");
 							}
 							else {
 								originalval = converter->FindGameObject(editobact->ob);
@@ -465,10 +466,8 @@ void BL_ConvertActuators(const char* maggiename,
 						RAS_MeshObject *tmpmesh = converter->FindGameMesh(editobact->me);
 
 						if (!tmpmesh) {
-							std::cout << "Warning: object \"" << objectname <<
-							"\" from ReplaceMesh actuator \"" << uniquename <<
-							"\" uses a mesh not owned by an object in scene \"" <<
-							scene->GetName() << "\"." << std::endl;
+							CM_Warning("object \"" << objectname << "\" from ReplaceMesh actuator \"" << uniquename
+								<< "\" uses a mesh not owned by an object in scene \"" << scene->GetName() << "\".");
 						}
 
 						KX_SCA_ReplaceMeshActuator* tmpreplaceact = new KX_SCA_ReplaceMeshActuator(

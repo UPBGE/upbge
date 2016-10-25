@@ -34,8 +34,7 @@
 #  pragma warning (disable:4786)
 #endif
 
-#include <iostream>
-#include <stdio.h>
+#include "CM_Message.h"
 
 #include "BLI_task.h"
 
@@ -1317,7 +1316,7 @@ void KX_KetsjiEngine::ConvertAndAddScene(const STR_String& scenename, bool overl
 {
 	// only add scene when it doesn't exist!
 	if (FindScene(scenename)) {
-		printf("warning: scene %s already exists, not added!\n", scenename.ReadPtr());
+		CM_Warning("scene " << scenename << " already exists, not added!");
 	}
 	else {
 		if (overlay) {
@@ -1335,7 +1334,7 @@ void KX_KetsjiEngine::RemoveScene(const STR_String& scenename)
 		m_removingScenes.push_back(scenename);
 	}
 	else {
-		std::cout << "warning: scene " << scenename << " does not exist, not removed!" << std::endl;
+		CM_Warning("scene " << scenename << " does not exist, not removed!");
 	}
 }
 
@@ -1398,7 +1397,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 				tmpscene->Release();
 			}
 			else {
-				printf("warning: scene %s could not be found, not added!\n", scenename.ReadPtr());
+				CM_Warning("scene " << scenename << " could not be found, not added!");
 			}
 		}
 		m_addingOverlayScenes.clear();
@@ -1417,7 +1416,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 				tmpscene->Release();
 			}
 			else {
-				printf("warning: scene %s could not be found, not added!\n", scenename.ReadPtr());
+				CM_Warning("scene " << scenename << " could not be found, not added!");
 			}
 		}
 		m_addingBackgroundScenes.clear();
@@ -1470,7 +1469,7 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 						tmpscene->Release();
 					}
 					else {
-						printf("warning: scene %s could not be found, not replaced!\n", newscenename.ReadPtr());
+						CM_Warning("scene " << newscenename << " could not be found, not replaced!");
 					}
 				}
 			}
