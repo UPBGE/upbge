@@ -37,7 +37,7 @@ SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, short mode, i
 	m_joyindex(joyindex),
 	m_mode(mode),
 	m_strength(strength),
-    m_strength_right(strength_right),
+	m_strength_right(strength_right),
 	m_duration(duration),
 	m_endtime(0.0f)
 {
@@ -59,15 +59,12 @@ bool SCA_VibrationActuator::Update()
 	/* Can't init instance in constructor because m_joystick list is not available yet */
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
 	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);
-	bool result;
 
 	if (!instance) {
 		return false;
 	}
 
-	bool bPositiveEvent = IsPositiveEvent();
-
-	if (bPositiveEvent) {
+	if (IsPositiveEvent()) {
 		switch (m_mode) {
 			case KX_ACT_VIBRATION_PLAY:
 			{
@@ -86,14 +83,12 @@ bool SCA_VibrationActuator::Update()
 
 	RemoveAllEvents();
 
-	result = PIL_check_seconds_timer() * 1000.0f < m_endtime;
-
-	if (!result) {
+	if (!(PIL_check_seconds_timer() * 1000.0f < m_endtime)) {
 		instance->RumbleStop();
 		m_endtime = 0.0f;
 	}
 
-	return result;
+	return instance->GetRumbleStatus();
 }
 
 #ifdef WITH_PYTHON
