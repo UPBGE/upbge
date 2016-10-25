@@ -126,7 +126,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	// RAS_IPolyMaterial variables...
 	m_flag |= ((mat->mode & MA_SHLESS) != 0) ? 0 : RAS_MULTILIGHT;
 	m_flag |= RAS_BLENDERGLSL;
-	m_flag |= (((mat->mode2 & MA_CASTSHADOW) && (mat->mode & MA_SHADBUF)) != 0) ? RAS_CASTSHADOW : 0;
+	m_flag |= ((mat->mode2 & MA_CASTSHADOW) != 0) ? RAS_CASTSHADOW : 0;
 	m_flag |= ((mat->mode & MA_ONLYCAST) != 0) ? RAS_ONLYSHADOW : 0;
 	m_flag |= ((m_material->shade_flag & MA_OBCOLOR) != 0) ? RAS_OBJECTCOLOR : 0;
 }

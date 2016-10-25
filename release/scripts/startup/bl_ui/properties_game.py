@@ -26,7 +26,6 @@ class PhysicsButtonsPanel:
     bl_region_type = 'WINDOW'
     bl_context = "physics"
 
-
 class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
     bl_label = "Physics"
     COMPAT_ENGINES = {'BLENDER_GAME'}

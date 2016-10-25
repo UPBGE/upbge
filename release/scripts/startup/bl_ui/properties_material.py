@@ -780,7 +780,7 @@ class MATERIAL_PT_strand(MaterialButtonsPanel, Panel):
 
 class MATERIAL_PT_options(MaterialButtonsPanel, Panel):
     bl_label = "Options"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     @classmethod
     def poll(cls, context):
@@ -825,15 +825,57 @@ class MATERIAL_PT_options(MaterialButtonsPanel, Panel):
         col.prop(mat, "use_vertex_color_light")
         col.prop(mat, "use_object_color")
         col.prop(mat, "use_uv_project")
-        col.prop(mat, "use_instancing")
         if simple_material(base_mat):
             col.prop(mat, "pass_index")
 
+class MATERIAL_PT_game_options(MaterialButtonsPanel, Panel):
+    bl_label = "Options"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        mat = context.material
+        engine = context.scene.render.engine
+        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE'}) and (engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+
+        base_mat = context.material
+        mat = active_node_mat(base_mat)
+
+        split = layout.split()
+
+        col = split.column()
+        col.prop(mat, "use_mist")
+        if simple_material(base_mat):
+            col.prop(mat, "invert_z")
+            sub = col.row()
+            sub.prop(mat, "offset_z")
+            sub.active = mat.use_transparency and mat.transparency_method == 'Z_TRANSPARENCY'
+        sub = col.column(align=True)
+        sub.label(text="Light Group:")
+        sub.prop(mat, "light_group", text="")
+        row = sub.row(align=True)
+        row.active = bool(mat.light_group)
+        row.prop(mat, "use_light_group_exclusive", text="Exclusive")
+        row.prop(mat, "use_light_group_local", text="Local")
+
+        col = split.column()
+        col.prop(mat, "use_face_texture")
+        sub = col.column()
+        sub.active = mat.use_face_texture
+        sub.prop(mat, "use_face_texture_alpha")
+        col.separator()
+        col.prop(mat, "use_vertex_color_paint")
+        col.prop(mat, "use_vertex_color_light")
+        col.prop(mat, "use_object_color")
+        col.prop(mat, "use_instancing")
 
 class MATERIAL_PT_shadow(MaterialButtonsPanel, Panel):
     bl_label = "Shadow"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     @classmethod
     def poll(cls, context):
@@ -879,6 +921,33 @@ class MATERIAL_PT_shadow(MaterialButtonsPanel, Panel):
         if simple_material(base_mat):
             col.prop(mat, "use_cast_approximate")
 
+class MATERIAL_PT_game_shadow(MaterialButtonsPanel, Panel):
+    bl_label = "Shadow"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        mat = context.material
+        engine = context.scene.render.engine
+        return check_material(mat) and (mat.type in {'SURFACE', 'WIRE'}) and (engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+
+        base_mat = context.material
+        mat = active_node_mat(base_mat)
+
+        split = layout.split()
+
+        if simple_material(base_mat):
+            col = split.column()
+
+            col.prop(mat, "use_cast_shadows", text="Cast")
+            col.prop(mat, "use_cast_shadows_only", text="Cast Only")
+
+        col = split.column()
+        col.prop(mat, "use_shadows", text="Receive")
 
 class MATERIAL_PT_transp_game(MaterialButtonsPanel, Panel):
     bl_label = "Transparency"
