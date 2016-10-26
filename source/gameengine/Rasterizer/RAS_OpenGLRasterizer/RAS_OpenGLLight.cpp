@@ -200,6 +200,31 @@ MT_Matrix4x4 RAS_OpenGLLight::GetShadowMatrix()
 	return mat;
 }
 
+void RAS_OpenGLLight::GetShadowBox(MT_Vector3 *box)
+{
+	GPULamp *lamp;
+
+	if ((lamp = GetGPULamp())) {
+		KX_GameObject *light = (KX_GameObject *)m_light;
+
+		box[0][0] = box[1][0] = box[2][0] = box[3][0] = -GPU_lamp_frustum_size(lamp);
+		box[4][0] = box[5][0] = box[6][0] = box[7][0] = +GPU_lamp_frustum_size(lamp);
+		box[0][1] = box[1][1] = box[4][1] = box[5][1] = -GPU_lamp_frustum_size(lamp);
+		box[2][1] = box[3][1] = box[6][1] = box[7][1] = +GPU_lamp_frustum_size(lamp);
+		box[0][2] = box[3][2] = box[4][2] = box[7][2] = -GPU_lamp_clipend(lamp);
+		box[1][2] = box[2][2] = box[5][2] = box[6][2] = -GPU_lamp_clipstart(lamp);
+
+		MT_Matrix3x3 orientation = light->NodeGetWorldOrientation();
+		const MT_Vector3& scaling = light->NodeGetWorldScaling();
+		orientation.scale(scaling[0], scaling[1], scaling[2]);
+		MT_Transform worldtr(light->NodeGetWorldPosition(), orientation);
+
+		for (int i = 0; i < 8; i++) {
+			box[i] = worldtr(box[i]);
+		}
+	}
+}
+
 int RAS_OpenGLLight::GetShadowLayer()
 {
 	GPULamp *lamp;

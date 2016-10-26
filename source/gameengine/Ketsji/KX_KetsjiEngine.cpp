@@ -849,6 +849,19 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 		if (light->GetVisible() && m_rasterizer->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED &&
 			raslight->HasShadowBuffer() && raslight->NeedShadowUpdate())
 		{
+			/* There was no culling for shadows other than if the object was outside light frustum.
+			 * We can't do a complete culling according to camera frustum because even if an object
+			 * is outside camera frustum, we should see his shadows. What we can do is check if light frustum
+			 * intersects with camera frustum. If this is not the case, we don't render shadows.
+			 */
+			if (raslight->m_type == RAS_ILightObject::LIGHT_SUN) {
+				MT_Vector3 lightfrustum[8];
+				raslight->GetShadowBox(lightfrustum);
+				int insideFrustum = KX_GetActiveScene()->GetActiveCamera()->BoxInsideFrustum(lightfrustum); // 0 = inside, 1 = intersect, 2 = outside
+				if (insideFrustum == 2) {
+					return;
+				}
+			}
 			/* make temporary camera */
 			RAS_CameraData camdata = RAS_CameraData();
 			KX_Camera *cam = new KX_Camera(scene, scene->m_callbacks, camdata, true, true);
