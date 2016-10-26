@@ -373,38 +373,6 @@ class RENDER_PT_game_stereo(RenderButtonsPanel, Panel):
             layout.prop(gs, "stereo_mode")
             layout.prop(gs, "stereo_eye_separation")
 
-        # dome:
-        elif stereo_mode == 'DOME':
-            layout.prop(gs, "dome_mode", text="Dome Type")
-
-            dome_type = gs.dome_mode
-
-            split = layout.split()
-
-            if dome_type in {'FISHEYE', 'TRUNCATED_REAR', 'TRUNCATED_FRONT'}:
-                col = split.column()
-                col.prop(gs, "dome_buffer_resolution", text="Resolution", slider=True)
-                col.prop(gs, "dome_angle", slider=True)
-
-                col = split.column()
-                col.prop(gs, "dome_tessellation", text="Tessellation")
-                col.prop(gs, "dome_tilt")
-
-            elif dome_type == 'PANORAM_SPH':
-                col = split.column()
-                col.prop(gs, "dome_buffer_resolution", text="Resolution", slider=True)
-
-                col = split.column()
-                col.prop(gs, "dome_tessellation", text="Tessellation")
-
-            else:  # cube map
-                col = split.column()
-                col.prop(gs, "dome_buffer_resolution", text="Resolution", slider=True)
-
-                col = split.column()
-
-            layout.prop(gs, "dome_text")
-
 
 class RENDER_PT_game_shading(RenderButtonsPanel, Panel):
     bl_label = "Shading"
