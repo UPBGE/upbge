@@ -457,6 +457,38 @@ int KX_Camera::BoxInsideFrustum(const MT_Vector3 *box)
 	return INTERSECT;
 }
 
+int KX_Camera::PyramidInsideFrustum(const MT_Vector3 *box)
+{
+	ExtractClipPlanes();
+
+	unsigned int insideCount = 0;
+	// 6 view frustum planes
+	for (unsigned int p = 0; p < 6; p++)
+	{
+		unsigned int behindCount = 0;
+		// 5 box vertices.
+		for (unsigned int v = 0; v < 5; v++)
+		{
+			if (m_planes[p][0] * box[v][0] + m_planes[p][1] * box[v][1] + m_planes[p][2] * box[v][2] + m_planes[p][3] < 0.0f)
+				behindCount++;
+		}
+
+		// 5 points behind this plane
+		if (behindCount == 5)
+			return OUTSIDE;
+
+		// Every box vertex is on the front side of this plane
+		if (!behindCount)
+			insideCount++;
+	}
+
+	// All box vertices are on the front side of all frustum planes.
+	if (insideCount == 6)
+		return INSIDE;
+
+	return INTERSECT;
+}
+
 int KX_Camera::SphereInsideFrustum(const MT_Vector3& center, const MT_Scalar &radius)
 {
 	ExtractFrustumSphere();
