@@ -53,8 +53,7 @@ public:
 	bool NeedShadowUpdate();
 	int GetShadowBindCode();
 	MT_Matrix4x4 GetShadowMatrix();
-	void GetSunShadowBox(MT_Vector3 *box);
-	void GetSpotShadowBox(MT_Vector3 *box);
+	void GetShadowBox(MT_Vector3 *box);
 	int GetShadowLayer();
 	void BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_Transform& camtrans);
 	void UnbindShadowBuffer();

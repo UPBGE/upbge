@@ -854,22 +854,13 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			 * is outside camera frustum, we should see his shadows. What we can do is check if light frustum
 			 * intersects with camera frustum. If this is not the case, we don't render shadows.
 			 */
-			if (raslight->m_type == RAS_ILightObject::LIGHT_SUN) {
-				MT_Vector3 lightfrustum[8];
-				raslight->GetSunShadowBox(lightfrustum);
-				int insideFrustum = scene->GetActiveCamera()->BoxInsideFrustum(lightfrustum); // 0 = inside, 1 = intersect, 2 = outside
-				if (insideFrustum == 2) {
-					return;
-				}
+			MT_Vector3 lightfrustum[8];
+			raslight->GetShadowBox(lightfrustum);
+			int insideFrustum = scene->GetActiveCamera()->BoxInsideFrustum(lightfrustum); // 0 = inside, 1 = intersect, 2 = outside
+			if (insideFrustum == 2) {
+				return;
 			}
-			else if (raslight->m_type == RAS_ILightObject::LIGHT_SPOT) {
-				MT_Vector3 lightfrustum[5];
-				raslight->GetSpotShadowBox(lightfrustum);
-				int insideFrustum = scene->GetActiveCamera()->PyramidInsideFrustum(lightfrustum); // 0 = inside, 1 = intersect, 2 = outside
-				if (insideFrustum == 2) {
-					return;
-				}
-			}
+
 			/* make temporary camera */
 			RAS_CameraData camdata = RAS_CameraData();
 			KX_Camera *cam = new KX_Camera(scene, scene->m_callbacks, camdata, true, true);

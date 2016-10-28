@@ -244,13 +244,6 @@ public:
 	 */
 	int BoxInsideFrustum(const MT_Vector3 *box);
 	/**
-	* Tests the given five corners of a pyramid with the view frustum.
-	*
-	* \param box a pointer to five MT_Vector3 representing the world coordinates of the corners of the pyramid.
-	* \return INSIDE, INTERSECT, or OUTSIDE depending on the box's relation to the frustum.
-	*/
-	int PyramidInsideFrustum(const MT_Vector3 *box);
-	/**
 	 * Tests the given point against the view frustum.
 	 * \return true if the given point is inside or on the view frustum; false if it is outside.
 	 */
