@@ -799,7 +799,6 @@ void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
 		btRigidBody *body = ctrl->GetRigidBody();
 
 		if (body && (ctrl->GetConstructionInfo().m_do_fh || ctrl->GetConstructionInfo().m_do_rot_fh)) {
-			//printf("has Fh or RotFh\n");
 			//re-implement SM_FhObject.cpp using btCollisionWorld::rayTest and info from ctrl->getConstructionInfo()
 			//send a ray from {0.0, 0.0, 0.0} towards {0.0, 0.0, -10.0}, in local coordinates
 			CcdPhysicsController *parentCtrl = ctrl->GetParentCtrl();

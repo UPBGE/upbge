@@ -3739,7 +3739,6 @@ KX_PYMETHODDEF_DOC_O(KX_GameObject, getVectTo,
 
 	if (MT_fuzzyZero(distance))
 	{
-		//cout << "getVectTo() Error: Null vector!\n";
 		locToDir = toDir = MT_Vector3(0.0f,0.0f,0.0f);
 		distance = 0.0f;
 	} else {

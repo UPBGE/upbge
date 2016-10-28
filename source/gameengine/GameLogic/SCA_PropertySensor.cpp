@@ -172,22 +172,6 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 
 	case KX_PROPSENSOR_EXPRESSION:
 		{
-#if 0
-			if (m_rightexpr)
-			{
-				CValue* resultval = m_rightexpr->Calculate();
-				if (resultval->IsError())
-				{
-					int i=0;
-					STR_String errortest = resultval->GetText();
-					printf(errortest);
-
-				} else
-				{
-					result = resultval->GetNumber() != 0;
-				}
-			}
-#endif
 			break;
 		}
 	case KX_PROPSENSOR_INTERVAL:
@@ -226,7 +210,6 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 			}
 			orgprop->Release();
 
-			//cout << " \nSens:Prop:changed!"; /* need implementation here!!! */
 			break;
 		}
 	case KX_PROPSENSOR_LESSTHAN:

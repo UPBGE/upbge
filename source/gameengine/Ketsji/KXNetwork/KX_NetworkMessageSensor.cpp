@@ -110,7 +110,7 @@ bool KX_NetworkMessageSensor::Evaluate()
 
 	if (!messages.empty()) {
 #ifdef NAN_NET_DEBUG
-		printf("KX_NetworkMessageSensor found one or more messages\n");
+		std::cout << "KX_NetworkMessageSensor found one or more messages" << std::endl;
 #endif
 		m_IsUp = true;
 		m_BodyList = new CListValue();
@@ -146,7 +146,6 @@ bool KX_NetworkMessageSensor::Evaluate()
 /// return true for being up (no flank needed)
 bool KX_NetworkMessageSensor::IsPositiveTrigger()
 {
-//	printf("KX_NetworkMessageSensor IsPositiveTrigger\n");
 	//attempt to fix [ #3809 ] IPO Actuator does not work with some Sensors
 	//a better solution is to properly introduce separate Edge and Level triggering concept
 

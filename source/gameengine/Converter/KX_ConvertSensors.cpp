@@ -343,8 +343,6 @@ void BL_ConvertSensors(struct Object* blenderobject,
 								kxengine,
 								gameobj);
 						}
-					} else {
-						//				cout << "\n Could't find mouse event manager..."; - should throw an error here...
 					}
 					break;
 				}

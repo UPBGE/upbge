@@ -291,7 +291,6 @@ bool	KX_CollisionSensor::NewHandleCollision(void*object1,void*object2,const PHY_
 			m_bTriggered = true;
 			m_hitObject = gameobj;
 			m_hitMaterial = hitMaterial;
-			//printf("KX_CollisionSensor::HandleCollision\n");
 		}
 		
 	} 

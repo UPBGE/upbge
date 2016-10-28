@@ -1865,8 +1865,6 @@ static void initPySysObjects__append(PyObject *sys_path, const char *filename)
 	BLI_cleanup_file(KX_GetMainPath().ReadPtr(), expanded); /* Don't use BLI_cleanup_dir because it adds a slash - BREAKS WIN32 ONLY */
 	item = PyC_UnicodeFromByte(expanded);
 	
-//	printf("SysPath - '%s', '%s', '%s'\n", expanded, filename, KX_GetMainPath().ReadPtr());
-	
 	if (PySequence_Index(sys_path, item) == -1) {
 		PyErr_Clear(); /* PySequence_Index sets a ValueError */
 		PyList_Insert(sys_path, 0, item);
@@ -1899,9 +1897,6 @@ static void initPySysObjects(Main *maggie)
 	}
 	
 	initPySysObjects__append(sys_path, KX_GetMainPath().ReadPtr());
-	
-//	fprintf(stderr, "\nNew Path: %d ", PyList_GET_SIZE(sys_path));
-//	PyObject_Print(sys_path, stderr, 0);
 }
 
 static void restorePySysObjects(void)
@@ -1930,10 +1925,6 @@ static void restorePySysObjects(void)
 	PyDict_Update(sys_mods, gp_sys_backup.modules);
 	Py_DECREF(gp_sys_backup.modules);
 	gp_sys_backup.modules = NULL;
-	
-	
-//	fprintf(stderr, "\nRestore Path: %d ", PyList_GET_SIZE(sys_path));
-//	PyObject_Print(sys_path, stderr, 0);
 }
 
 void addImportMain(struct Main *maggie)

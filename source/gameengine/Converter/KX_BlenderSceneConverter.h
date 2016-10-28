@@ -172,7 +172,6 @@ public:
 #ifdef WITH_CXX_GUARDEDALLOC
 		MEM_printmemlist_pydict();
 #endif
-//		/printf("\t m_ketsjiEngine->m_scenes: %d\n", m_ketsjiEngine->CurrentScenes()->GetCount());
 	}
 	
 	/* LibLoad Options */

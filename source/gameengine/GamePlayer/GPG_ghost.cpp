@@ -524,7 +524,6 @@ static void get_filename(int argc, char **argv, char *filename)
 		gamefile = new char [len + 1];
 		::strcpy(gamefile, argv[0]);
 		::strcpy(gamefile + srclen, "Resources/game.blend");
-		//::printf("looking for file: %s\n", filename);
 		
 		if (BLI_exists(gamefile))
 			BLI_strncpy(filename, gamefile, FILE_MAX);
@@ -814,7 +813,7 @@ int main(
 				else if (strcmp(argv[i], "memory") == 0) {
 					G.debug |= G_DEBUG;
 
-					std::cout << "Switching to fully guarded memory allocator." << std::endl;
+					CM_Debug("Switching to fully guarded memory allocator.");
 					MEM_use_guarded_allocator();
 
 					MEM_set_memory_debug();
@@ -824,7 +823,7 @@ int main(
 					++i;
 				}
 				else {
-					std::cout << "error: debug mode '" << argv[i] << "' unrecognized."  << std::endl;
+					CM_Error("debug mode '" << argv[i] << "' unrecognized.");
 				}
 
 				break;
@@ -1125,7 +1124,6 @@ int main(
 						if ((!fullScreenParFound) && (!windowParFound)) {
 							// Only use file settings when command line did not override
 							if ((scene->gm.playerflag & GAME_PLAYER_FULLSCREEN)) {
-								//printf("fullscreen option found in Blender file\n");
 								fullScreen = true;
 								fullScreenWidth= scene->gm.xplay;
 								fullScreenHeight= scene->gm.yplay;

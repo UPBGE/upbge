@@ -287,9 +287,6 @@ bool KX_MouseActuator::Update()
 				m_oldposition[1] = position[1];
 
 			}
-			else {
-				//printf("\nNo input device detected for mouse actuator\n");
-			}
 			break;
 		}
 		default:

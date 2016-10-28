@@ -103,7 +103,6 @@ bool KX_MouseFocusSensor::Evaluate()
 	bool obHasFocus = false;
 	bool reset = m_reset && m_level;
 
-//  	cout << "evaluate focus mouse sensor "<<endl;
 	m_reset = false;
 	if (m_focusmode) {
 		/* Focus behavior required. Test mouse-on. The rest is

@@ -59,15 +59,12 @@ KX_NetworkMessageActuator::~KX_NetworkMessageActuator()
 /// returns true if the actuators needs to be running over several frames
 bool KX_NetworkMessageActuator::Update()
 {
-	//printf("update messageactuator\n");
 	bool bNegativeEvent = IsNegativeEvent();
 	RemoveAllEvents();
 
 	if (bNegativeEvent) {
 		return false; // do nothing on negative events
-		//printf("messageactuator false event\n");
 	}
-	//printf("messageactuator true event\n");
 
 	// ACT_MESG_PROP in DNA_actuator_types.h
 	if (m_bPropBody) {

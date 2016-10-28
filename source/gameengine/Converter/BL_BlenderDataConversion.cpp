@@ -1204,7 +1204,7 @@ static void UNUSED_FUNCTION(print_active_constraints2)(Object *ob) //not used, u
 
 	if (conlist) {
 		for (curcon = (bConstraint *)conlist->first; curcon; curcon = (bConstraint *)curcon->next) {
-			printf("%i\n",curcon->type);
+			CM_Debug(curcon->type);
 		}
 	}
 }

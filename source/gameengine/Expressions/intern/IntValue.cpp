@@ -15,14 +15,14 @@
  *
  */
 
-#include <stdio.h>
-
 #include "EXP_IntValue.h"
 #include "EXP_ErrorValue.h"
 #include "EXP_FloatValue.h"
 #include "EXP_BoolValue.h"
 #include "EXP_StringValue.h"
 #include "EXP_VoidValue.h"
+
+#include "CM_Message.h"
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -176,7 +176,7 @@ CValue* CIntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *v
 					ret = new CBoolValue(m_int == 0);
 					break;
 				default:
-					printf("Found op: %d\n", op);
+					CM_Error("found op: " << op);
 					ret = new CErrorValue("illegal operator. please send a bug report.");
 					break;
 			}

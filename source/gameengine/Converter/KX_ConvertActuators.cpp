@@ -1107,8 +1107,6 @@ void BL_ConvertActuators(const char* maggiename,
 																		mouAct->limit_x,
 																		mouAct->limit_y);
 					baseact = tmpbaseact;
-				} else {
-					//cout << "\n Couldn't find mouse event manager..."; - should throw an error here...
 				}
 				break;
 			}

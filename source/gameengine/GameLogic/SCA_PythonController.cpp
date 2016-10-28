@@ -67,26 +67,10 @@ SCA_PythonController::SCA_PythonController(SCA_IObject* gameobj, int mode)
 	
 }
 
-#if 0
-//debugging
-CValue *SCA_PythonController::AddRef()
-{
-	//printf("AddRef refcount = %i\n",GetRefCount());
-	return CValue::AddRef();
-}
-int SCA_PythonController::Release()
-{
-	//printf("Release refcount = %i\n",GetRefCount());
-	return CValue::Release();
-}
-#endif
-
 SCA_PythonController::~SCA_PythonController()
 {
 
 #ifdef WITH_PYTHON
-	//printf("released python byte script\n");
-	
 	Py_XDECREF(m_bytecode);
 	Py_XDECREF(m_function);
 	
@@ -278,7 +262,6 @@ void SCA_PythonController::ErrorPrint(const char *error_msg)
 
 bool SCA_PythonController::Compile()
 {
-	//printf("py script modified '%s'\n", m_scriptName.Ptr());
 	m_bModified= false;
 	
 	// if a script already exists, decref it before replace the pointer to a new script
@@ -300,7 +283,6 @@ bool SCA_PythonController::Compile()
 
 bool SCA_PythonController::Import()
 {
-	//printf("py module modified '%s'\n", m_scriptName.Ptr());
 	m_bModified= false;
 
 	/* in case we re-import */

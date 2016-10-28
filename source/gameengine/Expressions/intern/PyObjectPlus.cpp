@@ -1136,9 +1136,7 @@ PyObject *PyObjectPlus::GetProxyPlus_Ext(PyObjectPlus *self, PyTypeObject *tp, v
 		BGE_PROXY_WKREF(self->m_proxy) = NULL;
 #endif
 	}
-	//PyObject_Print(self->m_proxy, stdout, 0);
-	//printf("ref %d\n", self->m_proxy->ob_refcnt);
-	
+
 	BGE_PROXY_REF(self->m_proxy) = self; /* Its possible this was set to NULL, so set it back here */
 	BGE_PROXY_PTR(self->m_proxy) = ptr;
 	Py_INCREF(self->m_proxy); /* we own one, thos ones fore the return */

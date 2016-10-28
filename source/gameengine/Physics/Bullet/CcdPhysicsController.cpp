@@ -1083,7 +1083,6 @@ void CcdPhysicsController::SetScaling(const MT_Vector3& scale)
 			m_object->activate(true); // without this, sleeping objects scale wont be applied in bullet if python changes the scale - Campbell.
 			m_object->getCollisionShape()->setLocalScaling(m_cci.m_scaling);
 
-			//printf("no inertia recalc for fixed objects with mass=0\n");
 			btRigidBody *body = GetRigidBody();
 			if (body && m_cci.m_mass) {
 				body->getCollisionShape()->calculateLocalInertia(m_cci.m_mass, m_cci.m_localInertiaTensor);
@@ -2050,16 +2049,16 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 			}
 		}
 
-		// If this ever gets confusing, print out an OBJ file for debugging
+	// If this ever gets confusing, print out an OBJ file for debugging
 #if 0
-		printf("# vert count %d\n", m_vertexArray.size());
+		CM_Debug("# vert count " << m_vertexArray.size());
 		for (i = 0; i < m_vertexArray.size(); i += 1) {
-			printf("v %.6f %.6f %.6f\n", m_vertexArray[i].x(), m_vertexArray[i].y(), m_vertexArray[i].z());
+			CM_Debug("v " << m_vertexArray[i].x() << " " << m_vertexArray[i].y() << " " << m_vertexArray[i].z());
 		}
 
-		printf("# face count %d\n", m_triFaceArray.size());
+		CM_Debug("# face count " << m_triFaceArray.size());
 		for (i = 0; i < m_triFaceArray.size(); i += 3) {
-			printf("f %d %d %d\n", m_triFaceArray[i] + 1, m_triFaceArray[i + 1] + 1, m_triFaceArray[i + 2] + 1);
+			CM_Debug("f " << m_triFaceArray[i] + 1 << " " <<  m_triFaceArray[i + 1] + 1 << " " <<  m_triFaceArray[i + 2] + 1);
 		}
 #endif
 	}
@@ -2386,15 +2385,14 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, class RA
 	}
 
 #if 0
-	/* needs #include <cstdio> */
-	printf("# vert count %d\n", m_vertexArray.size());
+	CM_Debug("# vert count " << m_vertexArray.size());
 	for (int i = 0; i < m_vertexArray.size(); i += 3) {
-		printf("v %.6f %.6f %.6f\n", m_vertexArray[i], m_vertexArray[i + 1], m_vertexArray[i + 2]);
+		CM_Debug("v " << m_vertexArray[i] << " " << m_vertexArray[i + 1] << " " << m_vertexArray[i + 2]);
 	}
 
-	printf("# face count %d\n", m_triFaceArray.size());
+	CM_Debug("# face count " << m_triFaceArray.size());
 	for (int i = 0; i < m_triFaceArray.size(); i += 3) {
-		printf("f %d %d %d\n", m_triFaceArray[i] + 1, m_triFaceArray[i + 1] + 1, m_triFaceArray[i + 2] + 1);
+		CM_Debug("f " << m_triFaceArray[i] + 1 << " " << m_triFaceArray[i + 1] + 1 << " " << m_triFaceArray[i + 2] + 1);
 	}
 #endif
 

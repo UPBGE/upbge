@@ -370,12 +370,7 @@ bool KX_KetsjiEngine::NextFrame()
 		frames = int(deltatime * m_ticrate / m_timescale + 1e-6);
 	}
 
-//	if (frames>1)
-//		printf("****************************************");
-//	printf("dt = %f, deltatime = %f, frames = %d\n",dt, deltatime,frames);
-	
-//	if (!frames)
-//		PIL_sleep_ms(1);
+//	CM_Debug("dt = " << dt << ", deltatime = " << deltatime << ", frames = " << frames);
 
 	double framestep = timestep;
 
@@ -812,7 +807,7 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 		double anim_timestep = 1.0 / scene->GetAnimationFPS();
 		if (m_frameTime - m_previousAnimTime > anim_timestep || m_frameTime == m_previousAnimTime) {
 			// Sanity/debug print to make sure we're actually going at the fps we want (should be close to anim_timestep)
-			// printf("Anim fps: %f\n", 1.0/(m_frameTime - m_previousAnimTime));
+			// CM_Debug("Anim fps: " << 1.0/(m_frameTime - m_previousAnimTime));
 			m_previousAnimTime = m_frameTime;
 			for (CListValue::iterator sceneit = m_scenes->GetBegin(); sceneit != m_scenes->GetEnd(); ++sceneit)
 				((KX_Scene *)*sceneit)->UpdateAnimations(m_frameTime);
