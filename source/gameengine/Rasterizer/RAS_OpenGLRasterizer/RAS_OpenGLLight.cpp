@@ -230,10 +230,12 @@ void RAS_OpenGLLight::GetShadowBox(MT_Vector3 *box)
 			x *= y;
 			z_abs = fabsf(z);
 
-			box[0][0] = box[0][1] = box[1][0] = box[3][1] = box[4][0] = box[4][1] = box[5][0] = box[7][1] = z_abs;
-			box[1][1] = box[2][1] = box[3][0] = box[5][1] = box[6][0] = box[6][1] = box[7][0] = box[2][0] = -z_abs;
-			box[0][2] = box[1][2] = box[2][2] = box[3][2] = 0.0f;
-			box[4][2] = box[5][2] = box[6][2] = box[7][2] = -FLT_MAX;
+			box[0][0] = box[1][0] = box[2][0] = box[3][0] = -z_abs;
+			box[4][0] = box[5][0] = box[6][0] = box[7][0] = +z_abs;
+			box[0][1] = box[1][1] = box[4][1] = box[5][1] = -z_abs;
+			box[2][1] = box[3][1] = box[6][1] = box[7][1] = +z_abs;
+			box[0][2] = box[3][2] = box[4][2] = box[7][2] = -FLT_MAX;
+			box[1][2] = box[2][2] = box[5][2] = box[6][2] = 0.0f;
 
 			MT_Matrix3x3 orientation = light->NodeGetWorldOrientation();
 			const MT_Vector3& scaling = light->NodeGetWorldScaling();
