@@ -393,7 +393,8 @@ bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 {
 	if (m_shader && m_shader->Ok()) {
-		m_shader->Update(rasty, MT_Matrix4x4(ms->m_meshUser->GetMatrix()));
+		m_shader->Update(rasty, ms);
+		m_shader->ApplyShader();
 	}
 	else if (m_blenderShader) {
 		m_blenderShader->Update(ms, rasty);

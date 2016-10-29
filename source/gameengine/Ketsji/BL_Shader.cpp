@@ -25,18 +25,60 @@
 
 #include "BL_Shader.h"
 #include "RAS_Texture.h" // for RAS_Texture::MaxUnits
+#include "RAS_MeshSlot.h"
+#include "RAS_MeshUser.h"
 
 #include "KX_PyMath.h"
 #include "KX_PythonInit.h"
+#include "KX_GameObject.h"
+
+#ifdef WITH_PYTHON
+#  include "EXP_PythonCallBack.h"
+#endif  // WITH_PYTHON
 
 #include "CM_Message.h"
 
 BL_Shader::BL_Shader()
 {
+#ifdef WITH_PYTHON
+	m_callbacks = PyList_New(0);
+#endif  // WITH_PYTHON
 }
 
 BL_Shader::~BL_Shader()
 {
+#ifdef WITH_PYTHON
+	Py_XDECREF(m_callbacks);
+#endif  // WITH_PYTHON
+}
+
+#ifdef WITH_PYTHON
+
+PyObject *BL_Shader::GetCallbacks()
+{
+	return m_callbacks;
+}
+
+void BL_Shader::SetCallbacks(PyObject *callbacks)
+{
+	Py_XDECREF(m_callbacks);
+	Py_INCREF(callbacks);
+	m_callbacks = callbacks;
+}
+
+#endif  // WITH_PYTHON
+
+void BL_Shader::Update(RAS_IRasterizer *rasty, RAS_MeshSlot *ms)
+{
+#ifdef WITH_PYTHON
+	if (PyList_GET_SIZE(m_callbacks) > 0) {
+		KX_GameObject *gameobj = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)ms->m_meshUser->GetClientObject());
+		PyObject *args[] = {GetProxy(), gameobj->GetProxy()};
+		RunPythonCallBackList(m_callbacks, args, 0, ARRAY_SIZE(args));
+	}
+#endif  // WITH_PYTHON
+
+	RAS_Shader::Update(rasty, MT_Matrix4x4(ms->m_meshUser->GetMatrix()));
 }
 
 #ifdef WITH_PYTHON
@@ -71,6 +113,7 @@ PyMethodDef BL_Shader::Methods[] = {
 
 PyAttributeDef BL_Shader::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("enabled", BL_Shader, pyattr_get_enabled, pyattr_set_enabled),
+	KX_PYATTRIBUTE_RW_FUNCTION("objectCallbacks", BL_Shader, pyattr_get_bind_object_callback, pyattr_set_bind_object_callback),
 	{NULL} //Sentinel
 };
 
@@ -112,6 +155,26 @@ int BL_Shader::pyattr_set_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrde
 	}
 
 	self->SetEnabled(param);
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Shader::pyattr_get_bind_object_callback(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Shader *self = static_cast<BL_Shader *>(self_v);
+	PyObject *callbacks = self->GetCallbacks();
+	Py_INCREF(callbacks);
+	return callbacks;
+}
+
+int BL_Shader::pyattr_set_bind_object_callback(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Shader *self = static_cast<BL_Shader *>(self_v);
+	if (!PyList_CheckExact(value)) {
+		PyErr_Format(PyExc_AttributeError, "shader.%s = bool: BL_Shader, expected a list", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->SetCallbacks(value);
 	return PY_SET_ATTR_SUCCESS;
 }
 

@@ -9,12 +9,27 @@
 #include "EXP_PyObjectPlus.h"
 #include "RAS_Shader.h"
 
+class RAS_MeshSlot;
+
 class BL_Shader : public PyObjectPlus, public virtual RAS_Shader
 {
+private:
 	Py_Header
+
+#ifdef WITH_PYTHON
+	PyObject *m_callbacks;
+#endif  // WITH_PYTHON
+
 public:
 	BL_Shader();
 	virtual ~BL_Shader();
+
+#ifdef WITH_PYTHON
+	PyObject *GetCallbacks();
+	void SetCallbacks(PyObject *callbacks);
+#endif // WITH_PYTHON
+
+	virtual void Update(RAS_IRasterizer *rasty, RAS_MeshSlot *ms);
 
 	// Python interface
 #ifdef WITH_PYTHON
@@ -25,6 +40,8 @@ public:
 
 	static PyObject *pyattr_get_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_bind_object_callback(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_bind_object_callback(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	// -----------------------------------
 	KX_PYMETHOD_DOC(BL_Shader, setSource);
