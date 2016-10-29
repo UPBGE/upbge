@@ -178,3 +178,16 @@ bool DEV_Joystick::GetRumbleStatus()
 #endif
 	return false;
 }
+
+bool DEV_Joystick::GetRumbleSupport()
+{
+#ifdef WITH_SDL
+	if (m_private->m_haptic) {
+		return true;
+	}
+	else {
+		return false;
+	}
+#endif
+	return false;
+}

@@ -39,6 +39,12 @@ base class --- :class:`SCA_IActuator`
 
       :type: bool (true vibrating and false stopped)
 
+   .. attribute:: hasVibration
+
+      Check if the joystick supports vibration
+
+      :type: bool (true supported and false not supported)
+
    .. method:: startVibration()
 
       Starts the vibration.

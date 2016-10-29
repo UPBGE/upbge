@@ -68,6 +68,7 @@ public:
 	KX_PYMETHOD_DOC_NOARGS(SCA_VibrationActuator, stopVibration);
 
 	static PyObject *pyattr_get_statusVibration(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_hasVibration(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 #endif  /* WITH_PYTHON */
 
 };

@@ -79,7 +79,6 @@ bool SCA_VibrationActuator::Update()
 				break;
 			}
 		}
-
 	}
 
 	RemoveAllEvents();
@@ -135,6 +134,7 @@ PyAttributeDef SCA_VibrationActuator::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_RW("strengthLeft", 0.0, 1.0, SCA_VibrationActuator, m_strength),
 	KX_PYATTRIBUTE_FLOAT_RW("strengthRight", 0.0, 1.0, SCA_VibrationActuator, m_strength_right),
 	KX_PYATTRIBUTE_RO_FUNCTION("isVibrating", SCA_VibrationActuator, pyattr_get_statusVibration),
+	KX_PYATTRIBUTE_RO_FUNCTION("hasVibration", SCA_VibrationActuator, pyattr_get_hasVibration),
 	{ NULL }	//Sentinel
 };
 
@@ -187,5 +187,20 @@ PyObject *SCA_VibrationActuator::pyattr_get_statusVibration(void *self_v, const 
 
 	return PyBool_FromLong(instance->GetRumbleStatus());
 }
+
+/* Attribute getting -------------------------------------------- */
+PyObject *SCA_VibrationActuator::pyattr_get_hasVibration(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_VibrationActuator *self = static_cast<SCA_VibrationActuator *>(self_v);
+	SCA_JoystickManager *mgr = (SCA_JoystickManager *)self->GetLogicManager();
+	DEV_Joystick *instance = mgr->GetJoystickDevice(self->m_joyindex);
+
+	if (!instance) {
+		return Py_False;
+	}
+
+	return PyBool_FromLong(instance->GetRumbleSupport());
+}
+
 
 #endif // WITH_PYTHON
