@@ -9,12 +9,40 @@
 #include "EXP_PyObjectPlus.h"
 #include "RAS_Shader.h"
 
+class RAS_MeshSlot;
+
 class BL_Shader : public PyObjectPlus, public virtual RAS_Shader
 {
+public:
+	enum CallbacksType {
+		CALLBACKS_BIND = 0,
+		CALLBACKS_OBJECT,
+		CALLBACKS_MAX
+	};
+
+private:
 	Py_Header
+
+#ifdef WITH_PYTHON
+	PyObject *m_callbacks[CALLBACKS_MAX];
+#endif  // WITH_PYTHON
+
 public:
 	BL_Shader();
 	virtual ~BL_Shader();
+
+#ifdef WITH_PYTHON
+	PyObject *GetCallbacks(CallbacksType type);
+	void SetCallbacks(CallbacksType type, PyObject *callbacks);
+#endif // WITH_PYTHON
+
+	virtual void SetProg(bool enable);
+
+	/** Update the uniform shader for the current rendered mesh slot.
+	 * The python callbacks are executed in this function and at the end
+	 * RAS_Shader::Update(rasty, mat) is called.
+	 */
+	void Update(RAS_IRasterizer *rasty, RAS_MeshSlot *ms);
 
 	// Python interface
 #ifdef WITH_PYTHON
@@ -25,6 +53,8 @@ public:
 
 	static PyObject *pyattr_get_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_callbacks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_callbacks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	// -----------------------------------
 	KX_PYMETHOD_DOC(BL_Shader, setSource);

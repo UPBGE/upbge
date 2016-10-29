@@ -157,7 +157,7 @@ public:
 	bool Ok() const;
 	unsigned int GetProg();
 	GPUShader *GetGPUShader();
-	void SetProg(bool enable);
+	virtual void SetProg(bool enable);
 	void SetEnabled(bool enabled);
 	bool GetEnabled() const;
 	int GetAttribute();
