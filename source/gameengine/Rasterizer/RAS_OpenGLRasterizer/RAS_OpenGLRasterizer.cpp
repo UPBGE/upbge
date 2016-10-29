@@ -561,7 +561,7 @@ void RAS_OpenGLRasterizer::Exit()
 	if (GLEW_EXT_separate_specular_color || GLEW_VERSION_1_2)
 		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
 
-	GPU_texture_set_global_depth(NULL);
+	ResetGlobalDepthTexture();
 
 	EndFrame();
 }
@@ -2263,6 +2263,11 @@ void RAS_OpenGLRasterizer::UpdateGlobalDepthTexture()
 	}
 
 	GPU_texture_set_global_depth(m_offScreens.GetDepthTexture(index));
+}
+
+void RAS_OpenGLRasterizer::ResetGlobalDepthTexture()
+{
+	GPU_texture_set_global_depth(NULL);
 }
 
 void RAS_OpenGLRasterizer::MotionBlur()

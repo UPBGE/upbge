@@ -414,6 +414,7 @@ public:
 	int ApplyLights(int objectlayer, const MT_Transform& viewmat);
 
 	virtual void UpdateGlobalDepthTexture();
+	virtual void ResetGlobalDepthTexture();
 
 	void MotionBlur();
 

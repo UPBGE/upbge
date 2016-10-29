@@ -79,6 +79,7 @@ public:
 		RAS_WIREFRAME = 0,
 		RAS_SOLID,
 		RAS_TEXTURED,
+		RAS_CUBEMAP,
 		RAS_SHADOW,
 		RAS_DRAW_MAX,
 	};
@@ -701,6 +702,8 @@ public:
 	 * In case of mutlisample off screen a blit to RAS_OFFSCREEN_BLIT_DEPTH is procceed.
 	 */
 	virtual void UpdateGlobalDepthTexture() = 0;
+	/// Set the global depth texture to an empty texture.
+	virtual void ResetGlobalDepthTexture() = 0;
 
 	virtual void MotionBlur() = 0;
 
