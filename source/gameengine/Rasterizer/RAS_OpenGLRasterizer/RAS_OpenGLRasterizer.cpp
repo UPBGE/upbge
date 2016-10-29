@@ -31,7 +31,6 @@
 
 
 #include <math.h>
-#include <stdlib.h>
 
 #include "RAS_OpenGLRasterizer.h"
 
@@ -77,6 +76,8 @@ extern "C" {
 #include "KX_RayCast.h"
 #include "KX_GameObject.h"
 // >>>
+
+#include "CM_Message.h"
 
 // WARNING: Always respect the order from RAS_IRasterizer::EnableBit.
 static int openGLEnableBitEnums[] = {

@@ -38,8 +38,9 @@
 #include "KX_ISceneConverter.h"
 #include "KX_IpoConvert.h"
 
+#include "CM_Message.h"
+
 #include <map>
-#include <iostream>
 
 using namespace std;
 
