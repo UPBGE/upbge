@@ -988,13 +988,10 @@ class TEXTURE_PT_game_mapping(TextureSlotPanel, Panel):
             split = layout.split()
 
             col = split.column()
-            if tex.texture_coords in {'ORCO', 'UV'}:
-                col.prop(tex, "use_parallax_uv", text = "Use Parallax UV")
 
             row = layout.row()
             row.column().prop(tex, "offset")
             row.column().prop(tex, "scale")
-
 
 class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
     bl_label = "Mapping"
@@ -1079,7 +1076,6 @@ class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
                 col = split.column()
                 if tex.texture_coords in {'ORCO', 'UV'}:
                     col.prop(tex, "use_from_dupli")
-                    col.prop(tex, "use_parallax_uv", text = "Use Parallax UV")
                     if (idblock.type == 'VOLUME' and tex.texture_coords == 'ORCO'):
                         col.prop(tex, "use_map_to_bounds")
                 elif tex.texture_coords == 'OBJECT':
@@ -1099,6 +1095,44 @@ class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
             row.column().prop(tex, "offset")
             row.column().prop(tex, "scale")
 
+class TEXTURE_PT_game_parallax(TextureSlotPanel, Panel):
+    bl_label = "Parallax"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        idblock = context_tex_datablock(context)
+        if isinstance(idblock, Brush) and not context.sculpt_object:
+            return False
+
+        if not getattr(context, "texture_slot", None):
+            return False
+
+        tex = context.texture_slot
+
+        engine = context.scene.render.engine
+        return (engine in cls.COMPAT_ENGINES and tex.texture_coords == 'UV')
+
+    def draw(self, context):
+        layout = self.layout
+
+        tex = context.texture_slot
+
+        split = layout.split()
+        col = split.column()
+        col.prop(tex, "use_map_parallax")
+        sub = col.column()
+        sub.active = not tex.use_map_parallax
+        sub.prop(tex, "use_parallax_uv")
+        sub = col.column()
+        sub.active = tex.use_map_parallax
+        sub.prop(tex, "parallax_uv_discard", text="Discard Edges")
+
+        col = split.column()
+        col.active = tex.use_map_parallax
+        col.prop(tex, "parallax_uv_shift", text="Height Scale")
+        col.prop(tex, "parallax_steps", text="Steps")
+        col.prop(tex, "parallax_bump_scale", text="Bump Scale")
 
 class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
     bl_label = "Influence"
@@ -1168,12 +1202,6 @@ class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
             sub_tmp = factor_but(col, "use_map_normal", "normal_factor", "Normal")
             sub_tmp.active = (tex.use_map_normal or tex.use_map_displacement)
             # END XXX
-
-            col.label(text = "Parallax:")
-            factor_but(col, "use_parallax_uv", "parallax_uv_shift", "Height Scale")
-            factor_but(col, "use_map_parallax", "parallax_steps", "Steps")
-            factor_but(col, "use_map_parallax", "parallax_bump_scale", "Bump Scale")
-            col.prop(tex, "parallax_uv_discard", text = "Discard Edges")
 
         elif isinstance(idblock, Lamp):
             split = layout.split()

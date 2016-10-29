@@ -1302,7 +1302,7 @@ static void do_material_tex(GPUShadeInput *shi)
 		if (ma->mtex[tex_nr]) {
 			mtex = ma->mtex[tex_nr];
 			tex = mtex->tex;
-			if (tex == NULL || !(mtex->texflag & MTEX_PARALLAX_UV) || mtex->texco != TEXCO_UV) {
+			if (tex == NULL || !((mtex->texflag & MTEX_PARALLAX_UV) || (mtex->mapto & MAP_PARALLAX)) || mtex->texco != TEXCO_UV) {
 				continue;
 			}
 			GPU_link(mat, "texco_uv", GPU_attribute(CD_MTFACE, mtex->uvname), &texco_uv);
@@ -1359,7 +1359,7 @@ static void do_material_tex(GPUShadeInput *shi)
 				continue;
 			
 			/*if parallax has modified uv*/
-			if (mtex->texflag & MTEX_PARALLAX_UV) {
+			if ((mtex->texflag & MTEX_PARALLAX_UV) || (mtex->mapto & MAP_PARALLAX)) {
 				if (parco) {
 					texco = parco;
 				}
