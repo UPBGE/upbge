@@ -175,9 +175,7 @@ bool RAS_OpenGLLight::HasShadowBuffer()
 
 bool RAS_OpenGLLight::NeedShadowUpdate()
 {
-	if (!m_staticShadow)
-		return true;
-	return m_requestShadowUpdate;
+	return m_requestShadowUpdate || !m_staticShadow;
 }
 
 int RAS_OpenGLLight::GetShadowBindCode()
