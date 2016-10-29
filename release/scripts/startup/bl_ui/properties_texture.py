@@ -1181,12 +1181,6 @@ class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
             factor_but(col, "use_map_color_spec", "specular_color_factor", "Color")
             factor_but(col, "use_map_hardness", "hardness_factor", "Hardness")
 
-            sub = col.column()
-            sub.active = (tex.texture_coords == "REFLECTION")
-            sub.label(text="Refraction:")
-            sub.prop(tex, "ior", text="IOR")
-            sub.prop(tex, "refraction_ratio", text="Ratio")
-
             col.label(text="Mipmapping:")
             col.prop(tex, "lod_bias")
 
@@ -1202,6 +1196,13 @@ class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
             sub_tmp = factor_but(col, "use_map_normal", "normal_factor", "Normal")
             sub_tmp.active = (tex.use_map_normal or tex.use_map_displacement)
             # END XXX
+
+            sub = col.column()
+            sub.active = (tex.texture_coords == "REFLECTION")
+            sub.label(text="Refraction:")
+            sub.prop(tex, "ior", text="IOR")
+            sub.prop(tex, "refraction_ratio", text="Ratio")
+            sub.separator()
 
         elif isinstance(idblock, Lamp):
             split = layout.split()
@@ -1226,8 +1227,10 @@ class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
             factor_but(col, "use_map_zenith_up", "zenith_up_factor", "Zenith Up")
             factor_but(col, "use_map_zenith_down", "zenith_down_factor", "Zenith Down")
 
+            split = layout.split()
             col = split.column()
             col.prop(tex, "lod_bias")
+            col = split.column()
 
         if isinstance(idblock, Material) or isinstance(idblock, World):
             col.prop(tex, "default_value", text="DVar", slider=True)
