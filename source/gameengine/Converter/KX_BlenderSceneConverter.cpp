@@ -843,14 +843,14 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		KX_Scene *scene = polymit->first;
 		std::vector<RAS_IPolyMaterial *> &polymatlist = polymit->second;
 
-		for (std::vector<RAS_IPolyMaterial *>::iterator it = polymatlist.begin(), end = polymatlist.end(); it != end;) {
+		for (std::vector<RAS_IPolyMaterial *>::iterator it = polymatlist.begin(); it != polymatlist.end();) {
 			RAS_IPolyMaterial *polymat = *it;
 			Material *bmat = polymat->GetBlenderMaterial();
 			if (IS_TAGGED(polymat->GetBlenderMaterial())) {
 				scene->GetBucketManager()->RemoveMaterial(polymat);
 				delete polymat;
 				m_polymat_cache[scene].erase(bmat);
-				polymatlist.erase(it++);
+				it = polymatlist.erase(it);
 			}
 			else {
 				++it;
@@ -865,14 +865,14 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		RAS_BucketManager::BucketList &buckets = scene->GetBucketManager()->GetBuckets();
 		std::vector<RAS_MeshObject *> &meshlist = meshit->second;
 
-		for (std::vector<RAS_MeshObject *>::iterator it = meshlist.begin(), end = meshlist.end(); it != end;) {
+		for (std::vector<RAS_MeshObject *>::iterator it = meshlist.begin(); it != meshlist.end();) {
 			RAS_MeshObject *mesh = *it;
 			if (IS_TAGGED(mesh->GetMesh())) {
 				for (RAS_BucketManager::BucketList::iterator bit = buckets.begin(), bend = buckets.end(); bit != bend; ++bit) {
 					(*bit)->RemoveMeshObject(mesh);
 				}
 				delete mesh;
-				meshlist.erase(it++);
+				it = meshlist.erase(it);
 			}
 			else {
 				++it;
