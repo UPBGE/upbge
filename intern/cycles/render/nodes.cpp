@@ -1257,6 +1257,7 @@ NODE_DEFINE(BrickTextureNode)
 	SOCKET_IN_COLOR(mortar, "Mortar", make_float3(0.0f, 0.0f, 0.0f));
 	SOCKET_IN_FLOAT(scale, "Scale", 5.0f);
 	SOCKET_IN_FLOAT(mortar_size, "Mortar Size", 0.02f);
+	SOCKET_IN_FLOAT(mortar_smooth, "Mortar Smooth", 0.0f);
 	SOCKET_IN_FLOAT(bias, "Bias", 0.0f);
 	SOCKET_IN_FLOAT(brick_width, "Brick Width", 0.5f);
 	SOCKET_IN_FLOAT(row_height, "Row Height", 0.25f);
@@ -1280,6 +1281,7 @@ void BrickTextureNode::compile(SVMCompiler& compiler)
 	ShaderInput *mortar_in = input("Mortar");
 	ShaderInput *scale_in = input("Scale");
 	ShaderInput *mortar_size_in = input("Mortar Size");
+	ShaderInput *mortar_smooth_in = input("Mortar Smooth");
 	ShaderInput *bias_in = input("Bias");
 	ShaderInput *brick_width_in = input("Brick Width");
 	ShaderInput *row_height_in = input("Row Height");
@@ -1303,7 +1305,8 @@ void BrickTextureNode::compile(SVMCompiler& compiler)
 		compiler.encode_uchar4(
 			compiler.stack_assign_if_linked(row_height_in),
 			compiler.stack_assign_if_linked(color_out),
-			compiler.stack_assign_if_linked(fac_out)));
+			compiler.stack_assign_if_linked(fac_out),
+			compiler.stack_assign_if_linked(mortar_smooth_in)));
 			
 	compiler.add_node(compiler.encode_uchar4(offset_frequency, squash_frequency),
 		__float_as_int(scale),
@@ -1314,6 +1317,11 @@ void BrickTextureNode::compile(SVMCompiler& compiler)
 		__float_as_int(row_height),
 		__float_as_int(offset),
 		__float_as_int(squash));
+
+	compiler.add_node(__float_as_int(mortar_smooth),
+		SVM_STACK_INVALID,
+		SVM_STACK_INVALID,
+		SVM_STACK_INVALID);
 
 	tex_mapping.compile_end(compiler, vector_in, vector_offset);
 }
@@ -2378,8 +2386,9 @@ void EmissionNode::constant_fold(const ConstantFolder& folder)
 	ShaderInput *color_in = input("Color");
 	ShaderInput *strength_in = input("Strength");
 
-	if ((!color_in->link && color == make_float3(0.0f, 0.0f, 0.0f)) ||
-	    (!strength_in->link && strength == 0.0f)) {
+	if((!color_in->link && color == make_float3(0.0f, 0.0f, 0.0f)) ||
+	   (!strength_in->link && strength == 0.0f))
+	{
 		folder.discard();
 	}
 }
@@ -2430,8 +2439,9 @@ void BackgroundNode::constant_fold(const ConstantFolder& folder)
 	ShaderInput *color_in = input("Color");
 	ShaderInput *strength_in = input("Strength");
 
-	if ((!color_in->link && color == make_float3(0.0f, 0.0f, 0.0f)) ||
-	    (!strength_in->link && strength == 0.0f)) {
+	if((!color_in->link && color == make_float3(0.0f, 0.0f, 0.0f)) ||
+	   (!strength_in->link && strength == 0.0f))
+	{
 		folder.discard();
 	}
 }
@@ -4864,8 +4874,9 @@ void CurvesNode::constant_fold(const ConstantFolder& folder, ShaderInput *value_
 
 	/* evaluate fully constant node */
 	if(folder.all_inputs_constant()) {
-		if (curves.size() == 0)
+		if(curves.size() == 0) {
 			return;
+		}
 
 		float3 pos = (value - make_float3(min_x, min_x, min_x)) / (max_x - min_x);
 		float3 result;
@@ -5140,7 +5151,7 @@ OSLNode* OSLNode::create(size_t num_inputs, const OSLNode *from)
 	char *node_memory = (char*) operator new(node_size + inputs_size);
 	memset(node_memory, 0, node_size + inputs_size);
 
-	if (!from) {
+	if(!from) {
 		return new(node_memory) OSLNode();
 	}
 	else {

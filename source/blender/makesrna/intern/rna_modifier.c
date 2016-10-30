@@ -1131,6 +1131,21 @@ static int rna_CorrectiveSmoothModifier_is_bind_get(PointerRNA *ptr)
 	return (csmd->bind_coords != NULL);
 }
 
+static void rna_MeshSequenceCache_object_path_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+#ifdef WITH_ALEMBIC
+	MeshSeqCacheModifierData *mcmd = (MeshSeqCacheModifierData *)ptr->data;
+	Object *ob = (Object *)ptr->id.data;
+
+	mcmd->reader = CacheReader_open_alembic_object(mcmd->cache_file->handle,
+	                                               mcmd->reader,
+	                                               ob,
+	                                               mcmd->object_path);
+#endif
+
+	rna_Modifier_update(bmain, scene, ptr);
+}
+
 #else
 
 static PropertyRNA *rna_def_property_subdivision_common(StructRNA *srna, const char type[])
@@ -2100,6 +2115,12 @@ static void rna_def_modifier_displace(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_space_items[] = {
+		{MOD_DISP_SPACE_LOCAL, "LOCAL", 0, "Local", "Direction is defined in local coordinates"},
+		{MOD_DISP_SPACE_GLOBAL, "GLOBAL", 0, "Global", "Direction is defined in global coordinates"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "DisplaceModifier", "Modifier");
 	RNA_def_struct_ui_text(srna, "Displace Modifier", "Displacement modifier");
 	RNA_def_struct_sdna(srna, "DisplaceModifierData");
@@ -2129,6 +2150,11 @@ static void rna_def_modifier_displace(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, prop_direction_items);
 	RNA_def_property_ui_text(prop, "Direction", "");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "space", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, prop_space_items);
+	RNA_def_property_ui_text(prop, "Space", "");
+	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
 
 	rna_def_modifier_generic_map_info(srna);
 }
@@ -4246,7 +4272,7 @@ static void rna_def_modifier_meshseqcache(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "object_path", PROP_STRING, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Object Path", "Path to the object in the Alembic archive used to lookup geometric data");
-	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+	RNA_def_property_update(prop, 0, "rna_MeshSequenceCache_object_path_update");
 
 	static EnumPropertyItem read_flag_items[] = {
 		{MOD_MESHSEQ_READ_VERT,  "VERT", 0, "Vertex", ""},

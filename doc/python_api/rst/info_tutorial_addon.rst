@@ -121,14 +121,8 @@ Add the following script to the text editor in Blender.
        obj.location.x += 1.0
 
 
-.. image:: run_script.png
-   :width: 924px
-   :align: center
-   :height: 574px
-   :alt: Run Script button
-
-Click the Run Script button, all objects in the active scene are moved by 1.0 Blender unit.
-Next we will make this script into an add-on.
+Click the :ref:`Run Script button <blender_manual:editors-text-run-script>`,
+all objects in the active scene are moved by 1.0 Blender unit.
 
 
 Write the Add-on (Simple)
@@ -238,7 +232,7 @@ if you want it to be enabled on restart, press *Save as Default*.
       print(addon_utils.paths())
 
    More is written on this topic here:
-   `Directory Layout <https://www.blender.org/manual/getting_started/installing_blender/directorylayout.html>`_
+   :ref:`Directory Layout <blender_manual:getting-started_installing-config-directories>`.
 
 
 Your Second Add-on
@@ -636,6 +630,6 @@ Here are some sites you might like to check on after completing this tutorial.
   *Great info for those who are still learning Python.*
 - `Blender Development (Wiki) <https://wiki.blender.org/index.php/Dev:Contents>`_ -
   *Blender Development, general information and helpful links.*
-- `Blender Artists (Coding Section) <http://blenderartists.org/forum/forumdisplay.php?47-Coding>`_ -
+- `Blender Artists (Coding Section) <https://blenderartists.org/forum/forumdisplay.php?47-Coding>`_ -
   *forum where people ask Python development questions*
 

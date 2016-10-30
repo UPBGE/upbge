@@ -1393,7 +1393,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
-	if (!MAIN_VERSION_ATLEAST(main, 279, 0)) {
+	if (!MAIN_VERSION_ATLEAST(main, 278, 2)) {
 		if (!DNA_struct_elem_find(fd->filesdna, "FFMpegCodecData", "int", "ffmpeg_preset")) {
 			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
 				/* "medium" is the preset FFmpeg uses when no presets are given. */
@@ -1420,6 +1420,20 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 							smd->domain->slice_depth = 0.5f;
 							smd->domain->display_thickness = 1.0f;
 						}
+					}
+				}
+			}
+		}
+	}
+
+	{
+		for (Scene *scene = main->scene.first; scene != NULL; scene = scene->id.next) {
+			if (scene->toolsettings != NULL) {
+				ToolSettings *ts = scene->toolsettings;
+				ParticleEditSettings *pset = &ts->particle;
+				for (int a = 0; a < PE_TOT_BRUSH; a++) {
+					if (pset->brush[a].count == 0) {
+						pset->brush[a].count = 10;
 					}
 				}
 			}
