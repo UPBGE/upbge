@@ -33,6 +33,8 @@
 #  include <SDL.h>
 #endif
 
+#include <cmath>
+
 #include "DEV_Joystick.h"
 #include "DEV_JoystickPrivate.h"
 #include "DEV_JoystickMappingdb.h"
@@ -170,7 +172,7 @@ bool DEV_Joystick::aAxisPairDirectionIsPositive(int axis, int dir)
 
 bool DEV_Joystick::aAxisIsPositive(int axis_single)
 {
-	return abs(m_axis_array[axis_single]) > m_prec ? true:false;
+	return std::abs(m_axis_array[axis_single]) > m_prec ? true:false;
 }
 
 bool DEV_Joystick::aAnyButtonPressIsPositive(void)
