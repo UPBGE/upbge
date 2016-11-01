@@ -3781,32 +3781,68 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler
 	vec3 binormal = cross(-vn, tangent.xyz) * tangent.w;
 	vec3 vvec = vec3(dot(tangent.xyz, vp), dot(binormal, vp), dot(-vn, vp));
 	vec3 vv = normalize(vvec);
-	float height = texture2D(ima, parallax_scale(texco.xy, size.xy)).a;
-	vec2 texuv = texco.xy + height * scale * 0.005;
-	float h = 1.0;
-	float numeyesteps = mix(numsteps * 2.0, numsteps, vv.z);
-	float step = 1.0 / numeyesteps;
-	vec2 delta = vec2(-vv.x, vv.y) * bumpscale / (vv.z * numeyesteps);
-	for (int i = 0; i < numeyesteps; ++i) {
-		if (height < h) {
-			h -= step;
-			texuv -= delta;
-			height = texture2D(ima, parallax_scale(texuv, size.xy)).a;
+
+	// The uv shift per depth step.
+	vec2 delta = vec2(-vv.x, vv.y) * bumpscale / vv.z;
+
+	float height = 0.0;
+
+	// The depth to start from, top to bottom.
+	float depth = 1.0;
+	float depthstep = 1.0 / numsteps;
+
+	/* Uv is computed with the current depth value using the formula:
+	 * uv = original_uv * delta_uv * (1.0 - depth)
+	 */
+
+	// Linear sample from top.
+	for (int i = 0; i < numsteps; ++i) {
+		height = texture2D(ima, parallax_scale(texco.xy - delta * (1.0 - depth), size.xy)).a;
+		// Stop if the texture height is greater than current depth.
+		if (height > depth) {
+			break;
 		}
+
+		depth -= depthstep;
 	}
 
-	vec2 pretexuv = texuv + delta;
-	float postheight  = height - h;
-	float preheight = texture2D(ima, parallax_scale(pretexuv, size.xy)).a - h - step;
-	float weight = postheight / (postheight - preheight);
+	vec2 texuv = texco.xy - delta * (1.0 - depth);
 
-	vec2 finaltexuv = mix(texuv, pretexuv, weight);
+	/* Interpolation.
+	 * Compare the distance of the height texture with current level and previous level.
+	 */
 
-	if ((discarduv == 1.0) && (finaltexuv.x < 0.0 || finaltexuv.x > 1.0 || finaltexuv.y < 0.0 || finaltexuv.y > 1.0)) {
+	// Compute the depth before the last step, reverse operation.
+	float depthprelay = depth + depthstep;
+	// Compute the uv with the pre depth.
+	vec2 texuvprelay = texco.xy - delta * (1.0 - depthprelay);
+
+	// The shift between the texture height and the last depth.
+	float depthshiftcurlay = height - depth;
+	// The shift between the texture height with precedent uv computed with pre detph and the pre depth.
+	float depthshiftprelay = texture2D(ima, parallax_scale(texuvprelay, size.xy)).a - depthprelay;
+
+	float weight = 1.0;
+	// If the height is right in the middle of two step the difference of the two shifts will be null.
+	if ((depthshiftcurlay - depthshiftprelay) > 0.0) {
+		// Get shift ratio.
+		weight = depthshiftcurlay / (depthshiftcurlay - depthshiftprelay);
+	}
+
+	vec2 finaltexuv = mix(texuv, texuvprelay, weight);
+
+	// Discard if uv is out of the range 0 to 1.
+	const vec2 clampmin = vec2(0.0);
+	const vec2 clampmax = vec2(1.0);
+
+	if ((discarduv == 1.0) &&
+		(finaltexuv.x < clampmin.x || finaltexuv.x > clampmax.x ||
+		finaltexuv.y < clampmin.y || finaltexuv.y > clampmax.y))
+	{
 		discard;
 	}
 
-	ptexcoord = vec3(finaltexuv, 0.0);
+	ptexcoord = vec3(finaltexuv, texco.z);
 }
 
 /* ********************** matcap style render ******************** */
