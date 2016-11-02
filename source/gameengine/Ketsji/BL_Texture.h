@@ -28,6 +28,11 @@
 #include "RAS_Texture.h"
 #include "EXP_Value.h"
 
+#ifdef USE_MATHUTILS
+/// Setup mathutils callbacks.
+void BL_Texture_Mathutils_Callback_Init();
+#endif
+
 class BL_Texture : public CValue, public RAS_Texture
 {
 	Py_Header
@@ -52,6 +57,9 @@ private:
 		float lodbias;
 		float ior;
 		float ratio;
+		float uvrot;
+		float uvoffset[3];
+		float uvsize[3];
 	} m_savedData;
 
 public:
@@ -112,6 +120,12 @@ public:
 	static int pyattr_set_ior(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_refraction_ratio(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_refraction_ratio(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_uv_rotation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_uv_rotation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_uv_offset(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_uv_offset(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_uv_size(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_uv_size(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 #endif  // WITH_PYTHON
 };

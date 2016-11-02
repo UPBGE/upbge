@@ -104,3 +104,21 @@ base class --- :class:`CValue`
       Amount refraction mixed with reflection.
 
       :type: float (0.0 to 1.0)
+
+   .. attribute:: uvOffset
+
+      Offset applied to texture UV coordinates (mainly translation on U and V axis).
+
+      :type: :class:`mathutils.Vector`
+
+   .. attribute:: uvSize
+
+      Scale applied to texture UV coordinates.
+
+      :type: :class:`mathutils.Vector`
+
+   .. attribute:: uvRotation
+
+      Rotation applied to texture UV coordinates.
+
+      :type: float (radians)

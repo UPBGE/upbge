@@ -303,6 +303,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 	KX_WorldInfo_Mathutils_Callback_Init();
 	KX_BlenderMaterial_Mathutils_Callback_Init();
 	KX_BoundingBox_Mathutils_Callback_Init();
+	BL_Texture_Mathutils_Callback_Init();
 #endif
 
 	return m;

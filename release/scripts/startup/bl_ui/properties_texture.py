@@ -992,6 +992,8 @@ class TEXTURE_PT_game_mapping(TextureSlotPanel, Panel):
             row = layout.row()
             row.column().prop(tex, "offset")
             row.column().prop(tex, "scale")
+            row = layout.row()
+            row.prop(tex, "rotation")
 
 class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
     bl_label = "Mapping"

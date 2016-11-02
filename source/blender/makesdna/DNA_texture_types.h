@@ -66,7 +66,8 @@ typedef struct MTex {
 	char pad[2];
 	float ofs[3], size[3], rot, random_angle;
 
-	short texflag, colormodel, pmapto, pmaptoneg;
+	int texflag;
+	short pad2, colormodel, pmapto, pmaptoneg;
 	short normapspace, which_output;
 	float r, g, b, k;
 	float def_var, rt;
@@ -88,7 +89,6 @@ typedef struct MTex {
 	float timefac, lengthfac, clumpfac, dampfac;
 	float kinkfac, kinkampfac, roughfac, padensfac, gravityfac;
 	float lifefac, sizefac, ivelfac, fieldfac;
-	int pad2;
 
 	/* lamp */
 	float shadowfac;
@@ -510,7 +510,6 @@ typedef struct ColorMapping {
 #define MTEX_TIPS				4096  /* should use with_freestyle flag?  */
 #define MTEX_BICUBIC_BUMP		8192
 #define MTEX_MAPTO_BOUNDS		16384
-
 #define MTEX_PARALLAX_UV		32768 // texflag
 #define MTEX_DISCARD_AT_EDGES	1     // parflag
 

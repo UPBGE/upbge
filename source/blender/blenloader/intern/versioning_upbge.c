@@ -84,7 +84,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 6)) {
 		if (!DNA_struct_elem_find(fd->filesdna, "Material", "short", "constflag")) {
 			for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
-				ma->constflag |= MA_CONSTANT_TEXTURE;
+				ma->constflag |= MA_CONSTANT_TEXTURE | MA_CONSTANT_TEXTURE_UV;
 			}
 		}
 	}

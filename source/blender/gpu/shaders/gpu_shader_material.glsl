@@ -481,6 +481,13 @@ void normal_new_shading(vec3 dir, vec3 nor, out vec3 outnor, out float outdot)
 	outdot = dot(normalize(dir), nor);
 }
 
+void mat_math_rot(float drot, out mat3 mat)
+{
+	mat = mat3(cos(drot), -sin(drot), 0.0,
+			   sin(drot), cos(drot), 0.0,
+			   0.0, 0.0, 1.0);
+}
+
 void curves_vec(float fac, vec3 vec, sampler2D curvemap, out vec3 outvec)
 {
 	outvec.x = texture2D(curvemap, vec2((vec.x + 1.0) * 0.5, 0.0)).x;
@@ -1367,6 +1374,11 @@ void mtex_mapping_ofs(vec3 texco, vec3 ofs, out vec3 outtexco)
 void mtex_mapping_size(vec3 texco, vec3 size, out vec3 outtexco)
 {
 	outtexco = size * texco;
+}
+
+void mtex_mapping_transform(vec3 texco, mat3 mat, vec3 ofs, vec3 size, out vec3 outtexco)
+{
+	outtexco = (texco - vec3(0.5)) * mat * size + vec3(0.5) + ofs;
 }
 
 void mtex_2d_mapping(vec3 vec, out vec3 outvec)
@@ -3776,14 +3788,15 @@ vec2 parallax_scale(vec2 texuv, vec2 size)
 	return (texuv * size) + (vec2(1.0) - size) / 2.0;
 }
 
-void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler2D ima, float scale, float numsteps, float bumpscale, float discarduv, out vec3 ptexcoord)
+void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, mat3 mat, sampler2D ima, float scale, float numsteps,
+				  float bumpscale, float discarduv, out vec3 ptexcoord)
 {
 	vec3 binormal = cross(-vn, tangent.xyz) * tangent.w;
 	vec3 vvec = vec3(dot(tangent.xyz, vp), dot(binormal, vp), dot(-vn, vp));
 	vec3 vv = normalize(vvec);
 
-	// The uv shift per depth step.
-	vec2 delta = vec2(-vv.x, vv.y) * bumpscale / vv.z;
+	// The uv shift per depth step, multitply by rotation and after size.
+	vec2 delta = (vec3(-vv.x, vv.y, 0.0) * mat * size * bumpscale / vv.z).xy;
 
 	float height = 0.0;
 
@@ -3797,7 +3810,7 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler
 
 	// Linear sample from top.
 	for (int i = 0; i < numsteps; ++i) {
-		height = texture2D(ima, parallax_scale(texco.xy - delta * (1.0 - depth), size.xy)).a;
+		height = texture2D(ima, texco.xy - delta * (1.0 - depth)).a;
 		// Stop if the texture height is greater than current depth.
 		if (height > depth) {
 			break;
@@ -3820,7 +3833,7 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, sampler
 	// The shift between the texture height and the last depth.
 	float depthshiftcurlay = height - depth;
 	// The shift between the texture height with precedent uv computed with pre detph and the pre depth.
-	float depthshiftprelay = texture2D(ima, parallax_scale(texuvprelay, size.xy)).a - depthprelay;
+	float depthshiftprelay = texture2D(ima, texuvprelay).a - depthprelay;
 
 	float weight = 1.0;
 	// If the height is right in the middle of two step the difference of the two shifts will be null.

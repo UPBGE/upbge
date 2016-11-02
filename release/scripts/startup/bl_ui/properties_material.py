@@ -681,6 +681,7 @@ class MATERIAL_PT_game_settings(MaterialButtonsPanel, Panel):
         col.prop(mat, "use_constant_material")
         col.prop(mat, "use_constant_lamp")
         col.prop(mat, "use_constant_texture")
+        col.prop(mat, "use_constant_texture_uv")
         col.prop(mat, "use_constant_world")
         col.prop(mat, "use_constant_mist")
 

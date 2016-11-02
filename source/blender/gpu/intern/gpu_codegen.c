@@ -1459,6 +1459,9 @@ GPUNodeLink *GPU_select_uniform(float *num, GPUDynamicType dynamictype, void *da
 	else if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_TEX) {
 		dynamic = !(material->constflag & MA_CONSTANT_TEXTURE);
 	}
+	else if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_TEX_UV) {
+		dynamic = !(material->constflag & MA_CONSTANT_TEXTURE_UV);
+	}
 	else if (GPU_DYNAMIC_GROUP_FROM_TYPE(dynamictype) == GPU_DYNAMIC_GROUP_WORLD) {
 		dynamic = !(material->constflag & MA_CONSTANT_WORLD);
 	}
