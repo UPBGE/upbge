@@ -90,7 +90,7 @@ bool RAS_IPolyMaterial::IsText() const
 
 bool RAS_IPolyMaterial::IsCullFace() const
 {
-	return !(m_rasMode & RAS_TWOSIDED);
+	return !(m_rasMode & (RAS_TWOSIDED | RAS_WIRE));
 }
 
 void RAS_IPolyMaterial::GetRGBAColor(unsigned char *rgba) const
@@ -119,6 +119,11 @@ bool RAS_IPolyMaterial::IsZSort() const
 int RAS_IPolyMaterial::GetDrawingMode() const
 {
 	return m_drawingmode;
+}
+
+int RAS_IPolyMaterial::GetAlphaBlend() const
+{
+	return m_alphablend;
 }
 
 std::string RAS_IPolyMaterial::GetName()

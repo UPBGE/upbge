@@ -46,6 +46,7 @@ public:
 	void Unbind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode);
 	void Draw();
 	void DrawInstancing(unsigned int numinstance);
+	void DrawBatching(const std::vector<void *>& indices, const std::vector<int>& counts);
 
 	/// Updating the VBO using the display array vertices.
 	void UpdateData();
@@ -90,6 +91,7 @@ public:
 	void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	void IndexPrimitives(RAS_MeshSlot *ms);
 	void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket);
+	void IndexPrimitivesBatching(RAS_DisplayArrayBucket *arrayBucket, const std::vector<void *>& indices, const std::vector<int>& counts);
 
 	void SetDrawingMode(RAS_IRasterizer::DrawType drawingmode)
 	{

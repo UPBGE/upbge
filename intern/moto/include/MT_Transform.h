@@ -57,6 +57,8 @@
 #include "MT_Vector3.h"
 #include "MT_Matrix3x3.h"
 
+class MT_Matrix4x4;
+
 class MT_Transform {
 public:
 	explicit MT_Transform() {}
@@ -98,7 +100,9 @@ public:
     MT_Vector3&            getOrigin()         { return m_origin; }
     const MT_Vector3&      getOrigin()   const { return m_origin; }
     MT_Quaternion         getRotation() const { return m_basis.getRotation(); }
-    
+
+	MT_Matrix4x4 toMatrix() const;
+
     void setValue(const float *m);
     void setValue(const double *m);
 

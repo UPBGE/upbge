@@ -49,13 +49,20 @@ set(INC_SYS
 )
 
 set(SRC
+	RAS_2DFilter.cpp
+	RAS_2DFilterData.cpp
 	RAS_2DFilterManager.cpp
+	RAS_BatchGroup.cpp
 	RAS_BucketManager.cpp
 	RAS_CubeMap.cpp
 	RAS_DisplayArrayBucket.cpp
 	RAS_FramingManager.cpp
-	RAS_IPolygonMaterial.cpp
+	RAS_ICanvas.cpp
+	RAS_IDisplayArray.cpp
+	RAS_IBatchDisplayArray.cpp
 	RAS_InstancingBuffer.cpp
+	RAS_IPolygonMaterial.cpp
+	RAS_ITexVert.cpp
 	RAS_MaterialBucket.cpp
 	RAS_BoundingBox.cpp
 	RAS_BoundingBoxManager.cpp
@@ -66,24 +73,22 @@ set(SRC
 	RAS_Shader.cpp
 	RAS_Texture.cpp
 	RAS_TextUser.cpp
-	RAS_ICanvas.cpp
-	RAS_IDisplayArray.cpp
-	RAS_ITexVert.cpp
-	RAS_2DFilterData.cpp
-	RAS_2DFilter.cpp
  
 	RAS_2DFilterData.h
 	RAS_2DFilter.h
 	RAS_2DFilterManager.h
+	RAS_BatchGroup.h
 	RAS_BucketManager.h
 	RAS_CameraData.h
 	RAS_CubeMap.h
 	RAS_Deformer.h
 	RAS_DisplayArray.h
+	RAS_BatchDisplayArray.h
 	RAS_DisplayArrayBucket.h
 	RAS_FramingManager.h
 	RAS_ICanvas.h
 	RAS_IDisplayArray.h
+	RAS_IBatchDisplayArray.h
 	RAS_IPolygonMaterial.h
 	RAS_IRasterizer.h
 	RAS_IStorageInfo.h

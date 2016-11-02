@@ -284,17 +284,6 @@ void KX_BlenderMaterial::SetBlenderShaderData(RAS_IRasterizer *ras)
 void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 {
 	SetShaderData(rasty);
-
-	if (IsWire()) {
-		rasty->SetCullFace(false);
-	}
-	else if (IsCullFace()) {
-		rasty->SetCullFace(true);
-	}
-	else {
-		rasty->SetCullFace(false);
-	}
-
 	ActivateGLMaterials(rasty);
 	ActivateTexGen(rasty);
 }
@@ -302,17 +291,6 @@ void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
 void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
 {
 	SetBlenderShaderData(rasty);
-
-	if (IsWire()) {
-		rasty->SetCullFace(false);
-	}
-	else if (IsCullFace()) {
-		rasty->SetCullFace(true);
-	}
-	else {
-		rasty->SetCullFace(false);
-	}
-
 	ActivateGLMaterials(rasty);
 	m_blenderShader->SetAttribs(rasty);
 }
@@ -362,11 +340,6 @@ void KX_BlenderMaterial::ActivateInstancing(RAS_IRasterizer *rasty, void *matrix
 	if (m_blenderShader) {
 		m_blenderShader->ActivateInstancing(matrixoffset, positionoffset, coloroffset, stride);
 	}
-
-	/* Because the geometry instancing use setting for all instances we use the original alpha blend.
-	 * This requierd that the user use "alpha blend" mode if he will use mutate object color alpha.
-	 */
-	rasty->SetAlphaBlend(m_alphablend);
 }
 
 void KX_BlenderMaterial::DesactivateInstancing()

@@ -116,6 +116,7 @@ public:
 	bool IsText() const;
 	bool IsCullFace() const;
 	int GetDrawingMode() const;
+	int GetAlphaBlend() const;
 	virtual std::string GetName();
 	unsigned int GetFlag() const;
 	bool IsAlphaShadow() const;

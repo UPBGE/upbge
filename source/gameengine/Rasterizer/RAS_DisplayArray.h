@@ -29,16 +29,21 @@
 
 #include "RAS_IDisplayArray.h"
 
+template <class Vertex>
+class RAS_BatchDisplayArray;
+
 /// An array with data used for OpenGL drawing
 template <class Vertex>
-class RAS_DisplayArray : public RAS_IDisplayArray
+class RAS_DisplayArray : public virtual RAS_IDisplayArray
 {
-private:
+friend class RAS_BatchDisplayArray<Vertex>;
+
+protected:
 	std::vector<Vertex> m_vertexes;
 
 public:
-	RAS_DisplayArray(PrimitiveType type)
-		:RAS_IDisplayArray(type)
+	RAS_DisplayArray(PrimitiveType type, const RAS_TexVertFormat& format)
+		:RAS_IDisplayArray(type, format)
 	{
 	}
 

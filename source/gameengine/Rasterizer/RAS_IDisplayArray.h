@@ -38,11 +38,18 @@ public:
 		LINES,
 	};
 
+	enum Type {
+		NORMAL,
+		BATCHING
+	};
+
 protected:
 	/// The display array primitive type.
 	PrimitiveType m_type;
 	/// Modification flag.
 	unsigned short m_modifiedFlag;
+	/// The vertex format used.
+	RAS_TexVertFormat m_format;
 
 	/// The vertex infos unused for rendering, e.g original or soft body index, flag.
 	std::vector<RAS_TexVertInfo> m_vertexInfos;
@@ -52,12 +59,12 @@ protected:
 	std::vector<unsigned int> m_indices;
 
 public:
-	RAS_IDisplayArray(PrimitiveType type);
+	RAS_IDisplayArray(PrimitiveType type, const RAS_TexVertFormat& format);
 	virtual ~RAS_IDisplayArray();
 
 	virtual RAS_IDisplayArray *GetReplica() = 0;
 
-	/** Construct the display array coresponding of the vertex of the given format.
+	/** Construct the display array corresponding of the vertex of the given format.
 	 * \param type The type of primitives, one of the enumeration PrimitiveType.
 	 * \param format The format of vertex to use.
 	 */
@@ -144,6 +151,9 @@ public:
 	/// Copy vertex pointers to the cache list m_vertexPtrs.
 	virtual void UpdateCache() = 0;
 
+	/// Return the primitive type used for indices.
+	PrimitiveType GetPrimitiveType() const;
+	/// Return the primitive type used for indices in OpenGL value.
 	int GetOpenGLPrimitiveType() const;
 
 	/// Modification categories.
@@ -167,6 +177,12 @@ public:
 	void AppendModifiedFlag(unsigned short flag);
 	/// Set the display array modified flag.
 	void SetModifiedFlag(unsigned short flag);
+
+	/// Return the vertex format used.
+	const RAS_TexVertFormat& GetFormat() const;
+
+	/// Return the type of the display array.
+	virtual Type GetType() const;
 };
 
 typedef std::vector<RAS_IDisplayArray *> RAS_IDisplayArrayList;

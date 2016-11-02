@@ -55,7 +55,8 @@ RAS_MeshSlot::RAS_MeshSlot()
 	m_mesh(NULL),
 	m_pDeformer(NULL),
 	m_pDerivedMesh(NULL),
-	m_meshUser(NULL)
+	m_meshUser(NULL),
+	m_batchPartIndex(-1)
 {
 }
 
@@ -76,6 +77,7 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 	m_pDeformer = NULL;
 	m_pDerivedMesh = NULL;
 	m_meshUser = NULL;
+	m_batchPartIndex = -1;
 	m_mesh = slot.m_mesh;
 	m_meshMaterial = slot.m_meshMaterial;
 	m_bucket = slot.m_bucket;
@@ -165,6 +167,16 @@ void RAS_MeshSlot::SetMeshUser(RAS_MeshUser *user)
 	m_meshUser = user;
 }
 
+void RAS_MeshSlot::SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket)
+{
+	if (m_displayArrayBucket) {
+		m_displayArrayBucket->Release();
+	}
+
+	m_displayArrayBucket = arrayBucket;
+	m_displayArray = m_displayArrayBucket->GetDisplayArray();
+}
+
 void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode *root, RAS_UpwardTreeLeafs *leafs)
 {
 	m_node.SetParent(root);
@@ -179,11 +191,7 @@ void RAS_MeshSlot::RunNode(const RAS_RenderNodeArguments& args)
 
 	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
 
-	if (args.m_shaderOverride) {
-		// Set cull face without activating the material.
-		rasty->SetCullFace(material->IsCullFace());
-	}
-	else {
+	if (!args.m_shaderOverride) {
 		bool uselights = material->UsesLighting(rasty);
 		rasty->ProcessLighting(uselights, args.m_trans);
 		material->ActivateMeshSlot(this, rasty);

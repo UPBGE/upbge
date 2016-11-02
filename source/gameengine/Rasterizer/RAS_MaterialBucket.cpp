@@ -194,6 +194,7 @@ void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode *downwardRoot, RAS
 
 void RAS_MaterialBucket::BindNode(const RAS_RenderNodeArguments& args)
 {
+	args.m_rasty->SetCullFace(m_material->IsCullFace());
 	if (!args.m_shaderOverride) {
 		ActivateMaterial(args.m_rasty);
 	}

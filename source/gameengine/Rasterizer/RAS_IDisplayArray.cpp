@@ -29,9 +29,10 @@
 
 #include "glew-mx.h"
 
-RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type)
+RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_TexVertFormat& format)
 	:m_type(type),
-	m_modifiedFlag(NONE_MODIFIED)
+	m_modifiedFlag(NONE_MODIFIED),
+	m_format(format)
 {
 }
 
@@ -41,7 +42,7 @@ RAS_IDisplayArray::~RAS_IDisplayArray()
 
 #define NEW_DISPLAY_ARRAY_UV(vertformat, uv, color, primtype) \
 	if (vertformat.uvSize == uv && vertformat.colorSize == color) { \
-		return new RAS_DisplayArray<RAS_TexVert<uv, color> >(primtype); \
+		return new RAS_DisplayArray<RAS_TexVert<uv, color> >(primtype, vertformat); \
 	}
 
 #define NEW_DISPLAY_ARRAY_COLOR(vertformat, color, primtype) \
@@ -69,6 +70,11 @@ RAS_IDisplayArray *RAS_IDisplayArray::ConstructArray(RAS_IDisplayArray::Primitiv
 }
 #undef NEW_DISPLAY_ARRAY_UV
 #undef NEW_DISPLAY_ARRAY_COLOR
+
+RAS_IDisplayArray::PrimitiveType RAS_IDisplayArray::GetPrimitiveType() const
+{
+	return m_type;
+}
 
 int RAS_IDisplayArray::GetOpenGLPrimitiveType() const
 {
@@ -133,4 +139,14 @@ void RAS_IDisplayArray::AppendModifiedFlag(unsigned short flag)
 void RAS_IDisplayArray::SetModifiedFlag(unsigned short flag)
 {
 	m_modifiedFlag = flag;
+}
+
+const RAS_TexVertFormat& RAS_IDisplayArray::GetFormat() const
+{
+	return m_format;
+}
+
+RAS_IDisplayArray::Type RAS_IDisplayArray::GetType() const
+{
+	return NORMAL;
 }

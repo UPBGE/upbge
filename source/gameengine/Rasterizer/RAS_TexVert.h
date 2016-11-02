@@ -32,13 +32,6 @@
 template <class Vertex>
 class RAS_DisplayArray;
 
-// Struct used to pass the vertex format to functions.
-struct RAS_TexVertFormat
-{
-	unsigned int uvSize;
-	unsigned int colorSize;
-};
-
 template <unsigned int uvSize, unsigned int colorSize>
 class RAS_TexVert : public RAS_ITexVert
 {

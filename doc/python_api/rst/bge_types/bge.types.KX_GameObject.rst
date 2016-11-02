@@ -422,6 +422,12 @@ base class --- :class:`SCA_IObject`
 
          Changes to this list will not update the KX_GameObject.
 
+   .. attribute:: batchGroup
+
+      The object batch group containing the batched mesh.
+
+      :type: :class:`KX_BatchGroup`
+
    .. attribute:: sensors
 
       a sequence of :class:`SCA_ISensor` objects with string/index lookups and iterator support.

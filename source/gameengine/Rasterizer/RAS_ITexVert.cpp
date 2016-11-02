@@ -31,6 +31,16 @@
 
 #include "RAS_ITexVert.h"
 
+bool operator== (const RAS_TexVertFormat& format1, const RAS_TexVertFormat& format2)
+{
+	return (format1.uvSize == format2.uvSize && format1.colorSize == format2.colorSize);
+}
+
+bool operator!= (const RAS_TexVertFormat& format1, const RAS_TexVertFormat& format2)
+{
+	return !(format1 == format2);
+}
+
 RAS_TexVertInfo::RAS_TexVertInfo(unsigned int origindex, bool flat)
 	:m_origindex(origindex),
 	m_softBodyIndex(-1)

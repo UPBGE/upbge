@@ -38,6 +38,17 @@
 
 #include "BLI_math.h"
 
+/// Struct used to pass the vertex format to functions.
+struct RAS_TexVertFormat
+{
+	unsigned int uvSize;
+	unsigned int colorSize;
+};
+
+/// Operators used to compare the contents (uv size, color size, ...) of two vertex formats.
+bool operator== (const RAS_TexVertFormat& format1, const RAS_TexVertFormat& format2);
+bool operator!= (const RAS_TexVertFormat& format1, const RAS_TexVertFormat& format2);
+
 class RAS_TexVertInfo
 {
 public:
