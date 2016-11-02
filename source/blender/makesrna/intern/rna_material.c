@@ -1830,6 +1830,11 @@ void RNA_def_material(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Texture", "Use constant values for textures");
 	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
+	prop = RNA_def_property(srna, "use_constant_texture_uv", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_TEXTURE_UV);
+	RNA_def_property_ui_text(prop, "Texture Uv", "Use constant values for textures uv transformation");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
 	prop = RNA_def_property(srna, "use_constant_world", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "constflag", MA_CONSTANT_WORLD);
 	RNA_def_property_ui_text(prop, "World", "Use constant values for world");

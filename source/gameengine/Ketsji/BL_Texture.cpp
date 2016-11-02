@@ -30,6 +30,10 @@
 #include "GPU_texture.h"
 #include "GPU_draw.h"
 
+#include "KX_PyMath.h"
+
+#include "BLI_math.h"
+
 BL_Texture::BL_Texture(MTex *mtex)
 	:CValue(),
 	m_isCubeMap(false),
@@ -62,6 +66,9 @@ BL_Texture::BL_Texture(MTex *mtex)
 	m_savedData.lodbias = m_mtex->lodbias;
 	m_savedData.ior = m_mtex->ior;
 	m_savedData.ratio = m_mtex->refrratio;
+	m_savedData.uvrot = m_mtex->rot;
+	copy_v3_v3(m_savedData.uvoffset, m_mtex->ofs);
+	copy_v3_v3(m_savedData.uvsize, m_mtex->size);
 
 	if (m_gpuTex) {
 		m_bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -87,6 +94,9 @@ BL_Texture::~BL_Texture()
 	m_mtex->lodbias = m_savedData.lodbias;
 	m_mtex->ior = m_savedData.ior;
 	m_mtex->refrratio = m_savedData.ratio;
+	m_mtex->rot = m_savedData.uvrot;
+	copy_v3_v3(m_mtex->ofs, m_savedData.uvoffset);
+	copy_v3_v3(m_mtex->size, m_savedData.uvsize);
 
 	if (m_gpuTex) {
 		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
@@ -242,6 +252,9 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("cubeMap", BL_Texture, pyattr_get_cube_map),
 	KX_PYATTRIBUTE_RW_FUNCTION("ior", BL_Texture, pyattr_get_ior, pyattr_set_ior),
 	KX_PYATTRIBUTE_RW_FUNCTION("refractionRatio", BL_Texture, pyattr_get_refraction_ratio, pyattr_set_refraction_ratio),
+	KX_PYATTRIBUTE_RW_FUNCTION("uvRotation", BL_Texture, pyattr_get_uv_rotation, pyattr_set_uv_rotation),
+	KX_PYATTRIBUTE_RW_FUNCTION("uvOffset", BL_Texture, pyattr_get_uv_offset, pyattr_set_uv_offset),
+	KX_PYATTRIBUTE_RW_FUNCTION("uvSize", BL_Texture, pyattr_get_uv_size, pyattr_set_uv_size),
 	{ NULL }    //Sentinel
 };
 
@@ -555,6 +568,173 @@ int BL_Texture::pyattr_set_refraction_ratio(void *self_v, const KX_PYATTRIBUTE_D
 	}
 	CLAMP(val, 0.0, 1.0);
 	self->GetMTex()->refrratio = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_uv_rotation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->rot);
+}
+
+int BL_Texture::pyattr_set_uv_rotation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		return PY_SET_ATTR_FAIL;
+	}
+	self->GetMTex()->rot = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+#ifdef USE_MATHUTILS
+
+#define MATHUTILS_VEC_CB_TEXTURE_UV_OFFSET_VECTOR 1
+#define MATHUTILS_VEC_CB_TEXTURE_UV_SIZE_VECTOR   2
+
+static unsigned char mathutils_bltexture_cb_index = -1; // Index for our callbacks
+
+static int mathutils_bltexture_generic_check(BaseMathObject *bmo)
+{
+	BL_Texture *self = static_cast<BL_Texture *>BGE_PROXY_REF(bmo->cb_user);
+	if (!self) {
+		return -1;
+	}
+
+	return 0;
+}
+
+static int mathutils_bltexture_get(BaseMathObject *bmo, int subtype)
+{
+	BL_Texture *self = static_cast<BL_Texture *>BGE_PROXY_REF(bmo->cb_user);
+	if (!self) {
+		return -1;
+	}
+
+	switch (subtype) {
+		case MATHUTILS_VEC_CB_TEXTURE_UV_OFFSET_VECTOR:
+		{
+			copy_v3_v3(bmo->data, self->GetMTex()->ofs);
+			break;
+		}
+		case MATHUTILS_VEC_CB_TEXTURE_UV_SIZE_VECTOR:
+		{
+			copy_v3_v3(bmo->data, self->GetMTex()->size);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int mathutils_bltexture_set(BaseMathObject *bmo, int subtype)
+{
+	BL_Texture *self = static_cast<BL_Texture *>BGE_PROXY_REF(bmo->cb_user);
+	if (!self) {
+		return -1;
+	}
+
+	switch (subtype) {
+		case MATHUTILS_VEC_CB_TEXTURE_UV_OFFSET_VECTOR:
+		{
+			copy_v3_v3(self->GetMTex()->ofs, bmo->data);
+			break;
+		}
+		case MATHUTILS_VEC_CB_TEXTURE_UV_SIZE_VECTOR:
+		{
+			copy_v3_v3(self->GetMTex()->size, bmo->data);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int mathutils_bltexture_get_index(BaseMathObject *bmo, int subtype, int index)
+{
+	if (mathutils_bltexture_get(bmo, subtype) == -1) {
+		return -1;
+	}
+	return 0;
+}
+
+static int mathutils_bltexture_set_index(BaseMathObject *bmo, int subtype, int index)
+{
+	float f = bmo->data[index];
+
+	if (mathutils_bltexture_get(bmo, subtype) == -1) {
+		return -1;
+	}
+
+	bmo->data[index] = f;
+	return mathutils_bltexture_set(bmo, subtype);
+}
+
+static Mathutils_Callback mathutils_bltexture_cb = {
+	mathutils_bltexture_generic_check,
+	mathutils_bltexture_get,
+	mathutils_bltexture_set,
+	mathutils_bltexture_get_index,
+	mathutils_bltexture_set_index
+};
+
+
+void BL_Texture_Mathutils_Callback_Init()
+{
+	// Register mathutils callbacks, ok to run more than once.
+	mathutils_bltexture_cb_index = Mathutils_RegisterCallback(&mathutils_bltexture_cb);
+}
+
+#endif  // USE_MATHUTILS
+
+PyObject *BL_Texture::pyattr_get_uv_offset(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+#ifdef USE_MATHUTILS
+	return Vector_CreatePyObject_cb(BGE_PROXY_FROM_REF(self_v), 3, mathutils_bltexture_cb_index, MATHUTILS_VEC_CB_TEXTURE_UV_OFFSET_VECTOR);
+#else
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+
+	return PyObjectFrom(MT_Vector3(self->GetMTex()->ofs));
+#endif
+}
+
+int BL_Texture::pyattr_set_uv_offset(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	MT_Vector3 offset;
+	if (!PyVecTo(value, offset)) {
+		return PY_SET_ATTR_FAIL;
+	}
+
+	offset.getValue(self->GetMTex()->ofs);
+
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_uv_size(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+#ifdef USE_MATHUTILS
+	return Vector_CreatePyObject_cb(BGE_PROXY_FROM_REF(self_v), 3, mathutils_bltexture_cb_index, MATHUTILS_VEC_CB_TEXTURE_UV_SIZE_VECTOR);
+#else
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+
+	return PyObjectFrom(MT_Vector3(self->GetMTex()->size));
+#endif
+}
+
+int BL_Texture::pyattr_set_uv_size(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	MT_Vector3 size;
+	if (!PyVecTo(value, size)) {
+		return PY_SET_ATTR_FAIL;
+	}
+
+	size.getValue(self->GetMTex()->size);
+
 	return PY_SET_ATTR_SUCCESS;
 }
 

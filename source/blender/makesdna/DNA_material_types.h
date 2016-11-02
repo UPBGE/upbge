@@ -255,6 +255,7 @@ typedef struct Material {
 #define MA_CONSTANT_TEXTURE		(1 << 2)
 #define MA_CONSTANT_WORLD		(1 << 3)
 #define MA_CONSTANT_MIST		(1 << 4)
+#define MA_CONSTANT_TEXTURE_UV	(1 << 5)
 
 /* flag */
 		/* for render */

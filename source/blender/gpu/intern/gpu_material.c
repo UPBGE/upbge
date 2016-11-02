@@ -1265,7 +1265,7 @@ static void do_material_tex(GPUShadeInput *shi)
 	GPUMaterial *mat = shi->gpumat;
 	MTex *mtex;
 	Tex *tex;
-	GPUNodeLink *texco, *tin, *trgb, *tnor, *tcol, *stencil, *tnorfac;
+	GPUNodeLink *texco, *tin, *trgb, *tnor, *tcol, *stencil, *tnorfac, *rotmat;
 	GPUNodeLink *texco_norm, *texco_orco, *texco_object;
 	GPUNodeLink *texco_global, *texco_uv = NULL;
 	GPUNodeLink *newnor, *orn;
@@ -1305,13 +1305,22 @@ static void do_material_tex(GPUShadeInput *shi)
 			if (tex == NULL || !((mtex->texflag & MTEX_PARALLAX_UV) || (mtex->mapto & MAP_PARALLAX)) || mtex->texco != TEXCO_UV) {
 				continue;
 			}
+
 			GPU_link(mat, "texco_uv", GPU_attribute(CD_MTFACE, mtex->uvname), &texco_uv);
 			texco = texco_uv;
+
 			if (mtex->mapto & MAP_PARALLAX) {
+				GPU_link(mat, "mat_math_rot", GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma), &rotmat);
+				GPU_link(mat, "mtex_mapping_transform", texco, rotmat,
+						 GPU_select_uniform(mtex->ofs, GPU_DYNAMIC_TEX_UVOFFSET, NULL, ma),
+						 GPU_select_uniform(mtex->size, GPU_DYNAMIC_TEX_UVSIZE, NULL, ma),
+						 &texco);
+
 				discard = (mtex->parflag & MTEX_DISCARD_AT_EDGES) != 0 ? 1.0f : 0.0f;
 				GPU_link(mat, "parallax_out", texco,
 					GPU_builtin(GPU_VIEW_POSITION), GPU_attribute(CD_TANGENT, ""),
-					GPU_builtin(GPU_VIEW_NORMAL), GPU_uniform(mtex->size),
+					GPU_builtin(GPU_VIEW_NORMAL),
+					GPU_select_uniform(mtex->size, GPU_DYNAMIC_TEX_UVSIZE, NULL, ma), rotmat,
 					GPU_image(tex->ima, &tex->iuser, false), 
 					GPU_uniform(&mtex->parallaxuv),
 					GPU_select_uniform(&mtex->parallaxsteps, GPU_DYNAMIC_TEX_PARALLAXSTEP, NULL, ma),
@@ -1329,7 +1338,8 @@ static void do_material_tex(GPUShadeInput *shi)
 		
 		if (ma->mtex[tex_nr]) {
 			mtex = ma->mtex[tex_nr];
-			
+			bool use_parallax = (mtex->texflag & MTEX_PARALLAX_UV) || (mtex->mapto & MAP_PARALLAX);
+
 			tex = mtex->tex;
 			if (tex == NULL) continue;
 
@@ -1359,25 +1369,24 @@ static void do_material_tex(GPUShadeInput *shi)
 				continue;
 			
 			/*if parallax has modified uv*/
-			if ((mtex->texflag & MTEX_PARALLAX_UV) || (mtex->mapto & MAP_PARALLAX)) {
-				if (parco) {
-					texco = parco;
-				}
+			if (use_parallax && parco) {
+				texco = parco;
 			}
 			/* in case of uv, this would just undo a multiplication in texco_uv */
 			if (mtex->texco != TEXCO_UV)
 				GPU_link(mat, "mtex_2d_mapping", texco, &texco);
-			if (mtex->size[0] != 1.0f || mtex->size[1] != 1.0f || mtex->size[2] != 1.0f)
-				GPU_link(mat, "mtex_mapping_size", texco, GPU_uniform(mtex->size), &texco);
 
-			float ofs[3] = {
-				mtex->ofs[0] + 0.5f - 0.5f * mtex->size[0],
-				mtex->ofs[1] + 0.5f - 0.5f * mtex->size[1],
-				0.0f
-			};
-
-			if (ofs[0] != 0.0f || ofs[1] != 0.0f || ofs[2] != 0.0f)
-				GPU_link(mat, "mtex_mapping_ofs", texco, GPU_uniform(ofs), &texco);
+			if (!use_parallax && (!(ma->constflag & MA_CONSTANT_TEXTURE_UV) ||
+				(mtex->size[0] != 1.0f || mtex->size[1] != 1.0f || mtex->size[2] != 1.0f) ||
+				(mtex->ofs[0] == 0.0f || mtex->ofs[1] == 0.0f) ||
+				(mtex->rot != 0.0f)))
+			{
+				GPU_link(mat, "mat_math_rot", GPU_select_uniform(&mtex->rot, GPU_DYNAMIC_TEX_UVROTATION, NULL, ma), &rotmat);
+				GPU_link(mat, "mtex_mapping_transform", texco, rotmat,
+						 GPU_select_uniform(mtex->ofs, GPU_DYNAMIC_TEX_UVOFFSET, NULL, ma),
+						 GPU_select_uniform(mtex->size, GPU_DYNAMIC_TEX_UVSIZE, NULL, ma),
+						 &texco);
+			}
 
 			talpha = 0;
 
