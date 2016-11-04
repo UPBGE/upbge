@@ -47,7 +47,7 @@ m_pitchControl(btScalar(0.))
 void btRaycastVehicle::defaultInit(const btVehicleTuning& tuning)
 {
 	(void)tuning;
-	m_currentVehicleSpeedKmHour = btScalar(0.);
+	m_currentVehicleSpeedMetersPerSec = btScalar(0.);
 	m_steeringValue = btScalar(0.);
 	
 }
@@ -274,9 +274,6 @@ void btRaycastVehicle::updateVehicle( btScalar step )
 		}
 	}
 
-
-	m_currentVehicleSpeedKmHour = btScalar(3.6) * getRigidBody()->getLinearVelocity().length();
-	
 	const btTransform& chassisTrans = getChassisWorldTransform();
 
 	btVector3 forwardW (
@@ -284,9 +281,13 @@ void btRaycastVehicle::updateVehicle( btScalar step )
 		chassisTrans.getBasis()[1][m_indexForwardAxis],
 		chassisTrans.getBasis()[2][m_indexForwardAxis]);
 
-	if (forwardW.dot(getRigidBody()->getLinearVelocity()) < btScalar(0.))
+	btScalar linDotFwd = getRigidBody()->getLinearVelocity().dot(forwardW);
+	btVector3 fwdSpeed = forwardW * linDotFwd;
+	m_currentVehicleSpeedMetersPerSec = fwdSpeed.length();
+
+	if (linDotFwd < btScalar(0.))
 	{
-		m_currentVehicleSpeedKmHour *= btScalar(-1.);
+		m_currentVehicleSpeedMetersPerSec *= btScalar(-1.);
 	}
 
 	//

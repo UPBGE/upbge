@@ -63,6 +63,8 @@ public:
 	virtual void SetRayCastMask(short mask) = 0;
 	virtual short GetRayCastMask() const = 0;
 
+	virtual MT_Scalar GetCurrentSpeed() const = 0;
+
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PHY_IVehicle")
 #endif

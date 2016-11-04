@@ -61,7 +61,7 @@ private:
 	btVehicleRaycaster*	m_vehicleRaycaster;
 	btScalar		m_pitchControl;
 	btScalar	m_steeringValue; 
-	btScalar m_currentVehicleSpeedKmHour;
+	btScalar m_currentVehicleSpeedMetersPerSec;
 
 	btRigidBody* m_chassisBody;
 
@@ -180,9 +180,9 @@ public:
 	}
 
 	///Velocity of vehicle (positive if velocity vector has same direction as foward vector)
-	btScalar	getCurrentSpeedKmHour() const
+	btScalar	getCurrentSpeedMetersSec() const
 	{
-		return m_currentVehicleSpeedKmHour;
+		return m_currentVehicleSpeedMetersPerSec;
 	}
 
 	virtual void	setCoordinateSystem(int rightIndex,int upIndex,int forwardIndex)
