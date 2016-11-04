@@ -94,6 +94,7 @@ public:
 	/* python */
 #ifdef WITH_PYTHON
 	static PyObject*	pyattr_get_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif
 };
 

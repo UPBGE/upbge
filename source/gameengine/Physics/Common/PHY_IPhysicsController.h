@@ -128,6 +128,7 @@ public:
 	virtual float GetMargin() const = 0;
 	virtual float GetRadius() const = 0;
 	virtual void SetRadius(float margin) = 0;
+	virtual void SetConeShape(float radius, float height) = 0;
 
 	virtual float GetLinVelocityMin() const = 0;
 	virtual void SetLinVelocityMin(float val) = 0;
