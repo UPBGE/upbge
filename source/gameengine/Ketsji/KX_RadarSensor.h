@@ -60,6 +60,8 @@ class KX_RadarSensor : public KX_NearSensor
 	 * The previous direction of the cone (origin to bottom plane).
 	 */
 	float       m_cone_target[3];
+
+	bool m_coneshape_modified;
 	
 public:
 
@@ -91,10 +93,13 @@ public:
 	};
 
 	virtual sensortype GetSensorType() { return ST_RADAR; }
+
 	/* python */
 #ifdef WITH_PYTHON
-	static PyObject*	pyattr_get_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject* pyattr_get_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject* pyattr_get_distance(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_distance(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif
 };
 
