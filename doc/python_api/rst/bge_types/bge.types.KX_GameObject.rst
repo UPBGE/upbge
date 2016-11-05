@@ -272,6 +272,12 @@ base class --- :class:`SCA_IObject`
 
       :type: :class:`KX_BoundingBox`
 
+   .. attribute:: castShadows
+
+      This object will cast shadows or not.
+
+      :type: boolean
+
    .. attribute:: culled
 
       Returns True if the object is culled, else False.

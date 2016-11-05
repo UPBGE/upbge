@@ -121,6 +121,7 @@ KX_GameObject::KX_GameObject(
       m_components(NULL),
       m_pInstanceObjects(NULL),
       m_pDupliGroupObject(NULL),
+      m_castShadows(true),
       m_actionManager(NULL)
 #ifdef WITH_PYTHON
     , m_attr_dict(NULL),
@@ -227,6 +228,16 @@ const STR_String & KX_GameObject::GetText()
 STR_String& KX_GameObject::GetName()
 {
 	return m_name;
+}
+
+bool KX_GameObject::GetCastShadows()
+{
+	return m_castShadows;
+}
+
+void KX_GameObject::SetCastShadows(bool cast)
+{
+	m_castShadows = cast;
 }
 
 /* Set the name of the value */
@@ -2080,6 +2091,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("debug",	KX_GameObject, pyattr_get_debug, pyattr_set_debug),
 	KX_PYATTRIBUTE_RO_FUNCTION("components", KX_GameObject, pyattr_get_components),
 	KX_PYATTRIBUTE_RW_FUNCTION("debugRecursive",	KX_GameObject, pyattr_get_debugRecursive, pyattr_set_debugRecursive),
+	KX_PYATTRIBUTE_RW_FUNCTION("castShadows", KX_GameObject, pyattr_get_cast_shadows, pyattr_set_cast_shadows),
 
 	/* experimental, don't rely on these yet */
 	KX_PYATTRIBUTE_RO_FUNCTION("sensors",		KX_GameObject, pyattr_get_sensors),
@@ -2378,6 +2390,27 @@ int KX_GameObject::pyattr_set_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrd
 
 	// Change the name
 	self->SetName(newname);
+
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_GameObject::pyattr_get_cast_shadows(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+	return PyBool_FromLong(self->GetCastShadows());
+}
+
+int KX_GameObject::pyattr_set_cast_shadows(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+
+	int val = PyLong_AsLong(value);
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_SetString(PyExc_TypeError, "KX_GameObject.castShadows: expected a boolean");
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->SetCastShadows(bool(val));
 
 	return PY_SET_ATTR_SUCCESS;
 }

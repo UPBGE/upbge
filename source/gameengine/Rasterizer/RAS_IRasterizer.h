@@ -716,6 +716,13 @@ public:
 	 */
 	virtual void PrintHardwareInfo() = 0;
 
+	/**
+	 * Set a boolean to indicate when we render shadows
+	 * to perform shadows only operations in RenderBuckets
+	 */
+	virtual void SetRenderingShadows(bool renderingShadows) = 0;
+	virtual bool GetRenderingShadows() = 0;
+
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IRasterizer")
 #endif

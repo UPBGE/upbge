@@ -101,6 +101,7 @@ protected:
 	// Bit fields for user control over physics collisions
 	unsigned short						m_userCollisionGroup;
 	unsigned short						m_userCollisionMask;
+	bool m_castShadows;
 
 	// visible = user setting
 	// culled = while rendering, depending on camera
@@ -928,6 +929,9 @@ public:
 
 	KX_Scene*	GetScene();
 
+	bool GetCastShadows();
+	void SetCastShadows(bool cast);
+
 #ifdef WITH_PYTHON
 	/**
 	 * \section Python interface functions.
@@ -1074,6 +1078,8 @@ public:
 	static int			pyattr_set_angularDamping(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_lodManager(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_lodManager(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_cast_shadows(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_cast_shadows(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	/* Experimental! */
 	static PyObject*	pyattr_get_sensors(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

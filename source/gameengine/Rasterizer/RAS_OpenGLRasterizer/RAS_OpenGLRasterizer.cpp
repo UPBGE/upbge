@@ -432,7 +432,8 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	m_shadowMode(RAS_SHADOW_NONE),
 	//m_last_alphablend(GPU_BLEND_SOLID),
 	m_last_frontface(true),
-	m_overrideShader(RAS_OVERRIDE_SHADER_NONE)
+	m_overrideShader(RAS_OVERRIDE_SHADER_NONE),
+	m_renderingShadows(false)
 {
 	m_viewmatrix.setIdentity();
 	m_viewinvmatrix.setIdentity();
@@ -2366,5 +2367,15 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 	CM_Message(" GL_ARB_texture_non_power_of_two supported?  " << (GPU_full_non_power_of_two_support()?"yes.":"no."));
 
 	CM_Message(" GL_ARB_draw_instanced supported?  "<< (GLEW_ARB_draw_instanced?"yes.":"no."));
+}
+
+bool RAS_OpenGLRasterizer::GetRenderingShadows()
+{
+	return m_renderingShadows;
+}
+
+void RAS_OpenGLRasterizer::SetRenderingShadows(bool renderingShadows)
+{
+	m_renderingShadows = renderingShadows;
 }
 
