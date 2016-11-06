@@ -43,13 +43,17 @@
 #include <map>
 
 class KX_WorldInfo;
+class KX_KetsjiEngine;
+class KX_LibLoadStatus;
 class SCA_IActuator;
 class SCA_IController;
 class RAS_MeshObject;
 class RAS_IPolyMaterial;
+class RAS_IRasterizer;
 class BL_InterpolatorList;
 class BL_Material;
 struct Main;
+struct BlendHandle;
 struct Mesh;
 struct Scene;
 struct ThreadInfo;
@@ -58,103 +62,91 @@ struct bAction;
 struct bActuator;
 struct bController;
 
-typedef std::map<KX_Scene*, std::map<Material*, RAS_IPolyMaterial*> > PolyMaterialCache;
+typedef std::map<KX_Scene *, std::map<Material *, RAS_IPolyMaterial *> > PolyMaterialCache;
 
 class KX_BlenderSceneConverter : public KX_ISceneConverter
 {
 	std::map<KX_Scene *, std::vector<RAS_IPolyMaterial *> > m_polymaterials;
 	std::map<KX_Scene *, std::vector<RAS_MeshObject *> > m_meshobjects;
 
-	std::vector<class KX_LibLoadStatus*> m_mergequeue;
-	ThreadInfo	*m_threadinfo;
+	std::vector<KX_LibLoadStatus *> m_mergequeue;
+	ThreadInfo  *m_threadinfo;
 
 	// Cached material conversions
 	PolyMaterialCache m_polymat_cache;
 
 	// Saved KX_LibLoadStatus objects
-	std::map<char *, class KX_LibLoadStatus*> m_status_map;
+	std::map<char *, KX_LibLoadStatus *> m_status_map;
 
-	// Should also have a list of collision shapes. 
-	// For the time being this is held in KX_Scene::m_shapes
+	std::map<Object *, KX_GameObject *> m_map_blender_to_gameobject;        /* cleared after conversion */
+	std::map<Mesh *, RAS_MeshObject *> m_map_mesh_to_gamemesh;              /* cleared after conversion */
+	std::map<bActuator *, SCA_IActuator *> m_map_blender_to_gameactuator;       /* cleared after conversion */
+	std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller; /* cleared after conversion */
 
-	std::map<Object *, KX_GameObject *> m_map_blender_to_gameobject;		/* cleared after conversion */
-	std::map<Mesh *, RAS_MeshObject *> m_map_mesh_to_gamemesh;				/* cleared after conversion */
-	std::map<bActuator *, SCA_IActuator *> m_map_blender_to_gameactuator;		/* cleared after conversion */
-	std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller;	/* cleared after conversion */
-	
 	std::map<bAction *, BL_InterpolatorList *> m_map_blender_to_gameAdtList;
-	
-	Main*					m_maggie;
-	std::vector<struct Main*>	m_DynamicMaggie;
 
-	STR_String				m_newfilename;
-	class KX_KetsjiEngine*	m_ketsjiEngine;
-	bool					m_alwaysUseExpandFraming;
+	Main *m_maggie;
+	std::vector<Main *>   m_DynamicMaggie;
+
+	STR_String m_newfilename;
+	KX_KetsjiEngine *m_ketsjiEngine;
+	bool m_alwaysUseExpandFraming;
 
 public:
-	KX_BlenderSceneConverter(
-		Main* maggie,
-		class KX_KetsjiEngine* engine
-	);
+	KX_BlenderSceneConverter(Main *maggie, KX_KetsjiEngine *engine);
 
 	virtual ~KX_BlenderSceneConverter();
 
-	/* Scenename: name of the scene to be converted.
-	 * destinationscene: pass an empty scene, everything goes into this
-	 * dictobj: python dictionary (for pythoncontrollers)
+	/** \param Scenename name of the scene to be converted.
+	 * \param destinationscene pass an empty scene, everything goes into this
+	 * \param dictobj python dictionary (for pythoncontrollers)
 	 */
-	virtual void	ConvertScene(
-						class KX_Scene* destinationscene,
-						class RAS_IRasterizer* rendertools,
-						class RAS_ICanvas* canvas,
-						bool libloading=false
-					);
-	virtual void RemoveScene(class KX_Scene *scene);
+	virtual void ConvertScene(KX_Scene *destinationscene, RAS_IRasterizer *rendertools, RAS_ICanvas *canvas, bool libloading = false);
+	virtual void RemoveScene(KX_Scene *scene);
 
 	void SetNewFileName(const STR_String& filename);
 	bool TryAndLoadNewFile();
 
 	void SetAlwaysUseExpandFraming(bool to_what);
-	
-	void RegisterGameObject(KX_GameObject *gameobject, struct Object *for_blenderobject);
-	void UnregisterGameObject(KX_GameObject *gameobject);
-	KX_GameObject *FindGameObject(struct Object *for_blenderobject);
 
-	void RegisterGameMesh(KX_Scene *scene, RAS_MeshObject *gamemesh, struct Mesh *for_blendermesh);
-	RAS_MeshObject *FindGameMesh(struct Mesh *for_blendermesh/*, unsigned int onlayer*/);
+	void RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject);
+	void UnregisterGameObject(KX_GameObject *gameobject);
+	KX_GameObject *FindGameObject(Object *for_blenderobject);
+
+	void RegisterGameMesh(KX_Scene *scene, RAS_MeshObject *gamemesh, Mesh *for_blendermesh);
+	RAS_MeshObject *FindGameMesh(Mesh *for_blendermesh /*, unsigned int onlayer*/);
 
 	void RegisterPolyMaterial(KX_Scene *scene, RAS_IPolyMaterial *polymat);
 	void CachePolyMaterial(KX_Scene *scene, Material *mat, RAS_IPolyMaterial *polymat);
 	RAS_IPolyMaterial *FindCachedPolyMaterial(KX_Scene *scene, Material *mat);
 
-	void RegisterInterpolatorList(BL_InterpolatorList *actList, struct bAction *for_act);
-	BL_InterpolatorList *FindInterpolatorList(struct bAction *for_act);
+	void RegisterInterpolatorList(BL_InterpolatorList *actList, bAction *for_act);
+	BL_InterpolatorList *FindInterpolatorList(bAction *for_act);
 
-	void RegisterGameActuator(SCA_IActuator *act, struct bActuator *for_actuator);
-	SCA_IActuator *FindGameActuator(struct bActuator *for_actuator);
+	void RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator);
+	SCA_IActuator *FindGameActuator(bActuator *for_actuator);
 
-	void RegisterGameController(SCA_IController *cont, struct bController *for_controller);
-	SCA_IController *FindGameController(struct bController *for_controller);
+	void RegisterGameController(SCA_IController *cont, bController *for_controller);
+	SCA_IController *FindGameController(bController *for_controller);
 
-	struct Scene* GetBlenderSceneForName(const STR_String& name);
+	Scene *GetBlenderSceneForName(const STR_String& name);
 	virtual CListValue *GetInactiveSceneNames();
 
-//	struct Main* GetMain() { return m_maggie; }
-	struct Main*		  GetMainDynamicPath(const char *path);
-	std::vector<struct Main*> &GetMainDynamic();
-	
-	class KX_LibLoadStatus *LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
-	class KX_LibLoadStatus *LinkBlendFilePath(const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
-	class KX_LibLoadStatus *LinkBlendFile(struct BlendHandle *bpy_openlib, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
+	Main *GetMainDynamicPath(const char *path);
+	std::vector<Main *> &GetMainDynamic();
+
+	KX_LibLoadStatus *LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
+	KX_LibLoadStatus *LinkBlendFilePath(const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
+	KX_LibLoadStatus *LinkBlendFile(BlendHandle *bpy_openlib, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
 	bool MergeScene(KX_Scene *to, KX_Scene *from);
-	RAS_MeshObject *ConvertMeshSpecial(KX_Scene* kx_scene, Main *maggie, const char *name);
-	bool FreeBlendFile(struct Main *maggie);
+	RAS_MeshObject *ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const char *name);
+	bool FreeBlendFile(Main *maggie);
 	bool FreeBlendFile(const char *path);
 
 	virtual void MergeAsyncLoads();
 	virtual void FinalizeAsyncLoads();
-	void AddScenesToMergeQueue(class KX_LibLoadStatus *status);
- 
+	void AddScenesToMergeQueue(KX_LibLoadStatus *status);
+
 	void PrintStats()
 	{
 		CM_Message("BGE STATS!");
@@ -172,9 +164,9 @@ public:
 		MEM_printmemlist_pydict();
 #endif
 	}
-	
+
 	/* LibLoad Options */
-	enum 
+	enum
 	{
 		LIB_LOAD_LOAD_ACTIONS = 1,
 		LIB_LOAD_VERBOSE = 2,
@@ -187,10 +179,10 @@ public:
 #ifdef WITH_PYTHON
 	PyObject *GetPyNamespace();
 #endif
-	
+
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderSceneConverter")
 #endif
 };
 
-#endif  /* __KX_BLENDERSCENECONVERTER_H__ */
+#endif  // __KX_BLENDERSCENECONVERTER_H__
