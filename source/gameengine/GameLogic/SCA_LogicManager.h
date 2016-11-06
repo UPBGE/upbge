@@ -36,7 +36,6 @@
 #endif 
 
 #include <vector>
-#include <set>
 #include <map>
 #include <list>
 
@@ -44,7 +43,6 @@
 #include "EXP_Value.h"
 #include "SG_QList.h"
 
-using namespace std;
 typedef std::list<class SCA_IController*> controllerlist;
 typedef std::map<class SCA_ISensor*,controllerlist > sensormap_t;
 
@@ -68,7 +66,7 @@ typedef std::map<class SCA_ISensor*,controllerlist > sensormap_t;
 
 class SCA_LogicManager
 {
-	vector<class SCA_EventManager*>		m_eventmanagers;
+	std::vector<class SCA_EventManager*>		m_eventmanagers;
 	
 	// SG_DList: Head of objects having activated actuators
 	//           element: SCA_IObject::m_activeActuators
@@ -108,7 +106,7 @@ public:
 
 	void	AddTriggeredController(SCA_IController* controller, SCA_ISensor* sensor);
 	SCA_EventManager*	FindEventManager(int eventmgrtype);
-	vector<class SCA_EventManager*>	GetEventManagers() { return m_eventmanagers; }
+	std::vector<class SCA_EventManager*>	GetEventManagers() { return m_eventmanagers; }
 	
 	void	RemoveGameObject(const STR_String& gameobjname);
 

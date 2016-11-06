@@ -48,7 +48,7 @@ SCA_LogicManager::SCA_LogicManager()
 
 SCA_LogicManager::~SCA_LogicManager()
 {
-	for (vector<SCA_EventManager*>::iterator it = m_eventmanagers.begin();!(it==m_eventmanagers.end());++it)
+	for (std::vector<SCA_EventManager*>::iterator it = m_eventmanagers.begin();!(it==m_eventmanagers.end());++it)
 	{
 		delete (*it);
 	}
@@ -184,7 +184,7 @@ void SCA_LogicManager::RegisterToActuator(SCA_IController* controller,SCA_IActua
 
 void SCA_LogicManager::BeginFrame(double curtime, double fixedtime)
 {
-	for (vector<SCA_EventManager*>::const_iterator ie=m_eventmanagers.begin(); !(ie==m_eventmanagers.end()); ie++)
+	for (std::vector<SCA_EventManager*>::const_iterator ie=m_eventmanagers.begin(); !(ie==m_eventmanagers.end()); ie++)
 		(*ie)->NextFrame(curtime, fixedtime);
 
 	for (SG_QList* obj = (SG_QList*)m_triggeredControllerSet.Remove();
@@ -205,7 +205,7 @@ void SCA_LogicManager::BeginFrame(double curtime, double fixedtime)
 
 void SCA_LogicManager::UpdateFrame(double curtime, bool frame)
 {
-	for (vector<SCA_EventManager*>::const_iterator ie=m_eventmanagers.begin(); !(ie==m_eventmanagers.end()); ie++)
+	for (std::vector<SCA_EventManager*>::const_iterator ie=m_eventmanagers.begin(); !(ie==m_eventmanagers.end()); ie++)
 		(*ie)->UpdateFrame();
 
 	SG_DList::iterator<SG_QList> io(m_activeActuators);
@@ -286,7 +286,7 @@ void SCA_LogicManager::RegisterActionName(const STR_String& actname,void* action
 
 void SCA_LogicManager::EndFrame()
 {
-	for (vector<SCA_EventManager*>::const_iterator ie=m_eventmanagers.begin();
+	for (std::vector<SCA_EventManager*>::const_iterator ie=m_eventmanagers.begin();
 	!(ie==m_eventmanagers.end());ie++)
 	{
 		(*ie)->EndFrame();
@@ -316,7 +316,7 @@ SCA_EventManager* SCA_LogicManager::FindEventManager(int eventmgrtype)
 	// find an eventmanager of a certain type
 	SCA_EventManager* eventmgr = NULL;
 
-	for (vector<SCA_EventManager*>::const_iterator i=
+	for (std::vector<SCA_EventManager*>::const_iterator i=
 	m_eventmanagers.begin();!(i==m_eventmanagers.end());i++)
 	{
 		SCA_EventManager* emgr = *i;

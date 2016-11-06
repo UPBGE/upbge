@@ -1671,14 +1671,14 @@ void CcdPhysicsController::ReplicateConstraints(KX_GameObject *replica, std::vec
 
 	PHY_IPhysicsEnvironment *physEnv = GetPhysicsEnvironment();
 
-	vector<bRigidBodyJointConstraint *> constraints = replica->GetConstraints();
-	vector<bRigidBodyJointConstraint *>::iterator consit;
+	std::vector<bRigidBodyJointConstraint *> constraints = replica->GetConstraints();
+	std::vector<bRigidBodyJointConstraint *>::iterator consit;
 
 	/* Object could have some constraints, iterate over all of theme to ensure that every constraint is recreated. */
 	for (consit = constraints.begin(); consit != constraints.end(); ++consit) {
 		/* Try to find the constraint targets in the list of group objects. */
 		bRigidBodyJointConstraint *dat = (*consit);
-		vector<KX_GameObject *>::iterator memit;
+		std::vector<KX_GameObject *>::iterator memit;
 		for (memit = constobj.begin(); memit != constobj.end(); ++memit) {
 			KX_GameObject *member = (*memit);
 			/* If the group member is the actual target for the constraint. */

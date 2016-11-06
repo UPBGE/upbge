@@ -1248,7 +1248,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
 			KX_Scene *scene = (KX_Scene *)*sceit;
 			/* the 'normal' debug props */
-			vector<SCA_DebugProp *>& debugproplist = scene->GetDebugProperties();
+			std::vector<SCA_DebugProp *>& debugproplist = scene->GetDebugProperties();
 
 			for (unsigned i = 0; i < debugproplist.size() && propsAct < propsMax; i++) {
 				CValue *propobj = debugproplist[i]->m_obj;
@@ -1336,7 +1336,7 @@ void KX_KetsjiEngine::RemoveScene(const STR_String& scenename)
 void KX_KetsjiEngine::RemoveScheduledScenes()
 {
 	if (m_removingScenes.size()) {
-		vector<STR_String>::iterator scenenameit;
+		std::vector<STR_String>::iterator scenenameit;
 		for (scenenameit = m_removingScenes.begin(); scenenameit != m_removingScenes.end(); scenenameit++) {
 			STR_String scenename = *scenenameit;
 
@@ -1377,7 +1377,7 @@ KX_Scene *KX_KetsjiEngine::CreateScene(const STR_String& scenename)
 
 void KX_KetsjiEngine::AddScheduledScenes()
 {
-	vector<STR_String>::iterator scenenameit;
+	std::vector<STR_String>::iterator scenenameit;
 
 	if (m_addingOverlayScenes.size()) {
 		for (scenenameit = m_addingOverlayScenes.begin();
@@ -1441,7 +1441,7 @@ bool KX_KetsjiEngine::ReplaceScene(const STR_String& oldscene, const STR_String&
 void KX_KetsjiEngine::ReplaceScheduledScenes()
 {
 	if (m_replace_scenes.size()) {
-		vector<pair<STR_String, STR_String> >::iterator scenenameit;
+		std::vector<std::pair<STR_String, STR_String> >::iterator scenenameit;
 
 		for (scenenameit = m_replace_scenes.begin();
 		     scenenameit != m_replace_scenes.end();

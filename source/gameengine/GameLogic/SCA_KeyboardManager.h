@@ -36,11 +36,6 @@
 
 
 #include "SCA_EventManager.h"
-
-#include <vector>
-
-using namespace std;
-
 #include "SCA_IInputDevice.h"
 
 

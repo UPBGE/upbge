@@ -33,11 +33,6 @@
 #ifndef __KX_ISYSTEM_H__
 #define __KX_ISYSTEM_H__
 
-#include <vector>
-using namespace std;
-
-#include "STR_String.h"
-
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
 #endif

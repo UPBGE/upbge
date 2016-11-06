@@ -609,8 +609,8 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 	{
 		SCA_IController* cont = (*itc);
 		cont->SetUeberExecutePriority(m_ueberExecutionPriority);
-		vector<SCA_ISensor*> linkedsensors = cont->GetLinkedSensors();
-		vector<SCA_IActuator*> linkedactuators = cont->GetLinkedActuators();
+		std::vector<SCA_ISensor*> linkedsensors = cont->GetLinkedSensors();
+		std::vector<SCA_IActuator*> linkedactuators = cont->GetLinkedActuators();
 
 		// disconnect the sensors and actuators
 		// do it directly on the list at this controller is not connected to anything at this stage
@@ -618,7 +618,7 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 		cont->GetLinkedActuators().clear();
 		
 		// now relink each sensor
-		for (vector<SCA_ISensor*>::iterator its = linkedsensors.begin();!(its==linkedsensors.end());its++)
+		for (std::vector<SCA_ISensor*>::iterator its = linkedsensors.begin();!(its==linkedsensors.end());its++)
 		{
 			SCA_ISensor* oldsensor = (*its);
 			SCA_IObject* oldsensorobj = oldsensor->GetParent();
@@ -654,7 +654,7 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 		}
 		
 		// now relink each actuator
-		for (vector<SCA_IActuator*>::iterator ita = linkedactuators.begin();!(ita==linkedactuators.end());ita++)
+		for (std::vector<SCA_IActuator*>::iterator ita = linkedactuators.begin();!(ita==linkedactuators.end());ita++)
 		{
 			SCA_IActuator* oldactuator = (*ita);
 			SCA_IObject* oldactuatorobj = oldactuator->GetParent();
@@ -701,7 +701,7 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 	Object* blgroupobj = groupobj->GetBlenderObject();
 	Group* group;
 	GroupObject *go;
-	vector<KX_GameObject*> duplilist;
+	std::vector<KX_GameObject*> duplilist;
 
 	if (!groupobj->GetSGNode() ||
 		!groupobj->IsDupliGroup() ||
@@ -743,7 +743,7 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 		m_groupGameObjects.insert(gameobj);
 	}
 
-	set<CValue*>::iterator oit;
+	std::set<CValue*>::iterator oit;
 	for (oit=m_groupGameObjects.begin(); oit != m_groupGameObjects.end(); oit++)
 	{
 		gameobj = (KX_GameObject*)(*oit);
@@ -802,7 +802,7 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 
 	// the logic must be replicated first because we need
 	// the new logic bricks before relinking
-	vector<KX_GameObject*>::iterator git;
+	std::vector<KX_GameObject*>::iterator git;
 	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
 	{
 		(*git)->ReParentLogic();
@@ -920,7 +920,7 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 	replica->ActivateGraphicController(true);
 
 	// now replicate logic
-	vector<KX_GameObject*>::iterator git;
+	std::vector<KX_GameObject*>::iterator git;
 	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
 	{
 		(*git)->ReParentLogic();
@@ -948,7 +948,7 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 	}
 	
 	// check if there are objects with dupligroup in the hierarchy
-	vector<KX_GameObject*> duplilist;
+	std::vector<KX_GameObject*> duplilist;
 	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
 	{
 		if ((*git)->IsDupliGroup())
@@ -2042,7 +2042,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		SCA_LogicManager *logicmgr=			GetLogicManager();
 		SCA_LogicManager *logicmgr_other=	other->GetLogicManager();
 
-		vector<class SCA_EventManager*>evtmgrs= logicmgr->GetEventManagers();
+		std::vector<class SCA_EventManager*>evtmgrs= logicmgr->GetEventManagers();
 		//vector<class SCA_EventManager*>evtmgrs_others= logicmgr_other->GetEventManagers();
 
 		//SCA_EventManager *evtmgr;
@@ -2060,7 +2060,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		/* grab any timer properties from the other scene */
 		SCA_TimeEventManager *timemgr=		GetTimeEventManager();
 		SCA_TimeEventManager *timemgr_other=	other->GetTimeEventManager();
-		vector<CValue*> times = timemgr_other->GetTimeValues();
+		std::vector<CValue*> times = timemgr_other->GetTimeValues();
 
 		for (unsigned int i= 0; i < times.size(); i++) {
 			timemgr->AddTimeProperty(times[i]);

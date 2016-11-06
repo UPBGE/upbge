@@ -34,10 +34,6 @@
 
 #include "SCA_EventManager.h"
 
-#include <vector>
-
-using namespace std;
-
 class SCA_ActuatorEventManager : public SCA_EventManager
 {
 public:
@@ -45,8 +41,6 @@ public:
 	virtual ~SCA_ActuatorEventManager();
 	virtual void NextFrame();
 	virtual void UpdateFrame();
-	//SCA_LogicManager* GetLogicManager() { return m_logicmgr;}
-
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_ActuatorEventManager")

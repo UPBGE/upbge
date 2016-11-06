@@ -322,9 +322,9 @@ bool CValue::RemoveProperty(const char *inName)
 //
 // Get Property Names
 //
-vector<STR_String> CValue::GetPropertyNames()
+std::vector<STR_String> CValue::GetPropertyNames()
 {
-	vector<STR_String> result;
+	std::vector<STR_String> result;
 	if (!m_pNamedPropertyArray) return result;
 	result.reserve(m_pNamedPropertyArray->size());
 	

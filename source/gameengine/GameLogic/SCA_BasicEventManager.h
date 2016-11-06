@@ -36,9 +36,6 @@
 #define __SCA_BASICEVENTMANAGER_H__
 
 #include "SCA_EventManager.h"
-#include <vector>
-
-using namespace std;
 
 class SCA_BasicEventManager : public SCA_EventManager
 {
@@ -47,7 +44,6 @@ public:
 	~SCA_BasicEventManager();
 
 	virtual void NextFrame();
-
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_BasicEventManager")

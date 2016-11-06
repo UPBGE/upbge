@@ -201,7 +201,7 @@ Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const STR_String &name)
 	if ((sce = (Scene *)BLI_findstring(&m_maggie->scene, name.ReadPtr(), offsetof(ID, name) + 2)))
 		return sce;
 
-	for (vector<Main *>::iterator it=m_DynamicMaggie.begin(); !(it == m_DynamicMaggie.end()); it++) {
+	for (std::vector<Main *>::iterator it=m_DynamicMaggie.begin(); !(it == m_DynamicMaggie.end()); it++) {
 		Main *main = *it;
 
 		if ((sce= (Scene *)BLI_findstring(&main->scene, name.ReadPtr(), offsetof(ID, name) + 2)))
@@ -434,14 +434,14 @@ PyObject *KX_BlenderSceneConverter::GetPyNamespace()
 }
 #endif
 
-vector<Main *> &KX_BlenderSceneConverter::GetMainDynamic()
+std::vector<Main *> &KX_BlenderSceneConverter::GetMainDynamic()
 {
 	return m_DynamicMaggie;
 }
 
 Main *KX_BlenderSceneConverter::GetMainDynamicPath(const char *path)
 {
-	for (vector<Main *>::iterator it = m_DynamicMaggie.begin(); !(it == m_DynamicMaggie.end()); it++)
+	for (std::vector<Main *>::iterator it = m_DynamicMaggie.begin(); !(it == m_DynamicMaggie.end()); it++)
 		if (BLI_path_cmp((*it)->name, path) == 0)
 			return *it;
 	
@@ -450,15 +450,15 @@ Main *KX_BlenderSceneConverter::GetMainDynamicPath(const char *path)
 
 void KX_BlenderSceneConverter::MergeAsyncLoads()
 {
-	vector<KX_Scene *> *merge_scenes;
+	std::vector<KX_Scene *> *merge_scenes;
 
-	vector<KX_LibLoadStatus *>::iterator mit;
-	vector<KX_Scene *>::iterator sit;
+	std::vector<KX_LibLoadStatus *>::iterator mit;
+	std::vector<KX_Scene *>::iterator sit;
 
 	m_threadinfo->m_mutex.Lock();
 
 	for (mit = m_mergequeue.begin(); mit != m_mergequeue.end(); ++mit) {
-		merge_scenes = (vector<KX_Scene *> *)(*mit)->GetData();
+		merge_scenes = (std::vector<KX_Scene *> *)(*mit)->GetData();
 
 		for (sit=merge_scenes->begin(); sit!=merge_scenes->end(); ++sit) {
 			(*mit)->GetMergeScene()->MergeScene(*sit);
@@ -497,8 +497,8 @@ static void async_convert(TaskPool *pool, void *ptr, int UNUSED(threadid))
 {
 	KX_Scene *new_scene = NULL;
 	KX_LibLoadStatus *status = (KX_LibLoadStatus *)ptr;
-	vector<Scene *> *scenes = (vector<Scene *> *)status->GetData();
-	vector<KX_Scene *> *merge_scenes = new vector<KX_Scene *>(); // Deleted in MergeAsyncLoads
+	std::vector<Scene *> *scenes = (std::vector<Scene *> *)status->GetData();
+	std::vector<KX_Scene *> *merge_scenes = new std::vector<KX_Scene *>(); // Deleted in MergeAsyncLoads
 
 	for (unsigned int i = 0; i < scenes->size(); ++i) {
 		new_scene = status->GetEngine()->CreateScene((*scenes)[i], true);
@@ -637,7 +637,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 		/* Merge all new linked in scene into the existing one */
 		ID *scene;
 		// scenes gets deleted by the thread when it's done using it (look in async_convert())
-		vector<Scene *> *scenes = (options & LIB_LOAD_ASYNC) ? new vector<Scene *>() : NULL;
+		std::vector<Scene *> *scenes = (options & LIB_LOAD_ASYNC) ? new std::vector<Scene *>() : NULL;
 
 		for (scene = (ID *)main_newlib->scene.first; scene; scene = (ID *)scene->next ) {
 			if (options & LIB_LOAD_VERBOSE)
@@ -711,7 +711,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 	}
 
 	/* tag all false except the one we remove */
-	for (vector<Main *>::iterator it = m_DynamicMaggie.begin(); !(it == m_DynamicMaggie.end()); it++) {
+	for (std::vector<Main *>::iterator it = m_DynamicMaggie.begin(); !(it == m_DynamicMaggie.end()); it++) {
 		Main *main = *it;
 		if (main != maggie) {
 			BKE_main_id_tag_all(main, LIB_TAG_DOIT, false);
@@ -949,7 +949,7 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
 
 	if (me == NULL) {
 		// The mesh wasn't in the current main, try any dynamic (i.e., LibLoaded) ones
-		vector<Main *>::iterator it;
+		std::vector<Main *>::iterator it;
 
 		for (it = GetMainDynamic().begin(); it != GetMainDynamic().end(); it++) {
 			me = static_cast<ID *>(BLI_findstring(&(*it)->mesh, name, offsetof(ID, name) + 2));

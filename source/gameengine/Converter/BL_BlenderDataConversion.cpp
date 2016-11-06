@@ -1206,7 +1206,7 @@ static KX_GameObject* getGameOb(STR_String busc,CListValue* sumolist)
 static void bl_ConvertBlenderObject_Single(
         KX_BlenderSceneConverter *converter,
        Object *blenderobject,
-        vector<parentChildLink> &vec_parent_child,
+        std::vector<parentChildLink> &vec_parent_child,
         CListValue* logicbrick_conversionlist,
         CListValue* objectlist, CListValue* inactivelist, CListValue*	sumolist,
         KX_Scene* kxscene, KX_GameObject* gameobj,
@@ -1352,9 +1352,9 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	RAS_FrameSettings::RAS_FrameType frame_type;
 	int aspect_width;
 	int aspect_height;
-	set<Group*> grouplist;	// list of groups to be converted
-	set<Object*> allblobj;	// all objects converted
-	set<Object*> groupobj;	// objects from groups (never in active layer)
+	std::set<Group*> grouplist;	// list of groups to be converted
+	std::set<Object*> allblobj;	// all objects converted
+	std::set<Object*> groupobj;	// objects from groups (never in active layer)
 
 	/* We have to ensure that group definitions are only converted once
 	 * push all converted group members to this set.
@@ -1414,7 +1414,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	// list of all object converted, active and inactive
 	CListValue*	sumolist = new CListValue();
 	
-	vector<parentChildLink> vec_parent_child;
+	std::vector<parentChildLink> vec_parent_child;
 	
 	CListValue* objectlist = kxscene->GetObjectList();
 	CListValue* inactivelist = kxscene->GetInactiveList();
@@ -1478,12 +1478,12 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	{
 		// now convert the group referenced by dupli group object
 		// keep track of all groups already converted
-		set<Group*> allgrouplist = grouplist;
-		set<Group*> tempglist;
+		std::set<Group*> allgrouplist = grouplist;
+		std::set<Group*> tempglist;
 		// recurse
 		while (!grouplist.empty())
 		{
-			set<Group*>::iterator git;
+			std::set<Group*>::iterator git;
 			tempglist.clear();
 			tempglist.swap(grouplist);
 			for (git=tempglist.begin(); git!=tempglist.end(); git++)
@@ -1540,7 +1540,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	//	Set up armatures
-	set<Object*>::iterator oit;
+	std::set<Object*>::iterator oit;
 	for (oit=allblobj.begin(); oit!=allblobj.end(); oit++)
 	{
 		Object* blenderobj = *oit;
@@ -1561,7 +1561,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	
 	// create hierarchy information
 	int i;
-	vector<parentChildLink>::iterator pcit;
+	std::vector<parentChildLink>::iterator pcit;
 	
 	for (pcit = vec_parent_child.begin();!(pcit==vec_parent_child.end());++pcit)
 	{

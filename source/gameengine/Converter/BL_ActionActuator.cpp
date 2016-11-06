@@ -130,7 +130,7 @@ void BL_ActionActuator::SetLocalTime(float curtime)
 	m_localtime = m_startframe + dt;
 	
 	// Handle wrap around
-	if (m_localtime < min(m_startframe, m_endframe) || m_localtime > max(m_startframe, m_endframe))
+	if (m_localtime < std::min(m_startframe, m_endframe) || m_localtime > std::max(m_startframe, m_endframe))
 	{
 		switch (m_playtype) {
 		case ACT_ACTION_PLAY:

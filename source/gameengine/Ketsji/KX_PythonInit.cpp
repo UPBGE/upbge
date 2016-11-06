@@ -755,11 +755,11 @@ static PyObject *gLibFree(PyObject *, PyObject *args)
 
 static PyObject *gLibList(PyObject *, PyObject *args)
 {
-	vector<Main*> &dynMaggie = KX_GetActiveScene()->GetSceneConverter()->GetMainDynamic();
+	std::vector<Main*> &dynMaggie = KX_GetActiveScene()->GetSceneConverter()->GetMainDynamic();
 	int i= 0;
 	PyObject *list= PyList_New(dynMaggie.size());
 	
-	for (vector<Main*>::iterator it=dynMaggie.begin(); !(it==dynMaggie.end()); it++)
+	for (std::vector<Main*>::iterator it=dynMaggie.begin(); !(it==dynMaggie.end()); it++)
 	{
 		PyList_SET_ITEM(list, i++, PyUnicode_FromString( (*it)->name) );
 	}

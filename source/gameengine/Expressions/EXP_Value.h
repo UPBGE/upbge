@@ -26,8 +26,6 @@
 #include <map>		// array functionality for the propertylist
 #include "STR_String.h"	// STR_String class
 
-using namespace std;
-
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
 #endif
@@ -292,7 +290,7 @@ public:
 	const STR_String&	GetPropertyText(const STR_String & inName);						// Get text description of property with name <inName>, returns an empty string if there is no property named <inName>
 	float				GetPropertyNumber(const STR_String& inName,float defnumber);
 	virtual bool		RemoveProperty(const char *inName);						// Remove the property named <inName>, returns true if the property was succesfully removed, false if property was not found or could not be removed
-	virtual vector<STR_String>	GetPropertyNames();
+	virtual std::vector<STR_String>	GetPropertyNames();
 	virtual void		ClearProperties();										// Clear all properties
 
 	virtual void		SetPropertiesModified(bool inModified);					// Set all properties' modified flag to <inModified>

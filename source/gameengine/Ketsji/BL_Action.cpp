@@ -307,10 +307,10 @@ const char *BL_Action::GetName()
 void BL_Action::SetFrame(float frame)
 {
 	// Clamp the frame to the start and end frame
-	if (frame < min(m_startframe, m_endframe))
-		frame = min(m_startframe, m_endframe);
-	else if (frame > max(m_startframe, m_endframe))
-		frame = max(m_startframe, m_endframe);
+	if (frame < std::min(m_startframe, m_endframe))
+		frame = std::min(m_startframe, m_endframe);
+	else if (frame > std::max(m_startframe, m_endframe))
+		frame = std::max(m_startframe, m_endframe);
 	
 	m_localframe = frame;
 	m_calc_localtime = false;
@@ -362,7 +362,7 @@ void BL_Action::IncrementBlending(float curtime)
 
 void BL_Action::BlendShape(Key* key, float srcweight, std::vector<float>& blendshape)
 {
-	vector<float>::const_iterator it;
+	std::vector<float>::const_iterator it;
 	float dstweight;
 	KeyBlock *kb;
 	
@@ -396,7 +396,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 	}
 
 	// Handle wrap around
-	if (m_localframe < min(m_startframe, m_endframe) || m_localframe > max(m_startframe, m_endframe)) {
+	if (m_localframe < std::min(m_startframe, m_endframe) || m_localframe > std::max(m_startframe, m_endframe)) {
 		switch (m_playmode) {
 			case ACT_MODE_PLAY:
 				// Clamp

@@ -36,10 +36,7 @@
 
 #include "SCA_BasicEventManager.h"
 #include "SCA_LogicManager.h"
-#include <vector>
 #include "SCA_ISensor.h"
-
-using namespace std;
 
 SCA_BasicEventManager::SCA_BasicEventManager(class SCA_LogicManager* logicmgr)
 	: SCA_EventManager(logicmgr, BASIC_EVENTMGR)

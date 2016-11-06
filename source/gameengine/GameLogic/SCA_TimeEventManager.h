@@ -36,11 +36,9 @@
 #include "EXP_Value.h"
 #include <vector>
 
-using namespace std;
-
 class SCA_TimeEventManager : public SCA_EventManager
 {
-	vector<CValue*>		m_timevalues; // values that need their time updated regularly
+	std::vector<CValue*>		m_timevalues; // values that need their time updated regularly
 	
 public:
 	SCA_TimeEventManager(class SCA_LogicManager* logicmgr);
@@ -52,7 +50,7 @@ public:
 	void			AddTimeProperty(CValue* timeval);
 	void			RemoveTimeProperty(CValue* timeval);
 
-	vector<CValue*>	GetTimeValues();
+	std::vector<CValue*>	GetTimeValues();
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_TimeEventManager")

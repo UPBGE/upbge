@@ -42,8 +42,6 @@
 
 #include <map>
 
-using namespace std;
-
 class KX_WorldInfo;
 class SCA_IActuator;
 class SCA_IController;
@@ -60,21 +58,21 @@ struct bAction;
 struct bActuator;
 struct bController;
 
-typedef map<KX_Scene*, map<Material*, RAS_IPolyMaterial*> > PolyMaterialCache;
+typedef std::map<KX_Scene*, std::map<Material*, RAS_IPolyMaterial*> > PolyMaterialCache;
 
 class KX_BlenderSceneConverter : public KX_ISceneConverter
 {
 	std::map<KX_Scene *, std::vector<RAS_IPolyMaterial *> > m_polymaterials;
 	std::map<KX_Scene *, std::vector<RAS_MeshObject *> > m_meshobjects;
 
-	vector<class KX_LibLoadStatus*> m_mergequeue;
+	std::vector<class KX_LibLoadStatus*> m_mergequeue;
 	ThreadInfo	*m_threadinfo;
 
 	// Cached material conversions
 	PolyMaterialCache m_polymat_cache;
 
 	// Saved KX_LibLoadStatus objects
-	map<char *, class KX_LibLoadStatus*> m_status_map;
+	std::map<char *, class KX_LibLoadStatus*> m_status_map;
 
 	// Should also have a list of collision shapes. 
 	// For the time being this is held in KX_Scene::m_shapes
@@ -87,7 +85,7 @@ class KX_BlenderSceneConverter : public KX_ISceneConverter
 	std::map<bAction *, BL_InterpolatorList *> m_map_blender_to_gameAdtList;
 	
 	Main*					m_maggie;
-	vector<struct Main*>	m_DynamicMaggie;
+	std::vector<struct Main*>	m_DynamicMaggie;
 
 	STR_String				m_newfilename;
 	class KX_KetsjiEngine*	m_ketsjiEngine;
@@ -143,7 +141,7 @@ public:
 
 //	struct Main* GetMain() { return m_maggie; }
 	struct Main*		  GetMainDynamicPath(const char *path);
-	vector<struct Main*> &GetMainDynamic();
+	std::vector<struct Main*> &GetMainDynamic();
 	
 	class KX_LibLoadStatus *LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
 	class KX_LibLoadStatus *LinkBlendFilePath(const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);

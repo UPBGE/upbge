@@ -554,12 +554,12 @@ void KX_ObstacleSimulationTOI_rays::sampleRVO(KX_Obstacle* activeObst, KX_NavMes
 		if (da < -maxDeltaAngle)
 		{
 			bestDir = cura - maxDeltaAngle;
-			bestToi = min(bestToi, interpolateToi(bestDir, tc.dir, tc.toi, tc.n));
+			bestToi = std::min(bestToi, interpolateToi(bestDir, tc.dir, tc.toi, tc.n));
 		}
 		else if (da > maxDeltaAngle)
 		{
 			bestDir = cura + maxDeltaAngle;
-			bestToi = min(bestToi, interpolateToi(bestDir, tc.dir, tc.toi, tc.n));
+			bestToi = std::min(bestToi, interpolateToi(bestDir, tc.dir, tc.toi, tc.n));
 		}
 	}
 
@@ -645,7 +645,7 @@ static void processSamples(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavM
 					np[1] = -dp[0];
 				}
 
-				side += clamp(min(dot_v2v2(dp, vab),
+				side += clamp(std::min(dot_v2v2(dp, vab),
 				                  dot_v2v2(np, vab)) * 2.0f, 0.0f, 1.0f);
 				nside++;
 

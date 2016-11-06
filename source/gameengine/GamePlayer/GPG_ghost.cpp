@@ -1227,9 +1227,9 @@ int main(
 								// Strip the path so that we have the name of the game file
 								STR_String path = titlename;
 #ifndef WIN32
-								vector<STR_String> parts = path.Explode('/');
+								std::vector<STR_String> parts = path.Explode('/');
 #else  // WIN32
-								vector<STR_String> parts = path.Explode('\\');
+								std::vector<STR_String> parts = path.Explode('\\');
 #endif // WIN32                        
 								STR_String title;
 								if (parts.size()) {

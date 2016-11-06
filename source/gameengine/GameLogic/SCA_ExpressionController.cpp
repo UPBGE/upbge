@@ -117,7 +117,7 @@ void SCA_ExpressionController::Trigger(SCA_LogicManager* logicmgr)
 		}
 	}
 
-	for (vector<SCA_IActuator*>::const_iterator i=m_linkedactuators.begin();
+	for (std::vector<SCA_IActuator*>::const_iterator i=m_linkedactuators.begin();
 	!(i==m_linkedactuators.end());i++)
 	{
 		SCA_IActuator* actua = *i;
@@ -132,7 +132,7 @@ CValue* SCA_ExpressionController::FindIdentifier(const STR_String& identifiernam
 
 	CValue* identifierval = NULL;
 
-	for (vector<SCA_ISensor*>::const_iterator is=m_linkedsensors.begin();
+	for (std::vector<SCA_ISensor*>::const_iterator is=m_linkedsensors.begin();
 	!(is==m_linkedsensors.end());is++)
 	{
 		SCA_ISensor* sensor = *is;

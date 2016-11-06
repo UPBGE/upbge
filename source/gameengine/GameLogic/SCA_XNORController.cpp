@@ -61,7 +61,7 @@ void SCA_XNORController::Trigger(SCA_LogicManager* logicmgr)
 
 	bool sensorresult = true;
 
-	for (vector<SCA_ISensor*>::const_iterator is=m_linkedsensors.begin();
+	for (std::vector<SCA_ISensor*>::const_iterator is=m_linkedsensors.begin();
 	!(is==m_linkedsensors.end());is++)
 	{
 		SCA_ISensor* sensor = *is;
@@ -76,7 +76,7 @@ void SCA_XNORController::Trigger(SCA_LogicManager* logicmgr)
 		}
 	}
 
-	for (vector<SCA_IActuator*>::const_iterator i=m_linkedactuators.begin();
+	for (std::vector<SCA_IActuator*>::const_iterator i=m_linkedactuators.begin();
 	!(i==m_linkedactuators.end());i++)
 	{
 		SCA_IActuator* actua = *i;

@@ -42,7 +42,7 @@ class SCA_2DFilterActuator : public SCA_IActuator
 	Py_Header
 
 private:
-	vector<STR_String> m_propNames;
+	std::vector<STR_String> m_propNames;
 	int m_type;
 	short m_disableMotionBlur;
 	float m_float_arg;

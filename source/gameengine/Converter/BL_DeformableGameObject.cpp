@@ -77,7 +77,7 @@ bool BL_DeformableGameObject::SetActiveAction(short priority, double curtime)
 	}
 }
 
-bool BL_DeformableGameObject::GetShape(vector<float> &shape)
+bool BL_DeformableGameObject::GetShape(std::vector<float> &shape)
 {
 	shape.clear();
 	BL_ShapeDeformer* shape_deformer = dynamic_cast<BL_ShapeDeformer*>(m_pDeformer);

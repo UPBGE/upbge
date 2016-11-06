@@ -914,8 +914,8 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	// this constructor is used for automatic planar mirror
 	// create a camera, take all data by default, in any case we will recompute the frustum on each frame
 	RAS_CameraData camdata;
-	vector<RAS_ITexVert*> mirrorVerts;
-	vector<RAS_ITexVert*>::iterator it;
+	std::vector<RAS_ITexVert*> mirrorVerts;
+	std::vector<RAS_ITexVert*>::iterator it;
 	float mirrorArea = 0.f;
 	float mirrorNormal[3] = {0.f, 0.f, 0.f};
 	float mirrorUp[3];
