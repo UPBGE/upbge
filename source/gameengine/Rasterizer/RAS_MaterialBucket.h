@@ -66,7 +66,7 @@ public:
 	RAS_MeshSlotList::iterator msBegin();
 	RAS_MeshSlotList::iterator msEnd();
 
-	RAS_MeshSlot *AddMesh(RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, const RAS_TexVertFormat& format);
+	RAS_MeshSlot *NewMesh(RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, const RAS_TexVertFormat& format);
 	RAS_MeshSlot *CopyMesh(RAS_MeshSlot *ms);
 	void AddMesh(RAS_MeshSlot *ms);
 	void RemoveMesh(RAS_MeshSlot *ms);

@@ -46,7 +46,7 @@
 
 #include "BLI_utildefines.h"
 
-class RAS_IStorage;
+class RAS_StorageVBO;
 class RAS_ICanvas;
 class RAS_OpenGLLight;
 struct GPUOffScreen;
@@ -217,9 +217,7 @@ protected:
 
 	OverrideShaderType m_overrideShader;
 
-	/* Making use of a Strategy design pattern for storage behavior.
-	 * Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
-	RAS_IStorage *m_storages[RAS_STORAGE_MAX];
+	RAS_StorageVBO *m_storage;
 
 	/// Initialize custom shader interface containing uniform location.
 	void InitOverrideShadersInterface();
@@ -276,10 +274,10 @@ public:
 	virtual RAS_ISync *CreateSync(int type);
 	virtual void SwapBuffers(RAS_ICanvas *canvas);
 
-	virtual void BindPrimitives(StorageType storage, RAS_DisplayArrayBucket *arrayBucket);
-	virtual void UnbindPrimitives(StorageType storage, RAS_DisplayArrayBucket *arrayBucket);
-	virtual void IndexPrimitives(StorageType storage, RAS_MeshSlot *ms);
-	virtual void IndexPrimitivesInstancing(StorageType storage, RAS_DisplayArrayBucket *arrayBucket);
+	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
+	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
+	virtual void IndexPrimitives(RAS_MeshSlot *ms);
+	virtual void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket);
 	virtual void IndexPrimitivesText(RAS_MeshSlot *ms);
 	virtual void DrawDerivedMesh(class RAS_MeshSlot *ms);
 

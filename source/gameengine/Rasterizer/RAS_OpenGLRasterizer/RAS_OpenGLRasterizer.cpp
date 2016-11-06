@@ -50,7 +50,6 @@
 #include "RAS_OpenGLLight.h"
 #include "RAS_OpenGLSync.h"
 
-#include "RAS_StorageVA.h"
 #include "RAS_StorageVBO.h"
 
 #include "GPU_draw.h"
@@ -437,8 +436,7 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	m_viewmatrix.setIdentity();
 	m_viewinvmatrix.setIdentity();
 
-	m_storages[RAS_STORAGE_VA] = new RAS_StorageVA(&m_storageAttribs);
-	m_storages[RAS_STORAGE_VBO] = new RAS_StorageVBO(&m_storageAttribs);
+	m_storage = new RAS_StorageVBO(&m_storageAttribs);
 
 	glGetIntegerv(GL_MAX_LIGHTS, (GLint *)&m_numgllights);
 	if (m_numgllights < 8)
@@ -449,9 +447,7 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 
 RAS_OpenGLRasterizer::~RAS_OpenGLRasterizer()
 {
-	for (unsigned short i = 0; i < RAS_STORAGE_MAX; ++i) {
-		delete m_storages[i];
-	}
+	delete m_storage;
 }
 
 void RAS_OpenGLRasterizer::Enable(RAS_IRasterizer::EnableBit bit)
@@ -492,10 +488,6 @@ void RAS_OpenGLRasterizer::Init()
 	SetColorMask(true, true, true, true);
 
 	glShadeModel(GL_SMOOTH);
-
-	for (unsigned short i = 0; i < RAS_STORAGE_MAX; ++i) {
-		m_storages[i]->Init();
-	}
 }
 
 void RAS_OpenGLRasterizer::SetAmbientColor(float color[3])
@@ -538,10 +530,6 @@ void RAS_OpenGLRasterizer::DisplayFog()
 
 void RAS_OpenGLRasterizer::Exit()
 {
-	for (unsigned short i = 0; i < RAS_STORAGE_MAX; ++i) {
-		m_storages[i]->Exit();
-	}
-
 	Enable(RAS_CULL_FACE);
 	Enable(RAS_DEPTH_TEST);
 
@@ -614,9 +602,7 @@ void RAS_OpenGLRasterizer::SetDrawingMode(RAS_IRasterizer::DrawType drawingmode)
 {
 	m_drawingmode = drawingmode;
 
-	for (unsigned short i = 0; i < RAS_STORAGE_MAX; ++i) {
-		m_storages[i]->SetDrawingMode(drawingmode);
-	}
+	m_storage->SetDrawingMode(drawingmode);
 }
 
 RAS_IRasterizer::DrawType RAS_OpenGLRasterizer::GetDrawingMode()
@@ -1240,35 +1226,35 @@ void RAS_OpenGLRasterizer::SetAttribLayers(const RAS_IRasterizer::AttribLayerLis
 	m_storageAttribs.layers = layers;
 }
 
-void RAS_OpenGLRasterizer::BindPrimitives(StorageType storage, RAS_DisplayArrayBucket *arrayBucket)
+void RAS_OpenGLRasterizer::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
-	if (arrayBucket && arrayBucket->GetDisplayArray() && storage != RAS_STORAGE_NONE) {
+	if (arrayBucket && arrayBucket->GetDisplayArray()) {
 		// Set the proper uv layer for uv attributes.
 		arrayBucket->SetAttribLayers(this);
-		m_storages[storage]->BindPrimitives(arrayBucket);
+		m_storage->BindPrimitives(arrayBucket);
 	}
 }
 
-void RAS_OpenGLRasterizer::UnbindPrimitives(StorageType storage, RAS_DisplayArrayBucket *arrayBucket)
+void RAS_OpenGLRasterizer::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 {
-	if (arrayBucket && arrayBucket->GetDisplayArray() && storage != RAS_STORAGE_NONE) {
-		m_storages[storage]->UnbindPrimitives(arrayBucket);
+	if (arrayBucket && arrayBucket->GetDisplayArray()) {
+		m_storage->UnbindPrimitives(arrayBucket);
 	}
 }
 
-void RAS_OpenGLRasterizer::IndexPrimitives(StorageType storage, RAS_MeshSlot *ms)
+void RAS_OpenGLRasterizer::IndexPrimitives(RAS_MeshSlot *ms)
 {
 	if (ms->m_pDerivedMesh) {
 		DrawDerivedMesh(ms);
 	}
-	else if (storage != RAS_STORAGE_NONE) {
-		m_storages[storage]->IndexPrimitives(ms);
+	else {
+		m_storage->IndexPrimitives(ms);
 	}
 }
 
-void RAS_OpenGLRasterizer::IndexPrimitivesInstancing(StorageType storage, RAS_DisplayArrayBucket *arrayBucket)
+void RAS_OpenGLRasterizer::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket)
 {
-	m_storages[storage]->IndexPrimitivesInstancing(arrayBucket);
+	m_storage->IndexPrimitivesInstancing(arrayBucket);
 }
 
 

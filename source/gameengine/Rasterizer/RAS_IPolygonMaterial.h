@@ -88,9 +88,6 @@ protected:
 
 	RAS_Texture *m_textures[RAS_Texture::MaxUnits];
 
-	/// The storage type used to render with this material.
-	RAS_IRasterizer::StorageType m_storageType;
-
 public:
 
 	// care! these are taken from blender polygonflags, see file DNA_mesh_types.h for #define TF_BILLBOARD etc.
@@ -127,7 +124,6 @@ public:
 	bool OnlyShadow() const;
 	RAS_Texture *GetTexture(unsigned int index);
 	bool UseDisplayLists() const;
-	RAS_IRasterizer::StorageType GetStorageType() const;
 
 	virtual const STR_String& GetTextureName() const = 0;
 	virtual Material *GetBlenderMaterial() const = 0;

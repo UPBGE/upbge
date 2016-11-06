@@ -91,8 +91,11 @@ void RAS_MeshSlot::init(RAS_MaterialBucket *bucket, RAS_MeshObject *mesh,
 	m_mesh = mesh;
 	m_meshMaterial = meshmat;
 
-	RAS_IDisplayArray::PrimitiveType type = (bucket->IsWire()) ? RAS_IDisplayArray::LINES : RAS_IDisplayArray::TRIANGLES;
-	m_displayArray = RAS_IDisplayArray::ConstructArray(type, format);
+	// Test if the mesh slot is not owned by a font object, no mesh.
+	if (mesh && meshmat) {
+		RAS_IDisplayArray::PrimitiveType type = (bucket->IsWire()) ? RAS_IDisplayArray::LINES : RAS_IDisplayArray::TRIANGLES;
+		m_displayArray = RAS_IDisplayArray::ConstructArray(type, format);
+	}
 
 	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, m_mesh, meshmat);
 }

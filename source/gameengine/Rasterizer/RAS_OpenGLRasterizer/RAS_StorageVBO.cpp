@@ -286,15 +286,6 @@ RAS_StorageVBO::~RAS_StorageVBO()
 {
 }
 
-bool RAS_StorageVBO::Init()
-{
-	return true;
-}
-
-void RAS_StorageVBO::Exit()
-{
-}
-
 VBO *RAS_StorageVBO::GetVBO(RAS_DisplayArrayBucket *arrayBucket)
 {
 	VBO *vbo = (VBO *)arrayBucket->GetStorageInfo();

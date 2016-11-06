@@ -84,7 +84,7 @@ set(SRC
 	RAS_IDisplayArray.h
 	RAS_IPolygonMaterial.h
 	RAS_IRasterizer.h
-	RAS_IStorage.h
+	RAS_IStorageInfo.h
 	RAS_ILightObject.h
 	RAS_InstancingBuffer.h
 	RAS_ISync.h

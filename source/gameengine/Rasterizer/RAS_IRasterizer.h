@@ -228,13 +228,6 @@ public:
 		RAS_STENCIL_BUFFER_BIT = 0x8
 	};
 
-	enum StorageType {
-		RAS_STORAGE_NONE = -1,
-		RAS_STORAGE_VA = 0,
-		RAS_STORAGE_VBO,
-		RAS_STORAGE_MAX
-	};
-
 	enum OffScreen {
 		RAS_OFFSCREEN_COLOR = 0,
 		RAS_OFFSCREEN_DEPTH = 1,
@@ -446,19 +439,19 @@ public:
 	
 	// Drawing Functions
 	/// Set all pre render attributs for given display array bucket.
-	virtual void BindPrimitives(StorageType storage, RAS_DisplayArrayBucket *arrayBucket) = 0;
+	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket) = 0;
 	/// UnSet all pre render attributs for given display array bucket.
-	virtual void UnbindPrimitives(StorageType storage, RAS_DisplayArrayBucket *arrayBucket) = 0;
+	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket) = 0;
 	/**
 	 * IndexPrimitives: Renders primitives from mesh slot.
 	 */
-	virtual void IndexPrimitives(StorageType storage, RAS_MeshSlot *ms) = 0;
+	virtual void IndexPrimitives(RAS_MeshSlot *ms) = 0;
 
 	/**
 	 * Renders all primitives from mesh slots contained in this display array
 	 * bucket with the geometry instancing way.
 	 */
-	virtual void IndexPrimitivesInstancing(StorageType storage, RAS_DisplayArrayBucket *arrayBucket) = 0;
+	virtual void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket) = 0;
 
 	/// Render text mesh slot using BLF functions.
 	virtual void IndexPrimitivesText(RAS_MeshSlot *ms) = 0;

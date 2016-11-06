@@ -84,30 +84,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		ME_MTEXFACE_CPY(m_mtexPoly, mtface);
 	}
 
-	short storage = game->storage;
-	// If the material storage is set to RAS_STORE_SCENE then we use the storage set in scene.
-	if (storage == GAME_STORAGE_SCENE) {
-		Scene *blenderScene = scene->GetBlenderScene();
-		storage = blenderScene->gm.raster_storage;
-		m_flag |= (blenderScene->gm.flag & GAME_DISPLAY_LISTS) ? RAS_DISPLAYLISTS : 0;
-	}
-	else {
-		m_flag |= (game->storage_flag & GEMAT_DISPLAY_LISTS) ? RAS_DISPLAYLISTS : 0;
-	}
-
-	switch (storage) {
-		case GAME_STORAGE_VA:
-		{
-			m_storageType = RAS_IRasterizer::RAS_STORAGE_VA;
-			break;
-		}
-		case GAME_STORAGE_VBO:
-		{
-			m_storageType = RAS_IRasterizer::RAS_STORAGE_VBO;
-			break;
-		}
-	};
-
 	// with ztransp enabled, enforce alpha blending mode
 	if ((mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (m_alphablend == GEMAT_SOLID)) {
 		m_alphablend = GEMAT_ALPHA;

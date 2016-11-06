@@ -272,7 +272,7 @@ RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsign
 		m_materials.push_back(meshmat);
 		meshmat->m_bucket = bucket;
 		meshmat->m_index = index;
-		meshmat->m_baseslot = meshmat->m_bucket->AddMesh(this, meshmat, format);
+		meshmat->m_baseslot = meshmat->m_bucket->NewMesh(this, meshmat, format);
 	}
 
 	return meshmat;

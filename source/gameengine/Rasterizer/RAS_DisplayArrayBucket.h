@@ -134,7 +134,6 @@ public:
 	RAS_IStorageInfo *GetStorageInfo() const;
 	void SetStorageInfo(RAS_IStorageInfo *info);
 	void DestructStorageInfo();
-	RAS_IRasterizer::StorageType GetStorageType() const;
 
 	/** Generate the attribute's layers for the used mesh and material couple.
 	 * WARNING: Always call when shader in the material are valid.

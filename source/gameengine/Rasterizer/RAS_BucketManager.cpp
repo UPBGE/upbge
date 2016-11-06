@@ -174,11 +174,11 @@ void RAS_BucketManager::RenderSortedBuckets(const MT_Transform& cameratrans, RAS
 		RAS_DisplayArrayBucket *displayArrayBucket = sit->m_ms->m_displayArrayBucket;
 
 		/* Unbind display array here before unset material to use the proper
-		 * number of attributs in RAS_IStorage::Unbind since this variable is
+		 * number of attributs in storage unbind since this variable is
 		 * global and mutated by all material during its activation.
 		 */
 		if (displayArrayBucket != lastDisplayArrayBucket && lastDisplayArrayBucket) {
-			rasty->UnbindPrimitives(lastDisplayArrayBucket->GetStorageType(), lastDisplayArrayBucket);
+			rasty->UnbindPrimitives(lastDisplayArrayBucket);
 		}
 		if (bucket != lastMaterialBucket) {
 			if (matactivated) {
@@ -192,7 +192,7 @@ void RAS_BucketManager::RenderSortedBuckets(const MT_Transform& cameratrans, RAS
 		 * proper attributs numbers, same as display array unbind before.
 		 */
 		if (displayArrayBucket != lastDisplayArrayBucket) {
-			rasty->BindPrimitives(displayArrayBucket->GetStorageType(), displayArrayBucket);
+			rasty->BindPrimitives(displayArrayBucket);
 			lastDisplayArrayBucket = displayArrayBucket;
 		}
 
@@ -200,7 +200,7 @@ void RAS_BucketManager::RenderSortedBuckets(const MT_Transform& cameratrans, RAS
 	}
 
 	// Always unbind VBO or VA before unset the material to use the correct material attributs.
-	rasty->UnbindPrimitives(lastDisplayArrayBucket->GetStorageType(), lastDisplayArrayBucket);
+	rasty->UnbindPrimitives(lastDisplayArrayBucket);
 
 	if (matactivated) {
 		lastMaterialBucket->DesactivateMaterial(rasty);

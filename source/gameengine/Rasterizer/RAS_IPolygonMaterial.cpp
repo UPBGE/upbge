@@ -40,8 +40,7 @@ RAS_IPolyMaterial::RAS_IPolyMaterial(
 	:m_name(name),
 	m_alphablend(0),
 	m_rasMode(0),
-	m_flag(0),
-	m_storageType(RAS_IRasterizer::RAS_STORAGE_NONE)
+	m_flag(0)
 {
 	if (game) {
 		m_drawingmode = ConvertFaceMode(game);
@@ -161,9 +160,4 @@ RAS_Texture *RAS_IPolyMaterial::GetTexture(unsigned int index)
 bool RAS_IPolyMaterial::UseDisplayLists() const
 {
 	return (m_flag & RAS_DISPLAYLISTS);
-}
-
-RAS_IRasterizer::StorageType RAS_IPolyMaterial::GetStorageType() const
-{
-	return m_storageType;
 }

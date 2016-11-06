@@ -845,7 +845,7 @@ typedef struct GameData {
 	 * bit 5: (gameengine) : enable Bullet DBVT tree for view frustum culling
 	 */
 	int flag;
-	short mode, pad1;
+	short mode;
 	short occlusionRes;		/* resolution of occlusion Z buffer in pixel */
 	short physicsEngine;
 	short exitkey;
@@ -853,13 +853,12 @@ typedef struct GameData {
 	short vsync; /* Controls vsync: off, on, or adaptive (if supported) */
 	short ticrate, maxlogicstep, physubstep, maxphystep;
 	short obstacleSimulation;
-	short raster_storage;
 	float levelHeight;
 	float deactivationtime, lineardeactthreshold, angulardeactthreshold;
 
 	/* Scene LoD */
 	short lodflag, pad2;
-	int scehysteresis, pad5;
+	int scehysteresis;
 
 } GameData;
 
@@ -894,7 +893,6 @@ typedef struct GameData {
 #define GAME_SHOW_DEBUG_PROPS				(1 << 2)
 #define GAME_SHOW_FRAMERATE					(1 << 3)
 #define GAME_SHOW_PHYSICS					(1 << 4)
-#define GAME_DISPLAY_LISTS					(1 << 5)
 #define GAME_GLSL_NO_LIGHTS					(1 << 6)
 #define GAME_GLSL_NO_SHADERS				(1 << 7)
 #define GAME_GLSL_NO_SHADOWS				(1 << 8)

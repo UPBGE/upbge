@@ -91,21 +91,9 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 10)) {
-		if (!DNA_struct_elem_find(fd->filesdna, "GameSettings", "short", "storage")) {
-			for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
-				ma->game.storage = GAME_STORAGE_SCENE;
-			}
-		}
-
 		if (!DNA_struct_elem_find(fd->filesdna, "Material", "float", "depthtranspfactor")) {
 			for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
 				ma->depthtranspfactor = 1.0f;
-			}
-		}
-
-		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
-			if (scene->gm.raster_storage == GAME_STORAGE_AUTO || scene->gm.raster_storage == GAME_STORAGE_IMMEDIATE) {
-				scene->gm.raster_storage = GAME_STORAGE_VA;
 			}
 		}
 

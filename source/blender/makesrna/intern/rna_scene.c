@@ -2256,7 +2256,7 @@ static void rna_def_gpencil_brush(BlenderRNA *brna)
 	RNA_def_property_range(prop, -M_PI_2, M_PI_2);
 	RNA_def_property_ui_text(prop, "Angle",
 	                         "Direction of the stroke at which brush gives maximal thickness "
-	                         "(0° for horizontal)");
+	                         "(0?? for horizontal)");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, NULL);
 
 	/* Factor to change brush size depending of angle */
@@ -4422,12 +4422,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem storage_items[] = {
-		{GAME_STORAGE_VA, "VERTEX_ARRAY", 0, "Vertex Arrays", "Usually the best choice (good performance with display lists)"},
-		{GAME_STORAGE_VBO, "VERTEX_BUFFER_OBJECT", 0, "Vertex Buffer Objects",
-		                "Typically slower than vertex arrays with display lists, requires at least OpenGL 1.4"},
-		{0, NULL, 0, NULL, NULL}};
-
 	srna = RNA_def_struct(brna, "SceneGameData", NULL);
 	RNA_def_struct_sdna(srna, "GameData");
 	RNA_def_struct_nested(brna, srna, "Scene");
@@ -4477,13 +4471,7 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_enum_funcs(prop, NULL, "rna_GameSettings_exit_key_set", NULL);
 	RNA_def_property_ui_text(prop, "Exit Key", "The key that exits the Game Engine");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
-	
-	prop = RNA_def_property(srna, "raster_storage", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "raster_storage");
-	RNA_def_property_enum_items(prop, storage_items);
-	RNA_def_property_ui_text(prop, "Storage", "Set the storage mode used by the rasterizer");
-	RNA_def_property_update(prop, NC_SCENE, NULL);
-	
+
 	/* Do we need it here ? (since we already have it in World */
 	prop = RNA_def_property(srna, "frequency", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "freqplay");
@@ -4676,11 +4664,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Use Frame Rate",
 	                         "Respect the frame rate from the Physics panel in the world properties "
 	                         "rather than rendering as many frames as possible");
-
-	prop = RNA_def_property(srna, "use_display_lists", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_DISPLAY_LISTS);
-	RNA_def_property_ui_text(prop, "Display Lists",
-	                         "Use display lists to speed up rendering by keeping geometry on the GPU");
 
 	prop = RNA_def_property(srna, "use_deprecation_warnings", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GAME_IGNORE_DEPRECATION_WARNINGS);

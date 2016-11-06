@@ -137,7 +137,7 @@ void KX_FontObject::AddMeshUser()
 		RAS_TexVertFormat format;
 		format.uvSize = 1;
 		format.colorSize = 1;
-		bucket->AddMesh(NULL, NULL, format);
+		bucket->NewMesh(NULL, NULL, format);
 	}
 
 	/* We copy the original mesh slot which is at the begin of the list, if it's not the case it

@@ -25,13 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __KX_VERTEXBUFFEROBJECTSTORAGE
-#define __KX_VERTEXBUFFEROBJECTSTORAGE
+#ifndef __RAS_STORAGE_VBO_H__
+#define __RAS_STORAGE_VBO_H__
 
-#include <map>
 #include "glew-mx.h"
 
-#include "RAS_IStorage.h"
+#include "RAS_IStorageInfo.h"
 
 #include "RAS_OpenGLRasterizer.h"
 
@@ -76,21 +75,18 @@ private:
 	void *m_uv_offset;
 };
 
-class RAS_StorageVBO : public RAS_IStorage
+class RAS_StorageVBO
 {
 public:
 	RAS_StorageVBO(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs);
-	virtual ~RAS_StorageVBO();
+	~RAS_StorageVBO();
 
-	virtual bool Init();
-	virtual void Exit();
+	void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
+	void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
+	void IndexPrimitives(RAS_MeshSlot *ms);
+	void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket);
 
-	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
-	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
-	virtual void IndexPrimitives(RAS_MeshSlot *ms);
-	virtual void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket);
-
-	virtual void SetDrawingMode(RAS_IRasterizer::DrawType drawingmode)
+	void SetDrawingMode(RAS_IRasterizer::DrawType drawingmode)
 	{
 		m_drawingmode = drawingmode;
 	};
@@ -115,4 +111,4 @@ public:
 #endif
 };
 
-#endif //__KX_VERTEXBUFFEROBJECTSTORAGE
+#endif  // __RAS_STORAGE_VBO_H__

@@ -1099,8 +1099,6 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 				sce->gm.flag |= GAME_GLSL_NO_ENV_LIGHTING;
 			if (fd->fileflags & G_FILE_IGNORE_DEPRECATION_WARNINGS)
 				sce->gm.flag |= GAME_IGNORE_DEPRECATION_WARNINGS;
-
-			sce->gm.flag |= GAME_DISPLAY_LISTS;
 		}
 
 		for (ob = main->object.first; ob; ob = ob->id.next) {

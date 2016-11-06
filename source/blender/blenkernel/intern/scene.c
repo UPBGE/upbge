@@ -713,9 +713,6 @@ void BKE_scene_init(Scene *sce)
 	sce->gm.angulardeactthreshold = 1.0f;
 	sce->gm.deactivationtime = 0.0f;
 
-	sce->gm.raster_storage = GAME_STORAGE_VA;
-	sce->gm.flag = GAME_DISPLAY_LISTS;
-
 	sce->gm.obstacleSimulation = OBSTSIMULATION_NONE;
 	sce->gm.levelHeight = 2.f;
 

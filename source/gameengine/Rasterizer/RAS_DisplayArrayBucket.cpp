@@ -36,7 +36,7 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Deformer.h"
 #include "RAS_IRasterizer.h"
-#include "RAS_IStorage.h"
+#include "RAS_IStorageInfo.h"
 #include "RAS_InstancingBuffer.h"
 #include "RAS_BucketManager.h"
 
@@ -251,11 +251,6 @@ void RAS_DisplayArrayBucket::DestructStorageInfo()
 	}
 }
 
-RAS_IRasterizer::StorageType RAS_DisplayArrayBucket::GetStorageType() const
-{
-	return m_bucket->GetPolyMaterial()->GetStorageType();
-}
-
 void RAS_DisplayArrayBucket::GenerateAttribLayers()
 {
 	if (!m_mesh) {
@@ -281,15 +276,14 @@ void RAS_DisplayArrayBucket::RenderMeshSlots(const MT_Transform& cameratrans, RA
 	// Update deformer and render settings.
 	UpdateActiveMeshSlots(rasty);
 
-	const RAS_IRasterizer::StorageType storage = GetStorageType();
-	rasty->BindPrimitives(storage, this);
+	rasty->BindPrimitives(this);
 
 	for (RAS_MeshSlotList::iterator it = m_activeMeshSlots.begin(), end = m_activeMeshSlots.end(); it != end; ++it) {
 		RAS_MeshSlot *ms = *it;
 		m_bucket->RenderMeshSlot(cameratrans, rasty, ms);
 	}
 
-	rasty->UnbindPrimitives(storage, this);
+	rasty->UnbindPrimitives(this);
 }
 
 void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, bool alpha)
@@ -365,10 +359,9 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 	// Unbind the buffer to avoid conflict with the render after.
 	m_instancingBuffer->Unbind();
 
-	const RAS_IRasterizer::StorageType storage = GetStorageType();
-	rasty->BindPrimitives(storage, this);
+	rasty->BindPrimitives(this);
 
-	rasty->IndexPrimitivesInstancing(storage, this);
+	rasty->IndexPrimitivesInstancing(this);
 	// Unbind vertex attributs.
 	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
 		material->DesactivateInstancing();
@@ -377,7 +370,7 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 		rasty->DesactivateOverrideShaderInstancing();
 	}
 
-	rasty->UnbindPrimitives(storage, this);
+	rasty->UnbindPrimitives(this);
 }
 
 void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)

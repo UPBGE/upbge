@@ -83,7 +83,7 @@ bool RAS_MaterialBucket::UseInstancing() const
 	return (m_material->UseInstancing());
 }
 
-RAS_MeshSlot *RAS_MaterialBucket::AddMesh(RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, const RAS_TexVertFormat& format)
+RAS_MeshSlot *RAS_MaterialBucket::NewMesh(RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, const RAS_TexVertFormat& format)
 {
 	RAS_MeshSlot *ms = new RAS_MeshSlot();
 	ms->init(this, mesh, meshmat, format);
@@ -201,7 +201,7 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 		rasty->IndexPrimitivesText(ms);
 	}
 	else {
-		rasty->IndexPrimitives(ms->m_displayArrayBucket->GetStorageType(), ms);
+		rasty->IndexPrimitives(ms);
 	}
 
 	rasty->PopMatrix();
