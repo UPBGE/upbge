@@ -48,19 +48,20 @@ class KX_CollisionEventManager : public SCA_EventManager
 	/**
 	 * Contains two colliding objects and the first contact point.
 	 */
-	class NewCollision {
+	class NewCollision
+	{
 	public:
 		PHY_IPhysicsController *first;
 		PHY_IPhysicsController *second;
 		const PHY_CollData *colldata;
 
 		/**
-	     * Creates a copy of the given PHY_CollData; freeing that copy should be done by the owner of
-	     * the NewCollision object.
-	     *
-	     * This allows us to efficiently store NewCollision objects in a std::set without creating more
-	     * copies of colldata, as the NewCollision copy constructor reuses the pointer and doesn't clone
-	     * it again. */
+		 * Creates a copy of the given PHY_CollData; freeing that copy should be done by the owner of
+		 * the NewCollision object.
+		 *
+		 * This allows us to efficiently store NewCollision objects in a std::set without creating more
+		 * copies of colldata, as the NewCollision copy constructor reuses the pointer and doesn't clone
+		 * it again. */
 		NewCollision(PHY_IPhysicsController *first,
 		             PHY_IPhysicsController *second,
 		             const PHY_CollData *colldata);
@@ -68,41 +69,46 @@ class KX_CollisionEventManager : public SCA_EventManager
 		bool operator<(const NewCollision &other) const;
 	};
 
-	PHY_IPhysicsEnvironment*	m_physEnv;
-	
+	PHY_IPhysicsEnvironment *m_physEnv;
+
 	std::set<NewCollision> m_newCollisions;
-	
-	
-	static bool newCollisionResponse(void *client_data, 
-						void *object1,
-						void *object2,
-						const PHY_CollData *coll_data);
 
-	static bool newBroadphaseResponse(void *client_data, 
-						void *object1,
-						void *object2,
-						const PHY_CollData *coll_data);
+	static bool newCollisionResponse(void *client_data,
+	                                 void *object1,
+	                                 void *object2,
+	                                 const PHY_CollData *coll_data);
 
-	virtual bool	NewHandleCollision(void* obj1,void* obj2,
-						const PHY_CollData * coll_data); 
+	static bool newBroadphaseResponse(void *client_data,
+	                                  void *object1,
+	                                  void *object2,
+	                                  const PHY_CollData *coll_data);
+
+	virtual bool NewHandleCollision(void *obj1, void *obj2,
+									const PHY_CollData *coll_data);
 
 	void RemoveNewCollisions();
 
 public:
-	KX_CollisionEventManager(class SCA_LogicManager* logicmgr,  
-		PHY_IPhysicsEnvironment* physEnv);
+	KX_CollisionEventManager(class SCA_LogicManager *logicmgr,
+	                         PHY_IPhysicsEnvironment *physEnv);
 	virtual ~KX_CollisionEventManager();
 	virtual void NextFrame();
-	virtual void	EndFrame();
-	virtual void RegisterSensor(SCA_ISensor* sensor);
-	virtual void RemoveSensor(SCA_ISensor* sensor);
-	SCA_LogicManager* GetLogicManager() { return m_logicmgr;}
-	PHY_IPhysicsEnvironment *GetPhysicsEnvironment() { return m_physEnv; }
+	virtual void EndFrame();
+	virtual void RegisterSensor(SCA_ISensor *sensor);
+	virtual void RemoveSensor(SCA_ISensor *sensor);
 
-	
+	SCA_LogicManager *GetLogicManager()
+	{
+		return m_logicmgr;
+	}
+	PHY_IPhysicsEnvironment *GetPhysicsEnvironment()
+	{
+		return m_physEnv;
+	}
+
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_CollisionEventManager")
 #endif
 };
 
-#endif  /* __KX_TOUCHEVENTMANAGER_H__ */
+#endif  // __KX_TOUCHEVENTMANAGER_H__

@@ -56,83 +56,88 @@ protected:
 	/**
 	 * The sensor should only look for objects with this property.
 	 */
-	STR_String				m_touchedpropname;
-	bool					m_bFindMaterial;
-	bool					m_bCollisionPulse;		/* changes in the colliding objects trigger pulses */
-	
-	class PHY_IPhysicsController*	m_physCtrl;
+	STR_String m_touchedpropname;
+	bool m_bFindMaterial;
+	bool m_bCollisionPulse;                         /* changes in the colliding objects trigger pulses */
 
-	bool					m_bCollision;
-	bool					m_bTriggered;
-	bool					m_bLastTriggered;
+	class PHY_IPhysicsController *   m_physCtrl;
+
+	bool m_bCollision;
+	bool m_bTriggered;
+	bool m_bLastTriggered;
 
 	// Use with m_bCollisionPulse to detect changes
-	int						m_bLastCount;		/* size of m_colliders last tick */
-	uint_ptr				m_bColliderHash;	/* hash collision objects pointers to trigger in case one object collides and another takes its place */
-	uint_ptr				m_bLastColliderHash;
+	int m_bLastCount;                           /* size of m_colliders last tick */
+	uint_ptr m_bColliderHash;                   /* hash collision objects pointers to trigger in case one object collides and another takes its place */
+	uint_ptr m_bLastColliderHash;
 
-	SCA_IObject*		    m_hitObject;
-	class CListValue*		m_colliders;
-	STR_String				m_hitMaterial;
-	
+	SCA_IObject *m_hitObject;
+	class CListValue *       m_colliders;
+	STR_String m_hitMaterial;
+
 public:
-	KX_CollisionSensor(class SCA_EventManager* eventmgr,
-		class KX_GameObject* gameobj,
-		bool bFindMaterial,
-		bool bCollisionPulse,
-		const STR_String& touchedpropname);
+	KX_CollisionSensor(class SCA_EventManager *eventmgr,
+	                   class KX_GameObject *gameobj,
+	                   bool bFindMaterial,
+	                   bool bCollisionPulse,
+	                   const STR_String& touchedpropname);
 	virtual ~KX_CollisionSensor();
 
-	virtual CValue* GetReplica();
+	virtual CValue *GetReplica();
 	virtual void ProcessReplica();
 	virtual void SynchronizeTransform();
 	virtual bool Evaluate();
 	virtual void Init();
-	virtual void ReParent(SCA_IObject* parent);
-	
-	virtual void RegisterSumo(KX_CollisionEventManager* collisionman);
-	virtual void UnregisterSumo(KX_CollisionEventManager* collisionman);
+	virtual void ReParent(SCA_IObject *parent);
+
+	virtual void RegisterSumo(KX_CollisionEventManager *collisionman);
+	virtual void UnregisterSumo(KX_CollisionEventManager *collisionman);
 	virtual void UnregisterToManager();
 
-#if 0
-	virtual DT_Bool HandleCollision(void* obj1,void* obj2,
-	                                const DT_CollData * coll_data);
-#endif
-
-	virtual bool	NewHandleCollision(void*obj1,void*obj2,const PHY_CollData* colldata);
+	virtual bool NewHandleCollision(void *obj1, void *obj2, const PHY_CollData *colldata);
 
 	// Allows to do pre-filtering and save computation time
 	// obj1 = sensor physical controller, obj2 = physical controller of second object
 	// return value = true if collision should be checked on pair of object
-	virtual bool	BroadPhaseFilterCollision(void*obj1,void*obj2) { return true; }
-	virtual bool	BroadPhaseSensorFilterCollision(void*obj1,void*obj2);
-	virtual sensortype GetSensorType() { return ST_TOUCH; }
-  
+	virtual bool BroadPhaseFilterCollision(void *obj1, void *obj2)
+	{
+		return true;
+	}
+	virtual bool BroadPhaseSensorFilterCollision(void *obj1, void *obj2);
+	virtual sensortype GetSensorType()
+	{
+		return ST_TOUCH;
+	}
 
-	virtual bool IsPositiveTrigger() {
+
+	virtual bool IsPositiveTrigger()
+	{
 		bool result = m_bTriggered;
-		if (m_invert) result = !result;
+		if (m_invert) {
+			result = !result;
+		}
 		return result;
 	}
-	
+
 	virtual void EndFrame();
 
-	class PHY_IPhysicsController* GetPhysicsController() { return m_physCtrl; }
+	class PHY_IPhysicsController *GetPhysicsController()
+	{
+		return m_physCtrl;
+	}
 
-
-	// todo: put some info for collision maybe
 
 #ifdef WITH_PYTHON
 
 	/* --------------------------------------------------------------------- */
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
-	
-	static PyObject*	pyattr_get_object_hit(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_object_hit_list(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+
+	static PyObject *pyattr_get_object_hit(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_object_hit_list(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif
-	
+
 };
 
 #endif  /* __KX_TOUCHSENSOR_H__ */
