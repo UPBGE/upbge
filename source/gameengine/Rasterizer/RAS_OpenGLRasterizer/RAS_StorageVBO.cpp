@@ -33,8 +33,7 @@
 #include "glew-mx.h"
 
 VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
-	: m_bound(false),
-	  m_datainitialized(false)
+	:m_bound(false)
 {
 	m_data = arrayBucket->GetDisplayArray();
 	m_size = m_data->GetVertexCount();
@@ -55,8 +54,7 @@ VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
 	}
 
 	// Fill the buffers with initial data
-	UpdateIndices();
-	UpdateData();
+	AllocData();
 
 	// Establish offsets
 	m_vertex_offset = m_data->GetVertexXYZOffset();
@@ -96,18 +94,7 @@ void VBO::SetDataModified(RAS_IRasterizer::DrawType drawmode, DataType dataType)
 void VBO::UpdateData()
 {
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
-
-	/* The data must first be initialized. So we can allocate the right
-	 * amount of memory for the 3D model. Once we initialize the VBO with
-	 * the initial data, we can use glBufferSubData to update it.
-	 * The new data must be of the SAME size. Otherwise we have to invalidate,
-	 * m_datainitialized = false, to re-allocate memory with the new size.*/
-	if (!m_datainitialized) {
-		glBufferDataARB(GL_ARRAY_BUFFER_ARB, m_stride * m_size, m_data->GetVertexPointer(), GL_DYNAMIC_DRAW_ARB);
-		m_datainitialized = true;
-	} else {
-		glBufferSubDataARB(GL_ARRAY_BUFFER_ARB, 0, m_stride * m_size, m_data->GetVertexPointer());
-	}
+	glBufferSubDataARB(GL_ARRAY_BUFFER_ARB, 0, m_stride * m_size, m_data->GetVertexPointer());
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 }
 
@@ -119,15 +106,22 @@ void VBO::UpdateIndices()
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
 	}
 
-	if (!m_datainitialized) {
-		glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_indices * sizeof(GLuint), m_data->GetIndexPointer(), GL_STATIC_DRAW_ARB);
-	} else {
-		glBufferSubDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0, m_indices * sizeof(GLuint), m_data->GetIndexPointer());
-	}
+	glBufferSubDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0, m_indices * sizeof(GLuint), m_data->GetIndexPointer());
 
 	if (!m_bound) {
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 	}
+}
+
+void VBO::AllocData()
+{
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
+	glBufferDataARB(GL_ARRAY_BUFFER_ARB, m_stride * m_size, m_data->GetVertexPointer(), GL_DYNAMIC_DRAW_ARB);
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
+	glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_indices * sizeof(GLuint), m_data->GetIndexPointer(), GL_STATIC_DRAW_ARB);
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 }
 
 void VBO::Bind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)
