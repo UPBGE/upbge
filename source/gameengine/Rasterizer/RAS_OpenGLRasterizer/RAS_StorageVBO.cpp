@@ -33,7 +33,8 @@
 #include "glew-mx.h"
 
 VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
-	:m_bound(false)
+	: m_bound(false),
+	  m_datainitialized(false)
 {
 	m_data = arrayBucket->GetDisplayArray();
 	m_size = m_data->GetVertexCount();
@@ -95,7 +96,18 @@ void VBO::SetDataModified(RAS_IRasterizer::DrawType drawmode, DataType dataType)
 void VBO::UpdateData()
 {
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
-	glBufferData(GL_ARRAY_BUFFER, m_stride * m_size, m_data->GetVertexPointer(), GL_STATIC_DRAW);
+
+	/* The data must first be initialized. So we can allocate the right
+	 * amount of memory for the 3D model. Once we initialize the VBO with
+	 * the initial data, we can use glBufferSubData to update it.
+	 * The new data must be of the SAME size. Otherwise we have to invalidate,
+	 * m_datainitialized = false, to re-allocate memory with the new size.*/
+	if (!m_datainitialized) {
+		glBufferDataARB(GL_ARRAY_BUFFER_ARB, m_stride * m_size, m_data->GetVertexPointer(), GL_DYNAMIC_DRAW_ARB);
+		m_datainitialized = true;
+	} else {
+		glBufferSubDataARB(GL_ARRAY_BUFFER_ARB, 0, m_stride * m_size, m_data->GetVertexPointer());
+	}
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 }
 
@@ -107,10 +119,14 @@ void VBO::UpdateIndices()
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
 	}
 
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices * sizeof(GLuint), m_data->GetIndexPointer(), GL_STATIC_DRAW);
+	if (!m_datainitialized) {
+		glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_indices * sizeof(GLuint), m_data->GetIndexPointer(), GL_STATIC_DRAW_ARB);
+	} else {
+		glBufferSubDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0, m_indices * sizeof(GLuint), m_data->GetIndexPointer());
+	}
 
 	if (!m_bound) {
-		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER, 0);
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 	}
 }
 

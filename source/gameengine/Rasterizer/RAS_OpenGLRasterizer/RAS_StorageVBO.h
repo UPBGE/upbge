@@ -68,6 +68,9 @@ private:
 	/// Set to true when the VBO/VAO is bound.
 	bool m_bound;
 
+	/// Set to true when the data is pushed to the GPU for the first time
+	bool m_datainitialized;
+
 	void *m_vertex_offset;
 	void *m_normal_offset;
 	void *m_color_offset;
