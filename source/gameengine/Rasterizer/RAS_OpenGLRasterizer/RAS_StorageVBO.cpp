@@ -54,8 +54,7 @@ VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
 	}
 
 	// Fill the buffers with initial data
-	UpdateIndices();
-	UpdateData();
+	AllocData();
 
 	// Establish offsets
 	m_vertex_offset = m_data->GetVertexXYZOffset();
@@ -95,7 +94,7 @@ void VBO::SetDataModified(RAS_IRasterizer::DrawType drawmode, DataType dataType)
 void VBO::UpdateData()
 {
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
-	glBufferData(GL_ARRAY_BUFFER, m_stride * m_size, m_data->GetVertexPointer(), GL_STATIC_DRAW);
+	glBufferSubDataARB(GL_ARRAY_BUFFER_ARB, 0, m_stride * m_size, m_data->GetVertexPointer());
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 }
 
@@ -107,11 +106,22 @@ void VBO::UpdateIndices()
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
 	}
 
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices * sizeof(GLuint), m_data->GetIndexPointer(), GL_STATIC_DRAW);
+	glBufferSubDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0, m_indices * sizeof(GLuint), m_data->GetIndexPointer());
 
 	if (!m_bound) {
-		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER, 0);
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 	}
+}
+
+void VBO::AllocData()
+{
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
+	glBufferDataARB(GL_ARRAY_BUFFER_ARB, m_stride * m_size, m_data->GetVertexPointer(), GL_DYNAMIC_DRAW_ARB);
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
+	glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_indices * sizeof(GLuint), m_data->GetIndexPointer(), GL_DYNAMIC_DRAW_ARB);
+	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 }
 
 void VBO::Bind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)

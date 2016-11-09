@@ -47,7 +47,9 @@ public:
 	void Draw();
 	void DrawInstancing(unsigned int numinstance);
 
+	/// Updating the VBO using the display array vertices.
 	void UpdateData();
+	/// Updating the IBO using the display array indices.
 	void UpdateIndices();
 
 private:
@@ -73,6 +75,9 @@ private:
 	void *m_color_offset;
 	void *m_tangent_offset;
 	void *m_uv_offset;
+
+	/// Allocate the VBO and IBO using the display array size.
+	void AllocData();
 };
 
 class RAS_StorageVBO
