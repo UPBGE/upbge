@@ -120,7 +120,7 @@ void VBO::AllocData()
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
-	glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_indices * sizeof(GLuint), m_data->GetIndexPointer(), GL_STATIC_DRAW_ARB);
+	glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_indices * sizeof(GLuint), m_data->GetIndexPointer(), GL_DYNAMIC_DRAW_ARB);
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 }
 
