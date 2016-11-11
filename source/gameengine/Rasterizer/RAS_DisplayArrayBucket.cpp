@@ -215,7 +215,6 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 
 	// Set the storage info modified if the mesh is modified.
 	if (arrayModified && m_storageInfo) {
-		std::cout << "modified" << std::endl;
 		m_storageInfo->SetDataModified(rasty->GetDrawingMode(), RAS_IStorageInfo::VERTEX_DATA);
 	}
 }

@@ -145,20 +145,18 @@ void RAS_MeshBoundingBox::Update(bool force)
 		return;
 	}
 
-	/* Initialize AABB to first vertex position. We do it here instead that inside a condition
-	 * in the loop to optimize the AABB computation, even if the first vertex is used to initialize
-	 * and to extend the AABB.
-	 */
-	RAS_ITexVert *firstVert = m_displayArrayList[0]->GetVertex(0);
-	const MT_Vector3 firstVertPos = firstVert->xyz();
-	m_aabbMin = m_aabbMax = firstVertPos;
-
 	for (unsigned short i = 0, size = m_displayArrayList.size(); i < size; ++i) {
 		RAS_IDisplayArray *displayArray = m_displayArrayList[i];
 		// For each vertex.
 		for (unsigned int j = 0, size = displayArray->GetVertexCount(); j < size; ++j) {
 			RAS_ITexVert *vert = displayArray->GetVertex(j);
 			const MT_Vector3 vertPos = vert->xyz();
+
+			// Initialize the AABB to the first vertex position.
+			if (j == 0 && i == 0) {
+				m_aabbMin = m_aabbMax = vertPos;
+				continue;
+			}
 
 			m_aabbMin.x() = std::min(m_aabbMin.x(), vertPos.x());
 			m_aabbMin.y() = std::min(m_aabbMin.y(), vertPos.y());
