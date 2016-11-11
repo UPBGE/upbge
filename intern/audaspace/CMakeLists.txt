@@ -275,8 +275,13 @@ if(WITH_OPENAL)
 	)
 	list(APPEND SRC
 		OpenAL/AUD_OpenALDevice.cpp
+		OpenAL/AUD_OpenALEffect.cpp
+		OpenAL/AUD_OpenALReverbEffect.cpp
 
 		OpenAL/AUD_OpenALDevice.h
+		OpenAL/AUD_OpenALEffect.h
+		OpenAL/AUD_IOpenALEffectParams.h
+		OpenAL/AUD_OpenALReverbEffect.h
 	)
 endif()
 

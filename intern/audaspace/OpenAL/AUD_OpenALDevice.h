@@ -35,10 +35,15 @@
 #include "AUD_I3DDevice.h"
 #include "AUD_I3DHandle.h"
 #include "AUD_Buffer.h"
+#include "AUD_OpenALEffect.h"
 //struct AUD_OpenALBufferedFactory;
 
 #include <AL/al.h>
 #include <AL/alc.h>
+
+#define AL_ALEXT_PROTOTYPES
+#include <AL/efx.h>
+
 #include <list>
 #include <pthread.h>
 
@@ -96,6 +101,9 @@ private:
 		/// Own device.
 		AUD_OpenALDevice* m_device;
 
+		/// Current effect bound to this Handle
+		AUD_OpenALEffect* m_effect;
+
 		bool pause(bool keep);
 
 	public:
@@ -150,6 +158,9 @@ private:
 		virtual bool setConeAngleInner(float angle);
 		virtual float getConeVolumeOuter();
 		virtual bool setConeVolumeOuter(float volume);
+
+		virtual AUD_OpenALEffect* getEffect();
+		virtual void setEffect(AUD_OpenALEffect* effect);
 	};
 
 	typedef std::list<boost::shared_ptr<AUD_OpenALHandle> >::iterator AUD_HandleIterator;
