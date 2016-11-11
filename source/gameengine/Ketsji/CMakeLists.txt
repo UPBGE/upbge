@@ -111,6 +111,8 @@ set(SRC
 	KX_ObstacleSimulation.cpp
 	KX_OrientationInterpolator.cpp
 	KX_ParentActuator.cpp
+	KX_Planar.cpp
+	KX_PlanarManager.cpp
 	KX_PolyProxy.cpp
 	KX_PositionInterpolator.cpp
 	KX_PyConstraintBinding.cpp
@@ -200,6 +202,8 @@ set(SRC
 	KX_OrientationInterpolator.h
 	KX_ParentActuator.h
 	KX_PhysicsEngineEnums.h
+	KX_Planar.h
+	KX_PlanarManager.h
 	KX_PolyProxy.h
 	KX_PositionInterpolator.h
 	KX_PyConstraintBinding.h

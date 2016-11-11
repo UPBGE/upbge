@@ -535,6 +535,8 @@ void KX_KetsjiEngine::Render()
 		KX_Scene *scene = *sceit;
 		// shadow buffers
 		RenderShadowBuffers(scene);
+		// planars
+		scene->RenderPlanars(m_rasterizer);
 		// cubemaps
 		scene->RenderCubeMaps(m_rasterizer);
 	}

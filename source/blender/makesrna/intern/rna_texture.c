@@ -1247,9 +1247,34 @@ static void rna_def_texture_image(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_source_items[] = {
+		{TEX_MIRROR, "MIRROR", 0, "Image Mirror", "BGE realtime planar reflections and refractions"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem prop_image_planar_options[] = {
+		{TEX_PLANAR_NONE, "NONE", 0, "None", "No Planar Reflection"},
+		{TEX_PLANAR_REFLECTION, "REFLECTION", 0, "Reflection", "Planar Reflection"},
+		{TEX_PLANAR_REFRACTION, "REFRACTION", 0, "Refraction", "Planar Refraction"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem prop_planar_filtering_items[] = {
+		{TEX_MIPMAP_NONE, "NONE", 0, "None", "No texture filtering"},
+		{TEX_MIPMAP_LINEAR, "LINEAR", 0, "Linear Filtering", "Linear texture filtering"},
+		{TEX_MIPMAP_MIPMAP, "MIPMAP", 0, "Mipmap Filtering", "Mipmap texture filtering"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "ImageTexture", "Texture");
 	RNA_def_struct_ui_text(srna, "Image Texture", "");
 	RNA_def_struct_sdna(srna, "Tex");
+
+	prop = RNA_def_property(srna, "source", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "stype");
+	RNA_def_property_enum_items(prop, prop_source_items);
+	RNA_def_property_ui_text(prop, "Source", "");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
 	prop = RNA_def_property(srna, "use_interpolation", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "imaflag", TEX_INTERPOL);
@@ -1364,6 +1389,49 @@ static void rna_def_texture_image(BlenderRNA *brna)
 	RNA_def_property_range(prop, -10.0, 10.0);
 	RNA_def_property_ui_range(prop, -10.0, 10.0, 1, 2);
 	RNA_def_property_ui_text(prop, "Crop Maximum Y", "Maximum Y value to crop the image");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
+	prop = RNA_def_property(srna, "planar_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "planarflag");
+	RNA_def_property_enum_items(prop, prop_image_planar_options);
+	RNA_def_property_ui_text(prop, "", "Mirror effect type");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
+	prop = RNA_def_property(srna, "planar_filtering", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "planarfiltering");
+	RNA_def_property_enum_items(prop, prop_planar_filtering_items);
+	RNA_def_property_ui_text(prop, "", "Mirror texture filtering options");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
+	prop = RNA_def_property(srna, "planar_clip_start", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "clipsta");
+	RNA_def_property_range(prop, 0.001, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.01, 50, 100, 2);
+	RNA_def_property_ui_text(prop, "Clip Start", "Clip start of the Mirror rendering camera");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
+	prop = RNA_def_property(srna, "planar_clip_end", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "clipend");
+	RNA_def_property_range(prop, 0.01, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.10, 20000, 100, 2);
+	RNA_def_property_ui_text(prop, "Clip End", "Clip end of the Mirror rendering camera");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
+	prop = RNA_def_property(srna, "layers_ignore", PROP_BOOLEAN, PROP_LAYER_MEMBER);
+	RNA_def_property_boolean_sdna(prop, NULL, "notlay", 1);
+	RNA_def_property_array(prop, 20);
+	RNA_def_property_ui_text(prop, "Ignore Layers",
+		"Hide objects on these layers when rendering the mirror");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
+	prop = RNA_def_property(srna, "use_planar_auto_update", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "autoupdate", TEX_AUTO_UPDATE);
+	RNA_def_property_ui_text(prop, "Auto Update", "Auto Update Mirror");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
+	prop = RNA_def_property(srna, "use_planar_reflect_cull", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "planarcull", TEX_PLANAR_REFLECT_CULL);
+	RNA_def_property_ui_text(prop, "Cull Reflections", "Cull reflections of other mirrors on this mirror");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
 	prop = RNA_def_property(srna, "image", PROP_POINTER, PROP_NONE);

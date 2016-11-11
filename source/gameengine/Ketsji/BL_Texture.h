@@ -126,6 +126,7 @@ public:
 	static int pyattr_set_uv_offset(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_uv_size(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_uv_size(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_planar(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif  // WITH_PYTHON
 };

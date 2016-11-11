@@ -63,7 +63,9 @@
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
 #include "RAS_CubeMap.h"
+#include "RAS_Planar.h"
 #include "KX_2DFilterManager.h"
+#include "KX_PlanarManager.h"
 #include "KX_CubeMapManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
@@ -199,6 +201,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_rootnode = nullptr;
 
 	m_cubeMapManager = new KX_CubeMapManager(this);
+	m_planarManager = new KX_PlanarManager(this);
 	m_bucketmanager=new RAS_BucketManager();
 	m_boundingBoxManager = new RAS_BoundingBoxManager();
 	
@@ -283,6 +286,9 @@ KX_Scene::~KX_Scene()
 
 	if (m_networkScene)
 		delete m_networkScene;
+
+	if (m_planarManager)
+		delete m_planarManager;
 	
 	if (m_cubeMapManager) {
 		delete m_cubeMapManager;
@@ -325,6 +331,11 @@ void KX_Scene::SetName(const std::string& name)
 RAS_BucketManager* KX_Scene::GetBucketManager()
 {
 	return m_bucketmanager;
+}
+
+KX_PlanarManager *KX_Scene::GetPlanarManager()
+{
+	return m_planarManager;
 }
 
 KX_CubeMapManager *KX_Scene::GetCubeMapManager()
@@ -1714,6 +1725,11 @@ void KX_Scene::RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterize
 
 	m_bucketmanager->Renderbuckets(cameratransform, rasty, offScreen);
 	KX_BlenderMaterial::EndFrame(rasty);
+}
+
+void KX_Scene::RenderPlanars(RAS_IRasterizer *rasty)
+{
+	m_planarManager->Render(rasty);
 }
 
 void KX_Scene::RenderCubeMaps(RAS_IRasterizer *rasty)

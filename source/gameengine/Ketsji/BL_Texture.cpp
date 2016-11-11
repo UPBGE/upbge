@@ -24,6 +24,7 @@
 
 #include "BL_Texture.h"
 #include "KX_CubeMap.h"
+#include "KX_Planar.h"
 
 #include "DNA_texture_types.h"
 
@@ -252,6 +253,7 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("cubeMap", BL_Texture, pyattr_get_cube_map),
 	KX_PYATTRIBUTE_RW_FUNCTION("ior", BL_Texture, pyattr_get_ior, pyattr_set_ior),
 	KX_PYATTRIBUTE_RW_FUNCTION("refractionRatio", BL_Texture, pyattr_get_refraction_ratio, pyattr_set_refraction_ratio),
+	KX_PYATTRIBUTE_RO_FUNCTION("planar", BL_Texture, pyattr_get_planar),
 	KX_PYATTRIBUTE_RW_FUNCTION("uvRotation", BL_Texture, pyattr_get_uv_rotation, pyattr_set_uv_rotation),
 	KX_PYATTRIBUTE_RW_FUNCTION("uvOffset", BL_Texture, pyattr_get_uv_offset, pyattr_set_uv_offset),
 	KX_PYATTRIBUTE_RW_FUNCTION("uvSize", BL_Texture, pyattr_get_uv_size, pyattr_set_uv_size),
@@ -736,6 +738,16 @@ int BL_Texture::pyattr_set_uv_size(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DE
 	size.getValue(self->GetMTex()->size);
 
 	return PY_SET_ATTR_SUCCESS;
+}
+PyObject *BL_Texture::pyattr_get_planar(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	KX_Planar *planar = (KX_Planar *)self->GetPlanar();
+	if (planar) {
+		return planar->GetProxy();
+	}
+
+	Py_RETURN_NONE;
 }
 
 #endif  // WITH_PYTHON

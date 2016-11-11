@@ -73,6 +73,7 @@ class KX_WorldInfo;
 class KX_Camera;
 class KX_GameObject;
 class KX_LightObject;
+class KX_PlanarManager;
 class KX_CubeMapManager;
 class RAS_BoundingBoxManager;
 class RAS_BucketManager;
@@ -123,6 +124,7 @@ private:
 	};
 
 protected:
+	KX_PlanarManager *m_planarManager;
 	KX_CubeMapManager *m_cubeMapManager;
 	RAS_BucketManager*	m_bucketmanager;
 
@@ -315,10 +317,12 @@ public:
 	~KX_Scene();
 
 	RAS_BucketManager* GetBucketManager();
+	KX_PlanarManager *GetPlanarManager();
 	KX_CubeMapManager *GetCubeMapManager();
 	RAS_BoundingBoxManager *GetBoundingBoxManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen);
+	void RenderPlanars(RAS_IRasterizer *rasty);
 	void RenderCubeMaps(RAS_IRasterizer *rasty);
 
 	/**

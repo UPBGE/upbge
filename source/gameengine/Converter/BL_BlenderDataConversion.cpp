@@ -56,6 +56,8 @@
 #include "MT_Transform.h"
 #include "MT_MinMax.h"
 
+#include "GPU_texture.h"
+
 #include "PHY_Pro.h"
 #include "PHY_IPhysicsEnvironment.h"
 
@@ -86,6 +88,8 @@
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_IPolygonMaterial.h"
 #include "KX_BlenderMaterial.h"
+#include "KX_PlanarManager.h"
+#include "KX_Planar.h"
 #include "KX_CubeMapManager.h"
 #include "KX_CubeMap.h"
 #include "BL_Texture.h"
@@ -1859,6 +1863,15 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 						}
 
 						kxscene->GetCubeMapManager()->AddCubeMap(tex, viewpoint);
+					}
+					if (tex && tex->Ok() && ((tex->GetTex()->planarflag == TEX_PLANAR_REFLECTION) ||
+						(tex->GetTex()->planarflag == TEX_PLANAR_REFRACTION))) {
+						KX_GameObject *viewpoint = gameobj;
+						// Prevent two sided rendering on mirror's material to avoid artifacts
+						polymat->SetRasMode(0);
+						int width = GPU_texture_width(tex->GetGPUTexture());
+						int height = GPU_texture_height(tex->GetGPUTexture());
+						kxscene->GetPlanarManager()->AddPlanar(tex, gameobj, polymat, tex->GetTex()->planarflag, width, height);
 					}
 				}
 			}
