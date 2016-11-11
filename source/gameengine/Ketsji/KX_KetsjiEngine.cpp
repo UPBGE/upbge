@@ -535,8 +535,8 @@ void KX_KetsjiEngine::Render()
 		KX_Scene *scene = *sceit;
 		// shadow buffers
 		RenderShadowBuffers(scene);
-		// cubemaps
-		scene->RenderCubeMaps(m_rasterizer);
+		// Render only independent texture renderers here.
+		scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_INDEPENDENT, m_rasterizer, nullptr, nullptr, RAS_Rect(), RAS_Rect());
 	}
 
 	// Update all off screen to the current canvas size.
@@ -727,6 +727,15 @@ void KX_KetsjiEngine::SetCameraZoom(float camzoom)
 void KX_KetsjiEngine::SetCameraOverrideZoom(float camzoom)
 {
 	m_overrideCamZoom = camzoom;
+}
+
+float KX_KetsjiEngine::GetCameraZoom(KX_Camera *camera) const
+{
+	KX_Scene *scene = camera->GetScene();
+	const bool overrideCamera = m_overrideCam && (scene->GetName() == m_overrideSceneName) &&
+		(camera->GetName() == "__default__cam__");
+
+	return overrideCamera ? m_overrideCamZoom : m_cameraZoom;
 }
 
 void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene, const MT_CmMatrix4x4& projmat,
@@ -959,6 +968,8 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 #endif
 
 	GetSceneViewport(scene, cam, area, viewport);
+
+	scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_DEPENDENT, m_rasterizer, offScreen, cam, viewport, area);
 
 	// set the viewport for this frame and scene
 	const int left = viewport.GetLeft();

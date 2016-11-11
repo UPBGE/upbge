@@ -23,7 +23,7 @@
  */
 
 #include "BL_Texture.h"
-#include "KX_CubeMap.h"
+#include "KX_TextureRenderer.h"
 
 #include "DNA_texture_types.h"
 
@@ -42,7 +42,9 @@ BL_Texture::BL_Texture(MTex *mtex)
 {
 	Tex *tex = m_mtex->tex;
 	EnvMap *env = tex->env;
-	m_isCubeMap = (env && tex->type == TEX_ENVMAP && (env->stype == ENV_LOAD || env->stype == ENV_REALT));
+	m_isCubeMap = (env && tex->type == TEX_ENVMAP &&
+				  (env->stype == ENV_LOAD ||
+				  (env->stype == ENV_REALT && env->type == ENV_CUBE)));
 
 	Image *ima = tex->ima;
 	ImageUser& iuser = tex->iuser;
@@ -249,7 +251,7 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxStep", BL_Texture, pyattr_get_parallax_step, pyattr_set_parallax_step),
 	KX_PYATTRIBUTE_RW_FUNCTION("lodBias", BL_Texture, pyattr_get_lod_bias, pyattr_set_lod_bias),
 	KX_PYATTRIBUTE_RW_FUNCTION("bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
-	KX_PYATTRIBUTE_RO_FUNCTION("cubeMap", BL_Texture, pyattr_get_cube_map),
+	KX_PYATTRIBUTE_RO_FUNCTION("renderer", BL_Texture, pyattr_get_renderer),
 	KX_PYATTRIBUTE_RW_FUNCTION("ior", BL_Texture, pyattr_get_ior, pyattr_set_ior),
 	KX_PYATTRIBUTE_RW_FUNCTION("refractionRatio", BL_Texture, pyattr_get_refraction_ratio, pyattr_set_refraction_ratio),
 	KX_PYATTRIBUTE_RW_FUNCTION("uvRotation", BL_Texture, pyattr_get_uv_rotation, pyattr_set_uv_rotation),
@@ -519,12 +521,12 @@ int BL_Texture::pyattr_set_bind_code(PyObjectPlus *self_v, const KX_PYATTRIBUTE_
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_cube_map(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_renderer(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
-	KX_CubeMap *cubeMap = (KX_CubeMap *)self->GetCubeMap();
-	if (cubeMap) {
-		return cubeMap->GetProxy();
+	KX_TextureRenderer *renderer = static_cast<KX_TextureRenderer *>(self->GetRenderer());
+	if (renderer) {
+		return renderer->GetProxy();
 	}
 
 	Py_RETURN_NONE;

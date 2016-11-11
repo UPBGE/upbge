@@ -62,9 +62,7 @@
 #include "RAS_IRasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
-#include "RAS_CubeMap.h"
 #include "KX_2DFilterManager.h"
-#include "KX_CubeMapManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
 
@@ -198,7 +196,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	
 	m_rootnode = nullptr;
 
-	m_cubeMapManager = new KX_CubeMapManager(this);
+	m_rendererManager = new KX_TextureRendererManager(this);
 	m_bucketmanager=new RAS_BucketManager();
 	m_boundingBoxManager = new RAS_BoundingBoxManager();
 	
@@ -283,9 +281,9 @@ KX_Scene::~KX_Scene()
 
 	if (m_networkScene)
 		delete m_networkScene;
-	
-	if (m_cubeMapManager) {
-		delete m_cubeMapManager;
+
+	if (m_rendererManager) {
+		delete m_rendererManager;
 	}
 
 	if (m_bucketmanager)
@@ -327,9 +325,9 @@ RAS_BucketManager* KX_Scene::GetBucketManager()
 	return m_bucketmanager;
 }
 
-KX_CubeMapManager *KX_Scene::GetCubeMapManager()
+KX_TextureRendererManager *KX_Scene::GetTextureRendererManager() const
 {
-	return m_cubeMapManager;
+	return m_rendererManager;
 }
 
 RAS_BoundingBoxManager *KX_Scene::GetBoundingBoxManager()
@@ -1109,7 +1107,7 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 
 	newobj->RemoveMeshes();
 
-	m_cubeMapManager->InvalidateCubeMapViewpoint(newobj);
+	m_rendererManager->InvalidateViewpoint(newobj);
 
 	ret = 1;
 	if (newobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(newobj))
@@ -1716,9 +1714,10 @@ void KX_Scene::RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterize
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-void KX_Scene::RenderCubeMaps(RAS_IRasterizer *rasty)
+void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen, KX_Camera *camera,
+									  const RAS_Rect& viewport, const RAS_Rect& area)
 {
-	m_cubeMapManager->Render(rasty);
+	m_rendererManager->Render(category, rasty, offScreen, camera, viewport, area);
 }
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam)
@@ -1981,7 +1980,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 	GetBucketManager()->MergeBucketManager(other->GetBucketManager(), this);
 	GetBoundingBoxManager()->Merge(other->GetBoundingBoxManager());
-	GetCubeMapManager()->Merge(other->GetCubeMapManager());
+	GetTextureRendererManager()->Merge(other->GetTextureRendererManager());
 
 	/* active + inactive == all ??? - lets hope so */
 	for (CListValue::iterator<KX_GameObject> it = other->GetObjectList()->GetBegin(), end = other->GetObjectList()->GetEnd(); it != end; ++it) {

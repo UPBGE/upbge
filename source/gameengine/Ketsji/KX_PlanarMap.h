@@ -15,49 +15,64 @@
 * along with this program; if not, write to the Free Software Foundation,
 * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
-* Contributor(s): Ulysse Martin, Tristan Porteries.
+* Contributor(s): Ulysse Martin, Tristan Porteries, Martins Upitis.
 *
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file KX_CubeMap.h
- *  \ingroup ketsji
- */
+/** \file KX_PlanarMap.h
+*  \ingroup ketsji
+*/
 
-#ifndef __KX_CUBEMAP_H__
-#define __KX_CUBEMAP_H__
+#ifndef __KX_PLANAR_H__
+#define __KX_PLANAR_H__
 
 #include "KX_TextureRenderer.h"
 
-class KX_CubeMap : public KX_TextureRenderer
+#include <unordered_map>
+
+class KX_PlanarMap : public KX_TextureRenderer
 {
 	Py_Header
 
 private:
-	/// The camera projection matrix depending on clip start/end.
-	MT_Matrix4x4 m_projection;
-	/// True if the projection matrix is invalid and need to be recomputed.
-	bool m_invalidProjection;
+	/// Mirror normal vector.
+	MT_Vector3 m_normal;
+	/// Clip plane equation values.
+	MT_Vector4 m_clipPlane;
+
+	std::unordered_map<KX_Camera *, MT_Matrix4x4> m_projections;
+
+	enum Type {
+		REFLECTION,
+		REFRACTION
+	} m_type;
 
 public:
-	enum {
-		NUM_FACES = 6
-	};
-
-	/// Face view matrices in 3x3 matrices.
-	static const MT_Matrix3x3 faceViewMatrices3x3[NUM_FACES];
-
-	KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint);
-	virtual ~KX_CubeMap();
+	KX_PlanarMap(EnvMap *env, KX_GameObject *viewpoint);
+	virtual ~KX_PlanarMap();
 
 	virtual std::string GetName();
+
+	void ComputeClipPlane(const MT_Vector3& mirrorObjWorldPos, const MT_Matrix3x3& mirrorObjWorldOri);
 
 	virtual void InvalidateProjectionMatrix();
 	virtual const MT_Matrix4x4& GetProjectionMatrix(RAS_IRasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
 													const RAS_Rect& viewport, const RAS_Rect& area);
 
+	virtual void BeginRenderFace(RAS_IRasterizer *rasty) override;
+	virtual void EndRenderFace(RAS_IRasterizer *rasty) override;
+
+	const MT_Vector3& GetNormal() const;
+	void SetNormal(const MT_Vector3& normal);
+
 	virtual bool SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera);
 	virtual bool SetupCameraFace(KX_Camera *camera, unsigned short index);
+
+#ifdef WITH_PYTHON
+	static PyObject *pyattr_get_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+#endif  // WITH_PYTHON
 };
 
-#endif  // __KX_CUBEMAP_H__
+#endif  // __KX_PLANAR_H__

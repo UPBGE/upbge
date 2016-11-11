@@ -34,6 +34,7 @@
 
 
 #include "KX_PhysicsEngineEnums.h"
+#include "KX_TextureRendererManager.h" // For KX_TextureRendererManager::RendererCategory.
 
 #include <vector>
 #include <set>
@@ -73,7 +74,6 @@ class KX_WorldInfo;
 class KX_Camera;
 class KX_GameObject;
 class KX_LightObject;
-class KX_CubeMapManager;
 class RAS_BoundingBoxManager;
 class RAS_BucketManager;
 class RAS_MaterialBucket;
@@ -123,7 +123,7 @@ private:
 	};
 
 protected:
-	KX_CubeMapManager *m_cubeMapManager;
+	KX_TextureRendererManager *m_rendererManager;
 	RAS_BucketManager*	m_bucketmanager;
 
 	/// Manager used to update all the mesh bounding box.
@@ -315,11 +315,12 @@ public:
 	~KX_Scene();
 
 	RAS_BucketManager* GetBucketManager();
-	KX_CubeMapManager *GetCubeMapManager();
+	KX_TextureRendererManager *GetTextureRendererManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen);
-	void RenderCubeMaps(RAS_IRasterizer *rasty);
+	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen,
+								KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
 
 	/**
 	 * Update all transforms according to the scenegraph.

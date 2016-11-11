@@ -619,6 +619,8 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
                 layout.template_ID(tex, "image", new="image.new", open="image.open")
                 layout.template_image(tex, "image", tex.image_user, compact=True)
                 layout.prop(env, "filtering")
+                if env.mapping == 'PLANE':
+                    layout.prop(env, "mode")
             layout.prop(env, "mapping")
             if env.mapping == 'PLANE':
                 layout.prop(env, "zoom")

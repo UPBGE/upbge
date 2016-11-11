@@ -36,20 +36,7 @@
 #  pragma warning (disable:4786)
 #endif
 
-#include "MT_CmMatrix4x4.h"
-#include <vector>
-#include <map>
-
-#include "RAS_MaterialBucket.h"
-#include "RAS_IPolygonMaterial.h"
 #include "RAS_IRasterizer.h"
-
-#include "BLI_utildefines.h"
-
-class RAS_StorageVBO;
-class RAS_ICanvas;
-class RAS_OpenGLLight;
-struct GPUShader;
 
 /**
  * 3D rendering device context.
@@ -125,6 +112,9 @@ public:
 	void SetPolygonOffset(float mult, float add);
 
 	void FlushDebugShapes(const RAS_IRasterizer::SceneDebugShape& debugShapes);
+
+	void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
+	void DisableClipPlane(unsigned short index);
 
 	void SetFrontFace(bool ccw);
 

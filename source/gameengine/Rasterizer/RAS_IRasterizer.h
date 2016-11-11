@@ -83,7 +83,7 @@ public:
 		RAS_WIREFRAME = 0,
 		RAS_SOLID,
 		RAS_TEXTURED,
-		RAS_CUBEMAP,
+		RAS_RENDERER,
 		RAS_SHADOW,
 		RAS_DRAW_MAX,
 	};
@@ -423,6 +423,7 @@ private:
 
 	StorageAttribs m_storageAttribs;
 
+	bool m_invertFrontFace;
 	bool m_last_frontface;
 
 	OverrideShaderType m_overrideShader;
@@ -688,6 +689,11 @@ public:
 	 */
 	void SetCullFace(bool enable);
 
+	/// Set and enable clip plane.
+	void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
+	/// Disable clip plane
+	void DisableClipPlane(unsigned short index);
+
 	/**
 	 * Sets wireframe mode.
 	 */
@@ -800,6 +806,8 @@ public:
 
 	void SetAlphaBlend(int alphablend);
 	void SetFrontFace(bool ccw);
+
+	void SetInvertFrontFace(bool invert);
 
 	void SetAnisotropicFiltering(short level);
 	short GetAnisotropicFiltering();

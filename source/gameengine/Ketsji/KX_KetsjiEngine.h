@@ -309,6 +309,8 @@ public:
 	void SetCameraZoom(float camzoom);
 	/// Sets zoom for default camera, = 2 in embedded mode.
 	void SetCameraOverrideZoom(float camzoom);
+	/// Get the camera zoom for the passed camera.
+	float GetCameraZoom(KX_Camera *camera) const;
 
 	void EnableCameraOverride(const std::string& forscene, const MT_CmMatrix4x4& projmat, const MT_CmMatrix4x4& viewmat, const RAS_CameraData& camdata);
 

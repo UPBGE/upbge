@@ -60,7 +60,6 @@ set(SRC
 	RAS_BoundingBox.cpp
 	RAS_BoundingBoxManager.cpp
 	RAS_BucketManager.cpp
-	RAS_CubeMap.cpp
 	RAS_DisplayArrayBucket.cpp
 	RAS_FramingManager.cpp
 	RAS_ICanvas.cpp
@@ -78,6 +77,7 @@ set(SRC
 	RAS_Polygon.cpp
 	RAS_Shader.cpp
 	RAS_Texture.cpp
+	RAS_TextureRenderer.cpp
 	RAS_TextUser.cpp
  
 	RAS_2DFilterData.h
@@ -90,7 +90,6 @@ set(SRC
 	RAS_BoundingBoxManager.h
 	RAS_BucketManager.h
 	RAS_CameraData.h
-	RAS_CubeMap.h
 	RAS_Deformer.h
 	RAS_DisplayArray.h
 	RAS_DisplayArrayBucket.h
@@ -115,6 +114,7 @@ set(SRC
 	RAS_Rect.h
 	RAS_Shader.h
 	RAS_Texture.h
+	RAS_TextureRenderer.h
 	RAS_TextUser.h
 	RAS_TexVert.h
 )

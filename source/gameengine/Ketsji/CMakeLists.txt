@@ -82,10 +82,11 @@ set(SRC
 	KX_CameraActuator.cpp
 	KX_CameraIpoSGController.cpp
 	KX_CharacterWrapper.cpp
+	KX_CollisionEventManager.cpp
+	KX_CollisionSensor.cpp
 	KX_ConstraintActuator.cpp
 	KX_ConstraintWrapper.cpp
 	KX_CubeMap.cpp
-	KX_CubeMapManager.cpp
 	KX_EmptyObject.cpp
 	KX_FontObject.cpp
 	KX_GameActuator.cpp
@@ -111,6 +112,7 @@ set(SRC
 	KX_ObstacleSimulation.cpp
 	KX_OrientationInterpolator.cpp
 	KX_ParentActuator.cpp
+	KX_PlanarMap.cpp
 	KX_PolyProxy.cpp
 	KX_PositionInterpolator.cpp
 	KX_PyConstraintBinding.cpp
@@ -136,10 +138,10 @@ set(SRC
 	KX_StateActuator.cpp
 	KX_SteeringActuator.cpp
 	KX_TextMaterial.cpp
+	KX_TextureRenderer.cpp
+	KX_TextureRendererManager.cpp
 	KX_TimeCategoryLogger.cpp
 	KX_TimeLogger.cpp
-	KX_CollisionEventManager.cpp
-	KX_CollisionSensor.cpp
 	KX_TrackToActuator.cpp
 	KX_VehicleWrapper.cpp
 	KX_VertexProxy.cpp
@@ -168,7 +170,6 @@ set(SRC
 	KX_ConstraintActuator.h
 	KX_ConstraintWrapper.h
 	KX_CubeMap.h
-	KX_CubeMapManager.h
 	KX_EmptyObject.h
 	KX_FontObject.h
 	KX_GameActuator.h
@@ -200,6 +201,7 @@ set(SRC
 	KX_OrientationInterpolator.h
 	KX_ParentActuator.h
 	KX_PhysicsEngineEnums.h
+	KX_PlanarMap.h
 	KX_PolyProxy.h
 	KX_PositionInterpolator.h
 	KX_PyConstraintBinding.h
@@ -225,6 +227,8 @@ set(SRC
 	KX_StateActuator.h
 	KX_SteeringActuator.h
 	KX_TextMaterial.h
+	KX_TextureRenderer.h
+	KX_TextureRendererManager.h
 	KX_TimeCategoryLogger.h
 	KX_TimeLogger.h
 	KX_CollisionEventManager.h
