@@ -852,6 +852,19 @@ bool AUD_OpenALDevice::AUD_OpenALHandle::setConeVolumeOuter(float volume)
 	return true;
 }
 
+AUD_OpenALEffect *AUD_OpenALDevice::AUD_OpenALHandle::getEffect()
+{
+	return m_effect;
+}
+
+void AUD_OpenALDevice::AUD_OpenALHandle::setEffect(AUD_OpenALEffect* effect)
+{
+	m_effect = effect;
+	if (m_effect) {
+		alSource3i(m_source, AL_AUXILIARY_SEND_FILTER, m_effect->getSlot(), 0, AL_FILTER_NULL);
+	}
+}
+
 /******************************************************************************/
 /**************************** Threading Code **********************************/
 /******************************************************************************/
@@ -1013,6 +1026,11 @@ void AUD_OpenALDevice::updateStreams()
 					// continue playing
 					else
 						alSourcePlay(sound->m_source);
+				} else {
+					if (sound->getEffect())
+					{
+						sound->getEffect()->update();
+					}
 				}
 			}
 
