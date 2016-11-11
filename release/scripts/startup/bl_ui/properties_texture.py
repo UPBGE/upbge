@@ -1202,7 +1202,6 @@ class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
             sub.label(text="Refraction:")
             sub.prop(tex, "ior", text="IOR")
             sub.prop(tex, "refraction_ratio", text="Ratio")
-            sub.separator()
 
         elif isinstance(idblock, Lamp):
             split = layout.split()
@@ -1213,8 +1212,11 @@ class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
             col = split.column()
             factor_but(col, "use_map_shadow", "shadow_factor", "Shadow")
 
+            split = layout.split()
             col = split.column()
+            col.label(text="Mipmapping:")
             col.prop(tex, "lod_bias")
+            col = split.column()
 
         elif isinstance(idblock, World):
             split = layout.split()
@@ -1229,8 +1231,22 @@ class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
 
             split = layout.split()
             col = split.column()
+            col.label(text="Mipmapping:")
             col.prop(tex, "lod_bias")
             col = split.column()
+
+        if not isinstance(idblock, ParticleSettings):
+            split = layout.split()
+
+            col = split.column()
+            col.prop(tex, "blend_type", text="Blend")
+            col.prop(tex, "use_rgb_to_intensity")
+            # color is used on gray-scale textures even when use_rgb_to_intensity is disabled.
+            col.prop(tex, "color", text="")
+
+            col = split.column()
+            col.prop(tex, "invert", text="Negative")
+            col.prop(tex, "use_stencil")
 
         if isinstance(idblock, Material) or isinstance(idblock, World):
             col.prop(tex, "default_value", text="DVar", slider=True)
