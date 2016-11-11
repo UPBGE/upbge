@@ -30,7 +30,7 @@
 
 #include "DNA_texture_types.h"
 
-KX_Planar::KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat, int type, int width, int height)
+KX_Planar::KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat, short type, int width, int height)
 	:RAS_Planar(viewpoint, polymat),
 	m_viewpointObject(viewpoint),
 	m_invalidProjection(true),
@@ -43,6 +43,7 @@ KX_Planar::KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *poly
 	m_width(width),
 	m_height(height)
 {
+	m_ignoreLayers = tex->notlay;
 
 	m_clipStart = tex->clipsta;
 	m_clipEnd = tex->clipend;
@@ -92,6 +93,11 @@ bool KX_Planar::GetEnabled() const
 	return m_enabled;
 }
 
+int KX_Planar::GetIgnoreLayers() const
+{
+	return m_ignoreLayers;
+}
+
 float KX_Planar::GetClipStart() const
 {
 	return m_clipStart;
@@ -130,7 +136,7 @@ short KX_Planar::GetHeight()
 	return m_height;
 }
 
-int KX_Planar::GetPlanarType()
+short KX_Planar::GetPlanarType()
 {
 	return m_type;
 }
@@ -172,6 +178,7 @@ PyMethodDef KX_Planar::Methods[] = {
 PyAttributeDef KX_Planar::Attributes[] = {
 	KX_PYATTRIBUTE_BOOL_RW("autoUpdate", KX_Planar, m_autoUpdate),
 	KX_PYATTRIBUTE_BOOL_RW("enabled", KX_Planar, m_enabled),
+	KX_PYATTRIBUTE_INT_RW("ignoreLayers", 0, (1 << 20) - 1, true, KX_Planar, m_ignoreLayers),
 	KX_PYATTRIBUTE_RW_FUNCTION("clipStart", KX_Planar, pyattr_get_clip_start, pyattr_set_clip_start),
 	KX_PYATTRIBUTE_RW_FUNCTION("clipEnd", KX_Planar, pyattr_get_clip_end, pyattr_set_clip_end),
 	{ NULL } // Sentinel

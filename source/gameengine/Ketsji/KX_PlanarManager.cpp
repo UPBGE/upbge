@@ -54,7 +54,7 @@ KX_PlanarManager::~KX_PlanarManager()
 	m_camera->Release();
 }
 
-void KX_PlanarManager::AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, RAS_IPolyMaterial *polymat, int type, int width, int height)
+void KX_PlanarManager::AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, RAS_IPolyMaterial *polymat, short type, int width, int height)
 {
 	/* Don't Add Planar several times for the same texture. If the texture is shared by several objects,
 	 * we just add a "textureUser" to signal that the planar texture will be shared by several objects.
@@ -172,7 +172,7 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	m_camera->SetModelviewMatrix(viewmat);
 
 
-	m_scene->CalculateVisibleMeshes(rasty, m_camera);
+	m_scene->CalculateVisibleMeshes(rasty, m_camera, ~planar->GetIgnoreLayers());
 
 	KX_GetActiveEngine()->UpdateAnimations(m_scene);
 

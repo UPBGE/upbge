@@ -116,7 +116,7 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 				}
 			}
 		}
-		if (!DNA_struct_elem_find(fd->filesdna, "Tex", "int", "planarflag")) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Tex", "short", "planarflag")) {
 			for (Tex *tex = main->tex.first; tex; tex = tex->id.next) {
 				tex->planarflag = TEX_PLANAR_NONE;
 				tex->autoupdate |= TEX_AUTO_UPDATE;

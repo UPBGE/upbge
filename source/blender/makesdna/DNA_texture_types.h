@@ -255,7 +255,8 @@ typedef struct Tex {
 	float checkerdist, nabla;
 
 	/* Planar Reflections */
-	int planarflag, autoupdate;
+	int notlay;
+	short planarflag, autoupdate;
 	float clipsta, clipend;
 	int planarcull, planarfiltering;
 	

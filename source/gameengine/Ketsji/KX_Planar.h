@@ -46,7 +46,7 @@ private:
 	KX_GameObject *m_viewpointObject;
 
 	/// planar type (tex->planarflag -> reflection or refraction)
-	int m_type;
+	short m_type;
 
 	/// The camera projection matrix depending on clip start/end.
 	MT_Matrix4x4 m_projection;
@@ -56,6 +56,8 @@ private:
 
 	/// The planar is used by the user.
 	bool m_enabled;
+	/// Layers to ignore during render.
+	int m_ignoreLayers;
 
 	/// View clip start.
 	float m_clipStart;
@@ -77,7 +79,7 @@ private:
 	bool m_cullReflections;
 
 public:
-	KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat, int type, int width, int height);
+	KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat, short type, int width, int height);
 	virtual ~KX_Planar();
 
 	virtual STR_String& GetName();
@@ -96,6 +98,7 @@ public:
 	const MT_Matrix4x4& GetProjectionMatrix() const;
 
 	bool GetEnabled() const;
+	int GetIgnoreLayers() const;
 
 	// Return true when this planar need to be updated.
 	bool NeedUpdate();
@@ -103,7 +106,7 @@ public:
 	short GetWidth();
 	short GetHeight();
 
-	int GetPlanarType();
+	short GetPlanarType();
 
 	bool GetCullReflections();
 

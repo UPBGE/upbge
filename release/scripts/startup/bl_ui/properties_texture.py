@@ -684,6 +684,8 @@ class TEXTURE_PT_image_render(TextureTypePanel, Panel):
             row.prop(tex, "planar_clip_end", text="End")
 
             row = layout.split()
+            row.prop(tex, "layers_ignore")
+            row = layout.split()
             row.prop(tex, "use_planar_auto_update")
             row.prop(tex, "use_planar_reflect_cull")
 
@@ -965,6 +967,7 @@ class TEXTURE_PT_ocean(TextureTypePanel, Panel):
         col = layout.column()
         col.prop(ot, "ocean_object")
         col.prop(ot, "output")
+
 
 class TEXTURE_PT_mapping(TextureSlotPanel, Panel):
     bl_label = "Mapping"

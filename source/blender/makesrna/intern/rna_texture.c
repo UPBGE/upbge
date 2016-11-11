@@ -1406,6 +1406,13 @@ static void rna_def_texture_image(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Clip End", "Clip end of the Mirror rendering camera");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 
+	prop = RNA_def_property(srna, "layers_ignore", PROP_BOOLEAN, PROP_LAYER_MEMBER);
+	RNA_def_property_boolean_sdna(prop, NULL, "notlay", 1);
+	RNA_def_property_array(prop, 20);
+	RNA_def_property_ui_text(prop, "Ignore Layers",
+		"Hide objects on these layers when rendering the mirror");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
 	prop = RNA_def_property(srna, "use_planar_auto_update", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "autoupdate", TEX_AUTO_UPDATE);
 	RNA_def_property_ui_text(prop, "Auto Update", "Auto Update Mirror");
