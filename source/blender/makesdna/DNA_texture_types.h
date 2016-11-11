@@ -456,6 +456,9 @@ typedef struct ColorMapping {
 #define TEX_COL2		2
 #define TEX_COL3		3
 
+/* tex->stype for BGE ImageRender */
+#define TEX_MIRROR      0
+
 /* mtex->normapspace */
 #define MTEX_NSPACE_CAMERA	0
 #define MTEX_NSPACE_WORLD	1
