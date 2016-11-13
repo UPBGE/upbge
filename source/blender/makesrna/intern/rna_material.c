@@ -922,6 +922,10 @@ static void rna_def_material_gamesettings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "face_orientation", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, prop_face_orientation_items);
 	RNA_def_property_ui_text(prop, "Face Orientations", "Especial face orientation options");
+
+	prop = RNA_def_property(srna, "physics", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GEMAT_NOPHYSICS);
+	RNA_def_property_ui_text(prop, "Physics", "Use physics for this materials");
 }
 
 static void rna_def_material_colors(StructRNA *srna)

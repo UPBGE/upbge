@@ -226,9 +226,7 @@ typedef struct Material {
 // Game Options - flag
 #define GEMAT_BACKCULL 		16 /* KX_BACKCULL */
 #define GEMAT_SHADED		32 /* KX_LIGHT */
-#ifdef DNA_DEPRECATED
-#  define	GEMAT_NOPHYSICS	128
-#endif
+#define GEMAT_NOPHYSICS		128
 #define GEMAT_INVISIBLE 	256
 
 // Face Orientation Options - face_orientation
