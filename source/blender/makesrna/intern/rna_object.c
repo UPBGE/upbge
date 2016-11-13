@@ -1836,9 +1836,9 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Predefined Bound", "Predefined mesh bounding volume used when Auto Update Bound is disable");
 
 
-	prop = RNA_def_property(srna, "use_material_physics_fh", PROP_BOOLEAN, PROP_NONE);
+	prop = RNA_def_property(srna, "use_physics_fh", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_DO_FH);
-	RNA_def_property_ui_text(prop, "Use Material Force Field", "React to force field physics settings in materials");
+	RNA_def_property_ui_text(prop, "Use Force Field", "React to force field physics settings");
 
 	prop = RNA_def_property(srna, "use_rotate_from_normal", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_ROT_FH);

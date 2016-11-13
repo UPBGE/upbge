@@ -65,7 +65,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col.prop(ob, "hide_render", text="Invisible")  # out of place but useful
 
             col = split.column()
-            col.prop(game, "use_material_physics_fh")
+            col.prop(game, "use_physics_fh")
             col.prop(game, "use_rotate_from_normal")
             col.prop(game, "use_sleep")
 

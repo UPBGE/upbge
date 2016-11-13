@@ -170,6 +170,12 @@ typedef struct Material {
 	struct Group *group;	/* light group */
 	struct PreviewImage *preview;
 
+	/* dynamic properties */
+	float friction DNA_DEPRECATED, rolling_friction DNA_DEPRECATED;
+	float fh DNA_DEPRECATED, reflect DNA_DEPRECATED;
+	float fhdist DNA_DEPRECATED, xyfrict DNA_DEPRECATED;
+	short dynamode DNA_DEPRECATED, pad2[3];
+
 	/* subsurface scattering */
 	float sss_radius[3], sss_col[3];
 	float sss_error, sss_scale, sss_ior;
@@ -220,7 +226,9 @@ typedef struct Material {
 // Game Options - flag
 #define GEMAT_BACKCULL 		16 /* KX_BACKCULL */
 #define GEMAT_SHADED		32 /* KX_LIGHT */
-#define	GEMAT_NOPHYSICS		128
+#ifdef DNA_DEPRECATED
+#  define	GEMAT_NOPHYSICS	128
+#endif
 #define GEMAT_INVISIBLE 	256
 
 // Face Orientation Options - face_orientation
@@ -347,6 +355,11 @@ typedef struct Material {
 #define MA_SPEC_BLINN		2
 #define MA_SPEC_TOON		3
 #define MA_SPEC_WARDISO		4
+
+/* dynamode */
+#ifdef DNA_DEPRECATED
+#  define MA_FH_NOR	        2
+#endif
 
 /* ramps */
 #define MA_RAMP_IN_SHADER	0

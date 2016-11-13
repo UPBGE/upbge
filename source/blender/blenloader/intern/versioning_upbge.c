@@ -39,6 +39,7 @@
 #include "DNA_sdna_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_space_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_material_types.h"
 
 #include "BKE_main.h"
@@ -51,7 +52,7 @@
 
 #include "MEM_guardedalloc.h"
 
-void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
+void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 {
 	//printf("UPBGE: open file from version : %i, subversion : %i\n", main->upbgeversionfile, main->upbgesubversionfile);
 	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 1)) {
@@ -112,6 +113,31 @@ void blo_do_versions_upbge(FileData *fd, Library *UNUSED(lib), Main *main)
 				for (unsigned short a = 0; a < MAX_MTEX; ++a) {
 					if (ma->mtex[a]) {
 						ma->mtex[a]->ior = 1.0f;
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 12)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Object", "float", "friction")) {
+			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
+				if (ob->type == OB_MESH) {
+					Mesh *me = blo_do_versions_newlibadr(fd, lib, ob->data);
+					for (unsigned short i = 0; i < me->totcol; ++i) {
+						Material *ma = blo_do_versions_newlibadr(fd, lib, me->mat[i]);
+						if (ma) {
+							ob->friction = ma->friction;
+							ob->rolling_friction = ma->rolling_friction;
+							ob->fh = ma->fh;
+							ob->reflect = ma->reflect;
+							ob->fhdist = ma->fhdist;
+							ob->xyfrict = ma->xyfrict;
+							if (ma->dynamode & MA_FH_NOR) {
+								ob->dynamode |= OB_FH_NOR;
+							}
+							break;
+						}
 					}
 				}
 			}
