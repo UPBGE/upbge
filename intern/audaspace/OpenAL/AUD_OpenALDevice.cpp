@@ -33,6 +33,8 @@
 #include "AUD_ConverterReader.h"
 #include "AUD_MutexLock.h"
 
+#include "AUD_OpenALEchoEffect.h"
+
 #include <cstring>
 #include <limits>
 
@@ -99,7 +101,7 @@ bool AUD_OpenALDevice::AUD_OpenALHandle::pause(bool keep)
 AUD_OpenALDevice::AUD_OpenALHandle::AUD_OpenALHandle(AUD_OpenALDevice* device, ALenum format, boost::shared_ptr<AUD_IReader> reader, bool keep) :
 	m_isBuffered(false), m_reader(reader), m_keep(keep), m_format(format), m_current(0),
 	m_eos(false), m_loopcount(0), m_stop(NULL), m_stop_data(NULL), m_status(AUD_STATUS_PLAYING),
-	m_device(device)
+	m_device(device), m_effect(NULL)
 {
 	AUD_DeviceSpecs specs = m_device->m_specs;
 	specs.specs = m_reader->getSpecs();
@@ -156,6 +158,15 @@ AUD_OpenALDevice::AUD_OpenALHandle::AUD_OpenALHandle(AUD_OpenALDevice* device, A
 		throw;
 	}
 	alSourcei(m_source, AL_SOURCE_RELATIVE, 1);
+
+}
+
+AUD_OpenALDevice::AUD_OpenALHandle::~AUD_OpenALHandle()
+{
+	if (m_effect)
+	{
+		delete m_effect;
+	}
 }
 
 bool AUD_OpenALDevice::AUD_OpenALHandle::pause()

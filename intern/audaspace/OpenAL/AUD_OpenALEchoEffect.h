@@ -20,48 +20,37 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file audaspace/OpenAL/AUD_OpenALEffect.h
+/** \file audaspace/OpenAL/AUD_OpenALEchoEffect.h
  *  \ingroup audopenal
  */
 
-#include "AUD_OpenALEffect.h"
+#ifndef __AUD_OPENALECHOEFFECT_H__
+#define __AUD_OPENALECHOEFFECT_H__
 
-#define AL_ALEXT_PROTOTYPES
-#include <AL/al.h>
-#include <AL/alc.h>
-#include <AL/efx.h>
+#include "AUD_IOpenALEffectParams.h"
 
-AUD_OpenALEffect::AUD_OpenALEffect(AUD_IOpenALEffectParams* params)
+class AUD_OpenALEchoEffect : public AUD_IOpenALEffectParams
 {
-	alGenEffects(1, &m_effect_id);
-	alGenAuxiliaryEffectSlots(1, &m_slot);
+public:
+	AUD_OpenALEchoEffect();
 
-	m_effect_params = params;
-	update();
+	void applyParams(ALuint effect);
 
-	alAuxiliaryEffectSloti(m_slot, AL_EFFECTSLOT_EFFECT, m_effect_id);
-}
+	float getDamping() const;
+	void setDamping(float damping);
+	float getDelay() const;
+	void setDelay(float delay);
+	float getFeedback() const;
+	void setFeedback(float feedback);
+	float getLRDelay() const;
+	void setLRDelay(float lr_delay);
+	float getSpread() const;
+	void setSpread(float spread);
 
-AUD_OpenALEffect::~AUD_OpenALEffect()
-{
-	if (m_slot)
-	{
-		alDeleteAuxiliaryEffectSlots(1, &m_slot);
-	}
-	if (m_effect_id)
-	{
-		alDeleteEffects(1, &m_effect_id);
-	}
-}
+private:
+	float m_damping, m_delay;
+	float m_feedback, m_lr_delay;
+	float m_spread;
+};
 
-void AUD_OpenALEffect::update()
-{
-	if (m_effect_params) {
-		m_effect_params->applyParams(m_effect_id);
-	}
-}
-
-ALuint AUD_OpenALEffect::getSlot()
-{
-	return m_slot;
-}
+#endif // AUD_OPENALECHOEFFECT_H

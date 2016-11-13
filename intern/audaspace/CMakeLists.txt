@@ -277,11 +277,13 @@ if(WITH_OPENAL)
 		OpenAL/AUD_OpenALDevice.cpp
 		OpenAL/AUD_OpenALEffect.cpp
 		OpenAL/AUD_OpenALReverbEffect.cpp
+		OpenAL/AUD_OpenALEchoEffect.cpp
 
 		OpenAL/AUD_OpenALDevice.h
 		OpenAL/AUD_OpenALEffect.h
 		OpenAL/AUD_IOpenALEffectParams.h
 		OpenAL/AUD_OpenALReverbEffect.h
+		OpenAL/AUD_OpenALEchoEffect.h
 	)
 endif()
 
