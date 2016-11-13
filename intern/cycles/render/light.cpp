@@ -43,8 +43,8 @@ static void shade_background_pixels(Device *device, DeviceScene *dscene, int res
 
 	for(int y = 0; y < height; y++) {
 		for(int x = 0; x < width; x++) {
-			float u = x/(float)width;
-			float v = y/(float)height;
+			float u = (x + 0.5f)/width;
+			float v = (y + 0.5f)/height;
 
 			uint4 in = make_uint4(__float_as_int(u), __float_as_int(v), 0, 0);
 			d_input_data[x + y*width] = in;
@@ -106,6 +106,7 @@ NODE_DEFINE(Light)
 
 	static NodeEnum type_enum;
 	type_enum.insert("point", LIGHT_POINT);
+	type_enum.insert("distant", LIGHT_DISTANT);
 	type_enum.insert("background", LIGHT_BACKGROUND);
 	type_enum.insert("area", LIGHT_AREA);
 	type_enum.insert("spot", LIGHT_SPOT);

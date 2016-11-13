@@ -276,16 +276,13 @@ ccl_device_inline void shader_setup_from_sample(KernelGlobals *kg,
 
 #ifdef __OBJECT_MOTION__
 		shader_setup_object_transforms(kg, sd, time);
-#endif
+		ccl_fetch(sd, time) = time;
 	}
 	else if(lamp != LAMP_NONE) {
 		ccl_fetch(sd, ob_tfm)  = lamp_fetch_transform(kg, lamp, false);
 		ccl_fetch(sd, ob_itfm) = lamp_fetch_transform(kg, lamp, true);
-	}
-
-#ifdef __OBJECT_MOTION__
-	ccl_fetch(sd, time) = time;
 #endif
+	}
 
 	/* transform into world space */
 	if(object_space) {
@@ -572,7 +569,7 @@ void shader_bsdf_eval(KernelGlobals *kg,
 		_shader_bsdf_multi_eval(kg, sd, omega_in, &pdf, -1, eval, 0.0f, 0.0f);
 		if(use_mis) {
 			float weight = power_heuristic(light_pdf, pdf);
-			bsdf_eval_mul(eval, make_float3(weight, weight, weight));
+			bsdf_eval_mul(eval, weight);
 		}
 	}
 }

@@ -32,6 +32,8 @@
 
 #include "MEM_guardedalloc.h"
 
+// #define DEBUG_TIME
+
 extern "C" {
 #include "DNA_cachefile_types.h"
 #include "DNA_object_types.h"
@@ -40,6 +42,11 @@ extern "C" {
 
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
+
+#ifdef DEBUG_TIME
+#  include "PIL_time.h"
+#  include "PIL_time_utildefines.h"
+#endif
 
 #include "BKE_main.h"
 #include "BKE_collision.h"
@@ -190,6 +197,10 @@ void DEG_add_special_eval_flag(Depsgraph *graph, ID *id, short flag)
  */
 void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 {
+#ifdef DEBUG_TIME
+	TIMEIT_START(DEG_graph_build_from_scene);
+#endif
+
 	DEG::Depsgraph *deg_graph = reinterpret_cast<DEG::Depsgraph *>(graph);
 
 	/* 1) Generate all the nodes in the graph first */
@@ -238,6 +249,10 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 		printf("Consistency validation failed, ABORTING!\n");
 		abort();
 	}
+#endif
+
+#ifdef DEBUG_TIME
+	TIMEIT_END(DEG_graph_build_from_scene);
 #endif
 }
 
@@ -309,7 +324,15 @@ void DEG_scene_graph_free(Scene *scene)
 	}
 }
 
-void DEG_add_collision_relations(DepsNodeHandle *handle, Scene *scene, Object *ob, Group *group, int layer, unsigned int modifier_type, DEG_CollobjFilterFunction fn, bool dupli, const char *name)
+void DEG_add_collision_relations(DepsNodeHandle *handle,
+                                 Scene *scene,
+                                 Object *ob,
+                                 Group *group,
+                                 int layer,
+                                 unsigned int modifier_type,
+                                 DEG_CollobjFilterFunction fn,
+                                 bool dupli,
+                                 const char *name)
 {
 	unsigned int numcollobj;
 	Object **collobjs = get_collisionobjects_ext(scene, ob, group, layer, &numcollobj, modifier_type, dupli);
@@ -327,7 +350,13 @@ void DEG_add_collision_relations(DepsNodeHandle *handle, Scene *scene, Object *o
 		MEM_freeN(collobjs);
 }
 
-void DEG_add_forcefield_relations(DepsNodeHandle *handle, Scene *scene, Object *ob, EffectorWeights *effector_weights, bool add_absorption, int skip_forcefield, const char *name)
+void DEG_add_forcefield_relations(DepsNodeHandle *handle,
+                                  Scene *scene,
+                                  Object *ob,
+                                  EffectorWeights *effector_weights,
+                                  bool add_absorption,
+                                  int skip_forcefield,
+                                  const char *name)
 {
 	ListBase *effectors = pdInitEffectors(scene, ob, NULL, effector_weights, false);
 
@@ -339,17 +368,33 @@ void DEG_add_forcefield_relations(DepsNodeHandle *handle, Scene *scene, Object *
 				if (eff->psys) {
 					DEG_add_object_relation(handle, eff->ob, DEG_OB_COMP_EVAL_PARTICLES, name);
 
-					/* TODO: remove this when/if EVAL_PARTICLES is sufficient for up to date particles */
+					/* TODO: remove this when/if EVAL_PARTICLES is sufficient
+					 * for up to date particles.
+					 */
 					DEG_add_object_relation(handle, eff->ob, DEG_OB_COMP_GEOMETRY, name);
 				}
 
 				if (eff->pd->forcefield == PFIELD_SMOKEFLOW && eff->pd->f_source) {
-					DEG_add_object_relation(handle, eff->pd->f_source, DEG_OB_COMP_TRANSFORM, "Smoke Force Domain");
-					DEG_add_object_relation(handle, eff->pd->f_source, DEG_OB_COMP_GEOMETRY, "Smoke Force Domain");
+					DEG_add_object_relation(handle,
+					                        eff->pd->f_source,
+					                        DEG_OB_COMP_TRANSFORM,
+					                        "Smoke Force Domain");
+					DEG_add_object_relation(handle,
+					                        eff->pd->f_source,
+					                        DEG_OB_COMP_GEOMETRY,
+					                        "Smoke Force Domain");
 				}
 
 				if (add_absorption && (eff->pd->flag & PFIELD_VISIBILITY)) {
-					DEG_add_collision_relations(handle, scene, ob, NULL, eff->ob->lay, eModifierType_Collision, NULL, true, "Force Absorption");
+					DEG_add_collision_relations(handle,
+					                            scene,
+					                            ob,
+					                            NULL,
+					                            eff->ob->lay,
+					                            eModifierType_Collision,
+					                            NULL,
+					                            true,
+					                            "Force Absorption");
 				}
 			}
 		}
