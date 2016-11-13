@@ -32,6 +32,8 @@
 class AUD_OpenALReverbEffect : public AUD_IOpenALEffectParams
 {
 public:
+	AUD_OpenALReverbEffect();
+
 	void applyParams(ALuint effect);
 
 	float getDensity() const;

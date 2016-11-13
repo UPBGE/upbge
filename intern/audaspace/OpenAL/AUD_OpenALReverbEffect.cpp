@@ -31,6 +31,23 @@
 #include <AL/alc.h>
 #include <AL/efx.h>
 
+AUD_OpenALReverbEffect::AUD_OpenALReverbEffect()
+{
+	m_density = AL_REVERB_DEFAULT_DENSITY;
+	m_diffusion = AL_REVERB_DEFAULT_DIFFUSION;
+	m_gain = AL_REVERB_DEFAULT_GAIN;
+	m_gain_hf = AL_REVERB_DEFAULT_GAINHF;
+	m_decay_time = AL_REVERB_DEFAULT_DECAY_TIME;
+	m_decay_hf_ratio = AL_REVERB_DEFAULT_DECAY_HFRATIO;
+	m_reflections_gain = AL_REVERB_DEFAULT_REFLECTIONS_GAIN;
+	m_reflections_delay = AL_REVERB_DEFAULT_REFLECTIONS_DELAY;
+	m_late_reverb_delay = AL_REVERB_DEFAULT_LATE_REVERB_DELAY;
+	m_late_reverb_gain = AL_REVERB_DEFAULT_LATE_REVERB_GAIN;
+	m_air_absorption_gain_hf = AL_REVERB_DEFAULT_AIR_ABSORPTION_GAINHF;
+	m_room_rolloff_factor = AL_REVERB_DEFAULT_ROOM_ROLLOFF_FACTOR;
+	m_decay_limit_hf = AL_REVERB_DEFAULT_DECAY_HFLIMIT;
+}
+
 void AUD_OpenALReverbEffect::applyParams(ALuint effect)
 {
 	alEffecti(effect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);

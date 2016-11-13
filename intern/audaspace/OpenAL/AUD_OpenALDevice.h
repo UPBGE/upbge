@@ -117,7 +117,7 @@ private:
 		 */
 		AUD_OpenALHandle(AUD_OpenALDevice* device, ALenum format, boost::shared_ptr<AUD_IReader> reader, bool keep);
 
-		virtual ~AUD_OpenALHandle() {}
+		virtual ~AUD_OpenALHandle();
 		virtual bool pause();
 		virtual bool resume();
 		virtual bool stop();
