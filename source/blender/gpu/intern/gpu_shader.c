@@ -886,6 +886,11 @@ void GPU_shader_free_builtin_shaders(void)
 		GG.shaders.smoke_fire = NULL;
 	}
 
+	if (GG.shaders.instancing) {
+		GPU_shader_free(GG.shaders.instancing);
+		GG.shaders.instancing = NULL;
+	}
+
 	if (GG.shaders.draw_frame_buffer) {
 		GPU_shader_free(GG.shaders.draw_frame_buffer);
 		GG.shaders.draw_frame_buffer = NULL;
