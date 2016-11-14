@@ -1496,8 +1496,10 @@ static void do_material_tex(GPUShadeInput *shi)
 					if (mtex->mirrfac == 1.0f && (ma->constflag & MA_CONSTANT_TEXTURE)) colmirfac = stencil;
 					else GPU_link(mat, "math_multiply", GPU_select_uniform(&mtex->mirrfac, GPU_DYNAMIC_TEX_MIRROR, NULL, ma), stencil, &colmirfac);
 
-					/* exception for envmap only */
-					if (tex->type == TEX_ENVMAP && mtex->blendtype == MTEX_BLEND) {
+					/* exception for envmap and planar reflection/refraction */
+					if ((tex->type == TEX_ENVMAP ||
+					    (tex->planarflag == TEX_PLANAR_REFLECTION || tex->planarflag == TEX_PLANAR_REFRACTION)) &&
+					     mtex->blendtype == MTEX_BLEND) {
 						GPU_link(mat, "mtex_mirror", tcol, shi->refcol, tin, colmirfac, &shi->refcol);
 					}
 					else
