@@ -1,5 +1,5 @@
 KX_CollisionSensor(SCA_ISensor)
-===========================
+===============================
 
 .. module:: bge.types
 
@@ -7,7 +7,7 @@ base class --- :class:`SCA_ISensor`
 
 .. class:: KX_CollisionSensor(SCA_ISensor)
 
-   Touch sensor detects collisions between objects.
+   Collision sensor detects collisions between objects.
 
    .. attribute:: propName
 
