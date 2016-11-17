@@ -267,7 +267,7 @@ General functions
    :arg gravity: gravity vector
    :type gravity: Vector((fx, fy, fz))
 
-.. function:: getSpectrum()
+.. function:: getSpectrum() (Deprecated)
 
    Returns a 512 point list from the sound card.
    This only works if the fmod sound driver is being used.
