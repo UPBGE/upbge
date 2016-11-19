@@ -17,6 +17,11 @@ base class --- :class:`PyObjectPlus`
 
       :type: boolean
 
+   .. attribute:: objectCallbacks
+
+      The list of python callbacks executed when the shader is used to render an object.
+      All the functions 
+
    .. method:: setUniformfv(name, fList)
 
       Set a uniform with a list of float values

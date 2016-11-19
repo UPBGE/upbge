@@ -29,7 +29,11 @@ public:
 	void SetCallbacks(PyObject *callbacks);
 #endif // WITH_PYTHON
 
-	virtual void Update(RAS_IRasterizer *rasty, RAS_MeshSlot *ms);
+	/** Update the uniform shader for the current rendered mesh slot.
+	 * The python callbacks are executed in this function and at the end
+	 * RAS_Shader::Update(rasty, mat) is called.
+	 */
+	void Update(RAS_IRasterizer *rasty, RAS_MeshSlot *ms);
 
 	// Python interface
 #ifdef WITH_PYTHON
