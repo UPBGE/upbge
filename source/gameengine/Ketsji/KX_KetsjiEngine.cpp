@@ -820,14 +820,11 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
 	CListValue *lightlist = scene->GetLightList();
-	int i;
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
 
-	for (i = 0; i < lightlist->GetCount(); i++) {
-		KX_GameObject *gameobj = (KX_GameObject *)lightlist->GetValue(i);
-
-		KX_LightObject *light = (KX_LightObject *)gameobj;
+	for (CListValue::iterator<KX_LightObject> it = lightlist->GetBegin(), end = lightlist->GetEnd(); it != end; ++it) {
+		KX_LightObject *light = *it;
 		RAS_ILightObject *raslight = light->GetLightData();
 
 		raslight->Update();

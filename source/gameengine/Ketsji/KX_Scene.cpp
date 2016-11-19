@@ -1515,11 +1515,8 @@ void KX_Scene::DrawDebug(RAS_IRasterizer *rasty)
 void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 {
 	// have a look at temp objects ...
-	int lastobj = m_tempObjectList->GetCount() - 1;
-	
-	for (int i = lastobj; i >= 0; i--)
-	{
-		CValue* objval = m_tempObjectList->GetValue(i);
+	for (CListValue::baseIterator it = m_tempObjectList->GetBegin(), end = m_tempObjectList->GetEnd(); it != end; ++it) {
+		CValue *objval = *it;
 		CFloatValue* propval = (CFloatValue*) objval->GetProperty("::timebomb");
 		
 		if (propval)
@@ -1570,8 +1567,8 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 		bool has_mesh = false, has_non_mesh = false;
 
 		// Check for meshes that haven't been culled
-		for (int j=0; j<children->GetCount(); ++j) {
-			child = (KX_GameObject*)children->GetValue(j);
+		for (CListValue::iterator<KX_GameObject> it = children->GetBegin(), end = children->GetEnd(); it != end; ++it) {
+			child = *it;
 
 			if (!child->GetCulled()) {
 				needs_update = true;
@@ -1605,8 +1602,8 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 		if (gameobj->GetDeformer() && (!parent || parent->GetGameObjectType() != SCA_IObject::OBJ_ARMATURE))
 			gameobj->GetDeformer()->Update();
 
-		for (int j=0; j<children->GetCount(); ++j) {
-			child = (KX_GameObject*)children->GetValue(j);
+		for (CListValue::iterator<KX_GameObject> it = children->GetBegin(), end = children->GetEnd(); it != end; ++it) {
+			child = *it;
 
 			if (child->GetDeformer()) {
 				child->GetDeformer()->Update();
@@ -1621,21 +1618,23 @@ void KX_Scene::UpdateAnimations(double curtime)
 {
 	TaskPool *pool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &curtime);
 
-	for (int i=0; i<m_animatedlist->GetCount(); ++i) {
-		BLI_task_pool_push(pool, update_anim_thread_func, m_animatedlist->GetValue(i), false, TASK_PRIORITY_LOW);
+	for (CListValue::iterator<KX_GameObject> it = m_animatedlist->GetBegin(), end = m_animatedlist->GetEnd(); it != end; ++it) {
+		BLI_task_pool_push(pool, update_anim_thread_func, *it, false, TASK_PRIORITY_LOW);
 	}
 
 	BLI_task_pool_work_and_wait(pool);
 	BLI_task_pool_free(pool);
 
-	for (unsigned int i = 0; i < m_animatedlist->GetCount(); ++i) {
-		((KX_GameObject *)m_animatedlist->GetValue(i))->UpdateActionIPOs();
+	for (CListValue::iterator<KX_GameObject> it = m_animatedlist->GetBegin(), end = m_animatedlist->GetEnd(); it != end; ++it) {
+		(*it)->UpdateActionIPOs();
 	}
 }
 
 void KX_Scene::LogicUpdateFrame(double curtime, bool frame)
 {
-	// Update object components
+	/* Update object components, don't use iterator in loop because component can add objects and then make
+	 * iterators invalid.
+	 */
 	for (int i = 0; i < m_objectlist->GetCount(); ++i) {
 		((KX_GameObject*)m_objectlist->GetValue(i))->UpdateComponents();
 	}
@@ -1759,13 +1758,10 @@ void KX_Scene::UpdateObjectActivity(void)
 {
 	if (m_activity_culling) {
 		/* determine the activity criterium and set objects accordingly */
-		int i=0;
-		
 		MT_Vector3 camloc = GetActiveCamera()->NodeGetWorldPosition(); //GetCameraLocation();
-		
-		for (i=0;i<GetObjectList()->GetCount();i++)
-		{
-			KX_GameObject* ob = (KX_GameObject*) GetObjectList()->GetValue(i);
+
+		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+			KX_GameObject* ob = *it;
 			
 			if (!ob->GetIgnoreActivityCulling()) {
 				/* Simple test: more than 10 away from the camera, count
@@ -1988,9 +1984,8 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 
 	/* active + inactive == all ??? - lets hope so */
-	for (int i = 0; i < other->GetObjectList()->GetCount(); i++)
-	{
-		KX_GameObject* gameobj = (KX_GameObject*)other->GetObjectList()->GetValue(i);
+	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+		KX_GameObject* gameobj = *it;
 		MergeScene_GameObject(gameobj, this, other);
 
 		/* add properties to debug list for LibLoad objects */
@@ -1999,9 +1994,8 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		}
 	}
 
-	for (int i = 0; i < other->GetInactiveList()->GetCount(); i++)
-	{
-		KX_GameObject* gameobj = (KX_GameObject*)other->GetInactiveList()->GetValue(i);
+	for (CListValue::iterator<KX_GameObject> it = m_inactivelist->GetBegin(), end = m_inactivelist->GetEnd(); it != end; ++it) {
+		KX_GameObject* gameobj = *it;
 		MergeScene_GameObject(gameobj, this, other);
 	}
 
@@ -2011,8 +2005,8 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 		// List of all physics objects to merge (needed by ReplicateConstraints).
 		std::vector<KX_GameObject *> physicsObjects;
-		for (unsigned int i = 0; i < otherObjects->GetCount(); ++i) {
-			KX_GameObject *gameobj = (KX_GameObject *)otherObjects->GetValue(i);
+		for (CListValue::iterator<KX_GameObject> it = otherObjects->GetBegin(), end = otherObjects->GetEnd(); it != end; ++it) {
+			KX_GameObject* gameobj = *it;
 			if (gameobj->GetPhysicsController()) {
 				physicsObjects.push_back(gameobj);
 			}
