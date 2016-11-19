@@ -107,12 +107,12 @@ CValue *CListValue::GetBack()
 	return m_pValueArray.back();
 }
 
-CListValue::iterator CListValue::GetBegin()
+CListValue::baseIterator CListValue::GetBegin()
 {
 	return m_pValueArray.begin();
 }
 
-CListValue::iterator CListValue::GetEnd()
+CListValue::baseIterator CListValue::GetEnd()
 {
 	return m_pValueArray.end();
 }

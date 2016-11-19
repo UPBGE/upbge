@@ -39,7 +39,33 @@ public:
 	virtual CValue* GetReplica();
 
 public:
-	typedef std::vector<CValue *>::iterator iterator;
+	typedef std::vector<CValue *>::iterator baseIterator;
+
+	template <class T>
+	class iterator
+	{
+	private:
+		baseIterator m_it;
+
+	public:
+		iterator(baseIterator it)
+			:m_it(it)
+		{
+		}
+
+		inline void operator++()
+		{
+			++m_it;
+		}
+
+		inline T *operator*()
+		{
+			return (T *)*m_it;
+		}
+
+		template <class U>
+		friend bool operator!=(const iterator<U>& it1, const iterator<U>& it2);
+	};
 
 	void MergeList(CListValue* otherlist);
 	bool RemoveValue(CValue* val);
@@ -59,8 +85,8 @@ public:
 	CValue *GetFront();
 	CValue *GetBack();
 	int GetCount() { return m_pValueArray.size(); }
-	iterator GetBegin();
-	iterator GetEnd();
+	baseIterator GetBegin();
+	baseIterator GetEnd();
 	virtual const STR_String & GetText();
 
 	bool CheckEqual(CValue* first,CValue* second);
@@ -88,6 +114,12 @@ private:
 	std::vector<CValue*> m_pValueArray;
 	bool	m_bReleaseContents;
 };
+
+template <class T>
+inline bool operator!=(const CListValue::iterator<T>& it1, const CListValue::iterator<T>& it2)
+{
+	return it1.m_it != it2.m_it;
+}
 
 #endif  /* __EXP_LISTVALUE_H__ */
 

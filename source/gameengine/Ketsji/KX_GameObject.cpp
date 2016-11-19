@@ -1700,7 +1700,7 @@ void KX_GameObject::UpdateComponents()
 		return;
 	}
 
-	for (CListValue::iterator it = m_components->GetBegin(), end = m_components->GetEnd(); it != end; ++it) {
+	for (CListValue::baseIterator it = m_components->GetBegin(), end = m_components->GetEnd(); it != end; ++it) {
 		PyObject *pycomp = (*it)->GetProxy();
 		if (!PyObject_CallMethod(pycomp, "update", "")) {
 			PyErr_Print();

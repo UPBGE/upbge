@@ -1082,8 +1082,8 @@ static PyObject *gPySetGLSLMaterialSetting(PyObject *,
 		if (KX_GetActiveEngine()) {
 			CListValue *scenes = KX_GetActiveEngine()->CurrentScenes();
 
-			for (CListValue::iterator it = scenes->GetBegin(); it != scenes->GetEnd(); ++it) {
-				KX_Scene *scene = (KX_Scene *)*it;
+			for (CListValue::iterator<KX_Scene> it = scenes->GetBegin(), end = scenes->GetEnd(); it != end; ++it) {
+				KX_Scene *scene = *it;
 				// temporarily store the glsl settings in the scene for the GLSL materials
 				scene->GetBlenderScene()->gm.flag = gs->glslflag;
 				if (scene->GetBucketManager()) {

@@ -403,8 +403,8 @@ bool KX_KetsjiEngine::NextFrame()
 #endif
 
 		// for each scene, call the proceed functions
-		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
-			KX_Scene *scene = (KX_Scene *)*sceit;
+		for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
+			KX_Scene *scene = *sceit;
 
 			/* Suspension holds the physics and logic processing for an
 			 * entire scene. Objects can be suspended individually, and
@@ -499,8 +499,8 @@ bool KX_KetsjiEngine::NextFrame()
 
 void KX_KetsjiEngine::UpdateSuspendedScenes()
 {
-	for (CListValue::iterator sceneit = m_scenes->GetBegin(); sceneit != m_scenes->GetEnd(); ++sceneit) {
-		KX_Scene *scene = (KX_Scene *)*sceneit;
+	for (CListValue::iterator<KX_Scene> sceneit = m_scenes->GetBegin(), sceneend = m_scenes->GetEnd(); sceneit != sceneend; ++sceneit) {
+		KX_Scene *scene = *sceneit;
 		if (scene->IsSuspended()) {
 			if (scene->getSuspendedTime() == 0.0f) {
 				scene->setSuspendedTime(m_clockTime);
@@ -534,8 +534,8 @@ void KX_KetsjiEngine::Render()
 
 	BeginFrame();
 
-	for (CListValue::iterator sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
-		KX_Scene *scene = (KX_Scene *)*sceit;
+	for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
+		KX_Scene *scene = *sceit;
 		// shadow buffers
 		RenderShadowBuffers(scene);
 		// cubemaps
@@ -586,8 +586,8 @@ void KX_KetsjiEngine::Render()
 	unsigned short pass = 0;
 
 	// for each scene, call the proceed functions
-	for (CListValue::iterator sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
-		KX_Scene *scene = (KX_Scene *)*sceit;
+	for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
+		KX_Scene *scene = *sceit;
 		KX_Camera *activecam = scene->GetActiveCamera();
 		CListValue *cameras = scene->GetCameraList();
 
@@ -620,8 +620,8 @@ void KX_KetsjiEngine::Render()
 			}
 
 			// Draw the scene once for each camera with an enabled viewport
-			for (CListValue::iterator it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-				KX_Camera *cam = (KX_Camera*)(*it);
+			for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
+				KX_Camera *cam = *it;
 				if (cam->GetViewport()) {
 					// do the rendering
 					RenderFrame(scene, cam, pass++);
@@ -809,8 +809,8 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 			// Sanity/debug print to make sure we're actually going at the fps we want (should be close to anim_timestep)
 			// CM_Debug("Anim fps: " << 1.0/(m_frameTime - m_previousAnimTime));
 			m_previousAnimTime = m_frameTime;
-			for (CListValue::iterator sceneit = m_scenes->GetBegin(); sceneit != m_scenes->GetEnd(); ++sceneit)
-				((KX_Scene *)*sceneit)->UpdateAnimations(m_frameTime);
+			for (CListValue::iterator<KX_Scene> sceneit = m_scenes->GetBegin(), sceneend = m_scenes->GetEnd(); sceneit != sceneend; ++sceneit)
+				(*sceneit)->UpdateAnimations(m_frameTime);
 		}
 	}
 	else
@@ -1245,8 +1245,8 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		unsigned propsAct = 0;
 		unsigned propsMax = (m_canvas->GetHeight() - ycoord) / const_ysize;
 
-		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
-			KX_Scene *scene = (KX_Scene *)*sceit;
+		for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
+			KX_Scene *scene = *sceit;
 			/* the 'normal' debug props */
 			std::vector<SCA_DebugProp *>& debugproplist = scene->GetDebugProperties();
 
@@ -1753,8 +1753,8 @@ void KX_KetsjiEngine::Resize()
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 
 	if (framesettings.FrameType() == RAS_FrameSettings::e_frame_extend) {
-		for (CListValue::iterator sceit = m_scenes->GetBegin(); sceit != m_scenes->GetEnd(); ++sceit) {
-			KX_Scene *scene = (KX_Scene *)*sceit;
+		for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
+			KX_Scene *scene = *sceit;
 			KX_Camera *cam = scene->GetActiveCamera();
 			cam->InvalidateProjectionMatrix();
 		}

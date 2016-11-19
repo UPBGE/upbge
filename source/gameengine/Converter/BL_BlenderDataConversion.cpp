@@ -1745,8 +1745,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	// Look at every material texture and ask to create realtime cube map.
-	for (CListValue::iterator it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = (KX_GameObject*)*it;
+	for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = *it;
 
 		for (unsigned short i = 0, meshcount = gameobj->GetMeshCount(); i < meshcount; ++i) {
 			RAS_MeshObject *mesh = gameobj->GetMesh(i);

@@ -977,8 +977,8 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 	replica->InitComponents();
 	// Initialize components recursively.
 	CListValue *childrecursive = replica->GetChildrenRecursive();
-	for (CListValue::iterator it = childrecursive->GetBegin(), end = childrecursive->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = (KX_GameObject *)*it;
+	for (CListValue::iterator<KX_GameObject> it = childrecursive->GetBegin(), end = childrecursive->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = *it;
 		gameobj->InitComponents();
 	}
 	childrecursive->Release();
@@ -1417,8 +1417,8 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 	m_boundingBoxManager->Update(false);
 
 	// Update the object boudning volume box if the object had a deformer.
-	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = static_cast<KX_GameObject*>(*it);
+	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = *it;
 		if (gameobj->GetDeformer()) {
 			/** Update all the deformer, not only per material.
 			 * One of the side effect is to clear some flags about AABB calculation.
@@ -1438,8 +1438,8 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 		 * since DBVT culling will only set it to false.
 		 * This is similar to what RAS_BucketManager does for RAS_MeshSlot culling.
 		 */
-		for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-			KX_GameObject *gameobj = static_cast<KX_GameObject*>(*it);
+		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+			KX_GameObject *gameobj = *it;
 			gameobj->SetCulled(true);
 		}
 
@@ -1473,8 +1473,8 @@ void KX_Scene::DrawDebug(RAS_IRasterizer *rasty)
 {
 	const bool showBoundingBox = KX_GetActiveEngine()->GetShowBoundingBox();
 	if (showBoundingBox) {
-		for (CListValue::iterator it = m_objectlist->GetBegin(); it != m_objectlist->GetEnd(); ++it) {
-			KX_GameObject *gameobj = (KX_GameObject *)*it;
+		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+			KX_GameObject *gameobj = *it;
 
 			if (!gameobj->GetCulled() && gameobj->GetMeshCount() != 0) {
 				const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
@@ -1500,8 +1500,8 @@ void KX_Scene::DrawDebug(RAS_IRasterizer *rasty)
 		}
 	}
 	// The side effect of a armature is that it was added in the animated object list.
-	for (CListValue::iterator it = m_animatedlist->GetBegin(), end = m_animatedlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = (KX_GameObject *)*it;
+	for (CListValue::iterator<KX_GameObject> it = m_animatedlist->GetBegin(), end = m_animatedlist->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = *it;
 		if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
 			BL_ArmatureObject *armature = (BL_ArmatureObject *)gameobj;
 			if (armature->GetDrawDebug() || KX_GetActiveEngine()->GetShowArmatures()) {
@@ -1704,10 +1704,10 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 void KX_Scene::RenderBuckets(const MT_Transform & cameratransform,
                              class RAS_IRasterizer* rasty)
 {
-	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
 		 * It's done just before the render to be sure of the object color and visibility. */
-		((KX_GameObject *)*it)->UpdateBuckets();
+		(*it)->UpdateBuckets();
 	}
 
 	m_bucketmanager->Renderbuckets(cameratransform,rasty);
@@ -1727,8 +1727,8 @@ void KX_Scene::UpdateObjectLods()
 	const MT_Vector3& cam_pos = m_active_camera->NodeGetWorldPosition();
 	const float lodfactor = m_active_camera->GetLodDistanceFactor();
 
-	for (CListValue::iterator it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = (KX_GameObject *)*it;
+	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = *it;
 		if (!gameobj->GetCulled()) {
 			gameobj->UpdateLod(cam_pos, lodfactor);
 		}
