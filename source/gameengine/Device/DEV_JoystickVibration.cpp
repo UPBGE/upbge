@@ -28,9 +28,6 @@
 #include "DEV_JoystickPrivate.h"
 #include "DEV_JoystickDefines.h"
 
-#ifdef _MSC_VER
-#  include <cstdio> /* printf */
-#endif
 #include <memory> // We have to include that on Windows to make memset available
 
 bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigned int duration)
