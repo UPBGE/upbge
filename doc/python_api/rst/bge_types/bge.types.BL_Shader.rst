@@ -20,7 +20,15 @@ base class --- :class:`PyObjectPlus`
    .. attribute:: objectCallbacks
 
       The list of python callbacks executed when the shader is used to render an object.
-      All the functions 
+      All the functions can expect as argument the object currently rendered.
+
+      :type: list of functions and/or methods
+
+   .. attribute:: bindCallbacks
+
+      The list of python callbacks executed when the shader is begin used to render.
+
+      :type: list of functions and/or methods
 
    .. method:: setUniformfv(name, fList)
 
