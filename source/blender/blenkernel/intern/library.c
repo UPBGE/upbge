@@ -1211,46 +1211,46 @@ void BKE_main_free(Main *mainvar)
 		
 		while ( (id = lb->first) ) {
 #if 1
-			BKE_libblock_free_ex(mainvar, id, false);
+			BKE_libblock_free_ex(mainvar, id, false, false);
 #else
 			/* errors freeing ID's can be hard to track down,
 			 * enable this so valgrind will give the line number in its error log */
 			switch (a) {
-				case   0: BKE_libblock_free_ex(mainvar, id, false); break;
-				case   1: BKE_libblock_free_ex(mainvar, id, false); break;
-				case   2: BKE_libblock_free_ex(mainvar, id, false); break;
-				case   3: BKE_libblock_free_ex(mainvar, id, false); break;
-				case   4: BKE_libblock_free_ex(mainvar, id, false); break;
-				case   5: BKE_libblock_free_ex(mainvar, id, false); break;
-				case   6: BKE_libblock_free_ex(mainvar, id, false); break;
-				case   7: BKE_libblock_free_ex(mainvar, id, false); break;
-				case   8: BKE_libblock_free_ex(mainvar, id, false); break;
-				case   9: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  10: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  11: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  12: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  13: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  14: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  15: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  16: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  17: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  18: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  19: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  20: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  21: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  22: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  23: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  24: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  25: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  26: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  27: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  28: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  29: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  30: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  31: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  32: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  33: BKE_libblock_free_ex(mainvar, id, false); break;
-				case  34: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   0: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case   1: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case   2: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case   3: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case   4: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case   5: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case   6: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case   7: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case   8: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case   9: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  10: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  11: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  12: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  13: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  14: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  15: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  16: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  17: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  18: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  19: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  20: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  21: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  22: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  23: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  24: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  25: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  26: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  27: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  28: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  29: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  30: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  31: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  32: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  33: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case  34: BKE_libblock_free_ex(mainvar, id, false, false); break;
 				default:
 					BLI_assert(0);
 					break;
@@ -1841,19 +1841,24 @@ void BKE_library_make_local(
 		/* Note: in theory here we are only handling datablocks forming exclusive linked dependency-cycles-based
 		 * archipelagos, so no need to check again after we have deleted one, as done in previous step. */
 		if (id->tag & LIB_TAG_DOIT) {
+			/* Object's deletion rely on valid ob->data, but ob->data may have already been freed here...
+			 * Setting it to NULL may not be 100% correct, but should be safe and do the work. */
+			if (GS(id->name) == ID_OB) {
+				((Object *)id)->data = NULL;
+			}
+
 			/* Note: *in theory* IDs tagged here are fully *outside* of file scope, totally unused, so we can
 			 *       directly wipe them out without caring about clearing their usages.
 			 *       However, this is a highly-risky presumption, and nice crasher in case something goes wrong here.
 			 *       So for 2.78a will keep the safe option, and switch to more efficient one in master later. */
 #if 1
-			BKE_libblock_free_ex(bmain, id, false);
+			BKE_libblock_free_ex(bmain, id, false, true);
 #else
 			BKE_libblock_unlink(bmain, id, false, false);
 			BKE_libblock_free(bmain, id);
 #endif
 			((LinkNode *)it->link)->link = NULL;  /* Not strictly necessary, but safer (see T49903)... */
 			it->link = NULL;
-			id->tag &= ~LIB_TAG_DOIT;
 		}
 	}
 

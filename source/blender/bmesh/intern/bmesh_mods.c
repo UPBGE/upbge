@@ -346,7 +346,7 @@ BMFace *BM_face_split_n(
         BMLoop **r_l, BMEdge *example)
 {
 	BMFace *f_new, *f_tmp;
-	BMLoop *l_dummy;
+	BMLoop *l_new;
 	BMEdge *e, *e_new;
 	BMVert *v_new;
 	// BMVert *v_a = l_a->v; /* UNUSED */
@@ -368,24 +368,21 @@ BMFace *BM_face_split_n(
 	}
 
 	f_tmp = BM_face_copy(bm, bm, f, true, true);
-
-	if (!r_l)
-		r_l = &l_dummy;
 	
 #ifdef USE_BMESH_HOLES
-	f_new = bmesh_sfme(bm, f, l_a, l_b, r_l, NULL, example, false);
+	f_new = bmesh_sfme(bm, f, l_a, l_b, &l_new, NULL, example, false);
 #else
-	f_new = bmesh_sfme(bm, f, l_a, l_b, r_l, example, false);
+	f_new = bmesh_sfme(bm, f, l_a, l_b, &l_new, example, false);
 #endif
-	/* bmesh_sfme returns in r_l a Loop for f_new going from v_a to v_b.
-	 * The radial_next is for f and goes from v_b to v_a  */
+	/* bmesh_sfme returns in 'l_new' a Loop for f_new going from 'v_a' to 'v_b'.
+	 * The radial_next is for 'f' and goes from 'v_b' to 'v_a'  */
 
 	if (f_new) {
-		e = (*r_l)->e;
+		e = l_new->e;
 		for (i = 0; i < n; i++) {
 			v_new = bmesh_semv(bm, v_b, e, &e_new);
 			BLI_assert(v_new != NULL);
-			/* bmesh_semv returns in e_new the edge going from v_new to tv */
+			/* bmesh_semv returns in 'e_new' the edge going from 'v_new' to 'v_b' */
 			copy_v3_v3(v_new->co, cos[i]);
 
 			/* interpolate the loop data for the loops with (v == v_new), using orig face */
@@ -404,6 +401,10 @@ BMFace *BM_face_split_n(
 	}
 
 	BM_face_verts_kill(bm, f_tmp);
+
+	if (r_l) {
+		*r_l = l_new;
+	}
 
 	return f_new;
 }
@@ -979,6 +980,7 @@ BMEdge *BM_edge_rotate(BMesh *bm, BMEdge *e, const bool ccw, const short check_f
 	BMLoop *l1, *l2;
 	BMFace *f;
 	BMEdge *e_new = NULL;
+	char f_active_prev = 0;
 	char f_hflag_prev_1;
 	char f_hflag_prev_2;
 
@@ -1029,6 +1031,16 @@ BMEdge *BM_edge_rotate(BMesh *bm, BMEdge *e, const bool ccw, const short check_f
 	f_hflag_prev_1 = l1->f->head.hflag;
 	f_hflag_prev_2 = l2->f->head.hflag;
 
+	/* maintain active face */
+	if (bm->act_face == l1->f) {
+		f_active_prev = 1;
+	}
+	else if (bm->act_face == l2->f) {
+		f_active_prev = 2;
+	}
+
+	const bool is_flipped = !BM_edge_is_contiguous(e);
+
 	/* don't delete the edge, manually remove the edge after so we can copy its attributes */
 	f = BM_faces_join_pair(bm, BM_face_edge_share_loop(l1->f, e), BM_face_edge_share_loop(l2->f, e), true);
 
@@ -1050,6 +1062,22 @@ BMEdge *BM_edge_rotate(BMesh *bm, BMEdge *e, const bool ccw, const short check_f
 		if (BM_edge_face_pair(e_new, &fa, &fb)) {
 			fa->head.hflag = f_hflag_prev_1;
 			fb->head.hflag = f_hflag_prev_2;
+
+			if (f_active_prev == 1) {
+				bm->act_face = fa;
+			}
+			else if (f_active_prev == 2) {
+				bm->act_face = fb;
+			}
+
+			if (is_flipped) {
+				BM_face_normal_flip(bm, fb);
+
+				if (ccw) {
+					/* needed otherwise ccw toggles direction */
+					e_new->l = e_new->l->radial_next;
+				}
+			}
 		}
 	}
 	else {
