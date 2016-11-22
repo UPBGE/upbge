@@ -497,10 +497,10 @@ void KX_BlenderMaterial::UpdateIPO(
 	m_material->spectra = (float)specalpha;
 }
 
-const RAS_IRasterizer::AttribLayerList KX_BlenderMaterial::GetAttribLayers(const RAS_MeshObject::LayerList& layers) const
+const RAS_IRasterizer::AttribLayerList KX_BlenderMaterial::GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const
 {
 	if (m_blenderShader && m_blenderShader->Ok()) {
-		return m_blenderShader->GetAttribLayers(layers);
+		return m_blenderShader->GetAttribLayers(layersInfo);
 	}
 
 	static const RAS_IRasterizer::AttribLayerList attribLayers;

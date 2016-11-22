@@ -60,7 +60,7 @@ BL_BlenderShader::~BL_BlenderShader()
 		GPU_material_unbind(m_GPUMat);
 }
 
-const RAS_IRasterizer::AttribLayerList BL_BlenderShader::GetAttribLayers(const RAS_MeshObject::LayerList& layers) const
+const RAS_IRasterizer::AttribLayerList BL_BlenderShader::GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const
 {
 	RAS_IRasterizer::AttribLayerList attribLayers;
 	GPUVertexAttribs attribs;
@@ -70,12 +70,17 @@ const RAS_IRasterizer::AttribLayerList BL_BlenderShader::GetAttribLayers(const R
 		if (attribs.layer[i].type == CD_MTFACE || attribs.layer[i].type == CD_MCOL) {
 			const char *attribname = attribs.layer[i].name;
 			if (strlen(attribname) == 0) {
-				// The attribut use the default UV = the first one.
-				attribLayers[attribs.layer[i].glindex] = 0;
+				// The color or uv layer is not specified, then use the active color or uv layer.
+				if (attribs.layer[i].type == CD_MTFACE) {
+					attribLayers[attribs.layer[i].glindex] = layersInfo.activeUv;
+				}
+				else {
+					attribLayers[attribs.layer[i].glindex] = layersInfo.activeColor;
+				}
 				continue;
 			}
 
-			for (RAS_MeshObject::LayerList::const_iterator it = layers.begin(), end = layers.end();
+			for (RAS_MeshObject::LayerList::const_iterator it = layersInfo.layers.begin(), end = layersInfo.layers.end();
 				 it != end; ++it)
 			{
 				const RAS_MeshObject::Layer& layer = *it;

@@ -102,9 +102,9 @@ struct RAS_MeshObject::fronttoback
 
 STR_String RAS_MeshObject::s_emptyname = "";
 
-RAS_MeshObject::RAS_MeshObject(Mesh *mesh, LayerList& layers)
+RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo)
 	:m_name(mesh->id.name + 2),
-	m_layers(layers),
+	m_layersInfo(layersInfo),
 	m_boundingBox(NULL),
 	m_mesh(mesh)
 {
@@ -411,9 +411,9 @@ void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 	m_boundingBox->Update(true);
 }
 
-const RAS_MeshObject::LayerList& RAS_MeshObject::GetLayers() const
+const RAS_MeshObject::LayersInfo& RAS_MeshObject::GetLayersInfo() const
 {
-	return m_layers;
+	return m_layersInfo;
 }
 
 void RAS_MeshObject::GenerateAttribLayers()

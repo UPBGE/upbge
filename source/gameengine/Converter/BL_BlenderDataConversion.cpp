@@ -512,7 +512,14 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	}
 
 	// Extract avaiable layers
-	RAS_MeshObject::LayerList layers;
+	RAS_MeshObject::LayersInfo layersInfo;
+
+	// Get the active color and uv layer.
+	const short activeUv = CustomData_get_active_layer_index(&dm->faceData, CD_MTFACE);
+	const short activeColor = CustomData_get_active_layer_index(&dm->faceData, CD_MCOL);
+
+	layersInfo.activeUv = (activeUv == -1) ? 0 : (activeUv - 1);
+	layersInfo.activeColor = (activeColor == -1) ? 0 : (activeColor - 1);
 
 	unsigned short uvLayers = 0;
 	unsigned short colorLayers = 0;
@@ -543,11 +550,11 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 				++uvLayers;
 			}
 
-			layers.push_back(layer);
+			layersInfo.layers.push_back(layer);
 		}
 	}
 
-	meshobj = new RAS_MeshObject(mesh, layers);
+	meshobj = new RAS_MeshObject(mesh, layersInfo);
 
 	meshobj->m_sharedvertex_map.resize(totvert);
 
@@ -586,7 +593,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			ma = &defmaterial;
 		}
 
-		RAS_MaterialBucket *bucket = material_from_mesh(ma, mface, tface, layers, lightlayer, rgb, uvs, scene, converter);
+		RAS_MaterialBucket *bucket = material_from_mesh(ma, mface, tface, layersInfo.layers, lightlayer, rgb, uvs, scene, converter);
 		meshobj->AddMaterial(bucket, 0, vertformat);
 	}
 
@@ -644,7 +651,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 		{
 
-			RAS_MaterialBucket* bucket = material_from_mesh(ma, mface, tface, layers, lightlayer, rgb, uvs, scene, converter);
+			RAS_MaterialBucket* bucket = material_from_mesh(ma, mface, tface, layersInfo.layers, lightlayer, rgb, uvs, scene, converter);
 			RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, mface->mat_nr, vertformat);
 
 			// set render flags
@@ -695,7 +702,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		if (tface) 
 			tface++;
 
-		for (RAS_MeshObject::LayerList::iterator it = layers.begin(), end = layers.end(); it != end; ++it) {
+		for (RAS_MeshObject::LayerList::iterator it = layersInfo.layers.begin(), end = layersInfo.layers.end(); it != end; ++it) {
 			RAS_MeshObject::Layer &layer = *it;
 
 			if (layer.face) {

@@ -71,17 +71,27 @@ public:
 	struct Layer {
 		MTFace *face;
 		MCol *color;
+		/// The index of the color or uv layer in the vertices.
 		unsigned short index;
+		/// The name of the color or uv layer used to find corresponding material attributes.
 		STR_String name;
 	};
 
 	typedef std::vector<Layer> LayerList;
 
+	struct LayersInfo {
+		LayerList layers;
+		// The active color layer index as default.
+		unsigned short activeColor;
+		// The active uv layer index as default.
+		unsigned short activeUv;
+	};
+
 private:
 	STR_String m_name;
 	static STR_String s_emptyname;
 
-	std::vector<Layer> m_layers;
+	LayersInfo m_layersInfo;
 
 	std::vector<RAS_Polygon *> m_polygons;
 
@@ -99,7 +109,7 @@ protected:
 
 public:
 	// for now, meshes need to be in a certain layer (to avoid sorting on lights in realtime)
-	RAS_MeshObject(Mesh *mesh, LayerList& layers);
+	RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo);
 	virtual ~RAS_MeshObject();
 
 	// materials
@@ -153,7 +163,7 @@ public:
 	void EndConversion(RAS_BoundingBoxManager *boundingBoxManager);
 
 	/// Return the list of blender's layers.
-	const LayerList& GetLayers() const;
+	const LayersInfo& GetLayersInfo() const;
 
 	/** Generate attribute's layers for every material use by this mesh.
 	 * WARNING: Always call when shader in the material are valid.

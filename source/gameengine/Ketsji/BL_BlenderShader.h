@@ -79,7 +79,7 @@ public:
 	 * \param layers The list of the mesh layers used to link with uv and color material attributes.
 	 * \return The map of attributes layers.
 	 */
-	const RAS_IRasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayerList& layers) const;
+	const RAS_IRasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const;
 
 	void Update(RAS_MeshSlot *ms, RAS_IRasterizer * rasty);
 
