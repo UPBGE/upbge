@@ -662,6 +662,33 @@ void KX_GameObject::setDamping(float linear, float angular)
 }
 
 
+float KX_GameObject::getLinearStiffness() const
+{
+	if (m_pPhysicsController)
+		return m_pPhysicsController->GetLinearStiffness();
+	return 0.0f;
+}
+
+void KX_GameObject::setLinearStiffness(float stiffness)
+{
+	if (m_pPhysicsController)
+		m_pPhysicsController->SetLinearStiffness(stiffness);
+}
+
+float KX_GameObject::getAngularStiffness() const
+{
+	if (m_pPhysicsController)
+		return m_pPhysicsController->GetAngularStiffness();
+	return 0.0f;
+}
+
+void KX_GameObject::setAngularStiffness(float stiffness)
+{
+	if (m_pPhysicsController)
+		m_pPhysicsController->SetAngularStiffness(stiffness);
+}
+
+
 void KX_GameObject::ApplyForce(const MT_Vector3& force,bool local)
 {
 	if (m_pPhysicsController)
@@ -2069,6 +2096,8 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("worldAngularVelocity", KX_GameObject, pyattr_get_worldAngularVelocity, pyattr_set_worldAngularVelocity),
 	KX_PYATTRIBUTE_RW_FUNCTION("linearDamping", KX_GameObject, pyattr_get_linearDamping, pyattr_set_linearDamping),
 	KX_PYATTRIBUTE_RW_FUNCTION("angularDamping", KX_GameObject, pyattr_get_angularDamping, pyattr_set_angularDamping),
+	KX_PYATTRIBUTE_RW_FUNCTION("linearStiffness", KX_GameObject, pyattr_get_linearStiffness, pyattr_set_linearStiffness),
+	KX_PYATTRIBUTE_RW_FUNCTION("angularStiffness", KX_GameObject, pyattr_get_angularStiffness, pyattr_set_angularStiffness),
 	KX_PYATTRIBUTE_RO_FUNCTION("children",	KX_GameObject, pyattr_get_children),
 	KX_PYATTRIBUTE_RO_FUNCTION("childrenRecursive",	KX_GameObject, pyattr_get_children_recursive),
 	KX_PYATTRIBUTE_RO_FUNCTION("attrDict",	KX_GameObject, pyattr_get_attrDict),
@@ -3049,6 +3078,36 @@ int KX_GameObject::pyattr_set_angularDamping(void *self_v, const KX_PYATTRIBUTE_
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
 	float val = PyFloat_AsDouble(value);
 	self->setAngularDamping(val);
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_GameObject::pyattr_get_linearStiffness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+	return PyFloat_FromDouble(self->getLinearStiffness());
+}
+
+int KX_GameObject::pyattr_set_linearStiffness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+	float val = PyFloat_AsDouble(value);
+	CLAMP(val, 0.0f, 1.0f);
+	self->setLinearStiffness(val);
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_GameObject::pyattr_get_angularStiffness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+	return PyFloat_FromDouble(self->getAngularStiffness());
+}
+
+int KX_GameObject::pyattr_set_angularStiffness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+	float val = PyFloat_AsDouble(value);
+	CLAMP(val, 0.0f, 1.0f);
+	self->setAngularStiffness(val);
 	return PY_SET_ATTR_SUCCESS;
 }
 

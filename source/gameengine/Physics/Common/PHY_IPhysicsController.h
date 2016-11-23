@@ -96,6 +96,10 @@ public:
 	virtual void SetLinearDamping(float damping) = 0;
 	virtual void SetAngularDamping(float damping) = 0;
 	virtual void SetDamping(float linear, float angular) = 0;
+	virtual float GetLinearStiffness() = 0;
+	virtual float GetAngularStiffness() = 0;	
+	virtual void SetLinearStiffness(float stiffness) = 0;
+	virtual void SetAngularStiffness(float stiffness) = 0;	
 
 	virtual void RefreshCollisions() = 0;
 	virtual void SuspendPhysics() = 0;

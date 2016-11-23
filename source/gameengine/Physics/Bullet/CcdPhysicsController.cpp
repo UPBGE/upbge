@@ -1338,6 +1338,44 @@ void CcdPhysicsController::SetDamping(float linear, float angular)
 	body->setDamping(linear, angular);
 }
 
+float CcdPhysicsController::GetLinearStiffness()
+{
+	const btSoftBody *body = GetSoftBody();
+	if (body) {
+		btSoftBody::Material *pm = GetSoftBody()->m_materials[0];
+		return pm->m_kLST;
+	}
+	return 0.0f;
+}
+
+void CcdPhysicsController::SetLinearStiffness(float stiffness)
+{
+	const btSoftBody *body = GetSoftBody();
+	if (body) {
+		btSoftBody::Material *pm = GetSoftBody()->m_materials[0];
+		pm->m_kLST = stiffness;
+	}
+}
+
+float CcdPhysicsController::GetAngularStiffness()
+{
+	const btSoftBody *body = GetSoftBody();
+	if (body) {
+		btSoftBody::Material *pm = GetSoftBody()->m_materials[0];
+		return pm->m_kAST;
+	}
+	return 0.0f;
+}
+
+void CcdPhysicsController::SetAngularStiffness(float stiffness)
+{
+	const btSoftBody *body = GetSoftBody();
+	if (body) {
+		btSoftBody::Material *pm = GetSoftBody()->m_materials[0];
+		pm->m_kAST = stiffness;
+	}
+}
+
 // reading out information from physics
 MT_Vector3 CcdPhysicsController::GetLinearVelocity()
 {

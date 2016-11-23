@@ -678,6 +678,10 @@ public:
 	virtual void	setLinearDamping(float damping);
 	virtual void	setAngularDamping(float damping);
 	virtual void	setDamping(float linear, float angular);
+	virtual float	getLinearStiffness() const;
+	virtual float	getAngularStiffness() const;	
+	virtual void	setLinearStiffness(float stiffness);	
+	virtual void	setAngularStiffness(float angular);
 
 	/**
 	 * Update the physics object transform based upon the current SG_Node
@@ -1070,8 +1074,12 @@ public:
 	static int			pyattr_set_debugRecursive(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_linearDamping(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_linearDamping(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_linearStiffness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_linearStiffness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_angularDamping(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_angularDamping(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_angularStiffness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_angularStiffness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_lodManager(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_lodManager(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
