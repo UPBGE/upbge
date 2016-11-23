@@ -33,7 +33,6 @@
 #define __BL_MESHDEFORMER_H__
 
 #include "RAS_Deformer.h"
-#include "RAS_BoundingBoxManager.h"
 #include "BL_DeformableGameObject.h"
 #include "DNA_object_types.h"
 #include "DNA_key_types.h"
@@ -56,23 +55,8 @@ public:
 	void VerifyStorage();
 	void RecalcNormals();
 	virtual void Relink(std::map<void *, void *>& map);
-	BL_MeshDeformer(BL_DeformableGameObject *gameobj,
-					Object *obj,
-					RAS_MeshObject *meshobj)
-		:m_pMeshObject(meshobj),
-		m_bmesh((Mesh *)(obj->data)),
-		m_transverts(NULL),
-		m_transnors(NULL),
-		m_objMesh(obj),
-		m_tvtot(0),
-		m_gameobj(gameobj),
-		m_lastDeformUpdate(-1.0)
-	{
-		KX_Scene *scene = m_gameobj->GetScene();
-		RAS_BoundingBoxManager *boundingBoxManager = scene->GetBoundingBoxManager();
-		m_boundingBox = boundingBoxManager->CreateBoundingBox();
-	}
 
+	BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_MeshObject *meshobj);
 	virtual ~BL_MeshDeformer();
 	virtual void SetSimulatedTime(double time)
 	{

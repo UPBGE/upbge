@@ -37,7 +37,6 @@
 #endif
 
 #include "RAS_Deformer.h"
-#include "RAS_BoundingBoxManager.h"
 #include "BL_DeformableGameObject.h"
 #include <vector>
 
@@ -54,19 +53,8 @@ class KX_SoftBodyDeformer : public RAS_Deformer
 	bool m_needUpdateAabb;
 
 public:
-	KX_SoftBodyDeformer(RAS_MeshObject *pMeshObject, BL_DeformableGameObject *gameobj)
-		:m_pMeshObject(pMeshObject),
-		m_gameobj(gameobj),
-		m_needUpdateAabb(true)
-	{
-		KX_Scene *scene = m_gameobj->GetScene();
-		RAS_BoundingBoxManager *boundingBoxManager = scene->GetBoundingBoxManager();
-		m_boundingBox = boundingBoxManager->CreateBoundingBox();
-	}
-
-	virtual ~KX_SoftBodyDeformer()
-	{
-	}
+	KX_SoftBodyDeformer(RAS_MeshObject *pMeshObject, BL_DeformableGameObject *gameobj);
+	virtual ~KX_SoftBodyDeformer();
 
 	virtual void Relink(std::map<void *, void *>& map);
 	virtual bool Apply(RAS_IPolyMaterial *polymat, RAS_MeshMaterial *meshmat);

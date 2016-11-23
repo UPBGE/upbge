@@ -39,7 +39,7 @@
 #include "KX_SoftBodyDeformer.h"
 #include "RAS_MeshObject.h"
 #include "RAS_DisplayArray.h"
-#include "RAS_BoundingBox.h"
+#include "RAS_BoundingBoxManager.h"
 
 #ifdef WITH_BULLET
 
@@ -48,6 +48,22 @@
 #include "BulletSoftBody/btSoftBody.h"
 
 #include "btBulletDynamicsCommon.h"
+
+KX_SoftBodyDeformer::KX_SoftBodyDeformer(RAS_MeshObject *pMeshObject, BL_DeformableGameObject *gameobj)
+	:m_pMeshObject(pMeshObject),
+	m_gameobj(gameobj),
+	m_needUpdateAabb(true)
+{
+	KX_Scene *scene = m_gameobj->GetScene();
+	RAS_BoundingBoxManager *boundingBoxManager = scene->GetBoundingBoxManager();
+	m_boundingBox = boundingBoxManager->CreateBoundingBox();
+	// Set AABB default to mesh bounding box AABB.
+	m_boundingBox->CopyAabb(m_pMeshObject->GetBoundingBox());
+}
+
+KX_SoftBodyDeformer::~KX_SoftBodyDeformer()
+{
+}
 
 void KX_SoftBodyDeformer::Relink(std::map<void *, void *>& map)
 {

@@ -74,6 +74,8 @@ public:
 	/// Compute the AABB of the bounding box AABB mixed with the passed AABB.
 	void ExtendAabb(const MT_Vector3& aabbMin, const MT_Vector3& aabbMax);
 
+	void CopyAabb(RAS_BoundingBox *other);
+
 	virtual void Update(bool force);
 };
 

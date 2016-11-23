@@ -109,6 +109,12 @@ void RAS_BoundingBox::ExtendAabb(const MT_Vector3& aabbMin, const MT_Vector3& aa
 	m_modified = true;
 }
 
+void RAS_BoundingBox::CopyAabb(RAS_BoundingBox *other)
+{
+	other->GetAabb(m_aabbMin, m_aabbMax);
+	m_modified = true;
+}
+
 void RAS_BoundingBox::Update(bool force)
 {
 }

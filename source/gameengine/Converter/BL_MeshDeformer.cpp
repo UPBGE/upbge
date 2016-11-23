@@ -40,6 +40,7 @@
 #include "RAS_DisplayArray.h"
 #include "BL_DeformableGameObject.h"
 #include "BL_MeshDeformer.h"
+#include "RAS_BoundingBoxManager.h"
 #include "RAS_MeshObject.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -80,6 +81,23 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *UNUSED(polymat), RAS_MeshMaterial
 	}
 
 	return false;
+}
+
+BL_MeshDeformer::BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_MeshObject *meshobj)
+	:m_pMeshObject(meshobj),
+	m_bmesh((Mesh *)(obj->data)),
+	m_transverts(NULL),
+	m_transnors(NULL),
+	m_objMesh(obj),
+	m_tvtot(0),
+	m_gameobj(gameobj),
+	m_lastDeformUpdate(-1.0)
+{
+	KX_Scene *scene = m_gameobj->GetScene();
+	RAS_BoundingBoxManager *boundingBoxManager = scene->GetBoundingBoxManager();
+	m_boundingBox = boundingBoxManager->CreateBoundingBox();
+	// Set AABB default to mesh bounding box AABB.
+	m_boundingBox->CopyAabb(m_pMeshObject->GetBoundingBox());
 }
 
 BL_MeshDeformer::~BL_MeshDeformer()
