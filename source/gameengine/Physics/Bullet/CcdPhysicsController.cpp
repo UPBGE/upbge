@@ -1350,10 +1350,11 @@ float CcdPhysicsController::GetLinearStiffness()
 
 void CcdPhysicsController::SetLinearStiffness(float stiffness)
 {
-	const btSoftBody *body = GetSoftBody();
+	btSoftBody *body = GetSoftBody();
 	if (body) {
 		btSoftBody::Material *pm = GetSoftBody()->m_materials[0];
 		pm->m_kLST = stiffness;
+		body->updateConstants();
 	}
 }
 
@@ -1369,10 +1370,11 @@ float CcdPhysicsController::GetAngularStiffness()
 
 void CcdPhysicsController::SetAngularStiffness(float stiffness)
 {
-	const btSoftBody *body = GetSoftBody();
+	btSoftBody *body = GetSoftBody();
 	if (body) {
 		btSoftBody::Material *pm = GetSoftBody()->m_materials[0];
 		pm->m_kAST = stiffness;
+		body->updateConstants();
 	}
 }
 
