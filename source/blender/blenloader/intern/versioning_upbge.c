@@ -81,6 +81,14 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 6)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Material", "short", "constflag")) {
+			for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
+				ma->constflag |= MA_CONSTANT_TEXTURE;
+			}
+		}
+	}
+
 	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 9)) {
 		if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "pythonkeys[4]")) {
 			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
