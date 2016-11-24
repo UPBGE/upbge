@@ -1413,6 +1413,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	// convert world
 	KX_WorldInfo* worldinfo = new KX_WorldInfo(blenderscene, blenderscene->world);
 	worldinfo->UpdateWorldSettings(rendertools);
+	worldinfo->UpdateBackGround(rendertools);
 	kxscene->SetWorldInfo(worldinfo);
 
 	int activeLayerBitInfo = blenderscene->lay;
