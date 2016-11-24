@@ -570,6 +570,13 @@ static BlendFileData *load_game_data(const char *progname, char *filename = NULL
 	return bfd;
 }
 
+/// Return true when the exit code ask to quit the engine.
+static bool quitGame(int exitcode)
+{
+	// Exit the game engine if we are not restarting the game or loading an other file.
+	return (exitcode != KX_EXIT_REQUEST_RESTART_GAME && exitcode != KX_EXIT_REQUEST_START_OTHER_GAME);
+}
+
 int main(
 	int argc,
 #ifdef WIN32
@@ -1053,8 +1060,6 @@ int main(
 				PyObject *globalDict = NULL;
 #endif  // WITH_PYTHON
 
-				bool quit = false;
-
 				do {
 					// Read the Blender file
 					BlendFileData *bfd;
@@ -1286,13 +1291,10 @@ int main(
 						exitstring = launcher.GetExitString();
 						gs = *launcher.GetGlobalSettings();
 
-						// Exit the game engine if we are not restarting the game or loading an other file.
-						quit = (exitcode != KX_EXIT_REQUEST_RESTART_GAME && exitcode != KX_EXIT_REQUEST_START_OTHER_GAME);
-
 						/* Delete the globalDict before free the launcher, because the launcher calls
 						 * Py_Finalize() which disallow any python commands after.
 						 */
-						if (quit) {
+						if (quitGame(exitcode)) {
 #ifdef WITH_PYTHON
 							// If the globalDict is to NULL then python is certainly not initialized.
 							if (globalDict) {
@@ -1307,7 +1309,7 @@ int main(
 						/* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */
 						G.main = NULL;
 					}
-				} while (!quit);
+				} while (!quitGame(exitcode));
 			}
 
 			// Seg Fault; icon.c gIcons == 0
