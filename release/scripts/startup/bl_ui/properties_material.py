@@ -338,6 +338,10 @@ class MATERIAL_PT_specular(MaterialButtonsPanel, Panel):
             row = col.row()
             row.prop(mat, "specular_toon_size", text="Size")
             row.prop(mat, "specular_toon_smooth", text="Smooth")
+        elif mat.specular_shader == 'GGX':
+            row = col.row()
+            row.prop(mat, "specular_rough", text="Roughness")
+            row.prop(mat, "specular_ior", text="IOR")
 
         if mat.use_specular_ramp:
             layout.separator()

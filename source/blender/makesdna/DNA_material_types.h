@@ -353,6 +353,7 @@ typedef struct Material {
 #define MA_SPEC_BLINN		2
 #define MA_SPEC_TOON		3
 #define MA_SPEC_WARDISO		4
+#define MA_SPEC_GGX			5
 
 /* dynamode */
 #ifdef DNA_DEPRECATED

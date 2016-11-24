@@ -148,6 +148,7 @@ struct GPULamp {
 
 	float dynenergy, dyncol[3];
 	float energy, col[3];
+	float cutoff;
 
 	float co[3], vec[3];
 	float dynco[3], dynvec[3];
@@ -659,6 +660,13 @@ static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, GPULamp *lamp, GPUNode
 
 				break;
 			}
+			case LA_FALLOFF_INVSQUARE_CUTOFF:
+				GPU_link(mat, "lamp_falloff_invsquarecutoff",
+						 GPU_select_uniform(&lamp->dist, GPU_DYNAMIC_LAMP_DISTANCE, lamp->ob, ma),
+						 *dist,
+						 GPU_select_uniform(&lamp->cutoff, GPU_DYNAMIC_LAMP_CUTOFF, lamp->ob, ma),
+						 &visifac);
+				break;
 		}
 
 		if (lamp->mode & LA_SPHERE)
@@ -1092,6 +1100,10 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 			else if (ma->spec_shader == MA_SPEC_WARDISO) {
 				GPU_link(mat, "shade_wardiso_spec", vn, lv, view,
 				         GPU_uniform(&ma->rms), &specfac);
+			}
+			else if (ma->spec_shader == MA_SPEC_GGX) {
+				GPU_link(mat, "shade_ggx_spec", vn, lv, view,
+						 GPU_uniform(&ma->roughness), GPU_uniform(&ma->refrac), &specfac);
 			}
 			else {
 				GPU_link(mat, "shade_toon_spec", vn, lv, view,
@@ -2510,6 +2522,7 @@ static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *l
 	lamp->coeff_lin = la->coeff_lin;
 	lamp->coeff_quad = la->coeff_quad;
 	lamp->curfalloff = la->curfalloff;
+	lamp->cutoff = la->cutoff;
 
 	/* initshadowbuf */
 	lamp->bias = 0.02f * la->bias;

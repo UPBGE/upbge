@@ -1643,6 +1643,7 @@ static void rna_def_material_specularity(StructRNA *srna)
 		{MA_SPEC_BLINN, "BLINN", 0, "Blinn", "Use a Blinn shader"},
 		{MA_SPEC_TOON, "TOON", 0, "Toon", "Use a toon shader"},
 		{MA_SPEC_WARDISO, "WARDISO", 0, "WardIso", "Use a Ward anisotropic shader"},
+		{MA_SPEC_GGX, "GGX", 0, "GGX", "Use a GGX BRDF shader"},
 		{0, NULL, 0, NULL, NULL}
 	};
 	
@@ -1671,8 +1672,14 @@ static void rna_def_material_specularity(StructRNA *srna)
 
 	prop = RNA_def_property(srna, "specular_ior", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "refrac");
-	RNA_def_property_range(prop, 1, 10);
+	RNA_def_property_range(prop, 1.0f, 10.0f);
 	RNA_def_property_ui_text(prop, "Specular IOR", "Specular index of refraction");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "specular_rough", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "roughness");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Roughness", "Specular Roughness");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
 	prop = RNA_def_property(srna, "specular_toon_size", PROP_FLOAT, PROP_NONE);

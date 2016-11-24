@@ -1795,6 +1795,18 @@ void lamp_falloff_curve(float lampdist, sampler2D curvemap, float dist, out floa
 	visifac = texture2D(curvemap, vec2(dist / lampdist, 0.0)).x;
 }
 
+void lamp_falloff_invsquarecutoff(float radius, float dist, float cutoff, out float visifac)
+{
+	float d = max(dist - radius, 0.0);
+	float denom = d / radius + 1.0;
+
+	float att = 1.0 / (denom * denom);
+	att = (att - cutoff) / (1.0 - cutoff);
+	att = max(att, 0.0);
+
+	visifac = att;
+}
+
 void lamp_visibility_sphere(float lampdist, float dist, float visifac, out float outvisifac)
 {
 	float t = lampdist - dist;
@@ -2230,6 +2242,51 @@ void shade_toon_spec(vec3 n, vec3 l, vec3 v, float size, float tsmooth, out floa
 
 	specfac = rslt;
 }
+
+// BRDF For BGE
+float sqr(float x)
+{
+	return x * x;
+}
+
+float GGX(float NdotH, float roughness)
+{
+	float roughnessSqr = sqr(roughness);
+	return roughnessSqr / (M_PI * sqr(NdotH * NdotH * (roughnessSqr - 1.0) + 1.0));
+}
+
+float smithG_GGX(float Ndotv, float roughness)
+{
+	float roughnessSqr = sqr(roughness);
+	float NdotvSqr = sqr(Ndotv);
+	return 2.0 / (1.0 + sqrt(1.0 + roughnessSqr * (1.0 - NdotvSqr) / NdotvSqr));
+}
+
+void shade_ggx_spec(vec3 n, vec3 l, vec3 v, float roughness, float ior, out float specfac)
+{
+	float NdotL = dot(n, l);
+	float NdotV = dot(n, v);
+	if (NdotL < 0.0 || NdotV < 0.0) {
+		specfac = 0.0;
+	}
+	else {
+		vec3 H = normalize(l + v);
+		float NdotH = dot(n, H);
+		float VdotH = dot(v, H);
+
+		float D = GGX(NdotH, roughness);
+		float smithG = smithG_GGX(NdotL, roughness);
+		float G = sqr(smithG);
+
+		// fresnel
+		float c = VdotH;
+		float g = sqrt(ior * ior + c * c - 1.0);
+		float F = 0.5 * pow(g - c, 2.0) / pow(g + c, 2.0) * (1.0 + pow(c * (g + c) - 1.0, 2.0) / pow(c * (g - c) + 1.0, 2.0));
+
+		specfac = D * G * F / (4.0 * NdotL * NdotV);
+	}
+}
+//
 
 void shade_spec_area_inp(float specfac, float inp, out float outspecfac)
 {
