@@ -55,74 +55,65 @@ struct wmWindowManager;
 class KX_BlenderCanvas : public RAS_ICanvas
 {
 private:
-	/**
-	 * Rect that defines the area used for rendering,
-	 * relative to the context */
+	/** Rect that defines the area used for rendering,
+	 * relative to the context
+	 */
 	RAS_Rect m_displayarea;
 	int m_viewport[4];
+
+	wmWindowManager *m_wm;
+	wmWindow *m_win;
+	RAS_Rect m_area_rect;
+	ARegion *m_ar;
 
 public:
 	/* Construct a new canvas.
 	 *
 	 * \param area The Blender ARegion to run the game within.
 	 */
-	KX_BlenderCanvas(RAS_IRasterizer *rasty, struct wmWindowManager *wm, struct wmWindow *win, RAS_Rect &rect, struct ARegion *ar);
-	~KX_BlenderCanvas();
+	KX_BlenderCanvas(RAS_IRasterizer *rasty, wmWindowManager *wm, wmWindow *win, RAS_Rect &rect, ARegion *ar);
+	virtual ~KX_BlenderCanvas();
 
-	void Init();
+	virtual void Init();
 
-	void SwapBuffers();
-	void SetSwapInterval(int interval);
-	bool GetSwapInterval(int &intervalOut);
+	virtual void SwapBuffers();
+	virtual void SetSwapInterval(int interval);
+	virtual bool GetSwapInterval(int &intervalOut);
 
-	void GetDisplayDimensions(int &width, int &height);
-	void ResizeWindow(int width, int height);
+	virtual void GetDisplayDimensions(int &width, int &height);
+	virtual void ResizeWindow(int width, int height);
 	virtual void Resize(int width, int height);
 
-	void SetFullScreen(bool enable);
-	bool GetFullScreen();
+	virtual void SetFullScreen(bool enable);
+	virtual bool GetFullScreen();
 
-	void BeginFrame();
-	void EndFrame();
+	virtual void BeginFrame();
+	virtual void EndFrame();
 
-	int GetWidth() const;
-	int GetHeight() const;
+	virtual int GetWidth() const;
+	virtual int GetHeight() const;
 
 	virtual void ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen);
 
-	float GetMouseNormalizedX(int x);
-	float GetMouseNormalizedY(int y);
+	virtual float GetMouseNormalizedX(int x);
+	virtual float GetMouseNormalizedY(int y);
 
-	const RAS_Rect &GetDisplayArea() const
-	{
-		return m_displayarea;
-	}
+	virtual const RAS_Rect &GetDisplayArea() const;
+	virtual void SetDisplayArea(RAS_Rect *rect);
 
-	void SetDisplayArea(RAS_Rect *rect)
-	{
-		m_displayarea = *rect;
-	}
+	virtual RAS_Rect &GetWindowArea();
 
-	RAS_Rect &GetWindowArea();
+	virtual void SetViewPort(int x1, int y1, int x2, int y2);
+	virtual void UpdateViewPort(int x1, int y1, int x2, int y2);
+	virtual const int *GetViewPort();
 
-	void SetViewPort(int x1, int y1, int x2, int y2);
-	void UpdateViewPort(int x1, int y1, int x2, int y2);
-	const int *GetViewPort();
+	virtual void SetMouseState(RAS_MouseState mousestate);
+	virtual void SetMousePosition(int x, int y);
 
-	void SetMouseState(RAS_MouseState mousestate);
-	void SetMousePosition(int x, int y);
+	virtual void MakeScreenShot(const char *filename);
 
-	void MakeScreenShot(const char *filename);
-
-	void BeginDraw();
-	void EndDraw();
-
-private:
-	struct wmWindowManager *m_wm;
-	struct wmWindow *m_win;
-	RAS_Rect m_frame_rect;
-	RAS_Rect m_area_rect;
-	ARegion *m_ar;
+	virtual void BeginDraw();
+	virtual void EndDraw();
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderCanvas")

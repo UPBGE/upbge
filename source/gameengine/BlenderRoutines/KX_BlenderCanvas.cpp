@@ -60,7 +60,6 @@ KX_BlenderCanvas::KX_BlenderCanvas(RAS_IRasterizer *rasty, wmWindowManager *wm, 
 	:RAS_ICanvas(rasty),
 	m_wm(wm),
 	m_win(win),
-	m_frame_rect(rect),
 	m_area_rect(rect), // initialize area so that it's available for game logic on frame 1 (ImageViewport)
 	m_ar(ar)
 {
@@ -75,7 +74,6 @@ KX_BlenderCanvas::~KX_BlenderCanvas()
 
 void KX_BlenderCanvas::Init()
 {
-	m_rasterizer->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
 }
 
 void KX_BlenderCanvas::SwapBuffers()
@@ -141,12 +139,12 @@ void KX_BlenderCanvas::EndFrame()
 
 int KX_BlenderCanvas::GetWidth() const
 {
-	return m_frame_rect.GetWidth();
+	return m_area_rect.GetWidth();
 }
 
 int KX_BlenderCanvas::GetHeight() const
 {
-	return m_frame_rect.GetHeight();
+	return m_area_rect.GetHeight();
 }
 
 void KX_BlenderCanvas::ConvertMousePosition(int x, int y, int &r_x, int &r_y, bool screen)
@@ -172,6 +170,16 @@ float KX_BlenderCanvas::GetMouseNormalizedY(int y)
 	return float(y) / this->GetHeight();
 }
 
+const RAS_Rect &KX_BlenderCanvas::GetDisplayArea() const
+{
+	return m_displayarea;
+}
+
+void KX_BlenderCanvas::SetDisplayArea(RAS_Rect *rect)
+{
+	m_displayarea = *rect;
+}
+
 RAS_Rect &KX_BlenderCanvas::GetWindowArea()
 {
 	return m_area_rect;
@@ -186,8 +194,8 @@ void KX_BlenderCanvas::SetViewPort(int x1, int y1, int x2, int y2)
 	 */
 	int vp_width = (x2 - x1) + 1;
 	int vp_height = (y2 - y1) + 1;
-	int minx = m_frame_rect.GetLeft();
-	int miny = m_frame_rect.GetBottom();
+	int minx = m_area_rect.GetLeft();
+	int miny = m_area_rect.GetBottom();
 
 	m_area_rect.SetLeft(minx + x1);
 	m_area_rect.SetBottom(miny + y1);
@@ -242,9 +250,9 @@ void KX_BlenderCanvas::SetMouseState(RAS_MouseState mousestate)
 //	(0,0) is top left, (width,height) is bottom right
 void KX_BlenderCanvas::SetMousePosition(int x, int y)
 {
-	int winX = m_frame_rect.GetLeft();
-	int winY = m_frame_rect.GetBottom();
-	int winH = m_frame_rect.GetHeight();
+	int winX = m_area_rect.GetLeft();
+	int winY = m_area_rect.GetBottom();
+	int winH = m_area_rect.GetHeight();
 
 	WM_cursor_warp(m_win, winX + x + 1, winY + (winH - y - 1));
 }
@@ -254,10 +262,10 @@ void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 	unsigned int *pixeldata;
 	bScreen *screen = m_win->screen;
 
-	int x = m_frame_rect.GetLeft();
-	int y = m_frame_rect.GetBottom();
-	int width = m_frame_rect.GetWidth();
-	int height = m_frame_rect.GetHeight();
+	int x = m_area_rect.GetLeft();
+	int y = m_area_rect.GetBottom();
+	int width = m_area_rect.GetWidth();
+	int height = m_area_rect.GetHeight();
 
 	pixeldata = m_rasterizer->MakeScreenshot(x, y, width, height);
 	if (!pixeldata) {
