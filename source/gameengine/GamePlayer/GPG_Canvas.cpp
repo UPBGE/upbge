@@ -65,6 +65,31 @@ GPG_Canvas::~GPG_Canvas()
 {
 }
 
+int GPG_Canvas::GetWidth() const
+{
+	return m_width;
+}
+
+int GPG_Canvas::GetHeight() const
+{
+	return m_height;
+}
+
+const RAS_Rect &GPG_Canvas::GetDisplayArea() const
+{
+	return m_displayarea;
+}
+
+void GPG_Canvas::SetDisplayArea(RAS_Rect *rect)
+{
+	m_displayarea = *rect;
+}
+
+RAS_Rect &GPG_Canvas::GetWindowArea()
+{
+	return m_displayarea;
+}
+
 void GPG_Canvas::BeginFrame()
 {
 }

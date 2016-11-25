@@ -67,31 +67,11 @@ public:
 	 * \section Methods inherited from abstract base class RAS_ICanvas.
 	 */
 
-	virtual int GetWidth() const
-	{
-		return m_width;
-	}
-
-	virtual int GetHeight() const
-	{
-		return m_height;
-	}
-
-	virtual const RAS_Rect &GetDisplayArea() const
-	{
-		return m_displayarea;
-	}
-
-	virtual void SetDisplayArea(RAS_Rect *rect)
-	{
-		m_displayarea = *rect;
-	}
-
-	virtual RAS_Rect &GetWindowArea()
-	{
-		return m_displayarea;
-	}
-
+	virtual int GetWidth() const;
+	virtual int GetHeight() const;
+	virtual const RAS_Rect &GetDisplayArea() const;
+	virtual void SetDisplayArea(RAS_Rect *rect);
+	virtual RAS_Rect &GetWindowArea();
 	virtual void BeginFrame();
 
 	/// Draws overlay banners and progress bars.
@@ -103,7 +83,7 @@ public:
 
 	virtual void MakeScreenShot(const char *filename);
 
-	virtual void Init(void);
+	virtual void Init();
 	virtual void SetMousePosition(int x, int y);
 	virtual void SetMouseState(RAS_MouseState mousestate);
 	virtual void SwapBuffers();
