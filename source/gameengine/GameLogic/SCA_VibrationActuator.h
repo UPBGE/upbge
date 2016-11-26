@@ -39,19 +39,37 @@ class SCA_VibrationActuator : public SCA_IActuator
 private:
 
 	int m_joyindex;
-	float m_strength;
+	short mode;
+	float m_strength_left;
+	float m_strength_right;
 	int m_duration;
 	float m_endtime;
 
 public:
 
-	SCA_VibrationActuator(SCA_IObject *gameobj, int joyindex, float strength, int duration);
+	enum KX_ACT_VIBRATION_MODE {
+		KX_ACT_VIBRATION_NONE = 0,
+		KX_ACT_VIBRATION_PLAY,
+		KX_ACT_VIBRATION_STOP,
+		KX_ACT_VIBRATION_MAX
+	};
+
+	SCA_VibrationActuator(SCA_IObject *gameobj, short mode, int joyindex, float strength_left, float strength_right, int duration);
 
 	virtual	~SCA_VibrationActuator(void);
 
 	virtual CValue*	GetReplica(void);
 
 	virtual bool Update();
+
+#ifdef WITH_PYTHON
+	KX_PYMETHOD_DOC_NOARGS(SCA_VibrationActuator, startVibration);
+	KX_PYMETHOD_DOC_NOARGS(SCA_VibrationActuator, stopVibration);
+
+	static PyObject *pyattr_get_statusVibration(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_hasVibration(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+#endif  /* WITH_PYTHON */
+
 };
 
 #endif
