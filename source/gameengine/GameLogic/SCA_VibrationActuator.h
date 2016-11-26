@@ -39,7 +39,7 @@ class SCA_VibrationActuator : public SCA_IActuator
 private:
 
 	int m_joyindex;
-	short mode;
+	short m_mode;
 	float m_strength_left;
 	float m_strength_right;
 	int m_duration;
