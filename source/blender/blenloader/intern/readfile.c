@@ -164,6 +164,10 @@
 
 #include <errno.h>
 
+#ifdef WITH_GAMEENGINE_BPPLAYER
+#  include "SpindleEncryption.h"
+#endif  // WITH_GAMEENGINE_BPPLAYER
+
 /**
  * READ
  * ====
@@ -1127,25 +1131,38 @@ static FileData *blo_decode_and_check(FileData *fd, ReportList *reports)
 /* on each new library added, it now checks for the current FileData and expands relativeness */
 FileData *blo_openblenderfile(const char *filepath, ReportList *reports)
 {
-	gzFile gzfile;
-	errno = 0;
-	gzfile = BLI_gzopen(filepath, "rb");
-	
-	if (gzfile == (gzFile)Z_NULL) {
-		BKE_reportf(reports, RPT_WARNING, "Unable to open '%s': %s",
-		            filepath, errno ? strerror(errno) : TIP_("unknown error reading file"));
-		return NULL;
+#ifdef WITH_GAMEENGINE_BPPLAYER
+	const int typeencryption = SPINDLE_CheckEncryptionFromFile(filepath);
+	if (typeencryption <= SPINDLE_NO_ENCRYPTION) {
+#endif
+		gzFile gzfile;
+		errno = 0;
+		gzfile = BLI_gzopen(filepath, "rb");
+
+		if (gzfile == (gzFile)Z_NULL) {
+			BKE_reportf(reports, RPT_WARNING, "Unable to open '%s': %s",
+						filepath, errno ? strerror(errno) : TIP_("unknown error reading file"));
+			return NULL;
+		}
+		else {
+			FileData *fd = filedata_new();
+			fd->gzfiledes = gzfile;
+			fd->read = fd_read_gzip_from_file;
+
+			/* needed for library_append and read_libraries */
+			BLI_strncpy(fd->relabase, filepath, sizeof(fd->relabase));
+
+			return blo_decode_and_check(fd, reports);
+		}
+#ifdef WITH_GAMEENGINE_BPPLAYER
 	}
 	else {
-		FileData *fd = filedata_new();
-		fd->gzfiledes = gzfile;
-		fd->read = fd_read_gzip_from_file;
-		
-		/* needed for library_append and read_libraries */
-		BLI_strncpy(fd->relabase, filepath, sizeof(fd->relabase));
-		
-		return blo_decode_and_check(fd, reports);
+		int filesize = 0;
+		const char *decrypteddata = SPINDLE_DecryptFromFile(filepath, &filesize, NULL, typeencryption);
+		SPINDLE_SetFilePath(filepath);
+		return blo_openblendermemory(decrypteddata, filesize, reports);
 	}
+#endif
 }
 
 /**
@@ -1239,6 +1256,11 @@ FileData *blo_openblendermemory(const void *mem, int memsize, ReportList *report
 			fd->read = fd_read_from_memory;
 			
 		fd->flags |= FD_FLAGS_NOT_MY_BUFFER;
+
+#ifdef WITH_GAMEENGINE_BPPLAYER
+		// Set local path before calling blo_decode_and_check.
+		BLI_strncpy(fd->relabase, SPINDLE_GetFilePath(), sizeof(fd->relabase));
+#endif
 
 		return blo_decode_and_check(fd, reports);
 	}

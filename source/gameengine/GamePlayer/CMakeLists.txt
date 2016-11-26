@@ -101,4 +101,11 @@ if(WITH_SDL AND WITH_SDL_DYNLOAD)
 	add_definitions(-DWITH_SDL_DYNLOAD)
 endif()
 
+if(WITH_GAMEENGINE_BPPLAYER)
+	list(APPEND INC
+		../../../intern/spindle
+	)
+	add_definitions(-DWITH_GAMEENGINE_BPPLAYER)
+endif()
+
 blender_add_lib_nolist(ge_player "${SRC}" "${INC}" "${INC_SYS}")

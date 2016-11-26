@@ -246,6 +246,10 @@ if(APPLE)
 else()
 	option(WITH_GAMEENGINE_DECKLINK "Support BlackMagicDesign DeckLink cards in the Game Engine" ON)
 endif()
+
+option(WITH_GAMEENGINE_BPPLAYER "Enable Blend encrypted (from BPPlayer application) reading capabilities" ON)
+mark_as_advanced(WITH_GAMEENGINE_BPPLAYER)
+
 option(WITH_PLAYER        "Build Player" ON)
 option(WITH_OPENCOLORIO   "Enable OpenColorIO color management" ${_init_OPENCOLORIO})
 

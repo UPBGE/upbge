@@ -228,6 +228,10 @@ endif()
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_decklink)
 	endif()
 
+	if(WITH_GAMEENGINE_BPPLAYER)
+		list(APPEND BLENDER_SORTED_LIBS bf_intern_spindle)
+	endif()
+
 	if(WIN32)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_gpudirect)
 	endif()
