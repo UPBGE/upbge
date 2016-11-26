@@ -28,6 +28,8 @@
 #include "DEV_JoystickPrivate.h"
 #include "DEV_JoystickDefines.h"
 
+#include "CM_Message.h"
+
 #include <memory> // We have to include that on Windows to make memset available
 
 bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigned int duration)
@@ -119,6 +121,7 @@ bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigne
 		if (m_private->m_hapticeffect_status != JOYHAPTIC_UPDATING_RUMBLE) {
 			if (SDL_HapticRumbleInit(m_private->m_haptic) != 0) {
 				m_private->m_hapticeffect_status = JOYHAPTIC_STOPPED;
+				CM_Error("Vibration not reproduced. Rumble can not initialize");
 				return false;
 			}
 		}
@@ -126,6 +129,7 @@ bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigne
 		// Play effect at strength for m_duration milliseconds
 		if (SDL_HapticRumblePlay(m_private->m_haptic, strength_left, duration) != 0) {
 			m_private->m_hapticeffect_status = JOYHAPTIC_STOPPED;
+			CM_Error("Vibration not reproduced. Rumble can not play");
 			return false;
 		}
 
