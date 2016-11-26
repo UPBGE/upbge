@@ -868,12 +868,27 @@ void BL_ConvertActuators(const char* maggiename,
 		{
 			bVibrationActuator *vib_act = (bVibrationActuator *)bact->data;
 			SCA_VibrationActuator * tmp_vib_act = NULL;
+			short mode = SCA_VibrationActuator::KX_ACT_VIBRATION_NONE;
+ 
+ 			switch (vib_act->mode) {
+ 				case ACT_VIBRATION_PLAY:
+ 				{
+ 					mode = SCA_VibrationActuator::KX_ACT_VIBRATION_PLAY;
+					break;
+				}
+				case ACT_VIBRATION_STOP:
+				{
+ 					mode = SCA_VibrationActuator::KX_ACT_VIBRATION_STOP;
+					break;
+				}
+			}
 
 			int joyindex = vib_act->joyindex;
-			float strength = vib_act->strength;
+			float strength_left = vib_act->strength;
+			float strength_right = vib_act->strength_right;
 			int duration = vib_act->duration;
 
-			tmp_vib_act = new SCA_VibrationActuator(gameobj, joyindex, strength, duration);
+			tmp_vib_act = new SCA_VibrationActuator(gameobj, mode, joyindex, strength_left, strength_right, duration);
 
 			baseact = tmp_vib_act;
 		}
