@@ -47,6 +47,7 @@ set(INC_SYS
 )
 
 set(SRC
+	intern/SpindleEncryption.c
 	intern/readblenentry.c
 	intern/readfile.c
 	intern/runtime.c
@@ -60,6 +61,7 @@ set(SRC
 	intern/writefile.c
 
 	BLO_blend_defs.h
+	intern/SpindleEncryption.h
 	BLO_readfile.h
 	BLO_runtime.h
 	BLO_undofile.h

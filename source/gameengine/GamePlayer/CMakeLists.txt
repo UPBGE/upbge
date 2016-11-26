@@ -62,9 +62,11 @@ set(INC_SYS
 )
 
 set(SRC
+	SpindleEncryption.cpp
 	GPG_Canvas.cpp
 	GPG_ghost.cpp
 
+	SpindleEncryption.h
 	GPG_Canvas.h
 )
 

@@ -32,6 +32,8 @@
 
 
 #include <math.h>
+#include <fstream>
+#include "SpindleEncryption.h"
 
 #ifdef __linux__
 #  ifdef __alpha__
@@ -467,6 +469,7 @@ static void usage(const std::string& program, bool isBlenderPlayer)
 	CM_Message("                   vinterlace       (Vertical interlace for autostereo display)");
 	CM_Message("                   hwpageflip       (Quad buffered shutter glasses)");
 	CM_Message("       Example: -s sidebyside  or  -s vinterlace" << std::endl);
+	CM_Message("  -L: set the local file directory path" << std::endl);
 	CM_Message("  -m: maximum anti-aliasing (eg. 2,4,8,16)" << std::endl);
 	CM_Message("  -i: parent window's ID" << std::endl);
 #ifdef _WIN32
@@ -582,6 +585,59 @@ static bool quitGame(KX_ExitRequest exitcode)
 	return (exitcode != KX_ExitRequest::RESTART_GAME && exitcode != KX_ExitRequest::START_OTHER_GAME);
 }
 
+static BlendFileData *load_encrypted_game_data(char *filename, char* localPath, char* encryptKey, char *relativename = NULL)
+{
+	ReportList reports;
+	BlendFileData *bfd = NULL;
+	BKE_reports_init(&reports, RPT_STORE);
+
+	if (filename == NULL)
+		return NULL;
+	std::ifstream inFile(filename, std::ios::in | std::ios::binary | std::ios::ate);
+	int fileSize = (int)inFile.tellg();
+	if (fileSize <= 10)
+		return NULL;
+	inFile.seekg (0, std::ios::beg);
+	char* fileData = new char[fileSize];
+	inFile.read(fileData, fileSize);
+	inFile.close();
+
+	//BLO_set_static_encryption_key("70343d3045723740");
+	//BLO_set_dynamic_encryption_key("70343d3045723741");
+	if (encryptKey != NULL)
+	{
+		if ((fileData[0] != 'B')||(fileData[1] != 'L')||(fileData[2] != 'E')||(fileData[3] != 'N')||(fileData[4] != 'D'))
+			SpinDecrypt_Hex(fileData, fileSize, encryptKey);
+	}
+
+	bfd = BLO_read_from_memoryA(fileData, fileSize, &reports, localPath);
+	
+	delete [] fileData;
+	if (!bfd) 
+	{
+		printf("Loading %s failed: ", localPath);
+		BKE_reports_print(&reports, RPT_ERROR);
+	}
+	BKE_reports_clear(&reports);
+	return bfd;
+}
+
+//We want to define these functions ourselves since
+//some platforms will always dynamically link against
+//libc even if we build a static executable (ex: Linux)
+void secure_memcpy(void* dest, void* src, int size);
+void secure_memset(void* dest, char value, int size);
+void secure_memcpy(void* dest, void* src, int size)
+{
+	for (int i = 0; i < size; i++)
+		((char*)dest)[i] = ((char*)src)[i];
+}
+void secure_memset(void* dest, char value, int size)
+{
+	for (int i = 0; i < size; i++)
+		((char*)dest)[i] = value;
+}
+
 int main(
 	int argc,
 #ifdef WIN32
@@ -599,8 +655,9 @@ int main(
 	bool fullScreenParFound = false;
 	bool windowParFound = false;
 #ifdef WIN32
-	bool closeConsole = true;
+	bool closeConsole = false;
 #endif
+	bool useLocalPath = false;
 	RAS_Rasterizer::StereoMode stereomode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
 	bool stereoWindow = false;
 	bool stereoParFound = false;
@@ -838,6 +895,17 @@ int main(
 					CM_Error("debug mode '" << argv[i] << "' unrecognized.");
 				}
 
+				break;
+			}
+			case 'L':
+			{
+				i++;
+				useLocalPath = true;
+				break;
+			}
+			case 'K':
+			{
+				i++;
 				break;
 			}
 			case 'f': //fullscreen mode
@@ -1090,11 +1158,88 @@ int main(
 							bfd = load_game_data(temppath);
 						}
 					}
-					else {
-						bfd = load_game_data(BKE_appdir_program_path(), filename[0]? filename: nullptr);
-						// The file is valid and it's the original file name.
-						if (bfd) {
-							KX_SetOrigPath(bfd->main->name);
+					else
+					{
+						if (useLocalPath)
+						{
+							int pos = -1;
+							char* hexKey = NULL;
+							for (int i = 0; i < argc; i++)
+							{
+								if ((argv[i][0] == '-')&&(argv[i][1] == 'L')&&(argv[i][2] != 0))
+									pos = i;
+
+								if ((argv[i][0] == '-')&&(argv[i][1] == 'K'))
+								{
+									//Find main key
+									int hexStrSize = 0, argPos = 2, maxStringLen = int(strlen(argv[i]));
+									for (hexStrSize = 0; ((argv[i][hexStrSize+argPos] != 0)&&(argv[i][hexStrSize+argPos] != '.')); hexStrSize++){}
+									hexKey = new char[hexStrSize + 1];
+									secure_memcpy((char*)hexKey, (char*)&(argv[i][argPos]), hexStrSize);
+									secure_memset((char*)&(argv[i][argPos]), 0, hexStrSize);
+									hexKey[hexStrSize] = 0;
+									argPos += hexStrSize + 1;
+
+									//Find static key
+									if (argPos < maxStringLen)
+									{
+										for (hexStrSize = 0; ((argv[i][hexStrSize+argPos] != 0)&&(argv[i][hexStrSize+argPos] != '.')); hexStrSize++){}
+										if (hexStrSize > 0)
+										{
+											char* statKey = new char[hexStrSize + 1];
+											secure_memcpy((char*)statKey, (char*)&(argv[i][argPos]), hexStrSize);
+											secure_memset((char*)&(argv[i][argPos]), 0, hexStrSize);
+											statKey[hexStrSize] = 0;
+											argPos += hexStrSize + 1;
+											BLO_set_static_encryption_key(statKey);
+											memset((char*)statKey, 0, hexStrSize);
+											delete [] statKey;
+										}
+									}
+
+									//Find dynamic key
+									if (argPos < maxStringLen)
+									{
+										for (hexStrSize = 0; ((argv[i][hexStrSize+argPos] != 0)&&(argv[i][hexStrSize+argPos] != '.')); hexStrSize++){}
+										if (hexStrSize > 0)
+										{
+											char* dynaKey = new char[hexStrSize + 1];
+											secure_memcpy((char*)dynaKey, (char*)&(argv[i][argPos]), hexStrSize);
+											secure_memset((char*)&(argv[i][argPos]), 0, hexStrSize);
+											dynaKey[hexStrSize] = 0;
+											argPos += hexStrSize + 1;
+											BLO_set_dynamic_encryption_key(dynaKey);
+											memset((char*)dynaKey, 0, hexStrSize);
+											delete [] dynaKey;
+										}
+									}
+								}
+							}
+							
+							//Find the requested base file directory
+							char* localFilePath = NULL;
+							if (pos >= 0)
+							{
+								localFilePath = new char[strlen(argv[pos])+1];
+								strcpy(localFilePath, &(argv[pos][2]));
+							}
+							bfd = load_encrypted_game_data(filename[0]? filename: NULL, localFilePath, hexKey);
+							delete [] localFilePath;
+							if (hexKey != NULL)
+							delete [] hexKey;
+							// The file is valid and it's the original file name.
+							if (bfd) 
+							{
+								remove(filename);
+								KX_SetOrigPath(bfd->main->name);
+							}
+						}
+						else
+						{
+							bfd = load_game_data(BKE_appdir_program_path(), filename[0]? filename: NULL);
+							// The file is valid and it's the original file name.
+							if (bfd)
+								KX_SetOrigPath(bfd->main->name);
 						}
 					}
 

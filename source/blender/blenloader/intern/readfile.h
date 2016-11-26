@@ -35,6 +35,7 @@
 
 #include "zlib.h"
 #include "DNA_windowmanager_types.h"  /* for ReportType */
+#include "SpindleEncryption.h"
 
 struct OldNewMap;
 struct MemFile;
@@ -134,6 +135,11 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath);
 FileData *blo_openblenderfile(const char *filepath, struct ReportList *reports);
 FileData *blo_openblendermemory(const void *buffer, int buffersize, struct ReportList *reports);
 FileData *blo_openblendermemfile(struct MemFile *memfile, struct ReportList *reports);
+FileData *blo_openblenderfile_noEncrypt(const char *filepath, struct ReportList *reports);
+FileData *blo_openblenderencryptfile(const char *filepath, struct ReportList *reports);
+
+void blo_set_static_encryption_key(const char* hexKey);
+void blo_set_dynamic_encryption_key(const char* hexKey);
 
 void blo_clear_proxy_pointers_from_lib(Main *oldmain);
 void blo_make_image_pointer_map(FileData *fd, Main *oldmain);

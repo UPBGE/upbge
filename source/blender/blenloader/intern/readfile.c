@@ -235,6 +235,9 @@ typedef struct OldNewMap {
 	int lasthit;
 } OldNewMap;
 
+static char* staticKey = NULL;
+static char* dynamicKey = NULL;
+
 
 /* local prototypes */
 static void *read_struct(FileData *fd, BHead *bh, const char *blockname);
@@ -1127,6 +1130,8 @@ static FileData *blo_decode_and_check(FileData *fd, ReportList *reports)
 /* on each new library added, it now checks for the current FileData and expands relativeness */
 FileData *blo_openblenderfile(const char *filepath, ReportList *reports)
 {
+	return blo_openblenderencryptfile(filepath, reports);
+	/*
 	gzFile gzfile;
 	errno = 0;
 	gzfile = BLI_gzopen(filepath, "rb");
@@ -1141,11 +1146,11 @@ FileData *blo_openblenderfile(const char *filepath, ReportList *reports)
 		fd->gzfiledes = gzfile;
 		fd->read = fd_read_gzip_from_file;
 		
-		/* needed for library_append and read_libraries */
+		/* needed for library_append and read_libraries *//*
 		BLI_strncpy(fd->relabase, filepath, sizeof(fd->relabase));
 		
 		return blo_decode_and_check(fd, reports);
-	}
+	}//*/
 }
 
 /**
@@ -1215,6 +1220,139 @@ static int fd_read_gzip_from_memory_init(FileData *fd)
 	return 1;
 }
 
+FileData *blo_openblenderfile_noEncrypt(const char *filepath, ReportList *reports)
+{
+	gzFile gzfile;
+	errno = 0;
+	gzfile = BLI_gzopen(filepath, "rb");
+	
+	if (gzfile == (gzFile)Z_NULL) {
+		BKE_reportf(reports, RPT_WARNING, "Unable to open '%s': %s",
+		            filepath, errno ? strerror(errno) : TIP_("unknown error reading file"));
+		return NULL;
+	}
+	else {
+		FileData *fd = filedata_new();
+		fd->gzfiledes = gzfile;
+		fd->read = fd_read_gzip_from_file;
+		
+		/* needed for library_append and read_libraries */
+		BLI_strncpy(fd->relabase, filepath, sizeof(fd->relabase));
+		
+		return blo_decode_and_check(fd, reports);
+	}
+}
+
+FileData *blo_openblenderencryptfile(const char *filepath, ReportList *reports)
+{
+	FileData* returnData = NULL;
+	const unsigned int currentSupportedVersion = 0;
+	FILE* inFile = NULL; 
+	int memsize, readResult;
+	char memHeader[5];
+	char* mem;
+	int keyType = 0;
+	inFile = fopen(filepath, "rb");
+	if (!inFile)
+	{
+		BKE_reportf(reports, RPT_WARNING, "Unable to open \"%s\": %s.", filepath, errno ? strerror(errno) : "Unknown error reading file");
+		return NULL;
+	}
+	fseek(inFile, 0L, SEEK_END);
+	memsize = ftell(inFile);
+	fseek(inFile, 0L, SEEK_SET);
+	if (memsize < 5)
+	{
+		fclose(inFile);
+		BKE_reportf(reports, RPT_WARNING, "Unable to open \"%s\": %s.", filepath, errno ? strerror(errno) : "Unknown error reading file");
+		return NULL;
+	}
+	readResult = fread(memHeader, 5, 1, inFile);
+	memsize -= 5;
+
+	if ((memHeader[0] == 'S')&&(memHeader[1] == 'T')&&(memHeader[2] == 'C')) //Static encrypted file
+	{
+		if ((unsigned int)memHeader[3] > currentSupportedVersion)
+		{
+			fclose(inFile);
+			printf("Failed to read blend file: \"%s\", blend is from a newer version\n", filepath);
+			BKE_reportf(reports, RPT_WARNING, "Failed to read blend file: \"%s\", blend is from a newer version", filepath);
+			return NULL;
+		}
+		if (staticKey == NULL)
+		{
+			fclose(inFile);
+			printf("Failed to read blend file: \"%s\", No static key provided\n", filepath);
+			BKE_reportf(reports, RPT_WARNING, "Failed to read blend file: \"%s\", No static key provided", filepath);
+			return NULL;
+		}
+		//printf("Decrypting Static file with %s\n", staticKey);
+		keyType = 0;
+	}
+	else if ((memHeader[0] == 'D')&&(memHeader[1] == 'Y')&&(memHeader[2] == 'C')) //Dynamic encrypted file
+	{
+		if ((unsigned int)memHeader[3] > currentSupportedVersion)
+		{
+			fclose(inFile);
+			printf("Failed to read blend file: \"%s\", blend is from a newer version\n", filepath);
+			BKE_reportf(reports, RPT_WARNING, "Failed to read blend file: \"%s\", blend is from a newer version", filepath);
+			return NULL;
+		}
+		if (dynamicKey == NULL)
+		{
+			fclose(inFile);
+			printf("Failed to read blend file: \"%s\", No dynamic key provided\n", filepath);
+			BKE_reportf(reports, RPT_WARNING, "Failed to read blend file: \"%s\", No dynamic key provided", filepath);
+			return NULL;
+		}
+		//printf("Decrypting Dynamic file with %s\n", dynamicKey);
+		keyType = 1;
+	}
+	else //if normal blender file
+	{
+		fclose(inFile);
+		//printf("Using custom file reader\n");
+		return blo_openblenderfile_noEncrypt(filepath, reports);
+	}
+
+	mem = malloc(memsize);
+	readResult = fread(mem, memsize, 1, inFile);
+	fclose(inFile);
+	if (keyType == 0){SpinDecrypt_Hex(mem, memsize, staticKey);}
+	else if (keyType == 1){SpinDecrypt_Hex(mem, memsize, dynamicKey);}
+
+	if (!mem || memsize<SIZEOFBLENDERHEADER || readResult == 0)
+	{
+		//BKE_report(reports, RPT_ERROR, (mem)? "Unable to read": "Unable to open");
+		BKE_report(reports, RPT_WARNING, (mem) ? TIP_("Unable to read"): TIP_("Unable to open"));
+		free(mem);
+	}
+	else 
+	{
+		FileData *fd = filedata_new();
+		fd->buffer = mem;
+		fd->buffersize = memsize;
+
+		/* test if gzip */
+		if ((mem[0] == 0x1f) && (mem[1] == 0x8b)) 
+		{
+			if (fd_read_gzip_from_memory_init(fd) == 0) 
+			{
+				blo_freefiledata(fd);
+				return NULL;
+			}
+		}
+		else
+			fd->read = fd_read_from_memory;
+
+		//FileData *fd = blo_openblendermemory(mem, memsize, reports);
+		fd->flags &= ~FD_FLAGS_NOT_MY_BUFFER;
+		BLI_strncpy(fd->relabase, filepath, sizeof(fd->relabase));
+		returnData = blo_decode_and_check(fd, reports);
+	}
+	return returnData;
+}
+
 FileData *blo_openblendermemory(const void *mem, int memsize, ReportList *reports)
 {
 	if (!mem || memsize<SIZEOFBLENDERHEADER) {
@@ -1261,6 +1399,21 @@ FileData *blo_openblendermemfile(MemFile *memfile, ReportList *reports)
 	}
 }
 
+void blo_set_static_encryption_key(const char* hexKey)
+{
+	if (staticKey != NULL)
+		free(staticKey);
+	staticKey = malloc((int) strlen(hexKey) + 1);
+	strcpy(staticKey, hexKey);
+}
+
+void blo_set_dynamic_encryption_key(const char* hexKey)
+{
+	if (dynamicKey != NULL)
+		free(dynamicKey);
+	dynamicKey = malloc((int) strlen(hexKey) + 1);
+	strcpy(dynamicKey, hexKey);
+}
 
 void blo_freefiledata(FileData *fd)
 {
