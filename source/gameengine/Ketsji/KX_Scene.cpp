@@ -1984,7 +1984,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 
 	/* active + inactive == all ??? - lets hope so */
-	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+	for (CListValue::iterator<KX_GameObject> it = other->GetObjectList()->GetBegin(), end = other->GetObjectList()->GetEnd(); it != end; ++it) {
 		KX_GameObject* gameobj = *it;
 		MergeScene_GameObject(gameobj, this, other);
 
@@ -1994,7 +1994,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		}
 	}
 
-	for (CListValue::iterator<KX_GameObject> it = m_inactivelist->GetBegin(), end = m_inactivelist->GetEnd(); it != end; ++it) {
+	for (CListValue::iterator<KX_GameObject> it = other->GetInactiveList()->GetBegin(), end = other->GetInactiveList()->GetEnd(); it != end; ++it) {
 		KX_GameObject* gameobj = *it;
 		MergeScene_GameObject(gameobj, this, other);
 	}
