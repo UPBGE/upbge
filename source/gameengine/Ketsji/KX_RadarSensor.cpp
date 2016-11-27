@@ -219,7 +219,7 @@ PyMethodDef KX_RadarSensor::Methods[] = {
 PyAttributeDef KX_RadarSensor::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneOrigin", KX_RadarSensor, m_cone_origin, 3),
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneTarget", KX_RadarSensor, m_cone_target, 3),
-	KX_PYATTRIBUTE_RW_FUNCTION("distance", KX_RadarSensor, pyattr_get_height, pyattr_set_height),
+	KX_PYATTRIBUTE_RW_FUNCTION("distance", KX_RadarSensor, pyattr_get_distance, pyattr_set_distance),
 	KX_PYATTRIBUTE_RW_FUNCTION("angle", KX_RadarSensor, pyattr_get_angle, pyattr_set_angle),
 	KX_PYATTRIBUTE_INT_RW("axis", 0, 5, true, KX_RadarSensor, m_axis),
 	{NULL} //Sentinel
