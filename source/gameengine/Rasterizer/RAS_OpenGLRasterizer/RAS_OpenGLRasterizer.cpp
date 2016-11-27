@@ -1992,9 +1992,16 @@ void RAS_OpenGLRasterizer::GetTransform(float *origmat, int objectdrawmode, floa
 		// when new parenting for objects is done, this rotation
 		// will be moved into the object
 
-		const MT_Vector3 objpos(&origmat[12]);
-		const MT_Vector3& campos = GetCameraPosition();
-		MT_Vector3 left = (campos - objpos).safe_normalized();
+		MT_Vector3 left;
+		if (m_camortho) {
+			left = m_viewmatrix[2].to3d().safe_normalized();
+		}
+		else {
+			const MT_Vector3 objpos(&origmat[12]);
+			const MT_Vector3& campos = GetCameraPosition();
+			left = (campos - objpos).safe_normalized();
+		}
+
 		MT_Vector3 up = MT_Vector3(&origmat[8]).safe_normalized();
 
 		// get scaling of halo object
