@@ -446,6 +446,8 @@ void BKE_object_free(Object *ob)
 
 	BLI_freelistN(&ob->lodlevels);
 
+	BLI_freelistN(&ob->cubemaplodlevels);
+
 	/* Free runtime curves data. */
 	if (ob->curve_cache) {
 		BKE_curve_bevelList_free(&ob->curve_cache->bev);
@@ -828,6 +830,85 @@ struct Object *BKE_object_lod_matob_get(Object *ob, Scene *scene)
 	return lod_ob_get(ob, scene, OB_LOD_USE_MAT);
 }
 
+// CubeMap LOD
+void BKE_object_cubemap_lod_add(Object *ob)
+{
+	LodLevel *lod = MEM_callocN(sizeof(LodLevel), "LoD Level");
+	LodLevel *last = ob->cubemaplodlevels.last;
+
+	/* If the lod list is empty, initialize it with the base lod level */
+	if (!last) {
+		LodLevel *base = MEM_callocN(sizeof(LodLevel), "Base LoD Level");
+		BLI_addtail(&ob->cubemaplodlevels, base);
+		base->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
+		base->source = ob;
+		base->obhysteresis = 10;
+		last = ob->currentcubemaplod = base;
+	}
+
+	lod->distance = last->distance + 25.0f;
+	lod->obhysteresis = 10;
+	lod->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
+
+	BLI_addtail(&ob->cubemaplodlevels, lod);
+}
+
+void BKE_object_cubemap_lod_sort(Object *ob)
+{
+	BLI_listbase_sort(&ob->cubemaplodlevels, lod_cmp);
+}
+
+bool BKE_object_cubemap_lod_remove(Object *ob, int level)
+{
+	LodLevel *rem;
+
+	if (level < 1 || level > BLI_listbase_count(&ob->cubemaplodlevels) - 1)
+		return false;
+
+	rem = BLI_findlink(&ob->cubemaplodlevels, level);
+
+	if (rem == ob->currentcubemaplod) {
+		ob->currentcubemaplod = rem->prev;
+	}
+
+	BLI_remlink(&ob->cubemaplodlevels, rem);
+	MEM_freeN(rem);
+
+	/* If there are no user defined lods, remove the base lod as well */
+	if (BLI_listbase_is_single(&ob->cubemaplodlevels)) {
+		LodLevel *base = ob->cubemaplodlevels.first;
+		BLI_remlink(&ob->cubemaplodlevels, base);
+		MEM_freeN(base);
+		ob->currentcubemaplod = NULL;
+	}
+
+	return true;
+}
+
+static Object *cubemap_lod_ob_get(Object *ob, Scene *scene, int flag)
+{
+	LodLevel *current = ob->currentcubemaplod;
+
+	if (!current || !BKE_object_lod_is_usable(ob, scene))
+		return ob;
+
+	while (current->prev && (!(current->flags & flag) || !current->source || current->source->type != OB_MESH)) {
+		current = current->prev;
+	}
+
+	return current->source;
+}
+
+struct Object *BKE_object_cubemap_lod_meshob_get(Object *ob, Scene *scene)
+{
+	return cubemap_lod_ob_get(ob, scene, OB_LOD_USE_MESH);
+}
+
+struct Object *BKE_object_cubemap_lod_matob_get(Object *ob, Scene *scene)
+{
+	return cubemap_lod_ob_get(ob, scene, OB_LOD_USE_MAT);
+}
+
 #endif  /* WITH_GAMEENGINE */
 
 
@@ -1051,6 +1132,16 @@ static void copy_object_lod(Object *obn, Object *ob)
 	obn->currentlod = (LodLevel *)obn->lodlevels.first;
 }
 
+static void copy_object_cubemap_lod(Object *obn, Object *ob)
+{
+	BLI_duplicatelist(&obn->cubemaplodlevels, &ob->cubemaplodlevels);
+
+	if (obn->cubemaplodlevels.first)
+		((LodLevel *)obn->cubemaplodlevels.first)->source = obn;
+
+	obn->currentcubemaplod = (LodLevel *)obn->cubemaplodlevels.first;
+}
+
 bool BKE_object_pose_context_check(Object *ob)
 {
 	if ((ob) &&
@@ -1168,6 +1259,7 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 	obn->mpath = NULL;
 
 	copy_object_lod(obn, ob);
+	copy_object_cubemap_lod(obn, ob);
 	
 	/* Copy runtime surve data. */
 	obn->curve_cache = NULL;

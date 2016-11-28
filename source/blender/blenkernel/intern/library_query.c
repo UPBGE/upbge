@@ -511,6 +511,13 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 					}
 				}
 
+				if (object->cubemaplodlevels.first) {
+					LodLevel *level;
+					for (level = object->cubemaplodlevels.first; level; level = level->next) {
+						CALLBACK_INVOKE(level->source, IDWALK_NOP);
+					}
+				}
+
 				modifiers_foreachIDLink(object, library_foreach_modifiersForeachIDLink, &data);
 				BKE_constraints_id_loop(&object->constraints, library_foreach_constraintObjectLooper, &data);
 

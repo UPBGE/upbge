@@ -39,9 +39,12 @@ KX_CubeMap::KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint)
 	m_clipStart(env->clipsta),
 	m_clipEnd(env->clipend),
 	m_autoUpdate(true),
-	m_forceUpdate(true)
+	m_forceUpdate(true),
+	m_useLod(false),
+	m_lodFactor(env->lodfactor)
 {
 	m_autoUpdate = (env->flag & ENVMAP_AUTO_UPDATE) != 0;
+	m_useLod = (env->flag & ENVMAP_USE_LOD) != 0;
 }
 
 KX_CubeMap::~KX_CubeMap()
@@ -112,6 +115,16 @@ void KX_CubeMap::SetClipStart(float start)
 void KX_CubeMap::SetClipEnd(float end)
 {
 	m_clipEnd = end;
+}
+
+bool KX_CubeMap::GetUseLod() const
+{
+	return m_useLod;
+}
+
+float KX_CubeMap::GetLodFactor() const
+{
+	return m_lodFactor;
 }
 
 bool KX_CubeMap::NeedUpdate()

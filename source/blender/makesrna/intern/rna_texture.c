@@ -865,6 +865,17 @@ static void rna_def_environment_map(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, prop_filtering_items);
 	RNA_def_property_ui_text(prop, "Filtering", "Texture filtering method");
 
+	prop = RNA_def_property(srna, "use_lod", PROP_BOOLEAN, 0);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", ENVMAP_USE_LOD);
+	RNA_def_property_ui_text(prop, "Use LOD", "Use Objects Level of details when rendering cube maps");
+
+	prop = RNA_def_property(srna, "lod_factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "lodfactor");
+	RNA_def_property_range(prop, 0.0, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0, FLT_MAX, 100, 2);
+	RNA_def_property_ui_text(prop, "", "LOD distance factor applied to objects while rendering cube maps");
+	RNA_def_property_update(prop, 0, "rna_Texture_update");
+
 	RNA_api_environment_map(srna);
 }
 

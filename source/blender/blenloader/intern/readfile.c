@@ -4968,6 +4968,12 @@ static void lib_link_object(FileData *fd, Main *main)
 					if (!level->source && level == ob->lodlevels.first)
 						level->source = ob;
 				}
+				for (level = ob->cubemaplodlevels.first; level; level = level->next) {
+					level->source = newlibadr(fd, ob->id.lib, level->source);
+
+					if (!level->source && level == ob->cubemaplodlevels.first)
+						level->source = ob;
+				}
 			}
 		}
 	}
@@ -5572,6 +5578,9 @@ static void direct_link_object(FileData *fd, Object *ob)
 
 	link_list(fd, &ob->lodlevels);
 	ob->currentlod = ob->lodlevels.first;
+
+	link_list(fd, &ob->cubemaplodlevels);
+	ob->currentcubemaplod = ob->cubemaplodlevels.first;
 
 	ob->preview = direct_link_preview_image(fd, ob->preview);
 }
@@ -9461,6 +9470,13 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 	if (ob->currentlod) {
 		LodLevel *level;
 		for (level = ob->lodlevels.first; level; level = level->next) {
+			expand_doit(fd, mainvar, level->source);
+		}
+	}
+
+	if (ob->currentcubemaplod) {
+		LodLevel *level;
+		for (level = ob->cubemaplodlevels.first; level; level = level->next) {
 			expand_doit(fd, mainvar, level->source);
 		}
 	}

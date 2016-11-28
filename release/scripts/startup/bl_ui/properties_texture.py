@@ -643,6 +643,11 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
             if env.source == 'REALTIME':
                 row = layout.row()
                 row.prop(env, "filtering", expand=False)
+                row = layout.row()
+                row.prop(env, "use_lod")
+                sub = row.row(align=True)
+                sub.active = env.use_lod
+                sub.prop(env, "lod_factor")
 
 
 class TEXTURE_PT_envmap_sampling(TextureTypePanel, Panel):
