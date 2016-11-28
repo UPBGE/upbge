@@ -8,7 +8,7 @@
 
 #include "MT_Matrix4x4.h"
 
-#include "STR_String.h"
+#include <string>
 
 #include <vector>
 
@@ -106,7 +106,7 @@ protected:
 	bool m_ok; // Valid and ok
 	bool m_use;
 	int m_attr; // Tangent attribute
-	STR_String m_progs[MAX_PROGRAM];
+	std::string m_progs[MAX_PROGRAM];
 	bool m_error;
 	bool m_dirty;
 
@@ -172,14 +172,14 @@ public:
 
 	void SetUniformfv(int location, int type, float *param, int size, unsigned int count, bool transpose = false);
 	void SetUniformiv(int location, int type, int *param, int size, unsigned int count, bool transpose = false);
-	int GetAttribLocation(const char *name);
-	void BindAttribute(const char *attr, int loc);
+	int GetAttribLocation(const std::string& name);
+	void BindAttribute(const std::string& attr, int loc);
 
 	/** Return uniform location in the shader.
 	 * \param name The uniform name.
 	 * \param debug Print message for unfound coresponding uniform name.
 	 */
-	int GetUniformLocation(const char *name, bool debug=true);
+	int GetUniformLocation(const std::string& name, bool debug=true);
 
 	void SetUniform(int uniform, const MT_Vector2 &vec);
 	void SetUniform(int uniform, const MT_Vector3 &vec);

@@ -42,7 +42,7 @@ public:
 	KX_ConstraintWrapper(PHY_ConstraintType ctype,int constraintId,class PHY_IPhysicsEnvironment* physenv);
 	virtual ~KX_ConstraintWrapper ();
 
-	virtual STR_String GetName();
+	virtual std::string GetName();
 
 	int			getConstraintId() { return m_constraintId; }
 	

@@ -57,7 +57,7 @@ public:
 	virtual				~CVoidValue();  /* Destruct void value, delete memory if we're owning it */
 
 	/// Value -> String or number
-	virtual const STR_String GetText();  /* Get string description of void value (unimplemented) */
+	virtual const std::string GetText();  /* Get string description of void value (unimplemented) */
 	virtual double		GetNumber()												{ return -1; }
 	virtual int			GetValueType()								   { return VALUE_VOID_TYPE; }
 

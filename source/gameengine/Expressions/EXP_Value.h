@@ -24,7 +24,8 @@
 #endif
 
 #include <map>		// array functionality for the propertylist
-#include "STR_String.h"	// STR_String class
+#include <vector>
+#include <string>	// std::string class
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -209,7 +210,7 @@ public:
 	//static PyObject *PyMake(PyObject *, PyObject *);
 	virtual PyObject *py_repr(void)
 	{
-		return PyUnicode_From_STR_String(GetText());
+		return PyUnicode_FromStdString(GetText());
 	}
 
 	virtual PyObject *ConvertValueToPython() {
@@ -283,14 +284,12 @@ public:
 
 
 	/// Property Management
-	virtual void		SetProperty(const STR_String& name,CValue* ioProperty);						// Set property <ioProperty>, overwrites and releases a previous property with the same name if needed
-	virtual void		SetProperty(const char* name,CValue* ioProperty);
-	virtual CValue*		GetProperty(const char* inName);							// Get pointer to a property with name <inName>, returns NULL if there is no property named <inName>
-	virtual CValue*		GetProperty(const STR_String & inName);
-	const STR_String GetPropertyText(const STR_String & inName);						// Get text description of property with name <inName>, returns an empty string if there is no property named <inName>
-	float				GetPropertyNumber(const STR_String& inName,float defnumber);
-	virtual bool		RemoveProperty(const char *inName);						// Remove the property named <inName>, returns true if the property was succesfully removed, false if property was not found or could not be removed
-	virtual std::vector<STR_String>	GetPropertyNames();
+	virtual void		SetProperty(const std::string& name,CValue* ioProperty);						// Set property <ioProperty>, overwrites and releases a previous property with the same name if needed
+	virtual CValue*		GetProperty(const std::string & inName);
+	const std::string GetPropertyText(const std::string & inName);						// Get text description of property with name <inName>, returns an empty string if there is no property named <inName>
+	float				GetPropertyNumber(const std::string& inName,float defnumber);
+	virtual bool		RemoveProperty(const std::string& inName);						// Remove the property named <inName>, returns true if the property was succesfully removed, false if property was not found or could not be removed
+	virtual std::vector<std::string>	GetPropertyNames();
 	virtual void		ClearProperties();										// Clear all properties
 
 	virtual void		SetPropertiesModified(bool inModified);					// Set all properties' modified flag to <inModified>
@@ -299,20 +298,20 @@ public:
 	virtual CValue*		GetProperty(int inIndex);								// Get property number <inIndex>
 	virtual int			GetPropertyCount();										// Get the amount of properties assiocated with this value
 
-	virtual CValue*		FindIdentifier(const STR_String& identifiername);
+	virtual CValue*		FindIdentifier(const std::string& identifiername);
 	/** Set the wireframe color of this value depending on the CSG
 	 * operator type <op>
 	 * \attention: not implemented */
 	virtual void		SetColorOperator(VALUE_OPERATOR op);
 
-	virtual const STR_String GetText();
+	virtual const std::string GetText();
 	virtual double		GetNumber();
 	virtual int			GetValueType();												// Get Prop value type
 	double*				ZeroVector() { return m_sZeroVec; }
 	virtual double*		GetVector3(bool bGetTransformedVec = false);
 
-	virtual STR_String GetName() = 0;											// Retrieve the name of the value
-	virtual void		SetName(const char *name);								// Set the name of the value
+	virtual std::string GetName() = 0;											// Retrieve the name of the value
+	virtual void		SetName(const std::string& name);								// Set the name of the value
 	/** Sets the value to this cvalue.
 	 * \attention this particular function should never be called. Why not abstract? */
 	virtual void		SetValue(CValue* newval);
@@ -320,7 +319,7 @@ public:
 	virtual void			ProcessReplica();
 	//virtual CValue*		Copy() = 0;
 	
-	STR_String				op2str(VALUE_OPERATOR op);
+	std::string				op2str(VALUE_OPERATOR op);
 		
 	// setting / getting flags
 	inline void			SetSelected(bool bSelected)								{ m_ValFlags.Selected = bSelected; }
@@ -350,7 +349,7 @@ protected:
 	virtual				~CValue();
 private:
 	// Member variables
-	std::map<STR_String,CValue*>*		m_pNamedPropertyArray;									// Properties for user/game etc
+	std::map<std::string,CValue*>*		m_pNamedPropertyArray;									// Properties for user/game etc
 	ValueFlags			m_ValFlags;												// Frequently used flags in a bitfield (low memoryusage)
 	int					m_refcount;												// Reference Counter
 	static	double m_sZeroVec[3];
@@ -410,19 +409,19 @@ public:
 	{
 	}
 	
-	virtual void			SetName(const char *name) {
+	virtual void			SetName(const std::string& name) {
 		m_strNewName = name;
 	}
 	
-	virtual STR_String GetName() {
-		//STR_String namefromprop = GetPropertyText("Name");
-		//if (namefromprop.Length() > 0)
+	virtual std::string GetName() {
+		//std::string namefromprop = GetPropertyText("Name");
+		//if (namefromprop.size() > 0)
 		//	return namefromprop;
 		return m_strNewName;
 	}						// name of Value
 	
 protected:
-	STR_String					m_strNewName;				    // Identification
+	std::string					m_strNewName;				    // Identification
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CPropValue")

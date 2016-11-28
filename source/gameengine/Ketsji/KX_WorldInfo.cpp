@@ -94,7 +94,7 @@ KX_WorldInfo::~KX_WorldInfo()
 	}
 }
 
-const STR_String& KX_WorldInfo::GetName()
+const std::string& KX_WorldInfo::GetName()
 {
 	return m_name;
 }
@@ -259,7 +259,7 @@ void KX_WorldInfo::RenderBackground(RAS_IRasterizer *rasty)
  * ------------------------------------------------------------------------- */
 PyObject *KX_WorldInfo::py_repr(void)
 {
-	return PyUnicode_From_STR_String(GetName());
+	return PyUnicode_FromStdString(GetName());
 }
 
 /* -------------------------------------------------------------------------
@@ -307,7 +307,7 @@ PyAttributeDef KX_WorldInfo::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("ambientColor", KX_WorldInfo, pyattr_get_ambient_color, pyattr_set_ambient_color),
 	KX_PYATTRIBUTE_FLOAT_RW("exposure", 0.0f, 1.0f, KX_WorldInfo, m_exposure),
 	KX_PYATTRIBUTE_FLOAT_RW("range", 0.2f, 5.0f, KX_WorldInfo, m_range),
-	{ NULL } /* Sentinel */
+	KX_PYATTRIBUTE_NULL /* Sentinel */
 };
 
 /* Attribute get/set functions */
@@ -478,15 +478,15 @@ PyObject *KX_WorldInfo::pyattr_get_mist_typeconst(void *self_v, const KX_PYATTRI
 {
 	PyObject *retvalue;
 
-	const char* type = attrdef->m_name;
+	const std::string& type = attrdef->m_name;
 
-	if (!strcmp(type, "KX_MIST_QUADRATIC")) {
+	if (type == "KX_MIST_QUADRATIC") {
 		retvalue = PyLong_FromLong(KX_MIST_QUADRATIC);
 	} 
-	else if (!strcmp(type, "KX_MIST_LINEAR")) {
+	else if (type == "KX_MIST_LINEAR") {
 		retvalue = PyLong_FromLong(KX_MIST_LINEAR);
 	} 
-	else if (!strcmp(type, "KX_MIST_INV_QUADRATIC")) {
+	else if (type == "KX_MIST_INV_QUADRATIC") {
 		retvalue = PyLong_FromLong(KX_MIST_INV_QUADRATIC);
 	}
 	else {

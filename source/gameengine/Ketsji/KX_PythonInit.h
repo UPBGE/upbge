@@ -33,7 +33,7 @@
 #define __KX_PYTHONINIT_H__
 
 #include "EXP_Python.h"
-#include "STR_String.h"
+#include <string>
 #include "MT_Vector3.h"
 
 #include "DEV_JoystickDefines.h" // For JOYINDEX_MAX
@@ -54,7 +54,7 @@ void exitGamePlayerPythonScripting();
 void exitGamePythonScripting();
 void setupGamePython(KX_KetsjiEngine *ketsjiengine, Main *blenderdata,
                      PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char **argv);
-STR_String pathGamePythonConfig();
+std::string pathGamePythonConfig();
 void saveGamePythonConfig();
 void loadGamePythonConfig();
 

@@ -53,8 +53,8 @@ SCA_KeyboardSensor::SCA_KeyboardSensor(SCA_KeyboardManager* keybdmgr,
 									   short int qual,
 									   short int qual2,
 									   bool bAllKeys,
-									   const STR_String& targetProp,
-									   const STR_String& toggleProp,
+									   const std::string& targetProp,
+									   const std::string& toggleProp,
 									   SCA_IObject* gameobj,
 									   short int exitKey)
 	:SCA_ISensor(gameobj,keybdmgr),
@@ -252,8 +252,8 @@ void SCA_KeyboardSensor::LogKeystrokes()
 	std::wstring proptext = L"";
 
 	{
-		const STR_String utf8str = tprop->GetText();
-		const char *utf8buf = utf8str.ReadPtr();
+		const std::string utf8str = tprop->GetText();
+		const char *utf8buf = utf8str.c_str();
 		int utf8len = BLI_strlen_utf8(utf8buf);
 		if (utf8len != 0) {
 			wchar_t *wcharbuf = new wchar_t[utf8len + 1];
@@ -282,14 +282,14 @@ void SCA_KeyboardSensor::LogKeystrokes()
 	}
 
 	{
-		STR_String newpropstr = "";
+		std::string newpropstr = "";
 
-		const wchar_t *cproptext = proptext.data();
+		const wchar_t *cproptext = proptext.c_str();
 		size_t utf8len = BLI_wstrlen_utf8(cproptext);
 		if (utf8len != 0) {
 			char *utf8buf = new char[utf8len + 1];
 			BLI_strncpy_wchar_as_utf8(utf8buf, cproptext, utf8len + 1);
-			newpropstr = STR_String(utf8buf);
+			newpropstr = std::string(utf8buf);
 			delete utf8buf;
 		}
 
@@ -371,7 +371,7 @@ PyAttributeDef SCA_KeyboardSensor::Attributes[] = {
 	KX_PYATTRIBUTE_SHORT_RW("hold2",0,SCA_IInputDevice::ENDKEY,true,SCA_KeyboardSensor,m_qual2),
 	KX_PYATTRIBUTE_STRING_RW("toggleProperty",0,MAX_PROP_NAME,false,SCA_KeyboardSensor,m_toggleprop),
 	KX_PYATTRIBUTE_STRING_RW("targetProperty",0,MAX_PROP_NAME,false,SCA_KeyboardSensor,m_targetprop),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 

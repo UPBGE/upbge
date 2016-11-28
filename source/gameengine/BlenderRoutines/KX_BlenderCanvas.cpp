@@ -257,7 +257,7 @@ void KX_BlenderCanvas::SetMousePosition(int x, int y)
 	WM_cursor_warp(m_win, winX + x + 1, winY + (winH - y - 1));
 }
 
-void KX_BlenderCanvas::MakeScreenShot(const char *filename)
+void KX_BlenderCanvas::MakeScreenShot(const std::string& filename)
 {
 	unsigned int *pixeldata;
 	bScreen *screen = m_win->screen;
@@ -286,8 +286,8 @@ void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 
 	// create file path
 	char path[FILE_MAX];
-	BLI_strncpy(path, filename, FILE_MAX);
-	BLI_path_abs(path, KX_GetMainPath().ReadPtr());
+	BLI_strncpy(path, filename.c_str(), FILE_MAX);
+	BLI_path_abs(path, KX_GetMainPath().c_str());
 
 	/* save_screenshot() frees dumprect and im_format */
 	save_screenshot(path, width, height, pixeldata, im_format);

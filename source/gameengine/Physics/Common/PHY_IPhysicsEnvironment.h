@@ -231,7 +231,7 @@ public:
 	virtual void SetConstraintParam(int constraintId, int param, float value, float value1) = 0;
 	virtual float GetConstraintParam(int constraintId, int param) = 0;
 
-	virtual void ExportFile(const char *filename)
+	virtual void ExportFile(const std::string& filename)
 	{
 	};
 

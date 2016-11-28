@@ -38,7 +38,7 @@ RAS_Texture::~RAS_Texture()
 {
 }
 
-STR_String& RAS_Texture::GetName()
+std::string& RAS_Texture::GetName()
 {
 	return m_name;
 }

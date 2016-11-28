@@ -48,7 +48,7 @@ KX_NetworkMessageSensor::KX_NetworkMessageSensor(
 	SCA_EventManager *eventmgr, // our eventmanager
 	class KX_NetworkMessageScene *NetworkScene, // our scene
 	SCA_IObject *gameobj, // the sensor controlling object
-	const STR_String &subject)
+	const std::string &subject)
 	:SCA_ISensor(gameobj, eventmgr),
 	m_NetworkScene(NetworkScene),
 	m_subject(subject),
@@ -100,8 +100,8 @@ bool KX_NetworkMessageSensor::Evaluate()
 		m_SubjectList = NULL;
 	}
 
-	STR_String toname = GetParent()->GetName();
-	STR_String& subject = this->m_subject;
+	std::string toname = GetParent()->GetName();
+	std::string& subject = this->m_subject;
 
 	const std::vector<KX_NetworkMessageManager::Message> messages =
 	    m_NetworkScene->FindMessages(toname, subject);
@@ -120,9 +120,9 @@ bool KX_NetworkMessageSensor::Evaluate()
 	std::vector<KX_NetworkMessageManager::Message>::const_iterator mesit;
 	for (mesit = messages.begin(); mesit != messages.end(); mesit++) {
 		// save the body
-		const STR_String& body = (*mesit).body;
+		const std::string& body = (*mesit).body;
 		// save the subject
-		const STR_String& messub = (*mesit).subject;
+		const std::string& messub = (*mesit).subject;
 #ifdef NAN_NET_DEBUG
 		if (body) {
 			cout << "body [" << body << "]\n";
@@ -190,7 +190,7 @@ PyAttributeDef KX_NetworkMessageSensor::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RO("frameMessageCount", KX_NetworkMessageSensor, m_frame_message_count),
 	KX_PYATTRIBUTE_RO_FUNCTION("bodies", KX_NetworkMessageSensor, pyattr_get_bodies),
 	KX_PYATTRIBUTE_RO_FUNCTION("subjects", KX_NetworkMessageSensor, pyattr_get_subjects),
-	{NULL} //Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 PyObject *KX_NetworkMessageSensor::pyattr_get_bodies(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

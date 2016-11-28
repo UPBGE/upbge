@@ -41,7 +41,7 @@
 #endif
 
 #include "EXP_Python.h"
-#include "STR_String.h"
+#include <string>
 #include "MT_Vector3.h"
 #include <stddef.h>
 
@@ -357,7 +357,7 @@ typedef int (*KX_PYATTRIBUTE_SET_FUNCTION)(void *self, const struct KX_PYATTRIBU
 typedef PyObject *(*KX_PYATTRIBUTE_GET_FUNCTION)(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 
 typedef struct KX_PYATTRIBUTE_DEF {
-	const char *m_name;				// name of the python attribute
+	const std::string m_name;				// name of the python attribute
 	KX_PYATTRIBUTE_TYPE m_type;		// type of value
 	KX_PYATTRIBUTE_ACCESS m_access;	// read/write access or read-only
 	int m_imin;						// minimum value in case of integer attributes 
@@ -383,11 +383,14 @@ typedef struct KX_PYATTRIBUTE_DEF {
 		short int *m_shortPtr;
 		int *m_intPtr;
 		float *m_floatPtr;
-		STR_String *m_stringPtr;
+		std::string *m_stringPtr;
 		MT_Vector3 *m_vectorPtr;
 		char *m_charPtr;
 	} m_typeCheck;
 } PyAttributeDef;
+
+#define KX_PYATTRIBUTE_NULL \
+	{"", KX_PYATTRIBUTE_TYPE_BOOL, KX_PYATTRIBUTE_RW, 0, 1, 0.f, 0.f, false, false, 0, 0, 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
 
 #define KX_PYATTRIBUTE_BOOL_RW(name, object, field) \
 	{ name, KX_PYATTRIBUTE_TYPE_BOOL, KX_PYATTRIBUTE_RW, 0, 1, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, NULL, NULL, NULL, {&((object *)0)->field, NULL, NULL, NULL, NULL, NULL, NULL} }
@@ -490,7 +493,7 @@ typedef struct KX_PYATTRIBUTE_DEF {
 #define KX_PYATTRIBUTE_FLOAT_MATRIX_RO(name, object, field, length) \
 	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RO, length, length, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field[0], NULL, NULL, NULL} }
 
-// only for STR_String member
+// only for std::string member
 #define KX_PYATTRIBUTE_STRING_RW(name, min, max, clamp, object, field) \
 	{ name, KX_PYATTRIBUTE_TYPE_STRING, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, &((object *)0)->field, NULL, NULL} }
 #define KX_PYATTRIBUTE_STRING_RW_CHECK(name, min, max, clamp, object, field, function) \
@@ -609,7 +612,7 @@ public:
 	/** enable/disable display of deprecation warnings */
 	static void			SetDeprecationWarnings(bool ignoreDeprecationWarnings);
 	/** Shows a deprecation warning */
-	static void			ShowDeprecationWarning_func(const char *method, const char *prop);
+	static void			ShowDeprecationWarning_func(const std::string& old_way, const std::string& new_way);
 	static void			ClearDeprecationWarning();
 	
 #endif
@@ -625,7 +628,7 @@ public:
 };
 
 #ifdef WITH_PYTHON
-PyObject *PyUnicode_From_STR_String(const STR_String& str);
+PyObject *PyUnicode_FromStdString(const std::string& str);
 
 inline PyObject *_bge_proxy_from_ref_borrow(void *self_v)
 {

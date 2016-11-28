@@ -106,8 +106,7 @@ PyAttributeDef BL_ArmatureChannel::Attributes[] = {
 	// Keep these attributes in order of BCA_ defines!!! used by py_attr_getattr and py_attr_setattr
 	KX_PYATTRIBUTE_RO_FUNCTION("bone",BL_ArmatureChannel,py_attr_getattr),
 	KX_PYATTRIBUTE_RO_FUNCTION("parent",BL_ArmatureChannel,py_attr_getattr),
-	
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 /* attributes directly taken from bPoseChannel */
@@ -144,7 +143,7 @@ PyAttributeDef BL_ArmatureChannel::AttributesPtr[] = {
 	KX_PYATTRIBUTE_FLOAT_RW("ik_rot_weight",0,1.0f,bPoseChannel,ikrotweight),
 	KX_PYATTRIBUTE_FLOAT_RW("ik_lin_weight",0,1.0f,bPoseChannel,iklinweight),
 	KX_PYATTRIBUTE_RW_FUNCTION("joint_rotation",BL_ArmatureChannel,py_attr_get_joint_rotation,py_attr_set_joint_rotation),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 PyObject *BL_ArmatureChannel::py_attr_getattr(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
@@ -417,7 +416,7 @@ PyMethodDef BL_ArmatureBone::Methods[] = {
 
 /* no attributes on C++ class since it is never instantiated */
 PyAttributeDef BL_ArmatureBone::Attributes[] = {
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 // attributes that work on proxy ptr (points to a Bone structure)
@@ -437,7 +436,7 @@ PyAttributeDef BL_ArmatureBone::AttributesPtr[] = {
 	KX_PYATTRIBUTE_FLOAT_MATRIX_RO("bone_mat",Bone,bone_mat,3),
 	KX_PYATTRIBUTE_RO_FUNCTION("parent",BL_ArmatureBone,py_bone_get_parent),
 	KX_PYATTRIBUTE_RO_FUNCTION("children",BL_ArmatureBone,py_bone_get_children),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *BL_ArmatureBone::py_bone_get_parent(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)

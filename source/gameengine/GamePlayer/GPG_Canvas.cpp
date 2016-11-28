@@ -145,7 +145,7 @@ const int *GPG_Canvas::GetViewPort()
 	return m_viewport;
 }
 
-void GPG_Canvas::MakeScreenShot(const char *filename)
+void GPG_Canvas::MakeScreenShot(const std::string& filename)
 {
 	// copy image data
 	unsigned int dumpsx = GetWidth();
@@ -164,8 +164,8 @@ void GPG_Canvas::MakeScreenShot(const char *filename)
 
 	// create file path
 	char path[FILE_MAX];
-	BLI_strncpy(path, filename, FILE_MAX);
-	BLI_path_abs(path, KX_GetMainPath().ReadPtr());
+	BLI_strncpy(path, filename.c_str(), FILE_MAX);
+	BLI_path_abs(path, KX_GetMainPath().c_str());
 
 	/* save_screenshot() frees dumprect and im_format */
 	save_screenshot(path, dumpsx, dumpsy, pixels, im_format);

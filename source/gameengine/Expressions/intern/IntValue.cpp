@@ -24,6 +24,8 @@
 
 #include "CM_Message.h"
 
+#include <boost/format.hpp>
+
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
@@ -53,7 +55,7 @@ effect: constructs a new CIntValue containing cInt innie
 
 
 
-CIntValue::CIntValue(cInt innie,const char *name,AllocationTYPE alloctype)
+CIntValue::CIntValue(cInt innie,const std::string& name,AllocationTYPE alloctype)
 {
 	m_int = innie;
 	SetName(name);
@@ -301,9 +303,9 @@ int CIntValue::GetValueType()
 
 
 
-const STR_String CIntValue::GetText()
+const std::string CIntValue::GetText()
 {
-	return STR_String().Format("%lld",m_int);
+	return (boost::format("%lld") % m_int).str();
 }
 
 

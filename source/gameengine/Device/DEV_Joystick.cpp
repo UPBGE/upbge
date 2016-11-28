@@ -396,7 +396,7 @@ int DEV_Joystick::pAxisTest(int axisnum)
 #endif /* WITH_SDL */
 }
 
-const char *DEV_Joystick::GetName()
+const std::string DEV_Joystick::GetName()
 {
 #ifdef WITH_SDL
 	return (SDL_CHECK(SDL_GameControllerName)) ? SDL_GameControllerName(m_private->m_gamecontroller) : "";

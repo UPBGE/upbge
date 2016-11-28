@@ -343,7 +343,7 @@ void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter* converter)
 		GetActionManager();
 }
 
-BL_ArmatureConstraint* BL_ArmatureObject::GetConstraint(const char* posechannel, const char* constraintname)
+BL_ArmatureConstraint* BL_ArmatureObject::GetConstraint(const std::string& posechannel, const std::string& constraintname)
 {
 	SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
 	for (cit.begin(); !cit.end(); ++cit) {
@@ -354,13 +354,13 @@ BL_ArmatureConstraint* BL_ArmatureObject::GetConstraint(const char* posechannel,
 	return NULL;
 }
 
-BL_ArmatureConstraint* BL_ArmatureObject::GetConstraint(const char* posechannelconstraint)
+BL_ArmatureConstraint* BL_ArmatureObject::GetConstraint(const std::string& posechannelconstraint)
 {
 	// performance: use hash string instead of plain string compare
 	SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
 	for (cit.begin(); !cit.end(); ++cit) {
 		BL_ArmatureConstraint* constraint = *cit;
-		if (!strcmp(constraint->GetName(), posechannelconstraint))
+		if (constraint->GetName() == posechannelconstraint)
 			return constraint;
 	}
 	return NULL;
@@ -402,14 +402,14 @@ BL_ArmatureChannel* BL_ArmatureObject::GetChannel(bPoseChannel* pchan)
 	return NULL;
 }
 
-BL_ArmatureChannel* BL_ArmatureObject::GetChannel(const char* str)
+BL_ArmatureChannel* BL_ArmatureObject::GetChannel(const std::string& str)
 {
 	LoadChannels();
 	SG_DList::iterator<BL_ArmatureChannel> cit(m_poseChannels);
 	for (cit.begin(); !cit.end(); ++cit) 
 	{
 		BL_ArmatureChannel* channel = *cit;
-		if (!strcmp(channel->m_posechannel->name, str))
+		if (channel->m_posechannel->name == str)
 			return channel;
 	}
 	return NULL;
@@ -641,7 +641,7 @@ PyAttributeDef BL_ArmatureObject::Attributes[] = {
 
 	KX_PYATTRIBUTE_RO_FUNCTION("constraints",		BL_ArmatureObject, pyattr_get_constraints),
 	KX_PYATTRIBUTE_RO_FUNCTION("channels",		BL_ArmatureObject, pyattr_get_channels),
-	{NULL} //Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 static int bl_armature_object_get_constraints_size_cb(void *self_v)
@@ -654,7 +654,7 @@ static PyObject *bl_armature_object_get_constraints_item_cb(void *self_v, int in
 	return ((BL_ArmatureObject *)self_v)->GetConstraint(index)->GetProxy();
 }
 
-static const char *bl_armature_object_get_constraints_item_name_cb(void *self_v, int index)
+static const std::string bl_armature_object_get_constraints_item_name_cb(void *self_v, int index)
 {
 	return ((BL_ArmatureObject *)self_v)->GetConstraint(index)->GetName();
 }
@@ -680,7 +680,7 @@ static PyObject *bl_armature_object_get_channels_item_cb(void *self_v, int index
 	return ((BL_ArmatureObject *)self_v)->GetChannel(index)->GetProxy();
 }
 
-static const char *bl_armature_object_get_channels_item_name_cb(void *self_v, int index)
+static const std::string bl_armature_object_get_channels_item_name_cb(void *self_v, int index)
 {
 	return ((BL_ArmatureObject *)self_v)->GetChannel(index)->GetName();
 }

@@ -146,8 +146,8 @@ void BL_ConvertControllers(
 			case CONT_EXPRESSION:
 			{
 				bExpressionCont* bexpcont = (bExpressionCont*) bcontr->data;
-				STR_String expressiontext = STR_String(bexpcont->str);
-				if (expressiontext.Length() > 0)
+				std::string expressiontext = std::string(bexpcont->str);
+				if (!expressiontext.empty())
 				{
 					gamecontroller = new SCA_ExpressionController(gameobj,expressiontext);
 				}
@@ -171,7 +171,7 @@ void BL_ConvertControllers(
 						buf= txt_to_buf(pycont->text);
 						if (buf)
 						{
-							pyctrl->SetScriptText(STR_String(buf));
+							pyctrl->SetScriptText(std::string(buf));
 							pyctrl->SetScriptName(pycont->text->id.name+2);
 							MEM_freeN(buf);
 						}
@@ -180,7 +180,7 @@ void BL_ConvertControllers(
 				}
 				else {
 					/* let the controller print any warnings here when importing */
-					pyctrl->SetScriptText(STR_String(pycont->module)); 
+					pyctrl->SetScriptText(std::string(pycont->module)); 
 					pyctrl->SetScriptName(pycont->module); /* will be something like module.func so using it as the name is OK */
 
 					if (pycont->flag & CONT_PY_DEBUG) {
@@ -205,7 +205,7 @@ void BL_ConvertControllers(
 			gamecontroller->SetExecutePriority(executePriority++);
 			gamecontroller->SetBookmark((bcontr->flag & CONT_PRIO) != 0);
 			gamecontroller->SetState(bcontr->state_mask);
-			STR_String uniquename = bcontr->name;
+			std::string uniquename = bcontr->name;
 			uniquename += "#CONTR#";
 			uniqueint++;
 			CIntValue* uniqueval = new CIntValue(uniqueint);

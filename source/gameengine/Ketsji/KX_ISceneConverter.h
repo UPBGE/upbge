@@ -32,7 +32,7 @@
 #ifndef __KX_ISCENECONVERTER_H__
 #define __KX_ISCENECONVERTER_H__
 
-#include "STR_String.h"
+#include <string>
 #include "EXP_Python.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
@@ -69,10 +69,10 @@ public:
 
 	virtual void	SetAlwaysUseExpandFraming(bool to_what) = 0;
 
-	virtual void	SetNewFileName(const STR_String& filename) = 0;
+	virtual void	SetNewFileName(const std::string& filename) = 0;
 	virtual bool	TryAndLoadNewFile() = 0;
 
-	virtual struct Scene* GetBlenderSceneForName(const STR_String& name)=0;
+	virtual struct Scene* GetBlenderSceneForName(const std::string& name)=0;
 	virtual CListValue *GetInactiveSceneNames() = 0;
 	
 #ifdef WITH_CXX_GUARDEDALLOC

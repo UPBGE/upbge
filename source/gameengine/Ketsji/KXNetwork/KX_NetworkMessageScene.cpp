@@ -41,7 +41,7 @@ KX_NetworkMessageScene::~KX_NetworkMessageScene()
 {
 }
 
-void KX_NetworkMessageScene::SendMessage(STR_String to, SCA_IObject *from, STR_String subject, STR_String body)
+void KX_NetworkMessageScene::SendMessage(std::string to, SCA_IObject *from, std::string subject, std::string body)
 {
 	KX_NetworkMessageManager::Message message;
 	message.to = to;
@@ -53,7 +53,7 @@ void KX_NetworkMessageScene::SendMessage(STR_String to, SCA_IObject *from, STR_S
 	m_messageManager->AddMessage(message);
 }
 
-const std::vector<KX_NetworkMessageManager::Message> KX_NetworkMessageScene::FindMessages(STR_String to, STR_String subject)
+const std::vector<KX_NetworkMessageManager::Message> KX_NetworkMessageScene::FindMessages(std::string to, std::string subject)
 {
 	return m_messageManager->GetMessages(to, subject);
 }

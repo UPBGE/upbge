@@ -179,7 +179,7 @@ protected:
 	/**
 	 * The name of the scene
 	 */
-	STR_String	m_sceneName;
+	std::string	m_sceneName;
 	
 	/**
 	 * stores the world-settings for a scene
@@ -306,7 +306,7 @@ protected:
 
 public:
 	KX_Scene(SCA_IInputDevice *inputDevice,
-		const STR_String& scenename,
+		const std::string& scenename,
 		struct Scene* scene,
 		class RAS_ICanvas* canvas,
 		KX_NetworkMessageManager *messageManager);
@@ -549,10 +549,10 @@ public:
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 
 	/**  Inherited from CValue -- returns the name of this object. */
-	virtual STR_String GetName();
+	virtual std::string GetName();
 
 	/** Inherited from CValue -- set the name of this object. */
-	virtual void SetName(const char *name);
+	virtual void SetName(const std::string& name);
 
 #ifdef WITH_PYTHON
 	/* --------------------------------------------------------------------- */
@@ -585,7 +585,7 @@ public:
 	static PyObject*	pyattr_get_gravity(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_gravity(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	virtual PyObject *py_repr(void) { return PyUnicode_From_STR_String(GetName()); }
+	virtual PyObject *py_repr(void) { return PyUnicode_FromStdString(GetName()); }
 	
 	/* getitem/setitem */
 	static PyMappingMethods	Mapping;

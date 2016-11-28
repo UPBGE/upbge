@@ -114,7 +114,7 @@ double*	CEmptyValue::GetVector3(bool bGetTransformedVec)
 
 
 
-const STR_String CEmptyValue::GetText()
+const std::string CEmptyValue::GetText()
 {
 	return "";
 }

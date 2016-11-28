@@ -117,7 +117,7 @@ CValue* SCA_PythonController::GetReplica()
 
 
 
-void SCA_PythonController::SetScriptText(const STR_String& text)
+void SCA_PythonController::SetScriptText(const std::string& text)
 { 
 	m_scriptText = text;
 	m_bModified = true;
@@ -125,7 +125,7 @@ void SCA_PythonController::SetScriptText(const STR_String& text)
 
 
 
-void SCA_PythonController::SetScriptName(const STR_String& name)
+void SCA_PythonController::SetScriptName(const std::string& name)
 {
 	m_scriptName = name;
 }
@@ -143,7 +143,7 @@ void SCA_PythonController::SetNamespace(PyObject*	pythondictionary)
 	
 	/* Without __file__ set the sys.argv[0] is used for the filename
 	 * which ends up with lines from the blender binary being printed in the console */
-	PyObject *value = PyUnicode_From_STR_String(m_scriptName);
+	PyObject *value = PyUnicode_FromStdString(m_scriptName);
 	PyDict_SetItemString(m_pythondictionary, "__file__", value);
 	Py_DECREF(value);
 	
@@ -240,7 +240,7 @@ PyMethodDef SCA_PythonController::Methods[] = {
 PyAttributeDef SCA_PythonController::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("script", SCA_PythonController, pyattr_get_script, pyattr_set_script),
 	KX_PYATTRIBUTE_INT_RO("mode", SCA_PythonController, m_mode),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 void SCA_PythonController::ErrorPrint(const char *error_msg)
@@ -271,7 +271,7 @@ bool SCA_PythonController::Compile()
 	}
 	
 	// recompile the scripttext into bytecode
-	m_bytecode = Py_CompileString(m_scriptText.Ptr(), m_scriptName.Ptr(), Py_file_input);
+	m_bytecode = Py_CompileString(m_scriptText.c_str(), m_scriptName.c_str(), Py_file_input);
 	
 	if (m_bytecode) {
 		return true;
@@ -289,22 +289,22 @@ bool SCA_PythonController::Import()
 	Py_XDECREF(m_function);
 	m_function= NULL;
 	
-	STR_String mod_path_str= m_scriptText; /* just for storage, use C style string access */
-	char *mod_path= mod_path_str.Ptr();
-	char *function_string;
+	std::string mod_path = m_scriptText; /* just for storage, use C style string access */
+	std::string function_string;
 
-	function_string= strrchr(mod_path, '.');
+	const int pos = mod_path.rfind('.');
+	if (pos != std::string::npos) {
+		function_string = mod_path.substr(pos + 1);
+		mod_path = mod_path.substr(0, pos);
+	}
 
-	if (function_string == NULL) {
+	if (function_string.empty()) {
 		CM_LogicBrickError(this, "python module name formatting expected 'SomeModule.Func', got '" << m_scriptText << "'");
 		return false;
 	}
 
-	*function_string= '\0';
-	function_string++;
-
 	// Import the module and print an error if it's not found
-	PyObject *mod = PyImport_ImportModule(mod_path);
+	PyObject *mod = PyImport_ImportModule(mod_path.c_str());
 
 	if (mod == NULL) {
 		ErrorPrint("Python module can't be imported");
@@ -320,7 +320,7 @@ bool SCA_PythonController::Import()
 	}
 
 	// Get the function object
-	m_function = PyObject_GetAttrString(mod, function_string);
+	m_function = PyObject_GetAttrString(mod, function_string.c_str());
 
 	// DECREF the module as we don't need it anymore
 	Py_DECREF(mod);
@@ -476,7 +476,7 @@ PyObject *SCA_PythonController::pyattr_get_script(void *self_v, const KX_PYATTRI
 	// static_cast<void *>(dynamic_cast<Derived *>(obj)) - static_cast<void *>(obj)
 
 	SCA_PythonController* self = static_cast<SCA_PythonController*>(self_v);
-	return PyUnicode_From_STR_String(self->m_scriptText);
+	return PyUnicode_FromStdString(self->m_scriptText);
 }
 
 

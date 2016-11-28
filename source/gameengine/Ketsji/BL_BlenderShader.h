@@ -35,7 +35,7 @@
 #include "RAS_IRasterizer.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Texture.h" // for MaxUnits
-#include "STR_String.h"
+#include <string>
 
 struct Material;
 struct Scene;

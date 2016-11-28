@@ -84,8 +84,8 @@ class KX_GameObject : public SCA_IObject
 protected:
 
 	KX_ClientObjectInfo*				m_pClient_info;
-	STR_String							m_name;
-	STR_String							m_text;
+	std::string							m_name;
+	std::string							m_text;
 	int									m_layer;
 	std::vector<RAS_MeshObject*>		m_meshes;
 	KX_LodManager						*m_lodManager;
@@ -263,7 +263,7 @@ public:
 	/**
 	 * Adds an action to the object's action manager
 	 */
-	bool PlayAction(const char* name,
+	bool PlayAction(const std::string& name,
 					float start,
 					float end,
 					short layer=0,
@@ -283,7 +283,7 @@ public:
 	/**
 	 * Gets the name of the current action
 	 */
-	const char *GetActionName(short layer);
+	const std::string GetActionName(short layer);
 
 	/**
 	 * Sets the current frame of an action
@@ -360,7 +360,7 @@ public:
 	/**
 	 * Inherited from CValue
 	 */
-	virtual const STR_String GetText();
+	virtual const std::string GetText();
 
 	/**
 	 * \section Inherited from CValue. These are the useful
@@ -370,12 +370,12 @@ public:
 	/**
 	 * Inherited from CValue -- returns the name of this object.
 	 */
-	virtual STR_String GetName();
+	virtual std::string GetName();
 
 	/**
 	 * Inherited from CValue -- set the name of this object.
 	 */
-	virtual void SetName(const char *name);
+	virtual void SetName(const std::string& name);
 
 	/** 
 	 * Inherited from CValue -- return a new copy of this
@@ -928,7 +928,7 @@ public:
 	 */
 	virtual PyObject *py_repr(void)
 	{
-		return PyUnicode_From_STR_String(GetName());
+		return PyUnicode_FromStdString(GetName());
 	}
 
 	KX_PYMETHOD_O(KX_GameObject,SetWorldPosition);

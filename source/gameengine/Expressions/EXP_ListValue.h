@@ -72,8 +72,7 @@ public:
 	void SetReleaseOnDestruct(bool bReleaseContents);
 	bool SearchValue(CValue* val);
 	
-	CValue* FindValue(const STR_String & name);
-	CValue* FindValue(const char *name);
+	CValue* FindValue(const std::string& name);
 
 	void ReleaseAndRemoveAll();
 	virtual void SetModified(bool bModified);
@@ -87,7 +86,7 @@ public:
 	int GetCount() { return m_pValueArray.size(); }
 	baseIterator GetBegin();
 	baseIterator GetEnd();
-	virtual const STR_String GetText();
+	virtual const std::string GetText();
 
 	bool CheckEqual(CValue* first,CValue* second);
 

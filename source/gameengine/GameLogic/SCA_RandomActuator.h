@@ -40,7 +40,7 @@ class SCA_RandomActuator : public SCA_IActuator
 {
 	Py_Header
 	/** Property to assign to */
-	STR_String m_propname;
+	std::string m_propname;
 	
 	/** First parameter. The meaning of the parameters depends on the        
 	 *  distribution */
@@ -85,7 +85,7 @@ class SCA_RandomActuator : public SCA_IActuator
 					  KX_RANDOMACT_MODE mode,
 					  float para1,
 					  float para2,
-					  const STR_String &propName);
+					  const std::string &propName);
 	virtual ~SCA_RandomActuator();
 	virtual bool Update();
 	

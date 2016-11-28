@@ -34,7 +34,7 @@
 
 #include "SCA_IInputDevice.h"
 
-#include "STR_String.h"
+#include <string>
 
 class KX_Scene;
 class KX_ISystem;
@@ -52,14 +52,14 @@ class LA_Launcher
 {
 protected:
 	/// \section The game data.
-	STR_String m_startSceneName;
+	std::string m_startSceneName;
 	Scene *m_startScene;
 	Main *m_maggie;
 	KX_Scene *m_kxStartScene;
 
 	/// \section Exit state.
 	int m_exitRequested;
-	STR_String m_exitString;
+	std::string m_exitString;
 	GlobalSettings *m_globalSettings;
 
 	/// GHOST system abstraction.
@@ -142,7 +142,7 @@ public:
 #endif  // WITH_PYTHON
 
 	int GetExitRequested();
-	const STR_String& GetExitString();
+	const std::string& GetExitString();
 	GlobalSettings *GetGlobalSettings();
 
 	inline KX_Scene *GetStartScene() const

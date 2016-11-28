@@ -88,12 +88,12 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 	char* startscenename = startscene->id.name + 2;
 	char pathname[FILE_MAXDIR+FILE_MAXFILE];
-	STR_String exitstring = "";
+	std::string exitstring = "";
 	BlendFileData *bfd = NULL;
 
 	BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
 
-	KX_SetOrigPath(STR_String(blenderdata->name));
+	KX_SetOrigPath(std::string(blenderdata->name));
 
 #ifdef WITH_PYTHON
 
@@ -121,8 +121,8 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			// base the actuator filename with respect
 			// to the original file working directory
 
-			if (exitstring != "") {
-				BLI_strncpy(basedpath, exitstring.ReadPtr(), sizeof(basedpath));
+			if (!exitstring.empty()) {
+				BLI_strncpy(basedpath, exitstring.c_str(), sizeof(basedpath));
 			}
 
 			// load relative to the last loaded file, this used to be relative

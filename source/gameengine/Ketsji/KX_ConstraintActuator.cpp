@@ -124,7 +124,7 @@ bool KX_ConstraintActuator::RayHit(KX_ClientObjectInfo *client, KX_RayCast *resu
 	
 	bool bFound = false;
 
-	if (m_property.IsEmpty())
+	if (m_property.empty())
 	{
 		bFound = true;
 	}
@@ -134,7 +134,7 @@ bool KX_ConstraintActuator::RayHit(KX_ClientObjectInfo *client, KX_RayCast *resu
 			for (unsigned int i = 0; i < m_hitObject->GetMeshCount(); ++i) {
 				RAS_MeshObject *meshObj = m_hitObject->GetMesh(i);
 				for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
-					bFound = strcmp(m_property.ReadPtr(), meshObj->GetMaterialName(j).ReadPtr() + 2) == 0;
+					bFound = (m_property == std::string(meshObj->GetMaterialName(j), 2));
 					if (bFound)
 						break;
 				}
@@ -608,7 +608,7 @@ PyAttributeDef KX_ConstraintActuator::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_RW("max",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_maximumBound),
 	KX_PYATTRIBUTE_FLOAT_RW("rayLength",0,2000.f,KX_ConstraintActuator,m_maximumBound),
 	KX_PYATTRIBUTE_INT_RW("limit",KX_ConstraintActuator::KX_ACT_CONSTRAINT_NODEF+1,KX_ConstraintActuator::KX_ACT_CONSTRAINT_MAX-1,false,KX_ConstraintActuator,m_locrot),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 int KX_ConstraintActuator::pyattr_check_direction(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)

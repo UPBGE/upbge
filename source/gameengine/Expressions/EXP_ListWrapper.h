@@ -54,7 +54,7 @@ private:
 	PyObject *(*m_getItem)(void *, int);
 
 	/// Returns name item for the giving index, used for python operator list["name"].
-	const char *(*m_getItemName)(void *, int);
+	const std::string (*m_getItemName)(void *, int);
 
 	/// Sets the nex item to the index place, return false when failed item conversion.
 	bool (*m_setItem)(void *, int, PyObject *);
@@ -74,7 +74,7 @@ public:
 						bool (*checkValid)(void *),
 						int (*getSize)(void *),
 						PyObject *(*getItem)(void *, int),
-						const char *(*getItemName)(void *, int),
+						const std::string (*getItemName)(void *, int),
 						bool (*setItem)(void *, int, PyObject *),
 						int flag = FLAG_NONE);
 	~CListWrapper();
@@ -83,14 +83,14 @@ public:
 	bool CheckValid();
 	int GetSize();
 	PyObject *GetItem(int index);
-	const char *GetItemName(int index);
+	const std::string GetItemName(int index);
 	bool SetItem(int index, PyObject *item);
 	bool AllowSetItem();
 	bool AllowGetItemByName();
 	bool AllowFindValue();
 
 	/// \section CValue Inherited Functions.
-	virtual STR_String GetName();
+	virtual std::string GetName();
 	virtual int GetValueType();
 	virtual PyObject *py_repr();
 

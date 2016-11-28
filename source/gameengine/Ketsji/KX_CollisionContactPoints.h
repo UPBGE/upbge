@@ -46,7 +46,7 @@ public:
 	virtual ~KX_CollisionContactPoint();
 
 	// stuff for cvalue related things
-	STR_String GetName();
+	std::string GetName();
 
 #ifdef WITH_PYTHON
 

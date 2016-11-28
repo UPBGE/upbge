@@ -34,8 +34,8 @@ extern "C" {
 
 static KX_KetsjiEngine *g_engine = NULL;
 static KX_Scene *g_scene = NULL;
-static STR_String g_mainPath = "";
-static STR_String g_origPath = "";
+static std::string g_mainPath = "";
+static std::string g_origPath = "";
 
 void KX_SetActiveEngine(KX_KetsjiEngine *engine)
 {
@@ -47,20 +47,20 @@ void KX_SetActiveScene(KX_Scene *scene)
 	g_scene = scene;
 }
 
-void KX_SetMainPath(const STR_String& path)
+void KX_SetMainPath(const std::string& path)
 {
 	char cpath[FILE_MAX];
-	BLI_strncpy(cpath, path.ReadPtr(), sizeof(cpath));
+	BLI_strncpy(cpath, path.c_str(), sizeof(cpath));
 	BLI_cleanup_file(NULL, cpath);
-	g_mainPath = STR_String(cpath);
+	g_mainPath = std::string(cpath);
 }
 
-void KX_SetOrigPath(const STR_String& path)
+void KX_SetOrigPath(const std::string& path)
 {
 	char cpath[FILE_MAX];
-	BLI_strncpy(cpath, path.ReadPtr(), sizeof(cpath));
+	BLI_strncpy(cpath, path.c_str(), sizeof(cpath));
 	BLI_cleanup_file(NULL, cpath);
-	g_origPath = STR_String(cpath);
+	g_origPath = std::string(cpath);
 }
 
 KX_KetsjiEngine *KX_GetActiveEngine()
@@ -73,12 +73,12 @@ KX_Scene *KX_GetActiveScene()
 	return g_scene;
 }
 
-const STR_String& KX_GetMainPath()
+const std::string& KX_GetMainPath()
 {
 	return g_mainPath;
 }
 
-const STR_String& KX_GetOrigPath()
+const std::string& KX_GetOrigPath()
 {
 	return g_origPath;
 }

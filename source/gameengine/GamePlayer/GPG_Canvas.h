@@ -81,7 +81,7 @@ public:
 	virtual void UpdateViewPort(int x1, int y1, int x2, int y2);
 	virtual const int *GetViewPort();
 
-	virtual void MakeScreenShot(const char *filename);
+	virtual void MakeScreenShot(const std::string& filename);
 
 	virtual void Init();
 	virtual void SetMousePosition(int x, int y);

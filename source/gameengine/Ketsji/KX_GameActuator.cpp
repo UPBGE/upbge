@@ -49,8 +49,8 @@
 
 KX_GameActuator::KX_GameActuator(SCA_IObject *gameobj, 
 								   int mode,
-								   const STR_String& filename,
-								   const STR_String& loadinganimationname,
+								   const std::string& filename,
+								   const std::string& loadinganimationname,
 								   SCA_IScene* scene,
 								   KX_KetsjiEngine* ketsjiengine)
 								   : SCA_IActuator(gameobj, KX_ACT_GAME)
@@ -97,7 +97,7 @@ bool KX_GameActuator::Update()
 		{
 			if (m_ketsjiengine)
 			{
-				STR_String exitstring = "start other game";
+				std::string exitstring = "start other game";
 				m_ketsjiengine->RequestExit(KX_EXIT_REQUEST_START_OTHER_GAME);
 				m_ketsjiengine->SetNameNextGame(m_filename);
 				m_scene->AddDebugProperty((this)->GetParent(), exitstring);
@@ -109,7 +109,7 @@ bool KX_GameActuator::Update()
 		{
 			if (m_ketsjiengine)
 			{
-				STR_String exitstring = "restarting game";
+				std::string exitstring = "restarting game";
 				m_ketsjiengine->RequestExit(KX_EXIT_REQUEST_RESTART_GAME);
 				m_ketsjiengine->SetNameNextGame(m_filename);
 				m_scene->AddDebugProperty((this)->GetParent(), exitstring);
@@ -120,7 +120,7 @@ bool KX_GameActuator::Update()
 		{
 			if (m_ketsjiengine)
 			{
-				STR_String exitstring = "quiting game";
+				std::string exitstring = "quiting game";
 				m_ketsjiengine->RequestExit(KX_EXIT_REQUEST_QUIT_GAME);
 				m_scene->AddDebugProperty((this)->GetParent(), exitstring);
 			}
@@ -200,7 +200,7 @@ PyMethodDef KX_GameActuator::Methods[] =
 PyAttributeDef KX_GameActuator::Attributes[] = {
 	KX_PYATTRIBUTE_STRING_RW("fileName",0,100,false,KX_GameActuator,m_filename),
 	KX_PYATTRIBUTE_INT_RW("mode", KX_GAME_NODEF+1, KX_GAME_MAX-1, true, KX_GameActuator, m_mode),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif // WITH_PYTHON

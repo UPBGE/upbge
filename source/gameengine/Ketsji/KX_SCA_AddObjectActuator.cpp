@@ -199,7 +199,7 @@ PyAttributeDef KX_SCA_AddObjectActuator::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_RW("time", 0.0f, FLT_MAX, KX_SCA_AddObjectActuator, m_timeProp),
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RW("linearVelocity",-FLT_MAX,FLT_MAX,KX_SCA_AddObjectActuator,m_linear_velocity,3),
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RW("angularVelocity",-FLT_MAX,FLT_MAX,KX_SCA_AddObjectActuator,m_angular_velocity,3),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *KX_SCA_AddObjectActuator::pyattr_get_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)

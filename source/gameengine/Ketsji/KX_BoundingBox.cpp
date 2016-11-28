@@ -237,7 +237,7 @@ PyAttributeDef KX_BoundingBox::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("center", KX_BoundingBox, pyattr_get_center),
 	KX_PYATTRIBUTE_RO_FUNCTION("radius", KX_BoundingBox, pyattr_get_radius),
 	KX_PYATTRIBUTE_RW_FUNCTION("autoUpdate", KX_BoundingBox, pyattr_get_auto_update, pyattr_set_auto_update),
-	{NULL} // Sentinel
+	KX_PYATTRIBUTE_NULL // Sentinel
 };
 
 PyObject *KX_BoundingBox::py_repr()
@@ -245,7 +245,7 @@ PyObject *KX_BoundingBox::py_repr()
 	if (!IsValidOwner()) {
 		return PyUnicode_FromString("KX_BoundingBox of invalid object");
 	}
-	return PyUnicode_FromFormat("KX_BoundingBox of object %s, min: %R, max: %R", m_owner->GetName().ReadPtr(),
+	return PyUnicode_FromFormat("KX_BoundingBox of object %s, min: %R, max: %R", m_owner->GetName().c_str(),
 								PyObjectFrom(GetMin()), PyObjectFrom(GetMax()));
 }
 

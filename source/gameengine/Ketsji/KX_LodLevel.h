@@ -63,7 +63,7 @@ public:
 
 	virtual PyObject *py_repr()
 	{
-		return PyUnicode_FromString(m_meshobj->GetName());
+		return PyUnicode_FromStdString(m_meshobj->GetName());
 	}
 
 	static PyObject *pyattr_get_mesh(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

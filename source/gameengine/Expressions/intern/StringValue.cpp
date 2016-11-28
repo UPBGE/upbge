@@ -37,7 +37,7 @@ CStringValue::CStringValue()
  * pre:
  * effect: constructs a new CStringValue containing text txt
  */
-CStringValue::CStringValue(const char *txt,const char *name,AllocationTYPE alloctype)
+CStringValue::CStringValue(const std::string& txt, const std::string& name, AllocationTYPE alloctype)
 {
 	m_strString = txt;
 	SetName(name);
@@ -127,12 +127,12 @@ int CStringValue::GetValueType()
 
 
 
-const STR_String CStringValue::GetText()
+const std::string CStringValue::GetText()
 {
 	return m_strString;
 }
 
-bool CStringValue::IsEqual(const STR_String & other)
+bool CStringValue::IsEqual(const std::string & other)
 {
 	return (m_strString == other);
 }

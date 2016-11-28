@@ -35,7 +35,7 @@
 
 #include "MT_CmMatrix4x4.h"
 #include "MT_Matrix4x4.h"
-#include "STR_String.h"
+#include <string>
 #include "KX_ISystem.h"
 #include "KX_Scene.h"
 #include "EXP_Python.h"
@@ -93,13 +93,13 @@ private:
 	SCA_IInputDevice *m_inputDevice;
 
 	/// Lists of scenes scheduled to be removed at the end of the frame.
-	std::vector<STR_String> m_removingScenes;
+	std::vector<std::string> m_removingScenes;
 	/// Lists of overley scenes scheduled to be added at the end of the frame.
-	std::vector<STR_String> m_addingOverlayScenes;
+	std::vector<std::string> m_addingOverlayScenes;
 	/// Lists of background scenes scheduled to be added at the end of the frame.
-	std::vector<STR_String> m_addingBackgroundScenes;
+	std::vector<std::string> m_addingBackgroundScenes;
 	/// Lists of scenes scheduled to be replaced at the end of the frame.
-	std::vector<std::pair<STR_String, STR_String> >  m_replace_scenes;
+	std::vector<std::pair<std::string, std::string> >  m_replace_scenes;
 
 	/// The current list of scenes.
 	CListValue *m_scenes;
@@ -146,12 +146,12 @@ private:
 	static short m_exitkey;
 
 	int m_exitcode;
-	STR_String m_exitstring;
+	std::string m_exitstring;
 
 	float m_cameraZoom;
 
 	bool m_overrideCam;
-	STR_String m_overrideSceneName;
+	std::string m_overrideSceneName;
 
 	bool m_overrideCamUseOrtho;
 	MT_CmMatrix4x4 m_overrideCamProjMat;
@@ -294,29 +294,29 @@ public:
 
 	void StartEngine(bool clearIpo);
 	void StopEngine();
-	void Export(const STR_String& filename);
+	void Export(const std::string& filename);
 
 	void RequestExit(int exitrequestmode);
-	void SetNameNextGame(const STR_String& nextgame);
+	void SetNameNextGame(const std::string& nextgame);
 	int GetExitCode();
-	const STR_String& GetExitString();
+	const std::string& GetExitString();
 
 	CListValue *CurrentScenes();
-	KX_Scene *FindScene(const STR_String& scenename);
+	KX_Scene *FindScene(const std::string& scenename);
 	void AddScene(KX_Scene *scene);
-	void ConvertAndAddScene(const STR_String& scenename, bool overlay);
+	void ConvertAndAddScene(const std::string& scenename, bool overlay);
 
-	void RemoveScene(const STR_String& scenename);
-	bool ReplaceScene(const STR_String& oldscene, const STR_String& newscene);
-	void SuspendScene(const STR_String& scenename);
-	void ResumeScene(const STR_String& scenename);
+	void RemoveScene(const std::string& scenename);
+	bool ReplaceScene(const std::string& oldscene, const std::string& newscene);
+	void SuspendScene(const std::string& scenename);
+	void ResumeScene(const std::string& scenename);
 
 	void GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect& area, RAS_Rect& viewport);
 
 	/// Sets zoom for camera objects, useful only with extend and scale framing mode.
 	void SetCameraZoom(float camzoom);
 
-	void EnableCameraOverride(const STR_String& forscene);
+	void EnableCameraOverride(const std::string& forscene);
 
 	void SetCameraOverrideUseOrtho(bool useOrtho);
 	void SetCameraOverrideProjectionMatrix(const MT_CmMatrix4x4& mat);
@@ -559,7 +559,7 @@ public:
 	 */
 	void GetOverrideFrameColor(float& r, float& g, float& b, float& a) const;
 
-	KX_Scene *CreateScene(const STR_String& scenename);
+	KX_Scene *CreateScene(const std::string& scenename);
 	KX_Scene *CreateScene(Scene *scene, bool libloading = false);
 
 	GlobalSettings *GetGlobalSettings(void);

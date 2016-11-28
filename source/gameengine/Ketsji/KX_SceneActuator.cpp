@@ -49,7 +49,7 @@ KX_SceneActuator::KX_SceneActuator(SCA_IObject *gameobj,
 								   int mode,
 								   KX_Scene *scene,
 								   KX_KetsjiEngine* ketsjiEngine,
-								   const STR_String& nextSceneName,
+								   const std::string& nextSceneName,
 								   KX_Camera* camera)
 								   : SCA_IActuator(gameobj, KX_ACT_SCENE)
 {
@@ -144,7 +144,7 @@ bool KX_SceneActuator::Update()
 		break;
 	}
 	
-	if (!m_nextSceneName.Length())
+	if (!m_nextSceneName.size())
 		return false;
 	
 	switch (m_mode)
@@ -228,7 +228,7 @@ PyAttributeDef KX_SceneActuator::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("camera",KX_SceneActuator,pyattr_get_camera,pyattr_set_camera),
 	KX_PYATTRIBUTE_BOOL_RW("useRestart", KX_SceneActuator, m_restart),
 	KX_PYATTRIBUTE_INT_RW("mode", KX_SCENE_NODEF+1, KX_SCENE_MAX-1, true, KX_SceneActuator, m_mode),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *KX_SceneActuator::pyattr_get_camera(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)

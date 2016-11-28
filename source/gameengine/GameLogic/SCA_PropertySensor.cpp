@@ -47,11 +47,13 @@
 #include "EXP_FloatValue.h"
 #include <stdio.h>
 
+#include <boost/algorithm/string.hpp>
+
 SCA_PropertySensor::SCA_PropertySensor(SCA_EventManager* eventmgr,
 									 SCA_IObject* gameobj,
-									 const STR_String& propname,
-									 const STR_String& propval,
-									 const STR_String& propmaxval,
+									 const std::string& propname,
+									 const std::string& propval,
+									 const std::string& propmaxval,
 									 KX_PROPSENSOR_TYPE checktype)
 	: SCA_ISensor(gameobj,eventmgr),
 	  m_checktype(checktype),
@@ -139,12 +141,12 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 			CValue* orgprop = GetParent()->FindIdentifier(m_checkpropname);
 			if (!orgprop->IsError())
 			{
-				const STR_String& testprop = orgprop->GetText();
+				const std::string& testprop = orgprop->GetText();
 				// Force strings to upper case, to avoid confusion in
 				// bool tests. It's stupid the prop's identity is lost
 				// on the way here...
 				if ((testprop == CBoolValue::sTrueString) || (testprop == CBoolValue::sFalseString)) {
-					m_checkpropval.Upper();
+					boost::to_upper(m_checkpropval);
 				}
 				result = (testprop == m_checkpropval);
 				
@@ -152,13 +154,8 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 				 * this could be made into a generic Value class function for comparing values with a string.
 				 */
 				if (result==false && (orgprop->GetValueType() == VALUE_FLOAT_TYPE)) {
-					float f;
-					if (sscanf(m_checkpropval.ReadPtr(), "%f", &f) == 1) {
-						result = (f == ((CFloatValue *)orgprop)->GetFloat());
-					} 
-					else {
-						/* error */
-					}
+					float f = std::stof(m_checkpropval);
+					result = (f == ((CFloatValue *)orgprop)->GetFloat());
 				}
 				/* end patch */
 			}
@@ -179,12 +176,12 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 			CValue* orgprop = GetParent()->FindIdentifier(m_checkpropname);
 			if (!orgprop->IsError())
 			{
-				const float min = m_checkpropval.ToFloat();
-				const float max = m_checkpropmaxval.ToFloat();
+				const float min = std::stof(m_checkpropval);
+				const float max = std::stof(m_checkpropmaxval);
 				float val;
 
 				if (orgprop->GetValueType() == VALUE_STRING_TYPE) {
-					val = orgprop->GetText().ToFloat();
+					val = std::stof(orgprop->GetText());
 				}
 				else {
 					val = orgprop->GetNumber();
@@ -220,11 +217,11 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 			CValue* orgprop = GetParent()->FindIdentifier(m_checkpropname);
 			if (!orgprop->IsError())
 			{
-				const float ref = m_checkpropval.ToFloat();
+				const float ref = std::stof(m_checkpropval);
 				float val;
 
 				if (orgprop->GetValueType() == VALUE_STRING_TYPE) {
-					val = orgprop->GetText().ToFloat();
+					val = std::stof(orgprop->GetText());
 				}
 				else {
 					val = orgprop->GetNumber();
@@ -253,7 +250,7 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 	return result;
 }
 
-CValue* SCA_PropertySensor::FindIdentifier(const STR_String& identifiername)
+CValue* SCA_PropertySensor::FindIdentifier(const std::string& identifiername)
 {
 	return  GetParent()->FindIdentifier(identifiername);
 }
@@ -307,7 +304,7 @@ PyAttributeDef SCA_PropertySensor::Attributes[] = {
 	KX_PYATTRIBUTE_STRING_RW_CHECK("value",0,100,false,SCA_PropertySensor,m_checkpropval,validValueForProperty),
 	KX_PYATTRIBUTE_STRING_RW_CHECK("min",0,100,false,SCA_PropertySensor,m_checkpropval,validValueForProperty),
 	KX_PYATTRIBUTE_STRING_RW_CHECK("max",0,100,false,SCA_PropertySensor,m_checkpropmaxval,validValueForProperty),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif // WITH_PYTHON

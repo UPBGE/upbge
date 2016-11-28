@@ -37,7 +37,7 @@
 #include "BL_Action.h"
 #include "BL_ActionManager.h"
 #include "KX_GameObject.h"
-#include "STR_HashedString.h"
+#include <string>
 #include "MEM_guardedalloc.h"
 #include "DNA_nla_types.h"
 #include "DNA_action_types.h"
@@ -61,8 +61,8 @@ extern "C" {
 }
 
 BL_ActionActuator::BL_ActionActuator(SCA_IObject *gameobj,
-					const STR_String& propname,
-					const STR_String& framepropname,
+					const std::string& propname,
+					const std::string& framepropname,
 					float starttime,
 					float endtime,
 					struct bAction *action,
@@ -560,7 +560,7 @@ PyAttributeDef BL_ActionActuator::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("useContinue", BL_ActionActuator, pyattr_get_use_continue, pyattr_set_use_continue),
 	KX_PYATTRIBUTE_FLOAT_RW_CHECK("blendTime", 0, MAXFRAMEF, BL_ActionActuator, m_blendframe, CheckBlendTime),
 	KX_PYATTRIBUTE_SHORT_RW_CHECK("mode",0,100,false,BL_ActionActuator,m_playtype,CheckType),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 PyObject *BL_ActionActuator::pyattr_get_action(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -580,7 +580,7 @@ int BL_ActionActuator::pyattr_set_action(void *self_v, const KX_PYATTRIBUTE_DEF 
 	}
 
 	bAction *action= NULL;
-	STR_String val = _PyUnicode_AsString(value);
+	std::string val = _PyUnicode_AsString(value);
 	
 	if (val != "")
 	{

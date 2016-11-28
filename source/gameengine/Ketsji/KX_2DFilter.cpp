@@ -71,7 +71,7 @@ PyMethodDef KX_2DFilter::Methods[] = {
 };
 
 PyAttributeDef KX_2DFilter::Attributes[] = {
-	{NULL} // Sentinel
+	KX_PYATTRIBUTE_NULL // Sentinel
 };
 
 

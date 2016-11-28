@@ -2826,7 +2826,7 @@ float CcdPhysicsEnvironment::getAppliedImpulse(int constraintid)
 	return 0.0f;
 }
 
-void CcdPhysicsEnvironment::ExportFile(const char *filename)
+void CcdPhysicsEnvironment::ExportFile(const std::string& filename)
 {
 	btDefaultSerializer *serializer = new btDefaultSerializer();
 
@@ -2835,16 +2835,16 @@ void CcdPhysicsEnvironment::ExportFile(const char *filename)
 
 		CcdPhysicsController *controller = static_cast<CcdPhysicsController *>(colObj->getUserPointer());
 		if (controller) {
-			const char *name = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)controller->GetNewClientInfo())->GetName();
-			if (name) {
-				serializer->registerNameForPointer(colObj, name);
+			const std::string name = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)controller->GetNewClientInfo())->GetName();
+			if (!name.empty()) {
+				serializer->registerNameForPointer(colObj, name.c_str());
 			}
 		}
 	}
 
 	m_dynamicsWorld->serialize(serializer);
 
-	FILE *file = fopen(filename, "wb");
+	FILE *file = fopen(filename.c_str(), "wb");
 	if (file) {
 		fwrite(serializer->getBufferPointer(), serializer->getCurrentBufferSize(), 1, file);
 		fclose(file);

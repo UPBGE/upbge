@@ -35,7 +35,7 @@ conflicts with KX_NetworkMessageManager::SendMessage */
 #  undef SendMessage
 #endif
 
-#include "STR_String.h"
+#include <string>
 #include <map>
 #include <vector>
 
@@ -47,13 +47,13 @@ public:
 	struct Message
 	{
 		/// Receiver object(s) name.
-		STR_String to;
+		std::string to;
 		/// Sender game object.
 		SCA_IObject *from;
 		/// Message subject, used as filter.
-		STR_String subject;
+		std::string subject;
 		/// Message body.
-		STR_String body;
+		std::string body;
 	};
 
 private:
@@ -61,7 +61,7 @@ private:
 	 * We use two lists, one handle sended message in the current frame and the other
 	 * is used for handle message sended in the last frame for sensors.
 	 */
-	std::map<STR_String, std::map<STR_String, std::vector<Message> > > m_messages[2];
+	std::map<std::string, std::map<std::string, std::vector<Message> > > m_messages[2];
 
 	/** Since we use two list for the current and last frame we have to switch of
 	 * current message list each frame. This value is only 0 or 1.
@@ -80,7 +80,7 @@ public:
 	 * \param to The object(s) name.
 	 * \param subject The message subject/filter.
 	 */
-	const std::vector<Message> GetMessages(STR_String to, STR_String subject);
+	const std::vector<Message> GetMessages(std::string to, std::string subject);
 
 	/// Clear all messages
 	void ClearMessages();

@@ -25,17 +25,17 @@ class CErrorValue : public CPropValue
 {
 
 public:
-	virtual const STR_String GetText();
+	virtual const std::string GetText();
 	virtual int GetValueType();
 	CErrorValue();
-	CErrorValue(const char *errmsg);
+	CErrorValue(const std::string& errmsg);
 	virtual ~CErrorValue();
 	virtual CValue* Calc(VALUE_OPERATOR op, CValue* val);
 	virtual CValue* CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 	virtual CValue* GetReplica();
 
 private:
-	STR_String m_strErrorText;
+	std::string m_strErrorText;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

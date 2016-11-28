@@ -38,7 +38,7 @@
 class SCA_ActuatorSensor : public SCA_ISensor
 {
 	Py_Header
-	STR_String		m_checkactname;
+	std::string		m_checkactname;
 	bool			m_lastresult;
 	bool			m_midresult;
  protected:
@@ -46,7 +46,7 @@ class SCA_ActuatorSensor : public SCA_ISensor
 public:
 	SCA_ActuatorSensor(class SCA_EventManager* eventmgr,
 					  SCA_IObject* gameobj,
-					  const STR_String& actname);
+					  const std::string& actname);
 	
 	virtual ~SCA_ActuatorSensor();
 	virtual CValue* GetReplica();

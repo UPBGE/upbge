@@ -48,7 +48,7 @@ KX_CubeMap::~KX_CubeMap()
 {
 }
 
-STR_String KX_CubeMap::GetName()
+std::string KX_CubeMap::GetName()
 {
 	return "KX_CubeMap";
 }
@@ -157,7 +157,7 @@ PyAttributeDef KX_CubeMap::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RW("ignoreLayers", 0, (1 << 20) - 1, true, KX_CubeMap, m_ignoreLayers),
 	KX_PYATTRIBUTE_RW_FUNCTION("clipStart", KX_CubeMap, pyattr_get_clip_start, pyattr_set_clip_start),
 	KX_PYATTRIBUTE_RW_FUNCTION("clipEnd", KX_CubeMap, pyattr_get_clip_end, pyattr_set_clip_end),
-	{NULL} // Sentinel
+	KX_PYATTRIBUTE_NULL // Sentinel
 };
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_CubeMap, update, "update(): Set the cube map to be updated next frame.\n")

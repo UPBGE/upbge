@@ -27,9 +27,9 @@ class CFloatValue : public CPropValue
 public:
 	CFloatValue();
 	CFloatValue(float fl);
-	CFloatValue(float fl,const char *name,AllocationTYPE alloctype=CValue::HEAPVALUE);
+	CFloatValue(float fl,const std::string& name,AllocationTYPE alloctype=CValue::HEAPVALUE);
 
-	virtual const STR_String GetText();
+	virtual const std::string GetText();
 
 	void Configure(CValue* menuvalue);
 	virtual double GetNumber();

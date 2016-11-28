@@ -153,7 +153,7 @@ void KX_BlenderMaterial::GetRGBAColor(unsigned char *rgba) const
 		RAS_IPolyMaterial::GetRGBAColor(rgba);
 }
 
-const STR_String KX_BlenderMaterial::GetTextureName() const
+const std::string KX_BlenderMaterial::GetTextureName() const
 {
 	return (m_textures[0] ? m_textures[0]->GetName() : "");
 }
@@ -524,7 +524,7 @@ void KX_BlenderMaterial::SetBlenderGLSLShader()
 	}
 }
 
-STR_String KX_BlenderMaterial::GetName()
+std::string KX_BlenderMaterial::GetName()
 {
 	return m_name;
 }
@@ -662,7 +662,7 @@ PyAttributeDef KX_BlenderMaterial::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("ambient", KX_BlenderMaterial, pyattr_get_ambient, pyattr_set_ambient),
 	KX_PYATTRIBUTE_RW_FUNCTION("specularAlpha", KX_BlenderMaterial, pyattr_get_specular_alpha, pyattr_set_specular_alpha),
 
-	{NULL} //Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 PyTypeObject KX_BlenderMaterial::Type = {
@@ -712,10 +712,10 @@ static PyObject *kx_blender_material_get_textures_item_cb(void *self_v, int inde
 	return item;
 }
 
-static const char *kx_blender_material_get_textures_item_name_cb(void *self_v, int index)
+static const std::string kx_blender_material_get_textures_item_name_cb(void *self_v, int index)
 {
 	BL_Texture *tex = (BL_Texture *)((KX_BlenderMaterial *)self_v)->GetTexture(index);
-	return (tex ? tex->GetName().ReadPtr() : "");
+	return (tex ? tex->GetName() : "");
 }
 
 PyObject *KX_BlenderMaterial::pyattr_get_textures(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -748,7 +748,7 @@ int KX_BlenderMaterial::pyattr_set_alpha(void *self_v, const KX_PYATTRIBUTE_DEF 
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -770,7 +770,7 @@ int KX_BlenderMaterial::pyattr_set_specular_alpha(void *self_v, const KX_PYATTRI
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -792,7 +792,7 @@ int KX_BlenderMaterial::pyattr_set_hardness(void *self_v, const KX_PYATTRIBUTE_D
 	int val = PyLong_AsLong(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "material.%s = int: KX_BlenderMaterial, expected a int", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "material.%s = int: KX_BlenderMaterial, expected a int", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -814,7 +814,7 @@ int KX_BlenderMaterial::pyattr_set_specular_intensity(void *self_v, const KX_PYA
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -861,7 +861,7 @@ int KX_BlenderMaterial::pyattr_set_diffuse_intensity(void *self_v, const KX_PYAT
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -908,7 +908,7 @@ int KX_BlenderMaterial::pyattr_set_emit(void *self_v, const KX_PYATTRIBUTE_DEF *
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -930,7 +930,7 @@ int KX_BlenderMaterial::pyattr_set_ambient(void *self_v, const KX_PYATTRIBUTE_DE
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "material.%s = float: KX_BlenderMaterial, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 

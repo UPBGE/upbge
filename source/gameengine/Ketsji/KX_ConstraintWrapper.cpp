@@ -47,7 +47,7 @@ KX_ConstraintWrapper::~KX_ConstraintWrapper()
 {
 }
 
-STR_String KX_ConstraintWrapper::GetName()
+std::string KX_ConstraintWrapper::GetName()
 {
 	return "KX_ConstraintWrapper";
 }
@@ -119,7 +119,7 @@ PyMethodDef KX_ConstraintWrapper::Methods[] = {
 PyAttributeDef KX_ConstraintWrapper::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("constraint_id", KX_ConstraintWrapper, pyattr_get_constraintId),
 	KX_PYATTRIBUTE_RO_FUNCTION("constraint_type", KX_ConstraintWrapper, pyattr_get_constraintType),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *KX_ConstraintWrapper::pyattr_get_constraintId(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

@@ -100,7 +100,7 @@ PyAttributeDef KX_PolyProxy::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("visible", KX_PolyProxy, pyattr_get_visible),
 	KX_PYATTRIBUTE_RO_FUNCTION("collide", KX_PolyProxy, pyattr_get_collide),
 	KX_PYATTRIBUTE_RO_FUNCTION("vertices", KX_PolyProxy, pyattr_get_vertices),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 KX_PolyProxy::KX_PolyProxy(KX_MeshProxy *meshProxy, RAS_MeshObject *mesh, RAS_Polygon* polygon)
@@ -118,7 +118,7 @@ KX_PolyProxy::~KX_PolyProxy()
 
 
 // stuff for cvalue related things
-STR_String KX_PolyProxy::GetName()
+std::string KX_PolyProxy::GetName()
 {
 	return "polygone";
 }
@@ -256,13 +256,13 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, isCollider,
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialName,
 "getMaterialName() : returns the polygon material name, \"NoMaterial\" if no material\n")
 {
-	return PyUnicode_From_STR_String(m_polygon->GetMaterial()->GetPolyMaterial()->GetName());
+	return PyUnicode_FromStdString(m_polygon->GetMaterial()->GetPolyMaterial()->GetName());
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getTextureName,
 "getTexturelName() : returns the polygon texture name, \"NULL\" if no texture\n")
 {
-	return PyUnicode_From_STR_String(m_polygon->GetMaterial()->GetPolyMaterial()->GetTextureName());
+	return PyUnicode_FromStdString(m_polygon->GetMaterial()->GetPolyMaterial()->GetTextureName());
 }
 
 KX_PYMETHODDEF_DOC(KX_PolyProxy, getVertexIndex,

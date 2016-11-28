@@ -54,8 +54,8 @@ class SCA_PythonController : public SCA_IController
 
 	
  protected:
-	STR_String				m_scriptText;
-	STR_String				m_scriptName;
+	std::string				m_scriptText;
+	std::string				m_scriptName;
 #ifdef WITH_PYTHON
 	PyObject*				m_pythondictionary;	/* for SCA_PYEXEC_SCRIPT only */
 	PyObject*				m_pythonfunction;	/* for SCA_PYEXEC_MODULE only */
@@ -82,8 +82,8 @@ class SCA_PythonController : public SCA_IController
 	virtual CValue* GetReplica();
 	virtual void  Trigger(class SCA_LogicManager* logicmgr);
   
-	void	SetScriptText(const STR_String& text);
-	void	SetScriptName(const STR_String& name);
+	void	SetScriptText(const std::string& text);
+	void	SetScriptName(const std::string& name);
 #ifdef WITH_PYTHON
 	void	SetNamespace(PyObject*	pythondictionary);
 #endif

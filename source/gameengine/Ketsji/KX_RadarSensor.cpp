@@ -49,7 +49,7 @@ KX_RadarSensor::KX_RadarSensor(SCA_EventManager* eventmgr,
 			double margin,
 			double resetmargin,
 			bool bFindMaterial,
-			const STR_String& touchedpropname)
+			const std::string& touchedpropname)
 
 			: KX_NearSensor(
 				eventmgr,
@@ -205,7 +205,7 @@ PyTypeObject KX_RadarSensor::Type = {
 };
 
 PyMethodDef KX_RadarSensor::Methods[] = {
-	{NULL} //Sentinel
+	{NULL, NULL} //Sentinel
 };
 
 PyAttributeDef KX_RadarSensor::Attributes[] = {
@@ -214,7 +214,7 @@ PyAttributeDef KX_RadarSensor::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_RO("distance", KX_RadarSensor, m_coneheight),
 	KX_PYATTRIBUTE_RO_FUNCTION("angle", KX_RadarSensor, pyattr_get_angle),
 	KX_PYATTRIBUTE_INT_RW("axis", 0, 5, true, KX_RadarSensor, m_axis),
-	{NULL} //Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 PyObject *KX_RadarSensor::pyattr_get_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

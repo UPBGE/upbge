@@ -323,7 +323,7 @@ protected:
 
 	class btDispatcher *m_ownDispatcher;
 
-	virtual void ExportFile(const char *filename);
+	virtual void ExportFile(const std::string& filename);
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CcdPhysicsEnvironment")

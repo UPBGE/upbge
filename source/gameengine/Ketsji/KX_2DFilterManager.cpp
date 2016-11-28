@@ -52,7 +52,7 @@ PyMethodDef KX_2DFilterManager::Methods[] = {
 };
 
 PyAttributeDef KX_2DFilterManager::Attributes[] = {
-	{NULL} //Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 PyTypeObject KX_2DFilterManager::Type = {
@@ -121,7 +121,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilterManager, addFilter, " addFilter(index, type, fragm
 	RAS_2DFilterData data;
 	data.filterPassIndex = index;
 	data.filterMode = type;
-	data.shaderText = STR_String(frag);
+	data.shaderText = std::string(frag);
 
 	AddFilter(data);
 

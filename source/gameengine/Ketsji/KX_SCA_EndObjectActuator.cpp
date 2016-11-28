@@ -117,7 +117,7 @@ PyMethodDef KX_SCA_EndObjectActuator::Methods[] = {
 };
 
 PyAttributeDef KX_SCA_EndObjectActuator::Attributes[] = {
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif // WITH_PYTHON

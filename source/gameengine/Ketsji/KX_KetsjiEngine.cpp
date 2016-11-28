@@ -36,6 +36,8 @@
 
 #include "CM_Message.h"
 
+#include <boost/format.hpp>
+
 #include "BLI_task.h"
 
 #include "KX_KetsjiEngine.h"
@@ -704,7 +706,7 @@ void KX_KetsjiEngine::RequestExit(int exitrequestmode)
 	m_exitcode = exitrequestmode;
 }
 
-void KX_KetsjiEngine::SetNameNextGame(const STR_String& nextgame)
+void KX_KetsjiEngine::SetNameNextGame(const std::string& nextgame)
 {
 	m_exitstring = nextgame;
 }
@@ -720,12 +722,12 @@ int KX_KetsjiEngine::GetExitCode()
 	return m_exitcode;
 }
 
-const STR_String& KX_KetsjiEngine::GetExitString()
+const std::string& KX_KetsjiEngine::GetExitString()
 {
 	return m_exitstring;
 }
 
-void KX_KetsjiEngine::EnableCameraOverride(const STR_String& forscene)
+void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene)
 {
 	m_overrideCam = true;
 	m_overrideSceneName = forscene;
@@ -1162,7 +1164,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 
 void KX_KetsjiEngine::RenderDebugProperties()
 {
-	STR_String debugtxt;
+	std::string debugtxt;
 	int title_xmargin = -7;
 	int title_y_top_margin = 4;
 	int title_y_bottom_margin = 2;
@@ -1204,9 +1206,9 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		                           m_canvas->GetWidth() /* RdV, TODO ?? */,
 		                           m_canvas->GetHeight() /* RdV, TODO ?? */);
 
-		debugtxt.Format("%5.2fms (%.1ffps)", tottime * 1000.0f, 1.0f / tottime);
+		debugtxt = (boost::format("%5.2fms (%.1ffps)") %  (tottime * 1000.0f) % (1.0f / tottime)).str();
 		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-		                           debugtxt.ReadPtr(),
+		                           debugtxt,
 		                           xcoord + const_xindent + profile_indent,
 		                           ycoord,
 		                           m_canvas->GetWidth() /* RdV, TODO ?? */,
@@ -1227,9 +1229,9 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 			double time = m_logger->GetAverage((KX_TimeCategory)j);
 
-			debugtxt.Format("%5.2fms | %d%%", time*1000.f, (int)(time/tottime * 100.f));
+			debugtxt = (boost::format("%5.2fms | %d%%") % (time*1000.f) % (int)(time/tottime * 100.f)).str();
 			m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-			                           debugtxt.ReadPtr(),
+			                           debugtxt,
 			                           xcoord + const_xindent + profile_indent, ycoord,
 			                           m_canvas->GetWidth(),
 			                           m_canvas->GetHeight());
@@ -1268,8 +1270,8 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 			for (unsigned i = 0; i < debugproplist.size() && propsAct < propsMax; i++) {
 				CValue *propobj = debugproplist[i]->m_obj;
-				STR_String objname = propobj->GetName();
-				STR_String propname = debugproplist[i]->m_name;
+				std::string objname = propobj->GetName();
+				std::string propname = debugproplist[i]->m_name;
 				propsAct++;
 				if (propname == "__state__") {
 					// reserve name for object state
@@ -1282,12 +1284,12 @@ void KX_KetsjiEngine::RenderDebugProperties()
 							if (!first) {
 								debugtxt += ",";
 							}
-							debugtxt += STR_String(statenum);
+							debugtxt += std::to_string(statenum);
 							first = false;
 						}
 					}
 					m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-					                           debugtxt.ReadPtr(),
+					                           debugtxt,
 					                           xcoord + const_xindent,
 					                           ycoord,
 					                           m_canvas->GetWidth(),
@@ -1297,10 +1299,10 @@ void KX_KetsjiEngine::RenderDebugProperties()
 				else {
 					CValue *propval = propobj->GetProperty(propname);
 					if (propval) {
-						STR_String text = propval->GetText();
+						std::string text = propval->GetText();
 						debugtxt = objname + ": '" + propname + "' = " + text;
 						m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-						                           debugtxt.ReadPtr(),
+						                           debugtxt,
 						                           xcoord + const_xindent,
 						                           ycoord,
 						                           m_canvas->GetWidth(),
@@ -1318,12 +1320,12 @@ CListValue *KX_KetsjiEngine::CurrentScenes()
 	return m_scenes;
 }
 
-KX_Scene *KX_KetsjiEngine::FindScene(const STR_String& scenename)
+KX_Scene *KX_KetsjiEngine::FindScene(const std::string& scenename)
 {
 	return (KX_Scene *)m_scenes->FindValue(scenename);
 }
 
-void KX_KetsjiEngine::ConvertAndAddScene(const STR_String& scenename, bool overlay)
+void KX_KetsjiEngine::ConvertAndAddScene(const std::string& scenename, bool overlay)
 {
 	// only add scene when it doesn't exist!
 	if (FindScene(scenename)) {
@@ -1339,7 +1341,7 @@ void KX_KetsjiEngine::ConvertAndAddScene(const STR_String& scenename, bool overl
 	}
 }
 
-void KX_KetsjiEngine::RemoveScene(const STR_String& scenename)
+void KX_KetsjiEngine::RemoveScene(const std::string& scenename)
 {
 	if (FindScene(scenename)) {
 		m_removingScenes.push_back(scenename);
@@ -1352,9 +1354,9 @@ void KX_KetsjiEngine::RemoveScene(const STR_String& scenename)
 void KX_KetsjiEngine::RemoveScheduledScenes()
 {
 	if (m_removingScenes.size()) {
-		std::vector<STR_String>::iterator scenenameit;
+		std::vector<std::string>::iterator scenenameit;
 		for (scenenameit = m_removingScenes.begin(); scenenameit != m_removingScenes.end(); scenenameit++) {
-			STR_String scenename = *scenenameit;
+			std::string scenename = *scenenameit;
 
 			KX_Scene *scene = FindScene(scenename);
 			if (scene) {
@@ -1382,7 +1384,7 @@ KX_Scene *KX_KetsjiEngine::CreateScene(Scene *scene, bool libloading)
 	return tmpscene;
 }
 
-KX_Scene *KX_KetsjiEngine::CreateScene(const STR_String& scenename)
+KX_Scene *KX_KetsjiEngine::CreateScene(const std::string& scenename)
 {
 	Scene *scene = m_sceneconverter->GetBlenderSceneForName(scenename);
 	if (!scene)
@@ -1393,14 +1395,14 @@ KX_Scene *KX_KetsjiEngine::CreateScene(const STR_String& scenename)
 
 void KX_KetsjiEngine::AddScheduledScenes()
 {
-	std::vector<STR_String>::iterator scenenameit;
+	std::vector<std::string>::iterator scenenameit;
 
 	if (m_addingOverlayScenes.size()) {
 		for (scenenameit = m_addingOverlayScenes.begin();
 		     scenenameit != m_addingOverlayScenes.end();
 		     scenenameit++)
 		{
-			STR_String scenename = *scenenameit;
+			std::string scenename = *scenenameit;
 			KX_Scene *tmpscene = CreateScene(scenename);
 			if (tmpscene) {
 				m_scenes->Add(tmpscene->AddRef());
@@ -1419,7 +1421,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 		     scenenameit != m_addingBackgroundScenes.end();
 		     scenenameit++)
 		{
-			STR_String scenename = *scenenameit;
+			std::string scenename = *scenenameit;
 			KX_Scene *tmpscene = CreateScene(scenename);
 			if (tmpscene) {
 				m_scenes->Insert(0, tmpscene->AddRef());
@@ -1434,7 +1436,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 	}
 }
 
-bool KX_KetsjiEngine::ReplaceScene(const STR_String& oldscene, const STR_String& newscene)
+bool KX_KetsjiEngine::ReplaceScene(const std::string& oldscene, const std::string& newscene)
 {
 	// Don't allow replacement if the new scene doesn't exist.
 	// Allows smarter game design (used to have no check here).
@@ -1457,14 +1459,14 @@ bool KX_KetsjiEngine::ReplaceScene(const STR_String& oldscene, const STR_String&
 void KX_KetsjiEngine::ReplaceScheduledScenes()
 {
 	if (m_replace_scenes.size()) {
-		std::vector<std::pair<STR_String, STR_String> >::iterator scenenameit;
+		std::vector<std::pair<std::string, std::string> >::iterator scenenameit;
 
 		for (scenenameit = m_replace_scenes.begin();
 		     scenenameit != m_replace_scenes.end();
 		     scenenameit++)
 		{
-			STR_String oldscenename = (*scenenameit).first;
-			STR_String newscenename = (*scenenameit).second;
+			std::string oldscenename = (*scenenameit).first;
+			std::string newscenename = (*scenenameit).second;
 			/* Scenes are not supposed to be included twice... I think */
 			for (unsigned int sce_idx = 0; sce_idx < m_scenes->GetCount(); ++sce_idx) {
 				KX_Scene *scene = (KX_Scene *)m_scenes->GetValue(sce_idx);
@@ -1489,7 +1491,7 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 	}
 }
 
-void KX_KetsjiEngine::SuspendScene(const STR_String& scenename)
+void KX_KetsjiEngine::SuspendScene(const std::string& scenename)
 {
 	KX_Scene *scene = FindScene(scenename);
 	if (scene) {
@@ -1497,7 +1499,7 @@ void KX_KetsjiEngine::SuspendScene(const STR_String& scenename)
 	}
 }
 
-void KX_KetsjiEngine::ResumeScene(const STR_String& scenename)
+void KX_KetsjiEngine::ResumeScene(const std::string& scenename)
 {
 	KX_Scene *scene = FindScene(scenename);
 	if (scene) {

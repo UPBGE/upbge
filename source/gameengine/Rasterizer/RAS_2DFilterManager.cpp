@@ -142,7 +142,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 {
 	RAS_2DFilter *result = NULL;
-	const char *shaderSource = NULL;
+	std::string shaderSource;
 	switch(filterData.filterMode) {
 		case RAS_2DFilterManager::FILTER_MOTIONBLUR:
 			break;
@@ -177,7 +177,7 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 			shaderSource = datatoc_RAS_Invert2DFilter_glsl;
 			break;
 	}
-	if (!shaderSource) {
+	if (shaderSource.empty()) {
 		if(filterData.filterMode == RAS_2DFilterManager::FILTER_CUSTOMFILTER) {
 			result = NewFilter(filterData);
 		}

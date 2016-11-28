@@ -60,7 +60,7 @@ public:
 	BL_ActionManager(class KX_GameObject* obj);
 	~BL_ActionManager();
 
-	bool PlayAction(const char* name,
+	bool PlayAction(const std::string& name,
 					float start,
 					float end,
 					short layer=0,
@@ -79,7 +79,7 @@ public:
 	/**
 	 * Gets the name of the current action
 	 */        
-	const char *GetActionName(short layer);
+	const std::string GetActionName(short layer);
 
 	/**
 	 * Sets the current frame of an action

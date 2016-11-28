@@ -478,8 +478,8 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	// Without checking names, we get some reuse we don't want that can cause
 	// problems with material LoDs.
 	if (blenderobj && ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL)) {
-		const STR_String bge_name = meshobj->GetName();
-		const STR_String blender_name = ((ID *)blenderobj->data)->name + 2;
+		const std::string bge_name = meshobj->GetName();
+		const std::string blender_name = ((ID *)blenderobj->data)->name + 2;
 		if (bge_name == blender_name) {
 			return meshobj;
 		}
@@ -1198,7 +1198,7 @@ static void blenderSceneSetBackground(Scene *blenderscene)
 	}
 }
 
-static KX_GameObject* getGameOb(STR_String busc,CListValue* sumolist)
+static KX_GameObject* getGameOb(std::string busc,CListValue* sumolist)
 {
 	for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
 		KX_GameObject *gameobje = *it;

@@ -33,7 +33,7 @@
 #ifndef __KX_NETWORKMESSAGEACTUATOR_H__
 #define __KX_NETWORKMESSAGEACTUATOR_H__
 
-#include "STR_String.h"
+#include <string>
 #include "SCA_IActuator.h"
 
 class KX_NetworkMessageActuator : public SCA_IActuator
@@ -41,19 +41,19 @@ class KX_NetworkMessageActuator : public SCA_IActuator
 	Py_Header
 	bool m_lastEvent;
 	class KX_NetworkMessageScene *m_networkscene;  // needed for replication
-	STR_String m_toPropName;
-	STR_String m_subject;
+	std::string m_toPropName;
+	std::string m_subject;
 	bool m_bPropBody;
-	STR_String m_body;
+	std::string m_body;
 
 public:
 	KX_NetworkMessageActuator(
 	    SCA_IObject *gameobj,
 	    KX_NetworkMessageScene *networkscene,
-	    const STR_String &toPropName,
-	    const STR_String &subject,
+	    const std::string &toPropName,
+	    const std::string &subject,
 	    int bodyType,
-	    const STR_String &body);
+	    const std::string &body);
 	virtual ~KX_NetworkMessageActuator();
 
 	virtual bool Update();

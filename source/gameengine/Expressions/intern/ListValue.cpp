@@ -51,22 +51,20 @@ CListValue::~CListValue()
 }
 
 
-static STR_String gstrListRep=STR_String("List");
-
-const STR_String CListValue::GetText()
+const std::string CListValue::GetText()
 {
-	gstrListRep = "[";
-	STR_String commastr = "";
+	std::string strListRep = "[";
+	std::string commastr = "";
 
 	for (int i=0;i<GetCount();i++)
 	{
-		gstrListRep += commastr;
-		gstrListRep += GetValue(i)->GetText();
+		strListRep += commastr;
+		strListRep += GetValue(i)->GetText();
 		commastr = ",";
 	}
-	gstrListRep += "]";
+	strListRep += "]";
 
-	return gstrListRep;
+	return strListRep;
 }
 
 
@@ -141,16 +139,7 @@ void CListValue::ReleaseAndRemoveAll()
 
 
 
-CValue* CListValue::FindValue(const STR_String &name)
-{
-	for (int i=0; i < GetCount(); i++)
-		if (GetValue(i)->GetName() == name)
-			return GetValue(i);
-
-	return NULL;
-}
-
-CValue* CListValue::FindValue(const char *name)
+CValue* CListValue::FindValue(const std::string &name)
 {
 	for (int i=0; i < GetCount(); i++)
 		if (GetValue(i)->GetName() == name)
@@ -214,7 +203,7 @@ bool CListValue::CheckEqual(CValue* first,CValue* second)
 
 	if (eqval==NULL)
 		return false;
-	const STR_String& text = eqval->GetText();
+	const std::string& text = eqval->GetText();
 	if (text == CBoolValue::sTrueString)
 	{
 		result = true;
@@ -472,7 +461,7 @@ static int listvalue_buffer_contains(PyObject *self_v, PyObject *value)
 	}
 	
 	if (PyUnicode_Check(value)) {
-		if (self->FindValue((const char *)_PyUnicode_AsString(value))) {
+		if (self->FindValue(_PyUnicode_AsString(value))) {
 			return 1;
 		}
 	}
@@ -561,7 +550,7 @@ PyMethodDef CListValue::Methods[] = {
 };
 
 PyAttributeDef CListValue::Attributes[] = {
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *CListValue::Pyappend(PyObject *value)
@@ -657,7 +646,7 @@ PyObject *CListValue::Pyget(PyObject *args)
 	if (!PyArg_ParseTuple(args, "s|O:get", &key, &def))
 		return NULL;
 
-	CValue *item = FindValue((const char *)key);
+	CValue *item = FindValue(key);
 	if (item) {
 		PyObject *pyobj = item->ConvertValueToPython();
 		if (pyobj)

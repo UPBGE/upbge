@@ -231,7 +231,7 @@ PyAttributeDef SCA_IController::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("sensors", SCA_IController, pyattr_get_sensors),
 	KX_PYATTRIBUTE_RO_FUNCTION("actuators", SCA_IController, pyattr_get_actuators),
 	KX_PYATTRIBUTE_BOOL_RW("useHighPriority",SCA_IController,m_bookmark),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *SCA_IController::pyattr_get_state(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -250,9 +250,9 @@ static PyObject *sca_icontroller_get_sensors_item_cb(void *self_v, int index)
 	return ((SCA_IController *)self_v)->GetLinkedSensors()[index]->GetProxy();
 }
 
-static const char *sca_icontroller_get_sensors_item_name_cb(void *self_v, int index)
+static const std::string sca_icontroller_get_sensors_item_name_cb(void *self_v, int index)
 {
-	return ((SCA_IController *)self_v)->GetLinkedSensors()[index]->GetName().ReadPtr();
+	return ((SCA_IController *)self_v)->GetLinkedSensors()[index]->GetName();
 }
 
 PyObject *SCA_IController::pyattr_get_sensors(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -276,9 +276,9 @@ static PyObject *sca_icontroller_get_actuators_item_cb(void *self_v, int index)
 	return ((SCA_IController *)self_v)->GetLinkedActuators()[index]->GetProxy();
 }
 
-static const char *sca_icontroller_get_actuators_item_name_cb(void *self_v, int index)
+static const std::string sca_icontroller_get_actuators_item_name_cb(void *self_v, int index)
 {
-	return ((SCA_IController *)self_v)->GetLinkedActuators()[index]->GetName().ReadPtr();
+	return ((SCA_IController *)self_v)->GetLinkedActuators()[index]->GetName();
 }
 
 PyObject *SCA_IController::pyattr_get_actuators(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

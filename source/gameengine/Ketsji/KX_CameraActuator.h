@@ -76,15 +76,9 @@ private :
 	/** damping (float), */
 	float m_damping;
 
-	/* get the KX_IGameObject with this name */
-	CValue *findObject(const char *obName);
-
-	/* parse x or y to a toggle pick */
-	bool string2axischoice(const char *axisString);
-	
- public:
-	static STR_String X_AXIS_STRING;
-	static STR_String Y_AXIS_STRING;
+public:
+	static std::string X_AXIS_STRING;
+	static std::string Y_AXIS_STRING;
 	
 	/**
 	 * Set the bool toggle to true to use x lock, false for y lock

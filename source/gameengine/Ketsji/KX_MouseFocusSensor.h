@@ -59,7 +59,7 @@ class KX_MouseFocusSensor : public SCA_MouseSensor
 						short int mousemode,
 						int focusmode,
 						bool bCollisionPulse,
-						const STR_String& propname,
+						const std::string& propname,
 						bool bFindMaterial,
 						bool bXRay,
 						KX_Scene* kxscene,
@@ -153,7 +153,7 @@ class KX_MouseFocusSensor : public SCA_MouseSensor
 	/**
 	 * Property or material name
 	 */
-	STR_String m_propertyname;
+	std::string m_propertyname;
 
 	/**
 	 * Flags whether the previous test evaluated positive.

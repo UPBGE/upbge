@@ -33,7 +33,7 @@ effect: constructs a new CErrorValue containing errormessage "Error"
 
 
 
-CErrorValue::CErrorValue(const char *errmsg)
+CErrorValue::CErrorValue(const std::string& errmsg)
 /*
 pre:
 effect: constructs a new CErrorValue containing errormessage errmsg
@@ -105,7 +105,7 @@ int CErrorValue::GetValueType()
 
 
 
-const STR_String CErrorValue::GetText()
+const std::string CErrorValue::GetText()
 {
 	return m_strErrorText;
 }

@@ -160,9 +160,9 @@ public:
 	 */
 	virtual bool UnlinkObject(SCA_IObject* clientobj) { return false; }
 
-	SCA_ISensor* FindSensor(const STR_String& sensorname);
-	SCA_IActuator* FindActuator(const STR_String& actuatorname);
-	SCA_IController* FindController(const STR_String& controllername);
+	SCA_ISensor* FindSensor(const std::string& sensorname);
+	SCA_IActuator* FindActuator(const std::string& actuatorname);
+	SCA_IController* FindController(const std::string& controllername);
 
 	void SetCurrentTime(float currentTime) {}
 

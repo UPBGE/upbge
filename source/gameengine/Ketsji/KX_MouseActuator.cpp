@@ -394,7 +394,7 @@ PyAttributeDef KX_MouseActuator::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("limit_x", KX_MouseActuator, pyattr_get_limit_x, pyattr_set_limit_x),
 	KX_PYATTRIBUTE_RW_FUNCTION("limit_y", KX_MouseActuator, pyattr_get_limit_y, pyattr_set_limit_y),
 	KX_PYATTRIBUTE_RW_FUNCTION("angle", KX_MouseActuator, pyattr_get_angle, pyattr_set_angle),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject* KX_MouseActuator::pyattr_get_limit_x(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

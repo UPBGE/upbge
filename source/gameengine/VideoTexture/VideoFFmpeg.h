@@ -102,7 +102,7 @@ public:
 	void setPreseek(int preseek) { if (preseek >= 0) m_preseek = preseek; }
 	bool getDeinterlace(void) { return m_deinterlace; }
 	void setDeinterlace(bool deinterlace) { m_deinterlace = deinterlace; }
-	char *getImageName(void) { return (m_isImage) ? m_imageName.Ptr() : NULL; }
+	char *getImageName(void) { return (m_isImage) ? (char *)m_imageName.c_str() : NULL; }
 
 protected:
 	// format and codec information
@@ -161,7 +161,7 @@ protected:
 	bool m_isStreaming;
 
 	/// keep last image name
-	STR_String m_imageName;
+	std::string m_imageName;
 
 	/// image calculation
 	virtual void calcImage (unsigned int texId, double ts);

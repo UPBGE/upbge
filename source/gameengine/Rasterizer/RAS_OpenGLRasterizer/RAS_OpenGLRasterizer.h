@@ -383,9 +383,9 @@ public:
 
 	void DisableForText();
 	void RenderBox2D(int xco, int yco, int width, int height, float percentage);
-	void RenderText3D(int fontid, const char *text, int size, int dpi,
+	void RenderText3D(int fontid, const std::string& text, int size, int dpi,
 	                  const float color[4], const float mat[16], float aspect);
-	void RenderText2D(RAS_TEXT_RENDER_MODE mode, const char *text,
+	void RenderText2D(RAS_TEXT_RENDER_MODE mode, const std::string& text,
 	                  int xco, int yco, int width, int height);
 
 	virtual void GetTransform(float *origmat, int objectdrawmode, float mat[16]);

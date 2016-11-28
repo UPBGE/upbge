@@ -52,8 +52,8 @@ class SCA_PropertyActuator : public SCA_IActuator
 	bool isValid(KX_ACT_PROP_MODE mode);
 	
 	int			m_type;
-	STR_String	m_propname;
-	STR_String	m_exprtxt;
+	std::string	m_propname;
+	std::string	m_exprtxt;
 	SCA_IObject* m_sourceObj; // for copy property actuator
 
 public:
@@ -63,8 +63,8 @@ public:
 	SCA_PropertyActuator(
 		SCA_IObject* gameobj,
 		SCA_IObject* sourceObj,
-		const STR_String& propname,
-		const STR_String& expr,
+		const std::string& propname,
+		const std::string& expr,
 		int acttype);
 
 

@@ -53,7 +53,7 @@ SCA_RandomActuator::SCA_RandomActuator(SCA_IObject *gameobj,
                                        SCA_RandomActuator::KX_RANDOMACT_MODE mode,
                                        float para1,
                                        float para2,
-                                       const STR_String &propName)
+                                       const std::string &propName)
     : SCA_IActuator(gameobj, KX_ACT_RANDOM),
       m_propname(propName),
 	  m_parameter1(para1),
@@ -350,7 +350,7 @@ PyAttributeDef SCA_RandomActuator::Attributes[] = {
 	KX_PYATTRIBUTE_ENUM_RO("distribution",SCA_RandomActuator,m_distribution),
 	KX_PYATTRIBUTE_STRING_RW_CHECK("propName",0,MAX_PROP_NAME,false,SCA_RandomActuator,m_propname,CheckProperty),
 	KX_PYATTRIBUTE_RW_FUNCTION("seed",SCA_RandomActuator,pyattr_get_seed,pyattr_set_seed),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *SCA_RandomActuator::pyattr_get_seed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)

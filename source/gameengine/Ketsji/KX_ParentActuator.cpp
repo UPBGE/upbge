@@ -168,7 +168,7 @@ PyAttributeDef KX_ParentActuator::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RW("mode", KX_PARENT_NODEF+1, KX_PARENT_MAX-1, true, KX_ParentActuator, m_mode),
 	KX_PYATTRIBUTE_BOOL_RW("compound", KX_ParentActuator, m_addToCompound),
 	KX_PYATTRIBUTE_BOOL_RW("ghost", KX_ParentActuator, m_ghost),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *KX_ParentActuator::pyattr_get_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)

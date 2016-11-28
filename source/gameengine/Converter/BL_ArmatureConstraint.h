@@ -59,7 +59,7 @@ private:
 	struct bConstraint* m_constraint;
 	struct bPoseChannel* m_posechannel;
 	class BL_ArmatureObject* m_armature;
-	char m_name[64];
+	std::string m_name;
 	KX_GameObject*  m_target;
 	KX_GameObject*  m_subtarget;
 	struct Object*	m_blendtarget;
@@ -85,8 +85,8 @@ public:
 	void UpdateTarget();
 	void RestoreTarget();
 
-	bool Match(const char* posechannel, const char* constraint);
-	const char* GetName() { return m_name; }
+	bool Match(const std::string& posechannel, const std::string& constraint);
+	const std::string& GetName() { return m_name; }
 
 	void SetConstraintFlag(int flag)
 	{

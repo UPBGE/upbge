@@ -24,7 +24,7 @@
 #define __RAS_2DFILTERDATA__
 
 #include <vector>
-#include "STR_String.h"
+#include <string>
 
 class CValue;
 
@@ -40,7 +40,7 @@ public:
 	virtual ~RAS_2DFilterData();
 
 	/// The names of the properties of the game object that the shader may want to use as uniforms.
-	std::vector<STR_String> propertyNames;
+	std::vector<std::string> propertyNames;
 	/// The KX_GameObject (or something else?) that provides the values for the uniforms named above.
 	CValue *gameObject;
 	/// Should be a SCA_2DFilterActuator.FILTER_MODE value.
@@ -48,7 +48,7 @@ public:
 	/// In the original design this was bot the pass index and the unique identifier of the filter in the filter manager.
 	unsigned int filterPassIndex;
 	/// This is the shader program source code IF the filter is not a predefined one.
-	STR_String shaderText;
+	std::string shaderText;
 };
 
 #endif // __RAS_2DFILTERDATA__

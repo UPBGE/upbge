@@ -373,7 +373,7 @@ PyAttributeDef SCA_ISensor::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("pos_ticks", SCA_ISensor, pyattr_get_posTicks),
 	KX_PYATTRIBUTE_RO_FUNCTION("neg_ticks", SCA_ISensor, pyattr_get_negTicks),
 	KX_PYATTRIBUTE_RW_FUNCTION("frequency", SCA_ISensor, pyattr_get_frequency, pyattr_set_frequency),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 

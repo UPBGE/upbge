@@ -129,7 +129,7 @@ int RAS_MeshObject::NumMaterials()
 	return m_materials.size();
 }
 
-const STR_String RAS_MeshObject::GetMaterialName(unsigned int matid)
+const std::string RAS_MeshObject::GetMaterialName(unsigned int matid)
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
@@ -180,12 +180,12 @@ std::vector<RAS_MeshMaterial *>::iterator RAS_MeshObject::GetLastMaterial()
 	return m_materials.end();
 }
 
-STR_String& RAS_MeshObject::GetName()
+std::string& RAS_MeshObject::GetName()
 {
 	return m_name;
 }
 
-const STR_String RAS_MeshObject::GetTextureName(unsigned int matid)
+const std::string RAS_MeshObject::GetTextureName(unsigned int matid)
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 

@@ -72,7 +72,7 @@ CValue* CIfExpr::Calculate()
 {
 	CValue *guardval;
 	guardval = m_guard->Calculate();
-	const STR_String& text = guardval->GetText();
+	const std::string& text = guardval->GetText();
 	guardval->Release();
 
 	if (text == CBoolValue::sTrueString)

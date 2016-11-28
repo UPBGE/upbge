@@ -27,7 +27,7 @@
 #ifndef __BL_ACTION_H__
 #define __BL_ACTION_H__
 
-
+#include <string>
 #include <vector>
 
 #ifdef WITH_CXX_GUARDEDALLOC
@@ -90,7 +90,7 @@ public:
 	/**
 	 * Play an action
 	 */
-	bool Play(const char* name,
+	bool Play(const std::string& name,
 			float start,
 			float end,
 			short priority,
@@ -118,7 +118,7 @@ public:
 
 	// Accessors
 	float GetFrame();
-	const char *GetName();
+	const std::string GetName();
 
 	struct bAction *GetAction();
 

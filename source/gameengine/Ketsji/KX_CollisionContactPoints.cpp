@@ -39,7 +39,7 @@ KX_CollisionContactPoint::~KX_CollisionContactPoint()
 {
 }
 
-STR_String KX_CollisionContactPoint::GetName()
+std::string KX_CollisionContactPoint::GetName()
 {
 	return "CollisionContactPoint";
 }
@@ -80,7 +80,7 @@ PyAttributeDef KX_CollisionContactPoint::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("combinedFriction", KX_CollisionContactPoint, pyattr_get_combined_friction),
 	KX_PYATTRIBUTE_RO_FUNCTION("combinedRestitution", KX_CollisionContactPoint, pyattr_get_combined_restitution),
 	KX_PYATTRIBUTE_RO_FUNCTION("appliedImpulse", KX_CollisionContactPoint, pyattr_get_applied_impulse),
-	{NULL} //Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 PyObject *KX_CollisionContactPoint::pyattr_get_local_point_a(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

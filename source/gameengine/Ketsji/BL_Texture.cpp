@@ -51,7 +51,7 @@ BL_Texture::BL_Texture(MTex *mtex)
 	m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : NULL);
 
 	// Initialize saved data.
-	m_name = STR_String(m_mtex->tex->id.name + 2);
+	m_name = std::string(m_mtex->tex->id.name + 2);
 	m_savedData.colintensfac = m_mtex->difffac;
 	m_savedData.colfac = m_mtex->colfac;
 	m_savedData.alphafac = m_mtex->alphafac;
@@ -202,7 +202,7 @@ unsigned int BL_Texture::swapTexture(unsigned int bindcode)
 }
 
 // stuff for cvalue related things
-STR_String BL_Texture::GetName()
+std::string BL_Texture::GetName()
 {
 	return RAS_Texture::GetName();
 }
@@ -255,7 +255,7 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("uvRotation", BL_Texture, pyattr_get_uv_rotation, pyattr_set_uv_rotation),
 	KX_PYATTRIBUTE_RW_FUNCTION("uvOffset", BL_Texture, pyattr_get_uv_offset, pyattr_set_uv_offset),
 	KX_PYATTRIBUTE_RW_FUNCTION("uvSize", BL_Texture, pyattr_get_uv_size, pyattr_set_uv_size),
-	{ NULL }    //Sentinel
+	KX_PYATTRIBUTE_NULL    //Sentinel
 };
 
 PyObject *BL_Texture::pyattr_get_diffuse_intensity(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -270,7 +270,7 @@ int BL_Texture::pyattr_set_diffuse_intensity(void *self_v, const KX_PYATTRIBUTE_
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -290,7 +290,7 @@ int BL_Texture::pyattr_set_diffuse_factor(void *self_v, const KX_PYATTRIBUTE_DEF
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -310,7 +310,7 @@ int BL_Texture::pyattr_set_alpha(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -330,7 +330,7 @@ int BL_Texture::pyattr_set_specular_intensity(void *self_v, const KX_PYATTRIBUTE
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -350,7 +350,7 @@ int BL_Texture::pyattr_set_specular_factor(void *self_v, const KX_PYATTRIBUTE_DE
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -370,7 +370,7 @@ int BL_Texture::pyattr_set_hardness(void *self_v, const KX_PYATTRIBUTE_DEF *attr
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -390,7 +390,7 @@ int BL_Texture::pyattr_set_emit(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef,
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -410,7 +410,7 @@ int BL_Texture::pyattr_set_mirror(void *self_v, const KX_PYATTRIBUTE_DEF *attrde
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -430,7 +430,7 @@ int BL_Texture::pyattr_set_normal(void *self_v, const KX_PYATTRIBUTE_DEF *attrde
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -450,7 +450,7 @@ int BL_Texture::pyattr_set_parallax_bump(void *self_v, const KX_PYATTRIBUTE_DEF 
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -470,7 +470,7 @@ int BL_Texture::pyattr_set_parallax_step(void *self_v, const KX_PYATTRIBUTE_DEF 
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -490,7 +490,7 @@ int BL_Texture::pyattr_set_lod_bias(void *self_v, const KX_PYATTRIBUTE_DEF *attr
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -511,7 +511,7 @@ int BL_Texture::pyattr_set_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *att
 	int val = PyLong_AsLong(value);
 
 	if (val < 0 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = int: BL_Texture, expected a unsigned int", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = int: BL_Texture, expected a unsigned int", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -542,7 +542,7 @@ int BL_Texture::pyattr_set_ior(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, 
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -563,7 +563,7 @@ int BL_Texture::pyattr_set_refraction_ratio(void *self_v, const KX_PYATTRIBUTE_D
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 	CLAMP(val, 0.0, 1.0);
@@ -583,7 +583,7 @@ int BL_Texture::pyattr_set_uv_rotation(void *self_v, const KX_PYATTRIBUTE_DEF *a
 	float val = PyFloat_AsDouble(value);
 
 	if (val == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 	self->GetMTex()->rot = val;

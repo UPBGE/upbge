@@ -134,7 +134,7 @@ void BL_ConvertProperties(Object* object,KX_GameObject* gameobj,SCA_TimeEventMan
 		{
 			if (show_debug_info && isInActiveLayer)
 			{
-				scene->AddDebugProperty(gameobj,STR_String(prop->name));
+				scene->AddDebugProperty(gameobj,prop->name);
 			}
 			// done with propval, release it
 			propval->Release();
@@ -142,8 +142,8 @@ void BL_ConvertProperties(Object* object,KX_GameObject* gameobj,SCA_TimeEventMan
 		
 #ifdef WITH_PYTHON
 		/* Warn if we double up on attributes, this isn't quite right since it wont find inherited attributes however there arnt many */
-		for (PyAttributeDef *attrdef = KX_GameObject::Attributes; attrdef->m_name; attrdef++) {
-			if (strcmp(prop->name, attrdef->m_name)==0) {
+		for (PyAttributeDef *attrdef = KX_GameObject::Attributes; !attrdef->m_name.empty(); attrdef++) {
+			if (prop->name == attrdef->m_name) {
 				CM_Warning("user defined property name \"" << prop->name << "\" is also a python attribute for object \""
 					<< object->id.name+2 << "\". Use ob[\"" << prop->name << "\"] syntax to avoid conflict");
 				break;
@@ -165,7 +165,7 @@ void BL_ConvertProperties(Object* object,KX_GameObject* gameobj,SCA_TimeEventMan
 	if (object->scaflag & OB_DEBUGSTATE && isInActiveLayer)
 	{
 		//  reserve name for object state
-		scene->AddDebugProperty(gameobj,STR_String("__state__"));
+		scene->AddDebugProperty(gameobj, "__state__");
 	}
 
 	/* Font Objects need to 'copy' the Font Object data body to ["Text"] */
@@ -183,27 +183,27 @@ void BL_ConvertTextProperty(Object* object, KX_FontObject* fontobj,SCA_TimeEvent
 	if (!prop) return;
 
 	Curve *curve = static_cast<Curve *>(object->data);
-	STR_String str = curve->str;
+	std::string str = curve->str;
 	CValue* propval = NULL;
 
 	switch (prop->type) {
 		case GPROP_BOOL:
 		{
-			int value = atoi(str);
+			int value = std::stoi(str);
 			propval = new CBoolValue((bool)(value != 0));
 			tprop->SetValue(propval);
 			break;
 		}
 		case GPROP_INT:
 		{
-			int value = atoi(str);
+			int value = std::stoi(str);
 			propval = new CIntValue(value);
 			tprop->SetValue(propval);
 			break;
 		}
 		case GPROP_FLOAT:
 		{
-			float floatprop = (float)atof(str);
+			float floatprop = std::stof(str);
 			propval = new CFloatValue(floatprop);
 			tprop->SetValue(propval);
 			break;
@@ -216,7 +216,7 @@ void BL_ConvertTextProperty(Object* object, KX_FontObject* fontobj,SCA_TimeEvent
 		}
 		case GPROP_TIME:
 		{
-			float floatprop = (float)atof(str);
+			float floatprop = std::stof(str);
 
 			CValue* timeval = new CFloatValue(floatprop);
 			// set a subproperty called 'timer' so that

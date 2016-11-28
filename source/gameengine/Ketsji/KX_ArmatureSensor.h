@@ -48,8 +48,8 @@ protected:
 public:
 	KX_ArmatureSensor(class SCA_EventManager* eventmgr,
 					SCA_IObject* gameobj,
-					const char *posechannel,
-					const char *constraintname,
+					const std::string& posechannel,
+					const std::string& constraintname,
 					int type,
 					float value);
 	
@@ -78,8 +78,8 @@ public:
 
 private:
 	struct bConstraint*	m_constraint;
-	STR_String		m_posechannel;
-	STR_String		m_constraintname;
+	std::string		m_posechannel;
+	std::string		m_constraintname;
 	int				m_type;
 	float			m_value;
 	bool			m_result;

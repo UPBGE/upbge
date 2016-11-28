@@ -31,12 +31,12 @@
 
 #include "RAS_MeshUser.h"
 
-#include "STR_String.h"
+#include <string>
 
 class RAS_TextUser : public RAS_MeshUser
 {
 private:
-	std::vector<STR_String> m_texts;
+	std::vector<std::string> m_texts;
 	int m_fontid;
 	int m_size;
 	int m_dpi;
@@ -55,7 +55,7 @@ public:
 	float GetAspect() const;
 	const MT_Vector3& GetOffset() const;
 	const MT_Vector3& GetSpacing() const;
-	const std::vector<STR_String>& GetTexts() const;
+	const std::vector<std::string>& GetTexts() const;
 
 	void SetFontId(int fontid);
 	void SetSize(int size);
@@ -63,7 +63,7 @@ public:
 	void SetAspect(float aspect);
 	void SetOffset(const MT_Vector3& offset);
 	void SetSpacing(const MT_Vector3& spacing);
-	void SetTexts(const std::vector<STR_String>& texts);
+	void SetTexts(const std::vector<std::string>& texts);
 };
 
 #endif  // __RAS_TEXT_USER_H__

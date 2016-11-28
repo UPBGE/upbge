@@ -129,7 +129,7 @@ PyMethodDef SCA_XNORController::Methods[] = {
 };
 
 PyAttributeDef SCA_XNORController::Attributes[] = {
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif // WITH_PYTHON

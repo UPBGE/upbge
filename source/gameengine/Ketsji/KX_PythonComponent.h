@@ -37,15 +37,15 @@ class KX_PythonComponent : public CValue
 private:
 	PythonComponent *m_pc;
 	KX_GameObject *m_gameobj;
-	STR_String m_name;
+	std::string m_name;
 	bool m_init;
 
 public:
-	KX_PythonComponent(const STR_String& name);
+	KX_PythonComponent(const std::string& name);
 	virtual ~KX_PythonComponent();
 
 	// stuff for cvalue related things
-	virtual STR_String GetName();
+	virtual std::string GetName();
 	virtual CValue *GetReplica();
 
 	void ProcessReplica();

@@ -143,12 +143,12 @@ effect: deletes the object
 #define VALUE_POS(val1)       (val1)->Calc(VALUE_POS_OPERATOR, val1)
 #endif
 
-STR_String CValue::op2str(VALUE_OPERATOR op)
+std::string CValue::op2str(VALUE_OPERATOR op)
 {
 	//pre:
 	//ret: the stringrepresentation of operator op
 	
-	STR_String opmsg;
+	std::string opmsg;
 	switch (op) {
 	case VALUE_MOD_OPERATOR:
 		opmsg = " % ";
@@ -207,7 +207,7 @@ STR_String CValue::op2str(VALUE_OPERATOR op)
 //
 // Set property <ioProperty>, overwrites and releases a previous property with the same name if needed
 //
-void CValue::SetProperty(const STR_String & name,CValue* ioProperty)
+void CValue::SetProperty(const std::string & name,CValue* ioProperty)
 {
 	if (ioProperty==NULL)
 	{	// Check if somebody is setting an empty property
@@ -222,29 +222,7 @@ void CValue::SetProperty(const STR_String & name,CValue* ioProperty)
 			oldval->Release();
 	}
 	else { // Make sure we have a property array
-		m_pNamedPropertyArray = new std::map<STR_String,CValue *>;
-	}
-	
-	// Add property at end of array
-	(*m_pNamedPropertyArray)[name] = ioProperty->AddRef();//->Add(ioProperty);
-}
-
-void CValue::SetProperty(const char* name,CValue* ioProperty)
-{
-	if (ioProperty==NULL)
-	{	// Check if somebody is setting an empty property
-		trace("Warning:trying to set empty property!");
-		return;
-	}
-
-	if (m_pNamedPropertyArray)
-	{	// Try to replace property (if so -> exit as soon as we replaced it)
-		CValue* oldval = (*m_pNamedPropertyArray)[name];
-		if (oldval)
-			oldval->Release();
-	}
-	else { // Make sure we have a property array
-		m_pNamedPropertyArray = new std::map<STR_String,CValue *>;
+		m_pNamedPropertyArray = new std::map<std::string,CValue *>;
 	}
 	
 	// Add property at end of array
@@ -254,20 +232,10 @@ void CValue::SetProperty(const char* name,CValue* ioProperty)
 //
 // Get pointer to a property with name <inName>, returns NULL if there is no property named <inName>
 //
-CValue* CValue::GetProperty(const STR_String & inName)
+CValue* CValue::GetProperty(const std::string & inName)
 {
 	if (m_pNamedPropertyArray) {
-		std::map<STR_String,CValue*>::iterator it = m_pNamedPropertyArray->find(inName);
-		if (it != m_pNamedPropertyArray->end())
-			return (*it).second;
-	}
-	return NULL;
-}
-
-CValue* CValue::GetProperty(const char *inName)
-{
-	if (m_pNamedPropertyArray) {
-		std::map<STR_String,CValue*>::iterator it = m_pNamedPropertyArray->find(inName);
+		std::map<std::string,CValue*>::iterator it = m_pNamedPropertyArray->find(inName);
 		if (it != m_pNamedPropertyArray->end())
 			return (*it).second;
 	}
@@ -277,7 +245,7 @@ CValue* CValue::GetProperty(const char *inName)
 //
 // Get text description of property with name <inName>, returns an empty string if there is no property named <inName>
 //
-const STR_String CValue::GetPropertyText(const STR_String & inName)
+const std::string CValue::GetPropertyText(const std::string & inName)
 {
 	CValue *property = GetProperty(inName);
 	if (property)
@@ -286,7 +254,7 @@ const STR_String CValue::GetPropertyText(const STR_String & inName)
 		return "";
 }
 
-float CValue::GetPropertyNumber(const STR_String& inName,float defnumber)
+float CValue::GetPropertyNumber(const std::string& inName,float defnumber)
 {
 	CValue *property = GetProperty(inName);
 	if (property)
@@ -300,12 +268,12 @@ float CValue::GetPropertyNumber(const STR_String& inName,float defnumber)
 //
 // Remove the property named <inName>, returns true if the property was succesfully removed, false if property was not found or could not be removed
 //
-bool CValue::RemoveProperty(const char *inName)
+bool CValue::RemoveProperty(const std::string& inName)
 {
 	// Check if there are properties at all which can be removed
 	if (m_pNamedPropertyArray)
 	{
-		std::map<STR_String,CValue*>::iterator it = m_pNamedPropertyArray->find(inName);
+		std::map<std::string,CValue*>::iterator it = m_pNamedPropertyArray->find(inName);
 		if (it != m_pNamedPropertyArray->end())
 		{
 			((*it).second)->Release();
@@ -320,13 +288,13 @@ bool CValue::RemoveProperty(const char *inName)
 //
 // Get Property Names
 //
-std::vector<STR_String> CValue::GetPropertyNames()
+std::vector<std::string> CValue::GetPropertyNames()
 {
-	std::vector<STR_String> result;
+	std::vector<std::string> result;
 	if (!m_pNamedPropertyArray) return result;
 	result.reserve(m_pNamedPropertyArray->size());
 	
-	std::map<STR_String,CValue*>::iterator it;
+	std::map<std::string,CValue*>::iterator it;
 	for (it= m_pNamedPropertyArray->begin(); (it != m_pNamedPropertyArray->end()); it++)
 	{
 		result.push_back((*it).first);
@@ -344,11 +312,11 @@ void CValue::ClearProperties()
 		return;
 
 	// Remove all properties
-	std::map<STR_String,CValue*>::iterator it;
+	std::map<std::string,CValue*>::iterator it;
 	for (it= m_pNamedPropertyArray->begin();(it != m_pNamedPropertyArray->end()); it++)
 	{
 		CValue* tmpval = (*it).second;
-		//STR_String name = (*it).first;
+		//std::string name = (*it).first;
 		tmpval->Release();
 	}
 
@@ -365,7 +333,7 @@ void CValue::ClearProperties()
 void CValue::SetPropertiesModified(bool inModified)
 {
 	if (!m_pNamedPropertyArray) return;
-	std::map<STR_String,CValue*>::iterator it;
+	std::map<std::string,CValue*>::iterator it;
 	
 	for (it= m_pNamedPropertyArray->begin();(it != m_pNamedPropertyArray->end()); it++)
 		((*it).second)->SetModified(inModified);
@@ -379,7 +347,7 @@ void CValue::SetPropertiesModified(bool inModified)
 bool CValue::IsAnyPropertyModified()
 {
 	if (!m_pNamedPropertyArray) return false;
-	std::map<STR_String,CValue*>::iterator it;
+	std::map<std::string,CValue*>::iterator it;
 	
 	for (it= m_pNamedPropertyArray->begin();(it != m_pNamedPropertyArray->end()); it++)
 		if (((*it).second)->IsModified())
@@ -401,7 +369,7 @@ CValue* CValue::GetProperty(int inIndex)
 
 	if (m_pNamedPropertyArray)
 	{
-		std::map<STR_String,CValue*>::iterator it;
+		std::map<std::string,CValue*>::iterator it;
 		for (it= m_pNamedPropertyArray->begin(); (it != m_pNamedPropertyArray->end()); it++)
 		{
 			if (count++ == inIndex)
@@ -486,9 +454,9 @@ void CValue::ProcessReplica() /* was AddDataToReplica in 2.48 */
 	/* copy all props */
 	if (m_pNamedPropertyArray)
 	{
-		std::map<STR_String,CValue*> *pOldArray = m_pNamedPropertyArray;
+		std::map<std::string,CValue*> *pOldArray = m_pNamedPropertyArray;
 		m_pNamedPropertyArray=NULL;
-		std::map<STR_String,CValue*>::iterator it;
+		std::map<std::string,CValue*>::iterator it;
 		for (it= pOldArray->begin(); (it != pOldArray->end()); it++)
 		{
 			CValue *val = (*it).second->GetReplica();
@@ -507,17 +475,17 @@ int CValue::GetValueType()
 
 
 
-CValue*	CValue::FindIdentifier(const STR_String& identifiername)
+CValue*	CValue::FindIdentifier(const std::string& identifiername)
 {
 
 	CValue* result = NULL;
 
 	int pos = 0;
 	// if a dot exists, explode the name into pieces to get the subcontext
-	if ((pos=identifiername.Find('.'))>=0)
+	if ((pos = identifiername.find('.')) != std::string::npos)
 	{
-		const STR_String rightstring = identifiername.Right(identifiername.Length() -1 - pos);
-		const STR_String leftstring = identifiername.Left(pos);
+		const std::string rightstring = identifiername.substr(pos + 1);
+		const std::string leftstring = identifiername.substr(0, pos);
 		CValue* tempresult = GetProperty(leftstring);
 		if (tempresult)
 		{
@@ -541,13 +509,13 @@ CValue*	CValue::FindIdentifier(const STR_String& identifiername)
 
 PyAttributeDef CValue::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("name",	CValue, pyattr_get_name),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *CValue::pyattr_get_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	CValue * self = static_cast<CValue *> (self_v);
-	return PyUnicode_From_STR_String(self->GetName());
+	return PyUnicode_FromStdString(self->GetName());
 }
 
 /**
@@ -640,10 +608,10 @@ PyObject *CValue::ConvertKeysToPython(void)
 		PyObject *pylist= PyList_New(m_pNamedPropertyArray->size());
 		Py_ssize_t i= 0;
 
-		std::map<STR_String,CValue*>::iterator it;
+		std::map<std::string,CValue*>::iterator it;
 		for (it= m_pNamedPropertyArray->begin(); (it != m_pNamedPropertyArray->end()); it++)
 		{
-			PyList_SET_ITEM(pylist, i++, PyUnicode_From_STR_String((*it).first));
+			PyList_SET_ITEM(pylist, i++, PyUnicode_FromStdString((*it).first));
 		}
 
 		return pylist;
@@ -685,7 +653,7 @@ void CValue::SetValue(CValue* newval)
 	assertd(newval->GetNumber() == 10121969);
 }
 
-const STR_String CValue::GetText()
+const std::string CValue::GetText()
 {
 	return GetName();
 }
@@ -695,7 +663,7 @@ double CValue::GetNumber()
 	return -1.0;
 }
 
-void CValue::SetName(const char *name)
+void CValue::SetName(const std::string& name)
 {
 }
 

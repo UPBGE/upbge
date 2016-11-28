@@ -31,9 +31,9 @@ public:
 	CParser();
 	virtual				~CParser();
 
-	float				GetFloat(STR_String& txt);
-	CValue*				GetValue(STR_String& txt, bool bFallbackToText=false);
-	CExpression*		ProcessText(const char *intext);
+	float				GetFloat(std::string& txt);
+	CValue*				GetValue(std::string& txt, bool bFallbackToText=false);
+	CExpression*		ProcessText(const std::string& intext);
 	void				SetContext(CValue* context);
 
 private:
@@ -84,14 +84,14 @@ private:
 	int chcount;				// index to character in input string
 	CExpression *errmsg;		// contains a errormessage, if scanner error
 	
-	STR_String text,				// contains a copy of the original text
+	std::string text,				// contains a copy of the original text
 		const_as_string;		// string representation of the symbol, if symbol is a constant
 	bool boolvalue;				// value of the boolean, if symbol is a constant of type boolean
 	CValue*	m_identifierContext;// context in which identifiers are looked up
 	
 	
-	void ScanError(const char *str);
-	CExpression* Error(const char *str);
+	void ScanError(const std::string& str);
+	CExpression* Error(const std::string& str);
 	void NextCh();
 	void TermChar(char c);
 	void DigRep();
@@ -102,7 +102,7 @@ private:
 #if 0	/* not used yet */
 	int MakeInt();
 #endif
-	const char *Symbol2Str(int s);
+	const std::string Symbol2Str(int s);
 	void Term(int s);
 	int Priority(int optor);
 	CExpression *Ex(int i);

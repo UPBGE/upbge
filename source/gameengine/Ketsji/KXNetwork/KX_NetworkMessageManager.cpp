@@ -49,22 +49,22 @@ void KX_NetworkMessageManager::AddMessage(KX_NetworkMessageManager::Message mess
 	m_messages[m_currentList][message.to][message.subject].push_back(message);
 }
 
-const std::vector<KX_NetworkMessageManager::Message> KX_NetworkMessageManager::GetMessages(STR_String to, STR_String subject)
+const std::vector<KX_NetworkMessageManager::Message> KX_NetworkMessageManager::GetMessages(std::string to, std::string subject)
 {
 	std::vector<KX_NetworkMessageManager::Message> messages;
 
 	// look at messages without receiver.
-	std::map<STR_String, std::vector<Message> >& messagesNoReceiver = m_messages[1 - m_currentList][""];
-	std::map<STR_String, std::vector<Message> >& messagesReceiver = m_messages[1 - m_currentList][to];
-	if (subject.IsEmpty()) {
+	std::map<std::string, std::vector<Message> >& messagesNoReceiver = m_messages[1 - m_currentList][""];
+	std::map<std::string, std::vector<Message> >& messagesReceiver = m_messages[1 - m_currentList][to];
+	if (subject.empty()) {
 		// Add all message without receiver and subject.
-		for (std::map<STR_String, std::vector<Message> >::iterator it = messagesNoReceiver.begin(), end = messagesNoReceiver.end();
+		for (std::map<std::string, std::vector<Message> >::iterator it = messagesNoReceiver.begin(), end = messagesNoReceiver.end();
 			it != end; ++it)
 		{
 			messages.insert(messages.end(), it->second.begin(), it->second.end());
 		}
 		// Add all message with the given receiver and no subject.
-		for (std::map<STR_String, std::vector<Message> >::iterator it = messagesReceiver.begin(), end = messagesReceiver.end();
+		for (std::map<std::string, std::vector<Message> >::iterator it = messagesReceiver.begin(), end = messagesReceiver.end();
 			 it != end; ++it)
 		{
 			messages.insert(messages.end(), it->second.begin(), it->second.end());

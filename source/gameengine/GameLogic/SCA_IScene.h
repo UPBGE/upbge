@@ -34,7 +34,7 @@
 
 #include <vector>
 
-#include "STR_String.h"
+#include <string>
 #include "RAS_2DFilterData.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
@@ -46,7 +46,7 @@
 struct SCA_DebugProp
 {
 	class CValue*	m_obj;
-	STR_String 		m_name;
+	std::string 		m_name;
 	SCA_DebugProp();
 	~SCA_DebugProp();
 };
@@ -67,11 +67,11 @@ public:
 	virtual void	ReplaceMesh(class CValue* gameobj,
 								void* meshobj, bool use_gfx, bool use_phys)=0;
 	std::vector<SCA_DebugProp*>& GetDebugProperties();
-	bool			PropertyInDebugList(class CValue *gameobj, const STR_String &name);
+	bool			PropertyInDebugList(class CValue *gameobj, const std::string &name);
 	bool			ObjectInDebugList(class CValue *gameobj);
 	void			RemoveAllDebugProperties();
-	void			AddDebugProperty(class CValue* debugprop, const STR_String &name);
-	void			RemoveDebugProperty(class CValue *gameobj, const STR_String &name);
+	void			AddDebugProperty(class CValue* debugprop, const std::string &name);
+	void			RemoveDebugProperty(class CValue *gameobj, const std::string &name);
 	void			RemoveObjectDebugProperties(class CValue* gameobj);
 
 #ifdef WITH_CXX_GUARDEDALLOC

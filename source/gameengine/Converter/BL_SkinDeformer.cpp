@@ -38,7 +38,7 @@
 #include <Eigen/LU>
 
 #include "BL_SkinDeformer.h"
-#include "STR_HashedString.h"
+#include <string>
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"

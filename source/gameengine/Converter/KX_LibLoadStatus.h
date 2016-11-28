@@ -37,7 +37,7 @@ private:
 	class KX_KetsjiEngine*			m_engine;
 	class KX_Scene*					m_mergescene;
 	void*							m_data;
-	STR_String						m_libname;
+	std::string						m_libname;
 
 	float	m_progress;
 	double	m_starttime;
@@ -55,7 +55,7 @@ public:
 	KX_LibLoadStatus(class KX_BlenderSceneConverter* kx_converter,
 						class KX_KetsjiEngine* kx_engine,
 						class KX_Scene* merge_scene,
-						const char *path);
+						const std::string& path);
 
 	void Finish(); // Called when the libload is done
 	void RunFinishCallback();
@@ -65,8 +65,8 @@ public:
 	class KX_KetsjiEngine *GetEngine();
 	class KX_Scene *GetMergeScene();
 
-	void SetLibName(const char *name);
-	const char *GetLibName();
+	void SetLibName(const std::string& name);
+	const std::string& GetLibName();
 
 	void SetData(void *data);
 	void *GetData();

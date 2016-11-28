@@ -72,7 +72,7 @@ public:
 			double margin,
 			double resetmargin,
 			bool bFindMaterial,
-			const STR_String& touchedpropname);
+			const std::string& touchedpropname);
 	KX_RadarSensor();
 	virtual ~KX_RadarSensor();
 	virtual void SynchronizeTransform();

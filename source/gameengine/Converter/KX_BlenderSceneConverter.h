@@ -41,6 +41,7 @@
 #include "CM_Message.h"
 
 #include <map>
+#include <vector>
 
 class KX_WorldInfo;
 class KX_KetsjiEngine;
@@ -88,7 +89,7 @@ class KX_BlenderSceneConverter : public KX_ISceneConverter
 	Main *m_maggie;
 	std::vector<Main *>   m_DynamicMaggie;
 
-	STR_String m_newfilename;
+	std::string m_newfilename;
 	KX_KetsjiEngine *m_ketsjiEngine;
 	bool m_alwaysUseExpandFraming;
 
@@ -104,7 +105,7 @@ public:
 	virtual void ConvertScene(KX_Scene *destinationscene, RAS_IRasterizer *rendertools, RAS_ICanvas *canvas, bool libloading = false);
 	virtual void RemoveScene(KX_Scene *scene);
 
-	void SetNewFileName(const STR_String& filename);
+	void SetNewFileName(const std::string& filename);
 	bool TryAndLoadNewFile();
 
 	void SetAlwaysUseExpandFraming(bool to_what);
@@ -129,7 +130,7 @@ public:
 	void RegisterGameController(SCA_IController *cont, bController *for_controller);
 	SCA_IController *FindGameController(bController *for_controller);
 
-	Scene *GetBlenderSceneForName(const STR_String& name);
+	Scene *GetBlenderSceneForName(const std::string& name);
 	virtual CListValue *GetInactiveSceneNames();
 
 	Main *GetMainDynamicPath(const char *path);

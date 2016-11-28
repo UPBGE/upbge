@@ -343,7 +343,7 @@ PyAttributeDef KX_SoundActuator::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("volume", KX_SoundActuator, pyattr_get_gain, pyattr_set_gain),
 	KX_PYATTRIBUTE_RW_FUNCTION("pitch", KX_SoundActuator, pyattr_get_pitch, pyattr_set_pitch),
 	KX_PYATTRIBUTE_ENUM_RW("mode",KX_SoundActuator::KX_SOUNDACT_NODEF+1,KX_SoundActuator::KX_SOUNDACT_MAX-1,false,KX_SoundActuator,m_type),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 /* Methods ----------------------------------------------------------------- */
@@ -397,34 +397,34 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, stopSound,
 PyObject *KX_SoundActuator::pyattr_get_3d_property(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
-	const char* prop = attrdef->m_name;
+	const std::string& prop = attrdef->m_name;
 	float result_value = 0.0f;
 
-	if (!strcmp(prop, "volume_maximum")) {
+	if (prop == "volume_maximum") {
 		result_value = actuator->m_3d.max_gain;
-
-	} else if (!strcmp(prop, "volume_minimum")) {
+	}
+	else if (prop == "volume_minimum") {
 		result_value = actuator->m_3d.min_gain;
-
-	} else if (!strcmp(prop, "distance_reference")) {
+	}
+	else if (prop == "distance_reference") {
 		result_value = actuator->m_3d.reference_distance;
-
-	} else if (!strcmp(prop, "distance_maximum")) {
+	}
+	else if (prop == "distance_maximum") {
 		result_value = actuator->m_3d.max_distance;
-
-	} else if (!strcmp(prop, "attenuation")) {
+	}
+	else if (prop == "attenuation") {
 		result_value = actuator->m_3d.rolloff_factor;
-
-	} else if (!strcmp(prop, "cone_angle_inner")) {
+	}
+	else if (prop == "cone_angle_inner") {
 		result_value = actuator->m_3d.cone_inner_angle;
-
-	} else if (!strcmp(prop, "cone_angle_outer")) {
+	}
+	else if (prop == "cone_angle_outer") {
 		result_value = actuator->m_3d.cone_outer_angle;
-
-	} else if (!strcmp(prop, "cone_volume_outer")) {
+	}
+	else if (prop == "cone_volume_outer") {
 		result_value = actuator->m_3d.cone_outer_gain;
-
-	} else {
+	}
+	else {
 		Py_RETURN_NONE;
 	}
 
@@ -484,7 +484,7 @@ PyObject *KX_SoundActuator::pyattr_get_sound(void *self, const struct KX_PYATTRI
 int KX_SoundActuator::pyattr_set_3d_property(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
-	const char* prop = attrdef->m_name;
+	const std::string& prop = attrdef->m_name;
 	float prop_value = 0.0f;
 
 	if (!PyArg_Parse(value, "f", &prop_value))
@@ -494,56 +494,56 @@ int KX_SoundActuator::pyattr_set_3d_property(void *self, const struct KX_PYATTRI
 	if (!actuator->m_is3d)
 		return PY_SET_ATTR_FAIL;
 
-	if (!strcmp(prop, "volume_maximum")) {
+	if (prop == "volume_maximum") {
 		actuator->m_3d.max_gain = prop_value;
 #ifdef WITH_AUDASPACE
 		if (actuator->m_handle)
 			AUD_Handle_setVolumeMaximum(actuator->m_handle, prop_value);
 #endif  // WITH_AUDASPACE
 
-	} else if (!strcmp(prop, "volume_minimum")) {
+	} else if (prop == "volume_minimum") {
 		actuator->m_3d.min_gain = prop_value;
 #ifdef WITH_AUDASPACE
 		if (actuator->m_handle)
 			AUD_Handle_setVolumeMinimum(actuator->m_handle, prop_value);
 #endif  // WITH_AUDASPACE
 
-	} else if (!strcmp(prop, "distance_reference")) {
+	} else if (prop == "distance_reference") {
 		actuator->m_3d.reference_distance = prop_value;
 #ifdef WITH_AUDASPACE
 		if (actuator->m_handle)
 			AUD_Handle_setDistanceReference(actuator->m_handle, prop_value);
 #endif  // WITH_AUDASPACE
 
-	} else if (!strcmp(prop, "distance_maximum")) {
+	} else if (prop == "distance_maximum") {
 		actuator->m_3d.max_distance = prop_value;
 #ifdef WITH_AUDASPACE
 		if (actuator->m_handle)
 			AUD_Handle_setDistanceMaximum(actuator->m_handle, prop_value);
 #endif  // WITH_AUDASPACE
 
-	} else if (!strcmp(prop, "attenuation")) {
+	} else if (prop == "attenuation") {
 		actuator->m_3d.rolloff_factor = prop_value;
 #ifdef WITH_AUDASPACE
 		if (actuator->m_handle)
 			AUD_Handle_setAttenuation(actuator->m_handle, prop_value);
 #endif  // WITH_AUDASPACE
 
-	} else if (!!strcmp(prop, "cone_angle_inner")) {
+	} else if (prop == "cone_angle_inner") {
 		actuator->m_3d.cone_inner_angle = prop_value;
 #ifdef WITH_AUDASPACE
 		if (actuator->m_handle)
 			AUD_Handle_setConeAngleInner(actuator->m_handle, prop_value);
 #endif  // WITH_AUDASPACE
 
-	} else if (!strcmp(prop, "cone_angle_outer")) {
+	} else if (prop == "cone_angle_outer") {
 		actuator->m_3d.cone_outer_angle = prop_value;
 #ifdef WITH_AUDASPACE
 		if (actuator->m_handle)
 			AUD_Handle_setConeAngleOuter(actuator->m_handle, prop_value);
 #endif  // WITH_AUDASPACE
 
-	} else if (!strcmp(prop, "cone_volume_outer")) {
+	} else if (prop == "cone_volume_outer") {
 		actuator->m_3d.cone_outer_gain = prop_value;
 #ifdef WITH_AUDASPACE
 		if (actuator->m_handle)

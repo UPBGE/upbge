@@ -44,8 +44,8 @@ class KX_GameActuator : public SCA_IActuator
 protected:
 	int							m_mode;
 	bool						m_restart;
-	STR_String					m_filename;
-	STR_String					m_loadinganimationname;
+	std::string					m_filename;
+	std::string					m_loadinganimationname;
 	class SCA_IScene*			m_scene;
 	class KX_KetsjiEngine*		m_ketsjiengine;
 
@@ -66,8 +66,8 @@ protected:
 
 	KX_GameActuator(SCA_IObject* gameobj,
 					 int mode,
-					 const STR_String& filename,
-					 const STR_String& loadinganimationname,
+					 const std::string& filename,
+					 const std::string& loadinganimationname,
 					 SCA_IScene* scene,
 					 KX_KetsjiEngine* ketsjiEngine);
 	virtual ~KX_GameActuator();

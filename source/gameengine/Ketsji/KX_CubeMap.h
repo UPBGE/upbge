@@ -71,7 +71,7 @@ public:
 	KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint);
 	virtual ~KX_CubeMap();
 
-	virtual STR_String GetName();
+	virtual std::string GetName();
 
 	KX_GameObject *GetViewpointObject() const;
 	void SetViewpointObject(KX_GameObject *gameobj);

@@ -348,12 +348,6 @@ bool KX_CameraActuator::Update(double curtime, bool frame)
 	return true;
 }
 
-CValue *KX_CameraActuator::findObject(const char *obName)
-{
-	/* hook to object system */
-	return NULL;
-}
-
 #ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */
@@ -394,7 +388,7 @@ PyAttributeDef KX_CameraActuator::Attributes[] = {
 	KX_PYATTRIBUTE_SHORT_RW("axis", 0, 5, true, KX_CameraActuator, m_axis),
 	KX_PYATTRIBUTE_RW_FUNCTION("object", KX_CameraActuator, pyattr_get_object, pyattr_set_object),
 	KX_PYATTRIBUTE_FLOAT_RW("damping",0.f,10.f,KX_CameraActuator,m_damping),
-	{NULL}
+	KX_PYATTRIBUTE_NULL
 };
 
 PyObject *KX_CameraActuator::pyattr_get_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

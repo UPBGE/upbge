@@ -51,8 +51,8 @@ protected:
 
 	bool				m_bActive;
 	CValue*				m_eventval;
-	STR_String			m_text;
-	STR_String			m_name;
+	std::string			m_text;
+	std::string			m_name;
 	//unsigned long		m_drawcolor;
 	void RegisterEvent(CValue* eventval);
 	void RemoveEvent();
@@ -75,9 +75,9 @@ public:
 	virtual CValue*	Calc(VALUE_OPERATOR op, CValue *val);
 	virtual CValue*	CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 
-	virtual const STR_String GetText();
-	virtual STR_String GetName();
-	virtual void		SetName(const char *);
+	virtual const std::string GetText();
+	virtual std::string GetName();
+	virtual void		SetName(const std::string& name);
 		
 	bool				IsActive()
 	{

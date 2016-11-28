@@ -48,7 +48,7 @@ class KX_WorldInfo : public PyObjectPlus
 {
 	Py_Header
 
-	STR_String m_name;
+	std::string m_name;
 	Scene *m_scene;
 	bool m_do_color_management;
 	bool m_hasworld;
@@ -84,7 +84,7 @@ public:
 		MT_Vector3 zenithColor;
 	} m_savedData;
 
-	const STR_String& GetName();
+	const std::string& GetName();
 	bool hasWorld();
 	void setUseMist(bool enable);
 	void setMistType(short type);

@@ -117,7 +117,7 @@ PyAttributeDef SCA_InputEvent::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("queue", SCA_InputEvent, pyattr_get_queue),
 	KX_PYATTRIBUTE_RO_FUNCTION("values", SCA_InputEvent, pyattr_get_values),
 	KX_PYATTRIBUTE_INT_RO("type", SCA_InputEvent, m_type),
-	{NULL} //Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 int SCA_InputEvent::get_status_size_cb(void *self_v)

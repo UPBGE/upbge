@@ -22,6 +22,8 @@
 #include "EXP_ErrorValue.h"
 #include "EXP_VoidValue.h"
 
+#include <boost/format.hpp>
+
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
@@ -47,7 +49,7 @@ effect: constructs a new CFloatValue containing value fl
 
 
 
-CFloatValue::CFloatValue(float fl,const char *name,AllocationTYPE alloctype)
+CFloatValue::CFloatValue(float fl,const std::string& name,AllocationTYPE alloctype)
 /*
 pre:
 effect: constructs a new CFloatValue containing value fl
@@ -295,9 +297,9 @@ void CFloatValue::SetValue(CValue* newval)
 
 
 
-const STR_String CFloatValue::GetText()
+const std::string CFloatValue::GetText()
 {
-	return STR_String().Format("%f",m_float);
+	return std::to_string(m_float);
 }
 
 

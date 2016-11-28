@@ -69,7 +69,7 @@
 
 #include "SG_Node.h"
 
-#include "STR_HashedString.h"
+#include <string>
 
 static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_BlenderSceneConverter *converter)
 {

@@ -45,8 +45,8 @@
 
 KX_ArmatureSensor::KX_ArmatureSensor(class SCA_EventManager* eventmgr,
 					SCA_IObject* gameobj,
-					const char *posechannel,
-					const char *constraintname,
+					const std::string& posechannel,
+					const std::string& constraintname,
 					int type,
 					float value)
 	: SCA_ISensor(gameobj,eventmgr),
@@ -78,10 +78,10 @@ void KX_ArmatureSensor::FindConstraint()
 		bConstraint* pcon;
 		// and locate the constraint
 		for (pchan = (bPoseChannel*)pose->chanbase.first; pchan; pchan=(bPoseChannel*)pchan->next) {
-			if (!strcmp(pchan->name, m_posechannel)) {
+			if (pchan->name == m_posechannel) {
 				// now locate the constraint
 				for (pcon = (bConstraint *)pchan->constraints.first; pcon; pcon = (bConstraint *)pcon->next) {
-					if (!strcmp(pcon->name, m_constraintname)) {
+					if (pcon->name == m_constraintname) {
 						if (pcon->flag & CONSTRAINT_DISABLE)
 							/* this constraint is not valid, can't use it */
 							break;
@@ -190,7 +190,7 @@ PyAttributeDef KX_ArmatureSensor::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("constraint", KX_ArmatureSensor, pyattr_get_constraint),
 	KX_PYATTRIBUTE_FLOAT_RW("value",-FLT_MAX,FLT_MAX,KX_ArmatureSensor,m_value),
 	KX_PYATTRIBUTE_INT_RW("type",0,SENS_ARM_MAXTYPE,false,KX_ArmatureSensor,m_type),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *KX_ArmatureSensor::pyattr_get_constraint(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)

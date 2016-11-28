@@ -197,7 +197,7 @@ void SCA_IObject::ReParentLogic()
 
 
 
-SCA_ISensor* SCA_IObject::FindSensor(const STR_String& sensorname)
+SCA_ISensor* SCA_IObject::FindSensor(const std::string& sensorname)
 {
 	SCA_ISensor* foundsensor = NULL;
 
@@ -214,7 +214,7 @@ SCA_ISensor* SCA_IObject::FindSensor(const STR_String& sensorname)
 
 
 
-SCA_IController* SCA_IObject::FindController(const STR_String& controllername)
+SCA_IController* SCA_IObject::FindController(const std::string& controllername)
 {
 	SCA_IController* foundcontroller = NULL;
 
@@ -231,7 +231,7 @@ SCA_IController* SCA_IObject::FindController(const STR_String& controllername)
 
 
 
-SCA_IActuator* SCA_IObject::FindActuator(const STR_String& actuatorname)
+SCA_IActuator* SCA_IObject::FindActuator(const std::string& actuatorname)
 {
 	SCA_IActuator* foundactuator = NULL;
 
@@ -343,7 +343,7 @@ PyMethodDef SCA_IObject::Methods[] = {
 };
 
 PyAttributeDef SCA_IObject::Attributes[] = {
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif // WITH_PYTHON

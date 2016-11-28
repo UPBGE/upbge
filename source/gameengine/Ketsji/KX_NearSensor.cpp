@@ -47,7 +47,7 @@ KX_NearSensor::KX_NearSensor(SCA_EventManager* eventmgr,
 							 float margin,
 							 float resetmargin,
 							 bool bFindMaterial,
-							 const STR_String& touchedpropname,
+							 const std::string& touchedpropname,
 							 PHY_IPhysicsController* ctrl)
 							:KX_CollisionSensor(eventmgr,
 							 gameobj,
@@ -197,7 +197,7 @@ bool	KX_NearSensor::BroadPhaseFilterCollision(void*obj1,void*obj2)
 		// only take valid colliders
 		if (client_info->m_type == KX_ClientObjectInfo::ACTOR)
 		{
-			if ((m_touchedpropname.Length() == 0) || 
+			if ((m_touchedpropname.size() == 0) || 
 				(gameobj->GetProperty(m_touchedpropname)))
 			{
 				return true;
@@ -234,7 +234,7 @@ bool	KX_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollDat
 		// These checks are done already in BroadPhaseFilterCollision()
 		//if (client_info->m_type == KX_ClientObjectInfo::ACTOR)
 		//{
-		//	if ((m_touchedpropname.Length() == 0) || 
+		//	if ((m_touchedpropname.size() == 0) || 
 		//		(gameobj->GetProperty(m_touchedpropname)))
 		//	{
 				m_bTriggered = true;
@@ -286,7 +286,7 @@ PyMethodDef KX_NearSensor::Methods[] = {
 PyAttributeDef KX_NearSensor::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_RW_CHECK("distance", 0, 10000, KX_NearSensor, m_Margin, CheckResetDistance),
 	KX_PYATTRIBUTE_FLOAT_RW_CHECK("resetDistance", 0, 10000, KX_NearSensor, m_ResetMargin, CheckResetDistance),
-	{NULL} //Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 #endif // WITH_PYTHON

@@ -29,7 +29,7 @@ class CIntValue : public CPropValue
 	//PLUGIN_DECLARE_SERIAL (CIntValue,CValue)
 
 public:
-	virtual const STR_String GetText();
+	virtual const std::string GetText();
 	virtual double			GetNumber();
 	virtual int				GetValueType();
 	
@@ -37,7 +37,7 @@ public:
 	CIntValue();
 	CIntValue(cInt innie);
 	CIntValue(cInt innie,
-	          const char *name,
+	          const std::string& name,
 	          AllocationTYPE alloctype=CValue::HEAPVALUE);
 	
 	virtual	CValue* Calc(VALUE_OPERATOR op,
@@ -62,7 +62,6 @@ protected:
 
 private:
 	cInt			m_int;
-
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CIntValue")

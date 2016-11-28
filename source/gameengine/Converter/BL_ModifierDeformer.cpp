@@ -35,7 +35,7 @@
 
 #include "MEM_guardedalloc.h"
 #include "BL_ModifierDeformer.h"
-#include "STR_HashedString.h"
+#include <string>
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_MeshObject.h"
 #include "RAS_BoundingBox.h"

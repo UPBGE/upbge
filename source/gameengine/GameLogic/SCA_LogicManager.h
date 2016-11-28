@@ -39,7 +39,7 @@
 #include <map>
 #include <list>
 
-#include "STR_HashedString.h"
+#include <string>
 #include "EXP_Value.h"
 #include "SG_QList.h"
 
@@ -77,11 +77,11 @@ class SCA_LogicManager
 
 	// need to find better way for this
 	// also known as FactoryManager...
-	std::map<STR_HashedString, CValue *>	m_mapStringToGameObjects;
-	std::map<STR_HashedString, void *>		m_mapStringToMeshes;
-	std::map<STR_HashedString, void *>		m_mapStringToActions;
+	std::map<std::string, CValue *>	m_mapStringToGameObjects;
+	std::map<std::string, void *>		m_mapStringToMeshes;
+	std::map<std::string, void *>		m_mapStringToActions;
 
-	std::map<STR_HashedString, void *>		m_map_gamemeshname_to_blendobj;
+	std::map<std::string, void *>		m_map_gamemeshname_to_blendobj;
 	std::map<void *, CValue *>			m_map_blendobj_to_gameobj;
 public:
 	SCA_LogicManager();
@@ -108,7 +108,7 @@ public:
 	SCA_EventManager*	FindEventManager(int eventmgrtype);
 	std::vector<class SCA_EventManager*>	GetEventManagers() { return m_eventmanagers; }
 	
-	void	RemoveGameObject(const STR_String& gameobjname);
+	void	RemoveGameObject(const std::string& gameobjname);
 
 	/**
 	 * remove Logic Bricks from the running logicmanager
@@ -119,22 +119,22 @@ public:
 	
 
 	// for the scripting... needs a FactoryManager later (if we would have time... ;)
-	void	RegisterMeshName(const STR_String& meshname,void* mesh);
-	void	UnregisterMeshName(const STR_String& meshname,void* mesh);
-	std::map<STR_HashedString, void *>&	GetMeshMap() { return m_mapStringToMeshes; }
-	std::map<STR_HashedString, void *>&	GetActionMap() { return m_mapStringToActions; }
+	void	RegisterMeshName(const std::string& meshname,void* mesh);
+	void	UnregisterMeshName(const std::string& meshname,void* mesh);
+	std::map<std::string, void *>&	GetMeshMap() { return m_mapStringToMeshes; }
+	std::map<std::string, void *>&	GetActionMap() { return m_mapStringToActions; }
 	
-	void	RegisterActionName(const STR_String& actname,void* action);
+	void	RegisterActionName(const std::string& actname,void* action);
 
-	void*	GetActionByName (const STR_String& actname);
-	void*	GetMeshByName(const STR_String& meshname);
+	void*	GetActionByName (const std::string& actname);
+	void*	GetMeshByName(const std::string& meshname);
 
-	void	RegisterGameObjectName(const STR_String& gameobjname,CValue* gameobj);
-	void	UnregisterGameObjectName(const STR_String& gameobjname);
-	class CValue*	GetGameObjectByName(const STR_String& gameobjname);
+	void	RegisterGameObjectName(const std::string& gameobjname,CValue* gameobj);
+	void	UnregisterGameObjectName(const std::string& gameobjname);
+	class CValue*	GetGameObjectByName(const std::string& gameobjname);
 
-	void	RegisterGameMeshName(const STR_String& gamemeshname, void* blendobj);
-	void*	FindBlendObjByGameMeshName(const STR_String& gamemeshname);
+	void	RegisterGameMeshName(const std::string& gamemeshname, void* blendobj);
+	void*	FindBlendObjByGameMeshName(const std::string& gamemeshname);
 
 	void	RegisterGameObj(void* blendobj, CValue* gameobj);
 	void	UnregisterGameObj(void* blendobj, CValue* gameobj);

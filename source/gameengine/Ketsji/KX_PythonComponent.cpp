@@ -31,7 +31,7 @@
 
 #include "BKE_python_component.h"
 
-KX_PythonComponent::KX_PythonComponent(const STR_String& name)
+KX_PythonComponent::KX_PythonComponent(const std::string& name)
 	:m_pc(NULL),
 	m_gameobj(NULL),
 	m_name(name),
@@ -43,7 +43,7 @@ KX_PythonComponent::~KX_PythonComponent()
 {
 }
 
-STR_String KX_PythonComponent::GetName()
+std::string KX_PythonComponent::GetName()
 {
 	return m_name;
 }
@@ -115,7 +115,7 @@ void KX_PythonComponent::Update()
 
 PyObject *KX_PythonComponent::py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-	KX_PythonComponent *comp = new KX_PythonComponent(STR_String(type->tp_name));
+	KX_PythonComponent *comp = new KX_PythonComponent(type->tp_name);
 
 	PyObject *proxy = py_base_new(type, PyTuple_Pack(1, comp->GetProxy()), kwds);
 	if (!proxy) {
@@ -154,7 +154,7 @@ PyMethodDef KX_PythonComponent::Methods[] = {
 
 PyAttributeDef KX_PythonComponent::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("object", KX_PythonComponent, pyattr_get_object),
-	{NULL} // Sentinel
+	KX_PYATTRIBUTE_NULL // Sentinel
 };
 
 PyObject* KX_PythonComponent::pyattr_get_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

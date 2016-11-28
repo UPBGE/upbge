@@ -109,7 +109,7 @@ void BL_Action::ClearControllerList()
 	m_sg_contr_list.clear();
 }
 
-bool BL_Action::Play(const char* name,
+bool BL_Action::Play(const std::string& name,
 					float start,
 					float end,
 					short priority,
@@ -292,7 +292,7 @@ float BL_Action::GetFrame()
 	return m_localframe;
 }
 
-const char *BL_Action::GetName()
+const std::string BL_Action::GetName()
 {
 	if (m_action != NULL) {
 		return m_action->id.name + 2;
@@ -300,8 +300,6 @@ const char *BL_Action::GetName()
 	else {
 		return "";
 	}
-
-	            
 }
 
 void BL_Action::SetFrame(float frame)

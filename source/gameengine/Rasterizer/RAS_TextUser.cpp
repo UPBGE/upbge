@@ -74,7 +74,7 @@ const MT_Vector3& RAS_TextUser::GetSpacing() const
 	return m_spacing;
 }
 
-const std::vector<STR_String>& RAS_TextUser::GetTexts() const
+const std::vector<std::string>& RAS_TextUser::GetTexts() const
 {
 	return m_texts;
 }
@@ -109,7 +109,7 @@ void RAS_TextUser::SetSpacing(const MT_Vector3& spacing)
 	m_spacing = spacing;
 }
 
-void RAS_TextUser::SetTexts(const std::vector<STR_String>& texts)
+void RAS_TextUser::SetTexts(const std::vector<std::string>& texts)
 {
 	m_texts = texts;
 }

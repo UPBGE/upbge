@@ -141,7 +141,7 @@ SG_Callbacks KX_Scene::m_callbacks = SG_Callbacks(
 	KX_Scene::KX_ScenegraphRescheduleFunc);
 
 KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
-				   const STR_String& sceneName,
+				   const std::string& sceneName,
 				   Scene *scene,
 				   class RAS_ICanvas* canvas,
 				   KX_NetworkMessageManager *messageManager): 
@@ -311,13 +311,13 @@ KX_Scene::~KX_Scene()
 #endif
 }
 
-STR_String KX_Scene::GetName()
+std::string KX_Scene::GetName()
 {
 	return m_sceneName;
 }
 
 /// Set the name of the value
-void KX_Scene::SetName(const char *name)
+void KX_Scene::SetName(const std::string& name)
 {
 	m_sceneName = name;
 }
@@ -450,12 +450,12 @@ void KX_Scene::AddObjectDebugProperties(class KX_GameObject* gameobj)
 
 	while (prop) {
 		if (prop->flag & PROP_DEBUG)
-			AddDebugProperty(gameobj,STR_String(prop->name));
+			AddDebugProperty(gameobj, prop->name);
 		prop = prop->next;
 	}	
 
 	if (blenderobject->scaflag & OB_DEBUGSTATE)
-		AddDebugProperty(gameobj,STR_String("__state__"));
+		AddDebugProperty(gameobj, "__state__");
 }
 
 void KX_Scene::RemoveNodeDestructObject(class SG_IObject* node,class CValue* gameobj)
@@ -2267,7 +2267,7 @@ PySequenceMethods KX_Scene::Sequence = {
 PyObject *KX_Scene::pyattr_get_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Scene* self = static_cast<KX_Scene*>(self_v);
-	return PyUnicode_From_STR_String(self->GetName());
+	return PyUnicode_FromStdString(self->GetName());
 }
 
 PyObject *KX_Scene::pyattr_get_objects(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -2344,7 +2344,7 @@ int KX_Scene::pyattr_set_active_camera(void *self_v, const KX_PYATTRIBUTE_DEF *a
 	return PY_SET_ATTR_SUCCESS;
 }
 
-static std::map<const char *, KX_Scene::DrawingCallbackType> callbacksTable = {
+static std::map<const std::string, KX_Scene::DrawingCallbackType> callbacksTable = {
 	{"pre_draw", KX_Scene::PRE_DRAW},
 	{"pre_draw_setup", KX_Scene::PRE_DRAW_SETUP},
 	{"post_draw", KX_Scene::POST_DRAW}
@@ -2420,7 +2420,7 @@ PyAttributeDef KX_Scene::Attributes[] = {
 	KX_PYATTRIBUTE_BOOL_RO("activity_culling",		KX_Scene, m_activity_culling),
 	KX_PYATTRIBUTE_FLOAT_RW("activity_culling_radius", 0.5f, FLT_MAX, KX_Scene, m_activity_box_radius),
 	KX_PYATTRIBUTE_BOOL_RO("dbvt_culling",			KX_Scene, m_dbvt_culling),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 KX_PYMETHODDEF_DOC(KX_Scene, addObject,

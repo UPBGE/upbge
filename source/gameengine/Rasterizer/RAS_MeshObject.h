@@ -45,7 +45,7 @@
 #include "RAS_Texture.h"
 #include "MT_Transform.h"
 #include "MT_Vector2.h"
-#include "STR_String.h"
+#include <string>
 
 class RAS_MeshUser;
 class RAS_Deformer;
@@ -74,7 +74,7 @@ public:
 		/// The index of the color or uv layer in the vertices.
 		unsigned short index;
 		/// The name of the color or uv layer used to find corresponding material attributes.
-		STR_String name;
+		std::string name;
 	};
 
 	typedef std::vector<Layer> LayerList;
@@ -88,7 +88,7 @@ public:
 	};
 
 private:
-	STR_String m_name;
+	std::string m_name;
 
 	LayersInfo m_layersInfo;
 
@@ -113,8 +113,8 @@ public:
 
 	// materials
 	int NumMaterials();
-	const STR_String GetMaterialName(unsigned int matid);
-	const STR_String GetTextureName(unsigned int matid);
+	const std::string GetMaterialName(unsigned int matid);
+	const std::string GetTextureName(unsigned int matid);
 
 	RAS_MeshMaterial *GetMeshMaterial(unsigned int matid) const;
 	RAS_MeshMaterial *GetMeshMaterialBlenderIndex(unsigned int index);
@@ -123,7 +123,7 @@ public:
 	std::vector<RAS_MeshMaterial *>::iterator GetLastMaterial();
 
 	// name
-	STR_String& GetName();
+	std::string& GetName();
 
 	// original blender mesh
 	Mesh *GetMesh()

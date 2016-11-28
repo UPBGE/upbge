@@ -101,7 +101,7 @@ PyAttributeDef KX_LodLevel::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("useHysteresis", KX_LodLevel, pyattr_get_use_hysteresis),
 	KX_PYATTRIBUTE_RO_FUNCTION("useMesh", KX_LodLevel, pyattr_get_use_mesh),
 	KX_PYATTRIBUTE_RO_FUNCTION("useMaterial", KX_LodLevel, pyattr_get_use_material),
-	{NULL} // Sentinel
+	KX_PYATTRIBUTE_NULL  // Sentinel
 };
 
 PyObject *KX_LodLevel::pyattr_get_mesh(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

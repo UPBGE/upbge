@@ -33,7 +33,7 @@ CListWrapper::CListWrapper(void *client,
 						   bool (*checkValid)(void *),
 						   int (*getSize)(void *),
 						   PyObject *(*getItem)(void *, int),
-						   const char *(*getItemName)(void *, int),
+						   const std::string (*getItemName)(void *, int),
 						   bool (*setItem)(void *, int, PyObject *),
 						   int flag)
 :m_client(client),
@@ -80,7 +80,7 @@ PyObject *CListWrapper::GetItem(int index)
 	return (*m_getItem)(m_client, index);
 }
 
-const char *CListWrapper::GetItemName(int index)
+const std::string CListWrapper::GetItemName(int index)
 {
 	return (*m_getItemName)(m_client, index);
 }
@@ -107,7 +107,7 @@ bool CListWrapper::AllowFindValue()
 
 // ================================================================
 
-STR_String CListWrapper::GetName()
+std::string CListWrapper::GetName()
 {
 	return "ListWrapper";
 }
@@ -228,7 +228,7 @@ PyObject *CListWrapper::py_mapping_subscript(PyObject *self, PyObject *key)
 		int size = list->GetSize();
 
 		for (unsigned int i = 0; i < size; ++i) {
-			if (strcmp(list->GetItemName(i), name) == 0) {
+			if (list->GetItemName(i) == name) {
 				return list->GetItem(i);
 			}
 		}
@@ -269,7 +269,7 @@ int CListWrapper::py_mapping_ass_subscript(PyObject *self, PyObject *key, PyObje
 		int size = list->GetSize();
 
 		for (unsigned int i = 0; i < size; ++i) {
-			if (strcmp(list->GetItemName(i), name) == 0) {
+			if (list->GetItemName(i) == name) {
 				if (!list->SetItem(i, value)) {
 					return -1;
 				}
@@ -303,7 +303,7 @@ int CListWrapper::py_contains(PyObject *self, PyObject *key)
 		const char *name = _PyUnicode_AsString(key);
 
 		for (unsigned int i = 0, size = list->GetSize(); i < size; ++i) {
-			if (strcmp(list->GetItemName(i), name) == 0) {
+			if (list->GetItemName(i) == name) {
 				return 1;
 			}
 		}
@@ -375,7 +375,7 @@ PyMethodDef CListWrapper::Methods[] = {
 };
 
 PyAttributeDef CListWrapper::Attributes[] = {
-	{NULL} //Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 /* Matches python dict.get(key, [default]) */
@@ -400,7 +400,7 @@ PyObject *CListWrapper::PyGet(PyObject *args)
 	}
 
 	for (unsigned int i = 0; i < GetSize(); ++i) {
-		if (strcmp(GetItemName(i), name) == 0) {
+		if (GetItemName(i) == name) {
 			return GetItem(i);
 		}
 	}

@@ -125,7 +125,7 @@ PyMethodDef SCA_NANDController::Methods[] = {
 };
 
 PyAttributeDef SCA_NANDController::Attributes[] = {
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif

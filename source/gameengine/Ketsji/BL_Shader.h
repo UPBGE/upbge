@@ -48,7 +48,7 @@ public:
 #ifdef WITH_PYTHON
 	virtual PyObject *py_repr()
 	{
-		return PyUnicode_FromFormat("BL_Shader\n\tvertex shader:%s\n\n\tfragment shader%s\n\n", m_progs[VERTEX_PROGRAM].ReadPtr(), m_progs[FRAGMENT_PROGRAM].ReadPtr());
+		return PyUnicode_FromFormat("BL_Shader\n\tvertex shader:%s\n\n\tfragment shader%s\n\n", m_progs[VERTEX_PROGRAM].c_str(), m_progs[FRAGMENT_PROGRAM].c_str());
 	}
 
 	static PyObject *pyattr_get_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

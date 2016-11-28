@@ -120,7 +120,7 @@ PyAttributeDef KX_VisibilityActuator::Attributes[] = {
 	KX_PYATTRIBUTE_BOOL_RW("visibility", KX_VisibilityActuator, m_visible),
 	KX_PYATTRIBUTE_BOOL_RW("useOcclusion", KX_VisibilityActuator, m_occlusion),
 	KX_PYATTRIBUTE_BOOL_RW("useRecursion", KX_VisibilityActuator, m_recursive),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 #endif // WITH_PYTHON

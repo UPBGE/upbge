@@ -32,6 +32,9 @@
 #include "EXP_Operator1Expr.h"
 #include "EXP_IdentifierExpr.h"
 
+#include <boost/format.hpp>
+#include <boost/algorithm/string.hpp>
+
 // this is disable at the moment, I expected a memleak from it, but the error-cleanup was the reason
 // well, looks we don't need it anyway, until maybe the Curved Surfaces are integrated into CSG 
 // cool things like (IF(LOD==1,CCurvedValue,IF(LOD==2,CCurvedValue2)) etc...
@@ -65,7 +68,7 @@ CParser::~CParser()
 
 
 
-void CParser::ScanError(const char *str)
+void CParser::ScanError(const std::string& str)
 {
 	// sets the global variable errmsg to an errormessage with
 	// contents str, appending if it already exists
@@ -80,7 +83,7 @@ void CParser::ScanError(const char *str)
 
 
 
-CExpression* CParser::Error(const char *str)
+CExpression* CParser::Error(const std::string& str)
 {
 	// makes and returns a new CConstExpr filled with an CErrorValue
 	// with string str
@@ -96,7 +99,7 @@ void CParser::NextCh()
 	// and increases the global variable chcount
 	chcount++;
 
-	if (chcount < text.Length())
+	if (chcount < text.size())
 		ch = text[chcount];
 	else
 		ch = 0x00;
@@ -114,8 +117,7 @@ void CParser::TermChar(char c)
 	}
 	else
 	{
-		STR_String str;
-		str.Format("Warning: %c expected\ncontinuing without it", c);
+		std::string str = (boost::format("Warning: %c expected\ncontinuing without it") % c).str();
 		trace(str);
 	}
 }
@@ -149,7 +151,7 @@ void CParser::GrabString(int start)
 {
 	// puts part of the input string into the global variable
 	// const_as_string, from position start, to position chchount
-	const_as_string = text.Mid(start, chcount-start);
+	const_as_string = text.substr(start, chcount - start);
 }
 
 
@@ -163,7 +165,7 @@ void CParser::GrabRealString(int start)
 	int i;
 	char tmpch;
 
-	const_as_string = STR_String();
+	const_as_string = std::string();
 	for (i=start;i<chcount;i++) {
 		tmpch= text[i];
 		if ((tmpch =='\\') && (text[i+1] == 'n')) {
@@ -307,36 +309,35 @@ void CParser::NextSym()
 				start = chcount;
 				CharRep();
 				GrabString(start);
-				if (!strcasecmp(const_as_string, "SUM")) {
+				if (boost::iequals(const_as_string, "SUM")) {
 					sym = sumsym;
 				}
-				else if (!strcasecmp(const_as_string, "NOT")) {
+				else if (boost::iequals(const_as_string, "NOT")) {
 					sym = opsym;
 					opkind = OPnot;
 				}
-				else if (!strcasecmp(const_as_string, "AND")) {
+				else if (boost::iequals(const_as_string, "AND")) {
 					sym = opsym; opkind = OPand;
 				}
-				else if (!strcasecmp(const_as_string, "OR")) {
+				else if (boost::iequals(const_as_string, "OR")) {
 					sym = opsym; opkind = OPor;
 				}
-				else if (!strcasecmp(const_as_string, "IF"))
+				else if (boost::iequals(const_as_string, "IF"))
 					sym = ifsym;
-				else if (!strcasecmp(const_as_string, "WHOMADE"))
+				else if (boost::iequals(const_as_string, "WHOMADE"))
 					sym = whocodedsym;
-				else if (!strcasecmp(const_as_string, "FALSE")) {
+				else if (boost::iequals(const_as_string, "FALSE")) {
 					sym = constsym; constkind = booltype; boolvalue = false;
-				} else if (!strcasecmp(const_as_string, "TRUE")) {
+				} else if (boost::iequals(const_as_string, "TRUE")) {
 					sym = constsym; constkind = booltype; boolvalue = true;
 				} else {
 					sym = idsym;
-					//STR_String str;
+					//std::string str;
 					//str.Format("'%s' makes no sense here", (const char*)funstr);
 					//ScanError(str);
 				}
 			} else { // unknown symbol
-				STR_String str;
-				str.Format("Unexpected character '%c'", ch);
+				std::string str = (boost::format("Unexpected character '%c'") % ch).str();
 				NextCh();
 				ScanError(str);
 				return;
@@ -355,7 +356,7 @@ int CParser::MakeInt()
 }
 #endif
 
-const char *CParser::Symbol2Str(int s)
+const std::string CParser::Symbol2Str(int s)
 {
 	// returns a string representation of of symbol s,
 	// for use in Term when generating an error
@@ -383,8 +384,7 @@ void CParser::Term(int s)
 		NextSym();
 	}
 	else {
-		STR_String msg;
-		msg.Format("Warning: %s expected\ncontinuing without it", Symbol2Str(s));
+		std::string msg = (boost::format("Warning: %s expected\ncontinuing without it") % Symbol2Str(s)).str();
 
 //		AfxMessageBox(msg,MB_ICONERROR);
 
@@ -474,14 +474,14 @@ CExpression *CParser::Ex(int i)
 						case inttype:
 						{
 							cInt temp;
-							temp = strtoll(const_as_string, NULL, 10); /* atoi is for int only */
+							temp = std::stol(const_as_string, NULL, 10); /* atoi is for int only */
 							e1 = new CConstExpr(new CIntValue(temp));
 							break;
 						}
 						case floattype:
 						{
 							double temp;
-							temp = atof(const_as_string);
+							temp = std::stof(const_as_string);
 							e1 = new CConstExpr(new CFloatValue(temp));
 							break;
 						}
@@ -528,7 +528,7 @@ CExpression *CParser::Ex(int i)
 				case errorsym:
 				{
 					BLI_assert(!e1);
-					STR_String errtext="[no info]";
+					std::string errtext="[no info]";
 					if (errmsg)
 					{
 						CValue* errmsgval = errmsg->Calculate();
@@ -567,8 +567,8 @@ CExpression *CParser::Expr()
 	return Ex(1);
 }
 
-CExpression* CParser::ProcessText
-(const char *intext) {
+CExpression* CParser::ProcessText(const std::string& intext)
+{
 	
 	// and parses the string in intext and returns it.
 	
@@ -578,7 +578,7 @@ CExpression* CParser::ProcessText
 	
 	
 	chcount = 0;
-	if (text.Length() == 0) {
+	if (text.size() == 0) {
 		return NULL;
 	}
 	
@@ -595,7 +595,7 @@ CExpression* CParser::ProcessText
 	if (sym != eolsym) {
 		CExpression* oldexpr = expr;
 		expr = new COperator2Expr(VALUE_ADD_OPERATOR,
-			oldexpr, Error(STR_String("Extra characters after expression")));//new CConstExpr(new CErrorValue("Extra characters after expression")));
+			oldexpr, Error("Extra characters after expression"));//new CConstExpr(new CErrorValue("Extra characters after expression")));
 	}
 	if (errmsg)
 		errmsg->Release();
@@ -605,7 +605,7 @@ CExpression* CParser::ProcessText
 
 
 
-float CParser::GetFloat(STR_String& txt)
+float CParser::GetFloat(std::string& txt)
 {
 	// returns parsed text into a float
 	// empty string returns -1
@@ -630,7 +630,7 @@ float CParser::GetFloat(STR_String& txt)
 	return result;
 }
 
-CValue* CParser::GetValue(STR_String& txt, bool bFallbackToText)
+CValue* CParser::GetValue(std::string& txt, bool bFallbackToText)
 {
 	// returns parsed text into a value, 
 	// empty string returns NULL value !
@@ -649,7 +649,7 @@ CValue* CParser::GetValue(STR_String& txt, bool bFallbackToText)
 			result->Release();
 			result=NULL;
 			if (bFallbackToText) {
-				if (txt.Length()>0)
+				if (txt.size()>0)
 				{
 					result = new CStringValue(txt,"");
 				}

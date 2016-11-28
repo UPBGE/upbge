@@ -25,7 +25,7 @@
 #ifndef __RAS_TEXTURE_H__
 #define __RAS_TEXTURE_H__
 
-#include "STR_String.h"
+#include <string>
 
 struct MTex;
 struct Tex;
@@ -38,7 +38,7 @@ class RAS_Texture
 {
 protected:
 	int m_bindCode;
-	STR_String m_name;
+	std::string m_name;
 
 	RAS_CubeMap *m_cubeMap;
 
@@ -53,7 +53,7 @@ public:
 	virtual Tex *GetTex() const = 0;
 	virtual Image *GetImage() const = 0;
 	virtual GPUTexture *GetGPUTexture() const = 0;
-	STR_String& GetName();
+	std::string& GetName();
 
 	void SetCubeMap(RAS_CubeMap *cubeMap);
 	RAS_CubeMap *GetCubeMap() const;

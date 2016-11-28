@@ -231,7 +231,7 @@ static PyObject *gPyExpandPath(PyObject *, PyObject *args)
 		return NULL;
 
 	BLI_strncpy(expanded, filename, FILE_MAX);
-	BLI_path_abs(expanded, KX_GetMainPath().ReadPtr());
+	BLI_path_abs(expanded, KX_GetMainPath().c_str());
 	return PyC_UnicodeFromByte(expanded);
 }
 
@@ -528,10 +528,10 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
 	
 	if (searchpath) {
 		BLI_strncpy(cpath, searchpath, FILE_MAX);
-		BLI_path_abs(cpath, KX_GetMainPath().ReadPtr());
+		BLI_path_abs(cpath, KX_GetMainPath().c_str());
 	} else {
 		/* Get the dir only */
-		BLI_split_dir_part(KX_GetMainPath().ReadPtr(), cpath, sizeof(cpath));
+		BLI_split_dir_part(KX_GetMainPath().c_str(), cpath, sizeof(cpath));
 	}
 
 	if ((dp  = opendir(cpath)) == NULL) {
@@ -653,7 +653,7 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 		char abs_path[FILE_MAX];
 		// Make the path absolute
 		BLI_strncpy(abs_path, path, sizeof(abs_path));
-		BLI_path_abs(abs_path, KX_GetMainPath().ReadPtr());
+		BLI_path_abs(abs_path, KX_GetMainPath().c_str());
 
 		if ((status=kx_scene->GetSceneConverter()->LinkBlendFilePath(abs_path, group, kx_scene, &err_str, options))) {
 			return status->GetProxy();
@@ -1033,22 +1033,29 @@ static PyObject *gPyDisableMotionBlur(PyObject *)
 	Py_RETURN_NONE;
 }
 
-static int getGLSLSettingFlag(const char *setting)
+static int getGLSLSettingFlag(const std::string& setting)
 {
-	if (strcmp(setting, "lights") == 0)
+	if (setting == "lights") {
 		return GAME_GLSL_NO_LIGHTS;
-	else if (strcmp(setting, "shaders") == 0)
+	}
+	else if (setting == "shaders") {
 		return GAME_GLSL_NO_SHADERS;
-	else if (strcmp(setting, "shadows") == 0)
+	}
+	else if (setting == "shadows") {
 		return GAME_GLSL_NO_SHADOWS;
-	else if (strcmp(setting, "ramps") == 0)
+	}
+	else if (setting == "ramps") {
 		return GAME_GLSL_NO_RAMPS;
-	else if (strcmp(setting, "nodes") == 0)
+	}
+	else if (setting == "nodes") {
 		return GAME_GLSL_NO_NODES;
-	else if (strcmp(setting, "extra_textures") == 0)
+	}
+	else if (setting == "extra_textures") {
 		return GAME_GLSL_NO_EXTRA_TEX;
-	else
+	}
+	else {
 		return -1;
+	}
 }
 
 static PyObject *gPySetGLSLMaterialSetting(PyObject *,
@@ -1861,8 +1868,8 @@ static void initPySysObjects__append(PyObject *sys_path, const char *filename)
 	char expanded[FILE_MAX];
 	
 	BLI_split_dir_part(filename, expanded, sizeof(expanded)); /* get the dir part of filename only */
-	BLI_path_abs(expanded, KX_GetMainPath().ReadPtr()); /* filename from lib->filename is (always?) absolute, so this may not be needed but it wont hurt */
-	BLI_cleanup_file(KX_GetMainPath().ReadPtr(), expanded); /* Don't use BLI_cleanup_dir because it adds a slash - BREAKS WIN32 ONLY */
+	BLI_path_abs(expanded, KX_GetMainPath().c_str()); /* filename from lib->filename is (always?) absolute, so this may not be needed but it wont hurt */
+	BLI_cleanup_file(KX_GetMainPath().c_str(), expanded); /* Don't use BLI_cleanup_dir because it adds a slash - BREAKS WIN32 ONLY */
 	item = PyC_UnicodeFromByte(expanded);
 	
 	if (PySequence_Index(sys_path, item) == -1) {
@@ -1896,7 +1903,7 @@ static void initPySysObjects(Main *maggie)
 		lib= (Library *)lib->id.next;
 	}
 	
-	initPySysObjects__append(sys_path, KX_GetMainPath().ReadPtr());
+	initPySysObjects__append(sys_path, KX_GetMainPath().c_str());
 }
 
 static void restorePySysObjects(void)
@@ -2648,10 +2655,10 @@ void saveGamePythonConfig()
 		CM_Error("bge.logic failed to import bge.logic.globalDict will be lost");
 	}
 
-	STR_String marshal_path = pathGamePythonConfig();
+	std::string marshal_path = pathGamePythonConfig();
 
 	if (marshal_length && marshal_buffer) {
-		FILE *fp = fopen(marshal_path.ReadPtr(), "wb");
+		FILE *fp = fopen(marshal_path.c_str(), "wb");
 
 		if (fp) {
 			if (fwrite(marshal_buffer, 1, marshal_length, fp) != marshal_length) {
@@ -2675,9 +2682,9 @@ void saveGamePythonConfig()
 
 void loadGamePythonConfig()
 {
-	STR_String marshal_path = pathGamePythonConfig();
+	std::string marshal_path = pathGamePythonConfig();
 
-	FILE *fp = fopen(marshal_path.ReadPtr(), "rb");
+	FILE *fp = fopen(marshal_path.c_str(), "rb");
 
 	if (fp) {
 		// obtain file size:
@@ -2725,28 +2732,28 @@ void loadGamePythonConfig()
 			}
 		}
 		else {
-			CM_Error("could not read all of '" << marshal_path.ReadPtr() << "'");
+			CM_Error("could not read all of '" << marshal_path << "'");
 		}
 
 		free(marshal_buffer);
 		fclose(fp);
 	}
 	else {
-		CM_Error("could not open '" << marshal_path.ReadPtr() << "'");
+		CM_Error("could not open '" << marshal_path << "'");
 	}
 }
 
-STR_String pathGamePythonConfig()
+std::string pathGamePythonConfig()
 {
-	STR_String path = KX_GetOrigPath();
-	int len = path.Length();
+	std::string path = KX_GetOrigPath();
+	int len = path.size();
 
 	/* replace extension */
-	if (BLI_testextensie(path.Ptr(), ".blend")) {
-		path = path.Left(len - 6) + STR_String(".bgeconf");
+	if (BLI_testextensie(path.c_str(), ".blend")) {
+		path = path.substr(0, len - 6) + std::string(".bgeconf");
 	}
 	else {
-		path += STR_String(".bgeconf");
+		path += std::string(".bgeconf");
 	}
 
 	return path;

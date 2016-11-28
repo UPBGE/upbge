@@ -116,6 +116,8 @@ extern "C"
 #  include "sdlew.h"
 #endif
 
+#include <boost/algorithm/string.hpp>
+
 #include "CM_Message.h"
 
 const int kMinWindowWidth = 100;
@@ -255,7 +257,7 @@ static GHOST_IWindow *startScreenSaverPreview(
 	{
 		int windowWidth = rc.right - rc.left;
 		int windowHeight = rc.bottom - rc.top;
-		STR_String title = "";
+		std::string title = "";
 		GHOST_GLSettings glSettings = {0};
 
 		if (stereoVisual) {
@@ -352,7 +354,7 @@ static GHOST_IWindow *startScreenSaverFullScreen(
 
 static GHOST_IWindow *startWindow(
 		GHOST_ISystem *system,
-        STR_String& title,
+        std::string& title,
         int windowLeft,
         int windowTop,
         int windowWidth,
@@ -362,7 +364,7 @@ static GHOST_IWindow *startWindow(
 {
 	GHOST_GLSettings glSettings = {0};
 	// Create the main window
-	//STR_String title ("Blender Player - GHOST");
+	//std::string title ("Blender Player - GHOST");
 	if (stereoVisual)
 		glSettings.flags |= GHOST_glStereoVisual;
 	if (alphaBackground)
@@ -386,7 +388,7 @@ static GHOST_IWindow *startWindow(
 
 static GHOST_IWindow *startEmbeddedWindow(
 		GHOST_ISystem *system,
-        STR_String& title,
+        std::string& title,
         const GHOST_TEmbedderWindowID parentWindow,
         const bool stereoVisual,
 		const int alphaBackground)
@@ -412,16 +414,15 @@ static GHOST_IWindow *startEmbeddedWindow(
 	return window;
 }
 
-static void usage(const char* program, bool isBlenderPlayer)
+static void usage(const std::string& program, bool isBlenderPlayer)
 {
-	const char * consoleoption;
-	const char * example_filename = "";
-	const char * example_pathname = "";
+	std::string example_filename = "";
+	std::string example_pathname = "";
 
 #ifdef _WIN32
-	consoleoption = "[-c] ";
+	const std::string consoleoption = "[-c] ";
 #else
-	consoleoption = "";
+	const std::string consoleoption = "";
 #endif
 
 	if (isBlenderPlayer) {
@@ -1041,7 +1042,7 @@ int main(
 			// of scope before GHOST_ISystem::disposeSystem() is called.
 			{
 				int exitcode = KX_EXIT_REQUEST_NO_REQUEST;
-				STR_String exitstring = "";
+				std::string exitstring = "";
 				bool firstTimeRunning = true;
 				char filename[FILE_MAX];
 				char pathname[FILE_MAX];
@@ -1070,7 +1071,7 @@ int main(
 						char basedpath[FILE_MAX];
 						
 						// base the actuator filename relative to the last file
-						BLI_strncpy(basedpath, exitstring.Ptr(), sizeof(basedpath));
+						BLI_strncpy(basedpath, exitstring.c_str(), sizeof(basedpath));
 						BLI_path_abs(basedpath, pathname);
 						
 						bfd = load_game_data(basedpath);
@@ -1230,19 +1231,21 @@ int main(
 								}
 #endif
 								// Strip the path so that we have the name of the game file
-								STR_String path = titlename;
+								std::string path = titlename;
+								std::vector<std::string> parts;
 #ifndef WIN32
-								std::vector<STR_String> parts = path.Explode('/');
+								boost::split(parts, path, boost::is_any_of("/"));
 #else  // WIN32
-								std::vector<STR_String> parts = path.Explode('\\');
+								boost::split(parts, path, boost::is_any_of("\\"));
 #endif // WIN32                        
-								STR_String title;
+								std::string title;
 								if (parts.size()) {
-									title = parts[parts.size()-1];
-									parts = title.Explode('.');
-									if (parts.size() > 1)
+									title = parts[parts.size() - 1];
+									std::vector<std::string> sublastparts;
+									boost::split(sublastparts, title, boost::is_any_of("."));
+									if (sublastparts.size() > 1)
 									{
-										title = parts[0];
+										title = sublastparts[0];
 									}
 								}
 								else {

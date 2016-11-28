@@ -63,14 +63,14 @@ class SCA_KeyboardSensor : public SCA_ISensor
 	 * The name of the property to which logged text is appended. If
 	 * this property is not defined, no logging takes place.
 	 */
-	STR_String	m_targetprop;
+	std::string	m_targetprop;
 	/**
 	 * The property that indicates whether or not to log text when in
 	 * logging mode. If the property equals 0, no logging is done. For
 	 * all other values, logging is active. Logging can only become
 	 * active if there is a property to log to. Logging is independent
 	 * from hotkey settings. */
-	STR_String	m_toggleprop;
+	std::string	m_toggleprop;
 
 	/**
 	 * Log the keystrokes from the current input buffer.
@@ -88,8 +88,8 @@ public:
 					   short int qual,
 					   short int qual2,
 					   bool bAllKeys,
-					   const STR_String& targetProp,
-					   const STR_String& toggleProp,
+					   const std::string& targetProp,
+					   const std::string& toggleProp,
 					   SCA_IObject* gameobj,
 					   short int exitKey);
 	virtual ~SCA_KeyboardSensor();

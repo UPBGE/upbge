@@ -176,7 +176,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						bCollisionPulse = (blendercollisionsensor->mode & SENS_COLLISION_PULSE);
 
 
-						const STR_String touchPropOrMatName = bFindMaterial ?
+						const std::string touchPropOrMatName = bFindMaterial ?
 															  blendercollisionsensor->materialName : blendercollisionsensor->name;
 
 
@@ -201,7 +201,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					/* Get our NetworkScene */
 					KX_NetworkMessageScene *NetworkScene = kxscene->GetNetworkMessageScene();
 					/* filter on the incoming subjects, might be empty */
-					const STR_String subject = msgSens->subject;
+					const std::string subject = msgSens->subject;
 
 					gamesensor = new KX_NetworkMessageSensor(
 						eventmgr,		// our eventmanager
@@ -217,7 +217,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					if (eventmgr)
 					{
 						bNearSensor* blendernearsensor = (bNearSensor*)sens->data;
-						const STR_String nearpropertyname = (char *)blendernearsensor->name;
+						const std::string nearpropertyname = (char *)blendernearsensor->name;
 
 						//DT_ShapeHandle shape	=	DT_Sphere(0.0);
 
@@ -328,7 +328,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 							/* give us a focus-aware sensor */
 							bool bFindMaterial = (bmouse->mode & SENS_COLLISION_MATERIAL);
 							bool bXRay = (bmouse->flag & SENS_RAY_XRAY);
-							STR_String checkname = (bFindMaterial? bmouse->matname : bmouse->propname);
+							std::string checkname = (bFindMaterial? bmouse->matname : bmouse->propname);
 
 							gamesensor = new KX_MouseFocusSensor(eventmgr,
 								startx,
@@ -353,9 +353,9 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						= logicmgr->FindEventManager(SCA_EventManager::BASIC_EVENTMGR);
 					if (eventmgr)
 					{
-						STR_String propname=blenderpropsensor->name;
-						STR_String propval=blenderpropsensor->value;
-						STR_String propmaxval=blenderpropsensor->maxvalue;
+						std::string propname=blenderpropsensor->name;
+						std::string propval=blenderpropsensor->value;
+						std::string propmaxval=blenderpropsensor->maxvalue;
 
 						SCA_PropertySensor::KX_PROPSENSOR_TYPE
 							propchecktype = SCA_PropertySensor::KX_PROPSENSOR_NODEF;
@@ -401,7 +401,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						= logicmgr->FindEventManager(SCA_EventManager::ACTUATOR_EVENTMGR);
 					if (eventmgr)
 					{
-						STR_String propname=blenderactsensor->name;
+						std::string propname=blenderactsensor->name;
 						gamesensor = new SCA_ActuatorSensor(eventmgr,gameobj,propname);
 					}
 					break;
@@ -415,8 +415,8 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						= logicmgr->FindEventManager(SCA_EventManager::BASIC_EVENTMGR);
 					if (eventmgr)
 					{
-						STR_String bonename=blenderarmsensor->posechannel;
-						STR_String constraintname=blenderarmsensor->constraint;
+						std::string bonename=blenderarmsensor->posechannel;
+						std::string constraintname=blenderarmsensor->constraint;
 						gamesensor = new KX_ArmatureSensor(eventmgr,gameobj,bonename,constraintname, blenderarmsensor->type, blenderarmsensor->value);
 					}
 					break;
@@ -429,7 +429,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					if (eventmgr)
 					{
 						bRadarSensor* blenderradarsensor = (bRadarSensor*) sens->data;
-						const STR_String radarpropertyname = blenderradarsensor->name;
+						const std::string radarpropertyname = blenderradarsensor->name;
 
 						int radaraxis = blenderradarsensor->axis;
 
@@ -479,7 +479,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						bool bFindMaterial = (blenderraysensor->mode & SENS_COLLISION_MATERIAL);
 						bool bXRay = (blenderraysensor->mode & SENS_RAY_XRAY);
 
-						STR_String checkname = (bFindMaterial? blenderraysensor->matname : blenderraysensor->propname);
+						std::string checkname = (bFindMaterial? blenderraysensor->matname : blenderraysensor->propname);
 
 						// don't want to get rays of length 0.0 or so
 						double distance = (blenderraysensor->range < 0.01f ? 0.01f : blenderraysensor->range);
@@ -602,7 +602,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 			if (gamesensor)
 			{
 				gamesensor->SetExecutePriority(executePriority++);
-				STR_String uniquename = sens->name;
+				std::string uniquename = sens->name;
 				uniquename += "#SENS#";
 				uniqueint++;
 				CIntValue* uniqueval = new CIntValue(uniqueint);

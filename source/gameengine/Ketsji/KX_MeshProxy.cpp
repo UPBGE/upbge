@@ -92,7 +92,7 @@ PyAttributeDef KX_MeshProxy::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("numMaterials",  KX_MeshProxy, pyattr_get_numMaterials),
 	KX_PYATTRIBUTE_RO_FUNCTION("polygons",      KX_MeshProxy, pyattr_get_polygons),
 
-	{NULL}    //Sentinel
+	KX_PYATTRIBUTE_NULL    //Sentinel
 };
 
 KX_MeshProxy::KX_MeshProxy(RAS_MeshObject *mesh)
@@ -106,7 +106,7 @@ KX_MeshProxy::~KX_MeshProxy()
 }
 
 // stuff for cvalue related things
-STR_String KX_MeshProxy::GetName()
+std::string KX_MeshProxy::GetName()
 {
 	return m_meshobj->GetName();
 }
@@ -129,7 +129,7 @@ static PyObject *kx_mesh_proxy_get_polygons_item_cb(void *self_v, int index)
 PyObject *KX_MeshProxy::PyGetMaterialName(PyObject *args, PyObject *kwds)
 {
 	int matid = 1;
-	STR_String matname;
+	std::string matname;
 
 	if (PyArg_ParseTuple(args, "i:getMaterialName", &matid)) {
 		matname = m_meshobj->GetMaterialName(matid);
@@ -138,13 +138,13 @@ PyObject *KX_MeshProxy::PyGetMaterialName(PyObject *args, PyObject *kwds)
 		return NULL;
 	}
 
-	return PyUnicode_From_STR_String(matname);
+	return PyUnicode_FromStdString(matname);
 }
 
 PyObject *KX_MeshProxy::PyGetTextureName(PyObject *args, PyObject *kwds)
 {
 	int matid = 1;
-	STR_String matname;
+	std::string matname;
 
 	if (PyArg_ParseTuple(args, "i:getTextureName", &matid)) {
 		matname = m_meshobj->GetTextureName(matid);
@@ -153,7 +153,7 @@ PyObject *KX_MeshProxy::PyGetTextureName(PyObject *args, PyObject *kwds)
 		return NULL;
 	}
 
-	return PyUnicode_From_STR_String(matname);
+	return PyUnicode_FromStdString(matname);
 }
 
 PyObject *KX_MeshProxy::PyGetVertexArrayLength(PyObject *args, PyObject *kwds)
@@ -466,7 +466,7 @@ bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, RAS_MeshOb
 	}
 
 	if (PyUnicode_Check(value)) {
-		*object = (RAS_MeshObject*)logicmgr->GetMeshByName(STR_String(_PyUnicode_AsString(value)));
+		*object = (RAS_MeshObject*)logicmgr->GetMeshByName(std::string(_PyUnicode_AsString(value)));
 		
 		if (*object) {
 			return true;

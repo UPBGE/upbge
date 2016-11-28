@@ -60,7 +60,7 @@ SCA_LogicManager::~SCA_LogicManager()
 // this kind of fixes bug 398 but breakes games, so better leave it out for now.
 // a removed object's gameobject (and logicbricks and stuff) didn't get released
 // because it was still in the m_mapStringToGameObjects map.
-void SCA_LogicManager::RemoveGameObject(const STR_String& gameobjname)
+void SCA_LogicManager::RemoveGameObject(const std::string& gameobjname)
 {
 	int numgameobj = m_mapStringToGameObjects.size();
 	for (int i = 0; i < numgameobj; i++)
@@ -87,22 +87,22 @@ void SCA_LogicManager::RegisterEventManager(SCA_EventManager* eventmgr)
 
 
 
-void SCA_LogicManager::RegisterGameObjectName(const STR_String& gameobjname,
+void SCA_LogicManager::RegisterGameObjectName(const std::string& gameobjname,
 											  CValue* gameobj)
 {
-	STR_HashedString mn = gameobjname;
+	std::string mn = gameobjname;
 	m_mapStringToGameObjects[mn] = gameobj;
 }
 
-void SCA_LogicManager::UnregisterGameObjectName(const STR_String& gameobjname)
+void SCA_LogicManager::UnregisterGameObjectName(const std::string& gameobjname)
 {
 	m_mapStringToGameObjects.erase(gameobjname);
 }
 
 
-void SCA_LogicManager::RegisterGameMeshName(const STR_String& gamemeshname, void* blendobj)
+void SCA_LogicManager::RegisterGameMeshName(const std::string& gamemeshname, void* blendobj)
 {
-	STR_HashedString mn = gamemeshname;
+	std::string mn = gamemeshname;
 	m_map_gamemeshname_to_blendobj[mn] = blendobj;
 }
 
@@ -121,9 +121,9 @@ void SCA_LogicManager::UnregisterGameObj(void* blendobj, CValue* gameobj)
 	}
 }
 
-CValue* SCA_LogicManager::GetGameObjectByName(const STR_String& gameobjname)
+CValue* SCA_LogicManager::GetGameObjectByName(const std::string& gameobjname)
 {
-	STR_HashedString mn = gameobjname;
+	std::string mn = gameobjname;
 	return m_mapStringToGameObjects[mn];
 }
 
@@ -135,9 +135,9 @@ CValue* SCA_LogicManager::FindGameObjByBlendObj(void* blendobj)
 
 
 
-void* SCA_LogicManager::FindBlendObjByGameMeshName(const STR_String& gamemeshname) 
+void* SCA_LogicManager::FindBlendObjByGameMeshName(const std::string& gamemeshname) 
 {
-	STR_HashedString mn = gamemeshname;
+	std::string mn = gamemeshname;
 	return m_map_gamemeshname_to_blendobj[mn];
 }
 
@@ -247,38 +247,38 @@ void SCA_LogicManager::UpdateFrame(double curtime, bool frame)
 
 
 
-void *SCA_LogicManager::GetActionByName(const STR_String& actname)
+void *SCA_LogicManager::GetActionByName(const std::string& actname)
 {
-	STR_HashedString an = actname;
+	std::string an = actname;
 	return m_mapStringToActions[an];
 }
 
 
 
-void* SCA_LogicManager::GetMeshByName(const STR_String& meshname)
+void* SCA_LogicManager::GetMeshByName(const std::string& meshname)
 {
-	STR_HashedString mn = meshname;
+	std::string mn = meshname;
 	return m_mapStringToMeshes[mn];
 }
 
 
 
-void SCA_LogicManager::RegisterMeshName(const STR_String& meshname,void* mesh)
+void SCA_LogicManager::RegisterMeshName(const std::string& meshname,void* mesh)
 {
-	STR_HashedString mn = meshname;
+	std::string mn = meshname;
 	m_mapStringToMeshes[mn] = mesh;
 }
 
-void SCA_LogicManager::UnregisterMeshName(const STR_String& meshname,void* mesh)
+void SCA_LogicManager::UnregisterMeshName(const std::string& meshname,void* mesh)
 {
-	STR_HashedString mn = meshname;
+	std::string mn = meshname;
 	m_mapStringToMeshes.erase(mn);
 }
 
 
-void SCA_LogicManager::RegisterActionName(const STR_String& actname,void* action)
+void SCA_LogicManager::RegisterActionName(const std::string& actname,void* action)
 {
-	STR_HashedString an = actname;
+	std::string an = actname;
 	m_mapStringToActions[an] = action;
 }
 

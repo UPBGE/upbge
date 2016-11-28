@@ -56,7 +56,7 @@ protected:
 	/**
 	 * The sensor should only look for objects with this property.
 	 */
-	STR_String m_touchedpropname;
+	std::string m_touchedpropname;
 	bool m_bFindMaterial;
 	bool m_bCollisionPulse;                         /* changes in the colliding objects trigger pulses */
 
@@ -73,14 +73,14 @@ protected:
 
 	SCA_IObject *m_hitObject;
 	class CListValue *       m_colliders;
-	STR_String m_hitMaterial;
+	std::string m_hitMaterial;
 
 public:
 	KX_CollisionSensor(class SCA_EventManager *eventmgr,
 	                   class KX_GameObject *gameobj,
 	                   bool bFindMaterial,
 	                   bool bCollisionPulse,
-	                   const STR_String& touchedpropname);
+	                   const std::string& touchedpropname);
 	virtual ~KX_CollisionSensor();
 
 	virtual CValue *GetReplica();

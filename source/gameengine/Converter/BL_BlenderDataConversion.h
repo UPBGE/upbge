@@ -32,7 +32,7 @@
 #ifndef __BL_BLENDERDATACONVERSION_H__
 #define __BL_BLENDERDATACONVERSION_H__
 
-#include "STR_String.h"
+#include <string>
 #include "EXP_Python.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "SCA_IInputDevice.h"

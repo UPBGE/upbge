@@ -40,10 +40,10 @@ class SCA_PropertySensor : public SCA_ISensor
 	Py_Header
 	//class CExpression*	m_rightexpr;
 	int				m_checktype;
-	STR_String		m_checkpropval;
-	STR_String		m_checkpropmaxval;
-	STR_String		m_checkpropname;
-	STR_String		m_previoustext;
+	std::string		m_checkpropval;
+	std::string		m_checkpropmaxval;
+	std::string		m_checkpropname;
+	std::string		m_previoustext;
 	bool			m_lastresult;
 	bool			m_recentresult;
 
@@ -62,13 +62,13 @@ public:
 		KX_PROPSENSOR_MAX
 	};
 
-	const STR_String S_KX_PROPSENSOR_EQ_STRING;
+	const std::string S_KX_PROPSENSOR_EQ_STRING;
 	
 	SCA_PropertySensor(class SCA_EventManager* eventmgr,
 					  SCA_IObject* gameobj,
-					  const STR_String& propname,
-					  const STR_String& propval,
-					  const STR_String& propmaxval,
+					  const std::string& propname,
+					  const std::string& propval,
+					  const std::string& propmaxval,
 					  KX_PROPSENSOR_TYPE checktype);
 
 	virtual ~SCA_PropertySensor();
@@ -78,7 +78,7 @@ public:
 
 	virtual bool Evaluate();
 	virtual bool	IsPositiveTrigger();
-	virtual CValue*		FindIdentifier(const STR_String& identifiername);
+	virtual CValue*		FindIdentifier(const std::string& identifiername);
 
 #ifdef WITH_PYTHON
 

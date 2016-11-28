@@ -138,7 +138,7 @@ void SCA_2DFilterActuator::SetScene(SCA_IScene *scene)
 	m_scene = scene;
 }
 
-void SCA_2DFilterActuator::SetShaderText(const char *text)
+void SCA_2DFilterActuator::SetShaderText(const std::string& text)
 {
 	m_shaderText = text;
 }
@@ -183,7 +183,7 @@ PyAttributeDef SCA_2DFilterActuator::Attributes[] = {
 	KX_PYATTRIBUTE_ENUM_RW("mode", RAS_2DFilterManager::FILTER_ENABLED, RAS_2DFilterManager::FILTER_NUMBER_OF_FILTERS, false, SCA_2DFilterActuator, m_type),
 KX_PYATTRIBUTE_INT_RW("passNumber", 0, 100, true, SCA_2DFilterActuator, m_int_arg),
 	KX_PYATTRIBUTE_FLOAT_RW("value", 0.0, 100.0, SCA_2DFilterActuator, m_float_arg),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 #endif

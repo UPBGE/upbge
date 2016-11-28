@@ -42,12 +42,12 @@ class SCA_2DFilterActuator : public SCA_IActuator
 	Py_Header
 
 private:
-	std::vector<STR_String> m_propNames;
+	std::vector<std::string> m_propNames;
 	int m_type;
 	short m_disableMotionBlur;
 	float m_float_arg;
 	int   m_int_arg;
-	STR_String	m_shaderText;
+	std::string m_shaderText;
 	RAS_IRasterizer* m_rasterizer;
 	RAS_2DFilterManager *m_filterManager;
 	SCA_IScene* m_scene;
@@ -63,7 +63,7 @@ public:
 			RAS_2DFilterManager *filterManager,
 	        SCA_IScene* scene);
 
-	void	SetShaderText(const char *text);
+	void	SetShaderText(const std::string& text);
 	virtual ~SCA_2DFilterActuator();
 	virtual bool Update();
 

@@ -106,7 +106,7 @@ void Texture::DestructFromPython()
 	PyObjectPlus::DestructFromPython();
 }
 
-STR_String Texture::GetName()
+std::string Texture::GetName()
 {
 	return "Texture";
 }
@@ -232,12 +232,12 @@ short getMaterialID(PyObject *obj, const char *name)
 		// name is a material name if it starts with MA and a UV texture name if it starts with IM
 		if (name[0] == 'I' && name[1] == 'M') {
 			// if texture name matches
-			if (strcmp(mat->GetTextureName().ReadPtr(), name) == 0)
+			if (mat->GetTextureName() == name)
 				return matID;
 		}
 		else {
 			// if material name matches
-			if (strcmp(mat->GetName().ReadPtr(), name) == 0)
+			if (mat->GetName() == name)
 				return matID;
 		}
 	}
@@ -528,7 +528,7 @@ PyAttributeDef Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("mipmap", Texture, pyattr_get_mipmap, pyattr_set_mipmap),
 	KX_PYATTRIBUTE_RW_FUNCTION("source", Texture, pyattr_get_source, pyattr_set_source),
 	KX_PYATTRIBUTE_RO_FUNCTION("bindId", Texture, pyattr_get_bindId),
-	{NULL}
+	KX_PYATTRIBUTE_NULL
 };
 
 

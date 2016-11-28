@@ -64,7 +64,7 @@ PyTypeObject BL_ArmatureConstraint::Type = {
 
 PyObject *BL_ArmatureConstraint::py_repr(void)
 {
-	return PyUnicode_FromString(m_name);
+	return PyUnicode_FromStdString(m_name);
 }
 
 #endif // WITH_PYTHON
@@ -96,7 +96,7 @@ BL_ArmatureConstraint::BL_ArmatureConstraint(
 		m_target->RegisterObject(m_armature);
 	if (m_subtarget)
 		m_subtarget->RegisterObject(m_armature);
-	BLI_snprintf(m_name, sizeof(m_name), "%s:%s", m_posechannel->name, m_constraint->name);
+	m_name = std::string(m_posechannel->name) + ":" + std::string(m_constraint->name);
 }
 
 BL_ArmatureConstraint::~BL_ArmatureConstraint()
@@ -211,9 +211,9 @@ void BL_ArmatureConstraint::RestoreTarget()
 	}
 }
 
-bool BL_ArmatureConstraint::Match(const char* posechannel, const char* constraint)
+bool BL_ArmatureConstraint::Match(const std::string& posechannel, const std::string& constraint)
 {
-	return (!strcmp(m_posechannel->name, posechannel) && !strcmp(m_constraint->name, constraint));
+	return ((m_posechannel->name == posechannel) && (m_constraint->name == constraint));
 }
 
 void BL_ArmatureConstraint::SetTarget(KX_GameObject* target)
@@ -282,8 +282,7 @@ PyAttributeDef BL_ArmatureConstraint::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("ik_flag",BL_ArmatureConstraint,py_attr_getattr),
 	KX_PYATTRIBUTE_RW_FUNCTION("ik_dist",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
 	KX_PYATTRIBUTE_RW_FUNCTION("ik_mode",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
-	
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 

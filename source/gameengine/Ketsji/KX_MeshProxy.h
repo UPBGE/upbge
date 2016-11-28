@@ -58,7 +58,7 @@ public:
 	}
 
 	// stuff for cvalue related things
-	virtual STR_String GetName();
+	virtual std::string GetName();
 
 	// stuff for python integration
 

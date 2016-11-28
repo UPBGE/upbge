@@ -572,7 +572,7 @@ PyAttributeDef KX_Camera::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("OUTSIDE",	KX_Camera, pyattr_get_OUTSIDE),
 	KX_PYATTRIBUTE_RO_FUNCTION("INTERSECT",	KX_Camera, pyattr_get_INTERSECT),
 	
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyTypeObject KX_Camera::Type = {
@@ -997,7 +997,7 @@ bool ConvertPythonToCamera(KX_Scene *scene, PyObject *value, KX_Camera **object,
 	}
 	
 	if (PyUnicode_Check(value)) {
-		STR_String value_str = _PyUnicode_AsString(value);
+		std::string value_str = _PyUnicode_AsString(value);
 		*object = (KX_Camera*)scene->GetCameraList()->FindValue(value_str);
 		
 		if (*object) {

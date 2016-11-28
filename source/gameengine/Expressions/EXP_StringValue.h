@@ -29,12 +29,12 @@ class CStringValue : public CPropValue
 public:
 	/// Construction / destruction
 	CStringValue();
-	CStringValue(const char *txt, const char *name, AllocationTYPE alloctype = CValue::HEAPVALUE);
+	CStringValue(const std::string& txt, const std::string& name, AllocationTYPE alloctype = CValue::HEAPVALUE);
 
 	virtual ~CStringValue() {}
 	/// CValue implementation
-	virtual bool		IsEqual(const STR_String & other);
-	virtual const STR_String GetText();
+	virtual bool		IsEqual(const std::string & other);
+	virtual const std::string GetText();
 	virtual double		GetNumber();
 	virtual int			GetValueType();
 	
@@ -44,13 +44,13 @@ public:
 	virtual CValue*		GetReplica();
 #ifdef WITH_PYTHON
 	virtual PyObject*	ConvertValueToPython() {
-		return PyUnicode_From_STR_String(m_strString);
+		return PyUnicode_FromStdString(m_strString);
 	}
 #endif  /* WITH_PYTHON */
 
 private:
 	// data member
-	STR_String				m_strString;
+	std::string				m_strString;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

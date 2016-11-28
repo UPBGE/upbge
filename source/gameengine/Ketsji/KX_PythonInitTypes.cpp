@@ -116,7 +116,7 @@
 
 static void PyType_Attr_Set(PyGetSetDef *attr_getset, PyAttributeDef *attr)
 {
-	attr_getset->name= (char *)attr->m_name;
+	attr_getset->name = (char *)attr->m_name.c_str();
 	attr_getset->doc= NULL;
 
 	attr_getset->get= reinterpret_cast<getter>(PyObjectPlus::py_get_attrdef);
@@ -137,28 +137,28 @@ static void PyType_Ready_ADD(PyObject *dict, PyTypeObject *tp, PyAttributeDef *a
 		/* we need to do this for all types before calling PyType_Ready
 		 * since they will call the parents PyType_Ready and those might not have initialized vars yet */
 
-		if (tp->tp_getset==NULL && ((attributes && attributes->m_name) || (attributesPtr && attributesPtr->m_name))) {
+		if (tp->tp_getset==NULL && ((attributes && !attributes->m_name.empty()) || (attributesPtr && !attributesPtr->m_name.empty()))) {
 			PyGetSetDef *attr_getset;
 			int attr_tot= 0;
 
 			if (attributes) {
-				for (attr= attributes; attr->m_name; attr++, attr_tot++)
+				for (attr = attributes; !attr->m_name.empty(); attr++, attr_tot++)
 					attr->m_usePtr = false;
 			}
 			if (attributesPtr) {
-				for (attr= attributesPtr; attr->m_name; attr++, attr_tot++)
+				for (attr= attributesPtr; !attr->m_name.empty(); attr++, attr_tot++)
 					attr->m_usePtr = true;
 			}
 
 			tp->tp_getset = attr_getset = reinterpret_cast<PyGetSetDef *>(PyMem_Malloc((attr_tot+1) * sizeof(PyGetSetDef))); // XXX - Todo, free
 
 			if (attributes) {
-				for (attr= attributes; attr->m_name; attr++, attr_getset++) {
+				for (attr= attributes; !attr->m_name.empty(); attr++, attr_getset++) {
 					PyType_Attr_Set(attr_getset, attr);
 				}
 			}
 			if (attributesPtr) {
-				for (attr= attributesPtr; attr->m_name; attr++, attr_getset++) {
+				for (attr= attributesPtr; !attr->m_name.empty(); attr++, attr_getset++) {
 					PyType_Attr_Set(attr_getset, attr);
 				}
 			}

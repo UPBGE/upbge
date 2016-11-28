@@ -39,7 +39,7 @@ conflicts with KX_NetworkMessageScene::SendMessage */
 #endif
 
 #include "KX_NetworkMessageManager.h"
-#include "STR_String.h"
+#include <string>
 #include <map>
 #include <vector>
 
@@ -61,13 +61,13 @@ public:
 	 * \param subject The message subject, used as filter for receiver object(s).
 	 * \param message The body of the message.
 	 */
-	void SendMessage(STR_String to, SCA_IObject *from, STR_String subject, STR_String body);
+	void SendMessage(std::string to, SCA_IObject *from, std::string subject, std::string body);
 
 	/** Get all messages for a given receiver object name and message subject.
 	 * \param to The object(s) name.
 	 * \param subject The message subject/filter.
 	 */
-	const std::vector<KX_NetworkMessageManager::Message> FindMessages(STR_String to, STR_String subject);
+	const std::vector<KX_NetworkMessageManager::Message> FindMessages(std::string to, std::string subject);
 };
 
 #endif // __KX_NETWORKMESSAGESCENE_H__

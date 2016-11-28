@@ -102,20 +102,20 @@ CValue* SCA_ILogicBrick::CalcFinal(VALUE_DATA_TYPE dtype,
 	return result;
 }
 
-const STR_String SCA_ILogicBrick::GetText()
+const std::string SCA_ILogicBrick::GetText()
 { 
-	if (m_name.Length())
+	if (m_name.size())
 		return m_name;
 
 	return m_text;
 }
 
-STR_String SCA_ILogicBrick::GetName()
+std::string SCA_ILogicBrick::GetName()
 {
 	return m_name;
 }
 
-void SCA_ILogicBrick::SetName(const char *name)
+void SCA_ILogicBrick::SetName(const std::string& name)
 {
 	m_name = name;
 }
@@ -203,7 +203,7 @@ PyAttributeDef SCA_ILogicBrick::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("owner",	SCA_ILogicBrick, pyattr_get_owner),
 	KX_PYATTRIBUTE_INT_RW("executePriority",0,100000,false,SCA_ILogicBrick,m_Execute_Priority),
 	KX_PYATTRIBUTE_STRING_RO("name", SCA_ILogicBrick, m_name),
-	{NULL} //Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 int SCA_ILogicBrick::CheckProperty(void *self, const PyAttributeDef *attrdef)
@@ -213,7 +213,7 @@ int SCA_ILogicBrick::CheckProperty(void *self, const PyAttributeDef *attrdef)
 		return 1;
 	}
 	SCA_ILogicBrick* brick = reinterpret_cast<SCA_ILogicBrick*>(self);
-	STR_String* var = reinterpret_cast<STR_String*>((char*)self+attrdef->m_offset);
+	std::string* var = reinterpret_cast<std::string*>((char*)self+attrdef->m_offset);
 	CValue* prop = brick->GetParent()->FindIdentifier(*var);
 	bool error = prop->IsError();
 	prop->Release();

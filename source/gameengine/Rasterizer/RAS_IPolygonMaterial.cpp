@@ -35,7 +35,7 @@
 #include "DNA_material_types.h"
 
 RAS_IPolyMaterial::RAS_IPolyMaterial(
-	const STR_String& name,
+	const std::string& name,
 	GameSettings *game)
 	:m_name(name),
 	m_alphablend(0),
@@ -121,7 +121,7 @@ int RAS_IPolyMaterial::GetDrawingMode() const
 	return m_drawingmode;
 }
 
-STR_String RAS_IPolyMaterial::GetName()
+std::string RAS_IPolyMaterial::GetName()
 {
 	return m_name;
 }

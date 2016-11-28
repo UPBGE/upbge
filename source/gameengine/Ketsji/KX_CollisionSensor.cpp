@@ -101,7 +101,7 @@ bool KX_CollisionSensor::Evaluate()
 	return result;
 }
 
-KX_CollisionSensor::KX_CollisionSensor(SCA_EventManager *eventmgr, KX_GameObject *gameobj, bool bFindMaterial, bool bCollisionPulse, const STR_String& touchedpropname)
+KX_CollisionSensor::KX_CollisionSensor(SCA_EventManager *eventmgr, KX_GameObject *gameobj, bool bFindMaterial, bool bCollisionPulse, const std::string& touchedpropname)
 	:SCA_ISensor(gameobj, eventmgr),
 	m_touchedpropname(touchedpropname),
 	m_bFindMaterial(bFindMaterial),
@@ -208,13 +208,13 @@ bool KX_CollisionSensor::BroadPhaseSensorFilterCollision(void *obj1, void *obj2)
 		return false;
 	}
 
-	bool found = m_touchedpropname.IsEmpty();
+	bool found = m_touchedpropname.empty();
 	if (!found) {
 		if (m_bFindMaterial) {
 			for (unsigned int i = 0; i < otherobj->GetMeshCount(); ++i) {
 				RAS_MeshObject *meshObj = otherobj->GetMesh(i);
 				for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
-					found = strcmp(m_touchedpropname.ReadPtr(), meshObj->GetMaterialName(j).ReadPtr() + 2) == 0;
+					found = (m_touchedpropname == std::string(meshObj->GetMaterialName(j), 2));
 					if (found) {
 						break;
 					}
@@ -248,14 +248,14 @@ bool KX_CollisionSensor::NewHandleCollision(void *object1, void *object2, const 
 	    gameobj && (gameobj != parent) && client_info->isActor())
 	{
 
-		bool found = m_touchedpropname.IsEmpty();
+		bool found = m_touchedpropname.empty();
 		bool hitMaterial = false;
 		if (!found) {
 			if (m_bFindMaterial) {
 				for (unsigned int i = 0; i < gameobj->GetMeshCount(); ++i) {
 					RAS_MeshObject *meshObj = gameobj->GetMesh(i);
 					for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
-						found = strcmp(m_touchedpropname.ReadPtr(), meshObj->GetMaterialName(j).ReadPtr() + 2) == 0;
+						found = (m_touchedpropname == std::string(meshObj->GetMaterialName(j), 2));
 						if (found) {
 							hitMaterial = true;
 							break;
@@ -323,7 +323,7 @@ PyAttributeDef KX_CollisionSensor::Attributes[] = {
 	KX_PYATTRIBUTE_STRING_RO("hitMaterial", KX_CollisionSensor, m_hitMaterial),
 	KX_PYATTRIBUTE_RO_FUNCTION("hitObject", KX_CollisionSensor, pyattr_get_object_hit),
 	KX_PYATTRIBUTE_RO_FUNCTION("hitObjectList", KX_CollisionSensor, pyattr_get_object_hit_list),
-	{NULL}    //Sentinel
+	KX_PYATTRIBUTE_NULL    //Sentinel
 };
 
 /* Python API */

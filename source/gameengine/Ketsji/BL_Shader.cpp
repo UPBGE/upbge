@@ -130,7 +130,7 @@ PyAttributeDef BL_Shader::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("enabled", BL_Shader, pyattr_get_enabled, pyattr_set_enabled),
 	KX_PYATTRIBUTE_RW_FUNCTION("bindCallbacks", BL_Shader, pyattr_get_callbacks, pyattr_set_callbacks),
 	KX_PYATTRIBUTE_RW_FUNCTION("objectCallbacks", BL_Shader, pyattr_get_callbacks, pyattr_set_callbacks),
-	{NULL} //Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 PyTypeObject BL_Shader::Type = {
@@ -174,7 +174,7 @@ int BL_Shader::pyattr_set_enabled(void *self_v, const KX_PYATTRIBUTE_DEF *attrde
 	return PY_SET_ATTR_SUCCESS;
 }
 
-static std::map<const char *, BL_Shader::CallbacksType> callbacksTable = {
+static std::map<const std::string, BL_Shader::CallbacksType> callbacksTable = {
 	{"bindCallbacks", BL_Shader::CALLBACKS_BIND},
 	{"objectCallbacks", BL_Shader::CALLBACKS_OBJECT}
 };
@@ -191,7 +191,7 @@ int BL_Shader::pyattr_set_callbacks(void *self_v, const KX_PYATTRIBUTE_DEF *attr
 {
 	BL_Shader *self = static_cast<BL_Shader *>(self_v);
 	if (!PyList_CheckExact(value)) {
-		PyErr_Format(PyExc_AttributeError, "shader.%s = bool: BL_Shader, expected a list", attrdef->m_name);
+		PyErr_Format(PyExc_AttributeError, "shader.%s = bool: BL_Shader, expected a list", attrdef->m_name.c_str());
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -210,8 +210,8 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 	int apply = 0;
 
 	if (PyArg_ParseTuple(args, "ssi:setSource", &v, &f, &apply)) {
-		m_progs[VERTEX_PROGRAM] = STR_String(v);
-		m_progs[FRAGMENT_PROGRAM] = STR_String(f);
+		m_progs[VERTEX_PROGRAM] = std::string(v);
+		m_progs[FRAGMENT_PROGRAM] = std::string(f);
 		m_progs[GEOMETRY_PROGRAM] = "";
 
 		if (LinkProgram()) {
@@ -261,7 +261,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSourceList, " setSourceList(sources, apply)")
 			}
 		}
 		if (pyprog) {
-			m_progs[i] = STR_String(_PyUnicode_AsString(pyprog));
+			m_progs[i] = std::string(_PyUnicode_AsString(pyprog));
 		}
 	}
 
@@ -295,12 +295,12 @@ KX_PYMETHODDEF_DOC(BL_Shader, isValid, "isValid()")
 
 KX_PYMETHODDEF_DOC(BL_Shader, getVertexProg, "getVertexProg( )")
 {
-	return PyUnicode_FromString(m_progs[VERTEX_PROGRAM].ReadPtr());
+	return PyUnicode_FromStdString(m_progs[VERTEX_PROGRAM]);
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, getFragmentProg, "getFragmentProg( )")
 {
-	return PyUnicode_FromString(m_progs[FRAGMENT_PROGRAM].ReadPtr());
+	return PyUnicode_FromStdString(m_progs[FRAGMENT_PROGRAM]);
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, validate, "validate()")

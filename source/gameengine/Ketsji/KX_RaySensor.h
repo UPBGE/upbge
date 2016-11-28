@@ -46,7 +46,7 @@ class KX_RayCast;
 class KX_RaySensor : public SCA_ISensor
 {
 	Py_Header
-	STR_String		m_propertyname;
+	std::string		m_propertyname;
 	bool			m_bFindMaterial;
 	bool			m_bXRay;
 	float			m_distance;
@@ -59,12 +59,12 @@ class KX_RaySensor : public SCA_ISensor
 	SCA_IObject*	m_hitObject;
 	float			m_hitNormal[3];
 	float			m_rayDirection[3];
-	STR_String		m_hitMaterial;
+	std::string		m_hitMaterial;
 
 public:
 	KX_RaySensor(class SCA_EventManager* eventmgr,
 					SCA_IObject* gameobj,
-					const STR_String& propname,
+					const std::string& propname,
 					bool bFindMaterial,
 					bool bXRay,
 					double distance,

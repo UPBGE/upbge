@@ -30,6 +30,8 @@
 
 #include "GPU_shader.h"
 
+#include <cstring> // for memcpy
+
 #include "CM_Message.h"
 
 #define UNIFORM_MAX_LEN (int)sizeof(float) * 16
@@ -287,14 +289,14 @@ bool RAS_Shader::LinkProgram()
 		goto program_error;
 	}
 
-	if (m_progs[VERTEX_PROGRAM].IsEmpty() || m_progs[FRAGMENT_PROGRAM].IsEmpty()) {
+	if (m_progs[VERTEX_PROGRAM].empty() || m_progs[FRAGMENT_PROGRAM].empty()) {
 		CM_Error("invalid GLSL sources");
 		return false;
 	}
 
-	vert = m_progs[VERTEX_PROGRAM].ReadPtr();
-	frag = m_progs[FRAGMENT_PROGRAM].ReadPtr();
-	geom = (m_progs[GEOMETRY_PROGRAM] == "") ? NULL : m_progs[GEOMETRY_PROGRAM].ReadPtr();
+	vert = m_progs[VERTEX_PROGRAM].c_str();
+	frag = m_progs[FRAGMENT_PROGRAM].c_str();
+	geom = (m_progs[GEOMETRY_PROGRAM].empty()) ? NULL : m_progs[GEOMETRY_PROGRAM].c_str();
 	m_shader = GPU_shader_create_ex(vert, frag, geom, NULL, NULL, 0, 0, 0, GPU_SHADER_FLAGS_SPECIAL_RESET_LINE);
 	if (!m_shader) {
 		goto program_error;
@@ -466,20 +468,20 @@ int RAS_Shader::GetAttribute()
 	return m_attr;
 }
 
-int RAS_Shader::GetAttribLocation(const char *name)
+int RAS_Shader::GetAttribLocation(const std::string& name)
 {
-	return GPU_shader_get_attribute(m_shader, name);
+	return GPU_shader_get_attribute(m_shader, name.c_str());
 }
 
-void RAS_Shader::BindAttribute(const char *attr, int loc)
+void RAS_Shader::BindAttribute(const std::string& attr, int loc)
 {
-	GPU_shader_bind_attribute(m_shader, loc, attr);
+	GPU_shader_bind_attribute(m_shader, loc, attr.c_str());
 }
 
-int RAS_Shader::GetUniformLocation(const char *name, bool debug)
+int RAS_Shader::GetUniformLocation(const std::string& name, bool debug)
 {
 	BLI_assert(m_shader != NULL);
-	int location = GPU_shader_get_uniform(m_shader, name);
+	int location = GPU_shader_get_uniform(m_shader, name.c_str());
 
 	if (location == -1 && debug) {
 		CM_Error("invalid uniform value: " << name << ".");

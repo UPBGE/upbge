@@ -94,14 +94,14 @@ public:
 	// for constraint python API
 	void LoadConstraints(KX_BlenderSceneConverter* converter);
 	size_t GetConstraintNumber() const { return m_constraintNumber; }
-	BL_ArmatureConstraint* GetConstraint(const char* posechannel, const char* constraint);
-	BL_ArmatureConstraint* GetConstraint(const char* posechannelconstraint);
+	BL_ArmatureConstraint* GetConstraint(const std::string& posechannel, const std::string& constraint);
+	BL_ArmatureConstraint* GetConstraint(const std::string& posechannelconstraint);
 	BL_ArmatureConstraint* GetConstraint(int index);
 	// for pose channel python API
 	void LoadChannels();
 	size_t GetChannelNumber() const { return m_channelNumber; }
 	BL_ArmatureChannel* GetChannel(bPoseChannel* channel);
-	BL_ArmatureChannel* GetChannel(const char* channel);
+	BL_ArmatureChannel* GetChannel(const std::string& channel);
 	BL_ArmatureChannel* GetChannel(int index);
 
 	/// Retrieve the pose matrix for the specified bone.

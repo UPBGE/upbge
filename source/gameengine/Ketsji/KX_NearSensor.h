@@ -53,7 +53,7 @@ public:
 	              float margin,
 	              float resetmargin,
 	              bool bFindMaterial,
-	              const STR_String& touchedpropname,
+	              const std::string& touchedpropname,
 	              PHY_IPhysicsController*	ctrl);
 #if 0
 public:
@@ -62,7 +62,7 @@ public:
 			double margin,
 			double resetmargin,
 			bool bFindMaterial,
-			const STR_String& touchedpropname,
+			const std::string& touchedpropname,
 			class KX_Scene* scene);
 #endif
 	virtual ~KX_NearSensor(); 

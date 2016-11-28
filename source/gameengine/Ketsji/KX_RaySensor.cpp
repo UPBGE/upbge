@@ -51,7 +51,7 @@
 
 KX_RaySensor::KX_RaySensor(class SCA_EventManager* eventmgr,
 					SCA_IObject* gameobj,
-					const STR_String& propname,
+					const std::string& propname,
 					bool bFindMaterial,
 					bool bXRay,
 					double distance,
@@ -114,7 +114,7 @@ bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void 
 	bool bFound = false;
 	bool hitMaterial = false;
 
-	if (m_propertyname.Length() == 0)
+	if (m_propertyname.size() == 0)
 	{
 		bFound = true;
 	}
@@ -124,7 +124,7 @@ bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void 
 			for (unsigned int i = 0; i < hitKXObj->GetMeshCount(); ++i) {
 				RAS_MeshObject *meshObj = hitKXObj->GetMesh(i);
 				for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
-					bFound = strcmp(m_propertyname.ReadPtr(), meshObj->GetMaterialName(j).ReadPtr() + 2) == 0;
+					bFound = (m_propertyname == std::string(meshObj->GetMaterialName(j), 2));
 					if (bFound) {
 						hitMaterial = true;
 						break;
@@ -175,14 +175,14 @@ bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 		return false;
 	}
 
-	if (m_bXRay && m_propertyname.Length() != 0)
+	if (m_bXRay && m_propertyname.size() != 0)
 	{
 		if (m_bFindMaterial) {
 			bool found = false;
 			for (unsigned int i = 0; i < hitKXObj->GetMeshCount(); ++i) {
 				RAS_MeshObject *meshObj = hitKXObj->GetMesh(i);
 				for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
-					found = strcmp(m_propertyname.ReadPtr(), meshObj->GetMaterialName(j).ReadPtr() + 2) == 0;
+					found = (m_propertyname == std::string(meshObj->GetMaterialName(j), 2));
 					if (found)
 						break;
 				}
@@ -373,7 +373,7 @@ PyAttributeDef KX_RaySensor::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("hitNormal", KX_RaySensor, m_hitNormal, 3),
 	KX_PYATTRIBUTE_STRING_RO("hitMaterial", KX_RaySensor, m_hitMaterial),
 	KX_PYATTRIBUTE_RO_FUNCTION("hitObject", KX_RaySensor, pyattr_get_hitobject),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *KX_RaySensor::pyattr_get_hitobject(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

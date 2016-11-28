@@ -37,9 +37,9 @@
 class CIdentifierExpr : public CExpression
 {
 	CValue*		m_idContext;
-	STR_String	m_identifier;
+	std::string	m_identifier;
 public:
-	CIdentifierExpr(const STR_String& identifier,CValue* id_context);
+	CIdentifierExpr(const std::string& identifier,CValue* id_context);
 	virtual ~CIdentifierExpr();
 
 	virtual CValue*			Calculate();

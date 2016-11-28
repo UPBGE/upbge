@@ -43,7 +43,7 @@ class KX_NetworkMessageSensor : public SCA_ISensor
 	KX_NetworkMessageScene *m_NetworkScene;
 
 	// The subject we filter on.
-	STR_String m_subject;
+	std::string m_subject;
 
 	// The number of messages caught since the last frame.
 	int m_frame_message_count;
@@ -58,7 +58,7 @@ public:
 	    SCA_EventManager *eventmgr, // our eventmanager
 	    KX_NetworkMessageScene *NetworkScene, // our scene
 	    SCA_IObject *gameobj, // the sensor controlling object
-	    const STR_String &subject);
+	    const std::string &subject);
 	virtual ~KX_NetworkMessageSensor();
 
 	virtual CValue *GetReplica();

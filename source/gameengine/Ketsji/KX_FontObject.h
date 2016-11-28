@@ -64,7 +64,7 @@ public:
 	const MT_Vector2 GetTextDimensions();
 
 protected:
-	std::vector<STR_String> m_text;
+	std::vector<std::string> m_text;
 	Object *m_object;
 	int m_fontid;
 	int m_dpi;

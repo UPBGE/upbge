@@ -40,6 +40,8 @@
 
 #include "EXP_ListWrapper.h"
 
+#include <boost/format.hpp>
+
 PyTypeObject KX_VertexProxy::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	"KX_VertexProxy",
@@ -102,7 +104,7 @@ PyAttributeDef KX_VertexProxy::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("colors", KX_VertexProxy, pyattr_get_colors, pyattr_set_colors),
 	KX_PYATTRIBUTE_RW_FUNCTION("normal", KX_VertexProxy, pyattr_get_normal, pyattr_set_normal),
 
-	{NULL}    //Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 PyObject *KX_VertexProxy::pyattr_get_x(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -475,7 +477,7 @@ int KX_VertexProxy::pyattr_set_uvs(void *self_v, const struct KX_PYATTRIBUTE_DEF
 				self->m_vertex->SetUV(i, vec);
 			}
 			else {
-				PyErr_SetString(PyExc_AttributeError, STR_String().Format("list[%d] was not a vector", i).ReadPtr());
+				PyErr_SetString(PyExc_AttributeError, ((boost::format("list[%d] was not a vector") % i).str().c_str()));
 				return PY_SET_ATTR_FAIL;
 			}
 		}
@@ -510,7 +512,7 @@ int KX_VertexProxy::pyattr_set_colors(void *self_v, const struct KX_PYATTRIBUTE_
 				self->m_vertex->SetRGBA(i, vec);
 			}
 			else {
-				PyErr_SetString(PyExc_AttributeError, STR_String().Format("list[%d] was not a vector", i).ReadPtr());
+				PyErr_SetString(PyExc_AttributeError, ((boost::format("list[%d] was not a vector") % i).str().c_str()));
 				return PY_SET_ATTR_FAIL;
 			}
 		}
@@ -556,7 +558,7 @@ RAS_IDisplayArray *KX_VertexProxy::GetDisplayArray()
 }
 
 // stuff for cvalue related things
-STR_String KX_VertexProxy::GetName()
+std::string KX_VertexProxy::GetName()
 {
 	return "vertex";
 }

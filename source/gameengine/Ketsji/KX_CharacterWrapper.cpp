@@ -36,7 +36,7 @@ KX_CharacterWrapper::~KX_CharacterWrapper()
 {
 }
 
-STR_String KX_CharacterWrapper::GetName()
+std::string KX_CharacterWrapper::GetName()
 {
 	return "KX_CharacterWrapper";
 }
@@ -71,7 +71,7 @@ PyAttributeDef KX_CharacterWrapper::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("maxJumps", KX_CharacterWrapper, pyattr_get_max_jumps, pyattr_set_max_jumps),
 	KX_PYATTRIBUTE_RO_FUNCTION("jumpCount", KX_CharacterWrapper, pyattr_get_jump_count),
 	KX_PYATTRIBUTE_RW_FUNCTION("walkDirection", KX_CharacterWrapper, pyattr_get_walk_dir, pyattr_set_walk_dir),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *KX_CharacterWrapper::pyattr_get_onground(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

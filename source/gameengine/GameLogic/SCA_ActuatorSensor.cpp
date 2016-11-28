@@ -42,7 +42,7 @@
 
 SCA_ActuatorSensor::SCA_ActuatorSensor(SCA_EventManager* eventmgr,
 									 SCA_IObject* gameobj,
-									 const STR_String& actname)
+									 const std::string& actname)
 	: SCA_ISensor(gameobj,eventmgr),
 	  m_checkactname(actname)
 {
@@ -151,7 +151,7 @@ PyMethodDef SCA_ActuatorSensor::Methods[] = {
 
 PyAttributeDef SCA_ActuatorSensor::Attributes[] = {
 	KX_PYATTRIBUTE_STRING_RW_CHECK("actuator",0,MAX_PROP_NAME,false,SCA_ActuatorSensor,m_checkactname,CheckActuator),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 int SCA_ActuatorSensor::CheckActuator(void *self, const PyAttributeDef*)

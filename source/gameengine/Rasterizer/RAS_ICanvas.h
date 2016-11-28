@@ -137,7 +137,7 @@ public:
 		return m_mousestate;
 	}
 
-	virtual void MakeScreenShot(const char *filename) = 0;
+	virtual void MakeScreenShot(const std::string& filename) = 0;
 
 	virtual void GetDisplayDimensions(int &width, int &height) = 0;
 

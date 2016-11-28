@@ -61,7 +61,7 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 		m_textures[i] = 0;
 	}
 
-	m_progs[VERTEX_PROGRAM] = STR_String(datatoc_RAS_VertexShader2DFilter_glsl);
+	m_progs[VERTEX_PROGRAM] = std::string(datatoc_RAS_VertexShader2DFilter_glsl);
 	m_progs[FRAGMENT_PROGRAM] = data.shaderText;
 
 	LinkProgram();
@@ -141,9 +141,9 @@ void RAS_2DFilter::ParseShaderProgram()
 	}
 
 	if (m_gameObject) {
-		std::vector<STR_String> foundProperties;
-		for (std::vector<STR_String>::iterator it = m_properties.begin(), end = m_properties.end(); it != end; ++it) {
-			STR_String prop = *it;
+		std::vector<std::string> foundProperties;
+		for (std::vector<std::string>::iterator it = m_properties.begin(), end = m_properties.end(); it != end; ++it) {
+			std::string prop = *it;
 			unsigned int loc = GetUniformLocation(prop, false);
 			if (loc != -1) {
 				m_propertiesLoc.push_back(loc);
@@ -234,7 +234,7 @@ void RAS_2DFilter::BindUniforms(RAS_ICanvas *canvas)
 	}
 
 	for (unsigned int i = 0, size = m_properties.size(); i < size; ++i) {
-		const STR_String& prop = m_properties[i];
+		const std::string& prop = m_properties[i];
 		unsigned int uniformLoc = m_propertiesLoc[i];
 
 		CValue *property = m_gameObject->GetProperty(prop);

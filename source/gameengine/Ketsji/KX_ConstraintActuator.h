@@ -68,7 +68,7 @@ protected:
 	// option
 	int m_option;
 	// property to check
-	STR_String m_property;
+	std::string m_property;
 	// hit object
 	KX_GameObject* m_hitObject;
 

@@ -59,7 +59,7 @@ float BL_ActionManager::GetActionFrame(short layer)
 	return action ? action->GetFrame() : 0.f;
 }
 
-const char *BL_ActionManager::GetActionName(short layer)
+const std::string BL_ActionManager::GetActionName(short layer)
 {
 	BL_Action *action = GetAction(layer);
 	return action ? action->GetName() : "";
@@ -93,7 +93,7 @@ void BL_ActionManager::SetTimes(short layer, float start, float end)
 	if (action) action->SetTimes(start, end);
 }
 
-bool BL_ActionManager::PlayAction(const char* name,
+bool BL_ActionManager::PlayAction(const std::string& name,
 								float start,
 								float end,
 								short layer,

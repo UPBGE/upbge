@@ -26,15 +26,15 @@
  *  \ingroup blroutines
  */
 
-#include "STR_HashedString.h"
+#include <string>
 #include "LA_SystemCommandLine.h"
 
 #include <map>
 
 struct SingletonSystem {
-	std::map<STR_HashedString, int> int_params;
-	std::map<STR_HashedString, float> float_params;
-	std::map<STR_HashedString, STR_String> string_params;
+	std::map<std::string, int> int_params;
+	std::map<std::string, float> float_params;
+	std::map<std::string, std::string> string_params;
 };
 
 static SingletonSystem *_system_instance = NULL;
@@ -57,7 +57,7 @@ void SYS_DeleteSystem(SYS_SystemHandle sys)
 
 int SYS_GetCommandLineInt(SYS_SystemHandle sys, const char *paramname, int defaultvalue)
 {
-	std::map<STR_HashedString, int>::iterator it = ((SingletonSystem *)sys)->int_params.find(paramname);
+	std::map<std::string, int>::iterator it = ((SingletonSystem *)sys)->int_params.find(paramname);
 	if (it != ((SingletonSystem *)sys)->int_params.end()) {
 		return it->second;
 	}
@@ -67,7 +67,7 @@ int SYS_GetCommandLineInt(SYS_SystemHandle sys, const char *paramname, int defau
 
 float SYS_GetCommandLineFloat(SYS_SystemHandle sys, const char *paramname, float defaultvalue)
 {
-	std::map<STR_HashedString, float>::iterator it = ((SingletonSystem *)sys)->float_params.find(paramname);
+	std::map<std::string, float>::iterator it = ((SingletonSystem *)sys)->float_params.find(paramname);
 	if (it != ((SingletonSystem *)sys)->float_params.end()) {
 		return it->second;
 	}
@@ -77,9 +77,9 @@ float SYS_GetCommandLineFloat(SYS_SystemHandle sys, const char *paramname, float
 
 const char *SYS_GetCommandLineString(SYS_SystemHandle sys, const char *paramname, const char *defaultvalue)
 {
-	std::map<STR_HashedString, STR_String>::iterator it = ((SingletonSystem *)sys)->string_params.find(paramname);
+	std::map<std::string, std::string>::iterator it = ((SingletonSystem *)sys)->string_params.find(paramname);
 	if (it != ((SingletonSystem *)sys)->string_params.end()) {
-		return it->second;
+		return it->second.c_str();
 	}
 
 	return defaultvalue;

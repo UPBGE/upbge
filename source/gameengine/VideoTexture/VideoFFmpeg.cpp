@@ -570,7 +570,7 @@ void VideoFFmpeg::openFile (char *filename)
 		// the file is to be treated as an image, i.e. load the first frame only
 		m_isFile = false;
 		// in case of reload, the filename is taken from m_imageName, no need to change it
-		if (m_imageName.Ptr() != filename)
+		if (m_imageName.c_str() != filename)
 			m_imageName = filename;
 		m_preseek = 0;
 		m_avail = false;

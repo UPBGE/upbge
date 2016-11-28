@@ -30,7 +30,7 @@
 KX_LibLoadStatus::KX_LibLoadStatus(class KX_BlenderSceneConverter* kx_converter,
 				class KX_KetsjiEngine* kx_engine,
 				class KX_Scene* merge_scene,
-				const char *path) :
+				const std::string& path) :
 			m_converter(kx_converter),
 			m_engine(kx_engine),
 			m_mergescene(merge_scene),
@@ -109,12 +109,12 @@ class KX_Scene *KX_LibLoadStatus::GetMergeScene()
 	return m_mergescene;
 }
 
-void KX_LibLoadStatus::SetLibName(const char *name)
+void KX_LibLoadStatus::SetLibName(const std::string& name)
 {
 	m_libname = name;
 }
 
-const char *KX_LibLoadStatus::GetLibName()
+const std::string& KX_LibLoadStatus::GetLibName()
 {
 	return m_libname;
 }
@@ -150,7 +150,7 @@ void KX_LibLoadStatus::AddProgress(float progress)
 
 PyMethodDef KX_LibLoadStatus::Methods[] = 
 {
-	{NULL} //Sentinel
+	{NULL, NULL} //Sentinel
 };
 
 PyAttributeDef KX_LibLoadStatus::Attributes[] = {
@@ -160,7 +160,7 @@ PyAttributeDef KX_LibLoadStatus::Attributes[] = {
 	KX_PYATTRIBUTE_STRING_RO("libraryName", KX_LibLoadStatus, m_libname),
 	KX_PYATTRIBUTE_RO_FUNCTION("timeTaken", KX_LibLoadStatus, pyattr_get_timetaken),
 	KX_PYATTRIBUTE_BOOL_RO("finished", KX_LibLoadStatus, m_finished),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 PyTypeObject KX_LibLoadStatus::Type = {

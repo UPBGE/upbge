@@ -129,7 +129,7 @@ GlobalSettings *LA_Launcher::GetGlobalSettings()
 	return m_ketsjiEngine->GetGlobalSettings();
 }
 
-const STR_String& LA_Launcher::GetExitString()
+const std::string& LA_Launcher::GetExitString()
 {
 	return m_exitString;
 }
@@ -259,16 +259,15 @@ void LA_Launcher::InitEngine()
 	InitCamera();
 
 #ifdef WITH_PYTHON
-	KX_SetMainPath(STR_String(m_maggie->name));
+	KX_SetMainPath(std::string(m_maggie->name));
 #endif
 
 	// Create a scene converter, create and convert the stratingscene.
 	m_sceneConverter = new KX_BlenderSceneConverter(m_maggie, m_ketsjiEngine);
-	STR_String m_kxStartScenename = m_startSceneName.Ptr();
 	m_ketsjiEngine->SetSceneConverter(m_sceneConverter);
 
 	m_kxStartScene = new KX_Scene(m_inputDevice,
-		m_kxStartScenename,
+		m_startSceneName,
 		m_startScene,
 		m_canvas,
 		m_networkMessageManager);

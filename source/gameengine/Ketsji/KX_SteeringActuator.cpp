@@ -565,7 +565,7 @@ PyAttributeDef KX_SteeringActuator::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RW("pathUpdatePeriod", -1, 100000, true, KX_SteeringActuator, m_pathUpdatePeriod),
 	KX_PYATTRIBUTE_BOOL_RW("lockZVelocity", KX_SteeringActuator, m_lockzvel),
 	KX_PYATTRIBUTE_RO_FUNCTION("path", KX_SteeringActuator, pyattr_get_path),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *KX_SteeringActuator::pyattr_get_target(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)

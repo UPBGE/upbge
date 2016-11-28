@@ -48,7 +48,7 @@ class KX_SceneActuator : public SCA_IActuator
 	class	KX_Scene*			m_scene;
 	class	KX_KetsjiEngine*	m_KetsjiEngine;
 	/** The scene to switch to. */
-	STR_String					m_nextSceneName;
+	std::string					m_nextSceneName;
 	
 	// (Set Camera) Object
 	class KX_Camera*			m_camera;
@@ -72,7 +72,7 @@ class KX_SceneActuator : public SCA_IActuator
 					 int mode,
 					 KX_Scene* scene,
 					 KX_KetsjiEngine* ketsjiEngine,
-					 const STR_String& nextSceneName,
+					 const std::string& nextSceneName,
 					 KX_Camera* camera);
 	virtual ~KX_SceneActuator();
 

@@ -48,6 +48,8 @@
 #  endif
 #endif
 
+#include <string>
+
 /**
  * Basic Joystick class
  * I will make this class a singleton because there should be only one joystick
@@ -185,7 +187,7 @@ public:
 	/**
 	 * Name of the joytsick
 	 */
-	const char *GetName();
+	const std::string GetName();
 };
 
 #endif // __DEV_JOYSTICK_H__

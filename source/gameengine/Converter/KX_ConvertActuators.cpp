@@ -140,8 +140,8 @@ void BL_ConvertActuators(const char* maggiename,
 	bact = (bActuator*) blenderobject->actuators.first;
 	while (bact)
 	{
-		STR_String uniquename = bact->name;
-		STR_String objectname = gameobj->GetName();
+		std::string uniquename = bact->name;
+		std::string objectname = gameobj->GetName();
 		
 		SCA_IActuator* baseact = NULL;
 		switch (bact->type)
@@ -208,8 +208,8 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_ACTION:
 			{
 				bActionActuator* actact = (bActionActuator*) bact->data;
-				STR_String propname = actact->name;
-				STR_String propframe = actact->frameProp;
+				std::string propname = actact->name;
+				std::string propframe = actact->frameProp;
 
 				short ipo_flags = 0;
 
@@ -271,11 +271,11 @@ void BL_ConvertActuators(const char* maggiename,
 				/* Get the name of the properties that objects must own that
 				 * we're sending to, if present
 				 */
-				STR_String toPropName = msgAct->toPropName;
+				std::string toPropName = msgAct->toPropName;
 				
 				/* Get the Message Subject to send.
 				 */
-				STR_String subject = msgAct->subject;
+				std::string subject = msgAct->subject;
 				
 				/* Get the bodyType
 				 */
@@ -284,7 +284,7 @@ void BL_ConvertActuators(const char* maggiename,
 				/* Get the body (text message or property name whose value
 				 * we'll be sending, might be empty
 				 */
-				const STR_String body = msgAct->body;
+				const std::string body = msgAct->body;
 				
 				KX_NetworkMessageActuator *tmpmsgact = new KX_NetworkMessageActuator(
 				            gameobj,					// actuator controlling object
@@ -656,7 +656,7 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_SCENE:
 			{
 				bSceneActuator *sceneact = (bSceneActuator *) bact->data;
-				STR_String nextSceneName("");
+				std::string nextSceneName("");
 				
 				KX_SceneActuator* tmpsceneact;
 				int mode = KX_SceneActuator::KX_SCENE_NODEF;
@@ -732,8 +732,8 @@ void BL_ConvertActuators(const char* maggiename,
 			{
 				bGameActuator *gameact = (bGameActuator *) bact->data;
 				KX_GameActuator* tmpgameact;
-				STR_String filename = maggiename;
-				STR_String loadinganimationname = "";
+				std::string filename = maggiename;
+				std::string loadinganimationname = "";
 				int mode = KX_GameActuator::KX_GAME_NODEF;
 				switch (gameact->type)
 				{

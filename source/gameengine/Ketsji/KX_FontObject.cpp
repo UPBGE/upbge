@@ -62,21 +62,21 @@ extern "C" {
 /* proptotype */
 int GetFontId(VFont *font);
 
-static std::vector<STR_String> split_string(STR_String str)
+static std::vector<std::string> split_string(std::string str)
 {
-	std::vector<STR_String> text = std::vector<STR_String>();
+	std::vector<std::string> text = std::vector<std::string>();
 
 	// Split the string upon new lines
 	int begin = 0, end = 0;
-	while (end < str.Length()) {
-		if (str.GetAt(end) == '\n') {
-			text.push_back(str.Mid(begin, end - begin));
+	while (end < str.size()) {
+		if (str[end] == '\n') {
+			text.push_back(str.substr(begin, end - begin));
 			begin = end + 1;
 		}
 		end++;
 	}
 	// Now grab the last line
-	text.push_back(str.Mid(begin, end - begin));
+	text.push_back(str.substr(begin, end - begin));
 
 	return text;
 }
@@ -207,11 +207,11 @@ const MT_Vector2 KX_FontObject::GetTextDimensions()
 {
 	MT_Vector2 dimensions(0.0f, 0.0f);
 
-	for (std::vector<STR_String>::iterator it = m_text.begin(); it != m_text.end(); ++it) {
+	for (std::vector<std::string>::iterator it = m_text.begin(); it != m_text.end(); ++it) {
 		float w = 0.0f, h = 0.0f;
-		const STR_String& text = *it;
+		const std::string& text = *it;
 
-		BLF_width_and_height(m_fontid, text.ReadPtr(), text.Length(), &w, &h);
+		BLF_width_and_height(m_fontid, text.c_str(), text.size(), &w, &h);
 		dimensions.x() = std::max(dimensions.x(), w);
 		dimensions.y() += h + m_line_spacing;
 	}
@@ -261,7 +261,7 @@ int GetFontId(VFont *vfont)
 	// convert from absolute to relative
 	char expanded[256]; // font names can be bigger than FILE_MAX (240)
 	BLI_strncpy(expanded, filepath, 256);
-	BLI_path_abs(expanded, KX_GetMainPath().ReadPtr());
+	BLI_path_abs(expanded, KX_GetMainPath().c_str());
 
 	fontid = BLF_load(expanded);
 
@@ -317,19 +317,19 @@ PyAttributeDef KX_FontObject::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_RW("size", 0.0001f, 40.0f, KX_FontObject, m_fsize),
 	KX_PYATTRIBUTE_FLOAT_RW("resolution", 0.1f, 50.0f, KX_FontObject, m_resolution),
 	/* KX_PYATTRIBUTE_INT_RW("dpi", 0, 10000, false, KX_FontObject, m_dpi), */// no real need for expose this I think
-	{NULL}    //Sentinel
+	KX_PYATTRIBUTE_NULL    //Sentinel
 };
 
 PyObject *KX_FontObject::pyattr_get_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
-	STR_String str = STR_String();
+	std::string str = std::string();
 	for (unsigned int i = 0; i < self->m_text.size(); ++i) {
 		if (i != 0)
 			str += '\n';
 		str += self->m_text[i];
 	}
-	return PyUnicode_From_STR_String(str);
+	return PyUnicode_FromStdString(str);
 }
 
 int KX_FontObject::pyattr_set_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -342,12 +342,12 @@ int KX_FontObject::pyattr_set_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrd
 	/* Allow for some logic brick control */
 	CValue *tprop = self->GetProperty("Text");
 	if (tprop) {
-		CValue *newstringprop = new CStringValue(STR_String(chars), "Text");
+		CValue *newstringprop = new CStringValue(std::string(chars), "Text");
 		self->SetProperty("Text", newstringprop);
 		newstringprop->Release();
 	}
 	else {
-		self->m_text = split_string(STR_String(chars));
+		self->m_text = split_string(std::string(chars));
 	}
 
 	return PY_SET_ATTR_SUCCESS;

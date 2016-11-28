@@ -65,7 +65,7 @@ KX_MouseFocusSensor::KX_MouseFocusSensor(SCA_MouseManager* eventmgr,
 										 short int mousemode,
 										 int focusmode,
 										 bool bCollisionPulse,
-										 const STR_String& propname,
+										 const std::string& propname,
 										 bool bFindMaterial,
 										 bool bXRay,
 										 KX_Scene* kxscene,
@@ -158,7 +158,7 @@ bool KX_MouseFocusSensor::RayHit(KX_ClientObjectInfo *client_info, KX_RayCast *r
 
 	if ((m_focusmode == 2) || hitKXObj == thisObj)
 	{
-		if (m_propertyname.Length() == 0)
+		if (m_propertyname.size() == 0)
 		{
 			bFound = true;
 		}
@@ -168,7 +168,7 @@ bool KX_MouseFocusSensor::RayHit(KX_ClientObjectInfo *client_info, KX_RayCast *r
 				for (unsigned int i = 0; i < hitKXObj->GetMeshCount(); ++i) {
 					RAS_MeshObject *meshObj = hitKXObj->GetMesh(i);
 					for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
-						bFound = strcmp(m_propertyname.ReadPtr(), meshObj->GetMaterialName(j).ReadPtr() + 2) == 0;
+						bFound = (m_propertyname == std::string(meshObj->GetMaterialName(j), 2));
 						if (bFound)
 							break;
 					}
@@ -207,7 +207,7 @@ bool KX_MouseFocusSensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(
 		CM_Error("invalid client type " << client->m_type << " found ray casting");
 		return false;
 	}
-	if (m_bXRay && m_propertyname.Length() != 0)
+	if (m_bXRay && m_propertyname.size() != 0)
 	{
 		if (m_bFindMaterial)
 		{
@@ -215,7 +215,7 @@ bool KX_MouseFocusSensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(
 			for (unsigned int i = 0; i < hitKXObj->GetMeshCount(); ++i) {
 				RAS_MeshObject *meshObj = hitKXObj->GetMesh(i);
 				for (unsigned int j = 0; j < meshObj->NumMaterials(); ++j) {
-					found = strcmp(m_propertyname.ReadPtr(), meshObj->GetMaterialName(j).ReadPtr() + 2) == 0;
+					found = (m_propertyname == std::string(meshObj->GetMaterialName(j), 2));
 					if (found)
 						break;
 				}
@@ -457,7 +457,7 @@ PyAttributeDef KX_MouseFocusSensor::Attributes[] = {
 	KX_PYATTRIBUTE_BOOL_RW("useXRay",		KX_MouseFocusSensor, m_bXRay),
 	KX_PYATTRIBUTE_BOOL_RW("useMaterial", KX_MouseFocusSensor, m_bFindMaterial),
 	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, KX_MouseFocusSensor, m_propertyname),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 /* Attributes */

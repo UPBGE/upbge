@@ -53,7 +53,7 @@ KX_VehicleWrapper::~KX_VehicleWrapper()
 	m_motionStates.clear();
 }
 
-STR_String KX_VehicleWrapper::GetName()
+std::string KX_VehicleWrapper::GetName()
 {
 	return "KX_VehicleWrapper";
 }
@@ -381,7 +381,7 @@ PyMethodDef KX_VehicleWrapper::Methods[] = {
 
 PyAttributeDef KX_VehicleWrapper::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("rayMask", KX_VehicleWrapper, pyattr_get_ray_mask, pyattr_set_ray_mask),
-	{ NULL }	//Sentinel
+	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
 PyObject *KX_VehicleWrapper::pyattr_get_ray_mask(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)

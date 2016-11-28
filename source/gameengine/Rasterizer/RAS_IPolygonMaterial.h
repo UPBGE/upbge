@@ -36,7 +36,7 @@
 #include "RAS_MeshObject.h"
 #include "RAS_IRasterizer.h"
 
-#include "STR_String.h"
+#include <string>
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -80,7 +80,7 @@ enum MaterialRasterizerModes
 class RAS_IPolyMaterial
 {
 protected:
-	STR_String m_name; // also needed for collisionsensor
+	std::string m_name; // also needed for collisionsensor
 	int m_drawingmode;
 	int m_alphablend;
 	int m_rasMode;
@@ -98,7 +98,7 @@ public:
 		SHADOW = 2048 // GEMAT_SHADOW
 	};
 
-	RAS_IPolyMaterial(const STR_String& name,
+	RAS_IPolyMaterial(const std::string& name,
 	                  GameSettings *game);
 
 	virtual ~RAS_IPolyMaterial();
@@ -116,7 +116,7 @@ public:
 	bool IsText() const;
 	bool IsCullFace() const;
 	int GetDrawingMode() const;
-	virtual STR_String GetName();
+	virtual std::string GetName();
 	unsigned int GetFlag() const;
 	bool IsAlphaShadow() const;
 	bool UsesObjectColor() const;
@@ -125,7 +125,7 @@ public:
 	RAS_Texture *GetTexture(unsigned int index);
 	bool UseDisplayLists() const;
 
-	virtual const STR_String GetTextureName() const = 0;
+	virtual const std::string GetTextureName() const = 0;
 	virtual Material *GetBlenderMaterial() const = 0;
 	virtual Image *GetBlenderImage() const = 0;
 	virtual MTexPoly *GetMTexPoly() const = 0;

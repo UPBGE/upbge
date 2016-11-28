@@ -86,8 +86,8 @@ private:
 	BL_ArmatureConstraint*	m_constraint;
 	KX_GameObject*	m_gametarget;
 	KX_GameObject*	m_gamesubtarget;
-	STR_String		m_posechannel;
-	STR_String		m_constraintname;
+	std::string		m_posechannel;
+	std::string		m_constraintname;
 	float			m_weight;
 	float			m_influence;
 	int				m_type;

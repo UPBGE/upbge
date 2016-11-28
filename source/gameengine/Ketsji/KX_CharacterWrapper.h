@@ -20,7 +20,7 @@ public:
 	KX_CharacterWrapper(PHY_ICharacter* character);
 	virtual ~KX_CharacterWrapper();
 
-	virtual STR_String GetName();
+	virtual std::string GetName();
 #ifdef WITH_PYTHON
 	KX_PYMETHOD_DOC_NOARGS(KX_CharacterWrapper, jump);
 

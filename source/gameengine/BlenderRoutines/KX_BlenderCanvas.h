@@ -110,7 +110,7 @@ public:
 	virtual void SetMouseState(RAS_MouseState mousestate);
 	virtual void SetMousePosition(int x, int y);
 
-	virtual void MakeScreenShot(const char *filename);
+	virtual void MakeScreenShot(const std::string& filename);
 
 	virtual void BeginDraw();
 	virtual void EndDraw();

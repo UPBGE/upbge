@@ -47,7 +47,7 @@
 /* ------------------------------------------------------------------------- */
 
 SCA_ExpressionController::SCA_ExpressionController(SCA_IObject* gameobj,
-												   const STR_String& exprtext)
+												   const std::string& exprtext)
 	:SCA_IController(gameobj),
 	m_exprText(exprtext),
 	m_exprCache(NULL)
@@ -127,7 +127,7 @@ void SCA_ExpressionController::Trigger(SCA_LogicManager* logicmgr)
 
 
 
-CValue* SCA_ExpressionController::FindIdentifier(const STR_String& identifiername)
+CValue* SCA_ExpressionController::FindIdentifier(const std::string& identifiername)
 {
 
 	CValue* identifierval = NULL;

@@ -46,7 +46,7 @@ public:
 protected:
 	int m_predefinedUniforms[MAX_PREDEFINED_UNIFORM_TYPE];
 
-	std::vector<STR_String> m_properties;
+	std::vector<std::string> m_properties;
 	std::vector<unsigned int> m_propertiesLoc;
 	CValue *m_gameObject;
 

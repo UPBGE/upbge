@@ -32,7 +32,7 @@
 
 #include "EXP_IdentifierExpr.h"
 
-CIdentifierExpr::CIdentifierExpr(const STR_String& identifier,CValue* id_context)
+CIdentifierExpr::CIdentifierExpr(const std::string& identifier,CValue* id_context)
 :m_identifier(identifier)
 {
 	if (id_context)

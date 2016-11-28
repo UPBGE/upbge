@@ -30,7 +30,7 @@ public:
 	CEmptyValue();
 	virtual					~CEmptyValue();
 
-	virtual const STR_String GetText();
+	virtual const std::string GetText();
 	virtual double			GetNumber();
 	virtual int				GetValueType();
 	CListValue*				GetPolySoup();

@@ -177,7 +177,7 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 	}
 }
 
-void KX_BlenderSceneConverter::SetNewFileName(const STR_String &filename)
+void KX_BlenderSceneConverter::SetNewFileName(const std::string &filename)
 {
 	m_newfilename = filename;
 }
@@ -189,19 +189,19 @@ bool KX_BlenderSceneConverter::TryAndLoadNewFile()
 	return result;
 }
 
-Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const STR_String &name)
+Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const std::string &name)
 {
 	Scene *sce;
 
 	// Find the specified scene by name, or NULL if nothing matches.
-	if ((sce = (Scene *)BLI_findstring(&m_maggie->scene, name.ReadPtr(), offsetof(ID, name) + 2))) {
+	if ((sce = (Scene *)BLI_findstring(&m_maggie->scene, name.c_str(), offsetof(ID, name) + 2))) {
 		return sce;
 	}
 
 	for (std::vector<Main *>::iterator it = m_DynamicMaggie.begin(); !(it == m_DynamicMaggie.end()); it++) {
 		Main *main = *it;
 
-		if ((sce = (Scene *)BLI_findstring(&main->scene, name.ReadPtr(), offsetof(ID, name) + 2))) {
+		if ((sce = (Scene *)BLI_findstring(&main->scene, name.c_str(), offsetof(ID, name) + 2))) {
 			return sce;
 		}
 	}
@@ -752,9 +752,9 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 		else {
 			// in case the mesh might be refered to later
 			{
-				std::map<STR_HashedString, void *> &mapStringToMeshes = scene->GetLogicManager()->GetMeshMap();
+				std::map<std::string, void *> &mapStringToMeshes = scene->GetLogicManager()->GetMeshMap();
 
-				for (std::map<STR_HashedString, void *>::iterator it = mapStringToMeshes.begin(),
+				for (std::map<std::string, void *>::iterator it = mapStringToMeshes.begin(),
 				     end = mapStringToMeshes.end(); it != end; )
 				{
 					RAS_MeshObject *meshobj = (RAS_MeshObject *)it->second;
@@ -770,9 +770,9 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 
 			// Now unregister actions.
 			{
-				std::map<STR_HashedString, void *> &mapStringToActions = scene->GetLogicManager()->GetActionMap();
+				std::map<std::string, void *> &mapStringToActions = scene->GetLogicManager()->GetActionMap();
 
-				for (std::map<STR_HashedString, void *>::iterator it = mapStringToActions.begin(),
+				for (std::map<std::string, void *>::iterator it = mapStringToActions.begin(),
 				     end = mapStringToActions.end(); it != end; )
 				{
 					ID *action = (ID *)it->second;

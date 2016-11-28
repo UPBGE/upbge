@@ -39,10 +39,10 @@
 KX_NetworkMessageActuator::KX_NetworkMessageActuator(
 	SCA_IObject *gameobj, // the actuator controlling object
 	KX_NetworkMessageScene *networkscene, // needed for replication
-	const STR_String &toPropName,
-	const STR_String &subject,
+	const std::string &toPropName,
+	const std::string &subject,
 	int bodyType,
-	const STR_String &body)
+	const std::string &body)
 	:SCA_IActuator(gameobj, KX_ACT_MESSAGE),
 	m_networkscene(networkscene),
 	m_toPropName(toPropName),
@@ -130,7 +130,7 @@ PyAttributeDef KX_NetworkMessageActuator::Attributes[] = {
 	KX_PYATTRIBUTE_STRING_RW("subject", 0, 100, false, KX_NetworkMessageActuator, m_subject),
 	KX_PYATTRIBUTE_BOOL_RW("usePropBody", KX_NetworkMessageActuator, m_bPropBody),
 	KX_PYATTRIBUTE_STRING_RW("body", 0, 16384, false, KX_NetworkMessageActuator, m_body),
-	{NULL} //Sentinel
+	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 #endif // WITH_PYTHON
