@@ -679,8 +679,8 @@ public:
 	virtual void	setAngularDamping(float damping);
 	virtual void	setDamping(float linear, float angular);
 	virtual float	getLinearStiffness() const;
-	virtual float	getAngularStiffness() const;	
-	virtual void	setLinearStiffness(float stiffness);	
+	virtual float	getAngularStiffness() const;
+	virtual void	setLinearStiffness(float stiffness);
 	virtual void	setAngularStiffness(float angular);
 
 	/**

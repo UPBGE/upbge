@@ -3083,14 +3083,18 @@ int KX_GameObject::pyattr_set_angularDamping(void *self_v, const KX_PYATTRIBUTE_
 
 PyObject *KX_GameObject::pyattr_get_linearStiffness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	return PyFloat_FromDouble(self->getLinearStiffness());
 }
 
 int KX_GameObject::pyattr_set_linearStiffness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	float val = PyFloat_AsDouble(value);
+	if (val == -1.0f && PyErr_Occurred()) {
+		CM_PythonAttributError("KX_GameObject", "linearStiffness", "expected a float");
+		return PY_SET_ATTR_FAIL;
+	}
 	CLAMP(val, 0.0f, 1.0f);
 	self->setLinearStiffness(val);
 	return PY_SET_ATTR_SUCCESS;
@@ -3098,14 +3102,18 @@ int KX_GameObject::pyattr_set_linearStiffness(void *self_v, const KX_PYATTRIBUTE
 
 PyObject *KX_GameObject::pyattr_get_angularStiffness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	return PyFloat_FromDouble(self->getAngularStiffness());
 }
 
 int KX_GameObject::pyattr_set_angularStiffness(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	float val = PyFloat_AsDouble(value);
+	if (val == -1.0f && PyErr_Occurred()) {
+		CM_PythonAttributError("KX_GameObject", "angularStiffness", "expected a float");
+		return PY_SET_ATTR_FAIL;
+	}
 	CLAMP(val, 0.0f, 1.0f);
 	self->setAngularStiffness(val);
 	return PY_SET_ATTR_SUCCESS;
