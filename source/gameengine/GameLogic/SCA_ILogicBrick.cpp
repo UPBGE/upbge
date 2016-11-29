@@ -102,7 +102,7 @@ CValue* SCA_ILogicBrick::CalcFinal(VALUE_DATA_TYPE dtype,
 	return result;
 }
 
-const STR_String& SCA_ILogicBrick::GetText()
+const STR_String SCA_ILogicBrick::GetText()
 { 
 	if (m_name.Length())
 		return m_name;
@@ -110,7 +110,7 @@ const STR_String& SCA_ILogicBrick::GetText()
 	return m_text;
 }
 
-STR_String& SCA_ILogicBrick::GetName()
+STR_String SCA_ILogicBrick::GetName()
 {
 	return m_name;
 }

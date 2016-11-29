@@ -39,7 +39,7 @@ public:
 	CBoolValue(bool inBool);
 	CBoolValue(bool innie, const char *name, AllocationTYPE alloctype = CValue::HEAPVALUE);
 
-	virtual const STR_String& GetText();
+	virtual const STR_String GetText();
 	virtual double		GetNumber();
 	virtual int			GetValueType();
 	bool				GetBool();

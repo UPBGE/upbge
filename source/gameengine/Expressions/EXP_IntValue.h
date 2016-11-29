@@ -29,7 +29,7 @@ class CIntValue : public CPropValue
 	//PLUGIN_DECLARE_SERIAL (CIntValue,CValue)
 
 public:
-	virtual const STR_String& GetText();
+	virtual const STR_String GetText();
 	virtual double			GetNumber();
 	virtual int				GetValueType();
 	
@@ -62,7 +62,6 @@ protected:
 
 private:
 	cInt			m_int;
-	STR_String*		m_pstrRep;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

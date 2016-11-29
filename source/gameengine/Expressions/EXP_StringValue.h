@@ -34,7 +34,7 @@ public:
 	virtual ~CStringValue() {}
 	/// CValue implementation
 	virtual bool		IsEqual(const STR_String & other);
-	virtual const STR_String &	GetText();
+	virtual const STR_String GetText();
 	virtual double		GetNumber();
 	virtual int			GetValueType();
 	

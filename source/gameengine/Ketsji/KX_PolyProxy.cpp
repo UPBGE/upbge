@@ -118,10 +118,9 @@ KX_PolyProxy::~KX_PolyProxy()
 
 
 // stuff for cvalue related things
-static STR_String sPolyName = "polygone";
-STR_String &KX_PolyProxy::GetName()
+STR_String KX_PolyProxy::GetName()
 {
-	return sPolyName;
+	return "polygone";
 }
 
 // stuff for python integration

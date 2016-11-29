@@ -193,7 +193,7 @@ int CBoolValue::GetValueType()
 
 
 
-const STR_String& CBoolValue::GetText()
+const STR_String CBoolValue::GetText()
 {
 	return m_bool ? sTrueString : sFalseString;
 }

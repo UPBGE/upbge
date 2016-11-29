@@ -84,7 +84,7 @@ public:
 		MT_Vector3 zenithColor;
 	} m_savedData;
 
-	const STR_String &GetName();
+	const STR_String& GetName();
 	bool hasWorld();
 	void setUseMist(bool enable);
 	void setMistType(short type);

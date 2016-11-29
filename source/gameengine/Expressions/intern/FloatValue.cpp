@@ -32,7 +32,6 @@ pre: false
 effect: constructs a new CFloatValue
 */
 {
-	m_pstrRep=NULL;
 }
 
 
@@ -44,7 +43,6 @@ effect: constructs a new CFloatValue containing value fl
 */
 {
 	m_float = fl;
-	m_pstrRep=NULL;
 }
 
 
@@ -63,7 +61,6 @@ effect: constructs a new CFloatValue containing value fl
 		CValue::DisableRefCount();
 
 	}
-	m_pstrRep=NULL;
 }
 
 
@@ -74,8 +71,6 @@ pre:
 effect: deletes the object
 */
 {
-	if (m_pstrRep)
-		delete m_pstrRep;
 }
 
 
@@ -300,13 +295,9 @@ void CFloatValue::SetValue(CValue* newval)
 
 
 
-const STR_String & CFloatValue::GetText()
+const STR_String CFloatValue::GetText()
 {
-	if (!m_pstrRep)
-		m_pstrRep = new STR_String();
-
-	m_pstrRep->Format("%f",m_float);
-	return *m_pstrRep;
+	return STR_String().Format("%f",m_float);
 }
 
 
@@ -314,7 +305,6 @@ const STR_String & CFloatValue::GetText()
 CValue* CFloatValue::GetReplica()
 { 
 	CFloatValue* replica = new CFloatValue(*this);
-	replica->m_pstrRep = NULL; /* should be in CFloatValue::ProcessReplica() but its not defined, no matter */
 	replica->ProcessReplica();
 
 	return replica;

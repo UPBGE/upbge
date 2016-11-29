@@ -45,7 +45,7 @@ public:
 	void SetGameObject(KX_GameObject *gameobj);
 
 	// stuff for cvalue related things
-	STR_String& GetName();
+	STR_String GetName();
 
 	static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 	static int py_component_init(PyObjectPlus_Proxy *self, PyObject *args, PyObject *kwds);

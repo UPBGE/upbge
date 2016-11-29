@@ -100,7 +100,7 @@ bool KX_NetworkMessageSensor::Evaluate()
 		m_SubjectList = NULL;
 	}
 
-	STR_String& toname = GetParent()->GetName();
+	STR_String toname = GetParent()->GetName();
 	STR_String& subject = this->m_subject;
 
 	const std::vector<KX_NetworkMessageManager::Message> messages =

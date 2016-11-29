@@ -25,7 +25,7 @@ class CErrorValue : public CPropValue
 {
 
 public:
-	virtual const STR_String & GetText();
+	virtual const STR_String GetText();
 	virtual int GetValueType();
 	CErrorValue();
 	CErrorValue(const char *errmsg);

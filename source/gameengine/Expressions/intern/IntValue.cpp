@@ -38,7 +38,6 @@ effect: constructs a new CIntValue
 #ifdef DEBUG_
 	m_textval = "Int illegal constructor";
 #endif
-	m_pstrRep=NULL;
 }
 
 
@@ -50,7 +49,6 @@ effect: constructs a new CIntValue containing cInt innie
 */
 {
 	m_int = innie;
-	m_pstrRep=NULL;
 }
 
 
@@ -64,8 +62,6 @@ CIntValue::CIntValue(cInt innie,const char *name,AllocationTYPE alloctype)
 	{
 		CValue::DisableRefCount();
 	}
-	m_pstrRep=NULL;
-	
 }
 
 
@@ -76,8 +72,6 @@ pre:
 effect: deletes the object
 */
 {
-	if (m_pstrRep)
-		delete m_pstrRep;
 }
 
 
@@ -307,13 +301,9 @@ int CIntValue::GetValueType()
 
 
 
-const STR_String & CIntValue::GetText()
+const STR_String CIntValue::GetText()
 {
-	if (!m_pstrRep)
-		m_pstrRep=new STR_String();
-	m_pstrRep->Format("%lld",m_int);
-	
-	return *m_pstrRep;
+	return STR_String().Format("%lld",m_int);
 }
 
 
@@ -322,8 +312,7 @@ CValue* CIntValue::GetReplica()
 {
 	CIntValue* replica = new CIntValue(*this);
 	replica->ProcessReplica();
-	replica->m_pstrRep = NULL;
-	
+
 	return replica;
 }
 

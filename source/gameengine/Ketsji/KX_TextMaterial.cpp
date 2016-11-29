@@ -67,10 +67,9 @@ void KX_TextMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
 {
 }
 
-const STR_String& KX_TextMaterial::GetTextureName() const
+const STR_String KX_TextMaterial::GetTextureName() const
 {
-	static STR_String empty = "";
-	return empty;
+	return "";
 }
 
 Material *KX_TextMaterial::GetBlenderMaterial() const

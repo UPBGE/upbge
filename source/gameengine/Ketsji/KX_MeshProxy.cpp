@@ -106,7 +106,7 @@ KX_MeshProxy::~KX_MeshProxy()
 }
 
 // stuff for cvalue related things
-STR_String& KX_MeshProxy::GetName()
+STR_String KX_MeshProxy::GetName()
 {
 	return m_meshobj->GetName();
 }

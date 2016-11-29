@@ -360,7 +360,7 @@ public:
 	/**
 	 * Inherited from CValue
 	 */
-	virtual const STR_String &GetText();
+	virtual const STR_String GetText();
 
 	/**
 	 * \section Inherited from CValue. These are the useful
@@ -370,7 +370,7 @@ public:
 	/**
 	 * Inherited from CValue -- returns the name of this object.
 	 */
-	virtual STR_String& GetName();
+	virtual STR_String GetName();
 
 	/**
 	 * Inherited from CValue -- set the name of this object.

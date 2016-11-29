@@ -114,12 +114,9 @@ double*	CEmptyValue::GetVector3(bool bGetTransformedVec)
 
 
 
-static STR_String emptyString = STR_String("");
-
-
-const STR_String & CEmptyValue::GetText()
+const STR_String CEmptyValue::GetText()
 {
-	return emptyString;
+	return "";
 }
 
 

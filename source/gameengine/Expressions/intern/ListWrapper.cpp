@@ -28,8 +28,6 @@
 
 #include "EXP_ListWrapper.h"
 
-static STR_String pythonGeneratorList = "ListWrapper";
-
 CListWrapper::CListWrapper(void *client,
 						   PyObject *base,
 						   bool (*checkValid)(void *),
@@ -109,9 +107,9 @@ bool CListWrapper::AllowFindValue()
 
 // ================================================================
 
-STR_String &CListWrapper::GetName()
+STR_String CListWrapper::GetName()
 {
-	return pythonGeneratorList;
+	return "ListWrapper";
 }
 
 int CListWrapper::GetValueType()

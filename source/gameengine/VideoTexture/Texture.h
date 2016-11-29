@@ -87,7 +87,7 @@ public:
 	Texture();
 	virtual ~Texture();
 
-	virtual STR_String& GetName();
+	virtual STR_String GetName();
 
 	void Close();
 	void SetSource(PyImage *source);

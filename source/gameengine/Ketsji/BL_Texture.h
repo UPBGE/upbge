@@ -67,7 +67,7 @@ public:
 	virtual ~BL_Texture();
 
 	// stuff for cvalue related things
-	virtual STR_String& GetName();
+	virtual STR_String GetName();
 
 	virtual bool Ok() const;
 	virtual bool IsCubeMap() const;

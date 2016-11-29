@@ -52,7 +52,7 @@ public:
 	virtual ~KX_PolyProxy();
 
 	// stuff for cvalue related things
-	virtual STR_String& GetName();
+	virtual STR_String GetName();
 
 	RAS_Polygon *GetPolygon();
 	KX_MeshProxy *GetMeshProxy();

@@ -127,7 +127,7 @@ int CStringValue::GetValueType()
 
 
 
-const STR_String & CStringValue::GetText()
+const STR_String CStringValue::GetText()
 {
 	return m_strString;
 }

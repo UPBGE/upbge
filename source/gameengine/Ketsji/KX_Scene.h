@@ -549,7 +549,7 @@ public:
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 
 	/**  Inherited from CValue -- returns the name of this object. */
-	virtual STR_String& GetName();
+	virtual STR_String GetName();
 
 	/** Inherited from CValue -- set the name of this object. */
 	virtual void SetName(const char *name);

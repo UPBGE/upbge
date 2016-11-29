@@ -48,10 +48,9 @@ KX_CubeMap::~KX_CubeMap()
 {
 }
 
-static STR_String cubeMapName = "KX_CubeMap";
-STR_String& KX_CubeMap::GetName()
+STR_String KX_CubeMap::GetName()
 {
-	return cubeMapName;
+	return "KX_CubeMap";
 }
 
 KX_GameObject *KX_CubeMap::GetViewpointObject() const

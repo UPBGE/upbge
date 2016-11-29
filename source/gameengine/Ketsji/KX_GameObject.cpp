@@ -222,12 +222,12 @@ KX_GameObject* KX_GameObject::GetClientObject(KX_ClientObjectInfo *info)
 	return info->m_gameobject;
 }
 
-const STR_String & KX_GameObject::GetText()
+const STR_String KX_GameObject::GetText()
 {
 	return m_text;
 }
 
-STR_String& KX_GameObject::GetName()
+STR_String KX_GameObject::GetName()
 {
 	return m_name;
 }

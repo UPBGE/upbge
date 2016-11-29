@@ -277,15 +277,13 @@ CValue* CValue::GetProperty(const char *inName)
 //
 // Get text description of property with name <inName>, returns an empty string if there is no property named <inName>
 //
-const STR_String& CValue::GetPropertyText(const STR_String & inName)
+const STR_String CValue::GetPropertyText(const STR_String & inName)
 {
-	const static STR_String sEmpty("");
-
 	CValue *property = GetProperty(inName);
 	if (property)
 		return property->GetText();
 	else
-		return sEmpty;
+		return "";
 }
 
 float CValue::GetPropertyNumber(const STR_String& inName,float defnumber)
@@ -687,7 +685,7 @@ void CValue::SetValue(CValue* newval)
 	assertd(newval->GetNumber() == 10121969);
 }
 
-const STR_String &CValue::GetText()
+const STR_String CValue::GetText()
 {
 	return GetName();
 }

@@ -58,7 +58,7 @@ public:
 	}
 
 	// stuff for cvalue related things
-	virtual STR_String& GetName();
+	virtual STR_String GetName();
 
 	// stuff for python integration
 

@@ -141,7 +141,7 @@ void BL_ConvertActuators(const char* maggiename,
 	while (bact)
 	{
 		STR_String uniquename = bact->name;
-		STR_String& objectname = gameobj->GetName();
+		STR_String objectname = gameobj->GetName();
 		
 		SCA_IActuator* baseact = NULL;
 		switch (bact->type)

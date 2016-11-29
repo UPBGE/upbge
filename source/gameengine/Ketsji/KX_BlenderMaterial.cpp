@@ -151,10 +151,9 @@ void KX_BlenderMaterial::GetRGBAColor(unsigned char *rgba) const
 		RAS_IPolyMaterial::GetRGBAColor(rgba);
 }
 
-const STR_String& KX_BlenderMaterial::GetTextureName() const
+const STR_String KX_BlenderMaterial::GetTextureName() const
 {
-	static const STR_String empty = ""; // hack to return a reference.
-	return (m_textures[0] ? m_textures[0]->GetName() : empty);
+	return (m_textures[0] ? m_textures[0]->GetName() : "");
 }
 
 Material *KX_BlenderMaterial::GetBlenderMaterial() const
@@ -525,7 +524,7 @@ void KX_BlenderMaterial::SetBlenderGLSLShader()
 	}
 }
 
-STR_String& KX_BlenderMaterial::GetName()
+STR_String KX_BlenderMaterial::GetName()
 {
 	return m_name;
 }

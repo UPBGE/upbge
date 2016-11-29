@@ -54,7 +54,7 @@ public:
 	void ActivateBlenderShaders(RAS_IRasterizer *rasty);
 
 	virtual bool UseInstancing() const;
-	virtual const STR_String& GetTextureName() const;
+	virtual const STR_String GetTextureName() const;
 	virtual Material *GetBlenderMaterial() const;
 	virtual Image *GetBlenderImage() const;
 	virtual MTexPoly *GetMTexPoly() const;
@@ -77,7 +77,7 @@ public:
 	virtual void Replace_IScene(SCA_IScene *val);
 
 	// Stuff for cvalue related things.
-	virtual STR_String &GetName();
+	virtual STR_String GetName();
 
 #ifdef WITH_PYTHON
 

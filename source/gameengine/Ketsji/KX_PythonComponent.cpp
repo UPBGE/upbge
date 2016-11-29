@@ -47,7 +47,7 @@ void KX_PythonComponent::SetGameObject(KX_GameObject *gameobj)
 	m_gameobj = gameobj;
 }
 
-STR_String& KX_PythonComponent::GetName()
+STR_String KX_PythonComponent::GetName()
 {
 	return m_name;
 }

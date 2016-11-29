@@ -311,7 +311,7 @@ KX_Scene::~KX_Scene()
 #endif
 }
 
-STR_String& KX_Scene::GetName()
+STR_String KX_Scene::GetName()
 {
 	return m_sceneName;
 }

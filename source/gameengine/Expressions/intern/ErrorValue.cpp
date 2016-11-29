@@ -105,7 +105,7 @@ int CErrorValue::GetValueType()
 
 
 
-const STR_String & CErrorValue::GetText()
+const STR_String CErrorValue::GetText()
 {
 	return m_strErrorText;
 }

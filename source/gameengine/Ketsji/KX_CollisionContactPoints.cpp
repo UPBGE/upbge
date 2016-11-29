@@ -39,11 +39,9 @@ KX_CollisionContactPoint::~KX_CollisionContactPoint()
 {
 }
 
-static STR_String sCollisionContactPointName = "CollisionContactPoint";
-
-STR_String& KX_CollisionContactPoint::GetName()
+STR_String KX_CollisionContactPoint::GetName()
 {
-	return sCollisionContactPointName;
+	return "CollisionContactPoint";
 }
 
 #ifdef WITH_PYTHON

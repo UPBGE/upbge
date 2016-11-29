@@ -53,7 +53,7 @@ CListValue::~CListValue()
 
 static STR_String gstrListRep=STR_String("List");
 
-const STR_String & CListValue::GetText()
+const STR_String CListValue::GetText()
 {
 	gstrListRep = "[";
 	STR_String commastr = "";

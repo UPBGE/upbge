@@ -121,7 +121,7 @@ int RAS_IPolyMaterial::GetDrawingMode() const
 	return m_drawingmode;
 }
 
-STR_String& RAS_IPolyMaterial::GetName()
+STR_String RAS_IPolyMaterial::GetName()
 {
 	return m_name;
 }

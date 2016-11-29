@@ -100,8 +100,6 @@ struct RAS_MeshObject::fronttoback
 
 // mesh object
 
-STR_String RAS_MeshObject::s_emptyname = "";
-
 RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo)
 	:m_name(mesh->id.name + 2),
 	m_layersInfo(layersInfo),
@@ -131,14 +129,14 @@ int RAS_MeshObject::NumMaterials()
 	return m_materials.size();
 }
 
-const STR_String& RAS_MeshObject::GetMaterialName(unsigned int matid)
+const STR_String RAS_MeshObject::GetMaterialName(unsigned int matid)
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
 	if (mmat)
 		return mmat->m_bucket->GetPolyMaterial()->GetName();
 
-	return s_emptyname;
+	return "";
 }
 
 RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(unsigned int matid) const
@@ -187,14 +185,14 @@ STR_String& RAS_MeshObject::GetName()
 	return m_name;
 }
 
-const STR_String& RAS_MeshObject::GetTextureName(unsigned int matid)
+const STR_String RAS_MeshObject::GetTextureName(unsigned int matid)
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
 	if (mmat)
 		return mmat->m_bucket->GetPolyMaterial()->GetTextureName();
 
-	return s_emptyname;
+	return "";
 }
 
 RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_TexVertFormat& format)

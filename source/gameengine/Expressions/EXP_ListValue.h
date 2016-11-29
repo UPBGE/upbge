@@ -87,7 +87,7 @@ public:
 	int GetCount() { return m_pValueArray.size(); }
 	baseIterator GetBegin();
 	baseIterator GetEnd();
-	virtual const STR_String & GetText();
+	virtual const STR_String GetText();
 
 	bool CheckEqual(CValue* first,CValue* second);
 

@@ -287,7 +287,7 @@ public:
 	virtual void		SetProperty(const char* name,CValue* ioProperty);
 	virtual CValue*		GetProperty(const char* inName);							// Get pointer to a property with name <inName>, returns NULL if there is no property named <inName>
 	virtual CValue*		GetProperty(const STR_String & inName);
-	const STR_String&	GetPropertyText(const STR_String & inName);						// Get text description of property with name <inName>, returns an empty string if there is no property named <inName>
+	const STR_String GetPropertyText(const STR_String & inName);						// Get text description of property with name <inName>, returns an empty string if there is no property named <inName>
 	float				GetPropertyNumber(const STR_String& inName,float defnumber);
 	virtual bool		RemoveProperty(const char *inName);						// Remove the property named <inName>, returns true if the property was succesfully removed, false if property was not found or could not be removed
 	virtual std::vector<STR_String>	GetPropertyNames();
@@ -305,13 +305,13 @@ public:
 	 * \attention: not implemented */
 	virtual void		SetColorOperator(VALUE_OPERATOR op);
 
-	virtual const STR_String &	GetText();
+	virtual const STR_String GetText();
 	virtual double		GetNumber();
 	virtual int			GetValueType();												// Get Prop value type
 	double*				ZeroVector() { return m_sZeroVec; }
 	virtual double*		GetVector3(bool bGetTransformedVec = false);
 
-	virtual STR_String&	GetName() = 0;											// Retrieve the name of the value
+	virtual STR_String GetName() = 0;											// Retrieve the name of the value
 	virtual void		SetName(const char *name);								// Set the name of the value
 	/** Sets the value to this cvalue.
 	 * \attention this particular function should never be called. Why not abstract? */
@@ -414,7 +414,7 @@ public:
 		m_strNewName = name;
 	}
 	
-	virtual STR_String&			GetName() {
+	virtual STR_String GetName() {
 		//STR_String namefromprop = GetPropertyText("Name");
 		//if (namefromprop.Length() > 0)
 		//	return namefromprop;

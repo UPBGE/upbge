@@ -29,7 +29,7 @@ public:
 	CFloatValue(float fl);
 	CFloatValue(float fl,const char *name,AllocationTYPE alloctype=CValue::HEAPVALUE);
 
-	virtual const STR_String & GetText();
+	virtual const STR_String GetText();
 
 	void Configure(CValue* menuvalue);
 	virtual double GetNumber();
@@ -47,7 +47,6 @@ public:
 
 protected:
 	float m_float;
-	STR_String* m_pstrRep;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

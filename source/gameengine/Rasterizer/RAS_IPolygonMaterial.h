@@ -116,7 +116,7 @@ public:
 	bool IsText() const;
 	bool IsCullFace() const;
 	int GetDrawingMode() const;
-	virtual STR_String& GetName();
+	virtual STR_String GetName();
 	unsigned int GetFlag() const;
 	bool IsAlphaShadow() const;
 	bool UsesObjectColor() const;
@@ -125,7 +125,7 @@ public:
 	RAS_Texture *GetTexture(unsigned int index);
 	bool UseDisplayLists() const;
 
-	virtual const STR_String& GetTextureName() const = 0;
+	virtual const STR_String GetTextureName() const = 0;
 	virtual Material *GetBlenderMaterial() const = 0;
 	virtual Image *GetBlenderImage() const = 0;
 	virtual MTexPoly *GetMTexPoly() const = 0;

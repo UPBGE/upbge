@@ -106,10 +106,9 @@ void Texture::DestructFromPython()
 	PyObjectPlus::DestructFromPython();
 }
 
-STR_String& Texture::GetName()
+STR_String Texture::GetName()
 {
-	static STR_String name = "Texture";
-	return name;
+	return "Texture";
 }
 
 void Texture::FreeAllTextures(KX_Scene *scene)

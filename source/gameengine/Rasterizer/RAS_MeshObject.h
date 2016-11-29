@@ -89,7 +89,6 @@ public:
 
 private:
 	STR_String m_name;
-	static STR_String s_emptyname;
 
 	LayersInfo m_layersInfo;
 
@@ -114,8 +113,8 @@ public:
 
 	// materials
 	int NumMaterials();
-	const STR_String& GetMaterialName(unsigned int matid);
-	const STR_String& GetTextureName(unsigned int matid);
+	const STR_String GetMaterialName(unsigned int matid);
+	const STR_String GetTextureName(unsigned int matid);
 
 	RAS_MeshMaterial *GetMeshMaterial(unsigned int matid) const;
 	RAS_MeshMaterial *GetMeshMaterialBlenderIndex(unsigned int index);

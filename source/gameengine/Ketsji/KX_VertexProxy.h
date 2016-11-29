@@ -55,7 +55,7 @@ public:
 	RAS_IDisplayArray *GetDisplayArray();
 
 	// stuff for cvalue related things
-	STR_String& GetName();
+	STR_String GetName();
 
 	static PyObject *pyattr_get_x(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_y(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

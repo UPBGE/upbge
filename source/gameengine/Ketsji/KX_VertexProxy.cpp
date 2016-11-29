@@ -556,11 +556,9 @@ RAS_IDisplayArray *KX_VertexProxy::GetDisplayArray()
 }
 
 // stuff for cvalue related things
-static STR_String sVertexName = "vertex";
-
-STR_String& KX_VertexProxy::GetName()
+STR_String KX_VertexProxy::GetName()
 {
-	return sVertexName;
+	return "vertex";
 }
 
 // stuff for python integration

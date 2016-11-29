@@ -42,7 +42,7 @@ public:
 	virtual void DesactivateInstancing();
 	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty);
 
-	virtual const STR_String& GetTextureName() const;
+	virtual const STR_String GetTextureName() const;
 	virtual Material *GetBlenderMaterial() const;
 	virtual Image *GetBlenderImage() const;
 	virtual MTexPoly *GetMTexPoly() const;
