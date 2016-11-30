@@ -254,6 +254,12 @@ void point_map_to_tube(vec3 vin, out vec3 vout)
 	vout = vec3(u, v, 0.0);
 }
 
+vec3 projection_to_plane(vec3 p, vec3 pc, vec3 pn)
+{
+	float dist = dot(pn, p - pc);
+	return p - dist * pn;
+}
+
 void mapping(vec3 vec, mat4 mat, vec3 minvec, vec3 maxvec, float domin, float domax, out vec3 outvec)
 {
 	outvec = (mat * vec4(vec, 1.0)).xyz;
@@ -1975,13 +1981,12 @@ void shade_is_hemi(float inp, out float is)
 float area_lamp_energy(mat4 lampMat, vec3 V, vec3 N, vec3 lampPos, vec2 areaSize)
 {
 	vec2 halfSize = areaSize / 2.0;
-	vec3 right = normalize(vec3(lampMat * vec4(1.0, 0.0, 0.0, 0.0)));
-	vec3 up = normalize(vec3(lampMat * vec4(0.0, 1.0, 0.0, 0.0)));
-	vec3 lampv = normalize(vec3(lampMat * vec4(0.0, 0.0, -1.0, 0.0)));
+	vec3 right = normalize((lampMat * vec4(1.0, 0.0, 0.0, 0.0)).xyz);
+	vec3 up = normalize((lampMat * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+	vec3 lampv = normalize((lampMat * vec4(0.0, 0.0, -1.0, 0.0)).xyz);
 
 	/* project onto plane and calculate direction from center to the projection */
-	float dis = dot(lampv, V - lampPos);
-	vec3 projection = V - dis * lampv;
+	vec3 projection = projection_to_plane(V, lampPos, lampv);
 	vec3 dir = projection - lampPos;
 
 	/* calculate distance from area */
@@ -2054,12 +2059,11 @@ void area_diff_texture(vec3 V, sampler2D tex, float lodbias, vec3 lampPos, vec3 
 	hard /= 4.0;
 	float gloss = 4.0;
 
-	vec3 right = normalize(vec3(lampMat * vec4(1.0, 0.0, 0.0, 0.0)));
-	vec3 up = normalize(vec3(lampMat * vec4(0.0, 1.0, 0.0, 0.0)));
-	vec3 lampv = normalize(vec3(lampMat * vec4(0.0, 0.0, -1.0, 0.0)));
+	vec3 right = normalize((lampMat * vec4(1.0, 0.0, 0.0, 0.0)).xyz);
+	vec3 up = normalize((lampMat * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+	vec3 lampv = normalize((lampMat * vec4(0.0, 0.0, -1.0, 0.0)).xyz);
 
-	float dis = dot(lampv, V - lampPos);
-	vec3 projection = V - dis * lampv;
+	vec3 projection = projection_to_plane(V, lampPos, lampv);
 	vec3 dir = projection - lampPos;
 
 	vec2 diagonal = vec2(dot(dir, right), dot(dir, up));
