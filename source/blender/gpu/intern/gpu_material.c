@@ -931,14 +931,14 @@ static void shade_light_textures(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **
 
 static void shade_area_diff_texture(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **rgb, GPUShadeInput *shi)
 {
-	GPUNodeLink * tex_rgb;
-	MTex *mtex = NULL;
+	GPUNodeLink *tex_rgb;
+	MTex *mtex;
 	int i;
 	float one = 1.0f;
 
 	for (i = 0; i < MAX_MTEX; ++i) {
 		mtex = lamp->la->mtex[i];
-     
+
 		if (mtex && mtex->tex->type & TEX_IMAGE && mtex->tex->ima) {
 			mat->dynproperty |= DYN_LAMP_CO | DYN_LAMP_AREAMAT;
 			GPU_link(mat, "area_diff_texture",
@@ -959,7 +959,7 @@ static void shade_area_diff_texture(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink
 static void shade_area_spec_texture(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **rgb, GPUShadeInput *shi)
 {
 	GPUNodeLink *tex_rgb;
-	MTex *mtex = NULL;
+	MTex *mtex;
 	int i;
 	float one = 1.0f;
 
