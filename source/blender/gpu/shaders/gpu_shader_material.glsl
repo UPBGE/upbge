@@ -2301,11 +2301,19 @@ void env_apply(vec4 col, vec3 hor, vec3 zen, vec4 f, mat4 vm, vec3 vn, out vec4 
 	outcol = col + f * vec4(mix(hor, zen, skyfac), 0);
 }
 
-void env_apply_world_tex_color(vec4 col, samplerCube ima, float lodbias, vec4 f, mat4 viewmatrixinverse, vec3 vp, out vec4 outcol)
+void env_apply_world_tex_color(vec4 col, samplerCube ima, float lodbias, float ratio, float fresnel, float ior, vec4 f, mat4 viewmatrixinverse, vec3 vp, vec3 vn, out vec4 outcol)
 {
-	vec3 reflecteddir = vec3(viewmatrixinverse * vec4(-vp.x, vp.y, -vp.z, 0.0));
-	vec4 texcolor = textureCube(ima, reflecteddir, lodbias);
-	outcol = col + f * texcolor;
+	vec3 viewdir = vec3(viewmatrixinverse * vec4(vp, 0.0));
+	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vn, 0.0)).xyz;
+
+	//FRESNEL//TODO
+
+	vec3 refracteddirection = refract(viewdir, normaldirection, 1.0 / ior);
+	vec4 texrefl = textureCube(ima, normaldirection, lodbias);
+	vec4 texrefr = textureCube(ima, refracteddirection, lodbias);
+	vec4 finalColor = mix(texrefl, texrefr, ratio);
+
+	outcol = col + f * finalColor;
 }
 
 void shade_maddf(vec4 col, float f, vec4 col1, out vec4 outcol)

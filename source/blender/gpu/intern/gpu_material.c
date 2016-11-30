@@ -1935,8 +1935,11 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 								if (ima) {
 									GPU_link(mat, "env_apply_world_tex_color", shr->combined,
 										GPU_cube_map(ima, &mtex->tex->iuser, false),
-										GPU_select_uniform(&world->aolodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma), fcol,
-										GPU_builtin(GPU_INVERSE_VIEW_MATRIX), GPU_builtin(GPU_VIEW_POSITION), &shr->combined);
+										GPU_select_uniform(&world->ao_lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma),
+										GPU_uniform(&world->ao_refrratio),
+										GPU_uniform(&world->ao_fresnel),
+										GPU_uniform(&world->ao_ior), fcol,
+										GPU_builtin(GPU_INVERSE_VIEW_MATRIX), GPU_builtin(GPU_VIEW_POSITION), GPU_builtin(GPU_VIEW_NORMAL), &shr->combined);
 								}
 							}
 						}

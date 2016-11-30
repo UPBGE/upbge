@@ -142,6 +142,12 @@ class WORLD_PT_environment_lighting(WorldButtonsPanel, Panel):
 
         split = layout.split()
         split.prop(light, "environment_lodbias", text="Blur")
+        split = layout.split()
+        split.prop(light, "environment_fresnel", text="Fresnel")
+        split = layout.split()
+        split.prop(light, "environment_refr_ratio", text="Refraction Ratio")
+        split = layout.split()
+        split.prop(light, "environment_ior", text="IOR")
 
 
 class WORLD_PT_indirect_lighting(WorldButtonsPanel, Panel):
