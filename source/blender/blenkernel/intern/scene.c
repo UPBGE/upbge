@@ -188,8 +188,6 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 		scen = BKE_libblock_copy(bmain, &sce->id);
 		BLI_duplicatelist(&(scen->base), &(sce->base));
 		
-		BKE_main_id_clear_newpoins(bmain);
-		
 		id_us_plus((ID *)scen->world);
 		id_us_plus((ID *)scen->set);
 
@@ -226,7 +224,7 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 		}
 
 		/* copy action and remove animation used by sequencer */
-		BKE_animdata_copy_id_action(&scen->id);
+		BKE_animdata_copy_id_action(&scen->id, false);
 
 		if (type != SCE_COPY_FULL)
 			remove_sequencer_fcurves(scen);
@@ -319,7 +317,7 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 
 	/*  camera */
 	if (type == SCE_COPY_LINK_DATA || type == SCE_COPY_FULL) {
-		ID_NEW(scen->camera);
+		ID_NEW_REMAP(scen->camera);
 	}
 	
 	/* before scene copy */
@@ -330,7 +328,7 @@ Scene *BKE_scene_copy(Main *bmain, Scene *sce, int type)
 		if (scen->world) {
 			id_us_plus((ID *)scen->world);
 			scen->world = BKE_world_copy(bmain, scen->world);
-			BKE_animdata_copy_id_action((ID *)scen->world);
+			BKE_animdata_copy_id_action((ID *)scen->world, false);
 		}
 
 		if (sce->ed) {
