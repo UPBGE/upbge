@@ -1940,6 +1940,8 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 										GPU_uniform(&world->ao_fresnel),
 										GPU_uniform(&world->ao_ior), fcol,
 										GPU_builtin(GPU_INVERSE_VIEW_MATRIX), GPU_builtin(GPU_VIEW_POSITION), GPU_builtin(GPU_VIEW_NORMAL), &shr->combined);
+
+									GPU_link(mat, "srgb_to_linearrgb", shr->combined, &shr->combined);
 								}
 							}
 						}
