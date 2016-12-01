@@ -1808,6 +1808,13 @@ void lamp_visibility_other(vec3 co, vec3 lampco, out vec3 lv, out float dist, ou
 	visifac = 1.0;
 }
 
+void lamp_visibility_area(vec3 co, vec3 lampvec, out vec3 lv, out float dist, out float visifac)
+{
+	dist = 1.0; //distance(V, nearest);
+	lv = lampvec;
+	visifac = 1.0; //dot(lv, co);
+}
+
 void lamp_falloff_invlinear(float lampdist, float dist, out float visifac)
 {
 	visifac = lampdist / (lampdist + dist);
@@ -1978,152 +1985,104 @@ void shade_is_hemi(float inp, out float is)
 	is = 0.5 * inp + 0.5;
 }
 
-float area_lamp_energy(mat4 lampMat, vec3 V, vec3 N, vec3 lampPos, vec2 areaSize)
+void lamp_area(mat4 lampMat, vec3 lampvec, vec3 lampPos, vec2 areaSize, vec3 co,
+	out vec3 right, out vec3 up,
+	out vec2 diagonal, out vec3 nearest, out float dist)
 {
-	vec2 halfSize = areaSize / 2.0;
-	vec3 right = normalize((lampMat * vec4(1.0, 0.0, 0.0, 0.0)).xyz);
-	vec3 up = normalize((lampMat * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
-	vec3 lampv = normalize((lampMat * vec4(0.0, 0.0, -1.0, 0.0)).xyz);
+	right = (lampMat * vec4(1.0, 0.0, 0.0, 0.0)).xyz;
+	up = (lampMat * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
 
-	/* project onto plane and calculate direction from center to the projection */
-	vec3 projection = projection_to_plane(V, lampPos, lampv);
+	// Project position to area light plane.
+	vec3 projection = projection_to_plane(co, lampPos, lampvec);
+	// Get the direction to the center.
 	vec3 dir = projection - lampPos;
 
-	/* calculate distance from area */
-	vec2 diagonal = vec2(dot(dir, right), dot(dir, up));
+	// Move in plane space.
+	diagonal = vec2(dot(dir, right), dot(dir, up));
+	// Clamp the direction to the area square.
+	vec2 halfSize = areaSize / 2.0;
 	vec2 nearest2D = clamp(diagonal, -halfSize, halfSize);
-	//vec2(clamp(diagonal.x, -halfSize.x, halfSize.x), clamp(diagonal.y, -halfSize.y, halfSize.y));
-	vec3 nearestPointInside = lampPos + (right * nearest2D.x + up * nearest2D.y);
-
-	float d = distance(V, nearestPointInside);
-
-	vec3 L = normalize(nearestPointInside - V);
-
-	float nDotL = clamp(dot(-lampv, L), 0.0, 1.0);
-	nDotL *= clamp(dot(-N, L) * 0.5 + 0.5, 0.0, 1.0);
-
-	float attenuation = 1.0 / (1.0 + d);
-
-	return max(nDotL, 0.0) * attenuation;
+	// Back in world space.
+	nearest = lampPos + (right * nearest2D.x + up * nearest2D.y);
+	dist = distance(co, nearest);
 }
 
-void shade_inp_area(vec3 V, vec3 lampPos, vec3 lampVec, vec3 N, mat4 lampMat,
-	vec2 areaSize, float dist, float k, out float inp)
+void shade_inp_area(vec3 co, vec3 vn, vec3 lampvec, vec3 nearest, float dist, float visifac, float d, float k, out float inp)
 {
-	vec3 vec = V - lampPos;
+	inp = 0.0;
+	float strength = d * d / 4.0;
 
-	float strength = dist * dist / 4.0;
-	if (dot(vec, lampVec) < 0.0) {
-		inp = 0.0;
-	}
-	else {
-		float intens = area_lamp_energy(lampMat, V, N, lampPos, areaSize);
+	if (visifac > 0.0) {
+		vec3 L = normalize(nearest - co);
+		float nDotL = clamp(dot(-lampvec, L) * (dot(-vn, L) * 0.5 + 0.5), 0.0, 1.0);
+		float attenuation = 1.0 / (1.0 + dist);
+		float intens = nDotL * attenuation;
+
 		inp = pow(intens * strength, k);
 	}
 }
 
-void shade_area_spec(vec3 V, vec3 lampPos, vec3 N, mat4 lampMat, vec2 areaSize, float hard, out float specfac)
+void lamp_area_spec(mat4 lampMat, vec3 lampvec, vec3 lampPos, vec3 co, vec3 vn,
+	out vec2 dirspec, out float dist)
+{
+	vec3 right = (lampMat * vec4(1.0, 0.0, 0.0, 0.0)).xyz;
+	vec3 up = (lampMat * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
+	vec3 R = reflect(-co, -vn);
+	vec3 E = co + R * (dot(lampvec, lampPos - co) / dot(lampvec, R));
+
+	float specAngle = clamp(dot(R, lampvec), 0.0, 1.0);
+
+	vec3 dirSpec = E - lampPos;
+	dirspec = vec2(dot(dirSpec, right),dot(dirSpec, up));
+	vec3 specPlane = lampPos + (right * dirspec.x + up * dirspec.y);
+
+	dist = distance(co, specPlane);
+}
+
+void shade_area_spec(vec2 dirspec, float distspec, vec2 areaSize, float hard, out float specfac)
 {
 	hard /= 4.0;
 	float gloss = 4.0;
 
-	vec3 right = normalize(vec3(lampMat * vec4(1.0, 0.0, 0.0, 0.0)));
-	vec3 up = normalize(vec3(lampMat * vec4(0.0, 1.0, 0.0, 0.0)));
-	vec3 lampv = normalize(vec3(lampMat * vec4(0.0, 0.0, -1.0, 0.0)));
-	vec3 R = reflect(-V, -N);
-	vec3 E = V + R * (dot(lampv, lampPos-V) / dot(lampv, R));
+	vec2 halfSize = areaSize / 2.0;
 
-	float specAngle = clamp(dot(R, lampv), 0.0, 1.0);
-	specfac = 0.0;
-
-	if (dot(V - lampPos, lampv) >= 0.0 && specAngle > 0.0) {
-		vec3 dirSpec = E - lampPos;
-		vec2 dirSpec2D = vec2(dot(dirSpec, right),dot(dirSpec, up));
-		vec3 specPlane = lampPos + (right * dirSpec2D.x + up * dirSpec2D.y);
-
-		float dist = max(distance(V, specPlane), 0.0);
-
-		vec2 halfSize = areaSize / 2.0;
-		halfSize -= ((1.0 / hard) / 2.0) * (dist / gloss);
-		halfSize = max(halfSize, 0.0);
-
-		vec2 nearestSpec2D = clamp(dirSpec2D, -halfSize, halfSize);
-		specfac = 1.0 - clamp(length(nearestSpec2D - dirSpec2D) * (hard / (dist / gloss)), 0.0, 1.0);
-	}
+	vec2 nearestSpec2D = clamp(dirspec, -halfSize, halfSize);
+	specfac = 1.0 - clamp(length(nearestSpec2D - dirspec) * (hard / (distspec / gloss)), 0.0, 1.0);
 }
 
-void area_diff_texture(vec3 V, sampler2D tex, float lodbias, vec3 lampPos, vec3 N, mat4 lampMat, vec2 areaSize, float hard, out vec4 result)
+void area_diff_texture(sampler2D tex, float lodbias, vec2 diagonal, float dist, vec2 areaSize, out vec4 result)
 {
 	vec2 halfSize = areaSize / 2.0;
 
-	hard /= 4.0;
-	float gloss = 4.0;
+	// Negate Y axis diagonal because the lamp direction is negative.
+	vec2 co = (vec2(diagonal.x, -diagonal.y) / (dist + 1.0) + halfSize) / halfSize + halfSize;
 
-	vec3 right = normalize((lampMat * vec4(1.0, 0.0, 0.0, 0.0)).xyz);
-	vec3 up = normalize((lampMat * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
-	vec3 lampv = normalize((lampMat * vec4(0.0, 0.0, -1.0, 0.0)).xyz);
+	float lod = (pow(dist, 0.1) * 8.0) + lodbias;
 
-	vec3 projection = projection_to_plane(V, lampPos, lampv);
-	vec3 dir = projection - lampPos;
+	vec4 t00 = texture2D(tex, co, lod);
+	vec4 t01 = texture2D(tex, co, lod + 1.0);
 
-	vec2 diagonal = vec2(dot(dir, right), dot(dir, up));
-	vec2 nearest2D = clamp(diagonal, -halfSize, halfSize);
-	vec3 nearestPointInside = lampPos + (right * nearest2D.x + up * nearest2D.y);
-
-	float d = distance(V, nearestPointInside);
-
-	vec2 co = ((diagonal.xy / (d + 1.0)) + halfSize) / halfSize * 2.0;
-	co.x = 1.0 - co.x;
-	vec3 ve = V - lampPos;
-
-	if (dot(ve, lampv) < 0.0) {
-		result = vec4(0.0);
-	}
-	else {
-		float lod = (pow(d, 0.1) * 8.0) + lodbias;
-
-		vec4 t00 = texture2D(tex, co, lod);
-		vec4 t01 = texture2D(tex, co, lod + 1.0);
-
-		result = mix(t00, t01, fract(lod + 1.5));
-	}
+	result = mix(t00, t01, fract(lod + 1.5));
 }
 
-void area_spec_texture(vec3 V, sampler2D tex, float lodbias, vec3 lampPos, vec3 N, mat4 lampMat, vec2 areaSize, float hard, out vec4 result)
+void area_spec_texture(vec2 dirspec, float distspec, sampler2D tex, float lodbias, vec2 areaSize, float hard, out vec4 result)
 {
 	hard /= 4.0;
 	float gloss = 4.0;
 
-	vec3 right = normalize(vec3(lampMat * vec4(1.0, 0.0, 0.0, 0.0)));
-	vec3 up = normalize(vec3(lampMat * vec4(0.0, 1.0, 0.0, 0.0)));
-	vec3 lampv = normalize(vec3(lampMat * vec4(0.0, 0.0, -1.0, 0.0)));
+	float d = ((1.0 / hard) / 2.0) * (distspec / gloss);
 
-	vec3 R = reflect(-V, -N);
-	vec3 E = V + R * (dot(lampv, lampPos - V) / dot(lampv, R));
+	vec2 co = -dirspec / (d + 1.0);
+	co /= areaSize;
+	co = co + vec2(0.5);
+	co.x = 1.0 - co.x;
 
-	float specAngle = clamp(dot(R, lampv), 0.0, 1.0);
-	vec4 spec = vec4(0.0);
+	float lod = (2.0 / hard * max(distspec, 0.0)) + lodbias;
+	vec4 t00 = texture2D(tex, co, lod);
+	vec4 t01 = texture2D(tex, co, lod + 1.0);
 
-	if (dot(V - lampPos, lampv) >= 0.0 && specAngle > 0.0) {
-		vec3 dirSpec = E - lampPos;
-		vec2 dirSpec2D = vec2(dot(dirSpec, right),dot(dirSpec, up));
-		vec3 specPlane = lampPos + (right * dirSpec2D.x + up * dirSpec2D.y);
+	vec4 spec =  mix(t00, t01, fract(lod + 1.5));
 
-		float dist = max(distance(V, specPlane), 0.0);
-
-		float d = ((1.0 / hard) / 2.0) * (dist / gloss);
-
-		vec2 co = (dirSpec2D) / (d + 1.0);
-		co /= areaSize;
-		co = co + vec2(0.5);
-		co.x = 1.0 - co.x;
-
-		float lod = (2.0 / hard * max(dist, 0.0)) + lodbias;
-		vec4 t00 = texture2D(tex, co, lod);
-		vec4 t01 = texture2D(tex, co, lod + 1.0);
-
-		spec =  mix(t00, t01, fract(lod + 1.5));
-	}
 	result = spec * 6.0;
 }
 

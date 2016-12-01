@@ -645,14 +645,18 @@ static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, GPULamp *lamp, GPUNode
 		         GPU_dynamic_uniform(lamp->dynvec, GPU_DYNAMIC_LAMP_DYNVEC, lamp->ob), lv, dist, &visifac);
 		return visifac;
 	}
+	else if (lamp->type == LA_AREA) {
+		GPU_link(mat, "lamp_visibility_area",
+				 GPU_builtin(GPU_VIEW_POSITION),
+				 GPU_dynamic_uniform(lamp->dynvec, GPU_DYNAMIC_LAMP_DYNVEC, lamp->ob),
+				 lv, dist, &visifac);
+		return visifac;
+	}
 	else {
 		mat->dynproperty |= DYN_LAMP_CO;
 		GPU_link(mat, "lamp_visibility_other",
 		         GPU_builtin(GPU_VIEW_POSITION),
 		         GPU_dynamic_uniform(lamp->dynco, GPU_DYNAMIC_LAMP_DYNCO, lamp->ob), lv, dist, &visifac);
-
-		if (lamp->type == LA_AREA)
-			return visifac;
 
 		switch (lamp->falloff_type) {
 			case LA_FALLOFF_CONSTANT:
@@ -929,7 +933,7 @@ static void shade_light_textures(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **
 	}
 }
 
-static void shade_area_diff_texture(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **rgb, GPUShadeInput *shi)
+static void shade_area_diff_texture(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink *diag, GPUNodeLink *dist, GPUNodeLink **rgb)
 {
 	GPUNodeLink *tex_rgb;
 	MTex *mtex;
@@ -939,24 +943,20 @@ static void shade_area_diff_texture(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink
 	for (i = 0; i < MAX_MTEX; ++i) {
 		mtex = lamp->la->mtex[i];
 
-		if (mtex && mtex->tex->type & TEX_IMAGE && mtex->tex->ima) {
+		if (mtex && mtex->tex && mtex->tex->type & TEX_IMAGE && mtex->tex->ima) {
 			mat->dynproperty |= DYN_LAMP_CO | DYN_LAMP_AREAMAT;
 			GPU_link(mat, "area_diff_texture",
-					 GPU_builtin(GPU_VIEW_POSITION),
 					 GPU_image(mtex->tex->ima, &mtex->tex->iuser, false),
 					 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, mat->ma),
-					 GPU_dynamic_uniform(lamp->dynco, GPU_DYNAMIC_LAMP_DYNCO, lamp->ob),
-					 shi->vn,
-					 GPU_dynamic_uniform((float *)lamp->dynareamat, GPU_DYNAMIC_LAMP_DYNAREAMAT, lamp->ob),
+					 diag, dist,
 					 GPU_dynamic_uniform((float *)lamp->area_size, GPU_DYNAMIC_LAMP_DYNAREASIZE, lamp->ob),
-					 shi->har,
 					 &tex_rgb);
 			texture_rgb_blend(mat, tex_rgb, *rgb, GPU_uniform(&one), GPU_uniform(&mtex->colfac), MTEX_MUL, rgb);
 		}
 	}
 }
 
-static void shade_area_spec_texture(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **rgb, GPUShadeInput *shi)
+static void shade_area_spec_texture(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink *dirspec, GPUNodeLink *distspec, GPUNodeLink **rgb, GPUShadeInput *shi)
 {
 	GPUNodeLink *tex_rgb;
 	MTex *mtex;
@@ -966,15 +966,12 @@ static void shade_area_spec_texture(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink
 	for (i = 0; i < MAX_MTEX; ++i) {
 		mtex = lamp->la->mtex[i];
 
-		if (mtex && mtex->tex->type & TEX_IMAGE && mtex->tex->ima) {
+		if (mtex && mtex->tex && mtex->tex->type & TEX_IMAGE && mtex->tex->ima) {
 			mat->dynproperty |= DYN_LAMP_CO | DYN_LAMP_AREAMAT;
 			GPU_link(mat, "area_spec_texture",
-					 GPU_builtin(GPU_VIEW_POSITION),
+					 dirspec, distspec,
 					 GPU_image(mtex->tex->ima, &mtex->tex->iuser, false),
 					 GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, mat->ma),
-					 GPU_dynamic_uniform(lamp->dynco, GPU_DYNAMIC_LAMP_DYNCO, lamp->ob),
-					 shi->vn,
-					 GPU_dynamic_uniform((float *)lamp->dynareamat, GPU_DYNAMIC_LAMP_DYNAREAMAT, lamp->ob),
 					 GPU_dynamic_uniform((float *)lamp->area_size, GPU_DYNAMIC_LAMP_DYNAREASIZE, lamp->ob),
 					 shi->har,
 					 &tex_rgb);
@@ -988,6 +985,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	Material *ma = shi->mat;
 	GPUMaterial *mat = shi->gpumat;
 	GPUNodeLink *lv, *dist, *is, *inp, *i;
+	GPUNodeLink *aright, *aup, *adiag, *anear, *adist;
 	GPUNodeLink *outcol, *specfac, *t, *shadfac = NULL, *lcol;
 	float one = 1.0f;
 
@@ -996,6 +994,16 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	
 	GPUNodeLink *vn = shi->vn;
 	GPUNodeLink *view = shi->view;
+
+	if (lamp->la->type == LA_AREA) {
+		GPU_link(mat, "lamp_area",
+				 GPU_dynamic_uniform((float *)lamp->dynareamat, GPU_DYNAMIC_LAMP_DYNAREAMAT, lamp->ob),
+				 GPU_dynamic_uniform(lamp->dynvec, GPU_DYNAMIC_LAMP_DYNVEC, lamp->ob),
+				 GPU_dynamic_uniform(lamp->dynco, GPU_DYNAMIC_LAMP_DYNCO, lamp->ob),
+				 GPU_dynamic_uniform((float *)lamp->area_size, GPU_DYNAMIC_LAMP_DYNAREASIZE, lamp->ob),
+				 GPU_builtin(GPU_VIEW_POSITION),
+				 &aright, &aup, &adiag, &anear, &adist);
+	}
 
 	GPUNodeLink *visifac = lamp_get_visibility(mat, lamp, &lv, &dist);
 
@@ -1017,15 +1025,11 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 			mat->dynproperty |= DYN_LAMP_VEC | DYN_LAMP_CO | DYN_LAMP_AREAMAT;
 
 			GPU_link(mat, "shade_inp_area",
-			         GPU_builtin(GPU_VIEW_POSITION),
-			         GPU_dynamic_uniform(lamp->dynco, GPU_DYNAMIC_LAMP_DYNCO, lamp->ob),
-			         GPU_dynamic_uniform(lamp->dynvec, GPU_DYNAMIC_LAMP_DYNVEC, lamp->ob),
-			         vn,
-			         GPU_dynamic_uniform((float *)lamp->dynareamat, GPU_DYNAMIC_LAMP_DYNAREAMAT, lamp->ob),
-			         GPU_dynamic_uniform((float *)lamp->area_size, GPU_DYNAMIC_LAMP_DYNAREASIZE, lamp->ob),
-			         GPU_uniform(&lamp->dist),
-			         GPU_uniform(&lamp->k),
-			         &inp);
+					 GPU_builtin(GPU_VIEW_POSITION), vn,
+					 GPU_dynamic_uniform(lamp->dynvec, GPU_DYNAMIC_LAMP_DYNVEC, lamp->ob),
+					 anear, adist, visifac,
+					 GPU_uniform(&lamp->dist), GPU_uniform(&lamp->k),
+					 &inp);
 		}
 
 		is = inp; /* Lambert */
@@ -1055,7 +1059,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	
 	GPU_link(mat, "set_rgb", GPU_dynamic_uniform(lamp->dyncol, GPU_DYNAMIC_LAMP_DYNCOL, lamp->ob), &lcol);
 	if (lamp->type == LA_AREA && !(lamp->mode & LA_NO_DIFF)) {
-		shade_area_diff_texture(mat, lamp, &lcol, shi);
+		shade_area_diff_texture(mat, lamp, adiag, adist, &lcol);
 	}
 	else {
 		shade_light_textures(mat, lamp, &lcol);
@@ -1191,17 +1195,21 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 			}
 
 			if (lamp->type == LA_AREA) {
+				GPUNodeLink *dirspec, *distspec;
+				GPU_link(mat, "lamp_area_spec",
+						 GPU_dynamic_uniform((float *)lamp->dynareamat, GPU_DYNAMIC_LAMP_DYNAREAMAT, lamp->ob),
+						 GPU_dynamic_uniform(lamp->dynvec, GPU_DYNAMIC_LAMP_DYNVEC, lamp->ob),
+						 GPU_dynamic_uniform(lamp->dynco, GPU_DYNAMIC_LAMP_DYNCO, lamp->ob),
+						 GPU_builtin(GPU_VIEW_POSITION), vn,
+						 &dirspec, &distspec);
+
 				GPU_link(mat, "shade_area_spec",
-				    GPU_builtin(GPU_VIEW_POSITION),
-				    GPU_dynamic_uniform(lamp->dynco,
-				    GPU_DYNAMIC_LAMP_DYNCO, lamp->ob),
-				    vn,
-				    GPU_dynamic_uniform((float *)lamp->dynareamat, GPU_DYNAMIC_LAMP_DYNAREAMAT, lamp->ob),
-				    GPU_dynamic_uniform((float *)lamp->area_size, GPU_DYNAMIC_LAMP_DYNAREASIZE, lamp->ob),
-				    shi->har,
-				    &specfac);
+						 dirspec, distspec,
+						 GPU_dynamic_uniform((float *)lamp->area_size, GPU_DYNAMIC_LAMP_DYNAREASIZE, lamp->ob),
+						 shi->har,
+						 &specfac);
 				GPU_link(mat, "shade_spec_area_inp", specfac, inp, &specfac);
-				shade_area_spec_texture(mat, lamp, &lcol, shi);
+				shade_area_spec_texture(mat, lamp, dirspec, distspec, &lcol, shi);
 			}
 
 			GPU_link(mat, "shade_spec_t", shadfac, shi->spec, visifac, specfac, &t); 
