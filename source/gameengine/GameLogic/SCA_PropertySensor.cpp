@@ -143,7 +143,7 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 				// Force strings to upper case, to avoid confusion in
 				// bool tests. It's stupid the prop's identity is lost
 				// on the way here...
-				if ((&testprop == &CBoolValue::sTrueString) || (&testprop == &CBoolValue::sFalseString)) {
+				if ((testprop == CBoolValue::sTrueString) || (testprop == CBoolValue::sFalseString)) {
 					m_checkpropval.Upper();
 				}
 				result = (testprop == m_checkpropval);
