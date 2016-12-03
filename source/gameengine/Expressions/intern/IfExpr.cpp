@@ -75,11 +75,11 @@ CValue* CIfExpr::Calculate()
 	const STR_String& text = guardval->GetText();
 	guardval->Release();
 
-	if (&text == &CBoolValue::sTrueString)
+	if (text == CBoolValue::sTrueString)
 	{
 		return m_e1->Calculate();
 	}
-	else if (&text == &CBoolValue::sFalseString)
+	else if (text == CBoolValue::sFalseString)
 	{
 		return m_e2->Calculate();
 	}

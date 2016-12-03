@@ -215,7 +215,7 @@ bool CListValue::CheckEqual(CValue* first,CValue* second)
 	if (eqval==NULL)
 		return false;
 	const STR_String& text = eqval->GetText();
-	if (&text==&CBoolValue::sTrueString)
+	if (text == CBoolValue::sTrueString)
 	{
 		result = true;
 	}
