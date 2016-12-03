@@ -1174,6 +1174,27 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 			GPU_link(mat, "shade_add_spec", t, lcol, shi->specrgb, &outcol);
 			GPU_link(mat, "shade_add_clamped", shr->spec, outcol, &shr->spec);
 		}
+		else if (lamp->type == LA_AREA) {
+			GPUNodeLink *dirspec, *anglespec, *distspec;
+			GPU_link(mat, "lamp_area_spec",
+					 GPU_dynamic_uniform((float *)lamp->dynareamat, GPU_DYNAMIC_LAMP_DYNAREAMAT, lamp->ob),
+					 GPU_dynamic_uniform(lamp->dynvec, GPU_DYNAMIC_LAMP_DYNVEC, lamp->ob),
+					 GPU_dynamic_uniform(lamp->dynco, GPU_DYNAMIC_LAMP_DYNCO, lamp->ob),
+					 GPU_builtin(GPU_VIEW_POSITION), vn,
+					 &dirspec, &anglespec, &distspec);
+
+			GPU_link(mat, "shade_area_spec", dirspec, anglespec, distspec,
+					 GPU_dynamic_uniform((float *)lamp->area_size, GPU_DYNAMIC_LAMP_DYNAREASIZE, lamp->ob),
+					 shi->har, &specfac);
+			GPU_link(mat, "shade_spec_area_inp", specfac, inp, &specfac);
+
+			shade_area_spec_texture(mat, lamp, dirspec, distspec, &lcol, shi);
+
+			GPU_link(mat, "shade_spec_t", shadfac, shi->spec, visifac, specfac, &t); 
+
+			GPU_link(mat, "shade_add_spec", t, lcol, shi->specrgb, &outcol);
+			GPU_link(mat, "shade_add_clamped", shr->spec, outcol, &shr->spec);
+		}
 		else {
 			if (ma->spec_shader == MA_SPEC_PHONG) {
 				GPU_link(mat, "shade_phong_spec", vn, lv, view, shi->har, &specfac);
@@ -1192,24 +1213,6 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 			else {
 				GPU_link(mat, "shade_toon_spec", vn, lv, view,
 				         GPU_uniform(&ma->param[2]), GPU_uniform(&ma->param[3]), &specfac);
-			}
-
-			if (lamp->type == LA_AREA) {
-				GPUNodeLink *dirspec, *distspec;
-				GPU_link(mat, "lamp_area_spec",
-						 GPU_dynamic_uniform((float *)lamp->dynareamat, GPU_DYNAMIC_LAMP_DYNAREAMAT, lamp->ob),
-						 GPU_dynamic_uniform(lamp->dynvec, GPU_DYNAMIC_LAMP_DYNVEC, lamp->ob),
-						 GPU_dynamic_uniform(lamp->dynco, GPU_DYNAMIC_LAMP_DYNCO, lamp->ob),
-						 GPU_builtin(GPU_VIEW_POSITION), vn,
-						 &dirspec, &distspec);
-
-				GPU_link(mat, "shade_area_spec",
-						 dirspec, distspec,
-						 GPU_dynamic_uniform((float *)lamp->area_size, GPU_DYNAMIC_LAMP_DYNAREASIZE, lamp->ob),
-						 shi->har,
-						 &specfac);
-				GPU_link(mat, "shade_spec_area_inp", specfac, inp, &specfac);
-				shade_area_spec_texture(mat, lamp, dirspec, distspec, &lcol, shi);
 			}
 
 			GPU_link(mat, "shade_spec_t", shadfac, shi->spec, visifac, specfac, &t); 

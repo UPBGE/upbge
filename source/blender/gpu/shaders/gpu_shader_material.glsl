@@ -1985,7 +1985,7 @@ void shade_is_hemi(float inp, out float is)
 	is = 0.5 * inp + 0.5;
 }
 
-void lamp_area(mat4 lampMat, vec3 lampvec, vec3 lampPos, vec2 areaSize, vec3 co,
+void lamp_area(mat4 lampMat, vec3 lampvec, vec3 lamppos, vec2 size, vec3 co,
 	out vec3 right, out vec3 up,
 	out vec2 diagonal, out vec3 nearest, out float dist)
 {
@@ -1993,17 +1993,17 @@ void lamp_area(mat4 lampMat, vec3 lampvec, vec3 lampPos, vec2 areaSize, vec3 co,
 	up = (lampMat * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
 
 	// Project position to area light plane.
-	vec3 projection = projection_to_plane(co, lampPos, lampvec);
+	vec3 projection = projection_to_plane(co, lamppos, lampvec);
 	// Get the direction to the center.
-	vec3 dir = projection - lampPos;
+	vec3 dir = projection - lamppos;
 
 	// Move in plane space.
 	diagonal = vec2(dot(dir, right), dot(dir, up));
 	// Clamp the direction to the area square.
-	vec2 halfSize = areaSize / 2.0;
+	vec2 halfSize = size / 2.0;
 	vec2 nearest2D = clamp(diagonal, -halfSize, halfSize);
 	// Back in world space.
-	nearest = lampPos + (right * nearest2D.x + up * nearest2D.y);
+	nearest = lamppos + (right * nearest2D.x + up * nearest2D.y);
 	dist = distance(co, nearest);
 }
 
@@ -2023,14 +2023,14 @@ void shade_inp_area(vec3 co, vec3 vn, vec3 lampvec, vec3 nearest, float dist, fl
 }
 
 void lamp_area_spec(mat4 lampMat, vec3 lampvec, vec3 lampPos, vec3 co, vec3 vn,
-	out vec2 dirspec, out float dist)
+	out vec2 dirspec, out float angle, out float dist)
 {
 	vec3 right = (lampMat * vec4(1.0, 0.0, 0.0, 0.0)).xyz;
 	vec3 up = (lampMat * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
 	vec3 R = reflect(-co, -vn);
 	vec3 E = co + R * (dot(lampvec, lampPos - co) / dot(lampvec, R));
 
-	float specAngle = clamp(dot(R, lampvec), 0.0, 1.0);
+	angle = clamp(dot(R, lampvec), 0.0, 1.0);
 
 	vec3 dirSpec = E - lampPos;
 	dirspec = vec2(dot(dirSpec, right),dot(dirSpec, up));
@@ -2039,23 +2039,29 @@ void lamp_area_spec(mat4 lampMat, vec3 lampvec, vec3 lampPos, vec3 co, vec3 vn,
 	dist = distance(co, specPlane);
 }
 
-void shade_area_spec(vec2 dirspec, float distspec, vec2 areaSize, float hard, out float specfac)
+void shade_area_spec(vec2 dirspec, float anglespec, float distspec, vec2 size, float hard, out float specfac)
 {
 	hard /= 4.0;
 	float gloss = 4.0;
 
-	vec2 halfSize = areaSize / 2.0;
+	vec2 halfSize = size / 2.0;
 
 	vec2 nearestSpec2D = clamp(dirspec, -halfSize, halfSize);
-	specfac = 1.0 - clamp(length(nearestSpec2D - dirspec) * (hard / (distspec / gloss)), 0.0, 1.0);
+
+	specfac = 0.0;
+	if (anglespec > 0.0) {
+		specfac = 1.0 - clamp(length(nearestSpec2D - dirspec) * (hard / (distspec / gloss)), 0.0, 1.0);
+	}
 }
 
-void area_diff_texture(sampler2D tex, float lodbias, vec2 diagonal, float dist, vec2 areaSize, out vec4 result)
+void area_diff_texture(sampler2D tex, float lodbias, vec2 diagonal, float dist, vec2 size, out vec4 result)
 {
-	vec2 halfSize = areaSize / 2.0;
+	vec2 halfSize = size / 2.0;
 
 	// Negate Y axis diagonal because the lamp direction is negative.
-	vec2 co = (vec2(diagonal.x, -diagonal.y) / (dist + 1.0) + halfSize) / halfSize + halfSize;
+// 	vec2 co = (vec2(diagonal.x, -diagonal.y) / (dist + 1.0) + halfSize) / halfSize + halfSize;
+	vec2 co = diagonal / (dist + 1.0) / size + vec2(0.5);
+	co.y = 1.0 - co.y;
 
 	float lod = (pow(dist, 0.1) * 8.0) + lodbias;
 
@@ -2065,7 +2071,7 @@ void area_diff_texture(sampler2D tex, float lodbias, vec2 diagonal, float dist, 
 	result = mix(t00, t01, fract(lod + 1.5));
 }
 
-void area_spec_texture(vec2 dirspec, float distspec, sampler2D tex, float lodbias, vec2 areaSize, float hard, out vec4 result)
+void area_spec_texture(vec2 dirspec, float distspec, sampler2D tex, float lodbias, vec2 size, float hard, out vec4 result)
 {
 	hard /= 4.0;
 	float gloss = 4.0;
@@ -2073,7 +2079,7 @@ void area_spec_texture(vec2 dirspec, float distspec, sampler2D tex, float lodbia
 	float d = ((1.0 / hard) / 2.0) * (distspec / gloss);
 
 	vec2 co = -dirspec / (d + 1.0);
-	co /= areaSize;
+	co /= size;
 	co = co + vec2(0.5);
 	co.x = 1.0 - co.x;
 
@@ -2081,7 +2087,7 @@ void area_spec_texture(vec2 dirspec, float distspec, sampler2D tex, float lodbia
 	vec4 t00 = texture2D(tex, co, lod);
 	vec4 t01 = texture2D(tex, co, lod + 1.0);
 
-	vec4 spec =  mix(t00, t01, fract(lod + 1.5));
+	vec4 spec = mix(t00, t01, fract(lod + 1.5));
 
 	result = spec * 6.0;
 }
