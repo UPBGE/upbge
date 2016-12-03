@@ -42,6 +42,7 @@
 #include "BL_MeshDeformer.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_MeshObject.h"
+#include "RAS_Polygon.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
@@ -138,65 +139,53 @@ void BL_MeshDeformer::RecalcNormals()
 	 * GL_NORMALIZE so we don't have to do per vertex normalization either
 	 * since the GPU can do it faster */
 	std::vector<RAS_MeshMaterial *>::iterator mit;
-	size_t i;
 
 	/* set vertex normals to zero */
 	memset(m_transnors, 0, sizeof(float) * 3 * m_bmesh->totvert);
 
-	/* add face normals to vertices. */
-	for (mit = m_pMeshObject->GetFirstMaterial(); mit != m_pMeshObject->GetLastMaterial(); ++mit) {
-		RAS_MeshMaterial *meshmat = *mit;
-		RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
-		if (!slot) {
-			continue;
+	for (unsigned int i = 0, numpoly = m_pMeshObject->NumPolygons(); i < numpoly; ++i) {
+		RAS_Polygon *poly = m_pMeshObject->GetPolygon(i);
+		RAS_IDisplayArray *array = poly->GetDisplayArray();
+		const unsigned short numvert = poly->VertexCount();
+
+		const float *co[4];
+		unsigned int indices[4];
+		unsigned int origindices[4];
+		bool flat = true;
+
+		for (unsigned int j = 0; j < numvert; ++j) {
+			const unsigned int index = poly->GetVertexOffset(j);
+			const RAS_TexVertInfo& vinfo = array->GetVertexInfo(index);
+			const unsigned int origindex = vinfo.getOrigIndex();
+
+			co[j] = m_transverts[origindex];
+			indices[j] = index;
+			origindices[j] = origindex;
+
+			if (!(vinfo.getFlag() & RAS_TexVertInfo::FLAT)) {
+				flat = false;
+			}
 		}
 
-		RAS_IDisplayArray *array = slot->GetDisplayArray();
+		float pnorm[3];
+		if (numvert == 3) {
+			normal_tri_v3(pnorm, co[0], co[1], co[2]);
+		}
+		else {
+			normal_quad_v3(pnorm, co[0], co[1], co[2], co[3]);
+		}
 
-		for (i = 0; i < array->GetIndexCount(); i += 3) {
-			const unsigned int indexes[3] = {array->GetIndex(i), array->GetIndex(i + 1), array->GetIndex(i + 2)};
-			RAS_ITexVert *v1 = array->GetVertex(indexes[0]);
-			RAS_ITexVert *v2 = array->GetVertex(indexes[1]);
-			RAS_ITexVert *v3 = array->GetVertex(indexes[2]);
-			const RAS_TexVertInfo& v1info = array->GetVertexInfo(indexes[0]);
-			const RAS_TexVertInfo& v2info = array->GetVertexInfo(indexes[1]);
-			const RAS_TexVertInfo& v3info = array->GetVertexInfo(indexes[2]);
+		if (flat) {
+			MT_Vector3 normal(pnorm);
+			for (unsigned int j = 0; j < numvert; ++j) {
+				RAS_ITexVert *vert = array->GetVertex(indices[j]);
 
-			const float *co1 = m_transverts[v1info.getOrigIndex()];
-			const float *co2 = m_transverts[v2info.getOrigIndex()];
-			const float *co3 = m_transverts[v3info.getOrigIndex()];
-
-			/* compute face normal */
-			float fnor[3], n1[3], n2[3];
-
-			n1[0] = co1[0] - co2[0];
-			n2[0] = co2[0] - co3[0];
-			n1[1] = co1[1] - co2[1];
-
-			n2[1] = co2[1] - co3[1];
-			n1[2] = co1[2] - co2[2];
-			n2[2] = co2[2] - co3[2];
-
-			fnor[0] = n1[1] * n2[2] - n1[2] * n2[1];
-			fnor[1] = n1[2] * n2[0] - n1[0] * n2[2];
-			fnor[2] = n1[0] * n2[1] - n1[1] * n2[0];
-			normalize_v3(fnor);
-
-			/* add to vertices for smooth normals */
-			float *vn1 = m_transnors[v1info.getOrigIndex()];
-			float *vn2 = m_transnors[v2info.getOrigIndex()];
-			float *vn3 = m_transnors[v3info.getOrigIndex()];
-
-			vn1[0] += fnor[0]; vn1[1] += fnor[1]; vn1[2] += fnor[2];
-			vn2[0] += fnor[0]; vn2[1] += fnor[1]; vn2[2] += fnor[2];
-			vn3[0] += fnor[0]; vn3[1] += fnor[1]; vn3[2] += fnor[2];
-
-			/* in case of flat - just assign, the vertices are split */
-			if (v1info.getFlag() & RAS_TexVertInfo::FLAT) {
-				MT_Vector3 normal = MT_Vector3(fnor);
-				v1->SetNormal(normal);
-				v2->SetNormal(normal);
-				v3->SetNormal(normal);
+				vert->SetNormal(normal);
+			}
+		}
+		else {
+			for (unsigned int j = 0; j < numvert; ++j) {
+				add_v3_v3(m_transnors[origindices[j]], pnorm);
 			}
 		}
 	}
