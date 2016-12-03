@@ -132,6 +132,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
 				if (ob->type == OB_MESH) {
 					Mesh *me = blo_do_versions_newlibadr(fd, lib, ob->data);
+					bool converted = false;
 					for (unsigned short i = 0; i < me->totcol; ++i) {
 						Material *ma = blo_do_versions_newlibadr(fd, lib, me->mat[i]);
 						if (ma) {
@@ -144,8 +145,13 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 							if (ma->dynamode & MA_FH_NOR) {
 								ob->dynamode |= OB_FH_NOR;
 							}
+							converted = true;
 							break;
 						}
+					}
+					/* There's no valid material, we use the settings from BKE_object_init. */
+					if (!converted) {
+						ob->friction = 0.5f;
 					}
 				}
 			}
