@@ -314,6 +314,16 @@ void KX_MouseActuator::ProcessReplica()
 	SCA_IActuator::ProcessReplica();
 }
 
+void KX_MouseActuator::Replace_IScene(SCA_IScene *scene)
+{
+	/* Changes the event manager when the scene changes in case of lib loading.
+	 * Using an event manager in an actuator is not a regular behaviour which is
+	 * to avoid if it is possible.
+	 */
+	SCA_LogicManager *logicmgr = ((KX_Scene *)scene)->GetLogicManager();
+	m_eventmgr = (SCA_MouseManager *)logicmgr->FindEventManager(m_eventmgr->GetType());
+}
+
 void KX_MouseActuator::getMousePosition(float* pos)
 {
 	BLI_assert(m_mouse);
