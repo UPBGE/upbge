@@ -2653,14 +2653,6 @@ static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *l
 	lamp->spotbl = (1.0f - lamp->spotsi) * la->spotblend;
 	lamp->k = la->k;
 
-	lamp->area_size[0] = la->area_size;
-	if (la->area_shape == LA_AREA_SQUARE) {
-		lamp->area_size[1] = la->area_size;
-	}
-	else {
-		lamp->area_size[1] = la->area_sizey;
-	}
-
 	lamp->dist = la->dist;
 	lamp->falloff_type = la->falloff_type;
 	lamp->att1 = la->att1;
