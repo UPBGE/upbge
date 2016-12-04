@@ -65,6 +65,9 @@ public:
 	void InvalidateCubeMapViewpoint(KX_GameObject *gameobj);
 
 	void Render(RAS_IRasterizer *rasty);
+
+	/// Merge the content of an other cube map manager, used during lib loading.
+	void Merge(KX_CubeMapManager *other);
 };
 
 #endif // __KX_CUBEMAPMANAGER_H__

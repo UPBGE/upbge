@@ -179,3 +179,9 @@ void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
 
 	rasty->SetDrawingMode(drawmode);
 }
+
+void KX_CubeMapManager::Merge(KX_CubeMapManager *other)
+{
+	m_cubeMaps.insert(m_cubeMaps.end(), other->m_cubeMaps.begin(), other->m_cubeMaps.end());
+	other->m_cubeMaps.clear();
+}

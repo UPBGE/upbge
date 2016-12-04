@@ -1981,7 +1981,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 	GetBucketManager()->MergeBucketManager(other->GetBucketManager(), this);
 	GetBoundingBoxManager()->Merge(other->GetBoundingBoxManager());
-
+	GetCubeMapManager()->Merge(other->GetCubeMapManager());
 
 	/* active + inactive == all ??? - lets hope so */
 	for (CListValue::iterator<KX_GameObject> it = other->GetObjectList()->GetBegin(), end = other->GetObjectList()->GetEnd(); it != end; ++it) {
