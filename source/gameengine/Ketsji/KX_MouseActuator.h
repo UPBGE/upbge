@@ -96,6 +96,8 @@ public:
 	CValue* GetReplica();
 	virtual void ProcessReplica();
 
+	virtual void Replace_IScene(SCA_IScene *scene);
+
 	virtual bool Update();
 
 	/* check whether this value is valid */
