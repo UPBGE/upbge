@@ -30,6 +30,10 @@
 #include "RAS_2DFilter.h"
 #include "BL_Shader.h"
 
+#ifdef _MSC_VER
+#  pragma warning(disable:4250)
+#endif
+
 class KX_2DFilter : public RAS_2DFilter, public BL_Shader
 {
 	Py_Header
