@@ -2023,7 +2023,7 @@ void shade_inp_area(vec3 co, vec3 vn, vec3 lampvec, vec3 nearest, float dist, fl
 }
 
 void lamp_area_spec(mat4 lampmat, vec3 lampvec, vec3 lamppos, vec3 co, vec3 vn,
-	out vec2 dirspec, out float angle, out float dist)
+	out vec2 specdir, out float angle, out float dist)
 {
 	vec3 right = (lampmat * vec4(1.0, 0.0, 0.0, 0.0)).xyz;
 	vec3 up = (lampmat * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
@@ -2033,8 +2033,8 @@ void lamp_area_spec(mat4 lampmat, vec3 lampvec, vec3 lamppos, vec3 co, vec3 vn,
 	angle = clamp(dot(R, lampvec), 0.0, 1.0);
 
 	vec3 dirSpec = E - lamppos;
-	dirspec = vec2(dot(dirSpec, right),dot(dirSpec, up));
-	vec3 specPlane = lamppos + (right * dirspec.x + up * dirspec.y);
+	specdir = vec2(dot(dirSpec, right),dot(dirSpec, up));
+	vec3 specPlane = lamppos + (right * specdir.x + up * specdir.y);
 
 	dist = distance(co, specPlane);
 }

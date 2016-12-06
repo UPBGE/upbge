@@ -951,7 +951,7 @@ static void shade_area_diff_texture(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink
 					 diag, dist,
 					 GPU_dynamic_uniform((float *)lamp->area_size, GPU_DYNAMIC_LAMP_DYNAREASIZE, lamp->ob),
 					 &tex_rgb);
-			texture_rgb_blend(mat, tex_rgb, *rgb, GPU_uniform(&one), GPU_uniform(&mtex->colfac), MTEX_MUL, rgb);
+			texture_rgb_blend(mat, tex_rgb, *rgb, GPU_uniform(&one), GPU_uniform(&mtex->colfac), mtex->blendtype, rgb);
 		}
 	}
 }
@@ -975,7 +975,7 @@ static void shade_area_spec_texture(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink
 					 GPU_dynamic_uniform((float *)lamp->area_size, GPU_DYNAMIC_LAMP_DYNAREASIZE, lamp->ob),
 					 shi->har,
 					 &tex_rgb);
-			texture_rgb_blend(mat, tex_rgb, *rgb, GPU_uniform(&one), GPU_uniform(&mtex->colfac), MTEX_BLEND, rgb);
+			texture_rgb_blend(mat, tex_rgb, *rgb, GPU_uniform(&one), GPU_uniform(&mtex->colfac), mtex->blendtype, rgb);
 		}
 	}
 }
