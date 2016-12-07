@@ -95,8 +95,11 @@ void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned s
 		BindTextures(rasty, depthfbo, colorfbo);
 		BindUniforms(canvas);
 
-		MT_Matrix4x4 mat;
-		mat.setIdentity();
+		static const MT_Matrix4x4 mat = MT_Matrix4x4(1.0f, 0.0f, 0.0f, 0.0f,
+			                                         0.0f, 1.0f, 0.0f, 0.0f,
+			                                         0.0f, 0.0f, 1.0f, 0.0f,
+			                                         0.0f, 0.0f, 0.0f, 1.0f);
+
 		Update(rasty, mat);
 
 		ApplyShader();
