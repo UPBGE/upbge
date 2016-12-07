@@ -31,6 +31,10 @@
 #include "BL_Shader.h"
 
 #ifdef _MSC_VER
+/* KX_2DFilter uses a diamond inheritance from a virtual pure base class. Only one branch of the diamond
+ * define these virtual pure functions and come in the final class with dominance. This behaviour is wanted
+ * but MSVC warn about it, we just disable the warning.
+ */
 #  pragma warning(disable:4250)
 #endif
 
