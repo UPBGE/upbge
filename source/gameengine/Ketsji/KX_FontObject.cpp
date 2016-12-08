@@ -186,7 +186,7 @@ void KX_FontObject::UpdateBuckets()
 		// Account for offset
 		MT_Vector3 offset = NodeGetWorldOrientation() * m_offset * NodeGetWorldScaling();
 		// Orient the spacing vector
-		MT_Vector3 spacing = MT_Vector3(0.0f, m_fsize * m_line_spacing, 0.0f);
+		MT_Vector3 spacing = NodeGetWorldOrientation() * MT_Vector3(0.0f, m_fsize * m_line_spacing, 0.0f) * NodeGetWorldScaling()[1];
 
 		RAS_TextUser *textUser = (RAS_TextUser *)m_meshUser;
 
