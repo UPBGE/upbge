@@ -104,7 +104,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	}
 	else {
 		type = GPU_HDR_NONE;
-		m_format = GL_RGBA8;
+		m_format = GL_RGB;
 	}
 
 	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
