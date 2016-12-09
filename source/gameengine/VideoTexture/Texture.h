@@ -107,7 +107,7 @@ public:
 
 // load texture
 void loadTexture(unsigned int texId, unsigned int *texture, short *size,
-                 bool mipmap, unsigned int format);
+				 bool mipmap, unsigned int internalFormat);
 
 // get material
 RAS_IPolyMaterial *getMaterial(KX_GameObject *gameObj, short matID);

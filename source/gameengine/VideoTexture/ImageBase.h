@@ -69,9 +69,9 @@ public:
 	short * getSize(void) { return m_size; }
 
 	/// Get the image format type.
-	unsigned int GetFormat()
+	unsigned int GetInternalFormat()
 	{
-		return m_format;
+		return m_internalFormat;
 	}
 
 	/// get image buffer size
@@ -125,8 +125,8 @@ protected:
 	unsigned int * m_image;
 	/// image buffer size
 	unsigned int m_imgSize;
-	/// Image format type.
-	unsigned int m_format;
+	/// Image internal format type.
+	unsigned int m_internalFormat;
 	/// image size
 	short m_size[2];
 	/// image is available

@@ -96,15 +96,15 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	GPUHDRType type;
 	if (hdr == RAS_IRasterizer::RAS_HDR_HALF_FLOAT) {
 		type = GPU_HDR_HALF_FLOAT;
-		m_format = GL_RGBA16F_ARB;
+		m_internalFormat = GL_RGBA16F_ARB;
 	}
 	else if (hdr == RAS_IRasterizer::RAS_HDR_FULL_FLOAT) {
 		type = GPU_HDR_FULL_FLOAT;
-		m_format = GL_RGBA32F_ARB;
+		m_internalFormat = GL_RGBA32F_ARB;
 	}
 	else {
 		type = GPU_HDR_NONE;
-		m_format = GL_RGBA8;
+		m_internalFormat = GL_RGBA8;
 	}
 
 	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
@@ -891,15 +891,15 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	GPUHDRType type;
 	if (hdr == RAS_IRasterizer::RAS_HDR_HALF_FLOAT) {
 		type = GPU_HDR_HALF_FLOAT;
-		m_format = GL_RGBA16F_ARB;
+		m_internalFormat = GL_RGBA16F_ARB;
 	}
 	else if (hdr == RAS_IRasterizer::RAS_HDR_FULL_FLOAT) {
 		type = GPU_HDR_FULL_FLOAT;
-		m_format = GL_RGBA32F_ARB;
+		m_internalFormat = GL_RGBA32F_ARB;
 	}
 	else {
 		type = GPU_HDR_NONE;
-		m_format = GL_RGBA8;
+		m_internalFormat = GL_RGBA8;
 	}
 
 	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);

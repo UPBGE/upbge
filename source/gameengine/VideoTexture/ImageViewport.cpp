@@ -167,7 +167,7 @@ void ImageViewport::calcViewport (unsigned int texId, double ts, unsigned int fo
 	// if texture wasn't initialized
 	if (!m_texInit && texId != 0) {
 		// initialize it
-		loadTexture(texId, m_image, m_size, false, format);
+		loadTexture(texId, m_image, m_size, false, m_internalFormat);
 		m_texInit = true;
 	}
 	// if texture can be directly created
@@ -227,7 +227,7 @@ void ImageViewport::calcViewport (unsigned int texId, double ts, unsigned int fo
 						filterImage(filt, m_viewportImage, m_capSize);
 					}
 					else {
-						glReadPixels(m_upLeft[0], m_upLeft[1], (GLsizei)m_capSize[0], (GLsizei)m_capSize[1], m_format,
+						glReadPixels(m_upLeft[0], m_upLeft[1], (GLsizei)m_capSize[0], (GLsizei)m_capSize[1], GL_RGBA,
 						             GL_UNSIGNED_BYTE, m_viewportImage);
 						FilterRGBA32 filt;
 						filterImage(filt, m_viewportImage, m_capSize);
@@ -238,7 +238,7 @@ void ImageViewport::calcViewport (unsigned int texId, double ts, unsigned int fo
 					}
 				}
 				else {
-					glReadPixels(m_upLeft[0], m_upLeft[1], (GLsizei)m_capSize[0], (GLsizei)m_capSize[1], m_format,
+					glReadPixels(m_upLeft[0], m_upLeft[1], (GLsizei)m_capSize[0], (GLsizei)m_capSize[1], GL_RGB,
 					        GL_UNSIGNED_BYTE, m_viewportImage);
 					// filter loaded data
 					FilterRGB24 filt;
