@@ -51,6 +51,8 @@ public:
 
 	KX_PYMETHOD_DOC(KX_2DFilter, setTexture);
 
+	static PyObject *pyattr_get_color_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+
 #endif
 };
 

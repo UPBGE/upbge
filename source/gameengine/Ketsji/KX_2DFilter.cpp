@@ -71,6 +71,7 @@ PyMethodDef KX_2DFilter::Methods[] = {
 };
 
 PyAttributeDef KX_2DFilter::Attributes[] = {
+	KX_PYATTRIBUTE_RO_FUNCTION("colorBindCode", KX_2DFilter, pyattr_get_color_bind_code),
 	{NULL} // Sentinel
 };
 
@@ -106,6 +107,12 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, sampler
 
 	m_textures[index] = bindCode;
 	Py_RETURN_NONE;
+}
+
+PyObject *KX_2DFilter::pyattr_get_color_bind_code(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_2DFilter *self = static_cast<KX_2DFilter *>(self_v);
+	return PyLong_FromLong(self->GetColorBindCode());
 }
 
 #endif  // WITH_PYTHON

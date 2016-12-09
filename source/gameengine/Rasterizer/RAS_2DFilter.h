@@ -50,6 +50,8 @@ protected:
 	std::vector<unsigned int> m_propertiesLoc;
 	CValue *m_gameObject;
 
+	int m_colorBindCode;
+
 	/// True if the uniform locations are updated with the current shader program/script.
 	bool m_uniformInitialized;
 
@@ -87,6 +89,8 @@ public:
 
 	/// Finalizes the execution stage of the filter.
 	void End();
+
+	int GetColorBindCode();
 };
 
 #endif // __RAS_2DFILTER_H__

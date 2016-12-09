@@ -540,7 +540,7 @@ void GPU_shader_free(GPUShader *shader)
 
 int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 {
-	return glGetUniformLocation(shader->program, name);
+	return shader? glGetUniformLocation(shader->program, name) : -1;
 }
 
 void *GPU_shader_get_interface(GPUShader *shader)
