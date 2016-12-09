@@ -85,6 +85,9 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short depthfbo,
 						 unsigned short colorfbo, unsigned short outputfbo)
 {
+	// The output fbo must be not the color input fbo, it can be the same as depth input fbo because depth is unchanged.
+	BLI_assert(outputfbo != colorfbo);
+
 	rasty->BindOffScreen(outputfbo);
 
 	if (Ok()) {

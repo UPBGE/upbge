@@ -265,6 +265,13 @@ public:
 	 */
 	static unsigned short NextEyeOffScreen(unsigned short index);
 
+	/** Return the output frame buffer normally used for the input frame buffer
+	 * index in case of simple render.
+	 * \param index The input render frame buffer, can NOT be a non-render frame buffer.
+	 * \return The output render frame buffer.
+	 */
+	static unsigned short NextRenderOffScreen(unsigned short index);
+
 	/**
 	 * Enable capability
 	 * \param bit Enable bit

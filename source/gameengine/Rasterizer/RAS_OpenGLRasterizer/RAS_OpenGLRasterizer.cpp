@@ -411,6 +411,25 @@ unsigned short RAS_IRasterizer::NextEyeOffScreen(unsigned short index)
 	return RAS_OFFSCREEN_EYE_LEFT0;
 }
 
+unsigned short RAS_IRasterizer::NextRenderOffScreen(unsigned short index)
+{
+	switch (index) {
+		case RAS_OFFSCREEN_FINAL:
+		{
+			return RAS_OFFSCREEN_RENDER;
+		}
+		case RAS_OFFSCREEN_RENDER:
+		{
+			return RAS_OFFSCREEN_FINAL;
+		}
+	}
+
+	// Passing a non-render frame buffer is disallowed.
+	BLI_assert(false);
+
+	return RAS_OFFSCREEN_RENDER;
+}
+
 RAS_OpenGLRasterizer::RAS_OpenGLRasterizer()
 	: m_fogenabled(false),
 	m_time(0.0f),

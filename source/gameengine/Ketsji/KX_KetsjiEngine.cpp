@@ -656,11 +656,28 @@ void KX_KetsjiEngine::Render()
 
 		// Process filters for non-per eye off screen render.
 		if (!renderpereye) {
-			/* Choose final off screen target. This operation as effect only for multisamples render off screen.
-			 * If it's the last scene, we can render the last filter to a non-multisamples off screen.
-			 * Else reuse the (maybe) multisamples off screen for the next scene renders.
-			 */
-			const int target = lastscene ? RAS_IRasterizer::RAS_OFFSCREEN_FINAL : RAS_IRasterizer::RAS_OFFSCREEN_RENDER;
+			/* Choose final render off screen target. If the current off screen is using multisamples we
+			 * are sure that it will be copied to a non-multisamples off screen before render the filters.
+			 * In this case the targeted off screen is the same as the current off screen. */
+			int target;
+			const short fboindex = m_rasterizer->GetCurrentOffScreenIndex();
+			if (m_rasterizer->GetOffScreenSamples(fboindex) > 0) {
+				/* If the last scene is rendered it's useless to specify a multisamples off screen, we use then
+				 * RAS_OFFSCREEN_FINAL and avoid an extra off screen blit. */
+				if (lastscene) {
+					// Equivalent to RAS_IRasterizer::NextRenderOffScreen(fboindex).
+					target = RAS_IRasterizer::RAS_OFFSCREEN_FINAL;
+				}
+				else {
+					target = fboindex;
+				}
+			}
+			/* In case of non-multisamples a ping pong per scene render is made between RAS_OFFSCREEN_RENDER
+			 * and RAS_OFFSCREEN_FINAL. */
+			else {
+				target = RAS_IRasterizer::NextRenderOffScreen(fboindex);
+			}
+
 			PostRenderScene(scene, target);
 		}
 	}
