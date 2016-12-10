@@ -43,6 +43,14 @@ KX_PlanarManager::KX_PlanarManager(KX_Scene *scene)
 	const RAS_CameraData& camdata = RAS_CameraData();
 	m_camera = new KX_Camera(m_scene, KX_Scene::m_callbacks, camdata, true, true);
 	m_camera->SetName("__planar_cam__");
+
+	// Initialize constant matrix
+	m_r180 = MT_Matrix3x3(-1.0f, 0.0f, 0.0f,
+		                   0.0f, 1.0f, 0.0f,
+		                   0.0f, 0.0f, -1.0f);
+	m_unmir = MT_Matrix3x3(-1.0f, 0.0f, 0.0f,
+		                    0.0f, 1.0f, 0.0f,
+		                    0.0f, 0.0f, 1.0f);
 }
 
 KX_PlanarManager::~KX_PlanarManager()
@@ -110,22 +118,14 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	MT_Matrix3x3 m2 = m1;
 	m2.invert();
 
-	static const MT_Matrix3x3 r180 = MT_Matrix3x3(-1.0f, 0.0f, 0.0f,
-	                                               0.0f, 1.0f, 0.0f,
-	                                               0.0f, 0.0f, -1.0f);
-	
-	static const MT_Matrix3x3 unmir = MT_Matrix3x3(-1.0f, 0.0f, 0.0f,
-	                                                0.0f, 1.0f, 0.0f,
-	                                                0.0f, 0.0f, 1.0f);
-
 	MT_Matrix3x3 ori = observer->NodeGetWorldOrientation();
 	MT_Vector3 cameraWorldPos = observerWorldPos;
 
 	if (planar->GetPlanarType() == TEX_PLANAR_REFLECTION) {
 		cameraWorldPos = (observerWorldPos - mirror->GetSGNode()->GetWorldPosition()) * m1;
-		cameraWorldPos = mirror->GetSGNode()->GetWorldPosition() + cameraWorldPos * r180 * unmir * m2;
+		cameraWorldPos = mirror->GetSGNode()->GetWorldPosition() + cameraWorldPos * m_r180 * m_unmir * m2;
 		ori.transpose();
-		ori = ori * m1 * r180 * unmir * m2;
+		ori = ori * m1 * m_r180 * m_unmir * m2;
 		ori.transpose();
 	}
 

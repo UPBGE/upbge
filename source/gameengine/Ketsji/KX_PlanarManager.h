@@ -28,6 +28,7 @@
 #define __KX_PLANARMANAGER_H__
 
 #include <vector>
+#include "MT_Matrix3x3.h"
 
 class KX_GameObject;
 class KX_Camera;
@@ -51,6 +52,10 @@ private:
 
 	/// The scene we are rendering for.
 	KX_Scene *m_scene;
+
+	/// Constant matrix as members to avoid to set it each frame
+	MT_Matrix3x3 m_r180;
+	MT_Matrix3x3 m_unmir;
 
 	void RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar);
 
