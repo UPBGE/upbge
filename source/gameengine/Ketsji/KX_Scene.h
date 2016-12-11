@@ -580,12 +580,8 @@ public:
 	static PyObject*	pyattr_get_world(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_active_camera(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_active_camera(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_drawing_callback_pre(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_drawing_callback_pre(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_drawing_callback_post(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_drawing_callback_post(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_drawing_setup_callback_pre(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_drawing_setup_callback_pre(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_drawing_callback(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_drawing_callback(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_gravity(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_gravity(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
