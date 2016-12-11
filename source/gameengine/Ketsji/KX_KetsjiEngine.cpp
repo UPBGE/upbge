@@ -540,15 +540,22 @@ void KX_KetsjiEngine::Render()
 		KX_Camera *activecam = scene->GetActiveCamera();
 		CListValue *cameras = scene->GetCameraList();
 
-		// Build a list of all camera rendered.
+		// Build a list of all cameras rendered.
 		std::vector<KX_Camera *>& activeCameras = sceneActiveCameras[scene];
-		for (CListValue::iterator it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-			KX_Camera *cam = (KX_Camera*)(*it);
+		activeCameras.push_back(activecam);
+		for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
+			KX_Camera *cam = *it;
 			if (cam->GetViewport()) {
 				activeCameras.push_back(cam);
 			}
 		}
-		activeCameras.push_back(activecam);
+
+		KX_SetActiveScene(scene);
+
+#ifdef WITH_PYTHON
+		// We run the draw setup callback before rendering shadow to avoid culling the shadow before a possible camera move.
+		scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW_SETUP, cam);
+#endif
 
 		// shadows
 		RenderShadowBuffers(scene, activeCameras);
@@ -922,10 +929,6 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 	bool isfirstscene = (scene == m_scenes->GetFront());
 
 	KX_SetActiveScene(scene);
-
-#ifdef WITH_PYTHON
-	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW_SETUP, cam);
-#endif
 
 	GetSceneViewport(scene, cam, area, viewport);
 
