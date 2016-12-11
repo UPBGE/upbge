@@ -2347,84 +2347,42 @@ int KX_Scene::pyattr_set_active_camera(void *self_v, const KX_PYATTRIBUTE_DEF *a
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Scene::pyattr_get_drawing_callback_pre(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+static std::map<const char *, KX_Scene::DrawingCallbackType> callbacksTable = {
+	{"pre_draw", KX_Scene::PRE_DRAW},
+	{"pre_draw_setup", KX_Scene::PRE_DRAW_SETUP},
+	{"post_draw", KX_Scene::POST_DRAW}
+};
+
+PyObject *KX_Scene::pyattr_get_drawing_callback(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Scene* self = static_cast<KX_Scene*>(self_v);
+	KX_Scene *self = static_cast<KX_Scene *>(self_v);
 
-	if (self->m_drawCallbacks[PRE_DRAW] ==NULL)
-		self->m_drawCallbacks[PRE_DRAW] = PyList_New(0);
-	Py_INCREF(self->m_drawCallbacks[PRE_DRAW]);
-	return self->m_drawCallbacks[PRE_DRAW];
-}
-
-PyObject *KX_Scene::pyattr_get_drawing_callback_post(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_Scene* self = static_cast<KX_Scene*>(self_v);
-
-	if (self->m_drawCallbacks[POST_DRAW] ==NULL)
-		self->m_drawCallbacks[POST_DRAW] = PyList_New(0);
-	Py_INCREF(self->m_drawCallbacks[POST_DRAW]);
-	return self->m_drawCallbacks[POST_DRAW];
-}
-
-PyObject *KX_Scene::pyattr_get_drawing_setup_callback_pre(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_Scene* self = static_cast<KX_Scene*>(self_v);
-
-	if (self->m_drawCallbacks[PRE_DRAW_SETUP] == NULL)
-		self->m_drawCallbacks[PRE_DRAW_SETUP] = PyList_New(0);
-
-	Py_INCREF(self->m_drawCallbacks[PRE_DRAW_SETUP]);
-	return self->m_drawCallbacks[PRE_DRAW_SETUP];
-}
-
-int KX_Scene::pyattr_set_drawing_callback_pre(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_Scene* self = static_cast<KX_Scene*>(self_v);
-
-	if (!PyList_CheckExact(value))
-	{
-		PyErr_SetString(PyExc_ValueError, "Expected a list");
-		return PY_SET_ATTR_FAIL;
+	const DrawingCallbackType type = callbacksTable[attrdef->m_name];
+	if (!self->m_drawCallbacks[type]) {
+		self->m_drawCallbacks[type] = PyList_New(0);
 	}
-	Py_XDECREF(self->m_drawCallbacks[PRE_DRAW]);
 
-	Py_INCREF(value);
-	self->m_drawCallbacks[PRE_DRAW] = value;
+	Py_INCREF(self->m_drawCallbacks[type]);
 
-	return PY_SET_ATTR_SUCCESS;
+	return self->m_drawCallbacks[type];
 }
 
-int KX_Scene::pyattr_set_drawing_callback_post(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_Scene::pyattr_set_drawing_callback(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_Scene* self = static_cast<KX_Scene*>(self_v);
-
-	if (!PyList_CheckExact(value))
-	{
-		PyErr_SetString(PyExc_ValueError, "Expected a list");
-		return PY_SET_ATTR_FAIL;
-	}
-	Py_XDECREF(self->m_drawCallbacks[POST_DRAW]);
-
-	Py_INCREF(value);
-	self->m_drawCallbacks[POST_DRAW] = value;
-
-	return PY_SET_ATTR_SUCCESS;
-}
-
-int KX_Scene::pyattr_set_drawing_setup_callback_pre(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_Scene* self = static_cast<KX_Scene*>(self_v);
+	KX_Scene *self = static_cast<KX_Scene *>(self_v);
 
 	if (!PyList_CheckExact(value)) {
 		PyErr_SetString(PyExc_ValueError, "Expected a list");
 		return PY_SET_ATTR_FAIL;
 	}
 
-	Py_XDECREF(self->m_drawCallbacks[PRE_DRAW_SETUP]);
-	Py_INCREF(value);
+	const DrawingCallbackType type = callbacksTable[attrdef->m_name];
 
-	self->m_drawCallbacks[PRE_DRAW_SETUP] = value;
+	Py_XDECREF(self->m_drawCallbacks[type]);
+
+	Py_INCREF(value);
+	self->m_drawCallbacks[type] = value;
+
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2457,9 +2415,9 @@ PyAttributeDef KX_Scene::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("filterManager",		KX_Scene, pyattr_get_filter_manager),
 	KX_PYATTRIBUTE_RO_FUNCTION("world",				KX_Scene, pyattr_get_world),
 	KX_PYATTRIBUTE_RW_FUNCTION("active_camera",		KX_Scene, pyattr_get_active_camera, pyattr_set_active_camera),
-	KX_PYATTRIBUTE_RW_FUNCTION("pre_draw",			KX_Scene, pyattr_get_drawing_callback_pre, pyattr_set_drawing_callback_pre),
-	KX_PYATTRIBUTE_RW_FUNCTION("post_draw",			KX_Scene, pyattr_get_drawing_callback_post, pyattr_set_drawing_callback_post),
-	KX_PYATTRIBUTE_RW_FUNCTION("pre_draw_setup",	KX_Scene, pyattr_get_drawing_setup_callback_pre, pyattr_set_drawing_setup_callback_pre),
+	KX_PYATTRIBUTE_RW_FUNCTION("pre_draw",			KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
+	KX_PYATTRIBUTE_RW_FUNCTION("post_draw",			KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
+	KX_PYATTRIBUTE_RW_FUNCTION("pre_draw_setup",	KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
 	KX_PYATTRIBUTE_RW_FUNCTION("gravity",			KX_Scene, pyattr_get_gravity, pyattr_set_gravity),
 	KX_PYATTRIBUTE_BOOL_RO("suspended",				KX_Scene, m_suspend),
 	KX_PYATTRIBUTE_BOOL_RO("activity_culling",		KX_Scene, m_activity_culling),
