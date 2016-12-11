@@ -2058,17 +2058,13 @@ void area_diff_texture(sampler2D tex, float lodbias, vec2 diagonal, float dist, 
 {
 	vec2 halfSize = size / 2.0;
 
-	// Negate Y axis diagonal because the lamp direction is negative.
-// 	vec2 co = (vec2(diagonal.x, -diagonal.y) / (dist + 1.0) + halfSize) / halfSize + halfSize;
 	vec2 co = diagonal / (dist + 1.0) / size + vec2(0.5);
+	// Negate Y axis diagonal because the lamp direction is negative.
 	co.y = 1.0 - co.y;
 
 	float lod = (pow(dist, 0.1) * 8.0) + lodbias;
 
-	vec4 t00 = texture2D(tex, co, lod);
-	vec4 t01 = texture2D(tex, co, lod + 1.0);
-
-	result = mix(t00, t01, fract(lod + 1.5));
+	result = texture2D(tex, co, lod);
 }
 
 void area_spec_texture(vec2 specdir, float specdist, sampler2D tex, float lodbias, vec2 size, float hard, out vec4 result)
@@ -2084,10 +2080,8 @@ void area_spec_texture(vec2 specdir, float specdist, sampler2D tex, float lodbia
 	co.x = 1.0 - co.x;
 
 	float lod = (2.0 / hard * max(specdist, 0.0)) + lodbias;
-	vec4 t00 = texture2D(tex, co, lod);
-	vec4 t01 = texture2D(tex, co, lod + 1.0);
 
-	vec4 spec = mix(t00, t01, fract(lod + 1.5));
+	vec4 spec = texture2D(tex, co, lod);
 
 	result = spec * 6.0;
 }
