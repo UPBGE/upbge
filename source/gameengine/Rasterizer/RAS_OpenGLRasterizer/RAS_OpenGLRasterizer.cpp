@@ -79,7 +79,7 @@ extern "C" {
 #include "CM_Message.h"
 
 // WARNING: Always respect the order from RAS_IRasterizer::EnableBit.
-static int openGLEnableBitEnums[] = {
+static const int openGLEnableBitEnums[] = {
 	GL_DEPTH_TEST, // RAS_DEPTH_TEST
 	GL_ALPHA_TEST, // RAS_ALPHA_TEST
 	GL_SCISSOR_TEST, // RAS_SCISSOR_TEST
@@ -101,7 +101,7 @@ static int openGLEnableBitEnums[] = {
 };
 
 // WARNING: Always respect the order from RAS_IRasterizer::DepthFunc.
-static int openGLDepthFuncEnums[] = {
+static const int openGLDepthFuncEnums[] = {
 	GL_NEVER, // RAS_NEVER
 	GL_LEQUAL, // RAS_LEQUAL
 	GL_LESS, // RAS_LESS
@@ -113,14 +113,14 @@ static int openGLDepthFuncEnums[] = {
 };
 
 // WARNING: Always respect the order from RAS_IRasterizer::MatrixMode.
-static int openGLMatrixModeEnums[] = {
+static const int openGLMatrixModeEnums[] = {
 	GL_PROJECTION, // RAS_PROJECTION
 	GL_MODELVIEW, // RAS_MODELVIEW
 	GL_TEXTURE // RAS_TEXTURE
 };
 
 // WARNING: Always respect the order from RAS_IRasterizer::BlendFunc.
-static int openGLBlendFuncEnums[] = {
+static const int openGLBlendFuncEnums[] = {
 	GL_ZERO, // RAS_ZERO,
 	GL_ONE, // RAS_ONE,
 	GL_SRC_COLOR, // RAS_SRC_COLOR,
@@ -280,23 +280,14 @@ inline void RAS_OpenGLRasterizer::OffScreens::Update(RAS_ICanvas *canvas)
 		m_samples = canvas->GetSamples();
 	}
 
-	switch (canvas->GetHdrType()) {
-		case RAS_HDR_NONE:
-		{
-			m_hdr = GPU_HDR_NONE;
-			break;
-		}
-		case RAS_HDR_HALF_FLOAT:
-		{
-			m_hdr = GPU_HDR_HALF_FLOAT;
-			break;
-		}
-		case RAS_HDR_FULL_FLOAT:
-		{
-			m_hdr = GPU_HDR_FULL_FLOAT;
-			break;
-		}
-	}
+	// WARNING: Always respect the order from RAS_IRasterizer::HdrType.
+	static const int hdrEnums[] = {
+		GPU_HDR_NONE, // RAS_HDR_NONE
+		GPU_HDR_HALF_FLOAT, // RAS_HDR_HALF_FLOAT
+		GPU_HDR_FULL_FLOAT // RAS_HDR_FULL_FLOAT
+	};
+
+	m_hdr = hdrEnums[canvas->GetHdrType()];
 
 	// Destruct all off screens.
 	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_OFFSCREEN_MAX; ++i) {
