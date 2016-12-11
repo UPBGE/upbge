@@ -663,13 +663,13 @@ void RAS_OpenGLRasterizer::Clear(int clearbit)
 {
 	GLbitfield glclearbit = 0;
 
-	if ((clearbit & RAS_COLOR_BUFFER_BIT) == RAS_COLOR_BUFFER_BIT) {
+	if (clearbit & RAS_COLOR_BUFFER_BIT) {
 		glclearbit |= GL_COLOR_BUFFER_BIT;
 	}
-	if ((clearbit & RAS_DEPTH_BUFFER_BIT) == RAS_DEPTH_BUFFER_BIT) {
+	if (clearbit & RAS_DEPTH_BUFFER_BIT) {
 		glclearbit |= GL_DEPTH_BUFFER_BIT;
 	}
-	if ((clearbit & RAS_STENCIL_BUFFER_BIT) == RAS_STENCIL_BUFFER_BIT) {
+	if (clearbit & RAS_STENCIL_BUFFER_BIT) {
 		glclearbit |= GL_STENCIL_BUFFER_BIT;
 	}
 
