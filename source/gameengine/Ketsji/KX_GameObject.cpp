@@ -3146,7 +3146,8 @@ int KX_GameObject::pyattr_set_obcolor(void *self_v, const KX_PYATTRIBUTE_DEF *at
 PyObject* KX_GameObject::pyattr_get_components(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
-	return self->GetComponents()->GetProxy();
+	CListValue *components = self->GetComponents();
+	return components ? components->GetProxy() : (new CListValue())->NewProxy(true);
 }
 
 static int kx_game_object_get_sensors_size_cb(void *self_v)
