@@ -515,11 +515,11 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	RAS_MeshObject::LayersInfo layersInfo;
 
 	// Get the active color and uv layer.
-	const short activeUv = CustomData_get_active_layer_index(&dm->faceData, CD_MTFACE);
-	const short activeColor = CustomData_get_active_layer_index(&dm->faceData, CD_MCOL);
+	const short activeUv = CustomData_get_active_layer(&dm->faceData, CD_MTFACE);
+	const short activeColor = CustomData_get_active_layer(&dm->faceData, CD_MCOL);
 
-	layersInfo.activeUv = (activeUv == -1) ? 0 : (activeUv - 1);
-	layersInfo.activeColor = (activeColor == -1) ? 0 : (activeColor - 1);
+	layersInfo.activeUv = (activeUv == -1) ? 0 : activeUv;
+	layersInfo.activeColor = (activeColor == -1) ? 0 : activeColor;
 
 	unsigned short uvLayers = 0;
 	unsigned short colorLayers = 0;
