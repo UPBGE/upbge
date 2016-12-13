@@ -552,11 +552,6 @@ void KX_KetsjiEngine::Render()
 
 		KX_SetActiveScene(scene);
 
-#ifdef WITH_PYTHON
-		// We run the draw setup callback before rendering shadow to avoid culling the shadow before a possible camera move.
-		scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW_SETUP, cam);
-#endif
-
 		// shadows
 		RenderShadowBuffers(scene, activeCameras);
 		// cubemaps
