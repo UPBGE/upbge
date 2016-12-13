@@ -540,6 +540,8 @@ void KX_KetsjiEngine::Render()
 		KX_Camera *activecam = scene->GetActiveCamera();
 		CListValue *cameras = scene->GetCameraList();
 
+		KX_SetActiveScene(scene);
+
 		// Build a list of all cameras rendered.
 		std::vector<KX_Camera *>& activeCameras = sceneActiveCameras[scene];
 		activeCameras.push_back(activecam);
@@ -547,10 +549,13 @@ void KX_KetsjiEngine::Render()
 			KX_Camera *cam = *it;
 			if (cam->GetViewport()) {
 				activeCameras.push_back(cam);
+
+#ifdef WITH_PYTHON
+				// We run the draw setup callback before rendering shadow to avoid culling the shadow before a possible camera move.
+				scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW_SETUP, cam);
+#endif
 			}
 		}
-
-		KX_SetActiveScene(scene);
 
 		// shadows
 		RenderShadowBuffers(scene, activeCameras);
@@ -857,57 +862,61 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene, std::vector<KX_Camera
 
 		raslight->Update();
 
-		if (raslight->HasShadowBuffer() && raslight->NeedShadowUpdate() && light->GetVisible()) {
-			/* There was no culling for shadows other than if the object was outside light frustum.
-			 * We can't do a complete culling according to camera frustum because even if an object
-			 * is outside camera frustum, we should see his shadows. What we can do is check if light frustum
-			 * intersects with camera frustum. If this is not the case, we don't render shadows.
-			 */
-			bool culled = true;
-			for (std::vector<KX_Camera *>::iterator it = cameras.begin(), end = cameras.end(); it != end; ++it) {
-				MT_Vector3 lightfrustum[8];
-				raslight->GetShadowBox(lightfrustum);
-				// 0 = inside, 1 = intersect, 2 = outside
-				if ((*it)->BoxInsideFrustum(lightfrustum) < 2) {
-					culled = false;
-					break;
-				}
-			}
+		if (!raslight->HasShadowBuffer() || !raslight->NeedShadowUpdate() || !light->GetVisible()) {
+			continue;
+		}
 
-			if (!culled) {
-				/* make temporary camera */
-				RAS_CameraData camdata = RAS_CameraData();
-				KX_Camera *cam = new KX_Camera(scene, scene->m_callbacks, camdata, true, true);
-				cam->SetName("__shadow__cam__");
-
-				MT_Transform camtrans;
-
-				/* switch drawmode for speed */
-				RAS_IRasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
-				m_rasterizer->SetDrawingMode(RAS_IRasterizer::RAS_SHADOW);
-
-				/* binds framebuffer object, sets up camera .. */
-				raslight->BindShadowBuffer(m_canvas, cam, camtrans);
-
-				/* update scene */
-				scene->CalculateVisibleMeshes(m_rasterizer, cam, raslight->GetShadowLayer());
-
-				m_logger->StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
-				UpdateAnimations(scene);
-				m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_RENDER);
-
-				/* render */
-				m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT | RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
-				scene->RenderBuckets(camtrans, m_rasterizer);
-
-				/* unbind framebuffer object, restore drawmode, free camera */
-				raslight->UnbindShadowBuffer();
-				m_rasterizer->SetDrawingMode(drawmode);
-				cam->Release();
+		/* There was no culling for shadows other than if the object was outside light frustum.
+		 * We can't do a complete culling according to camera frustum because even if an object
+		 * is outside camera frustum, we should see his shadows. What we can do is check if light frustum
+		 * intersects with camera frustum. If this is not the case, we don't render shadows.
+		 */
+		bool culled = true;
+		for (std::vector<KX_Camera *>::iterator it = cameras.begin(), end = cameras.end(); it != end; ++it) {
+			MT_Vector3 lightfrustum[8];
+			raslight->GetShadowBox(lightfrustum);
+			// 0 = inside, 1 = intersect, 2 = outside
+			if ((*it)->BoxInsideFrustum(lightfrustum) < 2) {
+				culled = false;
+				break;
 			}
 		}
+
+		if (culled) {
+			continue;
+		}
+
+		/* make temporary camera */
+		RAS_CameraData camdata = RAS_CameraData();
+		KX_Camera *cam = new KX_Camera(scene, scene->m_callbacks, camdata, true, true);
+		cam->SetName("__shadow__cam__");
+
+		MT_Transform camtrans;
+
+		/* switch drawmode for speed */
+		RAS_IRasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
+		m_rasterizer->SetDrawingMode(RAS_IRasterizer::RAS_SHADOW);
+
+		/* binds framebuffer object, sets up camera .. */
+		raslight->BindShadowBuffer(m_canvas, cam, camtrans);
+
+		/* update scene */
+		scene->CalculateVisibleMeshes(m_rasterizer, cam, raslight->GetShadowLayer());
+
+		m_logger->StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
+		SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
+		UpdateAnimations(scene);
+		m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
+		SG_SetActiveStage(SG_STAGE_RENDER);
+
+		/* render */
+		m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT | RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
+		scene->RenderBuckets(camtrans, m_rasterizer);
+
+		/* unbind framebuffer object, restore drawmode, free camera */
+		raslight->UnbindShadowBuffer();
+		m_rasterizer->SetDrawingMode(drawmode);
+		cam->Release();
 	}
 }
 
