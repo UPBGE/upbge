@@ -35,6 +35,7 @@ set(INC
 	../../GameLogic
 	../../Ketsji
 	../../Rasterizer
+	../../Rasterizer/Node
 	../../SceneGraph
 	../../../blender/blenkernel
 	../../../blender/blenlib

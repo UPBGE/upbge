@@ -47,8 +47,10 @@
 #endif // WIN32
 
 RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat)
+	:m_material(mat),
+	m_downwardNode(this, &RAS_MaterialBucket::BindNode, &RAS_MaterialBucket::UnbindNode),
+	m_upwardNode(this, &RAS_MaterialBucket::BindNode, &RAS_MaterialBucket::UnbindNode)
 {
-	m_material = mat;
 }
 
 RAS_MaterialBucket::~RAS_MaterialBucket()
@@ -129,6 +131,15 @@ void RAS_MaterialBucket::RemoveMeshObject(RAS_MeshObject *mesh)
 	}
 }
 
+void RAS_MaterialBucket::RemoveActiveMeshSlots()
+{
+	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
+		 it != end; ++it)
+	{
+		(*it)->RemoveActiveMeshSlots();
+	}
+}
+
 unsigned int RAS_MaterialBucket::GetNumActiveMeshSlots()
 {
 	unsigned int count = 0;
@@ -152,91 +163,46 @@ RAS_MeshSlotList::iterator RAS_MaterialBucket::msEnd()
 	return m_meshSlots.end();
 }
 
-bool RAS_MaterialBucket::ActivateMaterial(RAS_IRasterizer *rasty)
+void RAS_MaterialBucket::ActivateMaterial(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
-		m_material->Activate(rasty);
-	}
-
-	return true;
+	m_material->Activate(rasty);
 }
 
 void RAS_MaterialBucket::DesactivateMaterial(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
-		m_material->Desactivate(rasty);
-	}
+	m_material->Desactivate(rasty);
 }
 
-void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_MeshSlot *ms)
+void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode *downwardRoot, RAS_ManagerUpwardNode *upwardRoot,
+									  RAS_UpwardTreeLeafs *upwardLeafs, RAS_IRasterizer *rasty, bool sort)
 {
-	RAS_MeshUser *meshUser = ms->m_meshUser;
-	rasty->SetClientObject(meshUser->GetClientObject());
-	rasty->SetFrontFace(meshUser->GetFrontFace());
-
-	// Inverse condition of in ActivateMaterial.
-	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
-		bool uselights = m_material->UsesLighting(rasty);
-		rasty->ProcessLighting(uselights, cameratrans);
-		m_material->ActivateMeshSlot(ms, rasty);
-	}
-	else {
-		// Set cull face without activating the material.
-		rasty->SetCullFace(m_material->IsCullFace());
-	}
-
-	if (IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID) {
-		ms->m_mesh->SortPolygons(ms, cameratrans * MT_Transform(meshUser->GetMatrix()));
-		ms->m_displayArrayBucket->SetPolygonsModified(rasty);
-	}
-
-	rasty->PushMatrix();
-	if ((!ms->m_pDeformer || !ms->m_pDeformer->SkipVertexTransform()) && !m_material->IsText()) {
-		float mat[16];
-		rasty->GetTransform(meshUser->GetMatrix(), m_material->GetDrawingMode(), mat);
-		rasty->MultMatrix(mat);
-	}
-
-	if (m_material->IsText()) {
-		rasty->IndexPrimitivesText(ms);
-	}
-	else {
-		rasty->IndexPrimitives(ms);
-	}
-
-	rasty->PopMatrix();
-}
-
-void RAS_MaterialBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)
-{
-	if (GetNumActiveMeshSlots() == 0) {
+	if (m_displayArrayBucketList.size() == 0) {
 		return;
 	}
 
-	bool matactivated = ActivateMaterial(rasty);
-
-	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
-		it != end; ++it)
-	{
-		RAS_DisplayArrayBucket *displayArrayBucket = *it;
-		if (!matactivated) {
-			displayArrayBucket->RemoveActiveMeshSlots();
-			continue;
-		}
-
-		// Choose the rendering mode : geometry instancing render / regular render.
-		if (UseInstancing()) {
-			displayArrayBucket->RenderMeshSlotsInstancing(cameratrans, rasty, IsAlpha());
-		}
-		else {
-			displayArrayBucket->RenderMeshSlots(cameratrans, rasty);
-		}
-
-		displayArrayBucket->RemoveActiveMeshSlots();
+	const bool instancing = UseInstancing();
+	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
+		displayArrayBucket->GenerateTree(&m_downwardNode, &m_upwardNode, upwardLeafs, rasty, sort, instancing);
 	}
 
-	if (matactivated) {
-		DesactivateMaterial(rasty);
+	downwardRoot->AddChild(&m_downwardNode);
+
+	if (sort) {
+		m_upwardNode.SetParent(upwardRoot);
+	}
+}
+
+void RAS_MaterialBucket::BindNode(const RAS_RenderNodeArguments& args)
+{
+	if (!args.m_shaderOverride) {
+		ActivateMaterial(args.m_rasty);
+	}
+}
+
+void RAS_MaterialBucket::UnbindNode(const RAS_RenderNodeArguments& args)
+{
+	if (!args.m_shaderOverride) {
+		DesactivateMaterial(args.m_rasty);
 	}
 }
 

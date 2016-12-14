@@ -57,9 +57,12 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	m_mesh(mesh),
 	m_meshMaterial(meshmat),
 	m_useDisplayList(false),
-	m_useVao(false),
+	m_useVao(/*false*/true),
 	m_storageInfo(NULL),
-	m_instancingBuffer(NULL)
+	m_instancingBuffer(NULL),
+	m_downwardNode(this, &RAS_DisplayArrayBucket::RunDownwardNode, NULL),
+	m_upwardNode(this, &RAS_DisplayArrayBucket::BindUpwardNode, &RAS_DisplayArrayBucket::UnbindUpwardNode),
+	m_instancingNode(this, &RAS_DisplayArrayBucket::RunInstancingNode, NULL)
 {
 	m_bucket->AddDisplayArrayBucket(this);
 }
@@ -113,6 +116,11 @@ void RAS_DisplayArrayBucket::ProcessReplica()
 	if (m_displayArray) {
 		m_displayArray = m_displayArray->GetReplica();
 	}
+
+	m_downwardNode = RAS_DisplayArrayDownwardNode(this, &RAS_DisplayArrayBucket::RunDownwardNode, NULL);
+	m_upwardNode = RAS_DisplayArrayUpwardNode(this, &RAS_DisplayArrayBucket::BindUpwardNode, &RAS_DisplayArrayBucket::UnbindUpwardNode);
+	m_instancingNode = RAS_DisplayArrayDownwardNode(this, &RAS_DisplayArrayBucket::RunInstancingNode, NULL);
+
 	m_bucket->AddDisplayArrayBucket(this);
 }
 
@@ -192,7 +200,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 		m_useDisplayList = false;
 	}
 
-	if (m_bucket->IsZSort() || m_bucket->UseInstancing() || !m_displayArray || material->UsesObjectColor()) {
+	if (material->IsZSort() || m_bucket->UseInstancing() || !m_displayArray || material->UsesObjectColor()) {
 		m_useDisplayList = false;
 		m_useVao = false;
 	}
@@ -267,7 +275,8 @@ void RAS_DisplayArrayBucket::SetAttribLayers(RAS_IRasterizer *rasty) const
 	rasty->SetAttribLayers(m_attribLayers);
 }
 
-void RAS_DisplayArrayBucket::RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)
+void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode *downwardRoot, RAS_MaterialUpwardNode *upwardRoot,
+										  RAS_UpwardTreeLeafs *upwardLeafs, RAS_IRasterizer *rasty, bool sort, bool instancing)
 {
 	if (m_activeMeshSlots.size() == 0) {
 		return;
@@ -276,32 +285,55 @@ void RAS_DisplayArrayBucket::RenderMeshSlots(const MT_Transform& cameratrans, RA
 	// Update deformer and render settings.
 	UpdateActiveMeshSlots(rasty);
 
+	if (instancing) {
+		downwardRoot->AddChild(&m_instancingNode);
+	}
+	else if (sort) {
+		for (RAS_MeshSlot *slot : m_activeMeshSlots) {
+			slot->GenerateTree(&m_upwardNode, upwardLeafs);
+		}
+
+		m_upwardNode.SetParent(upwardRoot);
+	}
+	else {
+		downwardRoot->AddChild(&m_downwardNode);
+	}
+}
+
+void RAS_DisplayArrayBucket::BindUpwardNode(const RAS_RenderNodeArguments& args)
+{
+	args.m_rasty->BindPrimitives(this);
+}
+
+void RAS_DisplayArrayBucket::UnbindUpwardNode(const RAS_RenderNodeArguments& args)
+{
+	args.m_rasty->UnbindPrimitives(this);
+}
+
+void RAS_DisplayArrayBucket::RunDownwardNode(const RAS_RenderNodeArguments& args)
+{
+	RAS_IRasterizer *rasty = args.m_rasty;
 	rasty->BindPrimitives(this);
 
-	for (RAS_MeshSlotList::iterator it = m_activeMeshSlots.begin(), end = m_activeMeshSlots.end(); it != end; ++it) {
-		RAS_MeshSlot *ms = *it;
-		m_bucket->RenderMeshSlot(cameratrans, rasty, ms);
+	for (RAS_MeshSlot *ms : m_activeMeshSlots) {
+		// Reuse the node function without spend time storing RAS_MeshSlot under nodes.
+		ms->RunNode(args);
 	}
 
 	rasty->UnbindPrimitives(this);
 }
 
-void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, bool alpha)
+void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_RenderNodeArguments& args)
 {
-	unsigned int nummeshslots = m_activeMeshSlots.size(); 
-	if (nummeshslots == 0) {
-		return;
-	}
+	const unsigned int nummeshslots = m_activeMeshSlots.size(); 
 
 	// Create the instancing buffer only if it needed.
 	if (!m_instancingBuffer) {
 		m_instancingBuffer = new RAS_InstancingBuffer();
 	}
 
+	RAS_IRasterizer *rasty = args.m_rasty;
 	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
-
-	// Update deformer and render settings.
-	UpdateActiveMeshSlots(rasty);
 
 	// Bind the instancing buffer to work on it.
 	m_instancingBuffer->Realloc(nummeshslots);
@@ -309,14 +341,13 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 	/* If the material use the transparency we must sort all mesh slots depending on the distance.
 	 * This code share the code used in RAS_BucketManager to do the sort.
 	 */
-	if (alpha) {
-		std::vector<RAS_BucketManager::sortedmeshslot> sortedMeshSlots(nummeshslots);
+	if (args.m_sort) {
+		std::vector<RAS_BucketManager::SortedMeshSlot> sortedMeshSlots(nummeshslots);
 
-		const MT_Vector3 pnorm(cameratrans.getBasis()[2]);
-		unsigned int i = 0;
-		for (RAS_MeshSlotList::iterator it = m_activeMeshSlots.begin(), end = m_activeMeshSlots.end(); it != end; ++it) {
-			sortedMeshSlots[i++].set(*it, m_bucket, pnorm);
-		}
+		const MT_Vector3 pnorm(args.m_trans.getBasis()[2]);
+		std::transform(m_activeMeshSlots.begin(), m_activeMeshSlots.end(), sortedMeshSlots.end(),
+			[&pnorm](RAS_MeshSlot *slot) { return RAS_BucketManager::SortedMeshSlot(slot, pnorm); });
+
 		std::sort(sortedMeshSlots.begin(), sortedMeshSlots.end(), RAS_BucketManager::backtofront());
 		std::vector<RAS_MeshSlot *> meshSlots(nummeshslots);
 		for (unsigned int i = 0; i < nummeshslots; ++i) {
@@ -334,15 +365,7 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 	m_instancingBuffer->Bind();
 
 	// Bind all vertex attributs for the used material and the given buffer offset.
-	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
-		material->ActivateInstancing(
-			rasty,
-			m_instancingBuffer->GetMatrixOffset(),
-			m_instancingBuffer->GetPositionOffset(),
-			m_instancingBuffer->GetColorOffset(),
-			m_instancingBuffer->GetStride());
-	}
-	else {
+	if (args.m_shaderOverride) {
 		rasty->ActivateOverrideShaderInstancing(
 			m_instancingBuffer->GetMatrixOffset(),
 			m_instancingBuffer->GetPositionOffset(),
@@ -350,6 +373,14 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 
 		// Set cull face without activating the material.
 		rasty->SetCullFace(material->IsCullFace());
+	}
+	else {
+		material->ActivateInstancing(
+			rasty,
+			m_instancingBuffer->GetMatrixOffset(),
+			m_instancingBuffer->GetPositionOffset(),
+			m_instancingBuffer->GetColorOffset(),
+			m_instancingBuffer->GetStride());
 	}
 
 	/* It's a major issue of the geometry instancing : we can't manage face wise.
@@ -363,11 +394,11 @@ void RAS_DisplayArrayBucket::RenderMeshSlotsInstancing(const MT_Transform& camer
 
 	rasty->IndexPrimitivesInstancing(this);
 	// Unbind vertex attributs.
-	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
-		material->DesactivateInstancing();
+	if (args.m_shaderOverride) {
+		rasty->DesactivateOverrideShaderInstancing();
 	}
 	else {
-		rasty->DesactivateOverrideShaderInstancing();
+		material->DesactivateInstancing();
 	}
 
 	rasty->UnbindPrimitives(this);

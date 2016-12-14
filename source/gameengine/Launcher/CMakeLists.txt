@@ -35,6 +35,7 @@ set(INC
 	../Ketsji
 	../Ketsji/KXNetwork
 	../Rasterizer
+	../Rasterizer/Node
 	../Rasterizer/RAS_OpenGLRasterizer
 	../SceneGraph
 	../VideoTexture

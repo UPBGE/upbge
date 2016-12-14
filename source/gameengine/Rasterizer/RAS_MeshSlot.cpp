@@ -30,7 +30,9 @@
  */
 
 #include "RAS_MeshSlot.h"
+#include "RAS_MeshUser.h"
 #include "RAS_MaterialBucket.h"
+#include "RAS_IPolygonMaterial.h"
 #include "RAS_TexVert.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Deformer.h"
@@ -47,6 +49,7 @@
 // mesh slot
 RAS_MeshSlot::RAS_MeshSlot()
 	:m_displayArray(NULL),
+	m_node(this, &RAS_MeshSlot::RunNode, NULL),
 	m_bucket(NULL),
 	m_displayArrayBucket(NULL),
 	m_mesh(NULL),
@@ -78,6 +81,7 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 	m_bucket = slot.m_bucket;
 	m_displayArrayBucket = slot.m_displayArrayBucket;
 	m_displayArray = slot.m_displayArray;
+	m_node = RAS_MeshSlotUpwardNode(this, &RAS_MeshSlot::RunNode, NULL);
 
 	if (m_displayArrayBucket) {
 		m_displayArrayBucket->AddRef();
@@ -159,4 +163,52 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 void RAS_MeshSlot::SetMeshUser(RAS_MeshUser *user)
 {
 	m_meshUser = user;
+}
+
+void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode *root, RAS_UpwardTreeLeafs *leafs)
+{
+	m_node.SetParent(root);
+	leafs->push_back(&m_node);
+}
+
+void RAS_MeshSlot::RunNode(const RAS_RenderNodeArguments& args)
+{
+	RAS_IRasterizer *rasty = args.m_rasty;
+	rasty->SetClientObject(m_meshUser->GetClientObject());
+	rasty->SetFrontFace(m_meshUser->GetFrontFace());
+
+	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
+
+	if (args.m_shaderOverride) {
+		// Set cull face without activating the material.
+		rasty->SetCullFace(material->IsCullFace());
+	}
+	else {
+		bool uselights = material->UsesLighting(rasty);
+		rasty->ProcessLighting(uselights, args.m_trans);
+		material->ActivateMeshSlot(this, rasty);
+	}
+
+	if (material->IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID) {
+		m_mesh->SortPolygons(this, args.m_trans * MT_Transform(m_meshUser->GetMatrix()));
+		m_displayArrayBucket->SetPolygonsModified(rasty);
+	}
+
+	rasty->PushMatrix();
+
+	const bool istext = material->IsText();
+	if ((!m_pDeformer || !m_pDeformer->SkipVertexTransform()) && !istext) {
+		float mat[16];
+		rasty->GetTransform(m_meshUser->GetMatrix(), material->GetDrawingMode(), mat);
+		rasty->MultMatrix(mat);
+	}
+
+	if (istext) {
+		rasty->IndexPrimitivesText(this);
+	}
+	else {
+		rasty->IndexPrimitives(this);
+	}
+
+	rasty->PopMatrix();
 }

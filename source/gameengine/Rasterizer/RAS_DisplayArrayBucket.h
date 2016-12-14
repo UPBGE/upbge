@@ -32,7 +32,7 @@
 #ifndef __RAS_DISPLAY_MATERIAL_BUCKET_H__
 #define __RAS_DISPLAY_MATERIAL_BUCKET_H__
 
-#include "RAS_MeshSlot.h" // needed for RAS_MeshSlotList
+#include "RAS_MeshSlot.h"
 #include "RAS_IRasterizer.h" // needed for RAS_IRasterizer::StorageType and RAS_IRasterizer::AttribLayerList
 
 #include "MT_Transform.h"
@@ -88,6 +88,10 @@ private:
 	/// The attribute's layers used by the couple mesh material.
 	RAS_IRasterizer::AttribLayerList m_attribLayers;
 
+	RAS_DisplayArrayDownwardNode m_downwardNode;
+	RAS_DisplayArrayUpwardNode m_upwardNode;
+	RAS_DisplayArrayDownwardNode m_instancingNode;
+
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array, RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat);
 	~RAS_DisplayArrayBucket();
@@ -142,10 +146,12 @@ public:
 
 	void SetAttribLayers(RAS_IRasterizer *rasty) const;
 
-	/// Render all mesh slots for solid render.
-	void RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);
-	/// Render all mesh slots with geometry instancing render.
-	void RenderMeshSlotsInstancing(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, bool alpha);
+	void GenerateTree(RAS_MaterialDownwardNode *downwardRoot, RAS_MaterialUpwardNode *upwardRoot,
+					  RAS_UpwardTreeLeafs *upwardLeafs, RAS_IRasterizer *rasty, bool sort, bool instancing);
+	void BindUpwardNode(const RAS_RenderNodeArguments& args);
+	void UnbindUpwardNode(const RAS_RenderNodeArguments& args);
+	void RunDownwardNode(const RAS_RenderNodeArguments& args);
+	void RunInstancingNode(const RAS_RenderNodeArguments& args);
 
 	/// Replace the material bucket of this display array bucket by the one given.
 	void ChangeMaterialBucket(RAS_MaterialBucket *bucket);

@@ -32,7 +32,7 @@
 #ifndef __RAS_MATERIAL_BUCKET_H__
 #define __RAS_MATERIAL_BUCKET_H__
 
-#include "RAS_DisplayArrayBucket.h" // needed for RAS_DisplayArrayBucketList
+#include "RAS_DisplayArrayBucket.h"
 #include "MT_Transform.h"
 
 class RAS_IPolyMaterial;
@@ -56,11 +56,14 @@ public:
 	bool UseInstancing() const;
 
 	// Rendering
-	bool ActivateMaterial(RAS_IRasterizer *rasty);
+	void ActivateMaterial(RAS_IRasterizer *rasty);
 	void DesactivateMaterial(RAS_IRasterizer *rasty);
-	void RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_MeshSlot *ms);
-	/// Render all mesh slots for solid render.
-	void RenderMeshSlots(const MT_Transform& cameratrans, RAS_IRasterizer *rasty);
+
+	// Render nodes.
+	void GenerateTree(RAS_ManagerDownwardNode *downwardRoot, RAS_ManagerUpwardNode *upwardRoot,
+					  RAS_UpwardTreeLeafs *upwardLeafs, RAS_IRasterizer *rasty, bool sort);
+	void BindNode(const RAS_RenderNodeArguments& args);
+	void UnbindNode(const RAS_RenderNodeArguments& args);
 
 	// Mesh Slot Access
 	RAS_MeshSlotList::iterator msBegin();
@@ -74,6 +77,7 @@ public:
 	void RemoveMeshObject(RAS_MeshObject *mesh);
 	/// Set the mesh object as unmodified flag.
 	void SetDisplayArrayUnmodified();
+	void RemoveActiveMeshSlots();
 	unsigned int GetNumActiveMeshSlots();
 
 	/// Find a display array bucket for the given display array.
@@ -89,6 +93,9 @@ private:
 	RAS_MeshSlotList m_meshSlots; // all the mesh slots
 	RAS_IPolyMaterial *m_material;
 	RAS_DisplayArrayBucketList m_displayArrayBucketList;
+
+	RAS_MaterialDownwardNode m_downwardNode;
+	RAS_MaterialUpwardNode m_upwardNode;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MaterialBucket")

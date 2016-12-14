@@ -25,6 +25,7 @@
 
 set(INC
 	.
+	Node
 	../Common
 	../Expressions
 	../Ketsji

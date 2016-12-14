@@ -43,23 +43,29 @@ class RAS_BucketManager
 {
 public:
 	typedef std::vector<RAS_MaterialBucket *> BucketList;
-	struct sortedmeshslot
+	class SortedMeshSlot
 	{
+	public:
 		/// depth
 		MT_Scalar m_z;
-		/// mesh slot
-		RAS_MeshSlot *m_ms;
-		/// buck mesh slot came from
-		RAS_MaterialBucket *m_bucket;
-		void set(RAS_MeshSlot *ms, RAS_MaterialBucket *bucket, const MT_Vector3& pnorm);
+
+		union {
+			RAS_MeshSlot *m_ms;
+			RAS_MeshSlotUpwardNode *m_node;
+		};
+
+		SortedMeshSlot() = default;
+		SortedMeshSlot(RAS_MeshSlot *ms, const MT_Vector3& pnorm);
+		SortedMeshSlot(RAS_MeshSlotUpwardNode *node, const MT_Vector3& pnorm);
 	};
+
 	struct backtofront
 	{
-		bool operator()(const sortedmeshslot &a, const sortedmeshslot &b);
+		bool operator()(const SortedMeshSlot &a, const SortedMeshSlot &b);
 	};
 	struct fronttoback
 	{
-		bool operator()(const sortedmeshslot &a, const sortedmeshslot &b);
+		bool operator()(const SortedMeshSlot &a, const SortedMeshSlot &b);
 	};
 
 protected:
@@ -80,10 +86,9 @@ protected:
 	};
 
 	BucketList m_buckets[NUM_BUCKET_TYPE];
-	/** Cached values computed by GetNumActiveMeshSlots.
-	 * -1 mean that the cache value is invalid.
-	 */
-	int m_cachedNumActiveMeshSlots[NUM_BUCKET_TYPE];
+
+	RAS_ManagerDownwardNode m_downwardNode;
+	RAS_ManagerUpwardNode m_upwardNode;
 
 public:
 	RAS_BucketManager();
@@ -107,13 +112,6 @@ public:
 	}
 
 private:
-	unsigned int GetNumActiveMeshSlots(BucketType bucketType);
-	/// Clear the active mesh count cache.
-	void ClearNumActiveMeshSlotsCache();
-
-	void OrderBuckets(const MT_Transform& cameratrans, RAS_BucketManager::BucketType bucketType,
-	                  std::vector<sortedmeshslot>& slots, bool alpha, RAS_IRasterizer *rasty);
-
 	void RenderBasicBuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, BucketType bucketType);
 	void RenderSortedBuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, BucketType bucketType);
 
