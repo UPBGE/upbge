@@ -751,7 +751,7 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output)
 	return code;
 }
 
-static char *code_generate_vertex(ListBase *nodes, const GPUMatType type)
+static char *code_generate_vertex(ListBase *nodes, const GPUMatType type, bool use_instancing)
 {
 	DynStr *ds = BLI_dynstr_new();
 	GPUNode *node;
@@ -807,9 +807,16 @@ static char *code_generate_vertex(ListBase *nodes, const GPUMatType type)
 #ifdef WITH_OPENSUBDIV
 					BLI_dynstr_appendf(ds, "#ifndef USE_OPENSUBDIV\n");
 #endif
-					BLI_dynstr_appendf(
-					        ds, "\tvar%d.xyz = normalize(gl_NormalMatrix * att%d.xyz);\n",
-					        input->attribid, input->attribid);
+					if (use_instancing) {
+						BLI_dynstr_appendf(
+							ds, "\tvar%d.xyz = normalize(gl_NormalMatrix * (att%d.xyz * %s));\n",
+							input->attribid, input->attribid, GPU_builtin_name(GPU_INSTANCING_MATRIX_ATTRIB));
+					}
+					else {
+						BLI_dynstr_appendf(
+							ds, "\tvar%d.xyz = normalize(gl_NormalMatrix * att%d.xyz);\n",
+							input->attribid, input->attribid);
+					}
 					BLI_dynstr_appendf(
 					        ds, "\tvar%d.w = att%d.w;\n",
 					        input->attribid, input->attribid);
@@ -1747,7 +1754,7 @@ GPUPass *GPU_generate_pass(
 
 	/* generate code and compile with opengl */
 	fragmentcode = code_generate_fragment(nodes, outlink->output);
-	vertexcode = code_generate_vertex(nodes, type);
+	vertexcode = code_generate_vertex(nodes, type, use_instancing);
 	geometrycode = code_generate_geometry(nodes, use_opensubdiv);
 
 	int flags = GPU_SHADER_FLAGS_NONE;
