@@ -3845,12 +3845,12 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, mat3 ma
 	vec2 finaltexuv = mix(texuv, texuvprelay, weight);
 
 	// Discard if uv is out of the range 0 to 1.
-	const vec2 clampmin = vec2(0.0);
-	const vec2 clampmax = vec2(1.0);
+	const vec2 clampmin = vec2(-0.5);
+	const vec2 clampmax = vec2(0.5);
 
 	if ((discarduv == 1.0) &&
-		(finaltexuv.x < clampmin.x || finaltexuv.x > clampmax.x ||
-		finaltexuv.y < clampmin.y || finaltexuv.y > clampmax.y))
+		(finaltexuv.x - 0.5 < clampmin.x * size.x || finaltexuv.x - 0.5 > clampmax.x * size.x ||
+		finaltexuv.y - 0.5 < clampmin.y * size.y || finaltexuv.y - 0.5 > clampmax.y * size.y))
 	{
 		discard;
 	}
