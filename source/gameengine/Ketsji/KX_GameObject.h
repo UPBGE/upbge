@@ -911,19 +911,13 @@ public:
 	
 	CListValue* GetChildren();
 	CListValue* GetChildrenRecursive();
-	/**
-	 * Returns the component list
-	 */
-	CListValue *GetComponents();
 
-	/**
-	 * Initializes the components
-	 */
-	void InitComponents();
+	/// Returns the component list.
+	CListValue *GetComponents() const;
+	/// Add a components.
+	void SetComponents(CListValue *components);
 
-	/**
-	 * Updates the components
-	 */
+	/// Updates the components.
 	void UpdateComponents();
 
 	KX_Scene*	GetScene();

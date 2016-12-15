@@ -24,12 +24,18 @@
 
 #include "KX_PythonComponent.h"
 #include "KX_GameObject.h"
-// #include "BLI_string.h"
 
-KX_PythonComponent::KX_PythonComponent(STR_String name)
-	:CValue(),
+#include "CM_Message.h"
+
+#include "DNA_python_component_types.h"
+
+#include "BKE_python_component.h"
+
+KX_PythonComponent::KX_PythonComponent(const STR_String& name)
+	:m_pc(NULL),
 	m_gameobj(NULL),
-	m_name(name)
+	m_name(name),
+	m_init(false)
 {
 }
 
@@ -37,7 +43,35 @@ KX_PythonComponent::~KX_PythonComponent()
 {
 }
 
-KX_GameObject *KX_PythonComponent::GetGameObject()
+STR_String KX_PythonComponent::GetName()
+{
+	return m_name;
+}
+
+CValue *KX_PythonComponent::GetReplica()
+{
+	KX_PythonComponent *replica = new KX_PythonComponent(*this);
+	replica->ProcessReplica();
+
+	// Subclass the python component.
+	PyTypeObject *type = Py_TYPE(GetProxy());
+	if (!py_base_new(type, PyTuple_Pack(1, replica->GetProxy()), NULL)) {
+		CM_Error("failed replicate component: \"" << m_name << "\"");
+		delete replica;
+		return NULL;
+	}
+
+	return replica;
+}
+
+void KX_PythonComponent::ProcessReplica()
+{
+	CValue::ProcessReplica();
+	m_gameobj = NULL;
+	m_init = false;
+}
+
+KX_GameObject *KX_PythonComponent::GetGameObject() const
 {
 	return m_gameobj;
 }
@@ -47,9 +81,36 @@ void KX_PythonComponent::SetGameObject(KX_GameObject *gameobj)
 	m_gameobj = gameobj;
 }
 
-STR_String KX_PythonComponent::GetName()
+void KX_PythonComponent::SetBlenderPythonComponent(PythonComponent *pc)
 {
-	return m_name;
+	m_pc = pc;
+}
+
+void KX_PythonComponent::Start()
+{
+	PyObject *arg_dict = (PyObject *)BKE_python_component_argument_dict_new(m_pc);
+
+	PyObject *ret = PyObject_CallMethod(GetProxy(), "start", "O", arg_dict);
+
+	if (PyErr_Occurred()) {
+		PyErr_Print();
+	}
+
+	Py_XDECREF(arg_dict);
+	Py_XDECREF(ret);
+}
+
+void KX_PythonComponent::Update()
+{
+	if (!m_init) {
+		Start();
+		m_init = true;
+	}
+
+	PyObject *pycomp = GetProxy();
+	if (!PyObject_CallMethod(pycomp, "update", "")) {
+		PyErr_Print();
+	}
 }
 
 PyObject *KX_PythonComponent::py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -63,27 +124,6 @@ PyObject *KX_PythonComponent::py_component_new(PyTypeObject *type, PyObject *arg
 	}
 
 	return proxy;
-}
-
-int KX_PythonComponent::py_component_init(PyObjectPlus_Proxy *self, PyObject *args, PyObject *kwds)
-{
-	PyObject *pyobj;
-
-	if (!PyArg_ParseTuple(args, "O", &pyobj)) {
-		return -1;
-	}
-
-	if (!PyObject_IsInstance(pyobj, (PyObject*)&KX_GameObject::Type)) {
-		PyErr_SetString(PyExc_TypeError, "expected a KX_GameObject for first argument");
-		return -1;
-	}
-
-	KX_GameObject *gameobj = static_cast<KX_GameObject *>(BGE_PROXY_REF(pyobj));
-	KX_PythonComponent *kxpycomp = static_cast<KX_PythonComponent *>(BGE_PROXY_REF(self));
-
-	kxpycomp->SetGameObject(gameobj);
-
-	return 0;
 }
 
 PyTypeObject KX_PythonComponent::Type = {
@@ -104,9 +144,7 @@ PyTypeObject KX_PythonComponent::Type = {
 	0,
 	0,
 	&PyObjectPlus::Type,
-	0,0,0,0,
-	(initproc)py_component_init,
-	0,
+	0,0,0,0,0,0,
 	py_component_new
 };
 

@@ -28,27 +28,37 @@
 #include "EXP_Value.h"
 
 class KX_GameObject;
+struct PythonComponent;
 
 class KX_PythonComponent : public CValue
 {
 	Py_Header
+
 private:
-	// member vars
+	PythonComponent *m_pc;
 	KX_GameObject *m_gameobj;
 	STR_String m_name;
+	bool m_init;
 
 public:
-	KX_PythonComponent(STR_String name);
+	KX_PythonComponent(const STR_String& name);
 	virtual ~KX_PythonComponent();
 
-	KX_GameObject *GetGameObject();
+	// stuff for cvalue related things
+	virtual STR_String GetName();
+	virtual CValue *GetReplica();
+
+	void ProcessReplica();
+
+	KX_GameObject *GetGameObject() const;
 	void SetGameObject(KX_GameObject *gameobj);
 
-	// stuff for cvalue related things
-	STR_String GetName();
+	void SetBlenderPythonComponent(PythonComponent *pc);
+
+	void Start();
+	void Update();
 
 	static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
-	static int py_component_init(PyObjectPlus_Proxy *self, PyObject *args, PyObject *kwds);
 
 	// Attributes
 	static PyObject *pyattr_get_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

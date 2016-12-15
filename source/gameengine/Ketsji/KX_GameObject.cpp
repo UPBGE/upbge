@@ -70,7 +70,6 @@
 #include "KX_CollisionContactPoints.h"
 
 #include "BKE_object.h"
-#include "BKE_python_component.h"
 
 #include "BL_ActionManager.h"
 #include "BL_Action.h"
@@ -535,14 +534,19 @@ void KX_GameObject::ProcessReplica()
 	}
 
 #ifdef WITH_PYTHON
+
 	if (m_attr_dict)
 		m_attr_dict= PyDict_Copy(m_attr_dict);
-#endif
 
 	if (m_components) {
-		m_components->Release();
+		m_components = (CListValue *)m_components->GetReplica();
+		for (CListValue::iterator<KX_PythonComponent> it = m_components->GetBegin(), end = m_components->GetEnd(); it != end; ++it) {
+			KX_PythonComponent *component = *it;
+			component->SetGameObject(this);
+		}
 	}
-	m_components = NULL;
+
+#endif
 }
 
 static void setGraphicController_recursive(SG_Node* node)
@@ -1605,92 +1609,14 @@ CListValue* KX_GameObject::GetChildrenRecursive()
 	return list;
 }
 
-CListValue *KX_GameObject::GetComponents()
+CListValue *KX_GameObject::GetComponents() const
 {
 	return m_components;
 }
 
-void KX_GameObject::InitComponents()
+void KX_GameObject::SetComponents(CListValue *components)
 {
-#ifdef WITH_PYTHON
-	PythonComponent *pc = (PythonComponent *)GetBlenderObject()->components.first;
-	PyObject *arg_dict = NULL, *args = NULL, *mod = NULL, *cls = NULL, *pycomp = NULL, *ret = NULL;
-
-	if (!pc) {
-		return;
-	}
-
-	m_components = new CListValue();
-
-	while (pc) {
-		// Make sure to clean out anything from previous loops
-		Py_XDECREF(args);
-		Py_XDECREF(arg_dict);
-		Py_XDECREF(mod);
-		Py_XDECREF(cls);
-		Py_XDECREF(ret);
-		Py_XDECREF(pycomp);
-		args = arg_dict = mod = cls = pycomp = ret = NULL;
-
-		// Grab the module
-		mod = PyImport_ImportModule(pc->module);
-
-		if (mod == NULL) {
-			if (PyErr_Occurred()) {
-				PyErr_Print();
-			}
-			CM_Error("coulding import the module '" << pc->module << "'");
-			pc = pc->next;
-			continue;
-		}
-
-		// Grab the class object
-		cls = PyObject_GetAttrString(mod, pc->name);
-		if (cls == NULL) {
-			if (PyErr_Occurred()) {
-				PyErr_Print();
-			}
-			CM_Error("python module found, but failed to find the component '" << pc->name << "'");
-			pc = pc->next;
-			continue;
-		}
-
-		// Lastly make sure we have a class and it's an appropriate sub type
-		if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject*)&KX_PythonComponent::Type)) {
-			CM_Error(pc->module << "." << pc->name << " is not a KX_PythonComponent subclass");
-			pc = pc->next;
-			continue;
-		}
-
-		// Every thing checks out, now generate the args dictionary and init the component
-		arg_dict = (PyObject *)BKE_python_component_argument_dict_new(pc);
-		args = PyTuple_New(1);
-		PyTuple_SetItem(args, 0, GetProxy());
-
-		pycomp = PyObject_Call(cls, args, NULL);
-
-		ret = PyObject_CallMethod(pycomp, "start", "O", arg_dict);
-
-		if (PyErr_Occurred()) {
-			// The component is invalid, drop it
-			PyErr_Print();
-		}
-		else {
-			KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(BGE_PROXY_REF(pycomp));
-			m_components->Add(comp);
-		}
-
-		pc = pc->next;
-	}
-
-	Py_XDECREF(args);
-	Py_XDECREF(arg_dict);
-	Py_XDECREF(mod);
-	Py_XDECREF(cls);
-	Py_XDECREF(ret);
-	Py_XDECREF(pycomp);
-
-#endif // WITH_PYTHON
+	m_components = components;
 }
 
 void KX_GameObject::UpdateComponents()
@@ -1700,11 +1626,9 @@ void KX_GameObject::UpdateComponents()
 		return;
 	}
 
-	for (CListValue::baseIterator it = m_components->GetBegin(), end = m_components->GetEnd(); it != end; ++it) {
-		PyObject *pycomp = (*it)->GetProxy();
-		if (!PyObject_CallMethod(pycomp, "update", "")) {
-			PyErr_Print();
-		}
+	for (CListValue::iterator<KX_PythonComponent> it = m_components->GetBegin(), end = m_components->GetEnd(); it != end; ++it) {
+		KX_PythonComponent *comp = *it;
+		comp->Update();
 	}
 
 #endif // WITH_PYTHON

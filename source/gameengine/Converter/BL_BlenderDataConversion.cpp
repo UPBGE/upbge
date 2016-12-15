@@ -77,6 +77,7 @@
 #include "KX_EmptyObject.h"
 #include "KX_FontObject.h"
 #include "KX_LodManager.h"
+#include "KX_PythonComponent.h"
 
 #include "RAS_ICanvas.h"
 #include "RAS_Polygon.h"
@@ -92,6 +93,7 @@
 #include "BKE_main.h"
 #include "BKE_global.h"
 #include "BKE_object.h"
+#include "BKE_python_component.h"
 #include "BL_ModifierDeformer.h"
 #include "BL_ShapeDeformer.h"
 #include "BL_SkinDeformer.h"
@@ -137,6 +139,7 @@
 #include "DNA_action_types.h"
 #include "DNA_object_force.h"
 #include "DNA_constraint_types.h"
+#include "DNA_python_component_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -1207,6 +1210,84 @@ static KX_GameObject* getGameOb(STR_String busc,CListValue* sumolist)
 
 }
 
+static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderobj)
+{
+	PythonComponent *pc = (PythonComponent *)blenderobj->components.first;
+	PyObject *arg_dict = NULL, *args = NULL, *mod = NULL, *cls = NULL, *pycomp = NULL, *ret = NULL;
+
+	if (!pc) {
+		return;
+	}
+
+	CListValue *components = new CListValue();
+
+	while (pc) {
+		// Make sure to clean out anything from previous loops
+		Py_XDECREF(args);
+		Py_XDECREF(arg_dict);
+		Py_XDECREF(mod);
+		Py_XDECREF(cls);
+		Py_XDECREF(ret);
+		Py_XDECREF(pycomp);
+		args = arg_dict = mod = cls = pycomp = ret = NULL;
+
+		// Grab the module
+		mod = PyImport_ImportModule(pc->module);
+
+		if (mod == NULL) {
+			if (PyErr_Occurred()) {
+				PyErr_Print();
+			}
+			CM_Error("coulding import the module '" << pc->module << "'");
+			pc = pc->next;
+			continue;
+		}
+
+		// Grab the class object
+		cls = PyObject_GetAttrString(mod, pc->name);
+		if (cls == NULL) {
+			if (PyErr_Occurred()) {
+				PyErr_Print();
+			}
+			CM_Error("python module found, but failed to find the component '" << pc->name << "'");
+			pc = pc->next;
+			continue;
+		}
+
+		// Lastly make sure we have a class and it's an appropriate sub type
+		if (!PyType_Check(cls) || !PyObject_IsSubclass(cls, (PyObject*)&KX_PythonComponent::Type)) {
+			CM_Error(pc->module << "." << pc->name << " is not a KX_PythonComponent subclass");
+			pc = pc->next;
+			continue;
+		}
+
+		// Every thing checks out, now generate the args dictionary and init the component
+		args = PyTuple_Pack(1, gameobj->GetProxy());
+
+		pycomp = PyObject_Call(cls, args, NULL);
+
+		if (PyErr_Occurred()) {
+			// The component is invalid, drop it
+			PyErr_Print();
+		}
+		else {
+			KX_PythonComponent *comp = static_cast<KX_PythonComponent *>(BGE_PROXY_REF(pycomp));
+			comp->SetBlenderPythonComponent(pc);
+			comp->SetGameObject(gameobj);
+			components->Add(comp);
+		}
+
+		pc = pc->next;
+	}
+
+	Py_XDECREF(args);
+	Py_XDECREF(mod);
+	Py_XDECREF(cls);
+	Py_XDECREF(pycomp);
+
+	gameobj->SetComponents(components);
+}
+
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
 static void bl_ConvertBlenderObject_Single(
@@ -1852,14 +1933,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		}
 	}
 
-	/* cleanup converted set of group objects */
-	convertedlist->Release();
-	sumolist->Release();
-
-	// Set the physics environment so KX_PythonComponent.start() can use bge.constraints
-	KX_Scene *currentScene = KX_GetActiveScene();
-	PHY_IPhysicsEnvironment *currentEnv = PHY_GetActiveEnvironment();
-
 	KX_SetActiveScene(kxscene);
 	PHY_SetActiveEnvironment(kxscene->GetPhysicsEnvironment());
 
@@ -1876,13 +1949,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			}
 		}
 	}
-
-	/* Restore the current scene and physics engine yet it was changed to 
-	 * allow python components using the current scene and physics engine.
-	 */
-
-	KX_SetActiveScene(currentScene);
-	PHY_SetActiveEnvironment(currentEnv);
 
 	//process navigation mesh objects
 	for (CListValue::iterator<KX_GameObject> it = objectlist->GetBegin(), end = objectlist->GetEnd(); it != end; ++it) {
@@ -1937,6 +2003,16 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		gameobj->ResetState();
 	}
 
+	// Convert the python components of each object.
+	for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = *it;
+		Object *blenderobj = gameobj->GetBlenderObject();
+		BL_ConvertComponentsObject(gameobj, blenderobj);
+	}
+
+	// cleanup converted set of group objects
+	convertedlist->Release();
+	sumolist->Release();
 	logicbrick_conversionlist->Release();
 	
 	// Calculate the scene btree -
@@ -1954,15 +2030,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		{
 			kxscene->DupliGroupRecurse(gameobj, 0);
 		}
-	}
-
-	/* Initialize python components, use a fixed size because some component can add object
-	 * and these objects are only at the end of the list. Never use iterator here because the
-	 * beginning iterator can be changed and then pointed to a fake game object.
-	 */
-	for (unsigned int i = 0, size = objectlist->GetCount(); i < size; ++i) {
-		KX_GameObject *gameobj = (KX_GameObject *)objectlist->GetValue(i);
-		gameobj->InitComponents();
 	}
 }
 

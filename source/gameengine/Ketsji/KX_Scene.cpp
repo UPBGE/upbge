@@ -973,16 +973,6 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 		DupliGroupRecurse(*git, 0);
 	}
 
-	// Initialize component in root parent object.
-	replica->InitComponents();
-	// Initialize components recursively.
-	CListValue *childrecursive = replica->GetChildrenRecursive();
-	for (CListValue::iterator<KX_GameObject> it = childrecursive->GetBegin(), end = childrecursive->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
-		gameobj->InitComponents();
-	}
-	childrecursive->Release();
-
 	//	don't release replica here because we are returning it, not done with it...
 	return replica;
 }
@@ -1632,12 +1622,19 @@ void KX_Scene::UpdateAnimations(double curtime)
 
 void KX_Scene::LogicUpdateFrame(double curtime, bool frame)
 {
-	/* Update object components, don't use iterator in loop because component can add objects and then make
-	 * iterators invalid.
+	/* Update object components, we copy the object pointer in a second list to make sure that we iterate on a list
+	 * which will not be modified, indeed components can add objects in theirs initialization.
 	 */
-	for (int i = 0; i < m_objectlist->GetCount(); ++i) {
-		((KX_GameObject*)m_objectlist->GetValue(i))->UpdateComponents();
+
+	std::vector<KX_GameObject *> objects;
+	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+		objects.push_back(*it);
 	}
+
+	for (std::vector<KX_GameObject *>::iterator it = objects.begin(), end = objects.end(); it != end; ++it) {
+		(*it)->UpdateComponents();
+	}
+
 	m_logicmgr->UpdateFrame(curtime, frame);
 }
 
