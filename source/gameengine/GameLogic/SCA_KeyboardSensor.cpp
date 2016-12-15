@@ -252,7 +252,8 @@ void SCA_KeyboardSensor::LogKeystrokes()
 	std::wstring proptext = L"";
 
 	{
-		const char *utf8buf = tprop->GetText().ReadPtr();
+		const STR_String utf8str = tprop->GetText();
+		const char *utf8buf = utf8str.ReadPtr();
 		int utf8len = BLI_strlen_utf8(utf8buf);
 		if (utf8len != 0) {
 			wchar_t *wcharbuf = new wchar_t[utf8len + 1];
