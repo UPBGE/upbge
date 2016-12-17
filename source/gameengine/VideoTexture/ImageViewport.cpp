@@ -72,6 +72,7 @@ ImageViewport::ImageViewport()
 	m_viewportImage = new BYTE [4 * getViewportSize()[0] * getViewportSize()[1]];
 	// set attributes
 	setWhole(true);
+	m_type = IMAGE_VIEWPORT;
 }
 
 // constructor
