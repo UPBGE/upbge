@@ -28,13 +28,17 @@
 #include "BLI_utildefines.h"
 
 KX_CharacterWrapper::KX_CharacterWrapper(PHY_ICharacter* character) :
-		PyObjectPlus(),
 		m_character(character)
 {
 }
 
 KX_CharacterWrapper::~KX_CharacterWrapper()
 {
+}
+
+STR_String KX_CharacterWrapper::GetName()
+{
+	return "KX_CharacterWrapper";
 }
 
 #ifdef WITH_PYTHON

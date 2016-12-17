@@ -37,7 +37,6 @@
 KX_VehicleWrapper::KX_VehicleWrapper(
 						PHY_IVehicle* vehicle,
 						PHY_IPhysicsEnvironment* physenv) :
-		PyObjectPlus(),
 		m_vehicle(vehicle),
 		m_physenv(physenv)
 {
@@ -52,6 +51,11 @@ KX_VehicleWrapper::~KX_VehicleWrapper()
 		delete motionState;
 	}
 	m_motionStates.clear();
+}
+
+STR_String KX_VehicleWrapper::GetName()
+{
+	return "KX_VehicleWrapper";
 }
 
 #ifdef WITH_PYTHON

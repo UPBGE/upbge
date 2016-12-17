@@ -13,7 +13,7 @@ class PHY_IMotionState;
 #include <vector>
 
 ///Python interface to physics vehicles (primarily 4-wheel cars and 2wheel bikes)
-class	KX_VehicleWrapper : public PyObjectPlus
+class	KX_VehicleWrapper : public CValue
 {
 	Py_Header
 
@@ -22,6 +22,9 @@ class	KX_VehicleWrapper : public PyObjectPlus
 public:
 	KX_VehicleWrapper(PHY_IVehicle* vehicle,class PHY_IPhysicsEnvironment* physenv);
 	virtual ~KX_VehicleWrapper ();
+
+	virtual STR_String GetName();
+
 	int			getConstraintId();
 	
 #ifdef WITH_PYTHON
