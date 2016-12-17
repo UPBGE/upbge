@@ -7,6 +7,7 @@
 #define __KX_VEHICLEWRAPPER_H__
 
 #include "EXP_Value.h"
+
 class PHY_IVehicle;
 class PHY_IMotionState;
 
@@ -57,6 +58,7 @@ public:
 
 	static PyObject *pyattr_get_ray_mask(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_ray_mask(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_speed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif  /* WITH_PYTHON */
 

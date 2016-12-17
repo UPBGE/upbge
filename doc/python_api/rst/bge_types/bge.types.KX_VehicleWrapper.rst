@@ -169,3 +169,9 @@ base class --- :class:`PyObjectPlus`
       Set ray cast mask.
 
       :type: bitfield
+
+   .. attribute:: speed
+   
+      Get the current vehicle speed in meters per seconds (m/s)
+      
+      :type: float

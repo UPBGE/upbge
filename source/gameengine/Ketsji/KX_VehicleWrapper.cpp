@@ -27,6 +27,7 @@
 #include "KX_VehicleWrapper.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IVehicle.h"
+#include "CcdPhysicsEnvironment.h"
 #include "KX_PyMath.h"
 #include "KX_GameObject.h"
 #include "KX_MotionState.h"
@@ -381,6 +382,7 @@ PyMethodDef KX_VehicleWrapper::Methods[] = {
 
 PyAttributeDef KX_VehicleWrapper::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("rayMask", KX_VehicleWrapper, pyattr_get_ray_mask, pyattr_set_ray_mask),
+	KX_PYATTRIBUTE_RO_FUNCTION("speed", KX_VehicleWrapper, pyattr_get_speed),
 	{ NULL }	//Sentinel
 };
 
@@ -409,6 +411,13 @@ int KX_VehicleWrapper::pyattr_set_ray_mask(void *self, const struct KX_PYATTRIBU
 	wrapper->m_vehicle->SetRayCastMask(mask);
 
 	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_VehicleWrapper::pyattr_get_speed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_VehicleWrapper *wrapper = static_cast<KX_VehicleWrapper*>(self);
+	MT_Scalar speed = std::abs(wrapper->m_vehicle->GetCurrentSpeed()); // No negative speeds
+	return PyFloat_FromDouble(speed);
 }
 
 #endif // WITH_PYTHON

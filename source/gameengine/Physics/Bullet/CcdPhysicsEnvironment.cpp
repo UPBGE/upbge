@@ -217,20 +217,20 @@ public:
 	}
 
 	virtual void AddWheel(
-	    PHY_IMotionState *motionState,
-	    MT_Vector3 connectionPoint,
-	    MT_Vector3 downDirection,
-	    MT_Vector3 axleDirection,
-	    float suspensionRestLength,
-	    float wheelRadius,
-	    bool hasSteering)
+		PHY_IMotionState *motionState,
+		MT_Vector3 connectionPoint,
+		MT_Vector3 downDirection,
+		MT_Vector3 axleDirection,
+		float suspensionRestLength,
+		float wheelRadius,
+		bool hasSteering)
 	{
 		btVector3 connectionPointCS0(connectionPoint[0], connectionPoint[1], connectionPoint[2]);
 		btVector3 wheelDirectionCS0(downDirection[0], downDirection[1], downDirection[2]);
 		btVector3 wheelAxle(axleDirection[0], axleDirection[1], axleDirection[2]);
 
 		btWheelInfo& info = m_vehicle->addWheel(connectionPointCS0, wheelDirectionCS0, wheelAxle,
-		                                        suspensionRestLength, wheelRadius, gTuning, hasSteering);
+												suspensionRestLength, wheelRadius, gTuning, hasSteering);
 		info.m_clientInfo = motionState;
 	}
 
@@ -375,6 +375,10 @@ public:
 	virtual short GetRayCastMask() const
 	{
 		return m_raycaster->GetRayCastMask();
+	}
+
+	virtual MT_Scalar GetCurrentSpeed() const {
+		return m_vehicle->getCurrentSpeedMetersSec();
 	}
 };
 
