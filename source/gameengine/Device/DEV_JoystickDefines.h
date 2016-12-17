@@ -20,7 +20,7 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): snailrose.
+ * Contributor(s): snailrose, lordloki.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -44,5 +44,11 @@
 #define JOYAXIS_UP			1
 #define JOYAXIS_DOWN		3
 #define JOYAXIS_LEFT		2
+
+#define JOYHAPTIC_PLAYING_EFFECT    0
+#define JOYHAPTIC_PLAYING_RUMBLE    1
+#define JOYHAPTIC_UPDATING_EFFECT   2
+#define JOYHAPTIC_UPDATING_RUMBLE   3
+#define JOYHAPTIC_STOPPED           4
 
 #endif // __DEV_JOYSTICKDEFINES_H__

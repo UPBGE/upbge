@@ -123,10 +123,10 @@ endif()
 		ge_player
 		ge_converter 
 		ge_logic_ketsji 
-		ge_device
 		ge_phys_bullet 
 		ge_phys_dummy
-		ge_logic 
+		ge_logic
+		ge_device
 		ge_oglrasterizer
 		ge_rasterizer
 		ge_logic_expressions

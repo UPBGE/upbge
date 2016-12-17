@@ -32,10 +32,12 @@
 #include "SCA_JoystickManager.h"
 #include "PIL_time.h" // Module to get real time in Game Engine
 
-SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, int joyindex, float strength, int duration)
+SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, short mode, int joyindex, float strength, float strength_right, int duration)
 	: SCA_IActuator(gameobj, KX_ACT_VIBRATION),
 	m_joyindex(joyindex),
+	m_mode(mode),
 	m_strength(strength),
+	m_strength_right(strength_right),
 	m_duration(duration),
 	m_endtime(0.0f)
 {
@@ -62,16 +64,31 @@ bool SCA_VibrationActuator::Update()
 		return false;
 	}
 
-	bool bPositiveEvent = IsPositiveEvent();
-
-	if (bPositiveEvent) {
-		instance->RumblePlay(m_strength, m_duration);
-		m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
+	if (IsPositiveEvent()) {
+		switch (m_mode) {
+			case KX_ACT_VIBRATION_PLAY:
+			{
+				instance->RumblePlay(m_strength, m_strength_right, m_duration);
+				m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
+				break;
+			}
+			case KX_ACT_VIBRATION_STOP:
+			{
+				instance->RumbleStop();
+				m_endtime = 0.0f;
+				break;
+			}
+		}
 	}
 
 	RemoveAllEvents();
 
-	return PIL_check_seconds_timer() * 1000.0f < m_endtime;
+	if (!(PIL_check_seconds_timer() * 1000.0f < m_endtime)) {
+		instance->RumbleStop();
+		m_endtime = 0.0f;
+	}
+
+	return instance->GetRumbleStatus();
 }
 
 #ifdef WITH_PYTHON
@@ -106,14 +123,84 @@ PyTypeObject SCA_VibrationActuator::Type = {
 };
 
 PyMethodDef SCA_VibrationActuator::Methods[] = {
+	KX_PYMETHODTABLE_NOARGS(SCA_VibrationActuator, startVibration),
+	KX_PYMETHODTABLE_NOARGS(SCA_VibrationActuator, stopVibration),
 	{ NULL, NULL } //Sentinel
 };
 
 PyAttributeDef SCA_VibrationActuator::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RW("duration", 0, INT_MAX, true, SCA_VibrationActuator, m_duration),
 	KX_PYATTRIBUTE_INT_RW("joyindex", 0, 7, true, SCA_VibrationActuator, m_joyindex),
-	KX_PYATTRIBUTE_FLOAT_RW("strength", 0.0, 1.0, SCA_VibrationActuator, m_strength),
+	KX_PYATTRIBUTE_FLOAT_RW("strengthLeft", 0.0, 1.0, SCA_VibrationActuator, m_strength),
+	KX_PYATTRIBUTE_FLOAT_RW("strengthRight", 0.0, 1.0, SCA_VibrationActuator, m_strength_right),
+	KX_PYATTRIBUTE_RO_FUNCTION("isVibrating", SCA_VibrationActuator, pyattr_get_statusVibration),
+	KX_PYATTRIBUTE_RO_FUNCTION("hasVibration", SCA_VibrationActuator, pyattr_get_hasVibration),
 	{ NULL }	//Sentinel
 };
+
+/* Methods ----------------------------------------------------------------- */
+KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, startVibration,
+"startVibration()\n"
+"\tStarts the joystick vibration.\n")
+{
+	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
+	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);
+
+	if (!instance) {
+		Py_RETURN_NONE;
+	}
+
+	instance->RumblePlay(m_strength, m_strength_right, m_duration);
+	m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
+
+	Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, stopVibration,
+"StopVibration()\n"
+"\tStops the joystick vibration.\n")
+{
+	SCA_JoystickManager *mgr = (SCA_JoystickManager *)GetLogicManager();
+	DEV_Joystick *instance = mgr->GetJoystickDevice(m_joyindex);
+
+	if (!instance) {
+		Py_RETURN_NONE;
+	}
+
+	instance->RumbleStop();
+	m_endtime = 0.0f;
+
+	Py_RETURN_NONE;
+}
+
+
+/* Attribute getting -------------------------------------------- */
+PyObject *SCA_VibrationActuator::pyattr_get_statusVibration(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_VibrationActuator *self = static_cast<SCA_VibrationActuator *>(self_v);
+	SCA_JoystickManager *mgr = (SCA_JoystickManager *)self->GetLogicManager();
+	DEV_Joystick *instance = mgr->GetJoystickDevice(self->m_joyindex);
+
+	if (!instance) {
+		return Py_False;
+	}
+
+	return PyBool_FromLong(instance->GetRumbleStatus());
+}
+
+/* Attribute getting -------------------------------------------- */
+PyObject *SCA_VibrationActuator::pyattr_get_hasVibration(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_VibrationActuator *self = static_cast<SCA_VibrationActuator *>(self_v);
+	SCA_JoystickManager *mgr = (SCA_JoystickManager *)self->GetLogicManager();
+	DEV_Joystick *instance = mgr->GetJoystickDevice(self->m_joyindex);
+
+	if (!instance) {
+		return Py_False;
+	}
+
+	return PyBool_FromLong(instance->GetRumbleSupport());
+}
+
 
 #endif // WITH_PYTHON
