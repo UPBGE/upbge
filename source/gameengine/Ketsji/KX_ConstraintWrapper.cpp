@@ -38,7 +38,6 @@ KX_ConstraintWrapper::KX_ConstraintWrapper(
 						PHY_ConstraintType ctype,
 						int constraintId,
 						PHY_IPhysicsEnvironment* physenv) :
-		PyObjectPlus(),
 		m_constraintId(constraintId),
 		m_constraintType(ctype),
 		m_physenv(physenv)
@@ -46,6 +45,11 @@ KX_ConstraintWrapper::KX_ConstraintWrapper(
 }
 KX_ConstraintWrapper::~KX_ConstraintWrapper()
 {
+}
+
+STR_String KX_ConstraintWrapper::GetName()
+{
+	return "KX_ConstraintWrapper";
 }
 
 #ifdef WITH_PYTHON

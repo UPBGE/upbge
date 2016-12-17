@@ -35,12 +35,15 @@
 #include "EXP_Value.h"
 #include "PHY_DynamicTypes.h"
 
-class	KX_ConstraintWrapper : public PyObjectPlus
+class	KX_ConstraintWrapper : public CValue
 {
 	Py_Header
 public:
 	KX_ConstraintWrapper(PHY_ConstraintType ctype,int constraintId,class PHY_IPhysicsEnvironment* physenv);
 	virtual ~KX_ConstraintWrapper ();
+
+	virtual STR_String GetName();
+
 	int			getConstraintId() { return m_constraintId; }
 	
 #ifdef WITH_PYTHON
