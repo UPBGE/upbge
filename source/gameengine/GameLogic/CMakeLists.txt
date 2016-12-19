@@ -31,7 +31,6 @@ set(INC
 	../Rasterizer
 	../SceneGraph
 	../../blender/blenlib
-	../../../intern/string
 	../../../intern/termcolor
 	../../../intern/ghost
 )

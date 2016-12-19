@@ -53,7 +53,6 @@ set(INC
 	../../blender/python/intern
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
-	../../../intern/string
 )
 
 set(INC_SYS

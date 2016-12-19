@@ -37,7 +37,6 @@ set(INC
 	../../blender/imbuf
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
-	../../../intern/string
 	../../../intern/termcolor
 )
 

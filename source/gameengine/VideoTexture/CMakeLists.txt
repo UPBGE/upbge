@@ -44,7 +44,6 @@ set(INC
 	../../../intern/ffmpeg
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
-	../../../intern/string
 	../../../intern/decklink
 	../../../intern/gpudirect
 	../../../intern/atomic

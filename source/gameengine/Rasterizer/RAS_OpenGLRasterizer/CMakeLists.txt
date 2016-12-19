@@ -41,7 +41,6 @@ set(INC
 	../../../blender/makesdna
 	../../../../intern/glew-mx
 	../../../../intern/guardedalloc
-	../../../../intern/string
 )
 
 set(INC_SYS

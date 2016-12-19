@@ -40,7 +40,6 @@ set(INC
 	../../../blender/blenlib
 	../../../blender/makesdna
 	../../../../intern/guardedalloc
-	../../../../intern/string
 )
 
 set(INC_SYS

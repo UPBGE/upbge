@@ -29,7 +29,6 @@ set(INC
 	../SceneGraph
 	../../blender/blenlib
 	../../../intern/guardedalloc
-	../../../intern/string
 	../../../intern/termcolor
 )
 
