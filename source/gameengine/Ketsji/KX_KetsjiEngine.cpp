@@ -398,9 +398,11 @@ bool KX_KetsjiEngine::NextFrame()
 		// Handle all SDL Joystick events here to share them for all scenes properly.
 		short addrem[JOYINDEX_MAX] = {0};
 		if (DEV_Joystick::HandleEvents(addrem)) {
+#  ifdef WITH_PYTHON
 			updatePythonJoysticks(addrem);
+#  endif  // WITH_PYTHON
 		}
-#endif
+#endif  // WITH_SDL
 
 		// for each scene, call the proceed functions
 		for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {

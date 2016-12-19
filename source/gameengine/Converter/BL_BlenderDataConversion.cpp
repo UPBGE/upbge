@@ -1212,6 +1212,7 @@ static KX_GameObject* getGameOb(STR_String busc,CListValue* sumolist)
 
 static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderobj)
 {
+#ifdef WITH_PYTHON
 	PythonComponent *pc = (PythonComponent *)blenderobj->components.first;
 	PyObject *arg_dict = NULL, *args = NULL, *mod = NULL, *cls = NULL, *pycomp = NULL, *ret = NULL;
 
@@ -1286,6 +1287,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 	Py_XDECREF(pycomp);
 
 	gameobj->SetComponents(components);
+#endif  // WITH_PYTHON
 }
 
 /* helper for BL_ConvertBlenderObjects, avoids code duplication

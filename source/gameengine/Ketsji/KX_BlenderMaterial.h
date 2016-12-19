@@ -153,6 +153,8 @@ private:
 	void OnExit();
 };
 
+#ifdef WITH_PYTHON
 bool ConvertPythonToMaterial(PyObject *value, KX_BlenderMaterial **material, bool py_none_ok, const char *error_prefix);
+#endif  // WITH_PYTHON
 
 #endif
