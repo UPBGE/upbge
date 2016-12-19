@@ -2311,6 +2311,7 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 	bool support=0;
 	CM_Message("Supported Extensions...");
 	CM_Message(" GL_ARB_shader_objects supported?       "<< (GLEW_ARB_shader_objects?"yes.":"no."));
+	CM_Message(" GL_ARB_geometry_shader4 supported?     "<< (GLEW_ARB_geometry_shader4 ? "yes." : "no."));
 
 	support= GLEW_ARB_vertex_shader;
 	CM_Message(" GL_ARB_vertex_shader supported?        "<< (support?"yes.":"no."));
