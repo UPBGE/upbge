@@ -31,18 +31,14 @@
  */
 
 
-#include <stddef.h>
-
 #include "SCA_KeyboardSensor.h"
 #include "SCA_KeyboardManager.h"
 #include "SCA_LogicManager.h"
 #include "EXP_StringValue.h"
 #include "SCA_IInputDevice.h"
 
-extern "C" {
-	#include "BLI_string_utf8.h"
-	#include "BLI_string_cursor_utf8.h"
-}
+#include <locale>
+#include <codecvt>
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
@@ -248,55 +244,31 @@ void SCA_KeyboardSensor::LogKeystrokes()
 
 	SCA_IInputDevice *inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
 
-	std::wstring typedtext = inputdev->GetText();
-	std::wstring proptext = L"";
+	std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+	const std::wstring typedtext = inputdev->GetText();
+	std::wstring proptext = converter.from_bytes(tprop->GetText());
 
-	{
-		const std::string utf8str = tprop->GetText();
-		const char *utf8buf = utf8str.c_str();
-		int utf8len = BLI_strlen_utf8(utf8buf);
-		if (utf8len != 0) {
-			wchar_t *wcharbuf = new wchar_t[utf8len + 1];
-			BLI_strncpy_wchar_from_utf8(wcharbuf, utf8buf, utf8len + 1);
-			proptext = wcharbuf;
-			delete wcharbuf;
+	/* Convert all typed key in the prop string, if the key are del or
+	 * backspace we remove the last string item.
+	 */
+	for (std::wstring::const_iterator it = typedtext.begin(), end = typedtext.end(); it != end; ++it) {
+		const wchar_t item = *it;
+		if (item == '\b' || item == 127) {
+			if (proptext.size()) {
+				proptext.resize(proptext.size() - 1);
+			}
 		}
-
-		/* Convert all typed key in the prop string, if the key are del or
-		 * backspace we remove the last string item.
-		 */
-		for (unsigned int i = 0, size = typedtext.size(); i < size; ++i) {
-			const wchar_t item = typedtext[i];
-			if (item == '\b' || item == 127) {
-				if (proptext.size()) {
-					proptext.resize(proptext.size() - 1);
-				}
-			}
-			else if (item == '\r') {
-				// Do nothing
-			}
-			else {
-				proptext.push_back(item);
-			}
+		else if (item == '\r') {
+			// Do nothing
+		}
+		else {
+			proptext.push_back(item);
 		}
 	}
 
-	{
-		std::string newpropstr = "";
-
-		const wchar_t *cproptext = proptext.c_str();
-		size_t utf8len = BLI_wstrlen_utf8(cproptext);
-		if (utf8len != 0) {
-			char *utf8buf = new char[utf8len + 1];
-			BLI_strncpy_wchar_as_utf8(utf8buf, cproptext, utf8len + 1);
-			newpropstr = std::string(utf8buf);
-			delete utf8buf;
-		}
-
-		CStringValue *newstringprop = new CStringValue(newpropstr, m_targetprop);
-		GetParent()->SetProperty(m_targetprop, newstringprop);
-		newstringprop->Release();
-	}
+	CStringValue *newstringprop = new CStringValue(converter.to_bytes(proptext), m_targetprop);
+	GetParent()->SetProperty(m_targetprop, newstringprop);
+	newstringprop->Release();
 }
 
 #ifdef WITH_PYTHON
