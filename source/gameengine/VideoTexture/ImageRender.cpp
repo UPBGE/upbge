@@ -241,7 +241,9 @@ bool ImageRender::Render()
 	}
 
 	if (m_updateShadowBuffer) {
-		m_engine->RenderShadowBuffers(m_scene);
+		std::vector<KX_Camera *> activeCameras;
+		activeCameras.push_back(m_camera);
+		m_engine->RenderShadowBuffers(m_scene, activeCameras);
 	}
 
 	if (m_mirror)

@@ -368,10 +368,6 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
 
-			rasty->ResetGlobalDepthTexture();
-			RenderBasicBuckets(cameratrans, rasty, ALPHA_DEPTH_INSTANCING_BUCKET);
-			RenderSortedBuckets(cameratrans, rasty, ALPHA_DEPTH_BUCKET);
-
 			RenderBasicBuckets(cameratrans, rasty, ALPHA_INSTANCING_BUCKET);
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
 

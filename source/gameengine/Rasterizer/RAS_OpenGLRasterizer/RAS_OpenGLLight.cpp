@@ -175,9 +175,7 @@ bool RAS_OpenGLLight::HasShadowBuffer()
 
 bool RAS_OpenGLLight::NeedShadowUpdate()
 {
-	if (!m_staticShadow)
-		return true;
-	return m_requestShadowUpdate;
+	return m_requestShadowUpdate || !m_staticShadow;
 }
 
 int RAS_OpenGLLight::GetShadowBindCode()
@@ -198,6 +196,54 @@ MT_Matrix4x4 RAS_OpenGLLight::GetShadowMatrix()
 	MT_Matrix4x4 mat;
 	mat.setIdentity();
 	return mat;
+}
+
+void RAS_OpenGLLight::GetShadowBox(MT_Vector3 *box)
+{
+	GPULamp *lamp = GetGPULamp();
+
+	if (lamp) {
+		KX_LightObject *light = (KX_LightObject *)m_light;
+
+		// Compute transformation to apply to shadow box
+		MT_Matrix3x3 orientation = light->NodeGetWorldOrientation();
+		const MT_Vector3& scaling = light->NodeGetWorldScaling();
+		orientation.scale(scaling[0], scaling[1], scaling[2]);
+		const MT_Transform worldtr(light->NodeGetWorldPosition(), orientation);
+
+		if (light->GetLightData()->m_type == RAS_ILightObject::LIGHT_SUN) {
+
+			box[0][0] = box[1][0] = box[2][0] = box[3][0] = -GPU_lamp_frustum_size(lamp);
+			box[4][0] = box[5][0] = box[6][0] = box[7][0] = +GPU_lamp_frustum_size(lamp);
+			box[0][1] = box[1][1] = box[4][1] = box[5][1] = -GPU_lamp_frustum_size(lamp);
+			box[2][1] = box[3][1] = box[6][1] = box[7][1] = +GPU_lamp_frustum_size(lamp);
+			box[0][2] = box[3][2] = box[4][2] = box[7][2] = -FLT_MAX;
+			box[1][2] = box[2][2] = box[5][2] = box[6][2] = -GPU_lamp_clipstart(lamp);
+
+			for (int i = 0; i < 8; i++) {
+				box[i] = worldtr(box[i]);
+			}
+		}
+		else if (light->GetLightData()->m_type == RAS_ILightObject::LIGHT_SPOT) {
+
+			const float y = cosf(GPU_lamp_spotsize(lamp) * 0.5f);
+			const float x = -GPU_lamp_distance(lamp) * y;
+			const float z = x * sqrtf(1.0f - y * y);
+
+			const float z_abs = fabsf(z);
+
+			box[0][0] = box[1][0] = box[2][0] = box[3][0] = -z_abs;
+			box[4][0] = box[5][0] = box[6][0] = box[7][0] = +z_abs;
+			box[0][1] = box[1][1] = box[4][1] = box[5][1] = -z_abs;
+			box[2][1] = box[3][1] = box[6][1] = box[7][1] = +z_abs;
+			box[0][2] = box[3][2] = box[4][2] = box[7][2] = -FLT_MAX;
+			box[1][2] = box[2][2] = box[5][2] = box[6][2] = 0.0f;
+
+			for (int i = 0; i < 8; i++) {
+				box[i] = worldtr(box[i]);
+			}
+		}
+	}
 }
 
 int RAS_OpenGLLight::GetShadowLayer()
