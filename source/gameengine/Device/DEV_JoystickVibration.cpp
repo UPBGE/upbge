@@ -170,12 +170,7 @@ bool DEV_Joystick::RumbleStop()
 bool DEV_Joystick::GetRumbleStatus()
 {
 #ifdef WITH_SDL
-	if (m_private->m_hapticEffectStatus == JOYHAPTIC_STOPPED) {
-		return false;
-	}
-	else {
-		return true;
-	}
+	return (m_private->m_hapticEffectStatus != JOYHAPTIC_STOPPED);
 #endif
 	return false;
 }
@@ -183,12 +178,7 @@ bool DEV_Joystick::GetRumbleStatus()
 bool DEV_Joystick::GetRumbleSupport()
 {
 #ifdef WITH_SDL
-	if (m_private->m_haptic) {
-		return true;
-	}
-	else {
-		return false;
-	}
+	return (m_private->m_haptic);
 #endif
 	return false;
 }
