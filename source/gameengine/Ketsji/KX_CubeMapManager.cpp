@@ -102,6 +102,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 
 	// For Culling we need first to set the camera position at the object position.
 	m_camera->NodeSetWorldPosition(position);
+	m_camera->SetLodDistanceFactor(cubeMap->GetLodDistanceFactor());
 
 	/* When we update clipstart or clipend values,
 	 * or if the projection matrix is not computed yet,
@@ -136,6 +137,11 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 		rasty->SetViewMatrix(viewmat, RAS_CubeMap::faceViewMatrices3x3[i], position, MT_Vector3(1.0f, 1.0f, 1.0f), true);
 
 		m_scene->CalculateVisibleMeshes(rasty, m_camera, ~cubeMap->GetIgnoreLayers());
+
+		/* Updating the lod per face is normally not expensive because a cube map normally show every objects
+		 * but here we update only visible object of a face including the clip end and start.
+		 */
+		m_scene->UpdateObjectLods(m_camera);
 
 		/* Update animations to use the culling of each faces, BL_ActionManager avoid redundants
 		 * updates internally. */

@@ -60,6 +60,9 @@ private:
 	/// View clip end.
 	float m_clipEnd;
 
+	/// Distance factor for level of detail.
+	float m_lodDistanceFactor;
+
 	/// True if the realtime cube map is updated every frame.
 	bool m_autoUpdate;
 	/** True if the realtime cube map need to be updated for the next frame.
@@ -80,6 +83,9 @@ public:
 	float GetClipEnd() const;
 	void SetClipStart(float start);
 	void SetClipEnd(float end);
+
+	float GetLodDistanceFactor() const;
+	void SetLodDistanceFactor(float lodfactor);
 
 	void SetInvalidProjectionMatrix(bool invalid);
 	bool GetInvalidProjectionMatrix() const;

@@ -38,6 +38,7 @@ KX_CubeMap::KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint)
 	m_ignoreLayers(env->notlay),
 	m_clipStart(env->clipsta),
 	m_clipEnd(env->clipend),
+	m_lodDistanceFactor(1.0),
 	m_autoUpdate(true),
 	m_forceUpdate(true)
 {
@@ -113,6 +114,16 @@ void KX_CubeMap::SetClipEnd(float end)
 	m_clipEnd = end;
 }
 
+float KX_CubeMap::GetLodDistanceFactor() const
+{
+	return m_lodDistanceFactor;
+}
+
+void KX_CubeMap::SetLodDistanceFactor(float lodfactor)
+{
+	m_lodDistanceFactor = lodfactor;
+}
+
 bool KX_CubeMap::NeedUpdate()
 {
 	bool result = m_autoUpdate || m_forceUpdate;
@@ -157,6 +168,7 @@ PyAttributeDef KX_CubeMap::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RW("ignoreLayers", 0, (1 << 20) - 1, true, KX_CubeMap, m_ignoreLayers),
 	KX_PYATTRIBUTE_RW_FUNCTION("clipStart", KX_CubeMap, pyattr_get_clip_start, pyattr_set_clip_start),
 	KX_PYATTRIBUTE_RW_FUNCTION("clipEnd", KX_CubeMap, pyattr_get_clip_end, pyattr_set_clip_end),
+	KX_PYATTRIBUTE_FLOAT_RW("lodDistanceFactor", 0.0f, FLT_MAX, KX_CubeMap, m_lodDistanceFactor),
 	KX_PYATTRIBUTE_NULL // Sentinel
 };
 
