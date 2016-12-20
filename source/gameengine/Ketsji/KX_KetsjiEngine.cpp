@@ -1031,10 +1031,10 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 	m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 	SG_SetActiveStage(SG_STAGE_CULLING);
 
+	scene->CalculateVisibleMeshes(m_rasterizer, cam);
+
 	// update levels of detail
 	scene->UpdateObjectLods();
-
-	scene->CalculateVisibleMeshes(m_rasterizer, cam);
 
 	m_logger->StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
 	SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
