@@ -36,8 +36,8 @@ SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, short mode, i
 	: SCA_IActuator(gameobj, KX_ACT_VIBRATION),
 	m_joyindex(joyindex),
 	m_mode(mode),
-	m_strength_left(strength_left),
-	m_strength_right(strength_right),
+	m_strengthLeft(strength_left),
+	m_strengthRight(strength_right),
 	m_duration(duration),
 	m_endtime(0.0f)
 {
@@ -68,7 +68,7 @@ bool SCA_VibrationActuator::Update()
 		switch (m_mode) {
 			case KX_ACT_VIBRATION_PLAY:
 			{
-				instance->RumblePlay(m_strength_left, m_strength_right, m_duration);
+				instance->RumblePlay(m_strengthLeft, m_strengthRight, m_duration);
 				m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
 				break;
 			}
@@ -131,8 +131,8 @@ PyMethodDef SCA_VibrationActuator::Methods[] = {
 PyAttributeDef SCA_VibrationActuator::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RW("duration", 0, INT_MAX, true, SCA_VibrationActuator, m_duration),
 	KX_PYATTRIBUTE_INT_RW("joyindex", 0, 7, true, SCA_VibrationActuator, m_joyindex),
-	KX_PYATTRIBUTE_FLOAT_RW("strengthLeft", 0.0, 1.0, SCA_VibrationActuator, m_strength_left),
-	KX_PYATTRIBUTE_FLOAT_RW("strengthRight", 0.0, 1.0, SCA_VibrationActuator, m_strength_right),
+	KX_PYATTRIBUTE_FLOAT_RW("strengthLeft", 0.0, 1.0, SCA_VibrationActuator, m_strengthLeft),
+	KX_PYATTRIBUTE_FLOAT_RW("strengthRight", 0.0, 1.0, SCA_VibrationActuator, m_strengthRight),
 	KX_PYATTRIBUTE_RO_FUNCTION("isVibrating", SCA_VibrationActuator, pyattr_get_statusVibration),
 	KX_PYATTRIBUTE_RO_FUNCTION("hasVibration", SCA_VibrationActuator, pyattr_get_hasVibration),
 	KX_PYATTRIBUTE_NULL	//Sentinel
@@ -149,7 +149,7 @@ KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, startVibration,
 		Py_RETURN_NONE;
 	}
 
-	instance->RumblePlay(m_strength_left, m_strength_right, m_duration);
+	instance->RumblePlay(m_strengthLeft, m_strengthRight, m_duration);
 	m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
 
 	Py_RETURN_NONE;

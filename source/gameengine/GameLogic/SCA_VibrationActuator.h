@@ -40,8 +40,8 @@ private:
 
 	int m_joyindex;
 	short m_mode;
-	float m_strength_left;
-	float m_strength_right;
+	float m_strengthLeft;
+	float m_strengthRight;
 	int m_duration;
 	float m_endtime;
 
