@@ -193,7 +193,7 @@ typedef struct bGameActuator {
 typedef struct bVibrationActuator {
 	int joyindex;
 	short mode, pad1; /* mode: 0 = Play, 1 = Stop */
- 	float strength, strength_right; /* strength --> low frequency motor, strength_right --> high frequency motor */
+	float strength, strength_right; /* strength --> low frequency motor, strength_right --> high frequency motor */
 	int duration;
 } bVibrationActuator;
 

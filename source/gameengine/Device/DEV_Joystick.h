@@ -170,10 +170,10 @@ public:
 	bool IsTrigButton(void) {
 		return m_istrig_button;
 	}
-	
+
 	/**
 	 * Force Feedback - Vibration
- 	 * We could add many optional arguments to these functions to take into account different sort of vibrations.
+	 * We could add many optional arguments to these functions to take into account different sort of vibrations.
 	 * But we propose to keep the UI simple with only joyindex, force (in both motors) and duration.
 	 * As the vibration strength and duration can be updated on-fly it is possible to generate several types of vibration  
 	 * (sinus, periodic, custom, etc) using BGE python scripts for more advanced uses.
@@ -182,7 +182,7 @@ public:
 	bool RumbleStop(void);
 	bool GetRumbleStatus(void);
 	bool GetRumbleSupport(void);
-	
+
 	/**
 	 * Test if the joystick is connected
 	 */

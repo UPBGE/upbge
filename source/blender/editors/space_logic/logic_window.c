@@ -2039,24 +2039,24 @@ static void draw_actuator_vibration(uiLayout *layout, PointerRNA *ptr)
 	row = uiLayoutRow(layout, false);
 
 	uiItemR(layout, ptr, "mode", 0, NULL, 0);
- 
- 	switch (RNA_enum_get(ptr, "mode")) {
- 		case ACT_VIBRATION_PLAY:
- 		{
- 			uiItemR(row, ptr, "joy_index", 0, NULL, ICON_NONE);
- 			row = uiLayoutRow(layout, false);
- 			uiItemR(row, ptr, "joy_strength_left", 0, NULL, ICON_NONE);
- 			uiItemR(row, ptr, "joy_strength_right", 0, NULL, ICON_NONE);
- 			row = uiLayoutRow(layout, false);
- 			uiItemR(row, ptr, "joy_duration", 0, NULL, ICON_NONE);
- 			break;
- 		}
- 		case ACT_VIBRATION_STOP:
- 		{
- 			uiItemR(row, ptr, "joy_index", 0, NULL, ICON_NONE);
- 			break;
- 		}
- 	}
+
+	switch (RNA_enum_get(ptr, "mode")) {
+		case ACT_VIBRATION_PLAY:
+		{
+			uiItemR(row, ptr, "joy_index", 0, NULL, ICON_NONE);
+			row = uiLayoutRow(layout, false);
+			uiItemR(row, ptr, "joy_strength_left", 0, NULL, ICON_NONE);
+			uiItemR(row, ptr, "joy_strength_right", 0, NULL, ICON_NONE);
+			row = uiLayoutRow(layout, false);
+			uiItemR(row, ptr, "joy_duration", 0, NULL, ICON_NONE);
+			break;
+		}
+		case ACT_VIBRATION_STOP:
+		{
+			uiItemR(row, ptr, "joy_index", 0, NULL, ICON_NONE);
+			break;
+		}
+	}
 }
 
 static void draw_actuator_visibility(uiLayout *layout, PointerRNA *ptr)

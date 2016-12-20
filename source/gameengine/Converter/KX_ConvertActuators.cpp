@@ -869,16 +869,16 @@ void BL_ConvertActuators(const char* maggiename,
 			bVibrationActuator *vib_act = (bVibrationActuator *)bact->data;
 			SCA_VibrationActuator * tmp_vib_act = NULL;
 			short mode = SCA_VibrationActuator::KX_ACT_VIBRATION_NONE;
- 
- 			switch (vib_act->mode) {
- 				case ACT_VIBRATION_PLAY:
- 				{
- 					mode = SCA_VibrationActuator::KX_ACT_VIBRATION_PLAY;
+
+			switch (vib_act->mode) {
+				case ACT_VIBRATION_PLAY:
+				{
+					mode = SCA_VibrationActuator::KX_ACT_VIBRATION_PLAY;
 					break;
 				}
 				case ACT_VIBRATION_STOP:
 				{
- 					mode = SCA_VibrationActuator::KX_ACT_VIBRATION_STOP;
+					mode = SCA_VibrationActuator::KX_ACT_VIBRATION_STOP;
 					break;
 				}
 			}

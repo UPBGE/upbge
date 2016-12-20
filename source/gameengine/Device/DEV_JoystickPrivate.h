@@ -52,7 +52,6 @@ public:
 		m_haptic(NULL),
 		m_hapticeffect_status(JOYHAPTIC_STOPPED)
 	{
-		
 	}
 };
 #endif // WITH_SDL

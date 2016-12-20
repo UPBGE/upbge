@@ -35,9 +35,9 @@
 SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, short mode, int joyindex, float strength_left,  float strength_right, int duration)
 	: SCA_IActuator(gameobj, KX_ACT_VIBRATION),
 	m_joyindex(joyindex),
-    m_mode(mode),
+	m_mode(mode),
 	m_strength_left(strength_left),
-    m_strength_right(strength_right),
+	m_strength_right(strength_right),
 	m_duration(duration),
 	m_endtime(0.0f)
 {
@@ -72,7 +72,7 @@ bool SCA_VibrationActuator::Update()
 				m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
 				break;
 			}
-		case KX_ACT_VIBRATION_STOP:
+			case KX_ACT_VIBRATION_STOP:
 			{
 				instance->RumbleStop();
 				m_endtime = 0.0f;
@@ -138,7 +138,6 @@ PyAttributeDef SCA_VibrationActuator::Attributes[] = {
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-/* Methods ----------------------------------------------------------------- */
 KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, startVibration,
 "startVibration()\n"
 "\tStarts the joystick vibration.\n")
@@ -173,8 +172,6 @@ KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, stopVibration,
 	Py_RETURN_NONE;
 }
 
-
-/* Attribute getting -------------------------------------------- */
 PyObject *SCA_VibrationActuator::pyattr_get_statusVibration(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_VibrationActuator *self = static_cast<SCA_VibrationActuator *>(self_v);
@@ -188,7 +185,6 @@ PyObject *SCA_VibrationActuator::pyattr_get_statusVibration(void *self_v, const 
 	return PyBool_FromLong(instance->GetRumbleStatus());
 }
 
-/* Attribute getting -------------------------------------------- */
 PyObject *SCA_VibrationActuator::pyattr_get_hasVibration(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_VibrationActuator *self = static_cast<SCA_VibrationActuator *>(self_v);
