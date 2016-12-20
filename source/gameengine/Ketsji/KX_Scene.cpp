@@ -2141,6 +2141,7 @@ PyMethodDef KX_Scene::Methods[] = {
 	KX_PYMETHODTABLE(KX_Scene, suspend),
 	KX_PYMETHODTABLE(KX_Scene, resume),
 	KX_PYMETHODTABLE(KX_Scene, drawObstacleSimulation),
+	KX_PYMETHODTABLE_KEYWORDS(KX_Scene, getMatching),
 
 	
 	/* dict style access */
@@ -2531,6 +2532,36 @@ KX_PYMETHODDEF_DOC(KX_Scene, get, "")
 	
 	Py_INCREF(def);
 	return def;
+}
+
+/* Find gameobjects matching a name, a property... */
+KX_PYMETHODDEF_DOC(KX_Scene, getMatching, "scene.getMatching(objectsName, objectsProperty...)")
+{
+	PyObject *objectslist = PyList_New(0);
+	char *objectsName = "";
+	char *objectsProperty = "";
+
+	static const char *kwlist[] = { "name", "property", NULL };
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ss:getMatching", (char **)(kwlist), &objectsName, &objectsProperty))
+		return NULL;
+
+	for (int i = 0; i < m_objectlist->GetCount(); i++) {
+		KX_GameObject *gameobj = (KX_GameObject *)m_objectlist->GetValue(i);
+		if (strlen(objectsName)) {
+			if (gameobj->GetName() == objectsName) {
+				PyList_Append(objectslist, gameobj->GetProxy());
+			}
+		}
+		else if (strlen(objectsProperty)) {
+			std::vector<std::string>propnames = gameobj->GetPropertyNames();
+			if (std::find(propnames.begin(), propnames.end(), objectsProperty) != propnames.end()) {
+				PyList_Append(objectslist, gameobj->GetProxy());
+			}
+		}
+	}
+
+	return objectslist;
 }
 
 #endif // WITH_PYTHON
