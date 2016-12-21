@@ -2547,16 +2547,15 @@ KX_PYMETHODDEF_DOC(KX_Scene, getMatching, "scene.getMatching(objectsName, object
 		return NULL;
 
 	for (int i = 0; i < m_objectlist->GetCount(); i++) {
-		KX_GameObject *gameobj = (KX_GameObject *)m_objectlist->GetValue(i);
+		CValue *obj = m_objectlist->GetValue(i);
 		if (strlen(objectsName)) {
-			if (gameobj->GetName() == objectsName) {
-				PyList_Append(objectslist, gameobj->GetProxy());
+			if (obj->GetName() == objectsName) {
+				PyList_Append(objectslist, obj->GetProxy());
 			}
 		}
 		else if (strlen(objectsProperty)) {
-			std::vector<std::string>propnames = gameobj->GetPropertyNames();
-			if (std::find(propnames.begin(), propnames.end(), objectsProperty) != propnames.end()) {
-				PyList_Append(objectslist, gameobj->GetProxy());
+			if (obj->GetProperty(objectsProperty)) {
+				PyList_Append(objectslist, obj->GetProxy());
 			}
 		}
 	}
