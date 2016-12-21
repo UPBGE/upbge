@@ -34,6 +34,64 @@
 #include "DNA_object_types.h"
 #include "BLI_listbase.h"
 
+KX_LodManager::LodLevelIterator::LodLevelIterator(const std::vector<KX_LodLevel *>& levels, unsigned short index, KX_Scene *scene)
+	:m_levels(levels),
+	m_index(index),
+	m_scene(scene)
+{
+}
+
+inline float KX_LodManager::LodLevelIterator::GetHysteresis(unsigned short level) const
+{
+	if (level < 1 || !m_scene->IsActivedLodHysteresis()) {
+		return 0.0f;
+	}
+	
+	KX_LodLevel *lod = m_levels[level];
+	KX_LodLevel *prelod = m_levels[level - 1];
+	
+	float hysteresis = 0.0f;
+	// if exists, LoD level hysteresis will override scene hysteresis
+	if (lod->GetFlag() & KX_LodLevel::USE_HYSTERESIS) {
+		hysteresis = lod->GetHysteresis() / 100.0f;
+	}
+	else {
+		hysteresis = m_scene->GetLodHysteresisValue() / 100.0f;
+	}
+	
+	return MT_abs(prelod->GetDistance() - lod->GetDistance()) * hysteresis;
+}
+
+inline int KX_LodManager::LodLevelIterator::operator++()
+{
+	return m_index++;
+}
+
+inline int KX_LodManager::LodLevelIterator::operator--()
+{
+	return m_index--;
+}
+
+inline short KX_LodManager::LodLevelIterator::operator*() const
+{
+	return m_index;
+}
+
+inline bool KX_LodManager::LodLevelIterator::operator<=(float distance2) const
+{
+	// The last level doesn't have a next level, then the maximum distance is infinite and should always return false.
+	if (m_index == (m_levels.size() - 1)) {
+		return false;
+	}
+	
+	return SQUARE(m_levels[m_index + 1]->GetDistance() + GetHysteresis(m_index + 1)) <= distance2;
+}
+
+inline bool KX_LodManager::LodLevelIterator::operator>=(float distance2) const
+{
+	return SQUARE(m_levels[m_index]->GetDistance() - GetHysteresis(m_index)) >= distance2;
+}
+
 KX_LodManager::KX_LodManager(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter* converter, bool libloading)
 	:m_refcount(1),
 	m_distanceFactor(1.0f)
@@ -76,26 +134,6 @@ KX_LodManager::~KX_LodManager()
 	}
 }
 
-float KX_LodManager::GetHysteresis(KX_Scene *scene, unsigned short level)
-{
-	if (!scene->IsActivedLodHysteresis()) {
-		return 0.0f;
-	}
-
-	KX_LodLevel *lod = m_levels[level];
-	KX_LodLevel *lodnext = m_levels[level + 1];
-
-	float hysteresis = 0.0f;
-	// if exists, LoD level hysteresis will override scene hysteresis
-	if (lodnext->GetFlag() & KX_LodLevel::USE_HYSTERESIS) {
-		hysteresis = lodnext->GetHysteresis() / 100.0f;
-	}
-	else {
-		hysteresis = scene->GetLodHysteresisValue() / 100.0f;
-	}
-	return MT_abs(lodnext->GetDistance() - lod->GetDistance()) * hysteresis;
-}
-
 unsigned int KX_LodManager::GetLevelCount() const
 {
 	return m_levels.size();
@@ -108,38 +146,24 @@ KX_LodLevel *KX_LodManager::GetLevel(unsigned int index) const
 
 KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, short previouslod, float distance2)
 {
-	unsigned short level = 0;
-	unsigned short count = m_levels.size();
 	distance2 *= (m_distanceFactor * m_distanceFactor);
 
-	while (level < count) {
-		if (level == (count - 1)) {
+	LodLevelIterator it(m_levels, previouslod, scene);
+
+	while (true) {
+		if (it <= distance2) {
+			++it;
+		}
+		else if (it >= distance2) {
+			--it;
+		}
+		else {
 			break;
 		}
-		// Go here only when we changed of lod.
-		if (previouslod == -1) {
-			const float loddistance = m_levels[level + 1]->GetDistance();
-			if (loddistance * loddistance > distance2) {
-				break;
-			}
-		}
-		else if (level == previouslod || level == (previouslod + 1)) {
-			const float hystvariance = GetHysteresis(scene, level);
-			const float newdistance = m_levels[level + 1]->GetDistance() + hystvariance;
-			if (newdistance * newdistance > distance2) {
-				break;
-			}
-		}
-		else if (level == (previouslod - 1)) {
-			const float hystvariance = GetHysteresis(scene, level);
-			const float newdistance = m_levels[level + 1]->GetDistance() - hystvariance;
-			if (newdistance * newdistance > distance2) {
-				break;
-			}
-		}
-		++level;
 	}
-	return m_levels[level];
+
+	const unsigned short level = *it;
+	return (level == previouslod) ? NULL : m_levels[level];
 }
 
 #ifdef WITH_PYTHON

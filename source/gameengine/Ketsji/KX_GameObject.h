@@ -90,7 +90,6 @@ protected:
 	std::vector<RAS_MeshObject*>		m_meshes;
 	KX_LodManager						*m_lodManager;
 	short								m_currentLodLevel;
-	short								m_previousLodLevel;
 	RAS_MeshUser						*m_meshUser;
 	struct Object*						m_pBlenderObject;
 	struct Object*						m_pBlenderGroupObject;

@@ -38,7 +38,32 @@ struct Object;
 class KX_LodManager: public PyObjectPlus
 {
 	Py_Header
+
 private:
+	/** This class helps to compare the object distance to camera with the list of lod levels.
+	 * It represent the gap between two levels, when you compare it with a distance it compare
+	 * with the a N level distance and a N+1 level distance including hysteresis.
+	 */
+	class LodLevelIterator
+	{
+	private:
+		const std::vector<KX_LodLevel *>& m_levels;
+		short m_index;
+		KX_Scene *m_scene;
+		float GetHysteresis(unsigned short level) const;
+
+	public:
+		LodLevelIterator(const std::vector<KX_LodLevel *>& levels, unsigned short index, KX_Scene *scene);
+
+		int operator++();
+		int operator--();
+		short operator*() const;
+		/// Compare next level distance more hysteresis with current distance.
+		bool operator<=(float distance2) const;
+		/// Compare the current lod level distance less hysteresis with current distance.
+		bool operator>=(float distance2) const;
+	};
+
 	std::vector<KX_LodLevel *> m_levels;
 
 	/** Get the hysteresis from the level or the scene.

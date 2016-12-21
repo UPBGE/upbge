@@ -108,7 +108,6 @@ KX_GameObject::KX_GameObject(
       m_layer(0),
       m_lodManager(NULL),
       m_currentLodLevel(0),
-      m_previousLodLevel(0),
       m_meshUser(NULL),
       m_pBlenderObject(NULL),
       m_pBlenderGroupObject(NULL),
@@ -795,8 +794,7 @@ void KX_GameObject::RemoveMeshes()
 
 void KX_GameObject::SetLodManager(KX_LodManager *lodManager)
 {
-	// Reset lod level to avoid bugs on KX_LodManager::GetLevel.
-	m_previousLodLevel = -1;
+	// Reset lod level to avoid overflow index in KX_LodManager::GetLevel.
 	m_currentLodLevel = 0;
 
 	// Restore object original mesh.
@@ -822,16 +820,15 @@ void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
 
 	KX_Scene *scene = GetScene();
 	const float distance2 = NodeGetWorldPosition().distance2(cam_pos) * (lodfactor * lodfactor);
-	KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_previousLodLevel, distance2);
-	const unsigned short level = lodLevel->GetLevel();
+	KX_LodLevel *lodLevel = m_lodManager->GetLevel(scene, m_currentLodLevel, distance2);
 
-	if (m_previousLodLevel != level) {
+	if (lodLevel) {
 		RAS_MeshObject *mesh = lodLevel->GetMesh();
 		if (mesh != m_meshes[0]) {
 			scene->ReplaceMesh(this, mesh, true, false);
 		}
-		m_currentLodLevel = level;
-		m_previousLodLevel = level;
+
+		m_currentLodLevel = lodLevel->GetLevel();
 	}
 }
 
