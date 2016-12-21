@@ -2546,16 +2546,16 @@ KX_PYMETHODDEF_DOC(KX_Scene, getMatching, "scene.getMatching(objectsName, object
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ss:getMatching", (char **)(kwlist), &objectsName, &objectsProperty))
 		return NULL;
 
-	for (int i = 0; i < m_objectlist->GetCount(); i++) {
-		CValue *obj = m_objectlist->GetValue(i);
+	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = *it;
 		if (strlen(objectsName)) {
-			if (obj->GetName() == objectsName) {
-				PyList_Append(objectslist, obj->GetProxy());
+			if (gameobj->GetName() == objectsName) {
+				PyList_Append(objectslist, gameobj->GetProxy());
 			}
 		}
 		else if (strlen(objectsProperty)) {
-			if (obj->GetProperty(objectsProperty)) {
-				PyList_Append(objectslist, obj->GetProxy());
+			if (gameobj->GetProperty(objectsProperty)) {
+				PyList_Append(objectslist, gameobj->GetProxy());
 			}
 		}
 	}
