@@ -40,6 +40,8 @@
 
 #include "RAS_ICanvas.h"
 
+#include "BLI_math_geom.h"
+
 KX_Camera::KX_Camera(void* sgReplicationInfo,
                      SG_Callbacks callbacks,
                      const RAS_CameraData& camdata,
@@ -419,7 +421,7 @@ bool KX_Camera::PointInsideFrustum(const MT_Vector3& x)
 	
 	for ( unsigned int i = 0; i < 6 ; i++ )
 	{
-		if (m_planes[i][0] * x[0] + m_planes[i][1] * x[1] + m_planes[i][2] * x[2] + m_planes[i][3] < 0.0f)
+		if (m_planes[i].dot(x) < 0.0f)
 			return false;
 	}
 	return true;
@@ -437,7 +439,7 @@ int KX_Camera::BoxInsideFrustum(const MT_Vector3 *box)
 		// 8 box vertices.
 		for (unsigned int v = 0; v < 8 ; v++)
 		{
-			if (m_planes[p][0] * box[v][0] + m_planes[p][1] * box[v][1] + m_planes[p][2] * box[v][2] + m_planes[p][3] < 0.0f)
+			if (m_planes[p].dot(box[v]) < 0.0f)
 				behindCount++;
 		}
 		
@@ -454,6 +456,56 @@ int KX_Camera::BoxInsideFrustum(const MT_Vector3 *box)
 	if (insideCount == 6)
 		return INSIDE;
 	
+	return INTERSECT;
+}
+
+int KX_Camera::InfiniteBoxInsideFrustum(const MT_Vector3 *box)
+{
+	ExtractClipPlanes();
+
+	unsigned short insideCount = 0;
+	for (unsigned short p = 0; p < 6; ++p) {
+		const MT_Vector3 plane = m_planes[p].to3d();
+		const MT_Vector3 planeco = plane * (-m_planes[p][3] / plane.length2());
+
+		for (unsigned short v = 0; v < 4; ++v) {
+			const MT_Vector3& point = box[v];
+			const MT_Vector3& ray = box[v + 4];
+
+			// Intersect point of the ray.
+			const float distance = -plane.dot(point - planeco) / plane.dot(ray);
+
+			// The intersection point must be downer the ray origin.
+			if (distance <= 0.0f) {
+				continue;
+			}
+
+			const MT_Vector3 isect = point + distance * ray;
+
+			// Test if the point intersection is visible by planes.
+			unsigned short behindCount = 0;
+			for (unsigned short i = 0; i < 6; ++i) {
+				// Testing the side of a intersection point in the same plane gives undefined results.
+				if (i == p) {
+					continue;
+				}
+				if (m_planes[i].dot(isect) < 0.0f) {
+					++behindCount;
+				}
+			}
+
+			std::cout << behindCount << std::endl;
+
+			if (behindCount == 0) {
+				++insideCount;
+			}
+		}
+	}
+
+	if (insideCount == 0) {
+		return OUTSIDE;
+	}
+
 	return INTERSECT;
 }
 

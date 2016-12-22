@@ -206,42 +206,40 @@ void RAS_OpenGLLight::GetShadowBox(MT_Vector3 *box)
 		KX_LightObject *light = (KX_LightObject *)m_light;
 
 		// Compute transformation to apply to shadow box
-		MT_Matrix3x3 orientation = light->NodeGetWorldOrientation();
 		const MT_Vector3& scaling = light->NodeGetWorldScaling();
-		orientation.scale(scaling[0], scaling[1], scaling[2]);
-		const MT_Transform worldtr(light->NodeGetWorldPosition(), orientation);
+		const MT_Matrix3x3& orientation = light->NodeGetWorldOrientation();
+		MT_Transform worldtr(light->NodeGetWorldPosition(), orientation);
+		worldtr.scale(scaling[0], scaling[1], scaling[2]);
 
 		if (light->GetLightData()->m_type == RAS_ILightObject::LIGHT_SUN) {
-
-			box[0][0] = box[1][0] = box[2][0] = box[3][0] = -GPU_lamp_frustum_size(lamp);
-			box[4][0] = box[5][0] = box[6][0] = box[7][0] = +GPU_lamp_frustum_size(lamp);
-			box[0][1] = box[1][1] = box[4][1] = box[5][1] = -GPU_lamp_frustum_size(lamp);
-			box[2][1] = box[3][1] = box[6][1] = box[7][1] = +GPU_lamp_frustum_size(lamp);
-			box[0][2] = box[3][2] = box[4][2] = box[7][2] = -FLT_MAX;
-			box[1][2] = box[2][2] = box[5][2] = box[6][2] = -GPU_lamp_clipstart(lamp);
-
-			for (int i = 0; i < 8; i++) {
-				box[i] = worldtr(box[i]);
-			}
+			box[0][1] = box[1][1] = GPU_lamp_frustum_size(lamp);
+			box[2][1] = box[3][1] = -GPU_lamp_frustum_size(lamp);
+			box[0][0] = box[3][0] = -GPU_lamp_frustum_size(lamp);
+			box[1][0] = box[2][0] = GPU_lamp_frustum_size(lamp);
+			box[0][2] = box[1][2] = box[2][2] = box[3][2] = -GPU_lamp_clipstart(lamp);
+			box[4] = box[5] = box[6] = box[7] = MT_Vector3(0.0f, 0.0f, -1.0f);
 		}
 		else if (light->GetLightData()->m_type == RAS_ILightObject::LIGHT_SPOT) {
+			const float y = fabsf(sinf(GPU_lamp_spotsize(lamp) * 0.5f));
+			const float x = y * GPU_lamp_clipstart(lamp);
 
-			const float y = cosf(GPU_lamp_spotsize(lamp) * 0.5f);
-			const float x = -GPU_lamp_distance(lamp) * y;
-			const float z = x * sqrtf(1.0f - y * y);
+			box[0][1] = box[1][1] = y;
+			box[2][1] = box[3][1] = -y;
+			box[0][0] = box[3][0] = -y;
+			box[1][0] = box[2][0] = y;
+			box[0][2] = box[1][2] = box[2][2] = box[3][2] = -GPU_lamp_clipstart(lamp);
+			box[4][1] = box[5][1] = x;
+			box[6][1] = box[7][1] = -x;
+			box[4][0] = box[7][0] = -x;
+			box[5][0] = box[6][0] = x;
+			box[4][2] = box[5][2] = box[6][2] = box[7][2] = -1.0f;
+		}
 
-			const float z_abs = fabsf(z);
-
-			box[0][0] = box[1][0] = box[2][0] = box[3][0] = -z_abs;
-			box[4][0] = box[5][0] = box[6][0] = box[7][0] = +z_abs;
-			box[0][1] = box[1][1] = box[4][1] = box[5][1] = -z_abs;
-			box[2][1] = box[3][1] = box[6][1] = box[7][1] = +z_abs;
-			box[0][2] = box[3][2] = box[4][2] = box[7][2] = -FLT_MAX;
-			box[1][2] = box[2][2] = box[5][2] = box[6][2] = 0.0f;
-
-			for (int i = 0; i < 8; i++) {
-				box[i] = worldtr(box[i]);
-			}
+		for (unsigned short i = 0; i < 4; ++i) {
+			box[i] = worldtr(box[i]);
+		}
+		for (unsigned short i = 4; i < 8; ++i) {
+			box[i] = orientation * box[i];
 		}
 	}
 }

@@ -875,14 +875,20 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene, std::vector<KX_Camera
 		for (std::vector<KX_Camera *>::iterator it = cameras.begin(), end = cameras.end(); it != end; ++it) {
 			MT_Vector3 lightfrustum[8];
 			raslight->GetShadowBox(lightfrustum);
+
+			for (unsigned short i = 0; i < 4; ++i) {
+				m_rasterizer->DrawDebugLine(scene, lightfrustum[i], lightfrustum[i] + lightfrustum[i + 4] * 100000.0f, MT_Vector4(0.0f, 1.0f, 0.0f, 1.0f));
+			}
+
 			// 0 = inside, 1 = intersect, 2 = outside
-			if ((*it)->BoxInsideFrustum(lightfrustum) < 2) {
+			if ((*it)->InfiniteBoxInsideFrustum(lightfrustum) < 2) {
 				culled = false;
 				break;
 			}
 		}
 
 		if (culled) {
+			std::cout << "culled shadows for light: " << light->GetName() << std::endl;
 			continue;
 		}
 

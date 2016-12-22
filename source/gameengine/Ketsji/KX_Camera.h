@@ -243,6 +243,8 @@ public:
 	 * \return INSIDE, INTERSECT, or OUTSIDE depending on the box's relation to the frustum.
 	 */
 	int BoxInsideFrustum(const MT_Vector3 *box);
+
+	int InfiniteBoxInsideFrustum(const MT_Vector3 *box);
 	/**
 	 * Tests the given point against the view frustum.
 	 * \return true if the given point is inside or on the view frustum; false if it is outside.
