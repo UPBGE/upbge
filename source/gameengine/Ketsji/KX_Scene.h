@@ -501,7 +501,7 @@ public:
 	void Resume();
 
 	/// Update the mesh for objects based on level of detail settings
-	void UpdateObjectLods();
+	void UpdateObjectLods(KX_Camera *cam);
 
 	// LoD Hysteresis functions
 	void SetLodHysteresis(bool active);

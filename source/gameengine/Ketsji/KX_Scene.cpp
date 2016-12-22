@@ -1715,13 +1715,10 @@ void KX_Scene::RenderCubeMaps(RAS_IRasterizer *rasty)
 	m_cubeMapManager->Render(rasty);
 }
 
-void KX_Scene::UpdateObjectLods()
+void KX_Scene::UpdateObjectLods(KX_Camera *cam)
 {
-	if (!m_active_camera)
-		return;
-
-	const MT_Vector3& cam_pos = m_active_camera->NodeGetWorldPosition();
-	const float lodfactor = m_active_camera->GetLodDistanceFactor();
+	const MT_Vector3& cam_pos = cam->NodeGetWorldPosition();
+	const float lodfactor = cam->GetLodDistanceFactor();
 
 	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		KX_GameObject *gameobj = *it;
