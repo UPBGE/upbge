@@ -266,6 +266,12 @@ base class --- :class:`SCA_IObject`
 
          Game logic will still run for invisible objects.
 
+   .. attribute:: layer
+
+      The layer mask used for shadow and real-time cube map render.
+
+      :type: bitfield
+
    .. attribute:: cullingBox
 
       The object's bounding volume box used for culling.

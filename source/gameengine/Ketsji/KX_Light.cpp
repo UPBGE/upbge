@@ -146,7 +146,6 @@ PyMethodDef KX_LightObject::Methods[] = {
 };
 
 PyAttributeDef KX_LightObject::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("layer", KX_LightObject, pyattr_get_layer, pyattr_set_layer),
 	KX_PYATTRIBUTE_RW_FUNCTION("energy", KX_LightObject, pyattr_get_energy, pyattr_set_energy),
 	KX_PYATTRIBUTE_RW_FUNCTION("distance", KX_LightObject, pyattr_get_distance, pyattr_set_distance),
 	KX_PYATTRIBUTE_RW_FUNCTION("color", KX_LightObject, pyattr_get_color, pyattr_set_color),
@@ -177,35 +176,6 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_LightObject, updateShadow, "updateShadow(): Set the
 {
 	m_lightobj->m_requestShadowUpdate = true;
 	Py_RETURN_NONE;
-}
-
-PyObject *KX_LightObject::pyattr_get_layer(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_LightObject *self = static_cast<KX_LightObject *>(self_v);
-	return PyLong_FromLong(self->m_lightobj->m_layer);
-}
-
-int KX_LightObject::pyattr_set_layer(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_LightObject *self = static_cast<KX_LightObject *>(self_v);
-	int layer = PyLong_AsLong(value);
-
-	if (layer == -1 && PyErr_Occurred()) {
-		PyErr_Format(PyExc_TypeError, "expected an integer for attribute \"%s\"", attrdef->m_name.c_str());
-		return PY_SET_ATTR_FAIL;
-	}
-
-	if (layer < 1) {
-		PyErr_Format(PyExc_TypeError, "expected an integer greater than 1 for attribute \"%s\"", attrdef->m_name.c_str());
-		return PY_SET_ATTR_FAIL;
-	}
-	else if (layer > MAX_LIGHT_LAYERS) {
-		PyErr_Format(PyExc_TypeError, "expected an integer less than %i for attribute \"%s\"", MAX_LIGHT_LAYERS, attrdef->m_name.c_str());
-		return PY_SET_ATTR_FAIL;
-	}
-
-	self->SetLayer(layer);
-	return PY_SET_ATTR_SUCCESS;
 }
 
 PyObject *KX_LightObject::pyattr_get_energy(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

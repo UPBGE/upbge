@@ -40,12 +40,6 @@ base class --- :class:`KX_GameObject`
 
       The type of light - must be SPOT, SUN or NORMAL
 
-   .. attribute:: layer
-
-      The layer mask that this light affects object on.
-
-      :type: bitfield
-
    .. attribute:: energy
 
       The brightness of this light.

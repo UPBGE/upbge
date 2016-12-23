@@ -34,8 +34,6 @@
 
 #include "KX_GameObject.h"
 
-#define MAX_LIGHT_LAYERS ((1 << 20) - 1)
-
 struct GPULamp;
 struct Scene;
 struct Base;
@@ -78,8 +76,6 @@ public:
 	KX_PYMETHOD_DOC_NOARGS(KX_LightObject, updateShadow);
 
 	// attributes
-	static PyObject *pyattr_get_layer(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_layer(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_energy(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_energy(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_shadow_clip_start(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
