@@ -72,6 +72,14 @@ base class --- :class:`CValue`
 
       :type: float
 
+   .. attribute:: lodDistanceFactor
+
+      The factor to multiply distance to camera to adjust levels of detail.
+      A float < 1.0f will make the distance to camera used to compute
+      levels of detail decrease.
+
+      :type: float
+
    .. method:: update()
 
       Request to update this cube map during the rendering stage. This function is effective only when :data:`autoUpdate` is disabled.

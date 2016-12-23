@@ -29,7 +29,7 @@ base class --- :class:`KX_GameObject`
 
    .. attribute:: lodDistanceFactor
 
-      The factor to multiply distance to camera to ajust levels of detail.
+      The factor to multiply distance to camera to adjust levels of detail.
       A float < 1.0f will make the distance to camera used to compute
       levels of detail decrease.
 
