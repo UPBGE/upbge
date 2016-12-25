@@ -102,12 +102,6 @@ void KX_IpoSGController::SetOption(int option, int value)
 	}
 }
 
-void KX_IpoSGController::UpdateSumoReference()
-{
-	if (m_game_object) {
-	}
-}
-
 void KX_IpoSGController::SetGameObject(KX_GameObject *go)
 {
 	m_game_object = go;

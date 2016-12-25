@@ -93,8 +93,6 @@ public:
 
 	void SetOption(int option, int value);
 
-	/** Set sumo data. */
-	void UpdateSumoReference();
 	/** Set reference to the corresponding game object. */
 	void SetGameObject(class KX_GameObject *go);
 
