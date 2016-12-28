@@ -1357,10 +1357,10 @@ static void rna_def_sequence_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
 	RNA_def_function_ui_description(func, "Add a new modifier");
 	parm = RNA_def_string(func, "name", "Name", 0, "", "New name for the modifier");
-	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	/* modifier to add */
 	parm = RNA_def_enum(func, "type", rna_enum_sequence_modifier_type_items, seqModifierType_ColorBalance, "", "Modifier type to add");
-	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
 	/* return type */
 	parm = RNA_def_pointer(func, "modifier", "SequenceModifier", "", "Newly created modifier");
 	RNA_def_function_return(func, parm);
@@ -1371,8 +1371,8 @@ static void rna_def_sequence_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_function_ui_description(func, "Remove an existing modifier from the sequence");
 	/* modifier to remove */
 	parm = RNA_def_pointer(func, "modifier", "SequenceModifier", "", "Modifier to remove");
-	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
-	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
+	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
+	RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, 0);
 
 	/* clear all modifiers */
 	func = RNA_def_function(srna, "clear", "rna_Sequence_modifier_clear");
@@ -1674,7 +1674,7 @@ static void rna_def_filter_video(StructRNA *srna)
 
 	prop = RNA_def_property(srna, "use_deinterlace", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_FILTERY);
-	RNA_def_property_ui_text(prop, "De-Interlace", "For video movies to remove fields");
+	RNA_def_property_ui_text(prop, "Deinterlace", "Remove fields from video movies");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update_reopen_files");
 
 	prop = RNA_def_property(srna, "alpha_mode", PROP_ENUM, PROP_NONE);
