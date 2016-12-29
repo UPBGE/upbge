@@ -3783,11 +3783,6 @@ void node_output_world(vec4 surface, vec4 volume, out vec4 result)
 	result = surface;
 }
 
-vec2 parallax_scale(vec2 texuv, vec2 size)
-{
-	return (texuv * size) + (vec2(1.0) - size) / 2.0;
-}
-
 void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, mat3 mat, sampler2D ima, float scale, float numsteps,
 				  float bumpscale, float discarduv, out vec3 ptexcoord)
 {
@@ -3810,7 +3805,7 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, mat3 ma
 
 	// Linear sample from top.
 	for (int i = 0; i < numsteps; ++i) {
-		height = texture2D(ima, texco.xy - delta * (1.0 - depth)).a;
+		height = textureLod(ima, texco.xy - delta * (1.0 - depth), 0).a;
 		// Stop if the texture height is greater than current depth.
 		if (height > depth) {
 			break;
@@ -3833,7 +3828,7 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, mat3 ma
 	// The shift between the texture height and the last depth.
 	float depthshiftcurlay = height - depth;
 	// The shift between the texture height with precedent uv computed with pre detph and the pre depth.
-	float depthshiftprelay = texture2D(ima, texuvprelay).a - depthprelay;
+	float depthshiftprelay = textureLod(ima, texuvprelay, 0).a - depthprelay;
 
 	float weight = 1.0;
 	// If the height is right in the middle of two step the difference of the two shifts will be null.
