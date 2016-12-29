@@ -1935,9 +1935,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		}
 	}
 
-	KX_SetActiveScene(kxscene);
-	PHY_SetActiveEnvironment(kxscene->GetPhysicsEnvironment());
-
 	//create object representations for obstacle simulation
 	KX_ObstacleSimulation* obssimulation = kxscene->GetObstacleSimulation();
 	if (obssimulation)
