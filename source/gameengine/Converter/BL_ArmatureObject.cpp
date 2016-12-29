@@ -210,11 +210,12 @@ BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
 	m_lastframe(0.0),
 	m_timestep(0.040),
 	m_vert_deform_type(vert_deform_type),
-	m_constraintNumber(0),
-	m_channelNumber(0),
 	m_drawDebug(false),
 	m_lastapplyframe(0.0)
 {
+	m_controlledConstraints = new CListValue();
+	m_poseChannels = new CListValue();
+
 	// Keep a copy of the original armature so we can fix drivers later
 	m_origObjArma = armature;
 	m_objArma = BKE_object_copy(G.main, armature);
@@ -232,14 +233,8 @@ BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
 
 BL_ArmatureObject::~BL_ArmatureObject()
 {
-	BL_ArmatureConstraint *constraint;
-	while ((constraint = m_controlledConstraints.Remove()) != NULL) {
-		delete constraint;
-	}
-	BL_ArmatureChannel *channel;
-	while ((channel = static_cast<BL_ArmatureChannel *>(m_poseChannels.Remove())) != NULL) {
-		delete channel;
-	}
+	m_poseChannels->Release();
+	m_controlledConstraints->Release();
 
 	if (m_objArma) {
 		BKE_libblock_free(G.main, m_objArma->data);
@@ -253,11 +248,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
 void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter *converter)
 {
 	// first delete any existing constraint (should not have any)
-	while (!m_controlledConstraints.Empty()) {
-		BL_ArmatureConstraint *constraint = m_controlledConstraints.Remove();
-		delete constraint;
-	}
-	m_constraintNumber = 0;
+	m_controlledConstraints->ReleaseAndRemoveAll();
 
 	// list all the constraint and convert them to BL_ArmatureConstraint
 	// get the persistent pose structure
@@ -309,111 +300,74 @@ void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter *converter)
 							cti->flush_constraint_targets(pcon, &listb, 1);
 						}
 					}
-					BL_ArmatureConstraint *constraint = new BL_ArmatureConstraint(this, pchan, pcon, gametarget, gamesubtarget);
-					m_controlledConstraints.AddBack(constraint);
-					m_constraintNumber++;
+					BL_ArmatureConstraint* constraint = new BL_ArmatureConstraint(this, pchan, pcon, gametarget, gamesubtarget);
+					m_controlledConstraints->Add(constraint);
 			}
 		}
 	}
 
 	// If we have constraints, make sure we get treated as an "animated" object
-	if (m_constraintNumber > 0) {
+	if (m_controlledConstraints->GetCount() > 0) {
 		GetActionManager();
 	}
 }
 
 size_t BL_ArmatureObject::GetConstraintNumber() const
 {
-	return m_constraintNumber;
+	return m_controlledConstraints->GetCount();
 }
 
 BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(const std::string& posechannel, const std::string& constraintname)
 {
-	SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
-	for (cit.begin(); !cit.end(); ++cit) {
-		BL_ArmatureConstraint *constraint = *cit;
-		if (constraint->Match(posechannel, constraintname)) {
-			return constraint;
-		}
-	}
-	return NULL;
+	return m_controlledConstraints->FindIf<BL_ArmatureConstraint>(
+		[&posechannel, &constraintname](BL_ArmatureConstraint *constraint) { return constraint->Match(posechannel, constraintname); });
 }
 
 BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(const std::string& posechannelconstraint)
 {
-	// performance: use hash string instead of plain string compare
-	SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
-	for (cit.begin(); !cit.end(); ++cit) {
-		BL_ArmatureConstraint *constraint = *cit;
-		if (constraint->GetName() == posechannelconstraint) {
-			return constraint;
-		}
-	}
-	return NULL;
+	return static_cast<BL_ArmatureConstraint *>(m_controlledConstraints->FindValue(posechannelconstraint));
 }
 
 BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(int index)
 {
-	SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
-	for (cit.begin(); !cit.end() && index; ++cit, --index) {; }
-	return (cit.end()) ? NULL : *cit;
+	return static_cast<BL_ArmatureConstraint *>(m_controlledConstraints->GetValue(index));
 }
 
 /* this function is called to populate the m_poseChannels list */
 void BL_ArmatureObject::LoadChannels()
 {
-	if (m_poseChannels.Empty()) {
-		m_channelNumber = 0;
+	if (m_poseChannels->GetCount() == 0) {
 		for (bPoseChannel *pchan = (bPoseChannel *)m_pose->chanbase.first; pchan; pchan = (bPoseChannel *)pchan->next) {
 			BL_ArmatureChannel *proxy = new BL_ArmatureChannel(this, pchan);
-			m_poseChannels.AddBack(proxy);
-			m_channelNumber++;
+			m_poseChannels->Add(proxy);
 		}
 	}
 }
 
 size_t BL_ArmatureObject::GetChannelNumber() const
 {
-	return m_channelNumber;
+	return m_poseChannels->GetCount();
 }
 
 BL_ArmatureChannel *BL_ArmatureObject::GetChannel(bPoseChannel *pchan)
 {
 	LoadChannels();
-	SG_DList::iterator<BL_ArmatureChannel> cit(m_poseChannels);
-	for (cit.begin(); !cit.end(); ++cit)
-	{
-		BL_ArmatureChannel *channel = *cit;
-		if (channel->m_posechannel == pchan) {
-			return channel;
-		}
-	}
-	return NULL;
+	return m_poseChannels->FindIf<BL_ArmatureChannel>([&pchan](BL_ArmatureChannel *channel) { return channel->m_posechannel == pchan; });
 }
 
 BL_ArmatureChannel *BL_ArmatureObject::GetChannel(const std::string& str)
 {
 	LoadChannels();
-	SG_DList::iterator<BL_ArmatureChannel> cit(m_poseChannels);
-	for (cit.begin(); !cit.end(); ++cit)
-	{
-		BL_ArmatureChannel *channel = *cit;
-		if (channel->m_posechannel->name == str) {
-			return channel;
-		}
-	}
-	return NULL;
+	return static_cast<BL_ArmatureChannel *>(m_poseChannels->FindValue(str));
 }
 
 BL_ArmatureChannel *BL_ArmatureObject::GetChannel(int index)
 {
 	LoadChannels();
-	if (index < 0 || index >= m_channelNumber) {
+	if (index < 0 || index >= m_poseChannels->GetCount()) {
 		return NULL;
 	}
-	SG_DList::iterator<BL_ArmatureChannel> cit(m_poseChannels);
-	for (cit.begin(); !cit.end() && index; ++cit, --index) {; }
-	return (cit.end()) ? NULL : *cit;
+	return static_cast<BL_ArmatureChannel *>(m_poseChannels->GetValue(index));
 }
 
 CValue *BL_ArmatureObject::GetReplica()
@@ -426,6 +380,11 @@ CValue *BL_ArmatureObject::GetReplica()
 void BL_ArmatureObject::ProcessReplica()
 {
 	KX_GameObject::ProcessReplica();
+
+	// Replicate each constraints.
+	m_controlledConstraints = static_cast<CListValue *>(m_controlledConstraints->GetReplica());
+	// Share pose channels.
+	m_poseChannels->AddRef();
 
 	bArmature *tmp = (bArmature *)m_objArma->data;
 	m_objArma = BKE_object_copy(G.main, m_objArma);
@@ -440,18 +399,20 @@ int BL_ArmatureObject::GetGameObjectType()
 
 void BL_ArmatureObject::ReParentLogic()
 {
-	SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
-	for (cit.begin(); !cit.end(); ++cit) {
-		(*cit)->ReParent(this);
+	for (CListValue::iterator<BL_ArmatureConstraint> it = m_controlledConstraints->GetBegin(), end = m_controlledConstraints->GetEnd();
+		 it != end; ++it)
+	{
+		(*it)->ReParent(this);
 	}
 	KX_GameObject::ReParentLogic();
 }
 
 void BL_ArmatureObject::Relink(std::map<void *, void *>& obj_map)
 {
-	SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
-	for (cit.begin(); !cit.end(); ++cit) {
-		(*cit)->Relink(obj_map);
+	for (CListValue::iterator<BL_ArmatureConstraint> it = m_controlledConstraints->GetBegin(), end = m_controlledConstraints->GetEnd();
+		 it != end; ++it)
+	{
+		(*it)->Relink(obj_map);
 	}
 	KX_GameObject::Relink(obj_map);
 }
@@ -460,9 +421,10 @@ bool BL_ArmatureObject::UnlinkObject(SCA_IObject *clientobj)
 {
 	// clientobj is being deleted, make sure we don't hold any reference to it
 	bool res = false;
-	SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
-	for (cit.begin(); !cit.end(); ++cit) {
-		res |= (*cit)->UnlinkObject(clientobj);
+	for (CListValue::iterator<BL_ArmatureConstraint> it = m_controlledConstraints->GetBegin(), end = m_controlledConstraints->GetEnd();
+		 it != end; ++it)
+	{
+		res |= (*it)->UnlinkObject(clientobj);
 	}
 	return res;
 }
@@ -476,9 +438,10 @@ void BL_ArmatureObject::ApplyPose()
 	//m_scene->r.cfra++;
 	if (m_lastapplyframe != m_lastframe) {
 		// update the constraint if any, first put them all off so that only the active ones will be updated
-		SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
-		for (cit.begin(); !cit.end(); ++cit) {
-			(*cit)->UpdateTarget();
+		for (CListValue::iterator<BL_ArmatureConstraint> it = m_controlledConstraints->GetBegin(), end = m_controlledConstraints->GetEnd();
+			 it != end; ++it)
+		{
+			(*it)->UpdateTarget();
 		}
 		// update ourself
 		UpdateBlenderObjectMatrix(m_objArma);
@@ -486,8 +449,10 @@ void BL_ArmatureObject::ApplyPose()
 		// restore ourself
 		memcpy(m_objArma->obmat, m_obmat, sizeof(m_obmat));
 		// restore active targets
-		for (cit.begin(); !cit.end(); ++cit) {
-			(*cit)->RestoreTarget();
+		for (CListValue::iterator<BL_ArmatureConstraint> it = m_controlledConstraints->GetBegin(), end = m_controlledConstraints->GetEnd();
+			 it != end; ++it)
+		{
+			(*it)->RestoreTarget();
 		}
 		m_lastapplyframe = m_lastframe;
 	}
@@ -672,58 +637,17 @@ PyAttributeDef BL_ArmatureObject::Attributes[] = {
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
-static int bl_armature_object_get_constraints_size_cb(void *self_v)
-{
-	return ((BL_ArmatureObject *)self_v)->GetConstraintNumber();
-}
-
-static PyObject *bl_armature_object_get_constraints_item_cb(void *self_v, int index)
-{
-	return ((BL_ArmatureObject *)self_v)->GetConstraint(index)->GetProxy();
-}
-
-static const std::string bl_armature_object_get_constraints_item_name_cb(void *self_v, int index)
-{
-	return ((BL_ArmatureObject *)self_v)->GetConstraint(index)->GetName();
-}
-
 PyObject *BL_ArmatureObject::pyattr_get_constraints(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	return (new CListWrapper(self_v,
-	                         ((BL_ArmatureObject *)self_v)->GetProxy(),
-	                         NULL,
-	                         bl_armature_object_get_constraints_size_cb,
-	                         bl_armature_object_get_constraints_item_cb,
-	                         bl_armature_object_get_constraints_item_name_cb,
-	                         NULL))->NewProxy(true);
-}
-
-static int bl_armature_object_get_channels_size_cb(void *self_v)
-{
-	return ((BL_ArmatureObject *)self_v)->GetChannelNumber();
-}
-
-static PyObject *bl_armature_object_get_channels_item_cb(void *self_v, int index)
-{
-	return ((BL_ArmatureObject *)self_v)->GetChannel(index)->GetProxy();
-}
-
-static const std::string bl_armature_object_get_channels_item_name_cb(void *self_v, int index)
-{
-	return ((BL_ArmatureObject *)self_v)->GetChannel(index)->GetName();
+	BL_ArmatureObject *self = static_cast<BL_ArmatureObject *>(self_v);
+	return self->m_controlledConstraints->GetProxy();
 }
 
 PyObject *BL_ArmatureObject::pyattr_get_channels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ArmatureObject *self = static_cast<BL_ArmatureObject *>(self_v);
 	self->LoadChannels(); // make sure we have the channels
-	return (new CListWrapper(self_v,
-	                         self->GetProxy(),
-	                         NULL,
-	                         bl_armature_object_get_channels_size_cb,
-	                         bl_armature_object_get_channels_item_cb,
-	                         bl_armature_object_get_channels_item_name_cb,
-	                         NULL))->NewProxy(true);
+	return self->m_poseChannels->GetProxy();
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(BL_ArmatureObject, update,

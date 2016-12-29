@@ -33,9 +33,7 @@
 #define __BL_ARMATURECHANNEL_H__
 
 #include "DNA_action_types.h"
-#include "EXP_PyObjectPlus.h"
-
-#include "SG_QList.h"
+#include "EXP_Value.h"
 
 class SCA_IObject;
 class KX_GameObject;
@@ -45,7 +43,7 @@ struct bPoseChannel;
 struct Object;
 struct bPose;
 
-class BL_ArmatureChannel : public PyObjectPlus, public SG_QList
+class BL_ArmatureChannel : public CValue
 {
 	// use Py_HeaderPtr since we use generic pointer in proxy
 	Py_HeaderPtr;
@@ -60,7 +58,7 @@ public:
 						struct bPoseChannel *posechannel);
 	virtual ~BL_ArmatureChannel();
 
-	inline const char *GetName()
+	virtual std::string GetName()
 	{
 		return m_posechannel->name;
 	}

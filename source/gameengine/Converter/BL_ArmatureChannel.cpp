@@ -82,7 +82,7 @@ PyObject *BL_ArmatureChannel::NewProxy(bool py_owns)
 BL_ArmatureChannel::BL_ArmatureChannel(
 	BL_ArmatureObject *armature, 
 	bPoseChannel *posechannel)
-	: PyObjectPlus(), m_posechannel(posechannel), m_armature(armature)
+	:m_posechannel(posechannel), m_armature(armature)
 {
 }
 

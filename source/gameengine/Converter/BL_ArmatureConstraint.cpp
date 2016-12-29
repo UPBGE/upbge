@@ -75,7 +75,7 @@ BL_ArmatureConstraint::BL_ArmatureConstraint(
 	bConstraint *constraint, 
 	KX_GameObject* target,
 	KX_GameObject* subtarget)
-	: PyObjectPlus(), m_constraint(constraint), m_posechannel(posechannel), m_armature(armature)
+	:m_constraint(constraint), m_posechannel(posechannel), m_armature(armature)
 {
 	m_target = target;
 	m_blendtarget = (target) ? target->GetBlenderObject() : NULL;
@@ -107,10 +107,11 @@ BL_ArmatureConstraint::~BL_ArmatureConstraint()
 		m_subtarget->UnregisterObject(m_armature);
 }
 
-BL_ArmatureConstraint* BL_ArmatureConstraint::GetReplica() const
+CValue *BL_ArmatureConstraint::GetReplica()
 {
-	BL_ArmatureConstraint* replica = new BL_ArmatureConstraint(*this);
+	BL_ArmatureConstraint *replica = new BL_ArmatureConstraint(*this);
 	replica->ProcessReplica();
+
 	return replica;
 }
 

@@ -50,9 +50,9 @@ class BL_ArmatureObject : public KX_GameObject
 
 protected:
 	/* list element: BL_ArmatureConstraint. Use SG_DListHead to have automatic list replication */
-	SG_DListHead<BL_ArmatureConstraint>  m_controlledConstraints;
+	CListValue *m_controlledConstraints;
 	/* list element: BL_ArmatureChannel. Use SG_DList to avoid list replication */
-	SG_DList m_poseChannels;
+	CListValue *m_poseChannels;
 	Object *m_objArma;
 	Object *m_origObjArma;
 	bPose *m_pose;

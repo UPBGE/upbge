@@ -33,9 +33,8 @@
 #define __BL_ARMATURECONSTRAINT_H__
 
 #include "DNA_constraint_types.h"
-#include "EXP_PyObjectPlus.h"
+#include "EXP_Value.h"
 
-#include "SG_QList.h"
 #include <map>
 
 class SCA_IObject;
@@ -46,12 +45,7 @@ struct bPoseChannel;
 struct Object;
 struct bPose;
 
-/**
- * SG_DList : element of controlled constraint list 
- *            head = BL_ArmatureObject::m_controlledConstraints
- * SG_QList : not used
- */
-class BL_ArmatureConstraint : public PyObjectPlus, public SG_QList
+class BL_ArmatureConstraint : public CValue
 {
 	Py_Header
 
@@ -77,7 +71,7 @@ public:
 						KX_GameObject* subtarget);
 	virtual ~BL_ArmatureConstraint();
 
-	BL_ArmatureConstraint* GetReplica() const;
+	virtual CValue *GetReplica();
 	void ReParent(BL_ArmatureObject* armature);
 	void Relink(std::map<void *, void *>& map);
 	bool UnlinkObject(SCA_IObject* clientobj);
@@ -86,7 +80,7 @@ public:
 	void RestoreTarget();
 
 	bool Match(const std::string& posechannel, const std::string& constraint);
-	const std::string& GetName() { return m_name; }
+	virtual std::string GetName() { return m_name; }
 
 	void SetConstraintFlag(int flag)
 	{
