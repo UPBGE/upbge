@@ -76,11 +76,9 @@ public:
 		setBasis(m);
 	}
 
-	static MT_Transform Identity()
+	static const MT_Transform& Identity()
 	{
-		MT_Transform t;
-		t.setIdentity();
-		return t;
+		return identity;
 	}
 
 
@@ -168,6 +166,8 @@ private:
     MT_Matrix3x3 m_basis;
     MT_Vector3   m_origin;
     unsigned int m_type;
+
+	static const MT_Transform identity;
 };
 
 inline MT_Transform operator*(const MT_Transform& t1, const MT_Transform& t2) {

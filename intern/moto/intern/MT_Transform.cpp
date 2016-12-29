@@ -53,6 +53,11 @@
 
 #include "MT_Transform.h"
 
+const MT_Transform MT_Transform::identity = MT_Transform(MT_Vector3(0.0f, 0.0f, 0.0f),
+														 MT_Matrix3x3(1.0f, 0.0f, 0.0f,
+																	  0.0f, 1.0f, 0.0f,
+																	  0.0f, 0.0f, 1.0f));
+
 void MT_Transform::setValue(const float *m) {
     m_basis.setValue(m);
     m_origin.setValue(&m[12]);

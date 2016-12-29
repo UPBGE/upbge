@@ -189,11 +189,9 @@ public:
                             m_el[2][0] * x, m_el[2][1] * y, m_el[2][2] * z);
     }
     
-	static MT_Matrix3x3 Identity()
+	static const MT_Matrix3x3& Identity()
 	{
-		MT_Matrix3x3 mat;
-		mat.setIdentity();
-		return mat;
+		return identity;
 	}
 
     void setIdentity() { 
@@ -242,6 +240,8 @@ public:
 protected:
 
     MT_Vector3 m_el[3];
+
+	static const MT_Matrix3x3 identity;
 };
 
 MT_Vector3   operator*(const MT_Matrix3x3& m, const MT_Vector3& v);
