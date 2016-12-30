@@ -61,6 +61,9 @@ extern "C" {
 
 #include "CM_Message.h"
 
+#include <sstream>
+#include <fstream>
+
 /* prototype */
 void BL_ConvertTextProperty(Object* object, KX_FontObject* fontobj,SCA_TimeEventManager* timemgr,SCA_IScene* scene, bool isInActiveLayer);
 
@@ -184,62 +187,66 @@ void BL_ConvertTextProperty(Object* object, KX_FontObject* fontobj,SCA_TimeEvent
 
 	Curve *curve = static_cast<Curve *>(object->data);
 	std::string str = curve->str;
+	std::stringstream stream;
+	stream << str;
 	CValue* propval = NULL;
 
 	switch (prop->type) {
 		case GPROP_BOOL:
 		{
-			int value = std::stoi(str);
-			propval = new CBoolValue((bool)(value != 0));
-			tprop->SetValue(propval);
+			bool value;
+			stream >> value;
+			propval = new CBoolValue(value != 0);
 			break;
 		}
 		case GPROP_INT:
 		{
-			int value = std::stoi(str);
+			int value;
+			stream >> value;
 			propval = new CIntValue(value);
-			tprop->SetValue(propval);
 			break;
 		}
 		case GPROP_FLOAT:
 		{
-			float floatprop = std::stof(str);
+			float floatprop;
+			stream >> floatprop;
 			propval = new CFloatValue(floatprop);
-			tprop->SetValue(propval);
 			break;
 		}
 		case GPROP_STRING:
 		{
 			propval = new CStringValue(str, "");
-			tprop->SetValue(propval);
 			break;
 		}
 		case GPROP_TIME:
 		{
-			float floatprop = std::stof(str);
+			float floatprop;
+			stream >> floatprop;
 
-			CValue* timeval = new CFloatValue(floatprop);
+			propval = new CFloatValue(floatprop);
 			// set a subproperty called 'timer' so that
 			// we can register the replica of this property
 			// at the time a game object is replicated (AddObjectActuator triggers this)
 			CValue *bval = new CBoolValue(true);
-			timeval->SetProperty("timer",bval);
+			propval->SetProperty("timer",bval);
 			bval->Release();
 			if (isInActiveLayer)
 			{
-				timemgr->AddTimeProperty(timeval);
+				timemgr->AddTimeProperty(propval);
 			}
-
-			propval = timeval;
-			tprop->SetValue(timeval);
 		}
 		default:
 		{
-			// todo make an assert etc.
+			BLI_assert(0);
 		}
 	}
 
+	if (stream.fail() || stream.bad()) {
+		CM_Error("failed convert font property \"Text\"");
+	}
+
 	if (propval) {
+		tprop->SetValue(propval);
 		propval->Release();
 	}
 }
