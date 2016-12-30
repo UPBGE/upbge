@@ -87,9 +87,9 @@ inline bool KX_LodManager::LodLevelIterator::operator<=(float distance2) const
 	return SQUARE(m_levels[m_index + 1]->GetDistance() + GetHysteresis(m_index + 1)) <= distance2;
 }
 
-inline bool KX_LodManager::LodLevelIterator::operator>=(float distance2) const
+inline bool KX_LodManager::LodLevelIterator::operator>(float distance2) const
 {
-	return SQUARE(m_levels[m_index]->GetDistance() - GetHysteresis(m_index)) >= distance2;
+	return SQUARE(m_levels[m_index]->GetDistance() - GetHysteresis(m_index)) > distance2;
 }
 
 KX_LodManager::KX_LodManager(Object *ob, KX_Scene* scene, KX_BlenderSceneConverter* converter, bool libloading)
@@ -154,7 +154,7 @@ KX_LodLevel *KX_LodManager::GetLevel(KX_Scene *scene, short previouslod, float d
 		if (it <= distance2) {
 			++it;
 		}
-		else if (it >= distance2) {
+		else if (it > distance2) {
 			--it;
 		}
 		else {

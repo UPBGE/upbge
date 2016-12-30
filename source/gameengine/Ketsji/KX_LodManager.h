@@ -61,7 +61,7 @@ private:
 		/// Compare next level distance more hysteresis with current distance.
 		bool operator<=(float distance2) const;
 		/// Compare the current lod level distance less hysteresis with current distance.
-		bool operator>=(float distance2) const;
+		bool operator>(float distance2) const;
 	};
 
 	std::vector<KX_LodLevel *> m_levels;
