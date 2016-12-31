@@ -1841,6 +1841,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 					if (tex && tex->Ok() && tex->IsCubeMap() && tex->GetTex()->env->stype == ENV_REALT) {
 						EnvMap *env = tex->GetTex()->env;
 						KX_GameObject *viewpoint = gameobj;
+						gameobj->SetIsCubeMapObj(true);
 
 						if (env->object) {
 							KX_GameObject *obj = converter->FindGameObject(env->object);
@@ -1849,7 +1850,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							}
 						}
 
-						kxscene->GetCubeMapManager()->AddCubeMap(tex, viewpoint);
+						kxscene->GetCubeMapManager()->AddCubeMap(tex, viewpoint, gameobj);
 					}
 				}
 			}

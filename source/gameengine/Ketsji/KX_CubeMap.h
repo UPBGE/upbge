@@ -44,6 +44,9 @@ private:
 	/// The object used to render from its position.
 	KX_GameObject *m_viewpointObject;
 
+	/// Object which has the cubemap texture
+	KX_GameObject *m_cubeMapObject;
+
 	/// The camera projection matrix depending on clip start/end.
 	MT_Matrix4x4 m_projection;
 
@@ -71,7 +74,7 @@ private:
 	bool m_forceUpdate;
 
 public:
-	KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint);
+	KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint, KX_GameObject *cubemapobj);
 	virtual ~KX_CubeMap();
 
 	virtual std::string GetName();
@@ -94,6 +97,8 @@ public:
 
 	bool GetEnabled() const;
 	int GetIgnoreLayers() const;
+
+	KX_GameObject *GetGameObject();
 
 	// Return true when this cube map need to be updated.
 	bool NeedUpdate();

@@ -868,7 +868,9 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			raslight->BindShadowBuffer(m_canvas, cam, camtrans);
 
 			/* update scene */
+			m_rasterizer->SetRenderingShadows(true);
 			scene->CalculateVisibleMeshes(m_rasterizer, cam, raslight->GetShadowLayer());
+			m_rasterizer->SetRenderingShadows(false);
 
 			m_logger->StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
 			SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
