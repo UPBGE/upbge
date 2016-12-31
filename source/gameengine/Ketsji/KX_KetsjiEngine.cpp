@@ -540,7 +540,8 @@ void KX_KetsjiEngine::Render()
 
 	for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
 		KX_Scene *scene = *sceit;
-		// shadow buffers
+
+		// shadows
 		RenderShadowBuffers(scene);
 		// cubemaps
 		scene->RenderCubeMaps(m_rasterizer);

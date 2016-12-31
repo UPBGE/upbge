@@ -1461,15 +1461,31 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 			MarkVisible(rasty, static_cast<KX_GameObject*>(m_objectlist->GetValue(i)), cam, layer);
 		}
 	}
-	if (rasty->GetRenderingShadows()) {
-		std::vector<KX_CubeMap *>cubeMaps = m_cubeMapManager->GetCubeMaps();
-		if (cubeMaps.size() > 0) {
-			for (std::vector<KX_CubeMap *>::iterator it = cubeMaps.begin(); it != cubeMaps.end();) {
-				KX_CubeMap *cubeMap = *it;
-				KX_GameObject *gameobj = cubeMap->GetGameObject();
-				gameobj->SetCulled(previousCullingState);
-				++it;
+	
+	std::vector<KX_CubeMap *>cubeMaps = m_cubeMapManager->GetCubeMaps();
+	if (cubeMaps.size() > 0) {
+		for (std::vector<KX_CubeMap *>::iterator it = cubeMaps.begin(); it != cubeMaps.end();) {
+			KX_CubeMap *cubeMap = *it;
+			std::vector<KX_GameObject *>cubeMapUsers = cubeMap->GetGameObjectsUsers();
+			if (cubeMapUsers.size() > 1) {
+				for (std::vector<KX_GameObject *>::const_iterator it1 = cubeMap->GetGameObjectsUsers().begin(); it1 != cubeMap->GetGameObjectsUsers().end();) {
+					KX_GameObject *go1 = *it1;
+					if (!go1->GetCulled()) {
+						for (std::vector<KX_GameObject *>::const_iterator it2 = cubeMap->GetGameObjectsUsers().begin(); it2 != cubeMap->GetGameObjectsUsers().end();) {
+							KX_GameObject *go2 = *it2;
+							go2->SetCulled(false);
+							it2++;
+						}
+						break;
+					}
+					it1++;
+				}
 			}
+			if (rasty->GetRenderingShadows()) {
+				KX_GameObject *go3 = cubeMap->GetGameObject();
+				go3->SetCulled(previousCullingState);
+			}
+			it++;
 		}
 	}
 }

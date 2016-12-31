@@ -47,6 +47,8 @@ private:
 	/// Object which has the cubemap texture
 	KX_GameObject *m_cubeMapObject;
 
+	std::vector<KX_GameObject *>m_gameObjUsers;
+
 	/// The camera projection matrix depending on clip start/end.
 	MT_Matrix4x4 m_projection;
 
@@ -94,6 +96,9 @@ public:
 	bool GetInvalidProjectionMatrix() const;
 	void SetProjectionMatrix(const MT_Matrix4x4& projection);
 	const MT_Matrix4x4& GetProjectionMatrix() const;
+
+	void AddGameObjectUser(KX_GameObject *gameobj);
+	const std::vector<KX_GameObject *>& GetGameObjectsUsers() const;
 
 	bool GetEnabled() const;
 	int GetIgnoreLayers() const;

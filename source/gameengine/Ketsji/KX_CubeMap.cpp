@@ -41,7 +41,8 @@ KX_CubeMap::KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint, KX_GameObject *cub
 	m_lodDistanceFactor(1.0),
 	m_autoUpdate(true),
 	m_forceUpdate(true),
-	m_cubeMapObject(cubemapobj)
+	m_cubeMapObject(cubemapobj),
+	m_gameObjUsers(NULL)
 {
 	m_autoUpdate = (env->flag & ENVMAP_AUTO_UPDATE) != 0;
 }
@@ -136,6 +137,16 @@ bool KX_CubeMap::NeedUpdate()
 KX_GameObject *KX_CubeMap::GetGameObject()
 {
 	return m_cubeMapObject;
+}
+
+const std::vector<KX_GameObject *>& KX_CubeMap::GetGameObjectsUsers() const
+{
+	return m_gameObjUsers;
+}
+
+void KX_CubeMap::AddGameObjectUser(KX_GameObject *gameobj)
+{
+	m_gameObjUsers.push_back(gameobj);
 }
 
 #ifdef WITH_PYTHON

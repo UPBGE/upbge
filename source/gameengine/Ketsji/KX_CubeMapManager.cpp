@@ -62,6 +62,7 @@ void KX_CubeMapManager::AddCubeMap(RAS_Texture *texture, KX_GameObject *viewpoin
 		for (std::vector<RAS_Texture *>::const_iterator it = textures.begin(), end = textures.end(); it != end; ++it) {
 			if ((*it)->GetTex() == texture->GetTex()) {
 				cubeMap->AddTextureUser(texture);
+				cubeMap->AddGameObjectUser(cubeMap->GetGameObject());
 				return;
 			}
 		}
@@ -70,6 +71,7 @@ void KX_CubeMapManager::AddCubeMap(RAS_Texture *texture, KX_GameObject *viewpoin
 	EnvMap *env = texture->GetTex()->env;
 	KX_CubeMap *cubeMap = new KX_CubeMap(env, viewpoint, cubemapobj);
 	cubeMap->AddTextureUser(texture);
+	cubeMap->AddGameObjectUser(cubeMap->GetGameObject());
 	texture->SetCubeMap(cubeMap);
 	m_cubeMaps.push_back(cubeMap);
 }
