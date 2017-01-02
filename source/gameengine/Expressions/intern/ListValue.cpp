@@ -33,31 +33,26 @@
 //////////////////////////////////////////////////////////////////////
 
 CListValue::CListValue()
-: CPropValue()
+	:CPropValue(),
+	m_bReleaseContents(true)
 {
-	m_bReleaseContents=true;
 }
-
-
 
 CListValue::~CListValue()
 {
-
 	if (m_bReleaseContents) {
-		for (unsigned int i=0;i<m_pValueArray.size();i++) {
+		for (unsigned int i = 0; i < m_pValueArray.size(); i++) {
 			m_pValueArray[i]->Release();
 		}
 	}
 }
-
 
 const std::string CListValue::GetText()
 {
 	std::string strListRep = "[";
 	std::string commastr = "";
 
-	for (int i=0;i<GetCount();i++)
-	{
+	for (int i = 0; i < GetCount(); i++) {
 		strListRep += commastr;
 		strListRep += GetValue(i)->GetText();
 		commastr = ",";
@@ -67,32 +62,34 @@ const std::string CListValue::GetText()
 	return strListRep;
 }
 
-
-
-CValue* CListValue::GetReplica()
+CValue *CListValue::GetReplica()
 {
-	CListValue* replica = new CListValue(*this);
+	CListValue *replica = new CListValue(*this);
 
 	replica->ProcessReplica();
 
-	replica->m_bReleaseContents=true; // for copy, complete array is copied for now...
+	replica->m_bReleaseContents = true; // for copy, complete array is copied for now...
 	// copy all values
 	int numelements = m_pValueArray.size();
-	unsigned int i=0;
+	unsigned int i = 0;
 	replica->m_pValueArray.resize(numelements);
-	for (i=0;i<m_pValueArray.size();i++)
+	for (i = 0; i < m_pValueArray.size(); i++) {
 		replica->m_pValueArray[i] = m_pValueArray[i]->GetReplica();
-
+	}
 
 	return replica;
-};
-
-
+}
 
 void CListValue::SetValue(int i, CValue *val)
 {
 	BLI_assert(i < m_pValueArray.size());
-	m_pValueArray[i]=val;
+	m_pValueArray[i] = val;
+}
+
+CValue *CListValue::GetValue(int i)
+{
+	BLI_assert(i < m_pValueArray.size());
+	return m_pValueArray[i];
 }
 
 CValue *CListValue::GetFront()
@@ -103,6 +100,11 @@ CValue *CListValue::GetFront()
 CValue *CListValue::GetBack()
 {
 	return m_pValueArray.back();
+}
+
+int CListValue::GetCount()
+{
+	return m_pValueArray.size();
 }
 
 CListValue::baseIterator CListValue::GetBegin()
@@ -120,65 +122,58 @@ void CListValue::Resize(int num)
 	m_pValueArray.resize(num);
 }
 
-
-
 void CListValue::Remove(int i)
 {
-	BLI_assert(i<m_pValueArray.size());
-	m_pValueArray.erase(m_pValueArray.begin()+i);
+	BLI_assert(i < m_pValueArray.size());
+	m_pValueArray.erase(m_pValueArray.begin() + i);
 }
-
-
 
 void CListValue::ReleaseAndRemoveAll()
 {
-	for (unsigned int i=0;i<m_pValueArray.size();i++)
+	for (unsigned int i = 0; i < m_pValueArray.size(); i++) {
 		m_pValueArray[i]->Release();
-	m_pValueArray.clear();//.Clear();
+	}
+	m_pValueArray.clear();
 }
 
-
-
-CValue* CListValue::FindValue(const std::string &name)
+CValue *CListValue::FindValue(const std::string &name)
 {
-	for (int i=0; i < GetCount(); i++)
-		if (GetValue(i)->GetName() == name)
+	for (int i = 0; i < GetCount(); i++) {
+		if (GetValue(i)->GetName() == name) {
 			return GetValue(i);
+		}
+	}
 
 	return NULL;
 }
 
 bool CListValue::SearchValue(CValue *val)
 {
-	for (int i=0;i<GetCount();i++)
-		if (val == GetValue(i))
+	for (int i = 0; i < GetCount(); i++) {
+		if (val == GetValue(i)) {
 			return true;
+		}
+	}
 	return false;
 }
-
-
 
 void CListValue::SetReleaseOnDestruct(bool bReleaseContents)
 {
 	m_bReleaseContents = bReleaseContents;
 }
 
-
-
 bool CListValue::RemoveValue(CValue *val)
 {
-	bool result=false;
+	bool result = false;
 
-	for (int i=GetCount()-1;i>=0;i--)
-		if (val == GetValue(i))
-		{
+	for (int i = GetCount() - 1; i >= 0; i--) {
+		if (val == GetValue(i)) {
 			Remove(i);
-			result=true;
+			result = true;
 		}
+	}
 	return result;
 }
-
-
 
 void CListValue::MergeList(CListValue *otherlist)
 {
@@ -187,43 +182,36 @@ void CListValue::MergeList(CListValue *otherlist)
 	int numotherelements = otherlist->GetCount();
 
 
-	Resize(numelements+numotherelements);
+	Resize(numelements + numotherelements);
 
-	for (int i=0;i<numotherelements;i++)
-	{
-		SetValue(i+numelements,otherlist->GetValue(i)->AddRef());
+	for (int i = 0; i < numotherelements; i++) {
+		SetValue(i + numelements, otherlist->GetValue(i)->AddRef());
 	}
 }
 
-bool CListValue::CheckEqual(CValue* first,CValue* second)
+bool CListValue::CheckEqual(CValue *first, CValue *second)
 {
 	bool result = false;
 
-	CValue* eqval =  ((CValue*)first)->Calc(VALUE_EQL_OPERATOR,(CValue*)second);
+	CValue *eqval =  ((CValue *)first)->Calc(VALUE_EQL_OPERATOR, (CValue *)second);
 
-	if (eqval==NULL)
+	if (eqval == NULL) {
 		return false;
+	}
 	const std::string& text = eqval->GetText();
-	if (text == CBoolValue::sTrueString)
-	{
+	if (text == CBoolValue::sTrueString) {
 		result = true;
 	}
 	eqval->Release();
 	return result;
-
 }
 
-
-/* ---------------------------------------------------------------------
- * Some stuff taken from the header
- * --------------------------------------------------------------------- */
-
-void CListValue::Add(CValue* value)
+void CListValue::Add(CValue *value)
 {
 	m_pValueArray.push_back(value);
 }
 
-void CListValue::Insert(unsigned int i, CValue* value)
+void CListValue::Insert(unsigned int i, CValue *value)
 {
 	m_pValueArray.insert(m_pValueArray.begin() + i, value);
 }
@@ -233,26 +221,24 @@ int CListValue::GetValueType()
 	return VALUE_LIST_TYPE;
 }
 
-
-
 void CListValue::SetModified(bool bModified)
 {
 	CValue::SetModified(bModified);
 	int numels = GetCount();
 
-	for (int i=0;i<numels;i++)
+	for (int i = 0; i < numels; i++) {
 		GetValue(i)->SetModified(bModified);
+	}
 }
-
-
 
 bool CListValue::IsModified()
 {
 	bool bmod = CValue::IsModified(); //normal own flag
 	int numels = GetCount();
 
-	for (int i=0;i<numels;i++)
+	for (int i = 0; i < numels; i++) {
 		bmod = bmod || GetValue(i)->IsModified();
+	}
 
 	return bmod;
 }
@@ -265,62 +251,55 @@ bool CListValue::IsModified()
 
 static Py_ssize_t listvalue_bufferlen(PyObject *self)
 {
-	CListValue *list= static_cast<CListValue *>(BGE_PROXY_REF(self));
-	if (list==NULL)
+	CListValue *list = static_cast<CListValue *>(BGE_PROXY_REF(self));
+	if (list == NULL) {
 		return 0;
-	
+	}
+
 	return (Py_ssize_t)list->GetCount();
 }
 
 static PyObject *listvalue_buffer_item(PyObject *self, Py_ssize_t index)
 {
-	CListValue *list= static_cast<CListValue *>(BGE_PROXY_REF(self));
-	CValue *cval;
-	
-	if (list==NULL) {
+	CListValue *list = static_cast<CListValue *>(BGE_PROXY_REF(self));
+
+	if (list == NULL) {
 		PyErr_SetString(PyExc_SystemError, "val = CList[i], " BGE_PROXY_ERROR_MSG);
 		return NULL;
 	}
-	
+
 	int count = list->GetCount();
-	
-	if (index < 0)
-		index = count+index;
-	
+
+	if (index < 0) {
+		index = count + index;
+	}
+
 	if (index < 0 || index >= count) {
 		PyErr_SetString(PyExc_IndexError, "CList[i]: Python ListIndex out of range in CValueList");
 		return NULL;
 	}
-	
-	cval= list->GetValue(index);
-	
+
+	CValue *cval = list->GetValue(index);
+
 	PyObject *pyobj = cval->ConvertValueToPython();
-	if (pyobj)
+	if (pyobj) {
 		return pyobj;
-	else
+	}
+	else {
 		return cval->GetProxy();
+	}
 }
 
 
 /* just slice it into a python list... */
 static PyObject *listvalue_buffer_slice(CListValue *list, Py_ssize_t start, Py_ssize_t stop)
 {
-	PyObject *newlist;
-	Py_ssize_t i, j;
-
-	/* caller needs to validate negative index */
-#if 0
-	Py_ssize_t len = list->GetCount();
-
-	if (start > len) start = len;
-	if (stop  > len) stop  = len;
-#endif
-
-	newlist = PyList_New(stop - start);
-	if (!newlist)
+	PyObject *newlist = PyList_New(stop - start);
+	if (!newlist) {
 		return NULL;
+	}
 
-	for (i = start, j = 0; i < stop; i++, j++) {
+	for (Py_ssize_t i = start, j = 0; i < stop; i++, j++) {
 		PyObject *pyobj = list->GetValue(i)->ConvertValueToPython();
 		if (!pyobj) {
 			pyobj = list->GetValue(i)->GetProxy();
@@ -333,20 +312,22 @@ static PyObject *listvalue_buffer_slice(CListValue *list, Py_ssize_t start, Py_s
 
 static PyObject *listvalue_mapping_subscript(PyObject *self, PyObject *key)
 {
-	CListValue *list= static_cast<CListValue *>(BGE_PROXY_REF(self));
-	if (list==NULL) {
+	CListValue *list = static_cast<CListValue *>(BGE_PROXY_REF(self));
+	if (list == NULL) {
 		PyErr_SetString(PyExc_SystemError, "value = CList[i], " BGE_PROXY_ERROR_MSG);
 		return NULL;
 	}
-	
+
 	if (PyUnicode_Check(key)) {
-		CValue *item = ((CListValue*) list)->FindValue(_PyUnicode_AsString(key));
+		CValue *item = ((CListValue *)list)->FindValue(_PyUnicode_AsString(key));
 		if (item) {
 			PyObject *pyobj = item->ConvertValueToPython();
-			if (pyobj)
+			if (pyobj) {
 				return pyobj;
-			else
+			}
+			else {
 				return item->GetProxy();
+			}
 		}
 	}
 	else if (PyIndex_Check(key)) {
@@ -356,8 +337,9 @@ static PyObject *listvalue_mapping_subscript(PyObject *self, PyObject *key)
 	else if (PySlice_Check(key)) {
 		Py_ssize_t start, stop, step, slicelength;
 
-		if (PySlice_GetIndicesEx(key, list->GetCount(), &start, &stop, &step, &slicelength) < 0)
+		if (PySlice_GetIndicesEx(key, list->GetCount(), &start, &stop, &step, &slicelength) < 0) {
 			return NULL;
+		}
 
 		if (slicelength <= 0) {
 			return PyList_New(0);
@@ -371,114 +353,105 @@ static PyObject *listvalue_mapping_subscript(PyObject *self, PyObject *key)
 		}
 	}
 
-	PyErr_Format(PyExc_KeyError,
-	             "CList[key]: '%R' key not in list", key);
+	PyErr_Format(PyExc_KeyError, "CList[key]: '%R' key not in list", key);
 	return NULL;
 }
 
 /* clist + list, return a list that python owns */
 static PyObject *listvalue_buffer_concat(PyObject *self, PyObject *other)
 {
-	CListValue *listval= static_cast<CListValue *>(BGE_PROXY_REF(self));
-	Py_ssize_t i, numitems, numitems_orig;
-	
-	if (listval==NULL) {
+	CListValue *listval = static_cast<CListValue *>(BGE_PROXY_REF(self));
+
+	if (listval == NULL) {
 		PyErr_SetString(PyExc_SystemError, "CList+other, " BGE_PROXY_ERROR_MSG);
 		return NULL;
 	}
-	
-	numitems_orig= listval->GetCount();
-	
+
+	Py_ssize_t numitems_orig = listval->GetCount();
+
 	// for now, we support CListValue concatenated with items
 	// and CListValue concatenated to Python Lists
 	// and CListValue concatenated with another CListValue
-	
+
 	/* Shallow copy, don't use listval->GetReplica(), it will screw up with KX_GameObjects */
-	CListValue* listval_new = new CListValue();
-	
-	if (PyList_Check(other))
-	{
-		CValue* listitemval;
-		bool error = false;
-		
-		numitems = PyList_GET_SIZE(other);
-		
+	CListValue *listval_new = new CListValue();
+
+	if (PyList_Check(other)) {
+		Py_ssize_t numitems = PyList_GET_SIZE(other);
+
 		/* copy the first part of the list */
 		listval_new->Resize(numitems_orig + numitems);
-		for (i=0;i<numitems_orig;i++)
+		for (Py_ssize_t i = 0; i < numitems_orig; i++) {
 			listval_new->SetValue(i, listval->GetValue(i)->AddRef());
-		
-		for (i=0;i<numitems;i++)
-		{
-			listitemval = listval->ConvertPythonToValue(PyList_GET_ITEM(other, i), true, "cList + pyList: CListValue, ");
-			
+		}
+
+		for (Py_ssize_t i = 0; i < numitems; i++) {
+			CValue *listitemval = listval->ConvertPythonToValue(PyList_GET_ITEM(other, i), true, "cList + pyList: CListValue, ");
+
 			if (listitemval) {
-				listval_new->SetValue(i+numitems_orig, listitemval);
-			} else {
-				error= true;
-				break;
+				listval_new->SetValue(i + numitems_orig, listitemval);
+			}
+			else {
+				listval_new->Resize(numitems_orig + i); // Resize so we don't try release NULL pointers.
+				listval_new->Release();
+				return NULL; // ConvertPythonToValue above sets the error.
 			}
 		}
-		
-		if (error) {
-			listval_new->Resize(numitems_orig+i); /* resize so we don't try release NULL pointers */
-			listval_new->Release();
-			return NULL; /* ConvertPythonToValue above sets the error */ 
-		}
-	
 	}
 	else if (PyObject_TypeCheck(other, &CListValue::Type)) {
 		// add items from otherlist to this list
-		CListValue* otherval = static_cast<CListValue *>(BGE_PROXY_REF(other));
-		if (otherval==NULL) {
+		CListValue *otherval = static_cast<CListValue *>(BGE_PROXY_REF(other));
+		if (otherval == NULL) {
 			listval_new->Release();
 			PyErr_SetString(PyExc_SystemError, "CList+other, " BGE_PROXY_ERROR_MSG);
 			return NULL;
 		}
-		
-		numitems = otherval->GetCount();
-		
-		/* copy the first part of the list */
-		listval_new->Resize(numitems_orig + numitems); /* resize so we don't try release NULL pointers */
-		for (i=0;i<numitems_orig;i++)
+
+		Py_ssize_t numitems = otherval->GetCount();
+
+		// Copy the first part of the list.
+		// listval_new->Resize(numitems_orig + numitems); // Resize so we don't try release NULL pointers.
+		for (Py_ssize_t i = 0; i < numitems_orig; i++) {
 			listval_new->SetValue(i, listval->GetValue(i)->AddRef());
-		
-		/* now copy the other part of the list */
-		for (i=0;i<numitems;i++)
-			listval_new->SetValue(i+numitems_orig, otherval->GetValue(i)->AddRef());
-		
+		}
+
+		// Now copy the other part of the list.
+		for (Py_ssize_t i = 0; i < numitems; i++) {
+			listval_new->SetValue(i + numitems_orig, otherval->GetValue(i)->AddRef());
+		}
+
 	}
-	return listval_new->NewProxy(true); /* python owns this list */
+	return listval_new->NewProxy(true); // Python owns this list.
 }
 
 static int listvalue_buffer_contains(PyObject *self_v, PyObject *value)
 {
 	CListValue *self = static_cast<CListValue *>(BGE_PROXY_REF(self_v));
-	
+
 	if (self == NULL) {
 		PyErr_SetString(PyExc_SystemError, "val in CList, " BGE_PROXY_ERROR_MSG);
 		return -1;
 	}
-	
+
 	if (PyUnicode_Check(value)) {
 		if (self->FindValue(_PyUnicode_AsString(value))) {
 			return 1;
 		}
 	}
-	else if (PyObject_TypeCheck(value, &CValue::Type)) { /* not dict like at all but this worked before __contains__ was used */
-		CValue *item= static_cast<CValue *>(BGE_PROXY_REF(value));
-		for (int i=0; i < self->GetCount(); i++)
-			if (self->GetValue(i) == item) // Com
+	else if (PyObject_TypeCheck(value, &CValue::Type)) { // not dict like at all but this worked before __contains__ was used.
+		CValue *item = static_cast<CValue *>(BGE_PROXY_REF(value));
+		for (int i = 0; i < self->GetCount(); i++) {
+			if (self->GetValue(i) == item) {
 				return 1;
-		
-	} // not using CheckEqual
-	
+			}
+		}
+	}
+
 	return 0;
 }
 
-
-static  PySequenceMethods listvalue_as_sequence = {
-	listvalue_bufferlen,//(inquiry)buffer_length, /*sq_length*/
+static PySequenceMethods listvalue_as_sequence = {
+	listvalue_bufferlen, //(inquiry)buffer_length, /*sq_length*/
 	listvalue_buffer_concat, /*sq_concat*/
 	NULL, /*sq_repeat*/
 	listvalue_buffer_item, /*sq_item*/
@@ -486,83 +459,80 @@ static  PySequenceMethods listvalue_as_sequence = {
 	NULL, // listvalue_buffer_slice, /*sq_slice*/
 	NULL, /*sq_ass_item*/
 	NULL, /*sq_ass_slice*/
-	(objobjproc)listvalue_buffer_contains,	/* sq_contains */
-	(binaryfunc) NULL, /* sq_inplace_concat */
-	(ssizeargfunc) NULL, /* sq_inplace_repeat */
+	(objobjproc)listvalue_buffer_contains,  /* sq_contains */
+	(binaryfunc)NULL,  /* sq_inplace_concat */
+	(ssizeargfunc)NULL,  /* sq_inplace_repeat */
 };
 
-
-
-/* Is this one used ? */
-static  PyMappingMethods instance_as_mapping = {
+// Is this one used ?
+static PyMappingMethods instance_as_mapping = {
 	listvalue_bufferlen, /*mp_length*/
 	listvalue_mapping_subscript, /*mp_subscript*/
 	NULL /*mp_ass_subscript*/
 };
 
-
-
 PyTypeObject CListValue::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	"CListValue",			/*tp_name*/
+	"CListValue",           /*tp_name*/
 	sizeof(PyObjectPlus_Proxy), /*tp_basicsize*/
-	0,				/*tp_itemsize*/
+	0,              /*tp_itemsize*/
 	/* methods */
-	py_base_dealloc,			/*tp_dealloc*/
-	0,				/*tp_print*/
-	0, 			/*tp_getattr*/
-	0, 			/*tp_setattr*/
-	0,			/*tp_compare*/
+	py_base_dealloc,            /*tp_dealloc*/
+	0,              /*tp_print*/
+	0,          /*tp_getattr*/
+	0,          /*tp_setattr*/
+	0,          /*tp_compare*/
 	py_base_repr, /*tp_repr*/
-	0,			        /*tp_as_number*/
+	0,                  /*tp_as_number*/
 	&listvalue_as_sequence, /*tp_as_sequence*/
-	&instance_as_mapping,	        /*tp_as_mapping*/
-	0,			        /*tp_hash*/
-	0,				/*tp_call */
+	&instance_as_mapping,           /*tp_as_mapping*/
+	0,                  /*tp_hash*/
+	0,              /*tp_call */
 	0,
 	NULL,
 	NULL,
 	0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&CValue::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef CListValue::Methods[] = {
-	/* List style access */
-	{"append", (PyCFunction)CListValue::sPyappend,METH_O},
-	{"reverse", (PyCFunction)CListValue::sPyreverse,METH_NOARGS},
-	{"index", (PyCFunction)CListValue::sPyindex,METH_O},
-	{"count", (PyCFunction)CListValue::sPycount,METH_O},
+	// List style access.
+	{"append", (PyCFunction) CListValue::sPyappend, METH_O},
+	{"reverse", (PyCFunction) CListValue::sPyreverse, METH_NOARGS},
+	{"index", (PyCFunction) CListValue::sPyindex, METH_O},
+	{"count", (PyCFunction) CListValue::sPycount, METH_O},
 
-	/* Dict style access */
-	{"get", (PyCFunction)CListValue::sPyget,METH_VARARGS},
+	// Dict style access.
+	{"get", (PyCFunction) CListValue::sPyget, METH_VARARGS},
 
-	/* Own cvalue funcs */
-	{"from_id", (PyCFunction)CListValue::sPyfrom_id,METH_O},
+	// Own cvalue funcs.
+	{"from_id", (PyCFunction) CListValue::sPyfrom_id, METH_O},
 
-	{NULL,NULL} //Sentinel
+	{NULL, NULL} // Sentinel
 };
 
 PyAttributeDef CListValue::Attributes[] = {
-	KX_PYATTRIBUTE_NULL	//Sentinel
+	KX_PYATTRIBUTE_NULL // Sentinel
 };
 
 PyObject *CListValue::Pyappend(PyObject *value)
 {
 	CValue *objval = ConvertPythonToValue(value, true, "CList.append(i): CValueList, ");
 
-	if (!objval) /* ConvertPythonToValue sets the error */
+	if (!objval) {
+		// ConvertPythonToValue sets the error.
 		return NULL;
+	}
 
 	if (!BGE_PROXY_PYOWNS(m_proxy)) {
-		PyErr_SetString(PyExc_TypeError,
-		                "CList.append(i): internal values can't be modified");
+		PyErr_SetString(PyExc_TypeError, "CList.append(i): internal values can't be modified");
 		return NULL;
 	}
 
@@ -574,12 +544,11 @@ PyObject *CListValue::Pyappend(PyObject *value)
 PyObject *CListValue::Pyreverse()
 {
 	if (!BGE_PROXY_PYOWNS(m_proxy)) {
-		PyErr_SetString(PyExc_TypeError,
-		                "CList.reverse(): internal values can't be modified");
+		PyErr_SetString(PyExc_TypeError, "CList.reverse(): internal values can't be modified");
 		return NULL;
 	}
 
-	std::reverse(m_pValueArray.begin(),m_pValueArray.end());
+	std::reverse(m_pValueArray.begin(), m_pValueArray.end());
 	Py_RETURN_NONE;
 }
 
@@ -588,48 +557,43 @@ PyObject *CListValue::Pyindex(PyObject *value)
 	PyObject *result = NULL;
 
 	CValue *checkobj = ConvertPythonToValue(value, true, "val = cList[i]: CValueList, ");
-	if (checkobj==NULL)
-		return NULL; /* ConvertPythonToValue sets the error */
-
+	if (checkobj == NULL) {
+		// ConvertPythonToValue sets the error.
+		return NULL;
+	}
 	int numelem = GetCount();
-	for (int i=0;i<numelem;i++)
-	{
-		CValue* elem = GetValue(i);
-		if (checkobj==elem || CheckEqual(checkobj,elem))
-		{
+	for (int i = 0; i < numelem; i++) {
+		CValue *elem = GetValue(i);
+		if (checkobj == elem || CheckEqual(checkobj, elem)) {
 			result = PyLong_FromLong(i);
 			break;
 		}
 	}
 	checkobj->Release();
 
-	if (result==NULL) {
+	if (result == NULL) {
 		PyErr_SetString(PyExc_ValueError, "CList.index(x): x not in CListValue");
 	}
 	return result;
-
 }
-
-
 
 PyObject *CListValue::Pycount(PyObject *value)
 {
 	int numfound = 0;
 
-	CValue *checkobj = ConvertPythonToValue(value, false, ""); /* error ignored */
+	CValue *checkobj = ConvertPythonToValue(value, false, ""); // Error ignored.
 
-	if (checkobj==NULL) { /* in this case just return that there are no items in the list */
+	// in this case just return that there are no items in the list.
+	if (checkobj == NULL) {
 		PyErr_Clear();
 		return PyLong_FromLong(0);
 	}
 
 	int numelem = GetCount();
-	for (int i=0;i<numelem;i++)
-	{
-		CValue* elem = 			GetValue(i);
-		if (checkobj==elem || CheckEqual(checkobj,elem))
-		{
-			numfound ++;
+	for (int i = 0; i < numelem; i++) {
+		CValue *elem = GetValue(i);
+		if (checkobj == elem || CheckEqual(checkobj, elem)) {
+			numfound++;
 		}
 	}
 	checkobj->Release();
@@ -637,44 +601,48 @@ PyObject *CListValue::Pycount(PyObject *value)
 	return PyLong_FromLong(numfound);
 }
 
-/* Matches python dict.get(key, [default]) */
+// Matches python dict.get(key, [default]).
 PyObject *CListValue::Pyget(PyObject *args)
 {
 	char *key;
 	PyObject *def = Py_None;
 
-	if (!PyArg_ParseTuple(args, "s|O:get", &key, &def))
+	if (!PyArg_ParseTuple(args, "s|O:get", &key, &def)) {
 		return NULL;
+	}
 
 	CValue *item = FindValue(key);
 	if (item) {
 		PyObject *pyobj = item->ConvertValueToPython();
-		if (pyobj)
+		if (pyobj) {
 			return pyobj;
-		else
+		}
+		else {
 			return item->GetProxy();
+		}
 	}
+
 	Py_INCREF(def);
 	return def;
 }
 
-
 PyObject *CListValue::Pyfrom_id(PyObject *value)
 {
-	uintptr_t id= (uintptr_t)PyLong_AsVoidPtr(value);
+	uintptr_t id = (uintptr_t)PyLong_AsVoidPtr(value);
 
-	if (PyErr_Occurred())
+	if (PyErr_Occurred()) {
 		return NULL;
+	}
 
 	int numelem = GetCount();
-	for (int i=0;i<numelem;i++)
-	{
-		if (reinterpret_cast<uintptr_t>(m_pValueArray[i]->m_proxy) == id)
+	for (int i = 0; i < numelem; i++) {
+		if (reinterpret_cast<uintptr_t>(m_pValueArray[i]->m_proxy) == id) {
 			return GetValue(i)->GetProxy();
+		}
 	}
+
 	PyErr_SetString(PyExc_IndexError, "from_id(#): id not found in CValueList");
 	return NULL;
-
 }
 
 #endif // WITH_PYTHON

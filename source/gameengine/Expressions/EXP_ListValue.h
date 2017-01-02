@@ -21,24 +21,26 @@
 
 #include "EXP_Value.h"
 
-class CListValue : public CPropValue  
+class CListValue : public CPropValue
 {
 	Py_Header
-	//PLUGIN_DECLARE_SERIAL (CListValue,CValue)
+	
+private:
+	std::vector<CValue *> m_pValueArray;
+	bool m_bReleaseContents;
 
 public:
 	CListValue();
 	virtual ~CListValue();
 
-	void AddConfigurationData(CValue* menuvalue);
-	void Configure(CValue* menuvalue);
-	void Add(CValue* value);
-	void Insert(unsigned int i, CValue* value);
+	void AddConfigurationData(CValue *menuvalue);
+	void Configure(CValue *menuvalue);
+	void Add(CValue *value);
+	void Insert(unsigned int i, CValue *value);
 
 	virtual int GetValueType();
-	virtual CValue* GetReplica();
+	virtual CValue *GetReplica();
 
-public:
 	typedef std::vector<CValue *>::iterator baseIterator;
 
 	template <class T>
@@ -49,7 +51,7 @@ public:
 
 	public:
 		iterator(baseIterator it)
-			:m_it(it)
+			: m_it(it)
 		{
 		}
 
@@ -67,51 +69,47 @@ public:
 		friend bool operator!=(const iterator<U>& it1, const iterator<U>& it2);
 	};
 
-	void MergeList(CListValue* otherlist);
-	bool RemoveValue(CValue* val);
+	void MergeList(CListValue *otherlist);
+	bool RemoveValue(CValue *val);
 	void SetReleaseOnDestruct(bool bReleaseContents);
-	bool SearchValue(CValue* val);
-	
-	CValue* FindValue(const std::string& name);
+	bool SearchValue(CValue *val);
+
+	CValue *FindValue(const std::string& name);
 
 	void ReleaseAndRemoveAll();
 	virtual void SetModified(bool bModified);
 	virtual inline bool IsModified();
 	void Remove(int i);
 	void Resize(int num);
-	void SetValue(int i,CValue* val);
-	CValue* GetValue(int i) { BLI_assert(i < m_pValueArray.size()); return m_pValueArray[i]; }
+	void SetValue(int i, CValue *val);
+	CValue *GetValue(int i);
 	CValue *GetFront();
 	CValue *GetBack();
-	int GetCount() { return m_pValueArray.size(); }
+	int GetCount();
 	baseIterator GetBegin();
 	baseIterator GetEnd();
 	virtual const std::string GetText();
 
-	bool CheckEqual(CValue* first,CValue* second);
+	bool CheckEqual(CValue *first, CValue *second);
 
 #ifdef WITH_PYTHON
-	virtual PyObject *py_repr(void) {
-		PyObject *py_proxy= this->GetProxy();
-		PyObject *py_list= PySequence_List(py_proxy);
-		PyObject *py_string= PyObject_Repr(py_list);
+	virtual PyObject *py_repr()
+	{
+		PyObject *py_proxy = this->GetProxy();
+		PyObject *py_list = PySequence_List(py_proxy);
+		PyObject *py_string = PyObject_Repr(py_list);
 		Py_DECREF(py_list);
 		Py_DECREF(py_proxy);
 		return py_string;
 	}
 
-	KX_PYMETHOD_O(CListValue,append);
-	KX_PYMETHOD_NOARGS(CListValue,reverse);
-	KX_PYMETHOD_O(CListValue,index);
-	KX_PYMETHOD_O(CListValue,count);
-	KX_PYMETHOD_VARARGS(CListValue,get);
-	KX_PYMETHOD_O(CListValue,from_id);
+	KX_PYMETHOD_O(CListValue, append);
+	KX_PYMETHOD_NOARGS(CListValue, reverse);
+	KX_PYMETHOD_O(CListValue, index);
+	KX_PYMETHOD_O(CListValue, count);
+	KX_PYMETHOD_VARARGS(CListValue, get);
+	KX_PYMETHOD_O(CListValue, from_id);
 #endif
-	
-private:
-
-	std::vector<CValue*> m_pValueArray;
-	bool	m_bReleaseContents;
 };
 
 template <class T>
