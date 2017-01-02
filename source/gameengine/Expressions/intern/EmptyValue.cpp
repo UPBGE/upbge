@@ -22,7 +22,6 @@
 #include "EXP_StringValue.h"
 #include "EXP_ErrorValue.h"
 #include "EXP_ListValue.h"
-#include "EXP_VoidValue.h"
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -34,7 +33,6 @@ CEmptyValue::CEmptyValue()
  * effect: constructs a new CEmptyValue
  */
 {
-	SetModified(false);
 }
 
 
@@ -87,32 +85,11 @@ int CEmptyValue::GetValueType()
 	return VALUE_EMPTY_TYPE;
 }
 
-
-
-CListValue* CEmptyValue::GetPolySoup()
-{
-	CListValue* soup = new CListValue();
-	//don't add any poly, while it's an empty value
-	return soup;
-}
-
-
-
 bool CEmptyValue::IsInside(CValue* testpoint,bool bBorderInclude)
 {
 	// empty space is solid, so always inside
 	return true;
 }
-
-
-
-double*	CEmptyValue::GetVector3(bool bGetTransformedVec)
-{ 
-	BLI_assert(false); // don't get vector from me
-	return ZeroVector();
-}
-
-
 
 const std::string CEmptyValue::GetText()
 {

@@ -75,7 +75,6 @@ set(SRC
 	EXP_Python.h
 	EXP_StringValue.h
 	EXP_Value.h
-	EXP_VoidValue.h
 	EXP_ListWrapper.h
 )
 

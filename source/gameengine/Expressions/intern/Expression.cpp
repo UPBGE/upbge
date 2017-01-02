@@ -21,57 +21,13 @@
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
-#ifdef DEBUG
-//int gRefCountExpr;
-#endif
-CExpression::CExpression()// : m_cached_calculate(NULL)
+
+CExpression::CExpression()
 {
 	m_refcount = 1;
-#ifdef DEBUG
-	//gRefCountExpr++;
-#endif
 }
 
 CExpression::~CExpression()
 {
 	assert (m_refcount == 0);
 }
-
-
-
-// destuctor for CBrokenLinkInfo
-CBrokenLinkInfo::~CBrokenLinkInfo()
-{
-	if (m_pExpr && !m_bRestored)
-		m_pExpr->Release();
-}
-
-
-void CBrokenLinkInfo::RestoreLink()
-{
-
-	
-	BLI_assert(m_pExpr);
-
-	if (m_pExpr)
-	{
-		if (!m_bRestored) {
-			m_bRestored=true;
-			
-		}
-		if (*m_pmemExpr)
-		{
-			(*m_pmemExpr)->Release();
-		}
-		*m_pmemExpr = m_pExpr;
-		
-//		m_pExpr=NULL;
-	}
-}
-
-void CBrokenLinkInfo::BreakLink()
-{
-	m_bRestored=false;
-	m_pExpr->AddRef();
-}
-

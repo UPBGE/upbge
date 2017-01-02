@@ -19,7 +19,6 @@
 #include "EXP_BoolValue.h"
 #include "EXP_StringValue.h"
 #include "EXP_ErrorValue.h"
-#include "EXP_VoidValue.h"
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -46,13 +45,10 @@ CBoolValue::CBoolValue(bool inBool)
 
 
 
-CBoolValue::CBoolValue(bool innie,const std::string& name,AllocationTYPE alloctype)
+CBoolValue::CBoolValue(bool innie,const std::string& name)
 {
 	m_bool = innie;
 	SetName(name);
-
-	if (alloctype == CValue::STACKVALUE)
-		CValue::DisableRefCount();
 }
 
 
@@ -60,7 +56,6 @@ CBoolValue::CBoolValue(bool innie,const std::string& name,AllocationTYPE allocty
 void CBoolValue::SetValue(CValue* newval)
 {
 	m_bool = (newval->GetNumber() != 0);
-	SetModified(true);
 }
 
 

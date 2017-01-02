@@ -89,55 +89,6 @@ CValue* CIfExpr::Calculate()
 	}
 }
 
-
-
-bool CIfExpr::MergeExpression(CExpression *otherexpr)
-{
-	BLI_assert(false);
-	return false;
-}
-
-
-
-bool CIfExpr::IsInside(float x,float y,float z,bool bBorderInclude)
-{
-	BLI_assert(false);
-	return false;
-}
-	
-
-
-bool CIfExpr::NeedsRecalculated() 
-{
-	return  (m_guard->NeedsRecalculated() ||
-		m_e1->NeedsRecalculated() ||
-		m_e2->NeedsRecalculated());
-}
-
-
-
-CExpression* CIfExpr::CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks)
-{
-	BLI_assert(false);
-	return NULL;
-}
-
-
-
-void CIfExpr::ClearModified()
-{
-	BLI_assert(false);
-}
-
-
-
-void CIfExpr::BroadcastOperators(VALUE_OPERATOR op)
-{
-	BLI_assert(false);
-}
-
-
-
 unsigned char CIfExpr::GetExpressionID()
 {
 	return CIFEXPRESSIONID;

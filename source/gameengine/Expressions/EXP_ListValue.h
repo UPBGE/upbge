@@ -33,8 +33,6 @@ public:
 	CListValue();
 	virtual ~CListValue();
 
-	void AddConfigurationData(CValue *menuvalue);
-	void Configure(CValue *menuvalue);
 	void Add(CValue *value);
 	void Insert(unsigned int i, CValue *value);
 
@@ -77,8 +75,6 @@ public:
 	CValue *FindValue(const std::string& name);
 
 	void ReleaseAndRemoveAll();
-	virtual void SetModified(bool bModified);
-	virtual inline bool IsModified();
 	void Remove(int i);
 	void Resize(int num);
 	void SetValue(int i, CValue *val);

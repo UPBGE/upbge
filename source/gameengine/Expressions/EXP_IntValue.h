@@ -26,8 +26,6 @@ typedef long long cInt;
 
 class CIntValue : public CPropValue  
 {
-	//PLUGIN_DECLARE_SERIAL (CIntValue,CValue)
-
 public:
 	virtual const std::string GetText();
 	virtual double			GetNumber();
@@ -36,9 +34,7 @@ public:
 	cInt GetInt();
 	CIntValue();
 	CIntValue(cInt innie);
-	CIntValue(cInt innie,
-	          const std::string& name,
-	          AllocationTYPE alloctype=CValue::HEAPVALUE);
+	CIntValue(cInt innie, const std::string& name);
 	
 	virtual	CValue* Calc(VALUE_OPERATOR op,
 						 CValue *val);
@@ -49,8 +45,6 @@ public:
 
 	virtual void	SetValue(CValue* newval);
 
-	void			Configure(CValue* menuvalue);
-	void			AddConfigurationData(CValue* menuvalue);
 	virtual CValue*	GetReplica();
 
 #ifdef WITH_PYTHON

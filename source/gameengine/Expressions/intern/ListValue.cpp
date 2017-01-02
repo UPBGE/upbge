@@ -21,7 +21,6 @@
 
 #include "EXP_ListValue.h"
 #include "EXP_StringValue.h"
-#include "EXP_VoidValue.h"
 #include <algorithm>
 #include "EXP_BoolValue.h"
 
@@ -219,28 +218,6 @@ void CListValue::Insert(unsigned int i, CValue *value)
 int CListValue::GetValueType()
 {
 	return VALUE_LIST_TYPE;
-}
-
-void CListValue::SetModified(bool bModified)
-{
-	CValue::SetModified(bModified);
-	int numels = GetCount();
-
-	for (int i = 0; i < numels; i++) {
-		GetValue(i)->SetModified(bModified);
-	}
-}
-
-bool CListValue::IsModified()
-{
-	bool bmod = CValue::IsModified(); //normal own flag
-	int numels = GetCount();
-
-	for (int i = 0; i < numels; i++) {
-		bmod = bmod || GetValue(i)->IsModified();
-	}
-
-	return bmod;
 }
 
 #ifdef WITH_PYTHON

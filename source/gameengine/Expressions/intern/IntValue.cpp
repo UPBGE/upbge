@@ -20,7 +20,6 @@
 #include "EXP_FloatValue.h"
 #include "EXP_BoolValue.h"
 #include "EXP_StringValue.h"
-#include "EXP_VoidValue.h"
 
 #include "CM_Message.h"
 
@@ -55,15 +54,10 @@ effect: constructs a new CIntValue containing cInt innie
 
 
 
-CIntValue::CIntValue(cInt innie,const std::string& name,AllocationTYPE alloctype)
+CIntValue::CIntValue(cInt innie,const std::string& name)
 {
 	m_int = innie;
 	SetName(name);
-	
-	if (alloctype==CValue::STACKVALUE)
-	{
-		CValue::DisableRefCount();
-	}
 }
 
 
@@ -323,7 +317,6 @@ CValue* CIntValue::GetReplica()
 void CIntValue::SetValue(CValue* newval)
 { 	
 	m_int = (cInt)newval->GetNumber(); 
-	SetModified(true);
 }
 
 

@@ -23,15 +23,13 @@
 
 class CFloatValue : public CPropValue 
 {
-	//PLUGIN_DECLARE_SERIAL (CFloatValue,CValue)
 public:
 	CFloatValue();
 	CFloatValue(float fl);
-	CFloatValue(float fl,const std::string& name,AllocationTYPE alloctype=CValue::HEAPVALUE);
+	CFloatValue(float fl,const std::string& name);
 
 	virtual const std::string GetText();
 
-	void Configure(CValue* menuvalue);
 	virtual double GetNumber();
 	virtual int GetValueType();
 	virtual void SetValue(CValue* newval);

@@ -24,17 +24,8 @@
 
 class CConstExpr : public CExpression  
 {
-	//PLUGIN_DECLARE_SERIAL_EXPRESSION (CConstExpr,CExpression)
 public:
-	virtual bool MergeExpression(CExpression* otherexpr);
-	
-	void BroadcastOperators(VALUE_OPERATOR op);
-
 	virtual unsigned char GetExpressionID();
-	CExpression*	CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks);
-	//bool IsInside(float x,float y,float z,bool bBorderInclude=true);
-	bool NeedsRecalculated();
-	void ClearModified();
 	virtual double GetNumber();
 	virtual CValue* Calculate();
 	CConstExpr(CValue* constval);

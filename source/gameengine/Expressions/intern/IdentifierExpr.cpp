@@ -59,45 +59,7 @@ CValue*	CIdentifierExpr::Calculate()
 	return result;
 }
 
-
-
-bool CIdentifierExpr::MergeExpression(CExpression* otherexpr)
-{
-	return false;
-}
-
-
-
 unsigned char CIdentifierExpr::GetExpressionID()
 {
 	return CIDENTIFIEREXPRESSIONID;
-}
-
-
-
-bool CIdentifierExpr::NeedsRecalculated()
-{
-	return true;
-}
-
-
-
-CExpression* CIdentifierExpr::CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks)
-{
-	BLI_assert(false); // not implemented yet
-	return NULL;
-}
-
-
-
-void CIdentifierExpr::ClearModified() 
-{
-	BLI_assert(false); // not implemented yet
-}
-
-
-
-void CIdentifierExpr::BroadcastOperators(VALUE_OPERATOR op)
-{
-	BLI_assert(false); // not implemented yet
 }

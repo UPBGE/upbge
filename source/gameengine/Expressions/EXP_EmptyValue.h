@@ -25,7 +25,6 @@ class CListValue;
 
 class CEmptyValue : public CPropValue  
 {
-	//PLUGIN_DECLARE_SERIAL (CEmptyValue,CValue)
 public:
 	CEmptyValue();
 	virtual					~CEmptyValue();
@@ -33,8 +32,6 @@ public:
 	virtual const std::string GetText();
 	virtual double			GetNumber();
 	virtual int				GetValueType();
-	CListValue*				GetPolySoup();
-	virtual double*			GetVector3(bool bGetTransformedVec=false);
 	bool					IsInside(CValue* testpoint,bool bBorderInclude=true);
 	CValue *				Calc(VALUE_OPERATOR op, CValue *val);
 	CValue *				CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);

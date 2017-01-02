@@ -58,8 +58,6 @@ unsigned char CConstExpr::GetExpressionID()
 	return CCONSTEXPRESSIONID;
 }
 
-
-
 CValue* CConstExpr::Calculate()
 /*
 pre:
@@ -69,62 +67,7 @@ ret: a new object containing the value of the stored CValue
 	return m_value->AddRef();
 }
 
-
-
-void CConstExpr::ClearModified()
-{ 
-	if (m_value)
-	{
-		m_value->SetModified(false);
-		m_value->SetAffected(false);
-	}
-}
-
-
-
 double CConstExpr::GetNumber()
 {
 	return -1;
-}
-
-
-
-bool CConstExpr::NeedsRecalculated()
-{
-	return m_value->IsAffected(); // IsAffected is m_bModified OR m_bAffected !!!
-}
-
-
-
-CExpression* CConstExpr::CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks)
-{
-// parent checks if child is still useful.
-// When for example it's value it's deleted flag set
-// then release Value, and return NULL in case of constexpression
-// else return this...
-
-	BLI_assert(m_value);
-	if (m_value->IsReleaseRequested())
-	{
-		AddRef(); //numchanges++;
-		return Release();
-	}
-	else
-		return this;
-}
-
-
-
-void CConstExpr::BroadcastOperators(VALUE_OPERATOR op)
-{
-	BLI_assert(m_value);
-	m_value->SetColorOperator(op);
-}
-
-
-
-bool CConstExpr::MergeExpression(CExpression *otherexpr)
-{
-	BLI_assert(false);
-	return false;
 }

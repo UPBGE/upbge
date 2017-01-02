@@ -21,7 +21,6 @@
 #include "EXP_BoolValue.h"
 #include "EXP_FloatValue.h"
 #include "EXP_IntValue.h"
-#include "EXP_VoidValue.h"
 #include "EXP_StringValue.h"
 #include "EXP_ErrorValue.h"
 #include "EXP_ListValue.h"
@@ -29,8 +28,6 @@
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
-
-double CValue::m_sZeroVec[3] = {0.0,0.0,0.0};
 
 #ifdef WITH_PYTHON
 
@@ -65,47 +62,17 @@ PyMethodDef CValue::Methods[] = {
 };
 #endif // WITH_PYTHON
 
-
-/*#define CVALUE_DEBUG*/
-#ifdef CVALUE_DEBUG
-int gRefCount;
-struct SmartCValueRef 
-{
-	CValue *m_ref;
-	int m_count;
-	SmartCValueRef(CValue *ref)
-	{
-		m_ref = ref;
-		m_count = gRefCount++;
-	}
-};
-
-#include <vector>
-
-std::vector<SmartCValueRef> gRefList;
-#endif
-
-#ifdef DEBUG
-//int gRefCountValue;
-#endif
-
 CValue::CValue()
 		: PyObjectPlus(),
 	
 m_pNamedPropertyArray(NULL),
+m_error(false),
 m_refcount(1)
 /*
 pre: false
 effect: constucts a CValue
 */
 {
-	//debug(gRefCountValue++)	// debugging
-#ifdef DEBUG
-	//gRefCountValue++;
-#ifdef CVALUE_DEBUG
-	gRefList.push_back(SmartCValueRef(this));
-#endif
-#endif
 }
 
 
@@ -328,37 +295,6 @@ void CValue::ClearProperties()
 
 
 //
-// Set all properties' modified flag to <inModified>
-//
-void CValue::SetPropertiesModified(bool inModified)
-{
-	if (!m_pNamedPropertyArray) return;
-	std::map<std::string,CValue*>::iterator it;
-	
-	for (it= m_pNamedPropertyArray->begin();(it != m_pNamedPropertyArray->end()); it++)
-		((*it).second)->SetModified(inModified);
-}
-
-
-
-//
-// Check if any of the properties in this value have been modified
-//
-bool CValue::IsAnyPropertyModified()
-{
-	if (!m_pNamedPropertyArray) return false;
-	std::map<std::string,CValue*>::iterator it;
-	
-	for (it= m_pNamedPropertyArray->begin();(it != m_pNamedPropertyArray->end()); it++)
-		if (((*it).second)->IsModified())
-			return true;
-	
-	return false;
-}
-
-
-
-//
 // Get property number <inIndex>
 //
 CValue* CValue::GetProperty(int inIndex)
@@ -396,14 +332,6 @@ int CValue::GetPropertyCount()
 		return 0;
 }
 
-
-double*		CValue::GetVector3(bool bGetTransformedVec)
-{
-	BLI_assert(false); // don't get vector from me
-	return m_sZeroVec;//::sZero;
-}
-
-
 /*---------------------------------------------------------------------------------------------------------------------
 	Reference Counting
 ---------------------------------------------------------------------------------------------------------------------*/
@@ -423,23 +351,6 @@ void CValue::DestructFromPython()
 #endif  // WITH_PYTHON
 }
 
-//
-// Disable reference counting for this value
-//
-void CValue::DisableRefCount()
-{
-	BLI_assert(m_refcount == 1);
-	m_refcount--;
-
-	//debug(gRefCountValue--);
-#ifdef DEBUG
-	//gRefCountValue--;
-#endif
-	m_ValFlags.RefCountDisabled=true;
-}
-
-
-
 void CValue::ProcessReplica() /* was AddDataToReplica in 2.48 */
 {
 	m_refcount = 1;
@@ -448,8 +359,6 @@ void CValue::ProcessReplica() /* was AddDataToReplica in 2.48 */
 	//gRefCountValue++;
 #endif
 	PyObjectPlus::ProcessReplica();
-
-	m_ValFlags.RefCountDisabled = false;
 
 	/* copy all props */
 	if (m_pNamedPropertyArray)
@@ -638,15 +547,6 @@ CValue *CValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
 	return NULL;
 }
 
-void CValue::SetOwnerExpression(class CExpression* expr)
-{
-	/* intentionally empty */
-}
-
-void CValue::SetColorOperator(VALUE_OPERATOR op)
-{
-	/* intentionally empty */
-}
 void CValue::SetValue(CValue* newval)
 { 
 	// no one should get here

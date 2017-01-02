@@ -23,13 +23,10 @@
 
 class CStringValue : public CPropValue  
 {
-
-	
-	//PLUGIN_DECLARE_SERIAL(CStringValue,CValue)
 public:
 	/// Construction / destruction
 	CStringValue();
-	CStringValue(const std::string& txt, const std::string& name, AllocationTYPE alloctype = CValue::HEAPVALUE);
+	CStringValue(const std::string& txt, const std::string& name);
 
 	virtual ~CStringValue() {}
 	/// CValue implementation
@@ -40,7 +37,7 @@ public:
 	
 	virtual	CValue*		Calc(VALUE_OPERATOR op, CValue *val);
 	virtual	CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	virtual void		SetValue(CValue* newval) { 	m_strString = newval->GetText(); SetModified(true);	}
+	virtual void		SetValue(CValue* newval) { 	m_strString = newval->GetText(); }
 	virtual CValue*		GetReplica();
 #ifdef WITH_PYTHON
 	virtual PyObject*	ConvertValueToPython() {

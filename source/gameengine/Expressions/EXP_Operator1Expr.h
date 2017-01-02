@@ -23,22 +23,8 @@
 
 class COperator1Expr : public CExpression  
 {
-	//PLUGIN_DECLARE_SERIAL_EXPRESSION (COperator1Expr,CExpression)
-
-
-
 public:
-	virtual bool MergeExpression(CExpression* otherexpr);
-	virtual void BroadcastOperators(VALUE_OPERATOR op);
-
 	virtual unsigned char GetExpressionID() { return COPERATOR1EXPRESSIONID; }
-	CExpression* CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks);
-	//virtual bool IsInside(float x,float y,float z,bool bBorderInclude = true);
-	virtual	bool NeedsRecalculated();
-	void ClearModified() {
-		if (m_lhs)
-			m_lhs->ClearModified();
-	}
 	virtual CValue* Calculate();
 	COperator1Expr(VALUE_OPERATOR op, CExpression *lhs);
 	COperator1Expr();

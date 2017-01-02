@@ -18,7 +18,6 @@
 #include "EXP_StringValue.h"
 #include "EXP_BoolValue.h"
 #include "EXP_ErrorValue.h"
-#include "EXP_VoidValue.h"
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -37,18 +36,10 @@ CStringValue::CStringValue()
  * pre:
  * effect: constructs a new CStringValue containing text txt
  */
-CStringValue::CStringValue(const std::string& txt, const std::string& name, AllocationTYPE alloctype)
+CStringValue::CStringValue(const std::string& txt, const std::string& name)
 {
 	m_strString = txt;
 	SetName(name);
-	
-	if (alloctype==CValue::STACKVALUE)
-	{
-		CValue::DisableRefCount();
-		
-	}
-	
-	
 }
 
 

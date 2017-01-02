@@ -43,13 +43,7 @@ public:
 	virtual ~CIdentifierExpr();
 
 	virtual CValue*			Calculate();
-	virtual bool			MergeExpression(CExpression* otherexpr);
 	virtual unsigned char	GetExpressionID();
-	virtual bool			NeedsRecalculated();
-	virtual CExpression*	CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks);
-	virtual void			ClearModified();
-	virtual void			BroadcastOperators(VALUE_OPERATOR op);
-
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CIdentifierExpr")

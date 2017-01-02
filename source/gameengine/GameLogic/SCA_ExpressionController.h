@@ -37,6 +37,8 @@
 
 #include "SCA_IController.h"
 
+class CExpression;
+
 class SCA_ExpressionController : public SCA_IController
 {
 //	Py_Header

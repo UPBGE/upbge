@@ -20,7 +20,6 @@
 #include "EXP_StringValue.h"
 #include "EXP_BoolValue.h"
 #include "EXP_ErrorValue.h"
-#include "EXP_VoidValue.h"
 
 #include <boost/format.hpp>
 
@@ -49,20 +48,14 @@ effect: constructs a new CFloatValue containing value fl
 
 
 
-CFloatValue::CFloatValue(float fl,const std::string& name,AllocationTYPE alloctype)
+CFloatValue::CFloatValue(float fl,const std::string& name)
 /*
 pre:
 effect: constructs a new CFloatValue containing value fl
 */
 {
-	
 	m_float = fl;
 	SetName(name);
-	if (alloctype==CValue::STACKVALUE)
-	{
-		CValue::DisableRefCount();
-
-	}
 }
 
 
@@ -259,7 +252,6 @@ ret: a new object containing the result of applying operator op to val and
 void CFloatValue::SetFloat(float fl)
 {
 	m_float = fl;
-	SetModified(true);
 }
 
 
@@ -292,7 +284,6 @@ int CFloatValue::GetValueType()
 void CFloatValue::SetValue(CValue* newval)
 { 	
 	m_float = (float)newval->GetNumber(); 
-	SetModified(true);
 }
 
 

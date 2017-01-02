@@ -87,77 +87,6 @@ enum VALUE_DATA_TYPE {
 	VALUE_MAX_TYPE				//only here to provide number of types
 };
 
-
-
-#ifdef DEBUG
-//extern int gRefCountValue;		// debugonly variable to check if all CValue Refences are Dereferenced at programexit
-#endif
-
-struct HashableInt 
-{
-	HashableInt(int id)															: mData(id) { }
-
-	unsigned long				Hash() const											{ return 0;} ////}gHash(&mData, sizeof(int));}
-	
-	bool				operator==(HashableInt rhs)								{ return mData == rhs.mData; }
-	
-	int					mData;
-};
-
-
-//
-// Bitfield that stores the flags for each CValue derived class
-//
-struct ValueFlags {
-	ValueFlags() :
-		Modified(true),
-		Selected(false),
-		Affected(false),
-		ReleaseRequested(false),
-		Error(false),
-		RefCountDisabled(false),
-		HasProperties(false),
-		HasName(false),
-		Visible(true),
-		CustomFlag1(false),
-		CustomFlag2(false)
-	{
-	}
-
-	unsigned short Modified : 1;
-	unsigned short Selected : 1;
-	unsigned short Affected : 1;
-	unsigned short ReleaseRequested : 1;
-	unsigned short Error : 1;
-	unsigned short RefCountDisabled : 1;
-	unsigned short HasProperties : 1;
-	unsigned short HasName : 1;
-	unsigned short Visible : 1;
-	unsigned short CustomFlag1 : 1;
-	unsigned short CustomFlag2 : 1;
-
-	
-};
-
-/**
- *	Base Class for all Actions performed on CValue's. Can be extended for undo/redo system in future.
- */
-class CAction
-{
-public:
-	CAction() {
-	};
-	virtual ~CAction() {
-	};
-	virtual void Execute() const =0;
-	
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CAction")
-#endif
-};
-
-
 #include "EXP_PyObjectPlus.h"
 #ifdef WITH_PYTHON
 #include "object.h"
@@ -176,11 +105,9 @@ public:
  * Features:
  * - Reference Counting (AddRef() / Release())
  * - Calculations (Calc() / CalcFinal())
- * - Configuration (Configure())
- * - Serialization (EdSerialize() / EdIdSerialize() / EdPtrSerialize() and macro PLUGIN_DECLARE_SERIAL
  * - Property system (SetProperty() / GetProperty() / FindIdentifier())
  * - Replication (GetReplica())
- * - Flags (IsSelected() / IsModified() / SetSelected()...)
+ * - Flags (IsError())
  * 
  * - Some small editor-specific things added
  * - A helperclass CompressorArchive handles the serialization
@@ -191,18 +118,6 @@ class CValue  : public PyObjectPlus
 {
 Py_Header
 public:
-	enum AllocationTYPE {
-		STACKVALUE		= 0,
-		HEAPVALUE		= 1
-	};
-	
-	enum DrawTYPE {
-		STARTFRAME		= 0,
-		ENDFRAME		= 1,
-		INTERFRAME		= 2
-	};
-
-
 	// Construction / Destruction
 	CValue();
 
@@ -229,14 +144,6 @@ public:
 	// Expression Calculation
 	virtual CValue*		Calc(VALUE_OPERATOR op, CValue *val);
 	virtual CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	virtual void		SetOwnerExpression(class CExpression* expr);
-
-	
-
-	void				Execute(const CAction& a)
-	{
-		a.Execute();
-	};
 
 	/// Reference Counting
 	int GetRefCount()
@@ -249,10 +156,6 @@ public:
 	{
 		// Increase global reference count, used to see at the end of the program
 		// if all CValue-derived classes have been dereferenced to 0
-		//debug(gRefCountValue++);
-#ifdef DEBUG
-		//gRefCountValue++;
-#endif
 		m_refcount++; 
 		return this;
 	}
@@ -262,10 +165,6 @@ public:
 	{
 		// Decrease global reference count, used to see at the end of the program
 		// if all CValue-derived classes have been dereferenced to 0
-		//debug(gRefCountValue--);
-#ifdef DEBUG
-		//gRefCountValue--;
-#endif
 		// Decrease local reference count, if it reaches 0 the object should be freed
 		if (--m_refcount > 0)
 		{
@@ -292,23 +191,14 @@ public:
 	virtual std::vector<std::string>	GetPropertyNames();
 	virtual void		ClearProperties();										// Clear all properties
 
-	virtual void		SetPropertiesModified(bool inModified);					// Set all properties' modified flag to <inModified>
-	virtual bool		IsAnyPropertyModified();								// Check if any of the properties in this value have been modified
-
 	virtual CValue*		GetProperty(int inIndex);								// Get property number <inIndex>
 	virtual int			GetPropertyCount();										// Get the amount of properties assiocated with this value
 
 	virtual CValue*		FindIdentifier(const std::string& identifiername);
-	/** Set the wireframe color of this value depending on the CSG
-	 * operator type <op>
-	 * \attention: not implemented */
-	virtual void		SetColorOperator(VALUE_OPERATOR op);
 
 	virtual const std::string GetText();
 	virtual double		GetNumber();
 	virtual int			GetValueType();												// Get Prop value type
-	double*				ZeroVector() { return m_sZeroVec; }
-	virtual double*		GetVector3(bool bGetTransformedVec = false);
 
 	virtual std::string GetName() = 0;											// Retrieve the name of the value
 	virtual void		SetName(const std::string& name);								// Set the name of the value
@@ -320,71 +210,20 @@ public:
 	//virtual CValue*		Copy() = 0;
 	
 	std::string				op2str(VALUE_OPERATOR op);
-		
-	// setting / getting flags
-	inline void			SetSelected(bool bSelected)								{ m_ValFlags.Selected = bSelected; }
-	virtual void		SetModified(bool bModified)								{ m_ValFlags.Modified = bModified; }
-	virtual void		SetAffected(bool bAffected=true)						{ m_ValFlags.Affected = bAffected; }
-	inline void			SetReleaseRequested(bool bReleaseRequested)				{ m_ValFlags.ReleaseRequested=bReleaseRequested; }
-	inline void			SetError(bool err)										{ m_ValFlags.Error=err; }
-	inline void			SetVisible (bool vis)									{ m_ValFlags.Visible=vis; }
-																				
-	virtual bool		IsModified()											{ return m_ValFlags.Modified; }
-	inline bool			IsError()												{ return m_ValFlags.Error; }
-	virtual bool		IsAffected()											{ return m_ValFlags.Affected || m_ValFlags.Modified; }
-	virtual bool		IsSelected()											{ return m_ValFlags.Selected; }
-	inline bool			IsReleaseRequested()									{ return m_ValFlags.ReleaseRequested; }
-	virtual bool		IsVisible()												{ return m_ValFlags.Visible;}
-	virtual void		SetCustomFlag1(bool bCustomFlag)						{ m_ValFlags.CustomFlag1 = bCustomFlag;}
-	virtual bool		IsCustomFlag1()											{ return m_ValFlags.CustomFlag1;}
 
-	virtual void		SetCustomFlag2(bool bCustomFlag)						{ m_ValFlags.CustomFlag2 = bCustomFlag;}
-	virtual bool		IsCustomFlag2()											{ return m_ValFlags.CustomFlag2;}
+	inline void			SetError(bool err)										{ m_error=err; }
+	inline bool			IsError()												{ return m_error; }
 
 protected:
 	virtual void DestructFromPython();
 
-	virtual void		DisableRefCount();										// Disable reference counting for this value
-	//virtual void		AddDataToReplica(CValue* replica);
 	virtual				~CValue();
 private:
 	// Member variables
 	std::map<std::string,CValue*>*		m_pNamedPropertyArray;									// Properties for user/game etc
-	ValueFlags			m_ValFlags;												// Frequently used flags in a bitfield (low memoryusage)
+	bool m_error;
 	int					m_refcount;												// Reference Counter
-	static	double m_sZeroVec[3];
-
 };
-
-
-
-//
-// Declare a CValue or CExpression or CWhatever to be serialized by the editor.
-//
-// This macro introduces the EdSerialize() function (which must be implemented by
-// the client) and the EdIdSerialize() function (which is implemented by this macro).
-//
-// The generated Copy() function returns a pointer to <root_base_class_name> type
-// of object. So, for *any* CValue-derived object this should be set to CValue,
-// for *any* CExpression-derived object this should be set to CExpression.
-//
-#define PLUGIN_DECLARE_SERIAL(class_name, root_base_class_name)                \
-public:                                                                        \
-	virtual root_base_class_name *Copy() {                                     \
-		return new class_name;                                                 \
-	}                                                                          \
-	virtual bool EdSerialize(CompressorArchive& arch,                          \
-	                         class CFactoryManager* facmgr,                    \
-	                         bool bIsStoring);                                 \
-	virtual bool EdIdSerialize(CompressorArchive& arch,                        \
-	                           class CFactoryManager* facmgr,                  \
-	                           bool bIsStoring)                                \
-	{                                                                          \
-		if (bIsStoring)                                                        \
-			arch.StoreString(#class_name);                                     \
-		return false;                                                          \
-	}                                                                          \
-
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

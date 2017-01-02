@@ -28,16 +28,13 @@
 
 class CBoolValue : public CPropValue  
 {
-
-	//PLUGIN_DECLARE_SERIAL(CBoolValue,CValue)
-
 public:
 	static const std::string sTrueString;
 	static const std::string sFalseString;
 
 	CBoolValue();
 	CBoolValue(bool inBool);
-	CBoolValue(bool innie, const std::string& name, AllocationTYPE alloctype = CValue::HEAPVALUE);
+	CBoolValue(bool innie, const std::string& name);
 
 	virtual const std::string GetText();
 	virtual double		GetNumber();
@@ -48,7 +45,6 @@ public:
 	virtual CValue*		Calc(VALUE_OPERATOR op, CValue *val);
 	virtual CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 	
-	void				Configure(CValue* menuvalue);
 	virtual CValue*		GetReplica();
 #ifdef WITH_PYTHON
 	virtual PyObject*	ConvertValueToPython();
