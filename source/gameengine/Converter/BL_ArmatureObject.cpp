@@ -29,35 +29,27 @@
  *  \ingroup bgeconv
  */
 
-
-#include "BL_ArmatureObject.h"
-#include "BL_ActionActuator.h"
-#include "BL_Action.h"
-#include "KX_BlenderSceneConverter.h"
 #include "MEM_guardedalloc.h"
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math.h"
-#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
-#include "BIK_api.h"
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_object.h"
 #include "BKE_library.h"
 #include "BKE_global.h"
+#include "BKE_constraint.h"
+#include "DNA_armature_types.h"
+#include "RNA_access.h"
 
 extern "C" {
-#include "BKE_animsys.h"
+#  include "BKE_animsys.h"
 }
 
-#include "BKE_constraint.h"
-#include "MEM_guardedalloc.h"
-#include "DNA_action_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_constraint_types.h"
-#include "RNA_access.h"
+#include "BL_ArmatureObject.h"
+#include "BL_ActionActuator.h"
+#include "BL_Action.h"
+#include "KX_BlenderSceneConverter.h"
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 
@@ -67,63 +59,60 @@ extern "C" {
 
 #include "CM_Message.h"
 
-/** 
+/**
  * Move here pose function for game engine so that we can mix with GE objects
  * Principle is as follow:
  * Use Blender structures so that BKE_pose_where_is can be used unchanged
  * Copy the constraint so that they can be enabled/disabled/added/removed at runtime
  * Don't copy the constraints for the pose used by the Action actuator, it does not need them.
- * Scan the constraint structures so that the KX equivalent of target objects are identified and 
+ * Scan the constraint structures so that the KX equivalent of target objects are identified and
  * stored in separate list.
  * When it is about to evaluate the pose, set the KX object position in the obmat of the corresponding
  * Blender objects and restore after the evaluation.
  */
 static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 {
-	bPose *out;
-	bPoseChannel *pchan, *outpchan;
-	GHash *ghash;
-	
-	/* the game engine copies the current armature pose and then swaps
+	/* The game engine copies the current armature pose and then swaps
 	 * the object pose pointer. this makes it possible to change poses
 	 * without affecting the original blender data. */
 
 	if (!src) {
-		*dst=NULL;
+		*dst = NULL;
 		return;
 	}
-	else if (*dst==src) {
+	else if (*dst == src) {
 		CM_Warning("game_copy_pose source and target are the same");
-		*dst=NULL;
+		*dst = NULL;
 		return;
 	}
-	
-	out= (bPose*)MEM_dupallocN(src);
+
+	bPose *out = (bPose *)MEM_dupallocN(src);
 	out->chanhash = NULL;
-	out->agroups.first= out->agroups.last= NULL;
+	out->agroups.first = out->agroups.last = NULL;
 	out->ikdata = NULL;
 	out->ikparam = MEM_dupallocN(src->ikparam);
 	out->flag |= POSE_GAME_ENGINE;
 	BLI_duplicatelist(&out->chanbase, &src->chanbase);
 
 	/* remap pointers */
-	ghash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "game_copy_pose gh");
+	GHash *ghash = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "game_copy_pose gh");
 
-	pchan= (bPoseChannel *)src->chanbase.first;
-	outpchan= (bPoseChannel *)out->chanbase.first;
-	for (; pchan; pchan=pchan->next, outpchan=outpchan->next)
+	bPoseChannel *pchan = (bPoseChannel *)src->chanbase.first;
+	bPoseChannel *outpchan = (bPoseChannel *)out->chanbase.first;
+	for (; pchan; pchan = pchan->next, outpchan = outpchan->next) {
 		BLI_ghash_insert(ghash, pchan, outpchan);
+	}
 
 	for (pchan = (bPoseChannel *)out->chanbase.first; pchan; pchan = pchan->next) {
-		pchan->parent= (bPoseChannel *)BLI_ghash_lookup(ghash, pchan->parent);
-		pchan->child= (bPoseChannel *)BLI_ghash_lookup(ghash, pchan->child);
+		pchan->parent = (bPoseChannel *)BLI_ghash_lookup(ghash, pchan->parent);
+		pchan->child = (bPoseChannel *)BLI_ghash_lookup(ghash, pchan->child);
 
 		if (copy_constraint) {
 			ListBase listb;
 			// copy all constraint for backward compatibility
 			// BKE_constraints_copy NULLs listb, no need to make extern for this operation.
 			BKE_constraints_copy(&listb, &pchan->constraints, false);
-			pchan->constraints= listb;
+			pchan->constraints = listb;
 		}
 		else {
 			BLI_listbase_clear(&pchan->constraints);
@@ -135,96 +124,89 @@ static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 
 		// fails to link, props are not used in the BGE yet.
 #if 0
-		if (pchan->prop)
-			pchan->prop= IDP_CopyProperty(pchan->prop);
+		if (pchan->prop) {
+			pchan->prop = IDP_CopyProperty(pchan->prop);
+		}
 #endif
-		pchan->prop= NULL;
+		pchan->prop = NULL;
 	}
 
 	BLI_ghash_free(ghash, NULL, NULL);
 	// set acceleration structure for channel lookup
 	BKE_pose_channels_hash_make(out);
-	*dst=out;
+	*dst = out;
 }
 
-
-
-/* Only allowed for Poses with identical channels */
+// Only allowed for Poses with identical channels.
 static void game_blend_poses(bPose *dst, bPose *src, float srcweight, short mode)
 {
-	bPoseChannel *dchan;
-	const bPoseChannel *schan;
-	bConstraint *dcon, *scon;
 	float dstweight;
-	int i;
 
-	if (mode == BL_Action::ACT_BLEND_BLEND)
-	{
+	if (mode == BL_Action::ACT_BLEND_BLEND) {
 		dstweight = 1.0f - srcweight;
-	} else if (mode == BL_Action::ACT_BLEND_ADD)
-	{
-		dstweight = 1.0f;
-	} else {
+	}
+	else if (mode == BL_Action::ACT_BLEND_ADD) {
 		dstweight = 1.0f;
 	}
-	
-	schan= (bPoseChannel *)src->chanbase.first;
-	for (dchan = (bPoseChannel *)dst->chanbase.first; dchan; dchan=(bPoseChannel *)dchan->next, schan= (bPoseChannel *)schan->next) {
+	else {
+		dstweight = 1.0f;
+	}
+
+	bPoseChannel *schan = (bPoseChannel *)src->chanbase.first;
+	for (bPoseChannel *dchan = (bPoseChannel *)dst->chanbase.first; dchan; dchan = (bPoseChannel *)dchan->next, schan = (bPoseChannel *)schan->next) {
 		// always blend on all channels since we don't know which one has been set
 		/* quat interpolation done separate */
 		if (schan->rotmode == ROT_MODE_QUAT) {
 			float dquat[4], squat[4];
-			
+
 			copy_qt_qt(dquat, dchan->quat);
 			copy_qt_qt(squat, schan->quat);
 			// Normalize quaternions so that interpolation/multiplication result is correct.
 			normalize_qt(dquat);
 			normalize_qt(squat);
 
-			if (mode==BL_Action::ACT_BLEND_BLEND)
+			if (mode == BL_Action::ACT_BLEND_BLEND) {
 				interp_qt_qtqt(dchan->quat, dquat, squat, srcweight);
+			}
 			else {
 				mul_fac_qt_fl(squat, srcweight);
 				mul_qt_qtqt(dchan->quat, dquat, squat);
 			}
-			
+
 			normalize_qt(dchan->quat);
 		}
 
-		for (i=0; i<3; i++) {
+		for (unsigned short i = 0; i < 3; i++) {
 			/* blending for loc and scale are pretty self-explanatory... */
-			dchan->loc[i] = (dchan->loc[i]*dstweight) + (schan->loc[i]*srcweight);
-			dchan->size[i] = 1.0f + ((dchan->size[i]-1.0f)*dstweight) + ((schan->size[i]-1.0f)*srcweight);
-			
+			dchan->loc[i] = (dchan->loc[i] * dstweight) + (schan->loc[i] * srcweight);
+			dchan->size[i] = 1.0f + ((dchan->size[i] - 1.0f) * dstweight) + ((schan->size[i] - 1.0f) * srcweight);
+
 			/* euler-rotation interpolation done here instead... */
 			// FIXME: are these results decent?
-			if (schan->rotmode)
-				dchan->eul[i] = (dchan->eul[i]*dstweight) + (schan->eul[i]*srcweight);
+			if (schan->rotmode) {
+				dchan->eul[i] = (dchan->eul[i] * dstweight) + (schan->eul[i] * srcweight);
+			}
 		}
-		for (dcon= (bConstraint *)dchan->constraints.first, scon= (bConstraint *)schan->constraints.first;
+		for (bConstraint *dcon = (bConstraint *)dchan->constraints.first, *scon = (bConstraint *)schan->constraints.first;
 		     dcon && scon;
 		     dcon = dcon->next, scon = scon->next)
 		{
 			/* no 'add' option for constraint blending */
-			dcon->enforce= dcon->enforce*(1.0f-srcweight) + scon->enforce*srcweight;
+			dcon->enforce = dcon->enforce * (1.0f - srcweight) + scon->enforce * srcweight;
 		}
 	}
-	
+
 	/* this pose is now in src time */
-	dst->ctime= src->ctime;
+	dst->ctime = src->ctime;
 }
 
-BL_ArmatureObject::BL_ArmatureObject(
-				void* sgReplicationInfo, 
-				SG_Callbacks callbacks, 
-				Object *armature,
-				Scene *scene,
-				int vert_deform_type)
-
-:	KX_GameObject(sgReplicationInfo,callbacks),
-	m_controlledConstraints(),
-	m_poseChannels(),
-	m_scene(scene), // maybe remove later. needed for BKE_pose_where_is
+BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
+                                     SG_Callbacks callbacks,
+                                     Object *armature,
+                                     Scene *scene,
+                                     int vert_deform_type)
+	:KX_GameObject(sgReplicationInfo, callbacks),
+	m_scene(scene),
 	m_lastframe(0.0),
 	m_timestep(0.040),
 	m_vert_deform_type(vert_deform_type),
@@ -233,7 +215,8 @@ BL_ArmatureObject::BL_ArmatureObject(
 	m_drawDebug(false),
 	m_lastapplyframe(0.0)
 {
-	m_origObjArma = armature; // Keep a copy of the original armature so we can fix drivers later
+	// Keep a copy of the original armature so we can fix drivers later
+	m_origObjArma = armature;
 	m_objArma = BKE_object_copy(G.main, armature);
 	m_objArma->data = BKE_armature_copy(G.main, (bArmature *)armature->data);
 	// During object replication ob->data is increase, we decrease it now because we get a copy.
@@ -249,127 +232,130 @@ BL_ArmatureObject::BL_ArmatureObject(
 
 BL_ArmatureObject::~BL_ArmatureObject()
 {
-	BL_ArmatureConstraint* constraint;
+	BL_ArmatureConstraint *constraint;
 	while ((constraint = m_controlledConstraints.Remove()) != NULL) {
 		delete constraint;
 	}
-	BL_ArmatureChannel* channel;
-	while ((channel = static_cast<BL_ArmatureChannel*>(m_poseChannels.Remove())) != NULL) {
+	BL_ArmatureChannel *channel;
+	while ((channel = static_cast<BL_ArmatureChannel *>(m_poseChannels.Remove())) != NULL) {
 		delete channel;
 	}
 
 	if (m_objArma) {
 		BKE_libblock_free(G.main, m_objArma->data);
 		/* avoid BKE_libblock_free(G.main, m_objArma)
-		try to access m_objArma->data */
+		   try to access m_objArma->data */
 		m_objArma->data = NULL;
 		BKE_libblock_free(G.main, m_objArma);
 	}
 }
 
-
-void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter* converter)
+void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter *converter)
 {
 	// first delete any existing constraint (should not have any)
 	while (!m_controlledConstraints.Empty()) {
-		BL_ArmatureConstraint* constraint = m_controlledConstraints.Remove();
+		BL_ArmatureConstraint *constraint = m_controlledConstraints.Remove();
 		delete constraint;
 	}
 	m_constraintNumber = 0;
 
 	// list all the constraint and convert them to BL_ArmatureConstraint
 	// get the persistent pose structure
-	bPoseChannel* pchan;
-	bConstraint* pcon;
-	const bConstraintTypeInfo* cti;
-	Object* blendtarget;
-	KX_GameObject* gametarget;
-	KX_GameObject* gamesubtarget;
 
 	// and locate the constraint
-	for (pchan = (bPoseChannel *)m_pose->chanbase.first; pchan; pchan = pchan->next) {
-		for (pcon = (bConstraint *)pchan->constraints.first; pcon; pcon = pcon->next) {
-			if (pcon->flag & CONSTRAINT_DISABLE)
+	for (bPoseChannel *pchan = (bPoseChannel *)m_pose->chanbase.first; pchan; pchan = pchan->next) {
+		for (bConstraint *pcon = (bConstraint *)pchan->constraints.first; pcon; pcon = pcon->next) {
+			if (pcon->flag & CONSTRAINT_DISABLE) {
 				continue;
+			}
 			// which constraint should we support?
-			switch (pcon->type) {
-			case CONSTRAINT_TYPE_TRACKTO:
-			case CONSTRAINT_TYPE_DAMPTRACK:
-			case CONSTRAINT_TYPE_KINEMATIC:
-			case CONSTRAINT_TYPE_ROTLIKE:
-			case CONSTRAINT_TYPE_LOCLIKE:
-			case CONSTRAINT_TYPE_MINMAX:
-			case CONSTRAINT_TYPE_SIZELIKE:
-			case CONSTRAINT_TYPE_LOCKTRACK:
-			case CONSTRAINT_TYPE_STRETCHTO:
-			case CONSTRAINT_TYPE_CLAMPTO:
-			case CONSTRAINT_TYPE_TRANSFORM:
-			case CONSTRAINT_TYPE_DISTLIMIT:
-			case CONSTRAINT_TYPE_TRANSLIKE:
-				cti = BKE_constraint_typeinfo_get(pcon);
-				gametarget = gamesubtarget = NULL;
-				if (cti && cti->get_constraint_targets) {
-					ListBase listb = { NULL, NULL };
-					cti->get_constraint_targets(pcon, &listb);
-					if (listb.first) {
-						bConstraintTarget* target = (bConstraintTarget*)listb.first;
-						if (target->tar && target->tar != m_objArma) {
-							// only remember external objects, self target is handled automatically
-							blendtarget = target->tar;
-							gametarget = converter->FindGameObject(blendtarget);
-						}
-						if (target->next != NULL) {
-							// secondary target
-							target = target->next;
+			switch (pcon->type)
+			{
+				case CONSTRAINT_TYPE_TRACKTO:
+				case CONSTRAINT_TYPE_DAMPTRACK:
+				case CONSTRAINT_TYPE_KINEMATIC:
+				case CONSTRAINT_TYPE_ROTLIKE:
+				case CONSTRAINT_TYPE_LOCLIKE:
+				case CONSTRAINT_TYPE_MINMAX:
+				case CONSTRAINT_TYPE_SIZELIKE:
+				case CONSTRAINT_TYPE_LOCKTRACK:
+				case CONSTRAINT_TYPE_STRETCHTO:
+				case CONSTRAINT_TYPE_CLAMPTO:
+				case CONSTRAINT_TYPE_TRANSFORM:
+				case CONSTRAINT_TYPE_DISTLIMIT:
+				case CONSTRAINT_TYPE_TRANSLIKE:
+					const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(pcon);
+					KX_GameObject *gametarget = NULL;
+					KX_GameObject *gamesubtarget = NULL;
+					if (cti && cti->get_constraint_targets) {
+						ListBase listb = { NULL, NULL };
+						cti->get_constraint_targets(pcon, &listb);
+						if (listb.first) {
+							bConstraintTarget *target = (bConstraintTarget *)listb.first;
 							if (target->tar && target->tar != m_objArma) {
-								// only track external object
-								blendtarget = target->tar;
-								gamesubtarget = converter->FindGameObject(blendtarget);
+								// only remember external objects, self target is handled automatically
+								gametarget = converter->FindGameObject(target->tar);
+							}
+							if (target->next != NULL) {
+								// secondary target
+								target = target->next;
+								if (target->tar && target->tar != m_objArma) {
+									// only track external object
+									gamesubtarget = converter->FindGameObject(target->tar);
+								}
 							}
 						}
+						if (cti->flush_constraint_targets) {
+							cti->flush_constraint_targets(pcon, &listb, 1);
+						}
 					}
-					if (cti->flush_constraint_targets)
-						cti->flush_constraint_targets(pcon, &listb, 1);
-				}
-				BL_ArmatureConstraint* constraint = new BL_ArmatureConstraint(this, pchan, pcon, gametarget, gamesubtarget);
-				m_controlledConstraints.AddBack(constraint);
-				m_constraintNumber++;
+					BL_ArmatureConstraint *constraint = new BL_ArmatureConstraint(this, pchan, pcon, gametarget, gamesubtarget);
+					m_controlledConstraints.AddBack(constraint);
+					m_constraintNumber++;
 			}
 		}
 	}
 
 	// If we have constraints, make sure we get treated as an "animated" object
-	if (m_constraintNumber > 0)
+	if (m_constraintNumber > 0) {
 		GetActionManager();
+	}
 }
 
-BL_ArmatureConstraint* BL_ArmatureObject::GetConstraint(const std::string& posechannel, const std::string& constraintname)
+size_t BL_ArmatureObject::GetConstraintNumber() const
+{
+	return m_constraintNumber;
+}
+
+BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(const std::string& posechannel, const std::string& constraintname)
 {
 	SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
 	for (cit.begin(); !cit.end(); ++cit) {
-		BL_ArmatureConstraint* constraint = *cit;
-		if (constraint->Match(posechannel, constraintname))
+		BL_ArmatureConstraint *constraint = *cit;
+		if (constraint->Match(posechannel, constraintname)) {
 			return constraint;
+		}
 	}
 	return NULL;
 }
 
-BL_ArmatureConstraint* BL_ArmatureObject::GetConstraint(const std::string& posechannelconstraint)
+BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(const std::string& posechannelconstraint)
 {
 	// performance: use hash string instead of plain string compare
 	SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
 	for (cit.begin(); !cit.end(); ++cit) {
-		BL_ArmatureConstraint* constraint = *cit;
-		if (constraint->GetName() == posechannelconstraint)
+		BL_ArmatureConstraint *constraint = *cit;
+		if (constraint->GetName() == posechannelconstraint) {
 			return constraint;
+		}
 	}
 	return NULL;
 }
 
-BL_ArmatureConstraint* BL_ArmatureObject::GetConstraint(int index)
+BL_ArmatureConstraint *BL_ArmatureObject::GetConstraint(int index)
 {
 	SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
-	for (cit.begin(); !cit.end() && index; ++cit, --index);
+	for (cit.begin(); !cit.end() && index; ++cit, --index) {; }
 	return (cit.end()) ? NULL : *cit;
 }
 
@@ -377,57 +363,62 @@ BL_ArmatureConstraint* BL_ArmatureObject::GetConstraint(int index)
 void BL_ArmatureObject::LoadChannels()
 {
 	if (m_poseChannels.Empty()) {
-		bPoseChannel* pchan;
-		BL_ArmatureChannel* proxy;
-	
 		m_channelNumber = 0;
-		for (pchan = (bPoseChannel *)m_pose->chanbase.first; pchan; pchan=(bPoseChannel *)pchan->next) {
-			proxy = new BL_ArmatureChannel(this, pchan);
+		for (bPoseChannel *pchan = (bPoseChannel *)m_pose->chanbase.first; pchan; pchan = (bPoseChannel *)pchan->next) {
+			BL_ArmatureChannel *proxy = new BL_ArmatureChannel(this, pchan);
 			m_poseChannels.AddBack(proxy);
 			m_channelNumber++;
 		}
 	}
 }
 
-BL_ArmatureChannel* BL_ArmatureObject::GetChannel(bPoseChannel* pchan)
+size_t BL_ArmatureObject::GetChannelNumber() const
+{
+	return m_channelNumber;
+}
+
+BL_ArmatureChannel *BL_ArmatureObject::GetChannel(bPoseChannel *pchan)
 {
 	LoadChannels();
 	SG_DList::iterator<BL_ArmatureChannel> cit(m_poseChannels);
-	for (cit.begin(); !cit.end(); ++cit) 
+	for (cit.begin(); !cit.end(); ++cit)
 	{
-		BL_ArmatureChannel* channel = *cit;
-		if (channel->m_posechannel == pchan)
+		BL_ArmatureChannel *channel = *cit;
+		if (channel->m_posechannel == pchan) {
 			return channel;
+		}
 	}
 	return NULL;
 }
 
-BL_ArmatureChannel* BL_ArmatureObject::GetChannel(const std::string& str)
+BL_ArmatureChannel *BL_ArmatureObject::GetChannel(const std::string& str)
 {
 	LoadChannels();
 	SG_DList::iterator<BL_ArmatureChannel> cit(m_poseChannels);
-	for (cit.begin(); !cit.end(); ++cit) 
+	for (cit.begin(); !cit.end(); ++cit)
 	{
-		BL_ArmatureChannel* channel = *cit;
-		if (channel->m_posechannel->name == str)
+		BL_ArmatureChannel *channel = *cit;
+		if (channel->m_posechannel->name == str) {
 			return channel;
+		}
 	}
 	return NULL;
 }
 
-BL_ArmatureChannel* BL_ArmatureObject::GetChannel(int index)
+BL_ArmatureChannel *BL_ArmatureObject::GetChannel(int index)
 {
 	LoadChannels();
-	if (index < 0 || index >= m_channelNumber)
+	if (index < 0 || index >= m_channelNumber) {
 		return NULL;
+	}
 	SG_DList::iterator<BL_ArmatureChannel> cit(m_poseChannels);
-	for (cit.begin(); !cit.end() && index; ++cit, --index);
+	for (cit.begin(); !cit.end() && index; ++cit, --index) {; }
 	return (cit.end()) ? NULL : *cit;
 }
 
-CValue* BL_ArmatureObject::GetReplica()
+CValue *BL_ArmatureObject::GetReplica()
 {
-	BL_ArmatureObject* replica = new BL_ArmatureObject(*this);
+	BL_ArmatureObject *replica = new BL_ArmatureObject(*this);
 	replica->ProcessReplica();
 	return replica;
 }
@@ -436,10 +427,15 @@ void BL_ArmatureObject::ProcessReplica()
 {
 	KX_GameObject::ProcessReplica();
 
-	bArmature* tmp = (bArmature*)m_objArma->data;
+	bArmature *tmp = (bArmature *)m_objArma->data;
 	m_objArma = BKE_object_copy(G.main, m_objArma);
 	m_objArma->data = BKE_armature_copy(G.main, tmp);
 	m_pose = m_objArma->pose;
+}
+
+int BL_ArmatureObject::GetGameObjectType()
+{
+	return OBJ_ARMATURE;
 }
 
 void BL_ArmatureObject::ReParentLogic()
@@ -451,7 +447,7 @@ void BL_ArmatureObject::ReParentLogic()
 	KX_GameObject::ReParentLogic();
 }
 
-void BL_ArmatureObject::Relink(std::map<void *, void*>& obj_map)
+void BL_ArmatureObject::Relink(std::map<void *, void *>& obj_map)
 {
 	SG_DList::iterator<BL_ArmatureConstraint> cit(m_controlledConstraints);
 	for (cit.begin(); !cit.end(); ++cit) {
@@ -460,7 +456,7 @@ void BL_ArmatureObject::Relink(std::map<void *, void*>& obj_map)
 	KX_GameObject::Relink(obj_map);
 }
 
-bool BL_ArmatureObject::UnlinkObject(SCA_IObject* clientobj)
+bool BL_ArmatureObject::UnlinkObject(SCA_IObject *clientobj)
 {
 	// clientobj is being deleted, make sure we don't hold any reference to it
 	bool res = false;
@@ -528,33 +524,66 @@ bool BL_ArmatureObject::UpdateTimestep(double curtime)
 {
 	if (curtime != m_lastframe) {
 		// compute the timestep for the underlying IK algorithm
-		m_timestep = curtime-m_lastframe;
-		m_lastframe= curtime;
+		m_timestep = curtime - m_lastframe;
+		m_lastframe = curtime;
 	}
 
 	return false;
+}
+
+bArmature *BL_ArmatureObject::GetArmature()
+{
+	return (bArmature *)m_objArma->data;
+}
+const bArmature *BL_ArmatureObject::GetArmature() const
+{
+	return (bArmature *)m_objArma->data;
+}
+const Scene *BL_ArmatureObject::GetScene() const
+{
+	return m_scene;
+}
+
+Object *BL_ArmatureObject::GetArmatureObject()
+{
+	return m_objArma;
+}
+Object *BL_ArmatureObject::GetOrigArmatureObject()
+{
+	return m_origObjArma;
+}
+
+int BL_ArmatureObject::GetVertDeformType()
+{
+	return m_vert_deform_type;
 }
 
 void BL_ArmatureObject::GetPose(bPose **pose)
 {
 	/* If the caller supplies a null pose, create a new one. */
 	/* Otherwise, copy the armature's pose channels into the caller-supplied pose */
-		
+
 	if (!*pose) {
 		/* probably not to good of an idea to
-		 * duplicate everything, but it clears up 
-		 * a crash and memory leakage when 
+		 * duplicate everything, but it clears up
+		 * a crash and memory leakage when
 		 * &BL_ActionActuator::m_pose is freed
 		 */
 		game_copy_pose(pose, m_pose, 0);
 	}
 	else {
-		if (*pose == m_pose)
+		if (*pose == m_pose) {
 			// no need to copy if the pointers are the same
 			return;
+		}
 
 		extract_pose_from_pose(*pose, m_pose);
 	}
+}
+
+bPose *BL_ArmatureObject::GetOrigPose()
+{
+	return m_pose;
 }
 
 double BL_ArmatureObject::GetLastFrame()
@@ -562,14 +591,13 @@ double BL_ArmatureObject::GetLastFrame()
 	return m_lastframe;
 }
 
-bool BL_ArmatureObject::GetBoneMatrix(Bone* bone, MT_Matrix4x4& matrix)
+bool BL_ArmatureObject::GetBoneMatrix(Bone *bone, MT_Matrix4x4& matrix)
 {
-	bPoseChannel *pchan;
-
 	ApplyPose();
-	pchan = BKE_pose_channel_find_name(m_objArma->pose, bone->name);
-	if (pchan)
+	bPoseChannel *pchan = BKE_pose_channel_find_name(m_objArma->pose, bone->name);
+	if (pchan) {
 		matrix.setValue(&pchan->pose_mat[0][0]);
+	}
 	RestorePose();
 
 	return (pchan != NULL);
@@ -594,7 +622,7 @@ void BL_ArmatureObject::DrawDebugArmature()
 	m_drawDebug = false;
 }
 
-float BL_ArmatureObject::GetBoneLength(Bone* bone) const
+float BL_ArmatureObject::GetBoneLength(Bone *bone) const
 {
 	return (float)(MT_Vector3(bone->head) - MT_Vector3(bone->tail)).length();
 }
@@ -617,30 +645,30 @@ PyTypeObject BL_ArmatureObject::Type = {
 	0,
 	&KX_GameObject::Sequence,
 	&KX_GameObject::Mapping,
-	0,0,0,
+	0, 0, 0,
 	NULL,
 	NULL,
 	0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&KX_GameObject::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef BL_ArmatureObject::Methods[] = {
 	KX_PYMETHODTABLE_NOARGS(BL_ArmatureObject, update),
 	KX_PYMETHODTABLE_NOARGS(BL_ArmatureObject, draw),
-	{NULL,NULL} //Sentinel
+	{NULL, NULL} //Sentinel
 };
 
 PyAttributeDef BL_ArmatureObject::Attributes[] = {
 
-	KX_PYATTRIBUTE_RO_FUNCTION("constraints",		BL_ArmatureObject, pyattr_get_constraints),
-	KX_PYATTRIBUTE_RO_FUNCTION("channels",		BL_ArmatureObject, pyattr_get_channels),
+	KX_PYATTRIBUTE_RO_FUNCTION("constraints",       BL_ArmatureObject, pyattr_get_constraints),
+	KX_PYATTRIBUTE_RO_FUNCTION("channels",      BL_ArmatureObject, pyattr_get_channels),
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
@@ -662,12 +690,12 @@ static const std::string bl_armature_object_get_constraints_item_name_cb(void *s
 PyObject *BL_ArmatureObject::pyattr_get_constraints(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new CListWrapper(self_v,
-							 ((BL_ArmatureObject *)self_v)->GetProxy(),
-							 NULL,
-							 bl_armature_object_get_constraints_size_cb,
-							 bl_armature_object_get_constraints_item_cb,
-							 bl_armature_object_get_constraints_item_name_cb,
-							 NULL))->NewProxy(true);
+	                         ((BL_ArmatureObject *)self_v)->GetProxy(),
+	                         NULL,
+	                         bl_armature_object_get_constraints_size_cb,
+	                         bl_armature_object_get_constraints_item_cb,
+	                         bl_armature_object_get_constraints_item_name_cb,
+	                         NULL))->NewProxy(true);
 }
 
 static int bl_armature_object_get_channels_size_cb(void *self_v)
@@ -690,26 +718,26 @@ PyObject *BL_ArmatureObject::pyattr_get_channels(void *self_v, const KX_PYATTRIB
 	BL_ArmatureObject *self = static_cast<BL_ArmatureObject *>(self_v);
 	self->LoadChannels(); // make sure we have the channels
 	return (new CListWrapper(self_v,
-							 self->GetProxy(),
-							 NULL,
-							 bl_armature_object_get_channels_size_cb,
-							 bl_armature_object_get_channels_item_cb,
-							 bl_armature_object_get_channels_item_name_cb,
-							 NULL))->NewProxy(true);
+	                         self->GetProxy(),
+	                         NULL,
+	                         bl_armature_object_get_channels_size_cb,
+	                         bl_armature_object_get_channels_item_cb,
+	                         bl_armature_object_get_channels_item_name_cb,
+	                         NULL))->NewProxy(true);
 }
 
-KX_PYMETHODDEF_DOC_NOARGS(BL_ArmatureObject, update, 
-						  "update()\n"
-						  "Make sure that the armature will be updated on next graphic frame.\n"
-						  "This is automatically done if a KX_ArmatureActuator with mode run is active\n"
-						  "or if an action is playing. This function is useful in other cases.\n")
+KX_PYMETHODDEF_DOC_NOARGS(BL_ArmatureObject, update,
+                          "update()\n"
+                          "Make sure that the armature will be updated on next graphic frame.\n"
+                          "This is automatically done if a KX_ArmatureActuator with mode run is active\n"
+                          "or if an action is playing. This function is useful in other cases.\n")
 {
 	UpdateTimestep(KX_GetActiveEngine()->GetFrameTime());
 	Py_RETURN_NONE;
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(BL_ArmatureObject, draw,
-	"Draw Debug Armature")
+                          "Draw Debug Armature")
 {
 	/* Armature bones are updated later, so we only set to true a flag
 	 * to request a debug draw later in ApplyPose after updating bones. */
