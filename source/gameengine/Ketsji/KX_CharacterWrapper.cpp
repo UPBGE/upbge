@@ -36,9 +36,10 @@ KX_CharacterWrapper::~KX_CharacterWrapper()
 {
 }
 
-STR_String KX_CharacterWrapper::GetName()
+STR_String& KX_CharacterWrapper::GetName()
 {
-	return "KX_CharacterWrapper";
+	static STR_String name = "KX_CharacterWrapper";
+	return name;
 }
 
 #ifdef WITH_PYTHON

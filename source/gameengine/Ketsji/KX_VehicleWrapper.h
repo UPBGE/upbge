@@ -23,7 +23,7 @@ public:
 	KX_VehicleWrapper(PHY_IVehicle* vehicle,class PHY_IPhysicsEnvironment* physenv);
 	virtual ~KX_VehicleWrapper ();
 
-	virtual STR_String GetName();
+	virtual STR_String& GetName();
 
 	int			getConstraintId();
 	

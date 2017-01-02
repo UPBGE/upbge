@@ -47,9 +47,10 @@ KX_ConstraintWrapper::~KX_ConstraintWrapper()
 {
 }
 
-STR_String KX_ConstraintWrapper::GetName()
+STR_String& KX_ConstraintWrapper::GetName()
 {
-	return "KX_ConstraintWrapper";
+	static STR_String name = "KX_ConstraintWrapper";
+	return name;
 }
 
 #ifdef WITH_PYTHON

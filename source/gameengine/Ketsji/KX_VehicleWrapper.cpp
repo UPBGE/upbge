@@ -53,9 +53,10 @@ KX_VehicleWrapper::~KX_VehicleWrapper()
 	m_motionStates.clear();
 }
 
-STR_String KX_VehicleWrapper::GetName()
+STR_String& KX_VehicleWrapper::GetName()
 {
-	return "KX_VehicleWrapper";
+	static STR_String name = "KX_VehicleWrapper";
+	return name;
 }
 
 #ifdef WITH_PYTHON
