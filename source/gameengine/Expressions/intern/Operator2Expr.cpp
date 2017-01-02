@@ -184,8 +184,8 @@ bool COperator2Expr::NeedsRecalculated()
 	// added some lines, just for debugging purposes, it could be a one-liner :)
 	//bool modleft
 	//bool modright;
-	assertd(m_lhs);
-	assertd(m_rhs);
+	BLI_assert(m_lhs);
+	BLI_assert(m_rhs);
 
 	//modright = m_rhs->NeedsRecalculated();
 	if (m_rhs->NeedsRecalculated()) // early out
@@ -207,7 +207,7 @@ CExpression* COperator2Expr::CheckLink(std::vector<CBrokenLinkInfo*>& brokenlink
 
 //  	bool leftalive = true,rightalive=true;
 	/* Does this mean the function will always bomb? */
-	assertd(false);
+	BLI_assert(false);
 	assert(m_lhs);
 	assert(m_rhs);
 /*
@@ -262,7 +262,7 @@ bool COperator2Expr::MergeExpression(CExpression *otherexpr)
 		}
 	}
 
-	assertd(false);
+	BLI_assert(false);
 	return false;
 }
 

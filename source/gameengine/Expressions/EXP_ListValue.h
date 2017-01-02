@@ -80,7 +80,7 @@ public:
 	void Remove(int i);
 	void Resize(int num);
 	void SetValue(int i,CValue* val);
-	CValue* GetValue(int i) { assertd(i < m_pValueArray.size()); return m_pValueArray[i]; }
+	CValue* GetValue(int i) { BLI_assert(i < m_pValueArray.size()); return m_pValueArray[i]; }
 	CValue *GetFront();
 	CValue *GetBack();
 	int GetCount() { return m_pValueArray.size(); }

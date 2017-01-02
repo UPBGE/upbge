@@ -93,7 +93,7 @@ CValue* CIfExpr::Calculate()
 
 bool CIfExpr::MergeExpression(CExpression *otherexpr)
 {
-	assertd(false);
+	BLI_assert(false);
 	return false;
 }
 
@@ -101,7 +101,7 @@ bool CIfExpr::MergeExpression(CExpression *otherexpr)
 
 bool CIfExpr::IsInside(float x,float y,float z,bool bBorderInclude)
 {
-	assertd(false);
+	BLI_assert(false);
 	return false;
 }
 	
@@ -118,7 +118,7 @@ bool CIfExpr::NeedsRecalculated()
 
 CExpression* CIfExpr::CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks)
 {
-	assertd(false);
+	BLI_assert(false);
 	return NULL;
 }
 
@@ -126,14 +126,14 @@ CExpression* CIfExpr::CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks)
 
 void CIfExpr::ClearModified()
 {
-	assertd(false);
+	BLI_assert(false);
 }
 
 
 
 void CIfExpr::BroadcastOperators(VALUE_OPERATOR op)
 {
-	assertd(false);
+	BLI_assert(false);
 }
 
 

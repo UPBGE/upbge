@@ -84,7 +84,7 @@ bool CIdentifierExpr::NeedsRecalculated()
 
 CExpression* CIdentifierExpr::CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks)
 {
-	assertd(false); // not implemented yet
+	BLI_assert(false); // not implemented yet
 	return NULL;
 }
 
@@ -92,12 +92,12 @@ CExpression* CIdentifierExpr::CheckLink(std::vector<CBrokenLinkInfo*>& brokenlin
 
 void CIdentifierExpr::ClearModified() 
 {
-	assertd(false); // not implemented yet
+	BLI_assert(false); // not implemented yet
 }
 
 
 
 void CIdentifierExpr::BroadcastOperators(VALUE_OPERATOR op)
 {
-	assertd(false); // not implemented yet
+	BLI_assert(false); // not implemented yet
 }

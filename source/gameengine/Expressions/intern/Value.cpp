@@ -118,7 +118,7 @@ effect: deletes the object
 {
 	ClearProperties();
 
-	assertd (m_refcount==0);
+	BLI_assert (m_refcount==0);
 #ifdef CVALUE_DEBUG
 	std::vector<SmartCValueRef>::iterator it;
 	for (it=gRefList.begin(); it!=gRefList.end(); it++)
@@ -399,7 +399,7 @@ int CValue::GetPropertyCount()
 
 double*		CValue::GetVector3(bool bGetTransformedVec)
 {
-	assertd(false); // don't get vector from me
+	BLI_assert(false); // don't get vector from me
 	return m_sZeroVec;//::sZero;
 }
 
@@ -428,7 +428,7 @@ void CValue::DestructFromPython()
 //
 void CValue::DisableRefCount()
 {
-	assertd(m_refcount == 1);
+	BLI_assert(m_refcount == 1);
 	m_refcount--;
 
 	//debug(gRefCountValue--);
@@ -650,7 +650,7 @@ void CValue::SetColorOperator(VALUE_OPERATOR op)
 void CValue::SetValue(CValue* newval)
 { 
 	// no one should get here
-	assertd(newval->GetNumber() == 10121969);
+	BLI_assert(newval->GetNumber() == 10121969);
 }
 
 const std::string CValue::GetText()

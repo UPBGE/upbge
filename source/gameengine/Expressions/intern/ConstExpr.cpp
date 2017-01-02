@@ -103,7 +103,7 @@ CExpression* CConstExpr::CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks)
 // then release Value, and return NULL in case of constexpression
 // else return this...
 
-	assertd(m_value);
+	BLI_assert(m_value);
 	if (m_value->IsReleaseRequested())
 	{
 		AddRef(); //numchanges++;
@@ -117,7 +117,7 @@ CExpression* CConstExpr::CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks)
 
 void CConstExpr::BroadcastOperators(VALUE_OPERATOR op)
 {
-	assertd(m_value);
+	BLI_assert(m_value);
 	m_value->SetColorOperator(op);
 }
 
@@ -125,6 +125,6 @@ void CConstExpr::BroadcastOperators(VALUE_OPERATOR op)
 
 bool CConstExpr::MergeExpression(CExpression *otherexpr)
 {
-	assertd(false);
+	BLI_assert(false);
 	return false;
 }

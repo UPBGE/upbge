@@ -1028,7 +1028,7 @@ int main(
 		// Create the system
 		if (GHOST_ISystem::createSystem() == GHOST_kSuccess) {
 			GHOST_ISystem* system = GHOST_ISystem::getSystem();
-			assertd(system);
+			BLI_assert(system);
 			
 			if (!fullScreenWidth || !fullScreenHeight)
 				system->getMainDisplayDimensions(fullScreenWidth, fullScreenHeight);

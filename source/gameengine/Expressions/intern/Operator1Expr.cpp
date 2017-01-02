@@ -146,6 +146,6 @@ bool COperator1Expr::MergeExpression(CExpression *otherexpr)
 	if (m_lhs)
 		return m_lhs->MergeExpression(otherexpr);
 	
-	assertd(false); // should not get here, expression is not compatible for merge
+	BLI_assert(false); // should not get here, expression is not compatible for merge
 	return false;
 }

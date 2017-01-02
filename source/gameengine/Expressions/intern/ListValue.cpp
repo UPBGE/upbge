@@ -91,7 +91,7 @@ CValue* CListValue::GetReplica()
 
 void CListValue::SetValue(int i, CValue *val)
 {
-	assertd(i < m_pValueArray.size());
+	BLI_assert(i < m_pValueArray.size());
 	m_pValueArray[i]=val;
 }
 
@@ -124,7 +124,7 @@ void CListValue::Resize(int num)
 
 void CListValue::Remove(int i)
 {
-	assertd(i<m_pValueArray.size());
+	BLI_assert(i<m_pValueArray.size());
 	m_pValueArray.erase(m_pValueArray.begin()+i);
 }
 

@@ -116,7 +116,7 @@ CValue* CErrorValue::GetReplica()
 { 
 	// who would want a copy of an error ?
 	trace ("Error: ErrorValue::GetReplica() not implemented yet");
-	assertd(false);
+	BLI_assert(false);
 
 	return NULL;
 }

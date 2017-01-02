@@ -57,7 +57,7 @@ class CBrokenLinkInfo
 			:m_pmemExpr(pmemexpr),
 			m_pExpr(expr)
 		 { 
-			assertd(pmemexpr);
+			BLI_assert(pmemexpr);
 			m_bRestored=false;
 		};
 
@@ -118,7 +118,7 @@ public:
 
 #ifdef DEBUG
 		//gRefCountExpr++;
-		assertd(m_refcount < 255);
+		BLI_assert(m_refcount < 255);
 #endif
 		m_refcount++; 
 		return this;

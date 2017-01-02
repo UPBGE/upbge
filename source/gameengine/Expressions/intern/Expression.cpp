@@ -51,7 +51,7 @@ void CBrokenLinkInfo::RestoreLink()
 {
 
 	
-	assertd(m_pExpr);
+	BLI_assert(m_pExpr);
 
 	if (m_pExpr)
 	{

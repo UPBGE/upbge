@@ -48,8 +48,8 @@
 #endif
 
 #ifndef GEN_NO_ASSERTD
-#undef  assertd
-#define	assertd(exp)			((void)NULL)
+#undef  BLI_assert
+#define	BLI_assert(exp)			((void)NULL)
 #endif
 
 enum VALUE_OPERATOR {
