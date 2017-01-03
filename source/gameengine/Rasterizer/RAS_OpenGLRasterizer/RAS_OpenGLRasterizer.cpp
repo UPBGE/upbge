@@ -2380,7 +2380,7 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 	CM_Message(" GL_ARB_draw_instanced supported?  "<< (GLEW_ARB_draw_instanced?"yes.":"no."));
 }
 
-static void DrawDebugCameraBox(const float vec[8][3], bool solid)
+static void DrawDebugCameraBox(MT_Vector3 vec[8], bool solid)
 {
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(3, GL_FLOAT, 0, vec);
@@ -2399,7 +2399,7 @@ static void DrawDebugCameraBox(const float vec[8][3], bool solid)
 
 static void DrawPerspectiveCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend)
 {
-	float box[8][3];
+	MT_Vector3 box[8];
 
 	/* construct box */
 	box[2][0] = box[1][0] = -oppositeclipsta * ratiox;
@@ -2413,7 +2413,11 @@ static void DrawPerspectiveCameraFrustum(KX_Camera *cam, float ratiox, float rat
 	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -cam->GetCameraData()->m_clipend;
 	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -cam->GetCameraData()->m_clipstart;
 
-	MT_Transform trans(cam->GetWorldToCamera());
+	MT_Transform trans(cam->GetCameraToWorld());
+	for (short i = 0; i < 8; i++) {
+		box[i] = trans(box[i]);
+	}
+
 
 	/* draw edges */
 	glEnable(GL_LINE_STIPPLE);
@@ -2451,7 +2455,7 @@ static void DrawPerspectiveCameraFrustum(KX_Camera *cam, float ratiox, float rat
 
 static void DrawOrthographicCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float x)
 {
-	float box[8][3];
+	MT_Vector3 box[8];
 
 	/* construct box */
 	box[0][0] = box[1][0] = box[2][0] = box[3][0] = -x * ratiox;
@@ -2460,6 +2464,11 @@ static void DrawOrthographicCameraFrustum(KX_Camera *cam, float ratiox, float ra
 	box[2][1] = box[3][1] = box[6][1] = box[7][1] = +x * ratioy;
 	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -cam->GetCameraData()->m_clipend;
 	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -cam->GetCameraData()->m_clipstart;
+
+	MT_Transform trans(cam->GetCameraToWorld());
+	for (short i = 0; i < 8; i++) {
+		box[i] = trans(box[i]);
+	}
 
 	/* draw edges */
 	glEnable(GL_LINE_STIPPLE);
