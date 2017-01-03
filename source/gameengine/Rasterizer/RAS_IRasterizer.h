@@ -729,6 +729,7 @@ public:
 	virtual void PrintHardwareInfo() = 0;
 
 	virtual void DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene) = 0;
+	virtual void DrawDebugBoxes(MT_Vector3 box[8]) = 0;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IRasterizer")

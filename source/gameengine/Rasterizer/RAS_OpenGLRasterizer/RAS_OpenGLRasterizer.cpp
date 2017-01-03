@@ -2397,7 +2397,7 @@ static void DrawDebugBox(MT_Vector3 vec[8], bool solid)
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
-static void DrawDebugBoxes(MT_Vector3 box[8])
+void DrawDebugBoxes(MT_Vector3 box[8])
 {
 	/* draw edges */
 	glEnable(GL_LINE_STIPPLE);
