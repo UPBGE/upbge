@@ -32,7 +32,6 @@
 #ifndef __KX_BLENDERSCENECONVERTER_H__
 #define __KX_BLENDERSCENECONVERTER_H__
 
-#include "EXP_HashedPtr.h"
 #include <stdio.h>
 
 #include "KX_ISceneConverter.h"

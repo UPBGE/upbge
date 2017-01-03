@@ -48,7 +48,6 @@ set(SRC
 	intern/IfExpr.cpp
 	intern/InputParser.cpp
 	intern/IntValue.cpp
-	intern/HashedPtr.cpp
 	intern/ListValue.cpp
 	intern/Operator1Expr.cpp
 	intern/Operator2Expr.cpp
@@ -63,7 +62,6 @@ set(SRC
 	EXP_ErrorValue.h
 	EXP_Expression.h
 	EXP_FloatValue.h
-	EXP_HashedPtr.h
 	EXP_IdentifierExpr.h
 	EXP_IfExpr.h
 	EXP_InputParser.h
