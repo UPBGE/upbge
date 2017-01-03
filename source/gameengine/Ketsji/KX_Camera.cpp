@@ -54,7 +54,8 @@ KX_Camera::KX_Camera(void* sgReplicationInfo,
       m_set_projection_matrix(false),
       m_set_frustum_center(false),
       m_delete_node(delete_node),
-	  m_lodDistanceFactor(1.0f)
+	  m_lodDistanceFactor(1.0f),
+	  m_showDebugCameraFrustum(false)
 {
 	// setting a name would be nice...
 	m_name = "cam";
@@ -263,6 +264,16 @@ float KX_Camera::GetFocalLength() const
 RAS_CameraData*	KX_Camera::GetCameraData()
 {
 	return &m_camdata; 
+}
+
+void KX_Camera::SetShowCameraFrustum(bool show)
+{
+	m_showDebugCameraFrustum = show;
+}
+
+bool KX_Camera::GetShowCameraFrustum() const
+{
+	return m_showDebugCameraFrustum;
 }
 
 float KX_Camera::GetLodDistanceFactor() const

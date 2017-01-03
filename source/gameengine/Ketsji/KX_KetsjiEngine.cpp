@@ -848,7 +848,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 	}
 }
 
-const MT_Matrix4x4& KX_KetsjiEngine::GetCameraProjection(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& viewport, const RAS_Rect& area)
+const MT_Matrix4x4& KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	if (cam->hasValidProjectionMatrix()) {
 		return cam->GetProjectionMatrix();
@@ -971,7 +971,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 	MT_Transform camtrans(cam->GetWorldToCamera());
 	MT_Matrix4x4 viewmat(camtrans);
 
-	m_rasterizer->SetProjectionMatrix(GetCameraProjection(scene, cam, viewport, area));
+	m_rasterizer->SetProjectionMatrix(GetCameraProjectionMatrix(scene, cam, viewport, area));
 	m_rasterizer->SetViewMatrix(viewmat, cam->NodeGetWorldOrientation(), cam->NodeGetWorldPosition(), cam->NodeGetLocalScaling(), cam->GetCameraData()->m_perspective);
 	cam->SetModelviewMatrix(viewmat);
 
@@ -1004,6 +1004,8 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 
 	// Draw debug infos like bouding box, armature ect.. if enabled.
 	scene->DrawDebug(m_rasterizer);
+	// Draw debug camera frustum.
+	DrawDebugCameraFrustum(scene, viewport, area);
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
@@ -1262,6 +1264,18 @@ void KX_KetsjiEngine::RenderDebugProperties()
 					}
 				}
 			}
+		}
+	}
+}
+
+void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, const RAS_Rect& viewport, const RAS_Rect& area)
+{
+	CListValue *cameras = scene->GetCameraList();
+	for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
+		KX_Camera *cam = *it;
+		if (cam->GetShowCameraFrustum()) {
+			const MT_Matrix4x4 viewmat(cam->GetWorldToCamera());
+			m_rasterizer->DrawDebugCameraFrustum(scene, GetCameraProjectionMatrix(scene, cam, viewport, area), viewmat);
 		}
 	}
 }

@@ -258,6 +258,8 @@ class DATA_PT_camera_display(CameraButtonsPanel, Panel):
 
         col = split.column()
         col.prop(cam, "show_limits", text="Limits")
+        if context.scene.render.engine == 'BLENDER_GAME':
+            col.prop(cam, "show_frustum", text="Frustum")
         col.prop(cam, "show_mist", text="Mist")
 
         col.prop(cam, "show_sensor", text="Sensor")

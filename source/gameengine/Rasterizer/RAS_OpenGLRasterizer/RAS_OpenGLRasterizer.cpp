@@ -704,7 +704,10 @@ void RAS_OpenGLRasterizer::SetColorMask(bool r, bool g, bool b, bool a)
 void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 {
 	SceneDebugShape& debugShapes = m_debugShapes[scene];
-	if ((debugShapes.m_lines.size() + debugShapes.m_circles.size() + debugShapes.m_aabbs.size()) == 0) {
+	if ((debugShapes.m_lines.size() + debugShapes.m_circles.size() +
+		debugShapes.m_aabbs.size() + debugShapes.m_boxes.size() +
+		debugShapes.m_solidBoxes.size()) == 0)
+	{
 		return;
 	}
 
@@ -735,7 +738,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	glEnd();
 
 	glEnableClientState(GL_VERTEX_ARRAY);
-	// Draw boxes
+	// Draw aabbs
 	for (const DebugAabb& aabb : debugShapes.m_aabbs) {
 		glColor4fv(aabb.m_color.getValue());
 
@@ -777,6 +780,29 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 		glDrawElements(GL_LINES, 24, GL_UNSIGNED_SHORT, indexes);
 
 		PopMatrix();
+	}
+
+	// Draw boxes.
+	static const GLubyte wireIndices[24] = {0, 1, 1, 2, 2, 3, 3, 0, 0, 4, 4, 5, 5, 6, 6, 7, 7, 4, 1, 5, 2, 6, 3, 7};
+	for (const DebugBox& box : debugShapes.m_boxes) {
+		glVertexPointer(3, GL_FLOAT, sizeof(MT_Vector3), box.m_vertexes->getValue());
+		glColor4fv(box.m_color.getValue());
+		glDrawRangeElements(GL_LINES, 0, 7, 24, GL_UNSIGNED_BYTE, wireIndices);
+	}
+
+	static const GLubyte solidIndices[24] = {0, 1, 2, 3, 7, 6, 5, 4, 4, 5, 1, 0, 3, 2, 6, 7, 3, 7, 4, 0, 1, 5, 6, 2};
+	for (const DebugSolidBox& box : debugShapes.m_solidBoxes) {
+		glVertexPointer(3, GL_FLOAT, sizeof(MT_Vector3), box.m_vertexes->getValue());
+		glColor4fv(box.m_color.getValue());
+		glDrawRangeElements(GL_LINES, 0, 7, 24, GL_UNSIGNED_BYTE, wireIndices);
+
+		SetFrontFace(false);
+		glColor4fv(box.m_insideColor.getValue());
+		glDrawRangeElements(GL_QUADS, 0, 7, 24, GL_UNSIGNED_BYTE, solidIndices);
+
+		SetFrontFace(true);
+		glColor4fv(box.m_outsideColor.getValue());
+		glDrawRangeElements(GL_QUADS, 0, 7, 24, GL_UNSIGNED_BYTE, solidIndices);
 	}
 	glDisableClientState(GL_VERTEX_ARRAY);
 
@@ -823,6 +849,8 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	debugShapes.m_lines.clear();
 	debugShapes.m_circles.clear();
 	debugShapes.m_aabbs.clear();
+	debugShapes.m_boxes.clear();
+	debugShapes.m_solidBoxes.clear();
 }
 
 void RAS_OpenGLRasterizer::DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
@@ -856,6 +884,52 @@ void RAS_OpenGLRasterizer::DrawDebugAabb(SCA_IScene *scene, const MT_Vector3& po
 	aabb.m_max = max;
 	aabb.m_color = color;
 	m_debugShapes[scene].m_aabbs.push_back(aabb);
+}
+
+void RAS_OpenGLRasterizer::DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& color)
+{
+	DebugBox box;
+	for (unsigned short i = 0; i < 8; ++i) {
+		box.m_vertexes[i] = vertexes[i];
+	}
+	box.m_color = color;
+	m_debugShapes[scene].m_boxes.push_back(box);
+}
+
+void RAS_OpenGLRasterizer::DrawDebugSolidBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& insideColor,
+		const MT_Vector4& outsideColor, const MT_Vector4& lineColor)
+{
+	DebugSolidBox box;
+	for (unsigned short i = 0; i < 8; ++i) {
+		box.m_vertexes[i] = vertexes[i];
+	}
+	box.m_insideColor = insideColor;
+	box.m_outsideColor = outsideColor;
+	box.m_color = lineColor;
+	m_debugShapes[scene].m_solidBoxes.push_back(box);
+}
+
+void RAS_OpenGLRasterizer::DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat)
+{
+	MT_Vector3 box[8];
+
+	box[0][0] = box[1][0] = box[4][0] = box[5][0] = -1.0f;
+	box[2][0] = box[3][0] = box[6][0] = box[7][0] = 1.0f;
+	box[0][1] = box[3][1] = box[4][1] = box[7][1] = -1.0f;
+	box[1][1] = box[2][1] = box[5][1] = box[6][1] = 1.0f;
+	box[0][2] = box[1][2] = box[2][2] = box[3][2] = -1.0f;
+	box[4][2] = box[5][2] = box[6][2] = box[7][2] = 1.0f;
+
+	const MT_Matrix4x4 mv = (projmat * viewmat).inverse();
+
+	for (unsigned short i = 0; i < 8; i++) {
+		MT_Vector3& p3 = box[i];
+		const MT_Vector4 p4 = mv * MT_Vector4(p3.x(), p3.y(), p3.z(), 1.0f);
+		p3 = MT_Vector3(p4.x() / p4.w(), p4.y() / p4.w(), p4.z() / p4.w());
+	}
+
+	DrawDebugSolidBox(scene, box, MT_Vector4(0.4f, 0.4f, 0.4f, 0.4f), MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f),
+		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f));
 }
 
 void RAS_OpenGLRasterizer::EndFrame()
@@ -2377,4 +2451,3 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 
 	CM_Message(" GL_ARB_draw_instanced supported?  "<< (GLEW_ARB_draw_instanced?"yes.":"no."));
 }
-
