@@ -49,6 +49,7 @@
 class RAS_StorageVBO;
 class RAS_ICanvas;
 class RAS_OpenGLLight;
+class KX_Camera;
 struct GPUOffScreen;
 struct GPUTexture;
 struct GPUShader;
@@ -448,7 +449,13 @@ public:
 	 */
 	virtual void PrintHardwareInfo();
 
+	// Draw Camera Frustum functions
 	virtual void DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene);
+	void DrawPerspectiveCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend);
+	void DrawOrthographicCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float x);
+	void DrawDebugBoxes(MT_Vector3 box[8]);
+	void DrawDebugBoxFromBox(MT_Vector3 box[8], bool solid);
+
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_OpenGLRasterizer")

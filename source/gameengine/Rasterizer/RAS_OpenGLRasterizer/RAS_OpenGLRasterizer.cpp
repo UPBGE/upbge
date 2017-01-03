@@ -2380,7 +2380,7 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 	CM_Message(" GL_ARB_draw_instanced supported?  "<< (GLEW_ARB_draw_instanced?"yes.":"no."));
 }
 
-static void DrawDebugBoxStatic(MT_Vector3 vec[8], bool solid)
+void RAS_OpenGLRasterizer::DrawDebugBoxFromBox(MT_Vector3 vec[8], bool solid)
 {
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(3, GL_FLOAT, 0, vec);
@@ -2397,12 +2397,12 @@ static void DrawDebugBoxStatic(MT_Vector3 vec[8], bool solid)
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
-static void DrawDebugBoxes(MT_Vector3 box[8])
+void RAS_OpenGLRasterizer::DrawDebugBoxes(MT_Vector3 box[8])
 {
 	/* draw edges */
 	glEnable(GL_LINE_STIPPLE);
 	glColor4f(0.8f, 0.5f, 0.0f, 1.0f);
-	DrawDebugBoxStatic(box, false);
+	DrawDebugBoxFromBox(box, false);
 	glDisable(GL_LINE_STIPPLE);
 
 	/* draw faces */
@@ -2416,7 +2416,7 @@ static void DrawDebugBoxes(MT_Vector3 box[8])
 	glBlendFunc(GL_ZERO, GL_SRC_ALPHA);
 	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
 
-	DrawDebugBoxStatic(box, true);
+	DrawDebugBoxFromBox(box, true);
 
 	/* draw front side lighting */
 	glCullFace(GL_BACK);
@@ -2424,7 +2424,7 @@ static void DrawDebugBoxes(MT_Vector3 box[8])
 	glBlendFunc(GL_ONE, GL_ONE);
 	glColor4f(0.2f, 0.2f, 0.2f, 1.0f);
 
-	DrawDebugBoxStatic(box, true);
+	DrawDebugBoxFromBox(box, true);
 
 	/* restore state to default values */
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -2433,7 +2433,7 @@ static void DrawDebugBoxes(MT_Vector3 box[8])
 	glDisable(GL_CULL_FACE);
 }
 
-static void DrawPerspectiveCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend)
+void RAS_OpenGLRasterizer::DrawPerspectiveCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend)
 {
 	MT_Vector3 box[8];
 
@@ -2456,7 +2456,7 @@ static void DrawPerspectiveCameraFrustum(KX_Camera *cam, float ratiox, float rat
 	DrawDebugBoxes(box);
 }
 
-static void DrawOrthographicCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float x)
+void RAS_OpenGLRasterizer::DrawOrthographicCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float x)
 {
 	MT_Vector3 box[8];
 
