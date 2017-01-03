@@ -612,7 +612,9 @@ void KX_KetsjiEngine::Render()
 				if (showCamerasFrustum) {
 					for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
 						KX_Camera *cam = *it;
-						DrawActiveCameraFrustum(cam, scene);
+						if (cam != activecam) {
+							DrawActiveCameraFrustum(cam, scene);
+						}
 					}
 				}
 			}
