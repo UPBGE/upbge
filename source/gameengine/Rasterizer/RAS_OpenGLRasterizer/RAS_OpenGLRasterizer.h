@@ -453,7 +453,7 @@ public:
 	virtual void DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene);
 	void DrawPerspectiveCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend);
 	void DrawOrthographicCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float x);
-	void DrawDebugBoxes(MT_Vector3 box[8]);
+	virtual void DrawDebugBoxes(MT_Vector3 box[8]);
 	void DrawDebugBoxFromBox(MT_Vector3 box[8], bool solid);
 
 
