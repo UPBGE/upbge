@@ -21,12 +21,10 @@
 
 #include "EXP_Value.h"
 
-/**
- *	Smart Boolean Value class.
+/** Smart Boolean Value class.
  * Is used by parser when an expression tree is build containing booleans.
  */
-
-class CBoolValue : public CPropValue  
+class CBoolValue : public CPropValue
 {
 public:
 	static const std::string sTrueString;
@@ -37,25 +35,25 @@ public:
 	CBoolValue(bool innie, const std::string& name);
 
 	virtual const std::string GetText();
-	virtual double		GetNumber();
-	virtual int			GetValueType();
-	bool				GetBool();
-	virtual void		SetValue(CValue* newval);
-	
-	virtual CValue*		Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	
-	virtual CValue*		GetReplica();
+	virtual double GetNumber();
+	virtual int GetValueType();
+	bool GetBool();
+	virtual void SetValue(CValue *newval);
+
+	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
+	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+
+	virtual CValue *GetReplica();
 #ifdef WITH_PYTHON
-	virtual PyObject*	ConvertValueToPython();
+	virtual PyObject *ConvertValueToPython();
 #endif
 
 private:
-	bool				m_bool;
+	bool m_bool;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CBoolValue")
 #endif
 };
 
-#endif  /* __EXP_BOOLVALUE_H__ */
+#endif  // __EXP_BOOLVALUE_H__

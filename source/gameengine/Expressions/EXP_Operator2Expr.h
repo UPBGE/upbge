@@ -19,32 +19,30 @@
 #ifndef __EXP_OPERATOR2EXPR_H__
 #define __EXP_OPERATOR2EXPR_H__
 
-
 #include "EXP_Expression.h"
-#include "EXP_Value.h"	// Added by ClassView
+#include "EXP_Value.h"
 
-class COperator2Expr : public CExpression  
+class COperator2Expr : public CExpression
 {
 public:
-	virtual unsigned char GetExpressionID() { return COPERATOR2EXPRESSIONID; }
-	virtual CValue* Calculate();
-	COperator2Expr(VALUE_OPERATOR op, CExpression *lhs, CExpression *rhs);
 	COperator2Expr();
+	COperator2Expr(VALUE_OPERATOR op, CExpression *lhs, CExpression *rhs);
 	virtual ~COperator2Expr();
 
-	
+	virtual unsigned char GetExpressionID();
+	virtual CValue *Calculate();
+
 protected:
-	CExpression * m_rhs;
-	CExpression * m_lhs;
+	CExpression *m_rhs;
+	CExpression *m_lhs;
 
 private:
 	VALUE_OPERATOR m_op;
-
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:COperator2Expr")
 #endif
 };
 
-#endif  /* __EXP_OPERATOR2EXPR_H__ */
+#endif  // __EXP_OPERATOR2EXPR_H__
 

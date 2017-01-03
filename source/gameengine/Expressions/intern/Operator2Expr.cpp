@@ -63,6 +63,12 @@ effect: deletes the object
 		m_rhs->Release();
 	
 }
+
+unsigned char COperator2Expr::GetExpressionID()
+{
+	return COPERATOR2EXPRESSIONID;
+}
+
 CValue* COperator2Expr::Calculate()
 /*
 pre:

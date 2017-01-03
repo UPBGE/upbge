@@ -102,7 +102,10 @@ CValue* CStringValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue
 	return ret;
 }
 
-
+void CStringValue::SetValue(CValue *newval)
+{
+	m_strString = newval->GetText();
+}
 
 double CStringValue::GetNumber()
 {

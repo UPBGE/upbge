@@ -21,26 +21,25 @@
 
 #include "EXP_Value.h"
 
-class CErrorValue : public CPropValue  
+class CErrorValue : public CPropValue
 {
-
 public:
-	virtual const std::string GetText();
-	virtual int GetValueType();
 	CErrorValue();
 	CErrorValue(const std::string& errmsg);
 	virtual ~CErrorValue();
-	virtual CValue* Calc(VALUE_OPERATOR op, CValue* val);
-	virtual CValue* CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	virtual CValue* GetReplica();
+
+	virtual const std::string GetText();
+	virtual int GetValueType();
+	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
+	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+	virtual CValue *GetReplica();
 
 private:
 	std::string m_strErrorText;
-
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CErrorValue")
 #endif
 };
 
-#endif  /* __EXP_ERRORVALUE_H__ */
+#endif  // __EXP_ERRORVALUE_H__

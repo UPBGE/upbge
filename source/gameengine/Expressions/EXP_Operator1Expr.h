@@ -21,25 +21,23 @@
 
 #include "EXP_Expression.h"
 
-class COperator1Expr : public CExpression  
+class COperator1Expr : public CExpression
 {
 public:
-	virtual unsigned char GetExpressionID() { return COPERATOR1EXPRESSIONID; }
-	virtual CValue* Calculate();
-	COperator1Expr(VALUE_OPERATOR op, CExpression *lhs);
 	COperator1Expr();
+	COperator1Expr(VALUE_OPERATOR op, CExpression *lhs);
 	virtual ~COperator1Expr();
-	
-	
-	
+
+	virtual unsigned char GetExpressionID();
+	virtual CValue *Calculate();
+
 private:
 	VALUE_OPERATOR m_op;
-	CExpression * m_lhs;
-
+	CExpression *m_lhs;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:")
 #endif
 };
 
-#endif  /* __EXP_OPERATOR1EXPR_H__ */
+#endif  // __EXP_OPERATOR1EXPR_H__

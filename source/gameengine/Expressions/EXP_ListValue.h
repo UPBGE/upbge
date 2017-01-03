@@ -24,7 +24,7 @@
 class CListValue : public CPropValue
 {
 	Py_Header
-	
+
 private:
 	std::vector<CValue *> m_pValueArray;
 	bool m_bReleaseContents;
@@ -44,10 +44,10 @@ public:
 	template <class T>
 	class iterator
 	{
-	private:
+private:
 		baseIterator m_it;
 
-	public:
+public:
 		iterator(baseIterator it)
 			: m_it(it)
 		{
@@ -114,5 +114,5 @@ inline bool operator!=(const CListValue::iterator<T>& it1, const CListValue::ite
 	return it1.m_it != it2.m_it;
 }
 
-#endif  /* __EXP_LISTVALUE_H__ */
+#endif  // __EXP_LISTVALUE_H__
 

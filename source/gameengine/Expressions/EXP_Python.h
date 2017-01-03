@@ -32,9 +32,7 @@
 #ifndef __EXP_PYTHON_H__
 #define __EXP_PYTHON_H__
 
-//#define USE_DL_EXPORT
-
-/* python redefines, quiet the compiler */
+// Python redefines, quiet the compiler.
 #ifdef _XOPEN_SOURCE
 #undef _XOPEN_SOURCE
 #endif
@@ -79,4 +77,4 @@
 #undef toupper
 #endif
 
-#endif  /* __EXP_PYTHON_H__ */
+#endif  // __EXP_PYTHON_H__

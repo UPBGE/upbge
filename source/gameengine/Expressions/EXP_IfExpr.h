@@ -21,22 +21,24 @@
 
 #include "EXP_Expression.h"
 
-class CIfExpr : public CExpression  
+class CIfExpr : public CExpression
 {
 private:
-	CExpression *m_guard, *m_e1, *m_e2;
+	CExpression *m_guard;
+	CExpression *m_e1;
+	CExpression *m_e2;
 
 public:
-	CIfExpr(CExpression *guard, CExpression *e1, CExpression *e2);
 	CIfExpr();
-	
-	virtual unsigned char GetExpressionID();
+	CIfExpr(CExpression *guard, CExpression *e1, CExpression *e2);
 	virtual ~CIfExpr();
-	virtual CValue* Calculate();
+
+	virtual unsigned char GetExpressionID();
+	virtual CValue *Calculate();
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CIfExpr")
 #endif
 };
 
-#endif  /* __EXP_IFEXPR_H__ */
+#endif  // __EXP_IFEXPR_H__

@@ -20,26 +20,25 @@
 #define __EXP_CONSTEXPR_H__
 
 #include "EXP_Expression.h"
-#include "EXP_Value.h"	// Added by ClassView
+#include "EXP_Value.h"
 
-class CConstExpr : public CExpression  
+class CConstExpr : public CExpression
 {
 public:
+	CConstExpr();
+	CConstExpr(CValue *constval);
+	virtual ~CConstExpr();
+
 	virtual unsigned char GetExpressionID();
 	virtual double GetNumber();
-	virtual CValue* Calculate();
-	CConstExpr(CValue* constval);
-	CConstExpr();
-	virtual ~CConstExpr();
-			
+	virtual CValue *Calculate();
 
 private:
-	CValue* m_value;
-
+	CValue *m_value;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CConstExpr")
 #endif
 };
 
-#endif  /* __EXP_CONSTEXPR_H__ */
+#endif  // __EXP_CONSTEXPR_H__

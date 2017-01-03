@@ -36,18 +36,20 @@
 
 class CIdentifierExpr : public CExpression
 {
-	CValue*		m_idContext;
-	std::string	m_identifier;
+private:
+	CValue *m_idContext;
+	std::string m_identifier;
+
 public:
-	CIdentifierExpr(const std::string& identifier,CValue* id_context);
+	CIdentifierExpr(const std::string& identifier, CValue *id_context);
 	virtual ~CIdentifierExpr();
 
-	virtual CValue*			Calculate();
-	virtual unsigned char	GetExpressionID();
+	virtual CValue *Calculate();
+	virtual unsigned char GetExpressionID();
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CIdentifierExpr")
 #endif
 };
 
-#endif  /* __EXP_IDENTIFIEREXPR_H__ */
+#endif  // __EXP_IDENTIFIEREXPR_H__

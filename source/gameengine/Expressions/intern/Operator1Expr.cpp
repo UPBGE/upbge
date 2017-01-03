@@ -50,6 +50,11 @@ effect: deletes the object
 	if (m_lhs) m_lhs->Release();
 }
 
+unsigned char COperator1Expr::GetExpressionID()
+{
+	return COPERATOR1EXPRESSIONID;
+}
+
 CValue * COperator1Expr::Calculate()
 /*
 pre:

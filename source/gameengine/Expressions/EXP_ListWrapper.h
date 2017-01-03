@@ -31,7 +31,7 @@
 
 #include "EXP_Value.h"
 
-class CListWrapper : public CValue  
+class CListWrapper : public CValue
 {
 	Py_Header
 private:
@@ -70,13 +70,13 @@ public:
 	};
 
 	CListWrapper(void *client,
-						PyObject *base,
-						bool (*checkValid)(void *),
-						int (*getSize)(void *),
-						PyObject *(*getItem)(void *, int),
-						const std::string (*getItemName)(void *, int),
-						bool (*setItem)(void *, int, PyObject *),
-						int flag = FLAG_NONE);
+	             PyObject *base,
+	             bool(*checkValid)(void *),
+	             int(*getSize)(void *),
+	             PyObject *(*getItem)(void *, int),
+	             const std::string(*getItemName)(void *, int),
+	             bool(*setItem)(void *, int, PyObject *),
+	             int flag = FLAG_NONE);
 	~CListWrapper();
 
 	/// \section Python Interface

@@ -21,38 +21,40 @@
 
 #include "EXP_Value.h"
 
-class CStringValue : public CPropValue  
+class CStringValue : public CPropValue
 {
 public:
-	/// Construction / destruction
 	CStringValue();
 	CStringValue(const std::string& txt, const std::string& name);
+	virtual ~CStringValue()
+	{
+	}
 
-	virtual ~CStringValue() {}
 	/// CValue implementation
-	virtual bool		IsEqual(const std::string & other);
+	virtual bool IsEqual(const std::string & other);
 	virtual const std::string GetText();
-	virtual double		GetNumber();
-	virtual int			GetValueType();
-	
-	virtual	CValue*		Calc(VALUE_OPERATOR op, CValue *val);
-	virtual	CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	virtual void		SetValue(CValue* newval) { 	m_strString = newval->GetText(); }
-	virtual CValue*		GetReplica();
+	virtual double GetNumber();
+	virtual int GetValueType();
+
+	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
+	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+	virtual void SetValue(CValue *newval);
+	virtual CValue *GetReplica();
+
 #ifdef WITH_PYTHON
-	virtual PyObject*	ConvertValueToPython() {
+	virtual PyObject *ConvertValueToPython()
+	{
 		return PyUnicode_FromStdString(m_strString);
 	}
-#endif  /* WITH_PYTHON */
+#endif  // WITH_PYTHON
 
 private:
-	// data member
-	std::string				m_strString;
-
+	/// Data member.
+	std::string m_strString;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CStringValue")
 #endif
 };
 
-#endif  /* __EXP_STRINGVALUE_H__ */
+#endif  // __EXP_STRINGVALUE_H__

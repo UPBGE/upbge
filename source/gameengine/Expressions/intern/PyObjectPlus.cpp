@@ -1124,6 +1124,11 @@ PyObject *PyObjectPlus::py_repr(void)
 	return NULL;
 }
 
+bool PyObjectPlus::py_is_valid(void)
+{
+	return true;
+}
+
 PyObject *PyObjectPlus::GetProxyPlus_Ext(PyObjectPlus *self, PyTypeObject *tp, void *ptr)
 {
 	if (self->m_proxy==NULL)

@@ -21,35 +21,34 @@
 
 #include "EXP_Value.h"
 
-class CFloatValue : public CPropValue 
+class CFloatValue : public CPropValue
 {
 public:
 	CFloatValue();
 	CFloatValue(float fl);
-	CFloatValue(float fl,const std::string& name);
+	CFloatValue(float fl, const std::string& name);
 
 	virtual const std::string GetText();
 
 	virtual double GetNumber();
 	virtual int GetValueType();
-	virtual void SetValue(CValue* newval);
+	virtual void SetValue(CValue *newval);
 	float GetFloat();
 	void SetFloat(float fl);
 	virtual ~CFloatValue();
-	virtual CValue* GetReplica();
-	virtual CValue* Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue* CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+	virtual CValue *GetReplica();
+	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
+	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 #ifdef WITH_PYTHON
-	virtual PyObject*	ConvertValueToPython();
+	virtual PyObject *ConvertValueToPython();
 #endif
 
 protected:
 	float m_float;
-
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CFloatValue")
 #endif
 };
 
-#endif  /* __EXP_FLOATVALUE_H__ */
+#endif  // __EXP_FLOATVALUE_H__

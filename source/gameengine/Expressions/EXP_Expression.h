@@ -21,50 +21,36 @@
 
 #include "EXP_Value.h"
 
-class CExpression  
+class CExpression
 {
 public:
 	enum {
-			COPERATOR1EXPRESSIONID = 1,
-			COPERATOR2EXPRESSIONID = 2,
-			CCONSTEXPRESSIONID = 3,
-			CIFEXPRESSIONID = 4,
-			COPERATORVAREXPRESSIONID = 5,
-			CIDENTIFIEREXPRESSIONID = 6
+		COPERATOR1EXPRESSIONID = 1,
+		COPERATOR2EXPRESSIONID = 2,
+		CCONSTEXPRESSIONID = 3,
+		CIFEXPRESSIONID = 4,
+		COPERATORVAREXPRESSIONID = 5,
+		CIDENTIFIEREXPRESSIONID = 6
 	};
 
-
 protected:
-	virtual				~CExpression() = 0;			//pure virtual
+	virtual ~CExpression() = 0;
+
 public:
 	CExpression();
 
-	
-	virtual				CValue* Calculate() = 0;	//pure virtual
-	virtual	unsigned char GetExpressionID() = 0;
+	virtual CValue *Calculate() = 0;
+	virtual unsigned char GetExpressionID() = 0;
 
-	virtual CExpression * AddRef() { // please leave multiline, for debugger !!!
-		m_refcount++; 
-		return this;
-	};
-	virtual CExpression* Release(CExpression* complicatedtrick=NULL) { 
-		if (--m_refcount < 1) 
-		{
-			delete this;
-		} //else
-		//	return this;
-		return complicatedtrick;
-	};
-	
+	virtual CExpression *AddRef();
+	virtual CExpression *Release();
 
 protected:
-
 	int m_refcount;
-
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CExpression")
 #endif
 };
 
-#endif  /* __EXP_EXPRESSION_H__ */
+#endif  // __EXP_EXPRESSION_H__

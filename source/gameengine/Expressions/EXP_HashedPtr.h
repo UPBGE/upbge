@@ -38,22 +38,22 @@
 
 class CHashedPtr
 {
-	void* m_valptr;
+private:
+	void *m_valptr;
 
 public:
-	CHashedPtr(void* val);
+	CHashedPtr(void *val);
 
 	unsigned int hash() const;
 
-	inline friend bool operator ==( const CHashedPtr & rhs,const CHashedPtr & lhs)
+	inline friend bool operator ==(const CHashedPtr & rhs, const CHashedPtr & lhs)
 	{
 		return rhs.m_valptr == lhs.m_valptr;
 	}
-	
-	
+
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CHashedPtr")
 #endif
 };
 
-#endif  /* __EXP_HASHEDPTR_H__ */
+#endif  // __EXP_HASHEDPTR_H__

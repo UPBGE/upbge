@@ -31,3 +31,18 @@ CExpression::~CExpression()
 {
 	assert (m_refcount == 0);
 }
+
+CExpression *CExpression::AddRef()
+{
+	m_refcount++;
+	return this;
+}
+
+CExpression *CExpression::Release()
+{
+	if (--m_refcount < 1) {
+		delete this;
+		return NULL;
+	}
+	return this;
+}
