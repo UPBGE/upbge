@@ -56,6 +56,8 @@ class RAS_ILightObject;
 class SCA_IScene;
 class RAS_IOffScreen;
 class RAS_ISync;
+class KX_Camera;
+class KX_Scene;
 
 /**
  * 3D rendering device context interface. 
@@ -725,6 +727,8 @@ public:
 	 * Prints information about what the hardware supports.
 	 */
 	virtual void PrintHardwareInfo() = 0;
+
+	virtual void DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene) = 0;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IRasterizer")

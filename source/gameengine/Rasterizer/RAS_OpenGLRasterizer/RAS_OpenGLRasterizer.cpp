@@ -74,6 +74,8 @@ extern "C" {
 #include "KX_Scene.h"
 #include "KX_RayCast.h"
 #include "KX_GameObject.h"
+#include "KX_Camera.h"
+#include "DNA_scene_types.h"
 // >>>
 
 #include "CM_Message.h"
@@ -2376,5 +2378,146 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 	CM_Message(" GL_ARB_texture_non_power_of_two supported?  " << (GPU_full_non_power_of_two_support()?"yes.":"no."));
 
 	CM_Message(" GL_ARB_draw_instanced supported?  "<< (GLEW_ARB_draw_instanced?"yes.":"no."));
+}
+
+static void DrawDebugCameraBox(const float vec[8][3], bool solid)
+{
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(3, GL_FLOAT, 0, vec);
+
+	if (solid) {
+		const GLubyte indices[24] = { 0,1,2,3,7,6,5,4,4,5,1,0,3,2,6,7,3,7,4,0,1,5,6,2 };
+		glDrawRangeElements(GL_QUADS, 0, 7, 24, GL_UNSIGNED_BYTE, indices);
+	}
+	else {
+		const GLubyte indices[24] = { 0,1,1,2,2,3,3,0,0,4,4,5,5,6,6,7,7,4,1,5,2,6,3,7 };
+		glDrawRangeElements(GL_LINES, 0, 7, 24, GL_UNSIGNED_BYTE, indices);
+	}
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+}
+
+static void DrawPerspectiveCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend)
+{
+	float box[8][3];
+
+	/* construct box */
+	box[2][0] = box[1][0] = -oppositeclipsta * ratiox;
+	box[0][0] = box[3][0] = -oppositeclipend * ratiox;
+	box[5][0] = box[6][0] = +oppositeclipsta * ratiox;
+	box[4][0] = box[7][0] = +oppositeclipend * ratiox;
+	box[1][1] = box[5][1] = -oppositeclipsta * ratioy;
+	box[0][1] = box[4][1] = -oppositeclipend * ratioy;
+	box[2][1] = box[6][1] = +oppositeclipsta * ratioy;
+	box[3][1] = box[7][1] = +oppositeclipend * ratioy;
+	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -cam->GetCameraData()->m_clipend;
+	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -cam->GetCameraData()->m_clipstart;
+
+	MT_Transform trans(cam->GetWorldToCamera());
+
+	/* draw edges */
+	glEnable(GL_LINE_STIPPLE);
+	DrawDebugCameraBox(box, false);
+	glDisable(GL_LINE_STIPPLE);
+
+	/* draw faces */
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_BLEND);
+	glDepthMask(0);
+
+	/* draw backside darkening */
+	glCullFace(GL_FRONT);
+
+	glBlendFunc(GL_ZERO, GL_SRC_ALPHA);
+	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+
+	DrawDebugCameraBox(box, true);
+
+	/* draw front side lighting */
+	glCullFace(GL_BACK);
+
+	glBlendFunc(GL_ONE, GL_ONE);
+	glColor4f(0.2f, 0.2f, 0.2f, 1.0f);
+
+	DrawDebugCameraBox(box, true);
+
+	/* restore state to default values */
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_BLEND);
+	glDepthMask(1);
+	glDisable(GL_CULL_FACE);
+
+}
+
+static void DrawOrthographicCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float x)
+{
+	float box[8][3];
+
+	/* construct box */
+	box[0][0] = box[1][0] = box[2][0] = box[3][0] = -x * ratiox;
+	box[4][0] = box[5][0] = box[6][0] = box[7][0] = +x * ratiox;
+	box[0][1] = box[1][1] = box[4][1] = box[5][1] = -x * ratioy;
+	box[2][1] = box[3][1] = box[6][1] = box[7][1] = +x * ratioy;
+	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -cam->GetCameraData()->m_clipend;
+	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -cam->GetCameraData()->m_clipstart;
+
+	/* draw edges */
+	glEnable(GL_LINE_STIPPLE);
+	DrawDebugCameraBox(box, false);
+	glDisable(GL_LINE_STIPPLE);
+
+	/* draw faces */
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_BLEND);
+	glDepthMask(0);
+
+	/* draw backside darkening */
+	glCullFace(GL_FRONT);
+
+	glBlendFunc(GL_ZERO, GL_SRC_ALPHA);
+	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+
+	DrawDebugCameraBox(box, true);
+
+	/* draw front side lighting */
+	glCullFace(GL_BACK);
+
+	glBlendFunc(GL_ONE, GL_ONE);
+	glColor4f(0.2f, 0.2f, 0.2f, 1.0f);
+
+	DrawDebugCameraBox(box, true);
+
+	/* restore state to default values */
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_BLEND);
+	glDepthMask(1);
+	glDisable(GL_CULL_FACE);
+}
+
+
+void RAS_OpenGLRasterizer::DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene)
+{
+	bool perspective = cam->GetCameraData()->m_perspective;
+
+	Scene *sc = scene->GetBlenderScene();
+	float aspx = (float)sc->r.xsch * sc->r.xasp;
+	float aspy = (float)sc->r.ysch * sc->r.yasp;
+	float ratiox = min_ff(aspx / aspy, 1.0f);
+	float ratioy = min_ff(aspy / aspx, 1.0f);
+
+	if (perspective) {
+		/* https://en.wikipedia.org/wiki/Angle_of_view */
+		float angleofview = 2.0f * atanf(cam->GetCameraData()->m_sensor_x / (2.0f * cam->GetCameraData()->m_lens));
+
+		/* http://www.mathopenref.com/trigtangent.html */
+		/* tanf(angleofview/2.0f) = opposite / adjacent so opposite = tanf(angleofview/2.0f) * adjacent */
+		float oppositeclipsta = tanf(angleofview / 2.0f) * cam->GetCameraData()->m_clipstart;
+		float oppositeclipend = tanf(angleofview / 2.0f) * cam->GetCameraData()->m_clipend;
+		DrawPerspectiveCameraFrustum(cam, ratiox, ratioy, oppositeclipsta, oppositeclipend);
+	}
+	else {
+		float x = cam->GetCameraData()->m_scale * 0.5f;
+		DrawOrthographicCameraFrustum(cam, ratiox, ratioy, x);
+	}
 }
 

@@ -149,7 +149,13 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	// Default behavior is to hide the cursor every frame.
 	m_hideCursor(false),
 	m_showBoundingBox(false),
-	m_showArmature(false)
+	m_showArmature(false),
+	m_showCamerasFrustum(false),
+	m_overrideFrameColor(false),
+	m_overrideFrameColorR(0.0f),
+	m_overrideFrameColorG(0.0f),
+	m_overrideFrameColorB(0.0f),
+	m_overrideFrameColorA(0.0f)
 {
 	// Initialize the time logger
 	m_logger = new KX_TimeCategoryLogger(25);
@@ -602,6 +608,13 @@ void KX_KetsjiEngine::Render()
 			if (activecam && !activecam->GetViewport()) {
 				// do the rendering
 				RenderFrame(scene, activecam, pass++);
+				static const bool showCamerasFrustum = GetShowCamerasFrustum();
+				if (showCamerasFrustum) {
+					for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
+						KX_Camera *cam = *it;
+						DrawActiveCameraFrustum(cam, scene);
+					}
+				}
 			}
 
 			// Draw the scene once for each camera with an enabled viewport
@@ -1680,6 +1693,21 @@ bool KX_KetsjiEngine::GetShowBoundingBox() const
 void KX_KetsjiEngine::SetShowArmatures(bool show)
 {
 	m_showArmature = show;
+}
+
+bool KX_KetsjiEngine::GetShowCamerasFrustum()
+{
+	return m_showCamerasFrustum;
+}
+
+void KX_KetsjiEngine::SetShowCamerasFrustum(bool show)
+{
+	m_showCamerasFrustum = show;
+}
+
+void KX_KetsjiEngine::DrawActiveCameraFrustum(KX_Camera *cam, KX_Scene *scene)
+{
+	m_rasterizer->DrawCameraFrustum(cam, scene);
 }
 
 bool KX_KetsjiEngine::GetShowArmatures() const

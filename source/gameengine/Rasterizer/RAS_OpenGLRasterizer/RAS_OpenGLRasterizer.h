@@ -448,6 +448,8 @@ public:
 	 */
 	virtual void PrintHardwareInfo();
 
+	virtual void DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene);
+
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_OpenGLRasterizer")
 #endif
