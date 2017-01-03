@@ -2380,7 +2380,7 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 	CM_Message(" GL_ARB_draw_instanced supported?  "<< (GLEW_ARB_draw_instanced?"yes.":"no."));
 }
 
-static void DrawDebugCameraBox(MT_Vector3 vec[8], bool solid)
+static void DrawDebugBox(MT_Vector3 vec[8], bool solid)
 {
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(3, GL_FLOAT, 0, vec);
@@ -2395,6 +2395,42 @@ static void DrawDebugCameraBox(MT_Vector3 vec[8], bool solid)
 	}
 
 	glDisableClientState(GL_VERTEX_ARRAY);
+}
+
+static void DrawDebugBoxes(MT_Vector3 box[8])
+{
+	/* draw edges */
+	glEnable(GL_LINE_STIPPLE);
+	glColor4f(0.8f, 0.5f, 0.0f, 1.0f);
+	DrawDebugBox(box, false);
+	glDisable(GL_LINE_STIPPLE);
+
+	/* draw faces */
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_BLEND);
+	glDepthMask(0);
+
+	/* draw backside darkening */
+	glCullFace(GL_FRONT);
+
+	glBlendFunc(GL_ZERO, GL_SRC_ALPHA);
+	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+
+	DrawDebugBox(box, true);
+
+	/* draw front side lighting */
+	glCullFace(GL_BACK);
+
+	glBlendFunc(GL_ONE, GL_ONE);
+	glColor4f(0.2f, 0.2f, 0.2f, 1.0f);
+
+	DrawDebugBox(box, true);
+
+	/* restore state to default values */
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_BLEND);
+	glDepthMask(1);
+	glDisable(GL_CULL_FACE);
 }
 
 static void DrawPerspectiveCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend)
@@ -2417,41 +2453,7 @@ static void DrawPerspectiveCameraFrustum(KX_Camera *cam, float ratiox, float rat
 	for (short i = 0; i < 8; i++) {
 		box[i] = trans(box[i]);
 	}
-
-
-	/* draw edges */
-	glEnable(GL_LINE_STIPPLE);
-	glColor4f(0.8f, 0.5f, 0.0f, 1.0f);
-	DrawDebugCameraBox(box, false);
-	glDisable(GL_LINE_STIPPLE);
-
-	/* draw faces */
-	glEnable(GL_CULL_FACE);
-	glEnable(GL_BLEND);
-	glDepthMask(0);
-
-	/* draw backside darkening */
-	glCullFace(GL_FRONT);
-
-	glBlendFunc(GL_ZERO, GL_SRC_ALPHA);
-	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
-
-	DrawDebugCameraBox(box, true);
-
-	/* draw front side lighting */
-	glCullFace(GL_BACK);
-
-	glBlendFunc(GL_ONE, GL_ONE);
-	glColor4f(0.2f, 0.2f, 0.2f, 1.0f);
-
-	DrawDebugCameraBox(box, true);
-
-	/* restore state to default values */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDisable(GL_BLEND);
-	glDepthMask(1);
-	glDisable(GL_CULL_FACE);
-
+	DrawDebugBoxes(box);
 }
 
 static void DrawOrthographicCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float x)
@@ -2470,39 +2472,7 @@ static void DrawOrthographicCameraFrustum(KX_Camera *cam, float ratiox, float ra
 	for (short i = 0; i < 8; i++) {
 		box[i] = trans(box[i]);
 	}
-
-	/* draw edges */
-	glEnable(GL_LINE_STIPPLE);
-	glColor4f(0.8f, 0.5f, 0.0f, 1.0f);
-	DrawDebugCameraBox(box, false);
-	glDisable(GL_LINE_STIPPLE);
-
-	/* draw faces */
-	glEnable(GL_CULL_FACE);
-	glEnable(GL_BLEND);
-	glDepthMask(0);
-
-	/* draw backside darkening */
-	glCullFace(GL_FRONT);
-
-	glBlendFunc(GL_ZERO, GL_SRC_ALPHA);
-	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
-
-	DrawDebugCameraBox(box, true);
-
-	/* draw front side lighting */
-	glCullFace(GL_BACK);
-
-	glBlendFunc(GL_ONE, GL_ONE);
-	glColor4f(0.2f, 0.2f, 0.2f, 1.0f);
-
-	DrawDebugCameraBox(box, true);
-
-	/* restore state to default values */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDisable(GL_BLEND);
-	glDepthMask(1);
-	glDisable(GL_CULL_FACE);
+	DrawDebugBoxes(box);
 }
 
 
