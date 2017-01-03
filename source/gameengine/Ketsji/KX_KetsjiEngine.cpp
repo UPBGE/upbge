@@ -608,7 +608,7 @@ void KX_KetsjiEngine::Render()
 			if (activecam && !activecam->GetViewport()) {
 				// do the rendering
 				RenderFrame(scene, activecam, pass++);
-				static const bool showCamerasFrustum = GetShowCamerasFrustum();
+				const bool showCamerasFrustum = GetShowCamerasFrustum();
 				if (showCamerasFrustum) {
 					for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
 						KX_Camera *cam = *it;
