@@ -2397,7 +2397,7 @@ void RAS_OpenGLRasterizer::DrawDebugBoxFromBox(MT_Vector3 vec[8], bool solid)
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
-void RAS_OpenGLRasterizer::DrawDebugBoxes(MT_Vector3 box[8])
+void RAS_OpenGLRasterizer::DrawDebugTransparentBoxes(MT_Vector3 box[8])
 {
 	/* draw edges */
 	glEnable(GL_LINE_STIPPLE);
@@ -2453,7 +2453,7 @@ void RAS_OpenGLRasterizer::DrawPerspectiveCameraFrustum(KX_Camera *cam, float ra
 	for (short i = 0; i < 8; i++) {
 		box[i] = trans(box[i]);
 	}
-	DrawDebugBoxes(box);
+	DrawDebugTransparentBoxes(box);
 }
 
 void RAS_OpenGLRasterizer::DrawOrthographicCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float x)
@@ -2472,7 +2472,7 @@ void RAS_OpenGLRasterizer::DrawOrthographicCameraFrustum(KX_Camera *cam, float r
 	for (short i = 0; i < 8; i++) {
 		box[i] = trans(box[i]);
 	}
-	DrawDebugBoxes(box);
+	DrawDebugTransparentBoxes(box);
 }
 
 
