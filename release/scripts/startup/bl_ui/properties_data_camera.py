@@ -258,6 +258,7 @@ class DATA_PT_camera_display(CameraButtonsPanel, Panel):
 
         col = split.column()
         col.prop(cam, "show_limits", text="Limits")
+        col.prop(cam, "show_camera_frustum", text="BGE Frustum")
         col.prop(cam, "show_mist", text="Mist")
 
         col.prop(cam, "show_sensor", text="Sensor")

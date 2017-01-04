@@ -150,7 +150,6 @@ void LA_Launcher::InitEngine()
 	bool fixed_framerate = (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm->flag & GAME_ENABLE_ALL_FRAMES)) == 0);
 	bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
 	bool showBoundingBox = (SYS_GetCommandLineInt(syshandle, "show_bounding_box", gm->flag & GAME_SHOW_BOUNDING_BOX) != 0);
-	bool showCamerasFrustum = (SYS_GetCommandLineInt(syshandle, "show_cameras_frustum", gm->flag & GAME_SHOW_CAMERAS_FRUSTUM) != 0);
 	bool showArmatures = (SYS_GetCommandLineInt(syshandle, "show_armatures", gm->flag & GAME_SHOW_ARMATURES) != 0);
 	bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
 	bool restrictAnimFPS = (gm->flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
@@ -253,7 +252,6 @@ void LA_Launcher::InitEngine()
 	m_ketsjiEngine->SetRestrictAnimationFPS(restrictAnimFPS);
 	m_ketsjiEngine->SetShowBoundingBox(showBoundingBox);
 	m_ketsjiEngine->SetShowArmatures(showArmatures);
-	m_ketsjiEngine->SetShowCamerasFrustum(showCamerasFrustum);
 
 	// Set the global settings (carried over if restart/load new files).
 	m_ketsjiEngine->SetGlobalSettings(m_globalSettings);

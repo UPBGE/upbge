@@ -205,8 +205,6 @@ private:
 	bool m_showBoundingBox;
 	/// Enable debug draw armatures.
 	bool m_showArmature;
-	/// Enable cameras frustum debugging.
-	bool m_showCamerasFrustum;
 
 	/// Settings that doesn't go away with Game Actuator
 	GlobalSettings m_globalsettings;
@@ -514,9 +512,7 @@ public:
 	/// Returns the current setting for armatures debug.
 	void SetShowArmatures(bool show);
 
-	/// Show camera frustum
-	void SetShowCamerasFrustum(bool show);
-	bool GetShowCamerasFrustum();
+	/// Draw camera frustum
 	void DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene);
 
 	/// Allow debug armatures.

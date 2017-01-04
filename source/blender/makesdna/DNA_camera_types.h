@@ -124,6 +124,7 @@ enum {
 #endif
 	CAM_SHOWSENSOR          = (1 << 8),
 	CAM_SHOW_SAFE_CENTER    = (1 << 9),
+	CAM_SHOW_GE_FRUSTUM     = (1 << 10),
 };
 
 /* yafray: dof sampling switch */

@@ -150,7 +150,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_hideCursor(false),
 	m_showBoundingBox(false),
 	m_showArmature(false),
-	m_showCamerasFrustum(false),
 	m_overrideFrameColor(false),
 	m_overrideFrameColorR(0.0f),
 	m_overrideFrameColorG(0.0f),
@@ -608,13 +607,12 @@ void KX_KetsjiEngine::Render()
 			if (activecam && !activecam->GetViewport()) {
 				// do the rendering
 				RenderFrame(scene, activecam, pass++);
-				const bool showCamerasFrustum = GetShowCamerasFrustum();
-				if (showCamerasFrustum) {
-					for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-						KX_Camera *cam = *it;
-						if (cam != activecam) {
-							DrawCameraFrustum(cam, scene);
-						}
+				
+				// Debug Cameras frustum (option to enable in Camera panel)
+				for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
+					KX_Camera *cam = *it;
+					if (cam->GetShowCameraFrustum()) {
+						DrawCameraFrustum(cam, scene);	
 					}
 				}
 			}
@@ -1697,14 +1695,9 @@ void KX_KetsjiEngine::SetShowArmatures(bool show)
 	m_showArmature = show;
 }
 
-bool KX_KetsjiEngine::GetShowCamerasFrustum()
+bool KX_KetsjiEngine::GetShowArmatures() const
 {
-	return m_showCamerasFrustum;
-}
-
-void KX_KetsjiEngine::SetShowCamerasFrustum(bool show)
-{
-	m_showCamerasFrustum = show;
+	return m_showArmature;
 }
 
 void KX_KetsjiEngine::DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene)
@@ -1728,11 +1721,13 @@ void KX_KetsjiEngine::DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene)
 		/* tanf(angleofview/2.0f) = opposite / adjacent so opposite = tanf(angleofview/2.0f) * adjacent */
 		float oppositeclipsta = tanf(angleofview / 2.0f) * clipstart;
 		float oppositeclipend = tanf(angleofview / 2.0f) * clipend;
-		m_rasterizer->DrawPerspectiveCameraFrustum(trans, clipstart, clipend, ratiox, ratioy, oppositeclipsta, oppositeclipend);
+		m_rasterizer->DrawPerspectiveCameraFrustum(trans, clipstart, clipend,
+			ratiox, ratioy, oppositeclipsta, oppositeclipend);
 	}
 	else {
 		float x = cam->GetCameraData()->m_scale * 0.5f;
-		m_rasterizer->DrawOrthographicCameraFrustum(trans, clipstart, clipend, ratiox, ratioy, x);
+		m_rasterizer->DrawOrthographicCameraFrustum(trans, clipstart,
+			clipend, ratiox, ratioy, x);
 	}
 }
 
