@@ -25,108 +25,88 @@
 
 #include <boost/format.hpp>
 
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
-
 CIntValue::CIntValue()
-/*
-pre: false
-effect: constructs a new CIntValue
-*/
 {
-	
-#ifdef DEBUG_
-	m_textval = "Int illegal constructor";
-#endif
 }
-
-
 
 CIntValue::CIntValue(cInt innie)
-/*
-pre:
-effect: constructs a new CIntValue containing cInt innie
-*/
+	:m_int(innie)
 {
-	m_int = innie;
 }
 
-
-
-CIntValue::CIntValue(cInt innie,const std::string& name)
+CIntValue::CIntValue(cInt innie, const std::string& name)
+	:m_int(innie)
 {
-	m_int = innie;
 	SetName(name);
 }
 
-
-
 CIntValue::~CIntValue()
-/*
-pre:
-effect: deletes the object
-*/
 {
 }
 
-
-
-CValue* CIntValue::Calc(VALUE_OPERATOR op, CValue *val)
-/*
-pre:
-ret: a new object containing the result of applying operator op to this
-object and val
-*/
+CValue *CIntValue::Calc(VALUE_OPERATOR op, CValue *val)
 {
-	//return val->CalcInt(op, this);
 	switch (op) {
-	case VALUE_POS_OPERATOR:
-		return new CIntValue (m_int);
-		break;
-	case VALUE_NEG_OPERATOR:
-		return new CIntValue (-m_int);
-		break;
-	case VALUE_NOT_OPERATOR:
-		return new CBoolValue (m_int == 0);
-		break;
-	case VALUE_AND_OPERATOR:
-	case VALUE_OR_OPERATOR:
-		return new CErrorValue(val->GetText() + op2str(op) + "only allowed on booleans");
-		break;
-	default:
-		return val->CalcFinal(VALUE_INT_TYPE, op, this);
-		break;
+		case VALUE_POS_OPERATOR:
+		{
+			return new CIntValue(m_int);
+			break;
+		}
+		case VALUE_NEG_OPERATOR:
+		{
+			return new CIntValue(-m_int);
+			break;
+		}
+		case VALUE_NOT_OPERATOR:
+		{
+			return new CBoolValue(m_int == 0);
+			break;
+		}
+		case VALUE_AND_OPERATOR:
+		case VALUE_OR_OPERATOR:
+		{
+			return new CErrorValue(val->GetText() + op2str(op) + "only allowed on booleans");
+			break;
+		}
+		default:
+		{
+			return val->CalcFinal(VALUE_INT_TYPE, op, this);
+			break;
+		}
 	}
 }
 
-/*
- * pre: the type of val is dtype
- * ret: a new object containing the result of applying operator op to val and
- * this object
- */
-CValue* CIntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
+CValue *CIntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
 {
 	CValue *ret;
-	
+
 	switch (dtype) {
 		case VALUE_EMPTY_TYPE:
 		case VALUE_INT_TYPE:
 		{
 			switch (op) {
 				case VALUE_MOD_OPERATOR:
-					ret = new CIntValue (((CIntValue *) val)->GetInt() % m_int);
+				{
+					ret = new CIntValue(((CIntValue *)val)->GetInt() % m_int);
 					break;
+				}
 				case VALUE_ADD_OPERATOR:
-					ret = new CIntValue (((CIntValue *) val)->GetInt() + m_int);
+				{
+					ret = new CIntValue(((CIntValue *)val)->GetInt() + m_int);
 					break;
+				}
 				case VALUE_SUB_OPERATOR:
-					ret = new CIntValue (((CIntValue *) val)->GetInt() - m_int);
+				{
+					ret = new CIntValue(((CIntValue *)val)->GetInt() - m_int);
 					break;
+				}
 				case VALUE_MUL_OPERATOR:
-					ret = new CIntValue (((CIntValue *) val)->GetInt() * m_int);
+				{
+					ret = new CIntValue(((CIntValue *)val)->GetInt() * m_int);
 					break;
+				}
 				case VALUE_DIV_OPERATOR:
+				{
 					if (m_int == 0) {
 						if (val->GetNumber() == 0) {
 							ret = new CErrorValue("Not a Number");
@@ -135,40 +115,62 @@ CValue* CIntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *v
 							ret = new CErrorValue("Division by zero");
 						}
 					}
-					else
-						ret = new CIntValue (((CIntValue *) val)->GetInt() / m_int);
+					else {
+						ret = new CIntValue(((CIntValue *)val)->GetInt() / m_int);
+					}
 					break;
+				}
 				case VALUE_EQL_OPERATOR:
-					ret = new CBoolValue(((CIntValue *) val)->GetInt() == m_int);
+				{
+					ret = new CBoolValue(((CIntValue *)val)->GetInt() == m_int);
 					break;
+				}
 				case VALUE_NEQ_OPERATOR:
-					ret = new CBoolValue(((CIntValue *) val)->GetInt() != m_int);
+				{
+					ret = new CBoolValue(((CIntValue *)val)->GetInt() != m_int);
 					break;
+				}
 				case VALUE_GRE_OPERATOR:
-					ret = new CBoolValue(((CIntValue *) val)->GetInt() > m_int);
+				{
+					ret = new CBoolValue(((CIntValue *)val)->GetInt() > m_int);
 					break;
+				}
 				case VALUE_LES_OPERATOR:
-					ret = new CBoolValue(((CIntValue *) val)->GetInt() < m_int);
+				{
+					ret = new CBoolValue(((CIntValue *)val)->GetInt() < m_int);
 					break;
+				}
 				case VALUE_GEQ_OPERATOR:
-					ret = new CBoolValue(((CIntValue *) val)->GetInt() >= m_int);
+				{
+					ret = new CBoolValue(((CIntValue *)val)->GetInt() >= m_int);
 					break;
+				}
 				case VALUE_LEQ_OPERATOR:
-					ret = new CBoolValue(((CIntValue *) val)->GetInt() <= m_int);
+				{
+					ret = new CBoolValue(((CIntValue *)val)->GetInt() <= m_int);
 					break;
+				}
 				case VALUE_NEG_OPERATOR:
-					ret = new CIntValue (-m_int);
+				{
+					ret = new CIntValue(-m_int);
 					break;
+				}
 				case VALUE_POS_OPERATOR:
-					ret = new CIntValue (m_int);
+				{
+					ret = new CIntValue(m_int);
 					break;
+				}
 				case VALUE_NOT_OPERATOR:
+				{
 					ret = new CBoolValue(m_int == 0);
 					break;
+				}
 				default:
+				{
 					CM_Error("found op: " << op);
 					ret = new CErrorValue("illegal operator. please send a bug report.");
 					break;
+				}
 			}
 			break;
 		}
@@ -176,47 +178,75 @@ CValue* CIntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *v
 		{
 			switch (op) {
 				case VALUE_MOD_OPERATOR:
-					ret = new CFloatValue(fmod(((CFloatValue *) val)->GetFloat(), m_int));
+				{
+					ret = new CFloatValue(fmod(((CFloatValue *)val)->GetFloat(), m_int));
 					break;
+				}
 				case VALUE_ADD_OPERATOR:
-					ret = new CFloatValue (((CFloatValue *) val)->GetFloat() + m_int);
+				{
+					ret = new CFloatValue(((CFloatValue *)val)->GetFloat() + m_int);
 					break;
+				}
 				case VALUE_SUB_OPERATOR:
-					ret = new CFloatValue (((CFloatValue *) val)->GetFloat() - m_int);
+				{
+					ret = new CFloatValue(((CFloatValue *)val)->GetFloat() - m_int);
 					break;
+				}
 				case VALUE_MUL_OPERATOR:
-					ret = new CFloatValue (((CFloatValue *) val)->GetFloat() * m_int);
+				{
+					ret = new CFloatValue(((CFloatValue *)val)->GetFloat() * m_int);
 					break;
+				}
 				case VALUE_DIV_OPERATOR:
-					if (m_int == 0)
+				{
+					if (m_int == 0) {
 						ret = new CErrorValue("Division by zero");
-					else
-						ret = new CFloatValue (((CFloatValue *) val)->GetFloat() / m_int);
+					}
+					else {
+						ret = new CFloatValue(((CFloatValue *)val)->GetFloat() / m_int);
+					}
 					break;
+				}
 				case VALUE_EQL_OPERATOR:
-					ret = new CBoolValue(((CFloatValue *) val)->GetFloat() == m_int);
+				{
+					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() == m_int);
 					break;
+				}
 				case VALUE_NEQ_OPERATOR:
-					ret = new CBoolValue(((CFloatValue *) val)->GetFloat() != m_int);
+				{
+					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() != m_int);
 					break;
+				}
 				case VALUE_GRE_OPERATOR:
-					ret = new CBoolValue(((CFloatValue *) val)->GetFloat() > m_int);
+				{
+					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() > m_int);
 					break;
+				}
 				case VALUE_LES_OPERATOR:
-					ret = new CBoolValue(((CFloatValue *) val)->GetFloat() < m_int);
+				{
+					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() < m_int);
 					break;
+				}
 				case VALUE_GEQ_OPERATOR:
-					ret = new CBoolValue(((CFloatValue *) val)->GetFloat() >= m_int);
+				{
+					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() >= m_int);
 					break;
+				}
 				case VALUE_LEQ_OPERATOR:
-					ret = new CBoolValue(((CFloatValue *) val)->GetFloat() <= m_int);
+				{
+					ret = new CBoolValue(((CFloatValue *)val)->GetFloat() <= m_int);
 					break;
+				}
 				case VALUE_NOT_OPERATOR:
+				{
 					ret = new CBoolValue(m_int == 0);
 					break;
+				}
 				default:
+				{
 					ret = new CErrorValue("illegal operator. please send a bug report.");
 					break;
+				}
 			}
 			break;
 		}
@@ -224,105 +254,83 @@ CValue* CIntValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *v
 		{
 			switch (op) {
 				case VALUE_ADD_OPERATOR:
-					ret = new CStringValue(val->GetText() + GetText(),"");
+				{
+					ret = new CStringValue(val->GetText() + GetText(), "");
 					break;
+				}
 				case VALUE_EQL_OPERATOR:
 				case VALUE_NEQ_OPERATOR:
 				case VALUE_GRE_OPERATOR:
 				case VALUE_LES_OPERATOR:
 				case VALUE_GEQ_OPERATOR:
 				case VALUE_LEQ_OPERATOR:
+				{
 					ret = new CErrorValue("[Cannot compare string with integer]" + op2str(op) + GetText());
 					break;
-				default:
-					ret =  new CErrorValue("[operator not allowed on strings]" + op2str(op) + GetText());
-					break;
-			}
-			break;
-		}
-		case VALUE_BOOL_TYPE:
-			ret =  new CErrorValue("[operator not valid on boolean and integer]" + op2str(op) + GetText());
-			break;
-#if 0
-		case VALUE_EMPTY_TYPE:
-		{
-			switch (op) {
-				case VALUE_ADD_OPERATOR:
-					ret = new CIntValue (m_int);
-					break;
-				case VALUE_SUB_OPERATOR:
-					ret = new CIntValue (-m_int);
-					break;
+				}
 				default:
 				{
-					ret = new CErrorValue(op2str(op) +	GetText());
+					ret =  new CErrorValue("[operator not allowed on strings]" + op2str(op) + GetText());
+					break;
 				}
 			}
 			break;
 		}
-#endif
-	case VALUE_ERROR_TYPE:
-		ret = new CErrorValue(val->GetText() + op2str(op) +	GetText());
-		break;
-	default:
-		ret = new CErrorValue("illegal type. contact your dealer (if any)");
-		break;
+		case VALUE_BOOL_TYPE:
+		{
+			ret =  new CErrorValue("[operator not valid on boolean and integer]" + op2str(op) + GetText());
+			break;
+		}
+		case VALUE_ERROR_TYPE:
+		{
+			ret = new CErrorValue(val->GetText() + op2str(op) + GetText());
+			break;
+		}
+		default:
+		{
+			ret = new CErrorValue("illegal type. contact your dealer (if any)");
+			break;
+		}
 	}
 	return ret;
 }
 
-
-/**
- * pre:
- * ret: the cInt stored in the object
- */
 cInt CIntValue::GetInt()
 {
 	return m_int;
 }
 
-
-
 double CIntValue::GetNumber()
 {
-	return (double) m_int;
+	return (double)m_int;
 }
-
-
 
 int CIntValue::GetValueType()
 {
 	return VALUE_INT_TYPE;
 }
 
-
-
 const std::string CIntValue::GetText()
 {
 	return (boost::format("%lld") % m_int).str();
 }
 
-
-
-CValue* CIntValue::GetReplica()
+CValue *CIntValue::GetReplica()
 {
-	CIntValue* replica = new CIntValue(*this);
+	CIntValue *replica = new CIntValue(*this);
 	replica->ProcessReplica();
 
 	return replica;
 }
 
-
-
-void CIntValue::SetValue(CValue* newval)
-{ 	
-	m_int = (cInt)newval->GetNumber(); 
+void CIntValue::SetValue(CValue *newval)
+{
+	m_int = (cInt)newval->GetNumber();
 }
-
 
 #ifdef WITH_PYTHON
 PyObject *CIntValue::ConvertValueToPython()
 {
 	return PyLong_FromLongLong(m_int);
 }
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON

@@ -32,143 +32,126 @@
 #include "EXP_Operator1Expr.h"
 #include "EXP_IdentifierExpr.h"
 
+#include "CM_Message.h"
+
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 
 // this is disable at the moment, I expected a memleak from it, but the error-cleanup was the reason
-// well, looks we don't need it anyway, until maybe the Curved Surfaces are integrated into CSG 
+// well, looks we don't need it anyway, until maybe the Curved Surfaces are integrated into CSG
 // cool things like (IF(LOD==1,CCurvedValue,IF(LOD==2,CCurvedValue2)) etc...
 #include "EXP_IfExpr.h"
 
 #if (defined(WIN32) || defined(WIN64)) && !defined(FREE_WINDOWS)
-#define strcasecmp	_stricmp
+#define strcasecmp  _stricmp
 
 #ifndef strtoll
-#define strtoll		_strtoi64
+#define strtoll     _strtoi64
 #endif
 
 #endif /* Def WIN32 or Def WIN64 */
 
 #define NUM_PRIORITY 6
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
 
 CParser::CParser() : m_identifierContext(NULL)
 {
 }
 
-
-
 CParser::~CParser()
 {
-	if (m_identifierContext)
+	if (m_identifierContext) {
 		m_identifierContext->Release();
+	}
 }
-
-
 
 void CParser::ScanError(const std::string& str)
 {
-	// sets the global variable errmsg to an errormessage with
-	// contents str, appending if it already exists
-	//	AfxMessageBox("Parse Error:"+str,MB_ICONERROR);
-	if (errmsg)
-		errmsg = new COperator2Expr(VALUE_ADD_OPERATOR, errmsg,	Error(str));
-	else
+	/* Sets the global variable errmsg to an errormessage with
+	 * contents str, appending if it already exists.
+	 */
+	if (errmsg) {
+		errmsg = new COperator2Expr(VALUE_ADD_OPERATOR, errmsg, Error(str));
+	}
+	else {
 		errmsg = Error(str);
+	}
 
 	sym = errorsym;
 }
 
-
-
-CExpression* CParser::Error(const std::string& str)
+CExpression *CParser::Error(const std::string& str)
 {
-	// makes and returns a new CConstExpr filled with an CErrorValue
-	// with string str
-	//	AfxMessageBox("Error:"+str,MB_ICONERROR);
+	// Makes and returns a new CConstExpr filled with an CErrorValue with string str.
 	return new CConstExpr(new CErrorValue(str));
 }
 
-
-
 void CParser::NextCh()
 {
-	// sets the global variable ch to the next character, if it exists
-	// and increases the global variable chcount
-	chcount++;
+	/* Sets the global variable ch to the next character, if it exists
+	 * and increases the global variable chcount
+	 */
+	++chcount;
 
-	if (chcount < text.size())
+	if (chcount < text.size()) {
 		ch = text[chcount];
-	else
+	}
+	else {
 		ch = 0x00;
+	}
 }
-
-
 
 void CParser::TermChar(char c)
 {
-	// generates an error if the next char isn't the specified char c,
-	// otherwise, skip the char
-	if (ch == c)
-	{
+	/* Generates an error if the next char isn't the specified char c,
+	 * otherwise, skip the char.
+	 */
+	if (ch == c) {
 		NextCh();
 	}
-	else
-	{
-		std::string str = (boost::format("Warning: %c expected\ncontinuing without it") % c).str();
-		trace(str);
+	else {
+		CM_Warning(c << " expected. Continuing without it.");
 	}
 }
-
-
 
 void CParser::DigRep()
 {
-	// changes the current character to the first character that
-	// isn't a decimal
-	while ((ch >= '0') && (ch <= '9'))
+	// Changes the current character to the first character that isn't a decimal.
+	while ((ch >= '0') && (ch <= '9')) {
 		NextCh();
+	}
 }
-
-
 
 void CParser::CharRep()
 {
-	// changes the current character to the first character that
-	// isn't an alphanumeric character
+	// Changes the current character to the first character that isn't an alphanumeric character.
 	while (((ch >= '0') && (ch <= '9'))
 		|| ((ch >= 'a') && (ch <= 'z'))
 		|| ((ch >= 'A') && (ch <= 'Z'))
 		|| (ch == '.') || (ch == '_'))
+	{
 		NextCh();
+	}
 }
-
-
 
 void CParser::GrabString(int start)
 {
-	// puts part of the input string into the global variable
-	// const_as_string, from position start, to position chchount
+	/* Puts part of the input string into the global variable
+	 * const_as_string, from position start, to position chchount.
+	 */
 	const_as_string = text.substr(start, chcount - start);
 }
 
-
-
 void CParser::GrabRealString(int start)
 {
-	// works like GrabString but converting \\n to \n
-	// puts part of the input string into the global variable
-	// const_as_string, from position start, to position chchount
-
-	int i;
-	char tmpch;
+	/* Works like GrabString but converting \\n to \n
+	 * puts part of the input string into the global variable
+	 * const_as_string, from position start, to position chchount.
+	 */
 
 	const_as_string = std::string();
-	for (i=start;i<chcount;i++) {
-		tmpch= text[i];
-		if ((tmpch =='\\') && (text[i+1] == 'n')) {
+	for (int i = start; i < chcount; i++) {
+		char tmpch = text[i];
+		if ((tmpch == '\\') && (text[i + 1] == 'n')) {
 			tmpch = '\n';
 			i++;
 		}
@@ -176,110 +159,138 @@ void CParser::GrabRealString(int start)
 	}
 }
 
-
-
 void CParser::NextSym()
 {
-	// sets the global variable sym to the next symbol, and
-	// if it is an operator
-	//   sets the global variable opkind to the kind of operator
-	// if it is a constant
-	//   sets the global variable constkind to the kind of operator
-	// if it is a reference to a cell
-	//   sets the global variable cellcoord to the kind of operator
-	
+	/* Sets the global variable sym to the next symbol, and
+	 * if it is an operator
+	 * sets the global variable opkind to the kind of operator
+	 * if it is a constant
+	 * sets the global variable constkind to the kind of operator
+	 * if it is a reference to a cell
+	 * sets the global variable cellcoord to the kind of operator
+	 */
+
 	errmsg = NULL;
-	while (ch == ' ' || ch == 0x9)
+	while (ch == ' ' || ch == 0x9) {
 		NextCh();
+	}
 
 	switch (ch) {
 		case '(':
+		{
 			sym = lbracksym; NextCh();
 			break;
+		}
 		case ')':
+		{
 			sym = rbracksym; NextCh();
 			break;
+		}
 		case ',':
+		{
 			sym = commasym; NextCh();
 			break;
-		case '%' :
+		}
+		case '%':
+		{
 			sym = opsym; opkind = OPmodulus; NextCh();
 			break;
-		case '+' :
+		}
+		case '+':
+		{
 			sym = opsym; opkind = OPplus; NextCh();
 			break;
-		case '-' :
+		}
+		case '-':
+		{
 			sym = opsym; opkind = OPminus; NextCh();
 			break;
-		case '*' :
+		}
+		case '*':
+		{
 			sym = opsym; opkind = OPtimes; NextCh();
 			break;
-		case '/' :
+		}
+		case '/':
+		{
 			sym = opsym; opkind = OPdivide; NextCh();
 			break;
-		case '&' :
+		}
+		case '&':
+		{
 			sym = opsym; opkind = OPand; NextCh(); TermChar('&');
 			break;
-		case '|' :
+		}
+		case '|':
+		{
 			sym = opsym; opkind = OPor; NextCh(); TermChar('|');
 			break;
-		case '=' :
+		}
+		case '=':
+		{
 			sym = opsym; opkind = OPequal; NextCh(); TermChar('=');
 			break;
-		case '!' :
+		}
+		case '!':
+		{
 			sym = opsym;
 			NextCh();
-			if (ch == '=')
-			{
+			if (ch == '=') {
 				opkind = OPunequal;
 				NextCh();
 			}
-			else
-			{
+			else {
 				opkind = OPnot;
 			}
 			break;
+		}
 		case '>':
+		{
 			sym = opsym;
 			NextCh();
-			if (ch == '=')
-			{
+			if (ch == '=') {
 				opkind = OPgreaterequal;
 				NextCh();
 			}
-			else
-			{
+			else {
 				opkind = OPgreater;
 			}
 			break;
+		}
 		case '<':
+		{
 			sym = opsym;
 			NextCh();
 			if (ch == '=') {
 				opkind = OPlessequal;
 				NextCh();
-			} else {
+			}
+			else {
 				opkind = OPless;
 			}
 			break;
-		case '\"' :
+		}
+		case '\"':
 		{
-			int start;
 			sym = constsym;
 			constkind = stringtype;
 			NextCh();
-			start = chcount;
-			while ((ch != '\"') && (ch != 0x0))
+			int start = chcount;
+			while ((ch != '\"') && (ch != 0x0)) {
 				NextCh();
+			}
 			GrabRealString(start);
-			TermChar('\"');	// check for eol before '\"'
+			TermChar('\"'); // check for eol before '\"'
 			break;
 		}
-		case 0x0: sym = eolsym; break;
+		case 0x0:
+		{
+			sym = eolsym;
+			break;
+		}
 		default:
 		{
-			int start;
-			start = chcount;
+			int start = chcount;
 			DigRep();
 			if ((start != chcount) || (ch == '.')) { // number
 				sym = constsym;
@@ -288,13 +299,16 @@ void CParser::NextSym()
 					NextCh();
 					DigRep();
 				}
-				else constkind = inttype;
+				else {
+					constkind = inttype;
+				}
 				if ((ch == 'e') || (ch == 'E')) {
-					int mark;
 					constkind = floattype;
 					NextCh();
-					if ((ch == '+') || (ch == '-')) NextCh();
-					mark = chcount;
+					if ((ch == '+') || (ch == '-')) {
+						NextCh();
+					}
+					int mark = chcount;
 					DigRep();
 					if (mark == chcount) {
 						ScanError("Number expected after 'E'");
@@ -302,10 +316,10 @@ void CParser::NextSym()
 					}
 				}
 				GrabString(start);
-			} else if (((ch >= 'a') && (ch <= 'z'))
-			           || ((ch >= 'A') && (ch <= 'Z')))
-			{ // reserved word?
-				
+			}
+			else if (((ch >= 'a') && (ch <= 'z'))
+			         || ((ch >= 'A') && (ch <= 'Z')))
+			{
 				start = chcount;
 				CharRep();
 				GrabString(start);
@@ -322,21 +336,23 @@ void CParser::NextSym()
 				else if (boost::iequals(const_as_string, "OR")) {
 					sym = opsym; opkind = OPor;
 				}
-				else if (boost::iequals(const_as_string, "IF"))
+				else if (boost::iequals(const_as_string, "IF")) {
 					sym = ifsym;
-				else if (boost::iequals(const_as_string, "WHOMADE"))
+				}
+				else if (boost::iequals(const_as_string, "WHOMADE")) {
 					sym = whocodedsym;
+				}
 				else if (boost::iequals(const_as_string, "FALSE")) {
 					sym = constsym; constkind = booltype; boolvalue = false;
-				} else if (boost::iequals(const_as_string, "TRUE")) {
-					sym = constsym; constkind = booltype; boolvalue = true;
-				} else {
-					sym = idsym;
-					//std::string str;
-					//str.Format("'%s' makes no sense here", (const char*)funstr);
-					//ScanError(str);
 				}
-			} else { // unknown symbol
+				else if (boost::iequals(const_as_string, "TRUE")) {
+					sym = constsym; constkind = booltype; boolvalue = true;
+				}
+				else {
+					sym = idsym;
+				}
+			}
+			else {
 				std::string str = (boost::format("Unexpected character '%c'") % ch).str();
 				NextCh();
 				ScanError(str);
@@ -346,116 +362,172 @@ void CParser::NextSym()
 	}
 }
 
-#if 0
-int CParser::MakeInt()
-{
-	// returns the integer representation of the value in the global
-	// variable const_as_string
-	// pre: const_as_string contains only numercal chars
-	return atoi(const_as_string);
-}
-#endif
-
 const std::string CParser::Symbol2Str(int s)
 {
-	// returns a string representation of of symbol s,
-	// for use in Term when generating an error
+	// Returns a string representation of of symbol s, for use in Term when generating an error.
 	switch (s) {
-		case errorsym: return "error";
-		case lbracksym: return "(";
-		case rbracksym: return ")";
-		case commasym: return ",";
-		case opsym: return "operator";
-		case constsym: return "constant";
-		case sumsym: return "SUM";
-		case ifsym: return "IF";
-		case whocodedsym: return "WHOMADE";
-		case eolsym: return "end of line";
-		case idsym: return "identifier";
+		case errorsym:
+		{
+			return "error";
+		}
+		case lbracksym:
+		{
+			return "(";
+		}
+		case rbracksym:
+		{
+			return ")";
+		}
+		case commasym:
+		{
+			return ",";
+		}
+		case opsym:
+		{
+			return "operator";
+		}
+		case constsym:
+		{
+			return "constant";
+		}
+		case sumsym:
+		{
+			return "SUM";
+		}
+		case ifsym:
+		{
+			return "IF";
+		}
+		case whocodedsym:
+		{
+			return "WHOMADE";
+		}
+		case eolsym:
+		{
+			return "end of line";
+		}
+		case idsym:
+		{
+			return "identifier";
+		}
 	}
-	return "unknown";  // should not happen
+	return "unknown"; // should not happen
 }
 
 void CParser::Term(int s)
 {
-	// generates an error if the next symbol isn't the specified symbol s
-	// otherwise, skip the symbol
+	/* Generates an error if the next symbol isn't the specified symbol s
+	 * otherwise, skip the symbol.
+	 */
 	if (s == sym) {
 		NextSym();
 	}
 	else {
-		std::string msg = (boost::format("Warning: %s expected\ncontinuing without it") % Symbol2Str(s)).str();
-
-//		AfxMessageBox(msg,MB_ICONERROR);
-
-		trace(msg);
+		CM_Warning(Symbol2Str(s) << "expected. Continuing without it.");
 	}
 }
 
 int CParser::Priority(int optorkind)
 {
-	// returns the priority of an operator
-	// higher number means higher priority
+	// Returns the priority of an operator higher number means higher priority.
 	switch (optorkind) {
-		case OPor: return 1;
-		case OPand: return 2;
+		case OPor:
+		{ return 1;}
+		case OPand:
+		{ return 2;}
 		case OPgreater:
 		case OPless:
 		case OPgreaterequal:
 		case OPlessequal:
 		case OPequal:
-		case OPunequal: return 3;
+		case OPunequal:
+		{ return 3;}
 		case OPplus:
-		case OPminus: return 4;
+		case OPminus:
+		{ return 4;}
 		case OPmodulus:
 		case OPtimes:
 		case OPdivide: return 5;
 	}
 	BLI_assert(false);
-	return 0;      // should not happen
+	return 0; // should not happen
 }
 
 CExpression *CParser::Ex(int i)
 {
-	// parses an expression in the imput, starting at priority i, and
-	// returns an CExpression, containing the parsed input
+	/* Parses an expression in the imput, starting at priority i, and
+	 * returns an CExpression, containing the parsed input.
+	 */
 	CExpression *e1 = NULL, *e2 = NULL;
-	int opkind2;
-	
+
 	if (i < NUM_PRIORITY) {
 		e1 = Ex(i + 1);
 		while ((sym == opsym) && (Priority(opkind) == i)) {
-			opkind2 = opkind;
+			int opkind2 = opkind;
 			NextSym();
 			e2 = Ex(i + 1);
 			switch (opkind2) {
-				case OPmodulus: e1 = new COperator2Expr(VALUE_MOD_OPERATOR,e1, e2); break;
-				case OPplus: e1 = new COperator2Expr(VALUE_ADD_OPERATOR,e1, e2); break;
-				case OPminus: e1 = new COperator2Expr(VALUE_SUB_OPERATOR,e1, e2); break;
-				case OPtimes:	e1 = new COperator2Expr(VALUE_MUL_OPERATOR,e1, e2); break;
-				case OPdivide: e1 = new COperator2Expr(VALUE_DIV_OPERATOR,e1, e2); break;
-				case OPand: e1 = new COperator2Expr(VALUE_AND_OPERATOR,e1, e2); break;
-				case OPor: e1 = new COperator2Expr(VALUE_OR_OPERATOR,e1, e2); break;
-				case OPequal: e1 = new COperator2Expr(VALUE_EQL_OPERATOR,e1, e2); break;
-				case OPunequal: e1 = new COperator2Expr(VALUE_NEQ_OPERATOR,e1, e2); break;
-				case OPgreater: e1 = new COperator2Expr(VALUE_GRE_OPERATOR,e1, e2); break;
-				case OPless: e1 = new COperator2Expr(VALUE_LES_OPERATOR,e1, e2); break;
-				case OPgreaterequal: e1 = new COperator2Expr(VALUE_GEQ_OPERATOR,e1, e2); break;
-				case OPlessequal: e1 = new COperator2Expr(VALUE_LEQ_OPERATOR,e1, e2); break;
-				default: BLI_assert(false);	break; // should not happen
+				case OPmodulus:
+				{ e1 = new COperator2Expr(VALUE_MOD_OPERATOR, e1, e2);}
+				break;
+				case OPplus:
+				{ e1 = new COperator2Expr(VALUE_ADD_OPERATOR, e1, e2);}
+				break;
+				case OPminus:
+				{ e1 = new COperator2Expr(VALUE_SUB_OPERATOR, e1, e2);}
+				break;
+				case OPtimes:
+				{ e1 = new COperator2Expr(VALUE_MUL_OPERATOR, e1, e2);}
+				break;
+				case OPdivide:
+				{ e1 = new COperator2Expr(VALUE_DIV_OPERATOR, e1, e2);}
+				break;
+				case OPand:
+				{ e1 = new COperator2Expr(VALUE_AND_OPERATOR, e1, e2);}
+				break;
+				case OPor:
+				{ e1 = new COperator2Expr(VALUE_OR_OPERATOR, e1, e2);}
+				break;
+				case OPequal:
+				{ e1 = new COperator2Expr(VALUE_EQL_OPERATOR, e1, e2);}
+				break;
+				case OPunequal:
+				{ e1 = new COperator2Expr(VALUE_NEQ_OPERATOR, e1, e2);}
+				break;
+				case OPgreater:
+				{ e1 = new COperator2Expr(VALUE_GRE_OPERATOR, e1, e2);}
+				break;
+				case OPless:
+				{ e1 = new COperator2Expr(VALUE_LES_OPERATOR, e1, e2);}
+				break;
+				case OPgreaterequal:
+				{ e1 = new COperator2Expr(VALUE_GEQ_OPERATOR, e1, e2);}
+				break;
+				case OPlessequal:
+				{ e1 = new COperator2Expr(VALUE_LEQ_OPERATOR, e1, e2);}
+				break;
+				default:
+				{ BLI_assert(false);}
+				break;                             // should not happen
 			}
 		}
-	} else if (i == NUM_PRIORITY) {
+	}
+	else if (i == NUM_PRIORITY) {
 		if ((sym == opsym)
 		    && ( (opkind == OPminus) || (opkind == OPnot) || (opkind == OPplus) )
-		    )
-		{
+		    ) {
 			NextSym();
 			switch (opkind) {
 				/* +1 is also a valid number! */
-				case OPplus: e1 = new COperator1Expr(VALUE_POS_OPERATOR, Ex(NUM_PRIORITY)); break;
-				case OPminus: e1 = new COperator1Expr(VALUE_NEG_OPERATOR, Ex(NUM_PRIORITY)); break;
-				case OPnot: e1 = new COperator1Expr(VALUE_NOT_OPERATOR, Ex(NUM_PRIORITY)); break;
+				case OPplus:
+				{ e1 = new COperator1Expr(VALUE_POS_OPERATOR, Ex(NUM_PRIORITY));}
+				break;
+				case OPminus:
+				{ e1 = new COperator1Expr(VALUE_NEG_OPERATOR, Ex(NUM_PRIORITY));}
+				break;
+				case OPnot:
+				{ e1 = new COperator1Expr(VALUE_NOT_OPERATOR, Ex(NUM_PRIORITY));}
+				break;
 				default:
 				{
 					// should not happen
@@ -469,8 +541,10 @@ CExpression *CParser::Ex(int i)
 				{
 					switch (constkind) {
 						case booltype:
+						{
 							e1 = new CConstExpr(new CBoolValue(boolvalue));
 							break;
+						}
 						case inttype:
 						{
 							cInt temp;
@@ -486,20 +560,26 @@ CExpression *CParser::Ex(int i)
 							break;
 						}
 						case stringtype:
-							e1 = new CConstExpr(new CStringValue(const_as_string,""));
+						{
+							e1 = new CConstExpr(new CStringValue(const_as_string, ""));
 							break;
-						default :
+						}
+						default:
+						{
 							BLI_assert(false);
 							break;
+						}
 					}
 					NextSym();
 					break;
 				}
 				case lbracksym:
+				{
 					NextSym();
 					e1 = Ex(1);
 					Term(rbracksym);
 					break;
+				}
 				case ifsym:
 				{
 					CExpression *e3;
@@ -511,7 +591,8 @@ CExpression *CParser::Ex(int i)
 					if (sym == commasym) {
 						NextSym();
 						e3 = Ex(1);
-					} else {
+					}
+					else {
 						e3 = new CConstExpr(new CEmptyValue());
 					}
 					Term(rbracksym);
@@ -520,27 +601,26 @@ CExpression *CParser::Ex(int i)
 				}
 				case idsym:
 				{
-					e1 = new CIdentifierExpr(const_as_string,m_identifierContext);
+					e1 = new CIdentifierExpr(const_as_string, m_identifierContext);
 					NextSym();
-					
+
 					break;
 				}
 				case errorsym:
 				{
 					BLI_assert(!e1);
-					std::string errtext="[no info]";
-					if (errmsg)
-					{
-						CValue* errmsgval = errmsg->Calculate();
-						errtext=errmsgval->GetText();
+					std::string errtext = "[no info]";
+					if (errmsg) {
+						CValue *errmsgval = errmsg->Calculate();
+						errtext = errmsgval->GetText();
 						errmsgval->Release();
 
 						//e1 = Error(errmsg->Calculate()->GetText());//new CConstExpr(errmsg->Calculate());
-						
-						if ( !(errmsg->Release()) )
-						{
-							errmsg=NULL;
-						} else {
+
+						if (!(errmsg->Release()) ) {
+							errmsg = NULL;
+						}
+						else {
 							// does this happen ?
 							BLI_assert("does this happen");
 						}
@@ -567,21 +647,21 @@ CExpression *CParser::Expr()
 	return Ex(1);
 }
 
-CExpression* CParser::ProcessText(const std::string& intext)
+CExpression *CParser::ProcessText(const std::string& intext)
 {
-	
+
 	// and parses the string in intext and returns it.
-	
-	
-	CExpression* expr;
+
+
+	CExpression *expr;
 	text = intext;
-	
-	
+
+
 	chcount = 0;
 	if (text.size() == 0) {
 		return NULL;
 	}
-	
+
 	ch = text[0];
 	/* if (ch != '=') {
 	 * expr = new CConstExpr(new CStringValue(text));
@@ -593,13 +673,14 @@ CExpression* CParser::ProcessText(const std::string& intext)
 	NextSym();
 	expr = Expr();
 	if (sym != eolsym) {
-		CExpression* oldexpr = expr;
+		CExpression *oldexpr = expr;
 		expr = new COperator2Expr(VALUE_ADD_OPERATOR,
-			oldexpr, Error("Extra characters after expression"));//new CConstExpr(new CErrorValue("Extra characters after expression")));
+		                          oldexpr, Error("Extra characters after expression"));//new CConstExpr(new CErrorValue("Extra characters after expression")));
 	}
-	if (errmsg)
+	if (errmsg) {
 		errmsg->Release();
-	
+	}
+
 	return expr;
 }
 
@@ -607,51 +688,41 @@ CExpression* CParser::ProcessText(const std::string& intext)
 
 float CParser::GetFloat(std::string& txt)
 {
-	// returns parsed text into a float
-	// empty string returns -1
-	
-//	AfxMessageBox("parsed string="+txt);
-	CValue* val=NULL;
-	float result=-1;
-//	String tmpstr;
+	// Returns parsed text into a float empty string returns -1.
+	float result = -1;
 
-	CExpression* expr = ProcessText(txt);
+	CExpression *expr = ProcessText(txt);
 	if (expr) {
-		val = expr->Calculate();
-		result=(float)val->GetNumber();
-		
-		
-	
+		CValue *val = expr->Calculate();
+		result = (float)val->GetNumber();
+
 		val->Release();
 		expr->Release();
 	}
-//	tmpstr.Format("parseresult=%g",result);
-//		AfxMessageBox(tmpstr);
 	return result;
 }
 
-CValue* CParser::GetValue(std::string& txt, bool bFallbackToText)
+CValue *CParser::GetValue(std::string& txt, bool bFallbackToText)
 {
-	// returns parsed text into a value, 
-	// empty string returns NULL value !
-	// if bFallbackToText then unparsed stuff is put into text
-	
-	CValue* result=NULL;
-	CExpression* expr = ProcessText(txt);
+	/* Returns parsed text into a value,
+	 * empty string returns NULL value !
+	 * if bFallbackToText then unparsed stuff is put into text
+	 */
+
+	CValue *result = NULL;
+	CExpression *expr = ProcessText(txt);
 	if (expr) {
 		result = expr->Calculate();
 		expr->Release();
 	}
-	if (result)
-	{
-		// if the parsed stuff lead to an errorvalue, don't return errors, just NULL
+	if (result) {
+		// If the parsed stuff lead to an errorvalue, don't return errors, just NULL.
 		if (result->IsError()) {
 			result->Release();
-			result=NULL;
+			result = NULL;
 			if (bFallbackToText) {
-				if (txt.size()>0)
-				{
-					result = new CStringValue(txt,"");
+				if (txt.size() > 0) {
+					result = new CStringValue(txt, "");
 				}
 			}
 		}
@@ -659,10 +730,9 @@ CValue* CParser::GetValue(std::string& txt, bool bFallbackToText)
 	return result;
 }
 
-void CParser::SetContext(CValue* context)
+void CParser::SetContext(CValue *context)
 {
-	if (m_identifierContext)
-	{
+	if (m_identifierContext) {
 		m_identifierContext->Release();
 	}
 	m_identifierContext = context;

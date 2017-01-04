@@ -29,21 +29,21 @@
 #include "EXP_ListWrapper.h"
 
 CListWrapper::CListWrapper(void *client,
-						   PyObject *base,
-						   bool (*checkValid)(void *),
-						   int (*getSize)(void *),
-						   PyObject *(*getItem)(void *, int),
-						   const std::string (*getItemName)(void *, int),
-						   bool (*setItem)(void *, int, PyObject *),
-						   int flag)
-:m_client(client),
-m_base(base),
-m_checkValid(checkValid),
-m_getSize(getSize),
-m_getItem(getItem),
-m_getItemName(getItemName),
-m_setItem(setItem),
-m_flag(flag)
+                           PyObject *base,
+                           bool(*checkValid)(void *),
+                           int(*getSize)(void *),
+                           PyObject *(*getItem)(void *, int),
+                           const std::string(*getItemName)(void *, int),
+                           bool(*setItem)(void *, int, PyObject *),
+                           int flag)
+	: m_client(client),
+	m_base(base),
+	m_checkValid(checkValid),
+	m_getSize(getSize),
+	m_getItem(getItem),
+	m_getItemName(getItemName),
+	m_setItem(setItem),
+	m_flag(flag)
 {
 	/* Incref to always have a existing pointer.
 	 * If there's no base python proxy it mean that we must manage the
@@ -329,8 +329,8 @@ PySequenceMethods CListWrapper::py_as_sequence = {
 	py_set_item, // sq_ass_item
 	NULL, // sq_ass_slice
 	(objobjproc)py_contains, // sq_contains
-	(binaryfunc) NULL, // sq_inplace_concat
-	(ssizeargfunc) NULL, // sq_inplace_repeat
+	(binaryfunc)NULL,  // sq_inplace_concat
+	(ssizeargfunc)NULL,  // sq_inplace_repeat
 };
 
 PyMappingMethods CListWrapper::py_as_mapping = {
@@ -360,25 +360,25 @@ PyTypeObject CListWrapper::Type = {
 	NULL,
 	0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-	0,0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0, 0,
 	Methods,
 	0,
 	0,
 	&CValue::Type,
-	0,0,0,0,0,0,
+	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
 
 PyMethodDef CListWrapper::Methods[] = {
 	{"get", (PyCFunction)CListWrapper::sPyGet, METH_VARARGS},
-	{NULL, NULL} //Sentinel
+	{NULL, NULL} // Sentinel
 };
 
 PyAttributeDef CListWrapper::Attributes[] = {
-	KX_PYATTRIBUTE_NULL //Sentinel
+	KX_PYATTRIBUTE_NULL // Sentinel
 };
 
-/* Matches python dict.get(key, [default]) */
+// Matches python dict.get(key, [default]).
 PyObject *CListWrapper::PyGet(PyObject *args)
 {
 	char *name;
@@ -409,4 +409,4 @@ PyObject *CListWrapper::PyGet(PyObject *args)
 	return def;
 }
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON

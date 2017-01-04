@@ -18,23 +18,19 @@
 #include "EXP_Expression.h"
 #include "EXP_ErrorValue.h"
 
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
-
 CExpression::CExpression()
+	:m_refcount(1)
 {
-	m_refcount = 1;
 }
 
 CExpression::~CExpression()
 {
-	assert (m_refcount == 0);
+	BLI_assert(m_refcount == 0);
 }
 
 CExpression *CExpression::AddRef()
 {
-	m_refcount++;
+	++m_refcount;
 	return this;
 }
 

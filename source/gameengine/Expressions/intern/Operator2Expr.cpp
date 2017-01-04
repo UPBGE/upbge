@@ -14,54 +14,31 @@
  * purpose.  It is provided "as is" without express or implied warranty.
  *
  */
-// 31 dec 1998 - big update: try to use the cached data for updating, instead of
-// rebuilding completely it from left and right node. Modified flags and bounding boxes
-// have to do the trick
-// when expression is cached, there will be a call to UpdateCalc() instead of Calc()
 
 #include "EXP_Operator2Expr.h"
 #include "EXP_StringValue.h"
 
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
-
 COperator2Expr::COperator2Expr(VALUE_OPERATOR op, CExpression *lhs, CExpression *rhs)
-: 	
-m_rhs(rhs),
-m_lhs(lhs),
-m_op(op)
-/*
-pre:
-effect: constucts a COperator2Expr with op, lhs and rhs in it
-*/
+	:m_rhs(rhs),
+	m_lhs(lhs),
+	m_op(op)
 {
-
 }
 
-COperator2Expr::COperator2Expr():
-m_rhs(NULL),
-m_lhs(NULL)
-
-/*
-pre:
-effect: constucts an empty COperator2Expr
-*/
+COperator2Expr::COperator2Expr() :
+	m_rhs(NULL),
+	m_lhs(NULL)
 {
-	
 }
 
 COperator2Expr::~COperator2Expr()
-/*
-pre:
-effect: deletes the object
-*/
 {
-	if (m_lhs)
+	if (m_lhs) {
 		m_lhs->Release();
-	if (m_rhs)
+	}
+	if (m_rhs) {
 		m_rhs->Release();
-	
+	}
 }
 
 unsigned char COperator2Expr::GetExpressionID()
@@ -69,18 +46,13 @@ unsigned char COperator2Expr::GetExpressionID()
 	return COPERATOR2EXPRESSIONID;
 }
 
-CValue* COperator2Expr::Calculate()
-/*
-pre:
-ret: a new object containing the result of applying operator m_op to m_lhs
-and m_rhs
-*/
+CValue *COperator2Expr::Calculate()
 {
 
-	CValue* ffleft = m_lhs->Calculate();
-	CValue* ffright = m_rhs->Calculate();
+	CValue *ffleft = m_lhs->Calculate();
+	CValue *ffright = m_rhs->Calculate();
 
-	CValue *calculate = ffleft->Calc(m_op,ffright);
+	CValue *calculate = ffleft->Calc(m_op, ffright);
 
 	ffleft->Release();
 	ffright->Release();

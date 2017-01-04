@@ -23,71 +23,36 @@
 #include "EXP_ErrorValue.h"
 #include "EXP_ListValue.h"
 
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
-
 CEmptyValue::CEmptyValue()
-/*
- * pre:
- * effect: constructs a new CEmptyValue
- */
 {
 }
-
-
 
 CEmptyValue::~CEmptyValue()
-/*
- * pre:
- * effect: deletes the object
- */
 {
-
 }
-
-
 
 CValue *CEmptyValue::Calc(VALUE_OPERATOR op, CValue *val)
-/*
- * pre:
- * ret: a new object containing the result of applying operator op to this
- * object and val
- */
 {
 	return val->CalcFinal(VALUE_EMPTY_TYPE, op, this);
-	
 }
 
-
-
-CValue * CEmptyValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
-/*
- * pre: the type of val is dtype
- * ret: a new object containing the result of applying operator op to val and
- * this object
- */
+CValue *CEmptyValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
 {
 	return val->AddRef();
 }
 
-
-
 double CEmptyValue::GetNumber()
 {
-	return 0;
+	return 0.0;
 }
-
-
 
 int CEmptyValue::GetValueType()
 {
 	return VALUE_EMPTY_TYPE;
 }
 
-bool CEmptyValue::IsInside(CValue* testpoint,bool bBorderInclude)
+bool CEmptyValue::IsInside(CValue *testpoint, bool bBorderInclude)
 {
-	// empty space is solid, so always inside
 	return true;
 }
 
@@ -96,11 +61,9 @@ const std::string CEmptyValue::GetText()
 	return "";
 }
 
-
-
-CValue* CEmptyValue::GetReplica()
-{ 
-	CEmptyValue* replica = new CEmptyValue(*this);
+CValue *CEmptyValue::GetReplica()
+{
+	CEmptyValue *replica = new CEmptyValue(*this);
 	replica->ProcessReplica();
 	return replica;
 }

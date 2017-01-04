@@ -18,36 +18,22 @@
 #include "EXP_Operator1Expr.h"
 #include "EXP_EmptyValue.h"
 
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
-
 COperator1Expr::COperator1Expr()
-/*
-pre:
-effect: constucts an empty COperator1Expr
-*/
+	:m_lhs(NULL)
 {
-	m_lhs = NULL;
 }
 
 COperator1Expr::COperator1Expr(VALUE_OPERATOR op, CExpression *lhs)
-/*
-pre:
-effect: constucts a COperator1Expr with op and lhs in it
-*/
+	:m_op(op),
+	m_lhs(lhs)
 {
-	m_lhs = lhs;
-	m_op = op;
 }
 
 COperator1Expr::~COperator1Expr()
-/*
-pre:
-effect: deletes the object
-*/
 {
-	if (m_lhs) m_lhs->Release();
+	if (m_lhs) {
+		m_lhs->Release();
+	}
 }
 
 unsigned char COperator1Expr::GetExpressionID()
@@ -55,19 +41,14 @@ unsigned char COperator1Expr::GetExpressionID()
 	return COPERATOR1EXPRESSIONID;
 }
 
-CValue * COperator1Expr::Calculate()
-/*
-pre:
-ret: a new object containing the result of applying the operator m_op to the
-	 value of m_lhs
-*/
+CValue *COperator1Expr::Calculate()
 {
-	CValue *ret;
 	CValue *temp = m_lhs->Calculate();
-	CValue* empty = new CEmptyValue();
-	ret = empty->Calc(m_op, temp);
+	CValue *empty = new CEmptyValue();
+	CValue *ret = empty->Calc(m_op, temp);
+
 	empty->Release();
 	temp->Release();
-	
+
 	return ret;
 }

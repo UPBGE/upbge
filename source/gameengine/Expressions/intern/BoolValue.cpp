@@ -20,67 +20,45 @@
 #include "EXP_StringValue.h"
 #include "EXP_ErrorValue.h"
 
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
-
 const std::string CBoolValue::sTrueString  = "TRUE";
 const std::string CBoolValue::sFalseString = "FALSE";
 
 CBoolValue::CBoolValue()
-/*
- * pre: false
- * effect: constructs a new CBoolValue
- */
 {
 	trace("Bool constructor error");
 }
 
-
-
 CBoolValue::CBoolValue(bool inBool)
-: m_bool(inBool)
+	:m_bool(inBool)
 {
-} // Constructs a new CBoolValue containing <inBool>
+}
 
-
-
-CBoolValue::CBoolValue(bool innie,const std::string& name)
+CBoolValue::CBoolValue(bool innie, const std::string& name)
+	:m_bool(innie)
 {
-	m_bool = innie;
 	SetName(name);
 }
 
-
-
-void CBoolValue::SetValue(CValue* newval)
+void CBoolValue::SetValue(CValue *newval)
 {
 	m_bool = (newval->GetNumber() != 0);
 }
 
-
-
-CValue* CBoolValue::Calc(VALUE_OPERATOR op, CValue *val)
-/*
-pre:
-ret: a new object containing the result of applying operator op to this
-object and val
-*/
+CValue *CBoolValue::Calc(VALUE_OPERATOR op, CValue *val)
 {
-	switch (op)
-	{
-	case VALUE_POS_OPERATOR:
-	case VALUE_NEG_OPERATOR:
+	switch (op) {
+		case VALUE_POS_OPERATOR:
+		case VALUE_NEG_OPERATOR:
 		{
-			return new CErrorValue (op2str(op) + GetText());
+			return new CErrorValue(op2str(op) + GetText());
 			break;
 		}
-	case VALUE_NOT_OPERATOR:
+		case VALUE_NOT_OPERATOR:
 		{
-			return new CBoolValue (!m_bool);
+			return new CBoolValue(!m_bool);
 			break;
 		}
-	default:
+		default:
 		{
 			return val->CalcFinal(VALUE_BOOL_TYPE, op, this);
 			break;
@@ -88,45 +66,39 @@ object and val
 	}
 }
 
-
-
-CValue* CBoolValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
-/*
-pre: the type of val is dtype
-ret: a new object containing the result of applying operator op to val and
-this object
-*/
+CValue *CBoolValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
 {
 	CValue *ret;
-	
+
 	switch (dtype) {
 		case VALUE_EMPTY_TYPE:
 		case VALUE_BOOL_TYPE:
 		{
-			switch (op) {
+			switch (op)
+			{
 				case VALUE_AND_OPERATOR:
 				{
-					ret = new CBoolValue (((CBoolValue *) val)->GetBool() && m_bool);
+					ret = new CBoolValue(((CBoolValue *)val)->GetBool() && m_bool);
 					break;
 				}
 				case VALUE_OR_OPERATOR:
 				{
-					ret = new CBoolValue (((CBoolValue *) val)->GetBool() || m_bool);
+					ret = new CBoolValue(((CBoolValue *)val)->GetBool() || m_bool);
 					break;
 				}
 				case VALUE_EQL_OPERATOR:
 				{
-					ret = new CBoolValue (((CBoolValue *) val)->GetBool() == m_bool);
+					ret = new CBoolValue(((CBoolValue *)val)->GetBool() == m_bool);
 					break;
 				}
 				case VALUE_NEQ_OPERATOR:
 				{
-					ret = new CBoolValue (((CBoolValue *) val)->GetBool() != m_bool);
+					ret = new CBoolValue(((CBoolValue *)val)->GetBool() != m_bool);
 					break;
 				}
 				case VALUE_NOT_OPERATOR:
 				{
-					return new CBoolValue (!m_bool);
+					return new CBoolValue(!m_bool);
 					break;
 				}
 				default:
@@ -140,10 +112,11 @@ this object
 		}
 		case VALUE_STRING_TYPE:
 		{
-			switch (op) {
+			switch (op)
+			{
 				case VALUE_ADD_OPERATOR:
 				{
-					ret = new CStringValue(val->GetText() + GetText(),"");
+					ret = new CStringValue(val->GetText() + GetText(), "");
 					break;
 				}
 				default:
@@ -161,45 +134,31 @@ this object
 	return ret;
 }
 
-
-
 bool CBoolValue::GetBool()
-/*
-pre:
-ret: the bool stored in the object
-*/
 {
 	return m_bool;
 }
-
-
 
 double CBoolValue::GetNumber()
 {
 	return (double)m_bool;
 }
 
-
-
 int CBoolValue::GetValueType()
 {
 	return VALUE_BOOL_TYPE;
 }
-
-
 
 const std::string CBoolValue::GetText()
 {
 	return m_bool ? sTrueString : sFalseString;
 }
 
-
-
-CValue* CBoolValue::GetReplica()
+CValue *CBoolValue::GetReplica()
 {
-	CBoolValue* replica = new CBoolValue(*this);
+	CBoolValue *replica = new CBoolValue(*this);
 	replica->ProcessReplica();
-	
+
 	return replica;
 }
 
@@ -208,4 +167,4 @@ PyObject *CBoolValue::ConvertValueToPython()
 {
 	return PyBool_FromLong(m_bool != 0);
 }
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON

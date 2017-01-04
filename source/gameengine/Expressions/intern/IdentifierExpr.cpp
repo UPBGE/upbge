@@ -32,29 +32,30 @@
 
 #include "EXP_IdentifierExpr.h"
 
-CIdentifierExpr::CIdentifierExpr(const std::string& identifier,CValue* id_context)
-:m_identifier(identifier)
+CIdentifierExpr::CIdentifierExpr(const std::string& identifier, CValue *id_context)
+	:m_identifier(identifier)
 {
-	if (id_context)
+	if (id_context) {
 		m_idContext = id_context->AddRef();
-	else
-		m_idContext=NULL;
+	}
+	else {
+		m_idContext = NULL;
+	}
 }
-
 
 CIdentifierExpr::~CIdentifierExpr()
 {
-	if (m_idContext)
+	if (m_idContext) {
 		m_idContext->Release();
+	}
 }
 
-
-
-CValue*	CIdentifierExpr::Calculate()
+CValue *CIdentifierExpr::Calculate()
 {
-	CValue* result = NULL;
-	if (m_idContext)
+	CValue *result = NULL;
+	if (m_idContext) {
 		result = m_idContext->FindIdentifier(m_identifier);
+	}
 
 	return result;
 }

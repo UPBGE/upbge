@@ -20,71 +20,45 @@
 #include "EXP_ErrorValue.h"
 #include "EXP_BoolValue.h"
 
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
-
-
 CIfExpr::CIfExpr()
 {
 }
 
-
-
-/*
- * pre:
- * effect: constructs an CifExpr-object corresponding to IF(guard, e1, e2)
- */
 CIfExpr::CIfExpr(CExpression *guard, CExpression *e1, CExpression *e2)
+	:m_guard(guard),
+	m_e1(e1),
+	m_e2(e2)
 {
-	m_guard = guard;
-	m_e1 = e1;
-	m_e2 = e2;
 }
 
-
-
-/*
- * pre:
- * effect: dereferences the object
- */
 CIfExpr::~CIfExpr()
 {
-	if (m_guard)
+	if (m_guard) {
 		m_guard->Release();
+	}
 
-	if (m_e1)
+	if (m_e1) {
 		m_e1->Release();
+	}
 
-	if (m_e2)
+	if (m_e2) {
 		m_e2->Release();
+	}
 }
 
-
-
-/**
- * pre:
- * ret: a new object containing the value of m_e1 if m_guard is a boolean true
- *      a new object containing the value of m_e2 if m_guard is a boolean false
- *      an new errorvalue if m_guard is not a boolean
- */
-CValue* CIfExpr::Calculate()
+CValue *CIfExpr::Calculate()
 {
-	CValue *guardval;
-	guardval = m_guard->Calculate();
+	CValue *guardval = m_guard->Calculate();
 	const std::string& text = guardval->GetText();
 	guardval->Release();
 
-	if (text == CBoolValue::sTrueString)
-	{
+	if (text == CBoolValue::sTrueString) {
 		return m_e1->Calculate();
 	}
-	else if (text == CBoolValue::sFalseString)
-	{
+	else if (text == CBoolValue::sFalseString) {
 		return m_e2->Calculate();
 	}
-	else
-	{
+	else {
 		return new CErrorValue("Guard should be of boolean type");
 	}
 }

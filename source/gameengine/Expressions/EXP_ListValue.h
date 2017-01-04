@@ -68,6 +68,7 @@ public:
 	};
 
 	void MergeList(CListValue *otherlist);
+	bool CheckEqual(CValue *first, CValue *second);
 	bool RemoveValue(CValue *val);
 	void SetReleaseOnDestruct(bool bReleaseContents);
 	bool SearchValue(CValue *val);
@@ -85,8 +86,6 @@ public:
 	baseIterator GetBegin();
 	baseIterator GetEnd();
 	virtual const std::string GetText();
-
-	bool CheckEqual(CValue *first, CValue *second);
 
 #ifdef WITH_PYTHON
 	virtual PyObject *py_repr()

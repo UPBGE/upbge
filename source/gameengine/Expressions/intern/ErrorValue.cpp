@@ -17,27 +17,13 @@
 
 #include "EXP_ErrorValue.h"
 
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
-
 CErrorValue::CErrorValue()
-/*
-pre:
-effect: constructs a new CErrorValue containing errormessage "Error"
-*/
+	:m_strErrorText("Error")
 {
-	m_strErrorText = "Error";
 	SetError(true);
 }
 
-
-
 CErrorValue::CErrorValue(const std::string& errmsg)
-/*
-pre:
-effect: constructs a new CErrorValue containing errormessage errmsg
-*/
 {
 	m_strErrorText = "[";
 	m_strErrorText += errmsg;
@@ -45,57 +31,35 @@ effect: constructs a new CErrorValue containing errormessage errmsg
 	SetError(true);
 }
 
-
-
 CErrorValue::~CErrorValue()
-/*
-pre:
-effect: deletes the object
-*/
 {
-
 }
 
-
-
-CValue* CErrorValue::Calc(VALUE_OPERATOR op, CValue *val)
-/*
-pre:
-ret: a new object containing the result of applying operator op to this
-	 object and val
-*/
+CValue *CErrorValue::Calc(VALUE_OPERATOR op, CValue *val)
 {
-	CValue* errorval;
+	CValue *errorval;
 
-	switch (op)
-	{
-	case VALUE_POS_OPERATOR:
-	case VALUE_NEG_OPERATOR:
-	case VALUE_NOT_OPERATOR:
+	switch (op) {
+		case VALUE_POS_OPERATOR:
+		case VALUE_NEG_OPERATOR:
+		case VALUE_NOT_OPERATOR:
 		{
-			errorval = new CErrorValue (op2str(op) + GetText());
+			errorval = new CErrorValue(op2str(op) + GetText());
 			break;
 		}
-	default:
+		default:
 		{
 			errorval = val->CalcFinal(VALUE_ERROR_TYPE, op, this);
 			break;
 		}
 	}
-	
+
 	return errorval;
 }
 
-
-
-CValue* CErrorValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
-/*
-pre: the type of val is dtype
-ret: a new object containing the result of applying operator op to val and
-	 this object
-*/
+CValue *CErrorValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
 {
-	return new CErrorValue (val->GetText() + op2str(op) + GetText());
+	return new CErrorValue(val->GetText() + op2str(op) + GetText());
 }
 
 int CErrorValue::GetValueType()
@@ -103,20 +67,15 @@ int CErrorValue::GetValueType()
 	return VALUE_ERROR_TYPE;
 }
 
-
-
 const std::string CErrorValue::GetText()
 {
 	return m_strErrorText;
 }
 
-
-
-CValue* CErrorValue::GetReplica()
-{ 
-	// who would want a copy of an error ?
-	trace ("Error: ErrorValue::GetReplica() not implemented yet");
-	BLI_assert(false);
+CValue *CErrorValue::GetReplica()
+{
+	// Who would want a copy of an error ?
+	BLI_assert(false && "ErrorValue::GetReplica() not implemented yet");
 
 	return NULL;
 }

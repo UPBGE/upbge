@@ -49,16 +49,17 @@ static PyObject *CheckPythonFunction(PyObject *value, unsigned int minargcount, 
 		// *args support
 		r_argcount = (code->co_flags & CO_VARARGS) ? maxargcount : code->co_argcount;
 	}
-	else { // is not a methode or a function
+	// Is not a methode or a function.
+	else {
 		PyErr_Format(PyExc_TypeError, "items must be functions or methodes, not %s",
-					 Py_TYPE(value)->tp_name);
+		             Py_TYPE(value)->tp_name);
 		return NULL;
 	}
 
 	if (r_argcount < minargcount || r_argcount >  maxargcount) {
-		// wrong number of arguments
+		// Wrong number of arguments.
 		PyErr_Format(PyExc_TypeError, "methode or function (%s) has invalid number of arguments (%i) must be between %i and %i",
-					 Py_TYPE(value)->tp_name, r_argcount, minargcount, maxargcount);
+		             Py_TYPE(value)->tp_name, r_argcount, minargcount, maxargcount);
 		return NULL;
 	}
 
@@ -75,7 +76,7 @@ static PyObject *CreatePythonTuple(unsigned int argcount, PyObject **arglist)
 
 	for (unsigned int i = 0; i < argcount; ++i) {
 		PyObject *item = arglist[i];
-		// increment reference and copy it in a new tuple
+		// Increment reference and copy it in a new tuple.
 		Py_INCREF(item);
 		PyTuple_SET_ITEM(tuple, i, item);
 	}
@@ -94,26 +95,30 @@ void RunPythonCallBackList(PyObject *functionlist, PyObject **arglist, unsigned 
 
 		PyObject *item = PyList_GET_ITEM(functionlist, i);
 		PyObject *func = CheckPythonFunction(item, minargcount, maxargcount, funcargcount);
-		if (!func) { // this item fails the check
+		// This item fails the check.
+		if (!func) {
 			PyErr_Print();
 			PyErr_Clear();
 			continue;
 		}
 
-		// get correct argument tuple.
+		// Get correct argument tuple.
 		PyObject *tuple = argTuples[funcargcount - minargcount];
-		if (!tuple)
+		if (!tuple) {
 			argTuples[funcargcount - minargcount] = tuple = CreatePythonTuple(funcargcount, arglist);
+		}
 
 		PyObject *ret = PyObject_Call(func, tuple, NULL);
-		if (!ret) { // if ret is NULL this seems that the function doesn't work !
+		if (!ret) { // If ret is NULL this seems that the function doesn't work.
 			PyErr_Print();
 			PyErr_Clear();
 		}
-		else
+		else {
 			Py_DECREF(ret);
+		}
 	}
 
-	for (unsigned int i = 0; i <= (maxargcount - minargcount); ++i)
+	for (unsigned int i = 0; i <= (maxargcount - minargcount); ++i) {
 		Py_XDECREF(argTuples[i]);
+	}
 }

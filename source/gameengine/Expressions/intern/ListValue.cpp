@@ -24,16 +24,10 @@
 #include <algorithm>
 #include "EXP_BoolValue.h"
 
-#include "BLI_sys_types.h" /* for intptr_t support */
-
-
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
+#include "BLI_sys_types.h" // For intptr_t support.
 
 CListValue::CListValue()
-	:CPropValue(),
-	m_bReleaseContents(true)
+	:m_bReleaseContents(true)
 {
 }
 
@@ -67,12 +61,11 @@ CValue *CListValue::GetReplica()
 
 	replica->ProcessReplica();
 
-	replica->m_bReleaseContents = true; // for copy, complete array is copied for now...
-	// copy all values
-	int numelements = m_pValueArray.size();
-	unsigned int i = 0;
+	replica->m_bReleaseContents = true; // For copy, complete array is copied for now...
+	// Copy all values.
+	const int numelements = m_pValueArray.size();
 	replica->m_pValueArray.resize(numelements);
-	for (i = 0; i < m_pValueArray.size(); i++) {
+	for (unsigned int i = 0; i < numelements; i++) {
 		replica->m_pValueArray[i] = m_pValueArray[i]->GetReplica();
 	}
 
@@ -176,10 +169,8 @@ bool CListValue::RemoveValue(CValue *val)
 
 void CListValue::MergeList(CListValue *otherlist)
 {
-
 	int numelements = this->GetCount();
 	int numotherelements = otherlist->GetCount();
-
 
 	Resize(numelements + numotherelements);
 
@@ -192,7 +183,7 @@ bool CListValue::CheckEqual(CValue *first, CValue *second)
 {
 	bool result = false;
 
-	CValue *eqval =  ((CValue *)first)->Calc(VALUE_EQL_OPERATOR, (CValue *)second);
+	CValue *eqval = ((CValue *)first)->Calc(VALUE_EQL_OPERATOR, (CValue *)second);
 
 	if (eqval == NULL) {
 		return false;
@@ -267,8 +258,7 @@ static PyObject *listvalue_buffer_item(PyObject *self, Py_ssize_t index)
 	}
 }
 
-
-/* just slice it into a python list... */
+// Just slice it into a python list...
 static PyObject *listvalue_buffer_slice(CListValue *list, Py_ssize_t start, Py_ssize_t stop)
 {
 	PyObject *newlist = PyList_New(stop - start);
@@ -309,7 +299,7 @@ static PyObject *listvalue_mapping_subscript(PyObject *self, PyObject *key)
 	}
 	else if (PyIndex_Check(key)) {
 		Py_ssize_t index = PyLong_AsSsize_t(key);
-		return listvalue_buffer_item(self, index); /* wont add a ref */
+		return listvalue_buffer_item(self, index); // Wont add a ref.
 	}
 	else if (PySlice_Check(key)) {
 		Py_ssize_t start, stop, step, slicelength;
@@ -334,7 +324,7 @@ static PyObject *listvalue_mapping_subscript(PyObject *self, PyObject *key)
 	return NULL;
 }
 
-/* clist + list, return a list that python owns */
+// clist + list, return a list that python owns.
 static PyObject *listvalue_buffer_concat(PyObject *self, PyObject *other)
 {
 	CListValue *listval = static_cast<CListValue *>(BGE_PROXY_REF(self));
@@ -346,17 +336,18 @@ static PyObject *listvalue_buffer_concat(PyObject *self, PyObject *other)
 
 	Py_ssize_t numitems_orig = listval->GetCount();
 
-	// for now, we support CListValue concatenated with items
-	// and CListValue concatenated to Python Lists
-	// and CListValue concatenated with another CListValue
+	/* For now, we support CListValue concatenated with items
+	 * and CListValue concatenated to Python Lists
+	 * and CListValue concatenated with another CListValue.
+	 */
 
-	/* Shallow copy, don't use listval->GetReplica(), it will screw up with KX_GameObjects */
+	// Shallow copy, don't use listval->GetReplica(), it will screw up with KX_GameObjects.
 	CListValue *listval_new = new CListValue();
 
 	if (PyList_Check(other)) {
 		Py_ssize_t numitems = PyList_GET_SIZE(other);
 
-		/* copy the first part of the list */
+		// Copy the first part of the list.
 		listval_new->Resize(numitems_orig + numitems);
 		for (Py_ssize_t i = 0; i < numitems_orig; i++) {
 			listval_new->SetValue(i, listval->GetValue(i)->AddRef());
@@ -376,7 +367,7 @@ static PyObject *listvalue_buffer_concat(PyObject *self, PyObject *other)
 		}
 	}
 	else if (PyObject_TypeCheck(other, &CListValue::Type)) {
-		// add items from otherlist to this list
+		// Add items from otherlist to this list.
 		CListValue *otherval = static_cast<CListValue *>(BGE_PROXY_REF(other));
 		if (otherval == NULL) {
 			listval_new->Release();
@@ -387,7 +378,7 @@ static PyObject *listvalue_buffer_concat(PyObject *self, PyObject *other)
 		Py_ssize_t numitems = otherval->GetCount();
 
 		// Copy the first part of the list.
-		// listval_new->Resize(numitems_orig + numitems); // Resize so we don't try release NULL pointers.
+		listval_new->Resize(numitems_orig + numitems); // Resize so we don't try release NULL pointers.
 		for (Py_ssize_t i = 0; i < numitems_orig; i++) {
 			listval_new->SetValue(i, listval->GetValue(i)->AddRef());
 		}
@@ -415,7 +406,8 @@ static int listvalue_buffer_contains(PyObject *self_v, PyObject *value)
 			return 1;
 		}
 	}
-	else if (PyObject_TypeCheck(value, &CValue::Type)) { // not dict like at all but this worked before __contains__ was used.
+	// Not dict like at all but this worked before __contains__ was used.
+	else if (PyObject_TypeCheck(value, &CValue::Type)) {
 		CValue *item = static_cast<CValue *>(BGE_PROXY_REF(value));
 		for (int i = 0; i < self->GetCount(); i++) {
 			if (self->GetValue(i) == item) {
@@ -481,16 +473,16 @@ PyTypeObject CListValue::Type = {
 
 PyMethodDef CListValue::Methods[] = {
 	// List style access.
-	{"append", (PyCFunction) CListValue::sPyappend, METH_O},
-	{"reverse", (PyCFunction) CListValue::sPyreverse, METH_NOARGS},
-	{"index", (PyCFunction) CListValue::sPyindex, METH_O},
-	{"count", (PyCFunction) CListValue::sPycount, METH_O},
+	{"append", (PyCFunction)CListValue::sPyappend, METH_O},
+	{"reverse", (PyCFunction)CListValue::sPyreverse, METH_NOARGS},
+	{"index", (PyCFunction)CListValue::sPyindex, METH_O},
+	{"count", (PyCFunction)CListValue::sPycount, METH_O},
 
 	// Dict style access.
-	{"get", (PyCFunction) CListValue::sPyget, METH_VARARGS},
+	{"get", (PyCFunction)CListValue::sPyget, METH_VARARGS},
 
 	// Own cvalue funcs.
-	{"from_id", (PyCFunction) CListValue::sPyfrom_id, METH_O},
+	{"from_id", (PyCFunction)CListValue::sPyfrom_id, METH_O},
 
 	{NULL, NULL} // Sentinel
 };
@@ -622,4 +614,4 @@ PyObject *CListValue::Pyfrom_id(PyObject *value)
 	return NULL;
 }
 
-#endif // WITH_PYTHON
+#endif  // WITH_PYTHON

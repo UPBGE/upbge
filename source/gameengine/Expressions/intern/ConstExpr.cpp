@@ -16,58 +16,36 @@
  *
  */
 
-#include "EXP_Value.h" // for precompiled header
+#include "EXP_Value.h"
 #include "EXP_ConstExpr.h"
-
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
 
 CConstExpr::CConstExpr()
 {
 }
 
-
-
-CConstExpr::CConstExpr(CValue* constval) 
-/*
-pre:
-effect: constructs a CConstExpr cointing the value constval
-*/
+CConstExpr::CConstExpr(CValue *constval)
 {
 	m_value = constval;
-//	m_bModified=true;
 }
-
-
 
 CConstExpr::~CConstExpr()
-/*
-pre:
-effect: deletes the object
-*/
 {
-	if (m_value)
+	if (m_value) {
 		m_value->Release();
+	}
 }
-
-
 
 unsigned char CConstExpr::GetExpressionID()
 {
 	return CCONSTEXPRESSIONID;
 }
 
-CValue* CConstExpr::Calculate()
-/*
-pre:
-ret: a new object containing the value of the stored CValue
-*/
+CValue *CConstExpr::Calculate()
 {
 	return m_value->AddRef();
 }
 
 double CConstExpr::GetNumber()
 {
-	return -1;
+	return -1.0;
 }
