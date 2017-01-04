@@ -68,8 +68,6 @@ CValue::CValue()
 CValue::~CValue()
 {
 	ClearProperties();
-
-	BLI_assert(m_refcount == 0);
 }
 
 std::string CValue::op2str(VALUE_OPERATOR op)

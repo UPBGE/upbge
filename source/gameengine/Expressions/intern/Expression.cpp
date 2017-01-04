@@ -25,7 +25,6 @@ CExpression::CExpression()
 
 CExpression::~CExpression()
 {
-	BLI_assert(m_refcount == 0);
 }
 
 CExpression *CExpression::AddRef()
