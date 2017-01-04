@@ -74,8 +74,6 @@ extern "C" {
 #include "KX_Scene.h"
 #include "KX_RayCast.h"
 #include "KX_GameObject.h"
-#include "KX_Camera.h"
-#include "DNA_scene_types.h"
 // >>>
 
 #include "CM_Message.h"
@@ -2433,7 +2431,8 @@ void RAS_OpenGLRasterizer::DrawDebugTransparentBoxes(MT_Vector3 box[8])
 	glDisable(GL_CULL_FACE);
 }
 
-void RAS_OpenGLRasterizer::DrawPerspectiveCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend)
+void RAS_OpenGLRasterizer::DrawPerspectiveCameraFrustum(MT_Transform trans, float clipstart, float clipend,
+	float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend)
 {
 	MT_Vector3 box[8];
 
@@ -2446,17 +2445,17 @@ void RAS_OpenGLRasterizer::DrawPerspectiveCameraFrustum(KX_Camera *cam, float ra
 	box[0][1] = box[4][1] = -oppositeclipend * ratioy;
 	box[2][1] = box[6][1] = +oppositeclipsta * ratioy;
 	box[3][1] = box[7][1] = +oppositeclipend * ratioy;
-	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -cam->GetCameraData()->m_clipend;
-	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -cam->GetCameraData()->m_clipstart;
+	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -clipend;
+	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -clipstart;
 
-	MT_Transform trans(cam->GetCameraToWorld());
 	for (short i = 0; i < 8; i++) {
 		box[i] = trans(box[i]);
 	}
 	DrawDebugTransparentBoxes(box);
 }
 
-void RAS_OpenGLRasterizer::DrawOrthographicCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float x)
+void RAS_OpenGLRasterizer::DrawOrthographicCameraFrustum(MT_Transform trans, float clipstart, float clipend,
+	float ratiox, float ratioy, float x)
 {
 	MT_Vector3 box[8];
 
@@ -2465,40 +2464,12 @@ void RAS_OpenGLRasterizer::DrawOrthographicCameraFrustum(KX_Camera *cam, float r
 	box[4][0] = box[5][0] = box[6][0] = box[7][0] = +x * ratiox;
 	box[0][1] = box[1][1] = box[4][1] = box[5][1] = -x * ratioy;
 	box[2][1] = box[3][1] = box[6][1] = box[7][1] = +x * ratioy;
-	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -cam->GetCameraData()->m_clipend;
-	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -cam->GetCameraData()->m_clipstart;
+	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -clipend;
+	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -clipstart;
 
-	MT_Transform trans(cam->GetCameraToWorld());
 	for (short i = 0; i < 8; i++) {
 		box[i] = trans(box[i]);
 	}
 	DrawDebugTransparentBoxes(box);
-}
-
-
-void RAS_OpenGLRasterizer::DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene)
-{
-	bool perspective = cam->GetCameraData()->m_perspective;
-
-	Scene *sc = scene->GetBlenderScene();
-	float aspx = (float)sc->r.xsch * sc->r.xasp;
-	float aspy = (float)sc->r.ysch * sc->r.yasp;
-	float ratiox = min_ff(aspx / aspy, 1.0f);
-	float ratioy = min_ff(aspy / aspx, 1.0f);
-
-	if (perspective) {
-		/* https://en.wikipedia.org/wiki/Angle_of_view */
-		float angleofview = 2.0f * atanf(cam->GetCameraData()->m_sensor_x / (2.0f * cam->GetCameraData()->m_lens));
-
-		/* http://www.mathopenref.com/trigtangent.html */
-		/* tanf(angleofview/2.0f) = opposite / adjacent so opposite = tanf(angleofview/2.0f) * adjacent */
-		float oppositeclipsta = tanf(angleofview / 2.0f) * cam->GetCameraData()->m_clipstart;
-		float oppositeclipend = tanf(angleofview / 2.0f) * cam->GetCameraData()->m_clipend;
-		DrawPerspectiveCameraFrustum(cam, ratiox, ratioy, oppositeclipsta, oppositeclipend);
-	}
-	else {
-		float x = cam->GetCameraData()->m_scale * 0.5f;
-		DrawOrthographicCameraFrustum(cam, ratiox, ratioy, x);
-	}
 }
 

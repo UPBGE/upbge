@@ -49,7 +49,6 @@
 class RAS_StorageVBO;
 class RAS_ICanvas;
 class RAS_OpenGLLight;
-class KX_Camera;
 struct GPUOffScreen;
 struct GPUTexture;
 struct GPUShader;
@@ -450,9 +449,12 @@ public:
 	virtual void PrintHardwareInfo();
 
 	// Draw Camera Frustum functions
-	virtual void DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene);
-	void DrawPerspectiveCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend);
-	void DrawOrthographicCameraFrustum(KX_Camera *cam, float ratiox, float ratioy, float x);
+	virtual void DrawPerspectiveCameraFrustum(MT_Transform trans, float clipstart, float clipend,
+		float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend);
+	virtual void DrawOrthographicCameraFrustum(MT_Transform trans, float clipstart, float clipend,
+		float ratiox, float ratioy, float x);
+
+	// Draw Transparent Debug Boxes functions
 	virtual void DrawDebugTransparentBoxes(MT_Vector3 box[8]);
 	void DrawDebugBoxFromBox(MT_Vector3 box[8], bool solid);
 

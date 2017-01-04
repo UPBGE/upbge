@@ -517,7 +517,7 @@ public:
 	/// Show camera frustum
 	void SetShowCamerasFrustum(bool show);
 	bool GetShowCamerasFrustum();
-	void DrawActiveCameraFrustum(KX_Camera *cam, KX_Scene *scene);
+	void DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene);
 
 	/// Allow debug armatures.
 	bool GetShowArmatures() const;

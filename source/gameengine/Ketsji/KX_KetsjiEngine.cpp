@@ -613,7 +613,7 @@ void KX_KetsjiEngine::Render()
 					for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
 						KX_Camera *cam = *it;
 						if (cam != activecam) {
-							DrawActiveCameraFrustum(cam, scene);
+							DrawCameraFrustum(cam, scene);
 						}
 					}
 				}
@@ -1707,9 +1707,33 @@ void KX_KetsjiEngine::SetShowCamerasFrustum(bool show)
 	m_showCamerasFrustum = show;
 }
 
-void KX_KetsjiEngine::DrawActiveCameraFrustum(KX_Camera *cam, KX_Scene *scene)
+void KX_KetsjiEngine::DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene)
 {
-	m_rasterizer->DrawCameraFrustum(cam, scene);
+	bool perspective = cam->GetCameraData()->m_perspective;
+
+	Scene *sc = scene->GetBlenderScene();
+	float aspx = (float)sc->r.xsch * sc->r.xasp;
+	float aspy = (float)sc->r.ysch * sc->r.yasp;
+	float ratiox = min_ff(aspx / aspy, 1.0f);
+	float ratioy = min_ff(aspy / aspx, 1.0f);
+	float clipstart = cam->GetCameraData()->m_clipstart;
+	float clipend = cam->GetCameraData()->m_clipend;
+	MT_Transform trans(cam->GetCameraToWorld());
+
+	if (perspective) {
+		/* https://en.wikipedia.org/wiki/Angle_of_view */
+		float angleofview = 2.0f * atanf(cam->GetCameraData()->m_sensor_x / (2.0f * cam->GetCameraData()->m_lens));
+
+		/* http://www.mathopenref.com/trigtangent.html */
+		/* tanf(angleofview/2.0f) = opposite / adjacent so opposite = tanf(angleofview/2.0f) * adjacent */
+		float oppositeclipsta = tanf(angleofview / 2.0f) * clipstart;
+		float oppositeclipend = tanf(angleofview / 2.0f) * clipend;
+		m_rasterizer->DrawPerspectiveCameraFrustum(trans, clipstart, clipend, ratiox, ratioy, oppositeclipsta, oppositeclipend);
+	}
+	else {
+		float x = cam->GetCameraData()->m_scale * 0.5f;
+		m_rasterizer->DrawOrthographicCameraFrustum(trans, clipstart, clipend, ratiox, ratioy, x);
+	}
 }
 
 bool KX_KetsjiEngine::GetShowArmatures() const

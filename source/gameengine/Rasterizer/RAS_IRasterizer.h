@@ -56,8 +56,6 @@ class RAS_ILightObject;
 class SCA_IScene;
 class RAS_IOffScreen;
 class RAS_ISync;
-class KX_Camera;
-class KX_Scene;
 
 /**
  * 3D rendering device context interface. 
@@ -728,7 +726,17 @@ public:
 	 */
 	virtual void PrintHardwareInfo() = 0;
 
-	virtual void DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene) = 0;
+	/**
+	 * Debug Cameras Frustum
+	 */
+	virtual void DrawPerspectiveCameraFrustum(MT_Transform trans, float clipstart, float clipend,
+		float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend) = 0;
+	virtual void DrawOrthographicCameraFrustum(MT_Transform trans, float clipstart, float clipend,
+		float ratiox, float ratioy, float x) = 0;
+
+	/**
+	 * Draw Transparent Debug box from MT_Vector3 box[8] in viewport style
+	 */
 	virtual void DrawDebugTransparentBoxes(MT_Vector3 box[8]) = 0;
 
 #ifdef WITH_CXX_GUARDEDALLOC
