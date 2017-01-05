@@ -43,7 +43,6 @@ private:
 	float m_strengthLeft;
 	float m_strengthRight;
 	int m_duration;
-	float m_endtime;
 
 public:
 

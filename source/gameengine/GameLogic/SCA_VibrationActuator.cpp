@@ -30,7 +30,7 @@
 
 #include "SCA_VibrationActuator.h"
 #include "SCA_JoystickManager.h"
-#include "PIL_time.h" // Module to get real time in Game Engine
+
 
 SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, short mode, int joyindex, float strength_left,  float strength_right, int duration)
 	: SCA_IActuator(gameobj, KX_ACT_VIBRATION),
@@ -38,8 +38,7 @@ SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, short mode, i
 	m_mode(mode),
 	m_strengthLeft(strength_left),
 	m_strengthRight(strength_right),
-	m_duration(duration),
-	m_endtime(0.0f)
+	m_duration(duration)
 {
 }
 
@@ -69,24 +68,17 @@ bool SCA_VibrationActuator::Update()
 			case KX_ACT_VIBRATION_PLAY:
 			{
 				instance->RumblePlay(m_strengthLeft, m_strengthRight, m_duration);
-				m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
 				break;
 			}
 			case KX_ACT_VIBRATION_STOP:
 			{
 				instance->RumbleStop();
-				m_endtime = 0.0f;
 				break;
 			}
 		}
 	}
 
 	RemoveAllEvents();
-
-	if (!(PIL_check_seconds_timer() * 1000.0f < m_endtime)) {
-		instance->RumbleStop();
-		m_endtime = 0.0f;
-	}
 
 	return instance->GetRumbleStatus();
 }
@@ -150,7 +142,6 @@ KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, startVibration,
 	}
 
 	instance->RumblePlay(m_strengthLeft, m_strengthRight, m_duration);
-	m_endtime = PIL_check_seconds_timer() * 1000.0f + m_duration;
 
 	Py_RETURN_NONE;
 }
@@ -167,7 +158,6 @@ KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, stopVibration,
 	}
 
 	instance->RumbleStop();
-	m_endtime = 0.0f;
 
 	Py_RETURN_NONE;
 }

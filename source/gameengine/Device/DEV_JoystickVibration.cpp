@@ -24,13 +24,13 @@
  *  \ingroup device
  */
 
+#include <memory> // We have to include that on Windows to make memset available
+
 #include "DEV_Joystick.h"
 #include "DEV_JoystickPrivate.h"
 #include "DEV_JoystickDefines.h"
-
 #include "CM_Message.h"
 
-#include <memory> // We have to include that on Windows to make memset available
 
 bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigned int duration)
 {
