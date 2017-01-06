@@ -1505,7 +1505,7 @@ void KX_Scene::DrawDebug(RAS_IRasterizer *rasty)
 void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 {
 	// have a look at temp objects ...
-	for (CListValue::baseIterator it = m_tempObjectList->GetBegin(), end = m_tempObjectList->GetEnd(); it != end; ++it) {
+	for (CListValue::VectorTypeIterator it = m_tempObjectList->GetBegin(), end = m_tempObjectList->GetEnd(); it != end; ++it) {
 		CValue *objval = *it;
 		CFloatValue* propval = (CFloatValue*) objval->GetProperty("::timebomb");
 		

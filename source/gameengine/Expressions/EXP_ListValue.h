@@ -25,8 +25,12 @@ class CListValue : public CPropValue
 {
 	Py_Header
 
+public:
+	typedef std::vector<CValue *> VectorType;
+	typedef VectorType::iterator VectorTypeIterator;
+
 private:
-	std::vector<CValue *> m_pValueArray;
+	VectorType m_pValueArray;
 	bool m_bReleaseContents;
 
 public:
@@ -39,16 +43,14 @@ public:
 	virtual int GetValueType();
 	virtual CValue *GetReplica();
 
-	typedef std::vector<CValue *>::iterator baseIterator;
-
 	template <class T>
 	class iterator
 	{
 private:
-		baseIterator m_it;
+		VectorTypeIterator m_it;
 
 public:
-		iterator(baseIterator it)
+		iterator(VectorTypeIterator it)
 			: m_it(it)
 		{
 		}
@@ -60,7 +62,7 @@ public:
 
 		inline T *operator*()
 		{
-			return (T *)*m_it;
+			return static_cast<T *>(*m_it);
 		}
 
 		template <class U>
@@ -83,8 +85,8 @@ public:
 	CValue *GetFront();
 	CValue *GetBack();
 	int GetCount();
-	baseIterator GetBegin();
-	baseIterator GetEnd();
+	VectorTypeIterator GetBegin();
+	VectorTypeIterator GetEnd();
 	virtual const std::string GetText();
 
 #ifdef WITH_PYTHON

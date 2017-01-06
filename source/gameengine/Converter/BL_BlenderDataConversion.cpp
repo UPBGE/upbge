@@ -1676,7 +1676,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			CListValue* childrenlist = childobj->GetChildrenRecursive();
 			// The returned list by GetChildrenRecursive is not owned by anyone and must not own items, so no AddRef().
 			childrenlist->Add(childobj);
-			for (CListValue::baseIterator it = childrenlist->GetBegin(), end = childrenlist->GetEnd(); it != end; ++it) {
+			for (CListValue::VectorTypeIterator it = childrenlist->GetBegin(), end = childrenlist->GetEnd(); it != end; ++it) {
 				CValue *obj = *it;
 				if (sumolist->RemoveValue(obj))
 					obj->Release();

@@ -34,8 +34,8 @@ CListValue::CListValue()
 CListValue::~CListValue()
 {
 	if (m_bReleaseContents) {
-		for (unsigned int i = 0; i < m_pValueArray.size(); i++) {
-			m_pValueArray[i]->Release();
+		for (CValue *item : m_pValueArray) {
+			item->Release();
 		}
 	}
 }
@@ -45,9 +45,9 @@ const std::string CListValue::GetText()
 	std::string strListRep = "[";
 	std::string commastr = "";
 
-	for (int i = 0; i < GetCount(); i++) {
+	for (CValue *item : m_pValueArray) {
 		strListRep += commastr;
-		strListRep += GetValue(i)->GetText();
+		strListRep += item->GetText();
 		commastr = ",";
 	}
 	strListRep += "]";
@@ -99,12 +99,12 @@ int CListValue::GetCount()
 	return m_pValueArray.size();
 }
 
-CListValue::baseIterator CListValue::GetBegin()
+CListValue::VectorTypeIterator CListValue::GetBegin()
 {
 	return m_pValueArray.begin();
 }
 
-CListValue::baseIterator CListValue::GetEnd()
+CListValue::VectorTypeIterator CListValue::GetEnd()
 {
 	return m_pValueArray.end();
 }
@@ -122,29 +122,28 @@ void CListValue::Remove(int i)
 
 void CListValue::ReleaseAndRemoveAll()
 {
-	for (unsigned int i = 0; i < m_pValueArray.size(); i++) {
-		m_pValueArray[i]->Release();
+	for (CValue *item : m_pValueArray) {
+		item->Release();
 	}
 	m_pValueArray.clear();
 }
 
 CValue *CListValue::FindValue(const std::string &name)
 {
-	for (int i = 0; i < GetCount(); i++) {
-		if (GetValue(i)->GetName() == name) {
-			return GetValue(i);
-		}
-	}
+	VectorTypeIterator it = std::find_if(m_pValueArray.begin(), m_pValueArray.end(),
+			[&name](CValue *item) { return item->GetName() == name; });
 
+	if (it != m_pValueArray.end()) {
+		return *it;
+	}
 	return NULL;
 }
 
 bool CListValue::SearchValue(CValue *val)
 {
-	for (int i = 0; i < GetCount(); i++) {
-		if (val == GetValue(i)) {
-			return true;
-		}
+	VectorTypeIterator it = std::find(m_pValueArray.begin(), m_pValueArray.end(), val);
+	if (it != m_pValueArray.end()) {
+		return true;
 	}
 	return false;
 }
@@ -158,12 +157,16 @@ bool CListValue::RemoveValue(CValue *val)
 {
 	bool result = false;
 
-	for (int i = GetCount() - 1; i >= 0; i--) {
-		if (val == GetValue(i)) {
-			Remove(i);
+	for (VectorTypeIterator it = m_pValueArray.begin(); it != m_pValueArray.end();) {
+		if (*it == val) {
+			it = m_pValueArray.erase(it);
 			result = true;
 		}
+		else {
+			++it;
+		}
 	}
+
 	return result;
 }
 
