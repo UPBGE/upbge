@@ -117,20 +117,38 @@ private:
 		GPUTexture *GetDepthTexture(unsigned short index);
 	};
 
-	struct OglDebugShape
+	struct DebugShape
 	{
-		enum SHAPE_TYPE
-		{
-			LINE,
-			CIRCLE,
-			BOX,
-		};
-		SHAPE_TYPE m_type;
+		MT_Vector4 m_color;
+	};
+
+	struct DebugLine : DebugShape
+	{
+		MT_Vector3 m_from;
+		MT_Vector3 m_to;
+	};
+
+	struct DebugCircle : DebugShape
+	{
+		MT_Vector3 m_center;
+		MT_Vector3 m_normal;
+		float m_radius;
+		int m_sector;
+	};
+
+	struct DebugAabb : DebugShape
+	{
 		MT_Vector3 m_pos;
 		MT_Matrix3x3 m_rot;
-		MT_Vector3 m_param;
-		MT_Vector3 m_param2;
-		MT_Vector4 m_color;
+		MT_Vector3 m_min;
+		MT_Vector3 m_max;
+	};
+
+	struct SceneDebugShape
+	{
+		std::vector<DebugLine> m_lines;
+		std::vector<DebugCircle> m_circles;
+		std::vector<DebugAabb> m_aabbs;
 	};
 
 	// All info used to compute the ray cast transform matrix.
@@ -201,7 +219,7 @@ private:
 	ScreenPlane m_screenPlane;
 
 	// We store each debug shape by scene.
-	std::map<SCA_IScene *, std::vector<OglDebugShape> > m_debugShapes;
+	std::map<SCA_IScene *, SceneDebugShape> m_debugShapes;
 
 	/// Class used to manage off screens.
 	OffScreens m_offScreens;
@@ -327,7 +345,7 @@ public:
 	virtual void DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color);
 	virtual void DrawDebugCircle(SCA_IScene *scene, const MT_Vector3 &center, const MT_Scalar radius,
 	                             const MT_Vector4 &color, const MT_Vector3 &normal, int nsector);
-	virtual void DrawDebugBox(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
+	virtual void DrawDebugAabb(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
 							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color);
 
 	virtual void ClearTexCoords();

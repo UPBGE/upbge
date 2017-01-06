@@ -601,7 +601,7 @@ public:
 	 * \param max The box's maximal corner.
 	 * \param color The box's color.
 	 */
-	virtual void DrawDebugBox(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
+	virtual void DrawDebugAabb(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
 							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color) = 0;
 	virtual void FlushDebugShapes(SCA_IScene *scene) = 0;
 

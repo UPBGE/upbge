@@ -1473,7 +1473,7 @@ void KX_Scene::DrawDebug(RAS_IRasterizer *rasty)
 				const SG_BBox& box = gameobj->GetSGNode()->BBox();
 				const MT_Vector3& center = box.GetCenter();
 
-				rasty->DrawDebugBox(this, position, orientation, box.GetMin() * scale, box.GetMax() * scale,
+				rasty->DrawDebugAabb(this, position, orientation, box.GetMin() * scale, box.GetMax() * scale,
 					MT_Vector4(1.0f, 0.0f, 1.0f, 1.0f));
 
 				// Render center in red, green and blue.

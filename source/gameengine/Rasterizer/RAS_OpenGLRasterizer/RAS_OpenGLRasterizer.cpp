@@ -684,9 +684,10 @@ void RAS_OpenGLRasterizer::SetColorMask(bool r, bool g, bool b, bool a)
 
 void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 {
-	std::vector<OglDebugShape> &debugShapes = m_debugShapes[scene];
-	if (debugShapes.empty())
+	SceneDebugShape& debugShapes = m_debugShapes[scene];
+	if ((debugShapes.m_lines.size() + debugShapes.m_circles.size() + debugShapes.m_aabbs.size()) == 0) {
 		return;
+	}
 
 	// DrawDebugLines
 	GLboolean light, tex, blend;
@@ -707,27 +708,20 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 
 	// draw lines
 	glBegin(GL_LINES);
-	for (unsigned int i = 0; i < debugShapes.size(); i++) {
-		if (debugShapes[i].m_type != OglDebugShape::LINE)
-			continue;
-		glColor4f(debugShapes[i].m_color[0], debugShapes[i].m_color[1], debugShapes[i].m_color[2], debugShapes[i].m_color[3]);
-		const MT_Scalar *fromPtr = &debugShapes[i].m_pos.x();
-		const MT_Scalar *toPtr = &debugShapes[i].m_param.x();
-		glVertex3fv(fromPtr);
-		glVertex3fv(toPtr);
+	for (const DebugLine& line : debugShapes.m_lines) {
+		glColor4fv(line.m_color.getValue());
+		glVertex3fv(line.m_from.getValue());
+		glVertex3fv(line.m_to.getValue());
 	}
 	glEnd();
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	// Draw boxes
-	for (unsigned int i = 0; i < debugShapes.size(); i++) {
-		if (debugShapes[i].m_type != OglDebugShape::BOX) {
-			continue;
-		}
-		glColor4f(debugShapes[i].m_color[0], debugShapes[i].m_color[1], debugShapes[i].m_color[2], debugShapes[i].m_color[3]);
+	for (const DebugAabb& aabb : debugShapes.m_aabbs) {
+		glColor4fv(aabb.m_color.getValue());
 
-		const MT_Matrix3x3& rot = debugShapes[i].m_rot;
-		const MT_Vector3& pos = debugShapes[i].m_pos;
+		const MT_Matrix3x3& rot = aabb.m_rot;
+		const MT_Vector3& pos = aabb.m_pos;
 		float mat[16] = {
 			rot[0][0], rot[1][0], rot[2][0], 0.0,
 			rot[0][1], rot[1][1], rot[2][1], 0.0,
@@ -737,8 +731,8 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 		PushMatrix();
 		MultMatrix(mat);
 
-		const MT_Vector3& min = debugShapes[i].m_param;
-		const MT_Vector3& max = debugShapes[i].m_param2;
+		const MT_Vector3& min = aabb.m_min;
+		const MT_Vector3& max = aabb.m_max;
 
 		float vertexes[24] = {
 			(float)min[0], (float)min[1], (float)min[2],
@@ -768,35 +762,31 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	glDisableClientState(GL_VERTEX_ARRAY);
 
 	// draw circles
-	for (unsigned int i = 0; i < debugShapes.size(); i++) {
-		if (debugShapes[i].m_type != OglDebugShape::CIRCLE)
-			continue;
+	for (const DebugCircle& circle : debugShapes.m_circles) {
 		glBegin(GL_LINE_LOOP);
-		glColor4f(debugShapes[i].m_color[0], debugShapes[i].m_color[1], debugShapes[i].m_color[2], debugShapes[i].m_color[3]);
+		glColor4fv(circle.m_color.getValue());
 
 		static const MT_Vector3 worldUp(0.0f, 0.0f, 1.0f);
-		MT_Vector3 norm = debugShapes[i].m_param;
+		const MT_Vector3& norm = circle.m_normal;
 		MT_Matrix3x3 tr;
 		if (norm.fuzzyZero() || norm == worldUp) {
 			tr.setIdentity();
 		}
 		else {
-			MT_Vector3 xaxis, yaxis;
-			xaxis = MT_cross(norm, worldUp);
-			yaxis = MT_cross(xaxis, norm);
+			const MT_Vector3 xaxis = MT_cross(norm, worldUp);
+			const MT_Vector3 yaxis = MT_cross(xaxis, norm);
 			tr.setValue(xaxis.x(), xaxis.y(), xaxis.z(),
-			            yaxis.x(), yaxis.y(), yaxis.z(),
-			            norm.x(), norm.y(), norm.z());
+						yaxis.x(), yaxis.y(), yaxis.z(),
+						norm.x(), norm.y(), norm.z());
 		}
-		MT_Scalar rad = debugShapes[i].m_param2.x();
-		int n = (int)debugShapes[i].m_param2.y();
-		for (int j = 0; j < n; j++) {
-			MT_Scalar theta = j * MT_2_PI / n;
+		const MT_Scalar rad = circle.m_radius;
+		const int n = circle.m_sector;
+		for (int j = 0; j < n; ++j) {
+			const MT_Scalar theta = j * MT_2_PI / n;
 			MT_Vector3 pos(cosf(theta) * rad, sinf(theta) * rad, 0.0f);
 			pos = pos * tr;
-			pos += debugShapes[i].m_pos;
-			const MT_Scalar *posPtr = &pos.x();
-			glVertex3fv(posPtr);
+			pos += circle.m_center;
+			glVertex3fv(pos.getValue());
 		}
 		glEnd();
 	}
@@ -811,43 +801,42 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 		Disable(RAS_BLEND);
 	}
 
-	debugShapes.clear();
+	debugShapes.m_lines.clear();
+	debugShapes.m_circles.clear();
+	debugShapes.m_aabbs.clear();
 }
 
 void RAS_OpenGLRasterizer::DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
 {
-	OglDebugShape line;
-	line.m_type = OglDebugShape::LINE;
-	line.m_pos = from;
-	line.m_param = to;
+	DebugLine line;
+	line.m_from = from;
+	line.m_to = to;
 	line.m_color = color;
-	m_debugShapes[scene].push_back(line);
+	m_debugShapes[scene].m_lines.push_back(line);
 }
 
 void RAS_OpenGLRasterizer::DrawDebugCircle(SCA_IScene *scene, const MT_Vector3 &center, const MT_Scalar radius,
 		const MT_Vector4 &color, const MT_Vector3 &normal, int nsector)
 {
-	OglDebugShape line;
-	line.m_type = OglDebugShape::CIRCLE;
-	line.m_pos = center;
-	line.m_param = normal;
-	line.m_color = color;
-	line.m_param2.x() = radius;
-	line.m_param2.y() = (float)nsector;
-	m_debugShapes[scene].push_back(line);
+	DebugCircle circle;
+	circle.m_center = center;
+	circle.m_normal = normal;
+	circle.m_color = color;
+	circle.m_radius = radius;
+	circle.m_sector = nsector;
+	m_debugShapes[scene].m_circles.push_back(circle);
 }
 
-void RAS_OpenGLRasterizer::DrawDebugBox(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
+void RAS_OpenGLRasterizer::DrawDebugAabb(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
 		const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color)
 {
-	OglDebugShape box;
-	box.m_type = OglDebugShape::BOX;
-	box.m_pos = pos;
-	box.m_rot = rot;
-	box.m_param = min;
-	box.m_param2 = max;
-	box.m_color = color;
-	m_debugShapes[scene].push_back(box);
+	DebugAabb aabb;
+	aabb.m_pos = pos;
+	aabb.m_rot = rot;
+	aabb.m_min = min;
+	aabb.m_max = max;
+	aabb.m_color = color;
+	m_debugShapes[scene].m_aabbs.push_back(aabb);
 }
 
 void RAS_OpenGLRasterizer::EndFrame()
