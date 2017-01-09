@@ -30,6 +30,7 @@
 #include "DEV_JoystickPrivate.h"
 #include "DEV_JoystickDefines.h"
 #include "CM_Message.h"
+#include "PIL_time.h" // Module to get real time in Game Engine
 
 
 bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigned int duration)
@@ -160,10 +161,11 @@ bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigne
 			m_private->m_hapticEffectId = -1;
 			m_private->m_hapticEffectStatus = JOYHAPTIC_STOPPED;
 			CM_Error("Vibration not reproduced. Rumble can not initialized/played");
+			m_private->m_hapticEndTime = 0.0;
 			return false;
 		}
 	}
-
+	m_private->m_hapticEndTime = PIL_check_seconds_timer() * 1000.0 + (double)duration;
 	return true;
 #endif // WITH_SDL
 	return false;
@@ -177,10 +179,11 @@ bool DEV_Joystick::RumbleStop()
 	}
 
 	if (m_private->m_hapticEffectStatus != JOYHAPTIC_STOPPED) {
-		SDL_HapticStopEffect(m_private->m_haptic, m_private->m_hapticEffectId);
-		SDL_HapticDestroyEffect(m_private->m_haptic, m_private->m_hapticEffectId);
 		m_private->m_hapticEffectStatus = JOYHAPTIC_STOPPED;
 	}
+	SDL_HapticStopEffect(m_private->m_haptic, m_private->m_hapticEffectId);
+	SDL_HapticDestroyEffect(m_private->m_haptic, m_private->m_hapticEffectId);
+	m_private->m_hapticEndTime = 0.0;
 	return true;
 #endif
 	return false;
@@ -202,13 +205,16 @@ bool DEV_Joystick::GetRumbleSupport()
 	return false;
 }
 
+// We can not trust in SDL_HapticGetEffectStatus function as it is not supported
+// in the most used game controllers. Then we work around it using own time managing.
 void DEV_Joystick::ProcessRumbleStatus()
 {
 #ifdef WITH_SDL
-	if (m_private->m_hapticEffectStatus == JOYHAPTIC_STOPPED)
+	if (m_private->m_haptic == NULL) {
 		return;
+	}
 
-	if (!(SDL_HapticGetEffectStatus(m_private->m_haptic, m_private->m_hapticEffectId))) {
+	if ((PIL_check_seconds_timer() * 1000.0) >= m_private->m_hapticEndTime) {
 		DEV_Joystick::RumbleStop();
 	}
 #endif

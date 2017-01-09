@@ -63,7 +63,11 @@ bool SCA_VibrationActuator::Update()
 		return false;
 	}
 
-	if (IsPositiveEvent()) {
+	bool bPositiveEvent = IsPositiveEvent();
+
+	RemoveAllEvents();
+
+	if (bPositiveEvent) {
 		switch (m_mode) {
 			case KX_ACT_VIBRATION_PLAY:
 			{
@@ -79,8 +83,6 @@ bool SCA_VibrationActuator::Update()
 	}
 
 	instance->ProcessRumbleStatus();
-
-	RemoveAllEvents();
 
 	return instance->GetRumbleStatus();
 }
@@ -173,6 +175,8 @@ PyObject *SCA_VibrationActuator::pyattr_get_statusVibration(void *self_v, const 
 	if (!instance) {
 		return Py_False;
 	}
+
+	instance->ProcessRumbleStatus();
 
 	return PyBool_FromLong(instance->GetRumbleStatus());
 }

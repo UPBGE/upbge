@@ -47,11 +47,13 @@ public:
 	SDL_HapticEffect m_hapticeffect;
 	int m_hapticEffectId;
 	int m_hapticEffectStatus;
+	double m_hapticEndTime;
 
 	PrivateData()
 		:m_gamecontroller(NULL),
 		m_haptic(NULL),
-		m_hapticEffectStatus(JOYHAPTIC_STOPPED)
+		m_hapticEffectStatus(JOYHAPTIC_STOPPED),
+		m_hapticEndTime(0.0)
 	{
 	}
 };
