@@ -50,14 +50,14 @@ bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigne
 	else if (m_private->m_hapticEffectStatus == JOYHAPTIC_PLAYING_EFFECT) {
 		m_private->m_hapticEffectStatus = JOYHAPTIC_UPDATING_EFFECT;
 	}
-	else if (m_private->m_hapticEffectStatus == JOYHAPTIC_PLAYING_RUMBLE) {
-		m_private->m_hapticEffectStatus = JOYHAPTIC_UPDATING_RUMBLE;
+	else if (m_private->m_hapticEffectStatus == JOYHAPTIC_PLAYING_RUMBLE_EFFECT) {
+		m_private->m_hapticEffectStatus = JOYHAPTIC_UPDATING_RUMBLE_EFFECT;
 	}
 
 	// Checking supported effects
 	effects = SDL_HapticQuery(m_private->m_haptic);
 
-	if ((effects & SDL_HAPTIC_LEFTRIGHT) && m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_RUMBLE) {
+	if ((effects & SDL_HAPTIC_LEFTRIGHT) && m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_RUMBLE_EFFECT) {
 		if (m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_EFFECT) {
 			m_private->m_hapticeffect.type = SDL_HAPTIC_LEFTRIGHT;
 		}
@@ -69,7 +69,7 @@ bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigne
 
 	}
 	// Some Game Controllers only supports large/small magnitude motors using a custom effect
-	else if ((effects & SDL_HAPTIC_CUSTOM) && m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_RUMBLE) {
+	else if ((effects & SDL_HAPTIC_CUSTOM) && m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_RUMBLE_EFFECT) {
 
 		Uint16 data[2]; // data = channels * samples
 		data[0] = (Uint16) (strength_left * 0x7FFF);
@@ -116,24 +116,52 @@ bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigne
 		}
 	}
 	
-	if (effects_issue || m_private->m_hapticEffectStatus == JOYHAPTIC_UPDATING_RUMBLE) {
-		// Initialize simple rumble for both motors if effects are not supported
-		if (m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_RUMBLE) {
-			if (SDL_HapticRumbleInit(m_private->m_haptic) != 0) {
-				m_private->m_hapticEffectStatus = JOYHAPTIC_STOPPED;
-				CM_Error("Vibration not reproduced. Rumble can not initialize");
-				return false;
+	// Initialize simplest rumble effect for both motors if more complex effects are not supported
+	// Most controllers can use SINE effect, but XInput only has LEFTRIGHT.
+	if (effects_issue || m_private->m_hapticEffectStatus == JOYHAPTIC_UPDATING_RUMBLE_EFFECT) 
+	{
+		bool new_effect = true;
+
+		if (m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_RUMBLE_EFFECT) {
+			m_private->m_hapticeffect.type = SDL_HAPTIC_SINE;
+		}
+
+		m_private->m_hapticeffect.periodic.period = 1000;
+		m_private->m_hapticeffect.periodic.magnitude = (unsigned int)(strength_left * 0x7FFF);
+		m_private->m_hapticeffect.periodic.length = duration;
+		m_private->m_hapticeffect.periodic.attack_length = 0;
+		m_private->m_hapticeffect.periodic.fade_length = 0;
+
+		if (m_private->m_hapticEffectStatus == JOYHAPTIC_UPDATING_RUMBLE_EFFECT) {
+			if (SDL_HapticUpdateEffect(m_private->m_haptic, m_private->m_hapticEffectId, &m_private->m_hapticeffect) == 0) {
+				m_private->m_hapticEffectStatus = JOYHAPTIC_PLAYING_RUMBLE_EFFECT;
+				new_effect = false;
+			}
+			else {
+				SDL_HapticDestroyEffect(m_private->m_haptic, m_private->m_hapticEffectId);
+				m_private->m_hapticEffectId = -1;
+				CM_Error("Vibration can not be updated. Trying other approach.");
 			}
 		}
 
-		// Play effect at strength for m_duration milliseconds
-		if (SDL_HapticRumblePlay(m_private->m_haptic, strength_left, duration) != 0) {
-			m_private->m_hapticEffectStatus = JOYHAPTIC_STOPPED;
-			CM_Error("Vibration not reproduced. Rumble can not play");
-			return false;
+		if (new_effect) {
+			// Upload the effect
+			m_private->m_hapticEffectId = SDL_HapticNewEffect(m_private->m_haptic, &m_private->m_hapticeffect);
 		}
 
-		m_private->m_hapticEffectStatus = JOYHAPTIC_PLAYING_RUMBLE;
+		// Run the effect
+		if (m_private->m_hapticEffectId >= 0 &&
+			SDL_HapticRunEffect(m_private->m_haptic, m_private->m_hapticEffectId, 1) != -1) 
+		{
+			m_private->m_hapticEffectStatus = JOYHAPTIC_PLAYING_RUMBLE_EFFECT;
+		}
+		else {
+			SDL_HapticDestroyEffect(m_private->m_haptic, m_private->m_hapticEffectId);
+			m_private->m_hapticEffectId = -1;
+			m_private->m_hapticEffectStatus = JOYHAPTIC_STOPPED;
+			CM_Error("Vibration not reproduced. Rumble can not initialized/played");
+			return false;
+		}
 	}
 
 	return true;
@@ -148,21 +176,12 @@ bool DEV_Joystick::RumbleStop()
 		return false;
 	}
 
-	if (m_private->m_hapticEffectStatus == JOYHAPTIC_PLAYING_EFFECT ||
-		m_private->m_hapticEffectStatus == JOYHAPTIC_UPDATING_EFFECT)
-	{
+	if (m_private->m_hapticEffectStatus != JOYHAPTIC_STOPPED) {
 		SDL_HapticStopEffect(m_private->m_haptic, m_private->m_hapticEffectId);
 		SDL_HapticDestroyEffect(m_private->m_haptic, m_private->m_hapticEffectId);
 		m_private->m_hapticEffectStatus = JOYHAPTIC_STOPPED;
-		return true;
 	}
-	else if (m_private->m_hapticEffectId == JOYHAPTIC_PLAYING_RUMBLE ||
-			 m_private->m_hapticEffectId == JOYHAPTIC_UPDATING_RUMBLE)
-	{
-		SDL_HapticRumbleStop(m_private->m_haptic);
-		m_private->m_hapticEffectStatus = JOYHAPTIC_STOPPED;
-		return true;
-	}
+	return true;
 #endif
 	return false;
 }
@@ -181,4 +200,17 @@ bool DEV_Joystick::GetRumbleSupport()
 	return (m_private->m_haptic);
 #endif
 	return false;
+}
+
+void DEV_Joystick::ProcessRumbleStatus()
+{
+#ifdef WITH_SDL
+	if (m_private->m_hapticEffectStatus == JOYHAPTIC_STOPPED)
+		return;
+
+	if (!(SDL_HapticGetEffectStatus(m_private->m_haptic, m_private->m_hapticEffectId))) {
+		DEV_Joystick::RumbleStop();
+	}
+#endif
+	return;
 }

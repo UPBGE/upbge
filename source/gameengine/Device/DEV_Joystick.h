@@ -182,6 +182,7 @@ public:
 	bool RumbleStop(void);
 	bool GetRumbleStatus(void);
 	bool GetRumbleSupport(void);
+	void ProcessRumbleStatus(void);
 
 	/**
 	 * Test if the joystick is connected

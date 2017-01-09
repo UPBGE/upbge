@@ -78,6 +78,8 @@ bool SCA_VibrationActuator::Update()
 		}
 	}
 
+	instance->ProcessRumbleStatus();
+
 	RemoveAllEvents();
 
 	return instance->GetRumbleStatus();
