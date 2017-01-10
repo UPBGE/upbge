@@ -58,6 +58,7 @@ bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigne
 	// Checking supported effects
 	effects = SDL_HapticQuery(m_private->m_haptic);
 
+	// LeftRight is the most supported effect by XInput game controllers
 	if ((effects & SDL_HAPTIC_LEFTRIGHT) && m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_RUMBLE_EFFECT) {
 		if (m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_EFFECT) {
 			m_private->m_hapticeffect.type = SDL_HAPTIC_LEFTRIGHT;
@@ -206,7 +207,7 @@ bool DEV_Joystick::GetRumbleSupport()
 }
 
 // We can not trust in SDL_HapticGetEffectStatus function as it is not supported
-// in the most used game controllers. Then we work around it using own time managing.
+// in the most used game controllers. Then we work around it using own time management.
 void DEV_Joystick::ProcessRumbleStatus()
 {
 #ifdef WITH_SDL
@@ -215,7 +216,7 @@ void DEV_Joystick::ProcessRumbleStatus()
 	}
 
 	if ((PIL_check_seconds_timer() * 1000.0) >= m_private->m_hapticEndTime) {
-		DEV_Joystick::RumbleStop();
+		RumbleStop();
 	}
 #endif
 	return;
