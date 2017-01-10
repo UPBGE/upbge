@@ -58,7 +58,9 @@ struct SM_MaterialProps;
 struct SM_ShapeProps;
 struct Scene;
 
+template <class T>
 class CListValue;
+
 class CValue;
 class SCA_LogicManager;
 class SCA_KeyboardManager;
@@ -72,6 +74,7 @@ class SG_Node;
 class SG_Node;
 class KX_WorldInfo;
 class KX_Camera;
+class KX_FontObject;
 class KX_GameObject;
 class KX_LightObject;
 class RAS_MeshObject;
@@ -139,26 +142,26 @@ protected:
 	/// Manager used to update all the mesh bounding box.
 	RAS_BoundingBoxManager *m_boundingBoxManager;
 
-	CListValue*			m_tempObjectList;
+	CListValue<KX_GameObject> *m_tempObjectList;
 
 	/**
 	 * The list of objects which have been removed during the
 	 * course of one frame. They are actually destroyed in 
 	 * LogicEndFrame() via a call to RemoveObject().
 	 */
-	CListValue*	m_euthanasyobjects;
+	CListValue<KX_GameObject> *m_euthanasyobjects;
 
-	CListValue*			m_objectlist;
-	CListValue*			m_parentlist; // all 'root' parents
-	CListValue*			m_lightlist;
-	CListValue*			m_inactivelist;	// all objects that are not in the active layer
+	CListValue<KX_GameObject> *m_objectlist;
+	CListValue<KX_GameObject> *m_parentlist; // all 'root' parents
+	CListValue<KX_LightObject> *m_lightlist;
+	CListValue<KX_GameObject> *m_inactivelist;	// all objects that are not in the active layer
 	/// All animated objects, no need of CListValue because the list isn't exposed in python.
 	std::vector<KX_GameObject *> m_animatedlist;
 
 	/// The set of cameras for this scene
-	CListValue *m_cameralist;
+	CListValue<KX_Camera> *m_cameralist;
 	/// The set of fonts for this scene
-	CListValue *m_fontlist;
+	CListValue<KX_FontObject> *m_fontlist;
 	
 	SG_QList			m_sghead;		// list of nodes that needs scenegraph update
 										// the Dlist is not object that must be updated
@@ -319,9 +322,9 @@ public:
 	virtual
 	~KX_Scene();
 
-	RAS_BucketManager* GetBucketManager();
+	RAS_BucketManager* GetBucketManager() const;
 	KX_TextureRendererManager *GetTextureRendererManager() const;
-	RAS_BoundingBoxManager *GetBoundingBoxManager();
+	RAS_BoundingBoxManager *GetBoundingBoxManager() const;
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
 	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
@@ -364,36 +367,18 @@ public:
 	LogicEndFrame(
 	);
 
-		CListValue*
-	GetTempObjectList(
-	);
+	CListValue<KX_GameObject> *GetTempObjectList() const;
+	CListValue<KX_GameObject> *GetObjectList() const;
+	CListValue<KX_GameObject> *GetInactiveList() const;
+	CListValue<KX_GameObject> *GetRootParentList() const;
+	CListValue<KX_LightObject> *GetLightList() const;
 
-		CListValue*
-	GetObjectList(
-	);
+	SCA_LogicManager *GetLogicManager() const;
 
-		CListValue*
-	GetInactiveList(
-	);
+	SCA_TimeEventManager *GetTimeEventManager() const;
 
-		CListValue*
-	GetRootParentList(
-	);
-
-		CListValue*
-	GetLightList(
-	);
-
-		SCA_LogicManager *
-	GetLogicManager(
-	);
-
-		SCA_TimeEventManager *
-	GetTimeEventManager(
-	);
-
-	CListValue *GetCameraList();
-	CListValue *GetFontList();
+	CListValue<KX_Camera> *GetCameraList() const;
+	CListValue<KX_FontObject> *GetFontList() const;
 
 	/** Find the currently active camera. */
 		KX_Camera*

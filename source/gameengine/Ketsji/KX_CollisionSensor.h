@@ -72,7 +72,7 @@ protected:
 	uint_ptr m_bLastColliderHash;
 
 	SCA_IObject *m_hitObject;
-	class CListValue *       m_colliders;
+	CListValue<KX_GameObject> *m_colliders;
 	std::string m_hitMaterial;
 
 public:

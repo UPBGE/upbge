@@ -49,7 +49,6 @@ struct TaskScheduler;
 class KX_ISystem;
 class KX_BlenderConverter;
 class KX_NetworkMessageManager;
-class CListValue;
 class RAS_ICanvas;
 class RAS_OffScreen;
 class SCA_IInputDevice;
@@ -158,7 +157,7 @@ private:
 	std::vector<std::pair<std::string, std::string> >  m_replace_scenes;
 
 	/// The current list of scenes.
-	CListValue *m_scenes;
+	CListValue<KX_Scene> *m_scenes;
 
 	bool m_bInitialized;
 
@@ -342,7 +341,7 @@ public:
 	KX_ExitRequest GetExitCode();
 	const std::string& GetExitString();
 
-	CListValue *CurrentScenes();
+	CListValue<KX_Scene> *CurrentScenes();
 	KX_Scene *FindScene(const std::string& scenename);
 	void AddScene(KX_Scene *scene);
 	void ConvertAndAddScene(const std::string& scenename, bool overlay);

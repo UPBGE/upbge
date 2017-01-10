@@ -1020,7 +1020,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		
 		//don't add a reference: the camera list in kxscene->m_cameras is not released at the end
 		//gamecamera->AddRef();
-		kxscene->GetCameraList()->Add(gamecamera->AddRef());
+		kxscene->GetCameraList()->Add(CM_AddRef(gamecamera));
 		
 		break;
 	}
@@ -1126,9 +1126,11 @@ static KX_GameObject *gameobject_from_blenderobject(
 	case OB_FONT:
 	{
 		bool do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
-		// Font objects have unique bounding box.
-		gameobj = new KX_FontObject(kxscene,KX_Scene::m_callbacks, rendertools, kxscene->GetBoundingBoxManager(), ob, do_color_management);
-		kxscene->GetFontList()->Add(gameobj->AddRef());
+		/* font objects have no bounding box */
+		KX_FontObject *fontobj = new KX_FontObject(kxscene,KX_Scene::m_callbacks, rendertools, kxscene->GetBoundingBoxManager(), ob, do_color_management);
+		gameobj = fontobj;
+
+		kxscene->GetFontList()->Add(CM_AddRef(fontobj));
 		break;
 	}
 
@@ -1215,18 +1217,6 @@ static void blenderSceneSetBackground(Scene *blenderscene)
 	}
 }
 
-static KX_GameObject* getGameOb(std::string busc,CListValue* sumolist)
-{
-	for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobje = *it;
-		if (gameobje->GetName()==busc)
-			return gameobje;
-	}
-	
-	return 0;
-
-}
-
 static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderobj)
 {
 #ifdef WITH_PYTHON
@@ -1237,7 +1227,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 		return;
 	}
 
-	CListValue *components = new CListValue();
+	CListValue<KX_PythonComponent> *components = new CListValue<KX_PythonComponent>();
 
 	while (pc) {
 		// Make sure to clean out anything from previous loops
@@ -1313,8 +1303,9 @@ static void bl_ConvertBlenderObject_Single(
         KX_BlenderSceneConverter& converter,
        Object *blenderobject,
         std::vector<parentChildLink> &vec_parent_child,
-        CListValue* logicbrick_conversionlist,
-        CListValue* objectlist, CListValue* inactivelist, CListValue*	sumolist,
+        CListValue<KX_GameObject> *logicbrick_conversionlist,
+        CListValue<KX_GameObject> *objectlist, CListValue<KX_GameObject> *inactivelist,
+		CListValue<KX_GameObject> *sumolist,
         KX_Scene* kxscene, KX_GameObject* gameobj,
         SCA_LogicManager* logicmgr, SCA_TimeEventManager* timemgr,
         bool isInActiveLayer
@@ -1338,7 +1329,7 @@ static void bl_ConvertBlenderObject_Single(
 	gameobj->NodeSetLocalScale(scale);
 	gameobj->NodeUpdateGS(0);
 
-	sumolist->Add(gameobj->AddRef());
+	sumolist->Add(CM_AddRef(gameobj));
 
 	BL_ConvertProperties(blenderobject,gameobj,timemgr,kxscene,isInActiveLayer);
 
@@ -1402,11 +1393,11 @@ static void bl_ConvertBlenderObject_Single(
 	// this was put in rapidly, needs to be looked at more closely
 	// only draw/use objects in active 'blender' layers
 
-	logicbrick_conversionlist->Add(gameobj->AddRef());
+	logicbrick_conversionlist->Add(CM_AddRef(gameobj));
 
 	if (isInActiveLayer)
 	{
-		objectlist->Add(gameobj->AddRef());
+		objectlist->Add(CM_AddRef(gameobj));
 		//tf.Add(gameobj->GetSGNode());
 
 		gameobj->NodeUpdateGS(0);
@@ -1416,7 +1407,7 @@ static void bl_ConvertBlenderObject_Single(
 	{
 		//we must store this object otherwise it will be deleted
 		//at the end of this function if it is not a root object
-		inactivelist->Add(gameobj->AddRef());
+		inactivelist->Add(CM_AddRef(gameobj));
 	}
 }
 
@@ -1466,7 +1457,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	 * push all converted group members to this set.
 	 * This will happen when a group instance is made from a linked group instance
 	 * and both are on the active layer. */
-	CListValue *convertedlist = new CListValue();
+	CListValue<KX_GameObject> *convertedlist = new CListValue<KX_GameObject>();
 
 	if (alwaysUseExpandFraming) {
 		frame_type = RAS_FrameSettings::e_frame_extend;
@@ -1519,18 +1510,18 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	int activeLayerBitInfo = blenderscene->lay;
 	
 	// list of all object converted, active and inactive
-	CListValue*	sumolist = new CListValue();
+	CListValue<KX_GameObject> *sumolist = new CListValue<KX_GameObject>();
 	
 	std::vector<parentChildLink> vec_parent_child;
 	
-	CListValue* objectlist = kxscene->GetObjectList();
-	CListValue* inactivelist = kxscene->GetInactiveList();
-	CListValue* parentlist = kxscene->GetRootParentList();
+	CListValue<KX_GameObject> *objectlist = kxscene->GetObjectList();
+	CListValue<KX_GameObject> *inactivelist = kxscene->GetInactiveList();
+	CListValue<KX_GameObject> *parentlist = kxscene->GetRootParentList();
 	
 	SCA_LogicManager* logicmgr = kxscene->GetLogicManager();
 	SCA_TimeEventManager* timemgr = kxscene->GetTimeEventManager();
 	
-	CListValue* logicbrick_conversionlist = new CListValue();
+	CListValue<KX_GameObject> *logicbrick_conversionlist = new CListValue<KX_GameObject>();
 
 	// Convert actions to actionmap
 	bAction *curAct;
@@ -1690,11 +1681,10 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			// Remove the child reference in the local list!
 			// Note: there may be descendents already if the children of the child were processed
 			//       by this loop before the child. In that case, we must remove the children also
-			CListValue* childrenlist = childobj->GetChildrenRecursive();
+			CListValue<KX_GameObject> *childrenlist = childobj->GetChildrenRecursive();
 			// The returned list by GetChildrenRecursive is not owned by anyone and must not own items, so no AddRef().
 			childrenlist->Add(childobj);
-			for (CListValue::VectorTypeIterator it = childrenlist->GetBegin(), end = childrenlist->GetEnd(); it != end; ++it) {
-				CValue *obj = *it;
+			for (KX_GameObject *obj : childrenlist) {
 				if (sumolist->RemoveValue(obj))
 					obj->Release();
 				if (logicbrick_conversionlist->RemoveValue(obj))
@@ -1755,11 +1745,9 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	vec_parent_child.clear();
 	
 	// find 'root' parents (object that has not parents in SceneGraph)
-	for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
-		KX_GameObject* gameobj = *it;
-		if (gameobj->GetSGNode()->GetSGParent() == 0)
-		{
-			parentlist->Add(gameobj->AddRef());
+	for (KX_GameObject *gameobj : sumolist) {
+		if (gameobj->GetSGNode()->GetSGParent() == 0) {
+			parentlist->Add(CM_AddRef(gameobj));
 			gameobj->NodeUpdateGS(0);
 		}
 	}
@@ -1768,8 +1756,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	if (kxscene->GetDbvtCulling())
 	{
 		bool occlusion = false;
-		for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
-			KX_GameObject* gameobj = *it;
+		for (KX_GameObject *gameobj : sumolist) {
 			// The object can be culled ?
 			if (gameobj->GetMeshCount() || gameobj->GetGameObjectType() == SCA_IObject::OBJ_TEXT) {
 				bool isactive = objectlist->SearchValue(gameobj);
@@ -1786,23 +1773,20 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 	// now that the scenegraph is complete, let's instantiate the deformers.
 	// We need that to create reusable derived mesh and physic shapes
-	for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
-		KX_GameObject* gameobj = *it;
+	for (KX_GameObject *gameobj : sumolist) {
 		if (gameobj->GetDeformer())
 			gameobj->GetDeformer()->UpdateBuckets();
 	}
 
 	// Set up armature constraints and shapekey drivers
-	for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
-		KX_GameObject* gameobj = *it;
-		if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
-		{
+	for (KX_GameObject *gameobj : sumolist) {
+		if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
 			BL_ArmatureObject *armobj = (BL_ArmatureObject*)gameobj;
 			armobj->LoadConstraints(converter);
 
-			CListValue *children = armobj->GetChildren();
-			for (CListValue::iterator<KX_GameObject> it = children->GetBegin(), end = children->GetEnd(); it != end; ++it) {
-				BL_ShapeDeformer *deform = dynamic_cast<BL_ShapeDeformer*>((*it)->GetDeformer());
+			CListValue<KX_GameObject> *children = armobj->GetChildren();
+			for (KX_GameObject *child : children) {
+				BL_ShapeDeformer *deform = dynamic_cast<BL_ShapeDeformer*>(child->GetDeformer());
 				if (deform)
 					deform->LoadShapeDrivers(armobj);
 			}
@@ -1813,8 +1797,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 	bool processCompoundChildren = false;
 	// create physics information
-	for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
-		KX_GameObject* gameobj = *it;
+	for (KX_GameObject *gameobj : sumolist) {
 		struct Object* blenderobject = gameobj->GetBlenderObject();
 		int nummeshes = gameobj->GetMeshCount();
 		RAS_MeshObject* meshobj = 0;
@@ -1828,8 +1811,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 	processCompoundChildren = true;
 	// create physics information
-	for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
-		KX_GameObject* gameobj = *it;
+	for (KX_GameObject *gameobj : sumolist) {
 		struct Object* blenderobject = gameobj->GetBlenderObject();
 		int nummeshes = gameobj->GetMeshCount();
 		RAS_MeshObject* meshobj = 0;
@@ -1842,9 +1824,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	// Look at every material texture and ask to create realtime cube map.
-	for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
-
+	for (KX_GameObject *gameobj : sumolist) {
 		for (unsigned short i = 0, meshcount = gameobj->GetMeshCount(); i < meshcount; ++i) {
 			RAS_MeshObject *mesh = gameobj->GetMesh(i);
 
@@ -1879,8 +1859,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	// Create and set bounding volume.
-	for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
+	for (KX_GameObject *gameobj : sumolist) {
 		Object *blenderobject = gameobj->GetBlenderObject();
 		Mesh *predifinedBoundMesh = blenderobject->gamePredefinedBound;
 
@@ -1911,9 +1890,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	// create physics joints
-	for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
+	for (KX_GameObject *gameobj : sumolist) {
 		PHY_IPhysicsEnvironment *physEnv = kxscene->GetPhysicsEnvironment();
-		KX_GameObject *gameobj = *it;
 		struct Object *blenderobject = gameobj->GetBlenderObject();
 		ListBase *conlist = get_active_constraints2(blenderobject);
 		bConstraint *curcon;
@@ -1947,7 +1925,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 				continue;
 			}
 
-			KX_GameObject *gotar = getGameOb(dat->tar->id.name + 2, sumolist);
+			KX_GameObject *gotar = sumolist->FindValue(dat->tar->id.name + 2);
 
 			if (gotar && (gotar->GetLayer()&activeLayerBitInfo) && gotar->GetPhysicsController() &&
 				(gameobj->GetLayer()&activeLayerBitInfo) && gameobj->GetPhysicsController())
@@ -1961,8 +1939,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	KX_ObstacleSimulation* obssimulation = kxscene->GetObstacleSimulation();
 	if (obssimulation)
 	{
-		for (CListValue::iterator<KX_GameObject> it = objectlist->GetBegin(), end = objectlist->GetEnd(); it != end; ++it) {
-			KX_GameObject* gameobj = *it;
+		for (KX_GameObject *gameobj : objectlist) {
 			struct Object* blenderobject = gameobj->GetBlenderObject();
 			if (blenderobject->gameflag & OB_HASOBSTACLE)
 			{
@@ -1972,8 +1949,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	//process navigation mesh objects
-	for (CListValue::iterator<KX_GameObject> it = objectlist->GetBegin(), end = objectlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
+	for (KX_GameObject *gameobj : objectlist) {
 		struct Object* blenderobject = gameobj->GetBlenderObject();
 		if (blenderobject->type==OB_MESH && (blenderobject->gameflag & OB_NAVMESH))
 		{
@@ -1984,8 +1960,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 				obssimulation->AddObstaclesForNavMesh(navmesh);
 		}
 	}
-	for (CListValue::iterator<KX_GameObject> it = inactivelist->GetBegin(), end = inactivelist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
+	for (KX_GameObject *gameobj : inactivelist) {
 		struct Object* blenderobject = gameobj->GetBlenderObject();
 		if (blenderobject->type==OB_MESH && (blenderobject->gameflag & OB_NAVMESH))
 		{
@@ -1995,22 +1970,19 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	// convert logic bricks, sensors, controllers and actuators
-	for (CListValue::iterator<KX_GameObject> it = logicbrick_conversionlist->GetBegin(), end = logicbrick_conversionlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
+	for (KX_GameObject *gameobj : logicbrick_conversionlist) {
 		struct Object* blenderobj = gameobj->GetBlenderObject();
 		int layerMask = (groupobj.find(blenderobj) == groupobj.end()) ? activeLayerBitInfo : 0;
 		bool isInActiveLayer = (blenderobj->lay & layerMask)!=0;
 		BL_ConvertActuators(maggie->name, blenderobj,gameobj,logicmgr,kxscene,ketsjiEngine,layerMask,isInActiveLayer,converter);
 	}
-	for (CListValue::iterator<KX_GameObject> it = logicbrick_conversionlist->GetBegin(), end = logicbrick_conversionlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
+	for (KX_GameObject *gameobj : logicbrick_conversionlist) {
 		struct Object* blenderobj = gameobj->GetBlenderObject();
 		int layerMask = (groupobj.find(blenderobj) == groupobj.end()) ? activeLayerBitInfo : 0;
 		bool isInActiveLayer = (blenderobj->lay & layerMask)!=0;
 		BL_ConvertControllers(blenderobj,gameobj,logicmgr, layerMask,isInActiveLayer,converter, libloading);
 	}
-	for (CListValue::iterator<KX_GameObject> it = logicbrick_conversionlist->GetBegin(), end = logicbrick_conversionlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
+	for (KX_GameObject *gameobj : logicbrick_conversionlist) {
 		struct Object* blenderobj = gameobj->GetBlenderObject();
 		int layerMask = (groupobj.find(blenderobj) == groupobj.end()) ? activeLayerBitInfo : 0;
 		bool isInActiveLayer = (blenderobj->lay & layerMask)!=0;
@@ -2019,14 +1991,12 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		gameobj->SetInitState((blenderobj->init_state)?blenderobj->init_state:blenderobj->state);
 	}
 	// apply the initial state to controllers, only on the active objects as this registers the sensors
-	for (CListValue::iterator<KX_GameObject> it = objectlist->GetBegin(), end = objectlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
+	for (KX_GameObject *gameobj : objectlist) {
 		gameobj->ResetState();
 	}
 
 	// Convert the python components of each object.
-	for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
+	for (KX_GameObject *gameobj : sumolist) {
 		Object *blenderobj = gameobj->GetBlenderObject();
 		BL_ConvertComponentsObject(gameobj, blenderobj);
 	}
@@ -2046,7 +2016,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	// Only loop through the first part of the list.
 	int objcount = objectlist->GetCount();
 	for (unsigned int i = 0; i < objcount; ++i) {
-		KX_GameObject* gameobj = (KX_GameObject*) objectlist->GetValue(i);
+		KX_GameObject* gameobj = objectlist->GetValue(i);
 		if (gameobj->IsDupliGroup())
 		{
 			kxscene->DupliGroupRecurse(gameobj, 0);
