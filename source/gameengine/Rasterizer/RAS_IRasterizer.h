@@ -612,6 +612,8 @@ public:
 	 */
 	virtual void DrawDebugAabb(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
 							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color) = 0;
+	virtual void DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& insideColor,
+							  const MT_Vector4& outsideColor, const MT_Vector4& lineColor, bool solid) = 0;
 	virtual void FlushDebugShapes(SCA_IScene *scene) = 0;
 
 	/// Clear the material texture coordinates list used by storages.
@@ -729,15 +731,10 @@ public:
 	/**
 	 * Debug Cameras Frustum
 	 */
-	virtual void DrawPerspectiveCameraFrustum(MT_Transform trans, float clipstart, float clipend,
+	virtual void DrawPerspectiveCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
 		float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend) = 0;
-	virtual void DrawOrthographicCameraFrustum(MT_Transform trans, float clipstart, float clipend,
+	virtual void DrawOrthographicCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
 		float ratiox, float ratioy, float x) = 0;
-
-	/**
-	 * Draw Transparent Debug box from MT_Vector3 box[8] in viewport style
-	 */
-	virtual void DrawDebugTransparentBoxes(MT_Vector3 box[8]) = 0;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IRasterizer")

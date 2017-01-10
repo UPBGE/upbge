@@ -704,7 +704,9 @@ void RAS_OpenGLRasterizer::SetColorMask(bool r, bool g, bool b, bool a)
 void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 {
 	SceneDebugShape& debugShapes = m_debugShapes[scene];
-	if ((debugShapes.m_lines.size() + debugShapes.m_circles.size() + debugShapes.m_aabbs.size()) == 0) {
+	if ((debugShapes.m_lines.size() + debugShapes.m_circles.size() +
+		debugShapes.m_aabbs.size() + debugShapes.m_boxes.size()) == 0)
+	{
 		return;
 	}
 
@@ -735,7 +737,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	glEnd();
 
 	glEnableClientState(GL_VERTEX_ARRAY);
-	// Draw boxes
+	// Draw aabbs
 	for (const DebugAabb& aabb : debugShapes.m_aabbs) {
 		glColor4fv(aabb.m_color.getValue());
 
@@ -777,6 +779,25 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 		glDrawElements(GL_LINES, 24, GL_UNSIGNED_SHORT, indexes);
 
 		PopMatrix();
+	}
+
+	// Draw boxes.
+	static const GLubyte solidIndices[24] = {0, 1, 2, 3, 7, 6, 5, 4, 4, 5, 1, 0, 3, 2, 6, 7, 3, 7, 4, 0, 1, 5, 6, 2};
+	static const GLubyte wireIndices[24] = {0, 1, 1, 2, 2, 3, 3, 0, 0, 4, 4, 5, 5, 6, 6, 7, 7, 4, 1, 5, 2, 6, 3, 7};
+	for (const DebugBox& box : debugShapes.m_boxes) {
+		glVertexPointer(3, GL_FLOAT, sizeof(MT_Vector3), box.m_vertexes->getValue());
+		glColor4fv(box.m_lineColor.getValue());
+		glDrawRangeElements(GL_LINES, 0, 7, 24, GL_UNSIGNED_BYTE, wireIndices);
+
+		if (box.m_solid) {
+			SetFrontFace(false);
+			glColor4fv(box.m_insideColor.getValue());
+			glDrawRangeElements(GL_QUADS, 0, 7, 24, GL_UNSIGNED_BYTE, solidIndices);
+
+			SetFrontFace(true);
+			glColor4fv(box.m_outsideColor.getValue());
+			glDrawRangeElements(GL_QUADS, 0, 7, 24, GL_UNSIGNED_BYTE, solidIndices);
+		}
 	}
 	glDisableClientState(GL_VERTEX_ARRAY);
 
@@ -823,6 +844,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	debugShapes.m_lines.clear();
 	debugShapes.m_circles.clear();
 	debugShapes.m_aabbs.clear();
+	debugShapes.m_boxes.clear();
 }
 
 void RAS_OpenGLRasterizer::DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
@@ -856,6 +878,64 @@ void RAS_OpenGLRasterizer::DrawDebugAabb(SCA_IScene *scene, const MT_Vector3& po
 	aabb.m_max = max;
 	aabb.m_color = color;
 	m_debugShapes[scene].m_aabbs.push_back(aabb);
+}
+
+void RAS_OpenGLRasterizer::DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& insideColor,
+		const MT_Vector4& outsideColor, const MT_Vector4& lineColor, bool solid)
+{
+	DebugBox box;
+	for (unsigned short i = 0; i < 8; ++i) {
+		box.m_vertexes[i] = vertexes[i];
+	}
+	box.m_solid = solid;
+	box.m_insideColor = insideColor;
+	box.m_outsideColor = outsideColor;
+	box.m_lineColor = lineColor;
+	m_debugShapes[scene].m_boxes.push_back(box);
+}
+
+void RAS_OpenGLRasterizer::DrawPerspectiveCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
+		float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend)
+{
+	MT_Vector3 box[8];
+
+	/* construct box */
+	box[2][0] = box[1][0] = -oppositeclipsta * ratiox;
+	box[0][0] = box[3][0] = -oppositeclipend * ratiox;
+	box[5][0] = box[6][0] = +oppositeclipsta * ratiox;
+	box[4][0] = box[7][0] = +oppositeclipend * ratiox;
+	box[1][1] = box[5][1] = -oppositeclipsta * ratioy;
+	box[0][1] = box[4][1] = -oppositeclipend * ratioy;
+	box[2][1] = box[6][1] = +oppositeclipsta * ratioy;
+	box[3][1] = box[7][1] = +oppositeclipend * ratioy;
+	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -clipend;
+	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -clipstart;
+
+	for (unsigned short i = 0; i < 8; i++) {
+		box[i] = trans(box[i]);
+	}
+	DrawDebugBox(scene, box, MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f), MT_Vector4(0.2f, 0.2f, 0.2f, 1.0f),
+		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f), true);
+}
+
+void RAS_OpenGLRasterizer::DrawOrthographicCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
+		float ratiox, float ratioy, float x)
+{
+	MT_Vector3 box[8];
+
+	/* construct box */
+	box[0][0] = box[1][0] = box[2][0] = box[3][0] = -x * ratiox;
+	box[4][0] = box[5][0] = box[6][0] = box[7][0] = +x * ratiox;
+	box[0][1] = box[1][1] = box[4][1] = box[5][1] = -x * ratioy;
+	box[2][1] = box[3][1] = box[6][1] = box[7][1] = +x * ratioy;
+	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -clipend;
+	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -clipstart;
+
+	for (unsigned short i = 0; i < 8; i++) {
+		box[i] = trans(box[i]);
+	}
+	DrawDebugBox(scene, box, MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f), MT_Vector4(0.2f, 0.2f, 0.2f, 1.0f),
+				 MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f), true);
 }
 
 void RAS_OpenGLRasterizer::EndFrame()
@@ -2377,99 +2457,3 @@ void RAS_OpenGLRasterizer::PrintHardwareInfo()
 
 	CM_Message(" GL_ARB_draw_instanced supported?  "<< (GLEW_ARB_draw_instanced?"yes.":"no."));
 }
-
-void RAS_OpenGLRasterizer::DrawDebugBoxFromBox(MT_Vector3 vec[8], bool solid)
-{
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(3, GL_FLOAT, 0, vec);
-
-	if (solid) {
-		const GLubyte indices[24] = { 0,1,2,3,7,6,5,4,4,5,1,0,3,2,6,7,3,7,4,0,1,5,6,2 };
-		glDrawRangeElements(GL_QUADS, 0, 7, 24, GL_UNSIGNED_BYTE, indices);
-	}
-	else {
-		const GLubyte indices[24] = { 0,1,1,2,2,3,3,0,0,4,4,5,5,6,6,7,7,4,1,5,2,6,3,7 };
-		glDrawRangeElements(GL_LINES, 0, 7, 24, GL_UNSIGNED_BYTE, indices);
-	}
-
-	glDisableClientState(GL_VERTEX_ARRAY);
-}
-
-void RAS_OpenGLRasterizer::DrawDebugTransparentBoxes(MT_Vector3 box[8])
-{
-	/* draw edges */
-	glEnable(GL_LINE_STIPPLE);
-	glColor4f(0.8f, 0.5f, 0.0f, 1.0f);
-	DrawDebugBoxFromBox(box, false);
-	glDisable(GL_LINE_STIPPLE);
-
-	/* draw faces */
-	glEnable(GL_CULL_FACE);
-	glEnable(GL_BLEND);
-	glDepthMask(0);
-
-	/* draw backside darkening */
-	glCullFace(GL_FRONT);
-
-	glBlendFunc(GL_ZERO, GL_SRC_ALPHA);
-	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
-
-	DrawDebugBoxFromBox(box, true);
-
-	/* draw front side lighting */
-	glCullFace(GL_BACK);
-
-	glBlendFunc(GL_ONE, GL_ONE);
-	glColor4f(0.2f, 0.2f, 0.2f, 1.0f);
-
-	DrawDebugBoxFromBox(box, true);
-
-	/* restore state to default values */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDisable(GL_BLEND);
-	glDepthMask(1);
-	glDisable(GL_CULL_FACE);
-}
-
-void RAS_OpenGLRasterizer::DrawPerspectiveCameraFrustum(MT_Transform trans, float clipstart, float clipend,
-	float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend)
-{
-	MT_Vector3 box[8];
-
-	/* construct box */
-	box[2][0] = box[1][0] = -oppositeclipsta * ratiox;
-	box[0][0] = box[3][0] = -oppositeclipend * ratiox;
-	box[5][0] = box[6][0] = +oppositeclipsta * ratiox;
-	box[4][0] = box[7][0] = +oppositeclipend * ratiox;
-	box[1][1] = box[5][1] = -oppositeclipsta * ratioy;
-	box[0][1] = box[4][1] = -oppositeclipend * ratioy;
-	box[2][1] = box[6][1] = +oppositeclipsta * ratioy;
-	box[3][1] = box[7][1] = +oppositeclipend * ratioy;
-	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -clipend;
-	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -clipstart;
-
-	for (short i = 0; i < 8; i++) {
-		box[i] = trans(box[i]);
-	}
-	DrawDebugTransparentBoxes(box);
-}
-
-void RAS_OpenGLRasterizer::DrawOrthographicCameraFrustum(MT_Transform trans, float clipstart, float clipend,
-	float ratiox, float ratioy, float x)
-{
-	MT_Vector3 box[8];
-
-	/* construct box */
-	box[0][0] = box[1][0] = box[2][0] = box[3][0] = -x * ratiox;
-	box[4][0] = box[5][0] = box[6][0] = box[7][0] = +x * ratiox;
-	box[0][1] = box[1][1] = box[4][1] = box[5][1] = -x * ratioy;
-	box[2][1] = box[3][1] = box[6][1] = box[7][1] = +x * ratioy;
-	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -clipend;
-	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -clipstart;
-
-	for (short i = 0; i < 8; i++) {
-		box[i] = trans(box[i]);
-	}
-	DrawDebugTransparentBoxes(box);
-}
-

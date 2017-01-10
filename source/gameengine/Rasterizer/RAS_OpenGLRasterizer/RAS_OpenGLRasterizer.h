@@ -146,11 +146,21 @@ private:
 		MT_Vector3 m_max;
 	};
 
+	struct DebugBox
+	{
+		MT_Vector3 m_vertexes[8];
+		MT_Vector4 m_insideColor;
+		MT_Vector4 m_outsideColor;
+		MT_Vector4 m_lineColor;
+		bool m_solid;
+	};
+
 	struct SceneDebugShape
 	{
 		std::vector<DebugLine> m_lines;
 		std::vector<DebugCircle> m_circles;
 		std::vector<DebugAabb> m_aabbs;
+		std::vector<DebugBox> m_boxes;
 	};
 
 	// All info used to compute the ray cast transform matrix.
@@ -352,6 +362,8 @@ public:
 	                             const MT_Vector4 &color, const MT_Vector3 &normal, int nsector);
 	virtual void DrawDebugAabb(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
 							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color);
+	virtual void DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& insideColor,
+							  const MT_Vector4& outsideColor, const MT_Vector4& lineColor, bool solid);
 
 	virtual void ClearTexCoords();
 	virtual void ClearAttribs();
@@ -449,15 +461,10 @@ public:
 	virtual void PrintHardwareInfo();
 
 	// Draw Camera Frustum functions
-	virtual void DrawPerspectiveCameraFrustum(MT_Transform trans, float clipstart, float clipend,
-		float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend);
-	virtual void DrawOrthographicCameraFrustum(MT_Transform trans, float clipstart, float clipend,
-		float ratiox, float ratioy, float x);
-
-	// Draw Transparent Debug Boxes functions
-	virtual void DrawDebugTransparentBoxes(MT_Vector3 box[8]);
-	void DrawDebugBoxFromBox(MT_Vector3 box[8], bool solid);
-
+	virtual void DrawPerspectiveCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
+											  float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend);
+	virtual void DrawOrthographicCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
+											   float ratiox, float ratioy, float x);
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_OpenGLRasterizer")
