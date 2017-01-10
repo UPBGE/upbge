@@ -461,10 +461,8 @@ public:
 	virtual void PrintHardwareInfo();
 
 	// Draw Camera Frustum functions
-	virtual void DrawPerspectiveCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
-											  float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend);
-	virtual void DrawOrthographicCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
-											   float ratiox, float ratioy, float x);
+	virtual void DrawCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
+								   float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend);
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_OpenGLRasterizer")

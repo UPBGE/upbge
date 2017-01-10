@@ -731,10 +731,8 @@ public:
 	/**
 	 * Debug Cameras Frustum
 	 */
-	virtual void DrawPerspectiveCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
+	virtual void DrawCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
 		float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend) = 0;
-	virtual void DrawOrthographicCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
-		float ratiox, float ratioy, float x) = 0;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IRasterizer")

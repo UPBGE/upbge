@@ -1721,13 +1721,13 @@ void KX_KetsjiEngine::DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene)
 		/* tanf(angleofview/2.0f) = opposite / adjacent so opposite = tanf(angleofview/2.0f) * adjacent */
 		float oppositeclipsta = tanf(angleofview / 2.0f) * clipstart;
 		float oppositeclipend = tanf(angleofview / 2.0f) * clipend;
-		m_rasterizer->DrawPerspectiveCameraFrustum(scene, trans, clipstart, clipend,
+		m_rasterizer->DrawCameraFrustum(scene, trans, clipstart, clipend,
 			ratiox, ratioy, oppositeclipsta, oppositeclipend);
 	}
 	else {
 		float x = cam->GetCameraData()->m_scale * 0.5f;
-		m_rasterizer->DrawOrthographicCameraFrustum(scene, trans, clipstart,
-			clipend, ratiox, ratioy, x);
+		m_rasterizer->DrawCameraFrustum(scene, trans, clipstart,
+			clipend, ratiox, ratioy, x, x);
 	}
 }
 

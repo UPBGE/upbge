@@ -894,7 +894,7 @@ void RAS_OpenGLRasterizer::DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8
 	m_debugShapes[scene].m_boxes.push_back(box);
 }
 
-void RAS_OpenGLRasterizer::DrawPerspectiveCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
+void RAS_OpenGLRasterizer::DrawCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
 		float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend)
 {
 	MT_Vector3 box[8];
@@ -916,26 +916,6 @@ void RAS_OpenGLRasterizer::DrawPerspectiveCameraFrustum(SCA_IScene *scene, const
 	}
 	DrawDebugBox(scene, box, MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f), MT_Vector4(0.2f, 0.2f, 0.2f, 1.0f),
 		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f), true);
-}
-
-void RAS_OpenGLRasterizer::DrawOrthographicCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
-		float ratiox, float ratioy, float x)
-{
-	MT_Vector3 box[8];
-
-	/* construct box */
-	box[0][0] = box[1][0] = box[2][0] = box[3][0] = -x * ratiox;
-	box[4][0] = box[5][0] = box[6][0] = box[7][0] = +x * ratiox;
-	box[0][1] = box[1][1] = box[4][1] = box[5][1] = -x * ratioy;
-	box[2][1] = box[3][1] = box[6][1] = box[7][1] = +x * ratioy;
-	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -clipend;
-	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -clipstart;
-
-	for (unsigned short i = 0; i < 8; i++) {
-		box[i] = trans(box[i]);
-	}
-	DrawDebugBox(scene, box, MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f), MT_Vector4(0.2f, 0.2f, 0.2f, 1.0f),
-				 MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f), true);
 }
 
 void RAS_OpenGLRasterizer::EndFrame()
