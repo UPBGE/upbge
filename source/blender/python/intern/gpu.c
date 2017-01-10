@@ -157,6 +157,7 @@ static PyObject *PyInit_gpu(void)
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_TEX_UVOFFSET);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_TEX_UVSIZE);
 	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_TEX_UVROTATION);
+	PY_MODULE_ADD_CONSTANT(m, GPU_DYNAMIC_TEX_FRESNEL);
 
 
 	/* -------------------------------------------------------------------- */

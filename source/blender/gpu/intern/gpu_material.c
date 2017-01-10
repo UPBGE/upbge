@@ -1420,6 +1420,7 @@ static void do_material_tex(GPUShadeInput *shi)
 							 GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
 							 GPU_select_uniform(&mtex->ior, GPU_DYNAMIC_TEX_IOR, NULL, ma),
 							 GPU_select_uniform(&mtex->refrratio, GPU_DYNAMIC_TEX_REFRRATIO, NULL, ma),
+							 GPU_select_uniform(&mtex->fresnelfac, GPU_DYNAMIC_TEX_FRESNEL, NULL, ma),
 							 &tin, &trgb);
 					}
 				}
