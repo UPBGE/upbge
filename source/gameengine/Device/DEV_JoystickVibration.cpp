@@ -33,7 +33,7 @@
 #include "PIL_time.h" // Module to get real time in Game Engine
 
 
-bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigned int duration)
+bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned int duration)
 {
 #ifdef WITH_SDL
 	unsigned int effects;
@@ -65,8 +65,8 @@ bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigne
 		}
 
 		m_private->m_hapticeffect.leftright.length = duration;
-		m_private->m_hapticeffect.leftright.large_magnitude = (unsigned int) (strength_left * 0x7FFF);
-		m_private->m_hapticeffect.leftright.small_magnitude = (unsigned int) (strength_right * 0x7FFF);
+		m_private->m_hapticeffect.leftright.large_magnitude = (unsigned int) (strengthLeft * 0x7FFF);
+		m_private->m_hapticeffect.leftright.small_magnitude = (unsigned int) (strengthRight * 0x7FFF);
 		run_by_effect = true;
 
 	}
@@ -74,8 +74,8 @@ bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigne
 	else if ((effects & SDL_HAPTIC_CUSTOM) && m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_RUMBLE_EFFECT) {
 
 		Uint16 data[2]; // data = channels * samples
-		data[0] = (Uint16) (strength_left * 0x7FFF);
-		data[1] = (Uint16) (strength_right * 0x7FFF);
+		data[0] = (Uint16) (strengthLeft * 0x7FFF);
+		data[1] = (Uint16) (strengthRight * 0x7FFF);
 
 		if (m_private->m_hapticEffectStatus != JOYHAPTIC_UPDATING_EFFECT) {
 			m_private->m_hapticeffect.type = SDL_HAPTIC_CUSTOM;
@@ -129,7 +129,7 @@ bool DEV_Joystick::RumblePlay(float strength_left, float strength_right, unsigne
 		}
 
 		m_private->m_hapticeffect.periodic.period = 1000;
-		m_private->m_hapticeffect.periodic.magnitude = (unsigned int)(strength_left * 0x7FFF);
+		m_private->m_hapticeffect.periodic.magnitude = (unsigned int)(strengthLeft * 0x7FFF);
 		m_private->m_hapticeffect.periodic.length = duration;
 		m_private->m_hapticeffect.periodic.attack_length = 0;
 		m_private->m_hapticeffect.periodic.fade_length = 0;

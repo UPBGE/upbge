@@ -32,12 +32,12 @@
 #include "SCA_JoystickManager.h"
 
 
-SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, short mode, int joyindex, float strength_left,  float strength_right, int duration)
+SCA_VibrationActuator::SCA_VibrationActuator(SCA_IObject *gameobj, short mode, int joyindex, float strengthLeft,  float strengthRight, int duration)
 	: SCA_IActuator(gameobj, KX_ACT_VIBRATION),
 	m_joyindex(joyindex),
 	m_mode(mode),
-	m_strengthLeft(strength_left),
-	m_strengthRight(strength_right),
+	m_strengthLeft(strengthLeft),
+	m_strengthRight(strengthRight),
 	m_duration(duration)
 {
 }
@@ -129,7 +129,7 @@ PyAttributeDef SCA_VibrationActuator::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RW("joyindex", 0, 7, true, SCA_VibrationActuator, m_joyindex),
 	KX_PYATTRIBUTE_FLOAT_RW("strengthLeft", 0.0, 1.0, SCA_VibrationActuator, m_strengthLeft),
 	KX_PYATTRIBUTE_FLOAT_RW("strengthRight", 0.0, 1.0, SCA_VibrationActuator, m_strengthRight),
-	KX_PYATTRIBUTE_RO_FUNCTION("isVibrating", SCA_VibrationActuator, pyattr_get_statusVibration),
+	KX_PYATTRIBUTE_RO_FUNCTION("isVibrating", SCA_VibrationActuator, pyattr_get_isVibrating),
 	KX_PYATTRIBUTE_RO_FUNCTION("hasVibration", SCA_VibrationActuator, pyattr_get_hasVibration),
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
@@ -166,7 +166,7 @@ KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, stopVibration,
 	Py_RETURN_NONE;
 }
 
-PyObject *SCA_VibrationActuator::pyattr_get_statusVibration(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_VibrationActuator::pyattr_get_isVibrating(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_VibrationActuator *self = static_cast<SCA_VibrationActuator *>(self_v);
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)self->GetLogicManager();

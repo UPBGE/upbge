@@ -175,14 +175,14 @@ public:
 	 * Force Feedback - Vibration
 	 * We could add many optional arguments to these functions to take into account different sort of vibrations.
 	 * But we propose to keep the UI simple with only joyindex, force (in both motors) and duration.
-	 * As the vibration strength and duration can be updated on-fly it is possible to generate several types of vibration  
+	 * As the vibration strength and duration can be updated on-fly it is possible to generate several types of vibration
 	 * (sinus, periodic, custom, etc) using BGE python scripts for more advanced uses.
 	 */
-	bool RumblePlay(float strength_left, float strength_right, unsigned int duration);
-	bool RumbleStop(void);
-	bool GetRumbleStatus(void);
-	bool GetRumbleSupport(void);
-	void ProcessRumbleStatus(void);
+	bool RumblePlay(float strengthLeft, float strengthRight, unsigned int duration);
+	bool RumbleStop();
+	bool GetRumbleStatus();
+	bool GetRumbleSupport();
+	void ProcessRumbleStatus();
 
 	/**
 	 * Test if the joystick is connected
