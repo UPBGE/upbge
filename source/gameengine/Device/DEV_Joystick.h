@@ -170,15 +170,20 @@ public:
 	bool IsTrigButton(void) {
 		return m_istrig_button;
 	}
-	
+
 	/**
-	 * We could add many optionnal arguments to this function
-	 * to take into account different sort of vibrations. But I
-	 * propose to keep the UI simple with only force, duration,
-	 * and joyindex and make the other SDL options available
-	 * for rumble only via a python API.
+	 * Force Feedback - Vibration
+	 * We could add many optional arguments to these functions to take into account different sort of vibrations.
+	 * But we propose to keep the UI simple with only joyindex, force (in both motors) and duration.
+	 * As the vibration strength and duration can be updated on-fly it is possible to generate several types of vibration
+	 * (sinus, periodic, custom, etc) using BGE python scripts for more advanced uses.
 	 */
-	bool RumblePlay(float strength, int duration);
+	bool RumblePlay(float strengthLeft, float strengthRight, unsigned int duration);
+	bool RumbleStop();
+	bool GetRumbleStatus();
+	bool GetRumbleSupport();
+	void ProcessRumbleStatus();
+
 	/**
 	 * Test if the joystick is connected
 	 */
