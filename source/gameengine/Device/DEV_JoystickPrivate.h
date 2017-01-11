@@ -20,7 +20,7 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): snailrose.
+ * Contributor(s): snailrose, lordloki.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -32,7 +32,7 @@
 #ifndef __DEV_JOYSTICKPRIVATE_H__
 #define __DEV_JOYSTICKPRIVATE_H__
 
-#include <memory> // We have to include that on Windows to make memset available
+#include "DEV_JoystickDefines.h"
 
 #ifdef WITH_SDL
 class DEV_Joystick::PrivateData
@@ -45,12 +45,14 @@ public:
 	SDL_JoystickID m_instance_id;
 	SDL_Haptic *m_haptic;
 	SDL_HapticEffect m_hapticeffect;
+	int m_hapticeffect_id, m_hapticeffect_status;
 
 	PrivateData()
 		:m_gamecontroller(NULL),
-		m_haptic(NULL)
+		m_haptic(NULL),
+		m_hapticeffect_status(JOYHAPTIC_STOPPED)
 	{
-		memset(&m_hapticeffect, 0, sizeof(SDL_HapticEffect));
+		
 	}
 };
 #endif // WITH_SDL
