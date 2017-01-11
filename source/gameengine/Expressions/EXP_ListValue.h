@@ -21,6 +21,8 @@
 
 #include "EXP_Value.h"
 
+#include <functional>
+
 class CListValue : public CPropValue
 {
 	Py_Header
@@ -76,6 +78,17 @@ public:
 	bool SearchValue(CValue *val);
 
 	CValue *FindValue(const std::string& name);
+
+	template <class ItemType>
+	ItemType *FindIf(std::function<bool (ItemType *)> function)
+	{
+		for (CValue *val : m_pValueArray) {
+			if (function(static_cast<ItemType *>(val))) {
+				return static_cast<ItemType *>(val);
+			}
+		}
+		return NULL;
+	}
 
 	void ReleaseAndRemoveAll();
 	void Remove(int i);
