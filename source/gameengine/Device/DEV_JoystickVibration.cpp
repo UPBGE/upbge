@@ -182,7 +182,6 @@ bool DEV_Joystick::RumbleStop()
 	if (m_private->m_hapticEffectStatus != JOYHAPTIC_STOPPED) {
 		m_private->m_hapticEffectStatus = JOYHAPTIC_STOPPED;
 	}
-	SDL_HapticStopEffect(m_private->m_haptic, m_private->m_hapticEffectId);
 	SDL_HapticDestroyEffect(m_private->m_haptic, m_private->m_hapticEffectId);
 	m_private->m_hapticEndTime = 0.0;
 	return true;
