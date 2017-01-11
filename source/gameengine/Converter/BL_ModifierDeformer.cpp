@@ -208,9 +208,9 @@ bool BL_ModifierDeformer::Update(void)
 		m_lastModifierUpdate = m_gameobj->GetLastFrame();
 		bShapeUpdate = true;
 
-		int nmat = m_pMeshObject->NumMaterials();
+		int nmat = m_mesh->NumMaterials();
 		for (int imat = 0; imat < nmat; imat++) {
-			RAS_MeshMaterial *mmat = m_pMeshObject->GetMeshMaterial(imat);
+			RAS_MeshMaterial *mmat = m_mesh->GetMeshMaterial(imat);
 			RAS_MeshSlot *slot = mmat->m_slots[(void *)m_gameobj->getClientInfo()];
 			if (!slot) {
 				continue;

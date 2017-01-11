@@ -54,8 +54,8 @@ class RAS_MeshMaterial;
 class RAS_Deformer
 {
 public:
-	RAS_Deformer()
-		:m_pMesh(NULL),
+	RAS_Deformer(RAS_MeshObject *mesh)
+		:m_mesh(NULL),
 		m_bDynamic(false),
 		m_boundingBox(NULL)
 	{
@@ -101,7 +101,6 @@ public:
 	}
 	virtual class RAS_MeshObject* GetRasMesh()
 	{
-		/* m_pMesh does not seem to be being used?? */
 		return NULL;
 	}
 	virtual float (* GetTransVerts(int *tot))[3]	{	*tot= 0; return NULL; }
@@ -112,7 +111,7 @@ public:
 	}
 
 protected:
-	class RAS_MeshObject	*m_pMesh;
+	RAS_MeshObject *m_mesh;
 	bool  m_bDynamic;
 
 	/// Deformer bounding box.

@@ -54,8 +54,8 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *UNUSED(polymat), RAS_MeshMaterial
 	// only apply once per frame if the mesh is actually modified
 	if (m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
 		// For each material
-		for (std::vector<RAS_MeshMaterial *>::iterator mit = m_pMeshObject->GetFirstMaterial();
-		     mit != m_pMeshObject->GetLastMaterial(); ++mit)
+		for (std::vector<RAS_MeshMaterial *>::iterator mit = m_mesh->GetFirstMaterial();
+		     mit != m_mesh->GetLastMaterial(); ++mit)
 		{
 			RAS_MeshMaterial *meshmat = *mit;
 			RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
@@ -85,7 +85,7 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *UNUSED(polymat), RAS_MeshMaterial
 }
 
 BL_MeshDeformer::BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_MeshObject *meshobj)
-	:m_pMeshObject(meshobj),
+	:RAS_Deformer(meshobj),
 	m_bmesh((Mesh *)(obj->data)),
 	m_transverts(NULL),
 	m_transnors(NULL),
@@ -98,7 +98,7 @@ BL_MeshDeformer::BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, 
 	RAS_BoundingBoxManager *boundingBoxManager = scene->GetBoundingBoxManager();
 	m_boundingBox = boundingBoxManager->CreateBoundingBox();
 	// Set AABB default to mesh bounding box AABB.
-	m_boundingBox->CopyAabb(m_pMeshObject->GetBoundingBox());
+	m_boundingBox->CopyAabb(m_mesh->GetBoundingBox());
 }
 
 BL_MeshDeformer::~BL_MeshDeformer()
@@ -143,8 +143,8 @@ void BL_MeshDeformer::RecalcNormals()
 	/* set vertex normals to zero */
 	memset(m_transnors, 0, sizeof(float) * 3 * m_bmesh->totvert);
 
-	for (unsigned int i = 0, numpoly = m_pMeshObject->NumPolygons(); i < numpoly; ++i) {
-		RAS_Polygon *poly = m_pMeshObject->GetPolygon(i);
+	for (unsigned int i = 0, numpoly = m_mesh->NumPolygons(); i < numpoly; ++i) {
+		RAS_Polygon *poly = m_mesh->GetPolygon(i);
 		RAS_IDisplayArray *array = poly->GetDisplayArray();
 		const unsigned short numvert = poly->VertexCount();
 
@@ -191,7 +191,7 @@ void BL_MeshDeformer::RecalcNormals()
 	}
 
 	/* assign smooth vertex normals */
-	for (mit = m_pMeshObject->GetFirstMaterial(); mit != m_pMeshObject->GetLastMaterial(); ++mit) {
+	for (mit = m_mesh->GetFirstMaterial(); mit != m_mesh->GetLastMaterial(); ++mit) {
 		RAS_MeshMaterial *meshmat = *mit;
 		RAS_MeshSlot *slot = meshmat->m_slots[(void *)m_gameobj->getClientInfo()];
 		if (!slot) {

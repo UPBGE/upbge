@@ -45,7 +45,7 @@ class RAS_IPolyMaterial;
 
 class KX_SoftBodyDeformer : public RAS_Deformer
 {
-	RAS_MeshObject *m_pMeshObject;
+	RAS_MeshObject *m_mesh;
 	BL_DeformableGameObject *m_gameobj;
 	/** Set to true to request an AABB update in Apply(mat).
 	 * Used to compute a fully AABB and not for only one material.

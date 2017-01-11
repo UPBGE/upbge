@@ -324,9 +324,9 @@ void BL_SkinDeformer::UpdateTransverts()
 		// the vertex cache is unique to this deformer, no need to update it
 		// if it wasn't updated! We must update all the materials at once
 		// because we will not get here again for the other material
-		nmat = m_pMeshObject->NumMaterials();
+		nmat = m_mesh->NumMaterials();
 		for (imat = 0; imat < nmat; imat++) {
-			mmat = m_pMeshObject->GetMeshMaterial(imat);
+			mmat = m_mesh->GetMeshMaterial(imat);
 			slot = mmat->m_slots[(void *)m_gameobj->getClientInfo()];
 			if (!slot) {
 				continue;

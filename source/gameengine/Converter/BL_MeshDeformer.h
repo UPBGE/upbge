@@ -81,7 +81,7 @@ public:
 	}
 	virtual RAS_MeshObject *GetRasMesh()
 	{
-		return m_pMeshObject;
+		return m_mesh;
 	}
 	virtual float(*GetTransVerts(int *tot))[3]
 	{
@@ -89,7 +89,6 @@ public:
 	}
 
 protected:
-	RAS_MeshObject *m_pMeshObject;
 	Mesh *m_bmesh;
 
 	// this is so m_transverts doesn't need to be converted

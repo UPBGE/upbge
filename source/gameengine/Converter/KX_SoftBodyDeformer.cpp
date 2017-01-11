@@ -50,7 +50,7 @@
 #include "btBulletDynamicsCommon.h"
 
 KX_SoftBodyDeformer::KX_SoftBodyDeformer(RAS_MeshObject *pMeshObject, BL_DeformableGameObject *gameobj)
-	:m_pMeshObject(pMeshObject),
+	:RAS_Deformer(pMeshObject),
 	m_gameobj(gameobj),
 	m_needUpdateAabb(true)
 {
@@ -58,7 +58,7 @@ KX_SoftBodyDeformer::KX_SoftBodyDeformer(RAS_MeshObject *pMeshObject, BL_Deforma
 	RAS_BoundingBoxManager *boundingBoxManager = scene->GetBoundingBoxManager();
 	m_boundingBox = boundingBoxManager->CreateBoundingBox();
 	// Set AABB default to mesh bounding box AABB.
-	m_boundingBox->CopyAabb(m_pMeshObject->GetBoundingBox());
+	m_boundingBox->CopyAabb(m_mesh->GetBoundingBox());
 }
 
 KX_SoftBodyDeformer::~KX_SoftBodyDeformer()
@@ -71,11 +71,11 @@ void KX_SoftBodyDeformer::Relink(std::map<void *, void *>& map)
 
 	if (h_obj) {
 		m_gameobj = (BL_DeformableGameObject *)h_obj;
-		m_pMeshObject = m_gameobj->GetMesh(0);
+		m_mesh = m_gameobj->GetMesh(0);
 	}
 	else {
 		m_gameobj = NULL;
-		m_pMeshObject = NULL;
+		m_mesh = NULL;
 	}
 }
 
