@@ -113,11 +113,6 @@ class DEV_Joystick
 	void DestroyJoystickDevice(void);
 
 	/**
-	 * fills the axis member values
-	 */
-	void pFillButtons(void);
-
-	/**
 	 * returns m_axis_array
 	 */
 
@@ -157,10 +152,6 @@ public:
 
 	int GetAxisPosition(int index) {
 		return m_axis_array[index];
-	}
-
-	int GetThreshold(void) {
-		return m_prec;
 	}
 
 	bool IsTrigAxis(void) {
