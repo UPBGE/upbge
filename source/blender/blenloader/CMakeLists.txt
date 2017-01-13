@@ -43,11 +43,11 @@ set(INC
 )
 
 set(INC_SYS
+	../../../intern/spindle
 	${ZLIB_INCLUDE_DIRS}
 )
 
 set(SRC
-	intern/SpindleEncryption.c
 	intern/readblenentry.c
 	intern/readfile.c
 	intern/runtime.c
@@ -61,7 +61,6 @@ set(SRC
 	intern/writefile.c
 
 	BLO_blend_defs.h
-	intern/SpindleEncryption.h
 	BLO_readfile.h
 	BLO_runtime.h
 	BLO_undofile.h

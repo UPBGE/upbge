@@ -116,6 +116,7 @@ endif()
 		bf_depsgraph
 		bf_physics
 		bf_intern_rigidbody
+		bf_intern_spindle
 		bf_blenloader
 		ge_blen_routines
 		bf_editor_datafiles

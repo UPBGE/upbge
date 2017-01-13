@@ -57,16 +57,15 @@ set(INC
 
 set(INC_SYS
 	../../../intern/moto/include
+	../../../intern/spindle
 	${PYTHON_INCLUDE_DIRS}
 	${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
-	SpindleEncryption.cpp
 	GPG_Canvas.cpp
 	GPG_ghost.cpp
 
-	SpindleEncryption.h
 	GPG_Canvas.h
 )
 
