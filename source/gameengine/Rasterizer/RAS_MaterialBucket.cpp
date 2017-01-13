@@ -154,7 +154,7 @@ RAS_MeshSlotList::iterator RAS_MaterialBucket::msEnd()
 
 bool RAS_MaterialBucket::ActivateMaterial(RAS_IRasterizer *rasty)
 {
-	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE) {
+	if (rasty->GetOverrideShader() == RAS_IRasterizer::RAS_OVERRIDE_SHADER_NONE && m_material->GetEnabled()) {
 		m_material->Activate(rasty);
 	}
 

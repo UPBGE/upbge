@@ -154,6 +154,12 @@ base class --- :class:`PyObjectPlus`
 
       :type: List of :class:`BL_Texture` (read only)
 
+   .. attribute:: enabled
+
+      Enable/disable material. This can be used to do material culling.
+
+      :type: boolean
+
    .. method:: setBlending(src, dest)
 
       Set the pixel color arithmetic functions.
