@@ -163,43 +163,22 @@ public:
 	 * that.
 	 * \return a reference to the list of children of this node.
 	 */
-	NodeList& GetSGChildren()
-	{
-		return this->m_children;
-	}
-
-	/**
-	 * Get the current list of children.
-	 * \return a const reference to the current list of children of this node.
-	 */
-	const NodeList& GetSGChildren() const
-	{
-		return this->m_children;
-	}
+	NodeList& GetSGChildren();
 
 	/**
 	 * Clear the list of children associated with this node
 	 */
-	void ClearSGChildren()
-	{
-		m_children.clear();
-	}
+	void ClearSGChildren();
 
 	/**
 	 * return the parent of this node if it exists.
 	 */
-	SG_Node *GetSGParent() const
-	{
-		return m_SGparent;
-	}
+	SG_Node *GetSGParent() const;
 
 	/**
 	 * Set the parent of this node.
 	 */
-	void SetSGParent(SG_Node *parent)
-	{
-		m_SGparent = parent;
-	}
+	void SetSGParent(SG_Node *parent);
 
 	/**
 	 * Return the top node in this node's Scene graph hierarchy
@@ -214,24 +193,12 @@ public:
 	/**
 	 * Return vertex parent status.
 	 */
-	bool IsVertexParent()
-	{
-		if (m_parent_relation) {
-			return m_parent_relation->IsVertexRelation();
-		}
-		return false;
-	}
+	bool IsVertexParent();
 
 	/**
 	 * Return slow parent status.
 	 */
-	bool IsSlowParent()
-	{
-		if (m_parent_relation) {
-			return m_parent_relation->IsSlowRelation();
-		}
-		return false;
-	}
+	bool IsSlowParent();
 
 	/**
 	 * Update the spatial data of this node. Iterate through
@@ -248,38 +215,23 @@ public:
 	/**
 	 * Schedule this node for update by placing it in head queue
 	 */
-	bool Schedule(SG_QList& head)
-	{
-		// Put top parent in front of list to make sure they are updated before their
-		// children => the children will be udpated and removed from the list before
-		// we get to them, should they be in the list too.
-		return (m_SGparent) ? head.AddBack(this) : head.AddFront(this);
-	}
+	bool Schedule(SG_QList& head);
 
 	/**
 	 * Used during Scenegraph update
 	 */
-	static SG_Node *GetNextScheduled(SG_QList& head)
-	{
-		return static_cast<SG_Node *>(head.Remove());
-	}
+	static SG_Node *GetNextScheduled(SG_QList& head);
 
 	/**
 	 * Make this node ready for schedule on next update. This is needed for nodes
 	 * that must always be updated (slow parent, bone parent)
 	 */
-	bool Reschedule(SG_QList& head)
-	{
-		return head.QAddBack(this);
-	}
+	bool Reschedule(SG_QList& head);
 
 	/**
 	 * Used during Scenegraph update
 	 */
-	static SG_Node *GetNextRescheduled(SG_QList& head)
-	{
-		return static_cast<SG_Node *>(head.QRemove());
-	}
+	static SG_Node *GetNextRescheduled(SG_QList& head);
 
 	/**
 	 * Node replication functions.
@@ -320,18 +272,9 @@ public:
 	 * on pointers in the container. C++ topic: how to do this in
 	 * using STL?
 	 */
-	SGControllerList& GetSGControllerList()
-	{
-		return m_SGcontrollers;
-	}
+	SGControllerList& GetSGControllerList();
 
-	/**
-	 * 
-	 */
-	SG_Callbacks& GetCallBackFunctions()
-	{
-		return m_callbacks;
-	}
+	SG_Callbacks& GetCallBackFunctions();
 
 	/**
 	 * Get the client object associated with this
@@ -342,15 +285,7 @@ public:
 	 * upon replication and destruction
 	 * This may be NULL.
 	 */
-	inline const void *GetSGClientObject() const
-	{
-		return m_SGclientObject;
-	}
-
-	inline void *GetSGClientObject()
-	{
-		return m_SGclientObject;
-	}
+	void *GetSGClientObject() const;
 
 	/**
 	 * Set the client object for this node. This is just a
@@ -358,24 +293,9 @@ public:
 	 * the duration of the lifetime of this object, or until
 	 * this function is called again.
 	 */
-	void SetSGClientObject(void *clientObject)
-	{
-		m_SGclientObject = clientObject;
-	}
-
-	/* needed for scene switching */
-	inline const void *GetSGClientInfo() const
-	{
-		return m_SGclientInfo;
-	}
-	inline void *GetSGClientInfo()
-	{
-		return m_SGclientInfo;
-	}
-	void SetSGClientInfo(void *clientInfo)
-	{
-		m_SGclientInfo = clientInfo;
-	}
+	void SetSGClientObject(void *clientObject);
+	void *GetSGClientInfo() const;
+	void SetSGClientInfo(void *clientInfo);
 
 	/**
 	 * Set the current simulation time for this node.
@@ -384,20 +304,9 @@ public:
 	 */
 	void SetControllerTime(double time);
 
-	inline void ClearModified()
-	{
-		m_modified = false;
-		m_ogldirty = true;
-	}
-	inline void SetModified()
-	{
-		m_modified = true;
-		ActivateScheduleUpdateCallback();
-	}
-	inline void ClearDirty()
-	{
-		m_ogldirty = false;
-	}
+	void ClearModified();
+	void SetModified();
+	void ClearDirty();
 
 	/**
 	 * Define the relationship this node has with it's parent
@@ -413,11 +322,7 @@ public:
 	 * updated the coordinates of the child.
 	 */
 	void SetParentRelation(SG_ParentRelation *relation);
-
-	SG_ParentRelation *GetParentRelation()
-	{
-		return m_parent_relation;
-	}
+	SG_ParentRelation *GetParentRelation();
 
 	/**
 	 * Apply a translation relative to the current position.
@@ -428,124 +333,40 @@ public:
 	 * exists otherwise if there is no parent set it to NULL
 	 */
 	void RelativeTranslate(const MT_Vector3& trans, const SG_Node *parent, bool local);
-
-	void SetLocalPosition(const MT_Vector3& trans)
-	{
-		m_localPosition = trans;
-		SetModified();
-	}
-
-	void SetWorldPosition(const MT_Vector3& trans)
-	{
-		m_worldPosition = trans;
-	}
-
+	void SetLocalPosition(const MT_Vector3& trans);
+	void SetWorldPosition(const MT_Vector3& trans);
 	void RelativeRotate(const MT_Matrix3x3& rot, bool local);
-
-	void SetLocalOrientation(const MT_Matrix3x3& rot)
-	{
-		m_localRotation = rot;
-		SetModified();
-	}
-
+	void SetLocalOrientation(const MT_Matrix3x3& rot);
 	// rot is arrange like openGL matrix
-	void SetLocalOrientation(const float *rot)
-	{
-		m_localRotation.setValue(rot);
-		SetModified();
-	}
+	void SetLocalOrientation(const float *rot);
+	void SetWorldOrientation(const MT_Matrix3x3& rot);
+	void RelativeScale(const MT_Vector3& scale);
+	void SetLocalScale(const MT_Vector3& scale);
+	void SetWorldScale(const MT_Vector3& scale);
 
-	void SetWorldOrientation(const MT_Matrix3x3& rot)
-	{
-		m_worldRotation = rot;
-	}
+	const MT_Vector3& GetLocalPosition() const;
+	const MT_Matrix3x3& GetLocalOrientation() const;
+	const MT_Vector3& GetLocalScale() const;
+	const MT_Vector3& GetWorldPosition() const;
+	const MT_Matrix3x3& GetWorldOrientation() const;
+	const MT_Vector3& GetWorldScaling() const;
 
-	void RelativeScale(const MT_Vector3& scale)
-	{
-		m_localScaling = m_localScaling * scale;
-		SetModified();
-	}
-
-	void SetLocalScale(const MT_Vector3& scale)
-	{
-		m_localScaling = scale;
-		SetModified();
-	}
-
-	void SetWorldScale(const MT_Vector3& scale)
-	{
-		m_worldScaling = scale;
-	}
-
-	const MT_Vector3& GetLocalPosition() const
-	{
-		return m_localPosition;
-	}
-
-	const MT_Matrix3x3& GetLocalOrientation() const
-	{
-		return m_localRotation;
-	}
-
-	const MT_Vector3& GetLocalScale() const
-	{
-		return m_localScaling;
-	}
-
-	const MT_Vector3& GetWorldPosition() const
-	{
-		return m_worldPosition;
-	}
-
-	const MT_Matrix3x3& GetWorldOrientation() const
-	{
-		return m_worldRotation;
-	}
-
-	const MT_Vector3& GetWorldScaling() const
-	{
-		return m_worldScaling;
-	}
-
-	void SetWorldFromLocalTransform()
-	{
-		m_worldPosition = m_localPosition;
-		m_worldScaling = m_localScaling;
-		m_worldRotation = m_localRotation;
-	}
-
+	void SetWorldFromLocalTransform();
 	MT_Transform GetWorldTransform() const;
 
-	bool ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated)
-	{
-		return m_parent_relation->UpdateChildCoordinates(this, parent, parentUpdated);
-	}
+	bool ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated);
 
 	/**
 	 * Bounding box functions.
 	 */
-	SG_BBox& BBox()
-	{
-		return m_bbox;
-	}
+	SG_BBox& BBox();
+	void SetBBox(SG_BBox& bbox);
 
-	void SetBBox(SG_BBox& bbox)
-	{
-		m_bbox = bbox;
-	}
+	bool Inside(const MT_Vector3 &point) const;
+	void GetBBox(MT_Vector3 *box) const;
 
-	bool inside(const MT_Vector3 &point) const;
-	void getBBox(MT_Vector3 *box) const;
-	void getAABBox(MT_Vector3 *box) const;
-
-	bool IsModified()
-	{
-		return m_modified;
-	}
-	bool IsDirty()
-	{
-		return m_ogldirty;
-	}
+	bool IsModified();
+	bool IsDirty();
 
 protected:
 	friend class SG_Controller;
@@ -554,62 +375,16 @@ protected:
 	friend class KX_SlowParentRelation;
 	friend class KX_NormalParentRelation;
 
-	bool ActivateReplicationCallback(SG_Node *replica)
-	{
-		if (m_callbacks.m_replicafunc) {
-			// Call client provided replication func
-			if (m_callbacks.m_replicafunc(replica, m_SGclientObject, m_SGclientInfo) == NULL) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	void ActivateDestructionCallback()
-	{
-		if (m_callbacks.m_destructionfunc) {
-			// Call client provided destruction function on this!
-			m_callbacks.m_destructionfunc(this, m_SGclientObject, m_SGclientInfo);
-		}
-		else {
-			// no callback but must still destroy the node to avoid memory leak
-			delete this;
-		}
-	}
-
-	void ActivateUpdateTransformCallback()
-	{
-		if (m_callbacks.m_updatefunc) {
-			// Call client provided update func.
-			m_callbacks.m_updatefunc(this, m_SGclientObject, m_SGclientInfo);
-		}
-	}
-
-	bool ActivateScheduleUpdateCallback()
-	{
-		// HACK, this check assumes that the scheduled nodes are put on a DList (see SG_Node.h)
-		// The early check on Empty() allows up to avoid calling the callback function
-		// when the node is already scheduled for update.
-		if (Empty() && m_callbacks.m_schedulefunc) {
-			// Call client provided update func.
-			return m_callbacks.m_schedulefunc(this, m_SGclientObject, m_SGclientInfo);
-		}
-		return false;
-	}
-
-	void ActivateRecheduleUpdateCallback()
-	{
-		if (m_callbacks.m_reschedulefunc) {
-			// Call client provided update func.
-			m_callbacks.m_reschedulefunc(this, m_SGclientObject, m_SGclientInfo);
-		}
-	}
+	bool ActivateReplicationCallback(SG_Node *replica);
+	void ActivateDestructionCallback();
+	void ActivateUpdateTransformCallback();
+	bool ActivateScheduleUpdateCallback();
+	void ActivateRecheduleUpdateCallback();
 
 	/**
 	 * Update the world coordinates of this spatial node. This also informs
 	 * any controllers to update this object.
 	 */
-	
 	bool UpdateSpatialData(const SG_Node *parent, double time, bool& parentUpdated);
 
 private:

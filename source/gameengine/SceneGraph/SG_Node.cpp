@@ -167,12 +167,48 @@ bool SG_Node::IsAncessor(const SG_Node *child) const
 	       (child->m_SGparent == this) ? true : IsAncessor(child->m_SGparent);
 }
 
+NodeList& SG_Node::GetSGChildren()
+{
+	return this->m_children;
+}
+
+void SG_Node::ClearSGChildren()
+{
+	m_children.clear();
+}
+
+SG_Node *SG_Node::GetSGParent() const
+{
+	return m_SGparent;
+}
+
+void SG_Node::SetSGParent(SG_Node *parent)
+{
+	m_SGparent = parent;
+}
+
 void SG_Node::DisconnectFromParent()
 {
 	if (m_SGparent) {
 		m_SGparent->RemoveChild(this);
 		m_SGparent = NULL;
 	}
+}
+
+bool SG_Node::IsVertexParent()
+{
+	if (m_parent_relation) {
+		return m_parent_relation->IsVertexRelation();
+	}
+	return false;
+}
+
+bool SG_Node::IsSlowParent()
+{
+	if (m_parent_relation) {
+		return m_parent_relation->IsSlowRelation();
+	}
+	return false;
 }
 
 void SG_Node::AddChild(SG_Node *child)
@@ -219,6 +255,29 @@ void SG_Node::SetSimulatedTime(double time, bool recurse)
 	}
 }
 
+bool SG_Node::Schedule(SG_QList& head)
+{
+	// Put top parent in front of list to make sure they are updated before their
+	// children => the children will be udpated and removed from the list before
+	// we get to them, should they be in the list too.
+	return (m_SGparent) ? head.AddBack(this) : head.AddFront(this);
+}
+
+SG_Node *SG_Node::GetNextScheduled(SG_QList& head)
+{
+	return static_cast<SG_Node *>(head.Remove());
+}
+
+bool SG_Node::Reschedule(SG_QList& head)
+{
+	return head.QAddBack(this);
+}
+
+SG_Node *SG_Node::GetNextRescheduled(SG_QList& head)
+{
+	return static_cast<SG_Node *>(head.QRemove());
+}
+
 void SG_Node::AddSGController(SG_Controller *cont)
 {
 	m_SGcontrollers.push_back(cont);
@@ -236,6 +295,35 @@ void SG_Node::RemoveAllControllers()
 	m_SGcontrollers.clear();
 }
 
+SGControllerList& SG_Node::GetSGControllerList()
+{
+	return m_SGcontrollers;
+}
+
+SG_Callbacks& SG_Node::GetCallBackFunctions()
+{
+	return m_callbacks;
+}
+
+void *SG_Node::GetSGClientObject() const
+{
+	return m_SGclientObject;
+}
+
+void SG_Node::SetSGClientObject(void *clientObject)
+{
+	m_SGclientObject = clientObject;
+}
+
+void *SG_Node::GetSGClientInfo() const
+{
+	return m_SGclientInfo;
+}
+void SG_Node::SetSGClientInfo(void *clientInfo)
+{
+	m_SGclientInfo = clientInfo;
+}
+
 void SG_Node::SetControllerTime(double time)
 {
 	SGControllerList::iterator contit;
@@ -246,12 +334,33 @@ void SG_Node::SetControllerTime(double time)
 	}
 }
 
+void SG_Node::ClearModified()
+{
+	m_modified = false;
+	m_ogldirty = true;
+}
+
+void SG_Node::SetModified()
+{
+	m_modified = true;
+	ActivateScheduleUpdateCallback();
+}
+
+void SG_Node::ClearDirty()
+{
+	m_ogldirty = false;
+}
 
 void SG_Node::SetParentRelation(SG_ParentRelation *relation)
 {
 	delete m_parent_relation;
 	m_parent_relation = relation;
 	SetModified();
+}
+
+SG_ParentRelation *SG_Node::GetParentRelation()
+{
+	return m_parent_relation;
 }
 
 /**
@@ -303,6 +412,17 @@ void SG_Node::RelativeTranslate(const MT_Vector3& trans, const SG_Node *parent, 
 	SetModified();
 }
 
+void SG_Node::SetLocalPosition(const MT_Vector3& trans)
+{
+	m_localPosition = trans;
+	SetModified();
+}
+
+void SG_Node::SetWorldPosition(const MT_Vector3& trans)
+{
+	m_worldPosition = trans;
+}
+
 /**
  * Scaling methods.
  */
@@ -320,6 +440,78 @@ void SG_Node::RelativeRotate(const MT_Matrix3x3& rot, bool local)
 	SetModified();
 }
 
+void SG_Node::SetLocalOrientation(const MT_Matrix3x3& rot)
+{
+	m_localRotation = rot;
+	SetModified();
+}
+
+// rot is arrange like openGL matrix
+void SG_Node::SetLocalOrientation(const float *rot)
+{
+	m_localRotation.setValue(rot);
+	SetModified();
+}
+
+void SG_Node::SetWorldOrientation(const MT_Matrix3x3& rot)
+{
+	m_worldRotation = rot;
+}
+
+void SG_Node::RelativeScale(const MT_Vector3& scale)
+{
+	m_localScaling = m_localScaling * scale;
+	SetModified();
+}
+
+void SG_Node::SetLocalScale(const MT_Vector3& scale)
+{
+	m_localScaling = scale;
+	SetModified();
+}
+
+void SG_Node::SetWorldScale(const MT_Vector3& scale)
+{
+	m_worldScaling = scale;
+}
+
+const MT_Vector3& SG_Node::GetLocalPosition() const
+{
+	return m_localPosition;
+}
+
+const MT_Matrix3x3& SG_Node::GetLocalOrientation() const
+{
+	return m_localRotation;
+}
+
+const MT_Vector3& SG_Node::GetLocalScale() const
+{
+	return m_localScaling;
+}
+
+const MT_Vector3& SG_Node::GetWorldPosition() const
+{
+	return m_worldPosition;
+}
+
+const MT_Matrix3x3& SG_Node::GetWorldOrientation() const
+{
+	return m_worldRotation;
+}
+
+const MT_Vector3& SG_Node::GetWorldScaling() const
+{
+	return m_worldScaling;
+}
+
+void SG_Node::SetWorldFromLocalTransform()
+{
+	m_worldPosition = m_localPosition;
+	m_worldScaling = m_localScaling;
+	m_worldRotation = m_localRotation;
+}
+
 MT_Transform SG_Node::GetWorldTransform() const
 {
 	return MT_Transform(m_worldPosition,
@@ -327,7 +519,22 @@ MT_Transform SG_Node::GetWorldTransform() const
 							m_worldScaling[0], m_worldScaling[1], m_worldScaling[2]));
 }
 
-bool SG_Node::inside(const MT_Vector3 &point) const
+bool SG_Node::ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated)
+{
+	return m_parent_relation->UpdateChildCoordinates(this, parent, parentUpdated);
+}
+
+SG_BBox& SG_Node::BBox()
+{
+	return m_bbox;
+}
+
+void SG_Node::SetBBox(SG_BBox& bbox)
+{
+	m_bbox = bbox;
+}
+
+bool SG_Node::Inside(const MT_Vector3 &point) const
 {
 	MT_Scalar radius = m_worldScaling[m_worldScaling.closestAxis()] * m_bbox.GetRadius();
 	return (m_worldPosition.distance2(point) <= radius * radius) ?
@@ -335,13 +542,67 @@ bool SG_Node::inside(const MT_Vector3 &point) const
 	       false;
 }
 
-void SG_Node::getBBox(MT_Vector3 *box) const
+void SG_Node::GetBBox(MT_Vector3 *box) const
 {
 	m_bbox.get(box, GetWorldTransform());
 }
 
-void SG_Node::getAABBox(MT_Vector3 *box) const
+bool SG_Node::IsModified()
 {
-	m_bbox.getaa(box, GetWorldTransform());
+	return m_modified;
+}
+bool SG_Node::IsDirty()
+{
+	return m_ogldirty;
 }
 
+bool SG_Node::ActivateReplicationCallback(SG_Node *replica)
+{
+	if (m_callbacks.m_replicafunc) {
+		// Call client provided replication func
+		if (m_callbacks.m_replicafunc(replica, m_SGclientObject, m_SGclientInfo) == NULL) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void SG_Node::ActivateDestructionCallback()
+{
+	if (m_callbacks.m_destructionfunc) {
+		// Call client provided destruction function on this!
+		m_callbacks.m_destructionfunc(this, m_SGclientObject, m_SGclientInfo);
+	}
+	else {
+		// no callback but must still destroy the node to avoid memory leak
+		delete this;
+	}
+}
+
+void SG_Node::ActivateUpdateTransformCallback()
+{
+	if (m_callbacks.m_updatefunc) {
+		// Call client provided update func.
+		m_callbacks.m_updatefunc(this, m_SGclientObject, m_SGclientInfo);
+	}
+}
+
+bool SG_Node::ActivateScheduleUpdateCallback()
+{
+	// HACK, this check assumes that the scheduled nodes are put on a DList (see SG_Node.h)
+	// The early check on Empty() allows up to avoid calling the callback function
+	// when the node is already scheduled for update.
+	if (Empty() && m_callbacks.m_schedulefunc) {
+		// Call client provided update func.
+		return m_callbacks.m_schedulefunc(this, m_SGclientObject, m_SGclientInfo);
+	}
+	return false;
+}
+
+void SG_Node::ActivateRecheduleUpdateCallback()
+{
+	if (m_callbacks.m_reschedulefunc) {
+		// Call client provided update func.
+		m_callbacks.m_reschedulefunc(this, m_SGclientObject, m_SGclientInfo);
+	}
+}

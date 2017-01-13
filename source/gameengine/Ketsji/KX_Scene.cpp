@@ -1356,7 +1356,7 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 	// If the camera is inside this node, then the object is visible.
 	if (!vis)
 	{
-		vis = gameobj->GetSGNode()->inside( cam->GetCameraLocation() );
+		vis = gameobj->GetSGNode()->Inside( cam->GetCameraLocation() );
 	}
 		
 	// Test the object's bound sphere against the view frustum.
@@ -1377,7 +1377,7 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 			case KX_Camera::INTERSECT:
 				// Test the object's bound box against the view frustum.
 				MT_Vector3 box[8];
-				gameobj->GetSGNode()->getBBox(box); 
+				gameobj->GetSGNode()->GetBBox(box); 
 				vis = cam->BoxInsideFrustum(box) != KX_Camera::OUTSIDE;
 				break;
 		}
