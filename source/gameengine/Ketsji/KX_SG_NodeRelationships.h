@@ -42,7 +42,7 @@
 #ifndef __KX_SG_NODERELATIONSHIPS_H__
 #define __KX_SG_NODERELATIONSHIPS_H__
 
-#include "SG_Spatial.h"
+#include "SG_Node.h"
 #include "SG_ParentRelation.h"
 
 class KX_NormalParentRelation : public SG_ParentRelation
@@ -65,8 +65,8 @@ public :
 
 		bool
 	UpdateChildCoordinates(
-		SG_Spatial * child,
-		const SG_Spatial * parent,
+		SG_Node * child,
+		const SG_Node * parent,
 		bool& parentUpdated
 	);
 
@@ -114,8 +114,8 @@ public :
 
 		bool
 	UpdateChildCoordinates(
-		SG_Spatial * child,
-		const SG_Spatial * parent,
+		SG_Node * child,
+		const SG_Node * parent,
 		bool& parentUpdated
 	);
 
@@ -170,8 +170,8 @@ public :
 
 		bool
 	UpdateChildCoordinates(
-		SG_Spatial * child,
-		const SG_Spatial * parent,
+		SG_Node * child,
+		const SG_Node * parent,
 		bool& parentUpdated
 	);
 

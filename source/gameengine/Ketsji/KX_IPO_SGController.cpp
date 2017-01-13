@@ -88,7 +88,7 @@ void KX_IpoSGController::SetOption(int option, int value)
 		}
 		break;
 	case SG_CONTR_IPO_LOCAL:
-		if (value/* && ((SG_Node*)m_pObject)->GetSGParent() == NULL*/) {
+		if (value/* && ((SG_Node*)m_node)->GetSGParent() == NULL*/) {
 			// only accept local Ipo if the object has no parent
 			m_ipo_local = true;
 		}
@@ -115,7 +115,7 @@ bool KX_IpoSGController::Update(double currentTime)
 			(*i)->Execute(m_ipotime);//currentTime);
 		}
 
-		SG_Spatial *ob = (SG_Spatial *)m_pObject;
+		SG_Node *ob = (SG_Node *)m_node;
 
 		//initialization on the first frame of the IPO
 		if (!m_ipo_start_initialized) {
@@ -333,7 +333,7 @@ SG_Controller *KX_IpoSGController::GetReplica(SG_Node *destnode)
 {
 	KX_IpoSGController *iporeplica = new KX_IpoSGController(*this);
 	// clear object that ipo acts on in the replica.
-	iporeplica->ClearObject();
+	iporeplica->ClearNode();
 	iporeplica->SetGameObject((KX_GameObject *)destnode->GetSGClientObject());
 
 	// dirty hack, ask Gino for a better solution in the ipo implementation

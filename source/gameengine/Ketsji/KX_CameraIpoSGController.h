@@ -33,7 +33,7 @@
 #define __KX_CAMERAIPOSGCONTROLLER_H__
 
 #include "SG_Controller.h"
-#include "SG_Spatial.h"
+#include "SG_Node.h"
 
 #include "KX_IInterpolator.h"
 

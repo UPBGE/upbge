@@ -39,7 +39,7 @@
 #include <set>
 #include <list>
 
-#include "SG_IObject.h"
+#include "SG_Node.h"
 #include "SCA_IScene.h"
 #include "MT_Transform.h"
 
@@ -67,7 +67,7 @@ class SCA_ISystem;
 class SCA_IInputDevice;
 class KX_NetworkMessageScene;
 class KX_NetworkMessageManager;
-class SG_IObject;
+class SG_Node;
 class SG_Node;
 class KX_WorldInfo;
 class KX_Camera;
@@ -325,8 +325,8 @@ public:
 	/**
 	 * Update all transforms according to the scenegraph.
 	 */
-	static bool KX_ScenegraphUpdateFunc(SG_IObject* node,void* gameobj,void* scene);
-	static bool KX_ScenegraphRescheduleFunc(SG_IObject* node,void* gameobj,void* scene);
+	static bool KX_ScenegraphUpdateFunc(SG_Node* node,void* gameobj,void* scene);
+	static bool KX_ScenegraphRescheduleFunc(SG_Node* node,void* gameobj,void* scene);
 	void UpdateParents(double curtime);
 	void DupliGroupRecurse(CValue* gameobj, int level);
 	bool IsObjectInGroup(CValue* gameobj)
@@ -338,9 +338,9 @@ public:
 	SCA_IObject* AddReplicaObject(CValue* gameobj,
 	                              CValue* locationobj,
 	                              float lifespan=0.0f);
-	KX_GameObject* AddNodeReplicaObject(SG_IObject* node,
+	KX_GameObject* AddNodeReplicaObject(SG_Node* node,
 	                                    CValue* gameobj);
-	void RemoveNodeDestructObject(SG_IObject* node,
+	void RemoveNodeDestructObject(SG_Node* node,
 	                              CValue* gameobj);
 	void RemoveObject(CValue* gameobj);
 	void RemoveDupliGroup(CValue *gameobj);

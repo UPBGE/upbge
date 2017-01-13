@@ -35,7 +35,7 @@
 #ifndef __SG_CONTROLLER_H__
 #define __SG_CONTROLLER_H__
 
-#include "SG_IObject.h"
+#include <stddef.h>
 
 class SG_Node;
 
@@ -46,7 +46,7 @@ class SG_Controller
 {
 public:
 	SG_Controller()
-		:m_pObject(NULL)
+		:m_node(NULL)
 	{
 	}
 
@@ -56,9 +56,9 @@ public:
 
 	virtual bool Update(double time) = 0;
 
-	virtual void SetObject(SG_IObject *object);
+	virtual void SetNode(SG_Node *node);
 
-	void ClearObject();
+	void ClearNode();
 
 	virtual void SetSimulatedTime(double time) = 0;
 
@@ -93,7 +93,7 @@ public:
 	};
 
 protected:
-	SG_IObject *m_pObject;
+	SG_Node *m_node;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_Controller")

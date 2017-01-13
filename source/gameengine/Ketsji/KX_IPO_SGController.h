@@ -33,7 +33,7 @@
 #define __KX_IPO_SGCONTROLLER_H__
 
 #include "SG_Controller.h"
-#include "SG_Spatial.h"
+#include "SG_Node.h"
 
 #include "KX_IPOTransform.h"
 #include "KX_IInterpolator.h"

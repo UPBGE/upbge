@@ -30,9 +30,9 @@
  */
 
 #include "KX_MotionState.h"
-#include "SG_Spatial.h"
+#include "SG_Node.h"
 
-KX_MotionState::KX_MotionState(SG_Spatial *node)
+KX_MotionState::KX_MotionState(SG_Node *node)
 	:m_node(node)
 {
 

@@ -52,7 +52,7 @@
 #ifndef __SG_PARENTRELATION_H__
 #define __SG_PARENTRELATION_H__
 
-class SG_Spatial;
+class SG_Node;
 
 class SG_ParentRelation
 {
@@ -65,7 +65,7 @@ public:
 	 * copy the local coordinates of the child to the
 	 * world coordinates.
 	 */
-	virtual bool UpdateChildCoordinates(SG_Spatial *child, const SG_Spatial *parent, bool& parentUpdated) = 0;
+	virtual bool UpdateChildCoordinates(SG_Node *child, const SG_Node *parent, bool& parentUpdated) = 0;
 
 	virtual ~SG_ParentRelation()
 	{

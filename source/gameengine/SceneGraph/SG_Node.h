@@ -32,15 +32,104 @@
 #ifndef __SG_NODE_H__
 #define __SG_NODE_H__
 
-#include "SG_Spatial.h"
+#include "SG_QList.h"
+#include "SG_BBox.h"
+#include "SG_ParentRelation.h"
 #include <vector>
+
+
+class SG_Controller;
+class SG_Node;
+
+// used for debugging: stage of the game engine main loop at which a Scenegraph modification is done
+enum SG_Stage
+{
+	SG_STAGE_UNKNOWN = 0,
+	SG_STAGE_NETWORK,
+	SG_STAGE_NETWORK_UPDATE,
+	SG_STAGE_PHYSICS1,
+	SG_STAGE_PHYSICS1_UPDATE,
+	SG_STAGE_CONTROLLER,
+	SG_STAGE_CONTROLLER_UPDATE,
+	SG_STAGE_ACTUATOR,
+	SG_STAGE_ACTUATOR_UPDATE,
+	SG_STAGE_ANIMATION_UPDATE,
+	SG_STAGE_PHYSICS2,
+	SG_STAGE_PHYSICS2_UPDATE,
+	SG_STAGE_SCENE,
+	SG_STAGE_RENDER,
+	SG_STAGE_CONVERTER,
+	SG_STAGE_CULLING,
+	SG_STAGE_MAX
+};
+
+extern SG_Stage gSG_Stage;
+
+inline void SG_SetActiveStage(SG_Stage stage)
+{
+	gSG_Stage = stage;
+}
+
+typedef std::vector<SG_Controller *> SGControllerList;
+
+typedef void * (*SG_ReplicationNewCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
+typedef void * (*SG_DestructionNewCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
+typedef void (*SG_UpdateTransformCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
+typedef bool (*SG_ScheduleUpdateCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
+typedef bool (*SG_RescheduleUpdateCallback)(SG_Node *sgnode, void *clientobj, void *clientinfo);
+
+/**
+ * SG_Callbacks hold 2 call backs to the outside world.
+ * The first is meant to be called when objects are replicated.
+ * And allows the outside world to synchronize external objects
+ * with replicated nodes and their children.
+ * The second is called when a node is destroyed and again
+ * is their for synchronization purposes
+ * These callbacks may both be NULL.
+ * The efficacy of this approach has not been proved some
+ * alternatives might be to perform all replication and destruction
+ * externally.
+ * To define a class interface rather than a simple function
+ * call back so that replication information can be transmitted from
+ * parent->child.
+ */
+struct SG_Callbacks {
+	SG_Callbacks()
+	:m_replicafunc(NULL),
+	m_destructionfunc(NULL),
+	m_updatefunc(NULL),
+	m_schedulefunc(NULL),
+	m_reschedulefunc(NULL)
+	{
+	}
+	
+	SG_Callbacks(
+		SG_ReplicationNewCallback repfunc,
+		SG_DestructionNewCallback destructfunc,
+		SG_UpdateTransformCallback updatefunc,
+		SG_ScheduleUpdateCallback schedulefunc,
+		SG_RescheduleUpdateCallback reschedulefunc)
+	:m_replicafunc(repfunc),
+	m_destructionfunc(destructfunc),
+	m_updatefunc(updatefunc),
+	m_schedulefunc(schedulefunc),
+	m_reschedulefunc(reschedulefunc)
+	{
+	}
+	
+	SG_ReplicationNewCallback m_replicafunc;
+	SG_DestructionNewCallback m_destructionfunc;
+	SG_UpdateTransformCallback m_updatefunc;
+	SG_ScheduleUpdateCallback m_schedulefunc;
+	SG_RescheduleUpdateCallback m_reschedulefunc;
+};
 
 typedef std::vector<SG_Node *> NodeList;
 
 /**
  * Scenegraph node.
  */
-class SG_Node : public SG_Spatial
+class SG_Node : public SG_QList
 {
 public:
 	SG_Node(void *clientobj, void *clientinfo, SG_Callbacks& callbacks);
@@ -199,9 +288,337 @@ public:
 
 	void Destruct();
 
-private:
+	/**
+	 * Add a pointer to a controller allocated on the heap, to
+	 * this node. This memory for this controller becomes the
+	 * responsibility of this class. It will be deleted when
+	 * this object is deleted.
+	 */
+	void AddSGController(SG_Controller *cont);
 
+	/**
+	 * Remove a pointer to a controller from this node.
+	 * This does not delete the controller itself! Be careful to
+	 * avoid memory leaks.
+	 */
+	void RemoveSGController(SG_Controller *cont);
+
+	/**
+	 * Clear the array of pointers to controllers associated with
+	 * this node. This does not delete the controllers themselves!
+	 * This should be used very carefully to avoid memory
+	 * leaks.
+	 */
+	void RemoveAllControllers();
+
+	/// Needed for replication
+
+	/**
+	 * Return a reference to this node's controller list.
+	 * Whilst we don't wish to expose full control of the container
+	 * to the user we do allow them to call non_const methods
+	 * on pointers in the container. C++ topic: how to do this in
+	 * using STL?
+	 */
+	SGControllerList& GetSGControllerList()
+	{
+		return m_SGcontrollers;
+	}
+
+	/**
+	 * 
+	 */
+	SG_Callbacks& GetCallBackFunctions()
+	{
+		return m_callbacks;
+	}
+
+	/**
+	 * Get the client object associated with this
+	 * node. This interface allows you to associate
+	 * arbitrary external objects with this node. They are
+	 * passed to the callback functions when they are
+	 * activated so you can synchronize these external objects
+	 * upon replication and destruction
+	 * This may be NULL.
+	 */
+	inline const void *GetSGClientObject() const
+	{
+		return m_SGclientObject;
+	}
+
+	inline void *GetSGClientObject()
+	{
+		return m_SGclientObject;
+	}
+
+	/**
+	 * Set the client object for this node. This is just a
+	 * pointer to an object allocated that should exist for
+	 * the duration of the lifetime of this object, or until
+	 * this function is called again.
+	 */
+	void SetSGClientObject(void *clientObject)
+	{
+		m_SGclientObject = clientObject;
+	}
+
+	/* needed for scene switching */
+	inline const void *GetSGClientInfo() const
+	{
+		return m_SGclientInfo;
+	}
+	inline void *GetSGClientInfo()
+	{
+		return m_SGclientInfo;
+	}
+	void SetSGClientInfo(void *clientInfo)
+	{
+		m_SGclientInfo = clientInfo;
+	}
+
+	/**
+	 * Set the current simulation time for this node.
+	 * The implementation of this function runs through
+	 * the nodes list of controllers and calls their SetSimulatedTime methods
+	 */
+	void SetControllerTime(double time);
+
+	inline void ClearModified()
+	{
+		m_modified = false;
+		m_ogldirty = true;
+	}
+	inline void SetModified()
+	{
+		m_modified = true;
+		ActivateScheduleUpdateCallback();
+	}
+	inline void ClearDirty()
+	{
+		m_ogldirty = false;
+	}
+
+	/**
+	 * Define the relationship this node has with it's parent
+	 * node. You should pass an unshared instance of an SG_ParentRelation
+	 * allocated on the heap to this method. Ownership of this
+	 * instance is assumed by this class.
+	 * You may call this function several times in the lifetime
+	 * of a node to change the relationship dynamically.
+	 * You must call this method before the first call to UpdateSpatialData().
+	 * An assertion will be fired at run-time in debug if this is not
+	 * the case.
+	 * The relation is activated only if no controllers of this object
+	 * updated the coordinates of the child.
+	 */
+	void SetParentRelation(SG_ParentRelation *relation);
+
+	SG_ParentRelation *GetParentRelation()
+	{
+		return m_parent_relation;
+	}
+
+	/**
+	 * Apply a translation relative to the current position.
+	 * if local then the translation is assumed to be in the
+	 * local coordinates of this object. If not then the translation
+	 * is assumed to be in global coordinates. In this case
+	 * you must provide a pointer to the parent of this object if it
+	 * exists otherwise if there is no parent set it to NULL
+	 */
+	void RelativeTranslate(const MT_Vector3& trans, const SG_Node *parent, bool local);
+
+	void SetLocalPosition(const MT_Vector3& trans)
+	{
+		m_localPosition = trans;
+		SetModified();
+	}
+
+	void SetWorldPosition(const MT_Vector3& trans)
+	{
+		m_worldPosition = trans;
+	}
+
+	void RelativeRotate(const MT_Matrix3x3& rot, bool local);
+
+	void SetLocalOrientation(const MT_Matrix3x3& rot)
+	{
+		m_localRotation = rot;
+		SetModified();
+	}
+
+	// rot is arrange like openGL matrix
+	void SetLocalOrientation(const float *rot)
+	{
+		m_localRotation.setValue(rot);
+		SetModified();
+	}
+
+	void SetWorldOrientation(const MT_Matrix3x3& rot)
+	{
+		m_worldRotation = rot;
+	}
+
+	void RelativeScale(const MT_Vector3& scale)
+	{
+		m_localScaling = m_localScaling * scale;
+		SetModified();
+	}
+
+	void SetLocalScale(const MT_Vector3& scale)
+	{
+		m_localScaling = scale;
+		SetModified();
+	}
+
+	void SetWorldScale(const MT_Vector3& scale)
+	{
+		m_worldScaling = scale;
+	}
+
+	const MT_Vector3& GetLocalPosition() const
+	{
+		return m_localPosition;
+	}
+
+	const MT_Matrix3x3& GetLocalOrientation() const
+	{
+		return m_localRotation;
+	}
+
+	const MT_Vector3& GetLocalScale() const
+	{
+		return m_localScaling;
+	}
+
+	const MT_Vector3& GetWorldPosition() const
+	{
+		return m_worldPosition;
+	}
+
+	const MT_Matrix3x3& GetWorldOrientation() const
+	{
+		return m_worldRotation;
+	}
+
+	const MT_Vector3& GetWorldScaling() const
+	{
+		return m_worldScaling;
+	}
+
+	void SetWorldFromLocalTransform()
+	{
+		m_worldPosition = m_localPosition;
+		m_worldScaling = m_localScaling;
+		m_worldRotation = m_localRotation;
+	}
+
+	MT_Transform GetWorldTransform() const;
+
+	bool ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated)
+	{
+		return m_parent_relation->UpdateChildCoordinates(this, parent, parentUpdated);
+	}
+
+	/**
+	 * Bounding box functions.
+	 */
+	SG_BBox& BBox()
+	{
+		return m_bbox;
+	}
+
+	void SetBBox(SG_BBox& bbox)
+	{
+		m_bbox = bbox;
+	}
+
+	bool inside(const MT_Vector3 &point) const;
+	void getBBox(MT_Vector3 *box) const;
+	void getAABBox(MT_Vector3 *box) const;
+
+	bool IsModified()
+	{
+		return m_modified;
+	}
+	bool IsDirty()
+	{
+		return m_ogldirty;
+	}
+
+protected:
+	friend class SG_Controller;
+	friend class KX_BoneParentRelation;
+	friend class KX_VertexParentRelation;
+	friend class KX_SlowParentRelation;
+	friend class KX_NormalParentRelation;
+
+	bool ActivateReplicationCallback(SG_Node *replica)
+	{
+		if (m_callbacks.m_replicafunc) {
+			// Call client provided replication func
+			if (m_callbacks.m_replicafunc(replica, m_SGclientObject, m_SGclientInfo) == NULL) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	void ActivateDestructionCallback()
+	{
+		if (m_callbacks.m_destructionfunc) {
+			// Call client provided destruction function on this!
+			m_callbacks.m_destructionfunc(this, m_SGclientObject, m_SGclientInfo);
+		}
+		else {
+			// no callback but must still destroy the node to avoid memory leak
+			delete this;
+		}
+	}
+
+	void ActivateUpdateTransformCallback()
+	{
+		if (m_callbacks.m_updatefunc) {
+			// Call client provided update func.
+			m_callbacks.m_updatefunc(this, m_SGclientObject, m_SGclientInfo);
+		}
+	}
+
+	bool ActivateScheduleUpdateCallback()
+	{
+		// HACK, this check assumes that the scheduled nodes are put on a DList (see SG_Node.h)
+		// The early check on Empty() allows up to avoid calling the callback function
+		// when the node is already scheduled for update.
+		if (Empty() && m_callbacks.m_schedulefunc) {
+			// Call client provided update func.
+			return m_callbacks.m_schedulefunc(this, m_SGclientObject, m_SGclientInfo);
+		}
+		return false;
+	}
+
+	void ActivateRecheduleUpdateCallback()
+	{
+		if (m_callbacks.m_reschedulefunc) {
+			// Call client provided update func.
+			m_callbacks.m_reschedulefunc(this, m_SGclientObject, m_SGclientInfo);
+		}
+	}
+
+	/**
+	 * Update the world coordinates of this spatial node. This also informs
+	 * any controllers to update this object.
+	 */
+	
+	bool UpdateSpatialData(const SG_Node *parent, double time, bool& parentUpdated);
+
+private:
 	void ProcessSGReplica(SG_Node **replica);
+
+	void *m_SGclientObject;
+	void *m_SGclientInfo;
+	SG_Callbacks m_callbacks;
+	SGControllerList m_SGcontrollers;
 
 	/**
 	 * The list of children of this node.
@@ -212,6 +629,21 @@ private:
 	 * The parent of this node may be NULL
 	 */
 	SG_Node *m_SGparent;
+
+	MT_Vector3 m_localPosition;
+	MT_Matrix3x3 m_localRotation;
+	MT_Vector3 m_localScaling;
+
+	MT_Vector3 m_worldPosition;
+	MT_Matrix3x3 m_worldRotation;
+	MT_Vector3 m_worldScaling;
+
+	SG_ParentRelation *m_parent_relation;
+
+	SG_BBox m_bbox;
+	bool m_modified;
+	bool m_ogldirty; // true if the openGL matrix for this object must be recomputed
+
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_Node")

@@ -38,14 +38,14 @@
 #include "MEM_guardedalloc.h"
 #endif
 
-class SG_Spatial;
+class SG_Node;
 
 class KX_MotionState : public PHY_IMotionState
 {
-	SG_Spatial *m_node;
+	SG_Node *m_node;
 
 public:
-	KX_MotionState(SG_Spatial *spatial);
+	KX_MotionState(SG_Node *spatial);
 	virtual ~KX_MotionState();
 
 	virtual void GetWorldPosition(float& posX, float& posY, float& posZ);

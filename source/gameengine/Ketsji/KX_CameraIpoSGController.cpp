@@ -50,7 +50,7 @@ bool KX_CameraIpoSGController::Update(double currentTime)
 			(*i)->Execute(m_ipotime);
 		}
 		
-		SG_Spatial* ob = (SG_Spatial*)m_pObject;
+		SG_Node* ob = (SG_Node*)m_node;
 		KX_Camera* kxcamera = (KX_Camera*) ob->GetSGClientObject();
 		RAS_CameraData* camdata = kxcamera->GetCameraData();
 		
@@ -81,7 +81,7 @@ SG_Controller*	KX_CameraIpoSGController::GetReplica(class SG_Node* destnode)
 {
 	KX_CameraIpoSGController* iporeplica = new KX_CameraIpoSGController(*this);
 	// clear object that ipo acts on
-	iporeplica->ClearObject();
+	iporeplica->ClearNode();
 
 	// dirty hack, ask Gino for a better solution in the ipo implementation
 	// hacken en zagen, in what we call datahiding, not written for replication :(

@@ -30,26 +30,60 @@
 
 
 #include "SG_Node.h"
-#include "SG_ParentRelation.h"
+#include "SG_Controller.h"
+
 #include <algorithm>
 
+SG_Stage gSG_Stage = SG_STAGE_UNKNOWN;
+
 SG_Node::SG_Node(void *clientobj, void *clientinfo, SG_Callbacks& callbacks)
-	:SG_Spatial(clientobj, clientinfo, callbacks),
-	m_SGparent(NULL)
+	:SG_QList(),
+	m_SGclientObject(clientobj),
+	m_SGclientInfo(clientinfo),
+	m_callbacks(callbacks),
+	m_SGparent(NULL),
+	m_localPosition(0.0f, 0.0f, 0.0f),
+	m_localRotation(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+	m_localScaling(1.0f, 1.0f, 1.0f),
+	m_worldPosition(0.0f, 0.0f, 0.0f),
+	m_worldRotation(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f),
+	m_worldScaling(1.0f, 1.0f, 1.0f),
+	m_parent_relation(NULL),
+	m_bbox(MT_Vector3(-1.0f, -1.0f, -1.0f), MT_Vector3(1.0f, 1.0f, 1.0f)),
+	m_modified(true),
+	m_ogldirty(false)
 {
-	m_modified = true;
 }
 
 SG_Node::SG_Node(const SG_Node & other)
-	:SG_Spatial(other),
+	:SG_QList(),
+	m_SGclientObject(other.m_SGclientObject),
+	m_SGclientInfo(other.m_SGclientInfo),
+	m_callbacks(other.m_callbacks),
 	m_children(other.m_children),
-	m_SGparent(other.m_SGparent)
+	m_SGparent(other.m_SGparent),
+	m_localPosition(other.m_localPosition),
+	m_localRotation(other.m_localRotation),
+	m_localScaling(other.m_localScaling),
+	m_worldPosition(other.m_worldPosition),
+	m_worldRotation(other.m_worldRotation),
+	m_worldScaling(other.m_worldScaling),
+	m_parent_relation(other.m_parent_relation->NewCopy()),
+	m_bbox(other.m_bbox),
+	m_modified(true),
+	m_ogldirty(false)
 {
-	m_modified = true;
 }
 
 SG_Node::~SG_Node()
 {
+	SGControllerList::iterator contit;
+
+	for (contit = m_SGcontrollers.begin(); contit != m_SGcontrollers.end(); ++contit) {
+		delete (*contit);
+	}
+
+	delete m_parent_relation;
 }
 
 SG_Node *SG_Node::GetSGReplica()
@@ -74,7 +108,7 @@ void SG_Node::ProcessSGReplica(SG_Node **replica)
 	}
 
 	// clear the replica node of it's parent.
-	static_cast<SG_Node *>(*replica)->m_SGparent = NULL;
+	(*replica)->m_SGparent = NULL;
 
 	if (m_children.begin() != m_children.end()) {
 		// if this node has children, the replica has too, so clear and clone children
@@ -184,3 +218,130 @@ void SG_Node::SetSimulatedTime(double time, bool recurse)
 		}
 	}
 }
+
+void SG_Node::AddSGController(SG_Controller *cont)
+{
+	m_SGcontrollers.push_back(cont);
+}
+
+void SG_Node::RemoveSGController(SG_Controller *cont)
+{
+	SGControllerList::iterator contit;
+	
+	m_SGcontrollers.erase(std::remove(m_SGcontrollers.begin(), m_SGcontrollers.end(), cont));
+}
+
+void SG_Node::RemoveAllControllers()
+{
+	m_SGcontrollers.clear();
+}
+
+void SG_Node::SetControllerTime(double time)
+{
+	SGControllerList::iterator contit;
+
+	for (contit = m_SGcontrollers.begin(); contit != m_SGcontrollers.end(); ++contit)
+	{
+		(*contit)->SetSimulatedTime(time);
+	}
+}
+
+
+void SG_Node::SetParentRelation(SG_ParentRelation *relation)
+{
+	delete m_parent_relation;
+	m_parent_relation = relation;
+	SetModified();
+}
+
+/**
+ * Update Spatial Data.
+ * Calculates WorldTransform., (either doing its self or using the linked SGControllers)
+ */
+bool SG_Node::UpdateSpatialData(const SG_Node *parent, double time, bool& parentUpdated)
+{
+	bool bComputesWorldTransform = false;
+
+	// update spatial controllers
+
+	SGControllerList::iterator cit = GetSGControllerList().begin();
+	SGControllerList::const_iterator c_end = GetSGControllerList().end();
+
+	for (; cit != c_end; ++cit) {
+		if ((*cit)->Update(time)) {
+			bComputesWorldTransform = true;
+		}
+	}
+
+	// If none of the objects updated our values then we ask the
+	// parent_relation object owned by this class to update
+	// our world coordinates.
+
+	if (!bComputesWorldTransform) {
+		bComputesWorldTransform = ComputeWorldTransforms(parent, parentUpdated);
+	}
+
+	return bComputesWorldTransform;
+}
+
+/**
+ * Position and translation methods
+ */
+void SG_Node::RelativeTranslate(const MT_Vector3& trans, const SG_Node *parent, bool local)
+{
+	if (local) {
+		m_localPosition += m_localRotation * trans;
+	}
+	else {
+		if (parent) {
+			m_localPosition += trans * parent->GetWorldOrientation();
+		}
+		else {
+			m_localPosition += trans;
+		}
+	}
+	SetModified();
+}
+
+/**
+ * Scaling methods.
+ */
+
+/**
+ * Orientation and rotation methods.
+ */
+void SG_Node::RelativeRotate(const MT_Matrix3x3& rot, bool local)
+{
+	m_localRotation = m_localRotation * (
+		local ?
+		rot
+		:
+		(GetWorldOrientation().inverse() * rot * GetWorldOrientation()));
+	SetModified();
+}
+
+MT_Transform SG_Node::GetWorldTransform() const
+{
+	return MT_Transform(m_worldPosition,
+	                    m_worldRotation.scaled(
+							m_worldScaling[0], m_worldScaling[1], m_worldScaling[2]));
+}
+
+bool SG_Node::inside(const MT_Vector3 &point) const
+{
+	MT_Scalar radius = m_worldScaling[m_worldScaling.closestAxis()] * m_bbox.GetRadius();
+	return (m_worldPosition.distance2(point) <= radius * radius) ?
+	       m_bbox.transform(GetWorldTransform()).inside(point) :
+	       false;
+}
+
+void SG_Node::getBBox(MT_Vector3 *box) const
+{
+	m_bbox.get(box, GetWorldTransform());
+}
+
+void SG_Node::getAABBox(MT_Vector3 *box) const
+{
+	m_bbox.getaa(box, GetWorldTransform());
+}
+

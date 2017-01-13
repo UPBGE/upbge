@@ -52,8 +52,8 @@ New(
 	bool
 KX_NormalParentRelation::
 UpdateChildCoordinates(
-	SG_Spatial * child,
-	const SG_Spatial * parent,
+	SG_Node * child,
+	const SG_Node * parent,
 	bool& parentUpdated
 ) {
 	BLI_assert(child != NULL);
@@ -121,8 +121,8 @@ New(
 	bool
 KX_VertexParentRelation::
 UpdateChildCoordinates(
-	SG_Spatial * child,
-	const SG_Spatial * parent,
+	SG_Node * child,
+	const SG_Node * parent,
 	bool& parentUpdated
 ) {
 
@@ -187,8 +187,8 @@ New(
 	bool
 KX_SlowParentRelation::
 UpdateChildCoordinates(
-	SG_Spatial * child,
-	const SG_Spatial * parent,
+	SG_Node * child,
+	const SG_Node * parent,
 	bool& parentUpdated
 ) {
 	BLI_assert(child != NULL);

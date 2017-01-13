@@ -31,12 +31,12 @@
 
 #include "SG_Controller.h"
 
-void SG_Controller::SetObject(SG_IObject *obj)
+void SG_Controller::SetNode(SG_Node *node)
 {
-	m_pObject = obj; // no checks yet ?
+	m_node = node; // no checks yet ?
 }
 
-void SG_Controller::ClearObject()
+void SG_Controller::ClearNode()
 {
-	m_pObject = NULL;
+	m_node = NULL;
 }

@@ -73,7 +73,7 @@
 #include "SCA_IActuator.h"
 #include "SG_Node.h"
 #include "SG_Controller.h"
-#include "SG_IObject.h"
+#include "SG_Node.h"
 #include "DNA_group_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_property_types.h"
@@ -106,7 +106,7 @@
 
 #include "CM_Message.h"
 
-static void *KX_SceneReplicationFunc(SG_IObject* node,void* gameobj,void* scene)
+static void *KX_SceneReplicationFunc(SG_Node* node,void* gameobj,void* scene)
 {
 	KX_GameObject* replica = ((KX_Scene*)scene)->AddNodeReplicaObject(node,(KX_GameObject*)gameobj);
 
@@ -116,21 +116,21 @@ static void *KX_SceneReplicationFunc(SG_IObject* node,void* gameobj,void* scene)
 	return (void*)replica;
 }
 
-static void *KX_SceneDestructionFunc(SG_IObject* node,void* gameobj,void* scene)
+static void *KX_SceneDestructionFunc(SG_Node* node,void* gameobj,void* scene)
 {
 	((KX_Scene*)scene)->RemoveNodeDestructObject(node,(KX_GameObject*)gameobj);
 
 	return NULL;
 };
 
-bool KX_Scene::KX_ScenegraphUpdateFunc(SG_IObject* node,void* gameobj,void* scene)
+bool KX_Scene::KX_ScenegraphUpdateFunc(SG_Node* node,void* gameobj,void* scene)
 {
-	return ((SG_Node*)node)->Schedule(((KX_Scene*)scene)->m_sghead);
+	return node->Schedule(((KX_Scene*)scene)->m_sghead);
 }
 
-bool KX_Scene::KX_ScenegraphRescheduleFunc(SG_IObject* node,void* gameobj,void* scene)
+bool KX_Scene::KX_ScenegraphRescheduleFunc(SG_Node* node,void* gameobj,void* scene)
 {
-	return ((SG_Node*)node)->Reschedule(((KX_Scene*)scene)->m_sghead);
+	return node->Reschedule(((KX_Scene*)scene)->m_sghead);
 }
 
 SG_Callbacks KX_Scene::m_callbacks = SG_Callbacks(
@@ -458,7 +458,7 @@ void KX_Scene::AddObjectDebugProperties(class KX_GameObject* gameobj)
 		AddDebugProperty(gameobj, "__state__");
 }
 
-void KX_Scene::RemoveNodeDestructObject(class SG_IObject* node,class CValue* gameobj)
+void KX_Scene::RemoveNodeDestructObject(class SG_Node* node,class CValue* gameobj)
 {
 	KX_GameObject* orgobj = (KX_GameObject*)gameobj;
 	if (NewRemoveObject(orgobj) != 0)
@@ -481,7 +481,7 @@ void KX_Scene::RemoveNodeDestructObject(class SG_IObject* node,class CValue* gam
 		delete node;
 }
 
-KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_IObject* node, class CValue* gameobj)
+KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_Node* node, class CValue* gameobj)
 {
 	// for group duplication, limit the duplication of the hierarchy to the
 	// objects that are part of the group. 
@@ -505,7 +505,7 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_IObject* node, class CVal
 
 	if (node)
 	{
-		newobj->SetSGNode((SG_Node*)node);
+		newobj->SetSGNode(node);
 	}
 	else
 	{
@@ -525,7 +525,7 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_IObject* node, class CVal
 		newobj->SetSGNode(m_rootnode);
 	}
 	
-	SG_IObject* replicanode = newobj->GetSGNode();
+	SG_Node* replicanode = newobj->GetSGNode();
 //	SG_Node* rootnode = (replicanode == m_rootnode ? NULL : m_rootnode);
 
 	// Add the object in the obstacle simulation if needed.
@@ -556,10 +556,10 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_IObject* node, class CVal
 		// controller replication is quite complicated
 		// only replicate ipo controller for now
 
-		SG_Controller* replicacontroller = (*cit)->GetReplica((SG_Node*) replicanode);
+		SG_Controller* replicacontroller = (*cit)->GetReplica(replicanode);
 		if (replicacontroller)
 		{
-			replicacontroller->SetObject(replicanode);
+			replicacontroller->SetNode(replicanode);
 			replicanode->AddSGController(replicacontroller);
 		}
 	}

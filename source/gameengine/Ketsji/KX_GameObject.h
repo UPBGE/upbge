@@ -686,14 +686,14 @@ public:
 	UpdateTransform(
 	);
 
-	static void UpdateTransformFunc(SG_IObject* node, void* gameobj, void* scene);
+	static void UpdateTransformFunc(SG_Node* node, void* gameobj, void* scene);
 
 	/**
 	 * only used for sensor objects
 	 */
 	void SynchronizeTransform();
 
-	static void SynchronizeTransformFunc(SG_IObject* node, void* gameobj, void* scene);
+	static void SynchronizeTransformFunc(SG_Node* node, void* gameobj, void* scene);
 
 	/**
 	 * Function to set IPO option at start of IPO

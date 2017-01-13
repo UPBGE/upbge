@@ -33,7 +33,7 @@
 #define __KX_OBCOLORIPOSGCONTROLLER_H__
 
 #include "SG_Controller.h"
-#include "SG_Spatial.h"
+#include "SG_Node.h"
 #include "KX_IInterpolator.h"
 
 class KX_ObColorIpoSGController : public SG_Controller

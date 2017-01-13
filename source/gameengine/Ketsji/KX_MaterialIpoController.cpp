@@ -66,7 +66,7 @@ SG_Controller*	KX_MaterialIpoController::GetReplica(class SG_Node* destnode)
 {
 	KX_MaterialIpoController* iporeplica = new KX_MaterialIpoController(*this);
 	// clear object that ipo acts on
-	iporeplica->ClearObject();
+	iporeplica->ClearNode();
 
 	// dirty hack, ask Gino for a better solution in the ipo implementation
 	// hacken en zagen, in what we call datahiding, not written for replication :(

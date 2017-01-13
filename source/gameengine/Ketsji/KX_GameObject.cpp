@@ -178,7 +178,7 @@ KX_GameObject::~KX_GameObject()
 		SGControllerList& controllers = m_pSGNode->GetSGControllerList();
 		for (contit = controllers.begin();contit!=controllers.end();++contit)
 		{
-			(*contit)->ClearObject();
+			(*contit)->ClearNode();
 		}
 		m_pSGNode->SetSGClientObject(NULL);
 
@@ -843,7 +843,7 @@ void KX_GameObject::UpdateTransform()
 
 }
 
-void KX_GameObject::UpdateTransformFunc(SG_IObject* node, void* gameobj, void* scene)
+void KX_GameObject::UpdateTransformFunc(SG_Node* node, void* gameobj, void* scene)
 {
 	((KX_GameObject*)gameobj)->UpdateTransform();
 }
@@ -857,7 +857,7 @@ void KX_GameObject::SynchronizeTransform()
 		m_pGraphicController->SetGraphicTransform();
 }
 
-void KX_GameObject::SynchronizeTransformFunc(SG_IObject* node, void* gameobj, void* scene)
+void KX_GameObject::SynchronizeTransformFunc(SG_Node* node, void* gameobj, void* scene)
 {
 	((KX_GameObject*)gameobj)->SynchronizeTransform();
 }

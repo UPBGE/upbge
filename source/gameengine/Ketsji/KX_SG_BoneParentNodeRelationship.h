@@ -33,13 +33,13 @@
 #ifndef __KX_SG_BONEPARENTNODERELATIONSHIP_H__
 #define __KX_SG_BONEPARENTNODERELATIONSHIP_H__
  
-#include "SG_Spatial.h"
+#include "SG_Node.h"
 #include "SG_ParentRelation.h"
 
 struct Bone;
 
 /**
- *  Bone parent relationship parents a child SG_Spatial frame to a 
+ *  Bone parent relationship parents a child SG_Node frame to a 
  *  bone in an armature object.
  */
 class KX_BoneParentRelation : public SG_ParentRelation
@@ -67,8 +67,8 @@ public :
 	 */
 		bool
 	UpdateChildCoordinates(
-		SG_Spatial * child,
-		const SG_Spatial * parent,
+		SG_Node * child,
+		const SG_Node * parent,
 		bool& parentUpdated
 	);
 

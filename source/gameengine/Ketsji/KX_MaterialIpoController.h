@@ -9,7 +9,7 @@
 
 
 #include "SG_Controller.h"
-#include "SG_Spatial.h"
+#include "SG_Node.h"
 #include "KX_IInterpolator.h"
 
 class RAS_IPolyMaterial;

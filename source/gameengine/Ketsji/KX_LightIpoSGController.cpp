@@ -52,7 +52,7 @@ bool KX_LightIpoSGController::Update(double currentTime)
 		
 		RAS_ILightObject *lightobj;
 
-		SG_Spatial* ob = (SG_Spatial*)m_pObject;
+		SG_Node* ob = (SG_Node*)m_node;
 		KX_LightObject* kxlight = (KX_LightObject*) ob->GetSGClientObject();
 		lightobj = kxlight->GetLightData();
 		//lightobj = (KX_Light*) 
@@ -86,7 +86,7 @@ SG_Controller*	KX_LightIpoSGController::GetReplica(class SG_Node* destnode)
 {
 	KX_LightIpoSGController* iporeplica = new KX_LightIpoSGController(*this);
 	// clear object that ipo acts on
-	iporeplica->ClearObject();
+	iporeplica->ClearNode();
 
 	// dirty hack, ask Gino for a better solution in the ipo implementation
 	// hacken en zagen, in what we call datahiding, not written for replication :(

@@ -163,14 +163,14 @@ bool BL_Action::Play(const std::string& name,
 	SG_Controller *sg_contr = BL_CreateIPO(m_action, m_obj, kxscene->GetSceneConverter());
 	m_sg_contr_list.push_back(sg_contr);
 	m_obj->GetSGNode()->AddSGController(sg_contr);
-	sg_contr->SetObject(m_obj->GetSGNode());
+	sg_contr->SetNode(m_obj->GetSGNode());
 
 	// World
 	sg_contr = BL_CreateWorldIPO(m_action, kxscene->GetBlenderScene()->world, kxscene->GetSceneConverter());
 	if (sg_contr) {
 		m_sg_contr_list.push_back(sg_contr);
 		m_obj->GetSGNode()->AddSGController(sg_contr);
-		sg_contr->SetObject(m_obj->GetSGNode());
+		sg_contr->SetNode(m_obj->GetSGNode());
 	}
 
 	// Try obcolor
@@ -178,7 +178,7 @@ bool BL_Action::Play(const std::string& name,
 	if (sg_contr) {
 		m_sg_contr_list.push_back(sg_contr);
 		m_obj->GetSGNode()->AddSGController(sg_contr);
-		sg_contr->SetObject(m_obj->GetSGNode());
+		sg_contr->SetNode(m_obj->GetSGNode());
 	}
 
 	// Now try materials
@@ -198,7 +198,7 @@ bool BL_Action::Play(const std::string& name,
 		if (sg_contr) {
 			m_sg_contr_list.push_back(sg_contr);
 			m_obj->GetSGNode()->AddSGController(sg_contr);
-			sg_contr->SetObject(m_obj->GetSGNode());
+			sg_contr->SetNode(m_obj->GetSGNode());
 		}
 	}
 
@@ -208,14 +208,14 @@ bool BL_Action::Play(const std::string& name,
 		sg_contr = BL_CreateLampIPO(m_action, m_obj, kxscene->GetSceneConverter());
 		m_sg_contr_list.push_back(sg_contr);
 		m_obj->GetSGNode()->AddSGController(sg_contr);
-		sg_contr->SetObject(m_obj->GetSGNode());
+		sg_contr->SetNode(m_obj->GetSGNode());
 	}
 	else if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_CAMERA)
 	{
 		sg_contr = BL_CreateCameraIPO(m_action, m_obj, kxscene->GetSceneConverter());
 		m_sg_contr_list.push_back(sg_contr);
 		m_obj->GetSGNode()->AddSGController(sg_contr);
-		sg_contr->SetObject(m_obj->GetSGNode());
+		sg_contr->SetNode(m_obj->GetSGNode());
 	}
 	
 	m_ipo_flags = ipo_flags;
