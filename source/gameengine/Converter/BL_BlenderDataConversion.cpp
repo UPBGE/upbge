@@ -486,7 +486,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	}
 
 	// Get DerivedMesh data
-	DerivedMesh *dm = CDDM_from_mesh(mesh);
+	DerivedMesh *dm = mesh_create_derived_no_virtual(scene->GetBlenderScene(), blenderobj, NULL, CD_MASK_MESH);
 	DM_ensure_tessface(dm);
 
 	MVert *mvert = dm->getVertArray(dm);
@@ -984,6 +984,8 @@ static KX_GameObject *gameobject_from_blenderobject(
 {
 	KX_GameObject *gameobj = NULL;
 	Scene *blenderscene = kxscene->GetBlenderScene();
+
+	RAS_Deformer *deformer = NULL;
 	
 	switch (ob->type) {
 	case OB_LAMP:
@@ -1048,7 +1050,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		bool bHasShapeKey = mesh->key != NULL && mesh->key->type==KEY_RELATIVE;
 		bool bHasDvert = mesh->dvert != NULL && ob->defbase.first;
 		bool bHasArmature = (BL_ModifierDeformer::HasArmatureDeformer(ob) && ob->parent && ob->parent->type == OB_ARMATURE && bHasDvert);
-		bool bHasModifier = BL_ModifierDeformer::HasCompatibleDeformer(ob);
+		bool bHasModifier = false; //BL_ModifierDeformer::HasCompatibleDeformer(ob);
 #ifdef WITH_BULLET
 		bool bHasSoftBody = (!ob->parent && (ob->gameflag & OB_SOFT_BODY));
 #endif
@@ -1057,30 +1059,28 @@ static KX_GameObject *gameobject_from_blenderobject(
 		BL_DeformableGameObject *deformableGameObj = (BL_DeformableGameObject *)gameobj;
 
 		if (bHasModifier) {
-			deformer = new BL_ModifierDeformer(deformableGameObj, kxscene->GetBlenderScene(), ob, meshobj);
+			deformer = new BL_ModifierDeformer((BL_DeformableGameObject *)gameobj, kxscene->GetBlenderScene(), ob, meshobj);
 		}
 		else if (bHasShapeKey) {
 			// not that we can have shape keys without dvert! 
-			deformer = new BL_ShapeDeformer(deformableGameObj, ob, meshobj);
+			deformer = new BL_ShapeDeformer((BL_DeformableGameObject*)gameobj, ob, meshobj);
 		}
 		else if (bHasArmature) {
-			deformer = new BL_SkinDeformer(deformableGameObj, ob, meshobj);
+			deformer = new BL_SkinDeformer((BL_DeformableGameObject*)gameobj, ob, meshobj);
 		}
 		else if (bHasDvert) {
 			// this case correspond to a mesh that can potentially deform but not with the
 			// object to which it is attached for the moment. A skin mesh was created in
 			// BL_ConvertMesh() so must create a deformer too!
-			deformer = new BL_MeshDeformer(deformableGameObj, ob, meshobj);
+			deformer = new BL_MeshDeformer((BL_DeformableGameObject*)gameobj, ob, meshobj);
 		}
 #ifdef WITH_BULLET
 		else if (bHasSoftBody) {
-			deformer = new KX_SoftBodyDeformer(meshobj, deformableGameObj);
+			deformer = new KX_SoftBodyDeformer(meshobj, (BL_DeformableGameObject*)gameobj);
 		}
 #endif
 
-		if (deformer) {
-			deformableGameObj->SetDeformer(deformer);
-		}
+		((BL_DeformableGameObject *)gameobj)->SetDeformer(deformer);
 		break;
 	}
 	
