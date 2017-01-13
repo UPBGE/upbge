@@ -28,7 +28,6 @@
  * ***** END MIT LICENSE BLOCK *****
 *
 */
-#include "stdafx.h"
 #include "SpindleEncryption.h"
 
 int strlenN(char* str);
