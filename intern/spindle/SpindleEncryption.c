@@ -35,7 +35,7 @@ void SpinEncrypt_Hex_64(char* data, int dataSize, char* key);
 void SpinDecrypt_Hex_64(char* data, int dataSize, char* key);
 
 
-int strlenN(char* str)
+static int strlenN(char* str)
 {
 	int val = 0;
 	if (str == NULL)
@@ -45,53 +45,7 @@ int strlenN(char* str)
 	return val;
 }
 
-void circularShift(char* data, unsigned long long startPos, unsigned long long endPos, unsigned long long shiftAmount, char shiftRight)
-{
-	unsigned long long chunkSize, j, i, base;
-	char b, bNext;
-	i = 0;
-	chunkSize = endPos - startPos;
-	shiftAmount %= chunkSize;
-	//if (shiftAmount == 0){shiftAmount = 1;}
-	if ((shiftAmount == 0)||(chunkSize <= 1)){return;}
-	if (!shiftRight)
-		shiftAmount = chunkSize - shiftAmount;
-
-	j = startPos + shiftAmount;
-	base = startPos;
-	if (j >= endPos){j = (j%endPos) + startPos;}
-	b = (((((unsigned char)(data[startPos>>3])) >> (7-(startPos&7)))&1) == 1);
-
-	while (i < chunkSize)
-	{
-		/*for (int jk = 0; jk < chunkSize; jk++)
-			cout << int((((unsigned char)(data[jk/8])) >> (7-(jk%8)))%2);
-		cout << "  " << i << "  " << j << "\n";*/
-		//Read bit
-		bNext = (((((unsigned char)(data[j>>3])) >> (7-(j&7)))&1) == 1);
-
-		//Write bit
-		if (bNext)
-		{
-			if (!b)
-				data[j>>3] = (unsigned char)(data[j>>3]) - (1 << (7-(j&7)));
-		}
-		else if (b)
-			data[j>>3] = (unsigned char)(data[j>>3]) + (1 << (7-(j&7)));
-
-		b = bNext;
-		if ((j >= startPos)&&(j <= base)){
-		while ((j >= startPos)&&(j <= base))
-			j++;
-		b = (((((unsigned char)(data[j>>3])) >> (7-(j&7)))&1) == 1);
-		base = j;}
-		j += shiftAmount;
-		if (j >= endPos){j = (j%endPos) + startPos;}
-		i++;
-	}
-}
-
-void SpinEncrypt(char* data, int dataSize, unsigned long long key)
+static void SpinEncrypt(char* data, int dataSize, unsigned long long key)
 {
 	const int keySize = sizeof(key)*8;
 	unsigned long long pieceSize, offset, end, chunkSize = 0, max = ((unsigned long long)(dataSize)<<3);
@@ -123,12 +77,11 @@ void SpinEncrypt(char* data, int dataSize, unsigned long long key)
 				data[ii] += h + (((char)offset)|((char)ii));//char(ii) - h + (char(offset)|char(ii));
 				ii++;
 			}
-			//circularShift(data, i, i+chunkSize, offset, true);
 		}
 	}
 }
 
-void SpinDecrypt(char* data, int dataSize, unsigned long long key)
+static void SpinDecrypt(char* data, int dataSize, unsigned long long key)
 {
 	const int keySize = sizeof(key)*8;
 	unsigned long long pieceSize, offset, chunkSize = 0, max = ((unsigned long long)(dataSize)<<3);
@@ -147,7 +100,6 @@ void SpinDecrypt(char* data, int dataSize, unsigned long long key)
 		for (i = 0; i < max; i += chunkSize)
 		{
 			if (i+chunkSize >= max ){chunkSize = (((unsigned long long)(dataSize))<<3) - i;}
-			//circularShift(data, i, i+chunkSize, offset, false);
 			//cout << "   N: " << i << " " << i + chunkSize << "\n";
 			t = (unsigned int)(((unsigned long long)(i + chunkSize))>>3);
 			ii = (unsigned int)(i>>3);
@@ -163,7 +115,7 @@ void SpinDecrypt(char* data, int dataSize, unsigned long long key)
 	}
 }
 
-void SpinEncrypt_Hex_64(char* data, int dataSize, char* key)
+static void SpinEncrypt_Hex_64(char* data, int dataSize, char* key)
 {
 	int keySize = 0, i;
 	unsigned long long realKey = 0, s;
@@ -185,7 +137,7 @@ void SpinEncrypt_Hex_64(char* data, int dataSize, char* key)
 	SpinEncrypt(data, dataSize, realKey);
 }
 
-void SpinDecrypt_Hex_64(char* data, int dataSize, char* key)
+static void SpinDecrypt_Hex_64(char* data, int dataSize, char* key)
 {
 	int keySize = 0, i;
 	unsigned long long realKey = 0, s;

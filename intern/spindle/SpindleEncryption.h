@@ -26,24 +26,12 @@
  * Contributor(s): none yet.
  *
  * ***** END MIT LICENSE BLOCK *****
-*
-*/
+ */
+
 #ifndef _SPINDLEENCRYPTION_H
 #define _SPINDLEENCRYPTION_H
-#include <math.h>
-
-#ifndef NULL
-#define NULL 0
-#endif
-
-void circularShift(char* data, unsigned long long startPos, unsigned long long endPos, unsigned long long shiftAmount, char shiftRight);
-
-void SpinEncrypt(char* data, int dataSize, unsigned long long key);
-
-void SpinDecrypt(char* data, int dataSize, unsigned long long key);
 
 void SpinEncrypt_Hex(char* data, int dataSize, char* key);
-
 void SpinDecrypt_Hex(char* data, int dataSize, char* key);
 
 #endif
