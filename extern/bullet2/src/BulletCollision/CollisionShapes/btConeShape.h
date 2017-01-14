@@ -43,6 +43,15 @@ public:
 	btScalar getRadius() const { return m_radius;}
 	btScalar getHeight() const { return m_height;}
 
+	virtual void setRadius(btScalar radius)
+	{
+		m_radius = radius;
+	}
+
+	virtual void setHeight(btScalar height)
+	{
+		m_height = height;
+	}
 
 	virtual void	calculateLocalInertia(btScalar mass,btVector3& inertia) const
 	{

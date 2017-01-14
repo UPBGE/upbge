@@ -36,6 +36,7 @@
 #include "PHY_IPhysicsController.h"
 #include "PHY_IMotionState.h"
 #include "DNA_sensor_types.h"
+#include "MT_Scalar.h"
 
 /**
  * 	RadarSensor constructor. Creates a near-sensor derived class, with a cone collision shape.
@@ -69,6 +70,7 @@ KX_RadarSensor::KX_RadarSensor(SCA_EventManager* eventmgr,
 	//m_client_info->m_clientobject = gameobj;
 	//m_client_info->m_auxilary_info = NULL;
 	//sumoObj->setClientObject(&m_client_info);
+	m_coneshape_modified = false;
 }
 			
 KX_RadarSensor::~KX_RadarSensor()
@@ -166,6 +168,12 @@ void KX_RadarSensor::SynchronizeTransform()
 		const MT_Vector3& pos = trans.getOrigin();
 		float ori[12];
 		trans.getBasis().getValue(ori);
+		if (m_coneshape_modified) {
+			m_physCtrl->SuspendPhysics();
+			m_physCtrl->SetConeShape(m_coneradius, m_coneheight);
+			m_physCtrl->RestorePhysics();
+			m_coneshape_modified = false;
+		}
 		motionState->SetWorldPosition(pos[0], pos[1], pos[2]);
 		motionState->SetWorldOrientation(ori);
 		m_physCtrl->WriteMotionStateToDynamics(true);
@@ -211,20 +219,59 @@ PyMethodDef KX_RadarSensor::Methods[] = {
 PyAttributeDef KX_RadarSensor::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneOrigin", KX_RadarSensor, m_cone_origin, 3),
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("coneTarget", KX_RadarSensor, m_cone_target, 3),
-	KX_PYATTRIBUTE_FLOAT_RO("distance", KX_RadarSensor, m_coneheight),
-	KX_PYATTRIBUTE_RO_FUNCTION("angle", KX_RadarSensor, pyattr_get_angle),
+	KX_PYATTRIBUTE_RW_FUNCTION("distance", KX_RadarSensor, pyattr_get_height, pyattr_set_height),
+	KX_PYATTRIBUTE_RW_FUNCTION("angle", KX_RadarSensor, pyattr_get_angle, pyattr_set_angle),
 	KX_PYATTRIBUTE_INT_RW("axis", 0, 5, true, KX_RadarSensor, m_axis),
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
 PyObject *KX_RadarSensor::pyattr_get_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_RadarSensor* self = static_cast<KX_RadarSensor*>(self_v);
+	KX_RadarSensor* self = static_cast<KX_RadarSensor *>(self_v);
 
 	// The original angle from the gui was converted, so we recalculate the value here to maintain
 	// consistency between Python and the gui
-	return PyFloat_FromDouble(MT_degrees(atan(self->m_coneradius / self->m_coneheight)) * 2);
+	return PyFloat_FromDouble(MT_degrees(atan(self->m_coneradius / self->m_coneheight)) * 2.0f);
 	
+}
+
+int KX_RadarSensor::pyattr_set_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_RadarSensor *self = static_cast<KX_RadarSensor *>(self_v);
+	float radius;
+
+	if (!PyFloat_Check(value)) {
+		PyErr_SetString(PyExc_TypeError, "sensor.angle = float: Radar Sensor, expected a float value");
+		return PY_SET_ATTR_FAIL;
+	}
+
+	radius = self->m_coneheight * tan(MT_radians(PyFloat_AsDouble(value) * 0.5f));
+	self->m_coneradius = radius;
+	self->m_coneshape_modified = true;
+
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_RadarSensor::pyattr_get_distance(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_RadarSensor* self = static_cast<KX_RadarSensor *>(self_v);
+
+	return PyFloat_FromDouble(self->m_coneheight);
+}
+
+int KX_RadarSensor::pyattr_set_distance(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_RadarSensor *self = static_cast<KX_RadarSensor *>(self_v);
+
+	if (!PyFloat_Check(value)) {
+		PyErr_SetString(PyExc_TypeError, "sensor.distance = float: Radar Sensor, expected a float value");
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->m_coneheight = PyFloat_AsDouble(value);
+	self->m_coneshape_modified = true;
+
+	return PY_SET_ATTR_SUCCESS;
 }
 
 #endif // WITH_PYTHON
