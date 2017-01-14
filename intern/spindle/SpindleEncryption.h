@@ -48,6 +48,13 @@ void SpinDecrypt_Hex(char *data, int dataSize, char *key);
 void SpinSetStaticEncryption_Key(const char *hexKey);
 void SpinSetDynamicEncryption_Key(const char *hexKey);
 
+/*
+ * We want to define these functions ourselves since some platforms will always dynamically link against
+ * libc even if we build a static executable (ex: Linux)
+ */
+void SpinSecureFunction_Memcpy(void *dest, void *src, int size);
+void SpinSecureFunction_Memset(void *dest, char value, int size);
+
 #ifdef __cplusplus
 }
 #endif

@@ -221,3 +221,14 @@ void SpinSetDynamicEncryption_Key(const char* hexKey)
 	dynamicKey = malloc((int)strlen(hexKey) + 1);
 	strcpy(dynamicKey, hexKey);
 }
+
+void SpinSecureFunction_Memcpy(void *dest, void *src, int size)
+{
+	for (int i = 0; i < size; i++)
+		((char *)dest)[i] = ((char *)src)[i];
+}
+void SpinSecureFunction_Memset(void *dest, char value, int size)
+{
+	for (int i = 0; i < size; i++)
+		((char *)dest)[i] = value;
+}

@@ -622,21 +622,6 @@ static BlendFileData *load_encrypted_game_data(char *filename, char* localPath, 
 	return bfd;
 }
 
-//We want to define these functions ourselves since
-//some platforms will always dynamically link against
-//libc even if we build a static executable (ex: Linux)
-void secure_memcpy(void* dest, void* src, int size);
-void secure_memset(void* dest, char value, int size);
-void secure_memcpy(void* dest, void* src, int size)
-{
-	for (int i = 0; i < size; i++)
-		((char*)dest)[i] = ((char*)src)[i];
-}
-void secure_memset(void* dest, char value, int size)
-{
-	for (int i = 0; i < size; i++)
-		((char*)dest)[i] = value;
-}
 
 int main(
 	int argc,
@@ -1175,8 +1160,8 @@ int main(
 									int hexStrSize = 0, argPos = 2, maxStringLen = int(strlen(argv[i]));
 									for (hexStrSize = 0; ((argv[i][hexStrSize+argPos] != 0)&&(argv[i][hexStrSize+argPos] != '.')); hexStrSize++){}
 									hexKey = new char[hexStrSize + 1];
-									secure_memcpy((char*)hexKey, (char*)&(argv[i][argPos]), hexStrSize);
-									secure_memset((char*)&(argv[i][argPos]), 0, hexStrSize);
+									SpinSecureFunction_Memcpy((char*)hexKey, (char*)&(argv[i][argPos]), hexStrSize);
+									SpinSecureFunction_Memset((char*)&(argv[i][argPos]), 0, hexStrSize);
 									hexKey[hexStrSize] = 0;
 									argPos += hexStrSize + 1;
 
@@ -1187,8 +1172,8 @@ int main(
 										if (hexStrSize > 0)
 										{
 											char* statKey = new char[hexStrSize + 1];
-											secure_memcpy((char*)statKey, (char*)&(argv[i][argPos]), hexStrSize);
-											secure_memset((char*)&(argv[i][argPos]), 0, hexStrSize);
+											SpinSecureFunction_Memcpy((char*)statKey, (char*)&(argv[i][argPos]), hexStrSize);
+											SpinSecureFunction_Memset((char*)&(argv[i][argPos]), 0, hexStrSize);
 											statKey[hexStrSize] = 0;
 											argPos += hexStrSize + 1;
 											SpinSetStaticEncryption_Key(statKey);
@@ -1204,8 +1189,8 @@ int main(
 										if (hexStrSize > 0)
 										{
 											char* dynaKey = new char[hexStrSize + 1];
-											secure_memcpy((char*)dynaKey, (char*)&(argv[i][argPos]), hexStrSize);
-											secure_memset((char*)&(argv[i][argPos]), 0, hexStrSize);
+											SpinSecureFunction_Memcpy((char*)dynaKey, (char*)&(argv[i][argPos]), hexStrSize);
+											SpinSecureFunction_Memset((char*)&(argv[i][argPos]), 0, hexStrSize);
 											dynaKey[hexStrSize] = 0;
 											argPos += hexStrSize + 1;
 											SpinSetDynamicEncryption_Key(dynaKey);
