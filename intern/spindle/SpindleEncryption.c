@@ -26,13 +26,9 @@
  * Contributor(s): none yet.
  *
  * ***** END MIT LICENSE BLOCK *****
-*
-*/
-#include "SpindleEncryption.h"
+ */
 
-int strlenN(char* str);
-void SpinEncrypt_Hex_64(char* data, int dataSize, char* key);
-void SpinDecrypt_Hex_64(char* data, int dataSize, char* key);
+#include "SpindleEncryption.h"
 
 
 static int strlenN(char* str)

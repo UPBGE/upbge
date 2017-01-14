@@ -31,7 +31,17 @@
 #ifndef _SPINDLEENCRYPTION_H
 #define _SPINDLEENCRYPTION_H
 
-void SpinEncrypt_Hex(char* data, int dataSize, char* key);
-void SpinDecrypt_Hex(char* data, int dataSize, char* key);
+#include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+void SpinEncrypt_Hex(char *data, int dataSize, char *key);
+void SpinDecrypt_Hex(char *data, int dataSize, char *key);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif _SPINDLEENCRYPTION_H
