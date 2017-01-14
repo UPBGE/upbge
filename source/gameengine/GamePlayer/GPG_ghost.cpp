@@ -610,7 +610,7 @@ static BlendFileData *load_encrypted_game_data(char *filename, char* localPath, 
 			SpinDecrypt_Hex(fileData, fileSize, encryptKey);
 	}
 
-	bfd = BLO_read_from_memoryA(fileData, fileSize, &reports, localPath);
+	bfd = BLO_read_from_memory(fileData, fileSize, &reports, localPath);
 	
 	delete [] fileData;
 	if (!bfd) 

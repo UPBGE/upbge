@@ -341,11 +341,12 @@ BlendFileData *BLO_read_from_file(
  *
  * \param mem The file data.
  * \param memsize The length of \a mem.
+ * \param localPath Set the working directory to this file path.
  * \param reports If the return value is NULL, errors indicating the cause of the failure.
  * \return The data of the file.
  */
 BlendFileData *BLO_read_from_memory(
-        const void *mem, int memsize,
+        const void *mem, int memsize, char *localpath,
         ReportList *reports, eBLOReadSkip skip_flags)
 {
 	BlendFileData *bfd = NULL;
@@ -355,37 +356,17 @@ BlendFileData *BLO_read_from_memory(
 	if (fd) {
 		fd->reports = reports;
 		fd->skip_flags = skip_flags;
-		bfd = blo_read_file_internal(fd, "");
+		if (localPath) {
+			BLI_strncpy(fd->relabase, localPath, sizeof(fd->relabase));
+			bfd = blo_read_file_internal(fd, localPath);
+		}
+		else {
+			bfd = blo_read_file_internal(fd, "");
+		}
 		blo_freefiledata(fd);
 	}
 
 	return bfd;
-}
-
-/**
- * Open a blender file from memory. The function returns NULL
- * and sets a report in the list if it cannot open the file.
- *
- * \param mem The file data.
- * \param memsize The length of \a mem.
- * \param reports If the return value is NULL, errors indicating the cause of the failure.
- * \param localPath Set the working directory to this file path.
- * \return The data of the file.
- */
-BlendFileData*	BLO_read_from_memoryA(const void *mem, int memsize, ReportList *reports, char* localPath)
-{
-	BlendFileData *bfd = NULL;
-	FileData *fd;
-		
-	fd = blo_openblendermemory(mem, memsize, reports);
-	if (fd) {
-		BLI_strncpy(fd->relabase, localPath, sizeof(fd->relabase));
-		fd->reports = reports;
-		bfd = blo_read_file_internal(fd, localPath);
-		blo_freefiledata(fd);
-	}
-
-	return bfd;	
 }
 
 /**
