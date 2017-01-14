@@ -697,9 +697,13 @@ public:
 
 	virtual float GetLinearDamping() const;
 	virtual float GetAngularDamping() const;
-	virtual void SetLinearDamping(float damping);
-	virtual void SetAngularDamping(float damping);
+	virtual void SetLinearDamping(float linear);
+	virtual void SetAngularDamping(float angular);
 	virtual void SetDamping(float linear, float angular);
+	virtual float GetLinearStiffness();
+	virtual float GetAngularStiffness();
+	virtual void SetLinearStiffness(float linear);
+	virtual void SetAngularStiffness(float angular);
 
 	// reading out information from physics
 	virtual MT_Vector3 GetLinearVelocity();

@@ -106,6 +106,26 @@ base class --- :class:`SCA_IObject`
 
          The object must have a physics controller for the angular damping to be applied, otherwise the value will be returned as 0.0.
 
+   .. attribute:: linearStiffness
+
+      The object's linear stiffness (only for softbodies)
+
+      :type: float between 0 and 1 inclusive.
+
+      .. note::
+
+         The object must have a physics controller for the linear stiffness to be applied, otherwise the value will be returned as 0.0.
+
+   .. attribute:: angularStiffness
+
+      The object's angular stiffness (only for softbodies)
+
+      :type: float between 0 and 1 inclusive.
+
+      .. note::
+
+         The object must have a physics controller for the angular stiffness to be applied, otherwise the value will be returned as 0.0.
+
 
    .. attribute:: linVelocityMin
 
