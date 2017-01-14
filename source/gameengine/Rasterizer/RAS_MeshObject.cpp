@@ -30,6 +30,7 @@
  */
 
 #include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
 
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
@@ -100,12 +101,12 @@ struct RAS_MeshObject::fronttoback
 
 // mesh object
 
-RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo)
-	:m_name(mesh->id.name + 2),
-	m_layersInfo(layersInfo),
+RAS_MeshObject::RAS_MeshObject(Mesh *mesh, Object *blenderobj, bool hasModifier, const LayersInfo& layersInfo)
+	:m_layersInfo(layersInfo),
 	m_boundingBox(NULL),
 	m_mesh(mesh)
 {
+	m_name = hasModifier ? std::string(mesh->id.name + 2) + std::string(":") + std::string(blenderobj->id.name + 2) : mesh->id.name + 2;
 }
 
 RAS_MeshObject::~RAS_MeshObject()

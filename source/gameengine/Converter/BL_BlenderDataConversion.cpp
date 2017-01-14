@@ -477,7 +477,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 	// Without checking names, we get some reuse we don't want that can cause
 	// problems with material LoDs.
-	if (blenderobj && ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL)) {
+	if (blenderobj && ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL) && !blenderobj->modifiers.first) {
 		const std::string bge_name = meshobj->GetName();
 		const std::string blender_name = ((ID *)blenderobj->data)->name + 2;
 		if (bge_name == blender_name) {
@@ -556,8 +556,8 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			layersInfo.layers.push_back(layer);
 		}
 	}
-
-	meshobj = new RAS_MeshObject(mesh, layersInfo);
+	bool hasModifier = (blenderobj->modifiers.first != NULL);
+	meshobj = new RAS_MeshObject(mesh, blenderobj, hasModifier, layersInfo);
 
 	meshobj->m_sharedvertex_map.resize(totvert);
 
