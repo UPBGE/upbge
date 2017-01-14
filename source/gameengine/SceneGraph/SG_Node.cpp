@@ -110,15 +110,14 @@ void SG_Node::ProcessSGReplica(SG_Node **replica)
 	// clear the replica node of it's parent.
 	(*replica)->m_SGparent = NULL;
 
-	if (m_children.begin() != m_children.end()) {
+	if (m_children.size() > 0) {
 		// if this node has children, the replica has too, so clear and clone children
 		(*replica)->ClearSGChildren();
 
-		NodeList::iterator childit;
-		for (childit = m_children.begin(); childit != m_children.end(); ++childit) {
-			SG_Node *childnode = (*childit)->GetSGReplica();
-			if (childnode) {
-				(*replica)->AddChild(childnode);
+		for (SG_Node *childnode : m_children) {
+			SG_Node *replicanode = childnode->GetSGReplica();
+			if (replicanode) {
+				(*replica)->AddChild(replicanode);
 			}
 		}
 	}
@@ -126,7 +125,7 @@ void SG_Node::ProcessSGReplica(SG_Node **replica)
 	// not worth to keep, they will just take up CPU
 	// This can happen in partial replication of hierarchy
 	// during group duplication.
-	if ((*replica)->m_children.empty() &&
+	if ((*replica)->m_children.size() == 0 &&
 	    (*replica)->GetSGClientObject() == NULL)
 	{
 		delete (*replica);
@@ -142,15 +141,12 @@ void SG_Node::Destruct()
 
 	// We'll delete m_parent_relation now anyway.
 
-	delete(m_parent_relation);
+	delete m_parent_relation;
 	m_parent_relation = NULL;
 
-	if (m_children.begin() != m_children.end()) {
-		NodeList::iterator childit;
-		for (childit = m_children.begin(); childit != m_children.end(); ++childit) {
-			// call the SG_Node destruct method on each of our children }-)
-			(*childit)->Destruct();
-		}
+	for (SG_Node *childnode : m_children) {
+		// call the SG_Node destruct method on each of our children }-)
+		childnode->Destruct();
 	}
 
 	ActivateDestructionCallback();
@@ -158,7 +154,7 @@ void SG_Node::Destruct()
 
 const SG_Node *SG_Node::GetRootSGParent() const
 {
-	return (m_SGparent ? (const SG_Node *)m_SGparent->GetRootSGParent() : (const SG_Node *)this);
+	return (m_SGparent ? m_SGparent->GetRootSGParent() : this);
 }
 
 bool SG_Node::IsAncessor(const SG_Node *child) const
@@ -169,7 +165,7 @@ bool SG_Node::IsAncessor(const SG_Node *child) const
 
 NodeList& SG_Node::GetSGChildren()
 {
-	return this->m_children;
+	return m_children;
 }
 
 void SG_Node::ClearSGChildren()
@@ -214,16 +210,12 @@ bool SG_Node::IsSlowParent()
 void SG_Node::AddChild(SG_Node *child)
 {
 	m_children.push_back(child);
-	child->SetSGParent(this); // this way ?
+	child->SetSGParent(this);
 }
 
 void SG_Node::RemoveChild(SG_Node *child)
 {
-	NodeList::iterator childfound = find(m_children.begin(), m_children.end(), child);
-
-	if (childfound != m_children.end()) {
-		m_children.erase(childfound);
-	}
+	m_children.erase(std::remove(m_children.begin(), m_children.end(), child));
 }
 
 void SG_Node::UpdateWorldData(double time, bool parentUpdated)
@@ -237,8 +229,8 @@ void SG_Node::UpdateWorldData(double time, bool parentUpdated)
 	Delink();
 
 	// update children's worlddata
-	for (NodeList::iterator it = m_children.begin(); it != m_children.end(); ++it) {
-		(*it)->UpdateWorldData(time, parentUpdated);
+	for (SG_Node *childnode : m_children) {
+		childnode->UpdateWorldData(time, parentUpdated);
 	}
 }
 
@@ -249,8 +241,8 @@ void SG_Node::SetSimulatedTime(double time, bool recurse)
 
 	// update children's simulate time.
 	if (recurse) {
-		for (NodeList::iterator it = m_children.begin(); it != m_children.end(); ++it) {
-			(*it)->SetSimulatedTime(time, recurse);
+		for (SG_Node *childnode : m_children) {
+			childnode->SetSimulatedTime(time, recurse);
 		}
 	}
 }
@@ -285,8 +277,6 @@ void SG_Node::AddSGController(SG_Controller *cont)
 
 void SG_Node::RemoveSGController(SG_Controller *cont)
 {
-	SGControllerList::iterator contit;
-	
 	m_SGcontrollers.erase(std::remove(m_SGcontrollers.begin(), m_SGcontrollers.end(), cont));
 }
 
@@ -326,11 +316,8 @@ void SG_Node::SetSGClientInfo(void *clientInfo)
 
 void SG_Node::SetControllerTime(double time)
 {
-	SGControllerList::iterator contit;
-
-	for (contit = m_SGcontrollers.begin(); contit != m_SGcontrollers.end(); ++contit)
-	{
-		(*contit)->SetSimulatedTime(time);
+	for (SG_Controller *cont : m_SGcontrollers) {
+		cont->SetSimulatedTime(time);
 	}
 }
 
@@ -372,12 +359,8 @@ bool SG_Node::UpdateSpatialData(const SG_Node *parent, double time, bool& parent
 	bool bComputesWorldTransform = false;
 
 	// update spatial controllers
-
-	SGControllerList::iterator cit = GetSGControllerList().begin();
-	SGControllerList::const_iterator c_end = GetSGControllerList().end();
-
-	for (; cit != c_end; ++cit) {
-		if ((*cit)->Update(time)) {
+	for (SG_Controller *cont : m_SGcontrollers) {
+		if (cont->Update(time)) {
 			bComputesWorldTransform = true;
 		}
 	}
@@ -446,7 +429,6 @@ void SG_Node::SetLocalOrientation(const MT_Matrix3x3& rot)
 	SetModified();
 }
 
-// rot is arrange like openGL matrix
 void SG_Node::SetLocalOrientation(const float *rot)
 {
 	m_localRotation.setValue(rot);
