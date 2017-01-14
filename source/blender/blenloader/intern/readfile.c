@@ -235,9 +235,6 @@ typedef struct OldNewMap {
 	int lasthit;
 } OldNewMap;
 
-static char* staticKey = NULL;
-static char* dynamicKey = NULL;
-
 
 /* local prototypes */
 static void *read_struct(FileData *fd, BHead *bh, const char *blockname);
@@ -1397,22 +1394,6 @@ FileData *blo_openblendermemfile(MemFile *memfile, ReportList *reports)
 		
 		return blo_decode_and_check(fd, reports);
 	}
-}
-
-void blo_set_static_encryption_key(const char* hexKey)
-{
-	if (staticKey != NULL)
-		free(staticKey);
-	staticKey = malloc((int) strlen(hexKey) + 1);
-	strcpy(staticKey, hexKey);
-}
-
-void blo_set_dynamic_encryption_key(const char* hexKey)
-{
-	if (dynamicKey != NULL)
-		free(dynamicKey);
-	dynamicKey = malloc((int) strlen(hexKey) + 1);
-	strcpy(dynamicKey, hexKey);
 }
 
 void blo_freefiledata(FileData *fd)

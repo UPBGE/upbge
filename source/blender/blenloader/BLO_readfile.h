@@ -92,8 +92,6 @@ BlendFileData *BLO_read_from_memfile(
         struct ReportList *reports, eBLOReadSkip skip_flag);
 
 BlendFileData*	BLO_read_from_memoryA(const void *mem, int memsize, struct ReportList *reports, char* localPath);
-void BLO_set_static_encryption_key(const char* hexKey);
-void BLO_set_dynamic_encryption_key(const char* hexKey);
 
 void BLO_blendfiledata_free(BlendFileData *bfd);
 

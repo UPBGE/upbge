@@ -138,9 +138,6 @@ FileData *blo_openblendermemfile(struct MemFile *memfile, struct ReportList *rep
 FileData *blo_openblenderfile_noEncrypt(const char *filepath, struct ReportList *reports);
 FileData *blo_openblenderencryptfile(const char *filepath, struct ReportList *reports);
 
-void blo_set_static_encryption_key(const char* hexKey);
-void blo_set_dynamic_encryption_key(const char* hexKey);
-
 void blo_clear_proxy_pointers_from_lib(Main *oldmain);
 void blo_make_image_pointer_map(FileData *fd, Main *oldmain);
 void blo_end_image_pointer_map(FileData *fd, Main *oldmain);

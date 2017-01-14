@@ -31,6 +31,9 @@
 #include "SpindleEncryption.h"
 
 
+char *staticKey = NULL;
+char *dynamicKey = NULL;
+
 static int strlenN(char* str)
 {
 	int val = 0;
@@ -201,4 +204,20 @@ void SpinDecrypt_Hex(char* data, int dataSize, char* key)
 			SpinDecrypt_Hex_64(data, dataSize, tempKey);
 		}
 	}
+}
+
+void SpinSetStaticEncryption_Key(const char* hexKey)
+{
+	if (staticKey != NULL)
+		free(staticKey);
+	staticKey = malloc((int)strlen(hexKey) + 1);
+	strcpy(staticKey, hexKey);
+}
+
+void SpinSetDynamicEncryption_Key(const char* hexKey)
+{
+	if (dynamicKey != NULL)
+		free(dynamicKey);
+	dynamicKey = malloc((int)strlen(hexKey) + 1);
+	strcpy(dynamicKey, hexKey);
 }

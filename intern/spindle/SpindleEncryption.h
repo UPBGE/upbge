@@ -37,8 +37,14 @@
 extern "C" {
 #endif
 
+extern char *staticKey;
+extern char *dynamicKey;
+
 void SpinEncrypt_Hex(char *data, int dataSize, char *key);
 void SpinDecrypt_Hex(char *data, int dataSize, char *key);
+
+void SpinSetStaticEncryption_Key(const char *hexKey);
+void SpinSetDynamicEncryption_Key(const char *hexKey);
 
 #ifdef __cplusplus
 }

@@ -602,8 +602,8 @@ static BlendFileData *load_encrypted_game_data(char *filename, char* localPath, 
 	inFile.read(fileData, fileSize);
 	inFile.close();
 
-	//BLO_set_static_encryption_key("70343d3045723740");
-	//BLO_set_dynamic_encryption_key("70343d3045723741");
+	//SpinSetStaticEncryption_Key("70343d3045723740");
+	//SpinSetDynamicEncryption_Key("70343d3045723741");
 	if (encryptKey != NULL)
 	{
 		if ((fileData[0] != 'B')||(fileData[1] != 'L')||(fileData[2] != 'E')||(fileData[3] != 'N')||(fileData[4] != 'D'))
@@ -1191,7 +1191,7 @@ int main(
 											secure_memset((char*)&(argv[i][argPos]), 0, hexStrSize);
 											statKey[hexStrSize] = 0;
 											argPos += hexStrSize + 1;
-											BLO_set_static_encryption_key(statKey);
+											SpinSetStaticEncryption_Key(statKey);
 											memset((char*)statKey, 0, hexStrSize);
 											delete [] statKey;
 										}
@@ -1208,7 +1208,7 @@ int main(
 											secure_memset((char*)&(argv[i][argPos]), 0, hexStrSize);
 											dynaKey[hexStrSize] = 0;
 											argPos += hexStrSize + 1;
-											BLO_set_dynamic_encryption_key(dynaKey);
+											SpinSetDynamicEncryption_Key(dynaKey);
 											memset((char*)dynaKey, 0, hexStrSize);
 											delete [] dynaKey;
 										}

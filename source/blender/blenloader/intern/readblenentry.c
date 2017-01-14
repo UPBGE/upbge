@@ -501,14 +501,4 @@ void BLO_blendfiledata_free(BlendFileData *bfd)
 	MEM_freeN(bfd);
 }
 
-void BLO_set_static_encryption_key(const char* hexKey)
-{
-   blo_set_static_encryption_key(hexKey);
-}
-
-void BLO_set_dynamic_encryption_key(const char* hexKey)
-{
-   blo_set_dynamic_encryption_key(hexKey);
-}
-
 
