@@ -206,11 +206,57 @@ void SpinDecrypt_Hex(char* data, int dataSize, char* key)
 	}
 }
 
+void SpinEncryption_FindAndSet_Key(char **argv, int i, char *hexKey)
+{
+	/* Find main key */
+	int hexStrSize = 0, argPos = 2, maxStringLen = int(strlen(argv[i]));
+
+	for (hexStrSize = 0; ((argv[i][hexStrSize + argPos] != 0) && (argv[i][hexStrSize + argPos] != '.')); hexStrSize++){}
+
+	hexKey = new char[hexStrSize + 1];
+	SpinSecureFunction_Memcpy((char *)*hexKey, (char *)&(argv[i][argPos]), hexStrSize);
+	SpinSecureFunction_Memset((char *)&(argv[i][argPos]), 0, hexStrSize);
+	hexKey[hexStrSize] = 0;
+	argPos += hexStrSize + 1;
+
+	/* Find static key */
+	if (argPos < maxStringLen) {
+		for (hexStrSize = 0; ((argv[i][hexStrSize + argPos] != 0) && (argv[i][hexStrSize + argPos] != '.')); hexStrSize++){}
+
+		if (hexStrSize > 0) {
+			char *statKey = new char[hexStrSize + 1];
+			SpinSecureFunction_Memcpy((char *)statKey, (char *)&(argv[i][argPos]), hexStrSize);
+			SpinSecureFunction_Memset((char *)&(argv[i][argPos]), 0, hexStrSize);
+			statKey[hexStrSize] = 0;
+			argPos += hexStrSize + 1;
+			SpinSetStaticEncryption_Key(statKey);
+			memset((char *)statKey, 0, hexStrSize);
+			delete [] statKey;
+		}
+	}
+
+	/* Find dynamic key */
+	if (argPos < maxStringLen) {
+		for (hexStrSize = 0; ((argv[i][hexStrSize + argPos] != 0) && (argv[i][hexStrSize + argPos] != '.')); hexStrSize++){}
+
+		if (hexStrSize > 0) {
+			char *dynaKey = new char[hexStrSize + 1];
+			SpinSecureFunction_Memcpy((char *)dynaKey, (char *)&(argv[i][argPos]), hexStrSize);
+			SpinSecureFunction_Memset((char *)&(argv[i][argPos]), 0, hexStrSize);
+			dynaKey[hexStrSize] = 0;
+			argPos += hexStrSize + 1;
+			SpinSetDynamicEncryption_Key(dynaKey);
+			memset((char *)dynaKey, 0, hexStrSize);
+			delete [] dynaKey;
+		}
+	}
+}
+
 void SpinSetStaticEncryption_Key(const char* hexKey)
 {
 	if (staticKey != NULL)
 		free(staticKey);
-	staticKey = malloc((int)strlen(hexKey) + 1);
+	staticKey = (char *)malloc((int)strlen(hexKey) + 1);
 	strcpy(staticKey, hexKey);
 }
 
@@ -218,7 +264,7 @@ void SpinSetDynamicEncryption_Key(const char* hexKey)
 {
 	if (dynamicKey != NULL)
 		free(dynamicKey);
-	dynamicKey = malloc((int)strlen(hexKey) + 1);
+	dynamicKey = (char *)malloc((int)strlen(hexKey) + 1);
 	strcpy(dynamicKey, hexKey);
 }
 

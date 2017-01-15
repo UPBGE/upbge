@@ -1148,56 +1148,15 @@ int main(
 						if (useLocalPath)
 						{
 							int pos = -1;
-							char* hexKey = NULL;
+							char *hexKey = NULL;
 							for (int i = 0; i < argc; i++)
 							{
 								if ((argv[i][0] == '-')&&(argv[i][1] == 'L')&&(argv[i][2] != 0))
 									pos = i;
 
-								if ((argv[i][0] == '-')&&(argv[i][1] == 'K'))
-								{
-									//Find main key
-									int hexStrSize = 0, argPos = 2, maxStringLen = int(strlen(argv[i]));
-									for (hexStrSize = 0; ((argv[i][hexStrSize+argPos] != 0)&&(argv[i][hexStrSize+argPos] != '.')); hexStrSize++){}
-									hexKey = new char[hexStrSize + 1];
-									SpinSecureFunction_Memcpy((char*)hexKey, (char*)&(argv[i][argPos]), hexStrSize);
-									SpinSecureFunction_Memset((char*)&(argv[i][argPos]), 0, hexStrSize);
-									hexKey[hexStrSize] = 0;
-									argPos += hexStrSize + 1;
-
-									//Find static key
-									if (argPos < maxStringLen)
-									{
-										for (hexStrSize = 0; ((argv[i][hexStrSize+argPos] != 0)&&(argv[i][hexStrSize+argPos] != '.')); hexStrSize++){}
-										if (hexStrSize > 0)
-										{
-											char* statKey = new char[hexStrSize + 1];
-											SpinSecureFunction_Memcpy((char*)statKey, (char*)&(argv[i][argPos]), hexStrSize);
-											SpinSecureFunction_Memset((char*)&(argv[i][argPos]), 0, hexStrSize);
-											statKey[hexStrSize] = 0;
-											argPos += hexStrSize + 1;
-											SpinSetStaticEncryption_Key(statKey);
-											memset((char*)statKey, 0, hexStrSize);
-											delete [] statKey;
-										}
-									}
-
-									//Find dynamic key
-									if (argPos < maxStringLen)
-									{
-										for (hexStrSize = 0; ((argv[i][hexStrSize+argPos] != 0)&&(argv[i][hexStrSize+argPos] != '.')); hexStrSize++){}
-										if (hexStrSize > 0)
-										{
-											char* dynaKey = new char[hexStrSize + 1];
-											SpinSecureFunction_Memcpy((char*)dynaKey, (char*)&(argv[i][argPos]), hexStrSize);
-											SpinSecureFunction_Memset((char*)&(argv[i][argPos]), 0, hexStrSize);
-											dynaKey[hexStrSize] = 0;
-											argPos += hexStrSize + 1;
-											SpinSetDynamicEncryption_Key(dynaKey);
-											memset((char*)dynaKey, 0, hexStrSize);
-											delete [] dynaKey;
-										}
-									}
+								if ((argv[i][0] == '-')&&(argv[i][1] == 'K')) {
+									//Find and set keys
+									SpinEncryption_FindAndSet_Key(argv, i, hexKey);
 								}
 							}
 							
@@ -1211,7 +1170,7 @@ int main(
 							bfd = load_encrypted_game_data(filename[0]? filename: NULL, localFilePath, hexKey);
 							delete [] localFilePath;
 							if (hexKey != NULL)
-							delete [] hexKey;
+								delete [] hexKey;
 							// The file is valid and it's the original file name.
 							if (bfd) 
 							{

@@ -25,7 +25,7 @@ set(INC_SYS
 )
 
 set(SRC
-	SpindleEncryption.c
+	SpindleEncryption.cpp
 
 	SpindleEncryption.h
 )

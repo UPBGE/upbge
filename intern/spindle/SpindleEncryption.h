@@ -45,6 +45,8 @@ extern char *dynamicKey;
 void SpinEncrypt_Hex(char *data, int dataSize, char *key);
 void SpinDecrypt_Hex(char *data, int dataSize, char *key);
 
+void SpinEncryption_FindAndSet_Key(char **argv, int i, char *hexKey);
+
 void SpinSetStaticEncryption_Key(const char *hexKey);
 void SpinSetDynamicEncryption_Key(const char *hexKey);
 
