@@ -44,6 +44,7 @@ class btMotionState;
 class RAS_MeshObject;
 struct DerivedMesh;
 class btCollisionShape;
+class KX_Scene;
 
 #define CCD_BSB_SHAPE_MATCHING  2
 #define CCD_BSB_BENDING_CONSTRAINTS 8
@@ -153,7 +154,7 @@ public:
 		return true;
 	}
 
-	bool SetMesh(class RAS_MeshObject *mesh, struct DerivedMesh *dm, bool polytope);
+	bool SetMesh(class RAS_MeshObject *mesh, struct DerivedMesh *dm, KX_Scene *scene, KX_GameObject *gameobj, bool polytope);
 	RAS_MeshObject *GetMesh(void)
 	{
 		return m_meshObject;

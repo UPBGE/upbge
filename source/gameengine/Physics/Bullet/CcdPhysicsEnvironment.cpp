@@ -3143,7 +3143,7 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 		}
 		case OB_BOUND_CONVEX_HULL:
 		{
-			shapeInfo->SetMesh(meshobj, dm, true);
+			shapeInfo->SetMesh(meshobj, dm, kxscene, gameobj, true);
 			bm = shapeInfo->CreateBulletShape(ci.m_margin);
 			break;
 		}
@@ -3167,7 +3167,7 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 				shapeInfo->AddRef();
 			}
 			else {
-				shapeInfo->SetMesh(meshobj, dm, false);
+				shapeInfo->SetMesh(meshobj, dm, kxscene, gameobj, false);
 			}
 
 			// Soft bodies can benefit from welding, don't do it on non-soft bodies
