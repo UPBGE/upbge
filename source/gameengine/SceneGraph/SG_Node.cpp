@@ -215,7 +215,7 @@ void SG_Node::AddChild(SG_Node *child)
 
 void SG_Node::RemoveChild(SG_Node *child)
 {
-	m_children.erase(std::remove(m_children.begin(), m_children.end(), child));
+	m_children.erase(std::find(m_children.begin(), m_children.end(), child));
 }
 
 void SG_Node::UpdateWorldData(double time, bool parentUpdated)
@@ -277,7 +277,7 @@ void SG_Node::AddSGController(SG_Controller *cont)
 
 void SG_Node::RemoveSGController(SG_Controller *cont)
 {
-	m_SGcontrollers.erase(std::remove(m_SGcontrollers.begin(), m_SGcontrollers.end(), cont));
+	m_SGcontrollers.erase(std::find(m_SGcontrollers.begin(), m_SGcontrollers.end(), cont));
 }
 
 void SG_Node::RemoveAllControllers()
