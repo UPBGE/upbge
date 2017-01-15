@@ -150,7 +150,7 @@ public:
 	// vertex and polygon acces
 	RAS_IDisplayArray *GetDisplayArray(unsigned int matid) const;
 	RAS_ITexVert *GetVertex(unsigned int matid, unsigned int index);
-	const float *GetVertexLocation(unsigned int orig_index);
+	RAS_ITexVert *GetVertexOrigIndex(unsigned int orig_index);
 
 	int NumPolygons();
 	RAS_Polygon *GetPolygon(int num) const;

@@ -245,7 +245,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 		float* vert = vertices;
 		for (int vi=0; vi<nverts; vi++)
 		{
-			const float* pos = !meshobj->m_sharedvertex_map[vi].empty() ? meshobj->GetVertexLocation(vi) : NULL;
+			const float* pos = !meshobj->m_sharedvertex_map[vi].empty() ? meshobj->GetVertexOrigIndex(vi)->getXYZ() : NULL;
 			if (pos)
 				copy_v3_v3(vert, pos);
 			else

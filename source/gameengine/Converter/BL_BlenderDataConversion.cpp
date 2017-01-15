@@ -878,13 +878,9 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	PHY_ShapeProps* shapeprops =
 			CreateShapePropsFromBlenderObject(blenderobject);
 
-	DerivedMesh* dm = NULL;
-	if (gameobj->GetDeformer())
-		dm = gameobj->GetDeformer()->GetPhysicsMesh();
-
 	class PHY_IMotionState* motionstate = new KX_MotionState(gameobj->GetSGNode());
 
-	kxscene->GetPhysicsEnvironment()->ConvertObject(gameobj, meshobj, dm, kxscene, shapeprops, motionstate, activeLayerBitInfo, isCompoundChild, hasCompoundChildren);
+	kxscene->GetPhysicsEnvironment()->ConvertObject(gameobj, meshobj, kxscene, shapeprops, motionstate, activeLayerBitInfo, isCompoundChild, hasCompoundChildren);
 
 	bool isActor = (blenderobject->gameflag & OB_ACTOR)!=0;
 	bool isSensor = (blenderobject->gameflag & OB_SENSOR) != 0;
@@ -893,10 +889,6 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 		(isActor) ? KX_ClientObjectInfo::ACTOR : KX_ClientObjectInfo::STATIC;
 
 	delete shapeprops;
-	if (dm) {
-		dm->needsFree = 1;
-		dm->release(dm);
-	}
 }
 
 static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading)

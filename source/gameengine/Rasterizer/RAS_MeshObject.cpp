@@ -340,11 +340,11 @@ RAS_ITexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
 	return NULL;
 }
 
-const float *RAS_MeshObject::GetVertexLocation(unsigned int orig_index)
+RAS_ITexVert *RAS_MeshObject::GetVertexOrigIndex(unsigned int orig_index)
 {
 	std::vector<SharedVertex>& sharedmap = m_sharedvertex_map[orig_index];
 	std::vector<SharedVertex>::iterator it = sharedmap.begin();
-	return it->m_darray->GetVertex(it->m_offset)->getXYZ();
+	return it->m_darray->GetVertex(it->m_offset);
 }
 
 RAS_BoundingBox *RAS_MeshObject::GetBoundingBox() const
