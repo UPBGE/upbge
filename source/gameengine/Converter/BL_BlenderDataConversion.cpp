@@ -475,13 +475,15 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
 
+	const bool hasModifier = blenderobj->modifiers.first;
+
 	// Without checking names, we get some reuse we don't want that can cause
 	// problems with material LoDs.
 	/* For Objects with modifiers, as we apply modifiers at game start, we skip this part
 	 * because we need an unique mesh for objects with modifiers.
-	 * So we add && !blenderobj->modifiers.first to check that the object has no modifier.
+	 * So we add && !hasModifier to check that the object has no modifier.
 	 */
-	if (blenderobj && ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL) && !blenderobj->modifiers.first) {
+	if (blenderobj && ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL) && !hasModifier) {
 		const std::string bge_name = meshobj->GetName();
 		const std::string blender_name = ((ID *)blenderobj->data)->name + 2;
 		if (bge_name == blender_name) {
@@ -560,8 +562,14 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			layersInfo.layers.push_back(layer);
 		}
 	}
-	bool hasModifier = (blenderobj->modifiers.first != NULL);
-	meshobj = new RAS_MeshObject(mesh, blenderobj, hasModifier, layersInfo);
+
+	std::string name = mesh->id.name + 2;
+	if (hasModifier) {
+		name += ":";
+		name += blenderobj->id.name + 2;
+	}
+
+	meshobj = new RAS_MeshObject(mesh, name, layersInfo);
 
 	meshobj->m_sharedvertex_map.resize(totvert);
 
@@ -739,7 +747,8 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 	dm->release(dm);
 
-	converter->RegisterGameMesh(scene, meshobj, mesh);
+	// We avoid linking a mesh object using modifier to the blender mesh.
+	converter->RegisterGameMesh(scene, meshobj, hasModifier ? NULL : mesh);
 	return meshobj;
 }
 
@@ -981,8 +990,6 @@ static KX_GameObject *gameobject_from_blenderobject(
 	KX_GameObject *gameobj = NULL;
 	Scene *blenderscene = kxscene->GetBlenderScene();
 
-	RAS_Deformer *deformer = NULL;
-	
 	switch (ob->type) {
 	case OB_LAMP:
 	{
@@ -1055,31 +1062,31 @@ static KX_GameObject *gameobject_from_blenderobject(
 #endif
 
 		RAS_Deformer *deformer = NULL;
-		BL_DeformableGameObject *deformableGameObj = (BL_DeformableGameObject *)gameobj;
+		BL_DeformableGameObject *deformableGameObj = static_cast<BL_DeformableGameObject *>(gameobj);
 
 		if (bHasModifier) {
-			deformer = new BL_ModifierDeformer((BL_DeformableGameObject *)gameobj, kxscene->GetBlenderScene(), ob, meshobj);
+			deformer = new BL_ModifierDeformer(deformableGameObj, kxscene->GetBlenderScene(), ob, meshobj);
 		}
 		else if (bHasShapeKey) {
 			// not that we can have shape keys without dvert! 
-			deformer = new BL_ShapeDeformer((BL_DeformableGameObject*)gameobj, ob, meshobj);
+			deformer = new BL_ShapeDeformer(deformableGameObj, ob, meshobj);
 		}
 		else if (bHasArmature) {
-			deformer = new BL_SkinDeformer((BL_DeformableGameObject*)gameobj, ob, meshobj);
+			deformer = new BL_SkinDeformer(deformableGameObj, ob, meshobj);
 		}
 		else if (bHasDvert) {
 			// this case correspond to a mesh that can potentially deform but not with the
 			// object to which it is attached for the moment. A skin mesh was created in
 			// BL_ConvertMesh() so must create a deformer too!
-			deformer = new BL_MeshDeformer((BL_DeformableGameObject*)gameobj, ob, meshobj);
+			deformer = new BL_MeshDeformer(deformableGameObj, ob, meshobj);
 		}
 #ifdef WITH_BULLET
 		else if (bHasSoftBody) {
-			deformer = new KX_SoftBodyDeformer(meshobj, (BL_DeformableGameObject*)gameobj);
+			deformer = new KX_SoftBodyDeformer(meshobj, deformableGameObj);
 		}
 #endif
 
-		((BL_DeformableGameObject *)gameobj)->SetDeformer(deformer);
+		deformableGameObj->SetDeformer(deformer);
 		break;
 	}
 	

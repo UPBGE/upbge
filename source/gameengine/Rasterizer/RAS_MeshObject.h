@@ -109,7 +109,7 @@ protected:
 
 public:
 	// for now, meshes need to be in a certain layer (to avoid sorting on lights in realtime)
-	RAS_MeshObject(Mesh *mesh, Object *blenderobj, bool hasModifier, const LayersInfo& layersInfo);
+	RAS_MeshObject(Mesh *mesh, const std::string& name, const LayersInfo& layersInfo);
 	virtual ~RAS_MeshObject();
 
 	// materials
