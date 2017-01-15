@@ -477,6 +477,10 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 	// Without checking names, we get some reuse we don't want that can cause
 	// problems with material LoDs.
+	/* For Objects with modifiers, as we apply modifiers at game start, we skip this part
+	 * because we need an unique mesh for objects with modifiers.
+	 * So we add && !blenderobj->modifiers.first to check that the object has no modifier.
+	 */
 	if (blenderobj && ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL) && !blenderobj->modifiers.first) {
 		const std::string bge_name = meshobj->GetName();
 		const std::string blender_name = ((ID *)blenderobj->data)->name + 2;
@@ -1050,7 +1054,10 @@ static KX_GameObject *gameobject_from_blenderobject(
 		bool bHasShapeKey = mesh->key != NULL && mesh->key->type==KEY_RELATIVE;
 		bool bHasDvert = mesh->dvert != NULL && ob->defbase.first;
 		bool bHasArmature = (BL_ModifierDeformer::HasArmatureDeformer(ob) && ob->parent && ob->parent->type == OB_ARMATURE && bHasDvert);
+
+		/* Since we apply modifiers at game engine start, we set bHasModifier to false by default */
 		bool bHasModifier = false; //BL_ModifierDeformer::HasCompatibleDeformer(ob);
+
 #ifdef WITH_BULLET
 		bool bHasSoftBody = (!ob->parent && (ob->gameflag & OB_SOFT_BODY));
 #endif

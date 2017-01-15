@@ -1810,6 +1810,12 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 
 	if (!dm) {
 		free_dm = true;
+
+		/* Before we applied modifiers at game engine start, the function used
+		 * was dm = CDDM_from_mesh(meshobj->GetMesh()); but this generated crashes
+		 * with some modifiers. So we use the same function as in BlenderDataConversion
+		 * when we convert the mesh for rendering here.
+		 */
 		dm = mesh_create_derived_no_virtual(scene->GetBlenderScene(), gameobj->GetBlenderObject(), NULL, CD_MASK_MESH);
 	}
 

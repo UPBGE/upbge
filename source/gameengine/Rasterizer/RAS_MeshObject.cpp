@@ -106,6 +106,9 @@ RAS_MeshObject::RAS_MeshObject(Mesh *mesh, Object *blenderobj, bool hasModifier,
 	m_boundingBox(NULL),
 	m_mesh(mesh)
 {
+	/* If we have a blenderobject (Object *) with modifiers, its mesh is unique and must have an unique name to identify it.
+	 * Else the mesh can be shared by several Objects so we don't need an unique name.
+	 */
 	m_name = hasModifier ? std::string(mesh->id.name + 2) + std::string(":") + std::string(blenderobj->id.name + 2) : mesh->id.name + 2;
 }
 
