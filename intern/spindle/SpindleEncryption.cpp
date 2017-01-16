@@ -214,7 +214,7 @@ void SpinEncryption_FindAndSet_Key(char **argv, int i, char *hexKey)
 	for (hexStrSize = 0; ((argv[i][hexStrSize + argPos] != 0) && (argv[i][hexStrSize + argPos] != '.')); hexStrSize++){}
 
 	hexKey = new char[hexStrSize + 1];
-	SpinSecureFunction_Memcpy((char *)*hexKey, (char *)&(argv[i][argPos]), hexStrSize);
+	SpinSecureFunction_Memcpy((char *)hexKey, (char *)&(argv[i][argPos]), hexStrSize);
 	SpinSecureFunction_Memset((char *)&(argv[i][argPos]), 0, hexStrSize);
 	hexKey[hexStrSize] = 0;
 	argPos += hexStrSize + 1;
