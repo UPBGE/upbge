@@ -1,0 +1,26 @@
+diff --git a/extern/bullet2/patches/coneshape_setheight.patch b/extern/bullet2/patches/coneshape_setheight.patch
+new file mode 100644
+--- /dev/null
++++ b/extern/bullet2/patches/coneshape_setheight.patch
+@@ -0,0 +1,21 @@
++diff --git a/extern/bullet2/src/BulletCollision/CollisionShapes/btConeShape.h b/extern/bullet2/src/BulletCollision/CollisionShapes/btConeShape.h
++index 4a0df0d..41b5a13 100644
++--- a/extern/bullet2/src/BulletCollision/CollisionShapes/btConeShape.h
+++++ b/extern/bullet2/src/BulletCollision/CollisionShapes/btConeShape.h
++@@ -43,6 +43,16 @@ public:
++ 	btScalar getRadius() const { return m_radius;}
++ 	btScalar getHeight() const { return m_height;}
++ 
+++	virtual void setRadius(btScalar radius)
+++	{
+++		m_radius = radius;
+++	}
+++
+++	virtual void setHeight(btScalar height)
+++	{
+++		m_height = height;
+++	}
+++
++ 
++ 	virtual void	calculateLocalInertia(btScalar mass,btVector3& inertia) const
++ 	{

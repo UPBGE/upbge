@@ -768,6 +768,16 @@ public:
 		m_cci.m_radius = margin;
 	}
 
+	// Cone Shape (radius & height)
+	virtual void SetConeShape(float radius, float height)
+	{
+		if (m_collisionShape && (m_collisionShape->getShapeType() == CONE_SHAPE_PROXYTYPE)) {
+			btConeShape *coneShape = static_cast<btConeShape *>(m_collisionShape);
+			coneShape->setRadius(radius);
+			coneShape->setHeight(height);
+		}
+	}
+
 	/// velocity clamping
 	virtual void SetLinVelocityMin(float val)
 	{
