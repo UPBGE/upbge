@@ -585,39 +585,30 @@ static bool quitGame(KX_ExitRequest exitcode)
 	return (exitcode != KX_ExitRequest::RESTART_GAME && exitcode != KX_ExitRequest::START_OTHER_GAME);
 }
 
-static BlendFileData *load_encrypted_game_data(char *filename, char* localPath, char* encryptKey, char *relativename = NULL)
+static BlendFileData *load_encrypted_game_data(char *filename, char *localPath, char *encryptKey)
 {
 	ReportList reports;
 	BlendFileData *bfd = NULL;
+	char *fileData = NULL;
+	int fileSize;
 	BKE_reports_init(&reports, RPT_STORE);
 
 	if (filename == NULL)
 		return NULL;
-	std::ifstream inFile(filename, std::ios::in | std::ios::binary | std::ios::ate);
-	int fileSize = (int)inFile.tellg();
-	if (fileSize <= 10)
-		return NULL;
-	inFile.seekg (0, std::ios::beg);
-	char* fileData = new char[fileSize];
-	inFile.read(fileData, fileSize);
-	inFile.close();
 
-	//SpinSetStaticEncryption_Key("70343d3045723740");
-	//SpinSetDynamicEncryption_Key("70343d3045723741");
-	if (encryptKey != NULL)
-	{
-		if ((fileData[0] != 'B')||(fileData[1] != 'L')||(fileData[2] != 'E')||(fileData[3] != 'N')||(fileData[4] != 'D'))
-			SpinDecrypt_Hex(fileData, fileSize, encryptKey);
+	// load file and decrypt
+	fileData = SpinEncryption_LoadAndDecrypt_file(filename, fileSize, encryptKey);
+
+	if (!fileData) {
+		bfd = BLO_read_from_memory(fileData, fileSize, &reports, localPath);
+		delete [] fileData;
 	}
 
-	bfd = BLO_read_from_memory(fileData, fileSize, &reports, localPath);
-	
-	delete [] fileData;
-	if (!bfd) 
-	{
+	if (!bfd) {
 		printf("Loading %s failed: ", localPath);
 		BKE_reports_print(&reports, RPT_ERROR);
 	}
+
 	BKE_reports_clear(&reports);
 	return bfd;
 }

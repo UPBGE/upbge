@@ -29,7 +29,7 @@
  */
 
 #include "SpindleEncryption.h"
-
+#include <fstream>
 
 char *staticKey = NULL;
 char *dynamicKey = NULL;
@@ -250,6 +250,27 @@ void SpinEncryption_FindAndSet_Key(char **argv, int i, char *hexKey)
 			delete [] dynaKey;
 		}
 	}
+}
+
+char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, char *encryptKey)
+{
+	std::ifstream inFile(filename, std::ios::in | std::ios::binary | std::ios::ate);
+	fileSize = (int)inFile.tellg();
+	if (fileSize <= 10)
+		return NULL;
+	inFile.seekg (0, std::ios::beg);
+	char *fileData = new char[fileSize];
+	inFile.read(fileData, fileSize);
+	inFile.close();
+
+	if (encryptKey != NULL) {
+		if ((fileData[0] != 'B')||(fileData[1] != 'L')||(fileData[2] != 'E')||(fileData[3] != 'N')||(fileData[4] != 'D')) {
+			SpinDecrypt_Hex(fileData, fileSize, encryptKey);
+			return fileData;
+		}
+	}
+	delete [] fileData;
+	return NULL;
 }
 
 void SpinSetStaticEncryption_Key(const char* hexKey)
