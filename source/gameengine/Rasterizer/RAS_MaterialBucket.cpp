@@ -208,20 +208,14 @@ void RAS_MaterialBucket::UnbindNode(const RAS_RenderNodeArguments& args)
 
 void RAS_MaterialBucket::SetDisplayArrayUnmodified()
 {
-	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
-		it != end; ++it)
-	{
-		RAS_DisplayArrayBucket *displayArrayBucket = *it;
+	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
 		displayArrayBucket->SetDisplayArrayUnmodified();
 	}
 }
 
 RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_IDisplayArray *array, RAS_MeshObject *mesh)
 {
-	for (RAS_DisplayArrayBucketList::iterator it = m_displayArrayBucketList.begin(), end = m_displayArrayBucketList.end();
-		it != end; ++it)
-	{
-		RAS_DisplayArrayBucket *displayArrayBucket = *it;
+	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
 		if (displayArrayBucket->GetDisplayArray() == array && displayArrayBucket->GetMesh() == mesh) {
 			return displayArrayBucket;
 		}
@@ -249,8 +243,7 @@ RAS_DisplayArrayBucketList& RAS_MaterialBucket::GetDisplayArrayBucketList()
 
 void RAS_MaterialBucket::MoveDisplayArrayBucket(RAS_MeshMaterial *meshmat, RAS_MaterialBucket *bucket)
 {
-	for (RAS_DisplayArrayBucketList::iterator dit = m_displayArrayBucketList.begin(); dit != m_displayArrayBucketList.end();)
-	{
+	for (RAS_DisplayArrayBucketList::iterator dit = m_displayArrayBucketList.begin(); dit != m_displayArrayBucketList.end();) {
 		// In case of deformers, multiple display array bucket can use the same mesh and material.
 		RAS_DisplayArrayBucket *displayArrayBucket = *dit;
 		if (displayArrayBucket->GetMeshMaterial() != meshmat) {
