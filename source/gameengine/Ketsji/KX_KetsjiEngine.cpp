@@ -607,14 +607,6 @@ void KX_KetsjiEngine::Render()
 			if (activecam && !activecam->GetViewport()) {
 				// do the rendering
 				RenderFrame(scene, activecam, pass++);
-				
-				// Debug Cameras frustum (option to enable in Camera panel)
-				for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-					KX_Camera *cam = *it;
-					if (cam->GetShowCameraFrustum()) {
-						DrawCameraFrustum(cam, scene);	
-					}
-				}
 			}
 
 			// Draw the scene once for each camera with an enabled viewport
@@ -960,6 +952,15 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 #endif
 
 	GetSceneViewport(scene, cam, area, viewport);
+
+	// Debug Cameras frustum (option to enable in Camera panel)
+	CListValue *cameras = scene->GetCameraList();
+	for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
+		KX_Camera *cam = *it;
+		if (cam->GetShowCameraFrustum()) {
+			DrawCameraFrustum(cam, scene, viewport);
+		}
+	}
 
 	// set the viewport for this frame and scene
 	const int left = viewport.GetLeft();
@@ -1700,34 +1701,27 @@ bool KX_KetsjiEngine::GetShowArmatures() const
 	return m_showArmature;
 }
 
-void KX_KetsjiEngine::DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene)
+void KX_KetsjiEngine::DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene, const RAS_Rect& viewport)
 {
 	bool perspective = cam->GetCameraData()->m_perspective;
 
-	Scene *sc = scene->GetBlenderScene();
-	float aspx = (float)sc->r.xsch * sc->r.xasp;
-	float aspy = (float)sc->r.ysch * sc->r.yasp;
-	float ratiox = min_ff(aspx / aspy, 1.0f);
-	float ratioy = min_ff(aspy / aspx, 1.0f);
+	float aspx = viewport.GetWidth();
+	float aspy = viewport.GetHeight();
+	float ratiox = aspx / aspy;
+	float ratioy = 1.0f / ratiox;
 	float clipstart = cam->GetCameraData()->m_clipstart;
 	float clipend = cam->GetCameraData()->m_clipend;
 	const MT_Transform trans(cam->GetCameraToWorld());
 
 	if (perspective) {
-		/* https://en.wikipedia.org/wiki/Angle_of_view */
-		float angleofview = 2.0f * atanf(cam->GetCameraData()->m_sensor_x / (2.0f * cam->GetCameraData()->m_lens));
-
-		/* http://www.mathopenref.com/trigtangent.html */
-		/* tanf(angleofview/2.0f) = opposite / adjacent so opposite = tanf(angleofview/2.0f) * adjacent */
-		float oppositeclipsta = tanf(angleofview / 2.0f) * clipstart;
-		float oppositeclipend = tanf(angleofview / 2.0f) * clipend;
-		m_rasterizer->DrawCameraFrustum(scene, trans, clipstart, clipend,
-			ratiox, ratioy, oppositeclipsta, oppositeclipend);
+		float tanofview = cam->GetCameraData()->m_sensor_x / (2.0f * cam->GetCameraData()->m_lens);
+		float oppositeclipsta = tanofview * clipstart;
+		float oppositeclipend = tanofview * clipend;
+		m_rasterizer->DrawCameraFrustum(scene, trans, clipstart, clipend, ratiox, ratioy, oppositeclipsta, oppositeclipend);
 	}
 	else {
 		float x = cam->GetCameraData()->m_scale * 0.5f;
-		m_rasterizer->DrawCameraFrustum(scene, trans, clipstart,
-			clipend, ratiox, ratioy, x, x);
+		m_rasterizer->DrawCameraFrustum(scene, trans, clipstart, clipend, ratiox, ratioy, x, x);
 	}
 }
 
