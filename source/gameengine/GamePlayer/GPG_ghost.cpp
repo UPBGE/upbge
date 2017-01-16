@@ -643,6 +643,8 @@ int main(
 	bool closeConsole = false;
 #endif
 	bool useLocalPath = false;
+	char *localFilePath = NULL;
+	char *hexKey = NULL;
 	RAS_Rasterizer::StereoMode stereomode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
 	bool stereoWindow = false;
 	bool stereoParFound = false;
@@ -884,12 +886,19 @@ int main(
 			}
 			case 'L':
 			{
+				//Find the requested base file directory
+				if (!useLocalPath && (argv[i][2] != 0)) {
+					localFilePath = new char[strlen(argv[i]) + 1];
+					strcpy(localFilePath, &(argv[i][2]));
+					useLocalPath = true;
+				}
 				i++;
-				useLocalPath = true;
 				break;
 			}
 			case 'K':
 			{
+				//Find and set keys
+				SpinEncryption_FindAndSet_Key(argv, i, hexKey);
 				i++;
 				break;
 			}
@@ -1147,33 +1156,14 @@ int main(
 					{
 						if (useLocalPath)
 						{
-							int pos = -1;
-							char *hexKey = NULL;
-							for (int i = 0; i < argc; i++)
-							{
-								if ((argv[i][0] == '-')&&(argv[i][1] == 'L')&&(argv[i][2] != 0))
-									pos = i;
+							bfd = load_encrypted_game_data(filename[0] ? filename : NULL, localFilePath, hexKey);
 
-								if ((argv[i][0] == '-')&&(argv[i][1] == 'K')) {
-									//Find and set keys
-									SpinEncryption_FindAndSet_Key(argv, i, hexKey);
-								}
-							}
-							
-							//Find the requested base file directory
-							char* localFilePath = NULL;
-							if (pos >= 0)
-							{
-								localFilePath = new char[strlen(argv[pos])+1];
-								strcpy(localFilePath, &(argv[pos][2]));
-							}
-							bfd = load_encrypted_game_data(filename[0]? filename: NULL, localFilePath, hexKey);
 							delete [] localFilePath;
 							if (hexKey != NULL)
 								delete [] hexKey;
+
 							// The file is valid and it's the original file name.
-							if (bfd) 
-							{
+							if (bfd) {
 								remove(filename);
 								KX_SetOrigPath(bfd->main->name);
 							}
