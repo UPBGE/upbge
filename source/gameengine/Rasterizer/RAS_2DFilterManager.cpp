@@ -191,8 +191,3 @@ RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 	}
 	return result;
 }
-
-RAS_2DFilter *RAS_2DFilterManager::NewFilter(RAS_2DFilterData& filterData)
-{
-	return new RAS_2DFilter(filterData);
-}

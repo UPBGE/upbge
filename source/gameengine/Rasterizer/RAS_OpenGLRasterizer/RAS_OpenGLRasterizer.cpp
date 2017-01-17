@@ -343,6 +343,25 @@ inline void RAS_OpenGLRasterizer::OffScreens::UnbindTexture(unsigned short index
 	GPU_texture_unbind(tex);
 }
 
+inline void RAS_OpenGLRasterizer::OffScreens::MipmapTexture(unsigned short index, OffScreen type)
+{
+	GPUOffScreen *ofs = GetOffScreen(index);
+	if (type == RAS_IRasterizer::RAS_OFFSCREEN_COLOR) {
+		GPUTexture *tex = GPU_offscreen_texture(ofs);
+		GPU_texture_filter_mode(tex, false, true, true);
+		GPU_texture_generate_mipmap(tex);
+	}
+}
+
+inline void RAS_OpenGLRasterizer::OffScreens::UnmipmapTexture(unsigned short index, OffScreen type)
+{
+	GPUOffScreen *ofs = GetOffScreen(index);
+	if (type == RAS_IRasterizer::RAS_OFFSCREEN_COLOR) {
+		GPUTexture *tex = GPU_offscreen_texture(ofs);
+		GPU_texture_filter_mode(tex, false, true, false);
+	}
+}
+
 inline short RAS_OpenGLRasterizer::OffScreens::GetCurrentIndex() const
 {
 	return m_currentIndex;
@@ -976,6 +995,16 @@ void RAS_OpenGLRasterizer::BindOffScreenTexture(unsigned short index, unsigned s
 void RAS_OpenGLRasterizer::UnbindOffScreenTexture(unsigned short index, OffScreen type)
 {
 	m_offScreens.UnbindTexture(index, type);
+}
+
+void RAS_OpenGLRasterizer::MipmapOffScreenTexture(unsigned short index, OffScreen type)
+{
+	m_offScreens.MipmapTexture(index, type);
+}
+
+void RAS_OpenGLRasterizer::UnmipmapOffScreenTexture(unsigned short index, OffScreen type)
+{
+	m_offScreens.UnmipmapTexture(index, type);
 }
 
 short RAS_OpenGLRasterizer::GetCurrentOffScreenIndex() const

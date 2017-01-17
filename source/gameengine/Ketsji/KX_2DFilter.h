@@ -49,6 +49,9 @@ public:
 
 #ifdef WITH_PYTHON
 
+	static PyObject *pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+
 	KX_PYMETHOD_DOC(KX_2DFilter, setTexture);
 
 #endif

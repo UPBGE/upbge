@@ -112,6 +112,8 @@ private:
 		void Blit(unsigned short srcindex, unsigned short dstindex, bool color, bool depth);
 		void BindTexture(unsigned short index, unsigned short slot, OffScreen type);
 		void UnbindTexture(unsigned short index, OffScreen type);
+		void MipmapTexture(unsigned short index, OffScreen type);
+		void UnmipmapTexture(unsigned short index, OffScreen type);
 		short GetCurrentIndex() const;
 		int GetSamples(unsigned short index);
 		GPUTexture *GetDepthTexture(unsigned short index);
@@ -275,6 +277,8 @@ public:
 	virtual void DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex);
 	virtual void BindOffScreenTexture(unsigned short index, unsigned short slot, OffScreen type);
 	virtual void UnbindOffScreenTexture(unsigned short index, OffScreen type);
+	virtual void MipmapOffScreenTexture(unsigned short index, OffScreen type);
+	virtual void UnmipmapOffScreenTexture(unsigned short index, OffScreen type);
 	virtual short GetCurrentOffScreenIndex() const;
 	virtual int GetOffScreenSamples(unsigned short index);
 

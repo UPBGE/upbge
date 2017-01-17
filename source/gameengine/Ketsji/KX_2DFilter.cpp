@@ -71,9 +71,28 @@ PyMethodDef KX_2DFilter::Methods[] = {
 };
 
 PyAttributeDef KX_2DFilter::Attributes[] = {
+	KX_PYATTRIBUTE_RW_FUNCTION("mipmap", KX_2DFilter, pyattr_get_mipmap, pyattr_set_mipmap),
 	KX_PYATTRIBUTE_NULL // Sentinel
 };
 
+PyObject *KX_2DFilter::pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_2DFilter *self = static_cast<KX_2DFilter *>(self_v);
+	return PyBool_FromLong(self->GetMipmap());
+}
+
+int KX_2DFilter::pyattr_set_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_2DFilter *self = static_cast<KX_2DFilter *>(self_v);
+	int param = PyObject_IsTrue(value);
+	if (param == -1) {
+		PyErr_SetString(PyExc_AttributeError, "shader.enabled = bool: BL_Shader, expected True or False");
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->SetMipmap(param);
+	return PY_SET_ATTR_SUCCESS;
+}
 
 KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, samplerName)")
 {

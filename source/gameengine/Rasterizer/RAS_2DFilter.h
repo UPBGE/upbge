@@ -52,6 +52,8 @@ protected:
 
 	/// True if the uniform locations are updated with the current shader program/script.
 	bool m_uniformInitialized;
+	/// True if generate mipmap of input color texture.
+	bool m_mipmap;
 
 	/** A set of vec2 coordinates that the shaders use to sample nearby pixels from incoming textures.
 	The computation should be left to the glsl shader, I keep it for backward compatibility. */
@@ -70,6 +72,9 @@ protected:
 public:
 	RAS_2DFilter(RAS_2DFilterData& data);
 	virtual ~RAS_2DFilter();
+
+	bool GetMipmap() const;
+	void SetMipmap(bool mipmap);
 
 	/// Called by the filter manager when it has informations like the display size, a gl context...
 	void Initialize(RAS_ICanvas *canvas);

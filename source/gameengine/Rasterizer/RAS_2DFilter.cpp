@@ -47,7 +47,8 @@ static char predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_TYPE][40
 RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 	:m_properties(data.propertyNames),
 	m_gameObject(data.gameObject),
-	m_uniformInitialized(false)
+	m_uniformInitialized(false),
+	m_mipmap(false)
 {
 	for(unsigned int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
 		m_textureOffsets[i] = 0;
@@ -69,6 +70,16 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 
 RAS_2DFilter::~RAS_2DFilter()
 {
+}
+
+bool RAS_2DFilter::GetMipmap() const
+{
+	return m_mipmap;
+}
+
+void RAS_2DFilter::SetMipmap(bool mipmap)
+{
+	m_mipmap = mipmap;
 }
 
 void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
@@ -173,6 +184,9 @@ void RAS_2DFilter::BindTextures(RAS_IRasterizer *rasty, unsigned short depthfbo,
 {
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
 		rasty->BindOffScreenTexture(colorfbo, 8, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		if (m_mipmap) {
+			rasty->MipmapOffScreenTexture(colorfbo, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		}
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
 		rasty->BindOffScreenTexture(depthfbo, 9, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);
@@ -191,6 +205,9 @@ void RAS_2DFilter::UnbindTextures(RAS_IRasterizer *rasty, unsigned short depthfb
 {
 	if (m_predefinedUniforms[RENDERED_TEXTURE_UNIFORM] != -1) {
 		rasty->UnbindOffScreenTexture(colorfbo, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		if (m_mipmap) {
+			rasty->UnmipmapOffScreenTexture(colorfbo, RAS_IRasterizer::RAS_OFFSCREEN_COLOR);
+		}
 	}
 	if (m_predefinedUniforms[DEPTH_TEXTURE_UNIFORM] != -1) {
 		rasty->UnbindOffScreenTexture(depthfbo, RAS_IRasterizer::RAS_OFFSCREEN_DEPTH);

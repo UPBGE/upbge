@@ -184,7 +184,7 @@ void RAS_CubeMap::GetValidTexture()
 	if (!m_useMipmap) {
 		// Disable mipmaping.
 		GPU_texture_bind(m_gpuTex, 0);
-		GPU_texture_filter_mode(m_gpuTex, false, (env->filtering == ENVMAP_MIPMAP_LINEAR));
+		GPU_texture_filter_mode(m_gpuTex, false, (env->filtering == ENVMAP_MIPMAP_LINEAR), false);
 		GPU_texture_unbind(m_gpuTex);
 	}
 }

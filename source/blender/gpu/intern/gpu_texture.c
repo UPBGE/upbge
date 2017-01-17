@@ -690,7 +690,7 @@ int GPU_texture_bound_number(GPUTexture *tex)
 	return tex->number;
 }
 
-void GPU_texture_filter_mode(GPUTexture *tex, bool compare, bool use_filter)
+void GPU_texture_filter_mode(GPUTexture *tex, bool compare, bool use_filter, bool mipmap)
 {
 	if (tex->number >= GPU_max_textures()) {
 		fprintf(stderr, "Not enough texture slots.\n");
@@ -715,7 +715,12 @@ void GPU_texture_filter_mode(GPUTexture *tex, bool compare, bool use_filter)
 
 	if (use_filter) {
 		glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		if (mipmap) {
+			glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		}
+		else {
+			glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		}
 	}
 	else {
 		glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);

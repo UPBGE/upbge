@@ -20,6 +20,22 @@ base class --- :class:`BL_Shader`
              gl_Position = gl_Vertex;
          }
 
+   .. attribute:: mipmap
+
+      Request mipmap generation of the render `bgl_RenderedTexture` texture. Accessing mipmapping level is similar to:
+
+      .. code-block:: glsl
+
+         uniform sampler2D bgl_RenderedTexture;
+
+         void main()
+         {
+             float level = 2.0; // mipmap level
+             gl_FragColor = textureLod(bgl_RenderedTexture, gl_TexCoord[0].st, level);
+         }
+
+      :type: boolean
+
    .. method:: setTexture(index, bindCode, samplerName)
 
       Set specified texture bind code :data:`bindCode` in specified slot :data:`index`. Any call to :data:`setTexture`

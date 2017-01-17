@@ -392,6 +392,9 @@ public:
 	 */
 	virtual void UnbindOffScreenTexture(unsigned short index, OffScreen type) = 0;
 
+	virtual void MipmapOffScreenTexture(unsigned short index, OffScreen type) = 0;
+	virtual void UnmipmapOffScreenTexture(unsigned short index, OffScreen type) = 0;
+
 	/// Return current off screen index.
 	virtual short GetCurrentOffScreenIndex() const = 0;
 	/// Return the off screenn samples numbers at the given index.

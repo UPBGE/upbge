@@ -699,14 +699,14 @@ void GPU_fx_compositor_XRay_resolve(GPUFX *fx)
 		GPU_shader_bind(depth_resolve_shader);
 
 		GPU_texture_bind(fx->depth_buffer_xray, 0);
-		GPU_texture_filter_mode(fx->depth_buffer_xray, false, true);
+		GPU_texture_filter_mode(fx->depth_buffer_xray, false, true, false);
 		GPU_shader_uniform_texture(depth_resolve_shader, interface->depth_uniform, fx->depth_buffer_xray);
 
 		/* draw */
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 		/* disable bindings */
-		GPU_texture_filter_mode(fx->depth_buffer_xray, true, false);
+		GPU_texture_filter_mode(fx->depth_buffer_xray, true, false, false);
 		GPU_texture_unbind(fx->depth_buffer_xray);
 
 		GPU_shader_unbind();
@@ -821,7 +821,7 @@ bool GPU_fx_do_composite_pass(
 			GPU_shader_uniform_texture(ssao_shader, interface->color_uniform, src);
 
 			GPU_texture_bind(fx->depth_buffer, numslots++);
-			GPU_texture_filter_mode(fx->depth_buffer, false, true);
+			GPU_texture_filter_mode(fx->depth_buffer, false, true, false);
 			GPU_shader_uniform_texture(ssao_shader, interface->depth_uniform, fx->depth_buffer);
 
 			GPU_texture_bind(fx->jitter_buffer, numslots++);
@@ -837,7 +837,7 @@ bool GPU_fx_do_composite_pass(
 
 			/* disable bindings */
 			GPU_texture_unbind(src);
-			GPU_texture_filter_mode(fx->depth_buffer, true, false);
+			GPU_texture_filter_mode(fx->depth_buffer, true, false, false);
 			GPU_texture_unbind(fx->depth_buffer);
 			GPU_texture_unbind(fx->jitter_buffer);
 			GPU_texture_unbind(fx->ssao_spiral_samples_tex);
@@ -913,12 +913,12 @@ bool GPU_fx_do_composite_pass(
 				GPU_shader_uniform_vector(dof_shader_pass1, interface->invrendertargetdim_uniform, 2, 1, invrendertargetdim);
 
 				GPU_texture_bind(fx->depth_buffer, numslots++);
-				GPU_texture_filter_mode(fx->depth_buffer, false, false);
+				GPU_texture_filter_mode(fx->depth_buffer, false, false, false);
 				GPU_shader_uniform_texture(dof_shader_pass1, interface->depth_uniform, fx->depth_buffer);
 
 				GPU_texture_bind(src, numslots++);
 				/* disable filtering for the texture so custom downsample can do the right thing */
-				GPU_texture_filter_mode(src, false, false);
+				GPU_texture_filter_mode(src, false, false, false);
 				GPU_shader_uniform_texture(dof_shader_pass2, interface->color_uniform, src);
 
 				/* target is the downsampled coc buffer */
@@ -932,9 +932,9 @@ bool GPU_fx_do_composite_pass(
 
 				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 				/* disable bindings */
-				GPU_texture_filter_mode(src, false, true);
+				GPU_texture_filter_mode(src, false, true, false);
 				GPU_texture_unbind(src);
-				GPU_texture_filter_mode(fx->depth_buffer, true, false);
+				GPU_texture_filter_mode(fx->depth_buffer, true, false, false);
 				GPU_texture_unbind(fx->depth_buffer);
 
 				GPU_framebuffer_texture_detach(fx->dof_half_downsampled_near);
@@ -965,7 +965,7 @@ bool GPU_fx_do_composite_pass(
 				GPU_texture_bind(fx->dof_half_downsampled_far, numslots++);
 				GPU_texture_bind(fx->dof_half_downsampled_near, numslots++);
 				GPU_shader_uniform_texture(dof_shader_pass2, interface->color_uniform, fx->dof_half_downsampled_far);
-				GPU_texture_filter_mode(fx->dof_half_downsampled_far, false, false);
+				GPU_texture_filter_mode(fx->dof_half_downsampled_far, false, false, false);
 
 				/* target is the downsampled coc buffer */
 				GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_far_blur, 0, NULL);
@@ -985,7 +985,7 @@ bool GPU_fx_do_composite_pass(
 				GPU_framebuffer_texture_detach(fx->dof_far_blur);
 
 				GPU_shader_uniform_texture(dof_shader_pass2, interface->color_uniform, fx->dof_half_downsampled_near);
-				GPU_texture_filter_mode(fx->dof_half_downsampled_near, false, false);
+				GPU_texture_filter_mode(fx->dof_half_downsampled_near, false, false, false);
 
 				selection[0] = 1.0f;
 				selection[1] = 0.0f;
@@ -1025,14 +1025,14 @@ bool GPU_fx_do_composite_pass(
 
 				GPU_texture_bind(fx->dof_near_blur, numslots++);
 				GPU_shader_uniform_texture(dof_shader_pass3, interface->near_uniform, fx->dof_near_blur);
-				GPU_texture_filter_mode(fx->dof_near_blur, false, true);
+				GPU_texture_filter_mode(fx->dof_near_blur, false, true, false);
 
 				GPU_texture_bind(fx->dof_far_blur, numslots++);
 				GPU_shader_uniform_texture(dof_shader_pass3, interface->far_uniform, fx->dof_far_blur);
-				GPU_texture_filter_mode(fx->dof_far_blur, false, true);
+				GPU_texture_filter_mode(fx->dof_far_blur, false, true, false);
 
 				GPU_texture_bind(fx->depth_buffer, numslots++);
-				GPU_texture_filter_mode(fx->depth_buffer, false, false);
+				GPU_texture_filter_mode(fx->depth_buffer, false, false, false);
 				GPU_shader_uniform_texture(dof_shader_pass3, interface->depth_uniform, fx->depth_buffer);
 
 				GPU_texture_bind(src, numslots++);
@@ -1047,7 +1047,7 @@ bool GPU_fx_do_composite_pass(
 				GPU_texture_unbind(fx->dof_near_blur);
 				GPU_texture_unbind(fx->dof_far_blur);
 				GPU_texture_unbind(src);
-				GPU_texture_filter_mode(fx->depth_buffer, true, false);
+				GPU_texture_filter_mode(fx->depth_buffer, true, false, false);
 				GPU_texture_unbind(fx->depth_buffer);
 
 				/* may not be attached, in that case this just returns */
@@ -1107,7 +1107,7 @@ bool GPU_fx_do_composite_pass(
 				GPU_shader_uniform_texture(dof_shader_pass1, interface->color_uniform, src);
 
 				GPU_texture_bind(fx->depth_buffer, numslots++);
-				GPU_texture_filter_mode(fx->depth_buffer, false, true);
+				GPU_texture_filter_mode(fx->depth_buffer, false, true, false);
 				GPU_shader_uniform_texture(dof_shader_pass1, interface->depth_uniform, fx->depth_buffer);
 
 				/* target is the downsampled coc buffer */
@@ -1118,7 +1118,7 @@ bool GPU_fx_do_composite_pass(
 				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 				/* disable bindings */
 				GPU_texture_unbind(src);
-				GPU_texture_filter_mode(fx->depth_buffer, true, false);
+				GPU_texture_filter_mode(fx->depth_buffer, true, false, false);
 				GPU_texture_unbind(fx->depth_buffer);
 
 				GPU_framebuffer_texture_detach(fx->dof_near_coc_buffer);
@@ -1144,7 +1144,7 @@ bool GPU_fx_do_composite_pass(
 				GPU_shader_uniform_vector(dof_shader_pass2, interface->viewvecs_uniform, 4, 3, viewvecs[0]);
 
 				GPU_texture_bind(fx->depth_buffer, numslots++);
-				GPU_texture_filter_mode(fx->depth_buffer, false, true);
+				GPU_texture_filter_mode(fx->depth_buffer, false, true, false);
 				GPU_shader_uniform_texture(dof_shader_pass2, interface->depth_uniform, fx->depth_buffer);
 
 				GPU_texture_bind(fx->dof_near_coc_buffer, numslots++);
@@ -1172,7 +1172,7 @@ bool GPU_fx_do_composite_pass(
 				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 				/* *unbind/detach */
-				GPU_texture_filter_mode(fx->depth_buffer, true, false);
+				GPU_texture_filter_mode(fx->depth_buffer, true, false, false);
 				GPU_texture_unbind(fx->depth_buffer);
 
 				GPU_texture_unbind(fx->dof_near_coc_final_buffer);
@@ -1256,7 +1256,7 @@ bool GPU_fx_do_composite_pass(
 				GPU_shader_uniform_texture(dof_shader_pass5, interface->medium_blurred_uniform, fx->dof_near_coc_buffer);
 
 				GPU_texture_bind(fx->depth_buffer, numslots++);
-				GPU_texture_filter_mode(fx->depth_buffer, false, true);
+				GPU_texture_filter_mode(fx->depth_buffer, false, true, false);
 				GPU_shader_uniform_texture(dof_shader_pass5, interface->depth_uniform, fx->depth_buffer);
 
 				/* if this is the last pass, prepare for rendering on the frambuffer */
@@ -1267,7 +1267,7 @@ bool GPU_fx_do_composite_pass(
 				GPU_texture_unbind(fx->dof_near_coc_buffer);
 				GPU_texture_unbind(fx->dof_near_coc_blurred_buffer);
 				GPU_texture_unbind(src);
-				GPU_texture_filter_mode(fx->depth_buffer, true, false);
+				GPU_texture_filter_mode(fx->depth_buffer, true, false, false);
 				GPU_texture_unbind(fx->depth_buffer);
 
 				/* may not be attached, in that case this just returns */

@@ -87,7 +87,7 @@ private:
 	 */
 	RAS_2DFilter *CreateFilter(RAS_2DFilterData& filterData);
 	/// Only return a new instanced filter.
-	virtual RAS_2DFilter *NewFilter(RAS_2DFilterData& filterData);
+	virtual RAS_2DFilter *NewFilter(RAS_2DFilterData& filterData) = 0;
 };
 
 #endif // __RAS_2DFILTERMANAGER_H__
