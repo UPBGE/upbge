@@ -378,11 +378,6 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_RenderNodeArguments& ar
 			m_instancingBuffer->GetMatrixOffset(),
 			m_instancingBuffer->GetPositionOffset(),
 			m_instancingBuffer->GetStride());
-
-		/* Because the geometry instancing use setting for all instances we use the original alpha blend.
-		 * This requierd that the user use "alpha blend" mode if he will mutate object color alpha.
-		 */
-		rasty->SetAlphaBlend(material->GetAlphaBlend());
 	}
 	else {
 		material->ActivateInstancing(
@@ -392,6 +387,11 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_RenderNodeArguments& ar
 			m_instancingBuffer->GetColorOffset(),
 			m_instancingBuffer->GetStride());
 	}
+
+	/* Because the geometry instancing use setting for all instances we use the original alpha blend.
+	 * This requierd that the user use "alpha blend" mode if he will mutate object color alpha.
+	 */
+	rasty->SetAlphaBlend(material->GetAlphaBlend());
 
 	/* It's a major issue of the geometry instancing : we can't manage face wise.
 	 * To be sure we don't use the old face wise we force it to true. */
@@ -453,12 +453,10 @@ void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_RenderNodeArguments& args
 	RAS_IRasterizer *rasty = args.m_rasty;
 	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
 
-	if (args.m_shaderOverride) {
-		/* Because the batching use setting for all instances we use the original alpha blend.
-		 * This requierd that the user use "alpha blend" mode if he will mutate object color alpha.
-		 */
-		rasty->SetAlphaBlend(material->GetAlphaBlend());
-	}
+	/* Because the batching use setting for all instances we use the original alpha blend.
+	 * This requierd that the user use "alpha blend" mode if he will mutate object color alpha.
+	 */
+	rasty->SetAlphaBlend(material->GetAlphaBlend());
 
 	/* It's a major issue of the batching : we can't manage face wise per object.
 	 * To be sure we don't use the old face wise we force it to true. */
