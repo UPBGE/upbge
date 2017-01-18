@@ -103,7 +103,6 @@ protected:
 	typedef std::vector<RAS_DefUniform *> RAS_UniformVecDef;
 
 	GPUShader *m_shader;
-	bool m_ok; // Valid and ok
 	bool m_use;
 	int m_attr; // Tangent attribute
 	std::string m_progs[MAX_PROGRAM];
