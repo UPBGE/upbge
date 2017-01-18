@@ -111,21 +111,6 @@ std::string KX_MeshProxy::GetName()
 	return m_meshobj->GetName();
 }
 
-// stuff for python integration
-static int kx_mesh_proxy_get_polygons_size_cb(void *self_v)
-{
-	return ((KX_MeshProxy *)self_v)->GetMesh()->NumPolygons();
-}
-
-static PyObject *kx_mesh_proxy_get_polygons_item_cb(void *self_v, int index)
-{
-	KX_MeshProxy *self = static_cast<KX_MeshProxy *>(self_v);
-	RAS_MeshObject *mesh = self->GetMesh();
-	RAS_Polygon *polygon = mesh->GetPolygon(index);
-	PyObject *polyob = (new KX_PolyProxy(self, mesh, polygon))->NewProxy(true);
-	return polyob;
-}
-
 PyObject *KX_MeshProxy::PyGetMaterialName(PyObject *args, PyObject *kwds)
 {
 	int matid = 1;
@@ -402,7 +387,7 @@ PyObject *KX_MeshProxy::PyReplaceMaterial(PyObject *args, PyObject *kwds)
 	Py_RETURN_NONE;
 }
 
-PyObject *KX_MeshProxy::pyattr_get_materials(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MeshProxy::pyattr_get_materials(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_MeshProxy *self = static_cast<KX_MeshProxy *>(self_v);
 
@@ -421,19 +406,33 @@ PyObject *KX_MeshProxy::pyattr_get_materials(void *self_v, const KX_PYATTRIBUTE_
 	return materials;
 }
 
-PyObject *KX_MeshProxy::pyattr_get_numMaterials(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MeshProxy::pyattr_get_numMaterials(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_MeshProxy *self = static_cast<KX_MeshProxy *> (self_v);
 	return PyLong_FromLong(self->m_meshobj->NumMaterials());
 }
 
-PyObject *KX_MeshProxy::pyattr_get_numPolygons(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MeshProxy::pyattr_get_numPolygons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_MeshProxy *self = static_cast<KX_MeshProxy *> (self_v);
 	return PyLong_FromLong(self->m_meshobj->NumPolygons());
 }
 
-PyObject *KX_MeshProxy::pyattr_get_polygons(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+static int kx_mesh_proxy_get_polygons_size_cb(void *self_v)
+{
+	return ((KX_MeshProxy *)self_v)->GetMesh()->NumPolygons();
+}
+
+static PyObject *kx_mesh_proxy_get_polygons_item_cb(void *self_v, int index)
+{
+	KX_MeshProxy *self = static_cast<KX_MeshProxy *>(self_v);
+	RAS_MeshObject *mesh = self->GetMesh();
+	RAS_Polygon *polygon = mesh->GetPolygon(index);
+	PyObject *polyob = (new KX_PolyProxy(self, mesh, polygon))->NewProxy(true);
+	return polyob;
+}
+
+PyObject *KX_MeshProxy::pyattr_get_polygons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new CListWrapper(self_v,
 		((KX_MeshProxy *)self_v)->GetProxy(),

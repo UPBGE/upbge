@@ -285,7 +285,7 @@ PyAttributeDef PyObjectPlus::Attributes[] = {
 	KX_PYATTRIBUTE_NULL // Sentinel
 };
 
-PyObject *PyObjectPlus::pyattr_get_invalid(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *PyObjectPlus::pyattr_get_invalid(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	return PyBool_FromLong(self_v ? 0 : 1);
 }
@@ -294,8 +294,8 @@ PyObject *PyObjectPlus::pyattr_get_invalid(void *self_v, const KX_PYATTRIBUTE_DE
 PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *attrdef)
 {
 	PyObjectPlus *ref = (BGE_PROXY_REF(self_py));
-	char *ptr = (attrdef->m_usePtr) ? (char *)BGE_PROXY_PTR(self_py) : (char *)ref;
-	if (ptr == NULL || (BGE_PROXY_PYREF(self_py) && (ref == NULL || !ref->py_is_valid()))) {
+	void *vptr = (attrdef->m_usePtr) ? (char *)BGE_PROXY_PTR(self_py) : (char *)ref;
+	if (vptr == NULL || (BGE_PROXY_PYREF(self_py) && (ref == NULL || !ref->py_is_valid()))) {
 		if (attrdef == BGE_PY_ATTR_INVALID) {
 			Py_RETURN_TRUE; // Don't bother running the function.
 		}
@@ -312,8 +312,9 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 		if (attrdef->m_getFunction == NULL) {
 			return NULL;
 		}
-		return (*attrdef->m_getFunction)(ptr, attrdef);
+		return (*attrdef->m_getFunction)(static_cast<PyObjectPlus *>(vptr), attrdef);
 	}
+	char *ptr = static_cast<char *> (vptr);
 	ptr += attrdef->m_offset;
 	if (attrdef->m_length > 1) {
 		PyObject *resultlist = PyList_New(attrdef->m_length);

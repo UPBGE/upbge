@@ -164,13 +164,13 @@ PyAttributeDef SCA_RandomSensor::Attributes[] = {
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
-PyObject *SCA_RandomSensor::pyattr_get_seed(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_RandomSensor::pyattr_get_seed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_RandomSensor* self = static_cast<SCA_RandomSensor*>(self_v);
 	return PyLong_FromLong(self->m_basegenerator->GetSeed());
 }
 
-int SCA_RandomSensor::pyattr_set_seed(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_RandomSensor::pyattr_set_seed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	SCA_RandomSensor* self = static_cast<SCA_RandomSensor*>(self_v);
 	if (!PyLong_Check(value)) {

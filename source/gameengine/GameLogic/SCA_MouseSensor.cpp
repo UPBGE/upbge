@@ -270,7 +270,7 @@ PyMethodDef SCA_MouseSensor::Methods[] = {
 	{NULL,NULL} //Sentinel
 };
 
-int SCA_MouseSensor::UpdateHotkeyPy(void *self, const PyAttributeDef*)
+int SCA_MouseSensor::UpdateHotkeyPy(PyObjectPlus *self, const PyAttributeDef*)
 {
 	UpdateHotkey(self);
 	// return value is used in py_setattro(),

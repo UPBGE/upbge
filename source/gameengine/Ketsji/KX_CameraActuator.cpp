@@ -391,7 +391,7 @@ PyAttributeDef KX_CameraActuator::Attributes[] = {
 	KX_PYATTRIBUTE_NULL
 };
 
-PyObject *KX_CameraActuator::pyattr_get_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CameraActuator::pyattr_get_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CameraActuator* self = static_cast<KX_CameraActuator*>(self_v);
 	if (self->m_ob==NULL)
@@ -400,7 +400,7 @@ PyObject *KX_CameraActuator::pyattr_get_object(void *self_v, const KX_PYATTRIBUT
 		return self->m_ob->GetProxy();
 }
 
-int KX_CameraActuator::pyattr_set_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_CameraActuator::pyattr_set_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CameraActuator* self = static_cast<KX_CameraActuator*>(self_v);
 	KX_GameObject *gameobj;

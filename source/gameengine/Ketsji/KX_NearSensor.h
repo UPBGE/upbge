@@ -88,7 +88,7 @@ public:
 	//No methods
 
 	//This method is used to make sure the distance does not exceed the reset distance
-	static int CheckResetDistance(void *self, const PyAttributeDef*)
+	static int CheckResetDistance(PyObjectPlus *self, const PyAttributeDef*)
 	{
 		KX_NearSensor* sensor = reinterpret_cast<KX_NearSensor*>(self);
 

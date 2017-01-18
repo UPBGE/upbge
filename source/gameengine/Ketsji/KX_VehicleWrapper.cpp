@@ -384,13 +384,13 @@ PyAttributeDef KX_VehicleWrapper::Attributes[] = {
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_VehicleWrapper::pyattr_get_ray_mask(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_VehicleWrapper::pyattr_get_ray_mask(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_VehicleWrapper *wrapper = static_cast<KX_VehicleWrapper*>(self);
 	return PyLong_FromLong(wrapper->m_vehicle->GetRayCastMask());
 }
 
-int KX_VehicleWrapper::pyattr_set_ray_mask(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_VehicleWrapper::pyattr_set_ray_mask(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_VehicleWrapper *wrapper = static_cast<KX_VehicleWrapper*>(self);
 

@@ -66,10 +66,10 @@ public:
 		return PyUnicode_FromStdString(m_meshobj->GetName());
 	}
 
-	static PyObject *pyattr_get_mesh(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_use_hysteresis(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_use_mesh(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_use_material(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_mesh(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_use_hysteresis(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_use_mesh(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_use_material(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif // WITH_PYTHON
 

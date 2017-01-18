@@ -75,10 +75,10 @@ public:
 	KX_PYMETHOD(KX_MeshProxy, TransformUV);
 	KX_PYMETHOD(KX_MeshProxy, ReplaceMaterial);
 
-	static PyObject *pyattr_get_materials(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_numMaterials(void *self, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_numPolygons(void *self, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_polygons(void *self, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_materials(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_numMaterials(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_numPolygons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_polygons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 };
 
 #endif  // WITH_PYTHON

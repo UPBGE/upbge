@@ -116,7 +116,7 @@ public:
 
 	virtual CValue *ConvertPythonToValue(PyObject *pyobj, const bool do_type_exception, const char *error_prefix);
 
-	static PyObject *pyattr_get_name(void *self, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_name(PyObjectPlus *self, const KX_PYATTRIBUTE_DEF *attrdef);
 
 	virtual PyObject *ConvertKeysToPython(void);
 #endif  // WITH_PYTHON

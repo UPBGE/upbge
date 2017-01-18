@@ -231,7 +231,7 @@ PyAttributeDef KX_SceneActuator::Attributes[] = {
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_SceneActuator::pyattr_get_camera(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_SceneActuator::pyattr_get_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SceneActuator* actuator = static_cast<KX_SceneActuator*>(self);
 	if (!actuator->m_camera)
@@ -240,7 +240,7 @@ PyObject *KX_SceneActuator::pyattr_get_camera(void *self, const struct KX_PYATTR
 	return actuator->m_camera->GetProxy();
 }
 
-int KX_SceneActuator::pyattr_set_camera(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_SceneActuator::pyattr_set_camera(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_SceneActuator* actuator = static_cast<KX_SceneActuator*>(self);
 	KX_Camera *camOb;

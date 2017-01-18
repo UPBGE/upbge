@@ -210,7 +210,7 @@ static PyObject *kx_lod_manager_get_levels_item_cb(void *self_v, int index)
 	return ((KX_LodManager *)self_v)->GetLevel(index)->GetProxy();
 }
 
-PyObject *KX_LodManager::pyattr_get_levels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_LodManager::pyattr_get_levels(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new CListWrapper(self_v,
 							 ((KX_LodManager *)self_v)->GetProxy(),

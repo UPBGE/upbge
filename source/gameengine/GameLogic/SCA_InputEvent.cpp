@@ -130,7 +130,7 @@ PyObject *SCA_InputEvent::get_status_item_cb(void *self_v, int index)
 	return PyLong_FromLong(((SCA_InputEvent *)self_v)->m_status[index]);
 }
 
-PyObject *SCA_InputEvent::pyattr_get_status(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_InputEvent::pyattr_get_status(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new CListWrapper(self_v,
 							 ((SCA_InputEvent *)self_v)->GetProxy(),
@@ -152,7 +152,7 @@ PyObject *SCA_InputEvent::get_queue_item_cb(void *self_v, int index)
 	return PyLong_FromLong(((SCA_InputEvent *)self_v)->m_queue[index]);
 }
 
-PyObject *SCA_InputEvent::pyattr_get_queue(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_InputEvent::pyattr_get_queue(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new CListWrapper(self_v,
 							 ((SCA_InputEvent *)self_v)->GetProxy(),
@@ -174,7 +174,7 @@ PyObject *SCA_InputEvent::get_values_item_cb(void *self_v, int index)
 	return PyLong_FromLong(((SCA_InputEvent *)self_v)->m_values[index]);
 }
 
-PyObject *SCA_InputEvent::pyattr_get_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_InputEvent::pyattr_get_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	return (new CListWrapper(self_v,
 							 ((SCA_InputEvent *)self_v)->GetProxy(),

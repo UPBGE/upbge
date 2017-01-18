@@ -261,7 +261,7 @@ CValue* SCA_PropertySensor::FindIdentifier(const std::string& identifiername)
 /* Python functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-int SCA_PropertySensor::validValueForProperty(void *self, const PyAttributeDef*)
+int SCA_PropertySensor::validValueForProperty(PyObjectPlus *self, const PyAttributeDef*)
 {
 	/* If someone actually do type checking please make sure the 'max' and 'min'
 	 * are checked as well (currently they are calling the PrecalculateRangeExpression

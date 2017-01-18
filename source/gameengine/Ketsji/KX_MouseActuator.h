@@ -119,14 +119,14 @@ public:
 
 	/* Attributes */
 
-	static PyObject*	pyattr_get_limit_x(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_limit_x(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_limit_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_limit_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	static PyObject*	pyattr_get_limit_y(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_limit_y(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_limit_y(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_limit_y(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	static PyObject*	pyattr_get_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif  /* WITH_PYTHON */
 
 };

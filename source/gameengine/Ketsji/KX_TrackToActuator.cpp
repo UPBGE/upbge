@@ -397,7 +397,7 @@ PyAttributeDef KX_TrackToActuator::Attributes[] = {
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_TrackToActuator::pyattr_get_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_TrackToActuator::pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_TrackToActuator* actuator = static_cast<KX_TrackToActuator*>(self);
 	if (!actuator->m_object)
@@ -406,7 +406,7 @@ PyObject *KX_TrackToActuator::pyattr_get_object(void *self, const struct KX_PYAT
 		return actuator->m_object->GetProxy();
 }
 
-int KX_TrackToActuator::pyattr_set_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_TrackToActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_TrackToActuator* actuator = static_cast<KX_TrackToActuator*>(self);
 	KX_GameObject *gameobj;

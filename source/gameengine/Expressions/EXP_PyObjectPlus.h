@@ -109,7 +109,7 @@ typedef struct PyObjectPlus_Proxy {
 /// Opposite of BGE_PROXY_REF.
 #define BGE_PROXY_FROM_REF(_self) (((PyObjectPlus *)_self)->GetProxy())
 /// Same as 'BGE_PROXY_REF' but doesn't incref.
-#define BGE_PROXY_FROM_REF_BORROW(_self) _bge_proxy_from_ref_borrow((void *)_self)
+#define BGE_PROXY_FROM_REF_BORROW(_self) _bge_proxy_from_ref_borrow(_self)
 
 
 /** This must be the first line of each
@@ -354,9 +354,9 @@ enum KX_PYATTRIBUTE_ACCESS {
 };
 
 struct KX_PYATTRIBUTE_DEF;
-typedef int (*KX_PYATTRIBUTE_CHECK_FUNCTION)(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-typedef int (*KX_PYATTRIBUTE_SET_FUNCTION)(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-typedef PyObject *(*KX_PYATTRIBUTE_GET_FUNCTION)(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+typedef int (*KX_PYATTRIBUTE_CHECK_FUNCTION)(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+typedef int (*KX_PYATTRIBUTE_SET_FUNCTION)(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+typedef PyObject *(*KX_PYATTRIBUTE_GET_FUNCTION)(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 
 typedef struct KX_PYATTRIBUTE_DEF {
 	/// Name of the python attribute.
@@ -611,7 +611,7 @@ public:
 	static int py_set_attrdef(PyObject *self_py, PyObject *value, const PyAttributeDef *attrdef);
 
 	/// Kindof dumb, always returns True, the false case is checked for, before this function gets accessed.
-	static PyObject *pyattr_get_invalid(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_invalid(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 	static PyObject *GetProxyPlus_Ext(PyObjectPlus *self, PyTypeObject *tp, void *ptr);
 	/** self=NULL => proxy to generic pointer detached from GE object
@@ -646,7 +646,7 @@ public:
 #ifdef WITH_PYTHON
 PyObject *PyUnicode_FromStdString(const std::string& str);
 
-inline PyObject *_bge_proxy_from_ref_borrow(void *self_v)
+inline PyObject *_bge_proxy_from_ref_borrow(PyObjectPlus *self_v)
 {
 	PyObject *self_proxy = BGE_PROXY_FROM_REF(self_v);
 	/* this is typically _very_ bad practice,

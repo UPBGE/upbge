@@ -93,7 +93,7 @@ public:
 	virtual sensortype GetSensorType() { return ST_RADAR; }
 	/* python */
 #ifdef WITH_PYTHON
-	static PyObject*	pyattr_get_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 

@@ -71,14 +71,14 @@ public:
 
 	virtual PyObject *py_repr();
 
-	static PyObject *pyattr_get_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_center(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_radius(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_auto_update(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_auto_update(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_min(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_min(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_max(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_max(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_center(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_radius(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_auto_update(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_auto_update(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 };
 
 #endif  // WITH_PYTHON

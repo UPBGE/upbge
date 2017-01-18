@@ -157,7 +157,7 @@ PyAttributeDef KX_PythonComponent::Attributes[] = {
 	KX_PYATTRIBUTE_NULL // Sentinel
 };
 
-PyObject* KX_PythonComponent::pyattr_get_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* KX_PythonComponent::pyattr_get_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_PythonComponent *self = static_cast<KX_PythonComponent *>(self_v);
 	KX_GameObject *gameobj = self->GetGameObject();

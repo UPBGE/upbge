@@ -89,7 +89,7 @@ public:
 	/**
 	 * Test whether this is a sensible value (type check)
 	 */
-	static int validValueForProperty(void* self, const PyAttributeDef*);
+	static int validValueForProperty(PyObjectPlus *self, const PyAttributeDef*);
 
 #endif
 };

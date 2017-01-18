@@ -118,7 +118,7 @@ public:
 		return PyUnicode_FromString("KX_LodManager");
 	}
 
-	static PyObject *pyattr_get_levels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_levels(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif //WITH_PYTHON
 };

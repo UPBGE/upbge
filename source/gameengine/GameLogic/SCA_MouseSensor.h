@@ -110,7 +110,7 @@ class SCA_MouseSensor : public SCA_ISensor
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 	
-	static int UpdateHotkeyPy(void *self, const PyAttributeDef *);
+	static int UpdateHotkeyPy(PyObjectPlus *self, const PyAttributeDef *);
 
 	// get button status
 	KX_PYMETHOD_DOC_O(SCA_MouseSensor,getButtonStatus);

@@ -51,8 +51,8 @@ public:
 	KX_PYMETHOD(KX_ConstraintWrapper,SetParam);
 	KX_PYMETHOD(KX_ConstraintWrapper,GetParam);
 
-	static PyObject *pyattr_get_constraintId(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_constraintType(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_constraintId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_constraintType(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 
 private:

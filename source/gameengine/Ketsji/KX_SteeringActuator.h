@@ -109,12 +109,12 @@ public:
 	/* --------------------------------------------------------------------- */
 
 	/* These are used to get and set m_target */
-	static PyObject *pyattr_get_target(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int       pyattr_set_target(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_navmesh(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int       pyattr_set_navmesh(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_steeringVec(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_path(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_target(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static int       pyattr_set_target(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_navmesh(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static int       pyattr_set_navmesh(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_steeringVec(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_path(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif  /* WITH_PYTHON */
 

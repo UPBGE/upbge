@@ -63,8 +63,8 @@ public:
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 	
-	static PyObject*	pyattr_get_seed(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_seed(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_seed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_seed(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif
 };
 

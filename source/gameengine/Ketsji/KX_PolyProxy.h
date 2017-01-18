@@ -58,17 +58,17 @@ public:
 	KX_MeshProxy *GetMeshProxy();
 
 	// stuff for python integration
-	static PyObject *pyattr_get_material_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_texture_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_material(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_material_id(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v1(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v2(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v3(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_v4(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_collide(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_vertices(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_material_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_texture_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_material(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_material_id(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_v1(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_v2(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_v3(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_v4(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_visible(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_collide(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_vertices(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getMaterialIndex)
 	KX_PYMETHOD_DOC_NOARGS(KX_PolyProxy, getNumVertex)

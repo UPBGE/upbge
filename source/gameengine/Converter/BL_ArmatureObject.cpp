@@ -637,13 +637,13 @@ PyAttributeDef BL_ArmatureObject::Attributes[] = {
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
-PyObject *BL_ArmatureObject::pyattr_get_constraints(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureObject::pyattr_get_constraints(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ArmatureObject *self = static_cast<BL_ArmatureObject *>(self_v);
 	return self->m_controlledConstraints->GetProxy();
 }
 
-PyObject *BL_ArmatureObject::pyattr_get_channels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureObject::pyattr_get_channels(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ArmatureObject *self = static_cast<BL_ArmatureObject *>(self_v);
 	self->LoadChannels(); // make sure we have the channels

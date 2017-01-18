@@ -193,7 +193,7 @@ PyAttributeDef KX_NetworkMessageSensor::Attributes[] = {
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
-PyObject *KX_NetworkMessageSensor::pyattr_get_bodies(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_NetworkMessageSensor::pyattr_get_bodies(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_NetworkMessageSensor *self = static_cast<KX_NetworkMessageSensor *>(self_v);
 	if (self->m_BodyList) {
@@ -204,7 +204,7 @@ PyObject *KX_NetworkMessageSensor::pyattr_get_bodies(void *self_v, const KX_PYAT
 	}
 }
 
-PyObject *KX_NetworkMessageSensor::pyattr_get_subjects(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_NetworkMessageSensor::pyattr_get_subjects(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_NetworkMessageSensor *self = static_cast<KX_NetworkMessageSensor *>(self_v);
 	if (self->m_SubjectList) {

@@ -80,9 +80,9 @@ protected:
 	bool m_do_color_management;
 
 #ifdef WITH_PYTHON
-	static PyObject *pyattr_get_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_dimensions(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_dimensions(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 

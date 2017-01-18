@@ -103,7 +103,7 @@ PyAttributeDef SCA_PythonJoystick::Attributes[] = {
 };
 
 // Use one function for numAxis, numButtons, and numHats
-PyObject* SCA_PythonJoystick::pyattr_get_num_x(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* SCA_PythonJoystick::pyattr_get_num_x(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	if (attrdef->m_name == "numButtons") {
 		return PyLong_FromLong(JOYBUT_MAX);
@@ -121,7 +121,7 @@ PyObject* SCA_PythonJoystick::pyattr_get_num_x(void *self_v, const KX_PYATTRIBUT
 	return NULL;
 }
 
-PyObject* SCA_PythonJoystick::pyattr_get_active_buttons(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* SCA_PythonJoystick::pyattr_get_active_buttons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonJoystick* self = static_cast<SCA_PythonJoystick*>(self_v);
 	
@@ -142,13 +142,13 @@ PyObject* SCA_PythonJoystick::pyattr_get_active_buttons(void *self_v, const KX_P
 	return list;
 }
 
-PyObject* SCA_PythonJoystick::pyattr_get_hat_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* SCA_PythonJoystick::pyattr_get_hat_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	ShowDeprecationWarning("SCA_PythonJoystick.hatValues", "SCA_PythonJoystick.activeButtons");
 	return NULL;
 }
 
-PyObject* SCA_PythonJoystick::pyattr_get_axis_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* SCA_PythonJoystick::pyattr_get_axis_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonJoystick* self = static_cast<SCA_PythonJoystick*>(self_v);
 	
@@ -171,7 +171,7 @@ PyObject* SCA_PythonJoystick::pyattr_get_axis_values(void *self_v, const KX_PYAT
 	return list;
 }
 
-PyObject* SCA_PythonJoystick::pyattr_get_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject* SCA_PythonJoystick::pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonJoystick* self = static_cast<SCA_PythonJoystick*>(self_v);
 

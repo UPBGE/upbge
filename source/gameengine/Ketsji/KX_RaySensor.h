@@ -102,7 +102,7 @@ public:
 #ifdef WITH_PYTHON
 
 	/* Attributes */
-	static PyObject *pyattr_get_hitobject(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_hitobject(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	
 #endif  /* WITH_PYTHON */
 

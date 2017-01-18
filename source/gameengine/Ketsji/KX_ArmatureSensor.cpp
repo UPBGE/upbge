@@ -193,7 +193,7 @@ PyAttributeDef KX_ArmatureSensor::Attributes[] = {
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_ArmatureSensor::pyattr_get_constraint(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ArmatureSensor::pyattr_get_constraint(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_ArmatureSensor* sensor = static_cast<KX_ArmatureSensor*>(self);
 	if (sensor->m_gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {

@@ -78,9 +78,9 @@ public:
 	static int get_values_size_cb(void *self_v);
 	static PyObject *get_values_item_cb(void *self_v, int index);
 
-	static PyObject *pyattr_get_status(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_queue(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_status(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_queue(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 

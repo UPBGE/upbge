@@ -110,8 +110,8 @@ class SCA_PythonController : public SCA_IController
 	KX_PYMETHOD_NOARGS(SCA_PythonController,GetScript);
 
 	
-	static PyObject*	pyattr_get_script(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_script(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_script(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_script(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif
 };
 

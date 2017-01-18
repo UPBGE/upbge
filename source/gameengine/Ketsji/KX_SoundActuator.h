@@ -110,19 +110,19 @@ public:
 	KX_PYMETHOD_DOC_NOARGS(KX_SoundActuator, pauseSound);
 	KX_PYMETHOD_DOC_NOARGS(KX_SoundActuator, stopSound);
 
-	static int pyattr_set_3d_property(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_audposition(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_gain(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_pitch(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_type(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static int pyattr_set_sound(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_3d_property(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_audposition(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_gain(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_pitch(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_type(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_sound(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	static PyObject *pyattr_get_3d_property(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_audposition(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_gain(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_pitch(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_type(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_sound(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_3d_property(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_audposition(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_gain(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_pitch(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_type(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_sound(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 
 #endif  /* WITH_PYTHON */
 

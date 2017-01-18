@@ -320,7 +320,7 @@ PyAttributeDef KX_FontObject::Attributes[] = {
 	KX_PYATTRIBUTE_NULL    //Sentinel
 };
 
-PyObject *KX_FontObject::pyattr_get_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_FontObject::pyattr_get_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
 	std::string str = std::string();
@@ -332,7 +332,7 @@ PyObject *KX_FontObject::pyattr_get_text(void *self_v, const KX_PYATTRIBUTE_DEF 
 	return PyUnicode_FromStdString(str);
 }
 
-int KX_FontObject::pyattr_set_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_FontObject::pyattr_set_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
 	if (!PyUnicode_Check(value))
@@ -353,7 +353,7 @@ int KX_FontObject::pyattr_set_text(void *self_v, const KX_PYATTRIBUTE_DEF *attrd
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_FontObject::pyattr_get_dimensions(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_FontObject::pyattr_get_dimensions(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_FontObject *self = static_cast<KX_FontObject *>(self_v);
 	return PyObjectFrom(self->GetTextDimensions());

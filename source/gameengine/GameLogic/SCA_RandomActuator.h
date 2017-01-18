@@ -98,8 +98,8 @@ class SCA_RandomActuator : public SCA_IActuator
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 
-	static PyObject *pyattr_get_seed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_seed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_seed(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_seed(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setBoolConst);
 	KX_PYMETHOD_DOC_NOARGS(SCA_RandomActuator, setBoolUniform);

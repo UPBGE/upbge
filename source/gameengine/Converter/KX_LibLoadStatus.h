@@ -81,12 +81,12 @@ public:
 	void AddProgress(float progress);
 
 #ifdef WITH_PYTHON
-	static PyObject*	pyattr_get_onfinish(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_onfinish(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_onprogress(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_onprogress(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_onfinish(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_onfinish(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_onprogress(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_onprogress(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	static PyObject*	pyattr_get_timetaken(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_timetaken(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 

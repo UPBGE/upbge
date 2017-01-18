@@ -196,16 +196,16 @@ public:
 	/* Python functions: */
 	KX_PYMETHOD_DOC_NOARGS(SCA_ISensor,reset);
 	
-	static PyObject*	pyattr_get_triggered(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_positive(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_status(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_posTicks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_negTicks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_frequency(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_frequency(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_triggered(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_positive(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_status(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_posTicks(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_negTicks(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_frequency(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_frequency(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	static int          pyattr_check_level(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int          pyattr_check_tap(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int          pyattr_check_level(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int          pyattr_check_tap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	
 	enum SensorStatus {
 		KX_SENSOR_INACTIVE = 0,

@@ -154,7 +154,7 @@ PyAttributeDef SCA_ActuatorSensor::Attributes[] = {
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-int SCA_ActuatorSensor::CheckActuator(void *self, const PyAttributeDef*)
+int SCA_ActuatorSensor::CheckActuator(PyObjectPlus *self, const PyAttributeDef*)
 {
 	SCA_ActuatorSensor* sensor = reinterpret_cast<SCA_ActuatorSensor*>(self);
 	SCA_IActuator* act = sensor->GetParent()->FindActuator(sensor->m_checkactname);

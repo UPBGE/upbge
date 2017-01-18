@@ -178,7 +178,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_CubeMap, update, "update(): Set the cube map to be 
 	Py_RETURN_NONE;
 }
 
-PyObject *KX_CubeMap::pyattr_get_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CubeMap::pyattr_get_viewpoint_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
 	KX_GameObject *gameobj = self->GetViewpointObject();
@@ -188,7 +188,7 @@ PyObject *KX_CubeMap::pyattr_get_viewpoint_object(void *self_v, const KX_PYATTRI
 	Py_RETURN_NONE;
 }
 
-int KX_CubeMap::pyattr_set_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_CubeMap::pyattr_set_viewpoint_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
 	KX_GameObject *gameobj = NULL;
@@ -202,13 +202,13 @@ int KX_CubeMap::pyattr_set_viewpoint_object(void *self_v, const KX_PYATTRIBUTE_D
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_CubeMap::pyattr_get_clip_start(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CubeMap::pyattr_get_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
 	return PyFloat_FromDouble(self->GetClipStart());
 }
 
-int KX_CubeMap::pyattr_set_clip_start(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_CubeMap::pyattr_set_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
 
@@ -225,13 +225,13 @@ int KX_CubeMap::pyattr_set_clip_start(void *self_v, const KX_PYATTRIBUTE_DEF *at
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_CubeMap::pyattr_get_clip_end(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_CubeMap::pyattr_get_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
 	return PyFloat_FromDouble(self->GetClipEnd());
 }
 
-int KX_CubeMap::pyattr_set_clip_end(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_CubeMap::pyattr_set_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
 

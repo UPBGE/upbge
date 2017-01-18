@@ -88,8 +88,8 @@ class KX_TrackToActuator : public SCA_IActuator
 	/* Python part */
 
 	/* These are used to get and set m_ob */
-	static PyObject *pyattr_get_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int       pyattr_set_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static int       pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	
 #endif  /* WITH_PYTHON */
 

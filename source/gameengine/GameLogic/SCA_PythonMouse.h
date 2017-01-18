@@ -47,14 +47,14 @@ public:
 #ifdef WITH_PYTHON
 	KX_PYMETHOD_DOC(SCA_PythonMouse, show);
 
-	static PyObject *pyattr_get_events(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_inputs(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_active_events(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_active_inputs(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject *pyattr_get_position(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int       pyattr_set_position(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_visible(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int       pyattr_set_visible(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_events(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_inputs(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_active_events(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_active_inputs(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_position(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int       pyattr_set_position(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_visible(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int       pyattr_set_visible(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif
 };
 

@@ -75,15 +75,15 @@ public:
 	KX_PYMETHOD_O(BL_ActionActuator,GetChannel)
 	KX_PYMETHOD_DOC(BL_ActionActuator,setChannel)
 
-	static PyObject*	pyattr_get_action(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_action(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_channel_names(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_use_continue(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_use_continue(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject*	pyattr_get_frame(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_frame(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_action(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_action(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_channel_names(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_use_continue(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_use_continue(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_frame(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_frame(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	static int CheckBlendTime(void *self, const PyAttributeDef*)
+	static int CheckBlendTime(PyObjectPlus *self, const PyAttributeDef*)
 	{
 		BL_ActionActuator* act = reinterpret_cast<BL_ActionActuator*>(self);
 
@@ -93,7 +93,7 @@ public:
 		return 0;
 	}
 
-	static int CheckType(void *self, const PyAttributeDef*)
+	static int CheckType(PyObjectPlus *self, const PyAttributeDef*)
 	{
 		BL_ActionActuator* act = reinterpret_cast<BL_ActionActuator*>(self);
 

@@ -217,7 +217,7 @@ PyAttributeDef KX_RadarSensor::Attributes[] = {
 	KX_PYATTRIBUTE_NULL //Sentinel
 };
 
-PyObject *KX_RadarSensor::pyattr_get_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_RadarSensor::pyattr_get_angle(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_RadarSensor* self = static_cast<KX_RadarSensor*>(self_v);
 

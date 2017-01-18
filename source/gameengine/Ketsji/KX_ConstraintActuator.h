@@ -144,8 +144,8 @@ protected:
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 
-	static int pyattr_check_direction(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_check_min(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_check_direction(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_check_min(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef);
 
 };
 

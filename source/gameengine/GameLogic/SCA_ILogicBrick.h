@@ -136,10 +136,10 @@ public:
 #ifdef WITH_PYTHON
 	// python methods
 	
-	static PyObject*	pyattr_get_owner(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_owner(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 	// check that attribute is a property
-	static int CheckProperty(void *self, const PyAttributeDef *attrdef);
+	static int CheckProperty(PyObjectPlus *self, const PyAttributeDef *attrdef);
 
 	enum KX_BOOL_TYPE {
 		KX_BOOL_NODEF = 0,

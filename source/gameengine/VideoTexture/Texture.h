@@ -97,12 +97,12 @@ public:
 	KX_PYMETHOD_DOC(Texture, close);
 	KX_PYMETHOD_DOC(Texture, refresh);
 
-	static PyObject *pyattr_get_mipmap(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_mipmap(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_source(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_source(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_bindId(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_bindId(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_bindId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_bindId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 };
 
 // load texture

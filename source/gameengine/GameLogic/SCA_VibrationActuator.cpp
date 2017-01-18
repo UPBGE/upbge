@@ -166,7 +166,7 @@ KX_PYMETHODDEF_DOC_NOARGS(SCA_VibrationActuator, stopVibration,
 	Py_RETURN_NONE;
 }
 
-PyObject *SCA_VibrationActuator::pyattr_get_isVibrating(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_VibrationActuator::pyattr_get_isVibrating(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_VibrationActuator *self = static_cast<SCA_VibrationActuator *>(self_v);
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)self->GetLogicManager();
@@ -181,7 +181,7 @@ PyObject *SCA_VibrationActuator::pyattr_get_isVibrating(void *self_v, const stru
 	return PyBool_FromLong(instance->GetRumbleStatus());
 }
 
-PyObject *SCA_VibrationActuator::pyattr_get_hasVibration(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_VibrationActuator::pyattr_get_hasVibration(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_VibrationActuator *self = static_cast<SCA_VibrationActuator *>(self_v);
 	SCA_JoystickManager *mgr = (SCA_JoystickManager *)self->GetLogicManager();

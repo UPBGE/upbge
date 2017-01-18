@@ -611,9 +611,9 @@ PyAttributeDef KX_ConstraintActuator::Attributes[] = {
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-int KX_ConstraintActuator::pyattr_check_direction(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+int KX_ConstraintActuator::pyattr_check_direction(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_ConstraintActuator* act = static_cast<KX_ConstraintActuator*>(self);
+	KX_ConstraintActuator* act = static_cast<KX_ConstraintActuator*>(self_v);
 	MT_Vector3 dir(act->m_refDirection);
 	MT_Scalar len = dir.length();
 	if (MT_fuzzyZero(len)) {

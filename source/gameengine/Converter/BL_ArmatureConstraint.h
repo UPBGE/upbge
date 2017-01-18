@@ -112,8 +112,8 @@ public:
 	// Python access
 	virtual PyObject *py_repr(void);
 
-	static PyObject *py_attr_getattr(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static int py_attr_setattr(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *py_attr_getattr(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static int py_attr_setattr(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif  /* WITH_PYTHON */
 };
 

@@ -202,7 +202,7 @@ PyAttributeDef KX_SCA_AddObjectActuator::Attributes[] = {
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *KX_SCA_AddObjectActuator::pyattr_get_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_SCA_AddObjectActuator::pyattr_get_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SCA_AddObjectActuator* actuator = static_cast<KX_SCA_AddObjectActuator*>(self);
 	if (!actuator->m_OriginalObject)
@@ -211,7 +211,7 @@ PyObject *KX_SCA_AddObjectActuator::pyattr_get_object(void *self, const struct K
 		return actuator->m_OriginalObject->GetProxy();
 }
 
-int KX_SCA_AddObjectActuator::pyattr_set_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_SCA_AddObjectActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_SCA_AddObjectActuator* actuator = static_cast<KX_SCA_AddObjectActuator*>(self);
 	KX_GameObject *gameobj;
@@ -230,7 +230,7 @@ int KX_SCA_AddObjectActuator::pyattr_set_object(void *self, const struct KX_PYAT
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_SCA_AddObjectActuator::pyattr_get_objectLastCreated(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_SCA_AddObjectActuator::pyattr_get_objectLastCreated(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SCA_AddObjectActuator* actuator = static_cast<KX_SCA_AddObjectActuator*>(self);
 	if (!actuator->m_lastCreatedObject)

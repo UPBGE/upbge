@@ -94,7 +94,7 @@ PyAttributeDef SCA_PythonMouse::Attributes[] = {
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *SCA_PythonMouse::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonMouse::pyattr_get_events(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
 
@@ -123,7 +123,7 @@ PyObject *SCA_PythonMouse::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_
 	return self->m_event_dict;
 }
 
-PyObject *SCA_PythonMouse::pyattr_get_inputs(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonMouse::pyattr_get_inputs(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
 
@@ -141,7 +141,7 @@ PyObject *SCA_PythonMouse::pyattr_get_inputs(void *self_v, const KX_PYATTRIBUTE_
 	return self->m_event_dict;
 }
 
-PyObject *SCA_PythonMouse::pyattr_get_active_events(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonMouse::pyattr_get_active_events(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
 
@@ -175,7 +175,7 @@ PyObject *SCA_PythonMouse::pyattr_get_active_events(void *self_v, const KX_PYATT
 	return self->m_event_dict;
 }
 
-PyObject *SCA_PythonMouse::pyattr_get_active_inputs(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonMouse::pyattr_get_active_inputs(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
 
@@ -199,7 +199,7 @@ PyObject *SCA_PythonMouse::pyattr_get_active_inputs(void *self_v, const KX_PYATT
 	return self->m_event_dict;
 }
 
-PyObject *SCA_PythonMouse::pyattr_get_position(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonMouse::pyattr_get_position(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
 	const SCA_InputEvent& xevent = self->m_mouse->GetInput(SCA_IInputDevice::MOUSEX);
@@ -218,7 +218,7 @@ PyObject *SCA_PythonMouse::pyattr_get_position(void *self_v, const KX_PYATTRIBUT
 	return ret;
 }
 
-int SCA_PythonMouse::pyattr_set_position(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_PythonMouse::pyattr_set_position(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
 	int x, y;
@@ -234,7 +234,7 @@ int SCA_PythonMouse::pyattr_set_position(void *self_v, const KX_PYATTRIBUTE_DEF 
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *SCA_PythonMouse::pyattr_get_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonMouse::pyattr_get_visible(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
 
@@ -248,7 +248,7 @@ PyObject *SCA_PythonMouse::pyattr_get_visible(void *self_v, const KX_PYATTRIBUTE
 	return PyBool_FromLong(visible);
 }
 
-int SCA_PythonMouse::pyattr_set_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_PythonMouse::pyattr_set_visible(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	SCA_PythonMouse* self = static_cast<SCA_PythonMouse*>(self_v);
 

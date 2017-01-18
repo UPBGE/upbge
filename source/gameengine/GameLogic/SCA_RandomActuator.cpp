@@ -353,13 +353,13 @@ PyAttributeDef SCA_RandomActuator::Attributes[] = {
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };
 
-PyObject *SCA_RandomActuator::pyattr_get_seed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_RandomActuator::pyattr_get_seed(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_RandomActuator* act = static_cast<SCA_RandomActuator*>(self);
 	return PyLong_FromLong(act->m_base->GetSeed());
 }
 
-int SCA_RandomActuator::pyattr_set_seed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int SCA_RandomActuator::pyattr_set_seed(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	SCA_RandomActuator* act = static_cast<SCA_RandomActuator*>(self);
 	if (PyLong_Check(value)) {

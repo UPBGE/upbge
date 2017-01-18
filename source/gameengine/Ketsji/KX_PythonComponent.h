@@ -61,7 +61,7 @@ public:
 	static PyObject *py_component_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
 	// Attributes
-	static PyObject *pyattr_get_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 };
 
 #endif // WITH_PYTHON

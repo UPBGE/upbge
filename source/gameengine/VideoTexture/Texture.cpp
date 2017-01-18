@@ -450,7 +450,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 }
 
 // get OpenGL Bind Id
-PyObject *Texture::pyattr_get_bindId(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *Texture::pyattr_get_bindId(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	Texture *self = (Texture *)self_v;
 
@@ -459,7 +459,7 @@ PyObject *Texture::pyattr_get_bindId(void *self_v, const KX_PYATTRIBUTE_DEF *att
 }
 
 // get mipmap value
-PyObject *Texture::pyattr_get_mipmap(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *Texture::pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	Texture *self = (Texture *)self_v;
 
@@ -469,7 +469,7 @@ PyObject *Texture::pyattr_get_mipmap(void *self_v, const KX_PYATTRIBUTE_DEF *att
 }
 
 // set mipmap value
-int Texture::pyattr_set_mipmap(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int Texture::pyattr_set_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	Texture *self = (Texture *)self_v;
 
@@ -486,7 +486,7 @@ int Texture::pyattr_set_mipmap(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, 
 }
 
 // get source object
-PyObject *Texture::pyattr_get_source(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *Texture::pyattr_get_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	Texture *self = (Texture *)self_v;
 
@@ -501,7 +501,7 @@ PyObject *Texture::pyattr_get_source(void *self_v, const KX_PYATTRIBUTE_DEF *att
 }
 
 // set source object
-int Texture::pyattr_set_source(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int Texture::pyattr_set_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	Texture *self = (Texture *)self_v;
 	// check new value

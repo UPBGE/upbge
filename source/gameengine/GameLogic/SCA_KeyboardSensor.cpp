@@ -347,7 +347,7 @@ PyAttributeDef SCA_KeyboardSensor::Attributes[] = {
 };
 
 
-PyObject *SCA_KeyboardSensor::pyattr_get_inputs(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_KeyboardSensor::pyattr_get_inputs(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_KeyboardSensor* self = static_cast<SCA_KeyboardSensor*>(self_v);
 
@@ -370,7 +370,7 @@ PyObject *SCA_KeyboardSensor::pyattr_get_inputs(void *self_v, const KX_PYATTRIBU
 	return resultlist;
 }
 
-PyObject *SCA_KeyboardSensor::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_KeyboardSensor::pyattr_get_events(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_KeyboardSensor* self = static_cast<SCA_KeyboardSensor*>(self_v);
 
