@@ -206,17 +206,6 @@ private:
 	/// Enable debug draw armatures.
 	bool m_showArmature;
 
-	/// Override framing bars color?
-	bool m_overrideFrameColor;
-	/// Red component of framing bar color.
-	float m_overrideFrameColorR;
-	/// Green component of framing bar color.
-	float m_overrideFrameColorG;
-	/// Blue component of framing bar color.
-	float m_overrideFrameColorB;
-	/// Alpha component of framing bar color.
-	float m_overrideFrameColorA;
-
 	/// Settings that doesn't go away with Game Actuator
 	GlobalSettings m_globalsettings;
 

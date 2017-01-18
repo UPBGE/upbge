@@ -149,12 +149,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	// Default behavior is to hide the cursor every frame.
 	m_hideCursor(false),
 	m_showBoundingBox(false),
-	m_showArmature(false),
-	m_overrideFrameColor(false),
-	m_overrideFrameColorR(0.0f),
-	m_overrideFrameColorG(0.0f),
-	m_overrideFrameColorB(0.0f),
-	m_overrideFrameColorA(0.0f)
+	m_showArmature(false)
 {
 	// Initialize the time logger
 	m_logger = new KX_TimeCategoryLogger(25);
@@ -552,23 +547,12 @@ void KX_KetsjiEngine::Render()
 	// only once per frame
 	m_rasterizer->SetViewport(0, 0, width + 1, height + 1);
 	m_rasterizer->SetScissor(0, 0, width + 1, height + 1);
-	if (m_overrideFrameColor) {
-		// Do not use the framing bar color set in the Blender scenes
-		m_rasterizer->SetClearColor(
-			m_overrideFrameColorR,
-			m_overrideFrameColorG,
-			m_overrideFrameColorB,
-			m_overrideFrameColorA
-			);
-	}
-	else {
-		// Use the framing bar color set in the Blender scenes
-		m_rasterizer->SetClearColor(
-		    framesettings.BarRed(),
-		    framesettings.BarGreen(),
-		    framesettings.BarBlue(),
-		    1.0f);
-	}
+	// Use the framing bar color set in the Blender scenes
+	m_rasterizer->SetClearColor(
+	    framesettings.BarRed(),
+	    framesettings.BarGreen(),
+	    framesettings.BarBlue(),
+	    1.0f);
 	// clear the -whole- viewport
 	m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 
@@ -1697,32 +1681,6 @@ void KX_KetsjiEngine::SetShowArmatures(bool show)
 bool KX_KetsjiEngine::GetShowArmatures() const
 {
 	return m_showArmature;
-}
-
-void KX_KetsjiEngine::SetUseOverrideFrameColor(bool overrideFrameColor)
-{
-	m_overrideFrameColor = overrideFrameColor;
-}
-
-bool KX_KetsjiEngine::GetUseOverrideFrameColor(void) const
-{
-	return m_overrideFrameColor;
-}
-
-void KX_KetsjiEngine::SetOverrideFrameColor(float r, float g, float b, float a)
-{
-	m_overrideFrameColorR = r;
-	m_overrideFrameColorG = g;
-	m_overrideFrameColorB = b;
-	m_overrideFrameColorA = a;
-}
-
-void KX_KetsjiEngine::GetOverrideFrameColor(float& r, float& g, float& b, float& a) const
-{
-	r = m_overrideFrameColorR;
-	g = m_overrideFrameColorG;
-	b = m_overrideFrameColorB;
-	a = m_overrideFrameColorA;
 }
 
 void KX_KetsjiEngine::Resize()
