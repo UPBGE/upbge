@@ -40,6 +40,7 @@
 #include "KX_Scene.h"
 #include "EXP_Python.h"
 #include "KX_WorldInfo.h"
+#include "RAS_CameraData.h"
 #include <vector>
 
 struct TaskScheduler;
@@ -152,13 +153,9 @@ private:
 
 	bool m_overrideCam;
 	std::string m_overrideSceneName;
-
-	bool m_overrideCamUseOrtho;
+	RAS_CameraData m_overrideCamData;
 	MT_CmMatrix4x4 m_overrideCamProjMat;
 	MT_CmMatrix4x4 m_overrideCamViewMat;
-	float m_overrideCamNear;
-	float m_overrideCamFar;
-	float m_overrideCamLens;
 	/// Default camera zoom.
 	float m_overrideCamZoom;
 
@@ -315,16 +312,10 @@ public:
 
 	/// Sets zoom for camera objects, useful only with extend and scale framing mode.
 	void SetCameraZoom(float camzoom);
-
-	void EnableCameraOverride(const std::string& forscene);
-
-	void SetCameraOverrideUseOrtho(bool useOrtho);
-	void SetCameraOverrideProjectionMatrix(const MT_CmMatrix4x4& mat);
-	void SetCameraOverrideViewMatrix(const MT_CmMatrix4x4& mat);
-	void SetCameraOverrideClipping(float near, float far);
-	void SetCameraOverrideLens(float lens);
 	/// Sets zoom for default camera, = 2 in embedded mode.
 	void SetCameraOverrideZoom(float camzoom);
+
+	void EnableCameraOverride(const std::string& forscene, const MT_CmMatrix4x4& projmat, const MT_CmMatrix4x4& viewmat, const RAS_CameraData& camdata);
 
 	// Update animations for object in this scene
 	void UpdateAnimations(KX_Scene *scene);

@@ -130,12 +130,13 @@ void LA_BlenderLauncher::InitCamera()
 	m_ketsjiEngine->SetCameraOverrideZoom(2.0f);
 
 	if (rv3d->persp != RV3D_CAMOB) {
-		m_ketsjiEngine->EnableCameraOverride(m_startSceneName);
-		m_ketsjiEngine->SetCameraOverrideUseOrtho((rv3d->persp == RV3D_ORTHO));
-		m_ketsjiEngine->SetCameraOverrideProjectionMatrix(MT_CmMatrix4x4(rv3d->winmat));
-		m_ketsjiEngine->SetCameraOverrideViewMatrix(MT_CmMatrix4x4(rv3d->viewmat));
-		m_ketsjiEngine->SetCameraOverrideClipping(m_view3d->near, m_view3d->far);
-		m_ketsjiEngine->SetCameraOverrideLens(m_view3d->lens);
+		RAS_CameraData camdata = RAS_CameraData();
+		camdata.m_lens = m_view3d->lens;
+		camdata.m_clipstart = m_view3d->near;
+		camdata.m_clipend = m_view3d->far;
+		camdata.m_perspective = (rv3d->persp != RV3D_ORTHO);
+
+		m_ketsjiEngine->EnableCameraOverride(m_startSceneName, MT_CmMatrix4x4(rv3d->winmat), MT_CmMatrix4x4(rv3d->viewmat), camdata);
 	}
 }
 

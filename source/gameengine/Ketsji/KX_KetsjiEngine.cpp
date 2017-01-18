@@ -135,9 +135,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_exitstring(""),
 	m_cameraZoom(1.0f),
 	m_overrideCam(false),
-	m_overrideCamUseOrtho(false),
-	m_overrideCamNear(0.0f),
-	m_overrideCamFar(0.0f),
 	m_overrideCamZoom(1.0f),
 	m_stereo(false),
 	m_curreye(0),
@@ -727,47 +724,26 @@ const std::string& KX_KetsjiEngine::GetExitString()
 	return m_exitstring;
 }
 
-void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene)
-{
-	m_overrideCam = true;
-	m_overrideSceneName = forscene;
-}
-
 void KX_KetsjiEngine::SetCameraZoom(float camzoom)
 {
 	m_cameraZoom = camzoom;
-}
-
-void KX_KetsjiEngine::SetCameraOverrideUseOrtho(bool useOrtho)
-{
-	m_overrideCamUseOrtho = useOrtho;
-}
-
-void KX_KetsjiEngine::SetCameraOverrideProjectionMatrix(const MT_CmMatrix4x4& mat)
-{
-	m_overrideCamProjMat = mat;
-}
-
-void KX_KetsjiEngine::SetCameraOverrideViewMatrix(const MT_CmMatrix4x4& mat)
-{
-	m_overrideCamViewMat = mat;
-}
-
-void KX_KetsjiEngine::SetCameraOverrideClipping(float nearfrust, float farfrust)
-{
-	m_overrideCamNear = nearfrust;
-	m_overrideCamFar = farfrust;
-}
-
-void KX_KetsjiEngine::SetCameraOverrideLens(float lens)
-{
-	m_overrideCamLens = lens;
 }
 
 void KX_KetsjiEngine::SetCameraOverrideZoom(float camzoom)
 {
 	m_overrideCamZoom = camzoom;
 }
+
+void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene, const MT_CmMatrix4x4& projmat,
+		const MT_CmMatrix4x4& viewmat, const RAS_CameraData& camdata)
+{
+	m_overrideCam = true;
+	m_overrideSceneName = forscene;
+	m_overrideCamProjMat = projmat;
+	m_overrideCamViewMat = viewmat;
+	m_overrideCamData = camdata;
+}
+
 
 void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect& area, RAS_Rect& viewport)
 {
@@ -797,7 +773,7 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect
 
 		area = userviewport;
 	}
-	else if (!m_overrideCam || (scene->GetName() != m_overrideSceneName) ||  m_overrideCamUseOrtho) {
+	else if (!m_overrideCam || (scene->GetName() != m_overrideSceneName) || !m_overrideCamData.m_perspective) {
 		RAS_FramingManager::ComputeViewport(
 		    scene->GetFramingType(),
 		    m_canvas->GetDisplayArea(),
@@ -929,7 +905,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 	override_camera = m_overrideCam && (scene->GetName() == m_overrideSceneName) &&
 		(cam->GetName() == "__default__cam__");
 
-	if (override_camera && m_overrideCamUseOrtho) {
+	if (override_camera && !m_overrideCamData.m_perspective) {
 		m_rasterizer->SetProjectionMatrix(m_overrideCamProjMat);
 		if (!cam->hasValidProjectionMatrix()) {
 			// needed to get frustum planes for culling
@@ -948,11 +924,6 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 		farfrust = cam->GetCameraFar();
 		focallength = cam->GetFocalLength();
 		MT_Matrix4x4 projmat;
-
-		if (override_camera) {
-			nearfrust = m_overrideCamNear;
-			farfrust = m_overrideCamFar;
-		}
 
 		float camzoom = override_camera ? m_overrideCamZoom : m_cameraZoom;
 		if (orthographic) {
@@ -1123,15 +1094,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 	if (!scene->GetActiveCamera() || override_camera) {
 		KX_Camera *activecam = NULL;
 
-		RAS_CameraData camdata = RAS_CameraData();
-		if (override_camera) {
-			camdata.m_lens = m_overrideCamLens;
-			camdata.m_clipstart = m_overrideCamNear;
-			camdata.m_clipend = m_overrideCamFar;
-
-			camdata.m_perspective = !m_overrideCamUseOrtho;
-		}
-		activecam = new KX_Camera(scene, KX_Scene::m_callbacks, camdata);
+		activecam = new KX_Camera(scene, KX_Scene::m_callbacks, override_camera ? m_overrideCamData : RAS_CameraData());
 		activecam->SetName("__default__cam__");
 
 		// set transformation
