@@ -1426,9 +1426,6 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetFrustumMatrix(
     float focallength,
     bool perspective)
 {
-	MT_Matrix4x4 result;
-	float mat[16];
-
 	// correction for stereo
 	if (Stereo()) {
 		float near_div_focallength;
@@ -1466,14 +1463,10 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetFrustumMatrix(
 		}
 	}
 
-	SetMatrixMode(RAS_PROJECTION);
-	LoadIdentity();
-	glFrustum(left, right, bottom, top, frustnear, frustfar);
+	float mat[4][4];
+	perspective_m4(mat, left, right, bottom, top, frustnear, frustfar);
 
-	glGetFloatv(GL_PROJECTION_MATRIX, mat);
-	result.setValue(mat);
-
-	return result;
+	return MT_Matrix4x4(&mat[0][0]);
 }
 
 MT_Matrix4x4 RAS_OpenGLRasterizer::GetOrthoMatrix(
@@ -1484,18 +1477,10 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetOrthoMatrix(
     float frustnear,
     float frustfar)
 {
-	MT_Matrix4x4 result;
-	float mat[16];
+	float mat[4][4];
+	orthographic_m4(mat, left, right, bottom, top, frustnear, frustfar);
 
-	// stereo is meaningless for orthographic, disable it
-	SetMatrixMode(RAS_PROJECTION);
-	LoadIdentity();
-	glOrtho(left, right, bottom, top, frustnear, frustfar);
-
-	glGetFloatv(GL_PROJECTION_MATRIX, mat);
-	result.setValue(mat);
-
-	return result;
+	return MT_Matrix4x4(&mat[0][0]);
 }
 
 // next arguments probably contain redundant info, for later...

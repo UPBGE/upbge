@@ -224,6 +224,9 @@ private:
 	 */
 	void UpdateSuspendedScenes();
 
+	/// Update and return the projection matrix of a camera depending on the viewport.
+	const MT_Matrix4x4& GetCameraProjection(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& viewport, const RAS_Rect& area);
+
 	void RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned short pass);
 	void PostRenderScene(KX_Scene *scene, unsigned short target);
 	void RenderDebugProperties();
