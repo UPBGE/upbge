@@ -599,7 +599,7 @@ static BlendFileData *load_encrypted_game_data(char *filename, char *localPath, 
 	// load file and decrypt
 	fileData = SpinEncryption_LoadAndDecrypt_file(filename, fileSize, encryptKey);
 
-	if (!fileData) {
+	if (fileData) {
 		bfd = BLO_read_from_memory(fileData, fileSize, &reports, localPath);
 		delete [] fileData;
 	}
