@@ -848,68 +848,30 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 	}
 }
 
-// update graphics
-void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned short pass)
+const MT_Matrix4x4& KX_KetsjiEngine::GetCameraProjection(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& viewport, const RAS_Rect& area)
 {
-	bool override_camera;
-	RAS_Rect viewport, area;
-	float nearfrust, farfrust, focallength;
-
-	if (!cam)
-		return;
-
-	bool isfirstscene = (scene == m_scenes->GetFront());
-
-	KX_SetActiveScene(scene);
-
-#ifdef WITH_PYTHON
-	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW_SETUP, cam);
-#endif
-
-	GetSceneViewport(scene, cam, area, viewport);
-
-	// set the viewport for this frame and scene
-	const int left = viewport.GetLeft();
-	const int bottom = viewport.GetBottom();
-	const int width = viewport.GetWidth();
-	const int height = viewport.GetHeight();
-	m_rasterizer->SetViewport(left, bottom, width + 1, height + 1);
-	m_rasterizer->SetScissor(left, bottom, width + 1, height + 1);
-
-	/* Clear the depth after setting the scene viewport/scissor
-	 * if it's not the first render pass. */
-	if (pass > 0) {
-		m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+	if (cam->hasValidProjectionMatrix()) {
+		return cam->GetProjectionMatrix();
 	}
 
-	// see KX_BlenderMaterial::Activate
-	//m_rasterizer->SetAmbient();
-	m_rasterizer->DisplayFog();
-
-	override_camera = m_overrideCam && (scene->GetName() == m_overrideSceneName) &&
+	const bool override_camera = m_overrideCam && (scene->GetName() == m_overrideSceneName) &&
 		(cam->GetName() == "__default__cam__");
 
 	if (override_camera && !m_overrideCamData.m_perspective) {
-		m_rasterizer->SetProjectionMatrix(m_overrideCamProjMat);
-		if (!cam->hasValidProjectionMatrix()) {
-			// needed to get frustum planes for culling
-			MT_Matrix4x4 projmat;
-			projmat.setValue(m_overrideCamProjMat.getPointer());
-			cam->SetProjectionMatrix(projmat);
-		}
-	}
-	else if (cam->hasValidProjectionMatrix()) {
-		m_rasterizer->SetProjectionMatrix(cam->GetProjectionMatrix());
+		// needed to get frustum planes for culling
+		MT_Matrix4x4 projmat;
+		projmat.setValue(m_overrideCamProjMat.getPointer());
+		cam->SetProjectionMatrix(projmat);
 	}
 	else {
 		RAS_FrameFrustum frustum;
-		bool orthographic = !cam->GetCameraData()->m_perspective;
-		nearfrust = cam->GetCameraNear();
-		farfrust = cam->GetCameraFar();
-		focallength = cam->GetFocalLength();
+		const bool orthographic = !cam->GetCameraData()->m_perspective;
+		const float nearfrust = cam->GetCameraNear();
+		const float farfrust = cam->GetCameraFar();
+		const float focallength = cam->GetFocalLength();
 		MT_Matrix4x4 projmat;
 
-		float camzoom = override_camera ? m_overrideCamZoom : m_cameraZoom;
+		const float camzoom = override_camera ? m_overrideCamZoom : m_cameraZoom;
 		if (orthographic) {
 
 			RAS_FramingManager::ComputeOrtho(
@@ -965,9 +927,53 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 			cam->InvalidateProjectionMatrix();
 	}
 
+	return cam->GetProjectionMatrix();
+}
+
+// update graphics
+void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned short pass)
+{
+	bool override_camera;
+	RAS_Rect viewport, area;
+	float nearfrust, farfrust, focallength;
+
+	if (!cam)
+		return;
+
+	bool isfirstscene = (scene == m_scenes->GetFront());
+
+	KX_SetActiveScene(scene);
+
+#ifdef WITH_PYTHON
+	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW_SETUP, cam);
+#endif
+
+	GetSceneViewport(scene, cam, area, viewport);
+
+	// set the viewport for this frame and scene
+	const int left = viewport.GetLeft();
+	const int bottom = viewport.GetBottom();
+	const int width = viewport.GetWidth();
+	const int height = viewport.GetHeight();
+	m_rasterizer->SetViewport(left, bottom, width + 1, height + 1);
+	m_rasterizer->SetScissor(left, bottom, width + 1, height + 1);
+
+	/* Clear the depth after setting the scene viewport/scissor
+	 * if it's not the first render pass. */
+	if (pass > 0) {
+		m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+	}
+
+	// see KX_BlenderMaterial::Activate
+	//m_rasterizer->SetAmbient();
+	m_rasterizer->DisplayFog();
+
+
+
 	MT_Transform camtrans(cam->GetWorldToCamera());
 	MT_Matrix4x4 viewmat(camtrans);
 
+	m_rasterizer->SetProjectionMatrix(GetCameraProjection(scene, cam, viewport, area));
 	m_rasterizer->SetViewMatrix(viewmat, cam->NodeGetWorldOrientation(), cam->NodeGetWorldPosition(), cam->NodeGetLocalScaling(), cam->GetCameraData()->m_perspective);
 	cam->SetModelviewMatrix(viewmat);
 
