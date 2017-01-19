@@ -933,9 +933,7 @@ const MT_Matrix4x4& KX_KetsjiEngine::GetCameraProjection(KX_Scene *scene, KX_Cam
 // update graphics
 void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned short pass)
 {
-	bool override_camera;
 	RAS_Rect viewport, area;
-	float nearfrust, farfrust, focallength;
 
 	if (!cam)
 		return;

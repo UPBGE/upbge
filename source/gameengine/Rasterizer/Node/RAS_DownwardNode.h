@@ -29,7 +29,7 @@
 
 #ifdef DEBUG
 #  include <typeinfo>
-#  include <cxxabi.h>
+//#  include <cxxabi.h>
 #endif  // DEBUG
 
 /** RAS_DownwardNode is a node which store its children nodes.

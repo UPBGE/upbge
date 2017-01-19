@@ -27,7 +27,7 @@
 
 #ifdef DEBUG
 #  include <typeinfo>
-#  include <cxxabi.h>
+//#  include <cxxabi.h>
 #endif  // DEBUG
 
 /** RAS_UpwardNode is a node storing its parent node.
