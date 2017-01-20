@@ -3786,8 +3786,16 @@ void node_output_world(vec4 surface, vec4 volume, out vec4 result)
 void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, mat3 mat, sampler2D ima, float scale, float numsteps,
 				  float bumpscale, float discarduv, out vec3 ptexcoord)
 {
-	vec3 binormal = cross(-vn, tangent.xyz) * tangent.w;
-	vec3 vvec = vec3(dot(tangent.xyz, vp), dot(binormal, vp), dot(-vn, vp));
+	// We invert normals for backface.
+	float invert;
+	if (dot(vp, vn) >= 0.0) {
+		invert = 1.0;
+	}
+	else {
+		invert = -1.0;
+	}
+	vec3 binormal = cross(-vn * invert, tangent.xyz) * tangent.w;
+	vec3 vvec = vec3(dot(tangent.xyz, vp), dot(binormal, vp), dot(-vn * invert, vp));
 	vec3 vv = normalize(vvec);
 
 	// The uv shift per depth step, multitply by rotation and after size.
