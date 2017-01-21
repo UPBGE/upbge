@@ -902,7 +902,7 @@ void RAS_OpenGLRasterizer::DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Ma
 	box[2][0] = box[3][0] = box[6][0] = box[7][0] = 1.0f;
 	box[0][1] = box[3][1] = box[4][1] = box[7][1] = -1.0f;
 	box[1][1] = box[2][1] = box[5][1] = box[6][1] = 1.0f;
-	box[0][2] = box[1][2] = box[2][2] = box[3][2] = 0.0f;
+	box[0][2] = box[1][2] = box[2][2] = box[3][2] = -1.0f;
 	box[4][2] = box[5][2] = box[6][2] = box[7][2] = 1.0f;
 
 	MT_Matrix4x4 mv = viewmat.inverse() * projmat.inverse();
