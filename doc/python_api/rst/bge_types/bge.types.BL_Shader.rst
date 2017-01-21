@@ -7,9 +7,9 @@ base class --- :class:`PyObjectPlus`
 
 .. class:: BL_Shader(PyObjectPlus)
 
-   BL_Shader GLSL shaders.
-
-   TODO - Description
+   BL_Shader is a class used to compile and use custom shaders scripts. It supports vertex, fragment and geometry shader scripts.
+   The shader is compiled with a generated header for the three shaders scripts.
+   This header set the ``#version`` directive, so the user must not define his own `#version`.
 
    .. attribute:: enabled
 
