@@ -28,8 +28,7 @@
 #include <vector>
 
 #ifdef DEBUG
-#  include <typeinfo>
-//#  include <cxxabi.h>
+#  include <boost/type_index.hpp>
 #endif  // DEBUG
 
 /** RAS_DownwardNode is a node which store its children nodes.
@@ -117,9 +116,7 @@ public:
 			std::cout << "\t";
 		}
 
-		char *demangled_name = abi::__cxa_demangle(typeid(InfoType).name(), NULL, NULL, NULL);
-		std::cout << demangled_name << "(" << this->m_info << ") "<< std::endl;
-		free(demangled_name);
+		std::cout << boost::typeindex::type_id<InfoType>().pretty_name() << "(" << this->m_info << ") "<< std::endl;
 
 		if (recursive) {
 			for (ChildType *child : m_children) {
