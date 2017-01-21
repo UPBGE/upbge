@@ -913,7 +913,7 @@ void RAS_OpenGLRasterizer::DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Ma
 		p3 = MT_Vector3(p4.x() / p4.w(), p4.y() / p4.w(), p4.z() / p4.w());
 	}
 
-	DrawDebugBox(scene, box, MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f), MT_Vector4(0.2f, 0.2f, 0.2f, 1.0f),
+	DrawDebugBox(scene, box, MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f), MT_Vector4(0.2f, 0.2f, 0.2f, 0.4f),
 		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f), true);
 }
 
