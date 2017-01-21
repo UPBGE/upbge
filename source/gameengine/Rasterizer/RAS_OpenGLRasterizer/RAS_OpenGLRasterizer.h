@@ -364,6 +364,7 @@ public:
 							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color);
 	virtual void DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& insideColor,
 							  const MT_Vector4& outsideColor, const MT_Vector4& lineColor, bool solid);
+	virtual void DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat);
 
 	virtual void ClearTexCoords();
 	virtual void ClearAttribs();
@@ -459,10 +460,6 @@ public:
 	 * Prints information about what the hardware supports.
 	 */
 	virtual void PrintHardwareInfo();
-
-	// Draw Camera Frustum functions
-	virtual void DrawCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
-								   float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend);
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_OpenGLRasterizer")

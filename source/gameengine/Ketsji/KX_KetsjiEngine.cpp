@@ -149,12 +149,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	// Default behavior is to hide the cursor every frame.
 	m_hideCursor(false),
 	m_showBoundingBox(false),
-	m_showArmature(false),
-	m_overrideFrameColor(false),
-	m_overrideFrameColorR(0.0f),
-	m_overrideFrameColorG(0.0f),
-	m_overrideFrameColorB(0.0f),
-	m_overrideFrameColorA(0.0f)
+	m_showArmature(false)
 {
 	// Initialize the time logger
 	m_logger = new KX_TimeCategoryLogger(25);
@@ -853,7 +848,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 	}
 }
 
-const MT_Matrix4x4& KX_KetsjiEngine::GetCameraProjection(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& viewport, const RAS_Rect& area)
+const MT_Matrix4x4& KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	if (cam->hasValidProjectionMatrix()) {
 		return cam->GetProjectionMatrix();
@@ -953,15 +948,6 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 
 	GetSceneViewport(scene, cam, area, viewport);
 
-	// Debug Cameras frustum (option to enable in Camera panel)
-	CListValue *cameras = scene->GetCameraList();
-	for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-		KX_Camera *cam = *it;
-		if (cam->GetShowCameraFrustum()) {
-			DrawCameraFrustum(cam, scene, viewport);
-		}
-	}
-
 	// set the viewport for this frame and scene
 	const int left = viewport.GetLeft();
 	const int bottom = viewport.GetBottom();
@@ -985,7 +971,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 	MT_Transform camtrans(cam->GetWorldToCamera());
 	MT_Matrix4x4 viewmat(camtrans);
 
-	m_rasterizer->SetProjectionMatrix(GetCameraProjection(scene, cam, viewport, area));
+	m_rasterizer->SetProjectionMatrix(GetCameraProjectionMatrix(scene, cam, viewport, area));
 	m_rasterizer->SetViewMatrix(viewmat, cam->NodeGetWorldOrientation(), cam->NodeGetWorldPosition(), cam->NodeGetLocalScaling(), cam->GetCameraData()->m_perspective);
 	cam->SetModelviewMatrix(viewmat);
 
@@ -1018,6 +1004,8 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 
 	// Draw debug infos like bouding box, armature ect.. if enabled.
 	scene->DrawDebug(m_rasterizer);
+	// Draw debug camera frustum.
+	DrawDebugCameraFrustum(scene, viewport, area);
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
@@ -1276,6 +1264,18 @@ void KX_KetsjiEngine::RenderDebugProperties()
 					}
 				}
 			}
+		}
+	}
+}
+
+void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, const RAS_Rect& viewport, const RAS_Rect& area)
+{
+	CListValue *cameras = scene->GetCameraList();
+	for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
+		KX_Camera *cam = *it;
+		if (cam->GetShowCameraFrustum()) {
+			const MT_Matrix4x4 viewmat(cam->GetWorldToCamera());
+			m_rasterizer->DrawDebugCameraFrustum(scene, GetCameraProjectionMatrix(scene, cam, viewport, area), viewmat);
 		}
 	}
 }
@@ -1694,35 +1694,6 @@ bool KX_KetsjiEngine::GetShowBoundingBox() const
 void KX_KetsjiEngine::SetShowArmatures(bool show)
 {
 	m_showArmature = show;
-}
-
-bool KX_KetsjiEngine::GetShowArmatures() const
-{
-	return m_showArmature;
-}
-
-void KX_KetsjiEngine::DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene, const RAS_Rect& viewport)
-{
-	bool perspective = cam->GetCameraData()->m_perspective;
-
-	float aspx = viewport.GetWidth();
-	float aspy = viewport.GetHeight();
-	float ratiox = aspx / aspy;
-	float ratioy = 1.0f / ratiox;
-	float clipstart = cam->GetCameraData()->m_clipstart;
-	float clipend = cam->GetCameraData()->m_clipend;
-	const MT_Transform trans(cam->GetCameraToWorld());
-
-	if (perspective) {
-		float tanofview = cam->GetCameraData()->m_sensor_x / (2.0f * cam->GetCameraData()->m_lens);
-		float oppositeclipsta = tanofview * clipstart;
-		float oppositeclipend = tanofview * clipend;
-		m_rasterizer->DrawCameraFrustum(scene, trans, clipstart, clipend, ratiox, ratioy, oppositeclipsta, oppositeclipend);
-	}
-	else {
-		float x = cam->GetCameraData()->m_scale * 0.5f;
-		m_rasterizer->DrawCameraFrustum(scene, trans, clipstart, clipend, ratiox, ratioy, x, x);
-	}
 }
 
 bool KX_KetsjiEngine::GetShowArmatures() const

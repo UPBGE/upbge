@@ -894,26 +894,25 @@ void RAS_OpenGLRasterizer::DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8
 	m_debugShapes[scene].m_boxes.push_back(box);
 }
 
-void RAS_OpenGLRasterizer::DrawCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
-		float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend)
+void RAS_OpenGLRasterizer::DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat)
 {
 	MT_Vector3 box[8];
 
-	/* construct box */
-	box[2][0] = box[1][0] = -oppositeclipsta * ratiox;
-	box[0][0] = box[3][0] = -oppositeclipend * ratiox;
-	box[5][0] = box[6][0] = +oppositeclipsta * ratiox;
-	box[4][0] = box[7][0] = +oppositeclipend * ratiox;
-	box[1][1] = box[5][1] = -oppositeclipsta * ratioy;
-	box[0][1] = box[4][1] = -oppositeclipend * ratioy;
-	box[2][1] = box[6][1] = +oppositeclipsta * ratioy;
-	box[3][1] = box[7][1] = +oppositeclipend * ratioy;
-	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -clipend;
-	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -clipstart;
+	box[0][0] = box[1][0] = box[4][0] = box[5][0] = -0.5f;
+	box[2][0] = box[3][0] = box[6][0] = box[7][0] = 0.5f;
+	box[0][1] = box[3][1] = box[4][1] = box[7][1] = -0.5f;
+	box[1][1] = box[2][1] = box[5][1] = box[6][1] = 0.5f;
+	box[0][2] = box[1][2] = box[2][2] = box[3][2] = 0.1f;
+	box[4][2] = box[5][2] = box[6][2] = box[7][2] = 1.0f;
+
+	MT_Matrix4x4 mv = viewmat.inverse() * projmat.inverse();
 
 	for (unsigned short i = 0; i < 8; i++) {
-		box[i] = trans(box[i]);
+		MT_Vector3& p3 = box[i];
+		const MT_Vector4 p4 = mv * MT_Vector4(p3.x(), p3.y(), p3.z(), 1.0f);
+		p3 = MT_Vector3(p4.x() / p4.w(), p4.y() / p4.w(), p4.z() / p4.w());
 	}
+
 	DrawDebugBox(scene, box, MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f), MT_Vector4(0.2f, 0.2f, 0.2f, 1.0f),
 		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f), true);
 }

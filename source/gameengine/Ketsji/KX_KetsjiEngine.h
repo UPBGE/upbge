@@ -225,11 +225,13 @@ private:
 	void UpdateSuspendedScenes();
 
 	/// Update and return the projection matrix of a camera depending on the viewport.
-	const MT_Matrix4x4& GetCameraProjection(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& viewport, const RAS_Rect& area);
+	const MT_Matrix4x4& GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& viewport, const RAS_Rect& area);
 
 	void RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned short pass);
 	void PostRenderScene(KX_Scene *scene, unsigned short target);
 	void RenderDebugProperties();
+	/// Debug draw cameras frustum of a scene.
+	void DrawDebugCameraFrustum(KX_Scene *scene, const RAS_Rect& viewport, const RAS_Rect& area);
 
 public:
 	KX_KetsjiEngine(KX_ISystem *system);
@@ -511,9 +513,6 @@ public:
 
 	/// Returns the current setting for armatures debug.
 	void SetShowArmatures(bool show);
-
-	/// Draw camera frustum
-	void DrawCameraFrustum(KX_Camera *cam, KX_Scene *scene, const RAS_Rect& viewport);
 
 	/// Allow debug armatures.
 	bool GetShowArmatures() const;

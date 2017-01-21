@@ -614,6 +614,12 @@ public:
 							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color) = 0;
 	virtual void DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& insideColor,
 							  const MT_Vector4& outsideColor, const MT_Vector4& lineColor, bool solid) = 0;
+	/** Draw a box representing a camera frustum volume.
+	 * \param scene The scene owner of this call.
+	 * \param projmat The camera projection matrix.
+	 * \param viewmat The camera view matrix.
+	 */
+	virtual void DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat) = 0;
 	virtual void FlushDebugShapes(SCA_IScene *scene) = 0;
 
 	/// Clear the material texture coordinates list used by storages.
@@ -727,12 +733,6 @@ public:
 	 * Prints information about what the hardware supports.
 	 */
 	virtual void PrintHardwareInfo() = 0;
-
-	/**
-	 * Debug Cameras Frustum
-	 */
-	virtual void DrawCameraFrustum(SCA_IScene *scene, const MT_Transform& trans, float clipstart, float clipend,
-		float ratiox, float ratioy, float oppositeclipsta, float oppositeclipend) = 0;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IRasterizer")
