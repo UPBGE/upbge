@@ -29,6 +29,7 @@
 class RAS_2DFilterManager;
 class RAS_IRasterizer;
 class RAS_ICanvas;
+class RAS_OffScreen;
 class CValue;
 
 class RAS_2DFilter : public virtual RAS_Shader
@@ -65,8 +66,8 @@ protected:
 	virtual bool LinkProgram();
 	void ParseShaderProgram();
 	void BindUniforms(RAS_ICanvas *canvas);
-	void BindTextures(RAS_IRasterizer *rasty, unsigned short depthfbo, unsigned short colorfbo);
-	void UnbindTextures(RAS_IRasterizer *rasty, unsigned short depthfbo, unsigned short colorfbo);
+	void BindTextures(RAS_OffScreen *detphofs, RAS_OffScreen *colorofs);
+	void UnbindTextures(RAS_OffScreen *detphofs, RAS_OffScreen *colorofs);
 	void ComputeTextureOffsets(RAS_ICanvas *canvas);
 
 public:
@@ -82,13 +83,13 @@ public:
 	/** Starts executing the filter.
 	 * \param rasty The used rasterizer to call draw commands.
 	 * \param canvas The canvas containing screen viewport.
-	 * \param depthfbo The off screen used only for the depth texture input, 
+	 * \param detphofs The off screen used only for the depth texture input,
 	 * the same for all filters of a scene.
-	 * \param colorfbo The off screen used only for the color texture input, unique per filters.
-	 * \param outputfbo The off screen used to draw the filter to.
+	 * \param colorofs The off screen used only for the color texture input, unique per filters.
+	 * \param outputofs The off screen used to draw the filter to.
 	 */
-	void Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short depthfbo,
-			   unsigned short colorfbo, unsigned short outputfbo);
+	void Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *detphofs,
+			   RAS_OffScreen *colorofs, RAS_OffScreen *outputofs);
 
 	/// Finalizes the execution stage of the filter.
 	void End();

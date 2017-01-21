@@ -136,7 +136,7 @@ void RAS_BucketManager::RenderBasicBuckets(const MT_Transform& cameratrans, RAS_
 	}
 }
 
-void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty)
+void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen)
 {
 	switch (rasty->GetDrawingMode()) {
 		case RAS_IRasterizer::RAS_SHADOW:
@@ -264,7 +264,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 
 			// Render soft particles after all other materials.
 			if ((m_buckets[ALPHA_DEPTH_BUCKET].size() + m_buckets[ALPHA_DEPTH_INSTANCING_BUCKET].size()) > 0) {
-				rasty->UpdateGlobalDepthTexture();
+				rasty->UpdateGlobalDepthTexture(offScreen);
 
 				RenderBasicBuckets(cameratrans, rasty, ALPHA_DEPTH_INSTANCING_BUCKET);
 				RenderSortedBuckets(cameratrans, rasty, ALPHA_DEPTH_BUCKET);

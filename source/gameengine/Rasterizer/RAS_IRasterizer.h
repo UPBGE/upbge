@@ -49,6 +49,7 @@
 #include <vector>
 
 class RAS_ICanvas;
+class RAS_OffScreen;
 class RAS_IPolyMaterial;
 class RAS_MeshSlot;
 class RAS_DisplayArrayBucket;
@@ -229,10 +230,7 @@ public:
 		RAS_STENCIL_BUFFER_BIT = 0x8
 	};
 
-	enum OffScreen {
-		RAS_OFFSCREEN_COLOR = 0,
-		RAS_OFFSCREEN_DEPTH = 1,
-
+	enum OffScreenType {
 		RAS_OFFSCREEN_RENDER = 0,
 		RAS_OFFSCREEN_FILTER0,
 		RAS_OFFSCREEN_FILTER1,
@@ -242,6 +240,9 @@ public:
 		RAS_OFFSCREEN_EYE_RIGHT1,
 		RAS_OFFSCREEN_FINAL,
 		RAS_OFFSCREEN_BLIT_DEPTH,
+
+		RAS_OFFSCREEN_CUSTOM,
+
 		RAS_OFFSCREEN_MAX,
 	};
 
@@ -256,7 +257,7 @@ public:
 	 * \param index The input frame buffer, can be a non-filter frame buffer.
 	 * \return The output filter frame buffer.
 	 */
-	static unsigned short NextFilterOffScreen(unsigned short index);
+	static OffScreenType NextFilterOffScreen(OffScreenType index);
 
 
 	/** Return the output frame buffer normally used for the input frame buffer
@@ -264,14 +265,14 @@ public:
 	 * \param index The input eye frame buffer, can NOT be a non-eye frame buffer.
 	 * \return The output eye frame buffer.
 	 */
-	static unsigned short NextEyeOffScreen(unsigned short index);
+	static OffScreenType NextEyeOffScreen(OffScreenType index);
 
 	/** Return the output frame buffer normally used for the input frame buffer
 	 * index in case of simple render.
 	 * \param index The input render frame buffer, can NOT be a non-render frame buffer.
 	 * \return The output render frame buffer.
 	 */
-	static unsigned short NextRenderOffScreen(unsigned short index);
+	static OffScreenType NextRenderOffScreen(OffScreenType index);
 
 	/**
 	 * Enable capability
@@ -356,49 +357,31 @@ public:
 
 	/// Update dimensions of all off screens.
 	virtual void UpdateOffScreens(RAS_ICanvas *canvas) = 0;
-	/// Bind the off screen at the given index.
-	virtual void BindOffScreen(unsigned short index) = 0;
+
+	/** Return the corresponding off screen to off screen type.
+	 * \param type The off screen type to return.
+	 */
+	virtual RAS_OffScreen *GetOffScreen(OffScreenType type) = 0;
 
 	/** Draw off screen without set viewport.
 	 * Used to copy the frame buffer object to another.
 	 * \param srcindex The input off screen index.
 	 * \param dstindex The output off screen index.
 	 */
-	virtual void DrawOffScreen(unsigned short srcindex, unsigned short dstindex) = 0;
+	virtual void DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *dstOffScreen) = 0;
 
 	/** Draw off screen at the given index to screen.
 	 * \param canvas The canvas containing the screen viewport.
 	 * \param index The off screen index to read from.
 	 */
-	virtual void DrawOffScreen(RAS_ICanvas *canvas, unsigned short index) = 0;
+	virtual void DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen) = 0;
 
 	/** Draw each stereo off screen to screen.
 	 * \param canvas The canvas containing the screen viewport.
 	 * \param lefteyeindex The left off screen index.
 	 * \param righteyeindex The right off screen index.
 	 */
-	virtual void DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex) = 0;
-
-	/** Bind the off screen texture at the given index and slot.
-	 * \param index The off screen index.
-	 * \param slot The texture slot to bind the texture.
-	 * \param type The texture type: RAS_OFFSCREEN_COLOR or RAS_OFFSCREEN_DEPTH.
-	 */
-	virtual void BindOffScreenTexture(unsigned short index, unsigned short slot, OffScreen type) = 0;
-
-	/** Unbind the off screen texture at the given index and slot.
-	 * \param index The off screen index.
-	 * \param type The texture type: RAS_OFFSCREEN_COLOR or RAS_OFFSCREEN_DEPTH.
-	 */
-	virtual void UnbindOffScreenTexture(unsigned short index, OffScreen type) = 0;
-
-	virtual void MipmapOffScreenTexture(unsigned short index, OffScreen type) = 0;
-	virtual void UnmipmapOffScreenTexture(unsigned short index, OffScreen type) = 0;
-
-	/// Return current off screen index.
-	virtual short GetCurrentOffScreenIndex() const = 0;
-	/// Return the off screenn samples numbers at the given index.
-	virtual int GetOffScreenSamples(unsigned short index) = 0;
+	virtual void DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen) = 0;
 
 	/**
 	 * SetRenderArea sets the render area from the 2d canvas.
@@ -720,7 +703,7 @@ public:
 	/** Set the current off screen depth to the global depth texture used by materials.
 	 * In case of mutlisample off screen a blit to RAS_OFFSCREEN_BLIT_DEPTH is procceed.
 	 */
-	virtual void UpdateGlobalDepthTexture() = 0;
+	virtual void UpdateGlobalDepthTexture(RAS_OffScreen *offScreen) = 0;
 	/// Set the global depth texture to an empty texture.
 	virtual void ResetGlobalDepthTexture() = 0;
 

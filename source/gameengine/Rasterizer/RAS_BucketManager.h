@@ -37,6 +37,7 @@
 
 #include <vector>
 
+class RAS_OffScreen;
 class SCA_IScene;
 
 class RAS_BucketManager
@@ -94,7 +95,7 @@ public:
 	RAS_BucketManager();
 	virtual ~RAS_BucketManager();
 
-	void Renderbuckets(const MT_Transform & cameratrans, RAS_IRasterizer *rasty);
+	void Renderbuckets(const MT_Transform & cameratrans, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen);
 
 	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
 

@@ -43,7 +43,7 @@
 
 #include "ImageViewport.h"
 
-struct GPUOffScreen;
+class RAS_OffScreen;
 
 /// class for render 3d scene
 class ImageRender : public ImageViewport
@@ -105,13 +105,13 @@ protected:
 	int m_samples;
 
 	/// The rendered off screen, can be multisampled.
-	GPUOffScreen *m_offScreen;
+	std::unique_ptr<RAS_OffScreen> m_offScreen;
 	/// The non multisampled off screen used when bliting, can be NULL.
-	GPUOffScreen *m_blitOffScreen;
+	std::unique_ptr<RAS_OffScreen> m_blitOffScreen;
 	/** The pointer to the final off screen without multisamples, can
 	 * be m_offScreen or m_blitOffScreen in case of mutlisamples.
 	 */
-	GPUOffScreen *m_finalOffScreen;
+	RAS_OffScreen *m_finalOffScreen;
 
 	/// object to synchronize render even if no buffer transfer
 	RAS_ISync *m_sync;

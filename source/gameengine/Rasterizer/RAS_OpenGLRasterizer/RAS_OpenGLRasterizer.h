@@ -49,8 +49,6 @@
 class RAS_StorageVBO;
 class RAS_ICanvas;
 class RAS_OpenGLLight;
-struct GPUOffScreen;
-struct GPUTexture;
 struct GPUShader;
 
 /**
@@ -80,43 +78,21 @@ private:
 		void Render();
 	};
 
-	/// Internal manager of off screens.
 	class OffScreens
 	{
 	private:
-		/// All the off screens used.
-		GPUOffScreen *m_offScreens[RAS_OFFSCREEN_MAX];
-		/// The current off screen index.
-		short m_currentIndex;
-
-		/// The last width.
+		std::unique_ptr<RAS_OffScreen> m_offScreens[RAS_OFFSCREEN_MAX];
 		unsigned int m_width;
-		/// The last height.
 		unsigned int m_height;
-		/// The number of wanted/supported samples.
 		int m_samples;
-		/// The HDR quality.
-		short m_hdr;
-
-		/// Return or create off screen for the given index.
-		GPUOffScreen *GetOffScreen(unsigned short index);
+		HdrType m_hdr;
 
 	public:
 		OffScreens();
 		~OffScreens();
 
 		void Update(RAS_ICanvas *canvas);
-		void Bind(unsigned short index);
-		void RestoreScreen();
-		/// NOTE: This function has the side effect to leave the destination off screen bound.
-		void Blit(unsigned short srcindex, unsigned short dstindex, bool color, bool depth);
-		void BindTexture(unsigned short index, unsigned short slot, OffScreen type);
-		void UnbindTexture(unsigned short index, OffScreen type);
-		void MipmapTexture(unsigned short index, OffScreen type);
-		void UnmipmapTexture(unsigned short index, OffScreen type);
-		short GetCurrentIndex() const;
-		int GetSamples(unsigned short index);
-		GPUTexture *GetDepthTexture(unsigned short index);
+		RAS_OffScreen *GetOffScreen(RAS_IRasterizer::OffScreenType type);
 	};
 
 	struct DebugShape
@@ -233,12 +209,11 @@ private:
 
 	/// Class used to render a screen plane.
 	ScreenPlane m_screenPlane;
+	/// Class used to manage off screens used by the rasterizer.
+	OffScreens m_offScreens;
 
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, SceneDebugShape> m_debugShapes;
-
-	/// Class used to manage off screens.
-	OffScreens m_offScreens;
 
 protected:
 	DrawType m_drawingmode;
@@ -285,16 +260,10 @@ public:
 	virtual void EndFrame();
 
 	virtual void UpdateOffScreens(RAS_ICanvas *canvas);
-	virtual void BindOffScreen(unsigned short index);
-	virtual void DrawOffScreen(unsigned short srcindex, unsigned short dstindex);
-	virtual void DrawOffScreen(RAS_ICanvas *canvas, unsigned short index);
-	virtual void DrawStereoOffScreen(RAS_ICanvas *canvas, unsigned short lefteyeindex, unsigned short righteyeindex);
-	virtual void BindOffScreenTexture(unsigned short index, unsigned short slot, OffScreen type);
-	virtual void UnbindOffScreenTexture(unsigned short index, OffScreen type);
-	virtual void MipmapOffScreenTexture(unsigned short index, OffScreen type);
-	virtual void UnmipmapOffScreenTexture(unsigned short index, OffScreen type);
-	virtual short GetCurrentOffScreenIndex() const;
-	virtual int GetOffScreenSamples(unsigned short index);
+	virtual RAS_OffScreen *GetOffScreen(OffScreenType type);
+	virtual void DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *dstOffScreen);
+	virtual void DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen);
+	virtual void DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen);
 
 	virtual void SetRenderArea(RAS_ICanvas *canvas);
 
@@ -452,7 +421,7 @@ public:
 	void RemoveLight(RAS_ILightObject *lightobject);
 	int ApplyLights(int objectlayer, const MT_Transform& viewmat);
 
-	virtual void UpdateGlobalDepthTexture();
+	virtual void UpdateGlobalDepthTexture(RAS_OffScreen *offScreen);
 	virtual void ResetGlobalDepthTexture();
 
 	void MotionBlur();

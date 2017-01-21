@@ -42,6 +42,7 @@
 
 #include "KX_Globals.h"
 #include "DNA_scene_types.h"
+#include "RAS_OffScreen.h"
 #include "RAS_CameraData.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
@@ -75,8 +76,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
     m_camera(camera),
     m_owncamera(false),
     m_samples(samples),
-    m_offScreen(NULL),
-    m_blitOffScreen(NULL),
     m_finalOffScreen(NULL),
     m_sync(NULL),
     m_observer(NULL),
@@ -107,13 +106,13 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 		m_internalFormat = GL_RGBA8;
 	}
 
-	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
+	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL, RAS_IRasterizer::RAS_OFFSCREEN_CUSTOM));
 	if (m_samples > 0) {
-		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
-		m_finalOffScreen = m_blitOffScreen;
+		m_blitOffScreen.reset(new RAS_OffScreen(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL, RAS_IRasterizer::RAS_OFFSCREEN_CUSTOM));
+		m_finalOffScreen = m_blitOffScreen.get();
 	}
 	else {
-		m_finalOffScreen = m_offScreen;
+		m_finalOffScreen = m_offScreen.get();
 	}
 }
 
@@ -127,18 +126,11 @@ ImageRender::~ImageRender (void)
 	if (m_sync)
 		delete m_sync;
 #endif
-
-	if (m_offScreen) {
-		GPU_offscreen_free(m_offScreen);
-	}
-	if (m_blitOffScreen) {
-		GPU_offscreen_free(m_blitOffScreen);
-	}
 }
 
 int ImageRender::GetColorBindCode() const
 {
-	return GPU_offscreen_color_texture(m_finalOffScreen);
+	return m_finalOffScreen->GetColorBindCode();
 }
 
 // get update shadow buffer
@@ -217,14 +209,14 @@ void ImageRender::calcViewport (unsigned int texId, double ts, unsigned int form
 		}
 	}
 
-	GPU_offscreen_bind_simple(m_finalOffScreen);
+	m_finalOffScreen->Bind();
 
 	// wait until all render operations are completed
 	WaitSync();
 	// get image from viewport (or FBO)
 	ImageViewport::calcViewport(texId, ts, format);
 
-	GPU_framebuffer_restore();
+	RAS_OffScreen::RestoreScreen();
 }
 
 bool ImageRender::Render()
@@ -314,7 +306,7 @@ bool ImageRender::Render()
 
 	// The screen area that ImageViewport will copy is also the rendering zone
 	// bind the fbo and set the viewport to full size
-	GPU_offscreen_bind_simple(m_offScreen);
+	m_offScreen->Bind();
 
 	m_rasterizer->BeginFrame(m_engine->GetClockTime());
 
@@ -427,7 +419,7 @@ bool ImageRender::Render()
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_scene->RenderBuckets(camtrans, m_rasterizer);
+	m_scene->RenderBuckets(camtrans, m_rasterizer, m_offScreen.get());
 
 	// restore the canvas area now that the render is completed
 	m_canvas->GetWindowArea() = area;
@@ -435,7 +427,7 @@ bool ImageRender::Render()
 
 	// In case multisample is active, blit the FBO
 	if (m_samples > 0) {
-		GPU_offscreen_blit(m_offScreen, m_blitOffScreen, true, true);
+		m_offScreen->Blit(m_blitOffScreen.get(), true, true);
 	}
 
 #ifdef WITH_GAMEENGINE_GPU_SYNC
@@ -472,7 +464,7 @@ void ImageRender::WaitSync()
 #endif
 
 	// this is needed to finalize the image if the target is a texture
-	GPU_texture_generate_mipmap(GPU_offscreen_texture(m_finalOffScreen));
+	m_finalOffScreen->MipmapTexture();
 
 	// all rendered operation done and complete, invalidate render for next time
 	m_done = false;
@@ -881,8 +873,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
     m_done(false),
     m_scene(scene),
     m_samples(samples),
-    m_offScreen(NULL),
-    m_blitOffScreen(NULL),
     m_finalOffScreen(NULL),
     m_sync(NULL),
     m_observer(observer),
@@ -903,13 +893,13 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 		m_internalFormat = GL_RGBA8;
 	}
 
-	m_offScreen = GPU_offscreen_create(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
+	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL, RAS_IRasterizer::RAS_OFFSCREEN_CUSTOM));
 	if (m_samples > 0) {
-		m_blitOffScreen = GPU_offscreen_create(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL);
-		m_finalOffScreen = m_blitOffScreen;
+		m_blitOffScreen.reset(new RAS_OffScreen(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, NULL, RAS_IRasterizer::RAS_OFFSCREEN_CUSTOM));
+		m_finalOffScreen = m_blitOffScreen.get();
 	}
 	else {
-		m_finalOffScreen = m_offScreen;
+		m_finalOffScreen = m_offScreen.get();
 	}
 
 	// this constructor is used for automatic planar mirror

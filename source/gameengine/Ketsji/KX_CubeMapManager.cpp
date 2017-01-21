@@ -149,7 +149,8 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 
 		// Now the objects are culled and we can render the scene.
 		m_scene->GetWorldInfo()->RenderBackground(rasty);
-		m_scene->RenderBuckets(trans, rasty);
+		// Send a NULL off screen because we use a set of FBO with shared textures, not an off screen.
+		m_scene->RenderBuckets(trans, rasty, NULL);
 	}
 
 	cubeMap->EndRender();

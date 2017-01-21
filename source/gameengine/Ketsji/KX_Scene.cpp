@@ -1701,8 +1701,7 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 
 
 
-void KX_Scene::RenderBuckets(const MT_Transform & cameratransform,
-                             class RAS_IRasterizer* rasty)
+void KX_Scene::RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen)
 {
 	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
@@ -1710,7 +1709,7 @@ void KX_Scene::RenderBuckets(const MT_Transform & cameratransform,
 		(*it)->UpdateBuckets();
 	}
 
-	m_bucketmanager->Renderbuckets(cameratransform,rasty);
+	m_bucketmanager->Renderbuckets(cameratransform, rasty, offScreen);
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
@@ -2083,9 +2082,9 @@ RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 	return m_filterManager;
 }
 
-void KX_Scene::Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short target)
+RAS_OffScreen *KX_Scene::Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
 {
-	m_filterManager->RenderFilters(rasty, canvas, target);
+	return m_filterManager->RenderFilters(rasty, canvas, inputofs, targetofs);
 }
 
 #ifdef WITH_PYTHON

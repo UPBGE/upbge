@@ -32,6 +32,7 @@
 
 class RAS_ICanvas;
 class RAS_IRasterizer;
+class RAS_OffScreen;
 class RAS_2DFilter;
 
 typedef std::map<unsigned int, RAS_2DFilter *> RAS_PassTo2DFilter;
@@ -64,9 +65,12 @@ public:
 	/** Applies the filters to the scene.
 	 * \param rasty The rasterizer used for draw commands.
 	 * \param canvas The canvas containing the screen viewport.
-	 * \param target The off screen used as output of the last filters.
+	 * \param inputofs The off screen used as input of the first filter.
+	 * \param targetofs The off screen used as output of the last filter.
+	 * \return The last used off screen, if none filters were rendered it's the
+	 * same off screen than inputofs.
 	 */
-	void RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short target);
+	RAS_OffScreen *RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 
 	/// Add a filter to the stack of filters managed by this object.
 	RAS_2DFilter *AddFilter(RAS_2DFilterData& filterData);

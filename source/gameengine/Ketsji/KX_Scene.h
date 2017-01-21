@@ -79,7 +79,7 @@ class RAS_BucketManager;
 class RAS_MaterialBucket;
 class RAS_IPolyMaterial;
 class RAS_IRasterizer;
-class RAS_IRenderTools;
+class RAS_OffScreen;
 class RAS_2DFilterManager;
 class KX_2DFilterManager;
 class SCA_JoystickManager;
@@ -318,8 +318,7 @@ public:
 	KX_CubeMapManager *GetCubeMapManager();
 	RAS_BoundingBoxManager *GetBoundingBoxManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
-	void RenderBuckets(const MT_Transform& cameratransform,
-	                   RAS_IRasterizer* rasty);
+	void RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen);
 	void RenderCubeMaps(RAS_IRasterizer *rasty);
 
 	/**
@@ -544,7 +543,7 @@ public:
 	 * 2D Filters
 	 */
 	RAS_2DFilterManager *Get2DFilterManager() const;
-	void Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short target);
+	RAS_OffScreen *Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 

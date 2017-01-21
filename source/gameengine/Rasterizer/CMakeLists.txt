@@ -53,6 +53,8 @@ set(SRC
 	RAS_2DFilterData.cpp
 	RAS_2DFilterManager.cpp
 	RAS_BatchGroup.cpp
+	RAS_BoundingBox.cpp
+	RAS_BoundingBoxManager.cpp
 	RAS_BucketManager.cpp
 	RAS_CubeMap.cpp
 	RAS_DisplayArrayBucket.cpp
@@ -64,11 +66,10 @@ set(SRC
 	RAS_IPolygonMaterial.cpp
 	RAS_ITexVert.cpp
 	RAS_MaterialBucket.cpp
-	RAS_BoundingBox.cpp
-	RAS_BoundingBoxManager.cpp
 	RAS_MeshObject.cpp
 	RAS_MeshSlot.cpp
 	RAS_MeshUser.cpp
+	RAS_OffScreen.cpp
 	RAS_Polygon.cpp
 	RAS_Shader.cpp
 	RAS_Texture.cpp
@@ -77,13 +78,15 @@ set(SRC
 	RAS_2DFilterData.h
 	RAS_2DFilter.h
 	RAS_2DFilterManager.h
+	RAS_BatchDisplayArray.h
 	RAS_BatchGroup.h
+	RAS_BoundingBox.h
+	RAS_BoundingBoxManager.h
 	RAS_BucketManager.h
 	RAS_CameraData.h
 	RAS_CubeMap.h
 	RAS_Deformer.h
 	RAS_DisplayArray.h
-	RAS_BatchDisplayArray.h
 	RAS_DisplayArrayBucket.h
 	RAS_FramingManager.h
 	RAS_ICanvas.h
@@ -97,12 +100,11 @@ set(SRC
 	RAS_ISync.h
 	RAS_ITexVert.h
 	RAS_MaterialBucket.h
-	RAS_BoundingBox.h
-	RAS_BoundingBoxManager.h
 	RAS_MeshMaterial.h
 	RAS_MeshObject.h
 	RAS_MeshSlot.h
 	RAS_MeshUser.h
+	RAS_OffScreen.h
 	RAS_Polygon.h
 	RAS_Rect.h
 	RAS_Shader.h

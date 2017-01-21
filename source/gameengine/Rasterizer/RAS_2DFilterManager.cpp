@@ -26,6 +26,7 @@
 
 #include "RAS_ICanvas.h"
 #include "RAS_IRasterizer.h"
+#include "RAS_OffScreen.h"
 #include "RAS_2DFilterManager.h"
 #include "RAS_2DFilter.h"
 
@@ -80,15 +81,19 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 	return (it != m_filters.end()) ? it->second : NULL;
 }
 
-void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, unsigned short target)
+RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
 {
+	/* The output off screen is set to the inputs off screen in case none filters will be rendered.
+	 * Its value is changed later when rendering the filters. */
+	RAS_OffScreen *outputofs = inputofs;
+
 	if (m_filters.size() == 0) {
 		// No filters, discard.
-		return;
+		return outputofs;
 	}
 
-	unsigned short colorfbo = rasty->GetCurrentOffScreenIndex();
-	unsigned short depthfbo = colorfbo;
+	RAS_OffScreen *colorofs = inputofs;
+	RAS_OffScreen *depthofs = colorofs;
 
 	rasty->Disable(RAS_IRasterizer::RAS_CULL_FACE);
 	rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
@@ -98,45 +103,41 @@ void RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *can
 	rasty->SetLines(false);
 
 	// Used to know if a filter is the last of the container.
-	RAS_PassTo2DFilter::const_iterator pend = m_filters.end();
-	--pend;
+	RAS_PassTo2DFilter::const_iterator pend = std::prev(m_filters.end());
 
 	for (RAS_PassTo2DFilter::iterator begin = m_filters.begin(), it = begin, end = m_filters.end(); it != end; ++it) {
 		RAS_2DFilter *filter = it->second;
 
-		unsigned short outputfbo;
-
 		// Computing the depth and color input off screens.
 		if (it == begin) {
-			/* Set source FBO to RAS_OFFSCREEN_FILTER0 in case of multisample and blit,
-			 * else keep the original source FBO. */
-			if (rasty->GetOffScreenSamples(colorfbo)) {
-				rasty->BindOffScreen(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
-				rasty->DrawOffScreen(colorfbo, RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
-
-				colorfbo = RAS_IRasterizer::RAS_OFFSCREEN_FILTER0;
-				depthfbo = colorfbo;
+			/* Set source off screen to RAS_OFFSCREEN_FILTER0 in case of multisample and blit,
+			 * else keep the original source off screen. */
+			if (inputofs->GetSamples()) {
+				colorofs = depthofs = rasty->GetOffScreen(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
+				rasty->DrawOffScreen(inputofs, colorofs);
 			}
 		}
 		else {
-			colorfbo = RAS_IRasterizer::NextFilterOffScreen(colorfbo);
+			colorofs = rasty->GetOffScreen(RAS_IRasterizer::NextFilterOffScreen(colorofs->GetType()));
 		}
 
 		// Computing the output off screen.
 		if (it == pend) {
 			// Render to the targeted FBO for the last filter.
-			outputfbo = target;
+			outputofs = targetofs;
 		}
 		else {
-			outputfbo = RAS_IRasterizer::NextFilterOffScreen(colorfbo);
+			outputofs = rasty->GetOffScreen(RAS_IRasterizer::NextFilterOffScreen(colorofs->GetType()));
 		}
 
-		filter->Start(rasty, canvas, depthfbo, colorfbo, outputfbo);
+		filter->Start(rasty, canvas, depthofs, colorofs, outputofs);
 		filter->End();
 	}
 
 	rasty->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
 	rasty->Enable(RAS_IRasterizer::RAS_CULL_FACE);
+
+	return outputofs;
 }
 
 RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
