@@ -33,7 +33,7 @@ base class --- :class:`SCA_ISensor`
          
          Only use this for "Single Axis" type sensors otherwise it will raise an error.
 
-   .. attribute:: hatValues
+   .. attribute:: hatValues (Deprecated. Use :data:button instead)
 
       The state of the joysticks hats as a list of values :data:`numHats` long. (read-only).
 
@@ -53,7 +53,7 @@ base class --- :class:`SCA_ISensor`
       * 12:Down - Left
       * 9:Up - Left
 
-   .. attribute:: hatSingle
+   .. attribute:: hatSingle (Deprecated. Use :data:button instead)
 
       Like :data:`hatValues` but returns a single hat direction value that is set by the sensor. (read-only).
 
@@ -71,7 +71,7 @@ base class --- :class:`SCA_ISensor`
 
       :type: integer
 
-   .. attribute:: numHats
+   .. attribute:: numHats (Deprecated. Use :data:numButtons instead)
 
       The number of hats for the joystick at this index. (read-only).
 
@@ -110,7 +110,7 @@ base class --- :class:`SCA_ISensor`
 
       :type: [integer, integer]
 
-   .. attribute:: hat
+   .. attribute:: hat (Deprecated. Use :data:button instead)
 
       The hat the sensor reacts to, as a list of two values: [hatIndex, hatDirection]
 
