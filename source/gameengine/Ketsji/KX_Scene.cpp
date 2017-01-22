@@ -64,6 +64,7 @@
 #include "RAS_2DFilterData.h"
 #include "RAS_CubeMap.h"
 #include "KX_2DFilterManager.h"
+#include "KX_CubeMap.h"
 #include "KX_CubeMapManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
@@ -1405,10 +1406,13 @@ void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void* cul
 void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int layer)
 {
 	m_boundingBoxManager->Update(false);
-
+	bool previousCullingState = false;
 	// Update the object boudning volume box if the object had a deformer.
 	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		KX_GameObject *gameobj = *it;
+		if (gameobj->GetIsCubeMapObj()) {
+			previousCullingState = gameobj->GetCulled();
+		}
 		if (gameobj->GetDeformer()) {
 			/** Update all the deformer, not only per material.
 			 * One of the side effect is to clear some flags about AABB calculation.
@@ -1455,6 +1459,33 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 		for (int i = 0; i < m_objectlist->GetCount(); i++)
 		{
 			MarkVisible(rasty, static_cast<KX_GameObject*>(m_objectlist->GetValue(i)), cam, layer);
+		}
+	}
+	
+	std::vector<KX_CubeMap *>cubeMaps = m_cubeMapManager->GetCubeMaps();
+	if (cubeMaps.size() > 0) {
+		for (std::vector<KX_CubeMap *>::iterator it = cubeMaps.begin(); it != cubeMaps.end();) {
+			KX_CubeMap *cubeMap = *it;
+			std::vector<KX_GameObject *>cubeMapUsers = cubeMap->GetGameObjectsUsers();
+			if (cubeMapUsers.size() > 1) {
+				for (std::vector<KX_GameObject *>::const_iterator it1 = cubeMap->GetGameObjectsUsers().begin(); it1 != cubeMap->GetGameObjectsUsers().end();) {
+					KX_GameObject *go1 = *it1;
+					if (!go1->GetCulled()) {
+						for (std::vector<KX_GameObject *>::const_iterator it2 = cubeMap->GetGameObjectsUsers().begin(); it2 != cubeMap->GetGameObjectsUsers().end();) {
+							KX_GameObject *go2 = *it2;
+							go2->SetCulled(false);
+							it2++;
+						}
+						break;
+					}
+					it1++;
+				}
+			}
+			if (rasty->GetRenderingShadows()) {
+				KX_GameObject *go3 = cubeMap->GetGameObject();
+				go3->SetCulled(previousCullingState);
+			}
+			it++;
 		}
 	}
 }

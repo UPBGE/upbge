@@ -123,6 +123,7 @@ KX_GameObject::KX_GameObject(
       m_components(NULL),
       m_pInstanceObjects(NULL),
       m_pDupliGroupObject(NULL),
+	  m_isCubeMapObj(false),
       m_actionManager(NULL)
 #ifdef WITH_PYTHON
     , m_attr_dict(NULL),
@@ -1645,6 +1646,16 @@ KX_Scene* KX_GameObject::GetScene()
 		return KX_GetActiveScene();
 	}
 	return static_cast<KX_Scene*>(node->GetSGClientInfo());
+}
+
+void KX_GameObject::SetIsCubeMapObj(bool isCubeMapObj)
+{
+	m_isCubeMapObj = isCubeMapObj;
+}
+
+bool KX_GameObject::GetIsCubeMapObj()
+{
+	return m_isCubeMapObj;
 }
 
 /* ---------------------------------------------------------------------

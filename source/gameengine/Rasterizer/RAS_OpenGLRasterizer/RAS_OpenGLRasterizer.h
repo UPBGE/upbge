@@ -220,6 +220,8 @@ private:
 	/// Class used to render a screen plane.
 	ScreenPlane m_screenPlane;
 
+	bool m_renderingShadows;
+
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, SceneDebugShape> m_debugShapes;
 
@@ -447,6 +449,9 @@ public:
 	 * Prints information about what the hardware supports.
 	 */
 	virtual void PrintHardwareInfo();
+
+	virtual void SetRenderingShadows(bool renderingShadows);
+	virtual bool GetRenderingShadows();
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_OpenGLRasterizer")

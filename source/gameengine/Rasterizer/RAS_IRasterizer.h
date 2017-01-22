@@ -721,6 +721,9 @@ public:
 
 	virtual void SetAuxilaryClientInfo(void *inf) = 0;
 
+	virtual void SetRenderingShadows(bool renderingShadows) = 0;
+	virtual bool GetRenderingShadows() = 0;
+
 	/**
 	 * Prints information about what the hardware supports.
 	 */

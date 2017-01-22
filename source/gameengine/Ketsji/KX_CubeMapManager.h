@@ -60,9 +60,11 @@ public:
 	/** Add and create a cube map if none existing cube map was using the same
 	 * texture containing in the material texture passed.
 	 */
-	void AddCubeMap(RAS_Texture *texture, KX_GameObject *gameobj);
+	void AddCubeMap(RAS_Texture *texture, KX_GameObject *viewpoint, KX_GameObject *cubemapobj);
 	/// Invalidate cube map using the given game object as viewpoint object.
 	void InvalidateCubeMapViewpoint(KX_GameObject *gameobj);
+
+	std::vector<KX_CubeMap *>GetCubeMaps();
 
 	void Render(RAS_IRasterizer *rasty);
 

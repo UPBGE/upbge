@@ -128,6 +128,8 @@ protected:
 
 	BL_ActionManager* GetActionManager();
 
+	bool								m_isCubeMapObj;
+
 public:
 	/**
 	 * KX_GameObject custom infos for ray cast, it contains property name,
@@ -923,6 +925,9 @@ public:
 	void UpdateComponents();
 
 	KX_Scene*	GetScene();
+
+	void SetIsCubeMapObj(bool isCubeMapObj);
+	bool GetIsCubeMapObj();
 
 #ifdef WITH_PYTHON
 	/**
