@@ -1961,54 +1961,26 @@ static struct PyModuleDef BGE_module_def = {
 	NULL,  /* m_free */
 };
 
-PyMODINIT_FUNC initBGE(void)
+static void addSubModule(PyObject *modules, PyObject *mod, PyObject *submod, const std::string& modname)
 {
-	PyObject *mod;
-	PyObject *submodule;
-	PyObject *sys_modules = PyThreadState_GET()->interp->modules;
-	const char *mod_full;
+	/* PyModule_AddObject doesn't incref the sub module but PyDict_SetItemString increfs
+	 * the item set. So no incref and decref are needed here. */
+	PyModule_AddObject(mod, modname.substr(4).c_str(), submod);
+	PyDict_SetItemString(modules, modname.c_str(), submod);
+}
 
-	mod = PyModule_Create(&BGE_module_def);
+PyMODINIT_FUNC initBGE()
+{
+	PyObject *modules = PyThreadState_GET()->interp->modules;
+	PyObject *mod = PyModule_Create(&BGE_module_def);
 
-	/* skip "bge." */
-#define SUBMOD (mod_full + 4)
-
-	mod_full = "bge.app";
-	PyModule_AddObject(mod, SUBMOD, (submodule = initApplicationPythonBinding()));
-	PyDict_SetItemString(sys_modules, mod_full, submodule);
-	Py_INCREF(submodule);
-
-	mod_full = "bge.constraints";
-	PyModule_AddObject(mod, SUBMOD, (submodule = initConstraintPythonBinding()));
-	PyDict_SetItemString(sys_modules, mod_full, submodule);
-	Py_INCREF(submodule);
-
-	mod_full = "bge.events";
-	PyModule_AddObject(mod, SUBMOD, (submodule = initGameKeysPythonBinding()));
-	PyDict_SetItemString(sys_modules, mod_full, submodule);
-	Py_INCREF(submodule);
-
-	mod_full = "bge.logic";
-	PyModule_AddObject(mod, SUBMOD, (submodule = initGameLogicPythonBinding()));
-	PyDict_SetItemString(sys_modules, mod_full, submodule);
-	Py_INCREF(submodule);
-
-	mod_full = "bge.render";
-	PyModule_AddObject(mod, SUBMOD, (submodule = initRasterizerPythonBinding()));
-	PyDict_SetItemString(sys_modules, mod_full, submodule);
-	Py_INCREF(submodule);
-
-	mod_full = "bge.types";
-	PyModule_AddObject(mod, SUBMOD, (submodule = initGameTypesPythonBinding()));
-	PyDict_SetItemString(sys_modules, mod_full, submodule);
-	Py_INCREF(submodule);
-
-	mod_full = "bge.texture";
-	PyModule_AddObject(mod, SUBMOD, (submodule = initVideoTexturePythonBinding()));
-	PyDict_SetItemString(sys_modules, mod_full, submodule);
-	Py_INCREF(submodule);
-
-#undef SUBMOD
+	addSubModule(modules, mod, initApplicationPythonBinding(), "bge.app");
+	addSubModule(modules, mod, initConstraintPythonBinding(), "bge.constraints");
+	addSubModule(modules, mod, initGameKeysPythonBinding(), "bge.events");
+	addSubModule(modules, mod, initGameLogicPythonBinding(), "bge.logic");
+	addSubModule(modules, mod, initRasterizerPythonBinding(), "bge.render");
+	addSubModule(modules, mod, initGameTypesPythonBinding(), "bge.types");
+	addSubModule(modules, mod, initVideoTexturePythonBinding(), "bge.textures");
 
 	return mod;
 }

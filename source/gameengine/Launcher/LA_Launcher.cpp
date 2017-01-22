@@ -328,7 +328,6 @@ void LA_Launcher::ExitEngine()
 	 */
 
 	PyDict_Clear(PyModule_GetDict(m_gameLogic));
-	PyDict_SetItemString(PyModule_GetDict(m_gameLogic), "globalDict", m_globalDict);
 
 #endif  // WITH_PYTHON
 
