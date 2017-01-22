@@ -127,6 +127,11 @@ protected:
 	float m_lodDistanceFactor;
 
 	/**
+	 * Show Debug Camera Frustum?
+	 */
+	bool m_showDebugCameraFrustum;
+
+	/**
 	 * Extracts the camera clip frames from the projection and world-to-camera matrices.
 	 */
 	void ExtractClipPlanes();
@@ -222,6 +227,10 @@ public:
 	float				GetFocalLength() const;
 	/** Gets all camera data. */
 	RAS_CameraData*		GetCameraData();
+
+	/** Get/Set show camera frustum */
+	void SetShowCameraFrustum(bool show);
+	bool GetShowCameraFrustum() const;
 
 	/** Get level of detail distance factor */
 	float GetLodDistanceFactor() const;
