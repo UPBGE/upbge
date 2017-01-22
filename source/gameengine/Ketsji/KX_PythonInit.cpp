@@ -1452,6 +1452,7 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 		PyList_SET_ITEM(joylist, i, Py_None);
 	}
 	PyDict_SetItemString(d, "joysticks", joylist);
+	Py_DECREF(joylist);
 
 	ErrorObject = PyUnicode_FromString("GameLogic.error");
 	PyDict_SetItemString(d, "error", ErrorObject);
@@ -2057,7 +2058,9 @@ void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 	}
 #endif
 
-	PyDict_SetItemString(PyImport_GetModuleDict(), "bge", initBGE());
+	PyObject *mod = initBGE();
+	PyDict_SetItemString(PyImport_GetModuleDict(), "bge", mod);
+	Py_DECREF(mod);
 
 	first_time = false;
 	
@@ -2109,7 +2112,9 @@ void initGamePythonScripting(Main *maggie)
 	}
 #endif
 
-	PyDict_SetItemString(PyImport_GetModuleDict(), "bge", initBGE());
+	PyObject *mod = initBGE();
+	PyDict_SetItemString(PyImport_GetModuleDict(), "bge", mod);
+	Py_DECREF(mod);
 
 	EXP_PyObjectPlus::NullDeprecationWarning();
 }
@@ -2137,8 +2142,7 @@ void exitGamePythonScripting()
 
 /* similar to the above functions except it sets up the namespace
  * and other more general things */
-void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
-                     PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char** argv)
+void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata, PyObject *pyGlobalDict, int argc, char** argv)
 {
 	PyObject *modules;
 
@@ -2149,10 +2153,11 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
 
 	modules = PyImport_GetModuleDict();
 
-	*gameLogic = PyDict_GetItemString(modules, "GameLogic");
+	PyObject *gameLogic = PyDict_GetItemString(modules, "GameLogic");
 	/* is set in initGameLogicPythonBinding so only set here if we want it to persist between scenes */
 	if (pyGlobalDict)
-		PyDict_SetItemString(PyModule_GetDict(*gameLogic), "globalDict", pyGlobalDict); // Same as importing the module.z
+		PyDict_SetItemString(PyModule_GetDict(gameLogic), "globalDict", pyGlobalDict); // Same as importing the module.z
+	Py_DECREF(gameLogic);
 }
 
 void createPythonConsole()

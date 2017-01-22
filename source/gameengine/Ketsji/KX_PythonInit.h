@@ -54,8 +54,7 @@ void appendPythonPath(const std::string& path);
 
 void exitGamePlayerPythonScripting();
 void exitGamePythonScripting();
-void setupGamePython(KX_KetsjiEngine *ketsjiengine, Main *blenderdata,
-                     PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char **argv);
+void setupGamePython(KX_KetsjiEngine *ketsjiengine, Main *blenderdata, PyObject *pyGlobalDict, int argc, char **argv);
 std::string pathGamePythonConfig();
 void saveGamePythonConfig();
 void loadGamePythonConfig();

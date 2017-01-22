@@ -96,7 +96,6 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 	m_converter(nullptr),
 #ifdef WITH_PYTHON
 	m_globalDict(nullptr),
-	m_gameLogic(nullptr),
 #endif  // WITH_PYTHON
 	m_samples(samples),
 	m_stereoMode(stereoMode),
@@ -276,7 +275,7 @@ void LA_Launcher::InitEngine()
 #ifdef WITH_PYTHON
 	KX_SetMainPath(std::string(m_maggie->name));
 	// Some python things.
-	setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, &m_gameLogic, m_argc, m_argv);
+	setupGamePython(m_ketsjiEngine, m_maggie, m_globalDict, m_argc, m_argv);
 #endif  // WITH_PYTHON
 
 	// Create a scene converter, create and convert the stratingscene.
@@ -324,19 +323,6 @@ void LA_Launcher::ExitEngine()
 
 	DEV_Joystick::Close();
 	m_ketsjiEngine->StopEngine();
-
-#ifdef WITH_PYTHON
-
-	/* Clears the dictionary by hand:
-	 * This prevents, extra references to global variables
-	 * inside the GameLogic dictionary when the python interpreter is finalized.
-	 * which allows the scene to safely delete them :)
-	 * see: (space.c)->start_game
-	 */
-
-	PyDict_Clear(PyModule_GetDict(m_gameLogic));
-
-#endif  // WITH_PYTHON
 
 	// Do we will stop ?
 	if ((m_exitRequested != KX_ExitRequest::RESTART_GAME) && (m_exitRequested != KX_ExitRequest::START_OTHER_GAME)) {

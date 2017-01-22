@@ -82,7 +82,6 @@ protected:
 
 #ifdef WITH_PYTHON
 	PyObject *m_globalDict;
-	PyObject *m_gameLogic;
 #endif  // WITH_PYTHON
 
 	/// The number of render samples.
