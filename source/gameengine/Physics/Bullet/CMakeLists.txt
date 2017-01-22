@@ -46,6 +46,7 @@ set(INC
 set(INC_SYS
 	../../../../intern/moto/include
 	${PYTHON_INCLUDE_DIRS}
+	${BOOST_INCLUDE_DIR}
 )
 
 set(SRC

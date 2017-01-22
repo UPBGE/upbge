@@ -53,6 +53,7 @@ set(INC
 set(INC_SYS
 	../../../intern/moto/include
 	${GLEW_INCLUDE_PATH}
+	${BOOST_INCLUDE_DIR}
 )
 
 add_definitions(${GL_DEFINITIONS})
