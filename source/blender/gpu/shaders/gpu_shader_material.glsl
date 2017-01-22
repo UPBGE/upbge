@@ -3791,7 +3791,7 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, mat3 ma
 	vec3 vv = normalize(vvec);
 
 	// The uv shift per depth step, multitply by rotation and after size.
-	vec2 delta = (vec3(-vv.x, vv.y, 0.0) * mat * size * bumpscale / vv.z).xy;
+	vec2 delta = (vec3(-vv.x, gl_FrontFacing ? vv.y : -vv.y, 0.0) * mat * size * bumpscale / vv.z).xy;
 
 	float height = 0.0;
 
