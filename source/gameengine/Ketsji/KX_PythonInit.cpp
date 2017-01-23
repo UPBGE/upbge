@@ -1980,7 +1980,7 @@ PyMODINIT_FUNC initBGE()
 	addSubModule(modules, mod, initGameLogicPythonBinding(), "bge.logic");
 	addSubModule(modules, mod, initRasterizerPythonBinding(), "bge.render");
 	addSubModule(modules, mod, initGameTypesPythonBinding(), "bge.types");
-	addSubModule(modules, mod, initVideoTexturePythonBinding(), "bge.textures");
+	addSubModule(modules, mod, initVideoTexturePythonBinding(), "bge.texture");
 
 	return mod;
 }
