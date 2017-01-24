@@ -267,3 +267,10 @@ base class --- :class:`PyObjectPlus`
 
       Validate the shader object.
 
+   .. method:: SetInvalidUniformWarningDisplayed(value)
+
+      Choose to display or not "Invalid Uniform" warning.
+
+      :arg value: Display the warning or not. Default value set to True.
+      :type value: boolean
+

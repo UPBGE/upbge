@@ -112,7 +112,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, sampler
 		if (GetError()) {
 			Py_RETURN_NONE;
 		}
-		int loc = GetUniformLocation(samplerName);
+		int loc = GetUniformLocation(samplerName, true);
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS

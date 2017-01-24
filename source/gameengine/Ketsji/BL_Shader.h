@@ -83,6 +83,7 @@ public:
 	KX_PYMETHOD_DOC(BL_Shader, setUniformDef);
 	KX_PYMETHOD_DOC(BL_Shader, setAttrib);
 	KX_PYMETHOD_DOC(BL_Shader, setSampler);
+	KX_PYMETHOD_DOC(BL_Shader, setInvalidUniformWarningDisplayed);
 #endif
 };
 
