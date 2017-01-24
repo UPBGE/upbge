@@ -370,6 +370,7 @@ public:
 	virtual void DrawDebugSolidBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& insideColor,
 							  const MT_Vector4& outsideColor, const MT_Vector4& lineColor);
 	virtual void DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat);
+	virtual void DrawDebugLightFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat);
 
 	virtual void ClearTexCoords();
 	virtual void ClearAttribs();

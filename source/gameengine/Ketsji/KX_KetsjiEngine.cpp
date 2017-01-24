@@ -1006,6 +1006,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, unsigned shor
 	scene->DrawDebug(m_rasterizer);
 	// Draw debug camera frustum.
 	DrawDebugCameraFrustum(scene, viewport, area);
+	DrawDebugLightFrustum(scene);
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
@@ -1276,6 +1277,21 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, const RAS_Rect& vi
 		if (cam->GetShowCameraFrustum()) {
 			const MT_Matrix4x4 viewmat(cam->GetWorldToCamera());
 			m_rasterizer->DrawDebugCameraFrustum(scene, GetCameraProjectionMatrix(scene, cam, viewport, area), viewmat);
+		}
+	}
+}
+
+void KX_KetsjiEngine::DrawDebugLightFrustum(KX_Scene *scene)
+{
+	CListValue *lightList = scene->GetLightList();
+	for (CListValue::iterator<KX_LightObject> it = lightList->GetBegin(), end = lightList->GetEnd(); it != end; ++it) {
+		KX_LightObject *light = *it;
+		RAS_ILightObject *raslight = light->GetLightData();
+		if (raslight->m_showLightDebugFrustum) {
+			const MT_Matrix4x4 viewmat(raslight->GetWinMat());
+			const MT_Matrix4x4 projmat(raslight->GetShadowMatrix());
+
+			m_rasterizer->DrawDebugLightFrustum(scene, projmat, viewmat);
 		}
 	}
 }

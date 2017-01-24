@@ -2854,6 +2854,11 @@ GPUNodeLink *GPU_lamp_get_data(
 	return visifac;
 }
 
+float *GPU_lamp_get_viewmat(GPULamp *lamp)
+{
+	return lamp->viewmat;
+}
+
 /* export the GLSL shader */
 
 GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)

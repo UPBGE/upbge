@@ -932,6 +932,29 @@ void RAS_OpenGLRasterizer::DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Ma
 		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f));
 }
 
+void RAS_OpenGLRasterizer::DrawDebugLightFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat)
+{
+	MT_Vector3 box[8];
+
+	box[0][0] = box[1][0] = box[4][0] = box[5][0] = -1.0f;
+	box[2][0] = box[3][0] = box[6][0] = box[7][0] = 1.0f;
+	box[0][1] = box[3][1] = box[4][1] = box[7][1] = -1.0f;
+	box[1][1] = box[2][1] = box[5][1] = box[6][1] = 1.0f;
+	box[0][2] = box[1][2] = box[2][2] = box[3][2] = -1.0f;
+	box[4][2] = box[5][2] = box[6][2] = box[7][2] = 1.0f;
+
+	const MT_Matrix4x4 mv = (projmat * viewmat).inverse();
+
+	for (unsigned short i = 0; i < 8; i++) {
+		MT_Vector3& p3 = box[i];
+		const MT_Vector4 p4 = mv * MT_Vector4(p3.x(), p3.y(), p3.z(), 1.0f);
+		p3 = MT_Vector3(p4.x() / p4.w(), p4.y() / p4.w(), p4.z() / p4.w());
+	}
+
+	DrawDebugSolidBox(scene, box, MT_Vector4(0.4f, 0.4f, 0.4f, 0.4f), MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f),
+		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f));
+}
+
 void RAS_OpenGLRasterizer::EndFrame()
 {
 	SetColorMask(true, true, true, true);

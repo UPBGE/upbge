@@ -232,6 +232,8 @@ private:
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.
 	void DrawDebugCameraFrustum(KX_Scene *scene, const RAS_Rect& viewport, const RAS_Rect& area);
+	/// Debug draw lights frustum of a scene.
+	void DrawDebugLightFrustum(KX_Scene *scene);
 
 public:
 	KX_KetsjiEngine(KX_ISystem *system);

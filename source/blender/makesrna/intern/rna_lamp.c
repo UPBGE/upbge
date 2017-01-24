@@ -882,6 +882,12 @@ static void rna_def_sun_lamp(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Show Shadow Box",
 	                         "Draw a box in 3D view to visualize which objects are contained in it");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
+
+	prop = RNA_def_property(srna, "show_shadow_box_bge", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mode", LA_SHOW_SHADOW_BOX_BGE);
+	RNA_def_property_ui_text(prop, "Show Shadow Box in BGE",
+		"Draw a box in 3D view to visualize which objects are contained in it");
+	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 }
 
 static void rna_def_hemi_lamp(BlenderRNA *brna)
