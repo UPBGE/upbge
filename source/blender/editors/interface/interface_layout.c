@@ -575,6 +575,9 @@ static void ui_item_enum_expand(
 			UI_block_layout_set_current(block, layout_radial);
 		}
 		else {
+			if (layout->item.type == ITEM_LAYOUT_RADIAL) {
+				layout_radial = layout;
+			}
 			UI_block_layout_set_current(block, layout);
 		}
 	}
@@ -587,8 +590,9 @@ static void ui_item_enum_expand(
 
 	for (item = item_array; item->identifier; item++) {
 		if (!item->identifier[0]) {
-			if (radial)
+			if (radial && layout_radial) {
 				uiItemS(layout_radial);
+			}
 			continue;
 		}
 
