@@ -2779,6 +2779,16 @@ float *GPU_lamp_dynpersmat(GPULamp *lamp)
 	return &lamp->dynpersmat[0][0];
 }
 
+float *GPU_lamp_get_viewmat(GPULamp *lamp)
+{
+	return &lamp->viewmat[0][0];
+}
+
+float *GPU_lamp_get_persmat(GPULamp *lamp)
+{
+	return &lamp->persmat[0][0];
+}
+
 int GPU_lamp_shadow_layer(GPULamp *lamp)
 {
 	if (lamp->fb && lamp->tex && (lamp->mode & (LA_LAYER | LA_LAYER_SHADOW)))
@@ -2852,11 +2862,6 @@ GPUNodeLink *GPU_lamp_get_data(
 	add_user_list(&lamp->materials, mat->ma);
 
 	return visifac;
-}
-
-float *GPU_lamp_get_viewmat(GPULamp *lamp)
-{
-	return lamp->viewmat;
 }
 
 /* export the GLSL shader */
