@@ -446,6 +446,10 @@ void KX_Scene::EnableZBufferClearing(bool isclearingZbuffer)
 void KX_Scene::AddObjectDebugProperties(class KX_GameObject* gameobj)
 {
 	Object* blenderobject = gameobj->GetBlenderObject();
+	if (!blenderobject) {
+		return;
+	}
+
 	bProperty* prop = (bProperty*)blenderobject->prop.first;
 
 	while (prop) {
