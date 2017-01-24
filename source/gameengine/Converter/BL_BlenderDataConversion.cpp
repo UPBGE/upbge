@@ -433,7 +433,13 @@ static KX_BlenderMaterial *ConvertMaterial(
 	int lightlayer,
 	KX_Scene *scene)
 {
-	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, (mat ? &mat->game : NULL), tface, lightlayer);
+	std::string name = mat->id.name;
+	// Always ensure that the name of a material start with "MA" prefix due to video texture name check.
+	if (name.empty()) {
+		name = "MA";
+	}
+
+	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, name, (mat ? &mat->game : NULL), tface, lightlayer);
 
 	return kx_blmat;
 }

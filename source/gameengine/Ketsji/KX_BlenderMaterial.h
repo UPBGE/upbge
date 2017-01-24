@@ -37,6 +37,7 @@ public:
 	KX_BlenderMaterial(
 			KX_Scene *scene,
 			Material *mat,
+			const std::string& name,
 			GameSettings *game,
 			MTFace *mtface,
 			int lightlayer);

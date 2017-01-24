@@ -48,10 +48,11 @@
 KX_BlenderMaterial::KX_BlenderMaterial(
 		KX_Scene *scene,
 		Material *mat,
+		const std::string& name,
 		GameSettings *game,
 		MTFace *mtface,
 		int lightlayer)
-	:RAS_IPolyMaterial(mat->id.name, game),
+	:RAS_IPolyMaterial(name, game),
 	m_material(mat),
 	m_shader(NULL),
 	m_blenderShader(NULL),
