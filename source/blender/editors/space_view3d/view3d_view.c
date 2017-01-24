@@ -1628,6 +1628,7 @@ static void game_set_commmandline_options(GameData *gm)
 		SYS_WriteCommandLineInt(syshandle, "show_bounding_box", gm->showBoundingBox);
 		SYS_WriteCommandLineInt(syshandle, "show_armatures", gm->showArmatures);
 		SYS_WriteCommandLineInt(syshandle, "show_camera_frustum", gm->showCameraFrustum);
+		SYS_WriteCommandLineInt(syshandle, "show_shadow_frustum", gm->showShadowFrustum);
 	}
 }
 

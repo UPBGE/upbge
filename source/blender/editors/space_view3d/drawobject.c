@@ -1135,18 +1135,8 @@ static void draw_transp_spot_volume(Lamp *la, float x, float z)
 }
 
 #ifdef WITH_GAMEENGINE
-static void draw_transp_sun_volume(Lamp *la)
+static void draw_shadow_volume(const float box[8][3])
 {
-	float box[8][3];
-
-	/* construct box */
-	box[0][0] = box[1][0] = box[2][0] = box[3][0] = -la->shadow_frustum_size;
-	box[4][0] = box[5][0] = box[6][0] = box[7][0] = +la->shadow_frustum_size;
-	box[0][1] = box[1][1] = box[4][1] = box[5][1] = -la->shadow_frustum_size;
-	box[2][1] = box[3][1] = box[6][1] = box[7][1] = +la->shadow_frustum_size;
-	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -la->clipend;
-	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -la->clipsta;
-
 	/* draw edges */
 	draw_box(box, false);
 
@@ -1178,6 +1168,44 @@ static void draw_transp_sun_volume(Lamp *la)
 	glDisable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 }
+
+static void draw_transp_sun_shadow_volume(Lamp *la)
+{
+	float box[8][3];
+
+	/* construct box */
+	box[0][0] = box[1][0] = box[2][0] = box[3][0] = -la->shadow_frustum_size;
+	box[4][0] = box[5][0] = box[6][0] = box[7][0] = +la->shadow_frustum_size;
+	box[0][1] = box[1][1] = box[4][1] = box[5][1] = -la->shadow_frustum_size;
+	box[2][1] = box[3][1] = box[6][1] = box[7][1] = +la->shadow_frustum_size;
+	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -la->clipend;
+	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -la->clipsta;
+
+	draw_shadow_volume(box);
+}
+
+static void draw_transp_spot_shadow_volume(Lamp *la)
+{
+	float box[8][3];
+
+	const float x = cosf(la->spotsize * 0.5f);
+	const float xtop = x * la->clipsta;
+	const float xbottom = x * la->clipend;
+
+	/* construct box */
+	box[0][0] = box[3][0] = -xbottom;
+	box[2][0] = box[1][0] = -xtop;
+	box[4][0] = box[7][0] = xbottom;
+	box[6][0] = box[5][0] = xtop;
+	box[0][1] = box[4][1] = -xbottom;
+	box[1][1] = box[5][1] = -xtop;
+	box[3][1] = box[7][1] = xbottom;
+	box[2][1] = box[6][1] = xtop;
+	box[0][2] = box[3][2] = box[4][2] = box[7][2] = -la->clipend;
+	box[1][2] = box[2][2] = box[5][2] = box[6][2] = -la->clipsta;
+
+	draw_shadow_volume(box);
+}
 #endif
 
 static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
@@ -1207,7 +1235,8 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 	        (rv3d->rflag & RV3D_IS_GAME_ENGINE) &&
 	        (dt > OB_WIRE) &&
 	        !(G.f & G_PICKSEL) &&
-	        (la->type == LA_SUN) &&
+	        ((la->type == LA_SUN) ||
+	        (la->type == LA_SPOT)) &&
 	        ((la->mode & LA_SHAD_BUF) || 
 	        (la->mode & LA_SHAD_RAY)) &&
 	        (la->mode & LA_SHOW_SHADOW_BOX) &&
@@ -1442,6 +1471,12 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 			glVertex3f(0.0, 0.0, -la->dist);
 		}
 		glEnd();
+
+#ifdef WITH_GAMEENGINE
+		if (drawshadowbox) {
+			draw_transp_spot_shadow_volume(la);
+		}
+#endif
 	}
 	else if (ELEM(la->type, LA_HEMI, LA_SUN)) {
 		
@@ -1494,7 +1529,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 
 #ifdef WITH_GAMEENGINE
 		if (drawshadowbox) {
-			draw_transp_sun_volume(la);
+			draw_transp_sun_shadow_volume(la);
 		}
 #endif
 

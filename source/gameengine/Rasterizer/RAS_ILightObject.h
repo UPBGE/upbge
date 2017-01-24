@@ -51,11 +51,12 @@ public:
 		LIGHT_NORMAL,
 		LIGHT_HEMI
 	};
+
 	bool	m_modified;
 	int		m_layer;
 	void	*m_scene;
 	void	*m_light;
-	
+
 	float	m_energy;
 	float	m_distance;
 	float	m_shadowclipstart;
@@ -89,6 +90,8 @@ public:
 	virtual bool NeedShadowUpdate() = 0;
 	virtual int GetShadowBindCode() = 0;
 	virtual MT_Matrix4x4 GetShadowMatrix() = 0;
+	virtual MT_Matrix4x4 GetViewMat() = 0;
+	virtual MT_Matrix4x4 GetWinMat() = 0;
 	virtual int GetShadowLayer() = 0;
 	virtual void BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_Transform& camtrans) = 0;
 	virtual void UnbindShadowBuffer() = 0;

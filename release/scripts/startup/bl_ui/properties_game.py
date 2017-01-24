@@ -469,6 +469,7 @@ class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
         col.prop(gs, "show_bounding_box", text="Bounding Box")
         col.prop(gs, "show_armatures", text="Armatures")
         col.prop(gs, "show_camera_frustum", text="Camera Frustum")
+        col.prop(gs, "show_shadow_frustum", text="Shadow Frustum")
 
 
 class SceneButtonsPanel:
@@ -815,7 +816,7 @@ class DATA_PT_shadow_game(DataButtonsPanel, Panel):
 
         col = split.column()
         col.prop(lamp, "shadow_color", text="")
-        if lamp.type == 'SUN':
+        if lamp.type in ('SUN', 'SPOT'):
             col.prop(lamp, "show_shadow_box")
         col.prop(lamp, "static_shadow")
 

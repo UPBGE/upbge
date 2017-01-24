@@ -860,7 +860,7 @@ typedef struct GameData {
 	short showBoundingBox;
 	short showArmatures;
 	short showCameraFrustum;
-	short pad5;
+	short showShadowFrustum;
 
 	/* Scene LoD */
 	short lodflag, pad2;

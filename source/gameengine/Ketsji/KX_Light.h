@@ -53,6 +53,8 @@ protected:
 	Scene *m_blenderscene;
 	Base *m_base;
 
+	bool m_showShadowFrustum;
+
 public:
 	KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, RAS_IRasterizer *rasterizer, RAS_ILightObject *lightobj);
 	virtual ~KX_LightObject();
@@ -62,6 +64,9 @@ public:
 	{
 		return m_lightobj;
 	}
+
+	bool GetShowShadowFrustum() const;
+	void SetShowShadowFrustum(bool show);
 
 	void UpdateScene(KX_Scene *kxscene);
 	virtual void SetLayer(int layer);

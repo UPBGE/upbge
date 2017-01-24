@@ -149,6 +149,7 @@ void LA_Launcher::InitEngine()
 	short showBoundingBox = SYS_GetCommandLineInt(syshandle, "show_bounding_box", gm->showBoundingBox);
 	short showArmatures = SYS_GetCommandLineInt(syshandle, "show_armatures", gm->showArmatures);
 	short showCameraFrustum = SYS_GetCommandLineInt(syshandle, "show_camera_frustum", gm->showCameraFrustum);
+	short showShadowFrustum = SYS_GetCommandLineInt(syshandle, "show_shadow_frustum", gm->showShadowFrustum);
 	bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
 	bool restrictAnimFPS = (gm->flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
@@ -254,6 +255,7 @@ void LA_Launcher::InitEngine()
 	m_ketsjiEngine->SetShowBoundingBox((KX_DebugOption)showBoundingBox);
 	m_ketsjiEngine->SetShowArmatures((KX_DebugOption)showArmatures);
 	m_ketsjiEngine->SetShowCameraFrustum((KX_DebugOption)showCameraFrustum);
+	m_ketsjiEngine->SetShowShadowFrustum((KX_DebugOption)showShadowFrustum);
 
 	// Set the global settings (carried over if restart/load new files).
 	m_ketsjiEngine->SetGlobalSettings(m_globalSettings);

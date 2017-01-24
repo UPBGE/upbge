@@ -969,6 +969,8 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 
 	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rasterizer, lightobj);
 
+	gamelight->SetShowShadowFrustum((la->mode & LA_SHOW_SHADOW_BOX) && (la->mode & LA_SHAD_RAY));
+
 	return gamelight;
 }
 

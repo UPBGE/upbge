@@ -257,6 +257,11 @@ class INFO_MT_game_show_debug(Menu):
         layout.label("Show Camera Frustum")
         layout.props_enum(gs, "show_camera_frustum")
 
+        layout.separator()
+        layout.label("Show Shadow Frustum")
+        layout.props_enum(gs, "show_shadow_frustum")
+
+
 class INFO_MT_render(Menu):
     bl_label = "Render"
 

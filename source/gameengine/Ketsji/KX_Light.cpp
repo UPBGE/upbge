@@ -56,7 +56,8 @@ KX_LightObject::KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks,
                                RAS_IRasterizer *rasterizer,
                                RAS_ILightObject *lightobj)
 	:KX_GameObject(sgReplicationInfo, callbacks),
-	m_rasterizer(rasterizer)
+	m_rasterizer(rasterizer),
+	m_showShadowFrustum(false)
 {
 	m_lightobj = lightobj;
 	m_lightobj->m_scene = sgReplicationInfo;
@@ -92,6 +93,16 @@ CValue *KX_LightObject::GetReplica()
 		m_base = nullptr;
 
 	return replica;
+}
+
+bool KX_LightObject::GetShowShadowFrustum() const
+{
+	return m_showShadowFrustum;
+}
+
+void KX_LightObject::SetShowShadowFrustum(bool show)
+{
+	m_showShadowFrustum = show;
 }
 
 void KX_LightObject::UpdateScene(KX_Scene *kxscene)

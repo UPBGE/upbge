@@ -148,7 +148,8 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_hideCursor(false),
 	m_showBoundingBox(KX_DebugOption::DISABLE),
 	m_showArmature(KX_DebugOption::DISABLE),
-	m_showCameraFrustum(KX_DebugOption::DISABLE)
+	m_showCameraFrustum(KX_DebugOption::DISABLE),
+	m_showShadowFrustum(KX_DebugOption::DISABLE)
 {
 	for (int i = tc_first; i < tc_numCategories; i++) {
 		m_logger.AddCategory((KX_TimeCategory)i);
@@ -1012,6 +1013,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 	scene->DrawDebug(debugDraw);
 	// Draw debug camera frustum.
 	DrawDebugCameraFrustum(scene, debugDraw, viewport, area);
+	DrawDebugShadowFrustum(scene, debugDraw);
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
@@ -1256,10 +1258,29 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& deb
 
 	CListValue *cameras = scene->GetCameraList();
 	for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-		KX_Camera *cam = *it;
+		KX_Camera *cam = *it; // TODO: don't draw current camera.
 		if (m_showCameraFrustum == KX_DebugOption::FORCE || cam->GetShowCameraFrustum()) {
 			const MT_Matrix4x4 viewmat(cam->GetWorldToCamera());
 			debugDraw.DrawCameraFrustum(GetCameraProjectionMatrix(scene, cam, viewport, area), viewmat);
+		}
+	}
+}
+
+void KX_KetsjiEngine::DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw)
+{
+	if (m_showShadowFrustum == KX_DebugOption::DISABLE) {
+		return;
+	}
+
+	CListValue *lightList = scene->GetLightList();
+	for (CListValue::iterator<KX_LightObject> it = lightList->GetBegin(), end = lightList->GetEnd(); it != end; ++it) {
+		KX_LightObject *light = *it;
+		RAS_ILightObject *raslight = light->GetLightData();
+		if (m_showShadowFrustum == KX_DebugOption::FORCE || light->GetShowShadowFrustum()) {
+			const MT_Matrix4x4 projmat(raslight->GetWinMat());
+			const MT_Matrix4x4 viewmat(raslight->GetViewMat());
+
+			debugDraw.DrawCameraFrustum(projmat, viewmat);
 		}
 	}
 }
@@ -1664,6 +1685,16 @@ void KX_KetsjiEngine::SetShowCameraFrustum(KX_DebugOption mode)
 KX_DebugOption KX_KetsjiEngine::GetShowCameraFrustum() const
 {
 	return m_showCameraFrustum;
+}
+
+void KX_KetsjiEngine::SetShowShadowFrustum(KX_DebugOption mode)
+{
+	m_showShadowFrustum = mode;
+}
+
+KX_DebugOption KX_KetsjiEngine::GetShowShadowFrustum() const
+{
+	return m_showShadowFrustum;
 }
 
 void KX_KetsjiEngine::Resize()

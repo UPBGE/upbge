@@ -4848,6 +4848,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Show Camera Frustum", "Show a visualization of the camera frustum "
 							 "according to the current viewport dimensions");
 
+	prop = RNA_def_property(srna, "show_shadow_frustum", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "showShadowFrustum");
+	RNA_def_property_enum_items(prop, debug_items);
+	RNA_def_property_ui_text(prop, "Show Shadow Frustum", "Show a visualization of the light shadow frustum");
+
 	prop = RNA_def_property(srna, "use_python_console", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_PYTHON_CONSOLE);
 	RNA_def_property_ui_text(prop, "Python Console", "Create a python interpreter console in game");

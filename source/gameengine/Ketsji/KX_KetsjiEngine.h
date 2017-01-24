@@ -212,6 +212,8 @@ private:
 	KX_DebugOption m_showArmature;
 	/// Enable debug draw of camera frustum.
 	KX_DebugOption m_showCameraFrustum;
+	/// Enable debug light shadow frustum.
+	KX_DebugOption m_showShadowFrustum;
 
 	/// Settings that doesn't go away with Game Actuator
 	GlobalSettings m_globalsettings;
@@ -239,6 +241,8 @@ private:
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.
 	void DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const RAS_Rect& viewport, const RAS_Rect& area);
+	/// Debug draw lights shadow frustum of a scene.
+	void DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw);
 
 public:
 	KX_KetsjiEngine(KX_ISystem *system);
@@ -494,6 +498,11 @@ public:
 	void SetShowCameraFrustum(KX_DebugOption mode);
 	/// Returns the current setting for camera frustum debug.
 	KX_DebugOption GetShowCameraFrustum() const;
+
+	/// Allow debug light shadow frustum.
+	void SetShowShadowFrustum(KX_DebugOption mode);
+	/// Returns the current setting for light shadow frustum debug.
+	KX_DebugOption GetShowShadowFrustum() const;
 
 	KX_Scene *CreateScene(const std::string& scenename);
 	KX_Scene *CreateScene(Scene *scene, bool libloading = false);
