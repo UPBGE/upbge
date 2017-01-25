@@ -1264,15 +1264,16 @@ int main(
 									else
 										window = startWindow(system, title, windowLeft, windowTop, windowWidth,
 															 windowHeight, stereoWindow, alphaBackground);
-
-									if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
-										GPU_set_mipmap(0);
-									}
-
-									GPU_set_anisotropic(U.anisotropic_filter);
-									GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
 								}
 							}
+
+							if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
+								GPU_set_mipmap(0);
+							}
+
+							GPU_set_anisotropic(U.anisotropic_filter);
+							GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
+							GPU_set_linear_mipmap(true);
 						}
 
 						// This argc cant be argc_py_clamped, since python uses it.
