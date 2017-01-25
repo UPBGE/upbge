@@ -91,7 +91,7 @@ public:
 	virtual int GetShadowBindCode() = 0;
 	virtual MT_Matrix4x4 GetShadowMatrix() = 0;
 	virtual MT_Matrix4x4 GetViewMat() = 0;
-	virtual MT_Matrix4x4 GetPersMat() = 0;
+	virtual MT_Matrix4x4 GetWinMat() = 0;
 	virtual int GetShadowLayer() = 0;
 	virtual void BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_Transform& camtrans) = 0;
 	virtual void UnbindShadowBuffer() = 0;

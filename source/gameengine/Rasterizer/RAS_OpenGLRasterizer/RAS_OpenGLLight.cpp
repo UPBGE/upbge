@@ -198,11 +198,11 @@ MT_Matrix4x4 RAS_OpenGLLight::GetViewMat()
 	return MT_Matrix4x4::Identity();
 }
 
-MT_Matrix4x4 RAS_OpenGLLight::GetPersMat()
+MT_Matrix4x4 RAS_OpenGLLight::GetWinMat()
 {
 	GPULamp *lamp = GetGPULamp();
 	if (lamp) {
-		return MT_Matrix4x4(GPU_lamp_get_persmat(lamp));
+		return MT_Matrix4x4(GPU_lamp_get_winmat(lamp));
 	}
 	return MT_Matrix4x4::Identity();
 }

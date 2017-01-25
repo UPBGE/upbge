@@ -943,7 +943,7 @@ void RAS_OpenGLRasterizer::DrawDebugLightFrustum(SCA_IScene *scene, const MT_Mat
 	box[0][2] = box[1][2] = box[2][2] = box[3][2] = -1.0f;
 	box[4][2] = box[5][2] = box[6][2] = box[7][2] = 1.0f;
 
-	const MT_Matrix4x4 mv = (projmat * viewmat).inverse();
+	const MT_Matrix4x4 mv = (viewmat * projmat);
 
 	for (unsigned short i = 0; i < 8; i++) {
 		MT_Vector3& p3 = box[i];

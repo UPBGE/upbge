@@ -356,7 +356,7 @@ int GPU_lamp_shadow_buffer_type(GPULamp *lamp);
 int GPU_lamp_shadow_bind_code(GPULamp *lamp);
 float *GPU_lamp_dynpersmat(GPULamp *lamp);
 float *GPU_lamp_get_viewmat(GPULamp *lamp);
-float *GPU_lamp_get_persmat(GPULamp *lamp);
+float *GPU_lamp_get_winmat(GPULamp *lamp);
 
 
 void GPU_lamp_update(GPULamp *lamp, int lay, int hide, float obmat[4][4]);

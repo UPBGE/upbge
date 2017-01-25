@@ -1288,7 +1288,7 @@ void KX_KetsjiEngine::DrawDebugLightFrustum(KX_Scene *scene)
 		KX_LightObject *light = *it;
 		RAS_ILightObject *raslight = light->GetLightData();
 		if (raslight->m_showLightDebugFrustum) {
-			const MT_Matrix4x4 projmat(raslight->GetPersMat());
+			const MT_Matrix4x4 projmat(raslight->GetWinMat().inverse());
 			const MT_Matrix4x4 viewmat(raslight->GetViewMat().inverse());
 
 			m_rasterizer->DrawDebugLightFrustum(scene, projmat, viewmat);

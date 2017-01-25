@@ -2784,9 +2784,9 @@ float *GPU_lamp_get_viewmat(GPULamp *lamp)
 	return &lamp->viewmat[0][0];
 }
 
-float *GPU_lamp_get_persmat(GPULamp *lamp)
+float *GPU_lamp_get_winmat(GPULamp *lamp)
 {
-	return &lamp->persmat[0][0];
+	return &lamp->winmat[0][0];
 }
 
 int GPU_lamp_shadow_layer(GPULamp *lamp)

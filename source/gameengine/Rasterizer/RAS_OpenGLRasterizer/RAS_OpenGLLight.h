@@ -53,7 +53,7 @@ public:
 	bool NeedShadowUpdate();
 	int GetShadowBindCode();
 	MT_Matrix4x4 GetViewMat();
-	MT_Matrix4x4 GetPersMat();
+	MT_Matrix4x4 GetWinMat();
 	MT_Matrix4x4 GetShadowMatrix();
 	int GetShadowLayer();
 	void BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_Transform& camtrans);
