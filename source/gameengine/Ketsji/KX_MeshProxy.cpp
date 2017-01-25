@@ -217,7 +217,7 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 		return NULL;
 	}
 
-	MT_Matrix4x4 ntransform = transform.inverse().transposed();
+	MT_Matrix4x4 ntransform = transform;
 	ntransform[0][3] = ntransform[1][3] = ntransform[2][3] = 0.0f;
 
 	/* transform mesh verts */

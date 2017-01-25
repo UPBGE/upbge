@@ -100,7 +100,7 @@ public:
 #endif  // DEBUG
 
 		// Normal and tangent matrix.
-		MT_Matrix4x4 nmat = mat.inverse().transposed();
+		MT_Matrix4x4 nmat = mat;
 		nmat[0][3] = nmat[1][3] = nmat[2][3] = 0.0f;
 
 		// Copy the vertex by not using a reference in the loop.
