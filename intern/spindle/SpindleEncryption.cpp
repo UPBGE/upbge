@@ -206,7 +206,7 @@ void SpinDecrypt_Hex(char* data, int dataSize, char* key)
 	}
 }
 
-void SpinEncryption_FindAndSet_Key(char **argv, int i, char *hexKey)
+void SpinEncryption_FindAndSet_Key(char **argv, int i, char *&hexKey)
 {
 	/* Find main key */
 	int hexStrSize = 0, argPos = 2, maxStringLen = int(strlen(argv[i]));
