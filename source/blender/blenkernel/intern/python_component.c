@@ -362,6 +362,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 	 * The "value" argument is false on failure and true on succes.
 	 */
 	#define FINISH(value) \
+		PyErr_Print(); \
 		if (mod) { \
 			/* Take the module out of the module list so it's not cached \
 			   by Python (this allows for simpler reloading of components)*/ \
