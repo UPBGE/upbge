@@ -354,7 +354,7 @@ static void create_properties(PythonComponent *pycomp, PyObject *cls)
 }
 #endif /* WITH_PYTHON */
 
-static bool load_component(PythonComponent *pc, ReportList *reports, char *filename)
+static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggie)
 {
 #ifdef WITH_PYTHON
 
@@ -371,7 +371,16 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 		Py_XDECREF(item); \
 		PyDict_DelItemString(sys_modules, "bge"); \
 		PyDict_DelItemString(sys_modules, "bge.types"); \
-		PySequence_DelItem(sys_path, 0); \
+		for (Library *lib = (Library *)maggie->library.first; lib; lib = (Library *)lib->id.next) { \
+			int index; \
+			BLI_split_dir_part(lib->filepath, path, sizeof(path)); \
+			pypath = PyC_UnicodeFromByte(path); \
+			index = PySequence_Index(sys_path, pypath); \
+			/* Safely remove the value by finding their index. */ \
+			if (index != -1) { \
+				PySequence_DelItem(sys_path, index); \
+			} \
+		} \
 		PyGILState_Release(state); \
 		return value;
 
@@ -383,10 +392,13 @@ static bool load_component(PythonComponent *pc, ReportList *reports, char *filen
 
 	// Set the current file directory do import path to allow extern modules.
 	sys_path = PySys_GetObject("path");
-	BLI_split_dir_part(filename, path, sizeof(path));
-	pypath = PyC_UnicodeFromByte(path);
-	PyList_Insert(sys_path, 0, pypath);
-
+	/* Add to sys.path the path to all the used library to follow game engine sys.path management.
+	 * These path are remove later in FINISH. */
+	for (Library *lib = (Library *)maggie->library.first; lib; lib = (Library *)lib->id.next) {
+		BLI_split_dir_part(lib->filepath, path, sizeof(path));
+		pypath = PyC_UnicodeFromByte(path);
+		PyList_Insert(sys_path, 0, pypath);
+	}
 	// Setup BGE fake module and submodule.
 	sys_modules = PyThreadState_GET()->interp->modules;
 	bgemod = PyModule_Create(&bge_module_def);
@@ -469,7 +481,7 @@ PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bCo
 	}
 
 	// Try load the component.
-	if (!load_component(pc, reports, CTX_data_main(context)->name)) {
+	if (!load_component(pc, reports, CTX_data_main(context))) {
 		BKE_python_component_free(pc);
 		return NULL;
 	}
@@ -479,7 +491,7 @@ PythonComponent *BKE_python_component_new(char *import, ReportList *reports, bCo
 
 void BKE_python_component_reload(PythonComponent *pc, ReportList *reports, bContext *context)
 {
-	load_component(pc, reports, CTX_data_main(context)->name);
+	load_component(pc, reports, CTX_data_main(context));
 }
 
 static PythonComponent *copy_component(PythonComponent *comp)
