@@ -398,6 +398,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 		BLI_split_dir_part(lib->filepath, path, sizeof(path));
 		pypath = PyC_UnicodeFromByte(path);
 		PyList_Insert(sys_path, 0, pypath);
+		Py_DECREF(pypath);
 	}
 	// Setup BGE fake module and submodule.
 	sys_modules = PyThreadState_GET()->interp->modules;
@@ -411,7 +412,6 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 	PyDict_SetItemString(sys_modules, "bge", bgemod);
 	PyDict_SetItemString(sys_modules, "bge.types", bgesubmod);
 	PyDict_SetItemString(PyModule_GetDict(bgemod), "__component__", Py_True);
-	Py_INCREF(Py_True);
 
 	// Try to load up the module
 	mod = PyImport_ImportModule(pc->module);
