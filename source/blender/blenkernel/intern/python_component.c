@@ -371,8 +371,15 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 		Py_XDECREF(item); \
 		PyDict_DelItemString(sys_modules, "bge"); \
 		PyDict_DelItemString(sys_modules, "bge.types"); \
+		BLI_split_dir_part(maggie->name, path, sizeof(path)); \
+		pypath = PyC_UnicodeFromByte(path); \
+		index = PySequence_Index(sys_path, pypath); \
+		/* Safely remove the value by finding their index. */ \
+		if (index != -1) { \
+			PySequence_DelItem(sys_path, index); \
+		} \
+		Py_DECREF(pypath); \
 		for (Library *lib = (Library *)maggie->library.first; lib; lib = (Library *)lib->id.next) { \
-			int index; \
 			BLI_split_dir_part(lib->filepath, path, sizeof(path)); \
 			pypath = PyC_UnicodeFromByte(path); \
 			index = PySequence_Index(sys_path, pypath); \
@@ -380,6 +387,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 			if (index != -1) { \
 				PySequence_DelItem(sys_path, index); \
 			} \
+			Py_DECREF(pypath); \
 		} \
 		PyGILState_Release(state); \
 		return value;
@@ -387,6 +395,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 	PyObject *mod, *item = NULL, *sys_path, *pypath, *sys_modules, *bgemod, *bgesubmod;
 	PyGILState_STATE state;
 	char path[FILE_MAX];
+	int index;
 
 	state = PyGILState_Ensure();
 
@@ -400,6 +409,12 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 		PyList_Insert(sys_path, 0, pypath);
 		Py_DECREF(pypath);
 	}
+	/* Add default path */
+	BLI_split_dir_part(maggie->name, path, sizeof(path));
+	pypath = PyC_UnicodeFromByte(path);
+	PyList_Insert(sys_path, 0, pypath);
+	Py_DECREF(pypath);
+
 	// Setup BGE fake module and submodule.
 	sys_modules = PyThreadState_GET()->interp->modules;
 	bgemod = PyModule_Create(&bge_module_def);
@@ -449,7 +464,7 @@ static bool load_component(PythonComponent *pc, ReportList *reports, Main *maggi
 
 	(void)pc;
 	(void)reports;
-	(void)filename;
+	(void)maggie;
 
 	return true;
 
