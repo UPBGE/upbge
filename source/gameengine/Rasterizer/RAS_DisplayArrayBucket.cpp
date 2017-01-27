@@ -431,11 +431,10 @@ void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_RenderNodeArguments& args
 		std::vector<RAS_BucketManager::SortedMeshSlot> sortedMeshSlots(nummeshslots);
 
 		const MT_Vector3 pnorm(args.m_trans.getBasis()[2]);
-		std::transform(m_activeMeshSlots.begin(), m_activeMeshSlots.end(), sortedMeshSlots.end(),
+		std::transform(m_activeMeshSlots.begin(), m_activeMeshSlots.end(), sortedMeshSlots.begin(),
 					   [&pnorm](RAS_MeshSlot *slot) { return RAS_BucketManager::SortedMeshSlot(slot, pnorm); });
 
 		std::sort(sortedMeshSlots.begin(), sortedMeshSlots.end(), RAS_BucketManager::backtofront());
-		RAS_MeshSlotList meshSlots(nummeshslots);
 		for (unsigned int i = 0; i < nummeshslots; ++i) {
 			const short index = sortedMeshSlots[i].m_ms->m_batchPartIndex;
 			indices[i] = batchArray->GetPartIndexOffset(index);
