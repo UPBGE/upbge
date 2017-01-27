@@ -92,8 +92,8 @@ public:
 		m_parts.push_back(part);
 
 		// Pre-allocate vertex list and index list.
-		m_vertexes.reserve(startvertex + vertexcount);
-		m_indices.reserve(startindex + indexcount);
+		m_vertexes.resize(startvertex + vertexcount);
+		m_indices.resize(startindex + indexcount);
 
 #ifdef DEBUG
 		CM_Debug("Add part : " << (m_parts.size() - 1) << ", start index: " << startindex << ", index count: " << indexcount << ", start vertex: " << startvertex << ", vertex count: " << vertexcount);
@@ -104,16 +104,17 @@ public:
 		nmat[0][3] = nmat[1][3] = nmat[2][3] = 0.0f;
 
 		// Copy the vertex by not using a reference in the loop.
-		for (Vertex vert : array->m_vertexes) {
+		for (unsigned int i = 0; i < vertexcount; ++i) {
+			Vertex vert = array->m_vertexes[i];
 			// Transform the vertex position, normal and tangent.
 			vert.Transform(mat, nmat);
 			// Add the vertex in the list.
-			m_vertexes.push_back(vert);
+			m_vertexes[startvertex + i] = vert;
 		}
 
 		// Copy the indices of the merged array with as gap the first vertex index.
-		for (unsigned int i : array->m_indices) {
-			m_indices.push_back(startvertex + i);
+		for (unsigned int i = 0; i < indexcount; ++i) {
+			m_indices[startindex + i] = (array->m_indices[i] + startvertex);
 		}
 
 		// Update the cache to avoid accessing dangling vertex pointer from GetVertex().
