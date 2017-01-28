@@ -66,7 +66,7 @@ public:
 		float uv[2];
 	};
 
-	static CcdShapeConstructionInfo *FindMesh(class RAS_MeshObject *mesh, struct DerivedMesh *dm, bool polytope);
+	static CcdShapeConstructionInfo *FindMesh(class RAS_MeshObject *mesh, bool polytope);
 
 	CcdShapeConstructionInfo() 
 		:m_shapeType(PHY_SHAPE_NONE),
@@ -153,7 +153,7 @@ public:
 		return true;
 	}
 
-	bool SetMesh(class RAS_MeshObject *mesh, struct DerivedMesh *dm, bool polytope);
+	bool SetMesh(class RAS_MeshObject *mesh, bool polytope);
 	RAS_MeshObject *GetMesh(void)
 	{
 		return m_meshObject;

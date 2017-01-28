@@ -56,6 +56,7 @@ class RAS_BoundingBoxManager;
 struct Mesh;
 struct MTFace;
 struct MCol;
+struct Object;
 
 /* RAS_MeshObject is a mesh used for rendering. It stores polygons,
  * but the actual vertices and index arrays are stored in material
@@ -108,7 +109,7 @@ protected:
 
 public:
 	// for now, meshes need to be in a certain layer (to avoid sorting on lights in realtime)
-	RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo);
+	RAS_MeshObject(Mesh *mesh, const std::string& name, const LayersInfo& layersInfo);
 	virtual ~RAS_MeshObject();
 
 	// materials
@@ -149,7 +150,7 @@ public:
 	// vertex and polygon acces
 	RAS_IDisplayArray *GetDisplayArray(unsigned int matid) const;
 	RAS_ITexVert *GetVertex(unsigned int matid, unsigned int index);
-	const float *GetVertexLocation(unsigned int orig_index);
+	RAS_ITexVert *GetVertexOrigIndex(unsigned int orig_index);
 
 	int NumPolygons();
 	RAS_Polygon *GetPolygon(int num) const;

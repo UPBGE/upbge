@@ -30,6 +30,7 @@
  */
 
 #include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
 
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
@@ -100,8 +101,8 @@ struct RAS_MeshObject::fronttoback
 
 // mesh object
 
-RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo)
-	:m_name(mesh->id.name + 2),
+RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const std::string& name, const LayersInfo& layersInfo)
+	:m_name(name),
 	m_layersInfo(layersInfo),
 	m_boundingBox(NULL),
 	m_mesh(mesh)
@@ -336,11 +337,11 @@ RAS_ITexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
 	return NULL;
 }
 
-const float *RAS_MeshObject::GetVertexLocation(unsigned int orig_index)
+RAS_ITexVert *RAS_MeshObject::GetVertexOrigIndex(unsigned int orig_index)
 {
 	std::vector<SharedVertex>& sharedmap = m_sharedvertex_map[orig_index];
 	std::vector<SharedVertex>::iterator it = sharedmap.begin();
-	return it->m_darray->GetVertex(it->m_offset)->getXYZ();
+	return it->m_darray->GetVertex(it->m_offset);
 }
 
 RAS_BoundingBox *RAS_MeshObject::GetBoundingBox() const

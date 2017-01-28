@@ -2909,7 +2909,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 	return ccdPhysEnv;
 }
 
-void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject *meshobj, DerivedMesh *dm, KX_Scene *kxscene, PHY_ShapeProps *shapeprops, PHY_IMotionState *motionstate, int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
+void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject *meshobj, KX_Scene *kxscene, PHY_ShapeProps *shapeprops, PHY_IMotionState *motionstate, int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
 {
 	Object *blenderobject = gameobj->GetBlenderObject();
 
@@ -3143,7 +3143,7 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 		}
 		case OB_BOUND_CONVEX_HULL:
 		{
-			shapeInfo->SetMesh(meshobj, dm, true);
+			shapeInfo->SetMesh(meshobj, true);
 			bm = shapeInfo->CreateBulletShape(ci.m_margin);
 			break;
 		}
@@ -3160,14 +3160,14 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 		case OB_BOUND_TRIANGLE_MESH:
 		{
 			// mesh shapes can be shared, check first if we already have a shape on that mesh
-			class CcdShapeConstructionInfo *sharedShapeInfo = CcdShapeConstructionInfo::FindMesh(meshobj, dm, false);
+			class CcdShapeConstructionInfo *sharedShapeInfo = CcdShapeConstructionInfo::FindMesh(meshobj, false);
 			if (sharedShapeInfo != NULL) {
 				shapeInfo->Release();
 				shapeInfo = sharedShapeInfo;
 				shapeInfo->AddRef();
 			}
 			else {
-				shapeInfo->SetMesh(meshobj, dm, false);
+				shapeInfo->SetMesh(meshobj, false);
 			}
 
 			// Soft bodies can benefit from welding, don't do it on non-soft bodies
