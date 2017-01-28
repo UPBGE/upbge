@@ -120,6 +120,15 @@ public:
 	/// number of buffer pointing to m_image, public because not handled by this class
 	int m_exports;
 
+	/// type of the image
+	enum {
+		IMAGE_RENDER,
+		IMAGE_VIEWPORT,
+		IMAGE_VIDEO,
+		IMAGE_MIRROR,
+		IMAGE_NONE
+	} m_type;
+
 protected:
 	/// image buffer
 	unsigned int * m_image;

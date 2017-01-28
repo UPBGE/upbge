@@ -80,6 +80,7 @@ m_isThreaded(false), m_isStreaming(false), m_stopThread(false), m_cacheStarted(f
 	BLI_listbase_clear(&m_frameCacheBase);
 	BLI_listbase_clear(&m_packetCacheFree);
 	BLI_listbase_clear(&m_packetCacheBase);
+	m_type = IMAGE_VIDEO;
 }
 
 // destructor
