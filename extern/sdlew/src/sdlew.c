@@ -493,6 +493,7 @@ tSDL_HapticOpenFromMouse *SDL_HapticOpenFromMouse;
 tSDL_JoystickIsHaptic *SDL_JoystickIsHaptic;
 tSDL_HapticOpenFromJoystick *SDL_HapticOpenFromJoystick;
 tSDL_HapticClose *SDL_HapticClose;
+tSDL_HapticQuery *SDL_HapticQuery;
 tSDL_HapticNumEffects *SDL_HapticNumEffects;
 tSDL_HapticNumEffectsPlaying *SDL_HapticNumEffectsPlaying;
 tSDL_HapticNumAxes *SDL_HapticNumAxes;
@@ -1036,6 +1037,7 @@ int sdlewInit(void) {
   SDL_LIBRARY_FIND(SDL_JoystickIsHaptic);
   SDL_LIBRARY_FIND(SDL_HapticOpenFromJoystick);
   SDL_LIBRARY_FIND(SDL_HapticClose);
+  SDL_LIBRARY_FIND(SDL_HapticQuery)
   SDL_LIBRARY_FIND(SDL_HapticNumEffects);
   SDL_LIBRARY_FIND(SDL_HapticNumEffectsPlaying);
   SDL_LIBRARY_FIND(SDL_HapticNumAxes);
