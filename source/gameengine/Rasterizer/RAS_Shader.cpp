@@ -166,7 +166,9 @@ RAS_Shader::RAS_Shader()
 	m_use(0),
 	m_attr(0),
 	m_error(0),
-	m_dirty(true)
+	m_dirty(true),
+	m_firstRunDebugMessage(true),
+	m_invalidUniformsAlreadyCalled(NULL)
 {
 	for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
 		m_progs[i] = "";
@@ -482,8 +484,16 @@ int RAS_Shader::GetUniformLocation(const std::string& name, bool debug)
 {
 	BLI_assert(m_shader != NULL);
 	int location = GPU_shader_get_uniform(m_shader, name.c_str());
+	
+	if (location == -1 && debug && m_firstRunDebugMessage) {
 
-	if (location == -1 && debug) {
+		if (std::find(m_invalidUniformsAlreadyCalled.begin(), m_invalidUniformsAlreadyCalled.end(), name) != m_invalidUniformsAlreadyCalled.end()) {
+			m_firstRunDebugMessage = false;
+			return -1;
+		}
+
+		m_invalidUniformsAlreadyCalled.push_back(name);
+
 		CM_Error("invalid uniform value: " << name << ".");
 	}
 

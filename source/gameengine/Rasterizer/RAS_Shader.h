@@ -108,6 +108,12 @@ protected:
 	std::string m_progs[MAX_PROGRAM];
 	bool m_error;
 	bool m_dirty;
+	/* If there is an Invalid Uniform Value in the shader, display an error
+	* only the first time we run the shader to avoid to fill the console
+	* with messages repeated each frame
+	*/
+	bool m_firstRunDebugMessage;
+	std::vector<std::string>m_invalidUniformsAlreadyCalled;
 
 	// Stored uniform variables
 	RAS_UniformVec m_uniforms;
