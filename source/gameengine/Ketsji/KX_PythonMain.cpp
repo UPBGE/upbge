@@ -26,46 +26,35 @@
 
 #include "KX_PythonMain.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
+#  include "BLI_listbase.h"
 
-#include <stddef.h>
+#  include "BKE_text.h"
+#  include "BKE_idprop.h"
+#  include "BKE_main.h"
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_string.h"
-#include "BLI_listbase.h"
-
-#include "BKE_text.h"
-#include "BKE_main.h"
-#include "BKE_idprop.h"
-
-
-#ifdef __cplusplus
+#  include "DNA_scene_types.h"
 }
-#endif
 
-extern "C" char *KX_GetPythonMain(struct Scene *scene)
+std::string KX_GetPythonMain(Scene *scene)
 {
-	/* examine custom scene properties */
+	// Examine custom scene properties.
 	if (scene->id.properties) {
 		IDProperty *item = IDP_GetPropertyTypeFromGroup(scene->id.properties, "__main__", IDP_STRING);
 		if (item) {
-			return BLI_strdup(IDP_String(item));
+			return IDP_String(item);
 		}
 	}
 
-	return NULL;
+	return "";
 }
 
-extern "C" char *KX_GetPythonCode(Main *bmain, char *python_main)
+std::string KX_GetPythonCode(Main *bmain, const std::string& python_main)
 {
-	Text *text;
-
-	if ((text = (Text *)BLI_findstring(&bmain->text, python_main, offsetof(ID, name) + 2))) {
+	Text *text = (Text *)BLI_findstring(&bmain->text, python_main.c_str(), offsetof(ID, name) + 2);
+	if (text) {
 		return txt_to_buf(text);
 	}
 
-	return NULL;
+	return "";
 }

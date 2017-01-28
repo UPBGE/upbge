@@ -613,7 +613,7 @@ int main(
 	bool isBlenderPlayer = false; //true when lauching from blender or command line. false for bundled player
 	int validArguments=0;
 	bool samplesParFound = false;
-	char *pythonControllerFile = NULL;
+	std::string pythonControllerFile;
 	GHOST_TUns16 aasamples = 0;
 	int alphaBackground = 0;
 	

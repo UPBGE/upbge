@@ -44,6 +44,8 @@ extern "C" {
 #  include "BKE_sound.h"
 
 #  include "BLI_fileops.h"
+
+#  include "MEM_guardedalloc.h"
 }
 
 #include "KX_PythonInit.h"
@@ -57,7 +59,7 @@ extern "C" {
 #include "CM_Message.h"
 
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, GHOST_IWindow *window, Main *maggie, Scene *scene, GlobalSettings *gs,
-								 RAS_IRasterizer::StereoMode stereoMode, int samples, int argc, char **argv, char *pythonMainLoop)
+								 RAS_IRasterizer::StereoMode stereoMode, int samples, int argc, char **argv, const std::string& pythonMainLoop)
 	:LA_Launcher(system, maggie, scene, gs, stereoMode, samples, argc, argv),
 	m_mainWindow(window),
 	m_pythonMainLoop(pythonMainLoop)
@@ -68,15 +70,16 @@ LA_PlayerLauncher::~LA_PlayerLauncher()
 {
 }
 
-bool LA_PlayerLauncher::GetMainLoopPythonCode(char **pythonCode, char **pythonFileName)
+bool LA_PlayerLauncher::GetPythonMainLoopCode(std::string& pythonCode, std::string& pythonFileName)
 {
 #ifndef WITH_GAMEENGINE_SECURITY
-	if (m_pythonMainLoop) {
-		if (BLI_is_file(m_pythonMainLoop)) {
+	if (!m_pythonMainLoop.empty()) {
+		if (BLI_is_file(m_pythonMainLoop.c_str())) {
 			size_t filesize = 0;
-			*pythonCode = (char *)BLI_file_read_text_as_mem(m_pythonMainLoop, 1, &filesize);
-			(*pythonCode)[filesize] = '\0';
-			*pythonFileName = m_pythonMainLoop;
+			char *filecontent = (char *)BLI_file_read_text_as_mem(m_pythonMainLoop.c_str(), 0, &filesize);
+			pythonCode = std::string(filecontent, filesize);
+			MEM_freeN(filecontent);
+			pythonFileName = m_pythonMainLoop;
 			return true;
 		}
 		else {
@@ -85,7 +88,17 @@ bool LA_PlayerLauncher::GetMainLoopPythonCode(char **pythonCode, char **pythonFi
 		}
 	}
 #endif
-	return LA_Launcher::GetMainLoopPythonCode(pythonCode, pythonFileName);
+	return LA_Launcher::GetPythonMainLoopCode(pythonCode, pythonFileName);
+}
+
+void LA_PlayerLauncher::RunPythonMainLoop(const std::string& pythonCode)
+{
+	/* If a valid python main loop file exists is that we are running it.
+	 * Then we put its path in the python include paths. */
+	if (!m_pythonMainLoop.empty()) {
+		appendPythonPath(m_pythonMainLoop);
+	}
+	LA_Launcher::RunPythonMainLoop(pythonCode);
 }
 
 RAS_IRasterizer::DrawType LA_PlayerLauncher::GetRasterizerDrawMode()

@@ -71,8 +71,6 @@ extern "C" {
 #  include "DNA_scene_types.h"
 #  include "DNA_material_types.h"
 
-#  include "MEM_guardedalloc.h"
-
 #  include "wm_event_types.h"
 }
 
@@ -454,18 +452,24 @@ void LA_Launcher::RenderEngine()
 	m_ketsjiEngine->Render();
 }
 
-bool LA_Launcher::GetMainLoopPythonCode(char **pythonCode, char **pythonFileName)
+bool LA_Launcher::GetPythonMainLoopCode(std::string& pythonCode, std::string& pythonFileName)
 {
-	*pythonFileName = KX_GetPythonMain(m_startScene);
-	if (*pythonFileName) {
-		*pythonCode = KX_GetPythonCode(m_maggie, *pythonFileName);
-		if (!*pythonCode) {
-			CM_Error("Cannot yield control to Python: no Python text data block named '" << *pythonFileName << "'");
-			return false;
-		}
-		return true;
+	pythonFileName = KX_GetPythonMain(m_startScene);
+	if (pythonFileName.empty()) {
+		return false;
 	}
-	return false;
+
+	pythonCode = KX_GetPythonCode(m_maggie, pythonFileName);
+	if (pythonCode.empty()) {
+		CM_Error("cannot yield control to Python: no Python text data block named '" << pythonFileName << "'");
+		return false;
+	}
+	return true;
+}
+
+void LA_Launcher::RunPythonMainLoop(const std::string& pythonCode)
+{
+	PyRun_SimpleString(pythonCode.c_str());
 }
 
 bool LA_Launcher::EngineNextFrame()
@@ -514,9 +518,9 @@ bool LA_Launcher::EngineNextFrame()
 void LA_Launcher::EngineMainLoop()
 {
 #ifdef WITH_PYTHON
-	char *pythonCode;
-	char *pythonFileName;
-	if (GetMainLoopPythonCode(&pythonCode, &pythonFileName)) {
+	std::string pythonCode;
+	std::string pythonFileName;
+	if (GetPythonMainLoopCode(pythonCode, pythonFileName)) {
 		// Set python environement variable.
 		KX_SetActiveScene(m_kxStartScene);
 		PHY_SetActiveEnvironment(m_kxStartScene->GetPhysicsEnvironment());
@@ -525,9 +529,8 @@ void LA_Launcher::EngineMainLoop()
 		pynextframestate.func = &PythonEngineNextFrame;
 
 		CM_Debug("Yielding control to Python script '" << pythonFileName << "'...");
-		PyRun_SimpleString(pythonCode);
+		RunPythonMainLoop(pythonCode);
 		CM_Debug("Exit Python script '" << pythonFileName << "'");
-		MEM_freeN(pythonCode);
 	}
 	else {
 		pynextframestate.state = NULL;

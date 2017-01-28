@@ -32,10 +32,12 @@
 #ifndef __KX_PYTHON_MAIN__
 #define __KX_PYTHON_MAIN__
 
-#include "BLI_sys_types.h"
-#include "BKE_main.h"
-#include "DNA_scene_types.h"
-extern "C" char *KX_GetPythonMain(struct Scene* scene);
-extern "C" char *KX_GetPythonCode(struct Main *main, char *python_main);
+#include <string>
+
+struct Scene;
+struct Main;
+
+std::string KX_GetPythonMain(Scene* scene);
+std::string KX_GetPythonCode(Main *main, const std::string& python_main);
 
 #endif  /* __KX_PYTHON_MAIN__ */

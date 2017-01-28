@@ -1934,6 +1934,12 @@ static void restorePySysObjects(void)
 	gp_sys_backup.modules = NULL;
 }
 
+void appendPythonPath(const std::string& path)
+{
+	PyObject *sys_path = PySys_GetObject("path");
+	initPySysObjects__append(sys_path, path.c_str());
+}
+
 void addImportMain(struct Main *maggie)
 {
 	bpy_import_main_extra_add(maggie);

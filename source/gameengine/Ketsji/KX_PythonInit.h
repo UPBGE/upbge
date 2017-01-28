@@ -50,6 +50,9 @@ PyMODINIT_FUNC initVideoTexturePythonBinding(void);
 PyObject *initGamePlayerPythonScripting(struct Main *maggie, int argc, char **argv);
 PyObject *initGamePythonScripting(struct Main *maggie);
 
+// Add a python include path.
+void appendPythonPath(const std::string& path);
+
 void exitGamePlayerPythonScripting();
 void exitGamePythonScripting();
 void setupGamePython(KX_KetsjiEngine *ketsjiengine, Main *blenderdata,
