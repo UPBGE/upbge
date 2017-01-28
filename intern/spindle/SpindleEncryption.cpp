@@ -206,14 +206,14 @@ void SpinDecrypt_Hex(char* data, int dataSize, char* key)
 	}
 }
 
-void SpinEncryption_FindAndSet_Key(char **argv, int i, char *&hexKey)
+char *SpinEncryption_FindAndSet_Key(char **argv, int i)
 {
 	/* Find main key */
 	int hexStrSize = 0, argPos = 2, maxStringLen = int(strlen(argv[i]));
 
 	for (hexStrSize = 0; ((argv[i][hexStrSize + argPos] != 0) && (argv[i][hexStrSize + argPos] != '.')); hexStrSize++){}
 
-	hexKey = new char[hexStrSize + 1];
+	char *hexKey = new char[hexStrSize + 1];
 	SpinSecureFunction_Memcpy((char *)hexKey, (char *)&(argv[i][argPos]), hexStrSize);
 	SpinSecureFunction_Memset((char *)&(argv[i][argPos]), 0, hexStrSize);
 	hexKey[hexStrSize] = 0;
@@ -250,6 +250,7 @@ void SpinEncryption_FindAndSet_Key(char **argv, int i, char *&hexKey)
 			delete [] dynaKey;
 		}
 	}
+	return hexKey;
 }
 
 char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, char *encryptKey)

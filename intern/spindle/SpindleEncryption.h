@@ -46,7 +46,7 @@ void SpinEncrypt_Hex(char *data, int dataSize, char *key);
 void SpinDecrypt_Hex(char *data, int dataSize, char *key);
 
 #ifdef __cplusplus
-void SpinEncryption_FindAndSet_Key(char **argv, int i, char *&hexKey);
+char *SpinEncryption_FindAndSet_Key(char **argv, int i);
 char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, char *encryptKey);
 #endif
 
