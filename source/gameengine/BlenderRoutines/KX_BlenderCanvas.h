@@ -39,10 +39,6 @@
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 struct ARegion;
 struct wmWindow;
 struct wmWindowManager;
@@ -114,10 +110,6 @@ public:
 
 	virtual void BeginDraw();
 	virtual void EndDraw();
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderCanvas")
-#endif
 };
 
 #endif  // __KX_BLENDERCANVAS_H__

@@ -117,7 +117,7 @@ typedef struct PyObjectPlus_Proxy {
  * AttributesPtr correspond to attributes of proxy generic pointer
  * each PyC++ class must be registered in KX_PythonInitTypes.cpp
  */
-#define __Py_Header \
+#define Py_Header \
 public: \
 	static PyTypeObject Type; \
 	static PyMethodDef Methods[]; \
@@ -138,7 +138,7 @@ public: \
 /** Use this macro for class that use generic pointer in proxy
  * GetProxy() and NewProxy() must be defined to set the correct pointer in the proxy.
  */
-#define __Py_HeaderPtr \
+#define Py_HeaderPtr \
 public: \
 	static PyTypeObject Type; \
 	static PyMethodDef Methods[]; \
@@ -150,36 +150,6 @@ public: \
 	} \
 	virtual PyObject *GetProxy(); \
 	virtual PyObject *NewProxy(bool py_owns);
-
-#ifdef WITH_CXX_GUARDEDALLOC
-#define Py_Header __Py_Header \
-	void *operator new(size_t num_bytes) \
-	{ \
-		return MEM_mallocN(num_bytes, Type.tp_name); \
-	} \
-	void operator delete(void *mem) \
-	{ \
-		MEM_freeN(mem); \
-	}
-
-#else
-#  define Py_Header __Py_Header
-#endif
-
-#ifdef WITH_CXX_GUARDEDALLOC
-#define Py_HeaderPtr __Py_HeaderPtr \
-	void *operator new(size_t num_bytes) \
-	{ \
-		return MEM_mallocN(num_bytes, Type.tp_name); \
-	} \
-	void operator delete(void *mem) \
-	{ \
-		MEM_freeN(mem); \
-	}
-
-#else
-#  define Py_HeaderPtr __Py_HeaderPtr
-#endif
 
 /** Nonzero values are an error for setattr
  * however because of the nested lookups we need to know if the errors
@@ -553,24 +523,11 @@ typedef struct KX_PYATTRIBUTE_DEF {
  *------------------------------ */
 #else  // WITH_PYTHON
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#define Py_Header \
-public: \
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PyObjectPlus") \
-
-
-#define Py_HeaderPtr \
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PyObjectPlusPtr") \
-
-#else  // WITH_CXX_GUARDEDALLOC
-
 #define Py_Header \
 public: \
 
 #define Py_HeaderPtr \
 public: \
-
-#endif  // WITH_CXX_GUARDEDALLOC
 
 #endif
 

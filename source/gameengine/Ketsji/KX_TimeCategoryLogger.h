@@ -126,11 +126,6 @@ protected:
 	KX_TimeLoggerMap m_loggers;
 	/** Maximum number of measurements. */
 	unsigned int m_maxNumMeasurements;
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_TimeCategoryLogger")
-#endif
 };
 
 #endif  /* __KX_TIMECATEGORYLOGGER_H__ */

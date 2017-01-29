@@ -107,11 +107,6 @@ private:
 	int Priority(int optor);
 	CExpression *Ex(int i);
 	CExpression *Expr();
-	
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CParser")
-#endif
 };
 
 #endif /* __EXP_INPUTPARSER_H__ */

@@ -36,11 +36,6 @@ public:
 	CValue *				Calc(VALUE_OPERATOR op, CValue *val);
 	CValue *				CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 	virtual CValue*			GetReplica();
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CEmptyValue")
-#endif
 };
 
 #endif  /* __EXP_EMPTYVALUE_H__ */

@@ -110,11 +110,6 @@ protected:
 	 * Copy construction should not be implemented
 	 */
 	SG_ParentRelation(const SG_ParentRelation &);
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_ParentRelation")
-#endif
 };
 
 #endif  // __SG_PARENTRELATION_H__

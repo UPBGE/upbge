@@ -36,10 +36,6 @@
 
 class PHY_IPhysicsEnvironment;
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 /**
  * PHY_IController is the abstract simplified Interface to objects
  * controlled by the physics engine. This includes the physics objects
@@ -55,10 +51,6 @@ public:
 	virtual void *GetNewClientInfo() = 0;
 	virtual void SetNewClientInfo(void *clientinfo) = 0;
 	virtual void SetPhysicsEnvironment(class PHY_IPhysicsEnvironment *env) = 0;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PHY_IController")
-#endif
 };
 
 #endif  /* __PHY_ICONTROLLER_H__ */

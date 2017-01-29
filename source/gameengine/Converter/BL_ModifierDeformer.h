@@ -102,10 +102,6 @@ protected:
 	double m_lastModifierUpdate;
 	Scene *m_scene;
 	DerivedMesh *m_dm;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_ModifierDeformer")
-#endif
 };
 
 #endif  /* __BL_MODIFIERDEFORMER_H__ */

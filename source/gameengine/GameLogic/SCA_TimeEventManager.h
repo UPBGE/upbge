@@ -51,10 +51,6 @@ public:
 	void			RemoveTimeProperty(CValue* timeval);
 
 	std::vector<CValue*>	GetTimeValues();
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_TimeEventManager")
-#endif
 };
 
 #endif  /* __SCA_TIMEEVENTMANAGER_H__ */

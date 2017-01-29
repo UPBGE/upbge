@@ -114,11 +114,6 @@ public:
 	};
 
 	void	AddInterpolator(KX_IInterpolator* interp);
-	
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_WorldIpoController")
-#endif
 };
 
 #endif  /* __KX_WORLDIPOCONTROLLER_H__ */

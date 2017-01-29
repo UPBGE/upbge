@@ -46,10 +46,6 @@ public:
 
 	virtual CValue *Calculate();
 	virtual unsigned char GetExpressionID();
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CIdentifierExpr")
-#endif
 };
 
 #endif  // __EXP_IDENTIFIEREXPR_H__

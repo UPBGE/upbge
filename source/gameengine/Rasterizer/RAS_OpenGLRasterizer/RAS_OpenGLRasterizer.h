@@ -145,10 +145,6 @@ public:
 	 * Prints information about what the hardware supports.
 	 */
 	void PrintHardwareInfo();
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_OpenGLRasterizer")
-#endif
 };
 
 #endif  /* __RAS_OPENGLRASTERIZER_H__ */

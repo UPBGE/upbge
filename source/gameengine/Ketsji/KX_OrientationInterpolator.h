@@ -53,11 +53,6 @@ public:
 private:
 	MT_Matrix3x3&            m_target;
 	KX_IScalarInterpolator *m_ipos[3];
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_OrientationInterpolator")
-#endif
 };
 
 #endif

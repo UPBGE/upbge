@@ -34,10 +34,6 @@
 
 #include "PHY_IMotionState.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 class SG_Node;
 
 class KX_MotionState : public PHY_IMotionState
@@ -57,10 +53,6 @@ public:
 	virtual void SetWorldOrientation(const float *ori);
 
 	virtual void CalculateWorldTransformations();
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_MotionState")
-#endif
 };
 
 #endif  // __KX_MOTIONSTATE_H__

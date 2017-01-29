@@ -35,10 +35,6 @@
 #include <string>
 #include "EXP_Python.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 struct Scene;
 class CListValue;
 
@@ -74,10 +70,6 @@ public:
 
 	virtual struct Scene* GetBlenderSceneForName(const std::string& name)=0;
 	virtual CListValue *GetInactiveSceneNames() = 0;
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_ISceneConverter")
-#endif
 };
 
 #endif  /* __KX_ISCENECONVERTER_H__ */

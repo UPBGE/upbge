@@ -37,10 +37,6 @@ class RAS_MaterialBucket;
 class RAS_ITexVert;
 class RAS_TexVertInfo;
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 class RAS_Polygon
 {
 	// location
@@ -80,11 +76,6 @@ public:
 
 	RAS_MaterialBucket *GetMaterial();
 	RAS_IDisplayArray *GetDisplayArray();
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_Polygon")
-#endif
 };
 
 #endif

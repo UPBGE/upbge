@@ -35,10 +35,6 @@ public:
 
 	virtual unsigned char GetExpressionID();
 	virtual CValue *Calculate();
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CIfExpr")
-#endif
 };
 
 #endif  // __EXP_IFEXPR_H__

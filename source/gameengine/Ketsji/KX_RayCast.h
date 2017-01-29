@@ -97,11 +97,6 @@ public:
 		const MT_Vector3& frompoint, 
 		const MT_Vector3& topoint, 
 		KX_RayCast& callback);
-	
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_RayCast")
-#endif
 };
 
 template<class T, class dataT>
@@ -140,11 +135,6 @@ public:
 		}
 		return self->NeedRayCast(info, data);
 	}
-	
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_RayCast::Callback")
-#endif
 };
 	
 

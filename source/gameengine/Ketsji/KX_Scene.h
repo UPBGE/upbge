@@ -89,10 +89,6 @@ struct KX_ClientObjectInfo;
 class KX_ObstacleSimulation;
 struct TaskPool;
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 /* for ID freeing */
 #define IS_TAGGED(_id) ((_id) && (((ID *)_id)->tag & LIB_TAG_DOIT))
 

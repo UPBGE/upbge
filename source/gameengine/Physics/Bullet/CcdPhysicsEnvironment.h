@@ -324,10 +324,6 @@ protected:
 	class btDispatcher *m_ownDispatcher;
 
 	virtual void ExportFile(const std::string& filename);
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CcdPhysicsEnvironment")
-#endif
 };
 
 class CcdCollData : public PHY_CollData

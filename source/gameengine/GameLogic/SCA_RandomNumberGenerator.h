@@ -35,10 +35,6 @@
 #ifndef __SCA_RANDOMNUMBERGENERATOR_H__
 #define __SCA_RANDOMNUMBERGENERATOR_H__
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 class SCA_RandomNumberGenerator {
 
 	/* reference counted for memleak */
@@ -74,11 +70,6 @@ class SCA_RandomNumberGenerator {
 		if (--m_refcount == 0)
 			delete this;
 	}
-	
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_RandomNumberGenerator")
-#endif
 };
 
 #endif /* __SCA_RANDOMNUMBERGENERATOR_H__ */

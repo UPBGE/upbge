@@ -85,11 +85,6 @@ private :
 
 	KX_NormalParentRelation(
 	);
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_NormalParentRelation")
-#endif
 };
 
 
@@ -140,11 +135,6 @@ private :
 
 	KX_VertexParentRelation(
 	);
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_VertexParentRelation")
-#endif
 };
 
 
@@ -221,11 +211,6 @@ private :
 	 */
 
 	bool m_initialized;
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_SlowParentRelation")
-#endif
 };
 
 #endif

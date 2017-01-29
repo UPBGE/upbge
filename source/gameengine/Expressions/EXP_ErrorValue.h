@@ -36,10 +36,6 @@ public:
 
 private:
 	std::string m_strErrorText;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CErrorValue")
-#endif
 };
 
 #endif  // __EXP_ERRORVALUE_H__

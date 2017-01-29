@@ -47,10 +47,6 @@ public:
 
 protected:
 	int m_refcount;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CExpression")
-#endif
 };
 
 #endif  // __EXP_EXPRESSION_H__

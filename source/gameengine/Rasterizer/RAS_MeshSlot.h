@@ -81,10 +81,6 @@ public:
 
 	void GenerateTree(RAS_DisplayArrayUpwardNode *root, RAS_UpwardTreeLeafs *leafs);
 	void RunNode(const RAS_RenderNodeArguments& args);
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MeshSlot")
-#endif
 };
 
 typedef std::vector<RAS_MeshSlot *> RAS_MeshSlotList;

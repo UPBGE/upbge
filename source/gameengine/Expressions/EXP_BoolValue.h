@@ -50,10 +50,6 @@ public:
 
 private:
 	bool m_bool;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CBoolValue")
-#endif
 };
 
 #endif  // __EXP_BOOLVALUE_H__

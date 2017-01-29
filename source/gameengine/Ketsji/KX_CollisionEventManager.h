@@ -105,10 +105,6 @@ public:
 	{
 		return m_physEnv;
 	}
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_CollisionEventManager")
-#endif
 };
 
 #endif  // __KX_TOUCHEVENTMANAGER_H__

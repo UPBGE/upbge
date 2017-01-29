@@ -216,10 +216,6 @@ protected:
 	float m_weldingThreshold1;
 	/// only used for PHY_SHAPE_PROXY, pointer to actual shape info
 	CcdShapeConstructionInfo *m_shapeProxy;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CcdShapeConstructionInfo")
-#endif
 };
 
 struct CcdConstructionInfo {
@@ -517,11 +513,6 @@ public:
 		btVector3 vec = getWalkDirection();
 		return MT_Vector3(vec[0], vec[1], vec[2]);
 	}
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	using PHY_ICharacter::operator new;
-	using PHY_ICharacter::operator delete;
-#endif
 };
 
 class CleanPairCallback : public btOverlapCallback
@@ -865,10 +856,6 @@ public:
 
 	/* Method to replicate rigid body joint contraints for group instances. */
 	virtual void ReplicateConstraints(KX_GameObject *gameobj, std::vector<KX_GameObject *> constobj);
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CcdPhysicsController")
-#endif
 };
 
 /// DefaultMotionState implements standard motionstate, using btTransform
@@ -892,10 +879,6 @@ public:
 
 	btTransform m_worldTransform;
 	btVector3 m_localScaling;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:DefaultMotionState")
-#endif
 };
 
 #endif  /* __CCDPHYSICSCONTROLLER_H__ */

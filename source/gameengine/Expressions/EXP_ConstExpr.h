@@ -35,10 +35,6 @@ public:
 
 private:
 	CValue *m_value;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CConstExpr")
-#endif
 };
 
 #endif  // __EXP_CONSTEXPR_H__

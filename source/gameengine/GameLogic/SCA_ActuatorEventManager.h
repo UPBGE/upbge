@@ -41,10 +41,6 @@ public:
 	virtual ~SCA_ActuatorEventManager();
 	virtual void NextFrame();
 	virtual void UpdateFrame();
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_ActuatorEventManager")
-#endif
 };
 
 #endif  /* __SCA_ACTUATOREVENTMANAGER_H__ */

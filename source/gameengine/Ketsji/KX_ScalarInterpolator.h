@@ -58,11 +58,6 @@ public:
 private:
 	MT_Scalar*               m_target;
 	KX_IScalarInterpolator *m_ipo;
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_ScalarInterpolator")
-#endif
 };
 
 #endif

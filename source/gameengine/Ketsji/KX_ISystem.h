@@ -33,10 +33,6 @@
 #ifndef __KX_ISYSTEM_H__
 #define __KX_ISYSTEM_H__
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 /**
  * System Abstraction, needed only for getting some timing stuff from the host.
  */
@@ -47,11 +43,6 @@ public:
 	virtual ~KX_ISystem() {};
 	
 	virtual double GetTimeInSeconds()=0;
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_ISystem")
-#endif
 };
 
 #endif

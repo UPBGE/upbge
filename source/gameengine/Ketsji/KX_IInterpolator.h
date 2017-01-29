@@ -34,20 +34,11 @@
 
 #include <vector>
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 class KX_IInterpolator {
 public:
 	virtual ~KX_IInterpolator() {}
 	
 	virtual void Execute(float currentTime) const = 0; 
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_IInterpolator")
-#endif
 };
 
 typedef std::vector<KX_IInterpolator *> T_InterpolatorList;

@@ -11,10 +11,6 @@
 class PHY_IMotionState;
 #include "PHY_DynamicTypes.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 class PHY_IVehicle
 {
 public:
@@ -62,10 +58,6 @@ public:
 
 	virtual void SetRayCastMask(short mask) = 0;
 	virtual short GetRayCastMask() const = 0;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PHY_IVehicle")
-#endif
 };
 
 #endif  /* __PHY_IVEHICLE_H__ */

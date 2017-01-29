@@ -79,11 +79,6 @@ protected:
 	bool m_useShapeDrivers;
 	double m_lastShapeUpdate;
 	Key *m_key;
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_ShapeDeformer")
-#endif
 };
 
 #endif

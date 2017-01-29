@@ -51,10 +51,6 @@ public:
 private:
 	/// Data member.
 	std::string m_strString;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CStringValue")
-#endif
 };
 
 #endif  // __EXP_STRINGVALUE_H__

@@ -43,11 +43,6 @@ public:
 	virtual ~SCA_JoystickManager();
 	virtual void NextFrame(double curtime,double deltatime);
 	DEV_Joystick* GetJoystickDevice(short int joyindex);
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_JoystickManager")
-#endif
 };
 
 #endif

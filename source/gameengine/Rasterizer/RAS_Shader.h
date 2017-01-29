@@ -61,10 +61,6 @@ public:
 		void SetData(int location, int type, unsigned int count, bool transpose = false);
 		int GetLocation();
 		void *GetData();
-
-	#ifdef WITH_CXX_GUARDEDALLOC
-		MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_Uniform")
-	#endif
 	};
 
 	/**
@@ -85,10 +81,6 @@ public:
 		int m_type;
 		int m_loc;
 		unsigned int m_flag;
-
-	#ifdef WITH_CXX_GUARDEDALLOC
-		MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_DefUniform")
-	#endif
 	};
 
 	enum ProgramType {

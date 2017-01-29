@@ -37,10 +37,6 @@
 #include <string>
 #include "RAS_2DFilterData.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 #define DEBUG_MAX_DISPLAY 100
 
 struct SCA_DebugProp
@@ -73,10 +69,6 @@ public:
 	void			AddDebugProperty(class CValue* debugprop, const std::string &name);
 	void			RemoveDebugProperty(class CValue *gameobj, const std::string &name);
 	void			RemoveObjectDebugProperties(class CValue* gameobj);
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_IScene")
-#endif
 };
 
 #endif  /* __SCA_ISCENE_H__ */

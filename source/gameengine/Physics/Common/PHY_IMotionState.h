@@ -32,10 +32,6 @@
 #ifndef __PHY_IMOTIONSTATE_H__
 #define __PHY_IMOTIONSTATE_H__
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 /**
  * PHY_IMotionState is the Interface to explicitly synchronize the world transformation.
  * Default implementations for mayor graphics libraries like OpenGL and DirectX can be provided.
@@ -59,10 +55,6 @@ public:
 
 
 	virtual void CalculateWorldTransformations() = 0;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PHY_IMotionState")
-#endif
 };
 
 #endif  /* __PHY_IMOTIONSTATE_H__ */

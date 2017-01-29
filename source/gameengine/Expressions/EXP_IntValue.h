@@ -51,10 +51,6 @@ public:
 
 private:
 	cInt m_int;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CIntValue")
-#endif
 };
 
 #endif  // __EXP_INTVALUE_H__

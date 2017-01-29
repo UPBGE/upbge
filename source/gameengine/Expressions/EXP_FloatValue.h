@@ -45,10 +45,6 @@ public:
 
 protected:
 	float m_float;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CFloatValue")
-#endif
 };
 
 #endif  // __EXP_FLOATVALUE_H__

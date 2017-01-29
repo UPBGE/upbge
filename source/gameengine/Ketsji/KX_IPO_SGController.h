@@ -113,10 +113,6 @@ public:
 		m_ipotime = time;
 		m_modified = true;
 	}
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_IpoSGController")
-#endif
 };
 
 #endif  /* __KX_IPO_SGCONTROLLER_H__ */

@@ -100,10 +100,6 @@ protected:
 	int m_tvtot;
 	BL_DeformableGameObject *m_gameobj;
 	double m_lastDeformUpdate;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_MeshDeformer")
-#endif
 };
 
 #endif

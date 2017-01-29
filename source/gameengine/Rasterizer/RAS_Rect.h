@@ -32,10 +32,6 @@
 #ifndef __RAS_RECT_H__
 #define __RAS_RECT_H__
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 #include <iostream>
 
 /**
@@ -101,10 +97,6 @@ public:
 	{
 		m_y2 = y2;
 	}
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_Rect")
-#endif
 };
 
 inline std::ostream& operator<<(std::ostream& os, const RAS_Rect& rect)

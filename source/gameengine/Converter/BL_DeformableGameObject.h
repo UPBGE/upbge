@@ -96,11 +96,6 @@ protected:
 	double		m_lastframe;
 	Object*		m_blendobj;
 	short		m_activePriority;
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_DeformableGameObject")
-#endif
 };
 
 #endif  /* __BL_DEFORMABLEGAMEOBJECT_H__ */

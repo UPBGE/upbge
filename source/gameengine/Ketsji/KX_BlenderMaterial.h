@@ -14,10 +14,6 @@
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 class SCA_IScene;
 class KX_Scene;
 class BL_BlenderShader;

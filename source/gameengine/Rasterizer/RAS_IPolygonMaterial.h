@@ -38,10 +38,6 @@
 
 #include <string>
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 #include "MT_Vector4.h"
 
 #include <map>
@@ -154,10 +150,6 @@ public:
 	 * PreCalculate texture gen
 	 */
 	virtual void OnConstruction() = 0;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IPolyMaterial")
-#endif
 };
 
 #endif  /* __RAS_IPOLYGONMATERIAL_H__ */

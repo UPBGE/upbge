@@ -27,10 +27,6 @@
 #include <vector>
 #include <string> // std::string class.
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 #ifndef GEN_NO_TRACE
 #undef  trace
 #define trace(exp) ((void)nullptr)
@@ -217,10 +213,6 @@ public:
 
 protected:
 	std::string m_strNewName;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CPropValue")
-#endif
 };
 
 #endif  // __EXP_VALUE_H__

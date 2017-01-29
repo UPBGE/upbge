@@ -27,10 +27,6 @@
 #ifndef __BL_ACTIONMANAGER_H__
 #define __BL_ACTIONMANAGER_H__
 
-#ifdef WITH_CXX_GUARDEDALLOC
-	#include "MEM_guardedalloc.h"
-#endif
-
 #include <map>
 
 // Currently, we use the max value of a short.
@@ -123,9 +119,10 @@ public:
 	 */
 	void Update(float curtime, bool applyToObject);
 
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_ActionManager")
-#endif
+	/**
+	 * Update object IPOs (note: not thread-safe!)
+	 */
+	void UpdateIPOs();
 };
 
 #endif  /* BL_ACTIONMANAGER */

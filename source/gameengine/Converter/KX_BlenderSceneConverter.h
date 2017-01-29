@@ -159,10 +159,6 @@ public:
 		CM_Message("\t m_map_blender_to_gameactuator: " << (int)m_map_blender_to_gameactuator.size());
 		CM_Message("\t m_map_blender_to_gamecontroller: " << (int)m_map_blender_to_gamecontroller.size());
 		CM_Message("\t m_map_blender_to_gameAdtList: " << (int)m_map_blender_to_gameAdtList.size());
-
-#ifdef WITH_CXX_GUARDEDALLOC
-		MEM_printmemlist_pydict();
-#endif
 	}
 
 	/* LibLoad Options */
@@ -174,14 +170,8 @@ public:
 		LIB_LOAD_ASYNC = 8,
 	};
 
-
-
 #ifdef WITH_PYTHON
 	PyObject *GetPyNamespace();
-#endif
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderSceneConverter")
 #endif
 };
 

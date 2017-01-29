@@ -32,10 +32,6 @@
 #ifndef __SCA_IINPUTDEVICE_H__
 #define __SCA_IINPUTDEVICE_H__
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 #include "SCA_InputEvent.h"
 
 #include <map>
@@ -247,11 +243,6 @@ public:
 	const std::wstring& GetText() const;
 
 	static const char ConvertKeyToChar(SCA_EnumInputs input, bool shifted);
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_InputEvent")
-#endif
 };
 
 #endif	 /* __SCA_IINPUTDEVICE_H__ */

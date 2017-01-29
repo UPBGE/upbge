@@ -58,11 +58,6 @@ public:
 	 *  so that self references are removed before the controller itself is released
 	 */
 	virtual void Delete();
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_ExpressionController")
-#endif
 };
 
 #endif  /* __SCA_EXPRESSIONCONTROLLER_H__ */

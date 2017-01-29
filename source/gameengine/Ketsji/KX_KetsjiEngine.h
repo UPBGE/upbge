@@ -579,10 +579,6 @@ protected:
 
 	void BeginFrame();
 	void EndFrame();
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_KetsjiEngine")
-#endif
 };
 
 #endif  /* __KX_KETSJIENGINE_H__ */

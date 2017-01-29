@@ -34,10 +34,6 @@ public:
 private:
 	VALUE_OPERATOR m_op;
 	CExpression *m_lhs;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:")
-#endif
 };
 
 #endif  // __EXP_OPERATOR1EXPR_H__

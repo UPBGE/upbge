@@ -52,11 +52,6 @@ public:
 
 private:
 	struct FCurve *m_fcu;
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_ScalarInterpolator")
-#endif
 };
 
 
@@ -66,11 +61,6 @@ public:
 	~BL_InterpolatorList();
 
 	KX_IScalarInterpolator *GetScalarInterpolator(const char *rna_path, int array_index);
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_InterpolatorList")
-#endif
 };
 
 #endif  /* __KX_BLENDERSCALARINTERPOLATOR_H__ */

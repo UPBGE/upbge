@@ -86,11 +86,6 @@ private :
 	Bone* m_bone;
 	KX_BoneParentRelation(Bone* bone
 	);
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BoneParentRelation")
-#endif
 };
 
 #endif

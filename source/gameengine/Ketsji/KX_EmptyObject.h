@@ -40,11 +40,6 @@ public:
 	KX_GameObject(sgReplicationInfo,callbacks) 
 	{};
 	virtual ~KX_EmptyObject();
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_EmptyObject")
-#endif
 };
 
 #endif  /* __KX_EMPTYOBJECT_H__ */

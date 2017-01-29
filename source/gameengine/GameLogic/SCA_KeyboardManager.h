@@ -51,11 +51,6 @@ public:
 	
 	virtual void 	NextFrame();
 	SCA_IInputDevice* GetInputDevice();
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_KeyboardManager")
-#endif
 };
 
 #endif  /* __SCA_KEYBOARDMANAGER_H__ */

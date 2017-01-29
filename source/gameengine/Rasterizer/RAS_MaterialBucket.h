@@ -96,10 +96,6 @@ private:
 
 	RAS_MaterialDownwardNode m_downwardNode;
 	RAS_MaterialUpwardNode m_upwardNode;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MaterialBucket")
-#endif
 };
 
 #endif  // __RAS_MATERIAL_BUCKET_H__

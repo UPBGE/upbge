@@ -40,10 +40,6 @@
 
 #include <vector>
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 class SG_Node;
 
 /**
@@ -137,10 +133,6 @@ public:
 
 	void SetMin(const MT_Vector3& min);
 	void SetMax(const MT_Vector3& max);
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_BBox")
-#endif
 };
 
 #endif  // __SG_BBOX_H__

@@ -139,11 +139,6 @@ public:
 	void	RegisterGameObj(void* blendobj, CValue* gameobj);
 	void	UnregisterGameObj(void* blendobj, CValue* gameobj);
 	CValue*	FindGameObjByBlendObj(void* blendobj);
-	
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_LogicManager")
-#endif
 };
 
 #endif  /* __SCA_LOGICMANAGER_H__ */

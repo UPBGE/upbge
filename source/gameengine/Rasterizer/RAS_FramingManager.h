@@ -32,10 +32,6 @@
 #ifndef __RAS_FRAMINGMANAGER_H__
 #define __RAS_FRAMINGMANAGER_H__
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 class RAS_Rect;
 
 /**
@@ -148,10 +144,6 @@ private:
 	float m_bar_b;
 	unsigned int m_design_aspect_width;
 	unsigned int m_design_aspect_height;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_FrameSettings")
-#endif
 };
 
 struct RAS_FrameFrustum
@@ -267,11 +259,6 @@ private:
 	RAS_FramingManager();
 
 	RAS_FramingManager(const RAS_FramingManager &);
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_FramingManager")
-#endif
 };
 
 #endif

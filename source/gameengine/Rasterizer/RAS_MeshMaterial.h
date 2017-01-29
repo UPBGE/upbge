@@ -49,10 +49,6 @@ public:
 
 	/// the KX_GameObject is used as a key here
 	std::map<void *, RAS_MeshSlot *> m_slots;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MeshMaterial")
-#endif
 };
 
 #endif  // __RAS_MESH_MATERIAL_H__

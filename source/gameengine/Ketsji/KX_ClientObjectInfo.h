@@ -74,11 +74,6 @@ public:
 	
 	bool isActor() { return m_type <= ACTOR; }
 	bool isSensor() { return m_type >= SENSOR && m_type <= OBACTORSENSOR; }
-	
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_ClientObjectInfo")
-#endif
 };
 
 #endif  /* __KX_CLIENTOBJECTINFO_H__ */

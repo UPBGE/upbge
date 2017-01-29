@@ -32,10 +32,6 @@
 #ifndef __RAS_ICANVAS_H__
 #define __RAS_ICANVAS_H__
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 #include "RAS_IRasterizer.h" // for RAS_IRasterizer::HdrType
 
 class RAS_Rect;
@@ -178,10 +174,6 @@ protected:
 	 */
 	void save_screenshot(const char *path, int dumpsx, int dumpsy, unsigned int *dumprect,
 	                     ImageFormatData *im_format);
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_ICanvas")
-#endif
 };
 
 #endif  // __RAS_ICANVAS_H__

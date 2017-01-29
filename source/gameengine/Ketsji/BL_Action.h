@@ -30,10 +30,6 @@
 #include <string>
 #include <vector>
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 class BL_Action
 {
 private:
@@ -152,10 +148,6 @@ public:
 		ACT_IPOFLAG_ADD = 4,
 		ACT_IPOFLAG_CHILD = 8,
 	};
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_Action")
-#endif
 };
 
 #endif  /* BL_ACTION */

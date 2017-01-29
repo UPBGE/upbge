@@ -94,10 +94,6 @@ private:
 	CcdPhysicsEnvironment *m_phyEnv;
 	btBroadphaseProxy *m_handle;
 	void *m_newClientInfo;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CcdGraphicController")
-#endif
 };
 
 #endif  /* BULLET2_PHYSICSCONTROLLER_H */

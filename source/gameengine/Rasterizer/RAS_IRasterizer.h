@@ -39,10 +39,6 @@
 #include "MT_CmMatrix4x4.h"
 #include "MT_Matrix4x4.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 #include <string>
 #include <map>
 #include <vector>
@@ -898,10 +894,6 @@ public:
 	 * Prints information about what the hardware supports.
 	 */
 	void PrintHardwareInfo();
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IRasterizer")
-#endif
 };
 
 #endif  /* __RAS_IRASTERIZER_H__ */

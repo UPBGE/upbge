@@ -44,10 +44,6 @@ public:
 	~SCA_BasicEventManager();
 
 	virtual void NextFrame();
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_BasicEventManager")
-#endif
 };
 
 #endif  /* __SCA_BASICEVENTMANAGER_H__ */

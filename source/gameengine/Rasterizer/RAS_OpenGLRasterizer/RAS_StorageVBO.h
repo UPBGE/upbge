@@ -105,18 +105,6 @@ protected:
 	RAS_IRasterizer::StorageAttribs *m_storageAttribs;
 
 	VBO *GetVBO(RAS_DisplayArrayBucket *arrayBucket);
-
-#ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes)
-	{
-		return MEM_mallocN(num_bytes, "GE:RAS_StorageVA");
-	}
-	void operator delete(void *mem)
-	{
-		MEM_freeN(mem);
-	}
-#endif
 };
 
 #endif  // __RAS_STORAGE_VBO_H__

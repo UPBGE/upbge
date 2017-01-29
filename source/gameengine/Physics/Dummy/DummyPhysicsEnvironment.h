@@ -140,10 +140,6 @@ public:
 		// All we need to do is handle the motionstate (we're supposed to own it)
 		delete motionstate;
 	}
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:DummyPhysicsEnvironment")
-#endif
 };
 
 #endif  /* __DUMMYPHYSICSENVIRONMENT_H__ */

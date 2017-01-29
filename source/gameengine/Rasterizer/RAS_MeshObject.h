@@ -182,11 +182,6 @@ public:
 	};
 
 	std::vector<std::vector<SharedVertex> > m_sharedvertex_map;
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MeshObject")
-#endif
 };
 
 #endif  // __RAS_MESHOBJECT_H__

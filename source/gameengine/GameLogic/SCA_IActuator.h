@@ -165,10 +165,6 @@ public:
 	virtual void DecLink();
 	bool IsNoLink() const { return !m_links; }
 	bool IsType(KX_ACTUATOR_TYPE type) { return m_type == type; }
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_IActuator")
-#endif
 };
 
 #endif  /* __SCA_IACTUATOR_H__ */

@@ -432,11 +432,6 @@ private:
 	SG_BBox m_bbox;
 	bool m_modified;
 	bool m_ogldirty; // true if the openGL matrix for this object must be recomputed
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_Node")
-#endif
 };
 
 #endif  // __SG_NODE_H__

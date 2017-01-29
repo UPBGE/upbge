@@ -50,11 +50,6 @@ public:
 
 	virtual void 	NextFrame();
 	SCA_IInputDevice* GetInputDevice();
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_MouseManager")
-#endif
 };
 
 #endif  /* __SCA_MOUSEMANAGER_H__ */

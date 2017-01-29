@@ -37,10 +37,6 @@
 #include "MT_Vector3.h"
 #include "MT_Vector4.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 class PHY_IVehicle;
 class PHY_ICharacter;
 class RAS_MeshObject;
@@ -98,11 +94,6 @@ public:
 		m_faceUV(faceUV)
 	{
 	}
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PHY_IRayCastFilterCallback")
-#endif
 };
 
 /**
@@ -252,10 +243,6 @@ public:
 	                                    bRigidBodyJointConstraint *dat)
 	{
 	}
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PHY_IPhysicsEnvironment")
-#endif
 };
 
 #endif  /* __PHY_IPHYSICSENVIRONMENT_H__ */

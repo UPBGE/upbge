@@ -38,10 +38,6 @@ protected:
 
 private:
 	VALUE_OPERATOR m_op;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:COperator2Expr")
-#endif
 };
 
 #endif  // __EXP_OPERATOR2EXPR_H__

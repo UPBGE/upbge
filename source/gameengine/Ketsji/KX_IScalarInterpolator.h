@@ -32,20 +32,11 @@
 #ifndef __KX_ISCALARINTERPOLATOR_H__
 #define __KX_ISCALARINTERPOLATOR_H__
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 class KX_IScalarInterpolator {
 public:
 	virtual ~KX_IScalarInterpolator() {}
 	
 	virtual float GetValue(float currentTime) const = 0; 
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_IScalarInterpolator")
-#endif
 };
 
 #endif

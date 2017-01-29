@@ -40,10 +40,6 @@
 #include <map>
 #include "MT_Vector3.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 #include "RAS_BoundingBox.h"
 
 struct DerivedMesh;
@@ -116,10 +112,6 @@ protected:
 
 	/// Deformer bounding box.
 	RAS_BoundingBox *m_boundingBox;
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_Deformer")
-#endif
 };
 
 #endif

@@ -34,10 +34,6 @@
 
 #include <stdlib.h>
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
-#endif
-
 /**
  * Double circular linked list
  */
@@ -230,11 +226,6 @@ public:
 	{
 		return this;
 	}
-
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_DList")
-#endif
 };
 
 /**
