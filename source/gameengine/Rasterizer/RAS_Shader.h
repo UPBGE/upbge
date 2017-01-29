@@ -108,6 +108,7 @@ protected:
 	std::string m_progs[MAX_PROGRAM];
 	bool m_error;
 	bool m_dirty;
+	bool m_debug;
 
 	// Stored uniform variables
 	RAS_UniformVec m_uniforms;
@@ -178,7 +179,7 @@ public:
 	 * \param name The uniform name.
 	 * \param debug Print message for unfound coresponding uniform name.
 	 */
-	int GetUniformLocation(const std::string& name, bool debug=true);
+	int GetUniformLocation(const std::string& name, bool debug);
 
 	void SetUniform(int uniform, const MT_Vector2 &vec);
 	void SetUniform(int uniform, const MT_Vector3 &vec);

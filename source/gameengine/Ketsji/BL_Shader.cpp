@@ -123,6 +123,8 @@ PyMethodDef BL_Shader::Methods[] = {
 	KX_PYMETHODTABLE(BL_Shader, setSampler),
 	KX_PYMETHODTABLE(BL_Shader, setUniformMatrix4),
 	KX_PYMETHODTABLE(BL_Shader, setUniformMatrix3),
+	KX_PYMETHODTABLE(BL_Shader, setInvalidUniformWarningDisplayed),
+
 	{NULL, NULL} //Sentinel
 };
 
@@ -330,7 +332,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
 	int index = -1;
 
 	if (PyArg_ParseTuple(args, "si:setSampler", &uniform, &index)) {
-		int loc = GetUniformLocation(uniform);
+		int loc = GetUniformLocation(uniform, m_debug);
 
 		if (loc != -1) {
 			if (index >= RAS_Texture::MaxUnits || index < 0) {
@@ -358,7 +360,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform1f, "setUniform1f(name, fx)")
 	float value = 0.0f;
 
 	if (PyArg_ParseTuple(args, "sf:setUniform1f", &uniform, &value)) {
-		int loc = GetUniformLocation(uniform);
+		int loc = GetUniformLocation(uniform, m_debug);
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
@@ -382,7 +384,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform2f, "setUniform2f(name, fx, fy)")
 	float array[2] = {0.0f, 0.0f};
 
 	if (PyArg_ParseTuple(args, "sff:setUniform2f", &uniform, &array[0], &array[1])) {
-		int loc = GetUniformLocation(uniform);
+		int loc = GetUniformLocation(uniform, m_debug);
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
@@ -406,7 +408,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform3f, "setUniform3f(name, fx,fy,fz) ")
 	float array[3] = {0.0f, 0.0f, 0.0f};
 
 	if (PyArg_ParseTuple(args, "sfff:setUniform3f", &uniform, &array[0], &array[1], &array[2])) {
-		int loc = GetUniformLocation(uniform);
+		int loc = GetUniformLocation(uniform, m_debug);
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
@@ -430,7 +432,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform4f, "setUniform4f(name, fx,fy,fz, fw) ")
 	float array[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 	if (PyArg_ParseTuple(args, "sffff:setUniform4f", &uniform, &array[0], &array[1], &array[2], &array[3])) {
-		int loc = GetUniformLocation(uniform);
+		int loc = GetUniformLocation(uniform, m_debug);
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
@@ -451,7 +453,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
 	}
 	const char *uniform;
 	if (PyArg_ParseTuple(args, "s:setUniformEyef", &uniform)) {
-		int loc = GetUniformLocation(uniform);
+		int loc = GetUniformLocation(uniform, m_debug);
 		if (loc != -1) {
 			bool defined = false;
 			RAS_UniformVecDef::iterator it = m_preDef.begin();
@@ -488,7 +490,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform1i, "setUniform1i(name, ix)")
 	int value = 0;
 
 	if (PyArg_ParseTuple(args, "si:setUniform1i", &uniform, &value)) {
-		int loc = GetUniformLocation(uniform);
+		int loc = GetUniformLocation(uniform, m_debug);
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
@@ -512,7 +514,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform2i, "setUniform2i(name, ix, iy)")
 	int array[2] = {0, 0};
 
 	if (PyArg_ParseTuple(args, "sii:setUniform2i", &uniform, &array[0], &array[1])) {
-		int loc = GetUniformLocation(uniform);
+		int loc = GetUniformLocation(uniform, m_debug);
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
@@ -536,7 +538,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform3i, "setUniform3i(name, ix,iy,iz) ")
 	int array[3] = {0, 0, 0};
 
 	if (PyArg_ParseTuple(args, "siii:setUniform3i", &uniform, &array[0], &array[1], &array[2])) {
-		int loc = GetUniformLocation(uniform);
+		int loc = GetUniformLocation(uniform, m_debug);
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
@@ -560,7 +562,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform4i, "setUniform4i(name, ix,iy,iz, iw) ")
 	int array[4] = {0, 0, 0, 0};
 
 	if (PyArg_ParseTuple(args, "siiii:setUniform4i", &uniform, &array[0], &array[1], &array[2], &array[3])) {
-		int loc = GetUniformLocation(uniform);
+		int loc = GetUniformLocation(uniform, m_debug);
 
 		if (loc != -1) {
 #ifdef SORT_UNIFORMS
@@ -585,7 +587,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformfv, "setUniformfv(float (list2 or list3 
 	float array_data[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 	if (PyArg_ParseTuple(args, "sO:setUniformfv", &uniform, &listPtr)) {
-		int loc = GetUniformLocation(uniform);
+		int loc = GetUniformLocation(uniform, m_debug);
 		if (loc != -1) {
 			if (PySequence_Check(listPtr)) {
 				unsigned int list_size = PySequence_Size(listPtr);
@@ -658,7 +660,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 o
 		return NULL;
 	}
 
-	int loc = GetUniformLocation(uniform);
+	int loc = GetUniformLocation(uniform, m_debug);
 
 	if (loc == -1) {
 		PyErr_SetString(PyExc_TypeError,
@@ -754,7 +756,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
 		return NULL;
 	}
 
-	int loc = GetUniformLocation(uniform);
+	int loc = GetUniformLocation(uniform, m_debug);
 
 	if (loc == -1) {
 		PyErr_SetString(PyExc_TypeError,
@@ -802,7 +804,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix3,
 		return NULL;
 	}
 
-	int loc = GetUniformLocation(uniform);
+	int loc = GetUniformLocation(uniform, m_debug);
 
 	if (loc == -1) {
 		PyErr_SetString(PyExc_TypeError,
@@ -861,7 +863,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformDef, "setUniformDef(name, enum)")
 	const char *uniform;
 	int nloc = 0;
 	if (PyArg_ParseTuple(args, "si:setUniformDef", &uniform, &nloc)) {
-		int loc = GetUniformLocation(uniform);
+		int loc = GetUniformLocation(uniform, m_debug);
 
 		if (loc != -1) {
 			bool defined = false;
@@ -887,6 +889,27 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformDef, "setUniformDef(name, enum)")
 		}
 	}
 	return NULL;
+}
+
+KX_PYMETHODDEF_DOC(BL_Shader, setInvalidUniformWarningDisplayed, "setInvalidUniforErrorDisplayed(bool display)")
+{
+	if (!m_shader) {
+		Py_RETURN_NONE;
+	}
+
+	int display;
+	if (!PyArg_ParseTuple(args, "i:setInvalid", &display)) {
+		CM_PythonError("expected a boolean");
+		return NULL;
+	}
+
+	if (bool(display)) {
+		m_debug = true;
+	}
+	else {
+		m_debug = false;
+	}
+	Py_RETURN_NONE;
 }
 
 #endif // WITH_PYTHON

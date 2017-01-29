@@ -166,7 +166,8 @@ RAS_Shader::RAS_Shader()
 	m_use(0),
 	m_attr(0),
 	m_error(0),
-	m_dirty(true)
+	m_dirty(true),
+	m_debug(true)
 {
 	for (unsigned short i = 0; i < MAX_PROGRAM; ++i) {
 		m_progs[i] = "";
@@ -484,7 +485,7 @@ int RAS_Shader::GetUniformLocation(const std::string& name, bool debug)
 	int location = GPU_shader_get_uniform(m_shader, name.c_str());
 
 	if (location == -1 && debug) {
-		CM_Error("invalid uniform value: " << name << ".");
+		CM_PythonWarning("invalid uniform value: " << name << ".");
 	}
 
 	return location;
