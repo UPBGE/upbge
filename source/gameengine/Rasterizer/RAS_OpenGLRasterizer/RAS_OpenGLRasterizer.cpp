@@ -1151,9 +1151,9 @@ void RAS_OpenGLRasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
 
 	float mat[16];
 	memcpy(mat, textUser->GetMatrix(), sizeof(float) * 16);
-
-	const MT_Vector3& spacing = textUser->GetSpacing();
-	const MT_Vector3& offset = textUser->GetOffset();
+	MT_Matrix3x3 m = MT_Matrix3x3(mat);
+	const MT_Vector3& spacing = m * textUser->GetSpacing();
+	const MT_Vector3& offset = m * textUser->GetOffset();
 
 	mat[12] += offset[0];
 	mat[13] += offset[1];
