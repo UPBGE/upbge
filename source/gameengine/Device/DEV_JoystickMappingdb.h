@@ -29,8 +29,7 @@
  * - Transform to string
  * - Remove platform parameter from string (Windows, Linux, MacOS)
  *
- * - Last commit updated: 02 September 2016, https://github.com/gabomdq/SDL_GameControllerDB/commit/58ee3e3ab8975682d60a104e351bfd0cc01fa4c6
- * - Also it was added fix from issue #86, https://github.com/gabomdq/SDL_GameControllerDB/issues/86
+ * - Last commit updated: 16 January 2017, https://github.com/gabomdq/SDL_GameControllerDB/commit/aad1132bf5d8efa9f075b4bbdc47cf434fcf82aa
  */
 
 #ifdef WITH_SDL
