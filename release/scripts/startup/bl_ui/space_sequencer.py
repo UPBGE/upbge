@@ -435,14 +435,8 @@ class SEQUENCER_MT_strip(Menu):
                 layout.operator("sequencer.crossfade_sounds")
 
         layout.separator()
-
         layout.operator("sequencer.meta_make")
         layout.operator("sequencer.meta_separate")
-
-        #if (ed && (ed->metastack.first || (ed->act_seq && ed->act_seq->type == SEQ_META))) {
-        #	uiItemS(layout);
-        #	uiItemO(layout, NULL, 0, "sequencer.meta_toggle");
-        #}
 
         layout.separator()
         layout.operator("sequencer.reload", text="Reload Strips")
@@ -497,6 +491,7 @@ class SequencerButtonsPanel_Output:
 
 class SEQUENCER_PT_edit(SequencerButtonsPanel, Panel):
     bl_label = "Edit Strip"
+    bl_category = "Strip"
 
     def draw(self, context):
         layout = self.layout
@@ -563,6 +558,7 @@ class SEQUENCER_PT_edit(SequencerButtonsPanel, Panel):
 
 class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
     bl_label = "Effect Strip"
+    bl_category = "Strip"
 
     @classmethod
     def poll(cls, context):
@@ -701,6 +697,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
 
 class SEQUENCER_PT_input(SequencerButtonsPanel, Panel):
     bl_label = "Strip Input"
+    bl_category = "Strip"
 
     @classmethod
     def poll(cls, context):
@@ -795,6 +792,7 @@ class SEQUENCER_PT_input(SequencerButtonsPanel, Panel):
 
 class SEQUENCER_PT_sound(SequencerButtonsPanel, Panel):
     bl_label = "Sound"
+    bl_category = "Strip"
 
     @classmethod
     def poll(cls, context):
@@ -848,6 +846,7 @@ class SEQUENCER_PT_sound(SequencerButtonsPanel, Panel):
 
 class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
     bl_label = "Scene"
+    bl_category = "Strip"
 
     @classmethod
     def poll(cls, context):
@@ -894,6 +893,7 @@ class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
 
 class SEQUENCER_PT_mask(SequencerButtonsPanel, Panel):
     bl_label = "Mask"
+    bl_category = "Strip"
 
     @classmethod
     def poll(cls, context):
@@ -923,6 +923,7 @@ class SEQUENCER_PT_mask(SequencerButtonsPanel, Panel):
 
 class SEQUENCER_PT_filter(SequencerButtonsPanel, Panel):
     bl_label = "Filter"
+    bl_category = "Strip"
 
     @classmethod
     def poll(cls, context):
@@ -977,6 +978,7 @@ class SEQUENCER_PT_filter(SequencerButtonsPanel, Panel):
 
 class SEQUENCER_PT_proxy(SequencerButtonsPanel, Panel):
     bl_label = "Proxy/Timecode"
+    bl_category = "Strip"
 
     @classmethod
     def poll(cls, context):
@@ -1109,6 +1111,7 @@ class SEQUENCER_PT_view_safe_areas(SequencerButtonsPanel_Output, Panel):
 
 class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
     bl_label = "Modifiers"
+    bl_category = "Modifiers"
 
     def draw(self, context):
         layout = self.layout
@@ -1211,6 +1214,7 @@ class SEQUENCER_PT_custom_props(SequencerButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
     _context_path = "scene.sequence_editor.active_strip"
     _property_type = (bpy.types.Sequence,)
+    bl_category = "Strip"
 
 
 if __name__ == "__main__":  # only for live edit.

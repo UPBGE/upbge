@@ -43,7 +43,9 @@ public:
 	/* number of primitives in leaf */
 	int min_leaf_size;
 	int max_triangle_leaf_size;
+	int max_motion_triangle_leaf_size;
 	int max_curve_leaf_size;
+	int max_motion_curve_leaf_size;
 
 	/* object or mesh level bvh */
 	bool top_level;
@@ -58,6 +60,17 @@ public:
 	 * Only used for curves BVH.
 	 */
 	bool use_unaligned_nodes;
+
+	/* Split time range to this number of steps and create leaf node for each
+	 * of this time steps.
+	 *
+	 * Speeds up rendering of motion curve primitives in the cost of higher
+	 * memory usage.
+	 */
+	int num_motion_curve_steps;
+
+	/* Same as above, but for triangle primitives. */
+	int num_motion_triangle_steps;
 
 	/* fixed parameters */
 	enum {
@@ -80,13 +93,17 @@ public:
 
 		min_leaf_size = 1;
 		max_triangle_leaf_size = 8;
-		max_curve_leaf_size = 2;
+		max_motion_triangle_leaf_size = 8;
+		max_curve_leaf_size = 1;
+		max_motion_curve_leaf_size = 4;
 
 		top_level = false;
 		use_qbvh = false;
 		use_unaligned_nodes = false;
 
 		primitive_mask = PRIMITIVE_ALL;
+
+		num_motion_curve_steps = 0;
 	}
 
 	/* SAH costs */
@@ -113,8 +130,15 @@ class BVHReference
 public:
 	__forceinline BVHReference() {}
 
-	__forceinline BVHReference(const BoundBox& bounds_, int prim_index_, int prim_object_, int prim_type)
-	: rbounds(bounds_)
+	__forceinline BVHReference(const BoundBox& bounds_,
+	                           int prim_index_,
+	                           int prim_object_,
+	                           int prim_type,
+	                           float time_from = 0.0f,
+	                           float time_to = 1.0f)
+	        : rbounds(bounds_),
+	          time_from_(time_from),
+	          time_to_(time_to)
 	{
 		rbounds.min.w = __int_as_float(prim_index_);
 		rbounds.max.w = __int_as_float(prim_object_);
@@ -125,6 +149,9 @@ public:
 	__forceinline int prim_index() const { return __float_as_int(rbounds.min.w); }
 	__forceinline int prim_object() const { return __float_as_int(rbounds.max.w); }
 	__forceinline int prim_type() const { return type; }
+	__forceinline float time_from() const { return time_from_; }
+	__forceinline float time_to() const { return time_to_; }
+
 
 	BVHReference& operator=(const BVHReference &arg) {
 		if(&arg != this) {
@@ -133,9 +160,11 @@ public:
 		return *this;
 	}
 
+
 protected:
 	BoundBox rbounds;
 	uint type;
+	float time_from_, time_to_;
 };
 
 /* BVH Range

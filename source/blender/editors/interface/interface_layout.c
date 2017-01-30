@@ -125,6 +125,11 @@ typedef struct uiItem {
 	int flag;
 } uiItem;
 
+enum {
+	UI_ITEM_FIXED     = 1 << 0,
+	UI_ITEM_MIN       = 1 << 1,
+};
+
 typedef struct uiButtonItem {
 	uiItem item;
 	uiBut *but;
@@ -232,6 +237,7 @@ static int ui_text_icon_width(uiLayout *layout, const char *name, int icon, bool
 	variable = (ui_layout_vary_direction(layout) == UI_ITEM_VARY_X);
 
 	if (variable) {
+		layout->item.flag |= UI_ITEM_MIN;
 		const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 		/* it may seem odd that the icon only adds (UI_UNIT_X / 4)
 		 * but taking margins into account its fine */
@@ -575,6 +581,9 @@ static void ui_item_enum_expand(
 			UI_block_layout_set_current(block, layout_radial);
 		}
 		else {
+			if (layout->item.type == ITEM_LAYOUT_RADIAL) {
+				layout_radial = layout;
+			}
 			UI_block_layout_set_current(block, layout);
 		}
 	}
@@ -587,8 +596,9 @@ static void ui_item_enum_expand(
 
 	for (item = item_array; item->identifier; item++) {
 		if (!item->identifier[0]) {
-			if (radial)
+			if (radial && layout_radial) {
 				uiItemS(layout_radial);
+			}
 			continue;
 		}
 
@@ -2060,6 +2070,7 @@ static void ui_litem_estimate_row(uiLayout *litem)
 {
 	uiItem *item;
 	int itemw, itemh;
+	bool min_size_flag = true;
 
 	litem->w = 0;
 	litem->h = 0;
@@ -2067,11 +2078,25 @@ static void ui_litem_estimate_row(uiLayout *litem)
 	for (item = litem->items.first; item; item = item->next) {
 		ui_item_size(item, &itemw, &itemh);
 
+		if (item->type == ITEM_BUTTON) {
+			const uiBut *but = ((uiButtonItem *)item)->but;
+			const bool icon_only = (but->flag & UI_HAS_ICON) && (but->str == NULL || but->str[0] == '\0');
+
+			min_size_flag = min_size_flag && icon_only;
+		}
+		else {
+			min_size_flag = min_size_flag && (item->flag & UI_ITEM_MIN);
+		}
+
 		litem->w += itemw;
 		litem->h = MAX2(itemh, litem->h);
 
 		if (item->next)
 			litem->w += litem->space;
+	}
+
+	if (min_size_flag) {
+		litem->item.flag |= UI_ITEM_MIN;
 	}
 }
 
@@ -2113,7 +2138,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 		newtotw = totw;
 
 		for (item = litem->items.first; item; item = item->next) {
-			if (item->flag)
+			if (item->flag & UI_ITEM_FIXED)
 				continue;
 
 			ui_item_size(item, &itemw, &itemh);
@@ -2126,16 +2151,19 @@ static void ui_litem_layout_row(uiLayout *litem)
 
 			x += neww;
 
-			if ((neww < minw || itemw == minw) && w != 0) {
+			if ((neww < minw || itemw == minw || item->flag & UI_ITEM_MIN) && w != 0) {
 				/* fixed size */
-				item->flag = 1;
+				item->flag |= UI_ITEM_FIXED;
+				if (item->type != ITEM_BUTTON && item->flag & UI_ITEM_MIN) {
+					minw = itemw;
+				}
 				fixedw += minw;
 				flag = 1;
 				newtotw -= itemw;
 			}
 			else {
 				/* keep free size */
-				item->flag = 0;
+				item->flag &= ~UI_ITEM_FIXED;
 				freew += itemw;
 			}
 		}
@@ -2152,8 +2180,11 @@ static void ui_litem_layout_row(uiLayout *litem)
 		ui_item_size(item, &itemw, &itemh);
 		minw = ui_litem_min_width(itemw);
 
-		if (item->flag) {
+		if (item->flag & UI_ITEM_FIXED) {
 			/* fixed minimum size items */
+			if (item->type != ITEM_BUTTON && item->flag & UI_ITEM_MIN) {
+				minw = itemw;
+			}
 			itemw = ui_item_fit(minw, fixedx, fixedw, min_ii(w, fixedw), !item->next, litem->alignment);
 			fixedx += itemw;
 		}
@@ -2193,6 +2224,7 @@ static void ui_litem_estimate_column(uiLayout *litem)
 {
 	uiItem *item;
 	int itemw, itemh;
+	bool min_size_flag = true;
 
 	litem->w = 0;
 	litem->h = 0;
@@ -2200,11 +2232,25 @@ static void ui_litem_estimate_column(uiLayout *litem)
 	for (item = litem->items.first; item; item = item->next) {
 		ui_item_size(item, &itemw, &itemh);
 
+		if (item->type == ITEM_BUTTON) {
+			const uiBut *but = ((uiButtonItem *)item)->but;
+			const bool icon_only = (but->flag & UI_HAS_ICON) && (but->str == NULL || but->str[0] == '\0');
+			
+			min_size_flag = min_size_flag && icon_only;
+		}
+		else {
+			min_size_flag = min_size_flag && (item->flag & UI_ITEM_MIN);
+		}
+
 		litem->w = MAX2(litem->w, itemw);
 		litem->h += itemh;
 
 		if (item->next)
 			litem->h += litem->space;
+	}
+
+	if (min_size_flag) {
+		litem->item.flag |= UI_ITEM_MIN;
 	}
 }
 

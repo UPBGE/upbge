@@ -1401,7 +1401,7 @@ void mtex_cube_map_refl_from_refldir(
         samplerCube ima, vec3 reflecteddirection, out float value, out vec4 color)
 {
         color = textureCube(ima, reflecteddirection);
-        value = 1.0;
+        value = color.a;
 }
 
 vec4 mtex_cube_map_refl_color(samplerCube ima, mat4 viewmatrixinverse, float lodbias, vec3 vn, vec3 viewdirection)
@@ -3706,6 +3706,8 @@ void node_light_path(
 	out float is_transmission_ray,
 	out float ray_length,
 	out float ray_depth,
+	out float diffuse_depth,
+	out float glossy_depth,
 	out float transparent_depth,
 	out float transmission_depth)
 {
@@ -3718,6 +3720,8 @@ void node_light_path(
 	is_transmission_ray = 0.0;
 	ray_length = 1.0;
 	ray_depth = 1.0;
+	diffuse_depth = 1.0;
+	glossy_depth = 1.0;
 	transparent_depth = 1.0;
 	transmission_depth = 1.0;
 }

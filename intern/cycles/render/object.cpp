@@ -166,7 +166,7 @@ void Object::apply_transform(bool apply_to_motion)
 		float3 c0 = transform_get_column(&tfm, 0);
 		float3 c1 = transform_get_column(&tfm, 1);
 		float3 c2 = transform_get_column(&tfm, 2);
-		float scalar = pow(fabsf(dot(cross(c0, c1), c2)), 1.0f/3.0f);
+		float scalar = powf(fabsf(dot(cross(c0, c1), c2)), 1.0f/3.0f);
 
 		/* apply transform to curve keys */
 		for(size_t i = 0; i < mesh->curve_keys.size(); i++) {
@@ -410,7 +410,7 @@ void ObjectManager::device_update_object_transform(UpdateObejctTransformState *s
 
 	/* Object flag. */
 	if(ob->use_holdout) {
-		flag |= SD_HOLDOUT_MASK;
+		flag |= SD_OBJECT_HOLDOUT_MASK;
 	}
 	state->object_flag[object_index] = flag;
 
@@ -716,9 +716,9 @@ void ObjectManager::apply_static_transforms(DeviceScene *dscene, Scene *scene, u
 					if(progress.get_cancel()) return;
 				}
 
-				object_flag[i] |= SD_TRANSFORM_APPLIED;
+				object_flag[i] |= SD_OBJECT_TRANSFORM_APPLIED;
 				if(object->mesh->transform_negative_scaled)
-					object_flag[i] |= SD_NEGATIVE_SCALE_APPLIED;
+					object_flag[i] |= SD_OBJECT_NEGATIVE_SCALE_APPLIED;
 			}
 			else
 				have_instancing = true;

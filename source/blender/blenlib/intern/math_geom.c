@@ -37,20 +37,6 @@
 
 /********************************** Polygons *********************************/
 
-void cent_tri_v3(float cent[3], const float v1[3], const float v2[3], const float v3[3])
-{
-	cent[0] = (v1[0] + v2[0] + v3[0]) / 3.0f;
-	cent[1] = (v1[1] + v2[1] + v3[1]) / 3.0f;
-	cent[2] = (v1[2] + v2[2] + v3[2]) / 3.0f;
-}
-
-void cent_quad_v3(float cent[3], const float v1[3], const float v2[3], const float v3[3], const float v4[3])
-{
-	cent[0] = 0.25f * (v1[0] + v2[0] + v3[0] + v4[0]);
-	cent[1] = 0.25f * (v1[1] + v2[1] + v3[1] + v4[1]);
-	cent[2] = 0.25f * (v1[2] + v2[2] + v3[2] + v4[2]);
-}
-
 void cross_tri_v3(float n[3], const float v1[3], const float v2[3], const float v3[3])
 {
 	float n1[3], n2[3];
@@ -2323,6 +2309,34 @@ bool isect_ray_aabb_v3(
 	return true;
 }
 
+/*
+ * Test a bounding box (AABB) for ray intersection
+ * assumes the ray is already local to the boundbox space
+ */
+bool isect_ray_aabb_v3_simple(
+        const float orig[3], const float dir[3],
+        const float bb_min[3], const float bb_max[3],
+        float *tmin, float *tmax)
+{
+	double t[7];
+	float hit_dist[2];
+	t[1] = (double)(bb_min[0] - orig[0]) / dir[0];
+	t[2] = (double)(bb_max[0] - orig[0]) / dir[0];
+	t[3] = (double)(bb_min[1] - orig[1]) / dir[1];
+	t[4] = (double)(bb_max[1] - orig[1]) / dir[1];
+	t[5] = (double)(bb_min[2] - orig[2]) / dir[2];
+	t[6] = (double)(bb_max[2] - orig[2]) / dir[2];
+	hit_dist[0] = (float)fmax(fmax(fmin(t[1], t[2]), fmin(t[3], t[4])), fmin(t[5], t[6]));
+	hit_dist[1] = (float)fmin(fmin(fmax(t[1], t[2]), fmax(t[3], t[4])), fmax(t[5], t[6]));
+	if ((hit_dist[1] < 0 || hit_dist[0] > hit_dist[1]))
+		return false;
+	else {
+		if (tmin) *tmin = hit_dist[0];
+		if (tmax) *tmax = hit_dist[1];
+		return true;
+	}
+}
+
 void dist_squared_ray_to_aabb_v3_precalc(
         struct NearestRayToAABB_Precalc *data,
         const float ray_origin[3], const float ray_direction[3])
@@ -2964,7 +2978,15 @@ static bool barycentric_weights(const float v1[3], const float v2[3], const floa
 	}
 }
 
-void interp_weights_face_v3(float w[4], const float v1[3], const float v2[3], const float v3[3], const float v4[3], const float co[3])
+void interp_weights_tri_v3(float w[3], const float v1[3], const float v2[3], const float v3[3], const float co[3])
+{
+	float n[3];
+
+	normal_tri_v3(n, v1, v2, v3);
+	barycentric_weights(v1, v2, v3, co, n, w);
+}
+
+void interp_weights_quad_v3(float w[4], const float v1[3], const float v2[3], const float v3[3], const float v4[3], const float co[3])
 {
 	float w2[3];
 
@@ -2977,7 +2999,7 @@ void interp_weights_face_v3(float w[4], const float v1[3], const float v2[3], co
 		w[1] = 1.0f;
 	else if (equals_v3v3(co, v3))
 		w[2] = 1.0f;
-	else if (v4 && equals_v3v3(co, v4))
+	else if (equals_v3v3(co, v4))
 		w[3] = 1.0f;
 	else {
 		/* otherwise compute barycentric interpolation weights */
@@ -2985,34 +3007,23 @@ void interp_weights_face_v3(float w[4], const float v1[3], const float v2[3], co
 		bool degenerate;
 
 		sub_v3_v3v3(n1, v1, v3);
-		if (v4) {
-			sub_v3_v3v3(n2, v2, v4);
-		}
-		else {
-			sub_v3_v3v3(n2, v2, v3);
-		}
+		sub_v3_v3v3(n2, v2, v4);
 		cross_v3_v3v3(n, n1, n2);
 
-		/* OpenGL seems to split this way, so we do too */
-		if (v4) {
-			degenerate = barycentric_weights(v1, v2, v4, co, n, w);
-			SWAP(float, w[2], w[3]);
+		degenerate = barycentric_weights(v1, v2, v4, co, n, w);
+		SWAP(float, w[2], w[3]);
 
-			if (degenerate || (w[0] < 0.0f)) {
-				/* if w[1] is negative, co is on the other side of the v1-v3 edge,
-				 * so we interpolate using the other triangle */
-				degenerate = barycentric_weights(v2, v3, v4, co, n, w2);
+		if (degenerate || (w[0] < 0.0f)) {
+			/* if w[1] is negative, co is on the other side of the v1-v3 edge,
+			 * so we interpolate using the other triangle */
+			degenerate = barycentric_weights(v2, v3, v4, co, n, w2);
 
-				if (!degenerate) {
-					w[0] = 0.0f;
-					w[1] = w2[0];
-					w[2] = w2[1];
-					w[3] = w2[2];
-				}
+			if (!degenerate) {
+				w[0] = 0.0f;
+				w[1] = w2[0];
+				w[2] = w2[1];
+				w[3] = w2[2];
 			}
-		}
-		else {
-			barycentric_weights(v1, v2, v3, co, n, w);
 		}
 	}
 }
@@ -4063,6 +4074,26 @@ void map_to_sphere(float *r_u, float *r_v, const float x, const float y, const f
 	else {
 		*r_v = *r_u = 0.0f; /* to avoid un-initialized variables */
 	}
+}
+
+void map_to_plane_v2_v3v3(float r_co[2], const float co[3], const float no[3])
+{
+	float target[3] = {0.0f, 0.0f, 1.0f};
+	float axis[3];
+
+	cross_v3_v3v3(axis, no, target);
+	normalize_v3(axis);
+
+	map_to_plane_axis_angle_v2_v3v3fl(r_co, co, axis, angle_normalized_v3v3(no, target));
+}
+
+void map_to_plane_axis_angle_v2_v3v3fl(float r_co[2], const float co[3], const float axis[3], const float angle)
+{
+	float tmp[3];
+
+	rotate_normalized_v3_v3v3fl(tmp, co, axis, angle);
+
+	copy_v2_v2(r_co, tmp);
 }
 
 /********************************* Normals **********************************/

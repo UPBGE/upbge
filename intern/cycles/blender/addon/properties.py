@@ -528,6 +528,12 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 description="Use special type BVH optimized for hair (uses more ram but renders faster)",
                 default=True,
                 )
+        cls.debug_bvh_time_steps = IntProperty(
+                name="BVH Time Steps",
+                description="Split BVH primitives by this number of time steps to speed up render time in cost of memory",
+                default=0,
+                min=0, max=16,
+                )
         cls.tile_order = EnumProperty(
                 name="Tile Order",
                 description="Tile order for rendering",
@@ -630,6 +636,20 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
             default='OFF',
             description="Limit texture size used by final rendering",
             items=enum_texture_limit
+            )
+
+        cls.ao_bounces = IntProperty(
+            name="AO Bounces",
+            default=0,
+            description="Approximate indirect light with background tinted ambient occlusion at the specified bounce, 0 disables this feature",
+            min=0, max=1024,
+            )
+
+        cls.ao_bounces_render = IntProperty(
+            name="AO Bounces Render",
+            default=0,
+            description="Approximate indirect light with background tinted ambient occlusion at the specified bounce, 0 disables this feature",
+            min=0, max=1024,
             )
 
         # Various fine-tuning debug flags

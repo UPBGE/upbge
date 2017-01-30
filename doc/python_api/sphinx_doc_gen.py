@@ -1632,13 +1632,9 @@ def write_sphinx_conf_py(basepath):
     file = open(filepath, "w", encoding="utf-8")
     fw = file.write
 
-    fw("import sys, os\n")
-    fw("\n")
-    fw("extensions = ['sphinx.ext.intersphinx']\n")
-    fw("\n")
-    fw("intersphinx_mapping = {'blender_manual': ('https://www.blender.org/manual/', None)}\n")
-    fw("\n")
-
+    fw("import sys, os\n\n")
+    fw("extensions = ['sphinx.ext.intersphinx']\n\n")
+    fw("intersphinx_mapping = {'blender_manual': ('https://docs.blender.org/manual/en/dev/', None)}\n\n")
     fw("project = 'Blender'\n")
     # fw("master_doc = 'index'\n")
     fw("copyright = u'Blender Foundation'\n")
@@ -1655,6 +1651,7 @@ def write_sphinx_conf_py(basepath):
 
     # not helpful since the source is generated, adds to upload size.
     fw("html_copy_source = False\n")
+    fw("html_show_sphinx = False\n")
     fw("html_split_index = True\n")
     fw("\n")
 
