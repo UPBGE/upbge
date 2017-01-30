@@ -604,6 +604,7 @@ public:
 	 * \param viewmat The camera view matrix.
 	 */
 	virtual void DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat) = 0;
+	virtual void DrawDebugLightFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat) = 0;
 	virtual void FlushDebugShapes(SCA_IScene *scene) = 0;
 
 	/// Clear the material texture coordinates list used by storages.

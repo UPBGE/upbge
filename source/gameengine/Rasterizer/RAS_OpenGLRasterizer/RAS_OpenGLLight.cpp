@@ -189,6 +189,24 @@ int RAS_OpenGLLight::GetShadowBindCode()
 	return -1;
 }
 
+MT_Matrix4x4 RAS_OpenGLLight::GetViewMat()
+{
+	GPULamp *lamp = GetGPULamp();
+	if (lamp) {
+		return MT_Matrix4x4(GPU_lamp_get_viewmat(lamp));
+	}
+	return MT_Matrix4x4::Identity();
+}
+
+MT_Matrix4x4 RAS_OpenGLLight::GetWinMat()
+{
+	GPULamp *lamp = GetGPULamp();
+	if (lamp) {
+		return MT_Matrix4x4(GPU_lamp_get_winmat(lamp));
+	}
+	return MT_Matrix4x4::Identity();
+}
+
 MT_Matrix4x4 RAS_OpenGLLight::GetShadowMatrix()
 {
 	GPULamp *lamp;

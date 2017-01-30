@@ -154,6 +154,7 @@ typedef struct Lamp {
 #define LA_SHOW_CONE    (1 << 17)
 #define LA_SHOW_SHADOW_BOX (1 << 18)
 #define LA_STATIC_SHADOW (1 << 19)
+#define LA_SHOW_SHADOW_BOX_BGE (1 << 20)
 
 /* shadow_filter */
 #define LA_SHADOW_FILTER_NONE		0
