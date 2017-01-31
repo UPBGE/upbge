@@ -27,19 +27,19 @@
 
 #include "RAS_ILightObject.h"
 
-class RAS_OpenGLRasterizer;
+class RAS_IRasterizer;
 struct GPULamp;
 struct Image;
 
 class RAS_OpenGLLight : public RAS_ILightObject
 {
 
-	RAS_OpenGLRasterizer *m_rasterizer;
+	RAS_IRasterizer *m_rasterizer;
 
 	GPULamp *GetGPULamp();
 
 public:
-	RAS_OpenGLLight(RAS_OpenGLRasterizer *ras);
+	RAS_OpenGLLight(RAS_IRasterizer *ras);
 	~RAS_OpenGLLight();
 
 	bool ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer, int slot);

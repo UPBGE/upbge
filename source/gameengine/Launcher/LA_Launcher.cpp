@@ -33,7 +33,6 @@
 #include "LA_SystemCommandLine.h"
 
 #include "RAS_ICanvas.h"
-#include "RAS_OpenGLRasterizer.h"
 
 #include "GPG_Canvas.h"
 
@@ -160,7 +159,7 @@ void LA_Launcher::InitEngine()
 	}
 	m_pythonConsole.use = (gm->flag & GAME_PYTHON_CONSOLE);
 
-	m_rasterizer = new RAS_OpenGLRasterizer();
+	m_rasterizer = new RAS_IRasterizer();
 
 	// Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI
 	m_rasterizer->SetStereoMode(m_stereoMode);

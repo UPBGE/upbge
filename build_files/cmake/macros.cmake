@@ -632,8 +632,8 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		extern_recastnavigation
 		ge_logic
 		ge_device
-		ge_oglrasterizer
 		ge_rasterizer
+		ge_oglrasterizer
 		ge_common
 		ge_logic_expressions
 		ge_scenegraph

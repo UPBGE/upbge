@@ -31,8 +31,9 @@
 #include "glew-mx.h"
 
 #include "RAS_IStorageInfo.h"
+#include "RAS_IRasterizer.h"
 
-#include "RAS_OpenGLRasterizer.h"
+class RAS_IDisplayArray;
 
 class VBO : public RAS_IStorageInfo
 {
@@ -42,8 +43,8 @@ public:
 
 	virtual void SetDataModified(RAS_IRasterizer::DrawType drawmode, DataType dataType);
 
-	void Bind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode);
-	void Unbind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode);
+	void Bind(RAS_IRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode);
+	void Unbind(RAS_IRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode);
 	void Draw();
 	void DrawInstancing(unsigned int numinstance);
 	void DrawBatching(const std::vector<void *>& indices, const std::vector<int>& counts);
@@ -84,7 +85,7 @@ private:
 class RAS_StorageVBO
 {
 public:
-	RAS_StorageVBO(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs);
+	RAS_StorageVBO(RAS_IRasterizer::StorageAttribs *storageAttribs);
 	~RAS_StorageVBO();
 
 	void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
@@ -101,7 +102,7 @@ public:
 protected:
 	RAS_IRasterizer::DrawType m_drawingmode;
 
-	RAS_OpenGLRasterizer::StorageAttribs *m_storageAttribs;
+	RAS_IRasterizer::StorageAttribs *m_storageAttribs;
 
 	VBO *GetVBO(RAS_DisplayArrayBucket *arrayBucket);
 

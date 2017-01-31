@@ -26,12 +26,15 @@
 set(INC
 	.
 	Node
+	RAS_OpenGLRasterizer
 	../Common
 	../Expressions
 	../Ketsji
+	../Physics/Common
 	../SceneGraph
 	../GameLogic
 	../../blender/makesdna
+	../../blender/blenfont
 	../../blender/blenlib
 	../../blender/blenkernel
 	../../blender/gpu
@@ -64,6 +67,7 @@ set(SRC
 	RAS_IBatchDisplayArray.cpp
 	RAS_InstancingBuffer.cpp
 	RAS_IPolygonMaterial.cpp
+	RAS_IRasterizer.cpp
 	RAS_ITexVert.cpp
 	RAS_MaterialBucket.cpp
 	RAS_MeshObject.cpp

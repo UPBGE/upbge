@@ -47,16 +47,22 @@
 
 #include <map>
 #include <vector>
+#include <memory>
 
+class RAS_OpenGLRasterizer;
+class RAS_OpenGLLight;
+class RAS_StorageVBO;
 class RAS_ICanvas;
 class RAS_OffScreen;
-class RAS_IPolyMaterial;
 class RAS_MeshSlot;
 class RAS_DisplayArrayBucket;
 class RAS_ILightObject;
 class SCA_IScene;
-class RAS_IOffScreen;
 class RAS_ISync;
+class KX_ClientObjectInfo;
+class KX_RayCast;
+
+struct GPUShader;
 
 /**
  * 3D rendering device context interface. 
@@ -70,9 +76,6 @@ public:
 		RAS_TEXT_PADDED,
 		RAS_TEXT_MAX,
 	};
-
-	RAS_IRasterizer() {}
-	virtual ~RAS_IRasterizer() {}
 
 	/**
 	 * Drawing types
@@ -274,189 +277,307 @@ public:
 	 */
 	static OffScreenType NextRenderOffScreen(OffScreenType index);
 
+	struct StorageAttribs
+	{
+		TexCoGenList attribs;
+		TexCoGenList texcos;
+		AttribLayerList layers;
+	};
+
+private:
+	class OffScreens
+	{
+	private:
+		std::unique_ptr<RAS_OffScreen> m_offScreens[RAS_OFFSCREEN_MAX];
+		unsigned int m_width;
+		unsigned int m_height;
+		int m_samples;
+		HdrType m_hdr;
+
+	public:
+		OffScreens();
+		~OffScreens();
+
+		void Update(RAS_ICanvas *canvas);
+		RAS_OffScreen *GetOffScreen(RAS_IRasterizer::OffScreenType type);
+	};
+
+	// All info used to compute the ray cast transform matrix.
+	struct RayCastTranform
+	{
+		/// The object scale.
+		MT_Vector3 scale;
+		/// The original object matrix.
+		float *origmat;
+		/// The output matrix.
+		float *mat;
+	};
+
+	/// \section Interfaces used for frame buffer shaders.
+
+	struct OverrideShaderDrawFrameBufferInterface
+	{
+		int colorTexLoc;
+	};
+
+	struct OverrideShaderStereoStippleInterface
+	{
+		int leftEyeTexLoc;
+		int rightEyeTexLoc;
+		int stippleIdLoc;
+	};
+
+	struct OverrideShaderStereoAnaglyph
+	{
+		int leftEyeTexLoc;
+		int rightEyeTexLoc;
+	};
+
+	/* fogging vars */
+	bool m_fogenabled;
+
+	MT_Vector3 m_ambient;
+	double m_time;
+	MT_Matrix4x4 m_viewmatrix;
+	MT_Matrix4x4 m_viewinvmatrix;
+	MT_Vector3 m_campos;
+	bool m_camortho;
+	bool m_camnegscale;
+
+	StereoMode m_stereomode;
+	StereoEye m_curreye;
+	float m_eyeseparation;
+	float m_focallength;
+	bool m_setfocallength;
+	int m_noOfScanlines;
+
+	/* motion blur */
+	unsigned short m_motionblur;
+	float m_motionblurvalue;
+
+	/* Render tools */
+	void *m_clientobject;
+	void *m_auxilaryClientInfo;
+	std::vector<RAS_OpenGLLight *> m_lights;
+	int m_lastlightlayer;
+	bool m_lastlighting;
+	void *m_lastauxinfo;
+	unsigned int m_numgllights;
+
+	/// Class used to manage off screens used by the rasterizer.
+	OffScreens m_offScreens;
+
+	DrawType m_drawingmode;
+	ShadowType m_shadowMode;
+
+	StorageAttribs m_storageAttribs;
+
+	bool m_last_frontface;
+
+	OverrideShaderType m_overrideShader;
+
+	std::unique_ptr<RAS_StorageVBO> m_storage;
+	std::unique_ptr<RAS_OpenGLRasterizer> m_impl;
+
+	/// Initialize custom shader interface containing uniform location.
+	void InitOverrideShadersInterface();
+
+	/// Return GPUShader coresponding to the override shader enumeration.
+	GPUShader *GetOverrideGPUShader(OverrideShaderType type);
+
+	void EnableLights();
+	void DisableLights();
+
+	void DisableForText();
+
+public:
+	RAS_IRasterizer();
+	virtual ~RAS_IRasterizer();
+
 	/**
 	 * Enable capability
 	 * \param bit Enable bit
 	 */
-	virtual void Enable(EnableBit bit) = 0;
+	void Enable(EnableBit bit);
 
 	/**
 	 * Disable capability
 	 * \param bit Enable bit
 	 */
-	virtual void Disable(EnableBit bit) = 0;
+	void Disable(EnableBit bit);
 
 	/**
 	 * Set the value for Depth Buffer comparisons
 	 * \param func Depth comparison function
 	 */
-	virtual void SetDepthFunc(DepthFunc func) = 0;
+	void SetDepthFunc(DepthFunc func);
 
 	/** 
 	 * Set the blending equation.
 	 * \param src The src value.
 	 * \param dst The destination value.
 	 */
-	virtual void SetBlendFunc(BlendFunc src, BlendFunc dst) = 0;
+	void SetBlendFunc(BlendFunc src, BlendFunc dst);
 
 	/**
 	 * Takes a screenshot
 	 */
-	virtual unsigned int *MakeScreenshot(int x, int y, int width, int height) = 0;
+	unsigned int *MakeScreenshot(int x, int y, int width, int height);
 
 	/**
 	 * SetDepthMask enables or disables writing a fragment's depth value
 	 * to the Z buffer.
 	 */
-	virtual void SetDepthMask(DepthMask depthmask) = 0;
+	void SetDepthMask(DepthMask depthmask);
 
 	/**
 	 * Init initializes the renderer.
 	 */
-	virtual void Init() = 0;
+	void Init();
 
 	/**
 	 * Exit cleans up the renderer.
 	 */
-	virtual void Exit() = 0;
-
-	/**
-	 * Draw screen overlay plane with basic uv coordinates.
-	 */
-	virtual void DrawOverlayPlane() = 0;
+	void Exit();
 
 	/**
 	 * BeginFrame is called at the start of each frame.
 	 */
-	virtual void BeginFrame(double time) = 0;
+	void BeginFrame(double time);
+
+	/**
+	 * EndFrame is called at the end of each frame.
+	 */
+	void EndFrame();
 
 	/**
 	 * Clears a specified set of buffers
 	 * \param clearbit What buffers to clear (separated by bitwise OR)
 	 */
-	virtual void Clear(int clearbit) = 0;
+	void Clear(int clearbit);
 
 	/**
 	 * Set background color
 	 */
-	virtual void SetClearColor(float r, float g, float b, float a=1.0f) = 0;
+	void SetClearColor(float r, float g, float b, float a=1.0f);
 
 	/**
 	 * Set background depth
 	 */
-	virtual void SetClearDepth(float d) = 0;
+	void SetClearDepth(float d);
 
 	/**
 	 * Set background color mask.
 	 */
-	virtual void SetColorMask(bool r, bool g, bool b, bool a) = 0;
+	void SetColorMask(bool r, bool g, bool b, bool a);
+
 	/**
-	 * EndFrame is called at the end of each frame.
+	 * Draw screen overlay plane with basic uv coordinates.
 	 */
-	virtual void EndFrame() = 0;
+	void DrawOverlayPlane();
 
 	/// Update dimensions of all off screens.
-	virtual void UpdateOffScreens(RAS_ICanvas *canvas) = 0;
+	void UpdateOffScreens(RAS_ICanvas *canvas);
 
 	/** Return the corresponding off screen to off screen type.
 	 * \param type The off screen type to return.
 	 */
-	virtual RAS_OffScreen *GetOffScreen(OffScreenType type) = 0;
+	RAS_OffScreen *GetOffScreen(OffScreenType type);
 
 	/** Draw off screen without set viewport.
 	 * Used to copy the frame buffer object to another.
 	 * \param srcindex The input off screen index.
 	 * \param dstindex The output off screen index.
 	 */
-	virtual void DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *dstOffScreen) = 0;
+	void DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *dstOffScreen);
 
 	/** Draw off screen at the given index to screen.
 	 * \param canvas The canvas containing the screen viewport.
 	 * \param index The off screen index to read from.
 	 */
-	virtual void DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen) = 0;
+	void DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen);
 
 	/** Draw each stereo off screen to screen.
 	 * \param canvas The canvas containing the screen viewport.
 	 * \param lefteyeindex The left off screen index.
 	 * \param righteyeindex The right off screen index.
 	 */
-	virtual void DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen) = 0;
+	void DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen);
 
 	/**
 	 * SetRenderArea sets the render area from the 2d canvas.
 	 * Returns true if only of subset of the canvas is used.
 	 */
-	virtual void SetRenderArea(RAS_ICanvas *canvas) = 0;
+	void SetRenderArea(RAS_ICanvas *canvas);
 
 	// Stereo Functions
 	/**
 	 * SetStereoMode will set the stereo mode
 	 */
-	virtual void SetStereoMode(const StereoMode stereomode) = 0;
+	void SetStereoMode(const StereoMode stereomode);
 
 	/**
 	 * Stereo can be used to query if the rasterizer is in stereo mode.
 	 * \return true if stereo mode is enabled.
 	 */
-	virtual bool Stereo() = 0;
-	virtual StereoMode GetStereoMode() = 0;
+	bool Stereo();
+	StereoMode GetStereoMode();
 
 	/**
 	 * Sets which eye buffer subsequent primitives will be rendered to.
 	 */
-	virtual void SetEye(const StereoEye eye) = 0;
-	virtual StereoEye GetEye() = 0;
+	void SetEye(const StereoEye eye);
+	StereoEye GetEye();
 
 	/**
 	 * Sets the distance between eyes for stereo mode.
 	 */
-	virtual void SetEyeSeparation(const float eyeseparation) = 0;
-	virtual float GetEyeSeparation() = 0;
+	void SetEyeSeparation(const float eyeseparation);
+	float GetEyeSeparation();
 
 	/**
 	 * Sets the focal length for stereo mode.
 	 */
-	virtual void SetFocalLength(const float focallength) = 0;
-	virtual float GetFocalLength() = 0;
+	void SetFocalLength(const float focallength);
+	float GetFocalLength();
 
 	/**
 	 * Create a sync object
 	 * For use with offscreen render
 	 */
-	virtual RAS_ISync *CreateSync(int type) = 0;
+	RAS_ISync *CreateSync(int type);
 
 	/**
 	 * SwapBuffers swaps the back buffer with the front buffer.
 	 */
-	virtual void SwapBuffers(RAS_ICanvas *canvas) = 0;
+	void SwapBuffers(RAS_ICanvas *canvas);
 	
 	// Drawing Functions
 	/// Set all pre render attributs for given display array bucket.
-	virtual void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket) = 0;
+	void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	/// UnSet all pre render attributs for given display array bucket.
-	virtual void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket) = 0;
+	void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
 	/**
 	 * IndexPrimitives: Renders primitives from mesh slot.
 	 */
-	virtual void IndexPrimitives(RAS_MeshSlot *ms) = 0;
+	void IndexPrimitives(RAS_MeshSlot *ms);
 
 	/**
 	 * Renders all primitives from mesh slots contained in this display array
 	 * bucket with the geometry instancing way.
 	 */
-	virtual void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket) = 0;
+	void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket);
 
 	/**
 	 * Renders all primitives from mesh slots contained in this display array
 	 * bucket with a single batched display array.
 	 */
-	virtual void IndexPrimitivesBatching(RAS_DisplayArrayBucket *arrayBucket, const std::vector<void *>& indices, const std::vector<int>& counts) = 0;
+	void IndexPrimitivesBatching(RAS_DisplayArrayBucket *arrayBucket, const std::vector<void *>& indices, const std::vector<int>& counts);
 
 	/// Render text mesh slot using BLF functions.
-	virtual void IndexPrimitivesText(RAS_MeshSlot *ms) = 0;
+	void IndexPrimitivesText(RAS_MeshSlot *ms);
  
-	virtual void SetProjectionMatrix(MT_CmMatrix4x4 &mat) = 0;
+	void SetProjectionMatrix(MT_CmMatrix4x4 &mat);
 
 	/* This one should become our final version, methinks. */
 	/**
@@ -464,66 +585,66 @@ public:
 	 * from camera coordinates to window coordinates.
 	 * \param mat The projection matrix.
 	 */
-	virtual void SetProjectionMatrix(const MT_Matrix4x4 &mat) = 0;
+	void SetProjectionMatrix(const MT_Matrix4x4 &mat);
 
 	/**
 	 * Sets the modelview matrix.
 	 */
-	virtual void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Matrix3x3 &ori,
-	                           const MT_Vector3 &pos, const MT_Vector3 &scale, bool perspective) = 0;
+	void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Matrix3x3 &ori,
+	                           const MT_Vector3 &pos, const MT_Vector3 &scale, bool perspective);
 
 	/**
 	 * Get/Set viewport area
 	 */
-	virtual void SetViewport(int x, int y, int width, int height) = 0;
-	virtual void GetViewport(int *rect) = 0;
+	void SetViewport(int x, int y, int width, int height);
+	void GetViewport(int *rect);
 
 	/**
 	 * Set scissor mask
 	 */
-	virtual void SetScissor(int x, int y, int width, int height) = 0;
+	void SetScissor(int x, int y, int width, int height);
 
 	/**
 	 */
-	virtual const MT_Vector3& GetCameraPosition() = 0;
-	virtual bool GetCameraOrtho() = 0;
+	const MT_Vector3& GetCameraPosition();
+	bool GetCameraOrtho();
 
 	/**
 	 * Fog
 	 */
-	virtual void SetFog(short type, float start, float dist, float intensity, float color[3]) = 0;
-	virtual void DisplayFog() = 0;
-	virtual void EnableFog(bool enable) = 0;
+	void SetFog(short type, float start, float dist, float intensity, float color[3]);
+	void DisplayFog();
+	void EnableFog(bool enable);
 	
 	/**
 	 * \param drawingmode = RAS_WIREFRAME, RAS_SOLID, RAS_SHADOW or RAS_TEXTURED.
 	 */
-	virtual void SetDrawingMode(DrawType drawingmode) = 0;
+	void SetDrawingMode(DrawType drawingmode);
 
 	/**
 	 * \return the current drawing mode: RAS_WIREFRAME, RAS_SOLID RAS_SHADOW or RAS_TEXTURED.
 	 */
-	virtual DrawType GetDrawingMode() = 0;
+	DrawType GetDrawingMode();
 
 	/// \param shadowmode = RAS_SHADOW_SIMPLE, RAS_SHADOW_VARIANCE.
-	virtual void SetShadowMode(ShadowType shadowmode) = 0;
+	void SetShadowMode(ShadowType shadowmode);
 
 	/// \return the current drawing mode: RAS_SHADOW_SIMPLE, RAS_SHADOW_VARIANCE.
-	virtual ShadowType GetShadowMode() = 0;
+	ShadowType GetShadowMode();
 
 	/**
 	 * Sets face culling
 	 */
-	virtual void SetCullFace(bool enable) = 0;
+	void SetCullFace(bool enable);
 
 	/**
 	 * Sets wireframe mode.
 	 */
-	virtual void SetLines(bool enable) = 0;
+	void SetLines(bool enable);
 
 	/**
 	 */
-	virtual double GetTime() = 0;
+	double GetTime();
 
 	/**
 	 * Generates a projection matrix from the specified frustum.
@@ -535,10 +656,10 @@ public:
 	 * \param frustfar the far clipping plane
 	 * \return a 4x4 matrix representing the projection transform.
 	 */
-	virtual MT_Matrix4x4 GetFrustumMatrix(
+	MT_Matrix4x4 GetFrustumMatrix(
 	        float left, float right, float bottom, float top,
 	        float frustnear, float frustfar,
-	        float focallength = 0.0f, bool perspective = true) = 0;
+	        float focallength = 0.0f, bool perspective = true);
 
 	/**
 	 * Generates a orthographic projection matrix from the specified frustum.
@@ -550,41 +671,41 @@ public:
 	 * \param frustfar the far clipping plane
 	 * \return a 4x4 matrix representing the projection transform.
 	 */
-	virtual MT_Matrix4x4 GetOrthoMatrix(
+	MT_Matrix4x4 GetOrthoMatrix(
 	        float left, float right, float bottom, float top,
-	        float frustnear, float frustfar) = 0;
+	        float frustnear, float frustfar);
 
 	/**
 	 * Sets the specular color component of the lighting equation.
 	 */
-	virtual void SetSpecularity(float specX, float specY, float specZ, float specval) = 0;
+	void SetSpecularity(float specX, float specY, float specZ, float specval);
 	
 	/**
 	 * Sets the specular exponent component of the lighting equation.
 	 */
-	virtual void SetShinyness(float shiny) = 0;
+	void SetShinyness(float shiny);
 
 	/**
 	 * Sets the diffuse color component of the lighting equation.
 	 */
-	virtual void SetDiffuse(float difX,float difY, float difZ, float diffuse) = 0;
+	void SetDiffuse(float difX,float difY, float difZ, float diffuse);
 
 	/**
 	 * Sets the emissive color component of the lighting equation.
 	 */ 
-	virtual void SetEmissive(float eX, float eY, float eZ, float e) = 0;
+	void SetEmissive(float eX, float eY, float eZ, float e);
 	
-	virtual void SetAmbientColor(float color[3]) = 0;
-	virtual void SetAmbient(float factor) = 0;
+	void SetAmbientColor(float color[3]);
+	void SetAmbient(float factor);
 
 	/**
 	 * Sets a polygon offset.  z depth will be: z1 = mult*z0 + add
 	 */
-	virtual void	SetPolygonOffset(float mult, float add) = 0;
+	void	SetPolygonOffset(float mult, float add);
 	
-	virtual void DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4& color) = 0;
-	virtual void DrawDebugCircle(SCA_IScene *scene, const MT_Vector3 &center, const MT_Scalar radius,
-								 const MT_Vector4 &color, const MT_Vector3 &normal, int nsector) = 0;
+	void DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4& color);
+	void DrawDebugCircle(SCA_IScene *scene, const MT_Vector3 &center, const MT_Scalar radius,
+								 const MT_Vector4 &color, const MT_Vector3 &normal, int nsector);
 	/** Draw a box depends on minimal and maximal corner.
 	 * \param scene The scene owner of this call.
 	 * \param pos The box's position.
@@ -593,60 +714,62 @@ public:
 	 * \param max The box's maximal corner.
 	 * \param color The box's color.
 	 */
-	virtual void DrawDebugAabb(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
-							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color) = 0;
-	virtual void DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& color) = 0;
-	virtual void DrawDebugSolidBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& insideColor,
-							  const MT_Vector4& outsideColor, const MT_Vector4& lineColor) = 0;
+	void DrawDebugAabb(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
+							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color);
+	void DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& color);
+	void DrawDebugSolidBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& insideColor,
+							  const MT_Vector4& outsideColor, const MT_Vector4& lineColor);
 	/** Draw a box representing a camera frustum volume.
 	 * \param scene The scene owner of this call.
 	 * \param projmat The camera projection matrix.
 	 * \param viewmat The camera view matrix.
 	 */
-	virtual void DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat) = 0;
-	virtual void FlushDebugShapes(SCA_IScene *scene) = 0;
+	void DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat);
+	void FlushDebugShapes(SCA_IScene *scene);
 
 	/// Clear the material texture coordinates list used by storages.
-	virtual void ClearTexCoords() = 0;
+	void ClearTexCoords();
 	/// Clear the material attributes list used by storages.
-	virtual void ClearAttribs() = 0;
+	void ClearAttribs();
 	/// Clear the material attribut layers list used with material attributes by storages.
-	virtual void ClearAttribLayers() = 0;
+	void ClearAttribLayers();
 	/// Set the material texture coordinates list used by storages.
-	virtual void SetTexCoords(const TexCoGenList& texcos) = 0;
+	void SetTexCoords(const TexCoGenList& texcos);
 	/// Set the material attributes list used by storages.
-	virtual void SetAttribs(const TexCoGenList& attribs) = 0;
+	void SetAttribs(const TexCoGenList& attribs);
 	/// Set the material attribut layers used with material attributes by storages.
-	virtual void SetAttribLayers(const RAS_IRasterizer::AttribLayerList& layers) = 0;
+	void SetAttribLayers(const RAS_IRasterizer::AttribLayerList& layers);
 
-	virtual const MT_Matrix4x4 &GetViewMatrix() const = 0;
-	virtual const MT_Matrix4x4 &GetViewInvMatrix() const = 0;
+	const MT_Matrix4x4 &GetViewMatrix() const;
+	const MT_Matrix4x4 &GetViewInvMatrix() const;
 
-	virtual void EnableMotionBlur(float motionblurvalue) = 0;
-	virtual void DisableMotionBlur() = 0;
-	
-	virtual float GetMotionBlurValue() = 0;
-	virtual int GetMotionBlurState() = 0;
-	virtual void SetMotionBlurState(int newstate) = 0;
+	void EnableMotionBlur(float motionblurvalue);
+	void DisableMotionBlur();
+	void SetMotionBlur(unsigned short state);
 
-	virtual void SetAlphaBlend(int alphablend) = 0;
-	virtual void SetFrontFace(bool ccw) = 0;
+	void SetAlphaBlend(int alphablend);
+	void SetFrontFace(bool ccw);
 
-	virtual void SetAnisotropicFiltering(short level) = 0;
-	virtual short GetAnisotropicFiltering() = 0;
+	void SetAnisotropicFiltering(short level);
+	short GetAnisotropicFiltering();
 
-	virtual void SetMipmapping(MipmapOption val) = 0;
-	virtual MipmapOption GetMipmapping() = 0;
+	void SetMipmapping(MipmapOption val);
+	MipmapOption GetMipmapping();
 
-	virtual void SetOverrideShader(OverrideShaderType type) = 0;
-	virtual OverrideShaderType GetOverrideShader() = 0;
-	virtual void ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride) = 0;
-	virtual void DesactivateOverrideShaderInstancing() = 0;
+	void SetOverrideShader(OverrideShaderType type);
+	OverrideShaderType GetOverrideShader();
+	void ActivateOverrideShaderInstancing(void *matrixoffset, void *positionoffset, unsigned int stride);
+	void DesactivateOverrideShaderInstancing();
+
+	/// \see KX_RayCast
+	bool RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, RayCastTranform *raytransform);
+	/// \see KX_RayCast
+	bool NeedRayCast(KX_ClientObjectInfo *info, void *data);
 
 	/**
 	 * Render Tools
 	 */
-	virtual void GetTransform(float *origmat, int objectdrawmode, float mat[16]) = 0;
+	void GetTransform(float *origmat, int objectdrawmode, float mat[16]);
 
 	/**
 	 * Renders 2D boxes.
@@ -656,7 +779,7 @@ public:
 	 * \param height		Height of the canvas to draw to.
 	 * \param percentage	Percentage of bar.
 	 */
-	virtual void RenderBox2D(int xco, int yco, int width, int height, float percentage) = 0;
+	void RenderBox2D(int xco, int yco, int width, int height, float percentage);
 
 	/**
 	 * Renders 3D text string using BFL.
@@ -668,9 +791,9 @@ public:
 	 * \param mat		The Matrix of the text object.
 	 * \param aspect	A scaling factor to compensate for the size.
 	 */
-	virtual void RenderText3D(
+	void RenderText3D(
 	        int fontid, const std::string& text, int size, int dpi,
-	        const float color[4], const float mat[16], float aspect) = 0;
+	        const float color[4], const float mat[16], float aspect);
 
 	/**
 	 * Renders 2D text string.
@@ -681,42 +804,42 @@ public:
 	 * \param width		Width of the canvas to draw to.
 	 * \param height	Height of the canvas to draw to.
 	 */
-	virtual void RenderText2D(
+	void RenderText2D(
 	        RAS_TEXT_RENDER_MODE mode, const std::string& text,
-	        int xco, int yco, int width, int height) = 0;
+	        int xco, int yco, int width, int height);
 
-	virtual void ProcessLighting(bool uselights, const MT_Transform &trans) = 0;
+	void ProcessLighting(bool uselights, const MT_Transform &trans);
 
-	virtual void PushMatrix() = 0;
-	virtual void PopMatrix() = 0;
-	virtual void MultMatrix(const float mat[16]) = 0;
-	virtual void SetMatrixMode(MatrixMode mode) = 0;
-	virtual void LoadMatrix(const float mat[16]) = 0;
-	virtual void LoadIdentity() = 0;
+	void PushMatrix();
+	void PopMatrix();
+	void MultMatrix(const float mat[16]);
+	void SetMatrixMode(MatrixMode mode);
+	void LoadMatrix(const float mat[16]);
+	void LoadIdentity();
 
-	virtual RAS_ILightObject *CreateLight() = 0;
+	RAS_ILightObject *CreateLight();
 
-	virtual void AddLight(RAS_ILightObject *lightobject) = 0;
+	void AddLight(RAS_ILightObject *lightobject);
 
-	virtual void RemoveLight(RAS_ILightObject *lightobject) = 0;
+	void RemoveLight(RAS_ILightObject *lightobject);
 
 	/** Set the current off screen depth to the global depth texture used by materials.
 	 * In case of mutlisample off screen a blit to RAS_OFFSCREEN_BLIT_DEPTH is procceed.
 	 */
-	virtual void UpdateGlobalDepthTexture(RAS_OffScreen *offScreen) = 0;
+	void UpdateGlobalDepthTexture(RAS_OffScreen *offScreen);
 	/// Set the global depth texture to an empty texture.
-	virtual void ResetGlobalDepthTexture() = 0;
+	void ResetGlobalDepthTexture();
 
-	virtual void MotionBlur() = 0;
+	void MotionBlur();
 
-	virtual void SetClientObject(void *obj) = 0;
+	void SetClientObject(void *obj);
 
-	virtual void SetAuxilaryClientInfo(void *inf) = 0;
+	void SetAuxilaryClientInfo(void *inf);
 
 	/**
 	 * Prints information about what the hardware supports.
 	 */
-	virtual void PrintHardwareInfo() = 0;
+	void PrintHardwareInfo();
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IRasterizer")

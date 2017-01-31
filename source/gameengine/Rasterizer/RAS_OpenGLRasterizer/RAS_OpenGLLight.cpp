@@ -31,7 +31,7 @@
 
 
 #include "RAS_OpenGLLight.h"
-#include "RAS_OpenGLRasterizer.h"
+#include "RAS_IRasterizer.h"
 #include "RAS_ICanvas.h"
 
 #include "MT_CmMatrix4x4.h"
@@ -45,7 +45,7 @@
 
 #include "GPU_material.h"
 
-RAS_OpenGLLight::RAS_OpenGLLight(RAS_OpenGLRasterizer *ras)
+RAS_OpenGLLight::RAS_OpenGLLight(RAS_IRasterizer *ras)
 	:m_rasterizer(ras)
 {
 }

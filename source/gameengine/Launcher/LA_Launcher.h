@@ -41,7 +41,6 @@ class KX_ISystem;
 class KX_ISceneConverter;
 class KX_NetworkMessageManager;
 class RAS_ICanvas;
-class RAS_IRasterizer;
 class DEV_EventConsumer;
 class DEV_InputDevice;
 class GHOST_ISystem;

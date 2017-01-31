@@ -124,7 +124,7 @@ void VBO::AllocData()
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 }
 
-void VBO::Bind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)
+void VBO::Bind(RAS_IRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)
 {
 	m_bound = true;
 	if (m_useVao) {
@@ -241,7 +241,7 @@ void VBO::Bind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRaster
 	}
 }
 
-void VBO::Unbind(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)
+void VBO::Unbind(RAS_IRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)
 {
 	m_bound = false;
 	if (m_useVao) {
@@ -291,7 +291,7 @@ void VBO::DrawBatching(const std::vector<void *>& indices, const std::vector<int
 	glMultiDrawElements(m_mode, counts.data(), GL_UNSIGNED_INT, (void **)indices.data(), counts.size());
 }
 
-RAS_StorageVBO::RAS_StorageVBO(RAS_OpenGLRasterizer::StorageAttribs *storageAttribs)
+RAS_StorageVBO::RAS_StorageVBO(RAS_IRasterizer::StorageAttribs *storageAttribs)
 	:m_drawingmode(RAS_IRasterizer::RAS_TEXTURED),
 	m_storageAttribs(storageAttribs)
 {

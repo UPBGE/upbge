@@ -127,8 +127,8 @@ endif()
 		ge_phys_dummy
 		ge_logic
 		ge_device
-		ge_oglrasterizer
 		ge_rasterizer
+		ge_oglrasterizer
 		ge_logic_expressions
 		ge_common
 		ge_scenegraph
