@@ -30,6 +30,7 @@
 #include "RAS_DisplayArrayBucket.h"
 #include "MT_Matrix4x4.h"
 
+class RAS_IPolyMaterial;
 class RAS_IBatchDisplayArray;
 
 class RAS_BatchGroup

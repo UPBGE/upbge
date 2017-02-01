@@ -284,6 +284,54 @@ public:
 		AttribLayerList layers;
 	};
 
+	struct DebugShape
+	{
+		MT_Vector4 m_color;
+	};
+
+	struct DebugLine : DebugShape
+	{
+		MT_Vector3 m_from;
+		MT_Vector3 m_to;
+	};
+
+	struct DebugCircle : DebugShape
+	{
+		MT_Vector3 m_center;
+		MT_Vector3 m_normal;
+		float m_radius;
+		int m_sector;
+	};
+
+	struct DebugAabb : DebugShape
+	{
+		MT_Vector3 m_pos;
+		MT_Matrix3x3 m_rot;
+		MT_Vector3 m_min;
+		MT_Vector3 m_max;
+	};
+
+	struct DebugBox : DebugShape
+	{
+		MT_Vector3 m_vertexes[8];
+	};
+
+	struct DebugSolidBox : DebugBox
+	{
+		MT_Vector4 m_insideColor;
+		MT_Vector4 m_outsideColor;
+		bool m_solid;
+	};
+
+	struct SceneDebugShape
+	{
+		std::vector<DebugLine> m_lines;
+		std::vector<DebugCircle> m_circles;
+		std::vector<DebugAabb> m_aabbs;
+		std::vector<DebugBox> m_boxes;
+		std::vector<DebugSolidBox> m_solidBoxes;
+	};
+
 private:
 	class OffScreens
 	{
@@ -332,6 +380,9 @@ private:
 		int leftEyeTexLoc;
 		int rightEyeTexLoc;
 	};
+
+	// We store each debug shape by scene.
+	std::map<SCA_IScene *, SceneDebugShape> m_debugShapes;
 
 	/* fogging vars */
 	bool m_fogenabled;

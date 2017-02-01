@@ -337,16 +337,8 @@ void RAS_OpenGLRasterizer::DrawOverlayPlane()
 	m_screenPlane.Render();
 }
 
-void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
+void RAS_OpenGLRasterizer::FlushDebugShapes(const RAS_IRasterizer::SceneDebugShape& debugShapes)
 {
-	SceneDebugShape& debugShapes = m_debugShapes[scene];
-	if ((debugShapes.m_lines.size() + debugShapes.m_circles.size() +
-		debugShapes.m_aabbs.size() + debugShapes.m_boxes.size() +
-		debugShapes.m_solidBoxes.size()) == 0)
-	{
-		return;
-	}
-
 	// DrawDebugLines
 	GLboolean light, tex, blend;
 
@@ -366,7 +358,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 
 	// draw lines
 	glBegin(GL_LINES);
-	for (const DebugLine& line : debugShapes.m_lines) {
+	for (const RAS_IRasterizer::DebugLine& line : debugShapes.m_lines) {
 		glColor4fv(line.m_color.getValue());
 		glVertex3fv(line.m_from.getValue());
 		glVertex3fv(line.m_to.getValue());
@@ -375,7 +367,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	// Draw aabbs
-	for (const DebugAabb& aabb : debugShapes.m_aabbs) {
+	for (const RAS_IRasterizer::DebugAabb& aabb : debugShapes.m_aabbs) {
 		glColor4fv(aabb.m_color.getValue());
 
 		const MT_Matrix3x3& rot = aabb.m_rot;
@@ -420,14 +412,14 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 
 	// Draw boxes.
 	static const GLubyte wireIndices[24] = {0, 1, 1, 2, 2, 3, 3, 0, 0, 4, 4, 5, 5, 6, 6, 7, 7, 4, 1, 5, 2, 6, 3, 7};
-	for (const DebugBox& box : debugShapes.m_boxes) {
+	for (const RAS_IRasterizer::DebugBox& box : debugShapes.m_boxes) {
 		glVertexPointer(3, GL_FLOAT, sizeof(MT_Vector3), box.m_vertexes->getValue());
 		glColor4fv(box.m_color.getValue());
 		glDrawRangeElements(GL_LINES, 0, 7, 24, GL_UNSIGNED_BYTE, wireIndices);
 	}
 
 	static const GLubyte solidIndices[24] = {0, 1, 2, 3, 7, 6, 5, 4, 4, 5, 1, 0, 3, 2, 6, 7, 3, 7, 4, 0, 1, 5, 6, 2};
-	for (const DebugSolidBox& box : debugShapes.m_solidBoxes) {
+	for (const RAS_IRasterizer::DebugSolidBox& box : debugShapes.m_solidBoxes) {
 		glVertexPointer(3, GL_FLOAT, sizeof(MT_Vector3), box.m_vertexes->getValue());
 		glColor4fv(box.m_color.getValue());
 		glDrawRangeElements(GL_LINES, 0, 7, 24, GL_UNSIGNED_BYTE, wireIndices);
@@ -443,7 +435,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	glDisableClientState(GL_VERTEX_ARRAY);
 
 	// draw circles
-	for (const DebugCircle& circle : debugShapes.m_circles) {
+	for (const RAS_IRasterizer::DebugCircle& circle : debugShapes.m_circles) {
 		glBegin(GL_LINE_LOOP);
 		glColor4fv(circle.m_color.getValue());
 
@@ -481,91 +473,6 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(SCA_IScene *scene)
 	if (!blend) {
 		Disable(RAS_IRasterizer::RAS_BLEND);
 	}
-
-	debugShapes.m_lines.clear();
-	debugShapes.m_circles.clear();
-	debugShapes.m_aabbs.clear();
-	debugShapes.m_boxes.clear();
-	debugShapes.m_solidBoxes.clear();
-}
-
-void RAS_OpenGLRasterizer::DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
-{
-	DebugLine line;
-	line.m_from = from;
-	line.m_to = to;
-	line.m_color = color;
-	m_debugShapes[scene].m_lines.push_back(line);
-}
-
-void RAS_OpenGLRasterizer::DrawDebugCircle(SCA_IScene *scene, const MT_Vector3 &center, const MT_Scalar radius,
-		const MT_Vector4 &color, const MT_Vector3 &normal, int nsector)
-{
-	DebugCircle circle;
-	circle.m_center = center;
-	circle.m_normal = normal;
-	circle.m_color = color;
-	circle.m_radius = radius;
-	circle.m_sector = nsector;
-	m_debugShapes[scene].m_circles.push_back(circle);
-}
-
-void RAS_OpenGLRasterizer::DrawDebugAabb(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
-		const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color)
-{
-	DebugAabb aabb;
-	aabb.m_pos = pos;
-	aabb.m_rot = rot;
-	aabb.m_min = min;
-	aabb.m_max = max;
-	aabb.m_color = color;
-	m_debugShapes[scene].m_aabbs.push_back(aabb);
-}
-
-void RAS_OpenGLRasterizer::DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& color)
-{
-	DebugBox box;
-	for (unsigned short i = 0; i < 8; ++i) {
-		box.m_vertexes[i] = vertexes[i];
-	}
-	box.m_color = color;
-	m_debugShapes[scene].m_boxes.push_back(box);
-}
-
-void RAS_OpenGLRasterizer::DrawDebugSolidBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& insideColor,
-		const MT_Vector4& outsideColor, const MT_Vector4& lineColor)
-{
-	DebugSolidBox box;
-	for (unsigned short i = 0; i < 8; ++i) {
-		box.m_vertexes[i] = vertexes[i];
-	}
-	box.m_insideColor = insideColor;
-	box.m_outsideColor = outsideColor;
-	box.m_color = lineColor;
-	m_debugShapes[scene].m_solidBoxes.push_back(box);
-}
-
-void RAS_OpenGLRasterizer::DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat)
-{
-	MT_Vector3 box[8];
-
-	box[0][0] = box[1][0] = box[4][0] = box[5][0] = -1.0f;
-	box[2][0] = box[3][0] = box[6][0] = box[7][0] = 1.0f;
-	box[0][1] = box[3][1] = box[4][1] = box[7][1] = -1.0f;
-	box[1][1] = box[2][1] = box[5][1] = box[6][1] = 1.0f;
-	box[0][2] = box[1][2] = box[2][2] = box[3][2] = -1.0f;
-	box[4][2] = box[5][2] = box[6][2] = box[7][2] = 1.0f;
-
-	const MT_Matrix4x4 mv = (projmat * viewmat).inverse();
-
-	for (unsigned short i = 0; i < 8; i++) {
-		MT_Vector3& p3 = box[i];
-		const MT_Vector4 p4 = mv * MT_Vector4(p3.x(), p3.y(), p3.z(), 1.0f);
-		p3 = MT_Vector3(p4.x() / p4.w(), p4.y() / p4.w(), p4.z() / p4.w());
-	}
-
-	DrawDebugSolidBox(scene, box, MT_Vector4(0.4f, 0.4f, 0.4f, 0.4f), MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f),
-		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f));
 }
 
 // Code for hooking into Blender's mesh drawing for derived meshes.

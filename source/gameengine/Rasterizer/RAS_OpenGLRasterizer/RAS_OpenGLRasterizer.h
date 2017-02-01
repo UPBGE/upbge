@@ -70,62 +70,8 @@ private:
 		void Render();
 	};
 
-	struct DebugShape
-	{
-		MT_Vector4 m_color;
-	};
-
-	struct DebugLine : DebugShape
-	{
-		MT_Vector3 m_from;
-		MT_Vector3 m_to;
-	};
-
-	struct DebugCircle : DebugShape
-	{
-		MT_Vector3 m_center;
-		MT_Vector3 m_normal;
-		float m_radius;
-		int m_sector;
-	};
-
-	struct DebugAabb : DebugShape
-	{
-		MT_Vector3 m_pos;
-		MT_Matrix3x3 m_rot;
-		MT_Vector3 m_min;
-		MT_Vector3 m_max;
-	};
-
-	struct DebugBox : DebugShape
-	{
-		MT_Vector3 m_vertexes[8];
-	};
-
-	struct DebugSolidBox : DebugBox
-	{
-		MT_Vector4 m_insideColor;
-		MT_Vector4 m_outsideColor;
-		bool m_solid;
-	};
-
-	struct SceneDebugShape
-	{
-		std::vector<DebugLine> m_lines;
-		std::vector<DebugCircle> m_circles;
-		std::vector<DebugAabb> m_aabbs;
-		std::vector<DebugBox> m_boxes;
-		std::vector<DebugSolidBox> m_solidBoxes;
-	};
-
-	/* fogging vars */
-	bool m_fogenabled;
-
 	/// Class used to render a screen plane.
 	ScreenPlane m_screenPlane;
-
-	// We store each debug shape by scene.
-	std::map<SCA_IScene *, SceneDebugShape> m_debugShapes;
 
 	RAS_IRasterizer *m_rasterizer;
 
@@ -178,16 +124,7 @@ public:
 
 	void SetPolygonOffset(float mult, float add);
 
-	void FlushDebugShapes(SCA_IScene *scene);
-	void DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color);
-	void DrawDebugCircle(SCA_IScene *scene, const MT_Vector3 &center, const MT_Scalar radius,
-	                             const MT_Vector4 &color, const MT_Vector3 &normal, int nsector);
-	void DrawDebugAabb(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
-							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color);
-	void DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& color);
-	void DrawDebugSolidBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& insideColor,
-							  const MT_Vector4& outsideColor, const MT_Vector4& lineColor);
-	void DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat);
+	void FlushDebugShapes(const RAS_IRasterizer::SceneDebugShape& debugShapes);
 
 	void SetFrontFace(bool ccw);
 
