@@ -36,8 +36,6 @@
 #  pragma warning (disable:4786)
 #endif
 
-#include <string>
-
 #include "MT_CmMatrix4x4.h"
 #include "MT_Matrix4x4.h"
 
@@ -45,6 +43,7 @@
 #include "MEM_guardedalloc.h"
 #endif
 
+#include <string>
 #include <map>
 #include <vector>
 #include <memory>
@@ -387,8 +386,8 @@ private:
 	/* fogging vars */
 	bool m_fogenabled;
 
-	MT_Vector3 m_ambient;
 	double m_time;
+	MT_Vector3 m_ambient;
 	MT_Matrix4x4 m_viewmatrix;
 	MT_Matrix4x4 m_viewinvmatrix;
 	MT_Vector3 m_campos;

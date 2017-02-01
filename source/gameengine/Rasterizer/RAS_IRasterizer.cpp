@@ -25,27 +25,19 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Rasterizer/RAS_IRasterizer/RAS_IRasterizer.cpp
+/** \file gameengine/Rasterizer/RAS_IRasterizer.cpp
  *  \ingroup bgerastogl
  */
-
 
 #include "RAS_IRasterizer.h"
 #include "RAS_OpenGLRasterizer.h"
 
-#include "glew-mx.h"
-
 #include "RAS_ICanvas.h"
 #include "RAS_OffScreen.h"
 #include "RAS_Rect.h"
-#include "RAS_ITexVert.h"
-#include "RAS_MeshObject.h"
-#include "RAS_MeshUser.h"
 #include "RAS_TextUser.h"
 #include "RAS_Polygon.h"
-#include "RAS_DisplayArray.h"
 #include "RAS_ILightObject.h"
-#include "MT_CmMatrix4x4.h"
 
 #include "RAS_OpenGLLight.h"
 #include "RAS_OpenGLSync.h"
@@ -60,18 +52,14 @@
 #include "GPU_texture.h"
 
 #include "BLI_math_vector.h"
-#include "BLI_math_matrix.h"
 
 extern "C" {
-	#include "BLF_api.h"
-	#include "BKE_DerivedMesh.h"
+#  include "BLF_api.h"
 }
 
 #include "MEM_guardedalloc.h"
 
 // XXX Clean these up <<<
-#include "EXP_Value.h"
-#include "KX_Scene.h"
 #include "KX_RayCast.h"
 #include "KX_GameObject.h"
 // >>>

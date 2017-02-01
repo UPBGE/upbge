@@ -29,53 +29,23 @@
  *  \ingroup bgerastogl
  */
 
-
-#include <math.h>
-
 #include "RAS_OpenGLRasterizer.h"
 
 #include "glew-mx.h"
 
-#include "RAS_ICanvas.h"
-#include "RAS_OffScreen.h"
-#include "RAS_Rect.h"
-#include "RAS_ITexVert.h"
-#include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
-#include "RAS_TextUser.h"
-#include "RAS_Polygon.h"
-#include "RAS_DisplayArray.h"
-#include "RAS_ILightObject.h"
-#include "MT_CmMatrix4x4.h"
-
-#include "RAS_OpenGLLight.h"
-#include "RAS_OpenGLSync.h"
-
-#include "RAS_StorageVBO.h"
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 #include "GPU_shader.h"
-#include "GPU_framebuffer.h"
-#include "GPU_texture.h"
-
-#include "BLI_math_vector.h"
-#include "BLI_math_matrix.h"
 
 extern "C" {
-	#include "BLF_api.h"
-	#include "BKE_DerivedMesh.h"
+#  include "BLF_api.h"
+#  include "BKE_DerivedMesh.h"
 }
 
 #include "MEM_guardedalloc.h"
-
-// XXX Clean these up <<<
-#include "EXP_Value.h"
-#include "KX_Scene.h"
-#include "KX_RayCast.h"
-#include "KX_GameObject.h"
-// >>>
 
 #include "CM_Message.h"
 
