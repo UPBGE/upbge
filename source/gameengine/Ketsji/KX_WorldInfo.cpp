@@ -194,12 +194,12 @@ void KX_WorldInfo::UpdateBackGround(RAS_IRasterizer *rasty)
 void KX_WorldInfo::UpdateWorldSettings(RAS_IRasterizer *rasty)
 {
 	if (m_hasworld) {
-		rasty->SetAmbientColor(m_con_ambientcolor.getValue());
+		rasty->SetAmbientColor(m_con_ambientcolor);
 		GPU_ambient_update_color(m_ambientcolor.getValue());
 		GPU_update_exposure_range(m_exposure, m_range);
 
 		if (m_hasmist) {
-			rasty->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_con_mistcolor.getValue());
+			rasty->SetFog(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_con_mistcolor);
 			GPU_mist_update_values(m_misttype, m_miststart, m_mistdistance, m_mistintensity, m_mistcolor.getValue());
 			rasty->EnableFog(true);
 			GPU_mist_update_enable(true);

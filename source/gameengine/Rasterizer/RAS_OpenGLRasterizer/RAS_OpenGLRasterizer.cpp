@@ -229,7 +229,7 @@ void RAS_OpenGLRasterizer::SetAmbient(const MT_Vector3& amb, float factor)
 	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient);
 }
 
-void RAS_OpenGLRasterizer::SetFog(short type, float start, float dist, float intensity, float color[3])
+void RAS_OpenGLRasterizer::SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color)
 {
 	float params[4] = {color[0], color[1], color[2], 1.0f};
 	glFogi(GL_FOG_MODE, GL_LINEAR);

@@ -271,9 +271,9 @@ void RAS_IRasterizer::SetBlendFunc(BlendFunc src, BlendFunc dst)
 	m_impl->SetBlendFunc(src, dst);
 }
 
-void RAS_IRasterizer::SetAmbientColor(float color[3])
+void RAS_IRasterizer::SetAmbientColor(const MT_Vector3& color)
 {
-	m_ambient = MT_Vector3(color);
+	m_ambient = color;
 }
 
 void RAS_IRasterizer::SetAmbient(float factor)
@@ -281,7 +281,7 @@ void RAS_IRasterizer::SetAmbient(float factor)
 	m_impl->SetAmbient(m_ambient, factor);
 }
 
-void RAS_IRasterizer::SetFog(short type, float start, float dist, float intensity, float color[3])
+void RAS_IRasterizer::SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color)
 {
 	m_impl->SetFog(type, start, dist, intensity, color);
 }

@@ -662,7 +662,7 @@ public:
 	/**
 	 * Fog
 	 */
-	void SetFog(short type, float start, float dist, float intensity, float color[3]);
+	void SetFog(short type, float start, float dist, float intensity, const MT_Vector3& color);
 	void DisplayFog();
 	void EnableFog(bool enable);
 	
@@ -745,7 +745,7 @@ public:
 	 */ 
 	void SetEmissive(float eX, float eY, float eZ, float e);
 	
-	void SetAmbientColor(float color[3]);
+	void SetAmbientColor(const MT_Vector3& color);
 	void SetAmbient(float factor);
 
 	/**
