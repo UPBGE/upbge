@@ -58,7 +58,7 @@ class RAS_DisplayArrayBucket;
 class RAS_ILightObject;
 class SCA_IScene;
 class RAS_ISync;
-class KX_ClientObjectInfo;
+struct KX_ClientObjectInfo;
 class KX_RayCast;
 
 struct GPUShader;
