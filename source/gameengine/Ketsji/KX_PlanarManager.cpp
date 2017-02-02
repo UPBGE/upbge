@@ -20,9 +20,9 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** file gameengine/Ketsji/KX_PlanarManager.cpp
-*  ingroup ketsji
-*/
+/** \file gameengine/Ketsji/KX_PlanarManager.cpp
+ *  \ingroup ketsji
+ */
 
 #include "KX_PlanarManager.h"
 #include "KX_Camera.h"

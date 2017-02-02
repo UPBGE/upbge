@@ -21,8 +21,8 @@
 */
 
 /** \file RAS_Planar.cpp
-*  \ingroup bgerast
-*/
+ *  \ingroup bgerast
+ */
 
 #include "RAS_Planar.h"
 #include "RAS_Texture.h"
