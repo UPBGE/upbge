@@ -30,7 +30,7 @@
 
 #include "DNA_texture_types.h"
 
-KX_Planar::KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat, short type, int width, int height)
+KX_Planar::KX_Planar(EnvMap *env, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat)
 	:RAS_Planar(viewpoint, polymat),
 	m_viewpointObject(viewpoint),
 	m_invalidProjection(true),
@@ -38,19 +38,14 @@ KX_Planar::KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *poly
 	m_clipStart(0.0f),
 	m_clipEnd(0.0f),
 	m_autoUpdate(true),
-	m_forceUpdate(true),
-	m_type(type),
-	m_width(width),
-	m_height(height)
+	m_forceUpdate(true)
 {
-	m_ignoreLayers = tex->notlay;
+	m_ignoreLayers = env->notlay;
 
-	m_clipStart = tex->clipsta;
-	m_clipEnd = tex->clipend;
+	m_clipStart = env->clipsta;
+	m_clipEnd = env->clipend;
 
-	m_autoUpdate = (tex->autoupdate & TEX_AUTO_UPDATE) != 0;
-
-	m_cullReflections = (tex->planarcull & TEX_PLANAR_REFLECT_CULL) != 0;
+	m_autoUpdate = (env->flag & ENVMAP_AUTO_UPDATE) != 0;
 }
 
 KX_Planar::~KX_Planar()
@@ -123,26 +118,6 @@ bool KX_Planar::NeedUpdate()
 	m_forceUpdate = false;
 
 	return result;
-}
-
-short KX_Planar::GetWidth()
-{
-	return m_width;
-}
-
-short KX_Planar::GetHeight()
-{
-	return m_height;
-}
-
-short KX_Planar::GetPlanarType()
-{
-	return m_type;
-}
-
-bool KX_Planar::GetCullReflections()
-{
-	return m_cullReflections;
 }
 
 #ifdef WITH_PYTHON

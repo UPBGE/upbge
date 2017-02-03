@@ -260,7 +260,7 @@ void RAS_Planar::GetValidTexture()
 
 	AttachTexture();
 
-	Tex *tex = texture->GetTex();
+	/*Tex *tex = texture->GetTex();
 	m_useMipmap = (tex->planarfiltering == TEX_MIPMAP_MIPMAP) && GPU_get_mipmap();
 
 	if (!m_useMipmap) {
@@ -268,7 +268,7 @@ void RAS_Planar::GetValidTexture()
 		GPU_texture_bind(m_gpuTex, 0);
 		GPU_texture_filter_mode(m_gpuTex, false, (tex->planarfiltering == TEX_MIPMAP_LINEAR), false);
 		GPU_texture_unbind(m_gpuTex);
-	}
+	}*/
 }
 
 const std::vector<RAS_Texture *>& RAS_Planar::GetTextureUsers() const
@@ -317,23 +317,21 @@ void RAS_Planar::EnableClipPlane(MT_Vector3 &mirrorWorldZ, MT_Scalar &mirrorPlan
 {
 	// initializing clipping planes for reflection and refraction
 	static float offset = 0.1f;
-	if (planartype == TEX_PLANAR_REFLECTION) {
+	/*if (planartype == TEX_PLANAR_REFLECTION)*/ {
 		double plane[4] = { -mirrorWorldZ[0], -mirrorWorldZ[1], -mirrorWorldZ[2], mirrorPlaneDTerm + offset };
 		glClipPlane(GL_CLIP_PLANE0, plane);
 		glEnable(GL_CLIP_PLANE0);
-		glFrontFace(GL_CW);
 	}
-	else {
+	/*else {
 		double plane[4] = { mirrorWorldZ[0], mirrorWorldZ[1], mirrorWorldZ[2], -mirrorPlaneDTerm + offset };
 		glClipPlane(GL_CLIP_PLANE0, plane);
 		glEnable(GL_CLIP_PLANE0);
-	}
+	}*/
 }
 
 void RAS_Planar::DisableClipPlane(int planartype)
 {
 	glDisable(GL_CLIP_PLANE0);
-	if (planartype == TEX_PLANAR_REFLECTION) {
-		glFrontFace(GL_CCW);
+	/*if (planartype == TEX_PLANAR_REFLECTION)*/ {
 	}
 }

@@ -232,7 +232,7 @@ RAS_IRasterizer::RAS_IRasterizer()
 	m_auxilaryClientInfo(nullptr),
 	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
-	//m_last_alphablend(GPU_BLEND_SOLID),
+	m_invertFrontFace(false),
 	m_last_frontface(true),
 	m_overrideShader(RAS_OVERRIDE_SHADER_NONE)
 {
@@ -1200,7 +1200,8 @@ void RAS_IRasterizer::SetAlphaBlend(int alphablend)
 
 void RAS_IRasterizer::SetFrontFace(bool ccw)
 {
-	if (m_camnegscale)
+	std::cout << ccw << ", " << m_last_frontface << std::endl;
+	if (m_camnegscale || m_invertFrontFace)
 		ccw = !ccw;
 
 	if (m_last_frontface == ccw) {
@@ -1210,6 +1211,11 @@ void RAS_IRasterizer::SetFrontFace(bool ccw)
 	m_impl->SetFrontFace(ccw);
 
 	m_last_frontface = ccw;
+}
+
+void RAS_IRasterizer::SetInvertFrontFace(bool invert)
+{
+	m_invertFrontFace = invert;
 }
 
 void RAS_IRasterizer::SetAnisotropicFiltering(short level)

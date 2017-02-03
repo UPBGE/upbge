@@ -35,7 +35,7 @@
 class KX_GameObject;
 class RAS_IPolyMaterial;
 
-struct Tex;
+struct EnvMap;
 
 class KX_Planar : public CValue, public RAS_Planar
 {
@@ -44,9 +44,6 @@ class KX_Planar : public CValue, public RAS_Planar
 private:
 	/// The object used to render from its position.
 	KX_GameObject *m_viewpointObject;
-
-	/// planar type (tex->planarflag -> reflection or refraction)
-	short m_type;
 
 	/// The camera projection matrix depending on clip start/end.
 	MT_Matrix4x4 m_projection;
@@ -71,15 +68,8 @@ private:
 	*/
 	bool m_forceUpdate;
 
-	/// GPUTexture width and height (used to set viewport)
-	int m_width;
-	int m_height;
-
-	/// Cull reflections from other mirrors
-	bool m_cullReflections;
-
 public:
-	KX_Planar(Tex *tex, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat, short type, int width, int height);
+	KX_Planar(EnvMap *env, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat);
 	virtual ~KX_Planar();
 
 	virtual std::string GetName();
@@ -102,13 +92,6 @@ public:
 
 	// Return true when this planar need to be updated.
 	bool NeedUpdate();
-
-	short GetWidth();
-	short GetHeight();
-
-	short GetPlanarType();
-
-	bool GetCullReflections();
 
 #ifdef WITH_PYTHON
 	KX_PYMETHOD_DOC_NOARGS(KX_Planar, update);

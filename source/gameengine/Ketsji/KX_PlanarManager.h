@@ -61,7 +61,7 @@ public:
 	/** Add and create a planar if none existing planar was using the same
 	* texture containing in the material texture passed.
 	*/
-	void AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, RAS_IPolyMaterial *polymat, short type, int width, int height);
+	void AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, RAS_IPolyMaterial *polymat);
 
 	void Render(RAS_IRasterizer *rasty);
 };

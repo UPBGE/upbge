@@ -128,16 +128,6 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
-		if (!DNA_struct_elem_find(fd->filesdna, "Tex", "short", "planarflag")) {
-			for (Tex *tex = main->tex.first; tex; tex = tex->id.next) {
-				tex->planarflag = TEX_PLANAR_NONE;
-				tex->autoupdate |= TEX_AUTO_UPDATE;
-				tex->clipsta = 0.1f;
-				tex->clipend = 100.0f;
-				tex->planarcull = 0;
-				tex->planarfiltering = TEX_MIPMAP_NONE;
-			}
-		}
 	}
 
 	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 1, 2)) {

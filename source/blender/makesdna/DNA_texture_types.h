@@ -219,7 +219,7 @@ typedef struct Tex {
 	
 	float noisesize, turbul;
 	float bright, contrast, saturation, rfac, gfac, bfac;
-	float filtersize;
+	float filtersize, pad2;
 
 	/* newnoise: musgrave parameters */
 	float mg_H, mg_lacunarity, mg_octaves, mg_offset, mg_gain;
@@ -255,12 +255,7 @@ typedef struct Tex {
 	int frames, offset, sfra;
 	
 	float checkerdist, nabla;
-
-	/* Planar Reflections */
-	int notlay;
-	short planarflag, autoupdate;
-	float clipsta, clipend;
-	int planarcull, planarfiltering;
+	float pad1;
 	
 	struct ImageUser iuser;
 	
@@ -459,9 +454,6 @@ typedef struct ColorMapping {
 #define TEX_COL2		2
 #define TEX_COL3		3
 
-/* tex->stype for BGE ImageRender */
-#define TEX_MIRROR      0
-
 /* mtex->normapspace */
 #define MTEX_NSPACE_CAMERA	0
 #define MTEX_NSPACE_WORLD	1
@@ -483,24 +475,6 @@ typedef struct ColorMapping {
 #define TEX_PR_TEXTURE	0
 #define TEX_PR_OTHER	1
 #define TEX_PR_BOTH		2
-
-/* FOR PLANAR REFLECTIONS/REFRACTIONS */
-/* Tex->autoupdate */
-#define TEX_AUTO_UPDATE (1 << 0)
-
-/* Tex->planarflag */
-#define TEX_PLANAR_NONE         0
-#define TEX_PLANAR_REFLECTION   1
-#define TEX_PLANAR_REFRACTION   2
-
-/* Tex->planarcull */
-#define TEX_PLANAR_REFLECT_CULL 1
-
-/* Tex->planarfiltering */
-#define TEX_MIPMAP_NONE     0
-#define TEX_MIPMAP_LINEAR   1
-#define TEX_MIPMAP_MIPMAP   2
-/* END FOR PLANAR REFLECTIONS/REFRACTIONS */
 
 /* **************** ENVMAP ****************** */
 

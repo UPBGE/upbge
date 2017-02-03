@@ -54,7 +54,7 @@ KX_PlanarManager::~KX_PlanarManager()
 	m_camera->Release();
 }
 
-void KX_PlanarManager::AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, RAS_IPolyMaterial *polymat, short type, int width, int height)
+void KX_PlanarManager::AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, RAS_IPolyMaterial *polymat)
 {
 	/* Don't Add Planar several times for the same texture. If the texture is shared by several objects,
 	 * we just add a "textureUser" to signal that the planar texture will be shared by several objects.
@@ -70,8 +70,8 @@ void KX_PlanarManager::AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, R
 		}
 	}
 
-	Tex *tex = texture->GetTex();
-	KX_Planar *kxplanar = new KX_Planar(tex, gameobj, polymat, type, width, height);
+	EnvMap *env = texture->GetTex()->env;
+	KX_Planar *kxplanar = new KX_Planar(env, gameobj, polymat);
 	kxplanar->AddTextureUser(texture);
 	texture->SetPlanar(kxplanar);
 	m_planars.push_back(kxplanar);
@@ -121,7 +121,7 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	MT_Matrix3x3 ori = observer->NodeGetWorldOrientation();
 	MT_Vector3 cameraWorldPos = observerWorldPos;
 
-	if (planar->GetPlanarType() == TEX_PLANAR_REFLECTION) {
+	/*if (planar->GetPlanarType() == TEX_PLANAR_REFLECTION)*/ {
 		cameraWorldPos = (observerWorldPos - mirror->GetSGNode()->GetWorldPosition()) * m1;
 		cameraWorldPos = mirror->GetSGNode()->GetWorldPosition() + cameraWorldPos * r180 * unmir * m2;
 		ori.transpose();
@@ -138,15 +138,6 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	// Begin rendering stuff
 	planar->BeginRender();
 	planar->BindFace(rasty);
-
-	//rasty->BeginFrame(KX_GetActiveEngine()->GetClockTime());
-
-	rasty->SetViewport(0, 0, planar->GetWidth(), planar->GetHeight());
-	//rasty->SetScissor(0, 0, planar->GetWidth(), planar->GetHeight());
-
-	//m_scene->GetWorldInfo()->UpdateWorldSettings(rasty);
-	//rasty->SetAuxilaryClientInfo(m_scene);
-	//rasty->DisplayFog();
 
 	/* When we update clipstart or clipend values,
 	* or if the projection matrix is not computed yet,
@@ -176,41 +167,20 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 
 	KX_GetActiveEngine()->UpdateAnimations(m_scene);
 
-	planar->EnableClipPlane(mirrorWorldZ, mirrorPlaneDTerm, planar->GetPlanarType());
-
-	for (std::vector<KX_Planar *>::iterator it = m_planars.begin(), end = m_planars.end(); it != end; ++it) {
-		KX_Planar *p = *it;
-		if (p->GetPlanarType() == TEX_PLANAR_REFRACTION) {
-			p->GetMirrorObject()->SetVisible(false, false);
-		}
-		else {
-			if (p != planar && planar->GetCullReflections()) {
-				p->GetMirrorObject()->SetVisible(false, false);
-			}
-		}
-	}
+	planar->EnableClipPlane(mirrorWorldZ, mirrorPlaneDTerm, 0/*planar->GetPlanarType()*/);
+	rasty->SetInvertFrontFace(true);
+	mirror->SetVisible(false, false);
 
 	// Now the objects are culled and we can render the scene.
 	m_scene->GetWorldInfo()->RenderBackground(rasty);
 
 	m_scene->RenderBuckets(camtrans, rasty, NULL);
 
+	mirror->SetVisible(true, false);
+
 	planar->EndRender();
-
-	for (std::vector<KX_Planar *>::iterator it = m_planars.begin(), end = m_planars.end(); it != end; ++it) {
-		KX_Planar *p = *it;
-		if (p->GetPlanarType() == TEX_PLANAR_REFRACTION) {
-			p->GetMirrorObject()->SetVisible(true, false);
-		}
-		else {
-			if (p != planar && planar->GetCullReflections()) {
-				p->GetMirrorObject()->SetVisible(true, false);
-			}
-		}
-	}
-
-	planar->DisableClipPlane(planar->GetPlanarType());
-
+	planar->DisableClipPlane(0/*planar->GetPlanarType()*/);
+	rasty->SetInvertFrontFace(false);
 }
 
 void KX_PlanarManager::Render(RAS_IRasterizer *rasty)
