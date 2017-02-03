@@ -873,7 +873,9 @@ public:
 	/** Update the game object bounding box (AABB) by using the one existing in the
 	 * mesh or the mesh deformer.
 	 * \param force Force the AABB update even if the object doesn't allow auto update or if the mesh is
-	 * not modified like in the case of mesh replacement.
+	 * not modified like in the case of mesh replacement or object duplication.
+	 * \warning Should be called when the game object contains a valid scene graph node
+	 * and a valid graphic controller (if it exists).
 	 */
 	void UpdateBounds(bool force);
 	void SetBoundsAabb(MT_Vector3 aabbMin, MT_Vector3 aabbMax);

@@ -1442,7 +1442,7 @@ void KX_GameObject::UpdateBounds(bool force)
 	}
 
 	RAS_BoundingBox *boundingBox = m_meshUser->GetBoundingBox();
-	if (!boundingBox || !boundingBox->GetModified()) {
+	if (!boundingBox || (!boundingBox->GetModified() && !force)) {
 		return;
 	}
 

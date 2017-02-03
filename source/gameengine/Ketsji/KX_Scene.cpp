@@ -520,6 +520,7 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_Node* node, class CValue*
 		m_rootnode->SetLocalScale(orgnode->GetLocalScale());
 		m_rootnode->SetLocalPosition(orgnode->GetLocalPosition());
 		m_rootnode->SetLocalOrientation(orgnode->GetLocalOrientation());
+		m_rootnode->SetBBox(orgnode->BBox());
 
 		// define the relationship between this node and it's parent.
 		KX_NormalParentRelation * parent_relation = 
@@ -593,6 +594,9 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_Node* node, class CValue*
 		if (parent)
 			newctrl->SuspendDynamics();
 	}
+
+	// Always make sure that the bounding box is valid.
+	newobj->UpdateBounds(true);
 
 	return newobj;
 }
@@ -807,7 +811,6 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 		replica->NodeSetLocalOrientation(newori);
 		// update scenegraph for entire tree of children
 		replica->GetSGNode()->UpdateWorldData(0);
-		replica->GetSGNode()->SetBBox(gameobj->GetSGNode()->BBox());
 		// we can now add the graphic controller to the physic engine
 		replica->ActivateGraphicController(true);
 
@@ -930,7 +933,6 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 	}
 
 	replica->GetSGNode()->UpdateWorldData(0);
-	replica->GetSGNode()->SetBBox(originalobj->GetSGNode()->BBox());
 	// the size is correct, we can add the graphic controller to the physic engine
 	replica->ActivateGraphicController(true);
 
@@ -1302,6 +1304,7 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 		if (gameobj->GetPhysicsController())
 			gameobj->GetPhysicsController()->ReinstancePhysicsShape(NULL, use_gfx?NULL:mesh);
 	}
+	// Always make sure that the bounding box is updated to the new mesh.
 	gameobj->UpdateBounds(true);
 }
 
