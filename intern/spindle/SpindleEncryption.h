@@ -48,6 +48,7 @@ void SpinDecrypt_Hex(char *data, int dataSize, char *key);
 #ifdef __cplusplus
 char *SpinEncryption_FindAndSet_Key(char **argv, int i);
 char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, char *encryptKey);
+int SpinEncryption_CheckHeader_Type(const char *filepath);
 #endif
 
 void SpinSetStaticEncryption_Key(const char *hexKey);

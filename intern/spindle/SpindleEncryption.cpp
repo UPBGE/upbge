@@ -274,6 +274,64 @@ char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, char *en
 	return NULL;
 }
 
+int SpinEncryption_CheckHeader_Type(const char *filepath)
+{
+	const unsigned int currentSupportedVersion = 0;
+	int memsize, readResult;
+	char memHeader[5];
+	char* mem;
+	int keyType = 0; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
+	FILE* inFile = fopen(filepath, "rb");
+
+	if (!inFile) {
+		return -1;
+	}
+
+	fseek(inFile, 0L, SEEK_END);
+	memsize = ftell(inFile);
+	fseek(inFile, 0L, SEEK_SET);
+
+	if (memsize < 5) {
+		fclose(inFile);
+		return -1;
+	}
+
+	readResult = fread(memHeader, 5, 1, inFile);
+	memsize -= 5;
+
+	if ((memHeader[0] == 'S') && (memHeader[1] == 'T') && (memHeader[2] == 'C')) { //Static encrypted file
+		if ((unsigned int)memHeader[3] > currentSupportedVersion) {
+			fclose(inFile);
+			printf("Failed to read blend file: \"%s\", blend is from a newer version\n", filepath);
+			return -1;
+		}
+		if (staticKey == NULL) {
+			fclose(inFile);
+			printf("Failed to read blend file: \"%s\", No static key provided\n", filepath);
+			return -1;
+		}
+		keyType = 1;
+	}
+	else if ((memHeader[0] == 'D') && (memHeader[1] == 'Y') && (memHeader[2] == 'C')) { //Dynamic encrypted file
+		if ((unsigned int)memHeader[3] > currentSupportedVersion) {
+			fclose(inFile);
+			printf("Failed to read blend file: \"%s\", blend is from a newer version\n", filepath);
+			return -1;
+		}
+		if (dynamicKey == NULL) {
+			fclose(inFile);
+			printf("Failed to read blend file: \"%s\", No dynamic key provided\n", filepath);
+			return -1;
+		}
+		keyType = 2;
+	}
+	else { //Normal blender file
+		keyType = 0;
+		fclose(inFile);
+	}
+	return keyType;
+}
+
 void SpinSetStaticEncryption_Key(const char* hexKey)
 {
 	if (staticKey != NULL)

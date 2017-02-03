@@ -585,7 +585,7 @@ static bool quitGame(KX_ExitRequest exitcode)
 	return (exitcode != KX_ExitRequest::RESTART_GAME && exitcode != KX_ExitRequest::START_OTHER_GAME);
 }
 
-static BlendFileData *load_encrypted_game_data(char *filename, char *localPath, char *encryptKey)
+static BlendFileData *load_encrypted_game_data(char *filename, char *localPath, char *encryptKey, int typeEncryption = 0)
 {
 	ReportList reports;
 	BlendFileData *bfd = NULL;
@@ -596,20 +596,28 @@ static BlendFileData *load_encrypted_game_data(char *filename, char *localPath, 
 	if (filename == NULL)
 		return NULL;
 
-	// load file and decrypt
-	fileData = SpinEncryption_LoadAndDecrypt_file(filename, fileSize, encryptKey);
+	if (localPath && encryptKey) {
+		// load file and decrypt
+		fileData = SpinEncryption_LoadAndDecrypt_file(filename, fileSize, encryptKey);
 
-	if (fileData) {
-		bfd = BLO_read_from_memory(fileData, fileSize, &reports, localPath);
-		delete [] fileData;
+		if (fileData) {
+			bfd = BLO_read_from_memory(fileData, fileSize, &reports, localPath);
+			delete [] fileData;
+		}
+
+		if (!bfd) {
+			printf("Loading %s failed: ", localPath);
+			BKE_reports_print(&reports, RPT_ERROR);
+		}
+
+		BKE_reports_clear(&reports);
 	}
-
-	if (!bfd) {
-		printf("Loading %s failed: ", localPath);
-		BKE_reports_print(&reports, RPT_ERROR);
+	else if (typeEncryption == 1) {
+		// load and decrypt using static key
 	}
-
-	BKE_reports_clear(&reports);
+	else if (typeEncryption == 2) {
+		// load and decrypt using dynamic key
+	}
 	return bfd;
 }
 
@@ -1127,20 +1135,37 @@ int main(
 					if (exitcode == KX_ExitRequest::START_OTHER_GAME)
 					{
 						char basedpath[FILE_MAX];
+						char finalpath[FILE_MAX];
+						int typeEncryption = 0;
 						
 						// base the actuator filename relative to the last file
 						BLI_strncpy(basedpath, exitstring.c_str(), sizeof(basedpath));
 						BLI_path_abs(basedpath, pathname);
 						
-						bfd = load_game_data(basedpath);
+						// check header to see if it encrypted
+						typeEncryption = SpinEncryption_CheckHeader_Type(basedpath);
 
-						if (!bfd) {
+						if (typeEncryption == -1) {
 							// just add "//" in front of it
 							char temppath[FILE_MAX] = "//";
 							BLI_strncpy(temppath + 2, basedpath, FILE_MAX - 2);
-
 							BLI_path_abs(temppath, pathname);
-							bfd = load_game_data(temppath);
+
+							typeEncryption = SpinEncryption_CheckHeader_Type(temppath);
+
+							if (typeEncryption =! -1) {
+								BLI_strncpy(finalpath, temppath, FILE_MAX);
+							}
+						}
+						else {
+							BLI_strncpy(finalpath, basepath, FILE_MAX);
+						}
+
+						if (typeEncryption <= 0 ) {
+							bfd = load_game_data(finalpath);
+						}
+						else {
+							bfd = load_encrypted_game_data(finalpath, NULL, NULL, typeEncryption);
 						}
 					}
 					else
