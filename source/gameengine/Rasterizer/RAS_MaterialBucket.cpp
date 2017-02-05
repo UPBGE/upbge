@@ -48,8 +48,8 @@
 
 RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat)
 	:m_material(mat),
-	m_downwardNode(this, &RAS_MaterialBucket::BindNode, &RAS_MaterialBucket::UnbindNode),
-	m_upwardNode(this, &RAS_MaterialBucket::BindNode, &RAS_MaterialBucket::UnbindNode)
+	m_downwardNode(this, std::mem_fn(&RAS_MaterialBucket::BindNode), std::mem_fn(&RAS_MaterialBucket::UnbindNode)),
+	m_upwardNode(this, std::mem_fn(&RAS_MaterialBucket::BindNode), std::mem_fn(&RAS_MaterialBucket::UnbindNode))
 {
 }
 

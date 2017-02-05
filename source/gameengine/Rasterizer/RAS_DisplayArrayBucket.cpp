@@ -60,10 +60,10 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	m_useVao(/*false*/true),
 	m_storageInfo(NULL),
 	m_instancingBuffer(NULL),
-	m_downwardNode(this, &RAS_DisplayArrayBucket::RunDownwardNode, NULL),
-	m_upwardNode(this, &RAS_DisplayArrayBucket::BindUpwardNode, &RAS_DisplayArrayBucket::UnbindUpwardNode),
-	m_instancingNode(this, &RAS_DisplayArrayBucket::RunInstancingNode, NULL),
-	m_batchingNode(this, &RAS_DisplayArrayBucket::RunBatchingNode, NULL)
+	m_downwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNode), nullptr),
+	m_upwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::BindUpwardNode), std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode)),
+	m_instancingNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunInstancingNode), nullptr),
+	m_batchingNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunBatchingNode), nullptr)
 {
 	m_bucket->AddDisplayArrayBucket(this);
 }
@@ -118,10 +118,10 @@ void RAS_DisplayArrayBucket::ProcessReplica()
 		m_displayArray = m_displayArray->GetReplica();
 	}
 
-	m_downwardNode = RAS_DisplayArrayDownwardNode(this, &RAS_DisplayArrayBucket::RunDownwardNode, NULL);
-	m_upwardNode = RAS_DisplayArrayUpwardNode(this, &RAS_DisplayArrayBucket::BindUpwardNode, &RAS_DisplayArrayBucket::UnbindUpwardNode);
-	m_instancingNode = RAS_DisplayArrayDownwardNode(this, &RAS_DisplayArrayBucket::RunInstancingNode, NULL);
-	m_batchingNode = RAS_DisplayArrayDownwardNode(this, &RAS_DisplayArrayBucket::RunBatchingNode, NULL);
+	m_downwardNode = RAS_DisplayArrayDownwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNode), nullptr);
+	m_upwardNode = RAS_DisplayArrayUpwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::BindUpwardNode), std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode));
+	m_instancingNode = RAS_DisplayArrayDownwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunInstancingNode), nullptr);
+	m_batchingNode = RAS_DisplayArrayDownwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunBatchingNode), nullptr);
 
 	m_bucket->AddDisplayArrayBucket(this);
 }
