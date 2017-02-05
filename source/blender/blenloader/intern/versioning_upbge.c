@@ -39,6 +39,8 @@
 #include "DNA_sdna_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_space_types.h"
+#include "DNA_view3d_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_material_types.h"
 
@@ -152,6 +154,19 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 					/* There's no valid material, we use the settings from BKE_object_init. */
 					if (!converted) {
 						ob->friction = 0.5f;
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 1, 5)) {
+		for (bScreen *sc = main->screen.first; sc; sc = sc->id.next) {
+			for (ScrArea *sa = sc->areabase.first; sa; sa = sa->next) {
+				for (SpaceLink *sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_VIEW3D) {
+						View3D *v3d = (View3D *)sl;
+						v3d->flag3 = V3D_SHOW_MIST;
 					}
 				}
 			}

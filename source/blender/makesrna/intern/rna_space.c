@@ -486,6 +486,14 @@ static void rna_SpaceView3D_lock_camera_and_layers_set(PointerRNA *ptr, int valu
 	}
 }
 
+static void rna_SpaceView3D_material_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	View3D *v3d = (View3D *)(ptr->data);
+	if (v3d->scenelock) {
+		DAG_id_tag_update(&scene->id, 0);
+	}
+}
+
 static void rna_View3D_CursorLocation_get(PointerRNA *ptr, float *values)
 {
 	View3D *v3d = (View3D *)(ptr->data);
@@ -2596,6 +2604,11 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag3", V3D_SHOW_WORLD);
 	RNA_def_property_ui_text(prop, "World Background", "Display world colors in the background");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "show_mist", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag3", V3D_SHOW_MIST);
+	RNA_def_property_ui_text(prop, "World Mist", "Display world mist");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_material_update");
 
 	prop = RNA_def_property(srna, "use_occlude_geometry", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", V3D_ZBUF_SELECT);
