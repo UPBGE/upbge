@@ -78,8 +78,8 @@ bool RAS_BucketManager::fronttoback::operator()(const SortedMeshSlot &a, const S
 }
 
 RAS_BucketManager::RAS_BucketManager()
-	:m_downwardNode(this, NULL, NULL),
-	m_upwardNode(this, NULL, NULL)
+	:m_downwardNode(this, nullptr, nullptr),
+	m_upwardNode(this, nullptr, nullptr)
 {
 }
 

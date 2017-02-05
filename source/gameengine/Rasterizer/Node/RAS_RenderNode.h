@@ -63,50 +63,109 @@ public:
 class RAS_ManagerDownwardNode : public RAS_DownwardNode<RAS_MaterialDownwardNode, RAS_BucketManager, RAS_NodeFlag::NEVER_FINAL,
 	RAS_RenderNodeArguments>
 {
-	using RAS_DownwardNode::RAS_DownwardNode;
+public:
+	RAS_ManagerDownwardNode()
+		:RAS_DownwardNode<RAS_MaterialDownwardNode, RAS_BucketManager, RAS_NodeFlag::NEVER_FINAL,
+		RAS_RenderNodeArguments>::RAS_DownwardNode()
+	{}
+	RAS_ManagerDownwardNode(RAS_BucketManager *b, Function f1, Function f2)
+		:RAS_DownwardNode<RAS_MaterialDownwardNode, RAS_BucketManager, RAS_NodeFlag::NEVER_FINAL,
+		RAS_RenderNodeArguments>::RAS_DownwardNode(b, f1, f2)
+	{}
 };
 
 class RAS_MaterialDownwardNode : public RAS_DownwardNode<RAS_DisplayArrayDownwardNode, RAS_MaterialBucket, RAS_NodeFlag::NEVER_FINAL,
 	RAS_RenderNodeArguments>
 {
-	using RAS_DownwardNode::RAS_DownwardNode;
+public:
+	RAS_MaterialDownwardNode()
+		:RAS_DownwardNode<RAS_DisplayArrayDownwardNode, RAS_MaterialBucket, RAS_NodeFlag::NEVER_FINAL,
+		RAS_RenderNodeArguments>::RAS_DownwardNode()
+	{}
+	RAS_MaterialDownwardNode(RAS_MaterialBucket *m, Function f1, Function f2)
+		:RAS_DownwardNode<RAS_DisplayArrayDownwardNode, RAS_MaterialBucket, RAS_NodeFlag::NEVER_FINAL,
+		RAS_RenderNodeArguments>::RAS_DownwardNode(m, f1, f2)
+	{}
 };
 
 class RAS_DisplayArrayDownwardNode : public RAS_DownwardNode<RAS_DummyNode, RAS_DisplayArrayBucket, RAS_NodeFlag::ALWAYS_FINAL,
 	RAS_RenderNodeArguments>
 {
-	using RAS_DownwardNode::RAS_DownwardNode;
+public:
+	RAS_DisplayArrayDownwardNode()
+		:RAS_DownwardNode<RAS_DummyNode, RAS_DisplayArrayBucket, RAS_NodeFlag::ALWAYS_FINAL,
+		RAS_RenderNodeArguments>::RAS_DownwardNode()
+	{}
+	RAS_DisplayArrayDownwardNode(RAS_DisplayArrayBucket *d, Function f1, Function f2)
+		:RAS_DownwardNode<RAS_DummyNode, RAS_DisplayArrayBucket, RAS_NodeFlag::ALWAYS_FINAL,
+		RAS_RenderNodeArguments>::RAS_DownwardNode(d, f1, f2)
+	{}
 };
 
 class RAS_ManagerUpwardNode : public RAS_UpwardNode<RAS_DummyNode, RAS_BucketManager, RAS_NodeFlag::NEVER_FINAL,
 	RAS_RenderNodeArguments>
 {
-	using RAS_UpwardNode::RAS_UpwardNode;
+public:
+	RAS_ManagerUpwardNode()
+		:RAS_UpwardNode<RAS_DummyNode, RAS_BucketManager, RAS_NodeFlag::NEVER_FINAL,
+		RAS_RenderNodeArguments>::RAS_UpwardNode()
+	{}
+	RAS_ManagerUpwardNode(RAS_BucketManager *b, Function f1, Function f2)
+		:RAS_UpwardNode<RAS_DummyNode, RAS_BucketManager, RAS_NodeFlag::NEVER_FINAL,
+		RAS_RenderNodeArguments>::RAS_UpwardNode(b, f1, f2)
+	{}
 };
 
 class RAS_MaterialUpwardNode : public RAS_UpwardNode<RAS_ManagerUpwardNode, RAS_MaterialBucket, RAS_NodeFlag::NEVER_FINAL,
 	RAS_RenderNodeArguments>
 {
-	using RAS_UpwardNode::RAS_UpwardNode;
+public:
+	RAS_MaterialUpwardNode()
+		:RAS_UpwardNode<RAS_ManagerUpwardNode, RAS_MaterialBucket, RAS_NodeFlag::NEVER_FINAL,
+		RAS_RenderNodeArguments>::RAS_UpwardNode()
+	{}
+	RAS_MaterialUpwardNode(RAS_MaterialBucket *m, Function f1, Function f2)
+		:RAS_UpwardNode<RAS_ManagerUpwardNode, RAS_MaterialBucket, RAS_NodeFlag::NEVER_FINAL,
+		RAS_RenderNodeArguments>::RAS_UpwardNode(m, f1, f2)
+	{}
 };
 
 class RAS_DisplayArrayUpwardNode : public RAS_UpwardNode<RAS_MaterialUpwardNode, RAS_DisplayArrayBucket, RAS_NodeFlag::NEVER_FINAL,
 	RAS_RenderNodeArguments>
 {
-	using RAS_UpwardNode::RAS_UpwardNode;
+public:
+	RAS_DisplayArrayUpwardNode()
+		:RAS_UpwardNode<RAS_MaterialUpwardNode, RAS_DisplayArrayBucket, RAS_NodeFlag::NEVER_FINAL,
+		RAS_RenderNodeArguments>::RAS_UpwardNode()
+	{}
+	RAS_DisplayArrayUpwardNode(RAS_DisplayArrayBucket *d, Function f1, Function f2)
+		:RAS_UpwardNode<RAS_MaterialUpwardNode, RAS_DisplayArrayBucket, RAS_NodeFlag::NEVER_FINAL,
+		RAS_RenderNodeArguments>::RAS_UpwardNode(d, f1, f2)
+	{}
 };
 
 class RAS_MeshSlotUpwardNode : public RAS_UpwardNode<RAS_DisplayArrayUpwardNode, RAS_MeshSlot, RAS_NodeFlag::ALWAYS_FINAL,
 	RAS_RenderNodeArguments>
 {
-	using RAS_UpwardNode::RAS_UpwardNode;
+public:
+	RAS_MeshSlotUpwardNode()
+		:RAS_UpwardNode<RAS_DisplayArrayUpwardNode, RAS_MeshSlot, RAS_NodeFlag::ALWAYS_FINAL,
+		RAS_RenderNodeArguments>::RAS_UpwardNode()
+	{}
+	RAS_MeshSlotUpwardNode(RAS_MeshSlot *m, Function f1, Function f2)
+		:RAS_UpwardNode<RAS_DisplayArrayUpwardNode, RAS_MeshSlot, RAS_NodeFlag::ALWAYS_FINAL,
+		RAS_RenderNodeArguments>::RAS_UpwardNode(m, f1, f2)
+	{}
 };
 
 typedef std::vector<RAS_MeshSlotUpwardNode *> RAS_UpwardTreeLeafs;
 
 class RAS_MeshSlotUpwardNodeIterator : public RAS_UpwardNodeIterator<RAS_MeshSlotUpwardNode, RAS_RenderNodeArguments>
 {
-	using RAS_UpwardNodeIterator::RAS_UpwardNodeIterator;
+public:
+	RAS_MeshSlotUpwardNodeIterator()
+		:RAS_UpwardNodeIterator<RAS_MeshSlotUpwardNode, RAS_RenderNodeArguments>::RAS_UpwardNodeIterator()
+	{}
 };
 
 #endif  // __RAS_RENDER_NODE__

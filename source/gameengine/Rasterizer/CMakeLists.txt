@@ -82,6 +82,7 @@ set(SRC
 	RAS_2DFilterData.h
 	RAS_2DFilter.h
 	RAS_2DFilterManager.h
+	RAS_BaseNode.h
 	RAS_BatchDisplayArray.h
 	RAS_BatchGroup.h
 	RAS_BoundingBox.h
@@ -92,6 +93,8 @@ set(SRC
 	RAS_Deformer.h
 	RAS_DisplayArray.h
 	RAS_DisplayArrayBucket.h
+	RAS_DownwardNode.h
+	RAS_DummyNode.h
 	RAS_FramingManager.h
 	RAS_ICanvas.h
 	RAS_IDisplayArray.h
@@ -111,10 +114,13 @@ set(SRC
 	RAS_OffScreen.h
 	RAS_Polygon.h
 	RAS_Rect.h
+	RAS_RenderNode.h
 	RAS_Shader.h
 	RAS_Texture.h
 	RAS_TextUser.h
 	RAS_TexVert.h
+	RAS_UpwardNode.h
+	RAS_UpwardNodeIterator.h
 )
 
 data_to_c_simple(RAS_OpenGLFilters/RAS_Blur2DFilter.glsl SRC)
