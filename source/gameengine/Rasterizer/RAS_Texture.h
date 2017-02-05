@@ -32,8 +32,7 @@ struct Tex;
 struct Image;
 struct GPUTexture;
 
-class RAS_PlanarMap;
-class RAS_CubeMap;
+class RAS_TextureProbe;
 
 class RAS_Texture
 {
@@ -41,8 +40,7 @@ protected:
 	int m_bindCode;
 	std::string m_name;
 
-	RAS_PlanarMap *m_planar;
-	RAS_CubeMap *m_cubeMap;
+	RAS_TextureProbe *m_probe;
 
 public:
 	RAS_Texture();
@@ -57,11 +55,8 @@ public:
 	virtual GPUTexture *GetGPUTexture() const = 0;
 	std::string& GetName();
 
-	void SetCubeMap(RAS_CubeMap *cubeMap);
-	RAS_CubeMap *GetCubeMap() const;
-
-	void SetPlanar(RAS_PlanarMap *planar);
-	RAS_PlanarMap *GetPlanar() const;
+	void SetProbe(RAS_TextureProbe *probe);
+	RAS_TextureProbe *GetProbe() const;
 
 	virtual unsigned int GetTextureType() = 0;
 
@@ -69,6 +64,7 @@ public:
 	static int GetCubeMapTextureType();
 	/// Return GL_TEXTURE_CUBE_MAP
 	static int GetTexture2DType();
+	static std::initializer_list<int> GetCubeMapTargets();
 
 	enum {MaxUnits = 8};
 

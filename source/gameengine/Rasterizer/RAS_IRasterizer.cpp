@@ -31,6 +31,8 @@
 
 #include "RAS_IRasterizer.h"
 #include "RAS_OpenGLRasterizer.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_DisplayArrayBucket.h"
 
 #include "RAS_ICanvas.h"
 #include "RAS_OffScreen.h"
@@ -1124,6 +1126,16 @@ void RAS_IRasterizer::SetCullFace(bool enable)
 	}
 }
 
+void RAS_IRasterizer::EnableClipPlane(unsigned short index, const MT_Vector4& plane)
+{
+	m_impl->EnableClipPlane(index, plane);
+}
+
+void RAS_IRasterizer::DisableClipPlane(unsigned short index)
+{
+	m_impl->DisableClipPlane(index);
+}
+
 void RAS_IRasterizer::SetLines(bool enable)
 {
 	m_impl->SetLines(enable);
@@ -1200,7 +1212,6 @@ void RAS_IRasterizer::SetAlphaBlend(int alphablend)
 
 void RAS_IRasterizer::SetFrontFace(bool ccw)
 {
-	std::cout << ccw << ", " << m_last_frontface << std::endl;
 	if (m_camnegscale || m_invertFrontFace)
 		ccw = !ccw;
 

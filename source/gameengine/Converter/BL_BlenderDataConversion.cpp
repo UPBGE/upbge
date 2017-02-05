@@ -88,9 +88,8 @@
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_IPolygonMaterial.h"
 #include "KX_BlenderMaterial.h"
-#include "KX_PlanarMapManager.h"
+#include "KX_TextureProbeManager.h"
 #include "KX_PlanarMap.h"
-#include "KX_CubeMapManager.h"
 #include "KX_CubeMap.h"
 #include "BL_Texture.h"
 
@@ -1859,25 +1858,16 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 						continue;
 					}
 
-					if (tex->IsCubeMap()) {
-						KX_GameObject *viewpoint = gameobj;
-
-						if (env->object) {
-							KX_GameObject *obj = converter->FindGameObject(env->object);
-							if (obj) {
-								viewpoint = obj;
-							}
+					KX_GameObject *viewpoint = gameobj;
+					if (env->object) {
+						KX_GameObject *obj = converter->FindGameObject(env->object);
+						if (obj) {
+							viewpoint = obj;
 						}
+					}
 
-						kxscene->GetCubeMapManager()->AddCubeMap(tex, viewpoint);
-					}
-					else {
-// 						EnvMap *env = tex->GetTex()->env;
-						KX_GameObject *viewpoint = gameobj;
-						// Prevent two sided rendering on mirror's material to avoid artifacts
-						polymat->SetRasMode(0);
-						kxscene->GetPlanarManager()->AddPlanar(tex, gameobj, polymat);
-					}
+					KX_TextureProbeManager::ProbeType type = tex->IsCubeMap() ? KX_TextureProbeManager::CUBE : KX_TextureProbeManager::PLANAR;
+					kxscene->GetProbeManager()->AddProbe(type, tex, viewpoint);
 				}
 			}
 		}

@@ -24,77 +24,19 @@
 *  \ingroup bgerast
 */
 
-#ifndef __RAS_PLANAR_H__
-#define __RAS_PLANAR_H__
+#ifndef __RAS_PLANAR_MAP_H__
+#define __RAS_PLANAR_MAP_H__
 
-#include "MT_Matrix3x3.h"
-#include "MT_Vector3.h"
+#include "RAS_TextureProbe.h"
 
-#include <vector>
-
-class RAS_Texture;
-class RAS_IRasterizer;
-class RAS_IPolyMaterial;
-class KX_GameObject;
-
-struct GPUFrameBuffer;
-struct GPURenderBuffer;
-struct GPUTexture;
-
-class RAS_PlanarMap
+class RAS_PlanarMap : public virtual RAS_TextureProbe
 {
 public:
-
-
-private:
-	/// Planar texture to attach to frame buffer objects.
-	GPUTexture *m_gpuTex;
-
-	/// Planar FBO and RBO
-	GPUFrameBuffer *m_fbo;
-	GPURenderBuffer *m_rb;
-
-	/// Recreate and attach frame buffer objects and render buffers to the planar texture.
-	void AttachTexture();
-	/// Free and detach frame buffer objects and render buffer to the planar texture.
-	void DetachTexture();
-	/** Obtain the latest planar texture, if it's not the same as before,
-	* then detach the previous planar texture and attach the new one.
-	*/
-	void GetValidTexture();
-
-	/// mirror center position in local space
-	MT_Vector3 m_mirrorPos;
-
-	/// mirror normal vector
-	MT_Vector3 m_mirrorZ;
-
-	/// Use mipmapping?
-	bool m_useMipmap;
-
-protected:
-	/// All the material texture users.
-	std::vector<RAS_Texture *> m_textureUsers;
-
-public:
-
-	RAS_PlanarMap(KX_GameObject *gameobj, RAS_IPolyMaterial *mat);
+	RAS_PlanarMap();
 	virtual ~RAS_PlanarMap();
 
-	const std::vector<RAS_Texture *>& GetTextureUsers() const;
-
-	void AddTextureUser(RAS_Texture *texture);
-
-	void BeginRender();
-	void EndRender();
-
-	void BindFace(RAS_IRasterizer *rasty);
-
-	void EnableClipPlane(MT_Vector3 &mirrorWorldZ, MT_Scalar &mirrorPlaneDTerm, int planartype);
+	void EnableClipPlane(const MT_Vector3& mirrorWorldZ, float mirrorPlaneDTerm, int planartype);
 	void DisableClipPlane(int planartype);
-
-	MT_Vector3 GetMirrorPos();
-	MT_Vector3 GetMirrorZ();
 };
 
-#endif  // __RAS_PLANAR_H__
+#endif  // __RAS_PLANAR_MAP_H__

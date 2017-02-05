@@ -24,48 +24,17 @@
 *  \ingroup bgerast
 */
 
-#ifndef __RAS_CUBEMAP_H__
-#define __RAS_CUBEMAP_H__
+#ifndef __RAS_PROBE_H__
+#define __RAS_PROBE_H__
 
-#include "MT_Matrix3x3.h"
+#include "RAS_TextureProbe.h"
 
-#include <vector>
-
-class RAS_Texture;
-class RAS_IRasterizer;
-
-struct GPUFrameBuffer;
-struct GPURenderBuffer;
-struct GPUTexture;
-
-class RAS_CubeMap
+class RAS_CubeMap : public virtual RAS_TextureProbe
 {
 public:
 	enum {
 		NUM_FACES = 6
 	};
-
-private:
-	/// Cube map texture to attach to frame buffer objects.
-	GPUTexture *m_gpuTex;
-	GPUFrameBuffer *m_fbos[NUM_FACES];
-	GPURenderBuffer *m_rbs[NUM_FACES];
-
-	// True if we regenerate mipmap every render.
-	bool m_useMipmap;
-
-	/// Recreate and attach frame buffer objects and render buffers to the cube map texture.
-	void AttachTexture();
-	/// Free and detach frame buffer objects and render buffer to the cube map texture.
-	void DetachTexture();
-	/** Obtain the latest cube map texture, if it's not the same as before,
-	 * then detach the previous cube map texture and attach the new one.
-	 */
-	void GetValidTexture();
-
-protected:
-	/// All the material texture users.
-	std::vector<RAS_Texture *> m_textureUsers;
 
 public:
 	/// Face view matrices in 3x3 matrices.
@@ -73,15 +42,6 @@ public:
 
 	RAS_CubeMap();
 	virtual ~RAS_CubeMap();
-
-	const std::vector<RAS_Texture *>& GetTextureUsers() const;
-
-	void AddTextureUser(RAS_Texture *texture);
-
-	void BeginRender();
-	void EndRender();
-
-	void BindFace(RAS_IRasterizer *rasty, unsigned short index);
 };
 
-#endif  // __RAS_CUBEMAP_H__
+#endif  // __RAS_PROBE_H__

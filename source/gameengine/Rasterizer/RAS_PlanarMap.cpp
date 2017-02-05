@@ -25,31 +25,12 @@
  */
 
 #include "RAS_PlanarMap.h"
-#include "RAS_Texture.h"
-#include "RAS_IRasterizer.h"
-
-#include "GPU_texture.h"
-#include "GPU_framebuffer.h"
-#include "GPU_draw.h"
-
-#include "BKE_image.h"
-#include "KX_GameObject.h"
-#include "RAS_MeshObject.h"
-#include "RAS_Polygon.h"
-
-#include "DNA_texture_types.h"
 
 #include "glew-mx.h"
 
-#include "BLI_math.h"
-
-RAS_PlanarMap::RAS_PlanarMap(KX_GameObject *mirror, RAS_IPolyMaterial *mat)
-	:m_gpuTex(NULL)
+RAS_PlanarMap::RAS_PlanarMap()
 {
-	m_fbo = NULL;
-	m_rb = NULL;
-
-	std::vector<RAS_ITexVert *> mirrorVerts;
+	/*std::vector<RAS_ITexVert *> mirrorVerts;
 	std::vector<RAS_ITexVert *>::iterator it;
 
 	float mirrorArea = 0.0f;
@@ -177,143 +158,20 @@ RAS_PlanarMap::RAS_PlanarMap(KX_GameObject *mirror, RAS_IPolyMaterial *mat)
 	vec[2] = back;
 	// convert it in local space: transpose again the matrix to get back to mirror to local transform
 	transpose_m3(mirrorMat);
-	mul_m3_v3(mirrorMat, vec);
+	mul_m3_v3(mirrorMat, vec);*/
 	// mirror position in local space
-	m_mirrorPos.setValue(vec[0], vec[1], vec[2]);
+// 	m_mirrorPos.setValue(vec[0], vec[1], vec[2]);
 	// mirror normal vector (pointed towards the back of the mirror) in local space
-	m_mirrorZ.setValue(-mirrorNormal[0], -mirrorNormal[1], -mirrorNormal[2]);
+// 	m_mirrorZ.setValue(-mirrorNormal[0], -mirrorNormal[1], -mirrorNormal[2]);
+
+	m_faces.emplace_back(GL_TEXTURE_2D);
 }
 
 RAS_PlanarMap::~RAS_PlanarMap()
 {
-	DetachTexture();
-
-	/* This call has for side effect to ask regeneration of all textures
-	* depending of this image.
-	*/
-	for (std::vector<RAS_Texture *>::iterator it = m_textureUsers.begin(), end = m_textureUsers.end(); it != end; ++it) {
-		RAS_Texture *texture = *it;
-		// Invalidate the planar in each material texture users.
-		texture->SetPlanar(NULL);
-		BKE_image_free_buffers(texture->GetImage());
-	}
 }
 
-void RAS_PlanarMap::AttachTexture()
-{
-	// Increment reference to make sure the gpu texture will not be freed by someone else.
-	GPU_texture_ref(m_gpuTex);
-	
-	m_fbo = GPU_framebuffer_create();
-	m_rb = GPU_renderbuffer_create(GPU_texture_width(m_gpuTex), GPU_texture_height(m_gpuTex),
-		0, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, NULL);
-
-	GPU_framebuffer_texture_attach_target(m_fbo, m_gpuTex, GL_TEXTURE_2D, 0, NULL);
-	GPU_framebuffer_renderbuffer_attach(m_fbo, m_rb, 0, NULL);
-}
-
-void RAS_PlanarMap::DetachTexture()
-{
-	if (!m_gpuTex) {
-		return;
-	}
-	
-	if (m_fbo) {
-		GPU_framebuffer_texture_detach_target(m_gpuTex, GL_TEXTURE_2D);
-	}
-	if (m_rb) {
-		GPU_framebuffer_renderbuffer_detach(m_rb);
-	}
-
-	if (m_fbo) {
-		GPU_framebuffer_free(m_fbo);
-		m_fbo = NULL;
-	}
-	if (m_rb) {
-		GPU_renderbuffer_free(m_rb);
-		m_rb = NULL;
-	}
-	
-
-	//GPU_texture_free(m_gpuTex); //////// WARNING: Don't uncomment this for planars.
-}
-
-void RAS_PlanarMap::GetValidTexture()
-{
-	BLI_assert(m_textureUsers.size() > 0);
-
-	/* The gpu texture returned by all material textures are the same.
-	* We can so use the first material texture user.
-	*/
-	RAS_Texture *texture = m_textureUsers[0];
-	texture->CheckValidTexture();
-	GPUTexture *gputex = texture->GetGPUTexture();
-
-	if (m_gpuTex == gputex) {
-		// The gpu texture is the same.
-		return;
-	}
-
-	DetachTexture();
-
-	m_gpuTex = gputex;
-
-	AttachTexture();
-
-	/*Tex *tex = texture->GetTex();
-	m_useMipmap = (tex->planarfiltering == TEX_MIPMAP_MIPMAP) && GPU_get_mipmap();
-
-	if (!m_useMipmap) {
-		// Disable mipmaping.
-		GPU_texture_bind(m_gpuTex, 0);
-		GPU_texture_filter_mode(m_gpuTex, false, (tex->planarfiltering == TEX_MIPMAP_LINEAR), false);
-		GPU_texture_unbind(m_gpuTex);
-	}*/
-}
-
-const std::vector<RAS_Texture *>& RAS_PlanarMap::GetTextureUsers() const
-{
-	return m_textureUsers;
-}
-
-void RAS_PlanarMap::AddTextureUser(RAS_Texture *texture)
-{
-	m_textureUsers.push_back(texture);
-	texture->SetPlanar(this);
-}
-
-void RAS_PlanarMap::BeginRender()
-{
-	GetValidTexture();
-}
-
-void RAS_PlanarMap::EndRender()
-{
-	if (m_useMipmap) {
-		GPU_texture_bind(m_gpuTex, 0);
-		GPU_texture_generate_mipmap(m_gpuTex);
-		GPU_texture_unbind(m_gpuTex);
-	}
-}
-
-void RAS_PlanarMap::BindFace(RAS_IRasterizer *rasty)
-{
-	GPU_framebuffer_bind_no_save(m_fbo, 0);
-
-	rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
-}
-
-MT_Vector3 RAS_PlanarMap::GetMirrorPos()
-{
-	return m_mirrorPos;
-}
-
-MT_Vector3 RAS_PlanarMap::GetMirrorZ()
-{
-	return m_mirrorZ;
-}
-
-void RAS_PlanarMap::EnableClipPlane(MT_Vector3 &mirrorWorldZ, MT_Scalar &mirrorPlaneDTerm, int planartype)
+void RAS_PlanarMap::EnableClipPlane(const MT_Vector3& mirrorWorldZ, float mirrorPlaneDTerm, int planartype)
 {
 	// initializing clipping planes for reflection and refraction
 	static float offset = 0.1f;

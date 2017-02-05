@@ -62,11 +62,8 @@
 #include "RAS_IRasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
-#include "RAS_CubeMap.h"
-#include "RAS_PlanarMap.h"
 #include "KX_2DFilterManager.h"
-#include "KX_PlanarMapManager.h"
-#include "KX_CubeMapManager.h"
+#include "KX_TextureProbeManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
 
@@ -200,8 +197,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	
 	m_rootnode = nullptr;
 
-	m_cubeMapManager = new KX_CubeMapManager(this);
-	m_planarManager = new KX_PlanarMapManager(this);
+	m_probeManager = new KX_TextureProbeManager(this);
 	m_bucketmanager=new RAS_BucketManager();
 	m_boundingBoxManager = new RAS_BoundingBoxManager();
 	
@@ -287,11 +283,8 @@ KX_Scene::~KX_Scene()
 	if (m_networkScene)
 		delete m_networkScene;
 
-	if (m_planarManager)
-		delete m_planarManager;
-	
-	if (m_cubeMapManager) {
-		delete m_cubeMapManager;
+	if (m_probeManager) {
+		delete m_probeManager;
 	}
 
 	if (m_bucketmanager)
@@ -333,14 +326,9 @@ RAS_BucketManager* KX_Scene::GetBucketManager()
 	return m_bucketmanager;
 }
 
-KX_PlanarMapManager *KX_Scene::GetPlanarManager()
+KX_TextureProbeManager *KX_Scene::GetProbeManager() const
 {
-	return m_planarManager;
-}
-
-KX_CubeMapManager *KX_Scene::GetCubeMapManager()
-{
-	return m_cubeMapManager;
+	return m_probeManager;
 }
 
 RAS_BoundingBoxManager *KX_Scene::GetBoundingBoxManager()
@@ -1120,7 +1108,7 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 
 	newobj->RemoveMeshes();
 
-	m_cubeMapManager->InvalidateCubeMapViewpoint(newobj);
+	m_probeManager->InvalidateViewpoint(newobj);
 
 	ret = 1;
 	if (newobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(newobj))
@@ -1727,14 +1715,9 @@ void KX_Scene::RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterize
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-void KX_Scene::RenderPlanars(RAS_IRasterizer *rasty)
+void KX_Scene::RenderProbes(RAS_IRasterizer *rasty)
 {
-	m_planarManager->Render(rasty);
-}
-
-void KX_Scene::RenderCubeMaps(RAS_IRasterizer *rasty)
-{
-	m_cubeMapManager->Render(rasty);
+	m_probeManager->Render(rasty);
 }
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam)
@@ -1997,7 +1980,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 	GetBucketManager()->MergeBucketManager(other->GetBucketManager(), this);
 	GetBoundingBoxManager()->Merge(other->GetBoundingBoxManager());
-	GetCubeMapManager()->Merge(other->GetCubeMapManager());
+	GetProbeManager()->Merge(other->GetProbeManager());
 
 	/* active + inactive == all ??? - lets hope so */
 	for (CListValue::iterator<KX_GameObject> it = other->GetObjectList()->GetBegin(), end = other->GetObjectList()->GetEnd(); it != end; ++it) {

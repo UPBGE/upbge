@@ -20,50 +20,56 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file KX_PlanarMapManager.h
+/** \file KX_TextureProbeManager.h
 *  \ingroup ketsji
 */
 
-#ifndef __KX_PLANARMANAGER_H__
-#define __KX_PLANARMANAGER_H__
+#ifndef __KX_TEXTURE_PROBE_MANAGER_H__
+#define __KX_TEXTURE_PROBE_MANAGER_H__
 
 #include <vector>
 
 class KX_GameObject;
 class KX_Camera;
 class KX_Scene;
-class KX_PlanarMap;
+class KX_TextureProbe;
 
 class RAS_IRasterizer;
 class RAS_Texture;
-class RAS_IPolyMaterial;
 
-class KX_PlanarMapManager
+class KX_TextureProbeManager
 {
 private:
-	/// All existing realtime planars of this scene.
-	std::vector<KX_PlanarMap *> m_planars;
-
-	/** The camera used for realtime planars render.
-	* This camera is own by the planar manager.
-	*/
+	/// All existing probes of this scene.
+	std::vector<KX_TextureProbe *> m_probes;
+	/// The camera used for probes render, it's own by the probe manager.
 	KX_Camera *m_camera;
-
 	/// The scene we are rendering for.
 	KX_Scene *m_scene;
 
-	void RenderPlanar(RAS_IRasterizer *rasty, KX_PlanarMap *planar);
+	void RenderProbe(RAS_IRasterizer *rasty, KX_TextureProbe *probe);
 
 public:
-	KX_PlanarMapManager(KX_Scene *scene);
-	virtual ~KX_PlanarMapManager();
+	enum ProbeType {
+		CUBE,
+		PLANAR
+	};
 
-	/** Add and create a planar if none existing planar was using the same
+	KX_TextureProbeManager(KX_Scene *scene);
+	virtual ~KX_TextureProbeManager();
+
+	/// Invalidate probes using the given game object as viewpoint object.
+	void InvalidateViewpoint(KX_GameObject *gameobj);
+
+	/** Add and create a probe if none existing probe was using the same
 	* texture containing in the material texture passed.
 	*/
-	void AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, RAS_IPolyMaterial *polymat);
+	void AddProbe(ProbeType type, RAS_Texture *texture, KX_GameObject *viewpoint);
 
 	void Render(RAS_IRasterizer *rasty);
+
+	/// Merge the content of an other probe manager, used during lib loading.
+	void Merge(KX_TextureProbeManager *other);
 };
 
-#endif // __KX_PLANARMANAGER_H__
+#endif // __KX_TEXTURE_PROBE_MANAGER_H__

@@ -30,8 +30,7 @@
 RAS_Texture::RAS_Texture()
 	:m_bindCode(-1),
 	m_name(""),
-	m_cubeMap(nullptr),
-	m_planar(nullptr)
+	m_probe(nullptr)
 {
 }
 
@@ -44,24 +43,14 @@ std::string& RAS_Texture::GetName()
 	return m_name;
 }
 
-void RAS_Texture::SetCubeMap(RAS_CubeMap *cubeMap)
+void RAS_Texture::SetProbe(RAS_TextureProbe *probe)
 {
-	m_cubeMap = cubeMap;
+	m_probe = probe;
 }
 
-RAS_CubeMap *RAS_Texture::GetCubeMap() const
+RAS_TextureProbe *RAS_Texture::GetProbe() const
 {
-	return m_cubeMap;
-}
-
-void RAS_Texture::SetPlanar(RAS_PlanarMap *planar)
-{
-	m_planar = planar;
-}
-
-RAS_PlanarMap *RAS_Texture::GetPlanar() const
-{
-	return m_planar;
+	return m_probe;
 }
 
 int RAS_Texture::GetCubeMapTextureType()
@@ -72,6 +61,20 @@ int RAS_Texture::GetCubeMapTextureType()
 int RAS_Texture::GetTexture2DType()
 {
 	return GL_TEXTURE_2D;
+}
+
+std::initializer_list<int> RAS_Texture::GetCubeMapTargets()
+{
+	static std::initializer_list<int> targets = {
+		GL_TEXTURE_CUBE_MAP_POSITIVE_Z_ARB,
+		GL_TEXTURE_CUBE_MAP_NEGATIVE_Z_ARB,
+		GL_TEXTURE_CUBE_MAP_POSITIVE_X_ARB,
+		GL_TEXTURE_CUBE_MAP_NEGATIVE_X_ARB,
+		GL_TEXTURE_CUBE_MAP_POSITIVE_Y_ARB,
+		GL_TEXTURE_CUBE_MAP_NEGATIVE_Y_ARB
+	};
+
+	return targets;
 }
 
 void RAS_Texture::DesactiveTextures()

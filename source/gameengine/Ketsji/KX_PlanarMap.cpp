@@ -25,27 +25,16 @@
 */
 
 #include "KX_PlanarMap.h"
-#include "KX_GameObject.h"
-#include "KX_Globals.h"
+#include "KX_Camera.h"
 
-#include "DNA_texture_types.h"
+#include "RAS_IRasterizer.h"
+#include "RAS_Texture.h"
 
-KX_PlanarMap::KX_PlanarMap(EnvMap *env, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat)
-	:RAS_PlanarMap(viewpoint, polymat),
-	m_viewpointObject(viewpoint),
-	m_invalidProjection(true),
-	m_enabled(true),
-	m_clipStart(0.0f),
-	m_clipEnd(0.0f),
-	m_autoUpdate(true),
-	m_forceUpdate(true)
+KX_PlanarMap::KX_PlanarMap(EnvMap *env, KX_GameObject *viewpoint)
+	:KX_TextureProbe(env, viewpoint),
+	m_normal(0.0f, 0.0f, 1.0f)
 {
-	m_ignoreLayers = env->notlay;
-
-	m_clipStart = env->clipsta;
-	m_clipEnd = env->clipend;
-
-	m_autoUpdate = (env->flag & ENVMAP_AUTO_UPDATE) != 0;
+	m_faces.emplace_back(RAS_Texture::GetTexture2DType());
 }
 
 KX_PlanarMap::~KX_PlanarMap()
@@ -57,67 +46,61 @@ std::string KX_PlanarMap::GetName()
 	return "KX_PlanarMap";
 }
 
-KX_GameObject *KX_PlanarMap::GetMirrorObject() const
+void KX_PlanarMap::BeginRender(RAS_IRasterizer *rasty)
 {
-	return m_viewpointObject;
+	KX_TextureProbe::BeginRender(rasty);
+	rasty->SetInvertFrontFace(true);
 }
 
-void KX_PlanarMap::SetInvalidProjectionMatrix(bool invalid)
+void KX_PlanarMap::EndRender(RAS_IRasterizer *rasty)
 {
-	m_invalidProjection = invalid;
+	rasty->SetInvertFrontFace(false);
+	KX_TextureProbe::EndRender(rasty);
 }
 
-bool KX_PlanarMap::GetInvalidProjectionMatrix() const
+const MT_Vector3& KX_PlanarMap::GetNormal() const
 {
-	return m_invalidProjection;
+	return m_normal;
 }
 
-void KX_PlanarMap::SetProjectionMatrix(const MT_Matrix4x4& projection)
+bool KX_PlanarMap::SetupCamera(KX_Scene *scene, KX_Camera *camera)
 {
-	m_projection = projection;
+	KX_GameObject *mirror = GetViewpointObject();
+	KX_Camera *observer = scene->GetActiveCamera();
+
+	// mirror mode, compute camera position and orientation
+	// convert mirror position and normal in world space
+	const MT_Matrix3x3& mirrorObjWorldOri = mirror->NodeGetWorldOrientation();
+	const MT_Matrix3x3 mirrorObjWorldOriInverse = mirrorObjWorldOri.inverse();
+	const MT_Vector3& mirrorObjWorldPos = mirror->NodeGetWorldPosition();
+
+	static const MT_Matrix3x3 unmir(1.0f, 0.0f, 0.0f,
+									0.0f, 1.0f, 0.0f,
+									0.0f, 0.0f, -1.0f);
+
+	MT_Matrix3x3 cameraWorldOri = observer->NodeGetWorldOrientation();
+	MT_Vector3 cameraWorldPos = observer->NodeGetWorldPosition();
+
+	/*if (planar->GetPlanarType() == TEX_PLANAR_REFLECTION)*/ {
+		// Get vector from mirror to camera in mirror space.
+		cameraWorldPos = (cameraWorldPos - mirrorObjWorldPos) * mirrorObjWorldOri;
+
+		cameraWorldPos = mirrorObjWorldPos + cameraWorldPos * unmir * mirrorObjWorldOriInverse;
+		cameraWorldOri.transpose();
+		cameraWorldOri = cameraWorldOri * mirrorObjWorldOri * unmir * mirrorObjWorldOriInverse;
+		cameraWorldOri.transpose();
+	}
+
+	// Set Render camera position and orientation
+	camera->NodeSetWorldPosition(cameraWorldPos);
+	camera->NodeSetGlobalOrientation(cameraWorldOri);
+
+	return true;
 }
 
-const MT_Matrix4x4& KX_PlanarMap::GetProjectionMatrix() const
+bool KX_PlanarMap::SetupCameraFace(KX_Scene *scene, KX_Camera *camera, unsigned short index)
 {
-	return m_projection;
-}
-
-bool KX_PlanarMap::GetEnabled() const
-{
-	return m_enabled;
-}
-
-int KX_PlanarMap::GetIgnoreLayers() const
-{
-	return m_ignoreLayers;
-}
-
-float KX_PlanarMap::GetClipStart() const
-{
-	return m_clipStart;
-}
-
-float KX_PlanarMap::GetClipEnd() const
-{
-	return m_clipEnd;
-}
-
-void KX_PlanarMap::SetClipStart(float start)
-{
-	m_clipStart = start;
-}
-
-void KX_PlanarMap::SetClipEnd(float end)
-{
-	m_clipEnd = end;
-}
-
-bool KX_PlanarMap::NeedUpdate()
-{
-	bool result = m_autoUpdate || m_forceUpdate;
-	m_forceUpdate = false;
-
-	return result;
+	return true;
 }
 
 #ifdef WITH_PYTHON
@@ -145,69 +128,11 @@ PyTypeObject KX_PlanarMap::Type = {
 };
 
 PyMethodDef KX_PlanarMap::Methods[] = {
-	KX_PYMETHODTABLE_NOARGS(KX_PlanarMap, update),
 	{ NULL, NULL } // Sentinel
 };
 
 PyAttributeDef KX_PlanarMap::Attributes[] = {
-	KX_PYATTRIBUTE_BOOL_RW("autoUpdate", KX_PlanarMap, m_autoUpdate),
-	KX_PYATTRIBUTE_BOOL_RW("enabled", KX_PlanarMap, m_enabled),
-	KX_PYATTRIBUTE_INT_RW("ignoreLayers", 0, (1 << 20) - 1, true, KX_PlanarMap, m_ignoreLayers),
-	KX_PYATTRIBUTE_RW_FUNCTION("clipStart", KX_PlanarMap, pyattr_get_clip_start, pyattr_set_clip_start),
-	KX_PYATTRIBUTE_RW_FUNCTION("clipEnd", KX_PlanarMap, pyattr_get_clip_end, pyattr_set_clip_end),
 	KX_PYATTRIBUTE_NULL // Sentinel
 };
-
-KX_PYMETHODDEF_DOC_NOARGS(KX_PlanarMap, update, "update(): Set the planar to be updated next frame.\n")
-{
-	m_forceUpdate = true;
-	Py_RETURN_NONE;
-}
-
-PyObject *KX_PlanarMap::pyattr_get_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_PlanarMap *self = static_cast<KX_PlanarMap*>(self_v);
-	return PyFloat_FromDouble(self->GetClipStart());
-}
-
-int KX_PlanarMap::pyattr_set_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_PlanarMap *self = static_cast<KX_PlanarMap*>(self_v);
-
-	const float val = PyFloat_AsDouble(value);
-
-	if (val <= 0.0f) {
-		PyErr_SetString(PyExc_AttributeError, "planar.clipStart = float: KX_PlanarMap, expected a float grater than zero");
-		return PY_SET_ATTR_FAIL;
-	}
-
-	self->SetClipStart(val);
-	self->SetInvalidProjectionMatrix(true);
-
-	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject *KX_PlanarMap::pyattr_get_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_PlanarMap *self = static_cast<KX_PlanarMap*>(self_v);
-	return PyFloat_FromDouble(self->GetClipEnd());
-}
-
-int KX_PlanarMap::pyattr_set_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_PlanarMap *self = static_cast<KX_PlanarMap*>(self_v);
-
-	const float val = PyFloat_AsDouble(value);
-
-	if (val <= 0.0f) {
-		PyErr_SetString(PyExc_AttributeError, "planar.clipEnd = float: KX_PlanarMap, expected a float greater than zero");
-		return PY_SET_ATTR_FAIL;
-	}
-
-	self->SetClipEnd(val);
-	self->SetInvalidProjectionMatrix(true);
-
-	return PY_SET_ATTR_SUCCESS;
-}
 
 #endif  // WITH_PYTHON

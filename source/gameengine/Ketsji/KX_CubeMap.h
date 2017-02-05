@@ -27,87 +27,27 @@
 #ifndef __KX_CUBEMAP_H__
 #define __KX_CUBEMAP_H__
 
-#include "RAS_CubeMap.h"
-#include "EXP_Value.h"
+#include "KX_TextureProbe.h"
 
-#include "MT_Matrix4x4.h"
-
-class KX_GameObject;
-
-struct EnvMap;
-
-class KX_CubeMap : public CValue, public RAS_CubeMap
+class KX_CubeMap : public KX_TextureProbe
 {
 	Py_Header
 
-private:
-	/// The object used to render from its position.
-	KX_GameObject *m_viewpointObject;
-
-	/// The camera projection matrix depending on clip start/end.
-	MT_Matrix4x4 m_projection;
-
-	/// True if the projection matrix is invalid and need to be recomputed.
-	bool m_invalidProjection;
-
-	/// The cube map is used by the user.
-	bool m_enabled;
-	/// Layers to ignore during render.
-	int m_ignoreLayers;
-
-	/// View clip start.
-	float m_clipStart;
-	/// View clip end.
-	float m_clipEnd;
-
-	/// Distance factor for level of detail.
-	float m_lodDistanceFactor;
-
-	/// True if the realtime cube map is updated every frame.
-	bool m_autoUpdate;
-	/** True if the realtime cube map need to be updated for the next frame.
-	 * Generally used when m_autoUpdate is to false.
-	 */
-	bool m_forceUpdate;
-
 public:
+	enum {
+		NUM_FACES = 6
+	};
+
+	/// Face view matrices in 3x3 matrices.
+	static const MT_Matrix3x3 faceViewMatrices3x3[NUM_FACES];
+
 	KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint);
 	virtual ~KX_CubeMap();
 
 	virtual std::string GetName();
 
-	KX_GameObject *GetViewpointObject() const;
-	void SetViewpointObject(KX_GameObject *gameobj);
-
-	float GetClipStart() const;
-	float GetClipEnd() const;
-	void SetClipStart(float start);
-	void SetClipEnd(float end);
-
-	float GetLodDistanceFactor() const;
-	void SetLodDistanceFactor(float lodfactor);
-
-	void SetInvalidProjectionMatrix(bool invalid);
-	bool GetInvalidProjectionMatrix() const;
-	void SetProjectionMatrix(const MT_Matrix4x4& projection);
-	const MT_Matrix4x4& GetProjectionMatrix() const;
-
-	bool GetEnabled() const;
-	int GetIgnoreLayers() const;
-
-	// Return true when this cube map need to be updated.
-	bool NeedUpdate();
-
-#ifdef WITH_PYTHON
-	KX_PYMETHOD_DOC_NOARGS(KX_CubeMap, update);
-
-	static PyObject *pyattr_get_viewpoint_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_viewpoint_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject *pyattr_get_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int pyattr_set_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-#endif
+	virtual bool SetupCamera(KX_Scene *scene, KX_Camera *camera);
+	virtual bool SetupCameraFace(KX_Scene *scene, KX_Camera *camera, unsigned short index);
 };
 
 #endif  // __KX_CUBEMAP_H__

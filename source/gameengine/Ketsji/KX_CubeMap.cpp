@@ -25,24 +25,55 @@
  */
 
 #include "KX_CubeMap.h"
-#include "KX_GameObject.h"
-#include "KX_Globals.h"
+#include "KX_Camera.h"
 
-#include "DNA_texture_types.h"
+#include "RAS_Texture.h"
+
+static const MT_Matrix3x3 topFaceViewMat(
+	1.0f, 0.0f, 0.0f,
+	0.0f, -1.0f, 0.0f,
+	0.0f, 0.0f, -1.0f);
+
+static const MT_Matrix3x3 bottomFaceViewMat(
+	-1.0f, 0.0f, 0.0f,
+	0.0f, -1.0f, 0.0f,
+	0.0f, 0.0f, 1.0f);
+
+static const MT_Matrix3x3 frontFaceViewMat(
+	0.0f, 0.0f, -1.0f,
+	0.0f, -1.0f, 0.0f,
+	-1.0f, 0.0f, 0.0f);
+
+static const MT_Matrix3x3 backFaceViewMat(
+	0.0f, 0.0f, 1.0f,
+	0.0f, -1.0f, 0.0f,
+	1.0f, 0.0f, 0.0f);
+
+static const MT_Matrix3x3 rightFaceViewMat(
+	1.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, -1.0f,
+	0.0f, 1.0f, 0.0f);
+
+static const MT_Matrix3x3 leftFaceViewMat(
+	1.0f, 0.0f, 0.0f,
+	0.0f, 0.0f, 1.0f,
+	0.0f, -1.0f, 0.0f);
+
+const MT_Matrix3x3 KX_CubeMap::faceViewMatrices3x3[KX_CubeMap::NUM_FACES] = {
+	topFaceViewMat,
+	bottomFaceViewMat,
+	frontFaceViewMat,
+	backFaceViewMat,
+	rightFaceViewMat,
+	leftFaceViewMat
+};
 
 KX_CubeMap::KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint)
-	:RAS_CubeMap(),
-	m_viewpointObject(viewpoint),
-	m_invalidProjection(true),
-	m_enabled(true),
-	m_ignoreLayers(env->notlay),
-	m_clipStart(env->clipsta),
-	m_clipEnd(env->clipend),
-	m_lodDistanceFactor(env->lodfactor),
-	m_autoUpdate(true),
-	m_forceUpdate(true)
+	:KX_TextureProbe(env, viewpoint)
 {
-	m_autoUpdate = (env->flag & ENVMAP_AUTO_UPDATE) != 0;
+	for (int target : RAS_Texture::GetCubeMapTargets()) {
+		m_faces.emplace_back(target);
+	}
 }
 
 KX_CubeMap::~KX_CubeMap()
@@ -54,82 +85,21 @@ std::string KX_CubeMap::GetName()
 	return "KX_CubeMap";
 }
 
-KX_GameObject *KX_CubeMap::GetViewpointObject() const
+bool KX_CubeMap::SetupCamera(KX_Scene *scene, KX_Camera *camera)
 {
-	return m_viewpointObject;
+	KX_GameObject *viewpoint = GetViewpointObject();
+	const MT_Vector3& position = viewpoint->NodeGetWorldPosition();
+
+	camera->NodeSetWorldPosition(position);
+
+	return true;
 }
 
-void KX_CubeMap::SetViewpointObject(KX_GameObject *gameobj)
+bool KX_CubeMap::SetupCameraFace(KX_Scene *scene, KX_Camera *camera, unsigned short index)
 {
-	m_viewpointObject = gameobj;
-}
+	camera->NodeSetGlobalOrientation(KX_CubeMap::faceViewMatrices3x3[index]);
 
-void KX_CubeMap::SetInvalidProjectionMatrix(bool invalid)
-{
-	m_invalidProjection = invalid;
-}
-
-bool KX_CubeMap::GetInvalidProjectionMatrix() const
-{
-	return m_invalidProjection;
-}
-
-void KX_CubeMap::SetProjectionMatrix(const MT_Matrix4x4& projection)
-{
-	m_projection = projection;
-}
-
-const MT_Matrix4x4& KX_CubeMap::GetProjectionMatrix() const
-{
-	return m_projection;
-}
-
-bool KX_CubeMap::GetEnabled() const
-{
-	return m_enabled;
-}
-
-int KX_CubeMap::GetIgnoreLayers() const
-{
-	return m_ignoreLayers;
-}
-
-float KX_CubeMap::GetClipStart() const
-{
-	return m_clipStart;
-}
-
-float KX_CubeMap::GetClipEnd() const
-{
-	return m_clipEnd;
-}
-
-void KX_CubeMap::SetClipStart(float start)
-{
-	m_clipStart = start;
-}
-
-void KX_CubeMap::SetClipEnd(float end)
-{
-	m_clipEnd = end;
-}
-
-float KX_CubeMap::GetLodDistanceFactor() const
-{
-	return m_lodDistanceFactor;
-}
-
-void KX_CubeMap::SetLodDistanceFactor(float lodfactor)
-{
-	m_lodDistanceFactor = lodfactor;
-}
-
-bool KX_CubeMap::NeedUpdate()
-{
-	bool result = m_autoUpdate || m_forceUpdate;
-	m_forceUpdate = false;
-
-	return result;
+	return true;
 }
 
 #ifdef WITH_PYTHON
@@ -157,95 +127,11 @@ PyTypeObject KX_CubeMap::Type = {
 };
 
 PyMethodDef KX_CubeMap::Methods[] = {
-	KX_PYMETHODTABLE_NOARGS(KX_CubeMap, update),
 	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_CubeMap::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("viewpointObject", KX_CubeMap, pyattr_get_viewpoint_object, pyattr_set_viewpoint_object),
-	KX_PYATTRIBUTE_BOOL_RW("autoUpdate", KX_CubeMap, m_autoUpdate),
-	KX_PYATTRIBUTE_BOOL_RW("enabled", KX_CubeMap, m_enabled),
-	KX_PYATTRIBUTE_INT_RW("ignoreLayers", 0, (1 << 20) - 1, true, KX_CubeMap, m_ignoreLayers),
-	KX_PYATTRIBUTE_RW_FUNCTION("clipStart", KX_CubeMap, pyattr_get_clip_start, pyattr_set_clip_start),
-	KX_PYATTRIBUTE_RW_FUNCTION("clipEnd", KX_CubeMap, pyattr_get_clip_end, pyattr_set_clip_end),
-	KX_PYATTRIBUTE_FLOAT_RW("lodDistanceFactor", 0.0f, FLT_MAX, KX_CubeMap, m_lodDistanceFactor),
 	KX_PYATTRIBUTE_NULL // Sentinel
 };
-
-KX_PYMETHODDEF_DOC_NOARGS(KX_CubeMap, update, "update(): Set the cube map to be updated next frame.\n")
-{
-	m_forceUpdate = true;
-	Py_RETURN_NONE;
-}
-
-PyObject *KX_CubeMap::pyattr_get_viewpoint_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
-	KX_GameObject *gameobj = self->GetViewpointObject();
-	if (gameobj) {
-		return gameobj->GetProxy();
-	}
-	Py_RETURN_NONE;
-}
-
-int KX_CubeMap::pyattr_set_viewpoint_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
-	KX_GameObject *gameobj = nullptr;
-
-	SCA_LogicManager *logicmgr = KX_GetActiveScene()->GetLogicManager();
-
-	if (!ConvertPythonToGameObject(logicmgr, value, &gameobj, true, "cubeMap.object = value: KX_CubeMap"))
-		return PY_SET_ATTR_FAIL;
-
-	self->SetViewpointObject(gameobj);
-	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject *KX_CubeMap::pyattr_get_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
-	return PyFloat_FromDouble(self->GetClipStart());
-}
-
-int KX_CubeMap::pyattr_set_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
-
-	const float val = PyFloat_AsDouble(value);
-
-	if (val <= 0.0f) {
-		PyErr_SetString(PyExc_AttributeError, "cubeMap.clipStart = float: KX_CubeMap, expected a float grater than zero");
-		return PY_SET_ATTR_FAIL;
-	}
-
-	self->SetClipStart(val);
-	self->SetInvalidProjectionMatrix(true);
-
-	return PY_SET_ATTR_SUCCESS;
-}
-
-PyObject *KX_CubeMap::pyattr_get_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{
-	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
-	return PyFloat_FromDouble(self->GetClipEnd());
-}
-
-int KX_CubeMap::pyattr_set_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
-{
-	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
-
-	const float val = PyFloat_AsDouble(value);
-
-	if (val <= 0.0f) {
-		PyErr_SetString(PyExc_AttributeError, "cubeMap.clipEnd = float: KX_CubeMap, expected a float grater than zero");
-		return PY_SET_ATTR_FAIL;
-	}
-
-	self->SetClipEnd(val);
-	self->SetInvalidProjectionMatrix(true);
-
-	return PY_SET_ATTR_SUCCESS;
-}
 
 #endif  // WITH_PYTHON

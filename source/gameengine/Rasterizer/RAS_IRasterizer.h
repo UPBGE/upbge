@@ -83,7 +83,7 @@ public:
 		RAS_WIREFRAME = 0,
 		RAS_SOLID,
 		RAS_TEXTURED,
-		RAS_CUBEMAP,
+		RAS_PROBE,
 		RAS_SHADOW,
 		RAS_DRAW_MAX,
 	};
@@ -688,6 +688,11 @@ public:
 	 * Sets face culling
 	 */
 	void SetCullFace(bool enable);
+
+	/// Set and enable clip plane.
+	void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
+	/// Disable clip plane
+	void DisableClipPlane(unsigned short index);
 
 	/**
 	 * Sets wireframe mode.

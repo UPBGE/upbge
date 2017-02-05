@@ -70,7 +70,6 @@ void KX_CubeMapManager::AddCubeMap(RAS_Texture *texture, KX_GameObject *gameobj)
 	EnvMap *env = texture->GetTex()->env;
 	KX_CubeMap *cubeMap = new KX_CubeMap(env, gameobj);
 	cubeMap->AddTextureUser(texture);
-	texture->SetCubeMap(cubeMap);
 	m_cubeMaps.push_back(cubeMap);
 }
 
@@ -126,7 +125,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 		cubeMap->BindFace(rasty, i);
 
 		// For Culling we need also to set the camera orientation.
-		m_camera->NodeSetGlobalOrientation(RAS_CubeMap::faceViewMatrices3x3[i]);
+		m_camera->NodeSetGlobalOrientation(KX_CubeMap::faceViewMatrices3x3[i]);
 		m_camera->NodeUpdateGS(0.0f);
 
 		// Setup camera modelview matrix for culling planes.
@@ -134,7 +133,7 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 		const MT_Matrix4x4 viewmat(trans);
 		m_camera->SetModelviewMatrix(viewmat);
 
-		rasty->SetViewMatrix(viewmat, RAS_CubeMap::faceViewMatrices3x3[i], position, MT_Vector3(1.0f, 1.0f, 1.0f), true);
+		rasty->SetViewMatrix(viewmat, KX_CubeMap::faceViewMatrices3x3[i], position, MT_Vector3(1.0f, 1.0f, 1.0f), true);
 
 		m_scene->CalculateVisibleMeshes(rasty, m_camera, ~cubeMap->GetIgnoreLayers());
 
@@ -165,7 +164,7 @@ void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
 	}
 
 	const RAS_IRasterizer::DrawType drawmode = rasty->GetDrawingMode();
-	rasty->SetDrawingMode(RAS_IRasterizer::RAS_CUBEMAP);
+	rasty->SetDrawingMode(RAS_IRasterizer::RAS_PROBE);
 
 	// Disable scissor to not bother with scissor box.
 	rasty->Disable(RAS_IRasterizer::RAS_SCISSOR_TEST);
