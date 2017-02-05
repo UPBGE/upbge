@@ -394,7 +394,6 @@ static BVHTree *bvhtree_from_editmesh_verts_create_tree(
         const BLI_bitmap *verts_mask, int verts_num_active)
 {
 	BVHTree *tree = NULL;
-	int i;
 	BM_mesh_elem_table_ensure(em->bm, BM_VERT);
 	if (verts_mask) {
 		BLI_assert(IN_RANGE_INCL(verts_num_active, 0, verts_num));
@@ -406,13 +405,11 @@ static BVHTree *bvhtree_from_editmesh_verts_create_tree(
 	tree = BLI_bvhtree_new(verts_num_active, epsilon, tree_type, axis);
 
 	if (tree) {
-		BMIter iter;
-		BMVert *eve;
-		BM_ITER_MESH_INDEX (eve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
-			if (verts_mask && !BLI_BITMAP_TEST_BOOL(verts_mask, i)) {
-				continue;
+		for (int i = 0; i < verts_num; i++) {
+			if (!verts_mask || BLI_BITMAP_TEST_BOOL(verts_mask, i)) {
+				BMVert *eve = BM_vert_at_index(em->bm, i);
+				BLI_bvhtree_insert(tree, i, eve->co, 1);
 			}
-			BLI_bvhtree_insert(tree, i, eve->co, 1);
 		}
 		BLI_assert(BLI_bvhtree_get_size(tree) == verts_num_active);
 		BLI_bvhtree_balance(tree);

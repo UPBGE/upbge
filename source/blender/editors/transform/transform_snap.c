@@ -569,7 +569,9 @@ static void initSnappingMode(TransInfo *t)
 		else if (t->tsnap.applySnap != NULL && // A snapping function actually exist
 		         (obedit == NULL) ) // Object Mode
 		{
-			t->tsnap.modeSelect = SNAP_NOT_SELECTED;
+			/* In "Edit Strokes" mode, Snap tool can perform snap to selected or active objects (see T49632)
+			 * TODO: perform self snap in gpencil_strokes */
+			t->tsnap.modeSelect = ((t->options & CTX_GPENCIL_STROKES) != 0) ? SNAP_ALL : SNAP_NOT_SELECTED;
 		}
 		else {
 			/* Grid if snap is not possible */
@@ -599,7 +601,7 @@ static void initSnappingMode(TransInfo *t)
 	if (t->spacetype == SPACE_VIEW3D) {
 		if (t->tsnap.object_context == NULL) {
 			t->tsnap.object_context = ED_transform_snap_object_context_create_view3d(
-			        G.main, t->scene, SNAP_OBJECT_USE_CACHE,
+			        G.main, t->scene, 0,
 			        t->ar, t->view);
 
 			ED_transform_snap_object_context_set_editmesh_callbacks(
@@ -1214,7 +1216,7 @@ bool snapObjectsTransform(
 	        t->tsnap.object_context,
 	        t->scene->toolsettings->snap_mode,
 	        &(const struct SnapObjectParams){
-	            .snap_select = ((t->options & CTX_GPENCIL_STROKES) != 0) ? SNAP_NOT_ACTIVE : t->tsnap.modeSelect,
+	            .snap_select = t->tsnap.modeSelect,
 	            .use_object_edit_cage = (t->flag & T_EDIT) != 0,
 	        },
 	        mval, dist_px, NULL,
@@ -1304,7 +1306,7 @@ bool peelObjectsTransform(
 	        t->tsnap.object_context,
 	        mval,
 	        &(const struct SnapObjectParams){
-	            .snap_select = ((t->options & CTX_GPENCIL_STROKES) != 0) ? SNAP_NOT_ACTIVE : t->tsnap.modeSelect,
+	            .snap_select = t->tsnap.modeSelect,
 	            .use_object_edit_cage = (t->flag & T_EDIT) != 0,
 	        },
 	        use_peel_object,
