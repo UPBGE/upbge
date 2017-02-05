@@ -20,15 +20,15 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file gameengine/Ketsji/KX_PlanarManager.cpp
+/** \file gameengine/Ketsji/KX_PlanarMapManager.cpp
  *  \ingroup ketsji
  */
 
-#include "KX_PlanarManager.h"
+#include "KX_PlanarMapManager.h"
 #include "KX_Camera.h"
 #include "KX_Scene.h"
 #include "KX_Globals.h"
-#include "KX_Planar.h"
+#include "KX_PlanarMap.h"
 
 #include "EXP_ListValue.h"
 
@@ -37,7 +37,7 @@
 
 #include "DNA_texture_types.h"
 
-KX_PlanarManager::KX_PlanarManager(KX_Scene *scene)
+KX_PlanarMapManager::KX_PlanarMapManager(KX_Scene *scene)
 	:m_scene(scene)
 {
 	const RAS_CameraData& camdata = RAS_CameraData();
@@ -45,22 +45,22 @@ KX_PlanarManager::KX_PlanarManager(KX_Scene *scene)
 	m_camera->SetName("__planar_cam__");
 }
 
-KX_PlanarManager::~KX_PlanarManager()
+KX_PlanarMapManager::~KX_PlanarMapManager()
 {
-	for (std::vector<KX_Planar *>::iterator it = m_planars.begin(), end = m_planars.end(); it != end; ++it) {
+	for (std::vector<KX_PlanarMap *>::iterator it = m_planars.begin(), end = m_planars.end(); it != end; ++it) {
 		delete *it;
 	}
 
 	m_camera->Release();
 }
 
-void KX_PlanarManager::AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, RAS_IPolyMaterial *polymat)
+void KX_PlanarMapManager::AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, RAS_IPolyMaterial *polymat)
 {
 	/* Don't Add Planar several times for the same texture. If the texture is shared by several objects,
 	 * we just add a "textureUser" to signal that the planar texture will be shared by several objects.
 	 */
-	for (std::vector<KX_Planar *>::iterator it = m_planars.begin(), end = m_planars.end(); it != end; ++it) {
-		KX_Planar *planar = *it;
+	for (std::vector<KX_PlanarMap *>::iterator it = m_planars.begin(), end = m_planars.end(); it != end; ++it) {
+		KX_PlanarMap *planar = *it;
 		const std::vector<RAS_Texture *>& textures = planar->GetTextureUsers();
 		for (std::vector<RAS_Texture *>::const_iterator it = textures.begin(), end = textures.end(); it != end; ++it) {
 			if ((*it)->GetTex() == texture->GetTex()) {
@@ -71,13 +71,13 @@ void KX_PlanarManager::AddPlanar(RAS_Texture *texture, KX_GameObject *gameobj, R
 	}
 
 	EnvMap *env = texture->GetTex()->env;
-	KX_Planar *kxplanar = new KX_Planar(env, gameobj, polymat);
+	KX_PlanarMap *kxplanar = new KX_PlanarMap(env, gameobj, polymat);
 	kxplanar->AddTextureUser(texture);
 	texture->SetPlanar(kxplanar);
 	m_planars.push_back(kxplanar);
 }
 
-void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
+void KX_PlanarMapManager::RenderPlanar(RAS_IRasterizer *rasty, KX_PlanarMap *planar)
 {
 	KX_GameObject *mirror = planar->GetMirrorObject();
 	KX_GameObject *observer = m_scene->GetActiveCamera();
@@ -183,7 +183,7 @@ void KX_PlanarManager::RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar)
 	rasty->SetInvertFrontFace(false);
 }
 
-void KX_PlanarManager::Render(RAS_IRasterizer *rasty)
+void KX_PlanarMapManager::Render(RAS_IRasterizer *rasty)
 {
 	if (m_planars.size() == 0 || rasty->GetDrawingMode() != RAS_IRasterizer::RAS_TEXTURED) {
 		return;
@@ -197,7 +197,7 @@ void KX_PlanarManager::Render(RAS_IRasterizer *rasty)
 	// Disable stereo for realtime planar.
 	rasty->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
 
-	for (std::vector<KX_Planar *>::iterator it = m_planars.begin(), end = m_planars.end(); it != end; ++it) {
+	for (std::vector<KX_PlanarMap *>::iterator it = m_planars.begin(), end = m_planars.end(); it != end; ++it) {
 		RenderPlanar(rasty, *it);
 	}
 

@@ -54,12 +54,12 @@ RAS_CubeMap *RAS_Texture::GetCubeMap() const
 	return m_cubeMap;
 }
 
-void RAS_Texture::SetPlanar(RAS_Planar *planar)
+void RAS_Texture::SetPlanar(RAS_PlanarMap *planar)
 {
 	m_planar = planar;
 }
 
-RAS_Planar *RAS_Texture::GetPlanar() const
+RAS_PlanarMap *RAS_Texture::GetPlanar() const
 {
 	return m_planar;
 }

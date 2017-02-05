@@ -20,7 +20,7 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file RAS_Planar.h
+/** \file RAS_PlanarMap.h
 *  \ingroup bgerast
 */
 
@@ -41,7 +41,7 @@ struct GPUFrameBuffer;
 struct GPURenderBuffer;
 struct GPUTexture;
 
-class RAS_Planar
+class RAS_PlanarMap
 {
 public:
 
@@ -78,8 +78,8 @@ protected:
 
 public:
 
-	RAS_Planar(KX_GameObject *gameobj, RAS_IPolyMaterial *mat);
-	virtual ~RAS_Planar();
+	RAS_PlanarMap(KX_GameObject *gameobj, RAS_IPolyMaterial *mat);
+	virtual ~RAS_PlanarMap();
 
 	const std::vector<RAS_Texture *>& GetTextureUsers() const;
 

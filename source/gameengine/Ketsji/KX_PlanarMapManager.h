@@ -20,7 +20,7 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file KX_PlanarManager.h
+/** \file KX_PlanarMapManager.h
 *  \ingroup ketsji
 */
 
@@ -32,17 +32,17 @@
 class KX_GameObject;
 class KX_Camera;
 class KX_Scene;
-class KX_Planar;
+class KX_PlanarMap;
 
 class RAS_IRasterizer;
 class RAS_Texture;
 class RAS_IPolyMaterial;
 
-class KX_PlanarManager
+class KX_PlanarMapManager
 {
 private:
 	/// All existing realtime planars of this scene.
-	std::vector<KX_Planar *> m_planars;
+	std::vector<KX_PlanarMap *> m_planars;
 
 	/** The camera used for realtime planars render.
 	* This camera is own by the planar manager.
@@ -52,11 +52,11 @@ private:
 	/// The scene we are rendering for.
 	KX_Scene *m_scene;
 
-	void RenderPlanar(RAS_IRasterizer *rasty, KX_Planar *planar);
+	void RenderPlanar(RAS_IRasterizer *rasty, KX_PlanarMap *planar);
 
 public:
-	KX_PlanarManager(KX_Scene *scene);
-	virtual ~KX_PlanarManager();
+	KX_PlanarMapManager(KX_Scene *scene);
+	virtual ~KX_PlanarMapManager();
 
 	/** Add and create a planar if none existing planar was using the same
 	* texture containing in the material texture passed.

@@ -75,7 +75,7 @@ set(SRC
 	RAS_MeshSlot.cpp
 	RAS_MeshUser.cpp
 	RAS_OffScreen.cpp
-	RAS_Planar.cpp
+	RAS_PlanarMap.cpp
 	RAS_Polygon.cpp
 	RAS_Shader.cpp
 	RAS_Texture.cpp
@@ -112,7 +112,7 @@ set(SRC
 	RAS_MeshSlot.h
 	RAS_MeshUser.h
 	RAS_OffScreen.h
-	RAS_Planar.h
+	RAS_PlanarMap.h
 	RAS_Polygon.h
 	RAS_Rect.h
 	RAS_Shader.h

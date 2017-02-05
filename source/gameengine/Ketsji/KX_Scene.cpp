@@ -63,9 +63,9 @@
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
 #include "RAS_CubeMap.h"
-#include "RAS_Planar.h"
+#include "RAS_PlanarMap.h"
 #include "KX_2DFilterManager.h"
-#include "KX_PlanarManager.h"
+#include "KX_PlanarMapManager.h"
 #include "KX_CubeMapManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
@@ -201,7 +201,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_rootnode = nullptr;
 
 	m_cubeMapManager = new KX_CubeMapManager(this);
-	m_planarManager = new KX_PlanarManager(this);
+	m_planarManager = new KX_PlanarMapManager(this);
 	m_bucketmanager=new RAS_BucketManager();
 	m_boundingBoxManager = new RAS_BoundingBoxManager();
 	
@@ -333,7 +333,7 @@ RAS_BucketManager* KX_Scene::GetBucketManager()
 	return m_bucketmanager;
 }
 
-KX_PlanarManager *KX_Scene::GetPlanarManager()
+KX_PlanarMapManager *KX_Scene::GetPlanarManager()
 {
 	return m_planarManager;
 }

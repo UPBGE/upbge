@@ -24,7 +24,7 @@
 
 #include "BL_Texture.h"
 #include "KX_CubeMap.h"
-#include "KX_Planar.h"
+#include "KX_PlanarMap.h"
 
 #include "DNA_texture_types.h"
 
@@ -744,7 +744,7 @@ int BL_Texture::pyattr_set_uv_size(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DE
 PyObject *BL_Texture::pyattr_get_planar(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
-	KX_Planar *planar = (KX_Planar *)self->GetPlanar();
+	KX_PlanarMap *planar = (KX_PlanarMap *)self->GetPlanar();
 	if (planar) {
 		return planar->GetProxy();
 	}

@@ -20,18 +20,18 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file KX_Planar.cpp
+/** \file KX_PlanarMap.cpp
 *  \ingroup ketsji
 */
 
-#include "KX_Planar.h"
+#include "KX_PlanarMap.h"
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 
 #include "DNA_texture_types.h"
 
-KX_Planar::KX_Planar(EnvMap *env, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat)
-	:RAS_Planar(viewpoint, polymat),
+KX_PlanarMap::KX_PlanarMap(EnvMap *env, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat)
+	:RAS_PlanarMap(viewpoint, polymat),
 	m_viewpointObject(viewpoint),
 	m_invalidProjection(true),
 	m_enabled(true),
@@ -48,71 +48,71 @@ KX_Planar::KX_Planar(EnvMap *env, KX_GameObject *viewpoint, RAS_IPolyMaterial *p
 	m_autoUpdate = (env->flag & ENVMAP_AUTO_UPDATE) != 0;
 }
 
-KX_Planar::~KX_Planar()
+KX_PlanarMap::~KX_PlanarMap()
 {
 }
 
-std::string KX_Planar::GetName()
+std::string KX_PlanarMap::GetName()
 {
-	return "KX_Planar";
+	return "KX_PlanarMap";
 }
 
-KX_GameObject *KX_Planar::GetMirrorObject() const
+KX_GameObject *KX_PlanarMap::GetMirrorObject() const
 {
 	return m_viewpointObject;
 }
 
-void KX_Planar::SetInvalidProjectionMatrix(bool invalid)
+void KX_PlanarMap::SetInvalidProjectionMatrix(bool invalid)
 {
 	m_invalidProjection = invalid;
 }
 
-bool KX_Planar::GetInvalidProjectionMatrix() const
+bool KX_PlanarMap::GetInvalidProjectionMatrix() const
 {
 	return m_invalidProjection;
 }
 
-void KX_Planar::SetProjectionMatrix(const MT_Matrix4x4& projection)
+void KX_PlanarMap::SetProjectionMatrix(const MT_Matrix4x4& projection)
 {
 	m_projection = projection;
 }
 
-const MT_Matrix4x4& KX_Planar::GetProjectionMatrix() const
+const MT_Matrix4x4& KX_PlanarMap::GetProjectionMatrix() const
 {
 	return m_projection;
 }
 
-bool KX_Planar::GetEnabled() const
+bool KX_PlanarMap::GetEnabled() const
 {
 	return m_enabled;
 }
 
-int KX_Planar::GetIgnoreLayers() const
+int KX_PlanarMap::GetIgnoreLayers() const
 {
 	return m_ignoreLayers;
 }
 
-float KX_Planar::GetClipStart() const
+float KX_PlanarMap::GetClipStart() const
 {
 	return m_clipStart;
 }
 
-float KX_Planar::GetClipEnd() const
+float KX_PlanarMap::GetClipEnd() const
 {
 	return m_clipEnd;
 }
 
-void KX_Planar::SetClipStart(float start)
+void KX_PlanarMap::SetClipStart(float start)
 {
 	m_clipStart = start;
 }
 
-void KX_Planar::SetClipEnd(float end)
+void KX_PlanarMap::SetClipEnd(float end)
 {
 	m_clipEnd = end;
 }
 
-bool KX_Planar::NeedUpdate()
+bool KX_PlanarMap::NeedUpdate()
 {
 	bool result = m_autoUpdate || m_forceUpdate;
 	m_forceUpdate = false;
@@ -122,9 +122,9 @@ bool KX_Planar::NeedUpdate()
 
 #ifdef WITH_PYTHON
 
-PyTypeObject KX_Planar::Type = {
+PyTypeObject KX_PlanarMap::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	"KX_Planar",
+	"KX_PlanarMap",
 	sizeof(PyObjectPlus_Proxy),
 	0,
 	py_base_dealloc,
@@ -144,40 +144,40 @@ PyTypeObject KX_Planar::Type = {
 	py_base_new
 };
 
-PyMethodDef KX_Planar::Methods[] = {
-	KX_PYMETHODTABLE_NOARGS(KX_Planar, update),
+PyMethodDef KX_PlanarMap::Methods[] = {
+	KX_PYMETHODTABLE_NOARGS(KX_PlanarMap, update),
 	{ NULL, NULL } // Sentinel
 };
 
-PyAttributeDef KX_Planar::Attributes[] = {
-	KX_PYATTRIBUTE_BOOL_RW("autoUpdate", KX_Planar, m_autoUpdate),
-	KX_PYATTRIBUTE_BOOL_RW("enabled", KX_Planar, m_enabled),
-	KX_PYATTRIBUTE_INT_RW("ignoreLayers", 0, (1 << 20) - 1, true, KX_Planar, m_ignoreLayers),
-	KX_PYATTRIBUTE_RW_FUNCTION("clipStart", KX_Planar, pyattr_get_clip_start, pyattr_set_clip_start),
-	KX_PYATTRIBUTE_RW_FUNCTION("clipEnd", KX_Planar, pyattr_get_clip_end, pyattr_set_clip_end),
+PyAttributeDef KX_PlanarMap::Attributes[] = {
+	KX_PYATTRIBUTE_BOOL_RW("autoUpdate", KX_PlanarMap, m_autoUpdate),
+	KX_PYATTRIBUTE_BOOL_RW("enabled", KX_PlanarMap, m_enabled),
+	KX_PYATTRIBUTE_INT_RW("ignoreLayers", 0, (1 << 20) - 1, true, KX_PlanarMap, m_ignoreLayers),
+	KX_PYATTRIBUTE_RW_FUNCTION("clipStart", KX_PlanarMap, pyattr_get_clip_start, pyattr_set_clip_start),
+	KX_PYATTRIBUTE_RW_FUNCTION("clipEnd", KX_PlanarMap, pyattr_get_clip_end, pyattr_set_clip_end),
 	KX_PYATTRIBUTE_NULL // Sentinel
 };
 
-KX_PYMETHODDEF_DOC_NOARGS(KX_Planar, update, "update(): Set the planar to be updated next frame.\n")
+KX_PYMETHODDEF_DOC_NOARGS(KX_PlanarMap, update, "update(): Set the planar to be updated next frame.\n")
 {
 	m_forceUpdate = true;
 	Py_RETURN_NONE;
 }
 
-PyObject *KX_Planar::pyattr_get_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_PlanarMap::pyattr_get_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Planar *self = static_cast<KX_Planar*>(self_v);
+	KX_PlanarMap *self = static_cast<KX_PlanarMap*>(self_v);
 	return PyFloat_FromDouble(self->GetClipStart());
 }
 
-int KX_Planar::pyattr_set_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_PlanarMap::pyattr_set_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_Planar *self = static_cast<KX_Planar*>(self_v);
+	KX_PlanarMap *self = static_cast<KX_PlanarMap*>(self_v);
 
 	const float val = PyFloat_AsDouble(value);
 
 	if (val <= 0.0f) {
-		PyErr_SetString(PyExc_AttributeError, "planar.clipStart = float: KX_Planar, expected a float grater than zero");
+		PyErr_SetString(PyExc_AttributeError, "planar.clipStart = float: KX_PlanarMap, expected a float grater than zero");
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -187,20 +187,20 @@ int KX_Planar::pyattr_set_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *KX_Planar::pyattr_get_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_PlanarMap::pyattr_get_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Planar *self = static_cast<KX_Planar*>(self_v);
+	KX_PlanarMap *self = static_cast<KX_PlanarMap*>(self_v);
 	return PyFloat_FromDouble(self->GetClipEnd());
 }
 
-int KX_Planar::pyattr_set_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+int KX_PlanarMap::pyattr_set_clip_end(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_Planar *self = static_cast<KX_Planar*>(self_v);
+	KX_PlanarMap *self = static_cast<KX_PlanarMap*>(self_v);
 
 	const float val = PyFloat_AsDouble(value);
 
 	if (val <= 0.0f) {
-		PyErr_SetString(PyExc_AttributeError, "planar.clipEnd = float: KX_Planar, expected a float greater than zero");
+		PyErr_SetString(PyExc_AttributeError, "planar.clipEnd = float: KX_PlanarMap, expected a float greater than zero");
 		return PY_SET_ATTR_FAIL;
 	}
 

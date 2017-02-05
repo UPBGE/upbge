@@ -20,14 +20,14 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file KX_Planar.h
+/** \file KX_PlanarMap.h
 *  \ingroup ketsji
 */
 
 #ifndef __KX_PLANAR_H__
 #define __KX_PLANAR_H__
 
-#include "RAS_Planar.h"
+#include "RAS_PlanarMap.h"
 #include "EXP_Value.h"
 
 #include "MT_Matrix4x4.h"
@@ -37,7 +37,7 @@ class RAS_IPolyMaterial;
 
 struct EnvMap;
 
-class KX_Planar : public CValue, public RAS_Planar
+class KX_PlanarMap : public CValue, public RAS_PlanarMap
 {
 	Py_Header
 
@@ -69,8 +69,8 @@ private:
 	bool m_forceUpdate;
 
 public:
-	KX_Planar(EnvMap *env, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat);
-	virtual ~KX_Planar();
+	KX_PlanarMap(EnvMap *env, KX_GameObject *viewpoint, RAS_IPolyMaterial *polymat);
+	virtual ~KX_PlanarMap();
 
 	virtual std::string GetName();
 
@@ -94,7 +94,7 @@ public:
 	bool NeedUpdate();
 
 #ifdef WITH_PYTHON
-	KX_PYMETHOD_DOC_NOARGS(KX_Planar, update);
+	KX_PYMETHOD_DOC_NOARGS(KX_PlanarMap, update);
 
 	static PyObject *pyattr_get_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);

@@ -20,11 +20,11 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file RAS_Planar.cpp
+/** \file RAS_PlanarMap.cpp
  *  \ingroup bgerast
  */
 
-#include "RAS_Planar.h"
+#include "RAS_PlanarMap.h"
 #include "RAS_Texture.h"
 #include "RAS_IRasterizer.h"
 
@@ -43,7 +43,7 @@
 
 #include "BLI_math.h"
 
-RAS_Planar::RAS_Planar(KX_GameObject *mirror, RAS_IPolyMaterial *mat)
+RAS_PlanarMap::RAS_PlanarMap(KX_GameObject *mirror, RAS_IPolyMaterial *mat)
 	:m_gpuTex(NULL)
 {
 	m_fbo = NULL;
@@ -184,7 +184,7 @@ RAS_Planar::RAS_Planar(KX_GameObject *mirror, RAS_IPolyMaterial *mat)
 	m_mirrorZ.setValue(-mirrorNormal[0], -mirrorNormal[1], -mirrorNormal[2]);
 }
 
-RAS_Planar::~RAS_Planar()
+RAS_PlanarMap::~RAS_PlanarMap()
 {
 	DetachTexture();
 
@@ -199,7 +199,7 @@ RAS_Planar::~RAS_Planar()
 	}
 }
 
-void RAS_Planar::AttachTexture()
+void RAS_PlanarMap::AttachTexture()
 {
 	// Increment reference to make sure the gpu texture will not be freed by someone else.
 	GPU_texture_ref(m_gpuTex);
@@ -212,7 +212,7 @@ void RAS_Planar::AttachTexture()
 	GPU_framebuffer_renderbuffer_attach(m_fbo, m_rb, 0, NULL);
 }
 
-void RAS_Planar::DetachTexture()
+void RAS_PlanarMap::DetachTexture()
 {
 	if (!m_gpuTex) {
 		return;
@@ -238,7 +238,7 @@ void RAS_Planar::DetachTexture()
 	//GPU_texture_free(m_gpuTex); //////// WARNING: Don't uncomment this for planars.
 }
 
-void RAS_Planar::GetValidTexture()
+void RAS_PlanarMap::GetValidTexture()
 {
 	BLI_assert(m_textureUsers.size() > 0);
 
@@ -271,23 +271,23 @@ void RAS_Planar::GetValidTexture()
 	}*/
 }
 
-const std::vector<RAS_Texture *>& RAS_Planar::GetTextureUsers() const
+const std::vector<RAS_Texture *>& RAS_PlanarMap::GetTextureUsers() const
 {
 	return m_textureUsers;
 }
 
-void RAS_Planar::AddTextureUser(RAS_Texture *texture)
+void RAS_PlanarMap::AddTextureUser(RAS_Texture *texture)
 {
 	m_textureUsers.push_back(texture);
 	texture->SetPlanar(this);
 }
 
-void RAS_Planar::BeginRender()
+void RAS_PlanarMap::BeginRender()
 {
 	GetValidTexture();
 }
 
-void RAS_Planar::EndRender()
+void RAS_PlanarMap::EndRender()
 {
 	if (m_useMipmap) {
 		GPU_texture_bind(m_gpuTex, 0);
@@ -296,24 +296,24 @@ void RAS_Planar::EndRender()
 	}
 }
 
-void RAS_Planar::BindFace(RAS_IRasterizer *rasty)
+void RAS_PlanarMap::BindFace(RAS_IRasterizer *rasty)
 {
 	GPU_framebuffer_bind_no_save(m_fbo, 0);
 
 	rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 }
 
-MT_Vector3 RAS_Planar::GetMirrorPos()
+MT_Vector3 RAS_PlanarMap::GetMirrorPos()
 {
 	return m_mirrorPos;
 }
 
-MT_Vector3 RAS_Planar::GetMirrorZ()
+MT_Vector3 RAS_PlanarMap::GetMirrorZ()
 {
 	return m_mirrorZ;
 }
 
-void RAS_Planar::EnableClipPlane(MT_Vector3 &mirrorWorldZ, MT_Scalar &mirrorPlaneDTerm, int planartype)
+void RAS_PlanarMap::EnableClipPlane(MT_Vector3 &mirrorWorldZ, MT_Scalar &mirrorPlaneDTerm, int planartype)
 {
 	// initializing clipping planes for reflection and refraction
 	static float offset = 0.1f;
@@ -329,7 +329,7 @@ void RAS_Planar::EnableClipPlane(MT_Vector3 &mirrorWorldZ, MT_Scalar &mirrorPlan
 	}*/
 }
 
-void RAS_Planar::DisableClipPlane(int planartype)
+void RAS_PlanarMap::DisableClipPlane(int planartype)
 {
 	glDisable(GL_CLIP_PLANE0);
 	/*if (planartype == TEX_PLANAR_REFLECTION)*/ {
