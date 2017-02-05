@@ -99,7 +99,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
-	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 10)) {
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 1, 0)) {
 		if (!DNA_struct_elem_find(fd->filesdna, "Material", "float", "depthtranspfactor")) {
 			for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
 				ma->depthtranspfactor = 1.0f;
@@ -115,7 +115,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 11)) {
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 1, 1)) {
 		if (!DNA_struct_elem_find(fd->filesdna, "MTex", "float", "ior")) {
 			for (Material *ma = main->mat.first; ma; ma = ma->id.next) {
 				for (unsigned short a = 0; a < MAX_MTEX; ++a) {
@@ -127,7 +127,7 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 0, 12)) {
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 1, 2)) {
 		if (!DNA_struct_elem_find(fd->filesdna, "Object", "float", "friction")) {
 			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
 				if (ob->type == OB_MESH) {
