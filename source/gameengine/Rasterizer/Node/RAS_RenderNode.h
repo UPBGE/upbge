@@ -65,13 +65,13 @@ class RAS_ManagerDownwardNode : public RAS_DownwardNode<RAS_MaterialDownwardNode
 {
 public:
 	RAS_ManagerDownwardNode()
+	{
+	}
+	RAS_ManagerDownwardNode(RAS_BucketManager *info, Function bind, Function unbind)
 		:RAS_DownwardNode<RAS_MaterialDownwardNode, RAS_BucketManager, RAS_NodeFlag::NEVER_FINAL,
-		RAS_RenderNodeArguments>::RAS_DownwardNode()
-	{}
-	RAS_ManagerDownwardNode(RAS_BucketManager *b, Function f1, Function f2)
-		:RAS_DownwardNode<RAS_MaterialDownwardNode, RAS_BucketManager, RAS_NodeFlag::NEVER_FINAL,
-		RAS_RenderNodeArguments>::RAS_DownwardNode(b, f1, f2)
-	{}
+		RAS_RenderNodeArguments>::RAS_DownwardNode(info, bind, unbind)
+	{
+	}
 };
 
 class RAS_MaterialDownwardNode : public RAS_DownwardNode<RAS_DisplayArrayDownwardNode, RAS_MaterialBucket, RAS_NodeFlag::NEVER_FINAL,
@@ -79,13 +79,13 @@ class RAS_MaterialDownwardNode : public RAS_DownwardNode<RAS_DisplayArrayDownwar
 {
 public:
 	RAS_MaterialDownwardNode()
+	{
+	}
+	RAS_MaterialDownwardNode(RAS_MaterialBucket *info, Function bind, Function unbind)
 		:RAS_DownwardNode<RAS_DisplayArrayDownwardNode, RAS_MaterialBucket, RAS_NodeFlag::NEVER_FINAL,
-		RAS_RenderNodeArguments>::RAS_DownwardNode()
-	{}
-	RAS_MaterialDownwardNode(RAS_MaterialBucket *m, Function f1, Function f2)
-		:RAS_DownwardNode<RAS_DisplayArrayDownwardNode, RAS_MaterialBucket, RAS_NodeFlag::NEVER_FINAL,
-		RAS_RenderNodeArguments>::RAS_DownwardNode(m, f1, f2)
-	{}
+		RAS_RenderNodeArguments>::RAS_DownwardNode(info, bind, unbind)
+	{
+	}
 };
 
 class RAS_DisplayArrayDownwardNode : public RAS_DownwardNode<RAS_DummyNode, RAS_DisplayArrayBucket, RAS_NodeFlag::ALWAYS_FINAL,
@@ -93,13 +93,13 @@ class RAS_DisplayArrayDownwardNode : public RAS_DownwardNode<RAS_DummyNode, RAS_
 {
 public:
 	RAS_DisplayArrayDownwardNode()
+	{
+	}
+	RAS_DisplayArrayDownwardNode(RAS_DisplayArrayBucket *info, Function bind, Function unbind)
 		:RAS_DownwardNode<RAS_DummyNode, RAS_DisplayArrayBucket, RAS_NodeFlag::ALWAYS_FINAL,
-		RAS_RenderNodeArguments>::RAS_DownwardNode()
-	{}
-	RAS_DisplayArrayDownwardNode(RAS_DisplayArrayBucket *d, Function f1, Function f2)
-		:RAS_DownwardNode<RAS_DummyNode, RAS_DisplayArrayBucket, RAS_NodeFlag::ALWAYS_FINAL,
-		RAS_RenderNodeArguments>::RAS_DownwardNode(d, f1, f2)
-	{}
+		RAS_RenderNodeArguments>::RAS_DownwardNode(info, bind, unbind)
+	{
+	}
 };
 
 class RAS_ManagerUpwardNode : public RAS_UpwardNode<RAS_DummyNode, RAS_BucketManager, RAS_NodeFlag::NEVER_FINAL,
@@ -107,13 +107,13 @@ class RAS_ManagerUpwardNode : public RAS_UpwardNode<RAS_DummyNode, RAS_BucketMan
 {
 public:
 	RAS_ManagerUpwardNode()
+	{
+	}
+	RAS_ManagerUpwardNode(RAS_BucketManager *info, Function bind, Function unbind)
 		:RAS_UpwardNode<RAS_DummyNode, RAS_BucketManager, RAS_NodeFlag::NEVER_FINAL,
-		RAS_RenderNodeArguments>::RAS_UpwardNode()
-	{}
-	RAS_ManagerUpwardNode(RAS_BucketManager *b, Function f1, Function f2)
-		:RAS_UpwardNode<RAS_DummyNode, RAS_BucketManager, RAS_NodeFlag::NEVER_FINAL,
-		RAS_RenderNodeArguments>::RAS_UpwardNode(b, f1, f2)
-	{}
+		RAS_RenderNodeArguments>::RAS_UpwardNode(info, bind, unbind)
+	{
+	}
 };
 
 class RAS_MaterialUpwardNode : public RAS_UpwardNode<RAS_ManagerUpwardNode, RAS_MaterialBucket, RAS_NodeFlag::NEVER_FINAL,
@@ -121,13 +121,13 @@ class RAS_MaterialUpwardNode : public RAS_UpwardNode<RAS_ManagerUpwardNode, RAS_
 {
 public:
 	RAS_MaterialUpwardNode()
+	{
+	}
+	RAS_MaterialUpwardNode(RAS_MaterialBucket *info, Function bind, Function unbind)
 		:RAS_UpwardNode<RAS_ManagerUpwardNode, RAS_MaterialBucket, RAS_NodeFlag::NEVER_FINAL,
-		RAS_RenderNodeArguments>::RAS_UpwardNode()
-	{}
-	RAS_MaterialUpwardNode(RAS_MaterialBucket *m, Function f1, Function f2)
-		:RAS_UpwardNode<RAS_ManagerUpwardNode, RAS_MaterialBucket, RAS_NodeFlag::NEVER_FINAL,
-		RAS_RenderNodeArguments>::RAS_UpwardNode(m, f1, f2)
-	{}
+		RAS_RenderNodeArguments>::RAS_UpwardNode(info, bind, unbind)
+	{
+	}
 };
 
 class RAS_DisplayArrayUpwardNode : public RAS_UpwardNode<RAS_MaterialUpwardNode, RAS_DisplayArrayBucket, RAS_NodeFlag::NEVER_FINAL,
@@ -135,13 +135,13 @@ class RAS_DisplayArrayUpwardNode : public RAS_UpwardNode<RAS_MaterialUpwardNode,
 {
 public:
 	RAS_DisplayArrayUpwardNode()
+	{
+	}
+	RAS_DisplayArrayUpwardNode(RAS_DisplayArrayBucket *info, Function bind, Function unbind)
 		:RAS_UpwardNode<RAS_MaterialUpwardNode, RAS_DisplayArrayBucket, RAS_NodeFlag::NEVER_FINAL,
-		RAS_RenderNodeArguments>::RAS_UpwardNode()
-	{}
-	RAS_DisplayArrayUpwardNode(RAS_DisplayArrayBucket *d, Function f1, Function f2)
-		:RAS_UpwardNode<RAS_MaterialUpwardNode, RAS_DisplayArrayBucket, RAS_NodeFlag::NEVER_FINAL,
-		RAS_RenderNodeArguments>::RAS_UpwardNode(d, f1, f2)
-	{}
+		RAS_RenderNodeArguments>::RAS_UpwardNode(info, bind, unbind)
+	{
+	}
 };
 
 class RAS_MeshSlotUpwardNode : public RAS_UpwardNode<RAS_DisplayArrayUpwardNode, RAS_MeshSlot, RAS_NodeFlag::ALWAYS_FINAL,
@@ -149,13 +149,13 @@ class RAS_MeshSlotUpwardNode : public RAS_UpwardNode<RAS_DisplayArrayUpwardNode,
 {
 public:
 	RAS_MeshSlotUpwardNode()
+	{
+	}
+	RAS_MeshSlotUpwardNode(RAS_MeshSlot *info, Function bind, Function unbind)
 		:RAS_UpwardNode<RAS_DisplayArrayUpwardNode, RAS_MeshSlot, RAS_NodeFlag::ALWAYS_FINAL,
-		RAS_RenderNodeArguments>::RAS_UpwardNode()
-	{}
-	RAS_MeshSlotUpwardNode(RAS_MeshSlot *m, Function f1, Function f2)
-		:RAS_UpwardNode<RAS_DisplayArrayUpwardNode, RAS_MeshSlot, RAS_NodeFlag::ALWAYS_FINAL,
-		RAS_RenderNodeArguments>::RAS_UpwardNode(m, f1, f2)
-	{}
+		RAS_RenderNodeArguments>::RAS_UpwardNode(info, bind, unbind)
+	{
+	}
 };
 
 typedef std::vector<RAS_MeshSlotUpwardNode *> RAS_UpwardTreeLeafs;
@@ -164,8 +164,8 @@ class RAS_MeshSlotUpwardNodeIterator : public RAS_UpwardNodeIterator<RAS_MeshSlo
 {
 public:
 	RAS_MeshSlotUpwardNodeIterator()
-		:RAS_UpwardNodeIterator<RAS_MeshSlotUpwardNode, RAS_RenderNodeArguments>::RAS_UpwardNodeIterator()
-	{}
+	{
+	}
 };
 
 #endif  // __RAS_RENDER_NODE__
