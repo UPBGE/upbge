@@ -240,8 +240,9 @@ bool DEV_Joystick::CreateJoystickDevice(void)
 		if (!joy_error && !SDL_IsGameController(m_joyindex)) {
 			/* mapping instruccions if joystick is not a game controller */
 			CM_Error("Game Controller index " << m_joyindex << ": Could not be initialized\n"
-			<< "Please, generate Xbox360 compatible mapping using antimicro or Steam big mode application\n"
-			<< "and after set, the SDL controller variable before you launch the executable, i.e:\n"
+			<< "Please, generate Xbox360 compatible mapping using Antimicro (https://github.com/AntiMicro/antimicro)\n"
+			<< "or SDL2 Gamepad Tool (http://www.generalarcade.com/gamepadtool) or Steam big mode applications\n"
+			<< "and after, set the SDL controller variable before you launch the executable, i.e:\n"
 			<< "export SDL_GAMECONTROLLERCONFIG=\"[the string you received from controllermap]\"");
 			/* Need this so python args can return empty lists */
 			joy_error = true;
