@@ -71,6 +71,7 @@ typedef struct Camera {
 	float lens, ortho_scale, drawsize;
 	float sensor_x, sensor_y;
 	float shiftx, shifty;
+	float lodfactor, pad;
 
 	/* yafray: dof params */
 	/* qdn: yafray var 'YF_dofdist' now enabled for defocus composite node as well.
@@ -83,7 +84,7 @@ typedef struct Camera {
 	struct GPUDOFSettings gpu_dof;
 
 	char sensor_fit;
-	char pad[7];
+	char pad1[7];
 
 	/* Stereo settings */
 	struct CameraStereoSettings stereo;

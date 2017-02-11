@@ -38,7 +38,7 @@ KX_CubeMap::KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint)
 	m_ignoreLayers(env->notlay),
 	m_clipStart(env->clipsta),
 	m_clipEnd(env->clipend),
-	m_lodDistanceFactor(1.0),
+	m_lodDistanceFactor(env->lodfactor),
 	m_autoUpdate(true),
 	m_forceUpdate(true)
 {

@@ -872,6 +872,7 @@ class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
         gs = context.scene.game_settings
 
         col = layout.column()
+        col.prop(ob, "lod_factor", text="Distance Factor")
 
         for i, level in enumerate(ob.lod_levels):
             if i == 0:

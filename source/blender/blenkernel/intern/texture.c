@@ -1264,6 +1264,7 @@ EnvMap *BKE_texture_envmap_add(void)
 	env->cuberes = 512;
 	env->viewscale = 0.5;
 	env->flag = ENVMAP_AUTO_UPDATE;
+	env->lodfactor = 1.0f;
 
 	return env;
 } 

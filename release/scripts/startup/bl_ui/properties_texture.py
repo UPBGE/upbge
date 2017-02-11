@@ -618,6 +618,7 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
             if env.source == 'REALTIME':
                 layout.template_ID(tex, "image", new="image.new", open="image.open")
                 layout.template_image(tex, "image", tex.image_user, compact=True)
+                layout.prop(env, "filtering")
             layout.prop(env, "mapping")
             if env.mapping == 'PLANE':
                 layout.prop(env, "zoom")
@@ -628,9 +629,7 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
 
             col = split.column()
             col.prop(env, "layers_ignore")
-            if env.source == 'REALTIME':
-                col.prop(env, "auto_update")
-            else:
+            if env.source != 'REALTIME':
                 col.prop(env, "resolution")
                 col.prop(env, "depth")
 
@@ -642,7 +641,8 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
 
             if env.source == 'REALTIME':
                 row = layout.row()
-                row.prop(env, "filtering", expand=False)
+                row.prop(env, "lod_factor", text="LoD Distance Factor")
+                row.prop(env, "auto_update")
 
 
 class TEXTURE_PT_envmap_sampling(TextureTypePanel, Panel):

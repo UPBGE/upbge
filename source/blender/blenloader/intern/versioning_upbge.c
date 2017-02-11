@@ -36,6 +36,7 @@
 #include "DNA_genfile.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_sensor_types.h"
 #include "DNA_space_types.h"
@@ -168,6 +169,24 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 						View3D *v3d = (View3D *)sl;
 						v3d->flag3 = V3D_SHOW_MIST;
 					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "Object", "float", "lodfactor")) {
+			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
+				ob->lodfactor = 1.0f;
+			}
+		}
+		if (!DNA_struct_elem_find(fd->filesdna, "Camera", "float", "lodfactor")) {
+			for (Camera *ca = main->camera.first; ca; ca = ca->id.next) {
+				ca->lodfactor = 1.0f;
+			}
+		}
+		if (!DNA_struct_elem_find(fd->filesdna, "EnvMap", "float", "lodfactor")) {
+			for (Tex *tex = main->tex.first; tex; tex = tex->id.next) {
+				if (tex->env) {
+					tex->env->lodfactor = 1.0f;
 				}
 			}
 		}

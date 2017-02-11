@@ -865,6 +865,12 @@ static void rna_def_environment_map(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ENVMAP_AUTO_UPDATE);
 	RNA_def_property_ui_text(prop, "Auto Update", "True if the cube map is updated every frame");
 
+	prop = RNA_def_property(srna, "lod_factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "lodfactor");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Level of Detail Distance Factor", "The factor applied to distance computed in Lod");
+
 	prop = RNA_def_property(srna, "filtering", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "filtering");
 	RNA_def_property_enum_items(prop, prop_filtering_items);

@@ -303,6 +303,7 @@ typedef struct Object {
 
 	ListBase lodlevels;		/* contains data for levels of detail */
 	LodLevel *currentlod;
+	float lodfactor, pad4;
 
 	struct PreviewImage *preview;
 

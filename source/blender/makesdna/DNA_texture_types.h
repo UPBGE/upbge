@@ -142,6 +142,7 @@ typedef struct EnvMap {
 	int ok, lastframe;
 	short recalc, lastsize;
 	int flag, filtering;
+	float lodfactor, pad;
 } EnvMap;
 
 typedef struct PointDensity {

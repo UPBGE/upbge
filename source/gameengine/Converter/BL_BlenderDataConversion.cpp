@@ -979,7 +979,8 @@ static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, KX_Blen
 	gamecamera->SetName(ca->id.name + 2);
 
 	gamecamera->SetShowCameraFrustum(ca->flag & CAM_SHOW_FRUSTUM);
-	
+	gamecamera->SetLodDistanceFactor(ca->lodfactor);
+
 	return gamecamera;
 }
 
