@@ -75,7 +75,10 @@ void DEV_Joystick::Init()
 {
 #ifdef WITH_SDL
 
-	if (!(SDL_CHECK(SDL_InitSubSystem)) || !(SDL_CHECK(SDL_GameControllerAddMapping))) {
+	if (!(SDL_CHECK(SDL_InitSubSystem)) ||
+	    !(SDL_CHECK(SDL_GameControllerAddMapping)) ||
+	    !(SDL_CHECK(SDL_GameControllerAddMappingsFromRW)))
+	{
 		return;
 	}
 
@@ -83,17 +86,21 @@ void DEV_Joystick::Init()
 	bool success = (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) != -1 );
 
 	if (success) {
+		// First we try loading mapping file from blenderplayer directory
+		int fileMapping = SDL_GameControllerAddMappingsFromFile("gamecontrollerdb.txt");
 
-		/* Loading Game Controller mapping data base from a string */
-		unsigned short i = 0;
-		const char *mapping_string = NULL;
-		mapping_string = controller_mappings[i];
-
-		while (mapping_string) {
-			SDL_GameControllerAddMapping(mapping_string);
-			i++;
+		// If it doesnt exist we load our internal data base
+		if (fileMapping == -1) {
+			unsigned short i = 0;
+			const char *mapping_string = NULL;
 			mapping_string = controller_mappings[i];
-	    }
+
+			while (mapping_string) {
+				SDL_GameControllerAddMapping(mapping_string);
+				i++;
+				mapping_string = controller_mappings[i];
+			}
+		}
 	}
 	else {
 		CM_Error("initializing SDL Game Controller: " << SDL_GetError());

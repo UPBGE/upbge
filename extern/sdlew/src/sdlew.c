@@ -312,6 +312,7 @@ tSDL_SetTextInputRect *SDL_SetTextInputRect;
 tSDL_HasScreenKeyboardSupport *SDL_HasScreenKeyboardSupport;
 tSDL_IsScreenKeyboardShown *SDL_IsScreenKeyboardShown;
 tSDL_GameControllerAddMapping *SDL_GameControllerAddMapping;
+tSDL_GameControllerAddMappingsFromRW *SDL_GameControllerAddMappingsFromRW;
 tSDL_GameControllerMappingForGUID *SDL_GameControllerMappingForGUID;
 tSDL_GameControllerMapping *SDL_GameControllerMapping;
 tSDL_IsGameController *SDL_IsGameController;
@@ -856,6 +857,7 @@ int sdlewInit(void) {
   SDL_LIBRARY_FIND(SDL_HasScreenKeyboardSupport);
   SDL_LIBRARY_FIND(SDL_IsScreenKeyboardShown);
   SDL_LIBRARY_FIND(SDL_GameControllerAddMapping);
+  SDL_LIBRARY_FIND(SDL_GameControllerAddMappingsFromRW);
   SDL_LIBRARY_FIND(SDL_GameControllerMappingForGUID);
   SDL_LIBRARY_FIND(SDL_GameControllerMapping);
   SDL_LIBRARY_FIND(SDL_IsGameController);
