@@ -847,7 +847,8 @@ class OBJECT_MT_culling(ObjectButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.render.engine in cls.COMPAT_ENGINES
+        ob = context.object
+        return context.scene.render.engine in cls.COMPAT_ENGINES and ob.type not in {'CAMERA', 'EMPTY', 'LAMP'}
 
     def draw(self, context):
         layout = self.layout
@@ -862,7 +863,8 @@ class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.render.engine in cls.COMPAT_ENGINES
+        ob = context.object
+        return context.scene.render.engine in cls.COMPAT_ENGINES and ob.type not in {'CAMERA', 'EMPTY', 'LAMP'}
 
     def draw(self, context):
         layout = self.layout
