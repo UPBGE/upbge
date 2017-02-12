@@ -194,7 +194,7 @@ int KX_TextureRenderer::pyattr_set_viewpoint_object(PyObjectPlus *self_v, const 
 
 	SCA_LogicManager *logicmgr = KX_GetActiveScene()->GetLogicManager();
 
-	if (!ConvertPythonToGameObject(logicmgr, value, &gameobj, true, "cubeMap.object = value: KX_TextureRenderer"))
+	if (!ConvertPythonToGameObject(logicmgr, value, &gameobj, true, "renderer.object = value: KX_TextureRenderer"))
 		return PY_SET_ATTR_FAIL;
 
 	self->SetViewpointObject(gameobj);
@@ -214,7 +214,7 @@ int KX_TextureRenderer::pyattr_set_clip_start(PyObjectPlus *self_v, const KX_PYA
 	const float val = PyFloat_AsDouble(value);
 
 	if (val <= 0.0f) {
-		PyErr_SetString(PyExc_AttributeError, "cubeMap.clipStart = float: KX_TextureRenderer, expected a float grater than zero");
+		PyErr_SetString(PyExc_AttributeError, "renderer.clipStart = float: KX_TextureRenderer, expected a float grater than zero");
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -237,7 +237,7 @@ int KX_TextureRenderer::pyattr_set_clip_end(PyObjectPlus *self_v, const KX_PYATT
 	const float val = PyFloat_AsDouble(value);
 
 	if (val <= 0.0f) {
-		PyErr_SetString(PyExc_AttributeError, "cubeMap.clipEnd = float: KX_TextureRenderer, expected a float grater than zero");
+		PyErr_SetString(PyExc_AttributeError, "renderer.clipEnd = float: KX_TextureRenderer, expected a float grater than zero");
 		return PY_SET_ATTR_FAIL;
 	}
 
