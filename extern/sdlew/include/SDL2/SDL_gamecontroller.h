@@ -40,7 +40,7 @@ typedef struct SDL_GameControllerButtonBind
 
 typedef int SDLCALL tSDL_GameControllerAddMapping( const char* mappingString );
 
-typedef int SDLCALL SDL_GameControllerAddMappingsFromRW( SDL_RWops * rw, int freerw );
+typedef int SDLCALL tSDL_GameControllerAddMappingsFromRW( SDL_RWops * rw, int freerw );
 
 typedef char * SDLCALL tSDL_GameControllerMappingForGUID( SDL_JoystickGUID guid );
 
