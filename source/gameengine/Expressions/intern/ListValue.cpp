@@ -99,14 +99,14 @@ int CListValue::GetCount()
 	return m_pValueArray.size();
 }
 
-CListValue::VectorTypeIterator CListValue::GetBegin()
+CListValue::VectorTypeIterator CListValue::GetBegin() const
 {
-	return m_pValueArray.begin();
+	return m_pValueArray.cbegin();
 }
 
-CListValue::VectorTypeIterator CListValue::GetEnd()
+CListValue::VectorTypeIterator CListValue::GetEnd() const
 {
-	return m_pValueArray.end();
+	return m_pValueArray.cend();
 }
 
 void CListValue::Resize(int num)

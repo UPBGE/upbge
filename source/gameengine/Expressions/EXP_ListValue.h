@@ -29,7 +29,7 @@ class CListValue : public CPropValue
 
 public:
 	typedef std::vector<CValue *> VectorType;
-	typedef VectorType::iterator VectorTypeIterator;
+	typedef VectorType::const_iterator VectorTypeIterator;
 
 private:
 	VectorType m_pValueArray;
@@ -53,7 +53,7 @@ private:
 
 public:
 		iterator(VectorTypeIterator it)
-			: m_it(it)
+			:m_it(it)
 		{
 		}
 
@@ -62,13 +62,13 @@ public:
 			++m_it;
 		}
 
-		inline T *operator*()
+		inline T *operator*() const
 		{
 			return static_cast<T *>(*m_it);
 		}
 
 		template <class U>
-		friend bool operator!=(const iterator<U>& it1, const iterator<U>& it2);
+		friend inline bool operator!=(const iterator<U>& it1, const iterator<U>& it2);
 	};
 
 	void MergeList(CListValue *otherlist);
@@ -98,8 +98,8 @@ public:
 	CValue *GetFront();
 	CValue *GetBack();
 	int GetCount();
-	VectorTypeIterator GetBegin();
-	VectorTypeIterator GetEnd();
+	VectorTypeIterator GetBegin() const;
+	VectorTypeIterator GetEnd() const;
 	virtual const std::string GetText();
 
 #ifdef WITH_PYTHON
