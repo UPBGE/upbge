@@ -27,9 +27,9 @@
 #ifndef __KX_CUBEMAP_H__
 #define __KX_CUBEMAP_H__
 
-#include "KX_TextureProbe.h"
+#include "KX_TextureRenderer.h"
 
-class KX_CubeMap : public KX_TextureProbe
+class KX_CubeMap : public KX_TextureRenderer
 {
 	Py_Header
 

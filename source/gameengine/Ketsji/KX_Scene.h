@@ -73,7 +73,7 @@ class KX_WorldInfo;
 class KX_Camera;
 class KX_GameObject;
 class KX_LightObject;
-class KX_TextureProbeManager;
+class KX_TextureRendererManager;
 class RAS_BoundingBoxManager;
 class RAS_BucketManager;
 class RAS_MaterialBucket;
@@ -123,7 +123,7 @@ private:
 	};
 
 protected:
-	KX_TextureProbeManager *m_probeManager;
+	KX_TextureRendererManager *m_rendererManager;
 	RAS_BucketManager*	m_bucketmanager;
 
 	/// Manager used to update all the mesh bounding box.
@@ -315,7 +315,7 @@ public:
 	~KX_Scene();
 
 	RAS_BucketManager* GetBucketManager();
-	KX_TextureProbeManager *GetProbeManager() const;
+	KX_TextureRendererManager *GetProbeManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen);

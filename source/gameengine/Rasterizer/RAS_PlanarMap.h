@@ -27,9 +27,9 @@
 #ifndef __RAS_PLANAR_MAP_H__
 #define __RAS_PLANAR_MAP_H__
 
-#include "RAS_TextureProbe.h"
+#include "RAS_TextureRenderer.h"
 
-class RAS_PlanarMap : public virtual RAS_TextureProbe
+class RAS_PlanarMap : public virtual RAS_TextureRenderer
 {
 public:
 	RAS_PlanarMap();

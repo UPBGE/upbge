@@ -23,7 +23,7 @@
  */
 
 #include "BL_Texture.h"
-#include "KX_TextureProbe.h"
+#include "KX_TextureRenderer.h"
 
 #include "DNA_texture_types.h"
 
@@ -251,7 +251,7 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("parallaxStep", BL_Texture, pyattr_get_parallax_step, pyattr_set_parallax_step),
 	KX_PYATTRIBUTE_RW_FUNCTION("lodBias", BL_Texture, pyattr_get_lod_bias, pyattr_set_lod_bias),
 	KX_PYATTRIBUTE_RW_FUNCTION("bindCode", BL_Texture, pyattr_get_bind_code, pyattr_set_bind_code),
-	KX_PYATTRIBUTE_RO_FUNCTION("probe", BL_Texture, pyattr_get_probe),
+	KX_PYATTRIBUTE_RO_FUNCTION("renderer", BL_Texture, pyattr_get_renderer),
 	KX_PYATTRIBUTE_RW_FUNCTION("ior", BL_Texture, pyattr_get_ior, pyattr_set_ior),
 	KX_PYATTRIBUTE_RW_FUNCTION("refractionRatio", BL_Texture, pyattr_get_refraction_ratio, pyattr_set_refraction_ratio),
 	KX_PYATTRIBUTE_RW_FUNCTION("uvRotation", BL_Texture, pyattr_get_uv_rotation, pyattr_set_uv_rotation),
@@ -521,12 +521,12 @@ int BL_Texture::pyattr_set_bind_code(PyObjectPlus *self_v, const KX_PYATTRIBUTE_
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject *BL_Texture::pyattr_get_probe(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_Texture::pyattr_get_renderer(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
-	KX_TextureProbe *probe = dynamic_cast<KX_TextureProbe *>(self->GetProbe());
-	if (probe) {
-		return probe->GetProxy();
+	KX_TextureRenderer *renderer = dynamic_cast<KX_TextureRenderer *>(self->GetProbe());
+	if (renderer) {
+		return renderer->GetProxy();
 	}
 
 	Py_RETURN_NONE;

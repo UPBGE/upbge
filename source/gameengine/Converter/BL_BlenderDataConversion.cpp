@@ -88,7 +88,7 @@
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_IPolygonMaterial.h"
 #include "KX_BlenderMaterial.h"
-#include "KX_TextureProbeManager.h"
+#include "KX_TextureRendererManager.h"
 #include "KX_PlanarMap.h"
 #include "KX_CubeMap.h"
 #include "BL_Texture.h"
@@ -1866,7 +1866,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 						}
 					}
 
-					KX_TextureProbeManager::ProbeType type = tex->IsCubeMap() ? KX_TextureProbeManager::CUBE : KX_TextureProbeManager::PLANAR;
+					KX_TextureRendererManager::ProbeType type = tex->IsCubeMap() ? KX_TextureRendererManager::CUBE : KX_TextureRendererManager::PLANAR;
 					kxscene->GetProbeManager()->AddProbe(type, tex, viewpoint);
 				}
 			}

@@ -27,9 +27,9 @@
 #ifndef __KX_PLANAR_H__
 #define __KX_PLANAR_H__
 
-#include "KX_TextureProbe.h"
+#include "KX_TextureRenderer.h"
 
-class KX_PlanarMap : public KX_TextureProbe
+class KX_PlanarMap : public KX_TextureRenderer
 {
 	Py_Header
 

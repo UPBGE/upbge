@@ -20,7 +20,7 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file KX_TextureProbe.h
+/** \file KX_TextureRenderer.h
  *  \ingroup ketsji
  */
 
@@ -28,7 +28,7 @@
 #define __KX_TEXTURE_PROBE_H__
 
 #include "EXP_Value.h"
-#include "RAS_TextureProbe.h"
+#include "RAS_TextureRenderer.h"
 
 #include "MT_Matrix4x4.h"
 
@@ -38,7 +38,7 @@ class KX_Scene;
 
 struct EnvMap;
 
-class KX_TextureProbe : public CValue, public RAS_TextureProbe
+class KX_TextureRenderer : public CValue, public RAS_TextureRenderer
 {
 	Py_Header
 
@@ -72,8 +72,8 @@ private:
 	bool m_forceUpdate;
 
 public:
-	KX_TextureProbe(EnvMap *env, KX_GameObject *viewpoint);
-	virtual ~KX_TextureProbe();
+	KX_TextureRenderer(EnvMap *env, KX_GameObject *viewpoint);
+	virtual ~KX_TextureRenderer();
 
 	virtual std::string GetName();
 
@@ -105,7 +105,7 @@ public:
 	virtual bool SetupCameraFace(KX_Scene *scene, KX_Camera *camera, unsigned short index) = 0;
 
 #ifdef WITH_PYTHON
-	KX_PYMETHOD_DOC_NOARGS(KX_TextureProbe, update);
+	KX_PYMETHOD_DOC_NOARGS(KX_TextureRenderer, update);
 
 	static PyObject *pyattr_get_viewpoint_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_viewpoint_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);

@@ -30,7 +30,7 @@
 RAS_Texture::RAS_Texture()
 	:m_bindCode(-1),
 	m_name(""),
-	m_probe(nullptr)
+	m_renderer(nullptr)
 {
 }
 
@@ -43,14 +43,14 @@ std::string& RAS_Texture::GetName()
 	return m_name;
 }
 
-void RAS_Texture::SetProbe(RAS_TextureProbe *probe)
+void RAS_Texture::SetProbe(RAS_TextureRenderer *renderer)
 {
-	m_probe = probe;
+	m_renderer = renderer;
 }
 
-RAS_TextureProbe *RAS_Texture::GetProbe() const
+RAS_TextureRenderer *RAS_Texture::GetProbe() const
 {
-	return m_probe;
+	return m_renderer;
 }
 
 int RAS_Texture::GetCubeMapTextureType()

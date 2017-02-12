@@ -20,11 +20,11 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file RAS_TextureProbe.cpp
+/** \file RAS_TextureRenderer.cpp
  *  \ingroup bgerast
  */
 
-#include "RAS_TextureProbe.h"
+#include "RAS_TextureRenderer.h"
 #include "RAS_Texture.h"
 #include "RAS_IRasterizer.h"
 
@@ -43,18 +43,18 @@
 
 #include "BLI_math.h"
 
-RAS_TextureProbe::Face::Face(int target)
+RAS_TextureRenderer::Face::Face(int target)
 	:m_fbo(NULL),
 	m_rb(NULL),
 	m_target(target)
 {
 }
 
-RAS_TextureProbe::Face::~Face()
+RAS_TextureRenderer::Face::~Face()
 {
 }
 
-void RAS_TextureProbe::Face::AttachTexture(GPUTexture *tex)
+void RAS_TextureRenderer::Face::AttachTexture(GPUTexture *tex)
 {
 	m_fbo = GPU_framebuffer_create();
 	m_rb = GPU_renderbuffer_create(GPU_texture_width(tex), GPU_texture_height(tex),
@@ -64,7 +64,7 @@ void RAS_TextureProbe::Face::AttachTexture(GPUTexture *tex)
 	GPU_framebuffer_renderbuffer_attach(m_fbo, m_rb, 0, NULL);
 }
 
-void RAS_TextureProbe::Face::DetachTexture(GPUTexture *tex)
+void RAS_TextureRenderer::Face::DetachTexture(GPUTexture *tex)
 {
 	if (m_fbo) {
 		GPU_framebuffer_texture_detach_target(tex, m_target);
@@ -83,19 +83,19 @@ void RAS_TextureProbe::Face::DetachTexture(GPUTexture *tex)
 	}
 }
 
-void RAS_TextureProbe::Face::Bind()
+void RAS_TextureRenderer::Face::Bind()
 {
 	// Set the viewport in the same time.
 	GPU_framebuffer_bind_no_save(m_fbo, 0);
 }
 
-RAS_TextureProbe::RAS_TextureProbe()
+RAS_TextureRenderer::RAS_TextureRenderer()
 	:m_gpuTex(NULL),
 	m_useMipmap(false)
 {
 }
 
-RAS_TextureProbe::~RAS_TextureProbe()
+RAS_TextureRenderer::~RAS_TextureRenderer()
 {
 	for (Face& face : m_faces) {
 		face.DetachTexture(m_gpuTex);
@@ -109,13 +109,13 @@ RAS_TextureProbe::~RAS_TextureProbe()
 	* depending of this image.
 	*/
 	for (RAS_Texture *texture : m_textureUsers) {
-		// Invalidate the probe in each material texture users.
+		// Invalidate the renderer in each material texture users.
 		texture->SetProbe(NULL);
 		BKE_image_free_buffers(texture->GetImage());
 	}
 }
 
-void RAS_TextureProbe::GetValidTexture()
+void RAS_TextureRenderer::GetValidTexture()
 {
 	BLI_assert(m_textureUsers.size() > 0);
 
@@ -160,28 +160,28 @@ void RAS_TextureProbe::GetValidTexture()
 	}
 }
 
-unsigned short RAS_TextureProbe::GetNumFaces() const
+unsigned short RAS_TextureRenderer::GetNumFaces() const
 {
 	return m_faces.size();
 }
 
-const std::vector<RAS_Texture *>& RAS_TextureProbe::GetTextureUsers() const
+const std::vector<RAS_Texture *>& RAS_TextureRenderer::GetTextureUsers() const
 {
 	return m_textureUsers;
 }
 
-void RAS_TextureProbe::AddTextureUser(RAS_Texture *texture)
+void RAS_TextureRenderer::AddTextureUser(RAS_Texture *texture)
 {
 	m_textureUsers.push_back(texture);
 	texture->SetProbe(this);
 }
 
-void RAS_TextureProbe::BeginRender(RAS_IRasterizer *rasty)
+void RAS_TextureRenderer::BeginRender(RAS_IRasterizer *rasty)
 {
 	GetValidTexture();
 }
 
-void RAS_TextureProbe::EndRender(RAS_IRasterizer *rasty)
+void RAS_TextureRenderer::EndRender(RAS_IRasterizer *rasty)
 {
 	if (m_useMipmap) {
 		GPU_texture_bind(m_gpuTex, 0);
@@ -190,7 +190,7 @@ void RAS_TextureProbe::EndRender(RAS_IRasterizer *rasty)
 	}
 }
 
-void RAS_TextureProbe::BindFace(RAS_IRasterizer *rasty, unsigned short index)
+void RAS_TextureRenderer::BindFace(RAS_IRasterizer *rasty, unsigned short index)
 {
 	m_faces[index].Bind();
 

@@ -31,7 +31,7 @@
 #include "RAS_Texture.h"
 
 KX_PlanarMap::KX_PlanarMap(EnvMap *env, KX_GameObject *viewpoint)
-	:KX_TextureProbe(env, viewpoint),
+	:KX_TextureRenderer(env, viewpoint),
 	m_normal(0.0f, 0.0f, 1.0f)
 {
 	m_faces.emplace_back(RAS_Texture::GetTexture2DType());
@@ -48,14 +48,14 @@ std::string KX_PlanarMap::GetName()
 
 void KX_PlanarMap::BeginRender(RAS_IRasterizer *rasty)
 {
-	KX_TextureProbe::BeginRender(rasty);
+	KX_TextureRenderer::BeginRender(rasty);
 	rasty->SetInvertFrontFace(true);
 }
 
 void KX_PlanarMap::EndRender(RAS_IRasterizer *rasty)
 {
 	rasty->SetInvertFrontFace(false);
-	KX_TextureProbe::EndRender(rasty);
+	KX_TextureRenderer::EndRender(rasty);
 }
 
 const MT_Vector3& KX_PlanarMap::GetNormal() const

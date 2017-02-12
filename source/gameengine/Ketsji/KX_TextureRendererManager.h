@@ -20,7 +20,7 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file KX_TextureProbeManager.h
+/** \file KX_TextureRendererManager.h
 *  \ingroup ketsji
 */
 
@@ -32,22 +32,22 @@
 class KX_GameObject;
 class KX_Camera;
 class KX_Scene;
-class KX_TextureProbe;
+class KX_TextureRenderer;
 
 class RAS_IRasterizer;
 class RAS_Texture;
 
-class KX_TextureProbeManager
+class KX_TextureRendererManager
 {
 private:
-	/// All existing probes of this scene.
-	std::vector<KX_TextureProbe *> m_probes;
-	/// The camera used for probes render, it's own by the probe manager.
+	/// All existing renderers of this scene.
+	std::vector<KX_TextureRenderer *> m_renderers;
+	/// The camera used for renderers render, it's own by the renderer manager.
 	KX_Camera *m_camera;
 	/// The scene we are rendering for.
 	KX_Scene *m_scene;
 
-	void RenderProbe(RAS_IRasterizer *rasty, KX_TextureProbe *probe);
+	void RenderProbe(RAS_IRasterizer *rasty, KX_TextureRenderer *renderer);
 
 public:
 	enum ProbeType {
@@ -55,21 +55,21 @@ public:
 		PLANAR
 	};
 
-	KX_TextureProbeManager(KX_Scene *scene);
-	virtual ~KX_TextureProbeManager();
+	KX_TextureRendererManager(KX_Scene *scene);
+	virtual ~KX_TextureRendererManager();
 
-	/// Invalidate probes using the given game object as viewpoint object.
+	/// Invalidate renderers using the given game object as viewpoint object.
 	void InvalidateViewpoint(KX_GameObject *gameobj);
 
-	/** Add and create a probe if none existing probe was using the same
+	/** Add and create a renderer if none existing renderer was using the same
 	* texture containing in the material texture passed.
 	*/
 	void AddProbe(ProbeType type, RAS_Texture *texture, KX_GameObject *viewpoint);
 
 	void Render(RAS_IRasterizer *rasty);
 
-	/// Merge the content of an other probe manager, used during lib loading.
-	void Merge(KX_TextureProbeManager *other);
+	/// Merge the content of an other renderer manager, used during lib loading.
+	void Merge(KX_TextureRendererManager *other);
 };
 
 #endif // __KX_TEXTURE_PROBE_MANAGER_H__

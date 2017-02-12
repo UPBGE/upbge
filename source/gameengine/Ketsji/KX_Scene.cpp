@@ -63,7 +63,7 @@
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
 #include "KX_2DFilterManager.h"
-#include "KX_TextureProbeManager.h"
+#include "KX_TextureRendererManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
 
@@ -197,7 +197,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	
 	m_rootnode = nullptr;
 
-	m_probeManager = new KX_TextureProbeManager(this);
+	m_rendererManager = new KX_TextureRendererManager(this);
 	m_bucketmanager=new RAS_BucketManager();
 	m_boundingBoxManager = new RAS_BoundingBoxManager();
 	
@@ -283,8 +283,8 @@ KX_Scene::~KX_Scene()
 	if (m_networkScene)
 		delete m_networkScene;
 
-	if (m_probeManager) {
-		delete m_probeManager;
+	if (m_rendererManager) {
+		delete m_rendererManager;
 	}
 
 	if (m_bucketmanager)
@@ -326,9 +326,9 @@ RAS_BucketManager* KX_Scene::GetBucketManager()
 	return m_bucketmanager;
 }
 
-KX_TextureProbeManager *KX_Scene::GetProbeManager() const
+KX_TextureRendererManager *KX_Scene::GetProbeManager() const
 {
-	return m_probeManager;
+	return m_rendererManager;
 }
 
 RAS_BoundingBoxManager *KX_Scene::GetBoundingBoxManager()
@@ -1108,7 +1108,7 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 
 	newobj->RemoveMeshes();
 
-	m_probeManager->InvalidateViewpoint(newobj);
+	m_rendererManager->InvalidateViewpoint(newobj);
 
 	ret = 1;
 	if (newobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(newobj))
@@ -1717,7 +1717,7 @@ void KX_Scene::RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterize
 
 void KX_Scene::RenderProbes(RAS_IRasterizer *rasty)
 {
-	m_probeManager->Render(rasty);
+	m_rendererManager->Render(rasty);
 }
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam)

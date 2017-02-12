@@ -20,7 +20,7 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file RAS_TextureProbe.h
+/** \file RAS_TextureRenderer.h
 *  \ingroup bgerast
 */
 
@@ -39,7 +39,7 @@ struct GPUFrameBuffer;
 struct GPURenderBuffer;
 struct GPUTexture;
 
-class RAS_TextureProbe
+class RAS_TextureRenderer
 {
 protected:
 	class Face
@@ -79,8 +79,8 @@ private:
 	bool m_useMipmap;
 
 public:
-	RAS_TextureProbe();
-	virtual ~RAS_TextureProbe();
+	RAS_TextureRenderer();
+	virtual ~RAS_TextureRenderer();
 
 	unsigned short GetNumFaces() const;
 

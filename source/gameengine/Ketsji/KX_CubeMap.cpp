@@ -69,7 +69,7 @@ const MT_Matrix3x3 KX_CubeMap::faceViewMatrices3x3[KX_CubeMap::NUM_FACES] = {
 };
 
 KX_CubeMap::KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint)
-	:KX_TextureProbe(env, viewpoint)
+	:KX_TextureRenderer(env, viewpoint)
 {
 	for (int target : RAS_Texture::GetCubeMapTargets()) {
 		m_faces.emplace_back(target);

@@ -32,7 +32,7 @@ struct Tex;
 struct Image;
 struct GPUTexture;
 
-class RAS_TextureProbe;
+class RAS_TextureRenderer;
 
 class RAS_Texture
 {
@@ -40,7 +40,7 @@ protected:
 	int m_bindCode;
 	std::string m_name;
 
-	RAS_TextureProbe *m_probe;
+	RAS_TextureRenderer *m_renderer;
 
 public:
 	RAS_Texture();
@@ -55,8 +55,8 @@ public:
 	virtual GPUTexture *GetGPUTexture() const = 0;
 	std::string& GetName();
 
-	void SetProbe(RAS_TextureProbe *probe);
-	RAS_TextureProbe *GetProbe() const;
+	void SetProbe(RAS_TextureRenderer *renderer);
+	RAS_TextureRenderer *GetProbe() const;
 
 	virtual unsigned int GetTextureType() = 0;
 

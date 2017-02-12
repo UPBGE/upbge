@@ -286,7 +286,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_DISABLED);
 
-			// Don't use depth transparency because the probe could not offer a depth texture.
+			// Don't use depth transparency because the renderer could not offer a depth texture.
 			rasty->ResetGlobalDepthTexture();
 			RenderBasicBuckets(cameratrans, rasty, ALPHA_DEPTH_INSTANCING_BUCKET);
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_DEPTH_BUCKET);

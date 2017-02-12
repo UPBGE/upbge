@@ -20,11 +20,11 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
-/** \file gameengine/Ketsji/KX_TextureProbeManager.cpp
+/** \file gameengine/Ketsji/KX_TextureRendererManager.cpp
  *  \ingroup ketsji
  */
 
-#include "KX_TextureProbeManager.h"
+#include "KX_TextureRendererManager.h"
 #include "KX_Camera.h"
 #include "KX_Scene.h"
 #include "KX_Globals.h"
@@ -36,75 +36,75 @@
 
 #include "DNA_texture_types.h"
 
-KX_TextureProbeManager::KX_TextureProbeManager(KX_Scene *scene)
+KX_TextureRendererManager::KX_TextureRendererManager(KX_Scene *scene)
 	:m_scene(scene)
 {
 	const RAS_CameraData& camdata = RAS_CameraData();
 	m_camera = new KX_Camera(m_scene, KX_Scene::m_callbacks, camdata, true, true);
-	m_camera->SetName("__probe_cam__");
+	m_camera->SetName("__renderer_cam__");
 }
 
-KX_TextureProbeManager::~KX_TextureProbeManager()
+KX_TextureRendererManager::~KX_TextureRendererManager()
 {
-	for (KX_TextureProbe *probe : m_probes) {
-		delete probe;
+	for (KX_TextureRenderer *renderer : m_renderers) {
+		delete renderer;
 	}
 
 	m_camera->Release();
 }
 
-void KX_TextureProbeManager::InvalidateViewpoint(KX_GameObject *gameobj)
+void KX_TextureRendererManager::InvalidateViewpoint(KX_GameObject *gameobj)
 {
-	for (KX_TextureProbe *probe : m_probes) {
-		if (probe->GetViewpointObject() == gameobj) {
-			probe->SetViewpointObject(NULL);
+	for (KX_TextureRenderer *renderer : m_renderers) {
+		if (renderer->GetViewpointObject() == gameobj) {
+			renderer->SetViewpointObject(NULL);
 		}
 	}
 }
 
-void KX_TextureProbeManager::AddProbe(ProbeType type, RAS_Texture *texture, KX_GameObject *viewpoint)
+void KX_TextureRendererManager::AddProbe(ProbeType type, RAS_Texture *texture, KX_GameObject *viewpoint)
 {
-	/* Don't Add probe several times for the same texture. If the texture is shared by several objects,
-	 * we just add a "textureUser" to signal that the probe texture will be shared by several objects.
+	/* Don't Add renderer several times for the same texture. If the texture is shared by several objects,
+	 * we just add a "textureUser" to signal that the renderer texture will be shared by several objects.
 	 */
-	for (KX_TextureProbe *probe : m_probes) {
-		for (RAS_Texture *textureUser : probe->GetTextureUsers()) {
+	for (KX_TextureRenderer *renderer : m_renderers) {
+		for (RAS_Texture *textureUser : renderer->GetTextureUsers()) {
 			if (textureUser->GetTex() == texture->GetTex()) {
-				probe->AddTextureUser(texture);
+				renderer->AddTextureUser(texture);
 				return;
 			}
 		}
 	}
 
 	EnvMap *env = texture->GetTex()->env;
-	KX_TextureProbe *probe;
+	KX_TextureRenderer *renderer;
 	switch (type) {
 		case CUBE:
 		{
-			probe = new KX_CubeMap(env, viewpoint);
+			renderer = new KX_CubeMap(env, viewpoint);
 			break;
 		}
 		case PLANAR:
 		{
-			probe = new KX_PlanarMap(env, viewpoint);
+			renderer = new KX_PlanarMap(env, viewpoint);
 			break;
 		}
 	}
 
-	probe->AddTextureUser(texture);
-	m_probes.push_back(probe);
+	renderer->AddTextureUser(texture);
+	m_renderers.push_back(renderer);
 }
 
-void KX_TextureProbeManager::RenderProbe(RAS_IRasterizer *rasty, KX_TextureProbe *probe)
+void KX_TextureRendererManager::RenderProbe(RAS_IRasterizer *rasty, KX_TextureRenderer *renderer)
 {
-	KX_GameObject *viewpoint = probe->GetViewpointObject();
+	KX_GameObject *viewpoint = renderer->GetViewpointObject();
 	// Doesn't need (or can) update.
-	if (!probe->NeedUpdate() || !probe->GetEnabled() || !viewpoint) {
+	if (!renderer->NeedUpdate() || !renderer->GetEnabled() || !viewpoint) {
 		return;
 	}
 
 	// Begin rendering stuff
-	probe->BeginRender(rasty);
+	renderer->BeginRender(rasty);
 
 	const bool visible = viewpoint->GetVisible();
 	/* We hide the viewpoint object in the case backface culling is disabled -> we can't see through
@@ -112,10 +112,10 @@ void KX_TextureProbeManager::RenderProbe(RAS_IRasterizer *rasty, KX_TextureProbe
 	 */
 	viewpoint->SetVisible(false, false);
 
-	// Set camera lod distance factor from probe value.
-	m_camera->SetLodDistanceFactor(probe->GetLodDistanceFactor());
-	// Set camera setting shared by all the probe's faces.
-	if (!probe->SetupCamera(m_scene, m_camera)) {
+	// Set camera lod distance factor from renderer value.
+	m_camera->SetLodDistanceFactor(renderer->GetLodDistanceFactor());
+	// Set camera setting shared by all the renderer's faces.
+	if (!renderer->SetupCamera(m_scene, m_camera)) {
 		return;
 	}
 
@@ -123,26 +123,26 @@ void KX_TextureProbeManager::RenderProbe(RAS_IRasterizer *rasty, KX_TextureProbe
 	 * or if the projection matrix is not computed yet,
 	 * we have to compute projection matrix.
 	 */
-	if (probe->GetInvalidProjectionMatrix()) {
-		const float clipstart = probe->GetClipStart();
-		const float clipend = probe->GetClipEnd();
+	if (renderer->GetInvalidProjectionMatrix()) {
+		const float clipstart = renderer->GetClipStart();
+		const float clipend = renderer->GetClipEnd();
 		const MT_Matrix4x4& proj = rasty->GetFrustumMatrix(-clipstart, clipstart, -clipstart, clipstart, clipstart, clipend, 1.0f, true);
-		probe->SetProjectionMatrix(proj);
-		probe->SetInvalidProjectionMatrix(false);
+		renderer->SetProjectionMatrix(proj);
+		renderer->SetInvalidProjectionMatrix(false);
 	}
 
-	const MT_Matrix4x4& projmat = probe->GetProjectionMatrix();
+	const MT_Matrix4x4& projmat = renderer->GetProjectionMatrix();
 	m_camera->SetProjectionMatrix(projmat);
 
-	for (unsigned short i = 0; i < probe->GetNumFaces(); ++i) {
+	for (unsigned short i = 0; i < renderer->GetNumFaces(); ++i) {
 		// Set camera settings unique per faces.
-		if (!probe->SetupCameraFace(m_scene, m_camera, i)) {
+		if (!renderer->SetupCameraFace(m_scene, m_camera, i)) {
 			continue;
 		}
 
 		m_camera->NodeUpdateGS(0.0f);
 
-		probe->BindFace(rasty, i);
+		renderer->BindFace(rasty, i);
 
 		const MT_Transform camtrans(m_camera->GetWorldToCamera());
 		const MT_Matrix4x4 viewmat(camtrans);
@@ -150,7 +150,7 @@ void KX_TextureProbeManager::RenderProbe(RAS_IRasterizer *rasty, KX_TextureProbe
 		rasty->SetViewMatrix(viewmat, m_camera->NodeGetWorldOrientation(), m_camera->NodeGetWorldPosition(), m_camera->NodeGetLocalScaling(), m_camera->GetCameraData()->m_perspective);
 		m_camera->SetModelviewMatrix(viewmat);
 
-		m_scene->CalculateVisibleMeshes(rasty, m_camera, ~probe->GetIgnoreLayers());
+		m_scene->CalculateVisibleMeshes(rasty, m_camera, ~renderer->GetIgnoreLayers());
 
 		/* Updating the lod per face is normally not expensive because a cube map normally show every objects
 		 * but here we update only visible object of a face including the clip end and start.
@@ -169,12 +169,12 @@ void KX_TextureProbeManager::RenderProbe(RAS_IRasterizer *rasty, KX_TextureProbe
 
 	viewpoint->SetVisible(visible, false);
 
-	probe->EndRender(rasty);
+	renderer->EndRender(rasty);
 }
 
-void KX_TextureProbeManager::Render(RAS_IRasterizer *rasty)
+void KX_TextureRendererManager::Render(RAS_IRasterizer *rasty)
 {
-	if (m_probes.size() == 0 || rasty->GetDrawingMode() != RAS_IRasterizer::RAS_TEXTURED) {
+	if (m_renderers.size() == 0 || rasty->GetDrawingMode() != RAS_IRasterizer::RAS_TEXTURED) {
 		return;
 	}
 
@@ -186,11 +186,11 @@ void KX_TextureProbeManager::Render(RAS_IRasterizer *rasty)
 
 	// Copy current stereo mode.
 	const RAS_IRasterizer::StereoMode steremode = rasty->GetStereoMode();
-	// Disable stereo for realtime probe.
+	// Disable stereo for realtime renderer.
 	rasty->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
 
-	for (KX_TextureProbe *probe : m_probes) {
-		RenderProbe(rasty, probe);
+	for (KX_TextureRenderer *renderer : m_renderers) {
+		RenderProbe(rasty, renderer);
 	}
 
 	// Restore previous stereo mode.
@@ -201,8 +201,8 @@ void KX_TextureProbeManager::Render(RAS_IRasterizer *rasty)
 	rasty->SetDrawingMode(drawmode);
 }
 
-void KX_TextureProbeManager::Merge(KX_TextureProbeManager *other)
+void KX_TextureRendererManager::Merge(KX_TextureRendererManager *other)
 {
-	m_probes.insert(m_probes.end(), other->m_probes.begin(), other->m_probes.end());
-	other->m_probes.clear();
+	m_renderers.insert(m_renderers.end(), other->m_renderers.begin(), other->m_renderers.end());
+	other->m_renderers.clear();
 }
