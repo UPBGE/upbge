@@ -53,6 +53,7 @@
 #include "SG_Controller.h"
 #include "PHY_IGraphicController.h"
 #include "SG_Node.h"
+#include "SG_Familly.h"
 #include "KX_ClientObjectInfo.h"
 #include "RAS_BucketManager.h"
 #include "KX_RayCast.h"
@@ -476,11 +477,6 @@ void KX_GameObject::UpdateActionManager(float curtime, bool applyToObject)
 	GetActionManager()->Update(curtime, applyToObject);
 }
 
-void KX_GameObject::UpdateActionIPOs()
-{
-	GetActionManager()->UpdateIPOs();
-}
-
 float KX_GameObject::GetActionFrame(short layer)
 {
 	return GetActionManager()->GetActionFrame(layer);
@@ -887,9 +883,8 @@ void KX_GameObject::UpdateIPO(float curframetime,
 							  bool recurse) 
 {
 	// just the 'normal' update procedure.
-	GetSGNode()->SetSimulatedTime(curframetime,recurse);
-	GetSGNode()->UpdateWorldData(curframetime);
-	UpdateTransform();
+	GetSGNode()->SetSimulatedTimeThread(curframetime,recurse);
+	GetSGNode()->UpdateWorldDataThread(curframetime);
 }
 
 bool

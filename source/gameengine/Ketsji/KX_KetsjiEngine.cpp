@@ -309,7 +309,6 @@ void KX_KetsjiEngine::EndFrame()
 
 bool KX_KetsjiEngine::NextFrame()
 {
-
 	m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
 
 	/*

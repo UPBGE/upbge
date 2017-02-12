@@ -72,6 +72,9 @@ private:
 	 * to the object.
 	 */
 	bool m_appliedToObject;
+
+	/// Set to true when the action was updated and applied. Back to false in the IPO update (UpdateIPO).
+	bool m_requestIpo;
 	bool m_calc_localtime;
 
 	// The last update time to avoid double animation update.

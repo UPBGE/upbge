@@ -227,7 +227,8 @@ void LA_Launcher::InitEngine()
 	
 	// Create the ketsjiengine.
 	m_ketsjiEngine = new KX_KetsjiEngine(m_kxsystem);
-	
+	KX_SetActiveEngine(m_ketsjiEngine);
+
 	// Set the devices.
 	m_ketsjiEngine->SetInputDevice(m_inputDevice);
 	m_ketsjiEngine->SetCanvas(m_canvas);
@@ -270,7 +271,6 @@ void LA_Launcher::InitEngine()
 		m_networkMessageManager);
 
 	KX_SetActiveScene(m_kxStartScene);
-	KX_SetActiveEngine(m_ketsjiEngine);
 
 #ifdef WITH_PYTHON
 	// Some python things.

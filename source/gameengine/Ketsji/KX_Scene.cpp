@@ -212,7 +212,9 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	default:
 		m_obstacleSimulation = nullptr;
 	}
-	
+
+	m_animationPool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &m_animationPoolData);
+
 #ifdef WITH_PYTHON
 	m_attr_dict = nullptr;
 
@@ -239,6 +241,10 @@ KX_Scene::~KX_Scene()
 
 	if (m_obstacleSimulation)
 		delete m_obstacleSimulation;
+
+	if (m_animationPool) {
+		BLI_task_pool_free(m_animationPool);
+	}
 
 	if (m_objectlist)
 		m_objectlist->Release();
@@ -1547,7 +1553,8 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 	KX_GameObject *gameobj, *child, *parent;
 	CListValue *children;
 	bool needs_update;
-	double curtime = *(double*)BLI_task_pool_userdata(pool);
+	KX_Scene::AnimationPoolData *data = (KX_Scene::AnimationPoolData *)BLI_task_pool_userdata(pool);
+	double curtime = data->curtime;
 
 	gameobj = (KX_GameObject*)taskdata;
 
@@ -1611,18 +1618,13 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 
 void KX_Scene::UpdateAnimations(double curtime)
 {
-	TaskPool *pool = BLI_task_pool_create(KX_GetActiveEngine()->GetTaskScheduler(), &curtime);
+	m_animationPoolData.curtime = curtime;
 
 	for (CListValue::iterator<KX_GameObject> it = m_animatedlist->GetBegin(), end = m_animatedlist->GetEnd(); it != end; ++it) {
-		BLI_task_pool_push(pool, update_anim_thread_func, *it, false, TASK_PRIORITY_LOW);
+		BLI_task_pool_push(m_animationPool, update_anim_thread_func, *it, false, TASK_PRIORITY_LOW);
 	}
 
-	BLI_task_pool_work_and_wait(pool);
-	BLI_task_pool_free(pool);
-
-	for (CListValue::iterator<KX_GameObject> it = m_animatedlist->GetBegin(), end = m_animatedlist->GetEnd(); it != end; ++it) {
-		(*it)->UpdateActionIPOs();
-	}
+	BLI_task_pool_work_and_wait(m_animationPool);
 }
 
 void KX_Scene::LogicUpdateFrame(double curtime, bool frame)

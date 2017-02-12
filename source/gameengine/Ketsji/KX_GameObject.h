@@ -326,12 +326,6 @@ public:
 	 */
 	void UpdateActionManager(float curtime, bool applyObject);
 
-	/**
-	 * Have the action manager update IPOs
-	 * note: not thread-safe!
-	 */
-	void UpdateActionIPOs();
-
 	/*********************************
 	 * End Animation API
 	 *********************************/

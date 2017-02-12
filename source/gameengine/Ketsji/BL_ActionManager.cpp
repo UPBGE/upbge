@@ -149,15 +149,11 @@ bool BL_ActionManager::IsActionDone(short layer)
 
 void BL_ActionManager::Update(float curtime, bool applyToObject)
 {
-	BL_ActionMap::iterator it;
-	for (it = m_layers.begin(); it != m_layers.end(); ++it) {
-		it->second->Update(curtime, applyToObject);
+	for (const auto& pair : m_layers) {
+		pair.second->Update(curtime, applyToObject);
 	}
-}
 
-void BL_ActionManager::UpdateIPOs()
-{
-	for (BL_ActionMap::iterator it = m_layers.begin(); it != m_layers.end(); ++it) {
-		it->second->UpdateIPOs();
+	for (const auto& pair : m_layers) {
+		pair.second->UpdateIPOs();
 	}
 }

@@ -87,6 +87,7 @@ class btCollisionShape;
 class KX_BlenderSceneConverter;
 struct KX_ClientObjectInfo;
 class KX_ObstacleSimulation;
+struct TaskPool;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -107,6 +108,11 @@ public:
 		POST_DRAW,
 		PRE_DRAW_SETUP,
 		MAX_DRAW_CALLBACK
+	};
+
+	struct AnimationPoolData
+	{
+		double curtime;
 	};
 
 private:
@@ -297,6 +303,9 @@ protected:
 	KX_2DFilterManager *m_filterManager;
 
 	KX_ObstacleSimulation* m_obstacleSimulation;
+
+	AnimationPoolData m_animationPoolData;
+	TaskPool *m_animationPool;
 
 	/**
 	 * LOD Hysteresis settings

@@ -35,10 +35,14 @@
 #include "SG_QList.h"
 #include "SG_BBox.h"
 #include "SG_ParentRelation.h"
+
+#include "CM_Thread.h"
+
 #include <vector>
 #include <memory>
 
 class SG_Controller;
+class SG_Familly;
 class SG_Node;
 
 // used for debugging: stage of the game engine main loop at which a Scenegraph modification is done
@@ -205,12 +209,14 @@ public:
 	 * the children of this node and update their world data.
 	 */
 	void UpdateWorldData(double time, bool parentUpdated = false);
+	void UpdateWorldDataThread(double time, bool parentUpdated = false);
 
 	/**
 	 * Update the simulation time of this node. Iterate through
 	 * the children nodes and update their simulated time.
 	 */
 	void SetSimulatedTime(double time, bool recurse);
+	void SetSimulatedTimeThread(double time, bool recurse);
 
 	/**
 	 * Schedule this node for update by placing it in head queue
@@ -356,6 +362,9 @@ public:
 
 	bool ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated);
 
+	const std::shared_ptr<SG_Familly>& GetFamilly() const;
+	void SetFamilly(const std::shared_ptr<SG_Familly>& familly);
+
 	/**
 	 * Bounding box functions.
 	 */
@@ -414,6 +423,9 @@ private:
 	MT_Vector3 m_worldScaling;
 
 	std::unique_ptr<SG_ParentRelation> m_parent_relation;
+
+	std::shared_ptr<SG_Familly> m_familly;
+	CM_ThreadMutex m_mutex;
 
 	SG_BBox m_bbox;
 	bool m_modified;

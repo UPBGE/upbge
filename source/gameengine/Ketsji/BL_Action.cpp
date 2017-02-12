@@ -77,6 +77,7 @@ BL_Action::BL_Action(class KX_GameObject* gameobj)
 	m_ipo_flags(0),
 	m_done(true),
 	m_appliedToObject(true),
+	m_requestIpo(false),
 	m_calc_localtime(true),
 	m_prevUpdate(-1.0f)
 {
@@ -258,6 +259,7 @@ bool BL_Action::Play(const std::string& name,
 	
 	m_done = false;
 	m_appliedToObject = false;
+	m_requestIpo = false;
 
 	m_prevUpdate = -1.0f;
 
@@ -378,7 +380,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 	/* Don't bother if we're done with the animation and if the animation was already applied to the object.
 	 * of if the animation made a double update for the same time and that it was applied to the object.
 	 */
-	if ((m_done && m_appliedToObject) || (m_prevUpdate == curtime && m_appliedToObject)) {
+	if ((m_done || m_prevUpdate == curtime) && m_appliedToObject) {
 		return;
 	}
 	m_prevUpdate = curtime;
@@ -423,6 +425,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
 	if (!applyToObject) {
 		return;
 	}
+
+	m_requestIpo = true;
 
 	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
 	{
@@ -499,9 +503,15 @@ void BL_Action::Update(float curtime, bool applyToObject)
 
 void BL_Action::UpdateIPOs()
 {
-	/* This function does nothing if the scene graph controllers are already removed
-	 * by ClearControllerList. */
-	m_obj->UpdateIPO(m_localframe, m_ipo_flags & ACT_IPOFLAG_CHILD);
+	if (m_sg_contr_list.size() == 0) {
+		// Nothing to update or remove.
+		return;
+	}
+
+	if (m_requestIpo) {
+		m_obj->UpdateIPO(m_localframe, m_ipo_flags & ACT_IPOFLAG_CHILD);
+		m_requestIpo = false;
+	}
 
 	// If the action is done we can remove its scene graph IPO controller.
 	if (m_done) {
