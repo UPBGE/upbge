@@ -404,7 +404,7 @@ static GHOST_IWindow *startEmbeddedWindow(
 	if (parentWindow != 0)
 		state = GHOST_kWindowStateEmbedded;
 	GHOST_IWindow *window = system->createWindow(title, 0, 0, 0, 0, state,
-	                                     GHOST_kDrawingContextTypeOpenGL, glSettings, parentWindow);
+	                                     GHOST_kDrawingContextTypeOpenGL, glSettings, false, parentWindow);
 
 	if (!window) {
 		CM_Error("could not create main window");
