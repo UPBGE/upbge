@@ -110,7 +110,7 @@ RAS_TextureRenderer::~RAS_TextureRenderer()
 	*/
 	for (RAS_Texture *texture : m_textureUsers) {
 		// Invalidate the renderer in each material texture users.
-		texture->SetProbe(NULL);
+		texture->SetRenderer(NULL);
 		BKE_image_free_buffers(texture->GetImage());
 	}
 }
@@ -173,7 +173,7 @@ const std::vector<RAS_Texture *>& RAS_TextureRenderer::GetTextureUsers() const
 void RAS_TextureRenderer::AddTextureUser(RAS_Texture *texture)
 {
 	m_textureUsers.push_back(texture);
-	texture->SetProbe(this);
+	texture->SetRenderer(this);
 }
 
 void RAS_TextureRenderer::BeginRender(RAS_IRasterizer *rasty)
@@ -190,9 +190,7 @@ void RAS_TextureRenderer::EndRender(RAS_IRasterizer *rasty)
 	}
 }
 
-void RAS_TextureRenderer::BindFace(RAS_IRasterizer *rasty, unsigned short index)
+void RAS_TextureRenderer::BindFace(unsigned short index)
 {
 	m_faces[index].Bind();
-
-	rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 }

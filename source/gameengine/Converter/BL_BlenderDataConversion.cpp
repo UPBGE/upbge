@@ -1866,8 +1866,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 						}
 					}
 
-					KX_TextureRendererManager::ProbeType type = tex->IsCubeMap() ? KX_TextureRendererManager::CUBE : KX_TextureRendererManager::PLANAR;
-					kxscene->GetProbeManager()->AddProbe(type, tex, viewpoint);
+					KX_TextureRendererManager::RendererType type = tex->IsCubeMap() ? KX_TextureRendererManager::CUBE : KX_TextureRendererManager::PLANAR;
+					kxscene->GetTextureRendererManager()->AddRenderer(type, tex, viewpoint);
 				}
 			}
 		}

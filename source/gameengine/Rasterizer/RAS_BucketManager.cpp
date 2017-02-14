@@ -273,7 +273,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			rasty->SetDepthMask(RAS_IRasterizer::RAS_DEPTHMASK_ENABLED);
 			break;
 		}
-		case RAS_IRasterizer::RAS_PROBE:
+		case RAS_IRasterizer::RAS_RENDERER:
 		{
 			/* Rendering solid and alpha (regular and instancing) materials
 			 * with their shaders.

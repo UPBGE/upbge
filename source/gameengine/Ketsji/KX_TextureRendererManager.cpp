@@ -62,7 +62,7 @@ void KX_TextureRendererManager::InvalidateViewpoint(KX_GameObject *gameobj)
 	}
 }
 
-void KX_TextureRendererManager::AddProbe(ProbeType type, RAS_Texture *texture, KX_GameObject *viewpoint)
+void KX_TextureRendererManager::AddRenderer(RendererType type, RAS_Texture *texture, KX_GameObject *viewpoint)
 {
 	/* Don't Add renderer several times for the same texture. If the texture is shared by several objects,
 	 * we just add a "textureUser" to signal that the renderer texture will be shared by several objects.
@@ -95,7 +95,7 @@ void KX_TextureRendererManager::AddProbe(ProbeType type, RAS_Texture *texture, K
 	m_renderers.push_back(renderer);
 }
 
-void KX_TextureRendererManager::RenderProbe(RAS_IRasterizer *rasty, KX_TextureRenderer *renderer)
+void KX_TextureRendererManager::RenderRenderer(RAS_IRasterizer *rasty, KX_TextureRenderer *renderer)
 {
 	KX_GameObject *viewpoint = renderer->GetViewpointObject();
 	// Doesn't need (or can) update.
@@ -144,7 +144,7 @@ void KX_TextureRendererManager::RenderProbe(RAS_IRasterizer *rasty, KX_TextureRe
 
 		m_camera->NodeUpdateGS(0.0f);
 
-		renderer->BindFace(rasty, i);
+		renderer->BindFace(i);
 
 		const MT_Transform camtrans(m_camera->GetWorldToCamera());
 		const MT_Matrix4x4 viewmat(camtrans);
@@ -181,7 +181,7 @@ void KX_TextureRendererManager::Render(RAS_IRasterizer *rasty)
 	}
 
 	const RAS_IRasterizer::DrawType drawmode = rasty->GetDrawingMode();
-	rasty->SetDrawingMode(RAS_IRasterizer::RAS_PROBE);
+	rasty->SetDrawingMode(RAS_IRasterizer::RAS_RENDERER);
 
 	// Disable scissor to not bother with scissor box.
 	rasty->Disable(RAS_IRasterizer::RAS_SCISSOR_TEST);
@@ -192,7 +192,7 @@ void KX_TextureRendererManager::Render(RAS_IRasterizer *rasty)
 	rasty->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
 
 	for (KX_TextureRenderer *renderer : m_renderers) {
-		RenderProbe(rasty, renderer);
+		RenderRenderer(rasty, renderer);
 	}
 
 	// Restore previous stereo mode.

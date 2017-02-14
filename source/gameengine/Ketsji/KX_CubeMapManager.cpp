@@ -164,7 +164,7 @@ void KX_CubeMapManager::Render(RAS_IRasterizer *rasty)
 	}
 
 	const RAS_IRasterizer::DrawType drawmode = rasty->GetDrawingMode();
-	rasty->SetDrawingMode(RAS_IRasterizer::RAS_PROBE);
+	rasty->SetDrawingMode(RAS_IRasterizer::RAS_RENDERER);
 
 	// Disable scissor to not bother with scissor box.
 	rasty->Disable(RAS_IRasterizer::RAS_SCISSOR_TEST);

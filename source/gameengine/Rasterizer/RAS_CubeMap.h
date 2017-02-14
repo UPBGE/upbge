@@ -24,8 +24,8 @@
 *  \ingroup bgerast
 */
 
-#ifndef __RAS_PROBE_H__
-#define __RAS_PROBE_H__
+#ifndef __RAS_RENDERER_H__
+#define __RAS_RENDERER_H__
 
 #include "RAS_TextureRenderer.h"
 
@@ -44,4 +44,4 @@ public:
 	virtual ~RAS_CubeMap();
 };
 
-#endif  // __RAS_PROBE_H__
+#endif  // __RAS_RENDERER_H__

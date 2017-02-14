@@ -24,8 +24,8 @@
 *  \ingroup bgerast
 */
 
-#ifndef __RAS_TEXTURE_PROBE_H__
-#define __RAS_TEXTURE_PROBE_H__
+#ifndef __RAS_TEXTURE_RENDERER_H__
+#define __RAS_TEXTURE_RENDERER_H__
 
 #include "MT_Matrix3x3.h"
 #include "MT_Vector3.h"
@@ -91,7 +91,7 @@ public:
 	virtual void BeginRender(RAS_IRasterizer *rasty);
 	virtual void EndRender(RAS_IRasterizer *rasty);
 
-	void BindFace(RAS_IRasterizer *rasty, unsigned short index);
+	void BindFace(unsigned short index);
 };
 
-#endif  // __RAS_TEXTURE_PROBE_H__
+#endif  // __RAS_TEXTURE_RENDERER_H__

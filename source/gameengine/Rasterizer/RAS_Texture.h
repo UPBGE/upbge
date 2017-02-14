@@ -55,8 +55,8 @@ public:
 	virtual GPUTexture *GetGPUTexture() const = 0;
 	std::string& GetName();
 
-	void SetProbe(RAS_TextureRenderer *renderer);
-	RAS_TextureRenderer *GetProbe() const;
+	void SetRenderer(RAS_TextureRenderer *renderer);
+	RAS_TextureRenderer *GetRenderer() const;
 
 	virtual unsigned int GetTextureType() = 0;
 

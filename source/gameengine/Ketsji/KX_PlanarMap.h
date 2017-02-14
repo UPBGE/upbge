@@ -55,9 +55,15 @@ public:
 	virtual void EndRender(RAS_IRasterizer *rasty);
 
 	const MT_Vector3& GetNormal() const;
+	void SetNormal(const MT_Vector3& normal);
 
 	virtual bool SetupCamera(KX_Scene *scene, KX_Camera *camera);
 	virtual bool SetupCameraFace(KX_Scene *scene, KX_Camera *camera, unsigned short index);
+
+#ifdef WITH_PYTHON
+	static PyObject *pyattr_get_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+#endif  // WITH_PYTHON
 };
 
 #endif  // __KX_PLANAR_H__

@@ -524,7 +524,7 @@ int BL_Texture::pyattr_set_bind_code(PyObjectPlus *self_v, const KX_PYATTRIBUTE_
 PyObject *BL_Texture::pyattr_get_renderer(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_Texture *self = static_cast<BL_Texture *>(self_v);
-	KX_TextureRenderer *renderer = dynamic_cast<KX_TextureRenderer *>(self->GetProbe());
+	KX_TextureRenderer *renderer = static_cast<KX_TextureRenderer *>(self->GetRenderer());
 	if (renderer) {
 		return renderer->GetProxy();
 	}

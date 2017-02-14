@@ -121,7 +121,7 @@ PyTypeObject KX_CubeMap::Type = {
 	Methods,
 	0,
 	0,
-	&CValue::Type,
+	&KX_TextureRenderer::Type,
 	0, 0, 0, 0, 0, 0,
 	py_base_new
 };

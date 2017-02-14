@@ -535,7 +535,7 @@ void KX_KetsjiEngine::Render()
 		KX_Scene *scene = *sceit;
 		// shadow buffers
 		RenderShadowBuffers(scene);
-		scene->RenderProbes(m_rasterizer);
+		scene->RenderTextureRenderers(m_rasterizer);
 	}
 
 	// Update all off screen to the current canvas size.

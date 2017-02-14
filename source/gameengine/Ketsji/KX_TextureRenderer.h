@@ -24,8 +24,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_TEXTURE_PROBE_H__
-#define __KX_TEXTURE_PROBE_H__
+#ifndef __KX_TEXTURE_RENDERER_H__
+#define __KX_TEXTURE_RENDERER_H__
 
 #include "EXP_Value.h"
 #include "RAS_TextureRenderer.h"
@@ -116,4 +116,4 @@ public:
 #endif
 };
 
-#endif  // __KX_TEXTURE_PROBE_H__
+#endif  // __KX_TEXTURE_RENDERER_H__

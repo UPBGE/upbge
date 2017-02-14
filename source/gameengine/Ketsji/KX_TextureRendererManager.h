@@ -24,8 +24,8 @@
 *  \ingroup ketsji
 */
 
-#ifndef __KX_TEXTURE_PROBE_MANAGER_H__
-#define __KX_TEXTURE_PROBE_MANAGER_H__
+#ifndef __KX_TEXTURE_RENDERER_MANAGER_H__
+#define __KX_TEXTURE_RENDERER_MANAGER_H__
 
 #include <vector>
 
@@ -47,10 +47,10 @@ private:
 	/// The scene we are rendering for.
 	KX_Scene *m_scene;
 
-	void RenderProbe(RAS_IRasterizer *rasty, KX_TextureRenderer *renderer);
+	void RenderRenderer(RAS_IRasterizer *rasty, KX_TextureRenderer *renderer);
 
 public:
-	enum ProbeType {
+	enum RendererType {
 		CUBE,
 		PLANAR
 	};
@@ -64,7 +64,7 @@ public:
 	/** Add and create a renderer if none existing renderer was using the same
 	* texture containing in the material texture passed.
 	*/
-	void AddProbe(ProbeType type, RAS_Texture *texture, KX_GameObject *viewpoint);
+	void AddRenderer(RendererType type, RAS_Texture *texture, KX_GameObject *viewpoint);
 
 	void Render(RAS_IRasterizer *rasty);
 
@@ -72,4 +72,4 @@ public:
 	void Merge(KX_TextureRendererManager *other);
 };
 
-#endif // __KX_TEXTURE_PROBE_MANAGER_H__
+#endif // __KX_TEXTURE_RENDERER_MANAGER_H__

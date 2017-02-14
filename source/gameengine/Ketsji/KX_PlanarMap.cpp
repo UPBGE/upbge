@@ -26,6 +26,7 @@
 
 #include "KX_PlanarMap.h"
 #include "KX_Camera.h"
+#include "KX_PyMath.h"
 
 #include "RAS_IRasterizer.h"
 #include "RAS_Texture.h"
@@ -94,6 +95,11 @@ void KX_PlanarMap::EndRender(RAS_IRasterizer *rasty)
 const MT_Vector3& KX_PlanarMap::GetNormal() const
 {
 	return m_normal;
+}
+
+void KX_PlanarMap::SetNormal(const MT_Vector3& normal)
+{
+	m_normal = normal.normalized();
 }
 
 bool KX_PlanarMap::SetupCamera(KX_Scene *scene, KX_Camera *camera)
@@ -169,7 +175,7 @@ PyTypeObject KX_PlanarMap::Type = {
 	Methods,
 	0,
 	0,
-	&CValue::Type,
+	&KX_TextureRenderer::Type,
 	0, 0, 0, 0, 0, 0,
 	py_base_new
 };
@@ -181,5 +187,25 @@ PyMethodDef KX_PlanarMap::Methods[] = {
 PyAttributeDef KX_PlanarMap::Attributes[] = {
 	KX_PYATTRIBUTE_NULL // Sentinel
 };
+
+PyObject *KX_PlanarMap::pyattr_get_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_PlanarMap *self = static_cast<KX_PlanarMap *>(self_v);
+	return PyObjectFrom(self->GetNormal());
+}
+
+int KX_PlanarMap::pyattr_set_normal(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_PlanarMap *self = static_cast<KX_PlanarMap *>(self_v);
+
+	MT_Vector3 normal;
+	if (!PyVecTo(value, normal)) {
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->SetNormal(normal);
+
+	return PY_SET_ATTR_SUCCESS;
+}
 
 #endif  // WITH_PYTHON

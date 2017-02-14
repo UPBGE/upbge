@@ -326,7 +326,7 @@ RAS_BucketManager* KX_Scene::GetBucketManager()
 	return m_bucketmanager;
 }
 
-KX_TextureRendererManager *KX_Scene::GetProbeManager() const
+KX_TextureRendererManager *KX_Scene::GetTextureRendererManager() const
 {
 	return m_rendererManager;
 }
@@ -1715,7 +1715,7 @@ void KX_Scene::RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterize
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-void KX_Scene::RenderProbes(RAS_IRasterizer *rasty)
+void KX_Scene::RenderTextureRenderers(RAS_IRasterizer *rasty)
 {
 	m_rendererManager->Render(rasty);
 }
@@ -1980,7 +1980,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 
 	GetBucketManager()->MergeBucketManager(other->GetBucketManager(), this);
 	GetBoundingBoxManager()->Merge(other->GetBoundingBoxManager());
-	GetProbeManager()->Merge(other->GetProbeManager());
+	GetTextureRendererManager()->Merge(other->GetTextureRendererManager());
 
 	/* active + inactive == all ??? - lets hope so */
 	for (CListValue::iterator<KX_GameObject> it = other->GetObjectList()->GetBegin(), end = other->GetObjectList()->GetEnd(); it != end; ++it) {

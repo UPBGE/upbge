@@ -315,11 +315,11 @@ public:
 	~KX_Scene();
 
 	RAS_BucketManager* GetBucketManager();
-	KX_TextureRendererManager *GetProbeManager() const;
+	KX_TextureRendererManager *GetTextureRendererManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen);
-	void RenderProbes(RAS_IRasterizer *rasty);
+	void RenderTextureRenderers(RAS_IRasterizer *rasty);
 
 	/**
 	 * Update all transforms according to the scenegraph.

@@ -43,12 +43,12 @@ std::string& RAS_Texture::GetName()
 	return m_name;
 }
 
-void RAS_Texture::SetProbe(RAS_TextureRenderer *renderer)
+void RAS_Texture::SetRenderer(RAS_TextureRenderer *renderer)
 {
 	m_renderer = renderer;
 }
 
-RAS_TextureRenderer *RAS_Texture::GetProbe() const
+RAS_TextureRenderer *RAS_Texture::GetRenderer() const
 {
 	return m_renderer;
 }
