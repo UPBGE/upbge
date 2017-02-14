@@ -91,6 +91,8 @@ KX_PYMETHODDEF_DOC(KX_2DFilterManager, getFilter, " getFilter(index)")
 	if (filter) {
 		return filter->GetProxy();
 	}
+	CM_PythonError("Filter is available only after the 2D Filter program is linked. The python script to get "
+		"the filter has to be executed one frame later. A delay sensor can be used.")
 	Py_RETURN_NONE;
 }
 
