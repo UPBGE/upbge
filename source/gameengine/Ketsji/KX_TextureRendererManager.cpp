@@ -100,11 +100,14 @@ void KX_TextureRendererManager::RenderProbe(RAS_IRasterizer *rasty, KX_TextureRe
 	KX_GameObject *viewpoint = renderer->GetViewpointObject();
 	// Doesn't need (or can) update.
 	if (!renderer->NeedUpdate() || !renderer->GetEnabled() || !viewpoint) {
+		std::cout << "discard update" << std::endl;
 		return;
 	}
 
-	// Begin rendering stuff
-	renderer->BeginRender(rasty);
+	// Set camera setting shared by all the renderer's faces.
+	if (!renderer->SetupCamera(m_scene, m_camera)) {
+		return;
+	}
 
 	const bool visible = viewpoint->GetVisible();
 	/* We hide the viewpoint object in the case backface culling is disabled -> we can't see through
@@ -114,10 +117,6 @@ void KX_TextureRendererManager::RenderProbe(RAS_IRasterizer *rasty, KX_TextureRe
 
 	// Set camera lod distance factor from renderer value.
 	m_camera->SetLodDistanceFactor(renderer->GetLodDistanceFactor());
-	// Set camera setting shared by all the renderer's faces.
-	if (!renderer->SetupCamera(m_scene, m_camera)) {
-		return;
-	}
 
 	/* When we update clipstart or clipend values,
 	 * or if the projection matrix is not computed yet,
@@ -133,6 +132,9 @@ void KX_TextureRendererManager::RenderProbe(RAS_IRasterizer *rasty, KX_TextureRe
 
 	const MT_Matrix4x4& projmat = renderer->GetProjectionMatrix();
 	m_camera->SetProjectionMatrix(projmat);
+
+	// Begin rendering stuff
+	renderer->BeginRender(rasty);
 
 	for (unsigned short i = 0; i < renderer->GetNumFaces(); ++i) {
 		// Set camera settings unique per faces.

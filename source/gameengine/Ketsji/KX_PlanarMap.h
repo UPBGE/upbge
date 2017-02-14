@@ -36,12 +36,20 @@ class KX_PlanarMap : public KX_TextureRenderer
 private:
 	/// mirror normal vector
 	MT_Vector3 m_normal;
+	MT_Vector4 m_clipPlane;
+
+	enum Type {
+		REFLECTION,
+		REFRACTION
+	} m_type;
 
 public:
 	KX_PlanarMap(EnvMap *env, KX_GameObject *viewpoint);
 	virtual ~KX_PlanarMap();
 
 	virtual std::string GetName();
+
+	void ComputeClipPlane(const MT_Vector3& mirrorObjWorldPos, const MT_Matrix3x3& mirrorObjWorldOri);
 
 	virtual void BeginRender(RAS_IRasterizer *rasty);
 	virtual void EndRender(RAS_IRasterizer *rasty);

@@ -35,6 +35,19 @@ KX_PlanarMap::KX_PlanarMap(EnvMap *env, KX_GameObject *viewpoint)
 	m_normal(0.0f, 0.0f, 1.0f)
 {
 	m_faces.emplace_back(RAS_Texture::GetTexture2DType());
+
+	switch (env->mode) {
+		case ENVMAP_REFLECTION:
+		{
+			m_type = REFLECTION;
+			break;
+		}
+		case ENVMAP_REFRACTION:
+		{
+			m_type = REFRACTION;
+			break;
+		}
+	}
 }
 
 KX_PlanarMap::~KX_PlanarMap()
@@ -46,15 +59,35 @@ std::string KX_PlanarMap::GetName()
 	return "KX_PlanarMap";
 }
 
+void KX_PlanarMap::ComputeClipPlane(const MT_Vector3& mirrorObjWorldPos, const MT_Matrix3x3& mirrorObjWorldOri)
+{
+	const MT_Vector3 normal = mirrorObjWorldOri * m_normal;
+
+	m_clipPlane.x() = normal.x();
+	m_clipPlane.y() = normal.y();
+	m_clipPlane.z() = normal.z();
+	m_clipPlane.w() = -(m_clipPlane.x() * mirrorObjWorldPos.x() +
+					    m_clipPlane.y() * mirrorObjWorldPos.y() +
+					    m_clipPlane.z() * mirrorObjWorldPos.z());
+}
+
 void KX_PlanarMap::BeginRender(RAS_IRasterizer *rasty)
 {
 	KX_TextureRenderer::BeginRender(rasty);
-	rasty->SetInvertFrontFace(true);
+
+	if (m_type == REFLECTION) {
+		rasty->SetInvertFrontFace(true);
+	}
+	rasty->EnableClipPlane(0, -m_clipPlane);
 }
 
 void KX_PlanarMap::EndRender(RAS_IRasterizer *rasty)
 {
-	rasty->SetInvertFrontFace(false);
+	if (m_type == REFLECTION) {
+		rasty->SetInvertFrontFace(false);
+	}
+	rasty->DisableClipPlane(0);
+
 	KX_TextureRenderer::EndRender(rasty);
 }
 
@@ -71,17 +104,31 @@ bool KX_PlanarMap::SetupCamera(KX_Scene *scene, KX_Camera *camera)
 	// mirror mode, compute camera position and orientation
 	// convert mirror position and normal in world space
 	const MT_Matrix3x3& mirrorObjWorldOri = mirror->NodeGetWorldOrientation();
-	const MT_Matrix3x3 mirrorObjWorldOriInverse = mirrorObjWorldOri.inverse();
 	const MT_Vector3& mirrorObjWorldPos = mirror->NodeGetWorldPosition();
+
+	MT_Vector3 cameraWorldPos = observer->NodeGetWorldPosition();
+	observer->NodeSetWorldPosition(cameraWorldPos);
+
+	// Update clip plane to possible new normal or viewpoint object.
+	ComputeClipPlane(mirrorObjWorldPos, mirrorObjWorldOri);
+
+	const float d = m_clipPlane.x() * cameraWorldPos.x() +
+			  m_clipPlane.y() * cameraWorldPos.y() +
+			  m_clipPlane.z() * cameraWorldPos.z() +
+			  m_clipPlane.w();
+
+	if (d < 0.0) {
+		return false;
+	}
+
+	const MT_Matrix3x3 mirrorObjWorldOriInverse = mirrorObjWorldOri.inverse();
+	MT_Matrix3x3 cameraWorldOri = observer->NodeGetWorldOrientation();
 
 	static const MT_Matrix3x3 unmir(1.0f, 0.0f, 0.0f,
 									0.0f, 1.0f, 0.0f,
 									0.0f, 0.0f, -1.0f);
 
-	MT_Matrix3x3 cameraWorldOri = observer->NodeGetWorldOrientation();
-	MT_Vector3 cameraWorldPos = observer->NodeGetWorldPosition();
-
-	/*if (planar->GetPlanarType() == TEX_PLANAR_REFLECTION)*/ {
+	if (m_type == REFLECTION) {
 		// Get vector from mirror to camera in mirror space.
 		cameraWorldPos = (cameraWorldPos - mirrorObjWorldPos) * mirrorObjWorldOri;
 
@@ -91,7 +138,7 @@ bool KX_PlanarMap::SetupCamera(KX_Scene *scene, KX_Camera *camera)
 		cameraWorldOri.transpose();
 	}
 
-	// Set Render camera position and orientation
+	// Set render camera position and orientation.
 	camera->NodeSetWorldPosition(cameraWorldPos);
 	camera->NodeSetGlobalOrientation(cameraWorldOri);
 
@@ -128,7 +175,7 @@ PyTypeObject KX_PlanarMap::Type = {
 };
 
 PyMethodDef KX_PlanarMap::Methods[] = {
-	{ NULL, NULL } // Sentinel
+	{NULL, NULL} // Sentinel
 };
 
 PyAttributeDef KX_PlanarMap::Attributes[] = {
