@@ -55,6 +55,7 @@ set(SRC
 	RAS_2DFilter.cpp
 	RAS_2DFilterData.cpp
 	RAS_2DFilterManager.cpp
+	RAS_2DFilterOffScreen.cpp
 	RAS_BatchGroup.cpp
 	RAS_BoundingBox.cpp
 	RAS_BoundingBoxManager.cpp
@@ -82,6 +83,7 @@ set(SRC
 	RAS_2DFilterData.h
 	RAS_2DFilter.h
 	RAS_2DFilterManager.h
+	RAS_2DFilterOffScreen.h
 	RAS_BatchDisplayArray.h
 	RAS_BatchGroup.h
 	RAS_BoundingBox.h

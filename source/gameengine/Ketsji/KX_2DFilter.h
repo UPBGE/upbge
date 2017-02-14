@@ -51,8 +51,11 @@ public:
 
 	static PyObject *pyattr_get_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_offScreen(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 	KX_PYMETHOD_DOC(KX_2DFilter, setTexture);
+	KX_PYMETHOD_DOC(KX_2DFilter, addOffScreen);
+	KX_PYMETHOD_DOC_NOARGS(KX_2DFilter, removeOffScreen);
 
 #endif
 };

@@ -44,6 +44,7 @@ public:
 	KX_PYMETHOD_DOC(KX_2DFilterManager, getFilter);
 	KX_PYMETHOD_DOC(KX_2DFilterManager, addFilter);
 	KX_PYMETHOD_DOC(KX_2DFilterManager, removeFilter);
+	KX_PYMETHOD_DOC(KX_2DFilterManager, createOffScreen);
 
 #endif  // WITH_PYTHON
 };

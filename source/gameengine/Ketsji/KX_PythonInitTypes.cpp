@@ -44,6 +44,7 @@
 #include "BL_Texture.h"
 #include "KX_2DFilter.h"
 #include "KX_2DFilterManager.h"
+#include "KX_2DFilterOffScreen.h"
 #include "KX_WorldInfo.h"
 #include "KX_ArmatureSensor.h"
 #include "KX_BatchGroup.h"
@@ -219,6 +220,7 @@ PyMODINIT_FUNC initGameTypesPythonBinding(void)
 		PyType_Ready_Attr(dict, CValue, init_getset);
 		PyType_Ready_Attr(dict, KX_2DFilter, init_getset);
 		PyType_Ready_Attr(dict, KX_2DFilterManager, init_getset);
+		PyType_Ready_Attr(dict, KX_2DFilterOffScreen, init_getset);
 		PyType_Ready_Attr(dict, KX_ArmatureSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_BatchGroup, init_getset);
 		PyType_Ready_Attr(dict, KX_BlenderMaterial, init_getset);

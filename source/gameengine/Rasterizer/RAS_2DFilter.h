@@ -26,10 +26,13 @@
 #include "RAS_2DFilterData.h"
 #include "RAS_Shader.h"
 
+#include <memory>
+
 class RAS_2DFilterManager;
 class RAS_IRasterizer;
 class RAS_ICanvas;
 class RAS_OffScreen;
+class RAS_2DFilterOffScreen;
 class CValue;
 
 class RAS_2DFilter : public virtual RAS_Shader
@@ -63,6 +66,9 @@ protected:
 
 	unsigned int m_textures[8];
 
+	/// Custom off screen for special datas.
+	std::unique_ptr<RAS_2DFilterOffScreen> m_offScreen;
+
 	virtual bool LinkProgram();
 	void ParseShaderProgram();
 	void BindUniforms(RAS_ICanvas *canvas);
@@ -77,6 +83,9 @@ public:
 	bool GetMipmap() const;
 	void SetMipmap(bool mipmap);
 
+	RAS_2DFilterOffScreen *GetOffScreen() const;
+	void SetOffScreen(RAS_2DFilterOffScreen *offScreen);
+
 	/// Called by the filter manager when it has informations like the display size, a gl context...
 	void Initialize(RAS_ICanvas *canvas);
 
@@ -86,10 +95,11 @@ public:
 	 * \param detphofs The off screen used only for the depth texture input,
 	 * the same for all filters of a scene.
 	 * \param colorofs The off screen used only for the color texture input, unique per filters.
-	 * \param outputofs The off screen used to draw the filter to.
+	 * \param targetofs The off screen used to draw the filter to.
+	 * \return The off screen to use as input for the next filter.
 	 */
-	void Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *detphofs,
-			   RAS_OffScreen *colorofs, RAS_OffScreen *outputofs);
+	RAS_OffScreen *Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *detphofs,
+			   RAS_OffScreen *colorofs, RAS_OffScreen *targetofs);
 
 	/// Finalizes the execution stage of the filter.
 	void End();

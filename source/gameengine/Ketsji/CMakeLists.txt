@@ -73,6 +73,7 @@ set(SRC
 	BL_Texture.cpp
 	KX_2DFilter.cpp
 	KX_2DFilterManager.cpp
+	KX_2DFilterOffScreen.cpp
 	KX_ArmatureSensor.cpp
 	KX_BatchGroup.cpp
 	KX_BlenderMaterial.cpp
@@ -154,6 +155,7 @@ set(SRC
 	BL_Texture.h
 	KX_2DFilter.h
 	KX_2DFilterManager.h
+	KX_2DFilterOffScreen.h
 	KX_ArmatureSensor.h
 	KX_BatchGroup.h
 	KX_BlenderMaterial.h

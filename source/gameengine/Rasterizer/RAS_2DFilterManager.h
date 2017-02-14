@@ -81,8 +81,6 @@ public:
 	/// Get the existing filter for the given pass index.
 	RAS_2DFilter *GetFilterPass(unsigned int passIndex);
 
-	RAS_ICanvas *GetCanvas();
-
 private:
 	RAS_PassTo2DFilter m_filters;
 

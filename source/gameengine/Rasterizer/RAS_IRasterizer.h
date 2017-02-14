@@ -251,7 +251,8 @@ public:
 	enum HdrType {
 		RAS_HDR_NONE = 0,
 		RAS_HDR_HALF_FLOAT,
-		RAS_HDR_FULL_FLOAT
+		RAS_HDR_FULL_FLOAT,
+		RAS_HDR_MAX
 	};
 
 	/** Return the output frame buffer normally used for the input frame buffer

@@ -22,6 +22,7 @@
 
 #include "RAS_2DFilter.h"
 #include "RAS_2DFilterManager.h"
+#include "RAS_2DFilterOffScreen.h"
 #include "RAS_IRasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_OffScreen.h"
@@ -83,6 +84,16 @@ void RAS_2DFilter::SetMipmap(bool mipmap)
 	m_mipmap = mipmap;
 }
 
+RAS_2DFilterOffScreen *RAS_2DFilter::GetOffScreen() const
+{
+	return m_offScreen.get();
+}
+
+void RAS_2DFilter::SetOffScreen(RAS_2DFilterOffScreen *offScreen)
+{
+	m_offScreen.reset(offScreen);
+}
+
 void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 {
 	/* The shader must be initialized at the first frame when the canvas is accesible.
@@ -94,35 +105,52 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 	}
 }
 
-void RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *depthofs,
-						 RAS_OffScreen *colorofs, RAS_OffScreen *outputofs)
+RAS_OffScreen *RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *depthofs,
+						 RAS_OffScreen *colorofs, RAS_OffScreen *targetofs)
 {
-	// The output fbo must be not the color input fbo, it can be the same as depth input fbo because depth is unchanged.
-	BLI_assert(outputofs != colorofs);
+	/* The off screen the filter rendered to. If the filter is invalid or uses a custom
+	 * off screen the output off screen is the same as the input off screen. */
+	RAS_OffScreen *outputofs = colorofs;
+	if (!Ok()) {
+		return outputofs;
+	}
 
-	outputofs->Bind();
+	/* The target off screen must be not the color input off screen, it can be the same as depth input
+	 * screen because depth is unchanged. */
+	BLI_assert(targetofs != colorofs);
 
-	if (Ok()) {
-		Initialize(canvas);
+	if (m_offScreen) {
+		if (!m_offScreen->Update(canvas)) {
+			return outputofs;
+		}
 
-		SetProg(true);
-
-		BindTextures(depthofs, colorofs);
-		BindUniforms(canvas);
-
-		Update(rasty, MT_Matrix4x4::Identity());
-
-		ApplyShader();
-
-		rasty->DrawOverlayPlane();
-
-		UnbindTextures(depthofs, colorofs);
+		m_offScreen->Bind(rasty);
 	}
 	else {
-		/* If the filter shader is invalid we simply draw the color off screen to
-		 * the output off screen. */
-		rasty->DrawOffScreen(colorofs, outputofs);
+		targetofs->Bind();
+		outputofs = targetofs;
 	}
+
+	Initialize(canvas);
+
+	SetProg(true);
+
+	BindTextures(depthofs, colorofs);
+	BindUniforms(canvas);
+
+	Update(rasty, MT_Matrix4x4::Identity());
+
+	ApplyShader();
+
+	rasty->DrawOverlayPlane();
+
+	UnbindTextures(depthofs, colorofs);
+
+	if (m_offScreen) {
+		m_offScreen->Unbind(rasty, canvas);
+	}
+
+	return outputofs;
 }
 
 void RAS_2DFilter::End()

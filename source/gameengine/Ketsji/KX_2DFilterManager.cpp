@@ -26,6 +26,7 @@
 
 #include "KX_2DFilterManager.h"
 #include "KX_2DFilter.h"
+#include "KX_2DFilterOffScreen.h"
 
 #include "CM_Message.h"
 
