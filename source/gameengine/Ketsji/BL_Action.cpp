@@ -59,10 +59,10 @@ extern "C" {
 
 BL_Action::BL_Action(class KX_GameObject* gameobj)
 :
-	m_action(NULL),
-	m_tmpaction(NULL),
-	m_blendpose(NULL),
-	m_blendinpose(NULL),
+	m_action(nullptr),
+	m_tmpaction(nullptr),
+	m_blendpose(nullptr),
+	m_blendinpose(nullptr),
 	m_obj(gameobj),
 	m_startframe(0.f),
 	m_endframe(0.f),
@@ -92,7 +92,7 @@ BL_Action::~BL_Action()
 
 	if (m_tmpaction) {
 		BKE_libblock_free(G.main, m_tmpaction);
-		m_tmpaction = NULL;
+		m_tmpaction = nullptr;
 	}
 }
 
@@ -152,7 +152,7 @@ bool BL_Action::Play(const std::string& name,
 	// Keep a copy of the action for threading purposes
 	if (m_tmpaction) {
 		BKE_libblock_free(G.main, m_tmpaction);
-		m_tmpaction = NULL;
+		m_tmpaction = nullptr;
 	}
 	m_tmpaction = BKE_action_copy(G.main, m_action);
 
@@ -284,7 +284,7 @@ void BL_Action::InitIPO()
 
 bAction *BL_Action::GetAction()
 {
-	return (IsDone()) ? NULL : m_action;
+	return (IsDone()) ? nullptr : m_action;
 }
 
 float BL_Action::GetFrame()
@@ -294,7 +294,7 @@ float BL_Action::GetFrame()
 
 const std::string BL_Action::GetName()
 {
-	if (m_action != NULL) {
+	if (m_action != nullptr) {
 		return m_action->id.name + 2;
 	}
 	else {
@@ -466,7 +466,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 			PointerRNA ptrrna;
 			RNA_id_pointer_create(&key->id, &ptrrna);
 
-			animsys_evaluate_action(&ptrrna, m_tmpaction, NULL, m_localframe);
+			animsys_evaluate_action(&ptrrna, m_tmpaction, nullptr, m_localframe);
 
 			// Handle blending between shape actions
 			if (m_blendin && m_blendframe < m_blendin)

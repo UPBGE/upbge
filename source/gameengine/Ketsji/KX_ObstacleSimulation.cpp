@@ -284,7 +284,7 @@ KX_Obstacle* KX_ObstacleSimulation::GetObstacle(KX_GameObject* gameobj)
 			return m_obstacles[i];
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 void KX_ObstacleSimulation::AdjustObstacleVelocity(KX_Obstacle* activeObst, KX_NavMeshObject* activeNavMeshObj, 

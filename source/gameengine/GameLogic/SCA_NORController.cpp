@@ -99,7 +99,7 @@ CValue* SCA_NORController::GetReplica()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_NORController::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_NORController",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -121,7 +121,7 @@ PyTypeObject SCA_NORController::Type = {
 };
 
 PyMethodDef SCA_NORController::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_NORController::Attributes[] = {

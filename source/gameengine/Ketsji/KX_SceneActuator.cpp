@@ -91,7 +91,7 @@ bool KX_SceneActuator::UnlinkObject(SCA_IObject* clientobj)
 	if (clientobj == (SCA_IObject*)m_camera)
 	{
 		// this object is being deleted, we cannot continue to track it.
-		m_camera = NULL;
+		m_camera = nullptr;
 		return true;
 	}
 	return false;
@@ -197,7 +197,7 @@ bool KX_SceneActuator::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_SceneActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_SceneActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -220,7 +220,7 @@ PyTypeObject KX_SceneActuator::Type = {
 
 PyMethodDef KX_SceneActuator::Methods[] =
 {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_SceneActuator::Attributes[] = {
@@ -251,8 +251,8 @@ int KX_SceneActuator::pyattr_set_camera(PyObjectPlus *self, const struct KX_PYAT
 	if (actuator->m_camera)
 		actuator->m_camera->UnregisterActuator(actuator);
 	
-	if (camOb==NULL) {
-		actuator->m_camera= NULL;
+	if (camOb==nullptr) {
+		actuator->m_camera= nullptr;
 	}
 	else {
 		actuator->m_camera = camOb;

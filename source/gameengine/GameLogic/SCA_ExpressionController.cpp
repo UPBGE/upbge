@@ -50,7 +50,7 @@ SCA_ExpressionController::SCA_ExpressionController(SCA_IObject* gameobj,
 												   const std::string& exprtext)
 	:SCA_IController(gameobj),
 	m_exprText(exprtext),
-	m_exprCache(NULL)
+	m_exprCache(nullptr)
 {
 }
 
@@ -68,7 +68,7 @@ CValue* SCA_ExpressionController::GetReplica()
 {
 	SCA_ExpressionController* replica = new SCA_ExpressionController(*this);
 	replica->m_exprText = m_exprText;
-	replica->m_exprCache = NULL;
+	replica->m_exprCache = nullptr;
 	// this will copy properties and so on...
 	replica->ProcessReplica();
 
@@ -83,7 +83,7 @@ void SCA_ExpressionController::Delete()
 	if (m_exprCache)
 	{
 		m_exprCache->Release();
-		m_exprCache = NULL;
+		m_exprCache = nullptr;
 	}
 	Release();
 }
@@ -130,7 +130,7 @@ void SCA_ExpressionController::Trigger(SCA_LogicManager* logicmgr)
 CValue* SCA_ExpressionController::FindIdentifier(const std::string& identifiername)
 {
 
-	CValue* identifierval = NULL;
+	CValue* identifierval = nullptr;
 
 	for (std::vector<SCA_ISensor*>::const_iterator is=m_linkedsensors.begin();
 	!(is==m_linkedsensors.end());is++)

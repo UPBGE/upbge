@@ -68,7 +68,7 @@ RAS_MeshObject *KX_LodLevel::GetMesh() const
 #ifdef WITH_PYTHON
 
 PyTypeObject KX_LodLevel::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_LodLevel",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -90,7 +90,7 @@ PyTypeObject KX_LodLevel::Type = {
 };
 
 PyMethodDef KX_LodLevel::Methods[] = {
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_LodLevel::Attributes[] = {

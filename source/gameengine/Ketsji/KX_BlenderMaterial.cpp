@@ -54,8 +54,8 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		int lightlayer)
 	:RAS_IPolyMaterial(name, game),
 	m_material(mat),
-	m_shader(NULL),
-	m_blenderShader(NULL),
+	m_shader(nullptr),
+	m_blenderShader(nullptr),
 	m_scene(scene),
 	m_userDefBlend(false),
 	m_constructed(false),
@@ -166,7 +166,7 @@ Material *KX_BlenderMaterial::GetBlenderMaterial() const
 
 Image *KX_BlenderMaterial::GetBlenderImage() const
 {
-	return (m_mtexPoly ? m_mtexPoly->tpage : NULL);
+	return (m_mtexPoly ? m_mtexPoly->tpage : nullptr);
 }
 
 Scene *KX_BlenderMaterial::GetBlenderScene() const
@@ -222,17 +222,17 @@ void KX_BlenderMaterial::OnExit()
 {
 	if (m_shader) {
 		delete m_shader;
-		m_shader = NULL;
+		m_shader = nullptr;
 	}
 	if (m_blenderShader) {
 		delete m_blenderShader;
-		m_blenderShader = NULL;
+		m_blenderShader = nullptr;
 	}
 
 	/* used to call with 'm_material->tface' but this can be a freed array,
-	 * see: [#30493], so just call with NULL, this is best since it clears
+	 * see: [#30493], so just call with nullptr, this is best since it clears
 	 * the 'lastface' pointer in GPU too - campbell */
-	GPU_set_tpage(NULL, 1, m_alphablend);
+	GPU_set_tpage(nullptr, 1, m_alphablend);
 }
 
 
@@ -414,8 +414,8 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 		RAS_Texture *texture = m_textures[i];
 		/* Here textures can return false to Ok() because we're looking only at
 		 * texture attributs and not texture bind id like for the binding and
-		 * unbinding of textures. A NULL BL_Texture means that the cooresponding
-		 * mtex is NULL too (see InitTextures).*/
+		 * unbinding of textures. A nullptr BL_Texture means that the cooresponding
+		 * mtex is nullptr too (see InitTextures).*/
 		if (texture) {
 			MTex *mtex = texture->GetMTex();
 			if (mtex->texco & (TEXCO_OBJECT | TEXCO_REFL)) {
@@ -494,7 +494,7 @@ void KX_BlenderMaterial::SetBlenderGLSLShader()
 
 	if (!m_blenderShader->Ok()) {
 		delete m_blenderShader;
-		m_blenderShader = NULL;
+		m_blenderShader = nullptr;
 	}
 }
 
@@ -619,7 +619,7 @@ PyMethodDef KX_BlenderMaterial::Methods[] =
 	KX_PYMETHODTABLE(KX_BlenderMaterial, getShader),
 	KX_PYMETHODTABLE( KX_BlenderMaterial, getTextureBindcode),
 	KX_PYMETHODTABLE(KX_BlenderMaterial, setBlending),
-	{NULL, NULL} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_BlenderMaterial::Attributes[] = {
@@ -640,7 +640,7 @@ PyAttributeDef KX_BlenderMaterial::Attributes[] = {
 };
 
 PyTypeObject KX_BlenderMaterial::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_BlenderMaterial",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -664,7 +664,7 @@ PyTypeObject KX_BlenderMaterial::Type = {
 PyObject *KX_BlenderMaterial::pyattr_get_shader(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	return self->PygetShader(NULL, NULL);
+	return self->PygetShader(nullptr, nullptr);
 }
 
 static int kx_blender_material_get_textures_size_cb(void *self_v)
@@ -675,7 +675,7 @@ static int kx_blender_material_get_textures_size_cb(void *self_v)
 static PyObject *kx_blender_material_get_textures_item_cb(void *self_v, int index)
 {
 	BL_Texture *tex = (BL_Texture *)((KX_BlenderMaterial *)self_v)->GetTexture(index);
-	PyObject *item = NULL;
+	PyObject *item = nullptr;
 	if (tex) {
 		item = tex->GetProxy();
 	}
@@ -696,11 +696,11 @@ PyObject *KX_BlenderMaterial::pyattr_get_textures(PyObjectPlus *self_v, const KX
 {
 	return (new CListWrapper(self_v,
 							 ((KX_BlenderMaterial *)self_v)->GetProxy(),
-							 NULL,
+							 nullptr,
 							 kx_blender_material_get_textures_size_cb,
 							 kx_blender_material_get_textures_item_cb,
 							 kx_blender_material_get_textures_item_name_cb,
-							 NULL))->NewProxy(true);
+							 nullptr))->NewProxy(true);
 }
 
 PyObject *KX_BlenderMaterial::pyattr_get_blending(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -917,7 +917,7 @@ int KX_BlenderMaterial::pyattr_set_ambient(PyObjectPlus *self_v, const KX_PYATTR
 int KX_BlenderMaterial::pyattr_set_blending(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
-	PyObject *obj = self->PysetBlending(value, NULL);
+	PyObject *obj = self->PysetBlending(value, nullptr);
 	if (obj)
 	{
 		Py_DECREF(obj);
@@ -950,7 +950,7 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 		// We will then go back to fixed functionality
 		// for this material
 		delete m_shader; /* will handle python de-referencing */
-		m_shader = NULL;
+		m_shader = nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -989,12 +989,12 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, setBlending, "setBlending(bge.logic.src, 
 		}
 		if (!value_found[0] || !value_found[1]) {
 			PyErr_SetString(PyExc_ValueError, "material.setBlending(int, int): KX_BlenderMaterial, invalid enum.");
-			return NULL;
+			return nullptr;
 		}
 		m_userDefBlend = true;
 		Py_RETURN_NONE;
 	}
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getTextureBindcode, "getTextureBindcode(texslot)")
@@ -1003,7 +1003,7 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getTextureBindcode, "getTextureBindcode(t
 	unsigned int texslot;
 	if (!PyArg_ParseTuple(args, "i:texslot", &texslot)) {
 		PyErr_SetString(PyExc_ValueError, "material.getTextureBindcode(texslot): KX_BlenderMaterial, expected an int.");
-		return NULL;
+		return nullptr;
 	}
 	Image *ima = GetTexture(texslot)->GetImage();
 	if (ima) {
@@ -1011,19 +1011,19 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getTextureBindcode, "getTextureBindcode(t
 		return PyLong_FromLong(*bindcode);
 	}
 	PyErr_SetString(PyExc_ValueError, "material.getTextureBindcode(texslot): KX_BlenderMaterial, invalid texture slot.");
-	return NULL;
+	return nullptr;
 }
 
 bool ConvertPythonToMaterial(PyObject *value, KX_BlenderMaterial **material, bool py_none_ok, const char *error_prefix)
 {
-	if (value == NULL) {
-		PyErr_Format(PyExc_TypeError, "%s, python pointer NULL, should never happen", error_prefix);
-		*material = NULL;
+	if (value == nullptr) {
+		PyErr_Format(PyExc_TypeError, "%s, python pointer nullptr, should never happen", error_prefix);
+		*material = nullptr;
 		return false;
 	}
 
 	if (value == Py_None) {
-		*material = NULL;
+		*material = nullptr;
 
 		if (py_none_ok) {
 			return true;
@@ -1038,7 +1038,7 @@ bool ConvertPythonToMaterial(PyObject *value, KX_BlenderMaterial **material, boo
 		KX_BlenderMaterial *mat = static_cast<KX_BlenderMaterial *>BGE_PROXY_REF(value);
 
 		/* sets the error */
-		if (mat == NULL) {
+		if (mat == nullptr) {
 			PyErr_Format(PyExc_SystemError, "%s, " BGE_PROXY_ERROR_MSG, error_prefix);
 			return false;
 		}
@@ -1047,7 +1047,7 @@ bool ConvertPythonToMaterial(PyObject *value, KX_BlenderMaterial **material, boo
 		return true;
 	}
 
-	*material = NULL;
+	*material = nullptr;
 
 	if (py_none_ok) {
 		PyErr_Format(PyExc_TypeError, "%s, expect a KX_BlenderMaterial, a string or None", error_prefix);

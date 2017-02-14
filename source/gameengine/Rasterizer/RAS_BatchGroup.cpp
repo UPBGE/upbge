@@ -36,8 +36,8 @@
 #include <algorithm>
 
 RAS_BatchGroup::Batch::Batch()
-	:m_displayArrayBucket(NULL),
-	m_displayArray(NULL)
+	:m_displayArrayBucket(nullptr),
+	m_displayArray(nullptr)
 {
 }
 
@@ -65,7 +65,7 @@ RAS_BatchGroup *RAS_BatchGroup::RemoveMeshUser()
 	--m_users;
 	if (m_users == 0) {
 		delete this;
-		return NULL;
+		return nullptr;
 	}
 	return this;
 }
@@ -180,8 +180,8 @@ bool RAS_BatchGroup::SplitMeshUser(RAS_MeshUser *meshUser)
 		}
 	}
 
-	// Deference batch groups by setting it to NULL.
-	meshUser->SetBatchGroup(NULL);
+	// Deference batch groups by setting it to nullptr.
+	meshUser->SetBatchGroup(nullptr);
 
 	return true;
 }
@@ -205,7 +205,7 @@ void RAS_BatchGroup::Destruct()
 			slot->SetDisplayArrayBucket(origArrayBucket->AddRef());
 			origArrayBucket->Release();
 
-			slot->m_meshUser->SetBatchGroup(NULL);
+			slot->m_meshUser->SetBatchGroup(nullptr);
 
 			slot->m_batchPartIndex = -1;
 		}

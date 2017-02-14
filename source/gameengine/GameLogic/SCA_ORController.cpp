@@ -95,7 +95,7 @@ void SCA_ORController::Trigger(SCA_LogicManager* logicmgr)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_ORController::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_ORController",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -117,7 +117,7 @@ PyTypeObject SCA_ORController::Type = {
 };
 
 PyMethodDef SCA_ORController::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_ORController::Attributes[] = {

@@ -92,7 +92,7 @@ void DEV_Joystick::Init()
 		// If it doesnt exist we load our internal data base
 		if (fileMapping == -1) {
 			unsigned short i = 0;
-			const char *mapping_string = NULL;
+			const char *mapping_string = nullptr;
 			mapping_string = controller_mappings[i];
 
 			while (mapping_string) {
@@ -126,12 +126,12 @@ void DEV_Joystick::Close()
 DEV_Joystick *DEV_Joystick::GetInstance(short joyindex)
 {
 #ifndef WITH_SDL
-	return NULL;
+	return nullptr;
 #else  /* WITH_SDL */
 
 	if (joyindex < 0 || joyindex >= JOYINDEX_MAX) {
 		CM_Error("invalid joystick index: " << joyindex);
-		return NULL;
+		return nullptr;
 	}
 
 	return m_instance[joyindex];
@@ -146,7 +146,7 @@ void DEV_Joystick::ReleaseInstance(short joyindex)
 		delete m_private;
 		delete m_instance[joyindex];
 	}
-	m_instance[joyindex] = NULL;
+	m_instance[joyindex] = nullptr;
 #endif /* WITH_SDL */
 }
 
@@ -327,13 +327,13 @@ void DEV_Joystick::DestroyJoystickDevice(void)
 
 			if (m_private->m_haptic && SDL_CHECK(SDL_HapticClose)) {
 				SDL_HapticClose(m_private->m_haptic);
-				m_private->m_haptic = NULL;
+				m_private->m_haptic = nullptr;
 			}
 
 			if (m_private->m_gamecontroller && SDL_CHECK(SDL_GameControllerClose)) {
 				CM_Debug("Game Controller (" << GetName() << ") with index " << m_joyindex << " closed");
 				SDL_GameControllerClose(m_private->m_gamecontroller);
-				m_private->m_gamecontroller = NULL;
+				m_private->m_gamecontroller = nullptr;
 			}
 
 		m_isinit = false;

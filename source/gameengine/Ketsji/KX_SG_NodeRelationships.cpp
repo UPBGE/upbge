@@ -56,14 +56,14 @@ UpdateChildCoordinates(
 	const SG_Node * parent,
 	bool& parentUpdated
 ) {
-	BLI_assert(child != NULL);
+	BLI_assert(child != nullptr);
 
 	if (!parentUpdated && !child->IsModified())
 		return false;
 
 	parentUpdated = true;
 
-	if (parent==NULL) { /* Simple case */
+	if (parent==nullptr) { /* Simple case */
 		child->SetWorldFromLocalTransform();
 		child->ClearModified();
 		return true; //false;
@@ -126,7 +126,7 @@ UpdateChildCoordinates(
 	bool& parentUpdated
 ) {
 
-	BLI_assert(child != NULL);
+	BLI_assert(child != nullptr);
 
 	if (!parentUpdated && !child->IsModified())
 		return false;
@@ -140,7 +140,7 @@ UpdateChildCoordinates(
 	
 	child->SetWorldOrientation(child->GetLocalOrientation());
 	child->ClearModified();
-	return true; //parent != NULL;
+	return true; //parent != nullptr;
 }
 
 /** 
@@ -191,7 +191,7 @@ UpdateChildCoordinates(
 	const SG_Node * parent,
 	bool& parentUpdated
 ) {
-	BLI_assert(child != NULL);
+	BLI_assert(child != nullptr);
 
 	// the child will move even if the parent is not
 	parentUpdated = true;
@@ -265,7 +265,7 @@ UpdateChildCoordinates(
 	// this node must always be updated, so reschedule it for next time
 	child->ActivateRecheduleUpdateCallback();
 	
-	return true; //parent != NULL;
+	return true; //parent != nullptr;
 }
 
 /** 

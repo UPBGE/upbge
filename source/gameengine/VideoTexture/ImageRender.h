@@ -106,7 +106,7 @@ protected:
 
 	/// The rendered off screen, can be multisampled.
 	std::unique_ptr<RAS_OffScreen> m_offScreen;
-	/// The non multisampled off screen used when bliting, can be NULL.
+	/// The non multisampled off screen used when bliting, can be nullptr.
 	std::unique_ptr<RAS_OffScreen> m_blitOffScreen;
 	/** The pointer to the final off screen without multisamples, can
 	 * be m_offScreen or m_blitOffScreen in case of mutlisamples.

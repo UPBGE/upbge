@@ -55,7 +55,7 @@
 PyObjectPlus::PyObjectPlus()
 {
 	#ifdef WITH_PYTHON
-	m_proxy = NULL;
+	m_proxy = nullptr;
 	#endif
 }
 
@@ -71,7 +71,7 @@ void PyObjectPlus::ProcessReplica()
 #ifdef WITH_PYTHON
 	/* Clear the proxy, will be created again if needed with GetProxy()
 	 * otherwise the PyObject will point to the wrong reference */
-	m_proxy = NULL;
+	m_proxy = nullptr;
 #endif
 }
 
@@ -87,12 +87,12 @@ void PyObjectPlus::InvalidateProxy()        // check typename of each parent
 {
 #ifdef WITH_PYTHON
 	if (m_proxy) {
-		BGE_PROXY_REF(m_proxy) = NULL;
+		BGE_PROXY_REF(m_proxy) = nullptr;
 		// Decrement proxy only if python doesn't own it.
 		if (!BGE_PROXY_PYOWNS(m_proxy)) {
 			Py_DECREF(m_proxy);
 		}
-		m_proxy = NULL;
+		m_proxy = nullptr;
 	}
 #endif
 }
@@ -112,7 +112,7 @@ void PyObjectPlus::DestructFromPython()
 
 
 PyTypeObject PyObjectPlus::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"PyObjectPlus",                 /*tp_name*/
 	sizeof(PyObjectPlus_Proxy),     /*tp_basicsize*/
 	0,                              /*tp_itemsize*/
@@ -136,16 +136,16 @@ PyTypeObject PyObjectPlus::Type = {
 	Methods,
 	0,
 	0,
-	NULL // no subtype
+	nullptr // no subtype
 };
 
 /// This should be the entry in Type.
 PyObject *PyObjectPlus::py_base_repr(PyObject *self)
 {
 	PyObjectPlus *self_plus = BGE_PROXY_REF(self);
-	if (self_plus == NULL) {
+	if (self_plus == nullptr) {
 		PyErr_SetString(PyExc_SystemError, BGE_PROXY_ERROR_MSG);
-		return NULL;
+		return nullptr;
 	}
 	return self_plus->py_repr();
 }
@@ -158,7 +158,7 @@ PyObject *PyObjectPlus::py_base_new(PyTypeObject *type, PyObject *args, PyObject
 	// One or more args is needed.
 	if (!PyTuple_GET_SIZE(args)) {
 		PyErr_SetString(PyExc_TypeError, "Expected at least one argument");
-		return NULL;
+		return nullptr;
 	}
 
 	PyObjectPlus_Proxy *base = (PyObjectPlus_Proxy *)PyTuple_GET_ITEM(args, 0);
@@ -186,15 +186,15 @@ PyObject *PyObjectPlus::py_base_new(PyTypeObject *type, PyObject *args, PyObject
 		base_type = base_type->tp_base;
 	}
 
-	if (base_type == NULL || !BGE_PROXY_CHECK_TYPE(base_type)) {
+	if (base_type == nullptr || !BGE_PROXY_CHECK_TYPE(base_type)) {
 		PyErr_SetString(PyExc_TypeError, "can't subclass from a blender game type because the argument given is not a game class or subclass");
-		return NULL;
+		return nullptr;
 	}
 
 	// Use base_type rather than Py_TYPE(base) because we could already be subtyped.
 	if (!PyType_IsSubtype(type, base_type)) {
 		PyErr_Format(PyExc_TypeError, "can't subclass blender game type <%s> from <%s> because it is not a subclass", base_type->tp_name, type->tp_name);
-		return NULL;
+		return nullptr;
 	}
 
 	/* invalidate the existing base and return a new subclassed one,
@@ -208,10 +208,10 @@ PyObject *PyObjectPlus::py_base_new(PyTypeObject *type, PyObject *args, PyObject
 	ret->py_ref = base->py_ref;
 
 	if (ret->py_ref) {
-		base->ref = NULL; // Invalidate! disallow further access.
-		base->ptr = NULL;
+		base->ref = nullptr; // Invalidate! disallow further access.
+		base->ptr = nullptr;
 		if (ret->ref) {
-			ret->ref->m_proxy = NULL;
+			ret->ref->m_proxy = nullptr;
 		}
 		/* 'base' may be freed after this func finished but not necessarily
 		 * there is no reference to the BGE data now so it will throw an error on access */
@@ -225,7 +225,7 @@ PyObject *PyObjectPlus::py_base_new(PyTypeObject *type, PyObject *args, PyObject
 		// Generic structures don't hold a reference to this proxy, so don't increment ref count.
 		if (ret->py_owns) {
 			// But if the proxy owns the structure, there can be only one owner.
-			base->ptr = NULL;
+			base->ptr = nullptr;
 		}
 	}
 
@@ -238,7 +238,7 @@ PyObject *PyObjectPlus::py_base_new(PyTypeObject *type, PyObject *args, PyObject
 void PyObjectPlus::py_base_dealloc(PyObject *self)
 {
 #ifdef USE_WEAKREFS
-	if (BGE_PROXY_WKREF(self) != NULL) {
+	if (BGE_PROXY_WKREF(self) != nullptr) {
 		PyObject_ClearWeakRefs((PyObject *)self);
 	}
 #endif
@@ -250,10 +250,10 @@ void PyObjectPlus::py_base_dealloc(PyObject *self)
 			if (BGE_PROXY_PYOWNS(self)) {
 				self_plus->DestructFromPython();
 			}
-			BGE_PROXY_REF(self) = NULL; // Not really needed.
+			BGE_PROXY_REF(self) = nullptr; // Not really needed.
 		}
 		// The generic pointer is not deleted directly, only through self_plus.
-		BGE_PROXY_PTR(self) = NULL; // Not really needed.
+		BGE_PROXY_PTR(self) = nullptr; // Not really needed.
 	}
 	else {
 		void *ptr = BGE_PROXY_PTR(self);
@@ -263,7 +263,7 @@ void PyObjectPlus::py_base_dealloc(PyObject *self)
 				// Generic structure owned by python MUST be created though MEM_alloc.
 				MEM_freeN(ptr);
 			}
-			BGE_PROXY_PTR(self) = NULL; // Not really needed.
+			BGE_PROXY_PTR(self) = nullptr; // Not really needed.
 		}
 	}
 	/* is ok normally but not for subtyping, use tp_free instead. 
@@ -276,7 +276,7 @@ void PyObjectPlus::py_base_dealloc(PyObject *self)
 * PyObjectPlus Methods  -- Every class, even the abstract one should have a Methods
    ------------------------------*/
 PyMethodDef PyObjectPlus::Methods[] = {
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 #define BGE_PY_ATTR_INVALID (&(PyObjectPlus::Attributes[0]))
@@ -295,22 +295,22 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 {
 	PyObjectPlus *ref = (BGE_PROXY_REF(self_py));
 	void *vptr = (attrdef->m_usePtr) ? (char *)BGE_PROXY_PTR(self_py) : (char *)ref;
-	if (vptr == NULL || (BGE_PROXY_PYREF(self_py) && (ref == NULL || !ref->py_is_valid()))) {
+	if (vptr == nullptr || (BGE_PROXY_PYREF(self_py) && (ref == nullptr || !ref->py_is_valid()))) {
 		if (attrdef == BGE_PY_ATTR_INVALID) {
 			Py_RETURN_TRUE; // Don't bother running the function.
 		}
 		PyErr_SetString(PyExc_SystemError, BGE_PROXY_ERROR_MSG);
-		return NULL;
+		return nullptr;
 	}
 
 	if (attrdef->m_type == KX_PYATTRIBUTE_TYPE_DUMMY) {
 		// Fake attribute, ignore.
-		return NULL;
+		return nullptr;
 	}
 	if (attrdef->m_type == KX_PYATTRIBUTE_TYPE_FUNCTION) {
 		// The attribute has no field correspondence, handover processing to function.
-		if (attrdef->m_getFunction == NULL) {
-			return NULL;
+		if (attrdef->m_getFunction == nullptr) {
+			return nullptr;
 		}
 		return (*attrdef->m_getFunction)(static_cast<PyObjectPlus *>(vptr), attrdef);
 	}
@@ -340,7 +340,7 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 					// Enum are like int, just make sure the field size is the same.
 					if (sizeof(int) != attrdef->m_size) {
 						Py_DECREF(resultlist);
-						return NULL;
+						return nullptr;
 					}
 					// Walkthrough
 				}
@@ -361,7 +361,7 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 				default:
 					// No support for array of complex data.
 					Py_DECREF(resultlist);
-					return NULL;
+					return nullptr;
 			}
 		}
 		return resultlist;
@@ -391,7 +391,7 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 						break;
 					}
 					default:
-						return NULL;
+						return nullptr;
 				}
 				if (attrdef->m_imax) {
 					bval = !bval;
@@ -412,7 +412,7 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 			{
 				// Enum are like int, just make sure the field size is the same.
 				if (sizeof(int) != attrdef->m_size) {
-					return NULL;
+					return nullptr;
 				}
 				// Walkthrough
 			}
@@ -431,10 +431,10 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 					else {
 						// Vector, verify size.
 						if (attrdef->m_size != attrdef->m_imax * sizeof(float)) {
-							return NULL;
+							return nullptr;
 						}
 #ifdef USE_MATHUTILS
-						return Vector_CreatePyObject(val, attrdef->m_imax, NULL);
+						return Vector_CreatePyObject(val, attrdef->m_imax, nullptr);
 #else
 						PyObject *resultlist = PyList_New(attrdef->m_imax);
 						for (unsigned int i = 0; i < attrdef->m_imax; i++)
@@ -448,10 +448,10 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 				else {
 					// Matrix case.
 					if (attrdef->m_size != attrdef->m_imax * attrdef->m_imin * sizeof(float)) {
-						return NULL;
+						return nullptr;
 					}
 #ifdef USE_MATHUTILS
-					return Matrix_CreatePyObject_wrap(val, attrdef->m_imin, attrdef->m_imax, NULL);
+					return Matrix_CreatePyObject_wrap(val, attrdef->m_imin, attrdef->m_imax, nullptr);
 #else
 					PyObject *collist = PyList_New(attrdef->m_imin);
 					for (unsigned int i = 0; i < attrdef->m_imin; i++)
@@ -474,7 +474,7 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 #ifdef USE_MATHUTILS
 				float fval[3];
 				val->getValue(fval);
-				return Vector_CreatePyObject(fval, 3, NULL);
+				return Vector_CreatePyObject(fval, 3, nullptr);
 #else
 				PyObject *resultlist = PyList_New(3);
 				for (unsigned int i = 0; i < 3; i++)
@@ -494,7 +494,7 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 				return PyUnicode_FromString(ptr);
 			}
 			default:
-				return NULL;
+				return nullptr;
 		}
 	}
 }
@@ -528,16 +528,16 @@ int PyObjectPlus::py_set_attrdef(PyObject *self_py, PyObject *value, const PyAtt
 {
 	PyObjectPlus *ref = (BGE_PROXY_REF(self_py));
 	char *ptr = (attrdef->m_usePtr) ? (char *)BGE_PROXY_PTR(self_py) : (char *)ref;
-	if (ref == NULL || !ref->py_is_valid() || ptr == NULL) {
+	if (ref == nullptr || !ref->py_is_valid() || ptr == nullptr) {
 		PyErr_SetString(PyExc_SystemError, BGE_PROXY_ERROR_MSG);
 		return PY_SET_ATTR_FAIL;
 	}
 
-	void *undoBuffer = NULL;
-	void *sourceBuffer = NULL;
+	void *undoBuffer = nullptr;
+	void *sourceBuffer = nullptr;
 	size_t bufferSize = 0;
-	PyObject *item = NULL; // To store object that must be dereferenced in case of error.
-	PyObject *list = NULL; // To store object that must be dereferenced in case of error.
+	PyObject *item = nullptr; // To store object that must be dereferenced in case of error.
+	PyObject *list = nullptr; // To store object that must be dereferenced in case of error.
 
 	ptr += attrdef->m_offset;
 	if (attrdef->m_length > 1) {
@@ -552,7 +552,7 @@ int PyObjectPlus::py_set_attrdef(PyObject *self_py, PyObject *value, const PyAtt
 		switch (attrdef->m_type) {
 			case KX_PYATTRIBUTE_TYPE_FUNCTION:
 			{
-				if (attrdef->m_setFunction == NULL) {
+				if (attrdef->m_setFunction == nullptr) {
 					PyErr_Format(PyExc_AttributeError, "function attribute without function for attribute \"%s\", report to blender.org", attrdef->m_name.c_str());
 					return PY_SET_ATTR_FAIL;
 				}
@@ -703,10 +703,10 @@ int PyObjectPlus::py_set_attrdef(PyObject *self_py, PyObject *value, const PyAtt
 			}
 			// Finished using item, release.
 			Py_DECREF(item);
-			item = NULL;
+			item = nullptr;
 		}
 		// No error, call check function if any.
-		if (attrdef->m_checkFunction != NULL) {
+		if (attrdef->m_checkFunction != nullptr) {
 			if ((*attrdef->m_checkFunction)(ref, attrdef) != 0) {
 				// If the checing function didnt set an error then set a generic one here so we don't set an error with no exception.
 				if (PyErr_Occurred() == 0) {
@@ -732,13 +732,13 @@ UNDO_AND_ERROR:
 	}
 	else {
 		if (attrdef->m_type == KX_PYATTRIBUTE_TYPE_FUNCTION) {
-			if (attrdef->m_setFunction == NULL) {
+			if (attrdef->m_setFunction == nullptr) {
 				PyErr_Format(PyExc_AttributeError, "function attribute without function \"%s\", report to blender.org", attrdef->m_name.c_str());
 				return PY_SET_ATTR_FAIL;
 			}
 			return (*attrdef->m_setFunction)(ref, attrdef, value);
 		}
-		if (attrdef->m_checkFunction != NULL || attrdef->m_type == KX_PYATTRIBUTE_TYPE_VECTOR) {
+		if (attrdef->m_checkFunction != nullptr || attrdef->m_type == KX_PYATTRIBUTE_TYPE_VECTOR) {
 			// Post check function is provided, prepare undo buffer.
 			sourceBuffer = ptr;
 			switch (attrdef->m_type) {
@@ -943,11 +943,11 @@ UNDO_AND_ERROR:
 								goto RESTORE_AND_ERROR;
 							}
 							Py_DECREF(item);
-							item = NULL;
+							item = nullptr;
 							++var;
 						}
 						Py_DECREF(list);
-						list = NULL;
+						list = nullptr;
 					}
 				}
 				else if (attrdef->m_imax != 0) {
@@ -966,7 +966,7 @@ UNDO_AND_ERROR:
 							goto RESTORE_AND_ERROR;
 						}
 						Py_DECREF(item);
-						item = NULL;
+						item = nullptr;
 						++var;
 					}
 				}
@@ -989,7 +989,7 @@ UNDO_AND_ERROR:
 					item = PySequence_GetItem(value, i); // new ref
 					float val = PyFloat_AsDouble(item);
 					Py_DECREF(item);
-					item = NULL;
+					item = nullptr;
 					if (val == -1.0f && PyErr_Occurred()) {
 						PyErr_Format(PyExc_TypeError, "expected a sequence of 3 floats for attribute \"%s\"", attrdef->m_name.c_str());
 						goto RESTORE_AND_ERROR;
@@ -1061,7 +1061,7 @@ UNDO_AND_ERROR:
 		}
 	}
 	// Check if post processing is needed.
-	if (attrdef->m_checkFunction != NULL) {
+	if (attrdef->m_checkFunction != nullptr) {
 		if ((*attrdef->m_checkFunction)(ref, attrdef) != 0) {
 			// Restore value.
 RESTORE_AND_ERROR:
@@ -1101,7 +1101,7 @@ FREE_AND_ERROR:
 PyObject *PyObjectPlus::py_repr(void)
 {
 	PyErr_SetString(PyExc_SystemError, "Representation not overridden by object.");
-	return NULL;
+	return nullptr;
 }
 
 bool PyObjectPlus::py_is_valid(void)
@@ -1111,16 +1111,16 @@ bool PyObjectPlus::py_is_valid(void)
 
 PyObject *PyObjectPlus::GetProxyPlus_Ext(PyObjectPlus *self, PyTypeObject *tp, void *ptr)
 {
-	if (self->m_proxy == NULL) {
+	if (self->m_proxy == nullptr) {
 		self->m_proxy = reinterpret_cast<PyObject *>PyObject_NEW(PyObjectPlus_Proxy, tp);
 		BGE_PROXY_PYOWNS(self->m_proxy) = false;
 		BGE_PROXY_PYREF(self->m_proxy) = true;
 #ifdef USE_WEAKREFS
-		BGE_PROXY_WKREF(self->m_proxy) = NULL;
+		BGE_PROXY_WKREF(self->m_proxy) = nullptr;
 #endif
 	}
 
-	BGE_PROXY_REF(self->m_proxy) = self; // Its possible this was set to NULL, so set it back here.
+	BGE_PROXY_REF(self->m_proxy) = self; // Its possible this was set to nullptr, so set it back here.
 	BGE_PROXY_PTR(self->m_proxy) = ptr;
 	Py_INCREF(self->m_proxy); // We own one, thos ones fore the return.
 	return self->m_proxy;
@@ -1133,18 +1133,18 @@ PyObject *PyObjectPlus::NewProxyPlus_Ext(PyObjectPlus *self, PyTypeObject *tp, v
 		PyObject *proxy = reinterpret_cast<PyObject *>PyObject_NEW(PyObjectPlus_Proxy, tp);
 		BGE_PROXY_PYREF(proxy) = false;
 		BGE_PROXY_PYOWNS(proxy) = py_owns;
-		BGE_PROXY_REF(proxy) = NULL;
+		BGE_PROXY_REF(proxy) = nullptr;
 		BGE_PROXY_PTR(proxy) = ptr;
 #ifdef USE_WEAKREFS
-		BGE_PROXY_WKREF(proxy) = NULL;
+		BGE_PROXY_WKREF(proxy) = nullptr;
 #endif
 		return proxy;
 	}
 	if (self->m_proxy) {
 		if (py_owns) { // Free
-			BGE_PROXY_REF(self->m_proxy) = NULL;
+			BGE_PROXY_REF(self->m_proxy) = nullptr;
 			Py_DECREF(self->m_proxy);
-			self->m_proxy = NULL;
+			self->m_proxy = nullptr;
 		}
 		else {
 			Py_INCREF(self->m_proxy);
@@ -1184,16 +1184,16 @@ void PyObjectPlus::ClearDeprecationWarning()
 	WarnLink *wlink = GetDeprecationWarningLinkFirst();
 
 	while (wlink) {
-		wlink->warn_done = false; // No need to NULL the link, its cleared before adding to the list next time round.
+		wlink->warn_done = false; // No need to nullptr the link, its cleared before adding to the list next time round.
 		wlink_next = reinterpret_cast<WarnLink *>(wlink->link);
-		wlink->link = NULL;
+		wlink->link = nullptr;
 		wlink = wlink_next;
 	}
 	NullDeprecationWarning();
 }
 
-static WarnLink *m_base_wlink_first = NULL;
-static WarnLink *m_base_wlink_last = NULL;
+static WarnLink *m_base_wlink_first = nullptr;
+static WarnLink *m_base_wlink_last = nullptr;
 
 WarnLink *PyObjectPlus::GetDeprecationWarningLinkFirst(void)
 {
@@ -1217,7 +1217,7 @@ void PyObjectPlus::SetDeprecationWarningLinkLast(WarnLink *wlink)
 
 void PyObjectPlus::NullDeprecationWarning()
 {
-	m_base_wlink_first = m_base_wlink_last = NULL;
+	m_base_wlink_first = m_base_wlink_last = nullptr;
 }
 
 #endif  // WITH_PYTHON

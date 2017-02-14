@@ -99,7 +99,7 @@ CValue* SCA_ANDController::GetReplica()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_ANDController::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_ANDController",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -121,7 +121,7 @@ PyTypeObject SCA_ANDController::Type = {
 };
 
 PyMethodDef SCA_ANDController::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_ANDController::Attributes[] = {

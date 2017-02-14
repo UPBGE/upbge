@@ -38,7 +38,7 @@ BL_Texture::BL_Texture(MTex *mtex)
 	:CValue(),
 	m_isCubeMap(false),
 	m_mtex(mtex),
-	m_gpuTex(NULL)
+	m_gpuTex(nullptr)
 {
 	Tex *tex = m_mtex->tex;
 	EnvMap *env = tex->env;
@@ -48,7 +48,7 @@ BL_Texture::BL_Texture(MTex *mtex)
 	ImageUser& iuser = tex->iuser;
 	const int gltextarget = m_isCubeMap ? GetCubeMapTextureType() : GetTexture2DType();
 
-	m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : NULL);
+	m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : nullptr);
 
 	// Initialize saved data.
 	m_name = std::string(m_mtex->tex->id.name + 2);
@@ -113,7 +113,7 @@ void BL_Texture::CheckValidTexture()
 	/* Test if the gpu texture is the same in the image which own it, if it's not
 	 * the case then it means that no materials use it anymore and that we have to
 	 * get a pointer of the updated gpu texture used by materials.
-	 * The gpu texture in the image can be NULL or an already different loaded
+	 * The gpu texture in the image can be nullptr or an already different loaded
 	 * gpu texture. In both cases we call GPU_texture_from_blender.
 	 */
 	int target = m_isCubeMap ? TEXTARGET_TEXTURE_CUBE_MAP : TEXTARGET_TEXTURE_2D;
@@ -128,7 +128,7 @@ void BL_Texture::CheckValidTexture()
 		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
 		GPU_texture_free(m_gpuTex);
 
-		m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : NULL);
+		m_gpuTex = (ima ? GPU_texture_from_blender(ima, &iuser, gltextarget, false, 0.0, true) : nullptr);
 
 		if (m_gpuTex) {
 			int bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -144,7 +144,7 @@ void BL_Texture::CheckValidTexture()
 
 bool BL_Texture::Ok() const
 {
-	return (m_gpuTex != NULL);
+	return (m_gpuTex != nullptr);
 }
 
 bool BL_Texture::IsCubeMap() const
@@ -210,7 +210,7 @@ std::string BL_Texture::GetName()
 #ifdef WITH_PYTHON
 
 PyTypeObject BL_Texture::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"BL_Texture",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -232,7 +232,7 @@ PyTypeObject BL_Texture::Type = {
 };
 
 PyMethodDef BL_Texture::Methods[] = {
-	{ NULL, NULL } //Sentinel
+	{ nullptr, nullptr } //Sentinel
 };
 
 PyAttributeDef BL_Texture::Attributes[] = {

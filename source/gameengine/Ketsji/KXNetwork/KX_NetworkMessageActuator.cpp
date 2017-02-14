@@ -100,7 +100,7 @@ CValue *KX_NetworkMessageActuator::GetReplica()
 
 /* Integration hooks -------------------------------------------------- */
 PyTypeObject KX_NetworkMessageActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_NetworkMessageActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -122,7 +122,7 @@ PyTypeObject KX_NetworkMessageActuator::Type = {
 };
 
 PyMethodDef KX_NetworkMessageActuator::Methods[] = {
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_NetworkMessageActuator::Attributes[] = {

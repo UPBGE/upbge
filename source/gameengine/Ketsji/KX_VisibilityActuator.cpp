@@ -91,7 +91,7 @@ KX_VisibilityActuator::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_VisibilityActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_VisibilityActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -113,7 +113,7 @@ PyTypeObject KX_VisibilityActuator::Type = {
 };
 
 PyMethodDef KX_VisibilityActuator::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_VisibilityActuator::Attributes[] = {

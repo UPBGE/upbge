@@ -88,7 +88,7 @@ void KX_MouseFocusSensor::Init()
 	m_mouse_over_in_previous_frame = (m_invert)?true:false;
 	m_positive_event = false;
 	m_hitObject = 0;
-	m_hitObject_Last = NULL;
+	m_hitObject_Last = nullptr;
 	m_reset = true;
 	
 	m_hitPosition.setValue(0,0,0);
@@ -175,7 +175,7 @@ bool KX_MouseFocusSensor::RayHit(KX_ClientObjectInfo *client_info, KX_RayCast *r
 				}
 			}
 			else {
-				bFound = hitKXObj->GetProperty(m_propertyname) != NULL;
+				bFound = hitKXObj->GetProperty(m_propertyname) != nullptr;
 			}
 		}
 
@@ -225,7 +225,7 @@ bool KX_MouseFocusSensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(
 		}
 		else
 		{
-			if (hitKXObj->GetProperty(m_propertyname) == NULL)
+			if (hitKXObj->GetProperty(m_propertyname) == nullptr)
 				return false;
 		}
 	}
@@ -354,7 +354,7 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 	PHY_IPhysicsEnvironment* physics_environment = m_kxscene->GetPhysicsEnvironment();
 
 	// get UV mapping
-	KX_RayCast::Callback<KX_MouseFocusSensor, void> callback(this,physics_controller,NULL,false,true);
+	KX_RayCast::Callback<KX_MouseFocusSensor, void> callback(this,physics_controller,nullptr,false,true);
 	 
 	KX_RayCast::RayTest(physics_environment, m_prevSourcePoint, m_prevTargetPoint, callback);
 	
@@ -420,7 +420,7 @@ const MT_Vector2& KX_MouseFocusSensor::HitUV() const
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_MouseFocusSensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_MouseFocusSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -442,7 +442,7 @@ PyTypeObject KX_MouseFocusSensor::Type = {
 };
 
 PyMethodDef KX_MouseFocusSensor::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_MouseFocusSensor::Attributes[] = {

@@ -57,7 +57,7 @@ public:
 		typedef iterator<T> _myT;
 		iterator(SG_DList& head)
 			:m_head(head),
-			m_current(NULL)
+			m_current(nullptr)
 		{
 		}
 
@@ -87,13 +87,13 @@ public:
 		}
 		_myT& operator++()
 		{
-			// no check of NULL! make sure you don't try to increment beyond end
+			// no check of nullptr! make sure you don't try to increment beyond end
 			m_current = (T *)m_current->Peek();
 			return *this;
 		}
 		_myT& operator--()
 		{
-			// no check of NULL! make sure you don't try to increment beyond end
+			// no check of nullptr! make sure you don't try to increment beyond end
 			m_current = (T *)m_current->Back();
 			return *this;
 		}
@@ -108,7 +108,7 @@ public:
 		typedef const_iterator<T> _myT;
 		const_iterator(const SG_DList& head)
 			:m_head(head),
-			m_current(NULL)
+			m_current(nullptr)
 		{
 		}
 
@@ -134,13 +134,13 @@ public:
 		}
 		_myT& operator++()
 		{
-			// no check of NULL! make sure you don't try to increment beyond end
+			// no check of nullptr! make sure you don't try to increment beyond end
 			m_current = (const T *)m_current->Peek();
 			return *this;
 		}
 		_myT& operator--()
 		{
-			// no check of NULL! make sure you don't try to increment beyond end
+			// no check of nullptr! make sure you don't try to increment beyond end
 			m_current = (const T *)m_current->Back();
 			return *this;
 		}
@@ -188,7 +188,7 @@ public:
 	SG_DList *Remove()           // Remove from the front
 	{
 		if (Empty()) {
-			return NULL;
+			return nullptr;
 		}
 		SG_DList *item = m_flink;
 		m_flink = item->m_flink;

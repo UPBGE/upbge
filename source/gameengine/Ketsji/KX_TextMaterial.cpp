@@ -36,7 +36,7 @@ KX_TextMaterial *GetTextMaterial()
 }
 
 KX_TextMaterial::KX_TextMaterial()
-	:RAS_IPolyMaterial("__TextMaterial__", NULL)
+	:RAS_IPolyMaterial("__TextMaterial__", nullptr)
 {
 	m_rasMode |= (RAS_ALPHA | RAS_TEXT);
 	m_flag |= RAS_BLENDERGLSL;
@@ -74,27 +74,27 @@ const std::string KX_TextMaterial::GetTextureName() const
 
 Material *KX_TextMaterial::GetBlenderMaterial() const
 {
-	return NULL;
+	return nullptr;
 }
 
 Image *KX_TextMaterial::GetBlenderImage() const
 {
-	return NULL;
+	return nullptr;
 }
 
 MTexPoly *KX_TextMaterial::GetMTexPoly() const
 {
-	return NULL;
+	return nullptr;
 }
 
 Scene *KX_TextMaterial::GetBlenderScene() const
 {
-	return NULL;
+	return nullptr;
 }
 
 SCA_IScene *KX_TextMaterial::GetScene() const
 {
-	return NULL;
+	return nullptr;
 }
 
 bool KX_TextMaterial::UseInstancing() const

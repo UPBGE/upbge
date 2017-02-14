@@ -41,7 +41,7 @@
 #ifdef WITH_PYTHON
 
 PyTypeObject BL_ArmatureConstraint::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"BL_ArmatureConstraint",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -78,10 +78,10 @@ BL_ArmatureConstraint::BL_ArmatureConstraint(
 	:m_constraint(constraint), m_posechannel(posechannel), m_armature(armature)
 {
 	m_target = target;
-	m_blendtarget = (target) ? target->GetBlenderObject() : NULL;
+	m_blendtarget = (target) ? target->GetBlenderObject() : nullptr;
 	m_subtarget = subtarget;
-	m_blendsubtarget = (subtarget) ? subtarget->GetBlenderObject() : NULL;
-	m_pose = m_subpose = NULL;
+	m_blendsubtarget = (subtarget) ? subtarget->GetBlenderObject() : nullptr;
+	m_pose = m_subpose = nullptr;
 	if (m_blendtarget) {
 		copy_m4_m4(m_blendmat, m_blendtarget->obmat);
 		if (m_blendtarget->type == OB_ARMATURE)
@@ -129,8 +129,8 @@ void BL_ArmatureConstraint::ReParent(BL_ArmatureObject* armature)
 		char* posechannel = m_posechannel->name;
 		bPoseChannel* pchan;
 		bConstraint* pcon;
-		m_constraint = NULL;
-		m_posechannel = NULL;
+		m_constraint = nullptr;
+		m_posechannel = nullptr;
 		// and locate the constraint
 		for (pchan = (bPoseChannel*)newpose->chanbase.first; pchan; pchan = (bPoseChannel*)pchan->next) {
 			if (!strcmp(pchan->name, posechannel)) {
@@ -168,11 +168,11 @@ bool BL_ArmatureConstraint::UnlinkObject(SCA_IObject* clientobj)
 {
 	bool res=false;
 	if (clientobj == m_target) {
-		m_target = NULL;
+		m_target = nullptr;
 		res = true;
 	}
 	if (clientobj == m_subtarget) {
-		m_subtarget = NULL;
+		m_subtarget = nullptr;
 		res = true;
 	}
 	return res;
@@ -248,7 +248,7 @@ void BL_ArmatureConstraint::SetSubtarget(KX_GameObject* subtarget)
 // PYTHON
 
 PyMethodDef BL_ArmatureConstraint::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 // order of definition of attributes, must match Attributes[] array
@@ -291,12 +291,12 @@ PyObject *BL_ArmatureConstraint::py_attr_getattr(PyObjectPlus *self_v, const str
 {
 	BL_ArmatureConstraint* self = static_cast<BL_ArmatureConstraint*>(self_v);
 	bConstraint* constraint = self->m_constraint;
-	bKinematicConstraint* ikconstraint = (constraint && constraint->type == CONSTRAINT_TYPE_KINEMATIC) ? (bKinematicConstraint*)constraint->data : NULL;
+	bKinematicConstraint* ikconstraint = (constraint && constraint->type == CONSTRAINT_TYPE_KINEMATIC) ? (bKinematicConstraint*)constraint->data : nullptr;
 	int attr_order = attrdef-Attributes;
 
 	if (!constraint) {
-		PyErr_SetString(PyExc_AttributeError, "constraint is NULL");
-		return NULL;
+		PyErr_SetString(PyExc_AttributeError, "constraint is nullptr");
+		return nullptr;
 	}
 
 	switch (attr_order) {
@@ -331,7 +331,7 @@ PyObject *BL_ArmatureConstraint::py_attr_getattr(PyObjectPlus *self_v, const str
 	case BCA_IKMODE:
 		if (!ikconstraint) {
 			PyErr_SetString(PyExc_AttributeError, "constraint is not of IK type");
-			return NULL;
+			return nullptr;
 		}
 		switch (attr_order) {
 		case BCA_IKWEIGHT:
@@ -349,14 +349,14 @@ PyObject *BL_ArmatureConstraint::py_attr_getattr(PyObjectPlus *self_v, const str
 		break;
 	}
 	PyErr_SetString(PyExc_AttributeError, "constraint unknown attribute");
-	return NULL;
+	return nullptr;
 }
 
 int BL_ArmatureConstraint::py_attr_setattr(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	BL_ArmatureConstraint* self = static_cast<BL_ArmatureConstraint*>(self_v);
 	bConstraint* constraint = self->m_constraint;
-	bKinematicConstraint* ikconstraint = (constraint && constraint->type == CONSTRAINT_TYPE_KINEMATIC) ? (bKinematicConstraint*)constraint->data : NULL;
+	bKinematicConstraint* ikconstraint = (constraint && constraint->type == CONSTRAINT_TYPE_KINEMATIC) ? (bKinematicConstraint*)constraint->data : nullptr;
 	int attr_order = attrdef-Attributes;
 	int ival;
 	double dval;
@@ -365,7 +365,7 @@ int BL_ArmatureConstraint::py_attr_setattr(PyObjectPlus *self_v, const struct KX
 	KX_GameObject *oval;
 
 	if (!constraint) {
-		PyErr_SetString(PyExc_AttributeError, "constraint is NULL");
+		PyErr_SetString(PyExc_AttributeError, "constraint is nullptr");
 		return PY_SET_ATTR_FAIL;
 	}
 	

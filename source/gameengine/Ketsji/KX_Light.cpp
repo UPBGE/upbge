@@ -63,7 +63,7 @@ KX_LightObject::KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks,
 	m_lightobj->m_light = this;
 	m_rasterizer->AddLight(m_lightobj);
 	m_blenderscene = ((KX_Scene *)sgReplicationInfo)->GetBlenderScene();
-	m_base = NULL;
+	m_base = nullptr;
 }
 
 KX_LightObject::~KX_LightObject()
@@ -89,7 +89,7 @@ CValue *KX_LightObject::GetReplica()
 	replica->m_lightobj->m_light = replica;
 	m_rasterizer->AddLight(replica->m_lightobj);
 	if (m_base)
-		m_base = NULL;
+		m_base = nullptr;
 
 	return replica;
 }
@@ -113,7 +113,7 @@ void KX_LightObject::SetLayer(int layer)
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject KX_LightObject::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_LightObject",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -127,8 +127,8 @@ PyTypeObject KX_LightObject::Type = {
 	&KX_GameObject::Sequence,
 	&KX_GameObject::Mapping,
 	0, 0, 0,
-	NULL,
-	NULL,
+	nullptr,
+	nullptr,
 	0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	0, 0, 0, 0, 0, 0, 0,
@@ -142,7 +142,7 @@ PyTypeObject KX_LightObject::Type = {
 
 PyMethodDef KX_LightObject::Methods[] = {
 	KX_PYMETHODTABLE_NOARGS(KX_LightObject, updateShadow),
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_LightObject::Attributes[] = {
@@ -426,7 +426,7 @@ PyObject *KX_LightObject::pyattr_get_typeconst(PyObjectPlus *self_v, const KX_PY
 	else {
 		/* should never happen */
 		PyErr_SetString(PyExc_TypeError, "light.type: internal error, invalid light type");
-		retvalue = NULL;
+		retvalue = nullptr;
 	}
 
 	return retvalue;

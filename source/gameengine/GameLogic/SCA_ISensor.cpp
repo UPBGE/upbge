@@ -334,7 +334,7 @@ KX_PYMETHODDEF_DOC_NOARGS(SCA_ISensor, reset,
 /* ----------------------------------------------- */
 
 PyTypeObject SCA_ISensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_ISensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -357,7 +357,7 @@ PyTypeObject SCA_ISensor::Type = {
 
 PyMethodDef SCA_ISensor::Methods[] = {
 	KX_PYMETHODTABLE_NOARGS(SCA_ISensor, reset),
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_ISensor::Attributes[] = {

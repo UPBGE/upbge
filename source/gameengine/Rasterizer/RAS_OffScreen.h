@@ -42,7 +42,7 @@ private:
 	/// The off screen type, render, final, filter ect...
 	RAS_IRasterizer::OffScreenType m_type;
 
-	/// The last bound off screen, set to NULL in RestoreScreen().
+	/// The last bound off screen, set to nullptr in RestoreScreen().
 	static RAS_OffScreen *lastOffScreen;
 
 public:

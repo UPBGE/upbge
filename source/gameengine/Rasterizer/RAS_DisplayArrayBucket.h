@@ -58,7 +58,7 @@ private:
 	RAS_MaterialBucket *m_bucket;
 	/// The display array = list of vertexes and indexes.
 	RAS_IDisplayArray *m_displayArray;
-	/// The parent mesh object, it can be NULL for text objects.
+	/// The parent mesh object, it can be nullptr for text objects.
 	RAS_MeshObject *m_mesh;
 	/// The material mesh.
 	RAS_MeshMaterial *m_meshMaterial;

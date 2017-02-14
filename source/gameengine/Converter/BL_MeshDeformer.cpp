@@ -87,8 +87,8 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *UNUSED(polymat), RAS_MeshMaterial
 BL_MeshDeformer::BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_MeshObject *meshobj)
 	:RAS_Deformer(meshobj),
 	m_bmesh((Mesh *)(obj->data)),
-	m_transverts(NULL),
-	m_transnors(NULL),
+	m_transverts(nullptr),
+	m_transnors(nullptr),
 	m_objMesh(obj),
 	m_tvtot(0),
 	m_gameobj(gameobj),
@@ -112,8 +112,8 @@ BL_MeshDeformer::~BL_MeshDeformer()
 void BL_MeshDeformer::ProcessReplica()
 {
 	RAS_Deformer::ProcessReplica();
-	m_transverts = NULL;
-	m_transnors = NULL;
+	m_transverts = nullptr;
+	m_transnors = nullptr;
 	m_tvtot = 0;
 	m_bDynamic = false;
 	m_lastDeformUpdate = -1.0;

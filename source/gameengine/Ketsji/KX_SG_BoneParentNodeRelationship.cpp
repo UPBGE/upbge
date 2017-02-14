@@ -62,7 +62,7 @@ UpdateChildCoordinates(
 	const SG_Node * parent,
 	bool& parentUpdated
 ) {
-	BLI_assert(child != NULL);
+	BLI_assert(child != nullptr);
 	
 	// This way of accessing child coordinates is a bit cumbersome
 	// be nice to have non constant reference access to these values.

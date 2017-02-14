@@ -127,7 +127,7 @@ void RAS_BucketManager::RenderBasicBuckets(const MT_Transform& cameratrans, RAS_
 {
 	BucketList& solidBuckets = m_buckets[bucketType];
 	for (RAS_MaterialBucket *bucket : solidBuckets) {
-		bucket->GenerateTree(&m_downwardNode, NULL, NULL, rasty, false);
+		bucket->GenerateTree(&m_downwardNode, nullptr, nullptr, rasty, false);
 	}
 
 	if (m_downwardNode.GetValid()) {
@@ -319,7 +319,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 		}
 	}
 
-	rasty->SetClientObject(NULL);
+	rasty->SetClientObject(nullptr);
 }
 
 RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated)
@@ -390,7 +390,7 @@ void RAS_BucketManager::ReleaseMaterials(RAS_IPolyMaterial *mat)
 	BucketList& buckets = m_buckets[ALL_BUCKET];
 	for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
 		RAS_MaterialBucket *bucket = *it;
-		if (mat == NULL || (mat == bucket->GetPolyMaterial())) {
+		if (mat == nullptr || (mat == bucket->GetPolyMaterial())) {
 			bucket->GetPolyMaterial()->ReleaseMaterial();
 		}
 	}

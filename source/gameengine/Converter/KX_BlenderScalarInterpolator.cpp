@@ -48,7 +48,7 @@ float BL_ScalarInterpolator::GetValue(float currentTime) const
 
 BL_InterpolatorList::BL_InterpolatorList(bAction *action)
 {
-	if (action==NULL)
+	if (action==nullptr)
 		return;
 	
 	for (FCurve *fcu = (FCurve *)action->curves.first; fcu; fcu = fcu->next) {
@@ -76,6 +76,6 @@ KX_IScalarInterpolator *BL_InterpolatorList::GetScalarInterpolator(const char *r
 		if (array_index==fcu->array_index && strcmp(rna_path, fcu->rna_path)==0)
 			return *i;
 	}
-	return NULL;
+	return nullptr;
 }
 

@@ -50,7 +50,7 @@ private:
 public:
 	RAS_UpwardNode(InfoType *info, Function bind, Function unbind)
 		:RAS_BaseNode<InfoType, Flag, Args>(info, bind, unbind),
-		m_parent(NULL)
+		m_parent(nullptr)
 	{
 	}
 

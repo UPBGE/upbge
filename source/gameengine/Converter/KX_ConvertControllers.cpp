@@ -111,7 +111,7 @@ void BL_ConvertControllers(
 	bcontr = (bController*)blenderobject->controllers.first;
 	while (bcontr)
 	{
-		SCA_IController* gamecontroller = NULL;
+		SCA_IController* gamecontroller = nullptr;
 		switch (bcontr->type) {
 			case CONT_LOGIC_AND:
 			{

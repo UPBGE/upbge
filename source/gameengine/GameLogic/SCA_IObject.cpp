@@ -46,7 +46,7 @@ SCA_IObject::SCA_IObject():
 	CValue(),
 	m_initState(0),
 	m_state(0),
-	m_firstState(NULL)
+	m_firstState(nullptr)
 {
 	m_suspended = false;
 }
@@ -199,7 +199,7 @@ void SCA_IObject::ReParentLogic()
 
 SCA_ISensor* SCA_IObject::FindSensor(const std::string& sensorname)
 {
-	SCA_ISensor* foundsensor = NULL;
+	SCA_ISensor* foundsensor = nullptr;
 
 	for (SCA_SensorList::iterator its = m_sensors.begin();!(its==m_sensors.end());++its)
 	{
@@ -216,7 +216,7 @@ SCA_ISensor* SCA_IObject::FindSensor(const std::string& sensorname)
 
 SCA_IController* SCA_IObject::FindController(const std::string& controllername)
 {
-	SCA_IController* foundcontroller = NULL;
+	SCA_IController* foundcontroller = nullptr;
 
 	for (SCA_ControllerList::iterator itc = m_controllers.begin();!(itc==m_controllers.end());++itc)
 	{
@@ -233,7 +233,7 @@ SCA_IController* SCA_IObject::FindController(const std::string& controllername)
 
 SCA_IActuator* SCA_IObject::FindActuator(const std::string& actuatorname)
 {
-	SCA_IActuator* foundactuator = NULL;
+	SCA_IActuator* foundactuator = nullptr;
 
 	for (SCA_ActuatorList::iterator ita = m_actuators.begin();!(ita==m_actuators.end());++ita)
 	{
@@ -315,7 +315,7 @@ void SCA_IObject::SetState(unsigned int state)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_IObject::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_IObject",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -339,7 +339,7 @@ PyTypeObject SCA_IObject::Type = {
 PyMethodDef SCA_IObject::Methods[] = {
 	//{"setOrientation", (PyCFunction) SCA_IObject::sPySetOrientation, METH_VARARGS},
 	//{"getOrientation", (PyCFunction) SCA_IObject::sPyGetOrientation, METH_VARARGS},
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_IObject::Attributes[] = {

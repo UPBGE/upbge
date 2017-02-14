@@ -44,7 +44,7 @@ std::string KX_CharacterWrapper::GetName()
 #ifdef WITH_PYTHON
 
 PyTypeObject KX_CharacterWrapper::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_CharacterWrapper",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -156,7 +156,7 @@ int KX_CharacterWrapper::pyattr_set_walk_dir(PyObjectPlus *self_v, const KX_PYAT
 
 PyMethodDef KX_CharacterWrapper::Methods[] = {
 	KX_PYMETHODTABLE_NOARGS(KX_CharacterWrapper, jump),
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_CharacterWrapper, jump,

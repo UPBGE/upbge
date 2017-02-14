@@ -133,7 +133,7 @@ bool SCA_DelaySensor::Evaluate()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_DelaySensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_DelaySensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -155,7 +155,7 @@ PyTypeObject SCA_DelaySensor::Type = {
 };
 
 PyMethodDef SCA_DelaySensor::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_DelaySensor::Attributes[] = {

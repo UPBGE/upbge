@@ -86,7 +86,7 @@ public:
 private:
 	RAS_PassTo2DFilter m_filters;
 
-	/** Creates a filter matching the given filter data. Returns NULL if no
+	/** Creates a filter matching the given filter data. Returns nullptr if no
 	 * filter can be created with such information.
 	 */
 	RAS_2DFilter *CreateFilter(RAS_2DFilterData& filterData);

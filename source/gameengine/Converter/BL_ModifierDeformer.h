@@ -57,7 +57,7 @@ public:
 		:BL_ShapeDeformer(gameobj, bmeshobj, mesh),
 		m_lastModifierUpdate(-1.0),
 		m_scene(scene),
-		m_dm(NULL)
+		m_dm(nullptr)
 	{
 		m_recalcNormal = false;
 	}
@@ -69,11 +69,11 @@ public:
 						Object *bmeshobj_new,
 						RAS_MeshObject *mesh,
 						bool release_object,
-						BL_ArmatureObject *arma = NULL)
+						BL_ArmatureObject *arma = nullptr)
 		:BL_ShapeDeformer(gameobj, bmeshobj_old, bmeshobj_new, mesh, release_object, false, arma),
 		m_lastModifierUpdate(-1),
 		m_scene(scene),
-		m_dm(NULL)
+		m_dm(nullptr)
 	{
 	}
 

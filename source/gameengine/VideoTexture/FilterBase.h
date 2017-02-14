@@ -119,7 +119,7 @@ protected:
 		short * size, unsigned int pixSize)
 	{
 		// if previous filter doesn't exists, return source pixel
-		if (m_previous == NULL) return *src;
+		if (m_previous == nullptr) return *src;
 		// otherwise return converted pixel
 		return m_previous->m_filter->convert(src, x, y, size, pixSize);
 	}
@@ -141,7 +141,7 @@ template <class T> static int Filter_init (PyObject *pySelf, PyObject *args, PyO
 {
 	PyFilter *self = reinterpret_cast<PyFilter*>(pySelf);
 	// create filter object
-	if (self->m_filter != NULL) delete self->m_filter;
+	if (self->m_filter != nullptr) delete self->m_filter;
 	self->m_filter = new T();
 	// initialization succeded
 	return 0;

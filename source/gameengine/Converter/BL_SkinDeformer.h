@@ -60,7 +60,7 @@ public:
 	BL_SkinDeformer(BL_DeformableGameObject *gameobj,
 					Object *bmeshobj,
 					RAS_MeshObject *mesh,
-					BL_ArmatureObject *arma = NULL);
+					BL_ArmatureObject *arma = nullptr);
 
 	/* this second constructor is needed for making a mesh deformable on the fly. */
 	BL_SkinDeformer(BL_DeformableGameObject *gameobj,
@@ -69,7 +69,7 @@ public:
 					RAS_MeshObject *mesh,
 					bool release_object,
 					bool recalc_normal,
-					BL_ArmatureObject *arma = NULL);
+					BL_ArmatureObject *arma = nullptr);
 
 	virtual RAS_Deformer *GetReplica();
 	virtual void ProcessReplica();
@@ -81,7 +81,7 @@ public:
 	bool UpdateBuckets()
 	{
 		// update the deformer and all the mesh slots; Apply() does it well, so just call it.
-		return Apply(NULL, NULL);
+		return Apply(nullptr, nullptr);
 	}
 	bool PoseUpdated()
 	{

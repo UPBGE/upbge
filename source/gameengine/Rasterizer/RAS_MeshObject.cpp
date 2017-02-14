@@ -103,7 +103,7 @@ struct RAS_MeshObject::fronttoback
 RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo)
 	:m_name(mesh->id.name + 2),
 	m_layersInfo(layersInfo),
-	m_boundingBox(NULL),
+	m_boundingBox(nullptr),
 	m_mesh(mesh)
 {
 }
@@ -145,7 +145,7 @@ RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(unsigned int matid) const
 		return m_materials[matid];
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterialBlenderIndex(unsigned int index)
@@ -157,7 +157,7 @@ RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterialBlenderIndex(unsigned int index
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 int RAS_MeshObject::NumPolygons()
@@ -317,7 +317,7 @@ RAS_IDisplayArray *RAS_MeshObject::GetDisplayArray(unsigned int matid) const
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
 
 	if (!mmat)
-		return NULL;
+		return nullptr;
 
 	RAS_MeshSlot *slot = mmat->m_baseslot;
 	RAS_IDisplayArray *array = slot->GetDisplayArray();
@@ -333,7 +333,7 @@ RAS_ITexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
 		return array->GetVertex(index);
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 const float *RAS_MeshObject::GetVertexLocation(unsigned int orig_index)

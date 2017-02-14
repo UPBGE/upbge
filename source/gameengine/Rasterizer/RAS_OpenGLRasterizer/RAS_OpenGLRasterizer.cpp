@@ -154,7 +154,7 @@ inline void RAS_OpenGLRasterizer::ScreenPlane::Render()
 
 	// Bind vertex/uv pointer with VBO offset. (position = 0, uv = 3*float, stride = 5*float).
 	glVertexPointer(3, GL_FLOAT, sizeof(float) * 5, 0);
-	glTexCoordPointer(2, GL_FLOAT, sizeof(float) * 5, ((char *)NULL) + sizeof(float) * 3);
+	glTexCoordPointer(2, GL_FLOAT, sizeof(float) * 5, ((char *)nullptr) + sizeof(float) * 3);
 
 	// Draw in traignel fan mode to reduce IBO size.
 	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_BYTE, 0);
@@ -257,7 +257,7 @@ void RAS_OpenGLRasterizer::SetDepthMask(RAS_IRasterizer::DepthMask depthmask)
 
 unsigned int *RAS_OpenGLRasterizer::MakeScreenshot(int x, int y, int width, int height)
 {
-	unsigned int *pixeldata = NULL;
+	unsigned int *pixeldata = nullptr;
 
 	if (width && height) {
 		pixeldata = (unsigned int*) malloc(sizeof(unsigned int) * width * height);
@@ -472,7 +472,7 @@ static DMDrawOption CheckTexDM(MTexPoly *mtexpoly, const bool has_mcol, int matn
 
 	// index is the original face index, retrieve the polygon
 	if (matnr == current_blmat_nr &&
-		(mtexpoly == NULL || mtexpoly->tpage == current_image)) {
+		(mtexpoly == nullptr || mtexpoly->tpage == current_image)) {
 		// must handle color.
 		if (current_wireframe)
 			return DM_DRAW_OPTION_NO_MCOL;
@@ -542,7 +542,7 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_IRasterizer::Dr
 		if (wireframe) {
 			glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
 		}
-		ms->m_pDerivedMesh->drawFacesTex(ms->m_pDerivedMesh, CheckTexDM, NULL, NULL, DM_DRAW_USE_ACTIVE_UV);
+		ms->m_pDerivedMesh->drawFacesTex(ms->m_pDerivedMesh, CheckTexDM, nullptr, nullptr, DM_DRAW_USE_ACTIVE_UV);
 	}
 
 	if (current_bucket->IsWire()) {

@@ -79,7 +79,7 @@ static PyObject *getColor (PyFilter *self, void *closure)
 static int setColor(PyFilter *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
-	if (value == NULL || !PyLong_Check(value))
+	if (value == nullptr || !PyLong_Check(value))
 	{
 		PyErr_SetString(PyExc_TypeError, "filt.colorIdx = int: VideoTexture.FilterNormal, expected the value must be a int");
 		return -1;
@@ -121,17 +121,17 @@ static int setDepth(PyFilter *self, PyObject *value, void *closure)
 // attributes structure
 static PyGetSetDef filterNormalGetSets[] =
 { 
-	{(char*)"colorIdx", (getter)getColor, (setter)setColor, (char*)"index of color used to calculate normal (0 - red, 1 - green, 2 - blue)", NULL},
-	{(char*)"depth", (getter)getDepth, (setter)setDepth, (char*)"depth of relief", NULL},
+	{(char*)"colorIdx", (getter)getColor, (setter)setColor, (char*)"index of color used to calculate normal (0 - red, 1 - green, 2 - blue)", nullptr},
+	{(char*)"depth", (getter)getDepth, (setter)setDepth, (char*)"depth of relief", nullptr},
 	// attributes from FilterBase class
-	{(char*)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char*)"previous pixel filter", NULL},
-	{NULL}
+	{(char*)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char*)"previous pixel filter", nullptr},
+	{nullptr}
 };
 
 // define python type
 PyTypeObject FilterNormalType =
 { 
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.FilterNormal",   /*tp_name*/
 	sizeof(PyFilter),          /*tp_basicsize*/
 	0,                         /*tp_itemsize*/
@@ -158,7 +158,7 @@ PyTypeObject FilterNormalType =
 	0,		               /* tp_weaklistoffset */
 	0,		               /* tp_iter */
 	0,		               /* tp_iternext */
-	NULL,                /* tp_methods */
+	nullptr,                /* tp_methods */
 	0,                   /* tp_members */
 	filterNormalGetSets,           /* tp_getset */
 	0,                         /* tp_base */

@@ -169,7 +169,7 @@ SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject* gameobj, KX_B
 
 SG_Controller *BL_CreateObColorIPO(struct bAction *action, KX_GameObject* gameobj, KX_BlenderSceneConverter *converter)
 {
-	KX_ObColorIpoSGController* ipocontr_obcol=NULL;
+	KX_ObColorIpoSGController* ipocontr_obcol=nullptr;
 	KX_IInterpolator *interpolator;
 	KX_IScalarInterpolator *interp;
 	BL_InterpolatorList *adtList= GetAdtList(action, converter);
@@ -272,7 +272,7 @@ SG_Controller *BL_CreateCameraIPO(struct bAction *action, KX_GameObject*  camera
 
 SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, KX_BlenderSceneConverter *converter )
 {
-	KX_WorldIpoController *ipocontr = NULL;
+	KX_WorldIpoController *ipocontr = nullptr;
 
 	if (blenderworld) {
 		BL_InterpolatorList *adtList = GetAdtList(action, converter);
@@ -364,7 +364,7 @@ SG_Controller *BL_CreateMaterialIpo(
 	KX_BlenderSceneConverter *converter
 	)
 {
-	KX_MaterialIpoController* ipocontr = NULL;
+	KX_MaterialIpoController* ipocontr = nullptr;
 
 	BL_InterpolatorList *adtList= GetAdtList(action, converter);
 	KX_IInterpolator *interpolator;

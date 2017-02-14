@@ -103,7 +103,7 @@ CValue* SCA_XORController::GetReplica()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_XORController::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_XORController",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -125,7 +125,7 @@ PyTypeObject SCA_XORController::Type = {
 };
 
 PyMethodDef SCA_XORController::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_XORController::Attributes[] = {

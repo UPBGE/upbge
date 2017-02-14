@@ -79,7 +79,7 @@ void KX_CubeMapManager::InvalidateCubeMapViewpoint(KX_GameObject *gameobj)
 	for (std::vector<KX_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
 		KX_CubeMap *cubeMap = *it;
 		if (cubeMap->GetViewpointObject() == gameobj) {
-			cubeMap->SetViewpointObject(NULL);
+			cubeMap->SetViewpointObject(nullptr);
 		}
 	}
 }
@@ -149,8 +149,8 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 
 		// Now the objects are culled and we can render the scene.
 		m_scene->GetWorldInfo()->RenderBackground(rasty);
-		// Send a NULL off screen because we use a set of FBO with shared textures, not an off screen.
-		m_scene->RenderBuckets(trans, rasty, NULL);
+		// Send a nullptr off screen because we use a set of FBO with shared textures, not an off screen.
+		m_scene->RenderBuckets(trans, rasty, nullptr);
 	}
 
 	cubeMap->EndRender();

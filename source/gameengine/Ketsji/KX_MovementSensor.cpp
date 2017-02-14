@@ -192,7 +192,7 @@ bool KX_MovementSensor::Evaluate()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_MovementSensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_MovementSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -214,7 +214,7 @@ PyTypeObject KX_MovementSensor::Type = {
 };
 
 PyMethodDef KX_MovementSensor::Methods[] = {
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_MovementSensor::Attributes[] = {

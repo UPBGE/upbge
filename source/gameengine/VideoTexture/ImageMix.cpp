@@ -79,7 +79,7 @@ void ImageMix::calcImage(unsigned int texId, double ts)
 	// set offsets to image buffers
 	for (ImageSourceList::iterator it = m_sources.begin(); it != m_sources.end(); ++it)
 		// if image buffer is available
-		if ((*it)->getImageBuf() != NULL)
+		if ((*it)->getImageBuf() != nullptr)
 			// set its offset
 			getImageSourceMix(*it)->setOffset(m_sources[0]->getImageBuf());
 		// otherwise don't calculate image
@@ -119,8 +119,8 @@ static PyObject *getWeight(PyImage *self, PyObject *args)
 	// get arguments
 	char *id;
 	if (!PyArg_ParseTuple(args, "s:getWeight", &id))
-		return NULL;
-	if (self->m_image != NULL)
+		return nullptr;
+	if (self->m_image != nullptr)
 		// get weight
 		weight = getImageMix(self)->getWeight(id);
 	// return weight
@@ -135,14 +135,14 @@ static PyObject *setWeight(PyImage *self, PyObject *args)
 	char *id;
 	short weight = 0;
 	if (!PyArg_ParseTuple(args, "sh:setWeight", &id, &weight))
-		return NULL;
-	if (self->m_image != NULL)
+		return nullptr;
+	if (self->m_image != nullptr)
 		// set weight
 		if (!getImageMix(self)->setWeight(id, weight))
 		{
 			// if not set, report error
 			PyErr_SetString(PyExc_RuntimeError, "Invalid id of source");
-			return NULL;
+			return nullptr;
 		}
 	// return none
 	Py_RETURN_NONE;
@@ -157,24 +157,24 @@ static PyMethodDef imageMixMethods[] = {
 	{"setWeight", (PyCFunction)setWeight, METH_VARARGS, "set image source weight"},
 	// methods from ImageBase class
 	{"refresh", (PyCFunction)Image_refresh, METH_VARARGS, "Refresh image - invalidate its current content"},
-	{NULL}
+	{nullptr}
 };
 // attributes structure
 static PyGetSetDef imageMixGetSets[] = {
 	// attributes from ImageBase class
-	{(char*)"valid", (getter)Image_valid, NULL, (char*)"bool to tell if an image is available", NULL},
-	{(char*)"image", (getter)Image_getImage, NULL, (char*)"image data", NULL},
-	{(char*)"size", (getter)Image_getSize, NULL, (char*)"image size", NULL},
-	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", NULL},
-	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", NULL},
-	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", NULL},
-	{NULL}
+	{(char*)"valid", (getter)Image_valid, nullptr, (char*)"bool to tell if an image is available", nullptr},
+	{(char*)"image", (getter)Image_getImage, nullptr, (char*)"image data", nullptr},
+	{(char*)"size", (getter)Image_getSize, nullptr, (char*)"image size", nullptr},
+	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", nullptr},
+	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", nullptr},
+	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", nullptr},
+	{nullptr}
 };
 
 
 // define python type
 PyTypeObject ImageMixType = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.ImageMix",   /*tp_name*/
 	sizeof(PyImage),           /*tp_basicsize*/
 	0,                         /*tp_itemsize*/

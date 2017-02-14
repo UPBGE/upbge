@@ -67,7 +67,7 @@ KX_RadarSensor::KX_RadarSensor(SCA_EventManager* eventmgr,
 {
 	m_client_info->m_type = KX_ClientObjectInfo::SENSOR;
 	//m_client_info->m_clientobject = gameobj;
-	//m_client_info->m_auxilary_info = NULL;
+	//m_client_info->m_auxilary_info = nullptr;
 	//sumoObj->setClientObject(&m_client_info);
 }
 			
@@ -183,7 +183,7 @@ void KX_RadarSensor::SynchronizeTransform()
 /* Python Integration Hooks                                                  */
 /* ------------------------------------------------------------------------- */
 PyTypeObject KX_RadarSensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_RadarSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -205,7 +205,7 @@ PyTypeObject KX_RadarSensor::Type = {
 };
 
 PyMethodDef KX_RadarSensor::Methods[] = {
-	{NULL, NULL} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_RadarSensor::Attributes[] = {

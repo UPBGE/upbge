@@ -26,8 +26,8 @@ COperator2Expr::COperator2Expr(VALUE_OPERATOR op, CExpression *lhs, CExpression 
 }
 
 COperator2Expr::COperator2Expr() :
-	m_rhs(NULL),
-	m_lhs(NULL)
+	m_rhs(nullptr),
+	m_lhs(nullptr)
 {
 }
 

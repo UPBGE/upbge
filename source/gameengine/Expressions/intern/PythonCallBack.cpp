@@ -53,14 +53,14 @@ static PyObject *CheckPythonFunction(PyObject *value, unsigned int minargcount, 
 	else {
 		PyErr_Format(PyExc_TypeError, "items must be functions or methodes, not %s",
 		             Py_TYPE(value)->tp_name);
-		return NULL;
+		return nullptr;
 	}
 
 	if (r_argcount < minargcount || r_argcount >  maxargcount) {
 		// Wrong number of arguments.
 		PyErr_Format(PyExc_TypeError, "methode or function (%s) has invalid number of arguments (%i) must be between %i and %i",
 		             Py_TYPE(value)->tp_name, r_argcount, minargcount, maxargcount);
-		return NULL;
+		return nullptr;
 	}
 
 	return value;
@@ -108,8 +108,8 @@ void RunPythonCallBackList(PyObject *functionlist, PyObject **arglist, unsigned 
 			argTuples[funcargcount - minargcount] = tuple = CreatePythonTuple(funcargcount, arglist);
 		}
 
-		PyObject *ret = PyObject_Call(func, tuple, NULL);
-		if (!ret) { // If ret is NULL this seems that the function doesn't work.
+		PyObject *ret = PyObject_Call(func, tuple, nullptr);
+		if (!ret) { // If ret is nullptr this seems that the function doesn't work.
 			PyErr_Print();
 			PyErr_Clear();
 		}

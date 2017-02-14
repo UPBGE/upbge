@@ -136,7 +136,7 @@ CValue *CListValue::FindValue(const std::string &name)
 	if (it != m_pValueArray.end()) {
 		return *it;
 	}
-	return NULL;
+	return nullptr;
 }
 
 bool CListValue::SearchValue(CValue *val)
@@ -188,7 +188,7 @@ bool CListValue::CheckEqual(CValue *first, CValue *second)
 
 	CValue *eqval = ((CValue *)first)->Calc(VALUE_EQL_OPERATOR, (CValue *)second);
 
-	if (eqval == NULL) {
+	if (eqval == nullptr) {
 		return false;
 	}
 	const std::string& text = eqval->GetText();
@@ -223,7 +223,7 @@ int CListValue::GetValueType()
 static Py_ssize_t listvalue_bufferlen(PyObject *self)
 {
 	CListValue *list = static_cast<CListValue *>(BGE_PROXY_REF(self));
-	if (list == NULL) {
+	if (list == nullptr) {
 		return 0;
 	}
 
@@ -234,9 +234,9 @@ static PyObject *listvalue_buffer_item(PyObject *self, Py_ssize_t index)
 {
 	CListValue *list = static_cast<CListValue *>(BGE_PROXY_REF(self));
 
-	if (list == NULL) {
+	if (list == nullptr) {
 		PyErr_SetString(PyExc_SystemError, "val = CList[i], " BGE_PROXY_ERROR_MSG);
-		return NULL;
+		return nullptr;
 	}
 
 	int count = list->GetCount();
@@ -247,7 +247,7 @@ static PyObject *listvalue_buffer_item(PyObject *self, Py_ssize_t index)
 
 	if (index < 0 || index >= count) {
 		PyErr_SetString(PyExc_IndexError, "CList[i]: Python ListIndex out of range in CValueList");
-		return NULL;
+		return nullptr;
 	}
 
 	CValue *cval = list->GetValue(index);
@@ -266,7 +266,7 @@ static PyObject *listvalue_buffer_slice(CListValue *list, Py_ssize_t start, Py_s
 {
 	PyObject *newlist = PyList_New(stop - start);
 	if (!newlist) {
-		return NULL;
+		return nullptr;
 	}
 
 	for (Py_ssize_t i = start, j = 0; i < stop; i++, j++) {
@@ -283,9 +283,9 @@ static PyObject *listvalue_buffer_slice(CListValue *list, Py_ssize_t start, Py_s
 static PyObject *listvalue_mapping_subscript(PyObject *self, PyObject *key)
 {
 	CListValue *list = static_cast<CListValue *>(BGE_PROXY_REF(self));
-	if (list == NULL) {
+	if (list == nullptr) {
 		PyErr_SetString(PyExc_SystemError, "value = CList[i], " BGE_PROXY_ERROR_MSG);
-		return NULL;
+		return nullptr;
 	}
 
 	if (PyUnicode_Check(key)) {
@@ -308,7 +308,7 @@ static PyObject *listvalue_mapping_subscript(PyObject *self, PyObject *key)
 		Py_ssize_t start, stop, step, slicelength;
 
 		if (PySlice_GetIndicesEx(key, list->GetCount(), &start, &stop, &step, &slicelength) < 0) {
-			return NULL;
+			return nullptr;
 		}
 
 		if (slicelength <= 0) {
@@ -319,12 +319,12 @@ static PyObject *listvalue_mapping_subscript(PyObject *self, PyObject *key)
 		}
 		else {
 			PyErr_SetString(PyExc_TypeError, "CList[slice]: slice steps not supported");
-			return NULL;
+			return nullptr;
 		}
 	}
 
 	PyErr_Format(PyExc_KeyError, "CList[key]: '%R' key not in list", key);
-	return NULL;
+	return nullptr;
 }
 
 // clist + list, return a list that python owns.
@@ -332,9 +332,9 @@ static PyObject *listvalue_buffer_concat(PyObject *self, PyObject *other)
 {
 	CListValue *listval = static_cast<CListValue *>(BGE_PROXY_REF(self));
 
-	if (listval == NULL) {
+	if (listval == nullptr) {
 		PyErr_SetString(PyExc_SystemError, "CList+other, " BGE_PROXY_ERROR_MSG);
-		return NULL;
+		return nullptr;
 	}
 
 	Py_ssize_t numitems_orig = listval->GetCount();
@@ -363,25 +363,25 @@ static PyObject *listvalue_buffer_concat(PyObject *self, PyObject *other)
 				listval_new->SetValue(i + numitems_orig, listitemval);
 			}
 			else {
-				listval_new->Resize(numitems_orig + i); // Resize so we don't try release NULL pointers.
+				listval_new->Resize(numitems_orig + i); // Resize so we don't try release nullptr pointers.
 				listval_new->Release();
-				return NULL; // ConvertPythonToValue above sets the error.
+				return nullptr; // ConvertPythonToValue above sets the error.
 			}
 		}
 	}
 	else if (PyObject_TypeCheck(other, &CListValue::Type)) {
 		// Add items from otherlist to this list.
 		CListValue *otherval = static_cast<CListValue *>(BGE_PROXY_REF(other));
-		if (otherval == NULL) {
+		if (otherval == nullptr) {
 			listval_new->Release();
 			PyErr_SetString(PyExc_SystemError, "CList+other, " BGE_PROXY_ERROR_MSG);
-			return NULL;
+			return nullptr;
 		}
 
 		Py_ssize_t numitems = otherval->GetCount();
 
 		// Copy the first part of the list.
-		listval_new->Resize(numitems_orig + numitems); // Resize so we don't try release NULL pointers.
+		listval_new->Resize(numitems_orig + numitems); // Resize so we don't try release nullptr pointers.
 		for (Py_ssize_t i = 0; i < numitems_orig; i++) {
 			listval_new->SetValue(i, listval->GetValue(i)->AddRef());
 		}
@@ -399,7 +399,7 @@ static int listvalue_buffer_contains(PyObject *self_v, PyObject *value)
 {
 	CListValue *self = static_cast<CListValue *>(BGE_PROXY_REF(self_v));
 
-	if (self == NULL) {
+	if (self == nullptr) {
 		PyErr_SetString(PyExc_SystemError, "val in CList, " BGE_PROXY_ERROR_MSG);
 		return -1;
 	}
@@ -425,26 +425,26 @@ static int listvalue_buffer_contains(PyObject *self_v, PyObject *value)
 static PySequenceMethods listvalue_as_sequence = {
 	listvalue_bufferlen, //(inquiry)buffer_length, /*sq_length*/
 	listvalue_buffer_concat, /*sq_concat*/
-	NULL, /*sq_repeat*/
+	nullptr, /*sq_repeat*/
 	listvalue_buffer_item, /*sq_item*/
 // TODO, slicing in py3
-	NULL, // listvalue_buffer_slice, /*sq_slice*/
-	NULL, /*sq_ass_item*/
-	NULL, /*sq_ass_slice*/
+	nullptr, // listvalue_buffer_slice, /*sq_slice*/
+	nullptr, /*sq_ass_item*/
+	nullptr, /*sq_ass_slice*/
 	(objobjproc)listvalue_buffer_contains,  /* sq_contains */
-	(binaryfunc)NULL,  /* sq_inplace_concat */
-	(ssizeargfunc)NULL,  /* sq_inplace_repeat */
+	(binaryfunc)nullptr,  /* sq_inplace_concat */
+	(ssizeargfunc)nullptr,  /* sq_inplace_repeat */
 };
 
 // Is this one used ?
 static PyMappingMethods instance_as_mapping = {
 	listvalue_bufferlen, /*mp_length*/
 	listvalue_mapping_subscript, /*mp_subscript*/
-	NULL /*mp_ass_subscript*/
+	nullptr /*mp_ass_subscript*/
 };
 
 PyTypeObject CListValue::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"CListValue",           /*tp_name*/
 	sizeof(PyObjectPlus_Proxy), /*tp_basicsize*/
 	0,              /*tp_itemsize*/
@@ -461,8 +461,8 @@ PyTypeObject CListValue::Type = {
 	0,                  /*tp_hash*/
 	0,              /*tp_call */
 	0,
-	NULL,
-	NULL,
+	nullptr,
+	nullptr,
 	0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	0, 0, 0, 0, 0, 0, 0,
@@ -487,7 +487,7 @@ PyMethodDef CListValue::Methods[] = {
 	// Own cvalue funcs.
 	{"from_id", (PyCFunction)CListValue::sPyfrom_id, METH_O},
 
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef CListValue::Attributes[] = {
@@ -500,12 +500,12 @@ PyObject *CListValue::Pyappend(PyObject *value)
 
 	if (!objval) {
 		// ConvertPythonToValue sets the error.
-		return NULL;
+		return nullptr;
 	}
 
 	if (!BGE_PROXY_PYOWNS(m_proxy)) {
 		PyErr_SetString(PyExc_TypeError, "CList.append(i): internal values can't be modified");
-		return NULL;
+		return nullptr;
 	}
 
 	Add(objval);
@@ -517,7 +517,7 @@ PyObject *CListValue::Pyreverse()
 {
 	if (!BGE_PROXY_PYOWNS(m_proxy)) {
 		PyErr_SetString(PyExc_TypeError, "CList.reverse(): internal values can't be modified");
-		return NULL;
+		return nullptr;
 	}
 
 	std::reverse(m_pValueArray.begin(), m_pValueArray.end());
@@ -526,12 +526,12 @@ PyObject *CListValue::Pyreverse()
 
 PyObject *CListValue::Pyindex(PyObject *value)
 {
-	PyObject *result = NULL;
+	PyObject *result = nullptr;
 
 	CValue *checkobj = ConvertPythonToValue(value, true, "val = cList[i]: CValueList, ");
-	if (checkobj == NULL) {
+	if (checkobj == nullptr) {
 		// ConvertPythonToValue sets the error.
-		return NULL;
+		return nullptr;
 	}
 	int numelem = GetCount();
 	for (int i = 0; i < numelem; i++) {
@@ -543,7 +543,7 @@ PyObject *CListValue::Pyindex(PyObject *value)
 	}
 	checkobj->Release();
 
-	if (result == NULL) {
+	if (result == nullptr) {
 		PyErr_SetString(PyExc_ValueError, "CList.index(x): x not in CListValue");
 	}
 	return result;
@@ -556,7 +556,7 @@ PyObject *CListValue::Pycount(PyObject *value)
 	CValue *checkobj = ConvertPythonToValue(value, false, ""); // Error ignored.
 
 	// in this case just return that there are no items in the list.
-	if (checkobj == NULL) {
+	if (checkobj == nullptr) {
 		PyErr_Clear();
 		return PyLong_FromLong(0);
 	}
@@ -580,7 +580,7 @@ PyObject *CListValue::Pyget(PyObject *args)
 	PyObject *def = Py_None;
 
 	if (!PyArg_ParseTuple(args, "s|O:get", &key, &def)) {
-		return NULL;
+		return nullptr;
 	}
 
 	CValue *item = FindValue(key);
@@ -603,7 +603,7 @@ PyObject *CListValue::Pyfrom_id(PyObject *value)
 	uintptr_t id = (uintptr_t)PyLong_AsVoidPtr(value);
 
 	if (PyErr_Occurred()) {
-		return NULL;
+		return nullptr;
 	}
 
 	int numelem = GetCount();
@@ -614,7 +614,7 @@ PyObject *CListValue::Pyfrom_id(PyObject *value)
 	}
 
 	PyErr_SetString(PyExc_IndexError, "from_id(#): id not found in CValueList");
-	return NULL;
+	return nullptr;
 }
 
 #endif  // WITH_PYTHON

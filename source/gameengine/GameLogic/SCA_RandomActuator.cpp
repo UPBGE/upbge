@@ -99,7 +99,7 @@ bool SCA_RandomActuator::Update()
 	RemoveAllEvents();
 
 
-	CValue *tmpval = NULL;
+	CValue *tmpval = nullptr;
 
 	if (bNegativeEvent)
 		return false; // do nothing on negative events
@@ -307,7 +307,7 @@ void SCA_RandomActuator::enforceConstraints()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_RandomActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_RandomActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -341,7 +341,7 @@ PyMethodDef SCA_RandomActuator::Methods[] = {
 	KX_PYMETHODTABLE(SCA_RandomActuator, setFloatUniform),
 	KX_PYMETHODTABLE(SCA_RandomActuator, setFloatNormal),
 	KX_PYMETHODTABLE(SCA_RandomActuator, setFloatNegativeExponential),
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_RandomActuator::Attributes[] = {
@@ -380,7 +380,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setBoolConst,
 {
 	int paraArg;
 	if (!PyArg_ParseTuple(args, "i:setBoolConst", &paraArg)) {
-		return NULL;
+		return nullptr;
 	}
 	
 	m_distribution = KX_RANDOMACT_BOOL_CONST;
@@ -406,7 +406,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setBoolBernouilli,
 {
 	float paraArg;
 	if (!PyArg_ParseTuple(args, "f:setBoolBernouilli", &paraArg)) {
-		return NULL;
+		return nullptr;
 	}
 	
 	m_distribution = KX_RANDOMACT_BOOL_BERNOUILLI;
@@ -422,7 +422,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setIntConst,
 {
 	int paraArg;
 	if (!PyArg_ParseTuple(args, "i:setIntConst", &paraArg)) {
-		return NULL;
+		return nullptr;
 	}
 	
 	m_distribution = KX_RANDOMACT_INT_CONST;
@@ -440,7 +440,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setIntUniform,
 {
 	int paraArg1, paraArg2;
 	if (!PyArg_ParseTuple(args, "ii:setIntUniform", &paraArg1, &paraArg2)) {
-		return NULL;
+		return nullptr;
 	}
 	
 	m_distribution = KX_RANDOMACT_INT_UNIFORM;
@@ -459,7 +459,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setIntPoisson,
 {
 	float paraArg;
 	if (!PyArg_ParseTuple(args, "f:setIntPoisson", &paraArg)) {
-		return NULL;
+		return nullptr;
 	}
 	
 	m_distribution = KX_RANDOMACT_INT_POISSON;
@@ -475,7 +475,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setFloatConst,
 {
 	float paraArg;
 	if (!PyArg_ParseTuple(args, "f:setFloatConst", &paraArg)) {
-		return NULL;
+		return nullptr;
 	}
 	
 	m_distribution = KX_RANDOMACT_FLOAT_CONST;
@@ -493,7 +493,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setFloatUniform,
 {
 	float paraArg1, paraArg2;
 	if (!PyArg_ParseTuple(args, "ff:setFloatUniform", &paraArg1, &paraArg2)) {
-		return NULL;
+		return nullptr;
 	}
 	
 	m_distribution = KX_RANDOMACT_FLOAT_UNIFORM;
@@ -512,7 +512,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setFloatNormal,
 {
 	float paraArg1, paraArg2;
 	if (!PyArg_ParseTuple(args, "ff:setFloatNormal", &paraArg1, &paraArg2)) {
-		return NULL;
+		return nullptr;
 	}
 	
 	m_distribution = KX_RANDOMACT_FLOAT_NORMAL;
@@ -530,7 +530,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setFloatNegativeExponential,
 {
 	float paraArg;
 	if (!PyArg_ParseTuple(args, "f:setFloatNegativeExponential", &paraArg)) {
-		return NULL;
+		return nullptr;
 	}
 	
 	m_distribution = KX_RANDOMACT_FLOAT_NEGATIVE_EXPONENTIAL;

@@ -50,7 +50,7 @@
 
 // nasty glob variable to connect scripting language
 // if there is a better way (without global), please do so!
-static PHY_IPhysicsEnvironment* g_CurrentActivePhysicsEnvironment = NULL;
+static PHY_IPhysicsEnvironment* g_CurrentActivePhysicsEnvironment = nullptr;
 
 #ifdef WITH_PYTHON
 
@@ -161,7 +161,7 @@ static PyObject *gPySetGravity(PyObject *self,
 			PHY_GetActiveEnvironment()->SetGravity(x,y,z);
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	
 	Py_RETURN_NONE;
@@ -182,7 +182,7 @@ static PyObject *gPySetDebugMode(PyObject *self,
 		
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	
 	Py_RETURN_NONE;
@@ -203,7 +203,7 @@ static PyObject *gPySetNumTimeSubSteps(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -222,7 +222,7 @@ static PyObject *gPySetNumIterations(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -241,7 +241,7 @@ static PyObject *gPySetDeactivationTime(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -260,7 +260,7 @@ static PyObject *gPySetDeactivationLinearTreshold(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -279,7 +279,7 @@ static PyObject *gPySetDeactivationAngularTreshold(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -297,7 +297,7 @@ static PyObject *gPySetContactBreakingTreshold(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -316,7 +316,7 @@ static PyObject *gPySetCcdMode(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -334,7 +334,7 @@ static PyObject *gPySetSorConstant(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -352,7 +352,7 @@ static PyObject *gPySetSolverTau(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -371,7 +371,7 @@ static PyObject *gPySetSolverDamping(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -389,7 +389,7 @@ static PyObject *gPySetLinearAirDamping(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -408,7 +408,7 @@ static PyObject *gPySetUseEpa(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -425,7 +425,7 @@ static PyObject *gPySetSolverType(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -457,7 +457,7 @@ static PyObject *gPyGetVehicleConstraint(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 
 	Py_RETURN_NONE;
@@ -471,10 +471,10 @@ static PyObject* gPyGetCharacter(PyObject* self,
 	KX_GameObject *ob;
 
 	if (!PyArg_ParseTuple(args,"O", &pyob))
-		return NULL;
+		return nullptr;
 
 	if (!ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(), pyob, &ob, false, "bge.constraints.getCharacter(value)"))
-		return NULL;
+		return nullptr;
 
 	if (PHY_GetActiveEnvironment())
 	{
@@ -502,13 +502,13 @@ static PyObject *gPyCreateConstraint(PyObject *self,
 	float pivotX = 0.0f, pivotY = 0.0f, pivotZ = 0.0f, axisX = 0.0f, axisY = 0.0f, axisZ = 0.0f;
 
 	static const char *kwlist[] = {"physicsid_1", "physicsid_2", "constraint_type", "pivot_x", "pivot_y", "pivot_z",
-	                               "axis_x", "axis_y", "axis_z", "flag", NULL};
+	                               "axis_x", "axis_y", "axis_z", "flag", nullptr};
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "KKi|ffffffi:createConstraint", (char **)kwlist,
 	                                 &physicsid, &physicsid2, &constrainttype,
 	                                 &pivotX, &pivotY, &pivotZ, &axisX, &axisY, &axisZ, &flag))
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	if (PHY_GetActiveEnvironment()) {
@@ -563,7 +563,7 @@ static PyObject *gPyGetAppliedImpulse(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 
 	return PyFloat_FromDouble(appliedImpulse);
@@ -588,7 +588,7 @@ static PyObject *gPyRemoveConstraint(PyObject *self,
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 	
 	Py_RETURN_NONE;
@@ -598,7 +598,7 @@ static PyObject *gPyExportBulletFile(PyObject *, PyObject *args)
 {
 	char* filename;
 	if (!PyArg_ParseTuple(args,"s:exportBulletFile",&filename))
-		return NULL;
+		return nullptr;
 
 	if (PHY_GetActiveEnvironment())
 	{
@@ -665,7 +665,7 @@ static struct PyMethodDef physicsconstraints_methods[] = {
 	 METH_VARARGS, "export a .bullet file"},
 
 	//sentinel
-	{ NULL, (PyCFunction) NULL, 0, NULL }
+	{ nullptr, (PyCFunction) nullptr, 0, nullptr }
 };
 
 static struct PyModuleDef PhysicsConstraints_module_def = {

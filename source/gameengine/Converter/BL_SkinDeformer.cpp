@@ -94,7 +94,7 @@ BL_SkinDeformer::BL_SkinDeformer(BL_DeformableGameObject *gameobj,
 	m_poseApplied(false),
 	m_recalcNormal(true),
 	m_copyNormals(false),
-	m_dfnrToPC(NULL)
+	m_dfnrToPC(nullptr)
 {
 	copy_m4_m4(m_obmat, bmeshobj->obmat);
 	m_deformflags = get_deformflags(bmeshobj);
@@ -114,7 +114,7 @@ BL_SkinDeformer::BL_SkinDeformer(
 	m_releaseobject(release_object),
 	m_recalcNormal(recalc_normal),
 	m_copyNormals(false),
-	m_dfnrToPC(NULL)
+	m_dfnrToPC(nullptr)
 {
 	// this is needed to ensure correct deformation of mesh:
 	// the deformation is done with Blender's armature_deform_verts() function
@@ -191,7 +191,7 @@ void BL_SkinDeformer::ProcessReplica()
 	BL_MeshDeformer::ProcessReplica();
 	m_lastArmaUpdate = -1.0;
 	m_releaseobject = false;
-	m_dfnrToPC = NULL;
+	m_dfnrToPC = nullptr;
 }
 
 void BL_SkinDeformer::BlenderDeformVerts()
@@ -204,7 +204,7 @@ void BL_SkinDeformer::BlenderDeformVerts()
 	// set reference matrix
 	copy_m4_m4(m_objMesh->obmat, m_obmat);
 
-	armature_deform_verts(par_arma, m_objMesh, NULL, m_transverts, NULL, m_bmesh->totvert, m_deformflags, NULL, NULL);
+	armature_deform_verts(par_arma, m_objMesh, nullptr, m_transverts, nullptr, m_bmesh->totvert, m_deformflags, nullptr, nullptr);
 
 	// restore matrix
 	copy_m4_m4(m_objMesh->obmat, obmat);
@@ -228,7 +228,7 @@ void BL_SkinDeformer::BGEDeformVerts()
 
 	defbase_tot = BLI_listbase_count(&m_objMesh->defbase);
 
-	if (m_dfnrToPC == NULL) {
+	if (m_dfnrToPC == nullptr) {
 		m_dfnrToPC = new bPoseChannel *[defbase_tot];
 		int i;
 		for (i = 0, dg = (bDeformGroup *)m_objMesh->defbase.first;
@@ -238,7 +238,7 @@ void BL_SkinDeformer::BGEDeformVerts()
 			m_dfnrToPC[i] = BKE_pose_channel_find_name(par_arma->pose, dg->name);
 
 			if (m_dfnrToPC[i] && m_dfnrToPC[i]->bone->flag & BONE_NO_DEFORM)
-				m_dfnrToPC[i] = NULL;
+				m_dfnrToPC[i] = nullptr;
 		}
 	}
 
@@ -250,7 +250,7 @@ void BL_SkinDeformer::BGEDeformVerts()
 
 	for (int i = 0; i < m_bmesh->totvert; ++i, dv++) {
 		float contrib = 0.0f, weight, max_weight = -1.0f;
-		bPoseChannel *pchan = NULL;
+		bPoseChannel *pchan = nullptr;
 		Eigen::Vector3f normorg(m_bmesh->mvert[i].no[0], m_bmesh->mvert[i].no[1], m_bmesh->mvert[i].no[2]);
 		Eigen::Map<Eigen::Vector3f> norm = Eigen::Vector3f::Map(m_transnors[i]);
 		Eigen::Vector4f vec(0.0f, 0.0f, 0.0f, 1.0f);

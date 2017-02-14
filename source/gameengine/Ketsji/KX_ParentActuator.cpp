@@ -89,7 +89,7 @@ bool KX_ParentActuator::UnlinkObject(SCA_IObject* clientobj)
 	if (clientobj == m_ob)
 	{
 		// this object is being deleted, we cannot continue to track it.
-		m_ob = NULL;
+		m_ob = nullptr;
 		return true;
 	}
 	return false;
@@ -138,7 +138,7 @@ bool KX_ParentActuator::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_ParentActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_ParentActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -160,7 +160,7 @@ PyTypeObject KX_ParentActuator::Type = {
 };
 
 PyMethodDef KX_ParentActuator::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_ParentActuator::Attributes[] = {
@@ -188,7 +188,7 @@ int KX_ParentActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_PYA
 	if (!ConvertPythonToGameObject(actuator->GetLogicManager(), value, &gameobj, true, "actuator.object = value: KX_ParentActuator"))
 		return PY_SET_ATTR_FAIL; // ConvertPythonToGameObject sets the error
 		
-	if (actuator->m_ob != NULL)
+	if (actuator->m_ob != nullptr)
 		actuator->m_ob->UnregisterActuator(actuator);
 
 	actuator->m_ob = (SCA_IObject*) gameobj;

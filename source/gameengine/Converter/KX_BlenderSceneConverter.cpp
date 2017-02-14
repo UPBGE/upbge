@@ -129,7 +129,7 @@ KX_BlenderSceneConverter::KX_BlenderSceneConverter(Main *maggie, KX_KetsjiEngine
 	BKE_main_id_tag_all(maggie, LIB_TAG_DOIT, false);  // avoid re-tagging later on
 	m_newfilename = "";
 	m_threadinfo = new ThreadInfo();
-	m_threadinfo->m_pool = BLI_task_pool_create(engine->GetTaskScheduler(), NULL);
+	m_threadinfo->m_pool = BLI_task_pool_create(engine->GetTaskScheduler(), nullptr);
 }
 
 KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
@@ -193,7 +193,7 @@ Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const std::string &name)
 {
 	Scene *sce;
 
-	// Find the specified scene by name, or NULL if nothing matches.
+	// Find the specified scene by name, or nullptr if nothing matches.
 	if ((sce = (Scene *)BLI_findstring(&m_maggie->scene, name.c_str(), offsetof(ID, name) + 2))) {
 		return sce;
 	}
@@ -206,7 +206,7 @@ Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const std::string &name)
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 CListValue *KX_BlenderSceneConverter::GetInactiveSceneNames()
@@ -231,7 +231,7 @@ void KX_BlenderSceneConverter::ConvertScene(KX_Scene *destinationscene, RAS_IRas
 	//find out which physics engine
 	Scene *blenderscene = destinationscene->GetBlenderScene();
 
-	PHY_IPhysicsEnvironment *phy_env = NULL;
+	PHY_IPhysicsEnvironment *phy_env = nullptr;
 
 	e_PhysicsEngine physics_engine = UseBullet;
 	destinationscene->SetSceneConverter(this);
@@ -448,7 +448,7 @@ Main *KX_BlenderSceneConverter::GetMainDynamicPath(const char *path)
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 void KX_BlenderSceneConverter::MergeAsyncLoads()
@@ -469,7 +469,7 @@ void KX_BlenderSceneConverter::MergeAsyncLoads()
 		}
 
 		delete merge_scenes;
-		(*mit)->SetData(NULL);
+		(*mit)->SetData(nullptr);
 
 		(*mit)->Finish();
 	}
@@ -498,7 +498,7 @@ void KX_BlenderSceneConverter::AddScenesToMergeQueue(KX_LibLoadStatus *status)
 
 static void async_convert(TaskPool *pool, void *ptr, int UNUSED(threadid))
 {
-	KX_Scene *new_scene = NULL;
+	KX_Scene *new_scene = nullptr;
 	KX_LibLoadStatus *status = (KX_LibLoadStatus *)ptr;
 	std::vector<Scene *> *scenes = (std::vector<Scene *> *)status->GetData();
 	std::vector<KX_Scene *> *merge_scenes = new std::vector<KX_Scene *>(); // Deleted in MergeAsyncLoads
@@ -529,7 +529,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFileMemory(void *data, int 
 
 KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFilePath(const char *filepath, char *group, KX_Scene *scene_merge, char **err_str, short options)
 {
-	BlendHandle *bpy_openlib = BLO_blendhandle_from_file(filepath, NULL);
+	BlendHandle *bpy_openlib = BLO_blendhandle_from_file(filepath, nullptr);
 
 	// Error checking is done in LinkBlendFile
 	return LinkBlendFile(bpy_openlib, filepath, group, scene_merge, err_str, options);
@@ -537,7 +537,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFilePath(const char *filepa
 
 static void load_datablocks(Main *main_tmp, BlendHandle *bpy_openlib, const char *path, int idcode)
 {
-	LinkNode *names = NULL;
+	LinkNode *names = nullptr;
 
 	int totnames_dummy;
 	names = BLO_blendhandle_get_datablock_names(bpy_openlib, idcode, &totnames_dummy);
@@ -566,20 +566,20 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 		snprintf(err_local, sizeof(err_local), "invalid ID type given \"%s\"\n", group);
 		*err_str = err_local;
 		BLO_blendhandle_close(bpy_openlib);
-		return NULL;
+		return nullptr;
 	}
 
 	if (GetMainDynamicPath(path)) {
 		snprintf(err_local, sizeof(err_local), "blend file already open \"%s\"\n", path);
 		*err_str = err_local;
 		BLO_blendhandle_close(bpy_openlib);
-		return NULL;
+		return nullptr;
 	}
 
-	if (bpy_openlib == NULL) {
+	if (bpy_openlib == nullptr) {
 		snprintf(err_local, sizeof(err_local), "could not open blendfile \"%s\"\n", path);
 		*err_str = err_local;
-		return NULL;
+		return nullptr;
 	}
 
 	main_newlib = BKE_main_new();
@@ -600,7 +600,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 		load_datablocks(main_tmp, bpy_openlib, path, ID_AC);
 	}
 
-	BLO_library_link_end(main_tmp, &bpy_openlib, flag, NULL, NULL);
+	BLO_library_link_end(main_tmp, &bpy_openlib, flag, nullptr, nullptr);
 
 	BLO_blendhandle_close(bpy_openlib);
 
@@ -622,7 +622,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 			if (options & LIB_LOAD_VERBOSE) {
 				CM_Debug("mesh name: " << mesh->name + 2);
 			}
-			RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)mesh, NULL, scene_merge, this, false); // For now only use the libloading option for scenes, which need to handle materials/shaders
+			RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)mesh, nullptr, scene_merge, this, false); // For now only use the libloading option for scenes, which need to handle materials/shaders
 			scene_merge->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 		}
 	}
@@ -641,7 +641,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 		// Merge all new linked in scene into the existing one
 		ID *scene;
 		// scenes gets deleted by the thread when it's done using it (look in async_convert())
-		std::vector<Scene *> *scenes = (options & LIB_LOAD_ASYNC) ? new std::vector<Scene *>() : NULL;
+		std::vector<Scene *> *scenes = (options & LIB_LOAD_ASYNC) ? new std::vector<Scene *>() : nullptr;
 
 		for (scene = (ID *)main_newlib->scene.first; scene; scene = (ID *)scene->next) {
 			if (options & LIB_LOAD_VERBOSE) {
@@ -701,7 +701,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 	int maggie_index = -1;
 	int i = 0;
 
-	if (maggie == NULL) {
+	if (maggie == nullptr) {
 		return false;
 	}
 
@@ -788,7 +788,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 			}
 
 			// removed tagged objects and meshes
-			CListValue *obj_lists[] = {scene->GetObjectList(), scene->GetInactiveList(), NULL};
+			CListValue *obj_lists[] = {scene->GetObjectList(), scene->GetInactiveList(), nullptr};
 
 			for (int ob_ls_idx = 0; obj_lists[ob_ls_idx]; ob_ls_idx++) {
 				CListValue *obs = obj_lists[ob_ls_idx];
@@ -837,7 +837,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 							if (gameobj->GetActuators()[act_idx]->IsType(SCA_IActuator::KX_ACT_ACTION)) {
 								BL_ActionActuator *act = (BL_ActionActuator *)gameobj->GetActuators()[act_idx];
 								if (IS_TAGGED(act->GetAction())) {
-									act->SetAction(NULL);
+									act->SetAction(nullptr);
 								}
 							}
 						}
@@ -944,7 +944,7 @@ bool KX_BlenderSceneConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 
 	// Delete from scene's world info.
 	delete from->GetWorldInfo();
-	from->SetWorldInfo(NULL);
+	from->SetWorldInfo(nullptr);
 
 	return true;
 }
@@ -957,7 +957,7 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
 	ID *me = static_cast<ID *>(BLI_findstring(&m_maggie->mesh, name, offsetof(ID, name) + 2));
 	Main *from_maggie = m_maggie;
 
-	if (me == NULL) {
+	if (me == nullptr) {
 		// The mesh wasn't in the current main, try any dynamic (i.e., LibLoaded) ones
 		std::vector<Main *>::iterator it;
 
@@ -971,9 +971,9 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
 		}
 	}
 
-	if (me == NULL) {
+	if (me == nullptr) {
 		CM_Error("could not be found \"" << name << "\"");
-		return NULL;
+		return nullptr;
 	}
 
 	// Watch this!, if its used in the original scene can cause big troubles
@@ -1026,7 +1026,7 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
 		}
 	}
 
-	RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)me, NULL, kx_scene, this, false);
+	RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)me, nullptr, kx_scene, this, false);
 	kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 	m_map_mesh_to_gamemesh.clear(); // This is at runtime so no need to keep this, BL_ConvertMesh adds.
 	return meshobj;

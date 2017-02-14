@@ -158,7 +158,7 @@ protected:
 	ImageSourceList::iterator findSource(const char *id);
 
 	/// create new source
-	virtual ImageSource *newSource(const char *id) { return NULL; }
+	virtual ImageSource *newSource(const char *id) { return nullptr; }
 
 	/// check source sizes
 	bool checkSourceSizes(void);
@@ -254,10 +254,10 @@ protected:
 	template <class F, class SRC> void filterImage (F & filt, SRC srcBuff, short *srcSize)
 	{
 		// find first filter in chain
-		FilterBase * firstFilter = NULL;
-		if (m_pyfilter != NULL) firstFilter = m_pyfilter->m_filter->findFirst();
+		FilterBase * firstFilter = nullptr;
+		if (m_pyfilter != nullptr) firstFilter = m_pyfilter->m_filter->findFirst();
 		// if first filter is available
-		if (firstFilter != NULL)
+		if (firstFilter != nullptr)
 		{
 			// python wrapper for filter
 			PyFilter pyFilt;
@@ -267,7 +267,7 @@ protected:
 			// convert video image
 			convImage(*(m_pyfilter->m_filter), srcBuff, srcSize);
 			// delete added filter
-			firstFilter->setPrevious(NULL, false);
+			firstFilter->setPrevious(nullptr, false);
 		}
 		// otherwise use given filter for conversion
 		else convImage(filt, srcBuff, srcSize);
@@ -320,7 +320,7 @@ public:
 	short * getSize (void)
 	{ 
 		static short defSize [] = {0, 0};
-		return m_source != NULL ? m_source->m_image->getSize() : defSize;
+		return m_source != nullptr ? m_source->m_image->getSize() : defSize;
 	}
 
 protected:
@@ -347,7 +347,7 @@ template <class T> static int Image_init(PyObject *pySelf, PyObject *args, PyObj
 {
 	PyImage *self = reinterpret_cast<PyImage *>(pySelf);
 	// create source object
-	if (self->m_image != NULL) delete self->m_image;
+	if (self->m_image != nullptr) delete self->m_image;
 	self->m_image = new T();
 	// initialization succeded
 	return 0;

@@ -133,7 +133,7 @@ bool SCA_RandomSensor::Evaluate()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_RandomSensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_RandomSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -155,7 +155,7 @@ PyTypeObject SCA_RandomSensor::Type = {
 };
 
 PyMethodDef SCA_RandomSensor::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_RandomSensor::Attributes[] = {

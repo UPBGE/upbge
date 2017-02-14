@@ -41,7 +41,7 @@
 #ifdef WITH_PYTHON
 
 PyTypeObject BL_ArmatureChannel::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"BL_ArmatureChannel",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -95,7 +95,7 @@ BL_ArmatureChannel::~BL_ArmatureChannel()
 // PYTHON
 
 PyMethodDef BL_ArmatureChannel::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 // order of definition of attributes, must match Attributes[] array
@@ -153,14 +153,14 @@ PyObject *BL_ArmatureChannel::py_attr_getattr(PyObjectPlus *self_v, const struct
 	int attr_order = attrdef-Attributes;
 
 	if (!channel) {
-		PyErr_SetString(PyExc_AttributeError, "channel is NULL");
-		return NULL;
+		PyErr_SetString(PyExc_AttributeError, "channel is nullptr");
+		return nullptr;
 	}
 
 	switch (attr_order) {
 	case BCA_BONE:
 		// bones are standalone proxy
-		return NewProxyPlus_Ext(NULL,&BL_ArmatureBone::Type,channel->bone,false);
+		return NewProxyPlus_Ext(nullptr,&BL_ArmatureBone::Type,channel->bone,false);
 	case BCA_PARENT:
 		{
 			BL_ArmatureChannel* parent = self->m_armature->GetChannel(channel->parent);
@@ -171,7 +171,7 @@ PyObject *BL_ArmatureChannel::py_attr_getattr(PyObjectPlus *self_v, const struct
 		}
 	}
 	PyErr_SetString(PyExc_AttributeError, "channel unknown attribute");
-	return NULL;
+	return nullptr;
 }
 
 int BL_ArmatureChannel::py_attr_setattr(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -186,7 +186,7 @@ int BL_ArmatureChannel::py_attr_setattr(PyObjectPlus *self_v, const struct KX_PY
 //	KX_GameObject *oval;
 
 	if (!channel) {
-		PyErr_SetString(PyExc_AttributeError, "channel is NULL");
+		PyErr_SetString(PyExc_AttributeError, "channel is nullptr");
 		return PY_SET_ATTR_FAIL;
 	}
 	
@@ -295,7 +295,7 @@ PyObject *BL_ArmatureChannel::py_attr_get_joint_rotation(PyObjectPlus *self_v, c
 		mul_v3_fl(joints,norm);
 		break;
 	}
-	return Vector_CreatePyObject(joints, 3, NULL);
+	return Vector_CreatePyObject(joints, 3, nullptr);
 }
 
 int BL_ArmatureChannel::py_attr_set_joint_rotation(PyObjectPlus *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -374,7 +374,7 @@ int BL_ArmatureChannel::py_attr_set_joint_rotation(PyObjectPlus *self_v, const s
 //
 // Access to Bone structure
 PyTypeObject BL_ArmatureBone::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"BL_ArmatureBone",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -398,11 +398,11 @@ PyTypeObject BL_ArmatureBone::Type = {
 // not used since this class is never instantiated
 PyObject *BL_ArmatureBone::GetProxy() 
 { 
-	return NULL; 
+	return nullptr; 
 }
 PyObject *BL_ArmatureBone::NewProxy(bool py_owns) 
 { 
-	return NULL; 
+	return nullptr; 
 }
 
 PyObject *BL_ArmatureBone::py_bone_repr(PyObject *self)
@@ -412,7 +412,7 @@ PyObject *BL_ArmatureBone::py_bone_repr(PyObject *self)
 }
 
 PyMethodDef BL_ArmatureBone::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 /* no attributes on C++ class since it is never instantiated */
@@ -445,7 +445,7 @@ PyObject *BL_ArmatureBone::py_bone_get_parent(PyObjectPlus *self, const struct K
 	Bone* bone = reinterpret_cast<Bone*>(self);
 	if (bone->parent) {
 		// create a proxy unconnected to any GE object
-		return NewProxyPlus_Ext(NULL,&Type,bone->parent,false);
+		return NewProxyPlus_Ext(nullptr,&Type,bone->parent,false);
 	}
 	Py_RETURN_NONE;
 }
@@ -461,7 +461,7 @@ PyObject *BL_ArmatureBone::py_bone_get_children(PyObjectPlus *self, const struct
 	PyObject *childrenlist = PyList_New(count);
 
 	for (count = 0, child = (Bone *)bone->childbase.first; child; child = child->next, ++count)
-		PyList_SET_ITEM(childrenlist,count,NewProxyPlus_Ext(NULL,&Type,child,false));
+		PyList_SET_ITEM(childrenlist,count,NewProxyPlus_Ext(nullptr,&Type,child,false));
 
 	return childrenlist;
 }

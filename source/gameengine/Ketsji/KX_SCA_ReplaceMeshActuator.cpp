@@ -54,7 +54,7 @@
 /* Integration hooks ------------------------------------------------------- */
 
 PyTypeObject KX_SCA_ReplaceMeshActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_SCA_ReplaceMeshActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -77,7 +77,7 @@ PyTypeObject KX_SCA_ReplaceMeshActuator::Type = {
 
 PyMethodDef KX_SCA_ReplaceMeshActuator::Methods[] = {
 	KX_PYMETHODTABLE(KX_SCA_ReplaceMeshActuator, instantReplaceMesh),
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_SCA_ReplaceMeshActuator::Attributes[] = {
@@ -153,7 +153,7 @@ bool KX_SCA_ReplaceMeshActuator::Update()
 	if (bNegativeEvent)
 		return false; // do nothing on negative events
 
-	if (m_mesh || m_use_phys) /* NULL mesh is ok if were updating physics */
+	if (m_mesh || m_use_phys) /* nullptr mesh is ok if were updating physics */
 		m_scene->ReplaceMesh(GetParent(),m_mesh, m_use_gfx, m_use_phys);
 
 	return false;
@@ -166,8 +166,8 @@ CValue* KX_SCA_ReplaceMeshActuator::GetReplica()
 	KX_SCA_ReplaceMeshActuator* replica = 
 		new KX_SCA_ReplaceMeshActuator(*this);
 
-	if (replica == NULL)
-		return NULL;
+	if (replica == nullptr)
+		return nullptr;
 
 	replica->ProcessReplica();
 

@@ -206,7 +206,7 @@ void KX_BoundingBox_Mathutils_Callback_Init()
 #endif  // USE_MATHUTILS
 
 PyTypeObject KX_BoundingBox::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_BoundingBox",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -228,7 +228,7 @@ PyTypeObject KX_BoundingBox::Type = {
 };
 
 PyMethodDef KX_BoundingBox::Methods[] = {
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_BoundingBox::Attributes[] = {
@@ -253,7 +253,7 @@ PyObject *KX_BoundingBox::pyattr_get_min(PyObjectPlus *self_v, const KX_PYATTRIB
 {
 	KX_BoundingBox *self = static_cast<KX_BoundingBox *>(self_v);
 	if (!self->IsValidOwner()) {
-		return NULL;
+		return nullptr;
 	}
 
 #ifdef USE_MATHUTILS
@@ -288,7 +288,7 @@ PyObject *KX_BoundingBox::pyattr_get_max(PyObjectPlus *self_v, const KX_PYATTRIB
 {
 	KX_BoundingBox *self = static_cast<KX_BoundingBox *>(self_v);
 	if (!self->IsValidOwner()) {
-		return NULL;
+		return nullptr;
 	}
 
 #ifdef USE_MATHUTILS
@@ -323,7 +323,7 @@ PyObject *KX_BoundingBox::pyattr_get_center(PyObjectPlus *self_v, const KX_PYATT
 {
 	KX_BoundingBox *self = static_cast<KX_BoundingBox *>(self_v);
 	if (!self->IsValidOwner()) {
-		return NULL;
+		return nullptr;
 	}
 
 	return PyObjectFrom(self->GetCenter());
@@ -333,7 +333,7 @@ PyObject *KX_BoundingBox::pyattr_get_radius(PyObjectPlus *self_v, const KX_PYATT
 {
 	KX_BoundingBox *self = static_cast<KX_BoundingBox *>(self_v);
 	if (!self->IsValidOwner()) {
-		return NULL;
+		return nullptr;
 	}
 
 	return PyFloat_FromDouble(self->GetRadius());
@@ -343,7 +343,7 @@ PyObject *KX_BoundingBox::pyattr_get_auto_update(PyObjectPlus *self_v, const KX_
 {
 	KX_BoundingBox *self = static_cast<KX_BoundingBox *>(self_v);
 	if (!self->IsValidOwner()) {
-		return NULL;
+		return nullptr;
 	}
 
 	return PyBool_FromLong(self->m_owner->GetAutoUpdateBounds());

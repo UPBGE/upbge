@@ -102,7 +102,7 @@ public:
 	void setPreseek(int preseek) { if (preseek >= 0) m_preseek = preseek; }
 	bool getDeinterlace(void) { return m_deinterlace; }
 	void setDeinterlace(bool deinterlace) { m_deinterlace = deinterlace; }
-	char *getImageName(void) { return (m_isImage) ? (char *)m_imageName.c_str() : NULL; }
+	char *getImageName(void) { return (m_isImage) ? (char *)m_imageName.c_str() : nullptr; }
 
 protected:
 	// format and codec information

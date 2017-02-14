@@ -194,7 +194,7 @@ void DEV_InputDevice::ConvertEvent(SCA_IInputDevice::SCA_EnumInputs type, int va
 		event.m_values.push_back(val);
 		event.m_unicode = unicode;
 
-		// Avoid pushing NULL string character.
+		// Avoid pushing nullptr string character.
 		if (val > 0 && unicode != 0) {
 			m_text += (wchar_t)unicode;
 		}

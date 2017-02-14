@@ -67,7 +67,7 @@ std::vector<ExpDesc*> ExpDesc::m_expDescs;
 std::string Exception::m_lastError;
 
 // log file name
-const char * Exception::m_logFile = NULL;
+const char * Exception::m_logFile = nullptr;
 
 
 // basic constructor
@@ -119,7 +119,7 @@ Exception::Exception (ExceptionID & expID, RESULT rslt, const char *fil, int lin
 // set file and line
 void Exception::setFileLine (const char *fil, int lin)
 {
-	if (fil != NULL) m_fileName = fil;
+	if (fil != nullptr) m_fileName = fil;
 	m_line = lin;
 }
 
@@ -132,7 +132,7 @@ void Exception::report(void)
 	// set python error
 	PyErr_SetString(PyExc_RuntimeError, what());
 	// if log file is set
-	if (m_logFile != NULL)
+	if (m_logFile != nullptr)
 	{
 		// write description to log
 		std::ofstream logf (m_logFile, std::ios_base::app);

@@ -76,7 +76,7 @@ static PyObject *gPySetClipboard(PyObject *args, PyObject *value)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_PythonKeyboard::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_PythonKeyboard",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -100,7 +100,7 @@ PyTypeObject SCA_PythonKeyboard::Type = {
 PyMethodDef SCA_PythonKeyboard::Methods[] = {
 	{"getClipboard", (PyCFunction) gPyGetClipboard, METH_VARARGS, "getCliboard doc"},
 	{"setClipboard", (PyCFunction) gPySetClipboard, METH_VARARGS, "setCliboard doc"},
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_PythonKeyboard::Attributes[] = {

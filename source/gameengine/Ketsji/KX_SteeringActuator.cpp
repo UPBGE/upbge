@@ -67,7 +67,7 @@ KX_SteeringActuator::KX_SteeringActuator(SCA_IObject *gameobj,
       m_turnspeed(turnspeed),
       m_simulation(simulation),
       m_updateTime(0),
-      m_obstacle(NULL),
+      m_obstacle(nullptr),
       m_isActive(false),
       m_isSelfTerminated(isSelfTerminated),
       m_enableVisualization(enableVisualization),
@@ -132,12 +132,12 @@ bool KX_SteeringActuator::UnlinkObject(SCA_IObject* clientobj)
 {
 	if (clientobj == m_target)
 	{
-		m_target = NULL;
+		m_target = nullptr;
 		return true;
 	}
 	else if (clientobj == m_navmesh)
 	{
-		m_navmesh = NULL;
+		m_navmesh = nullptr;
 		return true;
 	}
 	return false;
@@ -277,7 +277,7 @@ bool KX_SteeringActuator::Update(double curtime, bool frame)
 			{
 				if (m_enableVisualization)
 					KX_RasterizerDrawDebugLine(mypos, mypos + newvel, MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
-				m_simulation->AdjustObstacleVelocity(m_obstacle, m_mode!=KX_STEERING_PATHFOLLOWING ? m_navmesh : NULL,
+				m_simulation->AdjustObstacleVelocity(m_obstacle, m_mode!=KX_STEERING_PATHFOLLOWING ? m_navmesh : nullptr,
 								newvel, m_acceleration*(float)delta, m_turnspeed/(180.0f*(float)(M_PI*delta)));
 				if (m_enableVisualization)
 					KX_RasterizerDrawDebugLine(mypos, mypos + newvel, MT_Vector4(0.0f, 1.0f, 0.0f, 1.0f));
@@ -525,7 +525,7 @@ void KX_SteeringActuator::HandleActorFace(MT_Vector3& velocity)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_SteeringActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_SteeringActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -547,7 +547,7 @@ PyTypeObject KX_SteeringActuator::Type = {
 };
 
 PyMethodDef KX_SteeringActuator::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_SteeringActuator::Attributes[] = {
@@ -585,7 +585,7 @@ int KX_SteeringActuator::pyattr_set_target(PyObjectPlus *self, const struct KX_P
 	if (!ConvertPythonToGameObject(actuator->GetLogicManager(), value, &gameobj, true, "actuator.object = value: KX_SteeringActuator"))
 		return PY_SET_ATTR_FAIL; // ConvertPythonToGameObject sets the error
 
-	if (actuator->m_target != NULL)
+	if (actuator->m_target != nullptr)
 		actuator->m_target->UnregisterActuator(actuator);
 
 	actuator->m_target = (KX_GameObject*) gameobj;
@@ -613,12 +613,12 @@ int KX_SteeringActuator::pyattr_set_navmesh(PyObjectPlus *self, const struct KX_
 	if (!ConvertPythonToGameObject(actuator->GetLogicManager(), value, &gameobj, true, "actuator.object = value: KX_SteeringActuator"))
 		return PY_SET_ATTR_FAIL; // ConvertPythonToGameObject sets the error
 
-	if (dynamic_cast<KX_NavMeshObject *>(gameobj) == NULL) {
+	if (dynamic_cast<KX_NavMeshObject *>(gameobj) == nullptr) {
 		PyErr_Format(PyExc_TypeError, "KX_NavMeshObject is expected");
 		return PY_SET_ATTR_FAIL;
 	}
 
-	if (actuator->m_navmesh != NULL)
+	if (actuator->m_navmesh != nullptr)
 		actuator->m_navmesh->UnregisterActuator(actuator);
 
 	actuator->m_navmesh = static_cast<KX_NavMeshObject*>(gameobj);
@@ -652,11 +652,11 @@ PyObject *KX_SteeringActuator::pyattr_get_path(PyObjectPlus *self, const struct 
 {
 	return (new CListWrapper(self,
 							((KX_SteeringActuator *)self)->GetProxy(),
-							NULL,
+							nullptr,
 							kx_steering_actuator_get_path_size_cb,
 							kx_steering_actuator_get_path_item_cb,
-							NULL,
-							NULL))->NewProxy(true);
+							nullptr,
+							nullptr))->NewProxy(true);
 }
 
 #endif // WITH_PYTHON

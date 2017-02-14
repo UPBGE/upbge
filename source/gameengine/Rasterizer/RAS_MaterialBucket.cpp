@@ -221,7 +221,7 @@ RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_IDisplayA
 			return displayArrayBucket;
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 void RAS_MaterialBucket::AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)

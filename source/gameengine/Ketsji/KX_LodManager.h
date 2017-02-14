@@ -106,7 +106,7 @@ public:
 	{
 		if (--m_refcount == 0) {
 			delete this;
-			return NULL;
+			return nullptr;
 		}
 		return this;
 	}

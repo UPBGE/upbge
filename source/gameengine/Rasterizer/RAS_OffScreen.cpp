@@ -26,7 +26,7 @@
 
 #include "RAS_OffScreen.h"
 
-RAS_OffScreen *RAS_OffScreen::lastOffScreen = NULL;
+RAS_OffScreen *RAS_OffScreen::lastOffScreen = nullptr;
 
 RAS_OffScreen::RAS_OffScreen(unsigned int width, unsigned int height, int samples, GPUHDRType hdrType, GPUOffScreenMode mode, char errOut[256],
 							 RAS_IRasterizer::OffScreenType type)
@@ -42,7 +42,7 @@ RAS_OffScreen::~RAS_OffScreen()
 
 bool RAS_OffScreen::GetValid() const
 {
-	return (m_offScreen != NULL);
+	return (m_offScreen != nullptr);
 }
 
 void RAS_OffScreen::Bind()
@@ -128,5 +128,5 @@ RAS_OffScreen *RAS_OffScreen::GetLastOffScreen()
 void RAS_OffScreen::RestoreScreen()
 {
 	GPU_framebuffer_restore();
-	lastOffScreen = NULL;
+	lastOffScreen = nullptr;
 }

@@ -55,7 +55,7 @@ RAS_Shader::RAS_Uniform::~RAS_Uniform()
 #ifdef SORT_UNIFORMS
 	if (m_data) {
 		MEM_freeN(m_data);
-		m_data = NULL;
+		m_data = nullptr;
 	}
 #endif
 }
@@ -162,7 +162,7 @@ bool RAS_Shader::Ok() const
 }
 
 RAS_Shader::RAS_Shader()
-	:m_shader(NULL),
+	:m_shader(nullptr),
 	m_use(0),
 	m_attr(0),
 	m_error(0),
@@ -208,7 +208,7 @@ RAS_Shader::RAS_Uniform *RAS_Shader::FindUniform(const int location)
 		it++;
 	}
 #endif
-	return NULL;
+	return nullptr;
 }
 
 void RAS_Shader::SetUniformfv(int location, int type, float *param, int size, unsigned int count, bool transpose)
@@ -275,7 +275,7 @@ void RAS_Shader::DeleteShader()
 {
 	if (m_shader) {
 		GPU_shader_free(m_shader);
-		m_shader = NULL;
+		m_shader = nullptr;
 	}
 }
 
@@ -296,8 +296,8 @@ bool RAS_Shader::LinkProgram()
 
 	vert = m_progs[VERTEX_PROGRAM].c_str();
 	frag = m_progs[FRAGMENT_PROGRAM].c_str();
-	geom = (m_progs[GEOMETRY_PROGRAM].empty()) ? NULL : m_progs[GEOMETRY_PROGRAM].c_str();
-	m_shader = GPU_shader_create_ex(vert, frag, geom, NULL, NULL, 0, 0, 0, GPU_SHADER_FLAGS_SPECIAL_RESET_LINE);
+	geom = (m_progs[GEOMETRY_PROGRAM].empty()) ? nullptr : m_progs[GEOMETRY_PROGRAM].c_str();
+	m_shader = GPU_shader_create_ex(vert, frag, geom, nullptr, nullptr, 0, 0, 0, GPU_SHADER_FLAGS_SPECIAL_RESET_LINE);
 	if (!m_shader) {
 		goto program_error;
 	}
@@ -480,7 +480,7 @@ void RAS_Shader::BindAttribute(const std::string& attr, int loc)
 
 int RAS_Shader::GetUniformLocation(const std::string& name, bool debug)
 {
-	BLI_assert(m_shader != NULL);
+	BLI_assert(m_shader != nullptr);
 	int location = GPU_shader_get_uniform(m_shader, name.c_str());
 
 	if (location == -1 && debug) {

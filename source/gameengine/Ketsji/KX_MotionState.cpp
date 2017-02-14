@@ -101,7 +101,7 @@ void KX_MotionState::CalculateWorldTransformations()
 {
 	//Not needed, will be done in KX_Scene::UpdateParents() after the physics simulation
 	//bool parentUpdated = false;
-	//m_node->ComputeWorldTransforms(NULL, parentUpdated);
+	//m_node->ComputeWorldTransforms(nullptr, parentUpdated);
 }
 
 

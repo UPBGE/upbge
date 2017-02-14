@@ -191,12 +191,12 @@ public:
 
 	/**
 	 * Update the blender object obmat field from the object world position
-	 * if blendobj is NULL, update the object pointed by m_pBlenderObject
+	 * if blendobj is nullptr, update the object pointed by m_pBlenderObject
 	 * The user must take action to restore the matrix before leaving the GE.
 	 * Used in Armature evaluation
 	 */
 		void
-	UpdateBlenderObjectMatrix(Object* blendobj=NULL);
+	UpdateBlenderObjectMatrix(Object* blendobj=nullptr);
 
 	/**
 	 * Used for constraint replication for group instances.
@@ -208,7 +208,7 @@ public:
 
 	/** 
 	 * Get a pointer to the game object that is the parent of 
-	 * this object. Or NULL if there is no parent. The returned
+	 * this object. Or nullptr if there is no parent. The returned
 	 * object is part of a reference counting scheme. Calling
 	 * this function ups the reference count on the returned 
 	 * object. It is the responsibility of the caller to decrement
@@ -586,7 +586,7 @@ public:
 	{ 
 		return (m_pBlenderObject &&
 				(m_pBlenderObject->transflag & OB_DUPLIGROUP) &&
-				m_pBlenderObject->dup_group != NULL) ? true : false;
+				m_pBlenderObject->dup_group != nullptr) ? true : false;
 	}
 
 	/**
@@ -756,8 +756,8 @@ public:
 	}
 
 
-	/** Set current lod manager, can be NULL.
-	 * If NULL the object's mesh backs to the mesh of the previous first lod level.
+	/** Set current lod manager, can be nullptr.
+	 * If nullptr the object's mesh backs to the mesh of the previous first lod level.
 	 */
 	void SetLodManager(KX_LodManager *lodManager);
 	/// Get current lod manager.

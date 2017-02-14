@@ -43,7 +43,7 @@
 #include <boost/format.hpp>
 
 PyTypeObject KX_VertexProxy::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_VertexProxy",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -77,7 +77,7 @@ PyMethodDef KX_VertexProxy::Methods[] = {
 	{"setRGBA", (PyCFunction)KX_VertexProxy::sPySetRGBA, METH_O},
 	{"getNormal", (PyCFunction)KX_VertexProxy::sPyGetNormal, METH_NOARGS},
 	{"setNormal", (PyCFunction)KX_VertexProxy::sPySetNormal, METH_O},
-	{NULL, NULL} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_VertexProxy::Attributes[] = {
@@ -214,10 +214,10 @@ PyObject *KX_VertexProxy::pyattr_get_uvs(PyObjectPlus *self_v, const KX_PYATTRIB
 {
 	return (new CListWrapper(self_v,
 							 ((KX_VertexProxy *)self_v)->GetProxy(),
-							 NULL,
+							 nullptr,
 							 kx_vertex_proxy_get_uvs_size_cb,
 							 kx_vertex_proxy_get_uvs_item_cb,
-							 NULL,
+							 nullptr,
 							 kx_vertex_proxy_set_uvs_item_cb))->NewProxy(true);
 }
 
@@ -251,10 +251,10 @@ PyObject *KX_VertexProxy::pyattr_get_colors(PyObjectPlus *self_v, const KX_PYATT
 {
 	return (new CListWrapper(self_v,
 							 ((KX_VertexProxy *)self_v)->GetProxy(),
-							 NULL,
+							 nullptr,
 							 kx_vertex_proxy_get_colors_size_cb,
 							 kx_vertex_proxy_get_colors_item_cb,
-							 NULL,
+							 nullptr,
 							 kx_vertex_proxy_set_colors_item_cb))->NewProxy(true);
 }
 
@@ -573,7 +573,7 @@ PyObject *KX_VertexProxy::PySetXYZ(PyObject *value)
 {
 	MT_Vector3 vec;
 	if (!PyVecTo(value, vec))
-		return NULL;
+		return nullptr;
 
 	m_vertex->SetXYZ(vec);
 	m_array->AppendModifiedFlag(RAS_IDisplayArray::POSITION_MODIFIED);
@@ -589,7 +589,7 @@ PyObject *KX_VertexProxy::PySetNormal(PyObject *value)
 {
 	MT_Vector3 vec;
 	if (!PyVecTo(value, vec))
-		return NULL;
+		return nullptr;
 
 	m_vertex->SetNormal(vec);
 	m_array->AppendModifiedFlag(RAS_IDisplayArray::NORMAL_MODIFIED);
@@ -620,7 +620,7 @@ PyObject *KX_VertexProxy::PySetRGBA(PyObject *value)
 	}
 
 	PyErr_SetString(PyExc_TypeError, "vert.setRGBA(value): KX_VertexProxy, expected a 4D vector or an int");
-	return NULL;
+	return nullptr;
 }
 
 PyObject *KX_VertexProxy::PyGetUV1()
@@ -632,7 +632,7 @@ PyObject *KX_VertexProxy::PySetUV1(PyObject *value)
 {
 	MT_Vector2 vec;
 	if (!PyVecTo(value, vec))
-		return NULL;
+		return nullptr;
 
 	m_vertex->SetUV(0, vec);
 	m_array->AppendModifiedFlag(RAS_IDisplayArray::UVS_MODIFIED);
@@ -648,7 +648,7 @@ PyObject *KX_VertexProxy::PySetUV2(PyObject *args)
 {
 	MT_Vector2 vec;
 	if (!PyVecTo(args, vec))
-		return NULL;
+		return nullptr;
 
 	if (m_vertex->getUvSize() > 1) {
 		m_vertex->SetUV(1, vec);

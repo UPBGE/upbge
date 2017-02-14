@@ -59,7 +59,7 @@ void KX_RayCast::reportHit(PHY_RayCastResult* result)
 
 bool KX_RayCast::RayTest(PHY_IPhysicsEnvironment* physics_environment, const MT_Vector3& _frompoint, const MT_Vector3& topoint, KX_RayCast& callback)
 {
-	if (physics_environment==NULL) return false; /* prevents crashing in some cases */
+	if (physics_environment==nullptr) return false; /* prevents crashing in some cases */
 	
 	// Loops over all physics objects between frompoint and topoint,
 	// calling callback.RayHit for each one.
@@ -76,7 +76,7 @@ bool KX_RayCast::RayTest(PHY_IPhysicsEnvironment* physics_environment, const MT_
 
 	while ((hit_controller = physics_environment->RayTest(callback,
 	                                                      frompoint.x(),frompoint.y(),frompoint.z(),
-	                                                      topoint.x(),topoint.y(),topoint.z())) != NULL)
+	                                                      topoint.x(),topoint.y(),topoint.z())) != nullptr)
 	{
 		KX_ClientObjectInfo *info = static_cast<KX_ClientObjectInfo*>(hit_controller->GetNewClientInfo());
 		

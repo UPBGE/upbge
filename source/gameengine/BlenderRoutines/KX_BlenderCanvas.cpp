@@ -274,7 +274,7 @@ void KX_BlenderCanvas::MakeScreenShot(const std::string& filename)
 	}
 
 	/* initialize image file format data */
-	Scene *scene = (screen) ? screen->scene : NULL;
+	Scene *scene = (screen) ? screen->scene : nullptr;
 	ImageFormatData *im_format = (ImageFormatData *)MEM_mallocN(sizeof(ImageFormatData), "im_format");
 
 	if (scene) {

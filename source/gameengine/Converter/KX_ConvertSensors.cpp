@@ -119,7 +119,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 
 	while (sens) {
 		if (!(sens->flag & SENS_DEACTIVATE)) {
-			SCA_ISensor* gamesensor=NULL;
+			SCA_ISensor* gamesensor=nullptr;
 			/* All sensors have a pulse toggle, skipped ticks parameter, and invert field.     */
 			/* These are extracted here, and set when the sensor is added to the */
 			/* list.                                                             */
@@ -503,7 +503,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 			case SENS_RANDOM:
 				{
 					bRandomSensor* blenderrndsensor = (bRandomSensor*) sens->data;
-					// some files didn't write randomsensor, avoid crash now for NULL ptr's
+					// some files didn't write randomsensor, avoid crash now for nullptr ptr's
 					if (blenderrndsensor)
 					{
 						SCA_EventManager* eventmgr = logicmgr->FindEventManager(SCA_EventManager::BASIC_EVENTMGR);
@@ -523,7 +523,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 			case SENS_MOVEMENT:
 			{
 				bMovementSensor *blendermovsensor = (bMovementSensor *)sens->data;
-				// some files didn't write movementsensor, avoid crash now for NULL ptr's
+				// some files didn't write movementsensor, avoid crash now for nullptr ptr's
 				if (blendermovsensor)
 				{
 					SCA_EventManager *eventmgr = logicmgr->FindEventManager(SCA_EventManager::BASIC_EVENTMGR);

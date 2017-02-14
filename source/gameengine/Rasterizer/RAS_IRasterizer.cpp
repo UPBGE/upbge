@@ -95,7 +95,7 @@ inline void RAS_IRasterizer::OffScreens::Update(RAS_ICanvas *canvas)
 
 	// Destruct all off screens.
 	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_OFFSCREEN_MAX; ++i) {
-		m_offScreens[i].reset(NULL);
+		m_offScreens[i].reset(nullptr);
 	}
 }
 
@@ -127,7 +127,7 @@ inline RAS_OffScreen *RAS_IRasterizer::OffScreens::GetOffScreen(OffScreenType ty
 				GPU_HDR_FULL_FLOAT // RAS_HDR_FULL_FLOAT
 			};
 
-			RAS_OffScreen *ofs = new RAS_OffScreen(m_width, m_height, sampleofs ? samples : 0, hdrEnums[m_hdr], mode, NULL, type);
+			RAS_OffScreen *ofs = new RAS_OffScreen(m_width, m_height, sampleofs ? samples : 0, hdrEnums[m_hdr], mode, nullptr, type);
 			if (!ofs->GetValid()) {
 				delete ofs;
 				continue;
@@ -228,8 +228,8 @@ RAS_IRasterizer::RAS_IRasterizer()
 	m_noOfScanlines(32),
 	m_motionblur(0),
 	m_motionblurvalue(-1.0f),
-	m_clientobject(NULL),
-	m_auxilaryClientInfo(NULL),
+	m_clientobject(nullptr),
+	m_auxilaryClientInfo(nullptr),
 	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
 	//m_last_alphablend(GPU_BLEND_SOLID),
@@ -373,9 +373,9 @@ void RAS_IRasterizer::BeginFrame(double time)
 	SetDepthFunc(RAS_LEQUAL);
 
 	// Render Tools
-	m_clientobject = NULL;
+	m_clientobject = nullptr;
 	m_lastlightlayer = -1;
-	m_lastauxinfo = NULL;
+	m_lastauxinfo = nullptr;
 	m_lastlighting = true; /* force disable in DisableLights() */
 
 	DisableLights();
@@ -592,7 +592,7 @@ void RAS_IRasterizer::DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScree
 	SetDepthFunc(RAS_ALWAYS);
 
 	RAS_OffScreen::RestoreScreen();
-	DrawOffScreen(offScreen, NULL);
+	DrawOffScreen(offScreen, nullptr);
 
 	SetDepthFunc(RAS_LEQUAL);
 	Enable(RAS_CULL_FACE);
@@ -665,7 +665,7 @@ void RAS_IRasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *le
 
 void RAS_IRasterizer::SetRenderArea(RAS_ICanvas *canvas)
 {
-	if (canvas == NULL) {
+	if (canvas == nullptr) {
 		return;
 	}
 
@@ -824,7 +824,7 @@ RAS_ISync *RAS_IRasterizer::CreateSync(int type)
 
 	if (!sync->Create((RAS_ISync::RAS_SYNC_TYPE)type)) {
 		delete sync;
-		return NULL;
+		return nullptr;
 	}
 	return sync;
 }
@@ -1299,7 +1299,7 @@ void RAS_IRasterizer::InitOverrideShadersInterface()
 
 GPUShader *RAS_IRasterizer::GetOverrideGPUShader(OverrideShaderType type)
 {
-	GPUShader *shader = NULL;
+	GPUShader *shader = nullptr;
 	switch (type) {
 		case RAS_OVERRIDE_SHADER_NONE:
 		case RAS_OVERRIDE_SHADER_BASIC:
@@ -1700,7 +1700,7 @@ void RAS_IRasterizer::UpdateGlobalDepthTexture(RAS_OffScreen *offScreen)
 
 void RAS_IRasterizer::ResetGlobalDepthTexture()
 {
-	GPU_texture_set_global_depth(NULL);
+	GPU_texture_set_global_depth(nullptr);
 }
 
 void RAS_IRasterizer::MotionBlur()

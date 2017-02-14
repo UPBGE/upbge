@@ -63,8 +63,8 @@ struct PHY_RayCastResult {
 	PHY_IPhysicsController *m_controller;
 	MT_Vector3 m_hitPoint;
 	MT_Vector3 m_hitNormal;
-	RAS_MeshObject *m_meshObject; // !=NULL for mesh object (only for Bullet controllers)
-	int m_polygon; // index of the polygon hit by the ray, only if m_meshObject != NULL
+	RAS_MeshObject *m_meshObject; // !=nullptr for mesh object (only for Bullet controllers)
+	int m_polygon; // index of the polygon hit by the ray, only if m_meshObject != nullptr
 	int m_hitUVOK; // !=0 if UV coordinate in m_hitUV is valid
 	MT_Vector2 m_hitUV; // UV coordinates of hit point
 };

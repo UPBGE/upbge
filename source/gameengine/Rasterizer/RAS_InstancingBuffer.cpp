@@ -37,15 +37,15 @@ extern "C" {
 }
 
 RAS_InstancingBuffer::RAS_InstancingBuffer()
-	:m_vbo(NULL),
-	m_matrixOffset(NULL),
-	m_positionOffset(NULL),
-	m_colorOffset(NULL),
+	:m_vbo(nullptr),
+	m_matrixOffset(nullptr),
+	m_positionOffset(nullptr),
+	m_colorOffset(nullptr),
 	m_stride(sizeof(RAS_InstancingBuffer::InstancingObject))
 {
-	m_matrixOffset = (void *)((InstancingObject *)NULL)->matrix;
-	m_positionOffset = (void *)((InstancingObject *)NULL)->position;
-	m_colorOffset = (void *)((InstancingObject *)NULL)->color;
+	m_matrixOffset = (void *)((InstancingObject *)nullptr)->matrix;
+	m_positionOffset = (void *)((InstancingObject *)nullptr)->position;
+	m_colorOffset = (void *)((InstancingObject *)nullptr)->color;
 }
 
 RAS_InstancingBuffer::~RAS_InstancingBuffer()

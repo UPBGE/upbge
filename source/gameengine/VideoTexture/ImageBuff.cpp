@@ -61,7 +61,7 @@ static int ImageBuff_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 
 	PyImage *self = reinterpret_cast<PyImage*>(pySelf);
 	// create source object
-	if (self->m_image != NULL) 
+	if (self->m_image != nullptr) 
 		delete self->m_image;
 	image = new ImageBuff();
 	self->m_image = image;
@@ -100,14 +100,14 @@ void ImageBuff::load(unsigned char *img, short width, short height)
 	if (m_imbuf)
 	{
 		IMB_freeImBuf(m_imbuf);
-		m_imbuf = NULL;
+		m_imbuf = nullptr;
 	}
 	// initialize image buffer
 	init(width, height);
 	// original size
 	short orgSize[2] = {width, height};
 	// is filter available
-	if (m_pyfilter != NULL)
+	if (m_pyfilter != nullptr)
 		// use it to process image
 		convImage(*(m_pyfilter->m_filter), img, orgSize);
 	else
@@ -126,7 +126,7 @@ void ImageBuff::clear(short width, short height, unsigned char color)
 	if (m_imbuf)
 	{
 		IMB_freeImBuf(m_imbuf);
-		m_imbuf = NULL;
+		m_imbuf = nullptr;
 	}
 	// initialize image buffer
 	init(width, height);
@@ -163,10 +163,10 @@ void ImageBuff::plot(unsigned char *img, short width, short height, short x, sho
 	// assign temporarily our buffer to the ImBuf buffer, we use the same format
 	tmpbuf->rect = (unsigned int*)img;
 	m_imbuf->rect = m_image;
-	IMB_rectblend(m_imbuf, m_imbuf, tmpbuf, NULL, NULL, NULL, 0, x, y, x, y, 0, 0, width, height, (IMB_BlendMode)mode, false);
+	IMB_rectblend(m_imbuf, m_imbuf, tmpbuf, nullptr, nullptr, nullptr, 0, x, y, x, y, 0, 0, width, height, (IMB_BlendMode)mode, false);
 	// remove so that MB_freeImBuf will free our buffer
-	m_imbuf->rect = NULL;
-	tmpbuf->rect = NULL;
+	m_imbuf->rect = nullptr;
+	tmpbuf->rect = nullptr;
 	IMB_freeImBuf(tmpbuf);
 }
 
@@ -186,10 +186,10 @@ void ImageBuff::plot(ImageBuff *img, short x, short y, short mode)
 	// assign temporarily our buffer to the ImBuf buffer, we use the same format
 	img->m_imbuf->rect = img->m_image;
 	m_imbuf->rect = m_image;
-	IMB_rectblend(m_imbuf, m_imbuf, img->m_imbuf, NULL, NULL, NULL, 0, x, y, x, y, 0, 0, img->m_imbuf->x, img->m_imbuf->y, (IMB_BlendMode)mode, false);
+	IMB_rectblend(m_imbuf, m_imbuf, img->m_imbuf, nullptr, nullptr, nullptr, 0, x, y, x, y, 0, 0, img->m_imbuf->x, img->m_imbuf->y, (IMB_BlendMode)mode, false);
 	// remove so that MB_freeImBuf will free our buffer
-	m_imbuf->rect = NULL;
-	img->m_imbuf->rect = NULL;
+	m_imbuf->rect = nullptr;
+	img->m_imbuf->rect = nullptr;
 }
 
 
@@ -216,12 +216,12 @@ static bool testPyBuffer(Py_buffer *buffer, int width, int height, unsigned int 
 	Py_ssize_t size = buffer->itemsize;
 	for (int i=buffer->ndim-1; i>=0 ; i--)
 	{
-		if (buffer->suboffsets != NULL && buffer->suboffsets[i] >= 0)
+		if (buffer->suboffsets != nullptr && buffer->suboffsets[i] >= 0)
 		{
 			PyErr_SetString(PyExc_ValueError, "Buffer must be of one block");
 			return false;
 		}
-		if (buffer->strides != NULL && buffer->strides[i] != size)
+		if (buffer->strides != nullptr && buffer->strides[i] != size)
 		{
 			PyErr_SetString(PyExc_ValueError, "Buffer must be of one block");
 			return false;
@@ -260,7 +260,7 @@ static PyObject *load(PyImage *self, PyObject *args)
 
 	// calc proper buffer size
 	// use pixel size from filter
-	if (self->m_image->getFilter() != NULL)
+	if (self->m_image->getFilter() != nullptr)
 		pixSize = self->m_image->getFilter()->m_filter->firstPixelSize();
 	else
 		pixSize = defFilter.firstPixelSize();
@@ -273,7 +273,7 @@ static PyObject *load(PyImage *self, PyObject *args)
 		if (!PyArg_ParseTuple(args, "O!hh:load", &BGL_bufferType, &bglBuffer, &width, &height))
 		{
 			// report error
-			return NULL;
+			return nullptr;
 		}
 		else
 		{
@@ -309,7 +309,7 @@ static PyObject *load(PyImage *self, PyObject *args)
 		PyBuffer_Release(&buffer);
 	}
 	if (PyErr_Occurred())
-		return NULL;
+		return nullptr;
 	Py_RETURN_NONE;
 }
 
@@ -335,7 +335,7 @@ static PyObject *plot(PyImage *self, PyObject *args)
 		}
 		PyBuffer_Release(&buffer);
 		if (PyErr_Occurred())
-			return NULL;
+			return nullptr;
 		Py_RETURN_NONE;
 	}
 	PyErr_Clear();
@@ -350,14 +350,14 @@ static PyObject *plot(PyImage *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "O!hhhh|h:plot", &BGL_bufferType, &bglBuffer, &width, &height, &x, &y, &mode))
 	{
 		PyErr_SetString(PyExc_TypeError, "Expecting ImageBuff or Py buffer or BGL buffer as first argument; width, height next; postion x, y and mode as last arguments");
-		return NULL;
+		return nullptr;
 	}
 	if (testBGLBuffer(bglBuffer, width, height, 4))
 	{
 		getImageBuff(self)->plot((unsigned char*)bglBuffer->buf.asvoid, width, height, x, y, mode);
 	}
 	if (PyErr_Occurred())
-		return NULL;
+		return nullptr;
 	Py_RETURN_NONE;
 }
 
@@ -365,24 +365,24 @@ static PyObject *plot(PyImage *self, PyObject *args)
 static PyMethodDef imageBuffMethods[] = {
 	{"load", (PyCFunction)load, METH_VARARGS, "Load image from buffer"},
 	{"plot", (PyCFunction)plot, METH_VARARGS, "update image buffer"},
-	{NULL}
+	{nullptr}
 };
 // attributes structure
 static PyGetSetDef imageBuffGetSets[] = {
 	// attributes from ImageBase class
-	{(char*)"valid", (getter)Image_valid, NULL, (char*)"bool to tell if an image is available", NULL},
-	{(char*)"image", (getter)Image_getImage, NULL, (char*)"image data", NULL},
-	{(char*)"size", (getter)Image_getSize, NULL, (char*)"image size", NULL},
-	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", NULL},
-	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", NULL},
-	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", NULL},
-	{NULL}
+	{(char*)"valid", (getter)Image_valid, nullptr, (char*)"bool to tell if an image is available", nullptr},
+	{(char*)"image", (getter)Image_getImage, nullptr, (char*)"image data", nullptr},
+	{(char*)"size", (getter)Image_getSize, nullptr, (char*)"image size", nullptr},
+	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", nullptr},
+	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", nullptr},
+	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", nullptr},
+	{nullptr}
 };
 
 
 // define python type
 PyTypeObject ImageBuffType = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.ImageBuff",   /*tp_name*/
 	sizeof(PyImage),          /*tp_basicsize*/
 	0,                         /*tp_itemsize*/

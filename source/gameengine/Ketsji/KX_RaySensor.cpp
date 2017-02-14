@@ -75,7 +75,7 @@ void KX_RaySensor::Init()
 {
 	m_bTriggered = (m_invert)?true:false;
 	m_rayHit = false;
-	m_hitObject = NULL;
+	m_hitObject = nullptr;
 	m_reset = true;
 }
 
@@ -133,7 +133,7 @@ bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void 
 			}
 		}
 		else {
-			bFound = hitKXObj->GetProperty(m_propertyname) != NULL;
+			bFound = hitKXObj->GetProperty(m_propertyname) != nullptr;
 		}
 	}
 
@@ -191,7 +191,7 @@ bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 				return false;
 		}
 		else {
-			if (hitKXObj->GetProperty(m_propertyname) == NULL)
+			if (hitKXObj->GetProperty(m_propertyname) == nullptr)
 				return false;
 		}
 	}
@@ -203,7 +203,7 @@ bool KX_RaySensor::Evaluate()
 	bool result = false;
 	bool reset = m_reset && m_level;
 	m_rayHit = false; 
-	m_hitObject = NULL;
+	m_hitObject = nullptr;
 	m_hitPosition[0] = 0;
 	m_hitPosition[1] = 0;
 	m_hitPosition[2] = 0;
@@ -335,7 +335,7 @@ bool KX_RaySensor::Evaluate()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_RaySensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_RaySensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -358,7 +358,7 @@ PyTypeObject KX_RaySensor::Type = {
 };
 
 PyMethodDef KX_RaySensor::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_RaySensor::Attributes[] = {

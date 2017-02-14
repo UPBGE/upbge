@@ -28,7 +28,7 @@
 #ifdef WITH_PYTHON
 
 PyTypeObject CValue::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"CValue",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -40,8 +40,8 @@ PyTypeObject CValue::Type = {
 	py_base_repr,
 	0,
 	0, 0, 0, 0, 0,
-	NULL,
-	NULL,
+	nullptr,
+	nullptr,
 	0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	0, 0, 0, 0, 0, 0, 0,
@@ -54,12 +54,12 @@ PyTypeObject CValue::Type = {
 };
 
 PyMethodDef CValue::Methods[] = {
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 #endif  // WITH_PYTHON
 
 CValue::CValue()
-	:m_pNamedPropertyArray(NULL),
+	:m_pNamedPropertyArray(nullptr),
 	m_error(false),
 	m_refcount(1)
 {
@@ -151,7 +151,7 @@ std::string CValue::op2str(VALUE_OPERATOR op)
 void CValue::SetProperty(const std::string & name, CValue *ioProperty)
 {
 	// Check if somebody is setting an empty property.
-	if (ioProperty == NULL) {
+	if (ioProperty == nullptr) {
 		trace("Warning:trying to set empty property!");
 		return;
 	}
@@ -172,7 +172,7 @@ void CValue::SetProperty(const std::string & name, CValue *ioProperty)
 	(*m_pNamedPropertyArray)[name] = ioProperty->AddRef();
 }
 
-/// Get pointer to a property with name <inName>, returns NULL if there is no property named <inName>.
+/// Get pointer to a property with name <inName>, returns nullptr if there is no property named <inName>.
 CValue *CValue::GetProperty(const std::string & inName)
 {
 	if (m_pNamedPropertyArray) {
@@ -181,7 +181,7 @@ CValue *CValue::GetProperty(const std::string & inName)
 			return (*it).second;
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 /// Get text description of property with name <inName>, returns an empty string if there is no property named <inName>.
@@ -244,7 +244,7 @@ std::vector<std::string> CValue::GetPropertyNames()
 void CValue::ClearProperties()
 {
 	// Check if we have any properties.
-	if (m_pNamedPropertyArray == NULL) {
+	if (m_pNamedPropertyArray == nullptr) {
 		return;
 	}
 
@@ -258,14 +258,14 @@ void CValue::ClearProperties()
 
 	// Delete property array.
 	delete m_pNamedPropertyArray;
-	m_pNamedPropertyArray = NULL;
+	m_pNamedPropertyArray = nullptr;
 }
 
 /// Get property number <inIndex>.
 CValue *CValue::GetProperty(int inIndex)
 {
 	int count = 0;
-	CValue *result = NULL;
+	CValue *result = nullptr;
 
 	if (m_pNamedPropertyArray) {
 		std::map<std::string, CValue *>::iterator it;
@@ -294,7 +294,7 @@ void CValue::DestructFromPython()
 {
 #ifdef WITH_PYTHON
 	// Avoid decrefing freed proxy in destructor.
-	m_proxy = NULL;
+	m_proxy = nullptr;
 	Release();
 #endif  // WITH_PYTHON
 }
@@ -308,7 +308,7 @@ void CValue::ProcessReplica()
 	// Copy all props.
 	if (m_pNamedPropertyArray) {
 		std::map<std::string, CValue *> *pOldArray = m_pNamedPropertyArray;
-		m_pNamedPropertyArray = NULL;
+		m_pNamedPropertyArray = nullptr;
 		std::map<std::string, CValue *>::iterator it;
 		for (it = pOldArray->begin(); (it != pOldArray->end()); it++)
 		{
@@ -326,7 +326,7 @@ int CValue::GetValueType()
 
 CValue *CValue::FindIdentifier(const std::string& identifiername)
 {
-	CValue *result = NULL;
+	CValue *result = nullptr;
 
 	int pos = 0;
 	// if a dot exists, explode the name into pieces to get the subcontext
@@ -364,7 +364,7 @@ PyObject *CValue::pyattr_get_name(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF
 }
 
 /**
- * There are 2 reasons this could return NULL
+ * There are 2 reasons this could return nullptr
  * - unsupported type.
  * - error converting (overflow).
  *
@@ -382,7 +382,7 @@ CValue *CValue::ConvertPythonToValue(PyObject *pyobj, const bool do_type_excepti
 		const double tval = PyFloat_AsDouble(pyobj);
 		if (tval > (double)FLT_MAX || tval < (double)-FLT_MAX) {
 			PyErr_Format(PyExc_OverflowError, "%soverflow converting from float, out of internal range", error_prefix);
-			vallie = NULL;
+			vallie = nullptr;
 		}
 		else {
 			vallie = new CFloatValue((float)tval);
@@ -403,7 +403,7 @@ CValue *CValue::ConvertPythonToValue(PyObject *pyobj, const bool do_type_excepti
 			// Return an error value from the caller.
 			PyErr_Format(PyExc_TypeError, "%scould convert python value to a game engine property", error_prefix);
 		}
-		vallie = NULL;
+		vallie = nullptr;
 	}
 	return vallie;
 
@@ -431,12 +431,12 @@ PyObject *CValue::ConvertKeysToPython(void)
 
 CValue *CValue::Calc(VALUE_OPERATOR op, CValue *val)
 {
-	return NULL;
+	return nullptr;
 }
 
 CValue *CValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
 {
-	return NULL;
+	return nullptr;
 }
 
 int CValue::GetRefCount()
@@ -492,5 +492,5 @@ void CValue::SetName(const std::string& name)
 
 CValue *CValue::GetReplica()
 {
-	return NULL;
+	return nullptr;
 }

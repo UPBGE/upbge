@@ -116,11 +116,11 @@ public:
 
 	virtual PHY_IPhysicsController *GetReplica()
 	{
-		return NULL;
+		return nullptr;
 	}
 	virtual PHY_IPhysicsController *GetReplicaForSensors()
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	virtual void CalcXform() = 0;

@@ -41,14 +41,14 @@ SG_Node::SG_Node(void *clientobj, void *clientinfo, SG_Callbacks& callbacks)
 	m_SGclientObject(clientobj),
 	m_SGclientInfo(clientinfo),
 	m_callbacks(callbacks),
-	m_SGparent(NULL),
+	m_SGparent(nullptr),
 	m_localPosition(0.0f, 0.0f, 0.0f),
 	m_localRotation(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f),
 	m_localScaling(1.0f, 1.0f, 1.0f),
 	m_worldPosition(0.0f, 0.0f, 0.0f),
 	m_worldRotation(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f),
 	m_worldScaling(1.0f, 1.0f, 1.0f),
-	m_parent_relation(NULL),
+	m_parent_relation(nullptr),
 	m_bbox(MT_Vector3(-1.0f, -1.0f, -1.0f), MT_Vector3(1.0f, 1.0f, 1.0f)),
 	m_modified(true),
 	m_ogldirty(false)
@@ -89,8 +89,8 @@ SG_Node::~SG_Node()
 SG_Node *SG_Node::GetSGReplica()
 {
 	SG_Node *replica = new SG_Node(*this);
-	if (replica == NULL) {
-		return NULL;
+	if (replica == nullptr) {
+		return nullptr;
 	}
 
 	ProcessSGReplica(&replica);
@@ -103,12 +103,12 @@ void SG_Node::ProcessSGReplica(SG_Node **replica)
 	// Apply the replication call back function.
 	if (!ActivateReplicationCallback(*replica)) {
 		delete (*replica);
-		*replica = NULL;
+		*replica = nullptr;
 		return;
 	}
 
 	// clear the replica node of it's parent.
-	(*replica)->m_SGparent = NULL;
+	(*replica)->m_SGparent = nullptr;
 
 	if (m_children.size() > 0) {
 		// if this node has children, the replica has too, so clear and clone children
@@ -126,10 +126,10 @@ void SG_Node::ProcessSGReplica(SG_Node **replica)
 	// This can happen in partial replication of hierarchy
 	// during group duplication.
 	if ((*replica)->m_children.size() == 0 &&
-	    (*replica)->GetSGClientObject() == NULL)
+	    (*replica)->GetSGClientObject() == nullptr)
 	{
 		delete (*replica);
-		*replica = NULL;
+		*replica = nullptr;
 	}
 }
 
@@ -142,7 +142,7 @@ void SG_Node::Destruct()
 	// We'll delete m_parent_relation now anyway.
 
 	delete m_parent_relation;
-	m_parent_relation = NULL;
+	m_parent_relation = nullptr;
 
 	for (SG_Node *childnode : m_children) {
 		// call the SG_Node destruct method on each of our children }-)
@@ -187,7 +187,7 @@ void SG_Node::DisconnectFromParent()
 {
 	if (m_SGparent) {
 		m_SGparent->RemoveChild(this);
-		m_SGparent = NULL;
+		m_SGparent = nullptr;
 	}
 }
 
@@ -542,7 +542,7 @@ bool SG_Node::ActivateReplicationCallback(SG_Node *replica)
 {
 	if (m_callbacks.m_replicafunc) {
 		// Call client provided replication func
-		if (m_callbacks.m_replicafunc(replica, m_SGclientObject, m_SGclientInfo) == NULL) {
+		if (m_callbacks.m_replicafunc(replica, m_SGclientObject, m_SGclientInfo) == nullptr) {
 			return false;
 		}
 	}

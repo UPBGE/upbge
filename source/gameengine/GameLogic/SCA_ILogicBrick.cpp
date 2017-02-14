@@ -39,7 +39,7 @@ SCA_ILogicBrick::SCA_ILogicBrick(SCA_IObject* gameobj)
 	:
 	CValue(),
 	m_gameobj(gameobj),
-	m_logicManager(NULL),
+	m_logicManager(nullptr),
 	m_Execute_Priority(0),
 	m_Execute_Ueber_Priority(0),
 	m_bActive(false),
@@ -151,7 +151,7 @@ void SCA_ILogicBrick::RemoveEvent()
 	if (m_eventval)
 	{
 		m_eventval->Release();
-		m_eventval = NULL;
+		m_eventval = nullptr;
 	}
 }
 
@@ -164,7 +164,7 @@ CValue* SCA_ILogicBrick::GetEvent()
 		return m_eventval->AddRef();
 	}
 	
-	return NULL;
+	return nullptr;
 }
 
 
@@ -174,7 +174,7 @@ CValue* SCA_ILogicBrick::GetEvent()
 /* python stuff */
 
 PyTypeObject SCA_ILogicBrick::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_ILogicBrick",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -196,7 +196,7 @@ PyTypeObject SCA_ILogicBrick::Type = {
 };
 
 PyMethodDef SCA_ILogicBrick::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_ILogicBrick::Attributes[] = {

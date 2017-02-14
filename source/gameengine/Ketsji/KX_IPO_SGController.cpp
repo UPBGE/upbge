@@ -64,7 +64,7 @@ KX_IpoSGController::KX_IpoSGController()
   m_ipo_start_euler(0.0f, 0.0f, 0.0f),
   m_ipo_euler_initialized(false)
 {
-	m_game_object = NULL;
+	m_game_object = nullptr;
 	for (int i = 0; i < KX_MAX_IPO_CHANNELS; i++)
 		m_ipo_channels_active[i] = false;
 }
@@ -88,7 +88,7 @@ void KX_IpoSGController::SetOption(int option, int value)
 		}
 		break;
 	case SG_CONTR_IPO_LOCAL:
-		if (value/* && ((SG_Node*)m_node)->GetSGParent() == NULL*/) {
+		if (value/* && ((SG_Node*)m_node)->GetSGParent() == nullptr*/) {
 			// only accept local Ipo if the object has no parent
 			m_ipo_local = true;
 		}

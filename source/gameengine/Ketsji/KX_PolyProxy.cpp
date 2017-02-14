@@ -54,7 +54,7 @@ KX_MeshProxy *KX_PolyProxy::GetMeshProxy()
 }
 
 PyTypeObject KX_PolyProxy::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_PolyProxy",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -85,7 +85,7 @@ PyMethodDef KX_PolyProxy::Methods[] = {
 	KX_PYMETHODTABLE(KX_PolyProxy,getVertexIndex),
 	KX_PYMETHODTABLE_NOARGS(KX_PolyProxy,getMesh),
 	KX_PYMETHODTABLE_NOARGS(KX_PolyProxy,getMaterial),
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_PolyProxy::Attributes[] = {
@@ -213,11 +213,11 @@ PyObject *KX_PolyProxy::pyattr_get_vertices(PyObjectPlus *self_v, const KX_PYATT
 {
 	return (new CListWrapper(self_v,
 		((KX_PolyProxy *)self_v)->GetProxy(),
-		NULL,
+		nullptr,
 		kx_poly_proxy_get_vertices_size_cb,
 		kx_poly_proxy_get_vertices_item_cb,
-		NULL,
-		NULL))->NewProxy(true);
+		nullptr,
+		nullptr))->NewProxy(true);
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialIndex,
@@ -260,7 +260,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getMaterialName,
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_PolyProxy, getTextureName,
-"getTexturelName() : returns the polygon texture name, \"NULL\" if no texture\n")
+"getTexturelName() : returns the polygon texture name, \"nullptr\" if no texture\n")
 {
 	return PyUnicode_FromStdString(m_polygon->GetMaterial()->GetPolyMaterial()->GetTextureName());
 }
@@ -274,12 +274,12 @@ KX_PYMETHODDEF_DOC(KX_PolyProxy, getVertexIndex,
 	int index;
 	if (!PyArg_ParseTuple(args,"i:getVertexIndex",&index))
 	{
-		return NULL;
+		return nullptr;
 	}
 	if (index < 0 || index > 3)
 	{
 		PyErr_SetString(PyExc_AttributeError, "poly.getVertexIndex(int): KX_PolyProxy, expected an index between 0-3");
-		return NULL;
+		return nullptr;
 	}
 	if (index < m_polygon->VertexCount())
 	{

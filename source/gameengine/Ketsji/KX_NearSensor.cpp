@@ -135,7 +135,7 @@ KX_NearSensor::~KX_NearSensor()
 	{
 		//static_cast<KX_CollisionEventManager*>(m_eventmgr)->GetPhysicsEnvironment()->removeSensor(m_physCtrl);
 		delete m_physCtrl;
-		m_physCtrl = NULL;
+		m_physCtrl = nullptr;
 	}
 	
 		
@@ -190,7 +190,7 @@ bool	KX_NearSensor::BroadPhaseFilterCollision(void*obj1,void*obj2)
 
 	KX_GameObject* gameobj = ( client_info ? 
 			client_info->m_gameobject :
-			NULL);
+			nullptr);
 	
 	if (gameobj && (gameobj != parent))
 	{
@@ -221,7 +221,7 @@ bool	KX_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollDat
 
 	KX_GameObject* gameobj = ( client_info ? 
 			client_info->m_gameobject :
-			NULL);
+			nullptr);
 	
 	// Add the same check as in SCA_ISensor::Activate(), 
 	// we don't want to record collision when the sensor is not active.
@@ -257,7 +257,7 @@ bool	KX_NearSensor::NewHandleCollision(void *obj1, void *obj2, const PHY_CollDat
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject KX_NearSensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_NearSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -280,7 +280,7 @@ PyTypeObject KX_NearSensor::Type = {
 
 PyMethodDef KX_NearSensor::Methods[] = {
 	//No methods
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_NearSensor::Attributes[] = {

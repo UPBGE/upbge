@@ -85,7 +85,7 @@ typedef bool (*SG_RescheduleUpdateCallback)(SG_Node *sgnode, void *clientobj, vo
  * with replicated nodes and their children.
  * The second is called when a node is destroyed and again
  * is their for synchronization purposes
- * These callbacks may both be NULL.
+ * These callbacks may both be nullptr.
  * The efficacy of this approach has not been proved some
  * alternatives might be to perform all replication and destruction
  * externally.
@@ -95,11 +95,11 @@ typedef bool (*SG_RescheduleUpdateCallback)(SG_Node *sgnode, void *clientobj, vo
  */
 struct SG_Callbacks {
 	SG_Callbacks()
-	:m_replicafunc(NULL),
-	m_destructionfunc(NULL),
-	m_updatefunc(NULL),
-	m_schedulefunc(NULL),
-	m_reschedulefunc(NULL)
+	:m_replicafunc(nullptr),
+	m_destructionfunc(nullptr),
+	m_updatefunc(nullptr),
+	m_schedulefunc(nullptr),
+	m_reschedulefunc(nullptr)
 	{
 	}
 	
@@ -283,7 +283,7 @@ public:
 	 * passed to the callback functions when they are
 	 * activated so you can synchronize these external objects
 	 * upon replication and destruction
-	 * This may be NULL.
+	 * This may be nullptr.
 	 */
 	void *GetSGClientObject() const;
 
@@ -330,7 +330,7 @@ public:
 	 * local coordinates of this object. If not then the translation
 	 * is assumed to be in global coordinates. In this case
 	 * you must provide a pointer to the parent of this object if it
-	 * exists otherwise if there is no parent set it to NULL
+	 * exists otherwise if there is no parent set it to nullptr
 	 */
 	void RelativeTranslate(const MT_Vector3& trans, const SG_Node *parent, bool local);
 	void SetLocalPosition(const MT_Vector3& trans);
@@ -401,7 +401,7 @@ private:
 	NodeList m_children;
 
 	/**
-	 * The parent of this node may be NULL
+	 * The parent of this node may be nullptr
 	 */
 	SG_Node *m_SGparent;
 

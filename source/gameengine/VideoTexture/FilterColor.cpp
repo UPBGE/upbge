@@ -41,14 +41,14 @@
 // attributes structure
 static PyGetSetDef filterGrayGetSets[] =
 { // attributes from FilterBase class
-	{(char*)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char*)"previous pixel filter", NULL},
-	{NULL}
+	{(char*)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char*)"previous pixel filter", nullptr},
+	{nullptr}
 };
 
 // define python type
 PyTypeObject FilterGrayType =
 { 
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.FilterGray",   /*tp_name*/
 	sizeof(PyFilter),          /*tp_basicsize*/
 	0,                         /*tp_itemsize*/
@@ -75,7 +75,7 @@ PyTypeObject FilterGrayType =
 	0,		               /* tp_weaklistoffset */
 	0,		               /* tp_iter */
 	0,		               /* tp_iternext */
-	NULL,                /* tp_methods */
+	nullptr,                /* tp_methods */
 	0,                   /* tp_members */
 	filterGrayGetSets,           /* tp_getset */
 	0,                         /* tp_base */
@@ -135,7 +135,7 @@ static int setMatrix(PyFilter *self, PyObject *value, void *closure)
 	// matrix to store items
 	ColorMatrix mat;
 	// check validity of parameter
-	bool valid = value != NULL && PySequence_Check(value)
+	bool valid = value != nullptr && PySequence_Check(value)
 		&& PySequence_Size(value) == 4;
 	// check rows
 	for (int r = 0; valid && r < 4; ++r)
@@ -170,16 +170,16 @@ static int setMatrix(PyFilter *self, PyObject *value, void *closure)
 // attributes structure
 static PyGetSetDef filterColorGetSets[] =
 { 
-	{(char*)"matrix", (getter)getMatrix, (setter)setMatrix, (char*)"matrix [4][5] for color calculation", NULL},
+	{(char*)"matrix", (getter)getMatrix, (setter)setMatrix, (char*)"matrix [4][5] for color calculation", nullptr},
 	// attributes from FilterBase class
-	{(char*)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char*)"previous pixel filter", NULL},
-	{NULL}
+	{(char*)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char*)"previous pixel filter", nullptr},
+	{nullptr}
 };
 
 // define python type
 PyTypeObject FilterColorType =
 { 
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.FilterColor",   /*tp_name*/
 	sizeof(PyFilter),          /*tp_basicsize*/
 	0,                         /*tp_itemsize*/
@@ -206,7 +206,7 @@ PyTypeObject FilterColorType =
 	0,		               /* tp_weaklistoffset */
 	0,		               /* tp_iter */
 	0,		               /* tp_iternext */
-	NULL,                /* tp_methods */
+	nullptr,                /* tp_methods */
 	0,                   /* tp_members */
 	filterColorGetSets,           /* tp_getset */
 	0,                         /* tp_base */
@@ -268,7 +268,7 @@ static int setLevels(PyFilter *self, PyObject *value, void *closure)
 	// matrix to store items
 	ColorLevel lev;
 	// check validity of parameter
-	bool valid = value != NULL && PySequence_Check(value)
+	bool valid = value != nullptr && PySequence_Check(value)
 		&& PySequence_Size(value) == 4;
 	// check rows
 	for (int r = 0; valid && r < 4; ++r)
@@ -303,16 +303,16 @@ static int setLevels(PyFilter *self, PyObject *value, void *closure)
 // attributes structure
 static PyGetSetDef filterLevelGetSets[] =
 { 
-	{(char*)"levels", (getter)getLevels, (setter)setLevels, (char*)"levels matrix [4] (min, max)", NULL},
+	{(char*)"levels", (getter)getLevels, (setter)setLevels, (char*)"levels matrix [4] (min, max)", nullptr},
 	// attributes from FilterBase class
-	{(char*)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char*)"previous pixel filter", NULL},
-	{NULL}
+	{(char*)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char*)"previous pixel filter", nullptr},
+	{nullptr}
 };
 
 // define python type
 PyTypeObject FilterLevelType =
 { 
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.FilterLevel",   /*tp_name*/
 	sizeof(PyFilter),          /*tp_basicsize*/
 	0,                         /*tp_itemsize*/
@@ -339,7 +339,7 @@ PyTypeObject FilterLevelType =
 	0,		               /* tp_weaklistoffset */
 	0,		               /* tp_iter */
 	0,		               /* tp_iternext */
-	NULL,                /* tp_methods */
+	nullptr,                /* tp_methods */
 	0,                   /* tp_members */
 	filterLevelGetSets,           /* tp_getset */
 	0,                         /* tp_base */

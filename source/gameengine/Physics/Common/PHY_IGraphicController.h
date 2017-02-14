@@ -52,7 +52,7 @@ public:
 
 	virtual PHY_IGraphicController *GetReplica(class PHY_IMotionState *motionstate)
 	{
-		return NULL;
+		return nullptr;
 	}
 
 #ifdef WITH_CXX_GUARDEDALLOC

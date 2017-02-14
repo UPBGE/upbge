@@ -109,12 +109,12 @@ static PyObject *py_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	PyObject *pylist;
 
 	if (!PyArg_ParseTuple(args,"O:KX_BatchGroup", &pylist)) {
-		return NULL;
+		return nullptr;
 	}
 
 	if (!PyList_Check(pylist)) {
 		PyErr_SetString(PyExc_SystemError, "KX_BatchGroup(objects): expected a list");
-		return NULL;
+		return nullptr;
 	}
 
 	std::vector<KX_GameObject *> objects;
@@ -124,7 +124,7 @@ static PyObject *py_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 		KX_GameObject *gameobj;
 
 		if (!ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(), pyobj, &gameobj, false, "KX_BatchGroup(objects)")) {
-			return NULL;
+			return nullptr;
 		}
 
 		objects.push_back(gameobj);
@@ -135,14 +135,14 @@ static PyObject *py_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	if (batchGroup->GetObjects()->GetCount() == 0) {
 		PyErr_SetString(PyExc_SystemError, "KX_BatchGroup(objects): none objects was merged.");
 		delete batchGroup;
-		return NULL;
+		return nullptr;
 	}
 
 	return batchGroup->GetProxy();
 }
 
 PyTypeObject KX_BatchGroup::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_BatchGroup",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -167,7 +167,7 @@ PyMethodDef KX_BatchGroup::Methods[] = {
 	KX_PYMETHODTABLE(KX_BatchGroup, merge),
 	KX_PYMETHODTABLE(KX_BatchGroup, split),
 	KX_PYMETHODTABLE(KX_BatchGroup, destruct),
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_BatchGroup::Attributes[] = {
@@ -185,12 +185,12 @@ KX_PYMETHODDEF_DOC(KX_BatchGroup, merge, "merge(objects)")
 {
 	PyObject *pylist;
 	if (!PyArg_ParseTuple(args, "O:merge", &pylist)) {
-		return NULL;
+		return nullptr;
 	}
 
 	if (!PyList_Check(pylist)) {
 		PyErr_SetString(PyExc_SystemError, "batch.merge(objects): expected a list");
-		return NULL;
+		return nullptr;
 	}
 
 	std::vector<KX_GameObject *> objects;
@@ -200,7 +200,7 @@ KX_PYMETHODDEF_DOC(KX_BatchGroup, merge, "merge(objects)")
 		KX_GameObject *gameobj;
 
 		if (!ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(), pyobj, &gameobj, false, "batch.merge(objects)")) {
-			return NULL;
+			return nullptr;
 		}
 
 		objects.push_back(gameobj);
@@ -215,12 +215,12 @@ KX_PYMETHODDEF_DOC(KX_BatchGroup, split, "split(objects)")
 {
 	PyObject *pylist;
 	if (!PyArg_ParseTuple(args, "O:split", &pylist)) {
-		return NULL;
+		return nullptr;
 	}
 
 	if (!PyList_Check(pylist)) {
 		PyErr_SetString(PyExc_SystemError, "batch.split(objects): expected a list");
-		return NULL;
+		return nullptr;
 	}
 
 	std::vector<KX_GameObject *> objects;
@@ -230,7 +230,7 @@ KX_PYMETHODDEF_DOC(KX_BatchGroup, split, "split(objects)")
 		KX_GameObject *gameobj;
 
 		if (!ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(), pyobj, &gameobj, false, "batch.split(objects)")) {
-			return NULL;
+			return nullptr;
 		}
 
 		objects.push_back(gameobj);

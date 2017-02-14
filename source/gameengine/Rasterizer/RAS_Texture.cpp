@@ -30,7 +30,7 @@
 RAS_Texture::RAS_Texture()
 	:m_bindCode(-1),
 	m_name(""),
-	m_cubeMap(NULL)
+	m_cubeMap(nullptr)
 {
 }
 

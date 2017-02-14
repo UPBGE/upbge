@@ -57,7 +57,7 @@
 
 // macro for exception handling and logging
 #define CATCH_EXCP catch (Exception & exp) \
-{ exp.report(); return NULL; }
+{ exp.report(); return nullptr; }
 
 static struct
 {
@@ -113,7 +113,7 @@ static struct
 	{ "4K2160p5994", bmdMode4K2160p5994 },
 	{ "4K2160p60", bmdMode4K2160p60 },
 	// sentinel
-	{ NULL }
+	{ nullptr }
 };
 
 static struct
@@ -131,7 +131,7 @@ static struct
 	{ "10BitRGBXLE", bmdFormat10BitRGBXLE },
 	{ "10BitRGBX", bmdFormat10BitRGBX },
 	// sentinel
-	{ NULL }
+	{ nullptr }
 };
 
 ExceptionID DeckLinkBadDisplayMode, DeckLinkBadPixelFormat;
@@ -144,7 +144,7 @@ HRESULT decklink_ReadDisplayMode(const char *format, size_t len, BMDDisplayMode 
 
 	if (len == 0)
 		len = strlen(format);
-	for (i = 0; sModeStringTab[i].name != NULL; i++) {
+	for (i = 0; sModeStringTab[i].name != nullptr; i++) {
 		if (strlen(sModeStringTab[i].name) == len &&
 			!strncmp(sModeStringTab[i].name, format, len))
 		{
@@ -165,7 +165,7 @@ HRESULT decklink_ReadPixelFormat(const char *format, size_t len, BMDPixelFormat 
 
 	if (!len)
 		len = strlen(format);
-	for (i = 0; sFormatStringTab[i].name != NULL; i++) {
+	for (i = 0; sFormatStringTab[i].name != nullptr; i++) {
 		if (strlen(sFormatStringTab[i].name) == len &&
 			!strncmp(sFormatStringTab[i].name, format, len))
 		{
@@ -234,7 +234,7 @@ private:
 static void decklink_Reset(DeckLink *self)
 {
 	self->m_lastClock = 0.0;
-	self->mDLOutput = NULL;
+	self->mDLOutput = nullptr;
 	self->mUse3D = false;
 	self->mDisplayMode = bmdModeUnknown;
 	self->mKeyingSupported = false;
@@ -242,9 +242,9 @@ static void decklink_Reset(DeckLink *self)
 	self->mSize[0] = 0;
 	self->mSize[1] = 0;
 	self->mFrameSize = 0;
-	self->mLeftFrame = NULL;
-	self->mRightFrame = NULL;
-	self->mKeyer = NULL;
+	self->mLeftFrame = nullptr;
+	self->mRightFrame = nullptr;
+	self->mKeyer = nullptr;
 	self->mUseKeying = false;
 	self->mKeyingLevel = 255;
 	self->mUseExtend = false;
@@ -329,8 +329,8 @@ static PyObject *DeckLink_new(PyTypeObject *type, PyObject *args, PyObject *kwds
 	// initialize object structure
 	decklink_Reset(self);
 	// m_leftEye is a python object, it's handled by python
-	self->m_leftEye = NULL;
-	self->m_rightEye = NULL;
+	self->m_leftEye = nullptr;
+	self->m_rightEye = nullptr;
 	// return allocated object
 	return reinterpret_cast<PyObject*>(self);
 }
@@ -381,20 +381,20 @@ static int DeckLink_init(DeckLink *self, PyObject *args, PyObject *kwds)
 	// material ID
 	short cardIdx = 0;
 	// texture ID
-	char *format = NULL;
+	char *format = nullptr;
 
-	static const char *kwlist[] = {"cardIdx", "format", NULL};
+	static const char *kwlist[] = {"cardIdx", "format", nullptr};
 	// get parameters
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|hs",
 		const_cast<char**>(kwlist), &cardIdx, &format))
 		return -1; 
 	
 	try {
-		if (format == NULL) {
+		if (format == nullptr) {
 			THRWEXCP(AutoDetectionNotAvail, S_OK);
 		}
 
-		if ((p3D = strchr(format, '/')) != NULL && strcmp(p3D, "/3D"))
+		if ((p3D = strchr(format, '/')) != nullptr && strcmp(p3D, "/3D"))
 			THRWEXCP(DeckLinkBadFormat, S_OK);
 		self->mUse3D = (p3D) ? true : false;
 		// read the mode
@@ -403,7 +403,7 @@ static int DeckLink_init(DeckLink *self, PyObject *args, PyObject *kwds)
 		decklink_ReadDisplayMode(format, len, &self->mDisplayMode);
 
 		pIterator = BMD_CreateDeckLinkIterator();
-		pDL = NULL;
+		pDL = nullptr;
 		if (pIterator) {
 			i = 0;
 			while (pIterator->Next(&pDL) == S_OK) {
@@ -412,7 +412,7 @@ static int DeckLink_init(DeckLink *self, PyObject *args, PyObject *kwds)
 				}
 				i++;
 				pDL->Release();
-				pDL = NULL;
+				pDL = nullptr;
 			}
 			pIterator->Release();
 		}
@@ -432,7 +432,7 @@ static int DeckLink_init(DeckLink *self, PyObject *args, PyObject *kwds)
 		}
 
 		if (pDL->QueryInterface(IID_IDeckLinkOutput, (void**)&self->mDLOutput) != S_OK) {
-			self->mDLOutput = NULL;
+			self->mDLOutput = nullptr;
 		}
 		if (self->mKeyingSupported) {
 			pDL->QueryInterface(IID_IDeckLinkKeyer, (void **)&self->mKeyer);
@@ -448,12 +448,12 @@ static int DeckLink_init(DeckLink *self, PyObject *args, PyObject *kwds)
 
 		displayFlags = (self->mUse3D) ? bmdDisplayModeSupports3D : 0;
 		outputFlags = (self->mUse3D) ? bmdVideoOutputDualStream3D : bmdVideoOutputFlagDefault;
-		pDisplayMode = NULL;
+		pDisplayMode = nullptr;
 		i = 0;
 		while (pDisplayModeIterator->Next(&pDisplayMode) == S_OK) {
 			if (pDisplayMode->GetDisplayMode() == self->mDisplayMode
 				&& (pDisplayMode->GetFlags() & displayFlags) == displayFlags) {
-				if (self->mDLOutput->DoesSupportVideoMode(self->mDisplayMode, bmdFormat8BitBGRA, outputFlags, &support, NULL) != S_OK ||
+				if (self->mDLOutput->DoesSupportVideoMode(self->mDisplayMode, bmdFormat8BitBGRA, outputFlags, &support, nullptr) != S_OK ||
 				    support == bmdDisplayModeNotSupported)
 				{
 					printf("Warning: DeckLink card %d reports no BGRA support, proceed anyway\n", cardIdx);
@@ -461,7 +461,7 @@ static int DeckLink_init(DeckLink *self, PyObject *args, PyObject *kwds)
 				break;
 			}
 			pDisplayMode->Release();
-			pDisplayMode = NULL;
+			pDisplayMode = nullptr;
 			i++;
 		}
 		pDisplayModeIterator->Release();
@@ -527,7 +527,7 @@ static PyObject *DeckLink_refresh(DeckLink *self, PyObject *args)
 	if (!PyArg_ParseTuple(args, "O|d:refresh", &param, &ts) || !PyBool_Check(param)) {
 		// report error
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
-		return NULL;
+		return nullptr;
 	}
 	// some trick here: we are in the business of loading a key frame in decklink,
 	// no use to do it if we are still in the same rendering frame.
@@ -538,12 +538,12 @@ static PyObject *DeckLink_refresh(DeckLink *self, PyObject *args)
 		self->m_lastClock = engine->GetClockTime();
 		// set source refresh
 		bool refreshSource = (param == Py_True);
-		uint32_t *leftEye = NULL;
-		uint32_t *rightEye = NULL;
+		uint32_t *leftEye = nullptr;
+		uint32_t *rightEye = nullptr;
 		// try to process key frame from source
 		try {
 			// check if optimization is possible
-			if (self->m_leftEye != NULL) {
+			if (self->m_leftEye != nullptr) {
 				ImageBase *leftImage = self->m_leftEye->m_image;
 				short * srcSize = leftImage->getSize();
 				self->mLeftFrame->GetBytes((void **)&leftEye);
@@ -551,19 +551,19 @@ static PyObject *DeckLink_refresh(DeckLink *self, PyObject *args)
 				{
 					// buffer has same size, can load directly
 					if (!leftImage->loadImage(leftEye, self->mFrameSize, GL_BGRA, ts))
-						leftEye = NULL;
+						leftEye = nullptr;
 				}
 				else {
 					// scaling is required, go the hard way
 					unsigned int *src = leftImage->getImage(0, ts);
-					if (src != NULL)
+					if (src != nullptr)
 						decklink_ConvImage(leftEye, self->mSize, src, srcSize, self->mUseExtend);
 					else
-						leftEye = NULL;
+						leftEye = nullptr;
 				}
 			}
 			if (leftEye) {
-				if (self->mUse3D && self->m_rightEye != NULL) {
+				if (self->mUse3D && self->m_rightEye != nullptr) {
 					ImageBase *rightImage = self->m_rightEye->m_image;
 					short * srcSize = rightImage->getSize();
 					self->mRightFrame->GetBytes((void **)&rightEye);
@@ -575,7 +575,7 @@ static PyObject *DeckLink_refresh(DeckLink *self, PyObject *args)
 					else {
 						// scaling is required, go the hard way
 						unsigned int *src = rightImage->getImage(0, ts);
-						if (src != NULL)
+						if (src != nullptr)
 							decklink_ConvImage(rightEye, self->mSize, src, srcSize, self->mUseExtend);
 					}
 				}
@@ -606,7 +606,7 @@ static PyObject *DeckLink_refresh(DeckLink *self, PyObject *args)
 static PyObject *DeckLink_getSource(DeckLink *self, PyObject *value, void *closure)
 {
 	// if source exists
-	if (self->m_leftEye != NULL) {
+	if (self->m_leftEye != nullptr) {
 		Py_INCREF(self->m_leftEye);
 		return reinterpret_cast<PyObject*>(self->m_leftEye);
 	}
@@ -619,7 +619,7 @@ static PyObject *DeckLink_getSource(DeckLink *self, PyObject *value, void *closu
 int DeckLink_setSource(DeckLink *self, PyObject *value, void *closure)
 {
 	// check new value
-	if (value == NULL || !pyImageTypes.in(Py_TYPE(value))) {
+	if (value == nullptr || !pyImageTypes.in(Py_TYPE(value))) {
 		// report value error
 		PyErr_SetString(PyExc_TypeError, "Invalid type of value");
 		return -1;
@@ -638,7 +638,7 @@ int DeckLink_setSource(DeckLink *self, PyObject *value, void *closure)
 static PyObject *DeckLink_getRight(DeckLink *self, PyObject *value, void *closure)
 {
 	// if source exists
-	if (self->m_rightEye != NULL)
+	if (self->m_rightEye != nullptr)
 	{
 		Py_INCREF(self->m_rightEye);
 		return reinterpret_cast<PyObject*>(self->m_rightEye);
@@ -652,7 +652,7 @@ static PyObject *DeckLink_getRight(DeckLink *self, PyObject *value, void *closur
 static int DeckLink_setRight(DeckLink *self, PyObject *value, void *closure)
 {
 	// check new value
-	if (value == NULL || !pyImageTypes.in(Py_TYPE(value)))
+	if (value == nullptr || !pyImageTypes.in(Py_TYPE(value)))
 	{
 		// report value error
 		PyErr_SetString(PyExc_TypeError, "Invalid type of value");
@@ -677,12 +677,12 @@ static PyObject *DeckLink_getKeying(DeckLink *self, PyObject *value, void *closu
 
 static int DeckLink_setKeying(DeckLink *self, PyObject *value, void *closure)
 {
-	if (value == NULL || !PyBool_Check(value))
+	if (value == nullptr || !PyBool_Check(value))
 	{
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
 		return -1;
 	}
-	if (self->mKeyer != NULL)
+	if (self->mKeyer != nullptr)
 	{
 		if (value == Py_True)
 		{
@@ -712,7 +712,7 @@ static PyObject *DeckLink_getLevel(DeckLink *self, PyObject *value, void *closur
 static int DeckLink_setLevel(DeckLink *self, PyObject *value, void *closure)
 {
 	long level;
-	if (value == NULL || !PyLong_Check(value)) {
+	if (value == nullptr || !PyLong_Check(value)) {
 		PyErr_SetString(PyExc_TypeError, "The value must be an integer from 0 to 255");
 		return -1;
 	}
@@ -740,7 +740,7 @@ static PyObject *DeckLink_getExtend(DeckLink *self, PyObject *value, void *closu
 
 static int DeckLink_setExtend(DeckLink *self, PyObject *value, void *closure)
 {
-	if (value == NULL || !PyBool_Check(value))
+	if (value == nullptr || !PyBool_Check(value))
 	{
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
 		return -1;
@@ -754,25 +754,25 @@ static PyMethodDef decklinkMethods[] =
 {
 	{ "close", (PyCFunction)DeckLink_close, METH_NOARGS, "Close dynamic decklink and restore original"},
 	{ "refresh", (PyCFunction)DeckLink_refresh, METH_VARARGS, "Refresh decklink from source"},
-	{NULL}  /* Sentinel */
+	{nullptr}  /* Sentinel */
 };
 
 // class DeckLink attributes
 static PyGetSetDef decklinkGetSets[] =
 { 
-	{ (char*)"source", (getter)DeckLink_getSource, (setter)DeckLink_setSource, (char*)"source of decklink (left eye)", NULL},
-	{ (char*)"right", (getter)DeckLink_getRight, (setter)DeckLink_setRight, (char*)"source of decklink (right eye)", NULL },
-	{ (char*)"keying", (getter)DeckLink_getKeying, (setter)DeckLink_setKeying, (char*)"whether keying is enabled (frame is alpha-composited with passthrough output)", NULL },
-	{ (char*)"level", (getter)DeckLink_getLevel, (setter)DeckLink_setLevel, (char*)"change the level of keying (overall alpha level of key frame, 0 to 255)", NULL },
-	{ (char*)"extend", (getter)DeckLink_getExtend, (setter)DeckLink_setExtend, (char*)"whether image should stretched to fit frame", NULL },
-	{ NULL }
+	{ (char*)"source", (getter)DeckLink_getSource, (setter)DeckLink_setSource, (char*)"source of decklink (left eye)", nullptr},
+	{ (char*)"right", (getter)DeckLink_getRight, (setter)DeckLink_setRight, (char*)"source of decklink (right eye)", nullptr },
+	{ (char*)"keying", (getter)DeckLink_getKeying, (setter)DeckLink_setKeying, (char*)"whether keying is enabled (frame is alpha-composited with passthrough output)", nullptr },
+	{ (char*)"level", (getter)DeckLink_getLevel, (setter)DeckLink_setLevel, (char*)"change the level of keying (overall alpha level of key frame, 0 to 255)", nullptr },
+	{ (char*)"extend", (getter)DeckLink_getExtend, (setter)DeckLink_setExtend, (char*)"whether image should stretched to fit frame", nullptr },
+	{ nullptr }
 };
 
 
 // class DeckLink declaration
 PyTypeObject DeckLinkType =
 {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.DeckLink",   /*tp_name*/
 	sizeof(DeckLink),           /*tp_basicsize*/
 	0,                         /*tp_itemsize*/

@@ -273,7 +273,7 @@ int SCA_PropertySensor::validValueForProperty(PyObjectPlus *self, const PyAttrib
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_PropertySensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_PropertySensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -295,7 +295,7 @@ PyTypeObject SCA_PropertySensor::Type = {
 };
 
 PyMethodDef SCA_PropertySensor::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_PropertySensor::Attributes[] = {

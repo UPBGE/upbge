@@ -32,8 +32,8 @@
 #include "BKE_python_component.h"
 
 KX_PythonComponent::KX_PythonComponent(const std::string& name)
-	:m_pc(NULL),
-	m_gameobj(NULL),
+	:m_pc(nullptr),
+	m_gameobj(nullptr),
 	m_name(name),
 	m_init(false)
 {
@@ -55,10 +55,10 @@ CValue *KX_PythonComponent::GetReplica()
 
 	// Subclass the python component.
 	PyTypeObject *type = Py_TYPE(GetProxy());
-	if (!py_base_new(type, PyTuple_Pack(1, replica->GetProxy()), NULL)) {
+	if (!py_base_new(type, PyTuple_Pack(1, replica->GetProxy()), nullptr)) {
 		CM_Error("failed replicate component: \"" << m_name << "\"");
 		delete replica;
-		return NULL;
+		return nullptr;
 	}
 
 	return replica;
@@ -67,7 +67,7 @@ CValue *KX_PythonComponent::GetReplica()
 void KX_PythonComponent::ProcessReplica()
 {
 	CValue::ProcessReplica();
-	m_gameobj = NULL;
+	m_gameobj = nullptr;
 	m_init = false;
 }
 
@@ -120,14 +120,14 @@ PyObject *KX_PythonComponent::py_component_new(PyTypeObject *type, PyObject *arg
 	PyObject *proxy = py_base_new(type, PyTuple_Pack(1, comp->GetProxy()), kwds);
 	if (!proxy) {
 		delete comp;
-		return NULL;
+		return nullptr;
 	}
 
 	return proxy;
 }
 
 PyTypeObject KX_PythonComponent::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_PythonComponent",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -149,7 +149,7 @@ PyTypeObject KX_PythonComponent::Type = {
 };
 
 PyMethodDef KX_PythonComponent::Methods[] = {
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_PythonComponent::Attributes[] = {

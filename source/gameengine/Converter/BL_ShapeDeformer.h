@@ -58,7 +58,7 @@ public:
 					 RAS_MeshObject *mesh,
 					 bool release_object,
 					 bool recalc_normal,
-					 BL_ArmatureObject *arma = NULL);
+					 BL_ArmatureObject *arma = nullptr);
 
 	virtual RAS_Deformer *GetReplica();
 	virtual void ProcessReplica();

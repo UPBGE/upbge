@@ -33,7 +33,7 @@
 
 #ifndef GEN_NO_TRACE
 #undef  trace
-#define trace(exp) ((void)NULL)
+#define trace(exp) ((void)nullptr)
 #endif
 
 enum VALUE_OPERATOR {
@@ -111,7 +111,7 @@ public:
 
 	virtual PyObject *ConvertValueToPython()
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	virtual CValue *ConvertPythonToValue(PyObject *pyobj, const bool do_type_exception, const char *error_prefix);

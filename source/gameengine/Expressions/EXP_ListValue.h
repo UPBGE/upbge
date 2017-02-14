@@ -87,7 +87,7 @@ public:
 				return static_cast<ItemType *>(val);
 			}
 		}
-		return NULL;
+		return nullptr;
 	}
 
 	void ReleaseAndRemoveAll();

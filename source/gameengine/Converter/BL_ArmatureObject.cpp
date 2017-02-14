@@ -77,19 +77,19 @@ static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 	 * without affecting the original blender data. */
 
 	if (!src) {
-		*dst = NULL;
+		*dst = nullptr;
 		return;
 	}
 	else if (*dst == src) {
 		CM_Warning("game_copy_pose source and target are the same");
-		*dst = NULL;
+		*dst = nullptr;
 		return;
 	}
 
 	bPose *out = (bPose *)MEM_dupallocN(src);
-	out->chanhash = NULL;
-	out->agroups.first = out->agroups.last = NULL;
-	out->ikdata = NULL;
+	out->chanhash = nullptr;
+	out->agroups.first = out->agroups.last = nullptr;
+	out->ikdata = nullptr;
 	out->ikparam = MEM_dupallocN(src->ikparam);
 	out->flag |= POSE_GAME_ENGINE;
 	BLI_duplicatelist(&out->chanbase, &src->chanbase);
@@ -110,7 +110,7 @@ static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 		if (copy_constraint) {
 			ListBase listb;
 			// copy all constraint for backward compatibility
-			// BKE_constraints_copy NULLs listb, no need to make extern for this operation.
+			// BKE_constraints_copy nullptrs listb, no need to make extern for this operation.
 			BKE_constraints_copy(&listb, &pchan->constraints, false);
 			pchan->constraints = listb;
 		}
@@ -128,10 +128,10 @@ static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 			pchan->prop = IDP_CopyProperty(pchan->prop);
 		}
 #endif
-		pchan->prop = NULL;
+		pchan->prop = nullptr;
 	}
 
-	BLI_ghash_free(ghash, NULL, NULL);
+	BLI_ghash_free(ghash, nullptr, nullptr);
 	// set acceleration structure for channel lookup
 	BKE_pose_channels_hash_make(out);
 	*dst = out;
@@ -240,7 +240,7 @@ BL_ArmatureObject::~BL_ArmatureObject()
 		BKE_libblock_free(G.main, m_objArma->data);
 		/* avoid BKE_libblock_free(G.main, m_objArma)
 		   try to access m_objArma->data */
-		m_objArma->data = NULL;
+		m_objArma->data = nullptr;
 		BKE_libblock_free(G.main, m_objArma);
 	}
 }
@@ -276,10 +276,10 @@ void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter *converter)
 				case CONSTRAINT_TYPE_DISTLIMIT:
 				case CONSTRAINT_TYPE_TRANSLIKE:
 					const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(pcon);
-					KX_GameObject *gametarget = NULL;
-					KX_GameObject *gamesubtarget = NULL;
+					KX_GameObject *gametarget = nullptr;
+					KX_GameObject *gamesubtarget = nullptr;
 					if (cti && cti->get_constraint_targets) {
-						ListBase listb = { NULL, NULL };
+						ListBase listb = { nullptr, nullptr };
 						cti->get_constraint_targets(pcon, &listb);
 						if (listb.first) {
 							bConstraintTarget *target = (bConstraintTarget *)listb.first;
@@ -287,7 +287,7 @@ void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter *converter)
 								// only remember external objects, self target is handled automatically
 								gametarget = converter->FindGameObject(target->tar);
 							}
-							if (target->next != NULL) {
+							if (target->next != nullptr) {
 								// secondary target
 								target = target->next;
 								if (target->tar && target->tar != m_objArma) {
@@ -365,7 +365,7 @@ BL_ArmatureChannel *BL_ArmatureObject::GetChannel(int index)
 {
 	LoadChannels();
 	if (index < 0 || index >= m_poseChannels->GetCount()) {
-		return NULL;
+		return nullptr;
 	}
 	return static_cast<BL_ArmatureChannel *>(m_poseChannels->GetValue(index));
 }
@@ -461,7 +461,7 @@ void BL_ArmatureObject::ApplyPose()
 void BL_ArmatureObject::RestorePose()
 {
 	m_objArma->pose = m_armpose;
-	m_armpose = NULL;
+	m_armpose = nullptr;
 }
 
 void BL_ArmatureObject::SetPose(bPose *pose)
@@ -477,7 +477,7 @@ void BL_ArmatureObject::SetPoseByAction(bAction *action, float localtime)
 	PointerRNA ptrrna;
 	RNA_id_pointer_create(&arm->id, &ptrrna);
 
-	animsys_evaluate_action(&ptrrna, action, NULL, localtime);
+	animsys_evaluate_action(&ptrrna, action, nullptr, localtime);
 }
 
 void BL_ArmatureObject::BlendInPose(bPose *blend_pose, float weight, short mode)
@@ -565,7 +565,7 @@ bool BL_ArmatureObject::GetBoneMatrix(Bone *bone, MT_Matrix4x4& matrix)
 	}
 	RestorePose();
 
-	return (pchan != NULL);
+	return (pchan != nullptr);
 }
 
 bool BL_ArmatureObject::GetDrawDebug() const
@@ -597,7 +597,7 @@ float BL_ArmatureObject::GetBoneLength(Bone *bone) const
 // PYTHON
 
 PyTypeObject BL_ArmatureObject::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"BL_ArmatureObject",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -611,8 +611,8 @@ PyTypeObject BL_ArmatureObject::Type = {
 	&KX_GameObject::Sequence,
 	&KX_GameObject::Mapping,
 	0, 0, 0,
-	NULL,
-	NULL,
+	nullptr,
+	nullptr,
 	0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	0, 0, 0, 0, 0, 0, 0,
@@ -627,7 +627,7 @@ PyTypeObject BL_ArmatureObject::Type = {
 PyMethodDef BL_ArmatureObject::Methods[] = {
 	KX_PYMETHODTABLE_NOARGS(BL_ArmatureObject, update),
 	KX_PYMETHODTABLE_NOARGS(BL_ArmatureObject, draw),
-	{NULL, NULL} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef BL_ArmatureObject::Attributes[] = {

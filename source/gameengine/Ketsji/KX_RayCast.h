@@ -115,7 +115,7 @@ class KX_RayCast::Callback : public KX_RayCast
 	 */
 	dataT *data;
 public:
-	Callback(T *_self, PHY_IPhysicsController *controller = NULL, dataT *_data = NULL, bool faceNormal = false, bool faceUV = false)
+	Callback(T *_self, PHY_IPhysicsController *controller = nullptr, dataT *_data = nullptr, bool faceNormal = false, bool faceUV = false)
 		: KX_RayCast(controller, faceNormal, faceUV),
 		self(_self),
 		data(_data)

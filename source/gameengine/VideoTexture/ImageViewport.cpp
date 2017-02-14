@@ -126,7 +126,7 @@ void ImageViewport::setWhole (bool whole)
 void ImageViewport::setCaptureSize (short size[2])
 {
 	m_whole = false;
-	if (size == NULL) 
+	if (size == nullptr) 
 		size = m_capSize;
 	for (int idx = 0; idx < 2; ++idx)
 	{
@@ -146,7 +146,7 @@ void ImageViewport::setCaptureSize (short size[2])
 void ImageViewport::setPosition (GLint pos[2])
 {
 	// if new position is not provided, use existing position
-	if (pos == NULL) pos = m_position;
+	if (pos == nullptr) pos = m_position;
 	// save position
 	for (int idx = 0; idx < 2; ++idx)
 		m_position[idx] = pos[idx] < 0 ? 0 : pos[idx] >= getViewportSize()[idx]
@@ -171,7 +171,7 @@ void ImageViewport::calcViewport (unsigned int texId, double ts, unsigned int fo
 		m_texInit = true;
 	}
 	// if texture can be directly created
-	if (texId != 0 && m_pyfilter == NULL && m_size[0] == m_capSize[0] &&
+	if (texId != 0 && m_pyfilter == nullptr && m_size[0] == m_capSize[0] &&
 	    m_size[1] == m_capSize[1] && !m_flip && !m_zbuff && !m_depth)
 	{
 		// just copy current viewport to texture
@@ -296,7 +296,7 @@ inline ImageViewport * getImageViewport (PyImage *self)
 // get whole
 PyObject *ImageViewport_getWhole (PyImage *self, void *closure)
 {
-	if (self->m_image != NULL && getImageViewport(self)->getWhole()) Py_RETURN_TRUE;
+	if (self->m_image != nullptr && getImageViewport(self)->getWhole()) Py_RETURN_TRUE;
 	else Py_RETURN_FALSE;
 }
 
@@ -304,7 +304,7 @@ PyObject *ImageViewport_getWhole (PyImage *self, void *closure)
 int ImageViewport_setWhole(PyImage *self, PyObject *value, void *closure)
 {
 	// check parameter, report failure
-	if (value == NULL || !PyBool_Check(value))
+	if (value == nullptr || !PyBool_Check(value))
 	{
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
 		return -1;
@@ -312,7 +312,7 @@ int ImageViewport_setWhole(PyImage *self, PyObject *value, void *closure)
 	try
 	{
 		// set whole, can throw in case of resize and buffer exports
-		if (self->m_image != NULL) getImageViewport(self)->setWhole(value == Py_True);
+		if (self->m_image != nullptr) getImageViewport(self)->setWhole(value == Py_True);
 	}
 	catch (Exception & exp)
 	{
@@ -326,7 +326,7 @@ int ImageViewport_setWhole(PyImage *self, PyObject *value, void *closure)
 // get alpha
 PyObject *ImageViewport_getAlpha (PyImage *self, void *closure)
 {
-	if (self->m_image != NULL && getImageViewport(self)->getAlpha()) Py_RETURN_TRUE;
+	if (self->m_image != nullptr && getImageViewport(self)->getAlpha()) Py_RETURN_TRUE;
 	else Py_RETURN_FALSE;
 }
 
@@ -334,13 +334,13 @@ PyObject *ImageViewport_getAlpha (PyImage *self, void *closure)
 int ImageViewport_setAlpha(PyImage *self, PyObject *value, void *closure)
 {
 	// check parameter, report failure
-	if (value == NULL || !PyBool_Check(value))
+	if (value == nullptr || !PyBool_Check(value))
 	{
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
 		return -1;
 	}
 	// set alpha
-	if (self->m_image != NULL) getImageViewport(self)->setAlpha(value == Py_True);
+	if (self->m_image != nullptr) getImageViewport(self)->setAlpha(value == Py_True);
 	// success
 	return 0;
 }
@@ -360,7 +360,7 @@ static PyObject *ImageViewport_getPosition (PyImage *self, void *closure)
 static int ImageViewport_setPosition(PyImage *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
-	if (value == NULL ||
+	if (value == nullptr ||
 	    !(PyTuple_Check(value) || PyList_Check(value)) ||
 	    PySequence_Fast_GET_SIZE(value) != 2 ||
 	    !PyLong_Check(PySequence_Fast_GET_ITEM(value, 0)) ||
@@ -393,7 +393,7 @@ PyObject *ImageViewport_getCaptureSize (PyImage *self, void *closure)
 int ImageViewport_setCaptureSize(PyImage *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
-	if (value == NULL ||
+	if (value == nullptr ||
 	    !(PyTuple_Check(value) || PyList_Check(value)) ||
 	    PySequence_Fast_GET_SIZE(value) != 2 ||
 	    !PyLong_Check(PySequence_Fast_GET_ITEM(value, 0)) ||
@@ -425,31 +425,31 @@ int ImageViewport_setCaptureSize(PyImage *self, PyObject *value, void *closure)
 static PyMethodDef imageViewportMethods[] =
 { // methods from ImageBase class
 	{"refresh", (PyCFunction)Image_refresh, METH_VARARGS, "Refresh image - invalidate its current content"},
-	{NULL}
+	{nullptr}
 };
 // attributes structure
 static PyGetSetDef imageViewportGetSets[] =
 { 
-	{(char*)"whole", (getter)ImageViewport_getWhole, (setter)ImageViewport_setWhole, (char*)"use whole viewport to capture", NULL},
-	{(char*)"position", (getter)ImageViewport_getPosition, (setter)ImageViewport_setPosition, (char*)"upper left corner of captured area", NULL},
-	{(char*)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char*)"size of viewport area being captured", NULL},
-	{(char*)"alpha", (getter)ImageViewport_getAlpha, (setter)ImageViewport_setAlpha, (char*)"use alpha in texture", NULL},
+	{(char*)"whole", (getter)ImageViewport_getWhole, (setter)ImageViewport_setWhole, (char*)"use whole viewport to capture", nullptr},
+	{(char*)"position", (getter)ImageViewport_getPosition, (setter)ImageViewport_setPosition, (char*)"upper left corner of captured area", nullptr},
+	{(char*)"capsize", (getter)ImageViewport_getCaptureSize, (setter)ImageViewport_setCaptureSize, (char*)"size of viewport area being captured", nullptr},
+	{(char*)"alpha", (getter)ImageViewport_getAlpha, (setter)ImageViewport_setAlpha, (char*)"use alpha in texture", nullptr},
 	// attributes from ImageBase class
-	{(char*)"valid", (getter)Image_valid, NULL, (char*)"bool to tell if an image is available", NULL},
-	{(char*)"image", (getter)Image_getImage, NULL, (char*)"image data", NULL},
-	{(char*)"size", (getter)Image_getSize, NULL, (char*)"image size", NULL},
-	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", NULL},
-	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", NULL},
-	{(char*)"zbuff", (getter)Image_getZbuff, (setter)Image_setZbuff, (char*)"use depth buffer as texture", NULL},
-	{(char*)"depth", (getter)Image_getDepth, (setter)Image_setDepth, (char*)"get depth information from z-buffer as array of float", NULL},
-	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", NULL},
-	{NULL}
+	{(char*)"valid", (getter)Image_valid, nullptr, (char*)"bool to tell if an image is available", nullptr},
+	{(char*)"image", (getter)Image_getImage, nullptr, (char*)"image data", nullptr},
+	{(char*)"size", (getter)Image_getSize, nullptr, (char*)"image size", nullptr},
+	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", nullptr},
+	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", nullptr},
+	{(char*)"zbuff", (getter)Image_getZbuff, (setter)Image_setZbuff, (char*)"use depth buffer as texture", nullptr},
+	{(char*)"depth", (getter)Image_getDepth, (setter)Image_setDepth, (char*)"get depth information from z-buffer as array of float", nullptr},
+	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", nullptr},
+	{nullptr}
 };
 
 
 // define python type
 PyTypeObject ImageViewportType = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.ImageViewport",   /*tp_name*/
 	sizeof(PyImage),          /*tp_basicsize*/
 	0,                         /*tp_itemsize*/

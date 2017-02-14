@@ -92,8 +92,8 @@ bool KX_CollisionEventManager::newBroadphaseResponse(void *client_data,
 	PHY_IPhysicsController *ctrl1 = static_cast<PHY_IPhysicsController *>(object1);
 	PHY_IPhysicsController *ctrl2 = static_cast<PHY_IPhysicsController *>(object2);
 
-	KX_ClientObjectInfo *info1 = (ctrl1) ? static_cast<KX_ClientObjectInfo *>(ctrl1->GetNewClientInfo()) : NULL;
-	KX_ClientObjectInfo *info2 = (ctrl2) ? static_cast<KX_ClientObjectInfo *>(ctrl2->GetNewClientInfo()) : NULL;
+	KX_ClientObjectInfo *info1 = (ctrl1) ? static_cast<KX_ClientObjectInfo *>(ctrl1->GetNewClientInfo()) : nullptr;
+	KX_ClientObjectInfo *info2 = (ctrl2) ? static_cast<KX_ClientObjectInfo *>(ctrl2->GetNewClientInfo()) : nullptr;
 
 	// This call back should only be called for controllers of Near and Radar sensor
 	if (!info1) {
@@ -102,7 +102,7 @@ bool KX_CollisionEventManager::newBroadphaseResponse(void *client_data,
 
 	// Get KX_GameObjects for callbacks
 	KX_GameObject *gobj1 = info1->m_gameobject;
-	KX_GameObject *gobj2 = (info2) ? info2->m_gameobject : NULL;
+	KX_GameObject *gobj2 = (info2) ? info2->m_gameobject : nullptr;
 
 	bool has_py_callbacks = false;
 
@@ -204,7 +204,7 @@ void KX_CollisionEventManager::NextFrame()
 		// Invoke sensor response for each object
 		if (client_info) {
 			for (sit = client_info->m_sensors.begin(); sit != client_info->m_sensors.end(); ++sit) {
-				static_cast<KX_CollisionSensor *>(*sit)->NewHandleCollision(ctrl1, ctrl2, NULL);
+				static_cast<KX_CollisionSensor *>(*sit)->NewHandleCollision(ctrl1, ctrl2, nullptr);
 			}
 		}
 
@@ -214,7 +214,7 @@ void KX_CollisionEventManager::NextFrame()
 		KX_GameObject *kxObj2 = KX_GameObject::GetClientObject(client_info);
 		if (client_info) {
 			for (sit = client_info->m_sensors.begin(); sit != client_info->m_sensors.end(); ++sit) {
-				static_cast<KX_CollisionSensor *>(*sit)->NewHandleCollision(ctrl2, ctrl1, NULL);
+				static_cast<KX_CollisionSensor *>(*sit)->NewHandleCollision(ctrl2, ctrl1, nullptr);
 			}
 		}
 		// Run python callbacks

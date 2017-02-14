@@ -79,7 +79,7 @@ inline void flipAxes(float* vec)
 }
 KX_NavMeshObject::KX_NavMeshObject(void* sgReplicationInfo, SG_Callbacks callbacks)
 :	KX_GameObject(sgReplicationInfo, callbacks)
-,	m_navMesh(NULL)
+,	m_navMesh(nullptr)
 {
 	
 }
@@ -100,7 +100,7 @@ CValue* KX_NavMeshObject::GetReplica()
 void KX_NavMeshObject::ProcessReplica()
 {
 	KX_GameObject::ProcessReplica();
-	m_navMesh = NULL;  /* without this, building frees the navmesh we copied from */
+	m_navMesh = nullptr;  /* without this, building frees the navmesh we copied from */
 	if (!BuildNavMesh()) {
 		CM_FunctionError("unable to build navigation mesh");
 		return;
@@ -116,14 +116,14 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 									   int& ndtris, int &vertsPerPoly)
 {
     DerivedMesh* dm = mesh_create_derived_no_virtual(GetScene()->GetBlenderScene(), GetBlenderObject(),
-													NULL, CD_MASK_MESH);
+													nullptr, CD_MASK_MESH);
 	CustomData *pdata = dm->getPolyDataLayout(dm);
 	int* recastData = (int*) CustomData_get_layer(pdata, CD_RECAST);
 	if (recastData)
 	{
-		int *dtrisToPolysMap=NULL, *dtrisToTrisMap=NULL, *trisToFacesMap=NULL;
+		int *dtrisToPolysMap=nullptr, *dtrisToTrisMap=nullptr, *trisToFacesMap=nullptr;
 		int nAllVerts = 0;
-		float *allVerts = NULL;
+		float *allVerts = nullptr;
 		buildNavMeshDataByDerivedMesh(dm, &vertsPerPoly, &nAllVerts, &allVerts, &ndtris, &dtris,
 		                              &npolys, &dmeshes, &polys, &dtrisToPolysMap, &dtrisToTrisMap, &trisToFacesMap);
 
@@ -245,7 +245,7 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 		float* vert = vertices;
 		for (int vi=0; vi<nverts; vi++)
 		{
-			const float* pos = !meshobj->m_sharedvertex_map[vi].empty() ? meshobj->GetVertexLocation(vi) : NULL;
+			const float* pos = !meshobj->m_sharedvertex_map[vi].empty() ? meshobj->GetVertexLocation(vi) : nullptr;
 			if (pos)
 				copy_v3_v3(vert, pos);
 			else
@@ -273,10 +273,10 @@ bool KX_NavMeshObject::BuildVertIndArrays(float *&vertices, int& nverts,
 				poly += 6;
 			}
 		}
-		dmeshes = NULL;
-		dvertices = NULL;
+		dmeshes = nullptr;
+		dvertices = nullptr;
 		ndvertsuniq = 0;
-		dtris = NULL;
+		dtris = nullptr;
 		ndtris = npolys;
 	}
 	dm->release(dm);
@@ -290,7 +290,7 @@ bool KX_NavMeshObject::BuildNavMesh()
 	if (m_navMesh)
 	{
 		delete m_navMesh;
-		m_navMesh = NULL;
+		m_navMesh = nullptr;
 	}
 
 	if (GetMeshCount()==0)
@@ -299,8 +299,8 @@ bool KX_NavMeshObject::BuildNavMesh()
 		return false;
 	}
 
-	float *vertices = NULL, *dvertices = NULL;
-	unsigned short *polys = NULL, *dtris = NULL, *dmeshes = NULL;
+	float *vertices = nullptr, *dvertices = nullptr;
+	unsigned short *polys = nullptr, *dtris = nullptr, *dmeshes = nullptr;
 	int nverts = 0, npolys = 0, ndvertsuniq = 0, ndtris = 0;
 	int vertsPerPoly = 0;
 	if (!BuildVertIndArrays(vertices, nverts, polys, npolys, 
@@ -318,7 +318,7 @@ bool KX_NavMeshObject::BuildNavMesh()
 	}
 	
 	MT_Vector3 pos;
-	if (dmeshes==NULL)
+	if (dmeshes==nullptr)
 	{
 		for (int i=0; i<nverts; i++)
 		{
@@ -428,7 +428,7 @@ bool KX_NavMeshObject::BuildNavMesh()
 								cs, cs, npolys*2, navNodes);
 	
 	
-	if (dmeshes==NULL)
+	if (dmeshes==nullptr)
 	{
 		//create fake detail meshes
 		for (int i = 0; i < npolys; ++i)
@@ -649,7 +649,7 @@ void KX_NavMeshObject::DrawPath(const float *path, int pathLen, const MT_Vector4
 //Python
 
 PyTypeObject KX_NavMeshObject::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_NavMeshObject",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -683,7 +683,7 @@ PyMethodDef KX_NavMeshObject::Methods[] = {
 	KX_PYMETHODTABLE(KX_NavMeshObject, raycast),
 	KX_PYMETHODTABLE(KX_NavMeshObject, draw),
 	KX_PYMETHODTABLE(KX_NavMeshObject, rebuild),
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 KX_PYMETHODDEF_DOC(KX_NavMeshObject, findPath,
@@ -692,10 +692,10 @@ KX_PYMETHODDEF_DOC(KX_NavMeshObject, findPath,
 {
 	PyObject *ob_from, *ob_to;
 	if (!PyArg_ParseTuple(args,"OO:getPath",&ob_from,&ob_to))
-		return NULL;
+		return nullptr;
 	MT_Vector3 from, to;
 	if (!PyVecTo(ob_from, from) || !PyVecTo(ob_to, to))
-		return NULL;
+		return nullptr;
 	
 	float path[MAX_PATH_LEN*3];
 	int pathLen = FindPath(from, to, path, MAX_PATH_LEN);
@@ -715,10 +715,10 @@ KX_PYMETHODDEF_DOC(KX_NavMeshObject, raycast,
 {
 	PyObject *ob_from, *ob_to;
 	if (!PyArg_ParseTuple(args,"OO:getPath",&ob_from,&ob_to))
-		return NULL;
+		return nullptr;
 	MT_Vector3 from, to;
 	if (!PyVecTo(ob_from, from) || !PyVecTo(ob_to, to))
-		return NULL;
+		return nullptr;
 	float hit = Raycast(from, to);
 	return PyFloat_FromDouble(hit);
 }

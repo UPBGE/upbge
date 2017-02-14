@@ -50,8 +50,8 @@ public:
 	double m_hapticEndTime;
 
 	PrivateData()
-		:m_gamecontroller(NULL),
-		m_haptic(NULL),
+		:m_gamecontroller(nullptr),
+		m_haptic(nullptr),
 		m_hapticEffectStatus(JOYHAPTIC_STOPPED),
 		m_hapticEndTime(0.0)
 	{

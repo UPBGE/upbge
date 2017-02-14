@@ -50,7 +50,7 @@ KX_ArmatureSensor::KX_ArmatureSensor(class SCA_EventManager* eventmgr,
 					int type,
 					float value)
 	: SCA_ISensor(gameobj,eventmgr),
-	m_constraint(NULL),
+	m_constraint(nullptr),
 	m_posechannel(posechannel),
 	m_constraintname(constraintname),
 	m_type(type),
@@ -68,7 +68,7 @@ void KX_ArmatureSensor::Init()
 
 void KX_ArmatureSensor::FindConstraint()
 {
-	m_constraint = NULL;
+	m_constraint = nullptr;
 
 	if (m_gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
 		BL_ArmatureObject* armobj = (BL_ArmatureObject*)m_gameobj;
@@ -161,7 +161,7 @@ bool KX_ArmatureSensor::Evaluate()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_ArmatureSensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_ArmatureSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -183,7 +183,7 @@ PyTypeObject KX_ArmatureSensor::Type = {
 };
 
 PyMethodDef KX_ArmatureSensor::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_ArmatureSensor::Attributes[] = {

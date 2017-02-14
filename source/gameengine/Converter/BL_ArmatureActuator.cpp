@@ -56,7 +56,7 @@ BL_ArmatureActuator::BL_ArmatureActuator(SCA_IObject* obj,
 						float weight,
 						float influence) :
 	SCA_IActuator(obj, KX_ACT_ARMATURE),
-	m_constraint(NULL),
+	m_constraint(nullptr),
 	m_gametarget(targetobj),
 	m_gamesubtarget(subtargetobj),
 	m_posechannel(posechannel),
@@ -103,13 +103,13 @@ bool BL_ArmatureActuator::UnlinkObject(SCA_IObject* clientobj)
 	if (clientobj == m_gametarget)
 	{
 		// this object is being deleted, we cannot continue to track it.
-		m_gametarget = NULL;
+		m_gametarget = nullptr;
 		res = true;
 	}
 	if (clientobj == m_gamesubtarget)
 	{
 		// this object is being deleted, we cannot continue to track it.
-		m_gamesubtarget = NULL;
+		m_gamesubtarget = nullptr;
 		res = true;
 	}
 	return res;
@@ -135,7 +135,7 @@ void BL_ArmatureActuator::Relink(std::map<void *, void *>& obj_map)
 
 void BL_ArmatureActuator::FindConstraint()
 {
-	m_constraint = NULL;
+	m_constraint = nullptr;
 
 	if (m_gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
 		BL_ArmatureObject* armobj = (BL_ArmatureObject*)m_gameobj;
@@ -191,7 +191,7 @@ bool BL_ArmatureActuator::Update(double curtime, bool frame)
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject BL_ArmatureActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 		"BL_ArmatureActuator",
 		sizeof(PyObjectPlus_Proxy),
 		0,
@@ -214,7 +214,7 @@ PyTypeObject BL_ArmatureActuator::Type = {
 
 
 PyMethodDef BL_ArmatureActuator::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef BL_ArmatureActuator::Attributes[] = {
@@ -246,7 +246,7 @@ int BL_ArmatureActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_P
 	if (!ConvertPythonToGameObject(actuator->GetLogicManager(), value, &gameobj, true, "actuator.object = value: BL_ArmatureActuator"))
 		return PY_SET_ATTR_FAIL; // ConvertPythonToGameObject sets the error
 		
-	if (target != NULL)
+	if (target != nullptr)
 		target->UnregisterActuator(actuator);
 
 	target = gameobj;

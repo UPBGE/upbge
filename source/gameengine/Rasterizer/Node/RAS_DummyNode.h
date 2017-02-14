@@ -49,7 +49,7 @@ public:
 
 	ParentType *GetParent()
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	template <class NodeType>

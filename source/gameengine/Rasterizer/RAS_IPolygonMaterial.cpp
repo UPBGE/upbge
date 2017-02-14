@@ -47,7 +47,7 @@ RAS_IPolyMaterial::RAS_IPolyMaterial(
 	}
 
 	for (unsigned short i = 0; i < RAS_Texture::MaxUnits; ++i) {
-		m_textures[i] = NULL;
+		m_textures[i] = nullptr;
 	}
 }
 

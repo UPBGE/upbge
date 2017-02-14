@@ -106,6 +106,6 @@ void DummyPhysicsEnvironment::RemoveConstraintById(int constraintid)
 PHY_IPhysicsController *DummyPhysicsEnvironment::RayTest(PHY_IRayCastFilterCallback &filterCallback, float fromX, float fromY, float fromZ, float toX, float toY, float toZ)
 {
 	//collision detection / raytesting
-	return NULL;
+	return nullptr;
 }
 

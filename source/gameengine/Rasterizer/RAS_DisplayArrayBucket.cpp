@@ -58,8 +58,8 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	m_meshMaterial(meshmat),
 	m_useDisplayList(false),
 	m_useVao(/*false*/true),
-	m_storageInfo(NULL),
-	m_instancingBuffer(NULL),
+	m_storageInfo(nullptr),
+	m_instancingBuffer(nullptr),
 	m_downwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNode), nullptr),
 	m_upwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::BindUpwardNode), std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode)),
 	m_instancingNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunInstancingNode), nullptr),
@@ -93,7 +93,7 @@ RAS_DisplayArrayBucket *RAS_DisplayArrayBucket::Release()
 	--m_refcount;
 	if (m_refcount == 0) {
 		delete this;
-		return NULL;
+		return nullptr;
 	}
 	return this;
 }
@@ -260,7 +260,7 @@ void RAS_DisplayArrayBucket::DestructStorageInfo()
 {
 	if (m_storageInfo) {
 		delete m_storageInfo;
-		m_storageInfo = NULL;
+		m_storageInfo = nullptr;
 	}
 }
 

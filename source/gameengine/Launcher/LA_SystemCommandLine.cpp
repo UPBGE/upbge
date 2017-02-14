@@ -37,7 +37,7 @@ struct SingletonSystem {
 	std::map<std::string, std::string> string_params;
 };
 
-static SingletonSystem *_system_instance = NULL;
+static SingletonSystem *_system_instance = nullptr;
 
 SYS_SystemHandle SYS_GetSystem()
 {
@@ -51,7 +51,7 @@ void SYS_DeleteSystem(SYS_SystemHandle sys)
 {
 	if (_system_instance) {
 		delete _system_instance;
-		_system_instance = NULL;
+		_system_instance = nullptr;
 	}
 }
 

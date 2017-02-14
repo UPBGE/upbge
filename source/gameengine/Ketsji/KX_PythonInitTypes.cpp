@@ -118,12 +118,12 @@
 static void PyType_Attr_Set(PyGetSetDef *attr_getset, PyAttributeDef *attr)
 {
 	attr_getset->name = (char *)attr->m_name.c_str();
-	attr_getset->doc= NULL;
+	attr_getset->doc= nullptr;
 
 	attr_getset->get= reinterpret_cast<getter>(PyObjectPlus::py_get_attrdef);
 
 	if (attr->m_access==KX_PYATTRIBUTE_RO)
-		attr_getset->set= NULL;
+		attr_getset->set= nullptr;
 	else
 		attr_getset->set= reinterpret_cast<setter>(PyObjectPlus::py_set_attrdef);
 
@@ -138,7 +138,7 @@ static void PyType_Ready_ADD(PyObject *dict, PyTypeObject *tp, PyAttributeDef *a
 		/* we need to do this for all types before calling PyType_Ready
 		 * since they will call the parents PyType_Ready and those might not have initialized vars yet */
 
-		if (tp->tp_getset==NULL && ((attributes && !attributes->m_name.empty()) || (attributesPtr && !attributesPtr->m_name.empty()))) {
+		if (tp->tp_getset==nullptr && ((attributes && !attributes->m_name.empty()) || (attributesPtr && !attributesPtr->m_name.empty()))) {
 			PyGetSetDef *attr_getset;
 			int attr_tot= 0;
 
@@ -173,7 +173,7 @@ static void PyType_Ready_ADD(PyObject *dict, PyTypeObject *tp, PyAttributeDef *a
 }
 
 
-#define PyType_Ready_Attr(d, n, i)   PyType_Ready_ADD(d, &n::Type, n::Attributes, NULL, i)
+#define PyType_Ready_Attr(d, n, i)   PyType_Ready_ADD(d, &n::Type, n::Attributes, nullptr, i)
 #define PyType_Ready_AttrPtr(d, n, i)   PyType_Ready_ADD(d, &n::Type, n::Attributes, n::AttributesPtr, i)
 
 
@@ -186,11 +186,11 @@ static struct PyModuleDef GameTypes_module_def = {
 	"GameTypes",  /* m_name */
 	GameTypes_module_documentation,  /* m_doc */
 	0,  /* m_size */
-	NULL,  /* m_methods */
-	NULL,  /* m_reload */
-	NULL,  /* m_traverse */
-	NULL,  /* m_clear */
-	NULL,  /* m_free */
+	nullptr,  /* m_methods */
+	nullptr,  /* m_reload */
+	nullptr,  /* m_traverse */
+	nullptr,  /* m_clear */
+	nullptr,  /* m_free */
 };
 
 

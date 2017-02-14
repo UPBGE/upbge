@@ -47,7 +47,7 @@ std::string KX_CollisionContactPoint::GetName()
 #ifdef WITH_PYTHON
 
 PyTypeObject KX_CollisionContactPoint::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_CollisionContactPoint",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -69,7 +69,7 @@ PyTypeObject KX_CollisionContactPoint::Type = {
 };
 
 PyMethodDef KX_CollisionContactPoint::Methods[] = {
-	{NULL, NULL} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_CollisionContactPoint::Attributes[] = {
@@ -152,12 +152,12 @@ static PyObject *kx_collision_contact_point_list_get_sensors_item_cb(void *self_
 CListWrapper *KX_CollisionContactPointList::GetListWrapper()
 {
 	return (new CListWrapper(this,
-							 NULL, // No base python proxy.
-							 NULL,
+							 nullptr, // No base python proxy.
+							 nullptr,
 							 kx_collision_contact_point_list_get_sensors_size_cb,
 							 kx_collision_contact_point_list_get_sensors_item_cb,
-							 NULL,
-							 NULL));
+							 nullptr,
+							 nullptr));
 }
 
 #endif  // WITH_PYTHON

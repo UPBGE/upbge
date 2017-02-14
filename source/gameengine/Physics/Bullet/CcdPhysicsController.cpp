@@ -149,7 +149,7 @@ CcdPhysicsController::CcdPhysicsController(const CcdConstructionInfo& ci)
 	if (m_shapeInfo)
 		m_shapeInfo->AddRef();
 
-	m_bulletChildShape = NULL;
+	m_bulletChildShape = nullptr;
 
 	m_bulletMotionState = 0;
 	m_characterController = 0;
@@ -276,7 +276,7 @@ bool CcdPhysicsController::CreateSoftbody()
 
 	btVector3 p(0.0f, 0.0f, 0.0f);// = getOrigin();
 	//btSoftBody*	psb=btSoftBodyHelpers::CreateRope(worldInfo,	btVector3(-10,0,i*0.25),btVector3(10,0,i*0.25),	16,1+2);
-	btSoftBody *psb = NULL;
+	btSoftBody *psb = nullptr;
 	btSoftBodyWorldInfo& worldInfo = m_cci.m_physicsEnv->GetDynamicsWorld()->getWorldInfo();
 
 	if (m_cci.m_collisionShape->getShapeType() == CONVEX_HULL_SHAPE_PROXYTYPE) {
@@ -611,7 +611,7 @@ bool CcdPhysicsController::ReplaceControllerShape(btCollisionShape *newShape)
 	if (m_collisionShape)
 		DeleteControllerShape();
 
-	// If newShape is NULL it means to create a new Bullet shape.
+	// If newShape is nullptr it means to create a new Bullet shape.
 	if (!newShape)
 		newShape = m_shapeInfo->CreateBulletShape(m_cci.m_margin, m_cci.m_bGimpact, !m_cci.m_bSoft);
 
@@ -627,7 +627,7 @@ bool CcdPhysicsController::ReplaceControllerShape(btCollisionShape *newShape)
 
 		// soft body must be recreated
 		delete m_object;
-		m_object = NULL;
+		m_object = nullptr;
 		// force complete reinitialization
 		m_softbodyMappingDone = false;
 		m_prototypeTransformInitialized = false;
@@ -782,7 +782,7 @@ void CcdPhysicsController::PostProcessReplica(class PHY_IMotionState *motionstat
 	m_softBodyTransformInitialized = false;
 	m_MotionState = motionstate;
 	m_registerCount = 0;
-	m_collisionShape = NULL;
+	m_collisionShape = nullptr;
 
 	// Clear all old constraints.
 	m_ccdConstraintRefs.clear();
@@ -1444,7 +1444,7 @@ bool CcdPhysicsController::WantsSleeping()
  */
 void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
 {
-	if (child == NULL || !IsCompound())
+	if (child == nullptr || !IsCompound())
 		return;
 	// other controller must be a bullet controller too
 	// verify that body and shape exist and match
@@ -1516,7 +1516,7 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
  */
 void CcdPhysicsController::RemoveCompoundChild(PHY_IPhysicsController *child)
 {
-	if (child == NULL || !IsCompound())
+	if (child == nullptr || !IsCompound())
 		return;
 	// other controller must be a bullet controller too
 	// verify that body and shape exist and match
@@ -1550,7 +1550,7 @@ void CcdPhysicsController::RemoveCompoundChild(PHY_IPhysicsController *child)
 			}
 		}
 		delete childCtrl->m_bulletChildShape;
-		childCtrl->m_bulletChildShape = NULL;
+		childCtrl->m_bulletChildShape = nullptr;
 	}
 	// recompute inertia of parent
 	if (!rootBody->isStaticOrKinematicObject()) {
@@ -1600,7 +1600,7 @@ PHY_IPhysicsController *CcdPhysicsController::GetReplicaForSensors()
 
 			default:
 			{
-				return NULL;
+				return nullptr;
 			}
 		}
 	}
@@ -1618,7 +1618,7 @@ bool CcdPhysicsController::IsPhysicsSuspended()
 }
 
 /* Refresh the physics object from either an object or a mesh.
- * from_gameobj and from_meshobj can be NULL
+ * from_gameobj and from_meshobj can be nullptr
  *
  * when setting the mesh, the following vars get priority
  * 1) from_meshobj - creates the phys mesh from RAS_MeshObject
@@ -1659,7 +1659,7 @@ void CcdPhysicsController::ReplacePhysicsShape(PHY_IPhysicsController *phyctrl)
 	m_shapeInfo = shapeInfo->AddRef();
 
 	// recreate Bullet shape only for this physics controller
-	ReplaceControllerShape(NULL);
+	ReplaceControllerShape(nullptr);
 	// refresh to remove collision pair
 	GetPhysicsEnvironment()->RefreshCcdPhysicsController(this);
 }
@@ -1758,12 +1758,12 @@ CcdShapeConstructionInfo *CcdShapeConstructionInfo::FindMesh(RAS_MeshObject *mes
 {
 	if (polytope || dm)
 		// not yet supported
-		return NULL;
+		return nullptr;
 
 	std::map<RAS_MeshObject *, CcdShapeConstructionInfo *>::const_iterator mit = m_meshShapeMap.find(mesh);
 	if (mit != m_meshShapeMap.end())
 		return mit->second;
-	return NULL;
+	return nullptr;
 }
 
 CcdShapeConstructionInfo *CcdShapeConstructionInfo::GetReplica()
@@ -1775,12 +1775,12 @@ CcdShapeConstructionInfo *CcdShapeConstructionInfo::GetReplica()
 
 void CcdShapeConstructionInfo::ProcessReplica()
 {
-	m_userData = NULL;
+	m_userData = nullptr;
 	m_refCount = 1;
-	m_meshObject = NULL;
-	m_triangleIndexVertexArray = NULL;
+	m_meshObject = nullptr;
+	m_triangleIndexVertexArray = nullptr;
 	m_forceReInstance = false;
-	m_shapeProxy = NULL;
+	m_shapeProxy = nullptr;
 	m_vertexArray.clear();
 	m_polygonIndexArray.clear();
 	m_triFaceArray.clear();
@@ -1796,7 +1796,7 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 	// no support for dynamic change of shape yet
 	assert(IsUnused());
 	m_shapeType = PHY_SHAPE_NONE;
-	m_meshObject = NULL;
+	m_meshObject = nullptr;
 	bool free_dm = false;
 
 	// No mesh object or mesh has no polys
@@ -1826,7 +1826,7 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 	const int *index_mf_to_mpoly = (const int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
 	const int *index_mp_to_orig  = (const int *)dm->getPolyDataArray(dm, CD_ORIGINDEX);
 	if (!index_mf_to_mpoly) {
-		index_mp_to_orig = NULL;
+		index_mp_to_orig = nullptr;
 	}
 
 	m_shapeType = (polytope) ? PHY_SHAPE_POLYTOPE : PHY_SHAPE_MESH;
@@ -1840,7 +1840,7 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 		for (int p2 = 0; p2 < numpolys; p2++) {
 			MFace *mf = &mface[p2];
 			const int origi = index_mf_to_mpoly ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) : p2;
-			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : NULL;
+			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
 
 			// only add polygons that have the collision flag set
 			if (poly && poly->IsCollider()) {
@@ -1875,7 +1875,7 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 		for (int p2 = 0; p2 < numpolys; p2++) {
 			MFace *mf = &mface[p2];
 			const int origi = index_mf_to_mpoly ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) : p2;
-			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : NULL;
+			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
 
 			// only add polygons that have the collisionflag set
 			if (poly->IsCollider()) {
@@ -1918,7 +1918,7 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 		for (int p2 = 0; p2 < numpolys; p2++) {
 			MFace *mf = &mface[p2];
 			const int origi = index_mf_to_mpoly ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) : p2;
-			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : NULL;
+			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
 
 			// only add polygons that have the collision flag set
 			if (poly && poly->IsCollider()) {
@@ -1958,7 +1958,7 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 		int *poly_index_pt = &m_polygonIndexArray[0];
 		int *tri_pt = &m_triFaceArray[0];
 
-		UVco *uv_pt = NULL;
+		UVco *uv_pt = nullptr;
 		if (tface) {
 			m_triFaceUVcoArray.resize(tot_bt_tris * 3);
 			uv_pt = &m_triFaceUVcoArray[0];
@@ -1968,9 +1968,9 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 
 		for (int p2 = 0; p2 < numpolys; p2++) {
 			MFace *mf = &mface[p2];
-			MTFace *tf = (tface) ? &tface[p2] : NULL;
+			MTFace *tf = (tface) ? &tface[p2] : nullptr;
 			const int origi = index_mf_to_mpoly ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, p2) : p2;
-			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : NULL;
+			RAS_Polygon *poly = (origi != ORIGINDEX_NONE) ? meshobj->GetPolygon(origi) : nullptr;
 
 			// only add polygons that have the collisionflag set
 			if (poly && poly->IsCollider()) {
@@ -2074,7 +2074,7 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 	m_meshObject = meshobj;
 	if (free_dm) {
 		dm->release(dm);
-		dm = NULL;
+		dm = nullptr;
 	}
 
 	// sharing only on static mesh at present, if you change that, you must also change in FindMesh
@@ -2086,7 +2086,7 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 
 cleanup_empty_mesh:
 	m_shapeType = PHY_SHAPE_NONE;
-	m_meshObject = NULL;
+	m_meshObject = nullptr;
 	m_vertexArray.clear();
 	m_polygonIndexArray.clear();
 	m_triFaceArray.clear();
@@ -2124,8 +2124,8 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, class RA
 	if (m_shapeType != PHY_SHAPE_MESH)
 		return false;
 
-	RAS_Deformer *deformer = gameobj ? gameobj->GetDeformer() : NULL;
-	DerivedMesh *dm = NULL;
+	RAS_Deformer *deformer = gameobj ? gameobj->GetDeformer() : nullptr;
+	DerivedMesh *dm = nullptr;
 
 	if (deformer)
 		dm = deformer->GetPhysicsMesh();
@@ -2159,7 +2159,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, class RA
 		const int *index_mf_to_mpoly = (const int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
 		const int *index_mp_to_orig = (const int *)dm->getPolyDataArray(dm, CD_ORIGINDEX);
 		if (!index_mf_to_mpoly) {
-			index_mp_to_orig = NULL;
+			index_mp_to_orig = nullptr;
 		}
 
 		MFace *mf;
@@ -2287,11 +2287,11 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, class RA
 		     * RAS Mesh Update
 		     *
 		     * */
-		// Note!, gameobj can be NULL here
+		// Note!, gameobj can be nullptr here
 
 		/* transverts are only used for deformed RAS_Meshes, the RAS_TexVert data
 		 * is too hard to get at, see below for details */
-		float(*transverts)[3] = NULL;
+		float(*transverts)[3] = nullptr;
 		int transverts_tot = 0; // with deformed meshes - should always be greater than the max orginal index, or we get crashes
 
 		if (deformer) {
@@ -2422,7 +2422,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject *gameobj, class RA
 
 bool CcdShapeConstructionInfo::SetProxy(CcdShapeConstructionInfo *shapeInfo)
 {
-	if (shapeInfo == NULL)
+	if (shapeInfo == nullptr)
 		return false;
 	// no support for dynamic change
 	assert(IsUnused());
@@ -2433,10 +2433,10 @@ bool CcdShapeConstructionInfo::SetProxy(CcdShapeConstructionInfo *shapeInfo)
 
 btCollisionShape *CcdShapeConstructionInfo::CreateBulletShape(btScalar margin, bool useGimpact, bool useBvh)
 {
-	btCollisionShape *collisionShape = NULL;
-	btCompoundShape *compoundShape = NULL;
+	btCollisionShape *collisionShape = nullptr;
+	btCompoundShape *compoundShape = nullptr;
 
-	if (m_shapeType == PHY_SHAPE_PROXY && m_shapeProxy != NULL)
+	if (m_shapeType == PHY_SHAPE_PROXY && m_shapeProxy != nullptr)
 		return m_shapeProxy->CreateBulletShape(margin, useGimpact, useBvh);
 
 	switch (m_shapeType)
@@ -2583,13 +2583,13 @@ CcdShapeConstructionInfo::~CcdShapeConstructionInfo()
 	if (m_triangleIndexVertexArray)
 		delete m_triangleIndexVertexArray;
 	m_vertexArray.clear();
-	if (m_shapeType == PHY_SHAPE_MESH && m_meshObject != NULL) {
+	if (m_shapeType == PHY_SHAPE_MESH && m_meshObject != nullptr) {
 		std::map<RAS_MeshObject *, CcdShapeConstructionInfo *>::iterator mit = m_meshShapeMap.find(m_meshObject);
 		if (mit != m_meshShapeMap.end() && mit->second == this) {
 			m_meshShapeMap.erase(mit);
 		}
 	}
-	if (m_shapeType == PHY_SHAPE_PROXY && m_shapeProxy != NULL) {
+	if (m_shapeType == PHY_SHAPE_PROXY && m_shapeProxy != nullptr) {
 		m_shapeProxy->Release();
 	}
 }

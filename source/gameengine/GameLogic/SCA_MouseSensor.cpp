@@ -228,7 +228,7 @@ KX_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
 		    (button > SCA_IInputDevice::RIGHTMOUSE))
 		{
 			PyErr_SetString(PyExc_ValueError, "sensor.getButtonStatus(int): Mouse Sensor, invalid button specified!");
-			return NULL;
+			return nullptr;
 		}
 		
 		SCA_IInputDevice* mousedev = ((SCA_MouseManager *)m_eventmgr)->GetInputDevice();
@@ -244,7 +244,7 @@ KX_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject SCA_MouseSensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_MouseSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -267,7 +267,7 @@ PyTypeObject SCA_MouseSensor::Type = {
 
 PyMethodDef SCA_MouseSensor::Methods[] = {
 	KX_PYMETHODTABLE_O(SCA_MouseSensor, getButtonStatus),
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 int SCA_MouseSensor::UpdateHotkeyPy(PyObjectPlus *self, const PyAttributeDef*)

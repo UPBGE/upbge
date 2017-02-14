@@ -87,7 +87,7 @@ static PyObject *getColor (PyFilter *self, void *closure)
 static int setColor(PyFilter *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
-	if (value == NULL ||
+	if (value == nullptr ||
 	    !(PyTuple_Check(value) || PyList_Check(value)) ||
 	    PySequence_Fast_GET_SIZE(value) != 3 ||
 	    !PyLong_Check(PySequence_Fast_GET_ITEM(value, 0)) ||
@@ -117,7 +117,7 @@ static PyObject *getLimits (PyFilter *self, void *closure)
 static int setLimits(PyFilter *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
-	if (value == NULL ||
+	if (value == nullptr ||
 	    !(PyTuple_Check(value) || PyList_Check(value)) ||
 	    PySequence_Fast_GET_SIZE(value) != 2 ||
 	    !PyLong_Check(PySequence_Fast_GET_ITEM(value, 0)) ||
@@ -138,17 +138,17 @@ static int setLimits(PyFilter *self, PyObject *value, void *closure)
 // attributes structure
 static PyGetSetDef filterBSGetSets[] =
 { 
-	{(char*)"color", (getter)getColor, (setter)setColor, (char*)"blue screen color", NULL},
-	{(char*)"limits", (getter)getLimits, (setter)setLimits, (char*)"blue screen color limits", NULL},
+	{(char*)"color", (getter)getColor, (setter)setColor, (char*)"blue screen color", nullptr},
+	{(char*)"limits", (getter)getLimits, (setter)setLimits, (char*)"blue screen color limits", nullptr},
 	// attributes from FilterBase class
-	{(char*)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char*)"previous pixel filter", NULL},
-	{NULL}
+	{(char*)"previous", (getter)Filter_getPrevious, (setter)Filter_setPrevious, (char*)"previous pixel filter", nullptr},
+	{nullptr}
 };
 
 // define python type
 PyTypeObject FilterBlueScreenType =
 { 
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.FilterBlueScreen",   /*tp_name*/
 	sizeof(PyFilter),          /*tp_basicsize*/
 	0,                         /*tp_itemsize*/
@@ -175,7 +175,7 @@ PyTypeObject FilterBlueScreenType =
 	0,                         /* tp_weaklistoffset */
 	0,                         /* tp_iter */
 	0,                         /* tp_iternext */
-	NULL,                      /* tp_methods */
+	nullptr,                      /* tp_methods */
 	0,                         /* tp_members */
 	filterBSGetSets,           /* tp_getset */
 	0,                         /* tp_base */

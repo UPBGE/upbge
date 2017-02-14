@@ -74,8 +74,8 @@ void KX_SoftBodyDeformer::Relink(std::map<void *, void *>& map)
 		m_mesh = m_gameobj->GetMesh(0);
 	}
 	else {
-		m_gameobj = NULL;
-		m_mesh = NULL;
+		m_gameobj = nullptr;
+		m_mesh = nullptr;
 	}
 }
 

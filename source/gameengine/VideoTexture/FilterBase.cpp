@@ -38,7 +38,7 @@
 // FilterBase class implementation
 
 // constructor
-FilterBase::FilterBase (void) : m_previous(NULL) {}
+FilterBase::FilterBase (void) : m_previous(nullptr) {}
 
 
 // destructor
@@ -53,7 +53,7 @@ FilterBase::~FilterBase (void)
 void FilterBase::release (void)
 {
 	// release previous filter object
-	setPrevious(NULL);
+	setPrevious(nullptr);
 }
 
 
@@ -64,7 +64,7 @@ void FilterBase::setPrevious(PyFilter *filt, bool useRefCnt)
 	if (useRefCnt)
 	{
 		// reference new filter
-		if (filt != NULL) Py_INCREF(filt);
+		if (filt != nullptr) Py_INCREF(filt);
 		// release old filter
 		Py_XDECREF(m_previous);
 	}
@@ -78,7 +78,7 @@ FilterBase * FilterBase::findFirst (void)
 {
 	// find first filter in chain
 	FilterBase * frst;
-	for (frst = this; frst->m_previous != NULL; frst = frst->m_previous->m_filter) {};
+	for (frst = this; frst->m_previous != nullptr; frst = frst->m_previous->m_filter) {};
 	// set first filter
 	return frst;
 }
@@ -99,7 +99,7 @@ PyObject *Filter_allocNew (PyTypeObject *type, PyObject *args, PyObject *kwds)
 	// allocate object
 	PyFilter *self = reinterpret_cast<PyFilter*>(type->tp_alloc(type, 0));
 	// initialize object structure
-	self->m_filter = NULL;
+	self->m_filter = nullptr;
 	// return allocated object
 	return reinterpret_cast<PyObject*>(self);
 }
@@ -108,11 +108,11 @@ PyObject *Filter_allocNew (PyTypeObject *type, PyObject *args, PyObject *kwds)
 void Filter_dealloc(PyFilter *self)
 {
 	// release object attributes
-	if (self->m_filter != NULL)
+	if (self->m_filter != nullptr)
 	{
 		self->m_filter->release();
 		delete self->m_filter;
-		self->m_filter = NULL;
+		self->m_filter = nullptr;
 	}
 }
 
@@ -121,12 +121,12 @@ void Filter_dealloc(PyFilter *self)
 PyObject *Filter_getPrevious (PyFilter *self, void *closure)
 {
 	// if filter object is available
-	if (self->m_filter != NULL)
+	if (self->m_filter != nullptr)
 	{
 		// pixel filter object
 		PyObject *filt = reinterpret_cast<PyObject*>(self->m_filter->getPrevious());
 		// if filter is present
-		if (filt != NULL)
+		if (filt != nullptr)
 		{
 			// return it
 			Py_INCREF(filt);
@@ -142,10 +142,10 @@ PyObject *Filter_getPrevious (PyFilter *self, void *closure)
 int Filter_setPrevious(PyFilter *self, PyObject *value, void *closure)
 {
 	// if filter object is available
-	if (self->m_filter != NULL)
+	if (self->m_filter != nullptr)
 	{
 		// check new value
-		if (value == NULL || !pyFilterTypes.in(Py_TYPE(value)))
+		if (value == nullptr || !pyFilterTypes.in(Py_TYPE(value)))
 		{
 			// report value error
 			PyErr_SetString(PyExc_TypeError, "Invalid type of value");

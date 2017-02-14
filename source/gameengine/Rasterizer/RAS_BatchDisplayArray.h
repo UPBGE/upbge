@@ -65,7 +65,7 @@ public:
 		 * but batch display array are not used in the case of deformer.
 		 */
 		BLI_assert(false);
-		return NULL;
+		return nullptr;
 	}
 
 	/** Merge array in the batched array.

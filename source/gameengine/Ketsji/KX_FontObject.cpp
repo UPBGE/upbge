@@ -137,17 +137,17 @@ void KX_FontObject::AddMeshUser()
 		RAS_TexVertFormat format;
 		format.uvSize = 1;
 		format.colorSize = 1;
-		bucket->NewMesh(NULL, NULL, format);
+		bucket->NewMesh(nullptr, nullptr, format);
 	}
 
 	/* We copy the original mesh slot which is at the begin of the list, if it's not the case it
 	 * doesn't matter as the mesh slot are all similar exepted their mesh user pointer which is
-	 * set to NULL in copy. By copying instead of adding a mesh slot we reuse the same display
+	 * set to nullptr in copy. By copying instead of adding a mesh slot we reuse the same display
 	 * array bucket.
 	 */
 	RAS_MeshSlot *ms = bucket->CopyMesh(*bucket->msBegin());
 	ms->SetMeshUser(m_meshUser);
-	ms->SetDeformer(NULL);
+	ms->SetDeformer(nullptr);
 	m_meshUser->AddMeshSlot(ms);
 }
 
@@ -229,7 +229,7 @@ const MT_Vector2 KX_FontObject::GetTextDimensions()
 
 int GetFontId(VFont *vfont)
 {
-	PackedFile *packedfile = NULL;
+	PackedFile *packedfile = nullptr;
 	int fontid = -1;
 
 	if (vfont->packedfile) {
@@ -279,7 +279,7 @@ int GetFontId(VFont *vfont)
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject KX_FontObject::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_FontObject",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -293,8 +293,8 @@ PyTypeObject KX_FontObject::Type = {
 	&KX_GameObject::Sequence,
 	&KX_GameObject::Mapping,
 	0, 0, 0,
-	NULL,
-	NULL,
+	nullptr,
+	nullptr,
 	0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	0, 0, 0, 0, 0, 0, 0,
@@ -307,7 +307,7 @@ PyTypeObject KX_FontObject::Type = {
 };
 
 PyMethodDef KX_FontObject::Methods[] = {
-	{NULL, NULL} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_FontObject::Attributes[] = {

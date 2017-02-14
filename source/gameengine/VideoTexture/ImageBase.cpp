@@ -60,11 +60,11 @@ ExpDesc InvalidColorChannelDesc(InvalidColorChannel, "Invalid or too many color 
 ExpDesc InvalidImageModeDesc(InvalidImageMode, "Invalid image mode, only RGBA and BGRA are supported");
 
 // constructor
-ImageBase::ImageBase (bool staticSrc) : m_image(NULL), m_imgSize(0), m_internalFormat(GL_RGBA8),
+ImageBase::ImageBase (bool staticSrc) : m_image(nullptr), m_imgSize(0), m_internalFormat(GL_RGBA8),
 m_avail(false), m_scale(false), m_scaleChange(false), m_flip(false),
 m_zbuff(false),
 m_depth(false),
-m_staticSources(staticSrc), m_pyfilter(NULL)
+m_staticSources(staticSrc), m_pyfilter(nullptr)
 {
 	m_size[0] = m_size[1] = 0;
 	m_exports = 0;
@@ -88,11 +88,11 @@ bool ImageBase::release (void)
 	{
 		// release source object
 		delete *it;
-		*it = NULL;
+		*it = nullptr;
 	}
 	// release filter object
 	Py_XDECREF(m_pyfilter);
-	m_pyfilter = NULL;
+	m_pyfilter = nullptr;
 	return true;
 }
 
@@ -116,14 +116,14 @@ unsigned int * ImageBase::getImage (unsigned int texId, double ts)
 		// calculate new image
 		calcImage(texId, ts);
 	}
-	// if image is available, return it, otherwise NULL
-	return m_avail ? m_image : NULL;
+	// if image is available, return it, otherwise nullptr
+	return m_avail ? m_image : nullptr;
 }
 
 bool ImageBase::loadImage(unsigned int *buffer, unsigned int size, unsigned int format, double ts)
 {
 	unsigned int *d, *s, v, len;
-	if (getImage(0, ts) != NULL && size >= getBuffSize()) {
+	if (getImage(0, ts) != nullptr && size >= getBuffSize()) {
 		switch (format) {
 		case GL_RGBA:
 			memcpy(buffer, m_image, getBuffSize());
@@ -160,7 +160,7 @@ PyImage * ImageBase::getSource (const char *id)
 	// find source
 	ImageSourceList::iterator src = findSource(id);
 	// return it, if found
-	return src != m_sources.end() ? (*src)->getSource() : NULL;
+	return src != m_sources.end() ? (*src)->getSource() : nullptr;
 }
 
 
@@ -170,12 +170,12 @@ bool ImageBase::setSource (const char *id, PyImage *source)
 	// find source
 	ImageSourceList::iterator src = findSource(id);
 	// check source loop
-	if (source != NULL && source->m_image->loopDetect(this))
+	if (source != nullptr && source->m_image->loopDetect(this))
 		return false;
 	// if found, set new object
 	if (src != m_sources.end())
 		// if new object is not empty or sources are static
-		if (source != NULL || m_staticSources)
+		if (source != nullptr || m_staticSources)
 			// replace previous source
 			(*src)->setSource(source);
 		// otherwise delete source
@@ -189,7 +189,7 @@ bool ImageBase::setSource (const char *id, PyImage *source)
 			ImageSource * newSrc = newSource(id);
 			newSrc->setSource(source);
 			// if source was created, add it to source list
-			if (newSrc != NULL) m_sources.push_back(newSrc);
+			if (newSrc != nullptr) m_sources.push_back(newSrc);
 		}
 		// otherwise source wasn't set
 		else 
@@ -203,7 +203,7 @@ bool ImageBase::setSource (const char *id, PyImage *source)
 void ImageBase::setFilter (PyFilter * filt)
 {
 	// reference new filter
-	if (filt != NULL) Py_INCREF(filt);
+	if (filt != nullptr) Py_INCREF(filt);
 	// release previous filter
 	Py_XDECREF(m_pyfilter);
 	// set new filter
@@ -277,7 +277,7 @@ ImageSourceList::iterator ImageBase::findSource (const char *id)
 bool ImageBase::checkSourceSizes (void)
 {
 	// reference size
-	short * refSize = NULL;
+	short * refSize = nullptr;
 	// iterate sources
 	for (ImageSourceList::iterator it = m_sources.begin(); it != m_sources.end(); ++it)
 	{
@@ -286,7 +286,7 @@ bool ImageBase::checkSourceSizes (void)
 		// if size is available and is not empty
 		if (curSize[0] != 0 && curSize[1] != 0) {
 			// if reference size is not set
-			if (refSize == NULL) {
+			if (refSize == nullptr) {
 				// set current size as reference
 				refSize = curSize;
 		// otherwise check with current size
@@ -322,7 +322,7 @@ bool ImageBase::loopDetect (ImageBase * img)
 	// check all sources
 	for (ImageSourceList::iterator it = m_sources.begin(); it != m_sources.end(); ++it)
 		// if source detected loop, return this result
-		if ((*it)->getSource() != NULL && (*it)->getSource()->m_image->loopDetect(img))
+		if ((*it)->getSource() != nullptr && (*it)->getSource()->m_image->loopDetect(img))
 			return true;
 	// no loop detected
 	return false;
@@ -332,7 +332,7 @@ bool ImageBase::loopDetect (ImageBase * img)
 // ImageSource class implementation
 
 // constructor
-ImageSource::ImageSource (const char *id) : m_source(NULL), m_image(NULL)
+ImageSource::ImageSource (const char *id) : m_source(nullptr), m_image(nullptr)
 {
 	// copy id
 	int idx;
@@ -345,7 +345,7 @@ ImageSource::ImageSource (const char *id) : m_source(NULL), m_image(NULL)
 ImageSource::~ImageSource (void)
 {
 	// release source
-	setSource(NULL);
+	setSource(nullptr);
 }
 
 
@@ -362,7 +362,7 @@ bool ImageSource::is (const char *id)
 void ImageSource::setSource (PyImage *source)
 {
 	// reference new source
-	if (source != NULL) Py_INCREF(source);
+	if (source != nullptr) Py_INCREF(source);
 	// release previous source
 	Py_XDECREF(m_source);
 	// set new source
@@ -374,12 +374,12 @@ void ImageSource::setSource (PyImage *source)
 unsigned int * ImageSource::getImage (double ts)
 {
 	// if source is available
-	if (m_source != NULL)
+	if (m_source != nullptr)
 		// get image from source
 		m_image = m_source->m_image->getImage(0, ts);
 	// otherwise reset buffer
 	else
-		m_image = NULL;
+		m_image = nullptr;
 	// return image
 	return m_image;
 }
@@ -389,7 +389,7 @@ unsigned int * ImageSource::getImage (double ts)
 void ImageSource::refresh (void)
 {
 	// if source is available, refresh it
-	if (m_source != NULL) m_source->m_image->refresh();
+	if (m_source != nullptr) m_source->m_image->refresh();
 }
 
 
@@ -407,7 +407,7 @@ PyObject *Image_allocNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	// allocate object
 	PyImage *self = reinterpret_cast<PyImage*>(type->tp_alloc(type, 0));
 	// initialize object structure
-	self->m_image = NULL;
+	self->m_image = nullptr;
 	// return allocated object
 	return reinterpret_cast<PyObject*>(self);
 }
@@ -416,7 +416,7 @@ PyObject *Image_allocNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 void Image_dealloc(PyImage *self)
 {
 	// release object attributes
-	if (self->m_image != NULL)
+	if (self->m_image != nullptr)
 	{
 		if (self->m_image->m_exports > 0)
 		{
@@ -427,7 +427,7 @@ void Image_dealloc(PyImage *self)
 		// if release requires deleting of object, do it
 		if (self->m_image->release())
 			delete self->m_image;
-		self->m_image = NULL;
+		self->m_image = nullptr;
 	}
 }
 
@@ -442,7 +442,7 @@ PyObject *Image_getImage(PyImage *self, char *mode)
 			// build BGL buffer
 			int dimensions = self->m_image->getBuffSize();
 			Buffer * buffer;
-			if (mode == NULL || !strcasecmp(mode, "RGBA"))
+			if (mode == nullptr || !strcasecmp(mode, "RGBA"))
 			{
 				buffer = BGL_MakeBuffer( GL_BYTE, 1, &dimensions, image);
 			}
@@ -499,7 +499,7 @@ PyObject *Image_getImage(PyImage *self, char *mode)
 				// multiple by the number of channels, each is one byte
 				dimensions = pixels * ncolor;
 				// get an empty buffer
-				buffer = BGL_MakeBuffer( GL_BYTE, 1, &dimensions, NULL);
+				buffer = BGL_MakeBuffer( GL_BYTE, 1, &dimensions, nullptr);
 				// and fill it
 				for (i = 0, d = (unsigned char *)buffer->buf.asbyte, s = (unsigned char *)image;
 				     i < pixels;
@@ -525,7 +525,7 @@ PyObject *Image_getImage(PyImage *self, char *mode)
 	catch (Exception & exp)
 	{
 		exp.report();
-		return NULL;
+		return nullptr;
 	}
 	Py_RETURN_NONE;
 }
@@ -542,7 +542,7 @@ PyObject *Image_refresh (PyImage *self, PyObject *args)
 {
 	Py_buffer buffer;
 	bool done = true;
-	char *mode = NULL;
+	char *mode = nullptr;
 	double ts = -1.0;
 	unsigned int format;
 
@@ -562,7 +562,7 @@ PyObject *Image_refresh (PyImage *self, PyObject *args)
 			else {
 				// ready to get the image into our buffer
 				try {
-					if (mode == NULL || !strcmp(mode, "RGBA"))
+					if (mode == nullptr || !strcmp(mode, "RGBA"))
 						format = GL_RGBA;
 					else if (!strcmp(mode, "BGRA"))
 						format = GL_BGRA;
@@ -577,12 +577,12 @@ PyObject *Image_refresh (PyImage *self, PyObject *args)
 			}
 			PyBuffer_Release(&buffer);
 			if (PyErr_Occurred()) {
-				return NULL;
+				return nullptr;
 			}
 		}
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 
 	self->m_image->refresh();
@@ -594,7 +594,7 @@ PyObject *Image_refresh (PyImage *self, PyObject *args)
 // get scale
 PyObject *Image_getScale (PyImage *self, void *closure)
 {
-	if (self->m_image != NULL && self->m_image->getScale()) Py_RETURN_TRUE;
+	if (self->m_image != nullptr && self->m_image->getScale()) Py_RETURN_TRUE;
 	else Py_RETURN_FALSE;
 }
 
@@ -602,13 +602,13 @@ PyObject *Image_getScale (PyImage *self, void *closure)
 int Image_setScale(PyImage *self, PyObject *value, void *closure)
 {
 	// check parameter, report failure
-	if (value == NULL || !PyBool_Check(value))
+	if (value == nullptr || !PyBool_Check(value))
 	{
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
 		return -1;
 	}
 	// set scale
-	if (self->m_image != NULL) self->m_image->setScale(value == Py_True);
+	if (self->m_image != nullptr) self->m_image->setScale(value == Py_True);
 	// success
 	return 0;
 }
@@ -616,7 +616,7 @@ int Image_setScale(PyImage *self, PyObject *value, void *closure)
 // get flip
 PyObject *Image_getFlip (PyImage *self, void *closure)
 {
-	if (self->m_image != NULL && self->m_image->getFlip()) Py_RETURN_TRUE;
+	if (self->m_image != nullptr && self->m_image->getFlip()) Py_RETURN_TRUE;
 	else Py_RETURN_FALSE;
 }
 
@@ -624,13 +624,13 @@ PyObject *Image_getFlip (PyImage *self, void *closure)
 int Image_setFlip(PyImage *self, PyObject *value, void *closure)
 {
 	// check parameter, report failure
-	if (value == NULL || !PyBool_Check(value))
+	if (value == nullptr || !PyBool_Check(value))
 	{
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
 		return -1;
 	}
 	// set scale
-	if (self->m_image != NULL) self->m_image->setFlip(value == Py_True);
+	if (self->m_image != nullptr) self->m_image->setFlip(value == Py_True);
 	// success
 	return 0;
 }
@@ -638,7 +638,7 @@ int Image_setFlip(PyImage *self, PyObject *value, void *closure)
 // get zbuff
 PyObject *Image_getZbuff(PyImage *self, void *closure)
 {
-	if (self->m_image != NULL && self->m_image->getZbuff()) Py_RETURN_TRUE;
+	if (self->m_image != nullptr && self->m_image->getZbuff()) Py_RETURN_TRUE;
 	else Py_RETURN_FALSE;
 }
 
@@ -646,13 +646,13 @@ PyObject *Image_getZbuff(PyImage *self, void *closure)
 int Image_setZbuff(PyImage *self, PyObject *value, void *closure)
 {
 	// check parameter, report failure
-	if (value == NULL || !PyBool_Check(value))
+	if (value == nullptr || !PyBool_Check(value))
 	{
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
 		return -1;
 	}
 	// set scale
-	if (self->m_image != NULL) self->m_image->setZbuff(value == Py_True);
+	if (self->m_image != nullptr) self->m_image->setZbuff(value == Py_True);
 	// success
 	return 0;
 }
@@ -660,7 +660,7 @@ int Image_setZbuff(PyImage *self, PyObject *value, void *closure)
 // get depth
 PyObject *Image_getDepth(PyImage *self, void *closure)
 {
-	if (self->m_image != NULL && self->m_image->getDepth()) Py_RETURN_TRUE;
+	if (self->m_image != nullptr && self->m_image->getDepth()) Py_RETURN_TRUE;
 	else Py_RETURN_FALSE;
 }
 
@@ -668,13 +668,13 @@ PyObject *Image_getDepth(PyImage *self, void *closure)
 int Image_setDepth(PyImage *self, PyObject *value, void *closure)
 {
 	// check parameter, report failure
-	if (value == NULL || !PyBool_Check(value))
+	if (value == nullptr || !PyBool_Check(value))
 	{
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
 		return -1;
 	}
 	// set scale
-	if (self->m_image != NULL) self->m_image->setDepth(value == Py_True);
+	if (self->m_image != nullptr) self->m_image->setDepth(value == Py_True);
 	// success
 	return 0;
 }
@@ -688,13 +688,13 @@ PyObject *Image_getSource(PyImage *self, PyObject *args)
 	// get arguments
 	char *id;
 	if (!PyArg_ParseTuple(args, "s:getSource", &id))
-		return NULL;
-	if (self->m_image != NULL)
+		return nullptr;
+	if (self->m_image != nullptr)
 	{
 		// get source object
 		PyObject *src = reinterpret_cast<PyObject*>(self->m_image->getSource(id));
 		// if source is available
-		if (src != NULL)
+		if (src != nullptr)
 		{
 			// return source
 			Py_INCREF(src);
@@ -713,8 +713,8 @@ PyObject *Image_setSource(PyImage *self, PyObject *args)
 	char *id;
 	PyObject *obj;
 	if (!PyArg_ParseTuple(args, "sO:setSource", &id, &obj))
-		return NULL;
-	if (self->m_image != NULL)
+		return nullptr;
+	if (self->m_image != nullptr)
 	{
 		// check type of object
 		if (pyImageTypes.in(Py_TYPE(obj)))
@@ -726,14 +726,14 @@ PyObject *Image_setSource(PyImage *self, PyObject *args)
 			{
 				// if not set, retport error
 				PyErr_SetString(PyExc_RuntimeError, "Invalid source or id");
-				return NULL;
+				return nullptr;
 			}
 		}
 		// else report error
 		else
 		{
 			PyErr_SetString(PyExc_RuntimeError, "Invalid type of object");
-			return NULL;
+			return nullptr;
 		}
 	}
 	// return none
@@ -745,12 +745,12 @@ PyObject *Image_setSource(PyImage *self, PyObject *args)
 PyObject *Image_getFilter(PyImage *self, void *closure)
 {
 	// if image object is available
-	if (self->m_image != NULL)
+	if (self->m_image != nullptr)
 	{
 		// pixel filter object
 		PyObject *filt = reinterpret_cast<PyObject*>(self->m_image->getFilter());
 		// if filter is present
-		if (filt != NULL)
+		if (filt != nullptr)
 		{
 			// return it
 			Py_INCREF(filt);
@@ -766,10 +766,10 @@ PyObject *Image_getFilter(PyImage *self, void *closure)
 int Image_setFilter(PyImage *self, PyObject *value, void *closure)
 {
 	// if image object is available
-	if (self->m_image != NULL)
+	if (self->m_image != nullptr)
 	{
 		// check new value
-		if (value == NULL || !pyFilterTypes.in(Py_TYPE(value)))
+		if (value == nullptr || !pyFilterTypes.in(Py_TYPE(value)))
 		{
 			// report value error
 			PyErr_SetString(PyExc_TypeError, "Invalid type of value");
@@ -811,7 +811,7 @@ static int Image_getbuffer(PyImage *self, Py_buffer *view, int flags)
 		PyErr_SetString(PyExc_BufferError, "Image buffer is not available");
 		return -1;
 	}
-	if (view == NULL)
+	if (view == nullptr)
 	{
 		self->m_image->m_exports++;
 		return 0;

@@ -65,7 +65,7 @@ static std::vector<Texture *> textures;
 
 // macro for exception handling and logging
 #define CATCH_EXCP catch (Exception & exp) \
-{ exp.report(); return NULL; }
+{ exp.report(); return nullptr; }
 
 PyObject *Texture_close(Texture *self);
 
@@ -74,14 +74,14 @@ Texture::Texture()
 	m_orgTex(0),
 	m_orgImg(0),
 	m_orgSaved(false),
-	m_imgBuf(NULL),
-	m_imgTexture(NULL),
-	m_matTexture(NULL),
-	m_scene(NULL),
+	m_imgBuf(nullptr),
+	m_imgTexture(nullptr),
+	m_matTexture(nullptr),
+	m_scene(nullptr),
 	m_mipmap(false),
-	m_scaledImBuf(NULL),
+	m_scaledImBuf(nullptr),
 	m_lastClock(0.0),
-	m_source(NULL)
+	m_source(nullptr)
 {
 	textures.push_back(this);
 }
@@ -141,8 +141,8 @@ void Texture::Close()
 		else
 		{
 			m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = m_orgImg;
-			BKE_image_release_ibuf(m_imgTexture, m_imgBuf, NULL);
-			m_imgBuf = NULL;
+			BKE_image_release_ibuf(m_imgTexture, m_imgBuf, nullptr);
+			m_imgBuf = nullptr;
 		}
 		// drop actual texture
 		if (m_actTex != 0)
@@ -155,7 +155,7 @@ void Texture::Close()
 
 void Texture::SetSource(PyImage *source)
 {
-	BLI_assert(source != NULL);
+	BLI_assert(source != nullptr);
 	Py_XDECREF(m_source);
 	Py_INCREF(source);
 	m_source = source;
@@ -174,7 +174,7 @@ void loadTexture(unsigned int texId, unsigned int *texture, short *size,
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		ibuf = IMB_allocFromBuffer(texture, NULL, size[0], size[1]);
+		ibuf = IMB_allocFromBuffer(texture, nullptr, size[0], size[1]);
 
 		IMB_makemipmap(ibuf, true);
 
@@ -204,13 +204,13 @@ RAS_IPolyMaterial *getMaterial(KX_GameObject *gameObj, short matID)
 		// get material from mesh
 		RAS_MeshObject * mesh = gameObj->GetMesh(0);
 		RAS_MeshMaterial *meshMat = mesh->GetMeshMaterial(matID);
-		if (meshMat != NULL && meshMat->m_bucket != NULL)
+		if (meshMat != nullptr && meshMat->m_bucket != nullptr)
 			// return pointer to polygon or blender material
 			return meshMat->m_bucket->GetPolyMaterial();
 	}
 
 	// otherwise material was not found
-	return NULL;
+	return nullptr;
 }
 
 // get material ID
@@ -227,7 +227,7 @@ short getMaterialID(PyObject *obj, const char *name)
 
 		RAS_IPolyMaterial *mat = getMaterial(gameObj, matID);
 		// if material is not available, report that no material was found
-		if (mat == NULL) 
+		if (mat == nullptr) 
 			break;
 		// name is a material name if it starts with MA and a UV texture name if it starts with IM
 		if (name[0] == 'I' && name[1] == 'M') {
@@ -272,15 +272,15 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 	Texture *tex = (Texture *)BGE_PROXY_REF(self);
 
 	// parameters - game object with video texture
-	PyObject *obj = NULL;
+	PyObject *obj = nullptr;
 	// material ID
 	short matID = 0;
 	// texture ID
 	short texID = 0;
 	// texture object with shared texture ID
-	Texture * texObj = NULL;
+	Texture * texObj = nullptr;
 
-	static const char *kwlist[] = {"gameObj", "materialID", "textureID", "textureObj", NULL};
+	static const char *kwlist[] = {"gameObj", "materialID", "textureID", "textureObj", nullptr};
 
 	// get parameters
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|hhO!",
@@ -288,7 +288,7 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 		&texObj))
 		return -1; 
 
-	KX_GameObject *gameObj = NULL;
+	KX_GameObject *gameObj = nullptr;
 	if (ConvertPythonToGameObject(KX_GetActiveScene()->GetLogicManager(), obj, &gameObj, false, "")) {
 		// process polygon material or blender material
 		try
@@ -296,12 +296,12 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 			tex->m_scene = gameObj->GetScene();
 			// get pointer to texture image
 			RAS_IPolyMaterial *mat = getMaterial(gameObj, matID);
-			KX_LightObject *lamp = NULL;
+			KX_LightObject *lamp = nullptr;
 			if (gameObj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT) {
 				lamp = (KX_LightObject *)gameObj;
 			}
 
-			if (mat != NULL)
+			if (mat != nullptr)
 			{
 				// get blender material texture
 				tex->m_matTexture = mat->GetTexture(texID);
@@ -311,24 +311,24 @@ static int Texture_init(PyObject *self, PyObject *args, PyObject *kwds)
 				tex->m_imgTexture = tex->m_matTexture->GetImage();
 				tex->m_useMatTexture = true;
 			}
-			else if (lamp != NULL)
+			else if (lamp != nullptr)
 			{
 				tex->m_imgTexture = lamp->GetLightData()->GetTextureImage(texID);
 				tex->m_useMatTexture = false;
 			}
 
 			// check if texture is available, if not, initialization failed
-			if (tex->m_imgTexture == NULL && tex->m_matTexture == NULL)
+			if (tex->m_imgTexture == nullptr && tex->m_matTexture == nullptr)
 				// throw exception if initialization failed
 				THRWEXCP(MaterialNotAvail, S_OK);
 
 			// if texture object is provided
-			if (texObj != NULL)
+			if (texObj != nullptr)
 			{
 				// copy texture code
 				tex->m_actTex = texObj->m_actTex;
 				tex->m_mipmap = texObj->m_mipmap;
-				if (texObj->m_source != NULL)
+				if (texObj->m_source != nullptr)
 					tex->SetSource(texObj->m_source);
 			}
 			else
@@ -364,7 +364,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 	{
 		// report error
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
-		return NULL;
+		return nullptr;
 	}
 	// some trick here: we are in the business of loading a texture,
 	// no use to do it if we are still in the same rendering frame.
@@ -379,7 +379,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 		try
 		{
 			// if source is available
-			if (m_source != NULL)
+			if (m_source != nullptr)
 			{
 				// check texture code
 				if (!m_orgSaved)
@@ -399,9 +399,9 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 						// Swapping will work only if the GPU has already loaded the image.
 						// If not, it will delete and overwrite our texture on next render.
 						// To avoid that, we acquire the image buffer now.
-						// WARNING: GPU has a ImageUser to pass, we don't. Using NULL
+						// WARNING: GPU has a ImageUser to pass, we don't. Using nullptr
 						// works on image file, not necessarily on other type of image.
-						m_imgBuf = BKE_image_acquire_ibuf(m_imgTexture, NULL, NULL);
+						m_imgBuf = BKE_image_acquire_ibuf(m_imgTexture, nullptr, nullptr);
 						m_orgImg = m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D];
 						m_imgTexture->bindcode[TEXTARGET_TEXTURE_2D] = m_actTex;
 					}
@@ -410,7 +410,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 				// get texture
 				unsigned int * texture = m_source->m_image->getImage(m_actTex, ts);
 				// if texture is available
-				if (texture != NULL)
+				if (texture != nullptr)
 				{
 					// get texture size
 					short * orgSize = m_source->m_image->getSize();
@@ -430,7 +430,7 @@ KX_PYMETHODDEF_DOC(Texture, refresh, "Refresh texture from source")
 					if (size[0] != orgSize[0] || size[1] != orgSize[1])
 					{
 						IMB_freeImBuf(m_scaledImBuf);
-						m_scaledImBuf = IMB_allocFromBuffer(texture, NULL, orgSize[0], orgSize[1]);
+						m_scaledImBuf = IMB_allocFromBuffer(texture, nullptr, orgSize[0], orgSize[1]);
 						IMB_scaleImBuf(m_scaledImBuf, size[0], size[1]);
 						// use scaled image instead original
 						texture = m_scaledImBuf->rect;
@@ -474,7 +474,7 @@ int Texture::pyattr_set_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *a
 	Texture *self = (Texture *)self_v;
 
 	// check parameter, report failure
-	if (value == NULL || !PyBool_Check(value))
+	if (value == nullptr || !PyBool_Check(value))
 	{
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
 		return -1;
@@ -491,7 +491,7 @@ PyObject *Texture::pyattr_get_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_
 	Texture *self = (Texture *)self_v;
 
 	// if source exists
-	if (self->m_source != NULL)
+	if (self->m_source != nullptr)
 	{
 		Py_INCREF(self->m_source);
 		return reinterpret_cast<PyObject*>(self->m_source);
@@ -505,7 +505,7 @@ int Texture::pyattr_set_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *a
 {
 	Texture *self = (Texture *)self_v;
 	// check new value
-	if (value == NULL || !pyImageTypes.in(Py_TYPE(value)))
+	if (value == nullptr || !pyImageTypes.in(Py_TYPE(value)))
 	{
 		// report value error
 		PyErr_SetString(PyExc_TypeError, "Invalid type of value");
@@ -520,7 +520,7 @@ int Texture::pyattr_set_source(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *a
 PyMethodDef Texture::Methods[] = {
 	KX_PYMETHODTABLE(Texture, close),
 	KX_PYMETHODTABLE(Texture, refresh),
-	{NULL, NULL}  // Sentinel
+	{nullptr, nullptr}  // Sentinel
 };
 
 // class Texture attributes
@@ -535,7 +535,7 @@ PyAttributeDef Texture::Attributes[] = {
 // class Texture declaration
 PyTypeObject Texture::Type =
 {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.Texture",
 	sizeof(PyObjectPlus_Proxy),
 	0,

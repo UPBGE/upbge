@@ -66,7 +66,7 @@ RAS_IDisplayArray *RAS_IDisplayArray::ConstructArray(RAS_IDisplayArray::Primitiv
 	NEW_DISPLAY_ARRAY_COLOR(format, 7, type);
 	NEW_DISPLAY_ARRAY_COLOR(format, 8, type);
 
-	return NULL;
+	return nullptr;
 }
 #undef NEW_DISPLAY_ARRAY_UV
 #undef NEW_DISPLAY_ARRAY_COLOR

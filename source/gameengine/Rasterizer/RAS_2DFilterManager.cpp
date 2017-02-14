@@ -78,7 +78,7 @@ void RAS_2DFilterManager::RemoveFilterPass(unsigned int passIndex)
 RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 {
 	RAS_PassTo2DFilter::iterator it = m_filters.find(passIndex);
-	return (it != m_filters.end()) ? it->second : NULL;
+	return (it != m_filters.end()) ? it->second : nullptr;
 }
 
 RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
@@ -142,7 +142,7 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_IC
 
 RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
 {
-	RAS_2DFilter *result = NULL;
+	RAS_2DFilter *result = nullptr;
 	std::string shaderSource;
 	switch(filterData.filterMode) {
 		case RAS_2DFilterManager::FILTER_MOTIONBLUR:

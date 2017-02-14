@@ -188,11 +188,11 @@ void SCA_LogicManager::BeginFrame(double curtime, double fixedtime)
 		(*ie)->NextFrame(curtime, fixedtime);
 
 	for (SG_QList* obj = (SG_QList*)m_triggeredControllerSet.Remove();
-		obj != NULL;
+		obj != nullptr;
 		obj = (SG_QList*)m_triggeredControllerSet.Remove())
 	{
 		for (SCA_IController* contr = (SCA_IController*)obj->QRemove();
-			contr != NULL;
+			contr != nullptr;
 			contr = (SCA_IController*)obj->QRemove())
 		{
 			contr->Trigger(this);
@@ -314,7 +314,7 @@ void SCA_LogicManager::AddTriggeredController(SCA_IController* controller, SCA_I
 SCA_EventManager* SCA_LogicManager::FindEventManager(int eventmgrtype)
 {
 	// find an eventmanager of a certain type
-	SCA_EventManager* eventmgr = NULL;
+	SCA_EventManager* eventmgr = nullptr;
 
 	for (std::vector<SCA_EventManager*>::const_iterator i=
 	m_eventmanagers.begin();!(i==m_eventmanagers.end());i++)

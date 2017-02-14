@@ -354,7 +354,7 @@ bool KX_ObjectActuator::UnlinkObject(SCA_IObject* clientobj)
 	if (clientobj == (SCA_IObject*)m_reference)
 	{
 		// this object is being deleted, we cannot continue to use it as reference.
-		m_reference = NULL;
+		m_reference = nullptr;
 		return true;
 	}
 	return false;
@@ -387,7 +387,7 @@ bool KX_ObjectActuator::isValid(KX_ObjectActuator::KX_OBJECT_ACT_VEC_TYPE type)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_ObjectActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_ObjectActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -409,7 +409,7 @@ PyTypeObject KX_ObjectActuator::Type = {
 };
 
 PyMethodDef KX_ObjectActuator::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_ObjectActuator::Attributes[] = {
@@ -452,7 +452,7 @@ static unsigned char mathutils_kxobactu_vector_cb_index = -1; /* index for our c
 static int mathutils_obactu_generic_check(BaseMathObject *bmo)
 {
 	KX_ObjectActuator* self = static_cast<KX_ObjectActuator*>BGE_PROXY_REF(bmo->cb_user);
-	if (self == NULL)
+	if (self == nullptr)
 		return -1;
 
 	return 0;
@@ -461,7 +461,7 @@ static int mathutils_obactu_generic_check(BaseMathObject *bmo)
 static int mathutils_obactu_vector_get(BaseMathObject *bmo, int subtype)
 {
 	KX_ObjectActuator* self = static_cast<KX_ObjectActuator*>BGE_PROXY_REF(bmo->cb_user);
-	if (self == NULL)
+	if (self == nullptr)
 		return -1;
 
 	switch (subtype) {
@@ -479,7 +479,7 @@ static int mathutils_obactu_vector_get(BaseMathObject *bmo, int subtype)
 static int mathutils_obactu_vector_set(BaseMathObject *bmo, int subtype)
 {
 	KX_ObjectActuator* self = static_cast<KX_ObjectActuator*>BGE_PROXY_REF(bmo->cb_user);
-	if (self == NULL)
+	if (self == nullptr)
 		return -1;
 
 	switch (subtype) {
@@ -695,8 +695,8 @@ int KX_ObjectActuator::pyattr_set_reference(PyObjectPlus *self, const struct KX_
 	if (actuator->m_reference)
 		actuator->m_reference->UnregisterActuator(actuator);
 	
-	if (refOb==NULL) {
-		actuator->m_reference= NULL;
+	if (refOb==nullptr) {
+		actuator->m_reference= nullptr;
 	}
 	else {
 		actuator->m_reference = refOb;

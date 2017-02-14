@@ -92,12 +92,12 @@ bool CListWrapper::SetItem(int index, PyObject *item)
 
 bool CListWrapper::AllowSetItem()
 {
-	return m_setItem != NULL;
+	return m_setItem != nullptr;
 }
 
 bool CListWrapper::AllowGetItemByName()
 {
-	return m_getItemName != NULL;
+	return m_getItemName != nullptr;
 }
 
 bool CListWrapper::AllowFindValue()
@@ -122,7 +122,7 @@ PyObject *CListWrapper::py_repr()
 {
 	if (!CheckValid()) {
 		PyErr_SetString(PyExc_SystemError, "CListWrapper : repr, " BGE_PROXY_ERROR_MSG);
-		return NULL;
+		return nullptr;
 	}
 
 	PyObject *py_proxy = GetProxy();
@@ -152,7 +152,7 @@ PyObject *CListWrapper::py_get_item(PyObject *self, Py_ssize_t index)
 	// Invalid list.
 	if (!list->CheckValid()) {
 		PyErr_SetString(PyExc_SystemError, "val = CListWrapper[i], " BGE_PROXY_ERROR_MSG);
-		return NULL;
+		return nullptr;
 	}
 
 	int size = list->GetSize();
@@ -162,7 +162,7 @@ PyObject *CListWrapper::py_get_item(PyObject *self, Py_ssize_t index)
 	}
 	if (index < 0 || index >= size) {
 		PyErr_SetString(PyExc_IndexError, "CListWrapper[i]: List index out of range in CListWrapper");
-		return NULL;
+		return nullptr;
 	}
 
 	PyObject *pyobj = list->GetItem(index);
@@ -211,7 +211,7 @@ PyObject *CListWrapper::py_mapping_subscript(PyObject *self, PyObject *key)
 	// Invalid list.
 	if (!list->CheckValid()) {
 		PyErr_SetString(PyExc_SystemError, "val = CListWrapper[key], " BGE_PROXY_ERROR_MSG);
-		return NULL;
+		return nullptr;
 	}
 
 	if (PyIndex_Check(key)) {
@@ -221,7 +221,7 @@ PyObject *CListWrapper::py_mapping_subscript(PyObject *self, PyObject *key)
 	else if (PyUnicode_Check(key)) {
 		if (!list->AllowGetItemByName()) {
 			PyErr_SetString(PyExc_SystemError, "CListWrapper's item type doesn't support access by key");
-			return NULL;
+			return nullptr;
 		}
 
 		const char *name = _PyUnicode_AsString(key);
@@ -234,11 +234,11 @@ PyObject *CListWrapper::py_mapping_subscript(PyObject *self, PyObject *key)
 		}
 
 		PyErr_Format(PyExc_KeyError, "requested item \"%s\" does not exist", name);
-		return NULL;
+		return nullptr;
 	}
 
 	PyErr_Format(PyExc_KeyError, "CListWrapper[key]: '%R' key not in list", key);
-	return NULL;
+	return nullptr;
 }
 
 int CListWrapper::py_mapping_ass_subscript(PyObject *self, PyObject *key, PyObject *value)
@@ -322,15 +322,15 @@ int CListWrapper::py_contains(PyObject *self, PyObject *key)
 
 PySequenceMethods CListWrapper::py_as_sequence = {
 	py_len, // sq_length
-	NULL, // sq_concat
-	NULL, // sq_repeat
+	nullptr, // sq_concat
+	nullptr, // sq_repeat
 	py_get_item, // sq_item
-	NULL, // sq_slice
+	nullptr, // sq_slice
 	py_set_item, // sq_ass_item
-	NULL, // sq_ass_slice
+	nullptr, // sq_ass_slice
 	(objobjproc)py_contains, // sq_contains
-	(binaryfunc)NULL,  // sq_inplace_concat
-	(ssizeargfunc)NULL,  // sq_inplace_repeat
+	(binaryfunc)nullptr,  // sq_inplace_concat
+	(ssizeargfunc)nullptr,  // sq_inplace_repeat
 };
 
 PyMappingMethods CListWrapper::py_as_mapping = {
@@ -340,7 +340,7 @@ PyMappingMethods CListWrapper::py_as_mapping = {
 };
 
 PyTypeObject CListWrapper::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"CListWrapper", // tp_name
 	sizeof(PyObjectPlus_Proxy), // tp_basicsize
 	0, // tp_itemsize
@@ -356,8 +356,8 @@ PyTypeObject CListWrapper::Type = {
 	0, // tp_hash
 	0, // tp_call
 	0,
-	NULL,
-	NULL,
+	nullptr,
+	nullptr,
 	0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	0, 0, 0, 0, 0, 0, 0,
@@ -371,7 +371,7 @@ PyTypeObject CListWrapper::Type = {
 
 PyMethodDef CListWrapper::Methods[] = {
 	{"get", (PyCFunction)CListWrapper::sPyGet, METH_VARARGS},
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef CListWrapper::Attributes[] = {
@@ -387,16 +387,16 @@ PyObject *CListWrapper::PyGet(PyObject *args)
 	// Invalid list.
 	if (!CheckValid()) {
 		PyErr_SetString(PyExc_SystemError, "val = CListWrapper[i], " BGE_PROXY_ERROR_MSG);
-		return NULL;
+		return nullptr;
 	}
 
 	if (!AllowGetItemByName()) {
 		PyErr_SetString(PyExc_SystemError, "CListWrapper's item type doesn't support access by key");
-		return NULL;
+		return nullptr;
 	}
 
 	if (!PyArg_ParseTuple(args, "s|O:get", &name, &def)) {
-		return NULL;
+		return nullptr;
 	}
 
 	for (unsigned int i = 0; i < GetSize(); ++i) {

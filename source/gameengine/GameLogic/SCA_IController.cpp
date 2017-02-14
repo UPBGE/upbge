@@ -201,7 +201,7 @@ void SCA_IController::ApplyState(unsigned int state)
 /* Python api */
 
 PyTypeObject SCA_IController::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_IController",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -223,7 +223,7 @@ PyTypeObject SCA_IController::Type = {
 };
 
 PyMethodDef SCA_IController::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_IController::Attributes[] = {
@@ -259,11 +259,11 @@ PyObject *SCA_IController::pyattr_get_sensors(PyObjectPlus *self_v, const KX_PYA
 {
 	return (new CListWrapper(self_v,
 							 ((SCA_IController *)self_v)->GetProxy(),
-							 NULL,
+							 nullptr,
 							 sca_icontroller_get_sensors_size_cb,
 							 sca_icontroller_get_sensors_item_cb,
 							 sca_icontroller_get_sensors_item_name_cb,
-							 NULL))->NewProxy(true);
+							 nullptr))->NewProxy(true);
 }
 
 static int sca_icontroller_get_actuators_size_cb(void *self_v)
@@ -285,10 +285,10 @@ PyObject *SCA_IController::pyattr_get_actuators(PyObjectPlus *self_v, const KX_P
 {
 	return (new CListWrapper(self_v,
 							 ((SCA_IController *)self_v)->GetProxy(),
-							 NULL,
+							 nullptr,
 							 sca_icontroller_get_actuators_size_cb,
 							 sca_icontroller_get_actuators_item_cb,
 							 sca_icontroller_get_actuators_item_name_cb,
-							 NULL))->NewProxy(true);
+							 nullptr))->NewProxy(true);
 }
 #endif // WITH_PYTHON

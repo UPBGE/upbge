@@ -124,7 +124,7 @@ void SCA_ActuatorSensor::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_ActuatorSensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_ActuatorSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -146,7 +146,7 @@ PyTypeObject SCA_ActuatorSensor::Type = {
 };
 
 PyMethodDef SCA_ActuatorSensor::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_ActuatorSensor::Attributes[] = {

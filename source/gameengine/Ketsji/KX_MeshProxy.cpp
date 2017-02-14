@@ -53,7 +53,7 @@
 #include "EXP_ListWrapper.h"
 
 PyTypeObject KX_MeshProxy::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_MeshProxy",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -83,7 +83,7 @@ PyMethodDef KX_MeshProxy::Methods[] = {
 	{"transform", (PyCFunction) KX_MeshProxy::sPyTransform, METH_VARARGS},
 	{"transformUV", (PyCFunction) KX_MeshProxy::sPyTransformUV, METH_VARARGS},
 	{"replaceMaterial", (PyCFunction) KX_MeshProxy::sPyReplaceMaterial, METH_VARARGS},
-	{NULL, NULL} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_MeshProxy::Attributes[] = {
@@ -120,7 +120,7 @@ PyObject *KX_MeshProxy::PyGetMaterialName(PyObject *args, PyObject *kwds)
 		matname = m_meshobj->GetMaterialName(matid);
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 
 	return PyUnicode_FromStdString(matname);
@@ -135,7 +135,7 @@ PyObject *KX_MeshProxy::PyGetTextureName(PyObject *args, PyObject *kwds)
 		matname = m_meshobj->GetTextureName(matid);
 	}
 	else {
-		return NULL;
+		return nullptr;
 	}
 
 	return PyUnicode_FromStdString(matname);
@@ -147,9 +147,9 @@ PyObject *KX_MeshProxy::PyGetVertexArrayLength(PyObject *args, PyObject *kwds)
 	int length = 0;
 
 	if (!PyArg_ParseTuple(args, "i:getVertexArrayLength", &matid))
-		return NULL;
+		return nullptr;
 
-	RAS_MeshMaterial *mmat = m_meshobj->GetMeshMaterial(matid); /* can be NULL*/
+	RAS_MeshMaterial *mmat = m_meshobj->GetMeshMaterial(matid); /* can be nullptr*/
 
 	if (mmat) {
 		RAS_IDisplayArray *array = mmat->m_baseslot->GetDisplayArray();
@@ -167,12 +167,12 @@ PyObject *KX_MeshProxy::PyGetVertex(PyObject *args, PyObject *kwds)
 	int matindex;
 
 	if (!PyArg_ParseTuple(args, "ii:getVertex", &matindex, &vertexindex))
-		return NULL;
+		return nullptr;
 
 	RAS_IDisplayArray *array = m_meshobj->GetDisplayArray(matindex);
 	if (vertexindex < 0 || vertexindex >= array->GetVertexCount()) {
 		PyErr_SetString(PyExc_ValueError, "mesh.getVertex(mat_idx, vert_idx): KX_MeshProxy, could not get a vertex at the given indices");
-		return NULL;
+		return nullptr;
 	}
 
 	RAS_ITexVert *vertex = array->GetVertex(vertexindex);
@@ -183,14 +183,14 @@ PyObject *KX_MeshProxy::PyGetVertex(PyObject *args, PyObject *kwds)
 PyObject *KX_MeshProxy::PyGetPolygon(PyObject *args, PyObject *kwds)
 {
 	int polyindex = 1;
-	PyObject *polyob = NULL;
+	PyObject *polyob = nullptr;
 
 	if (!PyArg_ParseTuple(args, "i:getPolygon", &polyindex))
-		return NULL;
+		return nullptr;
 
 	if (polyindex < 0 || polyindex >= m_meshobj->NumPolygons()) {
 		PyErr_SetString(PyExc_AttributeError, "mesh.getPolygon(int): KX_MeshProxy, invalid polygon index");
-		return NULL;
+		return nullptr;
 	}
 
 	RAS_Polygon *polygon = m_meshobj->GetPolygon(polyindex);
@@ -198,7 +198,7 @@ PyObject *KX_MeshProxy::PyGetPolygon(PyObject *args, PyObject *kwds)
 		polyob = (new KX_PolyProxy(this, m_meshobj, polygon))->NewProxy(true);
 	}
 	else {
-		PyErr_SetString(PyExc_AttributeError, "mesh.getPolygon(int): KX_MeshProxy, polygon is NULL, unknown reason");
+		PyErr_SetString(PyExc_AttributeError, "mesh.getPolygon(int): KX_MeshProxy, polygon is nullptr, unknown reason");
 	}
 	return polyob;
 }
@@ -214,7 +214,7 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 	if (!PyArg_ParseTuple(args, "iO:transform", &matindex, &pymat) ||
 	    !PyMatTo(pymat, transform))
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	MT_Matrix4x4 ntransform = transform;
@@ -258,7 +258,7 @@ PyObject *KX_MeshProxy::PyTransform(PyObject *args, PyObject *kwds)
 	if (ok == false) {
 		PyErr_Format(PyExc_ValueError,
 		             "mesh.transform(...): invalid material index %d", matindex);
-		return NULL;
+		return nullptr;
 	}
 
 	Py_RETURN_NONE;
@@ -277,18 +277,18 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 	if (!PyArg_ParseTuple(args, "iO|iii:transformUV", &matindex, &pymat, &uvindex, &uvindex_from) ||
 	    !PyMatTo(pymat, transform))
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	if (uvindex < -1 || uvindex > RAS_Texture::MaxUnits) {
 		PyErr_Format(PyExc_ValueError,
 		             "mesh.transformUV(...): invalid uv_index %d", uvindex);
-		return NULL;
+		return nullptr;
 	}
 	if (uvindex_from < -1 || uvindex_from > RAS_Texture::MaxUnits) {
 		PyErr_Format(PyExc_ValueError,
 		             "mesh.transformUV(...): invalid uv_index_from %d", uvindex);
-		return NULL;
+		return nullptr;
 	}
 	if (uvindex_from == uvindex) {
 		uvindex_from = -1;
@@ -341,7 +341,7 @@ PyObject *KX_MeshProxy::PyTransformUV(PyObject *args, PyObject *kwds)
 	if (ok == false) {
 		PyErr_Format(PyExc_ValueError,
 		             "mesh.transformUV(...): invalid material index %d", matindex);
-		return NULL;
+		return nullptr;
 	}
 
 	Py_RETURN_NONE;
@@ -355,20 +355,20 @@ PyObject *KX_MeshProxy::PyReplaceMaterial(PyObject *args, PyObject *kwds)
 
 	if (!PyArg_ParseTuple(args, "hO:replaceMaterial", &matindex, &pymat) ||
 		!ConvertPythonToMaterial(pymat, &mat, false, "mesh.replaceMaterial(...): invalid material")) {
-		return NULL;
+		return nullptr;
 	}
 
 
 	RAS_MeshMaterial *meshmat = m_meshobj->GetMeshMaterial(matindex);
 	if (!meshmat) {
 		PyErr_Format(PyExc_ValueError, "Invalid material index %d", matindex);
-		return NULL;
+		return nullptr;
 	}
 
 	KX_Scene *scene = (KX_Scene *)meshmat->m_bucket->GetPolyMaterial()->GetScene();
 	if (scene != mat->GetScene()) {
 		PyErr_Format(PyExc_ValueError, "Mesh successor scene doesn't match current mesh scene");
-		return NULL;
+		return nullptr;
 	}
 
 	RAS_BucketManager *bucketmgr = scene->GetBucketManager();
@@ -436,24 +436,24 @@ PyObject *KX_MeshProxy::pyattr_get_polygons(PyObjectPlus *self_v, const KX_PYATT
 {
 	return (new CListWrapper(self_v,
 		((KX_MeshProxy *)self_v)->GetProxy(),
-		NULL,
+		nullptr,
 		kx_mesh_proxy_get_polygons_size_cb,
 		kx_mesh_proxy_get_polygons_item_cb,
-		NULL,
-		NULL))->NewProxy(true);
+		nullptr,
+		nullptr))->NewProxy(true);
 }
 
 /* a close copy of ConvertPythonToGameObject but for meshes */
 bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, RAS_MeshObject **object, bool py_none_ok, const char *error_prefix)
 {
-	if (value == NULL) {
-		PyErr_Format(PyExc_TypeError, "%s, python pointer NULL, should never happen", error_prefix);
-		*object = NULL;
+	if (value == nullptr) {
+		PyErr_Format(PyExc_TypeError, "%s, python pointer nullptr, should never happen", error_prefix);
+		*object = nullptr;
 		return false;
 	}
 
 	if (value == Py_None) {
-		*object = NULL;
+		*object = nullptr;
 
 		if (py_none_ok) {
 			return true;
@@ -480,7 +480,7 @@ bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, RAS_MeshOb
 		KX_MeshProxy *kx_mesh = static_cast<KX_MeshProxy *>BGE_PROXY_REF(value);
 
 		/* sets the error */
-		if (kx_mesh == NULL) {
+		if (kx_mesh == nullptr) {
 			PyErr_Format(PyExc_SystemError, "%s, " BGE_PROXY_ERROR_MSG, error_prefix);
 			return false;
 		}
@@ -489,7 +489,7 @@ bool ConvertPythonToMesh(SCA_LogicManager *logicmgr, PyObject *value, RAS_MeshOb
 		return true;
 	}
 
-	*object = NULL;
+	*object = nullptr;
 
 	if (py_none_ok) {
 		PyErr_Format(PyExc_TypeError, "%s, expect a KX_MeshProxy, a string or None", error_prefix);

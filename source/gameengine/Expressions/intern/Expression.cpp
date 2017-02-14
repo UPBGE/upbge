@@ -37,7 +37,7 @@ CExpression *CExpression::Release()
 {
 	if (--m_refcount < 1) {
 		delete this;
-		return NULL;
+		return nullptr;
 	}
 	return this;
 }

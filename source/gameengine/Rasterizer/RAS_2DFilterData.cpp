@@ -23,7 +23,7 @@
 #include <string>
 
 RAS_2DFilterData::RAS_2DFilterData()
-	:gameObject(NULL),
+	:gameObject(nullptr),
 	filterMode(-1),
 	filterPassIndex(-1)
 {

@@ -66,7 +66,7 @@ PyObject* SCA_PythonJoystick::py_repr(void)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_PythonJoystick::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_PythonJoystick",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -88,7 +88,7 @@ PyTypeObject SCA_PythonJoystick::Type = {
 };
 
 PyMethodDef SCA_PythonJoystick::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_PythonJoystick::Attributes[] = {
@@ -118,7 +118,7 @@ PyObject* SCA_PythonJoystick::pyattr_get_num_x(PyObjectPlus *self_v, const KX_PY
 
 	// If we got here, we have a problem...
 	PyErr_SetString(PyExc_AttributeError, "invalid attribute");
-	return NULL;
+	return nullptr;
 }
 
 PyObject* SCA_PythonJoystick::pyattr_get_active_buttons(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -145,7 +145,7 @@ PyObject* SCA_PythonJoystick::pyattr_get_active_buttons(PyObjectPlus *self_v, co
 PyObject* SCA_PythonJoystick::pyattr_get_hat_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	ShowDeprecationWarning("SCA_PythonJoystick.hatValues", "SCA_PythonJoystick.activeButtons");
-	return NULL;
+	return nullptr;
 }
 
 PyObject* SCA_PythonJoystick::pyattr_get_axis_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

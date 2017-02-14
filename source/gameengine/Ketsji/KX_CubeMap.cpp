@@ -135,7 +135,7 @@ bool KX_CubeMap::NeedUpdate()
 #ifdef WITH_PYTHON
 
 PyTypeObject KX_CubeMap::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_CubeMap",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -158,7 +158,7 @@ PyTypeObject KX_CubeMap::Type = {
 
 PyMethodDef KX_CubeMap::Methods[] = {
 	KX_PYMETHODTABLE_NOARGS(KX_CubeMap, update),
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_CubeMap::Attributes[] = {
@@ -191,7 +191,7 @@ PyObject *KX_CubeMap::pyattr_get_viewpoint_object(PyObjectPlus *self_v, const KX
 int KX_CubeMap::pyattr_set_viewpoint_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_CubeMap *self = static_cast<KX_CubeMap*>(self_v);
-	KX_GameObject *gameobj = NULL;
+	KX_GameObject *gameobj = nullptr;
 
 	SCA_LogicManager *logicmgr = KX_GetActiveScene()->GetLogicManager();
 

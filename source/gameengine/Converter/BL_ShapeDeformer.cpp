@@ -73,7 +73,7 @@ BL_ShapeDeformer::BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
 	m_useShapeDrivers(false),
 	m_lastShapeUpdate(-1)
 {
-	m_key = m_bmesh->key ? BKE_key_copy(G.main, m_bmesh->key) : NULL;
+	m_key = m_bmesh->key ? BKE_key_copy(G.main, m_bmesh->key) : nullptr;
 }
 
 /* this second constructor is needed for making a mesh deformable on the fly. */
@@ -88,14 +88,14 @@ BL_ShapeDeformer::BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
 	m_useShapeDrivers(false),
 	m_lastShapeUpdate(-1)
 {
-	m_key = m_bmesh->key ? BKE_key_copy(G.main, m_bmesh->key) : NULL;
+	m_key = m_bmesh->key ? BKE_key_copy(G.main, m_bmesh->key) : nullptr;
 }
 
 BL_ShapeDeformer::~BL_ShapeDeformer()
 {
 	if (m_key) {
 		BKE_libblock_free(G.main, m_key);
-		m_key = NULL;
+		m_key = nullptr;
 	}
 }
 
@@ -113,13 +113,13 @@ void BL_ShapeDeformer::ProcessReplica()
 	BL_SkinDeformer::ProcessReplica();
 	m_lastShapeUpdate = -1;
 
-	m_key = m_key ? BKE_key_copy(G.main, m_key) : NULL;
+	m_key = m_key ? BKE_key_copy(G.main, m_key) : nullptr;
 }
 
 bool BL_ShapeDeformer::LoadShapeDrivers(KX_GameObject *parent)
 {
 	// Only load shape drivers if we have a key
-	if (GetKey() == NULL) {
+	if (GetKey() == nullptr) {
 		m_useShapeDrivers = false;
 		return false;
 	}
@@ -157,7 +157,7 @@ bool BL_ShapeDeformer::ExecuteShapeDrivers()
 {
 	if (m_useShapeDrivers && PoseUpdated()) {
 		// We don't need an actual time, just use 0
-		BKE_animsys_evaluate_animdata(NULL, &GetKey()->id, GetKey()->adt, 0.f, ADT_RECALC_DRIVERS);
+		BKE_animsys_evaluate_animdata(nullptr, &GetKey()->id, GetKey()->adt, 0.f, ADT_RECALC_DRIVERS);
 
 		ForceUpdate();
 		m_bDynamic = true;
@@ -179,9 +179,9 @@ bool BL_ShapeDeformer::Update()
 		Object *blendobj = m_gameobj->GetBlendObject();
 
 		/* we will blend the key directly in m_transverts array: it is used by armature as the start position */
-		/* m_key can be NULL in case of Modifier deformer */
+		/* m_key can be nullptr in case of Modifier deformer */
 		if (m_key) {
-			WeightsArrayCache cache = {0, NULL};
+			WeightsArrayCache cache = {0, nullptr};
 			float **per_keyblock_weights;
 
 			/* store verts locally */
@@ -189,7 +189,7 @@ bool BL_ShapeDeformer::Update()
 
 			per_keyblock_weights = BKE_keyblock_get_per_block_weights(blendobj, m_key, &cache);
 			BKE_key_evaluate_relative(0, m_bmesh->totvert, m_bmesh->totvert, (char *)(float *)m_transverts,
-			                          m_key, NULL, per_keyblock_weights, 0); /* last arg is ignored */
+			                          m_key, nullptr, per_keyblock_weights, 0); /* last arg is ignored */
 			BKE_keyblock_free_per_block_weights(m_key, per_keyblock_weights, &cache);
 
 			m_bDynamic = true;

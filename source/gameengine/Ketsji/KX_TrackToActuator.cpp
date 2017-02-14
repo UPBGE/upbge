@@ -272,12 +272,12 @@ bool KX_TrackToActuator::UnlinkObject(SCA_IObject* clientobj)
 	if (clientobj == m_object)
 	{
 		// this object is being deleted, we cannot continue to track it.
-		m_object = NULL;
+		m_object = nullptr;
 		return true;
 	}
 	if (clientobj == m_parentobj)
 	{
-		m_parentobj = NULL;
+		m_parentobj = nullptr;
 		return true;
 	}
 	return false;
@@ -362,7 +362,7 @@ bool KX_TrackToActuator::Update(double curtime, bool frame)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_TrackToActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_TrackToActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -384,7 +384,7 @@ PyTypeObject KX_TrackToActuator::Type = {
 };
 
 PyMethodDef KX_TrackToActuator::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_TrackToActuator::Attributes[] = {
@@ -414,7 +414,7 @@ int KX_TrackToActuator::pyattr_set_object(PyObjectPlus *self, const struct KX_PY
 	if (!ConvertPythonToGameObject(actuator->GetLogicManager(), value, &gameobj, true, "actuator.object = value: KX_TrackToActuator"))
 		return PY_SET_ATTR_FAIL; // ConvertPythonToGameObject sets the error
 		
-	if (actuator->m_object != NULL)
+	if (actuator->m_object != nullptr)
 		actuator->m_object->UnregisterActuator(actuator);
 
 	actuator->m_object = (SCA_IObject*) gameobj;

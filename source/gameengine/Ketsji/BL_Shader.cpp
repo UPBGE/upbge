@@ -76,7 +76,7 @@ void BL_Shader::SetProg(bool enable)
 {
 #ifdef WITH_PYTHON
 	if (enable && PyList_GET_SIZE(m_callbacks[CALLBACKS_BIND]) > 0) {
-		RunPythonCallBackList(m_callbacks[CALLBACKS_BIND], NULL, 0, 0);
+		RunPythonCallBackList(m_callbacks[CALLBACKS_BIND], nullptr, 0, 0);
 	}
 #endif  // WITH_PYTHON
 
@@ -123,7 +123,7 @@ PyMethodDef BL_Shader::Methods[] = {
 	KX_PYMETHODTABLE(BL_Shader, setSampler),
 	KX_PYMETHODTABLE(BL_Shader, setUniformMatrix4),
 	KX_PYMETHODTABLE(BL_Shader, setUniformMatrix3),
-	{NULL, NULL} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef BL_Shader::Attributes[] = {
@@ -134,7 +134,7 @@ PyAttributeDef BL_Shader::Attributes[] = {
 };
 
 PyTypeObject BL_Shader::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"BL_Shader",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -225,7 +225,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSource, " setSource(vertexProgram, fragmentProg
 		m_use = 0;
 		Py_RETURN_NONE;
 	}
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, setSourceList, " setSourceList(sources, apply)")
@@ -239,7 +239,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSourceList, " setSourceList(sources, apply)")
 	int apply = 0;
 
 	if (!PyArg_ParseTuple(args, "O!i:setSourceList", &PyDict_Type, &pydict, &apply)) {
-		return NULL;
+		return nullptr;
 	}
 
 	bool error = false;
@@ -270,7 +270,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSourceList, " setSourceList(sources, apply)")
 			m_progs[i] = "";
 		}
 		m_use = 0;
-		return NULL;
+		return nullptr;
 	}
 
 	if (LinkProgram()) {
@@ -290,7 +290,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, delSource, "delSource( )")
 
 KX_PYMETHODDEF_DOC(BL_Shader, isValid, "isValid()")
 {
-	return PyBool_FromLong(m_shader != NULL);
+	return PyBool_FromLong(m_shader != nullptr);
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, getVertexProg, "getVertexProg( )")
@@ -311,7 +311,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, validate, "validate()")
 
 	if (!m_shader) {
 		PyErr_SetString(PyExc_TypeError, "shader.validate(): BL_Shader, invalid shader object");
-		return NULL;
+		return nullptr;
 	}
 
 	ValidateProgram();
@@ -344,7 +344,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setSampler, "setSampler(name, index)")
 		}
 		Py_RETURN_NONE;
 	}
-	return NULL;
+	return nullptr;
 }
 
 /// access functions
@@ -369,7 +369,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform1f, "setUniform1f(name, fx)")
 		}
 		Py_RETURN_NONE;
 	}
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform2f, "setUniform2f(name, fx, fy)")
@@ -393,7 +393,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform2f, "setUniform2f(name, fx, fy)")
 		}
 		Py_RETURN_NONE;
 	}
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform3f, "setUniform3f(name, fx,fy,fz) ")
@@ -417,7 +417,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform3f, "setUniform3f(name, fx,fy,fz) ")
 		}
 		Py_RETURN_NONE;
 	}
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform4f, "setUniform4f(name, fx,fy,fz, fw) ")
@@ -441,7 +441,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform4f, "setUniform4f(name, fx,fy,fz, fw) ")
 		}
 		Py_RETURN_NONE;
 	}
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
@@ -475,7 +475,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformEyef, "setUniformEyef(name)")
 		}
 		Py_RETURN_NONE;
 	}
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform1i, "setUniform1i(name, ix)")
@@ -499,7 +499,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform1i, "setUniform1i(name, ix)")
 		}
 		Py_RETURN_NONE;
 	}
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform2i, "setUniform2i(name, ix, iy)")
@@ -523,7 +523,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform2i, "setUniform2i(name, ix, iy)")
 		}
 		Py_RETURN_NONE;
 	}
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform3i, "setUniform3i(name, ix,iy,iz) ")
@@ -547,7 +547,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform3i, "setUniform3i(name, ix,iy,iz) ")
 		}
 		Py_RETURN_NONE;
 	}
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniform4i, "setUniform4i(name, ix,iy,iz, iw) ")
@@ -571,7 +571,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniform4i, "setUniform4i(name, ix,iy,iz, iw) ")
 		}
 		Py_RETURN_NONE;
 	}
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformfv, "setUniformfv(float (list2 or list3 or list4))")
@@ -581,7 +581,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformfv, "setUniformfv(float (list2 or list3 
 	}
 
 	const char *uniform = "";
-	PyObject *listPtr = NULL;
+	PyObject *listPtr = nullptr;
 	float array_data[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 	if (PyArg_ParseTuple(args, "sO:setUniformfv", &uniform, &listPtr)) {
@@ -634,14 +634,14 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformfv, "setUniformfv(float (list2 or list3 
 					{
 						PyErr_SetString(PyExc_TypeError,
 						                "shader.setUniform4i(name, ix,iy,iz, iw): BL_Shader. invalid list size");
-						return NULL;
+						return nullptr;
 						break;
 					}
 				}
 			}
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 or list3 or list4))")
@@ -651,11 +651,11 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 o
 	}
 
 	const char *uniform = "";
-	PyObject *listPtr = NULL;
+	PyObject *listPtr = nullptr;
 	int array_data[4] = {0, 0, 0, 0};
 
 	if (!PyArg_ParseTuple(args, "sO:setUniformiv", &uniform, &listPtr)) {
-		return NULL;
+		return nullptr;
 	}
 
 	int loc = GetUniformLocation(uniform);
@@ -663,12 +663,12 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 o
 	if (loc == -1) {
 		PyErr_SetString(PyExc_TypeError,
 		                "shader.setUniformiv(...): BL_Shader, first string argument is not a valid uniform value");
-		return NULL;
+		return nullptr;
 	}
 
 	if (!PySequence_Check(listPtr)) {
 		PyErr_SetString(PyExc_TypeError, "shader.setUniformiv(...): BL_Shader, second argument is not a sequence");
-		return NULL;
+		return nullptr;
 	}
 
 	unsigned int list_size = PySequence_Size(listPtr);
@@ -682,7 +682,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 o
 	if (PyErr_Occurred()) {
 		PyErr_SetString(PyExc_TypeError,
 		                "shader.setUniformiv(...): BL_Shader, one or more values in the list is not an int");
-		return NULL;
+		return nullptr;
 	}
 
 	// Sanity checks done!
@@ -725,7 +725,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformiv, "setUniformiv(uniform_name, (list2 o
 			PyErr_SetString(PyExc_TypeError,
 			                "shader.setUniformiv(...): BL_Shader, second argument, invalid list size, expected an int "
 			                "list between 2 and 4");
-			return NULL;
+			return nullptr;
 			break;
 		}
 	}
@@ -747,11 +747,11 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
 	};
 
 	const char *uniform;
-	PyObject *matrix = NULL;
+	PyObject *matrix = nullptr;
 	int transp = 0; // python use column major by default, so no transpose....
 
 	if (!PyArg_ParseTuple(args, "sO|i:setUniformMatrix4", &uniform, &matrix, &transp)) {
-		return NULL;
+		return nullptr;
 	}
 
 	int loc = GetUniformLocation(uniform);
@@ -759,7 +759,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
 	if (loc == -1) {
 		PyErr_SetString(PyExc_TypeError,
 		                "shader.setUniformMatrix4(...): BL_Shader, first string argument is not a valid uniform value");
-		return NULL;
+		return nullptr;
 	}
 
 	MT_Matrix4x4 mat;
@@ -767,7 +767,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix4,
 	if (!PyMatTo(matrix, mat)) {
 		PyErr_SetString(PyExc_TypeError,
 		                "shader.setUniformMatrix4(...): BL_Shader, second argument cannot be converted into a 4x4 matrix");
-		return NULL;
+		return nullptr;
 	}
 
 	// Sanity checks done!
@@ -795,11 +795,11 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix3,
 	};
 
 	const char *uniform;
-	PyObject *matrix = NULL;
+	PyObject *matrix = nullptr;
 	int transp = 0; // python use column major by default, so no transpose....
 
 	if (!PyArg_ParseTuple(args, "sO|i:setUniformMatrix3", &uniform, &matrix, &transp)) {
-		return NULL;
+		return nullptr;
 	}
 
 	int loc = GetUniformLocation(uniform);
@@ -807,7 +807,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix3,
 	if (loc == -1) {
 		PyErr_SetString(PyExc_TypeError,
 		                "shader.setUniformMatrix3(...): BL_Shader, first string argument is not a valid uniform value");
-		return NULL;
+		return nullptr;
 	}
 
 	MT_Matrix3x3 mat;
@@ -815,7 +815,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformMatrix3,
 	if (!PyMatTo(matrix, mat)) {
 		PyErr_SetString(PyExc_TypeError,
 		                "shader.setUniformMatrix3(...): BL_Shader, second argument cannot be converted into a 3x3 matrix");
-		return NULL;
+		return nullptr;
 	}
 
 #ifdef SORT_UNIFORMS
@@ -836,14 +836,14 @@ KX_PYMETHODDEF_DOC(BL_Shader, setAttrib, "setAttrib(enum)")
 	int attr = 0;
 
 	if (!PyArg_ParseTuple(args, "i:setAttrib", &attr)) {
-		return NULL;
+		return nullptr;
 	}
 
 	attr = SHD_TANGENT; // user input is ignored for now, there is only 1 attr
 
 	if (!m_shader) {
 		PyErr_SetString(PyExc_ValueError, "shader.setAttrib() BL_Shader, invalid shader object");
-		return NULL;
+		return nullptr;
 	}
 
 	m_attr = attr;
@@ -886,7 +886,7 @@ KX_PYMETHODDEF_DOC(BL_Shader, setUniformDef, "setUniformDef(name, enum)")
 			Py_RETURN_NONE;
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 #endif // WITH_PYTHON

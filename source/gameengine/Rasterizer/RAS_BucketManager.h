@@ -99,8 +99,8 @@ public:
 
 	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
 
-	void ReleaseDisplayLists(RAS_IPolyMaterial *material = NULL);
-	void ReleaseMaterials(RAS_IPolyMaterial *material = NULL);
+	void ReleaseDisplayLists(RAS_IPolyMaterial *material = nullptr);
+	void ReleaseMaterials(RAS_IPolyMaterial *material = nullptr);
 
 	// freeing scenes only
 	void RemoveMaterial(RAS_IPolyMaterial *mat);

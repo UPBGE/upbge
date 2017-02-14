@@ -285,7 +285,7 @@ KX_PYMETHODDEF_DOC_O(SCA_KeyboardSensor, getKeyStatus,
 
 	if (!PyLong_Check(value)) {
 		PyErr_SetString(PyExc_ValueError, "sensor.getKeyStatus(int): Keyboard Sensor, expected an int");
-		return NULL;
+		return nullptr;
 	}
 	
 	SCA_IInputDevice::SCA_EnumInputs keycode = (SCA_IInputDevice::SCA_EnumInputs)PyLong_AsLong(value);
@@ -294,7 +294,7 @@ KX_PYMETHODDEF_DOC_O(SCA_KeyboardSensor, getKeyStatus,
 	    (keycode > SCA_IInputDevice::ENDKEY))
 	{
 		PyErr_SetString(PyExc_AttributeError, "sensor.getKeyStatus(int): Keyboard Sensor, invalid keycode specified!");
-		return NULL;
+		return nullptr;
 	}
 	
 	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
@@ -308,7 +308,7 @@ KX_PYMETHODDEF_DOC_O(SCA_KeyboardSensor, getKeyStatus,
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject SCA_KeyboardSensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_KeyboardSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -331,7 +331,7 @@ PyTypeObject SCA_KeyboardSensor::Type = {
 
 PyMethodDef SCA_KeyboardSensor::Methods[] = {
 	KX_PYMETHODTABLE_O(SCA_KeyboardSensor, getKeyStatus),
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_KeyboardSensor::Attributes[] = {

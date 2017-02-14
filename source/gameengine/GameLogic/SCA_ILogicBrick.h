@@ -101,7 +101,7 @@ public:
 	// inside a longer list that contains elements of other objects. 
 	// Sorting is done only between the elements of the same object.
 	// head is the head of the combined list
-	// current points to the first element of the object in the list, NULL if none yet
+	// current points to the first element of the object in the list, nullptr if none yet
 	void			    InsertSelfActiveQList(SG_QList& head, SG_QList** current)
 	{
 		if (!*current)

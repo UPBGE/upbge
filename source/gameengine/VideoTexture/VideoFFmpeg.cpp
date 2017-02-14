@@ -61,8 +61,8 @@ const double defFrameRate = 25.0;
 
 // constructor
 VideoFFmpeg::VideoFFmpeg (HRESULT * hRslt) : VideoBase(), 
-m_codec(NULL), m_formatCtx(NULL), m_codecCtx(NULL), 
-m_frame(NULL), m_frameDeinterlaced(NULL), m_frameRGB(NULL), m_imgConvertCtx(NULL),
+m_codec(nullptr), m_formatCtx(nullptr), m_codecCtx(nullptr), 
+m_frame(nullptr), m_frameDeinterlaced(nullptr), m_frameRGB(nullptr), m_imgConvertCtx(nullptr),
 m_deinterlace(false), m_preseek(0),	m_videoStream(-1), m_baseFrameRate(25.0),
 m_lastFrame(-1),  m_eof(false), m_externTime(false), m_curPosition(-1), m_startTime(0), 
 m_captWidth(0), m_captHeight(0), m_captRate(0.f), m_isImage(false),
@@ -75,7 +75,7 @@ m_isThreaded(false), m_isStreaming(false), m_stopThread(false), m_cacheStarted(f
 	// construction is OK
 	*hRslt = S_OK;
 	BLI_listbase_clear(&m_thread);
-	pthread_mutex_init(&m_cacheMutex, NULL);
+	pthread_mutex_init(&m_cacheMutex, nullptr);
 	BLI_listbase_clear(&m_frameCacheFree);
 	BLI_listbase_clear(&m_frameCacheBase);
 	BLI_listbase_clear(&m_packetCacheFree);
@@ -103,36 +103,36 @@ bool VideoFFmpeg::release()
 	if (m_codecCtx)
 	{
 		avcodec_close(m_codecCtx);
-		m_codecCtx = NULL;
+		m_codecCtx = nullptr;
 	}
 	if (m_formatCtx)
 	{
 		avformat_close_input(&m_formatCtx);
-		m_formatCtx = NULL;
+		m_formatCtx = nullptr;
 	}
 	if (m_frame)
 	{
 		av_free(m_frame);
-		m_frame = NULL;
+		m_frame = nullptr;
 	}
 	if (m_frameDeinterlaced)
 	{
 		MEM_freeN(m_frameDeinterlaced->data[0]);
 		av_free(m_frameDeinterlaced);
-		m_frameDeinterlaced = NULL;
+		m_frameDeinterlaced = nullptr;
 	}
 	if (m_frameRGB)
 	{
 		MEM_freeN(m_frameRGB->data[0]);
 		av_free(m_frameRGB);
-		m_frameRGB = NULL;
+		m_frameRGB = nullptr;
 	}
 	if (m_imgConvertCtx)
 	{
 		sws_freeContext(m_imgConvertCtx);
-		m_imgConvertCtx = NULL;
+		m_imgConvertCtx = nullptr;
 	}
-	m_codec = NULL;
+	m_codec = nullptr;
 	m_status = SourceStopped;
 	m_lastFrame = -1;
 	return true;
@@ -174,7 +174,7 @@ void VideoFFmpeg::initParams (short width, short height, float rate, bool image)
 
 int VideoFFmpeg::openStream(const char *filename, AVInputFormat *inputFormat, AVDictionary **formatParams)
 {
-	AVFormatContext *formatCtx = NULL;
+	AVFormatContext *formatCtx = nullptr;
 	int				i, videoStream;
 	AVCodec			*codec;
 	AVCodecContext	*codecCtx;
@@ -182,7 +182,7 @@ int VideoFFmpeg::openStream(const char *filename, AVInputFormat *inputFormat, AV
 	if (avformat_open_input(&formatCtx, filename, inputFormat, formatParams)!=0)
 		return -1;
 
-	if (avformat_find_stream_info(formatCtx, NULL) < 0)
+	if (avformat_find_stream_info(formatCtx, nullptr) < 0)
 	{
 		avformat_close_input(&formatCtx);
 		return -1;
@@ -211,13 +211,13 @@ int VideoFFmpeg::openStream(const char *filename, AVInputFormat *inputFormat, AV
 
 	/* Find the decoder for the video stream */
 	codec=avcodec_find_decoder(codecCtx->codec_id);
-	if (codec==NULL) 
+	if (codec==nullptr) 
 	{
 		avformat_close_input(&formatCtx);
 		return -1;
 	}
 	codecCtx->workaround_bugs = 1;
-	if (avcodec_open2(codecCtx, codec, NULL) < 0)
+	if (avcodec_open2(codecCtx, codec, nullptr) < 0)
 	{
 		avformat_close_input(&formatCtx);
 		return -1;
@@ -265,7 +265,7 @@ int VideoFFmpeg::openStream(const char *filename, AVInputFormat *inputFormat, AV
 			m_codecCtx->height,
 			AV_PIX_FMT_RGBA,
 			SWS_FAST_BILINEAR,
-			NULL, NULL, NULL);
+			nullptr, nullptr, nullptr);
 	} else
 	{
 		// allocate buffer to store final decoded frame
@@ -279,23 +279,23 @@ int VideoFFmpeg::openStream(const char *filename, AVInputFormat *inputFormat, AV
 			m_codecCtx->height,
 			AV_PIX_FMT_RGB24,
 			SWS_FAST_BILINEAR,
-			NULL, NULL, NULL);
+			nullptr, nullptr, nullptr);
 	}
 	m_frameRGB = allocFrameRGB();
 
 	if (!m_imgConvertCtx) {
 		avcodec_close(m_codecCtx);
-		m_codecCtx = NULL;
+		m_codecCtx = nullptr;
 		avformat_close_input(&m_formatCtx);
-		m_formatCtx = NULL;
+		m_formatCtx = nullptr;
 		av_free(m_frame);
-		m_frame = NULL;
+		m_frame = nullptr;
 		MEM_freeN(m_frameDeinterlaced->data[0]);
 		av_free(m_frameDeinterlaced);
-		m_frameDeinterlaced = NULL;
+		m_frameDeinterlaced = nullptr;
 		MEM_freeN(m_frameRGB->data[0]);
 		av_free(m_frameRGB);
-		m_frameRGB = NULL;
+		m_frameRGB = nullptr;
 		return -1;
 	}
 	return 0;
@@ -317,7 +317,7 @@ void *VideoFFmpeg::cacheThread(void *data)
 {
 	VideoFFmpeg* video = (VideoFFmpeg*)data;
 	// holds the frame that is being decoded
-	CacheFrame *currentFrame = NULL;
+	CacheFrame *currentFrame = nullptr;
 	CachePacket *cachePacket;
 	bool endOfFile = false;
 	int frameFinished = 0;
@@ -334,7 +334,7 @@ void *VideoFFmpeg::cacheThread(void *data)
 		// allow a bit of cycling to get rid quickly of those frames
 		frameFinished = 0;
 		while (	   !endOfFile 
-				&& (cachePacket = (CachePacket *)video->m_packetCacheFree.first) != NULL 
+				&& (cachePacket = (CachePacket *)video->m_packetCacheFree.first) != nullptr 
 				&& frameFinished < 25)
 		{
 			// free packet => packet cache is not full yet, just read more
@@ -363,19 +363,19 @@ void *VideoFFmpeg::cacheThread(void *data)
 			}
 		}
 		// frame cache is also used by main thread, lock
-		if (currentFrame == NULL) 
+		if (currentFrame == nullptr) 
 		{
 			// no current frame being decoded, take free one
 			pthread_mutex_lock(&video->m_cacheMutex);
-			if ((currentFrame = (CacheFrame *)video->m_frameCacheFree.first) != NULL)
+			if ((currentFrame = (CacheFrame *)video->m_frameCacheFree.first) != nullptr)
 				BLI_remlink(&video->m_frameCacheFree, currentFrame);
 			pthread_mutex_unlock(&video->m_cacheMutex);
 		}
-		if (currentFrame != NULL)
+		if (currentFrame != nullptr)
 		{
 			// this frame is out of free and busy queue, we can manipulate it without locking
 			frameFinished = 0;
-			while (!frameFinished && (cachePacket = (CachePacket *)video->m_packetCacheBase.first) != NULL)
+			while (!frameFinished && (cachePacket = (CachePacket *)video->m_packetCacheBase.first) != nullptr)
 			{
 				BLI_remlink(&video->m_packetCacheBase, cachePacket);
 				// use m_frame because when caching, it is not used in main thread
@@ -417,7 +417,7 @@ void *VideoFFmpeg::cacheThread(void *data)
 						pthread_mutex_lock(&video->m_cacheMutex);
 						BLI_addtail(&video->m_frameCacheBase, currentFrame);
 						pthread_mutex_unlock(&video->m_cacheMutex);
-						currentFrame = NULL;
+						currentFrame = nullptr;
 					}
 				}
 				av_free_packet(&cachePacket->packet);
@@ -430,7 +430,7 @@ void *VideoFFmpeg::cacheThread(void *data)
 				pthread_mutex_lock(&video->m_cacheMutex);
 				BLI_addtail(&video->m_frameCacheBase, currentFrame);
 				pthread_mutex_unlock(&video->m_cacheMutex);
-				currentFrame = NULL;
+				currentFrame = nullptr;
 				// no need to stay any longer in this thread
 				break;
 			}
@@ -483,27 +483,27 @@ void VideoFFmpeg::stopCache()
 		// now delete the cache
 		CacheFrame *frame;
 		CachePacket *packet;
-		while ((frame = (CacheFrame *)m_frameCacheBase.first) != NULL)
+		while ((frame = (CacheFrame *)m_frameCacheBase.first) != nullptr)
 		{
 			BLI_remlink(&m_frameCacheBase, frame);
 			MEM_freeN(frame->frame->data[0]);
 			av_free(frame->frame);
 			delete frame;
 		}
-		while ((frame = (CacheFrame *)m_frameCacheFree.first) != NULL)
+		while ((frame = (CacheFrame *)m_frameCacheFree.first) != nullptr)
 		{
 			BLI_remlink(&m_frameCacheFree, frame);
 			MEM_freeN(frame->frame->data[0]);
 			av_free(frame->frame);
 			delete frame;
 		}
-		while ((packet = (CachePacket *)m_packetCacheBase.first) != NULL)
+		while ((packet = (CachePacket *)m_packetCacheBase.first) != nullptr)
 		{
 			BLI_remlink(&m_packetCacheBase, packet);
 			av_free_packet(&packet->packet);
 			delete packet;
 		}
-		while ((packet = (CachePacket *)m_packetCacheFree.first) != NULL)
+		while ((packet = (CachePacket *)m_packetCacheFree.first) != nullptr)
 		{
 			BLI_remlink(&m_packetCacheFree, packet);
 			delete packet;
@@ -522,7 +522,7 @@ void VideoFFmpeg::releaseFrame(AVFrame *frame)
 	// this frame MUST be the first one of the queue
 	pthread_mutex_lock(&m_cacheMutex);
 	CacheFrame *cacheFrame = (CacheFrame *)m_frameCacheBase.first;
-	assert (cacheFrame != NULL && cacheFrame->frame == frame);
+	assert (cacheFrame != nullptr && cacheFrame->frame == frame);
 	BLI_remlink(&m_frameCacheBase, cacheFrame);
 	BLI_addtail(&m_frameCacheFree, cacheFrame);
 	pthread_mutex_unlock(&m_cacheMutex);
@@ -531,7 +531,7 @@ void VideoFFmpeg::releaseFrame(AVFrame *frame)
 // open video file
 void VideoFFmpeg::openFile (char *filename)
 {
-	if (openStream(filename, NULL, NULL) != 0)
+	if (openStream(filename, nullptr, nullptr) != 0)
 		return;
 
 	if (m_codecCtx->gop_size)
@@ -591,7 +591,7 @@ void VideoFFmpeg::openCam (char *file, short camIdx)
 {
 	// open camera source
 	AVInputFormat		*inputFormat;
-	AVDictionary		*formatParams = NULL;
+	AVDictionary		*formatParams = nullptr;
 	char				filename[28], rateStr[20];
 
 #ifdef WIN32
@@ -618,7 +618,7 @@ void VideoFFmpeg::openCam (char *file, short camIdx)
 	//    v4l:pal
 	char *p;
 
-	if (file && strstr(file, "1394") != NULL) 
+	if (file && strstr(file, "1394") != nullptr) 
 	{
 		// the user specifies a driver, check if it is v4l or d41394
 		inputFormat = av_find_input_format("dv1394");
@@ -645,7 +645,7 @@ void VideoFFmpeg::openCam (char *file, short camIdx)
 		if ((p = strchr(filename, ':')) != 0)
 			*p = 0;
 	}
-	if (file && (p = strchr(file, ':')) != NULL) {
+	if (file && (p = strchr(file, ':')) != nullptr) {
 		av_dict_set(&formatParams, "standard", p+1, 0);
 	}
 #endif
@@ -816,7 +816,7 @@ void VideoFFmpeg::calcImage (unsigned int texId, double ts)
 		{
 			AVFrame* frame;
 			// get image
-			if ((frame = grabFrame(actFrame)) != NULL)
+			if ((frame = grabFrame(actFrame)) != nullptr)
 			{
 				if (!m_isFile && !m_cacheStarted) 
 				{
@@ -891,7 +891,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 			frame = (CacheFrame *)m_frameCacheBase.first;
 			pthread_mutex_unlock(&m_cacheMutex);
 			// no need to remove the frame from the queue: the cache thread does not touch the head, only the tail
-			if (frame == NULL)
+			if (frame == nullptr)
 			{
 				// no frame in cache, in case of file it is an abnormal situation
 				if (m_isFile)
@@ -900,14 +900,14 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 					stopCache();
 					break;
 				}
-				return NULL;
+				return nullptr;
 			}
 			if (frame->framePosition == -1) 
 			{
 				// this frame mark the end of the file (only used for file)
 				// leave in cache to make sure we don't miss it
 				m_eof = true;
-				return NULL;
+				return nullptr;
 			}
 			// for streaming, always return the next frame, 
 			// that's what grabFrame does in non cache mode anyway.
@@ -921,7 +921,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 			{
 				// this can happen after rewind if the seek didn't find the first frame
 				// the frame in the buffer is ahead of time, just leave it there
-				return NULL;
+				return nullptr;
 			}
 			// this frame is not useful, release it
 			pthread_mutex_lock(&m_cacheMutex);
@@ -1013,7 +1013,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 		// cache is not started but threading is possible
 		// better not read the stream => make take some time, better start caching
 		if (startCache())
-			return NULL;
+			return nullptr;
 		// Abnormal!!! could not start cache, fall back on direct read
 		m_isThreaded = false;
 	}
@@ -1098,7 +1098,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 		}
 		return m_frameRGB;
 	}
-	return NULL;
+	return nullptr;
 }
 
 
@@ -1116,7 +1116,7 @@ static int VideoFFmpeg_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	PyImage *self = reinterpret_cast<PyImage*>(pySelf);
 	// parameters - video source
 	// file name or format type for capture (only for Linux: video4linux or dv1394)
-	char * file = NULL;
+	char * file = nullptr;
 	// capture device number
 	short capt = -1;
 	// capture width, only if capt is >= 0
@@ -1126,7 +1126,7 @@ static int VideoFFmpeg_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	// capture rate, only if capt is >= 0
 	float rate = 25.f;
 
-	static const char *kwlist[] = {"file", "capture", "rate", "width", "height", NULL};
+	static const char *kwlist[] = {"file", "capture", "rate", "width", "height", nullptr};
 
 	// get parameters
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|hfhh",
@@ -1162,7 +1162,7 @@ static PyObject *VideoFFmpeg_getPreseek(PyImage *self, void *closure)
 static int VideoFFmpeg_setPreseek(PyImage *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
-	if (value == NULL || !PyLong_Check(value))
+	if (value == nullptr || !PyLong_Check(value))
 	{
 		PyErr_SetString(PyExc_TypeError, "The value must be an integer");
 		return -1;
@@ -1186,7 +1186,7 @@ static PyObject *VideoFFmpeg_getDeinterlace(PyImage *self, void *closure)
 static int VideoFFmpeg_setDeinterlace(PyImage *self, PyObject *value, void *closure)
 {
 	// check parameter, report failure
-	if (value == NULL || !PyBool_Check(value))
+	if (value == nullptr || !PyBool_Check(value))
 	{
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
 		return -1;
@@ -1204,31 +1204,31 @@ static PyMethodDef videoMethods[] =
 	{"pause", (PyCFunction)Video_pause, METH_NOARGS, "pause video"},
 	{"stop", (PyCFunction)Video_stop, METH_NOARGS, "stop video (play will replay it from start)"},
 	{"refresh", (PyCFunction)Video_refresh, METH_VARARGS, "Refresh video - get its status"},
-	{NULL}
+	{nullptr}
 };
 // attributes structure
 static PyGetSetDef videoGetSets[] =
 { // methods from VideoBase class
-	{(char*)"status", (getter)Video_getStatus, NULL, (char*)"video status", NULL},
-	{(char*)"range", (getter)Video_getRange, (setter)Video_setRange, (char*)"replay range", NULL},
-	{(char*)"repeat", (getter)Video_getRepeat, (setter)Video_setRepeat, (char*)"repeat count, -1 for infinite repeat", NULL},
-	{(char*)"framerate", (getter)Video_getFrameRate, (setter)Video_setFrameRate, (char*)"frame rate", NULL},
+	{(char*)"status", (getter)Video_getStatus, nullptr, (char*)"video status", nullptr},
+	{(char*)"range", (getter)Video_getRange, (setter)Video_setRange, (char*)"replay range", nullptr},
+	{(char*)"repeat", (getter)Video_getRepeat, (setter)Video_setRepeat, (char*)"repeat count, -1 for infinite repeat", nullptr},
+	{(char*)"framerate", (getter)Video_getFrameRate, (setter)Video_setFrameRate, (char*)"frame rate", nullptr},
 	// attributes from ImageBase class
-	{(char*)"valid", (getter)Image_valid, NULL, (char*)"bool to tell if an image is available", NULL},
-	{(char*)"image", (getter)Image_getImage, NULL, (char*)"image data", NULL},
-	{(char*)"size", (getter)Image_getSize, NULL, (char*)"image size", NULL},
-	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", NULL},
-	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", NULL},
-	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", NULL},
-	{(char*)"preseek", (getter)VideoFFmpeg_getPreseek, (setter)VideoFFmpeg_setPreseek, (char*)"nb of frames of preseek", NULL},
-	{(char*)"deinterlace", (getter)VideoFFmpeg_getDeinterlace, (setter)VideoFFmpeg_setDeinterlace, (char*)"deinterlace image", NULL},
-	{NULL}
+	{(char*)"valid", (getter)Image_valid, nullptr, (char*)"bool to tell if an image is available", nullptr},
+	{(char*)"image", (getter)Image_getImage, nullptr, (char*)"image data", nullptr},
+	{(char*)"size", (getter)Image_getSize, nullptr, (char*)"image size", nullptr},
+	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", nullptr},
+	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", nullptr},
+	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", nullptr},
+	{(char*)"preseek", (getter)VideoFFmpeg_getPreseek, (setter)VideoFFmpeg_setPreseek, (char*)"nb of frames of preseek", nullptr},
+	{(char*)"deinterlace", (getter)VideoFFmpeg_getDeinterlace, (setter)VideoFFmpeg_setDeinterlace, (char*)"deinterlace image", nullptr},
+	{nullptr}
 };
 
 // python type declaration
 PyTypeObject VideoFFmpegType =
 { 
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.VideoFFmpeg",   /*tp_name*/
 	sizeof(PyImage),          /*tp_basicsize*/
 	0,                         /*tp_itemsize*/
@@ -1274,7 +1274,7 @@ static int ImageFFmpeg_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 	PyImage *self = reinterpret_cast<PyImage*>(pySelf);
 	// parameters - video source
 	// file name or format type for capture (only for Linux: video4linux or dv1394)
-	char * file = NULL;
+	char * file = nullptr;
 
 	// get parameters
 	if (!PyArg_ParseTuple(args, "s:ImageFFmpeg", &file))
@@ -1301,10 +1301,10 @@ static int ImageFFmpeg_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 
 static PyObject *Image_reload(PyImage *self, PyObject *args)
 {
-	char * newname = NULL;
+	char * newname = nullptr;
 	if (!PyArg_ParseTuple(args, "|s:reload", &newname))
-		return NULL;
-	if (self->m_image != NULL)
+		return nullptr;
+	if (self->m_image != nullptr)
 	{
 		VideoFFmpeg* video = getFFmpeg(self);
 		// check type of object
@@ -1313,7 +1313,7 @@ static PyObject *Image_reload(PyImage *self, PyObject *args)
 		if (!newname) {
 			// if not set, retport error
 			PyErr_SetString(PyExc_RuntimeError, "No image file name given");
-			return NULL;
+			return nullptr;
 		}
 		// make sure the previous file is cleared
 		video->release();
@@ -1328,26 +1328,26 @@ static PyMethodDef imageMethods[] =
 { // methods from VideoBase class
 	{"refresh", (PyCFunction)Video_refresh, METH_VARARGS, "Refresh image, i.e. load it"},
 	{"reload", (PyCFunction)Image_reload, METH_VARARGS, "Reload image, i.e. reopen it"},
-	{NULL}
+	{nullptr}
 };
 // attributes structure
 static PyGetSetDef imageGetSets[] =
 { // methods from VideoBase class
-	{(char*)"status", (getter)Video_getStatus, NULL, (char*)"video status", NULL},
+	{(char*)"status", (getter)Video_getStatus, nullptr, (char*)"video status", nullptr},
 	// attributes from ImageBase class
-	{(char*)"valid", (getter)Image_valid, NULL, (char*)"bool to tell if an image is available", NULL},
-	{(char*)"image", (getter)Image_getImage, NULL, (char*)"image data", NULL},
-	{(char*)"size", (getter)Image_getSize, NULL, (char*)"image size", NULL},
-	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", NULL},
-	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", NULL},
-	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", NULL},
-	{NULL}
+	{(char*)"valid", (getter)Image_valid, nullptr, (char*)"bool to tell if an image is available", nullptr},
+	{(char*)"image", (getter)Image_getImage, nullptr, (char*)"image data", nullptr},
+	{(char*)"size", (getter)Image_getSize, nullptr, (char*)"image size", nullptr},
+	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", nullptr},
+	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", nullptr},
+	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", nullptr},
+	{nullptr}
 };
 
 // python type declaration
 PyTypeObject ImageFFmpegType =
 { 
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.ImageFFmpeg",   /*tp_name*/
 	sizeof(PyImage),          /*tp_basicsize*/
 	0,                         /*tp_itemsize*/

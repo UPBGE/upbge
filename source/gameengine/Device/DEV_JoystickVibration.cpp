@@ -40,7 +40,7 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
 	bool run_by_effect = false;
 	bool effects_issue = false;
 
-	if (m_private->m_haptic == NULL) {
+	if (m_private->m_haptic == nullptr) {
 		return false;
 	}
 
@@ -175,7 +175,7 @@ bool DEV_Joystick::RumblePlay(float strengthLeft, float strengthRight, unsigned 
 bool DEV_Joystick::RumbleStop()
 {
 #ifdef WITH_SDL
-	if (m_private->m_haptic == NULL) {
+	if (m_private->m_haptic == nullptr) {
 		return false;
 	}
 
@@ -210,7 +210,7 @@ bool DEV_Joystick::GetRumbleSupport()
 void DEV_Joystick::ProcessRumbleStatus()
 {
 #ifdef WITH_SDL
-	if (m_private->m_haptic == NULL) {
+	if (m_private->m_haptic == nullptr) {
 		return;
 	}
 

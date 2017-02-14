@@ -44,7 +44,7 @@
 // define python type
 PyTypeObject FilterRGB24Type =
 { 
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.FilterRGB24",   /*tp_name*/
 	sizeof(PyFilter),          /*tp_basicsize*/
 	0,                         /*tp_itemsize*/
@@ -71,9 +71,9 @@ PyTypeObject FilterRGB24Type =
 	0,		               /* tp_weaklistoffset */
 	0,		               /* tp_iter */
 	0,		               /* tp_iternext */
-	NULL,                /* tp_methods */
+	nullptr,                /* tp_methods */
 	0,                   /* tp_members */
-	NULL,             /* tp_getset */
+	nullptr,             /* tp_getset */
 	0,                         /* tp_base */
 	0,                         /* tp_dict */
 	0,                         /* tp_descr_get */
@@ -89,7 +89,7 @@ PyTypeObject FilterRGB24Type =
 // define python type
 PyTypeObject FilterRGBA32Type =
 { 
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.FilterRGBA32",   /*tp_name*/
 	sizeof(PyFilter),          /*tp_basicsize*/
 	0,                         /*tp_itemsize*/
@@ -116,9 +116,9 @@ PyTypeObject FilterRGBA32Type =
 	0,		               /* tp_weaklistoffset */
 	0,		               /* tp_iter */
 	0,		               /* tp_iternext */
-	NULL,                /* tp_methods */
+	nullptr,                /* tp_methods */
 	0,                   /* tp_members */
-	NULL,             /* tp_getset */
+	nullptr,             /* tp_getset */
 	0,                         /* tp_base */
 	0,                         /* tp_dict */
 	0,                         /* tp_descr_get */
@@ -134,7 +134,7 @@ PyTypeObject FilterRGBA32Type =
 // define python type
 PyTypeObject FilterBGR24Type =
 { 
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.FilterBGR24",   /*tp_name*/
 	sizeof(PyFilter),          /*tp_basicsize*/
 	0,                         /*tp_itemsize*/
@@ -161,9 +161,9 @@ PyTypeObject FilterBGR24Type =
 	0,		               /* tp_weaklistoffset */
 	0,		               /* tp_iter */
 	0,		               /* tp_iternext */
-	NULL,                /* tp_methods */
+	nullptr,                /* tp_methods */
 	0,                   /* tp_members */
-	NULL,             /* tp_getset */
+	nullptr,             /* tp_getset */
 	0,                         /* tp_base */
 	0,                         /* tp_dict */
 	0,                         /* tp_descr_get */

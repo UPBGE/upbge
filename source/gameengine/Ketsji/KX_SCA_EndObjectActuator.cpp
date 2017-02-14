@@ -78,7 +78,7 @@ CValue* KX_SCA_EndObjectActuator::GetReplica()
 {
 	KX_SCA_EndObjectActuator* replica = 
 		new KX_SCA_EndObjectActuator(*this);
-	if (replica == NULL) return NULL;
+	if (replica == nullptr) return nullptr;
 
 	replica->ProcessReplica();
 	return replica;
@@ -91,7 +91,7 @@ CValue* KX_SCA_EndObjectActuator::GetReplica()
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject KX_SCA_EndObjectActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_SCA_EndObjectActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -113,7 +113,7 @@ PyTypeObject KX_SCA_EndObjectActuator::Type = {
 };
 
 PyMethodDef KX_SCA_EndObjectActuator::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_SCA_EndObjectActuator::Attributes[] = {

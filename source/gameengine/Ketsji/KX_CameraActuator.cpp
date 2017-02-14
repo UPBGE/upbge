@@ -94,7 +94,7 @@ bool KX_CameraActuator::UnlinkObject(SCA_IObject* clientobj)
 	if (clientobj == m_ob)
 	{
 		// this object is being deleted, we cannot continue to track it.
-		m_ob = NULL;
+		m_ob = nullptr;
 		return true;
 	}
 	return false;
@@ -356,7 +356,7 @@ bool KX_CameraActuator::Update(double curtime, bool frame)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_CameraActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_CameraActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -378,7 +378,7 @@ PyTypeObject KX_CameraActuator::Type = {
 };
 
 PyMethodDef KX_CameraActuator::Methods[] = {
-	{NULL, NULL} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_CameraActuator::Attributes[] = {
@@ -394,7 +394,7 @@ PyAttributeDef KX_CameraActuator::Attributes[] = {
 PyObject *KX_CameraActuator::pyattr_get_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CameraActuator* self = static_cast<KX_CameraActuator*>(self_v);
-	if (self->m_ob==NULL)
+	if (self->m_ob==nullptr)
 		Py_RETURN_NONE;
 	else
 		return self->m_ob->GetProxy();

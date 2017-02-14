@@ -38,5 +38,5 @@ void SG_Controller::SetNode(SG_Node *node)
 
 void SG_Controller::ClearNode()
 {
-	m_node = NULL;
+	m_node = nullptr;
 }

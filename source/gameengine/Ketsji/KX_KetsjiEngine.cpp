@@ -113,14 +113,14 @@ bool KX_KetsjiEngine::m_doRender = true;
  * Constructor of the Ketsji Engine
  */
 KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
-	:m_canvas(NULL),
-	m_rasterizer(NULL),
+	:m_canvas(nullptr),
+	m_rasterizer(nullptr),
 	m_kxsystem(system),
-	m_sceneconverter(NULL),
+	m_sceneconverter(nullptr),
 #ifdef WITH_PYTHON
-	m_pythondictionary(NULL),
+	m_pythondictionary(nullptr),
 #endif
-	m_inputDevice(NULL),
+	m_inputDevice(nullptr),
 	m_bInitialized(false),
 	m_activecam(0),
 	m_fixedFramerate(false),
@@ -139,7 +139,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_overrideCamZoom(1.0f),
 	m_stereo(false),
 	m_curreye(0),
-	m_logger(NULL),
+	m_logger(nullptr),
 	// Set up timing info display variables
 	m_show_framerate(false),
 	m_show_profile(false),
@@ -849,8 +849,8 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 			/* render */
 			m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT | RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
-			// Send a NULL off screen because the viewport is binding it's using its own private one.
-			scene->RenderBuckets(camtrans, m_rasterizer, NULL);
+			// Send a nullptr off screen because the viewport is binding it's using its own private one.
+			scene->RenderBuckets(camtrans, m_rasterizer, nullptr);
 
 			/* unbind framebuffer object, restore drawmode, free camera */
 			raslight->UnbindShadowBuffer();
@@ -1053,7 +1053,7 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 	/* We can't deduce what camera should be passed to the python callbacks
 	 * because the post draw callbacks are per scenes and not per cameras.
 	 */
-	scene->RunDrawingCallbacks(KX_Scene::POST_DRAW, NULL);
+	scene->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
 
 	// Python draw callback can also call debug draw functions, so we have to clear debug shapes.
 	m_rasterizer->FlushDebugShapes(scene);
@@ -1096,7 +1096,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 	// if there is no activecamera, or the camera is being
 	// overridden we need to construct a temporary camera
 	if (!scene->GetActiveCamera() || override_camera) {
-		KX_Camera *activecam = NULL;
+		KX_Camera *activecam = nullptr;
 
 		activecam = new KX_Camera(scene, KX_Scene::m_callbacks, override_camera ? m_overrideCamData : RAS_CameraData());
 		activecam->SetName("__default__cam__");
@@ -1367,7 +1367,7 @@ KX_Scene *KX_KetsjiEngine::CreateScene(const std::string& scenename)
 {
 	Scene *scene = m_sceneconverter->GetBlenderSceneForName(scenename);
 	if (!scene)
-		return NULL;
+		return nullptr;
 
 	return CreateScene(scene);
 }
@@ -1423,7 +1423,7 @@ bool KX_KetsjiEngine::ReplaceScene(const std::string& oldscene, const std::strin
 	// for a game that did a replace followed by a lib load with the
 	// new scene in the lib => it won't work anymore, the lib
 	// must be loaded before doing the replace.
-	if (m_sceneconverter->GetBlenderSceneForName(newscene) != NULL) {
+	if (m_sceneconverter->GetBlenderSceneForName(newscene) != nullptr) {
 		m_replace_scenes.push_back(std::make_pair(oldscene, newscene));
 		return true;
 	}

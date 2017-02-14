@@ -165,9 +165,9 @@ bool BL_ModifierDeformer::Update(void)
 
 	if (bShapeUpdate || m_lastModifierUpdate != m_gameobj->GetLastFrame()) {
 		// static derived mesh are not updated
-		if (m_dm == NULL || m_bDynamic) {
+		if (m_dm == nullptr || m_bDynamic) {
 			// Set to true if it's the first time Update() function is called.
-			const bool initialize = (m_dm == NULL);
+			const bool initialize = (m_dm == nullptr);
 			/* execute the modifiers */
 			Object *blendobj = m_gameobj->GetBlendObject();
 			/* hack: the modifiers require that the mesh is attached to the object
@@ -178,8 +178,8 @@ bool BL_ModifierDeformer::Update(void)
 			DerivedMesh *dm = mesh_create_derived_no_virtual(m_scene, blendobj, m_transverts, CD_MASK_MESH);
 			/* restore object data */
 			blendobj->data = oldmesh;
-			/* free the current derived mesh and replace, (dm should never be NULL) */
-			if (m_dm != NULL) {
+			/* free the current derived mesh and replace, (dm should never be nullptr) */
+			if (m_dm != nullptr) {
 				// HACK! use deformedOnly as a user counter
 				if (--m_dm->deformedOnly == 0) {
 					m_dm->needsFree = 1;

@@ -74,13 +74,13 @@ public:
 		m_height(1.0f),
 		m_halfExtend(0.0f, 0.0f, 0.0f),
 		m_childScale(1.0f, 1.0f, 1.0f),
-		m_userData(NULL),
+		m_userData(nullptr),
 		m_refCount(1),
-		m_meshObject(NULL),
-		m_triangleIndexVertexArray(NULL),
+		m_meshObject(nullptr),
+		m_triangleIndexVertexArray(nullptr),
 		m_forceReInstance(false),
 		m_weldingThreshold1(0.0f),
-		m_shapeProxy(NULL)
+		m_shapeProxy(nullptr)
 	{
 		m_childTrans.setIdentity();
 	}
@@ -108,7 +108,7 @@ public:
 
 	bool IsUnused(void)
 	{
-		return (m_meshObject == NULL && m_shapeArray.size() == 0 && m_shapeProxy == NULL);
+		return (m_meshObject == nullptr && m_shapeArray.size() == 0 && m_shapeProxy == nullptr);
 	}
 
 	void AddShape(CcdShapeConstructionInfo *shapeInfo);
@@ -121,17 +121,17 @@ public:
 	CcdShapeConstructionInfo *GetChildShape(int i)
 	{
 		if (i < 0 || i >= (int)m_shapeArray.size())
-			return NULL;
+			return nullptr;
 
 		return m_shapeArray.at(i);
 	}
 	int FindChildShape(CcdShapeConstructionInfo *shapeInfo, void *userData)
 	{
-		if (shapeInfo == NULL)
+		if (shapeInfo == nullptr)
 			return -1;
 		for (int i = 0; i < (int)m_shapeArray.size(); i++) {
 			CcdShapeConstructionInfo *childInfo = m_shapeArray.at(i);
-			if ((userData == NULL || userData == childInfo->m_userData) &&
+			if ((userData == nullptr || userData == childInfo->m_userData) &&
 			    (childInfo == shapeInfo ||
 			    (childInfo->m_shapeType == PHY_SHAPE_PROXY &&
 			    childInfo->m_shapeProxy == shapeInfo)))
@@ -291,10 +291,10 @@ struct CcdConstructionInfo {
 		m_bGimpact(false),
 		m_collisionFilterGroup(DefaultFilter),
 		m_collisionFilterMask(AllFilter),
-		m_collisionShape(NULL),
-		m_MotionState(NULL),
-		m_shapeInfo(NULL),
-		m_physicsEnv(NULL),
+		m_collisionShape(nullptr),
+		m_MotionState(nullptr),
+		m_shapeInfo(nullptr),
+		m_physicsEnv(nullptr),
 		m_inertiaFactor(1.0f),
 		m_do_anisotropic(false),
 		m_anisotropicFriction(1.0f, 1.0f, 1.0f),
@@ -618,7 +618,7 @@ public:
 
 	/**
 	 * Delete the old Bullet shape and set the new Bullet shape : newShape
-	 * \param newShape The new Bullet shape to set, if is NULL we create a new Bullet shape
+	 * \param newShape The new Bullet shape to set, if is nullptr we create a new Bullet shape
 	 */
 	bool ReplaceControllerShape(btCollisionShape *newShape);
 

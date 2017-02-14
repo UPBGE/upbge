@@ -97,7 +97,7 @@ bool SCA_VibrationActuator::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_VibrationActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_VibrationActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -121,7 +121,7 @@ PyTypeObject SCA_VibrationActuator::Type = {
 PyMethodDef SCA_VibrationActuator::Methods[] = {
 	KX_PYMETHODTABLE_NOARGS(SCA_VibrationActuator, startVibration),
 	KX_PYMETHODTABLE_NOARGS(SCA_VibrationActuator, stopVibration),
-	{ NULL, NULL } //Sentinel
+	{ nullptr, nullptr } //Sentinel
 };
 
 PyAttributeDef SCA_VibrationActuator::Attributes[] = {

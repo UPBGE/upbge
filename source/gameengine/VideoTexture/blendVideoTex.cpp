@@ -59,20 +59,20 @@ extern "C"
 static PyObject *getMaterialID (PyObject *self, PyObject *args)
 {
 	// parameters - game object with video texture
-	PyObject *obj = NULL;
+	PyObject *obj = nullptr;
 	// material name
 	char * matName;
 
 	// get parameters
 	if (!PyArg_ParseTuple(args, "Os:materialID", &obj, &matName))
-		return NULL;
+		return nullptr;
 	// get material id
 	short matID = getMaterialID(obj, matName);
 	// if material was not found, report errot
 	if (matID < 0)
 	{
 		PyErr_SetString(PyExc_RuntimeError, "VideoTexture.materialID(ob, string): Object doesn't have material with given name");
-		return NULL;
+		return nullptr;
 	}
 	// return material ID
 	return Py_BuildValue("h", matID);
@@ -101,12 +101,12 @@ static PyObject *imageToArray(PyObject *self, PyObject *args)
 {
 	// parameter is Image object
 	PyObject *pyImg;
-	char *mode = NULL;
+	char *mode = nullptr;
 	if (!PyArg_ParseTuple(args, "O|s:imageToArray", &pyImg, &mode) || !pyImageTypes.in(Py_TYPE(pyImg)))
 	{
 		// if object is incorect, report error
 		PyErr_SetString(PyExc_TypeError, "VideoTexture.imageToArray(image): The value must be a image source object");
-		return NULL;
+		return nullptr;
 	}
 	// get image structure
 	PyImage * img = reinterpret_cast<PyImage*>(pyImg);
@@ -121,7 +121,7 @@ static PyMethodDef moduleMethods[] =
 	{"getLastError", getLastError, METH_NOARGS, "Gets last error description"},
 	{"setLogFile", setLogFile, METH_VARARGS, "Sets log file name"},
 	{"imageToArray", imageToArray, METH_VARARGS, "get buffer from image source, color channels are selectable"},
-	{NULL}  /* Sentinel */
+	{nullptr}  /* Sentinel */
 };
 
 #ifdef WITH_FFMPEG
@@ -196,19 +196,19 @@ PyMODINIT_FUNC initVideoTexturePythonBinding(void)
 	registerAllExceptions();
 
 	if (!pyImageTypes.ready())
-		return NULL;
+		return nullptr;
 	if (!pyFilterTypes.ready()) 
-		return NULL;
+		return nullptr;
 #ifdef WITH_GAMEENGINE_DECKLINK
 	if (PyType_Ready(&DeckLinkType) < 0)
-		return NULL;
+		return nullptr;
 #endif
 
 	m = PyModule_Create(&VideoTexture_module_def);
 	PyDict_SetItemString(PySys_GetObject("modules"), VideoTexture_module_def.m_name, m);
 
-	if (m == NULL) 
-		return NULL;
+	if (m == nullptr) 
+		return nullptr;
 
 	// initialize classes
 	pyImageTypes.reg(m);

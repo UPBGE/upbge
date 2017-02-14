@@ -59,7 +59,7 @@ SCA_PythonMouse::~SCA_PythonMouse()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_PythonMouse::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_PythonMouse",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -81,7 +81,7 @@ PyTypeObject SCA_PythonMouse::Type = {
 };
 
 PyMethodDef SCA_PythonMouse::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_PythonMouse::Attributes[] = {

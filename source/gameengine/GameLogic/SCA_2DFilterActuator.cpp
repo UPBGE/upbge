@@ -151,7 +151,7 @@ void SCA_2DFilterActuator::SetShaderText(const std::string& text)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_2DFilterActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_2DFilterActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -174,7 +174,7 @@ PyTypeObject SCA_2DFilterActuator::Type = {
 
 PyMethodDef SCA_2DFilterActuator::Methods[] = {
 	/* add python functions to deal with m_msg... */
-	{NULL,NULL}
+	{nullptr,nullptr}
 };
 
 PyAttributeDef SCA_2DFilterActuator::Attributes[] = {

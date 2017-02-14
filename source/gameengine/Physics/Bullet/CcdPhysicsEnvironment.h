@@ -96,7 +96,7 @@ protected:
 	void ProcessFhSprings(double curTime, float timeStep);
 
 public:
-	CcdPhysicsEnvironment(bool useDbvtCulling, btDispatcher *dispatcher = NULL, btOverlappingPairCache *pairCache = NULL);
+	CcdPhysicsEnvironment(bool useDbvtCulling, btDispatcher *dispatcher = nullptr, btOverlappingPairCache *pairCache = nullptr);
 
 	virtual ~CcdPhysicsEnvironment();
 
@@ -197,7 +197,7 @@ public:
 #else
 	virtual class PHY_IVehicle *GetVehicleConstraint(int constraintId)
 	{
-		return NULL;
+		return nullptr;
 	}
 #endif  /* NEW_BULLET_VEHICLE_SUPPORT */
 	    // Character physics wrapper

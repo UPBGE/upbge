@@ -19,7 +19,7 @@
 #include "EXP_EmptyValue.h"
 
 COperator1Expr::COperator1Expr()
-	:m_lhs(NULL)
+	:m_lhs(nullptr)
 {
 }
 

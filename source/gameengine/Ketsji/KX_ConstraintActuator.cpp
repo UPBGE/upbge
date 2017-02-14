@@ -141,7 +141,7 @@ bool KX_ConstraintActuator::RayHit(KX_ClientObjectInfo *client, KX_RayCast *resu
 			}
 		}
 		else {
-			bFound = m_hitObject->GetProperty(m_property) != NULL;
+			bFound = m_hitObject->GetProperty(m_property) != nullptr;
 		}
 	}
 	// update the hit status
@@ -456,7 +456,7 @@ bool KX_ConstraintActuator::Update(double curtime, bool frame)
 					// the object is not dynamic, it won't support setting speed
 					goto CHECK_TIME;
 				}
-				m_hitObject = NULL;
+				m_hitObject = nullptr;
 				// distance of Fh area is stored in m_minimum
 				MT_Vector3 topoint = position + (m_minimumBound+spc->GetRadius()) * direction;
 				KX_RayCast::Callback<KX_ConstraintActuator, void> callback(this, spc);
@@ -571,7 +571,7 @@ bool KX_ConstraintActuator::IsValidMode(KX_ConstraintActuator::KX_CONSTRAINTTYPE
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_ConstraintActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_ConstraintActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -593,7 +593,7 @@ PyTypeObject KX_ConstraintActuator::Type = {
 };
 
 PyMethodDef KX_ConstraintActuator::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_ConstraintActuator::Attributes[] = {

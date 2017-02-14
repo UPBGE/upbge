@@ -74,7 +74,7 @@ KX_StateActuator::Update()
 
 	// execution of state actuator means that we are in the execution phase, reset this pointer
 	// because all the active actuator of this object will be removed for sure.
-	m_gameobj->m_firstState = NULL;
+	m_gameobj->m_firstState = nullptr;
 	RemoveAllEvents();
 	if (bNegativeEvent) return false;
 
@@ -137,7 +137,7 @@ void KX_StateActuator::Activate(SG_DList& head)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_StateActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_StateActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -159,7 +159,7 @@ PyTypeObject KX_StateActuator::Type = {
 };
 
 PyMethodDef KX_StateActuator::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_StateActuator::Attributes[] = {

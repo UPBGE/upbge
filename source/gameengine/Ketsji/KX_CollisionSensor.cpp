@@ -60,7 +60,7 @@ void KX_CollisionSensor::SynchronizeTransform()
 void KX_CollisionSensor::EndFrame()
 {
 	m_colliders->ReleaseAndRemoveAll();
-	m_hitObject = NULL;
+	m_hitObject = nullptr;
 	m_bTriggered = false;
 	m_bColliderHash = 0;
 }
@@ -80,7 +80,7 @@ bool KX_CollisionSensor::Evaluate()
 	if (m_bTriggered != m_bLastTriggered) {
 		m_bLastTriggered = m_bTriggered;
 		if (!m_bTriggered) {
-			m_hitObject = NULL;
+			m_hitObject = nullptr;
 		}
 		result = true;
 	}
@@ -125,7 +125,7 @@ void KX_CollisionSensor::Init()
 	m_bLastTriggered = (m_invert) ? true : false;
 	m_bLastCount = 0;
 	m_bColliderHash = m_bLastColliderHash = 0;
-	m_hitObject = NULL;
+	m_hitObject = nullptr;
 	m_reset = true;
 }
 
@@ -196,7 +196,7 @@ bool KX_CollisionSensor::BroadPhaseSensorFilterCollision(void *obj1, void *obj2)
 	KX_GameObject *myparent = myobj->GetParent();
 	KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo *>(((PHY_IPhysicsController *)obj2)->GetNewClientInfo());
 	KX_ClientObjectInfo *my_client_info = static_cast<KX_ClientObjectInfo *>(m_physCtrl->GetNewClientInfo());
-	KX_GameObject *otherobj = (client_info ? client_info->m_gameobject : NULL);
+	KX_GameObject *otherobj = (client_info ? client_info->m_gameobject : nullptr);
 
 	// we can only check on persistent characteristic: m_link and m_suspended are not
 	// good candidate because they are transient. That must be handled at another level
@@ -222,7 +222,7 @@ bool KX_CollisionSensor::BroadPhaseSensorFilterCollision(void *obj1, void *obj2)
 			}
 		}
 		else {
-			found = (otherobj->GetProperty(m_touchedpropname) != NULL);
+			found = (otherobj->GetProperty(m_touchedpropname) != nullptr);
 		}
 	}
 	return found;
@@ -240,7 +240,7 @@ bool KX_CollisionSensor::NewHandleCollision(void *object1, void *object2, const 
 
 	KX_GameObject *gameobj = (client_info ?
 	                          client_info->m_gameobject :
-	                          NULL);
+	                          nullptr);
 
 	// add the same check as in SCA_ISensor::Activate(),
 	// we don't want to record collision when the sensor is not active.
@@ -264,7 +264,7 @@ bool KX_CollisionSensor::NewHandleCollision(void *object1, void *object2, const 
 				}
 			}
 			else {
-				found = (gameobj->GetProperty(m_touchedpropname) != NULL);
+				found = (gameobj->GetProperty(m_touchedpropname) != nullptr);
 			}
 		}
 		if (found) {
@@ -291,7 +291,7 @@ bool KX_CollisionSensor::NewHandleCollision(void *object1, void *object2, const 
 /* ------------------------------------------------------------------------- */
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_CollisionSensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_CollisionSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -313,7 +313,7 @@ PyTypeObject KX_CollisionSensor::Type = {
 };
 
 PyMethodDef KX_CollisionSensor::Methods[] = {
-	{NULL, NULL} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_CollisionSensor::Attributes[] = {

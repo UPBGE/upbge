@@ -87,12 +87,12 @@ static const GLenum cubeMapTargets[RAS_CubeMap::NUM_FACES] = {
 };
 
 RAS_CubeMap::RAS_CubeMap()
-	:m_gpuTex(NULL),
+	:m_gpuTex(nullptr),
 	m_useMipmap(false)
 {
 	for (unsigned short i = 0; i < NUM_FACES; ++i) {
-		m_fbos[i] = NULL;
-		m_rbs[i] = NULL;
+		m_fbos[i] = nullptr;
+		m_rbs[i] = nullptr;
 	}
 }
 
@@ -106,7 +106,7 @@ RAS_CubeMap::~RAS_CubeMap()
 	for (std::vector<RAS_Texture *>::iterator it = m_textureUsers.begin(), end = m_textureUsers.end(); it != end; ++it) {
 		RAS_Texture *texture = *it;
 		// Invalidate the cube map in each material texture users.
-		texture->SetCubeMap(NULL);
+		texture->SetCubeMap(nullptr);
 		/* Use BKE_image_free_buffers to free the bind code and also the cached frames which
 		 * freed by image_free_cached_frames.
 		 */
@@ -122,10 +122,10 @@ void RAS_CubeMap::AttachTexture()
 	for (unsigned short i = 0; i < NUM_FACES; ++i) {
 		m_fbos[i] = GPU_framebuffer_create();
 		m_rbs[i] = GPU_renderbuffer_create(GPU_texture_width(m_gpuTex), GPU_texture_height(m_gpuTex),
-										   0, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, NULL);
+										   0, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, nullptr);
 
-		GPU_framebuffer_texture_attach_target(m_fbos[i], m_gpuTex, cubeMapTargets[i], 0, NULL);
-		GPU_framebuffer_renderbuffer_attach(m_fbos[i], m_rbs[i], 0, NULL);
+		GPU_framebuffer_texture_attach_target(m_fbos[i], m_gpuTex, cubeMapTargets[i], 0, nullptr);
+		GPU_framebuffer_renderbuffer_attach(m_fbos[i], m_rbs[i], 0, nullptr);
 	}
 }
 
@@ -145,11 +145,11 @@ void RAS_CubeMap::DetachTexture()
 
 		if (m_fbos[i]) {
 			GPU_framebuffer_free(m_fbos[i]);
-			m_fbos[i] = NULL;
+			m_fbos[i] = nullptr;
 		}
 		if (m_rbs[i]) {
 			GPU_renderbuffer_free(m_rbs[i]);
-			m_rbs[i] = NULL;
+			m_rbs[i] = nullptr;
 		}
 	}
 

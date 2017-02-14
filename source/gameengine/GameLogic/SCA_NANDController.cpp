@@ -99,7 +99,7 @@ CValue* SCA_NANDController::GetReplica()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_NANDController::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_NANDController",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -121,7 +121,7 @@ PyTypeObject SCA_NANDController::Type = {
 };
 
 PyMethodDef SCA_NANDController::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_NANDController::Attributes[] = {

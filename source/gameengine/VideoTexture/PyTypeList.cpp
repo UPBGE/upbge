@@ -39,7 +39,7 @@
 PyTypeList::~PyTypeList()
 {
 	// if list exists
-	if (m_list.get() != NULL)
+	if (m_list.get() != nullptr)
 		for (PyTypeListType::iterator it = m_list->begin(); it != m_list->end(); ++it)
 			delete *it;
 }
@@ -48,7 +48,7 @@ PyTypeList::~PyTypeList()
 bool PyTypeList::in (PyTypeObject *type)
 {
 	// if list exists
-	if (m_list.get() != NULL)
+	if (m_list.get() != nullptr)
 		// iterate items in list
 		for (PyTypeListType::iterator it = m_list->begin(); it != m_list->end(); ++it)
 			// if item is found, return with success
@@ -61,7 +61,7 @@ bool PyTypeList::in (PyTypeObject *type)
 void PyTypeList::add (PyTypeObject *type, const char *name)
 {
 	// if list doesn't exist, create it
-	if (m_list.get() == NULL) 
+	if (m_list.get() == nullptr) 
 		m_list.reset(new PyTypeListType());
 	if (!in(type))
 		// add new item to list
@@ -72,7 +72,7 @@ void PyTypeList::add (PyTypeObject *type, const char *name)
 bool PyTypeList::ready (void)
 {
 	// if list exists
-	if (m_list.get() != NULL)
+	if (m_list.get() != nullptr)
 		// iterate items in list
 		for (PyTypeListType::iterator it = m_list->begin(); it != m_list->end(); ++it)
 			// if preparation failed, report it
@@ -85,7 +85,7 @@ bool PyTypeList::ready (void)
 void PyTypeList::reg(PyObject *module)
 {
 	// if list exists
-	if (m_list.get() != NULL)
+	if (m_list.get() != nullptr)
 		// iterate items in list
 		for (PyTypeListType::iterator it = m_list->begin(); it != m_list->end(); ++it)
 		{

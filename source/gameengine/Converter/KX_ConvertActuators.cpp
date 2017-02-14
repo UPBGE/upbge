@@ -143,13 +143,13 @@ void BL_ConvertActuators(const char* maggiename,
 		std::string uniquename = bact->name;
 		std::string objectname = gameobj->GetName();
 		
-		SCA_IActuator* baseact = NULL;
+		SCA_IActuator* baseact = nullptr;
 		switch (bact->type)
 		{
 		case ACT_OBJECT:
 			{
 				bObjectActuator* obact = (bObjectActuator*) bact->data;
-				KX_GameObject* obref = NULL;
+				KX_GameObject* obref = nullptr;
 				MT_Vector3 forcevec(KX_flt_trunc(obact->forceloc[0]),
 				                    KX_flt_trunc(obact->forceloc[1]),
 				                    KX_flt_trunc(obact->forceloc[2]));
@@ -337,7 +337,7 @@ void BL_ConvertActuators(const char* maggiename,
 					bSound* sound = soundact->sound;
 					bool is3d = soundact->flag & ACT_SND_3D_SOUND ? true : false;
 #ifdef WITH_AUDASPACE
-					AUD_Sound* snd_sound = NULL;
+					AUD_Sound* snd_sound = nullptr;
 #endif  // WITH_AUDASPACE
 					KX_3DSoundSettings settings;
 					settings.cone_inner_angle = RAD2DEGF(soundact->sound3D.cone_inner_angle);
@@ -391,7 +391,7 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_PROPERTY:
 			{
 				bPropertyActuator* propact = (bPropertyActuator*) bact->data;
-				SCA_IObject* destinationObj = NULL;
+				SCA_IObject* destinationObj = nullptr;
 				
 				/*
 				 * here the destinationobject is searched. problem with multiple scenes: other scenes
@@ -427,7 +427,7 @@ void BL_ConvertActuators(const char* maggiename,
 						
 						// does the 'original' for replication exists, and 
 						// is it in a non-active layer ?
-						SCA_IObject* originalval = NULL;
+						SCA_IObject* originalval = nullptr;
 						if (editobact->ob)
 						{
 							if (editobact->ob->lay & activeLayerBitInfo)
@@ -482,7 +482,7 @@ void BL_ConvertActuators(const char* maggiename,
 					break;
 				case ACT_EDOB_TRACK_TO:
 					{
-						SCA_IObject* originalval = NULL;
+						SCA_IObject* originalval = nullptr;
 						if (editobact->ob)
 							originalval = converter->FindGameObject(editobact->ob);
 							
@@ -510,7 +510,7 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_CONSTRAINT:
 			{
 				float min = 0.0, max = 0.0;
-				char *prop = NULL;
+				char *prop = nullptr;
 				KX_ConstraintActuator::KX_CONSTRAINTTYPE locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_NODEF;
 				bConstraintActuator *conact 
 					= (bConstraintActuator*) bact->data;
@@ -660,8 +660,8 @@ void BL_ConvertActuators(const char* maggiename,
 				
 				KX_SceneActuator* tmpsceneact;
 				int mode = KX_SceneActuator::KX_SCENE_NODEF;
-				KX_Camera *cam = NULL;
-				//KX_Scene* scene = NULL;
+				KX_Camera *cam = nullptr;
+				//KX_Scene* scene = nullptr;
 				switch (sceneact->type)
 				{
 				case ACT_SCENE_RESUME:
@@ -867,7 +867,7 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_VIBRATION:
 		{
 			bVibrationActuator *vib_act = (bVibrationActuator *)bact->data;
-			SCA_VibrationActuator * tmp_vib_act = NULL;
+			SCA_VibrationActuator * tmp_vib_act = nullptr;
 			short mode = SCA_VibrationActuator::KX_ACT_VIBRATION_NONE;
 
 			switch (vib_act->mode) {
@@ -896,7 +896,7 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_VISIBILITY:
 		{
 			bVisibilityActuator *vis_act = (bVisibilityActuator *) bact->data;
-			KX_VisibilityActuator * tmp_vis_act = NULL;
+			KX_VisibilityActuator * tmp_vis_act = nullptr;
 			bool v = ((vis_act->flag & ACT_VISIBILITY_INVISIBLE) != 0);
 			bool o = ((vis_act->flag & ACT_VISIBILITY_OCCLUSION) != 0);
 			bool recursive = ((vis_act->flag & ACT_VISIBILITY_RECURSIVE) != 0);
@@ -910,7 +910,7 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_STATE:
 		{
 			bStateActuator *sta_act = (bStateActuator *) bact->data;
-			KX_StateActuator * tmp_sta_act = NULL;
+			KX_StateActuator * tmp_sta_act = nullptr;
 
 			tmp_sta_act = 
 				new KX_StateActuator(gameobj, sta_act->type, sta_act->mask);
@@ -922,7 +922,7 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_2DFILTER:
 		{
 			bTwoDFilterActuator *_2dfilter = (bTwoDFilterActuator*) bact->data;
-			SCA_2DFilterActuator *tmp = NULL;
+			SCA_2DFilterActuator *tmp = nullptr;
 
 			RAS_2DFilterManager::FILTER_MODE filtermode;
 			switch (_2dfilter->type) {
@@ -1002,7 +1002,7 @@ void BL_ConvertActuators(const char* maggiename,
 				int mode = KX_ParentActuator::KX_PARENT_NODEF;
 				bool addToCompound = true;
 				bool ghost = true;
-				KX_GameObject *tmpgob = NULL;
+				KX_GameObject *tmpgob = nullptr;
 
 				switch (parAct->type) {
 					case ACT_PARENT_SET:
@@ -1013,7 +1013,7 @@ void BL_ConvertActuators(const char* maggiename,
 						break;
 					case ACT_PARENT_REMOVE:
 						mode = KX_ParentActuator::KX_PARENT_REMOVE;
-						tmpgob = NULL;
+						tmpgob = nullptr;
 						break;
 				}
 	
@@ -1047,7 +1047,7 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_STEERING:
 			{
 				bSteeringActuator *stAct = (bSteeringActuator *) bact->data;
-				KX_GameObject *navmeshob = NULL;
+				KX_GameObject *navmeshob = nullptr;
 				if (stAct->navmesh)
 				{
 					PointerRNA settings_ptr;

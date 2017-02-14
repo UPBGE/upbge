@@ -32,7 +32,7 @@
 #include "RAS_OpenGLSync.h"
 
 RAS_OpenGLSync::RAS_OpenGLSync()
-    :m_sync(NULL)
+    :m_sync(nullptr)
 {
 }
 
@@ -67,7 +67,7 @@ void RAS_OpenGLSync::Destroy()
 {
 	if (m_sync) {
 		glDeleteSync(m_sync);
-		m_sync = NULL;
+		m_sync = nullptr;
 	}
 }
 

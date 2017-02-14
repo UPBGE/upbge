@@ -41,7 +41,7 @@
 #include "EXP_FloatValue.h"
 
 SCA_TimeEventManager::SCA_TimeEventManager(SCA_LogicManager* logicmgr)
-: SCA_EventManager(NULL, TIME_EVENTMGR)
+: SCA_EventManager(nullptr, TIME_EVENTMGR)
 {
 }
 

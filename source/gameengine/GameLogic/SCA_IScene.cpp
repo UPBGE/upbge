@@ -33,7 +33,7 @@
 #include "SCA_IScene.h"
 #include "EXP_Value.h"
 
-SCA_DebugProp::SCA_DebugProp(): m_obj(NULL)
+SCA_DebugProp::SCA_DebugProp(): m_obj(nullptr)
 {
 }
 

@@ -82,20 +82,20 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 	:m_startSceneName(scene->id.name + 2), 
 	m_startScene(scene),
 	m_maggie(maggie),
-	m_kxStartScene(NULL),
+	m_kxStartScene(nullptr),
 	m_exitRequested(KX_EXIT_REQUEST_NO_REQUEST),
 	m_globalSettings(gs),
 	m_system(system),
-	m_ketsjiEngine(NULL),
-	m_kxsystem(NULL), 
-	m_inputDevice(NULL),
-	m_eventConsumer(NULL),
-	m_canvas(NULL),
-	m_rasterizer(NULL), 
-	m_sceneConverter(NULL),
+	m_ketsjiEngine(nullptr),
+	m_kxsystem(nullptr), 
+	m_inputDevice(nullptr),
+	m_eventConsumer(nullptr),
+	m_canvas(nullptr),
+	m_rasterizer(nullptr), 
+	m_sceneConverter(nullptr),
 #ifdef WITH_PYTHON
-	m_globalDict(NULL),
-	m_gameLogic(NULL),
+	m_globalDict(nullptr),
+	m_gameLogic(nullptr),
 #endif  // WITH_PYTHON
 	m_samples(samples),
 	m_stereoMode(stereoMode),
@@ -309,7 +309,7 @@ void LA_Launcher::InitEngine()
 void LA_Launcher::ExitEngine()
 {
 #ifdef WITH_PYTHON
-	Texture::FreeAllTextures(NULL);
+	Texture::FreeAllTextures(nullptr);
 #endif  // WITH_PYTHON
 
 	DEV_Joystick::Close();
@@ -345,19 +345,19 @@ void LA_Launcher::ExitEngine()
 
 	if (m_sceneConverter) {
 		delete m_sceneConverter;
-		m_sceneConverter = NULL;
+		m_sceneConverter = nullptr;
 	}
 	if (m_ketsjiEngine) {
 		delete m_ketsjiEngine;
-		m_ketsjiEngine = NULL;
+		m_ketsjiEngine = nullptr;
 	}
 	if (m_kxsystem) {
 		delete m_kxsystem;
-		m_kxsystem = NULL;
+		m_kxsystem = nullptr;
 	}
 	if (m_inputDevice) {
 		delete m_inputDevice;
-		m_inputDevice = NULL;
+		m_inputDevice = nullptr;
 	}
 	if (m_eventConsumer) {
 		m_system->removeEventConsumer(m_eventConsumer);
@@ -365,15 +365,15 @@ void LA_Launcher::ExitEngine()
 	}
 	if (m_rasterizer) {
 		delete m_rasterizer;
-		m_rasterizer = NULL;
+		m_rasterizer = nullptr;
 	}
 	if (m_canvas) {
 		delete m_canvas;
-		m_canvas = NULL;
+		m_canvas = nullptr;
 	}
 	if (m_networkMessageManager) {
 		delete m_networkMessageManager;
-		m_networkMessageManager = NULL;
+		m_networkMessageManager = nullptr;
 	}
 
 	// Call this after we're sure nothing needs Python anymore (e.g., destructors).
@@ -532,8 +532,8 @@ void LA_Launcher::EngineMainLoop()
 		CM_Debug("Exit Python script '" << pythonFileName << "'");
 	}
 	else {
-		pynextframestate.state = NULL;
-		pynextframestate.func = NULL;
+		pynextframestate.state = nullptr;
+		pynextframestate.func = nullptr;
 #endif  // WITH_PYTHON
 
 		bool run = true;

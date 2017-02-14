@@ -68,8 +68,8 @@ KX_SoundActuator::KX_SoundActuator(SCA_IObject* gameobj,
 								   : SCA_IActuator(gameobj, KX_ACT_SOUND)
 {
 #ifdef WITH_AUDASPACE
-	m_sound = sound ? AUD_Sound_copy(sound) : NULL;
-	m_handle = NULL;
+	m_sound = sound ? AUD_Sound_copy(sound) : nullptr;
+	m_handle = nullptr;
 #endif  // WITH_AUDASPACE
 	m_volume = volume;
 	m_pitch = pitch;
@@ -99,7 +99,7 @@ void KX_SoundActuator::play()
 #ifdef WITH_AUDASPACE
 	if (m_handle) {
 		AUD_Handle_stop(m_handle);
-		m_handle = NULL;
+		m_handle = nullptr;
 	}
 
 	if (!m_sound)
@@ -134,7 +134,7 @@ void KX_SoundActuator::play()
 	if(sound != m_sound)
 		AUD_Sound_free(sound);
 
-	if (m_handle != NULL) {
+	if (m_handle != nullptr) {
 		if (m_is3d) {
 			AUD_Handle_setRelative(m_handle, true);
 			AUD_Handle_setVolumeMaximum(m_handle, m_3d.max_gain);
@@ -168,7 +168,7 @@ void KX_SoundActuator::ProcessReplica()
 {
 	SCA_IActuator::ProcessReplica();
 #ifdef WITH_AUDASPACE
-	m_handle = NULL;
+	m_handle = nullptr;
 	m_sound = AUD_Sound_copy(m_sound);
 #endif  // WITH_AUDASPACE
 }
@@ -209,7 +209,7 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 					if (m_handle)
 					{
 						AUD_Handle_stop(m_handle);
-						m_handle = NULL;
+						m_handle = nullptr;
 					}
 					break;
 				}
@@ -299,7 +299,7 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_SoundActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_SoundActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -324,7 +324,7 @@ PyMethodDef KX_SoundActuator::Methods[] = {
 	KX_PYMETHODTABLE_NOARGS(KX_SoundActuator, startSound),
 	KX_PYMETHODTABLE_NOARGS(KX_SoundActuator, pauseSound),
 	KX_PYMETHODTABLE_NOARGS(KX_SoundActuator, stopSound),
-	{NULL, NULL} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_SoundActuator::Attributes[] = {
@@ -386,7 +386,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, stopSound,
 	if (m_handle)
 	{
 		AUD_Handle_stop(m_handle);
-		m_handle = NULL;
+		m_handle = nullptr;
 	}
 #endif  // WITH_AUDASPACE
 
@@ -609,7 +609,7 @@ int KX_SoundActuator::pyattr_set_pitch(PyObjectPlus *self, const struct KX_PYATT
 
 int KX_SoundActuator::pyattr_set_sound(PyObjectPlus *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	PyObject *sound = NULL;
+	PyObject *sound = nullptr;
 	if (!PyArg_Parse(value, "O", &sound))
 		return PY_SET_ATTR_FAIL;
 

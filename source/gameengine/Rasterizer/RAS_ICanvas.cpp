@@ -66,7 +66,7 @@ RAS_ICanvas::RAS_ICanvas(RAS_IRasterizer *rasty)
 	m_hdrType(RAS_IRasterizer::RAS_HDR_NONE)
 {
 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
-	m_taskpool = BLI_task_pool_create(m_taskscheduler, NULL);
+	m_taskpool = BLI_task_pool_create(m_taskscheduler, nullptr);
 	m_rasterizer = rasty;
 }
 
@@ -75,12 +75,12 @@ RAS_ICanvas::~RAS_ICanvas()
 	if (m_taskpool) {
 		BLI_task_pool_work_and_wait(m_taskpool);
 		BLI_task_pool_free(m_taskpool);
-		m_taskpool = NULL;
+		m_taskpool = nullptr;
 	}
 
 	if (m_taskscheduler) {
 		BLI_task_scheduler_free(m_taskscheduler);
-		m_taskscheduler = NULL;
+		m_taskscheduler = nullptr;
 	}
 }
 
@@ -114,7 +114,7 @@ void save_screenshot_thread_func(TaskPool *__restrict UNUSED(pool), void *taskda
 
 	BKE_imbuf_write_as(ibuf, task->path, task->im_format, false);
 
-	ibuf->rect = NULL;
+	ibuf->rect = nullptr;
 	IMB_freeImBuf(ibuf);
 	// Dumprect is allocated in RAS_OpenGLRasterizer::MakeScreenShot with malloc(), we must use free() then.
 	free(task->dumprect);

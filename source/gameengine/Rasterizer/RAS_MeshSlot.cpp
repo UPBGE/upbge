@@ -48,14 +48,14 @@
 
 // mesh slot
 RAS_MeshSlot::RAS_MeshSlot()
-	:m_displayArray(NULL),
+	:m_displayArray(nullptr),
 	m_node(this, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr),
-	m_bucket(NULL),
-	m_displayArrayBucket(NULL),
-	m_mesh(NULL),
-	m_pDeformer(NULL),
-	m_pDerivedMesh(NULL),
-	m_meshUser(NULL),
+	m_bucket(nullptr),
+	m_displayArrayBucket(nullptr),
+	m_mesh(nullptr),
+	m_pDeformer(nullptr),
+	m_pDerivedMesh(nullptr),
+	m_meshUser(nullptr),
 	m_batchPartIndex(-1)
 {
 }
@@ -74,9 +74,9 @@ RAS_MeshSlot::~RAS_MeshSlot()
 
 RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 {
-	m_pDeformer = NULL;
-	m_pDerivedMesh = NULL;
-	m_meshUser = NULL;
+	m_pDeformer = nullptr;
+	m_pDerivedMesh = nullptr;
+	m_meshUser = nullptr;
 	m_batchPartIndex = -1;
 	m_mesh = slot.m_mesh;
 	m_meshMaterial = slot.m_meshMaterial;
@@ -117,7 +117,7 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 		if (deformer->ShareVertexArray()) {
 			// this deformer uses the base vertex array, first release the current ones
 			m_displayArrayBucket->Release();
-			m_displayArrayBucket = NULL;
+			m_displayArrayBucket = nullptr;
 			// then hook to the base ones
 			if (m_meshMaterial && m_meshMaterial->m_baseslot) {
 				m_displayArrayBucket = m_meshMaterial->m_baseslot->m_displayArrayBucket->AddRef();
@@ -139,12 +139,12 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 			else {
 				// the deformer is not using vertex array (Modifier), release them
 				m_displayArrayBucket->Release();
-				m_displayArrayBucket = m_bucket->FindDisplayArrayBucket(NULL, m_mesh);
+				m_displayArrayBucket = m_bucket->FindDisplayArrayBucket(nullptr, m_mesh);
 				if (m_displayArrayBucket) {
 					m_displayArrayBucket->AddRef();
 				}
 				else {
-					m_displayArrayBucket = new RAS_DisplayArrayBucket(m_bucket, NULL, m_mesh, m_meshMaterial);
+					m_displayArrayBucket = new RAS_DisplayArrayBucket(m_bucket, nullptr, m_mesh, m_meshMaterial);
 				}
 			}
 		}
@@ -156,7 +156,7 @@ void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 			m_displayArray = m_displayArrayBucket->GetDisplayArray();
 		}
 		else {
-			m_displayArray = NULL;
+			m_displayArray = nullptr;
 		}
 	}
 	m_pDeformer = deformer;

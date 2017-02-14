@@ -61,12 +61,12 @@ public:
 	/// get capture size in viewport
 	short * getCaptureSize (void) { return m_capSize; }
 	/// set capture size in viewport
-	void setCaptureSize (short size[2] = NULL);
+	void setCaptureSize (short size[2] = nullptr);
 
 	/// get position in viewport
 	GLint * getPosition (void) { return m_position; }
 	/// set position in viewport
-	void setPosition (GLint pos[2] = NULL);
+	void setPosition (GLint pos[2] = nullptr);
 
 	/// capture image from viewport to user buffer
 	virtual bool loadImage(unsigned int *buffer, unsigned int size, unsigned int format, double ts);

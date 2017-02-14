@@ -52,7 +52,7 @@ private:
 		T *m_current;
 public:
 		typedef iterator<T> _myT;
-		iterator(SG_QList& head, SG_QList *current = NULL)
+		iterator(SG_QList& head, SG_QList *current = nullptr)
 			:m_head(head)
 		{
 			m_current = (T *)current;
@@ -88,7 +88,7 @@ public:
 		}
 		_myT& operator--()
 		{
-			// no check on NULL! make sure you don't try to increment beyond end
+			// no check on nullptr! make sure you don't try to increment beyond end
 			m_current = (T *)m_current->QBack();
 			return *this;
 		}
@@ -136,7 +136,7 @@ public:
 	SG_QList *QRemove()           // Remove from the front
 	{
 		if (QEmpty()) {
-			return NULL;
+			return nullptr;
 		}
 		SG_QList *item = m_fqlink;
 		m_fqlink = item->m_fqlink;

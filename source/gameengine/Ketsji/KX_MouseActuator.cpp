@@ -352,7 +352,7 @@ void KX_MouseActuator::setMousePosition(float fx, float fy)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_MouseActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_MouseActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -375,7 +375,7 @@ PyTypeObject KX_MouseActuator::Type = {
 
 PyMethodDef KX_MouseActuator::Methods[] = {
 	{"reset", (PyCFunction) KX_MouseActuator::sPyReset, METH_NOARGS,"reset() : undo rotation caused by actuator\n"},
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 

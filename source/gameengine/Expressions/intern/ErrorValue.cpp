@@ -77,5 +77,5 @@ CValue *CErrorValue::GetReplica()
 	// Who would want a copy of an error ?
 	BLI_assert(false && "ErrorValue::GetReplica() not implemented yet");
 
-	return NULL;
+	return nullptr;
 }

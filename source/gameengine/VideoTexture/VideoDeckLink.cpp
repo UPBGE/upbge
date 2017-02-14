@@ -97,7 +97,7 @@ struct SyncInfo
 
 		// Setup DVP sync object and import it
 		DVPSyncObjectDesc syncObjectDesc;
-		syncObjectDesc.externalClientWaitFunc = NULL;
+		syncObjectDesc.externalClientWaitFunc = nullptr;
 		syncObjectDesc.sem = (uint32_t*)mSem;
 
 		DVP_CHECK(dvpImportSyncObject(&syncObjectDesc, &mDvpSync));
@@ -127,13 +127,13 @@ public:
 	{
 		DVPSysmemBufferDesc sysMemBuffersDesc;
 
-		mExtSync = NULL;
-		mGpuSync = NULL;
+		mExtSync = nullptr;
+		mGpuSync = nullptr;
 		mDvpSysMemHandle = 0;
 		mDvpTextureHandle = 0;
 		mTextureHeight = 0;
 		mAllocatedSize = 0;
-		mBuffer = NULL;
+		mBuffer = nullptr;
 
 		if (!_PinBuffer(address, allocatedSize))
 			THRWEXCP(VideoDeckLinkPinMemoryError, S_OK);
@@ -267,7 +267,7 @@ public:
 		glGenBuffers(1, &mUnpinnedTextureBuffer);
 		// create a storage for it
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, mUnpinnedTextureBuffer);
-		glBufferData(GL_PIXEL_UNPACK_BUFFER, pDesc->size, NULL, GL_DYNAMIC_DRAW);
+		glBufferData(GL_PIXEL_UNPACK_BUFFER, pDesc->size, nullptr, GL_DYNAMIC_DRAW);
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 	}
 	~TextureTransferOGL()
@@ -280,8 +280,8 @@ public:
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, mUnpinnedTextureBuffer);
 		glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, mDesc.size, mBuffer);
 		glBindTexture(GL_TEXTURE_2D, mTexId);
-		// NULL for last arg indicates use current GL_PIXEL_UNPACK_BUFFER target as texture data
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mDesc.width, mDesc.height, mDesc.format, mDesc.type, NULL);
+		// nullptr for last arg indicates use current GL_PIXEL_UNPACK_BUFFER target as texture data
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mDesc.width, mDesc.height, mDesc.format, mDesc.type, nullptr);
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 	}
 private:
@@ -329,8 +329,8 @@ public:
 	{
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, mPinnedTextureBuffer);
 		glBindTexture(GL_TEXTURE_2D, mTexId);
-		// NULL for last arg indicates use current GL_PIXEL_UNPACK_BUFFER target as texture data
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mDesc.width, mDesc.height, mDesc.format, mDesc.type, NULL);
+		// nullptr for last arg indicates use current GL_PIXEL_UNPACK_BUFFER target as texture data
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, mDesc.width, mDesc.height, mDesc.format, mDesc.type, nullptr);
 		// wait for the trasnfer to complete
 		GLsync fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 		glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 40 * 1000 * 1000);	// timeout in nanosec
@@ -424,14 +424,14 @@ mDvpCaptureTextureHandle(0),
 mTexId(0),
 mBufferCacheSize(cacheSize)
 {
-	pthread_mutex_init(&mMutex, NULL);
+	pthread_mutex_init(&mMutex, nullptr);
 	// do it once
 	if (!mGPUDirectInitialized) {
 #ifdef WIN32
 		// In windows, AMD_pinned_memory option is not available, 
 		// we must use special DVP API only available for Quadro cards
 		const char* renderer = (const char *)glGetString(GL_RENDERER);
-		mHasDvp = (strstr(renderer, "Quadro") != NULL);
+		mHasDvp = (strstr(renderer, "Quadro") != nullptr);
 
 		if (mHasDvp) {
 			// In case the DLL is not in place, don't fail, just fallback on OpenGL
@@ -475,7 +475,7 @@ PinnedMemoryAllocator::~PinnedMemoryAllocator()
 void PinnedMemoryAllocator::TransferBuffer(void* address, TextureDesc* texDesc, GLuint texId)
 {
 	uint32_t allocatedSize = 0;
-	TextureTransfer *pTransfer = NULL;
+	TextureTransfer *pTransfer = nullptr;
 
 	Lock();
 	if (mAllocatedSize.count(address) > 0)
@@ -492,7 +492,7 @@ void PinnedMemoryAllocator::TransferBuffer(void* address, TextureDesc* texDesc, 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-		glTexImage2D(GL_TEXTURE_2D, 0, texDesc->internalFormat, texDesc->width, texDesc->height, 0, texDesc->format, texDesc->type, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, texDesc->internalFormat, texDesc->width, texDesc->height, 0, texDesc->format, texDesc->type, nullptr);
 		glBindTexture(GL_TEXTURE_2D, 0);
 		mTexId = texId;
 	}
@@ -566,13 +566,13 @@ HRESULT STDMETHODCALLTYPE	PinnedMemoryAllocator::AllocateBuffer(dl_size_t buffer
 		// Note: the DeckLink API tries to allocate up to 65 buffer in advance, we will limit this to 3
 		//       because we don't need any caching
 		if (mAllocatedSize.size() >= mBufferCacheSize)
-			*allocatedBuffer = NULL;
+			*allocatedBuffer = nullptr;
 		else {
 #ifdef WIN32
-			*allocatedBuffer = VirtualAlloc(NULL, bufferSize, MEM_COMMIT | MEM_RESERVE | MEM_WRITE_WATCH, PAGE_READWRITE);
+			*allocatedBuffer = VirtualAlloc(nullptr, bufferSize, MEM_COMMIT | MEM_RESERVE | MEM_WRITE_WATCH, PAGE_READWRITE);
 #else
 			if (posix_memalign(allocatedBuffer, 4096, bufferSize) != 0)
-				*allocatedBuffer = NULL;
+				*allocatedBuffer = nullptr;
 #endif
 			mAllocatedSize[*allocatedBuffer] = bufferSize;
 		}
@@ -656,7 +656,7 @@ CaptureDelegate::CaptureDelegate(VideoDeckLink* pOwner) : mpOwner(pOwner)
 HRESULT	CaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame* inputFrame, IDeckLinkAudioInputPacket* /*audioPacket*/)
 {
 	if (!inputFrame) {
-		// It's possible to receive a NULL inputFrame, but a valid audioPacket. Ignore audio-only frame.
+		// It's possible to receive a nullptr inputFrame, but a valid audioPacket. Ignore audio-only frame.
 		return S_OK;
 	}
 	if ((inputFrame->GetFlags() & bmdFrameHasNoInputSource) == bmdFrameHasNoInputSource) {
@@ -684,18 +684,18 @@ HRESULT	CaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChangedEvent
 
 // constructor
 VideoDeckLink::VideoDeckLink (HRESULT * hRslt) : VideoBase(),
-mDLInput(NULL),
+mDLInput(nullptr),
 mUse3D(false),
 mFrameWidth(0),
 mFrameHeight(0),
-mpAllocator(NULL),
-mpCaptureDelegate(NULL),
-mpCacheFrame(NULL),
+mpAllocator(nullptr),
+mpCaptureDelegate(nullptr),
+mpCacheFrame(nullptr),
 mClosing(false)
 {
 	mDisplayMode = (BMDDisplayMode)0;
 	mPixelFormat = (BMDPixelFormat)0;
-	pthread_mutex_init(&mCacheMutex, NULL);
+	pthread_mutex_init(&mCacheMutex, nullptr);
 }
 
 // destructor
@@ -706,35 +706,35 @@ VideoDeckLink::~VideoDeckLink ()
 	if (mpCacheFrame)
 	{
 		mpCacheFrame->Release();
-		mpCacheFrame = NULL;
+		mpCacheFrame = nullptr;
 	}
 	UnlockCache();
-	if (mDLInput != NULL)
+	if (mDLInput != nullptr)
 	{
 		// Cleanup for Capture
 		mDLInput->StopStreams();
-		mDLInput->SetCallback(NULL);
+		mDLInput->SetCallback(nullptr);
 		mDLInput->DisableVideoInput();
 		mDLInput->DisableAudioInput();
 		mDLInput->FlushStreams();
 		if (mDLInput->Release() != 0) {
-			printf("Reference count not NULL on DeckLink device when closing it, please report!\n");
+			printf("Reference count not nullptr on DeckLink device when closing it, please report!\n");
 		}
-		mDLInput = NULL;
+		mDLInput = nullptr;
 	}
 	
 	if (mpAllocator)
 	{
 		// if the device was properly cleared, this should be 0
 		if (mpAllocator->Release() != 0) {
-			printf("Reference count not NULL on Allocator when closing it, please report!\n");
+			printf("Reference count not nullptr on Allocator when closing it, please report!\n");
 		}
-		mpAllocator = NULL;
+		mpAllocator = nullptr;
 	}
 	if (mpCaptureDelegate)
 	{
 		delete mpCaptureDelegate;
-		mpCaptureDelegate = NULL;
+		mpCaptureDelegate = nullptr;
 	}
 }
 
@@ -786,15 +786,15 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 	// "HD1080p24/10BitRGB/3D"  (same as "24ps/r210/3D")
 	// (this will be the normal capture format for FullHD on the DeckLink 4k extreme)
 
-	if ((pSize = strchr(format, ':')) != NULL) {
+	if ((pSize = strchr(format, ':')) != nullptr) {
 		cacheSize = strtol(pSize+1, &pEnd, 10);
 	}
 	else {
 		cacheSize = 8;
 		pSize = format + strlen(format);
 	}
-	if ((pPixel = strchr(format, '/')) == NULL ||
-		((p3D = strchr(pPixel + 1, '/')) != NULL && strncmp(p3D, "/3D", pSize-p3D)))
+	if ((pPixel = strchr(format, '/')) == nullptr ||
+		((p3D = strchr(pPixel + 1, '/')) != nullptr && strncmp(p3D, "/3D", pSize-p3D)))
 		THRWEXCP(VideoDeckLinkBadFormat, S_OK);
 	mUse3D = (p3D) ? true : false;
 	// to simplify pixel format parsing
@@ -833,7 +833,7 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 		while (pIterator->Next(&pDL) == S_OK) {
 			if (i == camIdx) {
 				if (pDL->QueryInterface(IID_IDeckLinkInput, (void**)&mDLInput) != S_OK)
-					mDLInput = NULL;
+					mDLInput = nullptr;
 				pDL->Release();
 				break;
 			}
@@ -850,7 +850,7 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 	if (mDLInput->GetDisplayModeIterator(&pDLDisplayModeIterator) != S_OK)
 		THRWEXCP(DeckLinkInternalError, S_OK);
 
-	pDLDisplayMode = NULL;
+	pDLDisplayMode = nullptr;
 	displayFlags = (mUse3D) ? bmdDisplayModeSupports3D : 0;
 	inputFlags = (mUse3D) ? bmdVideoInputDualStream3D : bmdVideoInputFlagDefault;
 	while (pDLDisplayModeIterator->Next(&pDLDisplayMode) == S_OK)
@@ -859,14 +859,14 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 			// in case we get here because of modeIdx, make sure we have mDisplayMode set
 			mDisplayMode = pDLDisplayMode->GetDisplayMode();
 			if ((pDLDisplayMode->GetFlags() & displayFlags) == displayFlags &&
-			    mDLInput->DoesSupportVideoMode(mDisplayMode, mPixelFormat, inputFlags, &modeSupport, NULL) == S_OK &&
+			    mDLInput->DoesSupportVideoMode(mDisplayMode, mPixelFormat, inputFlags, &modeSupport, nullptr) == S_OK &&
 			    modeSupport == bmdDisplayModeSupported)
 			{
 				break;
 			}
 		}
 		pDLDisplayMode->Release();
-		pDLDisplayMode = NULL;
+		pDLDisplayMode = nullptr;
 		if (modeIdx-- == 0) {
 			// reached the correct mode index but it does not meet the pixel format, give up
 			break;
@@ -874,7 +874,7 @@ void VideoDeckLink::openCam (char *format, short camIdx)
 	}
 	pDLDisplayModeIterator->Release();
 
-	if (pDLDisplayMode == NULL)
+	if (pDLDisplayMode == nullptr)
 		THRWEXCP(VideoDeckLinkBadFormat, S_OK);
 
 	mFrameWidth = pDLDisplayMode->GetWidth();
@@ -1041,7 +1041,7 @@ void VideoDeckLink::calcImage (unsigned int texId, double ts)
 	IDeckLinkVideoInputFrame* pFrame;
 	LockCache();
 	pFrame = mpCacheFrame;
-	mpCacheFrame = NULL;
+	mpCacheFrame = nullptr;
 	UnlockCache();
 	if (pFrame) {
 		// BUG: the dvpBindToGLCtx function fails the first time it is used, don't know why.
@@ -1051,8 +1051,8 @@ void VideoDeckLink::calcImage (unsigned int texId, double ts)
 		try {
 			uint32_t rowSize = pFrame->GetRowBytes();
 			uint32_t textureSize = rowSize * pFrame->GetHeight();
-			void* videoPixels = NULL;
-			void* rightEyePixels = NULL;
+			void* videoPixels = nullptr;
+			void* rightEyePixels = nullptr;
 			if (!mTextureDesc.stride) {
 				// we could not compute the texture size earlier (unknown pixel size)
 				// let's do it now
@@ -1066,8 +1066,8 @@ void VideoDeckLink::calcImage (unsigned int texId, double ts)
 			else {
 				pFrame->GetBytes(&videoPixels);
 				if (mUse3D) {
-					IDeckLinkVideoFrame3DExtensions *if3DExtensions = NULL;
-					IDeckLinkVideoFrame *rightEyeFrame = NULL;
+					IDeckLinkVideoFrame3DExtensions *if3DExtensions = nullptr;
+					IDeckLinkVideoFrame *rightEyeFrame = nullptr;
 					if (pFrame->QueryInterface(IID_IDeckLinkVideoFrame3DExtensions, (void **)&if3DExtensions) == S_OK &&
 						if3DExtensions->GetFrameForRightEye(&rightEyeFrame) == S_OK) {
 						rightEyeFrame->GetBytes(&rightEyePixels);
@@ -1101,7 +1101,7 @@ void VideoDeckLink::calcImage (unsigned int texId, double ts)
 // Called from an internal thread, just pass the frame to the main thread
 void VideoDeckLink::VideoFrameArrived(IDeckLinkVideoInputFrame* inputFrame)
 {
-	IDeckLinkVideoInputFrame* pOldFrame = NULL;
+	IDeckLinkVideoInputFrame* pOldFrame = nullptr;
 	LockCache();
 	if (!mClosing)
 	{
@@ -1120,10 +1120,10 @@ void VideoDeckLink::VideoFrameArrived(IDeckLinkVideoInputFrame* inputFrame)
 // object initialization
 static int VideoDeckLink_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 {
-	static const char *kwlist[] = { "format", "capture", NULL };
+	static const char *kwlist[] = { "format", "capture", nullptr };
 	PyImage *self = reinterpret_cast<PyImage*>(pySelf);
 	// see openCam for a description of format
-	char * format = NULL;
+	char * format = nullptr;
 	// capture device number, i.e. DeckLink card number, default first one
 	short capt = 0;
 
@@ -1158,27 +1158,27 @@ static PyMethodDef videoMethods[] =
 	{"pause", (PyCFunction)Video_pause, METH_NOARGS, "pause video"},
 	{"stop", (PyCFunction)Video_stop, METH_NOARGS, "stop video (play will replay it from start)"},
 	{"refresh", (PyCFunction)Video_refresh, METH_VARARGS, "Refresh video - get its status"},
-	{NULL}
+	{nullptr}
 };
 // attributes structure
 static PyGetSetDef videoGetSets[] =
 { // methods from VideoBase class
-	{(char*)"status", (getter)Video_getStatus, NULL, (char*)"video status", NULL},
-	{(char*)"framerate", (getter)Video_getFrameRate, NULL, (char*)"frame rate", NULL},
+	{(char*)"status", (getter)Video_getStatus, nullptr, (char*)"video status", nullptr},
+	{(char*)"framerate", (getter)Video_getFrameRate, nullptr, (char*)"frame rate", nullptr},
 	// attributes from ImageBase class
-	{(char*)"valid", (getter)Image_valid, NULL, (char*)"bool to tell if an image is available", NULL},
-	{(char*)"image", (getter)Image_getImage, NULL, (char*)"image data", NULL},
-	{(char*)"size", (getter)Image_getSize, NULL, (char*)"image size", NULL},
-	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", NULL},
-	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", NULL},
-	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", NULL},
-	{NULL}
+	{(char*)"valid", (getter)Image_valid, nullptr, (char*)"bool to tell if an image is available", nullptr},
+	{(char*)"image", (getter)Image_getImage, nullptr, (char*)"image data", nullptr},
+	{(char*)"size", (getter)Image_getSize, nullptr, (char*)"image size", nullptr},
+	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", nullptr},
+	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", nullptr},
+	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", nullptr},
+	{nullptr}
 };
 
 // python type declaration
 PyTypeObject VideoDeckLinkType =
 { 
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"VideoTexture.VideoDeckLink",   /*tp_name*/
 	sizeof(PyImage),          /*tp_basicsize*/
 	0,                         /*tp_itemsize*/

@@ -68,9 +68,9 @@ public:
 
 	bool Ok() const
 	{
-		return (m_GPUMat != NULL);
+		return (m_GPUMat != nullptr);
 	}
-	void SetProg(bool enable, double time = 0.0, RAS_IRasterizer *rasty = NULL);
+	void SetProg(bool enable, double time = 0.0, RAS_IRasterizer *rasty = nullptr);
 
 	int GetAttribNum() const;
 	void SetAttribs(RAS_IRasterizer *ras);

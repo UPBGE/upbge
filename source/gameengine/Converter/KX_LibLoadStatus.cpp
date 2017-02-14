@@ -34,14 +34,14 @@ KX_LibLoadStatus::KX_LibLoadStatus(class KX_BlenderSceneConverter* kx_converter,
 			m_converter(kx_converter),
 			m_engine(kx_engine),
 			m_mergescene(merge_scene),
-			m_data(NULL),
+			m_data(nullptr),
 			m_libname(path),
 			m_progress(0.0f),
 			m_finished(false)
 #ifdef WITH_PYTHON
 			,
-			m_finish_cb(NULL),
-			m_progress_cb(NULL)
+			m_finish_cb(nullptr),
+			m_progress_cb(nullptr)
 #endif
 {
 	m_endtime = m_starttime = PIL_check_seconds_timer();
@@ -63,7 +63,7 @@ void KX_LibLoadStatus::RunFinishCallback()
 	if (m_finish_cb) {
 		PyObject* args = Py_BuildValue("(O)", GetProxy());
 
-		if (!PyObject_Call(m_finish_cb, args, NULL)) {
+		if (!PyObject_Call(m_finish_cb, args, nullptr)) {
 			PyErr_Print();
 			PyErr_Clear();
 		}
@@ -82,7 +82,7 @@ void KX_LibLoadStatus::RunProgressCallback()
 		//PyGILState_STATE gstate = PyGILState_Ensure();
 		PyObject* args = Py_BuildValue("(O)", GetProxy());
 
-		if (!PyObject_Call(m_progress_cb, args, NULL)) {
+		if (!PyObject_Call(m_progress_cb, args, nullptr)) {
 			PyErr_Print();
 			PyErr_Clear();
 		}
@@ -150,7 +150,7 @@ void KX_LibLoadStatus::AddProgress(float progress)
 
 PyMethodDef KX_LibLoadStatus::Methods[] = 
 {
-	{NULL, NULL} //Sentinel
+	{nullptr, nullptr} //Sentinel
 };
 
 PyAttributeDef KX_LibLoadStatus::Attributes[] = {
@@ -164,7 +164,7 @@ PyAttributeDef KX_LibLoadStatus::Attributes[] = {
 };
 
 PyTypeObject KX_LibLoadStatus::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_LibLoadStatus",
 	sizeof(PyObjectPlus_Proxy),
 	0,

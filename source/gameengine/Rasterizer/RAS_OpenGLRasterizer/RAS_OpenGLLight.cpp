@@ -270,13 +270,13 @@ Image *RAS_OpenGLLight::GetTextureImage(short texslot)
 
 	if (texslot >= MAX_MTEX || texslot < 0) {
 		printf("KX_LightObject::GetTextureImage(): texslot exceeds slot bounds (0-%d)\n", MAX_MTEX - 1);
-		return NULL;
+		return nullptr;
 	}
 
 	if (la->mtex[texslot])
 		return la->mtex[texslot]->tex->ima;
 
-	return NULL;
+	return nullptr;
 }
 
 void RAS_OpenGLLight::Update()
@@ -284,7 +284,7 @@ void RAS_OpenGLLight::Update()
 	GPULamp *lamp;
 	KX_LightObject *kxlight = (KX_LightObject *)m_light;
 
-	if ((lamp = GetGPULamp()) != NULL && kxlight->GetSGNode()) {
+	if ((lamp = GetGPULamp()) != nullptr && kxlight->GetSGNode()) {
 		float obmat[4][4];
 		// lights don't get their openGL matrix updated, do it now
 		if (kxlight->GetSGNode()->IsDirty())

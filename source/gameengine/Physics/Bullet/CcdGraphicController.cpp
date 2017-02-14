@@ -27,8 +27,8 @@ CcdGraphicController::CcdGraphicController(CcdPhysicsEnvironment *phyEnv, PHY_IM
 	m_localAabbMax(0.0f, 0.0f, 0.0f),
 	m_motionState(motionState),
 	m_phyEnv(phyEnv),
-	m_handle(NULL),
-	m_newClientInfo(NULL)
+	m_handle(nullptr),
+	m_newClientInfo(nullptr)
 {
 }
 
@@ -104,7 +104,7 @@ bool CcdGraphicController::SetGraphicTransform()
 	btVector3 aabbMax;
 	GetAabb(aabbMin, aabbMax);
 	// update Aabb in broadphase
-	m_phyEnv->GetCullingTree()->setAabb(m_handle, aabbMin, aabbMax, NULL);
+	m_phyEnv->GetCullingTree()->setAabb(m_handle, aabbMin, aabbMax, nullptr);
 	return true;
 }
 
@@ -112,8 +112,8 @@ PHY_IGraphicController *CcdGraphicController::GetReplica(class PHY_IMotionState 
 {
 	CcdGraphicController *replica = new CcdGraphicController(*this);
 	replica->m_motionState = motionState;
-	replica->m_newClientInfo = NULL;
-	replica->m_handle = NULL;
+	replica->m_newClientInfo = nullptr;
+	replica->m_handle = nullptr;
 	// don't add the graphic controller now: work around a bug in Bullet with rescaling,
 	// (the scale of the controller is not yet defined).
 	//m_phyEnv->addCcdGraphicController(replica);

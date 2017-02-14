@@ -46,21 +46,21 @@
 #include "CM_Message.h"
 
 // initialize static member variables
-SCA_PythonController* SCA_PythonController::m_sCurrentController = NULL;
+SCA_PythonController* SCA_PythonController::m_sCurrentController = nullptr;
 
 
 SCA_PythonController::SCA_PythonController(SCA_IObject* gameobj, int mode)
 	: SCA_IController(gameobj),
 #ifdef WITH_PYTHON
-	m_bytecode(NULL),
-	m_function(NULL),
+	m_bytecode(nullptr),
+	m_function(nullptr),
 #endif
 	m_function_argc(0),
 	m_bModified(true),
 	m_debug(false),
 	m_mode(mode)
 #ifdef WITH_PYTHON
-	, m_pythondictionary(NULL)
+	, m_pythondictionary(nullptr)
 #endif
 
 {
@@ -89,12 +89,12 @@ CValue* SCA_PythonController::GetReplica()
 	SCA_PythonController* replica = new SCA_PythonController(*this);
 
 #ifdef WITH_PYTHON
-	/* why is this needed at all??? - m_bytecode is NULL'd below so this doesnt make sense
+	/* why is this needed at all??? - m_bytecode is nullptr'd below so this doesnt make sense
 	 * but removing it crashes blender (with YoFrankie). so leave in for now - Campbell */
 	Py_XINCREF(replica->m_bytecode);
 	
-	Py_XINCREF(replica->m_function); // this is ok since its not set to NULL
-	replica->m_bModified = replica->m_bytecode == NULL;
+	Py_XINCREF(replica->m_function); // this is ok since its not set to nullptr
+	replica->m_bModified = replica->m_bytecode == nullptr;
 	
 	// The replica->m_pythondictionary is stolen - replace with a copy.
 	if (m_pythondictionary)
@@ -167,10 +167,10 @@ bool SCA_PythonController::IsTriggered(class SCA_ISensor* sensor)
 /* warning, self is not the SCA_PythonController, its a PyObjectPlus_Proxy */
 PyObject *SCA_PythonController::sPyGetCurrentController(PyObject *self)
 {
-	if (m_sCurrentController==NULL)
+	if (m_sCurrentController==nullptr)
 	{
 		PyErr_SetString(PyExc_SystemError, "bge.logic.getCurrentController(), this function is being run outside the python controllers context, or blenders internal state is corrupt.");
-		return NULL;
+		return nullptr;
 	}
 	return m_sCurrentController->GetProxy();
 }
@@ -204,13 +204,13 @@ SCA_IActuator* SCA_PythonController::LinkedActuatorFromPy(PyObject *value)
 	PyErr_Format(PyExc_ValueError,
 	             "%R not in this python controllers actuator list", value);
 
-	return NULL;
+	return nullptr;
 }
 
 const char* SCA_PythonController::sPyGetCurrentController__doc__ = "getCurrentController()";
 
 PyTypeObject SCA_PythonController::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_PythonController",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -234,7 +234,7 @@ PyTypeObject SCA_PythonController::Type = {
 PyMethodDef SCA_PythonController::Methods[] = {
 	{"activate", (PyCFunction) SCA_PythonController::sPyActivate, METH_O},
 	{"deactivate", (PyCFunction) SCA_PythonController::sPyDeActivate, METH_O},
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_PythonController::Attributes[] = {
@@ -245,9 +245,9 @@ PyAttributeDef SCA_PythonController::Attributes[] = {
 
 void SCA_PythonController::ErrorPrint(const char *error_msg)
 {
-	// If GetParent() is NULL, then most likely the object this controller
+	// If GetParent() is nullptr, then most likely the object this controller
 	// was attached to is gone (e.g., removed by LibFree()). Also, GetName()
-	// can be a bad pointer if GetParent() is NULL, so better be safe and
+	// can be a bad pointer if GetParent() is nullptr, so better be safe and
 	// flag it as unavailable as well
 	CM_LogicBrickError(this, error_msg);
 	PyErr_Print();
@@ -256,7 +256,7 @@ void SCA_PythonController::ErrorPrint(const char *error_msg)
 	 * their user count. Not to mention holding references to wrapped data.
 	 * This is especially bad when the PyObject for the wrapped data is freed, after blender
 	 * has already dealocated the pointer */
-	PySys_SetObject("last_traceback", NULL);
+	PySys_SetObject("last_traceback", nullptr);
 	PyErr_Clear(); /* just to be sure */
 }
 
@@ -267,7 +267,7 @@ bool SCA_PythonController::Compile()
 	// if a script already exists, decref it before replace the pointer to a new script
 	if (m_bytecode) {
 		Py_DECREF(m_bytecode);
-		m_bytecode=NULL;
+		m_bytecode=nullptr;
 	}
 	
 	// recompile the scripttext into bytecode
@@ -287,7 +287,7 @@ bool SCA_PythonController::Import()
 
 	/* in case we re-import */
 	Py_XDECREF(m_function);
-	m_function= NULL;
+	m_function= nullptr;
 	
 	std::string mod_path = m_scriptText; /* just for storage, use C style string access */
 	std::string function_string;
@@ -306,7 +306,7 @@ bool SCA_PythonController::Import()
 	// Import the module and print an error if it's not found
 	PyObject *mod = PyImport_ImportModule(mod_path.c_str());
 
-	if (mod == NULL) {
+	if (mod == nullptr) {
 		ErrorPrint("Python module can't be imported");
 		return false;
 	}
@@ -314,7 +314,7 @@ bool SCA_PythonController::Import()
 	if (m_debug)
 		mod = PyImport_ReloadModule(mod);
 
-	if (mod == NULL) {
+	if (mod == nullptr) {
 		ErrorPrint("Python module can't be reloaded");
 		return false;
 	}
@@ -325,7 +325,7 @@ bool SCA_PythonController::Import()
 	// DECREF the module as we don't need it anymore
 	Py_DECREF(mod);
 
-	if (m_function==NULL) {
+	if (m_function==nullptr) {
 		if (PyErr_Occurred())
 			ErrorPrint("python controller found the module but could not access the function");
 		else
@@ -335,7 +335,7 @@ bool SCA_PythonController::Import()
 	
 	if (!PyCallable_Check(m_function)) {
 		Py_DECREF(m_function);
-		m_function = NULL;
+		m_function = nullptr;
 		CM_LogicBrickError(this, "python module function '" << m_scriptText << "' not callable");
 		return false;
 	}
@@ -347,7 +347,7 @@ bool SCA_PythonController::Import()
 	
 	if (m_function_argc > 1) {
 		Py_DECREF(m_function);
-		m_function = NULL;
+		m_function = nullptr;
 		CM_LogicBrickError(this, "python module function:\n '" << m_scriptText << "' takes " << m_function_argc
 		<< " args, should be zero or 1 controller arg");
 		return false;
@@ -361,8 +361,8 @@ void SCA_PythonController::Trigger(SCA_LogicManager* logicmgr)
 {
 	m_sCurrentController = this;
 
-	PyObject *excdict=		NULL;
-	PyObject *resultobj=	NULL;
+	PyObject *excdict=		nullptr;
+	PyObject *resultobj=	nullptr;
 	
 	switch (m_mode) {
 		case SCA_PYEXEC_SCRIPT:
@@ -406,7 +406,7 @@ void SCA_PythonController::Trigger(SCA_LogicManager* logicmgr)
 			if (!m_function)
 				return;
 
-			PyObject *args= NULL;
+			PyObject *args= nullptr;
 
 			if (m_function_argc==1) {
 				args = PyTuple_New(1);
@@ -437,19 +437,19 @@ void SCA_PythonController::Trigger(SCA_LogicManager* logicmgr)
 	}
 	
 	m_triggeredSensors.clear();
-	m_sCurrentController = NULL;
+	m_sCurrentController = nullptr;
 }
 
 PyObject *SCA_PythonController::PyActivate(PyObject *value)
 {
 	if (m_sCurrentController != this) {
 		PyErr_SetString(PyExc_SystemError, "Cannot activate an actuator from a non-active controller");
-		return NULL;
+		return nullptr;
 	}
 	
 	SCA_IActuator* actu = LinkedActuatorFromPy(value);
-	if (actu==NULL)
-		return NULL;
+	if (actu==nullptr)
+		return nullptr;
 	
 	m_logicManager->AddActiveActuator((SCA_IActuator*)actu, true);
 	Py_RETURN_NONE;
@@ -459,12 +459,12 @@ PyObject *SCA_PythonController::PyDeActivate(PyObject *value)
 {
 	if (m_sCurrentController != this) {
 		PyErr_SetString(PyExc_SystemError, "Cannot deactivate an actuator from a non-active controller");
-		return NULL;
+		return nullptr;
 	}
 	
 	SCA_IActuator* actu = LinkedActuatorFromPy(value);
-	if (actu==NULL)
-		return NULL;
+	if (actu==nullptr)
+		return nullptr;
 	
 	m_logicManager->AddActiveActuator((SCA_IActuator*)actu, false);
 	Py_RETURN_NONE;
@@ -487,7 +487,7 @@ int SCA_PythonController::pyattr_set_script(PyObjectPlus *self_v, const KX_PYATT
 	
 	const char *scriptArg = _PyUnicode_AsString(value);
 	
-	if (scriptArg==NULL) {
+	if (scriptArg==nullptr) {
 		PyErr_SetString(PyExc_TypeError, "controller.script = string: Python Controller, expected a string script text");
 		return PY_SET_ATTR_FAIL;
 	}

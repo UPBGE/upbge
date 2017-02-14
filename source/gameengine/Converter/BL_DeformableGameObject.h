@@ -66,7 +66,7 @@ public:
 
 	BL_DeformableGameObject(Object* blendobj, void* sgReplicationInfo, SG_Callbacks callbacks) :
 		KX_GameObject(sgReplicationInfo,callbacks),
-		m_pDeformer(NULL),
+		m_pDeformer(nullptr),
 		m_lastframe(0.0),
 		m_blendobj(blendobj),
 		m_activePriority(9999)

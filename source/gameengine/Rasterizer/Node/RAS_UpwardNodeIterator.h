@@ -30,10 +30,10 @@ private:
 
 public:
 	RAS_UpwardNodeIterator()
-		:m_node(NULL)
+		:m_node(nullptr)
 	{
 		if (std::is_same<NodeType *, RAS_DummyNode *>()) {
-			m_parent.reset(NULL);
+			m_parent.reset(nullptr);
 		}
 		else {
 			m_parent.reset(new ParentType());

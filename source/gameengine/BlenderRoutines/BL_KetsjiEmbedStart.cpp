@@ -89,7 +89,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 	char* startscenename = startscene->id.name + 2;
 	char pathname[FILE_MAXDIR+FILE_MAXFILE];
 	std::string exitstring = "";
-	BlendFileData *bfd = NULL;
+	BlendFileData *bfd = nullptr;
 
 	BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
 
@@ -206,7 +206,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		}
 
 		GHOST_ISystem *system = GHOST_ISystem::getSystem();
-		LA_BlenderLauncher launcher = LA_BlenderLauncher(system, blenderdata, scene, &gs, stereoMode, 0, NULL, C, cam_frame, ar, always_use_expand_framing);
+		LA_BlenderLauncher launcher = LA_BlenderLauncher(system, blenderdata, scene, &gs, stereoMode, 0, nullptr, C, cam_frame, ar, always_use_expand_framing);
 #ifdef WITH_PYTHON
 		launcher.SetPythonGlobalDict(globalDict);
 #endif  // WITH_PYTHON

@@ -70,7 +70,7 @@ KX_Camera::~KX_Camera()
 	{
 		// for shadow camera, avoids memleak
 		delete m_pSGNode;
-		m_pSGNode = NULL;
+		m_pSGNode = nullptr;
 	}
 }
 
@@ -554,7 +554,7 @@ PyMethodDef KX_Camera::Methods[] = {
 	KX_PYMETHODTABLE_O(KX_Camera, getScreenPosition),
 	KX_PYMETHODTABLE(KX_Camera, getScreenVect),
 	KX_PYMETHODTABLE(KX_Camera, getScreenRay),
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef KX_Camera::Attributes[] = {
@@ -587,7 +587,7 @@ PyAttributeDef KX_Camera::Attributes[] = {
 };
 
 PyTypeObject KX_Camera::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_Camera",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -601,8 +601,8 @@ PyTypeObject KX_Camera::Type = {
 	&KX_GameObject::Sequence,
 	&KX_GameObject::Mapping,
 	0,0,0,
-	NULL,
-	NULL,
+	nullptr,
+	nullptr,
 	0,
 	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	0,0,0,0,0,0,0,
@@ -645,7 +645,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, sphereInsideFrustum,
 
 	PyErr_SetString(PyExc_TypeError, "camera.sphereInsideFrustum(center, radius): KX_Camera, expected arguments: (center, radius)");
 	
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC_O(KX_Camera, boxInsideFrustum,
@@ -677,7 +677,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, boxInsideFrustum,
 	if (num_points != 8)
 	{
 		PyErr_Format(PyExc_TypeError, "camera.boxInsideFrustum(box): KX_Camera, expected eight (8) points, got %d", num_points);
-		return NULL;
+		return nullptr;
 	}
 	
 	MT_Vector3 box[8];
@@ -687,7 +687,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, boxInsideFrustum,
 		bool error = !PyVecTo(item, box[p]);
 		Py_DECREF(item);
 		if (error)
-			return NULL;
+			return nullptr;
 	}
 	
 	return PyLong_FromLong(BoxInsideFrustum(box)); /* new ref */
@@ -716,7 +716,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, pointInsideFrustum,
 	}
 	
 	PyErr_SetString(PyExc_TypeError, "camera.pointInsideFrustum(point): KX_Camera, expected point argument.");
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_Camera, getCameraToWorld,
@@ -743,7 +743,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, setViewport,
 {
 	int left, bottom, right, top;
 	if (!PyArg_ParseTuple(args,"iiii:setViewport",&left, &bottom, &right, &top))
-		return NULL;
+		return nullptr;
 	
 	SetViewport(left, bottom, right, top);
 	Py_RETURN_NONE;
@@ -990,14 +990,14 @@ PyObject *KX_Camera::pyattr_get_INTERSECT(PyObjectPlus *self_v, const KX_PYATTRI
 
 bool ConvertPythonToCamera(KX_Scene *scene, PyObject *value, KX_Camera **object, bool py_none_ok, const char *error_prefix)
 {
-	if (value==NULL) {
-		PyErr_Format(PyExc_TypeError, "%s, python pointer NULL, should never happen", error_prefix);
-		*object = NULL;
+	if (value==nullptr) {
+		PyErr_Format(PyExc_TypeError, "%s, python pointer nullptr, should never happen", error_prefix);
+		*object = nullptr;
 		return false;
 	}
 		
 	if (value==Py_None) {
-		*object = NULL;
+		*object = nullptr;
 		
 		if (py_none_ok) {
 			return true;
@@ -1025,7 +1025,7 @@ bool ConvertPythonToCamera(KX_Scene *scene, PyObject *value, KX_Camera **object,
 		*object = static_cast<KX_Camera*>BGE_PROXY_REF(value);
 		
 		/* sets the error */
-		if (*object==NULL) {
+		if (*object==nullptr) {
 			PyErr_Format(PyExc_SystemError, "%s, " BGE_PROXY_ERROR_MSG, error_prefix);
 			return false;
 		}
@@ -1033,7 +1033,7 @@ bool ConvertPythonToCamera(KX_Scene *scene, PyObject *value, KX_Camera **object,
 		return true;
 	}
 	
-	*object = NULL;
+	*object = nullptr;
 	
 	if (py_none_ok) {
 		PyErr_Format(PyExc_TypeError, "%s, expect a KX_Camera, a string or None", error_prefix);
@@ -1050,7 +1050,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 
 {
 	MT_Vector3 vect;
-	KX_GameObject *obj = NULL;
+	KX_GameObject *obj = nullptr;
 
 	if (!PyVecTo(value, vect))
 	{
@@ -1064,7 +1064,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 		else
 		{
 			PyErr_SetString(PyExc_TypeError, "Error in getScreenPosition. Expected a Vector3 or a KX_GameObject or a string for a name of a KX_GameObject");
-			return NULL;
+			return nullptr;
 		}
 	}
 
@@ -1095,7 +1095,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 		return ret;
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
@@ -1104,7 +1104,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 {
 	double x,y;
 	if (!PyArg_ParseTuple(args,"dd:getScreenVect",&x,&y))
-		return NULL;
+		return nullptr;
 
 	y = 1.0 - y; //to follow Blender window coordinate system (Top-Down)
 
@@ -1148,10 +1148,10 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay,
 {
 	MT_Vector3 vect;
 	double x,y,dist;
-	char *propName = NULL;
+	char *propName = nullptr;
 
 	if (!PyArg_ParseTuple(args,"ddd|s:getScreenRay",&x,&y,&dist,&propName))
-		return NULL;
+		return nullptr;
 
 	PyObject *argValue = PyTuple_New(2);
 	PyTuple_SET_ITEM(argValue, 0, PyFloat_FromDouble(x));
@@ -1164,7 +1164,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay,
 		                "Error in getScreenRay. Invalid 2D coordinate. "
 		                "Expected a normalized 2D screen coordinate, "
 		                "a distance and an optional property argument");
-		return NULL;
+		return nullptr;
 	}
 	Py_DECREF(argValue);
 
@@ -1178,11 +1178,11 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay,
 		if (propName)
 			PyTuple_SET_ITEM(argValue, 2, PyUnicode_FromString(propName));
 
-		PyObject *ret= this->PyrayCastTo(argValue,NULL);
+		PyObject *ret= this->PyrayCastTo(argValue,nullptr);
 		Py_DECREF(argValue);
 		return ret;
 	}
 
-	return NULL;
+	return nullptr;
 }
 #endif

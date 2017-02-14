@@ -103,7 +103,7 @@ CValue* SCA_XNORController::GetReplica()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_XNORController::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_XNORController",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -125,7 +125,7 @@ PyTypeObject SCA_XNORController::Type = {
 };
 
 PyMethodDef SCA_XNORController::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_XNORController::Attributes[] = {

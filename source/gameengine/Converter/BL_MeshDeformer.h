@@ -72,7 +72,7 @@ public:
 	}
 	virtual RAS_Deformer *GetReplica()
 	{
-		return NULL;
+		return nullptr;
 	}
 	virtual void ProcessReplica();
 	Mesh *GetMesh()

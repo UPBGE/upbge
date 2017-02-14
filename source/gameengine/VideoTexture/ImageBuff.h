@@ -45,7 +45,7 @@ private:
 	struct ImBuf *m_imbuf;		// temporary structure for buffer manipulation
 public:
 	/// constructor
-	ImageBuff (void) : ImageBase(true), m_imbuf(NULL) {}
+	ImageBuff (void) : ImageBase(true), m_imbuf(nullptr) {}
 
 	/// destructor
 	virtual ~ImageBuff (void);

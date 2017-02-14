@@ -31,7 +31,7 @@
 
 /** Execute each functions with at least one argument
  * \param functionlist The python list which contains callbacks.
- * \param arglist The first item in the tuple to execute callbacks (can be NULL for no arguments).
+ * \param arglist The first item in the tuple to execute callbacks (can be nullptr for no arguments).
  * \param minargcount The minimum of quantity of arguments possible.
  * \param maxargcount The maximum of quantity of arguments possible.
  */

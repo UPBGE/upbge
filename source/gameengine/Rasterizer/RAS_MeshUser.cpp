@@ -34,10 +34,10 @@
 RAS_MeshUser::RAS_MeshUser(void *clientobj)
 	:m_frontFace(true),
 	m_color(MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f)),
-	m_matrix(NULL),
-	m_boundingBox(NULL),
+	m_matrix(nullptr),
+	m_boundingBox(nullptr),
 	m_clientObject(clientobj),
-	m_batchGroup(NULL)
+	m_batchGroup(nullptr)
 {
 }
 

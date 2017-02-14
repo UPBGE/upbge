@@ -61,7 +61,7 @@ public:
 	 * Update the childs local and global coordinates
 	 * based upon the parents global coordinates.
 	 * You must also handle the case when this node has no
-	 * parent (parent == NULL). Usually you should just
+	 * parent (parent == nullptr). Usually you should just
 	 * copy the local coordinates of the child to the
 	 * world coordinates.
 	 */

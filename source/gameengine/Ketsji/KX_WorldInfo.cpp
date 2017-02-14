@@ -266,7 +266,7 @@ PyObject *KX_WorldInfo::py_repr(void)
  * Python Integration Hooks
  * ------------------------------------------------------------------------- */
 PyTypeObject KX_WorldInfo::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_WorldInfo",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -288,7 +288,7 @@ PyTypeObject KX_WorldInfo::Type = {
 };
 
 PyMethodDef KX_WorldInfo::Methods[] = {
-	{NULL,NULL} /* Sentinel */
+	{nullptr,nullptr} /* Sentinel */
 };
 
 PyAttributeDef KX_WorldInfo::Attributes[] = {
@@ -327,7 +327,7 @@ static unsigned char mathutils_world_color_cb_index = -1; /* index for our callb
 static int mathutils_world_generic_check(BaseMathObject *bmo)
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>BGE_PROXY_REF(bmo->cb_user);
-	if (self == NULL)
+	if (self == nullptr)
 		return -1;
 		
 	return 0;
@@ -336,7 +336,7 @@ static int mathutils_world_generic_check(BaseMathObject *bmo)
 static int mathutils_world_color_get(BaseMathObject *bmo, int subtype)
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>BGE_PROXY_REF(bmo->cb_user);
-	if (self == NULL)
+	if (self == nullptr)
 		return -1;
 
 	switch (subtype) {
@@ -362,7 +362,7 @@ static int mathutils_world_color_set(BaseMathObject *bmo, int subtype)
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>BGE_PROXY_REF(bmo->cb_user);
 
-	if (self == NULL)
+	if (self == nullptr)
 		return -1;
 
 	switch (subtype) {
@@ -388,7 +388,7 @@ static int mathutils_world_color_get_index(BaseMathObject *bmo, int subtype, int
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>BGE_PROXY_REF(bmo->cb_user);
 
-	if (self == NULL)
+	if (self == nullptr)
 		return -1;
 
 	switch (subtype) {
@@ -422,7 +422,7 @@ static int mathutils_world_color_set_index(BaseMathObject *bmo, int subtype, int
 {
 	KX_WorldInfo *self = static_cast<KX_WorldInfo*>BGE_PROXY_REF(bmo->cb_user);
 
-	if (self == NULL)
+	if (self == nullptr)
 		return -1;
 
 	MT_Vector3 color;
@@ -492,7 +492,7 @@ PyObject *KX_WorldInfo::pyattr_get_mist_typeconst(PyObjectPlus *self_v, const KX
 	else {
 		/* should never happen */
 		PyErr_SetString(PyExc_TypeError, "invalid mist type");
-		retvalue = NULL;
+		retvalue = nullptr;
 	}
 
 	return retvalue;

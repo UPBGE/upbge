@@ -147,12 +147,12 @@ typedef enum {
 } ScreenSaverMode;
 
 static ScreenSaverMode scr_saver_mode = SCREEN_SAVER_MODE_NONE;
-static HWND scr_saver_hwnd = NULL;
+static HWND scr_saver_hwnd = nullptr;
 
 static BOOL scr_saver_init(int argc, char **argv) 
 {
 	scr_saver_mode = SCREEN_SAVER_MODE_NONE;
-	scr_saver_hwnd = NULL;
+	scr_saver_hwnd = nullptr;
 	BOOL ret = false;
 
 	int len = ::strlen(argv[0]);
@@ -169,7 +169,7 @@ static BOOL scr_saver_init(int argc, char **argv)
 			if (!::stricmp("/c", argv[1]))
 			{
 				scr_saver_mode = SCREEN_SAVER_MODE_CONFIGURATION;
-				if (scr_saver_hwnd == NULL)
+				if (scr_saver_hwnd == nullptr)
 					scr_saver_hwnd = ::GetForegroundWindow();
 			}
 			else if (!::stricmp("/s", argv[1]))
@@ -241,9 +241,9 @@ BOOL CALLBACK findGhostWindowHWNDProc(HWND hwnd, LPARAM lParam)
 
 static HWND findGhostWindowHWND(GHOST_IWindow* window)
 {
-	found_ghost_window_hwnd = NULL;
+	found_ghost_window_hwnd = nullptr;
 	ghost_window_to_find = window;
-	EnumWindows(findGhostWindowHWNDProc, NULL);
+	EnumWindows(findGhostWindowHWNDProc, nullptr);
 	return found_ghost_window_hwnd;
 }
 
@@ -286,7 +286,7 @@ static GHOST_IWindow *startScreenSaverPreview(
 
 		style = (style & (~(WS_POPUP|WS_OVERLAPPEDWINDOW|WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_THICKFRAME|WS_MINIMIZEBOX|WS_MAXIMIZEBOX|WS_TILEDWINDOW ))) | WS_CHILD;
 		SetWindowLongPtr(ghost_hwnd, GWL_STYLE, style);
-		SetWindowPos(ghost_hwnd, NULL, adjrc.left, adjrc.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE|SWP_NOACTIVATE);
+		SetWindowPos(ghost_hwnd, nullptr, adjrc.left, adjrc.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE|SWP_NOACTIVATE);
 
 		/* Check the size of the client rectangle of the window and resize the window
 		 * so that the client rectangle has the size requested.
@@ -296,7 +296,7 @@ static GHOST_IWindow *startScreenSaverPreview(
 		return window;
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 #endif  // WIN32
@@ -319,7 +319,7 @@ static GHOST_IWindow *startFullScreen(
 	setting.bpp = bpp;
 	setting.frequency = frequency;
 
-	GHOST_IWindow *window = NULL;
+	GHOST_IWindow *window = nullptr;
 	system->beginFullScreen(setting, &window, stereoVisual, alphaBackground);
 	window->setCursorVisibility(false);
 	/* note that X11 ignores this (it uses a window internally for fullscreen) */
@@ -340,7 +340,7 @@ static GHOST_IWindow *startScreenSaverFullScreen(
 {
 	GHOST_IWindow *window = startFullScreen(system, width, height, bpp, frequency, stereoVisual, alphaBackground, 0);
 	HWND ghost_hwnd = findGhostWindowHWND(window);
-	if (ghost_hwnd != NULL)
+	if (ghost_hwnd != nullptr)
 	{
 		GetCursorPos(&scr_save_mouse_pos);
 		ghost_wnd_proc = (WNDPROC) GetWindowLongPtr(ghost_hwnd, GWLP_WNDPROC);
@@ -503,7 +503,7 @@ static void get_filename(int argc, char **argv, char *filename)
 	 */
 	int srclen = ::strlen(argv[0]);
 	int len = 0;
-	char *gamefile = NULL;
+	char *gamefile = nullptr;
 	
 	filename[0] = '\0';
 
@@ -540,10 +540,10 @@ static void get_filename(int argc, char **argv, char *filename)
 #endif // !_APPLE
 }
 
-static BlendFileData *load_game_data(const char *progname, char *filename = NULL, char *relativename = NULL)
+static BlendFileData *load_game_data(const char *progname, char *filename = nullptr, char *relativename = nullptr)
 {
 	ReportList reports;
-	BlendFileData *bfd = NULL;
+	BlendFileData *bfd = nullptr;
 
 	BKE_reports_init(&reports, RPT_STORE);
 	
@@ -606,7 +606,7 @@ int main(
 	int windowHeight = 480;
 	GHOST_TUns32 fullScreenWidth = 0;
 	GHOST_TUns32 fullScreenHeight= 0;
-	GHOST_IWindow *window = NULL;
+	GHOST_IWindow *window = nullptr;
 	int fullScreenBpp = 32;
 	int fullScreenFrequency = 60;
 	GHOST_TEmbedderWindowID parentWindow = 0;
@@ -656,7 +656,7 @@ int main(
 #endif
 
 	BKE_appdir_program_path_init(argv[0]);
-	BKE_tempdir_init(NULL);
+	BKE_tempdir_init(nullptr);
 	
 	// We don't use threads directly in the BGE, but we need to call this so things like
 	// freeing up GPU_Textures works correctly.
@@ -672,7 +672,7 @@ int main(
 
 	// We load our own G.main, so free the one that BKE_blender_globals_init() gives us
 	BKE_main_free(G.main);
-	G.main = NULL;
+	G.main = nullptr;
 
 	MEM_CacheLimiter_set_disabled(true);
 	IMB_init();
@@ -1058,7 +1058,7 @@ int main(
 				GlobalSettings gs;
 
 #ifdef WITH_PYTHON
-				PyObject *globalDict = NULL;
+				PyObject *globalDict = nullptr;
 #endif  // WITH_PYTHON
 
 				do {
@@ -1086,7 +1086,7 @@ int main(
 						}
 					}
 					else {
-						bfd = load_game_data(BKE_appdir_program_path(), filename[0]? filename: NULL);
+						bfd = load_game_data(BKE_appdir_program_path(), filename[0]? filename: nullptr);
 						// The file is valid and it's the original file name.
 						if (bfd) {
 							KX_SetOrigPath(bfd->main->name);
@@ -1300,7 +1300,7 @@ int main(
 						 */
 						if (quitGame(exitcode)) {
 #ifdef WITH_PYTHON
-							// If the globalDict is to NULL then python is certainly not initialized.
+							// If the globalDict is to nullptr then python is certainly not initialized.
 							if (globalDict) {
 								PyDict_Clear(globalDict);
 								Py_DECREF(globalDict);
@@ -1311,7 +1311,7 @@ int main(
 
 						BLO_blendfiledata_free(bfd);
 						/* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */
-						G.main = NULL;
+						G.main = nullptr;
 					}
 				} while (!quitGame(exitcode));
 			}
@@ -1373,7 +1373,7 @@ int main(
 		free(argv[--argv_num]);
 	}
 	free(argv);
-	argv = NULL;
+	argv = nullptr;
 #endif
 
 	return error ? -1 : 0;

@@ -44,7 +44,7 @@ bool KX_2DFilter::LinkProgram()
 #ifdef WITH_PYTHON
 
 PyTypeObject KX_2DFilter::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_2DFilter",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -67,7 +67,7 @@ PyTypeObject KX_2DFilter::Type = {
 
 PyMethodDef KX_2DFilter::Methods[] = {
 	KX_PYMETHODTABLE(KX_2DFilter, setTexture),
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_2DFilter::Attributes[] = {
@@ -98,14 +98,14 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, sampler
 {
 	int index = 0;
 	int bindCode = 0;
-	char *samplerName = NULL;
+	char *samplerName = nullptr;
 
 	if (!PyArg_ParseTuple(args, "ii|s:setTexture", &index, &bindCode, &samplerName)) {
-		return NULL;
+		return nullptr;
 	}
 	if (index < 0 || index >= RAS_Texture::MaxUnits) {
 		PyErr_SetString(PyExc_ValueError, "setTexture(index, bindCode, samplerName): KX_2DFilter, index out of range [0, 7]");
-		return NULL;
+		return nullptr;
 	}
 
 	if (samplerName) {

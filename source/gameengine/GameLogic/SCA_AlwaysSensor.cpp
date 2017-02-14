@@ -105,7 +105,7 @@ bool SCA_AlwaysSensor::Evaluate()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_AlwaysSensor::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_AlwaysSensor",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -127,7 +127,7 @@ PyTypeObject SCA_AlwaysSensor::Type = {
 };
 
 PyMethodDef SCA_AlwaysSensor::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_AlwaysSensor::Attributes[] = {

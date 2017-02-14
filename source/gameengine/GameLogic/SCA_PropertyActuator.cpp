@@ -90,7 +90,7 @@ bool SCA_PropertyActuator::Update()
 	CParser parser;
 	parser.SetContext( propowner->AddRef());
 	
-	CExpression* userexpr= NULL;
+	CExpression* userexpr= nullptr;
 	
 	if (m_type==KX_ACT_PROP_TOGGLE)
 	{
@@ -231,7 +231,7 @@ bool SCA_PropertyActuator::UnlinkObject(SCA_IObject* clientobj)
 	if (clientobj == m_sourceObj)
 	{
 		// this object is being deleted, we cannot continue to track it.
-		m_sourceObj = NULL;
+		m_sourceObj = nullptr;
 		return true;
 	}
 	return false;
@@ -256,7 +256,7 @@ void SCA_PropertyActuator::Relink(std::map<void *, void *>& obj_map)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_PropertyActuator::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"SCA_PropertyActuator",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -278,7 +278,7 @@ PyTypeObject SCA_PropertyActuator::Type = {
 };
 
 PyMethodDef SCA_PropertyActuator::Methods[] = {
-	{NULL,NULL} //Sentinel
+	{nullptr,nullptr} //Sentinel
 };
 
 PyAttributeDef SCA_PropertyActuator::Attributes[] = {
