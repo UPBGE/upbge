@@ -37,7 +37,9 @@ RAS_OffScreen::RAS_OffScreen(unsigned int width, unsigned int height, int sample
 
 RAS_OffScreen::~RAS_OffScreen()
 {
-	GPU_offscreen_free(m_offScreen);
+	if (GetValid()) {
+		GPU_offscreen_free(m_offScreen);
+	}
 }
 
 bool RAS_OffScreen::GetValid() const
