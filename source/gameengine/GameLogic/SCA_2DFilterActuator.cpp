@@ -41,6 +41,7 @@ SCA_2DFilterActuator::SCA_2DFilterActuator(
         short flag,
         float float_arg,
         int int_arg,
+        int mipmap,
         RAS_IRasterizer* rasterizer,
 		RAS_2DFilterManager *filterManager,
         SCA_IScene* scene)
@@ -49,6 +50,7 @@ SCA_2DFilterActuator::SCA_2DFilterActuator(
       m_disableMotionBlur(flag),
       m_float_arg(float_arg),
       m_int_arg(int_arg),
+      m_mipmap(mipmap),
       m_rasterizer(rasterizer),
       m_filterManager(filterManager),
       m_scene(scene)
@@ -117,6 +119,7 @@ bool SCA_2DFilterActuator::Update()
 				info.filterMode = m_type;
 				info.propertyNames = m_propNames;
 				info.shaderText = m_shaderText;
+				info.mipmap = m_mipmap;
 
 				m_filterManager->AddFilter(info);
 			}
