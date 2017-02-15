@@ -977,7 +977,7 @@ void BL_ConvertActuators(const char* maggiename,
 			}
 
 			tmp = new SCA_2DFilterActuator(gameobj, filtermode,  _2dfilter->flag,
-			                               _2dfilter->float_arg, _2dfilter->int_arg,
+			                               _2dfilter->float_arg, _2dfilter->int_arg, _2dfilter->mipmap,
 			                               ketsjiEngine->GetRasterizer(), scene->Get2DFilterManager(), scene);
 
 			if (_2dfilter->text)

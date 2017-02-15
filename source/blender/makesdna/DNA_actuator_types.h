@@ -205,13 +205,13 @@ typedef struct bVisibilityActuator {
 } bVisibilityActuator;
 
 typedef struct bTwoDFilterActuator {
-	char pad[4];
 	/* Tells what type of 2D Filter */
 	short type;
 	/* (flag == 0) means 2D filter is activate and
 	 * (flag != 0) means 2D filter is inactive */
 	short flag;
 	int   int_arg;
+	int mipmap;
 	/* a float argument */
 	float float_arg;
 	struct Text *text;
