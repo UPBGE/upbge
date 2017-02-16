@@ -101,9 +101,8 @@ KX_PYMETHODDEF_DOC(KX_2DFilterManager, addFilter, " addFilter(index, type, fragm
 	int index = 0;
 	int type = 0;
 	const char *frag = "";
-	int mipmap = 0;
 
-	if (!PyArg_ParseTuple(args, "ii|s:addFilter", &index, &type, &frag, &mipmap)) {
+	if (!PyArg_ParseTuple(args, "ii|s:addFilter", &index, &type, &frag)) {
 		return nullptr;
 	}
 
@@ -125,7 +124,6 @@ KX_PYMETHODDEF_DOC(KX_2DFilterManager, addFilter, " addFilter(index, type, fragm
 	data.filterPassIndex = index;
 	data.filterMode = type;
 	data.shaderText = std::string(frag);
-	data.mipmap = mipmap;
 
 	AddFilter(data);
 
