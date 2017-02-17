@@ -646,46 +646,6 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
                 row.prop(env, "auto_update")
 
 
-class TEXTURE_PT_image_render(TextureTypePanel, Panel):
-    bl_label = "Image Render"
-    bl_options = {'DEFAULT_CLOSED'}
-    tex_type = 'IMAGE'
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
-
-    def draw(self, context):
-
-        layout = self.layout
-
-        idblock = context_tex_datablock(context)
-        tex = context.texture
-
-        row = layout.row()
-        row.prop(tex, "source", expand=True)
-
-        if tex.source == 'MIRROR':
-
-            split = layout.split()
-
-            row = split.row()
-            row.label(text="Planar Type:")
-            row.prop(tex, "planar_type")
-
-            row = layout.split()
-            row.label(text="Planar Filtering:")
-            row.prop(tex, "planar_filtering")
-
-            row = layout.split()
-            row.label(text="Clipping:")
-            row.prop(tex, "planar_clip_start", text="Start")
-            row.prop(tex, "planar_clip_end", text="End")
-
-            row = layout.split()
-            row.prop(tex, "layers_ignore")
-            row = layout.split()
-            row.prop(tex, "use_planar_auto_update")
-            row.prop(tex, "use_planar_reflect_cull")
-
-
 class TEXTURE_PT_envmap_sampling(TextureTypePanel, Panel):
     bl_label = "Environment Map Sampling"
     bl_options = {'DEFAULT_CLOSED'}
