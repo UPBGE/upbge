@@ -41,7 +41,7 @@ SCA_2DFilterActuator::SCA_2DFilterActuator(
         short flag,
         float float_arg,
         int int_arg,
-        int mipmap,
+        bool mipmap,
         RAS_IRasterizer* rasterizer,
 		RAS_2DFilterManager *filterManager,
         SCA_IScene* scene)

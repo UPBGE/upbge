@@ -49,7 +49,7 @@ RAS_2DFilter::RAS_2DFilter(RAS_2DFilterData& data)
 	:m_properties(data.propertyNames),
 	m_gameObject(data.gameObject),
 	m_uniformInitialized(false),
-	m_mipmap(bool(data.mipmap))
+	m_mipmap(data.mipmap)
 {
 	for(unsigned int i = 0; i < TEXTURE_OFFSETS_SIZE; i++) {
 		m_textureOffsets[i] = 0;

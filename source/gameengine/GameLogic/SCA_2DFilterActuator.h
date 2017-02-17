@@ -47,7 +47,7 @@ private:
 	short m_disableMotionBlur;
 	float m_float_arg;
 	int   m_int_arg;
-	int   m_mipmap, pad;
+	bool  m_mipmap;
 	std::string m_shaderText;
 	RAS_IRasterizer* m_rasterizer;
 	RAS_2DFilterManager *m_filterManager;
@@ -60,7 +60,7 @@ public:
 	        short flag,
 	        float float_arg,
 	        int int_arg,
-	        int mipmap,
+	        bool mipmap,
 	        RAS_IRasterizer* rasterizer,
 			RAS_2DFilterManager *filterManager,
 	        SCA_IScene* scene);

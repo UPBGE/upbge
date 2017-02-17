@@ -44,7 +44,7 @@ public:
 	/// The KX_GameObject (or something else?) that provides the values for the uniforms named above.
 	CValue *gameObject;
 	/// Enable/Disable mipmap in 2DFilter actuator at conversion
-	int mipmap;
+	bool mipmap;
 	/// Should be a SCA_2DFilterActuator.FILTER_MODE value.
 	int filterMode;
 	/// In the original design this was bot the pass index and the unique identifier of the filter in the filter manager.
