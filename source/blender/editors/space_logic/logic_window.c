@@ -1687,6 +1687,7 @@ static void draw_actuator_filter_2d(uiLayout *layout, PointerRNA *ptr)
 		case ACT_2DFILTER_CUSTOMFILTER:
 			uiItemR(layout, ptr, "filter_pass", 0, NULL, ICON_NONE);
 			uiItemR(layout, ptr, "glsl_shader", 0, NULL, ICON_NONE);
+			uiItemR(layout, ptr, "use_mipmap", 0, NULL, ICON_NONE);
 			break;
 		case ACT_2DFILTER_MOTIONBLUR:
 			split=uiLayoutSplit(layout, 0.75f, true);

@@ -25,7 +25,8 @@
 RAS_2DFilterData::RAS_2DFilterData()
 	:gameObject(nullptr),
 	filterMode(-1),
-	filterPassIndex(-1)
+	filterPassIndex(-1),
+	mipmap(false)
 {
 }
 

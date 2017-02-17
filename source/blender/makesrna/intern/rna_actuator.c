@@ -1860,6 +1860,11 @@ static void rna_def_twodfilter_actuator(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0, 99); /*MAX_RENDER_PASS-1 */
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
+	prop = RNA_def_property(srna, "use_mipmap", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mipmap", 1);
+	RNA_def_property_ui_text(prop, "MipMap", "Enable/Disable MipMap");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
 	prop = RNA_def_property(srna, "motion_blur_factor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "float_arg");
 	RNA_def_property_ui_text(prop, "Value", "Motion blur factor");
