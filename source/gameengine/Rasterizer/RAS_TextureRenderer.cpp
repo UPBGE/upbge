@@ -44,8 +44,8 @@
 #include "BLI_math.h"
 
 RAS_TextureRenderer::Face::Face(int target)
-	:m_fbo(NULL),
-	m_rb(NULL),
+	:m_fbo(nullptr),
+	m_rb(nullptr),
 	m_target(target)
 {
 }
@@ -58,10 +58,10 @@ void RAS_TextureRenderer::Face::AttachTexture(GPUTexture *tex)
 {
 	m_fbo = GPU_framebuffer_create();
 	m_rb = GPU_renderbuffer_create(GPU_texture_width(tex), GPU_texture_height(tex),
-		0, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, NULL);
+		0, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, nullptr);
 
-	GPU_framebuffer_texture_attach_target(m_fbo, tex, m_target, 0, NULL);
-	GPU_framebuffer_renderbuffer_attach(m_fbo, m_rb, 0, NULL);
+	GPU_framebuffer_texture_attach_target(m_fbo, tex, m_target, 0, nullptr);
+	GPU_framebuffer_renderbuffer_attach(m_fbo, m_rb, 0, nullptr);
 }
 
 void RAS_TextureRenderer::Face::DetachTexture(GPUTexture *tex)
@@ -75,11 +75,11 @@ void RAS_TextureRenderer::Face::DetachTexture(GPUTexture *tex)
 
 	if (m_fbo) {
 		GPU_framebuffer_free(m_fbo);
-		m_fbo = NULL;
+		m_fbo = nullptr;
 	}
 	if (m_rb) {
 		GPU_renderbuffer_free(m_rb);
-		m_rb = NULL;
+		m_rb = nullptr;
 	}
 }
 
@@ -90,7 +90,7 @@ void RAS_TextureRenderer::Face::Bind()
 }
 
 RAS_TextureRenderer::RAS_TextureRenderer()
-	:m_gpuTex(NULL),
+	:m_gpuTex(nullptr),
 	m_useMipmap(false)
 {
 }
@@ -110,7 +110,7 @@ RAS_TextureRenderer::~RAS_TextureRenderer()
 	*/
 	for (RAS_Texture *texture : m_textureUsers) {
 		// Invalidate the renderer in each material texture users.
-		texture->SetRenderer(NULL);
+		texture->SetRenderer(nullptr);
 		BKE_image_free_buffers(texture->GetImage());
 	}
 }

@@ -57,7 +57,7 @@ void KX_TextureRendererManager::InvalidateViewpoint(KX_GameObject *gameobj)
 {
 	for (KX_TextureRenderer *renderer : m_renderers) {
 		if (renderer->GetViewpointObject() == gameobj) {
-			renderer->SetViewpointObject(NULL);
+			renderer->SetViewpointObject(nullptr);
 		}
 	}
 }
@@ -165,8 +165,8 @@ void KX_TextureRendererManager::RenderRenderer(RAS_IRasterizer *rasty, KX_Textur
 
 		// Now the objects are culled and we can render the scene.
 		m_scene->GetWorldInfo()->RenderBackground(rasty);
-		// Send a NULL off screen because we use a set of FBO with shared textures, not an off screen.
-		m_scene->RenderBuckets(camtrans, rasty, NULL);
+		// Send a nullptr off screen because we use a set of FBO with shared textures, not an off screen.
+		m_scene->RenderBuckets(camtrans, rasty, nullptr);
 	}
 
 	viewpoint->SetVisible(visible, false);
