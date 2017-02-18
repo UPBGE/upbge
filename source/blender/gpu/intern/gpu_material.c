@@ -1400,7 +1400,7 @@ static void do_material_tex(GPUShadeInput *shi)
 				}
 				else if (tex->type == TEX_ENVMAP) {
 					if (tex->env->type == ENV_PLANE) {
-						GPU_link(mat, "mtex_image_refl", 
+						GPU_link(mat, "mtex_image_refl",
 							GPU_builtin(GPU_VIEW_POSITION),
 							GPU_builtin(GPU_CAMERA_TEXCO_FACTORS),
 							texco,

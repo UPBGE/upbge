@@ -27,9 +27,6 @@
 #ifndef __RAS_TEXTURE_RENDERER_H__
 #define __RAS_TEXTURE_RENDERER_H__
 
-#include "MT_Matrix3x3.h"
-#include "MT_Vector3.h"
-
 #include <vector>
 
 class RAS_Texture;
@@ -39,6 +36,9 @@ struct GPUFrameBuffer;
 struct GPURenderBuffer;
 struct GPUTexture;
 
+/** \brief This class is used to render something into a material texture (RAS_Texture).
+ * The render is made by faces added in the sub classes of RAS_TextureRenderer.
+ */
 class RAS_TextureRenderer
 {
 protected:
@@ -84,8 +84,8 @@ public:
 
 	unsigned short GetNumFaces() const;
 
-	const std::vector<RAS_Texture *>& GetTextureUsers() const;
-
+	/// Return true if the material texture use the same data than one of the texture user.
+	bool EqualTextureUser(RAS_Texture *texture) const;
 	void AddTextureUser(RAS_Texture *texture);
 
 	virtual void BeginRender(RAS_IRasterizer *rasty);

@@ -1461,7 +1461,7 @@ void mtex_image_refl(vec3 I, vec4 camerafac, vec3 texco, sampler2D ima, float lo
 	vec3 window = vec3(mtex_2d_mapping(projvec.xyz / projvec.w).xy * camerafac.xy + camerafac.zw, 0.0);
 
 	vec3 Z  = normalize(vec3(viewmatrix * objectmatrix * vec4( 0.0, 0.0, 1.0, 0.0)));
-	
+
 	vec3 reflecteddirection = reflect(vp, vn) - reflect(vp, Z);
 
 	// 0.25 is an artistic constant, normal map distortion needs to be scaled down to give proper results
@@ -1470,7 +1470,6 @@ void mtex_image_refl(vec3 I, vec4 camerafac, vec3 texco, sampler2D ima, float lo
 	color = texture2D(ima, uv, lodbias);
 	value = 1.0;
 }
-
 
 void mtex_normal(vec3 texco, sampler2D ima, float lodbias, out vec3 normal)
 {

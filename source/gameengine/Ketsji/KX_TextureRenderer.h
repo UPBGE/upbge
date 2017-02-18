@@ -51,7 +51,7 @@ private:
 	/// True if the projection matrix is invalid and need to be recomputed.
 	bool m_invalidProjection;
 
-	/// The cube map is used by the user.
+	/// The texture renderer is enabled for render.
 	bool m_enabled;
 	/// Layers to ignore during render.
 	int m_ignoreLayers;
@@ -64,9 +64,9 @@ private:
 	/// Distance factor for level of detail.
 	float m_lodDistanceFactor;
 
-	/// True if the realtime cube map is updated every frame.
+	/// True if the renderer is updated every frame.
 	bool m_autoUpdate;
-	/** True if the realtime cube map need to be updated for the next frame.
+	/** True if the renderer need to be updated for the next frame.
 	 * Generally used when m_autoUpdate is to false.
 	 */
 	bool m_forceUpdate;
@@ -96,7 +96,7 @@ public:
 	bool GetEnabled() const;
 	int GetIgnoreLayers() const;
 
-	// Return true when this cube map need to be updated.
+	// Return true when the texture renderer need to be updated.
 	bool NeedUpdate();
 
 	/// Setup camera position and orientation shared by all the faces, returns true when the render will be made.

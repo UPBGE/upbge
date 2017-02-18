@@ -68,11 +68,9 @@ void KX_TextureRendererManager::AddRenderer(RendererType type, RAS_Texture *text
 	 * we just add a "textureUser" to signal that the renderer texture will be shared by several objects.
 	 */
 	for (KX_TextureRenderer *renderer : m_renderers) {
-		for (RAS_Texture *textureUser : renderer->GetTextureUsers()) {
-			if (textureUser->GetTex() == texture->GetTex()) {
-				renderer->AddTextureUser(texture);
-				return;
-			}
+		if (renderer->EqualTextureUser(texture)) {
+			renderer->AddTextureUser(texture);
+			return;
 		}
 	}
 
@@ -100,7 +98,6 @@ void KX_TextureRendererManager::RenderRenderer(RAS_IRasterizer *rasty, KX_Textur
 	KX_GameObject *viewpoint = renderer->GetViewpointObject();
 	// Doesn't need (or can) update.
 	if (!renderer->NeedUpdate() || !renderer->GetEnabled() || !viewpoint) {
-		std::cout << "discard update" << std::endl;
 		return;
 	}
 

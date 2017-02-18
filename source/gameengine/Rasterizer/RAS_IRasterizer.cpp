@@ -1212,8 +1212,8 @@ void RAS_IRasterizer::SetAlphaBlend(int alphablend)
 
 void RAS_IRasterizer::SetFrontFace(bool ccw)
 {
-	if (m_camnegscale || m_invertFrontFace)
-		ccw = !ccw;
+	// Invert the front face if the camera has a negative scale or if we force to inverse the front face.
+	ccw ^= (m_camnegscale || m_invertFrontFace);
 
 	if (m_last_frontface == ccw) {
 		return;

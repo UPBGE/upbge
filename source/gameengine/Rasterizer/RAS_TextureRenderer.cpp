@@ -33,15 +33,8 @@
 #include "GPU_draw.h"
 
 #include "BKE_image.h"
-#include "KX_GameObject.h"
-#include "RAS_MeshObject.h"
-#include "RAS_Polygon.h"
 
 #include "DNA_texture_types.h"
-
-#include "glew-mx.h"
-
-#include "BLI_math.h"
 
 RAS_TextureRenderer::Face::Face(int target)
 	:m_fbo(nullptr),
@@ -165,9 +158,15 @@ unsigned short RAS_TextureRenderer::GetNumFaces() const
 	return m_faces.size();
 }
 
-const std::vector<RAS_Texture *>& RAS_TextureRenderer::GetTextureUsers() const
+bool RAS_TextureRenderer::EqualTextureUser(RAS_Texture *texture) const
 {
-	return m_textureUsers;
+	for (RAS_Texture *user : m_textureUsers) {
+		if (user->GetMTex() == texture->GetMTex()) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void RAS_TextureRenderer::AddTextureUser(RAS_Texture *texture)

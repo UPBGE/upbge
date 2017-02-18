@@ -125,7 +125,6 @@ public:
 	bool OnlyShadow() const;
 	RAS_Texture *GetTexture(unsigned int index);
 	bool UseDisplayLists() const;
-	void SetRasMode(int mode);
 
 	virtual const std::string GetTextureName() const = 0;
 	virtual Material *GetBlenderMaterial() const = 0;

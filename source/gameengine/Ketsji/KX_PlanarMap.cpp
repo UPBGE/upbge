@@ -107,13 +107,11 @@ bool KX_PlanarMap::SetupCamera(KX_Scene *scene, KX_Camera *camera)
 	KX_GameObject *mirror = GetViewpointObject();
 	KX_Camera *observer = scene->GetActiveCamera();
 
-	// mirror mode, compute camera position and orientation
-	// convert mirror position and normal in world space
+	// Compute camera position and orientation.
 	const MT_Matrix3x3& mirrorObjWorldOri = mirror->NodeGetWorldOrientation();
 	const MT_Vector3& mirrorObjWorldPos = mirror->NodeGetWorldPosition();
 
 	MT_Vector3 cameraWorldPos = observer->NodeGetWorldPosition();
-	observer->NodeSetWorldPosition(cameraWorldPos);
 
 	// Update clip plane to possible new normal or viewpoint object.
 	ComputeClipPlane(mirrorObjWorldPos, mirrorObjWorldOri);
@@ -123,6 +121,7 @@ bool KX_PlanarMap::SetupCamera(KX_Scene *scene, KX_Camera *camera)
 			  m_clipPlane.z() * cameraWorldPos.z() +
 			  m_clipPlane.w();
 
+	// Check if the scene camera is in the right plane side.
 	if (d < 0.0) {
 		return false;
 	}
@@ -159,7 +158,7 @@ bool KX_PlanarMap::SetupCameraFace(KX_Scene *scene, KX_Camera *camera, unsigned 
 #ifdef WITH_PYTHON
 
 PyTypeObject KX_PlanarMap::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_PlanarMap",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -181,7 +180,7 @@ PyTypeObject KX_PlanarMap::Type = {
 };
 
 PyMethodDef KX_PlanarMap::Methods[] = {
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_PlanarMap::Attributes[] = {

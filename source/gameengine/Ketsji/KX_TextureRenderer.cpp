@@ -38,7 +38,6 @@ KX_TextureRenderer::KX_TextureRenderer(EnvMap *env, KX_GameObject *viewpoint)
 	m_clipStart(env->clipsta),
 	m_clipEnd(env->clipend),
 	m_lodDistanceFactor(env->lodfactor),
-	m_autoUpdate(true),
 	m_forceUpdate(true)
 {
 	m_autoUpdate = (env->flag & ENVMAP_AUTO_UPDATE) != 0;
@@ -126,6 +125,7 @@ void KX_TextureRenderer::SetLodDistanceFactor(float lodfactor)
 bool KX_TextureRenderer::NeedUpdate()
 {
 	bool result = m_autoUpdate || m_forceUpdate;
+	// Disable the force update for the next render.
 	m_forceUpdate = false;
 
 	return result;
@@ -134,7 +134,7 @@ bool KX_TextureRenderer::NeedUpdate()
 #ifdef WITH_PYTHON
 
 PyTypeObject KX_TextureRenderer::Type = {
-	PyVarObject_HEAD_INIT(NULL, 0)
+	PyVarObject_HEAD_INIT(nullptr, 0)
 	"KX_TextureRenderer",
 	sizeof(PyObjectPlus_Proxy),
 	0,
@@ -157,7 +157,7 @@ PyTypeObject KX_TextureRenderer::Type = {
 
 PyMethodDef KX_TextureRenderer::Methods[] = {
 	KX_PYMETHODTABLE_NOARGS(KX_TextureRenderer, update),
-	{NULL, NULL} // Sentinel
+	{nullptr, nullptr} // Sentinel
 };
 
 PyAttributeDef KX_TextureRenderer::Attributes[] = {
@@ -171,7 +171,7 @@ PyAttributeDef KX_TextureRenderer::Attributes[] = {
 	KX_PYATTRIBUTE_NULL // Sentinel
 };
 
-KX_PYMETHODDEF_DOC_NOARGS(KX_TextureRenderer, update, "update(): Set the cube map to be updated next frame.\n")
+KX_PYMETHODDEF_DOC_NOARGS(KX_TextureRenderer, update, "update(): Set the texture rendered to be updated next frame.\n")
 {
 	m_forceUpdate = true;
 	Py_RETURN_NONE;
@@ -190,7 +190,7 @@ PyObject *KX_TextureRenderer::pyattr_get_viewpoint_object(PyObjectPlus *self_v, 
 int KX_TextureRenderer::pyattr_set_viewpoint_object(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_TextureRenderer *self = static_cast<KX_TextureRenderer *>(self_v);
-	KX_GameObject *gameobj = NULL;
+	KX_GameObject *gameobj = nullptr;
 
 	SCA_LogicManager *logicmgr = KX_GetActiveScene()->GetLogicManager();
 

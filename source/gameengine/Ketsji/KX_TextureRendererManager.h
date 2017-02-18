@@ -66,6 +66,7 @@ public:
 	*/
 	void AddRenderer(RendererType type, RAS_Texture *texture, KX_GameObject *viewpoint);
 
+	/// Execute all the texture renderer.
 	void Render(RAS_IRasterizer *rasty);
 
 	/// Merge the content of an other renderer manager, used during lib loading.

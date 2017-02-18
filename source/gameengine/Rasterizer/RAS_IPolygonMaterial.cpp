@@ -116,11 +116,6 @@ bool RAS_IPolyMaterial::IsZSort() const
 	return (m_rasMode & RAS_ZSORT);
 }
 
-void RAS_IPolyMaterial::SetRasMode(int mode)
-{
-	m_rasMode &= mode;
-}
-
 int RAS_IPolyMaterial::GetDrawingMode() const
 {
 	return m_drawingmode;

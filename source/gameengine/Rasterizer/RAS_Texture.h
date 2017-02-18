@@ -60,11 +60,12 @@ public:
 
 	virtual unsigned int GetTextureType() = 0;
 
-	/// Return GL_TEXTURE_2D
+	/// Return GL_TEXTURE_2D.
 	static int GetCubeMapTextureType();
-	/// Return GL_TEXTURE_CUBE_MAP
+	/// Return GL_TEXTURE_CUBE_MAP.
 	static int GetTexture2DType();
-	static std::initializer_list<int> GetCubeMapTargets();
+	/// Return all the OpenGL cube map face target, e.g GL_TEXTURE_CUBE_MAP_POSITIVE_Z_ARB.
+	static const std::initializer_list<int>& GetCubeMapTargets();
 
 	enum {MaxUnits = 8};
 
@@ -75,7 +76,7 @@ public:
 	/** Set the current active OpenGL texture to the first texture
 	 * and bind a null texture in this slot.
 	 * This function must be used very carfully, normally only after
-	 * that the user palyed with glActiveTexture and to make sure that
+	 * that the user played with glActiveTexture and to make sure that
 	 * it will not break the render.
 	 * Only the first slot is affected all texture in greater slot are
 	 * not affected but just unused as default.
