@@ -36,10 +36,11 @@ base class --- :class:`BL_Shader`
 
       :type: boolean
 
-   .. method:: setTexture(index, bindCode, samplerName)
+   .. method:: setTexture(index, bindCode, samplerName="")
 
-      Set specified texture bind code :data:`bindCode` in specified slot :data:`index`. Any call to :data:`setTexture`
-      should be followed by a call to :data:`BL_Shader.setSampler` with the same :data:`index`.
+      Set specified texture bind code :data:`bindCode` in specified slot :data:`index` and set :data:`index` to uniform :data:`samplerName`.
+      If :data:`samplerName` is not specified, any call to :data:`setTexture` should be followed by a call to :data:`BL_Shader.setSampler`
+      with the same :data:`index`.
 
       :arg index: The texture slot.
       :type index: integer
