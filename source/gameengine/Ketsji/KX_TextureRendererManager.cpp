@@ -160,10 +160,14 @@ void KX_TextureRendererManager::RenderRenderer(RAS_IRasterizer *rasty, KX_Textur
 		 * updates internally. */
 		KX_GetActiveEngine()->UpdateAnimations(m_scene);
 
+		renderer->BeginRenderFace(rasty);
+
 		// Now the objects are culled and we can render the scene.
 		m_scene->GetWorldInfo()->RenderBackground(rasty);
 		// Send a nullptr off screen because we use a set of FBO with shared textures, not an off screen.
 		m_scene->RenderBuckets(camtrans, rasty, nullptr);
+
+		renderer->EndRenderFace(rasty);
 	}
 
 	viewpoint->SetVisible(visible, false);

@@ -90,6 +90,8 @@ public:
 
 	virtual void BeginRender(RAS_IRasterizer *rasty);
 	virtual void EndRender(RAS_IRasterizer *rasty);
+	virtual void BeginRenderFace(RAS_IRasterizer *rasty);
+	virtual void EndRenderFace(RAS_IRasterizer *rasty);
 
 	void BindFace(unsigned short index);
 };

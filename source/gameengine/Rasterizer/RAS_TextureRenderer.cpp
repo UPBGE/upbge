@@ -189,6 +189,14 @@ void RAS_TextureRenderer::EndRender(RAS_IRasterizer *rasty)
 	}
 }
 
+void RAS_TextureRenderer::BeginRenderFace(RAS_IRasterizer *rasty)
+{
+}
+
+void RAS_TextureRenderer::EndRenderFace(RAS_IRasterizer *rasty)
+{
+}
+
 void RAS_TextureRenderer::BindFace(unsigned short index)
 {
 	m_faces[index].Bind();

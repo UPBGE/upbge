@@ -72,24 +72,27 @@ void KX_PlanarMap::ComputeClipPlane(const MT_Vector3& mirrorObjWorldPos, const M
 					    m_clipPlane.z() * mirrorObjWorldPos.z());
 }
 
-void KX_PlanarMap::BeginRender(RAS_IRasterizer *rasty)
+void KX_PlanarMap::BeginRenderFace(RAS_IRasterizer *rasty)
 {
-	KX_TextureRenderer::BeginRender(rasty);
+	KX_TextureRenderer::BeginRenderFace(rasty);
 
 	if (m_type == REFLECTION) {
 		rasty->SetInvertFrontFace(true);
+		rasty->EnableClipPlane(0, m_clipPlane);
 	}
-	rasty->EnableClipPlane(0, -m_clipPlane);
+	else {
+		rasty->EnableClipPlane(0, -m_clipPlane);
+	}
 }
 
-void KX_PlanarMap::EndRender(RAS_IRasterizer *rasty)
+void KX_PlanarMap::EndRenderFace(RAS_IRasterizer *rasty)
 {
 	if (m_type == REFLECTION) {
 		rasty->SetInvertFrontFace(false);
 	}
 	rasty->DisableClipPlane(0);
 
-	KX_TextureRenderer::EndRender(rasty);
+	KX_TextureRenderer::EndRenderFace(rasty);
 }
 
 const MT_Vector3& KX_PlanarMap::GetNormal() const

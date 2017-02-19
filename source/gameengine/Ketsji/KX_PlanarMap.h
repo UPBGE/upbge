@@ -34,8 +34,9 @@ class KX_PlanarMap : public KX_TextureRenderer
 	Py_Header
 
 private:
-	/// mirror normal vector
+	/// Mirror normal vector.
 	MT_Vector3 m_normal;
+	/// Clip plane equation values.
 	MT_Vector4 m_clipPlane;
 
 	enum Type {
@@ -51,8 +52,8 @@ public:
 
 	void ComputeClipPlane(const MT_Vector3& mirrorObjWorldPos, const MT_Matrix3x3& mirrorObjWorldOri);
 
-	virtual void BeginRender(RAS_IRasterizer *rasty);
-	virtual void EndRender(RAS_IRasterizer *rasty);
+	virtual void BeginRenderFace(RAS_IRasterizer *rasty) override;
+	virtual void EndRenderFace(RAS_IRasterizer *rasty) override;
 
 	const MT_Vector3& GetNormal() const;
 	void SetNormal(const MT_Vector3& normal);
