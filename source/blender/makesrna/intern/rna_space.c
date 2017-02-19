@@ -486,7 +486,7 @@ static void rna_SpaceView3D_lock_camera_and_layers_set(PointerRNA *ptr, int valu
 	}
 }
 
-static void rna_SpaceView3D_material_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_SpaceView3D_material_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
 {
 	View3D *v3d = (View3D *)(ptr->data);
 	if (v3d->scenelock) {
