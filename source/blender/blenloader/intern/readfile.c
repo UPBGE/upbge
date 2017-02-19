@@ -1197,7 +1197,7 @@ static int fd_read_gzip_from_memory_init(FileData *fd)
 	return 1;
 }
 
-FileData *blo_openblenderfile_noEncrypt(const char *filepath, ReportList *reports)
+FileData *blo_openblenderfile_no_encrypt(const char *filepath, ReportList *reports)
 {
 	gzFile gzfile;
 	errno = 0;
@@ -1283,7 +1283,7 @@ FileData *blo_openblenderencryptfile(const char *filepath, ReportList *reports)
 	/* If normal blender file. */
 	else {
 		fclose(inFile);
-		return blo_openblenderfile_noEncrypt(filepath, reports);
+		return blo_openblenderfile_no_encrypt(filepath, reports);
 	}
 
 	mem = malloc(memsize);
