@@ -36,7 +36,7 @@
 #include "SG_BBox.h"
 #include "SG_ParentRelation.h"
 #include <vector>
-
+#include <memory>
 
 class SG_Controller;
 class SG_Node;
@@ -413,7 +413,7 @@ private:
 	MT_Matrix3x3 m_worldRotation;
 	MT_Vector3 m_worldScaling;
 
-	SG_ParentRelation *m_parent_relation;
+	std::unique_ptr<SG_ParentRelation> m_parent_relation;
 
 	SG_BBox m_bbox;
 	bool m_modified;

@@ -82,8 +82,6 @@ SG_Node::~SG_Node()
 	for (contit = m_SGcontrollers.begin(); contit != m_SGcontrollers.end(); ++contit) {
 		delete (*contit);
 	}
-
-	delete m_parent_relation;
 }
 
 SG_Node *SG_Node::GetSGReplica()
@@ -141,8 +139,7 @@ void SG_Node::Destruct()
 
 	// We'll delete m_parent_relation now anyway.
 
-	delete m_parent_relation;
-	m_parent_relation = nullptr;
+	m_parent_relation.reset(nullptr);
 
 	for (SG_Node *childnode : m_children) {
 		// call the SG_Node destruct method on each of our children }-)
@@ -340,14 +337,13 @@ void SG_Node::ClearDirty()
 
 void SG_Node::SetParentRelation(SG_ParentRelation *relation)
 {
-	delete m_parent_relation;
-	m_parent_relation = relation;
+	m_parent_relation.reset(relation);
 	SetModified();
 }
 
 SG_ParentRelation *SG_Node::GetParentRelation()
 {
-	return m_parent_relation;
+	return m_parent_relation.get();
 }
 
 /**
