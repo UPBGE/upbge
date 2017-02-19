@@ -36,6 +36,9 @@
 #include <string.h>
 
 #ifdef __cplusplus
+
+#include <string>
+
 extern "C" {
 #endif
 
@@ -46,8 +49,8 @@ void SpinEncrypt_Hex(char *data, int dataSize, char *key);
 void SpinDecrypt_Hex(char *data, int dataSize, char *key);
 
 #ifdef __cplusplus
-char *SpinEncryption_FindAndSet_Key(char **argv, int i);
-char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, char *encryptKey);
+std::string SpinEncryption_FindAndSet_Key(char **argv, int i);
+char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, const std::string& encryptKey);
 int SpinEncryption_CheckHeader_Type(const char *filepath);
 #endif
 

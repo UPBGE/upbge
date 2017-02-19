@@ -43,7 +43,6 @@ set(INC
 )
 
 set(INC_SYS
-	../../../intern/spindle
 	${ZLIB_INCLUDE_DIRS}
 )
 
@@ -91,6 +90,13 @@ if(WITH_ALEMBIC)
 		../alembic
 	)
 	add_definitions(-DWITH_ALEMBIC)
+endif()
+
+if(WITH_BPPLAYER)
+	list(APPEND INC
+		../../../intern/spindle
+	)
+	add_definitions(-DWITH_BPPLAYER)
 endif()
 
 blender_add_lib(bf_blenloader "${SRC}" "${INC}" "${INC_SYS}")

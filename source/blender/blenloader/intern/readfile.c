@@ -159,6 +159,10 @@
 
 #include "RE_engine.h"
 
+#ifdef WITH_BPPLAYER
+#  include "SpindleEncryption.h"
+#endif  // WITH_BPPLAYER
+
 #include "readfile.h"
 
 
@@ -1127,7 +1131,11 @@ static FileData *blo_decode_and_check(FileData *fd, ReportList *reports)
 /* on each new library added, it now checks for the current FileData and expands relativeness */
 FileData *blo_openblenderfile(const char *filepath, ReportList *reports)
 {
+#ifdef WITH_BPPLAYER
 	return blo_openblenderencryptfile(filepath, reports);
+#else
+	return blo_openblenderfile_no_encrypt(filepath, reports);
+#endif  // WITH_BPPLAYER
 }
 
 /**
@@ -1220,6 +1228,8 @@ FileData *blo_openblenderfile_no_encrypt(const char *filepath, ReportList *repor
 	}
 }
 
+#ifdef WITH_BPPLAYER
+
 FileData *blo_openblenderencryptfile(const char *filepath, ReportList *reports)
 {
 	FileData *fd = NULL;
@@ -1306,6 +1316,8 @@ FileData *blo_openblenderencryptfile(const char *filepath, ReportList *reports)
 
 	return fd;
 }
+
+#endif  // WITH_BPPLAYER
 
 FileData *blo_openblendermemory(const void *mem, int memsize, ReportList *reports)
 {

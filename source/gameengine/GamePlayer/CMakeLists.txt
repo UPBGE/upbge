@@ -57,7 +57,6 @@ set(INC
 
 set(INC_SYS
 	../../../intern/moto/include
-	../../../intern/spindle
 	${PYTHON_INCLUDE_DIRS}
 	${BOOST_INCLUDE_DIR}
 )
@@ -100,6 +99,13 @@ if(WITH_SDL AND WITH_SDL_DYNLOAD)
 		../../../extern/sdlew/include
 	)
 	add_definitions(-DWITH_SDL_DYNLOAD)
+endif()
+
+if(WITH_BPPLAYER)
+	list(APPEND INC
+		../../../intern/spindle
+	)
+	add_definitions(-DWITH_BPPLAYER)
 endif()
 
 blender_add_lib_nolist(ge_player "${SRC}" "${INC}" "${INC_SYS}")

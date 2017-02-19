@@ -33,7 +33,6 @@
 
 #include <math.h>
 #include <fstream>
-#include "SpindleEncryption.h"
 
 #ifdef __linux__
 #  ifdef __alpha__
@@ -117,6 +116,10 @@ extern "C"
 #ifdef WITH_SDL_DYNLOAD
 #  include "sdlew.h"
 #endif
+
+#ifdef WITH_BPPLAYER
+#  include "SpindleEncryption.h"
+#endif  // WITH_BPPLAYER
 
 #include <boost/algorithm/string.hpp>
 
@@ -585,7 +588,9 @@ static bool quitGame(KX_ExitRequest exitcode)
 	return (exitcode != KX_ExitRequest::RESTART_GAME && exitcode != KX_ExitRequest::START_OTHER_GAME);
 }
 
-static BlendFileData *load_encrypted_game_data(char *filename, char *localPath, char *encryptKey, int typeEncryption = 0)
+#ifdef WITH_BPPLAYER
+
+static BlendFileData *load_encrypted_game_data(char *filename, std::string localPath, std::string encryptKey, int typeEncryption)
 {
 	ReportList reports;
 	BlendFileData *bfd = NULL;
@@ -593,11 +598,12 @@ static BlendFileData *load_encrypted_game_data(char *filename, char *localPath, 
 	int fileSize;
 	BKE_reports_init(&reports, RPT_STORE);
 
-	if (filename == NULL)
+	if (filename == NULL) {
 		return NULL;
+	}
 
-	if (localPath && encryptKey) {
-		// load file and decrypt
+	if (!localPath.empty() && !encryptKey.empty()) {
+		// Load file and decrypt.
 		fileData = SpinEncryption_LoadAndDecrypt_file(filename, fileSize, encryptKey);
 
 		if (fileData) {
@@ -621,6 +627,7 @@ static BlendFileData *load_encrypted_game_data(char *filename, char *localPath, 
 	return bfd;
 }
 
+#endif  // WITH_BPPLAYER
 
 int main(
 	int argc,
@@ -641,9 +648,12 @@ int main(
 #ifdef WIN32
 	bool closeConsole = false;
 #endif
+
+#ifdef WITH_BPPLAYER
 	bool useLocalPath = false;
-	char *localFilePath = NULL;
-	char *hexKey = NULL;
+	std::string localFilePath;
+	std::string hexKey;
+#endif  // WITH_BPPLAYER
 	RAS_Rasterizer::StereoMode stereomode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
 	bool stereoWindow = false;
 	bool stereoParFound = false;
@@ -883,12 +893,12 @@ int main(
 
 				break;
 			}
+#ifdef WITH_BPPLAYER
 			case 'L':
 			{
-				//Find the requested base file directory
-				if (!useLocalPath && (argv[i][2] != 0)) {
-					localFilePath = new char[strlen(argv[i]) + 1];
-					strcpy(localFilePath, &(argv[i][2]));
+				// Find the requested base file directory.
+				if (!useLocalPath) {
+					localFilePath = argv[i + 1];
 					useLocalPath = true;
 				}
 				i++;
@@ -901,6 +911,7 @@ int main(
 				i++;
 				break;
 			}
+#endif  // WITH_BPPLAYER
 			case 'f': //fullscreen mode
 			{
 				i++;
@@ -1136,15 +1147,14 @@ int main(
 					{
 						char basedpath[FILE_MAX];
 						char finalpath[FILE_MAX];
-						int typeEncryption = 0;
-						
+
 						// base the actuator filename relative to the last file
 						BLI_strncpy(basedpath, exitstring.c_str(), sizeof(basedpath));
 						BLI_path_abs(basedpath, pathname);
-						
-						// check header to see if it encrypted
-						typeEncryption = SpinEncryption_CheckHeader_Type(basedpath);
 
+#ifdef WITH_BPPLAYER
+						// check header to see if it encrypted
+						int typeEncryption = SpinEncryption_CheckHeader_Type(basedpath);
 						if (typeEncryption == -1) {
 							// just add "//" in front of it
 							char temppath[FILE_MAX] = "//";
@@ -1153,30 +1163,31 @@ int main(
 
 							typeEncryption = SpinEncryption_CheckHeader_Type(temppath);
 
-							if (typeEncryption =! -1) {
+							if (typeEncryption != -1) {
 								BLI_strncpy(finalpath, temppath, FILE_MAX);
 							}
 						}
-						else {
+						else
+#endif  // WITH_BPPLAYER
+						{
 							BLI_strncpy(finalpath, basedpath, FILE_MAX);
 						}
 
-						if (typeEncryption <= 0 ) {
+#ifdef WITH_BPPLAYER
+						if (typeEncryption <= 0) {
 							bfd = load_game_data(finalpath);
 						}
-						else {
+						else
+						{
 							bfd = load_encrypted_game_data(finalpath, NULL, NULL, typeEncryption);
 						}
+#endif  // WITH_BPPLAYER
 					}
 					else
 					{
-						if (useLocalPath)
-						{
-							bfd = load_encrypted_game_data(filename[0] ? filename : NULL, localFilePath, hexKey);
-
-							delete [] localFilePath;
-							if (hexKey != NULL)
-								delete [] hexKey;
+#ifdef WITH_BPPLAYER
+						if (useLocalPath) {
+							bfd = load_encrypted_game_data(filename[0] ? filename : NULL, localFilePath, hexKey, 0);
 
 							// The file is valid and it's the original file name.
 							if (bfd) {
@@ -1185,6 +1196,7 @@ int main(
 							}
 						}
 						else
+#endif  // WITH_BPPLAYER
 						{
 							bfd = load_game_data(BKE_appdir_program_path(), filename[0]? filename: NULL);
 							// The file is valid and it's the original file name.
