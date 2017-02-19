@@ -1858,7 +1858,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							}
 						}
 
-						kxscene->GetCubeMapManager()->AddCubeMap(tex, viewpoint);
+						kxscene->GetCubeMapManager()->AddCubeMap(tex, viewpoint, gameobj);
 					}
 				}
 			}

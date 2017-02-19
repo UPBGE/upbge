@@ -54,7 +54,7 @@ KX_CubeMapManager::~KX_CubeMapManager()
 	m_camera->Release();
 }
 
-void KX_CubeMapManager::AddCubeMap(RAS_Texture *texture, KX_GameObject *gameobj)
+void KX_CubeMapManager::AddCubeMap(RAS_Texture *texture, KX_GameObject *viewpoint, KX_GameObject *cubemapobj)
 {
 	for (std::vector<KX_CubeMap *>::iterator it = m_cubeMaps.begin(), end = m_cubeMaps.end(); it != end; ++it) {
 		KX_CubeMap *cubeMap = *it;
@@ -68,7 +68,7 @@ void KX_CubeMapManager::AddCubeMap(RAS_Texture *texture, KX_GameObject *gameobj)
 	}
 
 	EnvMap *env = texture->GetTex()->env;
-	KX_CubeMap *cubeMap = new KX_CubeMap(env, gameobj);
+	KX_CubeMap *cubeMap = new KX_CubeMap(env, viewpoint, cubemapobj);
 	cubeMap->AddTextureUser(texture);
 	texture->SetCubeMap(cubeMap);
 	m_cubeMaps.push_back(cubeMap);
@@ -88,8 +88,13 @@ void KX_CubeMapManager::RenderCubeMap(RAS_IRasterizer *rasty, KX_CubeMap *cubeMa
 {
 	KX_GameObject *viewpoint = cubeMap->GetViewpointObject();
 
-	// Doesn't need (or can) update.
-	if (!cubeMap->NeedUpdate() || !cubeMap->GetEnabled() || !viewpoint) {
+	/* Doesn't need (or can) update.
+	 * About cubemapobj->GetCulled() -> Cubemaps are rendered before
+	 * scene->CalculateVisibleMeshes() so we can't really prevent cubemap rendering if
+	 * cubemap object is culled. However, we can get previous frame culling state of this
+	 * object and prevent cubemap rendering if this object was culled at the previous frame.
+	 */
+	if (!cubeMap->NeedUpdate() || !cubeMap->GetEnabled() || !viewpoint || cubeMap->GetGameObject()->GetCulled()) {
 		return;
 	}
 
