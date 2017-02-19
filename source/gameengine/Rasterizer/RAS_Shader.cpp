@@ -34,8 +34,6 @@
 
 #include "CM_Message.h"
 
-#define UNIFORM_MAX_LEN (int)sizeof(float) * 16
-
 RAS_Shader::RAS_Uniform::RAS_Uniform(int data_size)
 	:m_loc(-1),
 	m_count(1),
@@ -45,7 +43,6 @@ RAS_Shader::RAS_Uniform::RAS_Uniform(int data_size)
 	m_dataLen(data_size)
 {
 #ifdef SORT_UNIFORMS
-	BLI_assert((int)m_dataLen <= UNIFORM_MAX_LEN);
 	m_data = (void *)MEM_mallocN(m_dataLen, "shader-uniform-alloc");
 #endif
 }
