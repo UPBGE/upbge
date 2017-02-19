@@ -63,9 +63,9 @@ int RAS_Texture::GetTexture2DType()
 	return GL_TEXTURE_2D;
 }
 
-const std::initializer_list<int>& RAS_Texture::GetCubeMapTargets()
+const std::array<int, 8>& RAS_Texture::GetCubeMapTargets()
 {
-	static std::initializer_list<int> targets = {
+	static std::array<int, 8> targets = {
 		GL_TEXTURE_CUBE_MAP_POSITIVE_Z_ARB,
 		GL_TEXTURE_CUBE_MAP_NEGATIVE_Z_ARB,
 		GL_TEXTURE_CUBE_MAP_POSITIVE_X_ARB,

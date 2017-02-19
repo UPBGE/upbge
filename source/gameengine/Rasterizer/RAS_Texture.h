@@ -26,6 +26,7 @@
 #define __RAS_TEXTURE_H__
 
 #include <string>
+#include <array>
 
 struct MTex;
 struct Tex;
@@ -65,7 +66,7 @@ public:
 	/// Return GL_TEXTURE_CUBE_MAP.
 	static int GetTexture2DType();
 	/// Return all the OpenGL cube map face target, e.g GL_TEXTURE_CUBE_MAP_POSITIVE_Z_ARB.
-	static const std::initializer_list<int>& GetCubeMapTargets();
+	static const std::array<int, 8>& GetCubeMapTargets();
 
 	enum {MaxUnits = 8};
 
