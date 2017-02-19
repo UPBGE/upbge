@@ -1158,7 +1158,7 @@ int main(
 							}
 						}
 						else {
-							BLI_strncpy(finalpath, basepath, FILE_MAX);
+							BLI_strncpy(finalpath, basedpath, FILE_MAX);
 						}
 
 						if (typeEncryption <= 0 ) {

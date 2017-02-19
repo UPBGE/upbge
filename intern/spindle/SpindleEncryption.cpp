@@ -277,9 +277,8 @@ char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, char *en
 int SpinEncryption_CheckHeader_Type(const char *filepath)
 {
 	const unsigned int currentSupportedVersion = 0;
-	int memsize, readResult;
+	int memsize;
 	char memHeader[5];
-	char* mem;
 	int keyType = 0; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
 	FILE* inFile = fopen(filepath, "rb");
 
@@ -296,7 +295,7 @@ int SpinEncryption_CheckHeader_Type(const char *filepath)
 		return -1;
 	}
 
-	readResult = fread(memHeader, 5, 1, inFile);
+	fread(memHeader, 5, 1, inFile);
 	memsize -= 5;
 
 	if ((memHeader[0] == 'S') && (memHeader[1] == 'T') && (memHeader[2] == 'C')) { //Static encrypted file

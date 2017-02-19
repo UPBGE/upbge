@@ -28,8 +28,8 @@
  * ***** END MIT LICENSE BLOCK *****
  */
 
-#ifndef _SPINDLEENCRYPTION_H
-#define _SPINDLEENCRYPTION_H
+#ifndef __SPINDLEENCRYPTION_H__
+#define __SPINDLEENCRYPTION_H__
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -65,4 +65,4 @@ void SpinSecureFunction_Memset(void *dest, char value, int size);
 }
 #endif
 
-#endif _SPINDLEENCRYPTION_H
+#endif  // __SPINDLEENCRYPTION_H__
