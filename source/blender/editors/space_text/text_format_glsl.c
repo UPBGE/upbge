@@ -140,7 +140,6 @@ static int txtfmt_glsl_find_specialvar(const char *string)
 	else if (STR_LITERAL_STARTSWITH(string, "gl_PointSize;",                         len)) i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "gl_ClipDistance",                       len)) i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "gl_PerVertex",                          len)) i = len;
-	else if (STR_LITERAL_STARTSWITH(string, "getmetatable",                          len)) i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "gl_ViewportIndex",                      len)) i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "gl_Layer",                              len)) i = len;
 	else if (STR_LITERAL_STARTSWITH(string, "gl_ViewportIndex",                      len)) i = len;
@@ -218,11 +217,72 @@ static int txtfmt_glsl_find_bool(const char *string)
 	return i;
 }
 
+static int txtfmt_glsl_find_reserved(const char *string) {
+	int i, len;
+
+	if      (STR_LITERAL_STARTSWITH(string, "min",            len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "max",            len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "abs",            len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "dot",            len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "cross",          len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "reflect",        len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "refract",        len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "pow",            len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "exp",            len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "dFdx",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "dFdy",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "log",            len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "cos",            len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "sin",            len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "tan",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "smoothstep",     len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "mix",            len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "radians",        len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "degrees",        len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "asin",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "acos",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "atan",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "atan2",          len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "exp2",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "log2",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "sqrt",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "inversesqrt",    len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "sign",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "floor",          len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "ceil",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "fract",          len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "mod",            len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "clamp",          len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "step",           len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "length",         len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "distance",       len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "normalize",      len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "faceforward",    len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "any",            len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "all",            len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "not",            len))  i = len;
+	else if(STR_LITERAL_STARTSWITH(string, "texture3DLod", len))  i = len;
+	else if(STR_LITERAL_STARTSWITH(string, "texture2DLod", len))  i = len;
+	else if(STR_LITERAL_STARTSWITH(string, "texture1DLod", len))  i = len;
+	else if(STR_LITERAL_STARTSWITH(string, "textureCubeLod", len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "texture3D",      len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "texture2D",      len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "texture1D",      len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "textureCube",    len))  i = len;
+	else if (STR_LITERAL_STARTSWITH(string, "texture",        len))  i = len;
+	else i = 0;
+	/* If next source char is an identifier (eg. 'i' in "Nonetheless") no match */
+	if(i == 0 || text_check_identifier(string[i]))
+		return -1;
+	return i;
+}
+
 static char txtfmt_glsl_format_identifier(const char *str)
 {
 	char fmt;
-	if	((txtfmt_glsl_find_specialvar(str))	!= -1) fmt = FMT_TYPE_SPECIAL;
+	if      ((txtfmt_glsl_find_specialvar(str)) != -1) fmt = FMT_TYPE_SPECIAL;
 	else if ((txtfmt_glsl_find_keyword(str))	!= -1) fmt = FMT_TYPE_KEYWORD;
+	else if ((txtfmt_glsl_find_reserved(str))	!= -1) fmt = FMT_TYPE_RESERVED;
 	else fmt = FMT_TYPE_DEFAULT;
 	return fmt;
 }
@@ -353,8 +413,9 @@ static void txtfmt_glsl_format_line(SpaceText *st, TextLine *line, const bool do
 			else {
 				/* Special vars(v) or built-in keywords(b) */
 				/* keep in sync with 'txtfmt_osl_format_identifier()' */
-				if	  ((i = txtfmt_glsl_find_specialvar(str))   != -1) prev = FMT_TYPE_SPECIAL;
+				if	    ((i = txtfmt_glsl_find_specialvar(str))   != -1) prev = FMT_TYPE_SPECIAL;
 				else if ((i = txtfmt_glsl_find_keyword(str))	  != -1) prev = FMT_TYPE_KEYWORD;
+				else if ((i = txtfmt_glsl_find_reserved(str))	  != -1) prev = FMT_TYPE_RESERVED;
 
 				if (i > 0) {
 					text_format_fill_ascii(&str, &fmt, prev, i);
@@ -386,8 +447,9 @@ void ED_text_format_register_glsl(void)
 	static const char *ext[] = {"glsl", "frag", "vert", "fx", "fs", "vs", NULL};
 
 	tft.format_identifier 	= txtfmt_glsl_format_identifier;
-	tft.format_line	   	= txtfmt_glsl_format_line;
+	tft.format_line	   	    = txtfmt_glsl_format_line;
 	tft.ext = ext;
+	tft.comment_prefix = "//";
 
 	ED_text_format_register(&tft);
 }

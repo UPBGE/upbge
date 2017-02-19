@@ -63,6 +63,8 @@ typedef struct Text {
 	
 	void *compiled;
 	double mtime;
+
+	const char *cmmt_pfx;
 } Text;
 
 #define TXT_TABSIZE	4

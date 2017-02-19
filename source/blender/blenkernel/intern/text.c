@@ -65,7 +65,6 @@
 #include "BKE_text.h"
 #include "BKE_node.h"
 
-
 #ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
@@ -2800,7 +2799,7 @@ static void txt_select_unprefix(
 
 void txt_comment(Text *text)
 {
-	const char *prefix = "#";
+	const char *prefix = text->cmmt_pfx == NULL ? "#" : text->cmmt_pfx;
 
 	if (ELEM(NULL, text->curl, text->sell)) {
 		return;
@@ -2815,7 +2814,8 @@ void txt_comment(Text *text)
 
 void txt_uncomment(Text *text)
 {
-	const char *prefix = "#";
+	const char *prefix = text->cmmt_pfx == NULL ? "#" : text->cmmt_pfx;
+
 	ListBase line_index_mask;
 	int line_index_mask_len;
 

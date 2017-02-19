@@ -330,7 +330,8 @@ static void text_keymap(struct wmKeyConfig *keyconf)
 	
 	WM_keymap_add_item(keymap, "TEXT_OT_indent", TABKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "TEXT_OT_unindent", TABKEY, KM_PRESS, KM_SHIFT, 0);
-	WM_keymap_add_item(keymap, "TEXT_OT_uncomment", DKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
+	WM_keymap_add_item(keymap, "TEXT_OT_comment", LEFTBRACKETKEY, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "TEXT_OT_uncomment", LEFTBRACKETKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", HOMEKEY, KM_PRESS, 0, 0)->ptr, "type", LINE_BEGIN);
 	RNA_enum_set(WM_keymap_add_item(keymap, "TEXT_OT_move", ENDKEY, KM_PRESS, 0, 0)->ptr, "type", LINE_END);
