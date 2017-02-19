@@ -37,7 +37,7 @@ extern "C" {
 	extern char datatoc_RAS_VertexShader2DFilter_glsl[];
 }
 
-static char predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_TYPE][40] = {
+static std::string predefinedUniformsName[RAS_2DFilter::MAX_PREDEFINED_UNIFORM_TYPE] = {
 	"bgl_RenderedTexture", // RENDERED_TEXTURE_UNIFORM
 	"bgl_DepthTexture", // DEPTH_TEXTURE_UNIFORM
 	"bgl_RenderedTextureWidth", // RENDERED_TEXTURE_WIDTH_UNIFORM
