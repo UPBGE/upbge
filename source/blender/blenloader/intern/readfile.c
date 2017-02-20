@@ -1130,7 +1130,7 @@ FileData *blo_openblenderfile(const char *filepath, ReportList *reports)
 	gzFile gzfile;
 	errno = 0;
 	gzfile = BLI_gzopen(filepath, "rb");
-
+	
 	if (gzfile == (gzFile)Z_NULL) {
 		BKE_reportf(reports, RPT_WARNING, "Unable to open '%s': %s",
 		            filepath, errno ? strerror(errno) : TIP_("unknown error reading file"));
@@ -1140,10 +1140,10 @@ FileData *blo_openblenderfile(const char *filepath, ReportList *reports)
 		FileData *fd = filedata_new();
 		fd->gzfiledes = gzfile;
 		fd->read = fd_read_gzip_from_file;
-
+		
 		/* needed for library_append and read_libraries */
 		BLI_strncpy(fd->relabase, filepath, sizeof(fd->relabase));
-
+		
 		return blo_decode_and_check(fd, reports);
 	}
 }
