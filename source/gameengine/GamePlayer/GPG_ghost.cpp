@@ -604,10 +604,10 @@ static BlendFileData *load_encrypted_game_data(char *filename, std::string local
 
 	if (!localPath.empty() && !encryptKey.empty()) {
 		// Load file and decrypt.
-		fileData = SpinEncryption_LoadAndDecrypt_file(filename, fileSize, encryptKey);
+		fileData = SPINDLE_DecryptFromFile(filename, fileSize, encryptKey);
 	}
 	else {
-		fileData = SpinEncryption_LoadAndDecrypt_file(filename, fileSize, NULL, typeEncryption);
+		fileData = SPINDLE_DecryptFromFile(filename, fileSize, NULL, typeEncryption);
 	}
 
 	if (fileData) {
@@ -904,7 +904,7 @@ int main(
 			case 'K':
 			{
 				//Find and set keys
-				hexKey = SpinEncryption_FindAndSet_Key(argv, i);
+				hexKey = SPINDLE_FindAndSetEncryptionKeys(argv, i);
 				i++;
 				break;
 			}
@@ -1154,7 +1154,7 @@ int main(
 						if (!bfd) {
 #else
 						// check header to see if it encrypted
-						typeEncryption = SpinEncryption_CheckHeader_Type(basedpath);
+						typeEncryption = SPINDLE_CheckHeaderFromFile(basedpath);
 						if (typeEncryption == -1) {
 #endif  // WITH_BPPLAYER
 							// just add "//" in front of it
@@ -1162,7 +1162,7 @@ int main(
 							BLI_strncpy(temppath + 2, basedpath, FILE_MAX - 2);
 							BLI_path_abs(temppath, pathname);
 #ifdef WITH_BPPLAYER
-							typeEncryption = SpinEncryption_CheckHeader_Type(temppath);
+							typeEncryption = SPINDLE_CheckHeaderFromFile(temppath);
 							if (typeEncryption != -1) {
 #endif  // WITH_BPPLAYER
 								BLI_strncpy(finalpath, temppath, FILE_MAX);

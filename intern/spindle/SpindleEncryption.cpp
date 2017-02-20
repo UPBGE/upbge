@@ -206,7 +206,7 @@ void SpinDecrypt_Hex(char* data, int dataSize, char* key)
 	}
 }
 
-std::string SpinEncryption_FindAndSet_Key(char **argv, int i)
+std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i)
 {
 	/* Find main key */
 	int hexStrSize = 0, argPos = 2, maxStringLen = int(strlen(argv[i]));
@@ -253,7 +253,7 @@ std::string SpinEncryption_FindAndSet_Key(char **argv, int i)
 	return hexKey;
 }
 
-char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, const std::string& encryptKey, int typeEncryption=0)
+char *SPINDLE_DecryptFromFile(char *filename, int &fileSize, const std::string& encryptKey, int typeEncryption=0)
 {
 	std::ifstream inFile(filename, std::ios::in | std::ios::binary | std::ios::ate);
 	fileSize = (int)inFile.tellg();
@@ -283,7 +283,7 @@ char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, const st
 	return NULL;
 }
 
-void *SpinEncryption_LoadAndDecrypt_memory(void *mem, int &memLength, int typeEncryption)
+void *SPINDLE_DecryptFromMemory(void *mem, int &memLength, int typeEncryption)
 {
 	if (typeEncryption == 1) {
 		SpinDecrypt_Hex(mem, memLength, staticKey);
@@ -294,7 +294,7 @@ void *SpinEncryption_LoadAndDecrypt_memory(void *mem, int &memLength, int typeEn
 	return mem;
 }
 
-int SpinEncryption_CheckHeader_Type(const char *filepath)
+int SPINDLE_CheckHeaderFromFile(const char *filepath)
 {
 	const unsigned int currentSupportedVersion = 0;
 	int memsize;
@@ -351,7 +351,7 @@ int SpinEncryption_CheckHeader_Type(const char *filepath)
 	return keyType;
 }
 
-int SpinEncryption_CheckHeader_Type_memory(void *mem)
+int SPINDLE_CheckHeaderFromMemory(void *mem)
 {
 	int keyType = 0; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
 

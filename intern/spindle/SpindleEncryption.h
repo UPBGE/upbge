@@ -49,11 +49,11 @@ void SpinEncrypt_Hex(char *data, int dataSize, char *key);
 void SpinDecrypt_Hex(char *data, int dataSize, char *key);
 
 #ifdef __cplusplus
-std::string SpinEncryption_FindAndSet_Key(char **argv, int i);
-char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, const std::string& encryptKey, int typeEncryption=0);
-void *SpinEncryption_LoadAndDecrypt_memory(void *mem, int &memLength, int typeEncryption);
-int SpinEncryption_CheckHeader_Type(const char *filepath);
-int SpinEncryption_CheckHeader_Type_memory(void *mem);
+std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i);
+char *SPINDLE_DecryptFromFile(char *filename, int &fileSize, const std::string& encryptKey, int typeEncryption=0);
+void *SPINDLE_DecryptFromMemory(void *mem, int &memLength, int typeEncryption);
+int SPINDLE_CheckHeaderFromFile(const char *filepath);
+int SPINDLE_CheckHeaderFromMemory(void *mem);
 #endif
 
 void SpinSetStaticEncryption_Key(const char *hexKey);
