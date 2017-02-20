@@ -729,6 +729,15 @@ void KX_KetsjiEngine::SetCameraOverrideZoom(float camzoom)
 	m_overrideCamZoom = camzoom;
 }
 
+float KX_KetsjiEngine::GetCameraZoom(KX_Camera *camera) const
+{
+	KX_Scene *scene = camera->GetScene();
+	const bool overrideCamera = m_overrideCam && (scene->GetName() == m_overrideSceneName) &&
+		(camera->GetName() == "__default__cam__");
+
+	return overrideCamera ? m_overrideCamZoom : m_cameraZoom;
+}
+
 void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene, const MT_CmMatrix4x4& projmat,
 		const MT_CmMatrix4x4& viewmat, const RAS_CameraData& camdata)
 {

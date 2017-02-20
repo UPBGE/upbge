@@ -27,6 +27,7 @@
 #include "KX_PlanarMap.h"
 #include "KX_Camera.h"
 #include "KX_PyMath.h"
+#include "KX_Globals.h"
 
 #include "RAS_IRasterizer.h"
 #include "RAS_Texture.h"
@@ -80,18 +81,16 @@ void KX_PlanarMap::InvalidateProjectionMatrix()
 const MT_Matrix4x4& KX_PlanarMap::GetProjectionMatrix(RAS_IRasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
 													  const RAS_Rect& viewport, const RAS_Rect& area)
 {
-	std::unordered_map<KX_Camera *, CameraProjection>::iterator projectionit = m_projections.find(sceneCamera);
-	if (projectionit != m_projections.end() && !projectionit->second.m_invalid) {
-		std::cout << "cache" << std::endl;
-		return projectionit->second.m_projection;
+	std::unordered_map<KX_Camera *, MT_Matrix4x4>::const_iterator projectionit = m_projections.find(sceneCamera);
+	if (projectionit != m_projections.end()) {
+		return projectionit->second;
 	}
 
-	CameraProjection& projection = m_projections[sceneCamera];
+	MT_Matrix4x4& projection = m_projections[sceneCamera];
 
 	RAS_FrameFrustum frustum;
 	const bool orthographic = !sceneCamera->GetCameraData()->m_perspective;
-	const float focallength = sceneCamera->GetFocalLength();
-	//const float camzoom = override_camera ? m_overrideCamZoom : m_cameraZoom;
+
 	if (orthographic) {
 		RAS_FramingManager::ComputeOrtho(
 		    scene->GetFramingType(),
@@ -104,16 +103,6 @@ const MT_Matrix4x4& KX_PlanarMap::GetProjectionMatrix(RAS_IRasterizer *rasty, KX
 		    sceneCamera->GetShiftHorizontal(),
 		    sceneCamera->GetShiftVertical(),
 		    frustum);
-
-		/*if (!sceneCamera->GetViewport()) {
-			frustum.x1 *= camzoom;
-			frustum.x2 *= camzoom;
-			frustum.y1 *= camzoom;
-			frustum.y2 *= camzoom;
-		}*/
-		projection.m_projection = rasty->GetOrthoMatrix(
-		    frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
-
 	}
 	else {
 		RAS_FramingManager::ComputeFrustum(
@@ -129,20 +118,30 @@ const MT_Matrix4x4& KX_PlanarMap::GetProjectionMatrix(RAS_IRasterizer *rasty, KX
 		    m_clipStart,
 		    m_clipEnd,
 		    frustum);
+	}
 
-		/*if (!sceneCamera->GetViewport()) {
-			frustum.x1 *= camzoom;
-			frustum.x2 *= camzoom;
-			frustum.y1 *= camzoom;
-			frustum.y2 *= camzoom;
-		}*/
-		projection.m_projection = rasty->GetFrustumMatrix(
+	if (!sceneCamera->GetViewport()) {
+		KX_KetsjiEngine *engine = KX_GetActiveEngine();
+		const float camzoom = engine->GetCameraZoom(sceneCamera);
+
+		frustum.x1 *= camzoom;
+		frustum.x2 *= camzoom;
+		frustum.y1 *= camzoom;
+		frustum.y2 *= camzoom;
+	}
+
+	if (orthographic) {
+		projection = rasty->GetOrthoMatrix(
+		    frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
+	}
+	else {
+		const float focallength = sceneCamera->GetFocalLength();
+
+		projection = rasty->GetFrustumMatrix(
 		    frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar, focallength);
 	}
 
-	projection.m_invalid = false;
-
-	return projection.m_projection;
+	return projection;
 }
 
 void KX_PlanarMap::BeginRenderFace(RAS_IRasterizer *rasty)

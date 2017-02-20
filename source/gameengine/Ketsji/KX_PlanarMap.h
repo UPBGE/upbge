@@ -41,13 +41,7 @@ private:
 	/// Clip plane equation values.
 	MT_Vector4 m_clipPlane;
 
-	struct CameraProjection
-	{
-		bool m_invalid;
-		MT_Matrix4x4 m_projection;
-	};
-
-	std::unordered_map<KX_Camera *, CameraProjection> m_projections;
+	std::unordered_map<KX_Camera *, MT_Matrix4x4> m_projections;
 
 	enum Type {
 		REFLECTION,
