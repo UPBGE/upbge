@@ -482,4 +482,3 @@ void BLO_blendfiledata_free(BlendFileData *bfd)
 	MEM_freeN(bfd);
 }
 
-

@@ -604,7 +604,6 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		bf_alembic
 		bf_bmesh
 		bf_gpu
-		bf_intern_spindle
 		bf_blenloader
 		bf_blenkernel
 		bf_physics

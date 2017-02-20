@@ -159,10 +159,6 @@
 
 #include "RE_engine.h"
 
-#ifdef WITH_BPPLAYER
-#  include "SpindleEncryption.h"
-#endif  // WITH_BPPLAYER
-
 #include "readfile.h"
 
 
@@ -1131,11 +1127,25 @@ static FileData *blo_decode_and_check(FileData *fd, ReportList *reports)
 /* on each new library added, it now checks for the current FileData and expands relativeness */
 FileData *blo_openblenderfile(const char *filepath, ReportList *reports)
 {
-#ifdef WITH_BPPLAYER
-	return blo_openblenderencryptfile(filepath, reports);
-#else
-	return blo_openblenderfile_no_encrypt(filepath, reports);
-#endif  // WITH_BPPLAYER
+	gzFile gzfile;
+	errno = 0;
+	gzfile = BLI_gzopen(filepath, "rb");
+
+	if (gzfile == (gzFile)Z_NULL) {
+		BKE_reportf(reports, RPT_WARNING, "Unable to open '%s': %s",
+		            filepath, errno ? strerror(errno) : TIP_("unknown error reading file"));
+		return NULL;
+	}
+	else {
+		FileData *fd = filedata_new();
+		fd->gzfiledes = gzfile;
+		fd->read = fd_read_gzip_from_file;
+
+		/* needed for library_append and read_libraries */
+		BLI_strncpy(fd->relabase, filepath, sizeof(fd->relabase));
+
+		return blo_decode_and_check(fd, reports);
+	}
 }
 
 /**
@@ -1205,120 +1215,6 @@ static int fd_read_gzip_from_memory_init(FileData *fd)
 	return 1;
 }
 
-FileData *blo_openblenderfile_no_encrypt(const char *filepath, ReportList *reports)
-{
-	gzFile gzfile;
-	errno = 0;
-	gzfile = BLI_gzopen(filepath, "rb");
-
-	if (gzfile == (gzFile)Z_NULL) {
-		BKE_reportf(reports, RPT_WARNING, "Unable to open '%s': %s",
-		            filepath, errno ? strerror(errno) : TIP_("unknown error reading file"));
-		return NULL;
-	}
-	else {
-		FileData *fd = filedata_new();
-		fd->gzfiledes = gzfile;
-		fd->read = fd_read_gzip_from_file;
-
-		/* needed for library_append and read_libraries */
-		BLI_strncpy(fd->relabase, filepath, sizeof(fd->relabase));
-
-		return blo_decode_and_check(fd, reports);
-	}
-}
-
-#ifdef WITH_BPPLAYER
-
-FileData *blo_openblenderencryptfile(const char *filepath, ReportList *reports)
-{
-	FileData *fd = NULL;
-	const unsigned int currentSupportedVersion = 0;
-	int memsize, readResult;
-	char memHeader[5];
-	char *mem;
-	int keyType = 0;
-	FILE *inFile = fopen(filepath, "rb");
-
-	if (!inFile) {
-		BKE_reportf(reports, RPT_WARNING, "Unable to open \"%s\": %s.", filepath, errno ? strerror(errno) : "Unknown error reading file");
-		return NULL;
-	}
-
-	fseek(inFile, 0L, SEEK_END);
-	memsize = ftell(inFile);
-	fseek(inFile, 0L, SEEK_SET);
-
-	if (memsize < 5) {
-		fclose(inFile);
-		BKE_reportf(reports, RPT_WARNING, "Unable to open \"%s\": %s.", filepath, errno ? strerror(errno) : "Unknown error reading file");
-		return NULL;
-	}
-
-	readResult = fread(memHeader, 5, 1, inFile);
-	memsize -= 5;
-
-	/* Static encrypted file. */
-	if (strcmp(memHeader, "STC", 3)) {
-		if ((unsigned int)memHeader[3] > currentSupportedVersion) {
-			fclose(inFile);
-			printf("Failed to read blend file: \"%s\", blend is from a newer version\n", filepath);
-			BKE_reportf(reports, RPT_WARNING, "Failed to read blend file: \"%s\", blend is from a newer version", filepath);
-			return NULL;
-		}
-		if (staticKey == NULL) {
-			fclose(inFile);
-			printf("Failed to read blend file: \"%s\", No static key provided\n", filepath);
-			BKE_reportf(reports, RPT_WARNING, "Failed to read blend file: \"%s\", No static key provided", filepath);
-			return NULL;
-		}
-		keyType = 0;
-	}
-	/* Dynamic encrypted file. */
-	else if (strcmp(memHeader, "DYC", 3)) {
-		if ((unsigned int)memHeader[3] > currentSupportedVersion) {
-			fclose(inFile);
-			printf("Failed to read blend file: \"%s\", blend is from a newer version\n", filepath);
-			BKE_reportf(reports, RPT_WARNING, "Failed to read blend file: \"%s\", blend is from a newer version", filepath);
-			return NULL;
-		}
-		if (dynamicKey == NULL) {
-			fclose(inFile);
-			printf("Failed to read blend file: \"%s\", No dynamic key provided\n", filepath);
-			BKE_reportf(reports, RPT_WARNING, "Failed to read blend file: \"%s\", No dynamic key provided", filepath);
-			return NULL;
-		}
-		keyType = 1;
-	}
-	/* If normal blender file. */
-	else {
-		fclose(inFile);
-		return blo_openblenderfile_no_encrypt(filepath, reports);
-	}
-
-	mem = malloc(memsize);
-	readResult = fread(mem, memsize, 1, inFile);
-	fclose(inFile);
-
-	if (keyType == 0) {
-		SpinDecrypt_Hex(mem, memsize, staticKey);
-	}
-	else if (keyType == 1) {
-		SpinDecrypt_Hex(mem, memsize, dynamicKey);
-	}
-
-	if (readResult != 0) {
-		fd = blo_openblendermemory(mem, memsize, reports);
-		if (!fd) {
-			BLI_strncpy(fd->relabase, filepath, sizeof(fd->relabase));
-		}
-	}
-
-	return fd;
-}
-
-#endif  // WITH_BPPLAYER
-
 FileData *blo_openblendermemory(const void *mem, int memsize, ReportList *reports)
 {
 	if (!mem || memsize<SIZEOFBLENDERHEADER) {
@@ -1364,6 +1260,7 @@ FileData *blo_openblendermemfile(MemFile *memfile, ReportList *reports)
 		return blo_decode_and_check(fd, reports);
 	}
 }
+
 
 void blo_freefiledata(FileData *fd)
 {
