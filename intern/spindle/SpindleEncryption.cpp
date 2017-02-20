@@ -253,7 +253,7 @@ std::string SpinEncryption_FindAndSet_Key(char **argv, int i)
 	return hexKey;
 }
 
-char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, char *encryptKey)
+char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, const std::string& encryptKey, int typeEncryption=0)
 {
 	std::ifstream inFile(filename, std::ios::in | std::ios::binary | std::ios::ate);
 	fileSize = (int)inFile.tellg();
@@ -270,8 +270,28 @@ char *SpinEncryption_LoadAndDecrypt_file(char *filename, int &fileSize, char *en
 			return fileData;
 		}
 	}
+	else {
+		if (typeEncryption == 1) {
+			SpinDecrypt_Hex(fileData, fileSize, staticKey);
+		}
+		else if (typeEncryption == 2) {
+			SpinDecrypt_Hex(fileData, fileSize, dynamicKey);
+		}
+		return fileData;
+	}
 	delete [] fileData;
 	return NULL;
+}
+
+void *SpinEncryption_LoadAndDecrypt_memory(void *mem, int &memLength, int typeEncryption)
+{
+	if (typeEncryption == 1) {
+		SpinDecrypt_Hex(mem, memLength, staticKey);
+	}
+	else if (typeEncryption == 2) {
+		SpinDecrypt_Hex(mem, memLength, dynamicKey);
+	}
+	return mem;
 }
 
 int SpinEncryption_CheckHeader_Type(const char *filepath)
@@ -327,6 +347,35 @@ int SpinEncryption_CheckHeader_Type(const char *filepath)
 	else { //Normal blender file
 		keyType = 0;
 		fclose(inFile);
+	}
+	return keyType;
+}
+
+int SpinEncryption_CheckHeader_Type_memory(void *mem)
+{
+	int keyType = 0; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
+
+	if ((mem[0] == 'S') && (mem[1] == 'T') && (mem[2] == 'C')) { //Static encrypted file
+		if ((unsigned int)mem[3] > currentSupportedVersion) {
+			printf("Failed to read blend file, blend is from a newer version\n");
+			return -1;
+		}
+		if (staticKey == NULL) {
+			printf("Failed to read blend file, No static key provided\n");
+			return -1;
+		}
+		keyType = 1;
+	}
+	else if ((mem[0] == 'D') && (mem[1] == 'Y') && (mem[2] == 'C')) { //Dynamic encrypted file
+		if ((unsigned int)mem[3] > currentSupportedVersion) {
+			printf("Failed to read blend file, blend is from a newer version\n");
+			return -1;
+		}
+		if (dynamicKey == NULL) {
+			printf("Failed to read blend file, No dynamic key provided\n");
+			return -1;
+		}
+		keyType = 2;
 	}
 	return keyType;
 }
