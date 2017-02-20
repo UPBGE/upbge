@@ -56,6 +56,8 @@
 #include "MT_Transform.h"
 #include "MT_MinMax.h"
 
+#include "GPU_texture.h"
+
 #include "PHY_Pro.h"
 #include "PHY_IPhysicsEnvironment.h"
 
@@ -86,7 +88,8 @@
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_IPolygonMaterial.h"
 #include "KX_BlenderMaterial.h"
-#include "KX_CubeMapManager.h"
+#include "KX_TextureRendererManager.h"
+#include "KX_PlanarMap.h"
 #include "KX_CubeMap.h"
 #include "BL_Texture.h"
 
@@ -1846,20 +1849,25 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 				for (unsigned short k = 0; k < RAS_Texture::MaxUnits; ++k) {
 					RAS_Texture *tex = polymat->GetTexture(k);
-
-					if (tex && tex->Ok() && tex->IsCubeMap() && tex->GetTex()->env->stype == ENV_REALT) {
-						EnvMap *env = tex->GetTex()->env;
-						KX_GameObject *viewpoint = gameobj;
-
-						if (env->object) {
-							KX_GameObject *obj = converter->FindGameObject(env->object);
-							if (obj) {
-								viewpoint = obj;
-							}
-						}
-
-						kxscene->GetCubeMapManager()->AddCubeMap(tex, viewpoint);
+					if (!tex || !tex->Ok()) {
+						continue;
 					}
+
+					EnvMap *env = tex->GetTex()->env;
+					if (!env || env->stype != ENV_REALT) {
+						continue;
+					}
+
+					KX_GameObject *viewpoint = gameobj;
+					if (env->object) {
+						KX_GameObject *obj = converter->FindGameObject(env->object);
+						if (obj) {
+							viewpoint = obj;
+						}
+					}
+
+					KX_TextureRendererManager::RendererType type = tex->IsCubeMap() ? KX_TextureRendererManager::CUBE : KX_TextureRendererManager::PLANAR;
+					kxscene->GetTextureRendererManager()->AddRenderer(type, tex, viewpoint);
 				}
 			}
 		}

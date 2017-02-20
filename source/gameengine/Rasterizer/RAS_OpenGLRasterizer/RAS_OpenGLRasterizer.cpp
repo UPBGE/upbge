@@ -30,6 +30,7 @@
  */
 
 #include "RAS_OpenGLRasterizer.h"
+#include "RAS_IPolygonMaterial.h"
 
 #include "glew-mx.h"
 
@@ -605,6 +606,18 @@ void RAS_OpenGLRasterizer::SetEmissive(float eX, float eY, float eZ, float e)
 void RAS_OpenGLRasterizer::SetPolygonOffset(float mult, float add)
 {
 	glPolygonOffset(mult, add);
+}
+
+void RAS_OpenGLRasterizer::EnableClipPlane(unsigned short index, const MT_Vector4& plane)
+{
+	double planev[4] = {plane.x(), plane.y(), plane.z(), plane.w()};
+	glClipPlane(GL_CLIP_PLANE0 + index, planev);
+	glEnable(GL_CLIP_PLANE0 + index);
+}
+
+void RAS_OpenGLRasterizer::DisableClipPlane(unsigned short index)
+{
+	glDisable(GL_CLIP_PLANE0 + index);
 }
 
 void RAS_OpenGLRasterizer::SetFrontFace(bool ccw)

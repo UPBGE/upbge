@@ -26,13 +26,14 @@
 #define __RAS_TEXTURE_H__
 
 #include <string>
+#include <array>
 
 struct MTex;
 struct Tex;
 struct Image;
 struct GPUTexture;
 
-class RAS_CubeMap;
+class RAS_TextureRenderer;
 
 class RAS_Texture
 {
@@ -40,7 +41,7 @@ protected:
 	int m_bindCode;
 	std::string m_name;
 
-	RAS_CubeMap *m_cubeMap;
+	RAS_TextureRenderer *m_renderer;
 
 public:
 	RAS_Texture();
@@ -55,15 +56,17 @@ public:
 	virtual GPUTexture *GetGPUTexture() const = 0;
 	std::string& GetName();
 
-	void SetCubeMap(RAS_CubeMap *cubeMap);
-	RAS_CubeMap *GetCubeMap() const;
+	void SetRenderer(RAS_TextureRenderer *renderer);
+	RAS_TextureRenderer *GetRenderer() const;
 
 	virtual unsigned int GetTextureType() = 0;
 
-	/// Return GL_TEXTURE_2D
+	/// Return GL_TEXTURE_2D.
 	static int GetCubeMapTextureType();
-	/// Return GL_TEXTURE_CUBE_MAP
+	/// Return GL_TEXTURE_CUBE_MAP.
 	static int GetTexture2DType();
+	/// Return all the OpenGL cube map face target, e.g GL_TEXTURE_CUBE_MAP_POSITIVE_Z_ARB.
+	static const std::array<int, 6>& GetCubeMapTargets();
 
 	enum {MaxUnits = 8};
 
@@ -74,7 +77,7 @@ public:
 	/** Set the current active OpenGL texture to the first texture
 	 * and bind a null texture in this slot.
 	 * This function must be used very carfully, normally only after
-	 * that the user palyed with glActiveTexture and to make sure that
+	 * that the user played with glActiveTexture and to make sure that
 	 * it will not break the render.
 	 * Only the first slot is affected all texture in greater slot are
 	 * not affected but just unused as default.

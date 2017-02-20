@@ -794,6 +794,12 @@ static void rna_def_environment_map(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_mode_items[] = {
+		{ENVMAP_REFLECTION, "REFLECTION", 0, "Reflection", "Reflection rendering"},
+		{ENVMAP_REFRACTION, "REFRACTION", 0, "Refraction", "Refraction rendering"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "EnvironmentMap", NULL);
 	RNA_def_struct_sdna(srna, "EnvMap");
 	RNA_def_struct_ui_text(srna, "EnvironmentMap",
@@ -864,6 +870,11 @@ static void rna_def_environment_map(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "auto_update", PROP_BOOLEAN, 0);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ENVMAP_AUTO_UPDATE);
 	RNA_def_property_ui_text(prop, "Auto Update", "True if the cube map is updated every frame");
+
+	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "mode");
+	RNA_def_property_enum_items(prop, prop_mode_items);
+	RNA_def_property_ui_text(prop, "Rendering Mode", "Texture rendering method");
 
 	prop = RNA_def_property(srna, "lod_factor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "lodfactor");

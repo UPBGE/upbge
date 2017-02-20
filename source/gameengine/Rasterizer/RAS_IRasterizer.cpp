@@ -31,6 +31,8 @@
 
 #include "RAS_IRasterizer.h"
 #include "RAS_OpenGLRasterizer.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_DisplayArrayBucket.h"
 
 #include "RAS_ICanvas.h"
 #include "RAS_OffScreen.h"
@@ -232,7 +234,7 @@ RAS_IRasterizer::RAS_IRasterizer()
 	m_auxilaryClientInfo(nullptr),
 	m_drawingmode(RAS_TEXTURED),
 	m_shadowMode(RAS_SHADOW_NONE),
-	//m_last_alphablend(GPU_BLEND_SOLID),
+	m_invertFrontFace(false),
 	m_last_frontface(true),
 	m_overrideShader(RAS_OVERRIDE_SHADER_NONE)
 {
@@ -1124,6 +1126,16 @@ void RAS_IRasterizer::SetCullFace(bool enable)
 	}
 }
 
+void RAS_IRasterizer::EnableClipPlane(unsigned short index, const MT_Vector4& plane)
+{
+	m_impl->EnableClipPlane(index, plane);
+}
+
+void RAS_IRasterizer::DisableClipPlane(unsigned short index)
+{
+	m_impl->DisableClipPlane(index);
+}
+
 void RAS_IRasterizer::SetLines(bool enable)
 {
 	m_impl->SetLines(enable);
@@ -1200,8 +1212,8 @@ void RAS_IRasterizer::SetAlphaBlend(int alphablend)
 
 void RAS_IRasterizer::SetFrontFace(bool ccw)
 {
-	if (m_camnegscale)
-		ccw = !ccw;
+	// Invert the front face if the camera has a negative scale or if we force to inverse the front face.
+	ccw ^= (m_camnegscale || m_invertFrontFace);
 
 	if (m_last_frontface == ccw) {
 		return;
@@ -1210,6 +1222,11 @@ void RAS_IRasterizer::SetFrontFace(bool ccw)
 	m_impl->SetFrontFace(ccw);
 
 	m_last_frontface = ccw;
+}
+
+void RAS_IRasterizer::SetInvertFrontFace(bool invert)
+{
+	m_invertFrontFace = invert;
 }
 
 void RAS_IRasterizer::SetAnisotropicFiltering(short level)
