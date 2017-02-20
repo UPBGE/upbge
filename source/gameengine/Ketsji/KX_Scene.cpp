@@ -63,7 +63,6 @@
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
 #include "KX_2DFilterManager.h"
-#include "KX_TextureRendererManager.h"
 #include "RAS_BoundingBoxManager.h"
 #include "RAS_BucketManager.h"
 
@@ -1715,9 +1714,10 @@ void KX_Scene::RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterize
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-void KX_Scene::RenderTextureRenderers(RAS_IRasterizer *rasty)
+void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen, KX_Camera *camera,
+									  const RAS_Rect& viewport, const RAS_Rect& area)
 {
-	m_rendererManager->Render(rasty);
+	m_rendererManager->Render(category, rasty, offScreen, camera, viewport, area);
 }
 
 void KX_Scene::UpdateObjectLods(KX_Camera *cam)

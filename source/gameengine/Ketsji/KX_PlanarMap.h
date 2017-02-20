@@ -29,6 +29,8 @@
 
 #include "KX_TextureRenderer.h"
 
+#include <unordered_map>
+
 class KX_PlanarMap : public KX_TextureRenderer
 {
 	Py_Header
@@ -38,6 +40,14 @@ private:
 	MT_Vector3 m_normal;
 	/// Clip plane equation values.
 	MT_Vector4 m_clipPlane;
+
+	struct CameraProjection
+	{
+		bool m_invalid;
+		MT_Matrix4x4 m_projection;
+	};
+
+	std::unordered_map<KX_Camera *, CameraProjection> m_projections;
 
 	enum Type {
 		REFLECTION,
@@ -52,13 +62,17 @@ public:
 
 	void ComputeClipPlane(const MT_Vector3& mirrorObjWorldPos, const MT_Matrix3x3& mirrorObjWorldOri);
 
+	virtual void InvalidateProjectionMatrix();
+	virtual const MT_Matrix4x4& GetProjectionMatrix(RAS_IRasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
+													const RAS_Rect& viewport, const RAS_Rect& area);
+
 	virtual void BeginRenderFace(RAS_IRasterizer *rasty) override;
 	virtual void EndRenderFace(RAS_IRasterizer *rasty) override;
 
 	const MT_Vector3& GetNormal() const;
 	void SetNormal(const MT_Vector3& normal);
 
-	virtual bool SetupCamera(KX_Scene *scene, KX_Camera *camera);
+	virtual bool SetupCamera(KX_Scene *scene, KX_Camera *sceneCamera, KX_Camera *camera);
 	virtual bool SetupCameraFace(KX_Scene *scene, KX_Camera *camera, unsigned short index);
 
 #ifdef WITH_PYTHON

@@ -32,9 +32,12 @@
 #include "KX_PlanarMap.h"
 
 #include "RAS_IRasterizer.h"
+#include "RAS_OffScreen.h"
 #include "RAS_Texture.h"
 
 #include "DNA_texture_types.h"
+
+#include "CM_Message.h"
 
 KX_TextureRendererManager::KX_TextureRendererManager(KX_Scene *scene)
 	:m_scene(scene)
@@ -46,8 +49,10 @@ KX_TextureRendererManager::KX_TextureRendererManager(KX_Scene *scene)
 
 KX_TextureRendererManager::~KX_TextureRendererManager()
 {
-	for (KX_TextureRenderer *renderer : m_renderers) {
-		delete renderer;
+	for (unsigned short i = 0; i < CATEGORY_MAX; ++i) {
+		for (KX_TextureRenderer *renderer : m_renderers[i]) {
+			delete renderer;
+		}
 	}
 
 	m_camera->Release();
@@ -55,9 +60,11 @@ KX_TextureRendererManager::~KX_TextureRendererManager()
 
 void KX_TextureRendererManager::InvalidateViewpoint(KX_GameObject *gameobj)
 {
-	for (KX_TextureRenderer *renderer : m_renderers) {
-		if (renderer->GetViewpointObject() == gameobj) {
-			renderer->SetViewpointObject(nullptr);
+	for (unsigned short i = 0; i < CATEGORY_MAX; ++i) {
+		for (KX_TextureRenderer *renderer : m_renderers[i]) {
+			if (renderer->GetViewpointObject() == gameobj) {
+				renderer->SetViewpointObject(nullptr);
+			}
 		}
 	}
 }
@@ -67,10 +74,18 @@ void KX_TextureRendererManager::AddRenderer(RendererType type, RAS_Texture *text
 	/* Don't Add renderer several times for the same texture. If the texture is shared by several objects,
 	 * we just add a "textureUser" to signal that the renderer texture will be shared by several objects.
 	 */
-	for (KX_TextureRenderer *renderer : m_renderers) {
-		if (renderer->EqualTextureUser(texture)) {
-			renderer->AddTextureUser(texture);
-			return;
+	for (unsigned short i = 0; i < CATEGORY_MAX; ++i) {
+		for (KX_TextureRenderer *renderer : m_renderers[i]) {
+			if (renderer->EqualTextureUser(texture)) {
+				renderer->AddTextureUser(texture);
+
+				KX_GameObject *origviewpoint = renderer->GetViewpointObject();
+				if (viewpoint != origviewpoint) {
+					CM_Warning("texture renderer (" << texture->GetName() << ") uses different viewpoint objects (" <<
+							(origviewpoint ? origviewpoint->GetName() : "<None>") << " and " << viewpoint->GetName() << ").");
+				}
+				return;
+			}
 		}
 	}
 
@@ -80,30 +95,32 @@ void KX_TextureRendererManager::AddRenderer(RendererType type, RAS_Texture *text
 		case CUBE:
 		{
 			renderer = new KX_CubeMap(env, viewpoint);
+			m_renderers[VIEWPORT_INDEPENDENT].push_back(renderer);
 			break;
 		}
 		case PLANAR:
 		{
 			renderer = new KX_PlanarMap(env, viewpoint);
+			m_renderers[VIEWPORT_DEPENDENT].push_back(renderer);
 			break;
 		}
 	}
 
 	renderer->AddTextureUser(texture);
-	m_renderers.push_back(renderer);
 }
 
-void KX_TextureRendererManager::RenderRenderer(RAS_IRasterizer *rasty, KX_TextureRenderer *renderer)
+bool KX_TextureRendererManager::RenderRenderer(RAS_IRasterizer *rasty, KX_TextureRenderer *renderer,
+											   KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	KX_GameObject *viewpoint = renderer->GetViewpointObject();
 	// Doesn't need (or can) update.
 	if (!renderer->NeedUpdate() || !renderer->GetEnabled() || !viewpoint) {
-		return;
+		return false;
 	}
 
 	// Set camera setting shared by all the renderer's faces.
-	if (!renderer->SetupCamera(m_scene, m_camera)) {
-		return;
+	if (!renderer->SetupCamera(m_scene, sceneCamera, m_camera)) {
+		return false;
 	}
 
 	const bool visible = viewpoint->GetVisible();
@@ -119,16 +136,9 @@ void KX_TextureRendererManager::RenderRenderer(RAS_IRasterizer *rasty, KX_Textur
 	 * or if the projection matrix is not computed yet,
 	 * we have to compute projection matrix.
 	 */
-	if (renderer->GetInvalidProjectionMatrix()) {
-		const float clipstart = renderer->GetClipStart();
-		const float clipend = renderer->GetClipEnd();
-		const MT_Matrix4x4& proj = rasty->GetFrustumMatrix(-clipstart, clipstart, -clipstart, clipstart, clipstart, clipend, 1.0f, true);
-		renderer->SetProjectionMatrix(proj);
-		renderer->SetInvalidProjectionMatrix(false);
-	}
-
-	const MT_Matrix4x4& projmat = renderer->GetProjectionMatrix();
+	const MT_Matrix4x4& projmat = renderer->GetProjectionMatrix(rasty, m_scene, sceneCamera, viewport, area);
 	m_camera->SetProjectionMatrix(projmat);
+	rasty->SetProjectionMatrix(projmat);
 
 	// Begin rendering stuff
 	renderer->BeginRender(rasty);
@@ -146,7 +156,7 @@ void KX_TextureRendererManager::RenderRenderer(RAS_IRasterizer *rasty, KX_Textur
 		const MT_Transform camtrans(m_camera->GetWorldToCamera());
 		const MT_Matrix4x4 viewmat(camtrans);
 
-		rasty->SetViewMatrix(viewmat, m_camera->NodeGetWorldOrientation(), m_camera->NodeGetWorldPosition(), m_camera->NodeGetLocalScaling(), m_camera->GetCameraData()->m_perspective);
+		rasty->SetViewMatrix(viewmat, m_camera->NodeGetWorldOrientation(), m_camera->NodeGetWorldPosition(), MT_Vector3(1.0f, 1.0f, 1.0f), m_camera->GetCameraData()->m_perspective);
 		m_camera->SetModelviewMatrix(viewmat);
 
 		m_scene->CalculateVisibleMeshes(rasty, m_camera, ~renderer->GetIgnoreLayers());
@@ -173,11 +183,15 @@ void KX_TextureRendererManager::RenderRenderer(RAS_IRasterizer *rasty, KX_Textur
 	viewpoint->SetVisible(visible, false);
 
 	renderer->EndRender(rasty);
+
+	return true;
 }
 
-void KX_TextureRendererManager::Render(RAS_IRasterizer *rasty)
+void KX_TextureRendererManager::Render(RendererCategory category, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen,
+									   KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area)
 {
-	if (m_renderers.size() == 0 || rasty->GetDrawingMode() != RAS_IRasterizer::RAS_TEXTURED) {
+	const std::vector<KX_TextureRenderer *>& renderers = m_renderers[category];
+	if (renderers.size() == 0 || rasty->GetDrawingMode() != RAS_IRasterizer::RAS_TEXTURED) {
 		return;
 	}
 
@@ -192,8 +206,10 @@ void KX_TextureRendererManager::Render(RAS_IRasterizer *rasty)
 	// Disable stereo for realtime renderer.
 	rasty->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
 
-	for (KX_TextureRenderer *renderer : m_renderers) {
-		RenderRenderer(rasty, renderer);
+	// Check if at least one renderer was rendered.
+	bool rendered = false;
+	for (KX_TextureRenderer *renderer : renderers) {
+		rendered |= RenderRenderer(rasty, renderer, sceneCamera, viewport, area);
 	}
 
 	// Restore previous stereo mode.
@@ -202,10 +218,17 @@ void KX_TextureRendererManager::Render(RAS_IRasterizer *rasty)
 	rasty->Enable(RAS_IRasterizer::RAS_SCISSOR_TEST);
 
 	rasty->SetDrawingMode(drawmode);
+
+	if (offScreen && rendered) {
+		// Restore the off screen bound before rendering the texture renderers.
+		offScreen->Bind();
+	}
 }
 
 void KX_TextureRendererManager::Merge(KX_TextureRendererManager *other)
 {
-	m_renderers.insert(m_renderers.end(), other->m_renderers.begin(), other->m_renderers.end());
-	other->m_renderers.clear();
+	for (unsigned short i = 0; i < CATEGORY_MAX; ++i) {
+		m_renderers[i].insert(m_renderers[i].end(), other->m_renderers[i].begin(), other->m_renderers[i].end());
+		other->m_renderers[i].clear();
+	}
 }

@@ -72,6 +72,79 @@ void KX_PlanarMap::ComputeClipPlane(const MT_Vector3& mirrorObjWorldPos, const M
 					    m_clipPlane.z() * mirrorObjWorldPos.z());
 }
 
+void KX_PlanarMap::InvalidateProjectionMatrix()
+{
+	m_projections.clear();
+}
+
+const MT_Matrix4x4& KX_PlanarMap::GetProjectionMatrix(RAS_IRasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
+													  const RAS_Rect& viewport, const RAS_Rect& area)
+{
+	std::unordered_map<KX_Camera *, CameraProjection>::iterator projectionit = m_projections.find(sceneCamera);
+	if (projectionit != m_projections.end() && !projectionit->second.m_invalid) {
+		std::cout << "cache" << std::endl;
+		return projectionit->second.m_projection;
+	}
+
+	CameraProjection& projection = m_projections[sceneCamera];
+
+	RAS_FrameFrustum frustum;
+	const bool orthographic = !sceneCamera->GetCameraData()->m_perspective;
+	const float focallength = sceneCamera->GetFocalLength();
+	//const float camzoom = override_camera ? m_overrideCamZoom : m_cameraZoom;
+	if (orthographic) {
+		RAS_FramingManager::ComputeOrtho(
+		    scene->GetFramingType(),
+		    area,
+		    viewport,
+		    sceneCamera->GetScale(),
+		    m_clipStart,
+		    m_clipEnd,
+		    sceneCamera->GetSensorFit(),
+		    sceneCamera->GetShiftHorizontal(),
+		    sceneCamera->GetShiftVertical(),
+		    frustum);
+
+		/*if (!sceneCamera->GetViewport()) {
+			frustum.x1 *= camzoom;
+			frustum.x2 *= camzoom;
+			frustum.y1 *= camzoom;
+			frustum.y2 *= camzoom;
+		}*/
+		projection.m_projection = rasty->GetOrthoMatrix(
+		    frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
+
+	}
+	else {
+		RAS_FramingManager::ComputeFrustum(
+		    scene->GetFramingType(),
+		    area,
+		    viewport,
+		    sceneCamera->GetLens(),
+		    sceneCamera->GetSensorWidth(),
+		    sceneCamera->GetSensorHeight(),
+		    sceneCamera->GetSensorFit(),
+		    sceneCamera->GetShiftHorizontal(),
+		    sceneCamera->GetShiftVertical(),
+		    m_clipStart,
+		    m_clipEnd,
+		    frustum);
+
+		/*if (!sceneCamera->GetViewport()) {
+			frustum.x1 *= camzoom;
+			frustum.x2 *= camzoom;
+			frustum.y1 *= camzoom;
+			frustum.y2 *= camzoom;
+		}*/
+		projection.m_projection = rasty->GetFrustumMatrix(
+		    frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar, focallength);
+	}
+
+	projection.m_invalid = false;
+
+	return projection.m_projection;
+}
+
 void KX_PlanarMap::BeginRenderFace(RAS_IRasterizer *rasty)
 {
 	KX_TextureRenderer::BeginRenderFace(rasty);
@@ -105,16 +178,15 @@ void KX_PlanarMap::SetNormal(const MT_Vector3& normal)
 	m_normal = normal.normalized();
 }
 
-bool KX_PlanarMap::SetupCamera(KX_Scene *scene, KX_Camera *camera)
+bool KX_PlanarMap::SetupCamera(KX_Scene *scene, KX_Camera *sceneCamera, KX_Camera *camera)
 {
 	KX_GameObject *mirror = GetViewpointObject();
-	KX_Camera *observer = scene->GetActiveCamera();
 
 	// Compute camera position and orientation.
 	const MT_Matrix3x3& mirrorObjWorldOri = mirror->NodeGetWorldOrientation();
 	const MT_Vector3& mirrorObjWorldPos = mirror->NodeGetWorldPosition();
 
-	MT_Vector3 cameraWorldPos = observer->NodeGetWorldPosition();
+	MT_Vector3 cameraWorldPos = sceneCamera->NodeGetWorldPosition();
 
 	// Update clip plane to possible new normal or viewpoint object.
 	ComputeClipPlane(mirrorObjWorldPos, mirrorObjWorldOri);
@@ -130,7 +202,7 @@ bool KX_PlanarMap::SetupCamera(KX_Scene *scene, KX_Camera *camera)
 	}
 
 	const MT_Matrix3x3 mirrorObjWorldOriInverse = mirrorObjWorldOri.inverse();
-	MT_Matrix3x3 cameraWorldOri = observer->NodeGetWorldOrientation();
+	MT_Matrix3x3 cameraWorldOri = sceneCamera->NodeGetWorldOrientation();
 
 	static const MT_Matrix3x3 unmir(1.0f, 0.0f, 0.0f,
 									0.0f, 1.0f, 0.0f,

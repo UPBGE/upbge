@@ -27,6 +27,7 @@
 #include "KX_CubeMap.h"
 #include "KX_Camera.h"
 
+#include "RAS_IRasterizer.h"
 #include "RAS_Texture.h"
 
 static const MT_Matrix3x3 topFaceViewMat(
@@ -69,7 +70,8 @@ const MT_Matrix3x3 KX_CubeMap::faceViewMatrices3x3[KX_CubeMap::NUM_FACES] = {
 };
 
 KX_CubeMap::KX_CubeMap(EnvMap *env, KX_GameObject *viewpoint)
-	:KX_TextureRenderer(env, viewpoint)
+	:KX_TextureRenderer(env, viewpoint),
+	m_invalidProjection(true)
 {
 	for (int target : RAS_Texture::GetCubeMapTargets()) {
 		m_faces.emplace_back(target);
@@ -85,7 +87,23 @@ std::string KX_CubeMap::GetName()
 	return "KX_CubeMap";
 }
 
-bool KX_CubeMap::SetupCamera(KX_Scene *scene, KX_Camera *camera)
+void KX_CubeMap::InvalidateProjectionMatrix()
+{
+	m_invalidProjection = true;
+}
+
+const MT_Matrix4x4& KX_CubeMap::GetProjectionMatrix(RAS_IRasterizer *rasty, KX_Scene *UNUSED(scene), KX_Camera *UNUSED(sceneCamera),
+													const RAS_Rect& UNUSED(viewport), const RAS_Rect& UNUSED(area))
+{
+	if (m_invalidProjection) {
+		m_projection = rasty->GetFrustumMatrix(-m_clipStart, m_clipStart, -m_clipStart, m_clipStart, m_clipStart, m_clipEnd, 1.0f, true);
+		m_invalidProjection = false;
+	}
+
+	return m_projection;
+}
+
+bool KX_CubeMap::SetupCamera(KX_Scene *scene, KX_Camera *sceneCamera, KX_Camera *camera)
 {
 	KX_GameObject *viewpoint = GetViewpointObject();
 	const MT_Vector3& position = viewpoint->NodeGetWorldPosition();
@@ -97,7 +115,7 @@ bool KX_CubeMap::SetupCamera(KX_Scene *scene, KX_Camera *camera)
 
 bool KX_CubeMap::SetupCameraFace(KX_Scene *scene, KX_Camera *camera, unsigned short index)
 {
-	camera->NodeSetGlobalOrientation(KX_CubeMap::faceViewMatrices3x3[index]);
+	camera->NodeSetGlobalOrientation(faceViewMatrices3x3[index]);
 
 	return true;
 }

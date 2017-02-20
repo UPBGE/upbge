@@ -35,6 +35,7 @@
 class KX_GameObject;
 class KX_Camera;
 class KX_Scene;
+class RAS_Rect;
 
 struct EnvMap;
 
@@ -42,24 +43,21 @@ class KX_TextureRenderer : public CValue, public RAS_TextureRenderer
 {
 	Py_Header
 
+protected:
+	/// View clip start.
+	float m_clipStart;
+	/// View clip end.
+	float m_clipEnd;
+
 private:
 	/// The object used to render from its position.
 	KX_GameObject *m_viewpointObject;
-
-	/// The camera projection matrix depending on clip start/end.
-	MT_Matrix4x4 m_projection;
-	/// True if the projection matrix is invalid and need to be recomputed.
-	bool m_invalidProjection;
 
 	/// The texture renderer is enabled for render.
 	bool m_enabled;
 	/// Layers to ignore during render.
 	int m_ignoreLayers;
 
-	/// View clip start.
-	float m_clipStart;
-	/// View clip end.
-	float m_clipEnd;
 
 	/// Distance factor for level of detail.
 	float m_lodDistanceFactor;
@@ -80,27 +78,27 @@ public:
 	KX_GameObject *GetViewpointObject() const;
 	void SetViewpointObject(KX_GameObject *gameobj);
 
+	virtual void InvalidateProjectionMatrix() = 0;
+
+	float GetLodDistanceFactor() const;
+	void SetLodDistanceFactor(float lodfactor);
+
+	virtual const MT_Matrix4x4& GetProjectionMatrix(RAS_IRasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
+													const RAS_Rect& viewport, const RAS_Rect& area) = 0;
+
+	bool GetEnabled() const;
+	int GetIgnoreLayers() const;
+
 	float GetClipStart() const;
 	float GetClipEnd() const;
 	void SetClipStart(float start);
 	void SetClipEnd(float end);
 
-	float GetLodDistanceFactor() const;
-	void SetLodDistanceFactor(float lodfactor);
-
-	void SetInvalidProjectionMatrix(bool invalid);
-	bool GetInvalidProjectionMatrix() const;
-	void SetProjectionMatrix(const MT_Matrix4x4& projection);
-	const MT_Matrix4x4& GetProjectionMatrix() const;
-
-	bool GetEnabled() const;
-	int GetIgnoreLayers() const;
-
 	// Return true when the texture renderer need to be updated.
 	bool NeedUpdate();
 
 	/// Setup camera position and orientation shared by all the faces, returns true when the render will be made.
-	virtual bool SetupCamera(KX_Scene *scene, KX_Camera *camera) = 0;
+	virtual bool SetupCamera(KX_Scene *scene, KX_Camera *sceneCamera, KX_Camera *camera) = 0;
 	/// Setup camera position and orientation unique per faces, returns true when the render will be made.
 	virtual bool SetupCameraFace(KX_Scene *scene, KX_Camera *camera, unsigned short index) = 0;
 

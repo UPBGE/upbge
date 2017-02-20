@@ -31,12 +31,11 @@
 #include "DNA_texture_types.h"
 
 KX_TextureRenderer::KX_TextureRenderer(EnvMap *env, KX_GameObject *viewpoint)
-	:m_viewpointObject(viewpoint),
-	m_invalidProjection(true),
+	:m_clipStart(env->clipsta),
+	m_clipEnd(env->clipend),
+	m_viewpointObject(viewpoint),
 	m_enabled(true),
 	m_ignoreLayers(env->notlay),
-	m_clipStart(env->clipsta),
-	m_clipEnd(env->clipend),
 	m_lodDistanceFactor(env->lodfactor),
 	m_forceUpdate(true)
 {
@@ -60,26 +59,6 @@ KX_GameObject *KX_TextureRenderer::GetViewpointObject() const
 void KX_TextureRenderer::SetViewpointObject(KX_GameObject *gameobj)
 {
 	m_viewpointObject = gameobj;
-}
-
-void KX_TextureRenderer::SetInvalidProjectionMatrix(bool invalid)
-{
-	m_invalidProjection = invalid;
-}
-
-bool KX_TextureRenderer::GetInvalidProjectionMatrix() const
-{
-	return m_invalidProjection;
-}
-
-void KX_TextureRenderer::SetProjectionMatrix(const MT_Matrix4x4& projection)
-{
-	m_projection = projection;
-}
-
-const MT_Matrix4x4& KX_TextureRenderer::GetProjectionMatrix() const
-{
-	return m_projection;
 }
 
 bool KX_TextureRenderer::GetEnabled() const
@@ -201,6 +180,7 @@ int KX_TextureRenderer::pyattr_set_viewpoint_object(PyObjectPlus *self_v, const 
 	return PY_SET_ATTR_SUCCESS;
 }
 
+
 PyObject *KX_TextureRenderer::pyattr_get_clip_start(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_TextureRenderer *self = static_cast<KX_TextureRenderer *>(self_v);
@@ -214,12 +194,12 @@ int KX_TextureRenderer::pyattr_set_clip_start(PyObjectPlus *self_v, const KX_PYA
 	const float val = PyFloat_AsDouble(value);
 
 	if (val <= 0.0f) {
-		PyErr_SetString(PyExc_AttributeError, "renderer.clipStart = float: KX_TextureRenderer, expected a float grater than zero");
+		PyErr_SetString(PyExc_AttributeError, "cubeMap.clipStart = float: KX_TextureRenderer, expected a float grater than zero");
 		return PY_SET_ATTR_FAIL;
 	}
 
 	self->SetClipStart(val);
-	self->SetInvalidProjectionMatrix(true);
+	self->InvalidateProjectionMatrix();
 
 	return PY_SET_ATTR_SUCCESS;
 }
@@ -237,12 +217,12 @@ int KX_TextureRenderer::pyattr_set_clip_end(PyObjectPlus *self_v, const KX_PYATT
 	const float val = PyFloat_AsDouble(value);
 
 	if (val <= 0.0f) {
-		PyErr_SetString(PyExc_AttributeError, "renderer.clipEnd = float: KX_TextureRenderer, expected a float grater than zero");
+		PyErr_SetString(PyExc_AttributeError, "cubeMap.clipEnd = float: KX_TextureRenderer, expected a float grater than zero");
 		return PY_SET_ATTR_FAIL;
 	}
 
 	self->SetClipEnd(val);
-	self->SetInvalidProjectionMatrix(true);
+	self->InvalidateProjectionMatrix();
 
 	return PY_SET_ATTR_SUCCESS;
 }

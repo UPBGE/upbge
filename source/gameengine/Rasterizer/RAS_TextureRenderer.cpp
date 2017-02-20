@@ -191,6 +191,8 @@ void RAS_TextureRenderer::EndRender(RAS_IRasterizer *rasty)
 
 void RAS_TextureRenderer::BeginRenderFace(RAS_IRasterizer *rasty)
 {
+	// Clear only the depth texture because the background render will override the color texture.
+	rasty->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
 }
 
 void RAS_TextureRenderer::EndRenderFace(RAS_IRasterizer *rasty)

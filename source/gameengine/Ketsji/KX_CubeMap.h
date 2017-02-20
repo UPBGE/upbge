@@ -33,6 +33,12 @@ class KX_CubeMap : public KX_TextureRenderer
 {
 	Py_Header
 
+private:
+	/// The camera projection matrix depending on clip start/end.
+	MT_Matrix4x4 m_projection;
+	/// True if the projection matrix is invalid and need to be recomputed.
+	bool m_invalidProjection;
+
 public:
 	enum {
 		NUM_FACES = 6
@@ -46,7 +52,11 @@ public:
 
 	virtual std::string GetName();
 
-	virtual bool SetupCamera(KX_Scene *scene, KX_Camera *camera);
+	virtual void InvalidateProjectionMatrix();
+	virtual const MT_Matrix4x4& GetProjectionMatrix(RAS_IRasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
+													const RAS_Rect& viewport, const RAS_Rect& area);
+
+	virtual bool SetupCamera(KX_Scene *scene, KX_Camera *sceneCamera, KX_Camera *camera);
 	virtual bool SetupCameraFace(KX_Scene *scene, KX_Camera *camera, unsigned short index);
 };
 
