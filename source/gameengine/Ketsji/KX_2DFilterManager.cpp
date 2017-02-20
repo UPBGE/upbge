@@ -125,9 +125,9 @@ KX_PYMETHODDEF_DOC(KX_2DFilterManager, addFilter, " addFilter(index, type, fragm
 	data.filterMode = type;
 	data.shaderText = std::string(frag);
 
-	AddFilter(data);
+	KX_2DFilter *filter = static_cast<KX_2DFilter *>(AddFilter(data));
 
-	Py_RETURN_NONE;
+	return filter->GetProxy();
 }
 
 KX_PYMETHODDEF_DOC(KX_2DFilterManager, removeFilter, " removeFilter(index)")

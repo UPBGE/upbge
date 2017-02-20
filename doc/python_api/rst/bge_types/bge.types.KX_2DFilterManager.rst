@@ -30,8 +30,10 @@ base class --- :class:`PyObjectPlus`
 
       :type type: integer
       :arg fragmentProgram: The filter shader fragment program.
-      Specified only if :data:`type` is :data:`bge.logic.RAS_2DFILTER_CUSTOMFILTER`. (optional)
+          Specified only if :data:`type` is :data:`bge.logic.RAS_2DFILTER_CUSTOMFILTER`. (optional)
       :type fragmentProgram: string
+      :return: The 2D Filter.
+      :rtype: :class:`KX_2DFilter`
 
    .. method:: removeFilter(index)
 
@@ -45,8 +47,8 @@ base class --- :class:`PyObjectPlus`
       Return filter to the pass index :data:`index`.
 
       :warning: If the 2D Filter is added with a :class:`SCA_2DFilterActuator`, the filter will
-      be available only after the 2D Filter program is linked. The python script to get the filter
-      has to be executed one frame later. A delay sensor can be used.
+          be available only after the 2D Filter program is linked. The python script to get the filter
+          has to be executed one frame later. A delay sensor can be used.
 
       :arg index: The filter pass index.
       :type index: integer
