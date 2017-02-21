@@ -34,177 +34,25 @@
 char *staticKey = NULL;
 char *dynamicKey = NULL;
 
-static int strlenN(char* str)
-{
-	int val = 0;
-	if (str == NULL)
-		return 0;
-	while (str[val] != 0)
-		val++;
-	return val;
-}
 
-static void SpinEncrypt(char* data, int dataSize, unsigned long long key)
-{
-	const int keySize = sizeof(key)*8;
-	unsigned long long pieceSize, offset, end, chunkSize = 0, max = ((unsigned long long)(dataSize)<<3);
-	unsigned int p, t, ii;
-	long long i;
-	int iii;
-	char h;
+// Static functions declaration
+// Encryption & Decryption
+static void spindle_encrypt(char* data, int dataSize, unsigned long long key);
+static void spindle_decrypt(char* data, int dataSize, unsigned long long key);
+static void spindle_encrypt_hex_64(char* data, int dataSize, char* key);
+static void spindle_decrypt_hex_64(char* data, int dataSize, char* key);
+static void spindle_encrypt_hex(char *data, int dataSize, char *key);
+static void spindle_decrypt_hex(char *data, int dataSize, char *key);
+// Encryption keys
+static void spindle_set_static_encryption_key(const char *hexKey);
+static void spindle_set_dynamic_encryption_key(const char *hexKey);
+// Secure functions
+// We want to define these functions ourselves since some platforms will always dynamically link against
+// libc even if we build a static executable (ex: Linux)
+static void spindle_secure_function_memcpy(void *dest, void *src, int size);
+static void spindle_secure_function_memset(void *dest, char value, int size);
+static int spindle_secure_function_strlen(char *str);
 
-	for (iii = 0; iii < (keySize>>4); iii++)
-	{
-		p = iii*16; //keySize-1-(iii*16 + 8);
-		pieceSize = (((key >> p)%(1<<8)) + 3)*(dataSize/256/400 + 1); //if (pieceSize == chunkSize){pieceSize++;}
-		offset = ((key >> (p + 8))%(1<<8)); if (offset == 0){offset++;}
-		//cout << "(Encrypt) pieceSize: " << pieceSize << " offset: " << offset << " " << p << "\n";
-		end = ((unsigned long long)(dataSize)<<3) - (((unsigned long long)(dataSize)<<3)%pieceSize) - pieceSize*((int)( (((unsigned long long)(dataSize)<<3)%pieceSize) == 0 ));
-		//if (end == (unsigned long long(dataSize)<<3)){end -= pieceSize;}
-		//for (unsigned long long i = 0; i < (unsigned long long(dataSize)<<3); i += chunkSize)
-		for (i = end; i >= 0; i -= pieceSize)
-		{
-			chunkSize = pieceSize;
-			if (i+chunkSize >= max ){chunkSize = ((unsigned long long)(dataSize)<<3) - i;}
-			//cout << "   N: " << i << " " << i + chunkSize << "\n";
-			t = (unsigned int)((unsigned long long)(i + chunkSize)>>3);
-			ii = (unsigned int)(i>>3);
-			h = ((char)offset)*((char)i) + ((char)i) - ((char)(pieceSize&i)) + (((char)(offset))|((char)(i))) + ((((char)(iii))|pieceSize)&255);
-			//for (unsigned int ii = i>>3; ii < t; ii++)
-			while (ii < t)
-			{
-				data[ii] += h + (((char)offset)|((char)ii));//char(ii) - h + (char(offset)|char(ii));
-				ii++;
-			}
-		}
-	}
-}
-
-static void SpinDecrypt(char* data, int dataSize, unsigned long long key)
-{
-	const int keySize = sizeof(key)*8;
-	unsigned long long pieceSize, offset, chunkSize = 0, max = ((unsigned long long)(dataSize)<<3);
-	unsigned int p, t, ii;
-	unsigned long long i;
-	int iii;
-	char h;
-
-	for (iii = (keySize>>4)-1; iii >= 0; iii--)
-	{
-		p = iii*16; //keySize-1-(iii*16 + 8);
-		pieceSize = (((key >> p)%(1<<8)) + 3)*(dataSize/256/400 + 1); //if (pieceSize == chunkSize){pieceSize++;}
-		offset = ((key >> (p + 8))%(1<<8)); if (offset == 0){offset++;}
-		chunkSize = pieceSize;
-		//cout << "(Decrypt) pieceSize: " << pieceSize << " offset: " << offset << " " << p << "\n";
-		for (i = 0; i < max; i += chunkSize)
-		{
-			if (i+chunkSize >= max ){chunkSize = (((unsigned long long)(dataSize))<<3) - i;}
-			//cout << "   N: " << i << " " << i + chunkSize << "\n";
-			t = (unsigned int)(((unsigned long long)(i + chunkSize))>>3);
-			ii = (unsigned int)(i>>3);
-			//for (unsigned int ii = i>>3; ii < t; ii++)
-			h = ((char)offset)*((char)i) + ((char)i) - ((char)(pieceSize&i)) + (((char)(offset))|((char)(i))) + ((((char)(iii))|pieceSize)&255);
-			while (ii < t)
-			{
-				data[ii] -= h + (((char)offset)|((char)ii));//char(ii) - h + (char(offset)|char(ii));
-				ii++;
-			}
-		}
-		chunkSize = pieceSize;
-	}
-}
-
-static void SpinEncrypt_Hex_64(char* data, int dataSize, char* key)
-{
-	int keySize = 0, i;
-	unsigned long long realKey = 0, s;
-   if (key == NULL)
-      return;
-	keySize = strlenN(key);
-	for (i = 0; i < keySize; i++)
-	{
-		s = keySize - 1 - i;
-		if ((key[i] >= '0')&&(key[i] <= '9'))
-			realKey += ((unsigned long long)(key[i]-'0')<<(s<<2));
-		else if ((key[i] >= 'a')&&(key[i] <= 'f'))
-			realKey += ((unsigned long long)(key[i]-'a'+10)<<(s<<2));
-		else if ((key[i] >= 'A')&&(key[i] <= 'F'))
-			realKey += ((unsigned long long)(key[i]-'A'+10)<<(s<<2));
-		else
-			realKey += ((unsigned long long)(key[i])<<(s<<2));
-	}
-	SpinEncrypt(data, dataSize, realKey);
-}
-
-static void SpinDecrypt_Hex_64(char* data, int dataSize, char* key)
-{
-	int keySize = 0, i;
-	unsigned long long realKey = 0, s;
-   if (key == NULL)
-      return;
-	keySize = strlenN(key);
-	for (i = 0; i < keySize; i++)
-	{
-		s = keySize - 1 - i;
-		if ((key[i] >= '0')&&(key[i] <= '9'))
-			realKey += ((unsigned long long)(key[i]-'0')<<(s<<2));
-		else if ((key[i] >= 'a')&&(key[i] <= 'f'))
-			realKey += ((unsigned long long)(key[i]-'a'+10)<<(s<<2));
-		else if ((key[i] >= 'A')&&(key[i] <= 'F'))
-			realKey += ((unsigned long long)(key[i]-'A'+10)<<(s<<2));
-		else
-			realKey += ((unsigned long long)(key[i])<<(s<<2));
-	}
-	SpinDecrypt(data, dataSize, realKey);
-}
-
-
-void SpinEncrypt_Hex(char* data, int dataSize, char* key)
-{
-	int keySize = 0, charPos, i;
-	if (key == NULL)
-      return;
-   keySize = strlenN(key);
-   charPos = keySize - (keySize % 16);
-	if (keySize == charPos)
-		charPos -= 16;
-	if (keySize <= 16)
-		SpinEncrypt_Hex_64(data, dataSize, key);
-	else
-	{
-		char tempKey[17];
-		tempKey[16] = 0;
-		while (charPos >= 0)
-		{
-			for (i = 0; ((i < 16)&&(i < keySize)); i++)
-				tempKey[i] = key[i+charPos];
-			charPos -= 16;
-			SpinEncrypt_Hex_64(data, dataSize, tempKey);
-		}
-	}
-}
-
-void SpinDecrypt_Hex(char* data, int dataSize, char* key)
-{
-	int keySize = 0, charPos = 0, i;
-	if (key == NULL)
-      return;
-   keySize = strlenN(key);
-   if (keySize <= 16)
-		SpinDecrypt_Hex_64(data, dataSize, key);
-	else
-	{
-		char tempKey[17];
-		tempKey[16] = 0;
-		while (charPos < keySize)
-		{
-			for (i = 0; ((i < 16)&&(i < keySize)); i++)
-				tempKey[i] = key[i+charPos];
-			charPos += 16;
-			SpinDecrypt_Hex_64(data, dataSize, tempKey);
-		}
-	}
-}
 
 std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i)
 {
@@ -214,8 +62,8 @@ std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i)
 	for (hexStrSize = 0; ((argv[i][hexStrSize + argPos] != 0) && (argv[i][hexStrSize + argPos] != '.')); hexStrSize++){}
 
 	char *hexKey = new char[hexStrSize + 1];
-	SpinSecureFunction_Memcpy((char *)hexKey, (char *)&(argv[i][argPos]), hexStrSize);
-	SpinSecureFunction_Memset((char *)&(argv[i][argPos]), 0, hexStrSize);
+	spindle_secure_function_memcpy((char *)hexKey, (char *)&(argv[i][argPos]), hexStrSize);
+	spindle_secure_function_memset((char *)&(argv[i][argPos]), 0, hexStrSize);
 	hexKey[hexStrSize] = 0;
 	argPos += hexStrSize + 1;
 
@@ -225,11 +73,11 @@ std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i)
 
 		if (hexStrSize > 0) {
 			char *statKey = new char[hexStrSize + 1];
-			SpinSecureFunction_Memcpy((char *)statKey, (char *)&(argv[i][argPos]), hexStrSize);
-			SpinSecureFunction_Memset((char *)&(argv[i][argPos]), 0, hexStrSize);
+			spindle_secure_function_memcpy((char *)statKey, (char *)&(argv[i][argPos]), hexStrSize);
+			spindle_secure_function_memset((char *)&(argv[i][argPos]), 0, hexStrSize);
 			statKey[hexStrSize] = 0;
 			argPos += hexStrSize + 1;
-			SpinSetStaticEncryption_Key(statKey);
+			spindle_set_static_encryption_key(statKey);
 			memset((char *)statKey, 0, hexStrSize);
 			delete [] statKey;
 		}
@@ -241,11 +89,11 @@ std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i)
 
 		if (hexStrSize > 0) {
 			char *dynaKey = new char[hexStrSize + 1];
-			SpinSecureFunction_Memcpy((char *)dynaKey, (char *)&(argv[i][argPos]), hexStrSize);
-			SpinSecureFunction_Memset((char *)&(argv[i][argPos]), 0, hexStrSize);
+			spindle_secure_function_memcpy((char *)dynaKey, (char *)&(argv[i][argPos]), hexStrSize);
+			spindle_secure_function_memset((char *)&(argv[i][argPos]), 0, hexStrSize);
 			dynaKey[hexStrSize] = 0;
 			argPos += hexStrSize + 1;
-			SpinSetDynamicEncryption_Key(dynaKey);
+			spindle_set_dynamic_encryption_key(dynaKey);
 			memset((char *)dynaKey, 0, hexStrSize);
 			delete [] dynaKey;
 		}
@@ -266,16 +114,16 @@ char *SPINDLE_DecryptFromFile(char *filename, int &fileSize, const std::string& 
 
 	if (encryptKey != NULL) {
 		if ((fileData[0] != 'B')||(fileData[1] != 'L')||(fileData[2] != 'E')||(fileData[3] != 'N')||(fileData[4] != 'D')) {
-			SpinDecrypt_Hex(fileData, fileSize, encryptKey);
+			spindle_decrypt_hex(fileData, fileSize, encryptKey);
 			return fileData;
 		}
 	}
 	else {
 		if (typeEncryption == 1) {
-			SpinDecrypt_Hex(fileData, fileSize, staticKey);
+			spindle_decrypt_hex(fileData, fileSize, staticKey);
 		}
 		else if (typeEncryption == 2) {
-			SpinDecrypt_Hex(fileData, fileSize, dynamicKey);
+			spindle_decrypt_hex(fileData, fileSize, dynamicKey);
 		}
 		return fileData;
 	}
@@ -286,10 +134,10 @@ char *SPINDLE_DecryptFromFile(char *filename, int &fileSize, const std::string& 
 void *SPINDLE_DecryptFromMemory(void *mem, int &memLength, int typeEncryption)
 {
 	if (typeEncryption == 1) {
-		SpinDecrypt_Hex(mem, memLength, staticKey);
+		spindle_decrypt_hex(mem, memLength, staticKey);
 	}
 	else if (typeEncryption == 2) {
-		SpinDecrypt_Hex(mem, memLength, dynamicKey);
+		spindle_decrypt_hex(mem, memLength, dynamicKey);
 	}
 	return mem;
 }
@@ -380,7 +228,170 @@ int SPINDLE_CheckHeaderFromMemory(void *mem)
 	return keyType;
 }
 
-void SpinSetStaticEncryption_Key(const char* hexKey)
+
+static void spindle_encrypt(char* data, int dataSize, unsigned long long key)
+{
+	const int keySize = sizeof(key)*8;
+	unsigned long long pieceSize, offset, end, chunkSize = 0, max = ((unsigned long long)(dataSize)<<3);
+	unsigned int p, t, ii;
+	long long i;
+	int iii;
+	char h;
+
+	for (iii = 0; iii < (keySize>>4); iii++)
+	{
+		p = iii*16; //keySize-1-(iii*16 + 8);
+		pieceSize = (((key >> p)%(1<<8)) + 3)*(dataSize/256/400 + 1); //if (pieceSize == chunkSize){pieceSize++;}
+		offset = ((key >> (p + 8))%(1<<8)); if (offset == 0){offset++;}
+		//cout << "(Encrypt) pieceSize: " << pieceSize << " offset: " << offset << " " << p << "\n";
+		end = ((unsigned long long)(dataSize)<<3) - (((unsigned long long)(dataSize)<<3)%pieceSize) - pieceSize*((int)( (((unsigned long long)(dataSize)<<3)%pieceSize) == 0 ));
+		//if (end == (unsigned long long(dataSize)<<3)){end -= pieceSize;}
+		//for (unsigned long long i = 0; i < (unsigned long long(dataSize)<<3); i += chunkSize)
+		for (i = end; i >= 0; i -= pieceSize)
+		{
+			chunkSize = pieceSize;
+			if (i+chunkSize >= max ){chunkSize = ((unsigned long long)(dataSize)<<3) - i;}
+			//cout << "   N: " << i << " " << i + chunkSize << "\n";
+			t = (unsigned int)((unsigned long long)(i + chunkSize)>>3);
+			ii = (unsigned int)(i>>3);
+			h = ((char)offset)*((char)i) + ((char)i) - ((char)(pieceSize&i)) + (((char)(offset))|((char)(i))) + ((((char)(iii))|pieceSize)&255);
+			//for (unsigned int ii = i>>3; ii < t; ii++)
+			while (ii < t)
+			{
+				data[ii] += h + (((char)offset)|((char)ii));//char(ii) - h + (char(offset)|char(ii));
+				ii++;
+			}
+		}
+	}
+}
+
+static void spindle_decrypt(char* data, int dataSize, unsigned long long key)
+{
+	const int keySize = sizeof(key)*8;
+	unsigned long long pieceSize, offset, chunkSize = 0, max = ((unsigned long long)(dataSize)<<3);
+	unsigned int p, t, ii;
+	unsigned long long i;
+	int iii;
+	char h;
+
+	for (iii = (keySize>>4)-1; iii >= 0; iii--)
+	{
+		p = iii*16; //keySize-1-(iii*16 + 8);
+		pieceSize = (((key >> p)%(1<<8)) + 3)*(dataSize/256/400 + 1); //if (pieceSize == chunkSize){pieceSize++;}
+		offset = ((key >> (p + 8))%(1<<8)); if (offset == 0){offset++;}
+		chunkSize = pieceSize;
+		//cout << "(Decrypt) pieceSize: " << pieceSize << " offset: " << offset << " " << p << "\n";
+		for (i = 0; i < max; i += chunkSize)
+		{
+			if (i+chunkSize >= max ){chunkSize = (((unsigned long long)(dataSize))<<3) - i;}
+			//cout << "   N: " << i << " " << i + chunkSize << "\n";
+			t = (unsigned int)(((unsigned long long)(i + chunkSize))>>3);
+			ii = (unsigned int)(i>>3);
+			//for (unsigned int ii = i>>3; ii < t; ii++)
+			h = ((char)offset)*((char)i) + ((char)i) - ((char)(pieceSize&i)) + (((char)(offset))|((char)(i))) + ((((char)(iii))|pieceSize)&255);
+			while (ii < t)
+			{
+				data[ii] -= h + (((char)offset)|((char)ii));//char(ii) - h + (char(offset)|char(ii));
+				ii++;
+			}
+		}
+		chunkSize = pieceSize;
+	}
+}
+
+static void spindle_encrypt_hex_64(char* data, int dataSize, char* key)
+{
+	int keySize = 0, i;
+	unsigned long long realKey = 0, s;
+   if (key == NULL)
+      return;
+	keySize = spindle_secure_function_strlen(key);
+	for (i = 0; i < keySize; i++)
+	{
+		s = keySize - 1 - i;
+		if ((key[i] >= '0')&&(key[i] <= '9'))
+			realKey += ((unsigned long long)(key[i]-'0')<<(s<<2));
+		else if ((key[i] >= 'a')&&(key[i] <= 'f'))
+			realKey += ((unsigned long long)(key[i]-'a'+10)<<(s<<2));
+		else if ((key[i] >= 'A')&&(key[i] <= 'F'))
+			realKey += ((unsigned long long)(key[i]-'A'+10)<<(s<<2));
+		else
+			realKey += ((unsigned long long)(key[i])<<(s<<2));
+	}
+	spindle_encrypt(data, dataSize, realKey);
+}
+
+static void spindle_decrypt_hex_64(char* data, int dataSize, char* key)
+{
+	int keySize = 0, i;
+	unsigned long long realKey = 0, s;
+   if (key == NULL)
+      return;
+	keySize = spindle_secure_function_strlen(key);
+	for (i = 0; i < keySize; i++)
+	{
+		s = keySize - 1 - i;
+		if ((key[i] >= '0')&&(key[i] <= '9'))
+			realKey += ((unsigned long long)(key[i]-'0')<<(s<<2));
+		else if ((key[i] >= 'a')&&(key[i] <= 'f'))
+			realKey += ((unsigned long long)(key[i]-'a'+10)<<(s<<2));
+		else if ((key[i] >= 'A')&&(key[i] <= 'F'))
+			realKey += ((unsigned long long)(key[i]-'A'+10)<<(s<<2));
+		else
+			realKey += ((unsigned long long)(key[i])<<(s<<2));
+	}
+	spindle_decrypt(data, dataSize, realKey);
+}
+
+
+static void spindle_encrypt_hex(char* data, int dataSize, char* key)
+{
+	int keySize = 0, charPos, i;
+	if (key == NULL)
+      return;
+   keySize = spindle_secure_function_strlen(key);
+   charPos = keySize - (keySize % 16);
+	if (keySize == charPos)
+		charPos -= 16;
+	if (keySize <= 16)
+		spindle_encrypt_hex_64(data, dataSize, key);
+	else
+	{
+		char tempKey[17];
+		tempKey[16] = 0;
+		while (charPos >= 0)
+		{
+			for (i = 0; ((i < 16)&&(i < keySize)); i++)
+				tempKey[i] = key[i+charPos];
+			charPos -= 16;
+			spindle_encrypt_hex_64(data, dataSize, tempKey);
+		}
+	}
+}
+
+static void spindle_decrypt_hex(char* data, int dataSize, char* key)
+{
+	int keySize = 0, charPos = 0, i;
+	if (key == NULL)
+      return;
+   keySize = spindle_secure_function_strlen(key);
+   if (keySize <= 16)
+		spindle_decrypt_hex_64(data, dataSize, key);
+	else
+	{
+		char tempKey[17];
+		tempKey[16] = 0;
+		while (charPos < keySize)
+		{
+			for (i = 0; ((i < 16)&&(i < keySize)); i++)
+				tempKey[i] = key[i+charPos];
+			charPos += 16;
+			spindle_decrypt_hex_64(data, dataSize, tempKey);
+		}
+	}
+}
+
+static void spindle_set_static_encryption_key(const char* hexKey)
 {
 	if (staticKey != NULL)
 		free(staticKey);
@@ -388,7 +399,7 @@ void SpinSetStaticEncryption_Key(const char* hexKey)
 	strcpy(staticKey, hexKey);
 }
 
-void SpinSetDynamicEncryption_Key(const char* hexKey)
+static void spindle_set_dynamic_encryption_key(const char* hexKey)
 {
 	if (dynamicKey != NULL)
 		free(dynamicKey);
@@ -396,13 +407,24 @@ void SpinSetDynamicEncryption_Key(const char* hexKey)
 	strcpy(dynamicKey, hexKey);
 }
 
-void SpinSecureFunction_Memcpy(void *dest, void *src, int size)
+static void spindle_secure_function_memcpy(void *dest, void *src, int size)
 {
 	for (int i = 0; i < size; i++)
 		((char *)dest)[i] = ((char *)src)[i];
 }
-void SpinSecureFunction_Memset(void *dest, char value, int size)
+
+static void spindle_secure_function_memset(void *dest, char value, int size)
 {
 	for (int i = 0; i < size; i++)
 		((char *)dest)[i] = value;
+}
+
+static int spindle_secure_function_strlen(char *str)
+{
+	int val = 0;
+	if (str == NULL)
+		return 0;
+	while (str[val] != 0)
+		val++;
+	return val;
 }

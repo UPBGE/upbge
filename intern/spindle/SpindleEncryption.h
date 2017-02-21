@@ -34,40 +34,17 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifdef __cplusplus
-
 #include <string>
-
-extern "C" {
-#endif
 
 extern char *staticKey;
 extern char *dynamicKey;
 
-void SpinEncrypt_Hex(char *data, int dataSize, char *key);
-void SpinDecrypt_Hex(char *data, int dataSize, char *key);
 
-#ifdef __cplusplus
 std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i);
 char *SPINDLE_DecryptFromFile(char *filename, int &fileSize, const std::string& encryptKey, int typeEncryption=0);
 void *SPINDLE_DecryptFromMemory(void *mem, int &memLength, int typeEncryption);
 int SPINDLE_CheckHeaderFromFile(const char *filepath);
 int SPINDLE_CheckHeaderFromMemory(void *mem);
-#endif
 
-void SpinSetStaticEncryption_Key(const char *hexKey);
-void SpinSetDynamicEncryption_Key(const char *hexKey);
-
-/*
- * We want to define these functions ourselves since some platforms will always dynamically link against
- * libc even if we build a static executable (ex: Linux)
- */
-void SpinSecureFunction_Memcpy(void *dest, void *src, int size);
-void SpinSecureFunction_Memset(void *dest, char value, int size);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif  // __SPINDLEENCRYPTION_H__
