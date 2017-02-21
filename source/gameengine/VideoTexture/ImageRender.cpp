@@ -330,10 +330,7 @@ bool ImageRender::Render()
 
 		m_camera->SetProjectionMatrix(projmat);
 	}
-	else if (m_camera->hasValidProjectionMatrix()) {
-		m_rasterizer->SetProjectionMatrix(m_camera->GetProjectionMatrix());
-	}
-	else {
+	else if (!m_camera->hasValidProjectionMatrix()) {
 		float lens = m_camera->GetLens();
 		float sensor_x = m_camera->GetSensorWidth();
 		float sensor_y = m_camera->GetSensorHeight();
@@ -385,6 +382,8 @@ bool ImageRender::Render()
 		}
 		m_camera->SetProjectionMatrix(projmat);
 	}
+
+	m_rasterizer->SetProjectionMatrix(m_camera->GetProjectionMatrix());
 
 	MT_Transform camtrans(m_camera->GetWorldToCamera());
 	MT_Matrix4x4 viewmat(camtrans);
