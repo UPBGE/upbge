@@ -590,7 +590,7 @@ static bool quitGame(KX_ExitRequest exitcode)
 
 #ifdef WITH_GAMEENGINE_BPPLAYER
 
-static BlendFileData *load_encrypted_game_data(char *filename, std::string localPath, std::string encryptKey, int typeEncryption=0)
+static BlendFileData *load_encrypted_game_data(const char *filename, std::string localPath, std::string encryptKey, int typeEncryption=0)
 {
 	ReportList reports;
 	BlendFileData *bfd = NULL;
@@ -611,7 +611,7 @@ static BlendFileData *load_encrypted_game_data(char *filename, std::string local
 	}
 
 	if (fileData) {
-		bfd = BLO_read_from_memory(fileData, fileSize, &reports, localPath);
+		bfd = BLO_read_from_memory(fileData, fileSize, &reports, strdup(localPath.c_str()));
 		delete [] fileData;
 	}
 

@@ -33,16 +33,16 @@
 
 char *staticKey = NULL;
 char *dynamicKey = NULL;
-
+int currentSupportedVersion = 0;
 
 // Static functions declaration
 // Encryption & Decryption
-static void spindle_encrypt(char *data, int dataSize, unsigned long long key);
-static void spindle_decrypt(char *data, int dataSize, unsigned long long key);
-static void spindle_encrypt_hex_64(char *data, int dataSize, char *key);
-static void spindle_decrypt_hex_64(char *data, int dataSize, char *key);
-static void spindle_encrypt_hex(char *data, int dataSize, char *key);
-static void spindle_decrypt_hex(char *data, int dataSize, char *key);
+static void spindle_encrypt(char *data, int dataSize, const unsigned long long key);
+static void spindle_decrypt(char *data, int dataSize, const unsigned long long key);
+static void spindle_encrypt_hex_64(char *data, int dataSize, const char *key);
+static void spindle_decrypt_hex_64(char *data, int dataSize, const char *key);
+static void spindle_encrypt_hex(char *data, int dataSize, const char *key);
+static void spindle_decrypt_hex(char *data, int dataSize, const char *key);
 // Encryption keys
 static void spindle_set_static_encryption_key(const char *hexKey);
 static void spindle_set_dynamic_encryption_key(const char *hexKey);
@@ -51,7 +51,7 @@ static void spindle_set_dynamic_encryption_key(const char *hexKey);
 // libc even if we build a static executable (ex: Linux)
 static void spindle_secure_function_memcpy(void *dest, void *src, int size);
 static void spindle_secure_function_memset(void *dest, char value, int size);
-static int spindle_secure_function_strlen(char *str);
+static int spindle_secure_function_strlen(const char *str);
 
 
 std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i)
@@ -101,7 +101,7 @@ std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i)
 	return hexKey;
 }
 
-char *SPINDLE_DecryptFromFile(char *filename, int& fileSize, const std::string& encryptKey, int typeEncryption=0)
+char *SPINDLE_DecryptFromFile(const char *filename, int& fileSize, const std::string& encryptKey, int typeEncryption)
 {
 	std::ifstream inFile(filename, std::ios::in | std::ios::binary | std::ios::ate);
 	fileSize = (int)inFile.tellg();
@@ -112,9 +112,9 @@ char *SPINDLE_DecryptFromFile(char *filename, int& fileSize, const std::string& 
 	inFile.read(fileData, fileSize);
 	inFile.close();
 
-	if (encryptKey != NULL) {
+	if (!encryptKey.empty()) {
 		if ((fileData[0] != 'B')||(fileData[1] != 'L')||(fileData[2] != 'E')||(fileData[3] != 'N')||(fileData[4] != 'D')) {
-			spindle_decrypt_hex(fileData, fileSize, encryptKey);
+			spindle_decrypt_hex(fileData, fileSize, encryptKey.c_str());
 			return fileData;
 		}
 	}
@@ -131,7 +131,7 @@ char *SPINDLE_DecryptFromFile(char *filename, int& fileSize, const std::string& 
 			return fileData;
 		}
 		else {
-			delete [] fileData;
+			delete[] fileData;
 			return NULL;
 		}
 	}
@@ -143,10 +143,10 @@ void *SPINDLE_DecryptFromMemory(void *mem, int& memLength, int typeEncryption)
 		return mem;
 	}
 	else if (typeEncryption == 1) {
-		spindle_decrypt_hex(mem, memLength, staticKey);
+		spindle_decrypt_hex((char *)mem, memLength, staticKey);
 	}
 	else if (typeEncryption == 2) {
-		spindle_decrypt_hex(mem, memLength, dynamicKey);
+		spindle_decrypt_hex((char *)mem, memLength, dynamicKey);
 	}
 	else {
 		return NULL;
@@ -210,7 +210,7 @@ int SPINDLE_CheckHeaderFromFile(const char *filepath)
 	return keyType;
 }
 
-int SPINDLE_CheckHeaderFromMemory(void *mem)
+int SPINDLE_CheckHeaderFromMemory(char *mem)
 {
 	int keyType = 0; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
 
@@ -240,7 +240,7 @@ int SPINDLE_CheckHeaderFromMemory(void *mem)
 }
 
 
-static void spindle_encrypt(char *data, int dataSize, unsigned long long key)
+static void spindle_encrypt(char *data, int dataSize, const unsigned long long key)
 {
 	const int keySize = sizeof(key) * 8;
 	unsigned long long pieceSize, offset, end, chunkSize = 0, max = ((unsigned long long)(dataSize) << 3);
@@ -275,7 +275,7 @@ static void spindle_encrypt(char *data, int dataSize, unsigned long long key)
 	}
 }
 
-static void spindle_decrypt(char *data, int dataSize, unsigned long long key)
+static void spindle_decrypt(char *data, int dataSize, const unsigned long long key)
 {
 	const int keySize = sizeof(key) * 8;
 	unsigned long long pieceSize, offset, chunkSize = 0, max = ((unsigned long long)(dataSize) << 3);
@@ -310,7 +310,7 @@ static void spindle_decrypt(char *data, int dataSize, unsigned long long key)
 	}
 }
 
-static void spindle_encrypt_hex_64(char *data, int dataSize, char *key)
+static void spindle_encrypt_hex_64(char *data, int dataSize, const char *key)
 {
 	int keySize = 0, i;
 	unsigned long long realKey = 0, s;
@@ -331,7 +331,7 @@ static void spindle_encrypt_hex_64(char *data, int dataSize, char *key)
 	spindle_encrypt(data, dataSize, realKey);
 }
 
-static void spindle_decrypt_hex_64(char *data, int dataSize, char *key)
+static void spindle_decrypt_hex_64(char *data, int dataSize, const char *key)
 {
 	int keySize = 0, i;
 	unsigned long long realKey = 0, s;
@@ -352,7 +352,7 @@ static void spindle_decrypt_hex_64(char *data, int dataSize, char *key)
 	spindle_decrypt(data, dataSize, realKey);
 }
 
-static void spindle_encrypt_hex(char *data, int dataSize, char *key)
+static void spindle_encrypt_hex(char *data, int dataSize, const char *key)
 {
 	int keySize = 0, charPos, i;
 	if (key == NULL)
@@ -377,7 +377,7 @@ static void spindle_encrypt_hex(char *data, int dataSize, char *key)
 	}
 }
 
-static void spindle_decrypt_hex(char *data, int dataSize, char *key)
+static void spindle_decrypt_hex(char *data, int dataSize, const char *key)
 {
 	int keySize = 0, charPos = 0, i;
 	if (key == NULL)
@@ -427,7 +427,7 @@ static void spindle_secure_function_memset(void *dest, char value, int size)
 		((char *)dest)[i] = value;
 }
 
-static int spindle_secure_function_strlen(char *str)
+static int spindle_secure_function_strlen(const char *str)
 {
 	int val = 0;
 	if (str == NULL)
