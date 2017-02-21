@@ -116,7 +116,6 @@ endif()
 		bf_depsgraph
 		bf_physics
 		bf_intern_rigidbody
-		bf_intern_spindle
 		bf_blenloader
 		ge_blen_routines
 		bf_editor_datafiles
@@ -227,6 +226,10 @@ endif()
 
 	if(WITH_GAMEENGINE_DECKLINK)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_decklink)
+	endif()
+
+	if(WITH_GAMEENGINE_BPPLAYER)
+		list(APPEND BLENDER_SORTED_LIBS bf_intern_spindle)
 	endif()
 
 	if(WIN32)

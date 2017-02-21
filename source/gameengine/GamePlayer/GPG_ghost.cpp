@@ -117,9 +117,9 @@ extern "C"
 #  include "sdlew.h"
 #endif
 
-#ifdef WITH_BPPLAYER
+#ifdef WITH_GAMEENGINE_BPPLAYER
 #  include "SpindleEncryption.h"
-#endif  // WITH_BPPLAYER
+#endif  // WITH_GAMEENGINE_BPPLAYER
 
 #include <boost/algorithm/string.hpp>
 
@@ -588,7 +588,7 @@ static bool quitGame(KX_ExitRequest exitcode)
 	return (exitcode != KX_ExitRequest::RESTART_GAME && exitcode != KX_ExitRequest::START_OTHER_GAME);
 }
 
-#ifdef WITH_BPPLAYER
+#ifdef WITH_GAMEENGINE_BPPLAYER
 
 static BlendFileData *load_encrypted_game_data(char *filename, std::string localPath, std::string encryptKey, int typeEncryption=0)
 {
@@ -624,7 +624,7 @@ static BlendFileData *load_encrypted_game_data(char *filename, std::string local
 	return bfd;
 }
 
-#endif  // WITH_BPPLAYER
+#endif  // WITH_GAMEENGINE_BPPLAYER
 
 int main(
 	int argc,
@@ -646,11 +646,11 @@ int main(
 	bool closeConsole = false;
 #endif
 
-#ifdef WITH_BPPLAYER
+#ifdef WITH_GAMEENGINE_BPPLAYER
 	bool useLocalPath = false;
 	std::string localFilePath;
 	std::string hexKey;
-#endif  // WITH_BPPLAYER
+#endif  // WITH_GAMEENGINE_BPPLAYER
 	RAS_Rasterizer::StereoMode stereomode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
 	bool stereoWindow = false;
 	bool stereoParFound = false;
@@ -890,7 +890,7 @@ int main(
 
 				break;
 			}
-#ifdef WITH_BPPLAYER
+#ifdef WITH_GAMEENGINE_BPPLAYER
 			case 'L':
 			{
 				// Find the requested base file directory.
@@ -908,7 +908,7 @@ int main(
 				i++;
 				break;
 			}
-#endif  // WITH_BPPLAYER
+#endif  // WITH_GAMEENGINE_BPPLAYER
 			case 'f': //fullscreen mode
 			{
 				i++;
@@ -1149,47 +1149,47 @@ int main(
 						// base the actuator filename relative to the last file
 						BLI_strncpy(basedpath, exitstring.c_str(), sizeof(basedpath));
 						BLI_path_abs(basedpath, pathname);
-#ifndef WITH_BPPLAYER
+#ifndef WITH_GAMEENGINE_BPPLAYER
 						bfd = load_game_data(basedpath);
 						if (!bfd) {
 #else
 						// check header to see if it encrypted
 						typeEncryption = SPINDLE_CheckHeaderFromFile(basedpath);
 						if (typeEncryption == -1) {
-#endif  // WITH_BPPLAYER
+#endif  // WITH_GAMEENGINE_BPPLAYER
 							// just add "//" in front of it
 							char temppath[FILE_MAX] = "//";
 							BLI_strncpy(temppath + 2, basedpath, FILE_MAX - 2);
 							BLI_path_abs(temppath, pathname);
-#ifdef WITH_BPPLAYER
+#ifdef WITH_GAMEENGINE_BPPLAYER
 							typeEncryption = SPINDLE_CheckHeaderFromFile(temppath);
 							if (typeEncryption != -1) {
-#endif  // WITH_BPPLAYER
+#endif  // WITH_GAMEENGINE_BPPLAYER
 								BLI_strncpy(finalpath, temppath, FILE_MAX);
-#ifdef WITH_BPPLAYER
+#ifdef WITH_GAMEENGINE_BPPLAYER
 							}
-#endif  // WITH_BPPLAYER
+#endif  // WITH_GAMEENGINE_BPPLAYER
 						}
 						else
 						{
 							BLI_strncpy(finalpath, basedpath, FILE_MAX);
 						}
 
-#ifdef WITH_BPPLAYER
+#ifdef WITH_GAMEENGINE_BPPLAYER
 						if (typeEncryption <= 0) {
-#endif  // WITH_BPPLAYER
+#endif  // WITH_GAMEENGINE_BPPLAYER
 							bfd = load_game_data(finalpath);
-#ifdef WITH_BPPLAYER
+#ifdef WITH_GAMEENGINE_BPPLAYER
 						}
 						else
 						{
 							bfd = load_encrypted_game_data(finalpath, NULL, NULL, typeEncryption);
 						}
-#endif  // WITH_BPPLAYER
+#endif  // WITH_GAMEENGINE_BPPLAYER
 					}
 					else
 					{
-#ifdef WITH_BPPLAYER
+#ifdef WITH_GAMEENGINE_BPPLAYER
 						if (useLocalPath) {
 							bfd = load_encrypted_game_data(filename[0] ? filename : NULL, localFilePath, hexKey);
 
@@ -1200,7 +1200,7 @@ int main(
 							}
 						}
 						else
-#endif  // WITH_BPPLAYER
+#endif  // WITH_GAMEENGINE_BPPLAYER
 						{
 							bfd = load_game_data(BKE_appdir_program_path(), filename[0]? filename: NULL);
 							// The file is valid and it's the original file name.
