@@ -85,7 +85,7 @@ BlendFileData *BLO_read_from_file(
         const char *filepath,
         struct ReportList *reports, eBLOReadSkip skip_flag);
 BlendFileData *BLO_read_from_memory(
-        const void *mem, int memsize, char *localpath,
+        const void *mem, int memsize, const char *localpath,
         struct ReportList *reports, eBLOReadSkip skip_flag);
 BlendFileData *BLO_read_from_memfile(
         struct Main *oldmain, const char *filename, struct MemFile *memfile,

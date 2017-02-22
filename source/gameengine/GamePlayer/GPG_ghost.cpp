@@ -611,7 +611,7 @@ static BlendFileData *load_encrypted_game_data(const char *filename, std::string
 	}
 
 	if (fileData) {
-		bfd = BLO_read_from_memory(fileData, fileSize, &reports, strdup(localPath.c_str()));
+		bfd = BLO_read_from_memory(fileData, fileSize, &reports, localPath.c_str());
 		delete [] fileData;
 	}
 

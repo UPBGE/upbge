@@ -346,7 +346,7 @@ BlendFileData *BLO_read_from_file(
  * \return The data of the file.
  */
 BlendFileData *BLO_read_from_memory(
-        const void *mem, int memsize, char *localpath,
+        const void *mem, int memsize, const char *localpath,
         ReportList *reports, eBLOReadSkip skip_flags)
 {
 	BlendFileData *bfd = NULL;
