@@ -185,7 +185,7 @@ bool	KX_NearSensor::BroadPhaseFilterCollision(void*obj1,void*obj2)
 	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
 	
 	// need the mapping from PHY_IPhysicsController to gameobjects now
-	assert(obj1==m_physCtrl && obj2);
+	BLI_assert(obj1==m_physCtrl && obj2);
 	KX_ClientObjectInfo *client_info = static_cast<KX_ClientObjectInfo*>((static_cast<PHY_IPhysicsController*>(obj2))->GetNewClientInfo());
 
 	KX_GameObject* gameobj = ( client_info ? 

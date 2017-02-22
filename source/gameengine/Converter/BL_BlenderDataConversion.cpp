@@ -815,7 +815,7 @@ static void BL_CreateGraphicObjectNew(KX_GameObject* gameobj,
 		case UseBullet:
 			{
 				CcdPhysicsEnvironment* env = (CcdPhysicsEnvironment*)kxscene->GetPhysicsEnvironment();
-				assert(env);
+				BLI_assert(env);
 				PHY_IMotionState* motionstate = new KX_MotionState(gameobj->GetSGNode());
 				CcdGraphicController* ctrl = new CcdGraphicController(env, motionstate);
 				gameobj->SetGraphicController(ctrl);
@@ -1672,7 +1672,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		KX_GameObject* parentobj = converter->FindGameObject(blenderparent);
 		KX_GameObject* childobj = converter->FindGameObject(blenderchild);
 
-		assert(childobj);
+		BLI_assert(childobj);
 
 		if (!parentobj || objectlist->SearchValue(childobj) != objectlist->SearchValue(parentobj))
 		{

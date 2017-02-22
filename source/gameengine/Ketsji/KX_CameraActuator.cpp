@@ -277,7 +277,7 @@ bool KX_CameraActuator::Update(double curtime, bool frame)
 			fp2[2] = frommat[2][1];
 			break;
 		default:
-			assert(0);
+			BLI_assert(0);
 			break;
 	}
 

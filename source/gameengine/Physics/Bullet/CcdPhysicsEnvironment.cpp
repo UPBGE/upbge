@@ -528,7 +528,7 @@ void CcdPhysicsEnvironment::AddCcdPhysicsController(CcdPhysicsController *ctrl)
 		obj->setActivationState(ISLAND_SLEEPING);
 	}
 
-	assert(obj->getBroadphaseHandle());
+	BLI_assert(obj->getBroadphaseHandle());
 }
 
 void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con)
@@ -669,7 +669,7 @@ void CcdPhysicsEnvironment::AddCcdGraphicController(CcdGraphicController *ctrl)
 		                          nullptr, // dispatcher => this parameter is not used
 		                          0));
 
-		assert(ctrl->GetBroadphaseHandle());
+		BLI_assert(ctrl->GetBroadphaseHandle());
 	}
 }
 
@@ -1414,7 +1414,7 @@ struct OcclusionBuffer {
 		m_occlusion = false;
 		// compute the size of the buffer
 		int maxsize = (view[2] > view[3]) ? view[2] : view[3];
-		assert(maxsize > 0);
+		BLI_assert(maxsize > 0);
 		double ratio = 1.0 / (2 * maxsize);
 		// ensure even number
 		m_sizes[0] = 2 * ((int)(size * view[2] * ratio + 0.5));
@@ -1450,7 +1450,7 @@ struct OcclusionBuffer {
 			memset(m_buffer, 0, newsize);
 		}
 		// memory allocate must succeed
-		assert(m_buffer != nullptr);
+		BLI_assert(m_buffer != nullptr);
 		m_initialized = true;
 		m_occlusion = false;
 	}
@@ -2346,7 +2346,7 @@ bool CcdOverlapFilterCallBack::needBroadphaseCollision(btBroadphaseProxy *proxy0
 	if (proxy0->m_collisionFilterGroup & btBroadphaseProxy::SensorTrigger) {
 		// this is a sensor object, the other one can't be a sensor object because
 		// they exclude each other in the above test
-		assert(!(proxy1->m_collisionFilterGroup & btBroadphaseProxy::SensorTrigger));
+		BLI_assert(!(proxy1->m_collisionFilterGroup & btBroadphaseProxy::SensorTrigger));
 		colObj0 = (btCollisionObject *)proxy0->m_clientObject;
 		colObj1 = (btCollisionObject *)proxy1->m_clientObject;
 	}
@@ -3195,14 +3195,14 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 		//find parent, compound shape and add to it
 		//take relative transform into account!
 		CcdPhysicsController *parentCtrl = (CcdPhysicsController *)parent->GetPhysicsController();
-		assert(parentCtrl);
+		BLI_assert(parentCtrl);
 
 		// only makes compound shape if parent has a physics controller (i.e not an empty, etc)
 		if (parentCtrl) {
 			CcdShapeConstructionInfo *parentShapeInfo = parentCtrl->GetShapeInfo();
 			btRigidBody *rigidbody = parentCtrl->GetRigidBody();
 			btCollisionShape *colShape = rigidbody->getCollisionShape();
-			assert(colShape->isCompound());
+			BLI_assert(colShape->isCompound());
 			btCompoundShape *compoundShape = (btCompoundShape *)colShape;
 
 			// compute the local transform from parent, this may include several node in the chain

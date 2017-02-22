@@ -263,7 +263,7 @@ void KX_GameObject::AddInstanceObjects(KX_GameObject* obj)
 
 void KX_GameObject::RemoveInstanceObject(KX_GameObject* obj)
 {
-	assert(m_pInstanceObjects);
+	BLI_assert(m_pInstanceObjects);
 	m_pInstanceObjects->RemoveValue(obj);
 	obj->Release();
 }

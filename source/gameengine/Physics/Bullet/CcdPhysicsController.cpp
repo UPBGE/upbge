@@ -634,7 +634,7 @@ bool CcdPhysicsController::ReplaceControllerShape(btCollisionShape *newShape)
 		m_softBodyTransformInitialized = false;
 
 		CreateSoftbody();
-		assert(m_object);
+		BLI_assert(m_object);
 
 		btSoftBody *newSoftBody = GetSoftBody();
 		// set the user
@@ -1794,7 +1794,7 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 
 	// assume no shape information
 	// no support for dynamic change of shape yet
-	assert(IsUnused());
+	BLI_assert(IsUnused());
 	m_shapeType = PHY_SHAPE_NONE;
 	m_meshObject = nullptr;
 	bool free_dm = false;
@@ -2425,7 +2425,7 @@ bool CcdShapeConstructionInfo::SetProxy(CcdShapeConstructionInfo *shapeInfo)
 	if (shapeInfo == nullptr)
 		return false;
 	// no support for dynamic change
-	assert(IsUnused());
+	BLI_assert(IsUnused());
 	m_shapeType = PHY_SHAPE_PROXY;
 	m_shapeProxy = shapeInfo;
 	return true;

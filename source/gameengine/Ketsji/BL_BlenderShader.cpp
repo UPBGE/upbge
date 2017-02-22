@@ -111,7 +111,7 @@ void BL_BlenderShader::SetProg(bool enable, double time, RAS_IRasterizer *rasty)
 {
 	if (Ok()) {
 		if (enable) {
-			assert(rasty != nullptr); // XXX Kinda hacky, but SetProg() should always have the rasterizer if enable is true
+			BLI_assert(rasty != nullptr); // XXX Kinda hacky, but SetProg() should always have the rasterizer if enable is true
 
 			float viewmat[4][4], viewinvmat[4][4];
 			const MT_Matrix4x4& view = rasty->GetViewMatrix();

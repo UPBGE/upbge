@@ -46,7 +46,7 @@ SCA_EventManager::SCA_EventManager(SCA_LogicManager* logicmgr, EVENT_MANAGER_TYP
 SCA_EventManager::~SCA_EventManager()
 {
 	// all sensors should be removed
-	assert(m_sensors.Empty());
+	BLI_assert(m_sensors.Empty());
 }
 
 void SCA_EventManager::RegisterSensor(class SCA_ISensor* sensor)
@@ -66,7 +66,7 @@ void SCA_EventManager::NextFrame(double curtime, double fixedtime)
 
 void SCA_EventManager::NextFrame()
 {
-	assert(false); // && "Event managers should override a NextFrame method");
+	BLI_assert(false); // && "Event managers should override a NextFrame method");
 }
 
 void SCA_EventManager::EndFrame()

@@ -53,7 +53,7 @@ bool SCA_IActuator::Update(double curtime, bool frame)
 
 bool SCA_IActuator::Update()
 {
-	assert(false && "Actuators should override an Update method.");
+	BLI_assert(false && "Actuators should override an Update method.");
 	return false;
 }
 

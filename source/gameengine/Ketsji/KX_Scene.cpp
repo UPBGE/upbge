@@ -665,7 +665,7 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 						break;
 					}
 				}
-				assert(newsensor != nullptr);
+				BLI_assert(newsensor != nullptr);
 				m_logicmgr->RegisterToSensor(cont,newsensor);
 			}
 		}
@@ -700,7 +700,7 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 						break;
 					}
 				}
-				assert(newactuator != nullptr);
+				BLI_assert(newactuator != nullptr);
 				m_logicmgr->RegisterToActuator(cont,newactuator);
 				newactuator->SetUeberExecutePriority(m_ueberExecutionPriority);
 			}
@@ -1686,7 +1686,7 @@ void KX_Scene::UpdateParents(double curtime)
 	//}
 
 	// the list must be empty here
-	assert(m_sghead.Empty());
+	BLI_assert(m_sghead.Empty());
 	// some nodes may be ready for reschedule, move them to schedule list for next time
 	while ((node = SG_Node::GetNextRescheduled(m_sghead)) != nullptr)
 	{
