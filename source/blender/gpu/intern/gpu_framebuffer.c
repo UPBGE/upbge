@@ -335,6 +335,25 @@ void GPU_framebuffer_bind_simple(GPUFrameBuffer *fb)
 	GG.currentfb = fb->object;
 }
 
+void GPU_framebuffer_bind_all_attachments(GPUFrameBuffer *fb)
+{
+	int slots = 0, i;
+	GLenum attachments[4];
+
+	for(i = 0; i < GPU_FB_MAX_SLOTS; i++) {
+		if (fb->colortex[i]) {
+			attachments[slots] = GL_COLOR_ATTACHMENT0_EXT + i;
+			slots++;
+		}
+	}
+
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	glDrawBuffers(slots, attachments);
+	glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
+
+	GG.currentfb = fb->object;
+}
+
 bool GPU_framebuffer_bound(GPUFrameBuffer *fb)
 {
 	return fb->object == GG.currentfb;

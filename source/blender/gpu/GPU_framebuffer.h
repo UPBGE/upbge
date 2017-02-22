@@ -66,6 +66,7 @@ void GPU_framebuffer_renderbuffer_detach(GPURenderBuffer *rb);
 
 void GPU_framebuffer_bind_no_save(GPUFrameBuffer *fb, int slot);
 void GPU_framebuffer_bind_simple(GPUFrameBuffer *fb);
+void GPU_framebuffer_bind_all_attachments(GPUFrameBuffer *fb);
 
 bool GPU_framebuffer_bound(GPUFrameBuffer *fb);
 
