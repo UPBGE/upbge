@@ -145,7 +145,7 @@ PyObject* SCA_PythonJoystick::pyattr_get_active_buttons(PyObjectPlus *self_v, co
 PyObject* SCA_PythonJoystick::pyattr_get_hat_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	ShowDeprecationWarning("SCA_PythonJoystick.hatValues", "SCA_PythonJoystick.activeButtons");
-	return nullptr;
+	return PyList_New(0);
 }
 
 PyObject* SCA_PythonJoystick::pyattr_get_axis_values(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
