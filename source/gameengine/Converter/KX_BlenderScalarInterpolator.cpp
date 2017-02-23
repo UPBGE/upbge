@@ -47,6 +47,7 @@ float BL_ScalarInterpolator::GetValue(float currentTime) const
 }
 
 BL_InterpolatorList::BL_InterpolatorList(bAction *action)
+	:m_action(action)
 {
 	if (action==nullptr)
 		return;
@@ -55,26 +56,29 @@ BL_InterpolatorList::BL_InterpolatorList(bAction *action)
 		if (fcu->rna_path) {
 			BL_ScalarInterpolator *new_ipo = new BL_ScalarInterpolator(fcu); 
 			//assert(new_ipo);
-			push_back(new_ipo);
+			m_interpolators.push_back(new_ipo);
 		}
 	}
 }
 
 BL_InterpolatorList::~BL_InterpolatorList()
 {
-	BL_InterpolatorList::iterator i;
-	for (i = begin(); !(i == end()); ++i) {
-		delete *i;
+	for (BL_ScalarInterpolator *interp : m_interpolators) {
+		delete interp;
 	}
 }
 
-KX_IScalarInterpolator *BL_InterpolatorList::GetScalarInterpolator(const char *rna_path, int array_index)
+bAction *BL_InterpolatorList::GetAction() const
 {
-	for (BL_InterpolatorList::iterator i = begin(); (i != end()) ; i++ )
-	{
-		FCurve *fcu= (static_cast<BL_ScalarInterpolator *>(*i))->GetFCurve();
+	return m_action;
+}
+
+BL_ScalarInterpolator *BL_InterpolatorList::GetScalarInterpolator(const char *rna_path, int array_index)
+{
+	for (BL_ScalarInterpolator *interp : m_interpolators) {
+		FCurve *fcu= interp->GetFCurve();
 		if (array_index==fcu->array_index && strcmp(rna_path, fcu->rna_path)==0)
-			return *i;
+			return interp;
 	}
 	return nullptr;
 }

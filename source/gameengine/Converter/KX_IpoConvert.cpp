@@ -109,7 +109,7 @@ SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject* gameobj, KX_B
 	// interpolator to the game object.
 		
 	KX_IInterpolator *interpolator;
-	KX_IScalarInterpolator *interp;
+	BL_ScalarInterpolator *interp;
 		
 	for (int i=0; i<3; i++) {
 		if ((interp = adtList->GetScalarInterpolator("location", i))) {
@@ -163,7 +163,7 @@ SG_Controller *BL_CreateObColorIPO(struct bAction *action, KX_GameObject* gameob
 {
 	KX_ObColorIpoSGController* ipocontr_obcol=nullptr;
 	KX_IInterpolator *interpolator;
-	KX_IScalarInterpolator *interp;
+	BL_ScalarInterpolator *interp;
 	BL_InterpolatorList *adtList= GetAdtList(action, converter);
 
 	for (int i=0; i<4; i++) {
@@ -197,7 +197,7 @@ SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject*  lightobj
 	// interpolator to the game object.
 		
 	KX_IInterpolator *interpolator;
-	KX_IScalarInterpolator *interp;
+	BL_ScalarInterpolator *interp;
 		
 	if ((interp= adtList->GetScalarInterpolator("energy", 0))) {
 		interpolator= new KX_ScalarInterpolator(&ipocontr->m_energy, interp);
@@ -238,7 +238,7 @@ SG_Controller *BL_CreateCameraIPO(struct bAction *action, KX_GameObject*  camera
 	// interpolator to the game object.
 		
 	KX_IInterpolator *interpolator;
-	KX_IScalarInterpolator *interp;
+	BL_ScalarInterpolator *interp;
 		
 	if ((interp = adtList->GetScalarInterpolator("lens", 0))) {
 		interpolator= new KX_ScalarInterpolator(&ipocontr->m_lens, interp);
@@ -271,7 +271,7 @@ SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, 
 
 		// For each active channel in the adtList add an interpolator to the game object.
 		KX_IInterpolator *interpolator;
-		KX_IScalarInterpolator *interp;
+		BL_ScalarInterpolator *interp;
 
 		for (int i=0; i<3; i++) {
 			if ((interp = adtList->GetScalarInterpolator("ambient_color", i))) {
@@ -360,7 +360,7 @@ SG_Controller *BL_CreateMaterialIpo(
 
 	BL_InterpolatorList *adtList= GetAdtList(action, converter);
 	KX_IInterpolator *interpolator;
-	KX_IScalarInterpolator *sinterp;
+	BL_ScalarInterpolator *sinterp;
 
 	// --
 	for (int i=0; i<3; i++) {
