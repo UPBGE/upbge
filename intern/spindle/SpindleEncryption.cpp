@@ -107,31 +107,45 @@ char *SPINDLE_DecryptFromFile(const char *filename, int& fileSize, const std::st
 	fileSize = (int)inFile.tellg();
 	if (fileSize <= 10)
 		return NULL;
-	inFile.seekg (0, std::ios::beg);
-	char *fileData = new char[fileSize];
-	inFile.read(fileData, fileSize);
-	inFile.close();
 
 	if (!encryptKey.empty()) {
+		inFile.seekg (0, std::ios::beg);
+		char *fileData = new char[fileSize];
+		inFile.read(fileData, fileSize);
+		inFile.close();
 		if ((fileData[0] != 'B')||(fileData[1] != 'L')||(fileData[2] != 'E')||(fileData[3] != 'N')||(fileData[4] != 'D')) {
 			spindle_decrypt_hex(fileData, fileSize, encryptKey.c_str());
 			return fileData;
 		}
+		return NULL;
 	}
 	else {
 		if (typeEncryption == 0) {
+			inFile.seekg (0, std::ios::beg);
+			char *fileData = new char[fileSize];
+			inFile.read(fileData, fileSize);
+			inFile.close();
 			return fileData;
 		}
 		else if (typeEncryption == 1) {
+			inFile.seekg (5, std::ios::beg);
+			fileSize -= 5;
+			char *fileData = new char[fileSize];
+			inFile.read(fileData, fileSize);
+			inFile.close();
 			spindle_decrypt_hex(fileData, fileSize, staticKey);
 			return fileData;
 		}
 		else if (typeEncryption == 2) {
+			inFile.seekg (5, std::ios::beg);
+			fileSize -= 5;
+			char *fileData = new char[fileSize];
+			inFile.read(fileData, fileSize);
+			inFile.close();
 			spindle_decrypt_hex(fileData, fileSize, dynamicKey);
 			return fileData;
 		}
 		else {
-			delete[] fileData;
 			return NULL;
 		}
 	}
