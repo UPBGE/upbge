@@ -42,7 +42,10 @@
 #include "KX_ScalarInterpolator.h"
 
 #include "KX_BlenderScalarInterpolator.h"
-#include "KX_BlenderSceneConverter.h"
+#include "KX_BlenderConverter.h"
+#include "KX_Globals.h"
+
+#include "RAS_IPolygonMaterial.h"
 
 #include "DNA_object_types.h"
 #include "DNA_action_types.h"
@@ -63,19 +66,20 @@
 
 #include "SG_Node.h"
 
-static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_BlenderSceneConverter *converter)
+static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_Scene *scene)
 {
-	BL_InterpolatorList *adtList= converter->FindInterpolatorList(for_act);
+	KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+	BL_InterpolatorList *adtList= converter->FindInterpolatorList(scene, for_act);
 
 	if (!adtList) {
 		adtList = new BL_InterpolatorList(for_act);
-		converter->RegisterInterpolatorList(adtList, for_act);
+		converter->RegisterInterpolatorList(scene, adtList, for_act);
 	}
 			
 	return adtList;
 }
 
-SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject* gameobj, KX_BlenderSceneConverter *converter)
+SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject* gameobj, KX_Scene *scene)
 {
 	KX_IpoSGController* ipocontr = new KX_IpoSGController();
 	ipocontr->SetGameObject(gameobj);
@@ -103,7 +107,7 @@ SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject* gameobj, KX_B
 		break;
 	}
 
-	BL_InterpolatorList *adtList= GetAdtList(action, converter);
+	BL_InterpolatorList *adtList= GetAdtList(action, scene);
 		
 	// For each active channel in the adtList add an
 	// interpolator to the game object.
@@ -159,12 +163,12 @@ SG_Controller *BL_CreateIPO(struct bAction *action, KX_GameObject* gameobj, KX_B
 }
 
 
-SG_Controller *BL_CreateObColorIPO(struct bAction *action, KX_GameObject* gameobj, KX_BlenderSceneConverter *converter)
+SG_Controller *BL_CreateObColorIPO(struct bAction *action, KX_GameObject* gameobj, KX_Scene *scene)
 {
 	KX_ObColorIpoSGController* ipocontr_obcol=nullptr;
 	KX_IInterpolator *interpolator;
 	BL_ScalarInterpolator *interp;
-	BL_InterpolatorList *adtList= GetAdtList(action, converter);
+	BL_InterpolatorList *adtList= GetAdtList(action, scene);
 
 	for (int i=0; i<4; i++) {
 		if ((interp = adtList->GetScalarInterpolator("color", i))) {
@@ -179,7 +183,7 @@ SG_Controller *BL_CreateObColorIPO(struct bAction *action, KX_GameObject* gameob
 	return ipocontr_obcol;
 }
 
-SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject*  lightobj, KX_BlenderSceneConverter *converter)
+SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject*  lightobj, KX_Scene *scene)
 {
 	KX_LightIpoSGController* ipocontr = new KX_LightIpoSGController();
 
@@ -191,7 +195,7 @@ SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject*  lightobj
 	ipocontr->m_col_rgb[2] = blenderlamp->b;
 	ipocontr->m_dist = blenderlamp->dist;
 
-	BL_InterpolatorList *adtList= GetAdtList(action, converter);
+	BL_InterpolatorList *adtList= GetAdtList(action, scene);
 
 	// For each active channel in the adtList add an
 	// interpolator to the game object.
@@ -222,7 +226,7 @@ SG_Controller *BL_CreateLampIPO(struct bAction *action, KX_GameObject*  lightobj
 	return ipocontr;
 }
 
-SG_Controller *BL_CreateCameraIPO(struct bAction *action, KX_GameObject*  cameraobj, KX_BlenderSceneConverter *converter)
+SG_Controller *BL_CreateCameraIPO(struct bAction *action, KX_GameObject*  cameraobj, KX_Scene *scene)
 {
 	KX_CameraIpoSGController* ipocontr = new KX_CameraIpoSGController();
 
@@ -232,7 +236,7 @@ SG_Controller *BL_CreateCameraIPO(struct bAction *action, KX_GameObject*  camera
 	ipocontr->m_clipstart = blendercamera->clipsta;
 	ipocontr->m_clipend = blendercamera->clipend;
 
-	BL_InterpolatorList *adtList= GetAdtList(action, converter);
+	BL_InterpolatorList *adtList= GetAdtList(action, scene);
 
 	// For each active channel in the adtList add an
 	// interpolator to the game object.
@@ -262,12 +266,12 @@ SG_Controller *BL_CreateCameraIPO(struct bAction *action, KX_GameObject*  camera
 }
 
 
-SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, KX_BlenderSceneConverter *converter )
+SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, KX_Scene *scene )
 {
 	KX_WorldIpoController *ipocontr = nullptr;
 
 	if (blenderworld) {
-		BL_InterpolatorList *adtList = GetAdtList(action, converter);
+		BL_InterpolatorList *adtList = GetAdtList(action, scene);
 
 		// For each active channel in the adtList add an interpolator to the game object.
 		KX_IInterpolator *interpolator;
@@ -350,15 +354,14 @@ SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, 
 
 SG_Controller *BL_CreateMaterialIpo(
 	struct bAction *action,
-	Material* blendermaterial,
 	RAS_IPolyMaterial *polymat,
 	KX_GameObject* gameobj,  
-	KX_BlenderSceneConverter *converter
+	KX_Scene *scene
 	)
 {
 	KX_MaterialIpoController* ipocontr = nullptr;
 
-	BL_InterpolatorList *adtList= GetAdtList(action, converter);
+	BL_InterpolatorList *adtList= GetAdtList(action, scene);
 	KX_IInterpolator *interpolator;
 	BL_ScalarInterpolator *sinterp;
 
@@ -440,6 +443,7 @@ SG_Controller *BL_CreateMaterialIpo(
 	}
 
 	if (ipocontr) {
+		Material *blendermaterial = polymat->GetBlenderMaterial();
 		ipocontr->m_rgba[0]	= blendermaterial->r;
 		ipocontr->m_rgba[1]	= blendermaterial->g;
 		ipocontr->m_rgba[2]	= blendermaterial->b;

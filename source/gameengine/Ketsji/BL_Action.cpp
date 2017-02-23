@@ -34,11 +34,13 @@
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 
+#include "RAS_MeshObject.h"
+
 #include "SG_Controller.h"
 
 // These three are for getting the action from the logic manager
 #include "KX_Scene.h"
-#include "KX_BlenderSceneConverter.h"
+#include "KX_BlenderConverter.h"
 #include "SCA_LogicManager.h"
 
 extern "C" {
@@ -161,13 +163,13 @@ bool BL_Action::Play(const std::string& name,
 	ClearControllerList();
 
 	// Create an SG_Controller
-	SG_Controller *sg_contr = BL_CreateIPO(m_action, m_obj, kxscene->GetSceneConverter());
+	SG_Controller *sg_contr = BL_CreateIPO(m_action, m_obj, kxscene);
 	m_sg_contr_list.push_back(sg_contr);
 	m_obj->GetSGNode()->AddSGController(sg_contr);
 	sg_contr->SetNode(m_obj->GetSGNode());
 
 	// World
-	sg_contr = BL_CreateWorldIPO(m_action, kxscene->GetBlenderScene()->world, kxscene->GetSceneConverter());
+	sg_contr = BL_CreateWorldIPO(m_action, kxscene->GetBlenderScene()->world, kxscene);
 	if (sg_contr) {
 		m_sg_contr_list.push_back(sg_contr);
 		m_obj->GetSGNode()->AddSGController(sg_contr);
@@ -175,7 +177,7 @@ bool BL_Action::Play(const std::string& name,
 	}
 
 	// Try obcolor
-	sg_contr = BL_CreateObColorIPO(m_action, m_obj, kxscene->GetSceneConverter());
+	sg_contr = BL_CreateObColorIPO(m_action, m_obj, kxscene);
 	if (sg_contr) {
 		m_sg_contr_list.push_back(sg_contr);
 		m_obj->GetSGNode()->AddSGController(sg_contr);
@@ -183,37 +185,32 @@ bool BL_Action::Play(const std::string& name,
 	}
 
 	// Now try materials
-	for (int matidx = 1; matidx <= m_obj->GetBlenderObject()->totcol; ++matidx) {
-		Material *mat = give_current_material(m_obj->GetBlenderObject(), matidx);
-		if (!mat) {
-			continue;
-		}
+	for (unsigned short i = 0, meshcount = m_obj->GetMeshCount(); i < meshcount; ++i) {
+		RAS_MeshObject *mesh = m_obj->GetMesh(i);
+		for (unsigned short j = 0, matcount = mesh->NumMaterials(); j < matcount; ++j) {
+			RAS_MeshMaterial *meshmat = mesh->GetMeshMaterial(j);
+			RAS_IPolyMaterial *polymat = meshmat->m_bucket->GetPolyMaterial();
 
-		KX_BlenderSceneConverter *converter = kxscene->GetSceneConverter();
-		RAS_IPolyMaterial *polymat = converter->FindCachedPolyMaterial(kxscene, mat);
-		if (!polymat) {
-			continue;
-		}
-
-		sg_contr = BL_CreateMaterialIpo(m_action, mat, polymat, m_obj, converter);
-		if (sg_contr) {
-			m_sg_contr_list.push_back(sg_contr);
-			m_obj->GetSGNode()->AddSGController(sg_contr);
-			sg_contr->SetNode(m_obj->GetSGNode());
+			sg_contr = BL_CreateMaterialIpo(m_action, polymat, m_obj, kxscene);
+			if (sg_contr) {
+				m_sg_contr_list.push_back(sg_contr);
+				m_obj->GetSGNode()->AddSGController(sg_contr);
+				sg_contr->SetNode(m_obj->GetSGNode());
+			}
 		}
 	}
 
 	// Extra controllers
 	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT)
 	{
-		sg_contr = BL_CreateLampIPO(m_action, m_obj, kxscene->GetSceneConverter());
+		sg_contr = BL_CreateLampIPO(m_action, m_obj, kxscene);
 		m_sg_contr_list.push_back(sg_contr);
 		m_obj->GetSGNode()->AddSGController(sg_contr);
 		sg_contr->SetNode(m_obj->GetSGNode());
 	}
 	else if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_CAMERA)
 	{
-		sg_contr = BL_CreateCameraIPO(m_action, m_obj, kxscene->GetSceneConverter());
+		sg_contr = BL_CreateCameraIPO(m_action, m_obj, kxscene);
 		m_sg_contr_list.push_back(sg_contr);
 		m_obj->GetSGNode()->AddSGController(sg_contr);
 		sg_contr->SetNode(m_obj->GetSGNode());

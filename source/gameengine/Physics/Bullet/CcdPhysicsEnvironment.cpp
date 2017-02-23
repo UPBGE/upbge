@@ -2909,7 +2909,9 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 	return ccdPhysEnv;
 }
 
-void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject *meshobj, DerivedMesh *dm, KX_Scene *kxscene, PHY_ShapeProps *shapeprops, PHY_IMotionState *motionstate, int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
+void CcdPhysicsEnvironment::ConvertObject(KX_BlenderSceneConverter& converter, KX_GameObject *gameobj, RAS_MeshObject *meshobj,
+										  DerivedMesh *dm, KX_Scene *kxscene, PHY_ShapeProps *shapeprops, PHY_IMotionState *motionstate,
+										  int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
 {
 	Object *blenderobject = gameobj->GetBlenderObject();
 
@@ -2930,8 +2932,7 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 
 	KX_GameObject *parent = nullptr;
 	if (blenderparent) {
-		KX_BlenderSceneConverter *converter = (KX_BlenderSceneConverter *)KX_GetActiveEngine()->GetSceneConverter();
-		parent = converter->FindGameObject(blenderparent);
+		parent = converter.FindGameObject(blenderparent);
 		isbulletsoftbody = false;
 	}
 

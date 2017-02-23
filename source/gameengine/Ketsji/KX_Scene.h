@@ -165,9 +165,6 @@ protected:
 	SCA_MouseManager*		m_mousemgr;
 	SCA_TimeEventManager*	m_timemgr;
 
-	// Scene converter where many scene entities are registered
-	// Used to deregister objects that are deleted
-	class KX_BlenderSceneConverter*		m_sceneConverter;
 	/**
 	 * physics engine abstraction
 	 */
@@ -483,8 +480,6 @@ public:
 	KX_WorldInfo* GetWorldInfo();
 	void CalculateVisibleMeshes(RAS_Rasterizer* rasty, KX_Camera *cam, int layer=0);
 	void DrawDebug(RAS_DebugDraw& debugDraw);
-	KX_Camera* GetpCamera();
-	KX_BlenderSceneConverter *GetSceneConverter() { return m_sceneConverter; }
 
 	/**
 	 * Replicate the logic bricks associated to this object.

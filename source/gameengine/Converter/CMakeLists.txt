@@ -75,6 +75,7 @@ set(SRC
 	BL_ModifierDeformer.cpp
 	BL_ShapeDeformer.cpp
 	BL_SkinDeformer.cpp
+	KX_BlenderConverter.cpp
 	KX_BlenderScalarInterpolator.cpp
 	KX_BlenderSceneConverter.cpp
 	KX_ConvertActuators.cpp
@@ -96,6 +97,7 @@ set(SRC
 	BL_ModifierDeformer.h
 	BL_ShapeDeformer.h
 	BL_SkinDeformer.h
+	KX_BlenderConverter.h
 	KX_BlenderScalarInterpolator.h
 	KX_BlenderSceneConverter.h
 	KX_ConvertActuators.h
