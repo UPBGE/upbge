@@ -68,7 +68,7 @@
 #include "KX_PythonInit.h" // for updatePythonJoysticks
 
 #include "KX_WorldInfo.h"
-#include "KX_ISceneConverter.h"
+#include "KX_BlenderConverter.h"
 
 #include "RAS_FramingManager.h"
 #include "DNA_world_types.h"
@@ -113,7 +113,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	:m_canvas(nullptr),
 	m_rasterizer(nullptr),
 	m_kxsystem(system),
-	m_sceneconverter(nullptr),
+	m_converter(nullptr),
 #ifdef WITH_PYTHON
 	m_pythondictionary(nullptr),
 #endif
@@ -220,10 +220,10 @@ PyObject *KX_KetsjiEngine::GetPyProfileDict()
 }
 #endif
 
-void KX_KetsjiEngine::SetSceneConverter(KX_ISceneConverter *sceneconverter)
+void KX_KetsjiEngine::SetConverter(KX_BlenderConverter *converter)
 {
-	BLI_assert(sceneconverter);
-	m_sceneconverter = sceneconverter;
+	BLI_assert(converter);
+	m_converter = converter;
 }
 
 /**
@@ -378,7 +378,7 @@ bool KX_KetsjiEngine::NextFrame()
 	while (frames) {
 		m_frameTime += framestep;
 
-		m_sceneconverter->MergeAsyncLoads();
+		m_converter->MergeAsyncLoads();
 
 		if (m_inputDevice) {
 			m_inputDevice->ReleaseMoveEvent();
@@ -1061,11 +1061,11 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 void KX_KetsjiEngine::StopEngine()
 {
 	if (m_bInitialized) {
-		m_sceneconverter->FinalizeAsyncLoads();
+		m_converter->FinalizeAsyncLoads();
 
 		while (m_scenes->GetCount() > 0) {
 			KX_Scene *scene = (KX_Scene *)m_scenes->GetFront();
-			m_sceneconverter->RemoveScene(scene);
+			m_converter->RemoveScene(scene);
 			// WARNING: here the scene is a dangling pointer.
 			m_scenes->Remove(0);
 		}
@@ -1330,7 +1330,7 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 
 			KX_Scene *scene = FindScene(scenename);
 			if (scene) {
-				m_sceneconverter->RemoveScene(scene);
+				m_converter->RemoveScene(scene);
 				m_scenes->RemoveValue(scene);
 			}
 		}
@@ -1346,21 +1346,18 @@ KX_Scene *KX_KetsjiEngine::CreateScene(Scene *scene, bool libloading)
 	                                  m_canvas,
 									  m_networkMessageManager);
 
-	m_sceneconverter->ConvertScene(tmpscene,
-	                               m_rasterizer,
-	                               m_canvas,
-	                               libloading);
+	m_converter->ConvertScene(tmpscene, m_rasterizer, m_canvas, libloading);
 
 	return tmpscene;
 }
 
 KX_Scene *KX_KetsjiEngine::CreateScene(const std::string& scenename)
 {
-	Scene *scene = m_sceneconverter->GetBlenderSceneForName(scenename);
+	Scene *scene = m_converter->GetBlenderSceneForName(scenename);
 	if (!scene)
 		return nullptr;
 
-	return CreateScene(scene);
+	return CreateScene(scene, false);
 }
 
 void KX_KetsjiEngine::AddScheduledScenes()
@@ -1373,7 +1370,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 		     scenenameit++)
 		{
 			std::string scenename = *scenenameit;
-			KX_Scene *tmpscene = CreateScene(scenename);
+			KX_Scene *tmpscene = CreateScene(scenename, false);
 			if (tmpscene) {
 				m_scenes->Add(tmpscene->AddRef());
 				PostProcessScene(tmpscene);
@@ -1392,7 +1389,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 		     scenenameit++)
 		{
 			std::string scenename = *scenenameit;
-			KX_Scene *tmpscene = CreateScene(scenename);
+			KX_Scene *tmpscene = CreateScene(scenename, false);
 			if (tmpscene) {
 				m_scenes->Insert(0, tmpscene->AddRef());
 				PostProcessScene(tmpscene);
@@ -1414,7 +1411,7 @@ bool KX_KetsjiEngine::ReplaceScene(const std::string& oldscene, const std::strin
 	// for a game that did a replace followed by a lib load with the
 	// new scene in the lib => it won't work anymore, the lib
 	// must be loaded before doing the replace.
-	if (m_sceneconverter->GetBlenderSceneForName(newscene) != nullptr) {
+	if (m_converter->GetBlenderSceneForName(newscene) != nullptr) {
 		m_replace_scenes.push_back(std::make_pair(oldscene, newscene));
 		return true;
 	}
@@ -1442,9 +1439,9 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 				KX_Scene *scene = (KX_Scene *)m_scenes->GetValue(sce_idx);
 				if (scene->GetName() == oldscenename) {
 					// avoid crash if the new scene doesn't exist, just do nothing
-					Scene *blScene = m_sceneconverter->GetBlenderSceneForName(newscenename);
+					Scene *blScene = m_converter->GetBlenderSceneForName(newscenename);
 					if (blScene) {
-						m_sceneconverter->RemoveScene(scene);
+						m_converter->RemoveScene(scene);
 
 						KX_Scene *tmpscene = CreateScene(blScene);
 						m_scenes->SetValue(sce_idx, tmpscene->AddRef());

@@ -46,7 +46,7 @@
 
 struct TaskScheduler;
 class KX_ISystem;
-class KX_ISceneConverter;
+class KX_BlenderConverter;
 class KX_NetworkMessageManager;
 class CListValue;
 class RAS_ICanvas;
@@ -92,7 +92,7 @@ private:
 	/// 3D Rasterizer (3D Rendering)
 	RAS_Rasterizer *m_rasterizer;
 	KX_ISystem *m_kxsystem;
-	KX_ISceneConverter *m_sceneconverter;
+	KX_BlenderConverter *m_converter;
 	KX_NetworkMessageManager *m_networkMessageManager;
 #ifdef WITH_PYTHON
 	/// \note borrowed from sys.modules["__main__"], don't manage ref's
@@ -261,10 +261,10 @@ public:
 	}
 	PyObject *GetPyProfileDict();
 #endif
-	void SetSceneConverter(KX_ISceneConverter *sceneconverter);
-	KX_ISceneConverter *GetSceneConverter()
+	void SetConverter(KX_BlenderConverter *converter);
+	KX_BlenderConverter *GetConverter()
 	{
-		return m_sceneconverter;
+		return m_converter;
 	}
 
 	RAS_Rasterizer *GetRasterizer()
@@ -505,7 +505,7 @@ public:
 	KX_DebugOption GetShowShadowFrustum() const;
 
 	KX_Scene *CreateScene(const std::string& scenename);
-	KX_Scene *CreateScene(Scene *scene, bool libloading = false);
+	KX_Scene *CreateScene(Scene *scene, bool libloading);
 
 	GlobalSettings *GetGlobalSettings(void);
 	void SetGlobalSettings(GlobalSettings *gs);

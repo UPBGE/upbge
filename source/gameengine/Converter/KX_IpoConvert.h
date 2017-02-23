@@ -36,35 +36,35 @@ struct Object;
 struct bAction;
 class SG_Controller;
 class KX_GameObject;
-class KX_BlenderSceneConverter;
+class KX_Scene;
 class RAS_IPolyMaterial;
 
 SG_Controller *BL_CreateIPO(bAction *action,
 	KX_GameObject* gameobj,
-	KX_BlenderSceneConverter *converter);
+	KX_Scene *scene);
 
 SG_Controller *BL_CreateObColorIPO(bAction *action,
 	KX_GameObject* gameobj,
-	KX_BlenderSceneConverter *converter);
+	KX_Scene *scene);
 
 SG_Controller *BL_CreateLampIPO(bAction *action,
 	KX_GameObject* lightobj,
-	KX_BlenderSceneConverter *converter);
+	KX_Scene *scene);
 
 SG_Controller *BL_CreateWorldIPO(bAction *action,
 	struct World *blenderworld,
-	KX_BlenderSceneConverter *converter);
+	KX_Scene *scene);
 
 SG_Controller *BL_CreateCameraIPO(bAction *action,
 	KX_GameObject* cameraobj,
-	KX_BlenderSceneConverter *converter);
+	KX_Scene *scene);
 
 SG_Controller *BL_CreateMaterialIpo(
 	bAction *action,
 	struct Material* blendermaterial,
 	RAS_IPolyMaterial *polymat,
 	KX_GameObject* gameobj,
-	KX_BlenderSceneConverter *converter);
+	KX_Scene *scene);
 
 
 #endif  /* __KX_IPOCONVERT_H__ */

@@ -25,72 +25,93 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_BlenderSceneConverter.h
+/** \file KX_BlenderConverter.h
  *  \ingroup bgeconv
  */
 
-#ifndef __KX_BLENDERSCENECONVERTER_H__
-#define __KX_BLENDERSCENECONVERTER_H__
+#ifndef __KX_BLENDERCONVERTER_H__
+#define __KX_BLENDERCONVERTER_H__
+
+#include "CM_Message.h"
 
 #include <map>
 #include <vector>
 
+class KX_WorldInfo;
+class KX_KetsjiEngine;
+class KX_LibLoadStatus;
 class SCA_IActuator;
 class SCA_IController;
-class RAS_Rasterizer;
-class RAS_ICanvas;
 class RAS_MeshObject;
 class RAS_IPolyMaterial;
+class RAS_IRasterizer;
 class BL_InterpolatorList;
-class KX_BlenderConverter;
-class KX_Scene;
-struct Object;
+struct Main;
+struct BlendHandle;
 struct Mesh;
+struct Scene;
 struct Material;
 struct bAction;
 struct bActuator;
 struct bController;
+struct TaskPool;
 
-class KX_BlenderSceneConverter
+#include "CM_Thread.h"
+
+template<class Key, class Value>
+using SceneBlenderDataMap = std::map<KX_Scene *, std::map<Key, Value> >;
+
+template<class Value>
+using SceneDataList = std::map<KX_Scene *, std::vector<Value> >;
+
+class KX_BlenderConverter
 {
-	friend KX_BlenderConverter;
-
 private:
-	std::vector<RAS_IPolyMaterial *> m_polymaterials;
-	std::vector<RAS_MeshObject *> m_meshobjects;
+	SceneDataList<RAS_IPolyMaterial *> m_polymaterials; // TODO use std::unique_ptr
+	SceneDataList<RAS_MeshObject *> m_meshobjects;
+	SceneDataList<BL_InterpolatorList *> m_interpolators;
 
-	std::map<Object *, KX_GameObject *> m_map_blender_to_gameobject;
-	std::map<Mesh *, RAS_MeshObject *> m_map_mesh_to_gamemesh;
-	std::map<Material *, RAS_IPolyMaterial *> m_map_mesh_to_polyaterial;
-	std::map<bActuator *, SCA_IActuator *> m_map_blender_to_gameactuator;
-	std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller;
-	std::map<bAction *, BL_InterpolatorList *> m_map_blender_to_gameAdtList;
+	std::vector<KX_LibLoadStatus *> m_mergequeue;
+
+	struct ThreadInfo {
+		TaskPool *m_pool;
+		CM_ThreadMutex m_mutex;
+	} m_threadinfo;
+
+	// Cached material conversions
+	SceneBlenderDataMap<Material *, RAS_IPolyMaterial *> m_materialToPolyMat;
+	SceneBlenderDataMap<bAction *, BL_InterpolatorList *> m_actionToInterp;
+
+	// Saved KX_LibLoadStatus objects
+	std::map<char *, KX_LibLoadStatus *> m_status_map;
+
+	Main *m_maggie;
+	std::vector<Main *> m_DynamicMaggie;
+
+	KX_KetsjiEngine *m_ketsjiEngine; // TODO remove, global engine
+	bool m_alwaysUseExpandFraming;
 
 public:
-	KX_BlenderSceneConverter() = default;
-	~KX_BlenderSceneConverter() = default;
+	KX_BlenderConverter(Main *maggie, KX_KetsjiEngine *engine);
+	virtual ~KX_BlenderConverter();
 
-	void RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject);
-	void UnregisterGameObject(KX_GameObject *gameobject);
-	KX_GameObject *FindGameObject(Object *for_blenderobject);
+	/** \param Scenename name of the scene to be converted.
+	 * \param destinationscene pass an empty scene, everything goes into this
+	 * \param dictobj python dictionary (for pythoncontrollers)
+	 */
+	virtual void ConvertScene(KX_Scene *destinationscene, RAS_IRasterizer *rasty, RAS_ICanvas *canvas, bool libloading);
+	virtual void RemoveScene(KX_Scene *scene);
 
-	void RegisterGameMesh(KX_Scene *scene, RAS_MeshObject *gamemesh, Mesh *for_blendermesh);
-	RAS_MeshObject *FindGameMesh(Mesh *for_blendermesh);
+	virtual void SetAlwaysUseExpandFraming(bool to_what);
 
 	void RegisterPolyMaterial(KX_Scene *scene, RAS_IPolyMaterial *polymat);
 	void CachePolyMaterial(KX_Scene *scene, Material *mat, RAS_IPolyMaterial *polymat);
 	RAS_IPolyMaterial *FindCachedPolyMaterial(KX_Scene *scene, Material *mat);
 
-	void RegisterInterpolatorList(BL_InterpolatorList *actList, bAction *for_act);
-	BL_InterpolatorList *FindInterpolatorList(bAction *for_act);
+	void RegisterInterpolatorList(KX_Scene *scene, BL_InterpolatorList *actList, bAction *for_act);
+	BL_InterpolatorList *FindInterpolatorList(KX_Scene *scene, bAction *for_act);
 
-	void RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator);
-	SCA_IActuator *FindGameActuator(bActuator *for_actuator);
-
-	void RegisterGameController(SCA_IController *cont, bController *for_controller);
-	SCA_IController *FindGameController(bController *for_controller);
-
-	Scene *GetBlenderSceneForName(const std::string& name);
+	virtual Scene *GetBlenderSceneForName(const std::string& name);
 	virtual CListValue *GetInactiveSceneNames();
 
 	Main *GetMainDynamicPath(const char *path);
@@ -114,12 +135,7 @@ public:
 		CM_Message(std::endl << "Assets...");
 		CM_Message("\t m_polymaterials: " << (int)m_polymaterials.size());
 		CM_Message("\t m_meshobjects: " << (int)m_meshobjects.size());
-		CM_Message(std::endl << "Mappings...");
-		CM_Message("\t m_map_blender_to_gameobject: " << (int)m_map_blender_to_gameobject.size());
-		CM_Message("\t m_map_mesh_to_gamemesh: " << (int)m_map_mesh_to_gamemesh.size());
-		CM_Message("\t m_map_blender_to_gameactuator: " << (int)m_map_blender_to_gameactuator.size());
-		CM_Message("\t m_map_blender_to_gamecontroller: " << (int)m_map_blender_to_gamecontroller.size());
-		CM_Message("\t m_map_blender_to_gameAdtList: " << (int)m_map_blender_to_gameAdtList.size());
+		CM_Message("\t m_interpolators: " << (int)m_interpolators.size());
 
 #ifdef WITH_CXX_GUARDEDALLOC
 		MEM_printmemlist_pydict();
@@ -135,15 +151,13 @@ public:
 		LIB_LOAD_ASYNC = 8,
 	};
 
-
-
 #ifdef WITH_PYTHON
 	PyObject *GetPyNamespace();
 #endif
 
 #ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderSceneConverter")
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderConverter")
 #endif
 };
 
-#endif  // __KX_BLENDERSCENECONVERTER_H__
+#endif  // __KX_BLENDERCONVERTER_H__

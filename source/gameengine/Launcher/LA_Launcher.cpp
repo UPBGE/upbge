@@ -42,7 +42,7 @@
 #include "KX_PythonMain.h"
 #include "KX_PyConstraintBinding.h"
 
-#include "KX_BlenderSceneConverter.h"
+#include "KX_BlenderConverter.h"
 #include "BL_BlenderDataConversion.h"
 
 #include "KX_NetworkMessageManager.h"
@@ -92,7 +92,7 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 	m_eventConsumer(nullptr),
 	m_canvas(nullptr),
 	m_rasterizer(nullptr), 
-	m_sceneConverter(nullptr),
+	m_converter(nullptr),
 #ifdef WITH_PYTHON
 	m_globalDict(nullptr),
 	m_gameLogic(nullptr),
@@ -267,8 +267,8 @@ void LA_Launcher::InitEngine()
 #endif
 
 	// Create a scene converter, create and convert the stratingscene.
-	m_sceneConverter = new KX_BlenderSceneConverter(m_maggie, m_ketsjiEngine);
-	m_ketsjiEngine->SetSceneConverter(m_sceneConverter);
+	m_converter = new KX_BlenderConverter(m_maggie, m_ketsjiEngine);
+	m_ketsjiEngine->SetConverter(m_converter);
 
 	m_kxStartScene = new KX_Scene(m_inputDevice,
 		m_startSceneName,
@@ -291,12 +291,9 @@ void LA_Launcher::InitEngine()
 	AUD_Device_setDistanceModel(device, AUD_DistanceModel(m_startScene->audio.distance_model));
 #endif  // WITH_AUDASPACE
 
-	m_sceneConverter->SetAlwaysUseExpandFraming(GetUseAlwaysExpandFraming());
+	m_converter->SetAlwaysUseExpandFraming(GetUseAlwaysExpandFraming());
 
-	m_sceneConverter->ConvertScene(
-		m_kxStartScene,
-		m_rasterizer,
-		m_canvas);
+	m_converter->ConvertScene(m_kxStartScene, m_rasterizer, m_canvas, false);
 	m_ketsjiEngine->AddScene(m_kxStartScene);
 	m_kxStartScene->Release();
 
@@ -349,9 +346,9 @@ void LA_Launcher::ExitEngine()
 	// Set vsync mode back to original value.
 	m_canvas->SetSwapInterval(m_savedData.vsync);
 
-	if (m_sceneConverter) {
-		delete m_sceneConverter;
-		m_sceneConverter = nullptr;
+	if (m_converter) {
+		delete m_converter;
+		m_converter = nullptr;
 	}
 	if (m_ketsjiEngine) {
 		delete m_ketsjiEngine;

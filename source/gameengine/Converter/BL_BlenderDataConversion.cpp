@@ -889,7 +889,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 
 	class PHY_IMotionState* motionstate = new KX_MotionState(gameobj->GetSGNode());
 
-	kxscene->GetPhysicsEnvironment()->ConvertObject(gameobj, meshobj, dm, kxscene, shapeprops, motionstate, activeLayerBitInfo, isCompoundChild, hasCompoundChildren);
+	kxscene->GetPhysicsEnvironment()->ConvertObject(converter, gameobj, meshobj, dm, kxscene, shapeprops, motionstate, activeLayerBitInfo, isCompoundChild, hasCompoundChildren);
 
 	bool isActor = (blenderobject->gameflag & OB_ACTOR)!=0;
 	bool isSensor = (blenderobject->gameflag & OB_SENSOR) != 0;

@@ -44,6 +44,8 @@
 
 #include "MT_Vector3.h"
 
+#include "CM_Message.h"
+
 #include <algorithm>
 
 // polygon sorting
@@ -404,6 +406,7 @@ void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 		}
 	}
 
+// 	CM_FunctionDebug("mesh object: " << this << ", blender mesh name: " << m_name);
 	// Construct the bounding box of this mesh without deformers.
 	m_boundingBox = boundingBoxManager->CreateMeshBoundingBox(arrayList);
 	m_boundingBox->Update(true);

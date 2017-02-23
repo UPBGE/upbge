@@ -595,7 +595,7 @@ PyDoc_STRVAR(gPyGetInactiveSceneNames_doc,
 );
 static PyObject *gPyGetInactiveSceneNames(PyObject *self)
 {
-	CListValue *list = KX_GetActiveEngine()->GetSceneConverter()->GetInactiveSceneNames();
+	CListValue *list = KX_GetActiveEngine()->GetConverter()->GetInactiveSceneNames();
 
 	return list->NewProxy(true);
 }
@@ -604,7 +604,7 @@ static PyObject *gPyGetInactiveSceneNames(PyObject *self)
 
 static PyObject *pyPrintStats(PyObject *,PyObject *,PyObject *)
 {
-	KX_GetActiveScene()->GetSceneConverter()->PrintStats();
+	KX_GetActiveEngine()->GetConverter()->PrintStats();
 	Py_RETURN_NONE;
 }
 
@@ -648,6 +648,8 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 	if (async != 0)
 		options |= KX_BlenderSceneConverter::LIB_LOAD_ASYNC;
 
+	KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+
 	if (!py_buffer.buf)
 	{
 		char abs_path[FILE_MAX];
@@ -655,14 +657,14 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 		BLI_strncpy(abs_path, path, sizeof(abs_path));
 		BLI_path_abs(abs_path, KX_GetMainPath().c_str());
 
-		if ((status=kx_scene->GetSceneConverter()->LinkBlendFilePath(abs_path, group, kx_scene, &err_str, options))) {
+		if ((status=converter->LinkBlendFilePath(abs_path, group, kx_scene, &err_str, options))) {
 			return status->GetProxy();
 		}
 	}
 	else
 	{
 
-		if ((status=kx_scene->GetSceneConverter()->LinkBlendFileMemory(py_buffer.buf, py_buffer.len, path, group, kx_scene, &err_str, options)))	{
+		if ((status=converter->LinkBlendFileMemory(py_buffer.buf, py_buffer.len, path, group, kx_scene, &err_str, options)))	{
 			PyBuffer_Release(&py_buffer);
 			return status->GetProxy();
 		}
@@ -689,9 +691,10 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 
 	if (!PyArg_ParseTuple(args,"ssO!:LibNew",&path, &group, &PyList_Type, &names))
 		return nullptr;
-	
-	if (kx_scene->GetSceneConverter()->GetMainDynamicPath(path))
-	{
+
+	KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
+
+	if (converter->GetMainDynamicPath(path)) {
 		PyErr_SetString(PyExc_KeyError, "the name of the path given exists");
 		return nullptr;
 	}
@@ -703,7 +706,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 	}
 	
 	Main *maggie=BKE_main_new();
-	kx_scene->GetSceneConverter()->GetMainDynamic().push_back(maggie);
+	converter->GetMainDynamic().push_back(maggie);
 	strncpy(maggie->name, path, sizeof(maggie->name)-1);
 	
 	/* Copy the object into main */
@@ -713,7 +716,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 		for (Py_ssize_t i= 0; i < PyList_GET_SIZE(names); i++) {
 			name= _PyUnicode_AsString(PyList_GET_ITEM(names, i));
 			if (name) {
-				RAS_MeshObject *meshobj= kx_scene->GetSceneConverter()->ConvertMeshSpecial(kx_scene, maggie, name);
+				RAS_MeshObject *meshobj= converter->ConvertMeshSpecial(kx_scene, maggie, name);
 				if (meshobj) {
 					KX_MeshProxy* meshproxy = new KX_MeshProxy(meshobj);
 					item= meshproxy->NewProxy(true);
@@ -744,7 +747,7 @@ static PyObject *gLibFree(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args,"s:LibFree",&path))
 		return nullptr;
 
-	if (kx_scene->GetSceneConverter()->FreeBlendFile(path))
+	if (KX_GetActiveEngine()->GetConverter()->FreeBlendFile(path))
 	{
 		Py_RETURN_TRUE;
 	}
@@ -755,7 +758,7 @@ static PyObject *gLibFree(PyObject *, PyObject *args)
 
 static PyObject *gLibList(PyObject *, PyObject *args)
 {
-	std::vector<Main*> &dynMaggie = KX_GetActiveScene()->GetSceneConverter()->GetMainDynamic();
+	std::vector<Main*> &dynMaggie = KX_GetActiveEngine()->GetConverter()->GetMainDynamic();
 	int i= 0;
 	PyObject *list= PyList_New(dynMaggie.size());
 	

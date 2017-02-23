@@ -178,7 +178,6 @@ set(SRC
 	KX_IPOTransform.h
 	KX_IPO_SGController.h
 	KX_IScalarInterpolator.h
-	KX_ISceneConverter.h
 	KX_ISystem.h
 	KX_KetsjiEngine.h
 	KX_Light.h
