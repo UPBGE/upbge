@@ -2410,19 +2410,6 @@ static int image_new_exec(bContext *C, wmOperator *op)
 	if (!alpha)
 		color[3] = 1.0f;
 
-	if (tex && tex->type == TEX_ENVMAP) {
-		/* Here we control that envmap width = 3 / 2 * envmap height and that
-		 * envmap height is a power of 2 to be sure to have a supported envmap resolution.
-		 */
-		if (!(width == ceil(height * 3 / 2) && ((height & (height - 1)) == 0))) {
-			int previous = pow(2, ceil(log(height) / log(2))) / 2;
-			height = previous;
-			width = previous * 3 / 2;
-
-			BKE_report(op->reports, RPT_ERROR, "Invalid image size for cube map texture user, down to a valid size");
-		}
-	}
-
 	ima = BKE_image_add_generated(bmain, width, height, name, alpha ? 32 : 24, floatbuf, gen_type, color, stereo3d);
 
 	if (!ima)
