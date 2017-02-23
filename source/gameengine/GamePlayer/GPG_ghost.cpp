@@ -607,16 +607,15 @@ static BlendFileData *load_encrypted_game_data(const char *filename, std::string
 		fileData = SPINDLE_DecryptFromFile(filename, fileSize, encryptKey);
 	}
 	else {
-		fileData = SPINDLE_DecryptFromFile(filename, fileSize, NULL, typeEncryption);
+		fileData = SPINDLE_DecryptFromFile(filename, fileSize, "", typeEncryption);
 	}
 
 	if (fileData) {
 		bfd = BLO_read_from_memory(fileData, fileSize, &reports, localPath.c_str());
-		delete [] fileData;
+		delete[] fileData;
 	}
 
 	if (!bfd) {
-		printf("Loading %s failed: ", localPath);
 		BKE_reports_print(&reports, RPT_ERROR);
 	}
 
@@ -1183,7 +1182,7 @@ int main(
 						}
 						else
 						{
-							bfd = load_encrypted_game_data(finalpath, NULL, NULL, typeEncryption);
+							bfd = load_encrypted_game_data(finalpath, "", "", typeEncryption);
 						}
 #endif  // WITH_GAMEENGINE_BPPLAYER
 					}
