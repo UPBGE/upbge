@@ -117,6 +117,7 @@ char *SPINDLE_DecryptFromFile(const char *filename, int& fileSize, const std::st
 			spindle_decrypt_hex(fileData, fileSize, encryptKey.c_str());
 			return fileData;
 		}
+		delete[] fileData;
 		return NULL;
 	}
 	else {
