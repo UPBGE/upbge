@@ -104,9 +104,7 @@ public:
 
 	virtual void SetAlwaysUseExpandFraming(bool to_what);
 
-	void RegisterPolyMaterial(KX_Scene *scene, RAS_IPolyMaterial *polymat);
-	void CachePolyMaterial(KX_Scene *scene, Material *mat, RAS_IPolyMaterial *polymat);
-	RAS_IPolyMaterial *FindCachedPolyMaterial(KX_Scene *scene, Material *mat);
+	RAS_IPolyMaterial *FindPolyMaterial(KX_Scene *scene, Material *mat);
 
 	void RegisterInterpolatorList(KX_Scene *scene, BL_InterpolatorList *actList, bAction *for_act);
 	BL_InterpolatorList *FindInterpolatorList(KX_Scene *scene, bAction *for_act);

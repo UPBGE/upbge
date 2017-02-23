@@ -189,7 +189,7 @@ bool BL_Action::Play(const std::string& name,
 			continue;
 		}
 
-		RAS_IPolyMaterial *polymat = KX_GetActiveEngine()->GetConverter()->FindCachedPolyMaterial(kxscene, mat);
+		RAS_IPolyMaterial *polymat = KX_GetActiveEngine()->GetConverter()->FindPolyMaterial(kxscene, mat);
 		if (!polymat) {
 			continue;
 		}

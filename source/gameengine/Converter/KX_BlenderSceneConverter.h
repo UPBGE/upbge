@@ -43,7 +43,6 @@ class RAS_MeshObject;
 class RAS_IPolyMaterial;
 class BL_InterpolatorList;
 class KX_BlenderConverter;
-class KX_Scene;
 struct Object;
 struct Mesh;
 struct Material;
@@ -74,12 +73,11 @@ public:
 	void UnregisterGameObject(KX_GameObject *gameobject);
 	KX_GameObject *FindGameObject(Object *for_blenderobject);
 
-	void RegisterGameMesh(KX_Scene *scene, RAS_MeshObject *gamemesh, Mesh *for_blendermesh);
+	void RegisterGameMesh(RAS_MeshObject *gamemesh, Mesh *for_blendermesh);
 	RAS_MeshObject *FindGameMesh(Mesh *for_blendermesh);
 
-	void RegisterPolyMaterial(KX_Scene *scene, RAS_IPolyMaterial *polymat);
-	void CachePolyMaterial(KX_Scene *scene, Material *mat, RAS_IPolyMaterial *polymat);
-	RAS_IPolyMaterial *FindCachedPolyMaterial(KX_Scene *scene, Material *mat);
+	void RegisterPolyMaterial(RAS_IPolyMaterial *polymat);
+	RAS_IPolyMaterial *FindPolyMaterial(Material *mat);
 
 	void RegisterInterpolatorList(BL_InterpolatorList *actList, bAction *for_act);
 	BL_InterpolatorList *FindInterpolatorList(bAction *for_act);

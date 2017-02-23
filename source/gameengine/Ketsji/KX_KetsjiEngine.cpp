@@ -1370,7 +1370,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 		     scenenameit++)
 		{
 			std::string scenename = *scenenameit;
-			KX_Scene *tmpscene = CreateScene(scenename, false);
+			KX_Scene *tmpscene = CreateScene(scenename);
 			if (tmpscene) {
 				m_scenes->Add(tmpscene->AddRef());
 				PostProcessScene(tmpscene);
@@ -1389,7 +1389,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 		     scenenameit++)
 		{
 			std::string scenename = *scenenameit;
-			KX_Scene *tmpscene = CreateScene(scenename, false);
+			KX_Scene *tmpscene = CreateScene(scenename);
 			if (tmpscene) {
 				m_scenes->Insert(0, tmpscene->AddRef());
 				PostProcessScene(tmpscene);
@@ -1443,7 +1443,7 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 					if (blScene) {
 						m_converter->RemoveScene(scene);
 
-						KX_Scene *tmpscene = CreateScene(blScene);
+						KX_Scene *tmpscene = CreateScene(blScene, false);
 						m_scenes->SetValue(sce_idx, tmpscene->AddRef());
 						PostProcessScene(tmpscene);
 						tmpscene->Release();

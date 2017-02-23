@@ -27,9 +27,11 @@
 #include "KX_LibLoadStatus.h"
 #include "PIL_time.h"
 
-KX_LibLoadStatus::KX_LibLoadStatus(class KX_KetsjiEngine* kx_engine,
+KX_LibLoadStatus::KX_LibLoadStatus(class KX_BlenderConverter* kx_converter,
+				class KX_KetsjiEngine* kx_engine,
 				class KX_Scene* merge_scene,
 				const std::string& path) :
+			m_converter(kx_converter),
 			m_engine(kx_engine),
 			m_mergescene(merge_scene),
 			m_data(nullptr),
@@ -90,6 +92,11 @@ void KX_LibLoadStatus::RunProgressCallback()
 	}
 #endif
 #endif
+}
+
+class KX_BlenderConverter *KX_LibLoadStatus::GetConverter()
+{
+	return m_converter;
 }
 
 class KX_KetsjiEngine *KX_LibLoadStatus::GetEngine()

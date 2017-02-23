@@ -143,12 +143,12 @@ KX_GameObject *KX_BlenderSceneConverter::FindGameObject(Object *for_blenderobjec
 	return m_map_blender_to_gameobject[for_blenderobject];
 }
 
-void KX_BlenderSceneConverter::RegisterGameMesh(KX_Scene *scene, RAS_MeshObject *gamemesh, Mesh *for_blendermesh)
+void KX_BlenderSceneConverter::RegisterGameMesh(RAS_MeshObject *gamemesh, Mesh *for_blendermesh)
 {
 	if (for_blendermesh) { // dynamically loaded meshes we don't want to keep lookups for
 		m_map_mesh_to_gamemesh[for_blendermesh] = gamemesh;
 	}
-	m_meshobjects[scene].push_back(gamemesh);
+	m_meshobjects.push_back(gamemesh);
 }
 
 RAS_MeshObject *KX_BlenderSceneConverter::FindGameMesh(Mesh *for_blendermesh)
@@ -156,7 +156,7 @@ RAS_MeshObject *KX_BlenderSceneConverter::FindGameMesh(Mesh *for_blendermesh)
 	return m_map_mesh_to_gamemesh[for_blendermesh];
 }
 
-void KX_BlenderSceneConverter::RegisterPolyMaterial(KX_Scene *scene, Material *mat, RAS_IPolyMaterial *polymat)
+void KX_BlenderSceneConverter::RegisterPolyMaterial(Material *mat, RAS_IPolyMaterial *polymat)
 {
 	if (mat) {
 		m_polymat_cache[scene][mat].push_back(polymat);
@@ -164,14 +164,7 @@ void KX_BlenderSceneConverter::RegisterPolyMaterial(KX_Scene *scene, Material *m
 	m_polymaterials[scene].push_back(polymat);
 }
 
-void KX_BlenderSceneConverter::CachePolyMaterial(KX_Scene *scene, Material *mat, RAS_IPolyMaterial *polymat)
-{
-	if (mat) {
-		m_polymat_cache[scene][mat] = polymat;
-	}
-}
-
-RAS_IPolyMaterial *KX_BlenderSceneConverter::FindCachedPolyMaterial(KX_Scene *scene, Material *mat)
+RAS_IPolyMaterial *KX_BlenderSceneConverter::FindPolyMaterial(KX_Scene *scene, Material *mat)
 {
 	return m_polymat_cache[scene][mat];
 }

@@ -452,7 +452,7 @@ static RAS_MaterialBucket *material_from_mesh(
 	unsigned int rgb[4][RAS_ITexVert::MAX_UNIT], MT_Vector2 uvs[4][RAS_ITexVert::MAX_UNIT],
 	KX_Scene* scene, KX_BlenderSceneConverter *converter)
 {
-	RAS_IPolyMaterial* polymat = converter->FindCachedPolyMaterial(scene, ma);
+	RAS_IPolyMaterial* polymat = converter->FindPolyMaterial(ma);
 
 	if (mface) {
 		GetRGB(mface, layers, rgb);
@@ -462,7 +462,6 @@ static RAS_MaterialBucket *material_from_mesh(
 
 	if (!polymat) {
 		polymat = ConvertMaterial(ma, tface, lightlayer, scene);
-		converter->CachePolyMaterial(scene, ma, polymat);
 	}
 	
 	// see if a bucket was reused or a new one was created
@@ -473,7 +472,7 @@ static RAS_MaterialBucket *material_from_mesh(
 	// this is needed to free up memory afterwards.
 	// the converter will also prevent duplicates from being registered,
 	// so just register everything.
-	converter->RegisterPolyMaterial(scene, polymat);
+	converter->RegisterPolyMaterial(polymat);
 
 	return bucket;
 }
@@ -744,7 +743,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 	dm->release(dm);
 
-	converter->RegisterGameMesh(scene, meshobj, mesh);
+	converter->RegisterGameMesh(meshobj, mesh);
 	return meshobj;
 }
 

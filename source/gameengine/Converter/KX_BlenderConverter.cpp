@@ -305,7 +305,7 @@ void KX_BlenderConverter::SetAlwaysUseExpandFraming(bool to_what)
 	m_alwaysUseExpandFraming = to_what;
 }
 
-RAS_IPolyMaterial *KX_BlenderConverter::FindCachedPolyMaterial(KX_Scene *scene, Material *mat)
+RAS_IPolyMaterial *KX_BlenderConverter::FindPolyMaterial(KX_Scene *scene, Material *mat)
 {
 	return m_materialToPolyMat[scene][mat];
 }
@@ -406,7 +406,7 @@ static void async_convert(TaskPool *pool, void *ptr, int UNUSED(threadid))
 	delete scenes;
 	status->SetData(merge_scenes);
 
-	AddScenesToMergeQueue(status);
+	status->GetConverter()->AddScenesToMergeQueue(status);
 }
 
 KX_LibLoadStatus *KX_BlenderConverter::LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options)
@@ -918,6 +918,8 @@ RAS_MeshObject *KX_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene, Main
 
 	RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)me, nullptr, kx_scene, &sceneConverter, false);
 	kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
+
+	m_meshobjects[kx_scene] = std::move(sceneConverter.m_meshobjects);
 
 	return meshobj;
 }
