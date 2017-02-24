@@ -42,7 +42,7 @@ extern char *dynamicKey;
 
 std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i);
 char *SPINDLE_DecryptFromFile(const char *filename, int &fileSize, const std::string& encryptKey, int typeEncryption=0);
-void *SPINDLE_DecryptFromMemory(void *mem, int &memLength, int typeEncryption);
+char *SPINDLE_DecryptFromMemory(char *mem, int &memLength, int typeEncryption);
 int SPINDLE_CheckHeaderFromFile(const char *filepath);
 int SPINDLE_CheckHeaderFromMemory(char *mem);
 

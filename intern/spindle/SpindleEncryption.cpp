@@ -33,7 +33,7 @@
 
 char *staticKey = NULL;
 char *dynamicKey = NULL;
-int currentSupportedVersion = 0;
+const unsigned int currentSupportedVersion = 0;
 
 // Static functions declaration
 // Encryption & Decryption
@@ -49,7 +49,7 @@ static void spindle_set_dynamic_encryption_key(const char *hexKey);
 // Secure functions
 // We want to define these functions ourselves since some platforms will always dynamically link against
 // libc even if we build a static executable (ex: Linux)
-static void spindle_secure_function_memcpy(void *dest, void *src, int size);
+static void spindle_secure_function_memcpy(void *dest, void *src, int size, int offset=0);
 static void spindle_secure_function_memset(void *dest, char value, int size);
 static int spindle_secure_function_strlen(const char *str);
 
@@ -152,16 +152,24 @@ char *SPINDLE_DecryptFromFile(const char *filename, int& fileSize, const std::st
 	}
 }
 
-void *SPINDLE_DecryptFromMemory(void *mem, int& memLength, int typeEncryption)
+char *SPINDLE_DecryptFromMemory(char *mem, int& memLength, int typeEncryption)
 {
 	if (typeEncryption == 0) {
 		return mem;
 	}
 	else if (typeEncryption == 1) {
-		spindle_decrypt_hex((char *)mem, memLength, staticKey);
+		memLength -= 5;
+		char *memFile = new char[memLength];
+		spindle_secure_function_memcpy(memFile, mem, memLength, 5);
+		spindle_decrypt_hex(memFile, memLength, staticKey);
+		return memFile;
 	}
 	else if (typeEncryption == 2) {
-		spindle_decrypt_hex((char *)mem, memLength, dynamicKey);
+		memLength -= 5;
+		char *memFile = new char[memLength];
+		spindle_secure_function_memcpy(memFile, mem, memLength, 5);
+		spindle_decrypt_hex(memFile, memLength, dynamicKey);
+		return memFile;
 	}
 	else {
 		return NULL;
@@ -170,7 +178,6 @@ void *SPINDLE_DecryptFromMemory(void *mem, int& memLength, int typeEncryption)
 
 int SPINDLE_CheckHeaderFromFile(const char *filepath)
 {
-	const unsigned int currentSupportedVersion = 0;
 	int memsize;
 	char memHeader[5];
 	int keyType = 0; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
@@ -190,7 +197,6 @@ int SPINDLE_CheckHeaderFromFile(const char *filepath)
 	}
 
 	fread(memHeader, 5, 1, inFile);
-	memsize -= 5;
 
 	if ((memHeader[0] == 'S') && (memHeader[1] == 'T') && (memHeader[2] == 'C')) { //Static encrypted file
 		if ((unsigned int)memHeader[3] > currentSupportedVersion) {
@@ -218,16 +224,17 @@ int SPINDLE_CheckHeaderFromFile(const char *filepath)
 		}
 		keyType = 2;
 	}
-	else { //Normal blender file
-		keyType = 0;
-		fclose(inFile);
-	}
+	fclose(inFile);
+
 	return keyType;
 }
 
 int SPINDLE_CheckHeaderFromMemory(char *mem)
 {
 	int keyType = 0; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
+
+	if (spindle_secure_function_strlen(mem) < 5)
+		return -1;
 
 	if ((mem[0] == 'S') && (mem[1] == 'T') && (mem[2] == 'C')) { //Static encrypted file
 		if ((unsigned int)mem[3] > currentSupportedVersion) {
@@ -430,10 +437,16 @@ static void spindle_set_dynamic_encryption_key(const char *hexKey)
 	strcpy(dynamicKey, hexKey);
 }
 
-static void spindle_secure_function_memcpy(void *dest, void *src, int size)
+static void spindle_secure_function_memcpy(void *dest, void *src, int size, int offset)
 {
-	for (int i = 0; i < size; i++)
-		((char *)dest)[i] = ((char *)src)[i];
+	if (!offset) {
+		for (int i = 0; i < size; i++)
+			((char *)dest)[i] = ((char *)src)[i];
+	}
+	else {
+		for (int i = 0; i < size; i++)
+			((char *)dest)[i] = ((char *)src)[i+offset];
+	}
 }
 
 static void spindle_secure_function_memset(void *dest, char value, int size)
