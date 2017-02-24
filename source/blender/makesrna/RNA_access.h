@@ -525,6 +525,7 @@ extern StructRNA RNA_SequenceTransform;
 extern StructRNA RNA_NormalEditModifier;
 extern StructRNA RNA_ShaderNode;
 extern StructRNA RNA_ShaderNodeCameraData;
+extern StructRNA RNA_ShaderNodeObjectData;
 extern StructRNA RNA_ShaderNodeCombineRGB;
 extern StructRNA RNA_ShaderNodeExtendedMaterial;
 extern StructRNA RNA_ShaderNodeGeometry;

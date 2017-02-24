@@ -389,6 +389,7 @@ void GPU_material_update_fvar_offset(GPUMaterial *gpu_material,
 #endif
 
 /* Instancing material */
+bool GPU_material_use_instancing(GPUMaterial *material);
 void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
 void GPU_material_unbind_instancing_attrib(GPUMaterial *material);
 

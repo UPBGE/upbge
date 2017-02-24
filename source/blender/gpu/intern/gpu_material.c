@@ -334,6 +334,11 @@ bool GPU_lamp_override_visible(GPULamp *lamp, SceneRenderLayer *srl, Material *m
 		return true;
 }
 
+bool GPU_material_use_instancing(GPUMaterial *material)
+{
+	return material->use_instancing;
+}
+
 void GPU_material_bind_instancing_attrib(GPUMaterial *material, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
 {
 	// Matrix

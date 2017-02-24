@@ -270,6 +270,11 @@ void camera(vec3 co, out vec3 outview, out float outdepth, out float outdist)
 	outview = normalize(co);
 }
 
+void object(vec4 color, out vec4 outcolor)
+{
+	outcolor = color;
+}
+
 void lamp(
         vec4 col, float energy, vec3 lv, float dist, vec3 shadow, float visifac,
         out vec4 outcol, out vec3 outlv, out float outdist, out vec4 outshadow, out float outvisifac)

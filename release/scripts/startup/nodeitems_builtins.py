@@ -144,6 +144,7 @@ shader_node_categories = [
     ShaderOldNodeCategory("SH_INPUT", "Input", items=[
         NodeItem("ShaderNodeMaterial"),
         NodeItem("ShaderNodeCameraData"),
+        NodeItem("ShaderNodeObjectData"),
         NodeItem("ShaderNodeFresnel"),
         NodeItem("ShaderNodeLayerWeight"),
         NodeItem("ShaderNodeLampData"),
