@@ -617,7 +617,7 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
         else:
             if env.source == 'REALTIME':
                 layout.template_ID(tex, "image", new="image.new", open="image.open")
-                layout.template_image(tex, "image", tex.image_user, compact=True)
+                layout.template_image(tex, "image", tex.image_user, compact=True, cubemap=(env.mapping == 'CUBE'))
                 layout.prop(env, "filtering")
                 if env.mapping == 'PLANE':
                     layout.prop(env, "mode")
