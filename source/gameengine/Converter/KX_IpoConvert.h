@@ -61,7 +61,6 @@ SG_Controller *BL_CreateCameraIPO(bAction *action,
 
 SG_Controller *BL_CreateMaterialIpo(
 	bAction *action,
-	struct Material* blendermaterial,
 	RAS_IPolyMaterial *polymat,
 	KX_GameObject* gameobj,
 	KX_Scene *scene);

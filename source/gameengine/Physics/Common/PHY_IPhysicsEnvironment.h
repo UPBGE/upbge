@@ -229,7 +229,7 @@ public:
 
 	virtual void MergeEnvironment(PHY_IPhysicsEnvironment *other_env) = 0;
 
-	virtual void ConvertObject(KX_BlenderSceneConverter *converter,
+	virtual void ConvertObject(KX_BlenderSceneConverter& converter,
 							   KX_GameObject *gameobj,
 	                           RAS_MeshObject *meshobj,
 	                           DerivedMesh *dm,

@@ -82,7 +82,7 @@
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IGraphicController.h"
 #include "PHY_IPhysicsController.h"
-#include "KX_BlenderSceneConverter.h"
+#include "KX_BlenderConverter.h"
 #include "KX_MotionState.h"
 
 #include "BL_ModifierDeformer.h"

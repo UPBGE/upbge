@@ -450,9 +450,9 @@ static KX_BlenderMaterial *ConvertMaterial(
 static RAS_MaterialBucket *material_from_mesh(
 	Material *ma, MFace *mface, MTFace *tface, const RAS_MeshObject::LayerList& layers, int lightlayer,
 	unsigned int rgb[4][RAS_ITexVert::MAX_UNIT], MT_Vector2 uvs[4][RAS_ITexVert::MAX_UNIT],
-	KX_Scene* scene, KX_BlenderSceneConverter *converter)
+	KX_Scene* scene, KX_BlenderSceneConverter& converter)
 {
-	RAS_IPolyMaterial* polymat = converter->FindPolyMaterial(ma);
+	RAS_IPolyMaterial* polymat = converter.FindPolyMaterial(ma);
 
 	if (mface) {
 		GetRGB(mface, layers, rgb);
@@ -462,30 +462,27 @@ static RAS_MaterialBucket *material_from_mesh(
 
 	if (!polymat) {
 		polymat = ConvertMaterial(ma, tface, lightlayer, scene);
+		// this is needed to free up memory afterwards.
+		converter.RegisterPolyMaterial(polymat, ma);
 	}
-	
+
 	// see if a bucket was reused or a new one was created
 	// this way only one KX_BlenderMaterial object has to exist per bucket
 	bool bucketCreated; 
 	RAS_MaterialBucket* bucket = scene->FindBucket(polymat, bucketCreated);
 
-	// this is needed to free up memory afterwards.
-	// the converter will also prevent duplicates from being registered,
-	// so just register everything.
-	converter->RegisterPolyMaterial(polymat);
-
 	return bucket;
 }
 
 /* blenderobj can be nullptr, make sure its checked for */
-RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, KX_BlenderSceneConverter *converter, bool libloading)
+RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, KX_BlenderSceneConverter& converter, bool libloading)
 {
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
 
 	// Without checking names, we get some reuse we don't want that can cause
 	// problems with material LoDs.
-	if (blenderobj && ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != nullptr)) {
+	if (blenderobj && ((meshobj = converter.FindGameMesh(mesh/*, ob->lay*/)) != nullptr)) {
 		const std::string bge_name = meshobj->GetName();
 		const std::string blender_name = ((ID *)blenderobj->data)->name + 2;
 		if (bge_name == blender_name) {
@@ -743,7 +740,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 	dm->release(dm);
 
-	converter->RegisterGameMesh(meshobj, mesh);
+	converter.RegisterGameMesh(meshobj, mesh);
 	return meshobj;
 }
 
@@ -838,7 +835,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
                                       RAS_MeshObject* meshobj,
                                       KX_Scene* kxscene,
                                       int activeLayerBitInfo,
-                                      KX_BlenderSceneConverter *converter,
+                                      KX_BlenderSceneConverter& converter,
                                       bool processCompoundChildren
                                       )
 
@@ -903,7 +900,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	}
 }
 
-static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading)
+static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter& converter, bool libloading)
 {
 	if (BLI_listbase_count_ex(&ob->lodlevels, 2) <= 1) {
 		return nullptr;
@@ -919,7 +916,7 @@ static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene,
 	return lodManager;
 }
 
-static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_Rasterizer *rasterizer, KX_BlenderSceneConverter *converter)
+static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_Rasterizer *rasterizer, KX_BlenderSceneConverter& converter)
 {
 	RAS_ILightObject *lightobj = rasterizer->CreateLight();
 	KX_LightObject *gamelight;
@@ -973,7 +970,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	return gamelight;
 }
 
-static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, KX_BlenderSceneConverter *converter)
+static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, KX_BlenderSceneConverter& converter)
 {
 	Camera* ca = static_cast<Camera*>(ob->data);
 	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->shiftx, ca->shifty, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
@@ -992,7 +989,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 								Object *ob, 
 								KX_Scene *kxscene, 
 								RAS_Rasterizer *rendertools,
-								KX_BlenderSceneConverter *converter,
+								KX_BlenderSceneConverter& converter,
 								bool libloading) 
 {
 	KX_GameObject *gameobj = nullptr;
@@ -1306,7 +1303,7 @@ static void BL_ConvertComponentsObject(KX_GameObject *gameobj, Object *blenderob
 /* helper for BL_ConvertBlenderObjects, avoids code duplication
  * note: all var names match args are passed from the caller */
 static void bl_ConvertBlenderObject_Single(
-        KX_BlenderSceneConverter *converter,
+        KX_BlenderSceneConverter& converter,
        Object *blenderobject,
         std::vector<parentChildLink> &vec_parent_child,
         CListValue* logicbrick_conversionlist,
@@ -1394,7 +1391,7 @@ static void bl_ConvertBlenderObject_Single(
 	for (int i = 0; i < gameobj->GetMeshCount(); i++)
 		logicmgr->RegisterGameMeshName(gameobj->GetMesh(i)->GetName(), blenderobject);
 
-	converter->RegisterGameObject(gameobj, blenderobject);
+	converter.RegisterGameObject(gameobj, blenderobject);
 	// this was put in rapidly, needs to be looked at more closely
 	// only draw/use objects in active 'blender' layers
 
@@ -1424,7 +1421,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							  e_PhysicsEngine	physics_engine,
 							  RAS_Rasterizer* rendertools,
 							  RAS_ICanvas* canvas,
-							  KX_BlenderSceneConverter* converter,
+							  KX_BlenderSceneConverter& converter,
 							  bool alwaysUseExpandFraming,
 							  bool libloading
 							  )
@@ -1596,7 +1593,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 				for (go=(GroupObject*)group->gobject.first; go; go=(GroupObject*)go->next)
 				{
 					Object* blenderobject = go->ob;
-					if (converter->FindGameObject(blenderobject) == nullptr)
+					if (converter.FindGameObject(blenderobject) == nullptr)
 					{
 						allblobj.insert(blenderobject);
 						groupobj.insert(blenderobject);
@@ -1636,7 +1633,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 	// non-camera objects not supported as camera currently
 	if (blenderscene->camera && blenderscene->camera->type == OB_CAMERA) {
-		KX_Camera *gamecamera= (KX_Camera*) converter->FindGameObject(blenderscene->camera);
+		KX_Camera *gamecamera= (KX_Camera*) converter.FindGameObject(blenderscene->camera);
 		
 		if (gamecamera)
 			kxscene->SetActiveCamera(gamecamera);
@@ -1651,10 +1648,10 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			Mesh *me = (Mesh*)blenderobj->data;
 	
 			if (me->dvert) {
-				BL_DeformableGameObject *obj = (BL_DeformableGameObject*)converter->FindGameObject(blenderobj);
+				BL_DeformableGameObject *obj = (BL_DeformableGameObject*)converter.FindGameObject(blenderobj);
 
 				if (obj && BL_ModifierDeformer::HasArmatureDeformer(blenderobj) && blenderobj->parent && blenderobj->parent->type==OB_ARMATURE) {
-					KX_GameObject *par = converter->FindGameObject(blenderobj->parent);
+					KX_GameObject *par = converter.FindGameObject(blenderobj->parent);
 					if (par && obj->GetDeformer())
 						((BL_SkinDeformer*)obj->GetDeformer())->SetArmature((BL_ArmatureObject*) par);
 				}
@@ -1670,8 +1667,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	
 		struct Object* blenderchild = pcit->m_blenderchild;
 		struct Object* blenderparent = blenderchild->parent;
-		KX_GameObject* parentobj = converter->FindGameObject(blenderparent);
-		KX_GameObject* childobj = converter->FindGameObject(blenderchild);
+		KX_GameObject* parentobj = converter.FindGameObject(blenderparent);
+		KX_GameObject* childobj = converter.FindGameObject(blenderchild);
 
 		BLI_assert(childobj);
 
@@ -1702,7 +1699,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			childrenlist->Release();
 			
 			// now destroy recursively
-			converter->UnregisterGameObject(childobj); // removing objects during conversion make sure this runs too
+			converter.UnregisterGameObject(childobj); // removing objects during conversion make sure this runs too
 			kxscene->RemoveObject(childobj);
 			
 			continue;
@@ -1861,7 +1858,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 
 					KX_GameObject *viewpoint = gameobj;
 					if (env->object) {
-						KX_GameObject *obj = converter->FindGameObject(env->object);
+						KX_GameObject *obj = converter.FindGameObject(env->object);
 						if (obj) {
 							viewpoint = obj;
 						}
@@ -1881,7 +1878,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		Mesh *predifinedBoundMesh = blenderobject->gamePredefinedBound;
 
 		if (predifinedBoundMesh) {
-			RAS_MeshObject *meshobj = converter->FindGameMesh(predifinedBoundMesh);
+			RAS_MeshObject *meshobj = converter.FindGameMesh(predifinedBoundMesh);
 			// In case of mesh taken in a other scene.
 			if (!meshobj) {
 				continue;

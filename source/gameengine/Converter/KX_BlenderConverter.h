@@ -37,7 +37,7 @@
 #include <map>
 #include <vector>
 
-class KX_WorldInfo;
+class KX_BlenderSceneConverter;
 class KX_KetsjiEngine;
 class KX_LibLoadStatus;
 class SCA_IActuator;
@@ -67,23 +67,36 @@ using SceneDataList = std::map<KX_Scene *, std::vector<Value> >;
 class KX_BlenderConverter
 {
 private:
-	SceneDataList<RAS_IPolyMaterial *> m_polymaterials; // TODO use std::unique_ptr
-	SceneDataList<RAS_MeshObject *> m_meshobjects;
-	SceneDataList<BL_InterpolatorList *> m_interpolators;
+	class SceneSlot
+	{
+	public:
+		std::vector<RAS_IPolyMaterial *> m_polymaterials; // TODO use std::unique_ptr
+		std::vector<RAS_MeshObject *> m_meshobjects;
+		std::vector<BL_InterpolatorList *> m_interpolators;
 
-	std::vector<KX_LibLoadStatus *> m_mergequeue;
+		std::map<bAction *, BL_InterpolatorList *> m_actionToInterp;
+
+		SceneSlot() = default;
+		explicit SceneSlot(const KX_BlenderSceneConverter& converter);
+		~SceneSlot();
+
+		SceneSlot(const SceneSlot& other) = delete;
+		SceneSlot(SceneSlot&& other) = default;
+
+		void Merge(SceneSlot& other);
+		void Merge(const KX_BlenderSceneConverter& converter);
+	};
+
+	std::map<KX_Scene *, SceneSlot> m_sceneSlots;
 
 	struct ThreadInfo {
 		TaskPool *m_pool;
 		CM_ThreadMutex m_mutex;
 	} m_threadinfo;
 
-	// Cached material conversions
-	SceneBlenderDataMap<Material *, RAS_IPolyMaterial *> m_materialToPolyMat;
-	SceneBlenderDataMap<bAction *, BL_InterpolatorList *> m_actionToInterp;
-
 	// Saved KX_LibLoadStatus objects
 	std::map<char *, KX_LibLoadStatus *> m_status_map;
+	std::vector<KX_LibLoadStatus *> m_mergequeue;
 
 	Main *m_maggie;
 	std::vector<Main *> m_DynamicMaggie;
@@ -99,18 +112,16 @@ public:
 	 * \param destinationscene pass an empty scene, everything goes into this
 	 * \param dictobj python dictionary (for pythoncontrollers)
 	 */
-	virtual void ConvertScene(KX_Scene *destinationscene, RAS_IRasterizer *rasty, RAS_ICanvas *canvas, bool libloading);
-	virtual void RemoveScene(KX_Scene *scene);
+	void ConvertScene(KX_Scene *destinationscene, RAS_IRasterizer *rasty, RAS_ICanvas *canvas, bool libloading);
+	void RemoveScene(KX_Scene *scene);
 
-	virtual void SetAlwaysUseExpandFraming(bool to_what);
-
-	RAS_IPolyMaterial *FindPolyMaterial(KX_Scene *scene, Material *mat);
+	void SetAlwaysUseExpandFraming(bool to_what);
 
 	void RegisterInterpolatorList(KX_Scene *scene, BL_InterpolatorList *actList, bAction *for_act);
 	BL_InterpolatorList *FindInterpolatorList(KX_Scene *scene, bAction *for_act);
 
-	virtual Scene *GetBlenderSceneForName(const std::string& name);
-	virtual CListValue *GetInactiveSceneNames();
+	Scene *GetBlenderSceneForName(const std::string& name);
+	CListValue *GetInactiveSceneNames();
 
 	Main *GetMainDynamicPath(const char *path);
 	std::vector<Main *> &GetMainDynamic();
@@ -118,22 +129,26 @@ public:
 	KX_LibLoadStatus *LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
 	KX_LibLoadStatus *LinkBlendFilePath(const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
 	KX_LibLoadStatus *LinkBlendFile(BlendHandle *bpy_openlib, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
-	bool MergeScene(KX_Scene *to, KX_Scene *from);
-	RAS_MeshObject *ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const char *name);
+
 	bool FreeBlendFile(Main *maggie);
 	bool FreeBlendFile(const char *path);
 
-	virtual void MergeAsyncLoads();
-	virtual void FinalizeAsyncLoads();
+	RAS_MeshObject *ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const char *name);
+
+	void MergeScene(KX_Scene *to, KX_Scene *from);
+
+	void MergeAsyncLoads();
+	void FinalizeAsyncLoads();
 	void AddScenesToMergeQueue(KX_LibLoadStatus *status);
 
 	void PrintStats()
 	{
-		CM_Message("BGE STATS!");
+		// TODO
+		/*CM_Message("BGE STATS!");
 		CM_Message(std::endl << "Assets...");
 		CM_Message("\t m_polymaterials: " << (int)m_polymaterials.size());
 		CM_Message("\t m_meshobjects: " << (int)m_meshobjects.size());
-		CM_Message("\t m_interpolators: " << (int)m_interpolators.size());
+		CM_Message("\t m_interpolators: " << (int)m_interpolators.size());*/
 
 #ifdef WITH_CXX_GUARDEDALLOC
 		MEM_printmemlist_pydict();
@@ -148,10 +163,6 @@ public:
 		LIB_LOAD_LOAD_SCRIPTS = 4,
 		LIB_LOAD_ASYNC = 8,
 	};
-
-#ifdef WITH_PYTHON
-	PyObject *GetPyNamespace();
-#endif
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderConverter")

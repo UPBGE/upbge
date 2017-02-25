@@ -34,6 +34,8 @@
 #include "KX_GameObject.h"
 #include "KX_Globals.h"
 
+#include "RAS_MeshObject.h"
+
 #include "SG_Controller.h"
 
 // These three are for getting the action from the logic manager
@@ -183,22 +185,18 @@ bool BL_Action::Play(const std::string& name,
 	}
 
 	// Now try materials
-	for (int matidx = 1; matidx <= m_obj->GetBlenderObject()->totcol; ++matidx) {
-		Material *mat = give_current_material(m_obj->GetBlenderObject(), matidx);
-		if (!mat) {
-			continue;
-		}
+	for (unsigned short i = 0, meshcount = m_obj->GetMeshCount(); i < meshcount; ++i) {
+		RAS_MeshObject *mesh = m_obj->GetMesh(i);
+		for (unsigned short j = 0, matcount = mesh->NumMaterials(); j < matcount; ++j) {
+			RAS_MeshMaterial *meshmat = mesh->GetMeshMaterial(j);
+			RAS_IPolyMaterial *polymat = meshmat->m_bucket->GetPolyMaterial();
 
-		RAS_IPolyMaterial *polymat = KX_GetActiveEngine()->GetConverter()->FindPolyMaterial(kxscene, mat);
-		if (!polymat) {
-			continue;
-		}
-
-		sg_contr = BL_CreateMaterialIpo(m_action, mat, polymat, m_obj, kxscene);
-		if (sg_contr) {
-			m_sg_contr_list.push_back(sg_contr);
-			m_obj->GetSGNode()->AddSGController(sg_contr);
-			sg_contr->SetNode(m_obj->GetSGNode());
+			sg_contr = BL_CreateMaterialIpo(m_action, polymat, m_obj, kxscene);
+			if (sg_contr) {
+				m_sg_contr_list.push_back(sg_contr);
+				m_obj->GetSGNode()->AddSGController(sg_contr);
+				sg_contr->SetNode(m_obj->GetSGNode());
+			}
 		}
 	}
 

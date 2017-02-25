@@ -43,6 +43,7 @@ class RAS_MeshObject;
 class RAS_IPolyMaterial;
 class BL_InterpolatorList;
 class KX_BlenderConverter;
+class KX_GameObject;
 struct Object;
 struct Mesh;
 struct Material;
@@ -69,6 +70,9 @@ public:
 	KX_BlenderSceneConverter() = default;
 	~KX_BlenderSceneConverter() = default;
 
+	// Disable dangerous copy.
+	KX_BlenderSceneConverter(const KX_BlenderSceneConverter& other) = delete;
+
 	void RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject);
 	void UnregisterGameObject(KX_GameObject *gameobject);
 	KX_GameObject *FindGameObject(Object *for_blenderobject);
@@ -76,11 +80,8 @@ public:
 	void RegisterGameMesh(RAS_MeshObject *gamemesh, Mesh *for_blendermesh);
 	RAS_MeshObject *FindGameMesh(Mesh *for_blendermesh);
 
-	void RegisterPolyMaterial(RAS_IPolyMaterial *polymat);
+	void RegisterPolyMaterial(RAS_IPolyMaterial *polymat, Material *mat);
 	RAS_IPolyMaterial *FindPolyMaterial(Material *mat);
-
-	void RegisterInterpolatorList(BL_InterpolatorList *actList, bAction *for_act);
-	BL_InterpolatorList *FindInterpolatorList(bAction *for_act);
 
 	void RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator);
 	SCA_IActuator *FindGameActuator(bActuator *for_actuator);

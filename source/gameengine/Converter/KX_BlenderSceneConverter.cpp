@@ -118,7 +118,7 @@ extern "C" {
 
 void KX_BlenderSceneConverter::RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject)
 {
-	CM_FunctionDebug("object name: " << gameobject->GetName());
+// 	CM_FunctionDebug("object name: " << gameobject->GetName());
 	// only maintained while converting, freed during game runtime
 	m_map_blender_to_gameobject[for_blenderobject] = gameobject;
 }
@@ -156,27 +156,17 @@ RAS_MeshObject *KX_BlenderSceneConverter::FindGameMesh(Mesh *for_blendermesh)
 	return m_map_mesh_to_gamemesh[for_blendermesh];
 }
 
-void KX_BlenderSceneConverter::RegisterPolyMaterial(Material *mat, RAS_IPolyMaterial *polymat)
+void KX_BlenderSceneConverter::RegisterPolyMaterial(RAS_IPolyMaterial *polymat, Material *mat)
 {
 	if (mat) {
-		m_polymat_cache[scene][mat].push_back(polymat);
+		m_map_mesh_to_polyaterial[mat] = polymat;
 	}
-	m_polymaterials[scene].push_back(polymat);
+	m_polymaterials.push_back(polymat);
 }
 
-RAS_IPolyMaterial *KX_BlenderSceneConverter::FindPolyMaterial(KX_Scene *scene, Material *mat)
+RAS_IPolyMaterial *KX_BlenderSceneConverter::FindPolyMaterial(Material *mat)
 {
-	return m_polymat_cache[scene][mat];
-}
-
-void KX_BlenderSceneConverter::RegisterInterpolatorList(BL_InterpolatorList *actList, bAction *for_act)
-{
-	m_map_blender_to_gameAdtList[for_act] = actList;
-}
-
-BL_InterpolatorList *KX_BlenderSceneConverter::FindInterpolatorList(bAction *for_act)
-{
-	return m_map_blender_to_gameAdtList[for_act];
+	return m_map_mesh_to_polyaterial[mat];
 }
 
 void KX_BlenderSceneConverter::RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator)

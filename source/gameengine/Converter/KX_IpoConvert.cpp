@@ -44,6 +44,9 @@
 #include "KX_BlenderScalarInterpolator.h"
 #include "KX_BlenderConverter.h"
 #include "KX_Globals.h"
+
+#include "RAS_IPolygonMaterial.h"
+
 #include "DNA_object_types.h"
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
@@ -351,7 +354,6 @@ SG_Controller * BL_CreateWorldIPO( bAction *action, struct World *blenderworld, 
 
 SG_Controller *BL_CreateMaterialIpo(
 	struct bAction *action,
-	Material* blendermaterial,
 	RAS_IPolyMaterial *polymat,
 	KX_GameObject* gameobj,  
 	KX_Scene *scene
@@ -441,6 +443,7 @@ SG_Controller *BL_CreateMaterialIpo(
 	}
 
 	if (ipocontr) {
+		Material *blendermaterial = polymat->GetBlenderMaterial();
 		ipocontr->m_rgba[0]	= blendermaterial->r;
 		ipocontr->m_rgba[1]	= blendermaterial->g;
 		ipocontr->m_rgba[2]	= blendermaterial->b;
