@@ -1065,6 +1065,10 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 				uiItemR(col, &imaptr, "generated_width", 0, "X", ICON_NONE);
 				uiItemR(col, &imaptr, "generated_height", 0, "Y", ICON_NONE);
 				uiLayoutSetRedAlert(col, false);
+
+				if (cubemap) {
+					uiItemO(col, NULL, ICON_RECOVER_LAST, "IMAGE_OT_resize_cube_map");
+				}
 				
 				uiItemR(col, &imaptr, "use_generated_float", 0, NULL, ICON_NONE);
 

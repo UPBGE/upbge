@@ -2401,7 +2401,7 @@ static int image_resize_cube_map_exec(bContext *C, wmOperator *UNUSED(op))
 void IMAGE_OT_resize_cube_map(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Resize CubeMap texture";
+	ot->name = "Resize";
 	ot->idname = "IMAGE_OT_resize_cube_map";
 	ot->description = "Resize CubeMap texture to a compatible format";
 

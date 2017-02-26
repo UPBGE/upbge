@@ -606,7 +606,6 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
 
         tex = context.texture
         env = tex.environment_map
-        ima = tex.image
 
         row = layout.row()
         row.prop(env, "source", expand=True)
@@ -619,9 +618,7 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
             if env.source == 'REALTIME':
                 layout.template_ID(tex, "image", new="image.new", open="image.open")
                 layout.template_image(tex, "image", tex.image_user, compact=True, cubemap=(env.mapping == 'CUBE'))
-                if env.mapping == 'CUBE' and ima is not None:
-                    if ima.source == 'GENERATED':
-                        layout.operator("image.resize_cube_map", icon='RECOVER_LAST')
+                layout.prop(env, "filtering")
                 if env.mapping == 'PLANE':
                     layout.prop(env, "mode")
             layout.prop(env, "mapping")
