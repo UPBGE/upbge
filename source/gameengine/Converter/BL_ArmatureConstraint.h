@@ -58,10 +58,6 @@ private:
 	KX_GameObject*  m_subtarget;
 	struct Object*	m_blendtarget;
 	struct Object*	m_blendsubtarget;
-	float		m_blendmat[4][4];
-	float		m_blendsubmat[4][4];
-	struct bPose*	m_pose;
-	struct bPose*	m_subpose;
 
 public:
 	BL_ArmatureConstraint(class BL_ArmatureObject *armature, 
@@ -72,12 +68,12 @@ public:
 	virtual ~BL_ArmatureConstraint();
 
 	virtual CValue *GetReplica();
+	void CopyBlenderTargets();
 	void ReParent(BL_ArmatureObject* armature);
 	void Relink(std::map<void *, void *>& map);
 	bool UnlinkObject(SCA_IObject* clientobj);
 
 	void UpdateTarget();
-	void RestoreTarget();
 
 	bool Match(const std::string& posechannel, const std::string& constraint);
 	virtual std::string GetName() { return m_name; }
