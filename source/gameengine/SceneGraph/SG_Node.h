@@ -397,6 +397,8 @@ protected:
 	bool UpdateSpatialData(const SG_Node *parent, double time, bool& parentUpdated);
 
 private:
+	void UpdateWorldDataThreadSchedule(double time, bool parentUpdated = false);
+
 	void ProcessSGReplica(SG_Node **replica);
 
 	void *m_SGclientObject;

@@ -246,11 +246,17 @@ void SG_Node::UpdateWorldDataThread(double time, bool parentUpdated)
 	CM_ThreadSpinLock& famillyMutex = m_familly->GetMutex();
 	famillyMutex.Lock();
 
+	UpdateWorldDataThreadSchedule(time, parentUpdated);
+
+	famillyMutex.Unlock();
+}
+
+void SG_Node::UpdateWorldDataThreadSchedule(double time, bool parentUpdated)
+{
 	if (UpdateSpatialData(GetSGParent(), time, parentUpdated)) {
 		// to update the
 		ActivateUpdateTransformCallback();
 	}
-
 
 	scheduleMutex.Lock();
 	// The node is updated, remove it from the update list
@@ -259,9 +265,8 @@ void SG_Node::UpdateWorldDataThread(double time, bool parentUpdated)
 
 	// update children's worlddata
 	for (SG_Node *childnode : m_children) {
-		childnode->UpdateWorldData(time, parentUpdated);
+		childnode->UpdateWorldDataThreadSchedule(time, parentUpdated);
 	}
-	famillyMutex.Unlock();
 }
 
 void SG_Node::SetSimulatedTime(double time, bool recurse)
