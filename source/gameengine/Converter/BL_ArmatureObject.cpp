@@ -275,6 +275,7 @@ void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter *converter)
 				case CONSTRAINT_TYPE_TRANSFORM:
 				case CONSTRAINT_TYPE_DISTLIMIT:
 				case CONSTRAINT_TYPE_TRANSLIKE:
+				{
 					const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(pcon);
 					KX_GameObject *gametarget = nullptr;
 					KX_GameObject *gamesubtarget = nullptr;
@@ -302,6 +303,7 @@ void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter *converter)
 					}
 					BL_ArmatureConstraint* constraint = new BL_ArmatureConstraint(this, pchan, pcon, gametarget, gamesubtarget);
 					m_controlledConstraints->Add(constraint);
+				}
 			}
 		}
 	}
@@ -448,15 +450,9 @@ void BL_ArmatureObject::ApplyPose()
 		}
 		// update ourself
 		UpdateBlenderObjectMatrix(m_objArma);
-		BKE_pose_where_is(m_scene, m_objArma); // XXX
+		BKE_pose_where_is(m_scene, m_objArma);
 		// restore ourself
 		memcpy(m_objArma->obmat, m_obmat, sizeof(m_obmat));
-		// restore active targets
-		for (CListValue::iterator<BL_ArmatureConstraint> it = m_controlledConstraints->GetBegin(), end = m_controlledConstraints->GetEnd();
-			 it != end; ++it)
-		{
-			(*it)->RestoreTarget();
-		}
 		m_lastapplyframe = m_lastframe;
 	}
 }

@@ -30,13 +30,20 @@
  */
 
 
-#include "DNA_constraint_types.h"
-#include "DNA_action_types.h"
 #include "BL_ArmatureConstraint.h"
 #include "BL_ArmatureObject.h"
+
+#include "KX_Globals.h"
+
+#include "DNA_constraint_types.h"
+#include "DNA_action_types.h"
+
+#include "BKE_object.h"
+#include "BKE_constraint.h"
+#include "BKE_global.h"
+
 #include "BLI_math.h"
 #include "BLI_string.h"
-#include "KX_Globals.h"
 
 #ifdef WITH_PYTHON
 
@@ -75,28 +82,26 @@ BL_ArmatureConstraint::BL_ArmatureConstraint(
 	bConstraint *constraint, 
 	KX_GameObject* target,
 	KX_GameObject* subtarget)
-	:m_constraint(constraint), m_posechannel(posechannel), m_armature(armature)
+	:m_constraint(constraint),
+	m_posechannel(posechannel),
+	m_armature(armature),
+	m_target(target),
+	m_subtarget(subtarget),
+	m_blendtarget(nullptr),
+	m_blendsubtarget(nullptr)
 {
-	m_target = target;
-	m_blendtarget = (target) ? target->GetBlenderObject() : nullptr;
-	m_subtarget = subtarget;
-	m_blendsubtarget = (subtarget) ? subtarget->GetBlenderObject() : nullptr;
-	m_pose = m_subpose = nullptr;
-	if (m_blendtarget) {
-		copy_m4_m4(m_blendmat, m_blendtarget->obmat);
-		if (m_blendtarget->type == OB_ARMATURE)
-			m_pose = m_blendtarget->pose;
-	}
-	if (m_blendsubtarget) {
-		copy_m4_m4(m_blendsubmat, m_blendsubtarget->obmat);
-		if (m_blendsubtarget->type == OB_ARMATURE)
-			m_subpose = m_blendsubtarget->pose;
-	}
-	if (m_target)
-		m_target->RegisterObject(m_armature);
-	if (m_subtarget)
-		m_subtarget->RegisterObject(m_armature);
+	BLI_assert(m_constraint != nullptr && m_posechannel != nullptr);
+
 	m_name = std::string(m_posechannel->name) + ":" + std::string(m_constraint->name);
+
+	if (m_target) {
+		m_target->RegisterObject(m_armature);
+	}
+	if (m_subtarget) {
+		m_subtarget->RegisterObject(m_armature);
+	}
+
+	CopyBlenderTargets();
 }
 
 BL_ArmatureConstraint::~BL_ArmatureConstraint()
@@ -105,47 +110,88 @@ BL_ArmatureConstraint::~BL_ArmatureConstraint()
 		m_target->UnregisterObject(m_armature);
 	if (m_subtarget)
 		m_subtarget->UnregisterObject(m_armature);
+
+	// Free the fake blender object targets without freeing the pose of an armature set in these objects.
+	if (m_blendtarget) {
+		m_blendtarget->pose = nullptr;
+		BKE_object_free(m_blendtarget);
+	}
+	if (m_blendsubtarget) {
+		m_blendsubtarget->pose = nullptr;
+		BKE_object_free(m_blendsubtarget);
+	}
 }
 
 CValue *BL_ArmatureConstraint::GetReplica()
 {
 	BL_ArmatureConstraint *replica = new BL_ArmatureConstraint(*this);
-	replica->ProcessReplica();
 
 	return replica;
+}
+
+void BL_ArmatureConstraint::CopyBlenderTargets()
+{
+	// Create the fake blender object target.
+	if (m_target) {
+		m_blendtarget = BKE_object_add_only_object(G.main, OB_EMPTY, m_target->GetName().c_str());
+	}
+	if (m_subtarget) {
+		m_blendsubtarget = BKE_object_add_only_object(G.main, OB_EMPTY, m_subtarget->GetName().c_str());
+	}
+
+	const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(m_constraint);
+	if (cti && cti->get_constraint_targets) {
+		ListBase listb = {nullptr, nullptr};
+		cti->get_constraint_targets(m_constraint, &listb);
+		if (listb.first) {
+			bConstraintTarget *target = (bConstraintTarget *)listb.first;
+			if (m_blendtarget) {
+				target->tar = m_blendtarget;
+			}
+			if (target->next && m_blendsubtarget) {
+				target->next->tar = m_blendsubtarget;
+			}
+		}
+		if (cti->flush_constraint_targets) {
+			cti->flush_constraint_targets(m_constraint, &listb, 0);
+		}
+	}
 }
 
 void BL_ArmatureConstraint::ReParent(BL_ArmatureObject* armature)
 {
 	m_armature = armature;
-	if (m_target)
+	if (m_target) {
 		m_target->RegisterObject(armature);
-	if (m_subtarget)
+	}
+	if (m_subtarget) {
 		m_subtarget->RegisterObject(armature);
+	}
+
+	const std::string constraintname = m_constraint->name;
+	const std::string posechannelname = m_posechannel->name;
+	m_constraint = nullptr;
+	m_posechannel = nullptr;
+
+	bPose *newpose = m_armature->GetOrigPose();
+
 	// find the corresponding constraint in the new armature object
-	if (m_constraint) {
-		bPose* newpose = armature->GetOrigPose();
-		char* constraint = m_constraint->name;
-		char* posechannel = m_posechannel->name;
-		bPoseChannel* pchan;
-		bConstraint* pcon;
-		m_constraint = nullptr;
-		m_posechannel = nullptr;
-		// and locate the constraint
-		for (pchan = (bPoseChannel*)newpose->chanbase.first; pchan; pchan = (bPoseChannel*)pchan->next) {
-			if (!strcmp(pchan->name, posechannel)) {
-				// now locate the constraint
-				for (pcon = (bConstraint *)pchan->constraints.first; pcon; pcon = (bConstraint *)pcon->next) {
-					if (!strcmp(pcon->name, constraint)) {
-						m_constraint = pcon;
-						m_posechannel = pchan;
-						break;
-					}
+	// and locate the constraint
+	for (bPoseChannel *pchan = (bPoseChannel *)newpose->chanbase.first; pchan; pchan = (bPoseChannel *)pchan->next) {
+		if (posechannelname == pchan->name) {
+			// now locate the constraint
+			for (bConstraint *pcon = (bConstraint *)pchan->constraints.first; pcon; pcon = (bConstraint *)pcon->next) {
+				if (constraintname == pcon->name) {
+					m_constraint = pcon;
+					m_posechannel = pchan;
+					break;
 				}
-				break;
 			}
+			break;
 		}
 	}
+
+	CopyBlenderTargets();
 }
 
 void BL_ArmatureConstraint::Relink(std::map<void *, void*>& obj_map)
@@ -180,34 +226,19 @@ bool BL_ArmatureConstraint::UnlinkObject(SCA_IObject* clientobj)
 
 void BL_ArmatureConstraint::UpdateTarget()
 {
-	if (m_constraint && !(m_constraint->flag&CONSTRAINT_OFF) && (!m_blendtarget || m_target)) {
+	if (!(m_constraint->flag&CONSTRAINT_OFF) && (!m_blendtarget || m_target)) {
 		if (m_blendtarget) {
 			// external target, must be updated
 			m_target->UpdateBlenderObjectMatrix(m_blendtarget);
-			if (m_pose && m_target->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
+
+			if (m_target->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
 				// update the pose in case a bone is specified in the constraint target
-				m_blendtarget->pose = ((BL_ArmatureObject*)m_target)->GetOrigPose();
+				m_blendtarget->pose = static_cast<BL_ArmatureObject *>(m_target)->GetOrigPose();
 		}
 		if (m_blendsubtarget && m_subtarget) {
 			m_subtarget->UpdateBlenderObjectMatrix(m_blendsubtarget);
-			if (m_subpose && m_subtarget->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
-				m_blendsubtarget->pose = ((BL_ArmatureObject*)m_subtarget)->GetOrigPose();
-		}
-	}
-}
-
-void BL_ArmatureConstraint::RestoreTarget()
-{
-	if (m_constraint && !(m_constraint->flag&CONSTRAINT_OFF) && (!m_blendtarget || m_target)) {
-		if (m_blendtarget) {
-			copy_m4_m4(m_blendtarget->obmat, m_blendmat);
-			if (m_pose)
-				m_blendtarget->pose = m_pose;
-		}
-		if (m_blendsubtarget && m_subtarget) {
-			copy_m4_m4(m_blendsubtarget->obmat, m_blendsubmat);
-			if (m_subpose)
-				m_blendsubtarget->pose = m_subpose;
+			if (m_subtarget->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
+				m_blendsubtarget->pose = static_cast<BL_ArmatureObject *>(m_subtarget)->GetOrigPose();
 		}
 	}
 }
