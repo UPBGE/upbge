@@ -185,16 +185,12 @@ int SPINDLE_CheckHeaderFromFile(const char *filepath)
 	char *fileData = new char[5];
 
 	if (fileSize < 5) {
-		std::cout << "INFILE fuera" << std::endl;
 		inFile.close();
 		return -1;
 	}
 
 	inFile.seekg(0, std::ios::beg);
 	inFile.read(fileData, 5);
-
-	for (int i = 0; i <5;i++)
-		std::cout << "fileData = " << fileData[i] << std::endl;
 
 	if ((fileData[0] == 'S') && (fileData[1] == 'T') && (fileData[2] == 'C')) { //Static encrypted file
 		if ((unsigned int)fileData[3] > currentSupportedVersion) {
