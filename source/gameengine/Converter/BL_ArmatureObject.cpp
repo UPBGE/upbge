@@ -390,6 +390,9 @@ void BL_ArmatureObject::ProcessReplica()
 	m_objArma = BKE_object_copy(G.main, m_objArma);
 	m_objArma->data = BKE_armature_copy(G.main, tmp);
 	m_pose = m_objArma->pose;
+
+	// The side-effect of this method registers this object as "animatable" with the KX_Scene.
+	GetActionManager();
 }
 
 int BL_ArmatureObject::GetGameObjectType()
