@@ -30,6 +30,7 @@
 
 #include "SpindleEncryption.h"
 #include <fstream>
+#include <iostream>
 
 char *staticKey = NULL;
 char *dynamicKey = NULL;
@@ -109,7 +110,7 @@ char *SPINDLE_DecryptFromFile(const char *filename, int& fileSize, const std::st
 		return NULL;
 
 	if (!encryptKey.empty()) {
-		inFile.seekg (0, std::ios::beg);
+		inFile.seekg(0, std::ios::beg);
 		char *fileData = new char[fileSize];
 		inFile.read(fileData, fileSize);
 		inFile.close();
@@ -122,14 +123,14 @@ char *SPINDLE_DecryptFromFile(const char *filename, int& fileSize, const std::st
 	}
 	else {
 		if (typeEncryption == 0) {
-			inFile.seekg (0, std::ios::beg);
+			inFile.seekg(0, std::ios::beg);
 			char *fileData = new char[fileSize];
 			inFile.read(fileData, fileSize);
 			inFile.close();
 			return fileData;
 		}
 		else if (typeEncryption == 1) {
-			inFile.seekg (5, std::ios::beg);
+			inFile.seekg(5, std::ios::beg);
 			fileSize -= 5;
 			char *fileData = new char[fileSize];
 			inFile.read(fileData, fileSize);
@@ -138,7 +139,7 @@ char *SPINDLE_DecryptFromFile(const char *filename, int& fileSize, const std::st
 			return fileData;
 		}
 		else if (typeEncryption == 2) {
-			inFile.seekg (5, std::ios::beg);
+			inFile.seekg(5, std::ios::beg);
 			fileSize -= 5;
 			char *fileData = new char[fileSize];
 			inFile.read(fileData, fileSize);
@@ -178,53 +179,50 @@ char *SPINDLE_DecryptFromMemory(char *mem, int& memLength, int typeEncryption)
 
 int SPINDLE_CheckHeaderFromFile(const char *filepath)
 {
-	int memsize;
-	char memHeader[5];
 	int keyType = 0; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
-	FILE *inFile = fopen(filepath, "rb");
+	std::ifstream inFile(filepath, std::ios::in | std::ios::binary | std::ios::ate);
+	int fileSize = (int)inFile.tellg();
+	char *fileData = new char[5];
 
-	if (!inFile) {
+	if (fileSize < 5) {
+		std::cout << "INFILE fuera" << std::endl;
+		inFile.close();
 		return -1;
 	}
 
-	fseek(inFile, 0L, SEEK_END);
-	memsize = ftell(inFile);
-	fseek(inFile, 0L, SEEK_SET);
+	inFile.seekg(0, std::ios::beg);
+	inFile.read(fileData, 5);
 
-	if (memsize < 5) {
-		fclose(inFile);
-		return -1;
-	}
+	for (int i = 0; i <5;i++)
+		std::cout << "fileData = " << fileData[i] << std::endl;
 
-	fread(memHeader, 5, 1, inFile);
-
-	if ((memHeader[0] == 'S') && (memHeader[1] == 'T') && (memHeader[2] == 'C')) { //Static encrypted file
-		if ((unsigned int)memHeader[3] > currentSupportedVersion) {
-			fclose(inFile);
-			printf("Failed to read blend file: \"%s\", blend is from a newer version\n", filepath);
+	if ((fileData[0] == 'S') && (fileData[1] == 'T') && (fileData[2] == 'C')) { //Static encrypted file
+		if ((unsigned int)fileData[3] > currentSupportedVersion) {
+			inFile.close();
+			std::cout << "Failed to read blend file: " << filepath << ", blend is from a newer version" << std::endl;
 			return -1;
 		}
 		if (staticKey == NULL) {
-			fclose(inFile);
-			printf("Failed to read blend file: \"%s\", No static key provided\n", filepath);
+			inFile.close();
+			std::cout << "Failed to read blend file: " << filepath << ", No static key provided" << std::endl;
 			return -1;
 		}
 		keyType = 1;
 	}
-	else if ((memHeader[0] == 'D') && (memHeader[1] == 'Y') && (memHeader[2] == 'C')) { //Dynamic encrypted file
-		if ((unsigned int)memHeader[3] > currentSupportedVersion) {
-			fclose(inFile);
-			printf("Failed to read blend file: \"%s\", blend is from a newer version\n", filepath);
+	else if ((fileData[0] == 'D') && (fileData[1] == 'Y') && (fileData[2] == 'C')) { //Dynamic encrypted file
+		if ((unsigned int)fileData[3] > currentSupportedVersion) {
+			inFile.close();
+			std::cout << "Failed to read blend file: " << filepath << ", blend is from a newer version" << std::endl;
 			return -1;
 		}
 		if (dynamicKey == NULL) {
-			fclose(inFile);
-			printf("Failed to read blend file: \"%s\", No dynamic key provided\n", filepath);
+			inFile.close();
+			std::cout << "Failed to read blend file: " << filepath << ", No dynamic key provided" << std::endl;
 			return -1;
 		}
 		keyType = 2;
 	}
-	fclose(inFile);
+	inFile.close();
 
 	return keyType;
 }
@@ -238,22 +236,22 @@ int SPINDLE_CheckHeaderFromMemory(char *mem)
 
 	if ((mem[0] == 'S') && (mem[1] == 'T') && (mem[2] == 'C')) { //Static encrypted file
 		if ((unsigned int)mem[3] > currentSupportedVersion) {
-			printf("Failed to read blend file, blend is from a newer version\n");
+			std::cout << "Failed to read blend file, blend is from a newer version" << std::endl;
 			return -1;
 		}
 		if (staticKey == NULL) {
-			printf("Failed to read blend file, No static key provided\n");
+			std::cout << "Failed to read blend file, no static key provided" << std::endl;
 			return -1;
 		}
 		keyType = 1;
 	}
 	else if ((mem[0] == 'D') && (mem[1] == 'Y') && (mem[2] == 'C')) { //Dynamic encrypted file
 		if ((unsigned int)mem[3] > currentSupportedVersion) {
-			printf("Failed to read blend file, blend is from a newer version\n");
+			std::cout << "Failed to read blend file, blend is from a newer version" << std::endl;
 			return -1;
 		}
 		if (dynamicKey == NULL) {
-			printf("Failed to read blend file, No dynamic key provided\n");
+			std::cout << "Failed to read blend file, no dynamic key provided" << std::endl;
 			return -1;
 		}
 		keyType = 2;
