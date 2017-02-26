@@ -894,7 +894,7 @@ int main(
 			{
 				// Find the requested base file directory.
 				if (!useLocalPath) {
-					localFilePath = argv[i + 1];
+					localFilePath = &argv[i][2];
 					useLocalPath = true;
 				}
 				i++;
