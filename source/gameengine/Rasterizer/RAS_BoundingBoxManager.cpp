@@ -44,30 +44,14 @@ RAS_BoundingBoxManager::~RAS_BoundingBoxManager()
 RAS_BoundingBox *RAS_BoundingBoxManager::CreateBoundingBox()
 {
 	RAS_BoundingBox *boundingBox = new RAS_BoundingBox(this);
-	m_boundingBoxList.push_back(boundingBox);
-
 	return boundingBox;
 }
 
 RAS_BoundingBox *RAS_BoundingBoxManager::CreateMeshBoundingBox(const RAS_IDisplayArrayList& arrayList)
 {
 	RAS_BoundingBox *boundingBox = new RAS_MeshBoundingBox(this, arrayList);
-	m_boundingBoxList.push_back(boundingBox);
 
 	return boundingBox;
-}
-
-void RAS_BoundingBoxManager::AddActiveBoundingBox(RAS_BoundingBox *boundingBox)
-{
-	m_activeBoundingBoxList.push_back(boundingBox);
-}
-
-void RAS_BoundingBoxManager::RemoveActiveBoundingBox(RAS_BoundingBox *boundingBox)
-{
-	RAS_BoundingBoxList::iterator it = std::find(m_activeBoundingBoxList.begin(), m_activeBoundingBoxList.end(), boundingBox);
-	if (it != m_activeBoundingBoxList.end()) {
-		m_activeBoundingBoxList.erase(it);
-	}
 }
 
 void RAS_BoundingBoxManager::Update(bool force)
@@ -91,12 +75,8 @@ void RAS_BoundingBoxManager::Merge(RAS_BoundingBoxManager *other)
 		boundingBox->SetManager(this);
 		m_boundingBoxList.push_back(boundingBox);
 	}
-
 	other->m_boundingBoxList.clear();
 
-	for (RAS_BoundingBoxList::iterator it = other->m_activeBoundingBoxList.begin(), end = other->m_activeBoundingBoxList.end(); it != end; ++it) {
-		m_activeBoundingBoxList.push_back(*it);
-	}
-
+	m_activeBoundingBoxList.insert(m_activeBoundingBoxList.begin(), other->m_activeBoundingBoxList.begin(), other->m_activeBoundingBoxList.end());
 	other->m_activeBoundingBoxList.clear();
 }

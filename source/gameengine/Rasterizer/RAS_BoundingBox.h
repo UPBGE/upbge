@@ -53,6 +53,7 @@ public:
 	virtual ~RAS_BoundingBox();
 
 	virtual RAS_BoundingBox *GetReplica();
+	void ProcessReplica();
 
 	/// Notice that the bounding box is used by one more mesh user.
 	void AddUser();

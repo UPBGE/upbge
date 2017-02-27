@@ -31,6 +31,8 @@
 
 class RAS_BoundingBoxManager
 {
+	// To manage the insert remove in m_boundingBoxList and m_activeBoundingBoxList.
+	friend RAS_BoundingBox;
 private:
 	/// All the existing bounding boxes for this manager.
 	RAS_BoundingBoxList m_boundingBoxList;
@@ -53,11 +55,6 @@ public:
 	 * \see CreateBoundingBox.
 	 */
 	RAS_BoundingBox *CreateMeshBoundingBox(const RAS_IDisplayArrayList& arrayList);
-
-	/// Add a bounding in the active bounding box list.
-	void AddActiveBoundingBox(RAS_BoundingBox *boundingBox);
-	/// Remove a bounding from the active bounding box list.
-	void RemoveActiveBoundingBox(RAS_BoundingBox *boundingBox);
 
 	/** Update all the active bounding boxes.
 	 * \param force Force updating bounding box even if the display arrays are not modified.

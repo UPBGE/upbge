@@ -35,6 +35,8 @@ RAS_BoundingBox::RAS_BoundingBox(RAS_BoundingBoxManager *manager)
 	m_users(0),
 	m_manager(manager)
 {
+	BLI_assert(m_manager);
+	m_manager->m_boundingBoxList.push_back(this);
 }
 
 RAS_BoundingBox::~RAS_BoundingBox()
@@ -44,8 +46,14 @@ RAS_BoundingBox::~RAS_BoundingBox()
 RAS_BoundingBox *RAS_BoundingBox::GetReplica()
 {
 	RAS_BoundingBox *boundingBox = new RAS_BoundingBox(*this);
-	boundingBox->m_users = 0;
+	boundingBox->ProcessReplica();
 	return boundingBox;
+}
+
+void RAS_BoundingBox::ProcessReplica()
+{
+	m_users = 1;
+	m_manager->m_boundingBoxList.push_back(this);
 }
 
 void RAS_BoundingBox::AddUser()
@@ -54,7 +62,7 @@ void RAS_BoundingBox::AddUser()
 	/* No one was using this bounding box previously. Then add it to the active
 	 * bounding box list in the manager.*/
 	if (m_users == 1) {
-		m_manager->AddActiveBoundingBox(this);
+		m_manager->m_activeBoundingBoxList.push_back(this);
 	}
 }
 
@@ -66,7 +74,9 @@ void RAS_BoundingBox::RemoveUser()
 	/* Some one was using this bounding box previously. Then remove it from the
 	 * active bounding box list. */
 	if (m_users == 0) {
-		m_manager->RemoveActiveBoundingBox(this);
+		RAS_BoundingBoxList::const_iterator it = std::find(m_manager->m_activeBoundingBoxList.begin(),
+														   m_manager->m_activeBoundingBoxList.end(), this);
+		m_manager->m_activeBoundingBoxList.erase(it);
 	}
 }
 
