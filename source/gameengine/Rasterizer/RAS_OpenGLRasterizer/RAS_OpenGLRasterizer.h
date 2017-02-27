@@ -129,7 +129,7 @@ public:
 	void RenderBox2D(int xco, int yco, int width, int height, float percentage);
 	void RenderText3D(int fontid, const std::string& text, int size, int dpi,
 	                  const float color[4], const float mat[16], float aspect);
-	void RenderText2D(RAS_IRasterizer::RAS_TEXT_RENDER_MODE mode, const std::string& text,
+	void RenderText2D(const std::string& text,
 	                  int xco, int yco, int width, int height);
 
 	void PushMatrix();

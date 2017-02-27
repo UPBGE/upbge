@@ -1161,8 +1161,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 	if (m_show_framerate || m_show_profile) {
 		// Title for profiling("Profile")
-		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-		                           "Profile",
+		m_rasterizer->RenderText2D("Profile",
 		                           xcoord + const_xindent + title_xmargin,  // Adds the constant x indent (0 for now) to the title x margin
 		                           ycoord,
 		                           m_canvas->GetWidth() /* RdV, TODO ?? */,
@@ -1176,16 +1175,14 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 	// Framerate display
 	if (m_show_framerate) {
-		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-		                           "Frametime :",
+		m_rasterizer->RenderText2D("Frametime :",
 		                           xcoord + const_xindent,
 		                           ycoord,
 		                           m_canvas->GetWidth() /* RdV, TODO ?? */,
 		                           m_canvas->GetHeight() /* RdV, TODO ?? */);
 
 		debugtxt = (boost::format("%5.2fms (%.1ffps)") %  (tottime * 1000.0f) % (1.0f / tottime)).str();
-		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-		                           debugtxt,
+		m_rasterizer->RenderText2D(debugtxt,
 		                           xcoord + const_xindent + profile_indent,
 		                           ycoord,
 		                           m_canvas->GetWidth() /* RdV, TODO ?? */,
@@ -1197,8 +1194,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	// Profile display
 	if (m_show_profile) {
 		for (int j = tc_first; j < tc_numCategories; j++) {
-			m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-			                           m_profileLabels[j],
+			m_rasterizer->RenderText2D(m_profileLabels[j],
 			                           xcoord + const_xindent,
 			                           ycoord,
 			                           m_canvas->GetWidth(),
@@ -1207,8 +1203,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 			double time = m_logger->GetAverage((KX_TimeCategory)j);
 
 			debugtxt = (boost::format("%5.2fms | %d%%") % (time*1000.f) % (int)(time/tottime * 100.f)).str();
-			m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-			                           debugtxt,
+			m_rasterizer->RenderText2D(debugtxt,
 			                           xcoord + const_xindent + profile_indent, ycoord,
 			                           m_canvas->GetWidth(),
 			                           m_canvas->GetHeight());
@@ -1224,8 +1219,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	if (m_show_debug_properties) {
 
 		/* Title for debugging("Debug properties") */
-		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-		                           "Debug Properties",
+		m_rasterizer->RenderText2D("Debug Properties",
 		                           xcoord + const_xindent + title_xmargin,  // Adds the constant x indent (0 for now) to the title x margin
 		                           ycoord,
 		                           m_canvas->GetWidth() /* RdV, TODO ?? */,
@@ -1265,8 +1259,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 							first = false;
 						}
 					}
-					m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-					                           debugtxt,
+					m_rasterizer->RenderText2D(debugtxt,
 					                           xcoord + const_xindent,
 					                           ycoord,
 					                           m_canvas->GetWidth(),
@@ -1278,8 +1271,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 					if (propval) {
 						std::string text = propval->GetText();
 						debugtxt = objname + ": '" + propname + "' = " + text;
-						m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-						                           debugtxt,
+						m_rasterizer->RenderText2D(debugtxt,
 						                           xcoord + const_xindent,
 						                           ycoord,
 						                           m_canvas->GetWidth(),
