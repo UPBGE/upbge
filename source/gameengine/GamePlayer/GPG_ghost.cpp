@@ -642,7 +642,7 @@ int main(
 	bool fullScreenParFound = false;
 	bool windowParFound = false;
 #ifdef WIN32
-	bool closeConsole = false;
+	bool closeConsole = true;
 #endif
 
 #ifdef WITH_GAMEENGINE_BPPLAYER
