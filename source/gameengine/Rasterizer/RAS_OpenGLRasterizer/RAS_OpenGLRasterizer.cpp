@@ -723,7 +723,7 @@ void RAS_OpenGLRasterizer::RenderText3D(
 
 	BLF_size(fontid, size, dpi);
 	BLF_position(fontid, 0, 0, 0);
-	BLF_draw(fontid, text.c_str(), text.size());
+	BLF_draw_ge(fontid, text.c_str(), text.size());
 
 	BLF_disable(fontid, BLF_MATRIX | BLF_ASPECT);
 
@@ -762,13 +762,13 @@ void RAS_OpenGLRasterizer::RenderText2D(
 	glColor3ub(0, 0, 0);
 	BLF_size(blf_mono_font, 11, 72);
 	BLF_position(blf_mono_font, (float)xco + 1, (float)(height - yco - 1), 0.0f);
-	BLF_draw(blf_mono_font, text.c_str(), text.size());
+	BLF_draw_ge(blf_mono_font, text.c_str(), text.size());
 
 	/* the actual drawing */
 	glColor3ub(255, 255, 255);
 	BLF_size(blf_mono_font, 11, 72);
 	BLF_position(blf_mono_font, (float)xco, (float)(height - yco), 0.0f);
-	BLF_draw(blf_mono_font, text.c_str(), text.size());
+	BLF_draw_ge(blf_mono_font, text.c_str(), text.size());
 
 	SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
 	PopMatrix();

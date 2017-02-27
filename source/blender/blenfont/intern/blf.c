@@ -532,6 +532,45 @@ static void blf_draw_gl__start(FontBLF *font, GLint *mode)
 	font->tex_bind_state = -1;
 }
 
+static void blf_draw_ge_gl__start(FontBLF *font)
+{
+	/*
+	* The pixmap alignment hack is handle
+	* in BLF_position (old ui_rasterpos_safe).
+	*/
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+#ifndef BLF_STANDALONE
+	GPU_basic_shader_bind(GPU_SHADER_TEXTURE_2D | GPU_SHADER_USE_COLOR);
+#endif
+
+	glMatrixMode(GL_TEXTURE);
+	glPushMatrix();
+	glLoadIdentity();
+
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+
+	if (font->flags & BLF_MATRIX)
+		glMultMatrixf(font->m);
+
+	glTranslate3fv(font->pos);
+
+	if (font->flags & BLF_ASPECT)
+		glScalef(font->aspect[0], font->aspect[1], font->aspect[2]);
+
+	if (font->flags & BLF_ROTATION)  /* radians -> degrees */
+		glRotatef(font->angle * (float)(180.0 / M_PI), 0.0f, 0.0f, 1.0f);
+
+	if (font->shadow || font->blur)
+		glGetFloatv(GL_CURRENT_COLOR, font->orig_col);
+
+	/* always bind the texture for the first glyph */
+	font->tex_bind_state = -1;
+}
+
 static void blf_draw_gl__end(GLint mode)
 {
 	glMatrixMode(GL_TEXTURE);
@@ -542,6 +581,20 @@ static void blf_draw_gl__end(GLint mode)
 
 	if (mode != GL_MODELVIEW)
 		glMatrixMode(mode);
+
+#ifndef BLF_STANDALONE
+	GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
+#endif
+	glDisable(GL_BLEND);
+}
+
+static void blf_draw_ge_gl__end()
+{
+	glMatrixMode(GL_TEXTURE);
+	glPopMatrix();
+
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
 
 #ifndef BLF_STANDALONE
 	GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
@@ -572,6 +625,30 @@ void BLF_draw_ex(
 void BLF_draw(int fontid, const char *str, size_t len)
 {
 	BLF_draw_ex(fontid, str, len, NULL);
+}
+
+void BLF_draw_ge_ex(
+	int fontid, const char *str, size_t len,
+struct ResultBLF *r_info)
+{
+	FontBLF *font = blf_get(fontid);
+
+	BLF_RESULT_CHECK_INIT(r_info);
+
+	if (font && font->glyph_cache) {
+		blf_draw_ge_gl__start(font);
+		if (font->flags & BLF_WORD_WRAP) {
+			blf_font_draw__wrap(font, str, len, r_info);
+		}
+		else {
+			blf_font_draw(font, str, len, r_info);
+		}
+		blf_draw_ge_gl__end();
+	}
+}
+void BLF_draw_ge(int fontid, const char *str, size_t len)
+{
+	BLF_draw_ge_ex(fontid, str, len, NULL);
 }
 
 void BLF_draw_ascii_ex(
