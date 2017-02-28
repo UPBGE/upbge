@@ -121,38 +121,30 @@ KX_BlenderConverter::SceneSlot::SceneSlot(const KX_BlenderSceneConverter& conver
 	Merge(converter);
 }
 
-KX_BlenderConverter::SceneSlot::~SceneSlot()
-{
-	for (BL_InterpolatorList *interp : m_interpolators) {
-		delete interp;
-	}
-	for (RAS_IPolyMaterial *polymat : m_polymaterials) {
-		delete polymat;
-	}
-	for (RAS_MeshObject *meshobj : m_meshobjects) {
-		delete meshobj;
-	}
-}
-
 void KX_BlenderConverter::SceneSlot::Merge(KX_BlenderConverter::SceneSlot& other)
 {
-	m_interpolators.insert(m_interpolators.begin(), other.m_interpolators.begin(), other.m_interpolators.end());
-	m_polymaterials.insert(m_polymaterials.begin(), other.m_polymaterials.begin(), other.m_polymaterials.end());
-	m_meshobjects.insert(m_meshobjects.begin(), other.m_meshobjects.begin(), other.m_meshobjects.end());
-	m_actionToInterp.insert(other.m_actionToInterp.begin(), other.m_actionToInterp.end());
-
-	other.m_interpolators.clear();
-	other.m_polymaterials.clear();
-	other.m_meshobjects.clear();
-	other.m_actionToInterp.clear();
+	m_interpolators.insert(m_interpolators.begin(),
+						   std::make_move_iterator(other.m_interpolators.begin()),
+						   std::make_move_iterator(other.m_interpolators.end()));
+	m_polymaterials.insert(m_polymaterials.begin(),
+						   std::make_move_iterator(other.m_polymaterials.begin()),
+						   std::make_move_iterator(other.m_polymaterials.end()));
+	m_meshobjects.insert(m_meshobjects.begin(),
+						 std::make_move_iterator(other.m_meshobjects.begin()),
+						 std::make_move_iterator(other.m_meshobjects.end()));
+	m_actionToInterp.insert(std::make_move_iterator(other.m_actionToInterp.begin()),
+							std::make_move_iterator(other.m_actionToInterp.end()));
 }
 
 void KX_BlenderConverter::SceneSlot::Merge(const KX_BlenderSceneConverter& converter)
 {
-	m_polymaterials.insert(m_polymaterials.begin(), converter.m_polymaterials.begin(), converter.m_polymaterials.end());
-	m_meshobjects.insert(m_meshobjects.begin(), converter.m_meshobjects.begin(), converter.m_meshobjects.end());
+	for (RAS_IPolyMaterial *polymat : converter.m_polymaterials) {
+		m_polymaterials.emplace_back(polymat);
+	}
+	for (RAS_MeshObject *meshobj : converter.m_meshobjects) {
+		m_meshobjects.emplace_back(meshobj);
+	}
 }
-
 
 KX_BlenderConverter::KX_BlenderConverter(Main *maggie, KX_KetsjiEngine *engine)
 	:m_maggie(maggie),
@@ -214,7 +206,6 @@ CListValue *KX_BlenderConverter::GetInactiveSceneNames()
 
 void KX_BlenderConverter::ConvertScene(KX_Scene *destinationscene, RAS_IRasterizer *rasty, RAS_ICanvas *canvas, bool libloading)
 {
-	KX_BlenderSceneConverter sceneConverter;
 
 	// Find out which physics engine
 	Scene *blenderscene = destinationscene->GetBlenderScene();
@@ -251,6 +242,8 @@ void KX_BlenderConverter::ConvertScene(KX_Scene *destinationscene, RAS_IRasteriz
 	}
 
 	destinationscene->SetPhysicsEnvironment(phy_env);
+
+	KX_BlenderSceneConverter sceneConverter;
 
 	BL_ConvertBlenderObjects(
 		m_maggie,
@@ -698,13 +691,11 @@ bool KX_BlenderConverter::FreeBlendFile(Main *maggie)
 		KX_Scene *scene = sit->first;
 		SceneSlot& sceneSlot = sit->second;
 
-		for (std::vector<RAS_IPolyMaterial *>::iterator it = sceneSlot.m_polymaterials.begin(); it != sceneSlot.m_polymaterials.end(); ) {
-			RAS_IPolyMaterial *polymat = *it;
+		for (UniquePtrList<RAS_IPolyMaterial>::iterator it = sceneSlot.m_polymaterials.begin(); it != sceneSlot.m_polymaterials.end(); ) {
+			RAS_IPolyMaterial *polymat = (*it).get();
 			Material *bmat = polymat->GetBlenderMaterial();
 			if (IS_TAGGED(bmat)) {
 				scene->GetBucketManager()->RemoveMaterial(polymat);
-				delete polymat;
-
 				it = sceneSlot.m_polymaterials.erase(it);
 			}
 			else {
@@ -712,12 +703,10 @@ bool KX_BlenderConverter::FreeBlendFile(Main *maggie)
 			}
 		}
 
-		for (std::vector<BL_InterpolatorList *>::iterator it = sceneSlot.m_interpolators.begin(); it != sceneSlot.m_interpolators.end(); ) {
-			BL_InterpolatorList *interp = *it;
+		for (UniquePtrList<BL_InterpolatorList>::iterator it = sceneSlot.m_interpolators.begin(); it != sceneSlot.m_interpolators.end(); ) {
+			BL_InterpolatorList *interp = (*it).get();
 			bAction *action = interp->GetAction();
 			if (IS_TAGGED(action)) {
-				delete interp;
-
 				sceneSlot.m_actionToInterp.erase(action);
 				it = sceneSlot.m_interpolators.erase(it);
 			}
@@ -726,14 +715,12 @@ bool KX_BlenderConverter::FreeBlendFile(Main *maggie)
 			}
 		}
 
-		for (std::vector<RAS_MeshObject *>::iterator it =  sceneSlot.m_meshobjects.begin(); it !=  sceneSlot.m_meshobjects.end(); ) {
-			RAS_MeshObject *mesh = *it;
+		for (UniquePtrList<RAS_MeshObject>::iterator it =  sceneSlot.m_meshobjects.begin(); it !=  sceneSlot.m_meshobjects.end(); ) {
+			RAS_MeshObject *mesh = (*it).get();
 			if (IS_TAGGED(mesh->GetMesh())) {
 				for (RAS_MaterialBucket *bucket : scene->GetBucketManager()->GetBuckets()) {
 					bucket->RemoveMeshObject(mesh);
 				}
-				delete mesh;
-
 				it = sceneSlot.m_meshobjects.erase(it);
 			}
 			else {
@@ -765,10 +752,10 @@ void KX_BlenderConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 {
 	SceneSlot& sceneSlotFrom = m_sceneSlots[from];
 
-	for (RAS_IPolyMaterial *polymat : sceneSlotFrom.m_polymaterials) {
+	for (std::unique_ptr<RAS_IPolyMaterial>& polymat : sceneSlotFrom.m_polymaterials) {
 		polymat->Replace_IScene(to);
 	}
-	for (RAS_MeshObject *meshobj : sceneSlotFrom.m_meshobjects) {
+	for (std::unique_ptr<RAS_MeshObject>& meshobj : sceneSlotFrom.m_meshobjects) {
 		// Generate mesh to material attribute's layers since the materials are constructed now.
 		meshobj->GenerateAttribLayers();
 	}

@@ -64,24 +64,24 @@ using SceneBlenderDataMap = std::map<KX_Scene *, std::map<Key, Value> >;
 template<class Value>
 using SceneDataList = std::map<KX_Scene *, std::vector<Value> >;
 
+template<class Value>
+using UniquePtrList = std::vector<std::unique_ptr<Value> >;
+
 class KX_BlenderConverter
 {
 private:
 	class SceneSlot
 	{
 	public:
-		std::vector<RAS_IPolyMaterial *> m_polymaterials; // TODO use std::unique_ptr
-		std::vector<RAS_MeshObject *> m_meshobjects;
-		std::vector<BL_InterpolatorList *> m_interpolators;
+		UniquePtrList<RAS_IPolyMaterial> m_polymaterials; // TODO use std::unique_ptr
+		UniquePtrList<RAS_MeshObject> m_meshobjects;
+		UniquePtrList<BL_InterpolatorList> m_interpolators;
 
 		std::map<bAction *, BL_InterpolatorList *> m_actionToInterp;
 
 		SceneSlot() = default;
 		explicit SceneSlot(const KX_BlenderSceneConverter& converter);
-		~SceneSlot();
-
-		SceneSlot(const SceneSlot& other) = delete;
-		SceneSlot(SceneSlot&& other) = default;
+		~SceneSlot() = default;
 
 		void Merge(SceneSlot& other);
 		void Merge(const KX_BlenderSceneConverter& converter);
