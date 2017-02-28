@@ -1201,7 +1201,11 @@ class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
             # END XXX
 
             sub = col.column()
-            sub.active = (tex.texture_coords == "REFLECTION")
+            active = False
+            if hasattr(context.texture, "environment_map"):
+                if tex.texture_coords == "REFLECTION" and context.texture.environment_map.mapping == 'CUBE':
+                    active = True
+            sub.active = active
             sub.label(text="Refraction:")
             sub.prop(tex, "ior", text="IOR")
             sub.prop(tex, "refraction_ratio", text="Ratio")
@@ -1337,7 +1341,11 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
                 col.prop(tex, "lod_bias")
 
                 sub = col.column()
-                sub.active = (tex.texture_coords == "REFLECTION")
+                active = False
+                if hasattr(context.texture, "environment_map"):
+                    if tex.texture_coords == "REFLECTION" and context.texture.environment_map.mapping == 'CUBE':
+                        active = True
+                sub.active = active
                 sub.label(text="Refraction:")
                 sub.prop(tex, "ior", text="IOR")
                 sub.prop(tex, "refraction_ratio", text="Ratio")
