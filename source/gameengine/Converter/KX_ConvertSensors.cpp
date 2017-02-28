@@ -41,7 +41,7 @@
 
 /* This little block needed for linking to Blender... */
 #ifdef _MSC_VER
-#  include "BLI_winstuff.h"
+//#  include "BLI_winstuff.h"
 #endif
 
 #include "DNA_object_types.h"

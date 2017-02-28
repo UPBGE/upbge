@@ -59,7 +59,7 @@
 
 // This little block needed for linking to Blender...
 #ifdef WIN32
-#  include "BLI_winstuff.h"
+//#  include "BLI_winstuff.h"
 #endif
 
 #ifdef WITH_PYTHON
@@ -100,6 +100,8 @@ KX_BlenderConverter::SceneSlot::SceneSlot(const KX_BlenderSceneConverter& conver
 {
 	Merge(converter);
 }
+
+KX_BlenderConverter::SceneSlot::~SceneSlot() = default;
 
 void KX_BlenderConverter::SceneSlot::Merge(KX_BlenderConverter::SceneSlot& other)
 {
