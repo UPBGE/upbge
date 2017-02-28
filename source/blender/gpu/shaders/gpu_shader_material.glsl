@@ -1455,7 +1455,7 @@ void mtex_image(vec3 texco, sampler2D ima, float lodbias, out float value, out v
 	value = 1.0;
 }
 
-void mtex_image_refl(vec3 I, vec4 camerafac, vec3 texco, sampler2D ima, float lodbias, mat4 objectmatrix, mat4 viewmatrix, vec3 vp, vec3 vn, out float value, out vec4 color)
+void mtex_image_refl(vec3 I, vec4 camerafac, sampler2D ima, float lodbias, mat4 objectmatrix, mat4 viewmatrix, vec3 vp, vec3 vn, out float value, out vec4 color)
 {
 	vec4 projvec = gl_ProjectionMatrix * vec4(I, 1.0);
 	vec3 window = vec3(mtex_2d_mapping(projvec.xyz / projvec.w).xy * camerafac.xy + camerafac.zw, 0.0);

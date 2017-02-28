@@ -1403,7 +1403,6 @@ static void do_material_tex(GPUShadeInput *shi)
 						GPU_link(mat, "mtex_image_refl",
 							GPU_builtin(GPU_VIEW_POSITION),
 							GPU_builtin(GPU_CAMERA_TEXCO_FACTORS),
-							texco,
 							GPU_image(tex->ima, &tex->iuser, false),
 							GPU_select_uniform(&mtex->lodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma),
 							GPU_builtin(GPU_OBJECT_MATRIX),
