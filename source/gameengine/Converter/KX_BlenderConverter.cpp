@@ -112,8 +112,7 @@ void KX_BlenderConverter::SceneSlot::Merge(KX_BlenderConverter::SceneSlot& other
 	m_meshobjects.insert(m_meshobjects.begin(),
 						 std::make_move_iterator(other.m_meshobjects.begin()),
 						 std::make_move_iterator(other.m_meshobjects.end()));
-	m_actionToInterp.insert(std::make_move_iterator(other.m_actionToInterp.begin()),
-							std::make_move_iterator(other.m_actionToInterp.end()));
+	m_actionToInterp.insert(other.m_actionToInterp.begin(), other.m_actionToInterp.end());
 }
 
 void KX_BlenderConverter::SceneSlot::Merge(const KX_BlenderSceneConverter& converter)
@@ -269,9 +268,11 @@ void KX_BlenderConverter::SetAlwaysUseExpandFraming(bool to_what)
 	m_alwaysUseExpandFraming = to_what;
 }
 
-void KX_BlenderConverter::RegisterInterpolatorList(KX_Scene *scene, BL_InterpolatorList *actList, bAction *for_act)
+void KX_BlenderConverter::RegisterInterpolatorList(KX_Scene *scene, BL_InterpolatorList *interpolator, bAction *for_act)
 {
-	m_sceneSlots[scene].m_actionToInterp[for_act] = actList;
+	SceneSlot& sceneSlot = m_sceneSlots[scene];
+	sceneSlot.m_interpolators.emplace_back(interpolator);
+	sceneSlot.m_actionToInterp[for_act] = interpolator;
 }
 
 BL_InterpolatorList *KX_BlenderConverter::FindInterpolatorList(KX_Scene *scene, bAction *for_act)
@@ -840,4 +841,34 @@ RAS_MeshObject *KX_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene, Main
 	m_sceneSlots[kx_scene].Merge(sceneConverter);
 
 	return meshobj;
+}
+
+void KX_BlenderConverter::PrintStats()
+{
+	CM_Message("BGE STATS");
+	CM_Message(std::endl << "Assets:");
+
+	unsigned int nummat = 0;
+	unsigned int nummesh = 0;
+	unsigned int numinter = 0;
+
+	for (const auto& pair : m_sceneSlots) {
+		KX_Scene *scene = pair.first;
+		const SceneSlot& sceneSlot = pair.second;
+
+		nummat += sceneSlot.m_polymaterials.size();
+		nummesh += sceneSlot.m_meshobjects.size();
+		numinter += sceneSlot.m_interpolators.size();
+
+		CM_Message("\tscene: " << scene->GetName())
+		CM_Message("\t\t materials: " << sceneSlot.m_polymaterials.size());
+		CM_Message("\t\t meshes: " << sceneSlot.m_meshobjects.size());
+		CM_Message("\t\t interpolators: " << sceneSlot.m_interpolators.size());
+	}
+
+	CM_Message(std::endl << "Total:");
+	CM_Message("\t scenes: " << m_sceneSlots.size());
+	CM_Message("\t materials: " << nummat);
+	CM_Message("\t meshes: " << nummesh);
+	CM_Message("\t interpolators: " << numinter);
 }

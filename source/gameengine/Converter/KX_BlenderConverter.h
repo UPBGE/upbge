@@ -32,8 +32,6 @@
 #ifndef __KX_BLENDERCONVERTER_H__
 #define __KX_BLENDERCONVERTER_H__
 
-#include "CM_Message.h"
-
 #include <map>
 #include <vector>
 
@@ -67,7 +65,7 @@ private:
 	class SceneSlot
 	{
 	public:
-		UniquePtrList<RAS_IPolyMaterial> m_polymaterials; // TODO use std::unique_ptr
+		UniquePtrList<RAS_IPolyMaterial> m_polymaterials;
 		UniquePtrList<RAS_MeshObject> m_meshobjects;
 		UniquePtrList<BL_InterpolatorList> m_interpolators;
 
@@ -111,7 +109,7 @@ public:
 
 	void SetAlwaysUseExpandFraming(bool to_what);
 
-	void RegisterInterpolatorList(KX_Scene *scene, BL_InterpolatorList *actList, bAction *for_act);
+	void RegisterInterpolatorList(KX_Scene *scene, BL_InterpolatorList *interpolator, bAction *for_act);
 	BL_InterpolatorList *FindInterpolatorList(KX_Scene *scene, bAction *for_act);
 
 	Scene *GetBlenderSceneForName(const std::string& name);
@@ -136,21 +134,9 @@ public:
 	void FinalizeAsyncLoads();
 	void AddScenesToMergeQueue(KX_LibLoadStatus *status);
 
-	void PrintStats()
-	{
-		// TODO
-		/*CM_Message("BGE STATS!");
-		CM_Message(std::endl << "Assets...");
-		CM_Message("\t m_polymaterials: " << (int)m_polymaterials.size());
-		CM_Message("\t m_meshobjects: " << (int)m_meshobjects.size());
-		CM_Message("\t m_interpolators: " << (int)m_interpolators.size());*/
+	void PrintStats();
 
-#ifdef WITH_CXX_GUARDEDALLOC
-		MEM_printmemlist_pydict();
-#endif
-	}
-
-	/* LibLoad Options */
+	// LibLoad Options.
 	enum
 	{
 		LIB_LOAD_LOAD_ACTIONS = 1,
@@ -158,10 +144,6 @@ public:
 		LIB_LOAD_LOAD_SCRIPTS = 4,
 		LIB_LOAD_ASYNC = 8,
 	};
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderConverter")
-#endif
 };
 
 #endif  // __KX_BLENDERCONVERTER_H__
