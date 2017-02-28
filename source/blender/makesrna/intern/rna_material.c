@@ -663,12 +663,6 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Warp Factor", "Amount texture affects texture coordinates of next channels");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
-	prop = RNA_def_property(srna, "parallax_uv_shift", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "parallaxuv");
-	RNA_def_property_ui_range(prop, 0.0, 2.0, 1.0, 3);
-	RNA_def_property_ui_text(prop, "UV Shift", "Amount texture is shifted");
-	RNA_def_property_update(prop, 0, "rna_Material_update");
-
 	prop = RNA_def_property(srna, "parallax_steps", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "parallaxsteps");
 	RNA_def_property_ui_range(prop, 0.0, 100.0, 1.0, 3);
