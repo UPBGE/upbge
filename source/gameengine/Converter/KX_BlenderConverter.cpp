@@ -35,7 +35,6 @@
 
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
-#include "KX_IpoConvert.h"
 #include "RAS_MeshObject.h"
 #include "RAS_IPolygonMaterial.h"
 #include "KX_PhysicsEngineEnums.h"
@@ -48,9 +47,8 @@
 
 #include "DummyPhysicsEnvironment.h"
 
-
 #ifdef WITH_BULLET
-#include "CcdPhysicsEnvironment.h"
+#  include "CcdPhysicsEnvironment.h"
 #endif
 
 #include "KX_LibLoadStatus.h"
@@ -61,7 +59,7 @@
 
 // This little block needed for linking to Blender...
 #ifdef WIN32
-#include "BLI_winstuff.h"
+#  include "BLI_winstuff.h"
 #endif
 
 #ifdef WITH_PYTHON
@@ -71,46 +69,28 @@
 
 // This list includes only data type definitions
 #include "DNA_scene_types.h"
-#include "DNA_world_types.h"
 #include "BKE_main.h"
-#include "BKE_fcurve.h"
-
-#include "BLI_math.h"
 
 extern "C" {
-#  include "DNA_object_types.h"
-#  include "DNA_curve_types.h"
 #  include "DNA_mesh_types.h"
 #  include "DNA_material_types.h"
 #  include "BLI_blenlib.h"
-#  include "MEM_guardedalloc.h"
 #  include "BKE_global.h"
-#  include "BKE_animsys.h"
 #  include "BKE_library.h"
 #  include "BKE_material.h" // BKE_material_copy
 #  include "BKE_mesh.h" // BKE_mesh_copy
-#  include "DNA_space_types.h"
-#  include "DNA_anim_types.h"
-#  include "DNA_action_types.h"
-#  include "RNA_define.h"
-#  include "../../blender/editors/include/ED_keyframing.h"
 }
 
 // Only for dynamic loading and merging.
-#include "RAS_BucketManager.h" // XXX cant stay
+#include "RAS_BucketManager.h"
 #include "KX_BlenderConverter.h"
 #include "KX_BlenderSceneConverter.h"
-#include "KX_MeshProxy.h"
 
 extern "C" {
-	#  include "PIL_time.h"
-	#  include "BKE_context.h"
 	#  include "BLO_readfile.h"
 	#  include "BKE_idcode.h"
 	#  include "BKE_report.h"
-	#  include "DNA_space_types.h"
-	#  include "DNA_windowmanager_types.h" // report api
-	#  include "../../blender/blenlib/BLI_linklist.h"
+	#  include "BLI_linklist.h"
 }
 
 #include "BLI_task.h"
@@ -299,16 +279,25 @@ BL_InterpolatorList *KX_BlenderConverter::FindInterpolatorList(KX_Scene *scene, 
 	return m_sceneSlots[scene].m_actionToInterp[for_act];
 }
 
-std::vector<Main *> &KX_BlenderConverter::GetMainDynamic()
+Main *KX_BlenderConverter::CreateMainDynamic(const std::string& path)
+{
+	Main *maggie = BKE_main_new();
+	strncpy(maggie->name, path.c_str(), sizeof(maggie->name) - 1);
+	m_DynamicMaggie.push_back(maggie);
+
+	return maggie;
+}
+
+const std::vector<Main *> &KX_BlenderConverter::GetMainDynamic() const
 {
 	return m_DynamicMaggie;
 }
 
-Main *KX_BlenderConverter::GetMainDynamicPath(const char *path)
+Main *KX_BlenderConverter::GetMainDynamicPath(const std::string& path) const
 {
-	for (std::vector<Main *>::iterator it = m_DynamicMaggie.begin(); !(it == m_DynamicMaggie.end()); it++) {
-		if (BLI_path_cmp((*it)->name, path) == 0) {
-			return *it;
+	for (Main *maggie : m_DynamicMaggie) {
+		if (BLI_path_cmp(maggie->name, path.c_str()) == 0) {
+			return maggie;
 		}
 	}
 
@@ -470,7 +459,7 @@ KX_LibLoadStatus *KX_BlenderConverter::LinkBlendFile(BlendHandle *bpy_openlib, c
 	// done linking
 
 	// needed for lookups
-	GetMainDynamic().push_back(main_newlib);
+	m_DynamicMaggie.push_back(main_newlib);
 	BLI_strncpy(main_newlib->name, path, sizeof(main_newlib->name));
 
 
@@ -743,7 +732,7 @@ bool KX_BlenderConverter::FreeBlendFile(Main *maggie)
 	return true;
 }
 
-bool KX_BlenderConverter::FreeBlendFile(const char *path)
+bool KX_BlenderConverter::FreeBlendFile(const std::string& path)
 {
 	return FreeBlendFile(GetMainDynamicPath(path));
 }
@@ -770,16 +759,16 @@ void KX_BlenderConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 
 /** This function merges a mesh from the current scene into another main
  * it does not convert */
-RAS_MeshObject *KX_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const char *name)
+RAS_MeshObject *KX_BlenderConverter::ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const std::string& name)
 {
 	// Find a mesh in the current main */
-	ID *me = static_cast<ID *>(BLI_findstring(&m_maggie->mesh, name, offsetof(ID, name) + 2));
+	ID *me = static_cast<ID *>(BLI_findstring(&m_maggie->mesh, name.c_str(), offsetof(ID, name) + 2));
 	Main *from_maggie = m_maggie;
 
 	if (me == nullptr) {
 		// The mesh wasn't in the current main, try any dynamic (i.e., LibLoaded) ones
 		for (Main *main : m_DynamicMaggie) {
-			me = static_cast<ID *>(BLI_findstring(&main->mesh, name, offsetof(ID, name) + 2));
+			me = static_cast<ID *>(BLI_findstring(&main->mesh, name.c_str(), offsetof(ID, name) + 2));
 			from_maggie = main;
 
 			if (me) {

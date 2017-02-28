@@ -58,12 +58,6 @@ struct TaskPool;
 
 #include "CM_Thread.h"
 
-template<class Key, class Value>
-using SceneBlenderDataMap = std::map<KX_Scene *, std::map<Key, Value> >;
-
-template<class Value>
-using SceneDataList = std::map<KX_Scene *, std::vector<Value> >;
-
 template<class Value>
 using UniquePtrList = std::vector<std::unique_ptr<Value> >;
 
@@ -95,7 +89,7 @@ private:
 	} m_threadinfo;
 
 	// Saved KX_LibLoadStatus objects
-	std::map<char *, KX_LibLoadStatus *> m_status_map;
+	std::map<std::string, KX_LibLoadStatus *> m_status_map;
 	std::vector<KX_LibLoadStatus *> m_mergequeue;
 
 	Main *m_maggie;
@@ -123,17 +117,18 @@ public:
 	Scene *GetBlenderSceneForName(const std::string& name);
 	CListValue *GetInactiveSceneNames();
 
-	Main *GetMainDynamicPath(const char *path);
-	std::vector<Main *> &GetMainDynamic();
+	Main *CreateMainDynamic(const std::string& path);
+	Main *GetMainDynamicPath(const std::string& path) const;
+	const std::vector<Main *> &GetMainDynamic() const;
 
 	KX_LibLoadStatus *LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
 	KX_LibLoadStatus *LinkBlendFilePath(const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
 	KX_LibLoadStatus *LinkBlendFile(BlendHandle *bpy_openlib, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
 
 	bool FreeBlendFile(Main *maggie);
-	bool FreeBlendFile(const char *path);
+	bool FreeBlendFile(const std::string& path);
 
-	RAS_MeshObject *ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const char *name);
+	RAS_MeshObject *ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const std::string& name);
 
 	void MergeScene(KX_Scene *to, KX_Scene *from);
 

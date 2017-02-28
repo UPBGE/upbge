@@ -37,17 +37,13 @@
 
 class SCA_IActuator;
 class SCA_IController;
-class RAS_Rasterizer;
-class RAS_ICanvas;
 class RAS_MeshObject;
 class RAS_IPolyMaterial;
-class BL_InterpolatorList;
 class KX_BlenderConverter;
 class KX_GameObject;
 struct Object;
 struct Mesh;
 struct Material;
-struct bAction;
 struct bActuator;
 struct bController;
 
@@ -64,7 +60,6 @@ private:
 	std::map<Material *, RAS_IPolyMaterial *> m_map_mesh_to_polyaterial;
 	std::map<bActuator *, SCA_IActuator *> m_map_blender_to_gameactuator;
 	std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller;
-	std::map<bAction *, BL_InterpolatorList *> m_map_blender_to_gameAdtList;
 
 public:
 	KX_BlenderSceneConverter() = default;

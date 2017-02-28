@@ -705,9 +705,7 @@ static PyObject *gLibNew(PyObject *, PyObject *args)
 		return nullptr;
 	}
 	
-	Main *maggie=BKE_main_new();
-	converter->GetMainDynamic().push_back(maggie);
-	strncpy(maggie->name, path, sizeof(maggie->name)-1);
+	Main *maggie = converter->CreateMainDynamic(path);
 	
 	/* Copy the object into main */
 	if (idcode==ID_ME) {
@@ -757,15 +755,13 @@ static PyObject *gLibFree(PyObject *, PyObject *args)
 
 static PyObject *gLibList(PyObject *, PyObject *args)
 {
-	std::vector<Main*> &dynMaggie = KX_GetActiveEngine()->GetConverter()->GetMainDynamic();
-	int i= 0;
-	PyObject *list= PyList_New(dynMaggie.size());
-	
-	for (std::vector<Main*>::iterator it=dynMaggie.begin(); !(it==dynMaggie.end()); it++)
-	{
-		PyList_SET_ITEM(list, i++, PyUnicode_FromString( (*it)->name) );
+	const std::vector<Main *> &dynMaggie = KX_GetActiveEngine()->GetConverter()->GetMainDynamic();
+	PyObject *list = PyList_New(dynMaggie.size());
+
+	for (unsigned short i = 0, size = dynMaggie.size(); i < size; ++i) {
+		PyList_SET_ITEM(list, i, PyUnicode_FromString(dynMaggie[i]->name));
 	}
-	
+
 	return list;
 }
 
