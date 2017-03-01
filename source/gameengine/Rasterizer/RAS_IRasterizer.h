@@ -39,8 +39,11 @@
 #include "MT_CmMatrix4x4.h"
 #include "MT_Matrix4x4.h"
 
+#include "RAS_DebugDraw.h"
+
 #include <string>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <memory>
 
@@ -65,13 +68,6 @@ struct GPUShader;
 class RAS_IRasterizer
 {
 public:
-	enum RAS_TEXT_RENDER_MODE {
-		RAS_TEXT_RENDER_NODEF = 0,
-		RAS_TEXT_NORMAL,
-		RAS_TEXT_PADDED,
-		RAS_TEXT_MAX,
-	};
-
 	/**
 	 * Drawing types
 	 */
@@ -280,54 +276,6 @@ public:
 		AttribLayerList layers;
 	};
 
-	struct DebugShape
-	{
-		MT_Vector4 m_color;
-	};
-
-	struct DebugLine : DebugShape
-	{
-		MT_Vector3 m_from;
-		MT_Vector3 m_to;
-	};
-
-	struct DebugCircle : DebugShape
-	{
-		MT_Vector3 m_center;
-		MT_Vector3 m_normal;
-		float m_radius;
-		int m_sector;
-	};
-
-	struct DebugAabb : DebugShape
-	{
-		MT_Vector3 m_pos;
-		MT_Matrix3x3 m_rot;
-		MT_Vector3 m_min;
-		MT_Vector3 m_max;
-	};
-
-	struct DebugBox : DebugShape
-	{
-		MT_Vector3 m_vertexes[8];
-	};
-
-	struct DebugSolidBox : DebugBox
-	{
-		MT_Vector4 m_insideColor;
-		MT_Vector4 m_outsideColor;
-		bool m_solid;
-	};
-
-	struct SceneDebugShape
-	{
-		std::vector<DebugLine> m_lines;
-		std::vector<DebugCircle> m_circles;
-		std::vector<DebugAabb> m_aabbs;
-		std::vector<DebugBox> m_boxes;
-		std::vector<DebugSolidBox> m_solidBoxes;
-	};
-
 private:
 	class OffScreens
 	{
@@ -378,7 +326,7 @@ private:
 	};
 
 	// We store each debug shape by scene.
-	std::map<SCA_IScene *, SceneDebugShape> m_debugShapes;
+	std::map<SCA_IScene *, RAS_DebugDraw> m_debugDraws;
 
 	/* fogging vars */
 	bool m_fogenabled;
@@ -753,30 +701,9 @@ public:
 	 * Sets a polygon offset.  z depth will be: z1 = mult*z0 + add
 	 */
 	void	SetPolygonOffset(float mult, float add);
-	
-	void DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4& color);
-	void DrawDebugCircle(SCA_IScene *scene, const MT_Vector3 &center, const MT_Scalar radius,
-								 const MT_Vector4 &color, const MT_Vector3 &normal, int nsector);
-	/** Draw a box depends on minimal and maximal corner.
-	 * \param scene The scene owner of this call.
-	 * \param pos The box's position.
-	 * \param rot The box's orientation.
-	 * \param min The box's minimal corner.
-	 * \param max The box's maximal corner.
-	 * \param color The box's color.
-	 */
-	void DrawDebugAabb(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
-							  const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color);
-	void DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& color);
-	void DrawDebugSolidBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& insideColor,
-							  const MT_Vector4& outsideColor, const MT_Vector4& lineColor);
-	/** Draw a box representing a camera frustum volume.
-	 * \param scene The scene owner of this call.
-	 * \param projmat The camera projection matrix.
-	 * \param viewmat The camera view matrix.
-	 */
-	void DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat);
-	void FlushDebugShapes(SCA_IScene *scene);
+
+	RAS_DebugDraw& GetDebugDraw(SCA_IScene *scene);
+	void FlushDebugDraw(SCA_IScene *scene, RAS_ICanvas *canvas);
 
 	/// Clear the material texture coordinates list used by storages.
 	void ClearTexCoords();
@@ -826,16 +753,6 @@ public:
 
 	void DisableForText();
 	/**
-	 * Renders 2D boxes.
-	 * \param xco			Position on the screen (origin in lower left corner).
-	 * \param yco			Position on the screen (origin in lower left corner).
-	 * \param width			Width of the canvas to draw to.
-	 * \param height		Height of the canvas to draw to.
-	 * \param percentage	Percentage of bar.
-	 */
-	void RenderBox2D(int xco, int yco, int width, int height, float percentage);
-
-	/**
 	 * Renders 3D text string using BFL.
 	 * \param fontid	The id of the font.
 	 * \param text		The string to render.
@@ -848,19 +765,6 @@ public:
 	void RenderText3D(
 	        int fontid, const std::string& text, int size, int dpi,
 	        const float color[4], const float mat[16], float aspect);
-
-	/**
-	 * Renders 2D text string.
-	 * \param mode      The type of text
-	 * \param text		The string to render.
-	 * \param xco		Position on the screen (origin in lower left corner).
-	 * \param yco		Position on the screen (origin in lower left corner).
-	 * \param width		Width of the canvas to draw to.
-	 * \param height	Height of the canvas to draw to.
-	 */
-	void RenderText2D(
-	        RAS_TEXT_RENDER_MODE mode, const std::string& text,
-	        int xco, int yco, int width, int height);
 
 	void ProcessLighting(bool uselights, const MT_Transform &trans);
 

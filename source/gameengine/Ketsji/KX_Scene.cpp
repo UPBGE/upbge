@@ -1459,7 +1459,7 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 	}
 }
 
-void KX_Scene::DrawDebug(RAS_IRasterizer *rasty)
+void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw)
 {
 	const bool showBoundingBox = KX_GetActiveEngine()->GetShowBoundingBox();
 	if (showBoundingBox) {
@@ -1473,17 +1473,17 @@ void KX_Scene::DrawDebug(RAS_IRasterizer *rasty)
 				const SG_BBox& box = gameobj->GetSGNode()->BBox();
 				const MT_Vector3& center = box.GetCenter();
 
-				rasty->DrawDebugAabb(this, position, orientation, box.GetMin() * scale, box.GetMax() * scale,
+				debugDraw.DrawAabb(position, orientation, box.GetMin() * scale, box.GetMax() * scale,
 					MT_Vector4(1.0f, 0.0f, 1.0f, 1.0f));
 
 				// Render center in red, green and blue.
-				rasty->DrawDebugLine(this, orientation * center * scale + position,
+				debugDraw.DrawLine(orientation * center * scale + position,
 					orientation * (center + MT_Vector3(1.0f, 0.0f, 0.0f)) * scale + position,
 					MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
-				rasty->DrawDebugLine(this, orientation * center * scale + position,
+				debugDraw.DrawLine(orientation * center * scale + position,
 					orientation * (center + MT_Vector3(0.0f, 1.0f, 0.0f)) * scale  + position,
 					MT_Vector4(0.0f, 1.0f, 0.0f, 1.0f));
-				rasty->DrawDebugLine(this, orientation * center * scale + position,
+				debugDraw.DrawLine(orientation * center * scale + position,
 					orientation * (center + MT_Vector3(0.0f, 0.0f, 1.0f)) * scale  + position,
 					MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f));
 			}
@@ -1495,7 +1495,7 @@ void KX_Scene::DrawDebug(RAS_IRasterizer *rasty)
 		if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
 			BL_ArmatureObject *armature = (BL_ArmatureObject *)gameobj;
 			if (armature->GetDrawDebug() || KX_GetActiveEngine()->GetShowArmatures()) {
-				armature->DrawDebugArmature();
+				armature->DrawDebug(debugDraw);
 			}
 		}
 	}

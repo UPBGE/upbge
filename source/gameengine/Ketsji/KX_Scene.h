@@ -79,6 +79,7 @@ class RAS_BucketManager;
 class RAS_MaterialBucket;
 class RAS_IPolyMaterial;
 class RAS_IRasterizer;
+class RAS_DebugDraw;
 class RAS_OffScreen;
 class RAS_2DFilterManager;
 class KX_2DFilterManager;
@@ -483,7 +484,7 @@ public:
 	void SetWorldInfo(class KX_WorldInfo* wi);
 	KX_WorldInfo* GetWorldInfo();
 	void CalculateVisibleMeshes(RAS_IRasterizer* rasty, KX_Camera *cam, int layer=0);
-	void DrawDebug(RAS_IRasterizer *rasty);
+	void DrawDebug(RAS_DebugDraw& debugDraw);
 	KX_Camera* GetpCamera();
 	KX_BlenderSceneConverter *GetSceneConverter() { return m_sceneConverter; }
 

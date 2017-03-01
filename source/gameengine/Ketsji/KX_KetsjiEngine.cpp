@@ -1024,10 +1024,11 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
 	SG_SetActiveStage(SG_STAGE_RENDER);
 
+	RAS_DebugDraw& debugDraw = m_rasterizer->GetDebugDraw(scene);
 	// Draw debug infos like bouding box, armature ect.. if enabled.
-	scene->DrawDebug(m_rasterizer);
+	scene->DrawDebug(debugDraw);
 	// Draw debug camera frustum.
-	DrawDebugCameraFrustum(scene, viewport, area);
+	DrawDebugCameraFrustum(scene, debugDraw, viewport, area);
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
@@ -1048,7 +1049,7 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 {
 	KX_SetActiveScene(scene);
 
-	m_rasterizer->FlushDebugShapes(scene);
+	m_rasterizer->FlushDebugDraw(scene, m_canvas);
 
 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up), only for filters.
 	const int width = m_canvas->GetWidth();
@@ -1066,7 +1067,7 @@ RAS_OffScreen *KX_KetsjiEngine::PostRenderScene(KX_Scene *scene, RAS_OffScreen *
 	scene->RunDrawingCallbacks(KX_Scene::POST_DRAW, nullptr);
 
 	// Python draw callback can also call debug draw functions, so we have to clear debug shapes.
-	m_rasterizer->FlushDebugShapes(scene);
+	m_rasterizer->FlushDebugDraw(scene, m_canvas);
 #endif
 
 	return offScreen;
@@ -1159,14 +1160,15 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		tottime = 1e-6f;
 	}
 
+	static const MT_Vector4 white(1.0f, 1.0f, 1.0f, 1.0f);
+
+	// Use nullptrfor no scene.
+	RAS_DebugDraw& debugDraw = m_rasterizer->GetDebugDraw(nullptr);
+
 	if (m_show_framerate || m_show_profile) {
 		// Title for profiling("Profile")
-		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-		                           "Profile",
-		                           xcoord + const_xindent + title_xmargin,  // Adds the constant x indent (0 for now) to the title x margin
-		                           ycoord,
-		                           m_canvas->GetWidth() /* RdV, TODO ?? */,
-		                           m_canvas->GetHeight() /* RdV, TODO ?? */);
+		// Adds the constant x indent (0 for now) to the title x margin
+		debugDraw.RenderText2D("Profile", MT_Vector2(xcoord + const_xindent + title_xmargin, ycoord), white);
 
 		// Increase the indent by default increase
 		ycoord += const_ysize;
@@ -1176,20 +1178,12 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 	// Framerate display
 	if (m_show_framerate) {
-		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-		                           "Frametime :",
-		                           xcoord + const_xindent,
-		                           ycoord,
-		                           m_canvas->GetWidth() /* RdV, TODO ?? */,
-		                           m_canvas->GetHeight() /* RdV, TODO ?? */);
+		debugDraw.RenderText2D("Frametime :",
+		                           MT_Vector2(xcoord + const_xindent,
+		                           ycoord), white);
 
 		debugtxt = (boost::format("%5.2fms (%.1ffps)") %  (tottime * 1000.0f) % (1.0f / tottime)).str();
-		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-		                           debugtxt,
-		                           xcoord + const_xindent + profile_indent,
-		                           ycoord,
-		                           m_canvas->GetWidth() /* RdV, TODO ?? */,
-		                           m_canvas->GetHeight() /* RdV, TODO ?? */);
+		debugDraw.RenderText2D(debugtxt, MT_Vector2(xcoord + const_xindent + profile_indent, ycoord), white);
 		// Increase the indent by default increase
 		ycoord += const_ysize;
 	}
@@ -1197,23 +1191,15 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	// Profile display
 	if (m_show_profile) {
 		for (int j = tc_first; j < tc_numCategories; j++) {
-			m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-			                           m_profileLabels[j],
-			                           xcoord + const_xindent,
-			                           ycoord,
-			                           m_canvas->GetWidth(),
-			                           m_canvas->GetHeight());
+			debugDraw.RenderText2D(m_profileLabels[j], MT_Vector2(xcoord + const_xindent, ycoord), white);
 
 			double time = m_logger->GetAverage((KX_TimeCategory)j);
 
 			debugtxt = (boost::format("%5.2fms | %d%%") % (time*1000.f) % (int)(time/tottime * 100.f)).str();
-			m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-			                           debugtxt,
-			                           xcoord + const_xindent + profile_indent, ycoord,
-			                           m_canvas->GetWidth(),
-			                           m_canvas->GetHeight());
+			debugDraw.RenderText2D(debugtxt, MT_Vector2(xcoord + const_xindent + profile_indent, ycoord), white);
 
-			m_rasterizer->RenderBox2D(xcoord + (int)(2.2 * profile_indent), ycoord, m_canvas->GetWidth(), m_canvas->GetHeight(), time/tottime);
+			const MT_Vector2 boxSize(50 * (time / tottime), 10);
+			debugDraw.RenderBox2D(MT_Vector2(xcoord + (int)(2.2 * profile_indent), ycoord), boxSize, white);
 			ycoord += const_ysize;
 		}
 	}
@@ -1222,14 +1208,9 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 	/* Property display */
 	if (m_show_debug_properties) {
-
-		/* Title for debugging("Debug properties") */
-		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-		                           "Debug Properties",
-		                           xcoord + const_xindent + title_xmargin,  // Adds the constant x indent (0 for now) to the title x margin
-		                           ycoord,
-		                           m_canvas->GetWidth() /* RdV, TODO ?? */,
-		                           m_canvas->GetHeight() /* RdV, TODO ?? */);
+		// Title for debugging("Debug properties")
+		// Adds the constant x indent (0 for now) to the title x margin
+		debugDraw.RenderText2D("Debug Properties", MT_Vector2(xcoord + const_xindent + title_xmargin, ycoord), white);
 
 		// Increase the indent by default increase
 		ycoord += const_ysize;
@@ -1265,12 +1246,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 							first = false;
 						}
 					}
-					m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-					                           debugtxt,
-					                           xcoord + const_xindent,
-					                           ycoord,
-					                           m_canvas->GetWidth(),
-					                           m_canvas->GetHeight());
+					debugDraw.RenderText2D(debugtxt, MT_Vector2(xcoord + const_xindent, ycoord), white);
 					ycoord += const_ysize;
 				}
 				else {
@@ -1278,28 +1254,25 @@ void KX_KetsjiEngine::RenderDebugProperties()
 					if (propval) {
 						std::string text = propval->GetText();
 						debugtxt = objname + ": '" + propname + "' = " + text;
-						m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
-						                           debugtxt,
-						                           xcoord + const_xindent,
-						                           ycoord,
-						                           m_canvas->GetWidth(),
-						                           m_canvas->GetHeight());
+						debugDraw.RenderText2D(debugtxt, MT_Vector2(xcoord + const_xindent, ycoord), white);
 						ycoord += const_ysize;
 					}
 				}
 			}
 		}
 	}
+
+	m_rasterizer->FlushDebugDraw(nullptr, m_canvas);
 }
 
-void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, const RAS_Rect& viewport, const RAS_Rect& area)
+void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	CListValue *cameras = scene->GetCameraList();
 	for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
 		KX_Camera *cam = *it;
 		if (cam->GetShowCameraFrustum()) {
 			const MT_Matrix4x4 viewmat(cam->GetWorldToCamera());
-			m_rasterizer->DrawDebugCameraFrustum(scene, GetCameraProjectionMatrix(scene, cam, viewport, area), viewmat);
+			debugDraw.DrawCameraFrustum(GetCameraProjectionMatrix(scene, cam, viewport, area), viewmat);
 		}
 	}
 }

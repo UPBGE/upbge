@@ -53,6 +53,8 @@ extern "C" {
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
 
+#include "RAS_DebugDraw.h"
+
 #include "EXP_ListWrapper.h"
 
 #include "MT_Matrix4x4.h"
@@ -572,7 +574,7 @@ bool BL_ArmatureObject::GetDrawDebug() const
 	return m_drawDebug;
 }
 
-void BL_ArmatureObject::DrawDebugArmature()
+void BL_ArmatureObject::DrawDebug(RAS_DebugDraw& debugDraw)
 {
 	const MT_Vector3& scale = NodeGetWorldScaling();
 	const MT_Matrix3x3& rot = NodeGetWorldOrientation();
@@ -581,7 +583,7 @@ void BL_ArmatureObject::DrawDebugArmature()
 	for (bPoseChannel *pchan = (bPoseChannel *)m_pose->chanbase.first; pchan; pchan = pchan->next) {
 		MT_Vector3 head = rot * (MT_Vector3(pchan->pose_head) * scale) + pos;
 		MT_Vector3 tail = rot * (MT_Vector3(pchan->pose_tail) * scale) + pos;
-		KX_RasterizerDrawDebugLine(tail, head, MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
+		debugDraw.DrawLine(tail, head, MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
 	}
 	m_drawDebug = false;
 }

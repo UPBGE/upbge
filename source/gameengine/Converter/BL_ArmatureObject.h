@@ -43,6 +43,7 @@ struct bConstraint;
 struct Object;
 class MT_Matrix4x4;
 class KX_BlenderSceneConverter;
+class RAS_DebugDraw;
 
 class BL_ArmatureObject : public KX_GameObject
 {
@@ -107,7 +108,7 @@ public:
 	Object *GetOrigArmatureObject();
 	int GetVertDeformType();
 	bool GetDrawDebug() const;
-	void DrawDebugArmature();
+	void DrawDebug(RAS_DebugDraw& debugDraw);
 
 	// for constraint python API
 	void LoadConstraints(KX_BlenderSceneConverter *converter);

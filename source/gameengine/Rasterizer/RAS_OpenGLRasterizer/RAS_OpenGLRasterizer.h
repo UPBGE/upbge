@@ -111,8 +111,6 @@ public:
 
 	void SetPolygonOffset(float mult, float add);
 
-	void FlushDebugShapes(const RAS_IRasterizer::SceneDebugShape& debugShapes);
-
 	void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
 	void DisableClipPlane(unsigned short index);
 
@@ -126,11 +124,8 @@ public:
 	void ProcessLighting(bool uselights, const MT_Transform &viewmat);
 
 	void DisableForText();
-	void RenderBox2D(int xco, int yco, int width, int height, float percentage);
 	void RenderText3D(int fontid, const std::string& text, int size, int dpi,
 	                  const float color[4], const float mat[16], float aspect);
-	void RenderText2D(RAS_IRasterizer::RAS_TEXT_RENDER_MODE mode, const std::string& text,
-	                  int xco, int yco, int width, int height);
 
 	void PushMatrix();
 	void PopMatrix();

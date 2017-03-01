@@ -60,6 +60,7 @@ set(SRC
 	RAS_BoundingBox.cpp
 	RAS_BoundingBoxManager.cpp
 	RAS_BucketManager.cpp
+	RAS_DebugDraw.cpp
 	RAS_DisplayArrayBucket.cpp
 	RAS_FramingManager.cpp
 	RAS_ICanvas.cpp
@@ -90,6 +91,7 @@ set(SRC
 	RAS_BoundingBoxManager.h
 	RAS_BucketManager.h
 	RAS_CameraData.h
+	RAS_DebugDraw.h
 	RAS_Deformer.h
 	RAS_DisplayArray.h
 	RAS_DisplayArrayBucket.h

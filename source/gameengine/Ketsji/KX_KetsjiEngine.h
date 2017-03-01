@@ -232,7 +232,7 @@ private:
 	RAS_OffScreen *PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.
-	void DrawDebugCameraFrustum(KX_Scene *scene, const RAS_Rect& viewport, const RAS_Rect& area);
+	void DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const RAS_Rect& viewport, const RAS_Rect& area);
 
 public:
 	KX_KetsjiEngine(KX_ISystem *system);

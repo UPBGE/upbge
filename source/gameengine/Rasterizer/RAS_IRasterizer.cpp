@@ -449,103 +449,14 @@ void RAS_IRasterizer::DrawOverlayPlane()
 	m_impl->DrawOverlayPlane();
 }
 
-void RAS_IRasterizer::FlushDebugShapes(SCA_IScene *scene)
+RAS_DebugDraw& RAS_IRasterizer::GetDebugDraw(SCA_IScene *scene)
 {
-	SceneDebugShape& debugShapes = m_debugShapes[scene];
-	if ((debugShapes.m_lines.size() + debugShapes.m_circles.size() +
-		debugShapes.m_aabbs.size() + debugShapes.m_boxes.size() +
-		debugShapes.m_solidBoxes.size()) == 0)
-	{
-		return;
-	}
-
-	m_impl->FlushDebugShapes(m_debugShapes[scene]);
-
-	debugShapes.m_lines.clear();
-	debugShapes.m_circles.clear();
-	debugShapes.m_aabbs.clear();
-	debugShapes.m_boxes.clear();
-	debugShapes.m_solidBoxes.clear();
+	return m_debugDraws[scene];
 }
 
-
-void RAS_IRasterizer::DrawDebugLine(SCA_IScene *scene, const MT_Vector3 &from, const MT_Vector3 &to, const MT_Vector4 &color)
+void RAS_IRasterizer::FlushDebugDraw(SCA_IScene *scene, RAS_ICanvas *canvas)
 {
-	DebugLine line;
-	line.m_from = from;
-	line.m_to = to;
-	line.m_color = color;
-	m_debugShapes[scene].m_lines.push_back(line);
-}
-
-void RAS_IRasterizer::DrawDebugCircle(SCA_IScene *scene, const MT_Vector3 &center, const MT_Scalar radius,
-		const MT_Vector4 &color, const MT_Vector3 &normal, int nsector)
-{
-	DebugCircle circle;
-	circle.m_center = center;
-	circle.m_normal = normal;
-	circle.m_color = color;
-	circle.m_radius = radius;
-	circle.m_sector = nsector;
-	m_debugShapes[scene].m_circles.push_back(circle);
-}
-
-void RAS_IRasterizer::DrawDebugAabb(SCA_IScene *scene, const MT_Vector3& pos, const MT_Matrix3x3& rot,
-		const MT_Vector3& min, const MT_Vector3& max, const MT_Vector4& color)
-{
-	DebugAabb aabb;
-	aabb.m_pos = pos;
-	aabb.m_rot = rot;
-	aabb.m_min = min;
-	aabb.m_max = max;
-	aabb.m_color = color;
-	m_debugShapes[scene].m_aabbs.push_back(aabb);
-}
-
-void RAS_IRasterizer::DrawDebugBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& color)
-{
-	DebugBox box;
-	for (unsigned short i = 0; i < 8; ++i) {
-		box.m_vertexes[i] = vertexes[i];
-	}
-	box.m_color = color;
-	m_debugShapes[scene].m_boxes.push_back(box);
-}
-
-void RAS_IRasterizer::DrawDebugSolidBox(SCA_IScene *scene, MT_Vector3 vertexes[8], const MT_Vector4& insideColor,
-		const MT_Vector4& outsideColor, const MT_Vector4& lineColor)
-{
-	DebugSolidBox box;
-	for (unsigned short i = 0; i < 8; ++i) {
-		box.m_vertexes[i] = vertexes[i];
-	}
-	box.m_insideColor = insideColor;
-	box.m_outsideColor = outsideColor;
-	box.m_color = lineColor;
-	m_debugShapes[scene].m_solidBoxes.push_back(box);
-}
-
-void RAS_IRasterizer::DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat)
-{
-	MT_Vector3 box[8];
-
-	box[0][0] = box[1][0] = box[4][0] = box[5][0] = -1.0f;
-	box[2][0] = box[3][0] = box[6][0] = box[7][0] = 1.0f;
-	box[0][1] = box[3][1] = box[4][1] = box[7][1] = -1.0f;
-	box[1][1] = box[2][1] = box[5][1] = box[6][1] = 1.0f;
-	box[0][2] = box[1][2] = box[2][2] = box[3][2] = -1.0f;
-	box[4][2] = box[5][2] = box[6][2] = box[7][2] = 1.0f;
-
-	const MT_Matrix4x4 mv = (projmat * viewmat).inverse();
-
-	for (unsigned short i = 0; i < 8; i++) {
-		MT_Vector3& p3 = box[i];
-		const MT_Vector4 p4 = mv * MT_Vector4(p3.x(), p3.y(), p3.z(), 1.0f);
-		p3 = MT_Vector3(p4.x() / p4.w(), p4.y() / p4.w(), p4.z() / p4.w());
-	}
-
-	DrawDebugSolidBox(scene, box, MT_Vector4(0.4f, 0.4f, 0.4f, 0.4f), MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f),
-		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f));
+	m_debugDraws[scene].Flush(this, canvas);
 }
 
 void RAS_IRasterizer::UpdateOffScreens(RAS_ICanvas *canvas)
@@ -1649,29 +1560,11 @@ void RAS_IRasterizer::DisableForText()
 	m_impl->DisableForText();
 }
 
-void RAS_IRasterizer::RenderBox2D(int xco,
-                                       int yco,
-                                       int width,
-                                       int height,
-                                       float percentage)
-{
-	m_impl->RenderBox2D(xco, yco, width, height, percentage);
-}
-
 void RAS_IRasterizer::RenderText3D(
         int fontid, const std::string& text, int size, int dpi,
         const float color[4], const float mat[16], float aspect)
 {
 	m_impl->RenderText3D(fontid, text, size, dpi, color, mat, aspect);
-}
-
-void RAS_IRasterizer::RenderText2D(
-    RAS_TEXT_RENDER_MODE mode,
-    const std::string& text,
-    int xco, int yco,
-    int width, int height)
-{
-	m_impl->RenderText2D(mode, text, xco, yco, width, height);
 }
 
 void RAS_IRasterizer::PushMatrix()
