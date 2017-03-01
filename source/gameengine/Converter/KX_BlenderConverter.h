@@ -35,12 +35,12 @@
 #include <map>
 #include <vector>
 
-#ifdef _MSC_VER // MSVC doesn't support incomplete type in std::unique_ptr.
+/*#ifdef _MSC_VER // MSVC doesn't support incomplete type in std::unique_ptr.
 #  include "RAS_IPolygonMaterial.h"
 #  include "RAS_MeshObject.h"
 
 #  include "KX_BlenderScalarInterpolator.h"
-#endif
+#endif*/
 
 #include "CM_Thread.h"
 
@@ -76,7 +76,7 @@ private:
 
 		std::map<bAction *, BL_InterpolatorList *> m_actionToInterp;
 
-		SceneSlot() = default;
+		SceneSlot();
 		SceneSlot(const KX_BlenderSceneConverter& converter);
 		~SceneSlot();
 
