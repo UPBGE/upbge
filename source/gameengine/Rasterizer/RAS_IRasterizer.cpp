@@ -1319,13 +1319,17 @@ GPUShader *RAS_IRasterizer::GetOverrideGPUShader(OverrideShaderType type)
 	GPUShader *shader = nullptr;
 	switch (type) {
 		case RAS_OVERRIDE_SHADER_NONE:
-		case RAS_OVERRIDE_SHADER_BASIC:
 		{
 			break;
 		}
-		case RAS_OVERRIDE_SHADER_BASIC_INSTANCING:
+		case RAS_OVERRIDE_SHADER_BLACK:
 		{
-			shader = GPU_shader_get_builtin_shader(GPU_SHADER_INSTANCING);
+			shader = GPU_shader_get_builtin_shader(GPU_SHADER_BLACK);
+			break;
+		}
+		case RAS_OVERRIDE_SHADER_BLACK_INSTANCING:
+		{
+			shader = GPU_shader_get_builtin_shader(GPU_SHADER_BLACK_INSTANCING);
 			break;
 		}
 		case RAS_OVERRIDE_SHADER_SHADOW_VARIANCE:

@@ -152,7 +152,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			if (m_buckets[SOLID_SHADOW_BUCKET].size() > 0) {
 				rasty->SetOverrideShader(isVarianceShadow ?
 				                         RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE :
-				                         RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
+				                         RAS_IRasterizer::RAS_OVERRIDE_SHADER_BLACK);
 			}
 			RenderBasicBuckets(cameratrans, rasty, SOLID_SHADOW_BUCKET);
 
@@ -163,7 +163,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			if (m_buckets[SOLID_SHADOW_INSTANCING_BUCKET].size() > 0) {
 				rasty->SetOverrideShader(isVarianceShadow ?
 				                         RAS_IRasterizer::RAS_OVERRIDE_SHADER_SHADOW_VARIANCE_INSTANCING :
-				                         RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC_INSTANCING);
+				                         RAS_IRasterizer::RAS_OVERRIDE_SHADER_BLACK_INSTANCING);
 			}
 			RenderBasicBuckets(cameratrans, rasty, SOLID_SHADOW_INSTANCING_BUCKET);
 
@@ -208,7 +208,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			// Rendering solid regular materials with an empty override shader.
 
 			if (m_buckets[SOLID_BUCKET].size() > 0) {
-				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
+				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BLACK);
 			}
 			RenderBasicBuckets(cameratrans, rasty, SOLID_BUCKET);
 
@@ -219,7 +219,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			if ((m_buckets[SOLID_INSTANCING_BUCKET].size() +
 				m_buckets[ALPHA_INSTANCING_BUCKET].size() +
 				m_buckets[ALPHA_DEPTH_INSTANCING_BUCKET].size()) != 0) {
-				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC_INSTANCING);
+				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BLACK_INSTANCING);
 			}
 			RenderBasicBuckets(cameratrans, rasty, SOLID_INSTANCING_BUCKET);
 
@@ -234,7 +234,7 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_IRast
 			 */
 
 			if ((m_buckets[ALPHA_BUCKET].size() + m_buckets[ALPHA_DEPTH_BUCKET].size()) != 0) {
-				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BASIC);
+				rasty->SetOverrideShader(RAS_IRasterizer::RAS_OVERRIDE_SHADER_BLACK);
 			}
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_BUCKET);
 			RenderSortedBuckets(cameratrans, rasty, ALPHA_DEPTH_BUCKET);
