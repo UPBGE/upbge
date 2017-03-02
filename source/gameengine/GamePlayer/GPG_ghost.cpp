@@ -602,7 +602,7 @@ static BlendFileData *load_encrypted_game_data(const char *filename, std::string
 		return NULL;
 	}
 
-	if (!localPath.empty() && !encryptKey.empty()) {
+	if (!encryptKey.empty()) {
 		// Load file and decrypt.
 		fileData = SPINDLE_DecryptFromFile(filename, fileSize, encryptKey);
 	}
@@ -1182,7 +1182,9 @@ int main(
 						}
 						else
 						{
-							bfd = load_encrypted_game_data(finalpath, "", "", typeEncryption);
+							std::string finalPath = std::string(finalpath);
+							std::size_t found = finalPath.find_last_of("/\\");
+							bfd = load_encrypted_game_data(finalpath, finalPath.substr(0, found), "", typeEncryption);
 						}
 #endif  // WITH_GAMEENGINE_BPPLAYER
 					}
