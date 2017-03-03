@@ -56,7 +56,6 @@ enum MaterialProps
 	RAS_CASTSHADOW = (1 << 4),
 	RAS_ONLYSHADOW = (1 << 5),
 	RAS_OBJECTCOLOR = (1 << 6),
-	RAS_DISPLAYLISTS = (1 << 7)
 };
 
 enum MaterialRasterizerModes
@@ -120,7 +119,6 @@ public:
 	bool CastsShadows() const;
 	bool OnlyShadow() const;
 	RAS_Texture *GetTexture(unsigned int index);
-	bool UseDisplayLists() const;
 
 	virtual const std::string GetTextureName() const = 0;
 	virtual Material *GetBlenderMaterial() const = 0;

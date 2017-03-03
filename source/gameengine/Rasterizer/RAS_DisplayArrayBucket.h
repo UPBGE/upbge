@@ -67,8 +67,6 @@ private:
 	/// The list of all deformer usign this display array.
 	RAS_DeformerList m_deformerList;
 
-	/// True if the display array is not frequently modified and can use display list.
-	bool m_useDisplayList;
 	/// As m_useDisplayList but without rasterizer value.
 	bool m_useVao;
 
@@ -108,7 +106,6 @@ public:
 
 	/// \section Accesor
 	RAS_IDisplayArray *GetDisplayArray() const;
-	RAS_MaterialBucket *GetMaterialBucket() const;
 	RAS_MeshObject *GetMesh() const;
 	RAS_MeshMaterial *GetMeshMaterial() const;
 
@@ -126,9 +123,7 @@ public:
 	void RemoveDeformer(RAS_Deformer *deformer);
 
 	/// \section Render Infos
-	bool UseDisplayList() const;
 	bool UseVao() const;
-
 	bool UseBatching() const;
 
 	/// Update render infos.

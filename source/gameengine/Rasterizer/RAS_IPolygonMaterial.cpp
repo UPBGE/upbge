@@ -161,8 +161,3 @@ RAS_Texture *RAS_IPolyMaterial::GetTexture(unsigned int index)
 {
 	return m_textures[index];
 }
-
-bool RAS_IPolyMaterial::UseDisplayLists() const
-{
-	return (m_flag & RAS_DISPLAYLISTS);
-}

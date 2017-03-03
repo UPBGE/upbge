@@ -56,8 +56,7 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	m_displayArray(array),
 	m_mesh(mesh),
 	m_meshMaterial(meshmat),
-	m_useDisplayList(false),
-	m_useVao(/*false*/true),
+	m_useVao(true),
 	m_storageInfo(nullptr),
 	m_instancingBuffer(nullptr),
 	m_downwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNode), nullptr),
@@ -131,11 +130,6 @@ RAS_IDisplayArray *RAS_DisplayArrayBucket::GetDisplayArray() const
 	return m_displayArray;
 }
 
-RAS_MaterialBucket *RAS_DisplayArrayBucket::GetMaterialBucket() const
-{
-	return m_bucket;
-}
-
 RAS_MeshObject *RAS_DisplayArrayBucket::GetMesh() const
 {
 	return m_mesh;
@@ -179,11 +173,6 @@ void RAS_DisplayArrayBucket::RemoveDeformer(RAS_Deformer *deformer)
 	}
 }
 
-bool RAS_DisplayArrayBucket::UseDisplayList() const
-{
-	return m_useDisplayList;
-}
-
 bool RAS_DisplayArrayBucket::UseVao() const
 {
 	return m_useVao;
@@ -197,18 +186,12 @@ bool RAS_DisplayArrayBucket::UseBatching() const
 void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 {
 	// Reset values to default.
-	m_useDisplayList = true;
 	m_useVao = true;
 	bool arrayModified = false;
 
 	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
 
-	if (!material->UseDisplayLists()) {
-		m_useDisplayList = false;
-	}
-
 	if (material->IsZSort() || m_bucket->UseInstancing() || !m_displayArray || material->UsesObjectColor()) {
-		m_useDisplayList = false;
 		m_useVao = false;
 	}
 
@@ -217,7 +200,6 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
 
 		// Test if one of deformers is dynamic.
 		if (deformer->IsDynamic()) {
-			m_useDisplayList = false;
 			arrayModified = true;
 		}
 	}
