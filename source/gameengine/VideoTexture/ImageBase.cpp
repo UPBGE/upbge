@@ -64,7 +64,8 @@ ImageBase::ImageBase (bool staticSrc) : m_image(nullptr), m_imgSize(0), m_intern
 m_avail(false), m_scale(false), m_scaleChange(false), m_flip(false),
 m_zbuff(false),
 m_depth(false),
-m_staticSources(staticSrc), m_pyfilter(nullptr)
+m_type(IMAGE_NONE),
+m_staticSources(staticSrc), m_pyfilter(NULL)
 {
 	m_size[0] = m_size[1] = 0;
 	m_exports = 0;

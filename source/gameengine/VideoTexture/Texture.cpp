@@ -479,10 +479,19 @@ int Texture::pyattr_set_mipmap(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *a
 		PyErr_SetString(PyExc_TypeError, "The value must be a bool");
 		return -1;
 	}
+	if (!self->m_source) {
+		PyErr_SetString(PyExc_ValueError, "The texture source must be set before setting mipmap");
+		return -1;
+	}
 	// set mipmap
-	self->m_mipmap = value == Py_True;
-	// success
-	return 0;
+	if (self->m_source->m_image &&
+		self->m_source->m_image->m_type != ImageBase::IMAGE_VIDEO) {
+		self->m_mipmap = value == Py_True;
+		// success
+		return 0;
+	}
+	PyErr_SetString(PyExc_TypeError, "Videos can't have mipmap");
+	return -1;
 }
 
 // get source object

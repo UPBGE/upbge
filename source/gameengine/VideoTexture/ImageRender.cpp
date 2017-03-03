@@ -91,6 +91,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_engine = KX_GetActiveEngine();
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
+	m_type = IMAGE_RENDER;
 
 	GPUHDRType type;
 	if (hdr == RAS_IRasterizer::RAS_HDR_HALF_FLOAT) {
@@ -878,6 +879,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
     m_mirror(mirror),
     m_clip(100.f)
 {
+	m_type = IMAGE_MIRROR;
 	GPUHDRType type;
 	if (hdr == RAS_IRasterizer::RAS_HDR_HALF_FLOAT) {
 		type = GPU_HDR_HALF_FLOAT;
