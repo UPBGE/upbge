@@ -525,7 +525,7 @@ void RAS_IRasterizer::DrawDebugSolidBox(SCA_IScene *scene, MT_Vector3 vertexes[8
 	m_debugShapes[scene].m_solidBoxes.push_back(box);
 }
 
-void RAS_IRasterizer::DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat)
+void RAS_IRasterizer::DrawDebugLightOrCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat)
 {
 	MT_Vector3 box[8];
 
