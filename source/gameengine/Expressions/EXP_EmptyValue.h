@@ -32,7 +32,6 @@ public:
 	virtual const std::string GetText();
 	virtual double			GetNumber();
 	virtual int				GetValueType();
-	bool					IsInside(CValue* testpoint,bool bBorderInclude=true);
 	CValue *				Calc(VALUE_OPERATOR op, CValue *val);
 	CValue *				CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 	virtual CValue*			GetReplica();

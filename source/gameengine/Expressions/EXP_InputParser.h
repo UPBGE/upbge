@@ -31,8 +31,6 @@ public:
 	CParser();
 	virtual				~CParser();
 
-	float				GetFloat(std::string& txt);
-	CValue*				GetValue(std::string& txt, bool bFallbackToText=false);
 	CExpression*		ProcessText(const std::string& intext);
 	void				SetContext(CValue* context);
 
@@ -99,9 +97,6 @@ private:
 	void GrabString(int start);
 	void GrabRealString(int start);
 	void NextSym();
-#if 0	/* not used yet */
-	int MakeInt();
-#endif
 	const std::string Symbol2Str(int s);
 	void Term(int s);
 	int Priority(int optor);

@@ -51,11 +51,6 @@ int CEmptyValue::GetValueType()
 	return VALUE_EMPTY_TYPE;
 }
 
-bool CEmptyValue::IsInside(CValue *testpoint, bool bBorderInclude)
-{
-	return true;
-}
-
 const std::string CEmptyValue::GetText()
 {
 	return "";

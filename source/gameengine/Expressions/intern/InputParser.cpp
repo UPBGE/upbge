@@ -684,52 +684,6 @@ CExpression *CParser::ProcessText(const std::string& intext)
 	return expr;
 }
 
-
-
-float CParser::GetFloat(std::string& txt)
-{
-	// Returns parsed text into a float empty string returns -1.
-	float result = -1;
-
-	CExpression *expr = ProcessText(txt);
-	if (expr) {
-		CValue *val = expr->Calculate();
-		result = (float)val->GetNumber();
-
-		val->Release();
-		expr->Release();
-	}
-	return result;
-}
-
-CValue *CParser::GetValue(std::string& txt, bool bFallbackToText)
-{
-	/* Returns parsed text into a value,
-	 * empty string returns nullptr value !
-	 * if bFallbackToText then unparsed stuff is put into text
-	 */
-
-	CValue *result = nullptr;
-	CExpression *expr = ProcessText(txt);
-	if (expr) {
-		result = expr->Calculate();
-		expr->Release();
-	}
-	if (result) {
-		// If the parsed stuff lead to an errorvalue, don't return errors, just nullptr.
-		if (result->IsError()) {
-			result->Release();
-			result = nullptr;
-			if (bFallbackToText) {
-				if (txt.size() > 0) {
-					result = new CStringValue(txt, "");
-				}
-			}
-		}
-	}
-	return result;
-}
-
 void CParser::SetContext(CValue *context)
 {
 	if (m_identifierContext) {
