@@ -622,7 +622,8 @@ class TEXTURE_PT_envmap(TextureTypePanel, Panel):
                 if env.mapping == 'PLANE':
                     layout.prop(env, "mode")
             layout.prop(env, "mapping")
-            if env.mapping == 'PLANE':
+
+            if env.source != 'REALTIME' and env.mapping == 'PLANE':
                 layout.prop(env, "zoom")
 
             layout.prop(env, "viewpoint_object")
