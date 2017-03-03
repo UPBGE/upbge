@@ -2317,6 +2317,33 @@ void env_apply(vec4 col, vec3 hor, vec3 zen, vec4 f, mat4 vm, vec3 vn, out vec4 
 	outcol = col + f * vec4(mix(hor, zen, skyfac), 0);
 }
 
+float fresnel_fac2(vec3 direction, vec3 normal)
+{
+	vec3 nDirection = normalize(direction);
+	vec3 nNormal = normalize(normal);
+	vec3 halfDirection = normalize(nNormal + nDirection);
+
+	float cosine = dot( halfDirection, nDirection );
+	float product = max(cosine, 0.0);
+	float factor = pow(product, 5.0); //invert ? 1.0 - pow( product, 5.0 )
+
+	return factor;
+}
+void env_apply_world_tex_color(vec4 col, samplerCube ima, float lodbias, float ratio, float fresnelfac, float ior, vec4 f, mat4 viewmatrixinverse, vec3 vp, vec3 vn, out vec4 outcol)
+{
+	vec3 viewdir = vec3(viewmatrixinverse * vec4(vp, 0.0));
+	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vn, 0.0)).xyz;
+
+	float fresnel = fresnel_fac2(viewdir, normaldirection);
+
+	vec3 refracteddirection = refract(viewdir, normaldirection, 1.0 / ior);
+	vec4 texrefl = textureCube(ima, normaldirection, lodbias);
+	vec4 texrefr = textureCube(ima, refracteddirection, lodbias);
+	vec4 finalColor = mix(texrefl, texrefr, ratio) * (1.0 + fresnel * fresnelfac);
+
+	outcol = col + f * finalColor;
+}
+
 void shade_maddf(vec4 col, float f, vec4 col1, out vec4 outcol)
 {
 	outcol = col + f * col1;
