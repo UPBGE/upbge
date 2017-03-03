@@ -77,11 +77,6 @@ class SCA_KeyboardSensor : public SCA_ISensor
 	 */
 	void LogKeystrokes();
 
-	/**
-	 * Tests whether shift is pressed.
-	 */
-	bool IsShifted(void);
-	
 public:
 	SCA_KeyboardSensor(class SCA_KeyboardManager* keybdmgr,
 					   short int hotkey,
@@ -96,11 +91,8 @@ public:
 	virtual CValue* GetReplica();
 	virtual void Init();
 
-
-	short int GetHotkey();
 	virtual bool Evaluate();
 	virtual bool IsPositiveTrigger();
-	bool	TriggerOnAllKeys();
 
 #ifdef WITH_PYTHON
 	/* --------------------------------------------------------------------- */

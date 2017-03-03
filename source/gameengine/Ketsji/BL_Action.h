@@ -124,7 +124,6 @@ public:
 	// Mutators
 	void SetFrame(float frame);
 	void SetPlayMode(short play_mode);
-	void SetTimes(float start, float end);
 
 	enum
 	{

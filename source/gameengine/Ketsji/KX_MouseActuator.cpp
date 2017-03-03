@@ -295,12 +295,6 @@ bool KX_MouseActuator::Update()
 	return result;
 }
 
-bool KX_MouseActuator::isValid(KX_MouseActuator::KX_ACT_MOUSE_MODE mode)
-{
-	return ((mode > KX_ACT_MOUSE_NODEF) && (mode < KX_ACT_MOUSE_MAX));
-}
-
-
 CValue* KX_MouseActuator::GetReplica()
 {
 	KX_MouseActuator* replica = new KX_MouseActuator(*this);

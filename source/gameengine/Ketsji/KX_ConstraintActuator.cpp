@@ -551,18 +551,6 @@ void KX_ConstraintActuator::Clamp(MT_Scalar &var,
 	}
 }
 
-
-bool KX_ConstraintActuator::IsValidMode(KX_ConstraintActuator::KX_CONSTRAINTTYPE m) 
-{
-	bool res = false;
-
-	if ( (m > KX_ACT_CONSTRAINT_NODEF) && (m < KX_ACT_CONSTRAINT_MAX)) {
-		res = true;
-	}
-
-	return res;
-}
-
 #ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */

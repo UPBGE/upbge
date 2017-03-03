@@ -86,13 +86,6 @@ void BL_ActionManager::SetPlayMode(short layer, short mode)
 	if (action) action->SetPlayMode(mode);
 }
 
-void BL_ActionManager::SetTimes(short layer, float start, float end)
-{
-	BL_Action *action = GetAction(layer);
-
-	if (action) action->SetTimes(start, end);
-}
-
 bool BL_ActionManager::PlayAction(const std::string& name,
 								float start,
 								float end,

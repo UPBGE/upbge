@@ -71,10 +71,3 @@ void SCA_KeyboardManager::NextFrame()
 		(*it)->Activate(m_logicmgr);
 	}
 }
-
-bool SCA_KeyboardManager::IsPressed(SCA_IInputDevice::SCA_EnumInputs inputcode)
-{
-	return false;
-	//return m_kxsystem->IsPressed(inputcode);
-}
-

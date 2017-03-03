@@ -47,10 +47,7 @@ class SCA_PropertyActuator : public SCA_IActuator
 		KX_ACT_PROP_LEVEL,
 		KX_ACT_PROP_MAX
 	};
-	
-	/**check whether this value is valid */
-	bool isValid(KX_ACT_PROP_MODE mode);
-	
+
 	int			m_type;
 	std::string	m_propname;
 	std::string	m_exprtxt;

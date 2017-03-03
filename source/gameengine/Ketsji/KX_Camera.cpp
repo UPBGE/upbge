@@ -107,36 +107,6 @@ MT_Transform KX_Camera::GetCameraToWorld() const
 	return MT_Transform(NodeGetWorldPosition(), NodeGetWorldOrientation());
 }
 
-
-
-void KX_Camera::CorrectLookUp(MT_Scalar speed)
-{
-}
-
-
-
-const MT_Vector3 KX_Camera::GetCameraLocation() const
-{
-	/* this is the camera locatio in cam coords... */
-	//return m_trans1.getOrigin();
-	//return MT_Vector3(0,0,0);   <-----
-	/* .... I want it in world coords */
-	//MT_Transform trans;
-	//trans.setBasis(NodeGetWorldOrientation());
-	
-	return NodeGetWorldPosition();
-}
-
-
-
-/* I want the camera orientation as well. */
-const MT_Quaternion KX_Camera::GetCameraOrientation() const
-{
-	return NodeGetWorldOrientation().getRotation();
-}
-
-
-
 /**
  * Sets the projection matrix that is used by the rasterizer.
  */
@@ -1134,7 +1104,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 
 	gluUnProject(vect[0], vect[1], vect[2], modelmatrix, projmatrix, viewport, &win[0], &win[1], &win[2]);
 
-	campos = this->GetCameraLocation();
+	campos = NodeGetWorldPosition();
 	screenpos = MT_Vector3(win[0], win[1], win[2]);
 	vect = campos-screenpos;
 
@@ -1169,7 +1139,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay,
 	Py_DECREF(argValue);
 
 	dist = -dist;
-	vect += this->GetCameraLocation();
+	vect += NodeGetWorldPosition();
 
 	argValue = (propName?PyTuple_New(3):PyTuple_New(2));
 	if (argValue) {

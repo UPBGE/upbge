@@ -1666,20 +1666,6 @@ bool KX_KetsjiEngine::GetAutoAddDebugProperties()
 	return m_autoAddDebugProperties;
 }
 
-void KX_KetsjiEngine::SetTimingDisplay(bool frameRate, bool profile, bool properties)
-{
-	m_show_framerate = frameRate;
-	m_show_profile = profile;
-	m_show_debug_properties = properties;
-}
-
-void KX_KetsjiEngine::GetTimingDisplay(bool& frameRate, bool& profile, bool& properties) const
-{
-	frameRate = m_show_framerate;
-	profile = m_show_profile;
-	properties = m_show_debug_properties;
-}
-
 void KX_KetsjiEngine::ProcessScheduledScenes(void)
 {
 	// Check whether there will be changes to the list of scenes
@@ -1693,16 +1679,6 @@ void KX_KetsjiEngine::ProcessScheduledScenes(void)
 		RemoveScheduledScenes();
 		AddScheduledScenes();
 	}
-}
-
-void KX_KetsjiEngine::SetHideCursor(bool hideCursor)
-{
-	m_hideCursor = hideCursor;
-}
-
-bool KX_KetsjiEngine::GetHideCursor(void) const
-{
-	return m_hideCursor;
 }
 
 void KX_KetsjiEngine::SetShowBoundingBox(bool show)

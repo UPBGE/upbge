@@ -194,15 +194,6 @@ void BL_Texture::DisableTexture()
 	GPU_texture_unbind(m_gpuTex);
 }
 
-unsigned int BL_Texture::swapTexture(unsigned int bindcode)
-{
-	// swap texture codes
-	unsigned int tmp = m_bindCode;
-	m_bindCode = bindcode;
-	// return original texture code
-	return tmp;
-}
-
 // stuff for cvalue related things
 std::string BL_Texture::GetName()
 {

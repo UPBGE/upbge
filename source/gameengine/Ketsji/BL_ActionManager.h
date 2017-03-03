@@ -93,11 +93,6 @@ public:
 	void SetPlayMode(short layer, short mode);
 
 	/**
-	 * Sets the start and end times of the action on the given layer
-	 */
-	void SetTimes(short layer, float start, float end);
-
-	/**
 	 * Stop playing the action on the given layer
 	 */
 	void StopAction(short layer);

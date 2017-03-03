@@ -174,11 +174,6 @@ protected:
 	class PHY_IPhysicsEnvironment*		m_physicsEnvironment;
 
 	/**
-	 * Does this scene clear the z-buffer?
-	 */
-	bool m_isclearingZbuffer;
-
-	/**
 	 * The name of the scene
 	 */
 	std::string	m_sceneName;
@@ -523,8 +518,6 @@ public:
 	// Set the radius of the activity culling box.
 	void SetActivityCullingRadius(float f);
 	bool IsSuspended();
-	bool IsClearingZBuffer();
-	void EnableZBufferClearing(bool isclearingZbuffer);
 	// use of DBVT tree for camera culling
 	void SetDbvtCulling(bool b) { m_dbvt_culling = b; }
 	bool GetDbvtCulling() { return m_dbvt_culling; }

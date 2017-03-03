@@ -86,8 +86,6 @@ public:
 
 	const std::string& GetName();
 	bool hasWorld();
-	void setUseMist(bool enable);
-	void setMistType(short type);
 	void setMistStart(float d);
 	void setMistDistance(float d);
 	void setMistIntensity(float intensity);

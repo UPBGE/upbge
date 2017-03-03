@@ -59,7 +59,6 @@ SCA_MouseSensor::SCA_MouseSensor(SCA_MouseManager* eventmgr,
 	m_mousemode   = mousemode;
 	m_triggermode = true;
 
-	UpdateHotkey(this);
 	Init();
 }
 
@@ -72,36 +71,6 @@ void SCA_MouseSensor::Init()
 SCA_MouseSensor::~SCA_MouseSensor() 
 {
 	/* Nothing to be done here. */
-}
-
-void SCA_MouseSensor::UpdateHotkey(void *self)
-{
-	// gosh, this function is so damn stupid
-	// its here because of a design mistake in the mouse sensor, it should only
-	// have 3 trigger modes (button, wheel, move), and let the user set the 
-	// hotkey separately, like the other sensors. but instead it has a mode for 
-	// each friggin key and i have to update the hotkey based on it... genius!
-	SCA_MouseSensor* sensor = reinterpret_cast<SCA_MouseSensor*>(self);
-
-	switch (sensor->m_mousemode) {
-	case KX_MOUSESENSORMODE_LEFTBUTTON:
-		sensor->m_hotkey = SCA_IInputDevice::LEFTMOUSE;
-		break;
-	case KX_MOUSESENSORMODE_MIDDLEBUTTON:
-		sensor->m_hotkey = SCA_IInputDevice::MIDDLEMOUSE;
-		break;
-	case KX_MOUSESENSORMODE_RIGHTBUTTON:
-		sensor->m_hotkey = SCA_IInputDevice::RIGHTMOUSE;
-		break;
-	case KX_MOUSESENSORMODE_WHEELUP:
-		sensor->m_hotkey = SCA_IInputDevice::WHEELUPMOUSE;
-		break;
-	case KX_MOUSESENSORMODE_WHEELDOWN:
-		sensor->m_hotkey = SCA_IInputDevice::WHEELDOWNMOUSE;
-		break;
-	default:
-		; /* ignore, no hotkey */
-	}
 }
 
 CValue* SCA_MouseSensor::GetReplica()
@@ -125,22 +94,6 @@ bool SCA_MouseSensor::IsPositiveTrigger()
 	return result;
 }
 
-
-
-short int SCA_MouseSensor::GetModeKey()
-{ 
-	return m_mousemode;
-}
-
-
-
-SCA_IInputDevice::SCA_EnumInputs SCA_MouseSensor::GetHotKey()
-{ 
-	return m_hotkey;
-}
-
-
-
 bool SCA_MouseSensor::Evaluate()
 {
 	bool result = false;
@@ -156,7 +109,15 @@ bool SCA_MouseSensor::Evaluate()
 	case KX_MOUSESENSORMODE_WHEELUP:
 	case KX_MOUSESENSORMODE_WHEELDOWN:
 		{
-			const SCA_InputEvent& mevent = mousedev->GetInput(m_hotkey);
+			static const SCA_IInputDevice::SCA_EnumInputs convertTable[KX_MOUSESENSORMODE_MAX] = {
+				SCA_IInputDevice::LEFTMOUSE, // KX_MOUSESENSORMODE_LEFTBUTTON
+				SCA_IInputDevice::MIDDLEMOUSE, // KX_MOUSESENSORMODE_MIDDLEBUTTON
+				SCA_IInputDevice::RIGHTMOUSE, // KX_MOUSESENSORMODE_RIGHTBUTTON
+				SCA_IInputDevice::WHEELUPMOUSE, // KX_MOUSESENSORMODE_WHEELUP
+				SCA_IInputDevice::WHEELDOWNMOUSE // KX_MOUSESENSORMODE_WHEELDOWN
+			};
+
+			const SCA_InputEvent& mevent = mousedev->GetInput(convertTable[m_mousemode]);
 			if (mevent.Find(SCA_InputEvent::ACTIVE)) {
 				m_val = 1;
 			}
@@ -201,11 +162,6 @@ void SCA_MouseSensor::setX(short x)
 void SCA_MouseSensor::setY(short y)
 {
 	m_y = y;
-}
-
-bool SCA_MouseSensor::isValid(SCA_MouseSensor::KX_MOUSESENSORMODE m)
-{
-	return ((m > KX_MOUSESENSORMODE_NODEF) && (m < KX_MOUSESENSORMODE_MAX));
 }
 
 #ifdef WITH_PYTHON
@@ -270,16 +226,8 @@ PyMethodDef SCA_MouseSensor::Methods[] = {
 	{nullptr,nullptr} //Sentinel
 };
 
-int SCA_MouseSensor::UpdateHotkeyPy(PyObjectPlus *self, const PyAttributeDef*)
-{
-	UpdateHotkey(self);
-	// return value is used in py_setattro(),
-	// 0=attribute checked ok (see Attributes array definition)
-	return 0;
-}
-
 PyAttributeDef SCA_MouseSensor::Attributes[] = {
-	KX_PYATTRIBUTE_SHORT_RW_CHECK("mode",KX_MOUSESENSORMODE_NODEF,KX_MOUSESENSORMODE_MAX-1,true,SCA_MouseSensor,m_mousemode,UpdateHotkeyPy),
+	KX_PYATTRIBUTE_SHORT_RW("mode",KX_MOUSESENSORMODE_NODEF,KX_MOUSESENSORMODE_MAX-1,true,SCA_MouseSensor,m_mousemode),
 	KX_PYATTRIBUTE_SHORT_LIST_RO("position",SCA_MouseSensor,m_x,2),
 	KX_PYATTRIBUTE_NULL	//Sentinel
 };

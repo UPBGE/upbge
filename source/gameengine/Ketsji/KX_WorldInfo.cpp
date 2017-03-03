@@ -114,16 +114,6 @@ void KX_WorldInfo::setZenithColor(const MT_Vector3& zenithcolor)
 	m_zenithcolor = zenithcolor;
 }
 
-void KX_WorldInfo::setMistType(short type)
-{
-	m_misttype = type;
-}
-
-void KX_WorldInfo::setUseMist(bool enable)
-{
-	m_hasmist = enable;
-}
-
 void KX_WorldInfo::setMistStart(float d)
 {
 	m_miststart = d;

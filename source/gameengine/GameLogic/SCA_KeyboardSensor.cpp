@@ -97,15 +97,6 @@ CValue* SCA_KeyboardSensor::GetReplica()
 	return replica;
 }
 
-
-
-short int SCA_KeyboardSensor::GetHotkey()
-{
-	return m_hotkey;
-}
-
-
-
 bool SCA_KeyboardSensor::IsPositiveTrigger()
 { 
 	bool result = (m_val != 0);
@@ -115,15 +106,6 @@ bool SCA_KeyboardSensor::IsPositiveTrigger()
 		
 	return result;
 }
-
-
-
-bool SCA_KeyboardSensor::TriggerOnAllKeys()
-{ 
-	return m_bAllKeys;
-}
-
-
 
 bool SCA_KeyboardSensor::Evaluate()
 {
@@ -225,17 +207,6 @@ bool SCA_KeyboardSensor::Evaluate()
 		result = true;
 	return result;
 
-}
-
-/**
- * Tests whether shift is pressed
- */
-bool SCA_KeyboardSensor::IsShifted(void)
-{
-	SCA_IInputDevice* inputdev = ((SCA_KeyboardManager *)m_eventmgr)->GetInputDevice();
-	
-	return (inputdev->GetInput(SCA_IInputDevice::RIGHTSHIFTKEY).Find(SCA_InputEvent::ACTIVE) ||
-			inputdev->GetInput(SCA_IInputDevice::LEFTSHIFTKEY).Find(SCA_InputEvent::ACTIVE));
 }
 
 void SCA_KeyboardSensor::LogKeystrokes()

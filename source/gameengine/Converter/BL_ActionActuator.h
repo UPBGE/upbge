@@ -61,7 +61,6 @@ public:
 	virtual CValue* GetReplica();
 	virtual void ProcessReplica();
 	
-	void SetBlendTime(float newtime);
 	void SetLocalTime(float curtime);
 	void ResetStartTime(float curtime);
 	

@@ -54,9 +54,7 @@ protected:
 	std::string			m_text;
 	std::string			m_name;
 	//unsigned long		m_drawcolor;
-	void RegisterEvent(CValue* eventval);
 	void RemoveEvent();
-	CValue* GetEvent();
 
 public:
 	SCA_ILogicBrick(SCA_IObject* gameobj);

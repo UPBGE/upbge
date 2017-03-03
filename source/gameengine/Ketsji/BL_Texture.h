@@ -85,8 +85,6 @@ public:
 	virtual void ActivateTexture(int unit);
 	virtual void DisableTexture();
 
-	unsigned int swapTexture(unsigned int bindcode);
-
 #ifdef WITH_PYTHON
 
 	static PyObject *pyattr_get_diffuse_intensity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

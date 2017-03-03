@@ -162,7 +162,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_dbvt_occlusion_res = 0;
 	m_activity_culling = false;
 	m_suspend = false;
-	m_isclearingZbuffer = true;
 	m_tempObjectList = new CListValue();
 	m_objectlist = new CListValue();
 	m_parentlist = new CListValue();
@@ -435,16 +434,6 @@ void KX_Scene::SetActivityCulling(bool b)
 bool KX_Scene::IsSuspended()
 {
 	return m_suspend;
-}
-
-bool KX_Scene::IsClearingZBuffer()
-{
-	return m_isclearingZbuffer;
-}
-
-void KX_Scene::EnableZBufferClearing(bool isclearingZbuffer)
-{
-	m_isclearingZbuffer = isclearingZbuffer;
 }
 
 void KX_Scene::AddObjectDebugProperties(class KX_GameObject* gameobj)
@@ -1367,7 +1356,7 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 	// If the camera is inside this node, then the object is visible.
 	if (!vis)
 	{
-		vis = gameobj->GetSGNode()->Inside( cam->GetCameraLocation() );
+		vis = gameobj->GetSGNode()->Inside(cam->NodeGetWorldPosition());
 	}
 		
 	// Test the object's bound sphere against the view frustum.

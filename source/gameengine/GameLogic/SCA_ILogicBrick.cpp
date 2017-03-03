@@ -137,15 +137,6 @@ SCA_LogicManager *SCA_ILogicBrick::GetLogicManager()
 	return m_logicManager;
 }
 
-void SCA_ILogicBrick::RegisterEvent(CValue* eventval)
-{
-	if (m_eventval)
-		m_eventval->Release();
-
-	m_eventval = eventval->AddRef();
-}
-
-
 void SCA_ILogicBrick::RemoveEvent()
 {
 	if (m_eventval)
@@ -154,20 +145,6 @@ void SCA_ILogicBrick::RemoveEvent()
 		m_eventval = nullptr;
 	}
 }
-
-
-
-CValue* SCA_ILogicBrick::GetEvent()
-{
-	if (m_eventval)
-	{
-		return m_eventval->AddRef();
-	}
-	
-	return nullptr;
-}
-
-
 
 #ifdef WITH_PYTHON
 

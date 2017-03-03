@@ -78,15 +78,10 @@ class SCA_MouseSensor : public SCA_ISensor
 		KX_MOUSESENSORMODE_RIGHTBUTTON,
 		KX_MOUSESENSORMODE_WHEELUP,
 		KX_MOUSESENSORMODE_WHEELDOWN,
-		KX_MOUSESENSORMODE_POSITION,
-		KX_MOUSESENSORMODE_POSITIONX,
-		KX_MOUSESENSORMODE_POSITIONY,
 		KX_MOUSESENSORMODE_MOVEMENT,
 		KX_MOUSESENSORMODE_MAX
 	};
 
-	bool isValid(KX_MOUSESENSORMODE);
-	
 	SCA_MouseSensor(class SCA_MouseManager* keybdmgr,
 	                int startx,int starty,
 	                short int mousemode,
@@ -97,20 +92,13 @@ class SCA_MouseSensor : public SCA_ISensor
 	virtual bool Evaluate();
 	virtual void Init();
 	virtual bool IsPositiveTrigger();
-	short int GetModeKey();
-	SCA_IInputDevice::SCA_EnumInputs GetHotKey();
 	void setX(short x);
 	void setY(short y);
-
-	static void UpdateHotkey(void *self);
-
 
 #ifdef WITH_PYTHON
 	/* --------------------------------------------------------------------- */
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
-	
-	static int UpdateHotkeyPy(PyObjectPlus *self, const PyAttributeDef *);
 
 	// get button status
 	KX_PYMETHOD_DOC_O(SCA_MouseSensor,getButtonStatus);

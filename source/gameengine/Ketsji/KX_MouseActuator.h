@@ -100,9 +100,6 @@ public:
 
 	virtual bool Update();
 
-	/* check whether this value is valid */
-	bool isValid(KX_ACT_MOUSE_MODE mode);
-
 	virtual void getMousePosition(float*);
 	virtual void setMousePosition(float, float);
 

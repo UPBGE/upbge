@@ -188,21 +188,6 @@ bool SCA_PropertyActuator::Update()
 	return result;
 }
 
-	bool 
-
-SCA_PropertyActuator::
-
-isValid(
-
-	SCA_PropertyActuator::KX_ACT_PROP_MODE mode
-
-) {
-	bool res = false;
-	res = ((mode > KX_ACT_PROP_NODEF) && (mode < KX_ACT_PROP_MAX));
-	return res;
-}
-
-
 	CValue* 
 
 SCA_PropertyActuator::

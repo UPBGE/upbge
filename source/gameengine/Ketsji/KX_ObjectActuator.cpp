@@ -371,14 +371,6 @@ void KX_ObjectActuator::Relink(std::map<void *, void *>& obj_map)
 	}
 }
 
-/* some 'standard' utilities... */
-bool KX_ObjectActuator::isValid(KX_ObjectActuator::KX_OBJECT_ACT_VEC_TYPE type)
-{
-	bool res = false;
-	res = (type > KX_OBJECT_ACT_NODEF) && (type < KX_OBJECT_ACT_MAX);
-	return res;
-}
-
 #ifdef WITH_PYTHON
 
 /* ------------------------------------------------------------------------- */

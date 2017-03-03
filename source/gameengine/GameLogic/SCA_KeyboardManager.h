@@ -47,8 +47,6 @@ public:
 	SCA_KeyboardManager(class SCA_LogicManager* logicmgr,class SCA_IInputDevice* inputdev);
 	virtual ~SCA_KeyboardManager();
 
-	bool			IsPressed(SCA_IInputDevice::SCA_EnumInputs inputcode);
-	
 	virtual void 	NextFrame();
 	SCA_IInputDevice* GetInputDevice();
 };

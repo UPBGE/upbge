@@ -173,15 +173,6 @@ public:
 	MT_Transform		GetWorldToCamera() const;
 	MT_Transform		GetCameraToWorld() const;
 
-	/**
-	 * Not implemented.
-	 */
-	void				CorrectLookUp(MT_Scalar speed);
-	const MT_Vector3		GetCameraLocation() const;
-
-	/* I want the camera orientation as well. */
-	const MT_Quaternion GetCameraOrientation() const;
-		
 	/** Sets the projection matrix that is used by the rasterizer. */
 	void				SetProjectionMatrix(const MT_Matrix4x4 & mat);
 

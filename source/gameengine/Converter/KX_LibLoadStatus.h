@@ -65,9 +65,6 @@ public:
 	class KX_KetsjiEngine *GetEngine();
 	class KX_Scene *GetMergeScene();
 
-	void SetLibName(const std::string& name);
-	const std::string& GetLibName();
-
 	void SetData(void *data);
 	void *GetData();
 

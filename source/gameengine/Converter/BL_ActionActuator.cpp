@@ -115,11 +115,6 @@ void BL_ActionActuator::ProcessReplica()
 	
 }
 
-void BL_ActionActuator::SetBlendTime(float newtime)
-{
-	m_blendframe = newtime;
-}
-
 void BL_ActionActuator::SetLocalTime(float curtime)
 {
 	float dt = (curtime-m_starttime)*KX_KetsjiEngine::GetAnimFrameRate();

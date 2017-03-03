@@ -109,16 +109,6 @@ class KX_Scene *KX_LibLoadStatus::GetMergeScene()
 	return m_mergescene;
 }
 
-void KX_LibLoadStatus::SetLibName(const std::string& name)
-{
-	m_libname = name;
-}
-
-const std::string& KX_LibLoadStatus::GetLibName()
-{
-	return m_libname;
-}
-
 void KX_LibLoadStatus::SetData(void *data)
 {
 	m_data = data;

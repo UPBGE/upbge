@@ -129,11 +129,6 @@ public:
 		KX_OBJECT_ACT_ANGULAR_VELOCITY,
 		KX_OBJECT_ACT_MAX
 	};
-		
-	/**
-	 * Check whether this is a valid vector mode 
-	 */
-	bool isValid(KX_OBJECT_ACT_VEC_TYPE type);
 
 	KX_ObjectActuator(
 		SCA_IObject* gameobj,

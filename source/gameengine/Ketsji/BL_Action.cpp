@@ -321,12 +321,6 @@ void BL_Action::SetPlayMode(short play_mode)
 	m_playmode = play_mode;
 }
 
-void BL_Action::SetTimes(float start, float end)
-{
-	m_startframe = start;
-	m_endframe = end;
-}
-
 void BL_Action::SetLocalTime(float curtime)
 {
 	float dt = (curtime-m_starttime)*(float)KX_KetsjiEngine::GetAnimFrameRate()*m_speed;
