@@ -141,7 +141,7 @@ class DATA_PT_levels_of_detail(CameraButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.render.engine in cls.COMPAT_ENGINES
+        return context.camera and context.scene.render.engine in cls.COMPAT_ENGINES
 
     def draw(self, context):
         layout = self.layout
