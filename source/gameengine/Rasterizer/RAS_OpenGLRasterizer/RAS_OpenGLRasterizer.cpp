@@ -446,6 +446,59 @@ void RAS_OpenGLRasterizer::FlushDebugShapes(const RAS_IRasterizer::SceneDebugSha
 	}
 }
 
+static void DrawTransparentBox(MT_Vector3 &vec, bool solid)
+{
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(3, GL_FLOAT, 0, vec.getValue());
+	
+	if (solid) {
+		static unsigned short indexes[24] = { 4, 5, 1, 0, 0, 2, 6, 4, 4, 6, 7, 5, 5, 7, 3, 1, 1, 3, 2, 0, 2, 3, 7, 6 };
+		glDrawElements(GL_QUADS, 24, GL_UNSIGNED_SHORT, indexes);
+	}
+	else {
+		static unsigned short indexes[24] = { 0, 1, 1, 3, 3, 2, 2, 0, 4, 5, 5, 7, 7, 6, 6, 4, 0, 4, 1, 5, 2, 6, 3, 7 };
+		glDrawElements(GL_LINES, 24, GL_UNSIGNED_SHORT, indexes);
+	}
+	glDisableClientState(GL_VERTEX_ARRAY);
+}
+
+void RAS_OpenGLRasterizer::DrawTransparentBoxes(MT_Vector3 &box)
+{
+	/* draw edges */
+	glEnable(GL_LINE_STIPPLE);
+	glColor4f(0.8f, 0.5f, 0.0f, 1.0f);
+	DrawTransparentBox(box, false);
+	glDisable(GL_LINE_STIPPLE);
+
+	/* draw faces */
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_BLEND);
+	glDepthMask(0);
+	
+	/* draw backside darkening */
+	glCullFace(GL_FRONT);
+	
+	glBlendFunc(GL_ZERO, GL_SRC_ALPHA);
+	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+	
+	DrawTransparentBox(box, true);
+	
+	/* draw front side lighting */
+	glCullFace(GL_BACK);
+	
+	glBlendFunc(GL_ONE, GL_ONE);
+	glColor4f(0.2f, 0.2f, 0.2f, 1.0f);
+	
+	DrawTransparentBox(box, true);
+	
+	/* restore state to default values */
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_BLEND);
+	glDepthMask(1);
+	glDisable(GL_CULL_FACE);
+
+}
+
 // Code for hooking into Blender's mesh drawing for derived meshes.
 // If/when we use more of Blender's drawing code, we may be able to
 // clean this up

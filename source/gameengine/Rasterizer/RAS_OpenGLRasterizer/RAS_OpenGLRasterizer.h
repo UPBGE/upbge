@@ -112,6 +112,7 @@ public:
 	void SetPolygonOffset(float mult, float add);
 
 	void FlushDebugShapes(const RAS_IRasterizer::SceneDebugShape& debugShapes);
+	void DrawTransparentBoxes(MT_Vector3 &box);
 
 	void EnableClipPlane(unsigned short index, const MT_Vector4& plane);
 	void DisableClipPlane(unsigned short index);

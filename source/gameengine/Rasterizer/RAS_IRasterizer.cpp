@@ -525,7 +525,7 @@ void RAS_IRasterizer::DrawDebugSolidBox(SCA_IScene *scene, MT_Vector3 vertexes[8
 	m_debugShapes[scene].m_solidBoxes.push_back(box);
 }
 
-void RAS_IRasterizer::DrawDebugLightOrCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat)
+void RAS_IRasterizer::DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat)
 {
 	MT_Vector3 box[8];
 
@@ -546,6 +546,24 @@ void RAS_IRasterizer::DrawDebugLightOrCameraFrustum(SCA_IScene *scene, const MT_
 
 	DrawDebugSolidBox(scene, box, MT_Vector4(0.4f, 0.4f, 0.4f, 0.4f), MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f),
 		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f));
+}
+
+void RAS_IRasterizer::GetDebugLightFrustum(MT_Vector3 *box, const MT_Transform &world) const
+{
+
+	box[0] = world(MT_Vector3(-1.0, -1.0, -1.0));
+	box[1] = world(MT_Vector3(-1.0, -1.0, 1.0));
+	box[2] = world(MT_Vector3(-1.0, 1.0, -1.0));
+	box[3] = world(MT_Vector3(-1.0, 1.0, 1.0));
+	box[4] = world(MT_Vector3(1.0, -1.0, -1.0));
+	box[5] = world(MT_Vector3(1.0, -1.0, 1.0));
+	box[6] = world(MT_Vector3(1.0, 1.0, -1.0));
+	box[7] = world(MT_Vector3(1.0, 1.0, 1.0));
+}
+
+void RAS_IRasterizer::DrawDebugLightFrustum(MT_Vector3 &box)
+{
+	m_impl->DrawTransparentBoxes(box);
 }
 
 void RAS_IRasterizer::UpdateOffScreens(RAS_ICanvas *canvas)

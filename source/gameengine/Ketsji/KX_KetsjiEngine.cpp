@@ -1300,7 +1300,7 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, const RAS_Rect& vi
 		KX_Camera *cam = *it;
 		if (cam->GetShowCameraFrustum()) {
 			const MT_Matrix4x4 viewmat(cam->GetWorldToCamera());
-			m_rasterizer->DrawDebugLightOrCameraFrustum(scene, GetCameraProjectionMatrix(scene, cam, viewport, area), viewmat);
+			m_rasterizer->DrawDebugCameraFrustum(scene, GetCameraProjectionMatrix(scene, cam, viewport, area), viewmat);
 		}
 	}
 }
@@ -1312,9 +1312,14 @@ void KX_KetsjiEngine::DrawDebugLightFrustum(KX_Scene *scene)
 		KX_LightObject *light = *it;
 		RAS_ILightObject *raslight = light->GetLightData();
 		if (raslight->m_showLightDebugFrustum) {
-			const MT_Matrix4x4 projmat(raslight->GetWinMat());
-			const MT_Matrix4x4 viewmat(raslight->GetViewMat());
-			m_rasterizer->DrawDebugLightOrCameraFrustum(scene, projmat, viewmat);
+			MT_Vector3 box[8];
+			MT_Matrix3x3 orientation = light->NodeGetWorldOrientation();
+			const MT_Vector3& scaling = light->NodeGetWorldScaling();
+			orientation.scale(scaling[0], scaling[1], scaling[2]);
+			MT_Transform worldtr(light->NodeGetWorldPosition(), orientation);
+
+			m_rasterizer->GetDebugLightFrustum(box, worldtr);
+			m_rasterizer->DrawDebugLightFrustum(*box);
 		}
 	}
 }
