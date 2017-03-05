@@ -1577,11 +1577,11 @@ PHY_IPhysicsController *CcdPhysicsController::GetReplicaForSensors()
 	// This is used only to replicate Near and Radar sensor controllers
 	// The replication of object physics controller is done in KX_BulletPhysicsController::GetReplica()
 	CcdConstructionInfo cinfo = m_cci;
-	if (m_shapeInfo) {
-		// This situation does not normally happen
-		cinfo.m_collisionShape = m_shapeInfo->CreateBulletShape(m_cci.m_margin, m_cci.m_bGimpact, !m_cci.m_bSoft);
-	}
-	else if (m_collisionShape) {
+
+	// Controllers used by sensors aren't using shape info.
+	BLI_assert(m_shapeInfo);
+
+	if (m_collisionShape) {
 		switch (m_collisionShape->getShapeType())
 		{
 			case SPHERE_SHAPE_PROXYTYPE:
