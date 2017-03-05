@@ -805,7 +805,7 @@ PyObject *KX_BlenderMaterial::pyattr_get_specular_color(PyObjectPlus *self_v, co
 #else
 	KX_BlenderMaterial *self = static_cast<KX_BlenderMaterial *>(self_v);
 	Material *mat = self->GetBlenderMaterial();
-	return PyColorFromVector(MT_Vector3(mat->specr, mat->specg, mat->specb);
+	return PyColorFromVector(MT_Vector3(mat->specr, mat->specg, mat->specb));
 #endif
 }
 
