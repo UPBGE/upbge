@@ -2795,14 +2795,19 @@ float *GPU_lamp_dynpersmat(GPULamp *lamp)
 	return &lamp->dynpersmat[0][0];
 }
 
-float *GPU_lamp_get_viewmat(GPULamp *lamp)
+const float GPU_lamp_frustum_size(GPULamp *lamp)
 {
-	return &lamp->viewmat[0][0];
+	return lamp->la->shadow_frustum_size;
 }
 
-float *GPU_lamp_get_winmat(GPULamp *lamp)
+const float GPU_lamp_clipstart(GPULamp *lamp)
 {
-	return &lamp->winmat[0][0];
+	return lamp->d;
+}
+
+const float GPU_lamp_spot_size(GPULamp *lamp)
+{
+	return lamp->la->spotsize;
 }
 
 int GPU_lamp_shadow_layer(GPULamp *lamp)
