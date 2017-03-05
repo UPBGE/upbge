@@ -1320,9 +1320,12 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, const RAS_Rect& vi
 bool KX_KetsjiEngine::CheckLightAndCamerasFrustumIntersection(RAS_ILightObject *raslight)
 {
 	if (raslight->m_shadowBox) {
+		std::cout << "number of active cameras: " << m_activeCameras->GetCount() << std::endl;
 		for (CListValue::iterator<KX_Camera> it = m_activeCameras->GetBegin(), end = m_activeCameras->GetEnd(); it != end; ++it) {
 			KX_Camera *cam = *it;
+			std::cout << "active camera name: " << cam->GetName() << std::endl;
 			int intersect = cam->BoxInsideFrustum(raslight->m_shadowBox);
+			std::cout << "intersect value: " << intersect << std::endl;
 			if (intersect == 0 || intersect == 1) {
 				return true;
 			}
@@ -1353,6 +1356,7 @@ void KX_KetsjiEngine::DrawDebugLightFrustum(KX_Scene *scene)
 				m_rasterizer->GetDebugLightFrustum(box, worldtr, lamp, type);
 
 				bool intersect = CheckLightAndCamerasFrustumIntersection(raslight);
+				std::cout << "bool intersect value: " << intersect << std::endl;
 				float color[4];
 				if (intersect) {
 					color[0] = 0.0f;
@@ -1366,6 +1370,11 @@ void KX_KetsjiEngine::DrawDebugLightFrustum(KX_Scene *scene)
 					color[2] = 0.2f;
 					color[3] = 1.0f;
 				}
+
+				std::cout << "red: " << color[0] << std::endl;
+				std::cout << "green: " << color[1] << std::endl;
+				std::cout << "blue: " << color[2] << std::endl;
+				std::cout << "----------NEXTFRAME-----------" << std::endl;
 
 				m_rasterizer->DrawDebugLightFrustum(*box, color);
 				raslight->m_shadowBox = box;
