@@ -165,6 +165,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
 
 	m_scenes = new CListValue();
+	m_activeCameras = new CListValue();
 }
 
 /**
@@ -182,6 +183,7 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 		BLI_task_scheduler_free(m_taskscheduler);
 
 	m_scenes->Release();
+	m_activeCameras->Release();
 }
 
 void KX_KetsjiEngine::SetInputDevice(SCA_IInputDevice *inputDevice)
@@ -821,6 +823,16 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
 	CListValue *lightlist = scene->GetLightList();
 
+	if (m_activeCameras->GetCount() == 0) {
+		CListValue *allCameras = scene->GetCameraList();
+		for (CListValue::iterator<KX_Camera> it = allCameras->GetBegin(), end = allCameras->GetEnd(); it != end; ++it) {
+			KX_Camera *currentCam = *it;
+			if (currentCam->GetShowCameraFrustum()) {
+				m_activeCameras->Add(currentCam->AddRef());
+			}
+		}
+	}
+
 	m_rasterizer->SetAuxilaryClientInfo(scene);
 
 	for (CListValue::iterator<KX_LightObject> it = lightlist->GetBegin(), end = lightlist->GetEnd(); it != end; ++it) {
@@ -1305,6 +1317,22 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, const RAS_Rect& vi
 	}
 }
 
+bool KX_KetsjiEngine::CheckLightAndCamerasFrustumIntersection(RAS_ILightObject *raslight)
+{
+	if (raslight->m_shadowBox) {
+		for (CListValue::iterator<KX_Camera> it = m_activeCameras->GetBegin(), end = m_activeCameras->GetEnd(); it != end; ++it) {
+			KX_Camera *cam = *it;
+			int intersect = cam->BoxInsideFrustum(raslight->m_shadowBox);
+			if (intersect == 0 || intersect == 1) {
+				return true;
+			}
+			return false;
+		}
+		return false;
+	}
+	return false;
+}
+
 void KX_KetsjiEngine::DrawDebugLightFrustum(KX_Scene *scene)
 {
 	CListValue *lightList = scene->GetLightList();
@@ -1323,7 +1351,25 @@ void KX_KetsjiEngine::DrawDebugLightFrustum(KX_Scene *scene)
 
 			if (lamp && (type == 0 || type == 1)) { // 0->SPOT; 1->SUN
 				m_rasterizer->GetDebugLightFrustum(box, worldtr, lamp, type);
-				m_rasterizer->DrawDebugLightFrustum(*box);
+
+				bool intersect = CheckLightAndCamerasFrustumIntersection(raslight);
+				float color[4];
+				if (intersect) {
+					color[0] = 0.0f;
+					color[1] = 0.2f;
+					color[2] = 0.0f;
+					color[3] = 1.0f;
+				}
+				else {
+					color[0] = 0.2f;
+					color[1] = 0.2f;
+					color[2] = 0.2f;
+					color[3] = 1.0f;
+				}
+
+				m_rasterizer->DrawDebugLightFrustum(*box, color);
+				raslight->m_shadowBox = box;
+				
 			}
 		}
 	}

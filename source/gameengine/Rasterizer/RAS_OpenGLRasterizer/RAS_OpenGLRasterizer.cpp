@@ -462,7 +462,7 @@ static void DrawTransparentBox(MT_Vector3 &vec, bool solid)
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
-void RAS_OpenGLRasterizer::DrawTransparentBoxes(MT_Vector3 &box)
+void RAS_OpenGLRasterizer::DrawTransparentBoxes(MT_Vector3 &box, float *color)
 {
 	/* draw edges */
 	glEnable(GL_LINE_STIPPLE);
@@ -487,7 +487,8 @@ void RAS_OpenGLRasterizer::DrawTransparentBoxes(MT_Vector3 &box)
 	glCullFace(GL_BACK);
 	
 	glBlendFunc(GL_ONE, GL_ONE);
-	glColor4f(0.2f, 0.2f, 0.2f, 1.0f);
+
+	glColor4f(color[0], color[1], color[2], color[3]);
 	
 	DrawTransparentBox(box, true);
 	

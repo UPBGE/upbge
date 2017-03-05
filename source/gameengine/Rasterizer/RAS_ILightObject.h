@@ -39,6 +39,7 @@ class KX_Scene;
 
 class MT_Transform;
 class MT_Matrix4x4;
+class MT_Vector3;
 
 struct Image;
 struct GPULamp;
@@ -67,6 +68,8 @@ public:
 	short	m_shadowmaptype;
 	float	m_shadowcolor[3];
 	bool	m_showLightDebugFrustum;
+	MT_Vector3 *m_shadowBox;
+	bool	m_isIntersectingWithActiveCameras;
 
 	float	m_color[3];
 

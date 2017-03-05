@@ -587,9 +587,9 @@ void RAS_IRasterizer::GetDebugLightFrustum(MT_Vector3 *box, const MT_Transform &
 	}
 }
 
-void RAS_IRasterizer::DrawDebugLightFrustum(MT_Vector3 &box)
+void RAS_IRasterizer::DrawDebugLightFrustum(MT_Vector3 &box, float *color)
 {
-	m_impl->DrawTransparentBoxes(box);
+	m_impl->DrawTransparentBoxes(box, color);
 }
 
 void RAS_IRasterizer::UpdateOffScreens(RAS_ICanvas *canvas)
