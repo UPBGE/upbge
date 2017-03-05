@@ -41,6 +41,7 @@ class MT_Transform;
 class MT_Matrix4x4;
 
 struct Image;
+struct GPULamp;
 
 class RAS_ILightObject
 {
@@ -86,6 +87,7 @@ public:
 	virtual ~RAS_ILightObject() {}
 	virtual RAS_ILightObject* Clone() = 0;
 
+	virtual GPULamp *GetGPULamp() = 0;
 	virtual bool HasShadowBuffer() = 0;
 	virtual bool NeedShadowUpdate() = 0;
 	virtual int GetShadowBindCode() = 0;

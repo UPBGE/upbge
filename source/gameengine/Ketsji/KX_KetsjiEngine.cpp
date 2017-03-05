@@ -1318,8 +1318,13 @@ void KX_KetsjiEngine::DrawDebugLightFrustum(KX_Scene *scene)
 			orientation.scale(scaling[0], scaling[1], scaling[2]);
 			MT_Transform worldtr(light->NodeGetWorldPosition(), orientation);
 
-			m_rasterizer->GetDebugLightFrustum(box, worldtr);
-			m_rasterizer->DrawDebugLightFrustum(*box);
+			GPULamp *lamp = raslight->GetGPULamp();
+			int type = raslight->m_type;
+
+			if (lamp && (type == 0 || type == 1)) { // 0->SPOT; 1->SUN
+				m_rasterizer->GetDebugLightFrustum(box, worldtr, lamp, type);
+				m_rasterizer->DrawDebugLightFrustum(*box);
+			}
 		}
 	}
 }

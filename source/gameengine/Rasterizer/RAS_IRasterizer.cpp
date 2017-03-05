@@ -548,17 +548,36 @@ void RAS_IRasterizer::DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4
 		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f));
 }
 
-void RAS_IRasterizer::GetDebugLightFrustum(MT_Vector3 *box, const MT_Transform &world) const
+void RAS_IRasterizer::GetDebugLightFrustum(MT_Vector3 *box, const MT_Transform &world, GPULamp *lamp, int type) const
 {
-
-	box[0] = world(MT_Vector3(-1.0, -1.0, -1.0));
-	box[1] = world(MT_Vector3(-1.0, -1.0, 1.0));
-	box[2] = world(MT_Vector3(-1.0, 1.0, -1.0));
-	box[3] = world(MT_Vector3(-1.0, 1.0, 1.0));
-	box[4] = world(MT_Vector3(1.0, -1.0, -1.0));
-	box[5] = world(MT_Vector3(1.0, -1.0, 1.0));
-	box[6] = world(MT_Vector3(1.0, 1.0, -1.0));
-	box[7] = world(MT_Vector3(1.0, 1.0, 1.0));
+	switch (type) {
+		case 0: // LIGHT_SPOT
+		{
+			box[0] = world(MT_Vector3(-1.0, -1.0, -1.0));
+			box[1] = world(MT_Vector3(-1.0, -1.0, 1.0));
+			box[2] = world(MT_Vector3(-1.0, 1.0, -1.0));
+			box[3] = world(MT_Vector3(-1.0, 1.0, 1.0));
+			box[4] = world(MT_Vector3(1.0, -1.0, -1.0));
+			box[5] = world(MT_Vector3(1.0, -1.0, 1.0));
+			box[6] = world(MT_Vector3(1.0, 1.0, -1.0));
+			box[7] = world(MT_Vector3(1.0, 1.0, 1.0));
+			std::cout << "spot" << std::endl;
+			break;
+		}
+		case 1: // LIGHT_SUN
+		{
+			box[0] = world(MT_Vector3(-1.0, -1.0, -1.0));
+			box[1] = world(MT_Vector3(-1.0, -1.0, 1.0));
+			box[2] = world(MT_Vector3(-1.0, 1.0, -1.0));
+			box[3] = world(MT_Vector3(-1.0, 1.0, 1.0));
+			box[4] = world(MT_Vector3(1.0, -1.0, -1.0));
+			box[5] = world(MT_Vector3(1.0, -1.0, 1.0));
+			box[6] = world(MT_Vector3(1.0, 1.0, -1.0));
+			box[7] = world(MT_Vector3(1.0, 1.0, 1.0));
+			std::cout << "sun" << std::endl;
+			break;
+		}
+	}
 }
 
 void RAS_IRasterizer::DrawDebugLightFrustum(MT_Vector3 &box)
