@@ -38,6 +38,8 @@ extern "C" {
 #include <vector>
 #include <string.h>
 
+#include "MEM_guardedalloc.h"
+
 #include "EXP_PyObjectPlus.h"
 #include <structmember.h>
 
@@ -76,7 +78,7 @@ ImageBase::~ImageBase (void)
 {
 	// release image
 	if (m_image)
-		delete [] m_image;
+		MEM_freeN(m_image);
 }
 
 
@@ -248,8 +250,8 @@ void ImageBase::init (short width, short height)
 			m_imgSize = newSize;
 			// release previous and create new buffer
 			if (m_image)
-				delete [] m_image;
-			m_image = new unsigned int[m_imgSize];
+				MEM_freeN(m_image);
+			m_image = (unsigned int *)MEM_mallocN(m_imgSize * sizeof(unsigned int), "ImageBase init");
 		}
 		// new image size
 		m_size[0] = width;
