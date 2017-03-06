@@ -31,20 +31,26 @@
 #ifndef __SPINDLEENCRYPTION_H__
 #define __SPINDLEENCRYPTION_H__
 
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
-#include <string>
+
+#define NO_ENCRYPTION		0
+#define STATIC_ENCRYPTION	1
+#define DYNAMIC_ENCRYPTION	2
 
 extern char *staticKey;
 extern char *dynamicKey;
 
-
+#ifdef __cplusplus
+#include <string>
 std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i);
-char *SPINDLE_DecryptFromFile(const char *filename, int &fileSize, const std::string& encryptKey, int typeEncryption=0);
-char *SPINDLE_DecryptFromMemory(char *mem, int &memLength, int typeEncryption);
-int SPINDLE_CheckHeaderFromFile(const char *filepath);
-int SPINDLE_CheckHeaderFromMemory(char *mem);
 
+extern "C" {
+#endif
+char *SPINDLE_DecryptFromFile(const char *filename, int *fileSize, const char *encryptKey, int typeEncryption);
+char *SPINDLE_DecryptFromMemory(char *mem, int *memLength, int typeEncryption);
+int SPINDLE_CheckEncryptionFromFile(const char *filepath);
+int SPINDLE_CheckEncryptionFromMemory(char *mem);
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // __SPINDLEENCRYPTION_H__

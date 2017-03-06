@@ -124,11 +124,4 @@ if(WITH_AUDASPACE)
 	)
 endif()
 
-if(WITH_GAMEENGINE_BPPLAYER)
-	list(APPEND INC
-		../../../intern/spindle
-	)
-	add_definitions(-DWITH_GAMEENGINE_BPPLAYER)
-endif()
-
 blender_add_lib(ge_converter "${SRC}" "${INC}" "${INC_SYS}")

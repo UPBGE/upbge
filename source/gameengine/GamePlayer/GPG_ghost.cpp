@@ -473,6 +473,7 @@ static void usage(const std::string& program, bool isBlenderPlayer)
 	CM_Message("                   hwpageflip       (Quad buffered shutter glasses)");
 	CM_Message("       Example: -s sidebyside  or  -s vinterlace" << std::endl);
 	CM_Message("  -L: set the local file directory path" << std::endl);
+	CM_Message("  -K: set the encryption key" << std::endl);
 	CM_Message("  -m: maximum anti-aliasing (eg. 2,4,8,16)" << std::endl);
 	CM_Message("  -i: parent window's ID" << std::endl);
 #ifdef _WIN32
@@ -602,12 +603,12 @@ static BlendFileData *load_encrypted_game_data(const char *filename, std::string
 		return NULL;
 	}
 
-	if (!encryptKey.empty()) {
+	if (!localPath.empty() && !encryptKey.empty()) {
 		// Load file and decrypt.
-		fileData = SPINDLE_DecryptFromFile(filename, fileSize, encryptKey);
+		fileData = SPINDLE_DecryptFromFile(filename, &fileSize, encryptKey.c_str(), 0);
 	}
 	else {
-		fileData = SPINDLE_DecryptFromFile(filename, fileSize, "", typeEncryption);
+		fileData = SPINDLE_DecryptFromFile(filename, &fileSize, NULL, typeEncryption);
 	}
 
 	if (fileData) {
@@ -1142,51 +1143,20 @@ int main(
 					if (exitcode == KX_ExitRequest::START_OTHER_GAME)
 					{
 						char basedpath[FILE_MAX];
-						char finalpath[FILE_MAX];
-						int typeEncryption = 0;
 
 						// base the actuator filename relative to the last file
 						BLI_strncpy(basedpath, exitstring.c_str(), sizeof(basedpath));
 						BLI_path_abs(basedpath, pathname);
-#ifndef WITH_GAMEENGINE_BPPLAYER
 						bfd = load_game_data(basedpath);
+
 						if (!bfd) {
-#else
-						// check header to see if it encrypted
-						typeEncryption = SPINDLE_CheckHeaderFromFile(basedpath);
-						if (typeEncryption == -1) {
-#endif  // WITH_GAMEENGINE_BPPLAYER
 							// just add "//" in front of it
 							char temppath[FILE_MAX] = "//";
 							BLI_strncpy(temppath + 2, basedpath, FILE_MAX - 2);
-							BLI_path_abs(temppath, pathname);
-#ifdef WITH_GAMEENGINE_BPPLAYER
-							typeEncryption = SPINDLE_CheckHeaderFromFile(temppath);
-							if (typeEncryption != -1) {
-#endif  // WITH_GAMEENGINE_BPPLAYER
-								BLI_strncpy(finalpath, temppath, FILE_MAX);
-#ifdef WITH_GAMEENGINE_BPPLAYER
-							}
-#endif  // WITH_GAMEENGINE_BPPLAYER
-						}
-						else
-						{
-							BLI_strncpy(finalpath, basedpath, FILE_MAX);
-						}
 
-#ifdef WITH_GAMEENGINE_BPPLAYER
-						if (typeEncryption <= 0) {
-#endif  // WITH_GAMEENGINE_BPPLAYER
-							bfd = load_game_data(finalpath);
-#ifdef WITH_GAMEENGINE_BPPLAYER
+							BLI_path_abs(temppath, pathname);
+							bfd = load_game_data(temppath);
 						}
-						else
-						{
-							std::string finalPath = std::string(finalpath);
-							std::size_t found = finalPath.find_last_of("/\\");
-							bfd = load_encrypted_game_data(finalpath, finalPath.substr(0, found), "", typeEncryption);
-						}
-#endif  // WITH_GAMEENGINE_BPPLAYER
 					}
 					else
 					{

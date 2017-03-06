@@ -29,6 +29,7 @@
  */
 
 #include "SpindleEncryption.h"
+#include <string.h>
 #include <fstream>
 #include <iostream>
 
@@ -102,20 +103,20 @@ std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i)
 	return hexKey;
 }
 
-char *SPINDLE_DecryptFromFile(const char *filename, int& fileSize, const std::string& encryptKey, int typeEncryption)
+char *SPINDLE_DecryptFromFile(const char *filename, int *fileSize, const char *encryptKey, int typeEncryption)
 {
 	std::ifstream inFile(filename, std::ios::in | std::ios::binary | std::ios::ate);
-	fileSize = (int)inFile.tellg();
-	if (fileSize <= 10)
+	*fileSize = (int)inFile.tellg();
+	if (*fileSize <= 10)
 		return NULL;
 
-	if (!encryptKey.empty()) {
+	if (encryptKey) {
 		inFile.seekg(0, std::ios::beg);
-		char *fileData = new char[fileSize];
-		inFile.read(fileData, fileSize);
+		char *fileData = new char[*fileSize];
+		inFile.read(fileData, *fileSize);
 		inFile.close();
 		if ((fileData[0] != 'B')||(fileData[1] != 'L')||(fileData[2] != 'E')||(fileData[3] != 'N')||(fileData[4] != 'D')) {
-			spindle_decrypt_hex(fileData, fileSize, encryptKey.c_str());
+			spindle_decrypt_hex(fileData, *fileSize, encryptKey);
 			return fileData;
 		}
 		delete[] fileData;
@@ -124,27 +125,27 @@ char *SPINDLE_DecryptFromFile(const char *filename, int& fileSize, const std::st
 	else {
 		if (typeEncryption == 0) {
 			inFile.seekg(0, std::ios::beg);
-			char *fileData = new char[fileSize];
-			inFile.read(fileData, fileSize);
+			char *fileData = new char[*fileSize];
+			inFile.read(fileData, *fileSize);
 			inFile.close();
 			return fileData;
 		}
 		else if (typeEncryption == 1) {
 			inFile.seekg(5, std::ios::beg);
-			fileSize -= 5;
-			char *fileData = new char[fileSize];
-			inFile.read(fileData, fileSize);
+			*fileSize -= 5;
+			char *fileData = new char[*fileSize];
+			inFile.read(fileData, *fileSize);
 			inFile.close();
-			spindle_decrypt_hex(fileData, fileSize, staticKey);
+			spindle_decrypt_hex(fileData, *fileSize, staticKey);
 			return fileData;
 		}
 		else if (typeEncryption == 2) {
 			inFile.seekg(5, std::ios::beg);
-			fileSize -= 5;
-			char *fileData = new char[fileSize];
-			inFile.read(fileData, fileSize);
+			*fileSize -= 5;
+			char *fileData = new char[*fileSize];
+			inFile.read(fileData, *fileSize);
 			inFile.close();
-			spindle_decrypt_hex(fileData, fileSize, dynamicKey);
+			spindle_decrypt_hex(fileData, *fileSize, dynamicKey);
 			return fileData;
 		}
 		else {
@@ -153,23 +154,23 @@ char *SPINDLE_DecryptFromFile(const char *filename, int& fileSize, const std::st
 	}
 }
 
-char *SPINDLE_DecryptFromMemory(char *mem, int& memLength, int typeEncryption)
+char *SPINDLE_DecryptFromMemory(char *mem, int *memLength, int typeEncryption)
 {
 	if (typeEncryption == 0) {
 		return mem;
 	}
 	else if (typeEncryption == 1) {
-		memLength -= 5;
-		char *memFile = new char[memLength];
-		spindle_secure_function_memcpy(memFile, mem, memLength, 5);
-		spindle_decrypt_hex(memFile, memLength, staticKey);
+		*memLength -= 5;
+		char *memFile = new char[*memLength];
+		spindle_secure_function_memcpy(memFile, mem, *memLength, 5);
+		spindle_decrypt_hex(memFile, *memLength, staticKey);
 		return memFile;
 	}
 	else if (typeEncryption == 2) {
-		memLength -= 5;
-		char *memFile = new char[memLength];
-		spindle_secure_function_memcpy(memFile, mem, memLength, 5);
-		spindle_decrypt_hex(memFile, memLength, dynamicKey);
+		*memLength -= 5;
+		char *memFile = new char[*memLength];
+		spindle_secure_function_memcpy(memFile, mem, *memLength, 5);
+		spindle_decrypt_hex(memFile, *memLength, dynamicKey);
 		return memFile;
 	}
 	else {
@@ -177,7 +178,7 @@ char *SPINDLE_DecryptFromMemory(char *mem, int& memLength, int typeEncryption)
 	}
 }
 
-int SPINDLE_CheckHeaderFromFile(const char *filepath)
+int SPINDLE_CheckEncryptionFromFile(const char *filepath)
 {
 	int keyType = 0; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
 	std::ifstream inFile(filepath, std::ios::in | std::ios::binary | std::ios::ate);
@@ -223,7 +224,7 @@ int SPINDLE_CheckHeaderFromFile(const char *filepath)
 	return keyType;
 }
 
-int SPINDLE_CheckHeaderFromMemory(char *mem)
+int SPINDLE_CheckEncryptionFromMemory(char *mem)
 {
 	int keyType = 0; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
 

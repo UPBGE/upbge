@@ -99,7 +99,7 @@ BlendHandle *BLO_blendhandle_from_memory(const void *mem, int memsize)
 {
 	BlendHandle *bh;
 
-	bh = (BlendHandle *)blo_openblendermemory(mem, memsize, NULL);
+	bh = (BlendHandle *)blo_openblendermemory(mem, memsize, NULL, NULL);
 
 	return bh;
 }
@@ -352,7 +352,7 @@ BlendFileData *BLO_read_from_memory(
 	BlendFileData *bfd = NULL;
 	FileData *fd;
 		
-	fd = blo_openblendermemory(mem, memsize,  reports);
+	fd = blo_openblendermemory(mem, memsize, reports, NULL);
 	if (fd) {
 		fd->reports = reports;
 		fd->skip_flags = skip_flags;
