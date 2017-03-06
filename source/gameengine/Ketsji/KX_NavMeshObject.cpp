@@ -368,12 +368,7 @@ bool KX_NavMeshObject::BuildNavMesh()
 	const int dataSize = headerSize + vertsSize + polysSize + nodesSize +
 		detailMeshesSize + detailVertsSize + detailTrisSize;
 	unsigned char* data = new unsigned char[dataSize];
-	if (!data) {
-		if (vertsi) {
-			delete [] vertsi;
-		}
-		return false;
-	}
+
 	memset(data, 0, dataSize);
 
 	unsigned char* d = data;
