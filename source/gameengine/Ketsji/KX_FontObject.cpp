@@ -259,9 +259,9 @@ int GetFontId(VFont *vfont)
 	}
 
 	// convert from absolute to relative
-	char expanded[256]; // font names can be bigger than FILE_MAX (240)
-	BLI_strncpy(expanded, filepath, 256);
-	BLI_path_abs(expanded, KX_GetMainPath().c_str());
+	char expanded[FILE_MAX];
+	BLI_strncpy(expanded, filepath, FILE_MAX);
+	BLI_path_abs(expanded, vfont->id.lib->filepath);
 
 	fontid = BLF_load(expanded);
 
