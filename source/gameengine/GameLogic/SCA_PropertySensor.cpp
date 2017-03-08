@@ -128,6 +128,9 @@ bool SCA_PropertySensor::Evaluate()
 
 bool	SCA_PropertySensor::CheckPropertyCondition()
 {
+	if (m_checkpropval.empty()) {
+		return false;
+	}
 	m_recentresult=false;
 	bool result=false;
 	bool reverse = false;
