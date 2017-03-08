@@ -113,6 +113,9 @@ SCA_PropertySensor::~SCA_PropertySensor()
 
 bool SCA_PropertySensor::Evaluate()
 {
+	if (!(strlen(m_checkpropval.c_str()))) {
+		return false;
+	}
 	bool result = CheckPropertyCondition();
 	bool reset = m_reset && m_level;
 	
