@@ -989,6 +989,7 @@ int main(
 			{
 				i++;
 				alphaBackground = 1;
+				break;
 			}
 			case 'p':
 			{
