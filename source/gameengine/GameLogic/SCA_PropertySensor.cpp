@@ -33,19 +33,12 @@
  */
 
 
-#include <stddef.h>
-
-#include <iostream>
 #include "SCA_PropertySensor.h"
-#include "EXP_Operator2Expr.h"
-#include "EXP_ConstExpr.h"
-#include "EXP_InputParser.h"
 #include "EXP_StringValue.h"
-#include "SCA_EventManager.h"
-#include "SCA_LogicManager.h"
 #include "EXP_BoolValue.h"
 #include "EXP_FloatValue.h"
-#include <stdio.h>
+
+#include "CM_Format.h"
 
 #include <boost/algorithm/string.hpp>
 
@@ -128,9 +121,6 @@ bool SCA_PropertySensor::Evaluate()
 
 bool	SCA_PropertySensor::CheckPropertyCondition()
 {
-	if (m_checkpropval.empty()) {
-		return false;
-	}
 	m_recentresult=false;
 	bool result=false;
 	bool reverse = false;
@@ -157,8 +147,10 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 				 * this could be made into a generic Value class function for comparing values with a string.
 				 */
 				if (result==false && (orgprop->GetValueType() == VALUE_FLOAT_TYPE)) {
-					float f = std::stof(m_checkpropval);
-					result = (f == ((CFloatValue *)orgprop)->GetFloat());
+					float f;
+					if (CM_StringTo(m_checkpropval, f)) {
+						result = (f == ((CFloatValue *)orgprop)->GetFloat());
+					}
 				}
 				/* end patch */
 			}
@@ -179,12 +171,14 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 			CValue* orgprop = GetParent()->FindIdentifier(m_checkpropname);
 			if (!orgprop->IsError())
 			{
-				const float min = std::stof(m_checkpropval);
-				const float max = std::stof(m_checkpropmaxval);
+				float min;
+				float max;
 				float val;
+				CM_StringTo(m_checkpropval, min);
+				CM_StringTo(m_checkpropmaxval, max);
 
 				if (orgprop->GetValueType() == VALUE_STRING_TYPE) {
-					val = std::stof(orgprop->GetText());
+					CM_StringTo(orgprop->GetText(), val);
 				}
 				else {
 					val = orgprop->GetNumber();
@@ -220,11 +214,12 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 			CValue* orgprop = GetParent()->FindIdentifier(m_checkpropname);
 			if (!orgprop->IsError())
 			{
-				const float ref = std::stof(m_checkpropval);
+				float ref;
+				CM_StringTo(m_checkpropval, ref);
 				float val;
 
 				if (orgprop->GetValueType() == VALUE_STRING_TYPE) {
-					val = std::stof(orgprop->GetText());
+					CM_StringTo(orgprop->GetText(), val);
 				}
 				else {
 					val = orgprop->GetNumber();

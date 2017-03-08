@@ -186,9 +186,8 @@ void BL_ConvertTextProperty(Object* object, KX_FontObject* fontobj,SCA_TimeEvent
 	if (!prop) return;
 
 	Curve *curve = static_cast<Curve *>(object->data);
-	std::string str = curve->str;
-	std::stringstream stream;
-	stream << str;
+	const std::string str = curve->str;
+	std::stringstream stream(str);
 	CValue* propval = nullptr;
 
 	switch (prop->type) {
