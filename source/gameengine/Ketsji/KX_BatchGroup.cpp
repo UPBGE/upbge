@@ -64,6 +64,11 @@ void KX_BatchGroup::MergeObjects(const std::vector<KX_GameObject *>& objects)
 			continue;
 		}
 
+		if (meshUser->GetBatchGroup()) {
+			CM_Error("object \"" << gameobj->GetName() << "\" already used in a batch group");
+			continue;
+		}
+
 		MT_Transform trans(gameobj->NodeGetWorldPosition(), gameobj->NodeGetWorldOrientation());
 		const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
 		trans.scale(scale.x(), scale.y(), scale.z());
@@ -133,7 +138,7 @@ static PyObject *py_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	KX_BatchGroup *batchGroup = new KX_BatchGroup();
 	batchGroup->MergeObjects(objects);
 	if (batchGroup->GetObjects()->GetCount() == 0) {
-		PyErr_SetString(PyExc_SystemError, "KX_BatchGroup(objects): none objects was merged.");
+		PyErr_SetString(PyExc_SystemError, "KX_BatchGroup(objects): none objects were merged.");
 		delete batchGroup;
 		return nullptr;
 	}
