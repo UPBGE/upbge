@@ -389,7 +389,7 @@ bool BKE_blendfile_read_from_memory(
 {
 	BlendFileData *bfd;
 
-	bfd = BLO_read_from_memory(filebuf, filelength, NULL, reports, skip_flags);
+	bfd = BLO_read_from_memory(filebuf, filelength, "", reports, skip_flags);
 	if (bfd) {
 		if (update_defaults)
 			BLO_update_defaults_startup_blend(bfd->main);

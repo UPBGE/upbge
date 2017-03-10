@@ -1158,8 +1158,7 @@ FileData *blo_openblenderfile(const char *filepath, ReportList *reports)
 	}
 	else {
 		int filesize = 0;
-		char *decrypteddata = NULL;
-		decrypteddata = SPINDLE_DecryptFromFile(filepath, &filesize, NULL, typeencryption);
+		const char *decrypteddata = SPINDLE_DecryptFromFile(filepath, &filesize, NULL, typeencryption);
 		return blo_openblendermemory(decrypteddata, filesize, reports, filepath);
 	}
 #endif
@@ -1257,7 +1256,7 @@ FileData *blo_openblendermemory(const void *mem, int memsize, ReportList *report
 			
 		fd->flags |= FD_FLAGS_NOT_MY_BUFFER;
 
-		if (localpath) {
+		if (BLI_path_cmp(localpath, "")) {
 			BLI_strncpy(fd->relabase, localpath, sizeof(fd->relabase));
 		}
 

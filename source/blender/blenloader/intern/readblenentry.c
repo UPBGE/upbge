@@ -352,17 +352,11 @@ BlendFileData *BLO_read_from_memory(
 	BlendFileData *bfd = NULL;
 	FileData *fd;
 		
-	fd = blo_openblendermemory(mem, memsize, reports, NULL);
+	fd = blo_openblendermemory(mem, memsize, reports, localpath);
 	if (fd) {
 		fd->reports = reports;
 		fd->skip_flags = skip_flags;
-		if (localPath) {
-			BLI_strncpy(fd->relabase, localPath, sizeof(fd->relabase));
-			bfd = blo_read_file_internal(fd, localPath);
-		}
-		else {
-			bfd = blo_read_file_internal(fd, "");
-		}
+		bfd = blo_read_file_internal(fd, localpath);
 		blo_freefiledata(fd);
 	}
 
