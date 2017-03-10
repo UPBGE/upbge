@@ -100,8 +100,8 @@ struct RAS_MeshObject::fronttoback
 
 // mesh object
 
-RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo)
-	:m_name(mesh->id.name + 2),
+RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const std::string& name, const LayersInfo& layersInfo)
+	:m_name(name),
 	m_layersInfo(layersInfo),
 	m_boundingBox(nullptr),
 	m_mesh(mesh)
