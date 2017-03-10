@@ -10499,7 +10499,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 						        basefd->reports, RPT_INFO, TIP_("Read packed library:  '%s', parent '%s'"),
 						        mainptr->curlib->name,
 						        library_parent_filepath(mainptr->curlib));
-						fd = blo_openblendermemory(pf->data, pf->size, basefd->reports, NULL);
+						fd = blo_openblendermemory(pf->data, pf->size, basefd->reports, "");
 						
 						
 						/* needed for library_append and read_libraries */
