@@ -484,7 +484,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
 
-	const bool hasModifier = blenderobj->modifiers.first;
+	const bool hasModifier = blenderobj ? blenderobj->modifiers.first : false;
 
 	// Without checking names, we get some reuse we don't want that can cause
 	// problems with material LoDs.
@@ -501,7 +501,13 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	}
 
 	// Get DerivedMesh data
-	DerivedMesh *dm = mesh_create_derived_no_virtual(scene->GetBlenderScene(), blenderobj, NULL, CD_MASK_MESH);
+	DerivedMesh *dm;
+	if (blenderobj) {
+		dm = mesh_create_derived_no_virtual(scene->GetBlenderScene(), blenderobj, NULL, CD_MASK_MESH);
+	}
+	else {
+		dm = CDDM_from_mesh(mesh);
+	}
 
 	DM_ensure_tessface(dm);
 
