@@ -99,7 +99,7 @@ BlendHandle *BLO_blendhandle_from_memory(const void *mem, int memsize)
 {
 	BlendHandle *bh;
 
-	bh = (BlendHandle *)blo_openblendermemory(mem, memsize, NULL, NULL);
+	bh = (BlendHandle *)blo_openblendermemory(mem, memsize, NULL, "");
 
 	return bh;
 }
