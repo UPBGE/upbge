@@ -1076,7 +1076,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		bool bHasArmature = (BL_ModifierDeformer::HasArmatureDeformer(ob) && ob->parent && ob->parent->type == OB_ARMATURE && bHasDvert);
 
 		/* Since we apply modifiers at game engine start, we set bHasModifier to false by default */
-		bool bHasModifier = false; //BL_ModifierDeformer::HasCompatibleDeformer(ob);
+		bool bHasModifier = bHasArmature ? BL_ModifierDeformer::HasCompatibleDeformer(ob) : false;
 
 #ifdef WITH_BULLET
 		bool bHasSoftBody = (!ob->parent && (ob->gameflag & OB_SOFT_BODY));
