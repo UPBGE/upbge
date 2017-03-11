@@ -36,8 +36,6 @@
 #define STATIC_ENCRYPTION	1
 #define DYNAMIC_ENCRYPTION	2
 
-extern char *staticKey;
-extern char *dynamicKey;
 
 #ifdef __cplusplus
 #include <string>

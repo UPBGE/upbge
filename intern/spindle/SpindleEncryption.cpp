@@ -123,14 +123,14 @@ char *SPINDLE_DecryptFromFile(const char *filename, int *fileSize, const char *e
 		return NULL;
 	}
 	else {
-		if (typeEncryption == 0) {
+		if (typeEncryption == NO_ENCRYPTION) {
 			inFile.seekg(0, std::ios::beg);
 			char *fileData = new char[*fileSize];
 			inFile.read(fileData, *fileSize);
 			inFile.close();
 			return fileData;
 		}
-		else if (typeEncryption == 1) {
+		else if (typeEncryption == STATIC_ENCRYPTION) {
 			inFile.seekg(5, std::ios::beg);
 			*fileSize -= 5;
 			char *fileData = new char[*fileSize];
@@ -139,7 +139,7 @@ char *SPINDLE_DecryptFromFile(const char *filename, int *fileSize, const char *e
 			spindle_decrypt_hex(fileData, *fileSize, staticKey);
 			return fileData;
 		}
-		else if (typeEncryption == 2) {
+		else if (typeEncryption == DYNAMIC_ENCRYPTION) {
 			inFile.seekg(5, std::ios::beg);
 			*fileSize -= 5;
 			char *fileData = new char[*fileSize];
@@ -156,17 +156,17 @@ char *SPINDLE_DecryptFromFile(const char *filename, int *fileSize, const char *e
 
 char *SPINDLE_DecryptFromMemory(char *mem, int *memLength, int typeEncryption)
 {
-	if (typeEncryption == 0) {
+	if (typeEncryption == NO_ENCRYPTION) {
 		return mem;
 	}
-	else if (typeEncryption == 1) {
+	else if (typeEncryption == STATIC_ENCRYPTION) {
 		*memLength -= 5;
 		char *memFile = new char[*memLength];
 		spindle_secure_function_memcpy(memFile, mem, *memLength, 5);
 		spindle_decrypt_hex(memFile, *memLength, staticKey);
 		return memFile;
 	}
-	else if (typeEncryption == 2) {
+	else if (typeEncryption == DYNAMIC_ENCRYPTION) {
 		*memLength -= 5;
 		char *memFile = new char[*memLength];
 		spindle_secure_function_memcpy(memFile, mem, *memLength, 5);
@@ -180,7 +180,7 @@ char *SPINDLE_DecryptFromMemory(char *mem, int *memLength, int typeEncryption)
 
 int SPINDLE_CheckEncryptionFromFile(const char *filepath)
 {
-	int keyType = 0; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
+	int keyType = NO_ENCRYPTION; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
 	std::ifstream inFile(filepath, std::ios::in | std::ios::binary | std::ios::ate);
 	int fileSize = (int)inFile.tellg();
 	char *fileData = new char[5];
@@ -204,7 +204,7 @@ int SPINDLE_CheckEncryptionFromFile(const char *filepath)
 			std::cout << "Failed to read blend file: " << filepath << ", No static key provided" << std::endl;
 			return -1;
 		}
-		keyType = 1;
+		keyType = STATIC_ENCRYPTION;
 	}
 	else if ((fileData[0] == 'D') && (fileData[1] == 'Y') && (fileData[2] == 'C')) { //Dynamic encrypted file
 		if ((unsigned int)fileData[3] > currentSupportedVersion) {
@@ -217,7 +217,7 @@ int SPINDLE_CheckEncryptionFromFile(const char *filepath)
 			std::cout << "Failed to read blend file: " << filepath << ", No dynamic key provided" << std::endl;
 			return -1;
 		}
-		keyType = 2;
+		keyType = DYNAMIC_ENCRYPTION;
 	}
 	inFile.close();
 
@@ -226,7 +226,7 @@ int SPINDLE_CheckEncryptionFromFile(const char *filepath)
 
 int SPINDLE_CheckEncryptionFromMemory(char *mem)
 {
-	int keyType = 0; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
+	int keyType = NO_ENCRYPTION; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
 
 	if (spindle_secure_function_strlen(mem) < 5)
 		return -1;
@@ -240,7 +240,7 @@ int SPINDLE_CheckEncryptionFromMemory(char *mem)
 			std::cout << "Failed to read blend file, no static key provided" << std::endl;
 			return -1;
 		}
-		keyType = 1;
+		keyType = STATIC_ENCRYPTION;
 	}
 	else if ((mem[0] == 'D') && (mem[1] == 'Y') && (mem[2] == 'C')) { //Dynamic encrypted file
 		if ((unsigned int)mem[3] > currentSupportedVersion) {
@@ -251,7 +251,7 @@ int SPINDLE_CheckEncryptionFromMemory(char *mem)
 			std::cout << "Failed to read blend file, no dynamic key provided" << std::endl;
 			return -1;
 		}
-		keyType = 2;
+		keyType = DYNAMIC_ENCRYPTION;
 	}
 	return keyType;
 }
