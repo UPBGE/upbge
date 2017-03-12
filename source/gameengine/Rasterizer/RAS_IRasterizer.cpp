@@ -1644,7 +1644,7 @@ void RAS_IRasterizer::DisableForText()
 
 	Enable(RAS_CULL_FACE);
 
-	ProcessLighting(false, MT_Transform::Identity());
+	DisableLights();
 
 	m_impl->DisableForText();
 }

@@ -440,8 +440,6 @@ private:
 	void EnableLights();
 	void DisableLights();
 
-	void DisableForText();
-
 public:
 	RAS_IRasterizer();
 	virtual ~RAS_IRasterizer();
@@ -830,6 +828,7 @@ public:
 	 */
 	void GetTransform(float *origmat, int objectdrawmode, float mat[16]);
 
+	void DisableForText();
 	/**
 	 * Renders 2D boxes.
 	 * \param xco			Position on the screen (origin in lower left corner).

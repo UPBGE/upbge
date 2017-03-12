@@ -705,7 +705,7 @@ void RAS_OpenGLRasterizer::RenderText3D(
         const float color[4], const float mat[16], float aspect)
 {
 	/* gl prepping */
-	DisableForText();
+	m_rasterizer->DisableForText();
 	SetFrontFace(true);
 
 	/* the actual drawing */
@@ -738,7 +738,7 @@ void RAS_OpenGLRasterizer::RenderText2D(
 	/* This is a rather important line :( The gl-mode hasn't been left
 	 * behind quite as neatly as we'd have wanted to. I don't know
 	 * what cause it, though :/ .*/
-	DisableForText();
+	m_rasterizer->DisableForText();
 	SetFrontFace(true);
 	Disable(RAS_IRasterizer::RAS_DEPTH_TEST);
 
