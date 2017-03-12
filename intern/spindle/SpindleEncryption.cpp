@@ -51,7 +51,7 @@ static void spindle_set_dynamic_encryption_key(const char *hexKey);
 // Secure functions
 // We want to define these functions ourselves since some platforms will always dynamically link against
 // libc even if we build a static executable (ex: Linux)
-static void spindle_secure_function_memcpy(void *dest, void *src, int size, int offset=0);
+static void spindle_secure_function_memcpy(void *dest, void *src, int size);
 static void spindle_secure_function_memset(void *dest, char value, int size);
 static int spindle_secure_function_strlen(const char *str);
 
@@ -376,16 +376,10 @@ static void spindle_set_dynamic_encryption_key(const char *hexKey)
 	strcpy(dynamicKey, hexKey);
 }
 
-static void spindle_secure_function_memcpy(void *dest, void *src, int size, int offset)
+static void spindle_secure_function_memcpy(void *dest, void *src, int size)
 {
-	if (!offset) {
-		for (int i = 0; i < size; i++)
-			((char *)dest)[i] = ((char *)src)[i];
-	}
-	else {
-		for (int i = 0; i < size; i++)
-			((char *)dest)[i] = ((char *)src)[i+offset];
-	}
+	for (int i = 0; i < size; i++)
+		((char *)dest)[i] = ((char *)src)[i];
 }
 
 static void spindle_secure_function_memset(void *dest, char value, int size)
