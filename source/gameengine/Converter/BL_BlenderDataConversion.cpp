@@ -1048,9 +1048,21 @@ static KX_GameObject *gameobject_from_blenderobject(
 	{
 		Mesh* mesh = static_cast<Mesh*>(ob->data);
 		RAS_MeshObject* meshobj = BL_ConvertMesh(mesh,ob,kxscene,converter, libloading);
+
+		/* We need unique mesh name for objects with modifiers applied in render code (RAS_MeshObject)
+		 * but for logic we can/have to keep the original mesh name to avoid backward compatibility issues
+		 * (See commit related to modifiers applied at game engine start)
+		 */
+		std::string meshName;
+		if (ob && meshobj->GetName().find(":" + std::string(ob->id.name + 2))) {
+			meshName = meshobj->GetName().substr(0, meshobj->GetName().size() - (std::string(ob->id.name + 2).size() + 1));
+		}
+		else {
+			meshName = meshobj->GetName();
+		}
 		
 		// needed for python scripting
-		kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(),meshobj);
+		kxscene->GetLogicManager()->RegisterMeshName(meshName, meshobj);
 
 		if (ob->gameflag & OB_NAVMESH)
 		{
