@@ -69,12 +69,6 @@ struct GPUShader;
 class RAS_IRasterizer
 {
 public:
-	enum RAS_TEXT_RENDER_MODE {
-		RAS_TEXT_RENDER_NODEF = 0,
-		RAS_TEXT_NORMAL,
-		RAS_TEXT_PADDED,
-		RAS_TEXT_MAX,
-	};
 
 	/**
 	 * Drawing types
@@ -864,7 +858,7 @@ public:
 	 * \param height	Height of the canvas to draw to.
 	 */
 	void RenderText2D(
-	        RAS_TEXT_RENDER_MODE mode, const std::string& text,
+	        const std::string& text,
 	        int xco, int yco, int width, int height);
 
 	void ProcessLighting(bool uselights, const MT_Transform &trans);

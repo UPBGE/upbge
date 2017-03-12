@@ -707,6 +707,7 @@ void RAS_OpenGLRasterizer::RenderText3D(
 	/* gl prepping */
 	DisableForText();
 	SetFrontFace(true);
+	m_rasterizer->SetAlphaBlend(GPU_BLEND_ALPHA);
 
 	/* the actual drawing */
 	glColor4fv(color);
@@ -722,7 +723,7 @@ void RAS_OpenGLRasterizer::RenderText3D(
 
 	BLF_size(fontid, size, dpi);
 	BLF_position(fontid, 0, 0, 0);
-	BLF_draw(fontid, text.c_str(), text.size());
+	BLF_draw_ge(fontid, text.c_str(), text.size());
 
 	BLF_disable(fontid, BLF_MATRIX | BLF_ASPECT);
 
@@ -730,7 +731,7 @@ void RAS_OpenGLRasterizer::RenderText3D(
 }
 
 void RAS_OpenGLRasterizer::RenderText2D(
-    RAS_IRasterizer::RAS_TEXT_RENDER_MODE mode,
+
     const std::string& text,
     int xco, int yco,
     int width, int height)
@@ -740,6 +741,11 @@ void RAS_OpenGLRasterizer::RenderText2D(
 	 * what cause it, though :/ .*/
 	DisableForText();
 	SetFrontFace(true);
+
+	/* Disable lighting to draw profile texts */
+	Disable(RAS_IRasterizer::RAS_LIGHTING);
+	Disable(RAS_IRasterizer::RAS_COLOR_MATERIAL);
+
 	Disable(RAS_IRasterizer::RAS_DEPTH_TEST);
 
 	SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
@@ -752,19 +758,17 @@ void RAS_OpenGLRasterizer::RenderText2D(
 	PushMatrix();
 	LoadIdentity();
 
-	if (mode == RAS_IRasterizer::RAS_TEXT_PADDED) {
-		/* draw in black first */
-		glColor3ub(0, 0, 0);
-		BLF_size(blf_mono_font, 11, 72);
-		BLF_position(blf_mono_font, (float)xco + 1, (float)(height - yco - 1), 0.0f);
-		BLF_draw(blf_mono_font, text.c_str(), text.size());
-	}
+	/* draw in black first */
+	glColor3ub(0, 0, 0);
+	BLF_size(blf_mono_font, 11, 72);
+	BLF_position(blf_mono_font, (float)xco + 1, (float)(height - yco - 1), 0.0f);
+	BLF_draw_ge(blf_mono_font, text.c_str(), text.size());
 
 	/* the actual drawing */
 	glColor3ub(255, 255, 255);
 	BLF_size(blf_mono_font, 11, 72);
 	BLF_position(blf_mono_font, (float)xco, (float)(height - yco), 0.0f);
-	BLF_draw(blf_mono_font, text.c_str(), text.size());
+	BLF_draw_ge(blf_mono_font, text.c_str(), text.size());
 
 	SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
 	PopMatrix();

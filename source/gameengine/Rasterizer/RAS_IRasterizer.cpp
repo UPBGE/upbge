@@ -1639,12 +1639,9 @@ void RAS_IRasterizer::GetTransform(float *origmat, int objectdrawmode, float mat
 
 void RAS_IRasterizer::DisableForText()
 {
-	SetAlphaBlend(GPU_BLEND_ALPHA);
 	SetLines(false); /* needed for texture fonts otherwise they render as wireframe */
 
 	Enable(RAS_CULL_FACE);
-
-	ProcessLighting(false, MT_Transform::Identity());
 
 	m_impl->DisableForText();
 }
@@ -1666,12 +1663,11 @@ void RAS_IRasterizer::RenderText3D(
 }
 
 void RAS_IRasterizer::RenderText2D(
-    RAS_TEXT_RENDER_MODE mode,
     const std::string& text,
     int xco, int yco,
     int width, int height)
 {
-	m_impl->RenderText2D(mode, text, xco, yco, width, height);
+	m_impl->RenderText2D(text, xco, yco, width, height);
 }
 
 void RAS_IRasterizer::PushMatrix()
