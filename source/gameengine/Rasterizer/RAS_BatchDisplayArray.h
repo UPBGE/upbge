@@ -95,7 +95,7 @@ public:
 		m_vertexes.resize(startvertex + vertexcount);
 		m_indices.resize(startindex + indexcount);
 
-#ifdef DEBUG
+#if 0
 		CM_Debug("Add part : " << (m_parts.size() - 1) << ", start index: " << startindex << ", index count: " << indexcount << ", start vertex: " << startvertex << ", vertex count: " << vertexcount);
 #endif  // DEBUG
 
