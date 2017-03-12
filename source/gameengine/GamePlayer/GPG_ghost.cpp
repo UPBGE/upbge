@@ -591,7 +591,7 @@ static bool quitGame(KX_ExitRequest exitcode)
 
 #ifdef WITH_GAMEENGINE_BPPLAYER
 
-static BlendFileData *load_encrypted_game_data(const char *filename, std::string localPath, std::string encryptKey, int typeEncryption=0)
+static BlendFileData *load_encrypted_game_data(const char *filename, std::string localPath, std::string encryptKey)
 {
 	ReportList reports;
 	BlendFileData *bfd = NULL;
@@ -606,9 +606,6 @@ static BlendFileData *load_encrypted_game_data(const char *filename, std::string
 	if (!localPath.empty() && !encryptKey.empty()) {
 		// Load file and decrypt.
 		fileData = SPINDLE_DecryptFromFile(filename, &fileSize, encryptKey.c_str(), 0);
-	}
-	else {
-		fileData = SPINDLE_DecryptFromFile(filename, &fileSize, NULL, typeEncryption);
 	}
 
 	if (fileData) {

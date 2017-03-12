@@ -44,9 +44,7 @@ std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i);
 extern "C" {
 #endif
 char *SPINDLE_DecryptFromFile(const char *filename, int *fileSize, const char *encryptKey, int typeEncryption);
-char *SPINDLE_DecryptFromMemory(char *mem, int *memLength, int typeEncryption);
 int SPINDLE_CheckEncryptionFromFile(const char *filepath);
-int SPINDLE_CheckEncryptionFromMemory(char *mem);
 #ifdef __cplusplus
 }
 #endif

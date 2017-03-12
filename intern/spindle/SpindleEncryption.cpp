@@ -154,30 +154,6 @@ char *SPINDLE_DecryptFromFile(const char *filename, int *fileSize, const char *e
 	}
 }
 
-char *SPINDLE_DecryptFromMemory(char *mem, int *memLength, int typeEncryption)
-{
-	if (typeEncryption == NO_ENCRYPTION) {
-		return mem;
-	}
-	else if (typeEncryption == STATIC_ENCRYPTION) {
-		*memLength -= 5;
-		char *memFile = new char[*memLength];
-		spindle_secure_function_memcpy(memFile, mem, *memLength, 5);
-		spindle_decrypt_hex(memFile, *memLength, staticKey);
-		return memFile;
-	}
-	else if (typeEncryption == DYNAMIC_ENCRYPTION) {
-		*memLength -= 5;
-		char *memFile = new char[*memLength];
-		spindle_secure_function_memcpy(memFile, mem, *memLength, 5);
-		spindle_decrypt_hex(memFile, *memLength, dynamicKey);
-		return memFile;
-	}
-	else {
-		return NULL;
-	}
-}
-
 int SPINDLE_CheckEncryptionFromFile(const char *filepath)
 {
 	int keyType = NO_ENCRYPTION; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
@@ -221,38 +197,6 @@ int SPINDLE_CheckEncryptionFromFile(const char *filepath)
 	}
 	inFile.close();
 
-	return keyType;
-}
-
-int SPINDLE_CheckEncryptionFromMemory(char *mem)
-{
-	int keyType = NO_ENCRYPTION; // -1 = invalid, 0 = blend, 1 = static key, 2 = dynamic key
-
-	if (spindle_secure_function_strlen(mem) < 5)
-		return -1;
-
-	if ((mem[0] == 'S') && (mem[1] == 'T') && (mem[2] == 'C')) { //Static encrypted file
-		if ((unsigned int)mem[3] > currentSupportedVersion) {
-			std::cout << "Failed to read blend file, blend is from a newer version" << std::endl;
-			return -1;
-		}
-		if (staticKey == NULL) {
-			std::cout << "Failed to read blend file, no static key provided" << std::endl;
-			return -1;
-		}
-		keyType = STATIC_ENCRYPTION;
-	}
-	else if ((mem[0] == 'D') && (mem[1] == 'Y') && (mem[2] == 'C')) { //Dynamic encrypted file
-		if ((unsigned int)mem[3] > currentSupportedVersion) {
-			std::cout << "Failed to read blend file, blend is from a newer version" << std::endl;
-			return -1;
-		}
-		if (dynamicKey == NULL) {
-			std::cout << "Failed to read blend file, no dynamic key provided" << std::endl;
-			return -1;
-		}
-		keyType = DYNAMIC_ENCRYPTION;
-	}
 	return keyType;
 }
 
