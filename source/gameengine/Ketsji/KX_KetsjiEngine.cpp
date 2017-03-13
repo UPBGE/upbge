@@ -1320,10 +1320,12 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, const RAS_Rect& vi
 bool KX_KetsjiEngine::CheckLightAndCamerasFrustumIntersection(RAS_ILightObject *raslight)
 {
 	if (raslight->m_shadowBox) {
-		std::cout << "number of active cameras: " << m_activeCameras->GetCount() << std::endl;
 		for (CListValue::iterator<KX_Camera> it = m_activeCameras->GetBegin(), end = m_activeCameras->GetEnd(); it != end; ++it) {
 			KX_Camera *cam = *it;
-			std::cout << "active camera name: " << cam->GetName() << std::endl;
+			MT_Transform camtrans(cam->GetWorldToCamera());
+			MT_Matrix4x4 viewmat(camtrans);
+			cam->SetModelviewMatrix(viewmat);
+			cam->NodeUpdateGS(0.0f);
 			int intersect = cam->BoxInsideFrustum(raslight->m_shadowBox);
 			std::cout << "intersect value: " << intersect << std::endl;
 			if (intersect == 0 || intersect == 1) {
