@@ -37,6 +37,8 @@ extern "C" {
 #include "DNA_object_types.h"
 
 #include "BLI_math.h"
+
+#include "PIL_time.h"
 }
 
 std::string get_id_name(Object *ob)
@@ -197,7 +199,7 @@ void create_transform_matrix(float r_mat[4][4])
 	copy_m4_m3(transform_mat, rot_mat);
 
 	/* Add translation to transformation matrix. */
-	copy_yup_zup(transform_mat[3], loc);
+	copy_zup_from_yup(transform_mat[3], loc);
 
 	/* Create scale matrix. */
 	scale_mat[0][0] = scale[0];
@@ -417,7 +419,7 @@ void create_transform_matrix(Object *obj, float transform_mat[4][4])
 	copy_m4_m3(transform_mat, rot_mat);
 
 	/* Add translation to transformation matrix. */
-	copy_zup_yup(transform_mat[3], loc);
+	copy_yup_from_zup(transform_mat[3], loc);
 
 	/* Create scale matrix. */
 	scale_mat[0][0] = scale[0];
@@ -522,4 +524,16 @@ AbcObjectReader *create_reader(const Alembic::AbcGeom::IObject &object, ImportSe
 	}
 
 	return reader;
+}
+
+/* ********************** */
+
+ScopeTimer::ScopeTimer(const char *message)
+	: m_message(message)
+	, m_start(PIL_check_seconds_timer())
+{}
+
+ScopeTimer::~ScopeTimer()
+{
+	fprintf(stderr, "%s: %fs\n", m_message, PIL_check_seconds_timer() - m_start);
 }

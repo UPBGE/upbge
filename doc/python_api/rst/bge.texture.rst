@@ -745,7 +745,7 @@ Image classes
 
    .. attribute:: zbuff
 
-      Use depth component of render as grey scale color -  suitable for texture source.
+      Use depth component of render as grayscale color - suitable for texture source.
 
       :type: bool
 
@@ -881,7 +881,7 @@ Image classes
 
    .. attribute:: zbuff
 
-      Use depth component of viewport as grey scale color - suitable for texture source.
+      Use depth component of viewport as grayscale color - suitable for texture source.
 
       :type: bool
 
@@ -1325,8 +1325,8 @@ Filter classes
 
 .. class:: FilterGray
 
-   Filter for gray scale effect.
-   Proportions of R, G and B contributions in the output gray scale are 28:151:77.
+   Filter for grayscale effect.
+   Proportions of R, G and B contributions in the output grayscale are 28:151:77.
 
    .. attribute:: previous
 

@@ -1021,7 +1021,7 @@ static int UNUSED_FUNCTION(bm_loop_length)(BMLoop *l)
  * \param use_loop_mdisp_flip: When set, flip the Z-depth of the mdisp,
  * (use when flipping normals, disable when mirroring, eg: symmetrize).
  */
-void bmesh_loop_reverse(
+void bmesh_kernel_loop_reverse(
         BMesh *bm, BMFace *f,
         const int cd_loop_mdisp_offset, const bool use_loop_mdisp_flip)
 {
@@ -1438,7 +1438,7 @@ static BMFace *bm_face_create__sfme(BMesh *bm, BMFace *f_example)
  *
  * \return A BMFace pointer
  */
-BMFace *bmesh_sfme(
+BMFace *bmesh_kernel_split_face_make_edge(
         BMesh *bm, BMFace *f, BMLoop *l_v1, BMLoop *l_v2,
         BMLoop **r_l,
 #ifdef USE_BMESH_HOLES
@@ -1584,7 +1584,7 @@ BMFace *bmesh_sfme(
  *
  * \return The newly created BMVert pointer.
  */
-BMVert *bmesh_semv(BMesh *bm, BMVert *tv, BMEdge *e, BMEdge **r_e)
+BMVert *bmesh_kernel_split_edge_make_vert(BMesh *bm, BMVert *tv, BMEdge *e, BMEdge **r_e)
 {
 	BMLoop *l_next;
 	BMEdge *e_new;
@@ -1766,7 +1766,7 @@ BMVert *bmesh_semv(BMesh *bm, BMVert *tv, BMEdge *e, BMEdge **r_e)
  * faces with just 2 edges. It is up to the caller to decide what to do with
  * these faces.
  */
-BMEdge *bmesh_jekv(
+BMEdge *bmesh_kernel_join_edge_kill_vert(
         BMesh *bm, BMEdge *e_kill, BMVert *v_kill,
         const bool do_del, const bool check_edge_double,
         const bool kill_degenerate_faces)
@@ -1920,7 +1920,7 @@ BMEdge *bmesh_jekv(
  *
  * Collapse an edge, merging surrounding data.
  *
- * Unlike #BM_vert_collapse_edge & #bmesh_jekv which only handle 2 valence verts,
+ * Unlike #BM_vert_collapse_edge & #bmesh_kernel_join_edge_kill_vert which only handle 2 valence verts,
  * this can handle any number of connected edges/faces.
  *
  * <pre>
@@ -1932,7 +1932,7 @@ BMEdge *bmesh_jekv(
  * +-+-+-+    +-+-+-+
  * </pre>
  */
-BMVert *bmesh_jvke(
+BMVert *bmesh_kernel_join_vert_kill_edge(
         BMesh *bm, BMEdge *e_kill, BMVert *v_kill,
         const bool do_del, const bool check_edge_double,
         const bool kill_degenerate_faces)
@@ -2035,7 +2035,7 @@ BMVert *bmesh_jvke(
  * In the example A, faces \a f1 and \a f2 are joined by a single edge,
  * and the euler can safely be used.
  * In example B however, \a f1 and \a f2 are joined by multiple edges and will produce an error.
- * The caller in this case should call #bmesh_jekv on the extra edges
+ * The caller in this case should call #bmesh_kernel_join_edge_kill_vert on the extra edges
  * before attempting to fuse \a f1 and \a f2.
  *
  * \note The order of arguments decides whether or not certain per-face attributes are present
@@ -2044,7 +2044,7 @@ BMVert *bmesh_jvke(
  *
  * \return A BMFace pointer
  */
-BMFace *bmesh_jfke(BMesh *bm, BMFace *f1, BMFace *f2, BMEdge *e)
+BMFace *bmesh_kernel_join_face_kill_edge(BMesh *bm, BMFace *f1, BMFace *f2, BMEdge *e)
 {
 	BMLoop *l_iter, *l_f1 = NULL, *l_f2 = NULL;
 	int newlen = 0, i, f1len = 0, f2len = 0;
@@ -2249,7 +2249,7 @@ bool BM_vert_splice(BMesh *bm, BMVert *v_dst, BMVert *v_src)
 }
 
 
-/** \name BM_vert_separate, bmesh_vert_separate and friends
+/** \name BM_vert_separate, bmesh_kernel_vert_separate and friends
  * \{ */
 
 /* BM_edge_face_count(e) >= 1 */
@@ -2269,7 +2269,7 @@ BLI_INLINE bool bm_edge_supports_separate(const BMEdge *e)
  *
  * \return Success
  */
-void bmesh_vert_separate(
+void bmesh_kernel_vert_separate(
         BMesh *bm, BMVert *v, BMVert ***r_vout, int *r_vout_len,
         const bool copy_select)
 {
@@ -2385,7 +2385,7 @@ void bmesh_vert_separate(
  *
  * Takes a list of edges, which have been split from their original.
  *
- * Any edges which failed to split off in #bmesh_vert_separate will be merged back into the original edge.
+ * Any edges which failed to split off in #bmesh_kernel_vert_separate will be merged back into the original edge.
  *
  * \param edges_separate
  * A list-of-lists, each list is from a single original edge (the first edge is the original),
@@ -2398,7 +2398,7 @@ void bmesh_vert_separate(
  * \note this function looks like it could become slow,
  * but in common cases its only going to iterate a few times.
  */
-static void bmesh_vert_separate__cleanup(BMesh *bm, LinkNode *edges_separate)
+static void bmesh_kernel_vert_separate__cleanup(BMesh *bm, LinkNode *edges_separate)
 {
 	do {
 		LinkNode *n_orig = edges_separate->link;
@@ -2418,7 +2418,7 @@ static void bmesh_vert_separate__cleanup(BMesh *bm, LinkNode *edges_separate)
 }
 
 /**
- * High level function which wraps both #bmesh_vert_separate and #bmesh_edge_separate
+ * High level function which wraps both #bmesh_kernel_vert_separate and #bmesh_kernel_edge_separate
  */
 void BM_vert_separate(
         BMesh *bm, BMVert *v,
@@ -2435,7 +2435,7 @@ void BM_vert_separate(
 			LinkNode *edges_orig = NULL;
 			do {
 				BMLoop *l_sep = e->l;
-				bmesh_edge_separate(bm, e, l_sep, copy_select);
+				bmesh_kernel_edge_separate(bm, e, l_sep, copy_select);
 				BLI_linklist_prepend_alloca(&edges_orig, l_sep->e);
 				BLI_assert(e != l_sep->e);
 			} while (bm_edge_supports_separate(e));
@@ -2444,10 +2444,10 @@ void BM_vert_separate(
 		}
 	}
 
-	bmesh_vert_separate(bm, v, r_vout, r_vout_len, copy_select);
+	bmesh_kernel_vert_separate(bm, v, r_vout, r_vout_len, copy_select);
 
 	if (edges_separate) {
-		bmesh_vert_separate__cleanup(bm, edges_separate);
+		bmesh_kernel_vert_separate__cleanup(bm, edges_separate);
 	}
 }
 
@@ -2472,7 +2472,7 @@ void BM_vert_separate_hflag(
 				LinkNode *edges_orig = NULL;
 				do {
 					BMLoop *l_sep = e->l;
-					bmesh_edge_separate(bm, e, l_sep, copy_select);
+					bmesh_kernel_edge_separate(bm, e, l_sep, copy_select);
 					/* trick to avoid looping over separated edges */
 					if (edges_separate == NULL && edges_orig == NULL) {
 						e_first = l_sep->e;
@@ -2486,10 +2486,10 @@ void BM_vert_separate_hflag(
 		}
 	} while ((e_iter = BM_DISK_EDGE_NEXT(e_iter, v)) != e_first);
 
-	bmesh_vert_separate(bm, v, r_vout, r_vout_len, copy_select);
+	bmesh_kernel_vert_separate(bm, v, r_vout, r_vout_len, copy_select);
 
 	if (edges_separate) {
-		bmesh_vert_separate__cleanup(bm, edges_separate);
+		bmesh_kernel_vert_separate__cleanup(bm, edges_separate);
 	}
 }
 
@@ -2574,7 +2574,7 @@ bool BM_edge_splice(BMesh *bm, BMEdge *e_dst, BMEdge *e_src)
  * \note Does nothing if \a l_sep is already the only loop in the
  * edge radial.
  */
-void bmesh_edge_separate(
+void bmesh_kernel_edge_separate(
         BMesh *bm, BMEdge *e, BMLoop *l_sep,
         const bool copy_select)
 {
@@ -2620,7 +2620,7 @@ void bmesh_edge_separate(
  *
  * \note Will be a no-op and return original vertex if only two edges at that vertex.
  */
-BMVert *bmesh_urmv_loop(BMesh *bm, BMLoop *l_sep)
+BMVert *bmesh_kernel_unglue_region_make_vert(BMesh *bm, BMLoop *l_sep)
 {
 	BMVert *v_new = NULL;
 	BMVert *v_sep = l_sep->v;
@@ -2630,10 +2630,12 @@ BMVert *bmesh_urmv_loop(BMesh *bm, BMLoop *l_sep)
 
 	/* peel the face from the edge radials on both sides of the
 	 * loop vert, disconnecting the face from its fan */
-	if (!BM_edge_is_boundary(l_sep->e))
-		bmesh_edge_separate(bm, l_sep->e, l_sep, false);
-	if (!BM_edge_is_boundary(l_sep->prev->e))
-		bmesh_edge_separate(bm, l_sep->prev->e, l_sep->prev, false);
+	if (!BM_edge_is_boundary(l_sep->e)) {
+		bmesh_kernel_edge_separate(bm, l_sep->e, l_sep, false);
+	}
+	if (!BM_edge_is_boundary(l_sep->prev->e)) {
+		bmesh_kernel_edge_separate(bm, l_sep->prev->e, l_sep->prev, false);
+	}
 
 	/* do inline, below */
 #if 0
@@ -2681,21 +2683,23 @@ BMVert *bmesh_urmv_loop(BMesh *bm, BMLoop *l_sep)
 }
 
 /**
- * A version of #bmesh_urmv_loop that disconnects multiple loops at once.
+ * A version of #bmesh_kernel_unglue_region_make_vert that disconnects multiple loops at once.
  * The loops must all share the same vertex, can be in any order
  * and are all moved to use a single new vertex - which is returned.
  *
  * This function handles the details of finding fans boundaries.
  */
-BMVert *bmesh_urmv_loop_multi(
+BMVert *bmesh_kernel_unglue_region_make_vert_multi(
         BMesh *bm, BMLoop **larr, int larr_len)
 {
 	BMVert *v_sep = larr[0]->v;
 	BMVert *v_new;
+	int edges_len = 0;
 	int i;
-	bool is_mixed_any = false;
-
-	BLI_SMALLSTACK_DECLARE(edges, BMEdge *);
+	/* any edges not owned by 'larr' loops connected to 'v_sep'? */
+	bool is_mixed_edge_any = false;
+	/* any loops not owned by 'larr' radially connected to 'larr' loop edges? */
+	bool is_mixed_loop_any = false;
 
 #define LOOP_VISIT _FLAG_WALK
 #define EDGE_VISIT _FLAG_WALK
@@ -2713,58 +2717,74 @@ BMVert *bmesh_urmv_loop_multi(
 		 * while doing a radial loop (where loops may be adjacent) */
 		BM_ELEM_API_FLAG_ENABLE(l_sep->next, LOOP_VISIT);
 		BM_ELEM_API_FLAG_ENABLE(l_sep->prev, LOOP_VISIT);
-	}
-
-	for (i = 0; i < larr_len; i++) {
-		BMLoop *l_sep = larr[i];
 
 		BMLoop *loop_pair[2] = {l_sep, l_sep->prev};
-		int j;
-		for (j = 0; j < ARRAY_SIZE(loop_pair); j++) {
+		for (int j = 0; j < ARRAY_SIZE(loop_pair); j++) {
 			BMEdge *e = loop_pair[j]->e;
 			if (!BM_ELEM_API_FLAG_TEST(e, EDGE_VISIT)) {
-				BMLoop *l_iter, *l_first;
-				bool is_mixed = false;
-
 				BM_ELEM_API_FLAG_ENABLE(e, EDGE_VISIT);
-
-				l_iter = l_first = e->l;
-				do {
-					if (!BM_ELEM_API_FLAG_TEST(l_iter, LOOP_VISIT)) {
-						is_mixed = true;
-						is_mixed_any = true;
-						break;
-					}
-				} while ((l_iter = l_iter->radial_next) != l_first);
-
-				if (is_mixed) {
-					/* ensure the first loop is one we don't own so we can do a quick check below
-					 * on the edge's loop-flag to see if the edge is mixed or not. */
-					e->l = l_iter;
-				}
-				BLI_SMALLSTACK_PUSH(edges, e);
+				edges_len += 1;
 			}
 		}
 	}
 
-	if (is_mixed_any == false) {
+	BMEdge **edges = BLI_array_alloca(edges, edges_len);
+	STACK_DECLARE(edges);
+
+	STACK_INIT(edges, edges_len);
+
+	{
+		BMEdge *e_first, *e_iter;
+		e_iter = e_first = v_sep->e;
+		do {
+			if (BM_ELEM_API_FLAG_TEST(e_iter, EDGE_VISIT)) {
+				BMLoop *l_iter, *l_first;
+				bool is_mixed_loop = false;
+
+				l_iter = l_first = e_iter->l;
+				do {
+					if (!BM_ELEM_API_FLAG_TEST(l_iter, LOOP_VISIT)) {
+						is_mixed_loop = true;
+						break;
+					}
+				} while ((l_iter = l_iter->radial_next) != l_first);
+
+				if (is_mixed_loop) {
+					/* ensure the first loop is one we don't own so we can do a quick check below
+					 * on the edge's loop-flag to see if the edge is mixed or not. */
+					e_iter->l = l_iter;
+
+					is_mixed_loop_any = true;
+				}
+
+				STACK_PUSH(edges, e_iter);
+			}
+			else {
+				/* at least one edge attached isn't connected to our loops */
+				is_mixed_edge_any = true;
+			}
+		} while ((e_iter = bmesh_disk_edge_next(e_iter, v_sep)) != e_first);
+	}
+
+	BLI_assert(edges_len == STACK_SIZE(edges));
+
+	if (is_mixed_loop_any == false && is_mixed_edge_any == false) {
 		/* all loops in 'larr' are the sole owners of their edges.
 		 * nothing to split away from, this is a no-op */
 		v_new = v_sep;
 	}
 	else {
-		BMEdge *e;
-
-		BLI_assert(!BLI_SMALLSTACK_IS_EMPTY(edges));
-
 		v_new = BM_vert_create(bm, v_sep->co, v_sep, BM_CREATE_NOP);
-		while ((e = BLI_SMALLSTACK_POP(edges))) {
+
+		for (i = 0; i < STACK_SIZE(edges); i++) {
+			BMEdge *e = edges[i];
 			BMLoop *l_iter, *l_first, *l_next;
 			BMEdge *e_new;
 
 			/* disable so copied edge isn't left dirty (loop edges are cleared last too) */
 			BM_ELEM_API_FLAG_DISABLE(e, EDGE_VISIT);
 
+			/* will always be false when (is_mixed_loop_any == false) */
 			if (!BM_ELEM_API_FLAG_TEST(e->l, LOOP_VISIT)) {
 				/* edge has some loops owned by us, some owned by other loops */
 				BMVert *e_new_v_pair[2];
@@ -2853,29 +2873,15 @@ static void bmesh_edge_vert_swap__recursive(BMEdge *e, BMVert *v_dst, BMVert *v_
 
 /**
  * This function assumes l_sep is apart of a larger fan which has already been
- * isolated by calling bmesh_edge_separate to segregate it radially.
+ * isolated by calling #bmesh_kernel_edge_separate to segregate it radially.
  */
-BMVert *bmesh_urmv_loop_region(BMesh *bm, BMLoop *l_sep)
+BMVert *bmesh_kernel_unglue_region_make_vert_multi_isolated(BMesh *bm, BMLoop *l_sep)
 {
 	BMVert *v_new = BM_vert_create(bm, l_sep->v->co, l_sep->v, BM_CREATE_NOP);
 	/* passing either 'l_sep->e', 'l_sep->prev->e' will work */
 	bmesh_edge_vert_swap__recursive(l_sep->e, v_new, l_sep->v);
 	BLI_assert(l_sep->v == v_new);
 	return v_new;
-}
-
-
-/**
- * \brief Unglue Region Make Vert (URMV)
- *
- * Disconnects f_sep from the vertex fan at \a v_sep
- *
- * \return The newly created BMVert
- */
-BMVert *bmesh_urmv(BMesh *bm, BMFace *f_sep, BMVert *v_sep)
-{
-	BMLoop *l = BM_face_vert_share_loop(f_sep, v_sep);
-	return bmesh_urmv_loop(bm, l);
 }
 
 /**

@@ -715,7 +715,9 @@ static void wm_operator_reports(bContext *C, wmOperator *op, int retval, bool ca
  */
 static bool wm_operator_register_check(wmWindowManager *wm, wmOperatorType *ot)
 {
-	return wm && (wm->op_undo_depth == 0) && (ot->flag & OPTYPE_REGISTER);
+	/* Check undo flag here since undo operators are also added to the list,
+	 * to support checking if the same operator is run twice. */
+	return wm && (wm->op_undo_depth == 0) && (ot->flag & (OPTYPE_REGISTER | OPTYPE_UNDO));
 }
 
 static void wm_operator_finished(bContext *C, wmOperator *op, const bool repeat)
@@ -876,6 +878,20 @@ bool WM_operator_repeat_check(const bContext *UNUSED(C), wmOperator *op)
 	}
 
 	return false;
+}
+
+bool WM_operator_is_repeat(const bContext *C, const wmOperator *op)
+{
+	/* may be in the operators list or not */
+	wmOperator *op_prev;
+	if (op->prev == NULL && op->next == NULL) {
+		wmWindowManager *wm = CTX_wm_manager(C);
+		op_prev = wm->operators.last;
+	}
+	else {
+		op_prev = op->prev;
+	}
+	return (op_prev && (op->type == op_prev->type));
 }
 
 static wmOperator *wm_operator_create(wmWindowManager *wm, wmOperatorType *ot,
@@ -3179,6 +3195,8 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			GHOST_TEventCursorData *cd = customdata;
 
 			copy_v2_v2_int(&event.x, &cd->x);
+			wm_stereo3d_mouse_offset_apply(win, &event.x);
+
 			event.type = MOUSEMOVE;
 			wm_event_add_mousemove(win, &event);
 			copy_v2_v2_int(&evt->x, &event.x);

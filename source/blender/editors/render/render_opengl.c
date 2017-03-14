@@ -315,7 +315,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 			RE_render_result_rect_from_ibuf(rr, &scene->r, out, oglrender->view_id);
 			IMB_freeImBuf(out);
 		}
-		else if (gpd){
+		else if (gpd) {
 			/* If there are no strips, Grease Pencil still needs a buffer to draw on */
 			ImBuf *out = IMB_allocImBuf(oglrender->sizex, oglrender->sizey, 32, IB_rect);
 			RE_render_result_rect_from_ibuf(rr, &scene->r, out, oglrender->view_id);
@@ -715,7 +715,6 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 			oglrender->task_scheduler = task_scheduler;
 			oglrender->task_pool = BLI_task_pool_create_background(task_scheduler,
 			                                                       oglrender);
-			BLI_pool_set_num_threads(oglrender->task_pool, 1);
 		}
 		else {
 			oglrender->task_scheduler = NULL;
@@ -747,6 +746,23 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 	int i;
 
 	if (oglrender->is_animation) {
+		/* Trickery part for movie output:
+		 *
+		 * We MUST write frames in an exact order, so we only let background
+		 * thread to work on that, and main thread is simply waits for that
+		 * thread to do all the dirty work.
+		 *
+		 * After this loop is done work_and_wait() will have nothing to do,
+		 * so we don't run into wrong order of frames written to the stream.
+		 */
+		if (BKE_imtype_is_movie(scene->r.im_format.imtype)) {
+			BLI_mutex_lock(&oglrender->task_mutex);
+			while (oglrender->num_scheduled_frames > 0) {
+				BLI_condition_wait(&oglrender->task_condition,
+				                   &oglrender->task_mutex);
+			}
+			BLI_mutex_unlock(&oglrender->task_mutex);
+		}
 		BLI_task_pool_work_and_wait(oglrender->task_pool);
 		BLI_task_pool_free(oglrender->task_pool);
 		/* Depending on various things we might or might not use global scheduler. */
@@ -886,14 +902,15 @@ static void write_result_func(TaskPool * __restrict pool,
 	 */
 	ReportList reports;
 	BKE_reports_init(&reports, oglrender->reports->flag & ~RPT_PRINT);
-	/* Do actual save logic here, depending on the file format. */
+	/* Do actual save logic here, depending on the file format.
+	 *
+	 * NOTE: We have to construct temporary scene with proper scene->r.cfra.
+	 * This is because underlying calls do not use r.cfra but use scene
+	 * for that.
+	 */
+	Scene tmp_scene = *scene;
+	tmp_scene.r.cfra = cfra;
 	if (is_movie) {
-		/* We have to construct temporary scene with proper scene->r.cfra.
-		 * This is because underlying calls do not use r.cfra but use scene
-		 * for that.
-		 */
-		Scene tmp_scene = *scene;
-		tmp_scene.r.cfra = cfra;
 		ok = RE_WriteRenderViewsMovie(&reports,
 		                              rr,
 		                              &tmp_scene,
@@ -917,8 +934,8 @@ static void write_result_func(TaskPool * __restrict pool,
 		                             true,
 		                             NULL);
 
-		BKE_render_result_stamp_info(scene, scene->camera, rr, false);
-		ok = RE_WriteRenderViewsImage(NULL, rr, scene, true, name);
+		BKE_render_result_stamp_info(&tmp_scene, tmp_scene.camera, rr, false);
+		ok = RE_WriteRenderViewsImage(NULL, rr, &tmp_scene, true, name);
 		if (!ok) {
 			BKE_reportf(&reports,
 			            RPT_ERROR,

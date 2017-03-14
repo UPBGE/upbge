@@ -121,7 +121,7 @@ static bool test_path(char *targetpath, const char *path_base, const char *path_
 	if (path_sep) BLI_join_dirfile(tmppath, sizeof(tmppath), path_base, path_sep);
 	else BLI_strncpy(tmppath, path_base, sizeof(tmppath));
 
-	/* rare cases folder_name is omitted (when looking for ~/.blender/2.xx dir only) */
+	/* rare cases folder_name is omitted (when looking for ~/.config/blender/2.xx dir only) */
 	if (folder_name)
 		BLI_make_file_string("/", targetpath, tmppath, folder_name);
 	else
@@ -755,7 +755,6 @@ static void where_is_temp(char *fullname, char *basename, const size_t maxlen, c
 void BKE_tempdir_init(char *userdir)
 {
 	where_is_temp(btempdir_session, btempdir_base, FILE_MAX, userdir);
-;
 }
 
 /**

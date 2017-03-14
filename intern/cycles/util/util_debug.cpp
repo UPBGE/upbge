@@ -29,7 +29,8 @@ DebugFlags::CPU::CPU()
     sse41(true),
     sse3(true),
     sse2(true),
-    qbvh(true)
+    qbvh(true),
+    split_kernel(false)
 {
 	reset();
 }
@@ -55,10 +56,12 @@ void DebugFlags::CPU::reset()
 #undef CHECK_CPU_FLAGS
 
 	qbvh = true;
+	split_kernel = false;
 }
 
 DebugFlags::CUDA::CUDA()
-  : adaptive_compile(false)
+  : adaptive_compile(false),
+    split_kernel(false)
 {
 	reset();
 }
@@ -67,12 +70,15 @@ void DebugFlags::CUDA::reset()
 {
 	if(getenv("CYCLES_CUDA_ADAPTIVE_COMPILE") != NULL)
 		adaptive_compile = true;
+
+	split_kernel = false;
 }
 
 DebugFlags::OpenCL::OpenCL()
   : device_type(DebugFlags::OpenCL::DEVICE_ALL),
     kernel_type(DebugFlags::OpenCL::KERNEL_DEFAULT),
-    debug(false)
+    debug(false),
+    single_program(false)
 {
 	reset();
 }
@@ -112,6 +118,7 @@ void DebugFlags::OpenCL::reset()
 	}
 	/* Initialize other flags from environment variables. */
 	debug = (getenv("CYCLES_OPENCL_DEBUG") != NULL);
+	single_program = (getenv("CYCLES_OPENCL_SINGLE_PROGRAM") != NULL);
 }
 
 DebugFlags::DebugFlags()
@@ -133,7 +140,9 @@ std::ostream& operator <<(std::ostream &os,
 	   << "  AVX    : " << string_from_bool(debug_flags.cpu.avx)   << "\n"
 	   << "  SSE4.1 : " << string_from_bool(debug_flags.cpu.sse41) << "\n"
 	   << "  SSE3   : " << string_from_bool(debug_flags.cpu.sse3)  << "\n"
-	   << "  SSE2   : " << string_from_bool(debug_flags.cpu.sse2)  << "\n";
+	   << "  SSE2   : " << string_from_bool(debug_flags.cpu.sse2)  << "\n"
+	   << "  QBVH   : " << string_from_bool(debug_flags.cpu.qbvh)  << "\n"
+	   << "  Split  : " << string_from_bool(debug_flags.cpu.split_kernel) << "\n";
 
 	os << "CUDA flags:\n"
 	   << " Adaptive Compile: " << string_from_bool(debug_flags.cuda.adaptive_compile) << "\n";
@@ -172,9 +181,10 @@ std::ostream& operator <<(std::ostream &os,
 			break;
 	}
 	os << "OpenCL flags:\n"
-	   << "  Device type : " << opencl_device_type << "\n"
-	   << "  Kernel type : " << opencl_kernel_type << "\n"
-	   << "  Debug       : " << string_from_bool(debug_flags.opencl.debug)
+	   << "  Device type    : " << opencl_device_type << "\n"
+	   << "  Kernel type    : " << opencl_kernel_type << "\n"
+	   << "  Debug          : " << string_from_bool(debug_flags.opencl.debug) << "\n"
+	   << "  Signle program : " << string_from_bool(debug_flags.opencl.single_program)
 	   << "\n";
 	return os;
 }

@@ -86,12 +86,10 @@ def use_sample_all_lights(context):
 
     return cscene.sample_all_lights_direct or cscene.sample_all_lights_indirect
 
-def show_device_selection(context):
-    type = get_device_type(context)
-    if type == 'NETWORK':
+def show_device_active(context):
+    cscene = context.scene.cycles
+    if cscene.device != 'GPU':
         return True
-    if not type in {'CUDA', 'OPENCL'}:
-        return False
     return context.user_preferences.addons[__package__].preferences.has_active_device()
 
 
@@ -1518,15 +1516,18 @@ class CyclesRender_PT_debug(CyclesButtonsPanel, Panel):
         row.prop(cscene, "debug_use_cpu_avx", toggle=True)
         row.prop(cscene, "debug_use_cpu_avx2", toggle=True)
         col.prop(cscene, "debug_use_qbvh")
+        col.prop(cscene, "debug_use_cpu_split_kernel")
 
         col = layout.column()
         col.label('CUDA Flags:')
         col.prop(cscene, "debug_use_cuda_adaptive_compile")
+        col.prop(cscene, "debug_use_cuda_split_kernel")
 
         col = layout.column()
         col.label('OpenCL Flags:')
         col.prop(cscene, "debug_opencl_kernel_type", text="Kernel")
         col.prop(cscene, "debug_opencl_device_type", text="Device")
+        col.prop(cscene, "debug_opencl_kernel_single_program", text="Single Program")
         col.prop(cscene, "debug_use_opencl_debug", text="Debug")
 
 
@@ -1633,7 +1634,7 @@ def draw_device(self, context):
         split = layout.split(percentage=1/3)
         split.label("Device:")
         row = split.row()
-        row.active = show_device_selection(context)
+        row.active = show_device_active(context)
         row.prop(cscene, "device", text="")
 
         if engine.with_osl() and use_cpu(context):

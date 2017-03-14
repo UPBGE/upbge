@@ -230,7 +230,9 @@ void Session::run_gpu()
 				while(1) {
 					scoped_timer pause_timer;
 					pause_cond.wait(pause_lock);
-					progress.add_skip_time(pause_timer, params.background);
+					if(pause) {
+						progress.add_skip_time(pause_timer, params.background);
+					}
 
 					update_status_time(pause, no_tiles);
 					progress.set_update();
@@ -520,7 +522,9 @@ void Session::run_cpu()
 				while(1) {
 					scoped_timer pause_timer;
 					pause_cond.wait(pause_lock);
-					progress.add_skip_time(pause_timer, params.background);
+					if(pause) {
+						progress.add_skip_time(pause_timer, params.background);
+					}
 
 					update_status_time(pause, no_tiles);
 					progress.set_update();
@@ -650,6 +654,8 @@ void Session::load_kernels()
 	if(!kernels_loaded) {
 		progress.set_status("Loading render kernels (may take a few minutes the first time)");
 
+		scoped_timer timer;
+
 		DeviceRequestedFeatures requested_features = get_requested_device_features();
 		VLOG(2) << "Requested features:\n" << requested_features;
 		if(!device->load_kernels(requested_features)) {
@@ -662,6 +668,9 @@ void Session::load_kernels()
 			progress.set_update();
 			return;
 		}
+
+		progress.add_skip_time(timer, false);
+		VLOG(1) << "Total time spent loading kernels: " << time_dt() - timer.get_start();
 
 		kernels_loaded = true;
 	}
@@ -883,6 +892,7 @@ void Session::path_trace()
 	task.need_finish_queue = params.progressive_refine;
 	task.integrator_branched = scene->integrator->method == Integrator::BRANCHED_PATH;
 	task.requested_tile_size = params.tile_size;
+	task.passes_size = tile_manager.params.get_passes_size();
 
 	device->task_add(task);
 }

@@ -582,7 +582,7 @@ void snode_set_context(const bContext *C)
 		}
 	}
 	
-	if (snode->nodetree != ntree || snode->id != id || snode->from != from) {
+	if (snode->nodetree != ntree || snode->id != id || snode->from != from || snode->treepath.last == NULL) {
 		ED_node_tree_start(snode, ntree, id, from);
 	}
 	
@@ -1069,12 +1069,9 @@ int node_find_indicated_socket(SpaceNode *snode, bNode **nodep, bNodeSocket **so
 	
 	/* check if we click in a socket */
 	for (node = snode->edittree->nodes.first; node; node = node->next) {
-		
-		rect.xmin = cursor[0] - (NODE_SOCKSIZE + 4);
-		rect.ymin = cursor[1] - (NODE_SOCKSIZE + 4);
-		rect.xmax = cursor[0] + (NODE_SOCKSIZE + 4);
-		rect.ymax = cursor[1] + (NODE_SOCKSIZE + 4);
-		
+
+		BLI_rctf_init_pt_radius(&rect, cursor, NODE_SOCKSIZE + 4);
+
 		if (!(node->flag & NODE_HIDDEN)) {
 			/* extra padding inside and out - allow dragging on the text areas too */
 			if (in_out == SOCK_IN) {

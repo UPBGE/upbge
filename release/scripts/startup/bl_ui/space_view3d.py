@@ -1533,6 +1533,7 @@ class VIEW3D_MT_object_apply(Menu):
         layout.separator()
 
         layout.operator("object.visual_transform_apply", text="Visual Transform", text_ctxt=i18n_contexts.default)
+        layout.operator("object.convert", text="Visual Geometry to Mesh", text_ctxt=i18n_contexts.default).target = 'MESH'
         layout.operator("object.duplicates_make_real")
 
 
@@ -1744,6 +1745,7 @@ class VIEW3D_MT_brush_paint_modes(Menu):
         layout.prop(brush, "use_paint_weight", text="Weight Paint")
         layout.prop(brush, "use_paint_image", text="Texture Paint")
 
+
 # ********** Vertex paint menu **********
 
 
@@ -1813,6 +1815,7 @@ class VIEW3D_MT_vertex_group(Menu):
             layout.operator("object.vertex_group_remove", text="Remove Active Group").all = False
             layout.operator("object.vertex_group_remove", text="Remove All Groups").all = True
 
+
 # ********** Weight paint menu **********
 
 
@@ -1850,6 +1853,7 @@ class VIEW3D_MT_paint_weight(Menu):
         layout.separator()
 
         layout.operator("paint.weight_set")
+
 
 # ********** Sculpt menu **********
 
@@ -2003,6 +2007,7 @@ class VIEW3D_MT_particle_specials(Menu):
 
 class VIEW3D_MT_particle_showhide(ShowHideMenu, Menu):
     _operator_name = "particle"
+
 
 # ********** Pose Menu **********
 
@@ -2277,6 +2282,7 @@ class VIEW3D_MT_bone_options_disable(Menu, BoneOptions):
     bl_label = "Disable Bone Options"
     type = 'DISABLE'
 
+
 # ********** Edit Menus, suffix from ob.type **********
 
 
@@ -2444,6 +2450,7 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
         with_bullet = bpy.app.build_options.bullet
 
         layout.operator("mesh.merge")
+        layout.operator("mesh.remove_doubles")
         layout.operator("mesh.rip_move")
         layout.operator("mesh.rip_move_fill")
         layout.operator("mesh.rip_edge_move")
@@ -2466,7 +2473,6 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
         if with_bullet:
             layout.operator("mesh.convex_hull")
         layout.operator("mesh.vertices_smooth")
-        layout.operator("mesh.remove_doubles")
 
         layout.operator("mesh.blend_from_shape")
 
@@ -2623,6 +2629,7 @@ class VIEW3D_MT_edit_mesh_clean(Menu):
         layout.operator("mesh.face_make_planar")
         layout.operator("mesh.vert_connect_nonplanar")
         layout.operator("mesh.vert_connect_concave")
+        layout.operator("mesh.remove_doubles")
         layout.operator("mesh.fill_holes")
 
 

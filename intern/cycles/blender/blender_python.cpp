@@ -67,8 +67,10 @@ bool debug_flags_sync_from_scene(BL::Scene b_scene)
 	flags.cpu.sse3 = get_boolean(cscene, "debug_use_cpu_sse3");
 	flags.cpu.sse2 = get_boolean(cscene, "debug_use_cpu_sse2");
 	flags.cpu.qbvh = get_boolean(cscene, "debug_use_qbvh");
+	flags.cpu.split_kernel = get_boolean(cscene, "debug_use_cpu_split_kernel");
 	/* Synchronize CUDA flags. */
 	flags.cuda.adaptive_compile = get_boolean(cscene, "debug_use_cuda_adaptive_compile");
+	flags.cuda.split_kernel = get_boolean(cscene, "debug_use_cuda_split_kernel");
 	/* Synchronize OpenCL kernel type. */
 	switch(get_enum(cscene, "debug_opencl_kernel_type")) {
 		case 0:
@@ -104,6 +106,7 @@ bool debug_flags_sync_from_scene(BL::Scene b_scene)
 	}
 	/* Synchronize other OpenCL flags. */
 	flags.opencl.debug = get_boolean(cscene, "debug_use_opencl_debug");
+	flags.opencl.single_program = get_boolean(cscene, "debug_opencl_kernel_single_program");
 	return flags.opencl.device_type != opencl_device_type ||
 	       flags.opencl.kernel_type != opencl_kernel_type;
 }

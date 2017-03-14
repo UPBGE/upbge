@@ -946,7 +946,7 @@ static int arg_handle_native_pixels_set(int UNUSED(argc), const char **UNUSED(ar
 }
 
 static const char arg_handle_with_borders_doc[] =
-"\n\tForce opening without borders"
+"\n\tForce opening with borders"
 ;
 static int arg_handle_with_borders(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
@@ -1364,7 +1364,7 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
 
 			re = RE_NewRender(scene->id.name);
 			BLI_begin_threaded_malloc();
-			BKE_reports_init(&reports, RPT_PRINT);
+			BKE_reports_init(&reports, RPT_STORE);
 
 			RE_SetReports(re, &reports);
 			for (int i = 0; i < frames_range_len; i++) {
@@ -1379,6 +1379,7 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
 				}
 			}
 			RE_SetReports(re, NULL);
+			BKE_reports_clear(&reports);
 			BLI_end_threaded_malloc();
 			MEM_freeN(frame_range_arr);
 			return 1;
@@ -1406,10 +1407,11 @@ static int arg_handle_render_animation(int UNUSED(argc), const char **UNUSED(arg
 		Render *re = RE_NewRender(scene->id.name);
 		ReportList reports;
 		BLI_begin_threaded_malloc();
-		BKE_reports_init(&reports, RPT_PRINT);
+		BKE_reports_init(&reports, RPT_STORE);
 		RE_SetReports(re, &reports);
 		RE_BlenderAnim(re, bmain, scene, NULL, scene->lay, scene->r.sfra, scene->r.efra, scene->r.frame_step);
 		RE_SetReports(re, NULL);
+		BKE_reports_clear(&reports);
 		BLI_end_threaded_malloc();
 	}
 	else {

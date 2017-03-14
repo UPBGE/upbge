@@ -1,5 +1,7 @@
-set(PROJECT_DESCRIPTION  "Blender is a very fast and versatile 3D modeller/renderer.")
-set(PROJECT_COPYRIGHT    "Copyright (C) 2001-2012 Blender Foundation")
+string(TIMESTAMP CURRENT_YEAR "%Y")
+
+set(PROJECT_DESCRIPTION  "Blender is the free and open source 3D creation suite software.")
+set(PROJECT_COPYRIGHT    "Copyright (C) 2001-${CURRENT_YEAR} Blender Foundation")
 set(PROJECT_CONTACT      "foundation@blender.org")
 set(PROJECT_VENDOR       "Blender Foundation")
 
@@ -38,8 +40,8 @@ unset(MY_WC_HASH)
 # Force Package Name
 execute_process(COMMAND date "+%Y%m%d" OUTPUT_VARIABLE CPACK_DATE OUTPUT_STRIP_TRAILING_WHITESPACE)
 string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
-if (MSVC)
-	if ("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+if(MSVC)
+	if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
 		set(PACKAGE_ARCH windows64)
 	else()
 		set(PACKAGE_ARCH windows32)
@@ -48,7 +50,7 @@ else(MSVC)
 	set(PACKAGE_ARCH ${CMAKE_SYSTEM_PROCESSOR})
 endif()
 
-if (CPACK_OVERRIDE_PACKAGENAME)
+if(CPACK_OVERRIDE_PACKAGENAME)
 	set(CPACK_PACKAGE_FILE_NAME ${CPACK_OVERRIDE_PACKAGENAME}-${PACKAGE_ARCH})
 else()
 	set(CPACK_PACKAGE_FILE_NAME ${PROJECT_NAME_LOWER}-${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}-git${CPACK_DATE}.${BUILD_REV}-${PACKAGE_ARCH})
@@ -135,4 +137,3 @@ unset(MINOR_VERSION)
 unset(PATCH_VERSION)
 
 unset(BUILD_REV)
-

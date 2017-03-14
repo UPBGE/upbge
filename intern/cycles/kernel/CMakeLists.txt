@@ -13,19 +13,28 @@ set(INC_SYS
 
 set(SRC
 	kernels/cpu/kernel.cpp
+	kernels/cpu/kernel_split.cpp
 	kernels/opencl/kernel.cl
+	kernels/opencl/kernel_state_buffer_size.cl
+	kernels/opencl/kernel_split.cl
 	kernels/opencl/kernel_data_init.cl
+	kernels/opencl/kernel_path_init.cl
 	kernels/opencl/kernel_queue_enqueue.cl
 	kernels/opencl/kernel_scene_intersect.cl
 	kernels/opencl/kernel_lamp_emission.cl
-	kernels/opencl/kernel_background_buffer_update.cl
+	kernels/opencl/kernel_do_volume.cl
+	kernels/opencl/kernel_indirect_background.cl
 	kernels/opencl/kernel_shader_eval.cl
 	kernels/opencl/kernel_holdout_emission_blurring_pathtermination_ao.cl
+	kernels/opencl/kernel_subsurface_scatter.cl
 	kernels/opencl/kernel_direct_lighting.cl
-	kernels/opencl/kernel_shadow_blocked.cl
+	kernels/opencl/kernel_shadow_blocked_ao.cl
+	kernels/opencl/kernel_shadow_blocked_dl.cl
 	kernels/opencl/kernel_next_iteration_setup.cl
-	kernels/opencl/kernel_sum_all_radiance.cl
+	kernels/opencl/kernel_indirect_subsurface.cl
+	kernels/opencl/kernel_buffer_update.cl
 	kernels/cuda/kernel.cu
+	kernels/cuda/kernel_split.cu
 )
 
 set(SRC_BVH_HEADERS
@@ -68,6 +77,7 @@ set(SRC_HEADERS
 	kernel_path_common.h
 	kernel_path_state.h
 	kernel_path_surface.h
+	kernel_path_subsurface.h
 	kernel_path_volume.h
 	kernel_projection.h
 	kernel_queues.h
@@ -86,6 +96,10 @@ set(SRC_KERNELS_CPU_HEADERS
 	kernels/cpu/kernel_cpu.h
 	kernels/cpu/kernel_cpu_impl.h
 	kernels/cpu/kernel_cpu_image.h
+)
+
+set(SRC_KERNELS_CUDA_HEADERS
+	kernels/cuda/kernel_config.h
 )
 
 set(SRC_CLOSURE_HEADERS
@@ -189,17 +203,25 @@ set(SRC_UTIL_HEADERS
 )
 
 set(SRC_SPLIT_HEADERS
-	split/kernel_background_buffer_update.h
+	split/kernel_buffer_update.h
 	split/kernel_data_init.h
 	split/kernel_direct_lighting.h
+	split/kernel_do_volume.h
 	split/kernel_holdout_emission_blurring_pathtermination_ao.h
+	split/kernel_indirect_background.h
+	split/kernel_indirect_subsurface.h
 	split/kernel_lamp_emission.h
 	split/kernel_next_iteration_setup.h
+	split/kernel_path_init.h
+	split/kernel_queue_enqueue.h
 	split/kernel_scene_intersect.h
 	split/kernel_shader_eval.h
-	split/kernel_shadow_blocked.h
+	split/kernel_shadow_blocked_ao.h
+	split/kernel_shadow_blocked_dl.h
 	split/kernel_split_common.h
-	split/kernel_sum_all_radiance.h
+	split/kernel_split_data.h
+	split/kernel_split_data_types.h
+	split/kernel_subsurface_scatter.h
 )
 
 # CUDA module
@@ -227,8 +249,9 @@ if(WITH_CYCLES_CUDA_BINARIES)
 	endif()
 
 	# build for each arch
-	set(cuda_sources kernels/cuda/kernel.cu
+	set(cuda_sources kernels/cuda/kernel.cu kernels/cuda/kernel_split.cu
 		${SRC_HEADERS}
+		${SRC_KERNELS_CUDA_HEADERS}
 		${SRC_BVH_HEADERS}
 		${SRC_SVM_HEADERS}
 		${SRC_GEOM_HEADERS}
@@ -237,14 +260,21 @@ if(WITH_CYCLES_CUDA_BINARIES)
 	)
 	set(cuda_cubins)
 
-	macro(CYCLES_CUDA_KERNEL_ADD arch experimental)
-		if(${experimental})
-			set(cuda_extra_flags "-D__KERNEL_EXPERIMENTAL__")
-			set(cuda_cubin kernel_experimental_${arch}.cubin)
+	macro(CYCLES_CUDA_KERNEL_ADD arch split experimental)
+		if(${split})
+			set(cuda_extra_flags "-D__SPLIT__")
+			set(cuda_cubin kernel_split)
 		else()
 			set(cuda_extra_flags "")
-			set(cuda_cubin kernel_${arch}.cubin)
+			set(cuda_cubin kernel)
 		endif()
+
+		if(${experimental})
+			set(cuda_extra_flags ${cuda_extra_flags} -D__KERNEL_EXPERIMENTAL__)
+			set(cuda_cubin ${cuda_cubin}_experimental)
+		endif()
+
+		set(cuda_cubin ${cuda_cubin}_${arch}.cubin)
 
 		if(WITH_CYCLES_DEBUG)
 			set(cuda_debug_flags "-D__KERNEL_DEBUG__")
@@ -258,13 +288,19 @@ if(WITH_CYCLES_CUDA_BINARIES)
 		set(cuda_version_flags "-D__KERNEL_CUDA_VERSION__=${cuda_nvcc_version}")
 		set(cuda_math_flags "--use_fast_math")
 
+		if(split)
+			set(cuda_kernel_src "/kernels/cuda/kernel_split.cu")
+		else()
+			set(cuda_kernel_src "/kernels/cuda/kernel.cu")
+		endif()
+
 		add_custom_command(
 			OUTPUT ${cuda_cubin}
 			COMMAND ${cuda_nvcc_command}
 					-arch=${arch}
 					${CUDA_NVCC_FLAGS}
 					-m${CUDA_BITS}
-					--cubin ${CMAKE_CURRENT_SOURCE_DIR}/kernels/cuda/kernel.cu
+					--cubin ${CMAKE_CURRENT_SOURCE_DIR}${cuda_kernel_src}
 					-o ${CMAKE_CURRENT_BINARY_DIR}/${cuda_cubin}
 					--ptxas-options="-v"
 					${cuda_arch_flags}
@@ -291,7 +327,12 @@ if(WITH_CYCLES_CUDA_BINARIES)
 
 	foreach(arch ${CYCLES_CUDA_BINARIES_ARCH})
 		# Compile regular kernel
-		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE)
+		CYCLES_CUDA_KERNEL_ADD(${arch} FALSE FALSE)
+
+		if(WITH_CYCLES_CUDA_SPLIT_KERNEL_BINARIES)
+			# Compile split kernel
+			CYCLES_CUDA_KERNEL_ADD(${arch} TRUE FALSE)
+		endif()
 	endforeach()
 
 	add_custom_target(cycles_kernel_cuda ALL DEPENDS ${cuda_cubins})
@@ -314,31 +355,42 @@ if(CXX_HAS_SSE)
 		kernels/cpu/kernel_sse2.cpp
 		kernels/cpu/kernel_sse3.cpp
 		kernels/cpu/kernel_sse41.cpp
+		kernels/cpu/kernel_split_sse2.cpp
+		kernels/cpu/kernel_split_sse3.cpp
+		kernels/cpu/kernel_split_sse41.cpp
 	)
 
 	set_source_files_properties(kernels/cpu/kernel_sse2.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE2_KERNEL_FLAGS}")
 	set_source_files_properties(kernels/cpu/kernel_sse3.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE3_KERNEL_FLAGS}")
 	set_source_files_properties(kernels/cpu/kernel_sse41.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE41_KERNEL_FLAGS}")
+	set_source_files_properties(kernels/cpu/kernel_split_sse2.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE2_KERNEL_FLAGS}")
+	set_source_files_properties(kernels/cpu/kernel_split_sse3.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE3_KERNEL_FLAGS}")
+	set_source_files_properties(kernels/cpu/kernel_split_sse41.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_SSE41_KERNEL_FLAGS}")
 endif()
 
 if(CXX_HAS_AVX)
 	list(APPEND SRC
 		kernels/cpu/kernel_avx.cpp
+		kernels/cpu/kernel_split_avx.cpp
 	)
 	set_source_files_properties(kernels/cpu/kernel_avx.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX_KERNEL_FLAGS}")
+	set_source_files_properties(kernels/cpu/kernel_split_avx.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX_KERNEL_FLAGS}")
 endif()
 
 if(CXX_HAS_AVX2)
 	list(APPEND SRC
 		kernels/cpu/kernel_avx2.cpp
+		kernels/cpu/kernel_split_avx2.cpp
 	)
 	set_source_files_properties(kernels/cpu/kernel_avx2.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX2_KERNEL_FLAGS}")
+	set_source_files_properties(kernels/cpu/kernel_split_avx2.cpp PROPERTIES COMPILE_FLAGS "${CYCLES_AVX2_KERNEL_FLAGS}")
 endif()
 
 add_library(cycles_kernel
 	${SRC}
 	${SRC_HEADERS}
 	${SRC_KERNELS_CPU_HEADERS}
+	${SRC_KERNELS_CUDA_HEADERS}
 	${SRC_BVH_HEADERS}
 	${SRC_CLOSURE_HEADERS}
 	${SRC_SVM_HEADERS}
@@ -361,19 +413,28 @@ endif()
 #delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${KERNEL_PREPROCESSED}" ${CYCLES_INSTALL_PATH}/kernel)
 
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_state_buffer_size.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_split.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_data_init.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_path_init.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_queue_enqueue.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_scene_intersect.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_lamp_emission.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
-delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_background_buffer_update.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_do_volume.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_indirect_background.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_shader_eval.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_holdout_emission_blurring_pathtermination_ao.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_subsurface_scatter.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_direct_lighting.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
-delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_shadow_blocked.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_shadow_blocked_ao.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_shadow_blocked_dl.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_next_iteration_setup.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
-delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_sum_all_radiance.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_indirect_subsurface.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/opencl/kernel_buffer_update.cl" ${CYCLES_INSTALL_PATH}/kernel/kernels/opencl)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/cuda/kernel.cu" ${CYCLES_INSTALL_PATH}/kernel/kernels/cuda)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernels/cuda/kernel_split.cu" ${CYCLES_INSTALL_PATH}/kernel/kernels/cuda)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_KERNELS_CUDA_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/kernels/cuda)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_BVH_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/bvh)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_CLOSURE_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/closure)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_SVM_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/svm)

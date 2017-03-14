@@ -5321,6 +5321,37 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			MeshSeqCacheModifierData *msmcd = (MeshSeqCacheModifierData *)md;
 			msmcd->reader = NULL;
 		}
+		else if (md->type == eModifierType_SurfaceDeform) {
+			SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
+
+			smd->verts = newdataadr(fd, smd->verts);
+
+			if (smd->verts) {
+				for (int i = 0; i < smd->numverts; i++) {
+					smd->verts[i].binds = newdataadr(fd, smd->verts[i].binds);
+
+					if (smd->verts[i].binds) {
+						for (int j = 0; j < smd->verts[i].numbinds; j++) {
+							smd->verts[i].binds[j].vert_inds = newdataadr(fd, smd->verts[i].binds[j].vert_inds);
+							smd->verts[i].binds[j].vert_weights = newdataadr(fd, smd->verts[i].binds[j].vert_weights);
+
+							if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
+								if (smd->verts[i].binds[j].vert_inds)
+									BLI_endian_switch_uint32_array(smd->verts[i].binds[j].vert_inds, smd->verts[i].binds[j].numverts);
+
+								if (smd->verts[i].binds[j].vert_weights) {
+									if (smd->verts[i].binds[j].mode == MOD_SDEF_MODE_CENTROID ||
+									    smd->verts[i].binds[j].mode == MOD_SDEF_MODE_LOOPTRI)
+										BLI_endian_switch_float_array(smd->verts[i].binds[j].vert_weights, 3);
+									else
+										BLI_endian_switch_float_array(smd->verts[i].binds[j].vert_weights, smd->verts[i].binds[j].numverts);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -10417,6 +10448,9 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 					else {
 						mainptr->curlib->filedata = NULL;
 						mainptr->curlib->id.tag |= LIB_TAG_MISSING;
+						/* Set lib version to current main one... Makes assert later happy. */
+						mainptr->versionfile = mainptr->curlib->versionfile = mainl->versionfile;
+						mainptr->subversionfile = mainptr->curlib->subversionfile = mainl->subversionfile;
 					}
 					
 					if (fd == NULL) {

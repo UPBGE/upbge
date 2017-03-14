@@ -592,12 +592,9 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], bool extend, bool dese
 
 	view3d_set_viewcontext(C, &vc);
 
-	rect.xmin = mval[0] - 12;
-	rect.xmax = mval[0] + 12;
-	rect.ymin = mval[1] - 12;
-	rect.ymax = mval[1] + 12;
+	BLI_rcti_init_pt_radius(&rect, mval, 12);
 
-	hits = view3d_opengl_select(&vc, buffer, MAXPICKBUF, &rect, true);
+	hits = view3d_opengl_select(&vc, buffer, MAXPICKBUF, &rect, VIEW3D_SELECT_PICK_NEAREST);
 
 	/* does startelem exist? */
 	ml = mb->editelems->first;

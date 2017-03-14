@@ -7167,8 +7167,9 @@ static void drawtexspace(Object *ob)
 }
 
 /* draws wire outline */
-static void drawObjectSelect(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
-                             const unsigned char ob_wire_col[4])
+static void draw_object_selected_outline(
+        Scene *scene, View3D *v3d, ARegion *ar, Base *base,
+        const unsigned char ob_wire_col[4])
 {
 	RegionView3D *rv3d = ar->regiondata;
 	Object *ob = base->object;
@@ -7641,7 +7642,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if ((v3d->flag & V3D_SELECT_OUTLINE) && !render_override && ob->type != OB_MESH) {
 			if (dt > OB_WIRE && (ob->mode & OB_MODE_EDIT) == 0 && (dflag & DRAW_SCENESET) == 0) {
 				if (!(ob->dtx & OB_DRAWWIRE) && (ob->flag & SELECT) && !(dflag & (DRAW_PICKING | DRAW_CONSTCOLOR))) {
-					drawObjectSelect(scene, v3d, ar, base, ob_wire_col);
+					draw_object_selected_outline(scene, v3d, ar, base, ob_wire_col);
 				}
 			}
 		}
@@ -8168,6 +8169,50 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	}
 
 	ED_view3d_clear_mats_rv3d(rv3d);
+}
+
+
+/**
+ * Drawing for selection picking,
+ * caller must have called 'GPU_select_load_id(base->selcode)' first.
+ */
+void draw_object_select(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short dflag)
+{
+	BLI_assert(dflag & DRAW_PICKING && dflag & DRAW_CONSTCOLOR);
+	draw_object(scene, ar, v3d, base, dflag);
+
+	/* we draw duplicators for selection too */
+	if ((base->object->transflag & OB_DUPLI)) {
+		ListBase *lb;
+		DupliObject *dob;
+		Base tbase;
+
+		tbase.flag = OB_FROMDUPLI;
+		lb = object_duplilist(G.main->eval_ctx, scene, base->object);
+
+		for (dob = lb->first; dob; dob = dob->next) {
+			float omat[4][4];
+			char dt;
+			short dtx;
+
+			tbase.object = dob->ob;
+			copy_m4_m4(omat, dob->ob->obmat);
+			copy_m4_m4(dob->ob->obmat, dob->mat);
+
+			/* extra service: draw the duplicator in drawtype of parent */
+			/* MIN2 for the drawtype to allow bounding box objects in groups for lods */
+			dt = tbase.object->dt;   tbase.object->dt = MIN2(tbase.object->dt, base->object->dt);
+			dtx = tbase.object->dtx; tbase.object->dtx = base->object->dtx;
+
+			draw_object(scene, ar, v3d, &tbase, dflag);
+
+			tbase.object->dt = dt;
+			tbase.object->dtx = dtx;
+
+			copy_m4_m4(dob->ob->obmat, omat);
+		}
+		free_object_duplilist(lb);
+	}
 }
 
 /* ***************** BACKBUF SEL (BBS) ********* */

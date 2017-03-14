@@ -430,7 +430,7 @@ static void template_ID(
 		uiLayoutRow(layout, true);
 	}
 	else if (flag & UI_ID_BROWSE) {
-		but = uiDefBlockButN(block, id_search_menu, MEM_dupallocN(template), "", 0, 0, UI_UNIT_X * 1.6, UI_UNIT_Y,
+		but = uiDefBlockButN(block, id_search_menu, MEM_dupallocN(template), "", 0, 0, UI_UNIT_X * 1.5, UI_UNIT_Y,
 		                     TIP_(template_id_browse_tip(type)));
 		ui_def_but_icon(but, RNA_struct_ui_icon(type), UI_HAS_ICON);
 		/* default dragging of icon for id browse buttons */
@@ -1978,6 +1978,7 @@ static void curvemap_tools_dofunc(bContext *C, void *cumap_v, int event)
 		case UICURVE_FUNC_HANDLE_AUTO_ANIM: /* set auto-clamped */
 			curvemap_handle_set(cuma, HD_AUTO_ANIM);
 			curvemapping_changed(cumap, false);
+			break;
 		case UICURVE_FUNC_EXTEND_HOZ: /* extend horiz */
 			cuma->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
 			curvemapping_changed(cumap, false);

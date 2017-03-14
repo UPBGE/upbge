@@ -48,7 +48,8 @@ enum DataType {
 	TYPE_UINT,
 	TYPE_INT,
 	TYPE_FLOAT,
-	TYPE_HALF
+	TYPE_HALF,
+	TYPE_UINT64,
 };
 
 static inline size_t datatype_size(DataType datatype) 
@@ -59,6 +60,7 @@ static inline size_t datatype_size(DataType datatype)
 		case TYPE_UINT: return sizeof(uint);
 		case TYPE_INT: return sizeof(int);
 		case TYPE_HALF: return sizeof(half);
+		case TYPE_UINT64: return sizeof(uint64_t);
 		default: return 0;
 	}
 }
@@ -160,6 +162,11 @@ template<> struct device_type_traits<half4> {
 	static const int num_elements = 4;
 };
 
+template<> struct device_type_traits<uint64_t> {
+	static const DataType data_type = TYPE_UINT64;
+	static const int num_elements = 1;
+};
+
 /* Device Memory */
 
 class device_memory
@@ -180,10 +187,27 @@ public:
 	/* device pointer */
 	device_ptr device_pointer;
 
-protected:
-	device_memory() {}
+	device_memory()
+	{
+		data_type = device_type_traits<uchar>::data_type;
+		data_elements = device_type_traits<uchar>::num_elements;
+		data_pointer = 0;
+		data_size = 0;
+		device_size = 0;
+		data_width = 0;
+		data_height = 0;
+		data_depth = 0;
+		device_pointer = 0;
+	}
 	virtual ~device_memory() { assert(!device_pointer); }
 
+	void resize(size_t size)
+	{
+		data_size = size;
+		data_width = size;
+	}
+
+protected:
 	/* no copying */
 	device_memory(const device_memory&);
 	device_memory& operator = (const device_memory&);
@@ -198,16 +222,8 @@ public:
 	{
 		data_type = device_type_traits<T>::data_type;
 		data_elements = device_type_traits<T>::num_elements;
-		data_pointer = 0;
-		data_size = 0;
-		device_size = 0;
-		data_width = 0;
-		data_height = 0;
-		data_depth = 0;
 
 		assert(data_elements > 0);
-
-		device_pointer = 0;
 	}
 
 	virtual ~device_vector() {}
@@ -266,6 +282,7 @@ public:
 		data_height = 0;
 		data_depth = 0;
 		data_size = 0;
+		device_pointer = 0;
 	}
 
 	size_t size()

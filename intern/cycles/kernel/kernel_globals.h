@@ -16,6 +16,9 @@
 
 /* Constant Globals */
 
+#ifndef __KERNEL_GLOBALS_H__
+#define __KERNEL_GLOBALS_H__
+
 CCL_NAMESPACE_BEGIN
 
 /* On the CPU, we pass along the struct KernelGlobals to nearly everywhere in
@@ -64,6 +67,13 @@ typedef struct KernelGlobals {
 	/* Storage for decoupled volume steps. */
 	VolumeStep *decoupled_volume_steps[2];
 	int decoupled_volume_steps_index;
+
+	/* split kernel */
+	SplitData split_data;
+	SplitParams split_param_data;
+
+	int2 global_size;
+	int2 global_id;
 } KernelGlobals;
 
 #endif  /* __KERNEL_CPU__ */
@@ -76,7 +86,10 @@ typedef struct KernelGlobals {
 #ifdef __KERNEL_CUDA__
 
 __constant__ KernelData __data;
-typedef struct KernelGlobals {} KernelGlobals;
+typedef struct KernelGlobals {
+	/* NOTE: Keep the size in sync with SHADOW_STACK_MAX_HITS. */
+	Intersection hits_stack[64];
+} KernelGlobals;
 
 #  ifdef __KERNEL_CUDA_TEX_STORAGE__
 #    define KERNEL_TEX(type, ttype, name) ttype name;
@@ -100,8 +113,8 @@ typedef ccl_addr_space struct KernelGlobals {
 #  include "kernel_textures.h"
 
 #  ifdef __SPLIT_KERNEL__
-	ShaderData *sd_input;
-	Intersection *isect_shadow;
+	SplitData split_data;
+	SplitParams split_param_data;
 #  endif
 } KernelGlobals;
 
@@ -143,3 +156,4 @@ ccl_device float lookup_table_read_2D(KernelGlobals *kg, float x, float y, int o
 
 CCL_NAMESPACE_END
 
+#endif  /* __KERNEL_GLOBALS_H__ */

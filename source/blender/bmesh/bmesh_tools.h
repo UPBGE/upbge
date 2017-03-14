@@ -43,6 +43,7 @@ extern "C" {
 #include "tools/bmesh_path.h"
 #include "tools/bmesh_path_region.h"
 #include "tools/bmesh_region_match.h"
+#include "tools/bmesh_separate.h"
 #include "tools/bmesh_triangulate.h"
 
 #ifdef __cplusplus

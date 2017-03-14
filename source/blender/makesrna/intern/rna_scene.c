@@ -412,7 +412,7 @@ EnumPropertyItem rna_enum_gpencil_interpolation_mode_items[] = {
 	/* interpolation */
 	{0, "", 0, N_("Interpolation"), "Standard transitions between keyframes"},
 	{GP_IPO_LINEAR,   "LINEAR", ICON_IPO_LINEAR, "Linear", "Straight-line interpolation between A and B (i.e. no ease in/out)"},
-	{GP_IPO_CURVEMAP, "CUSTOM", ICON_IPO_BEZIER, "Custom", "Custom interpolation defined using a curvemap"},
+	{GP_IPO_CURVEMAP, "CUSTOM", ICON_IPO_BEZIER, "Custom", "Custom interpolation defined using a curve map"},
 	
 	/* easing */
 	{0, "", 0, N_("Easing (by strength)"), "Predefined inertial transitions, useful for motion graphics (from least to most ''dramatic'')"},
@@ -793,6 +793,21 @@ static void rna_Scene_frame_current_set(PointerRNA *ptr, int value)
 	data->r.cfra = value;
 }
 
+static float rna_Scene_frame_float_get(PointerRNA *ptr)
+{
+	Scene *data = (Scene *)ptr->data;
+	return (float)data->r.cfra + data->r.subframe;
+}
+
+static void rna_Scene_frame_float_set(PointerRNA *ptr, float value)
+{
+	Scene *data = (Scene *)ptr->data;
+	/* if negative frames aren't allowed, then we can't use them */
+	FRAMENUMBER_MIN_CLAMP(value);
+	data->r.cfra = (int)value;
+	data->r.subframe = value - data->r.cfra;
+}
+
 static float rna_Scene_frame_current_final_get(PointerRNA *ptr)
 {
 	Scene *scene = (Scene *)ptr->data;
@@ -871,6 +886,12 @@ static void rna_Scene_preview_range_end_frame_set(PointerRNA *ptr, int value)
 	/* now set normally */
 	CLAMP(value, data->r.psfra, MAXFRAME);
 	data->r.pefra = value;
+}
+
+static void rna_Scene_show_subframe_update(Main *UNUSED(bmain), Scene *UNUSED(current_scene), PointerRNA *ptr)
+{
+	Scene *scene = (Scene *)ptr->id.data;
+	scene->r.subframe = 0.0f;
 }
 
 static void rna_Scene_frame_update(Main *bmain, Scene *UNUSED(current_scene), PointerRNA *ptr)
@@ -5383,7 +5404,7 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "jpeg2k_codec", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "jp2_codec");
 	RNA_def_property_enum_items(prop, jp2_codec_items);
-	RNA_def_property_ui_text(prop, "Codec", "Codec settings for Jpek2000");
+	RNA_def_property_ui_text(prop, "Codec", "Codec settings for Jpeg2000");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 #endif
 
@@ -7095,8 +7116,19 @@ void RNA_def_scene(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "frame_subframe", PROP_FLOAT, PROP_TIME);
 	RNA_def_property_float_sdna(prop, NULL, "r.subframe");
 	RNA_def_property_ui_text(prop, "Current Sub-Frame", "");
-	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);
-	
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.01, 2);
+	RNA_def_property_update(prop, NC_SCENE | ND_FRAME, "rna_Scene_frame_update");
+
+	prop = RNA_def_property(srna, "frame_float", PROP_FLOAT, PROP_TIME);
+	RNA_def_property_ui_text(prop, "Current Sub-Frame", "");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_range(prop, MINAFRAME, MAXFRAME);
+	RNA_def_property_ui_range(prop, MINAFRAME, MAXFRAME, 0.1, 2);
+	RNA_def_property_float_funcs(prop, "rna_Scene_frame_float_get", "rna_Scene_frame_float_set", NULL);
+	RNA_def_property_update(prop, NC_SCENE | ND_FRAME, "rna_Scene_frame_update");
+
 	prop = RNA_def_property(srna, "frame_start", PROP_INT, PROP_TIME);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_int_sdna(prop, NULL, "r.sfra");
@@ -7161,7 +7193,15 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_int_funcs(prop, NULL, "rna_Scene_preview_range_end_frame_set", NULL);
 	RNA_def_property_ui_text(prop, "Preview Range End Frame", "Alternative end frame for UI playback");
 	RNA_def_property_update(prop, NC_SCENE | ND_FRAME, NULL);
-	
+
+	/* Subframe for moblur debug. */
+	prop = RNA_def_property(srna, "show_subframe", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_boolean_sdna(prop, NULL, "r.flag", SCER_SHOW_SUBFRAME);
+	RNA_def_property_ui_text(prop, "Show Subframe",
+	                         "Show current scene subframe and allow set it using interface tools");
+	RNA_def_property_update(prop, NC_SCENE | ND_FRAME, "rna_Scene_show_subframe_update");
+
 	/* Timeline / Time Navigation settings */
 	prop = RNA_def_property(srna, "show_keys_from_selected_only", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SCE_KEYS_NO_SELONLY);

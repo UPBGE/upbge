@@ -17,11 +17,23 @@
 #ifndef  __KERNEL_SPLIT_H__
 #define  __KERNEL_SPLIT_H__
 
-#include "kernel_compat_opencl.h"
 #include "kernel_math.h"
 #include "kernel_types.h"
+
+#include "kernel_split_data.h"
+
 #include "kernel_globals.h"
-#include "kernel_image_opencl.h"
+
+#ifdef __OSL__
+#  include "osl_shader.h"
+#endif
+
+#ifdef __KERNEL_OPENCL__
+#  include "kernel_image_opencl.h"
+#endif
+#ifdef __KERNEL_CPU__
+#  include "../kernels/cpu/kernel_cpu_image.h"
+#endif
 
 #include "util_atomic.h"
 
@@ -40,11 +52,11 @@
 #include "kernel_passes.h"
 
 #ifdef __SUBSURFACE__
-#include "kernel_subsurface.h"
+#  include "kernel_subsurface.h"
 #endif
 
 #ifdef __VOLUME__
-#include "kernel_volume.h"
+#  include "kernel_volume.h"
 #endif
 
 #include "kernel_path_state.h"
@@ -53,9 +65,10 @@
 #include "kernel_path_common.h"
 #include "kernel_path_surface.h"
 #include "kernel_path_volume.h"
+#include "kernel_path_subsurface.h"
 
 #ifdef __KERNEL_DEBUG__
-#include "kernel_debug.h"
+#  include "kernel_debug.h"
 #endif
 
 #include "kernel_queues.h"

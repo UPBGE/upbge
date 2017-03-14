@@ -87,6 +87,8 @@ typedef struct SnapObjectData {
 typedef struct SnapObjectData_Mesh {
 	SnapObjectData sd;
 	BVHTreeFromMesh *bvh_trees[3];
+	MPoly *mpoly;
+	bool poly_allocated;
 
 } SnapObjectData_Mesh;
 
@@ -934,9 +936,10 @@ static bool snapEmpty(
 			float tmp_co[3];
 			copy_v3_v3(tmp_co, obmat[3]);
 			if (test_projected_vert_dist(
-				        snapdata->depth_range, snapdata->mval, tmp_co,
-				        snapdata->pmat, snapdata->win_half, is_persp, &dist_px_sq,
-				        r_loc)) {
+			        snapdata->depth_range, snapdata->mval, tmp_co,
+			        snapdata->pmat, snapdata->win_half, is_persp, &dist_px_sq,
+			        r_loc))
+			{
 				*dist_px = sqrtf(dist_px_sq);
 				*ray_depth = depth_get(r_loc, snapdata->ray_start, snapdata->ray_dir);
 				retval = true;
@@ -1051,7 +1054,6 @@ static int dm_looptri_to_poly_index(DerivedMesh *dm, const MLoopTri *lt)
 static bool snapDerivedMesh(
         SnapObjectContext *sctx, SnapData *snapdata,
         Object *ob, DerivedMesh *dm, float obmat[4][4], const unsigned int ob_index,
-        bool do_bb,
         /* read/write args */
         float *ray_depth, float *dist_px,
         /* return args */
@@ -1112,39 +1114,31 @@ static bool snapDerivedMesh(
 	copy_v3_v3(ray_org_local, snapdata->ray_origin);
 	mul_m4_v3(imat, ray_org_local);
 
-	if (do_bb) {
-		BoundBox *bb = BKE_object_boundbox_get(ob);
-
-		if (bb) {
-			BoundBox bb_temp;
-
-			/* We cannot afford a bounding box with some null dimension, which may happen in some cases...
-			 * Threshold is rather high, but seems to be needed to get good behavior, see T46099. */
-			bb = BKE_boundbox_ensure_minimum_dimensions(bb, &bb_temp, 1e-1f);
-
-			/* In vertex and edges you need to get the pixel distance from ray to BoundBox, see T46816. */
-			if (ELEM(snapdata->snap_to, SCE_SNAP_MODE_VERTEX, SCE_SNAP_MODE_EDGE)) {
-				float dist_px_sq = dist_squared_to_projected_aabb_simple(
-					    lpmat, snapdata->win_half, ray_min_dist, snapdata->mval,
-					    ray_org_local, ray_normal_local, bb->vec[0], bb->vec[6]);
-				if (dist_px_sq > SQUARE(*dist_px))
-				{
-					return retval;
-				}
+	/* Test BoundBox */
+	BoundBox *bb = BKE_object_boundbox_get(ob);
+	if (bb) {
+		/* In vertex and edges you need to get the pixel distance from ray to BoundBox, see: T46099, T46816 */
+		if (ELEM(snapdata->snap_to, SCE_SNAP_MODE_VERTEX, SCE_SNAP_MODE_EDGE)) {
+			float dist_px_sq = dist_squared_to_projected_aabb_simple(
+			        lpmat, snapdata->win_half, ray_min_dist, snapdata->mval,
+			        ray_org_local, ray_normal_local, bb->vec[0], bb->vec[6]);
+			if (dist_px_sq > SQUARE(*dist_px))
+			{
+				return retval;
 			}
-			else {
-				/* was BKE_boundbox_ray_hit_check, see: cf6ca226fa58 */
-				if (!isect_ray_aabb_v3_simple(
-					ray_start_local, ray_normal_local, bb->vec[0], bb->vec[6], NULL, NULL))
-				{
-					return retval;
-				}
-			}
-			/* was local_depth, see: T47838 */
-			len_diff = dist_aabb_to_plane(bb->vec[0], bb->vec[6], ray_start_local, ray_normal_local);
-			if (len_diff < 0) len_diff = 0.0f;
-			need_ray_start_correction_init = false;
 		}
+		else {
+			/* was BKE_boundbox_ray_hit_check, see: cf6ca226fa58 */
+			if (!isect_ray_aabb_v3_simple(
+				ray_start_local, ray_normal_local, bb->vec[0], bb->vec[6], NULL, NULL))
+			{
+				return retval;
+			}
+		}
+		/* was local_depth, see: T47838 */
+		len_diff = dist_aabb_to_plane(bb->vec[0], bb->vec[6], ray_start_local, ray_normal_local);
+		if (len_diff < 0) len_diff = 0.0f;
+		need_ray_start_correction_init = false;
 	}
 
 	SnapObjectData_Mesh *sod = NULL;
@@ -1181,6 +1175,29 @@ static bool snapDerivedMesh(
 		if (treedata && treedata->tree) {
 			if (treedata->cached && !bvhcache_has_tree(dm->bvhCache, treedata->tree)) {
 				free_bvhtree_from_mesh(treedata);
+			}
+			else {
+				if (!treedata->vert_allocated) {
+					treedata->vert = DM_get_vert_array(dm, &treedata->vert_allocated);
+				}
+				if ((tree_index == 1) && !treedata->edge_allocated) {
+					treedata->edge = DM_get_edge_array(dm, &treedata->vert_allocated);
+				}
+				if (tree_index == 2) {
+					if (!treedata->loop_allocated) {
+						treedata->loop = DM_get_loop_array(dm, &treedata->loop_allocated);
+					}
+					if (!treedata->looptri_allocated) {
+						if (!sod->poly_allocated) {
+							sod->mpoly = DM_get_poly_array(dm, &sod->poly_allocated);
+						}
+						treedata->looptri = DM_get_looptri_array(
+						        dm, treedata->vert,
+						        sod->mpoly, dm->getNumPolys(dm),
+						        treedata->loop, dm->getNumLoops(dm),
+						        &treedata->looptri_allocated);
+					}
+				}
 			}
 		}
 	}
@@ -1295,10 +1312,17 @@ static bool snapDerivedMesh(
 	}
 	/* SCE_SNAP_MODE_VERTEX or SCE_SNAP_MODE_EDGE */
 	else {
+
+		/* Warning: the depth_max is currently being used only in perspective view.
+		 * It is not correct to limit the maximum depth for elements obtained with nearest
+		 * since this limitation depends on the normal and the size of the occlusion face.
+		 * And more... ray_depth is being confused with Z-depth here... (varies only the precision) */
+		const float ray_depth_max_global = *ray_depth + snapdata->depth_range[0];
+
 		Nearest2dUserData neasrest2d = {
 		    .dist_px_sq = SQUARE(*dist_px),
 		    .r_axis_closest = {1.0f, 1.0f, 1.0f},
-		    .depth_range = {snapdata->depth_range[0], *ray_depth + snapdata->depth_range[0]},
+		    .depth_range = {snapdata->depth_range[0], ray_depth_max_global},
 		    .userdata = treedata,
 		    .get_edge_verts = (Nearest2DGetEdgeVertsCallback)get_dm_edge_verts,
 		    .copy_vert_no = (Nearest2DCopyVertNoCallback)copy_dm_vert_no,
@@ -1650,7 +1674,6 @@ static bool snapObject(
 			}
 			retval = snapDerivedMesh(
 			        sctx, snapdata, ob, dm, obmat, ob_index,
-			        true,
 			        ray_depth, dist_px,
 			        r_loc, r_no,
 			        r_index, r_hit_list);
@@ -1858,6 +1881,9 @@ static void snap_object_data_free(void *sod_v)
 					free_bvhtree_from_mesh(sod->bvh_trees[i]);
 				}
 			}
+			if (sod->poly_allocated) {
+				MEM_freeN(sod->mpoly);
+			}
 			break;
 		}
 		case SNAP_EDIT_MESH:
@@ -2028,11 +2054,13 @@ static bool transform_snap_context_project_view3d_mixed_impl(
 	BLI_assert((snap_to_flag & ~(1 | 2 | 4)) == 0);
 
 	if (use_depth) {
-		const float dist_px_orig = *dist_px;
+		const float dist_px_orig = dist_px ? *dist_px : 0;
 		for (int i = 2; i >= 0; i--) {
 			if (snap_to_flag & (1 << i)) {
-				if (i == 0)
+				if (i == 0) {
+					BLI_assert(dist_px != NULL);
 					*dist_px = dist_px_orig;
+				}
 				if (ED_transform_snap_object_project_view3d(
 				        sctx,
 				        elem_type[i], params,
@@ -2051,10 +2079,10 @@ static bool transform_snap_context_project_view3d_mixed_impl(
 		for (int i = 0; i < 3; i++) {
 			if (snap_to_flag & (1 << i)) {
 				if (ED_transform_snap_object_project_view3d(
-					sctx,
-					elem_type[i], params,
-					mval, dist_px, &ray_depth,
-					r_co, r_no))
+				        sctx,
+				        elem_type[i], params,
+				        mval, dist_px, &ray_depth,
+				        r_co, r_no))
 				{
 					is_hit = true;
 					break;

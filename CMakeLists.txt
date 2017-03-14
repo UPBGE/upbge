@@ -453,6 +453,7 @@ option(WITH_BOOST					"Enable features depending on boost" ON)
 
 # Unit testsing
 option(WITH_GTESTS "Enable GTest unit testing" OFF)
+option(WITH_OPENGL_TESTS "Enable OpenGL related unit testing (Experimental)" OFF)
 
 
 # Documentation
@@ -526,18 +527,20 @@ endif()
 option(WITH_LEGACY_DEPSGRAPH "Build Blender with legacy dependency graph" ON)
 mark_as_advanced(WITH_LEGACY_DEPSGRAPH)
 
-# Use hardcoded paths or find_package to find externals
-option(WITH_WINDOWS_FIND_MODULES "Use find_package to locate libraries" OFF)
-mark_as_advanced(WITH_WINDOWS_FIND_MODULES)
+if(WIN32)
+	# Use hardcoded paths or find_package to find externals
+	option(WITH_WINDOWS_FIND_MODULES "Use find_package to locate libraries" OFF)
+	mark_as_advanced(WITH_WINDOWS_FIND_MODULES)
 
-option(WITH_WINDOWS_CODESIGN "Use signtool to sign the final binary." OFF)
-mark_as_advanced(WITH_WINDOWS_CODESIGN)
+	option(WITH_WINDOWS_CODESIGN "Use signtool to sign the final binary." OFF)
+	mark_as_advanced(WITH_WINDOWS_CODESIGN)
 
-set(WINDOWS_CODESIGN_PFX CACHE FILEPATH  "Path to pfx file to use for codesigning.")
-mark_as_advanced(WINDOWS_CODESIGN_PFX)
+	set(WINDOWS_CODESIGN_PFX CACHE FILEPATH  "Path to pfx file to use for codesigning.")
+	mark_as_advanced(WINDOWS_CODESIGN_PFX)
 
-set(WINDOWS_CODESIGN_PFX_PASSWORD CACHE STRING  "password for pfx file used for codesigning.")
-mark_as_advanced(WINDOWS_CODESIGN_PFX_PASSWORD)
+	set(WINDOWS_CODESIGN_PFX_PASSWORD CACHE STRING  "password for pfx file used for codesigning.")
+	mark_as_advanced(WINDOWS_CODESIGN_PFX_PASSWORD)
+endif()
 
 # avoid using again
 option_defaults_clear()
@@ -938,7 +941,7 @@ if(WITH_X11)
 	if(WITH_X11_ALPHA)
 		find_library(X11_Xrender_LIB Xrender  ${X11_LIB_SEARCH_PATH})
 		mark_as_advanced(X11_Xrender_LIB)
-		if (X11_Xrender_LIB)
+		if(X11_Xrender_LIB)
 			list(APPEND PLATFORM_LINKLIBS ${X11_Xrender_LIB})
 		else()
 			set(WITH_X11_ALPHA OFF)

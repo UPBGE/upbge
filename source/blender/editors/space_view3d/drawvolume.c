@@ -737,7 +737,7 @@ static void add_streamline(float (*verts)[3], float(*colors)[3], float center[3]
 	copy_v3_v3(verts[(*offset)++], center);
 }
 
-typedef void (*vector_draw_func)(float(*)[3], float(*)[3], float*, float*, float, float, int*);
+typedef void (*vector_draw_func)(float(*)[3], float(*)[3], float *, float *, float, float, int *);
 #endif  /* WITH_SMOKE */
 
 void draw_smoke_velocity(SmokeDomainSettings *domain, float viewnormal[3])
@@ -774,8 +774,8 @@ void draw_smoke_velocity(SmokeDomainSettings *domain, float viewnormal[3])
 
 	float min[3] = {
 	    domain->p0[0] - domain->cell_size[0] * domain->adapt_res,
-		domain->p0[1] - domain->cell_size[1] * domain->adapt_res,
-		domain->p0[2] - domain->cell_size[2] * domain->adapt_res,
+	    domain->p0[1] - domain->cell_size[1] * domain->adapt_res,
+	    domain->p0[2] - domain->cell_size[2] * domain->adapt_res,
 	};
 
 	int num_points_v[3] = {

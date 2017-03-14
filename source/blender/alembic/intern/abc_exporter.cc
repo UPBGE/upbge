@@ -47,7 +47,7 @@ extern "C" {
 
 #ifdef WIN32
 /* needed for MSCV because of snprintf from BLI_string */
-#	include "BLI_winstuff.h"
+#  include "BLI_winstuff.h"
 #endif
 
 #include "BKE_anim.h"
@@ -347,7 +347,7 @@ void AbcExporter::createTransformWritersHierarchy(EvaluationContext *eval_ctx)
 		Object *ob = base->object;
 
 		if (export_object(&m_settings, ob)) {
-			switch(ob->type) {
+			switch (ob->type) {
 				case OB_LAMP:
 				case OB_LATTICE:
 				case OB_MBALL:
@@ -382,7 +382,10 @@ void AbcExporter::createTransformWritersFlat()
 
 void AbcExporter::exploreTransform(EvaluationContext *eval_ctx, Object *ob, Object *parent, Object *dupliObParent)
 {
-	createTransformWriter(ob, parent, dupliObParent);
+
+	if (export_object(&m_settings, ob) && object_is_shape(ob)) {
+		createTransformWriter(ob, parent, dupliObParent);
+	}
 
 	ListBase *lb = object_duplilist(eval_ctx, m_scene, ob);
 
@@ -410,8 +413,12 @@ void AbcExporter::createTransformWriter(Object *ob, Object *parent, Object *dupl
 {
 	const std::string name = get_object_dag_path_name(ob, dupliObParent);
 
+	/* An object should not be its own parent, or we'll get infinite loops. */
+	BLI_assert(ob != parent);
+	BLI_assert(ob != dupliObParent);
+
 	/* check if we have already created a transform writer for this object */
-	if (m_xforms.find(name) != m_xforms.end()){
+	if (getXForm(name) != NULL){
 		std::cerr << "xform " << name << " already exists\n";
 		return;
 	}
@@ -425,6 +432,14 @@ void AbcExporter::createTransformWriter(Object *ob, Object *parent, Object *dupl
 		if (!parent_xform) {
 			if (parent->parent) {
 				createTransformWriter(parent, parent->parent, dupliObParent);
+			}
+			else if (parent == dupliObParent) {
+				if (dupliObParent->parent == NULL) {
+					createTransformWriter(parent, NULL, NULL);
+				}
+				else {
+					createTransformWriter(parent, dupliObParent->parent, dupliObParent->parent);
+				}
 			}
 			else {
 				createTransformWriter(parent, dupliObParent, dupliObParent);
@@ -518,7 +533,7 @@ void AbcExporter::createShapeWriter(Object *ob, Object *dupliObParent)
 		}
 	}
 
-	switch(ob->type) {
+	switch (ob->type) {
 		case OB_MESH:
 		{
 			Mesh *me = static_cast<Mesh *>(ob->data);

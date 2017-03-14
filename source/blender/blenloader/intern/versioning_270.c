@@ -1575,6 +1575,40 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 
+		/* Fix for T50736, Glare comp node using same var for two different things. */
+		if (!DNA_struct_elem_find(fd->filesdna, "NodeGlare", "char", "star_45")) {
+			FOREACH_NODETREE(main, ntree, id) {
+				if (ntree->type == NTREE_COMPOSIT) {
+					ntreeSetTypes(NULL, ntree);
+					for (bNode *node = ntree->nodes.first; node; node = node->next) {
+						if (node->type == CMP_NODE_GLARE) {
+							NodeGlare *ndg = node->storage;
+							switch (ndg->type) {
+								case 2:  /* Grrrr! magic numbers :( */
+									ndg->streaks = ndg->angle;
+									break;
+								case 0:
+									ndg->star_45 = ndg->angle != 0;
+									break;
+								default:
+									break;
+							}
+						}
+					}
+				}
+			} FOREACH_NODETREE_END
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "SurfaceDeformModifierData", "float", "mat[4][4]")) {
+			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
+				for (ModifierData *md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_SurfaceDeform) {
+						SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
+						unit_m4(smd->mat);
+					}
+				}
+			}
+		}
 	}
 }
 

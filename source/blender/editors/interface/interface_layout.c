@@ -189,7 +189,7 @@ static const char *ui_item_name_add_colon(const char *name, char namestr[UI_MAX_
 	return name;
 }
 
-static int ui_item_fit(int item, int pos, int all, int available, bool is_last, int alignment)
+static int ui_item_fit(int item, int pos, int all, int available, bool is_last, int alignment, float *extra_pixel)
 {
 	/* available == 0 is unlimited */
 	if (available == 0)
@@ -199,16 +199,22 @@ static int ui_item_fit(int item, int pos, int all, int available, bool is_last, 
 		/* contents is bigger than available space */
 		if (is_last)
 			return available - pos;
-		else
-			return (item * available) / all;
+		else {
+			float width = *extra_pixel + (item * available) / (float)all;
+			*extra_pixel = width - (int)width;
+			return (int)width;
+		}
 	}
 	else {
 		/* contents is smaller or equal to available space */
 		if (alignment == UI_LAYOUT_ALIGN_EXPAND) {
 			if (is_last)
 				return available - pos;
-			else
-				return (item * available) / all;
+			else {
+				float width = *extra_pixel + (item * available) / (float)all;
+				*extra_pixel = width - (int)width;
+				return (int)width;
+			}
 		}
 		else
 			return item;
@@ -299,6 +305,26 @@ static void ui_item_position(uiItem *item, int x, int y, int w, int h)
 		litem->y = y + h;
 		litem->w = w;
 		litem->h = h;
+	}
+}
+
+static void ui_item_move(uiItem *item, int delta_xmin, int delta_xmax)
+{
+	if (item->type == ITEM_BUTTON) {
+		uiButtonItem *bitem = (uiButtonItem *)item;
+
+		bitem->but->rect.xmin += delta_xmin;
+		bitem->but->rect.xmax += delta_xmax;
+		
+		ui_but_update(bitem->but); /* for strlen */
+	}
+	else {
+		uiLayout *litem = (uiLayout *)item;
+
+		if (delta_xmin > 0)
+			litem->x += delta_xmin;
+		else
+			litem->w += delta_xmax;
 	}
 }
 
@@ -1248,7 +1274,7 @@ static void ui_item_rna_size(
 	if (!w) {
 		if (type == PROP_ENUM && icon_only) {
 			w = ui_text_icon_width(layout, "", ICON_BLANK1, 0);
-			w += 0.6f * UI_UNIT_X;
+			w += 0.5f * UI_UNIT_X;
 		}
 		else {
 			w = ui_text_icon_width(layout, name, icon, 0);
@@ -2099,9 +2125,10 @@ static int ui_litem_min_width(int itemw)
 
 static void ui_litem_layout_row(uiLayout *litem)
 {
-	uiItem *item;
+	uiItem *item, *last_free_item = NULL;
 	int x, y, w, tot, totw, neww, newtotw, itemw, minw, itemh, offset;
 	int fixedw, freew, fixedx, freex, flag = 0, lastw = 0;
+	float extra_pixel;
 
 	/* x = litem->x; */ /* UNUSED */
 	y = litem->y;
@@ -2128,6 +2155,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 		x = 0;
 		flag = 0;
 		newtotw = totw;
+		extra_pixel = 0.0f;
 
 		for (item = litem->items.first; item; item = item->next) {
 			if (item->flag & UI_ITEM_FIXED)
@@ -2137,7 +2165,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 			minw = ui_litem_min_width(itemw);
 
 			if (w - lastw > 0)
-				neww = ui_item_fit(itemw, x, totw, w - lastw, !item->next, litem->alignment);
+				neww = ui_item_fit(itemw, x, totw, w - lastw, !item->next, litem->alignment, &extra_pixel);
 			else
 				neww = 0;  /* no space left, all will need clamping to minimum size */
 
@@ -2166,6 +2194,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 
 	freex = 0;
 	fixedx = 0;
+	extra_pixel = 0.0f;
 	x = litem->x;
 
 	for (item = litem->items.first; item; item = item->next) {
@@ -2177,13 +2206,14 @@ static void ui_litem_layout_row(uiLayout *litem)
 			if (item->type != ITEM_BUTTON && item->flag & UI_ITEM_MIN) {
 				minw = itemw;
 			}
-			itemw = ui_item_fit(minw, fixedx, fixedw, min_ii(w, fixedw), !item->next, litem->alignment);
+			itemw = ui_item_fit(minw, fixedx, fixedw, min_ii(w, fixedw), !item->next, litem->alignment, &extra_pixel);
 			fixedx += itemw;
 		}
 		else {
 			/* free size item */
-			itemw = ui_item_fit(itemw, freex, freew, w - fixedw, !item->next, litem->alignment);
+			itemw = ui_item_fit(itemw, freex, freew, w - fixedw, !item->next, litem->alignment, &extra_pixel);
 			freex += itemw;
+			last_free_item = item;
 		}
 
 		/* align right/center */
@@ -2205,6 +2235,17 @@ static void ui_litem_layout_row(uiLayout *litem)
 			x += litem->space;
 	}
 
+	/* add extra pixel */
+	uiItem *last_item = litem->items.last;
+	extra_pixel = litem->w - (x - litem->x);
+	if (extra_pixel > 0 && litem->alignment == UI_LAYOUT_ALIGN_EXPAND &&
+	    last_free_item && last_item && last_item->flag & UI_ITEM_FIXED)
+	{
+		ui_item_move(last_free_item, 0, extra_pixel);
+		for (item = last_free_item->next; item; item = item->next)
+			ui_item_move(item, extra_pixel, extra_pixel);
+	}
+
 	litem->w = x - litem->x;
 	litem->h = litem->y - y;
 	litem->x = x;
@@ -2216,7 +2257,6 @@ static void ui_litem_estimate_column(uiLayout *litem)
 {
 	uiItem *item;
 	int itemw, itemh;
-	bool min_size_flag = true;
 
 	litem->w = 0;
 	litem->h = 0;
@@ -2224,17 +2264,11 @@ static void ui_litem_estimate_column(uiLayout *litem)
 	for (item = litem->items.first; item; item = item->next) {
 		ui_item_size(item, &itemw, &itemh);
 
-		min_size_flag = min_size_flag && (item->flag & UI_ITEM_MIN);
-
 		litem->w = MAX2(litem->w, itemw);
 		litem->h += itemh;
 
 		if (item->next)
 			litem->h += litem->space;
-	}
-
-	if (min_size_flag) {
-		litem->item.flag |= UI_ITEM_MIN;
 	}
 }
 
@@ -2648,13 +2682,14 @@ static void ui_litem_layout_absolute(uiLayout *litem)
 static void ui_litem_estimate_split(uiLayout *litem)
 {
 	ui_litem_estimate_row(litem);
+	litem->item.flag &= ~UI_ITEM_MIN;
 }
 
 static void ui_litem_layout_split(uiLayout *litem)
 {
 	uiLayoutItemSplit *split = (uiLayoutItemSplit *)litem;
 	uiItem *item;
-	float percentage;
+	float percentage, extra_pixel = 0.0f;
 	const int tot = BLI_listbase_count(&litem->items);
 	int itemh, x, y, w, colw = 0;
 
@@ -2677,7 +2712,9 @@ static void ui_litem_layout_split(uiLayout *litem)
 		x += colw;
 
 		if (item->next) {
-			colw = (w - (int)(w * percentage)) / (tot - 1);
+			const float width = extra_pixel + (w - (int)(w * percentage)) / ((float)tot - 1);
+			extra_pixel = width - (int)width;
+			colw = (int)width;
 			colw = MAX2(colw, 0);
 
 			x += litem->space;
@@ -3134,8 +3171,6 @@ static void ui_item_align(uiLayout *litem, short nr)
 		else if (item->type == ITEM_LAYOUT_BOX) {
 			box = (uiLayoutItemBx *)item;
 			box->roundbox->alignnr = nr;
-			BLI_remlink(&litem->root->block->buttons, box->roundbox);
-			BLI_addhead(&litem->root->block->buttons, box->roundbox);
 		}
 		else if (((uiLayout *)item)->align) {
 			ui_item_align((uiLayout *)item, nr);
