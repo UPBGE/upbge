@@ -87,11 +87,11 @@ base class --- :class:`CValue`
 
       :type: integer
 
-   .. attribute:: cubeMap
+   .. attribute:: renderer
 
-      Realtime cube map.
+      Texture renderer of this texture.
 
-      :type: :class:`KX_CubeMap`
+      :type: :class:`KX_CubeMap`, :class:`KX_PlanarMap` or None
 
    .. attribute:: ior
 
