@@ -1309,12 +1309,6 @@ macro(blender_project_hack_post)
 			set(CMAKE_INCLUDE_SYSTEM_FLAG_C "-isystem ")
 		endif()
 	endif()
-	
-	# -------------------------------------------------------------------------------------
-	# workaround to increase the number of sections for object file format in MSVC compiler
-	if(MSVC)
-		set(CMAKE_CXX_FLAGS_DEBUG "/bigobj ")
-	endif()
 
 endmacro()
 
