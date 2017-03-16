@@ -863,8 +863,8 @@ static PyObject *gPySetBackgroundColor(PyObject *, PyObject *value)
 		return nullptr;
 	}
 	ShowDeprecationWarning("setBackgroundColor()", "KX_WorldInfo.horizonColor/zenithColor");
-	wi->setHorizonColor(vec.to3d());
-	wi->setZenithColor(vec.to3d());
+	wi->setHorizonColor(vec);
+	wi->setZenithColor(vec);
 	Py_RETURN_NONE;
 }
 

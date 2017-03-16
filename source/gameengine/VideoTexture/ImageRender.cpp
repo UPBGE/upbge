@@ -179,8 +179,7 @@ void ImageRender::setZenith(float red, float green, float blue, float alpha)
 void ImageRender::setHorizonFromScene (KX_Scene *scene)
 {
 	if (scene) {
-		const MT_Vector3& horizon_color = scene->GetWorldInfo()->m_horizoncolor;
-		m_horizon = MT_Vector4(horizon_color[0], horizon_color[1], horizon_color[2], 1.0f);
+		m_horizon = scene->GetWorldInfo()->m_horizoncolor;
 	}
 	else {
 		m_horizon = MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f);
@@ -191,8 +190,7 @@ void ImageRender::setHorizonFromScene (KX_Scene *scene)
 void ImageRender::setZenithFromScene(KX_Scene *scene)
 {
 	if (scene) {
-		const MT_Vector3& zenith_color = scene->GetWorldInfo()->m_zenithcolor;
-		m_zenith = MT_Vector4(zenith_color[0], zenith_color[1], zenith_color[2], 1.0f);
+		m_zenith = scene->GetWorldInfo()->m_zenithcolor;
 	}
 	else {
 		m_zenith = MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f);
@@ -404,10 +402,10 @@ bool ImageRender::Render()
 
 	// Render Background
 	if (m_scene->GetWorldInfo()) {
-		const MT_Vector3 hor = m_scene->GetWorldInfo()->m_horizoncolor;
-		const MT_Vector3 zen = m_scene->GetWorldInfo()->m_zenithcolor;
-		m_scene->GetWorldInfo()->setHorizonColor(MT_Vector3(m_horizon[0], m_horizon[1], m_horizon[2]));
-		m_scene->GetWorldInfo()->setZenithColor(MT_Vector3(m_zenith[0], m_zenith[1], m_zenith[2]));
+		const MT_Vector4 hor = m_scene->GetWorldInfo()->m_horizoncolor;
+		const MT_Vector4 zen = m_scene->GetWorldInfo()->m_zenithcolor;
+		m_scene->GetWorldInfo()->setHorizonColor(m_horizon);
+		m_scene->GetWorldInfo()->setZenithColor(m_zenith);
 		m_scene->GetWorldInfo()->UpdateBackGround(m_rasterizer);
 		m_scene->GetWorldInfo()->RenderBackground(m_rasterizer);
 		m_scene->GetWorldInfo()->setHorizonColor(hor);

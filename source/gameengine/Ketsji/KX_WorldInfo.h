@@ -33,7 +33,7 @@
 #define __KX_WORLDINFO_H__
 
 #include "MT_Scalar.h"
-#include "MT_Vector3.h"
+#include "MT_Vector4.h"
 #include "KX_KetsjiEngine.h"
 #include "EXP_PyObjectPlus.h"
 
@@ -60,8 +60,8 @@ class KX_WorldInfo : public PyObjectPlus
 	float m_range;
 	float m_exposure;
 	MT_Vector3 m_mistcolor;
-	MT_Vector3 m_horizoncolor;
-	MT_Vector3 m_zenithcolor;
+	MT_Vector4 m_horizoncolor;
+	MT_Vector4 m_zenithcolor;
 	MT_Vector3 m_ambientcolor;
 	MT_Vector3 m_con_mistcolor;
 	MT_Vector3 m_con_ambientcolor;
@@ -92,8 +92,8 @@ public:
 	void setExposure(float exposure);
 	void setRange(float range);
 	void setMistColor(const MT_Vector3& mistcolor);
-	void setHorizonColor(const MT_Vector3& horizoncolor);
-	void setZenithColor(const MT_Vector3& zenithcolor);
+	void setHorizonColor(const MT_Vector4& horizoncolor);
+	void setZenithColor(const MT_Vector4& zenithcolor);
 	void setAmbientColor(const MT_Vector3& ambientcolor);
 	void UpdateBackGround(RAS_Rasterizer *rasty);
 	void UpdateWorldSettings(RAS_Rasterizer *rasty);
@@ -106,6 +106,8 @@ public:
 	static int pyattr_set_mist_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_horizon_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_horizon_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_background_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_background_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_zenith_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_zenith_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_ambient_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
