@@ -154,7 +154,8 @@ typedef struct Material {
 	float darkness;
 
 	/* runtime - OR'd from 'mtex' */
-	short texco, mapto;
+	short texco, padmapto3;
+	int mapto, padmapto2;
 	
 	/* ramp colors */
 	struct ColorBand *ramp_col;
@@ -423,6 +424,7 @@ typedef struct Material {
 #define MAP_WARP		8192
 // #define MAP_LAYER		16384		/* unused */
 #define MAP_PARALLAX	32768
+#define MAP_FRESNEL		65536
 
 /* volume mapto - reuse definitions for now - a bit naughty! */
 #define MAP_DENSITY				128

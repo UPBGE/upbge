@@ -1420,11 +1420,20 @@ static void do_material_tex(GPUShadeInput *shi)
 							 GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
 							 GPU_select_uniform(&mtex->ior, GPU_DYNAMIC_TEX_IOR, NULL, ma),
 							 GPU_select_uniform(&mtex->refrratio, GPU_DYNAMIC_TEX_REFRRATIO, NULL, ma),
-							 GPU_select_uniform(&mtex->fresnelfac, GPU_DYNAMIC_TEX_FRESNEL, NULL, ma),
 							 &tin, &trgb);
 					}
 				}
-				rgbnor = TEX_RGB;
+
+				if (mtex->mapto & MAP_FRESNEL && !(ma->constflag & MA_CONSTANT_TEXTURE)) {
+					GPU_link(mat, "mtex_fresnel_color",
+						trgb,
+						GPU_select_uniform(&mtex->fresnelfac, GPU_DYNAMIC_TEX_FRESNEL, NULL, ma),
+						shi->view,
+						shi->vn,
+						GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
+						&tin, &trgb);
+				}
+				rgbnor = TEX_RGB;				
 
 				talpha = ((tex->imaflag & TEX_USEALPHA) && tex->ima && (tex->ima->flag & IMA_IGNORE_ALPHA) == 0);
 			}

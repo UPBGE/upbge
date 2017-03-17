@@ -580,6 +580,11 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_AMB);
 	RNA_def_property_ui_text(prop, "Ambient", "The texture affects the value of ambient");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "use_map_fresnel", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_FRESNEL);
+	RNA_def_property_ui_text(prop, "Fresnel", "The texture affects fresnel for non planar objects");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
 	prop = RNA_def_property(srna, "use_map_hardness", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_HAR);
@@ -752,6 +757,12 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Ambient Factor", "Amount texture affects ambient");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
+	prop = RNA_def_property(srna, "fresnel_factor_2", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "fresnelfac");
+	RNA_def_property_ui_range(prop, -1, 1, 0.01, 3);
+	RNA_def_property_ui_text(prop, "Fresnel Factor", "Amount texture affects fresnel");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
 	/* volume material */
 	prop = RNA_def_property(srna, "use_map_color_emission", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_EMISSION_COL);
@@ -844,13 +855,6 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0, 1.0);
 	RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 2);
 	RNA_def_property_ui_text(prop, "Refraction Ratio", "Amount refraction mixed with reflection");
-	RNA_def_property_update(prop, 0, "rna_Material_update");
-
-	prop = RNA_def_property(srna, "fresnel_factor", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "fresnelfac");
-	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
-	RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 2);
-	RNA_def_property_ui_text(prop, "Fresnel Factor", "Amount fresnel on CubeMap texture");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
 	/* end volume material */

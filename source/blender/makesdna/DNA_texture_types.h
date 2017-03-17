@@ -56,7 +56,8 @@ struct CurveMapping;
 
 typedef struct MTex {
 
-	short texco, mapto, maptoneg, blendtype;
+	int mapto, pmapto2;
+	short texco, pmapto3, maptoneg, blendtype;
 	struct Object *object;
 	struct Tex *tex;
 	char uvname[64];	/* MAX_CUSTOMDATA_LAYER_NAME */

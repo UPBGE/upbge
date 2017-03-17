@@ -1194,6 +1194,7 @@ class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
             factor_but(col, "use_map_emit", "emit_factor", "Emit")
             factor_but(col, "use_map_mirror", "mirror_factor", "Mirror")
             factor_but(col, "use_map_raymir", "raymir_factor", "Ray Mirror")
+            factor_but(col, "use_map_fresnel", "fresnel_factor_2", "Fresnel")
 
             col.label(text="Geometry:")
             # XXX replace 'or' when displacement is fixed to not rely on normal influence value.
@@ -1210,7 +1211,6 @@ class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
             sub.label(text="Refraction:")
             sub.prop(tex, "ior", text="IOR")
             sub.prop(tex, "refraction_ratio", text="Ratio")
-            sub.prop(tex, "fresnel_factor", text="Fresnel")
 
         elif isinstance(idblock, Lamp):
             split = layout.split()
@@ -1329,6 +1329,7 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
                 factor_but(col, "use_map_emit", "emit_factor", "Emit")
                 factor_but(col, "use_map_mirror", "mirror_factor", "Mirror")
                 factor_but(col, "use_map_raymir", "raymir_factor", "Ray Mirror")
+                factor_but(col, "use_map_fresnel", "fresnel_factor_2", "Fresnel")
 
                 col.label(text="Geometry:")
                 # XXX replace 'or' when displacement is fixed to not rely on normal influence value.
@@ -1351,7 +1352,6 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
                 sub.label(text="Refraction:")
                 sub.prop(tex, "ior", text="IOR")
                 sub.prop(tex, "refraction_ratio", text="Ratio")
-                sub.prop(tex, "fresnel_factor", text="Fresnel")
 
                 #~ sub = col.column()
                 #~ sub.active = tex.use_map_translucency or tex.map_emit or tex.map_alpha or tex.map_raymir or tex.map_hardness or tex.map_ambient or tex.map_specularity or tex.map_reflection or tex.map_mirror
