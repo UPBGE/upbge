@@ -1326,9 +1326,9 @@ bool KX_KetsjiEngine::CheckLightAndCamerasFrustumIntersection(RAS_ILightObject *
 			MT_Matrix4x4 viewmat(camtrans);
 			cam->SetModelviewMatrix(viewmat);
 			cam->NodeUpdateGS(0.0f);
-			int intersect = cam->BoxInsideFrustum(raslight->m_shadowBox);
-			std::cout << "intersect value: " << intersect << std::endl;
-			if (intersect == 0 || intersect == 1) {
+			bool intersect = cam->LightFrustumInsideFrustum(raslight->m_shadowBox, raslight->m_shadowBoxMin, raslight->m_shadowBoxMax);
+
+			if (intersect) {
 				return true;
 			}
 			return false;
@@ -1356,9 +1356,34 @@ void KX_KetsjiEngine::DrawDebugLightFrustum(KX_Scene *scene)
 
 			if (lamp && (type == 0 || type == 1)) { // 0->SPOT; 1->SUN
 				m_rasterizer->GetDebugLightFrustum(box, worldtr, lamp, type);
+				raslight->m_shadowBox = box;
+				float maxX = -FLT_MAX, minX = FLT_MAX, maxY = -FLT_MAX, minY = FLT_MAX, maxZ = -FLT_MAX, minZ = FLT_MAX;
+				for (unsigned int i = 0; i < 8; i++) {
+					if (box[i][0] > maxX) {
+						maxX = box[i][0];
+					}
+					if (box[i][0] < minX) {
+						minX = box[i][0];
+					}
+					if (box[i][1] > maxY) {
+						maxY = box[i][1];
+					}
+					if (box[i][1] < minY) {
+						minY = box[i][1];
+					}
+					if (box[i][2] > maxZ) {
+						maxZ = box[i][2];
+					}
+					if (box[i][2] < minZ) {
+						minZ = box[i][2];
+					}
+				}
+
+				raslight->m_shadowBoxMin = MT_Vector3(minX, minY, minZ);
+				raslight->m_shadowBoxMax = MT_Vector3(maxX, maxY, maxZ);
 
 				bool intersect = CheckLightAndCamerasFrustumIntersection(raslight);
-				std::cout << "bool intersect value: " << intersect << std::endl;
+
 				float color[4];
 				if (intersect) {
 					color[0] = 0.0f;
@@ -1373,14 +1398,7 @@ void KX_KetsjiEngine::DrawDebugLightFrustum(KX_Scene *scene)
 					color[3] = 1.0f;
 				}
 
-				std::cout << "red: " << color[0] << std::endl;
-				std::cout << "green: " << color[1] << std::endl;
-				std::cout << "blue: " << color[2] << std::endl;
-				std::cout << "----------NEXTFRAME-----------" << std::endl;
-
-				m_rasterizer->DrawDebugLightFrustum(*box, color);
-				raslight->m_shadowBox = box;
-				
+				m_rasterizer->DrawDebugLightFrustum(*box, color);				
 			}
 		}
 	}

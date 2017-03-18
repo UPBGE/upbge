@@ -98,6 +98,7 @@ protected:
 	 * View Frustum clip planes.
 	 */
 	MT_Vector4   m_planes[6];
+	MT_Vector3   m_corners[8];
 	
 	/**
 	 * This camera is frustum culling.
@@ -172,6 +173,9 @@ public:
 
 	MT_Transform		GetWorldToCamera() const;
 	MT_Transform		GetCameraToWorld() const;
+
+	MT_Vector3 *GetCorners();
+	bool LightFrustumInsideFrustum(const MT_Vector3 *box, const MT_Vector3 &boxmin, const MT_Vector3 &boxmax);
 
 	/** Sets the projection matrix that is used by the rasterizer. */
 	void				SetProjectionMatrix(const MT_Matrix4x4 & mat);

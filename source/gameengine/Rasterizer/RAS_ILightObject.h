@@ -32,6 +32,8 @@
 #ifndef __RAS_LIGHTOBJECT_H__
 #define __RAS_LIGHTOBJECT_H__
 
+#include "MT_Vector3.h"
+
 class RAS_ICanvas;
 
 class KX_Camera;
@@ -39,7 +41,6 @@ class KX_Scene;
 
 class MT_Transform;
 class MT_Matrix4x4;
-class MT_Vector3;
 
 struct Image;
 struct GPULamp;
@@ -69,6 +70,8 @@ public:
 	float	m_shadowcolor[3];
 	bool	m_showLightDebugFrustum;
 	MT_Vector3 *m_shadowBox;
+	MT_Vector3 m_shadowBoxMin;
+	MT_Vector3 m_shadowBoxMax;
 	bool	m_isIntersectingWithActiveCameras;
 
 	float	m_color[3];
