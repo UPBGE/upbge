@@ -36,8 +36,6 @@ class RAS_OpenGLLight : public RAS_ILightObject
 
 	RAS_IRasterizer *m_rasterizer;
 
-	GPULamp *GetGPULamp();
-
 public:
 	RAS_OpenGLLight(RAS_IRasterizer *ras);
 	~RAS_OpenGLLight();
@@ -49,6 +47,7 @@ public:
 		return new RAS_OpenGLLight(*this);
 	}
 
+	GPULamp *GetGPULamp();
 	bool HasShadowBuffer();
 	bool NeedShadowUpdate();
 	int GetShadowBindCode();

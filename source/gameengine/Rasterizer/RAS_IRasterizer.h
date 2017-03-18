@@ -56,6 +56,7 @@ class SCA_IScene;
 class RAS_ISync;
 struct KX_ClientObjectInfo;
 class KX_RayCast;
+struct GPULamp;
 
 struct GPUShader;
 
@@ -776,6 +777,8 @@ public:
 	 * \param viewmat The camera view matrix.
 	 */
 	void DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat);
+	void GetDebugLightFrustum(MT_Vector3 *box, const MT_Transform &world, GPULamp *lamp, int type) const;
+	void DrawDebugLightFrustum(MT_Vector3 &box, float *color);
 	void FlushDebugShapes(SCA_IScene *scene);
 
 	/// Clear the material texture coordinates list used by storages.

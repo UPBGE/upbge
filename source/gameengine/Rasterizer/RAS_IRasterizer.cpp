@@ -548,6 +548,50 @@ void RAS_IRasterizer::DrawDebugCameraFrustum(SCA_IScene *scene, const MT_Matrix4
 		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f));
 }
 
+void RAS_IRasterizer::GetDebugLightFrustum(MT_Vector3 *box, const MT_Transform &world, GPULamp *lamp, int type) const
+{
+	switch (type) {
+		case 0: // LIGHT_SPOT
+		{
+			float x, y, z, z_abs;
+			x = -500.0f;
+			y = cosf(GPU_lamp_spot_size(lamp) * 0.5f);
+			z = x * sqrtf(1.0f - y * y);
+			x *= y;
+			z_abs = fabsf(z);
+			box[0] = world(MT_Vector3(-z_abs, -z_abs, x));
+			box[1] = world(MT_Vector3(0.0f, 0.0f, 0.0f));
+			box[2] = world(MT_Vector3(-z_abs, z_abs, x));
+			box[3] = world(MT_Vector3(0.0f, 0.0f, 0.0f));
+			box[4] = world(MT_Vector3(z_abs, -z_abs, x));
+			box[5] = world(MT_Vector3(0.0f, 0.0f, 0.0f));
+			box[6] = world(MT_Vector3(z_abs, z_abs, x));
+			box[7] = world(MT_Vector3(0.0f, 0.0f, 0.0f));
+			break;
+		}
+		case 1: // LIGHT_SUN
+		{
+			float f = GPU_lamp_frustum_size(lamp);
+			float dist = -500.0f;
+			float clipstart = GPU_lamp_clipstart(lamp);
+			box[0] = world(MT_Vector3(-f, -f, dist));
+			box[1] = world(MT_Vector3(-f, -f, -clipstart));
+			box[2] = world(MT_Vector3(-f, f, dist));
+			box[3] = world(MT_Vector3(-f, f, -clipstart));
+			box[4] = world(MT_Vector3(f, -f, dist));
+			box[5] = world(MT_Vector3(f, -f, -clipstart));
+			box[6] = world(MT_Vector3(f, f, dist));
+			box[7] = world(MT_Vector3(f, f, -clipstart));
+			break;
+		}
+	}
+}
+
+void RAS_IRasterizer::DrawDebugLightFrustum(MT_Vector3 &box, float *color)
+{
+	m_impl->DrawTransparentBoxes(box, color);
+}
+
 void RAS_IRasterizer::UpdateOffScreens(RAS_ICanvas *canvas)
 {
 	m_offScreens.Update(canvas);

@@ -38,6 +38,8 @@
 #include "EXP_Python.h"
 #include "KX_PyMath.h"
 
+#include "DNA_scene_types.h"
+
 #include "RAS_ICanvas.h"
 
 KX_Camera::KX_Camera(void* sgReplicationInfo,
@@ -294,6 +296,41 @@ void KX_Camera::NormalizeClipPlanes()
 	m_normalized = true;
 }
 
+MT_Vector3 *KX_Camera::GetCorners()
+{
+	const MT_Vector3 P = NodeGetLocalPosition(); // Camera's position
+	const MT_Matrix3x3 ori = NodeGetLocalOrientation();
+
+	const MT_Vector3 v = (ori * MT_Vector3(0.0f, 0.0f, -1.0f)).normalized(); // Normalized viewing vector
+	const MT_Vector3 up = (ori * MT_Vector3(0.0f, 1.0f, 0.0f)).normalized();
+	const MT_Vector3 w = (ori * MT_Vector3(1.0f, 0.0f, 0.0f)).normalized();
+	const float nDis = GetCameraData()->m_clipstart;
+	const float fDis = GetCameraData()->m_clipend;
+	const float fov = 2.0f * atanf(GetCameraData()->m_sensor_x / (2.0f * GetCameraData()->m_lens));
+
+	static const float ar = GetScene()->GetBlenderScene()->r.xasp / GetScene()->GetBlenderScene()->r.yasp;
+
+	const float Hnear = 2.0f * tan(fov / 2.0f) * nDis;
+	const float Wnear = Hnear * ar;
+
+	const float Hfar = 2.0f * tan(fov / 2.0f) * fDis;
+	const float Wfar = Hfar * ar;
+
+	const MT_Vector3 Cnear = P + v * nDis;
+	const MT_Vector3 Cfar = P + v * fDis;
+
+	m_corners[0] = Cnear + (up * (Hnear / 2.0f)) - (w * (Wnear / 2.0f));
+	m_corners[1] = Cnear + (up * (Hnear / 2.0f)) + (w * (Wnear / 2.0f));
+	m_corners[2] = Cnear - (up * (Hnear / 2.0f)) - (w * (Wnear / 2.0f));
+	m_corners[3] = Cnear + (up * (Hnear / 2.0f)) + (w * (Wnear / 2.0f));
+	m_corners[4] = Cfar + (up * (Hfar / 2.0f)) - (w * Wfar / 2.0f);
+	m_corners[5] = Cfar + (up * (Hfar / 2.0f)) + (w * Wfar / 2.0f);
+	m_corners[6] = Cfar - (up * (Hfar / 2.0f)) - (w * Wfar / 2.0f);
+	m_corners[7] = Cfar - (up * (Hfar / 2.0f)) + (w * Wfar / 2.0f);
+
+	return m_corners;
+}
+
 void KX_Camera::ExtractFrustumSphere()
 {
 	if (m_set_frustum_center)
@@ -403,6 +440,42 @@ bool KX_Camera::PointInsideFrustum(const MT_Vector3& x)
 		if (m_planes[i][0] * x[0] + m_planes[i][1] * x[1] + m_planes[i][2] * x[2] + m_planes[i][3] < 0.0f)
 			return false;
 	}
+	return true;
+}
+
+bool KX_Camera::LightFrustumInsideFrustum(const MT_Vector3 *box, const MT_Vector3 &boxmin, const MT_Vector3 &boxmax)
+{
+	GetCorners();
+	ExtractClipPlanes();
+
+	unsigned int insideCount = 0;
+	// 6 view frustum planes
+	for (unsigned int p = 0; p < 6; p++)
+	{
+		unsigned int behindCount = 0;
+		// 8 box vertices.
+		for (unsigned int v = 0; v < 8; v++)
+		{
+			if (m_planes[p][0] * box[v][0] + m_planes[p][1] * box[v][1] + m_planes[p][2] * box[v][2] + m_planes[p][3] < 0.0f) {
+				behindCount++;
+			}
+		}
+
+		// 8 points behind this plane
+		if (behindCount == 8) {
+			return false;
+		}
+	}
+
+	// check frustum outside/inside box
+	int out;
+	out = 0; for (int i = 0; i < 8; i++) out += ((m_corners[i][0] > boxmax[0]) ? 1 : 0); if (out == 8) return false;
+	out = 0; for (int i = 0; i < 8; i++) out += ((m_corners[i][0] < boxmin[0]) ? 1 : 0); if (out == 8) return false;
+	out = 0; for (int i = 0; i < 8; i++) out += ((m_corners[i][1] > boxmax[1]) ? 1 : 0); if (out == 8) return false;
+	out = 0; for (int i = 0; i < 8; i++) out += ((m_corners[i][1] < boxmin[1]) ? 1 : 0); if (out == 8) return false;
+	out = 0; for (int i = 0; i < 8; i++) out += ((m_corners[i][2] > boxmax[2]) ? 1 : 0); if (out == 8) return false;
+	out = 0; for (int i = 0; i < 8; i++) out += ((m_corners[i][2] < boxmin[2]) ? 1 : 0); if (out == 8) return false;
+
 	return true;
 }
 

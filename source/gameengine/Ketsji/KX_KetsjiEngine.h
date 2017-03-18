@@ -53,6 +53,7 @@ class RAS_ICanvas;
 class RAS_OffScreen;
 class RAS_IRasterizer;
 class SCA_IInputDevice;
+class RAS_ILightObject;
 
 #define LEFT_EYE  1
 #define RIGHT_EYE 2
@@ -150,6 +151,8 @@ private:
 	int m_exitcode;
 	std::string m_exitstring;
 
+	CListValue *m_activeCameras;
+
 	float m_cameraZoom;
 
 	bool m_overrideCam;
@@ -233,6 +236,12 @@ private:
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.
 	void DrawDebugCameraFrustum(KX_Scene *scene, const RAS_Rect& viewport, const RAS_Rect& area);
+	/// Debug draw lights frustum of a scene.
+	void DrawDebugLightFrustum(KX_Scene *scene);
+	/* Check intersection of custom light shadow
+	 * frustum with scene active cameras
+	 */
+	bool CheckLightAndCamerasFrustumIntersection(RAS_ILightObject *raslight);
 
 public:
 	KX_KetsjiEngine(KX_ISystem *system);
