@@ -484,6 +484,9 @@ static void usage(const std::string& program, bool isBlenderPlayer)
 	CM_Message("       show_framerate                 0         Show the frame rate");
 	CM_Message("       show_properties                0         Show debug properties");
 	CM_Message("       show_profile                   0         Show profiling information");
+	CM_Message("       show_bounding_box              0         Show debug bounding box volume");
+	CM_Message("       show_armatures                 0         Show debug armatures");
+	CM_Message("       show_camera_frustum            0         Show debug camera frustum volume");
 	CM_Message("       ignore_deprecation_warnings    1         Ignore deprecation warnings" << std::endl);
 	CM_Message("  -p: override python main loop script");
 	CM_Message(std::endl);

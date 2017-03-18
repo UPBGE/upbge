@@ -405,7 +405,7 @@ class RENDER_PT_game_system(RenderButtonsPanel, Panel):
 
         col = split.column()
         col.prop(gs, "use_frame_rate")
-        col.prop(gs, "use_restrict_animation_updates")
+        col.prop(gs, "use_deprecation_warnings")
 
         col = split.column()
         col.prop(gs, "vsync")
@@ -418,6 +418,19 @@ class RENDER_PT_game_system(RenderButtonsPanel, Panel):
         col.prop(gs, "exit_key", text="", event=True)
 
 
+class RENDER_PT_game_animations(RenderButtonsPanel, Panel):
+    bl_label = "Animations"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        gs = context.scene.game_settings
+
+        layout.prop(context.scene.render, "fps", text="Animation Frame Rate", slider=False)
+        layout.prop(gs, "use_restrict_animation_updates")
+
+
 class RENDER_PT_game_display(RenderButtonsPanel, Panel):
     bl_label = "Display"
     COMPAT_ENGINES = {'BLENDER_GAME'}
@@ -427,21 +440,35 @@ class RENDER_PT_game_display(RenderButtonsPanel, Panel):
 
         gs = context.scene.game_settings
 
-        layout.prop(context.scene.render, "fps", text="Animation Frame Rate", slider=False)
-
-        flow = layout.column_flow()
-        flow.prop(gs, "show_debug_properties", text="Debug Properties")
-        flow.prop(gs, "show_framerate_profile", text="Framerate and Profile")
-        flow.prop(gs, "show_physics_visualization", text="Physics Visualization")
-        flow.prop(gs, "show_bounding_box", text="Bounding Box")
-        flow.prop(gs, "show_armatures", text="Debug Armatures")
-        flow.prop(gs, "use_deprecation_warnings")
-        flow.prop(gs, "show_mouse", text="Mouse Cursor")
+        col = layout.column()
+        col.prop(gs, "show_mouse", text="Mouse Cursor")
 
         col = layout.column()
         col.label(text="Framing:")
         col.row().prop(gs, "frame_type", expand=True)
         col.prop(gs, "frame_color", text="")
+
+
+class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
+    bl_label = "Debug"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        gs = context.scene.game_settings
+
+        split = layout.split(percentage=0.4)
+
+        col = split.column()
+        col.prop(gs, "show_framerate_profile", text="Framerate and Profile")
+        col.prop(gs, "show_debug_properties", text="Properties")
+        col.prop(gs, "show_physics_visualization", text="Physics Visualization")
+
+        col = split.column()
+        col.prop(gs, "show_bounding_box", text="Bounding Box")
+        col.prop(gs, "show_armatures", text="Armatures")
+        col.prop(gs, "show_camera_frustum", text="Camera Frustum")
 
 
 class SceneButtonsPanel:

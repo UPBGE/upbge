@@ -69,6 +69,13 @@ enum class KX_ExitRequest
 	MAX
 };
 
+enum class KX_DebugOption
+{
+	DISABLE = 0,
+	FORCE,
+	ALLOW
+};
+
 typedef struct {
 	short glslflag;
 } GlobalSettings;
@@ -200,9 +207,11 @@ private:
 	bool m_hideCursor;
 
 	/// Enable debug draw of culling bounding boxes.
-	bool m_showBoundingBox;
+	KX_DebugOption m_showBoundingBox;
 	/// Enable debug draw armatures.
-	bool m_showArmature;
+	KX_DebugOption m_showArmature;
+	/// Enable debug draw of camera frustum.
+	KX_DebugOption m_showCameraFrustum;
 
 	/// Settings that doesn't go away with Game Actuator
 	GlobalSettings m_globalsettings;
@@ -471,17 +480,20 @@ public:
 	 */
 	void SetAutoAddDebugProperties(bool add);
 
-	/// Returns the current setting for bounding box debug.
-	void SetShowBoundingBox(bool show);
-
 	/// Allow debug bounding box debug.
-	bool GetShowBoundingBox() const;
-
-	/// Returns the current setting for armatures debug.
-	void SetShowArmatures(bool show);
+	void SetShowBoundingBox(KX_DebugOption mode);
+	/// Returns the current setting for bounding box debug.
+	KX_DebugOption GetShowBoundingBox() const;
 
 	/// Allow debug armatures.
-	bool GetShowArmatures() const;
+	void SetShowArmatures(KX_DebugOption mode);
+	/// Returns the current setting for armatures debug.
+	KX_DebugOption GetShowArmatures() const;
+
+	/// Allow debug camera frustum.
+	void SetShowCameraFrustum(KX_DebugOption mode);
+	/// Returns the current setting for camera frustum debug.
+	KX_DebugOption GetShowCameraFrustum() const;
 
 	KX_Scene *CreateScene(const std::string& scenename);
 	KX_Scene *CreateScene(Scene *scene, bool libloading = false);

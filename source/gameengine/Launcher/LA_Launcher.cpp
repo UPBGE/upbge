@@ -146,8 +146,9 @@ void LA_Launcher::InitEngine()
 	// WARNING: Fixed time is the opposite of fixed framerate.
 	bool fixed_framerate = (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm->flag & GAME_ENABLE_ALL_FRAMES)) == 0);
 	bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
-	bool showBoundingBox = (SYS_GetCommandLineInt(syshandle, "show_bounding_box", gm->flag & GAME_SHOW_BOUNDING_BOX) != 0);
-	bool showArmatures = (SYS_GetCommandLineInt(syshandle, "show_armatures", gm->flag & GAME_SHOW_ARMATURES) != 0);
+	short showBoundingBox = SYS_GetCommandLineInt(syshandle, "show_bounding_box", gm->showBoundingBox);
+	short showArmatures = SYS_GetCommandLineInt(syshandle, "show_armatures", gm->showArmatures);
+	short showCameraFrustum = SYS_GetCommandLineInt(syshandle, "show_camera_frustum", gm->showCameraFrustum);
 	bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
 	bool restrictAnimFPS = (gm->flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
@@ -250,8 +251,9 @@ void LA_Launcher::InitEngine()
 	m_ketsjiEngine->SetShowProperties(properties);
 	m_ketsjiEngine->SetRender(true);
 	m_ketsjiEngine->SetRestrictAnimationFPS(restrictAnimFPS);
-	m_ketsjiEngine->SetShowBoundingBox(showBoundingBox);
-	m_ketsjiEngine->SetShowArmatures(showArmatures);
+	m_ketsjiEngine->SetShowBoundingBox((KX_DebugOption)showBoundingBox);
+	m_ketsjiEngine->SetShowArmatures((KX_DebugOption)showArmatures);
+	m_ketsjiEngine->SetShowCameraFrustum((KX_DebugOption)showCameraFrustum);
 
 	// Set the global settings (carried over if restart/load new files).
 	m_ketsjiEngine->SetGlobalSettings(m_globalSettings);

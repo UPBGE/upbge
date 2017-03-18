@@ -1460,8 +1460,8 @@ void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int
 
 void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw)
 {
-	const bool showBoundingBox = KX_GetActiveEngine()->GetShowBoundingBox();
-	if (showBoundingBox) {
+	const KX_DebugOption showBoundingBox = KX_GetActiveEngine()->GetShowBoundingBox();
+	if (showBoundingBox != KX_DebugOption::DISABLE) {
 		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 			KX_GameObject *gameobj = *it;
 
@@ -1488,13 +1488,17 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw)
 			}
 		}
 	}
-	// The side effect of a armature is that it was added in the animated object list.
-	for (CListValue::iterator<KX_GameObject> it = m_animatedlist->GetBegin(), end = m_animatedlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
-		if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
-			BL_ArmatureObject *armature = (BL_ArmatureObject *)gameobj;
-			if (armature->GetDrawDebug() || KX_GetActiveEngine()->GetShowArmatures()) {
-				armature->DrawDebug(debugDraw);
+
+	const KX_DebugOption showArmatures = KX_GetActiveEngine()->GetShowArmatures();
+	if (showArmatures != KX_DebugOption::DISABLE) {
+		// The side effect of a armature is that it was added in the animated object list.
+		for (CListValue::iterator<KX_GameObject> it = m_animatedlist->GetBegin(), end = m_animatedlist->GetEnd(); it != end; ++it) {
+			KX_GameObject *gameobj = *it;
+			if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
+				BL_ArmatureObject *armature = (BL_ArmatureObject *)gameobj;
+				if (showArmatures == KX_DebugOption::FORCE || armature->GetDrawDebug()) {
+					armature->DrawDebug(debugDraw);
+				}
 			}
 		}
 	}

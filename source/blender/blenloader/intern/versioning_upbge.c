@@ -191,4 +191,22 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
+
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 1, 6)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "showBoundingBox")) {
+			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->gm.showBoundingBox = (scene->gm.flag & GAME_SHOW_BOUNDING_BOX) ? GAME_DEBUG_FORCE : GAME_DEBUG_DISABLE;
+			}
+		}
+		if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "showArmatures")) {
+			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->gm.showArmatures = (scene->gm.flag & GAME_SHOW_ARMATURES) ? GAME_DEBUG_ALLOW : GAME_DEBUG_DISABLE;
+			}
+		}
+		if (!DNA_struct_elem_find(fd->filesdna, "GameData", "short", "showCameraFrustum")) {
+			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->gm.showCameraFrustum = GAME_DEBUG_ALLOW;
+			}
+		}
+	}
 }

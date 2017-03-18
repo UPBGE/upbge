@@ -1625,10 +1625,9 @@ static void game_set_commmandline_options(GameData *gm)
 		test = (gm->flag & GAME_IGNORE_DEPRECATION_WARNINGS);
 		SYS_WriteCommandLineInt(syshandle, "ignore_deprecation_warnings", test);
 
-		test = (gm->flag & GAME_SHOW_BOUNDING_BOX);
-		SYS_WriteCommandLineInt(syshandle, "show_bounding_box", test);
-		test = (gm->flag & GAME_SHOW_ARMATURES);
-		SYS_WriteCommandLineInt(syshandle, "show_armatures", test);
+		SYS_WriteCommandLineInt(syshandle, "show_bounding_box", gm->showBoundingBox);
+		SYS_WriteCommandLineInt(syshandle, "show_armatures", gm->showArmatures);
+		SYS_WriteCommandLineInt(syshandle, "show_camera_frustum", gm->showCameraFrustum);
 	}
 }
 

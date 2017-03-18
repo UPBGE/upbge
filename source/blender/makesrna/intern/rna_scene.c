@@ -4566,6 +4566,13 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem debug_items[] = {
+		{GAME_DEBUG_DISABLE, "DISABLE", 0, "Disable", "Disable debugging"},
+		{GAME_DEBUG_FORCE, "FORCE", 0, "Force", "Force debugging"},
+		{GAME_DEBUG_ALLOW, "ALLOW", 0, "Allow", "Allow debugging from individual settings"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "SceneGameData", NULL);
 	RNA_def_struct_sdna(srna, "GameData");
 	RNA_def_struct_nested(brna, srna, "Scene");
@@ -4824,13 +4831,22 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	                         "Restrict the number of animation updates to the animation FPS (this is "
 	                         "better for performance, but can cause issues with smooth playback)");
 
-	prop = RNA_def_property(srna, "show_bounding_box", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_BOUNDING_BOX);
+
+	prop = RNA_def_property(srna, "show_bounding_box", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "showBoundingBox");
+	RNA_def_property_enum_items(prop, debug_items);
 	RNA_def_property_ui_text(prop, "Show Bounding Box", "Show a visualization of bounding volume box");
 
-	prop = RNA_def_property(srna, "show_armatures", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_ARMATURES);
+	prop = RNA_def_property(srna, "show_armatures", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "showArmatures");
+	RNA_def_property_enum_items(prop, debug_items);
 	RNA_def_property_ui_text(prop, "Show Armatures", "Show a visualization of armatures");
+
+	prop = RNA_def_property(srna, "show_camera_frustum", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "showCameraFrustum");
+	RNA_def_property_enum_items(prop, debug_items);
+	RNA_def_property_ui_text(prop, "Show Camera Frustum", "Show a visualization of the camera frustum "
+							 "according to the current viewport dimensions");
 
 	prop = RNA_def_property(srna, "use_python_console", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_PYTHON_CONSOLE);

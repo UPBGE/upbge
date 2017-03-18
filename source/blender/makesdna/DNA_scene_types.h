@@ -856,6 +856,12 @@ typedef struct GameData {
 	float levelHeight;
 	float deactivationtime, lineardeactthreshold, angulardeactthreshold;
 
+	/* Debug options */
+	short showBoundingBox;
+	short showArmatures;
+	short showCameraFrustum;
+	short pad5;
+
 	/* Scene LoD */
 	short lodflag, pad2;
 	int scehysteresis;
@@ -903,11 +909,17 @@ typedef struct GameData {
 #define GAME_SHOW_MOUSE						(1 << 14)
 #define GAME_GLSL_NO_COLOR_MANAGEMENT		(1 << 15)
 #define GAME_SHOW_OBSTACLE_SIMULATION		(1 << 16)
-#define GAME_SHOW_BOUNDING_BOX				(1 << 18)
-#define GAME_SHOW_ARMATURES					(1 << 19)
+#ifdef DNA_DEPRECATED
+#  define GAME_SHOW_BOUNDING_BOX			(1 << 18)
+#  define GAME_SHOW_ARMATURES				(1 << 19)
+#endif
 #define GAME_PYTHON_CONSOLE					(1 << 20)
 #define GAME_GLSL_NO_ENV_LIGHTING			(1 << 21)
 /* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
+
+#define GAME_DEBUG_DISABLE	0
+#define GAME_DEBUG_FORCE	1
+#define GAME_DEBUG_ALLOW	2
 
 /* GameData.playerflag */
 #define GAME_PLAYER_FULLSCREEN				(1 << 0)

@@ -227,15 +227,35 @@ class INFO_MT_game(Menu):
 
         layout.separator()
 
-        layout.prop(gs, "show_debug_properties")
         layout.prop(gs, "show_framerate_profile")
-        layout.prop(gs, "show_physics_visualization")
-        layout.prop(gs, "show_bounding_box")
-        layout.prop(gs, "show_armatures")
         layout.prop(gs, "use_deprecation_warnings")
+        layout.menu("INFO_MT_game_show_debug")
         layout.separator()
         layout.prop(gs, "use_auto_start")
 
+
+class INFO_MT_game_show_debug(Menu):
+    bl_label = "Show Debug"
+
+    def draw(self, context):
+        layout = self.layout
+
+        gs = context.scene.game_settings
+
+        layout.prop(gs, "show_debug_properties")
+        layout.prop(gs, "show_physics_visualization")
+
+        layout.separator()
+        layout.label("Show Bounding Box")
+        layout.props_enum(gs, "show_bounding_box")
+
+        layout.separator()
+        layout.label("Show Bounding Box")
+        layout.props_enum(gs, "show_armatures")
+
+        layout.separator()
+        layout.label("Show Camera Frustum")
+        layout.props_enum(gs, "show_camera_frustum")
 
 class INFO_MT_render(Menu):
     bl_label = "Render"

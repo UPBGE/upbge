@@ -146,8 +146,9 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_autoAddDebugProperties(true),
 	// Default behavior is to hide the cursor every frame.
 	m_hideCursor(false),
-	m_showBoundingBox(false),
-	m_showArmature(false)
+	m_showBoundingBox(KX_DebugOption::DISABLE),
+	m_showArmature(KX_DebugOption::DISABLE),
+	m_showCameraFrustum(KX_DebugOption::DISABLE)
 {
 	for (int i = tc_first; i < tc_numCategories; i++) {
 		m_logger.AddCategory((KX_TimeCategory)i);
@@ -1249,10 +1250,14 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const RAS_Rect& viewport, const RAS_Rect& area)
 {
+	if (m_showCameraFrustum == KX_DebugOption::DISABLE) {
+		return;
+	}
+
 	CListValue *cameras = scene->GetCameraList();
 	for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
 		KX_Camera *cam = *it;
-		if (cam->GetShowCameraFrustum()) {
+		if (m_showCameraFrustum == KX_DebugOption::FORCE || cam->GetShowCameraFrustum()) {
 			const MT_Matrix4x4 viewmat(cam->GetWorldToCamera());
 			debugDraw.DrawCameraFrustum(GetCameraProjectionMatrix(scene, cam, viewport, area), viewmat);
 		}
@@ -1631,24 +1636,34 @@ void KX_KetsjiEngine::ProcessScheduledScenes(void)
 	}
 }
 
-void KX_KetsjiEngine::SetShowBoundingBox(bool show)
+void KX_KetsjiEngine::SetShowBoundingBox(KX_DebugOption mode)
 {
-	m_showBoundingBox = show;
+	m_showBoundingBox = mode;
 }
 
-bool KX_KetsjiEngine::GetShowBoundingBox() const
+KX_DebugOption KX_KetsjiEngine::GetShowBoundingBox() const
 {
 	return m_showBoundingBox;
 }
 
-void KX_KetsjiEngine::SetShowArmatures(bool show)
+void KX_KetsjiEngine::SetShowArmatures(KX_DebugOption mode)
 {
-	m_showArmature = show;
+	m_showArmature = mode;
 }
 
-bool KX_KetsjiEngine::GetShowArmatures() const
+KX_DebugOption KX_KetsjiEngine::GetShowArmatures() const
 {
 	return m_showArmature;
+}
+
+void KX_KetsjiEngine::SetShowCameraFrustum(KX_DebugOption mode)
+{
+	m_showCameraFrustum = mode;
+}
+
+KX_DebugOption KX_KetsjiEngine::GetShowCameraFrustum() const
+{
+	return m_showCameraFrustum;
 }
 
 void KX_KetsjiEngine::Resize()
