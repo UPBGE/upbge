@@ -29,6 +29,8 @@
 #include "RAS_ICanvas.h"
 #include "RAS_DebugDraw.h"
 
+#include "GPU_material.h"
+
 #include "glew-mx.h"
 
 extern "C" {
@@ -38,6 +40,7 @@ extern "C" {
 void RAS_OpenGLDebugDraw::Flush(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw)
 {
 	rasty->SetFrontFace(true);
+	rasty->SetAlphaBlend(GPU_BLEND_ALPHA);
 
 	// draw lines
 	glBegin(GL_LINES);
