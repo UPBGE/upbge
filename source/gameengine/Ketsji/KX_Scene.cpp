@@ -151,12 +151,11 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_sceneName(sceneName),
 	m_active_camera(nullptr),
 	m_ueberExecutionPriority(0),
+	m_suspendeddelta(0.0),
 	m_blenderScene(scene),
 	m_isActivedHysteresis(false),
 	m_lodHysteresisValue(0)
 {
-	m_suspendedtime = 0.0;
-	m_suspendeddelta = 0.0;
 
 	m_dbvt_culling = false;
 	m_dbvt_occlusion_res = 0;
@@ -1817,19 +1816,11 @@ void KX_Scene::SetPhysicsEnvironment(class PHY_IPhysicsEnvironment* physEnv)
 	}
 }
  
-void KX_Scene::setSuspendedTime(double suspendedtime)
-{
-	m_suspendedtime = suspendedtime;
-}
-double KX_Scene::getSuspendedTime()
-{
-	return m_suspendedtime;
-}
-void KX_Scene::setSuspendedDelta(double suspendeddelta)
+void KX_Scene::SetSuspendedDelta(double suspendeddelta)
 {
 	m_suspendeddelta = suspendeddelta;
 }
-double KX_Scene::getSuspendedDelta()
+double KX_Scene::GetSuspendedDelta() const
 {
 	return m_suspendeddelta;
 }

@@ -139,9 +139,6 @@ private:
 
 	static bool m_restrict_anim_fps;
 
-	static double m_suspendedtime;
-	static double m_suspendeddelta;
-
 	static bool				m_doRender;  /* whether or not the scene should be rendered after the logic frame */
 
 	/// Key used to exit the BGE
@@ -221,9 +218,9 @@ private:
 	 * The render functions, called after and which update animations,
 	 * will see the first scene as active and will proceed to it,
 	 * but it will cause some negative current frame on actions because of the
-	 * total pause duration not setted.
+	 * total pause duration not set.
 	 */
-	void UpdateSuspendedScenes();
+	void UpdateSuspendedScenes(double framestep);
 
 	/// Update and return the projection matrix of a camera depending on the viewport.
 	const MT_Matrix4x4& GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& viewport, const RAS_Rect& area);
@@ -360,12 +357,6 @@ public:
 	 * Returns the real (system) time
 	 */
 	double GetRealTime(void) const;
-
-	/**
-	 * Returns the difference between the local time of the scene (when it
-	 * was running and not suspended) and the "curtime"
-	 */
-	static double GetSuspendedDelta();
 
 	/**
 	 * Gets the number of logic updates per second.

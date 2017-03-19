@@ -102,8 +102,6 @@ double KX_KetsjiEngine::m_ticrate = DEFAULT_LOGIC_TIC_RATE;
 int KX_KetsjiEngine::m_maxLogicFrame = 5;
 int KX_KetsjiEngine::m_maxPhysicsFrame = 5;
 double KX_KetsjiEngine::m_anim_framerate = 25.0;
-double KX_KetsjiEngine::m_suspendedtime = 0.0;
-double KX_KetsjiEngine::m_suspendeddelta = 0.0;
 double KX_KetsjiEngine::m_average_framerate = 0.0;
 bool KX_KetsjiEngine::m_restrict_anim_fps = false;
 short KX_KetsjiEngine::m_exitkey = 130; // ESC Key
@@ -480,7 +478,7 @@ bool KX_KetsjiEngine::NextFrame()
 			m_inputDevice->ClearInputs();
 		}
 
-		UpdateSuspendedScenes();
+		UpdateSuspendedScenes(framestep);
 		// scene management
 		ProcessScheduledScenes();
 
@@ -493,21 +491,12 @@ bool KX_KetsjiEngine::NextFrame()
 	return doRender && m_doRender;
 }
 
-void KX_KetsjiEngine::UpdateSuspendedScenes()
+void KX_KetsjiEngine::UpdateSuspendedScenes(double framestep)
 {
 	for (CListValue::iterator<KX_Scene> sceneit = m_scenes->GetBegin(), sceneend = m_scenes->GetEnd(); sceneit != sceneend; ++sceneit) {
 		KX_Scene *scene = *sceneit;
 		if (scene->IsSuspended()) {
-			if (scene->getSuspendedTime() == 0.0f) {
-				scene->setSuspendedTime(m_clockTime);
-			}
-		}
-		else {
-			// if the scene was suspended recalcutlate the delta to "curtime"
-			if (scene->getSuspendedTime() != 0.0f) {
-				scene->setSuspendedDelta(scene->getSuspendedDelta() + m_clockTime - scene->getSuspendedTime());
-			}
-			scene->setSuspendedTime(0.0f);
+			scene->SetSuspendedDelta(scene->GetSuspendedDelta() + framestep);
 		}
 	}
 }
@@ -800,8 +789,6 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 		return;
 	}
 
-	// Set scene total pause duration, used for animations played on scene which was suspended.
-	m_suspendeddelta = scene->getSuspendedDelta();
 	// Handle the animations independently of the logic time step
 	if (GetRestrictAnimationFPS()) {
 		double anim_timestep = 1.0 / scene->GetAnimationFPS();
@@ -1487,11 +1474,6 @@ bool KX_KetsjiEngine::GetUseFixedFramerate(void) const
 bool KX_KetsjiEngine::GetUseExternalClock(void) const
 {
 	return m_useExternalClock;
-}
-
-double KX_KetsjiEngine::GetSuspendedDelta()
-{
-	return m_suspendeddelta;
 }
 
 double KX_KetsjiEngine::GetTicRate()

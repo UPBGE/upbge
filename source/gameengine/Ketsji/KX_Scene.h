@@ -248,6 +248,7 @@ protected:
 	 * Suspend (freeze) the entire scene.
 	 */
 	bool m_suspend;
+	double m_suspendeddelta;
 
 	/**
 	 * Radius in Manhattan distance of the box for activity culling.
@@ -286,9 +287,6 @@ protected:
 	 */
 	void MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj, KX_Camera*cam, int layer=0);
 	static void PhysicsCullingCallback(KX_ClientObjectInfo* objectInfo, void* cullingInfo);
-
-	double				m_suspendedtime;
-	double				m_suspendeddelta;
 
 	struct Scene* m_blenderScene;
 
@@ -597,23 +595,15 @@ public:
 #endif
 
 	/**
-	 * Sets the time the scene was suspended
-	 */ 
-	void setSuspendedTime(double suspendedtime);
-	/**
-	 * Returns the "curtime" the scene was suspended
-	 */ 
-	double getSuspendedTime();
-	/**
 	 * Sets the difference between the local time of the scene (when it
 	 * was running and not suspended) and the "curtime"
 	 */ 
-	void setSuspendedDelta(double suspendeddelta);
+	void SetSuspendedDelta(double suspendeddelta);
 	/**
 	 * Returns the difference between the local time of the scene (when it
 	 * was running and not suspended) and the "curtime"
 	 */
-	double getSuspendedDelta();
+	double GetSuspendedDelta() const;
 	/**
 	 * Returns the Blender scene this was made from
 	 */

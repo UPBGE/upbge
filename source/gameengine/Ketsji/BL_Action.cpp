@@ -246,7 +246,7 @@ bool BL_Action::Play(const std::string& name,
 	}
 
 	// Now that we have an action, we have something we can play
-	m_starttime = KX_GetActiveEngine()->GetFrameTime() - kxscene->getSuspendedDelta();
+	m_starttime = KX_GetActiveEngine()->GetFrameTime() - kxscene->GetSuspendedDelta();
 	m_startframe = m_localframe = start;
 	m_endframe = end;
 	m_blendin = blendin;
@@ -379,7 +379,8 @@ void BL_Action::Update(float curtime, bool applyToObject)
 	}
 	m_prevUpdate = curtime;
 
-	curtime -= (float)KX_KetsjiEngine::GetSuspendedDelta();
+	KX_Scene *scene = m_obj->GetScene();
+	curtime -= (float)scene->GetSuspendedDelta();
 
 	if (m_calc_localtime)
 		SetLocalTime(curtime);
