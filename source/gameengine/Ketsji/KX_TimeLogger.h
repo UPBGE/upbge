@@ -41,7 +41,8 @@
 /**
  * Stores and manages time measurements.
  */
-class KX_TimeLogger {
+class KX_TimeLogger
+{
 public:
 	/**
 	 * Constructor.
@@ -52,7 +53,7 @@ public:
 	/**
 	 * Destructor.
 	 */
-	virtual ~KX_TimeLogger(void);
+	virtual ~KX_TimeLogger();
 
 	/**
 	 * Changes the maximum number of measurements that can be stored.
@@ -62,7 +63,7 @@ public:
 	/**
 	 * Changes the maximum number of measurements that can be stored.
 	 */
-	virtual unsigned int GetMaxNumMeasurements(void) const;
+	virtual unsigned int GetMaxNumMeasurements() const;
 
 	/**
 	 * Starts logging in current measurement.
@@ -86,20 +87,20 @@ public:
 	 * Returns average of all but the current measurement.
 	 * \return The average of all but the current measurement.
 	 */
-	virtual double GetAverage(void) const;
+	virtual double GetAverage() const;
 
 protected:
-	/** Storage for the measurements. */
+	/// Storage for the measurements.
 	std::deque<double> m_measurements;
 
-	/** Maximum number of measurements. */
+	/// Maximum number of measurements.
 	unsigned int m_maxNumMeasurements;
 
-	/** Time at start of logging. */
+	/// Time at start of logging.
 	double m_logStart;
 
-	/** State of logging. */
+	/// State of logging.
 	bool m_logging;
 };
 
-#endif  /* __KX_TIMELOGGER_H__ */
+#endif  // __KX_TIMELOGGER_H__

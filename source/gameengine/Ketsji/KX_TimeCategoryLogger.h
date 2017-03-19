@@ -46,9 +46,11 @@
  * Average measurements can be established for each separate category
  * or for all categories together.
  */
-class KX_TimeCategoryLogger {
+class KX_TimeCategoryLogger
+{
 public:
 	typedef int TimeCategory;
+	typedef std::map<TimeCategory, KX_TimeLogger *> TimeLoggerMap;
 
 	/**
 	 * Constructor.
@@ -59,7 +61,7 @@ public:
 	/**
 	 * Destructor.
 	 */
-	virtual ~KX_TimeCategoryLogger(void);
+	virtual ~KX_TimeCategoryLogger();
 
 	/**
 	 * Changes the maximum number of measurements that can be stored.
@@ -69,7 +71,7 @@ public:
 	/**
 	 * Changes the maximum number of measurements that can be stored.
 	 */
-	virtual unsigned int GetMaxNumMeasurements(void) const;
+	virtual unsigned int GetMaxNumMeasurements() const;
 
 	/**
 	 * Adds a category.
@@ -113,18 +115,17 @@ public:
 	/**
 	 * Returns average for grand total.
 	 */
-	virtual double GetAverage(void);
+	virtual double GetAverage();
 
 protected:
-	/**  
+	/**
 	 * Disposes loggers.
-	 */  
-	virtual void DisposeLoggers(void);
+	 */
+	virtual void DisposeLoggers();
 
-	/** Storage for the loggers. */
-	typedef std::map<TimeCategory, KX_TimeLogger*> KX_TimeLoggerMap;
-	KX_TimeLoggerMap m_loggers;
-	/** Maximum number of measurements. */
+	/// Storage for the loggers.
+	TimeLoggerMap m_loggers;
+	/// Maximum number of measurements.
 	unsigned int m_maxNumMeasurements;
 };
 

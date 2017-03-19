@@ -32,18 +32,16 @@
 
 #include "KX_TimeLogger.h"
 
-KX_TimeLogger::KX_TimeLogger(unsigned int maxNumMeasurements) : 
-	m_maxNumMeasurements(maxNumMeasurements), 
+KX_TimeLogger::KX_TimeLogger(unsigned int maxNumMeasurements)
+	:m_maxNumMeasurements(maxNumMeasurements),
 	m_logStart(0),
 	m_logging(false)
 {
 }
 
-
-KX_TimeLogger::~KX_TimeLogger(void)
+KX_TimeLogger::~KX_TimeLogger()
 {
 }
-
 
 void KX_TimeLogger::SetMaxNumMeasurements(unsigned int maxNumMeasurements)
 {
@@ -53,12 +51,10 @@ void KX_TimeLogger::SetMaxNumMeasurements(unsigned int maxNumMeasurements)
 	}
 }
 
-
-unsigned int KX_TimeLogger::GetMaxNumMeasurements(void) const
+unsigned int KX_TimeLogger::GetMaxNumMeasurements() const
 {
 	return m_maxNumMeasurements;
 }
-
 
 void KX_TimeLogger::StartLog(double now)
 {
@@ -67,7 +63,6 @@ void KX_TimeLogger::StartLog(double now)
 		m_logStart = now;
 	}
 }
-
 
 void KX_TimeLogger::EndLog(double now)
 {
@@ -79,7 +74,6 @@ void KX_TimeLogger::EndLog(double now)
 		}
 	}
 }
-
 
 void KX_TimeLogger::NextMeasurement(double now)
 {
@@ -98,13 +92,11 @@ void KX_TimeLogger::NextMeasurement(double now)
 	}
 }
 
-
-
-double KX_TimeLogger::GetAverage(void) const
+double KX_TimeLogger::GetAverage() const
 {
 	double avg = 0.0;
 
-	unsigned int numMeasurements = m_measurements.size();
+	const unsigned int numMeasurements = m_measurements.size();
 	if (numMeasurements > 1) {
 		for (unsigned int i = 1; i < numMeasurements; i++) {
 			avg += m_measurements[i];
@@ -114,4 +106,3 @@ double KX_TimeLogger::GetAverage(void) const
 
 	return avg;
 }
-
