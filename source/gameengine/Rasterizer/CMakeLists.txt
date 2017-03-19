@@ -135,4 +135,10 @@ data_to_c_simple(RAS_OpenGLFilters/RAS_VertexShader2DFilter.glsl SRC)
 
 add_definitions(${GL_DEFINITIONS})
 
+# ----------------------------------------------------------------------------------------------------------------
+# workaround to increase the number of sections for object file format in MSVC 2015 compiler when we DEBUG
+if(MSVC14)
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj /Zi /Od /Ob0")
+endif()
+
 blender_add_lib(ge_rasterizer "${SRC}" "${INC}" "${INC_SYS}")
