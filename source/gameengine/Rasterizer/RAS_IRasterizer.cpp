@@ -525,7 +525,7 @@ void RAS_IRasterizer::DrawDebugSolidBox(SCA_IScene *scene, MT_Vector3 vertexes[8
 	m_debugShapes[scene].m_solidBoxes.push_back(box);
 }
 
-void RAS_IRasterizer::DrawDebugLightOrCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat)
+void RAS_IRasterizer::DrawDebugLightOrCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat, const MT_Vector4 &color)
 {
 	MT_Vector3 box[8];
 
@@ -544,7 +544,7 @@ void RAS_IRasterizer::DrawDebugLightOrCameraFrustum(SCA_IScene *scene, const MT_
 		p3 = MT_Vector3(p4.x() / p4.w(), p4.y() / p4.w(), p4.z() / p4.w());
 	}
 
-	DrawDebugSolidBox(scene, box, MT_Vector4(0.4f, 0.4f, 0.4f, 0.4f), MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f),
+	DrawDebugSolidBox(scene, box, color, MT_Vector4(0.0f, 0.0f, 0.0f, 0.4f),
 		MT_Vector4(0.8f, 0.5f, 0.0f, 1.0f));
 }
 

@@ -55,6 +55,10 @@ public:
 	MT_Matrix4x4 GetViewMat();
 	MT_Matrix4x4 GetWinMat();
 	MT_Matrix4x4 GetShadowMatrix();
+	MT_Vector4 *GetFrustumPlanes();
+	void SetFrustumPlanes();
+	MT_Vector3 *GetFrustumCorners();
+	void SetFrustumCorners();
 	int GetShadowLayer();
 	void BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_Transform& camtrans);
 	void UnbindShadowBuffer();

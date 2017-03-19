@@ -775,7 +775,7 @@ public:
 	 * \param projmat The camera projection matrix.
 	 * \param viewmat The camera view matrix.
 	 */
-	void DrawDebugLightOrCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat);
+	void DrawDebugLightOrCameraFrustum(SCA_IScene *scene, const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat, const MT_Vector4 &color = MT_Vector4(0.2f, 0.2f, 0.2f, 1.0f));
 	void FlushDebugShapes(SCA_IScene *scene);
 
 	/// Clear the material texture coordinates list used by storages.

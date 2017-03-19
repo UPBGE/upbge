@@ -165,6 +165,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
 
 	m_scenes = new CListValue();
+	m_activeCameras = new CListValue();
 }
 
 /**
@@ -182,6 +183,7 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 		BLI_task_scheduler_free(m_taskscheduler);
 
 	m_scenes->Release();
+	m_activeCameras->Release();
 }
 
 void KX_KetsjiEngine::SetInputDevice(SCA_IInputDevice *inputDevice)
@@ -819,6 +821,16 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
+	if (m_activeCameras->GetCount() == 0) {
+		CListValue *allCameras = scene->GetCameraList();
+		for (CListValue::iterator<KX_Camera> it = allCameras->GetBegin(), end = allCameras->GetEnd(); it != end; ++it) {
+			KX_Camera *currentCam = *it;
+			if (currentCam->GetShowCameraFrustum()) {
+				m_activeCameras->Add(currentCam->AddRef());
+			}
+		}
+	}
+
 	CListValue *lightlist = scene->GetLightList();
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
@@ -1027,8 +1039,18 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 	// Draw debug infos like bouding box, armature ect.. if enabled.
 	scene->DrawDebug(m_rasterizer);
 	// Draw debug camera frustum.
-	DrawDebugLightFrustum(scene);
-	DrawDebugCameraFrustum(scene, viewport, area);	
+	DrawDebugCameraFrustum(scene, viewport, area);
+
+	// shadow culling update
+	CListValue *lightlist = scene->GetLightList();
+	for (CListValue::iterator<KX_LightObject> it = lightlist->GetBegin(), end = lightlist->GetEnd(); it != end; ++it) {
+		KX_LightObject *light = *it;
+		RAS_ILightObject *raslight = light->GetLightData();
+		CheckLightAndCamerasFrustumIntersection(raslight);
+		if (raslight->m_showLightDebugFrustum) {
+			DrawDebugLightFrustum(scene, raslight);
+		}
+	}
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
@@ -1305,18 +1327,34 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, const RAS_Rect& vi
 	}
 }
 
-void KX_KetsjiEngine::DrawDebugLightFrustum(KX_Scene *scene)
+bool KX_KetsjiEngine::CheckLightAndCamerasFrustumIntersection(RAS_ILightObject *raslight)
 {
-	CListValue *lightList = scene->GetLightList();
-	for (CListValue::iterator<KX_LightObject> it = lightList->GetBegin(), end = lightList->GetEnd(); it != end; ++it) {
-		KX_LightObject *light = *it;
-		RAS_ILightObject *raslight = light->GetLightData();
-		if (raslight->m_showLightDebugFrustum) {
-			const MT_Matrix4x4 projmat(raslight->GetWinMat());
-			const MT_Matrix4x4 viewmat(raslight->GetViewMat());
-			m_rasterizer->DrawDebugLightOrCameraFrustum(scene, projmat, viewmat);
+	if (m_activeCameras->GetCount() > 0) {
+		for (CListValue::iterator<KX_Camera> it = m_activeCameras->GetBegin(), end = m_activeCameras->GetEnd(); it != end; ++it) {
+			KX_Camera *cam = *it;
+			MT_Transform camtrans(cam->GetWorldToCamera());
+			MT_Matrix4x4 viewmat(camtrans);
+			cam->SetModelviewMatrix(viewmat);
+			cam->NodeUpdateGS(0.0f);
+			raslight->SetFrustumPlanes();
+			raslight->SetFrustumCorners();
+			raslight->m_isIntersecting = cam->ShadowFrustumInsideFrustum(raslight->GetFrustumPlanes(), raslight->GetFrustumCorners());
+			if (raslight->m_isIntersecting) {
+				return true;
+			}
+			return false;
 		}
+		return false;
 	}
+	return false;
+}
+
+void KX_KetsjiEngine::DrawDebugLightFrustum(KX_Scene *scene, RAS_ILightObject *raslight)
+{
+	const MT_Matrix4x4 projmat(raslight->GetWinMat());
+	const MT_Matrix4x4 viewmat(raslight->GetViewMat());
+	static const MT_Vector4 colors[2] = { MT_Vector4(0.2f, 0.2f, 0.2f, 1.0f), MT_Vector4(0.0f, 0.2f, 0.0f, 1.0f) };
+	m_rasterizer->DrawDebugLightOrCameraFrustum(scene, projmat, viewmat, colors[int(raslight->m_isIntersecting)]);
 }
 
 CListValue *KX_KetsjiEngine::CurrentScenes()

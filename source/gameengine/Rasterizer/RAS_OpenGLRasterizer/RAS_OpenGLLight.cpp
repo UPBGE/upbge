@@ -218,6 +218,62 @@ MT_Matrix4x4 RAS_OpenGLLight::GetShadowMatrix()
 	return mat;
 }
 
+MT_Vector4 *RAS_OpenGLLight::GetFrustumPlanes()
+{
+	return m_planes;
+}
+
+void RAS_OpenGLLight::SetFrustumPlanes()
+{
+	GPULamp *lamp;
+
+	if ((lamp = GetGPULamp())) {
+		const MT_Matrix4x4 viewmat = GetViewMat();
+		const MT_Matrix4x4 projmat = GetWinMat();
+		const MT_Matrix4x4 m = projmat * viewmat;
+		// Left clip plane
+		m_planes[0] = m[3] + m[0];
+		// Right clip plane
+		m_planes[1] = m[3] - m[0];
+		// Top clip plane
+		m_planes[2] = m[3] - m[1];
+		// Bottom clip plane
+		m_planes[3] = m[3] + m[1];
+		// Near clip plane
+		m_planes[4] = m[3] + m[2];
+		// Far clip plane
+		m_planes[5] = m[3] - m[2];
+	}
+}
+
+MT_Vector3 *RAS_OpenGLLight::GetFrustumCorners()
+{
+	return m_corners;
+}
+
+void RAS_OpenGLLight::SetFrustumCorners()
+{
+	GPULamp *lamp;
+
+	if ((lamp = GetGPULamp())) {
+		const MT_Matrix4x4 viewmat = GetViewMat();
+		const MT_Matrix4x4 projmat = GetWinMat();
+		const MT_Matrix4x4 m = (projmat * viewmat).inverse();
+		m_corners[0][0] = m_corners[1][0] = m_corners[4][0] = m_corners[5][0] = -1.0f;
+		m_corners[2][0] = m_corners[3][0] = m_corners[6][0] = m_corners[7][0] = 1.0f;
+		m_corners[0][1] = m_corners[3][1] = m_corners[4][1] = m_corners[7][1] = -1.0f;
+		m_corners[1][1] = m_corners[2][1] = m_corners[5][1] = m_corners[6][1] = 1.0f;
+		m_corners[0][2] = m_corners[1][2] = m_corners[2][2] = m_corners[3][2] = -1.0f;
+		m_corners[4][2] = m_corners[5][2] = m_corners[6][2] = m_corners[7][2] = 1.0f;
+
+		for (unsigned short i = 0; i < 8; i++) {
+			MT_Vector3& p3 = m_corners[i];
+			const MT_Vector4 p4 = m * MT_Vector4(p3.x(), p3.y(), p3.z(), 1.0f);
+			p3 = MT_Vector3(p4.x() / p4.w(), p4.y() / p4.w(), p4.z() / p4.w());
+		}
+	}
+}
+
 int RAS_OpenGLLight::GetShadowLayer()
 {
 	GPULamp *lamp;

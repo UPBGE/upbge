@@ -32,6 +32,9 @@
 #ifndef __RAS_LIGHTOBJECT_H__
 #define __RAS_LIGHTOBJECT_H__
 
+#include "MT_Vector4.h"
+#include "MT_Vector3.h"
+
 class RAS_ICanvas;
 
 class KX_Camera;
@@ -67,6 +70,10 @@ public:
 	float	m_shadowcolor[3];
 	bool	m_showLightDebugFrustum;
 
+	MT_Vector4   m_planes[6];
+	MT_Vector3   m_corners[8];
+	bool         m_isIntersecting;
+
 	float	m_color[3];
 
 	float	m_att1;
@@ -90,6 +97,10 @@ public:
 	virtual bool NeedShadowUpdate() = 0;
 	virtual int GetShadowBindCode() = 0;
 	virtual MT_Matrix4x4 GetShadowMatrix() = 0;
+	virtual MT_Vector4 *GetFrustumPlanes() = 0;
+	virtual void SetFrustumPlanes() = 0;
+	virtual MT_Vector3 *GetFrustumCorners() = 0;
+	virtual void SetFrustumCorners() = 0;
 	virtual MT_Matrix4x4 GetViewMat() = 0;
 	virtual MT_Matrix4x4 GetWinMat() = 0;
 	virtual int GetShadowLayer() = 0;
