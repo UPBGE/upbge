@@ -921,6 +921,7 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	m_owncamera = true;
 	// retrieve rendering objects
 	m_engine = KX_GetActiveEngine();
+	m_engine->GetActiveCameras().push_back(m_camera);
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
 	// locate the vertex assigned to mat and do following calculation in mesh coordinates

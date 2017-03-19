@@ -279,6 +279,23 @@ void KX_Camera::ExtractClipPlanes()
 	m_normalized = false;
 }
 
+void KX_Camera::SetFrustumCorners()
+{
+	const MT_Matrix4x4 m = (m_projection_matrix * m_modelview_matrix).inverse();
+	m_corners[0][0] = m_corners[1][0] = m_corners[4][0] = m_corners[5][0] = -1.0f;
+	m_corners[2][0] = m_corners[3][0] = m_corners[6][0] = m_corners[7][0] = 1.0f;
+	m_corners[0][1] = m_corners[3][1] = m_corners[4][1] = m_corners[7][1] = -1.0f;
+	m_corners[1][1] = m_corners[2][1] = m_corners[5][1] = m_corners[6][1] = 1.0f;
+	m_corners[0][2] = m_corners[1][2] = m_corners[2][2] = m_corners[3][2] = -1.0f;
+	m_corners[4][2] = m_corners[5][2] = m_corners[6][2] = m_corners[7][2] = 1.0f;
+
+	for (unsigned short i = 0; i < 8; i++) {
+		MT_Vector3& p3 = m_corners[i];
+		const MT_Vector4 p4 = m * MT_Vector4(p3.x(), p3.y(), p3.z(), 1.0f);
+		p3 = MT_Vector3(p4.x() / p4.w(), p4.y() / p4.w(), p4.z() / p4.w());
+	}
+}
+
 void KX_Camera::NormalizeClipPlanes()
 {
 	if (m_normalized)
@@ -436,6 +453,44 @@ int KX_Camera::BoxInsideFrustum(const MT_Vector3 *box)
 		return INSIDE;
 	
 	return INTERSECT;
+}
+
+bool KX_Camera::ShadowFrustumInsideFrustum(MT_Vector4 *lightplanes, MT_Vector3 *lightcorners)
+{
+	ExtractClipPlanes();
+	SetFrustumCorners();
+
+
+	// Do light frustum vertices vs Frustum planes
+	for (int i = 0; i < 6; ++i)
+	{
+		unsigned int behindCount = 0;
+		for (int j = 0; j < 8; ++j)
+		{
+			if (m_planes[i].to3d().dot(lightcorners[j]) + m_planes[i][3] < 0.0f) {
+				behindCount++;
+			}
+			if (behindCount == 8) {
+				return false;
+			}
+		}
+	}
+
+	// Do camera frustum vertices vs light frustum planes
+	for (int i = 0; i < 6; ++i)
+	{
+		unsigned int behindCount = 0;
+		for (int j = 0; j < 8; ++j)
+		{
+			if (lightplanes[i].to3d().dot(m_corners[j]) + lightplanes[i][3] < 0.0f) {
+				behindCount++;
+			}
+			if (behindCount == 8) {
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 int KX_Camera::SphereInsideFrustum(const MT_Vector3& center, const MT_Scalar &radius)

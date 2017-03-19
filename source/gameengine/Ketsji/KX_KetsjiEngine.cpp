@@ -747,6 +747,11 @@ void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene, const MT
 	m_overrideCamData = camdata;
 }
 
+std::vector<KX_Camera *> KX_KetsjiEngine::GetActiveCameras()
+{
+	return m_activeCameras;
+}
+
 
 void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect& area, RAS_Rect& viewport)
 {
@@ -819,6 +824,16 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
+	if (m_activeCameras.size() == 0) {
+		CListValue *allCameras = scene->GetCameraList();
+		for (CListValue::iterator<KX_Camera> it = allCameras->GetBegin(), end = allCameras->GetEnd(); it != end; ++it) {
+			KX_Camera *currentCam = *it;
+			if (currentCam->GetShowCameraFrustum()) {
+				m_activeCameras.push_back(currentCam);
+			}
+		}
+	}
+
 	CListValue *lightlist = scene->GetLightList();
 
 	m_rasterizer->SetAuxilaryClientInfo(scene);
@@ -1029,6 +1044,17 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 	scene->DrawDebug(debugDraw);
 	// Draw debug camera frustum.
 	DrawDebugCameraFrustum(scene, debugDraw, viewport, area);
+
+	// shadow culling update
+	CListValue *lightlist = scene->GetLightList();
+	for (CListValue::iterator<KX_LightObject> it = lightlist->GetBegin(), end = lightlist->GetEnd(); it != end; ++it) {
+		KX_LightObject *light = *it;
+		RAS_ILightObject *raslight = light->GetLightData();
+		CheckLightAndCamerasFrustumIntersection(raslight);
+		if (raslight->m_showLightDebugFrustum) {
+			DrawDebugLightFrustum(scene, debugDraw, raslight);
+		}
+	}
 
 #ifdef WITH_PYTHON
 	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
@@ -1272,9 +1298,36 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& deb
 		KX_Camera *cam = *it;
 		if (cam->GetShowCameraFrustum()) {
 			const MT_Matrix4x4 viewmat(cam->GetWorldToCamera());
-			debugDraw.DrawCameraFrustum(GetCameraProjectionMatrix(scene, cam, viewport, area), viewmat);
+			debugDraw.DrawFrustum(GetCameraProjectionMatrix(scene, cam, viewport, area), viewmat);
 		}
 	}
+}
+
+bool KX_KetsjiEngine::CheckLightAndCamerasFrustumIntersection(RAS_ILightObject *raslight)
+{
+	if (m_activeCameras.size() > 0) {
+		for (KX_Camera *cam : m_activeCameras) {
+			MT_Transform camtrans(cam->GetWorldToCamera());
+			MT_Matrix4x4 viewmat(camtrans);
+			cam->SetModelviewMatrix(viewmat);
+			cam->NodeUpdateGS(0.0f);
+			raslight->SetFrustumPlanes();
+			raslight->SetFrustumCorners();
+			raslight->m_isIntersecting = cam->ShadowFrustumInsideFrustum(raslight->GetFrustumPlanes(), raslight->GetFrustumCorners());
+			if (raslight->m_isIntersecting) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void KX_KetsjiEngine::DrawDebugLightFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, RAS_ILightObject *raslight)
+{
+	const MT_Matrix4x4 projmat(raslight->GetWinMat());
+	const MT_Matrix4x4 viewmat(raslight->GetViewMat());
+	static const MT_Vector4 colors[2] = { MT_Vector4(0.2f, 0.2f, 0.2f, 0.4f), MT_Vector4(0.0f, 0.2f, 0.0f, 0.4f) };
+	debugDraw.DrawFrustum(projmat, viewmat, colors[int(raslight->m_isIntersecting)]);
 }
 
 CListValue *KX_KetsjiEngine::CurrentScenes()
