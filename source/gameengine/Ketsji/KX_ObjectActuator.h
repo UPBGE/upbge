@@ -146,7 +146,7 @@ public:
 	CValue* GetReplica();
 	void ProcessReplica();
 	bool UnlinkObject(SCA_IObject* clientobj);
-	void Relink(std::map<void *, void *>& obj_map);
+	void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
 
 	void SetForceLoc(const double force[3])	{ /*m_force=force;*/ }
 	void UpdateFuzzyFlags()

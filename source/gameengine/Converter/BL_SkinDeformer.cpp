@@ -133,10 +133,10 @@ BL_SkinDeformer::~BL_SkinDeformer()
 		delete [] m_dfnrToPC;
 }
 
-void BL_SkinDeformer::Relink(std::map<void *, void *>& map)
+void BL_SkinDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 {
 	if (m_armobj) {
-		m_armobj = (BL_ArmatureObject *)map[m_armobj];
+		m_armobj = static_cast<BL_ArmatureObject *>(map[m_armobj]);
 	}
 
 	BL_MeshDeformer::Relink(map);

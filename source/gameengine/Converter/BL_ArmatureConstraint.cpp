@@ -194,18 +194,18 @@ void BL_ArmatureConstraint::ReParent(BL_ArmatureObject* armature)
 	CopyBlenderTargets();
 }
 
-void BL_ArmatureConstraint::Relink(std::map<void *, void*>& obj_map)
+void BL_ArmatureConstraint::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 {
-	void *h_obj = obj_map[m_target];
-	if (h_obj) {
+	KX_GameObject *obj = static_cast<KX_GameObject *>(obj_map[m_target]);
+	if (obj) {
 		m_target->UnregisterObject(m_armature);
-		m_target = (KX_GameObject *)h_obj;
+		m_target = obj;
 		m_target->RegisterObject(m_armature);
 	}
-	h_obj = obj_map[m_subtarget];
-	if (h_obj) {
+	obj = static_cast<KX_GameObject *>(obj_map[m_subtarget]);
+	if (obj) {
 		m_subtarget->UnregisterObject(m_armature);
-		m_subtarget = (KX_GameObject *)h_obj;
+		m_subtarget = obj;
 		m_subtarget->RegisterObject(m_armature);
 	}
 }

@@ -164,7 +164,7 @@ public:
 
 	virtual void	/* This function should be virtual - derived classed override it */
 	Relink(
-		std::map<void *, void *>& map
+		std::map<SCA_IObject *, SCA_IObject *>& map
 	);
 
 	/**

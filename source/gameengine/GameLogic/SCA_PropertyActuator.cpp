@@ -222,13 +222,13 @@ bool SCA_PropertyActuator::UnlinkObject(SCA_IObject* clientobj)
 	return false;
 }
 
-void SCA_PropertyActuator::Relink(std::map<void *, void *>& obj_map)
+void SCA_PropertyActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 {
-	void *h_obj = obj_map[m_sourceObj];
-	if (h_obj) {
+	SCA_IObject *obj = obj_map[m_sourceObj];
+	if (obj) {
 		if (m_sourceObj)
 			m_sourceObj->UnregisterActuator(this);
-		m_sourceObj = (SCA_IObject *)h_obj;
+		m_sourceObj = obj;
 		m_sourceObj->RegisterActuator(this);
 	}
 }

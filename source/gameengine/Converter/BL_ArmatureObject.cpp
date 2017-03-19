@@ -414,7 +414,7 @@ void BL_ArmatureObject::ReParentLogic()
 	KX_GameObject::ReParentLogic();
 }
 
-void BL_ArmatureObject::Relink(std::map<void *, void *>& obj_map)
+void BL_ArmatureObject::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 {
 	for (CListValue::iterator<BL_ArmatureConstraint> it = m_controlledConstraints->GetBegin(), end = m_controlledConstraints->GetEnd();
 		 it != end; ++it)

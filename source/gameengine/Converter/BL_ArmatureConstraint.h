@@ -70,7 +70,7 @@ public:
 	virtual CValue *GetReplica();
 	void CopyBlenderTargets();
 	void ReParent(BL_ArmatureObject* armature);
-	void Relink(std::map<void *, void *>& map);
+	void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
 	bool UnlinkObject(SCA_IObject* clientobj);
 
 	void UpdateTarget();

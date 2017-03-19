@@ -76,7 +76,7 @@ void SCA_ILogicBrick::ReParent(SCA_IObject* parent)
 	m_gameobj = parent;
 }
 
-void SCA_ILogicBrick::Relink(std::map<void *, void *>& obj_map)
+void SCA_ILogicBrick::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 {
 	// nothing to do
 }

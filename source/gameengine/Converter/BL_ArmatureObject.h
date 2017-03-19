@@ -85,7 +85,7 @@ public:
 	virtual void ProcessReplica();
 	virtual int GetGameObjectType();
 	virtual void ReParentLogic();
-	virtual void Relink(std::map<void *, void *>& obj_map);
+	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
 	virtual bool UnlinkObject(SCA_IObject *clientobj);
 
 	double GetLastFrame();

@@ -54,7 +54,7 @@ class BL_MeshDeformer : public RAS_Deformer
 public:
 	void VerifyStorage();
 	void RecalcNormals();
-	virtual void Relink(std::map<void *, void *>& map);
+	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
 
 	BL_MeshDeformer(BL_DeformableGameObject *gameobj, Object *obj, RAS_MeshObject *meshobj);
 	virtual ~BL_MeshDeformer();

@@ -54,7 +54,7 @@ class RAS_IPolyMaterial;
 class BL_SkinDeformer : public BL_MeshDeformer
 {
 public:
-	virtual void Relink(std::map<void *, void *>& map);
+	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map);
 	void SetArmature(BL_ArmatureObject *armobj);
 
 	BL_SkinDeformer(BL_DeformableGameObject *gameobj,

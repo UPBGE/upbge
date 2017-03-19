@@ -210,7 +210,7 @@ protected:
 	 * used in AddReplicaObject to map game objects to their
 	 * replicas so pointers can be updated.
 	 */
-	std::map<void *, void *> m_map_gameobject_to_replica;
+	std::map<SCA_IObject *, SCA_IObject *> m_map_gameobject_to_replica;
 
 	/**
 	 * Another temporary variable outstaying its welcome

@@ -56,10 +56,10 @@ public:
 	{
 		return m_blendobj;
 	}
-	virtual void Relink(std::map<void *, void *>& map)
+	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 	{
 		if (m_pDeformer)
-			m_pDeformer->Relink (map);
+			m_pDeformer->Relink(map);
 		KX_GameObject::Relink(map);
 	};
 	void ProcessReplica();

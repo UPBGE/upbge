@@ -119,9 +119,9 @@ void BL_MeshDeformer::ProcessReplica()
 	m_lastDeformUpdate = -1.0;
 }
 
-void BL_MeshDeformer::Relink(std::map<void *, void *>& map)
+void BL_MeshDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 {
-	m_gameobj = (BL_DeformableGameObject *)map[m_gameobj];
+	m_gameobj = static_cast<BL_DeformableGameObject *>(map[m_gameobj]);
 }
 
 /**

@@ -66,7 +66,7 @@ public:
 	SCA_IObject*	GetParent() { return m_gameobj; }
 
 	virtual void	ReParent(SCA_IObject* parent);
-	virtual void	Relink(std::map<void *, void *>& obj_map);
+	virtual void	Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
 	virtual void Delete() { Release(); }
 
 	// act as a BoolValue (with value IsPositiveTrigger)

@@ -283,21 +283,21 @@ bool KX_TrackToActuator::UnlinkObject(SCA_IObject* clientobj)
 	return false;
 }
 
-void KX_TrackToActuator::Relink(std::map<void *, void *>& obj_map)
+void KX_TrackToActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 {
-	void *h_obj = obj_map[m_object];
-	if (h_obj) {
+	SCA_IObject *obj = obj_map[m_object];
+	if (obj) {
 		if (m_object)
 			m_object->UnregisterActuator(this);
-		m_object = (SCA_IObject *)h_obj;
+		m_object = obj;
 		m_object->RegisterActuator(this);
 	}
 
-	void *h_parobj = obj_map[m_parentobj];
-	if (h_parobj) {
+	KX_GameObject *parobj = static_cast<KX_GameObject *>(obj_map[m_parentobj]);
+	if (parobj) {
 		if (m_parentobj)
 			m_parentobj->UnregisterActuator(this);
-		m_parentobj= (KX_GameObject *)h_parobj;
+		m_parentobj = parobj;
 		m_parentobj->RegisterActuator(this);
 	}
 }

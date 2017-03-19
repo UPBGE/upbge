@@ -73,7 +73,7 @@ public:
 
 	virtual void ProcessReplica();
 	virtual bool UnlinkObject(SCA_IObject* clientobj);
-	virtual void Relink(std::map<void *, void *>& obj_map);
+	virtual void Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
 
 	virtual bool 
 	Update();
