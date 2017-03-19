@@ -246,7 +246,7 @@ static PyObject *gPyStartGame(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "s:startGame", &blendfile))
 		return nullptr;
 
-	KX_GetActiveEngine()->RequestExit(KX_EXIT_REQUEST_START_OTHER_GAME);
+	KX_GetActiveEngine()->RequestExit(KX_ExitRequest::START_OTHER_GAME);
 	KX_GetActiveEngine()->SetNameNextGame(blendfile);
 
 	Py_RETURN_NONE;
@@ -258,7 +258,7 @@ PyDoc_STRVAR(gPyEndGame_doc,
 );
 static PyObject *gPyEndGame(PyObject *)
 {
-	KX_GetActiveEngine()->RequestExit(KX_EXIT_REQUEST_QUIT_GAME);
+	KX_GetActiveEngine()->RequestExit(KX_ExitRequest::QUIT_GAME);
 
 	Py_RETURN_NONE;
 }
@@ -269,7 +269,7 @@ PyDoc_STRVAR(gPyRestartGame_doc,
 );
 static PyObject *gPyRestartGame(PyObject *)
 {
-	KX_GetActiveEngine()->RequestExit(KX_EXIT_REQUEST_RESTART_GAME);
+	KX_GetActiveEngine()->RequestExit(KX_ExitRequest::RESTART_GAME);
 	KX_GetActiveEngine()->SetNameNextGame(KX_GetMainPath());
 
 	Py_RETURN_NONE;

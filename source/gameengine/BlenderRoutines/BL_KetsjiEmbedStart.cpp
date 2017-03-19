@@ -83,7 +83,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 	Scene *startscene = CTX_data_scene(C);
 	Main* maggie1 = CTX_data_main(C);
 
-	int exitrequested = KX_EXIT_REQUEST_NO_REQUEST;
+	KX_ExitRequest exitrequested = KX_ExitRequest::NO_REQUEST;
 	Main* blenderdata = maggie1;
 
 	char* startscenename = startscene->id.name + 2;
@@ -110,9 +110,9 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 	do
 	{
-		// if we got an exitcode 3 (KX_EXIT_REQUEST_START_OTHER_GAME) load a different file
-		if (exitrequested == KX_EXIT_REQUEST_START_OTHER_GAME || exitrequested == KX_EXIT_REQUEST_RESTART_GAME) {
-			exitrequested = KX_EXIT_REQUEST_NO_REQUEST;
+		// if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
+		if (exitrequested == KX_ExitRequest::START_OTHER_GAME || exitrequested == KX_ExitRequest::RESTART_GAME) {
+			exitrequested = KX_ExitRequest::NO_REQUEST;
 			if (bfd) {
 				BLO_blendfiledata_free(bfd);
 			}
@@ -153,7 +153,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			}
 			// else forget it, we can't find it
 			else {
-				exitrequested = KX_EXIT_REQUEST_QUIT_GAME;
+				exitrequested = KX_ExitRequest::QUIT_GAME;
 			}
 		}
 
@@ -223,7 +223,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 		launcher.ExitEngine();
 	
-	} while (exitrequested == KX_EXIT_REQUEST_RESTART_GAME || exitrequested == KX_EXIT_REQUEST_START_OTHER_GAME);
+	} while (exitrequested == KX_ExitRequest::RESTART_GAME || exitrequested == KX_ExitRequest::START_OTHER_GAME);
 	
 	if (bfd) {
 		BLO_blendfiledata_free(bfd);

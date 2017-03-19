@@ -572,10 +572,10 @@ static BlendFileData *load_game_data(const char *progname, char *filename = null
 }
 
 /// Return true when the exit code ask to quit the engine.
-static bool quitGame(int exitcode)
+static bool quitGame(KX_ExitRequest exitcode)
 {
 	// Exit the game engine if we are not restarting the game or loading an other file.
-	return (exitcode != KX_EXIT_REQUEST_RESTART_GAME && exitcode != KX_EXIT_REQUEST_START_OTHER_GAME);
+	return (exitcode != KX_ExitRequest::RESTART_GAME && exitcode != KX_ExitRequest::START_OTHER_GAME);
 }
 
 int main(
@@ -1042,7 +1042,7 @@ int main(
 			// this bracket is needed for app (see below) to get out
 			// of scope before GHOST_ISystem::disposeSystem() is called.
 			{
-				int exitcode = KX_EXIT_REQUEST_NO_REQUEST;
+				KX_ExitRequest exitcode = KX_ExitRequest::NO_REQUEST;
 				std::string exitstring = "";
 				bool firstTimeRunning = true;
 				char filename[FILE_MAX];
@@ -1066,8 +1066,8 @@ int main(
 					// Read the Blender file
 					BlendFileData *bfd;
 					
-					// if we got an exitcode 3 (KX_EXIT_REQUEST_START_OTHER_GAME) load a different file
-					if (exitcode == KX_EXIT_REQUEST_START_OTHER_GAME)
+					// if we got an exitcode 3 (KX_ExitRequest::START_OTHER_GAME) load a different file
+					if (exitcode == KX_ExitRequest::START_OTHER_GAME)
 					{
 						char basedpath[FILE_MAX];
 						
@@ -1101,7 +1101,7 @@ int main(
 					if (!bfd) {
 						usage(argv[0], isBlenderPlayer);
 						error = true;
-						exitcode = KX_EXIT_REQUEST_QUIT_GAME;
+						exitcode = KX_ExitRequest::QUIT_GAME;
 					}
 					else {
 						/* Setting options according to the blend file if not overriden in the command line */

@@ -57,16 +57,16 @@ class SCA_IInputDevice;
 #define LEFT_EYE  1
 #define RIGHT_EYE 2
 
-enum KX_ExitRequestMode
+enum class KX_ExitRequest
 {
-	KX_EXIT_REQUEST_NO_REQUEST = 0,
-	KX_EXIT_REQUEST_QUIT_GAME,
-	KX_EXIT_REQUEST_RESTART_GAME,
-	KX_EXIT_REQUEST_START_OTHER_GAME,
-	KX_EXIT_REQUEST_NO_SCENES_LEFT,
-	KX_EXIT_REQUEST_BLENDER_ESC,
-	KX_EXIT_REQUEST_OUTSIDE,
-	KX_EXIT_REQUEST_MAX
+	NO_REQUEST = 0,
+	QUIT_GAME,
+	RESTART_GAME,
+	START_OTHER_GAME,
+	NO_SCENES_LEFT,
+	BLENDER_ESC,
+	OUTSIDE,
+	MAX
 };
 
 typedef struct {
@@ -147,7 +147,7 @@ private:
 	/// Key used to exit the BGE
 	static short m_exitkey;
 
-	int m_exitcode;
+	KX_ExitRequest m_exitcode;
 	std::string m_exitstring;
 
 	float m_cameraZoom;
@@ -288,9 +288,9 @@ public:
 	void StopEngine();
 	void Export(const std::string& filename);
 
-	void RequestExit(int exitrequestmode);
+	void RequestExit(KX_ExitRequest exitrequestmode);
 	void SetNameNextGame(const std::string& nextgame);
-	int GetExitCode();
+	KX_ExitRequest GetExitCode();
 	const std::string& GetExitString();
 
 	CListValue *CurrentScenes();

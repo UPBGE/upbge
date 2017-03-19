@@ -83,7 +83,7 @@ LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, Glob
 	m_startScene(scene),
 	m_maggie(maggie),
 	m_kxStartScene(nullptr),
-	m_exitRequested(KX_EXIT_REQUEST_NO_REQUEST),
+	m_exitRequested(KX_ExitRequest::NO_REQUEST),
 	m_globalSettings(gs),
 	m_system(system),
 	m_ketsjiEngine(nullptr),
@@ -116,7 +116,7 @@ void LA_Launcher::SetPythonGlobalDict(PyObject *globalDict)
 }
 #endif  // WITH_PYTHON
 
-int LA_Launcher::GetExitRequested()
+KX_ExitRequest LA_Launcher::GetExitRequested()
 {
 	return m_exitRequested;
 }
@@ -331,7 +331,7 @@ void LA_Launcher::ExitEngine()
 #endif  // WITH_PYTHON
 
 	// Do we will stop ?
-	if ((m_exitRequested != KX_EXIT_REQUEST_RESTART_GAME) && (m_exitRequested != KX_EXIT_REQUEST_START_OTHER_GAME)) {
+	if ((m_exitRequested != KX_ExitRequest::RESTART_GAME) && (m_exitRequested != KX_ExitRequest::START_OTHER_GAME)) {
 		// Then set the cursor back to normal here to avoid set the cursor visible between two game load.
 		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
 	}
@@ -386,7 +386,7 @@ void LA_Launcher::ExitEngine()
 	AUD_Device_stopAll(BKE_sound_get_device());
 #endif  // WITH_AUDASPACE
 
-	m_exitRequested = KX_EXIT_REQUEST_NO_REQUEST;
+	m_exitRequested = KX_ExitRequest::NO_REQUEST;
 }
 
 #ifdef WITH_PYTHON
@@ -437,9 +437,9 @@ int LA_Launcher::PythonEngineNextFrame(void *state)
 		return 0;
 	}
 	else {
-		int exitcode = launcher->GetExitRequested();
-		if (exitcode) {
-			CM_Error("Exit code " << exitcode << ": " << launcher->GetExitString());
+		KX_ExitRequest exitcode = launcher->GetExitRequested();
+		if (exitcode != KX_ExitRequest::NO_REQUEST) {
+			CM_Error("Exit code " << (int)exitcode << ": " << launcher->GetExitString());
 		}
 		return 1;
 	}
@@ -476,7 +476,7 @@ void LA_Launcher::RunPythonMainLoop(const std::string& pythonCode)
 bool LA_Launcher::EngineNextFrame()
 {
 	// Update the state of the game engine.
-	if (m_kxsystem && !m_exitRequested) {
+	if (m_kxsystem && m_exitRequested == KX_ExitRequest::NO_REQUEST) {
 		// First check if we want to exit.
 		m_exitRequested = m_ketsjiEngine->GetExitCode();
 
@@ -498,19 +498,19 @@ bool LA_Launcher::EngineNextFrame()
 			!m_inputDevice->GetHookExitKey())
 		{
 			m_inputDevice->ConvertEvent((SCA_IInputDevice::SCA_EnumInputs)m_ketsjiEngine->GetExitKey(), 0, 0);
-			m_exitRequested = KX_EXIT_REQUEST_BLENDER_ESC;
+			m_exitRequested = KX_ExitRequest::BLENDER_ESC;
 		}
 		else if (m_inputDevice->GetInput(SCA_IInputDevice::WINCLOSE).Find(SCA_InputEvent::ACTIVE) ||
 			m_inputDevice->GetInput(SCA_IInputDevice::WINQUIT).Find(SCA_InputEvent::ACTIVE))
 		{
 			m_inputDevice->ConvertEvent(SCA_IInputDevice::WINCLOSE, 0, 0);
 			m_inputDevice->ConvertEvent(SCA_IInputDevice::WINQUIT, 0, 0);
-			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
+			m_exitRequested = KX_ExitRequest::OUTSIDE;
 		}
 	}
 	m_exitString = m_ketsjiEngine->GetExitString();
 
-	if (m_exitRequested != KX_EXIT_REQUEST_NO_REQUEST) {
+	if (m_exitRequested != KX_ExitRequest::NO_REQUEST) {
 		return false;
 	}
 	return true;

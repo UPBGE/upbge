@@ -132,7 +132,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_previousAnimTime(0.0f),
 	m_timescale(1.0f),
 	m_previousRealTime(0.0f),
-	m_exitcode(KX_EXIT_REQUEST_NO_REQUEST),
+	m_exitcode(KX_ExitRequest::NO_REQUEST),
 	m_exitstring(""),
 	m_cameraZoom(1.0f),
 	m_overrideCam(false),
@@ -692,7 +692,7 @@ void KX_KetsjiEngine::Render()
 	EndFrame();
 }
 
-void KX_KetsjiEngine::RequestExit(int exitrequestmode)
+void KX_KetsjiEngine::RequestExit(KX_ExitRequest exitrequestmode)
 {
 	m_exitcode = exitrequestmode;
 }
@@ -702,12 +702,12 @@ void KX_KetsjiEngine::SetNameNextGame(const std::string& nextgame)
 	m_exitstring = nextgame;
 }
 
-int KX_KetsjiEngine::GetExitCode()
+KX_ExitRequest KX_KetsjiEngine::GetExitCode()
 {
 	// if a game actuator has set an exit code or if there are no scenes left
-	if (!m_exitcode) {
+	if (m_exitcode == KX_ExitRequest::NO_REQUEST) {
 		if (m_scenes->GetCount() == 0)
-			m_exitcode = KX_EXIT_REQUEST_NO_SCENES_LEFT;
+			m_exitcode = KX_ExitRequest::NO_SCENES_LEFT;
 	}
 
 	return m_exitcode;

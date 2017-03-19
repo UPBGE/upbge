@@ -57,7 +57,7 @@ protected:
 	KX_Scene *m_kxStartScene;
 
 	/// \section Exit state.
-	int m_exitRequested;
+	KX_ExitRequest m_exitRequested;
 	std::string m_exitString;
 	GlobalSettings *m_globalSettings;
 
@@ -143,7 +143,7 @@ public:
 	void SetPythonGlobalDict(PyObject *globalDict);
 #endif  // WITH_PYTHON
 
-	int GetExitRequested();
+	KX_ExitRequest GetExitRequested();
 	const std::string& GetExitString();
 	GlobalSettings *GetGlobalSettings();
 
