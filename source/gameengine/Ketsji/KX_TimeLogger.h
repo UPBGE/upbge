@@ -53,41 +53,41 @@ public:
 	/**
 	 * Destructor.
 	 */
-	virtual ~KX_TimeLogger();
+	~KX_TimeLogger();
 
 	/**
 	 * Changes the maximum number of measurements that can be stored.
 	 */
-	virtual void SetMaxNumMeasurements(unsigned int maxNumMeasurements);
+	void SetMaxNumMeasurements(unsigned int maxNumMeasurements);
 
 	/**
 	 * Changes the maximum number of measurements that can be stored.
 	 */
-	virtual unsigned int GetMaxNumMeasurements() const;
+	unsigned int GetMaxNumMeasurements() const;
 
 	/**
 	 * Starts logging in current measurement.
 	 * \param now	The current time.
 	 */
-	virtual void StartLog(double now);
+	void StartLog(double now);
 
 	/**
 	 * End logging in current measurement.
 	 * \param now	The current time.
 	 */
-	virtual void EndLog(double now);
+	void EndLog(double now);
 
 	/**
 	 * Logs time in next measurement.
 	 * \param now	The current time.
 	 */
-	virtual void NextMeasurement(double now);
+	void NextMeasurement(double now);
 
 	/**
 	 * Returns average of all but the current measurement.
 	 * \return The average of all but the current measurement.
 	 */
-	virtual double GetAverage() const;
+	double GetAverage() const;
 
 protected:
 	/// Storage for the measurements.

@@ -50,7 +50,7 @@ class KX_TimeCategoryLogger
 {
 public:
 	typedef int TimeCategory;
-	typedef std::map<TimeCategory, KX_TimeLogger *> TimeLoggerMap;
+	typedef std::map<TimeCategory, KX_TimeLogger> TimeLoggerMap;
 
 	/**
 	 * Constructor.
@@ -61,23 +61,23 @@ public:
 	/**
 	 * Destructor.
 	 */
-	virtual ~KX_TimeCategoryLogger();
+	~KX_TimeCategoryLogger();
 
 	/**
 	 * Changes the maximum number of measurements that can be stored.
 	 */
-	virtual void SetMaxNumMeasurements(unsigned int maxNumMeasurements);
+	void SetMaxNumMeasurements(unsigned int maxNumMeasurements);
 
 	/**
 	 * Changes the maximum number of measurements that can be stored.
 	 */
-	virtual unsigned int GetMaxNumMeasurements() const;
+	unsigned int GetMaxNumMeasurements() const;
 
 	/**
 	 * Adds a category.
 	 * \param category	The new category.
 	 */
-	virtual void AddCategory(TimeCategory tc);
+	void AddCategory(TimeCategory tc);
 
 	/**
 	 * Starts logging in current measurement for the given category.
@@ -85,44 +85,39 @@ public:
 	 * \param now					The current time.
 	 * \param endOtherCategories	Whether to stop logging to other categories.
 	 */
-	virtual void StartLog(TimeCategory tc, double now, bool endOtherCategories = true);
+	void StartLog(TimeCategory tc, double now, bool endOtherCategories = true);
 
 	/**
 	 * End logging in current measurement for the given category.
 	 * \param tc	The category to log to.
 	 * \param now	The current time.
 	 */
-	virtual void EndLog(TimeCategory tc, double now);
+	void EndLog(TimeCategory tc, double now);
 
 	/**
 	 * End logging in current measurement for all categories.
 	 * \param now	The current time.
 	 */
-	virtual void EndLog(double now);
+	void EndLog(double now);
 
 	/**
 	 * Logs time in next measurement.
 	 * \param now	The current time.
 	 */
-	virtual void NextMeasurement(double now);
+	void NextMeasurement(double now);
 
 	/**
 	 * Returns average of all but the current measurement time.
 	 * \return The average of all but the current measurement.
 	 */
-	virtual double GetAverage(TimeCategory tc);
+	double GetAverage(TimeCategory tc);
 
 	/**
 	 * Returns average for grand total.
 	 */
-	virtual double GetAverage();
+	double GetAverage();
 
 protected:
-	/**
-	 * Disposes loggers.
-	 */
-	virtual void DisposeLoggers();
-
 	/// Storage for the loggers.
 	TimeLoggerMap m_loggers;
 	/// Maximum number of measurements.

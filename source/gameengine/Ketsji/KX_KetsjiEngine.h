@@ -38,13 +38,13 @@
 #include <string>
 #include "KX_ISystem.h"
 #include "KX_Scene.h"
+#include "KX_TimeCategoryLogger.h"
 #include "EXP_Python.h"
 #include "KX_WorldInfo.h"
 #include "RAS_CameraData.h"
 #include <vector>
 
 struct TaskScheduler;
-class KX_TimeCategoryLogger;
 class KX_ISystem;
 class KX_ISceneConverter;
 class KX_NetworkMessageManager;
@@ -177,7 +177,7 @@ private:
 	} KX_TimeCategory;
 
 	/// Time logger.
-	KX_TimeCategoryLogger *m_logger;
+	KX_TimeCategoryLogger m_logger;
 
 	/// Labels for profiling display.
 	static const char m_profileLabels[tc_numCategories][15];

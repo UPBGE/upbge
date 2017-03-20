@@ -39,13 +39,12 @@ KX_TimeCategoryLogger::KX_TimeCategoryLogger(unsigned int maxNumMeasurements)
 
 KX_TimeCategoryLogger::~KX_TimeCategoryLogger()
 {
-	DisposeLoggers();
 }
 
 void KX_TimeCategoryLogger::SetMaxNumMeasurements(unsigned int maxNumMeasurements)
 {
 	for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
-		it->second->SetMaxNumMeasurements(maxNumMeasurements);
+		it->second.SetMaxNumMeasurements(maxNumMeasurements);
 	}
 	m_maxNumMeasurements = maxNumMeasurements;
 }
@@ -59,8 +58,7 @@ void KX_TimeCategoryLogger::AddCategory(TimeCategory tc)
 {
 	// Only add if not already present
 	if (m_loggers.find(tc) == m_loggers.end()) {
-		KX_TimeLogger *logger = new KX_TimeLogger(m_maxNumMeasurements);
-		m_loggers.insert(TimeLoggerMap::value_type(tc, logger));
+		m_loggers.emplace(TimeLoggerMap::value_type(tc, KX_TimeLogger(m_maxNumMeasurements)));
 	}
 }
 
@@ -69,35 +67,35 @@ void KX_TimeCategoryLogger::StartLog(TimeCategory tc, double now, bool endOtherC
 	if (endOtherCategories) {
 		for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
 			if (it->first != tc) {
-				it->second->EndLog(now);
+				it->second.EndLog(now);
 			}
 		}
 	}
-	m_loggers[tc]->StartLog(now);
+	m_loggers[tc].StartLog(now);
 }
 
 void KX_TimeCategoryLogger::EndLog(TimeCategory tc, double now)
 {
-	m_loggers[tc]->EndLog(now);
+	m_loggers[tc].EndLog(now);
 }
 
 void KX_TimeCategoryLogger::EndLog(double now)
 {
 	for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
-		it->second->EndLog(now);
+		it->second.EndLog(now);
 	}
 }
 
 void KX_TimeCategoryLogger::NextMeasurement(double now)
 {
 	for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
-		it->second->NextMeasurement(now);
+		it->second.NextMeasurement(now);
 	}
 }
 
 double KX_TimeCategoryLogger::GetAverage(TimeCategory tc)
 {
-	return m_loggers[tc]->GetAverage();
+	return m_loggers[tc].GetAverage();
 }
 
 double KX_TimeCategoryLogger::GetAverage()
@@ -105,15 +103,8 @@ double KX_TimeCategoryLogger::GetAverage()
 	double time = 0.0;
 
 	for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
-		time += it->second->GetAverage();
+		time += it->second.GetAverage();
 	}
 
 	return time;
-}
-
-void KX_TimeCategoryLogger::DisposeLoggers()
-{
-	for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
-		delete it->second;
-	}
 }
