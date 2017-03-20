@@ -137,7 +137,7 @@ public:
 	 * \param projmat The camera projection matrix.
 	 * \param viewmat The camera view matrix.
 	 */
-	void DrawCameraFrustum(const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat);
+	void DrawFrustum(const MT_Matrix4x4& projmat, const MT_Matrix4x4& viewmat, const MT_Vector4& color = MT_Vector4(0.2f, 0.2f, 0.2f, 0.4f));
 
 	void RenderBox2D(const MT_Vector2& pos, const MT_Vector2& size, const MT_Vector4& color);
 

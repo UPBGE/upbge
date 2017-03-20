@@ -98,6 +98,7 @@ protected:
 	 * View Frustum clip planes.
 	 */
 	MT_Vector4   m_planes[6];
+	MT_Vector3   m_corners[8];
 	
 	/**
 	 * This camera is frustum culling.
@@ -135,6 +136,8 @@ protected:
 	 * Extracts the camera clip frames from the projection and world-to-camera matrices.
 	 */
 	void ExtractClipPlanes();
+
+	void SetFrustumCorners();
 	/**
 	 * Normalize the camera clip frames.
 	 */
@@ -159,6 +162,8 @@ public:
 
 	KX_Camera(void* sgReplicationInfo,SG_Callbacks callbacks,const RAS_CameraData& camdata, bool frustum_culling = true, bool delete_node = false);
 	virtual ~KX_Camera();
+
+	bool ShadowFrustumInsideFrustum(MT_Vector4 *lightplanes, MT_Vector3 *lightcorners);
 	
 	/** 
 	 * Inherited from CValue -- return a new copy of this

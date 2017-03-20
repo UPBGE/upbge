@@ -52,6 +52,7 @@ class CListValue;
 class RAS_ICanvas;
 class RAS_OffScreen;
 class RAS_IRasterizer;
+class RAS_ILightObject;
 class SCA_IInputDevice;
 
 #define LEFT_EYE  1
@@ -147,6 +148,8 @@ private:
 	KX_ExitRequest m_exitcode;
 	std::string m_exitstring;
 
+	std::vector<KX_Camera *>m_activeCameras;
+
 	float m_cameraZoom;
 
 	bool m_overrideCam;
@@ -230,6 +233,13 @@ private:
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.
 	void DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const RAS_Rect& viewport, const RAS_Rect& area);
+	/// Debug draw lights frustum of a scene.
+	void DrawDebugLightFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, RAS_ILightObject *raslight);
+
+	/* Check intersection of custom light shadow
+	 * frustum with scene active cameras
+	 */
+	bool CheckLightAndCamerasFrustumIntersection(RAS_ILightObject *raslight);
 
 public:
 	KX_KetsjiEngine(KX_ISystem *system);
@@ -310,6 +320,8 @@ public:
 	float GetCameraZoom(KX_Camera *camera) const;
 
 	void EnableCameraOverride(const std::string& forscene, const MT_CmMatrix4x4& projmat, const MT_CmMatrix4x4& viewmat, const RAS_CameraData& camdata);
+
+	std::vector<KX_Camera *> GetActiveCameras();
 
 	// Update animations for object in this scene
 	void UpdateAnimations(KX_Scene *scene);
