@@ -828,7 +828,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 		CListValue *allCameras = scene->GetCameraList();
 		for (CListValue::iterator<KX_Camera> it = allCameras->GetBegin(), end = allCameras->GetEnd(); it != end; ++it) {
 			KX_Camera *currentCam = *it;
-			if (currentCam->GetShowCameraFrustum()) {
+			if (currentCam->GetName() != "__default__cam__") {
 				m_activeCameras.push_back(currentCam);
 			}
 		}
@@ -861,19 +861,22 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			/* binds framebuffer object, sets up camera .. */
 			raslight->BindShadowBuffer(m_canvas, cam, camtrans);
 
-			/* update scene */
-			scene->CalculateVisibleMeshes(m_rasterizer, cam, raslight->GetShadowLayer());
+			if (raslight->m_isIntersecting) {
 
-			m_logger->StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
-			SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
-			UpdateAnimations(scene);
-			m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
-			SG_SetActiveStage(SG_STAGE_RENDER);
+				/* update scene */
+				scene->CalculateVisibleMeshes(m_rasterizer, cam, raslight->GetShadowLayer());
 
-			/* render */
-			m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT | RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
-			// Send a nullptr off screen because the viewport is binding it's using its own private one.
-			scene->RenderBuckets(camtrans, m_rasterizer, nullptr);
+				m_logger->StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
+				UpdateAnimations(scene);
+				m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_RENDER);
+
+				/* render */
+				m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT | RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
+				// Send a nullptr off screen because the viewport is binding it's using its own private one.
+				scene->RenderBuckets(camtrans, m_rasterizer, nullptr);
+			}
 
 			/* unbind framebuffer object, restore drawmode, free camera */
 			raslight->UnbindShadowBuffer();
@@ -1050,7 +1053,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 	for (CListValue::iterator<KX_LightObject> it = lightlist->GetBegin(), end = lightlist->GetEnd(); it != end; ++it) {
 		KX_LightObject *light = *it;
 		RAS_ILightObject *raslight = light->GetLightData();
-		CheckLightAndCamerasFrustumIntersection(raslight);
+		raslight->m_isIntersecting = CheckLightAndCamerasFrustumIntersection(raslight);
 		if (raslight->m_showLightDebugFrustum) {
 			DrawDebugLightFrustum(scene, debugDraw, raslight);
 		}
@@ -1313,8 +1316,8 @@ bool KX_KetsjiEngine::CheckLightAndCamerasFrustumIntersection(RAS_ILightObject *
 			cam->NodeUpdateGS(0.0f);
 			raslight->SetFrustumPlanes();
 			raslight->SetFrustumCorners();
-			raslight->m_isIntersecting = cam->ShadowFrustumInsideFrustum(raslight->GetFrustumPlanes(), raslight->GetFrustumCorners());
-			if (raslight->m_isIntersecting) {
+			bool intersect = cam->ShadowFrustumInsideFrustum(raslight->GetFrustumPlanes(), raslight->GetFrustumCorners());
+			if (intersect) {
 				return true;
 			}
 		}
