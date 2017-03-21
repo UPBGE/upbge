@@ -71,6 +71,7 @@ BL_Texture::BL_Texture(MTex *mtex)
 	m_savedData.uvrot = m_mtex->rot;
 	copy_v3_v3(m_savedData.uvoffset, m_mtex->ofs);
 	copy_v3_v3(m_savedData.uvsize, m_mtex->size);
+	m_savedData.fresnelfac = m_mtex->fresnelfac;
 
 	if (m_gpuTex) {
 		m_bindCode = GPU_texture_opengl_bindcode(m_gpuTex);
@@ -99,6 +100,7 @@ BL_Texture::~BL_Texture()
 	m_mtex->rot = m_savedData.uvrot;
 	copy_v3_v3(m_mtex->ofs, m_savedData.uvoffset);
 	copy_v3_v3(m_mtex->size, m_savedData.uvsize);
+	m_mtex->fresnelfac = m_savedData.fresnelfac;
 
 	if (m_gpuTex) {
 		GPU_texture_set_opengl_bindcode(m_gpuTex, m_savedData.bindcode);
@@ -245,6 +247,7 @@ PyAttributeDef BL_Texture::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("renderer", BL_Texture, pyattr_get_renderer),
 	KX_PYATTRIBUTE_RW_FUNCTION("ior", BL_Texture, pyattr_get_ior, pyattr_set_ior),
 	KX_PYATTRIBUTE_RW_FUNCTION("refractionRatio", BL_Texture, pyattr_get_refraction_ratio, pyattr_set_refraction_ratio),
+	KX_PYATTRIBUTE_RW_FUNCTION("fresnel", BL_Texture, pyattr_get_fresnel_factor, pyattr_set_fresnel_factor),
 	KX_PYATTRIBUTE_RW_FUNCTION("uvRotation", BL_Texture, pyattr_get_uv_rotation, pyattr_set_uv_rotation),
 	KX_PYATTRIBUTE_RW_FUNCTION("uvOffset", BL_Texture, pyattr_get_uv_offset, pyattr_set_uv_offset),
 	KX_PYATTRIBUTE_RW_FUNCTION("uvSize", BL_Texture, pyattr_get_uv_size, pyattr_set_uv_size),
@@ -561,6 +564,26 @@ int BL_Texture::pyattr_set_refraction_ratio(PyObjectPlus *self_v, const KX_PYATT
 	}
 	CLAMP(val, 0.0, 1.0);
 	self->GetMTex()->refrratio = val;
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *BL_Texture::pyattr_get_fresnel_factor(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	return PyFloat_FromDouble(self->GetMTex()->fresnelfac);
+}
+
+int BL_Texture::pyattr_set_fresnel_factor(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	BL_Texture *self = static_cast<BL_Texture *>(self_v);
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "texture.%s = float: BL_Texture, expected a float", attrdef->m_name.c_str());
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->GetMTex()->fresnelfac = val;
 	return PY_SET_ATTR_SUCCESS;
 }
 

@@ -1194,6 +1194,7 @@ class TEXTURE_PT_game_influence(TextureSlotPanel, Panel):
             factor_but(col, "use_map_emit", "emit_factor", "Emit")
             factor_but(col, "use_map_mirror", "mirror_factor", "Mirror")
             factor_but(col, "use_map_raymir", "raymir_factor", "Ray Mirror")
+            factor_but(col, "use_map_fresnel", "fresnel_factor_2", "Fresnel")
 
             col.label(text="Geometry:")
             # XXX replace 'or' when displacement is fixed to not rely on normal influence value.
@@ -1328,6 +1329,7 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
                 factor_but(col, "use_map_emit", "emit_factor", "Emit")
                 factor_but(col, "use_map_mirror", "mirror_factor", "Mirror")
                 factor_but(col, "use_map_raymir", "raymir_factor", "Ray Mirror")
+                factor_but(col, "use_map_fresnel", "fresnel_factor_2", "Fresnel")
 
                 col.label(text="Geometry:")
                 # XXX replace 'or' when displacement is fixed to not rely on normal influence value.

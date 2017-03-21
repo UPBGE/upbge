@@ -1409,11 +1409,25 @@ void mtex_cube_map_refl_from_refldir(
         value = color.a;
 }
 
+void mtex_fresnel_color(vec4 incolor, float infresnelfac, vec3 vp, vec3 vn, mat4 viewmatrixinverse, out float outalpha, out vec4 outcolor)
+{
+	vec3 viewdirection = vec3(viewmatrixinverse * vec4(vp, 0.0));
+	vec3 viewnormal = normalize(viewmatrixinverse * vec4(vn, 0.0)).xyz;
+    vec3 halfDirection = normalize(viewnormal + viewdirection);
+    
+    float cosine = dot(halfDirection, viewdirection);
+    float product = max(cosine, 0.0);
+	float factor = 1.0 - pow(product, 5.0);
+	outcolor = incolor * (1.0 - factor * infresnelfac);
+	outalpha = 1.0; // / (1.0 - factor * infresnelfac);
+}
+
 vec4 mtex_cube_map_refl_color(samplerCube ima, mat4 viewmatrixinverse, float lodbias, vec3 vn, vec3 viewdirection)
 {
 	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vn, 0.0)).xyz;
 	vec3 reflecteddirection = reflect(viewdirection, normaldirection);
 	vec4 col = textureCube(ima, reflecteddirection, lodbias);
+	
 	return col;
 }
 
@@ -1422,6 +1436,7 @@ vec4 mtex_cube_map_refr_color(samplerCube ima, mat4 viewmatrixinverse, float ior
 	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vec3(vn.x, vn.y, -vn.z), 0.0)).xyz;
 	vec3 refracteddirection = refract(viewdirection, normaldirection, 1.0 / ior);
 	vec4 col = textureCube(ima, refracteddirection, lodbias);
+
 	return col;
 }
 
