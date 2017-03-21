@@ -845,6 +845,13 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0.0, 1.0, 1, 2);
 	RNA_def_property_ui_text(prop, "Refraction Ratio", "Amount refraction mixed with reflection");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop = RNA_def_property(srna, "fresnel_factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "fresnelfac");
+	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
+	RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 2);
+	RNA_def_property_ui_text(prop, "Fresnel Factor", "Amount fresnel on CubeMap texture");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
 	/* end volume material */
 	

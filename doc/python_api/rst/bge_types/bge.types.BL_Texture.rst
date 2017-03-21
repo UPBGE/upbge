@@ -105,6 +105,12 @@ base class --- :class:`CValue`
 
       :type: float (0.0 to 1.0)
 
+   .. attribute:: fresnel
+
+      Amount fresnel on CubeMap texture.
+
+      :type: float
+
    .. attribute:: uvOffset
 
       Offset applied to texture UV coordinates (mainly translation on U and V axis).

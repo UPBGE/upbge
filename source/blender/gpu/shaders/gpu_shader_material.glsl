@@ -1409,46 +1409,65 @@ void mtex_cube_map_refl_from_refldir(
         value = color.a;
 }
 
-vec4 mtex_cube_map_refl_color(samplerCube ima, mat4 viewmatrixinverse, float lodbias, vec3 vn, vec3 viewdirection)
+float mtex_cubemap_fresnel_factor(vec3 viewdirection, vec3 viewnormal)
+{
+    vec3 halfDirection = normalize(viewnormal + viewdirection);
+    
+    float cosine = dot(halfDirection, viewdirection);
+    float product = max(cosine, 0.0);
+	float factor = pow(product, 5.0);
+    
+    return factor;
+}
+
+vec4 mtex_cube_map_refl_color(samplerCube ima, mat4 viewmatrixinverse, float lodbias, vec3 vn, vec3 viewdirection, float fresnelfac)
 {
 	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vn, 0.0)).xyz;
 	vec3 reflecteddirection = reflect(viewdirection, normaldirection);
 	vec4 col = textureCube(ima, reflecteddirection, lodbias);
+	if (fresnelfac != 0.0) {
+		float fresnel = mtex_cubemap_fresnel_factor(viewdirection, normaldirection);
+		col *= (1.0 + fresnel * fresnelfac);
+	}
 	return col;
 }
 
-vec4 mtex_cube_map_refr_color(samplerCube ima, mat4 viewmatrixinverse, float ior, float lodbias, vec3 vn, vec3 viewdirection)
+vec4 mtex_cube_map_refr_color(samplerCube ima, mat4 viewmatrixinverse, float ior, float lodbias, vec3 vn, vec3 viewdirection, float fresnelfac)
 {
 	vec3 normaldirection = normalize(viewmatrixinverse * vec4(vec3(vn.x, vn.y, -vn.z), 0.0)).xyz;
 	vec3 refracteddirection = refract(viewdirection, normaldirection, 1.0 / ior);
 	vec4 col = textureCube(ima, refracteddirection, lodbias);
+	if (fresnelfac != 0.0) {
+		float fresnel = mtex_cubemap_fresnel_factor(viewdirection, normaldirection);
+		col *= (1.0 + fresnel * fresnelfac);
+	}
 	return col;
 }
 
 void mtex_cube_map_refl(
         samplerCube ima, vec3 vp, vec3 vn, float lodbias, mat4 viewmatrixinverse,
-        out float value, out vec4 color)
+        float fresnelfac, out float value, out vec4 color)
 {
 	vec3 viewdirection = vec3(viewmatrixinverse * vec4(vp, 0.0));
-	color = mtex_cube_map_refl_color(ima, viewmatrixinverse, lodbias, vn, viewdirection);
+	color = mtex_cube_map_refl_color(ima, viewmatrixinverse, lodbias, vn, viewdirection, fresnelfac);
 	value = 1.0;
 }
 
 void mtex_cube_map_refl_refr(
         samplerCube ima, vec3 vp, vec3 vn, float lodbias, mat4 viewmatrixinverse,
-        float ior, float ratio, out float value, out vec4 color)
+        float ior, float ratio, float fresnelfac, out float value, out vec4 color)
 {
 	vec3 viewdirection = vec3(viewmatrixinverse * vec4(vp, 0.0));
 
 	if (ratio <= 0.0) {
-		color = mtex_cube_map_refl_color(ima, viewmatrixinverse, lodbias, vn, viewdirection);
+		color = mtex_cube_map_refl_color(ima, viewmatrixinverse, lodbias, vn, viewdirection, fresnelfac);
 	}
 	else if (ratio >= 1.0) {
-		color = mtex_cube_map_refr_color(ima, viewmatrixinverse, ior, lodbias, vn, viewdirection);
+		color = mtex_cube_map_refr_color(ima, viewmatrixinverse, ior, lodbias, vn, viewdirection, fresnelfac);
 	}
 	else {
-		vec4 refl = mtex_cube_map_refl_color(ima, viewmatrixinverse, lodbias, vn, viewdirection);
-		vec4 refr = mtex_cube_map_refr_color(ima, viewmatrixinverse, ior, lodbias, vn, viewdirection);
+		vec4 refl = mtex_cube_map_refl_color(ima, viewmatrixinverse, lodbias, vn, viewdirection, fresnelfac);
+		vec4 refr = mtex_cube_map_refr_color(ima, viewmatrixinverse, ior, lodbias, vn, viewdirection, fresnelfac);
 		color = mix(refl, refr, ratio);
 	}
 	value = 1.0;

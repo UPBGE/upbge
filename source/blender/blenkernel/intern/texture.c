@@ -785,6 +785,7 @@ void BKE_texture_mtex_default(MTex *mtex)
 	mtex->random_angle = 2.0f * (float)M_PI;
 	mtex->brush_angle_mode = 0;
 	mtex->ior = 1.0f;
+	mtex->fresnelfac = 0.0f;
 	mtex->refrratio = 0.0f;
 }
 
