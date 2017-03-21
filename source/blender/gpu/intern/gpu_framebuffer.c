@@ -338,7 +338,7 @@ void GPU_framebuffer_bind_simple(GPUFrameBuffer *fb)
 void GPU_framebuffer_bind_all_attachments(GPUFrameBuffer *fb)
 {
 	int slots = 0, i;
-	GLenum attachments[4];
+	GLenum attachments[GPU_FB_MAX_SLOTS];
 
 	for(i = 0; i < GPU_FB_MAX_SLOTS; i++) {
 		if (fb->colortex[i]) {
