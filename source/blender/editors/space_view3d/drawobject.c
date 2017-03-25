@@ -1188,7 +1188,7 @@ static void draw_transp_spot_shadow_volume(Lamp *la)
 {
 	float box[8][3];
 
-	const float x = cosf(la->spotsize * 0.5f);
+	const float x = tanf(la->spotsize * 0.5f);
 	const float xtop = x * la->clipsta;
 	const float xbottom = x * la->clipend;
 
