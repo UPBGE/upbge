@@ -1012,7 +1012,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 	// Draw debug infos like bouding box, armature ect.. if enabled.
 	scene->DrawDebug(debugDraw);
 	// Draw debug camera frustum.
-	DrawDebugCameraFrustum(scene, debugDraw, viewport, area);
+	DrawDebugCameraFrustum(scene, cam, debugDraw, viewport, area);
 	DrawDebugShadowFrustum(scene, debugDraw);
 
 #ifdef WITH_PYTHON
@@ -1250,7 +1250,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	m_rasterizer->FlushDebugDraw(nullptr, m_canvas);
 }
 
-void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const RAS_Rect& viewport, const RAS_Rect& area)
+void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, KX_Camera *cam, RAS_DebugDraw& debugDraw, const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	if (m_showCameraFrustum == KX_DebugOption::DISABLE) {
 		return;
@@ -1258,10 +1258,10 @@ void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& deb
 
 	CListValue *cameras = scene->GetCameraList();
 	for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-		KX_Camera *cam = *it; // TODO: don't draw current camera.
-		if (m_showCameraFrustum == KX_DebugOption::FORCE || cam->GetShowCameraFrustum()) {
-			const MT_Matrix4x4 viewmat(cam->GetWorldToCamera());
-			debugDraw.DrawCameraFrustum(GetCameraProjectionMatrix(scene, cam, viewport, area), viewmat);
+		KX_Camera *camObj = *it;
+		if (camObj != cam && (m_showCameraFrustum == KX_DebugOption::FORCE || camObj->GetShowCameraFrustum())) {
+			const MT_Matrix4x4 viewmat(camObj->GetWorldToCamera());
+			debugDraw.DrawCameraFrustum(GetCameraProjectionMatrix(scene, camObj, viewport, area), viewmat);
 		}
 	}
 }
