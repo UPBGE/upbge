@@ -414,11 +414,12 @@ bool ImageRender::Render()
 		m_scene->GetWorldInfo()->setZenithColor(zen);
 	}
 
-	m_scene->CalculateVisibleMeshes(m_rasterizer,m_camera);
+	KX_CullingNodeList nodes;
+	m_scene->CalculateVisibleMeshes(nodes, m_camera);
 
 	m_engine->UpdateAnimations(m_scene);
 
-	m_scene->RenderBuckets(camtrans, m_rasterizer, m_offScreen.get());
+	m_scene->RenderBuckets(nodes, camtrans, m_rasterizer, m_offScreen.get());
 
 	// restore the canvas area now that the render is completed
 	m_canvas->GetWindowArea() = area;

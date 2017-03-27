@@ -58,6 +58,7 @@
 #include "RAS_MeshObject.h"
 #include "SCA_IScene.h"
 #include "KX_LodManager.h"
+#include "KX_CullingHandler.h"
 
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
@@ -512,7 +513,6 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_Node* node, class CValue*
 		m_rootnode->SetLocalScale(orgnode->GetLocalScale());
 		m_rootnode->SetLocalPosition(orgnode->GetLocalPosition());
 		m_rootnode->SetLocalOrientation(orgnode->GetLocalOrientation());
-		m_rootnode->SetBBox(orgnode->BBox());
 
 		// define the relationship between this node and it's parent.
 		KX_NormalParentRelation * parent_relation = 
@@ -1337,75 +1337,29 @@ void KX_Scene::SetCameraOnTop(KX_Camera* cam)
 	}
 }
 
-void KX_Scene::MarkVisible(RAS_Rasterizer* rasty, KX_GameObject* gameobj,KX_Camera*  cam,int layer)
+void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void *cullingInfo)
 {
-	// User (Python/Actuator) has forced object invisible...
-	if (!gameobj->GetSGNode() || !gameobj->GetVisible())
-		return;
-	
-	// Shadow lamp layers
-	if (layer && !(gameobj->GetLayer() & layer)) {
-		gameobj->SetCulled(true);
-		return;
-	}
-
-	// If Frustum culling is off, the object is always visible.
-	bool vis = !cam->GetFrustumCulling();
-	
-	// If the camera is inside this node, then the object is visible.
-	if (!vis)
-	{
-		vis = gameobj->GetSGNode()->Inside(cam->NodeGetWorldPosition());
-	}
-		
-	// Test the object's bound sphere against the view frustum.
-	if (!vis)
-	{
-		SG_BBox &box = gameobj->GetSGNode()->BBox();
-		const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
-		const MT_Scalar radius = fabs(scale[scale.closestAxis()] * box.GetRadius());
-		const MT_Vector3 center = gameobj->NodeGetWorldPosition() + (box.GetCenter() * scale) * gameobj->NodeGetWorldOrientation();
-		switch (cam->SphereInsideFrustum(center, radius))
-		{
-			case KX_Camera::INSIDE:
-				vis = true;
-				break;
-			case KX_Camera::OUTSIDE:
-				vis = false;
-				break;
-			case KX_Camera::INTERSECT:
-				// Test the object's bound box against the view frustum.
-				MT_Vector3 box[8];
-				gameobj->GetSGNode()->GetBBox(box); 
-				vis = cam->BoxInsideFrustum(box) != KX_Camera::OUTSIDE;
-				break;
-		}
-	}
-
-	// Visibility/ non-visibility are marked
-	// elsewhere now.
-	gameobj->SetCulled(!vis);
-}
-
-void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void* cullingInfo)
-{
+	CullingInfo *info = static_cast<CullingInfo *>(cullingInfo);
 	KX_GameObject* gameobj = objectInfo->m_gameobject;
-	if (!gameobj->GetVisible())
+	if (!gameobj->GetVisible()) {
 		// ideally, invisible objects should be removed from the culling tree temporarily
 		return;
-	if (((CullingInfo*)cullingInfo)->m_layer && !(gameobj->GetLayer() & ((CullingInfo*)cullingInfo)->m_layer))
+	}
+	if (info->m_layer && !(gameobj->GetLayer() & info->m_layer)) {
 		// used for shadow: object is not in shadow layer
 		return;
+	}
 
 	// make object visible
 	gameobj->SetCulled(false);
+	info->m_nodes.push_back(gameobj->GetCullingNode());
 }
 
-void KX_Scene::CalculateVisibleMeshes(RAS_Rasterizer* rasty,KX_Camera* cam, int layer)
+void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam, int layer)
 {
 	m_boundingBoxManager->Update(false);
 
-	// Update the object boudning volume box if the object had a deformer.
+	// Update the object bounding volume box if the object had a deformer.
 	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		KX_GameObject *gameobj = *it;
 		if (gameobj->GetDeformer()) {
@@ -1420,9 +1374,19 @@ void KX_Scene::CalculateVisibleMeshes(RAS_Rasterizer* rasty,KX_Camera* cam, int 
 
 	m_boundingBoxManager->ClearModified();
 
+	if (!cam->GetFrustumCulling()) {
+		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+			KX_GameObject *gameobj = *it;
+			KX_CullingNode *node = gameobj->GetCullingNode();
+			nodes.push_back(gameobj->GetCullingNode());
+			node->SetCulled(false);
+		}
+
+		return;
+	}
+
 	bool dbvt_culling = false;
-	if (m_dbvt_culling) 
-	{
+	if (m_dbvt_culling) {
 		/* Reset KX_GameObject m_bCulled to true before doing culling
 		 * since DBVT culling will only set it to false.
 		 * This is similar to what RAS_BucketManager does for RAS_MeshSlot culling.
@@ -1434,11 +1398,11 @@ void KX_Scene::CalculateVisibleMeshes(RAS_Rasterizer* rasty,KX_Camera* cam, int 
 
 		// test culling through Bullet
 		// get the clip planes
-		const MT_Vector4* cplanes = cam->GetNormalizedClipPlanes();
+		const std::array<MT_Vector4, 6>& cplanes = cam->GetFrustum().GetPlanes();
 		// and convert
 		MT_Vector4 planes[6] = {cplanes[4], cplanes[5], cplanes[0], cplanes[1], cplanes[2], cplanes[3]};
 
-		CullingInfo info(layer);
+		CullingInfo info(layer, nodes);
 
 		float mvmat[16] = {0.0f};
 		cam->GetModelviewMatrix().getValue(mvmat);
@@ -1450,42 +1414,42 @@ void KX_Scene::CalculateVisibleMeshes(RAS_Rasterizer* rasty,KX_Camera* cam, int 
 		                                                 mvmat, pmat);
 	}
 	if (!dbvt_culling) {
-		// the physics engine couldn't help us, do it the hard way
-		for (int i = 0; i < m_objectlist->GetCount(); i++)
-		{
-			MarkVisible(rasty, static_cast<KX_GameObject*>(m_objectlist->GetValue(i)), cam, layer);
+		KX_CullingHandler handler(nodes, cam->GetFrustum());
+		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
+			KX_GameObject *gameobj = *it;
+			if (gameobj->GetVisible() && gameobj->GetMeshCount() > 0 && (layer == 0 || gameobj->GetLayer() & layer)) {
+				handler.Process(gameobj->GetCullingNode());
+			}
 		}
 	}
 }
 
-void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw)
+void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nodes)
 {
 	const KX_DebugOption showBoundingBox = KX_GetActiveEngine()->GetShowBoundingBox();
 	if (showBoundingBox != KX_DebugOption::DISABLE) {
-		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-			KX_GameObject *gameobj = *it;
+		for (KX_CullingNode *node : nodes) {
+			KX_GameObject *gameobj = node->GetObject();
 
-			if (!gameobj->GetCulled() && gameobj->GetMeshCount() != 0) {
-				const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
-				const MT_Vector3& position = gameobj->NodeGetWorldPosition();
-				const MT_Matrix3x3& orientation = gameobj->NodeGetWorldOrientation();
-				const SG_BBox& box = gameobj->GetSGNode()->BBox();
-				const MT_Vector3& center = box.GetCenter();
+			const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
+			const MT_Vector3& position = gameobj->NodeGetWorldPosition();
+			const MT_Matrix3x3& orientation = gameobj->NodeGetWorldOrientation();
+			const SG_BBox& box = gameobj->GetCullingNode()->GetAabb();
+			const MT_Vector3& center = box.GetCenter();
 
-				debugDraw.DrawAabb(position, orientation, box.GetMin() * scale, box.GetMax() * scale,
-					MT_Vector4(1.0f, 0.0f, 1.0f, 1.0f));
+			debugDraw.DrawAabb(position, orientation, box.GetMin() * scale, box.GetMax() * scale,
+				MT_Vector4(1.0f, 0.0f, 1.0f, 1.0f));
 
-				// Render center in red, green and blue.
-				debugDraw.DrawLine(orientation * center * scale + position,
-					orientation * (center + MT_Vector3(1.0f, 0.0f, 0.0f)) * scale + position,
-					MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
-				debugDraw.DrawLine(orientation * center * scale + position,
-					orientation * (center + MT_Vector3(0.0f, 1.0f, 0.0f)) * scale  + position,
-					MT_Vector4(0.0f, 1.0f, 0.0f, 1.0f));
-				debugDraw.DrawLine(orientation * center * scale + position,
-					orientation * (center + MT_Vector3(0.0f, 0.0f, 1.0f)) * scale  + position,
-					MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f));
-			}
+			// Render center in red, green and blue.
+			debugDraw.DrawLine(orientation * center * scale + position,
+				orientation * (center + MT_Vector3(1.0f, 0.0f, 0.0f)) * scale + position,
+				MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
+			debugDraw.DrawLine(orientation * center * scale + position,
+				orientation * (center + MT_Vector3(0.0f, 1.0f, 0.0f)) * scale  + position,
+				MT_Vector4(0.0f, 1.0f, 0.0f, 1.0f));
+			debugDraw.DrawLine(orientation * center * scale + position,
+				orientation * (center + MT_Vector3(0.0f, 0.0f, 1.0f)) * scale  + position,
+				MT_Vector4(0.0f, 0.0f, 1.0f, 1.0f));
 		}
 	}
 
@@ -1696,12 +1660,10 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 
 
 
-void KX_Scene::RenderBuckets(const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen)
+void KX_Scene::RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen)
 {
-	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
-		 * It's done just before the render to be sure of the object color and visibility. */
-		(*it)->UpdateBuckets();
+	for (KX_CullingNode *node : nodes) {
+		node->GetObject()->UpdateBuckets();
 	}
 
 	m_bucketmanager->Renderbuckets(cameratransform, rasty, offScreen);
@@ -1714,16 +1676,13 @@ void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategor
 	m_rendererManager->Render(category, rasty, offScreen, camera, viewport, area);
 }
 
-void KX_Scene::UpdateObjectLods(KX_Camera *cam)
+void KX_Scene::UpdateObjectLods(KX_Camera *cam, const KX_CullingNodeList& nodes)
 {
 	const MT_Vector3& cam_pos = cam->NodeGetWorldPosition();
 	const float lodfactor = cam->GetLodDistanceFactor();
 
-	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
-		KX_GameObject *gameobj = *it;
-		if (!gameobj->GetCulled()) {
-			gameobj->UpdateLod(cam_pos, lodfactor);
-		}
+	for (KX_CullingNode *node : nodes) {
+		node->GetObject()->UpdateLod(cam_pos, lodfactor);
 	}
 }
 

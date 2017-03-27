@@ -38,6 +38,8 @@
 #include "EXP_Python.h"
 #include "KX_PyMath.h"
 
+#include "MT_Frustum.h"
+
 #include "RAS_ICanvas.h"
 
 KX_Camera::KX_Camera(void* sgReplicationInfo,
@@ -52,7 +54,6 @@ KX_Camera::KX_Camera(void* sgReplicationInfo,
       m_normalized(false),
       m_frustum_culling(frustum_culling),
       m_set_projection_matrix(false),
-      m_set_frustum_center(false),
       m_delete_node(delete_node),
 	  m_lodDistanceFactor(1.0f),
 	  m_showDebugCameraFrustum(false)
@@ -115,7 +116,6 @@ void KX_Camera::SetProjectionMatrix(const MT_Matrix4x4 & mat)
 	m_projection_matrix = mat;
 	m_dirty = true;
 	m_set_projection_matrix = true;
-	m_set_frustum_center = false;
 }
 
 
@@ -127,7 +127,6 @@ void KX_Camera::SetModelviewMatrix(const MT_Matrix4x4 & mat)
 {
 	m_modelview_matrix = mat;
 	m_dirty = true;
-	m_set_frustum_center = false;
 }
 
 
@@ -256,212 +255,18 @@ void KX_Camera::SetLodDistanceFactor(float lodfactor)
 	m_lodDistanceFactor = lodfactor;
 }
 
-void KX_Camera::ExtractClipPlanes()
+void KX_Camera::ExtractFrustum()
 {
-	if (!m_dirty)
-		return;
-
-	MT_Matrix4x4 m = m_projection_matrix * m_modelview_matrix;
-	// Left clip plane
-	m_planes[0] = m[3] + m[0];
-	// Right clip plane
-	m_planes[1] = m[3] - m[0];
-	// Top clip plane
-	m_planes[2] = m[3] - m[1];
-	// Bottom clip plane
-	m_planes[3] = m[3] + m[1];
-	// Near clip plane
-	m_planes[4] = m[3] + m[2];
-	// Far clip plane
-	m_planes[5] = m[3] - m[2];
-	
-	m_dirty = false;
-	m_normalized = false;
+	if (m_dirty) {
+		m_frustum = SG_Frustum(m_projection_matrix * m_modelview_matrix);
+		m_dirty = false;
+	}
 }
 
-void KX_Camera::NormalizeClipPlanes()
+const SG_Frustum& KX_Camera::GetFrustum()
 {
-	if (m_normalized)
-		return;
-	
-	for (unsigned int p = 0; p < 6; p++)
-	{
-		MT_Scalar factor = sqrtf(m_planes[p][0]*m_planes[p][0] + m_planes[p][1]*m_planes[p][1] + m_planes[p][2]*m_planes[p][2]);
-		if (!MT_fuzzyZero(factor))
-			m_planes[p] /= factor;
-	}
-	
-	m_normalized = true;
-}
-
-void KX_Camera::ExtractFrustumSphere()
-{
-	if (m_set_frustum_center)
-		return;
-
-	// compute sphere for the general case and not only symmetric frustum:
-	// the mirror code in ImageRender can use very asymmetric frustum.
-	// We will put the sphere center on the line that goes from origin to the center of the far clipping plane
-	// This is the optimal position if the frustum is symmetric or very asymmetric and probably close
-	// to optimal for the general case. The sphere center position is computed so that the distance to
-	// the near and far extreme frustum points are equal.
-
-	// get the transformation matrix from device coordinate to camera coordinate
-	MT_Matrix4x4 clip_camcs_matrix = m_projection_matrix;
-	clip_camcs_matrix.invert();
-
-	if (m_projection_matrix[3][3] == MT_Scalar(0.0f))
-	{
-		// frustum projection
-		// detect which of the corner of the far clipping plane is the farthest to the origin
-		MT_Vector4 nfar;    // far point in device normalized coordinate
-		MT_Vector3 farpoint; // most extreme far point in camera coordinate
-		MT_Vector3 nearpoint;// most extreme near point in camera coordinate
-		MT_Vector3 farcenter(0.0f, 0.0f, 0.0f);// center of far cliping plane in camera coordinate
-		MT_Scalar F=-1.0f, N; // square distance of far and near point to origin
-		MT_Scalar f, n;     // distance of far and near point to z axis. f is always > 0 but n can be < 0
-		MT_Scalar e, s;     // far and near clipping distance (<0)
-		MT_Scalar c;        // slope of center line = distance of far clipping center to z axis / far clipping distance
-		MT_Scalar z;        // projection of sphere center on z axis (<0)
-		// tmp value
-		MT_Vector4 npoint(1.0f, 1.0f, 1.0f, 1.0f);
-		MT_Vector4 hpoint;
-		MT_Vector3 point;
-		MT_Scalar len;
-		for (int i=0; i<4; i++)
-		{
-			hpoint = clip_camcs_matrix*npoint;
-			point.setValue(hpoint[0]/hpoint[3], hpoint[1]/hpoint[3], hpoint[2]/hpoint[3]);
-			len = point.dot(point);
-			if (len > F)
-			{
-				nfar = npoint;
-				farpoint = point;
-				F = len;
-			}
-			// rotate by 90 degree along the z axis to walk through the 4 extreme points of the far clipping plane
-			len = npoint[0];
-			npoint[0] = -npoint[1];
-			npoint[1] = len;
-			farcenter += point;
-		}
-		// the far center is the average of the far clipping points
-		farcenter *= 0.25f;
-		// the extreme near point is the opposite point on the near clipping plane
-		nfar.setValue(-nfar[0], -nfar[1], -1.0f, 1.0f);
-		nfar = clip_camcs_matrix*nfar;
-		nearpoint.setValue(nfar[0]/nfar[3], nfar[1]/nfar[3], nfar[2]/nfar[3]);
-		// this is a frustum projection
-		N = nearpoint.dot(nearpoint);
-		e = farpoint[2];
-		s = nearpoint[2];
-		// projection on XY plane for distance to axis computation
-		MT_Vector2 farxy(farpoint[0], farpoint[1]);
-		// f is forced positive by construction
-		f = farxy.length();
-		// get corresponding point on the near plane
-		farxy *= s/e;
-		// this formula preserve the sign of n
-		n = f*s/e - MT_Vector2(nearpoint[0]-farxy[0], nearpoint[1]-farxy[1]).length();
-		c = MT_Vector2(farcenter[0], farcenter[1]).length()/e;
-		// the big formula, it simplifies to (F-N)/(2(e-s)) for the symmetric case
-		z = (F-N)/(2.0f*(e-s+c*(f-n)));
-		m_frustum_center = MT_Vector3(farcenter[0]*z/e, farcenter[1]*z/e, z);
-		m_frustum_radius = m_frustum_center.distance(farpoint);
-	}
-	else
-	{
-		// orthographic projection
-		// The most extreme points on the near and far plane. (normalized device coords)
-		MT_Vector4 hnear(1.0f, 1.0f, 1.0f, 1.0f), hfar(-1.0f, -1.0f, -1.0f, 1.0f);
-		
-		// Transform to hom camera local space
-		hnear = clip_camcs_matrix*hnear;
-		hfar = clip_camcs_matrix*hfar;
-		
-		// Tranform to 3d camera local space.
-		MT_Vector3 nearpoint(hnear[0]/hnear[3], hnear[1]/hnear[3], hnear[2]/hnear[3]);
-		MT_Vector3 farpoint(hfar[0]/hfar[3], hfar[1]/hfar[3], hfar[2]/hfar[3]);
-		
-		// just use mediant point
-		m_frustum_center = (farpoint + nearpoint)*0.5f;
-		m_frustum_radius = m_frustum_center.distance(farpoint);
-	}
-	// Transform to world space.
-	m_frustum_center = GetCameraToWorld()(m_frustum_center);
-	m_frustum_radius /= fabsf(NodeGetWorldScaling()[NodeGetWorldScaling().closestAxis()]);
-	
-	m_set_frustum_center = true;
-}
-
-bool KX_Camera::PointInsideFrustum(const MT_Vector3& x)
-{
-	ExtractClipPlanes();
-	
-	for ( unsigned int i = 0; i < 6 ; i++ )
-	{
-		if (m_planes[i][0] * x[0] + m_planes[i][1] * x[1] + m_planes[i][2] * x[2] + m_planes[i][3] < 0.0f)
-			return false;
-	}
-	return true;
-}
-
-int KX_Camera::BoxInsideFrustum(const MT_Vector3 *box)
-{
-	ExtractClipPlanes();
-	
-	unsigned int insideCount = 0;
-	// 6 view frustum planes
-	for ( unsigned int p = 0; p < 6 ; p++ )
-	{
-		unsigned int behindCount = 0;
-		// 8 box vertices.
-		for (unsigned int v = 0; v < 8 ; v++)
-		{
-			if (m_planes[p][0] * box[v][0] + m_planes[p][1] * box[v][1] + m_planes[p][2] * box[v][2] + m_planes[p][3] < 0.0f)
-				behindCount++;
-		}
-		
-		// 8 points behind this plane
-		if (behindCount == 8)
-			return OUTSIDE;
-
-		// Every box vertex is on the front side of this plane
-		if (!behindCount)
-			insideCount++;
-	}
-	
-	// All box vertices are on the front side of all frustum planes.
-	if (insideCount == 6)
-		return INSIDE;
-	
-	return INTERSECT;
-}
-
-int KX_Camera::SphereInsideFrustum(const MT_Vector3& center, const MT_Scalar &radius)
-{
-	ExtractFrustumSphere();
-	if (center.distance2(m_frustum_center) > (radius + m_frustum_radius)*(radius + m_frustum_radius))
-		return OUTSIDE;
-
-	unsigned int p;
-	ExtractClipPlanes();
-	NormalizeClipPlanes();
-		
-	MT_Scalar distance;
-	int intersect = INSIDE;
-	// distance:  <-------- OUTSIDE -----|----- INTERSECT -----0----- INTERSECT -----|----- INSIDE -------->
-	//                                -radius                                      radius
-	for (p = 0; p < 6; p++)
-	{
-		distance = m_planes[p][0]*center[0] + m_planes[p][1]*center[1] + m_planes[p][2]*center[2] + m_planes[p][3];
-		if (fabsf(distance) <= radius)
-			intersect = INTERSECT;
-		else if (distance < -radius)
-			return OUTSIDE;
-	}
-	
-	return intersect;
+	ExtractFrustum();
+	return m_frustum;
 }
 
 bool KX_Camera::GetFrustumCulling() const
@@ -609,7 +414,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, sphereInsideFrustum,
 		MT_Vector3 center;
 		if (PyVecTo(pycenter, center))
 		{
-			return PyLong_FromLong(SphereInsideFrustum(center, radius)); /* new ref */
+			return PyLong_FromLong(GetFrustum().SphereInsideFrustum(center, radius)); /* new ref */
 		}
 	}
 
@@ -650,7 +455,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, boxInsideFrustum,
 		return nullptr;
 	}
 	
-	MT_Vector3 box[8];
+	std::array<MT_Vector3, 8> box;
 	for (unsigned int p = 0; p < 8 ; p++)
 	{
 		PyObject *item = PySequence_GetItem(value, p); /* new ref */
@@ -660,7 +465,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, boxInsideFrustum,
 			return nullptr;
 	}
 	
-	return PyLong_FromLong(BoxInsideFrustum(box)); /* new ref */
+	return PyLong_FromLong(GetFrustum().BoxInsideFrustum(box)); /* new ref */
 }
 
 KX_PYMETHODDEF_DOC_O(KX_Camera, pointInsideFrustum,
@@ -682,7 +487,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, pointInsideFrustum,
 	MT_Vector3 point;
 	if (PyVecTo(value, point))
 	{
-		return PyLong_FromLong(PointInsideFrustum(point)); /* new ref */
+		return PyLong_FromLong(GetFrustum().PointInsideFrustum(point)); /* new ref */
 	}
 	
 	PyErr_SetString(PyExc_TypeError, "camera.pointInsideFrustum(point): KX_Camera, expected point argument.");

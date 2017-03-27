@@ -33,14 +33,7 @@
 #ifndef __SG_BBOX_H__
 #define __SG_BBOX_H__
 
-#include "MT_Scalar.h"
 #include "MT_Vector3.h"
-#include "MT_Vector3.h"
-#include "MT_Transform.h"
-
-#include <vector>
-
-class SG_Node;
 
 /**
  * Bounding box class.
@@ -49,90 +42,38 @@ class SG_Node;
  */
 class SG_BBox
 {
+private:
+	/// AABB data.
 	MT_Vector3 m_min;
 	MT_Vector3 m_max;
 
-public:
-	typedef enum {
-		INSIDE,
-		INTERSECT,
-		OUTSIDE
-	} intersect;
+	/// Sphere data.
+	MT_Vector3 m_center;
+	float m_radius;
 
+	/// Update sphere data with current AABB data.
+	void UpdateSphere();
+
+public:
 	SG_BBox();
 	SG_BBox(const MT_Vector3 &min, const MT_Vector3 &max);
-	SG_BBox(const SG_BBox &other, const MT_Transform &world);
-	SG_BBox(const SG_BBox &other);
-	~SG_BBox();
+	~SG_BBox() = default;
 
-	/**
-	 * Enlarges the bounding box to contain the specified point.
-	 */
-	SG_BBox& operator +=(const MT_Vector3 &point);
-	/**
-	 * Enlarges the bounding box to contain the specified bound box.
-	 */
-	SG_BBox& operator +=(const SG_BBox &bbox);
-
-	SG_BBox operator +(const SG_BBox &bbox2) const;
-
-	SG_BBox transform(const MT_Transform &world) const;
-	/**
-	 * Computes the volume of the bounding box.
-	 */
-	MT_Scalar volume() const;
-
-	/**
-	 * Test if the given point is inside this bounding box.
-	 */
-	bool inside(const MT_Vector3 &point) const;
-
-	/**
-	 * Test if the given bounding box is inside this bounding box.
-	 */
-	bool inside(const SG_BBox &other) const;
-
-	/**
-	 * Test if the given bounding box is outside this bounding box.
-	 */
-	bool outside(const SG_BBox &other) const;
-
-	/**
-	 * Test if the given bounding box intersects this bounding box.
-	 */
-	bool intersects(const SG_BBox &other) const;
-
-	/**
-	 * Test the given bounding box with this bounding box.
-	 */
-	intersect test(const SG_BBox &other) const;
-
-	/**
-	 * Get the eight points that define this bounding box.
-	 *
-	 * \param world a world transform to apply to the produced points bounding box.
-	 */
-	void get(MT_Vector3 *box, const MT_Transform &world) const;
-	/**
-	 * Get the eight points that define this axis aligned bounding box.
-	 * This differs from SG_BBox::get() in that the produced box will be world axis aligned.
-	 * The maximum & minimum local points will be transformed *before* splitting to 8 points.
-	 * \param world a world transform to be applied.
-	 */
-	void getaa(MT_Vector3 *box, const MT_Transform &world) const;
-
-	void getmm(MT_Vector3 *box, const MT_Transform &world) const;
-
-	void split(SG_BBox &left, SG_BBox &right) const;
-
-	const MT_Vector3 GetCenter() const;
-	const MT_Scalar GetRadius() const;
+	const MT_Vector3& GetCenter() const;
+	const float GetRadius() const;
 
 	const MT_Vector3& GetMin() const;
 	const MT_Vector3& GetMax() const;
 
+	void Get(MT_Vector3& min, MT_Vector3& max) const;
+
 	void SetMin(const MT_Vector3& min);
 	void SetMax(const MT_Vector3& max);
+
+	void Set(const MT_Vector3& min, const MT_Vector3& max);
+
+	/// Test if the given point is inside this bounding box.
+	bool Inside(const MT_Vector3& point) const;
 };
 
 #endif  // __SG_BBOX_H__

@@ -68,6 +68,7 @@
 #include "KX_LodLevel.h"
 #include "KX_LodManager.h"
 #include "KX_BoundingBox.h"
+#include "KX_CullingNode.h"
 #include "KX_BatchGroup.h"
 #include "KX_CollisionContactPoints.h"
 
@@ -116,11 +117,11 @@ KX_GameObject::KX_GameObject(
       m_bIsNegativeScaling(false),
       m_objectColor(1.0f, 1.0f, 1.0f, 1.0f),
       m_bVisible(true),
-      m_bCulled(true),
       m_bOccluder(false),
       m_autoUpdateBounds(false),
       m_pPhysicsController(nullptr),
       m_pGraphicController(nullptr),
+      m_cullingNode(this),
       m_components(nullptr),
       m_pInstanceObjects(nullptr),
       m_pDupliGroupObject(nullptr),
@@ -169,6 +170,7 @@ KX_GameObject::~KX_GameObject()
 	//if (m_sumoObj)
 	//	delete m_sumoObj;
 	delete m_pClient_info;
+
 	//if (m_pSGNode)
 	//	delete m_pSGNode;
 	if (m_pSGNode)
@@ -510,6 +512,8 @@ void KX_GameObject::ProcessReplica()
 	m_pPhysicsController = nullptr;
 	m_pSGNode = nullptr;
 
+	m_cullingNode.SetObject(this);
+
 	/* Dupli group and instance list are set later in replication.
 	 * See KX_Scene::DupliGroupRecurse. */
 	m_pDupliGroupObject = nullptr;
@@ -758,15 +762,13 @@ void KX_GameObject::AddMeshUser()
 void KX_GameObject::UpdateBuckets()
 {
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (!m_bCulled && m_bVisible && m_meshUser) {
-		if (m_pSGNode->IsDirty()) {
-			GetOpenGLMatrix();
-		}
-
-		m_meshUser->SetColor(m_objectColor);
-		m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
-		m_meshUser->ActivateMeshSlots();
+	if (m_pSGNode->IsDirty()) {
+		GetOpenGLMatrix();
 	}
+
+	m_meshUser->SetColor(m_objectColor);
+	m_meshUser->SetFrontFace(!m_bIsNegativeScaling);
+	m_meshUser->ActivateMeshSlots();
 }
 
 void KX_GameObject::RemoveMeshes()
@@ -1447,23 +1449,19 @@ void KX_GameObject::UpdateBounds(bool force)
 
 void KX_GameObject::SetBoundsAabb(MT_Vector3 aabbMin, MT_Vector3 aabbMax)
 {
-	// Set the AABB in SG node box.
-	SG_BBox &box = m_pSGNode->BBox();
-	box.SetMin(aabbMin);
-	box.SetMax(aabbMax);
-
-	// And in the object's graphic controller if it exists.
-	if (m_pGraphicController) {
-		m_pGraphicController->SetLocalAabb(aabbMin, aabbMax);
-	}
+	// Set the AABB in culling node box.
+	m_cullingNode.GetAabb().Set(aabbMin, aabbMax);
 }
 
 void KX_GameObject::GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) const
 {
-	// Get the node box AABB
-	SG_BBox &box = m_pSGNode->BBox();
-	aabbMin = box.GetMin();
-	aabbMax = box.GetMax();
+	// Get the culling node box AABB
+	m_cullingNode.GetAabb().Get(aabbMin, aabbMax);
+}
+
+KX_CullingNode *KX_GameObject::GetCullingNode()
+{
+	return &m_cullingNode;
 }
 
 void KX_GameObject::UnregisterCollisionCallbacks()

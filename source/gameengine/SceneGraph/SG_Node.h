@@ -33,8 +33,9 @@
 #define __SG_NODE_H__
 
 #include "SG_QList.h"
-#include "SG_BBox.h"
 #include "SG_ParentRelation.h"
+
+#include "MT_Transform.h"
 
 #include "CM_Thread.h"
 
@@ -365,15 +366,6 @@ public:
 	const std::shared_ptr<SG_Familly>& GetFamilly() const;
 	void SetFamilly(const std::shared_ptr<SG_Familly>& familly);
 
-	/**
-	 * Bounding box functions.
-	 */
-	SG_BBox& BBox();
-	void SetBBox(SG_BBox& bbox);
-
-	bool Inside(const MT_Vector3 &point) const;
-	void GetBBox(MT_Vector3 *box) const;
-
 	bool IsModified();
 	bool IsDirty();
 
@@ -429,7 +421,6 @@ private:
 	std::shared_ptr<SG_Familly> m_familly;
 	CM_ThreadMutex m_mutex;
 
-	SG_BBox m_bbox;
 	bool m_modified;
 	bool m_ogldirty; // true if the openGL matrix for this object must be recomputed
 };

@@ -154,53 +154,50 @@ void KX_FontObject::AddMeshUser()
 void KX_FontObject::UpdateBuckets()
 {
 	// Update datas and add mesh slot to be rendered only if the object is not culled.
-	if (m_bVisible && m_meshUser) {
-		if (m_pSGNode->IsDirty()) {
-			GetOpenGLMatrix();
-		}
-
-		// Allow for some logic brick control
-		if (GetProperty("Text")) {
-			m_text = split_string(GetProperty("Text")->GetText());
-		}
-
-		// update the animated color
-		GetObjectColor().getValue(m_color);
-
-		// Font Objects don't use the glsl shader, this color management code is copied from gpu_shader_material.glsl
-		float color[4];
-		if (m_do_color_management) {
-			linearrgb_to_srgb_v4(color, m_color);
-		}
-		else {
-			copy_v4_v4(color, m_color);
-		}
-
-
-		// HARDCODED MULTIPLICATION FACTOR - this will affect the render resolution directly
-		const float RES = BGE_FONT_RES * m_resolution;
-
-		const float size = m_fsize * NodeGetWorldScaling()[0] * RES;
-		const float aspect = m_fsize / size;
-
-		// Account for offset
-		MT_Vector3 offset = NodeGetWorldOrientation() * m_offset * NodeGetWorldScaling();
-		// Orient the spacing vector
-		MT_Vector3 spacing = NodeGetWorldOrientation() * MT_Vector3(0.0f, m_fsize * m_line_spacing, 0.0f) * NodeGetWorldScaling()[1];
-
-		RAS_TextUser *textUser = (RAS_TextUser *)m_meshUser;
-
-		textUser->SetColor(MT_Vector4(color));
-		textUser->SetFrontFace(!m_bIsNegativeScaling);
-		textUser->SetFontId(m_fontid);
-		textUser->SetSize(size);
-		textUser->SetDpi(m_dpi);
-		textUser->SetAspect(aspect);
-		textUser->SetOffset(offset);
-		textUser->SetSpacing(spacing);
-		textUser->SetTexts(m_text);
-		textUser->ActivateMeshSlots();
+	if (m_pSGNode->IsDirty()) {
+		GetOpenGLMatrix();
 	}
+
+	// Allow for some logic brick control
+	if (GetProperty("Text")) {
+		m_text = split_string(GetProperty("Text")->GetText());
+	}
+
+	// update the animated color
+	GetObjectColor().getValue(m_color);
+
+	// Font Objects don't use the glsl shader, this color management code is copied from gpu_shader_material.glsl
+	float color[4];
+	if (m_do_color_management) {
+		linearrgb_to_srgb_v4(color, m_color);
+	}
+	else {
+		copy_v4_v4(color, m_color);
+	}
+
+	// HARDCODED MULTIPLICATION FACTOR - this will affect the render resolution directly
+	const float RES = BGE_FONT_RES * m_resolution;
+
+	const float size = m_fsize * NodeGetWorldScaling()[0] * RES;
+	const float aspect = m_fsize / size;
+
+	// Account for offset
+	MT_Vector3 offset = NodeGetWorldOrientation() * m_offset * NodeGetWorldScaling();
+	// Orient the spacing vector
+	MT_Vector3 spacing = NodeGetWorldOrientation() * MT_Vector3(0.0f, m_fsize * m_line_spacing, 0.0f) * NodeGetWorldScaling()[1];
+
+	RAS_TextUser *textUser = (RAS_TextUser *)m_meshUser;
+
+	textUser->SetColor(MT_Vector4(color));
+	textUser->SetFrontFace(!m_bIsNegativeScaling);
+	textUser->SetFontId(m_fontid);
+	textUser->SetSize(size);
+	textUser->SetDpi(m_dpi);
+	textUser->SetAspect(aspect);
+	textUser->SetOffset(offset);
+	textUser->SetSpacing(spacing);
+	textUser->SetTexts(m_text);
+	textUser->ActivateMeshSlots();
 }
 
 const MT_Vector2 KX_FontObject::GetTextDimensions()
