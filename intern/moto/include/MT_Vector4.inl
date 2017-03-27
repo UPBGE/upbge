@@ -47,6 +47,10 @@ GEN_INLINE MT_Scalar MT_Vector4::dot(const MT_Vector4& v) const {
     return m_co[0] * v[0] + m_co[1] * v[1] + m_co[2] * v[2] + m_co[3] * v[3];
 }
 
+GEN_INLINE MT_Scalar MT_Vector4::dot(const MT_Vector3& v) const {
+    return m_co[0] * v[0] + m_co[1] * v[1] + m_co[2] * v[2] + m_co[3];
+}
+
 GEN_INLINE MT_Scalar MT_Vector4::length2() const { return MT_dot(*this, *this); }
 GEN_INLINE MT_Scalar MT_Vector4::length() const { return sqrtf(length2()); }
 
@@ -77,7 +81,11 @@ GEN_INLINE MT_Vector3 MT_Vector4::to3d() const
 GEN_INLINE void MT_Vector4::normalize() { *this /= length(); }
 GEN_INLINE MT_Vector4 MT_Vector4::normalized() const { return *this / length(); }
 
-GEN_INLINE MT_Scalar  MT_dot(const MT_Vector4& v1, const MT_Vector4& v2) { 
+GEN_INLINE MT_Scalar  MT_dot(const MT_Vector4& v1, const MT_Vector4& v2) {
+    return v1.dot(v2);
+}
+
+GEN_INLINE MT_Scalar  MT_dot(const MT_Vector4& v1, const MT_Vector3& v2) {
     return v1.dot(v2);
 }
 

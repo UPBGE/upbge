@@ -26,23 +26,42 @@
 
 #include "MT_Optimize.h"
 
+static const MT_Vector3 normalizedBox[8] = {
+	MT_Vector3(-1.0f, -1.0f, -1.0f),
+	MT_Vector3(-1.0f, 1.0f, -1.0f),
+	MT_Vector3(1.0f, 1.0f, -1.0f),
+	MT_Vector3(1.0f, -1.0f, -1.0f),
+	MT_Vector3(-1.0f, -1.0f, 1.0f),
+	MT_Vector3(-1.0f, 1.0f, 1.0f),
+	MT_Vector3(1.0f, 1.0f, 1.0f),
+	MT_Vector3(1.0f, -1.0f, 1.0f)
+};
+
 GEN_INLINE void MT_FrustumBox(const MT_Matrix4x4& mat, std::array<MT_Vector3, 8>& box)
 {
-	static const MT_Vector3 normalizedBox[8] = {
-		MT_Vector3(-1.0f, -1.0f, -1.0f),
-		MT_Vector3(-1.0f, 1.0f, -1.0f),
-		MT_Vector3(1.0f, 1.0f, -1.0f),
-		MT_Vector3(1.0f, -1.0f, -1.0f),
-		MT_Vector3(-1.0f, -1.0f, 1.0f),
-		MT_Vector3(-1.0f, 1.0f, 1.0f),
-		MT_Vector3(1.0f, 1.0f, 1.0f),
-		MT_Vector3(1.0f, -1.0f, 1.0f)
-	};
-
 	for (unsigned short i = 0; i < 8; ++i) {
 		const MT_Vector3& p3 = normalizedBox[i];
 		const MT_Vector4 p4 = mat * MT_Vector4(p3.x(), p3.y(), p3.z(), 1.0f);
 
 		box[i] = p4.to3d() / p4.w();
+	}
+}
+
+GEN_INLINE void MT_FrustumAabb(const MT_Matrix4x4& mat, MT_Vector3& min, MT_Vector3& max)
+{
+	for (unsigned short i = 0; i < 8; ++i) {
+		const MT_Vector3& p3 = normalizedBox[i];
+		const MT_Vector4 p4 = mat * MT_Vector4(p3.x(), p3.y(), p3.z(), 1.0f);
+		const MT_Vector3 co = p4.to3d() / p4.w();
+
+		if (i == 0) {
+			min = max = co;
+		}
+		else {
+			for (unsigned short axis = 0; axis < 3; ++axis) {
+				min[axis] = std::min(min[axis], co[axis]);
+				max[axis] = std::max(max[axis], co[axis]);
+			}
+		}
 	}
 }

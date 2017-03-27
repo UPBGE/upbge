@@ -52,7 +52,6 @@ SG_Node::SG_Node(void *clientobj, void *clientinfo, SG_Callbacks& callbacks)
 	m_worldScaling(1.0f, 1.0f, 1.0f),
 	m_parent_relation(nullptr),
 	m_familly(new SG_Familly()),
-	m_bbox(MT_Vector3(-1.0f, -1.0f, -1.0f), MT_Vector3(1.0f, 1.0f, 1.0f)),
 	m_modified(true),
 	m_ogldirty(false)
 {
@@ -73,8 +72,6 @@ SG_Node::SG_Node(const SG_Node & other)
 	m_worldScaling(other.m_worldScaling),
 	m_parent_relation(other.m_parent_relation->NewCopy()),
 	m_familly(new SG_Familly()),
-	m_bbox(other.m_bbox),
-	m_modified(true),
 	m_ogldirty(false)
 {
 }
@@ -587,29 +584,6 @@ void SG_Node::SetFamilly(const std::shared_ptr<SG_Familly>& familly)
 	for (SG_Node *child : m_children) {
 		child->SetFamilly(m_familly);
 	}
-}
-
-SG_BBox& SG_Node::BBox()
-{
-	return m_bbox;
-}
-
-void SG_Node::SetBBox(SG_BBox& bbox)
-{
-	m_bbox = bbox;
-}
-
-bool SG_Node::Inside(const MT_Vector3 &point) const
-{
-	MT_Scalar radius = m_worldScaling[m_worldScaling.closestAxis()] * m_bbox.GetRadius();
-	return (m_worldPosition.distance2(point) <= radius * radius) ?
-	       m_bbox.transform(GetWorldTransform()).inside(point) :
-	       false;
-}
-
-void SG_Node::GetBBox(MT_Vector3 *box) const
-{
-	m_bbox.get(box, GetWorldTransform());
 }
 
 bool SG_Node::IsModified()

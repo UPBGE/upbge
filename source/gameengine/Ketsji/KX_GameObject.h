@@ -55,6 +55,7 @@
 struct KX_ClientObjectInfo;
 class KX_RayCast;
 class KX_LodManager;
+class KX_CullingNode;
 class RAS_MeshObject;
 class RAS_MeshUser;
 class PHY_IGraphicController;
@@ -104,7 +105,6 @@ protected:
 	// visible = user setting
 	// culled = while rendering, depending on camera
 	bool       							m_bVisible; 
-	bool       							m_bCulled; 
 	bool								m_bOccluder;
 
 	bool								m_autoUpdateBounds;
@@ -112,6 +112,7 @@ protected:
 	PHY_IPhysicsController*				m_pPhysicsController;
 	PHY_IGraphicController*				m_pGraphicController;
 
+	KX_CullingNode m_cullingNode;
 	SG_Node*							m_pSGNode;
 
 	MT_CmMatrix4x4						m_OpenGL_4x4Matrix;
@@ -807,7 +808,7 @@ public:
 	inline bool
 	GetCulled(
 		void
-	) { return m_bCulled; }
+	) { return m_cullingNode.GetCulled(); }
 
 	/**
 	 * Set culled flag of this object
@@ -815,7 +816,7 @@ public:
 	inline void
 	SetCulled(
 		bool c
-	) { m_bCulled = c; }
+	) { m_cullingNode.SetCulled(c); }
 	
 	/**
 	 * Is this object an occluder?
@@ -872,6 +873,8 @@ public:
 	void UpdateBounds(bool force);
 	void SetBoundsAabb(MT_Vector3 aabbMin, MT_Vector3 aabbMax);
 	void GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) const;
+
+	KX_CullingNode *GetCullingNode();
 
 	/**
 	 * Get the negative scaling state

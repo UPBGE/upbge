@@ -35,6 +35,7 @@
 
 #include "KX_PhysicsEngineEnums.h"
 #include "KX_TextureRendererManager.h" // For KX_TextureRendererManager::RendererCategory.
+#include "KX_CullingNode.h" // For KX_CullingNodeList.
 
 #include <vector>
 #include <set>
@@ -46,7 +47,6 @@
 
 #include "RAS_FramingManager.h"
 #include "RAS_Rect.h"
-
 
 #include "EXP_PyObjectPlus.h"
 #include "EXP_Value.h"
@@ -122,7 +122,13 @@ private:
 
 	struct CullingInfo {
 		int m_layer;
-		CullingInfo(int layer) : m_layer(layer) {}
+		KX_CullingNodeList& m_nodes;
+
+		CullingInfo(int layer, KX_CullingNodeList& nodes)
+			:m_layer(layer),
+			m_nodes(nodes)
+		{
+		}
 	};
 
 protected:
@@ -282,7 +288,6 @@ protected:
 	/**
 	 * Visibility testing functions.
 	 */
-	void MarkVisible(RAS_Rasterizer* rasty, KX_GameObject* gameobj, KX_Camera*cam, int layer=0);
 	static void PhysicsCullingCallback(KX_ClientObjectInfo* objectInfo, void* cullingInfo);
 
 	struct Scene* m_blenderScene;
@@ -314,7 +319,7 @@ public:
 	KX_TextureRendererManager *GetTextureRendererManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
-	void RenderBuckets(const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
+	void RenderBuckets(const KX_CullingNodeList& nodes, const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
 	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
 								KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
 
@@ -478,8 +483,8 @@ public:
 
 	void SetWorldInfo(class KX_WorldInfo* wi);
 	KX_WorldInfo* GetWorldInfo();
-	void CalculateVisibleMeshes(RAS_Rasterizer* rasty, KX_Camera *cam, int layer=0);
-	void DrawDebug(RAS_DebugDraw& debugDraw);
+	void CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam, int layer=0);
+	void DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nodes);
 
 	/**
 	 * Replicate the logic bricks associated to this object.
@@ -495,7 +500,7 @@ public:
 	void Resume();
 
 	/// Update the mesh for objects based on level of detail settings
-	void UpdateObjectLods(KX_Camera *cam);
+	void UpdateObjectLods(KX_Camera *cam, const KX_CullingNodeList& nodes);
 
 	// LoD Hysteresis functions
 	void SetLodHysteresis(bool active);

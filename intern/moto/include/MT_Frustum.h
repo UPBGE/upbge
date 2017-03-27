@@ -33,6 +33,7 @@
 #include <array>
 
 void MT_FrustumBox(const MT_Matrix4x4& mat, std::array<MT_Vector3, 8>& box);
+void MT_FrustumAabb(const MT_Matrix4x4& mat, MT_Vector3& min, MT_Vector3& max);
 
 #ifdef GEN_INLINED
 #  include "MT_Frustum.inl"

@@ -33,14 +33,10 @@
 #ifndef __KX_CAMERA_H__
 #define __KX_CAMERA_H__
 
-
-#include "MT_Transform.h"
-#include "MT_Matrix3x3.h"
-#include "MT_Matrix4x4.h"
-#include "MT_Vector3.h"
-#include "MT_Vector3.h"
 #include "KX_GameObject.h"
-#include "EXP_IntValue.h"
+
+#include "SG_Frustum.h"
+
 #include "RAS_CameraData.h"
 
 #ifdef WITH_PYTHON
@@ -109,13 +105,6 @@ protected:
 	 * true if this camera has a valid projection matrix.
 	 */
 	bool         m_set_projection_matrix;
-	
-	/**
-	 * The center point of the frustum.
-	 */
-	MT_Vector3    m_frustum_center;
-	MT_Scalar    m_frustum_radius;
-	bool         m_set_frustum_center;
 
 	/**
 	 * whether the camera should delete the node itself (only for shadow camera)
@@ -131,27 +120,9 @@ protected:
 	 */
 	bool m_showDebugCameraFrustum;
 
-	/**
-	 * Extracts the camera clip frames from the projection and world-to-camera matrices.
-	 */
-	void ExtractClipPlanes();
-	/**
-	 * Normalize the camera clip frames.
-	 */
-	void NormalizeClipPlanes();
-	/**
-	 * Extracts the bound sphere of the view frustum.
-	 */
-	void ExtractFrustumSphere();
-	/**
-	 * return the clip plane
-	 */
-	MT_Vector4 *GetNormalizedClipPlanes()
-	{
-		ExtractClipPlanes();
-		NormalizeClipPlanes();
-		return m_planes;
-	}
+	SG_Frustum m_frustum;
+
+	void ExtractFrustum();
 
 public:
 
@@ -227,28 +198,9 @@ public:
 	float GetLodDistanceFactor() const;
 	/** Set level of detail distance factor */
 	void SetLodDistanceFactor(float lodfactor);
-	
-	/**
-	 * Tests if the given sphere is inside this camera's view frustum.
-	 *
-	 * \param center The center of the sphere, in world coordinates.
-	 * \param radius The radius of the sphere.
-	 * \return INSIDE, INTERSECT, or OUTSIDE depending on the sphere's relation to the frustum.
-	 */
-	int SphereInsideFrustum(const MT_Vector3& center, const MT_Scalar &radius);
-	/**
-	 * Tests the given eight corners of a box with the view frustum.
-	 *
-	 * \param box a pointer to eight MT_Vector3 representing the world coordinates of the corners of the box.
-	 * \return INSIDE, INTERSECT, or OUTSIDE depending on the box's relation to the frustum.
-	 */
-	int BoxInsideFrustum(const MT_Vector3 *box);
-	/**
-	 * Tests the given point against the view frustum.
-	 * \return true if the given point is inside or on the view frustum; false if it is outside.
-	 */
-	bool PointInsideFrustum(const MT_Vector3& x);
-	
+
+	const SG_Frustum& GetFrustum();
+
 	/**
 	 * Gets this camera's culling status.
 	 */

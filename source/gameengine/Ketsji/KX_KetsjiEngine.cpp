@@ -780,8 +780,9 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			/* binds framebuffer object, sets up camera .. */
 			raslight->BindShadowBuffer(m_canvas, cam, camtrans);
 
+			KX_CullingNodeList nodes;
 			/* update scene */
-			scene->CalculateVisibleMeshes(m_rasterizer, cam, raslight->GetShadowLayer());
+			scene->CalculateVisibleMeshes(nodes, cam, raslight->GetShadowLayer());
 
 			m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
 			UpdateAnimations(scene);
@@ -790,7 +791,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			/* render */
 			m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT | RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
 			// Send a nullptr off screen because the viewport is binding it's using its own private one.
-			scene->RenderBuckets(camtrans, m_rasterizer, nullptr);
+			scene->RenderBuckets(nodes, camtrans, m_rasterizer, nullptr);
 
 			/* unbind framebuffer object, restore drawmode, free camera */
 			raslight->UnbindShadowBuffer();
@@ -943,10 +944,11 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 
 	m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 
-	scene->CalculateVisibleMeshes(m_rasterizer, cam);
+	KX_CullingNodeList nodes;
+	scene->CalculateVisibleMeshes(nodes, cam);
 
 	// update levels of detail
-	scene->UpdateObjectLods(cam);
+	scene->UpdateObjectLods(cam, nodes);
 
 	m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
 	UpdateAnimations(scene);
@@ -955,7 +957,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 
 	RAS_DebugDraw& debugDraw = m_rasterizer->GetDebugDraw(scene);
 	// Draw debug infos like bouding box, armature ect.. if enabled.
-	scene->DrawDebug(debugDraw);
+	scene->DrawDebug(debugDraw, nodes);
 	// Draw debug camera frustum.
 	DrawDebugCameraFrustum(scene, cam, debugDraw, viewport, area);
 	DrawDebugShadowFrustum(scene, debugDraw);
@@ -966,7 +968,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW, cam);
 #endif
 
-	scene->RenderBuckets(camtrans, m_rasterizer, offScreen);
+	scene->RenderBuckets(nodes, camtrans, m_rasterizer, offScreen);
 
 	if (scene->GetPhysicsEnvironment())
 		scene->GetPhysicsEnvironment()->DebugDrawWorld();

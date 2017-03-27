@@ -159,12 +159,13 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 		rasty->SetViewMatrix(viewmat, m_camera->NodeGetWorldOrientation(), m_camera->NodeGetWorldPosition(), MT_Vector3(1.0f, 1.0f, 1.0f), m_camera->GetCameraData()->m_perspective);
 		m_camera->SetModelviewMatrix(viewmat);
 
-		m_scene->CalculateVisibleMeshes(rasty, m_camera, ~renderer->GetIgnoreLayers());
+		KX_CullingNodeList nodes;
+		m_scene->CalculateVisibleMeshes(nodes, m_camera, ~renderer->GetIgnoreLayers());
 
 		/* Updating the lod per face is normally not expensive because a cube map normally show every objects
 		 * but here we update only visible object of a face including the clip end and start.
 		 */
-		m_scene->UpdateObjectLods(m_camera);
+		m_scene->UpdateObjectLods(m_camera, nodes);
 
 		/* Update animations to use the culling of each faces, BL_ActionManager avoid redundants
 		 * updates internally. */
@@ -175,7 +176,7 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 		// Now the objects are culled and we can render the scene.
 		m_scene->GetWorldInfo()->RenderBackground(rasty);
 		// Send a nullptr off screen because we use a set of FBO with shared textures, not an off screen.
-		m_scene->RenderBuckets(camtrans, rasty, nullptr);
+		m_scene->RenderBuckets(nodes, camtrans, rasty, nullptr);
 
 		renderer->EndRenderFace(rasty);
 	}

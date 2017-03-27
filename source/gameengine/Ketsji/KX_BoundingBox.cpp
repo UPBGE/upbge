@@ -50,7 +50,7 @@ const MT_Vector3& KX_BoundingBox::GetMax() const
 {
 	// Update AABB to make sure we have the last one.
 	m_owner->UpdateBounds(false);
-	SG_BBox &box = m_owner->GetSGNode()->BBox();
+	const SG_BBox& box = m_owner->GetCullingNode()->GetAabb();
 	return box.GetMax();
 }
 
@@ -58,7 +58,7 @@ const MT_Vector3& KX_BoundingBox::GetMin() const
 {
 	// Update AABB to make sure we have the last one.
 	m_owner->UpdateBounds(false);
-	SG_BBox &box = m_owner->GetSGNode()->BBox();
+	const SG_BBox& box = m_owner->GetCullingNode()->GetAabb();
 	return box.GetMin();
 }
 
@@ -66,7 +66,7 @@ const MT_Vector3 KX_BoundingBox::GetCenter() const
 {
 	// Update AABB to make sure we have the last one.
 	m_owner->UpdateBounds(false);
-	SG_BBox &box = m_owner->GetSGNode()->BBox();
+	const SG_BBox& box = m_owner->GetCullingNode()->GetAabb();
 	return box.GetCenter();
 }
 
@@ -74,7 +74,7 @@ float KX_BoundingBox::GetRadius() const
 {
 	// Update AABB to make sure we have the last one.
 	m_owner->UpdateBounds(false);
-	SG_BBox &box = m_owner->GetSGNode()->BBox();
+	const SG_BBox& box = m_owner->GetCullingNode()->GetAabb();
 	return box.GetRadius();
 }
 

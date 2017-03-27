@@ -108,7 +108,8 @@ public:
     MT_Vector4& operator*=(MT_Scalar s);
     MT_Vector4& operator/=(MT_Scalar s);
 
-    MT_Scalar   dot(const MT_Vector4& v) const; 
+    MT_Scalar   dot(const MT_Vector4& v) const;
+    MT_Scalar   dot(const MT_Vector3& v) const;
 
     MT_Scalar   length2() const;
     MT_Scalar   length() const;
@@ -147,6 +148,7 @@ MT_Vector4 operator*(MT_Scalar s, const MT_Vector4& v);
 MT_Vector4 operator/(const MT_Vector4& v, MT_Scalar s);
 
 MT_Scalar  MT_dot(const MT_Vector4& v1, const MT_Vector4& v2);
+MT_Scalar  MT_dot(const MT_Vector4& v1, const MT_Vector3& v2);
 
 MT_Scalar  MT_length2(const MT_Vector4& v);
 MT_Scalar  MT_length(const MT_Vector4& v);
