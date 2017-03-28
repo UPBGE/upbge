@@ -34,7 +34,7 @@
 
 #include "RAS_Texture.h"
 #include "RAS_MeshObject.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 
 #include <string>
 
@@ -98,11 +98,11 @@ public:
 
 	virtual ~RAS_IPolyMaterial();
 
-	virtual void Activate(RAS_IRasterizer *rasty) = 0;
-	virtual void Desactivate(RAS_IRasterizer *rasty) = 0;
-	virtual void ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride) = 0;
+	virtual void Activate(RAS_Rasterizer *rasty) = 0;
+	virtual void Desactivate(RAS_Rasterizer *rasty) = 0;
+	virtual void ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride) = 0;
 	virtual void DesactivateInstancing() = 0;
-	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty) = 0;
+	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty) = 0;
 
 	bool IsAlpha() const;
 	bool IsAlphaDepth() const;
@@ -129,12 +129,12 @@ public:
 	virtual bool UseInstancing() const = 0;
 	virtual void ReleaseMaterial() = 0;
 	virtual void GetRGBAColor(unsigned char *rgba) const;
-	virtual bool UsesLighting(RAS_IRasterizer *rasty) const;
+	virtual bool UsesLighting(RAS_Rasterizer *rasty) const;
 
 	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha) = 0;
 
-	virtual const RAS_IRasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const = 0;
+	virtual const RAS_Rasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const = 0;
 
 	/// Overridden by KX_BlenderMaterial
 	virtual void Replace_IScene(SCA_IScene *val) = 0;

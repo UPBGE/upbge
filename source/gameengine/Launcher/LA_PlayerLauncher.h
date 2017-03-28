@@ -53,8 +53,8 @@ protected:
 	virtual void RunPythonMainLoop(const std::string& pythonCode);
 #endif  // WITH_PYTHON
 
-	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty);
-	virtual RAS_IRasterizer::DrawType GetRasterizerDrawMode();
+	virtual RAS_ICanvas *CreateCanvas(RAS_Rasterizer *rasty);
+	virtual RAS_Rasterizer::DrawType GetRasterizerDrawMode();
 	virtual bool GetUseAlwaysExpandFraming();
 	virtual void InitCamera();
 	virtual void InitPython();
@@ -64,7 +64,7 @@ protected:
 
 public:
 	LA_PlayerLauncher(GHOST_ISystem *system, GHOST_IWindow *window, Main *maggie, Scene *scene, GlobalSettings *gs,
-					  RAS_IRasterizer::StereoMode stereoMode, int samples, int argc, char **argv, const std::string& pythonMainLoop);
+					  RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv, const std::string& pythonMainLoop);
 	virtual ~LA_PlayerLauncher();
 
 	virtual void InitEngine();

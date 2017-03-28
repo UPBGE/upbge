@@ -31,7 +31,7 @@
 #include "GPU_texture.h"
 
 RAS_2DFilterOffScreen::RAS_2DFilterOffScreen(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height,
-											 RAS_IRasterizer::HdrType hdr)
+											 RAS_Rasterizer::HdrType hdr)
 	:m_flag(flag),
 	m_colorSlots(colorSlots),
 	m_hdr(hdr),
@@ -72,7 +72,7 @@ void RAS_2DFilterOffScreen::Construct()
 			GPU_texture_free(texture);
 		}
 
-		// WARNING: Always respect the order from RAS_IRasterizer::HdrType.
+		// WARNING: Always respect the order from RAS_Rasterizer::HdrType.
 		static const GPUHDRType hdrEnums[] = {
 			GPU_HDR_NONE, // RAS_HDR_NONE
 			GPU_HDR_HALF_FLOAT, // RAS_HDR_HALF_FLOAT
@@ -129,7 +129,7 @@ bool RAS_2DFilterOffScreen::Update(RAS_ICanvas *canvas)
 	return GetValid();
 }
 
-void RAS_2DFilterOffScreen::Bind(RAS_IRasterizer *rasty)
+void RAS_2DFilterOffScreen::Bind(RAS_Rasterizer *rasty)
 {
 	GPU_framebuffer_bind_all_attachments(m_frameBuffer);
 
@@ -139,7 +139,7 @@ void RAS_2DFilterOffScreen::Bind(RAS_IRasterizer *rasty)
 	}
 }
 
-void RAS_2DFilterOffScreen::Unbind(RAS_IRasterizer *rasty, RAS_ICanvas *canvas)
+void RAS_2DFilterOffScreen::Unbind(RAS_Rasterizer *rasty, RAS_ICanvas *canvas)
 {
 	if (m_flag & RAS_MIPMAP) {
 		MipmapTexture();

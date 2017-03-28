@@ -95,7 +95,7 @@ public:
 	RAS_BucketManager();
 	virtual ~RAS_BucketManager();
 
-	void Renderbuckets(const MT_Transform & cameratrans, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen);
+	void Renderbuckets(const MT_Transform & cameratrans, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
 
 	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
 
@@ -113,8 +113,8 @@ public:
 	}
 
 private:
-	void RenderBasicBuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, BucketType bucketType);
-	void RenderSortedBuckets(const MT_Transform& cameratrans, RAS_IRasterizer *rasty, BucketType bucketType);
+	void RenderBasicBuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, BucketType bucketType);
+	void RenderSortedBuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, BucketType bucketType);
 };
 
 #endif // __RAS_BUCKETMANAGER_H__

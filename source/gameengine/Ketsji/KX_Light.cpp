@@ -37,7 +37,7 @@
 
 #include "KX_Light.h"
 #include "KX_Camera.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_ILightObject.h"
 
@@ -53,7 +53,7 @@
 #include "BLI_math.h"
 
 KX_LightObject::KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks,
-                               RAS_IRasterizer *rasterizer,
+                               RAS_Rasterizer *rasterizer,
                                RAS_ILightObject *lightobj)
 	:KX_GameObject(sgReplicationInfo, callbacks),
 	m_rasterizer(rasterizer),

@@ -31,7 +31,7 @@
 
 #include "RAS_MeshSlot.h"
 
-class RAS_IRasterizer;
+class RAS_Rasterizer;
 
 struct GPUBuffer;
 
@@ -72,7 +72,7 @@ public:
 	 * \param drawingmode The material drawing mode used to detect a billboard/halo/shadow material.
 	 * \param meshSlots The list of all non-culled and visible mesh slots (= game object).
 	 */
-	void Update(RAS_IRasterizer *rasty, int drawingmode, RAS_MeshSlotList &meshSlots);
+	void Update(RAS_Rasterizer *rasty, int drawingmode, RAS_MeshSlotList &meshSlots);
 
 	inline void *GetMatrixOffset() const
 	{

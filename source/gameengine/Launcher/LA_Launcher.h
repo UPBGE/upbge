@@ -30,7 +30,7 @@
 #include "KX_KetsjiEngine.h"
 #include "KX_ISystem.h"
 
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 
 #include "SCA_IInputDevice.h"
 
@@ -74,7 +74,7 @@ protected:
 	/// The game engine's canvas abstraction.
 	RAS_ICanvas *m_canvas;
 	/// The rasterizer.
-	RAS_IRasterizer *m_rasterizer;
+	RAS_Rasterizer *m_rasterizer;
 	/// Converts Blender data files.
 	KX_ISceneConverter *m_sceneConverter;
 	/// Manage messages.
@@ -89,7 +89,7 @@ protected:
 	int m_samples;
 
 	/// The render stereo mode passed in constructor.
-	RAS_IRasterizer::StereoMode m_stereoMode;
+	RAS_Rasterizer::StereoMode m_stereoMode;
 
 	/// argc and argv need to be passed on to python
 	int m_argc;
@@ -98,7 +98,7 @@ protected:
 	/// Saved data to restore at the game end.
 	struct SavedData {
 		int vsync;
-		RAS_IRasterizer::MipmapOption mipmap;
+		RAS_Rasterizer::MipmapOption mipmap;
 		int anisotropic;
 	} m_savedData;
 
@@ -124,8 +124,8 @@ protected:
 	virtual void RunPythonMainLoop(const std::string& pythonCode);
 #endif  // WITH_PYTHON
 
-	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty) = 0;
-	virtual RAS_IRasterizer::DrawType GetRasterizerDrawMode() = 0;
+	virtual RAS_ICanvas *CreateCanvas(RAS_Rasterizer *rasty) = 0;
+	virtual RAS_Rasterizer::DrawType GetRasterizerDrawMode() = 0;
 	virtual bool GetUseAlwaysExpandFraming() = 0;
 	virtual void InitCamera() = 0;
 	virtual void InitPython() = 0;
@@ -135,7 +135,7 @@ protected:
 
 public:
 	LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
-				RAS_IRasterizer::StereoMode stereoMode, int samples, int argc, char **argv);
+				RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv);
 	virtual ~LA_Launcher();
 
 #ifdef WITH_PYTHON

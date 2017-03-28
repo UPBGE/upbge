@@ -50,7 +50,7 @@ extern "C" {
 
 #include "CM_Message.h"
 
-// WARNING: Always respect the order from RAS_IRasterizer::EnableBit.
+// WARNING: Always respect the order from RAS_Rasterizer::EnableBit.
 static const int openGLEnableBitEnums[] = {
 	GL_DEPTH_TEST, // RAS_DEPTH_TEST
 	GL_ALPHA_TEST, // RAS_ALPHA_TEST
@@ -72,7 +72,7 @@ static const int openGLEnableBitEnums[] = {
 	GL_TEXTURE_GEN_Q // RAS_TEXTURE_GEN_Q
 };
 
-// WARNING: Always respect the order from RAS_IRasterizer::DepthFunc.
+// WARNING: Always respect the order from RAS_Rasterizer::DepthFunc.
 static const int openGLDepthFuncEnums[] = {
 	GL_NEVER, // RAS_NEVER
 	GL_LEQUAL, // RAS_LEQUAL
@@ -84,14 +84,14 @@ static const int openGLDepthFuncEnums[] = {
 	GL_EQUAL // RAS_EQUAL
 };
 
-// WARNING: Always respect the order from RAS_IRasterizer::MatrixMode.
+// WARNING: Always respect the order from RAS_Rasterizer::MatrixMode.
 static const int openGLMatrixModeEnums[] = {
 	GL_PROJECTION, // RAS_PROJECTION
 	GL_MODELVIEW, // RAS_MODELVIEW
 	GL_TEXTURE // RAS_TEXTURE
 };
 
-// WARNING: Always respect the order from RAS_IRasterizer::BlendFunc.
+// WARNING: Always respect the order from RAS_Rasterizer::BlendFunc.
 static const int openGLBlendFuncEnums[] = {
 	GL_ZERO, // RAS_ZERO,
 	GL_ONE, // RAS_ONE,
@@ -169,7 +169,7 @@ inline void RAS_OpenGLRasterizer::ScreenPlane::Render()
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 }
 
-RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_IRasterizer *rasterizer)
+RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_Rasterizer *rasterizer)
 	:m_rasterizer(rasterizer)
 {
 }
@@ -189,12 +189,12 @@ unsigned short RAS_OpenGLRasterizer::GetNumLights() const
 	return numlights;
 }
 
-void RAS_OpenGLRasterizer::Enable(RAS_IRasterizer::EnableBit bit)
+void RAS_OpenGLRasterizer::Enable(RAS_Rasterizer::EnableBit bit)
 {
 	glEnable(openGLEnableBitEnums[bit]);
 }
 
-void RAS_OpenGLRasterizer::Disable(RAS_IRasterizer::EnableBit bit)
+void RAS_OpenGLRasterizer::Disable(RAS_Rasterizer::EnableBit bit)
 {
 	glDisable(openGLEnableBitEnums[bit]);
 }
@@ -209,12 +209,12 @@ void RAS_OpenGLRasterizer::DisableLight(unsigned short count)
 	glDisable((GLenum)(GL_LIGHT0 + count));
 }
 
-void RAS_OpenGLRasterizer::SetDepthFunc(RAS_IRasterizer::DepthFunc func)
+void RAS_OpenGLRasterizer::SetDepthFunc(RAS_Rasterizer::DepthFunc func)
 {
 	glDepthFunc(openGLDepthFuncEnums[func]);
 }
 
-void RAS_OpenGLRasterizer::SetBlendFunc(RAS_IRasterizer::BlendFunc src, RAS_IRasterizer::BlendFunc dst)
+void RAS_OpenGLRasterizer::SetBlendFunc(RAS_Rasterizer::BlendFunc src, RAS_Rasterizer::BlendFunc dst)
 {
 	glBlendFunc(openGLBlendFuncEnums[src], openGLBlendFuncEnums[dst]);
 }
@@ -251,9 +251,9 @@ void RAS_OpenGLRasterizer::BeginFrame()
 	glShadeModel(GL_SMOOTH);
 }
 
-void RAS_OpenGLRasterizer::SetDepthMask(RAS_IRasterizer::DepthMask depthmask)
+void RAS_OpenGLRasterizer::SetDepthMask(RAS_Rasterizer::DepthMask depthmask)
 {
-	glDepthMask(depthmask == RAS_IRasterizer::RAS_DEPTHMASK_DISABLED ? GL_FALSE : GL_TRUE);
+	glDepthMask(depthmask == RAS_Rasterizer::RAS_DEPTHMASK_DISABLED ? GL_FALSE : GL_TRUE);
 }
 
 unsigned int *RAS_OpenGLRasterizer::MakeScreenshot(int x, int y, int width, int height)
@@ -275,13 +275,13 @@ void RAS_OpenGLRasterizer::Clear(int clearbit)
 {
 	GLbitfield glclearbit = 0;
 
-	if (clearbit & RAS_IRasterizer::RAS_COLOR_BUFFER_BIT) {
+	if (clearbit & RAS_Rasterizer::RAS_COLOR_BUFFER_BIT) {
 		glclearbit |= GL_COLOR_BUFFER_BIT;
 	}
-	if (clearbit & RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT) {
+	if (clearbit & RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT) {
 		glclearbit |= GL_DEPTH_BUFFER_BIT;
 	}
-	if (clearbit & RAS_IRasterizer::RAS_STENCIL_BUFFER_BIT) {
+	if (clearbit & RAS_Rasterizer::RAS_STENCIL_BUFFER_BIT) {
 		glclearbit |= GL_STENCIL_BUFFER_BIT;
 	}
 
@@ -357,18 +357,18 @@ static DMDrawOption CheckTexDM(MTexPoly *mtexpoly, const bool has_mcol, int matn
 	return DM_DRAW_OPTION_SKIP;
 }
 
-void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_IRasterizer::DrawType drawingmode)
+void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::DrawType drawingmode)
 {
 	// mesh data is in derived mesh
 	current_bucket = ms->m_bucket;
 	current_polymat = current_bucket->GetPolyMaterial();
 	current_ms = ms;
 	current_mesh = ms->m_mesh;
-	current_wireframe = drawingmode <= RAS_IRasterizer::RAS_WIREFRAME;
+	current_wireframe = drawingmode <= RAS_Rasterizer::RAS_WIREFRAME;
 	// MCol *mcol = (MCol*)ms->m_pDerivedMesh->getFaceDataArray(ms->m_pDerivedMesh, CD_MCOL); /* UNUSED */
 
 	// handle two-side
-	if (current_polymat->GetDrawingMode() & RAS_IRasterizer::RAS_BACKCULL)
+	if (current_polymat->GetDrawingMode() & RAS_Rasterizer::RAS_BACKCULL)
 		m_rasterizer->SetCullFace(true);
 	else
 		m_rasterizer->SetCullFace(false);
@@ -377,7 +377,7 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_IRasterizer::Dr
 		SetLines(true);
 	}
 
-	bool wireframe = (drawingmode == RAS_IRasterizer::RAS_WIREFRAME);
+	bool wireframe = (drawingmode == RAS_Rasterizer::RAS_WIREFRAME);
 	if (current_polymat->GetFlag() & RAS_BLENDERGLSL) {
 		// GetMaterialIndex return the original mface material index,
 		// increment by 1 to match what derived mesh is doing
@@ -505,9 +505,9 @@ void RAS_OpenGLRasterizer::DisableForText()
 		glActiveTextureARB(GL_TEXTURE0_ARB + i);
 
 		if (GLEW_ARB_texture_cube_map) {
-			Disable(RAS_IRasterizer::RAS_TEXTURE_CUBE_MAP);
+			Disable(RAS_Rasterizer::RAS_TEXTURE_CUBE_MAP);
 		}
-		Disable(RAS_IRasterizer::RAS_TEXTURE_2D);
+		Disable(RAS_Rasterizer::RAS_TEXTURE_2D);
 	}
 
 	glActiveTextureARB(GL_TEXTURE0_ARB);
@@ -552,7 +552,7 @@ void RAS_OpenGLRasterizer::PopMatrix()
 	glPopMatrix();
 }
 
-void RAS_OpenGLRasterizer::SetMatrixMode(RAS_IRasterizer::MatrixMode mode)
+void RAS_OpenGLRasterizer::SetMatrixMode(RAS_Rasterizer::MatrixMode mode)
 {
 	glMatrixMode(openGLMatrixModeEnums[mode]);
 }

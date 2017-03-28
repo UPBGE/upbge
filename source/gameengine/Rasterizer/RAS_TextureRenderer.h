@@ -30,7 +30,7 @@
 #include <vector>
 
 class RAS_Texture;
-class RAS_IRasterizer;
+class RAS_Rasterizer;
 
 struct GPUFrameBuffer;
 struct GPURenderBuffer;
@@ -88,10 +88,10 @@ public:
 	bool EqualTextureUser(RAS_Texture *texture) const;
 	void AddTextureUser(RAS_Texture *texture);
 
-	virtual void BeginRender(RAS_IRasterizer *rasty);
-	virtual void EndRender(RAS_IRasterizer *rasty);
-	virtual void BeginRenderFace(RAS_IRasterizer *rasty);
-	virtual void EndRenderFace(RAS_IRasterizer *rasty);
+	virtual void BeginRender(RAS_Rasterizer *rasty);
+	virtual void EndRender(RAS_Rasterizer *rasty);
+	virtual void BeginRenderFace(RAS_Rasterizer *rasty);
+	virtual void EndRenderFace(RAS_Rasterizer *rasty);
 
 	void BindFace(unsigned short index);
 };

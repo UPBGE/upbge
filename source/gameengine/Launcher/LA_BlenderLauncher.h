@@ -57,8 +57,8 @@ protected:
 
 	virtual void RenderEngine();
 
-	virtual RAS_ICanvas *CreateCanvas(RAS_IRasterizer *rasty);
-	virtual RAS_IRasterizer::DrawType GetRasterizerDrawMode();
+	virtual RAS_ICanvas *CreateCanvas(RAS_Rasterizer *rasty);
+	virtual RAS_Rasterizer::DrawType GetRasterizerDrawMode();
 	virtual bool GetUseAlwaysExpandFraming();
 	virtual void InitCamera();
 	virtual void InitPython();
@@ -67,7 +67,7 @@ protected:
 	virtual void SetWindowOrder(short order);
 
 public:
-	LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_IRasterizer::StereoMode stereoMode, 
+	LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_Rasterizer::StereoMode stereoMode, 
 					   int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming);
 	virtual ~LA_BlenderLauncher();
 

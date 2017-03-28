@@ -36,7 +36,7 @@
 #  pragma warning (disable:4786)
 #endif
 
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 
 /**
  * 3D rendering device context.
@@ -60,23 +60,23 @@ private:
 	/// Class used to render a screen plane.
 	ScreenPlane m_screenPlane;
 
-	RAS_IRasterizer *m_rasterizer;
+	RAS_Rasterizer *m_rasterizer;
 
 public:
-	RAS_OpenGLRasterizer(RAS_IRasterizer *rasterizer);
+	RAS_OpenGLRasterizer(RAS_Rasterizer *rasterizer);
 	virtual ~RAS_OpenGLRasterizer();
 
 	unsigned short GetNumLights() const;
 
-	void Enable(RAS_IRasterizer::EnableBit bit);
-	void Disable(RAS_IRasterizer::EnableBit bit);
+	void Enable(RAS_Rasterizer::EnableBit bit);
+	void Disable(RAS_Rasterizer::EnableBit bit);
 	void EnableLight(unsigned short count);
 	void DisableLight(unsigned short count);
 
-	void SetDepthFunc(RAS_IRasterizer::DepthFunc func);
-	void SetDepthMask(RAS_IRasterizer::DepthMask depthmask);
+	void SetDepthFunc(RAS_Rasterizer::DepthFunc func);
+	void SetDepthMask(RAS_Rasterizer::DepthMask depthmask);
 
-	void SetBlendFunc(RAS_IRasterizer::BlendFunc src, RAS_IRasterizer::BlendFunc dst);
+	void SetBlendFunc(RAS_Rasterizer::BlendFunc src, RAS_Rasterizer::BlendFunc dst);
 
 	unsigned int *MakeScreenshot(int x, int y, int width, int height);
 
@@ -90,7 +90,7 @@ public:
 	void SetColorMask(bool r, bool g, bool b, bool a);
 	void EndFrame();
 
-	void DrawDerivedMesh(RAS_MeshSlot *ms, RAS_IRasterizer::DrawType drawingmode);
+	void DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::DrawType drawingmode);
 
 	void SetViewport(int x, int y, int width, int height);
 	void GetViewport(int *rect);
@@ -130,7 +130,7 @@ public:
 	void PushMatrix();
 	void PopMatrix();
 	void MultMatrix(const float mat[16]);
-	void SetMatrixMode(RAS_IRasterizer::MatrixMode mode);
+	void SetMatrixMode(RAS_Rasterizer::MatrixMode mode);
 	void LoadMatrix(const float mat[16]);
 	void LoadIdentity();
 

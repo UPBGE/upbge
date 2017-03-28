@@ -51,7 +51,7 @@ class KX_NetworkMessageManager;
 class CListValue;
 class RAS_ICanvas;
 class RAS_OffScreen;
-class RAS_IRasterizer;
+class RAS_Rasterizer;
 class SCA_IInputDevice;
 
 #define LEFT_EYE  1
@@ -90,7 +90,7 @@ private:
 	/// 2D Canvas (2D Rendering Device Context)
 	RAS_ICanvas *m_canvas;
 	/// 3D Rasterizer (3D Rendering)
-	RAS_IRasterizer *m_rasterizer;
+	RAS_Rasterizer *m_rasterizer;
 	KX_ISystem *m_kxsystem;
 	KX_ISceneConverter *m_sceneconverter;
 	KX_NetworkMessageManager *m_networkMessageManager;
@@ -251,7 +251,7 @@ public:
 	/// set the devices and stuff. the client must take care of creating these
 	void SetInputDevice(SCA_IInputDevice *inputDevice);
 	void SetCanvas(RAS_ICanvas *canvas);
-	void SetRasterizer(RAS_IRasterizer *rasterizer);
+	void SetRasterizer(RAS_Rasterizer *rasterizer);
 	void SetNetworkMessageManager(KX_NetworkMessageManager *manager);
 #ifdef WITH_PYTHON
 	void SetPyNamespace(PyObject *pythondictionary);
@@ -267,7 +267,7 @@ public:
 		return m_sceneconverter;
 	}
 
-	RAS_IRasterizer *GetRasterizer()
+	RAS_Rasterizer *GetRasterizer()
 	{
 		return m_rasterizer;
 	}

@@ -68,7 +68,7 @@ set(SRC
 	RAS_IBatchDisplayArray.cpp
 	RAS_InstancingBuffer.cpp
 	RAS_IPolygonMaterial.cpp
-	RAS_IRasterizer.cpp
+	RAS_Rasterizer.cpp
 	RAS_ITexVert.cpp
 	RAS_MaterialBucket.cpp
 	RAS_MeshObject.cpp
@@ -100,7 +100,7 @@ set(SRC
 	RAS_IDisplayArray.h
 	RAS_IBatchDisplayArray.h
 	RAS_IPolygonMaterial.h
-	RAS_IRasterizer.h
+	RAS_Rasterizer.h
 	RAS_IStorageInfo.h
 	RAS_ILightObject.h
 	RAS_InstancingBuffer.h

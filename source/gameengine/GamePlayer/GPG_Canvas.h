@@ -41,7 +41,7 @@
 
 #include "GHOST_IWindow.h"
 
-class RAS_IRasterizer;
+class RAS_Rasterizer;
 
 class GPG_Canvas : public RAS_ICanvas
 {
@@ -60,7 +60,7 @@ protected:
 	int m_viewport[4];
 
 public:
-	GPG_Canvas(RAS_IRasterizer *rasty, GHOST_IWindow *window);
+	GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window);
 	virtual ~GPG_Canvas();
 
 	/**

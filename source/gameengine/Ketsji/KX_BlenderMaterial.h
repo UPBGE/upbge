@@ -40,22 +40,22 @@ public:
 
 	virtual ~KX_BlenderMaterial();
 
-	virtual void Activate(RAS_IRasterizer *rasty);
-	virtual void Desactivate(RAS_IRasterizer *rasty);
-	virtual void ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
+	virtual void Activate(RAS_Rasterizer *rasty);
+	virtual void Desactivate(RAS_Rasterizer *rasty);
+	virtual void ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
 	virtual void DesactivateInstancing();
-	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty);
+	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty);
 
-	void ActivateShaders(RAS_IRasterizer *rasty);
+	void ActivateShaders(RAS_Rasterizer *rasty);
 
-	void ActivateBlenderShaders(RAS_IRasterizer *rasty);
+	void ActivateBlenderShaders(RAS_Rasterizer *rasty);
 
 	virtual bool UseInstancing() const;
 	virtual const std::string GetTextureName() const;
 	virtual Material *GetBlenderMaterial() const;
 	virtual Image *GetBlenderImage() const;
 	virtual MTexPoly *GetMTexPoly() const;
-	virtual bool UsesLighting(RAS_IRasterizer *rasty) const;
+	virtual bool UsesLighting(RAS_Rasterizer *rasty) const;
 	virtual void GetRGBAColor(unsigned char *rgba) const;
 	virtual Scene *GetBlenderScene() const;
 	virtual SCA_IScene *GetScene() const;
@@ -69,7 +69,7 @@ public:
 	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha);
 
-	virtual const RAS_IRasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const;
+	virtual const RAS_Rasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const;
 
 	virtual void Replace_IScene(SCA_IScene *val);
 
@@ -112,7 +112,7 @@ public:
 	// pre calculate to avoid pops/lag at startup
 	virtual void OnConstruction();
 
-	static void EndFrame(RAS_IRasterizer *rasty);
+	static void EndFrame(RAS_Rasterizer *rasty);
 
 private:
 	Material *m_material;
@@ -140,11 +140,11 @@ private:
 
 	void SetBlenderGLSLShader();
 
-	void ActivateGLMaterials(RAS_IRasterizer *rasty) const;
-	void ActivateTexGen(RAS_IRasterizer *ras) const;
+	void ActivateGLMaterials(RAS_Rasterizer *rasty) const;
+	void ActivateTexGen(RAS_Rasterizer *ras) const;
 
-	void SetBlenderShaderData(RAS_IRasterizer *ras);
-	void SetShaderData(RAS_IRasterizer *ras);
+	void SetBlenderShaderData(RAS_Rasterizer *ras);
+	void SetShaderData(RAS_Rasterizer *ras);
 
 	// cleanup stuff
 	void OnExit();

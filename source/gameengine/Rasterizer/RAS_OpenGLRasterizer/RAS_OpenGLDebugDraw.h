@@ -27,7 +27,7 @@
 #ifndef __RAS_OPEN_GL_DEBUG_DRAW_H__
 #define __RAS_OPEN_GL_DEBUG_DRAW_H__
 
-class RAS_IRasterizer;
+class RAS_Rasterizer;
 class RAS_ICanvas;
 class RAS_DebugDraw;
 
@@ -37,7 +37,7 @@ public:
 	RAS_OpenGLDebugDraw() = default;
 	~RAS_OpenGLDebugDraw() = default;
 
-	void Flush(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw);
+	void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw);
 };
 
 #endif  // __RAS_OPEN_GL_DEBUG_DRAW_H__

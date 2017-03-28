@@ -39,7 +39,7 @@ public:
 	Py_Header
 	KX_FontObject(void *sgReplicationInfo,
 	              SG_Callbacks callbacks,
-	              RAS_IRasterizer *rasterizer,
+	              RAS_Rasterizer *rasterizer,
 	              Object *ob,
 	              bool do_color_management);
 
@@ -75,7 +75,7 @@ protected:
 	MT_Vector3 m_offset;
 
 	/// needed for drawing routine
-	class RAS_IRasterizer *m_rasterizer;
+	class RAS_Rasterizer *m_rasterizer;
 
 	bool m_do_color_management;
 

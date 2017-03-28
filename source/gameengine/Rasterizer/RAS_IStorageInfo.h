@@ -23,7 +23,7 @@
 #ifndef __RAS_ISTORAGE_INFO_H__
 #define __RAS_ISTORAGE_INFO_H__
 
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 
 /** This class is used to store special storage infos for an array
  * like VBO/IBO ID for VBO storage.
@@ -43,7 +43,7 @@ public:
 	{
 	}
 
-	virtual void SetDataModified(RAS_IRasterizer::DrawType drawType, DataType dataType) = 0;
+	virtual void SetDataModified(RAS_Rasterizer::DrawType drawType, DataType dataType) = 0;
 };
 
 #endif  // __RAS_ISTORAGE_INFO_H__

@@ -26,7 +26,7 @@
 
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 
 extern "C" {
 #  include "BLI_blenlib.h"

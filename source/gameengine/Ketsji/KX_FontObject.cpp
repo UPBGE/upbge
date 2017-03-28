@@ -39,7 +39,7 @@
 #include "KX_PyMath.h"
 #include "BLI_math.h"
 #include "EXP_StringValue.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_BucketManager.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_TextUser.h"
@@ -83,7 +83,7 @@ static std::vector<std::string> split_string(std::string str)
 
 KX_FontObject::KX_FontObject(void *sgReplicationInfo,
                              SG_Callbacks callbacks,
-                             RAS_IRasterizer *rasterizer,
+                             RAS_Rasterizer *rasterizer,
                              Object *ob,
                              bool do_color_management)
 	:KX_GameObject(sgReplicationInfo, callbacks),

@@ -32,7 +32,7 @@
 #ifndef __BL_BLENDERSHADER_H__
 #define __BL_BLENDERSHADER_H__
 
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Texture.h" // for MaxUnits
 #include <string>
@@ -57,7 +57,7 @@ private:
 	GPUMaterial *m_GPUMat;
 
 	/// The material attributes passed to the rasterizer.
-	RAS_IRasterizer::TexCoGenList m_attribs;
+	RAS_Rasterizer::TexCoGenList m_attribs;
 
 	/// Generate the material atrributes onto m_attibs.
 	void ParseAttribs();
@@ -70,18 +70,18 @@ public:
 	{
 		return (m_GPUMat != nullptr);
 	}
-	void SetProg(bool enable, double time = 0.0, RAS_IRasterizer *rasty = nullptr);
+	void SetProg(bool enable, double time = 0.0, RAS_Rasterizer *rasty = nullptr);
 
 	int GetAttribNum() const;
-	void SetAttribs(RAS_IRasterizer *ras);
+	void SetAttribs(RAS_Rasterizer *ras);
 
 	/** Return a map of the corresponding attribut layer for a given attribut index.
 	 * \param layers The list of the mesh layers used to link with uv and color material attributes.
 	 * \return The map of attributes layers.
 	 */
-	const RAS_IRasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const;
+	const RAS_Rasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const;
 
-	void Update(RAS_MeshSlot *ms, RAS_IRasterizer * rasty);
+	void Update(RAS_MeshSlot *ms, RAS_Rasterizer * rasty);
 
 	/// Return true if the shader uses a special vertex shader for geometry instancing.
 	bool UseInstancing() const;

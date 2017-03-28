@@ -43,7 +43,7 @@
 
 #include "BKE_image.h"
 
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 
 #include "GHOST_IWindow.h"
 
@@ -56,7 +56,7 @@ extern "C" {
 #  include "wm_window.h"
 }
 
-KX_BlenderCanvas::KX_BlenderCanvas(RAS_IRasterizer *rasty, wmWindowManager *wm, wmWindow *win, RAS_Rect &rect, struct ARegion *ar)
+KX_BlenderCanvas::KX_BlenderCanvas(RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, RAS_Rect &rect, struct ARegion *ar)
 	:RAS_ICanvas(rasty),
 	m_wm(wm),
 	m_win(win),

@@ -27,7 +27,7 @@
 #include "KX_CubeMap.h"
 #include "KX_Camera.h"
 
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_Texture.h"
 
 static const MT_Matrix3x3 topFaceViewMat(
@@ -92,7 +92,7 @@ void KX_CubeMap::InvalidateProjectionMatrix()
 	m_invalidProjection = true;
 }
 
-const MT_Matrix4x4& KX_CubeMap::GetProjectionMatrix(RAS_IRasterizer *rasty, KX_Scene *UNUSED(scene), KX_Camera *UNUSED(sceneCamera),
+const MT_Matrix4x4& KX_CubeMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *UNUSED(scene), KX_Camera *UNUSED(sceneCamera),
 													const RAS_Rect& UNUSED(viewport), const RAS_Rect& UNUSED(area))
 {
 	if (m_invalidProjection) {

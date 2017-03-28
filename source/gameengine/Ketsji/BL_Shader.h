@@ -42,7 +42,7 @@ public:
 	 * The python callbacks are executed in this function and at the end
 	 * RAS_Shader::Update(rasty, mat) is called.
 	 */
-	void Update(RAS_IRasterizer *rasty, RAS_MeshSlot *ms);
+	void Update(RAS_Rasterizer *rasty, RAS_MeshSlot *ms);
 
 	// Python interface
 #ifdef WITH_PYTHON

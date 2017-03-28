@@ -39,7 +39,7 @@
 #include "MT_Vector3.h"
 #include "RAS_FramingManager.h"
 #include "RAS_ICanvas.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_MeshObject.h"
 #include "SCA_IScene.h"
 #include "KX_Scene.h"

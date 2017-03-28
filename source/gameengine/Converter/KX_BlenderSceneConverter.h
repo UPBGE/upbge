@@ -49,7 +49,7 @@ class SCA_IActuator;
 class SCA_IController;
 class RAS_MeshObject;
 class RAS_IPolyMaterial;
-class RAS_IRasterizer;
+class RAS_Rasterizer;
 class BL_InterpolatorList;
 class BL_Material;
 struct Main;
@@ -101,7 +101,7 @@ public:
 	 * \param destinationscene pass an empty scene, everything goes into this
 	 * \param dictobj python dictionary (for pythoncontrollers)
 	 */
-	virtual void ConvertScene(KX_Scene *destinationscene, RAS_IRasterizer *rendertools, RAS_ICanvas *canvas, bool libloading = false);
+	virtual void ConvertScene(KX_Scene *destinationscene, RAS_Rasterizer *rendertools, RAS_ICanvas *canvas, bool libloading = false);
 	virtual void RemoveScene(KX_Scene *scene);
 
 	void SetNewFileName(const std::string& filename);

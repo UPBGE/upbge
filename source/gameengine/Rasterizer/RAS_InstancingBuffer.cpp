@@ -27,7 +27,7 @@
  */
 
 #include "RAS_InstancingBuffer.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_MeshUser.h"
 
 extern "C" {
@@ -73,7 +73,7 @@ void RAS_InstancingBuffer::Unbind()
 	GPU_buffer_unbind(m_vbo, GPU_BINDING_ARRAY);
 }
 
-void RAS_InstancingBuffer::Update(RAS_IRasterizer *rasty, int drawingmode, RAS_MeshSlotList &meshSlots)
+void RAS_InstancingBuffer::Update(RAS_Rasterizer *rasty, int drawingmode, RAS_MeshSlotList &meshSlots)
 {
 	InstancingObject *buffer = (InstancingObject *)GPU_buffer_lock_stream(m_vbo, GPU_BINDING_ARRAY);
 

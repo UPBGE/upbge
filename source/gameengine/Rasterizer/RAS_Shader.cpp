@@ -23,7 +23,7 @@
  */
 
 #include "RAS_Shader.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 
 #include "BLI_utildefines.h"
 #include "MEM_guardedalloc.h"
@@ -359,7 +359,7 @@ bool RAS_Shader::GetEnabled() const
 	return m_use;
 }
 
-void RAS_Shader::Update(RAS_IRasterizer *rasty, const MT_Matrix4x4 model)
+void RAS_Shader::Update(RAS_Rasterizer *rasty, const MT_Matrix4x4 model)
 {
 	if (!Ok() || !m_preDef.size()) {
 		return;
@@ -452,7 +452,7 @@ void RAS_Shader::Update(RAS_IRasterizer *rasty, const MT_Matrix4x4 model)
 			}
 			case EYE:
 			{
-				SetUniform(uni->m_loc, (rasty->GetEye() == RAS_IRasterizer::RAS_STEREO_LEFTEYE) ? 0.0f : 0.5f);
+				SetUniform(uni->m_loc, (rasty->GetEye() == RAS_Rasterizer::RAS_STEREO_LEFTEYE) ? 0.0f : 0.5f);
 			}
 			default:
 				break;

@@ -48,7 +48,7 @@ VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
 	glGenBuffersARB(1, &m_ibo);
 	glGenBuffersARB(1, &m_vbo_id);
 
-	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_DRAW_MAX; ++i) {
+	for (unsigned short i = 0; i < RAS_Rasterizer::RAS_DRAW_MAX; ++i) {
 		m_vaos[i] = 0;
 		m_vaoInitialized[i] = false;
 	}
@@ -68,14 +68,14 @@ VBO::~VBO()
 {
 	glDeleteBuffersARB(1, &m_ibo);
 	glDeleteBuffersARB(1, &m_vbo_id);
-	for (unsigned short i = 0; i < RAS_IRasterizer::RAS_DRAW_MAX; ++i) {
+	for (unsigned short i = 0; i < RAS_Rasterizer::RAS_DRAW_MAX; ++i) {
 		if (m_vaos[i]) {
 			glDeleteVertexArrays(1, &m_vaos[i]);
 		}
 	}
 }
 
-void VBO::SetDataModified(RAS_IRasterizer::DrawType drawmode, DataType dataType)
+void VBO::SetDataModified(RAS_Rasterizer::DrawType drawmode, DataType dataType)
 {
 	switch (dataType) {
 		case VERTEX_DATA:
@@ -124,7 +124,7 @@ void VBO::AllocData()
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 }
 
-void VBO::Bind(RAS_IRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)
+void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::DrawType drawingmode)
 {
 	m_bound = true;
 	if (m_useVao) {
@@ -139,7 +139,7 @@ void VBO::Bind(RAS_IRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer:
 		m_vaoInitialized[drawingmode] = true;
 	}
 
-	bool wireframe = (drawingmode == RAS_IRasterizer::RAS_WIREFRAME);
+	bool wireframe = (drawingmode == RAS_Rasterizer::RAS_WIREFRAME);
 
 	// Bind buffers
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
@@ -161,29 +161,29 @@ void VBO::Bind(RAS_IRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer:
 
 	for (unsigned short unit = 0, size = storageAttribs->texcos.size(); unit < size; ++unit) {
 		switch (storageAttribs->texcos[unit]) {
-			case RAS_IRasterizer::RAS_TEXCO_ORCO:
-			case RAS_IRasterizer::RAS_TEXCO_GLOB:
+			case RAS_Rasterizer::RAS_TEXCO_ORCO:
+			case RAS_Rasterizer::RAS_TEXCO_GLOB:
 			{
 				glClientActiveTexture(GL_TEXTURE0_ARB + unit);
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				glTexCoordPointer(3, GL_FLOAT, m_stride, m_vertex_offset);
 				break;
 			}
-			case RAS_IRasterizer::RAS_TEXCO_UV:
+			case RAS_Rasterizer::RAS_TEXCO_UV:
 			{
 				glClientActiveTexture(GL_TEXTURE0_ARB + unit);
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				glTexCoordPointer(2, GL_FLOAT, m_stride, (void *)((intptr_t)m_uv_offset + (sizeof(GLfloat) * 2 * unit)));
 				break;
 			}
-			case RAS_IRasterizer::RAS_TEXCO_NORM:
+			case RAS_Rasterizer::RAS_TEXCO_NORM:
 			{
 				glClientActiveTexture(GL_TEXTURE0_ARB + unit);
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				glTexCoordPointer(3, GL_FLOAT, m_stride, m_normal_offset);
 				break;
 			}
-			case RAS_IRasterizer::RAS_TEXTANGENT:
+			case RAS_Rasterizer::RAS_TEXTANGENT:
 			{
 				glClientActiveTexture(GL_TEXTURE0_ARB + unit);
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -198,32 +198,32 @@ void VBO::Bind(RAS_IRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer:
 
 	for (unsigned short unit = 0, size = storageAttribs->attribs.size(); unit < size; ++unit) {
 		switch (storageAttribs->attribs[unit]) {
-			case RAS_IRasterizer::RAS_TEXCO_ORCO:
-			case RAS_IRasterizer::RAS_TEXCO_GLOB:
+			case RAS_Rasterizer::RAS_TEXCO_ORCO:
+			case RAS_Rasterizer::RAS_TEXCO_GLOB:
 			{
 				glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, m_stride, m_vertex_offset);
 				glEnableVertexAttribArrayARB(unit);
 				break;
 			}
-			case RAS_IRasterizer::RAS_TEXCO_UV:
+			case RAS_Rasterizer::RAS_TEXCO_UV:
 			{
 				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, m_stride, (void *)((intptr_t)m_uv_offset + storageAttribs->layers[unit] * sizeof(GLfloat) * 2));
 				glEnableVertexAttribArrayARB(unit);
 				break;
 			}
-			case RAS_IRasterizer::RAS_TEXCO_NORM:
+			case RAS_Rasterizer::RAS_TEXCO_NORM:
 			{
 				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, m_stride, m_normal_offset);
 				glEnableVertexAttribArrayARB(unit);
 				break;
 			}
-			case RAS_IRasterizer::RAS_TEXTANGENT:
+			case RAS_Rasterizer::RAS_TEXTANGENT:
 			{
 				glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, m_stride, m_tangent_offset);
 				glEnableVertexAttribArrayARB(unit);
 				break;
 			}
-			case RAS_IRasterizer::RAS_TEXCO_VCOL:
+			case RAS_Rasterizer::RAS_TEXCO_VCOL:
 			{
 				glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_TRUE, m_stride, (void *)((intptr_t)m_color_offset + storageAttribs->layers[unit] * sizeof(GLuint)));
 				glEnableVertexAttribArrayARB(unit);
@@ -241,7 +241,7 @@ void VBO::Bind(RAS_IRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer:
 	}
 }
 
-void VBO::Unbind(RAS_IRasterizer::StorageAttribs *storageAttribs, RAS_IRasterizer::DrawType drawingmode)
+void VBO::Unbind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::DrawType drawingmode)
 {
 	m_bound = false;
 	if (m_useVao) {
@@ -249,7 +249,7 @@ void VBO::Unbind(RAS_IRasterizer::StorageAttribs *storageAttribs, RAS_IRasterize
 		return;
 	}
 
-	bool wireframe = (drawingmode == RAS_IRasterizer::RAS_WIREFRAME);
+	bool wireframe = (drawingmode == RAS_Rasterizer::RAS_WIREFRAME);
 
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);
@@ -259,7 +259,7 @@ void VBO::Unbind(RAS_IRasterizer::StorageAttribs *storageAttribs, RAS_IRasterize
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	for (unsigned short unit = 0, size = storageAttribs->texcos.size(); unit < size; ++unit) {
-		if (storageAttribs->texcos[unit] != RAS_IRasterizer::RAS_TEXCO_DISABLE) {
+		if (storageAttribs->texcos[unit] != RAS_Rasterizer::RAS_TEXCO_DISABLE) {
 			glClientActiveTextureARB(GL_TEXTURE0_ARB + unit);
 			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
@@ -267,7 +267,7 @@ void VBO::Unbind(RAS_IRasterizer::StorageAttribs *storageAttribs, RAS_IRasterize
 	glClientActiveTextureARB(GL_TEXTURE0_ARB);
 
 	for (unsigned short unit = 0, size = storageAttribs->attribs.size(); unit < size; ++unit) {
-		if (storageAttribs->attribs[unit] != RAS_IRasterizer::RAS_TEXCO_DISABLE) {
+		if (storageAttribs->attribs[unit] != RAS_Rasterizer::RAS_TEXCO_DISABLE) {
 			glDisableVertexAttribArrayARB(unit);
 		}
 	}
@@ -291,8 +291,8 @@ void VBO::DrawBatching(const std::vector<void *>& indices, const std::vector<int
 	glMultiDrawElements(m_mode, counts.data(), GL_UNSIGNED_INT, (void **)indices.data(), counts.size());
 }
 
-RAS_StorageVBO::RAS_StorageVBO(RAS_IRasterizer::StorageAttribs *storageAttribs)
-	:m_drawingmode(RAS_IRasterizer::RAS_TEXTURED),
+RAS_StorageVBO::RAS_StorageVBO(RAS_Rasterizer::StorageAttribs *storageAttribs)
+	:m_drawingmode(RAS_Rasterizer::RAS_TEXTURED),
 	m_storageAttribs(storageAttribs)
 {
 }

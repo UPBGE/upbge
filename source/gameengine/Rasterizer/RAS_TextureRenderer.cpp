@@ -26,7 +26,7 @@
 
 #include "RAS_TextureRenderer.h"
 #include "RAS_Texture.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 
 #include "GPU_texture.h"
 #include "GPU_framebuffer.h"
@@ -175,12 +175,12 @@ void RAS_TextureRenderer::AddTextureUser(RAS_Texture *texture)
 	texture->SetRenderer(this);
 }
 
-void RAS_TextureRenderer::BeginRender(RAS_IRasterizer *rasty)
+void RAS_TextureRenderer::BeginRender(RAS_Rasterizer *rasty)
 {
 	GetValidTexture();
 }
 
-void RAS_TextureRenderer::EndRender(RAS_IRasterizer *rasty)
+void RAS_TextureRenderer::EndRender(RAS_Rasterizer *rasty)
 {
 	if (m_useMipmap) {
 		GPU_texture_bind(m_gpuTex, 0);
@@ -189,13 +189,13 @@ void RAS_TextureRenderer::EndRender(RAS_IRasterizer *rasty)
 	}
 }
 
-void RAS_TextureRenderer::BeginRenderFace(RAS_IRasterizer *rasty)
+void RAS_TextureRenderer::BeginRenderFace(RAS_Rasterizer *rasty)
 {
 	// Clear only the depth texture because the background render will override the color texture.
-	rasty->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+	rasty->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 }
 
-void RAS_TextureRenderer::EndRenderFace(RAS_IRasterizer *rasty)
+void RAS_TextureRenderer::EndRenderFace(RAS_Rasterizer *rasty)
 {
 }
 

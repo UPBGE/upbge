@@ -31,7 +31,7 @@
 #ifndef __SCA_2DFILTERACTUATOR_H__
 #define __SCA_2DFILTERACTUATOR_H__
 
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "SCA_IActuator.h"
 #include "SCA_IScene.h"
 
@@ -49,7 +49,7 @@ private:
 	int   m_int_arg;
 	bool  m_mipmap;
 	std::string m_shaderText;
-	RAS_IRasterizer* m_rasterizer;
+	RAS_Rasterizer* m_rasterizer;
 	RAS_2DFilterManager *m_filterManager;
 	SCA_IScene* m_scene;
 
@@ -61,7 +61,7 @@ public:
 	        float float_arg,
 	        int int_arg,
 	        bool mipmap,
-	        RAS_IRasterizer* rasterizer,
+	        RAS_Rasterizer* rasterizer,
 			RAS_2DFilterManager *filterManager,
 	        SCA_IScene* scene);
 

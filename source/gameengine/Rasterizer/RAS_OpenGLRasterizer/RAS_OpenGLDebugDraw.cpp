@@ -25,7 +25,7 @@
  */
 
 #include "RAS_OpenGLDebugDraw.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_DebugDraw.h"
 
@@ -37,7 +37,7 @@ extern "C" {
 #  include "BLF_api.h"
 }
 
-void RAS_OpenGLDebugDraw::Flush(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw)
+void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_DebugDraw *debugDraw)
 {
 	rasty->SetFrontFace(true);
 	rasty->SetAlphaBlend(GPU_BLEND_ALPHA);
@@ -150,13 +150,13 @@ void RAS_OpenGLDebugDraw::Flush(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS
 		glEnd();
 	}
 
-	rasty->Disable(RAS_IRasterizer::RAS_DEPTH_TEST);
+	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
 	rasty->DisableForText();
 
 	rasty->PushMatrix();
 	rasty->LoadIdentity();
 
-	rasty->SetMatrixMode(RAS_IRasterizer::RAS_PROJECTION);
+	rasty->SetMatrixMode(RAS_Rasterizer::RAS_PROJECTION);
 	rasty->PushMatrix();
 	rasty->LoadIdentity();
 
@@ -198,7 +198,7 @@ void RAS_OpenGLDebugDraw::Flush(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS
 	BLF_disable(blf_mono_font, BLF_SHADOW);
 
 	rasty->PopMatrix();
-	rasty->SetMatrixMode(RAS_IRasterizer::RAS_MODELVIEW);
+	rasty->SetMatrixMode(RAS_Rasterizer::RAS_MODELVIEW);
 
 	rasty->PopMatrix();
 }

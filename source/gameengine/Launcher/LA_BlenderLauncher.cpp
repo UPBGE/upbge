@@ -51,7 +51,7 @@ extern "C" {
 #  include "BLI_rect.h"
 }
 
-LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_IRasterizer::StereoMode stereoMode, 
+LA_BlenderLauncher::LA_BlenderLauncher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs, RAS_Rasterizer::StereoMode stereoMode, 
 									   int argc, char **argv, bContext *context, rcti *camframe, ARegion *ar, int alwaysUseExpandFraming)
 	:LA_Launcher(system, maggie, scene, gs, stereoMode, scene->gm.aasamples, argc, argv),
 	m_context(context),
@@ -74,31 +74,31 @@ LA_BlenderLauncher::~LA_BlenderLauncher()
 {
 }
 
-RAS_ICanvas *LA_BlenderLauncher::CreateCanvas(RAS_IRasterizer *rasty)
+RAS_ICanvas *LA_BlenderLauncher::CreateCanvas(RAS_Rasterizer *rasty)
 {
 	return (new KX_BlenderCanvas(rasty, m_windowManager, m_window, m_areaRect, m_ar));
 }
 
-RAS_IRasterizer::DrawType LA_BlenderLauncher::GetRasterizerDrawMode()
+RAS_Rasterizer::DrawType LA_BlenderLauncher::GetRasterizerDrawMode()
 {
 	View3D *v3d = CTX_wm_view3d(m_context);
 
-	RAS_IRasterizer::DrawType drawmode = RAS_IRasterizer::RAS_TEXTURED;
+	RAS_Rasterizer::DrawType drawmode = RAS_Rasterizer::RAS_TEXTURED;
 	switch(v3d->drawtype) {
 		case OB_BOUNDBOX:
 		case OB_WIRE:
 		{
-			drawmode = RAS_IRasterizer::RAS_WIREFRAME;
+			drawmode = RAS_Rasterizer::RAS_WIREFRAME;
 			break;
 		}
 		case OB_SOLID:
 		{
-			drawmode = RAS_IRasterizer::RAS_SOLID;
+			drawmode = RAS_Rasterizer::RAS_SOLID;
 			break;
 		}
 		case OB_MATERIAL:
 		{
-			drawmode = RAS_IRasterizer::RAS_TEXTURED;
+			drawmode = RAS_Rasterizer::RAS_TEXTURED;
 			break;
 		}
 	}
@@ -200,7 +200,7 @@ void LA_BlenderLauncher::RenderEngine()
 		           BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
 		m_rasterizer->SetScissor(m_ar->winrct.xmin, m_ar->winrct.ymin,
 		           BLI_rcti_size_x(&m_ar->winrct) + 1, BLI_rcti_size_y(&m_ar->winrct) + 1);
-		m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
+		m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
 	}
 	LA_Launcher::RenderEngine();
 }

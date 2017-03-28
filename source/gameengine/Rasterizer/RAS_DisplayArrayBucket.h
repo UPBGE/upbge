@@ -33,7 +33,7 @@
 #define __RAS_DISPLAY_MATERIAL_BUCKET_H__
 
 #include "RAS_MeshSlot.h"
-#include "RAS_IRasterizer.h" // needed for RAS_IRasterizer::StorageType and RAS_IRasterizer::AttribLayerList
+#include "RAS_Rasterizer.h" // needed for RAS_Rasterizer::StorageType and RAS_Rasterizer::AttribLayerList
 
 #include "MT_Transform.h"
 
@@ -84,7 +84,7 @@ private:
 	RAS_InstancingBuffer *m_instancingBuffer;
 
 	/// The attribute's layers used by the couple mesh material.
-	RAS_IRasterizer::AttribLayerList m_attribLayers;
+	RAS_Rasterizer::AttribLayerList m_attribLayers;
 
 	RAS_DisplayArrayDownwardNode m_downwardNode;
 	RAS_DisplayArrayUpwardNode m_upwardNode;
@@ -127,11 +127,11 @@ public:
 	bool UseBatching() const;
 
 	/// Update render infos.
-	void UpdateActiveMeshSlots(RAS_IRasterizer *rasty);
+	void UpdateActiveMeshSlots(RAS_Rasterizer *rasty);
 	/// Set the mesh object as unmodified flag.
 	void SetDisplayArrayUnmodified();
 	/// Notice the storage info that the indices list (polygons) changed.
-	void SetPolygonsModified(RAS_IRasterizer *rasty);
+	void SetPolygonsModified(RAS_Rasterizer *rasty);
 
 	RAS_IStorageInfo *GetStorageInfo() const;
 	void SetStorageInfo(RAS_IStorageInfo *info);
@@ -142,10 +142,10 @@ public:
 	 */
 	void GenerateAttribLayers();
 
-	void SetAttribLayers(RAS_IRasterizer *rasty) const;
+	void SetAttribLayers(RAS_Rasterizer *rasty) const;
 
 	void GenerateTree(RAS_MaterialDownwardNode *downwardRoot, RAS_MaterialUpwardNode *upwardRoot,
-					  RAS_UpwardTreeLeafs *upwardLeafs, RAS_IRasterizer *rasty, bool sort, bool instancing);
+					  RAS_UpwardTreeLeafs *upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing);
 	void BindUpwardNode(const RAS_RenderNodeArguments& args);
 	void UnbindUpwardNode(const RAS_RenderNodeArguments& args);
 	void RunDownwardNode(const RAS_RenderNodeArguments& args);

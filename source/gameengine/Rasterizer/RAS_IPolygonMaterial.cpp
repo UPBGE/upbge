@@ -136,7 +136,7 @@ unsigned int RAS_IPolyMaterial::GetFlag() const
 	return m_flag;
 }
 
-bool RAS_IPolyMaterial::UsesLighting(RAS_IRasterizer *rasty) const
+bool RAS_IPolyMaterial::UsesLighting(RAS_Rasterizer *rasty) const
 {
 	// Return false only if material is shadeless.
 	return (m_flag & RAS_MULTILIGHT);

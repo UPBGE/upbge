@@ -31,7 +31,7 @@
 
 
 #include "RAS_OpenGLLight.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 
 #include "MT_CmMatrix4x4.h"
@@ -45,7 +45,7 @@
 
 #include "GPU_material.h"
 
-RAS_OpenGLLight::RAS_OpenGLLight(RAS_IRasterizer *ras)
+RAS_OpenGLLight::RAS_OpenGLLight(RAS_Rasterizer *ras)
 	:m_rasterizer(ras)
 {
 }
@@ -239,10 +239,10 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_T
 	GPU_lamp_shadow_buffer_bind(lamp, viewmat, &winsize, winmat);
 
 	if (GPU_lamp_shadow_buffer_type(lamp) == LA_SHADMAP_VARIANCE) {
-		m_rasterizer->SetShadowMode(RAS_IRasterizer::RAS_SHADOW_VARIANCE);
+		m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_VARIANCE);
 	}
 	else {
-		m_rasterizer->SetShadowMode(RAS_IRasterizer::RAS_SHADOW_SIMPLE);
+		m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_SIMPLE);
 	}
 
 	/* GPU_lamp_shadow_buffer_bind() changes the viewport, so update the canvas */
@@ -264,8 +264,8 @@ void RAS_OpenGLLight::BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, MT_T
 
 	/* setup rasterizer transformations */
 	/* SetViewMatrix may use stereomode which we temporarily disable here */
-	RAS_IRasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
-	m_rasterizer->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
+	RAS_Rasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
+	m_rasterizer->SetStereoMode(RAS_Rasterizer::RAS_STEREO_NOSTEREO);
 	m_rasterizer->SetProjectionMatrix(projectionmat);
 	m_rasterizer->SetViewMatrix(modelviewmat, cam->NodeGetWorldOrientation(), cam->NodeGetWorldPosition(), cam->NodeGetLocalScaling(), cam->GetCameraData()->m_perspective);
 	m_rasterizer->SetStereoMode(stereomode);
@@ -276,7 +276,7 @@ void RAS_OpenGLLight::UnbindShadowBuffer()
 	GPULamp *lamp = GetGPULamp();
 	GPU_lamp_shadow_buffer_unbind(lamp);
 
-	m_rasterizer->SetShadowMode(RAS_IRasterizer::RAS_SHADOW_NONE);
+	m_rasterizer->SetShadowMode(RAS_Rasterizer::RAS_SHADOW_NONE);
 
 	m_requestShadowUpdate = false;
 }

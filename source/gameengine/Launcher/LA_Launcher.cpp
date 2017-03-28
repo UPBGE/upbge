@@ -78,7 +78,7 @@ extern "C" {
 #endif
 
 LA_Launcher::LA_Launcher(GHOST_ISystem *system, Main *maggie, Scene *scene, GlobalSettings *gs,
-						 RAS_IRasterizer::StereoMode stereoMode, int samples, int argc, char **argv)
+						 RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv)
 	:m_startSceneName(scene->id.name + 2), 
 	m_startScene(scene),
 	m_maggie(maggie),
@@ -161,7 +161,7 @@ void LA_Launcher::InitEngine()
 	}
 	m_pythonConsole.use = (gm->flag & GAME_PYTHON_CONSOLE);
 
-	m_rasterizer = new RAS_IRasterizer();
+	m_rasterizer = new RAS_Rasterizer();
 
 	// Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI
 	m_rasterizer->SetStereoMode(m_stereoMode);
@@ -189,21 +189,21 @@ void LA_Launcher::InitEngine()
 	// Set canvas multisamples.
 	m_canvas->SetSamples(m_samples);
 
-	RAS_IRasterizer::HdrType hdrtype = RAS_IRasterizer::RAS_HDR_NONE;
+	RAS_Rasterizer::HdrType hdrtype = RAS_Rasterizer::RAS_HDR_NONE;
 	switch (gm->hdr) {
 		case GAME_HDR_NONE:
 		{
-			hdrtype = RAS_IRasterizer::RAS_HDR_NONE;
+			hdrtype = RAS_Rasterizer::RAS_HDR_NONE;
 			break;
 		}
 		case GAME_HDR_HALF_FLOAT:
 		{
-			hdrtype = RAS_IRasterizer::RAS_HDR_HALF_FLOAT;
+			hdrtype = RAS_Rasterizer::RAS_HDR_HALF_FLOAT;
 			break;
 		}
 		case GAME_HDR_FULL_FLOAT:
 		{
-			hdrtype = RAS_IRasterizer::RAS_HDR_FULL_FLOAT;
+			hdrtype = RAS_Rasterizer::RAS_HDR_FULL_FLOAT;
 			break;
 		}
 	}

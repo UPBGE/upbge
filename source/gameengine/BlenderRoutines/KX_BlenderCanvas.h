@@ -67,7 +67,7 @@ public:
 	 *
 	 * \param area The Blender ARegion to run the game within.
 	 */
-	KX_BlenderCanvas(RAS_IRasterizer *rasty, wmWindowManager *wm, wmWindow *win, RAS_Rect &rect, ARegion *ar);
+	KX_BlenderCanvas(RAS_Rasterizer *rasty, wmWindowManager *wm, wmWindow *win, RAS_Rect &rect, ARegion *ar);
 	virtual ~KX_BlenderCanvas();
 
 	virtual void Init();

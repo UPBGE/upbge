@@ -37,7 +37,7 @@
 #include <array>
 #include <memory>
 
-class RAS_IRasterizer;
+class RAS_Rasterizer;
 class RAS_ICanvas;
 class RAS_OpenGLDebugDraw;
 
@@ -143,7 +143,7 @@ public:
 
 	void RenderText2D(const std::string& text, const MT_Vector2& pos, const MT_Vector4& color);
 
-	void Flush(RAS_IRasterizer *rasty, RAS_ICanvas *canvas);
+	void Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas);
 };
 
 #endif  // __RAS_DEBUG_DRAW_H__

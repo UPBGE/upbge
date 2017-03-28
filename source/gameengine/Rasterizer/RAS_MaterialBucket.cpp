@@ -31,7 +31,7 @@
 
 #include "RAS_MaterialBucket.h"
 #include "RAS_IPolygonMaterial.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_MeshObject.h"
 #include "RAS_MeshUser.h"
 #include "RAS_Deformer.h"
@@ -163,18 +163,18 @@ RAS_MeshSlotList::iterator RAS_MaterialBucket::msEnd()
 	return m_meshSlots.end();
 }
 
-void RAS_MaterialBucket::ActivateMaterial(RAS_IRasterizer *rasty)
+void RAS_MaterialBucket::ActivateMaterial(RAS_Rasterizer *rasty)
 {
 	m_material->Activate(rasty);
 }
 
-void RAS_MaterialBucket::DesactivateMaterial(RAS_IRasterizer *rasty)
+void RAS_MaterialBucket::DesactivateMaterial(RAS_Rasterizer *rasty)
 {
 	m_material->Desactivate(rasty);
 }
 
 void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode *downwardRoot, RAS_ManagerUpwardNode *upwardRoot,
-									  RAS_UpwardTreeLeafs *upwardLeafs, RAS_IRasterizer *rasty, bool sort)
+									  RAS_UpwardTreeLeafs *upwardLeafs, RAS_Rasterizer *rasty, bool sort)
 {
 	if (m_displayArrayBucketList.size() == 0) {
 		return;

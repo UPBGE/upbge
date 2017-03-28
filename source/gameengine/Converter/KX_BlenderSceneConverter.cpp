@@ -225,7 +225,7 @@ CListValue *KX_BlenderSceneConverter::GetInactiveSceneNames()
 	return list;
 }
 
-void KX_BlenderSceneConverter::ConvertScene(KX_Scene *destinationscene, RAS_IRasterizer *rendertools,
+void KX_BlenderSceneConverter::ConvertScene(KX_Scene *destinationscene, RAS_Rasterizer *rendertools,
                                             RAS_ICanvas *canvas, bool libloading)
 {
 	//find out which physics engine

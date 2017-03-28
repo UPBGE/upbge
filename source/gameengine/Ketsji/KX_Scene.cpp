@@ -59,7 +59,7 @@
 #include "SCA_IScene.h"
 #include "KX_LodManager.h"
 
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_2DFilterData.h"
 #include "KX_2DFilterManager.h"
@@ -1337,7 +1337,7 @@ void KX_Scene::SetCameraOnTop(KX_Camera* cam)
 	}
 }
 
-void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Camera*  cam,int layer)
+void KX_Scene::MarkVisible(RAS_Rasterizer* rasty, KX_GameObject* gameobj,KX_Camera*  cam,int layer)
 {
 	// User (Python/Actuator) has forced object invisible...
 	if (!gameobj->GetSGNode() || !gameobj->GetVisible())
@@ -1401,7 +1401,7 @@ void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void* cul
 	gameobj->SetCulled(false);
 }
 
-void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int layer)
+void KX_Scene::CalculateVisibleMeshes(RAS_Rasterizer* rasty,KX_Camera* cam, int layer)
 {
 	m_boundingBoxManager->Update(false);
 
@@ -1696,7 +1696,7 @@ RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool 
 
 
 
-void KX_Scene::RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen)
+void KX_Scene::RenderBuckets(const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen)
 {
 	for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 		/* This function update all mesh slot info (e.g culling, color, matrix) from the game object.
@@ -1708,7 +1708,7 @@ void KX_Scene::RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterize
 	KX_BlenderMaterial::EndFrame(rasty);
 }
 
-void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen, KX_Camera *camera,
+void KX_Scene::RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen, KX_Camera *camera,
 									  const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	m_rendererManager->Render(category, rasty, offScreen, camera, viewport, area);
@@ -2070,7 +2070,7 @@ RAS_2DFilterManager *KX_Scene::Get2DFilterManager() const
 	return m_filterManager;
 }
 
-RAS_OffScreen *KX_Scene::Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+RAS_OffScreen *KX_Scene::Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
 {
 	return m_filterManager->RenderFilters(rasty, canvas, inputofs, targetofs);
 }

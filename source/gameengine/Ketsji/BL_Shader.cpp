@@ -83,7 +83,7 @@ void BL_Shader::SetProg(bool enable)
 	RAS_Shader::SetProg(enable);
 }
 
-void BL_Shader::Update(RAS_IRasterizer *rasty, RAS_MeshSlot *ms)
+void BL_Shader::Update(RAS_Rasterizer *rasty, RAS_MeshSlot *ms)
 {
 #ifdef WITH_PYTHON
 	if (PyList_GET_SIZE(m_callbacks[CALLBACKS_OBJECT]) > 0) {

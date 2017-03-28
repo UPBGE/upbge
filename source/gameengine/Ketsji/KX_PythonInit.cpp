@@ -105,7 +105,7 @@ extern "C" {
 #include "KX_StateActuator.h"
 #include "BL_ActionActuator.h"
 #include "BL_ArmatureObject.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_BucketManager.h"
 #include "RAS_2DFilterManager.h"
@@ -610,7 +610,7 @@ static PyObject *pyPrintStats(PyObject *,PyObject *,PyObject *)
 
 static PyObject *pyPrintExt(PyObject *,PyObject *,PyObject *)
 {
-	RAS_IRasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
+	RAS_Rasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
 	if (rasterizer)
 		rasterizer->PrintHardwareInfo();
 	else
@@ -975,9 +975,9 @@ static PyObject *gPyGetFocalLength(PyObject *, PyObject *, PyObject *)
 
 static PyObject *gPyGetStereoEye(PyObject *, PyObject *, PyObject *)
 {
-	int flag = RAS_IRasterizer::RAS_STEREO_LEFTEYE;
+	int flag = RAS_Rasterizer::RAS_STEREO_LEFTEYE;
 
-	RAS_IRasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
+	RAS_Rasterizer *rasterizer = KX_GetActiveEngine()->GetRasterizer();
 
 	if (!rasterizer) {
 		PyErr_SetString(PyExc_RuntimeError, "Rasterizer.getStereoEye(), Rasterizer not available");
@@ -1236,7 +1236,7 @@ static PyObject *gPySetMipmapping(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "i:setMipmapping", &val))
 		return nullptr;
 
-	if (val < 0 || val > RAS_IRasterizer::RAS_MIPMAP_MAX) {
+	if (val < 0 || val > RAS_Rasterizer::RAS_MIPMAP_MAX) {
 		PyErr_SetString(PyExc_ValueError, "Rasterizer.setMipmapping(val): invalid mipmaping option");
 		return nullptr;
 	}
@@ -1246,7 +1246,7 @@ static PyObject *gPySetMipmapping(PyObject *, PyObject *args)
 		return nullptr;
 	}
 
-	KX_GetActiveEngine()->GetRasterizer()->SetMipmapping((RAS_IRasterizer::MipmapOption)val);
+	KX_GetActiveEngine()->GetRasterizer()->SetMipmapping((RAS_Rasterizer::MipmapOption)val);
 	Py_RETURN_NONE;
 }
 
@@ -1553,17 +1553,17 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, KX_ACTIONACT_PROPERTY,    ACT_ACTION_FROM_PROP);
 	
 	/* 7. GL_BlendFunc */
-	KX_MACRO_addTypesToDict(d, BL_ZERO, RAS_IRasterizer::RAS_ZERO);
-	KX_MACRO_addTypesToDict(d, BL_ONE, RAS_IRasterizer::RAS_ONE);
-	KX_MACRO_addTypesToDict(d, BL_SRC_COLOR, RAS_IRasterizer::RAS_SRC_COLOR);
-	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_SRC_COLOR, RAS_IRasterizer::RAS_ONE_MINUS_SRC_COLOR);
-	KX_MACRO_addTypesToDict(d, BL_DST_COLOR, RAS_IRasterizer::RAS_DST_COLOR);
-	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_DST_COLOR, RAS_IRasterizer::RAS_ONE_MINUS_DST_COLOR);
-	KX_MACRO_addTypesToDict(d, BL_SRC_ALPHA, RAS_IRasterizer::RAS_SRC_ALPHA);
-	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_SRC_ALPHA, RAS_IRasterizer::RAS_ONE_MINUS_SRC_ALPHA);
-	KX_MACRO_addTypesToDict(d, BL_DST_ALPHA, RAS_IRasterizer::RAS_DST_ALPHA);
-	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_DST_ALPHA, RAS_IRasterizer::RAS_ONE_MINUS_DST_ALPHA);
-	KX_MACRO_addTypesToDict(d, BL_SRC_ALPHA_SATURATE, RAS_IRasterizer::RAS_SRC_ALPHA_SATURATE);
+	KX_MACRO_addTypesToDict(d, BL_ZERO, RAS_Rasterizer::RAS_ZERO);
+	KX_MACRO_addTypesToDict(d, BL_ONE, RAS_Rasterizer::RAS_ONE);
+	KX_MACRO_addTypesToDict(d, BL_SRC_COLOR, RAS_Rasterizer::RAS_SRC_COLOR);
+	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_SRC_COLOR, RAS_Rasterizer::RAS_ONE_MINUS_SRC_COLOR);
+	KX_MACRO_addTypesToDict(d, BL_DST_COLOR, RAS_Rasterizer::RAS_DST_COLOR);
+	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_DST_COLOR, RAS_Rasterizer::RAS_ONE_MINUS_DST_COLOR);
+	KX_MACRO_addTypesToDict(d, BL_SRC_ALPHA, RAS_Rasterizer::RAS_SRC_ALPHA);
+	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_SRC_ALPHA, RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA);
+	KX_MACRO_addTypesToDict(d, BL_DST_ALPHA, RAS_Rasterizer::RAS_DST_ALPHA);
+	KX_MACRO_addTypesToDict(d, BL_ONE_MINUS_DST_ALPHA, RAS_Rasterizer::RAS_ONE_MINUS_DST_ALPHA);
+	KX_MACRO_addTypesToDict(d, BL_SRC_ALPHA_SATURATE, RAS_Rasterizer::RAS_SRC_ALPHA_SATURATE);
 
 
 	/* 8. UniformTypes */
@@ -2258,9 +2258,9 @@ PyMODINIT_FUNC initRasterizerPythonBinding()
 	KX_MACRO_addTypesToDict(d, KX_BLENDER_MULTITEX_MATERIAL, KX_BLENDER_MULTITEX_MATERIAL);
 	KX_MACRO_addTypesToDict(d, KX_BLENDER_GLSL_MATERIAL, KX_BLENDER_GLSL_MATERIAL);
 
-	KX_MACRO_addTypesToDict(d, RAS_MIPMAP_NONE, RAS_IRasterizer::RAS_MIPMAP_NONE);
-	KX_MACRO_addTypesToDict(d, RAS_MIPMAP_NEAREST, RAS_IRasterizer::RAS_MIPMAP_NEAREST);
-	KX_MACRO_addTypesToDict(d, RAS_MIPMAP_LINEAR, RAS_IRasterizer::RAS_MIPMAP_LINEAR);
+	KX_MACRO_addTypesToDict(d, RAS_MIPMAP_NONE, RAS_Rasterizer::RAS_MIPMAP_NONE);
+	KX_MACRO_addTypesToDict(d, RAS_MIPMAP_NEAREST, RAS_Rasterizer::RAS_MIPMAP_NEAREST);
+	KX_MACRO_addTypesToDict(d, RAS_MIPMAP_LINEAR, RAS_Rasterizer::RAS_MIPMAP_LINEAR);
 
 	/* for get/setVsync */
 	KX_MACRO_addTypesToDict(d, VSYNC_OFF, VSYNC_OFF);
@@ -2268,13 +2268,13 @@ PyMODINIT_FUNC initRasterizerPythonBinding()
 	KX_MACRO_addTypesToDict(d, VSYNC_ADAPTIVE, VSYNC_ADAPTIVE);
 
 	/* stereoscopy */
-	KX_MACRO_addTypesToDict(d, LEFT_EYE, RAS_IRasterizer::RAS_STEREO_LEFTEYE);
-	KX_MACRO_addTypesToDict(d, RIGHT_EYE, RAS_IRasterizer::RAS_STEREO_RIGHTEYE);
+	KX_MACRO_addTypesToDict(d, LEFT_EYE, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
+	KX_MACRO_addTypesToDict(d, RIGHT_EYE, RAS_Rasterizer::RAS_STEREO_RIGHTEYE);
 
 	// HDR
-	KX_MACRO_addTypesToDict(d, HDR_NONE, RAS_IRasterizer::RAS_HDR_NONE);
-	KX_MACRO_addTypesToDict(d, HDR_HALF_FLOAT, RAS_IRasterizer::RAS_HDR_HALF_FLOAT);
-	KX_MACRO_addTypesToDict(d, HDR_FULL_FLOAT, RAS_IRasterizer::RAS_HDR_FULL_FLOAT);
+	KX_MACRO_addTypesToDict(d, HDR_NONE, RAS_Rasterizer::RAS_HDR_NONE);
+	KX_MACRO_addTypesToDict(d, HDR_HALF_FLOAT, RAS_Rasterizer::RAS_HDR_HALF_FLOAT);
+	KX_MACRO_addTypesToDict(d, HDR_FULL_FLOAT, RAS_Rasterizer::RAS_HDR_FULL_FLOAT);
 
 	// XXXX Add constants here
 

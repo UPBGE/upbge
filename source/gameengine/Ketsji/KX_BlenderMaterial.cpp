@@ -34,7 +34,7 @@
 #include "MT_Matrix4x4.h"
 
 #include "RAS_BucketManager.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_MeshUser.h"
 
 #include "GPU_draw.h"
@@ -212,7 +212,7 @@ void KX_BlenderMaterial::OnConstruction()
 	m_constructed = true;
 }
 
-void KX_BlenderMaterial::EndFrame(RAS_IRasterizer *rasty)
+void KX_BlenderMaterial::EndFrame(RAS_Rasterizer *rasty)
 {
 	rasty->SetAlphaBlend(GPU_BLEND_SOLID);
 	RAS_Texture::DesactiveTextures();
@@ -236,7 +236,7 @@ void KX_BlenderMaterial::OnExit()
 }
 
 
-void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
+void KX_BlenderMaterial::SetShaderData(RAS_Rasterizer *ras)
 {
 	BLI_assert(m_shader);
 
@@ -271,32 +271,32 @@ void KX_BlenderMaterial::SetShaderData(RAS_IRasterizer *ras)
 		ras->SetAlphaBlend(-1); // indicates custom mode
 
 		// tested to be valid enums
-		ras->Enable(RAS_IRasterizer::RAS_BLEND);
-		ras->SetBlendFunc((RAS_IRasterizer::BlendFunc)m_blendFunc[0], (RAS_IRasterizer::BlendFunc)m_blendFunc[1]);
+		ras->Enable(RAS_Rasterizer::RAS_BLEND);
+		ras->SetBlendFunc((RAS_Rasterizer::BlendFunc)m_blendFunc[0], (RAS_Rasterizer::BlendFunc)m_blendFunc[1]);
 	}
 }
 
-void KX_BlenderMaterial::SetBlenderShaderData(RAS_IRasterizer *ras)
+void KX_BlenderMaterial::SetBlenderShaderData(RAS_Rasterizer *ras)
 {
 	// Don't set the alpha blend here because ActivateMeshSlot do it.
 	m_blenderShader->SetProg(true, ras->GetTime(), ras);
 }
 
-void KX_BlenderMaterial::ActivateShaders(RAS_IRasterizer *rasty)
+void KX_BlenderMaterial::ActivateShaders(RAS_Rasterizer *rasty)
 {
 	SetShaderData(rasty);
 	ActivateGLMaterials(rasty);
 	ActivateTexGen(rasty);
 }
 
-void KX_BlenderMaterial::ActivateBlenderShaders(RAS_IRasterizer *rasty)
+void KX_BlenderMaterial::ActivateBlenderShaders(RAS_Rasterizer *rasty)
 {
 	SetBlenderShaderData(rasty);
 	ActivateGLMaterials(rasty);
 	m_blenderShader->SetAttribs(rasty);
 }
 
-void KX_BlenderMaterial::Activate(RAS_IRasterizer *rasty)
+void KX_BlenderMaterial::Activate(RAS_Rasterizer *rasty)
 {
 	if (m_shader && m_shader->Ok()) {
 		ActivateShaders(rasty);
@@ -306,7 +306,7 @@ void KX_BlenderMaterial::Activate(RAS_IRasterizer *rasty)
 	}
 }
 
-void KX_BlenderMaterial::Desactivate(RAS_IRasterizer *rasty)
+void KX_BlenderMaterial::Desactivate(RAS_Rasterizer *rasty)
 {
 	if (m_shader && m_shader->Ok()) {
 		m_shader->SetProg(false);
@@ -336,7 +336,7 @@ bool KX_BlenderMaterial::UseInstancing() const
 	return m_material->shade_flag & MA_INSTANCING;
 }
 
-void KX_BlenderMaterial::ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
+void KX_BlenderMaterial::ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride)
 {
 	if (m_blenderShader) {
 		m_blenderShader->ActivateInstancing(matrixoffset, positionoffset, coloroffset, stride);
@@ -350,7 +350,7 @@ void KX_BlenderMaterial::DesactivateInstancing()
 	}
 }
 
-bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
+bool KX_BlenderMaterial::UsesLighting(RAS_Rasterizer *rasty) const
 {
 	if (!RAS_IPolyMaterial::UsesLighting(rasty))
 		return false;
@@ -363,7 +363,7 @@ bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 		return true;
 }
 
-void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty)
+void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 {
 	if (m_shader && m_shader->Ok()) {
 		m_shader->Update(rasty, ms);
@@ -382,7 +382,7 @@ void KX_BlenderMaterial::ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *ras
 	}
 }
 
-void KX_BlenderMaterial::ActivateGLMaterials(RAS_IRasterizer *rasty) const
+void KX_BlenderMaterial::ActivateGLMaterials(RAS_Rasterizer *rasty) const
 {
 	if (m_shader || !m_blenderShader) {
 		rasty->SetSpecularity(m_material->specr * m_material->spec, m_material->specg * m_material->spec,
@@ -399,17 +399,17 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_IRasterizer *rasty) const
 }
 
 
-void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
+void KX_BlenderMaterial::ActivateTexGen(RAS_Rasterizer *ras) const
 {
 	if (m_shader->GetAttribute() == BL_Shader::SHD_TANGENT) {
-		RAS_IRasterizer::TexCoGenList attribs(2);
-		attribs[0] = RAS_IRasterizer::RAS_TEXCO_DISABLE;
-		attribs[1] = RAS_IRasterizer::RAS_TEXTANGENT;
+		RAS_Rasterizer::TexCoGenList attribs(2);
+		attribs[0] = RAS_Rasterizer::RAS_TEXCO_DISABLE;
+		attribs[1] = RAS_Rasterizer::RAS_TEXTANGENT;
 
 		ras->SetAttribs(attribs);
 	}
 
-	RAS_IRasterizer::TexCoGenList texcos(RAS_Texture::MaxUnits);
+	RAS_Rasterizer::TexCoGenList texcos(RAS_Texture::MaxUnits);
 	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
 		RAS_Texture *texture = m_textures[i];
 		/* Here textures can return false to Ok() because we're looking only at
@@ -419,23 +419,23 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 		if (texture) {
 			MTex *mtex = texture->GetMTex();
 			if (mtex->texco & (TEXCO_OBJECT | TEXCO_REFL)) {
-				texcos[i] = RAS_IRasterizer::RAS_TEXCO_GEN;
+				texcos[i] = RAS_Rasterizer::RAS_TEXCO_GEN;
 			}
 			else if (mtex->texco & (TEXCO_ORCO | TEXCO_GLOB)) {
-				texcos[i] = RAS_IRasterizer::RAS_TEXCO_ORCO;
+				texcos[i] = RAS_Rasterizer::RAS_TEXCO_ORCO;
 			}
 			else if (mtex->texco & TEXCO_UV) {
-				texcos[i] = RAS_IRasterizer::RAS_TEXCO_UV;
+				texcos[i] = RAS_Rasterizer::RAS_TEXCO_UV;
 			}
 			else if (mtex->texco & TEXCO_NORM) {
-				texcos[i] = RAS_IRasterizer::RAS_TEXCO_NORM;
+				texcos[i] = RAS_Rasterizer::RAS_TEXCO_NORM;
 			}
 			else if (mtex->texco & TEXCO_TANGENT) {
-				texcos[i] = RAS_IRasterizer::RAS_TEXTANGENT;
+				texcos[i] = RAS_Rasterizer::RAS_TEXTANGENT;
 			}
 		}
 		else {
-			texcos[i] = RAS_IRasterizer::RAS_TEXCO_DISABLE;
+			texcos[i] = RAS_Rasterizer::RAS_TEXCO_DISABLE;
 		}
 	}
 	ras->SetTexCoords(texcos);
@@ -470,13 +470,13 @@ void KX_BlenderMaterial::UpdateIPO(
 	m_material->spectra = (float)specalpha;
 }
 
-const RAS_IRasterizer::AttribLayerList KX_BlenderMaterial::GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const
+const RAS_Rasterizer::AttribLayerList KX_BlenderMaterial::GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const
 {
 	if (m_blenderShader && m_blenderShader->Ok()) {
 		return m_blenderShader->GetAttribLayers(layersInfo);
 	}
 
-	static const RAS_IRasterizer::AttribLayerList attribLayers;
+	static const RAS_Rasterizer::AttribLayerList attribLayers;
 	return attribLayers;
 }
 
@@ -956,17 +956,17 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 }
 
 static const unsigned int GL_array[11] = {
-	RAS_IRasterizer::RAS_ZERO,
-	RAS_IRasterizer::RAS_ONE,
-	RAS_IRasterizer::RAS_SRC_COLOR,
-	RAS_IRasterizer::RAS_ONE_MINUS_SRC_COLOR,
-	RAS_IRasterizer::RAS_DST_COLOR,
-	RAS_IRasterizer::RAS_ONE_MINUS_DST_COLOR,
-	RAS_IRasterizer::RAS_SRC_ALPHA,
-	RAS_IRasterizer::RAS_ONE_MINUS_SRC_ALPHA,
-	RAS_IRasterizer::RAS_DST_ALPHA,
-	RAS_IRasterizer::RAS_ONE_MINUS_DST_ALPHA,
-	RAS_IRasterizer::RAS_SRC_ALPHA_SATURATE
+	RAS_Rasterizer::RAS_ZERO,
+	RAS_Rasterizer::RAS_ONE,
+	RAS_Rasterizer::RAS_SRC_COLOR,
+	RAS_Rasterizer::RAS_ONE_MINUS_SRC_COLOR,
+	RAS_Rasterizer::RAS_DST_COLOR,
+	RAS_Rasterizer::RAS_ONE_MINUS_DST_COLOR,
+	RAS_Rasterizer::RAS_SRC_ALPHA,
+	RAS_Rasterizer::RAS_ONE_MINUS_SRC_ALPHA,
+	RAS_Rasterizer::RAS_DST_ALPHA,
+	RAS_Rasterizer::RAS_ONE_MINUS_DST_ALPHA,
+	RAS_Rasterizer::RAS_SRC_ALPHA_SATURATE
 };
 
 KX_PYMETHODDEF_DOC(KX_BlenderMaterial, setBlending, "setBlending(bge.logic.src, bge.logic.dest)")

@@ -93,11 +93,11 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 	m_canvas = m_engine->GetCanvas();
 
 	GPUHDRType type;
-	if (hdr == RAS_IRasterizer::RAS_HDR_HALF_FLOAT) {
+	if (hdr == RAS_Rasterizer::RAS_HDR_HALF_FLOAT) {
 		type = GPU_HDR_HALF_FLOAT;
 		m_internalFormat = GL_RGBA16F_ARB;
 	}
-	else if (hdr == RAS_IRasterizer::RAS_HDR_FULL_FLOAT) {
+	else if (hdr == RAS_Rasterizer::RAS_HDR_FULL_FLOAT) {
 		type = GPU_HDR_FULL_FLOAT;
 		m_internalFormat = GL_RGBA32F_ARB;
 	}
@@ -106,9 +106,9 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera, unsigned int widt
 		m_internalFormat = GL_RGBA8;
 	}
 
-	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_IRasterizer::RAS_OFFSCREEN_CUSTOM));
+	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));
 	if (m_samples > 0) {
-		m_blitOffScreen.reset(new RAS_OffScreen(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_IRasterizer::RAS_OFFSCREEN_CUSTOM));
+		m_blitOffScreen.reset(new RAS_OffScreen(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));
 		m_finalOffScreen = m_blitOffScreen.get();
 	}
 	else {
@@ -224,7 +224,7 @@ bool ImageRender::Render()
 	RAS_FrameFrustum frustum;
 
 	if (!m_render ||
-	    m_rasterizer->GetDrawingMode() != RAS_IRasterizer::RAS_TEXTURED ||   // no need for texture
+	    m_rasterizer->GetDrawingMode() != RAS_Rasterizer::RAS_TEXTURED ||   // no need for texture
         m_camera->GetViewport() ||        // camera must be inactive
         m_camera == m_scene->GetActiveCamera())
 	{
@@ -301,7 +301,7 @@ bool ImageRender::Render()
 		frustum.camfar = -mirrorOffset[2]+m_clip;
 	}
 	// Store settings to be restored later
-	const RAS_IRasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
+	const RAS_Rasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
 	RAS_Rect area = m_canvas->GetWindowArea();
 
 	// The screen area that ImageViewport will copy is also the rendering zone
@@ -313,13 +313,13 @@ bool ImageRender::Render()
 	m_rasterizer->SetViewport(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
 	m_rasterizer->SetScissor(m_position[0], m_position[1], m_position[0] + m_capSize[0], m_position[1] + m_capSize[1]);
 
-	m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+	m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 
 	m_scene->GetWorldInfo()->UpdateWorldSettings(m_rasterizer);
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
 	m_rasterizer->DisplayFog();
 	// matrix calculation, don't apply any of the stereo mode
-	m_rasterizer->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
+	m_rasterizer->SetStereoMode(RAS_Rasterizer::RAS_STEREO_NOSTEREO);
 
 	if (m_mirror)
 	{
@@ -879,11 +879,11 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
     m_clip(100.f)
 {
 	GPUHDRType type;
-	if (hdr == RAS_IRasterizer::RAS_HDR_HALF_FLOAT) {
+	if (hdr == RAS_Rasterizer::RAS_HDR_HALF_FLOAT) {
 		type = GPU_HDR_HALF_FLOAT;
 		m_internalFormat = GL_RGBA16F_ARB;
 	}
-	else if (hdr == RAS_IRasterizer::RAS_HDR_FULL_FLOAT) {
+	else if (hdr == RAS_Rasterizer::RAS_HDR_FULL_FLOAT) {
 		type = GPU_HDR_FULL_FLOAT;
 		m_internalFormat = GL_RGBA32F_ARB;
 	}
@@ -892,9 +892,9 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 		m_internalFormat = GL_RGBA8;
 	}
 
-	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_IRasterizer::RAS_OFFSCREEN_CUSTOM));
+	m_offScreen.reset(new RAS_OffScreen(m_width, m_height, m_samples, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));
 	if (m_samples > 0) {
-		m_blitOffScreen.reset(new RAS_OffScreen(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_IRasterizer::RAS_OFFSCREEN_CUSTOM));
+		m_blitOffScreen.reset(new RAS_OffScreen(m_width, m_height, 0, type, GPU_OFFSCREEN_RENDERBUFFER_DEPTH, nullptr, RAS_Rasterizer::RAS_OFFSCREEN_CUSTOM));
 		m_finalOffScreen = m_blitOffScreen.get();
 	}
 	else {

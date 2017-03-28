@@ -95,9 +95,9 @@ public:
 	void setHorizonColor(const MT_Vector3& horizoncolor);
 	void setZenithColor(const MT_Vector3& zenithcolor);
 	void setAmbientColor(const MT_Vector3& ambientcolor);
-	void UpdateBackGround(RAS_IRasterizer *rasty);
-	void UpdateWorldSettings(RAS_IRasterizer *rasty);
-	void RenderBackground(RAS_IRasterizer *rasty);
+	void UpdateBackGround(RAS_Rasterizer *rasty);
+	void UpdateWorldSettings(RAS_Rasterizer *rasty);
+	void RenderBackground(RAS_Rasterizer *rasty);
 
 #ifdef WITH_PYTHON
 	/* attributes */

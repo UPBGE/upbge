@@ -32,7 +32,7 @@
 
 #include "KX_WorldInfo.h"
 #include "KX_PyMath.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "GPU_material.h"
 
 /* This little block needed for linking to Blender... */
@@ -163,7 +163,7 @@ void KX_WorldInfo::setAmbientColor(const MT_Vector3& ambientcolor)
 	}
 }
 
-void KX_WorldInfo::UpdateBackGround(RAS_IRasterizer *rasty)
+void KX_WorldInfo::UpdateBackGround(RAS_Rasterizer *rasty)
 {
 	if (m_hasworld) {
 		// Update World values for world material created in GPU_material_world/GPU_material_old_world.
@@ -181,7 +181,7 @@ void KX_WorldInfo::UpdateBackGround(RAS_IRasterizer *rasty)
 	}
 }
 
-void KX_WorldInfo::UpdateWorldSettings(RAS_IRasterizer *rasty)
+void KX_WorldInfo::UpdateWorldSettings(RAS_Rasterizer *rasty)
 {
 	if (m_hasworld) {
 		rasty->SetAmbientColor(m_con_ambientcolor);
@@ -201,7 +201,7 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_IRasterizer *rasty)
 	}
 }
 
-void KX_WorldInfo::RenderBackground(RAS_IRasterizer *rasty)
+void KX_WorldInfo::RenderBackground(RAS_Rasterizer *rasty)
 {
 	if (m_hasworld) {
 		if (m_scene->world->skytype & (WO_SKYBLEND | WO_SKYPAPER | WO_SKYREAL)) {
@@ -214,14 +214,14 @@ void KX_WorldInfo::RenderBackground(RAS_IRasterizer *rasty)
 			static float texcofac[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
 			GPU_material_bind(gpumat, 0xFFFFFFFF, m_scene->lay, 1.0f, false, viewmat, invviewmat, texcofac, false);
 
-			rasty->Disable(RAS_IRasterizer::RAS_CULL_FACE);
-			rasty->Enable(RAS_IRasterizer::RAS_DEPTH_TEST);
-			rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
+			rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
+			rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
+			rasty->SetDepthFunc(RAS_Rasterizer::RAS_ALWAYS);
 
 			rasty->DrawOverlayPlane();
 
-			rasty->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
-			rasty->Enable(RAS_IRasterizer::RAS_CULL_FACE);
+			rasty->SetDepthFunc(RAS_Rasterizer::RAS_LEQUAL);
+			rasty->Enable(RAS_Rasterizer::RAS_CULL_FACE);
 
 			GPU_material_unbind(gpumat);
 		}
@@ -229,7 +229,7 @@ void KX_WorldInfo::RenderBackground(RAS_IRasterizer *rasty)
 			float srgbcolor[3];
 			linearrgb_to_srgb_v3_v3(srgbcolor, m_horizoncolor.getValue());
 			rasty->SetClearColor(srgbcolor[0], srgbcolor[1], srgbcolor[2], 1.0f);
-			rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
+			rasty->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
 		}
 	}
 	// Else render a dummy gray background.
@@ -238,7 +238,7 @@ void KX_WorldInfo::RenderBackground(RAS_IRasterizer *rasty)
 		 * 0.050, 0.050, 0.050 (the default world horizon color).
 		 */
 		rasty->SetClearColor(0.247784f, 0.247784f, 0.247784f, 1.0f);
-		rasty->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
+		rasty->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
 	}
 }
 

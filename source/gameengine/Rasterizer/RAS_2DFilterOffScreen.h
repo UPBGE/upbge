@@ -27,7 +27,7 @@
 #ifndef __RAS_2DFILTER_OFFSCREEN_H__
 #define __RAS_2DFILTER_OFFSCREEN_H__
 
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 
 #include <memory>
 
@@ -57,7 +57,7 @@ public:
 private:
 	const Flag m_flag;
 	const unsigned short m_colorSlots;
-	const RAS_IRasterizer::HdrType m_hdr;
+	const RAS_Rasterizer::HdrType m_hdr;
 
 	unsigned int m_width;
 	unsigned int m_height;
@@ -72,7 +72,7 @@ private:
 	void MipmapTexture();
 
 public:
-	RAS_2DFilterOffScreen(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height, RAS_IRasterizer::HdrType hdr);
+	RAS_2DFilterOffScreen(unsigned short colorSlots, Flag flag, unsigned int width, unsigned int height, RAS_Rasterizer::HdrType hdr);
 	virtual ~RAS_2DFilterOffScreen();
 
 	/** Update the off screen to the new canvas dimensions if allowed.
@@ -80,9 +80,9 @@ public:
 	 */
 	bool Update(RAS_ICanvas *canvas);
 	/// Bind the off screen and set the viewport before rendering to it.
-	void Bind(RAS_IRasterizer *rasty);
+	void Bind(RAS_Rasterizer *rasty);
 	/// Restore the off screen and mipmap textures.
-	void Unbind(RAS_IRasterizer *rasty, RAS_ICanvas *canvas);
+	void Unbind(RAS_Rasterizer *rasty, RAS_ICanvas *canvas);
 	/// Return true of the off screen is valid from the OpenGL rules for frame buffers.
 	bool GetValid() const;
 

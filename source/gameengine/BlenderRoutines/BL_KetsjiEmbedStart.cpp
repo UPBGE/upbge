@@ -159,45 +159,45 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 		Scene *scene = bfd ? bfd->curscene : (Scene *)BLI_findstring(&blenderdata->scene, startscenename, offsetof(ID, name) + 2);
 
-		RAS_IRasterizer::StereoMode stereoMode = RAS_IRasterizer::RAS_STEREO_NOSTEREO;
+		RAS_Rasterizer::StereoMode stereoMode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
 		if (scene) {
 			// Quad buffered needs a special window.
 			if (scene->gm.stereoflag == STEREO_ENABLED) {
-				if (scene->gm.stereomode != RAS_IRasterizer::RAS_STEREO_QUADBUFFERED) {
+				if (scene->gm.stereomode != RAS_Rasterizer::RAS_STEREO_QUADBUFFERED) {
 					switch (scene->gm.stereomode) {
 						case STEREO_QUADBUFFERED:
 						{
-							stereoMode = RAS_IRasterizer::RAS_STEREO_QUADBUFFERED;
+							stereoMode = RAS_Rasterizer::RAS_STEREO_QUADBUFFERED;
 							break;
 						}
 						case STEREO_ABOVEBELOW:
 						{
-							stereoMode = RAS_IRasterizer::RAS_STEREO_ABOVEBELOW;
+							stereoMode = RAS_Rasterizer::RAS_STEREO_ABOVEBELOW;
 							break;
 						}
 						case STEREO_INTERLACED:
 						{
-							stereoMode = RAS_IRasterizer::RAS_STEREO_INTERLACED;
+							stereoMode = RAS_Rasterizer::RAS_STEREO_INTERLACED;
 							break;
 						}
 						case STEREO_ANAGLYPH:
 						{
-							stereoMode = RAS_IRasterizer::RAS_STEREO_ANAGLYPH;
+							stereoMode = RAS_Rasterizer::RAS_STEREO_ANAGLYPH;
 							break;
 						}
 						case STEREO_SIDEBYSIDE:
 						{
-							stereoMode = RAS_IRasterizer::RAS_STEREO_SIDEBYSIDE;
+							stereoMode = RAS_Rasterizer::RAS_STEREO_SIDEBYSIDE;
 							break;
 						}
 						case STEREO_VINTERLACE:
 						{
-							stereoMode = RAS_IRasterizer::RAS_STEREO_VINTERLACE;
+							stereoMode = RAS_Rasterizer::RAS_STEREO_VINTERLACE;
 							break;
 						}
 						case STEREO_3DTVTOPBOTTOM:
 						{
-							stereoMode = RAS_IRasterizer::RAS_STEREO_3DTVTOPBOTTOM;
+							stereoMode = RAS_Rasterizer::RAS_STEREO_3DTVTOPBOTTOM;
 							break;
 						}
 					}

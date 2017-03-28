@@ -601,7 +601,7 @@ int main(
 #ifdef WIN32
 	bool closeConsole = true;
 #endif
-	RAS_IRasterizer::StereoMode stereomode = RAS_IRasterizer::RAS_STEREO_NOSTEREO;
+	RAS_Rasterizer::StereoMode stereomode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
 	bool stereoWindow = false;
 	bool stereoParFound = false;
 	int windowLeft = 100;
@@ -943,31 +943,31 @@ int main(
 
 					if (!strcmp(argv[i], "nostereo"))  // may not be redundant if the file has different setting
 					{
-						stereomode = RAS_IRasterizer::RAS_STEREO_NOSTEREO;
+						stereomode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
 					}
 
 					// only the hardware pageflip method needs a stereo window
 					else if (!strcmp(argv[i], "hwpageflip")) {
-						stereomode = RAS_IRasterizer::RAS_STEREO_QUADBUFFERED;
+						stereomode = RAS_Rasterizer::RAS_STEREO_QUADBUFFERED;
 						stereoWindow = true;
 					}
 					else if (!strcmp(argv[i], "syncdoubling"))
-						stereomode = RAS_IRasterizer::RAS_STEREO_ABOVEBELOW;
+						stereomode = RAS_Rasterizer::RAS_STEREO_ABOVEBELOW;
 
 					else if (!strcmp(argv[i], "3dtvtopbottom"))
-						stereomode = RAS_IRasterizer::RAS_STEREO_3DTVTOPBOTTOM;
+						stereomode = RAS_Rasterizer::RAS_STEREO_3DTVTOPBOTTOM;
 
 					else if (!strcmp(argv[i], "anaglyph"))
-						stereomode = RAS_IRasterizer::RAS_STEREO_ANAGLYPH;
+						stereomode = RAS_Rasterizer::RAS_STEREO_ANAGLYPH;
 
 					else if (!strcmp(argv[i], "sidebyside"))
-						stereomode = RAS_IRasterizer::RAS_STEREO_SIDEBYSIDE;
+						stereomode = RAS_Rasterizer::RAS_STEREO_SIDEBYSIDE;
 
 					else if (!strcmp(argv[i], "interlace"))
-						stereomode = RAS_IRasterizer::RAS_STEREO_INTERLACED;
+						stereomode = RAS_Rasterizer::RAS_STEREO_INTERLACED;
 
 					else if (!strcmp(argv[i], "vinterlace"))
-						stereomode = RAS_IRasterizer::RAS_STEREO_VINTERLACE;
+						stereomode = RAS_Rasterizer::RAS_STEREO_VINTERLACE;
 
 #if 0
 //					// future stuff
@@ -1157,41 +1157,41 @@ int main(
 								switch (scene->gm.stereomode) {
 									case STEREO_QUADBUFFERED:
 									{
-										stereomode = RAS_IRasterizer::RAS_STEREO_QUADBUFFERED;
+										stereomode = RAS_Rasterizer::RAS_STEREO_QUADBUFFERED;
 										break;
 									}
 									case STEREO_ABOVEBELOW:
 									{
-										stereomode = RAS_IRasterizer::RAS_STEREO_ABOVEBELOW;
+										stereomode = RAS_Rasterizer::RAS_STEREO_ABOVEBELOW;
 										break;
 									}
 									case STEREO_INTERLACED:
 									{
-										stereomode = RAS_IRasterizer::RAS_STEREO_INTERLACED;
+										stereomode = RAS_Rasterizer::RAS_STEREO_INTERLACED;
 										break;
 									}
 									case STEREO_ANAGLYPH:
 									{
-										stereomode = RAS_IRasterizer::RAS_STEREO_ANAGLYPH;
+										stereomode = RAS_Rasterizer::RAS_STEREO_ANAGLYPH;
 										break;
 									}
 									case STEREO_SIDEBYSIDE:
 									{
-										stereomode = RAS_IRasterizer::RAS_STEREO_SIDEBYSIDE;
+										stereomode = RAS_Rasterizer::RAS_STEREO_SIDEBYSIDE;
 										break;
 									}
 									case STEREO_VINTERLACE:
 									{
-										stereomode = RAS_IRasterizer::RAS_STEREO_VINTERLACE;
+										stereomode = RAS_Rasterizer::RAS_STEREO_VINTERLACE;
 										break;
 									}
 									case STEREO_3DTVTOPBOTTOM:
 									{
-										stereomode = RAS_IRasterizer::RAS_STEREO_3DTVTOPBOTTOM;
+										stereomode = RAS_Rasterizer::RAS_STEREO_3DTVTOPBOTTOM;
 										break;
 									}
 								}
-								if (stereomode == RAS_IRasterizer::RAS_STEREO_QUADBUFFERED)
+								if (stereomode == RAS_Rasterizer::RAS_STEREO_QUADBUFFERED)
 									stereoWindow = true;
 							}
 						}

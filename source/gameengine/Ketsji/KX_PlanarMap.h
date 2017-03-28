@@ -57,11 +57,11 @@ public:
 	void ComputeClipPlane(const MT_Vector3& mirrorObjWorldPos, const MT_Matrix3x3& mirrorObjWorldOri);
 
 	virtual void InvalidateProjectionMatrix();
-	virtual const MT_Matrix4x4& GetProjectionMatrix(RAS_IRasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
+	virtual const MT_Matrix4x4& GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
 													const RAS_Rect& viewport, const RAS_Rect& area);
 
-	virtual void BeginRenderFace(RAS_IRasterizer *rasty) override;
-	virtual void EndRenderFace(RAS_IRasterizer *rasty) override;
+	virtual void BeginRenderFace(RAS_Rasterizer *rasty) override;
+	virtual void EndRenderFace(RAS_Rasterizer *rasty) override;
 
 	const MT_Vector3& GetNormal() const;
 	void SetNormal(const MT_Vector3& normal);

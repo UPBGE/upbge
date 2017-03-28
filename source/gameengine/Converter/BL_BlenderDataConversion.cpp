@@ -62,7 +62,7 @@
 #include "PHY_IPhysicsEnvironment.h"
 
 #include "RAS_MeshObject.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_ILightObject.h"
 
 #include "KX_ConvertActuators.h"
@@ -920,7 +920,7 @@ static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene,
 	return lodManager;
 }
 
-static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_IRasterizer *rasterizer, KX_BlenderSceneConverter *converter)
+static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_Rasterizer *rasterizer, KX_BlenderSceneConverter *converter)
 {
 	RAS_ILightObject *lightobj = rasterizer->CreateLight();
 	KX_LightObject *gamelight;
@@ -992,7 +992,7 @@ static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, KX_Blen
 static KX_GameObject *gameobject_from_blenderobject(
 								Object *ob, 
 								KX_Scene *kxscene, 
-								RAS_IRasterizer *rendertools,
+								RAS_Rasterizer *rendertools,
 								KX_BlenderSceneConverter *converter,
 								bool libloading) 
 {
@@ -1423,7 +1423,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							  KX_Scene* kxscene,
 							  KX_KetsjiEngine* ketsjiEngine,
 							  e_PhysicsEngine	physics_engine,
-							  RAS_IRasterizer* rendertools,
+							  RAS_Rasterizer* rendertools,
 							  RAS_ICanvas* canvas,
 							  KX_BlenderSceneConverter* converter,
 							  bool alwaysUseExpandFraming,

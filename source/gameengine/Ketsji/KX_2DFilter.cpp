@@ -144,7 +144,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, depth, width
 	int depth = 0;
 	int width = -1;
 	int height = -1;
-	int hdr = RAS_IRasterizer::RAS_HDR_NONE;
+	int hdr = RAS_Rasterizer::RAS_HDR_NONE;
 	int mipmap = 0;
 	int flag = 0;
 
@@ -165,7 +165,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, depth, width
 		return nullptr;
 	}
 
-	if (hdr < 0 || hdr > RAS_IRasterizer::RAS_HDR_MAX) {
+	if (hdr < 0 || hdr > RAS_Rasterizer::RAS_HDR_MAX) {
 		PyErr_SetString(PyExc_TypeError, "filter.addOffScreen(...): KX_2DFilter, invalid hdr value.");
 		return nullptr;
 	}
@@ -193,7 +193,7 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, addOffScreen, " addOffScreen(slots, depth, width
 	}
 
 	KX_2DFilterOffScreen *offScreen = new KX_2DFilterOffScreen(slots, (RAS_2DFilterOffScreen::Flag)flag, width, height,
-															   (RAS_IRasterizer::HdrType)hdr);
+															   (RAS_Rasterizer::HdrType)hdr);
 
 	SetOffScreen(offScreen);
 

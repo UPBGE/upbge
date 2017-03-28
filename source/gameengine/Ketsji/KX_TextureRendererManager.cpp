@@ -31,7 +31,7 @@
 #include "KX_CubeMap.h"
 #include "KX_PlanarMap.h"
 
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_OffScreen.h"
 #include "RAS_Texture.h"
 
@@ -109,7 +109,7 @@ void KX_TextureRendererManager::AddRenderer(RendererType type, RAS_Texture *text
 	renderer->AddTextureUser(texture);
 }
 
-bool KX_TextureRendererManager::RenderRenderer(RAS_IRasterizer *rasty, KX_TextureRenderer *renderer,
+bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_TextureRenderer *renderer,
 											   KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	KX_GameObject *viewpoint = renderer->GetViewpointObject();
@@ -187,24 +187,24 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_IRasterizer *rasty, KX_Textur
 	return true;
 }
 
-void KX_TextureRendererManager::Render(RendererCategory category, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen,
+void KX_TextureRendererManager::Render(RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
 									   KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	const std::vector<KX_TextureRenderer *>& renderers = m_renderers[category];
-	if (renderers.size() == 0 || rasty->GetDrawingMode() != RAS_IRasterizer::RAS_TEXTURED) {
+	if (renderers.size() == 0 || rasty->GetDrawingMode() != RAS_Rasterizer::RAS_TEXTURED) {
 		return;
 	}
 
-	const RAS_IRasterizer::DrawType drawmode = rasty->GetDrawingMode();
-	rasty->SetDrawingMode(RAS_IRasterizer::RAS_RENDERER);
+	const RAS_Rasterizer::DrawType drawmode = rasty->GetDrawingMode();
+	rasty->SetDrawingMode(RAS_Rasterizer::RAS_RENDERER);
 
 	// Disable scissor to not bother with scissor box.
-	rasty->Disable(RAS_IRasterizer::RAS_SCISSOR_TEST);
+	rasty->Disable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
 	// Copy current stereo mode.
-	const RAS_IRasterizer::StereoMode steremode = rasty->GetStereoMode();
+	const RAS_Rasterizer::StereoMode steremode = rasty->GetStereoMode();
 	// Disable stereo for realtime renderer.
-	rasty->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
+	rasty->SetStereoMode(RAS_Rasterizer::RAS_STEREO_NOSTEREO);
 
 	// Check if at least one renderer was rendered.
 	bool rendered = false;
@@ -215,7 +215,7 @@ void KX_TextureRendererManager::Render(RendererCategory category, RAS_IRasterize
 	// Restore previous stereo mode.
 	rasty->SetStereoMode(steremode);
 
-	rasty->Enable(RAS_IRasterizer::RAS_SCISSOR_TEST);
+	rasty->Enable(RAS_Rasterizer::RAS_SCISSOR_TEST);
 
 	rasty->SetDrawingMode(drawmode);
 

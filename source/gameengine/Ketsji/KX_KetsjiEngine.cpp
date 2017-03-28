@@ -49,7 +49,7 @@
 
 #include "RAS_BucketManager.h"
 #include "RAS_Rect.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_OffScreen.h"
 #include "RAS_ILightObject.h"
@@ -191,7 +191,7 @@ void KX_KetsjiEngine::SetCanvas(RAS_ICanvas *canvas)
 	m_canvas = canvas;
 }
 
-void KX_KetsjiEngine::SetRasterizer(RAS_IRasterizer *rasterizer)
+void KX_KetsjiEngine::SetRasterizer(RAS_Rasterizer *rasterizer)
 {
 	BLI_assert(rasterizer);
 	m_rasterizer = rasterizer;
@@ -528,10 +528,10 @@ void KX_KetsjiEngine::Render()
 	m_rasterizer->UpdateOffScreens(m_canvas);
 
 	// The current bound off screen types.
-	RAS_IRasterizer::OffScreenType ofsTypes[] = {
-		RAS_IRasterizer::RAS_OFFSCREEN_EYE_LEFT0,
-		RAS_IRasterizer::RAS_OFFSCREEN_EYE_RIGHT0,
-		RAS_IRasterizer::RAS_OFFSCREEN_RENDER
+	RAS_Rasterizer::OffScreenType ofsTypes[] = {
+		RAS_Rasterizer::RAS_OFFSCREEN_EYE_LEFT0,
+		RAS_Rasterizer::RAS_OFFSCREEN_EYE_RIGHT0,
+		RAS_Rasterizer::RAS_OFFSCREEN_RENDER
 	};
 
 	// Current off screen used for bucket rendering.
@@ -550,15 +550,15 @@ void KX_KetsjiEngine::Render()
 	    framesettings.BarBlue(),
 	    1.0f);
 	// clear the -whole- viewport
-	m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+	m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT | RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 
-	const RAS_IRasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
+	const RAS_Rasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
 	// Set to true when each eye needs to be rendered in a separated off screen.
-	const bool renderpereye = stereomode == RAS_IRasterizer::RAS_STEREO_INTERLACED ||
-							  stereomode == RAS_IRasterizer::RAS_STEREO_VINTERLACE ||
-							  stereomode == RAS_IRasterizer::RAS_STEREO_ANAGLYPH;
+	const bool renderpereye = stereomode == RAS_Rasterizer::RAS_STEREO_INTERLACED ||
+							  stereomode == RAS_Rasterizer::RAS_STEREO_VINTERLACE ||
+							  stereomode == RAS_Rasterizer::RAS_STEREO_ANAGLYPH;
 
-	const unsigned short numeyepass = (stereomode != RAS_IRasterizer::RAS_STEREO_NOSTEREO) ? 2 : 1;
+	const unsigned short numeyepass = (stereomode != RAS_Rasterizer::RAS_STEREO_NOSTEREO) ? 2 : 1;
 
 	// Used to detect when a camera is the first rendered an then doesn't request a depth clear.
 	unsigned short pass = 0;
@@ -578,7 +578,7 @@ void KX_KetsjiEngine::Render()
 		m_rasterizer->SetAuxilaryClientInfo(scene);
 
 		for (unsigned short eyepass = 0; eyepass < numeyepass; ++eyepass) {
-			m_rasterizer->SetEye((eyepass == 0) ? RAS_IRasterizer::RAS_STEREO_LEFTEYE : RAS_IRasterizer::RAS_STEREO_RIGHTEYE);
+			m_rasterizer->SetEye((eyepass == 0) ? RAS_Rasterizer::RAS_STEREO_LEFTEYE : RAS_Rasterizer::RAS_STEREO_RIGHTEYE);
 			// set the area used for rendering (stereo can assign only a subset)
 			m_rasterizer->SetRenderArea(m_canvas);
 
@@ -588,7 +588,7 @@ void KX_KetsjiEngine::Render()
 				offScreen->Bind();
 				// Clear eye off screen only before the first scene render.
 				if (firstscene) {
-					m_rasterizer->Clear(RAS_IRasterizer::RAS_COLOR_BUFFER_BIT | RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+					m_rasterizer->Clear(RAS_Rasterizer::RAS_COLOR_BUFFER_BIT | RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 				}
 			}
 
@@ -609,12 +609,12 @@ void KX_KetsjiEngine::Render()
 
 			// Process filters per eye off screen.
 			if (renderpereye) {
-				RAS_IRasterizer::OffScreenType target;
+				RAS_Rasterizer::OffScreenType target;
 				if (offScreen->GetSamples() > 0) {
 					/* Only RAS_OFFSCREEN_EYE_[LEFT/RIGHT]0 has possible multisamples so we target
 					 * RAS_OFFSCREEN_EYE_[LEFT/RIGHT]1 if it's the last scene. */
 					if (lastscene) {
-						target = RAS_IRasterizer::NextEyeOffScreen(ofsTypes[eyepass]);
+						target = RAS_Rasterizer::NextEyeOffScreen(ofsTypes[eyepass]);
 					}
 					/* In case of multisamples and filters we're sure that a blit to RAS_OFFSCREEN_FILTER0
 					 * will be done so we can target the same off screen than in input of the filter processing. */
@@ -623,7 +623,7 @@ void KX_KetsjiEngine::Render()
 					}
 				}
 				else {
-					target = RAS_IRasterizer::NextEyeOffScreen(ofsTypes[eyepass]);
+					target = RAS_Rasterizer::NextEyeOffScreen(ofsTypes[eyepass]);
 				}
 
 				// Render filters and get output off screen.
@@ -638,13 +638,13 @@ void KX_KetsjiEngine::Render()
 			/* Choose final render off screen target. If the current off screen is using multisamples we
 			 * are sure that it will be copied to a non-multisamples off screen before render the filters.
 			 * In this case the targeted off screen is the same as the current off screen. */
-			RAS_IRasterizer::OffScreenType target;
+			RAS_Rasterizer::OffScreenType target;
 			if (offScreen->GetSamples() > 0) {
 				/* If the last scene is rendered it's useless to specify a multisamples off screen, we use then
 				 * RAS_OFFSCREEN_FINAL and avoid an extra off screen blit. */
 				if (lastscene) {
-					// Equivalent to RAS_IRasterizer::NextRenderOffScreen(ofsTypes[2]).
-					target = RAS_IRasterizer::RAS_OFFSCREEN_FINAL;
+					// Equivalent to RAS_Rasterizer::NextRenderOffScreen(ofsTypes[2]).
+					target = RAS_Rasterizer::RAS_OFFSCREEN_FINAL;
 				}
 				else {
 					target = ofsTypes[2];
@@ -653,7 +653,7 @@ void KX_KetsjiEngine::Render()
 			/* In case of non-multisamples a ping pong per scene render is made between RAS_OFFSCREEN_RENDER
 			 * and RAS_OFFSCREEN_FINAL. */
 			else {
-				target = RAS_IRasterizer::NextRenderOffScreen(ofsTypes[2]);
+				target = RAS_Rasterizer::NextRenderOffScreen(ofsTypes[2]);
 			}
 
 			// Render filters and get output off screen.
@@ -666,8 +666,8 @@ void KX_KetsjiEngine::Render()
 
 	// Compositing per eye off screens to screen.
 	if (renderpereye) {
-		RAS_OffScreen *leftofs = m_rasterizer->GetOffScreen(ofsTypes[RAS_IRasterizer::RAS_STEREO_LEFTEYE]);
-		RAS_OffScreen *rightofs = m_rasterizer->GetOffScreen(ofsTypes[RAS_IRasterizer::RAS_STEREO_RIGHTEYE]);
+		RAS_OffScreen *leftofs = m_rasterizer->GetOffScreen(ofsTypes[RAS_Rasterizer::RAS_STEREO_LEFTEYE]);
+		RAS_OffScreen *rightofs = m_rasterizer->GetOffScreen(ofsTypes[RAS_Rasterizer::RAS_STEREO_RIGHTEYE]);
 		m_rasterizer->DrawStereoOffScreen(m_canvas, leftofs, rightofs);
 	}
 	// Else simply draw the off screen to screen.
@@ -813,7 +813,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 		raslight->Update();
 
-		if (light->GetVisible() && m_rasterizer->GetDrawingMode() == RAS_IRasterizer::RAS_TEXTURED &&
+		if (light->GetVisible() && m_rasterizer->GetDrawingMode() == RAS_Rasterizer::RAS_TEXTURED &&
 			raslight->HasShadowBuffer() && raslight->NeedShadowUpdate())
 		{
 			/* make temporary camera */
@@ -824,8 +824,8 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			MT_Transform camtrans;
 
 			/* switch drawmode for speed */
-			RAS_IRasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
-			m_rasterizer->SetDrawingMode(RAS_IRasterizer::RAS_SHADOW);
+			RAS_Rasterizer::DrawType drawmode = m_rasterizer->GetDrawingMode();
+			m_rasterizer->SetDrawingMode(RAS_Rasterizer::RAS_SHADOW);
 
 			/* binds framebuffer object, sets up camera .. */
 			raslight->BindShadowBuffer(m_canvas, cam, camtrans);
@@ -840,7 +840,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			SG_SetActiveStage(SG_STAGE_RENDER);
 
 			/* render */
-			m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT | RAS_IRasterizer::RAS_COLOR_BUFFER_BIT);
+			m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT | RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
 			// Send a nullptr off screen because the viewport is binding it's using its own private one.
 			scene->RenderBuckets(camtrans, m_rasterizer, nullptr);
 
@@ -965,7 +965,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 	/* Clear the depth after setting the scene viewport/scissor
 	 * if it's not the first render pass. */
 	if (pass > 0) {
-		m_rasterizer->Clear(RAS_IRasterizer::RAS_DEPTH_BUFFER_BIT);
+		m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 	}
 
 	// see KX_BlenderMaterial::Activate

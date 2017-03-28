@@ -25,7 +25,7 @@
  */
 
 #include "RAS_ICanvas.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_OffScreen.h"
 #include "RAS_2DFilterManager.h"
 #include "RAS_2DFilter.h"
@@ -81,17 +81,17 @@ RAS_2DFilter *RAS_2DFilterManager::GetFilterPass(unsigned int passIndex)
 	return (it != m_filters.end()) ? it->second : nullptr;
 }
 
-RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
+RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs)
 {
 	if (m_filters.size() == 0) {
 		// No filters, discard.
 		return inputofs;
 	}
 
-	rasty->Disable(RAS_IRasterizer::RAS_CULL_FACE);
-	rasty->SetDepthFunc(RAS_IRasterizer::RAS_ALWAYS);
-	rasty->Disable(RAS_IRasterizer::RAS_BLEND);
-	rasty->Disable(RAS_IRasterizer::RAS_ALPHA_TEST);
+	rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
+	rasty->SetDepthFunc(RAS_Rasterizer::RAS_ALWAYS);
+	rasty->Disable(RAS_Rasterizer::RAS_BLEND);
+	rasty->Disable(RAS_Rasterizer::RAS_ALPHA_TEST);
 
 	rasty->SetLines(false);
 
@@ -100,7 +100,7 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_IC
 	/* Set source off screen to RAS_OFFSCREEN_FILTER0 in case of multisample and blit,
 	 * else keep the original source off screen. */
 	if (inputofs->GetSamples()) {
-		previousofs = rasty->GetOffScreen(RAS_IRasterizer::RAS_OFFSCREEN_FILTER0);
+		previousofs = rasty->GetOffScreen(RAS_Rasterizer::RAS_OFFSCREEN_FILTER0);
 		rasty->DrawOffScreen(inputofs, previousofs);
 	}
 
@@ -131,7 +131,7 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_IC
 		}
 		else {
 			// Else render to the next off screen compared to the input off screen.
-			ftargetofs = rasty->GetOffScreen(RAS_IRasterizer::NextFilterOffScreen(colorofs->GetType()));
+			ftargetofs = rasty->GetOffScreen(RAS_Rasterizer::NextFilterOffScreen(colorofs->GetType()));
 		}
 
 		/* Get the output off screen of the filter, could be the same as the input off screen
@@ -141,8 +141,8 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_IRasterizer *rasty, RAS_IC
 		filter->End();
 	}
 
-	rasty->SetDepthFunc(RAS_IRasterizer::RAS_LEQUAL);
-	rasty->Enable(RAS_IRasterizer::RAS_CULL_FACE);
+	rasty->SetDepthFunc(RAS_Rasterizer::RAS_LEQUAL);
+	rasty->Enable(RAS_Rasterizer::RAS_CULL_FACE);
 
 	return previousofs;
 }

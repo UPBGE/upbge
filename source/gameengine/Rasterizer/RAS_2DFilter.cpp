@@ -23,7 +23,7 @@
 #include "RAS_2DFilter.h"
 #include "RAS_2DFilterManager.h"
 #include "RAS_2DFilterOffScreen.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_OffScreen.h"
 #include "RAS_Rect.h"
@@ -105,7 +105,7 @@ void RAS_2DFilter::Initialize(RAS_ICanvas *canvas)
 	}
 }
 
-RAS_OffScreen *RAS_2DFilter::Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *depthofs,
+RAS_OffScreen *RAS_2DFilter::Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *depthofs,
 						 RAS_OffScreen *colorofs, RAS_OffScreen *targetofs)
 {
 	/* The off screen the filter rendered to. If the filter is invalid or uses a custom

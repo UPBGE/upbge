@@ -14,7 +14,7 @@
 
 #define SORT_UNIFORMS 1
 
-class RAS_IRasterizer;
+class RAS_Rasterizer;
 struct GPUShader;
 
 /**
@@ -159,7 +159,7 @@ public:
 	void DeleteShader();
 
 	// Update predefined uniforms each render call
-	void Update(RAS_IRasterizer *rasty, MT_Matrix4x4 model);
+	void Update(RAS_Rasterizer *rasty, MT_Matrix4x4 model);
 
 	void SetUniformfv(int location, int type, float *param, int size, unsigned int count, bool transpose = false);
 	void SetUniformiv(int location, int type, int *param, int size, unsigned int count, bool transpose = false);

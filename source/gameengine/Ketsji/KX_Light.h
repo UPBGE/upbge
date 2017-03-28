@@ -39,7 +39,7 @@ struct Scene;
 struct Base;
 class KX_Scene;
 class KX_Camera;
-class RAS_IRasterizer;
+class RAS_Rasterizer;
 class RAS_ILightObject;
 class MT_Transform;
 
@@ -49,14 +49,14 @@ class KX_LightObject : public KX_GameObject
 protected:
 	RAS_ILightObject *m_lightobj;
 	/// Needed for registering and replication of lightobj.
-	RAS_IRasterizer *m_rasterizer;
+	RAS_Rasterizer *m_rasterizer;
 	Scene *m_blenderscene;
 	Base *m_base;
 
 	bool m_showShadowFrustum;
 
 public:
-	KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, RAS_IRasterizer *rasterizer, RAS_ILightObject *lightobj);
+	KX_LightObject(void *sgReplicationInfo, SG_Callbacks callbacks, RAS_Rasterizer *rasterizer, RAS_ILightObject *lightobj);
 	virtual ~KX_LightObject();
 
 	virtual CValue *GetReplica();

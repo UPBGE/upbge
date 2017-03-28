@@ -27,7 +27,7 @@
 #ifndef __RAS_OFFSCREEN_H__
 #define __RAS_OFFSCREEN_H__
 
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 
 #include "GPU_framebuffer.h"
 
@@ -40,14 +40,14 @@ private:
 	/// All the off screens used.
 	GPUOffScreen *m_offScreen;
 	/// The off screen type, render, final, filter ect...
-	RAS_IRasterizer::OffScreenType m_type;
+	RAS_Rasterizer::OffScreenType m_type;
 
 	/// The last bound off screen, set to nullptr in RestoreScreen().
 	static RAS_OffScreen *lastOffScreen;
 
 public:
 	RAS_OffScreen(unsigned int width, unsigned int height, int samples, GPUHDRType hdrType, GPUOffScreenMode mode, char errOut[256],
-				  RAS_IRasterizer::OffScreenType type);
+				  RAS_Rasterizer::OffScreenType type);
 	~RAS_OffScreen();
 
 	bool GetValid() const;
@@ -69,7 +69,7 @@ public:
 	int GetSamples() const;
 	unsigned GetWidth() const;
 	unsigned GetHeight() const;
-	RAS_IRasterizer::OffScreenType GetType() const;
+	RAS_Rasterizer::OffScreenType GetType() const;
 
 	GPUTexture *GetDepthTexture();
 

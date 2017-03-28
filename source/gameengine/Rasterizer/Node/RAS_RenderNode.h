@@ -31,7 +31,7 @@ class RAS_BucketManager;
 class RAS_MaterialBucket;
 class RAS_DisplayArrayBucket;
 class RAS_MeshSlot;
-class RAS_IRasterizer;
+class RAS_Rasterizer;
 class MT_Transform;
 
 class RAS_MaterialDownwardNode;
@@ -47,11 +47,11 @@ class RAS_RenderNodeArguments
 {
 public:
 	const MT_Transform& m_trans;
-	RAS_IRasterizer *m_rasty;
+	RAS_Rasterizer *m_rasty;
 	bool m_sort;
 	bool m_shaderOverride;
 
-	RAS_RenderNodeArguments(const MT_Transform& trans, RAS_IRasterizer *rasty, bool sort, bool shaderOverride)
+	RAS_RenderNodeArguments(const MT_Transform& trans, RAS_Rasterizer *rasty, bool sort, bool shaderOverride)
 		:m_trans(trans),
 		m_rasty(rasty),
 		m_sort(sort),

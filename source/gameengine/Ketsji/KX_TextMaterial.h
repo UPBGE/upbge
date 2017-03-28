@@ -36,11 +36,11 @@ public:
 	KX_TextMaterial();
 	virtual ~KX_TextMaterial();
 
-	virtual void Activate(RAS_IRasterizer *rasty);
-	virtual void Desactivate(RAS_IRasterizer *rasty);
-	virtual void ActivateInstancing(RAS_IRasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
+	virtual void Activate(RAS_Rasterizer *rasty);
+	virtual void Desactivate(RAS_Rasterizer *rasty);
+	virtual void ActivateInstancing(RAS_Rasterizer *rasty, void *matrixoffset, void *positionoffset, void *coloroffset, unsigned int stride);
 	virtual void DesactivateInstancing();
-	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_IRasterizer *rasty);
+	virtual void ActivateMeshSlot(RAS_MeshSlot *ms, RAS_Rasterizer *rasty);
 
 	virtual const std::string GetTextureName() const;
 	virtual Material *GetBlenderMaterial() const;
@@ -54,7 +54,7 @@ public:
 	virtual void UpdateIPO(MT_Vector4 rgba, MT_Vector3 specrgb, MT_Scalar hard, MT_Scalar spec, MT_Scalar ref,
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha);
 
-	virtual const RAS_IRasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const;
+	virtual const RAS_Rasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const;
 
 	virtual void Replace_IScene(SCA_IScene *val);
 

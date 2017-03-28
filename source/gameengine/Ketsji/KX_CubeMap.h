@@ -53,7 +53,7 @@ public:
 	virtual std::string GetName();
 
 	virtual void InvalidateProjectionMatrix();
-	virtual const MT_Matrix4x4& GetProjectionMatrix(RAS_IRasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
+	virtual const MT_Matrix4x4& GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
 													const RAS_Rect& viewport, const RAS_Rect& area);
 
 	virtual bool SetupCamera(KX_Camera *sceneCamera, KX_Camera *camera);

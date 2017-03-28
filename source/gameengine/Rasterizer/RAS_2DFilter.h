@@ -29,7 +29,7 @@
 #include <memory>
 
 class RAS_2DFilterManager;
-class RAS_IRasterizer;
+class RAS_Rasterizer;
 class RAS_ICanvas;
 class RAS_OffScreen;
 class RAS_2DFilterOffScreen;
@@ -98,7 +98,7 @@ public:
 	 * \param targetofs The off screen used to draw the filter to.
 	 * \return The off screen to use as input for the next filter.
 	 */
-	RAS_OffScreen *Start(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *detphofs,
+	RAS_OffScreen *Start(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *detphofs,
 			   RAS_OffScreen *colorofs, RAS_OffScreen *targetofs);
 
 	/// Finalizes the execution stage of the filter.

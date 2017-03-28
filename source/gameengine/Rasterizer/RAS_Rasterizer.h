@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file RAS_IRasterizer.h
+/** \file RAS_Rasterizer.h
  *  \ingroup bgerast
  */
 
@@ -65,7 +65,7 @@ struct GPUShader;
 /**
  * 3D rendering device context interface. 
  */
-class RAS_IRasterizer
+class RAS_Rasterizer
 {
 public:
 	/**
@@ -291,7 +291,7 @@ private:
 		~OffScreens();
 
 		void Update(RAS_ICanvas *canvas);
-		RAS_OffScreen *GetOffScreen(RAS_IRasterizer::OffScreenType type);
+		RAS_OffScreen *GetOffScreen(RAS_Rasterizer::OffScreenType type);
 	};
 
 	// All info used to compute the ray cast transform matrix.
@@ -385,8 +385,8 @@ private:
 	void DisableLights();
 
 public:
-	RAS_IRasterizer();
-	virtual ~RAS_IRasterizer();
+	RAS_Rasterizer();
+	virtual ~RAS_Rasterizer();
 
 	/**
 	 * Enable capability
@@ -716,7 +716,7 @@ public:
 	/// Set the material attributes list used by storages.
 	void SetAttribs(const TexCoGenList& attribs);
 	/// Set the material attribut layers used with material attributes by storages.
-	void SetAttribLayers(const RAS_IRasterizer::AttribLayerList& layers);
+	void SetAttribLayers(const RAS_Rasterizer::AttribLayerList& layers);
 
 	const MT_Matrix4x4 &GetViewMatrix() const;
 	const MT_Matrix4x4 &GetViewInvMatrix() const;

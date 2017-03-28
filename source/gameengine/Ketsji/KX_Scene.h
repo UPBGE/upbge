@@ -78,7 +78,7 @@ class RAS_BoundingBoxManager;
 class RAS_BucketManager;
 class RAS_MaterialBucket;
 class RAS_IPolyMaterial;
-class RAS_IRasterizer;
+class RAS_Rasterizer;
 class RAS_DebugDraw;
 class RAS_OffScreen;
 class RAS_2DFilterManager;
@@ -285,7 +285,7 @@ protected:
 	/**
 	 * Visibility testing functions.
 	 */
-	void MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj, KX_Camera*cam, int layer=0);
+	void MarkVisible(RAS_Rasterizer* rasty, KX_GameObject* gameobj, KX_Camera*cam, int layer=0);
 	static void PhysicsCullingCallback(KX_ClientObjectInfo* objectInfo, void* cullingInfo);
 
 	struct Scene* m_blenderScene;
@@ -317,8 +317,8 @@ public:
 	KX_TextureRendererManager *GetTextureRendererManager() const;
 	RAS_BoundingBoxManager *GetBoundingBoxManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
-	void RenderBuckets(const MT_Transform& cameratransform, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen);
-	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen,
+	void RenderBuckets(const MT_Transform& cameratransform, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen);
+	void RenderTextureRenderers(KX_TextureRendererManager::RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
 								KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
 
 	/**
@@ -481,7 +481,7 @@ public:
 
 	void SetWorldInfo(class KX_WorldInfo* wi);
 	KX_WorldInfo* GetWorldInfo();
-	void CalculateVisibleMeshes(RAS_IRasterizer* rasty, KX_Camera *cam, int layer=0);
+	void CalculateVisibleMeshes(RAS_Rasterizer* rasty, KX_Camera *cam, int layer=0);
 	void DrawDebug(RAS_DebugDraw& debugDraw);
 	KX_Camera* GetpCamera();
 	KX_BlenderSceneConverter *GetSceneConverter() { return m_sceneConverter; }
@@ -541,7 +541,7 @@ public:
 	 * 2D Filters
 	 */
 	RAS_2DFilterManager *Get2DFilterManager() const;
-	RAS_OffScreen *Render2DFilters(RAS_IRasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
+	RAS_OffScreen *Render2DFilters(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 
 	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 

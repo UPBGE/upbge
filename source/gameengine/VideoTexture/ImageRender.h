@@ -38,7 +38,7 @@
 #include "KX_Camera.h"
 #include "DNA_screen_types.h"
 #include "RAS_ICanvas.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_ISync.h"
 
 #include "ImageViewport.h"
@@ -128,7 +128,7 @@ protected:
 	/// canvas
 	RAS_ICanvas* m_canvas;
 	/// rasterizer
-	RAS_IRasterizer* m_rasterizer;
+	RAS_Rasterizer* m_rasterizer;
 	/// engine
 	KX_KetsjiEngine* m_engine;
 

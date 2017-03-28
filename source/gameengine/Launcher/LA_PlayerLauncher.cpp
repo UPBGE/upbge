@@ -59,7 +59,7 @@ extern "C" {
 #include "CM_Message.h"
 
 LA_PlayerLauncher::LA_PlayerLauncher(GHOST_ISystem *system, GHOST_IWindow *window, Main *maggie, Scene *scene, GlobalSettings *gs,
-								 RAS_IRasterizer::StereoMode stereoMode, int samples, int argc, char **argv, const std::string& pythonMainLoop)
+								 RAS_Rasterizer::StereoMode stereoMode, int samples, int argc, char **argv, const std::string& pythonMainLoop)
 	:LA_Launcher(system, maggie, scene, gs, stereoMode, samples, argc, argv),
 	m_mainWindow(window),
 	m_pythonMainLoop(pythonMainLoop)
@@ -101,16 +101,16 @@ void LA_PlayerLauncher::RunPythonMainLoop(const std::string& pythonCode)
 	LA_Launcher::RunPythonMainLoop(pythonCode);
 }
 
-RAS_IRasterizer::DrawType LA_PlayerLauncher::GetRasterizerDrawMode()
+RAS_Rasterizer::DrawType LA_PlayerLauncher::GetRasterizerDrawMode()
 {
 	const SYS_SystemHandle& syshandle = SYS_GetSystem();
 	const bool wireframe = SYS_GetCommandLineInt(syshandle, "wireframe", 0);
 
 	if (wireframe) {
-		return RAS_IRasterizer::RAS_WIREFRAME;
+		return RAS_Rasterizer::RAS_WIREFRAME;
 	}
 
-	return RAS_IRasterizer::RAS_TEXTURED;
+	return RAS_Rasterizer::RAS_TEXTURED;
 }
 
 bool LA_PlayerLauncher::GetUseAlwaysExpandFraming()
@@ -167,7 +167,7 @@ bool LA_PlayerLauncher::EngineNextFrame()
 	return LA_Launcher::EngineNextFrame();
 }
 
-RAS_ICanvas *LA_PlayerLauncher::CreateCanvas(RAS_IRasterizer *rasty)
+RAS_ICanvas *LA_PlayerLauncher::CreateCanvas(RAS_Rasterizer *rasty)
 {
 	return (new GPG_Canvas(rasty, m_mainWindow));
 }

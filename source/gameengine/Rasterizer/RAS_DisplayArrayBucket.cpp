@@ -35,7 +35,7 @@
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Deformer.h"
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_IStorageInfo.h"
 #include "RAS_InstancingBuffer.h"
 #include "RAS_BucketManager.h"
@@ -183,7 +183,7 @@ bool RAS_DisplayArrayBucket::UseBatching() const
 	return (m_displayArray && m_displayArray->GetType() == RAS_IDisplayArray::BATCHING);
 }
 
-void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_IRasterizer *rasty)
+void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 {
 	// Reset values to default.
 	m_useVao = true;
@@ -221,7 +221,7 @@ void RAS_DisplayArrayBucket::SetDisplayArrayUnmodified()
 	}
 }
 
-void RAS_DisplayArrayBucket::SetPolygonsModified(RAS_IRasterizer *rasty)
+void RAS_DisplayArrayBucket::SetPolygonsModified(RAS_Rasterizer *rasty)
 {
 	if (m_storageInfo) {
 		m_storageInfo->SetDataModified(rasty->GetDrawingMode(), RAS_IStorageInfo::INDEX_DATA);
@@ -257,13 +257,13 @@ void RAS_DisplayArrayBucket::GenerateAttribLayers()
 	m_attribLayers = polymat->GetAttribLayers(layersInfo);
 }
 
-void RAS_DisplayArrayBucket::SetAttribLayers(RAS_IRasterizer *rasty) const
+void RAS_DisplayArrayBucket::SetAttribLayers(RAS_Rasterizer *rasty) const
 {
 	rasty->SetAttribLayers(m_attribLayers);
 }
 
 void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode *downwardRoot, RAS_MaterialUpwardNode *upwardRoot,
-										  RAS_UpwardTreeLeafs *upwardLeafs, RAS_IRasterizer *rasty, bool sort, bool instancing)
+										  RAS_UpwardTreeLeafs *upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing)
 {
 	if (m_activeMeshSlots.size() == 0) {
 		return;
@@ -302,7 +302,7 @@ void RAS_DisplayArrayBucket::UnbindUpwardNode(const RAS_RenderNodeArguments& arg
 
 void RAS_DisplayArrayBucket::RunDownwardNode(const RAS_RenderNodeArguments& args)
 {
-	RAS_IRasterizer *rasty = args.m_rasty;
+	RAS_Rasterizer *rasty = args.m_rasty;
 	rasty->BindPrimitives(this);
 
 	for (RAS_MeshSlot *ms : m_activeMeshSlots) {
@@ -322,7 +322,7 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_RenderNodeArguments& ar
 		m_instancingBuffer = new RAS_InstancingBuffer();
 	}
 
-	RAS_IRasterizer *rasty = args.m_rasty;
+	RAS_Rasterizer *rasty = args.m_rasty;
 	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
 
 	// Bind the instancing buffer to work on it.
@@ -431,7 +431,7 @@ void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_RenderNodeArguments& args
 		}
 	}
 
-	RAS_IRasterizer *rasty = args.m_rasty;
+	RAS_Rasterizer *rasty = args.m_rasty;
 	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
 
 	/* Because the batching use setting for all instances we use the original alpha blend.

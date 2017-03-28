@@ -29,7 +29,7 @@
 #include "KX_PyMath.h"
 #include "KX_Globals.h"
 
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 #include "RAS_Texture.h"
 
 KX_PlanarMap::KX_PlanarMap(EnvMap *env, KX_GameObject *viewpoint)
@@ -78,7 +78,7 @@ void KX_PlanarMap::InvalidateProjectionMatrix()
 	m_projections.clear();
 }
 
-const MT_Matrix4x4& KX_PlanarMap::GetProjectionMatrix(RAS_IRasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
+const MT_Matrix4x4& KX_PlanarMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_Scene *scene, KX_Camera *sceneCamera,
 													  const RAS_Rect& viewport, const RAS_Rect& area)
 {
 	std::unordered_map<KX_Camera *, MT_Matrix4x4>::const_iterator projectionit = m_projections.find(sceneCamera);
@@ -144,7 +144,7 @@ const MT_Matrix4x4& KX_PlanarMap::GetProjectionMatrix(RAS_IRasterizer *rasty, KX
 	return projection;
 }
 
-void KX_PlanarMap::BeginRenderFace(RAS_IRasterizer *rasty)
+void KX_PlanarMap::BeginRenderFace(RAS_Rasterizer *rasty)
 {
 	KX_TextureRenderer::BeginRenderFace(rasty);
 
@@ -157,7 +157,7 @@ void KX_PlanarMap::BeginRenderFace(RAS_IRasterizer *rasty)
 	}
 }
 
-void KX_PlanarMap::EndRenderFace(RAS_IRasterizer *rasty)
+void KX_PlanarMap::EndRenderFace(RAS_Rasterizer *rasty)
 {
 	if (m_type == REFLECTION) {
 		rasty->SetInvertFrontFace(false);

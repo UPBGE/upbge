@@ -34,7 +34,7 @@
 
 #include "KX_Globals.h"
 
-#include "RAS_IRasterizer.h"
+#include "RAS_Rasterizer.h"
 
 #include "BLI_string.h"
 #include "BLI_path_util.h"
@@ -46,7 +46,7 @@
 
 #include "CM_Message.h"
 
-GPG_Canvas::GPG_Canvas(RAS_IRasterizer *rasty, GHOST_IWindow *window)
+GPG_Canvas::GPG_Canvas(RAS_Rasterizer *rasty, GHOST_IWindow *window)
 	: RAS_ICanvas(rasty),
 	m_window(window),
 	m_width(0),

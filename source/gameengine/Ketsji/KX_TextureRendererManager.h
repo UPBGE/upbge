@@ -34,7 +34,7 @@ class KX_Camera;
 class KX_Scene;
 class KX_TextureRenderer;
 
-class RAS_IRasterizer;
+class RAS_Rasterizer;
 class RAS_OffScreen;
 class RAS_Texture;
 class RAS_Rect;
@@ -57,7 +57,7 @@ private:
 	KX_Scene *m_scene;
 
 	/// Render a texture renderer, return true if the render was proceeded.
-	bool RenderRenderer(RAS_IRasterizer *rasty, KX_TextureRenderer *renderer,
+	bool RenderRenderer(RAS_Rasterizer *rasty, KX_TextureRenderer *renderer,
 						KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
 
 public:
@@ -85,7 +85,7 @@ public:
 	 * \param viewport The viewport render area.
 	 * \param area The windows render area.
 	 */
-	void Render(RendererCategory category, RAS_IRasterizer *rasty, RAS_OffScreen *offScreen,
+	void Render(RendererCategory category, RAS_Rasterizer *rasty, RAS_OffScreen *offScreen,
 				KX_Camera *sceneCamera, const RAS_Rect& viewport, const RAS_Rect& area);
 
 	/// Merge the content of an other renderer manager, used during lib loading.

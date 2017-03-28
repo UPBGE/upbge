@@ -185,7 +185,7 @@ void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode *root, RAS_UpwardTree
 
 void RAS_MeshSlot::RunNode(const RAS_RenderNodeArguments& args)
 {
-	RAS_IRasterizer *rasty = args.m_rasty;
+	RAS_Rasterizer *rasty = args.m_rasty;
 	rasty->SetClientObject(m_meshUser->GetClientObject());
 	rasty->SetFrontFace(m_meshUser->GetFrontFace());
 
@@ -197,7 +197,7 @@ void RAS_MeshSlot::RunNode(const RAS_RenderNodeArguments& args)
 		material->ActivateMeshSlot(this, rasty);
 	}
 
-	if (material->IsZSort() && rasty->GetDrawingMode() >= RAS_IRasterizer::RAS_SOLID) {
+	if (material->IsZSort() && rasty->GetDrawingMode() >= RAS_Rasterizer::RAS_SOLID) {
 		m_mesh->SortPolygons(this, args.m_trans * MT_Transform(m_meshUser->GetMatrix()));
 		m_displayArrayBucket->SetPolygonsModified(rasty);
 	}
