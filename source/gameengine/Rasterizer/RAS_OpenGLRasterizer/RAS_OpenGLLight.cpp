@@ -289,17 +289,14 @@ Image *RAS_OpenGLLight::GetTextureImage(short texslot)
 	return nullptr;
 }
 
-void RAS_OpenGLLight::Update()
+void RAS_OpenGLLight::Update(const mt::mat3x4& trans, bool hide)
 {
-	GPULamp *lamp;
-	KX_LightObject *kxlight = (KX_LightObject *)m_light;
+	GPULamp *lamp = GetGPULamp();
 
-	if ((lamp = GetGPULamp()) != nullptr && kxlight->GetSGNode()) {
+	if (lamp) {
 		float obmat[4][4];
-		const mt::mat3x4 trans = kxlight->NodeGetWorldTransform();
 		trans.PackFromAffineTransform(obmat);
 
-		int hide = kxlight->GetVisible() ? 0 : 1;
 		GPU_lamp_update(lamp, m_layer, hide, obmat);
 		GPU_lamp_update_colors(lamp, m_color[0], m_color[1],
 		                       m_color[2], m_energy);

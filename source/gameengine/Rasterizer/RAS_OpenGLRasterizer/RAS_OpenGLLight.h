@@ -60,6 +60,6 @@ public:
 	void BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, mt::mat3x4& camtrans);
 	void UnbindShadowBuffer();
 	Image *GetTextureImage(short texslot);
-	void Update();
+	void Update(const mt::mat3x4& trans, bool hide);
 	void SetShadowUpdateState(short state);
 };

@@ -67,6 +67,9 @@ public:
 	bool GetShowShadowFrustum() const;
 	void SetShowShadowFrustum(bool show);
 
+	// Update rasterizer light settings.
+	void Update();
+
 	void UpdateScene(KX_Scene *kxscene);
 	virtual void SetLayer(int layer);
 

@@ -81,7 +81,7 @@ public:
 	bool m_staticShadow;
 	bool m_requestShadowUpdate;
 
-	virtual ~RAS_ILightObject() {}
+	virtual ~RAS_ILightObject() = default;
 	virtual RAS_ILightObject* Clone() = 0;
 
 	virtual bool HasShadowBuffer() = 0;
@@ -94,7 +94,7 @@ public:
 	virtual void BindShadowBuffer(RAS_ICanvas *canvas, KX_Camera *cam, mt::mat3x4& camtrans) = 0;
 	virtual void UnbindShadowBuffer() = 0;
 	virtual Image *GetTextureImage(short texslot) = 0;
-	virtual void Update() = 0;
+	virtual void Update(const mt::mat3x4& trans, bool hide) = 0;
 };
 
 #endif  /* __RAS_LIGHTOBJECT_H__ */

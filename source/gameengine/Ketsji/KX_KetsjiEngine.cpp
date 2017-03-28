@@ -846,7 +846,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 	for (KX_LightObject *light : lightlist) {
 		RAS_ILightObject *raslight = light->GetLightData();
-		raslight->Update();
+		light->Update();
 	}
 
 	if (m_rasterizer->GetDrawingMode() == RAS_Rasterizer::RAS_TEXTURED) {

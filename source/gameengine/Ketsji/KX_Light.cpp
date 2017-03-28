@@ -105,6 +105,11 @@ void KX_LightObject::SetShowShadowFrustum(bool show)
 	m_showShadowFrustum = show;
 }
 
+void KX_LightObject::Update()
+{
+	m_lightobj->Update(NodeGetWorldTransform(), !m_bVisible);
+}
+
 void KX_LightObject::UpdateScene(KX_Scene *kxscene)
 {
 	m_lightobj->m_scene = (void *)kxscene;
