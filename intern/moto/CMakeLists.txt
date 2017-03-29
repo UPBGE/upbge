@@ -34,6 +34,7 @@ set(INC_SYS
 
 set(SRC
 	intern/MT_CmMatrix4x4.cpp
+	intern/MT_Frustum.cpp
 	intern/MT_Matrix3x3.cpp
 	intern/MT_Matrix4x4.cpp
 	intern/MT_Quaternion.cpp
@@ -44,6 +45,7 @@ set(SRC
 	intern/MT_random.cpp
 
 	include/MT_CmMatrix4x4.h
+	include/MT_Frustum.h
 	include/MT_Matrix3x3.h
 	include/MT_Matrix4x4.h
 	include/MT_MinMax.h
@@ -57,6 +59,7 @@ set(SRC
 	include/MT_Vector4.h
 	include/MT_random.h
 
+	include/MT_Frustum.inl
 	include/MT_Matrix3x3.inl
 	include/MT_Matrix4x4.inl
 	include/MT_Quaternion.inl
