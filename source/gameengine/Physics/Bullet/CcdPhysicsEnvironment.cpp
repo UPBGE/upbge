@@ -1941,18 +1941,22 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 };
 
 static OcclusionBuffer gOcb;
-bool CcdPhysicsEnvironment::CullingTest(PHY_CullingCallback callback, void *userData, MT_Vector4 *planes, int nplanes, int occlusionRes, const int *viewport, float modelview[16], float projection[16])
+bool CcdPhysicsEnvironment::CullingTest(PHY_CullingCallback callback, void *userData, MT_Vector4 *planes, MT_Vector3 *corners, int nplanes, int occlusionRes, const int *viewport, float modelview[16], float projection[16])
 {
 	if (!m_cullingTree)
 		return false;
 	DbvtCullingCallback dispatcher(callback, userData);
 	btVector3 planes_n[6];
 	btScalar planes_o[6];
+	btVector3 frustumCorners[8];
 	if (nplanes > 6)
 		nplanes = 6;
 	for (int i = 0; i < nplanes; i++) {
 		planes_n[i].setValue(planes[i][0], planes[i][1], planes[i][2]);
 		planes_o[i] = planes[i][3];
+	}
+	for (unsigned short i = 0; i < 8; i++) {
+		frustumCorners[i].setValue(corners[i][0], corners[i][1], corners[i][2]);
 	}
 	// if occlusionRes != 0 => occlusion culling
 	if (occlusionRes) {
@@ -1963,8 +1967,8 @@ bool CcdPhysicsEnvironment::CullingTest(PHY_CullingCallback callback, void *user
 		btDbvt::collideOCL(m_cullingTree->m_sets[0].m_root, planes_n, planes_o, planes_n[0], nplanes, dispatcher);
 	}
 	else {
-		btDbvt::collideKDOP(m_cullingTree->m_sets[1].m_root, planes_n, planes_o, nplanes, dispatcher);
-		btDbvt::collideKDOP(m_cullingTree->m_sets[0].m_root, planes_n, planes_o, nplanes, dispatcher);
+		btDbvt::collideKDOP(m_cullingTree->m_sets[1].m_root, planes_n, planes_o, frustumCorners, nplanes, dispatcher);
+		btDbvt::collideKDOP(m_cullingTree->m_sets[0].m_root, planes_n, planes_o, frustumCorners, nplanes, dispatcher);
 	}
 	return true;
 }
