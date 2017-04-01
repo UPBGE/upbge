@@ -121,6 +121,7 @@ endif()
 		bf_editor_datafiles
 		ge_launcher
 		ge_player
+		ge_logic_ketsji 
 		ge_converter 
 		ge_logic_ketsji 
 		ge_phys_bullet 

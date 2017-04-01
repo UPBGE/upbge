@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/Ketsji/KX_IpoConvert.cpp
+/** \file gameengine/Converter/KX_IpoConvert.cpp
  *  \ingroup bgeconv
  */
 
@@ -43,12 +43,6 @@
 
 #include "KX_BlenderScalarInterpolator.h"
 #include "KX_BlenderSceneConverter.h"
-
-
-/* This little block needed for linking to Blender... */
-#ifdef WIN32
-#include "BLI_winstuff.h"
-#endif
 
 #include "DNA_object_types.h"
 #include "DNA_action_types.h"
@@ -68,8 +62,6 @@
 #include "KX_MaterialIpoController.h"
 
 #include "SG_Node.h"
-
-#include <string>
 
 static BL_InterpolatorList *GetAdtList(struct bAction *for_act, KX_BlenderSceneConverter *converter)
 {

@@ -622,6 +622,7 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		ge_blen_routines
 		ge_launcher
 		ge_blen_routines
+		ge_logic_ketsji
 		ge_converter
 		ge_phys_dummy
 		ge_phys_bullet
