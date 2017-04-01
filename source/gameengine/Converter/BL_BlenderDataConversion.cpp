@@ -484,9 +484,15 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
 
+	const bool hasModifier = blenderobj ? blenderobj->modifiers.first : false;
+
 	// Without checking names, we get some reuse we don't want that can cause
 	// problems with material LoDs.
-	if (blenderobj && ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != nullptr)) {
+	/* For Objects with modifiers, as we apply modifiers at game start, we skip this part
+	 * because we need an unique mesh for objects with modifiers.
+	 * So we add && !hasModifier to check that the object has no modifier.
+	 */
+	if (blenderobj && ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != nullptr) && !hasModifier) {
 		const std::string bge_name = meshobj->GetName();
 		const std::string blender_name = ((ID *)blenderobj->data)->name + 2;
 		if (bge_name == blender_name) {
@@ -495,7 +501,14 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	}
 
 	// Get DerivedMesh data
-	DerivedMesh *dm = CDDM_from_mesh(mesh);
+	DerivedMesh *dm;
+	if (blenderobj) {
+		dm = mesh_create_derived_no_virtual(scene->GetBlenderScene(), blenderobj, NULL, CD_MASK_MESH);
+	}
+	else {
+		dm = CDDM_from_mesh(mesh);
+	}
+
 	DM_ensure_tessface(dm);
 
 	MVert *mvert = dm->getVertArray(dm);
@@ -566,7 +579,13 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		}
 	}
 
-	meshobj = new RAS_MeshObject(mesh, layersInfo);
+	std::string name = mesh->id.name + 2;
+	if (hasModifier) {
+		name += ":";
+		name += blenderobj->id.name + 2;
+	}
+
+	meshobj = new RAS_MeshObject(mesh, name, layersInfo);
 
 	meshobj->m_sharedvertex_map.resize(totvert);
 
@@ -744,7 +763,8 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 	dm->release(dm);
 
-	converter->RegisterGameMesh(scene, meshobj, mesh);
+	// We avoid linking a mesh object using modifier to the blender mesh.
+	converter->RegisterGameMesh(scene, meshobj, hasModifier ? nullptr : mesh);
 	return meshobj;
 }
 
@@ -1030,9 +1050,21 @@ static KX_GameObject *gameobject_from_blenderobject(
 	{
 		Mesh* mesh = static_cast<Mesh*>(ob->data);
 		RAS_MeshObject* meshobj = BL_ConvertMesh(mesh,ob,kxscene,converter, libloading);
+
+		/* We need unique mesh name for objects with modifiers applied in render code (RAS_MeshObject)
+		 * but for logic we can/have to keep the original mesh name to avoid backward compatibility issues
+		 * (See commit related to modifiers applied at game engine start)
+		 */
+		std::string meshName;
+		if (ob && meshobj->GetName().find(":" + std::string(ob->id.name + 2))) {
+			meshName = meshobj->GetName().substr(0, meshobj->GetName().size() - (std::string(ob->id.name + 2).size() + 1));
+		}
+		else {
+			meshName = meshobj->GetName();
+		}
 		
 		// needed for python scripting
-		kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(),meshobj);
+		kxscene->GetLogicManager()->RegisterMeshName(meshName, meshobj);
 
 		if (ob->gameflag & OB_NAVMESH)
 		{
@@ -1062,13 +1094,16 @@ static KX_GameObject *gameobject_from_blenderobject(
 		bool bHasShapeKey = mesh->key != nullptr && mesh->key->type==KEY_RELATIVE;
 		bool bHasDvert = mesh->dvert != nullptr && ob->defbase.first;
 		bool bHasArmature = (BL_ModifierDeformer::HasArmatureDeformer(ob) && ob->parent && ob->parent->type == OB_ARMATURE && bHasDvert);
-		bool bHasModifier = BL_ModifierDeformer::HasCompatibleDeformer(ob);
+
+		/* Since we apply modifiers at game engine start, we set bHasModifier to false by default */
+		bool bHasModifier = bHasArmature ? BL_ModifierDeformer::HasCompatibleDeformer(ob) : false;
+
 #ifdef WITH_BULLET
 		bool bHasSoftBody = (!ob->parent && (ob->gameflag & OB_SOFT_BODY));
 #endif
 
 		RAS_Deformer *deformer = nullptr;
-		BL_DeformableGameObject *deformableGameObj = (BL_DeformableGameObject *)gameobj;
+		BL_DeformableGameObject *deformableGameObj = static_cast<BL_DeformableGameObject *>(gameobj);
 
 		if (bHasModifier) {
 			deformer = new BL_ModifierDeformer(deformableGameObj, kxscene->GetBlenderScene(), ob, meshobj);
@@ -1092,9 +1127,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		}
 #endif
 
-		if (deformer) {
-			deformableGameObj->SetDeformer(deformer);
-		}
+		deformableGameObj->SetDeformer(deformer);
 		break;
 	}
 	

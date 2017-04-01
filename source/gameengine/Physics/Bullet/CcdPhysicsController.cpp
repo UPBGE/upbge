@@ -1788,7 +1788,7 @@ void CcdShapeConstructionInfo::ProcessReplica()
 	m_shapeArray.clear();
 }
 
-bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm, bool polytope)
+bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm, KX_Scene *scene, KX_GameObject *gameobj, bool polytope)
 {
 	int numpolys, numverts;
 
@@ -1810,7 +1810,18 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject *meshobj, DerivedMesh *dm,
 
 	if (!dm) {
 		free_dm = true;
-		dm = CDDM_from_mesh(meshobj->GetMesh());
+
+		/* Before we applied modifiers at game engine start, the function used
+		 * was dm = CDDM_from_mesh(meshobj->GetMesh()); but this generated crashes
+		 * with some modifiers. So we use the same function as in BlenderDataConversion
+		 * when we convert the mesh for rendering here... if we have the possibility to use it
+		 */
+		if (gameobj && gameobj->GetBlenderObject()) {
+			dm = mesh_create_derived_no_virtual(scene->GetBlenderScene(), gameobj->GetBlenderObject(), NULL, CD_MASK_MESH);
+		}
+		else {
+			dm = CDDM_from_mesh(meshobj->GetMesh());
+		}
 	}
 
 	// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
