@@ -18,6 +18,7 @@
  */
 
 #include <stdio.h>
+#include <regex>
 
 #include "EXP_ListValue.h"
 #include "EXP_StringValue.h"
@@ -483,6 +484,7 @@ PyMethodDef CListValue::Methods[] = {
 
 	// Dict style access.
 	{"get", (PyCFunction)CListValue::sPyget, METH_VARARGS},
+	{"getMatching", (PyCFunction)CListValue::sPygetMatching, METH_VARARGS},
 
 	// Own cvalue funcs.
 	{"from_id", (PyCFunction)CListValue::sPyfrom_id, METH_O},
@@ -596,6 +598,54 @@ PyObject *CListValue::Pyget(PyObject *args)
 
 	Py_INCREF(def);
 	return def;
+}
+
+PyObject *CListValue::PygetMatching(PyObject *args)
+{
+	const char *namestr = "";
+	const char *propstr = "";
+
+	if (!PyArg_ParseTuple(args, "s|s:getMatching", &namestr, &propstr)) {
+		return nullptr;
+	}
+
+	if (strlen(namestr) == 0 && strlen(propstr) == 0) {
+		PyErr_SetString(PyExc_ValueError, "CList.getMatching(name, prop): empty expressions.");
+		return nullptr;
+	}
+
+	std::regex namereg;
+	std::regex propreg;
+	try {
+		namereg = std::regex(namestr);
+		propreg = std::regex(propstr);
+	}
+	catch (const std::regex_error& error) {
+		PyErr_Format(PyExc_ValueError, "CList.getMatching(name, prop): invalid expression: %s.", error.what());
+		return nullptr;
+	}
+
+	CListValue *result = new CListValue();
+	result->SetReleaseOnDestruct(false);
+
+	for (CValue *item : m_pValueArray) {
+		if (strlen(namestr) == 0 || std::regex_match(item->GetName(), namereg)) {
+			if (strlen(propstr) == 0) {
+				result->Add(item);
+			}
+			else {
+				const std::vector<std::string> propnames = item->GetPropertyNames();
+				for (const std::string& propname : propnames) {
+					if (std::regex_match(propname, propreg)) {
+						result->Add(item);
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	return result->NewProxy(true);
 }
 
 PyObject *CListValue::Pyfrom_id(PyObject *value)
