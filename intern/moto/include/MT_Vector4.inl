@@ -81,11 +81,11 @@ GEN_INLINE MT_Vector3 MT_Vector4::to3d() const
 GEN_INLINE void MT_Vector4::normalize() { *this /= length(); }
 GEN_INLINE MT_Vector4 MT_Vector4::normalized() const { return *this / length(); }
 
-GEN_INLINE MT_Scalar  MT_dot(const MT_Vector4& v1, const MT_Vector4& v2) { 
+GEN_INLINE MT_Scalar  MT_dot(const MT_Vector4& v1, const MT_Vector4& v2) {
     return v1.dot(v2);
 }
 
-GEN_INLINE MT_Scalar  MT_dot(const MT_Vector4& v1, const MT_Vector3& v2) { 
+GEN_INLINE MT_Scalar  MT_dot(const MT_Vector4& v1, const MT_Vector3& v2) {
     return v1.dot(v2);
 }
 

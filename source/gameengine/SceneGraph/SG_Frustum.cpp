@@ -59,7 +59,25 @@ SG_Frustum::TestType SG_Frustum::SphereInsideFrustum(const MT_Vector3& center, f
 
 SG_Frustum::TestType SG_Frustum::BoxInsideFrustum(const std::array<MT_Vector3, 8>& box) const
 {
-	return INSIDE;
+	unsigned short insidePlane = 0;
+	for (const MT_Vector4& plane : m_planes) {
+		unsigned short insidePoint = 0;
+		for (const MT_Vector3& point : box) {
+			insidePoint += (plane.dot(point) < 0.0f) ? 0 : 1;
+		}
+
+		if (insidePoint == 0) {
+			return OUTSIDE;
+		}
+
+		insidePlane += (insidePoint == 8) ? 1 : 0;
+	}
+
+	if (insidePlane == 6) {
+		return INSIDE;
+	}
+
+	return INTERSECT;
 }
 
 static void getNearFarAabbPoint(const MT_Vector4& plane, const MT_Vector3& min, const MT_Vector3& max, MT_Vector3& near, MT_Vector3& far)
