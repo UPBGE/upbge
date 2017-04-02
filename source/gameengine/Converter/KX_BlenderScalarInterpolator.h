@@ -36,6 +36,8 @@
 
 #include "KX_IScalarInterpolator.h"
 
+struct bAction;
+
 typedef unsigned short BL_IpoChannel;
 
 class BL_ScalarInterpolator : public KX_IScalarInterpolator {
@@ -55,10 +57,17 @@ private:
 };
 
 
-class BL_InterpolatorList : public std::vector<KX_IScalarInterpolator *> {
+class BL_InterpolatorList
+{
+private:
+	bAction *m_action;
+	std::vector<BL_ScalarInterpolator *> m_interpolators;
+
 public:
 	BL_InterpolatorList(struct bAction *action);
 	~BL_InterpolatorList();
+
+	bAction *GetAction() const;
 
 	KX_IScalarInterpolator *GetScalarInterpolator(const char *rna_path, int array_index);
 };

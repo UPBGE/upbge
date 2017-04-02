@@ -48,6 +48,7 @@
 
 #include "SCA_LogicManager.h"
 #include "KX_GameObject.h"
+#include "KX_Globals.h"
 #include "EXP_IntValue.h"
 
 /* This little block needed for linking to Blender... */
@@ -72,7 +73,7 @@ LinkControllerToActuators(
 	SCA_IController *game_controller,
 	bController* bcontr,
 	SCA_LogicManager* logicmgr,
-	KX_BlenderSceneConverter* converter
+	KX_BlenderSceneConverter& converter
 ) {
 	// Iterate through the actuators of the game blender
 	// controller and find the corresponding ketsji actuator.
@@ -81,7 +82,7 @@ LinkControllerToActuators(
 	for (int i=0;i<bcontr->totlinks;i++)
 	{
 		bActuator* bact = (bActuator*) bcontr->links[i];
-		SCA_IActuator *game_actuator = converter->FindGameActuator(bact);
+		SCA_IActuator *game_actuator = converter.FindGameActuator(bact);
 		if (game_actuator) {
 			logicmgr->RegisterToActuator(game_controller, game_actuator);
 		}
@@ -95,7 +96,7 @@ void BL_ConvertControllers(
 	SCA_LogicManager* logicmgr,
 	int activeLayerBitInfo,
 	bool isInActiveLayer,
-	KX_BlenderSceneConverter* converter,
+	KX_BlenderSceneConverter& converter,
 	bool libloading
 ) {
 	int uniqueint=0;
@@ -161,7 +162,7 @@ void BL_ConvertControllers(
 #ifdef WITH_PYTHON
 				// When libloading, this is delayed to KX_Scene::MergeScene_LogicBrick to avoid GIL issues
 				if (!libloading)
-					pyctrl->SetNamespace(converter->GetPyNamespace());
+					pyctrl->SetNamespace(KX_GetActiveEngine()->GetPyNamespace());
 				
 				if (pycont->mode==SCA_PythonController::SCA_PYEXEC_SCRIPT) {
 					if (pycont->text)
@@ -219,7 +220,7 @@ void BL_ConvertControllers(
 			gamecontroller->SetLogicManager(logicmgr);
 			gameobj->AddController(gamecontroller);
 			
-			converter->RegisterGameController(gamecontroller, bcontr);
+			converter.RegisterGameController(gamecontroller, bcontr);
 
 #ifdef WITH_PYTHON
 			// When libloading, this is delayed to KX_Scene::MergeScene_LogicBrick to avoid GIL issues

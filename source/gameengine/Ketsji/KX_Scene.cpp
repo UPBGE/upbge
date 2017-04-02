@@ -82,7 +82,7 @@
 #include "PHY_IPhysicsEnvironment.h"
 #include "PHY_IGraphicController.h"
 #include "PHY_IPhysicsController.h"
-#include "KX_BlenderSceneConverter.h"
+#include "KX_BlenderConverter.h"
 #include "KX_MotionState.h"
 
 #include "BL_ModifierDeformer.h"
@@ -146,7 +146,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	CValue(),
 	m_keyboardmgr(nullptr),
 	m_mousemgr(nullptr),
-	m_sceneConverter(nullptr),
 	m_physicsEnvironment(0),
 	m_sceneName(sceneName),
 	m_active_camera(nullptr),
@@ -1032,18 +1031,6 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 	 */
 	newobj->InvalidateProxy();
 
-	// keep the blender->game object association up to date
-	// note that all the replicas of an object will have the same
-	// blender object, that's why we need to check the game object
-	// as only the deletion of the original object must be recorded
-	if (newobj->GetBlenderObject()) {
-		// In some case the game object can contains a nullptr blender object e.g default camera.
-		m_logicmgr->UnregisterGameObj(newobj->GetBlenderObject(), gameobj);
-	}
-
-	//todo: look at this
-	//GetPhysicsEnvironment()->RemovePhysicsController(gameobj->getPhysicsController());
-
 	// remove all sensors/controllers/actuators from logicsystem...
 	
 	SCA_SensorList& sensors = newobj->GetSensors();
@@ -1135,12 +1122,6 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 		m_active_camera = nullptr;
 	}
 
-	/* currently does nothing, keep in case we need to Unregister something */
-#if 0
-	if (m_sceneConverter)
-		m_sceneConverter->UnregisterGameObject(newobj);
-#endif
-	
 	// return value will be 0 if the object is actually deleted (all reference gone)
 	
 	return ret;
@@ -1806,11 +1787,6 @@ MT_Vector3 KX_Scene::GetGravity()
 	return gravity;
 }
 
-void KX_Scene::SetSceneConverter(class KX_BlenderSceneConverter* sceneConverter)
-{
-	m_sceneConverter = sceneConverter;
-}
-
 void KX_Scene::SetPhysicsEnvironment(class PHY_IPhysicsEnvironment* physEnv)
 {
 	m_physicsEnvironment = physEnv;
@@ -1958,12 +1934,6 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		return false;
 	}
 
-	if (GetSceneConverter() != other->GetSceneConverter()) {
-		CM_FunctionError("converters differ, aborting");
-		return false;
-	}
-
-
 	GetBucketManager()->MergeBucketManager(other->GetBucketManager(), this);
 	GetBoundingBoxManager()->Merge(other->GetBoundingBoxManager());
 	GetTextureRendererManager()->Merge(other->GetTextureRendererManager());
@@ -2030,7 +2000,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 	/* move materials across, assume they both use the same scene-converters
 	 * Do this after lights are merged so materials can use the lights in shaders
 	 */
-	GetSceneConverter()->MergeScene(this, other);
+	KX_GetActiveEngine()->GetConverter()->MergeScene(this, other);
 
 	/* merge logic */
 	{

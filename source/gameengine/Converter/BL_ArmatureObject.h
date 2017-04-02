@@ -111,7 +111,7 @@ public:
 	void DrawDebug(RAS_DebugDraw& debugDraw);
 
 	// for constraint python API
-	void LoadConstraints(KX_BlenderSceneConverter *converter);
+	void LoadConstraints(KX_BlenderSceneConverter& converter);
 	size_t GetConstraintNumber() const;
 	BL_ArmatureConstraint *GetConstraint(const std::string& posechannel, const std::string& constraint);
 	BL_ArmatureConstraint *GetConstraint(const std::string& posechannelconstraint);

@@ -41,7 +41,7 @@
 
 /* This little block needed for linking to Blender... */
 #ifdef _MSC_VER
-#  include "BLI_winstuff.h"
+//#  include "BLI_winstuff.h"
 #endif
 
 #include "DNA_object_types.h"
@@ -94,7 +94,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					   int activeLayerBitInfo,
 					   bool isInActiveLayer,
 					   RAS_ICanvas* canvas,
-					   KX_BlenderSceneConverter* converter
+					   KX_BlenderSceneConverter& converter
 					   )
 {
 
@@ -633,7 +633,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 					if (linkedcont) {
 						// If the controller is deactived doesn't register it
 						if (!(linkedcont->flag & CONT_DEACTIVATE)) {
-							SCA_IController* gamecont = converter->FindGameController(linkedcont);
+							SCA_IController* gamecont = converter.FindGameController(linkedcont);
 
 							if (gamecont) {
 								logicmgr->RegisterToSensor(gamecont,gamesensor);

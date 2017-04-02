@@ -40,6 +40,6 @@ void BL_ConvertSensors(struct Object* blenderobject,
 	   int activeLayerBitInfo,
 	   bool isInActiveLayer,
 	   class RAS_ICanvas* canvas, 
-	   class KX_BlenderSceneConverter* converter);
+	   class KX_BlenderSceneConverter& converter);
 
 #endif  /* __KX_CONVERTSENSORS_H__ */

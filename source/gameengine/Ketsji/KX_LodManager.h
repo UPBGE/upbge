@@ -78,7 +78,7 @@ private:
 	float m_distanceFactor;
 
 public:
-	KX_LodManager(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter *converter, bool libloading);
+	KX_LodManager(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter& converter, bool libloading);
 	virtual ~KX_LodManager();
 
 	/// Return number of lod levels.
