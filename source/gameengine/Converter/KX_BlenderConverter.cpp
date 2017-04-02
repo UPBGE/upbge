@@ -35,12 +35,18 @@
 
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
+#include "KX_WorldInfo.h"
 #include "RAS_MeshObject.h"
 #include "RAS_IPolygonMaterial.h"
+#include "RAS_BucketManager.h"
 #include "KX_PhysicsEngineEnums.h"
-#include "PHY_IPhysicsEnvironment.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h" // So we can handle adding new text datablocks for Python to import
+#include "KX_LibLoadStatus.h"
+#include "KX_BlenderScalarInterpolator.h"
+#include "KX_BlenderConverter.h"
+#include "KX_BlenderSceneConverter.h"
+#include "BL_BlenderDataConversion.h"
 #include "BL_ActionActuator.h"
 
 #include "LA_SystemCommandLine.h"
@@ -51,21 +57,11 @@
 #  include "CcdPhysicsEnvironment.h"
 #endif
 
-#include "KX_LibLoadStatus.h"
-#include "KX_BlenderScalarInterpolator.h"
-#include "BL_BlenderDataConversion.h"
-#include "KX_WorldInfo.h"
 #include "EXP_StringValue.h"
 
-// This little block needed for linking to Blender...
-#ifdef WIN32
-//#  include "BLI_winstuff.h"
-#endif
-
 #ifdef WITH_PYTHON
-#  include "Texture.h" // For FreeAllTextures. Must be included after BLI_winstuff.h.
+#  include "Texture.h" // For FreeAllTextures.
 #endif  // WITH_PYTHON
-
 
 // This list includes only data type definitions
 #include "DNA_scene_types.h"
@@ -75,22 +71,14 @@ extern "C" {
 #  include "DNA_mesh_types.h"
 #  include "DNA_material_types.h"
 #  include "BLI_blenlib.h"
+#  include "BLI_linklist.h"
+#  include "BLO_readfile.h"
 #  include "BKE_global.h"
 #  include "BKE_library.h"
 #  include "BKE_material.h" // BKE_material_copy
 #  include "BKE_mesh.h" // BKE_mesh_copy
-}
-
-// Only for dynamic loading and merging.
-#include "RAS_BucketManager.h"
-#include "KX_BlenderConverter.h"
-#include "KX_BlenderSceneConverter.h"
-
-extern "C" {
-	#  include "BLO_readfile.h"
-	#  include "BKE_idcode.h"
-	#  include "BKE_report.h"
-	#  include "BLI_linklist.h"
+#  include "BKE_idcode.h"
+#  include "BKE_report.h"
 }
 
 #include "BLI_task.h"
@@ -187,7 +175,7 @@ CListValue *KX_BlenderConverter::GetInactiveSceneNames()
 	return list;
 }
 
-void KX_BlenderConverter::ConvertScene(KX_Scene *destinationscene, RAS_IRasterizer *rasty, RAS_ICanvas *canvas, bool libloading)
+void KX_BlenderConverter::ConvertScene(KX_Scene *destinationscene, RAS_Rasterizer *rasty, RAS_ICanvas *canvas, bool libloading)
 {
 
 	// Find out which physics engine

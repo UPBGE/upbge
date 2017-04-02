@@ -35,22 +35,23 @@
 #include <map>
 #include <vector>
 
-/*#ifdef _MSC_VER // MSVC doesn't support incomplete type in std::unique_ptr.
+#ifdef _MSC_VER // MSVC doesn't support incomplete type in std::unique_ptr.
 #  include "RAS_IPolygonMaterial.h"
 #  include "RAS_MeshObject.h"
 
 #  include "KX_BlenderScalarInterpolator.h"
-#endif*/
+#endif
 
 #include "CM_Thread.h"
-
 
 class KX_BlenderSceneConverter;
 class KX_KetsjiEngine;
 class KX_LibLoadStatus;
+class BL_InterpolatorList;
 class SCA_IActuator;
 class SCA_IController;
 class RAS_MeshObject;
+class RAS_Rasterizer;
 struct Main;
 struct BlendHandle;
 struct Mesh;
@@ -109,7 +110,7 @@ public:
 	 * \param destinationscene pass an empty scene, everything goes into this
 	 * \param dictobj python dictionary (for pythoncontrollers)
 	 */
-	void ConvertScene(KX_Scene *destinationscene, RAS_IRasterizer *rasty, RAS_ICanvas *canvas, bool libloading);
+	void ConvertScene(KX_Scene *destinationscene, RAS_Rasterizer *rasty, RAS_ICanvas *canvas, bool libloading);
 	void RemoveScene(KX_Scene *scene);
 
 	void SetAlwaysUseExpandFraming(bool to_what);

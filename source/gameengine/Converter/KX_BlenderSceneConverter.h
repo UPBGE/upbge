@@ -32,6 +32,8 @@
 #ifndef __KX_BLENDERSCENECONVERTER_H__
 #define __KX_BLENDERSCENECONVERTER_H__
 
+#include "CM_Message.h"
+
 #include <map>
 #include <vector>
 
@@ -41,7 +43,12 @@ class RAS_MeshObject;
 class RAS_IPolyMaterial;
 class KX_BlenderConverter;
 class KX_GameObject;
+class KX_Scene;
+class KX_LibLoadStatus;
+struct Main;
+struct BlendHandle;
 struct Object;
+struct Scene;
 struct Mesh;
 struct Material;
 struct bActuator;
@@ -84,24 +91,6 @@ public:
 	void RegisterGameController(SCA_IController *cont, bController *for_controller);
 	SCA_IController *FindGameController(bController *for_controller);
 
-	Scene *GetBlenderSceneForName(const std::string& name);
-	virtual CListValue *GetInactiveSceneNames();
-
-	Main *GetMainDynamicPath(const char *path);
-	std::vector<Main *> &GetMainDynamic();
-
-	KX_LibLoadStatus *LinkBlendFileMemory(void *data, int length, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
-	KX_LibLoadStatus *LinkBlendFilePath(const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
-	KX_LibLoadStatus *LinkBlendFile(BlendHandle *bpy_openlib, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options);
-	bool MergeScene(KX_Scene *to, KX_Scene *from);
-	RAS_MeshObject *ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const char *name);
-	bool FreeBlendFile(Main *maggie);
-	bool FreeBlendFile(const char *path);
-
-	virtual void MergeAsyncLoads();
-	virtual void FinalizeAsyncLoads();
-	void AddScenesToMergeQueue(KX_LibLoadStatus *status);
-
 	void PrintStats()
 	{
 		CM_Message("BGE STATS!");
@@ -113,11 +102,6 @@ public:
 		CM_Message("\t m_map_mesh_to_gamemesh: " << (int)m_map_mesh_to_gamemesh.size());
 		CM_Message("\t m_map_blender_to_gameactuator: " << (int)m_map_blender_to_gameactuator.size());
 		CM_Message("\t m_map_blender_to_gamecontroller: " << (int)m_map_blender_to_gamecontroller.size());
-		CM_Message("\t m_map_blender_to_gameAdtList: " << (int)m_map_blender_to_gameAdtList.size());
-
-#ifdef WITH_CXX_GUARDEDALLOC
-		MEM_printmemlist_pydict();
-#endif
 	}
 
 	/* LibLoad Options */
@@ -128,16 +112,6 @@ public:
 		LIB_LOAD_LOAD_SCRIPTS = 4,
 		LIB_LOAD_ASYNC = 8,
 	};
-
-
-
-#ifdef WITH_PYTHON
-	PyObject *GetPyNamespace();
-#endif
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderSceneConverter")
-#endif
 };
 
 #endif  // __KX_BLENDERSCENECONVERTER_H__
