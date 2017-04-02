@@ -1451,6 +1451,11 @@ void KX_GameObject::SetBoundsAabb(MT_Vector3 aabbMin, MT_Vector3 aabbMax)
 {
 	// Set the AABB in culling node box.
 	m_cullingNode.GetAabb().Set(aabbMin, aabbMax);
+
+	// Synchronize the AABB with the graphic controller.
+	if (m_pGraphicController) {
+		m_pGraphicController->SetLocalAabb(aabbMin, aabbMax);
+	}
 }
 
 void KX_GameObject::GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) const
