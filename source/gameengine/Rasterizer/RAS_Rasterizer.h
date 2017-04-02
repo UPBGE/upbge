@@ -39,6 +39,7 @@
 #include "MT_CmMatrix4x4.h"
 #include "MT_Matrix4x4.h"
 
+#include "RAS_Rect.h"
 #include "RAS_DebugDraw.h"
 
 #include <string>
@@ -500,9 +501,8 @@ public:
 
 	/**
 	 * SetRenderArea sets the render area from the 2d canvas.
-	 * Returns true if only of subset of the canvas is used.
 	 */
-	void SetRenderArea(RAS_ICanvas *canvas);
+	RAS_Rect GetRenderArea(RAS_ICanvas *canvas, StereoMode mode, StereoEye eye);
 
 	// Stereo Functions
 	/**

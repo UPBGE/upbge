@@ -87,6 +87,13 @@ class KX_KetsjiEngine
 {
 
 private:
+	struct FrameRenderSettings
+	{
+		KX_Camera *m_camera;
+		RAS_Rect m_area[2];
+		RAS_Rect m_viewport[2];
+	};
+
 	/// 2D Canvas (2D Rendering Device Context)
 	RAS_ICanvas *m_canvas;
 	/// 3D Rasterizer (3D Rendering)
@@ -236,7 +243,7 @@ private:
 	/// Update and return the projection matrix of a camera depending on the viewport.
 	const MT_Matrix4x4& GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& viewport, const RAS_Rect& area);
 
-	void RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen *offScreen, unsigned short pass);
+	void RenderFrame(KX_Scene *scene, const FrameRenderSettings& settings, RAS_OffScreen *offScreen, unsigned short eye, unsigned short pass);
 	RAS_OffScreen *PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.
@@ -292,6 +299,8 @@ public:
 	/// returns true if an update happened to indicate -> Render
 	bool NextFrame();
 	void Render();
+	FrameRenderSettings GetFrameRenderSettings(KX_Scene *scene, KX_Camera *camera);
+	void RenderShadowsAndTextures(KX_Scene *scene, const std::vector<FrameRenderSettings>& settingsList);
 	void RenderShadowBuffers(KX_Scene *scene);
 
 	void StartEngine(bool clearIpo);
@@ -313,7 +322,7 @@ public:
 	void SuspendScene(const std::string& scenename);
 	void ResumeScene(const std::string& scenename);
 
-	void GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect& area, RAS_Rect& viewport);
+	void GetSceneViewport(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& displayArea, RAS_Rect& area, RAS_Rect& viewport);
 
 	/// Sets zoom for camera objects, useful only with extend and scale framing mode.
 	void SetCameraZoom(float camzoom);

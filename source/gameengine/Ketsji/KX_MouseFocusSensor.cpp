@@ -277,8 +277,9 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 	
 	RAS_Rect area, viewport;
 	short m_y_inv = m_kxengine->GetCanvas()->GetHeight()-m_y;
-	
-	m_kxengine->GetSceneViewport(m_kxscene, cam, area, viewport);
+
+	const RAS_Rect& displayArea = m_kxengine->GetRasterizer()->GetRenderArea(m_kxengine->GetCanvas(), RAS_Rasterizer::RAS_STEREO_NOSTEREO, RAS_Rasterizer::RAS_STEREO_LEFTEYE);
+	m_kxengine->GetSceneViewport(m_kxscene, cam, displayArea, area, viewport);
 	
 	/* Check if the mouse is in the viewport */
 	if ((	m_x < viewport.GetRight() &&	// less than right

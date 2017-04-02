@@ -36,7 +36,6 @@
 
 #include "RAS_ICanvas.h"
 #include "RAS_OffScreen.h"
-#include "RAS_Rect.h"
 #include "RAS_TextUser.h"
 #include "RAS_Polygon.h"
 #include "RAS_ILightObject.h"
@@ -576,19 +575,15 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 	Enable(RAS_CULL_FACE);
 }
 
-void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
+RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoMode mode, StereoEye eye)
 {
-	if (canvas == nullptr) {
-		return;
-	}
-
 	RAS_Rect area;
 	// only above/below stereo method needs viewport adjustment
-	switch (m_stereomode)
+	switch (mode)
 	{
 		case RAS_STEREO_ABOVEBELOW:
 		{
-			switch (m_curreye) {
+			switch (eye) {
 				case RAS_STEREO_LEFTEYE:
 				{
 					// upper half of window
@@ -598,7 +593,6 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 
 					area.SetRight(int(canvas->GetWidth()));
 					area.SetTop(int(canvas->GetHeight()));
-					canvas->SetDisplayArea(&area);
 					break;
 				}
 				case RAS_STEREO_RIGHTEYE:
@@ -608,7 +602,6 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 					area.SetBottom(0);
 					area.SetRight(int(canvas->GetWidth()));
 					area.SetTop(int(canvas->GetHeight() - m_noOfScanlines) / 2);
-					canvas->SetDisplayArea(&area);
 					break;
 				}
 			}
@@ -626,7 +619,6 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 
 					area.SetRight(canvas->GetWidth());
 					area.SetTop(canvas->GetHeight());
-					canvas->SetDisplayArea(&area);
 					break;
 				}
 				case RAS_STEREO_RIGHTEYE:
@@ -636,7 +628,6 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 					area.SetBottom(0);
 					area.SetRight(canvas->GetWidth());
 					area.SetTop(canvas->GetHeight() / 2);
-					canvas->SetDisplayArea(&area);
 					break;
 				}
 			}
@@ -644,7 +635,7 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 		}
 		case RAS_STEREO_SIDEBYSIDE:
 		{
-			switch (m_curreye)
+			switch (eye)
 			{
 				case RAS_STEREO_LEFTEYE:
 				{
@@ -653,7 +644,6 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 					area.SetBottom(0);
 					area.SetRight(canvas->GetWidth() / 2);
 					area.SetTop(canvas->GetHeight());
-					canvas->SetDisplayArea(&area);
 					break;
 				}
 				case RAS_STEREO_RIGHTEYE:
@@ -663,7 +653,6 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 					area.SetBottom(0);
 					area.SetRight(canvas->GetWidth());
 					area.SetTop(canvas->GetHeight());
-					canvas->SetDisplayArea(&area);
 					break;
 				}
 			}
@@ -676,10 +665,11 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 			area.SetBottom(0);
 			area.SetRight(int(canvas->GetWidth()));
 			area.SetTop(int(canvas->GetHeight()));
-			canvas->SetDisplayArea(&area);
 			break;
 		}
 	}
+
+	return area;
 }
 
 void RAS_Rasterizer::SetStereoMode(const StereoMode stereomode)

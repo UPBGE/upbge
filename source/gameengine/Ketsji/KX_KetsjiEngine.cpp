@@ -498,6 +498,37 @@ void KX_KetsjiEngine::UpdateSuspendedScenes(double framestep)
 	}
 }
 
+KX_KetsjiEngine::FrameRenderSettings KX_KetsjiEngine::GetFrameRenderSettings(KX_Scene *scene, KX_Camera *camera)
+{
+	FrameRenderSettings settings;
+
+	settings.m_camera = camera;
+
+	KX_SetActiveScene(scene);
+
+#ifdef WITH_PYTHON
+	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW_SETUP, camera);
+#endif
+
+	const RAS_Rasterizer::StereoMode stereomode = m_rasterizer->GetStereoMode();
+	// Set to true when each eye needs to be rendered in a separated off screen.
+	const bool renderpereye = stereomode == RAS_Rasterizer::RAS_STEREO_INTERLACED ||
+							  stereomode == RAS_Rasterizer::RAS_STEREO_VINTERLACE ||
+							  stereomode == RAS_Rasterizer::RAS_STEREO_ANAGLYPH;
+
+	const unsigned short eyes = (stereomode != RAS_Rasterizer::RAS_STEREO_NOSTEREO) ? 2 : 1;
+
+	for (unsigned short eye = 0; eye < eyes; ++eye) {
+		// set the area used for rendering (stereo can assign only a subset)
+		const RAS_Rect& displayArea = m_rasterizer->GetRenderArea(m_canvas, stereomode, (RAS_Rasterizer::StereoEye)eye);
+
+		GetSceneViewport(scene, camera, displayArea, settings.m_area[eye], settings.m_viewport[eye]);
+		GetCameraProjectionMatrix(scene, camera, settings.m_viewport[eye], settings.m_area[eye]);
+	}
+
+	return settings;
+}
+
 void KX_KetsjiEngine::Render()
 {
 	KX_Scene *firstscene = (KX_Scene *)m_scenes->GetFront();
@@ -516,12 +547,36 @@ void KX_KetsjiEngine::Render()
 
 	BeginFrame();
 
+	// Store cameras which will be rendered per scene.
+	std::map<KX_Scene *, std::vector<FrameRenderSettings> > sceneSettings;
 	for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
 		KX_Scene *scene = *sceit;
+		std::vector<FrameRenderSettings> settings;
+
+		KX_Camera *activecam = scene->GetActiveCamera();
+		CListValue *cameras = scene->GetCameraList();
+
+		if (activecam && !activecam->GetViewport()) {
+			settings.push_back(GetFrameRenderSettings(scene, activecam));
+		}
+
+		for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
+			KX_Camera *cam = *it;
+			if (cam->GetViewport()) {
+				settings.push_back(GetFrameRenderSettings(scene, cam));
+			}
+		}
+		sceneSettings[scene] = std::move(settings);
+	}
+
+	for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
+		KX_Scene *scene = *sceit;
+
+		RenderShadowsAndTextures(scene, sceneSettings[scene]);
 		// shadow buffers
-		RenderShadowBuffers(scene);
+// 		RenderShadowBuffers(scene);
 		// Render only independent texture renderers here.
-		scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_INDEPENDENT, m_rasterizer, nullptr, nullptr, RAS_Rect(), RAS_Rect());
+// 		scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_INDEPENDENT, m_rasterizer, nullptr, nullptr, RAS_Rect(), RAS_Rect());
 	}
 
 	// Update all off screen to the current canvas size.
@@ -566,8 +621,6 @@ void KX_KetsjiEngine::Render()
 	// for each scene, call the proceed functions
 	for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
 		KX_Scene *scene = *sceit;
-		KX_Camera *activecam = scene->GetActiveCamera();
-		CListValue *cameras = scene->GetCameraList();
 
 		const bool firstscene = (scene == m_scenes->GetFront());
 		const bool lastscene = (scene == m_scenes->GetBack());
@@ -579,8 +632,6 @@ void KX_KetsjiEngine::Render()
 
 		for (unsigned short eyepass = 0; eyepass < numeyepass; ++eyepass) {
 			m_rasterizer->SetEye((eyepass == 0) ? RAS_Rasterizer::RAS_STEREO_LEFTEYE : RAS_Rasterizer::RAS_STEREO_RIGHTEYE);
-			// set the area used for rendering (stereo can assign only a subset)
-			m_rasterizer->SetRenderArea(m_canvas);
 
 			// Choose unique off screen per eyes in case of stereo.
 			if (renderpereye) {
@@ -592,19 +643,10 @@ void KX_KetsjiEngine::Render()
 				}
 			}
 
-			// Avoid drawing the scene with the active camera twice when its viewport is enabled
-			if (activecam && !activecam->GetViewport()) {
+			// Draw the scene once for each camera.
+			for (const FrameRenderSettings& settings : sceneSettings[scene]) {
 				// do the rendering
-				RenderFrame(scene, activecam, offScreen, pass++);
-			}
-
-			// Draw the scene once for each camera with an enabled viewport
-			for (CListValue::iterator<KX_Camera> it = cameras->GetBegin(), end = cameras->GetEnd(); it != end; ++it) {
-				KX_Camera *cam = *it;
-				if (cam->GetViewport()) {
-					// do the rendering
-					RenderFrame(scene, cam, offScreen, pass++);
-				}
+				RenderFrame(scene, settings, offScreen, eyepass, pass++);
 			}
 
 			// Process filters per eye off screen.
@@ -734,7 +776,7 @@ void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene, const MT
 }
 
 
-void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect& area, RAS_Rect& viewport)
+void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& displayArea, RAS_Rect& area, RAS_Rect& viewport)
 {
 	// In this function we make sure the rasterizer settings are up-to-date.
 	// We compute the viewport so that logic using this information is up-to-date.
@@ -765,10 +807,10 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect
 	else if (!m_overrideCam || (scene->GetName() != m_overrideSceneName) || !m_overrideCamData.m_perspective) {
 		RAS_FramingManager::ComputeViewport(
 		    scene->GetFramingType(),
-		    m_canvas->GetDisplayArea(),
+		    displayArea,
 		    viewport);
 
-		area = m_canvas->GetDisplayArea();
+		area = displayArea;
 	}
 	else {
 		viewport.SetLeft(0);
@@ -776,7 +818,7 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect
 		viewport.SetRight(int(m_canvas->GetWidth()));
 		viewport.SetTop(int(m_canvas->GetHeight()));
 
-		area = m_canvas->GetDisplayArea();
+		area = displayArea;
 	}
 }
 
@@ -799,6 +841,31 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 	}
 	else
 		scene->UpdateAnimations(m_frameTime);
+}
+
+void KX_KetsjiEngine::RenderShadowsAndTextures(KX_Scene *scene, const std::vector<FrameRenderSettings>& settingsList)
+{
+	CListValue *lightlist = scene->GetLightList();
+
+	for (CListValue::iterator<KX_LightObject> it = lightlist->GetBegin(), end = lightlist->GetEnd(); it != end; ++it) {
+		KX_LightObject *light = *it;
+		RAS_ILightObject *raslight = light->GetLightData();
+
+		raslight->Update();
+
+		const MT_Matrix4x4 lmat = (raslight->GetWinMat() * raslight->GetViewMat()).inverse();
+
+		bool visible = false;
+		for (const FrameRenderSettings& settings : settingsList) {
+			static const MT_Vector3 min(-1.0f, -1.0f, -1.0f);
+			static const MT_Vector3 max(1.0f, 1.0f, 1.0e10f);
+			if (settings.m_camera->GetFrustum().AabbInsideFrustum(min, max, lmat) != SG_Frustum::OUTSIDE) {
+				visible = true;
+				break;
+			}
+		}
+		CM_Debug("shadow " << light->GetName() << ", visible: " << visible);
+	}
 }
 
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
@@ -936,24 +1003,18 @@ const MT_Matrix4x4& KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, 
 }
 
 // update graphics
-void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen *offScreen, unsigned short pass)
+void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, const FrameRenderSettings& settings, RAS_OffScreen *offScreen, unsigned short eye, unsigned short pass)
 {
-	RAS_Rect viewport, area;
-
-	if (!cam)
-		return;
-
 	bool isfirstscene = (scene == m_scenes->GetFront());
 
 	KX_SetActiveScene(scene);
 
-#ifdef WITH_PYTHON
-	scene->RunDrawingCallbacks(KX_Scene::PRE_DRAW_SETUP, cam);
-#endif
+// 	scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_DEPENDENT, m_rasterizer, offScreen, cam, viewport, area);
 
-	GetSceneViewport(scene, cam, area, viewport);
+	KX_Camera *cam = settings.m_camera;
 
-	scene->RenderTextureRenderers(KX_TextureRendererManager::VIEWPORT_DEPENDENT, m_rasterizer, offScreen, cam, viewport, area);
+	const RAS_Rect& viewport = settings.m_viewport[eye];
+	const RAS_Rect& area = settings.m_area[eye];
 
 	// set the viewport for this frame and scene
 	const int left = viewport.GetLeft();
@@ -969,16 +1030,13 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 		m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT);
 	}
 
-	// see KX_BlenderMaterial::Activate
-	//m_rasterizer->SetAmbient();
 	m_rasterizer->DisplayFog();
-
-
 
 	MT_Transform camtrans(cam->GetWorldToCamera());
 	MT_Matrix4x4 viewmat(camtrans);
 
-	m_rasterizer->SetProjectionMatrix(GetCameraProjectionMatrix(scene, cam, viewport, area));
+	// The projection matrix is already computed when generating the frame render settings.
+	m_rasterizer->SetProjectionMatrix(cam->GetProjectionMatrix());
 	m_rasterizer->SetViewMatrix(viewmat, cam->NodeGetWorldOrientation(), cam->NodeGetWorldPosition(), cam->NodeGetLocalScaling(), cam->GetCameraData()->m_perspective);
 	cam->SetModelviewMatrix(viewmat);
 
