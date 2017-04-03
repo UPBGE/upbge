@@ -789,6 +789,11 @@ RAS_MeshUser *KX_GameObject::GetMeshUser() const
 	return m_meshUser;
 }
 
+bool KX_GameObject::UseCulling() const
+{
+	return (m_meshUser != nullptr);
+}
+
 void KX_GameObject::SetLodManager(KX_LodManager *lodManager)
 {
 	// Reset lod level to avoid overflow index in KX_LodManager::GetLevel.

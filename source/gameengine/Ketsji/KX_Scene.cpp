@@ -1446,7 +1446,7 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw)
 		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 			KX_GameObject *gameobj = *it;
 
-			if (!gameobj->GetCulled() && gameobj->GetMeshCount() != 0) {
+			if (!gameobj->GetCulled() && gameobj->UseCulling()) {
 				const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
 				const MT_Vector3& position = gameobj->NodeGetWorldPosition();
 				const MT_Matrix3x3& orientation = gameobj->NodeGetWorldOrientation();
@@ -1637,6 +1637,10 @@ void KX_Scene::LogicEndFrame()
 	//prepare obstacle simulation for new frame
 	if (m_obstacleSimulation)
 		m_obstacleSimulation->UpdateObstacles();
+
+	for (CListValue::iterator<KX_FontObject> it = m_fontlist->GetBegin(), end = m_fontlist->GetEnd(); it != end; ++it) {
+		(*it)->UpdateTextFromProperty();
+	}
 }
 
 

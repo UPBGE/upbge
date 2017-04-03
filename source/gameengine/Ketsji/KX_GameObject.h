@@ -780,6 +780,9 @@ public:
 	/// Return the mesh user of this game object.
 	RAS_MeshUser *GetMeshUser() const;
 
+	/// Return true when the object can be culled.
+	bool UseCulling() const;
+
 	/**
 	 * Was this object marked visible? (only for the explicit
 	 * visibility system).

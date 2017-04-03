@@ -804,30 +804,27 @@ static void BL_CreateGraphicObjectNew(KX_GameObject* gameobj,
                                       bool isActive,
                                       e_PhysicsEngine physics_engine)
 {
-	if (gameobj->GetMeshCount() > 0)
+	switch (physics_engine)
 	{
-		switch (physics_engine)
-		{
 #ifdef WITH_BULLET
-		case UseBullet:
-			{
-				CcdPhysicsEnvironment* env = (CcdPhysicsEnvironment*)kxscene->GetPhysicsEnvironment();
-				BLI_assert(env);
-				PHY_IMotionState* motionstate = new KX_MotionState(gameobj->GetSGNode());
-				CcdGraphicController* ctrl = new CcdGraphicController(env, motionstate);
-				gameobj->SetGraphicController(ctrl);
-				ctrl->SetNewClientInfo(gameobj->getClientInfo());
-				if (isActive) {
-					// add first, this will create the proxy handle, only if the object is visible
-					if (gameobj->GetVisible())
-						env->AddCcdGraphicController(ctrl);
-				}
+	case UseBullet:
+		{
+			CcdPhysicsEnvironment* env = (CcdPhysicsEnvironment*)kxscene->GetPhysicsEnvironment();
+			BLI_assert(env);
+			PHY_IMotionState* motionstate = new KX_MotionState(gameobj->GetSGNode());
+			CcdGraphicController* ctrl = new CcdGraphicController(env, motionstate);
+			gameobj->SetGraphicController(ctrl);
+			ctrl->SetNewClientInfo(gameobj->getClientInfo());
+			if (isActive) {
+				// add first, this will create the proxy handle, only if the object is visible
+				if (gameobj->GetVisible())
+					env->AddCcdGraphicController(ctrl);
 			}
-			break;
-#endif
-		default:
-			break;
 		}
+		break;
+#endif
+	default:
+		break;
 	}
 }
 
@@ -1119,9 +1116,8 @@ static KX_GameObject *gameobject_from_blenderobject(
 	case OB_FONT:
 	{
 		bool do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
-		/* font objects have no bounding box */
-		gameobj = new KX_FontObject(kxscene,KX_Scene::m_callbacks, rendertools, ob, do_color_management);
-
+		// Font objects have unique bounding box.
+		gameobj = new KX_FontObject(kxscene,KX_Scene::m_callbacks, rendertools, kxscene->GetBoundingBoxManager(), ob, do_color_management);
 		kxscene->GetFontList()->Add(gameobj->AddRef());
 		break;
 	}
@@ -1764,8 +1760,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		bool occlusion = false;
 		for (CListValue::iterator<KX_GameObject> it = sumolist->GetBegin(), end = sumolist->GetEnd(); it != end; ++it) {
 			KX_GameObject* gameobj = *it;
-			if (gameobj->GetMeshCount() > 0) 
-			{
+			// The object can be culled ?
+			if (gameobj->GetMeshCount() || gameobj->GetGameObjectType() == SCA_IObject::OBJ_TEXT) {
 				bool isactive = objectlist->SearchValue(gameobj);
 				BL_CreateGraphicObjectNew(gameobj, kxscene, isactive, physics_engine);
 				if (gameobj->GetOccluder())
@@ -1896,7 +1892,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			boundingBox->GetAabb(aabbMin, aabbMax);
 			gameobj->SetBoundsAabb(aabbMin, aabbMax);
 		}
-		else if (gameobj->GetMeshCount() > 0) {
+		else {
 			// The object allow AABB auto update only if there's no predefined bound.
 			gameobj->SetAutoUpdateBounds(true);
 

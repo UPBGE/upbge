@@ -289,7 +289,7 @@ public:
 	 */
 	int GetViewportTop() const;
 
-	virtual int GetGameObjectType() { return OBJ_CAMERA; }
+	virtual int GetGameObjectType() const { return OBJ_CAMERA; }
 
 #ifdef WITH_PYTHON
 	KX_PYMETHOD_DOC_VARARGS(KX_Camera, sphereInsideFrustum);

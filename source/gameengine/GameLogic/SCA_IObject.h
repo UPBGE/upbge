@@ -217,7 +217,7 @@ public:
 
 //	const class MT_Vector3&	ConvertPythonPylist(PyObject *pylist);
 
-	virtual int GetGameObjectType() {return -1;}
+	virtual int GetGameObjectType() const {return -1;}
 	
 	typedef enum ObjectTypes {
 		OBJ_ARMATURE=0,

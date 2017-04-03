@@ -31,7 +31,10 @@
 
 #ifndef __KX_FONTOBJECT_H__
 #define  __KX_FONTOBJECT_H__
+
 #include "KX_GameObject.h"
+
+class RAS_BoundingBox;
 
 class KX_FontObject : public KX_GameObject
 {
@@ -40,6 +43,7 @@ public:
 	KX_FontObject(void *sgReplicationInfo,
 	              SG_Callbacks callbacks,
 	              RAS_Rasterizer *rasterizer,
+				  RAS_BoundingBoxManager *boundingBoxManager,
 	              Object *ob,
 	              bool do_color_management);
 
@@ -55,16 +59,21 @@ public:
 	 */
 	virtual CValue *GetReplica();
 	virtual void ProcessReplica();
-	virtual int GetGameObjectType()
+	virtual int GetGameObjectType() const
 	{
 		return OBJ_TEXT;
 	}
 
+	// Update text and bounding box.
+	void SetText(const std::string& text);
+	/// Update text from property.
+	void UpdateTextFromProperty();
 	/// Return text dimensions in blender unit.
 	const MT_Vector2 GetTextDimensions();
 
 protected:
-	std::vector<std::string> m_text;
+	std::string m_text;
+	std::vector<std::string> m_texts;
 	Object *m_object;
 	int m_fontid;
 	int m_dpi;
@@ -73,10 +82,14 @@ protected:
 	float m_line_spacing;
 	MT_Vector3 m_offset;
 
+	/// Text bounding box for mesh/text user.
+	RAS_BoundingBox *m_boundingBox;
 	/// needed for drawing routine
 	class RAS_Rasterizer *m_rasterizer;
 
 	bool m_do_color_management;
+
+	void GetTextAabb(MT_Vector2& min, MT_Vector2& max);
 
 #ifdef WITH_PYTHON
 	static PyObject *pyattr_get_text(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
