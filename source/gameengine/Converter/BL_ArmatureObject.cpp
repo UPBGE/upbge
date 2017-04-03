@@ -399,7 +399,7 @@ void BL_ArmatureObject::ProcessReplica()
 	GetActionManager();
 }
 
-int BL_ArmatureObject::GetGameObjectType()
+int BL_ArmatureObject::GetGameObjectType() const
 {
 	return OBJ_ARMATURE;
 }
