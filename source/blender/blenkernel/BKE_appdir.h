@@ -27,10 +27,14 @@
 /* note on naming: typical _get() suffix is omitted here,
  * since its the main purpose of the API. */
 const char *BKE_appdir_folder_default(void);
+const char *BKE_appdir_folder_id_ex(const int folder_id, const char *subfolder, char *path, size_t path_len);
 const char *BKE_appdir_folder_id(const int folder_id, const char *subfolder);
 const char *BKE_appdir_folder_id_create(const int folder_id, const char *subfolder);
 const char *BKE_appdir_folder_id_user_notest(const int folder_id, const char *subfolder);
 const char *BKE_appdir_folder_id_version(const int folder_id, const int ver, const bool do_check);
+
+bool BKE_appdir_app_template_any(void);
+bool BKE_appdir_app_template_id_search(const char *app_template, char *path, size_t path_len);
 
 /* Initialize path to program executable */
 void        BKE_appdir_program_path_init(const char *argv0);

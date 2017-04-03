@@ -44,11 +44,11 @@ CCL_NAMESPACE_BEGIN
  *   - QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS will be filled with
  *     RAY_TO_REGENERATE and more RAY_UPDATE_BUFFER rays.
  */
-ccl_device void kernel_next_iteration_setup(KernelGlobals *kg)
+ccl_device void kernel_next_iteration_setup(KernelGlobals *kg,
+                                            ccl_local_param unsigned int *local_queue_atomics)
 {
-	ccl_local unsigned int local_queue_atomics;
 	if(ccl_local_id(0) == 0 && ccl_local_id(1) == 0) {
-		local_queue_atomics = 0;
+		*local_queue_atomics = 0;
 	}
 	ccl_barrier(CCL_LOCAL_MEM_FENCE);
 
@@ -117,6 +117,9 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg)
 				                       shadow,
 				                       state->bounce);
 			}
+			else {
+				path_radiance_accum_total_ao(L, _throughput, kernel_split_state.ao_bsdf[ray_index]);
+			}
 			REMOVE_RAY_FLAG(ray_state, ray_index, RAY_SHADOW_RAY_CAST_AO);
 		}
 
@@ -124,8 +127,8 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg)
 			float3 shadow = kernel_split_state.light_ray[ray_index].P;
 			// TODO(mai): investigate correctness here
 			char update_path_radiance = (char)kernel_split_state.light_ray[ray_index].t;
+			BsdfEval L_light = kernel_split_state.bsdf_eval[ray_index];
 			if(update_path_radiance) {
-				BsdfEval L_light = kernel_split_state.bsdf_eval[ray_index];
 				path_radiance_accum_light(L,
 				                          _throughput,
 				                          &L_light,
@@ -134,6 +137,9 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg)
 				                          state->bounce,
 				                          kernel_split_state.is_lamp[ray_index]);
 			}
+			else {
+				path_radiance_accum_total_light(L, _throughput, &L_light);
+			}
 			REMOVE_RAY_FLAG(ray_state, ray_index, RAY_SHADOW_RAY_CAST_DL);
 		}
 	}
@@ -141,15 +147,16 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg)
 	if(IS_STATE(ray_state, ray_index, RAY_ACTIVE)) {
 		ccl_global float3 *throughput = &kernel_split_state.throughput[ray_index];
 		ccl_global Ray *ray = &kernel_split_state.ray[ray_index];
-		ccl_global RNG *rng = &kernel_split_state.rng[ray_index];
+		RNG rng = kernel_split_state.rng[ray_index];
 		state = &kernel_split_state.path_state[ray_index];
 		L = &kernel_split_state.path_radiance[ray_index];
 
 		/* Compute direct lighting and next bounce. */
-		if(!kernel_path_surface_bounce(kg, rng, &kernel_split_state.sd[ray_index], throughput, state, L, ray)) {
+		if(!kernel_path_surface_bounce(kg, &rng, &kernel_split_state.sd[ray_index], throughput, state, L, ray)) {
 			ASSIGN_RAY_STATE(ray_state, ray_index, RAY_UPDATE_BUFFER);
 			enqueue_flag = 1;
 		}
+		kernel_split_state.rng[ray_index] = rng;
 	}
 
 #ifndef __COMPUTE_DEVICE_GPU__
@@ -161,7 +168,7 @@ ccl_device void kernel_next_iteration_setup(KernelGlobals *kg)
 	                        QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS,
 	                        enqueue_flag,
 	                        kernel_split_params.queue_size,
-	                        &local_queue_atomics,
+	                        local_queue_atomics,
 	                        kernel_split_state.queue_data,
 	                        kernel_split_params.queue_index);
 }

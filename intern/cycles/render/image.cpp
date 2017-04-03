@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-#include "device.h"
-#include "image.h"
-#include "scene.h"
+#include "device/device.h"
+#include "render/image.h"
+#include "render/scene.h"
 
-#include "util_foreach.h"
-#include "util_logging.h"
-#include "util_path.h"
-#include "util_progress.h"
-#include "util_texture.h"
+#include "util/util_foreach.h"
+#include "util/util_logging.h"
+#include "util/util_path.h"
+#include "util/util_progress.h"
+#include "util/util_texture.h"
 
 #ifdef WITH_OSL
 #include <OSL/oslexec.h>
@@ -154,6 +154,16 @@ ImageManager::ImageDataType ImageManager::get_image_metadata(const string& filen
 		else {
 			return (channels > 1) ? IMAGE_DATA_TYPE_BYTE4 : IMAGE_DATA_TYPE_BYTE;
 		}
+	}
+
+	/* Perform preliminary checks, with meaningful logging. */
+	if(!path_exists(filename)) {
+		VLOG(1) << "File '" << filename << "' does not exist.";
+		return IMAGE_DATA_TYPE_BYTE4;
+	}
+	if(path_is_directory(filename)) {
+		VLOG(1) << "File '" << filename << "' is a directory, can't use as image.";
+		return IMAGE_DATA_TYPE_BYTE4;
 	}
 
 	ImageInput *in = ImageInput::create(filename);
@@ -432,6 +442,11 @@ bool ImageManager::file_load_image_generic(Image *img, ImageInput **in, int &wid
 		return false;
 
 	if(!img->builtin_data) {
+		/* NOTE: Error logging is done in meta data acquisition. */
+		if(!path_exists(img->filename) || path_is_directory(img->filename)) {
+			return false;
+		}
+
 		/* load image from file through OIIO */
 		*in = ImageInput::create(img->filename);
 

@@ -16,36 +16,38 @@
 
 #include <stdlib.h>
 
-#include "background.h"
-#include "buffers.h"
-#include "camera.h"
-#include "device.h"
-#include "integrator.h"
-#include "film.h"
-#include "light.h"
-#include "mesh.h"
-#include "object.h"
-#include "scene.h"
-#include "session.h"
-#include "shader.h"
+#include "render/background.h"
+#include "render/buffers.h"
+#include "render/camera.h"
+#include "device/device.h"
+#include "render/integrator.h"
+#include "render/film.h"
+#include "render/light.h"
+#include "render/mesh.h"
+#include "render/object.h"
+#include "render/scene.h"
+#include "render/session.h"
+#include "render/shader.h"
 
-#include "util_color.h"
-#include "util_foreach.h"
-#include "util_function.h"
-#include "util_hash.h"
-#include "util_logging.h"
-#include "util_progress.h"
-#include "util_time.h"
+#include "util/util_color.h"
+#include "util/util_foreach.h"
+#include "util/util_function.h"
+#include "util/util_hash.h"
+#include "util/util_logging.h"
+#include "util/util_progress.h"
+#include "util/util_time.h"
 
-#include "blender_sync.h"
-#include "blender_session.h"
-#include "blender_util.h"
+#include "blender/blender_sync.h"
+#include "blender/blender_session.h"
+#include "blender/blender_util.h"
 
 CCL_NAMESPACE_BEGIN
 
 bool BlenderSession::headless = false;
 int BlenderSession::num_resumable_chunks = 0;
 int BlenderSession::current_resumable_chunk = 0;
+int BlenderSession::start_resumable_chunk = 0;
+int BlenderSession::end_resumable_chunk = 0;
 
 BlenderSession::BlenderSession(BL::RenderEngine& b_engine,
                                BL::UserPreferences& b_userpref,
@@ -68,6 +70,7 @@ BlenderSession::BlenderSession(BL::RenderEngine& b_engine,
 	background = true;
 	last_redraw_time = 0.0;
 	start_resize_time = 0.0;
+	last_status_time = 0.0;
 }
 
 BlenderSession::BlenderSession(BL::RenderEngine& b_engine,
@@ -93,6 +96,7 @@ BlenderSession::BlenderSession(BL::RenderEngine& b_engine,
 	background = false;
 	last_redraw_time = 0.0;
 	start_resize_time = 0.0;
+	last_status_time = 0.0;
 }
 
 BlenderSession::~BlenderSession()
@@ -989,10 +993,14 @@ void BlenderSession::update_status_progress()
 	if(substatus.size() > 0)
 		status += " | " + substatus;
 
-	if(status != last_status) {
+	double current_time = time_dt();
+	/* When rendering in a window, redraw the status at least once per second to keep the elapsed and remaining time up-to-date.
+	 * For headless rendering, only report when something significant changes to keep the console output readable. */
+	if(status != last_status || (!headless && (current_time - last_status_time) > 1.0)) {
 		b_engine.update_stats("", (timestatus + scene + status).c_str());
 		b_engine.update_memory_stats(mem_used, mem_peak);
 		last_status = status;
+		last_status_time = current_time;
 	}
 	if(progress != last_progress) {
 		b_engine.update_progress(progress);
@@ -1342,9 +1350,21 @@ void BlenderSession::update_resumable_tile_manager(int num_samples)
 		return;
 	}
 
-	int num_samples_per_chunk = (int)ceilf((float)num_samples / num_resumable_chunks);
-	int range_start_sample = num_samples_per_chunk * (current_resumable_chunk - 1);
-	int range_num_samples = num_samples_per_chunk;
+	const int num_samples_per_chunk = (int)ceilf((float)num_samples / num_resumable_chunks);
+
+	int range_start_sample, range_num_samples;
+	if(current_resumable_chunk != 0) {
+		/* Single chunk rendering. */
+		range_start_sample = num_samples_per_chunk * (current_resumable_chunk - 1);
+		range_num_samples = num_samples_per_chunk;
+	}
+	else {
+		/* Ranged-chunks. */
+		const int num_chunks = end_resumable_chunk - start_resumable_chunk + 1;
+		range_start_sample = num_samples_per_chunk * (start_resumable_chunk - 1);
+		range_num_samples = num_chunks * num_samples_per_chunk;
+	}
+	/* Make sure we don't overshoot. */
 	if(range_start_sample + range_num_samples > num_samples) {
 		range_num_samples = num_samples - range_num_samples;
 	}

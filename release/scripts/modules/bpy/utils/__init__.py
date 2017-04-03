@@ -32,6 +32,7 @@ __all__ = (
     "preset_find",
     "preset_paths",
     "refresh_script_paths",
+    "app_template_paths",
     "register_class",
     "register_module",
     "register_manual_map",
@@ -49,18 +50,18 @@ __all__ = (
     "unregister_class",
     "unregister_module",
     "user_resource",
-    )
+)
 
 from _bpy import (
-        _utils_units as units,
-        blend_paths,
-        escape_identifier,
-        register_class,
-        resource_path,
-        script_paths as _bpy_script_paths,
-        unregister_class,
-        user_resource as _user_resource,
-        )
+    _utils_units as units,
+    blend_paths,
+    escape_identifier,
+    register_class,
+    resource_path,
+    script_paths as _bpy_script_paths,
+    unregister_class,
+    user_resource as _user_resource,
+)
 
 import bpy as _bpy
 import os as _os
@@ -142,7 +143,7 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
        as modules.
     :type refresh_scripts: bool
     """
-    use_time = _bpy.app.debug_python
+    use_time = use_class_register_check = _bpy.app.debug_python
 
     if use_time:
         import time
@@ -161,7 +162,8 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
         for module_name in [ext.module for ext in _user_preferences.addons]:
             _addon_utils.disable(module_name)
 
-        # *AFTER* unregistering all add-ons, otherwise all calls to unregister_module() will silently fail (do nothing).
+        # *AFTER* unregistering all add-ons, otherwise all calls to
+        # unregister_module() will silently fail (do nothing).
         _bpy_types.TypeMap.clear()
 
     def register_module_call(mod):
@@ -245,6 +247,12 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
                     for mod in modules_from_path(path, loaded_modules):
                         test_register(mod)
 
+    # load template (if set)
+    if any(_bpy.utils.app_template_paths()):
+        import bl_app_template_utils
+        bl_app_template_utils.reset(reload_scripts=reload_scripts)
+        del bl_app_template_utils
+
     # deal with addons separately
     _initialize = getattr(_addon_utils, "_initialize", None)
     if _initialize is not None:
@@ -269,13 +277,21 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
     if use_time:
         print("Python Script Load Time %.4f" % (time.time() - t_main))
 
+    if use_class_register_check:
+        for cls in _bpy.types.bpy_struct.__subclasses__():
+            if getattr(cls, "is_registered", False):
+                for subcls in cls.__subclasses__():
+                    if not subcls.is_registered:
+                        print(
+                            "Warning, unregistered class: %s(%s)" %
+                            (subcls.__name__, cls.__name__)
+                        )
+
 
 # base scripts
-_scripts = _os.path.join(_os.path.dirname(__file__),
-                         _os.path.pardir,
-                         _os.path.pardir,
-                         )
-_scripts = (_os.path.normpath(_scripts), )
+_scripts = (
+    _os.path.dirname(_os.path.dirname(_os.path.dirname(__file__))),
+)
 
 
 def script_path_user():
@@ -354,6 +370,38 @@ def refresh_script_paths():
         path = _os.path.join(path, "modules")
         if _os.path.isdir(path):
             _sys_path_ensure(path)
+
+
+def app_template_paths(subdir=None):
+    """
+    Returns valid application template paths.
+
+    :arg subdir: Optional subdir.
+    :type subdir: string
+    :return: app template paths.
+    :rtype: generator
+    """
+
+    # note: LOCAL, USER, SYSTEM order matches script resolution order.
+    subdir_tuple = (subdir,) if subdir is not None else ()
+
+    path = _os.path.join(*(
+        resource_path('LOCAL'), "scripts", "startup",
+        "bl_app_templates_user", *subdir_tuple))
+    if _os.path.isdir(path):
+        yield path
+    else:
+        path = _os.path.join(*(
+            resource_path('USER'), "scripts", "startup",
+            "bl_app_templates_user", *subdir_tuple))
+        if _os.path.isdir(path):
+            yield path
+
+    path = _os.path.join(*(
+        resource_path('SYSTEM'), "scripts", "startup",
+        "bl_app_templates_system", *subdir_tuple))
+    if _os.path.isdir(path):
+        yield path
 
 
 def preset_paths(subdir):

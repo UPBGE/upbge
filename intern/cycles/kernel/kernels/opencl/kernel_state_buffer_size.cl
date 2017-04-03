@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#include "kernel_compat_opencl.h"
-#include "split/kernel_split_common.h"
+#include "kernel/kernel_compat_opencl.h"
+#include "kernel/split/kernel_split_common.h"
 
 __kernel void kernel_ocl_path_trace_state_buffer_size(
-        KernelGlobals *kg,
+        ccl_global char *kg,
         ccl_constant KernelData *data,
         uint num_threads,
         ccl_global uint64_t *size)
 {
-	kg->data = data;
-	*size = split_data_buffer_size(kg, num_threads);
+	((KernelGlobals*)kg)->data = data;
+	*size = split_data_buffer_size((KernelGlobals*)kg, num_threads);
 }
 

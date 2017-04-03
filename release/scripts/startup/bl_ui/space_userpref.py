@@ -90,6 +90,63 @@ class USERPREF_MT_interaction_presets(Menu):
     draw = Menu.draw_preset
 
 
+class USERPREF_MT_app_templates(Menu):
+    bl_label = "Application Templates"
+    preset_subdir = "app_templates"
+
+    def draw_ex(self, context, *, use_splash=False, use_default=False, use_install=False):
+        import os
+
+        layout = self.layout
+
+        # now draw the presets
+        layout.operator_context = 'EXEC_DEFAULT'
+
+        if use_default:
+            props = layout.operator("wm.read_homefile", text="Default")
+            props.use_splash = True
+            props.app_template = ""
+            layout.separator()
+
+        template_paths = bpy.utils.app_template_paths()
+
+        # expand template paths
+        app_templates = []
+        for path in template_paths:
+            for d in os.listdir(path):
+                if d.startswith(("__", ".")):
+                    continue
+                template = os.path.join(path, d)
+                if os.path.isdir(template):
+                    # template_paths_expand.append(template)
+                    app_templates.append(d)
+
+        for d in sorted(app_templates):
+            props = layout.operator(
+                "wm.read_homefile",
+                text=bpy.path.display_name(d),
+            )
+            props.use_splash = True
+            props.app_template = d;
+
+        if use_install:
+            layout.separator()
+            layout.operator_context = 'INVOKE_DEFAULT'
+            props = layout.operator("wm.app_template_install")
+
+
+    def draw(self, context):
+        self.draw_ex(context, use_splash=False, use_default=True, use_install=True)
+
+
+class USERPREF_MT_templates_splash(Menu):
+    bl_label = "Startup Templates"
+    preset_subdir = "templates"
+
+    def draw(self, context):
+        USERPREF_MT_app_templates.draw_ex(self, context, use_splash=True, use_default=True)
+
+
 class USERPREF_MT_appconfigs(Menu):
     bl_label = "AppPresets"
     preset_subdir = "keyconfig"
@@ -110,7 +167,17 @@ class USERPREF_MT_splash(Menu):
 
         split = layout.split()
         row = split.row()
-        row.label("")
+
+        if any(bpy.utils.app_template_paths()):
+            row.label("Template:")
+            template = context.user_preferences.app_template
+            row.menu(
+                "USERPREF_MT_templates_splash",
+                text=bpy.path.display_name(template) if template else "Default",
+            )
+        else:
+            row.label("")
+
         row = split.row()
         row.label("Interaction:")
 
@@ -150,6 +217,7 @@ class USERPREF_PT_interface(Panel):
 
         col = row.column()
         col.label(text="Display:")
+        col.prop(view, "ui_scale", text="Scale")
         col.prop(view, "show_tooltips")
         col.prop(view, "show_tooltips_python")
         col.prop(view, "show_object_info", text="Object Info")
@@ -400,11 +468,6 @@ class USERPREF_PT_system(Panel):
 
         col = colsplit.column()
         col.label(text="General:")
-        col.prop(system, "dpi")
-        col.label("Virtual Pixel Mode:")
-        col.prop(system, "virtual_pixel_mode", text="")
-
-        col.separator()
 
         col.prop(system, "frame_server_port")
         col.prop(system, "scrollback", text="Console Scrollback")
@@ -1320,7 +1383,7 @@ class USERPREF_PT_addons(Panel):
         if addon_utils.error_duplicates:
             box = col.box()
             row = box.row()
-            row.label("Multiple addons with the same name found!")
+            row.label("Multiple add-ons with the same name found!")
             row.label(icon='ERROR')
             box.label("Please delete one of each pair:")
             for (addon_name, addon_file, addon_path) in addon_utils.error_duplicates:
@@ -1481,5 +1544,29 @@ class USERPREF_PT_addons(Panel):
                 row.label(text=module_name, translate=False)
 
 
+classes = (
+    USERPREF_HT_header,
+    USERPREF_PT_tabs,
+    USERPREF_MT_interaction_presets,
+    USERPREF_MT_templates_splash,
+    USERPREF_MT_app_templates,
+    USERPREF_MT_appconfigs,
+    USERPREF_MT_splash,
+    USERPREF_MT_splash_footer,
+    USERPREF_PT_interface,
+    USERPREF_PT_edit,
+    USERPREF_PT_system,
+    USERPREF_MT_interface_theme_presets,
+    USERPREF_PT_theme,
+    USERPREF_PT_file,
+    USERPREF_MT_ndof_settings,
+    USERPREF_MT_keyconfigs,
+    USERPREF_PT_input,
+    USERPREF_MT_addons_online_resources,
+    USERPREF_PT_addons,
+)
+
 if __name__ == "__main__":  # only for live edit.
-    bpy.utils.register_module(__name__)
+    from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)

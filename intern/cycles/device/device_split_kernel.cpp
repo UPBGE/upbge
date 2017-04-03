@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include "device_split_kernel.h"
+#include "device/device_split_kernel.h"
 
-#include "kernel_types.h"
-#include "kernel_split_data_types.h"
+#include "kernel/kernel_types.h"
+#include "kernel/split/kernel_split_data_types.h"
 
-#include "util_time.h"
+#include "util/util_time.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -142,6 +142,7 @@ bool DeviceSplitKernel::path_trace(DeviceTask *task,
 
 	/* Number of elements in the global state buffer */
 	int num_global_elements = global_size[0] * global_size[1];
+	assert(num_global_elements % WORK_POOL_SIZE == 0);
 
 	/* Allocate all required global memory once. */
 	if(first_tile) {

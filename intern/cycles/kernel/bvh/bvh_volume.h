@@ -18,7 +18,7 @@
  */
 
 #ifdef __QBVH__
-#  include "qbvh_volume.h"
+#  include "kernel/bvh/qbvh_volume.h"
 #endif
 
 #if BVH_FEATURE(BVH_HAIR)
@@ -96,9 +96,6 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 
 	gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
 #endif
-
-	IsectPrecalc isect_precalc;
-	triangle_intersect_precalc(dir, &isect_precalc);
 
 	/* traversal loop */
 	do {
@@ -194,9 +191,9 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 									continue;
 								}
 								triangle_intersect(kg,
-								                   &isect_precalc,
 								                   isect,
 								                   P,
+								                   dir,
 								                   visibility,
 								                   object,
 								                   prim_addr);
@@ -243,8 +240,6 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 						isect->t = bvh_instance_push(kg, object, ray, &P, &dir, &idir, isect->t);
 #  endif
 
-						triangle_intersect_precalc(dir, &isect_precalc);
-
 #  if defined(__KERNEL_SSE2__)
 						Psplat[0] = ssef(P.x);
 						Psplat[1] = ssef(P.y);
@@ -285,8 +280,6 @@ bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 #  else
 			isect->t = bvh_instance_pop(kg, object, ray, &P, &dir, &idir, isect->t);
 #  endif
-
-			triangle_intersect_precalc(dir, &isect_precalc);
 
 #  if defined(__KERNEL_SSE2__)
 			Psplat[0] = ssef(P.x);

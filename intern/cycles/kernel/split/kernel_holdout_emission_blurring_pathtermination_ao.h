@@ -52,13 +52,13 @@ CCL_NAMESPACE_BEGIN
  *   - QUEUE_SHADOW_RAY_CAST_AO_RAYS will be filled with rays marked with
  *     flag RAY_SHADOW_RAY_CAST_AO
  */
-ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(KernelGlobals *kg)
+ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(
+        KernelGlobals *kg,
+        ccl_local_param BackgroundAOLocals *locals)
 {
-	ccl_local unsigned int local_queue_atomics_bg;
-	ccl_local unsigned int local_queue_atomics_ao;
 	if(ccl_local_id(0) == 0 && ccl_local_id(1) == 0) {
-		local_queue_atomics_bg = 0;
-		local_queue_atomics_ao = 0;
+		locals->queue_atomics_bg = 0;
+		locals->queue_atomics_ao = 0;
 	}
 	ccl_barrier(CCL_LOCAL_MEM_FENCE);
 
@@ -98,7 +98,7 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(KernelGlobal
 	unsigned int tile_y;
 	unsigned int sample;
 
-	ccl_global RNG *rng = 0x0;
+	RNG rng = kernel_split_state.rng[ray_index];
 	ccl_global PathState *state = 0x0;
 	float3 throughput;
 
@@ -110,7 +110,6 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(KernelGlobal
 
 		throughput = kernel_split_state.throughput[ray_index];
 		state = &kernel_split_state.path_state[ray_index];
-		rng = &kernel_split_state.rng[ray_index];
 
 		work_index = kernel_split_state.work_array[ray_index];
 		sample = get_work_sample(kg, work_index, ray_index) + kernel_split_params.start_sample;
@@ -120,6 +119,23 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(KernelGlobal
 		                        ray_index);
 
 		buffer += (kernel_split_params.offset + pixel_x + pixel_y * stride) * kernel_data.film.pass_stride;
+
+#ifdef __SHADOW_TRICKS__
+		if((sd->object_flag & SD_OBJECT_SHADOW_CATCHER)) {
+			if (state->flag & PATH_RAY_CAMERA) {
+				state->flag |= (PATH_RAY_SHADOW_CATCHER | PATH_RAY_SHADOW_CATCHER_ONLY);
+				state->catcher_object = sd->object;
+				if(!kernel_data.background.transparent) {
+					PathRadiance *L = &kernel_split_state.path_radiance[ray_index];
+					ccl_global Ray *ray = &kernel_split_state.ray[ray_index];
+					L->shadow_color = indirect_background(kg, &kernel_split_state.sd_DL_shadow[ray_index], state, ray);
+				}
+			}
+		}
+		else {
+			state->flag &= ~PATH_RAY_SHADOW_CATCHER_ONLY;
+		}
+#endif  /* __SHADOW_TRICKS__ */
 
 		/* holdout */
 #ifdef __HOLDOUT__
@@ -194,7 +210,7 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(KernelGlobal
 
 		if(IS_STATE(ray_state, ray_index, RAY_ACTIVE)) {
 			if(probability != 1.0f) {
-				float terminate = path_state_rng_1D_for_decision(kg, rng, state, PRNG_TERMINATE);
+				float terminate = path_state_rng_1D_for_decision(kg, &rng, state, PRNG_TERMINATE);
 				if(terminate >= probability) {
 					ASSIGN_RAY_STATE(ray_state, ray_index, RAY_UPDATE_BUFFER);
 					enqueue_flag = 1;
@@ -214,7 +230,7 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(KernelGlobal
 		{
 			/* todo: solve correlation */
 			float bsdf_u, bsdf_v;
-			path_state_rng_2D(kg, rng, state, PRNG_BSDF_U, &bsdf_u, &bsdf_v);
+			path_state_rng_2D(kg, &rng, state, PRNG_BSDF_U, &bsdf_u, &bsdf_v);
 
 			float ao_factor = kernel_data.background.ao_factor;
 			float3 ao_N;
@@ -243,6 +259,8 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(KernelGlobal
 		}
 	}
 #endif  /* __AO__ */
+	kernel_split_state.rng[ray_index] = rng;
+
 
 #ifndef __COMPUTE_DEVICE_GPU__
 	}
@@ -253,7 +271,7 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(KernelGlobal
 	                        QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS,
 	                        enqueue_flag,
 	                        kernel_split_params.queue_size,
-	                        &local_queue_atomics_bg,
+	                        &locals->queue_atomics_bg,
 	                        kernel_split_state.queue_data,
 	                        kernel_split_params.queue_index);
 
@@ -263,7 +281,7 @@ ccl_device void kernel_holdout_emission_blurring_pathtermination_ao(KernelGlobal
 	                        QUEUE_SHADOW_RAY_CAST_AO_RAYS,
 	                        enqueue_flag_AO_SHADOW_RAY_CAST,
 	                        kernel_split_params.queue_size,
-	                        &local_queue_atomics_ao,
+	                        &locals->queue_atomics_ao,
 	                        kernel_split_state.queue_data,
 	                        kernel_split_params.queue_index);
 #endif

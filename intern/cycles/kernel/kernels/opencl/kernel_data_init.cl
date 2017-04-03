@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include "kernel_compat_opencl.h"
-#include "split/kernel_split_common.h"
-#include "split/kernel_data_init.h"
+#include "kernel/kernel_compat_opencl.h"
+#include "kernel/split/kernel_split_common.h"
+#include "kernel/split/kernel_data_init.h"
 
 __kernel void kernel_ocl_path_trace_data_init(
-        KernelGlobals *kg,
+        ccl_global char *kg,
         ccl_constant KernelData *data,
         ccl_global void *split_data_buffer,
         int num_elements,
@@ -28,7 +28,7 @@ __kernel void kernel_ocl_path_trace_data_init(
 
 #define KERNEL_TEX(type, ttype, name)                                   \
         ccl_global type *name,
-#include "../../kernel_textures.h"
+#include "kernel/kernel_textures.h"
 
         int start_sample,
         int end_sample,
@@ -40,7 +40,7 @@ __kernel void kernel_ocl_path_trace_data_init(
         unsigned int num_samples,                    /* Total number of samples per pixel */
         ccl_global float *buffer)
 {
-	kernel_data_init(kg,
+	kernel_data_init((KernelGlobals*)kg,
 	                 data,
 	                 split_data_buffer,
 	                 num_elements,
@@ -48,7 +48,7 @@ __kernel void kernel_ocl_path_trace_data_init(
 	                 rng_state,
 
 #define KERNEL_TEX(type, ttype, name) name,
-#include "../../kernel_textures.h"
+#include "kernel/kernel_textures.h"
 
 	                 start_sample,
 	                 end_sample,

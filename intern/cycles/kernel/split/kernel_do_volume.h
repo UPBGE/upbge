@@ -25,10 +25,7 @@ ccl_device void kernel_do_volume(KernelGlobals *kg)
 		kernel_split_params.queue_index[QUEUE_ACTIVE_AND_REGENERATED_RAYS] = 0;
 	}
 	/* Fetch use_queues_flag. */
-	ccl_local char local_use_queues_flag;
-	if(ccl_local_id(0) == 0 && ccl_local_id(1) == 0) {
-		local_use_queues_flag = *kernel_split_params.use_queues_flag;
-	}
+	char local_use_queues_flag = *kernel_split_params.use_queues_flag;
 	ccl_barrier(CCL_LOCAL_MEM_FENCE);
 
 	int ray_index = ccl_global_id(1) * ccl_global_size(0) + ccl_global_id(0);
@@ -53,7 +50,7 @@ ccl_device void kernel_do_volume(KernelGlobals *kg)
 
 		ccl_global float3 *throughput = &kernel_split_state.throughput[ray_index];
 		ccl_global Ray *ray = &kernel_split_state.ray[ray_index];
-		ccl_global RNG *rng = &kernel_split_state.rng[ray_index];
+		RNG rng = kernel_split_state.rng[ray_index];
 		ccl_global Intersection *isect = &kernel_split_state.isect[ray_index];
 		ShaderData *sd = &kernel_split_state.sd[ray_index];
 		ShaderData *sd_input = &kernel_split_state.sd_DL_shadow[ray_index];
@@ -72,15 +69,15 @@ ccl_device void kernel_do_volume(KernelGlobals *kg)
 			{
 				/* integrate along volume segment with distance sampling */
 				VolumeIntegrateResult result = kernel_volume_integrate(
-					kg, state, sd, &volume_ray, L, throughput, rng, heterogeneous);
+					kg, state, sd, &volume_ray, L, throughput, &rng, heterogeneous);
 
 #  ifdef __VOLUME_SCATTER__
 				if(result == VOLUME_PATH_SCATTERED) {
 					/* direct lighting */
-					kernel_path_volume_connect_light(kg, rng, sd, sd_input, *throughput, state, L);
+					kernel_path_volume_connect_light(kg, &rng, sd, sd_input, *throughput, state, L);
 
 					/* indirect light bounce */
-					if(kernel_path_volume_bounce(kg, rng, sd, throughput, state, L, ray))
+					if(kernel_path_volume_bounce(kg, &rng, sd, throughput, state, L, ray))
 						ASSIGN_RAY_STATE(kernel_split_state.ray_state, ray_index, RAY_REGENERATED);
 					else
 						ASSIGN_RAY_STATE(kernel_split_state.ray_state, ray_index, RAY_UPDATE_BUFFER);
@@ -88,6 +85,7 @@ ccl_device void kernel_do_volume(KernelGlobals *kg)
 #  endif
 			}
 		}
+		kernel_split_state.rng[ray_index] = rng;
 	}
 
 #endif

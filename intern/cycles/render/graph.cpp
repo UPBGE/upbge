@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 
-#include "attribute.h"
-#include "graph.h"
-#include "nodes.h"
-#include "shader.h"
-#include "constant_fold.h"
+#include "render/attribute.h"
+#include "render/graph.h"
+#include "render/nodes.h"
+#include "render/scene.h"
+#include "render/shader.h"
+#include "render/constant_fold.h"
 
-#include "util_algorithm.h"
-#include "util_debug.h"
-#include "util_foreach.h"
-#include "util_queue.h"
-#include "util_logging.h"
+#include "util/util_algorithm.h"
+#include "util/util_debug.h"
+#include "util/util_foreach.h"
+#include "util/util_queue.h"
+#include "util/util_logging.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -195,6 +196,7 @@ bool ShaderNode::equals(const ShaderNode& other)
 ShaderGraph::ShaderGraph()
 {
 	finalized = false;
+	simplified = false;
 	num_node_ids = 0;
 	add(new OutputNode());
 }
@@ -207,6 +209,8 @@ ShaderGraph::~ShaderGraph()
 ShaderNode *ShaderGraph::add(ShaderNode *node)
 {
 	assert(!finalized);
+	simplified = false;
+
 	node->id = num_node_ids++;
 	nodes.push_back(node);
 	return node;
@@ -233,6 +237,8 @@ ShaderGraph *ShaderGraph::copy()
 	newgraph->clear_nodes();
 	foreach(ShaderNode *node, nodes)
 		newgraph->add(nodes_copy[node]);
+
+	newgraph->simplified = simplified;
 
 	return newgraph;
 }
@@ -273,6 +279,7 @@ void ShaderGraph::connect(ShaderOutput *from, ShaderInput *to)
 void ShaderGraph::disconnect(ShaderOutput *from)
 {
 	assert(!finalized);
+	simplified = false;
 
 	foreach(ShaderInput *sock, from->links) {
 		sock->link = NULL;
@@ -285,6 +292,7 @@ void ShaderGraph::disconnect(ShaderInput *to)
 {
 	assert(!finalized);
 	assert(to->link);
+	simplified = false;
 
 	ShaderOutput *from = to->link;
 
@@ -294,6 +302,8 @@ void ShaderGraph::disconnect(ShaderInput *to)
 
 void ShaderGraph::relink(ShaderNode *node, ShaderOutput *from, ShaderOutput *to)
 {
+	simplified = false;
+
 	/* Copy because disconnect modifies this list */
 	vector<ShaderInput*> outputs = from->links;
 
@@ -310,9 +320,19 @@ void ShaderGraph::relink(ShaderNode *node, ShaderOutput *from, ShaderOutput *to)
 	}
 }
 
+void ShaderGraph::simplify(Scene *scene)
+{
+	if(!simplified) {
+		default_inputs(scene->shader_manager->use_osl());
+		clean(scene);
+		refine_bump_nodes();
+
+		simplified = true;
+	}
+}
+
 void ShaderGraph::finalize(Scene *scene,
                            bool do_bump,
-                           bool do_osl,
                            bool do_simplify,
                            bool bump_in_object_space)
 {
@@ -322,9 +342,7 @@ void ShaderGraph::finalize(Scene *scene,
 	 * modified afterwards. */
 
 	if(!finalized) {
-		default_inputs(do_osl);
-		clean(scene);
-		refine_bump_nodes();
+		simplify(scene);
 
 		if(do_bump)
 			bump_from_displacement(bump_in_object_space);

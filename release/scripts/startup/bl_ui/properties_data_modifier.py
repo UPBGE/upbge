@@ -569,6 +569,14 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "use_mirror_u", text="U")
         col.prop(md, "use_mirror_v", text="V")
 
+        col = layout.column(align=True)
+
+        if md.use_mirror_u:
+            col.prop(md, "mirror_offset_u")
+
+        if md.use_mirror_v:
+            col.prop(md, "mirror_offset_v")
+
         col = layout.column()
 
         if md.use_mirror_merge is True:
@@ -1522,5 +1530,11 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             layout.operator("object.correctivesmooth_bind", text="Unbind" if is_bind else "Bind")
 
 
+classes = (
+    DATA_PT_modifiers,
+)
+
 if __name__ == "__main__":  # only for live edit.
-    bpy.utils.register_module(__name__)
+    from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)

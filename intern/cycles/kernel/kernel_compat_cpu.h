@@ -35,12 +35,12 @@
 #  define __NODES_FEATURES__ NODE_FEATURE_ALL
 #endif
 
-#include "util_debug.h"
-#include "util_math.h"
-#include "util_simd.h"
-#include "util_half.h"
-#include "util_types.h"
-#include "util_texture.h"
+#include "util/util_debug.h"
+#include "util/util_math.h"
+#include "util/util_simd.h"
+#include "util/util_half.h"
+#include "util/util_types.h"
+#include "util/util_texture.h"
 
 #define ccl_addr_space
 
@@ -87,9 +87,9 @@ template<typename T> struct texture  {
 	ccl_always_inline avxf fetch_avxf(const int index)
 	{
 		kernel_assert(index >= 0 && (index+1) < width);
-		ssef *ssefData = (ssef*)data;
-		ssef *ssefNodeData = &ssefData[index];
-		return _mm256_loadu_ps((float *)ssefNodeData);
+		ssef *ssef_data = (ssef*)data;
+		ssef *ssef_node_data = &ssef_data[index];
+		return _mm256_loadu_ps((float *)ssef_node_data);
 	}
 
 #endif

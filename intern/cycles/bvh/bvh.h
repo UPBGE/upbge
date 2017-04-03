@@ -18,10 +18,10 @@
 #ifndef __BVH_H__
 #define __BVH_H__
 
-#include "bvh_params.h"
+#include "bvh/bvh_params.h"
 
-#include "util_types.h"
-#include "util_vector.h"
+#include "util/util_types.h"
+#include "util/util_vector.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -110,15 +110,15 @@ protected:
 	virtual void refit_nodes() = 0;
 };
 
-/* Regular BVH
+/* Binary BVH
  *
  * Typical BVH with each node having two children. */
 
-class RegularBVH : public BVH {
+class BinaryBVH : public BVH {
 protected:
 	/* constructor */
 	friend class BVH;
-	RegularBVH(const BVHParams& params, const vector<Object*>& objects);
+	BinaryBVH(const BVHParams& params, const vector<Object*>& objects);
 
 	/* pack */
 	void pack_nodes(const BVHNode *root);

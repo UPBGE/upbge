@@ -20,8 +20,10 @@
 
 import bpy
 from bpy.types import Operator
-from bpy.props import IntProperty
-from bpy.props import EnumProperty
+from bpy.props import (
+    EnumProperty,
+    IntProperty,
+)
 
 
 class CopyRigidbodySettings(Operator):
@@ -309,3 +311,10 @@ class ConnectRigidBodies(Operator):
         else:
             self.report({'WARNING'}, "No other objects selected")
             return {'CANCELLED'}
+
+
+classes = (
+    BakeToKeyframes,
+    ConnectRigidBodies,
+    CopyRigidbodySettings,
+)

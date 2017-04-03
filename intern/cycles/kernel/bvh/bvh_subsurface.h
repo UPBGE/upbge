@@ -18,7 +18,7 @@
  */
 
 #ifdef __QBVH__
-#  include "qbvh_subsurface.h"
+#  include "kernel/bvh/qbvh_subsurface.h"
 #endif
 
 #if BVH_FEATURE(BVH_HAIR)
@@ -109,9 +109,6 @@ void BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 	gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
 #endif
 
-	IsectPrecalc isect_precalc;
-	triangle_intersect_precalc(dir, &isect_precalc);
-
 	/* traversal loop */
 	do {
 		do {
@@ -197,9 +194,9 @@ void BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 						for(; prim_addr < prim_addr2; prim_addr++) {
 							kernel_assert(kernel_tex_fetch(__prim_type, prim_addr) == type);
 							triangle_intersect_subsurface(kg,
-							                              &isect_precalc,
 							                              ss_isect,
 							                              P,
+							                              dir,
 							                              object,
 							                              prim_addr,
 							                              isect_t,

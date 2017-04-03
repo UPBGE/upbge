@@ -22,15 +22,15 @@
 #include "RNA_access.h"
 #include "RNA_blender_cpp.h"
 
-#include "blender_util.h"
+#include "blender/blender_util.h"
 
-#include "scene.h"
-#include "session.h"
+#include "render/scene.h"
+#include "render/session.h"
 
-#include "util_map.h"
-#include "util_set.h"
-#include "util_transform.h"
-#include "util_vector.h"
+#include "util/util_map.h"
+#include "util/util_set.h"
+#include "util/util_transform.h"
+#include "util/util_vector.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -96,6 +96,7 @@ public:
 private:
 	/* sync */
 	void sync_lamps(bool update_all);
+	void sync_materials_simpligy(Shader *shader);
 	void sync_materials(bool update_all);
 	void sync_objects(BL::SpaceView3D& b_v3d, float motion_time = 0.0f);
 	void sync_motion(BL::RenderSettings& b_render,

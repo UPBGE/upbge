@@ -20,31 +20,31 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "device.h"
-#include "device_intern.h"
-#include "device_split_kernel.h"
+#include "device/device.h"
+#include "device/device_intern.h"
+#include "device/device_split_kernel.h"
 
-#include "buffers.h"
+#include "render/buffers.h"
 
 #ifdef WITH_CUDA_DYNLOAD
 #  include "cuew.h"
 #else
-#  include "util_opengl.h"
+#  include "util/util_opengl.h"
 #  include <cuda.h>
 #  include <cudaGL.h>
 #endif
-#include "util_debug.h"
-#include "util_logging.h"
-#include "util_map.h"
-#include "util_md5.h"
-#include "util_opengl.h"
-#include "util_path.h"
-#include "util_string.h"
-#include "util_system.h"
-#include "util_types.h"
-#include "util_time.h"
+#include "util/util_debug.h"
+#include "util/util_logging.h"
+#include "util/util_map.h"
+#include "util/util_md5.h"
+#include "util/util_opengl.h"
+#include "util/util_path.h"
+#include "util/util_string.h"
+#include "util/util_system.h"
+#include "util/util_types.h"
+#include "util/util_time.h"
 
-#include "split/kernel_split_data_types.h"
+#include "kernel/split/kernel_split_data_types.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -300,8 +300,8 @@ public:
 	{
 		const int cuda_version = cuewCompilerVersion();
 		const int machine = system_cpu_bits();
-		const string kernel_path = path_get("kernel");
-		const string include = kernel_path;
+		const string source_path = path_get("source");
+		const string include_path = source_path;
 		string cflags = string_printf("-m%d "
 		                              "--ptxas-options=\"-v\" "
 		                              "--use_fast_math "
@@ -310,7 +310,7 @@ public:
 		                               "-I\"%s\"",
 		                              machine,
 		                              cuda_version,
-		                              include.c_str());
+		                              include_path.c_str());
 		if(use_adaptive_compilation()) {
 			cflags += " " + requested_features.get_build_options();
 		}
@@ -345,15 +345,15 @@ public:
 			cuda_error_message("CUDA nvcc compiler version could not be parsed.");
 			return false;
 		}
-		if(cuda_version < 75) {
+		if(cuda_version < 80) {
 			printf("Unsupported CUDA version %d.%d detected, "
-			       "you need CUDA 7.5 or newer.\n",
+			       "you need CUDA 8.0 or newer.\n",
 			       major, minor);
 			return false;
 		}
-		else if(cuda_version != 75 && cuda_version != 80) {
+		else if(cuda_version != 80) {
 			printf("CUDA version %d.%d detected, build may succeed but only "
-			       "CUDA 7.5 and 8.0 are officially supported.\n",
+			       "CUDA 8.0 is officially supported.\n",
 			       major, minor);
 		}
 		return true;
@@ -382,8 +382,8 @@ public:
 		        compile_kernel_get_common_cflags(requested_features, split);
 
 		/* Try to use locally compiled kernel. */
-		const string kernel_path = path_get("kernel");
-		const string kernel_md5 = path_files_md5_hash(kernel_path);
+		const string source_path = path_get("source");
+		const string kernel_md5 = path_files_md5_hash(source_path);
 
 		/* We include cflags into md5 so changing cuda toolkit or changing other
 		 * compiler command line arguments makes sure cubin gets re-built.
@@ -424,9 +424,10 @@ public:
 			return "";
 		}
 		const char *nvcc = cuewCompilerPath();
-		const string kernel = path_join(kernel_path,
-		                          path_join("kernels",
-		                                    path_join("cuda", split ? "kernel_split.cu" : "kernel.cu")));
+		const string kernel = path_join(
+		        path_join(source_path, "kernel"),
+		        path_join("kernels",
+		                  path_join("cuda", split ? "kernel_split.cu" : "kernel.cu")));
 		double starttime = time_dt();
 		printf("Compiling CUDA kernel ...\n");
 
@@ -1500,7 +1501,7 @@ uint64_t CUDASplitKernel::state_buffer_size(device_memory& /*kg*/, device_memory
 	cuda_assert(cuLaunchKernel(state_buffer_size,
 	                           1, 1, 1,
 	                           1, 1, 1,
-	                           0, 0, &args, 0));
+	                           0, 0, (void**)&args, 0));
 
 	device->cuda_pop_context();
 

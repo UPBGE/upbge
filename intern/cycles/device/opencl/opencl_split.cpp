@@ -16,19 +16,19 @@
 
 #ifdef WITH_OPENCL
 
-#include "opencl.h"
+#include "device/opencl/opencl.h"
 
-#include "buffers.h"
+#include "render/buffers.h"
 
-#include "kernel_types.h"
-#include "kernel_split_data_types.h"
+#include "kernel/kernel_types.h"
+#include "kernel/split/kernel_split_data_types.h"
 
-#include "device_split_kernel.h"
+#include "device/device_split_kernel.h"
 
-#include "util_logging.h"
-#include "util_md5.h"
-#include "util_path.h"
-#include "util_time.h"
+#include "util/util_logging.h"
+#include "util/util_md5.h"
+#include "util/util_path.h"
+#include "util/util_time.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -41,11 +41,7 @@ static string get_build_options(OpenCLDeviceBase *device, const DeviceRequestedF
 
 	/* Set compute device build option. */
 	cl_device_type device_type;
-	device->ciErr = clGetDeviceInfo(device->cdDevice,
-	                        CL_DEVICE_TYPE,
-	                        sizeof(cl_device_type),
-	                        &device_type,
-	                        NULL);
+	OpenCLInfo::get_device_type(device->cdDevice, &device_type, &device->ciErr);
 	assert(device->ciErr == CL_SUCCESS);
 	if(device_type == CL_DEVICE_TYPE_GPU) {
 		build_options += " -D__COMPUTE_DEVICE_GPU__";
@@ -114,7 +110,7 @@ public:
 				ccl_constant KernelData *data;
 #define KERNEL_TEX(type, ttype, name) \
 				ccl_global type *name;
-#include "kernel_textures.h"
+#include "kernel/kernel_textures.h"
 #undef KERNEL_TEX
 				SplitData split_data;
 				SplitParams split_param_data;
@@ -295,7 +291,7 @@ public:
 /* TODO(sergey): Avoid map lookup here. */
 #define KERNEL_TEX(type, ttype, name) \
 	device->set_kernel_arg_mem(device->program_data_init(), &start_arg_index, #name);
-#include "kernel_textures.h"
+#include "kernel/kernel_textures.h"
 #undef KERNEL_TEX
 
 		start_arg_index +=
@@ -346,9 +342,16 @@ public:
 
 	virtual int2 split_kernel_global_size(device_memory& kg, device_memory& data, DeviceTask */*task*/)
 	{
+		cl_device_type type = OpenCLInfo::get_device_type(device->cdDevice);
+		/* Use small global size on CPU devices as it seems to be much faster. */
+		if(type == CL_DEVICE_TYPE_CPU) {
+			VLOG(1) << "Global size: (64, 64).";
+			return make_int2(64, 64);
+		}
+
 		cl_ulong max_buffer_size;
 		clGetDeviceInfo(device->cdDevice, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(cl_ulong), &max_buffer_size, NULL);
-		VLOG(1) << "Maximum device allocation side: "
+		VLOG(1) << "Maximum device allocation size: "
 		        << string_human_readable_number(max_buffer_size) << " bytes. ("
 		        << string_human_readable_size(max_buffer_size) << ").";
 

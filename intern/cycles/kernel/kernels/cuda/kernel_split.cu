@@ -20,28 +20,28 @@
 
 #define __SPLIT_KERNEL__
 
-#include "../../kernel_compat_cuda.h"
+#include "kernel/kernel_compat_cuda.h"
 #include "kernel_config.h"
 
-#include "../../split/kernel_split_common.h"
-#include "../../split/kernel_data_init.h"
-#include "../../split/kernel_path_init.h"
-#include "../../split/kernel_scene_intersect.h"
-#include "../../split/kernel_lamp_emission.h"
-#include "../../split/kernel_do_volume.h"
-#include "../../split/kernel_queue_enqueue.h"
-#include "../../split/kernel_indirect_background.h"
-#include "../../split/kernel_shader_eval.h"
-#include "../../split/kernel_holdout_emission_blurring_pathtermination_ao.h"
-#include "../../split/kernel_subsurface_scatter.h"
-#include "../../split/kernel_direct_lighting.h"
-#include "../../split/kernel_shadow_blocked_ao.h"
-#include "../../split/kernel_shadow_blocked_dl.h"
-#include "../../split/kernel_next_iteration_setup.h"
-#include "../../split/kernel_indirect_subsurface.h"
-#include "../../split/kernel_buffer_update.h"
+#include "kernel/split/kernel_split_common.h"
+#include "kernel/split/kernel_data_init.h"
+#include "kernel/split/kernel_path_init.h"
+#include "kernel/split/kernel_scene_intersect.h"
+#include "kernel/split/kernel_lamp_emission.h"
+#include "kernel/split/kernel_do_volume.h"
+#include "kernel/split/kernel_queue_enqueue.h"
+#include "kernel/split/kernel_indirect_background.h"
+#include "kernel/split/kernel_shader_eval.h"
+#include "kernel/split/kernel_holdout_emission_blurring_pathtermination_ao.h"
+#include "kernel/split/kernel_subsurface_scatter.h"
+#include "kernel/split/kernel_direct_lighting.h"
+#include "kernel/split/kernel_shadow_blocked_ao.h"
+#include "kernel/split/kernel_shadow_blocked_dl.h"
+#include "kernel/split/kernel_next_iteration_setup.h"
+#include "kernel/split/kernel_indirect_subsurface.h"
+#include "kernel/split/kernel_buffer_update.h"
 
-#include "../../kernel_film.h"
+#include "kernel/kernel_film.h"
 
 /* kernels */
 extern "C" __global__ void
@@ -93,21 +93,30 @@ kernel_cuda_path_trace_data_init(
 		kernel_##name(NULL); \
 	}
 
+#define DEFINE_SPLIT_KERNEL_FUNCTION_LOCALS(name, type) \
+	extern "C" __global__ void \
+	CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS) \
+	kernel_cuda_##name() \
+	{ \
+		ccl_local type locals; \
+		kernel_##name(NULL, &locals); \
+	}
+
 DEFINE_SPLIT_KERNEL_FUNCTION(path_init)
 DEFINE_SPLIT_KERNEL_FUNCTION(scene_intersect)
 DEFINE_SPLIT_KERNEL_FUNCTION(lamp_emission)
 DEFINE_SPLIT_KERNEL_FUNCTION(do_volume)
-DEFINE_SPLIT_KERNEL_FUNCTION(queue_enqueue)
+DEFINE_SPLIT_KERNEL_FUNCTION_LOCALS(queue_enqueue, QueueEnqueueLocals)
 DEFINE_SPLIT_KERNEL_FUNCTION(indirect_background)
-DEFINE_SPLIT_KERNEL_FUNCTION(shader_eval)
-DEFINE_SPLIT_KERNEL_FUNCTION(holdout_emission_blurring_pathtermination_ao)
-DEFINE_SPLIT_KERNEL_FUNCTION(subsurface_scatter)
-DEFINE_SPLIT_KERNEL_FUNCTION(direct_lighting)
+DEFINE_SPLIT_KERNEL_FUNCTION_LOCALS(shader_eval, uint)
+DEFINE_SPLIT_KERNEL_FUNCTION_LOCALS(holdout_emission_blurring_pathtermination_ao, BackgroundAOLocals)
+DEFINE_SPLIT_KERNEL_FUNCTION_LOCALS(subsurface_scatter, uint)
+DEFINE_SPLIT_KERNEL_FUNCTION_LOCALS(direct_lighting, uint)
 DEFINE_SPLIT_KERNEL_FUNCTION(shadow_blocked_ao)
 DEFINE_SPLIT_KERNEL_FUNCTION(shadow_blocked_dl)
-DEFINE_SPLIT_KERNEL_FUNCTION(next_iteration_setup)
+DEFINE_SPLIT_KERNEL_FUNCTION_LOCALS(next_iteration_setup, uint)
 DEFINE_SPLIT_KERNEL_FUNCTION(indirect_subsurface)
-DEFINE_SPLIT_KERNEL_FUNCTION(buffer_update)
+DEFINE_SPLIT_KERNEL_FUNCTION_LOCALS(buffer_update, uint)
 
 extern "C" __global__ void
 CUDA_LAUNCH_BOUNDS(CUDA_THREADS_BLOCK_WIDTH, CUDA_KERNEL_MAX_REGISTERS)

@@ -192,7 +192,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	wm_init_reports(C);
 
 	/* get the default database, plus a wm */
-	wm_homefile_read(C, NULL, G.factory_startup, NULL);
+	wm_homefile_read(C, NULL, G.factory_startup, false, NULL, NULL);
 	
 
 	BLT_lang_set(NULL);
@@ -572,7 +572,7 @@ void WM_exit_ext(bContext *C, const bool do_python)
 	ED_file_exit(); /* for fsmenu */
 
 	UI_exit();
-	BKE_blender_userdef_free();
+	BKE_blender_userdef_free_data(&U);
 
 	RNA_exit(); /* should be after BPY_python_end so struct python slots are cleared */
 	

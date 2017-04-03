@@ -432,7 +432,7 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	}
 
 	/* Object data. */
-	if (ob->data) {
+	if (ob->data != NULL) {
 		/* type-specific data... */
 		switch (ob->type) {
 			case OB_MESH:     /* Geometry */
@@ -490,13 +490,24 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	build_animdata(&ob->id);
 
 	/* particle systems */
-	if (ob->particlesystem.first) {
+	if (ob->particlesystem.first != NULL) {
 		build_particles(scene, ob);
 	}
 
-	/* grease pencil */
-	if (ob->gpd) {
+	/* Grease pencil. */
+	if (ob->gpd != NULL) {
 		build_gpencil(ob->gpd);
+	}
+
+	/* Object that this is a proxy for. */
+	if (ob->proxy) {
+		ob->proxy->proxy_from = ob;
+		build_object(scene, base, ob->proxy);
+	}
+
+	/* Object dupligroup. */
+	if (ob->dup_group != NULL) {
+		build_group(scene, base, ob->dup_group);
 	}
 }
 
@@ -734,7 +745,8 @@ void DepsgraphNodeBuilder::build_particles(Scene *scene, Object *ob)
 	 */
 
 	/* component for all particle systems */
-	ComponentDepsNode *psys_comp = add_component_node(&ob->id, DEPSNODE_TYPE_EVAL_PARTICLES);
+	ComponentDepsNode *psys_comp =
+	        add_component_node(&ob->id, DEPSNODE_TYPE_EVAL_PARTICLES);
 
 	/* particle systems */
 	LINKLIST_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
@@ -747,17 +759,32 @@ void DepsgraphNodeBuilder::build_particles(Scene *scene, Object *ob)
 		/* this particle system */
 		// TODO: for now, this will just be a placeholder "ubereval" node
 		add_operation_node(psys_comp,
-		                   DEPSOP_TYPE_EXEC, function_bind(BKE_particle_system_eval,
-		                                                   _1,
-		                                                   scene,
-		                                                   ob,
-		                                                   psys),
+		                   DEPSOP_TYPE_EXEC,
+		                   function_bind(BKE_particle_system_eval,
+		                                 _1,
+		                                 scene,
+		                                 ob,
+		                                 psys),
 		                   DEG_OPCODE_PSYS_EVAL,
 		                   psys->name);
 	}
 
 	/* pointcache */
 	// TODO...
+}
+
+void DepsgraphNodeBuilder::build_cloth(Scene *scene, Object *object)
+{
+	ComponentDepsNode *cache_comp = add_component_node(&object->id,
+	                                                   DEPSNODE_TYPE_CACHE);
+	add_operation_node(cache_comp,
+	                   DEPSOP_TYPE_EXEC,
+	                   function_bind(BKE_object_eval_cloth,
+	                                 _1,
+	                                 scene,
+	                                 object),
+	                   DEG_OPCODE_PLACEHOLDER,
+	                   "Cloth Modifier");
 }
 
 /* Shapekeys */
@@ -821,6 +848,9 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		                                 md),
 		                   DEG_OPCODE_GEOMETRY_MODIFIER,
 		                   md->name);
+		if (md->type == eModifierType_Cloth) {
+			build_cloth(scene, ob);
+		}
 	}
 
 	/* materials */

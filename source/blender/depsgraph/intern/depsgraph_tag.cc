@@ -56,8 +56,8 @@ extern "C" {
 #include "DEG_depsgraph.h"
 } /* extern "C" */
 
+#include "intern/builder/deg_builder.h"
 #include "intern/eval/deg_eval_flush.h"
-
 #include "intern/nodes/deg_node.h"
 #include "intern/nodes/deg_node_component.h"
 #include "intern/nodes/deg_node_operation.h"
@@ -346,6 +346,27 @@ void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 		GHASH_FOREACH_END();
 	}
 	scene->lay_updated |= graph->layers;
+	/* Special trick to get local view to work.  */
+	LINKLIST_FOREACH (Base *, base, &scene->base) {
+		Object *object = base->object;
+		DEG::IDDepsNode *id_node = graph->find_id_node(&object->id);
+		id_node->layers = 0;
+	}
+	LINKLIST_FOREACH (Base *, base, &scene->base) {
+		Object *object = base->object;
+		DEG::IDDepsNode *id_node = graph->find_id_node(&object->id);
+		id_node->layers |= base->lay;
+	}
+	DEG::deg_graph_build_flush_layers(graph);
+	LINKLIST_FOREACH (Base *, base, &scene->base) {
+		Object *object = base->object;
+		DEG::IDDepsNode *id_node = graph->find_id_node(&object->id);
+		GHASH_FOREACH_BEGIN(DEG::ComponentDepsNode *, comp, id_node->components)
+		{
+			id_node->layers |= comp->layers;
+		}
+		GHASH_FOREACH_END();
+	}
 }
 
 void DEG_on_visible_update(Main *bmain, const bool UNUSED(do_time))

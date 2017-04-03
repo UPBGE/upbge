@@ -22,12 +22,12 @@ from mathutils import Vector
 import bpy
 from bpy.types import Operator
 from bpy.props import (
-        BoolProperty,
-        EnumProperty,
-        IntProperty,
-        FloatProperty,
-        FloatVectorProperty,
-        )
+    BoolProperty,
+    EnumProperty,
+    IntProperty,
+    FloatProperty,
+    FloatVectorProperty,
+)
 
 
 def object_ensure_material(obj, mat_name):
@@ -645,3 +645,11 @@ class QuickFluid(Operator):
             bpy.ops.fluid.bake('INVOKE_DEFAULT')
 
         return {'FINISHED'}
+
+
+classes = (
+    QuickExplode,
+    QuickFluid,
+    QuickFur,
+    QuickSmoke,
+)

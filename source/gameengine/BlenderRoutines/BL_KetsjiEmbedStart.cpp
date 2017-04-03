@@ -58,13 +58,13 @@ extern "C" {
 	void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *cam_frame, int always_use_expand_framing);
 }
 
-static BlendFileData *load_game_data(char *filename)
+static BlendFileData *load_game_data(const char *filename)
 {
 	ReportList reports;
 	BlendFileData *bfd;
 	
 	BKE_reports_init(&reports, RPT_STORE);
-	bfd= BLO_read_from_file(filename, &reports);
+	bfd= BLO_read_from_file(filename, &reports, BLO_READ_SKIP_USERDEF);
 
 	if (!bfd) {
 		CM_Error("loading " << filename << " failed: ");

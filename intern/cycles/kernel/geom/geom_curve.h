@@ -22,6 +22,12 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __HAIR__
 
+#if defined(__KERNEL_CUDA__) && (__CUDA_ARCH__ < 300)
+#  define ccl_device_curveintersect ccl_device
+#else
+#  define ccl_device_curveintersect ccl_device_forceinline
+#endif
+
 /* Reading attributes on various curve elements */
 
 ccl_device float curve_attribute_float(KernelGlobals *kg, const ShaderData *sd, const AttributeDescriptor desc, float *dx, float *dy)
@@ -222,10 +228,10 @@ ccl_device_inline ssef transform_point_T3(const ssef t[3], const ssef &a)
 
 #ifdef __KERNEL_SSE2__
 /* Pass P and dir by reference to aligned vector */
-ccl_device_forceinline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersection *isect,
+ccl_device_curveintersect bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersection *isect,
 	const float3 &P, const float3 &dir, uint visibility, int object, int curveAddr, float time, int type, uint *lcg_state, float difl, float extmax)
 #else
-ccl_device_forceinline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersection *isect,
+ccl_device_curveintersect bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersection *isect,
 	float3 P, float3 dir, uint visibility, int object, int curveAddr, float time,int type, uint *lcg_state, float difl, float extmax)
 #endif
 {
@@ -264,7 +270,7 @@ ccl_device_forceinline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Inte
 		int ka = max(k0 - 1, v00.x);
 		int kb = min(k1 + 1, v00.x + v00.y - 1);
 
-#ifdef __KERNEL_AVX2__
+#if defined(__KERNEL_AVX2__) && (!defined(_MSC_VER) || _MSC_VER > 1800)
 		avxf P_curve_0_1, P_curve_2_3;
 		if(is_curve_primitive) {
 			P_curve_0_1 = _mm256_loadu2_m128(&kg->__curve_keys.data[k0].x, &kg->__curve_keys.data[ka].x);
@@ -299,7 +305,7 @@ ccl_device_forceinline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Inte
 		ssef htfm1 = shuffle<1, 0, 1, 3>(load1f_first(extract<0>(d_ss)), vdir0);
 		ssef htfm2 = shuffle<1, 3, 2, 3>(mul_shuf, vdir0);
 
-#ifdef __KERNEL_AVX2__
+#if defined(__KERNEL_AVX2__) && (!defined(_MSC_VER) || _MSC_VER > 1800)
 		const avxf vPP = _mm256_broadcast_ps(&P.m128);
 		const avxf htfm00 = avxf(htfm0.m128, htfm0.m128);
 		const avxf htfm11 = avxf(htfm1.m128, htfm1.m128);
@@ -688,7 +694,7 @@ ccl_device_forceinline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Inte
 	return hit;
 }
 
-ccl_device_forceinline bool bvh_curve_intersect(KernelGlobals *kg, Intersection *isect,
+ccl_device_curveintersect bool bvh_curve_intersect(KernelGlobals *kg, Intersection *isect,
 	float3 P, float3 direction, uint visibility, int object, int curveAddr, float time, int type, uint *lcg_state, float difl, float extmax)
 {
 	/* define few macros to minimize code duplication for SSE */

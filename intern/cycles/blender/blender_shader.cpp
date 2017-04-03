@@ -14,20 +14,21 @@
  * limitations under the License.
  */
 
-#include "background.h"
-#include "graph.h"
-#include "light.h"
-#include "nodes.h"
-#include "osl.h"
-#include "scene.h"
-#include "shader.h"
+#include "render/background.h"
+#include "render/graph.h"
+#include "render/light.h"
+#include "render/nodes.h"
+#include "render/osl.h"
+#include "render/scene.h"
+#include "render/shader.h"
 
-#include "blender_texture.h"
-#include "blender_sync.h"
-#include "blender_util.h"
+#include "blender/blender_texture.h"
+#include "blender/blender_sync.h"
+#include "blender/blender_util.h"
 
-#include "util_debug.h"
-#include "util_string.h"
+#include "util/util_debug.h"
+#include "util/util_string.h"
+#include "util/util_task.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -1157,12 +1158,21 @@ static void add_nodes(Scene *scene,
 
 /* Sync Materials */
 
+void BlenderSync::sync_materials_simpligy(Shader *shader)
+{
+	ShaderGraph *graph = shader->graph;
+	graph->simplify(scene);
+	shader->tag_update(scene);
+}
+
 void BlenderSync::sync_materials(bool update_all)
 {
 	shader_map.set_default(scene->default_surface);
 
 	/* material loop */
 	BL::BlendData::materials_iterator b_mat;
+
+	TaskPool pool;
 
 	for(b_data.materials.begin(b_mat); b_mat != b_data.materials.end(); ++b_mat) {
 		Shader *shader;
@@ -1199,9 +1209,31 @@ void BlenderSync::sync_materials(bool update_all)
 			shader->displacement_method = (experimental) ? get_displacement_method(cmat) : DISPLACE_BUMP;
 
 			shader->set_graph(graph);
-			shader->tag_update(scene);
+
+			/* By simplifying the shader graph as soon as possible, some
+			 * redundant shader nodes might be removed which prevents loading
+			 * unnecessary attributes later.
+			 *
+			 * However, since graph simplification also accounts for e.g. mix
+			 * weight, this would cause frequent expensive resyncs in interactive
+			 * sessions, so for those sessions optimization is only performed
+			 * right before compiling.
+			 */
+			if(!preview) {
+				pool.push(function_bind(&BlenderSync::sync_materials_simpligy,
+				                        this,
+				                        shader));
+			}
+			else {
+				/* NOTE: Update tagging can access links which are being
+				 * optimized out.
+				 */
+				shader->tag_update(scene);
+			}
 		}
 	}
+
+	pool.wait_work();
 }
 
 /* Sync World */

@@ -71,11 +71,25 @@ typedef struct BlendFileData {
 	BlenFileType type;
 } BlendFileData;
 
-BlendFileData *BLO_read_from_file(const char *filepath, struct ReportList *reports);
-BlendFileData *BLO_read_from_memory(const void *mem, int memsize, struct ReportList *reports);
+
+/* skip reading some data-block types (may want to skip screen data too). */
+typedef enum eBLOReadSkip {
+	BLO_READ_SKIP_NONE          = 0,
+	BLO_READ_SKIP_USERDEF       = (1 << 0),
+	BLO_READ_SKIP_DATA          = (1 << 1),
+} eBLOReadSkip;
+#define BLO_READ_SKIP_ALL \
+	(BLO_READ_SKIP_USERDEF | BLO_READ_SKIP_DATA)
+
+BlendFileData *BLO_read_from_file(
+        const char *filepath,
+        struct ReportList *reports, eBLOReadSkip skip_flag);
+BlendFileData *BLO_read_from_memory(
+        const void *mem, int memsize,
+        struct ReportList *reports, eBLOReadSkip skip_flag);
 BlendFileData *BLO_read_from_memfile(
         struct Main *oldmain, const char *filename, struct MemFile *memfile,
-        struct ReportList *reports);
+        struct ReportList *reports, eBLOReadSkip skip_flag);
 
 void BLO_blendfiledata_free(BlendFileData *bfd);
 

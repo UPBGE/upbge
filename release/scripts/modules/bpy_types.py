@@ -683,6 +683,10 @@ class _GenericUI:
         return draw_funcs
 
     @classmethod
+    def is_extended(cls):
+        return bool(getattr(cls.draw, "_draw_funcs", None))
+
+    @classmethod
     def append(cls, draw_func):
         """
         Append a draw function to this menu,
@@ -727,7 +731,7 @@ class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
 
     def path_menu(self, searchpaths, operator, *,
                   props_default=None, prop_filepath="filepath",
-                  filter_ext=None, display_name=None):
+                  filter_ext=None, filter_path=None, display_name=None):
         """
         Populate a menu from a list of paths.
 
@@ -761,12 +765,15 @@ class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
         # collect paths
         files = []
         for directory in searchpaths:
-            files.extend([(f, os.path.join(directory, f))
-                          for f in os.listdir(directory)
-                          if (not f.startswith("."))
-                          if ((filter_ext is None) or
-                              (filter_ext(os.path.splitext(f)[1])))
-                          ])
+            files.extend(
+                [(f, os.path.join(directory, f))
+                 for f in os.listdir(directory)
+                 if (not f.startswith("."))
+                 if ((filter_ext is None) or
+                     (filter_ext(os.path.splitext(f)[1])))
+                 if ((filter_path is None) or
+                     (filter_path(f)))
+                 ])
 
         files.sort()
 

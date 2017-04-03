@@ -559,7 +559,7 @@ static BlendFileData *load_game_data(const char *progname, char *filename = null
 			BLI_strncpy(bfd->main->name, progname, sizeof(bfd->main->name));
 		}
 	} else {
-		bfd= BLO_read_from_file(progname, &reports);
+		bfd= BLO_read_from_file(progname, &reports, BLO_READ_SKIP_NONE);
 	}
 	
 	if (!bfd && filename) {

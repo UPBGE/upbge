@@ -16,15 +16,15 @@
 
 #ifdef WITH_OPENCL
 
-#include "opencl.h"
+#include "device/opencl/opencl.h"
 
-#include "kernel_types.h"
+#include "kernel/kernel_types.h"
 
-#include "util_foreach.h"
-#include "util_logging.h"
-#include "util_md5.h"
-#include "util_path.h"
-#include "util_time.h"
+#include "util/util_foreach.h"
+#include "util/util_logging.h"
+#include "util/util_md5.h"
+#include "util/util_path.h"
+#include "util/util_time.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -152,10 +152,8 @@ OpenCLDeviceBase::~OpenCLDeviceBase()
 void CL_CALLBACK OpenCLDeviceBase::context_notify_callback(const char *err_info,
 	const void * /*private_info*/, size_t /*cb*/, void *user_data)
 {
-	char name[256];
-	clGetDeviceInfo((cl_device_id)user_data, CL_DEVICE_NAME, sizeof(name), &name, NULL);
-
-	fprintf(stderr, "OpenCL error (%s): %s\n", name, err_info);
+	string device_name = OpenCLInfo::get_device_name((cl_device_id)user_data);
+	fprintf(stderr, "OpenCL error (%s): %s\n", device_name.c_str(), err_info);
 }
 
 bool OpenCLDeviceBase::opencl_version_check()
@@ -529,7 +527,7 @@ void OpenCLDeviceBase::film_convert(DeviceTask& task, device_ptr buffer, device_
 
 #define KERNEL_TEX(type, ttype, name) \
 set_kernel_arg_mem(ckFilmConvertKernel, &start_arg_index, #name);
-#include "kernel_textures.h"
+#include "kernel/kernel_textures.h"
 #undef KERNEL_TEX
 
 	start_arg_index += kernel_set_args(ckFilmConvertKernel,
@@ -580,7 +578,7 @@ void OpenCLDeviceBase::shader(DeviceTask& task)
 
 #define KERNEL_TEX(type, ttype, name) \
 	set_kernel_arg_mem(kernel, &start_arg_index, #name);
-#include "kernel_textures.h"
+#include "kernel/kernel_textures.h"
 #undef KERNEL_TEX
 
 	start_arg_index += kernel_set_args(kernel,
