@@ -166,6 +166,7 @@ class LOGIC_MT_view(Menu):
 
 
 classes = (
+    LOGIC_PT_components,
     LOGIC_PT_properties,
     LOGIC_MT_logicbricks_add,
     LOGIC_HT_header,

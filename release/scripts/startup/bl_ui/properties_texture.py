@@ -1534,7 +1534,10 @@ classes = (
     TEXTURE_PT_pointdensity,
     TEXTURE_PT_pointdensity_turbulence,
     TEXTURE_PT_ocean,
+    TEXTURE_PT_game_mapping,
     TEXTURE_PT_mapping,
+    TEXTURE_PT_game_parallax,
+    TEXTURE_PT_game_influence,
     TEXTURE_PT_influence,
     TEXTURE_PT_custom_props,
 )

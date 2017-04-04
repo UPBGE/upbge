@@ -638,7 +638,7 @@ class SCENE_PT_game_hysteresis(SceneButtonsPanel, Panel):
         row.prop(gs, "scene_hysteresis_percentage", text="")
 
 
-class RENDER_PT_game_console(SceneButtonsPanel, Panel):
+class SCENE_PT_game_console(SceneButtonsPanel, Panel):
     bl_label = "Python Console"
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
@@ -937,17 +937,21 @@ classes = (
     RENDER_PT_game_stereo,
     RENDER_PT_game_shading,
     RENDER_PT_game_system,
+    RENDER_PT_game_animations,
     RENDER_PT_game_display,
+    RENDER_PT_game_debug,
     SCENE_PT_game_physics,
     SCENE_PT_game_physics_obstacles,
     SCENE_PT_game_navmesh,
     SCENE_PT_game_hysteresis,
+    SCENE_PT_game_console,
     WORLD_PT_game_context_world,
     WORLD_PT_game_world,
     WORLD_PT_game_environment_lighting,
     WORLD_PT_game_mist,
     DATA_PT_shadow_game,
     OBJECT_MT_lod_tools,
+    OBJECT_MT_culling,
     OBJECT_PT_levels_of_detail,
 )
 
