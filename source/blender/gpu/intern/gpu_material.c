@@ -1975,7 +1975,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 		GPU_link(mat, "shade_alpha_depth",
 				 GPU_builtin(GPU_VIEW_POSITION),
 				 GPU_dynamic_texture_ptr(GPU_texture_global_depth_ptr(), GPU_DYNAMIC_SAMPLER_2DBUFFER, ma),
-				 shi->alpha, GPU_uniform(&ma->depthtranspfactor), &shr->alpha);
+				 shr->alpha, GPU_uniform(&ma->depthtranspfactor), &shr->alpha);
 	}
 
 	GPU_link(mat, "mtex_alpha_to_col", shr->combined, shr->alpha, &shr->combined);
