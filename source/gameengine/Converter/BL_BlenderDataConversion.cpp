@@ -89,8 +89,6 @@
 #include "RAS_IPolygonMaterial.h"
 #include "KX_BlenderMaterial.h"
 #include "KX_TextureRendererManager.h"
-#include "KX_PlanarMap.h"
-#include "KX_CubeMap.h"
 #include "BL_Texture.h"
 
 #include "BKE_main.h"
@@ -447,18 +445,20 @@ static KX_BlenderMaterial *ConvertMaterial(
 	return kx_blmat;
 }
 
-static RAS_MaterialBucket *material_from_mesh(
-	Material *ma, MFace *mface, MTFace *tface, const RAS_MeshObject::LayerList& layers, int lightlayer,
-	unsigned int rgb[4][RAS_ITexVert::MAX_UNIT], MT_Vector2 uvs[4][RAS_ITexVert::MAX_UNIT],
-	KX_Scene* scene, KX_BlenderSceneConverter& converter)
+/// Convert uv and color layers for a given vertex and material.
+static void uvsRgbFromMesh(Material *ma, MFace *mface, MTFace *tface, const RAS_MeshObject::LayerList& layers,
+	unsigned int rgb[4][RAS_ITexVert::MAX_UNIT], MT_Vector2 uvs[4][RAS_ITexVert::MAX_UNIT])
 {
-	RAS_IPolyMaterial* polymat = converter.FindPolyMaterial(ma);
-
 	if (mface) {
 		GetRGB(mface, layers, rgb);
 
 		GetUVs(layers, mface, tface, uvs);
 	}
+}
+
+static RAS_MaterialBucket *material_from_mesh(Material *ma, MTFace *tface, int lightlayer, KX_Scene *scene, KX_BlenderSceneConverter& converter)
+{
+	RAS_IPolyMaterial* polymat = converter.FindPolyMaterial(ma);
 
 	if (!polymat) {
 		polymat = ConvertMaterial(ma, tface, lightlayer, scene);
@@ -468,7 +468,7 @@ static RAS_MaterialBucket *material_from_mesh(
 
 	// see if a bucket was reused or a new one was created
 	// this way only one KX_BlenderMaterial object has to exist per bucket
-	bool bucketCreated; 
+	bool bucketCreated;
 	RAS_MaterialBucket* bucket = scene->FindBucket(polymat, bucketCreated);
 
 	return bucket;
@@ -594,15 +594,16 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		rgb[0][i] = rgb[1][i] = rgb[2][i] = rgb[3][i] = 0xffffffffL;
 	}
 
-	if (totface == 0) {
-		ma = mesh->mat ? mesh->mat[0] : nullptr;
+	// Convert all the materials contained in the mesh.
+	for (unsigned short i = 0, size = max_ii(mesh->totcol, 1); i < size; ++i) {
+		ma = mesh->mat ? mesh->mat[i] : nullptr;
 		// Check for blender material
 		if (!ma) {
 			ma = &defmaterial;
 		}
 
-		RAS_MaterialBucket *bucket = material_from_mesh(ma, mface, tface, layersInfo.layers, lightlayer, rgb, uvs, scene, converter);
-		meshobj->AddMaterial(bucket, 0, vertformat);
+		RAS_MaterialBucket *bucket = material_from_mesh(ma, tface, lightlayer, scene, converter);
+		meshobj->AddMaterial(bucket, i, vertformat);
 	}
 
 	for (int f=0;f<totface;f++,mface++)
@@ -659,8 +660,8 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 		{
 
-			RAS_MaterialBucket* bucket = material_from_mesh(ma, mface, tface, layersInfo.layers, lightlayer, rgb, uvs, scene, converter);
-			RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, mface->mat_nr, vertformat);
+			uvsRgbFromMesh(ma, mface, tface, layersInfo.layers, rgb, uvs);
+			RAS_MeshMaterial *meshmat = meshobj->GetMeshMaterialBlenderIndex(mface->mat_nr);
 
 			// set render flags
 			bool visible = ((ma->game.flag & GEMAT_INVISIBLE)==0);
@@ -682,7 +683,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 				indices[3] = meshobj->AddVertex(meshmat, pt[3], uvs[3], tan[3], rgb[3], no[3], flat, mface->v4);
 			}
 
-			if (bucket->IsWire() && visible) {
+			if (meshmat->m_bucket->IsWire() && visible) {
 				// The fourth value can be uninitialized.
 				unsigned int mfaceindices[4] = {mface->v1, mface->v2, mface->v3, mface->v4};
 				MPoly *mpoly = mpolyarray + mfaceTompoly[f];
