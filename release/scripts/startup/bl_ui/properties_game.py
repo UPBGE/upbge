@@ -178,6 +178,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = split.column()
             col.label(text="Attributes:")
             col.prop(game, "radius")
+            col.prop(game, "elasticity", slider=True)
             col.label(text="Friction:")
             col.prop(game, "friction")
             col.prop(game, "rolling_friction")
