@@ -608,6 +608,12 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 	RNA_def_property_ui_text(prop, "Shadow Buffer Bias", "Shadow buffer sampling bias");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
+	prop = RNA_def_property(srna, "shadow_buffer_slope_bias", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "slopebias");
+	RNA_def_property_range(prop, 0.0f, 5.0f);
+	RNA_def_property_ui_text(prop, "Shadow Buffer Slope Bias", "Shadow buffer sampling slope bias");
+	RNA_def_property_update(prop, 0, "rna_Lamp_update");
+
 	prop = RNA_def_property(srna, "shadow_buffer_bleed_bias", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "bleedbias");
 	RNA_def_property_range(prop, 0.f, 1.f);

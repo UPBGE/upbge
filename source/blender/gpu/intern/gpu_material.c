@@ -166,7 +166,7 @@ struct GPULamp {
 	float coeff_const, coeff_lin, coeff_quad;
 	float shadow_color[3];
 
-	float bias, d, clipend;
+	float bias, slopebias, d, clipend;
 	int size;
 
 	int falloff_type;
@@ -1009,7 +1009,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 			mat->dynproperty |= DYN_LAMP_PERSMAT;
 			
 			if (lamp->la->shadowmap_type == LA_SHADMAP_VARIANCE) {
-				GPU_link(mat, "test_shadowbuf_vsm",
+				GPU_link(mat, "shadow_vsm",
 				         GPU_builtin(GPU_VIEW_POSITION),
 				         GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
 				         GPU_dynamic_uniform((float *)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
@@ -1020,26 +1020,31 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 					float samp = lamp->la->samp;
 					float samplesize = lamp->la->soft / lamp->la->shadow_frustum_size;
 					if (lamp->la->shadow_filter == LA_SHADOW_FILTER_PCF) {
-						GPU_link(mat, "test_shadowbuf_pcf",
+						GPU_link(mat, "shadow_pcf",
 								 GPU_builtin(GPU_VIEW_POSITION),
-								 GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
+								 GPU_builtin(GPU_VIEW_NORMAL),
+								 GPU_dynamic_texture(lamp->depthtex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
 								 GPU_dynamic_uniform((float *)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
-								 GPU_uniform(&samp), GPU_uniform(&samplesize), GPU_uniform(&lamp->bias), inp, &shadfac);
+								 GPU_uniform(&lamp->bias), GPU_uniform(&lamp->slopebias),
+								 GPU_uniform(&samp), GPU_uniform(&samplesize), inp, &shadfac);
 					}
 					else if (lamp->la->shadow_filter == LA_SHADOW_FILTER_PCF_BAIL) {
-						GPU_link(mat, "test_shadowbuf_pcf_early_bail",
+						GPU_link(mat, "shadow_pcf_early_bail",
 								 GPU_builtin(GPU_VIEW_POSITION),
-								 GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
+								 GPU_builtin(GPU_VIEW_NORMAL),
+								 GPU_dynamic_texture(lamp->depthtex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
 								 GPU_dynamic_uniform((float *)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
-								 GPU_uniform(&samp), GPU_uniform(&samplesize), GPU_uniform(&lamp->bias), inp, &shadfac);
+								 GPU_uniform(&lamp->bias), GPU_uniform(&lamp->slopebias),
+								 GPU_uniform(&samp), GPU_uniform(&samplesize), inp, &shadfac);
 					}
 				}
 				else {
-					GPU_link(mat, "test_shadowbuf",
+					GPU_link(mat, "shadow_simple",
 				             GPU_builtin(GPU_VIEW_POSITION),
-				             GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
+							 GPU_builtin(GPU_VIEW_NORMAL),
+				             GPU_dynamic_texture(lamp->depthtex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
 				             GPU_dynamic_uniform((float *)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
-				             GPU_uniform(&lamp->bias), inp, &shadfac);
+				             GPU_uniform(&lamp->bias), GPU_uniform(&lamp->slopebias), inp, &shadfac);
 				}
 			}
 			
@@ -2566,6 +2571,7 @@ static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *l
 
 	/* initshadowbuf */
 	lamp->bias = 0.02f * la->bias;
+	lamp->slopebias = la->slopebias;
 	lamp->size = la->bufsize;
 	lamp->d = la->clipsta;
 	lamp->clipend = la->clipend;
@@ -2689,21 +2695,21 @@ GPULamp *GPU_lamp_from_blender(Scene *scene, Object *ob, Object *par)
 			GPU_framebuffer_texture_unbind(lamp->blurfb, lamp->blurtex);
 		}
 		else {
-			lamp->tex = GPU_texture_create_depth(lamp->size, lamp->size, true, NULL);
-			if (!lamp->tex) {
+			lamp->depthtex = GPU_texture_create_depth(lamp->size, lamp->size, true, NULL);
+			if (!lamp->depthtex) {
 				gpu_lamp_shadow_free(lamp);
 				return lamp;
 			}
 
-			if (!GPU_framebuffer_texture_attach(lamp->fb, lamp->tex, 0, NULL)) {
+			if (!GPU_framebuffer_texture_attach(lamp->fb, lamp->depthtex, 0, NULL)) {
 				gpu_lamp_shadow_free(lamp);
 				return lamp;
 			}
 			
 			if (!GPU_framebuffer_check_valid(lamp->fb, NULL)) {
 				gpu_lamp_shadow_free(lamp);
-				return lamp;				
-			}						
+				return lamp;
+			}
 		}
 
 		GPU_framebuffer_restore();
@@ -2754,7 +2760,7 @@ bool GPU_lamp_has_shadow_buffer(GPULamp *lamp)
 {
 	return (!(lamp->scene->gm.flag & GAME_GLSL_NO_SHADOWS) &&
 	        !(lamp->scene->gm.flag & GAME_GLSL_NO_LIGHTS) &&
-	        lamp->tex && lamp->fb);
+	        lamp->depthtex && lamp->fb);
 }
 
 void GPU_lamp_update_buffer_mats(GPULamp *lamp)
@@ -2788,7 +2794,12 @@ void GPU_lamp_shadow_buffer_bind(GPULamp *lamp, float viewmat[4][4], int *winsiz
 
 	/* opengl */
 	glDisable(GL_SCISSOR_TEST);
-	GPU_texture_bind_as_framebuffer(lamp->tex);
+	if (lamp->la->shadowmap_type == LA_SHADMAP_VARIANCE) {
+		GPU_texture_bind_as_framebuffer(lamp->tex);
+	}
+	else {
+		GPU_texture_bind_as_framebuffer(lamp->depthtex);
+	}
 
 	/* set matrices */
 	copy_m4_m4(viewmat, lamp->viewmat);
@@ -2815,7 +2826,7 @@ int GPU_lamp_shadow_buffer_type(GPULamp *lamp)
 
 int GPU_lamp_shadow_bind_code(GPULamp *lamp)
 {
-	return lamp->tex ? GPU_texture_opengl_bindcode(lamp->tex) : -1;
+	return lamp->depthtex ? GPU_texture_opengl_bindcode(lamp->depthtex) : -1;
 }
 
 const float *GPU_lamp_dynpersmat(GPULamp *lamp)
@@ -2835,7 +2846,7 @@ const float *GPU_lamp_get_winmat(GPULamp *lamp)
 
 int GPU_lamp_shadow_layer(GPULamp *lamp)
 {
-	if (lamp->fb && lamp->tex && (lamp->mode & (LA_LAYER | LA_LAYER_SHADOW)))
+	if (lamp->fb && lamp->depthtex && (lamp->mode & (LA_LAYER | LA_LAYER_SHADOW)))
 		return lamp->lay;
 	else
 		return -1;
@@ -2862,7 +2873,7 @@ GPUNodeLink *GPU_lamp_get_data(
 		mat->dynproperty |= DYN_LAMP_PERSMAT;
 
 		if (lamp->la->shadowmap_type == LA_SHADMAP_VARIANCE) {
-			GPU_link(mat, "test_shadowbuf_vsm",
+			GPU_link(mat, "shadow_vsm",
 			         GPU_builtin(GPU_VIEW_POSITION),
 			         GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
 			         GPU_dynamic_uniform((float *)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
@@ -2873,28 +2884,34 @@ GPUNodeLink *GPU_lamp_get_data(
 				float samp = lamp->la->samp;
 				float samplesize = lamp->la->soft / lamp->la->shadow_frustum_size;
 				if (lamp->la->shadow_filter == LA_SHADOW_FILTER_PCF) {
-					GPU_link(mat, "test_shadowbuf_pcf",
+					GPU_link(mat, "shadow_pcf",
 							 GPU_builtin(GPU_VIEW_POSITION),
-							 GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
+							 GPU_builtin(GPU_VIEW_NORMAL),
+							 GPU_dynamic_texture(lamp->depthtex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
 							 GPU_dynamic_uniform((float *)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
-							 GPU_uniform(&samp), GPU_uniform(&samplesize), GPU_uniform(&lamp->bias), inp, &shadowfac);
+							 GPU_uniform(&lamp->bias), GPU_uniform(&lamp->slopebias),
+							 GPU_uniform(&samp), GPU_uniform(&samplesize), inp, &shadowfac);
 				}
 				else if (lamp->la->shadow_filter == LA_SHADOW_FILTER_PCF_BAIL) {
-					GPU_link(mat, "test_shadowbuf_pcf_early_bail",
+					GPU_link(mat, "shadow_pcf_early_bail",
 							 GPU_builtin(GPU_VIEW_POSITION),
-							 GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
+							 GPU_builtin(GPU_VIEW_NORMAL),
+							 GPU_dynamic_texture(lamp->depthtex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
 							 GPU_dynamic_uniform((float *)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
-							 GPU_uniform(&samp), GPU_uniform(&samplesize), GPU_uniform(&lamp->bias), inp, &shadowfac);
+							 GPU_uniform(&lamp->bias), GPU_uniform(&lamp->slopebias),
+							 GPU_uniform(&samp), GPU_uniform(&samplesize), inp, &shadowfac);
 				}
 			}
 			else {
-				GPU_link(mat, "test_shadowbuf",
+				GPU_link(mat, "shadow_simple",
 			             GPU_builtin(GPU_VIEW_POSITION),
-			             GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
+						 GPU_builtin(GPU_VIEW_NORMAL),
+			             GPU_dynamic_texture(lamp->depthtex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
 			             GPU_dynamic_uniform((float *)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
-			             GPU_uniform(&lamp->bias), inp, &shadowfac);
+			             GPU_uniform(&lamp->bias), GPU_uniform(&lamp->slopebias), inp, &shadowfac);
 			}
 		}
+
 		GPU_link(mat, "shadows_only", inp, shadowfac, GPU_uniform(lamp->shadow_color), r_shadow);
 	}
 	else {
