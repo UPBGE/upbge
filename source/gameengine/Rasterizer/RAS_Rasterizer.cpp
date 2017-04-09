@@ -1530,6 +1530,7 @@ void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[
 
 		RayCastTranform raytransform;
 		raytransform.origmat = origmat;
+		// On success mat is written in the ray test.
 		raytransform.mat = mat;
 		raytransform.scale = gameobj->NodeGetWorldScaling();
 
@@ -1537,9 +1538,6 @@ void RAS_Rasterizer::GetTransform(float *origmat, int objectdrawmode, float mat[
 		if (!KX_RayCast::RayTest(physics_environment, frompoint, topoint, callback)) {
 			// couldn't find something to cast the shadow on...
 			memcpy(mat, origmat, sizeof(float) * 16);
-		}
-		else {
-			memcpy(mat, raytransform.mat, sizeof(float) * 16);
 		}
 	}
 	else {
