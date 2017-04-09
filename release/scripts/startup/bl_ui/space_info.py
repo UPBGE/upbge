@@ -385,6 +385,7 @@ classes = (
     INFO_MT_file_external_data,
     INFO_MT_file_previews,
     INFO_MT_game,
+    INFO_MT_game_show_debug,
     INFO_MT_render,
     INFO_MT_opengl_render,
     INFO_MT_window,
