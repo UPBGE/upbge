@@ -164,16 +164,13 @@ void KX_FontObject::UpdateBuckets()
 			m_text = split_string(GetProperty("Text")->GetText());
 		}
 
-		// update the animated color
-		GetObjectColor().getValue(m_color);
-
 		// Font Objects don't use the glsl shader, this color management code is copied from gpu_shader_material.glsl
 		float color[4];
 		if (m_do_color_management) {
-			linearrgb_to_srgb_v4(color, m_color);
+			linearrgb_to_srgb_v4(color, m_objectColor.getValue());
 		}
 		else {
-			copy_v4_v4(color, m_color);
+			m_objectColor.getValue(color);
 		}
 
 
