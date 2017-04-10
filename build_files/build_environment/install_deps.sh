@@ -322,8 +322,8 @@ OPENEXR_FORCE_REBUILD=false
 OPENEXR_SKIP=false
 _with_built_openexr=false
 
-OIIO_VERSION="1.7.8"
-OIIO_VERSION_MIN="1.6.0"
+OIIO_VERSION="1.7.13"
+OIIO_VERSION_MIN="1.7.13"
 OIIO_VERSION_MAX="1.9.0"  # UNKNOWN currently # Not supported by current OSL...
 OIIO_FORCE_BUILD=false
 OIIO_FORCE_REBUILD=false
@@ -2270,7 +2270,9 @@ compile_ALEMBIC() {
     fi
 
     if [ -d $INST/boost ]; then
-      cmake_d="$cmake_d -D BOOST_ROOT=$INST/boost"
+      if [ -d $INST/boost ]; then
+        cmake_d="$cmake_d -D BOOST_ROOT=$INST/boost"
+      fi
       cmake_d="$cmake_d -D USE_STATIC_BOOST=ON"
     else
       cmake_d="$cmake_d -D USE_STATIC_BOOST=OFF"
@@ -2778,7 +2780,7 @@ install_DEB() {
 
       boost_version=$(echo `get_package_version_DEB libboost-dev` | sed -r 's/^([0-9]+\.[0-9]+).*/\1/')
 
-      install_packages_DEB libboost-{filesystem,iostreams,locale,regex,system,thread,wave}$boost_version-dev
+      install_packages_DEB libboost-{filesystem,iostreams,locale,regex,system,thread,wave,program-options}$boost_version-dev
       clean_Boost
     else
       compile_Boost

@@ -28,6 +28,8 @@
 #include <set>
 #include <vector>
 
+#include "abc_util.h"
+
 class AbcObjectWriter;
 class AbcTransformWriter;
 class ArchiveWriter;
@@ -41,6 +43,7 @@ struct ExportSettings {
 	ExportSettings();
 
 	Scene *scene;
+	SimpleLogger logger;
 
 	bool selected_only;
 	bool visible_layers_only;
@@ -86,7 +89,10 @@ class AbcExporter {
 
 	ArchiveWriter *m_writer;
 
-	std::map<std::string, AbcTransformWriter *> m_xforms;
+	/* mapping from name to transform writer */
+	typedef std::map<std::string, AbcTransformWriter *> m_xforms_type;
+	m_xforms_type m_xforms;
+
 	std::vector<AbcObjectWriter *> m_shapes;
 
 public:
@@ -104,7 +110,7 @@ private:
 
 	void createTransformWritersHierarchy(EvaluationContext *eval_ctx);
 	void createTransformWritersFlat();
-	void createTransformWriter(Object *ob,  Object *parent, Object *dupliObParent);
+	AbcTransformWriter * createTransformWriter(Object *ob,  Object *parent, Object *dupliObParent);
 	void exploreTransform(EvaluationContext *eval_ctx, Object *ob, Object *parent, Object *dupliObParent = NULL);
 	void exploreObject(EvaluationContext *eval_ctx, Object *ob, Object *dupliObParent);
 	void createShapeWriters(EvaluationContext *eval_ctx);

@@ -503,14 +503,9 @@ void IDP_SyncGroupValues(IDProperty *dest, const IDProperty *src)
 					break;
 				default:
 				{
-					IDProperty *tmp = other;
-					IDProperty *copy = IDP_CopyProperty(prop);
-
-					BLI_insertlinkafter(&dest->data.group, other, copy);
-					BLI_remlink(&dest->data.group, tmp);
-
-					IDP_FreeProperty(tmp);
-					MEM_freeN(tmp);
+					BLI_insertlinkreplace(&dest->data.group, other, IDP_CopyProperty(prop));
+					IDP_FreeProperty(other);
+					MEM_freeN(other);
 					break;
 				}
 			}
@@ -530,11 +525,9 @@ void IDP_SyncGroupTypes(IDProperty *dst, const IDProperty *src, const bool do_ar
 			if ((prop_dst->type != prop_src->type || prop_dst->subtype != prop_src->subtype) ||
 			    (do_arraylen && ELEM(prop_dst->type, IDP_ARRAY, IDP_IDPARRAY) && (prop_src->len != prop_dst->len)))
 			{
-				IDP_FreeFromGroup(dst, prop_dst);
-				prop_dst = IDP_CopyProperty(prop_src);
-
-				dst->len++;
-				BLI_insertlinkbefore(&dst->data.group, prop_dst_next, prop_dst);
+				BLI_insertlinkreplace(&dst->data.group, prop_dst, IDP_CopyProperty(prop_src));
+				IDP_FreeProperty(prop_dst);
+				MEM_freeN(prop_dst);
 			}
 			else if (prop_dst->type == IDP_GROUP) {
 				IDP_SyncGroupTypes(prop_dst, prop_src, do_arraylen);
@@ -559,11 +552,7 @@ void IDP_ReplaceGroupInGroup(IDProperty *dest, const IDProperty *src)
 	for (prop = src->data.group.first; prop; prop = prop->next) {
 		for (loop = dest->data.group.first; loop; loop = loop->next) {
 			if (STREQ(loop->name, prop->name)) {
-				IDProperty *copy = IDP_CopyProperty(prop);
-
-				BLI_insertlinkafter(&dest->data.group, loop, copy);
-
-				BLI_remlink(&dest->data.group, loop);
+				BLI_insertlinkreplace(&dest->data.group, loop, IDP_CopyProperty(prop));
 				IDP_FreeProperty(loop);
 				MEM_freeN(loop);
 				break;
@@ -590,9 +579,7 @@ void IDP_ReplaceInGroup_ex(IDProperty *group, IDProperty *prop, IDProperty *prop
 	BLI_assert(prop_exist == IDP_GetPropertyFromGroup(group, prop->name));
 
 	if ((prop_exist = IDP_GetPropertyFromGroup(group, prop->name))) {
-		BLI_insertlinkafter(&group->data.group, prop_exist, prop);
-		
-		BLI_remlink(&group->data.group, prop_exist);
+		BLI_insertlinkreplace(&group->data.group, prop_exist, prop);
 		IDP_FreeProperty(prop_exist);
 		MEM_freeN(prop_exist);
 	}
@@ -871,17 +858,19 @@ bool IDP_EqualsProperties(IDProperty *prop1, IDProperty *prop2)
  * The union is simple to use; see the top of this header file for its definition.
  * An example of using this function:
  *
- *     IDPropertyTemplate val;
- *     IDProperty *group, *idgroup, *color;
- *     group = IDP_New(IDP_GROUP, val, "group1"); //groups don't need a template.
+ * \code{.c}
+ * IDPropertyTemplate val;
+ * IDProperty *group, *idgroup, *color;
+ * group = IDP_New(IDP_GROUP, val, "group1"); //groups don't need a template.
  *
- *     val.array.len = 4
- *     val.array.type = IDP_FLOAT;
- *     color = IDP_New(IDP_ARRAY, val, "color1");
+ * val.array.len = 4
+ * val.array.type = IDP_FLOAT;
+ * color = IDP_New(IDP_ARRAY, val, "color1");
  *
- *     idgroup = IDP_GetProperties(some_id, 1);
- *     IDP_AddToGroup(idgroup, color);
- *     IDP_AddToGroup(idgroup, group);
+ * idgroup = IDP_GetProperties(some_id, 1);
+ * IDP_AddToGroup(idgroup, color);
+ * IDP_AddToGroup(idgroup, group);
+ * \endcode
  *
  * Note that you MUST either attach the id property to an id property group with
  * IDP_AddToGroup or MEM_freeN the property, doing anything else might result in
@@ -901,7 +890,7 @@ IDProperty *IDP_New(const char type, const IDPropertyTemplate *val, const char *
 			*(float *)&prop->data.val = val->f;
 			break;
 		case IDP_DOUBLE:
-			prop = MEM_callocN(sizeof(IDProperty), "IDProperty float");
+			prop = MEM_callocN(sizeof(IDProperty), "IDProperty double");
 			*(double *)&prop->data.val = val->d;
 			break;
 		case IDP_ARRAY:
