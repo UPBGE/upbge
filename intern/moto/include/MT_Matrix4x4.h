@@ -39,6 +39,8 @@
 #ifndef MT_MATRIX4X4_H
 #define MT_MATRIX4X4_H
 
+#include "MT_Config.h"
+
 #include <BLI_utildefines.h>
 
 #include "MT_Vector4.h"

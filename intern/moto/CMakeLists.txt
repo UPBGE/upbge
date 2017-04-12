@@ -45,6 +45,7 @@ set(SRC
 	intern/MT_random.cpp
 
 	include/MT_CmMatrix4x4.h
+	include/MT_Config.h
 	include/MT_Frustum.h
 	include/MT_Matrix3x3.h
 	include/MT_Matrix4x4.h

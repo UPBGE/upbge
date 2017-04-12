@@ -29,7 +29,6 @@
  *  \ingroup moto
  */
 
-
 /*
 
  * Copyright (c) 2000 Gino van den Bergen <gino@acm.org>
@@ -46,6 +45,8 @@
 
 #ifndef MT_MATRIX3X3_H
 #define MT_MATRIX3X3_H
+
+#include "MT_Config.h"
 
 #include <BLI_utildefines.h>
 

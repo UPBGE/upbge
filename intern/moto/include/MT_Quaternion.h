@@ -47,6 +47,8 @@
 #ifndef MT_QUATERNION_H
 #define MT_QUATERNION_H
 
+#include "MT_Config.h"
+
 #include <BLI_utildefines.h>
 
 #include "MT_Vector3.h"

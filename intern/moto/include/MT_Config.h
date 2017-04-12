@@ -15,32 +15,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Tristan Porteries.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file moto/include/MT_random.h
+/** \file moto/include/MT_Config.h
  *  \ingroup moto
  */
 
-
-#ifndef MT_RANDOM_H
-#define MT_RANDOM_H
-
-#include "MT_Config.h"
-
-#include <limits.h>
-
-#define MT_RAND_MAX UINT_MAX
-
-extern void          MT_srand(unsigned int);
-extern unsigned int  MT_rand();
-
-#endif
-
+#define GEN_INLINED

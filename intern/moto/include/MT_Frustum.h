@@ -24,6 +24,10 @@
  *  \ingroup moto
  */
 
+#ifndef __MT_FRUSTUM_H__
+#define __MT_FRUSTUM_H__
+
+#include "MT_Config.h"
 #include "MT_Matrix4x4.h"
 
 #include <array>
@@ -33,3 +37,5 @@ void MT_FrustumBox(const MT_Matrix4x4& mat, std::array<MT_Vector3, 8>& box);
 #ifdef GEN_INLINED
 #  include "MT_Frustum.inl"
 #endif
+
+#endif  // __MT_FRUSTUM_H__

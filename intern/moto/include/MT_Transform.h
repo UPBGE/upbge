@@ -54,6 +54,8 @@
 #ifndef MT_TRANSFORM_H
 #define MT_TRANSFORM_H
 
+#include "MT_Config.h"
+
 #include "MT_Vector3.h"
 #include "MT_Matrix3x3.h"
 
