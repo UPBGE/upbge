@@ -152,17 +152,17 @@ private:
 	double m_previousRealTime;
 
 	/// maximum number of consecutive logic frame
-	static int m_maxLogicFrame;
+	int m_maxLogicFrame;
 	/// maximum number of consecutive physics frame
-	static int m_maxPhysicsFrame;
-	static double m_ticrate;
+	int m_maxPhysicsFrame;
+	double m_ticrate;
 	/// for animation playback only - ipo and action
-	static double m_anim_framerate;
+	double m_anim_framerate;
 
-	static bool m_doRender;  /* whether or not the scene should be rendered after the logic frame */
+	bool m_doRender;  /* whether or not the scene should be rendered after the logic frame */
 
 	/// Key used to exit the BGE
-	static short m_exitkey;
+	short m_exitkey;
 
 	KX_ExitRequest m_exitcode;
 	std::string m_exitstring;
@@ -196,9 +196,9 @@ private:
 	KX_TimeCategoryLogger m_logger;
 
 	/// Labels for profiling display.
-	static const char m_profileLabels[tc_numCategories][15];
+	static const std::string m_profileLabels[tc_numCategories];
 	/// Last estimated framerate
-	static double m_average_framerate;
+	double m_average_framerate;
 
 	/// Enable debug draw of culling bounding boxes.
 	KX_DebugOption m_showBoundingBox;
@@ -368,41 +368,41 @@ public:
 	/**
 	 * Gets the number of logic updates per second.
 	 */
-	static double GetTicRate();
+	double GetTicRate();
 	/**
 	 * Sets the number of logic updates per second.
 	 */
-	static void SetTicRate(double ticrate);
+	void SetTicRate(double ticrate);
 	/**
 	 * Gets the maximum number of logic frame before render frame
 	 */
-	static int GetMaxLogicFrame();
+	int GetMaxLogicFrame();
 	/**
 	 * Sets the maximum number of logic frame before render frame
 	 */
-	static void SetMaxLogicFrame(int frame);
+	void SetMaxLogicFrame(int frame);
 	/**
 	 * Gets the maximum number of physics frame before render frame
 	 */
-	static int GetMaxPhysicsFrame();
+	int GetMaxPhysicsFrame();
 	/**
 	 * Sets the maximum number of physics frame before render frame
 	 */
-	static void SetMaxPhysicsFrame(int frame);
+	void SetMaxPhysicsFrame(int frame);
 
 	/**
 	 * Gets the framerate for playing animations. (actions and ipos)
 	 */
-	static double GetAnimFrameRate();
+	double GetAnimFrameRate();
 	/**
 	 * Sets the framerate for playing animations. (actions and ipos)
 	 */
-	static void SetAnimFrameRate(double framerate);
+	void SetAnimFrameRate(double framerate);
 
 	/**
 	 * Gets the last estimated average framerate
 	 */
-	static double GetAverageFrameRate();
+	double GetAverageFrameRate();
 
 	/**
 	 * Gets the time scale multiplier 
@@ -414,19 +414,19 @@ public:
 	 */
 	void SetTimeScale(double scale);
 
-	static void SetExitKey(short key);
+	void SetExitKey(short key);
 
-	static short GetExitKey();
+	short GetExitKey();
 
 	/**
 	 * Activate or deactivates the render of the scene after the logic frame
 	 * \param render	true (render) or false (do not render)
 	 */
-	static void SetRender(bool render);
+	void SetRender(bool render);
 	/**
 	 * Get the current render flag value
 	 */
-	static bool GetRender();
+	bool GetRender();
 
 	/// Allow debug bounding box debug.
 	void SetShowBoundingBox(KX_DebugOption mode);

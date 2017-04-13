@@ -792,7 +792,7 @@ void CcdPhysicsEnvironment::ProcessFhSprings(double curTime, float interval)
 {
 	std::set<CcdPhysicsController *>::iterator it;
 
-	const float step = interval * KX_KetsjiEngine::GetTicRate();
+	const float step = interval * KX_GetActiveEngine()->GetTicRate();
 
 	for (it = m_controllers.begin(); it != m_controllers.end(); it++) {
 		CcdPhysicsController *ctrl = (*it);

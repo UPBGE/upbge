@@ -354,13 +354,13 @@ static PyObject *gPySetLogicTicRate(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "f:setLogicTicRate", &ticrate))
 		return nullptr;
 	
-	KX_KetsjiEngine::SetTicRate(ticrate);
+	KX_GetActiveEngine()->SetTicRate(ticrate);
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetLogicTicRate(PyObject *)
 {
-	return PyFloat_FromDouble(KX_KetsjiEngine::GetTicRate());
+	return PyFloat_FromDouble(KX_GetActiveEngine()->GetTicRate());
 }
 
 static PyObject *gPySetExitKey(PyObject *, PyObject *args)
@@ -368,13 +368,13 @@ static PyObject *gPySetExitKey(PyObject *, PyObject *args)
 	short exitkey;
 	if (!PyArg_ParseTuple(args, "h:setExitKey", &exitkey))
 		return nullptr;
-	KX_KetsjiEngine::SetExitKey(exitkey);
+	KX_GetActiveEngine()->SetExitKey(exitkey);
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetExitKey(PyObject *)
 {
-	return PyLong_FromLong(KX_KetsjiEngine::GetExitKey());
+	return PyLong_FromLong(KX_GetActiveEngine()->GetExitKey());
 }
 
 static PyObject *gPySetRender(PyObject *, PyObject *args)
@@ -382,13 +382,13 @@ static PyObject *gPySetRender(PyObject *, PyObject *args)
 	int render;
 	if (!PyArg_ParseTuple(args, "i:setRender", &render))
 		return nullptr;
-	KX_KetsjiEngine::SetRender(render);
+	KX_GetActiveEngine()->SetRender(render);
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetRender(PyObject *)
 {
-	return PyBool_FromLong(KX_KetsjiEngine::GetRender());
+	return PyBool_FromLong(KX_GetActiveEngine()->GetRender());
 }
 
 
@@ -398,13 +398,13 @@ static PyObject *gPySetMaxLogicFrame(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "i:setMaxLogicFrame", &frame))
 		return nullptr;
 	
-	KX_KetsjiEngine::SetMaxLogicFrame(frame);
+	KX_GetActiveEngine()->SetMaxLogicFrame(frame);
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetMaxLogicFrame(PyObject *)
 {
-	return PyLong_FromLong(KX_KetsjiEngine::GetMaxLogicFrame());
+	return PyLong_FromLong(KX_GetActiveEngine()->GetMaxLogicFrame());
 }
 
 static PyObject *gPySetMaxPhysicsFrame(PyObject *, PyObject *args)
@@ -413,13 +413,13 @@ static PyObject *gPySetMaxPhysicsFrame(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "i:setMaxPhysicsFrame", &frame))
 		return nullptr;
 	
-	KX_KetsjiEngine::SetMaxPhysicsFrame(frame);
+	KX_GetActiveEngine()->SetMaxPhysicsFrame(frame);
 	Py_RETURN_NONE;
 }
 
 static PyObject *gPyGetMaxPhysicsFrame(PyObject *)
 {
-	return PyLong_FromLong(KX_KetsjiEngine::GetMaxPhysicsFrame());
+	return PyLong_FromLong(KX_GetActiveEngine()->GetMaxPhysicsFrame());
 }
 
 static PyObject *gPySetPhysicsTicRate(PyObject *, PyObject *args)
@@ -451,7 +451,7 @@ static PyObject *gPyGetPhysicsTicRate(PyObject *)
 
 static PyObject *gPyGetAverageFrameRate(PyObject *)
 {
-	return PyFloat_FromDouble(KX_KetsjiEngine::GetAverageFrameRate());
+	return PyFloat_FromDouble(KX_GetActiveEngine()->GetAverageFrameRate());
 }
 
 static PyObject *gPyGetUseExternalClock(PyObject *)

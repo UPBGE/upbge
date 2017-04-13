@@ -23,6 +23,7 @@
 
 #include "PHY_IPhysicsEnvironment.h"
 #include "KX_KetsjiEngine.h"
+#include "KX_Globals.h"
 
 #include <vector>
 #include <set>
@@ -150,7 +151,7 @@ public:
 
 	virtual void SetFixedTimeStep(bool useFixedTimeStep, float fixedTimeStep)
 	{
-		SetNumTimeSubSteps((int)(fixedTimeStep / KX_KetsjiEngine::GetTicRate()));
+		SetNumTimeSubSteps((int)(fixedTimeStep / KX_GetActiveEngine()->GetTicRate()));
 	}
 	/// returns 0.f if no fixed timestep is used
 	virtual float GetFixedTimeStep()

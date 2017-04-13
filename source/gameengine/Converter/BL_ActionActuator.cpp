@@ -37,6 +37,7 @@
 #include "BL_Action.h"
 #include "BL_ActionManager.h"
 #include "KX_GameObject.h"
+#include "KX_Globals.h"
 #include <string>
 #include "MEM_guardedalloc.h"
 #include "DNA_nla_types.h"
@@ -117,7 +118,7 @@ void BL_ActionActuator::ProcessReplica()
 
 void BL_ActionActuator::SetLocalTime(float curtime)
 {
-	float dt = (curtime-m_starttime)*KX_KetsjiEngine::GetAnimFrameRate();
+	float dt = (curtime - m_starttime) * KX_GetActiveEngine()->GetAnimFrameRate();
 
 	if (m_endframe < m_startframe)
 		dt = -dt;
@@ -156,7 +157,7 @@ void BL_ActionActuator::ResetStartTime(float curtime)
 {
 	float dt = m_localtime - m_startframe;
 
-	m_starttime = curtime - dt / (KX_KetsjiEngine::GetAnimFrameRate());
+	m_starttime = curtime - dt / KX_GetActiveEngine()->GetAnimFrameRate();
 	//SetLocalTime(curtime);
 }
 

@@ -246,7 +246,7 @@ void LA_Launcher::InitEngine()
 
 	DEV_Joystick::Init();
 
-	KX_KetsjiEngine::SetExitKey(ConvertKeyCode(gm->exitkey));
+	m_ketsjiEngine->SetExitKey(ConvertKeyCode(gm->exitkey));
 #ifdef WITH_PYTHON
 	CValue::SetDeprecationWarnings(nodepwarnings);
 #else

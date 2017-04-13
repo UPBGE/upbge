@@ -84,7 +84,7 @@
 #  endif
 #endif
 
-const char KX_KetsjiEngine::m_profileLabels[tc_numCategories][15] = {
+const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
 	"Physics:", // tc_physics
 	"Logic:", // tc_logic
 	"Animations:", // tc_animations
@@ -96,14 +96,6 @@ const char KX_KetsjiEngine::m_profileLabels[tc_numCategories][15] = {
 	"Outside:", // tc_outside
 	"GPU Latency:" // tc_latency
 };
-
-double KX_KetsjiEngine::m_ticrate = DEFAULT_LOGIC_TIC_RATE;
-int KX_KetsjiEngine::m_maxLogicFrame = 5;
-int KX_KetsjiEngine::m_maxPhysicsFrame = 5;
-double KX_KetsjiEngine::m_anim_framerate = 25.0;
-double KX_KetsjiEngine::m_average_framerate = 0.0;
-short KX_KetsjiEngine::m_exitkey = 130; // ESC Key
-bool KX_KetsjiEngine::m_doRender = true;
 
 /**
  * Constructor of the Ketsji Engine
@@ -125,11 +117,18 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_previousAnimTime(0.0f),
 	m_timescale(1.0f),
 	m_previousRealTime(0.0f),
+	m_maxLogicFrame(5),
+	m_maxPhysicsFrame(5),
+	m_ticrate(DEFAULT_LOGIC_TIC_RATE),
+	m_anim_framerate(25.0),
+	m_doRender(true),
+	m_exitkey(130),
 	m_exitcode(KX_ExitRequest::NO_REQUEST),
 	m_exitstring(""),
 	m_cameraZoom(1.0f),
 	m_overrideCamZoom(1.0f),
 	m_logger(KX_TimeCategoryLogger(25)),
+	m_average_framerate(0.0),
 	m_showBoundingBox(KX_DebugOption::DISABLE),
 	m_showArmature(KX_DebugOption::DISABLE),
 	m_showCameraFrustum(KX_DebugOption::DISABLE),
@@ -265,7 +264,7 @@ void KX_KetsjiEngine::EndFrame()
 		PyTuple_SetItem(val, 0, PyFloat_FromDouble(time * 1000.0));
 		PyTuple_SetItem(val, 1, PyFloat_FromDouble(time / tottime * 100.0));
 
-		PyDict_SetItemString(m_pyprofiledict, m_profileLabels[i], val);
+		PyDict_SetItemString(m_pyprofiledict, m_profileLabels[i].c_str(), val);
 		Py_DECREF(val);
 	}
 #endif

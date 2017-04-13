@@ -82,6 +82,7 @@
 #include "PHY_IPhysicsEnvironment.h"
 
 #include "KX_KetsjiEngine.h"
+#include "KX_Globals.h"
 #include "BL_BlenderDataConversion.h"
 
 #include "CM_Message.h"
@@ -262,7 +263,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 							blenderkeybdsensor->targetName,
 							blenderkeybdsensor->toggleName,
 							gameobj,
-							KX_KetsjiEngine::GetExitKey()); //			blenderkeybdsensor->pad);
+							KX_GetActiveEngine()->GetExitKey()); //			blenderkeybdsensor->pad);
 
 					}
 
