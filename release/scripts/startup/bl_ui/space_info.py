@@ -258,20 +258,10 @@ class INFO_MT_game_show_debug(Menu):
         layout.prop(gs, "show_physics_visualization")
 
         layout.separator()
-        layout.label("Show Bounding Box")
-        layout.props_enum(gs, "show_bounding_box")
-
-        layout.separator()
-        layout.label("Show Bounding Box")
-        layout.props_enum(gs, "show_armatures")
-
-        layout.separator()
-        layout.label("Show Camera Frustum")
-        layout.props_enum(gs, "show_camera_frustum")
-
-        layout.separator()
-        layout.label("Show Shadow Frustum")
-        layout.props_enum(gs, "show_shadow_frustum")
+        layout.prop_menu_enum(gs, "show_bounding_box")
+        layout.prop_menu_enum(gs, "show_armatures")
+        layout.prop_menu_enum(gs, "show_camera_frustum")
+        layout.prop_menu_enum(gs, "show_shadow_frustum")
 
 
 class INFO_MT_render(Menu):
