@@ -466,6 +466,7 @@ class RENDER_PT_game_debug(RenderButtonsPanel, Panel):
 
         col = split.column()
         col.prop(gs, "show_framerate_profile", text="Framerate and Profile")
+        col.prop(gs, "show_render_queries", text="Render Queries")
         col.prop(gs, "show_debug_properties", text="Properties")
         col.prop(gs, "show_physics_visualization", text="Physics Visualization")
 

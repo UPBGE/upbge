@@ -952,6 +952,7 @@ typedef struct GameData {
 #endif
 #define GAME_PYTHON_CONSOLE					(1 << 20)
 #define GAME_GLSL_NO_ENV_LIGHTING			(1 << 21)
+#define GAME_SHOW_RENDER_QUERIES			(1 << 22)
 /* Note: GameData.flag is now an int (max 32 flags). A short could only take 16 flags */
 
 #define GAME_DEBUG_DISABLE	0

@@ -4860,6 +4860,11 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Show Framerate and Profile",
 	                         "Show framerate and profiling information while the game runs");
 
+	prop = RNA_def_property(srna, "show_render_queries", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_RENDER_QUERIES);
+	RNA_def_property_ui_text(prop, "Show Render Queries",
+	                         "Show render queries information while the game runs");
+
 	prop = RNA_def_property(srna, "show_physics_visualization", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GAME_SHOW_PHYSICS);
 	RNA_def_property_ui_text(prop, "Show Physics Visualization",

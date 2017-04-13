@@ -1713,6 +1713,9 @@ static void game_set_commmandline_options(GameData *gm)
 		SYS_WriteCommandLineInt(syshandle, "show_framerate", test);
 		SYS_WriteCommandLineInt(syshandle, "show_profile", test);
 
+		test = (gm->flag & GAME_SHOW_RENDER_QUERIES);
+		SYS_WriteCommandLineInt(syshandle, "show_render_queries", test);
+
 		test = (gm->flag & GAME_SHOW_DEBUG_PROPS);
 		SYS_WriteCommandLineInt(syshandle, "show_properties", test);
 

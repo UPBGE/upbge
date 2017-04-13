@@ -147,6 +147,7 @@ void LA_Launcher::InitEngine()
 	// WARNING: Fixed time is the opposite of fixed framerate.
 	bool fixed_framerate = (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm.flag & GAME_ENABLE_ALL_FRAMES)) == 0);
 	bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
+	bool renderQueries = (SYS_GetCommandLineInt(syshandle, "show_render_queries", 0) != 0);
 	short showBoundingBox = SYS_GetCommandLineInt(syshandle, "show_bounding_box", gm.showBoundingBox);
 	short showArmatures = SYS_GetCommandLineInt(syshandle, "show_armatures", gm.showArmatures);
 	short showCameraFrustum = SYS_GetCommandLineInt(syshandle, "show_camera_frustum", gm.showCameraFrustum);
@@ -157,6 +158,7 @@ void LA_Launcher::InitEngine()
 	const KX_KetsjiEngine::FlagType flags = (KX_KetsjiEngine::FlagType)
 		((fixed_framerate ? KX_KetsjiEngine::FIXED_FRAMERATE : 0) |
 		(frameRate ? KX_KetsjiEngine::SHOW_FRAMERATE : 0) |
+		(renderQueries ? KX_KetsjiEngine::SHOW_RENDER_QUERIES : 0) |
 		(restrictAnimFPS ? KX_KetsjiEngine::RESTRICT_ANIMATION : 0) |
 		(properties ? KX_KetsjiEngine::SHOW_DEBUG_PROPERTIES : 0) |
 		(profile ? KX_KetsjiEngine::SHOW_PROFILE : 0));

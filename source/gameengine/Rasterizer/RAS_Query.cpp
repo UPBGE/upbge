@@ -29,12 +29,19 @@
 #include "RAS_Query.h"
 #include "RAS_OpenGLQuery.h"
 
+RAS_Query::RAS_Query()
+{
+}
+
+
 RAS_Query::RAS_Query(QueryType type)
 	:m_impl(new RAS_OpenGLQuery(type))
 {
 }
 
 RAS_Query::~RAS_Query() = default;
+
+RAS_Query::RAS_Query(RAS_Query&& other) = default;
 
 void RAS_Query::Begin()
 {

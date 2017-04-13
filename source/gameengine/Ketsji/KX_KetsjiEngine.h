@@ -50,6 +50,7 @@ class BL_BlenderConverter;
 class KX_NetworkMessageManager;
 class RAS_ICanvas;
 class RAS_OffScreen;
+class RAS_Query;
 class SCA_IInputDevice;
 
 enum class KX_ExitRequest
@@ -88,18 +89,20 @@ public:
 		SHOW_PROFILE = (1 << 0),
 		/// Show the framerate on the game display?
 		SHOW_FRAMERATE = (1 << 1),
+		/// Process and show render queries?
+		SHOW_RENDER_QUERIES = (1 << 2),
 		/// Show debug properties on the game display.
-		SHOW_DEBUG_PROPERTIES = (1 << 2),
+		SHOW_DEBUG_PROPERTIES = (1 << 3),
 		/// Whether or not to lock animation updates to the animation framerate?
-		RESTRICT_ANIMATION = (1 << 3),
+		RESTRICT_ANIMATION = (1 << 4),
 		/// Display of fixed frames?
-		FIXED_FRAMERATE = (1 << 4),
+		FIXED_FRAMERATE = (1 << 5),
 		/// BGE relies on a external clock or its own internal clock?
-		USE_EXTERNAL_CLOCK = (1 << 5),
+		USE_EXTERNAL_CLOCK = (1 << 6),
 		/// Automatic add debug properties to the debug list.
-		AUTO_ADD_DEBUG_PROPERTIES = (1 << 6),
+		AUTO_ADD_DEBUG_PROPERTIES = (1 << 7),
 		/// Use override camera?
-		CAMERA_OVERRIDE = (1 << 7)
+		CAMERA_OVERRIDE = (1 << 8)
 	};
 
 private:
@@ -227,9 +230,19 @@ private:
 
 	/// Time logger.
 	KX_TimeCategoryLogger m_logger;
-
 	/// Labels for profiling display.
 	static const std::string m_profileLabels[tc_numCategories];
+
+	enum QueryCategory {
+		QUERY_SAMPLES = 0,
+		QUERY_PRIMITIVES,
+		QUERY_TIME,
+		QUERY_MAX
+	};
+
+	std::vector<RAS_Query> m_renderQueries;
+	static const std::string m_renderQueriesLabels[QUERY_MAX];
+
 	/// Last estimated framerate
 	double m_average_framerate;
 
