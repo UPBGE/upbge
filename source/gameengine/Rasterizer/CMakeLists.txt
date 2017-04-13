@@ -76,6 +76,7 @@ set(SRC
 	RAS_MeshUser.cpp
 	RAS_OffScreen.cpp
 	RAS_Polygon.cpp
+	RAS_Query.cpp
 	RAS_Shader.cpp
 	RAS_Texture.cpp
 	RAS_TextureRenderer.cpp
@@ -113,6 +114,7 @@ set(SRC
 	RAS_MeshUser.h
 	RAS_OffScreen.h
 	RAS_Polygon.h
+	RAS_Query.h
 	RAS_Rect.h
 	RAS_Shader.h
 	RAS_Texture.h
