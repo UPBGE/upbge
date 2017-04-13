@@ -102,7 +102,6 @@ int KX_KetsjiEngine::m_maxLogicFrame = 5;
 int KX_KetsjiEngine::m_maxPhysicsFrame = 5;
 double KX_KetsjiEngine::m_anim_framerate = 25.0;
 double KX_KetsjiEngine::m_average_framerate = 0.0;
-bool KX_KetsjiEngine::m_restrict_anim_fps = false;
 short KX_KetsjiEngine::m_exitkey = 130; // ESC Key
 bool KX_KetsjiEngine::m_doRender = true;
 
@@ -119,10 +118,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 #endif
 	m_inputDevice(nullptr),
 	m_bInitialized(false),
-	m_activecam(0),
-	m_fixedFramerate(false),
-	m_useExternalClock(false),
-	m_firstframe(true),
+	m_flags(FLAG_NONE),
 	m_frameTime(0.0f),
 	m_clockTime(0.0f),
 	m_previousClockTime(0.0f),
@@ -132,20 +128,8 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_exitcode(KX_ExitRequest::NO_REQUEST),
 	m_exitstring(""),
 	m_cameraZoom(1.0f),
-	m_overrideCam(false),
 	m_overrideCamZoom(1.0f),
-	m_stereo(false),
-	m_curreye(0),
 	m_logger(KX_TimeCategoryLogger(25)),
-	// Set up timing info display variables
-	m_show_framerate(false),
-	m_show_profile(false),
-	m_showProperties(false),
-	m_showBackground(false),
-	m_show_debug_properties(false),
-	m_autoAddDebugProperties(true),
-	// Default behavior is to hide the cursor every frame.
-	m_hideCursor(false),
 	m_showBoundingBox(KX_DebugOption::DISABLE),
 	m_showArmature(KX_DebugOption::DISABLE),
 	m_showCameraFrustum(KX_DebugOption::DISABLE),
@@ -231,14 +215,13 @@ void KX_KetsjiEngine::SetConverter(KX_BlenderConverter *converter)
  * Blender into Ketsji native (realtime) format also sets up the
  * graphics context
  */
-void KX_KetsjiEngine::StartEngine(bool clearIpo)
+void KX_KetsjiEngine::StartEngine()
 {
 	m_clockTime = m_kxsystem->GetTimeInSeconds();
 	m_frameTime = m_kxsystem->GetTimeInSeconds();
 	m_previousClockTime = m_kxsystem->GetTimeInSeconds();
 	m_previousRealTime = m_kxsystem->GetTimeInSeconds();
 
-	m_firstframe = true;
 	m_bInitialized = true;
 	// there is always one scene enabled at startup
 	Scene *scene = ((KX_Scene *)m_scenes->GetFront())->GetBlenderScene();
@@ -267,7 +250,7 @@ void KX_KetsjiEngine::EndFrame()
 
 	// Show profiling info
 	m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds(), true);
-	if (m_show_framerate || m_show_profile || (m_show_debug_properties)) {
+	if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
 		RenderDebugProperties();
 	}
 
@@ -308,9 +291,9 @@ bool KX_KetsjiEngine::NextFrame()
 
 	/*
 	 * Clock advancement. There is basically two case:
-	 *   - m_useExternalClock is true, the user is responsible to advance the time
+	 *   - USE_EXTERNAL_CLOCK is true, the user is responsible to advance the time
 	 *   manually using setClockTime, so here, we do not do anything.
-	 *   - m_useExternalClock is false, we consider how much
+	 *   - USE_EXTERNAL_CLOCK is false, we consider how much
 	 *   time has elapsed since last call and we scale this time by the time
 	 *   scaling parameter. If m_timescale is 1.0 (default value), the clock
 	 *   corresponds to the computer clock.
@@ -333,13 +316,13 @@ bool KX_KetsjiEngine::NextFrame()
 	 */
 
 	double timestep = m_timescale / m_ticrate;
-	if (!m_useExternalClock) {
+	if (!(m_flags & USE_EXTERNAL_CLOCK)) {
 		double current_time = m_kxsystem->GetTimeInSeconds();
 		double dt = current_time - m_previousRealTime;
 		m_previousRealTime = current_time;
 		m_clockTime += dt * m_timescale;
 
-		if (!m_fixedFramerate) {
+		if (!(m_flags & FIXED_FRAMERATE)) {
 			timestep = dt * m_timescale;
 		}
 	}
@@ -355,7 +338,7 @@ bool KX_KetsjiEngine::NextFrame()
 	int frames = 1;
 
 	// Compute the number of logic frames to do each update in case of fixed framerate.
-	if (m_fixedFramerate) {
+	if (m_flags & FIXED_FRAMERATE) {
 		frames = int(deltatime * m_ticrate / m_timescale + 1e-6);
 	}
 
@@ -508,11 +491,6 @@ void KX_KetsjiEngine::Render()
 
 	m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
 	SG_SetActiveStage(SG_STAGE_RENDER);
-
-	// hiding mouse cursor each frame
-	// (came back when going out of focus and then back in again)
-	if (m_hideCursor)
-		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
 
 	BeginFrame();
 
@@ -717,7 +695,7 @@ void KX_KetsjiEngine::SetCameraOverrideZoom(float camzoom)
 float KX_KetsjiEngine::GetCameraZoom(KX_Camera *camera) const
 {
 	KX_Scene *scene = camera->GetScene();
-	const bool overrideCamera = m_overrideCam && (scene->GetName() == m_overrideSceneName) &&
+	const bool overrideCamera = (m_flags & CAMERA_OVERRIDE) && (scene->GetName() == m_overrideSceneName) &&
 		(camera->GetName() == "__default__cam__");
 
 	return overrideCamera ? m_overrideCamZoom : m_cameraZoom;
@@ -726,7 +704,7 @@ float KX_KetsjiEngine::GetCameraZoom(KX_Camera *camera) const
 void KX_KetsjiEngine::EnableCameraOverride(const std::string& forscene, const MT_CmMatrix4x4& projmat,
 		const MT_CmMatrix4x4& viewmat, const RAS_CameraData& camdata)
 {
-	m_overrideCam = true;
+	SetFlag(CAMERA_OVERRIDE, true);
 	m_overrideSceneName = forscene;
 	m_overrideCamProjMat = projmat;
 	m_overrideCamViewMat = viewmat;
@@ -762,7 +740,7 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect
 
 		area = userviewport;
 	}
-	else if (!m_overrideCam || (scene->GetName() != m_overrideSceneName) || !m_overrideCamData.m_perspective) {
+	else if (!(m_flags & CAMERA_OVERRIDE) || (scene->GetName() != m_overrideSceneName) || !m_overrideCamData.m_perspective) {
 		RAS_FramingManager::ComputeViewport(
 		    scene->GetFramingType(),
 		    m_canvas->GetDisplayArea(),
@@ -787,7 +765,7 @@ void KX_KetsjiEngine::UpdateAnimations(KX_Scene *scene)
 	}
 
 	// Handle the animations independently of the logic time step
-	if (GetRestrictAnimationFPS()) {
+	if (m_flags & RESTRICT_ANIMATION) {
 		double anim_timestep = 1.0 / scene->GetAnimationFPS();
 		if (m_frameTime - m_previousAnimTime > anim_timestep || m_frameTime == m_previousAnimTime) {
 			// Sanity/debug print to make sure we're actually going at the fps we want (should be close to anim_timestep)
@@ -858,7 +836,7 @@ const MT_Matrix4x4& KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, 
 		return cam->GetProjectionMatrix();
 	}
 
-	const bool override_camera = m_overrideCam && (scene->GetName() == m_overrideSceneName) &&
+	const bool override_camera = (m_flags & CAMERA_OVERRIDE) && (scene->GetName() == m_overrideSceneName) &&
 		(cam->GetName() == "__default__cam__");
 
 	if (override_camera && !m_overrideCamData.m_perspective) {
@@ -1085,7 +1063,7 @@ void KX_KetsjiEngine::AddScene(KX_Scene *scene)
 
 void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 {
-	bool override_camera = (m_overrideCam && (scene->GetName() == m_overrideSceneName));
+	bool override_camera = ((m_flags & CAMERA_OVERRIDE) && (scene->GetName() == m_overrideSceneName));
 
 	SG_SetActiveStage(SG_STAGE_SCENE);
 
@@ -1150,7 +1128,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	// Use nullptrfor no scene.
 	RAS_DebugDraw& debugDraw = m_rasterizer->GetDebugDraw(nullptr);
 
-	if (m_show_framerate || m_show_profile) {
+	if (m_flags & (SHOW_FRAMERATE | SHOW_PROFILE)) {
 		// Title for profiling("Profile")
 		// Adds the constant x indent (0 for now) to the title x margin
 		debugDraw.RenderText2D("Profile", MT_Vector2(xcoord + const_xindent + title_xmargin, ycoord), white);
@@ -1162,7 +1140,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	}
 
 	// Framerate display
-	if (m_show_framerate) {
+	if (m_flags & SHOW_FRAMERATE) {
 		debugDraw.RenderText2D("Frametime :",
 		                           MT_Vector2(xcoord + const_xindent,
 		                           ycoord), white);
@@ -1174,7 +1152,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	}
 
 	// Profile display
-	if (m_show_profile) {
+	if (m_flags & SHOW_PROFILE) {
 		for (int j = tc_first; j < tc_numCategories; j++) {
 			debugDraw.RenderText2D(m_profileLabels[j], MT_Vector2(xcoord + const_xindent, ycoord), white);
 
@@ -1192,7 +1170,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	ycoord += title_y_top_margin;
 
 	/* Property display */
-	if (m_show_debug_properties) {
+	if (m_flags & SHOW_DEBUG_PROPERTIES) {
 		// Title for debugging("Debug properties")
 		// Adds the constant x indent (0 for now) to the title x margin
 		debugDraw.RenderText2D("Debug Properties", MT_Vector2(xcoord + const_xindent + title_xmargin, ycoord), white);
@@ -1474,26 +1452,6 @@ void KX_KetsjiEngine::ResumeScene(const std::string& scenename)
 	}
 }
 
-void KX_KetsjiEngine::SetUseFixedFramerate(bool fixedFramerate)
-{
-	m_fixedFramerate = fixedFramerate;
-}
-
-void KX_KetsjiEngine::SetUseExternalClock(bool useExternalClock)
-{
-	m_useExternalClock = useExternalClock;
-}
-
-bool KX_KetsjiEngine::GetUseFixedFramerate(void) const
-{
-	return m_fixedFramerate;
-}
-
-bool KX_KetsjiEngine::GetUseExternalClock(void) const
-{
-	return m_useExternalClock;
-}
-
 double KX_KetsjiEngine::GetTicRate()
 {
 	return m_ticrate;
@@ -1534,19 +1492,24 @@ void KX_KetsjiEngine::SetMaxPhysicsFrame(int frame)
 	m_maxPhysicsFrame = frame;
 }
 
-bool KX_KetsjiEngine::GetRestrictAnimationFPS()
-{
-	return m_restrict_anim_fps;
-}
-
-void KX_KetsjiEngine::SetRestrictAnimationFPS(bool bRestrictAnimFPS)
-{
-	m_restrict_anim_fps = bRestrictAnimFPS;
-}
-
 double KX_KetsjiEngine::GetAnimFrameRate()
 {
 	return m_anim_framerate;
+}
+
+bool KX_KetsjiEngine::GetFlag(FlagType flag) const
+{
+	return (m_flags & flag);
+}
+
+void KX_KetsjiEngine::SetFlag(FlagType flag, bool enable)
+{
+	if (enable) {
+		m_flags = (FlagType)(m_flags | flag);
+	}
+	else {
+		m_flags = (FlagType)(m_flags & ~flag);
+	}
 }
 
 double KX_KetsjiEngine::GetClockTime(void) const
@@ -1597,46 +1560,6 @@ void KX_KetsjiEngine::SetRender(bool render)
 bool KX_KetsjiEngine::GetRender()
 {
 	return m_doRender;
-}
-
-void KX_KetsjiEngine::SetShowFramerate(bool frameRate)
-{
-	m_show_framerate = frameRate;
-}
-
-bool KX_KetsjiEngine::GetShowFramerate()
-{
-	return m_show_framerate;
-}
-
-void KX_KetsjiEngine::SetShowProfile(bool profile)
-{
-	m_show_profile = profile;
-}
-
-bool KX_KetsjiEngine::GetShowProfile()
-{
-	return m_show_profile;
-}
-
-void KX_KetsjiEngine::SetShowProperties(bool properties)
-{
-	m_show_debug_properties = properties;
-}
-
-bool KX_KetsjiEngine::GetShowProperties()
-{
-	return m_show_debug_properties;
-}
-
-void KX_KetsjiEngine::SetAutoAddDebugProperties(bool add)
-{
-	m_autoAddDebugProperties = add;
-}
-
-bool KX_KetsjiEngine::GetAutoAddDebugProperties()
-{
-	return m_autoAddDebugProperties;
 }
 
 void KX_KetsjiEngine::ProcessScheduledScenes(void)

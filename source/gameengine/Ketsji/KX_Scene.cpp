@@ -607,7 +607,7 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_Node* node, class CValue*
 void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 {
 	/* add properties to debug list, for added objects and DupliGroups */
-	if (KX_GetActiveEngine()->GetAutoAddDebugProperties()) {
+	if (KX_GetActiveEngine()->GetFlag(KX_KetsjiEngine::AUTO_ADD_DEBUG_PROPERTIES)) {
 		AddObjectDebugProperties(newobj);
 	}
 	// also relink the controller to sensors/actuators
@@ -1944,7 +1944,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		MergeScene_GameObject(gameobj, this, other);
 
 		/* add properties to debug list for LibLoad objects */
-		if (KX_GetActiveEngine()->GetAutoAddDebugProperties()) {
+		if (KX_GetActiveEngine()->GetFlag(KX_KetsjiEngine::AUTO_ADD_DEBUG_PROPERTIES)) {
 			AddObjectDebugProperties(gameobj);
 		}
 	}

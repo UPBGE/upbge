@@ -85,6 +85,27 @@ typedef struct {
  */
 class KX_KetsjiEngine
 {
+public:
+	enum FlagType
+	{
+		FLAG_NONE = 0,
+		/// Show profiling info on the game display?
+		SHOW_PROFILE = (1 << 0),
+		/// Show the framerate on the game display?
+		SHOW_FRAMERATE = (1 << 1),
+		/// Show debug properties on the game display.
+		SHOW_DEBUG_PROPERTIES = (1 << 2),
+		/// Whether or not to lock animation updates to the animation framerate?
+		RESTRICT_ANIMATION = (1 << 3),
+		/// Display of fixed frames?
+		FIXED_FRAMERATE = (1 << 4),
+		/// BGE relies on a external clock or its own internal clock?
+		USE_EXTERNAL_CLOCK = (1 << 5),
+		/// Automatic add debug properties to the debug list.
+		AUTO_ADD_DEBUG_PROPERTIES = (1 << 6),
+		/// Use override camera?
+		CAMERA_OVERRIDE = (1 << 7)
+	};
 
 private:
 	/// 2D Canvas (2D Rendering Device Context)
@@ -112,16 +133,10 @@ private:
 
 	/// The current list of scenes.
 	CListValue *m_scenes;
-	/// State variable recording the presence of object debug info in the current scene list.
-	bool m_propertiesPresent;
 
 	bool m_bInitialized;
-	int m_activecam;
-	bool m_fixedFramerate;
-	bool m_useExternalClock;
 
-	bool m_firstframe;
-	int m_currentFrame;
+	FlagType m_flags;
 
 	/// current logic game time
 	double m_frameTime;
@@ -144,9 +159,7 @@ private:
 	/// for animation playback only - ipo and action
 	static double m_anim_framerate;
 
-	static bool m_restrict_anim_fps;
-
-	static bool				m_doRender;  /* whether or not the scene should be rendered after the logic frame */
+	static bool m_doRender;  /* whether or not the scene should be rendered after the logic frame */
 
 	/// Key used to exit the BGE
 	static short m_exitkey;
@@ -156,16 +169,12 @@ private:
 
 	float m_cameraZoom;
 
-	bool m_overrideCam;
 	std::string m_overrideSceneName;
 	RAS_CameraData m_overrideCamData;
 	MT_CmMatrix4x4 m_overrideCamProjMat;
 	MT_CmMatrix4x4 m_overrideCamViewMat;
 	/// Default camera zoom.
 	float m_overrideCamZoom;
-
-	bool m_stereo;
-	int m_curreye;
 
 	/// Categories for profiling display.
 	typedef enum {
@@ -190,21 +199,6 @@ private:
 	static const char m_profileLabels[tc_numCategories][15];
 	/// Last estimated framerate
 	static double m_average_framerate;
-	/// Show the framerate on the game display?
-	bool m_show_framerate;
-	/// Show profiling info on the game display?
-	bool m_show_profile;
-	/// Show any debug (scene) object properties on the game display?
-	bool m_showProperties;
-	/// Show background behind text for readability?
-	bool m_showBackground;
-	/// Show debug properties on the game display
-	bool m_show_debug_properties;
-	/// Automatic add debug properties to the debug list
-	bool m_autoAddDebugProperties;
-
-	/// Hide cursor every frame?
-	bool m_hideCursor;
 
 	/// Enable debug draw of culling bounding boxes.
 	KX_DebugOption m_showBoundingBox;
@@ -243,6 +237,25 @@ private:
 	void DrawDebugCameraFrustum(KX_Scene *scene, KX_Camera *cam, RAS_DebugDraw& debugDraw, const RAS_Rect& viewport, const RAS_Rect& area);
 	/// Debug draw lights shadow frustum of a scene.
 	void DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw);
+
+	/**
+	 * Processes all scheduled scene activity.
+	 * At the end, if the scene lists have changed,
+	 * SceneListsChanged(void) is called.
+	 * \see SceneListsChanged(void).
+	 */
+	void ProcessScheduledScenes(void);
+
+	/**
+	 * This method is invoked when the scene lists have changed.
+	 */
+	void RemoveScheduledScenes(void);
+	void AddScheduledScenes(void);
+	void ReplaceScheduledScenes(void);
+	void PostProcessScene(KX_Scene *scene);
+
+	void BeginFrame();
+	void EndFrame();
 
 public:
 	KX_KetsjiEngine(KX_ISystem *system);
@@ -294,7 +307,7 @@ public:
 	void Render();
 	void RenderShadowBuffers(KX_Scene *scene);
 
-	void StartEngine(bool clearIpo);
+	void StartEngine();
 	void StopEngine();
 	void Export(const std::string& filename);
 
@@ -327,30 +340,11 @@ public:
 	// Update animations for object in this scene
 	void UpdateAnimations(KX_Scene *scene);
 
-	/**
-	 * Sets display of fixed frames.
-	 * \param fixedFramerate New setting for display all frames.
-	 */
-	void SetUseFixedFramerate(bool fixedFramerate);
+	bool GetFlag(FlagType flag) const;
+	/// Enable or disable a set of flags.
+	void SetFlag(FlagType flag, bool enable);
 
-	/**
-	 * Returns display of fixed frames.
-	 * \return Current setting for display all frames.
-	 */
-	bool GetUseFixedFramerate(void) const;
-
-	/**
-	 * Sets if the BGE relies on a external clock or its own internal clock
-	 */
-	void SetUseExternalClock(bool bUseExternalClock);
-
-	/**
-	 * Returns if we rely on an external clock
-	 * \return Current setting
-	 */
-	bool GetUseExternalClock(void) const;
-
-	/**
+	/*
 	 * Returns next render frame game time
 	 */
 	double GetClockTime(void) const;
@@ -397,16 +391,6 @@ public:
 	static void SetMaxPhysicsFrame(int frame);
 
 	/**
-	 * Gets whether or not to lock animation updates to the animframerate
-	 */
-	static bool GetRestrictAnimationFPS();
-
-	/**
-	 * Sets whether or not to lock animation updates to the animframerate
-	 */
-	static void SetRestrictAnimationFPS(bool bRestrictAnimFPS);
-
-	/**
 	 * Gets the framerate for playing animations. (actions and ipos)
 	 */
 	static double GetAnimFrameRate();
@@ -444,46 +428,6 @@ public:
 	 */
 	static bool GetRender();
 
-	/**
-	 * \Sets the display for frame rate on or off.
-	 */
-	void SetShowFramerate(bool frameRate);
-
-	/**
-	 * \Gets the display for frame rate on or off.
-	 */
-	bool GetShowFramerate();
-
-	/**
-	 * \Sets the display for individual components on or off.
-	 */
-	void SetShowProfile(bool profile);
-
-	/**
-	 * \Gets the display for individual components on or off.
-	 */
-	bool GetShowProfile();
-
-	/**
-	 * \Sets the display of scene object debug properties on or off.
-	 */
-	void SetShowProperties(bool properties);
-
-	/**
-	 * \Gets the display of scene object debug properties on or off.
-	 */
-	bool GetShowProperties();
-
-	/**
-	 * \Sets if the auto adding of scene object debug properties on or off.
-	 */
-	bool GetAutoAddDebugProperties();
-
-	/**
-	 * \Sets the auto adding of scene object debug properties on or off.
-	 */
-	void SetAutoAddDebugProperties(bool add);
-
 	/// Allow debug bounding box debug.
 	void SetShowBoundingBox(KX_DebugOption mode);
 	/// Returns the current setting for bounding box debug.
@@ -516,26 +460,6 @@ public:
 	 * It's only called from Blenderplayer.
 	 */
 	void Resize();
-
-protected:
-	/**
-	 * Processes all scheduled scene activity.
-	 * At the end, if the scene lists have changed,
-	 * SceneListsChanged(void) is called.
-	 * \see SceneListsChanged(void).
-	 */
-	void ProcessScheduledScenes(void);
-
-	/**
-	 * This method is invoked when the scene lists have changed.
-	 */
-	void RemoveScheduledScenes(void);
-	void AddScheduledScenes(void);
-	void ReplaceScheduledScenes(void);
-	void PostProcessScene(KX_Scene *scene);
-
-	void BeginFrame();
-	void EndFrame();
 };
 
 #endif  /* __KX_KETSJIENGINE_H__ */

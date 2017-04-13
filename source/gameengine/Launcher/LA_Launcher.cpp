@@ -153,6 +153,13 @@ void LA_Launcher::InitEngine()
 	bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
 	bool restrictAnimFPS = (gm->flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
+	const KX_KetsjiEngine::FlagType flags = (KX_KetsjiEngine::FlagType)
+		((fixed_framerate ? KX_KetsjiEngine::FIXED_FRAMERATE : 0) |
+		(frameRate ? KX_KetsjiEngine::SHOW_FRAMERATE : 0) |
+		(restrictAnimFPS ? KX_KetsjiEngine::RESTRICT_ANIMATION : 0) |
+		(properties ? KX_KetsjiEngine::SHOW_DEBUG_PROPERTIES : 0) |
+		(profile ? KX_KetsjiEngine::SHOW_PROFILE : 0));
+
 	// Setup python console keys used as shortcut.
 	for (unsigned short i = 0; i < 4; ++i) {
 		if (gm->pythonkeys[i] != EVENT_NONE) {
@@ -246,12 +253,8 @@ void LA_Launcher::InitEngine()
 	(void)nodepwarnings;
 #endif
 
-	m_ketsjiEngine->SetUseFixedFramerate(fixed_framerate);
-	m_ketsjiEngine->SetShowFramerate(frameRate);
-	m_ketsjiEngine->SetShowProfile(profile);
-	m_ketsjiEngine->SetShowProperties(properties);
+	m_ketsjiEngine->SetFlag(flags, true);
 	m_ketsjiEngine->SetRender(true);
-	m_ketsjiEngine->SetRestrictAnimationFPS(restrictAnimFPS);
 	m_ketsjiEngine->SetShowBoundingBox((KX_DebugOption)showBoundingBox);
 	m_ketsjiEngine->SetShowArmatures((KX_DebugOption)showArmatures);
 	m_ketsjiEngine->SetShowCameraFrustum((KX_DebugOption)showCameraFrustum);
@@ -298,7 +301,7 @@ void LA_Launcher::InitEngine()
 	m_kxStartScene->Release();
 
 	m_rasterizer->Init();
-	m_ketsjiEngine->StartEngine(true);
+	m_ketsjiEngine->StartEngine();
 
 	/* Set the animation playback rate for ipo's and actions the 
 	 * framerate below should patch with FPS macro defined in blendef.h 

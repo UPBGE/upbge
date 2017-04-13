@@ -456,7 +456,7 @@ static PyObject *gPyGetAverageFrameRate(PyObject *)
 
 static PyObject *gPyGetUseExternalClock(PyObject *)
 {
-	return PyBool_FromLong(KX_GetActiveEngine()->GetUseExternalClock());
+	return PyBool_FromLong(KX_GetActiveEngine()->GetFlag(KX_KetsjiEngine::USE_EXTERNAL_CLOCK));
 }
 
 static PyObject *gPySetUseExternalClock(PyObject *, PyObject *args)
@@ -466,7 +466,7 @@ static PyObject *gPySetUseExternalClock(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "p:setUseExternalClock", &bUseExternalClock))
 		return nullptr;
 
-	KX_GetActiveEngine()->SetUseExternalClock(bUseExternalClock);
+	KX_GetActiveEngine()->SetFlag(KX_KetsjiEngine::USE_EXTERNAL_CLOCK, bUseExternalClock);
 	Py_RETURN_NONE;
 }
 
@@ -1288,11 +1288,7 @@ static PyObject *gPyShowFramerate(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args,"i:showFramerate",&visible))
 		return nullptr;
 
-	if (visible && KX_GetActiveEngine())
-		KX_GetActiveEngine()->SetShowFramerate(true);
-	else
-		KX_GetActiveEngine()->SetShowFramerate(false);
-
+	KX_GetActiveEngine()->SetFlag(KX_KetsjiEngine::SHOW_FRAMERATE, visible);
 	Py_RETURN_NONE;
 }
 
@@ -1302,11 +1298,7 @@ static PyObject *gPyShowProfile(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args,"i:showProfile",&visible))
 		return nullptr;
 
-	if (visible && KX_GetActiveEngine())
-		KX_GetActiveEngine()->SetShowProfile(true);
-	else
-		KX_GetActiveEngine()->SetShowProfile(false);
-
+	KX_GetActiveEngine()->SetFlag(KX_KetsjiEngine::SHOW_PROFILE, visible);
 	Py_RETURN_NONE;
 }
 
@@ -1316,11 +1308,7 @@ static PyObject *gPyShowProperties(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args,"i:showProperties",&visible))
 		return nullptr;
 
-	if (visible && KX_GetActiveEngine())
-		KX_GetActiveEngine()->SetShowProperties(true);
-	else
-		KX_GetActiveEngine()->SetShowProperties(false);
-
+	KX_GetActiveEngine()->SetFlag(KX_KetsjiEngine::SHOW_DEBUG_PROPERTIES, visible);
 	Py_RETURN_NONE;
 }
 
@@ -1330,11 +1318,7 @@ static PyObject *gPyAutoDebugList(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args,"i:autoAddProperties",&add))
 		return nullptr;
 
-	if (add && KX_GetActiveEngine())
-		KX_GetActiveEngine()->SetAutoAddDebugProperties(true);
-	else
-		KX_GetActiveEngine()->SetAutoAddDebugProperties(false);
-
+	KX_GetActiveEngine()->SetFlag(KX_KetsjiEngine::AUTO_ADD_DEBUG_PROPERTIES, add);
 	Py_RETURN_NONE;
 }
 
