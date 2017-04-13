@@ -33,6 +33,10 @@
 
 class RAS_OpenGLQuery;
 
+/** \brief Rasterizer query to access some rasterizer information like
+ * the number of samples passed, the number of primitives generated or the
+ * time spent to render.
+ */
 class RAS_Query
 {
 private:
@@ -50,11 +54,16 @@ public:
 	RAS_Query(QueryType type);
 	~RAS_Query();
 
+	/// Begin the query.
 	void Begin();
+	/// End the query and made the functions Available, ResultNoWait and Result usable.
 	void End();
 
+	/// \return True when the query result is ready.
 	bool Available();
+	/// \return The value of the query even if the query is not ready.
 	int ResultNoWait();
+	/// \return The value of the query and wait in case the query result is not ready.
 	int Result();
 };
 
