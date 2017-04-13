@@ -240,6 +240,7 @@ class INFO_MT_game(Menu):
         layout.separator()
 
         layout.prop(gs, "show_framerate_profile")
+        layout.prop(gs, "show_render_queries")
         layout.prop(gs, "use_deprecation_warnings")
         layout.menu("INFO_MT_game_show_debug")
         layout.separator()

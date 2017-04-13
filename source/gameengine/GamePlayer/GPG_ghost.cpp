@@ -489,6 +489,7 @@ static void usage(const std::string& program, bool isBlenderPlayer)
 	CM_Message("       nomipmap                       0         Disable mipmaps");
 	CM_Message("       wireframe                      0         Wireframe render");
 	CM_Message("       show_framerate                 0         Show the frame rate");
+	CM_Message("       show_render_queries            0         Show the render queries");
 	CM_Message("       show_properties                0         Show debug properties");
 	CM_Message("       show_profile                   0         Show profiling information");
 	CM_Message("       show_bounding_box              0         Show debug bounding box volume");

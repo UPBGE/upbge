@@ -51,8 +51,12 @@ public:
 		TIME
 	};
 
+	RAS_Query();
 	RAS_Query(QueryType type);
 	~RAS_Query();
+
+	RAS_Query(const RAS_Query& other) = delete;
+	RAS_Query(RAS_Query&& other);
 
 	/// Begin the query.
 	void Begin();

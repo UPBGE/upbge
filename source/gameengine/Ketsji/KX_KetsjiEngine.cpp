@@ -51,6 +51,7 @@
 #include "RAS_Rasterizer.h"
 #include "RAS_ICanvas.h"
 #include "RAS_OffScreen.h"
+#include "RAS_Query.h"
 #include "RAS_ILightObject.h"
 #include "MT_Vector3.h"
 #include "MT_Transform.h"
@@ -135,6 +136,12 @@ const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
 	"GPU Latency:" // tc_latency
 };
 
+const std::string KX_KetsjiEngine::m_renderQueriesLabels[QUERY_MAX] = {
+	"Samples:", // QUERY_SAMPLES
+	"Primitives:", // QUERY_PRIMITIVES
+	"Time:" // QUERY_TIME
+};
+
 /**
  * Constructor of the Ketsji Engine
  */
@@ -171,6 +178,10 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	for (int i = tc_first; i < tc_numCategories; i++) {
 		m_logger.AddCategory((KX_TimeCategory)i);
 	}
+
+	m_renderQueries.push_back(RAS_Query(RAS_Query::SAMPLES));
+	m_renderQueries.push_back(RAS_Query(RAS_Query::PRIMITIVES));
+	m_renderQueries.push_back(RAS_Query(RAS_Query::TIME));
 
 #ifdef WITH_PYTHON
 	m_pyprofiledict = PyDict_New();
@@ -242,6 +253,14 @@ void KX_KetsjiEngine::StartEngine()
 
 void KX_KetsjiEngine::BeginFrame()
 {
+	m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
+
+	for (RAS_Query& query : m_renderQueries) {
+		query.Begin();
+	}
+
+	m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
+
 	m_rasterizer->BeginFrame(m_frameTime);
 
 	m_canvas->BeginDraw();
@@ -253,7 +272,12 @@ void KX_KetsjiEngine::EndFrame()
 
 	// Show profiling info
 	m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
-	if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
+
+	for (RAS_Query& query : m_renderQueries) {
+		query.End();
+	}
+
+	if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES | SHOW_RENDER_QUERIES)) {
 		RenderDebugProperties();
 	}
 
@@ -1185,6 +1209,26 @@ void KX_KetsjiEngine::RenderDebugProperties()
 			ycoord += const_ysize;
 		}
 	}
+
+	if (m_flags & SHOW_RENDER_QUERIES) {
+		debugDraw.RenderText2D("Render Queries :", MT_Vector2(xcoord + const_xindent + title_xmargin, ycoord), white);
+		ycoord += const_ysize;
+
+		for (unsigned short i = 0; i < QUERY_MAX; ++i) {
+			debugDraw.RenderText2D(m_renderQueriesLabels[i], MT_Vector2(xcoord + const_xindent, ycoord), white);
+
+			if (i == QUERY_TIME) {
+				debugtxt = (boost::format("%.2fms") % (((float)m_renderQueries[i].Result()) / 1e6)).str();
+			}
+			else {
+				debugtxt = (boost::format("%i") % m_renderQueries[i].Result()).str();
+			}
+
+			debugDraw.RenderText2D(debugtxt, MT_Vector2(xcoord + const_xindent + profile_indent, ycoord), white);
+			ycoord += const_ysize;
+		}
+	}
+
 	// Add the ymargin for titles below the other section of debug info
 	ycoord += title_y_top_margin;
 
