@@ -136,22 +136,22 @@ void LA_Launcher::InitEngine()
 	// Get and set the preferences.
 	SYS_SystemHandle syshandle = SYS_GetSystem();
 
-	GameData *gm = &m_startScene->gm;
+	const GameData& gm = m_startScene->gm;
 	bool properties = (SYS_GetCommandLineInt(syshandle, "show_properties", 0) != 0);
 	bool profile = (SYS_GetCommandLineInt(syshandle, "show_profile", 0) != 0);
 
-	bool showPhysics = (gm->flag & GAME_SHOW_PHYSICS);
+	bool showPhysics = (gm.flag & GAME_SHOW_PHYSICS);
 	SYS_WriteCommandLineInt(syshandle, "show_physics", showPhysics);
 
 	// WARNING: Fixed time is the opposite of fixed framerate.
-	bool fixed_framerate = (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm->flag & GAME_ENABLE_ALL_FRAMES)) == 0);
+	bool fixed_framerate = (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm.flag & GAME_ENABLE_ALL_FRAMES)) == 0);
 	bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
-	short showBoundingBox = SYS_GetCommandLineInt(syshandle, "show_bounding_box", gm->showBoundingBox);
-	short showArmatures = SYS_GetCommandLineInt(syshandle, "show_armatures", gm->showArmatures);
-	short showCameraFrustum = SYS_GetCommandLineInt(syshandle, "show_camera_frustum", gm->showCameraFrustum);
-	short showShadowFrustum = SYS_GetCommandLineInt(syshandle, "show_shadow_frustum", gm->showShadowFrustum);
+	short showBoundingBox = SYS_GetCommandLineInt(syshandle, "show_bounding_box", gm.showBoundingBox);
+	short showArmatures = SYS_GetCommandLineInt(syshandle, "show_armatures", gm.showArmatures);
+	short showCameraFrustum = SYS_GetCommandLineInt(syshandle, "show_camera_frustum", gm.showCameraFrustum);
+	short showShadowFrustum = SYS_GetCommandLineInt(syshandle, "show_shadow_frustum", gm.showShadowFrustum);
 	bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
-	bool restrictAnimFPS = (gm->flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
+	bool restrictAnimFPS = (gm.flag & GAME_RESTRICT_ANIM_UPDATES) != 0;
 
 	const KX_KetsjiEngine::FlagType flags = (KX_KetsjiEngine::FlagType)
 		((fixed_framerate ? KX_KetsjiEngine::FIXED_FRAMERATE : 0) |
@@ -162,11 +162,11 @@ void LA_Launcher::InitEngine()
 
 	// Setup python console keys used as shortcut.
 	for (unsigned short i = 0; i < 4; ++i) {
-		if (gm->pythonkeys[i] != EVENT_NONE) {
-			m_pythonConsole.keys.push_back(ConvertKeyCode(gm->pythonkeys[i]));
+		if (gm.pythonkeys[i] != EVENT_NONE) {
+			m_pythonConsole.keys.push_back(ConvertKeyCode(gm.pythonkeys[i]));
 		}
 	}
-	m_pythonConsole.use = (gm->flag & GAME_PYTHON_CONSOLE);
+	m_pythonConsole.use = (gm.flag & GAME_PYTHON_CONSOLE);
 
 	m_rasterizer = new RAS_Rasterizer();
 
@@ -186,18 +186,18 @@ void LA_Launcher::InitEngine()
 	// Copy current vsync mode to restore at the game end.
 	m_canvas->GetSwapInterval(m_savedData.vsync);
 
-	if (gm->vsync == VSYNC_ADAPTIVE) {
+	if (gm.vsync == VSYNC_ADAPTIVE) {
 		m_canvas->SetSwapInterval(-1);
 	}
 	else {
-		m_canvas->SetSwapInterval((gm->vsync == VSYNC_ON) ? 1 : 0);
+		m_canvas->SetSwapInterval((gm.vsync == VSYNC_ON) ? 1 : 0);
 	}
 
 	// Set canvas multisamples.
 	m_canvas->SetSamples(m_samples);
 
 	RAS_Rasterizer::HdrType hdrtype = RAS_Rasterizer::RAS_HDR_NONE;
-	switch (gm->hdr) {
+	switch (gm.hdr) {
 		case GAME_HDR_NONE:
 		{
 			hdrtype = RAS_Rasterizer::RAS_HDR_NONE;
@@ -217,7 +217,7 @@ void LA_Launcher::InitEngine()
 	m_canvas->SetHdrType(hdrtype);
 
 	m_canvas->Init();
-	if (gm->flag & GAME_SHOW_MOUSE) {
+	if (gm.flag & GAME_SHOW_MOUSE) {
 		m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
 	}
 	else {
@@ -246,7 +246,7 @@ void LA_Launcher::InitEngine()
 
 	DEV_Joystick::Init();
 
-	m_ketsjiEngine->SetExitKey(ConvertKeyCode(gm->exitkey));
+	m_ketsjiEngine->SetExitKey(ConvertKeyCode(gm.exitkey));
 #ifdef WITH_PYTHON
 	CValue::SetDeprecationWarnings(nodepwarnings);
 #else
