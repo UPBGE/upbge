@@ -349,6 +349,7 @@ classes = (
     DATA_PT_context_camera,
     DATA_PT_lens,
     DATA_PT_camera,
+    DATA_PT_levels_of_detail,
     DATA_PT_camera_stereoscopy,
     DATA_PT_camera_dof,
     DATA_PT_camera_display,
