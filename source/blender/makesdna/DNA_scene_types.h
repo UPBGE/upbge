@@ -851,8 +851,9 @@ typedef struct GameData {
 	short exitkey;
 	short pythonkeys[4];
 	short vsync; /* Controls vsync: off, on, or adaptive (if supported) */
-	short ticrate, maxlogicstep, physubstep, maxphystep;
 	short obstacleSimulation;
+	short ticrate, maxlogicstep, physubstep, maxphystep;
+	float timeScale;
 	float levelHeight;
 	float deactivationtime, lineardeactthreshold, angulardeactthreshold;
 
@@ -865,6 +866,7 @@ typedef struct GameData {
 	/* Scene LoD */
 	short lodflag, pad2;
 	int scehysteresis;
+	int pad3;
 
 } GameData;
 

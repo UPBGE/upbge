@@ -504,11 +504,14 @@ class SCENE_PT_game_physics(SceneButtonsPanel, Panel):
             sub = col.column(align=True)
             sub.prop(gs, "physics_step_max", text="Max")
             sub.prop(gs, "physics_step_sub", text="Substeps")
-            col.prop(gs, "fps", text="FPS")
 
             col = split.column()
             col.label(text="Logic Steps:")
             col.prop(gs, "logic_step_max", text="Max")
+
+            row = layout.row()
+            row.prop(gs, "fps", text="FPS")
+            row.prop(gs, "time_scale")
 
             col = layout.column()
             col.label(text="Physics Deactivation:")

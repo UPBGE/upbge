@@ -209,11 +209,6 @@ void KX_KetsjiEngine::SetConverter(KX_BlenderConverter *converter)
 	m_converter = converter;
 }
 
-/**
- * Ketsji Init(), Initializes data-structures and converts data from
- * Blender into Ketsji native (realtime) format also sets up the
- * graphics context
- */
 void KX_KetsjiEngine::StartEngine()
 {
 	m_clockTime = m_kxsystem->GetTimeInSeconds();
@@ -222,18 +217,6 @@ void KX_KetsjiEngine::StartEngine()
 	m_previousRealTime = m_kxsystem->GetTimeInSeconds();
 
 	m_bInitialized = true;
-	// there is always one scene enabled at startup
-	Scene *scene = ((KX_Scene *)m_scenes->GetFront())->GetBlenderScene();
-	if (scene) {
-		m_ticrate = scene->gm.ticrate ? scene->gm.ticrate : DEFAULT_LOGIC_TIC_RATE;
-		m_maxLogicFrame = scene->gm.maxlogicstep ? scene->gm.maxlogicstep : 5;
-		m_maxPhysicsFrame = scene->gm.maxphystep ? scene->gm.maxlogicstep : 5;
-	}
-	else {
-		m_ticrate = DEFAULT_LOGIC_TIC_RATE;
-		m_maxLogicFrame = 5;
-		m_maxPhysicsFrame = 5;
-	}
 }
 
 void KX_KetsjiEngine::BeginFrame()

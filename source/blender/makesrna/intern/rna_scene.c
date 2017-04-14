@@ -4742,6 +4742,15 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	                         "higher value give better physics precision");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 
+	prop = RNA_def_property(srna, "time_scale", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "timeScale");
+	RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
+	RNA_def_property_range(prop, 0.001, 10000.0);
+	RNA_def_property_float_default(prop, 1.0f);
+	RNA_def_property_ui_text(prop, "Time Scale",
+	                         "Time scale to slow down or speed up animations and physics in game");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+
 	prop = RNA_def_property(srna, "deactivation_linear_threshold", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "lineardeactthreshold");
 	RNA_def_property_ui_range(prop, 0.001, 10000.0, 2, 3);
