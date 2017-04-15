@@ -21,6 +21,8 @@
 #ifndef __CCDPHYSICSCONTROLLER_H__
 #define __CCDPHYSICSCONTROLLER_H__
 
+#include "CM_RefCount.h"
+
 #include <vector>
 #include <map>
 
@@ -58,7 +60,7 @@ class btCollisionShape;
 
 // Shape contructor
 // It contains all the information needed to create a simple bullet shape at runtime
-class CcdShapeConstructionInfo
+class CcdShapeConstructionInfo : public CM_RefCount<CcdShapeConstructionInfo>
 {
 public:
 	struct UVco
@@ -75,7 +77,6 @@ public:
 		m_halfExtend(0.0f, 0.0f, 0.0f),
 		m_childScale(1.0f, 1.0f, 1.0f),
 		m_userData(nullptr),
-		m_refCount(1),
 		m_meshObject(nullptr),
 		m_triangleIndexVertexArray(nullptr),
 		m_forceReInstance(false),
@@ -86,25 +87,6 @@ public:
 	}
 
 	~CcdShapeConstructionInfo();
-
-	CcdShapeConstructionInfo *AddRef()
-	{
-		m_refCount++;
-		return this;
-	}
-
-	int Release()
-	{
-		if (--m_refCount > 0)
-			return m_refCount;
-		delete this;
-		return 0;
-	}
-
-	int GetRefCount() const
-	{
-		return m_refCount;
-	}
 
 	bool IsUnused(void)
 	{
@@ -202,8 +184,6 @@ public:
 	}
 protected:
 	static std::map<RAS_MeshObject *, CcdShapeConstructionInfo *> m_meshShapeMap;
-	/// this class is shared between replicas keep track of users so that we can release it
-	int m_refCount;
 	/// Keep a pointer to the original mesh
 	RAS_MeshObject *m_meshObject;
 	/// The list of vertexes and indexes for the triangle mesh, shared between Bullet shape.

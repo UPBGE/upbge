@@ -456,8 +456,7 @@ void KX_Scene::AddObjectDebugProperties(class KX_GameObject* gameobj)
 void KX_Scene::RemoveNodeDestructObject(class SG_Node* node,class CValue* gameobj)
 {
 	KX_GameObject* orgobj = (KX_GameObject*)gameobj;
-	if (NewRemoveObject(orgobj) != 0)
-	{
+	if (NewRemoveObject(orgobj)) {
 		// object is not yet deleted because a reference is hanging somewhere.
 		// This should not happen anymore since we use proxy object for Python
 		// confident enough to put an assert?
@@ -1016,9 +1015,8 @@ void KX_Scene::DelayedRemoveObject(class CValue* gameobj)
 	}
 }
 
-int KX_Scene::NewRemoveObject(class CValue* gameobj)
+bool KX_Scene::NewRemoveObject(class CValue* gameobj)
 {
-	int ret;
 	KX_GameObject* newobj = (KX_GameObject*) gameobj;
 
 	/* remove property from debug list */
@@ -1090,26 +1088,26 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 
 	m_rendererManager->InvalidateViewpoint(newobj);
 
-	ret = 1;
+	bool ret = true;
 	if (newobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(newobj))
-		ret = newobj->Release();
+		ret = (newobj->Release() != nullptr);
 	if (m_objectlist->RemoveValue(newobj))
-		ret = newobj->Release();
+		ret = (newobj->Release() != nullptr);
 	if (m_tempObjectList->RemoveValue(newobj))
-		ret = newobj->Release();
+		ret = (newobj->Release() != nullptr);
 	if (m_parentlist->RemoveValue(newobj))
-		ret = newobj->Release();
+		ret = (newobj->Release() != nullptr);
 	if (m_inactivelist->RemoveValue(newobj))
-		ret = newobj->Release();
+		ret = (newobj->Release() != nullptr);
 	if (m_euthanasyobjects->RemoveValue(newobj))
-		ret = newobj->Release();
+		ret = (newobj->Release() != nullptr);
 	if (m_animatedlist->RemoveValue(newobj))
-		ret = newobj->Release();
+		ret = (newobj->Release() != nullptr);
 	if (m_fontlist->RemoveValue(newobj)) {
-		ret = newobj->Release();
+		ret = (newobj->Release() != nullptr);
 	}
 	if (m_cameralist->RemoveValue(newobj)) {
-		ret = newobj->Release();
+		ret = (newobj->Release() != nullptr);
 	}
 
 	/* Warning 'newobj' maye be freed now, only compare, don't access */

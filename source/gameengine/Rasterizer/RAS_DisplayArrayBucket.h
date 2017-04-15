@@ -32,6 +32,8 @@
 #ifndef __RAS_DISPLAY_MATERIAL_BUCKET_H__
 #define __RAS_DISPLAY_MATERIAL_BUCKET_H__
 
+#include "CM_RefCount.h"
+
 #include "RAS_MeshSlot.h"
 #include "RAS_Rasterizer.h" // needed for RAS_Rasterizer::StorageType and RAS_Rasterizer::AttribLayerList
 
@@ -49,11 +51,9 @@ class RAS_InstancingBuffer;
 
 typedef std::vector<RAS_Deformer *> RAS_DeformerList;
 
-class RAS_DisplayArrayBucket
+class RAS_DisplayArrayBucket : public CM_RefCount<RAS_DisplayArrayBucket>
 {
 private:
-	/// The number of mesh slot using it.
-	unsigned int m_refcount;
 	/// The parent bucket.
 	RAS_MaterialBucket *m_bucket;
 	/// The display array = list of vertexes and indexes.
@@ -94,11 +94,6 @@ private:
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array, RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat);
 	~RAS_DisplayArrayBucket();
-
-	/// \section Reference Count Management.
-	RAS_DisplayArrayBucket *AddRef();
-	RAS_DisplayArrayBucket *Release();
-	unsigned int GetRefCount() const;
 
 	/// \section Replication
 	RAS_DisplayArrayBucket *GetReplica();

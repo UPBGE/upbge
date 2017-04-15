@@ -26,6 +26,7 @@
 set(INC
 	.
 	..
+	../../Common
 	../../Expressions
 	../../GameLogic
 	../../SceneGraph

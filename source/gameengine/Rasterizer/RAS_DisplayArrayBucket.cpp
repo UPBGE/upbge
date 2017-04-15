@@ -51,8 +51,7 @@
 #endif // WIN32
 
 RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array, RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat)
-	:m_refcount(1),
-	m_bucket(bucket),
+	:m_bucket(bucket),
 	m_displayArray(array),
 	m_mesh(mesh),
 	m_meshMaterial(meshmat),
@@ -81,27 +80,6 @@ RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
 	}
 }
 
-RAS_DisplayArrayBucket *RAS_DisplayArrayBucket::AddRef()
-{
-	++m_refcount;
-	return this;
-}
-
-RAS_DisplayArrayBucket *RAS_DisplayArrayBucket::Release()
-{
-	--m_refcount;
-	if (m_refcount == 0) {
-		delete this;
-		return nullptr;
-	}
-	return this;
-}
-
-unsigned int RAS_DisplayArrayBucket::GetRefCount() const
-{
-	return m_refcount;
-}
-
 RAS_DisplayArrayBucket *RAS_DisplayArrayBucket::GetReplica()
 {
 	RAS_DisplayArrayBucket *replica = new RAS_DisplayArrayBucket(*this);
@@ -111,7 +89,6 @@ RAS_DisplayArrayBucket *RAS_DisplayArrayBucket::GetReplica()
 
 void RAS_DisplayArrayBucket::ProcessReplica()
 {
-	m_refcount = 1;
 	m_activeMeshSlots.clear();
 	if (m_displayArray) {
 		m_displayArray = m_displayArray->GetReplica();

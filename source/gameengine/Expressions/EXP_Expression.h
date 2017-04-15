@@ -21,7 +21,7 @@
 
 #include "EXP_Value.h"
 
-class CExpression
+class CExpression : public CM_RefCount<CExpression>
 {
 public:
 	enum {
@@ -41,12 +41,6 @@ public:
 
 	virtual CValue *Calculate() = 0;
 	virtual unsigned char GetExpressionID() = 0;
-
-	virtual CExpression *AddRef();
-	virtual CExpression *Release();
-
-protected:
-	int m_refcount;
 };
 
 #endif  // __EXP_EXPRESSION_H__

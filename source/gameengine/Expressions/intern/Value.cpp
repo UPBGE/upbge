@@ -60,8 +60,7 @@ PyMethodDef CValue::Methods[] = {
 
 CValue::CValue()
 	:m_pNamedPropertyArray(nullptr),
-	m_error(false),
-	m_refcount(1)
+	m_error(false)
 {
 }
 
@@ -301,8 +300,6 @@ void CValue::DestructFromPython()
 
 void CValue::ProcessReplica()
 {
-	m_refcount = 1;
-
 	PyObjectPlus::ProcessReplica();
 
 	// Copy all props.
@@ -437,37 +434,6 @@ CValue *CValue::Calc(VALUE_OPERATOR op, CValue *val)
 CValue *CValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
 {
 	return nullptr;
-}
-
-int CValue::GetRefCount()
-{
-	return m_refcount;
-}
-
-CValue *CValue::AddRef()
-{
-	/* Increase global reference count, used to see at the end of the program
-	 * if all CValue-derived classes have been dereferenced to 0.
-	 */
-	m_refcount++;
-	return this;
-}
-
-int CValue::Release()
-{
-	/* Decrease global reference count, used to see at the end of the program
-	 * if all CValue-derived classes have been dereferenced to 0
-	 * Decrease local reference count, if it reaches 0 the object should be freed.
-	 */
-	if (--m_refcount > 0) {
-		// Reference count normal, return new reference count.
-		return m_refcount;
-	}
-	else {
-		// Reference count reached 0, delete ourselves and return 0.
-		delete this;
-		return 0;
-	}
 }
 
 void CValue::SetValue(CValue *newval)

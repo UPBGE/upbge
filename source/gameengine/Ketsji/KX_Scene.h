@@ -342,7 +342,7 @@ public:
 	void RemoveDupliGroup(CValue *gameobj);
 	void DelayedRemoveObject(CValue* gameobj);
 	
-	int NewRemoveObject(CValue* gameobj);
+	bool NewRemoveObject(CValue* gameobj);
 	void ReplaceMesh(CValue* gameobj,
 	                 void* meshob, bool use_gfx, bool use_phys);
 

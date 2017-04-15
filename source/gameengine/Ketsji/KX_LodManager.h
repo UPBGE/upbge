@@ -27,7 +27,7 @@
 #ifndef __KX_LOD_MANAGER_H__
 #define __KX_LOD_MANAGER_H__
 
-#include "EXP_PyObjectPlus.h"
+#include "EXP_Value.h"
 #include <vector>
 
 class KX_Scene;
@@ -35,7 +35,7 @@ class KX_BlenderSceneConverter;
 class KX_LodLevel;
 struct Object;
 
-class KX_LodManager: public PyObjectPlus
+class KX_LodManager : public CValue
 {
 	Py_Header
 
@@ -81,6 +81,8 @@ public:
 	KX_LodManager(Object *ob, KX_Scene *scene, KX_BlenderSceneConverter& converter, bool libloading);
 	virtual ~KX_LodManager();
 
+	virtual std::string GetName();
+
 	/// Return number of lod levels.
 	unsigned int GetLevelCount() const;
 
@@ -97,26 +99,7 @@ public:
 	 */
 	KX_LodLevel *GetLevel(KX_Scene *scene, short previouslod, float distance);
 
-	KX_LodManager *AddRef()
-	{
-		++m_refcount;
-		return this;
-	}
-	KX_LodManager *Release()
-	{
-		if (--m_refcount == 0) {
-			delete this;
-			return nullptr;
-		}
-		return this;
-	}
-
 #ifdef WITH_PYTHON
-
-	virtual PyObject *py_repr()
-	{
-		return PyUnicode_FromString("KX_LodManager");
-	}
 
 	static PyObject *pyattr_get_levels(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 

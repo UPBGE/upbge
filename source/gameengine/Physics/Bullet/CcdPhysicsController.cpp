@@ -1776,7 +1776,6 @@ CcdShapeConstructionInfo *CcdShapeConstructionInfo::GetReplica()
 void CcdShapeConstructionInfo::ProcessReplica()
 {
 	m_userData = nullptr;
-	m_refCount = 1;
 	m_meshObject = nullptr;
 	m_triangleIndexVertexArray = nullptr;
 	m_forceReInstance = false;

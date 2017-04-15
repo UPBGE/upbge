@@ -19,25 +19,9 @@
 #include "EXP_ErrorValue.h"
 
 CExpression::CExpression()
-	:m_refcount(1)
 {
 }
 
 CExpression::~CExpression()
 {
-}
-
-CExpression *CExpression::AddRef()
-{
-	++m_refcount;
-	return this;
-}
-
-CExpression *CExpression::Release()
-{
-	if (--m_refcount < 1) {
-		delete this;
-		return nullptr;
-	}
-	return this;
 }

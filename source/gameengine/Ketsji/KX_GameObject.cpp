@@ -801,7 +801,15 @@ void KX_GameObject::SetLodManager(KX_LodManager *lodManager)
 		scene->ReplaceMesh(this, origmesh, true, false);
 	}
 
+	if (m_lodManager) {
+		m_lodManager->Release();
+	}
+
 	m_lodManager = lodManager;
+
+	if (m_lodManager) {
+		m_lodManager->AddRef();
+	}
 }
 
 KX_LodManager *KX_GameObject::GetLodManager() const

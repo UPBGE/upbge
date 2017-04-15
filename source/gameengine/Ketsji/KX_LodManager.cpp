@@ -134,6 +134,11 @@ KX_LodManager::~KX_LodManager()
 	}
 }
 
+std::string KX_LodManager::GetName()
+{
+	return "KX_LodManager";
+}
+
 unsigned int KX_LodManager::GetLevelCount() const
 {
 	return m_levels.size();
