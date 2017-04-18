@@ -177,7 +177,7 @@ void KX_FontObject::UpdateBuckets()
 		// HARDCODED MULTIPLICATION FACTOR - this will affect the render resolution directly
 		const float RES = BGE_FONT_RES * m_resolution;
 
-		const float size = m_fsize * NodeGetWorldScaling()[0] * RES;
+		const float size = fabs(m_fsize * NodeGetWorldScaling()[0] * RES);
 		const float aspect = m_fsize / size;
 
 		// Account for offset
