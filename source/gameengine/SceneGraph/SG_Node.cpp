@@ -35,8 +35,6 @@
 
 #include <algorithm>
 
-SG_Stage gSG_Stage = SG_STAGE_UNKNOWN;
-
 static CM_ThreadMutex scheduleMutex;
 static CM_ThreadMutex transformMutex;
 

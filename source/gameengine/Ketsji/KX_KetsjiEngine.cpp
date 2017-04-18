@@ -372,7 +372,6 @@ bool KX_KetsjiEngine::NextFrame()
 
 			if (!scene->IsSuspended()) {
 				m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_PHYSICS1);
 				// set Python hooks for each scene
 #ifdef WITH_PYTHON
 				PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
@@ -384,36 +383,30 @@ bool KX_KetsjiEngine::NextFrame()
 				// Update scenegraph after physics step. This maps physics calculations
 				// into node positions.
 				//m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-				//SG_SetActiveStage(SG_STAGE_PHYSICS1_UPDATE);
 				//scene->UpdateParents(m_frameTime);
 
 				// Process sensors, and controllers
 				m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_CONTROLLER);
 				scene->LogicBeginFrame(m_frameTime, framestep);
 
 				// Scenegraph needs to be updated again, because Logic Controllers
 				// can affect the local matrices.
 				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_CONTROLLER_UPDATE);
 				scene->UpdateParents(m_frameTime);
 
 				// Process actuators
 
 				// Do some cleanup work for this logic frame
 				m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_ACTUATOR);
 				scene->LogicUpdateFrame(m_frameTime, true);
 
 				scene->LogicEndFrame();
 
 				// Actuators can affect the scenegraph
 				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_ACTUATOR_UPDATE);
 				scene->UpdateParents(m_frameTime);
 
 				m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_PHYSICS2);
 				scene->GetPhysicsEnvironment()->BeginFrame();
 
 				// Perform physics calculations on the scene. This can involve
@@ -421,7 +414,6 @@ bool KX_KetsjiEngine::NextFrame()
 				scene->GetPhysicsEnvironment()->ProceedDeltaTime(m_frameTime, timestep, framestep);//m_deltatimerealDeltaTime);
 
 				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_PHYSICS2_UPDATE);
 				scene->UpdateParents(m_frameTime);
 			}
 
@@ -429,7 +421,6 @@ bool KX_KetsjiEngine::NextFrame()
 		}
 
 		m_logger.StartLog(tc_network, m_kxsystem->GetTimeInSeconds(), true);
-		SG_SetActiveStage(SG_STAGE_NETWORK);
 		m_networkMessageManager->ClearMessages();
 
 		m_logger.StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
@@ -472,7 +463,6 @@ void KX_KetsjiEngine::Render()
 	const int height = m_canvas->GetHeight();
 
 	m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
-	SG_SetActiveStage(SG_STAGE_RENDER);
 
 	BeginFrame();
 
@@ -794,10 +784,8 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			scene->CalculateVisibleMeshes(m_rasterizer, cam, raslight->GetShadowLayer());
 
 			m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
-			SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
 			UpdateAnimations(scene);
 			m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
-			SG_SetActiveStage(SG_STAGE_RENDER);
 
 			/* render */
 			m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT | RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
@@ -954,7 +942,6 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 	// runs through the individual objects.
 
 	m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-	SG_SetActiveStage(SG_STAGE_CULLING);
 
 	scene->CalculateVisibleMeshes(m_rasterizer, cam);
 
@@ -962,11 +949,9 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 	scene->UpdateObjectLods(cam);
 
 	m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
-	SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
 	UpdateAnimations(scene);
 
 	m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
-	SG_SetActiveStage(SG_STAGE_RENDER);
 
 	RAS_DebugDraw& debugDraw = m_rasterizer->GetDebugDraw(scene);
 	// Draw debug infos like bouding box, armature ect.. if enabled.
@@ -1046,8 +1031,6 @@ void KX_KetsjiEngine::AddScene(KX_Scene *scene)
 void KX_KetsjiEngine::PostProcessScene(KX_Scene *scene)
 {
 	bool override_camera = ((m_flags & CAMERA_OVERRIDE) && (scene->GetName() == m_overrideSceneName));
-
-	SG_SetActiveStage(SG_STAGE_SCENE);
 
 	// if there is no activecamera, or the camera is being
 	// overridden we need to construct a temporary camera
