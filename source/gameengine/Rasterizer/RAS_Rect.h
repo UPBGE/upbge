@@ -101,7 +101,7 @@ public:
 
 inline std::ostream& operator<<(std::ostream& os, const RAS_Rect& rect)
 {
-	os << "(" << rect.GetLeft() << ", " << rect.GetBottom() << ", " << rect.GetWidth() << ", " << rect.GetLeft() << ")";
+	os << "(" << rect.GetLeft() << ", " << rect.GetBottom() << ", " << rect.GetWidth() << ", " << rect.GetTop() << ")";
 	return os;
 }
 
