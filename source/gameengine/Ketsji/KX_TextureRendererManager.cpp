@@ -156,7 +156,7 @@ bool KX_TextureRendererManager::RenderRenderer(RAS_Rasterizer *rasty, KX_Texture
 		const MT_Transform camtrans(m_camera->GetWorldToCamera());
 		const MT_Matrix4x4 viewmat(camtrans);
 
-		rasty->SetViewMatrix(viewmat, m_camera->NodeGetWorldOrientation(), m_camera->NodeGetWorldPosition(), MT_Vector3(1.0f, 1.0f, 1.0f), m_camera->GetCameraData()->m_perspective);
+		rasty->SetViewMatrix(viewmat, m_camera->NodeGetWorldPosition(), MT_Vector3(1.0f, 1.0f, 1.0f));
 		m_camera->SetModelviewMatrix(viewmat);
 
 		KX_CullingNodeList nodes;

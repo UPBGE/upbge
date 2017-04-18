@@ -40,6 +40,7 @@
 #include "MT_Matrix4x4.h"
 
 #include "RAS_DebugDraw.h"
+#include "RAS_Rect.h"
 
 #include <string>
 #include <map>
@@ -225,14 +226,12 @@ public:
 	};
 
 	enum OffScreenType {
-		RAS_OFFSCREEN_RENDER = 0,
 		RAS_OFFSCREEN_FILTER0,
 		RAS_OFFSCREEN_FILTER1,
 		RAS_OFFSCREEN_EYE_LEFT0,
 		RAS_OFFSCREEN_EYE_RIGHT0,
 		RAS_OFFSCREEN_EYE_LEFT1,
 		RAS_OFFSCREEN_EYE_RIGHT1,
-		RAS_OFFSCREEN_FINAL,
 		RAS_OFFSCREEN_BLIT_DEPTH,
 
 		RAS_OFFSCREEN_CUSTOM,
@@ -254,17 +253,9 @@ public:
 	 */
 	static OffScreenType NextFilterOffScreen(OffScreenType index);
 
-
-	/** Return the output frame buffer normally used for the input frame buffer
-	 * index in case of per eye stereo render.
-	 * \param index The input eye frame buffer, can NOT be a non-eye frame buffer.
-	 * \return The output eye frame buffer.
-	 */
-	static OffScreenType NextEyeOffScreen(OffScreenType index);
-
 	/** Return the output frame buffer normally used for the input frame buffer
 	 * index in case of simple render.
-	 * \param index The input render frame buffer, can NOT be a non-render frame buffer.
+	 * \param index The input render frame buffer, can be a eye frame buffer.
 	 * \return The output render frame buffer.
 	 */
 	static OffScreenType NextRenderOffScreen(OffScreenType index);
@@ -499,10 +490,9 @@ public:
 	void DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *leftOffScreen, RAS_OffScreen *rightOffScreen);
 
 	/**
-	 * SetRenderArea sets the render area from the 2d canvas.
-	 * Returns true if only of subset of the canvas is used.
+	 * GetRenderArea computes the render area from the 2d canvas.
 	 */
-	void SetRenderArea(RAS_ICanvas *canvas);
+	RAS_Rect GetRenderArea(RAS_ICanvas *canvas, StereoEye eye);
 
 	// Stereo Functions
 	/**
@@ -581,11 +571,12 @@ public:
 	 */
 	void SetProjectionMatrix(const MT_Matrix4x4 &mat);
 
+	/// Get the modelview matrix according to the stereo settings.
+	MT_Matrix4x4 GetViewMatrix(StereoEye eye, const MT_Transform &camtrans, bool perspective);
 	/**
 	 * Sets the modelview matrix.
 	 */
-	void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Matrix3x3 &ori,
-	                           const MT_Vector3 &pos, const MT_Vector3 &scale, bool perspective);
+	void SetViewMatrix(const MT_Matrix4x4 &mat, const MT_Vector3 &pos, const MT_Vector3 &scale);
 
 	/**
 	 * Get/Set viewport area
@@ -656,6 +647,7 @@ public:
 	 * \return a 4x4 matrix representing the projection transform.
 	 */
 	MT_Matrix4x4 GetFrustumMatrix(
+			StereoEye eye,
 	        float left, float right, float bottom, float top,
 	        float frustnear, float frustfar,
 	        float focallength = 0.0f, bool perspective = true);

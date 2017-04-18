@@ -55,7 +55,7 @@ protected:
 	/** Rect that defines the area used for rendering,
 	 * relative to the context.
 	 */
-	RAS_Rect m_displayarea;
+	RAS_Rect m_area;
 
 	int m_viewport[4];
 
@@ -69,8 +69,6 @@ public:
 
 	virtual int GetWidth() const;
 	virtual int GetHeight() const;
-	virtual const RAS_Rect &GetDisplayArea() const;
-	virtual void SetDisplayArea(RAS_Rect *rect);
 	virtual RAS_Rect &GetWindowArea();
 	virtual void BeginFrame();
 

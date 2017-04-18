@@ -42,6 +42,7 @@
 #include "EXP_Python.h"
 #include "KX_WorldInfo.h"
 #include "RAS_CameraData.h"
+#include "RAS_Rasterizer.h"
 #include <vector>
 
 struct TaskScheduler;
@@ -51,11 +52,7 @@ class KX_NetworkMessageManager;
 class CListValue;
 class RAS_ICanvas;
 class RAS_OffScreen;
-class RAS_Rasterizer;
 class SCA_IInputDevice;
-
-#define LEFT_EYE  1
-#define RIGHT_EYE 2
 
 enum class KX_ExitRequest
 {
@@ -108,6 +105,37 @@ public:
 	};
 
 private:
+	struct CameraFrameRenderData
+	{
+		CameraFrameRenderData(KX_Camera *camera, const RAS_Rect& area, const RAS_Rect& viewport, RAS_Rasterizer::StereoEye eye);
+		CameraFrameRenderData(const CameraFrameRenderData& other);
+		CameraFrameRenderData(const CameraFrameRenderData&& other) = delete;
+		~CameraFrameRenderData();
+
+		/// Rendered camera, could be a temporary camera in case of stereo.
+		KX_Camera *m_camera;
+		RAS_Rect m_area;
+		RAS_Rect m_viewport;
+		RAS_Rasterizer::StereoEye m_eye;
+	};
+
+	struct SceneFrameRenderData
+	{
+		SceneFrameRenderData(KX_Scene *scene);
+
+		KX_Scene *m_scene;
+		std::vector<CameraFrameRenderData> m_cameraDataList;
+	};
+
+	/// Data used to render a frame.
+	struct FrameRenderData
+	{
+		FrameRenderData(RAS_Rasterizer::OffScreenType ofsType);
+
+		RAS_Rasterizer::OffScreenType m_ofsType;
+		std::vector<SceneFrameRenderData> m_sceneDataList;
+	};
+
 	/// 2D Canvas (2D Rendering Device Context)
 	RAS_ICanvas *m_canvas;
 	/// 3D Rasterizer (3D Rendering)
@@ -228,13 +256,16 @@ private:
 	void UpdateSuspendedScenes(double framestep);
 
 	/// Update and return the projection matrix of a camera depending on the viewport.
-	const MT_Matrix4x4& GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& viewport, const RAS_Rect& area);
+	MT_Matrix4x4 GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, RAS_Rasterizer::StereoEye eye,
+										   const RAS_Rect& viewport, const RAS_Rect& area) const;
+	/// Compute frame render data per eyes (in case of stereo), scenes and camera.
+	bool GetFrameRenderData(std::vector<FrameRenderData>& frameDataList);
 
-	void RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen *offScreen, unsigned short pass);
+	void RenderCamera(KX_Scene *scene, const CameraFrameRenderData& cameraFrameData, RAS_OffScreen *offScreen, unsigned short pass, bool isFirstScene);
 	RAS_OffScreen *PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.
-	void DrawDebugCameraFrustum(KX_Scene *scene, KX_Camera *cam, RAS_DebugDraw& debugDraw, const RAS_Rect& viewport, const RAS_Rect& area);
+	void DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const CameraFrameRenderData& cameraFrameData);
 	/// Debug draw lights shadow frustum of a scene.
 	void DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw);
 
@@ -326,7 +357,7 @@ public:
 	void SuspendScene(const std::string& scenename);
 	void ResumeScene(const std::string& scenename);
 
-	void GetSceneViewport(KX_Scene *scene, KX_Camera *cam, RAS_Rect& area, RAS_Rect& viewport);
+	void GetSceneViewport(KX_Scene *scene, KX_Camera *cam, const RAS_Rect& displayArea, RAS_Rect& area, RAS_Rect& viewport);
 
 	/// Sets zoom for camera objects, useful only with extend and scale framing mode.
 	void SetCameraZoom(float camzoom);

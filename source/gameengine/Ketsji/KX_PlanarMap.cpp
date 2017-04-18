@@ -137,7 +137,7 @@ const MT_Matrix4x4& KX_PlanarMap::GetProjectionMatrix(RAS_Rasterizer *rasty, KX_
 	else {
 		const float focallength = sceneCamera->GetFocalLength();
 
-		projection = rasty->GetFrustumMatrix(
+		projection = rasty->GetFrustumMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE,
 		    frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar, focallength);
 	}
 

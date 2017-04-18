@@ -170,16 +170,6 @@ float KX_BlenderCanvas::GetMouseNormalizedY(int y)
 	return float(y) / this->GetHeight();
 }
 
-const RAS_Rect &KX_BlenderCanvas::GetDisplayArea() const
-{
-	return m_displayarea;
-}
-
-void KX_BlenderCanvas::SetDisplayArea(RAS_Rect *rect)
-{
-	m_displayarea = *rect;
-}
-
 RAS_Rect &KX_BlenderCanvas::GetWindowArea()
 {
 	return m_area_rect;

@@ -323,7 +323,7 @@ bool ImageRender::Render()
 	{
 		// frustum was computed above
 		// get frustum matrix and set projection matrix
-		MT_Matrix4x4 projmat = m_rasterizer->GetFrustumMatrix(
+		MT_Matrix4x4 projmat = m_rasterizer->GetFrustumMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE,
 		            frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
 
 		m_camera->SetProjectionMatrix(projmat);
@@ -375,7 +375,7 @@ bool ImageRender::Render()
 			            aspect_ratio,
 			            frustum);
 			
-			projmat = m_rasterizer->GetFrustumMatrix(
+			projmat = m_rasterizer->GetFrustumMatrix(RAS_Rasterizer::RAS_STEREO_LEFTEYE,
 			            frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
 		}
 		m_camera->SetProjectionMatrix(projmat);
@@ -386,7 +386,7 @@ bool ImageRender::Render()
 	MT_Transform camtrans(m_camera->GetWorldToCamera());
 	MT_Matrix4x4 viewmat(camtrans);
 	
-	m_rasterizer->SetViewMatrix(viewmat, m_camera->NodeGetWorldOrientation(), m_camera->NodeGetWorldPosition(), m_camera->NodeGetLocalScaling(), m_camera->GetCameraData()->m_perspective);
+	m_rasterizer->SetViewMatrix(viewmat, m_camera->NodeGetWorldPosition(), m_camera->NodeGetLocalScaling());
 	m_camera->SetModelviewMatrix(viewmat);
 
 	// restore the stereo mode now that the matrix is computed

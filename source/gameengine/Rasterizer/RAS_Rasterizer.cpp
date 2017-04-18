@@ -107,8 +107,7 @@ inline RAS_OffScreen *RAS_Rasterizer::OffScreens::GetOffScreen(OffScreenType typ
 		// The offscreen need to be created now.
 
 		// Check if the off screen type can support samples.
-		const bool sampleofs = type == RAS_OFFSCREEN_RENDER ||
-							   type == RAS_OFFSCREEN_EYE_LEFT0 ||
+		const bool sampleofs = type == RAS_OFFSCREEN_EYE_LEFT0 ||
 							   type == RAS_OFFSCREEN_EYE_RIGHT0;
 
 		/* Some GPUs doesn't support high multisample value with GL_RGBA16F or GL_RGBA32F.
@@ -167,7 +166,7 @@ RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextFilterOffScreen(RAS_Rasterizer
 	}
 }
 
-RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextEyeOffScreen(RAS_Rasterizer::OffScreenType index)
+RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextRenderOffScreen(RAS_Rasterizer::OffScreenType index)
 {
 	switch (index) {
 		case RAS_OFFSCREEN_EYE_LEFT0:
@@ -191,26 +190,6 @@ RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextEyeOffScreen(RAS_Rasterizer::O
 		{
 			BLI_assert(false);
 			return RAS_OFFSCREEN_EYE_LEFT0;
-		}
-	}
-}
-
-RAS_Rasterizer::OffScreenType RAS_Rasterizer::NextRenderOffScreen(RAS_Rasterizer::OffScreenType index)
-{
-	switch (index) {
-		case RAS_OFFSCREEN_FINAL:
-		{
-			return RAS_OFFSCREEN_RENDER;
-		}
-		case RAS_OFFSCREEN_RENDER:
-		{
-			return RAS_OFFSCREEN_FINAL;
-		}
-		// Passing a non-render frame buffer is disallowed.
-		default:
-		{
-			BLI_assert(false);
-			return RAS_OFFSCREEN_RENDER;
 		}
 	}
 }
@@ -494,7 +473,7 @@ void RAS_Rasterizer::DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *d
 void RAS_Rasterizer::DrawOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *offScreen)
 {
 	if (offScreen->GetSamples() > 0) {
-		offScreen = offScreen->Blit(GetOffScreen(RAS_OFFSCREEN_FINAL), true, false);
+		offScreen = offScreen->Blit(GetOffScreen(RAS_OFFSCREEN_EYE_LEFT1), true, false);
 	}
 
 	const int *viewport = canvas->GetViewPort();
@@ -576,19 +555,15 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 	Enable(RAS_CULL_FACE);
 }
 
-void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
+RAS_Rect RAS_Rasterizer::GetRenderArea(RAS_ICanvas *canvas, StereoEye eye)
 {
-	if (canvas == nullptr) {
-		return;
-	}
-
 	RAS_Rect area;
 	// only above/below stereo method needs viewport adjustment
 	switch (m_stereomode)
 	{
 		case RAS_STEREO_ABOVEBELOW:
 		{
-			switch (m_curreye) {
+			switch (eye) {
 				case RAS_STEREO_LEFTEYE:
 				{
 					// upper half of window
@@ -598,7 +573,6 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 
 					area.SetRight(int(canvas->GetWidth()));
 					area.SetTop(int(canvas->GetHeight()));
-					canvas->SetDisplayArea(&area);
 					break;
 				}
 				case RAS_STEREO_RIGHTEYE:
@@ -608,7 +582,6 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 					area.SetBottom(0);
 					area.SetRight(int(canvas->GetWidth()));
 					area.SetTop(int(canvas->GetHeight() - m_noOfScanlines) / 2);
-					canvas->SetDisplayArea(&area);
 					break;
 				}
 			}
@@ -616,7 +589,7 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 		}
 		case RAS_STEREO_3DTVTOPBOTTOM:
 		{
-			switch (m_curreye) {
+			switch (eye) {
 				case RAS_STEREO_LEFTEYE:
 				{
 					// upper half of window
@@ -626,7 +599,6 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 
 					area.SetRight(canvas->GetWidth());
 					area.SetTop(canvas->GetHeight());
-					canvas->SetDisplayArea(&area);
 					break;
 				}
 				case RAS_STEREO_RIGHTEYE:
@@ -636,7 +608,6 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 					area.SetBottom(0);
 					area.SetRight(canvas->GetWidth());
 					area.SetTop(canvas->GetHeight() / 2);
-					canvas->SetDisplayArea(&area);
 					break;
 				}
 			}
@@ -644,7 +615,7 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 		}
 		case RAS_STEREO_SIDEBYSIDE:
 		{
-			switch (m_curreye)
+			switch (eye)
 			{
 				case RAS_STEREO_LEFTEYE:
 				{
@@ -653,7 +624,6 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 					area.SetBottom(0);
 					area.SetRight(canvas->GetWidth() / 2);
 					area.SetTop(canvas->GetHeight());
-					canvas->SetDisplayArea(&area);
 					break;
 				}
 				case RAS_STEREO_RIGHTEYE:
@@ -663,7 +633,6 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 					area.SetBottom(0);
 					area.SetRight(canvas->GetWidth());
 					area.SetTop(canvas->GetHeight());
-					canvas->SetDisplayArea(&area);
 					break;
 				}
 			}
@@ -676,10 +645,11 @@ void RAS_Rasterizer::SetRenderArea(RAS_ICanvas *canvas)
 			area.SetBottom(0);
 			area.SetRight(int(canvas->GetWidth()));
 			area.SetTop(int(canvas->GetHeight()));
-			canvas->SetDisplayArea(&area);
 			break;
 		}
 	}
+
+	return area;
 }
 
 void RAS_Rasterizer::SetStereoMode(const StereoMode stereomode)
@@ -869,6 +839,7 @@ void RAS_Rasterizer::SetProjectionMatrix(const MT_Matrix4x4 & mat)
 }
 
 MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(
+	StereoEye eye,
     float left,
     float right,
     float bottom,
@@ -880,9 +851,6 @@ MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(
 {
 	// correction for stereo
 	if (Stereo()) {
-		float near_div_focallength;
-		float offset;
-
 		// if Rasterizer.setFocalLength is not called we use the camera focallength
 		if (!m_setfocallength) {
 			// if focallength is null we use a value known to be reasonable
@@ -890,9 +858,9 @@ MT_Matrix4x4 RAS_Rasterizer::GetFrustumMatrix(
 							: focallength;
 		}
 
-		near_div_focallength = frustnear / m_focallength;
-		offset = 0.5f * m_eyeseparation * near_div_focallength;
-		switch (m_curreye) {
+		const float near_div_focallength = frustnear / m_focallength;
+		const float offset = 0.5f * m_eyeseparation * near_div_focallength;
+		switch (eye) {
 			case RAS_STEREO_LEFTEYE:
 			{
 				left += offset;
@@ -936,36 +904,30 @@ MT_Matrix4x4 RAS_Rasterizer::GetOrthoMatrix(
 }
 
 // next arguments probably contain redundant info, for later...
-void RAS_Rasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
-                                         const MT_Matrix3x3 & camOrientMat3x3,
-                                         const MT_Vector3 & pos,
-					 const MT_Vector3 & scale,
-                                         bool perspective)
+MT_Matrix4x4 RAS_Rasterizer::GetViewMatrix(StereoEye eye, const MT_Transform &camtrans, bool perspective)
 {
-	m_viewmatrix = mat;
-
 	// correction for stereo
 	if (Stereo() && perspective) {
-		MT_Vector3 unitViewDir(0.0f, -1.0f, 0.0f);  // minus y direction, Blender convention
-		MT_Vector3 unitViewupVec(0.0f, 0.0f, 1.0f);
-		MT_Vector3 viewDir, viewupVec;
-		MT_Vector3 eyeline;
+		static const MT_Vector3 unitViewDir(0.0f, -1.0f, 0.0f);  // minus y direction, Blender convention
+		static const MT_Vector3 unitViewupVec(0.0f, 0.0f, 1.0f);
 
+		const MT_Matrix3x3& camOrientMat3x3 = camtrans.getBasis().transposed();
 		// actual viewDir
-		viewDir = camOrientMat3x3 * unitViewDir;  // this is the moto convention, vector on right hand side
+		const MT_Vector3 viewDir = camOrientMat3x3 * unitViewDir;  // this is the moto convention, vector on right hand side
 		// actual viewup vec
-		viewupVec = camOrientMat3x3 * unitViewupVec;
+		const MT_Vector3 viewupVec = camOrientMat3x3 * unitViewupVec;
 
 		// vector between eyes
-		eyeline = viewDir.cross(viewupVec);
+		const MT_Vector3 eyeline = viewDir.cross(viewupVec);
 
-		switch (m_curreye) {
+		MT_Transform trans = camtrans;
+		switch (eye) {
 			case RAS_STEREO_LEFTEYE:
 			{
 				// translate to left by half the eye distance
 				MT_Transform transform = MT_Transform::Identity();
 				transform.translate(-(eyeline * m_eyeseparation / 2.0f));
-				m_viewmatrix *= MT_Matrix4x4(transform);
+				trans *= transform;
 				break;
 			}
 			case RAS_STEREO_RIGHTEYE:
@@ -973,11 +935,20 @@ void RAS_Rasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 				// translate to right by half the eye distance
 				MT_Transform transform = MT_Transform::Identity();
 				transform.translate(eyeline * m_eyeseparation / 2.0f);
-				m_viewmatrix *= MT_Matrix4x4(transform);
+				trans *= transform;
 				break;
 			}
 		}
+
+		return trans.toMatrix();
 	}
+
+	return camtrans.toMatrix();
+}
+
+void RAS_Rasterizer::SetViewMatrix(const MT_Matrix4x4& viewmat, const MT_Vector3& pos, const MT_Vector3& scale)
+{
+	m_viewmatrix = viewmat;
 
 	// Don't making variable negX/negY/negZ allow drastic time saving.
 	if (scale[0] < 0.0f || scale[1] < 0.0f || scale[2] < 0.0f) {
@@ -990,16 +961,16 @@ void RAS_Rasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 	else {
 		m_camnegscale = false;
 	}
-	m_viewinvmatrix = m_viewmatrix;
-	m_viewinvmatrix.invert();
+
+	m_viewinvmatrix = m_viewmatrix.inverse();
+	m_campos = pos;
 
 	// note: getValue gives back column major as needed by OpenGL
-	MT_Scalar glviewmat[16];
+	float glviewmat[16];
 	m_viewmatrix.getValue(glviewmat);
 
 	SetMatrixMode(RAS_MODELVIEW);
 	LoadMatrix(glviewmat);
-	m_campos = pos;
 }
 
 void RAS_Rasterizer::SetViewport(int x, int y, int width, int height)

@@ -51,10 +51,6 @@ struct wmWindowManager;
 class KX_BlenderCanvas : public RAS_ICanvas
 {
 private:
-	/** Rect that defines the area used for rendering,
-	 * relative to the context
-	 */
-	RAS_Rect m_displayarea;
 	int m_viewport[4];
 
 	wmWindowManager *m_wm;
@@ -93,9 +89,6 @@ public:
 
 	virtual float GetMouseNormalizedX(int x);
 	virtual float GetMouseNormalizedY(int y);
-
-	virtual const RAS_Rect &GetDisplayArea() const;
-	virtual void SetDisplayArea(RAS_Rect *rect);
 
 	virtual RAS_Rect &GetWindowArea();
 

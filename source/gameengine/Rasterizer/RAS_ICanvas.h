@@ -101,9 +101,6 @@ public:
 	virtual float GetMouseNormalizedX(int x) = 0;
 	virtual float GetMouseNormalizedY(int y) = 0;
 
-	virtual const RAS_Rect &GetDisplayArea() const = 0;
-	virtual void SetDisplayArea(RAS_Rect *rect) = 0;
-
 	/**
 	 * Used to get canvas area within blender.
 	 */
