@@ -1411,6 +1411,7 @@ void KX_Scene::CalculateVisibleMeshes(RAS_Rasterizer* rasty,KX_Camera* cam, int 
 			gameobj->SetCulled(true);
 		}
 
+		cam->ExtractFrustumCorners();
 		// test culling through Bullet
 		// get the clip planes
 		const MT_Vector4* cplanes = cam->GetNormalizedClipPlanes();
@@ -1424,7 +1425,7 @@ void KX_Scene::CalculateVisibleMeshes(RAS_Rasterizer* rasty,KX_Camera* cam, int 
 		float pmat[16] = {0.0f};
 		cam->GetProjectionMatrix().getValue(pmat);
 
-		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback,&info,planes,6,m_dbvt_occlusion_res,
+		dbvt_culling = m_physicsEnvironment->CullingTest(PhysicsCullingCallback,&info,planes, cam->GetFrustumCorners(), 6,m_dbvt_occlusion_res,
 		                                                 KX_GetActiveEngine()->GetCanvas()->GetViewPort(),
 		                                                 mvmat, pmat);
 	}
@@ -1444,15 +1445,28 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw)
 		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 			KX_GameObject *gameobj = *it;
 
+			if (gameobj->GetMeshCount() != 0) {
+				const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
+				const MT_Vector3& position = gameobj->NodeGetWorldPosition();
+				const MT_Matrix3x3& orientation = gameobj->NodeGetWorldOrientation();
+				const SG_BBox& box = gameobj->GetSGNode()->BBox();
+				const MT_Vector3& center = box.GetCenter();
+				if (gameobj->GetCulled()) {
+					debugDraw.DrawAabb(position, orientation, box.GetMin() * scale, box.GetMax() * scale,
+						MT_Vector4(1.0f, 0.0f, 0.0f, 1.0f));
+				}
+				else {
+					debugDraw.DrawAabb(position, orientation, box.GetMin() * scale, box.GetMax() * scale,
+						MT_Vector4(0.0f, 1.0f, 0.0f, 1.0f));
+				}
+			}
+
 			if (!gameobj->GetCulled() && gameobj->GetMeshCount() != 0) {
 				const MT_Vector3& scale = gameobj->NodeGetWorldScaling();
 				const MT_Vector3& position = gameobj->NodeGetWorldPosition();
 				const MT_Matrix3x3& orientation = gameobj->NodeGetWorldOrientation();
 				const SG_BBox& box = gameobj->GetSGNode()->BBox();
 				const MT_Vector3& center = box.GetCenter();
-
-				debugDraw.DrawAabb(position, orientation, box.GetMin() * scale, box.GetMax() * scale,
-					MT_Vector4(1.0f, 0.0f, 1.0f, 1.0f));
 
 				// Render center in red, green and blue.
 				debugDraw.DrawLine(orientation * center * scale + position,

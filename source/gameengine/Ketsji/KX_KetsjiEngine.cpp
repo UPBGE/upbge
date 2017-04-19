@@ -943,7 +943,23 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene *scene, KX_Camera *cam, RAS_OffScreen
 
 	m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 
-	scene->CalculateVisibleMeshes(m_rasterizer, cam);
+	CListValue *camList = scene->GetCameraList();
+	KX_Camera *debugCam;
+	for (CListValue::iterator<KX_Camera> it = camList->GetBegin(), camend = camList->GetEnd(); it != camend; ++it) {
+		KX_Camera *currentCam = *it;
+		if (currentCam->GetName() == "Camera") {
+			debugCam = currentCam;
+			debugCam->SetModelviewMatrix(MT_Matrix4x4(debugCam->GetWorldToCamera()));
+			debugCam->NodeUpdateGS(0.0);
+			break;
+		}
+		else {
+			debugCam = cam;
+		}
+	}
+	scene->CalculateVisibleMeshes(m_rasterizer, debugCam);
+	//scene->CalculateVisibleMeshes(m_rasterizer, cam);
+
 
 	// update levels of detail
 	scene->UpdateObjectLods(cam);

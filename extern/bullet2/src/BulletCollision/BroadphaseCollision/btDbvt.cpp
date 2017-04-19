@@ -1225,7 +1225,7 @@ void			btDbvt::benchmark()
 			static const btScalar	offset=0;
 			policy.m_nodes.resize(0);
 			policy.m_axis=vectors[i];
-			dbvt.collideKDOP(dbvt.m_root,&vectors[i],&offset,1,policy);
+			dbvt.collideKDOP(dbvt.m_root,&vectors[i],&offset, &corners,1,policy);
 			policy.m_nodes.quickSort(btDbvtBenchmark::P15::sortfnc);
 		}
 		const int	time=(int)wallclock.getTimeMilliseconds();

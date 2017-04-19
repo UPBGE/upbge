@@ -349,6 +349,7 @@ struct	btDbvt
 		static void		collideKDOP(const btDbvtNode* root,
 		const btVector3* normals,
 		const btScalar* offsets,
+		const btVector3 *corners,
 		int count,
 		DBVT_IPOLICY);
 	DBVT_PREFIX
@@ -1072,10 +1073,24 @@ inline void		btDbvt::rayTest(	const btDbvtNode* root,
 }
 
 //
+static bool PreIntersectionCheck(const btVector3 *corners, const btVector3 &boxmin, const btVector3 &boxmax)
+{
+	int behindcount = 0;
+
+	behindcount = 0; for (int i = 0; i<8; i++) behindcount += ((corners[i][0] > boxmax[0]) ? 1 : 0); if (behindcount == 8) return true;
+	behindcount = 0; for (int i = 0; i<8; i++) behindcount += ((corners[i][0] < boxmin[0]) ? 1 : 0); if (behindcount == 8) return true;
+	behindcount = 0; for (int i = 0; i<8; i++) behindcount += ((corners[i][1] > boxmax[1]) ? 1 : 0); if (behindcount == 8) return true;
+	behindcount = 0; for (int i = 0; i<8; i++) behindcount += ((corners[i][1] < boxmin[1]) ? 1 : 0); if (behindcount == 8) return true;
+	behindcount = 0; for (int i = 0; i<8; i++) behindcount += ((corners[i][2] > boxmax[2]) ? 1 : 0); if (behindcount == 8) return true;
+	behindcount = 0; for (int i = 0; i<8; i++) behindcount += ((corners[i][2] < boxmin[2]) ? 1 : 0); if (behindcount == 8) return true;
+	return false;
+}
+
 DBVT_PREFIX
 inline void		btDbvt::collideKDOP(const btDbvtNode* root,
 									const btVector3* normals,
 									const btScalar* offsets,
+									const btVector3 *corners,
 									int count,
 									DBVT_IPOLICY)
 {
@@ -1097,7 +1112,11 @@ inline void		btDbvt::collideKDOP(const btDbvtNode* root,
 			do	{
 				sStkNP	se=stack[stack.size()-1];
 				bool	out=false;
+
 				stack.pop_back();
+
+				out = PreIntersectionCheck(corners, se.node->volume.Mins(), se.node->volume.Maxs());
+
 				for(int i=0,j=1;(!out)&&(i<count);++i,j<<=1)
 				{
 					if(0==(se.mask&j))

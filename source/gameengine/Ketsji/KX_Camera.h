@@ -98,6 +98,7 @@ protected:
 	 * View Frustum clip planes.
 	 */
 	MT_Vector4   m_planes[6];
+	MT_Vector3 m_corners[8];
 	
 	/**
 	 * This camera is frustum culling.
@@ -159,6 +160,9 @@ public:
 
 	KX_Camera(void* sgReplicationInfo,SG_Callbacks callbacks,const RAS_CameraData& camdata, bool frustum_culling = true, bool delete_node = false);
 	virtual ~KX_Camera();
+
+	void ExtractFrustumCorners();
+	MT_Vector3 *GetFrustumCorners();
 	
 	/** 
 	 * Inherited from CValue -- return a new copy of this
