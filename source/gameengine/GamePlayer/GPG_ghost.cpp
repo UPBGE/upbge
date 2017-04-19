@@ -609,7 +609,7 @@ static BlendFileData *load_encrypted_game_data(const char *filename, std::string
 	}
 
 	if (fileData) {
-		bfd = BLO_read_from_memory(fileData, fileSize, &reports, localPath.c_str());
+		bfd = BLO_read_from_memory(fileData, fileSize, localPath.c_str(), &reports, BLO_READ_SKIP_USERDEF);
 		delete[] fileData;
 	}
 
