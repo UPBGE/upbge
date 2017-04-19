@@ -295,7 +295,7 @@ bool ImageRender::Render()
 		frustum.x2 = mirrorOffset[0]+width;
 		frustum.y1 = mirrorOffset[1]-height;
 		frustum.y2 = mirrorOffset[1]+height;
-		frustum.camnear = -mirrorOffset[2];
+		frustum.camnear = -mirrorOffset[2] + m_camera->GetCameraNear();
 		frustum.camfar = -mirrorOffset[2]+m_clip;
 	}
 	// Store settings to be restored later
