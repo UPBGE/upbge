@@ -74,7 +74,7 @@ KX_StateActuator::Update()
 
 	// execution of state actuator means that we are in the execution phase, reset this pointer
 	// because all the active actuator of this object will be removed for sure.
-	m_gameobj->m_firstState = nullptr;
+	m_gameobj->SetFirstState(nullptr);
 	RemoveAllEvents();
 	if (bNegativeEvent) return false;
 
@@ -121,7 +121,7 @@ void KX_StateActuator::Activate(SG_DList& head)
 	// sort the state actuators per object on the global list
 	if (QEmpty())
 	{
-		InsertSelfActiveQList(m_stateActuatorHead, &m_gameobj->m_firstState);
+		InsertSelfActiveQList(m_stateActuatorHead, m_gameobj->GetFirstState());
 		// add front to make sure it runs before other actuators
 		head.AddFront(&m_stateActuatorHead);
 	}

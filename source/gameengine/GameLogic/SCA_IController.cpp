@@ -186,12 +186,14 @@ void SCA_IController::Activate(SG_DList& head)
 {
 	if (QEmpty()) {
 		if (m_bookmark) {
-			m_gameobj->m_activeBookmarkedControllers.QAddBack(this);
-			head.AddFront(&m_gameobj->m_activeBookmarkedControllers);
+			SG_QList& list = SCA_IObject::GetActiveBookmarkedControllers();
+			list.QAddBack(this);
+			head.AddFront(&list);
 		}
 		else {
-			InsertActiveQList(m_gameobj->m_activeControllers);
-			head.AddBack(&m_gameobj->m_activeControllers);
+			SG_QList& list = m_gameobj->GetActiveActuators();
+			InsertActiveQList(list);
+			head.AddBack(&list);
 		}
 	}
 }
