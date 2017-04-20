@@ -21,20 +21,18 @@
 
 #include "EXP_Value.h"
 
-class CListValue;
-
-class CEmptyValue : public CPropValue  
+class CEmptyValue : public CPropValue
 {
 public:
 	CEmptyValue();
-	virtual					~CEmptyValue();
+	virtual ~CEmptyValue();
 
 	virtual const std::string GetText();
-	virtual double			GetNumber();
-	virtual int				GetValueType();
-	CValue *				Calc(VALUE_OPERATOR op, CValue *val);
-	CValue *				CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	virtual CValue*			GetReplica();
+	virtual double GetNumber();
+	virtual int GetValueType();
+	virtual CValue *Calc(VALUE_OPERATOR op, CValue *val);
+	virtual CValue *CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
+	virtual CValue *GetReplica();
 };
 
-#endif  /* __EXP_EMPTYVALUE_H__ */
+#endif  // __EXP_EMPTYVALUE_H__
