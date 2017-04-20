@@ -1329,7 +1329,7 @@ void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void *cul
 {
 	CullingInfo *info = static_cast<CullingInfo *>(cullingInfo);
 	KX_GameObject* gameobj = objectInfo->m_gameobject;
-	if (!gameobj->GetVisible()) {
+	if (!gameobj->GetVisible() || !gameobj->UseCulling()) {
 		// ideally, invisible objects should be removed from the culling tree temporarily
 		return;
 	}
