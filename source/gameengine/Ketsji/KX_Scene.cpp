@@ -1405,7 +1405,7 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 		KX_CullingHandler handler(nodes, cam->GetFrustum());
 		for (CListValue::iterator<KX_GameObject> it = m_objectlist->GetBegin(), end = m_objectlist->GetEnd(); it != end; ++it) {
 			KX_GameObject *gameobj = *it;
-			if (gameobj->GetVisible() && gameobj->GetMeshCount() > 0 && (layer == 0 || gameobj->GetLayer() & layer)) {
+			if (gameobj->UseCulling() && gameobj->GetVisible() && (layer == 0 || gameobj->GetLayer() & layer)) {
 				handler.Process(gameobj->GetCullingNode());
 			}
 		}
