@@ -1029,6 +1029,15 @@ bool KX_Scene::NewRemoveObject(class CValue* gameobj)
 	 */
 	newobj->InvalidateProxy();
 
+	// keep the blender->game object association up to date
+	// note that all the replicas of an object will have the same
+	// blender object, that's why we need to check the game object
+	// as only the deletion of the original object must be recorded
+	if (newobj->GetBlenderObject()) {
+		// In some case the game object can contains a nullptr blender object e.g default camera.
+		m_logicmgr->UnregisterGameObj(newobj->GetBlenderObject(), gameobj);
+	}
+
 	// remove all sensors/controllers/actuators from logicsystem...
 	
 	SCA_SensorList& sensors = newobj->GetSensors();
