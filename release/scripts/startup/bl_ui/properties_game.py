@@ -900,12 +900,12 @@ class OBJECT_PT_activity_culling(ObjectButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        game = context.active_object.game
+        ob = context.object
 
         row = layout.row()
-        row.prop(game, "physics_culling_radius", text="Physics Culling Radius")
+        row.prop(ob, "physics_culling_radius", text="Physics Culling Radius")
         row = layout.row()
-        row.prop(game, "logic_culling_radius", text="Logic Culling Radius")
+        row.prop(ob, "logic_culling_radius", text="Logic Culling Radius")
 
 class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
     bl_label = "Levels of Detail"
