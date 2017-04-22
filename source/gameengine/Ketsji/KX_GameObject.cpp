@@ -132,6 +132,12 @@ KX_GameObject::KX_GameObject(
 #endif
 {
 	m_ignore_activity_culling = false;
+
+	m_activityCullingInfos.logicCullingActive = GetBlenderObject()->logicCullingRadius != 0.0f ? true : false;
+	m_activityCullingInfos.physicsCullingActive = GetBlenderObject()->physicsCullingRadius != 0.0f ? true : false;
+	m_activityCullingInfos.physicsRadius = GetBlenderObject()->physicsCullingRadius;
+	m_activityCullingInfos.logicRadius = GetBlenderObject()->logicCullingRadius;
+
 	m_pClient_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
 	m_pSGNode = new SG_Node(this,sgReplicationInfo,callbacks);
 
@@ -1480,6 +1486,35 @@ void KX_GameObject::GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) cons
 KX_CullingNode *KX_GameObject::GetCullingNode()
 {
 	return &m_cullingNode;
+}
+
+ActivityCullingInfos KX_GameObject::GetActivityCullingInfos()
+{
+	return m_activityCullingInfos;
+}
+
+void KX_GameObject::SuspendPhysics()
+{
+	if (GetPhysicsController()) {
+		GetPhysicsController()->SuspendPhysics();
+	}
+}
+
+void KX_GameObject::RestorePhysics()
+{
+	if (GetPhysicsController()) {
+		GetPhysicsController()->RestorePhysics();
+	}
+}
+
+void KX_GameObject::SuspendLogic()
+{
+	// TODO
+}
+
+void KX_GameObject::RestoreLogic()
+{
+	// TODO
 }
 
 void KX_GameObject::UnregisterCollisionCallbacks()
@@ -3569,17 +3604,15 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
 
 PyObject *KX_GameObject::PySuspendPhysics()
 {
-	if (GetPhysicsController()) {
-		GetPhysicsController()->SuspendPhysics();
-	}
+	SuspendPhysics();
+	
 	Py_RETURN_NONE;
 }
 
 PyObject *KX_GameObject::PyRestorePhysics()
 {
-	if (GetPhysicsController()) {
-		GetPhysicsController()->RestorePhysics();
-	}
+	RestorePhysics();
+	
 	Py_RETURN_NONE;
 }
 

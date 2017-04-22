@@ -76,6 +76,13 @@ bool ConvertPythonToGameObject(SCA_LogicManager *logicmgr, PyObject *value, KX_G
 void KX_GameObject_Mathutils_Callback_Init(void);
 #endif
 
+struct ActivityCullingInfos {
+	bool physicsCullingActive;
+	bool logicCullingActive;
+	float physicsRadius;
+	float logicRadius;
+};
+
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
@@ -128,6 +135,8 @@ protected:
 	BL_ActionManager*					m_actionManager;
 
 	BL_ActionManager* GetActionManager();
+
+	ActivityCullingInfos m_activityCullingInfos;
 
 public:
 	/**
@@ -875,6 +884,13 @@ public:
 	void GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) const;
 
 	KX_CullingNode *GetCullingNode();
+
+	ActivityCullingInfos GetActivityCullingInfos();
+
+	void SuspendPhysics();
+	void SuspendLogic();
+	void RestorePhysics();
+	void RestoreLogic();
 
 	/**
 	 * Get the negative scaling state

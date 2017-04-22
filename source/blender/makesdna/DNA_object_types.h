@@ -301,6 +301,8 @@ typedef struct Object {
 	float ima_ofs[2];		/* offset for image empties */
 	ImageUser *iuser;		/* must be non-null when oject is an empty image */
 
+	float physicsCullingRadius, logicCullingRadius; /* For game engine, values around active camera where physics or logic are suspended */
+
 	ListBase lodlevels;		/* contains data for levels of detail */
 	LodLevel *currentlod;
 	float lodfactor, pad4;

@@ -2880,6 +2880,19 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Dynamic Topology Sculpting", NULL);
 
+	/* Object Activity Culling */
+	prop = RNA_def_property(srna, "physics_culling_radius", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "physicsCullingRadius");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_text(prop, "Physics Culling Radius", "The radius around active camera beyond where the physics is suspended. 0 disables physics culling");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
+	prop = RNA_def_property(srna, "logic_culling_radius", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "logicCullingRadius");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_text(prop, "Logic Culling Radius", "The radius around active camera beyond where the logic is suspended. 0 disables logic culling");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
 	/* Levels of Detail */
 	prop = RNA_def_property(srna, "lod_levels", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "lodlevels", NULL);

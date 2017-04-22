@@ -1368,6 +1368,30 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 			gameobj->GetDeformer()->UpdateBuckets();
 		}
 		gameobj->UpdateBounds(false);
+
+		/* Object Activity Culling */
+		ActivityCullingInfos cullingInfos = gameobj->GetActivityCullingInfos();
+		// Physics
+		if (cullingInfos.physicsCullingActive) {
+			/* Note: In CCD_PhysicsController, the functions to suspend or restore physics controllers already check
+			 * if the controller is suspended or not so no need to add another check here.
+			 */
+			if ((gameobj->NodeGetWorldPosition() - cam->NodeGetWorldPosition()).length() > cullingInfos.physicsRadius) {
+				gameobj->SuspendPhysics();
+			}
+			else {
+				gameobj->RestorePhysics();
+			}
+		}
+		// Logic
+		if (cullingInfos.logicCullingActive) {
+			if ((gameobj->NodeGetWorldPosition() - cam->NodeGetWorldPosition()).length() > cullingInfos.logicRadius) {
+				gameobj->SuspendLogic();
+			}
+			else {
+				gameobj->RestoreLogic();
+			}
+		}
 	}
 
 	m_boundingBoxManager->ClearModified();
