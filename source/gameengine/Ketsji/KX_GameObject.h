@@ -82,6 +82,23 @@ void KX_GameObject_Mathutils_Callback_Init(void);
 class KX_GameObject : public SCA_IObject
 {
 	Py_Header
+public:
+	struct ActivityCullingInfo
+	{
+		ActivityCullingInfo();
+
+		enum Flag {
+			ACTIVITY_NONE = 0,
+			ACTIVITY_PHYSICS = (1 << 0),
+			ACTIVITY_LOGIC = (1 << 1)
+		} m_flags;
+
+		/// Squared physics culling radius.
+		float m_physicsRadius;
+		/// Squared logic culling radius.
+		float m_logicRadius;
+	};
+
 protected:
 
 	KX_ClientObjectInfo*				m_pClient_info;
@@ -105,6 +122,9 @@ protected:
 	// culled = while rendering, depending on camera
 	bool       							m_bVisible; 
 	bool								m_bOccluder;
+
+	/// Object activity culling settings converted from blender objects.
+	ActivityCullingInfo m_activityCullingInfo;
 
 	bool								m_autoUpdateBounds;
 
@@ -289,6 +309,8 @@ public:
 	 * Check if an action has finished playing
 	 */
 	bool IsActionDone(short layer);
+
+	bool IsActionsSuspended();
 
 	/**
 	 * Kick the object's action manager
@@ -742,6 +764,11 @@ public:
 	 */
 	void UpdateLod(const MT_Vector3& cam_pos, float lodfactor);
 
+	/** Update the activity culling of the object.
+	 * \param distance Squared nearest distance to the cameras of this object.
+	 */
+	void UpdateActivity(float distance);
+
 	/**
 	 * Pick out a mesh associated with the integer 'num'.
 	 */
@@ -859,6 +886,14 @@ public:
 	void GetBoundsAabb(MT_Vector3 &aabbMin, MT_Vector3 &aabbMax) const;
 
 	KX_CullingNode *GetCullingNode();
+
+	ActivityCullingInfo& GetActivityCullingInfo();
+	void SetActivityCullingInfo(const ActivityCullingInfo& cullingInfo);
+	/// Enable or disable a category of object activity culling.
+	void SetActivityCulling(ActivityCullingInfo::Flag flag, bool enable);
+
+	void SuspendPhysics(bool freeConstraints);
+	void RestorePhysics();
 
 	/**
 	 * Get the negative scaling state
@@ -996,6 +1031,14 @@ public:
 	static int			pyattr_set_visible(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_culled(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_cullingBox(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_physicsCulling(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_physicsCulling(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_logicCulling(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_logicCulling(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_physicsCullingRadius(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_physicsCullingRadius(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_logicCullingRadius(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_logicCullingRadius(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_worldPosition(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_worldPosition(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_localPosition(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

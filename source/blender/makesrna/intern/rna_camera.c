@@ -350,6 +350,10 @@ void RNA_def_camera(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Show Frustum", "Show a visualization of frustum in Game Engine");
 	RNA_def_property_update(prop, NC_CAMERA, NULL);
 
+	prop = RNA_def_property(srna, "use_object_activity_culling", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", GAME_CAM_OBJECT_ACTIVITY_CULLING);
+	RNA_def_property_ui_text(prop, "Activity Culling", "Enable object activity culling with this camera");
+
 	prop = RNA_def_property(srna, "show_limits", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", CAM_SHOWLIMITS);
 	RNA_def_property_ui_text(prop, "Show Limits", "Draw the clipping range and focus point on the camera");

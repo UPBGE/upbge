@@ -104,6 +104,13 @@ static MT_Matrix3x3 dummy_orientation = MT_Matrix3x3(1.0f, 0.0f, 0.0f,
                                                      0.0f, 1.0f, 0.0f,
                                                      0.0f, 0.0f, 1.0f);
 
+KX_GameObject::ActivityCullingInfo::ActivityCullingInfo()
+	:m_flags(ACTIVITY_NONE),
+	m_physicsRadius(0.0f),
+	m_logicRadius(0.0f)
+{
+}
+
 KX_GameObject::KX_GameObject(
         void* sgReplicationInfo,
         SG_Callbacks callbacks)
@@ -131,7 +138,6 @@ KX_GameObject::KX_GameObject(
     m_collisionCallbacks(nullptr)
 #endif
 {
-	m_ignore_activity_culling = false;
 	m_pClient_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
 	m_pSGNode = new SG_Node(this,sgReplicationInfo,callbacks);
 
@@ -464,6 +470,11 @@ void KX_GameObject::RemoveTaggedActions()
 bool KX_GameObject::IsActionDone(short layer)
 {
 	return GetActionManager()->IsActionDone(layer);
+}
+
+bool KX_GameObject::IsActionsSuspended()
+{
+	return GetActionManager()->IsSuspended();
 }
 
 void KX_GameObject::UpdateActionManager(float deltatime, float curtime, float frameRate, bool applyToObject)
@@ -800,6 +811,35 @@ void KX_GameObject::UpdateLod(const MT_Vector3& cam_pos, float lodfactor)
 		}
 
 		m_currentLodLevel = lodLevel->GetLevel();
+	}
+}
+
+void KX_GameObject::UpdateActivity(float distance)
+{
+	// Manage physics culling.
+	if (m_activityCullingInfo.m_flags & ActivityCullingInfo::ACTIVITY_PHYSICS) {
+		if (distance > m_activityCullingInfo.m_physicsRadius) {
+			SuspendPhysics(false);
+		}
+		else {
+			RestorePhysics();
+		}
+	}
+
+	// Manage logic culling.
+	if (m_activityCullingInfo.m_flags & ActivityCullingInfo::ACTIVITY_LOGIC) {
+		if (distance > m_activityCullingInfo.m_logicRadius) {
+			SuspendLogic();
+			if (m_actionManager) {
+				m_actionManager->Suspend();
+			}
+		}
+		else {
+			ResumeLogic();
+			if (m_actionManager) {
+				m_actionManager->Resume();
+			}
+		}
 	}
 }
 
@@ -1413,6 +1453,48 @@ KX_CullingNode *KX_GameObject::GetCullingNode()
 	return &m_cullingNode;
 }
 
+KX_GameObject::ActivityCullingInfo& KX_GameObject::GetActivityCullingInfo()
+{
+	return m_activityCullingInfo;
+}
+
+void KX_GameObject::SetActivityCullingInfo(const ActivityCullingInfo& cullingInfo)
+{
+	m_activityCullingInfo = cullingInfo;
+}
+
+void KX_GameObject::SetActivityCulling(ActivityCullingInfo::Flag flag, bool enable)
+{
+	if (enable) {
+		m_activityCullingInfo.m_flags = (ActivityCullingInfo::Flag)(m_activityCullingInfo.m_flags | flag);
+	}
+	else {
+		m_activityCullingInfo.m_flags = (ActivityCullingInfo::Flag)(m_activityCullingInfo.m_flags & ~flag);
+
+		// Restore physics or logic when disabling activity culling.
+		if (flag & ActivityCullingInfo::ACTIVITY_PHYSICS) {
+			RestorePhysics();
+		}
+		if (flag & ActivityCullingInfo::ACTIVITY_LOGIC) {
+			ResumeLogic();
+		}
+	}
+}
+
+void KX_GameObject::SuspendPhysics(bool freeConstraints)
+{
+	if (GetPhysicsController()) {
+		GetPhysicsController()->SuspendPhysics((bool)freeConstraints);
+	}
+}
+
+void KX_GameObject::RestorePhysics()
+{
+	if (GetPhysicsController()) {
+		GetPhysicsController()->RestorePhysics();
+	}
+}
+
 void KX_GameObject::UnregisterCollisionCallbacks()
 {
 	if (!GetPhysicsController()) {
@@ -1474,35 +1556,6 @@ void KX_GameObject::RunCollisionCallbacks(KX_GameObject *collider, KX_CollisionC
 	listWrapper->InvalidateProxy();
 	delete listWrapper;
 #endif
-}
-
-/* Suspend/ resume: for the dynamic behavior, there is a simple
- * method. For the residual motion, there is not. I wonder what the
- * correct solution is for Sumo. Remove from the motion-update tree?
- *
- * So far, only switch the physics and logic.
- * */
-
-void KX_GameObject::Resume(void)
-{
-	if (m_suspended) {
-		SCA_IObject::Resume();
-		// Child objects must be static, so we block changing to dynamic
-		if (GetPhysicsController() && !GetParent())
-			GetPhysicsController()->RestoreDynamics();
-
-		m_suspended = false;
-	}
-}
-
-void KX_GameObject::Suspend()
-{
-	if ((!m_ignore_activity_culling) && (!m_suspended)) {
-		SCA_IObject::Suspend();
-		if (GetPhysicsController())
-			GetPhysicsController()->SuspendDynamics();
-		m_suspended = true;
-	}
 }
 
 static void walk_children(SG_Node* node, CListValue<KX_GameObject> *list, bool recursive)
@@ -1911,6 +1964,10 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("culled", KX_GameObject, pyattr_get_culled),
 	KX_PYATTRIBUTE_RO_FUNCTION("cullingBox",	KX_GameObject, pyattr_get_cullingBox),
 	KX_PYATTRIBUTE_BOOL_RW    ("occlusion", KX_GameObject, m_bOccluder),
+	KX_PYATTRIBUTE_RW_FUNCTION("physicsCullingRadius", KX_GameObject, pyattr_get_physicsCullingRadius, pyattr_set_physicsCullingRadius),
+	KX_PYATTRIBUTE_RW_FUNCTION("logicCullingRadius", KX_GameObject, pyattr_get_logicCullingRadius, pyattr_set_logicCullingRadius),
+	KX_PYATTRIBUTE_RW_FUNCTION("physicsCulling", KX_GameObject, pyattr_get_physicsCulling, pyattr_set_physicsCulling),
+	KX_PYATTRIBUTE_RW_FUNCTION("logicCulling", KX_GameObject, pyattr_get_logicCulling, pyattr_set_logicCulling),
 	KX_PYATTRIBUTE_RW_FUNCTION("position",	KX_GameObject, pyattr_get_worldPosition,	pyattr_set_localPosition),
 	KX_PYATTRIBUTE_RO_FUNCTION("localInertia",	KX_GameObject, pyattr_get_localInertia),
 	KX_PYATTRIBUTE_RW_FUNCTION("orientation",KX_GameObject,pyattr_get_worldOrientation,pyattr_set_localOrientation),
@@ -2584,6 +2641,84 @@ PyObject *KX_GameObject::pyattr_get_cullingBox(PyObjectPlus *self_v, const KX_PY
 {
 	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
 	return (new KX_BoundingBox(self))->NewProxy(true);
+}
+
+PyObject *KX_GameObject::pyattr_get_physicsCulling(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+	return PyBool_FromLong(self->GetActivityCullingInfo().m_flags & ActivityCullingInfo::ACTIVITY_PHYSICS);
+}
+
+int KX_GameObject::pyattr_set_physicsCulling(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+	int param = PyObject_IsTrue(value);
+	if (param == -1) {
+		PyErr_SetString(PyExc_AttributeError, "gameOb.physicsCulling = bool: KX_GameObject, expected True or False");
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->SetActivityCulling(ActivityCullingInfo::ACTIVITY_PHYSICS, param);
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_GameObject::pyattr_get_logicCulling(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+	return PyBool_FromLong(self->GetActivityCullingInfo().m_flags & ActivityCullingInfo::ACTIVITY_LOGIC);
+}
+
+int KX_GameObject::pyattr_set_logicCulling(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+	int param = PyObject_IsTrue(value);
+	if (param == -1) {
+		PyErr_SetString(PyExc_AttributeError, "gameOb.logicCulling = bool: KX_GameObject, expected True or False");
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->SetActivityCulling(ActivityCullingInfo::ACTIVITY_LOGIC, param);
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_GameObject::pyattr_get_physicsCullingRadius(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+	return PyFloat_FromDouble(std::sqrt(self->GetActivityCullingInfo().m_physicsRadius));
+}
+
+int KX_GameObject::pyattr_set_physicsCullingRadius(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+	const float val = PyFloat_AsDouble(value);
+	if (val < 0.0f) { // Also accounts for non float.
+		PyErr_SetString(PyExc_AttributeError, "gameOb.physicsCullingRadius = float: KX_GameObject, expected a float zero or above");
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->GetActivityCullingInfo().m_physicsRadius = val * val;
+
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_GameObject::pyattr_get_logicCullingRadius(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+	return PyFloat_FromDouble(std::sqrt(self->GetActivityCullingInfo().m_logicRadius));
+}
+
+int KX_GameObject::pyattr_set_logicCullingRadius(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_GameObject *self = static_cast<KX_GameObject *>(self_v);
+	const float val = PyFloat_AsDouble(value);
+	if (val < 0.0f) { // Also accounts for non float.
+		PyErr_SetString(PyExc_AttributeError, "gameOb.logicCullingRadius = float: KX_GameObject, expected a float zero or above");
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->GetActivityCullingInfo().m_logicRadius = val * val;
+
+	return PY_SET_ATTR_SUCCESS;
 }
 
 PyObject *KX_GameObject::pyattr_get_worldPosition(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -3519,17 +3654,15 @@ PyObject *KX_GameObject::PySuspendPhysics(PyObject *args)
 		return nullptr;
 	}
 
-	if (GetPhysicsController()) {
-		GetPhysicsController()->SuspendPhysics((bool)freeConstraints);
-	}
+	SuspendPhysics(freeConstraints);
+
 	Py_RETURN_NONE;
 }
 
 PyObject *KX_GameObject::PyRestorePhysics()
 {
-	if (GetPhysicsController()) {
-		GetPhysicsController()->RestorePhysics();
-	}
+	RestorePhysics();
+
 	Py_RETURN_NONE;
 }
 

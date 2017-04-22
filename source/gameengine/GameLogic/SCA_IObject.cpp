@@ -247,32 +247,22 @@ SCA_IActuator* SCA_IObject::FindActuator(const std::string& actuatorname)
 	return foundactuator;
 }
 
-
-void SCA_IObject::Suspend()
+void SCA_IObject::SuspendLogic()
 {
-	if ((!m_ignore_activity_culling) 
-		&& (!m_suspended)) {
+	if (!m_suspended) {
 		m_suspended = true;
-		/* flag suspend for all sensors */
-		SCA_SensorList::iterator i = m_sensors.begin();
-		while (i != m_sensors.end()) {
-			(*i)->Suspend();
-			++i;
+		for (SCA_ISensor *sensor : m_sensors) {
+			sensor->Suspend();
 		}
 	}
 }
 
-
-
-void SCA_IObject::Resume(void)
+void SCA_IObject::ResumeLogic()
 {
 	if (m_suspended) {
 		m_suspended = false;
-		/* unflag suspend for all sensors */
-		SCA_SensorList::iterator i = m_sensors.begin();
-		while (i != m_sensors.end()) {
-			(*i)->Resume();
-			++i;
+		for (SCA_ISensor *sensor : m_sensors) {
+			sensor->Resume();
 		}
 	}
 }

@@ -300,6 +300,32 @@ base class --- :class:`SCA_IObject`
 
       :type: boolean
 
+   .. attribute:: physicsCulling
+
+      True if the object suspends its physics depending on its nearest distance to any camera.
+
+      :type: boolean
+
+   .. attribute:: logicCulling
+
+      True if the object suspends its logic and animation depending on its nearest distance to any camera.
+
+      :type: boolean
+
+   .. attribute:: physicsCullingRadius
+
+      Suspend object's physics if this radius is smaller than its nearest distance to any camera
+      and :data:`physicsCulling` set to `True`.
+
+      :type: float
+
+   .. attribute:: logicCullingRadius
+
+      Suspend object's logic and animation if this radius is smaller than its nearest distance to any camera
+      and :data:`logicCulling` set to `True`.
+
+      :type: float
+
    .. attribute:: position
 
       The object's position. [x, y, z] On write: local position, on read: world position
