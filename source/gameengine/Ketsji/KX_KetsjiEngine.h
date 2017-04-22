@@ -109,7 +109,6 @@ private:
 	{
 		CameraFrameRenderData(KX_Camera *camera, const RAS_Rect& area, const RAS_Rect& viewport, RAS_Rasterizer::StereoEye eye);
 		CameraFrameRenderData(const CameraFrameRenderData& other);
-		CameraFrameRenderData(const CameraFrameRenderData&& other) = delete;
 		~CameraFrameRenderData();
 
 		/// Rendered camera, could be a temporary camera in case of stereo.
