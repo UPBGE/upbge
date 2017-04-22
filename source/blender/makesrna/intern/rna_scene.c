@@ -4740,25 +4740,15 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 
 	/* mode */
-	/* not used  *//* deprecated !!!!!!!!!!!!! */
 	prop = RNA_def_property(srna, "use_occlusion_culling", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", WO_DBVT_CULLING);
 	RNA_def_property_ui_text(prop, "DBVT Culling",
 	                         "Use optimized Bullet DBVT tree for view frustum and occlusion culling (more efficient, "
 	                         "but it can waste unnecessary CPU if the scene doesn't have occluder objects)");
-	
-	/* not used  *//* deprecated !!!!!!!!!!!!! */
+
 	prop = RNA_def_property(srna, "use_activity_culling", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", WO_ACTIVITY_CULLING);
-	RNA_def_property_ui_text(prop, "Activity Culling", "Activity culling is enabled");
-
-	/* not used  *//* deprecated !!!!!!!!!!!!! */
-	prop = RNA_def_property(srna, "activity_culling_box_radius", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "activityBoxRadius");
-	RNA_def_property_range(prop, 0.0, 1000.0);
-	RNA_def_property_ui_text(prop, "Box Radius",
-	                         "Radius of the activity bubble, in Manhattan length "
-	                         "(objects outside the box are activity-culled)");
+	RNA_def_property_ui_text(prop, "Activity Culling", "Enable object activity culling in this scene");
 
 	/* booleans */
 	prop = RNA_def_property(srna, "show_debug_properties", PROP_BOOLEAN, PROP_NONE);

@@ -113,17 +113,11 @@ base class --- :class:`EXP_PyObjectPlus`
 
       :type: boolean
 
-   .. attribute:: activity_culling
+   .. attribute:: activityCulling
 
-      True if the scene is activity culling.
+      True if the scene allow object activity culling.
 
       :type: boolean
-
-   .. attribute:: activity_culling_radius
-
-      The distance outside which to do activity culling. Measured in manhattan distance.
-
-      :type: float
 
    .. attribute:: dbvt_culling
 

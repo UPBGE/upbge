@@ -822,20 +822,13 @@ typedef struct GameData {
 	short depth, attrib, rt1, rt2;
 	short aasamples;
 	short hdr;
-	short pad4[2];
-
-	short stereoflag, stereomode;
-	float eyeseparation;
-	RecastData recastData;
-
 
 	/* physics (it was in world)*/
 	float gravity; /*Gravitation constant for the game world*/
 
-	/*
-	 * Radius of the activity bubble, in Manhattan length. Objects
-	 * outside the box are activity-culled. */
-	float activityBoxRadius;
+	short stereoflag, stereomode;
+	float eyeseparation;
+	RecastData recastData;
 
 	/*
 	 * bit 3: (gameengine): Activity culling is enabled.

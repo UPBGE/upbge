@@ -774,6 +774,32 @@ static KX_LodManager *BL_LodManagerFromBlenderObject(Object *ob, KX_Scene *scene
 	return lodManager;
 }
 
+/** Convert the object activity culling settings from blender to a KX_GameObject::ActivityCullingInfo.
+ * \param ob The object to convert the activity culling settings from.
+ */
+static KX_GameObject::ActivityCullingInfo activityCullingInfoFromBlenderObject(Object *ob)
+{
+	KX_GameObject::ActivityCullingInfo cullingInfo;
+	const ObjectActivityCulling& blenderInfo = ob->activityCulling;
+	// Convert the flags.
+	if (blenderInfo.flags & OB_ACTIVITY_PHYSICS) {
+		// Enable physics culling.
+		cullingInfo.m_flags = (KX_GameObject::ActivityCullingInfo::Flag)(
+				cullingInfo.m_flags | KX_GameObject::ActivityCullingInfo::ACTIVITY_PHYSICS);
+	}
+	if (blenderInfo.flags & OB_ACTIVITY_LOGIC) {
+		// Enable logic culling.
+		cullingInfo.m_flags = (KX_GameObject::ActivityCullingInfo::Flag)(
+				cullingInfo.m_flags | KX_GameObject::ActivityCullingInfo::ACTIVITY_LOGIC);
+	}
+
+	// Set culling radius.
+	cullingInfo.m_physicsRadius = blenderInfo.physicsRadius * blenderInfo.physicsRadius;
+	cullingInfo.m_logicRadius = blenderInfo.logicRadius * blenderInfo.logicRadius;
+
+	return cullingInfo;
+}
+
 static KX_LightObject *BL_GameLightFromBlenderLamp(Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_Rasterizer *rasterizer)
 {
 	RAS_ILightObject *lightobj = rasterizer->CreateLight();
@@ -848,6 +874,8 @@ static KX_Camera *BL_GameCameraFromBlenderCamera(Object *ob, KX_Scene *kxscene)
 	gamecamera->SetShowCameraFrustum(ca->gameflag & GAME_CAM_SHOW_FRUSTUM);
 	gamecamera->SetLodDistanceFactor(ca->lodfactor);
 
+	gamecamera->SetActivityCulling(ca->gameflag & GAME_CAM_OBJECT_ACTIVITY_CULLING);
+
 	if (ca->gameflag & GAME_CAM_OVERRIDE_CULLING) {
 		if (kxscene->GetOverrideCullingCamera()) {
 			CM_Warning("\"" << gamecamera->GetName() << "\" sets for culling override whereas \""
@@ -901,6 +929,12 @@ static KX_GameObject *BL_GameObjectFromBlenderObject(Object *ob, KX_Scene *kxsce
 				gameobj->AddMesh(meshobj);
 				break;
 			}
+
+			// for all objects: check whether they want to
+			// respond to updates
+			gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);
+			gameobj->SetActivityCullingInfo(activityCullingInfoFromBlenderObject(ob));
+
 
 			BL_DeformableGameObject *deformableGameObj = new BL_DeformableGameObject(kxscene, KX_Scene::m_callbacks);
 			gameobj = deformableGameObj;
@@ -1285,7 +1319,6 @@ void BL_ConvertBlenderObjects(struct Main *maggie,
 
 	// Set activity culling parameters.
 	kxscene->SetActivityCulling((blenderscene->gm.mode & WO_ACTIVITY_CULLING) != 0);
-	kxscene->SetActivityCullingRadius(blenderscene->gm.activityBoxRadius);
 	kxscene->SetDbvtCulling((blenderscene->gm.mode & WO_DBVT_CULLING) != 0);
 
 	// No occlusion culling by default.

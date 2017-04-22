@@ -71,6 +71,7 @@ void BKE_camera_init(Camera *cam)
 	cam->drawsize = 0.5f;
 	cam->ortho_scale = 6.0;
 	cam->flag |= CAM_SHOWPASSEPARTOUT;
+	cam->gameflag = GAME_CAM_OBJECT_ACTIVITY_CULLING;
 	cam->passepartalpha = 0.5f;
 	cam->lodfactor = 1.0f;
 

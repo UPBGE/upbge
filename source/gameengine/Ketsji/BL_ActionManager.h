@@ -47,6 +47,9 @@ private:
 	class KX_GameObject* m_obj;
 	BL_ActionMap 		 m_layers;
 
+	/// Suspend action update?
+	bool m_suspended;
+
 	/**
 	 * Check if an action exists
 	 */
@@ -106,6 +109,10 @@ public:
 	 * Check if an action has finished playing
 	 */
 	bool IsActionDone(short layer);
+
+	void Suspend();
+	void Resume();
+	bool IsSuspended() const;
 
 	/**
 	 * Update any running actions
