@@ -238,7 +238,7 @@ SCA_IActuator *SCA_IObject::FindActuator(const std::string& actuatorname)
 	return nullptr;
 }
 
-void SCA_IObject::Suspend()
+void SCA_IObject::SuspendLogic()
 {
 	if (!m_suspended) {
 		m_suspended = true;
@@ -249,7 +249,7 @@ void SCA_IObject::Suspend()
 	}
 }
 
-void SCA_IObject::Resume()
+void SCA_IObject::ResumeLogic()
 {
 	if (m_suspended) {
 		m_suspended = false;

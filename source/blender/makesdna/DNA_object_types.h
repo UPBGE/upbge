@@ -112,6 +112,21 @@ typedef struct LodLevel {
 	int obhysteresis;
 } LodLevel;
 
+typedef struct ObjectActivityCulling {
+	/* For game engine, values around active camera where physics or logic are suspended */
+	float physicsRadius;
+	float logicRadius;
+
+	int flags;
+	int pad;
+} ObjectActivityCulling;
+
+/* object activity flags */
+enum {
+	OB_ACTIVITY_PHYSICS = (1 << 0),
+	OB_ACTIVITY_LOGIC = (1 << 1),
+};
+
 typedef struct Object {
 	ID id;
 	struct AnimData *adt;		/* animation data (must be immediately after id for utilities to use it) */ 
@@ -244,6 +259,8 @@ typedef struct Object {
 	ListBase controllers;	/* game logic controllers */
 	ListBase actuators;		/* game logic actuators */
 	ListBase components;	/* python components */
+
+	struct ObjectActivityCulling activityCulling;
 
 	float sf; /* sf is time-offset */
 
@@ -580,7 +597,6 @@ enum {
 
 /* ob->gameflag2 */
 enum {
-	OB_NEVER_DO_ACTIVITY_CULLING    = 1 << 0,
 	OB_LOCK_RIGID_BODY_X_AXIS       = 1 << 2,
 	OB_LOCK_RIGID_BODY_Y_AXIS       = 1 << 3,
 	OB_LOCK_RIGID_BODY_Z_AXIS       = 1 << 4,

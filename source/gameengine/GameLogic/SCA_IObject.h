@@ -130,20 +130,11 @@ public:
 
 	virtual void ReParentLogic();
 
-	/// Set whether or not to ignore activity culling requests.
-	void SetIgnoreActivityCulling(bool b);
-
-	/**
-	 * Set whether or not this object wants to ignore activity culling
-	 * requests.
-	 */
-	bool GetIgnoreActivityCulling();
-
 	/// Suspend all progress.
-	void Suspend();
+	void SuspendLogic();
 
 	/// Resume progress.
-	void Resume();
+	void ResumeLogic();
 
 	/// Set init state.
 	void SetInitState(unsigned int initState);

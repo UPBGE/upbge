@@ -45,6 +45,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_material_types.h"
+#include "DNA_world_types.h"
 
 #include "BKE_main.h"
 
@@ -251,6 +252,16 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 					ob->bsoft->bending_dist = 2;
 				}
 			}
+		}
+	}
+
+	if (!MAIN_VERSION_UPBGE_ATLEAST(main, 2, 2)) {
+		for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+			scene->gm.mode |= WO_ACTIVITY_CULLING;
+		}
+
+		for (Camera *camera = main->camera.first; camera; camera = camera->id.next) {
+			camera->gameflag |= GAME_CAM_OBJECT_ACTIVITY_CULLING;
 		}
 	}
 }

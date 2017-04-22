@@ -83,6 +83,12 @@ base class --- :class:`KX_GameObject`
 
       :type: boolean
 
+   .. attribute:: activityCulling
+
+      True if this camera is used to compute object distance for object activity culling.
+
+      :type: boolean
+
    .. attribute:: projection_matrix
 
       This camera's 4x4 projection matrix.
