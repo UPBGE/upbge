@@ -132,7 +132,6 @@ KX_GameObject::KX_GameObject(
 #endif
 {
 	m_ignore_activity_culling = false;
-
 	m_pClient_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
 	m_pSGNode = new SG_Node(this,sgReplicationInfo,callbacks);
 
@@ -215,22 +214,6 @@ KX_GameObject::~KX_GameObject()
 	}
 	if (m_lodManager) {
 		m_lodManager->Release();
-	}
-}
-
-void KX_GameObject::SetActivityCulling(Object *blenderobject)
-{
-	if (blenderobject && blenderobject->type == OB_MESH) {
-		m_activityCullingInfos.logicCullingActive = blenderobject->logicCullingRadius != 0.0f ? true : false;
-		m_activityCullingInfos.physicsCullingActive = blenderobject->physicsCullingRadius != 0.0f ? true : false;
-		m_activityCullingInfos.physicsRadius = blenderobject->physicsCullingRadius;
-		m_activityCullingInfos.logicRadius = blenderobject->logicCullingRadius;
-	}
-	else {
-		m_activityCullingInfos.logicCullingActive = false;
-		m_activityCullingInfos.physicsCullingActive = false;
-		m_activityCullingInfos.physicsRadius = 0.0f;
-		m_activityCullingInfos.logicRadius = 0.0f;
 	}
 }
 
@@ -1504,6 +1487,22 @@ ActivityCullingInfos KX_GameObject::GetActivityCullingInfos()
 	return m_activityCullingInfos;
 }
 
+void KX_GameObject::SetActivityCulling(Object *blenderobject)
+{
+	if (blenderobject && blenderobject->type == OB_MESH) {
+		m_activityCullingInfos.logicCullingActive = blenderobject->logicCullingRadius != 0.0f ? true : false;
+		m_activityCullingInfos.physicsCullingActive = blenderobject->physicsCullingRadius != 0.0f ? true : false;
+		m_activityCullingInfos.physicsRadius = blenderobject->physicsCullingRadius;
+		m_activityCullingInfos.logicRadius = blenderobject->logicCullingRadius;
+	}
+	else {
+		m_activityCullingInfos.logicCullingActive = false;
+		m_activityCullingInfos.physicsCullingActive = false;
+		m_activityCullingInfos.physicsRadius = 0.0f;
+		m_activityCullingInfos.logicRadius = 0.0f;
+	}
+}
+
 void KX_GameObject::SuspendPhysics()
 {
 	if (GetPhysicsController()) {
@@ -1520,12 +1519,18 @@ void KX_GameObject::RestorePhysics()
 
 void KX_GameObject::SuspendLogic()
 {
-	// TODO
+	// Hack to suspend logic -> Set gameobject state to an inexistant state
+	if (!((GetState() & (1 << 21)) != 0)) {
+		m_activityCullingInfos.logicState = GetState();
+		SetState((1 << 21));
+	}	
 }
 
 void KX_GameObject::RestoreLogic()
 {
-	// TODO
+	if ((GetState() & (1 << 21)) != 0) {
+		SetState(m_activityCullingInfos.logicState);
+	}
 }
 
 void KX_GameObject::UnregisterCollisionCallbacks()

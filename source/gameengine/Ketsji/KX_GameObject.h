@@ -81,6 +81,7 @@ struct ActivityCullingInfos {
 	bool logicCullingActive;
 	float physicsRadius;
 	float logicRadius;
+	unsigned int logicState;
 };
 
 /**
