@@ -532,10 +532,23 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_Node* node, class CValue*
 
 	// this is the list of object that are send to the graphics pipeline
 	m_objectlist->Add(newobj->AddRef());
-	if (newobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT)
-		m_lightlist->Add(newobj->AddRef());
-	else if (newobj->GetGameObjectType()==SCA_IObject::OBJ_TEXT)
-		m_fontlist->Add(newobj->AddRef());
+	switch (newobj->GetGameObjectType()) {
+		case SCA_IObject::OBJ_LIGHT:
+		{
+			m_lightlist->Add(newobj->AddRef());
+			break;
+		}
+		case SCA_IObject::OBJ_TEXT:
+		{
+			m_fontlist->Add(newobj->AddRef());
+			break;
+		}
+		case SCA_IObject::OBJ_CAMERA:
+		{
+			m_cameralist->Add(newobj->AddRef());
+			break;
+		}
+	}
 	newobj->AddMeshUser();
 
 	// logic cannot be replicated, until the whole hierarchy is replicated.
@@ -1298,31 +1311,14 @@ KX_Camera* KX_Scene::GetActiveCamera()
 
 void KX_Scene::SetActiveCamera(KX_Camera* cam)
 {
-	// only set if the cam is in the active list? Or add it otherwise?
-	if (!m_cameralist->SearchValue(cam)) {
-		m_cameralist->Add(cam->AddRef());
-		if (cam) {
-			CM_Debug("added cam " << cam->GetName());
-		}
-	}
-
 	m_active_camera = cam;
 }
 
 void KX_Scene::SetCameraOnTop(KX_Camera* cam)
 {
-	if (!m_cameralist->SearchValue(cam)) {
-		// adding is always done at the back, so that's all that needs to be done
-		m_cameralist->Add(cam->AddRef());
-		if (cam) {
-			CM_Debug("added cam " << cam->GetName());
-		}
-	}
-	else {
-		// no release and addref just change camera place
-		m_cameralist->RemoveValue(cam);
-		m_cameralist->Add(cam);
-	}
+	// no release and addref just change camera place
+	m_cameralist->RemoveValue(cam);
+	m_cameralist->Add(cam);
 }
 
 void KX_Scene::PhysicsCullingCallback(KX_ClientObjectInfo *objectInfo, void *cullingInfo)
