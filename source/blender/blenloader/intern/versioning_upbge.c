@@ -216,5 +216,18 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 				scene->gm.timeScale = 1.0f;
 			}
 		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "Camera", "short", "gameflag")) {
+			for (Camera *camera = main->camera.first; camera; camera = camera->id.next) {
+				/* Previous value of GAME_CAM_SHOW_FRUSTUM was 1 << 10, it was possibly conflicting
+				 * with new flags. To fix this issue we use a separate flag value: gameflag.
+				 */
+				if (camera->flag & (1 << 10)) {
+					camera->gameflag |= GAME_CAM_SHOW_FRUSTUM;
+					/* Disable bit 10 */
+					camera->flag &= ~(1 << 10);
+				}
+			}
+		}
 	}
 }

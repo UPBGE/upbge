@@ -150,6 +150,7 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_physicsEnvironment(0),
 	m_sceneName(sceneName),
 	m_active_camera(nullptr),
+	m_overrideCullingCamera(nullptr),
 	m_ueberExecutionPriority(0),
 	m_suspendeddelta(0.0),
 	m_blenderScene(scene),
@@ -1142,6 +1143,10 @@ bool KX_Scene::NewRemoveObject(class CValue* gameobj)
 		m_active_camera = nullptr;
 	}
 
+	if (newobj == m_overrideCullingCamera) {
+		m_overrideCullingCamera = nullptr;
+	}
+
 	// return value will be 0 if the object is actually deleted (all reference gone)
 	
 	return ret;
@@ -1308,10 +1313,19 @@ KX_Camera* KX_Scene::GetActiveCamera()
 	return m_active_camera;
 }
 
-
 void KX_Scene::SetActiveCamera(KX_Camera* cam)
 {
 	m_active_camera = cam;
+}
+
+KX_Camera *KX_Scene::GetOverrideCullingCamera() const
+{
+	return m_overrideCullingCamera;
+}
+
+void KX_Scene::SetOverrideCullingCamera(KX_Camera *cam)
+{
+	m_overrideCullingCamera = cam;
 }
 
 void KX_Scene::SetCameraOnTop(KX_Camera* cam)
@@ -2257,7 +2271,6 @@ PyObject *KX_Scene::pyattr_get_active_camera(PyObjectPlus *self_v, const KX_PYAT
 		Py_RETURN_NONE;
 }
 
-
 int KX_Scene::pyattr_set_active_camera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_Scene* self = static_cast<KX_Scene*>(self_v);
@@ -2267,6 +2280,26 @@ int KX_Scene::pyattr_set_active_camera(PyObjectPlus *self_v, const KX_PYATTRIBUT
 		return PY_SET_ATTR_FAIL;
 	
 	self->SetActiveCamera(camOb);
+	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_Scene::pyattr_get_overrideCullingCamera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_Scene *self = static_cast<KX_Scene*>(self_v);
+	KX_Camera *cam = self->GetOverrideCullingCamera();
+	return (cam) ? cam->GetProxy() : Py_None;
+}
+
+int KX_Scene::pyattr_set_overrideCullingCamera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_Scene *self = static_cast<KX_Scene*>(self_v);
+	KX_Camera *cam;
+
+	if (!ConvertPythonToCamera(self, value, &cam, true, "scene.active_camera = value: KX_Scene")) {
+		return PY_SET_ATTR_FAIL;
+	}
+
+	self->SetOverrideCullingCamera(cam);
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -2338,6 +2371,7 @@ PyAttributeDef KX_Scene::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("filterManager",		KX_Scene, pyattr_get_filter_manager),
 	KX_PYATTRIBUTE_RO_FUNCTION("world",				KX_Scene, pyattr_get_world),
 	KX_PYATTRIBUTE_RW_FUNCTION("active_camera",		KX_Scene, pyattr_get_active_camera, pyattr_set_active_camera),
+	KX_PYATTRIBUTE_RW_FUNCTION("overrideCullingCamera",KX_Scene, pyattr_get_overrideCullingCamera, pyattr_set_overrideCullingCamera),
 	KX_PYATTRIBUTE_RW_FUNCTION("pre_draw",			KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
 	KX_PYATTRIBUTE_RW_FUNCTION("post_draw",			KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
 	KX_PYATTRIBUTE_RW_FUNCTION("pre_draw_setup",	KX_Scene, pyattr_get_drawing_callback, pyattr_set_drawing_callback),
