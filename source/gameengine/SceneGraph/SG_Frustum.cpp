@@ -150,3 +150,115 @@ SG_Frustum::TestType SG_Frustum::AabbInsideFrustum(const MT_Vector3& min, const 
 
 	return result;
 }
+
+static int whichSide(const std::array<MT_Vector3, 8>& box, const MT_Vector4& plane)
+{
+	unsigned short positive = 0;
+	unsigned short negative = 0;
+
+	for (const MT_Vector3& point : box) {
+		const float t = plane.dot(point);
+		if (MT_fuzzyZero(t)) {
+			return 0;
+		}
+
+		negative += (t < 0.0f); // point outside
+		positive += (t > 0.0f); // point inside
+
+		if (positive > 0 && negative > 0) {
+			return 0;
+		}
+	}
+
+	return (positive > 0) ? 1 : -1;
+}
+
+static int whichSide(const std::array<MT_Vector3, 8>& box, const MT_Vector3& normal, const MT_Vector3& vert)
+{
+	unsigned short positive = 0;
+	unsigned short negative = 0;
+
+	for (const MT_Vector3& point : box) {
+		const float t = normal.dot(point - vert);
+		if (MT_fuzzyZero(t)) {
+			return 0;
+		}
+
+		negative += (t < 0.0f); // point outside
+		positive += (t > 0.0f); // point inside
+
+		if (positive > 0 && negative > 0) {
+			return 0;
+		}
+	}
+
+	return (positive > 0) ? 1 : -1;
+}
+
+SG_Frustum::TestType SG_Frustum::FrustumInsideFrustum(const SG_Frustum& frustum) const
+{
+	// Based on https://booksite.elsevier.com/9781558605930/revisionnotes/MethodOfSeperatingAxes.pdf
+
+	/* First test if the vertices of the second frustum box are not fully oustide the
+	 * planes of the first frustum.
+	 */
+	std::array<MT_Vector3, 8> fbox2;
+	MT_FrustumBox(frustum.m_matrix.inverse(), fbox2);
+
+	for (const MT_Vector4& plane : m_planes) {
+		if (whichSide(fbox2, plane) < 0) {
+			return OUTSIDE;
+		}
+	}
+
+	// Test with first frustum box and second frustum planes.
+	std::array<MT_Vector3, 8> fbox1;
+	MT_FrustumBox(m_matrix.inverse(), fbox1);
+
+	for (const MT_Vector4& plane : frustum.m_planes) {
+		if (whichSide(fbox1, plane) < 0) {
+			return OUTSIDE;
+		}
+	}
+
+	/* Test edge separation axis, they are produced by the cross product of
+	 * edge from the both frustums.
+	 */
+	std::array<MT_Vector3, 12> fedges1;
+	std::array<MT_Vector3, 12> fedges2;
+
+	MT_FrustumEdges(fbox1, fedges1);
+	MT_FrustumEdges(fbox2, fedges2);
+
+	for (unsigned short i = 0; i < 12; ++i) {
+		const MT_Vector3& edge1 = fedges1[i];
+		// Origin of the separation axis.
+		const MT_Vector3& vert = fbox1[MT_FrustumEdgeVertex(i)];
+		for (unsigned short j = 0; j < 12; ++j) {
+			const MT_Vector3& edge2 = fedges2[j];
+			// Normal of the separation axis.
+			const MT_Vector3 normal = edge2.cross(edge1);
+
+			int side1 = whichSide(fbox1, normal, vert);
+
+			// Interesect ?
+			if (side1 == 0) {
+				continue;
+			}
+
+			int side2 = whichSide(fbox2, normal, vert);
+
+			// Intersect ?
+			if (side2 == 0) {
+				continue;
+			}
+
+			// Frustum on opposite side of the separation axis.
+			if ((side1 * side2) < 0) {
+				return OUTSIDE;
+			}
+		}
+	}
+
+	return INSIDE;
+}
