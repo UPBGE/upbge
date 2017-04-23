@@ -37,6 +37,21 @@ static const MT_Vector3 normalizedBox[8] = {
 	MT_Vector3(1.0f, -1.0f, 1.0f)
 };
 
+static const unsigned short edgeIndices[12][2] = {
+	{0, 1},
+	{1, 2},
+	{2, 3},
+	{3, 0},
+	{4, 5},
+	{5, 6},
+	{6, 7},
+	{7, 0},
+	{0, 4},
+	{1, 5},
+	{2, 6},
+	{3, 7}
+};
+
 GEN_INLINE void MT_FrustumBox(const MT_Matrix4x4& mat, std::array<MT_Vector3, 8>& box)
 {
 	for (unsigned short i = 0; i < 8; ++i) {
@@ -64,4 +79,19 @@ GEN_INLINE void MT_FrustumAabb(const MT_Matrix4x4& mat, MT_Vector3& min, MT_Vect
 			}
 		}
 	}
+}
+
+GEN_INLINE void MT_FrustumEdges(std::array<MT_Vector3, 8>& box, std::array<MT_Vector3, 12>& edges)
+{
+	for (unsigned short i = 0; i < 12; ++i) {
+		const MT_Vector3& p1 = box[edgeIndices[i][0]];
+		const MT_Vector3& p2 = box[edgeIndices[i][1]];
+
+		edges[i] = (p2 - p1).normalized();
+	}
+}
+
+GEN_INLINE unsigned short MT_FrustumEdgeVertex(unsigned short edge)
+{
+	return edgeIndices[edge][0];
 }
