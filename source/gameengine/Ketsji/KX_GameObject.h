@@ -793,6 +793,8 @@ public:
 	/// Return true when the object can be culled.
 	bool UseCulling() const;
 
+	void SetActivityCulling(Object *blenderobject);
+
 	/**
 	 * Was this object marked visible? (only for the explicit
 	 * visibility system).

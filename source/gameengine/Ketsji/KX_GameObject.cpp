@@ -133,11 +133,6 @@ KX_GameObject::KX_GameObject(
 {
 	m_ignore_activity_culling = false;
 
-	m_activityCullingInfos.logicCullingActive = GetBlenderObject()->logicCullingRadius != 0.0f ? true : false;
-	m_activityCullingInfos.physicsCullingActive = GetBlenderObject()->physicsCullingRadius != 0.0f ? true : false;
-	m_activityCullingInfos.physicsRadius = GetBlenderObject()->physicsCullingRadius;
-	m_activityCullingInfos.logicRadius = GetBlenderObject()->logicCullingRadius;
-
 	m_pClient_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
 	m_pSGNode = new SG_Node(this,sgReplicationInfo,callbacks);
 
@@ -220,6 +215,22 @@ KX_GameObject::~KX_GameObject()
 	}
 	if (m_lodManager) {
 		m_lodManager->Release();
+	}
+}
+
+void KX_GameObject::SetActivityCulling(Object *blenderobject)
+{
+	if (blenderobject && blenderobject->type == OB_MESH) {
+		m_activityCullingInfos.logicCullingActive = blenderobject->logicCullingRadius != 0.0f ? true : false;
+		m_activityCullingInfos.physicsCullingActive = blenderobject->physicsCullingRadius != 0.0f ? true : false;
+		m_activityCullingInfos.physicsRadius = blenderobject->physicsCullingRadius;
+		m_activityCullingInfos.logicRadius = blenderobject->logicCullingRadius;
+	}
+	else {
+		m_activityCullingInfos.logicCullingActive = false;
+		m_activityCullingInfos.physicsCullingActive = false;
+		m_activityCullingInfos.physicsRadius = 0.0f;
+		m_activityCullingInfos.logicRadius = 0.0f;
 	}
 }
 
