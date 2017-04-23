@@ -230,7 +230,7 @@ void SCA_KeyboardSensor::LogKeystrokes()
 			}
 		}
 		else if (item == '\r') {
-			// Do nothing
+			proptext.push_back('\n');
 		}
 		else {
 			proptext.push_back(item);
