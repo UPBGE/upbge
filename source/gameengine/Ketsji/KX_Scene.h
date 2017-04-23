@@ -207,6 +207,8 @@ protected:
 	 * The active camera for the scene
 	 */
 	KX_Camera* m_active_camera;
+	/// The active camera for scene culling.
+	KX_Camera *m_overrideCullingCamera;
 
 	/**
 	 * Another temporary variable outstaying its welcome
@@ -411,6 +413,9 @@ public:
 		class KX_Camera*
 	);
 
+	KX_Camera *GetOverrideCullingCamera() const;
+	void SetOverrideCullingCamera(KX_Camera *cam);
+
 	/**
 	 * Move this camera to the end of the list so that it is rendered last.
 	 * If the camera is not on the list, it will be added
@@ -577,6 +582,8 @@ public:
 	static PyObject*	pyattr_get_world(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_active_camera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_active_camera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_overrideCullingCamera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_overrideCullingCamera(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_drawing_callback(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_drawing_callback(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_gravity(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

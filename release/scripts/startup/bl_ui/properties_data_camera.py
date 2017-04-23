@@ -151,6 +151,23 @@ class DATA_PT_levels_of_detail(CameraButtonsPanel, Panel):
         col.prop(cam, "lod_factor", text="Distance Factor")
 
 
+class DATA_PT_frustum_culling(CameraButtonsPanel, Panel):
+    bl_label = "Frustum Culling"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.camera and context.scene.render.engine in cls.COMPAT_ENGINES
+
+    def draw(self, context):
+        layout = self.layout
+        cam = context.camera
+
+        row = layout.row()
+        row.prop(cam, "show_frustum")
+        row.prop(cam, "override_culling")
+
+
 class DATA_PT_camera_stereoscopy(CameraButtonsPanel, Panel):
     bl_label = "Stereoscopy"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
@@ -274,8 +291,6 @@ class DATA_PT_camera_display(CameraButtonsPanel, Panel):
 
         col = split.column()
         col.prop(cam, "show_limits", text="Limits")
-        if context.scene.render.engine == 'BLENDER_GAME':
-            col.prop(cam, "show_frustum", text="Frustum")
         col.prop(cam, "show_mist", text="Mist")
 
         col.prop(cam, "show_sensor", text="Sensor")
@@ -350,6 +365,7 @@ classes = (
     DATA_PT_lens,
     DATA_PT_camera,
     DATA_PT_levels_of_detail,
+    DATA_PT_frustum_culling,
     DATA_PT_camera_stereoscopy,
     DATA_PT_camera_dof,
     DATA_PT_camera_display,

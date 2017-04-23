@@ -89,6 +89,12 @@ base class --- :class:`PyObjectPlus`
          
          This can be set directly from python to avoid using the :class:`KX_SceneActuator`.
 
+   .. attribute:: overrideCullingCamera
+
+      The override camera used for scene culling, if set to None the culling is proceeded with the camera used to render.
+
+      :type: :class:`KX_Camera` or None
+
    .. attribute:: world
 
       The current active world, (read-only).

@@ -977,8 +977,18 @@ static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, KX_Blen
 	gamecamera= new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);
 	gamecamera->SetName(ca->id.name + 2);
 
-	gamecamera->SetShowCameraFrustum(ca->flag & CAM_SHOW_FRUSTUM);
+	gamecamera->SetShowCameraFrustum(ca->gameflag & GAME_CAM_SHOW_FRUSTUM);
 	gamecamera->SetLodDistanceFactor(ca->lodfactor);
+
+	if (ca->gameflag & GAME_CAM_OVERRIDE_CULLING) {
+		if (kxscene->GetOverrideCullingCamera()) {
+			CM_Warning("\"" << gamecamera->GetName() << "\" sets for culling override whereas \""
+				<< kxscene->GetOverrideCullingCamera()->GetName() << "\" is already used for culling override.");
+		}
+		else {
+			kxscene->SetOverrideCullingCamera(gamecamera);
+		}
+	}
 
 	return gamecamera;
 }
