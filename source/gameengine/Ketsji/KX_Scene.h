@@ -488,7 +488,7 @@ public:
 
 	void SetWorldInfo(class KX_WorldInfo* wi);
 	KX_WorldInfo* GetWorldInfo();
-	void CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam, int layer=0);
+	void CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam, int layer = 0, bool mainCameraRendering = false);
 	void DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nodes);
 
 	/**
