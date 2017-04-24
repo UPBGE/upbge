@@ -1377,7 +1377,7 @@ void KX_Scene::CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam,
 			 * if the controller is suspended or not so no need to add another check here.
 			 */
 			if ((gameobj->NodeGetWorldPosition() - cam->NodeGetWorldPosition()).length() > cullingInfos.physicsRadius) {
-				gameobj->SuspendPhysics();
+				gameobj->SuspendPhysics(false);
 			}
 			else {
 				gameobj->RestorePhysics();

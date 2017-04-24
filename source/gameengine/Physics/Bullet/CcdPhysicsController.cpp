@@ -1015,9 +1015,9 @@ void CcdPhysicsController::RefreshCollisions()
 	GetPhysicsEnvironment()->UpdateCcdPhysicsController(this, GetMass(), m_object->getCollisionFlags(), handle->m_collisionFilterGroup, handle->m_collisionFilterMask);
 }
 
-void CcdPhysicsController::SuspendPhysics()
+void CcdPhysicsController::SuspendPhysics(bool removeConstraints)
 {
-	GetPhysicsEnvironment()->RemoveCcdPhysicsController(this);
+	GetPhysicsEnvironment()->RemoveCcdPhysicsController(this, removeConstraints);
 }
 
 void CcdPhysicsController::RestorePhysics()

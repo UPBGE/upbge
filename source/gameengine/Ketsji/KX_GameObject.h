@@ -890,7 +890,7 @@ public:
 
 	ActivityCullingInfos GetActivityCullingInfos();
 
-	void SuspendPhysics();
+	void SuspendPhysics(bool removeConstraints);
 	void SuspendLogic();
 	void RestorePhysics();
 	void RestoreLogic();

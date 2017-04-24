@@ -230,7 +230,7 @@ public:
 
 	void AddCcdPhysicsController(CcdPhysicsController *ctrl);
 
-	bool RemoveCcdPhysicsController(CcdPhysicsController *ctrl);
+	bool RemoveCcdPhysicsController(CcdPhysicsController *ctrl, bool removeConstraints = true);
 
 	void UpdateCcdPhysicsController(CcdPhysicsController *ctrl, btScalar newMass, int newCollisionFlags, short int newCollisionGroup, short int newCollisionMask);
 

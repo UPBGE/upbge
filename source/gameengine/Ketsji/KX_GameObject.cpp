@@ -1503,10 +1503,10 @@ void KX_GameObject::SetActivityCulling(Object *blenderobject)
 	}
 }
 
-void KX_GameObject::SuspendPhysics()
+void KX_GameObject::SuspendPhysics(bool removeConstraints)
 {
 	if (GetPhysicsController()) {
-		GetPhysicsController()->SuspendPhysics();
+		GetPhysicsController()->SuspendPhysics(removeConstraints);
 	}
 }
 
@@ -3620,7 +3620,7 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
 
 PyObject *KX_GameObject::PySuspendPhysics()
 {
-	SuspendPhysics();
+	SuspendPhysics(false);
 	
 	Py_RETURN_NONE;
 }
