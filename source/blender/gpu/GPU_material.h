@@ -106,6 +106,7 @@ typedef enum GPUBuiltin {
 	GPU_INSTANCING_COLOR_ATTRIB    = (1 << 20),
 	GPU_INSTANCING_MATRIX_ATTRIB   = (1 << 21),
 	GPU_INSTANCING_POSITION_ATTRIB = (1 << 22),
+	GPU_TIME = (1 << 23),
 } GPUBuiltin;
 
 typedef enum GPUOpenGLBuiltin {
@@ -150,6 +151,7 @@ typedef struct GPUNodeStack {
 #define GPU_DYNAMIC_GROUP_MAT      0x00070000
 #define GPU_DYNAMIC_GROUP_TEX      0x00080000
 #define GPU_DYNAMIC_GROUP_TEX_UV   0x00090000
+#define GPU_DYNAMIC_GROUP_TIME     0x00100000
 
 typedef enum GPUDynamicType {
 
@@ -225,7 +227,9 @@ typedef enum GPUDynamicType {
 
 	GPU_DYNAMIC_TEX_UVOFFSET         = 1  | GPU_DYNAMIC_GROUP_TEX_UV,
 	GPU_DYNAMIC_TEX_UVSIZE           = 2  | GPU_DYNAMIC_GROUP_TEX_UV,
-	GPU_DYNAMIC_TEX_UVROTATION       = 3  | GPU_DYNAMIC_GROUP_TEX_UV
+	GPU_DYNAMIC_TEX_UVROTATION       = 3  | GPU_DYNAMIC_GROUP_TEX_UV,
+
+	GPU_DYNAMIC_TIME                 = 1  | GPU_DYNAMIC_GROUP_TIME
 } GPUDynamicType;
 
 GPUNodeLink *GPU_attribute(CustomDataType type, const char *name);

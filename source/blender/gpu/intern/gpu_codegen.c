@@ -426,6 +426,8 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "ininstmatrix";
 	else if (builtin == GPU_INSTANCING_POSITION_ATTRIB)
 		return "ininstposition";
+	else if (builtin == GPU_TIME)
+		return "unftime";
 	else
 		return "";
 }

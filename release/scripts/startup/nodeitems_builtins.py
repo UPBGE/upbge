@@ -149,6 +149,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeMaterial"),
         NodeItem("ShaderNodeCameraData"),
         NodeItem("ShaderNodeObjectData"),
+        NodeItem("ShaderNodeTime"),
         NodeItem("ShaderNodeFresnel"),
         NodeItem("ShaderNodeLayerWeight"),
         NodeItem("ShaderNodeLampData"),

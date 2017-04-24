@@ -270,9 +270,9 @@ void camera(vec3 co, out vec3 outview, out float outdepth, out float outdist)
 	outview = normalize(co);
 }
 
-void object(vec4 color, out vec4 outcolor)
+void node_time(float time, out float outtime)
 {
-	outcolor = color;
+	outtime = time;
 }
 
 void lamp(

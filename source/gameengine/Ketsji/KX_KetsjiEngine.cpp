@@ -254,7 +254,7 @@ void KX_KetsjiEngine::StartEngine()
 
 void KX_KetsjiEngine::BeginFrame()
 {
-	m_rasterizer->BeginFrame(m_kxsystem->GetTimeInSeconds());
+	m_rasterizer->BeginFrame(m_frameTime);
 
 	m_canvas->BeginDraw();
 }

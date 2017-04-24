@@ -118,6 +118,7 @@ struct GPUMaterial {
 	int localtoviewmatloc, invlocaltoviewmatloc;
 	int obcolloc, obautobumpscaleloc;
 	int cameratexcofacloc;
+	int timeloc;
 
 	int partscalarpropsloc;
 	int partcoloc;
@@ -271,6 +272,8 @@ static int GPU_material_construct_end(GPUMaterial *material, const char *passnam
 			material->obautobumpscaleloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_AUTO_BUMPSCALE));
 		if (material->builtins & GPU_CAMERA_TEXCO_FACTORS)
 			material->cameratexcofacloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_CAMERA_TEXCO_FACTORS));
+		if (material->builtins & GPU_TIME)
+			material->timeloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_TIME));
 		if (material->builtins & GPU_PARTICLE_SCALAR_PROPS)
 			material->partscalarpropsloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_PARTICLE_SCALAR_PROPS));
 		if (material->builtins & GPU_PARTICLE_LOCATION)
@@ -472,6 +475,10 @@ void GPU_material_bind(
 				float borders[4] = {1.0f, 1.0f, 0.0f, 0.0f};
 				GPU_shader_uniform_vector(shader, material->cameratexcofacloc, 4, 1, (float *)borders);
 			}
+		}
+		if (material->builtins & GPU_TIME) {
+			float ftime = (float)time;
+			GPU_shader_uniform_vector(shader, material->timeloc, 1, 1, &ftime);
 		}
 
 		GPU_pass_update_uniforms(material->pass);
@@ -2897,6 +2904,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 		{ GPU_INVERSE_LOC_TO_VIEW_MATRIX, GPU_DYNAMIC_OBJECT_LOCTOVIEWIMAT, GPU_DATA_16F },
 		{ GPU_OBCOLOR, GPU_DYNAMIC_OBJECT_COLOR, GPU_DATA_4F },
 		{ GPU_AUTO_BUMPSCALE, GPU_DYNAMIC_OBJECT_AUTOBUMPSCALE, GPU_DATA_1F },
+		{ GPU_TIME, GPU_DYNAMIC_TIME, GPU_DATA_1F },
 		{ 0 }
 	};
 
