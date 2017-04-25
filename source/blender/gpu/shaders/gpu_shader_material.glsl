@@ -427,6 +427,12 @@ void vec_math_add(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
 	outval = (abs(outvec[0]) + abs(outvec[1]) + abs(outvec[2])) / 3.0;
 }
 
+void vec_math_mul(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
+{
+	outvec = v1 * v2;
+	outval = (abs(outvec[0]) + abs(outvec[1]) + abs(outvec[2])) / 3.0;
+}
+
 void vec_math_sub(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
 {
 	outvec = v1 - v2;
@@ -453,6 +459,13 @@ void vec_math_dot(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
 void vec_math_cross(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
 {
 	outvec = cross(v1, v2);
+	outval = length(outvec);
+	outvec /= outval;
+}
+
+void vec_math_reflect(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
+{
+	outvec = reflect(v1, v2);
 	outval = length(outvec);
 	outvec /= outval;
 }
@@ -978,9 +991,9 @@ void texture_wood_sin(vec3 vec, out float value, out vec4 color, out vec3 normal
 	normal = vec3(0.0, 0.0, 0.0);
 }
 
-void texture_image(vec3 vec, sampler2D ima, out float value, out vec4 color, out vec3 normal)
+void texture_image(vec3 vec, float lodbias, sampler2D ima, out float value, out vec4 color, out vec3 normal)
 {
-	color = texture2D(ima, (vec.xy + vec2(1.0, 1.0)) * 0.5);
+	color = texture2D(ima, (vec.xy + vec2(1.0, 1.0)) * 0.5, lodbias);
 	value = color.a;
 
 	normal.x = 2.0 * (color.r - 0.5);
@@ -1403,9 +1416,9 @@ void mtex_cube_map(vec3 co, samplerCube ima, float lodbias, out float value, out
 }
 
 void mtex_cube_map_refl_from_refldir(
-        samplerCube ima, vec3 reflecteddirection, out float value, out vec4 color)
+        samplerCube ima, vec3 reflecteddirection, float lodbias, out float value, out vec4 color)
 {
-        color = textureCube(ima, reflecteddirection);
+        color = textureCube(ima, reflecteddirection, lodbias);
         value = color.a;
 }
 
