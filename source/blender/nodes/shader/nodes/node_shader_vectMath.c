@@ -101,9 +101,9 @@ static void node_shader_exec_vect_math(void *UNUSED(data), int UNUSED(thread), b
 
 static int gpu_shader_vect_math(GPUMaterial *mat, bNode *node, bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
 {
-	static const char *names[] = {"vec_math_add", "vec_math_sub",
+	static const char *names[] = {"vec_math_add", "vec_math_mul", "vec_math_sub",
 		"vec_math_average", "vec_math_dot", "vec_math_cross",
-		"vec_math_normalize"};
+		"vec_math_reflect", "vec_math_normalize"};
 
 	switch (node->custom1) {
 		case 0:
@@ -111,9 +111,11 @@ static int gpu_shader_vect_math(GPUMaterial *mat, bNode *node, bNodeExecData *UN
 		case 2:
 		case 3:
 		case 4:
+		case 5:
+		case 6:
 			GPU_stack_link(mat, names[node->custom1], in, out);
 			break;
-		case 5:
+		case 7:
 			if (in[0].hasinput || !in[1].hasinput) {
 				/* use only first item and terminator */
 				GPUNodeStack tmp_in[2];

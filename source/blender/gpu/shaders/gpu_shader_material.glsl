@@ -427,6 +427,12 @@ void vec_math_add(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
 	outval = (abs(outvec[0]) + abs(outvec[1]) + abs(outvec[2])) / 3.0;
 }
 
+void vec_math_mul(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
+{
+	outvec = v1 * v2;
+	outval = (abs(outvec[0]) + abs(outvec[1]) + abs(outvec[2])) / 3.0;
+}
+
 void vec_math_sub(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
 {
 	outvec = v1 - v2;
@@ -453,6 +459,13 @@ void vec_math_dot(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
 void vec_math_cross(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
 {
 	outvec = cross(v1, v2);
+	outval = length(outvec);
+	outvec /= outval;
+}
+
+void vec_math_reflect(vec3 v1, vec3 v2, out vec3 outvec, out float outval)
+{
+	outvec = reflect(v1, v2);
 	outval = length(outvec);
 	outvec /= outval;
 }
