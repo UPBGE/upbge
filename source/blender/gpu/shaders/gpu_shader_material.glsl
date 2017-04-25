@@ -978,9 +978,9 @@ void texture_wood_sin(vec3 vec, out float value, out vec4 color, out vec3 normal
 	normal = vec3(0.0, 0.0, 0.0);
 }
 
-void texture_image(vec3 vec, sampler2D ima, out float value, out vec4 color, out vec3 normal)
+void texture_image(vec3 vec, float lodbias, sampler2D ima, out float value, out vec4 color, out vec3 normal)
 {
-	color = texture2D(ima, (vec.xy + vec2(1.0, 1.0)) * 0.5);
+	color = texture2D(ima, (vec.xy + vec2(1.0, 1.0)) * 0.5, lodbias);
 	value = color.a;
 
 	normal.x = 2.0 * (color.r - 0.5);
@@ -1403,9 +1403,9 @@ void mtex_cube_map(vec3 co, samplerCube ima, float lodbias, out float value, out
 }
 
 void mtex_cube_map_refl_from_refldir(
-        samplerCube ima, vec3 reflecteddirection, out float value, out vec4 color)
+        samplerCube ima, float lodbias, vec3 reflecteddirection, out float value, out vec4 color)
 {
-        color = textureCube(ima, reflecteddirection);
+        color = textureCube(ima, reflecteddirection, lodbias);
         value = color.a;
 }
 
