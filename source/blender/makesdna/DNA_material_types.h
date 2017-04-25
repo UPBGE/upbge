@@ -226,6 +226,7 @@ typedef struct Material {
 // Game Options - flag
 #define GEMAT_BACKCULL 		16 /* KX_BACKCULL */
 #define GEMAT_SHADED		32 /* KX_LIGHT */
+#define GEMAT_TEXT			64 /* RAS_RENDER_3DPOLYGON_TEXT */
 #define GEMAT_NOPHYSICS		128
 #define GEMAT_INVISIBLE 	256
 

@@ -31,6 +31,8 @@
 
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_IPolygonMaterial.h"
+#include "RAS_IDisplayArray.h"
+#include "KX_GameObject.h"
 
 #include "glew-mx.h"
 
@@ -540,6 +542,62 @@ void RAS_OpenGLRasterizer::RenderText3D(
 	BLF_disable(fontid, BLF_MATRIX | BLF_ASPECT);
 
 	m_rasterizer->SetAlphaBlend(GPU_BLEND_SOLID);
+}
+
+void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat, KX_ClientObjectInfo *clientobject, RAS_Rasterizer::StorageAttribs *attribs)
+{
+	bool obcolor = polymat->UsesObjectColor();
+	const MT_Vector4& rgba = ms->m_meshUser->GetColor();
+
+	const std::string& mytext = KX_GameObject::GetClientObject((KX_ClientObjectInfo *)clientobject)->GetPropertyText("Text");
+
+	// handle object color
+	if (obcolor) {
+		glDisableClientState(GL_COLOR_ARRAY);
+		glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
+	}
+	else
+		glEnableClientState(GL_COLOR_ARRAY);
+
+	RAS_ITexVert *vertex;
+	size_t i, j, numvert;
+
+	RAS_IDisplayArray *array = ms->GetDisplayArray();
+	numvert = 3;
+
+	// triangle and quad text drawing
+	for (i = 0; i < array->GetIndexCount(); i += numvert) {
+		float v[4][3];
+		const float  *v_ptr[4] = { NULL };
+		const float *uv_ptr[4] = { NULL };
+		int glattrib, unit;
+
+		for (j = 0; j < numvert; j++) {
+			vertex = array->GetVertex(array->GetIndex(i + j));
+
+			v[j][0] = vertex->getXYZ()[0];
+			v[j][1] = vertex->getXYZ()[1];
+			v[j][2] = vertex->getXYZ()[2];
+			v_ptr[j] = v[j];
+
+			uv_ptr[j] = vertex->getUV(0);
+		}
+		// find the right opengl attribute
+		glattrib = -1;
+		if (GLEW_ARB_vertex_program)
+			for (unit = 0; unit < attribs->attribs.size(); unit++)
+				if (attribs->attribs[unit] == RAS_Rasterizer::RAS_TEXCO_UV)
+					glattrib = unit;
+
+		unsigned int rgba[4];
+		for (unsigned short j = 0; j < 4; ++j) {
+			polymat->GetRGBAColor((unsigned char *)&rgba[j]);
+		}
+		GPU_render_text(
+			polymat->GetMTexPoly(), polymat->GetDrawingMode(), mytext.c_str(), mytext.size(), rgba,
+			v_ptr, uv_ptr, glattrib);
+	}
+	glDisableClientState(GL_COLOR_ARRAY);
 }
 
 void RAS_OpenGLRasterizer::PushMatrix()

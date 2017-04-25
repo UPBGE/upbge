@@ -127,6 +127,8 @@ public:
 	void RenderText3D(int fontid, const std::string& text, int size, int dpi,
 	                  const float color[4], const float mat[16], float aspect);
 
+	void IndexPrimitives_3DText(RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat, KX_ClientObjectInfo *clientobject, RAS_Rasterizer::StorageAttribs *attribs);
+
 	void PushMatrix();
 	void PopMatrix();
 	void MultMatrix(const float mat[16]);

@@ -101,6 +101,14 @@ int GPU_scene_object_lights(
         struct Scene *scene, struct Object *ob,
         int lay, float viewmat[4][4], int ortho);
 
+/* Text render
+ * based on moving uv coordinates */
+void GPU_render_text(
+	struct MTexPoly *mtexpoly, int mode,
+	const char *textstr, int textlen, unsigned int *col,
+	const float *v_quad[4], const float *uv_quad[4],
+	int glattrib);
+
 /* Mipmap settings
  * - these will free textures on changes */
 

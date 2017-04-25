@@ -211,7 +211,11 @@ void RAS_MeshSlot::RunNode(const RAS_RenderNodeArguments& args)
 		rasty->MultMatrix(mat);
 	}
 
-	if (istext) {
+	if (material->GetDrawingMode() & RAS_Rasterizer::RAS_RENDER_3DPOLYGON_TEXT) {
+		rasty->IndexPrimitives_3DText(this, material);
+	}
+
+	else if (istext) {
 		rasty->IndexPrimitivesText(this);
 	}
 	else {
