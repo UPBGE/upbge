@@ -1159,7 +1159,7 @@ FileData *blo_openblenderfile(const char *filepath, ReportList *reports)
 	else {
 		int filesize = 0;
 		const char *decrypteddata = SPINDLE_DecryptFromFile(filepath, &filesize, NULL, typeencryption);
-		return blo_openblendermemory(decrypteddata, filesize, reports, filepath);
+		return blo_openblendermemory(decrypteddata, filesize, reports);
 	}
 #endif
 }
@@ -1231,7 +1231,7 @@ static int fd_read_gzip_from_memory_init(FileData *fd)
 	return 1;
 }
 
-FileData *blo_openblendermemory(const void *mem, int memsize, ReportList *reports, const char *localpath)
+FileData *blo_openblendermemory(const void *mem, int memsize, ReportList *reports)
 {
 	if (!mem || memsize<SIZEOFBLENDERHEADER) {
 		BKE_report(reports, RPT_WARNING, (mem) ? TIP_("Unable to read"): TIP_("Unable to open"));
@@ -1256,9 +1256,9 @@ FileData *blo_openblendermemory(const void *mem, int memsize, ReportList *report
 			
 		fd->flags |= FD_FLAGS_NOT_MY_BUFFER;
 
-		if (BLI_path_cmp(localpath, "")) {
-			BLI_strncpy(fd->relabase, localpath, sizeof(fd->relabase));
-		}
+#ifdef WITH_GAMEENGINE_BPPLAYER
+			BLI_strncpy(fd->relabase, SPINDLE_GetFilePath(), sizeof(fd->relabase));
+#endif
 
 		return blo_decode_and_check(fd, reports);
 	}
@@ -10499,7 +10499,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 						        basefd->reports, RPT_INFO, TIP_("Read packed library:  '%s', parent '%s'"),
 						        mainptr->curlib->name,
 						        library_parent_filepath(mainptr->curlib));
-						fd = blo_openblendermemory(pf->data, pf->size, basefd->reports, "");
+						fd = blo_openblendermemory(pf->data, pf->size, basefd->reports);
 						
 						
 						/* needed for library_append and read_libraries */

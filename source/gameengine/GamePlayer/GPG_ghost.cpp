@@ -591,25 +591,26 @@ static bool quitGame(KX_ExitRequest exitcode)
 
 #ifdef WITH_GAMEENGINE_BPPLAYER
 
-static BlendFileData *load_encrypted_game_data(const char *filename, std::string localPath, std::string encryptKey)
+static BlendFileData *load_encrypted_game_data(const char *filename, std::string encryptKey)
 {
 	ReportList reports;
 	BlendFileData *bfd = NULL;
 	char *fileData = NULL;
 	int fileSize;
+	const char *localPath = SPINDLE_GetFilePath();
 	BKE_reports_init(&reports, RPT_STORE);
 
 	if (filename == NULL) {
 		return NULL;
 	}
 
-	if (!localPath.empty() && !encryptKey.empty()) {
+	if ((localPath == NULL) && !encryptKey.empty()) {
 		// Load file and decrypt.
 		fileData = SPINDLE_DecryptFromFile(filename, &fileSize, encryptKey.c_str(), 0);
 	}
 
 	if (fileData) {
-		bfd = BLO_read_from_memory(fileData, fileSize, localPath.c_str(), &reports, BLO_READ_SKIP_USERDEF);
+		bfd = BLO_read_from_memory(fileData, fileSize, &reports, BLO_READ_SKIP_USERDEF);
 		delete[] fileData;
 	}
 
@@ -645,7 +646,6 @@ int main(
 
 #ifdef WITH_GAMEENGINE_BPPLAYER
 	bool useLocalPath = false;
-	std::string localFilePath;
 	std::string hexKey;
 #endif  // WITH_GAMEENGINE_BPPLAYER
 	RAS_Rasterizer::StereoMode stereomode = RAS_Rasterizer::RAS_STEREO_NOSTEREO;
@@ -892,7 +892,7 @@ int main(
 			{
 				// Find the requested base file directory.
 				if (!useLocalPath) {
-					localFilePath = &argv[i][2];
+					SPINDLE_SetFilePath(&argv[i][2]);
 					useLocalPath = true;
 				}
 				i++;
@@ -1159,7 +1159,7 @@ int main(
 					{
 #ifdef WITH_GAMEENGINE_BPPLAYER
 						if (useLocalPath) {
-							bfd = load_encrypted_game_data(filename[0] ? filename : NULL, localFilePath, hexKey);
+							bfd = load_encrypted_game_data(filename[0] ? filename : NULL, hexKey);
 
 							// The file is valid and it's the original file name.
 							if (bfd) {

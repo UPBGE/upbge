@@ -389,7 +389,7 @@ bool BKE_blendfile_read_from_memory(
 {
 	BlendFileData *bfd;
 
-	bfd = BLO_read_from_memory(filebuf, filelength, "", reports, skip_flags);
+	bfd = BLO_read_from_memory(filebuf, filelength, reports, skip_flags);
 	if (bfd) {
 		if (update_defaults)
 			BLO_update_defaults_startup_blend(bfd->main);
@@ -478,7 +478,7 @@ UserDef *BKE_blendfile_userdef_read_from_memory(
 	BlendFileData *bfd;
 	UserDef *userdef = NULL;
 
-	bfd = BLO_read_from_memory(filebuf, filelength, "", reports, BLO_READ_SKIP_ALL & ~BLO_READ_SKIP_USERDEF);
+	bfd = BLO_read_from_memory(filebuf, filelength, reports, BLO_READ_SKIP_ALL & ~BLO_READ_SKIP_USERDEF);
 	if (bfd) {
 		if (bfd->user) {
 			userdef = bfd->user;

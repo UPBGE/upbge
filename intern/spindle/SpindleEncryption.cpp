@@ -35,6 +35,7 @@
 
 char *staticKey = NULL;
 char *dynamicKey = NULL;
+std::string filePath;
 const unsigned int currentSupportedVersion = 0;
 
 // Static functions declaration
@@ -200,6 +201,15 @@ int SPINDLE_CheckEncryptionFromFile(const char *filepath)
 	return keyType;
 }
 
+void SPINDLE_SetFilePath(std::string path)
+{
+	filePath = path;
+}
+
+const char *SPINDLE_GetFilePath()
+{
+	return filePath.c_str();
+}
 
 static void spindle_encrypt(char *data, int dataSize, const unsigned long long key)
 {

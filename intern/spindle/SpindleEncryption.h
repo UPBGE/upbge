@@ -40,11 +40,14 @@
 #ifdef __cplusplus
 #include <string>
 std::string SPINDLE_FindAndSetEncryptionKeys(char **argv, int i);
+void SPINDLE_SetFilePath(std::string path);
 
 extern "C" {
 #endif
 char *SPINDLE_DecryptFromFile(const char *filename, int *fileSize, const char *encryptKey, int typeEncryption);
 int SPINDLE_CheckEncryptionFromFile(const char *filepath);
+const char *SPINDLE_GetFilePath();
+
 #ifdef __cplusplus
 }
 #endif

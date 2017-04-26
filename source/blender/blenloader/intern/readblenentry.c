@@ -67,6 +67,10 @@
 #  include "BLI_winstuff.h"
 #endif
 
+#ifdef WITH_GAMEENGINE_BPPLAYER
+#  include "SpindleEncryption.h"
+#endif
+
 /* local prototypes --------------------- */
 void BLO_blendhandle_print_sizes(BlendHandle *, void *); 
 
@@ -99,7 +103,7 @@ BlendHandle *BLO_blendhandle_from_memory(const void *mem, int memsize)
 {
 	BlendHandle *bh;
 
-	bh = (BlendHandle *)blo_openblendermemory(mem, memsize, NULL, "");
+	bh = (BlendHandle *)blo_openblendermemory(mem, memsize, NULL);
 
 	return bh;
 }
@@ -346,17 +350,24 @@ BlendFileData *BLO_read_from_file(
  * \return The data of the file.
  */
 BlendFileData *BLO_read_from_memory(
-        const void *mem, int memsize, const char *localpath,
+        const void *mem, int memsize,
         ReportList *reports, eBLOReadSkip skip_flags)
 {
 	BlendFileData *bfd = NULL;
 	FileData *fd;
 		
-	fd = blo_openblendermemory(mem, memsize, reports, localpath);
+	fd = blo_openblendermemory(mem, memsize, reports);
 	if (fd) {
+#ifdef WITH_GAMEENGINE_BPPLAYER
+		BLI_strncpy(fd->relabase, SPINDLE_GetFilePath(), sizeof(fd->relabase));
+#endif
 		fd->reports = reports;
 		fd->skip_flags = skip_flags;
-		bfd = blo_read_file_internal(fd, localpath);
+#ifdef WITH_GAMEENGINE_BPPLAYER
+		bfd = blo_read_file_internal(fd, SPINDLE_GetFilePath());
+#else
+		bfd = blo_read_file_internal(fd, "");
+#endif
 		blo_freefiledata(fd);
 	}
 
