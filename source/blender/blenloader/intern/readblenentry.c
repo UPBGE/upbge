@@ -345,7 +345,6 @@ BlendFileData *BLO_read_from_file(
  *
  * \param mem The file data.
  * \param memsize The length of \a mem.
- * \param localPath Set the working directory to this file path.
  * \param reports If the return value is NULL, errors indicating the cause of the failure.
  * \return The data of the file.
  */
