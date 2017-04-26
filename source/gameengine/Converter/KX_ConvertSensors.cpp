@@ -640,7 +640,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 								logicmgr->RegisterToSensor(gamecont,gamesensor);
 							}
 							else {
-								CM_Warning("Warning, sensor \"" << sens->name << "\" could not find its controller (link "
+								CM_Warning("sensor \"" << sens->name << "\" could not find its controller (link "
 									<< (i + 1) << " of " << sens->totlinks << ") from object \"" << blenderobject->id.name+2
 									<< "\". There has been an error converting the blender controller for the game engine, "
 									<< "logic may be incorrect");
@@ -648,7 +648,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 						}
 					}
 					else {
-						CM_Warning("Warning, sensor \"" << sens->name << "\" has lost a link to a controller (link "
+						CM_Warning("sensor \"" << sens->name << "\" has lost a link to a controller (link "
 							<< (i + 1) << " of " << sens->totlinks << ") from object \"" << blenderobject->id.name+2
 							<< "\". Possible causes are partially appended objects or an error reading the file, "
 							<< "logic may be incorrect");

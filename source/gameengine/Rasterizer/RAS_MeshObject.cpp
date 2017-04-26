@@ -44,6 +44,8 @@
 
 #include "MT_Vector3.h"
 
+#include "CM_Message.h"
+
 #include <algorithm>
 
 // polygon sorting
@@ -401,6 +403,16 @@ void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 		if (array) {
 			array->UpdateCache();
 			arrayList.push_back(array);
+
+			const std::string materialname = meshmat->m_bucket->GetPolyMaterial()->GetName();
+			if (array->GetVertexCount() == 0) {
+				CM_Warning("mesh \"" << m_name << "\" has no vertices for material \"" << materialname
+					<< "\". It introduces performance decrease for empty render.");
+			}
+			else if (array->GetIndexCount() == 0) {
+				CM_Warning("mesh \"" << m_name << "\" has no polygons for material \"" << materialname
+					<< "\". It introduces performance decrease for empty render.");
+			}
 		}
 	}
 
