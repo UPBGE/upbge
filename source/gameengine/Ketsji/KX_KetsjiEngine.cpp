@@ -141,7 +141,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 #endif
 	m_inputDevice(nullptr),
 	m_bInitialized(false),
-	m_flags(FLAG_NONE),
+	m_flags(AUTO_ADD_DEBUG_PROPERTIES),
 	m_frameTime(0.0f),
 	m_clockTime(0.0f),
 	m_previousClockTime(0.0f),
