@@ -1416,7 +1416,7 @@ void mtex_cube_map(vec3 co, samplerCube ima, float lodbias, out float value, out
 }
 
 void mtex_cube_map_refl_from_refldir(
-        samplerCube ima, float lodbias, vec3 reflecteddirection, out float value, out vec4 color)
+        samplerCube ima, vec3 reflecteddirection, float lodbias, out float value, out vec4 color)
 {
         color = textureCube(ima, reflecteddirection, lodbias);
         value = color.a;

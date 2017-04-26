@@ -133,8 +133,7 @@ static int gpu_shader_texture(GPUMaterial *mat, bNode *node, bNodeExecData *UNUS
 			if (!in[0].link)
 				in[0].link = GPU_uniform(in[0].vec);
 			if (!in[1].link) {
-				float zero = 0.0f;
-				in[1].link = GPU_uniform(&zero);
+				in[1].link = GPU_uniform(&in[1].vec[0]);
 			}
 			if (!GPU_material_use_world_space_shading(mat))
 				GPU_link(mat, "direction_transform_m4v3", in[0].link, GPU_builtin(GPU_INVERSE_VIEW_MATRIX), &in[0].link);

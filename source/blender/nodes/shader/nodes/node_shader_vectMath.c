@@ -58,31 +58,52 @@ static void node_shader_exec_vect_math(void *UNUSED(data), int UNUSED(thread), b
 		
 		out[1]->vec[0] = (fabsf(out[0]->vec[0]) + fabsf(out[0]->vec[1]) + fabsf(out[0]->vec[2])) / 3.0f;
 	}
-	else if (node->custom1 == 1) {	/* Subtract */
+	else if (node->custom1 == 1) {	/* Multiply */
+		out[0]->vec[0] = vec1[0] * vec2[0];
+		out[0]->vec[1] = vec1[1] * vec2[1];
+		out[0]->vec[2] = vec1[2] * vec2[2];
+
+		out[1]->vec[0] = (fabsf(out[0]->vec[0]) + fabsf(out[0]->vec[1]) + fabsf(out[0]->vec[2])) / 3.0f;
+	}
+	else if (node->custom1 == 2) {	/* Subtract */
 		out[0]->vec[0] = vec1[0] - vec2[0];
 		out[0]->vec[1] = vec1[1] - vec2[1];
 		out[0]->vec[2] = vec1[2] - vec2[2];
 		
 		out[1]->vec[0] = (fabsf(out[0]->vec[0]) + fabsf(out[0]->vec[1]) + fabsf(out[0]->vec[2])) / 3.0f;
 	}
-	else if (node->custom1 == 2) {	/* Average */
+	else if (node->custom1 == 3) {	/* Average */
 		out[0]->vec[0] = vec1[0] + vec2[0];
 		out[0]->vec[1] = vec1[1] + vec2[1];
 		out[0]->vec[2] = vec1[2] + vec2[2];
 		
 		out[1]->vec[0] = normalize_v3(out[0]->vec);
 	}
-	else if (node->custom1 == 3) {	/* Dot product */
+	else if (node->custom1 == 4) {	/* Dot product */
 		out[1]->vec[0] = (vec1[0] * vec2[0]) + (vec1[1] * vec2[1]) + (vec1[2] * vec2[2]);
 	}
-	else if (node->custom1 == 4) {	/* Cross product */
+	else if (node->custom1 == 5) {	/* Cross product */
 		out[0]->vec[0] = (vec1[1] * vec2[2]) - (vec1[2] * vec2[1]);
 		out[0]->vec[1] = (vec1[2] * vec2[0]) - (vec1[0] * vec2[2]);
 		out[0]->vec[2] = (vec1[0] * vec2[1]) - (vec1[1] * vec2[0]);
 		
 		out[1]->vec[0] = normalize_v3(out[0]->vec);
 	}
-	else if (node->custom1 == 5) {	/* Normalize */
+	else if (node->custom1 == 6) {	/* Reflect */
+		float dotNI = 2.0f * dot_v3v3(vec1, vec2);
+		float v[3] = { 0.0f, 0.0f, 0.0f };
+		mul_v3_v3fl(v, vec2, dotNI);
+
+		float fv[3] = { 0.0f, 0.0f, 0.0f };
+		sub_v3_v3v3(fv, vec1, v);
+
+		out[0]->vec[0] = fv[0];
+		out[0]->vec[1] = fv[1];
+		out[0]->vec[2] = fv[2];
+
+		out[1]->vec[0] = normalize_v3(out[0]->vec);
+	}
+	else if (node->custom1 == 7) {	/* Normalize */
 		if (in[0]->hasinput || !in[1]->hasinput) {	/* This one only takes one input, so we've got to choose. */
 			out[0]->vec[0] = vec1[0];
 			out[0]->vec[1] = vec1[1];
