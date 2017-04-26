@@ -136,13 +136,13 @@ EnumPropertyItem rna_enum_node_math_items[] = {
 
 EnumPropertyItem rna_enum_node_vec_math_items[] = {
 	{0, "ADD",           0, "Add",           ""},
-	{1, "MULTIPLY",      0, "Multiply",      ""},
-	{2, "SUBTRACT",      0, "Subtract",      ""},
-	{3, "AVERAGE",       0, "Average",       ""},
-	{4, "DOT_PRODUCT",   0, "Dot Product",   ""},
-	{5, "CROSS_PRODUCT", 0, "Cross Product", ""},
+	{1, "SUBTRACT",      0, "Subtract",      ""},
+	{2, "AVERAGE",       0, "Average",       ""},
+	{3, "DOT_PRODUCT",   0, "Dot Product",   ""},
+	{4, "CROSS_PRODUCT", 0, "Cross Product", ""},
+	{5, "NORMALIZE",     0, "Normalize",     ""},
 	{6, "REFLECT",       0, "Reflect",       ""},
-	{7, "NORMALIZE",     0, "Normalize",     ""},
+	{7, "MULTIPLY",      0, "Multiply",      ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
