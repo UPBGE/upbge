@@ -91,6 +91,7 @@ static struct GPUWorld {
 	float zencol[3];
 	float logfac;
 	float linfac;
+	float envlightenergy;
 } GPUWorld;
 
 struct GPUMaterial {
@@ -1871,6 +1872,11 @@ void GPU_update_exposure_range(float exp, float range)
 	GPUWorld.logfac = log((GPUWorld.linfac - 1.0f) / GPUWorld.linfac) / range;
 }
 
+void GPU_update_envlight_energy(float energy)
+{
+	GPUWorld.envlightenergy = energy;
+}
+
 void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 {
 	GPUMaterial *mat = shi->gpumat;
@@ -1936,7 +1942,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 						if (!(is_zero_v3(&world->horr) & is_zero_v3(&world->zenr))) {
 							GPUNodeLink *fcol, *f;
 							GPU_link(mat, "math_multiply", shi->amb, shi->refl, &f);
-							GPU_link(mat, "math_multiply", f, GPU_uniform(&world->ao_env_energy), &f);
+							GPU_link(mat, "math_multiply", f, GPU_select_uniform(&GPUWorld.envlightenergy, GPU_DYNAMIC_ENVLIGHT_ENERGY, NULL, ma), &f);
 							GPU_link(mat, "shade_mul_value", f, shi->rgb, &fcol);
 							GPU_link(mat, "env_apply", shr->combined,
 							         GPU_select_uniform(GPUWorld.horicol, GPU_DYNAMIC_HORIZON_COLOR, NULL, ma),
@@ -1947,7 +1953,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 					else {
 						GPUNodeLink *f;
 						GPU_link(mat, "math_multiply", shi->amb, shi->refl, &f);
-						GPU_link(mat, "math_multiply", f, GPU_uniform(&world->ao_env_energy), &f);
+						GPU_link(mat, "math_multiply", f, GPU_select_uniform(&GPUWorld.envlightenergy, GPU_DYNAMIC_ENVLIGHT_ENERGY, NULL, ma), &f);
 						GPU_link(mat, "shade_maddf", shr->combined, f, shi->rgb, &shr->combined);
 					}
 				}

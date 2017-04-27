@@ -59,6 +59,7 @@ class KX_WorldInfo : public PyObjectPlus
 	float m_mistintensity;
 	float m_range;
 	float m_exposure;
+	float m_envLightEnergy;
 	MT_Vector3 m_mistcolor;
 	MT_Vector4 m_horizoncolor;
 	MT_Vector4 m_zenithcolor;
