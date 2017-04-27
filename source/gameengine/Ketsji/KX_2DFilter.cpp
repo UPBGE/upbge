@@ -28,6 +28,8 @@
 #include "KX_2DFilterOffScreen.h"
 #include "RAS_Texture.h" // for RAS_Texture::MaxUnits
 
+#include "CM_Message.h"
+
 KX_2DFilter::KX_2DFilter(RAS_2DFilterData& data)
 	:RAS_2DFilter(data)
 {
@@ -116,6 +118,10 @@ KX_PYMETHODDEF_DOC(KX_2DFilter, setTexture, "setTexture(index, bindCode, sampler
 	}
 	if (index < 0 || index >= RAS_Texture::MaxUnits) {
 		PyErr_SetString(PyExc_ValueError, "setTexture(index, bindCode, samplerName): KX_2DFilter, index out of range [0, 7]");
+		return nullptr;
+	}
+	if (bindCode < 0) {
+		PyErr_SetString(PyExc_ValueError, "setTexture(index, bindCode, samplerName): KX_2DFilter, bindCode negative");
 		return nullptr;
 	}
 
