@@ -509,6 +509,20 @@ void CcdPhysicsEnvironment::AddCcdPhysicsController(CcdPhysicsController *ctrl)
 		body->setSleepingThresholds(m_linearDeactivationThreshold, m_angularDeactivationThreshold);
 		//use explicit group/filter for finer control over collision in bullet => near/radar sensor
 		m_dynamicsWorld->addRigidBody(body, ctrl->GetCollisionFilterGroup(), ctrl->GetCollisionFilterMask());
+
+		// Restore constraints in case of physics restore.
+		for (unsigned short i = 0, size = ctrl->getNumCcdConstraintRefs(); i < size; ++i) {
+			btTypedConstraint *con = ctrl->getCcdConstraintRef(i);
+			RestoreConstraint(ctrl, con);
+		}
+
+		// Handle potential vehicle constraints
+		for (WrapperVehicle *wrapperVehicle : m_wrapperVehicles) {
+			if (wrapperVehicle->GetChassis() == ctrl) {
+				btRaycastVehicle *vehicle = wrapperVehicle->GetVehicle();
+				m_dynamicsWorld->addVehicle(vehicle);
+			}
+		}
 	}
 	else {
 		if (ctrl->GetSoftBody()) {
@@ -531,28 +545,65 @@ void CcdPhysicsEnvironment::AddCcdPhysicsController(CcdPhysicsController *ctrl)
 	BLI_assert(obj->getBroadphaseHandle());
 }
 
-void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con)
+void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con, bool free)
 {
+	CcdPhysicsController::CcdConstraint *userData = (CcdPhysicsController::CcdConstraint *)con->getUserConstraintPtr();
+	if (!userData->m_active) {
+		return;
+	}
+
 	btRigidBody &rbA = con->getRigidBodyA();
 	btRigidBody &rbB = con->getRigidBodyB();
 	rbA.activate();
 	rbB.activate();
+
+	userData->m_active = false;
 	m_dynamicsWorld->removeConstraint(con);
 
-	if (rbA.getUserPointer()) {
-		((CcdPhysicsController *)rbA.getUserPointer())->removeCcdConstraintRef(con);
-	}
+	if (free) {
+		if (rbA.getUserPointer()) {
+			((CcdPhysicsController *)rbA.getUserPointer())->removeCcdConstraintRef(con);
+		}
 
-	if (rbB.getUserPointer()) {
-		((CcdPhysicsController *)rbB.getUserPointer())->removeCcdConstraintRef(con);
-	}
+		if (rbB.getUserPointer()) {
+			((CcdPhysicsController *)rbB.getUserPointer())->removeCcdConstraintRef(con);
+		}
 
-	/* Since we remove the constraint in the onwer and the target, we can delete it,
-	 * KX_ConstraintWrapper keep the constraint id not the pointer, so no problems. */
-	delete con;
+		/* Since we remove the constraint in the onwer and the target, we can delete it,
+		 * KX_ConstraintWrapper keep the constraint id not the pointer, so no problems. */
+		delete userData;
+		delete con;
+	}
 }
 
-bool CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController *ctrl)
+void CcdPhysicsEnvironment::RestoreConstraint(CcdPhysicsController *ctrl, btTypedConstraint *con)
+{
+	CcdPhysicsController::CcdConstraint *userData = (CcdPhysicsController::CcdConstraint *)con->getUserConstraintPtr();
+	if (userData->m_active) {
+		return;
+	}
+
+	btRigidBody &rbA = con->getRigidBodyA();
+	btRigidBody &rbB = con->getRigidBodyB();
+
+	CcdPhysicsController *other = nullptr;
+
+	if (rbA.getUserPointer() && rbB.getUserPointer()) {
+		CcdPhysicsController *ctrl0 = (CcdPhysicsController *)rbA.getUserPointer();
+		CcdPhysicsController *ctrl1 = (CcdPhysicsController *)rbB.getUserPointer();
+		other = (ctrl0 != ctrl) ? ctrl0 : ctrl1;
+	}
+
+	BLI_assert(other != nullptr);
+
+	// Avoid add constraint if one of the objects are not available.
+	if (IsActiveCcdPhysicsController(other)) {
+		userData->m_active = true;
+		m_dynamicsWorld->addConstraint(con, userData->m_disableCollision);
+	}
+}
+
+bool CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController *ctrl, bool freeConstraints)
 {
 	// if the physics controller is already removed we do nothing
 	if (!m_controllers.erase(ctrl)) {
@@ -571,7 +622,7 @@ bool CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController *ctr
 
 		for (int i = ctrl->getNumCcdConstraintRefs() - 1; i >= 0; i--) {
 			btTypedConstraint *con = ctrl->getCcdConstraintRef(i);
-			RemoveConstraint(con);
+			RemoveConstraint(con, freeConstraints);
 		}
 		m_dynamicsWorld->removeRigidBody(ctrl->GetRigidBody());
 
@@ -585,7 +636,7 @@ bool CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController *ctr
 		}
 
 		if (vehicle_constraint > 0)
-			RemoveConstraintById(vehicle_constraint);
+			RemoveConstraintById(vehicle_constraint, freeConstraints);
 	}
 	else {
 		//if a softbody
@@ -1025,56 +1076,7 @@ void CcdPhysicsEnvironment::SetGravity(float x, float y, float z)
 
 static int gConstraintUid = 1;
 
-//Following the COLLADA physics specification for constraints
-int CcdPhysicsEnvironment::CreateUniversalD6Constraint(
-			class PHY_IPhysicsController *ctrlRef, class PHY_IPhysicsController *ctrlOther,
-			btTransform& frameInA,
-			btTransform& frameInB,
-			const btVector3& linearMinLimits,
-			const btVector3& linearMaxLimits,
-			const btVector3& angularMinLimits,
-			const btVector3& angularMaxLimits, int flags)
-{
-	bool disableCollisionBetweenLinkedBodies = (0 != (flags & CCD_CONSTRAINT_DISABLE_LINKED_COLLISION));
-
-	//we could either add some logic to recognize ball-socket and hinge, or let that up to the user
-	//perhaps some warning or hint that hinge/ball-socket is more efficient?
-
-	btGeneric6DofConstraint *genericConstraint = nullptr;
-	CcdPhysicsController *ctrl0 = (CcdPhysicsController *)ctrlRef;
-	CcdPhysicsController *ctrl1 = (CcdPhysicsController *)ctrlOther;
-
-	btRigidBody *rb0 = ctrl0->GetRigidBody();
-	btRigidBody *rb1 = ctrl1->GetRigidBody();
-
-	if (rb1) {
-		bool useReferenceFrameA = true;
-		genericConstraint = new btGeneric6DofSpringConstraint(
-		    *rb0, *rb1,
-		    frameInA, frameInB, useReferenceFrameA);
-		genericConstraint->setLinearLowerLimit(linearMinLimits);
-		genericConstraint->setLinearUpperLimit(linearMaxLimits);
-		genericConstraint->setAngularLowerLimit(angularMinLimits);
-		genericConstraint->setAngularUpperLimit(angularMaxLimits);
-	}
-	else {
-		// TODO: Implement single body case...
-		//No, we can use a fixed rigidbody in above code, rather than unnecessary duplation of code
-	}
-
-	if (genericConstraint) {
-		//	m_constraints.push_back(genericConstraint);
-		m_dynamicsWorld->addConstraint(genericConstraint, disableCollisionBetweenLinkedBodies);
-
-		genericConstraint->setUserConstraintId(gConstraintUid++);
-		genericConstraint->setUserConstraintType(PHY_GENERIC_6DOF_CONSTRAINT);
-		//64 bit systems can't cast pointer to int. could use size_t instead.
-		return genericConstraint->getUserConstraintId();
-	}
-	return 0;
-}
-
-void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId)
+void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId, bool free)
 {
 	// For soft body constraints
 	if (constraintId == 0)
@@ -1086,7 +1088,7 @@ void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId)
 		btTypedConstraint *constraint = m_dynamicsWorld->getConstraint(i);
 		if (constraint->getUserConstraintId() == constraintId)
 		{
-			RemoveConstraint(constraint);
+			RemoveConstraint(constraint, free);
 			break;
 		}
 	}
@@ -1095,8 +1097,10 @@ void CcdPhysicsEnvironment::RemoveConstraintById(int constraintId)
 	if ((vehicle = (WrapperVehicle *)GetVehicleConstraint(constraintId)))
 	{
 		m_dynamicsWorld->removeVehicle(vehicle->GetVehicle());
-		m_wrapperVehicles.erase(std::remove(m_wrapperVehicles.begin(), m_wrapperVehicles.end(), vehicle));
-		delete vehicle;
+		if (free) {
+			m_wrapperVehicles.erase(std::remove(m_wrapperVehicles.begin(), m_wrapperVehicles.end(), vehicle));
+			delete vehicle;
+		}
 	}
 }
 
@@ -2002,7 +2006,7 @@ void CcdPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env)
 		it = other->m_controllers.begin();
 		CcdPhysicsController *ctrl = (*it);
 
-		other->RemoveCcdPhysicsController(ctrl);
+		other->RemoveCcdPhysicsController(ctrl, true);
 		this->AddCcdPhysicsController(ctrl);
 	}
 }
@@ -2234,7 +2238,7 @@ bool CcdPhysicsEnvironment::RemoveCollisionCallback(PHY_IPhysicsController *ctrl
 
 void CcdPhysicsEnvironment::RemoveSensor(PHY_IPhysicsController *ctrl)
 {
-	RemoveCcdPhysicsController((CcdPhysicsController *)ctrl);
+	RemoveCcdPhysicsController((CcdPhysicsController *)ctrl, true);
 }
 
 void CcdPhysicsEnvironment::AddCollisionCallback(int response_class, PHY_ResponseCallback callback, void *user)
@@ -2508,6 +2512,13 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 	if (!rb0)
 		return 0;
 
+	// If either of the controllers is missing, we can't do anything.
+	if (!c0 || !c1) {
+		return 0;
+	}
+
+	btTypedConstraint *con = nullptr;
+
 	btVector3 pivotInB = rb1 ? rb1->getCenterOfMassTransform().inverse()(rb0->getCenterOfMassTransform()(pivotInA)) :
 	                     rb0->getCenterOfMassTransform() * pivotInA;
 	btVector3 axisInA(axisX, axisY, axisZ);
@@ -2519,11 +2530,6 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 	{
 		case PHY_POINT2POINT_CONSTRAINT:
 		{
-			// If either of the controllers is missing, we can't do anything.
-			if (!c0 || !c1) {
-				return 0;
-			}
-
 			btPoint2PointConstraint *p2p = nullptr;
 
 			if (rb1) {
@@ -2533,26 +2539,13 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 				p2p = new btPoint2PointConstraint(*rb0, pivotInA);
 			}
 
-			c0->addCcdConstraintRef(p2p);
-			c1->addCcdConstraintRef(p2p);
-			m_dynamicsWorld->addConstraint(p2p, disableCollisionBetweenLinkedBodies);
-//			m_constraints.push_back(p2p);
-
-			p2p->setUserConstraintId(gConstraintUid++);
-			p2p->setUserConstraintType(type);
-			//64 bit systems can't cast pointer to int. could use size_t instead.
-			return p2p->getUserConstraintId();
+			con = p2p;
 
 			break;
 		}
 
 		case PHY_GENERIC_6DOF_CONSTRAINT:
 		{
-			// If either of the controllers is missing, we can't do anything.
-			if (!c0 || !c1) {
-				return 0;
-			}
-
 			btGeneric6DofConstraint *genericConstraint = nullptr;
 
 			if (rb1) {
@@ -2604,26 +2597,12 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 				    frameInA, frameInB, useReferenceFrameA);
 			}
 
-			if (genericConstraint) {
-				//m_constraints.push_back(genericConstraint);
-				c0->addCcdConstraintRef(genericConstraint);
-				c1->addCcdConstraintRef(genericConstraint);
-				m_dynamicsWorld->addConstraint(genericConstraint, disableCollisionBetweenLinkedBodies);
-				genericConstraint->setUserConstraintId(gConstraintUid++);
-				genericConstraint->setUserConstraintType(type);
-				//64 bit systems can't cast pointer to int. could use size_t instead.
-				return genericConstraint->getUserConstraintId();
-			}
+			con = genericConstraint;
 
 			break;
 		}
 		case PHY_CONE_TWIST_CONSTRAINT:
 		{
-			// If either of the controllers is missing, we can't do anything.
-			if (!c0 || !c1) {
-				return 0;
-			}
-
 			btConeTwistConstraint *coneTwistContraint = nullptr;
 
 			if (rb1) {
@@ -2672,16 +2651,7 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 				    frameInA, frameInB);
 			}
 
-			if (coneTwistContraint) {
-				//m_constraints.push_back(genericConstraint);
-				c0->addCcdConstraintRef(coneTwistContraint);
-				c1->addCcdConstraintRef(coneTwistContraint);
-				m_dynamicsWorld->addConstraint(coneTwistContraint, disableCollisionBetweenLinkedBodies);
-				coneTwistContraint->setUserConstraintId(gConstraintUid++);
-				coneTwistContraint->setUserConstraintType(type);
-				//64 bit systems can't cast pointer to int. could use size_t instead.
-				return coneTwistContraint->getUserConstraintId();
-			}
+			con = coneTwistContraint;
 
 			break;
 		}
@@ -2690,11 +2660,6 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 
 		case PHY_LINEHINGE_CONSTRAINT:
 		{
-			// If either of the controllers is missing, we can't do anything.
-			if (!c0 || !c1) {
-				return 0;
-			}
-
 			btHingeConstraint *hinge = nullptr;
 
 			if (rb1) {
@@ -2745,14 +2710,8 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 			}
 			hinge->setAngularOnly(angularOnly);
 
-			//m_constraints.push_back(hinge);
-			c0->addCcdConstraintRef(hinge);
-			c1->addCcdConstraintRef(hinge);
-			m_dynamicsWorld->addConstraint(hinge, disableCollisionBetweenLinkedBodies);
-			hinge->setUserConstraintId(gConstraintUid++);
-			hinge->setUserConstraintType(type);
-			//64 bit systems can't cast pointer to int. could use size_t instead.
-			return hinge->getUserConstraintId();
+			con = hinge;
+
 			break;
 		}
 #ifdef NEW_BULLET_VEHICLE_SUPPORT
@@ -2766,9 +2725,6 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 			WrapperVehicle *wrapperVehicle = new WrapperVehicle(vehicle, raycaster, ctrl0);
 			m_wrapperVehicles.push_back(wrapperVehicle);
 			m_dynamicsWorld->addVehicle(vehicle);
-			vehicle->setUserConstraintId(gConstraintUid++);
-			vehicle->setUserConstraintType(type);
-			return vehicle->getUserConstraintId();
 
 			break;
 		};
@@ -2778,6 +2734,17 @@ int CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController *ctrl0,
 		{
 		}
 	};
+
+	if (con) {
+		c0->addCcdConstraintRef(con);
+		c1->addCcdConstraintRef(con);
+		con->setUserConstraintId(gConstraintUid++);
+		con->setUserConstraintType(type);
+		CcdPhysicsController::CcdConstraint *userData = new CcdPhysicsController::CcdConstraint(disableCollisionBetweenLinkedBodies);
+		con->setUserConstraintPtr(userData);
+		userData->m_active = true;
+		m_dynamicsWorld->addConstraint(con, disableCollisionBetweenLinkedBodies);
+	}
 
 	return 0;
 }

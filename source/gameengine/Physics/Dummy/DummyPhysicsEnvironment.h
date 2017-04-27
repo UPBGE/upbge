@@ -66,7 +66,7 @@ public:
 								 float axis1X = 0, float axis1Y = 0, float axis1Z = 0,
 								 float axis2X = 0, float axis2Y = 0, float axis2Z = 0, int flag = 0);
 
-	virtual void RemoveConstraintById(int constraintid);
+	virtual void RemoveConstraintById(int constraintid, bool free);
 
 	//complex constraint for vehicles
 	virtual PHY_IVehicle *GetVehicleConstraint(int constraintId)

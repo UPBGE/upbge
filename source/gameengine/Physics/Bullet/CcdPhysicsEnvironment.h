@@ -25,10 +25,11 @@
 #include "KX_KetsjiEngine.h"
 #include "KX_Globals.h"
 
+#include "CcdPhysicsController.h"
+
 #include <vector>
 #include <set>
 #include <map>
-class CcdPhysicsController;
 class CcdGraphicController;
 #include "LinearMath/btVector3.h"
 #include "LinearMath/btTransform.h"
@@ -66,7 +67,9 @@ class CcdPhysicsEnvironment : public PHY_IPhysicsEnvironment
 	btVector3 m_gravity;
 
 	/// Removes the constraint and his references from the owner and the target.
-	void RemoveConstraint(btTypedConstraint *con);
+	void RemoveConstraint(btTypedConstraint *con, bool free);
+	/// Restore the constraint if the owner and target are presents.
+	void RestoreConstraint(CcdPhysicsController *ctrl, btTypedConstraint *con);
 
 protected:
 	btIDebugDraw *m_debugDrawer;
@@ -172,21 +175,11 @@ public:
 								 float axis1X = 0, float axis1Y = 0, float axis1Z = 0,
 								 float axis2X = 0, float axis2Y = 0, float axis2Z = 0, int flag = 0);
 
-	//Following the COLLADA physics specification for constraints
-	virtual int CreateUniversalD6Constraint(
-				class PHY_IPhysicsController *ctrlRef, class PHY_IPhysicsController *ctrlOther,
-				btTransform& localAttachmentFrameRef,
-				btTransform& localAttachmentOther,
-				const btVector3& linearMinLimits,
-				const btVector3& linearMaxLimits,
-				const btVector3& angularMinLimits,
-				const btVector3& angularMaxLimits, int flags);
-
 	virtual void SetConstraintParam(int constraintId, int param, float value, float value1);
 
 	virtual float GetConstraintParam(int constraintId, int param);
 
-	virtual void RemoveConstraintById(int constraintid);
+	virtual void RemoveConstraintById(int constraintid, bool free);
 
 	virtual float getAppliedImpulse(int constraintid);
 
@@ -230,7 +223,7 @@ public:
 
 	void AddCcdPhysicsController(CcdPhysicsController *ctrl);
 
-	bool RemoveCcdPhysicsController(CcdPhysicsController *ctrl);
+	bool RemoveCcdPhysicsController(CcdPhysicsController *ctrl, bool freeConstraints);
 
 	void UpdateCcdPhysicsController(CcdPhysicsController *ctrl, btScalar newMass, int newCollisionFlags, short int newCollisionGroup, short int newCollisionMask);
 
