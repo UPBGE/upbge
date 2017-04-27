@@ -231,6 +231,13 @@ public:
 	}
 };
 
+CcdPhysicsController::CcdConstraint::CcdConstraint(bool disableCollision)
+	:m_disableCollision(disableCollision),
+	m_active(false)
+{
+}
+
+
 btRigidBody *CcdPhysicsController::GetRigidBody()
 {
 	return btRigidBody::upcast(m_object);
@@ -650,7 +657,7 @@ CcdPhysicsController::~CcdPhysicsController()
 {
 	//will be reference counted, due to sharing
 	if (m_cci.m_physicsEnv)
-		m_cci.m_physicsEnv->RemoveCcdPhysicsController(this);
+		m_cci.m_physicsEnv->RemoveCcdPhysicsController(this, true);
 
 	if (m_MotionState)
 		delete m_MotionState;
@@ -833,7 +840,7 @@ void CcdPhysicsController::SetPhysicsEnvironment(class PHY_IPhysicsEnvironment *
 		// since the environment is changing, we must also move the controler to the
 		// new environment. Note that we don't handle sensor explicitly: this
 		// function can be called on sensor but only when they are not registered
-		if (m_cci.m_physicsEnv->RemoveCcdPhysicsController(this))
+		if (m_cci.m_physicsEnv->RemoveCcdPhysicsController(this, true))
 		{
 			physicsEnv->AddCcdPhysicsController(this);
 
@@ -1015,9 +1022,9 @@ void CcdPhysicsController::RefreshCollisions()
 	GetPhysicsEnvironment()->UpdateCcdPhysicsController(this, GetMass(), m_object->getCollisionFlags(), handle->m_collisionFilterGroup, handle->m_collisionFilterMask);
 }
 
-void CcdPhysicsController::SuspendPhysics()
+void CcdPhysicsController::SuspendPhysics(bool removeConstraints)
 {
-	GetPhysicsEnvironment()->RemoveCcdPhysicsController(this);
+	GetPhysicsEnvironment()->RemoveCcdPhysicsController(this, removeConstraints);
 }
 
 void CcdPhysicsController::RestorePhysics()
@@ -1508,7 +1515,7 @@ void CcdPhysicsController::AddCompoundChild(PHY_IPhysicsController *child)
 	// must update the broadphase cache,
 	GetPhysicsEnvironment()->RefreshCcdPhysicsController(this);
 	// remove the children
-	GetPhysicsEnvironment()->RemoveCcdPhysicsController(childCtrl);
+	GetPhysicsEnvironment()->RemoveCcdPhysicsController(childCtrl, true);
 }
 
 /* Reverse function of the above, it will remove a shape from a compound shape
