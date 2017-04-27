@@ -71,6 +71,10 @@ base class --- :class:`BL_Shader`
       :arg mipmap: True if the color texture generate mipmap at the end of the filter rendering (optional).
       :type mipmap: boolean
 
+      .. note::
+        If the off screen is created using a dynamic size (`width` and `height` to -1) its bind codes will be unavailable before
+        the next render of the filter and the it can change when the viewport is resized.
+
    .. method:: removeOffScreen()
 
       Unregister the custom off screen the filter render to.
