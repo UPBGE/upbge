@@ -491,6 +491,12 @@ function(setup_liblinks
 			target_link_libraries(${target} ${NDOF_LIBRARIES})
 		endif()
 	endif()
+	if(WITH_SYSTEM_GLOG)
+		target_link_libraries(${target} ${GLOG_LIBRARIES})
+	endif()
+	if(WITH_SYSTEM_GFLAGS)
+		target_link_libraries(${target} ${GFLAGS_LIBRARIES})
+	endif()
 
 	# We put CLEW and CUEW here because OPENSUBDIV_LIBRARIES dpeends on them..
 	if(WITH_CYCLES OR WITH_COMPOSITOR OR WITH_OPENSUBDIV)
@@ -661,12 +667,18 @@ function(SETUP_BLENDER_SORTED_LIBS)
 		extern_rangetree
 		extern_wcwidth
 		bf_intern_libmv
-		extern_glog
-		extern_gflags
 		extern_sdlew
 
 		bf_intern_glew_mx
 	)
+
+	if(NOT WITH_SYSTEM_GLOG)
+		list(APPEND BLENDER_SORTED_LIBS extern_glog)
+	endif()
+
+	if(NOT WITH_SYSTEM_GFLAGS)
+		list(APPEND BLENDER_SORTED_LIBS extern_gflags)
+	endif()
 
 	if(WITH_COMPOSITOR)
 		# added for opencl compositor

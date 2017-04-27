@@ -63,6 +63,8 @@ struct ExportSettings {
 	bool export_vcols;
 	bool export_face_sets;
 	bool export_vweigths;
+	bool export_hair;
+	bool export_particles;
 
 	bool apply_subdiv;
 	bool use_subdiv_schema;
@@ -109,12 +111,12 @@ private:
 	void getFrameSet(double step, std::set<double> &frames);
 
 	void createTransformWritersHierarchy(EvaluationContext *eval_ctx);
-	void createTransformWritersFlat();
 	AbcTransformWriter * createTransformWriter(Object *ob,  Object *parent, Object *dupliObParent);
 	void exploreTransform(EvaluationContext *eval_ctx, Object *ob, Object *parent, Object *dupliObParent = NULL);
 	void exploreObject(EvaluationContext *eval_ctx, Object *ob, Object *dupliObParent);
 	void createShapeWriters(EvaluationContext *eval_ctx);
 	void createShapeWriter(Object *ob, Object *dupliObParent);
+	void createParticleSystemsWriters(Object *ob, AbcTransformWriter *xform);
 
 	AbcTransformWriter *getXForm(const std::string &name);
 

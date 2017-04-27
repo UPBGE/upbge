@@ -55,7 +55,7 @@ struct GPUFrameBuffer {
 	GPURenderBuffer *depthrb;
 };
 
-static void GPU_print_framebuffer_error(GLenum status, char err_out[256])
+static void gpu_print_framebuffer_error(GLenum status, char err_out[256])
 {
 	const char *err = "unknown";
 
@@ -172,7 +172,7 @@ int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, i
 
 	if (error == GL_INVALID_OPERATION) {
 		GPU_framebuffer_restore();
-		GPU_print_framebuffer_error(error, err_out);
+		gpu_print_framebuffer_error(error, err_out);
 		return 0;
 	}
 
@@ -373,7 +373,7 @@ bool GPU_framebuffer_check_valid(GPUFrameBuffer *fb, char err_out[256])
 	
 	if (status != GL_FRAMEBUFFER_COMPLETE_EXT) {
 		GPU_framebuffer_restore();
-		GPU_print_framebuffer_error(status, err_out);
+		gpu_print_framebuffer_error(status, err_out);
 		return false;
 	}
 	
@@ -411,7 +411,7 @@ int GPU_framebuffer_renderbuffer_attach(GPUFrameBuffer *fb, GPURenderBuffer *rb,
 
 	if (error == GL_INVALID_OPERATION) {
 		GPU_framebuffer_restore();
-		GPU_print_framebuffer_error(error, err_out);
+		gpu_print_framebuffer_error(error, err_out);
 		return 0;
 	}
 

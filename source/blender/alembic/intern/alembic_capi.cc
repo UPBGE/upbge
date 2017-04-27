@@ -172,7 +172,7 @@ static bool gather_objects_paths(const IObject &object, ListBase *object_paths)
 		void *abc_path_void = MEM_callocN(sizeof(AlembicObjectPath), "AlembicObjectPath");
 		AlembicObjectPath *abc_path = static_cast<AlembicObjectPath *>(abc_path_void);
 
-		BLI_strncpy(abc_path->path, object.getFullName().c_str(), PATH_MAX);
+		BLI_strncpy(abc_path->path, object.getFullName().c_str(), sizeof(abc_path->path));
 		BLI_addtail(object_paths, abc_path);
 	}
 
@@ -238,6 +238,7 @@ struct ExportJobData {
 	float *progress;
 
 	bool was_canceled;
+	bool export_ok;
 };
 
 static void export_startjob(void *customdata, short *stop, short *do_update, float *progress)
@@ -271,6 +272,8 @@ static void export_startjob(void *customdata, short *stop, short *do_update, flo
 			BKE_scene_update_for_newframe(data->bmain->eval_ctx, data->bmain,
 			                              scene, scene->lay);
 		}
+
+		data->export_ok = !data->was_canceled;
 	}
 	catch (const std::exception &e) {
 		ABC_LOG(data->settings.logger) << "Abc Export error: " << e.what() << '\n';
@@ -297,15 +300,17 @@ static void export_endjob(void *customdata)
 	BKE_spacedata_draw_locks(false);
 }
 
-void ABC_export(
+bool ABC_export(
         Scene *scene,
         bContext *C,
         const char *filepath,
-        const struct AlembicExportParams *params)
+        const struct AlembicExportParams *params,
+        bool as_background_job)
 {
 	ExportJobData *job = static_cast<ExportJobData *>(MEM_mallocN(sizeof(ExportJobData), "ExportJobData"));
 	job->scene = scene;
 	job->bmain = CTX_data_main(C);
+	job->export_ok = false;
 	BLI_strncpy(job->filename, filepath, 1024);
 
 	/* Alright, alright, alright....
@@ -336,6 +341,8 @@ void ABC_export(
 	job->settings.export_normals = params->normals;
 	job->settings.export_uvs = params->uvs;
 	job->settings.export_vcols = params->vcolors;
+	job->settings.export_hair = params->export_hair;
+	job->settings.export_particles = params->export_particles;
 	job->settings.apply_subdiv = params->apply_subdiv;
 	job->settings.flatten_hierarchy = params->flatten_hierarchy;
 	job->settings.visible_layers_only = params->visible_layers_only;
@@ -352,19 +359,35 @@ void ABC_export(
 		std::swap(job->settings.frame_start, job->settings.frame_end);
 	}
 
-	wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
-	                            CTX_wm_window(C),
-	                            job->scene,
-	                            "Alembic Export",
-	                            WM_JOB_PROGRESS,
-	                            WM_JOB_TYPE_ALEMBIC);
+	bool export_ok = false;
+	if (as_background_job) {
+		wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
+		                            CTX_wm_window(C),
+		                            job->scene,
+		                            "Alembic Export",
+		                            WM_JOB_PROGRESS,
+		                            WM_JOB_TYPE_ALEMBIC);
 
-	/* setup job */
-	WM_jobs_customdata_set(wm_job, job, MEM_freeN);
-	WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_FRAME, NC_SCENE | ND_FRAME);
-	WM_jobs_callbacks(wm_job, export_startjob, NULL, NULL, export_endjob);
+		/* setup job */
+		WM_jobs_customdata_set(wm_job, job, MEM_freeN);
+		WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_FRAME, NC_SCENE | ND_FRAME);
+		WM_jobs_callbacks(wm_job, export_startjob, NULL, NULL, export_endjob);
 
-	WM_jobs_start(CTX_wm_manager(C), wm_job);
+		WM_jobs_start(CTX_wm_manager(C), wm_job);
+	}
+	else {
+		/* Fake a job context, so that we don't need NULL pointer checks while exporting. */
+		short stop = 0, do_update = 0;
+		float progress = 0.f;
+
+		export_startjob(job, &stop, &do_update, &progress);
+		export_endjob(job);
+		export_ok = job->export_ok;
+
+		MEM_freeN(job);
+	}
+
+	return export_ok;
 }
 
 /* ********************** Import file ********************** */
@@ -523,7 +546,7 @@ static std::pair<bool, AbcObjectReader *> visit_object(
 
 		AlembicObjectPath *abc_path = static_cast<AlembicObjectPath *>(
 		                                  MEM_callocN(sizeof(AlembicObjectPath), "AlembicObjectPath"));
-		BLI_strncpy(abc_path->path, full_name.c_str(), PATH_MAX);
+		BLI_strncpy(abc_path->path, full_name.c_str(), sizeof(abc_path->path));
 		BLI_addtail(&settings.cache_file->object_paths, abc_path);
 
 		/* We can now assign this reader as parent for our children. */
@@ -576,6 +599,7 @@ static std::pair<bool, AbcObjectReader *> visit_object(
 enum {
 	ABC_NO_ERROR = 0,
 	ABC_ARCHIVE_FAIL,
+	ABC_UNSUPPORTED_HDF5,
 };
 
 struct ImportJobData {
@@ -593,6 +617,7 @@ struct ImportJobData {
 
 	char error_code;
 	bool was_cancelled;
+	bool import_ok;
 };
 
 ABC_INLINE bool is_mesh_and_strands(const IObject &object)
@@ -639,8 +664,12 @@ static void import_startjob(void *user_data, short *stop, short *do_update, floa
 	ArchiveReader *archive = new ArchiveReader(data->filename);
 
 	if (!archive->valid()) {
-		delete archive;
+#ifndef WITH_ALEMBIC_HDF5
+		data->error_code = archive->is_hdf5() ? ABC_UNSUPPORTED_HDF5 : ABC_ARCHIVE_FAIL;
+#else
 		data->error_code = ABC_ARCHIVE_FAIL;
+#endif
+		delete archive;
 		return;
 	}
 
@@ -717,8 +746,8 @@ static void import_startjob(void *user_data, short *stop, short *do_update, floa
 			CFRA = SFRA;
 		}
 		else if (min_time < max_time) {
-			SFRA = static_cast<int>(min_time * FPS);
-			EFRA = static_cast<int>(max_time * FPS);
+			SFRA = static_cast<int>(round(min_time * FPS));
+			EFRA = static_cast<int>(round(max_time * FPS));
 			CFRA = SFRA;
 		}
 	}
@@ -775,13 +804,16 @@ static void import_endjob(void *user_data)
 	}
 	else {
 		/* Add object to scene. */
+		Base *base;
+
 		BKE_scene_base_deselect_all(data->scene);
 
 		for (iter = data->readers.begin(); iter != data->readers.end(); ++iter) {
 			Object *ob = (*iter)->object();
 			ob->lay = data->scene->lay;
 
-			BKE_scene_base_add(data->scene, ob);
+			base = BKE_scene_base_add(data->scene, ob);
+			BKE_scene_base_select(data->scene, base);
 
 			DAG_id_tag_update_ex(data->bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 		}
@@ -801,9 +833,13 @@ static void import_endjob(void *user_data)
 	switch (data->error_code) {
 		default:
 		case ABC_NO_ERROR:
+			data->import_ok = !data->was_cancelled;
 			break;
 		case ABC_ARCHIVE_FAIL:
 			WM_report(RPT_ERROR, "Could not open Alembic archive for reading! See console for detail.");
+			break;
+		case ABC_UNSUPPORTED_HDF5:
+			WM_report(RPT_ERROR, "Alembic archive in obsolete HDF5 format is not supported.");
 			break;
 	}
 
@@ -816,13 +852,16 @@ static void import_freejob(void *user_data)
 	delete data;
 }
 
-void ABC_import(bContext *C, const char *filepath, float scale, bool is_sequence, bool set_frame_range, int sequence_len, int offset, bool validate_meshes)
+bool ABC_import(bContext *C, const char *filepath, float scale, bool is_sequence,
+                bool set_frame_range, int sequence_len, int offset,
+                bool validate_meshes, bool as_background_job)
 {
 	/* Using new here since MEM_* funcs do not call ctor to properly initialize
 	 * data. */
 	ImportJobData *job = new ImportJobData();
 	job->bmain = CTX_data_main(C);
 	job->scene = CTX_data_scene(C);
+	job->import_ok = false;
 	BLI_strncpy(job->filename, filepath, 1024);
 
 	job->settings.scale = scale;
@@ -836,19 +875,35 @@ void ABC_import(bContext *C, const char *filepath, float scale, bool is_sequence
 
 	G.is_break = false;
 
-	wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
-	                            CTX_wm_window(C),
-	                            job->scene,
-	                            "Alembic Import",
-	                            WM_JOB_PROGRESS,
-	                            WM_JOB_TYPE_ALEMBIC);
+	bool import_ok = false;
+	if (as_background_job) {
+		wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
+		                            CTX_wm_window(C),
+		                            job->scene,
+		                            "Alembic Import",
+		                            WM_JOB_PROGRESS,
+		                            WM_JOB_TYPE_ALEMBIC);
 
-	/* setup job */
-	WM_jobs_customdata_set(wm_job, job, import_freejob);
-	WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_FRAME, NC_SCENE | ND_FRAME);
-	WM_jobs_callbacks(wm_job, import_startjob, NULL, NULL, import_endjob);
+		/* setup job */
+		WM_jobs_customdata_set(wm_job, job, import_freejob);
+		WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_FRAME, NC_SCENE | ND_FRAME);
+		WM_jobs_callbacks(wm_job, import_startjob, NULL, NULL, import_endjob);
 
-	WM_jobs_start(CTX_wm_manager(C), wm_job);
+		WM_jobs_start(CTX_wm_manager(C), wm_job);
+	}
+	else {
+		/* Fake a job context, so that we don't need NULL pointer checks while importing. */
+		short stop = 0, do_update = 0;
+		float progress = 0.f;
+
+		import_startjob(job, &stop, &do_update, &progress);
+		import_endjob(job);
+		import_ok = job->import_ok;
+
+		import_freejob(job);
+	}
+
+	return import_ok;
 }
 
 /* ************************************************************************** */
@@ -931,6 +986,12 @@ void CacheReader_free(CacheReader *reader)
 	if (abc_reader->refcount() == 0) {
 		delete abc_reader;
 	}
+}
+
+void CacheReader_incref(CacheReader *reader)
+{
+	AbcObjectReader *abc_reader = reinterpret_cast<AbcObjectReader *>(reader);
+	abc_reader->incref();
 }
 
 CacheReader *CacheReader_open_alembic_object(AbcArchiveHandle *handle, CacheReader *reader, Object *object, const char *object_path)

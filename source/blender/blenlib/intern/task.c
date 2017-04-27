@@ -162,6 +162,16 @@ struct TaskPool {
 	 */
 	int thread_id;
 
+	/* For the pools which are created from non-main thread which is not a
+	 * scheduler worker thread we can't re-use any of scheduler's threads TLS
+	 * and have to use our own one.
+	 */
+	bool use_local_tls;
+	TaskThreadLocalStorage local_tls;
+#ifndef NDEBUG
+	pthread_t creator_thread_id;
+#endif
+
 #ifdef DEBUG_STATS
 	TaskMemPoolStats *mempool_stats;
 #endif
@@ -202,13 +212,25 @@ BLI_INLINE void task_data_free(Task *task, const int thread_id)
 	}
 }
 
+BLI_INLINE void initialize_task_tls(TaskThreadLocalStorage *tls)
+{
+	memset(tls, 0, sizeof(TaskThreadLocalStorage));
+}
+
 BLI_INLINE TaskThreadLocalStorage *get_task_tls(TaskPool *pool,
                                                 const int thread_id)
 {
 	TaskScheduler *scheduler = pool->scheduler;
 	BLI_assert(thread_id >= 0);
 	BLI_assert(thread_id <= scheduler->num_threads);
+	if (pool->use_local_tls && thread_id == 0) {
+		BLI_assert(pool->thread_id == 0);
+		BLI_assert(!BLI_thread_is_main());
+		BLI_assert(pthread_equal(pthread_self(), pool->creator_thread_id));
+		return &pool->local_tls;
+	}
 	if (thread_id == 0) {
+		BLI_assert(BLI_thread_is_main());
 		return &scheduler->task_threads[pool->thread_id].tls;
 	}
 	return &scheduler->task_threads[thread_id].tls;
@@ -252,6 +274,9 @@ static void task_free(TaskPool *pool, Task *task, const int thread_id)
 	task_data_free(task, thread_id);
 	BLI_assert(thread_id >= 0);
 	BLI_assert(thread_id <= pool->scheduler->num_threads);
+	if (thread_id == 0) {
+		BLI_assert(pool->use_local_tls || BLI_thread_is_main());
+	}
 	TaskThreadLocalStorage *tls = get_task_tls(pool, thread_id);
 	TaskMemPool *task_mempool = &tls->task_mempool;
 	if (task_mempool->num_tasks < MEMPOOL_SIZE - 1) {
@@ -424,8 +449,11 @@ TaskScheduler *BLI_task_scheduler_create(int num_threads)
 		num_threads = 1;
 	}
 
-	scheduler->task_threads = MEM_callocN(sizeof(TaskThread) * (num_threads + 1),
+	scheduler->task_threads = MEM_mallocN(sizeof(TaskThread) * (num_threads + 1),
 	                                      "TaskScheduler task threads");
+
+	/* Initialize TLS for main thread. */
+	initialize_task_tls(&scheduler->task_threads[0].tls);
 
 	pthread_key_create(&scheduler->tls_id_key, NULL);
 
@@ -440,6 +468,7 @@ TaskScheduler *BLI_task_scheduler_create(int num_threads)
 			TaskThread *thread = &scheduler->task_threads[i + 1];
 			thread->scheduler = scheduler;
 			thread->id = i + 1;
+			initialize_task_tls(&thread->tls);
 
 			if (pthread_create(&scheduler->threads[i], NULL, task_scheduler_thread_run, thread) != 0) {
 				fprintf(stderr, "TaskScheduler failed to launch thread %d/%d\n", i, num_threads);
@@ -572,6 +601,7 @@ static TaskPool *task_pool_create_ex(TaskScheduler *scheduler,
 	pool->num_suspended = 0;
 	pool->suspended_queue.first = pool->suspended_queue.last = NULL;
 	pool->run_in_background = is_background;
+	pool->use_local_tls = false;
 
 	BLI_mutex_init(&pool->num_mutex);
 	BLI_condition_init(&pool->num_cond);
@@ -584,13 +614,18 @@ static TaskPool *task_pool_create_ex(TaskScheduler *scheduler,
 	}
 	else {
 		TaskThread *thread = pthread_getspecific(scheduler->tls_id_key);
-		/* NOTE: It is possible that pool is created from non-main thread
-		 * which isn't a scheduler thread. In this case pthread's TLS will
-		 * be NULL and we can safely consider thread id 0 for the main
-		 * thread of this pool (the one which does wort_and_wait()).
-		 */
 		if (thread == NULL) {
+			/* NOTE: Task pool is created from non-main thread which is not
+			 * managed by the task scheduler. We identify ourselves as thread ID
+			 * 0 but we do not use scheduler's TLS storage and use our own
+			 * instead to avoid any possible threading conflicts.
+			 */
 			pool->thread_id = 0;
+			pool->use_local_tls = true;
+#ifndef NDEBUG
+			pool->creator_thread_id = pthread_self();
+#endif
+			initialize_task_tls(&pool->local_tls);
 		}
 		else {
 			pool->thread_id = thread->id;
@@ -669,6 +704,10 @@ void BLI_task_pool_free(TaskPool *pool)
 	}
 	MEM_freeN(pool->mempool_stats);
 #endif
+
+	if (pool->use_local_tls) {
+		free_task_tls(&pool->local_tls);
+	}
 
 	MEM_freeN(pool);
 

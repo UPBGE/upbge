@@ -172,13 +172,10 @@ public:
 
 	virtual void readObjectData(Main *bmain, float time) = 0;
 
-	virtual DerivedMesh *read_derivedmesh(DerivedMesh *dm, const float time, int read_flag, const char **err_str)
-	{
-		(void)time;
-		(void)read_flag;
-		(void)err_str;
-		return dm;
-	}
+	virtual DerivedMesh *read_derivedmesh(DerivedMesh *dm,
+	                                      const float time,
+	                                      int read_flag,
+	                                      const char **err_str);
 
 	/** Reads the object matrix and sets up an object transform if animated. */
 	void setupObjectTransform(const float time);

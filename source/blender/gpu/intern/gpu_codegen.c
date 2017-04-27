@@ -428,6 +428,8 @@ const char *GPU_builtin_name(GPUBuiltin builtin)
 		return "ininstposition";
 	else if (builtin == GPU_TIME)
 		return "unftime";
+	else if (builtin == GPU_OBJECT_INFO)
+		return "unfobjectinfo";
 	else
 		return "";
 }

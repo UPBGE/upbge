@@ -38,6 +38,10 @@ class AbcTransformWriter : public AbcObjectWriter {
 
 	bool m_is_animated;
 	bool m_visible;
+	bool m_inherits_xform;
+
+public:
+	Object *m_proxy_from;
 
 public:
 	AbcTransformWriter(Object *ob,

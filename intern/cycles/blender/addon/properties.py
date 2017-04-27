@@ -695,7 +695,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
             update=devices_update_callback
             )
 
-        cls.debug_opencl_kernel_single_program = BoolProperty(name="Single Program", default=False, update=devices_update_callback);
+        cls.debug_opencl_kernel_single_program = BoolProperty(name="Single Program", default=True, update=devices_update_callback);
 
         cls.debug_use_opencl_debug = BoolProperty(name="Debug OpenCL", default=False)
 
@@ -1297,14 +1297,14 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         row = layout.row()
 
         if self.compute_device_type == 'CUDA' and cuda_devices:
-            col = row.column(align=True)
+            box = row.box()
             for device in cuda_devices:
-                col.prop(device, "use", text=device.name, toggle=True)
+                box.prop(device, "use", text=device.name)
 
         if self.compute_device_type == 'OPENCL' and opencl_devices:
-            col = row.column(align=True)
+            box = row.box()
             for device in opencl_devices:
-                col.prop(device, "use", text=device.name, toggle=True)
+                box.prop(device, "use", text=device.name)
 
 
     def draw(self, context):

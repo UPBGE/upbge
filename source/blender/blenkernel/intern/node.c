@@ -1828,7 +1828,7 @@ void ntreeFreeTree(bNodeTree *ntree)
 		if (tntree == ntree)
 			break;
 	if (tntree == NULL) {
-		BKE_libblock_free_data(G.main, &ntree->id);
+		BKE_libblock_free_data(G.main, &ntree->id, true);
 	}
 }
 
@@ -3570,6 +3570,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_background();
 	register_node_type_sh_bsdf_anisotropic();
 	register_node_type_sh_bsdf_diffuse();
+	register_node_type_sh_bsdf_principled();
 	register_node_type_sh_bsdf_glossy();
 	register_node_type_sh_bsdf_glass();
 	register_node_type_sh_bsdf_translucent();

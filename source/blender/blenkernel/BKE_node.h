@@ -785,8 +785,9 @@ struct ShadeResult;
 #define SH_NODE_OUTPUT_LINESTYLE		190
 #define SH_NODE_UVALONGSTROKE			191
 #define SH_NODE_TEX_POINTDENSITY		192
-#define SH_NODE_OBJECT					193
-#define SH_NODE_TIME					194
+#define SH_NODE_BSDF_PRINCIPLED         193
+#define SH_NODE_OBJECT			194
+#define SH_NODE_TIME			195
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1

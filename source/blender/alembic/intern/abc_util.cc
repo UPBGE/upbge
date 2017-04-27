@@ -257,24 +257,27 @@ void convert_matrix(const Imath::M44d &xform, Object *ob, float r_mat[4][4])
 
 /* Recompute transform matrix of object in new coordinate system
  * (from Z-Up to Y-Up). */
-void create_transform_matrix(Object *obj, float r_yup_mat[4][4])
+void create_transform_matrix(Object *obj, float r_yup_mat[4][4], AbcMatrixMode mode,
+                             Object *proxy_from)
 {
 	float zup_mat[4][4];
 
-	/* get local matrix. */
-	/* TODO Sybren: when we're exporting as "flat", i.e. non-hierarchial,
-	 * we should export the world matrix even when the object has a parent
-	 * Blender Object. */
-	if (obj->parent) {
+	/* get local or world matrix. */
+	if (mode == ABC_MATRIX_LOCAL && obj->parent) {
 		/* Note that this produces another matrix than the local matrix, due to
 		 * constraints and modifiers as well as the obj->parentinv matrix. */
 		invert_m4_m4(obj->parent->imat, obj->parent->obmat);
 		mul_m4_m4m4(zup_mat, obj->parent->imat, obj->obmat);
-		copy_m44_axis_swap(r_yup_mat, zup_mat, ABC_YUP_FROM_ZUP);
 	}
 	else {
-		copy_m44_axis_swap(r_yup_mat, obj->obmat, ABC_YUP_FROM_ZUP);
+		copy_m4_m4(zup_mat, obj->obmat);
 	}
+
+	if (proxy_from) {
+		mul_m4_m4m4(zup_mat, proxy_from->obmat, zup_mat);
+	}
+
+	copy_m44_axis_swap(r_yup_mat, zup_mat, ABC_YUP_FROM_ZUP);
 }
 
 bool has_property(const Alembic::Abc::ICompoundProperty &prop, const std::string &name)

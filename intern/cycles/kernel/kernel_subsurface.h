@@ -140,7 +140,7 @@ ccl_device_inline float3 subsurface_scatter_eval(ShaderData *sd,
 }
 
 /* replace closures with a single diffuse bsdf closure after scatter step */
-ccl_device void subsurface_scatter_setup_diffuse_bsdf(ShaderData *sd, float3 weight, bool hit, float3 N)
+ccl_device void subsurface_scatter_setup_diffuse_bsdf(ShaderData *sd, ShaderClosure *sc, float3 weight, bool hit, float3 N)
 {
 	sd->flag &= ~SD_CLOSURE_FLAGS;
 	sd->randb_closure = 0.0f;
@@ -148,15 +148,35 @@ ccl_device void subsurface_scatter_setup_diffuse_bsdf(ShaderData *sd, float3 wei
 	sd->num_closure_extra = 0;
 
 	if(hit) {
-		DiffuseBsdf *bsdf = (DiffuseBsdf*)bsdf_alloc(sd, sizeof(DiffuseBsdf), weight);
+		Bssrdf *bssrdf = (Bssrdf *)sc;
+#ifdef __PRINCIPLED__
+		if(bssrdf->type == CLOSURE_BSSRDF_PRINCIPLED_ID) {
+			PrincipledDiffuseBsdf *bsdf = (PrincipledDiffuseBsdf*)bsdf_alloc(sd, sizeof(PrincipledDiffuseBsdf), weight);
 
-		if(bsdf) {
-			bsdf->N = N;
-			sd->flag |= bsdf_diffuse_setup(bsdf);
+			if(bsdf) {
+				bsdf->N = N;
+				bsdf->roughness = bssrdf->roughness;
+				sd->flag |= bsdf_principled_diffuse_setup(bsdf);
 
-			/* replace CLOSURE_BSDF_DIFFUSE_ID with this special ID so render passes
-			 * can recognize it as not being a regular diffuse closure */
-			bsdf->type = CLOSURE_BSDF_BSSRDF_ID;
+				/* replace CLOSURE_BSDF_PRINCIPLED_DIFFUSE_ID with this special ID so render passes
+				 * can recognize it as not being a regular Disney principled diffuse closure */
+				bsdf->type = CLOSURE_BSDF_BSSRDF_PRINCIPLED_ID;
+			}
+		}
+		else if(CLOSURE_IS_BSDF_BSSRDF(bssrdf->type) ||
+		        CLOSURE_IS_BSSRDF(bssrdf->type))
+#endif  /* __PRINCIPLED__ */
+		{
+			DiffuseBsdf *bsdf = (DiffuseBsdf*)bsdf_alloc(sd, sizeof(DiffuseBsdf), weight);
+
+			if(bsdf) {
+				bsdf->N = N;
+				sd->flag |= bsdf_diffuse_setup(bsdf);
+
+				/* replace CLOSURE_BSDF_DIFFUSE_ID with this special ID so render passes
+				 * can recognize it as not being a regular diffuse closure */
+				bsdf->type = CLOSURE_BSDF_BSSRDF_ID;
+			}
 		}
 	}
 }
@@ -379,6 +399,12 @@ ccl_device_noinline void subsurface_scatter_multi_setup(
 #else
 	Ray *ray = &ss_isect->ray;
 #endif
+
+	/* Workaround for AMD GPU OpenCL compiler. Most probably cache bypass issue. */
+#if defined(__SPLIT_KERNEL__) && defined(__KERNEL_OPENCL_AMD__) && defined(__KERNEL_GPU__)
+	kernel_split_params.dummy_sd_flag = sd->flag;
+#endif
+
 	/* Setup new shading point. */
 	shader_setup_from_subsurface(kg, sd, &ss_isect->hits[hit], ray);
 
@@ -388,7 +414,7 @@ ccl_device_noinline void subsurface_scatter_multi_setup(
 	subsurface_color_bump_blur(kg, sd, state, state_flag, &weight, &N);
 
 	/* Setup diffuse BSDF. */
-	subsurface_scatter_setup_diffuse_bsdf(sd, weight, true, N);
+	subsurface_scatter_setup_diffuse_bsdf(sd, sc, weight, true, N);
 }
 
 #ifndef __SPLIT_KERNEL__
@@ -479,7 +505,7 @@ ccl_device void subsurface_scatter_step(KernelGlobals *kg, ShaderData *sd, PathS
 	subsurface_color_bump_blur(kg, sd, state, state_flag, &eval, &N);
 
 	/* setup diffuse bsdf */
-	subsurface_scatter_setup_diffuse_bsdf(sd, eval, (ss_isect.num_hits > 0), N);
+	subsurface_scatter_setup_diffuse_bsdf(sd, sc, eval, (ss_isect.num_hits > 0), N);
 }
 #endif /* ! __SPLIT_KERNEL__ */
 

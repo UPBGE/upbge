@@ -39,6 +39,7 @@
 #include "GPU_glew.h"
 #include "GPU_shader.h"
 #include "GPU_texture.h"
+#include "GPU_material.h"
 #include "gpu_codegen.h"
 
 /* TODO(sergey): Find better default values for this constants. */

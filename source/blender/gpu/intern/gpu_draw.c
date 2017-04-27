@@ -45,6 +45,7 @@
 #include "BLI_math.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
+#include "BLI_hash.h"
 
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
@@ -1081,7 +1082,7 @@ void GPU_paint_set_mipmap(bool mipmap)
 
 
 /* check if image has been downscaled and do scaled partial update */
-static bool GPU_check_scaled_image(ImBuf *ibuf, Image *ima, float *frect, int x, int y, int w, int h)
+static bool gpu_check_scaled_image(ImBuf *ibuf, Image *ima, float *frect, int x, int y, int w, int h)
 {
 	if ((!GPU_full_non_power_of_two_support() && !is_power_of_2_resolution(ibuf->x, ibuf->y)) ||
 	    is_over_resolution_limit(GL_TEXTURE_2D, ibuf->x, ibuf->y))
@@ -1174,7 +1175,7 @@ void GPU_paint_update_image(Image *ima, ImageUser *iuser, int x, int y, int w, i
 			bool is_data = (ima->tpageflag & IMA_GLBIND_IS_DATA) != 0;
 			IMB_partial_rect_from_float(ibuf, buffer, x, y, w, h, is_data);
 			
-			if (GPU_check_scaled_image(ibuf, ima, buffer, x, y, w, h)) {
+			if (gpu_check_scaled_image(ibuf, ima, buffer, x, y, w, h)) {
 				MEM_freeN(buffer);
 				BKE_image_release_ibuf(ima, ibuf, NULL);
 				return;
@@ -1198,7 +1199,7 @@ void GPU_paint_update_image(Image *ima, ImageUser *iuser, int x, int y, int w, i
 			return;
 		}
 
-		if (GPU_check_scaled_image(ibuf, ima, NULL, x, y, w, h)) {
+		if (gpu_check_scaled_image(ibuf, ima, NULL, x, y, w, h)) {
 			BKE_image_release_ibuf(ima, ibuf, NULL);
 			return;
 		}
@@ -1748,7 +1749,7 @@ void GPU_begin_object_materials(
 	GPU_object_material_unbind();
 }
 
-static int GPU_get_particle_info(GPUParticleInfo *pi)
+static int gpu_get_particle_info(GPUParticleInfo *pi)
 {
 	DupliObject *dob = GMS.dob;
 	if (dob->particle_system) {
@@ -1775,6 +1776,21 @@ static int GPU_get_particle_info(GPUParticleInfo *pi)
 	}
 	else
 		return 0;
+}
+
+static void GPU_get_object_info(float oi[3], Material *mat)
+{
+	Object *ob = GMS.gob;
+	oi[0] = ob->index;
+	oi[1] = mat->index;
+	unsigned int random;
+	if (GMS.dob) {
+		random = GMS.dob->random_id;
+	}
+	else {
+		random = BLI_hash_int_2d(BLI_hash_string(GMS.gob->id.name + 2), 0);
+	}
+	oi[2] = random * (1.0f / (float)0xFFFFFFFF);
 }
 
 int GPU_object_material_bind(int nr, void *attribs)
@@ -1836,21 +1852,27 @@ int GPU_object_material_bind(int nr, void *attribs)
 			/* bind glsl material and get attributes */
 			Material *mat = GMS.gmatbuf[nr];
 			GPUParticleInfo partile_info;
+			float object_info[3] = {0};
 
 			float auto_bump_scale;
 
 			GPUMaterial *gpumat = GPU_material_from_blender(GMS.gscene, mat, GMS.is_opensubdiv, false);
 			GPU_material_vertex_attributes(gpumat, gattribs);
 
-			if (GMS.dob)
-				GPU_get_particle_info(&partile_info);
+			if (GMS.dob) {
+				gpu_get_particle_info(&partile_info);
+			}
+			
+			if (GPU_get_material_builtins(gpumat) & GPU_OBJECT_INFO) {
+				GPU_get_object_info(object_info, mat);
+			}
 
 			GPU_material_bind(
 			        gpumat, GMS.gob->lay, GMS.glay, 1.0, !(GMS.gob->mode & OB_MODE_TEXTURE_PAINT),
 			        GMS.gviewmat, GMS.gviewinv, GMS.gviewcamtexcofac, GMS.gscenelock);
 
 			auto_bump_scale = GMS.gob->derivedFinal != NULL ? GMS.gob->derivedFinal->auto_bump_scale : 1.0f;
-			GPU_material_bind_uniforms(gpumat, GMS.gob->obmat, GMS.gviewmat, GMS.gob->col, auto_bump_scale, &partile_info);
+			GPU_material_bind_uniforms(gpumat, GMS.gob->obmat, GMS.gviewmat, GMS.gob->col, auto_bump_scale, &partile_info, object_info);
 			GMS.gboundmat = mat;
 
 			/* for glsl use alpha blend mode, unless it's set to solid and

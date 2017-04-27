@@ -20,8 +20,8 @@ macro(BLENDER_SRC_GTEST_EX NAME SRC EXTRA_LIBS DO_ADD_TEST)
 		set(TEST_INC
 			${_current_include_directories}
 			${CMAKE_SOURCE_DIR}/tests/gtests
-			${CMAKE_SOURCE_DIR}/extern/glog/src
-			${CMAKE_SOURCE_DIR}/extern/gflags/src
+			${GLOG_INCLUDE_DIRS}
+			${GFLAGS_INCLUDE_DIRS}
 			${CMAKE_SOURCE_DIR}/extern/gtest/include
 			${CMAKE_SOURCE_DIR}/extern/gmock/include
 		)
@@ -37,8 +37,8 @@ macro(BLENDER_SRC_GTEST_EX NAME SRC EXTRA_LIBS DO_ADD_TEST)
 		                      extern_gmock
 		                      # needed for glog
 		                      ${PTHREADS_LIBRARIES}
-		                      extern_glog
-		                      extern_gflags)
+		                      ${GLOG_LIBRARIES}
+		                      ${GFLAGS_LIBRARIES})
 		if(WITH_OPENMP_STATIC)
 			target_link_libraries(${NAME}_test ${OpenMP_LIBRARIES})
 		endif()

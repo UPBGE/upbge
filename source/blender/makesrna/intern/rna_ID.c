@@ -342,7 +342,7 @@ static void rna_ID_user_clear(ID *id)
 
 static void rna_ID_user_remap(ID *id, Main *bmain, ID *new_id)
 {
-	if (GS(id->name) == GS(new_id->name)) {
+	if ((GS(id->name) == GS(new_id->name)) && (id != new_id)) {
 		/* For now, do not allow remapping data in linked data from here... */
 		BKE_libblock_remap(bmain, id, new_id, ID_REMAP_SKIP_INDIRECT_USAGE | ID_REMAP_SKIP_NEVER_NULL_USAGE);
 	}
@@ -802,7 +802,11 @@ static void rna_def_ID_properties(BlenderRNA *brna)
 	RNA_def_struct_name_property(srna, prop);
 #endif
 
-	/* IDP_ID -- not implemented yet in id properties */
+	/* IDP_ID */
+	prop = RNA_def_property(srna, "id", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_EXPORT | PROP_IDPROPERTY | PROP_NEVER_UNLINK);
+	RNA_def_property_struct_type(prop, "ID");
+
 
 	/* ID property groups > level 0, since level 0 group is merged
 	 * with native RNA properties. the builtin_properties will take

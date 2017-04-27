@@ -83,6 +83,8 @@ ExportSettings::ExportSettings()
     , export_vcols(false)
     , export_face_sets(false)
     , export_vweigths(false)
+    , export_hair(true)
+    , export_particles(true)
     , apply_subdiv(false)
     , use_subdiv_schema(false)
     , export_child_hairs(true)
@@ -106,7 +108,7 @@ static bool object_is_smoke_sim(Object *ob)
 	return false;
 }
 
-static bool object_is_shape(Object *ob)
+static bool object_type_is_exportable(Object *ob)
 {
 	switch (ob->type) {
 		case OB_MESH:
@@ -115,6 +117,7 @@ static bool object_is_shape(Object *ob)
 			}
 
 			return true;
+		case OB_EMPTY:
 		case OB_CURVE:
 		case OB_SURF:
 		case OB_CAMERA:
@@ -124,14 +127,32 @@ static bool object_is_shape(Object *ob)
 	}
 }
 
-static bool export_object(const ExportSettings * const settings, Object *ob)
-{
-	if (settings->selected_only && !parent_selected(ob)) {
-		return false;
-	}
 
-	if (settings->visible_layers_only && !(settings->scene->lay & ob->lay)) {
-		return false;
+/**
+ * Returns whether this object should be exported into the Alembic file.
+ *
+ * @param settings export settings, used for options like 'selected only'.
+ * @param ob the object in question.
+ * @param is_duplicated normally false; true when the object is instanced
+ *                      into the scene by a dupli-object (e.g. part of a
+ *                      dupligroup). This ignores selection and layer
+ *                      visibility, and assumes that the dupli-object itself
+ *                      (e.g. the group-instantiating empty) is exported.
+ */
+static bool export_object(const ExportSettings * const settings, Object *ob,
+                          bool is_duplicated)
+{
+	if (!is_duplicated) {
+		/* These two tests only make sense when the object isn't being instanced
+		 * into the scene. When it is, its exportability is determined by
+		 * its dupli-object and the DupliObject::no_draw property. */
+		if (settings->selected_only && !parent_selected(ob)) {
+			return false;
+		}
+
+		if (settings->visible_layers_only && !(settings->scene->lay & ob->lay)) {
+			return false;
+		}
 	}
 
 	if (settings->renderable_only && (ob->restrictflag & OB_RESTRICT_RENDER)) {
@@ -272,13 +293,7 @@ void AbcExporter::operator()(Main *bmain, float &progress, bool &was_canceled)
 
 	OBox3dProperty archive_bounds_prop = Alembic::AbcGeom::CreateOArchiveBounds(m_writer->archive(), m_trans_sampling_index);
 
-	if (m_settings.flatten_hierarchy) {
-		createTransformWritersFlat();
-	}
-	else {
-		createTransformWritersHierarchy(bmain->eval_ctx);
-	}
-
+	createTransformWritersHierarchy(bmain->eval_ctx);
 	createShapeWriters(bmain->eval_ctx);
 
 	/* Make a list of frames to export. */
@@ -349,34 +364,16 @@ void AbcExporter::createTransformWritersHierarchy(EvaluationContext *eval_ctx)
 	while (base) {
 		Object *ob = base->object;
 
-		if (export_object(&m_settings, ob)) {
-			switch (ob->type) {
-				case OB_LAMP:
-				case OB_LATTICE:
-				case OB_MBALL:
-				case OB_SPEAKER:
-					/* We do not export transforms for objects of these classes. */
-					break;
+		switch (ob->type) {
+			case OB_LAMP:
+			case OB_LATTICE:
+			case OB_MBALL:
+			case OB_SPEAKER:
+				/* We do not export transforms for objects of these classes. */
+				break;
 
-				default:
-					exploreTransform(eval_ctx, ob, ob->parent, NULL);
-			}
-		}
-
-		base = base->next;
-	}
-}
-
-void AbcExporter::createTransformWritersFlat()
-{
-	Base *base = static_cast<Base *>(m_scene->base.first);
-
-	while (base) {
-		Object *ob = base->object;
-
-		if (export_object(&m_settings, ob) && object_is_shape(ob)) {
-			std::string name = get_id_name(ob);
-			m_xforms[name] = new AbcTransformWriter(ob, m_writer->archive().getTop(), 0, m_trans_sampling_index, m_settings);
+			default:
+				exploreTransform(eval_ctx, ob, ob->parent);
 		}
 
 		base = base->next;
@@ -385,8 +382,13 @@ void AbcExporter::createTransformWritersFlat()
 
 void AbcExporter::exploreTransform(EvaluationContext *eval_ctx, Object *ob, Object *parent, Object *dupliObParent)
 {
+	/* If an object isn't exported itself, its duplilist shouldn't be
+	 * exported either. */
+	if (!export_object(&m_settings, ob, dupliObParent != NULL)) {
+		return;
+	}
 
-	if (export_object(&m_settings, ob) && object_is_shape(ob)) {
+	if (object_type_is_exportable(ob)) {
 		createTransformWriter(ob, parent, dupliObParent);
 	}
 
@@ -397,15 +399,18 @@ void AbcExporter::exploreTransform(EvaluationContext *eval_ctx, Object *ob, Obje
 		Object *dupli_ob = NULL;
 		Object *dupli_parent = NULL;
 		
-		while (link) {
+		for (; link; link = link->next) {
+			/* This skips things like custom bone shapes. */
+			if (m_settings.renderable_only && link->no_draw) {
+				continue;
+			}
+
 			if (link->type == OB_DUPLIGROUP) {
 				dupli_ob = link->ob;
 				dupli_parent = (dupli_ob->parent) ? dupli_ob->parent : ob;
 
 				exploreTransform(eval_ctx, dupli_ob, dupli_parent, ob);
 			}
-
-			link = link->next;
 		}
 	}
 
@@ -414,11 +419,17 @@ void AbcExporter::exploreTransform(EvaluationContext *eval_ctx, Object *ob, Obje
 
 AbcTransformWriter * AbcExporter::createTransformWriter(Object *ob, Object *parent, Object *dupliObParent)
 {
-	const std::string name = get_object_dag_path_name(ob, dupliObParent);
-
 	/* An object should not be its own parent, or we'll get infinite loops. */
 	BLI_assert(ob != parent);
 	BLI_assert(ob != dupliObParent);
+
+	std::string name;
+	if (m_settings.flatten_hierarchy) {
+		name = get_id_name(ob);
+	}
+	else {
+		name = get_object_dag_path_name(ob, dupliObParent);
+	}
 
 	/* check if we have already created a transform writer for this object */
 	AbcTransformWriter *my_writer = getXForm(name);
@@ -429,13 +440,23 @@ AbcTransformWriter * AbcExporter::createTransformWriter(Object *ob, Object *pare
 	AbcTransformWriter *parent_writer = NULL;
 	Alembic::Abc::OObject alembic_parent;
 
-	if (parent) {
+	if (m_settings.flatten_hierarchy || parent == NULL) {
+		/* Parentless objects still have the "top object" as parent
+		 * in Alembic. */
+		alembic_parent = m_writer->archive().getTop();
+	}
+	else {
 		/* Since there are so many different ways to find parents (as evident
 		 * in the number of conditions below), we can't really look up the
 		 * parent by name. We'll just call createTransformWriter(), which will
 		 * return the parent's AbcTransformWriter pointer. */
 		if (parent->parent) {
-			parent_writer = createTransformWriter(parent, parent->parent, dupliObParent);
+			if (parent == dupliObParent) {
+				parent_writer = createTransformWriter(parent, parent->parent, NULL);
+			}
+			else {
+				parent_writer = createTransformWriter(parent, parent->parent, dupliObParent);
+			}
 		}
 		else if (parent == dupliObParent) {
 			if (dupliObParent->parent == NULL) {
@@ -452,14 +473,15 @@ AbcTransformWriter * AbcExporter::createTransformWriter(Object *ob, Object *pare
 		BLI_assert(parent_writer);
 		alembic_parent = parent_writer->alembicXform();
 	}
-	else {
-		/* Parentless objects still have the "top object" as parent
-		 * in Alembic. */
-		alembic_parent = m_writer->archive().getTop();
-	}
 
 	my_writer = new AbcTransformWriter(ob, alembic_parent, parent_writer,
 	                                   m_trans_sampling_index, m_settings);
+
+	/* When flattening, the matrix of the dupliobject has to be added. */
+	if (m_settings.flatten_hierarchy && dupliObParent) {
+		my_writer->m_proxy_from = dupliObParent;
+	}
+
 	m_xforms[name] = my_writer;
 	return my_writer;
 }
@@ -478,32 +500,60 @@ void AbcExporter::createShapeWriters(EvaluationContext *eval_ctx)
 
 void AbcExporter::exploreObject(EvaluationContext *eval_ctx, Object *ob, Object *dupliObParent)
 {
-	ListBase *lb = object_duplilist(eval_ctx, m_scene, ob);
-	
+	/* If an object isn't exported itself, its duplilist shouldn't be
+	 * exported either. */
+	if (!export_object(&m_settings, ob, dupliObParent != NULL)) {
+		return;
+	}
+
 	createShapeWriter(ob, dupliObParent);
 	
-	if (lb) {
-		DupliObject *dupliob = static_cast<DupliObject *>(lb->first);
+	ListBase *lb = object_duplilist(eval_ctx, m_scene, ob);
 
-		while (dupliob) {
-			if (dupliob->type == OB_DUPLIGROUP) {
-				exploreObject(eval_ctx, dupliob->ob, ob);
+	if (lb) {
+		DupliObject *link = static_cast<DupliObject *>(lb->first);
+
+		for (; link; link = link->next) {
+			/* This skips things like custom bone shapes. */
+			if (m_settings.renderable_only && link->no_draw) {
+				continue;
 			}
 
-			dupliob = dupliob->next;
+			if (link->type == OB_DUPLIGROUP) {
+				exploreObject(eval_ctx, link->ob, ob);
+			}
 		}
 	}
 
 	free_object_duplilist(lb);
 }
 
-void AbcExporter::createShapeWriter(Object *ob, Object *dupliObParent)
+void AbcExporter::createParticleSystemsWriters(Object *ob, AbcTransformWriter *xform)
 {
-	if (!object_is_shape(ob)) {
+	if (!m_settings.export_hair && !m_settings.export_particles) {
 		return;
 	}
 
-	if (!export_object(&m_settings, ob)) {
+	ParticleSystem *psys = static_cast<ParticleSystem *>(ob->particlesystem.first);
+
+	for (; psys; psys = psys->next) {
+		if (!psys_check_enabled(ob, psys, G.is_rendering) || !psys->part) {
+			continue;
+		}
+
+		if (m_settings.export_hair && psys->part->type == PART_HAIR) {
+			m_settings.export_child_hairs = true;
+			m_shapes.push_back(new AbcHairWriter(m_scene, ob, xform, m_shape_sampling_index, m_settings, psys));
+		}
+		else if (m_settings.export_particles && psys->part->type == PART_EMITTER) {
+			m_shapes.push_back(new AbcPointsWriter(m_scene, ob, xform, m_shape_sampling_index, m_settings, psys));
+		}
+	}
+}
+
+void AbcExporter::createShapeWriter(Object *ob, Object *dupliObParent)
+{
+	if (!object_type_is_exportable(ob)) {
 		return;
 	}
 
@@ -523,21 +573,7 @@ void AbcExporter::createShapeWriter(Object *ob, Object *dupliObParent)
 		return;
 	}
 
-	ParticleSystem *psys = static_cast<ParticleSystem *>(ob->particlesystem.first);
-
-	for (; psys; psys = psys->next) {
-		if (!psys_check_enabled(ob, psys, G.is_rendering) || !psys->part) {
-			continue;
-		}
-
-		if (psys->part->type == PART_HAIR) {
-			m_settings.export_child_hairs = true;
-			m_shapes.push_back(new AbcHairWriter(m_scene, ob, xform, m_shape_sampling_index, m_settings, psys));
-		}
-		else if (psys->part->type == PART_EMITTER) {
-			m_shapes.push_back(new AbcPointsWriter(m_scene, ob, xform, m_shape_sampling_index, m_settings, psys));
-		}
-	}
+	createParticleSystemsWriters(ob, xform);
 
 	switch (ob->type) {
 		case OB_MESH:
