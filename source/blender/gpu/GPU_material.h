@@ -199,6 +199,7 @@ typedef enum GPUDynamicType {
 	GPU_DYNAMIC_ZENITH_COLOR         = 3  | GPU_DYNAMIC_GROUP_WORLD,
 	GPU_DYNAMIC_WORLD_LINFAC         = 4  | GPU_DYNAMIC_GROUP_WORLD,
 	GPU_DYNAMIC_WORLD_LOGFAC         = 5  | GPU_DYNAMIC_GROUP_WORLD,
+	GPU_DYNAMIC_ENVLIGHT_ENERGY      = 6  | GPU_DYNAMIC_GROUP_WORLD,
 
 	GPU_DYNAMIC_MAT_DIFFRGB          = 1  | GPU_DYNAMIC_GROUP_MAT,
 	GPU_DYNAMIC_MAT_REF              = 2  | GPU_DYNAMIC_GROUP_MAT,
@@ -382,6 +383,7 @@ void GPU_horizon_update_color(float color[3]);
 void GPU_ambient_update_color(float color[3]);
 void GPU_zenith_update_color(float color[3]);
 void GPU_update_exposure_range(float exp, float range);
+void GPU_update_envlight_energy(float energy);
 
 struct GPUParticleInfo
 {

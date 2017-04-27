@@ -95,3 +95,10 @@ base class --- :class:`PyObjectPlus`
       The color range that will be mapped to 0 - 1.
 
       :type: float between 0.2 and 5.0 inclusive
+
+   .. attribute:: envLightEnergy
+
+      The environment light energy.
+
+      :type: float from 0.0 to infinite
+
