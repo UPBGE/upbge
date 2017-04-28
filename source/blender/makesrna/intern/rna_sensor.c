@@ -449,6 +449,12 @@ static void rna_def_mouse_sensor(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SENS_RAY_XRAY);
 	RNA_def_property_ui_text(prop, "X-Ray", "Toggle X-Ray option (see through objects that don't have the property)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop = RNA_def_property(srna, "mask", PROP_BOOLEAN, PROP_LAYER_MEMBER);
+	RNA_def_property_boolean_sdna(prop, NULL, "mask", 1);
+	RNA_def_property_array(prop, OB_MAX_COL_MASKS);
+	RNA_def_property_ui_text(prop, "Mask", "Mask filter compared with object's collision group");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
 
 static void rna_def_keyboard_sensor(BlenderRNA *brna)

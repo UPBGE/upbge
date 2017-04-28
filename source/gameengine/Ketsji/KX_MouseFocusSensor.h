@@ -62,6 +62,7 @@ class KX_MouseFocusSensor : public SCA_MouseSensor
 						const std::string& propname,
 						bool bFindMaterial,
 						bool bXRay,
+						int mask,
 						KX_Scene* kxscene,
 						KX_KetsjiEngine* kxengine,
 						SCA_IObject* gameobj);
@@ -144,6 +145,8 @@ class KX_MouseFocusSensor : public SCA_MouseSensor
 	 * Flags get through other objects
 	 */
 	bool m_bXRay;
+
+	int m_mask;
 
 	/**
 	 * Flags material

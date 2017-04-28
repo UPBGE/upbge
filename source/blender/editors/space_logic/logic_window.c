@@ -1081,6 +1081,9 @@ static void draw_sensor_mouse(uiLayout *layout, PointerRNA *ptr, bContext *C)
 			uiItemPointerR(split2, ptr, "material", &main_ptr, "materials", "", ICON_MATERIAL_DATA);
 		}
 		uiItemR(split2, ptr, "use_x_ray", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
+
+		split = uiLayoutSplit(layout, 0.3, false);
+		uiItemR(split, ptr, "mask", 0, NULL, ICON_NONE);
 	}
 }
 

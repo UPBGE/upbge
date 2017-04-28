@@ -229,5 +229,17 @@ void blo_do_versions_upbge(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "bMouseSensor", "int", "mask")) {
+			for (Object *ob = main->object.first; ob; ob = ob->id.next) {
+				for (bSensor *sensor = ob->sensors.first; sensor; sensor = (bSensor *)sensor->next) {
+					if (sensor->type == SENS_MOUSE) {
+						bMouseSensor *mouseSensor = (bMouseSensor *)sensor->data;
+						// All one, because this was the previous behavior.
+						mouseSensor->mask = 0xFFFF;
+					}
+				}
+			}
+		}
 	}
 }

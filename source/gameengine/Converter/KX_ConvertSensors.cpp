@@ -329,6 +329,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 							/* give us a focus-aware sensor */
 							bool bFindMaterial = (bmouse->mode & SENS_COLLISION_MATERIAL);
 							bool bXRay = (bmouse->flag & SENS_RAY_XRAY);
+							int mask = bmouse->mask;
 							std::string checkname = (bFindMaterial? bmouse->matname : bmouse->propname);
 
 							gamesensor = new KX_MouseFocusSensor(eventmgr,
@@ -340,6 +341,7 @@ void BL_ConvertSensors(struct Object* blenderobject,
 								checkname,
 								bFindMaterial,
 								bXRay,
+								mask,
 								kxscene,
 								kxengine,
 								gameobj);

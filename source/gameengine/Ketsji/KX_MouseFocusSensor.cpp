@@ -68,6 +68,7 @@ KX_MouseFocusSensor::KX_MouseFocusSensor(SCA_MouseManager* eventmgr,
 										 const std::string& propname,
 										 bool bFindMaterial,
 										 bool bXRay,
+										 int mask,
 										 KX_Scene* kxscene,
 										 KX_KetsjiEngine *kxengine,
 										 SCA_IObject* gameobj)
@@ -75,6 +76,7 @@ KX_MouseFocusSensor::KX_MouseFocusSensor(SCA_MouseManager* eventmgr,
 	  m_focusmode(focusmode),
 	  m_bCollisionPulse(bCollisionPulse),
 	  m_bXRay(bXRay),
+	  m_mask(mask),
 	  m_bFindMaterial(bFindMaterial),
 	  m_propertyname(propname),
 	  m_kxscene(kxscene),
@@ -207,6 +209,12 @@ bool KX_MouseFocusSensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(
 		CM_Error("invalid client type " << client->m_type << " found ray casting");
 		return false;
 	}
+
+	// The current object is not in the proper layer.
+	if (!(hitKXObj->GetUserCollisionGroup() & m_mask)) {
+		return false;
+	}
+
 	if (m_bXRay && m_propertyname.size() != 0)
 	{
 		if (m_bFindMaterial)
@@ -457,6 +465,7 @@ PyAttributeDef KX_MouseFocusSensor::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("hitUV",		KX_MouseFocusSensor, pyattr_get_hit_uv),
 	KX_PYATTRIBUTE_BOOL_RW("usePulseFocus",	KX_MouseFocusSensor, m_bCollisionPulse),
 	KX_PYATTRIBUTE_BOOL_RW("useXRay",		KX_MouseFocusSensor, m_bXRay),
+	KX_PYATTRIBUTE_INT_RW("mask", 1, (1 << OB_MAX_COL_MASKS) - 1, true, KX_MouseFocusSensor, m_mask),
 	KX_PYATTRIBUTE_BOOL_RW("useMaterial", KX_MouseFocusSensor, m_bFindMaterial),
 	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, KX_MouseFocusSensor, m_propertyname),
 	KX_PYATTRIBUTE_NULL	//Sentinel

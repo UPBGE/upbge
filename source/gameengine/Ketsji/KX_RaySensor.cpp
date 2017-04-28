@@ -171,7 +171,7 @@ bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSED(data))
 	}
 
 	// The current object is not in the proper layer.
-	if (!(client->m_gameobject->GetUserCollisionGroup() & m_mask)) {
+	if (!(hitKXObj->GetUserCollisionGroup() & m_mask)) {
 		return false;
 	}
 
