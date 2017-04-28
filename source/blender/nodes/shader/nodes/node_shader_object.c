@@ -42,7 +42,7 @@ static int gpu_shader_object(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecDat
 {
 	GPUNodeLink *obcolor = GPU_builtin(GPU_material_use_instancing(mat) ? GPU_INSTANCING_COLOR : GPU_OBCOLOR);
 
-	return GPU_stack_link(mat, "object", in, out, obcolor);
+	return GPU_stack_link(mat, "set_rgba", in, out, obcolor);
 }
 
 void register_node_type_sh_object(void)

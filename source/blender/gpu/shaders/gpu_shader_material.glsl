@@ -270,11 +270,6 @@ void camera(vec3 co, out vec3 outview, out float outdepth, out float outdist)
 	outview = normalize(co);
 }
 
-void object(vec4 color, out vec4 outcolor)
-{
-	outcolor = color;
-}
-
 void lamp(
         vec4 col, float energy, vec3 lv, float dist, vec3 shadow, float visifac,
         out vec4 outcol, out vec3 outlv, out float outdist, out vec4 outshadow, out float outvisifac)
@@ -3959,11 +3954,6 @@ void node_object_info(mat4 obmat, vec3 info, out vec3 location, out float object
 	object_index = info.x;
 	material_index = info.y;
 	random = info.z;
-}
-
-void node_time(float time, out float outtime)
-{
-	outtime = time;
 }
 
 void node_normal_map(vec4 tangent, vec3 normal, vec3 texnormal, out vec3 outnormal)

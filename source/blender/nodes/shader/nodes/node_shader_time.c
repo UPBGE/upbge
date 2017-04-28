@@ -37,7 +37,7 @@ static int gpu_shader_time(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecData 
 {
 	GPUNodeLink *time = GPU_builtin(GPU_TIME);
 
-	return GPU_stack_link(mat, "node_time", in, out, time);
+	return GPU_stack_link(mat, "set_value", in, out, time);
 }
 
 void register_node_type_sh_time(void)
