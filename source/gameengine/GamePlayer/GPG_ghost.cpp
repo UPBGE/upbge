@@ -604,7 +604,7 @@ static BlendFileData *load_encrypted_game_data(const char *filename, std::string
 		return NULL;
 	}
 
-	if ((localPath == NULL) && !encryptKey.empty()) {
+	if (localPath && !encryptKey.empty()) {
 		// Load file and decrypt.
 		fileData = SPINDLE_DecryptFromFile(filename, &fileSize, encryptKey.c_str(), 0);
 	}

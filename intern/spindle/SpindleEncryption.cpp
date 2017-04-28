@@ -206,6 +206,12 @@ void SPINDLE_SetFilePath(std::string path)
 	filePath = path;
 }
 
+void SPINDLE_SetFilePath(const char *filepath)
+{
+	std::string temp(filepath);
+	filePath = temp;
+}
+
 const char *SPINDLE_GetFilePath()
 {
 	return filePath.c_str();

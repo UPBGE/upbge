@@ -1159,6 +1159,7 @@ FileData *blo_openblenderfile(const char *filepath, ReportList *reports)
 	else {
 		int filesize = 0;
 		const char *decrypteddata = SPINDLE_DecryptFromFile(filepath, &filesize, NULL, typeencryption);
+		SPINDLE_SetFilePath(filepath);
 		return blo_openblendermemory(decrypteddata, filesize, reports);
 	}
 #endif

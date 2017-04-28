@@ -46,6 +46,7 @@ extern "C" {
 #endif
 char *SPINDLE_DecryptFromFile(const char *filename, int *fileSize, const char *encryptKey, int typeEncryption);
 int SPINDLE_CheckEncryptionFromFile(const char *filepath);
+void SPINDLE_SetFilePath(const char *filepath);
 const char *SPINDLE_GetFilePath();
 
 #ifdef __cplusplus
