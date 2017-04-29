@@ -105,11 +105,11 @@ public:
 	};
 
 private:
-	struct CameraFrameRenderData
+	struct CameraRenderData
 	{
-		CameraFrameRenderData(KX_Camera *rendercam, KX_Camera *cullingcam, const RAS_Rect& area, const RAS_Rect& viewport, RAS_Rasterizer::StereoEye eye);
-		CameraFrameRenderData(const CameraFrameRenderData& other);
-		~CameraFrameRenderData();
+		CameraRenderData(KX_Camera *rendercam, KX_Camera *cullingcam, const RAS_Rect& area, const RAS_Rect& viewport, RAS_Rasterizer::StereoEye eye);
+		CameraRenderData(const CameraRenderData& other);
+		~CameraRenderData();
 
 		/// Rendered camera, could be a temporary camera in case of stereo.
 		KX_Camera *m_renderCamera;
@@ -119,12 +119,12 @@ private:
 		RAS_Rasterizer::StereoEye m_eye;
 	};
 
-	struct SceneFrameRenderData
+	struct SceneRenderData
 	{
-		SceneFrameRenderData(KX_Scene *scene);
+		SceneRenderData(KX_Scene *scene);
 
 		KX_Scene *m_scene;
-		std::vector<CameraFrameRenderData> m_cameraDataList;
+		std::vector<CameraRenderData> m_cameraDataList;
 	};
 
 	/// Data used to render a frame.
@@ -133,7 +133,7 @@ private:
 		FrameRenderData(RAS_Rasterizer::OffScreenType ofsType);
 
 		RAS_Rasterizer::OffScreenType m_ofsType;
-		std::vector<SceneFrameRenderData> m_sceneDataList;
+		std::vector<SceneRenderData> m_sceneDataList;
 	};
 
 	/// 2D Canvas (2D Rendering Device Context)
@@ -258,16 +258,16 @@ private:
 	/// Update and return the projection matrix of a camera depending on the viewport.
 	MT_Matrix4x4 GetCameraProjectionMatrix(KX_Scene *scene, KX_Camera *cam, RAS_Rasterizer::StereoEye eye,
 										   const RAS_Rect& viewport, const RAS_Rect& area) const;
-	CameraFrameRenderData GetCameraRenderData(KX_Scene *scene, KX_Camera *camera, KX_Camera *overrideCullingCam, const RAS_Rect& displayArea,
+	CameraRenderData GetCameraRenderData(KX_Scene *scene, KX_Camera *camera, KX_Camera *overrideCullingCam, const RAS_Rect& displayArea,
 											  RAS_Rasterizer::StereoEye eye, bool usestereo);
 	/// Compute frame render data per eyes (in case of stereo), scenes and camera.
 	bool GetFrameRenderData(std::vector<FrameRenderData>& frameDataList);
 
-	void RenderCamera(KX_Scene *scene, const CameraFrameRenderData& cameraFrameData, RAS_OffScreen *offScreen, unsigned short pass, bool isFirstScene);
+	void RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, RAS_OffScreen *offScreen, unsigned short pass, bool isFirstScene);
 	RAS_OffScreen *PostRenderScene(KX_Scene *scene, RAS_OffScreen *inputofs, RAS_OffScreen *targetofs);
 	void RenderDebugProperties();
 	/// Debug draw cameras frustum of a scene.
-	void DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const CameraFrameRenderData& cameraFrameData);
+	void DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const CameraRenderData& cameraFrameData);
 	/// Debug draw lights shadow frustum of a scene.
 	void DrawDebugShadowFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw);
 

@@ -83,7 +83,7 @@
 #  endif
 #endif
 
-KX_KetsjiEngine::CameraFrameRenderData::CameraFrameRenderData(KX_Camera *rendercam, KX_Camera *cullingcam, const RAS_Rect& area, const RAS_Rect& viewport,
+KX_KetsjiEngine::CameraRenderData::CameraRenderData(KX_Camera *rendercam, KX_Camera *cullingcam, const RAS_Rect& area, const RAS_Rect& viewport,
 															  RAS_Rasterizer::StereoEye eye)
 	:m_renderCamera(rendercam),
 	m_cullingCamera(cullingcam),
@@ -94,7 +94,7 @@ KX_KetsjiEngine::CameraFrameRenderData::CameraFrameRenderData(KX_Camera *renderc
 	m_renderCamera->AddRef();
 }
 
-KX_KetsjiEngine::CameraFrameRenderData::CameraFrameRenderData(const CameraFrameRenderData& other)
+KX_KetsjiEngine::CameraRenderData::CameraRenderData(const CameraRenderData& other)
 {
 	m_renderCamera = CM_AddRef(other.m_renderCamera);
 	m_cullingCamera = other.m_cullingCamera;
@@ -102,12 +102,12 @@ KX_KetsjiEngine::CameraFrameRenderData::CameraFrameRenderData(const CameraFrameR
 	m_viewport = other.m_viewport;
 }
 
-KX_KetsjiEngine::CameraFrameRenderData::~CameraFrameRenderData()
+KX_KetsjiEngine::CameraRenderData::~CameraRenderData()
 {
 	m_renderCamera->Release();
 }
 
-KX_KetsjiEngine::SceneFrameRenderData::SceneFrameRenderData(KX_Scene *scene)
+KX_KetsjiEngine::SceneRenderData::SceneRenderData(KX_Scene *scene)
 	:m_scene(scene)
 {
 }
@@ -487,7 +487,7 @@ void KX_KetsjiEngine::UpdateSuspendedScenes(double framestep)
 	}
 }
 
-KX_KetsjiEngine::CameraFrameRenderData KX_KetsjiEngine::GetCameraRenderData(KX_Scene *scene, KX_Camera *camera, KX_Camera *overrideCullingCam,
+KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(KX_Scene *scene, KX_Camera *camera, KX_Camera *overrideCullingCam,
 		const RAS_Rect& displayArea, RAS_Rasterizer::StereoEye eye, bool usestereo)
 {
 	KX_Camera *rendercam;
@@ -529,7 +529,7 @@ KX_KetsjiEngine::CameraFrameRenderData KX_KetsjiEngine::GetCameraRenderData(KX_S
 		rendercam->Release();
 	}
 
-	return CameraFrameRenderData(rendercam, cullingcam, area, viewport, eye);
+	return CameraRenderData(rendercam, cullingcam, area, viewport, eye);
 }
 
 bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameDataList)
@@ -600,7 +600,7 @@ bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameData
 			KX_Scene *scene = *it;
 
 			frameData.m_sceneDataList.emplace_back(scene);
-			SceneFrameRenderData& sceneFrameData = frameData.m_sceneDataList.back();
+			SceneRenderData& sceneFrameData = frameData.m_sceneDataList.back();
 
 			CListValue *cameras = scene->GetCameraList();
 			KX_Camera *activecam = scene->GetActiveCamera();
@@ -666,7 +666,7 @@ void KX_KetsjiEngine::Render()
 
 		// for each scene, call the proceed functions
 		for (unsigned short i = 0, size = frameData.m_sceneDataList.size(); i < size; ++i) {
-			const SceneFrameRenderData& sceneFrameData = frameData.m_sceneDataList[i];
+			const SceneRenderData& sceneFrameData = frameData.m_sceneDataList[i];
 			KX_Scene *scene = sceneFrameData.m_scene;
 
 			const bool isfirstscene = (i == 0);
@@ -678,7 +678,7 @@ void KX_KetsjiEngine::Render()
 			m_rasterizer->SetAuxilaryClientInfo(scene);
 
 			// Draw the scene once for each camera with an enabled viewport or an active camera.
-			for (const CameraFrameRenderData& cameraFrameData : sceneFrameData.m_cameraDataList) {
+			for (const CameraRenderData& cameraFrameData : sceneFrameData.m_cameraDataList) {
 				// do the rendering
 				RenderCamera(scene, cameraFrameData, offScreen, pass++, isfirstscene);
 			}
@@ -975,7 +975,7 @@ MT_Matrix4x4 KX_KetsjiEngine::GetCameraProjectionMatrix(KX_Scene *scene, KX_Came
 }
 
 // update graphics
-void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraFrameRenderData& cameraFrameData, RAS_OffScreen *offScreen,
+void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& cameraFrameData, RAS_OffScreen *offScreen,
 								  unsigned short pass, bool isFirstScene)
 {
 	KX_Camera *rendercam = cameraFrameData.m_renderCamera;
@@ -1278,7 +1278,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	m_rasterizer->FlushDebugDraw(nullptr, m_canvas);
 }
 
-void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const CameraFrameRenderData& cameraFrameData)
+void KX_KetsjiEngine::DrawDebugCameraFrustum(KX_Scene *scene, RAS_DebugDraw& debugDraw, const CameraRenderData& cameraFrameData)
 {
 	if (m_showCameraFrustum == KX_DebugOption::DISABLE) {
 		return;
