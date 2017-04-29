@@ -597,14 +597,14 @@ static BlendFileData *load_encrypted_game_data(const char *filename, std::string
 	BlendFileData *bfd = NULL;
 	char *fileData = NULL;
 	int fileSize;
-	const char *localPath = SPINDLE_GetFilePath();
+	std::string localPath(SPINDLE_GetFilePath());
 	BKE_reports_init(&reports, RPT_STORE);
 
 	if (filename == NULL) {
 		return NULL;
 	}
 
-	if (localPath && !encryptKey.empty()) {
+	if (!localPath.empty() && !encryptKey.empty()) {
 		// Load file and decrypt.
 		fileData = SPINDLE_DecryptFromFile(filename, &fileSize, encryptKey.c_str(), 0);
 	}
