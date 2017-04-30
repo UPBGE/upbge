@@ -1132,8 +1132,8 @@ static FileData *blo_decode_and_check(FileData *fd, ReportList *reports)
 FileData *blo_openblenderfile(const char *filepath, ReportList *reports)
 {
 #ifdef WITH_GAMEENGINE_BPPLAYER
-	int typeencryption = SPINDLE_CheckEncryptionFromFile(filepath);
-	if (typeencryption <= NO_ENCRYPTION) {
+	const int typeencryption = SPINDLE_CheckEncryptionFromFile(filepath);
+	if (typeencryption <= SPINDLE_NO_ENCRYPTION) {
 #endif
 		gzFile gzfile;
 		errno = 0;
@@ -1258,7 +1258,8 @@ FileData *blo_openblendermemory(const void *mem, int memsize, ReportList *report
 		fd->flags |= FD_FLAGS_NOT_MY_BUFFER;
 
 #ifdef WITH_GAMEENGINE_BPPLAYER
-			BLI_strncpy(fd->relabase, SPINDLE_GetFilePath(), sizeof(fd->relabase));
+		// Set local path before calling blo_decode_and_check.
+		BLI_strncpy(fd->relabase, SPINDLE_GetFilePath(), sizeof(fd->relabase));
 #endif
 
 		return blo_decode_and_check(fd, reports);

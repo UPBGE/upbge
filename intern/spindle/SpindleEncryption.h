@@ -32,9 +32,9 @@
 #define __SPINDLEENCRYPTION_H__
 
 
-#define NO_ENCRYPTION		0
-#define STATIC_ENCRYPTION	1
-#define DYNAMIC_ENCRYPTION	2
+#define SPINDLE_NO_ENCRYPTION		0
+#define SPINDLE_STATIC_ENCRYPTION	1
+#define SPINDLE_DYNAMIC_ENCRYPTION	2
 
 
 #ifdef __cplusplus
@@ -47,7 +47,7 @@ extern "C" {
 char *SPINDLE_DecryptFromFile(const char *filename, int *fileSize, const char *encryptKey, int typeEncryption);
 int SPINDLE_CheckEncryptionFromFile(const char *filepath);
 void SPINDLE_SetFilePath(const char *filepath);
-const char *SPINDLE_GetFilePath();
+const char *SPINDLE_GetFilePath(void);
 
 #ifdef __cplusplus
 }
