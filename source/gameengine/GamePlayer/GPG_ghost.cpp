@@ -472,8 +472,6 @@ static void usage(const std::string& program, bool isBlenderPlayer)
 	CM_Message("                   vinterlace       (Vertical interlace for autostereo display)");
 	CM_Message("                   hwpageflip       (Quad buffered shutter glasses)");
 	CM_Message("       Example: -s sidebyside  or  -s vinterlace" << std::endl);
-	CM_Message("  -L: set the local file directory path" << std::endl);
-	CM_Message("  -K: set the encryption key" << std::endl);
 	CM_Message("  -m: maximum anti-aliasing (eg. 2,4,8,16)" << std::endl);
 	CM_Message("  -i: parent window's ID" << std::endl);
 #ifdef _WIN32
