@@ -2709,7 +2709,7 @@ PyObject *KX_GameObject::pyattr_get_localInertia(PyObjectPlus *self_v, const KX_
 	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
 	if (self->GetPhysicsController1())
 		return PyObjectFrom(self->GetPhysicsController1()->GetLocalInertia());
-	return Py_BuildValue("fff", 0.0f, 0.0f, 0.0f);
+	return PyObjectFrom(MT_Vector3(0.0f, 0.0f, 0.0f));
 #endif
 }
 
@@ -3477,8 +3477,7 @@ PyObject *KX_GameObject::PyGetReactionForce()
 	return PyObjectFrom(dummy_point);
 #endif
 	
-	return Py_BuildValue("fff", 0.0f, 0.0f, 0.0f);
-	
+	return PyObjectFrom(MT_Vector3(0.0f, 0.0f, 0.0f));
 }
 
 
