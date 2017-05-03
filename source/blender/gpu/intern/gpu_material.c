@@ -1184,7 +1184,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 					 &specdir, &specangle, &specdist);
 
 			GPU_link(mat, "shade_area_spec", specdir, specangle, specdist,
-					 GPU_dynamic_uniform((float *)lamp->area_size, GPU_DYNAMIC_LAMP_DYNAREASIZE, lamp->ob),
+					 GPU_dynamic_uniform((float *) lamp->area_size, GPU_DYNAMIC_LAMP_DYNAREASIZE, lamp->ob),
 					 shi->har, &specfac);
 			GPU_link(mat, "shade_spec_area_inp", specfac, inp, &specfac);
 

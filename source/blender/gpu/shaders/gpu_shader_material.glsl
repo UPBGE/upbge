@@ -2041,16 +2041,14 @@ void lamp_area_spec(mat4 lampmat, vec3 lampvec, vec3 lamppos, vec3 co, vec3 vn,
 
 void shade_area_spec(vec2 specdir, float specangle, float specdist, vec2 size, float hard, out float specfac)
 {
-	hard /= 4.0;
-	float gloss = 4.0;
-
 	vec2 halfSize = size / 2.0;
+	hard /= length(size);
 
 	vec2 nearestSpec2D = clamp(specdir, -halfSize, halfSize);
 
 	specfac = 0.0;
 	if (specangle > 0.0) {
-		specfac = 1.0 - clamp(length(nearestSpec2D - specdir) * (hard / (specdist / gloss)), 0.0, 1.0);
+		specfac = 1.0 - clamp(length(nearestSpec2D - specdir) * (hard / specdist), 0.0, 1.0);
 	}
 }
 
