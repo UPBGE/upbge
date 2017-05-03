@@ -101,6 +101,7 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICa
 	 * else keep the original source off screen. */
 	if (inputofs->GetSamples()) {
 		previousofs = rasty->GetOffScreen(RAS_Rasterizer::RAS_OFFSCREEN_FILTER0);
+		// No need to bind previousofs because a blit is proceeded.
 		rasty->DrawOffScreen(inputofs, previousofs);
 	}
 
@@ -124,10 +125,6 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICa
 		if (it == pend) {
 			// Render to the targeted off screen for the last filter.
 			ftargetofs = targetofs;
-			if (filter->GetOffScreen()) {
-				CM_Error("last rendered filter (pass index: " << it->first <<
-					 ") targets a custom off screen. You must target an non-custom off screen for the last filter.")
-			}
 		}
 		else {
 			// Else render to the next off screen compared to the input off screen.
@@ -141,10 +138,17 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICa
 		filter->End();
 	}
 
+	// The last filter doesn't use its own off screen and didn't render to the targeted off screen ?
+	if (previousofs != targetofs) {
+		// Render manually to the targeted off screen as the last filter didn't do it for us.
+		targetofs->Bind();
+		rasty->DrawOffScreen(previousofs, targetofs);
+	}
+
 	rasty->SetDepthFunc(RAS_Rasterizer::RAS_LEQUAL);
 	rasty->Enable(RAS_Rasterizer::RAS_CULL_FACE);
 
-	return previousofs;
+	return targetofs;
 }
 
 RAS_2DFilter *RAS_2DFilterManager::CreateFilter(RAS_2DFilterData& filterData)
