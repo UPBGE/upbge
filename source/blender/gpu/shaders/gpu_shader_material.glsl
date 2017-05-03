@@ -2057,31 +2057,31 @@ void area_diff_texture(sampler2D tex, float lodbias, vec2 diagonal, float dist, 
 	vec2 halfSize = size / 2.0;
 
 	vec2 co = diagonal / (dist + 1.0) / size + vec2(0.5);
-	// Negate Y axis diagonal because the lamp direction is negative.
-	co.y = 1.0 - co.y;
 
-	float lod = (pow(dist, 0.1) * 8.0) + lodbias;
+	float lod = (pow(dist, 0.5) * 6.0) + lodbias;
 
 	result = texture2D(tex, co, lod);
+	result.rgb *= result.a;
 }
 
 void area_spec_texture(vec2 specdir, float specdist, sampler2D tex, float lodbias, vec2 size, float hard, out vec4 result)
 {
-	hard /= 4.0;
-	float gloss = 4.0;
+	hard /= length(size);
 
-	float d = ((1.0 / hard) / 2.0) * (specdist / gloss);
+	float d = ((1.0 / hard) / 2.0) * specdist;
 
 	vec2 co = -specdir / (d + 1.0);
 	co /= size;
 	co = co + vec2(0.5);
-	co.x = 1.0 - co.x;
+	co.y = 1.0 - co.y;
 
-	float lod = (2.0 / hard * max(specdist, 0.0)) + lodbias;
+	float dist = max(specdist, 0.0001);
+	float lod = (4.0 / hard * dist) + lodbias;
 
 	vec4 spec = texture2D(tex, co, lod);
 
-	result = spec * 6.0;
+	result = spec / (dist * lod);
+	result.rgb *= spec.a;
 }
 
 void shade_diffuse_oren_nayer(float nl, vec3 n, vec3 l, vec3 v, float rough, out float is)
