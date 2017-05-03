@@ -89,6 +89,7 @@ extern "C"
 
 }
 
+#include "GPU_init_exit.h"
 #include "GPU_draw.h"
 
 #include "KX_Globals.h"
@@ -473,6 +474,7 @@ static void usage(const std::string& program, bool isBlenderPlayer)
 	CM_Message("                   hwpageflip       (Quad buffered shutter glasses)");
 	CM_Message("       Example: -s sidebyside  or  -s vinterlace" << std::endl);
 	CM_Message("  -m: maximum anti-aliasing (eg. 2,4,8,16)" << std::endl);
+	CM_Message("  -n: maximum anisotropic filtering (eg. 2,4,8,16)" << std::endl);
 	CM_Message("  -i: parent window's ID" << std::endl);
 #ifdef _WIN32
 	CM_Message("  -c: keep console window open" << std::endl);
@@ -778,7 +780,6 @@ int main(
 	U.audioformat = 0x24;
 	U.audiochannels = 2;
 
-	// XXX this one too
 	U.anisotropic_filter = 2;
 	// enable fast mipmap generation
 	U.use_gpu_mipmap = 1;
@@ -987,6 +988,18 @@ int main(
 				{
 					error = true;
 					CM_Error("no argument supplied for -m");
+				}
+				break;
+			}
+			case 'n':
+			{
+				++i;
+				if ((i + 1) <= validArguments) {
+					U.anisotropic_filter = atoi(argv[i++]);
+				}
+				else {
+					error = true;
+					CM_Error("no argument supplied for -n");
 				}
 				break;
 			}
@@ -1349,6 +1362,8 @@ int main(
 								}
 							}
 
+							GPU_init();
+
 							if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
 								GPU_set_mipmap(0);
 							}
@@ -1397,6 +1412,8 @@ int main(
 					}
 				} while (!quitGame(exitcode));
 			}
+
+			GPU_exit();
 
 			// Seg Fault; icon.c gIcons == 0
 			BKE_icons_free();

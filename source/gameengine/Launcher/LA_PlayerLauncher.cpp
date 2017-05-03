@@ -35,8 +35,6 @@
 #  include <windows.h>
 #endif
 
-#include "GPU_init_exit.h"
-
 #include "LA_PlayerLauncher.h"
 #include "LA_SystemCommandLine.h"
 
@@ -140,7 +138,6 @@ void LA_PlayerLauncher::SetWindowOrder(short order)
 
 void LA_PlayerLauncher::InitEngine()
 {
-	GPU_init();
 	BKE_sound_init(m_maggie);
 	LA_Launcher::InitEngine();
 
@@ -151,7 +148,6 @@ void LA_PlayerLauncher::ExitEngine()
 {
 	LA_Launcher::ExitEngine();
 	BKE_sound_exit();
-	GPU_exit();
 }
 
 bool LA_PlayerLauncher::EngineNextFrame()
