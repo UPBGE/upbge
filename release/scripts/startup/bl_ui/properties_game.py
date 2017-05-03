@@ -756,6 +756,9 @@ class WORLD_PT_game_environment_lighting(WorldButtonsPanel, Panel):
         split.prop(light, "environment_energy", text="Energy")
         split.prop(light, "environment_color", text="")
 
+        split = layout.split()
+        split.prop(light, "environment_lodbias", text="Blur")
+
 
 class WORLD_PT_game_mist(WorldButtonsPanel, Panel):
     bl_label = "Mist"

@@ -1956,10 +1956,30 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 							GPU_link(mat, "math_multiply", shi->amb, shi->refl, &f);
 							GPU_link(mat, "math_multiply", f, GPU_select_uniform(&GPUWorld.envlightenergy, GPU_DYNAMIC_ENVLIGHT_ENERGY, NULL, ma), &f);
 							GPU_link(mat, "shade_mul_value", f, shi->rgb, &fcol);
-							GPU_link(mat, "env_apply", shr->combined,
-							         GPU_select_uniform(GPUWorld.horicol, GPU_DYNAMIC_HORIZON_COLOR, NULL, ma),
-							         GPU_select_uniform(GPUWorld.zencol, GPU_DYNAMIC_ZENITH_COLOR, NULL, ma), fcol,
-							         GPU_builtin(GPU_VIEW_MATRIX), shi->vn, &shr->combined);
+							if (world->aocolor == WO_AOSKYCOL) {
+								GPU_link(mat, "env_apply", shr->combined,
+									GPU_select_uniform(GPUWorld.horicol, GPU_DYNAMIC_HORIZON_COLOR, NULL, ma),
+									GPU_select_uniform(GPUWorld.zencol, GPU_DYNAMIC_ZENITH_COLOR, NULL, ma), fcol,
+									GPU_builtin(GPU_VIEW_MATRIX), shi->vn, &shr->combined);
+							}
+							
+							else if (world->aocolor == WO_AOSKYTEX) {
+								Image *ima = NULL;
+								MTex *mtex;
+								for (int i = 0; i < MAX_MTEX; i++) {
+									mtex = world->mtex[i];
+									if (mtex && mtex->tex && mtex->tex->ima && mtex->tex->type == TEX_ENVMAP) {
+										ima = world->mtex[i]->tex->ima;
+										break;
+									}
+								}
+								if (ima) {
+									GPU_link(mat, "env_apply_world_tex_color", shr->combined,
+										GPU_cube_map(ima, &mtex->tex->iuser, false),
+										GPU_select_uniform(&world->aolodbias, GPU_DYNAMIC_TEX_LODBIAS, NULL, ma), fcol,
+										GPU_builtin(GPU_INVERSE_VIEW_MATRIX), GPU_builtin(GPU_VIEW_POSITION), &shr->combined);
+								}
+							}
 						}
 					}
 					else {
