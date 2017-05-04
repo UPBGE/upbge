@@ -186,8 +186,11 @@ void RAS_MeshSlot::RunNode(const RAS_RenderNodeArguments& args)
 	if (istext) {
 		rasty->IndexPrimitivesText(this);
 	}
+	else if (m_pDerivedMesh) {
+		rasty->IndexPrimitivesDerivedMesh(this);
+	}
 	else {
-		rasty->IndexPrimitives(this);
+		rasty->IndexPrimitives(m_displayArrayBucket->GetStorageInfo());
 	}
 
 	rasty->PopMatrix();

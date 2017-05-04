@@ -74,7 +74,7 @@ private:
 	/** Info created by the storage and freed by this class.
 	 * So it's an unique instance by display array bucket.
 	 * It contains all infos about special redering e.g
-	 * VBO and IBO ID for VBO storage, DL for VA storage.
+	 * VBO and IBO ID for VBO storage.
 	 */
 	RAS_IStorageInfo *m_storageInfo;
 
@@ -86,8 +86,12 @@ private:
 
 	RAS_DisplayArrayDownwardNode m_downwardNode;
 	RAS_DisplayArrayUpwardNode m_upwardNode;
+
 	RAS_DisplayArrayDownwardNode m_instancingNode;
 	RAS_DisplayArrayDownwardNode m_batchingNode;
+
+	void BindPrimitives(RAS_Rasterizer *rasty);
+	void UnbindPrimitives(RAS_Rasterizer *rasty);
 
 public:
 	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
@@ -102,6 +106,7 @@ public:
 	RAS_IDisplayArray *GetDisplayArray() const;
 	RAS_MeshObject *GetMesh() const;
 	RAS_MeshMaterial *GetMeshMaterial() const;
+	RAS_IStorageInfo *GetStorageInfo() const;
 
 	/// \section Active Mesh Slots Management.
 	void ActivateMesh(RAS_MeshSlot *slot);
@@ -124,8 +129,6 @@ public:
 	/// Notice the storage info that the indices list (polygons) changed.
 	void SetPolygonsModified(RAS_Rasterizer *rasty);
 
-	RAS_IStorageInfo *GetStorageInfo() const;
-	void SetStorageInfo(RAS_IStorageInfo *info);
 	void DestructStorageInfo();
 
 	/** Generate the attribute's layers for the used mesh and material couple.

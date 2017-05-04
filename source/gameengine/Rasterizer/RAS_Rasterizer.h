@@ -51,6 +51,7 @@
 class RAS_OpenGLRasterizer;
 class RAS_OpenGLLight;
 class RAS_StorageVBO;
+class RAS_IStorageInfo;
 class RAS_ICanvas;
 class RAS_OffScreen;
 class RAS_MeshSlot;
@@ -535,29 +536,28 @@ public:
 	 * SwapBuffers swaps the back buffer with the front buffer.
 	 */
 	void SwapBuffers(RAS_ICanvas *canvas);
-	
+
+	RAS_IStorageInfo *GetStorageInfo(RAS_DisplayArrayBucket *arrayBucket);
 	// Drawing Functions
-	/// Set all pre render attributs for given display array bucket.
-	void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
-	/// UnSet all pre render attributs for given display array bucket.
-	void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
-	/**
-	 * IndexPrimitives: Renders primitives from mesh slot.
-	 */
-	void IndexPrimitives(RAS_MeshSlot *ms);
+	/// Set all pre-render attributes for given mesh storage info.
+	void BindPrimitives(RAS_IStorageInfo *storageInfo);
+	/// Unset all pre-render attributes for given mesh storage info.
+	void UnbindPrimitives(RAS_IStorageInfo *storageInfo);
+	/// Renders mesh storage info using instancing draw call.
+	void IndexPrimitives(RAS_IStorageInfo *storageInfo);
 
-	/**
-	 * Renders all primitives from mesh slots contained in this display array
-	 * bucket with the geometry instancing way.
+	/** Renders mesh storage info using instancing draw call.
+	 * \param numslots Number of instances to draw.
 	 */
-	void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket);
+	void IndexPrimitivesInstancing(RAS_IStorageInfo *storageInfo, unsigned int numslots);
 
-	/**
-	 * Renders all primitives from mesh slots contained in this display array
-	 * bucket with a single batched display array.
+	/** Renders mesh storage info using multi draw call.
+	 * \param indices List of indices arrays data.
+	 * \param counts List of indices arrays size.
 	 */
-	void IndexPrimitivesBatching(RAS_DisplayArrayBucket *arrayBucket, const std::vector<void *>& indices, const std::vector<int>& counts);
-
+	void IndexPrimitivesBatching(RAS_IStorageInfo *storageInfo, const std::vector<void *>& indices, const std::vector<int>& counts);
+	/// Render primitives using a derived mesh drawing.
+	void IndexPrimitivesDerivedMesh(RAS_MeshSlot *ms);
 	/// Render text mesh slot using BLF functions.
 	void IndexPrimitivesText(RAS_MeshSlot *ms);
  

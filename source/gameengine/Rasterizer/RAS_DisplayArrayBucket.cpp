@@ -91,6 +91,18 @@ RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
 	}
 }
 
+void RAS_DisplayArrayBucket::BindPrimitives(RAS_Rasterizer *rasty)
+{
+	// Set the proper uv layer for uv attributes.
+	rasty->SetAttribLayers(m_attribLayers);
+	rasty->BindPrimitives(m_storageInfo);
+}
+
+void RAS_DisplayArrayBucket::UnbindPrimitives(RAS_Rasterizer *rasty)
+{
+	rasty->UnbindPrimitives(m_storageInfo);
+}
+
 RAS_DisplayArrayBucket *RAS_DisplayArrayBucket::GetReplica()
 {
 	RAS_DisplayArrayBucket *replica = new RAS_DisplayArrayBucket(*this);
@@ -131,6 +143,11 @@ RAS_MeshObject *RAS_DisplayArrayBucket::GetMesh() const
 RAS_MeshMaterial *RAS_DisplayArrayBucket::GetMeshMaterial() const
 {
 	return m_meshMaterial;
+}
+
+RAS_IStorageInfo *RAS_DisplayArrayBucket::GetStorageInfo() const
+{
+	return m_storageInfo;
 }
 
 void RAS_DisplayArrayBucket::ActivateMesh(RAS_MeshSlot *slot)
@@ -194,13 +211,19 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 		}
 	}
 
-	if (m_displayArray && m_displayArray->GetModifiedFlag() & RAS_IDisplayArray::MESH_MODIFIED) {
-		arrayModified = true;
-	}
+	if (m_displayArray) {
+		if (m_displayArray->GetModifiedFlag() & RAS_IDisplayArray::MESH_MODIFIED) {
+			arrayModified = true;
+		}
 
-	// Set the storage info modified if the mesh is modified.
-	if (arrayModified && m_storageInfo) {
-		m_storageInfo->SetDataModified(rasty->GetDrawingMode(), RAS_IStorageInfo::VERTEX_DATA);
+		// Create the storage info if it was destructed or not yet created.
+		if (!m_storageInfo) {
+			m_storageInfo = rasty->GetStorageInfo(this);
+		}
+		// Set the storage info modified if the mesh is modified.
+		else if (arrayModified) {
+			m_storageInfo->SetDataModified(rasty->GetDrawingMode(), RAS_IStorageInfo::VERTEX_DATA);
+		}
 	}
 }
 
@@ -216,16 +239,6 @@ void RAS_DisplayArrayBucket::SetPolygonsModified(RAS_Rasterizer *rasty)
 	if (m_storageInfo) {
 		m_storageInfo->SetDataModified(rasty->GetDrawingMode(), RAS_IStorageInfo::INDEX_DATA);
 	}
-}
-
-RAS_IStorageInfo *RAS_DisplayArrayBucket::GetStorageInfo() const
-{
-	return m_storageInfo;
-}
-
-void RAS_DisplayArrayBucket::SetStorageInfo(RAS_IStorageInfo *info)
-{
-	m_storageInfo = info;
 }
 
 void RAS_DisplayArrayBucket::DestructStorageInfo()
@@ -282,25 +295,26 @@ void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot
 
 void RAS_DisplayArrayBucket::BindUpwardNode(const RAS_RenderNodeArguments& args)
 {
-	args.m_rasty->BindPrimitives(this);
+	BindPrimitives(args.m_rasty);
 }
 
 void RAS_DisplayArrayBucket::UnbindUpwardNode(const RAS_RenderNodeArguments& args)
 {
-	args.m_rasty->UnbindPrimitives(this);
+	UnbindPrimitives(args.m_rasty);
 }
 
 void RAS_DisplayArrayBucket::RunDownwardNode(const RAS_RenderNodeArguments& args)
 {
 	RAS_Rasterizer *rasty = args.m_rasty;
-	rasty->BindPrimitives(this);
+
+	BindPrimitives(rasty);
 
 	for (RAS_MeshSlot *ms : m_activeMeshSlots) {
 		// Reuse the node function without spend time storing RAS_MeshSlot under nodes.
 		ms->RunNode(args);
 	}
 
-	rasty->UnbindPrimitives(this);
+	UnbindPrimitives(rasty);
 }
 
 void RAS_DisplayArrayBucket::RunDownwardNodeNoArray(const RAS_RenderNodeArguments& args)
@@ -380,9 +394,9 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_RenderNodeArguments& ar
 	// Unbind the buffer to avoid conflict with the render after.
 	m_instancingBuffer->Unbind();
 
-	rasty->BindPrimitives(this);
+	BindPrimitives(rasty);
 
-	rasty->IndexPrimitivesInstancing(this);
+	rasty->IndexPrimitivesInstancing(m_storageInfo, nummeshslots);
 	// Unbind vertex attributs.
 	if (args.m_shaderOverride) {
 		rasty->DesactivateOverrideShaderInstancing();
@@ -391,7 +405,7 @@ void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_RenderNodeArguments& ar
 		material->DesactivateInstancing();
 	}
 
-	rasty->UnbindPrimitives(this);
+	UnbindPrimitives(rasty);
 }
 
 void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_RenderNodeArguments& args)
@@ -441,11 +455,11 @@ void RAS_DisplayArrayBucket::RunBatchingNode(const RAS_RenderNodeArguments& args
 	 * To be sure we don't use the old face wise we force it to true. */
 	rasty->SetFrontFace(true);
 
-	rasty->BindPrimitives(this);
+	BindPrimitives(rasty);
 
-	rasty->IndexPrimitivesBatching(this, indices, counts);
+	rasty->IndexPrimitivesBatching(m_storageInfo, indices, counts);
 
-	rasty->UnbindPrimitives(this);
+	UnbindPrimitives(rasty);
 }
 
 void RAS_DisplayArrayBucket::ChangeMaterialBucket(RAS_MaterialBucket *bucket)

@@ -88,11 +88,13 @@ public:
 	RAS_StorageVBO(RAS_Rasterizer::StorageAttribs *storageAttribs);
 	~RAS_StorageVBO();
 
-	void BindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
-	void UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket);
-	void IndexPrimitives(RAS_MeshSlot *ms);
-	void IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket);
-	void IndexPrimitivesBatching(RAS_DisplayArrayBucket *arrayBucket, const std::vector<void *>& indices, const std::vector<int>& counts);
+	void BindPrimitives(VBO *vbo);
+	void UnbindPrimitives(VBO *vbo);
+	void IndexPrimitives(VBO *vbo);
+	void IndexPrimitivesInstancing(VBO *vbo, unsigned int numslots);
+	void IndexPrimitivesBatching(VBO *vbo, const std::vector<void *>& indices, const std::vector<int>& counts);
+
+	RAS_IStorageInfo *GetStorageInfo(RAS_DisplayArrayBucket *arrayBucket);
 
 	void SetDrawingMode(RAS_Rasterizer::DrawType drawingmode)
 	{
@@ -103,8 +105,6 @@ protected:
 	RAS_Rasterizer::DrawType m_drawingmode;
 
 	RAS_Rasterizer::StorageAttribs *m_storageAttribs;
-
-	VBO *GetVBO(RAS_DisplayArrayBucket *arrayBucket);
 };
 
 #endif  // __RAS_STORAGE_VBO_H__

@@ -301,48 +301,34 @@ RAS_StorageVBO::~RAS_StorageVBO()
 {
 }
 
-VBO *RAS_StorageVBO::GetVBO(RAS_DisplayArrayBucket *arrayBucket)
+RAS_IStorageInfo *RAS_StorageVBO::GetStorageInfo(RAS_DisplayArrayBucket *arrayBucket)
 {
-	VBO *vbo = (VBO *)arrayBucket->GetStorageInfo();
-	if (!vbo) {
-		vbo = new VBO(arrayBucket);
-		arrayBucket->SetStorageInfo(vbo);
-	}
+	VBO *vbo = new VBO(arrayBucket);
 	return vbo;
 }
 
-void RAS_StorageVBO::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
+void RAS_StorageVBO::BindPrimitives(VBO *vbo)
 {
-	VBO *vbo = GetVBO(arrayBucket);
-
 	vbo->Bind(m_storageAttribs, m_drawingmode);
 }
 
-void RAS_StorageVBO::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
+void RAS_StorageVBO::UnbindPrimitives(VBO *vbo)
 {
-	VBO *vbo = GetVBO(arrayBucket);
 	vbo->Unbind(m_storageAttribs, m_drawingmode);
 }
 
-void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot *ms)
+void RAS_StorageVBO::IndexPrimitives(VBO *vbo)
 {
-	RAS_DisplayArrayBucket *arrayBucket = ms->m_displayArrayBucket;
-	VBO *vbo = GetVBO(arrayBucket);
-
 	vbo->Draw();
 }
 
-void RAS_StorageVBO::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket)
+void RAS_StorageVBO::IndexPrimitivesInstancing(VBO *vbo, unsigned int numslots)
 {
-	VBO *vbo = GetVBO(arrayBucket);
-
-	vbo->DrawInstancing(arrayBucket->GetNumActiveMeshSlots());
+	vbo->DrawInstancing(numslots);
 }
 
-void RAS_StorageVBO::IndexPrimitivesBatching(RAS_DisplayArrayBucket *arrayBucket, const std::vector<void *>& indices,
+void RAS_StorageVBO::IndexPrimitivesBatching(VBO *vbo, const std::vector<void *>& indices,
 											 const std::vector<int>& counts)
 {
-	VBO *vbo = GetVBO(arrayBucket);
-
 	vbo->DrawBatching(indices, counts);
 }

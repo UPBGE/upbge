@@ -781,41 +781,40 @@ void RAS_Rasterizer::SetAttribLayers(const RAS_Rasterizer::AttribLayerList& laye
 	m_storageAttribs.layers = layers;
 }
 
-void RAS_Rasterizer::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
+RAS_IStorageInfo *RAS_Rasterizer::GetStorageInfo(RAS_DisplayArrayBucket *arrayBucket)
 {
-	if (arrayBucket && arrayBucket->GetDisplayArray()) {
-		// Set the proper uv layer for uv attributes.
-		arrayBucket->SetAttribLayers(this);
-		m_storage->BindPrimitives(arrayBucket);
-	}
+	return m_storage->GetStorageInfo(arrayBucket);
 }
 
-void RAS_Rasterizer::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
+void RAS_Rasterizer::BindPrimitives(RAS_IStorageInfo *storageInfo)
 {
-	if (arrayBucket && arrayBucket->GetDisplayArray()) {
-		m_storage->UnbindPrimitives(arrayBucket);
-	}
+	m_storage->BindPrimitives(static_cast<VBO *>(storageInfo));
 }
 
-void RAS_Rasterizer::IndexPrimitives(RAS_MeshSlot *ms)
+void RAS_Rasterizer::UnbindPrimitives(RAS_IStorageInfo *storageInfo)
 {
-	if (ms->m_pDerivedMesh) {
-		m_impl->DrawDerivedMesh(ms, m_drawingmode);
-	}
-	else {
-		m_storage->IndexPrimitives(ms);
-	}
+	m_storage->UnbindPrimitives(static_cast<VBO *>(storageInfo));
 }
 
-void RAS_Rasterizer::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket)
+void RAS_Rasterizer::IndexPrimitives(RAS_IStorageInfo *storageInfo)
 {
-	m_storage->IndexPrimitivesInstancing(arrayBucket);
+	m_storage->IndexPrimitives(static_cast<VBO *>(storageInfo));
 }
 
-void RAS_Rasterizer::IndexPrimitivesBatching(RAS_DisplayArrayBucket *arrayBucket, const std::vector<void *>& indices,
+void RAS_Rasterizer::IndexPrimitivesInstancing(RAS_IStorageInfo *storageInfo, unsigned int numslots)
+{
+	m_storage->IndexPrimitivesInstancing(static_cast<VBO *>(storageInfo), numslots);
+}
+
+void RAS_Rasterizer::IndexPrimitivesBatching(RAS_IStorageInfo *storageInfo, const std::vector<void *>& indices,
 												   const std::vector<int>& counts)
 {
-	m_storage->IndexPrimitivesBatching(arrayBucket, indices, counts);
+	m_storage->IndexPrimitivesBatching(static_cast<VBO *>(storageInfo), indices, counts);
+}
+
+void RAS_Rasterizer::IndexPrimitivesDerivedMesh(RAS_MeshSlot *ms)
+{
+	m_impl->DrawDerivedMesh(ms, m_drawingmode);
 }
 
 void RAS_Rasterizer::SetProjectionMatrix(MT_CmMatrix4x4 &mat)
