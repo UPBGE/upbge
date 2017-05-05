@@ -254,6 +254,12 @@ void point_map_to_tube(vec3 vin, out vec3 vout)
 	vout = vec3(u, v, 0.0);
 }
 
+vec3 projection_to_plane(vec3 p, vec3 pc, vec3 pn)
+{
+	float dist = dot(pn, p - pc);
+	return p - dist * pn;
+}
+
 void mapping(vec3 vec, mat4 mat, vec3 minvec, vec3 maxvec, float domin, float domax, out vec3 outvec)
 {
 	outvec = (mat * vec4(vec, 1.0)).xyz;
@@ -1802,6 +1808,13 @@ void lamp_visibility_other(vec3 co, vec3 lampco, out vec3 lv, out float dist, ou
 	visifac = 1.0;
 }
 
+void lamp_visibility_area(vec3 co, vec3 lampvec, out vec3 lv, out float dist, out float visifac)
+{
+	dist = 1.0; //distance(V, nearest);
+	lv = lampvec;
+	visifac = 1.0; //dot(lv, co);
+}
+
 void lamp_falloff_invlinear(float lampdist, float dist, out float visifac)
 {
 	visifac = lampdist / (lampdist + dist);
@@ -1972,49 +1985,103 @@ void shade_is_hemi(float inp, out float is)
 	is = 0.5 * inp + 0.5;
 }
 
-float area_lamp_energy(mat4 area, vec3 co, vec3 vn)
+void lamp_area(mat4 lampmat, vec3 lampvec, vec3 lamppos, vec2 size, vec3 co,
+	out vec3 right, out vec3 up,
+	out vec2 diagonal, out vec3 nearest, out float dist)
 {
-	vec3 vec[4], c[4];
-	float rad[4], fac;
+	right = (lampmat * vec4(1.0, 0.0, 0.0, 0.0)).xyz;
+	up = (lampmat * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
 
-	vec[0] = normalize(co - area[0].xyz);
-	vec[1] = normalize(co - area[1].xyz);
-	vec[2] = normalize(co - area[2].xyz);
-	vec[3] = normalize(co - area[3].xyz);
+	// Project position to area light plane.
+	vec3 projection = projection_to_plane(co, lamppos, lampvec);
+	// Get the direction to the center.
+	vec3 dir = projection - lamppos;
 
-	c[0] = normalize(cross(vec[0], vec[1]));
-	c[1] = normalize(cross(vec[1], vec[2]));
-	c[2] = normalize(cross(vec[2], vec[3]));
-	c[3] = normalize(cross(vec[3], vec[0]));
-
-	rad[0] = acos(dot(vec[0], vec[1]));
-	rad[1] = acos(dot(vec[1], vec[2]));
-	rad[2] = acos(dot(vec[2], vec[3]));
-	rad[3] = acos(dot(vec[3], vec[0]));
-
-	fac =  rad[0] * dot(vn, c[0]);
-	fac += rad[1] * dot(vn, c[1]);
-	fac += rad[2] * dot(vn, c[2]);
-	fac += rad[3] * dot(vn, c[3]);
-
-	return max(fac, 0.0);
+	// Move in plane space.
+	diagonal = vec2(dot(dir, right), dot(dir, up));
+	// Clamp the direction to the area square.
+	vec2 halfSize = size / 2.0;
+	vec2 nearest2D = clamp(diagonal, -halfSize, halfSize);
+	// Back in world space.
+	nearest = lamppos + (right * nearest2D.x + up * nearest2D.y);
+	dist = distance(co, nearest);
 }
 
-void shade_inp_area(
-        vec3 position, vec3 lampco, vec3 lampvec, vec3 vn, mat4 area, float areasize, float k,
-        out float inp)
+void shade_inp_area(vec3 co, vec3 vn, vec3 lampvec, vec3 nearest, float dist, float visifac, float d, float k, out float inp)
 {
-	vec3 co = position;
-	vec3 vec = co - lampco;
+	inp = 0.0;
+	float strength = d * d / 4.0;
 
-	if (dot(vec, lampvec) < 0.0) {
-		inp = 0.0;
-	}
-	else {
-		float intens = area_lamp_energy(area, co, vn);
+	if (visifac > 0.0) {
+		vec3 L = normalize(nearest - co);
+		float nDotL = clamp(dot(-lampvec, L) * (dot(-vn, L) * 0.5 + 0.5), 0.0, 1.0);
+		float attenuation = 1.0 / (1.0 + dist);
+		float intens = nDotL * attenuation;
 
-		inp = pow(intens * areasize, k);
+		inp = pow(intens * strength, k);
 	}
+}
+
+void lamp_area_spec(mat4 lampmat, vec3 lampvec, vec3 lamppos, vec3 co, vec3 vn,
+	out vec2 specdir, out float angle, out float dist)
+{
+	vec3 right = (lampmat * vec4(1.0, 0.0, 0.0, 0.0)).xyz;
+	vec3 up = (lampmat * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
+	vec3 R = reflect(-co, -vn);
+	vec3 E = co + R * (dot(lampvec, lamppos - co) / dot(lampvec, R));
+
+	angle = clamp(dot(R, lampvec), 0.0, 1.0);
+
+	vec3 dirSpec = E - lamppos;
+	specdir = vec2(dot(dirSpec, right),dot(dirSpec, up));
+	vec3 specPlane = lamppos + (right * specdir.x + up * specdir.y);
+
+	dist = distance(co, specPlane);
+}
+
+void shade_area_spec(vec2 specdir, float specangle, float specdist, vec2 size, float hard, out float specfac)
+{
+	vec2 halfSize = size / 2.0;
+	hard /= length(size);
+
+	vec2 nearestSpec2D = clamp(specdir, -halfSize, halfSize);
+
+	specfac = 0.0;
+	if (specangle > 0.0) {
+		specfac = 1.0 - clamp(length(nearestSpec2D - specdir) * (hard / specdist), 0.0, 1.0);
+	}
+}
+
+void area_diff_texture(sampler2D tex, float lodbias, vec2 diagonal, float dist, vec2 size, out vec4 result)
+{
+	vec2 halfSize = size / 2.0;
+
+	vec2 co = diagonal / (dist + 1.0) / size + vec2(0.5);
+
+	float lod = (pow(dist, 0.5) * 6.0) + lodbias;
+
+	result = texture2D(tex, co, lod);
+	result.rgb *= result.a;
+}
+
+void area_spec_texture(vec2 specdir, float specdist, sampler2D tex, float lodbias, vec2 size, float hard, out vec4 result)
+{
+	hard /= length(size);
+
+	float d = ((1.0 / hard) / 2.0) * specdist;
+
+	vec2 co = -specdir / (d + 1.0);
+	co /= size;
+	co = co + vec2(0.5);
+	co.y = 1.0 - co.y;
+
+	float dist = max(specdist, 0.0001);
+	float lod = (4.0 / hard * dist) + lodbias;
+
+	vec4 spec = texture2D(tex, co, lod);
+
+	result = spec / (dist * lod);
+	result.rgb *= spec.a;
 }
 
 void shade_diffuse_oren_nayer(float nl, vec3 n, vec3 l, vec3 v, float rough, out float is)
