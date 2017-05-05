@@ -1899,7 +1899,7 @@ void lamp_visibility_clamp(float visifac, out float outvisifac)
 
 void shade_alpha_depth(vec3 vp, sampler2D ima, float alpha, float factor, out float outalpha)
 {
-	float depth = texture2D(ima, gl_FragCoord.xy / vec2(textureSize(ima, 0))).x;
+	float depth = texelFetch(ima, ivec2(gl_FragCoord.xy), 0).x;
 
 	vec4 depthvp = gl_ProjectionMatrix * vec4(vp.xy, vp.z - factor, 1.0);
 
