@@ -89,7 +89,8 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICa
 	}
 
 	rasty->Disable(RAS_Rasterizer::RAS_CULL_FACE);
-	rasty->SetDepthFunc(RAS_Rasterizer::RAS_ALWAYS);
+	rasty->Disable(RAS_Rasterizer::RAS_DEPTH_TEST);
+	rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_DISABLED);
 	rasty->Disable(RAS_Rasterizer::RAS_BLEND);
 	rasty->Disable(RAS_Rasterizer::RAS_ALPHA_TEST);
 
@@ -145,7 +146,8 @@ RAS_OffScreen *RAS_2DFilterManager::RenderFilters(RAS_Rasterizer *rasty, RAS_ICa
 		rasty->DrawOffScreen(previousofs, targetofs);
 	}
 
-	rasty->SetDepthFunc(RAS_Rasterizer::RAS_LEQUAL);
+	rasty->Enable(RAS_Rasterizer::RAS_DEPTH_TEST);
+	rasty->SetDepthMask(RAS_Rasterizer::RAS_DEPTHMASK_ENABLED);
 	rasty->Enable(RAS_Rasterizer::RAS_CULL_FACE);
 
 	return targetofs;
