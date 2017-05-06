@@ -1947,11 +1947,11 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 			    (mat->scene->r.mode & R_SHADOW) &&
 			    !BKE_scene_use_new_shading_nodes(mat->scene))
 			{
-				if ((world->ao_env_energy != 0.0f) && (GPU_link_changed(shi->amb) || ma->amb != 0.0f) &&
-				    (GPU_link_changed(shi->refl) || ma->ref != 0.0f))
+				if (((world->ao_env_energy != 0.0f) && (GPU_link_changed(shi->amb) || ma->amb != 0.0f) &&
+				    (GPU_link_changed(shi->refl) || ma->ref != 0.0f)) || !(ma->constflag & MA_CONSTANT_WORLD))
 				{
 					if (world->aocolor != WO_AOPLAIN) {
-						if (!(is_zero_v3(&world->horr) & is_zero_v3(&world->zenr))) {
+						if (!(is_zero_v3(&world->horr) & is_zero_v3(&world->zenr)) || !(ma->constflag & MA_CONSTANT_WORLD)) {
 							GPUNodeLink *fcol, *f;
 							GPU_link(mat, "math_multiply", shi->amb, shi->refl, &f);
 							GPU_link(mat, "math_multiply", f, GPU_select_uniform(&GPUWorld.envlightenergy, GPU_DYNAMIC_ENVLIGHT_ENERGY, NULL, ma), &f);
