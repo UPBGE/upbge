@@ -436,8 +436,7 @@ void KX_GameObject::RemoveParent()
 BL_ActionManager* KX_GameObject::GetActionManager()
 {
 	// We only want to create an action manager if we need it
-	if (!m_actionManager)
-	{
+	if (!m_actionManager) {
 		GetScene()->AddAnimatedObject(this);
 		m_actionManager = new BL_ActionManager(this);
 	}
@@ -1645,12 +1644,8 @@ void KX_GameObject::UpdateComponents()
 
 KX_Scene* KX_GameObject::GetScene()
 {
-	SG_Node* node = this->GetSGNode();
-	if (node == nullptr) {
-		// this happens for object in non active layers, rely on static scene then
-		return KX_GetActiveScene();
-	}
-	return static_cast<KX_Scene*>(node->GetSGClientInfo());
+	BLI_assert(m_pSGNode);
+	return static_cast<KX_Scene *>(m_pSGNode->GetSGClientInfo());
 }
 
 /* ---------------------------------------------------------------------

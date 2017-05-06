@@ -168,7 +168,6 @@ KX_Scene::KX_Scene(SCA_IInputDevice *inputDevice,
 	m_lightlist= new CListValue();
 	m_inactivelist = new CListValue();
 	m_euthanasyobjects = new CListValue();
-	m_animatedlist = new CListValue();
 	m_cameralist = new CListValue();
 	m_fontlist = new CListValue();
 
@@ -262,9 +261,6 @@ KX_Scene::~KX_Scene()
 
 	if (m_euthanasyobjects)
 		m_euthanasyobjects->Release();
-
-	if (m_animatedlist)
-		m_animatedlist->Release();
 
 	if (m_cameralist) {
 		m_cameralist->Release();
@@ -547,6 +543,11 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_Node* node, class CValue*
 		case SCA_IObject::OBJ_CAMERA:
 		{
 			m_cameralist->Add(newobj->AddRef());
+			break;
+		}
+		case SCA_IObject::OBJ_ARMATURE:
+		{
+			AddAnimatedObject(newobj);
 			break;
 		}
 	}
@@ -1124,8 +1125,6 @@ bool KX_Scene::NewRemoveObject(class CValue* gameobj)
 		ret = (newobj->Release() != nullptr);
 	if (m_euthanasyobjects->RemoveValue(newobj))
 		ret = (newobj->Release() != nullptr);
-	if (m_animatedlist->RemoveValue(newobj))
-		ret = (newobj->Release() != nullptr);
 	if (m_fontlist->RemoveValue(newobj)) {
 		ret = (newobj->Release() != nullptr);
 	}
@@ -1135,6 +1134,10 @@ bool KX_Scene::NewRemoveObject(class CValue* gameobj)
 
 	/* Warning 'newobj' maye be freed now, only compare, don't access */
 
+	const std::vector<KX_GameObject *>::const_iterator animit = std::find(m_animatedlist.begin(), m_animatedlist.end(), newobj);
+	if (animit != m_animatedlist.end()) {
+		m_animatedlist.erase(animit);
+	}
 
 	if (newobj == m_active_camera)
 	{
@@ -1454,8 +1457,7 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nod
 	const KX_DebugOption showArmatures = KX_GetActiveEngine()->GetShowArmatures();
 	if (showArmatures != KX_DebugOption::DISABLE) {
 		// The side effect of a armature is that it was added in the animated object list.
-		for (CListValue::iterator<KX_GameObject> it = m_animatedlist->GetBegin(), end = m_animatedlist->GetEnd(); it != end; ++it) {
-			KX_GameObject *gameobj = *it;
+		for (KX_GameObject *gameobj : m_animatedlist) {
 			if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE) {
 				BL_ArmatureObject *armature = (BL_ArmatureObject *)gameobj;
 				if (showArmatures == KX_DebugOption::FORCE || armature->GetDrawDebug()) {
@@ -1496,10 +1498,12 @@ void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 	m_logicmgr->BeginFrame(curtime, framestep);
 }
 
-void KX_Scene::AddAnimatedObject(CValue* gameobj)
+void KX_Scene::AddAnimatedObject(KX_GameObject *gameobj)
 {
-	gameobj->AddRef();
-	m_animatedlist->Add(gameobj);
+	const std::vector<KX_GameObject *>::const_iterator it = std::find(m_animatedlist.begin(), m_animatedlist.end(), gameobj);
+	if (it == m_animatedlist.end()) {
+		m_animatedlist.push_back(gameobj);
+	}
 }
 
 static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
@@ -1574,8 +1578,8 @@ void KX_Scene::UpdateAnimations(double curtime)
 {
 	m_animationPoolData.curtime = curtime;
 
-	for (CListValue::iterator<KX_GameObject> it = m_animatedlist->GetBegin(), end = m_animatedlist->GetEnd(); it != end; ++it) {
-		BLI_task_pool_push(m_animationPool, update_anim_thread_func, *it, false, TASK_PRIORITY_LOW);
+	for (KX_GameObject *gameobj : m_animatedlist) {
+		BLI_task_pool_push(m_animationPool, update_anim_thread_func, gameobj, false, TASK_PRIORITY_LOW);
 	}
 
 	BLI_task_pool_work_and_wait(m_animationPool);

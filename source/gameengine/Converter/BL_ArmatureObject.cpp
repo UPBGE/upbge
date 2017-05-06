@@ -228,9 +228,6 @@ BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
 	// need this to get iTaSC working ok in the BGE
 	m_pose->flag |= POSE_GAME_ENGINE;
 	memcpy(m_obmat, m_objArma->obmat, sizeof(m_obmat));
-
-	// The side-effect of this method registers this object as "animatable" with the KX_Scene.
-	GetActionManager();
 }
 
 BL_ArmatureObject::~BL_ArmatureObject()
@@ -394,9 +391,6 @@ void BL_ArmatureObject::ProcessReplica()
 	m_objArma = BKE_object_copy(G.main, m_objArma);
 	m_objArma->data = BKE_armature_copy(G.main, tmp);
 	m_pose = m_objArma->pose;
-
-	// The side-effect of this method registers this object as "animatable" with the KX_Scene.
-	GetActionManager();
 }
 
 int BL_ArmatureObject::GetGameObjectType() const

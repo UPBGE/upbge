@@ -151,7 +151,8 @@ protected:
 	CListValue*			m_parentlist; // all 'root' parents
 	CListValue*			m_lightlist;
 	CListValue*			m_inactivelist;	// all objects that are not in the active layer
-	CListValue*			m_animatedlist; // all animated objects
+	/// All animated objects, no need of CListValue because the list isn't exposed in python.
+	std::vector<KX_GameObject *> m_animatedlist;
 
 	/// The set of cameras for this scene
 	CListValue *m_cameralist;
@@ -353,7 +354,7 @@ public:
 	void ReplaceMesh(CValue* gameobj,
 	                 void* meshob, bool use_gfx, bool use_phys);
 
-	void AddAnimatedObject(CValue* gameobj);
+	void AddAnimatedObject(KX_GameObject *gameobj);
 
 	/**
 	 * \section Logic stuff

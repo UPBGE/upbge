@@ -1111,7 +1111,9 @@ static KX_GameObject *gameobject_from_blenderobject(
 			kxscene->GetBlenderScene(), // handle
 			arm->gevertdeformer
 		);
-		/* Get the current pose from the armature object and apply it as the rest pose */
+
+		kxscene->AddAnimatedObject(gameobj);
+
 		break;
 	}
 	
