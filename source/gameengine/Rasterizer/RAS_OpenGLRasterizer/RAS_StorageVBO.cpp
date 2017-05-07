@@ -75,20 +75,21 @@ VBO::~VBO()
 	}
 }
 
-void VBO::SetDataModified(RAS_Rasterizer::DrawType drawmode, DataType dataType)
+void VBO::UpdateVertexData()
 {
-	switch (dataType) {
-		case VERTEX_DATA:
-		{
-			UpdateData();
-			break;
-		}
-		case INDEX_DATA:
-		{
-			UpdateIndices();
-			break;
-		}
-	}
+	UpdateData();
+}
+
+unsigned int *VBO::GetIndexMap()
+{
+	void *buffer = glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, m_indices * sizeof(GLuint), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+
+	return (unsigned int *)buffer;
+}
+
+void VBO::FlushIndexMap()
+{
+	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 }
 
 void VBO::UpdateData()
@@ -96,21 +97,6 @@ void VBO::UpdateData()
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
 	glBufferSubDataARB(GL_ARRAY_BUFFER_ARB, 0, m_stride * m_size, m_data->GetVertexPointer());
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
-}
-
-void VBO::UpdateIndices()
-{
-	/* This function can be called when the VBO/VAO is already bound (in case of polygon sort).
-	 * In this case we must not unbound the element array buffer. */
-	if (!m_bound) {
-		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
-	}
-
-	glBufferSubDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0, m_indices * sizeof(GLuint), m_data->GetIndexPointer());
-
-	if (!m_bound) {
-		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
-	}
 }
 
 void VBO::AllocData()

@@ -37,6 +37,7 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Deformer.h"
 #include "RAS_DisplayArray.h"
+#include "RAS_IStorageInfo.h"
 
 #ifdef _MSC_VER
 #  pragma warning (disable:4786)
@@ -170,8 +171,9 @@ void RAS_MeshSlot::RunNode(const RAS_RenderNodeArguments& args)
 	}
 
 	if (material->IsZSort() && rasty->GetDrawingMode() >= RAS_Rasterizer::RAS_SOLID) {
-		m_mesh->SortPolygons(this, args.m_trans * MT_Transform(m_meshUser->GetMatrix()));
-		m_displayArrayBucket->SetPolygonsModified(rasty);
+		RAS_IStorageInfo *storage = m_displayArrayBucket->GetStorageInfo();
+		m_mesh->SortPolygons(this, args.m_trans * MT_Transform(m_meshUser->GetMatrix()), storage->GetIndexMap());
+		storage->FlushIndexMap();
 	}
 
 	rasty->PushMatrix();

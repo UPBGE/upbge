@@ -41,7 +41,9 @@ public:
 	VBO(RAS_DisplayArrayBucket *arrayBucket);
 	virtual ~VBO();
 
-	virtual void SetDataModified(RAS_Rasterizer::DrawType drawmode, DataType dataType);
+	virtual void UpdateVertexData();
+	virtual unsigned int *GetIndexMap();
+	virtual void FlushIndexMap();
 
 	void Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::DrawType drawingmode);
 	void Unbind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::DrawType drawingmode);

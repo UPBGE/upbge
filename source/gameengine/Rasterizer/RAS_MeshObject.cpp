@@ -76,10 +76,10 @@ struct RAS_MeshObject::polygonSlot
 		m_z = MT_dot(pnorm, center);
 	}
 
-	void set(RAS_IDisplayArray *array, int offset, int nvert)
+	void set(unsigned int *indexmap, int offset, int nvert)
 	{
 		for (unsigned short i = 0; i < nvert; ++i) {
-			array->SetIndex(offset + i, m_index[i]);
+			indexmap[offset + i] = m_index[i];
 		}
 	}
 };
@@ -435,7 +435,7 @@ void RAS_MeshObject::GenerateAttribLayers()
 	}
 }
 
-void RAS_MeshObject::SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transform)
+void RAS_MeshObject::SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transform, unsigned int *indexmap)
 {
 	// Limitations: sorting is quite simple, and handles many
 	// cases wrong, partially due to polygons being sorted per
@@ -481,7 +481,7 @@ void RAS_MeshObject::SortPolygons(RAS_MeshSlot *ms, const MT_Transform &transfor
 
 	// get indices from temporary array again
 	for (unsigned int j = 0; j < totpoly; j++)
-		poly_slots[j].set(array, j * nvert, nvert);
+		poly_slots[j].set(indexmap, j * nvert, nvert);
 }
 
 

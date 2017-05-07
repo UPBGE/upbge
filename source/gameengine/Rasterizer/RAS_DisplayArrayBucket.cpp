@@ -222,7 +222,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 		}
 		// Set the storage info modified if the mesh is modified.
 		else if (arrayModified) {
-			m_storageInfo->SetDataModified(rasty->GetDrawingMode(), RAS_IStorageInfo::VERTEX_DATA);
+			m_storageInfo->UpdateVertexData();
 		}
 	}
 }
@@ -231,13 +231,6 @@ void RAS_DisplayArrayBucket::SetDisplayArrayUnmodified()
 {
 	if (m_displayArray) {
 		m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
-	}
-}
-
-void RAS_DisplayArrayBucket::SetPolygonsModified(RAS_Rasterizer *rasty)
-{
-	if (m_storageInfo) {
-		m_storageInfo->SetDataModified(rasty->GetDrawingMode(), RAS_IStorageInfo::INDEX_DATA);
 	}
 }
 
