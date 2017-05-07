@@ -525,11 +525,13 @@ KX_KetsjiEngine::CameraRenderData KX_KetsjiEngine::GetCameraRenderData(KX_Scene 
 	rendercam->SetModelviewMatrix(viewmat);
 	rendercam->SetProjectionMatrix(projmat);
 
+	CameraRenderData cameraData(rendercam, cullingcam, area, viewport, eye);
+
 	if (usestereo) {
 		rendercam->Release();
 	}
 
-	return CameraRenderData(rendercam, cullingcam, area, viewport, eye);
+	return cameraData;
 }
 
 bool KX_KetsjiEngine::GetFrameRenderData(std::vector<FrameRenderData>& frameDataList)
