@@ -94,6 +94,9 @@ void RAS_DisplayArrayBucket::ProcessReplica()
 		m_displayArray = m_displayArray->GetReplica();
 	}
 
+	// Request to recreate storage info.
+	m_storageInfo = nullptr;
+
 	m_downwardNode = RAS_DisplayArrayDownwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNode), nullptr);
 	m_upwardNode = RAS_DisplayArrayUpwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::BindUpwardNode), std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode));
 	m_instancingNode = RAS_DisplayArrayDownwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunInstancingNode), nullptr);
