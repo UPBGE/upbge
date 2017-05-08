@@ -136,9 +136,10 @@ bool SCA_2DFilterActuator::Update()
 }
 
 
-void SCA_2DFilterActuator::SetScene(SCA_IScene *scene)
+void SCA_2DFilterActuator::SetScene(SCA_IScene *scene, RAS_2DFilterManager *filterManager)
 {
 	m_scene = scene;
+	m_filterManager = filterManager;
 }
 
 void SCA_2DFilterActuator::SetShaderText(const std::string& text)

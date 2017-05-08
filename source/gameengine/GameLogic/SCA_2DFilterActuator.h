@@ -69,7 +69,7 @@ public:
 	virtual ~SCA_2DFilterActuator();
 	virtual bool Update();
 
-	void	SetScene(SCA_IScene *scene);
+	void SetScene(SCA_IScene *scene, RAS_2DFilterManager *filterManager);
 
 	virtual CValue* GetReplica();
 };

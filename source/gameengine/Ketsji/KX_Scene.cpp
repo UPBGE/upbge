@@ -1814,7 +1814,7 @@ static void MergeScene_LogicBrick(SCA_ILogicBrick* brick, KX_Scene *from, KX_Sce
 
 	SCA_2DFilterActuator *filter_actuator = dynamic_cast<class SCA_2DFilterActuator*>(brick);
 	if (filter_actuator) {
-		filter_actuator->SetScene(to);
+		filter_actuator->SetScene(to, to->Get2DFilterManager());
 	}
 
 #ifdef WITH_PYTHON
