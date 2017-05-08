@@ -2533,6 +2533,16 @@ void shade_light_texture(vec3 rco, sampler2D cookie, vec3 scale, float lodbias, 
 	result = texture2DProj(cookie, co * vec4(scale, 1.0), lodbias);
 }
 
+void set_linfac(float exposure, out float linfac)
+{
+	linfac = 1.0 + pow((2.0 * exposure + 0.5), -10);
+}
+
+void set_logfac(float linfac, float range, out float logfac)
+{
+	logfac = log((linfac - 1.0) / linfac) / range;
+}
+
 void shade_exposure_correct(vec3 col, float linfac, float logfac, out vec3 outcol)
 {
 	outcol = linfac * (1.0 - exp(col * logfac));

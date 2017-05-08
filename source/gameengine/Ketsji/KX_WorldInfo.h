@@ -57,8 +57,6 @@ class KX_WorldInfo : public PyObjectPlus
 	float m_miststart;
 	float m_mistdistance;
 	float m_mistintensity;
-	float m_range;
-	float m_exposure;
 	float m_envLightEnergy;
 	MT_Vector3 m_mistcolor;
 	MT_Vector4 m_horizoncolor;
@@ -83,6 +81,8 @@ public:
 	struct {
 		MT_Vector3 horizonColor;
 		MT_Vector3 zenithColor;
+		float exposure;
+		float range;
 	} m_savedData;
 
 	const std::string& GetName();
@@ -90,8 +90,6 @@ public:
 	void setMistStart(float d);
 	void setMistDistance(float d);
 	void setMistIntensity(float intensity);
-	void setExposure(float exposure);
-	void setRange(float range);
 	void setMistColor(const MT_Vector3& mistcolor);
 	void setHorizonColor(const MT_Vector4& horizoncolor);
 	void setZenithColor(const MT_Vector4& zenithcolor);
@@ -113,6 +111,10 @@ public:
 	static int pyattr_set_zenith_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_ambient_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_ambient_color(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_exposure(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_exposure(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_range(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_range(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	virtual PyObject *py_repr(void);
 #endif
 };

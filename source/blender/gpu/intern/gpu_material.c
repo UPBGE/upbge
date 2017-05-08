@@ -89,8 +89,6 @@ static struct GPUWorld {
 	float horicol[3];
 	float ambcol[4];
 	float zencol[3];
-	float logfac;
-	float linfac;
 	float envlightenergy;
 } GPUWorld;
 
@@ -1878,12 +1876,6 @@ void GPU_zenith_update_color(float color[3])
 	copy_v3_v3(GPUWorld.zencol, color);
 }
 
-void GPU_update_exposure_range(float exp, float range)
-{
-	GPUWorld.linfac = 1.0f + powf((2.0f * exp + 0.5f), -10.0f);
-	GPUWorld.logfac = log((GPUWorld.linfac - 1.0f) / GPUWorld.linfac) / range;
-}
-
 void GPU_update_envlight_energy(float energy)
 {
 	GPUWorld.envlightenergy = energy;
@@ -1892,7 +1884,7 @@ void GPU_update_envlight_energy(float energy)
 void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 {
 	GPUMaterial *mat = shi->gpumat;
-	GPUNodeLink *emit, *mistfac;
+	GPUNodeLink *emit, *ulinfac, *ulogfac, *mistfac;
 	Material *ma = shi->mat;
 	World *world = mat->scene->world;
 
@@ -1932,14 +1924,14 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 		if (world) {
 			/* exposure correction */
-			GPU_link(mat, "shade_exposure_correct", shr->combined,
-					 GPU_select_uniform(&GPUWorld.linfac, GPU_DYNAMIC_WORLD_LINFAC, NULL, ma),
-					 GPU_select_uniform(&GPUWorld.logfac, GPU_DYNAMIC_WORLD_LOGFAC, NULL, ma),
-					 &shr->combined);
-			GPU_link(mat, "shade_exposure_correct", shr->spec,
-					 GPU_select_uniform(&GPUWorld.linfac, GPU_DYNAMIC_WORLD_LINFAC, NULL, ma),
-					 GPU_select_uniform(&GPUWorld.logfac, GPU_DYNAMIC_WORLD_LOGFAC, NULL, ma),
-					 &shr->spec);
+			if (world->exp != 0.0f || world->range != 1.0f || !(ma->constflag & MA_CONSTANT_WORLD)) {
+				GPU_link(mat, "set_linfac", GPU_select_uniform(&world->exp, GPU_DYNAMIC_WORLD_EXPOSURE, NULL, ma), &ulinfac);
+				GPU_link(mat, "set_logfac", ulinfac, GPU_select_uniform(&world->range, GPU_DYNAMIC_WORLD_RANGE, NULL, ma), &ulogfac);
+				GPU_link(mat, "shade_exposure_correct", shr->combined,
+					ulinfac, ulogfac, &shr->combined);
+				GPU_link(mat, "shade_exposure_correct", shr->spec,
+					ulinfac, ulogfac, &shr->spec);
+			}
 
 			/* environment lighting */
 			if (!(mat->scene->gm.flag & GAME_GLSL_NO_ENV_LIGHTING) &&

@@ -64,6 +64,8 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 		m_savedData.zenithColor[0] = blenderworld->zenr;
 		m_savedData.zenithColor[1] = blenderworld->zeng;
 		m_savedData.zenithColor[2] = blenderworld->zenb;
+		m_savedData.exposure = blenderworld->exp;
+		m_savedData.range = blenderworld->range;
 		m_envLightEnergy = blenderworld->ao_env_energy;
 		m_misttype = blenderworld->mistype;
 		m_miststart = blenderworld->miststa;
@@ -73,8 +75,6 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 		setHorizonColor(MT_Vector4(blenderworld->horr, blenderworld->horg, blenderworld->horb, 1.0f));
 		setZenithColor(MT_Vector4(blenderworld->zenr, blenderworld->zeng, blenderworld->zenb, 1.0f));
 		setAmbientColor(MT_Vector3(blenderworld->ambr, blenderworld->ambg, blenderworld->ambb));
-		setExposure(blenderworld->exp);
-		setRange(blenderworld->range);
 	}
 	else {
 		m_hasworld = false;
@@ -91,6 +91,8 @@ KX_WorldInfo::~KX_WorldInfo()
 		m_scene->world->zenr = m_savedData.zenithColor[0];
 		m_scene->world->zeng = m_savedData.zenithColor[1];
 		m_scene->world->zenb = m_savedData.zenithColor[2];
+		m_scene->world->exp = m_savedData.exposure;
+		m_scene->world->range = m_savedData.range;
 	}
 }
 
@@ -127,16 +129,6 @@ void KX_WorldInfo::setMistDistance(float d)
 void KX_WorldInfo::setMistIntensity(float intensity)
 {
 	m_mistintensity = intensity;
-}
-
-void KX_WorldInfo::setExposure(float exposure)
-{
-	m_exposure = exposure;
-}
-
-void KX_WorldInfo::setRange(float range)
-{
-	m_range = range;
 }
 
 void KX_WorldInfo::setMistColor(const MT_Vector3& mistcolor)
@@ -185,7 +177,6 @@ void KX_WorldInfo::UpdateWorldSettings(RAS_Rasterizer *rasty)
 	if (m_hasworld) {
 		rasty->SetAmbientColor(m_con_ambientcolor);
 		GPU_ambient_update_color(m_ambientcolor.getValue());
-		GPU_update_exposure_range(m_exposure, m_range);
 		GPU_update_envlight_energy(m_envLightEnergy);
 
 		if (m_hasmist) {
@@ -295,8 +286,8 @@ PyAttributeDef KX_WorldInfo::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("backgroundColor", KX_WorldInfo, pyattr_get_background_color, pyattr_set_background_color),
 	KX_PYATTRIBUTE_RW_FUNCTION("zenithColor", KX_WorldInfo, pyattr_get_zenith_color, pyattr_set_zenith_color),
 	KX_PYATTRIBUTE_RW_FUNCTION("ambientColor", KX_WorldInfo, pyattr_get_ambient_color, pyattr_set_ambient_color),
-	KX_PYATTRIBUTE_FLOAT_RW("exposure", 0.0f, 1.0f, KX_WorldInfo, m_exposure),
-	KX_PYATTRIBUTE_FLOAT_RW("range", 0.2f, 5.0f, KX_WorldInfo, m_range),
+	KX_PYATTRIBUTE_RW_FUNCTION("exposure", KX_WorldInfo, pyattr_get_exposure, pyattr_set_exposure),
+	KX_PYATTRIBUTE_RW_FUNCTION("range", KX_WorldInfo, pyattr_get_range, pyattr_set_range),
 	KX_PYATTRIBUTE_FLOAT_RW("envLightEnergy", 0.0f, FLT_MAX, KX_WorldInfo, m_envLightEnergy),
 	KX_PYATTRIBUTE_NULL /* Sentinel */
 };
@@ -626,6 +617,58 @@ int KX_WorldInfo::pyattr_set_ambient_color(PyObjectPlus *self_v, const KX_PYATTR
 	if (PyVecTo(value, color))
 	{
 		self->setAmbientColor(color);
+		return PY_SET_ATTR_SUCCESS;
+	}
+	return PY_SET_ATTR_FAIL;
+}
+
+PyObject *KX_WorldInfo::pyattr_get_exposure(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_WorldInfo *self = static_cast<KX_WorldInfo *>(self_v);
+	return PyFloat_FromDouble(self->m_hasworld ? self->m_scene->world->exp : -1.0);
+}
+
+int KX_WorldInfo::pyattr_set_exposure(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_WorldInfo *self = static_cast<KX_WorldInfo *>(self_v);
+
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "world.%s = float: KX_WorldInfo, expected a float", attrdef->m_name.c_str());
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 0.0f, 1.0f);
+
+	if (self->m_hasworld) {
+		self->m_scene->world->exp = val;
+		return PY_SET_ATTR_SUCCESS;
+	}
+	return PY_SET_ATTR_FAIL;
+}
+
+PyObject *KX_WorldInfo::pyattr_get_range(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_WorldInfo *self = static_cast<KX_WorldInfo *>(self_v);
+	return PyFloat_FromDouble(self->m_hasworld ? self->m_scene->world->range : -1.0);
+}
+
+int KX_WorldInfo::pyattr_set_range(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_WorldInfo *self = static_cast<KX_WorldInfo *>(self_v);
+
+	float val = PyFloat_AsDouble(value);
+
+	if (val == -1 && PyErr_Occurred()) {
+		PyErr_Format(PyExc_AttributeError, "world.%s = float: KX_WorldInfo, expected a float", attrdef->m_name.c_str());
+		return PY_SET_ATTR_FAIL;
+	}
+
+	CLAMP(val, 0.2f, 5.0f);
+
+	if (self->m_hasworld) {
+		self->m_scene->world->range = val;
 		return PY_SET_ATTR_SUCCESS;
 	}
 	return PY_SET_ATTR_FAIL;
