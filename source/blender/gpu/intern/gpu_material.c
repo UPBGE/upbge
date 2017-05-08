@@ -1932,14 +1932,16 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 		if (world) {
 			/* exposure correction */
-			GPU_link(mat, "shade_exposure_correct", shr->combined,
-					 GPU_select_uniform(&GPUWorld.linfac, GPU_DYNAMIC_WORLD_LINFAC, NULL, ma),
-					 GPU_select_uniform(&GPUWorld.logfac, GPU_DYNAMIC_WORLD_LOGFAC, NULL, ma),
-					 &shr->combined);
-			GPU_link(mat, "shade_exposure_correct", shr->spec,
-					 GPU_select_uniform(&GPUWorld.linfac, GPU_DYNAMIC_WORLD_LINFAC, NULL, ma),
-					 GPU_select_uniform(&GPUWorld.logfac, GPU_DYNAMIC_WORLD_LOGFAC, NULL, ma),
-					 &shr->spec);
+			if (world->exp != 0.0f || world->range != 1.0f || !(ma->constflag & MA_CONSTANT_WORLD)) {
+				GPU_link(mat, "shade_exposure_correct", shr->combined,
+					GPU_select_uniform(&GPUWorld.linfac, GPU_DYNAMIC_WORLD_LINFAC, NULL, ma),
+					GPU_select_uniform(&GPUWorld.logfac, GPU_DYNAMIC_WORLD_LOGFAC, NULL, ma),
+					&shr->combined);
+				GPU_link(mat, "shade_exposure_correct", shr->spec,
+					GPU_select_uniform(&GPUWorld.linfac, GPU_DYNAMIC_WORLD_LINFAC, NULL, ma),
+					GPU_select_uniform(&GPUWorld.logfac, GPU_DYNAMIC_WORLD_LOGFAC, NULL, ma),
+					&shr->spec);
+			}
 
 			/* environment lighting */
 			if (!(mat->scene->gm.flag & GAME_GLSL_NO_ENV_LIGHTING) &&
