@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_IRASTERIZER_H__
-#define __RAS_IRASTERIZER_H__
+#ifndef __RAS_RASTERIZER_H__
+#define __RAS_RASTERIZER_H__
 
 #ifdef _MSC_VER
 #  pragma warning (disable:4786)
@@ -792,4 +792,4 @@ public:
 	void PrintHardwareInfo();
 };
 
-#endif  /* __RAS_IRASTERIZER_H__ */
+#endif  /* __RAS_RASTERIZER_H__ */
