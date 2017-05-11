@@ -1889,7 +1889,8 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_float_default(prop, 0.04f);
 	RNA_def_property_ui_text(prop, "Collision Margin",
 	                         "Extra margin around object for collision detection, small amount required "
-	                         "for stability");
+	                         "for stability. In most cases margin can be set to 0.0 for static/not moving objects."
+							 "If you have jittering, decrease the margin");
 
 	prop = RNA_def_property(srna, "soft_body", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "bsoft");
