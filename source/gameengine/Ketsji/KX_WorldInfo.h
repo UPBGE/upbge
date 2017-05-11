@@ -53,7 +53,9 @@ class KX_WorldInfo : public PyObjectPlus
 	bool m_do_color_management;
 	bool m_hasworld;
 	bool m_hasmist;
+	bool m_hasEnvLight;
 	short m_misttype;
+	short m_envLightColor;
 	float m_miststart;
 	float m_mistdistance;
 	float m_mistintensity;

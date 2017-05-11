@@ -102,3 +102,16 @@ base class --- :class:`PyObjectPlus`
 
       :type: float from 0.0 to infinite
 
+   .. attribute:: envLightEnabled
+
+      Returns True if Environment Lighting is enabled. Else returns False
+
+      :type: bool (read only)
+
+   .. attribute:: envLightColor
+
+      White:       returns 0
+      SkyColor:    returns 1
+      SkyTexture:  returns 2
+
+      :type: int (read only)
