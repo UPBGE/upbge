@@ -180,6 +180,7 @@ static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *l
 	lamp->size = la->bufsize;
 	lamp->d = la->clipsta;
 	lamp->clipend = la->clipend;
+	lamp->bufsharp = la->bufsharp;
 
 	/* arbitrary correction for the fact we do no soft transition */
 	lamp->bias *= 0.25f;
@@ -454,7 +455,7 @@ void GPU_lamp_shadow_buffer_unbind(GPULamp *lamp)
 {
 	if (lamp->la->shadowmap_type == LA_SHADMAP_VARIANCE) {
 		GPU_shader_unbind();
-		GPU_framebuffer_blur(lamp->fb, lamp->tex, lamp->blurfb, lamp->blurtex);
+		GPU_framebuffer_blur(lamp->fb, lamp->tex, lamp->blurfb, lamp->blurtex, lamp->bufsharp);
 	}
 
 	GPU_framebuffer_texture_unbind(lamp->fb, lamp->tex);
