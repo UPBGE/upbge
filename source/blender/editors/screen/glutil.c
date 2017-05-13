@@ -49,132 +49,10 @@
 #include "IMB_imbuf_types.h"
 
 #include "GPU_basic_shader.h"
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
 
 #include "UI_interface.h"
-
-#ifndef GL_CLAMP_TO_EDGE
-#define GL_CLAMP_TO_EDGE                        0x812F
-#endif
-
-/* UNUSED */
-#if 0
-void fdrawbezier(float vec[4][3])
-{
-	float dist;
-	float curve_res = 24, spline_step = 0.0f;
-	
-	dist = 0.5f * fabsf(vec[0][0] - vec[3][0]);
-	
-	/* check direction later, for top sockets */
-	vec[1][0] = vec[0][0] + dist;
-	vec[1][1] = vec[0][1];
-	
-	vec[2][0] = vec[3][0] - dist;
-	vec[2][1] = vec[3][1];
-	/* we can reuse the dist variable here to increment the GL curve eval amount */
-	dist = 1.0f / curve_res;
-	
-	cpack(0x0);
-	glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, vec[0]);
-	glBegin(GL_LINE_STRIP);
-	while (spline_step < 1.000001f) {
-#if 0
-		if (do_shaded)
-			UI_ThemeColorBlend(th_col1, th_col2, spline_step);
-#endif
-		glEvalCoord1f(spline_step);
-		spline_step += dist;
-	}
-	glEnd();
-}
-#endif
-
-void fdrawline(float x1, float y1, float x2, float y2)
-{
-	glBegin(GL_LINES);
-	glVertex2f(x1, y1);
-	glVertex2f(x2, y2);
-	glEnd();
-}
-
-void fdrawbox(float x1, float y1, float x2, float y2)
-{
-	glBegin(GL_LINE_LOOP);
-	
-	glVertex2f(x1, y1);
-	glVertex2f(x1, y2);
-	glVertex2f(x2, y2);
-	glVertex2f(x2, y1);
-	
-	glEnd();
-}
-
-void fdrawcheckerboard(float x1, float y1, float x2, float y2)
-{
-	unsigned char col1[4] = {40, 40, 40}, col2[4] = {50, 50, 50};
-
-	glColor3ubv(col1);
-	glRectf(x1, y1, x2, y2);
-	glColor3ubv(col2);
-
-	GPU_basic_shader_bind(GPU_SHADER_STIPPLE | GPU_SHADER_USE_COLOR);
-	GPU_basic_shader_stipple(GPU_SHADER_STIPPLE_CHECKER_8PX);
-	glRectf(x1, y1, x2, y2);
-	GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
-}
-
-void sdrawline(int x1, int y1, int x2, int y2)
-{
-	glBegin(GL_LINES);
-	glVertex2i(x1, y1);
-	glVertex2i(x2, y2);
-	glEnd();
-}
-
-/* UNUSED */
-#if 0
-/*
- *     x1,y2
- *     |  \
- *     |   \
- *     |    \
- *     x1,y1-- x2,y1
- */
-
-static void sdrawtripoints(int x1, int y1, int x2, int y2)
-{
-	glVertex2i(x1, y1);
-	glVertex2i(x1, y2);
-	glVertex2i(x2, y1);
-}
-
-void sdrawtri(int x1, int y1, int x2, int y2)
-{
-	glBegin(GL_LINE_STRIP);
-	sdrawtripoints(x1, y1, x2, y2);
-	glEnd();
-}
-
-void sdrawtrifill(int x1, int y1, int x2, int y2)
-{
-	glBegin(GL_TRIANGLES);
-	sdrawtripoints(x1, y1, x2, y2);
-	glEnd();
-}
-#endif
-
-void sdrawbox(int x1, int y1, int x2, int y2)
-{
-	glBegin(GL_LINE_LOOP);
-	
-	glVertex2i(x1, y1);
-	glVertex2i(x1, y2);
-	glVertex2i(x2, y2);
-	glVertex2i(x2, y1);
-	
-	glEnd();
-}
-
 
 /* ******************************************** */
 
@@ -202,122 +80,6 @@ void set_inverted_drawing(int enable)
 	glLogicOp(enable ? GL_INVERT : GL_COPY);
 	GL_TOGGLE(GL_COLOR_LOGIC_OP, enable);
 	GL_TOGGLE(GL_DITHER, !enable);
-}
-
-/* UNUSED */
-#if 0
-void sdrawXORline(int x0, int y0, int x1, int y1)
-{
-	if (x0 == x1 && y0 == y1) return;
-
-	set_inverted_drawing(1);
-	
-	glBegin(GL_LINES);
-	glVertex2i(x0, y0);
-	glVertex2i(x1, y1);
-	glEnd();
-	
-	set_inverted_drawing(0);
-}
-
-void sdrawXORline4(int nr, int x0, int y0, int x1, int y1)
-{
-	static int old[4][2][2];
-	static char flags[4] = {0, 0, 0, 0};
-	
-	/* with builtin memory, max 4 lines */
-
-	set_inverted_drawing(1);
-		
-	glBegin(GL_LINES);
-	if (nr == -1) { /* flush */
-		for (nr = 0; nr < 4; nr++) {
-			if (flags[nr]) {
-				glVertex2iv(old[nr][0]);
-				glVertex2iv(old[nr][1]);
-				flags[nr] = 0;
-			}
-		}
-	}
-	else {
-		if (nr >= 0 && nr < 4) {
-			if (flags[nr]) {
-				glVertex2iv(old[nr][0]);
-				glVertex2iv(old[nr][1]);
-			}
-
-			old[nr][0][0] = x0;
-			old[nr][0][1] = y0;
-			old[nr][1][0] = x1;
-			old[nr][1][1] = y1;
-			
-			flags[nr] = 1;
-		}
-		
-		glVertex2i(x0, y0);
-		glVertex2i(x1, y1);
-	}
-	glEnd();
-	
-	set_inverted_drawing(0);
-}
-
-void fdrawXORellipse(float xofs, float yofs, float hw, float hh)
-{
-	if (hw == 0) return;
-
-	set_inverted_drawing(1);
-
-	glPushMatrix();
-	glTranslatef(xofs, yofs, 0.0f);
-	glScalef(1.0f, hh / hw, 1.0f);
-	glutil_draw_lined_arc(0.0, M_PI * 2.0, hw, 20);
-	glPopMatrix();
-
-	set_inverted_drawing(0);
-}
-
-#endif
-
-void fdrawXORcirc(float xofs, float yofs, float rad)
-{
-	set_inverted_drawing(1);
-
-	glPushMatrix();
-	glTranslatef(xofs, yofs, 0.0);
-	glutil_draw_lined_arc(0.0, M_PI * 2.0, rad, 20);
-	glPopMatrix();
-
-	set_inverted_drawing(0);
-}
-
-void glutil_draw_filled_arc(float start, float angle, float radius, int nsegments)
-{
-	int i;
-	
-	glBegin(GL_TRIANGLE_FAN);
-	glVertex2f(0.0, 0.0);
-	for (i = 0; i < nsegments; i++) {
-		float t = (float) i / (nsegments - 1);
-		float cur = start + t * angle;
-		
-		glVertex2f(cosf(cur) * radius, sinf(cur) * radius);
-	}
-	glEnd();
-}
-
-void glutil_draw_lined_arc(float start, float angle, float radius, int nsegments)
-{
-	int i;
-	
-	glBegin(GL_LINE_STRIP);
-	for (i = 0; i < nsegments; i++) {
-		float t = (float) i / (nsegments - 1);
-		float cur = start + t * angle;
-		
-		glVertex2f(cosf(cur) * radius, sinf(cur) * radius);
-	}
-	glEnd();
 }
 
 float glaGetOneFloat(int param)
@@ -375,24 +137,66 @@ static int get_cached_work_texture(int *r_w, int *r_h)
 	return texid;
 }
 
-void glaDrawPixelsTexScaled_clipping(float x, float y, int img_w, int img_h,
+static void immDrawPixelsTexSetupAttributes(IMMDrawPixelsTexState *state)
+{
+	VertexFormat *vert_format = immVertexFormat();
+	state->pos = VertexFormat_add_attrib(vert_format, "pos", COMP_F32, 2, KEEP_FLOAT);
+	state->texco = VertexFormat_add_attrib(vert_format, "texCoord", COMP_F32, 2, KEEP_FLOAT);
+}
+
+/* To be used before calling immDrawPixelsTex
+ * Default shader is GPU_SHADER_2D_IMAGE_COLOR
+ * You can still set uniforms with :
+ * GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "name"), 0);
+ * */
+IMMDrawPixelsTexState immDrawPixelsTexSetup(int builtin)
+{
+	IMMDrawPixelsTexState state;
+	immDrawPixelsTexSetupAttributes(&state);
+
+	state.shader = GPU_shader_get_builtin_shader(builtin);
+
+	/* Shader will be unbind by immUnbindProgram in immDrawPixelsTexScaled_clipping */
+	immBindBuiltinProgram(builtin);
+	immUniform1i("image", 0);
+	state.do_shader_unbind = true;
+
+	return state;
+}
+
+/* Use the currently bound shader.
+ *
+ * Use immDrawPixelsTexSetup to bind the shader you
+ * want before calling immDrawPixelsTex.
+ *
+ * If using a special shader double check it uses the same
+ * attributes "pos" "texCoord" and uniform "image".
+ *
+ * If color is NULL then use white by default
+ *
+ * Be also aware that this function unbinds the shader when
+ * it's finished.
+ * */
+void immDrawPixelsTexScaled_clipping(IMMDrawPixelsTexState *state,
+                                     float x, float y, int img_w, int img_h,
                                      int format, int type, int zoomfilter, void *rect,
                                      float scaleX, float scaleY,
                                      float clip_min_x, float clip_min_y,
-                                     float clip_max_x, float clip_max_y)
+                                     float clip_max_x, float clip_max_y,
+                                     float xzoom, float yzoom, float color[4])
 {
 	unsigned char *uc_rect = (unsigned char *) rect;
 	const float *f_rect = (float *)rect;
-	float xzoom = glaGetOneFloat(GL_ZOOM_X), yzoom = glaGetOneFloat(GL_ZOOM_Y);
 	int subpart_x, subpart_y, tex_w, tex_h;
 	int seamless, offset_x, offset_y, nsubparts_x, nsubparts_y;
 	int texid = get_cached_work_texture(&tex_w, &tex_h);
 	int components;
 	const bool use_clipping = ((clip_min_x < clip_max_x) && (clip_min_y < clip_max_y));
+	float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-	/* Specify the color outside this function, and tex will modulate it.
-	 * This is useful for changing alpha without using glPixelTransferf()
-	 */
+	GLint unpack_row_length;
+	glGetIntegerv(GL_UNPACK_ROW_LENGTH, &unpack_row_length);
+
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, img_w);
 	glBindTexture(GL_TEXTURE_2D, texid);
 
@@ -401,18 +205,12 @@ void glaDrawPixelsTexScaled_clipping(float x, float y, int img_w, int img_h,
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, zoomfilter);
 
-#if defined(__APPLE__) && 0
-	/* [merwin] disable this workaround and see if anyone is affected. If not scrap it! Also at end of this function */
-	/* workaround for os x 10.5/10.6 driver bug: http://lists.apple.com/archives/Mac-opengl/2008/Jul/msg00117.html */
-	glPixelZoom(1.0f, 1.0f);
-#endif
-	
 	/* setup seamless 2=on, 0=off */
 	seamless = ((tex_w < img_w || tex_h < img_h) && tex_w > 2 && tex_h > 2) ? 2 : 0;
-	
+
 	offset_x = tex_w - seamless;
 	offset_y = tex_h - seamless;
-	
+
 	nsubparts_x = (img_w + (offset_x - 1)) / (offset_x);
 	nsubparts_y = (img_h + (offset_y - 1)) / (offset_y);
 
@@ -420,7 +218,7 @@ void glaDrawPixelsTexScaled_clipping(float x, float y, int img_w, int img_h,
 		components = 4;
 	else if (format == GL_RGB)
 		components = 3;
-	else if (ELEM(format, GL_LUMINANCE, GL_ALPHA))
+	else if (format == GL_RED)
 		components = 1;
 	else {
 		BLI_assert(!"Incompatible format passed to glaDrawPixelsTexScaled");
@@ -436,11 +234,22 @@ void glaDrawPixelsTexScaled_clipping(float x, float y, int img_w, int img_h,
 		 *       it's possible to use GL_RGBA16F_ARB
 		 */
 
+		/* TODO viewport : remove extension */
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F_ARB, tex_w, tex_h, 0, format, GL_FLOAT, NULL);
 	}
 	else {
 		/* switch to 8bit RGBA for byte buffer */
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex_w, tex_h, 0, format, GL_UNSIGNED_BYTE, NULL);
+	}
+
+	unsigned int pos = state->pos, texco = state->texco;
+
+	/* optional */
+	/* NOTE: Shader could be null for GLSL OCIO drawing, it is fine, since
+	 * it does not need color.
+	 */
+	if (state->shader != NULL && GPU_shader_get_uniform(state->shader, "color") != -1) {
+		immUniformColor4fv((color) ? color : white);
 	}
 
 	for (subpart_y = 0; subpart_y < nsubparts_y; subpart_y++) {
@@ -474,7 +283,7 @@ void glaDrawPixelsTexScaled_clipping(float x, float y, int img_w, int img_h,
 
 			if (type == GL_FLOAT) {
 				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, subpart_w, subpart_h, format, GL_FLOAT, &f_rect[((size_t)subpart_y) * offset_y * img_w * components + subpart_x * offset_x * components]);
-				
+
 				/* add an extra border of pixels so linear looks ok at edges of full image */
 				if (subpart_w < tex_w)
 					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, 0, 1, subpart_h, format, GL_FLOAT, &f_rect[((size_t)subpart_y) * offset_y * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
@@ -485,7 +294,7 @@ void glaDrawPixelsTexScaled_clipping(float x, float y, int img_w, int img_h,
 			}
 			else {
 				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, subpart_w, subpart_h, format, GL_UNSIGNED_BYTE, &uc_rect[((size_t)subpart_y) * offset_y * img_w * components + subpart_x * offset_x * components]);
-				
+
 				if (subpart_w < tex_w)
 					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, 0, 1, subpart_h, format, GL_UNSIGNED_BYTE, &uc_rect[((size_t)subpart_y) * offset_y * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
 				if (subpart_h < tex_h)
@@ -494,158 +303,55 @@ void glaDrawPixelsTexScaled_clipping(float x, float y, int img_w, int img_h,
 					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, subpart_h, 1, 1, format, GL_UNSIGNED_BYTE, &uc_rect[(((size_t)subpart_y) * offset_y + subpart_h - 1) * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
 			}
 
-			GPU_basic_shader_bind(GPU_SHADER_TEXTURE_2D | GPU_SHADER_USE_COLOR);
-			glBegin(GL_QUADS);
-			glTexCoord2f((float)(0 + offset_left) / tex_w, (float)(0 + offset_bot) / tex_h);
-			glVertex2f(rast_x + (float)offset_left * xzoom, rast_y + (float)offset_bot * yzoom);
+			immBegin(PRIM_TRIANGLE_FAN, 4);
+			immAttrib2f(texco, (float)(0 + offset_left) / tex_w, (float)(0 + offset_bot) / tex_h);
+			immVertex2f(pos, rast_x + (float)offset_left * xzoom, rast_y + (float)offset_bot * yzoom);
 
-			glTexCoord2f((float)(subpart_w - offset_right) / tex_w, (float)(0 + offset_bot) / tex_h);
-			glVertex2f(rast_x + (float)(subpart_w - offset_right) * xzoom * scaleX, rast_y + (float)offset_bot * yzoom);
+			immAttrib2f(texco, (float)(subpart_w - offset_right) / tex_w, (float)(0 + offset_bot) / tex_h);
+			immVertex2f(pos, rast_x + (float)(subpart_w - offset_right) * xzoom * scaleX, rast_y + (float)offset_bot * yzoom);
 
-			glTexCoord2f((float)(subpart_w - offset_right) / tex_w, (float)(subpart_h - offset_top) / tex_h);
-			glVertex2f(rast_x + (float)(subpart_w - offset_right) * xzoom * scaleX, rast_y + (float)(subpart_h - offset_top) * yzoom * scaleY);
+			immAttrib2f(texco, (float)(subpart_w - offset_right) / tex_w, (float)(subpart_h - offset_top) / tex_h);
+			immVertex2f(pos, rast_x + (float)(subpart_w - offset_right) * xzoom * scaleX, rast_y + (float)(subpart_h - offset_top) * yzoom * scaleY);
 
-			glTexCoord2f((float)(0 + offset_left) / tex_w, (float)(subpart_h - offset_top) / tex_h);
-			glVertex2f(rast_x + (float)offset_left * xzoom, rast_y + (float)(subpart_h - offset_top) * yzoom * scaleY);
-			glEnd();
-			GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
+			immAttrib2f(texco, (float)(0 + offset_left) / tex_w, (float)(subpart_h - offset_top) / tex_h);
+			immVertex2f(pos, rast_x + (float)offset_left * xzoom, rast_y + (float)(subpart_h - offset_top) * yzoom * scaleY);
+			immEnd();
 		}
+	}
+
+	if (state->do_shader_unbind) {
+		immUnbindProgram();
 	}
 
 	glBindTexture(GL_TEXTURE_2D, 0);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-	
-#if defined(__APPLE__) && 0
-	/* workaround for os x 10.5/10.6 driver bug (above) */
-	glPixelZoom(xzoom, yzoom);
-#endif
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, unpack_row_length);
 }
 
-void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h,
+void immDrawPixelsTexScaled(IMMDrawPixelsTexState *state,
+                            float x, float y, int img_w, int img_h,
                             int format, int type, int zoomfilter, void *rect,
-                            float scaleX, float scaleY)
+                            float scaleX, float scaleY, float xzoom, float yzoom, float color[4])
 {
-	glaDrawPixelsTexScaled_clipping(x, y, img_w, img_h, format, type, zoomfilter, rect,
-	                                scaleX, scaleY, 0.0f, 0.0f, 0.0f, 0.0f);
+	immDrawPixelsTexScaled_clipping(state, x, y, img_w, img_h, format, type, zoomfilter, rect,
+	                                scaleX, scaleY, 0.0f, 0.0f, 0.0f, 0.0f, xzoom, yzoom, color);
 }
 
-void glaDrawPixelsTex(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect)
+void immDrawPixelsTex(IMMDrawPixelsTexState *state,
+                      float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect,
+                      float xzoom, float yzoom, float color[4])
 {
-	glaDrawPixelsTexScaled_clipping(x, y, img_w, img_h, format, type, zoomfilter, rect, 1.0f, 1.0f,
-	                                0.0f, 0.0f, 0.0f, 0.0f);
+	immDrawPixelsTexScaled_clipping(state, x, y, img_w, img_h, format, type, zoomfilter, rect, 1.0f, 1.0f,
+	                                0.0f, 0.0f, 0.0f, 0.0f, xzoom, yzoom, color);
 }
 
-void glaDrawPixelsTex_clipping(float x, float y, int img_w, int img_h,
+void immDrawPixelsTex_clipping(IMMDrawPixelsTexState *state,
+                               float x, float y, int img_w, int img_h,
                                int format, int type, int zoomfilter, void *rect,
-                               float clip_min_x, float clip_min_y, float clip_max_x, float clip_max_y)
+                               float clip_min_x, float clip_min_y, float clip_max_x, float clip_max_y,
+                               float xzoom, float yzoom, float color[4])
 {
-	glaDrawPixelsTexScaled_clipping(x, y, img_w, img_h, format, type, zoomfilter, rect, 1.0f, 1.0f,
-	                                clip_min_x, clip_min_y, clip_max_x, clip_max_y);
-}
-
-void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int format, int type, void *rect)
-{
-	float xzoom = glaGetOneFloat(GL_ZOOM_X);
-	float yzoom = glaGetOneFloat(GL_ZOOM_Y);
-
-	/* The pixel space coordinate of the intersection of
-	 * the [zoomed] image with the origin.
-	 */
-	float ix = -x / xzoom;
-	float iy = -y / yzoom;
-		
-	/* The maximum pixel amounts the image can be cropped
-	 * at the lower left without exceeding the origin.
-	 */
-	int off_x = floor(max_ff(ix, 0.0f));
-	int off_y = floor(max_ff(iy, 0.0f));
-
-	/* The zoomed space coordinate of the raster position
-	 * (starting at the lower left most unclipped pixel).
-	 */
-	float rast_x = x + off_x * xzoom;
-	float rast_y = y + off_y * yzoom;
-
-	GLfloat viewport[4];
-	int draw_w, draw_h;
-
-	/* Determine the smallest number of pixels we need to draw
-	 * before the image would go off the upper right corner.
-	 *
-	 * It may seem this is just an optimization but some graphics
-	 * cards (ATI) freak out if there is a large zoom factor and
-	 * a large number of pixels off the screen (probably at some
-	 * level the number of image pixels to draw is getting multiplied
-	 * by the zoom and then clamped). Making sure we draw the
-	 * fewest pixels possible keeps everyone mostly happy (still
-	 * fails if we zoom in on one really huge pixel so that it
-	 * covers the entire screen).
-	 */
-	glGetFloatv(GL_VIEWPORT, viewport);
-	draw_w = min_ii(img_w - off_x, ceil((viewport[2] - rast_x) / xzoom));
-	draw_h = min_ii(img_h - off_y, ceil((viewport[3] - rast_y) / yzoom));
-
-	if (draw_w > 0 && draw_h > 0) {
-
-		int bound_options;
-		GPU_BASIC_SHADER_DISABLE_AND_STORE(bound_options);
-
-		/* Don't use safe RasterPos (slower) if we can avoid it. */
-		if (rast_x >= 0 && rast_y >= 0) {
-			glRasterPos2f(rast_x, rast_y);
-		}
-		else {
-			glaRasterPosSafe2f(rast_x, rast_y, 0, 0);
-		}
-
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, row_w);
-		if (format == GL_LUMINANCE || format == GL_RED) {
-			if (type == GL_FLOAT) {
-				const float *f_rect = (float *)rect;
-				glDrawPixels(draw_w, draw_h, format, type, f_rect + (off_y * row_w + off_x));
-			}
-			else if (type == GL_INT || type == GL_UNSIGNED_INT) {
-				const int *i_rect = (int *)rect;
-				glDrawPixels(draw_w, draw_h, format, type, i_rect + (off_y * row_w + off_x));
-			}
-		}
-		else { /* RGBA */
-			if (type == GL_FLOAT) {
-				const float *f_rect = (float *)rect;
-				glDrawPixels(draw_w, draw_h, format, type, f_rect + (off_y * row_w + off_x) * 4);
-			}
-			else if (type == GL_UNSIGNED_BYTE) {
-				unsigned char *uc_rect = (unsigned char *) rect;
-				glDrawPixels(draw_w, draw_h, format, type, uc_rect + (off_y * row_w + off_x) * 4);
-			}
-		}
-		
-		glPixelStorei(GL_UNPACK_ROW_LENGTH,  0);
-
-		GPU_BASIC_SHADER_ENABLE_AND_RESTORE(bound_options);
-	}
-}
-
-/* uses either DrawPixelsSafe or DrawPixelsTex, based on user defined maximum */
-void glaDrawPixelsAuto_clipping(float x, float y, int img_w, int img_h,
-                                int format, int type, int zoomfilter, void *rect,
-                                float clip_min_x, float clip_min_y,
-                                float clip_max_x, float clip_max_y)
-{
-	if (U.image_draw_method != IMAGE_DRAW_METHOD_DRAWPIXELS) {
-		glColor4f(1.0, 1.0, 1.0, 1.0);
-		glaDrawPixelsTex_clipping(x, y, img_w, img_h, format, type, zoomfilter, rect,
-		                          clip_min_x, clip_min_y, clip_max_x, clip_max_y);
-	}
-	else {
-		glaDrawPixelsSafe(x, y, img_w, img_h, img_w, format, type, rect);
-	}
-}
-
-void glaDrawPixelsAuto(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect)
-{
-	glaDrawPixelsAuto_clipping(x, y, img_w, img_h, format, type, zoomfilter, rect,
-	                           0.0f, 0.0f, 0.0f, 0.0f);
+	immDrawPixelsTexScaled_clipping(state, x, y, img_w, img_h, format, type, zoomfilter, rect, 1.0f, 1.0f,
+	                                clip_min_x, clip_min_y, clip_max_x, clip_max_y, xzoom, yzoom, color);
 }
 
 /* 2D Drawing Assistance */
@@ -664,14 +370,11 @@ void glaDefine2DArea(rcti *screen_rect)
 	 * Programming Guide, Appendix H, Correctness Tips.
 	 */
 
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(0.0, sc_w, 0.0, sc_h, -1, 1);
-	glTranslatef(GLA_PIXEL_OFS, GLA_PIXEL_OFS, 0.0);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	gpuOrtho2D(GLA_PIXEL_OFS, sc_w + GLA_PIXEL_OFS, GLA_PIXEL_OFS, sc_h + GLA_PIXEL_OFS);
+	gpuLoadIdentity();
 }
+
+/* TODO(merwin): put the following 2D code to use, or build new 2D code inspired & informd by it */
 
 #if 0 /* UNUSED */
 
@@ -726,8 +429,8 @@ gla2DDrawInfo *glaBegin2DDraw(rcti *screen_rect, rctf *world_rect)
 
 	glGetIntegerv(GL_VIEWPORT, (GLint *)di->orig_vp);
 	glGetIntegerv(GL_SCISSOR_BOX, (GLint *)di->orig_sc);
-	glGetFloatv(GL_PROJECTION_MATRIX, (GLfloat *)di->orig_projmat);
-	glGetFloatv(GL_MODELVIEW_MATRIX, (GLfloat *)di->orig_viewmat);
+	gpuGetProjectionMatrix(di->orig_projmat);
+	gpuGetModelViewMatrix(di->orig_viewmat);
 
 	di->screen_rect = *screen_rect;
 	if (world_rect) {
@@ -778,42 +481,14 @@ void glaEnd2DDraw(gla2DDrawInfo *di)
 {
 	glViewport(di->orig_vp[0], di->orig_vp[1], di->orig_vp[2], di->orig_vp[3]);
 	glScissor(di->orig_vp[0], di->orig_vp[1], di->orig_vp[2], di->orig_vp[3]);
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(di->orig_projmat);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(di->orig_viewmat);
+	gpuLoadProjectionMatrix(di->orig_projmat);
+	gpuLoadMatrix(di->orig_viewmat);
 
 	MEM_freeN(di);
 }
-#endif
 
+#endif /* UNUSED */
 
-/* Uses current OpenGL state to get view matrices for gluProject/gluUnProject */
-void bgl_get_mats(bglMats *mats)
-{
-	const double badvalue = 1.0e-6;
-
-	glGetDoublev(GL_MODELVIEW_MATRIX, mats->modelview);
-	glGetDoublev(GL_PROJECTION_MATRIX, mats->projection);
-	glGetIntegerv(GL_VIEWPORT, (GLint *)mats->viewport);
-	
-	/* Very strange code here - it seems that certain bad values in the
-	 * modelview matrix can cause gluUnProject to give bad results. */
-	if (mats->modelview[0] < badvalue &&
-	    mats->modelview[0] > -badvalue)
-	{
-		mats->modelview[0] = 0;
-	}
-	if (mats->modelview[5] < badvalue &&
-	    mats->modelview[5] > -badvalue)
-	{
-		mats->modelview[5] = 0;
-	}
-	
-	/* Set up viewport so that gluUnProject will give correct values */
-	mats->viewport[0] = 0;
-	mats->viewport[1] = 0;
-}
 
 /* *************** glPolygonOffset hack ************* */
 
@@ -831,8 +506,7 @@ void bglPolygonOffset(float viewdist, float dist)
 		// glPolygonOffset(-1.0, -1.0);
 
 		/* hack below is to mimic polygon offset */
-		glMatrixMode(GL_PROJECTION);
-		glGetFloatv(GL_PROJECTION_MATRIX, (float *)winmat);
+		gpuGetProjectionMatrix(winmat);
 		
 		/* dist is from camera to center point */
 		
@@ -863,17 +537,13 @@ void bglPolygonOffset(float viewdist, float dist)
 		
 		winmat[14] -= offs;
 		offset += offs;
-		
-		glLoadMatrixf(winmat);
-		glMatrixMode(GL_MODELVIEW);
 	}
 	else {
-		glMatrixMode(GL_PROJECTION);
 		winmat[14] += offset;
 		offset = 0.0;
-		glLoadMatrixf(winmat);
-		glMatrixMode(GL_MODELVIEW);
 	}
+
+	gpuLoadProjectionMatrix(winmat);
 }
 
 /* **** Color management helper functions for GLSL display/transform ***** */
@@ -883,7 +553,8 @@ void glaDrawImBuf_glsl_clipping(ImBuf *ibuf, float x, float y, int zoomfilter,
                                 ColorManagedViewSettings *view_settings,
                                 ColorManagedDisplaySettings *display_settings,
                                 float clip_min_x, float clip_min_y,
-                                float clip_max_x, float clip_max_y)
+                                float clip_max_x, float clip_max_y,
+                                float zoom_x, float zoom_y)
 {
 	bool force_fallback = false;
 	bool need_fallback = true;
@@ -901,6 +572,11 @@ void glaDrawImBuf_glsl_clipping(ImBuf *ibuf, float x, float y, int zoomfilter,
 	/* Try to draw buffer using GLSL display transform */
 	if (force_fallback == false) {
 		int ok;
+
+		IMMDrawPixelsTexState state = {0};
+		/* We want GLSL state to be fully handled by OCIO. */
+		state.do_shader_unbind = false;
+		immDrawPixelsTexSetupAttributes(&state);
 
 		if (ibuf->rect_float) {
 			if (ibuf->float_colorspace) {
@@ -920,8 +596,6 @@ void glaDrawImBuf_glsl_clipping(ImBuf *ibuf, float x, float y, int zoomfilter,
 		}
 
 		if (ok) {
-			glColor4f(1.0, 1.0, 1.0, 1.0);
-
 			if (ibuf->rect_float) {
 				int format = 0;
 
@@ -933,16 +607,20 @@ void glaDrawImBuf_glsl_clipping(ImBuf *ibuf, float x, float y, int zoomfilter,
 					BLI_assert(!"Incompatible number of channels for GLSL display");
 
 				if (format != 0) {
-					glaDrawPixelsTex_clipping(x, y, ibuf->x, ibuf->y, format, GL_FLOAT,
+					immDrawPixelsTex_clipping(&state,
+					                          x, y, ibuf->x, ibuf->y, format, GL_FLOAT,
 					                          zoomfilter, ibuf->rect_float,
-					                          clip_min_x, clip_min_y, clip_max_x, clip_max_y);
+					                          clip_min_x, clip_min_y, clip_max_x, clip_max_y,
+					                          zoom_x, zoom_y, NULL);
 				}
 			}
 			else if (ibuf->rect) {
 				/* ibuf->rect is always RGBA */
-				glaDrawPixelsTex_clipping(x, y, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE,
+				immDrawPixelsTex_clipping(&state,
+				                          x, y, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE,
 				                          zoomfilter, ibuf->rect,
-				                          clip_min_x, clip_min_y, clip_max_x, clip_max_y);
+				                          clip_min_x, clip_min_y, clip_max_x, clip_max_y,
+				                          zoom_x, zoom_y, NULL);
 			}
 
 			IMB_colormanagement_finish_glsl_draw();
@@ -959,9 +637,12 @@ void glaDrawImBuf_glsl_clipping(ImBuf *ibuf, float x, float y, int zoomfilter,
 		display_buffer = IMB_display_buffer_acquire(ibuf, view_settings, display_settings, &cache_handle);
 
 		if (display_buffer) {
-			glaDrawPixelsAuto_clipping(x, y, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE,
-			                           zoomfilter, display_buffer,
-			                           clip_min_x, clip_min_y, clip_max_x, clip_max_y);
+			IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_2D_IMAGE_COLOR);
+			immDrawPixelsTex_clipping(&state,
+			                          x, y, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE,
+			                          zoomfilter, display_buffer,
+			                          clip_min_x, clip_min_y, clip_max_x, clip_max_y,
+			                          zoom_x, zoom_y, NULL);
 		}
 
 		IMB_display_buffer_release(cache_handle);
@@ -970,10 +651,11 @@ void glaDrawImBuf_glsl_clipping(ImBuf *ibuf, float x, float y, int zoomfilter,
 
 void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
                        ColorManagedViewSettings *view_settings,
-                       ColorManagedDisplaySettings *display_settings)
+                       ColorManagedDisplaySettings *display_settings,
+                       float zoom_x, float zoom_y)
 {
 	glaDrawImBuf_glsl_clipping(ibuf, x, y, zoomfilter, view_settings, display_settings,
-	                           0.0f, 0.0f, 0.0f, 0.0f);
+	                           0.0f, 0.0f, 0.0f, 0.0f, zoom_x, zoom_y);
 }
 
 void glaDrawImBuf_glsl_ctx_clipping(const bContext *C,
@@ -981,7 +663,8 @@ void glaDrawImBuf_glsl_ctx_clipping(const bContext *C,
                                     float x, float y,
                                     int zoomfilter,
                                     float clip_min_x, float clip_min_y,
-                                    float clip_max_x, float clip_max_y)
+                                    float clip_max_x, float clip_max_y,
+                                    float zoom_x, float zoom_y)
 {
 	ColorManagedViewSettings *view_settings;
 	ColorManagedDisplaySettings *display_settings;
@@ -989,22 +672,19 @@ void glaDrawImBuf_glsl_ctx_clipping(const bContext *C,
 	IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
 
 	glaDrawImBuf_glsl_clipping(ibuf, x, y, zoomfilter, view_settings, display_settings,
-	                           clip_min_x, clip_min_y, clip_max_x, clip_max_y);
+	                           clip_min_x, clip_min_y, clip_max_x, clip_max_y,
+	                           zoom_x, zoom_y);
 }
 
-void glaDrawImBuf_glsl_ctx(const bContext *C, ImBuf *ibuf, float x, float y, int zoomfilter)
+void glaDrawImBuf_glsl_ctx(const bContext *C, ImBuf *ibuf, float x, float y, int zoomfilter,
+                           float zoom_x, float zoom_y)
 {
-	glaDrawImBuf_glsl_ctx_clipping(C, ibuf, x, y, zoomfilter, 0.0f, 0.0f, 0.0f, 0.0f);
+	glaDrawImBuf_glsl_ctx_clipping(C, ibuf, x, y, zoomfilter, 0.0f, 0.0f, 0.0f, 0.0f, zoom_x, zoom_y);
 }
 
-void cpack(unsigned int x)
-{
-	glColor3ub(( (x)        & 0xFF),
-	           (((x) >>  8) & 0xFF),
-	           (((x) >> 16) & 0xFF));
-}
-
-void glaDrawBorderCorners(const rcti *border, float zoomx, float zoomy)
+/* don't move to GPU_immediate_util.h because this uses user-prefs
+ * and isn't very low level */
+void immDrawBorderCorners(unsigned int pos, const rcti *border, float zoomx, float zoomy)
 {
 	float delta_x = 4.0f * UI_DPI_FAC / zoomx;
 	float delta_y = 4.0f * UI_DPI_FAC / zoomy;
@@ -1013,30 +693,30 @@ void glaDrawBorderCorners(const rcti *border, float zoomx, float zoomy)
 	delta_y = min_ff(delta_y, border->ymax - border->ymin);
 
 	/* left bottom corner */
-	glBegin(GL_LINE_STRIP);
-	glVertex2f(border->xmin, border->ymin + delta_y);
-	glVertex2f(border->xmin, border->ymin);
-	glVertex2f(border->xmin + delta_x, border->ymin);
-	glEnd();
+	immBegin(PRIM_LINE_STRIP, 3);
+	immVertex2f(pos, border->xmin, border->ymin + delta_y);
+	immVertex2f(pos, border->xmin, border->ymin);
+	immVertex2f(pos, border->xmin + delta_x, border->ymin);
+	immEnd();
 
 	/* left top corner */
-	glBegin(GL_LINE_STRIP);
-	glVertex2f(border->xmin, border->ymax - delta_y);
-	glVertex2f(border->xmin, border->ymax);
-	glVertex2f(border->xmin + delta_x, border->ymax);
-	glEnd();
+	immBegin(PRIM_LINE_STRIP, 3);
+	immVertex2f(pos, border->xmin, border->ymax - delta_y);
+	immVertex2f(pos, border->xmin, border->ymax);
+	immVertex2f(pos, border->xmin + delta_x, border->ymax);
+	immEnd();
 
 	/* right bottom corner */
-	glBegin(GL_LINE_STRIP);
-	glVertex2f(border->xmax - delta_x, border->ymin);
-	glVertex2f(border->xmax, border->ymin);
-	glVertex2f(border->xmax, border->ymin + delta_y);
-	glEnd();
+	immBegin(PRIM_LINE_STRIP, 3);
+	immVertex2f(pos, border->xmax - delta_x, border->ymin);
+	immVertex2f(pos, border->xmax, border->ymin);
+	immVertex2f(pos, border->xmax, border->ymin + delta_y);
+	immEnd();
 
 	/* right top corner */
-	glBegin(GL_LINE_STRIP);
-	glVertex2f(border->xmax - delta_x, border->ymax);
-	glVertex2f(border->xmax, border->ymax);
-	glVertex2f(border->xmax, border->ymax - delta_y);
-	glEnd();
+	immBegin(PRIM_LINE_STRIP, 3);
+	immVertex2f(pos, border->xmax - delta_x, border->ymax);
+	immVertex2f(pos, border->xmax, border->ymax);
+	immVertex2f(pos, border->xmax, border->ymax - delta_y);
+	immEnd();
 }

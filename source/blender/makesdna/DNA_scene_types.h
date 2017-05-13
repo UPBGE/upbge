@@ -47,6 +47,8 @@ extern "C" {
 #include "DNA_ID.h"
 #include "DNA_freestyle_types.h"
 #include "DNA_gpu_types.h"
+#include "DNA_layer_types.h"
+#include "DNA_material_types.h"
 #include "DNA_userdef_types.h"
 
 struct CurveMapping;
@@ -65,18 +67,13 @@ struct bGPdata;
 struct bGPDbrush;
 struct MovieClip;
 struct ColorSpace;
+struct SceneCollection;
 
 /* ************************************************************* */
 /* Scene Data */
 
 /* Base - Wrapper for referencing Objects in a Scene */
-typedef struct Base {
-	struct Base *next, *prev;
-	unsigned int lay, selcol;
-	int flag;
-	short sx, sy;
-	struct Object *object;
-} Base;
+#define BaseLegacy Base
 
 /* ************************************************************* */
 /* Output Format Data */
@@ -577,6 +574,12 @@ typedef enum BakePassFilter {
 } BakePassFilter;
 
 #define R_BAKE_PASS_FILTER_ALL (~0)
+
+/* RenderEngineSettingsClay.options */
+typedef enum ClayFlagSettings {
+	CLAY_USE_AO     = (1 << 0),
+	CLAY_USE_HSV    = (1 << 1),
+} ClayFlagSettings;
 
 /* *************************************************************** */
 /* Render Data */
@@ -1096,6 +1099,7 @@ typedef struct ParticleEditSettings {
 	int draw_step, fade_frames;
 
 	struct Scene *scene;
+	struct SceneLayer *scene_layer;
 	struct Object *object;
 	struct Object *shape_object;
 } ParticleEditSettings;
@@ -1650,7 +1654,7 @@ typedef struct Scene {
 	struct Scene *set;
 	
 	ListBase base;
-	struct Base *basact;		/* active base */
+	struct BaseLegacy *basact;		/* active base */
 	struct Object *obedit;		/* name replaces old G.obedit */
 	
 	float cursor[3];			/* 3d cursor location */
@@ -1728,6 +1732,16 @@ typedef struct Scene {
 	struct RigidBodyWorld *rigidbody_world;
 
 	struct PreviewImage *preview;
+
+	ListBase render_layers;
+	struct SceneCollection *collection;
+	int active_layer;
+	int pad4;
+
+	IDProperty *collection_properties;  /* settings to be overriden by layer collections */
+	IDProperty *layer_properties;  /* settings to be override by workspaces */
+
+	int pad5[2];
 } Scene;
 
 /* **************** RENDERDATA ********************* */
@@ -1917,6 +1931,8 @@ enum {
 /* scene->r.engine (scene.c) */
 extern const char *RE_engine_id_BLENDER_RENDER;
 extern const char *RE_engine_id_BLENDER_GAME;
+extern const char *RE_engine_id_BLENDER_CLAY;
+extern const char *RE_engine_id_BLENDER_EEVEE;
 extern const char *RE_engine_id_CYCLES;
 
 /* **************** SCENE ********************* */
@@ -1935,37 +1951,38 @@ extern const char *RE_engine_id_CYCLES;
 
 /* depricate this! */
 #define TESTBASE(v3d, base)  (                                                \
-	((base)->flag & SELECT) &&                                                \
+	((base)->flag_legacy & SELECT) &&                                         \
 	((base)->lay & v3d->lay) &&                                               \
 	(((base)->object->restrictflag & OB_RESTRICT_VIEW) == 0))
-#define TESTBASELIB(v3d, base)  (                                             \
-	((base)->flag & SELECT) &&                                                \
-	((base)->lay & v3d->lay) &&                                               \
+
+#define TESTBASE_NEW(base)  (                                                 \
+	(((base)->flag & BASE_SELECTED) != 0) &&                                  \
+	(((base)->flag & BASE_VISIBLED) != 0))
+#define TESTBASELIB_NEW(base)  (                                              \
+	(((base)->flag & BASE_SELECTED) != 0) &&                                  \
 	((base)->object->id.lib == NULL) &&                                       \
-	(((base)->object->restrictflag & OB_RESTRICT_VIEW) == 0))
-#define TESTBASELIB_BGMODE(v3d, scene, base)  (                               \
-	((base)->flag & SELECT) &&                                                \
-	((base)->lay & (v3d ? v3d->lay : scene->lay)) &&                          \
+	(((base)->flag & BASE_VISIBLED) != 0))
+#define TESTBASELIB_BGMODE_NEW(base)  (                                       \
+	(((base)->flag & BASE_SELECTED) != 0) &&                                  \
 	((base)->object->id.lib == NULL) &&                                       \
-	(((base)->object->restrictflag & OB_RESTRICT_VIEW) == 0))
-#define BASE_EDITABLE_BGMODE(v3d, scene, base)  (                             \
-	((base)->lay & (v3d ? v3d->lay : scene->lay)) &&                          \
+	(((base)->flag & BASE_VISIBLED) != 0))
+#define BASE_EDITABLE_BGMODE_NEW(base)  (                                     \
 	((base)->object->id.lib == NULL) &&                                       \
-	(((base)->object->restrictflag & OB_RESTRICT_VIEW) == 0))
-#define BASE_SELECTABLE(v3d, base)  (                                         \
-	(base->lay & v3d->lay) &&                                                 \
-	(base->object->restrictflag & (OB_RESTRICT_SELECT | OB_RESTRICT_VIEW)) == 0)
-#define BASE_VISIBLE(v3d, base)  (                                            \
-	(base->lay & v3d->lay) &&                                                 \
-	(base->object->restrictflag & OB_RESTRICT_VIEW) == 0)
-#define BASE_VISIBLE_BGMODE(v3d, scene, base)  (                              \
-	(base->lay & (v3d ? v3d->lay : scene->lay)) &&                            \
-	(base->object->restrictflag & OB_RESTRICT_VIEW) == 0)
+	(((base)->flag & BASE_VISIBLED) != 0))
+#define BASE_SELECTABLE_NEW(base)                                             \
+	(((base)->flag & BASE_SELECTABLED) != 0)
+#define BASE_VISIBLE_NEW(base)  (                                             \
+	((base)->flag & BASE_VISIBLED) != 0)
 
 #define FIRSTBASE		scene->base.first
 #define LASTBASE		scene->base.last
 #define BASACT			(scene->basact)
 #define OBACT			(BASACT ? BASACT->object: NULL)
+
+#define FIRSTBASE_NEW	(sl)->object_bases.first
+#define LASTBASE_NEW	(sl)->object_bases.last
+#define BASACT_NEW		((sl)->basact)
+#define OBACT_NEW		(BASACT_NEW ? BASACT_NEW->object: NULL)
 
 #define V3D_CAMERA_LOCAL(v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : NULL)
 #define V3D_CAMERA_SCENE(scene, v3d) ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : (scene)->camera)
@@ -1981,7 +1998,7 @@ extern const char *RE_engine_id_CYCLES;
 #define TIME2FRA(a)     ((((double) scene->r.frs_sec) * (double)(a)) / (double)scene->r.frs_sec_base)
 #define FPS              (((double) scene->r.frs_sec) / (double)scene->r.frs_sec_base)
 
-/* base->flag is in DNA_object_types.h */
+/* base->legacy_flag is in DNA_object_types.h */
 
 /* toolsettings->snap_flag */
 #define SCE_SNAP				1

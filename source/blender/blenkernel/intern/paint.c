@@ -52,7 +52,6 @@
 #include "BKE_main.h"
 #include "BKE_context.h"
 #include "BKE_crazyspace.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_key.h"
@@ -64,6 +63,8 @@
 #include "BKE_pbvh.h"
 #include "BKE_subsurf.h"
 
+#include "DEG_depsgraph.h"
+
 #include "bmesh.h"
 
 const char PAINT_CURSOR_SCULPT[3] = {255, 100, 100};
@@ -73,9 +74,9 @@ const char PAINT_CURSOR_TEXTURE_PAINT[3] = {255, 255, 255};
 
 static OverlayControlFlags overlay_flags = 0;
 
-void BKE_paint_invalidate_overlay_tex(Scene *scene, const Tex *tex)
+void BKE_paint_invalidate_overlay_tex(Scene *scene, SceneLayer *sl, const Tex *tex)
 {
-	Paint *p = BKE_paint_get_active(scene);
+	Paint *p = BKE_paint_get_active(scene, sl);
 	Brush *br = p->brush;
 
 	if (!br)
@@ -87,9 +88,9 @@ void BKE_paint_invalidate_overlay_tex(Scene *scene, const Tex *tex)
 		overlay_flags |= PAINT_INVALID_OVERLAY_TEXTURE_SECONDARY;
 }
 
-void BKE_paint_invalidate_cursor_overlay(Scene *scene, CurveMapping *curve)
+void BKE_paint_invalidate_cursor_overlay(Scene *scene, SceneLayer *sl, CurveMapping *curve)
 {
-	Paint *p = BKE_paint_get_active(scene);
+	Paint *p = BKE_paint_get_active(scene, sl);
 	Brush *br = p->brush;
 
 	if (br && br->curve == curve)
@@ -155,13 +156,13 @@ Paint *BKE_paint_get_active_from_paintmode(Scene *sce, PaintMode mode)
 	return NULL;
 }
 
-Paint *BKE_paint_get_active(Scene *sce)
+Paint *BKE_paint_get_active(Scene *sce, SceneLayer *sl)
 {
-	if (sce) {
+	if (sce && sl) {
 		ToolSettings *ts = sce->toolsettings;
 		
-		if (sce->basact && sce->basact->object) {
-			switch (sce->basact->object->mode) {
+		if (sl->basact && sl->basact->object) {
+			switch (sl->basact->object->mode) {
 				case OB_MODE_SCULPT:
 					return &ts->sculpt->paint;
 				case OB_MODE_VERTEX_PAINT:
@@ -187,14 +188,15 @@ Paint *BKE_paint_get_active(Scene *sce)
 Paint *BKE_paint_get_active_from_context(const bContext *C)
 {
 	Scene *sce = CTX_data_scene(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	SpaceImage *sima;
 
-	if (sce) {
+	if (sce && sl) {
 		ToolSettings *ts = sce->toolsettings;
 		Object *obact = NULL;
 
-		if (sce->basact && sce->basact->object)
-			obact = sce->basact->object;
+		if (sl->basact && sl->basact->object)
+			obact = sl->basact->object;
 
 		if ((sima = CTX_wm_space_image(C)) != NULL) {
 			if (obact && obact->mode == OB_MODE_EDIT) {
@@ -237,14 +239,15 @@ Paint *BKE_paint_get_active_from_context(const bContext *C)
 PaintMode BKE_paintmode_get_active_from_context(const bContext *C)
 {
 	Scene *sce = CTX_data_scene(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	SpaceImage *sima;
 
-	if (sce) {
+	if (sce && sl) {
 		ToolSettings *ts = sce->toolsettings;
 		Object *obact = NULL;
 
-		if (sce->basact && sce->basact->object)
-			obact = sce->basact->object;
+		if (sl->basact && sl->basact->object)
+			obact = sl->basact->object;
 
 		if ((sima = CTX_wm_space_image(C)) != NULL) {
 			if (obact && obact->mode == OB_MODE_EDIT) {
@@ -681,7 +684,7 @@ void BKE_sculptsession_bm_to_me(Object *ob, bool reorder)
 		sculptsession_bm_to_me_update_data_only(ob, reorder);
 
 		/* ensure the objects DerivedMesh mesh doesn't hold onto arrays now realloc'd in the mesh [#34473] */
-		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+		DEG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	}
 }
 

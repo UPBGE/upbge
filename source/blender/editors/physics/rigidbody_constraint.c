@@ -89,7 +89,7 @@ bool ED_rigidbody_constraint_add(Main *bmain, Scene *scene, Object *ob, int type
 	ob->rigidbody_constraint->flag |= RBC_FLAG_NEEDS_VALIDATE;
 
 	/* add constraint to rigid body constraint group */
-	BKE_group_object_add(rbw->constraints, ob, scene, NULL);
+	BKE_group_object_add(rbw->constraints, ob);
 
 	DAG_relations_tag_update(bmain);
 	DAG_id_tag_update(&ob->id, OB_RECALC_OB);
@@ -102,7 +102,7 @@ void ED_rigidbody_constraint_remove(Main *bmain, Scene *scene, Object *ob)
 
 	BKE_rigidbody_remove_constraint(scene, ob);
 	if (rbw)
-		BKE_group_object_unlink(rbw->constraints, ob, scene, NULL);
+		BKE_group_object_unlink(rbw->constraints, ob);
 
 	DAG_relations_tag_update(bmain);
 	DAG_id_tag_update(&ob->id, OB_RECALC_OB);
@@ -117,8 +117,9 @@ static int rigidbody_con_add_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	RigidBodyWorld *rbw = BKE_rigidbody_get_world(scene);
-	Object *ob = (scene) ? OBACT : NULL;
+	Object *ob = OBACT_NEW;
 	int type = RNA_enum_get(op->ptr, "type");
 	bool changed;
 
@@ -166,11 +167,8 @@ static int rigidbody_con_remove_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	Object *ob = (scene) ? OBACT : NULL;
-
-	/* sanity checks */
-	if (scene == NULL)
-		return OPERATOR_CANCELLED;
+	SceneLayer *sl = CTX_data_scene_layer(C);
+	Object *ob = OBACT_NEW;
 
 	/* apply to active object */
 	if (ELEM(NULL, ob, ob->rigidbody_constraint)) {

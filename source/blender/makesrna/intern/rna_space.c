@@ -208,6 +208,7 @@ static EnumPropertyItem buttons_context_items[] = {
 	{BCONTEXT_TEXTURE, "TEXTURE", ICON_TEXTURE, "Texture", "Texture"},
 	{BCONTEXT_PARTICLE, "PARTICLES", ICON_PARTICLES, "Particles", "Particle"},
 	{BCONTEXT_PHYSICS, "PHYSICS", ICON_PHYSICS, "Physics", "Physics"},
+	{BCONTEXT_COLLECTION, "COLLECTION", ICON_COLLAPSEMENU, "Collection", "Collection"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -254,6 +255,7 @@ EnumPropertyItem rna_enum_file_sort_items[] = {
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
+#include "BKE_layer.h"
 #include "BKE_nla.h"
 #include "BKE_paint.h"
 #include "BKE_scene.h"
@@ -707,7 +709,7 @@ static int rna_SpaceView3D_viewport_shade_get(PointerRNA *ptr)
 	View3D *v3d = (View3D *)ptr->data;
 	int drawtype = v3d->drawtype;
 
-	if (drawtype == OB_RENDER && !(type && type->view_draw))
+	if (drawtype == OB_RENDER && !(type && type->render_to_view))
 		return OB_SOLID;
 
 	return drawtype;
@@ -737,7 +739,7 @@ static EnumPropertyItem *rna_SpaceView3D_viewport_shade_itemf(bContext *UNUSED(C
 	RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_TEXTURE);
 	RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_MATERIAL);
 
-	if (type && type->view_draw)
+	if (type && type->render_to_view)
 		RNA_enum_items_add_value(&item, &totitem, rna_enum_viewport_shade_items, OB_RENDER);
 
 	RNA_enum_item_end(&item, &totitem);
@@ -824,7 +826,11 @@ static int rna_SpaceImageEditor_show_maskedit_get(PointerRNA *ptr)
 {
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
 	bScreen *sc = (bScreen *)ptr->id.data;
-	return ED_space_image_check_show_maskedit(sc->scene, sima);
+
+	TODO_LAYER_CONTEXT; /* get SceneLayer from context/window/workspace instead */
+	SceneLayer *sl = BKE_scene_layer_context_active(sc->scene);
+
+	return ED_space_image_check_show_maskedit(sl, sima);
 }
 
 static void rna_SpaceImageEditor_image_set(PointerRNA *ptr, PointerRNA value)
@@ -1084,6 +1090,10 @@ static EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext *UNUSED(C), 
 		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_SCENE);
 	}
 
+	if (sbuts->pathflag & (1 << BCONTEXT_COLLECTION)) {
+		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_COLLECTION);
+	}
+
 	if (sbuts->pathflag & (1 << BCONTEXT_WORLD)) {
 		RNA_enum_items_add_value(&item, &totitem, buttons_context_items, BCONTEXT_WORLD);
 	}
@@ -1268,10 +1278,11 @@ static void rna_SpaceDopeSheetEditor_action_set(PointerRNA *ptr, PointerRNA valu
 	}
 }
 
-static void rna_SpaceDopeSheetEditor_action_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_SpaceDopeSheetEditor_action_update(Main *bmain, bContext *C, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	SpaceAction *saction = (SpaceAction *)(ptr->data);
-	Object *obact = (scene->basact) ? scene->basact->object : NULL;
+	SceneLayer *sl = CTX_data_scene_layer(C);
+	Object *obact = OBACT_NEW;
 
 	/* we must set this action to be the one used by active object (if not pinned) */
 	if (obact /* && saction->pin == 0*/) {
@@ -1343,10 +1354,11 @@ static void rna_SpaceDopeSheetEditor_action_update(Main *bmain, Scene *scene, Po
 	}
 }
 
-static void rna_SpaceDopeSheetEditor_mode_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
+static void rna_SpaceDopeSheetEditor_mode_update(Main *UNUSED(bmain), bContext *C, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	SpaceAction *saction = (SpaceAction *)(ptr->data);
-	Object *obact = (scene->basact) ? scene->basact->object : NULL;
+	SceneLayer *sl = CTX_data_scene_layer(C);
+	Object *obact = OBACT_NEW;
 
 	/* special exceptions for ShapeKey Editor mode */
 	if (saction->mode == SACTCONT_SHAPEKEY) {
@@ -2108,6 +2120,9 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 		{SO_USERDEF, "USER_PREFERENCES", 0, "User Preferences", "Display user preference data"},
 		{SO_ID_ORPHANS, "ORPHAN_DATA", 0, "Orphan Data",
 		                "Display data-blocks which are unused and/or will be lost when the file is reloaded"},
+		{SO_ACT_LAYER, "ACT_LAYER", 0, "Active Render Layer", "Display the collections of the active render layer"},
+		{SO_COLLECTIONS, "MASTER_COLLECTION", 0, "Master Collection Tree", "Display all collections based on the "
+		                 "master collection hierarchy"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -2394,6 +2409,13 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 		{ICON_MATCAP_22, "22", ICON_MATCAP_22, "", ""},
 		{ICON_MATCAP_23, "23", ICON_MATCAP_23, "", ""},
 		{ICON_MATCAP_24, "24", ICON_MATCAP_24, "", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem debug_background_items[] = {
+		{V3D_DEBUG_BACKGROUND_NONE, "NONE", 0, "None", ""},
+		{V3D_DEBUG_BACKGROUND_GRADIENT, "GRADIENT", 0, "Gradient", ""},
+		{V3D_DEBUG_BACKGROUND_WORLD, "WORLD", 0, "World", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -2792,6 +2814,42 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "stereo_3d_volume_alpha", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "stereo3d_volume_alpha");
 	RNA_def_property_ui_text(prop, "Volume Alpha", "Opacity (alpha) of the cameras' frustum volume");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	/* *** Blender 2.8 Viewport temporary *** */
+	prop = RNA_def_property(srna, "use_modern_viewport", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "tmp_compat_flag", V3D_NEW_VIEWPORT);
+	RNA_def_property_ui_text(prop, "Modern Viewport", "Use modern viewport");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "show_scene_depth", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "tmp_compat_flag", V3D_DEBUG_SHOW_SCENE_DEPTH);
+	RNA_def_property_ui_text(prop, "Show Scene Depth", "Debug option to show the depth in the viewport");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "show_combined_depth", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "tmp_compat_flag", V3D_DEBUG_SHOW_COMBINED_DEPTH);
+	RNA_def_property_ui_text(prop, "Show Combined Depth", "Debug option to show the depth in the viewport");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "debug_near", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_float_sdna(prop, NULL, "debug.znear");
+	RNA_def_property_ui_text(prop, "Near", "Near distance for depth debugging");
+	RNA_def_property_range(prop, 1e-6f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 10, 3);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "debug_far", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_float_sdna(prop, NULL, "debug.zfar");
+	RNA_def_property_range(prop, 1e-6f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 10, 3);
+	RNA_def_property_ui_text(prop, "Far", "Far distance for depth debugging");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "debug_background", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "debug.background");
+	RNA_def_property_enum_items(prop, debug_background_items);
+	RNA_def_property_ui_text(prop, "Background", "");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	/* *** Animated *** */
@@ -3418,6 +3476,7 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 	RNA_def_property_pointer_funcs(prop, NULL, "rna_SpaceDopeSheetEditor_action_set", NULL,
 	                               "rna_Action_actedit_assign_poll");
 	RNA_def_property_ui_text(prop, "Action", "Action displayed and edited in this space");
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_SpaceDopeSheetEditor_action_update");
 
 	/* mode */
@@ -3425,6 +3484,7 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "mode");
 	RNA_def_property_enum_items(prop, mode_items);
 	RNA_def_property_ui_text(prop, "Mode", "Editing context being displayed");
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_DOPESHEET, "rna_SpaceDopeSheetEditor_mode_update");
 
 	/* display */

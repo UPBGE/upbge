@@ -139,8 +139,8 @@ static void eyedropper_draw_cursor_text(const struct bContext *C, ARegion *ar, c
 	wmWindow *win = CTX_wm_window(C);
 	int x = win->eventstate->x;
 	int y = win->eventstate->y;
-	const unsigned char fg[4] = {255, 255, 255, 255};
-	const unsigned char bg[4] = {0, 0, 0, 50};
+	const float col_fg[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+	const float col_bg[4] = {0.0f, 0.0f, 0.0f, 0.2f};
 
 
 	if ((name[0] == '\0') ||
@@ -154,7 +154,7 @@ static void eyedropper_draw_cursor_text(const struct bContext *C, ARegion *ar, c
 
 	y += U.widget_unit;
 
-	UI_fontstyle_draw_simple_backdrop(fstyle, x, y, name, fg, bg);
+	UI_fontstyle_draw_simple_backdrop(fstyle, x, y, name, col_fg, col_bg);
 }
 
 
@@ -601,7 +601,7 @@ static void datadropper_id_sample_pt(bContext *C, DataDropper *ddr, int mx, int 
 				const int mval[2] = {
 				    mx - ar->winrct.xmin,
 				    my - ar->winrct.ymin};
-				Base *base;
+				BaseLegacy *base;
 
 				CTX_wm_area_set(C, sa);
 				CTX_wm_region_set(C, ar);
@@ -902,6 +902,7 @@ static void depthdropper_depth_sample_pt(bContext *C, DepthDropper *ddr, int mx,
 		if (sa->spacetype == SPACE_VIEW3D) {
 			ARegion *ar = BKE_area_find_region_xy(sa, RGN_TYPE_WINDOW, mx, my);
 			if (ar) {
+				struct Depsgraph *graph = CTX_data_depsgraph(C);
 				View3D *v3d = sa->spacedata.first;
 				RegionView3D *rv3d = ar->regiondata;
 				/* weak, we could pass in some reference point */
@@ -919,7 +920,7 @@ static void depthdropper_depth_sample_pt(bContext *C, DepthDropper *ddr, int mx,
 
 				view3d_operator_needs_opengl(C);
 
-				if (ED_view3d_autodist(scene, ar, v3d, mval, co, true, NULL)) {
+				if (ED_view3d_autodist(graph, ar, v3d, mval, co, true, NULL)) {
 					const float mval_center_fl[2] = {
 					    (float)ar->winx / 2,
 					    (float)ar->winy / 2};

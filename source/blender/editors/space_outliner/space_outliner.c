@@ -102,10 +102,14 @@ static int outliner_parent_drop_poll(bContext *C, wmDrag *drag, const wmEvent *e
 		if (GS(id->name) == ID_OB) {
 			/* Ensure item under cursor is valid drop target */
 			TreeElement *te = outliner_dropzone_find(soops, fmval, true);
+			TreeStoreElem *tselem = te ? TREESTORE(te) : NULL;
 
-			if (te && te->idcode == ID_OB && TREESTORE(te)->type == 0) {
+			if (!te) {
+				/* pass */
+			}
+			else if (te->idcode == ID_OB && tselem->type == 0) {
 				Scene *scene;
-				ID *te_id = TREESTORE(te)->id;
+				ID *te_id = tselem->id;
 
 				/* check if dropping self or parent */
 				if (te_id == id || (Object *)te_id == ((Object *)id)->parent)
@@ -121,6 +125,10 @@ static int outliner_parent_drop_poll(bContext *C, wmDrag *drag, const wmEvent *e
 				if (!scene || BKE_scene_base_find(scene, (Object *)id)) {
 					return 1;
 				}
+			}
+			else if (ELEM(tselem->type, TSE_LAYER_COLLECTION, TSE_SCENE_COLLECTION)) {
+				/* support adding object from different scene to collection */
+				return 1;
 			}
 		}
 	}
@@ -292,7 +300,9 @@ static void outliner_main_region_free(ARegion *UNUSED(ar))
 	
 }
 
-static void outliner_main_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
+static void outliner_main_region_listener(
+        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar,
+        wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -308,6 +318,7 @@ static void outliner_main_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(s
 				case ND_RENDER_OPTIONS:
 				case ND_SEQUENCER:
 				case ND_LAYER:
+				case ND_LAYER_CONTENT:
 				case ND_WORLD:
 					ED_region_tag_redraw(ar);
 					break;
@@ -414,7 +425,9 @@ static void outliner_header_region_free(ARegion *UNUSED(ar))
 {
 }
 
-static void outliner_header_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
+static void outliner_header_region_listener(
+        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar,
+        wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	/* context changes */
 	switch (wmn->category) {

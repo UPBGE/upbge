@@ -38,6 +38,9 @@ struct ID;
 
 typedef struct TreeStoreElem {
 	short type, nr, flag, used;
+
+	/* XXX We actually also store non-ID data in this pointer for identifying
+	 * the TreeStoreElem for a TreeElement when rebuilding the tree. Ugly! */
 	struct ID *id;
 } TreeStoreElem;
 
@@ -50,11 +53,14 @@ typedef struct TreeStore {
 } TreeStore;
 
 /* TreeStoreElem->flag */
-#define TSE_CLOSED		1
-#define TSE_SELECTED	2
-#define TSE_TEXTBUT		4
-#define TSE_CHILDSEARCH 8
-#define TSE_SEARCHMATCH 16
+enum {
+	TSE_CLOSED      = (1 << 0),
+	TSE_SELECTED    = (1 << 1),
+	TSE_TEXTBUT     = (1 << 2),
+	TSE_CHILDSEARCH = (1 << 3),
+	TSE_SEARCHMATCH = (1 << 4),
+	TSE_HIGHLIGHTED = (1 << 5),
+};
 
 /* TreeStoreElem->types */
 #define TSE_NLA             1  /* NO ID */
@@ -96,6 +102,8 @@ typedef struct TreeStore {
 #define TSE_KEYMAP_ITEM     35  /* NO ID */
 #define TSE_ID_BASE         36  /* NO ID */
 #define TSE_GP_LAYER        37  /* NO ID */
+#define TSE_LAYER_COLLECTION 38 /* NO ID */
+#define TSE_SCENE_COLLECTION 39 /* NO ID */
 
 
 /* Check whether given TreeStoreElem should have a real ID in its ->id member. */

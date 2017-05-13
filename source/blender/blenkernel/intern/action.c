@@ -55,7 +55,6 @@
 #include "BKE_animsys.h"
 #include "BKE_constraint.h"
 #include "BKE_deform.h"
-#include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
@@ -64,6 +63,8 @@
 #include "BKE_library_remap.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
+
+#include "DEG_depsgraph_build.h"
 
 #include "BIK_api.h"
 
@@ -578,6 +579,8 @@ void BKE_pose_copy_data(bPose **dst, bPose *src, const bool copy_constraints)
 		if (pchan->prop) {
 			pchan->prop = IDP_CopyProperty(pchan->prop);
 		}
+
+		pchan->draw_data = NULL;  /* Drawing cache, no need to copy. */
 	}
 
 	/* for now, duplicate Bone Groups too when doing this */
@@ -766,6 +769,9 @@ void BKE_pose_channel_free_ex(bPoseChannel *pchan, bool do_id_user)
 		IDP_FreeProperty(pchan->prop);
 		MEM_freeN(pchan->prop);
 	}
+
+	/* Cached data, for new draw manager rendering code. */
+	MEM_SAFE_FREE(pchan->draw_data);
 }
 
 void BKE_pose_channel_free(bPoseChannel *pchan)
@@ -1403,7 +1409,7 @@ void BKE_pose_tag_recalc(Main *bmain, bPose *pose)
 	/* Depsgraph components depends on actual pose state,
 	 * if pose was changed depsgraph is to be updated as well.
 	 */
-	DAG_relations_tag_update(bmain);
+	DEG_relations_tag_update(bmain);
 }
 
 /* For the calculation of the effects of an Action at the given frame on an object 

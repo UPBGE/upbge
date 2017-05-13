@@ -39,6 +39,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_string_utf8.h"
 
+#include "GPU_immediate.h"
+
 #include "BIF_gl.h"
 
 #include "BKE_text.h"
@@ -81,9 +83,15 @@ static void console_draw_sel(const char *str, const int sel[2], const int xy[2],
 
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glColor4ubv(bg_sel);
 
-		glRecti(xy[0] + (cwidth * sta), xy[1] - 2 + lheight, xy[0] + (cwidth * end), xy[1] - 2);
+		VertexFormat *format = immVertexFormat();
+		unsigned int pos = VertexFormat_add_attrib(format, "pos", COMP_I32, 2, CONVERT_INT_TO_FLOAT);
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
+		immUniformColor4ubv(bg_sel);
+		immRecti(pos, xy[0] + (cwidth * sta), xy[1] - 2 + lheight, xy[0] + (cwidth * end), xy[1] - 2);
+
+		immUnbindProgram();
 
 		glDisable(GL_BLEND);
 	}
@@ -182,21 +190,25 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 		cdc->sel[1] = str_len - sel_orig[0];
 		
 		if (bg) {
-			glColor3ubv(bg);
-			glRecti(0, cdc->xy[1], cdc->winx, (cdc->xy[1] + (cdc->lheight * tot_lines)));
-		}
+			VertexFormat *format = immVertexFormat();
+			unsigned int pos = VertexFormat_add_attrib(format, "pos", COMP_I32, 2, CONVERT_INT_TO_FLOAT);
+			immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
 
-		glColor3ubv(fg);
+			immUniformColor3ubv(bg);
+			immRecti(pos, 0, cdc->xy[1], cdc->winx, (cdc->xy[1] + (cdc->lheight * tot_lines)));
+
+			immUnbindProgram();
+		}
 
 		/* last part needs no clipping */
 		BLF_position(cdc->font_id, cdc->xy[0], cdc->lofs + cdc->xy[1], 0);
+		BLF_color3ubv(cdc->font_id, fg);
 		BLF_draw_mono(cdc->font_id, s, len, cdc->cwidth);
 
 		if (cdc->sel[0] != cdc->sel[1]) {
 			console_step_sel(cdc, -initial_offset);
-			// glColor4ub(255, 0, 0, 96); // debug
+			/* BLF_color3ub(cdc->font_id, 255, 0, 0); // debug */
 			console_draw_sel(s, cdc->sel, cdc->xy, len, cdc->cwidth, cdc->lheight, bg_sel);
-			glColor3ubv(fg);
 		}
 
 		cdc->xy[1] += cdc->lheight;
@@ -210,9 +222,8 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 			
 			if (cdc->sel[0] != cdc->sel[1]) {
 				console_step_sel(cdc, len);
-				// glColor4ub(0, 255, 0, 96); // debug
+				/* BLF_color3ub(cdc->font_id, 0, 255, 0); // debug */
 				console_draw_sel(s, cdc->sel, cdc->xy, len, cdc->cwidth, cdc->lheight, bg_sel);
-				glColor3ubv(fg);
 			}
 
 			cdc->xy[1] += cdc->lheight;
@@ -230,12 +241,17 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 	else { /* simple, no wrap */
 
 		if (bg) {
-			glColor3ubv(bg);
-			glRecti(0, cdc->xy[1], cdc->winx, cdc->xy[1] + cdc->lheight);
+			VertexFormat *format = immVertexFormat();
+			unsigned int pos = VertexFormat_add_attrib(format, "pos", COMP_I32, 2, CONVERT_INT_TO_FLOAT);
+			immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
+			immUniformColor3ubv(bg);
+			immRecti(pos, 0, cdc->xy[1], cdc->winx, cdc->xy[1] + cdc->lheight);
+
+			immUnbindProgram();
 		}
 
-		glColor3ubv(fg);
-
+		BLF_color3ubv(cdc->font_id, fg);
 		BLF_position(cdc->font_id, cdc->xy[0], cdc->lofs + cdc->xy[1], 0);
 		BLF_draw_mono(cdc->font_id, str, str_len, cdc->cwidth);
 		
@@ -245,7 +261,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 			isel[0] = str_len - cdc->sel[1];
 			isel[1] = str_len - cdc->sel[0];
 
-			// glColor4ub(255, 255, 0, 96); // debug
+			/* BLF_color3ub(cdc->font_id, 255, 255, 0); // debug */
 			console_draw_sel(str, isel, cdc->xy, str_len, cdc->cwidth, cdc->lheight, bg_sel);
 			console_step_sel(cdc, -(str_len + 1));
 		}

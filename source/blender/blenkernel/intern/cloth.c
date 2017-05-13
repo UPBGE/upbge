@@ -478,7 +478,6 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 		return;
 	}
 
-	if (!can_simulate)
 		return;
 
 	/* if on second frame, write cache for first frame */

@@ -96,6 +96,17 @@ enum {
 	IDP_STRING_SUB_BYTE  = 1,  /* arbitrary byte array, _not_ null terminated */
 };
 
+/* IDP_GROUP */
+enum {
+	IDP_GROUP_SUB_NONE              = 0,  /* default */
+	IDP_GROUP_SUB_MODE_OBJECT       = 1,  /* object mode settings */
+	IDP_GROUP_SUB_MODE_EDIT         = 2,  /* mesh edit mode settings */
+	IDP_GROUP_SUB_ENGINE_RENDER     = 3,  /* render engine settings */
+	IDP_GROUP_SUB_OVERRIDE          = 4,  /* data override */
+	IDP_GROUP_SUB_MODE_PAINT_WEIGHT = 5,  /* weight paint mode settings */
+	IDP_GROUP_SUB_MODE_PAINT_VERTEX = 6,  /* vertex paint mode settings */
+};
+
 /*->flag*/
 enum {
 	IDP_FLAG_GHOST       = 1 << 7,  /* this means the property is set but RNA will return false when checking

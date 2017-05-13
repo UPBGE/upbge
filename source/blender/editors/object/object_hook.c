@@ -49,6 +49,7 @@
 #include "BKE_action.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
+#include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
@@ -445,26 +446,26 @@ static int hook_op_edit_poll(bContext *C)
 	return 0;
 }
 
-static Object *add_hook_object_new(Main *bmain, Scene *scene, Object *obedit)
+static Object *add_hook_object_new(Main *bmain, Scene *scene, SceneLayer *sl, Object *obedit)
 {
 	Base *base, *basedit;
 	Object *ob;
 
-	ob = BKE_object_add(bmain, scene, OB_EMPTY, NULL);
+	ob = BKE_object_add(bmain, scene, sl, OB_EMPTY, NULL);
 	
-	basedit = BKE_scene_base_find(scene, obedit);
-	base = scene->basact;
+	basedit = BKE_scene_layer_base_find(sl, obedit);
+	base = sl->basact;
 	base->lay = ob->lay = obedit->lay;
-	BLI_assert(scene->basact->object == ob);
+	BLI_assert(sl->basact->object == ob);
 	
 	/* icky, BKE_object_add sets new base as active.
 	 * so set it back to the original edit object */
-	scene->basact = basedit;
+	sl->basact = basedit;
 
 	return ob;
 }
 
-static int add_hook_object(Main *bmain, Scene *scene, Object *obedit, Object *ob, int mode, ReportList *reports)
+static int add_hook_object(Main *bmain, Scene *scene, SceneLayer *sl, Object *obedit, Object *ob, int mode, ReportList *reports)
 {
 	ModifierData *md = NULL;
 	HookModifierData *hmd = NULL;
@@ -482,7 +483,7 @@ static int add_hook_object(Main *bmain, Scene *scene, Object *obedit, Object *ob
 
 	if (mode == OBJECT_ADDHOOK_NEWOB && !ob) {
 		
-		ob = add_hook_object_new(bmain, scene, obedit);
+		ob = add_hook_object_new(bmain, scene, sl, obedit);
 		
 		/* transform cent to global coords for loc */
 		mul_v3_m4v3(ob->loc, obedit->obmat, cent);
@@ -556,6 +557,7 @@ static int object_add_hook_selob_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	Object *obedit = CTX_data_edit_object(C);
 	Object *obsel = NULL;
 	const bool use_bone = RNA_boolean_get(op->ptr, "use_bone");
@@ -580,7 +582,7 @@ static int object_add_hook_selob_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	if (add_hook_object(bmain, scene, obedit, obsel, mode, op->reports)) {
+	if (add_hook_object(bmain, scene, sl, obedit, obsel, mode, op->reports)) {
 		WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, obedit);
 		return OPERATOR_FINISHED;
 	}
@@ -611,9 +613,10 @@ static int object_add_hook_newob_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	Object *obedit = CTX_data_edit_object(C);
 
-	if (add_hook_object(bmain, scene, obedit, NULL, OBJECT_ADDHOOK_NEWOB, op->reports)) {
+	if (add_hook_object(bmain, scene, sl, obedit, NULL, OBJECT_ADDHOOK_NEWOB, op->reports)) {
 		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 		WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, obedit);
 		return OPERATOR_FINISHED;

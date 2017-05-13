@@ -38,56 +38,14 @@ struct bContext;
 struct ColorManagedViewSettings;
 struct ColorManagedDisplaySettings;
 
-void fdrawbezier(float vec[4][3]);
-void fdrawline(float x1, float y1, float x2, float y2);
-void fdrawbox(float x1, float y1, float x2, float y2);
-void sdrawline(int x1, int y1, int x2, int y2);
-#if 0
-void sdrawtri(int x1, int y1, int x2, int y2);
-void sdrawtrifill(int x1, int y1, int x2, int y2);
-#endif
-void sdrawbox(int x1, int y1, int x2, int y2);
-
-void sdrawXORline(int x0, int y0, int x1, int y1);
-void sdrawXORline4(int nr, int x0, int y0, int x1, int y1);
-
-void fdrawXORellipse(float xofs, float yofs, float hw, float hh);
-void fdrawXORcirc(float xofs, float yofs, float rad);
-
-void fdrawcheckerboard(float x1, float y1, float x2, float y2);
-
-/* OpenGL stipple defines */
-extern const unsigned char stipple_halftone[128];
-extern const unsigned char stipple_quarttone[128];
-extern const unsigned char stipple_diag_stripes_pos[128];
-extern const unsigned char stipple_diag_stripes_neg[128];
-extern const unsigned char stipple_checker_8px[128];
-
-/**
- * Draw a lined (non-looping) arc with the given
- * \a radius, starting at angle \a start and arcing
- * through \a angle. The arc is centered at the origin
- * and drawn in the XY plane.
+/* A few functions defined here are being DEPRECATED for Blender 2.8
  *
- * \param start The initial angle (in radians).
- * \param angle The length of the arc (in radians).
- * \param radius The arc radius.
- * \param nsegments The number of segments to use in drawing the arc.
- */
-void glutil_draw_lined_arc(float start, float angle, float radius, int nsegments);
-
-/**
- * Draw a filled arc with the given \a radius,
- * starting at angle \a start and arcing through
- * \a angle. The arc is centered at the origin
- * and drawn in the XY plane.
+ * Do not use them in new code, and you are encouraged to
+ * convert existing code to draw without these.
  *
- * \param start The initial angle (in radians).
- * \param angle The length of the arc (in radians).
- * \param radius The arc radius.
- * \param nsegments The number of segments to use in drawing the arc.
+ * These will be deleted before we ship 2.8!
+ * - merwin
  */
-void glutil_draw_filled_arc(float start, float angle, float radius, int nsegments);
 
 /**
  * Returns a float value as obtained by glGetFloatv.
@@ -109,58 +67,46 @@ int glaGetOneInt(int param);
  */
 void glaRasterPosSafe2f(float x, float y, float known_good_x, float known_good_y);
 
-/**
- * Functions like a limited glDrawPixels, except ensures that
- * the image is displayed onscreen even if the \a x and \a y
- * coordinates for would be clipped. The routine respects the
- * glPixelZoom values, pixel unpacking parameters are _not_
- * respected.
- *
- * \attention This routine makes many assumptions: the rect data
- * is expected to be in RGBA unsigned byte format, the coordinate
- * (GLA_PIXEL_OFS, GLA_PIXEL_OFS) is assumed to be within the view frustum,
- * and the modelview and projection matrices are assumed to define a
- * 1-to-1 mapping to screen space.
- * \attention Furthermore, in the case of zoomed or unpixel aligned
- * images extending outside the view frustum, but still within the
- * window, some portion of the image may be visible left and/or
- * below of the given \a x and \a y coordinates. It is recommended
- * to use the glScissor functionality if images are to be drawn
- * with an inset view matrix.
- */
-void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int format, int type, void *rect);
+typedef struct IMMDrawPixelsTexState {
+	struct GPUShader *shader;
+	unsigned int pos;
+	unsigned int texco;
+	bool do_shader_unbind;
+} IMMDrawPixelsTexState;
+
+/* To be used before calling immDrawPixelsTex
+ * Default shader is GPU_SHADER_2D_IMAGE_COLOR
+ * Returns a shader to be able to set uniforms */
+IMMDrawPixelsTexState immDrawPixelsTexSetup(int builtin);
 
 /**
- * glaDrawPixelsTex - Functions like a limited glDrawPixels, but actually draws the
+ * immDrawPixelsTex - Functions like a limited glDrawPixels, but actually draws the
  * image using textures, which can be tremendously faster on low-end
  * cards, and also avoids problems with the raster position being
- * clipped when offscreen. The routine respects the glPixelZoom values,
- * pixel unpacking parameters are _not_ respected.
+ * clipped when offscreen. Pixel unpacking parameters and
+ * the glPixelZoom values are _not_ respected.
+ *
+ * \attention Use immDrawPixelsTexSetup before calling this function.
  *
  * \attention This routine makes many assumptions: the rect data
  * is expected to be in RGBA byte or float format, and the
  * modelview and projection matrices are assumed to define a
  * 1-to-1 mapping to screen space.
  */
-
-void glaDrawPixelsTex(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect);
-void glaDrawPixelsTex_clipping(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect,
-                               float clip_min_x, float clip_min_y, float clip_max_x, float clip_max_y);
-
-/**
- * glaDrawPixelsAuto - Switches between texture or pixel drawing using UserDef.
- * only RGBA
- * needs glaDefine2DArea to be set.
- */
-void glaDrawPixelsAuto(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect);
-void glaDrawPixelsAuto_clipping(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect,
-                                float clip_min_x, float clip_min_y, float clip_max_x, float clip_max_y);
-
-
-void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect, float scaleX, float scaleY);
-void glaDrawPixelsTexScaled_clipping(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect, float scaleX, float scaleY,
-                                     float clip_min_x, float clip_min_y, float clip_max_x, float clip_max_y);
-
+void immDrawPixelsTex(IMMDrawPixelsTexState *state,
+                      float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect,
+                      float xzoom, float yzoom, float color[4]);
+void immDrawPixelsTex_clipping(IMMDrawPixelsTexState *state,
+                               float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect,
+                               float clip_min_x, float clip_min_y, float clip_max_x, float clip_max_y,
+                               float xzoom, float yzoom, float color[4]);
+void immDrawPixelsTexScaled(IMMDrawPixelsTexState *state,
+                            float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect, float scaleX, float scaleY,
+                            float xzoom, float yzoom, float color[4]);
+void immDrawPixelsTexScaled_clipping(IMMDrawPixelsTexState *state,
+                                     float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect, float scaleX, float scaleY,
+                                     float clip_min_x, float clip_min_y, float clip_max_x, float clip_max_y,
+                                     float xzoom, float yzoom, float color[4]);
 /* 2D Drawing Assistance */
 
 /** Define a 2D area (viewport, scissor, matrices) for OpenGL rendering.
@@ -176,12 +122,13 @@ void glaDrawPixelsTexScaled_clipping(float x, float y, int img_w, int img_h, int
  */
 void glaDefine2DArea(struct rcti *screen_rect);
 
+/* TODO(merwin): put the following 2D code to use, or build new 2D code inspired & informd by it */
+
+#if 0  /* UNUSED */
+
 typedef struct gla2DDrawInfo gla2DDrawInfo;
 
-/* UNUSED */
-#if 0
-
-gla2DDrawInfo  *glaBegin2DDraw(struct rcti *screen_rect, struct rctf *world_rect);
+gla2DDrawInfo *glaBegin2DDraw(struct rcti *screen_rect, struct rctf *world_rect);
 void gla2DDrawTranslatePt(gla2DDrawInfo *di, float wo_x, float wo_y, int *r_sc_x, int *r_sc_y);
 void gla2DDrawTranslatePtv(gla2DDrawInfo *di, float world[2], int r_screen[2]);
 
@@ -190,7 +137,8 @@ void glaEnd2DDraw(gla2DDrawInfo *di);
 /** Adjust the transformation mapping of a 2d area */
 void gla2DGetMap(gla2DDrawInfo *di, struct rctf *rect);
 void gla2DSetMap(gla2DDrawInfo *di, struct rctf *rect);
-#endif
+
+#endif /* UNUSED */
 
 void set_inverted_drawing(int enable);
 void setlinestyle(int nr);
@@ -198,37 +146,32 @@ void setlinestyle(int nr);
 /* own working polygon offset */
 void bglPolygonOffset(float viewdist, float dist);
 
-/* For caching opengl matrices (gluProject/gluUnProject) */
-typedef struct bglMats {
-	double modelview[16];
-	double projection[16];
-	int viewport[4];
-} bglMats;
-void bgl_get_mats(bglMats *mats);
-
 /* **** Color management helper functions for GLSL display/transform ***** */
 
 /* Draw imbuf on a screen, preferably using GLSL display transform */
 void glaDrawImBuf_glsl(struct ImBuf *ibuf, float x, float y, int zoomfilter,
                        struct ColorManagedViewSettings *view_settings,
-                       struct ColorManagedDisplaySettings *display_settings);
+                       struct ColorManagedDisplaySettings *display_settings,
+                       float zoom_x, float zoom_y);
 void glaDrawImBuf_glsl_clipping(struct ImBuf *ibuf, float x, float y, int zoomfilter,
                                 struct ColorManagedViewSettings *view_settings,
                                 struct ColorManagedDisplaySettings *display_settings,
                                 float clip_min_x, float clip_min_y,
-                                float clip_max_x, float clip_max_y);
+                                float clip_max_x, float clip_max_y,
+                                float zoom_x, float zoom_y);
 
 
 /* Draw imbuf on a screen, preferably using GLSL display transform */
-void glaDrawImBuf_glsl_ctx(const struct bContext *C, struct ImBuf *ibuf, float x, float y, int zoomfilter);
+void glaDrawImBuf_glsl_ctx(const struct bContext *C, struct ImBuf *ibuf, float x, float y, int zoomfilter,
+                           float zoom_x, float zoom_y);
 void glaDrawImBuf_glsl_ctx_clipping(const struct bContext *C,
                                     struct ImBuf *ibuf,
                                     float x, float y,
                                     int zoomfilter,
                                     float clip_min_x, float clip_min_y,
-                                    float clip_max_x, float clip_max_y);
+                                    float clip_max_x, float clip_max_y,
+                                    float zoom_x, float zoom_y);
 
-void glaDrawBorderCorners(const struct rcti *border, float zoomx, float zoomy);
+void immDrawBorderCorners(unsigned int pos, const struct rcti *border, float zoomx, float zoomy);
 
 #endif /* __BIF_GLUTIL_H__ */
-

@@ -59,7 +59,6 @@
 #include "BKE_multires.h"
 #include "BKE_key.h"
 #include "BKE_mball.h"
-#include "BKE_depsgraph.h"
 /* these 2 are only used by conversion functions */
 #include "BKE_curve.h"
 /* -- */
@@ -442,6 +441,8 @@ void BKE_mesh_free(Mesh *me)
 {
 	BKE_animdata_free(&me->id, false);
 
+	BKE_mesh_batch_cache_free(me);
+
 	CustomData_free(&me->vdata, me->totvert);
 	CustomData_free(&me->edata, me->totedge);
 	CustomData_free(&me->fdata, me->totface);
@@ -529,6 +530,7 @@ Mesh *BKE_mesh_copy(Main *bmain, Mesh *me)
 	BKE_mesh_update_customdata_pointers(men, do_tessface);
 
 	men->edit_btmesh = NULL;
+	men->batch_cache = NULL;
 
 	men->mselect = MEM_dupallocN(men->mselect);
 	men->bb = MEM_dupallocN(men->bb);
@@ -2674,5 +2676,22 @@ void BKE_mesh_eval_geometry(EvaluationContext *UNUSED(eval_ctx),
 	}
 	if (mesh->bb == NULL || (mesh->bb->flag & BOUNDBOX_DIRTY)) {
 		BKE_mesh_texspace_calc(mesh);
+	}
+}
+
+/* Draw Engine */
+void (*BKE_mesh_batch_cache_dirty_cb)(Mesh *me, int mode) = NULL;
+void (*BKE_mesh_batch_cache_free_cb)(Mesh *me) = NULL;
+
+void BKE_mesh_batch_cache_dirty(Mesh *me, int mode)
+{
+	if (me->batch_cache) {
+		BKE_mesh_batch_cache_dirty_cb(me, mode);
+	}
+}
+void BKE_mesh_batch_cache_free(Mesh *me)
+{
+	if (me->batch_cache) {
+		BKE_mesh_batch_cache_free_cb(me);
 	}
 }

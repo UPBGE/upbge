@@ -194,6 +194,7 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 	uiWidgetColors *theme = ui_tooltip_get_theme();
 	rcti bbox = data->bbox;
 	float tip_colors[UI_TIP_LC_MAX][3];
+	unsigned char drawcol[4] = {0, 0, 0, 255}; /* to store color in while drawing (alpha is always 255) */
 
 	float *main_color    = tip_colors[UI_TIP_LC_MAIN]; /* the color from the theme */
 	float *value_color   = tip_colors[UI_TIP_LC_VALUE];
@@ -260,9 +261,9 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 			fstyle_header.shadowalpha = 1.0f;
 			fstyle_header.word_wrap = true;
 
+			rgb_float_to_uchar(drawcol, tip_colors[UI_TIP_LC_MAIN]);
 			UI_fontstyle_set(&fstyle_header);
-			glColor3fv(tip_colors[UI_TIP_LC_MAIN]);
-			UI_fontstyle_draw(&fstyle_header, &bbox, data->header);
+			UI_fontstyle_draw(&fstyle_header, &bbox, data->header, drawcol);
 
 			/* offset to the end of the last line */
 			xofs = data->line_geom[i].x_pos;
@@ -270,9 +271,9 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 			bbox.xmin += xofs;
 			bbox.ymax -= yofs;
 
-			glColor3fv(tip_colors[UI_TIP_LC_ACTIVE]);
+			rgb_float_to_uchar(drawcol, tip_colors[UI_TIP_LC_ACTIVE]);
 			fstyle_header.shadow = 0;
-			UI_fontstyle_draw(&fstyle_header, &bbox, data->active_info);
+			UI_fontstyle_draw(&fstyle_header, &bbox, data->active_info, drawcol);
 
 			/* undo offset */
 			bbox.xmin -= xofs;
@@ -280,14 +281,15 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 		}
 		else if (data->format[i].style == UI_TIP_STYLE_MONO) {
 			uiFontStyle fstyle_mono = data->fstyle;
+
 			fstyle_mono.uifont_id = blf_mono_font;
 			fstyle_mono.word_wrap = true;
 
 			UI_fontstyle_set(&fstyle_mono);
 			/* XXX, needed because we dont have mono in 'U.uifonts' */
 			BLF_size(fstyle_mono.uifont_id, fstyle_mono.points * U.pixelsize, U.dpi);
-			glColor3fv(tip_colors[data->format[i].color_id]);
-			UI_fontstyle_draw(&fstyle_mono, &bbox, data->lines[i]);
+			rgb_float_to_uchar(drawcol, tip_colors[data->format[i].color_id]);
+			UI_fontstyle_draw(&fstyle_mono, &bbox, data->lines[i], drawcol);
 		}
 		else {
 			uiFontStyle fstyle_normal = data->fstyle;
@@ -296,8 +298,8 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 
 			/* draw remaining data */
 			UI_fontstyle_set(&fstyle_normal);
-			glColor3fv(tip_colors[data->format[i].color_id]);
-			UI_fontstyle_draw(&fstyle_normal, &bbox, data->lines[i]);
+			rgb_float_to_uchar(drawcol, tip_colors[data->format[i].color_id]);
+			UI_fontstyle_draw(&fstyle_normal, &bbox, data->lines[i], drawcol);
 		}
 
 		bbox.ymax -= data->lineh * data->line_geom[i].lines;
@@ -1059,7 +1061,7 @@ int ui_searchbox_autocomplete(bContext *C, ARegion *ar, uiBut *but, char *str)
 	return match;
 }
 
-static void ui_searchbox_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
+static void ui_searchbox_region_draw_cb(const bContext *C, ARegion *ar)
 {
 	uiSearchboxData *data = ar->regiondata;
 	
@@ -1077,6 +1079,9 @@ static void ui_searchbox_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 		if (data->preview) {
 			/* draw items */
 			for (a = 0; a < data->items.totitem; a++) {
+				/* ensure icon is up-to-date */
+				ui_icon_ensure_deferred(C, data->items.icons[a], data->preview);
+
 				ui_searchbox_butrect(&rect, data, a);
 				
 				/* widget itself */
@@ -1696,7 +1701,7 @@ static void ui_block_region_draw(const bContext *C, ARegion *ar)
  * Use to refresh centered popups on screen resizing (for splash).
  */
 static void ui_block_region_popup_window_listener(
-        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
+        bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	switch (wmn->category) {
 		case NC_WINDOW:

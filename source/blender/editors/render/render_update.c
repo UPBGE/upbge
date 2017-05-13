@@ -48,12 +48,14 @@
 #include "BKE_context.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_icons.h"
+#include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_node.h"
 #include "BKE_paint.h"
 #include "BKE_scene.h"
 
+#include "GPU_lamp.h"
 #include "GPU_material.h"
 #include "GPU_buffers.h"
 
@@ -387,6 +389,7 @@ static void texture_changed(Main *bmain, Tex *tex)
 	Lamp *la;
 	World *wo;
 	Scene *scene;
+	SceneLayer *sl;
 	Object *ob;
 	bNode *node;
 	bool texture_draw = false;
@@ -395,8 +398,11 @@ static void texture_changed(Main *bmain, Tex *tex)
 	BKE_icon_changed(BKE_icon_id_ensure(&tex->id));
 
 	/* paint overlays */
-	for (scene = bmain->scene.first; scene; scene = scene->id.next)
-		BKE_paint_invalidate_overlay_tex(scene, tex);
+	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
+		for (sl = scene->render_layers.first; sl; sl = sl->next) {
+			BKE_paint_invalidate_overlay_tex(scene, sl, tex);
+		}
+	}
 
 	/* find materials */
 	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
@@ -593,6 +599,6 @@ void ED_render_internal_init(void)
 	RenderEngineType *ret = RE_engines_find(RE_engine_id_BLENDER_RENDER);
 	
 	ret->view_update = render_view3d_update;
-	ret->view_draw = render_view3d_draw;
+	ret->render_to_view = render_view3d_draw;
 	
 }

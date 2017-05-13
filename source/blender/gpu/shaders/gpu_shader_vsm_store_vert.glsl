@@ -1,4 +1,11 @@
-varying vec4 v_position;
+
+uniform mat4 ModelViewProjectionMatrix;
+
+#if __VERSION__ == 120
+  varying vec4 v_position;
+#else
+  out vec4 v_position;
+#endif
 
 #ifdef USE_INSTANCING
 in mat3 ininstmatrix;
@@ -13,10 +20,10 @@ void main()
 						vec4(ininstmatrix[2], ininstposition.z),
 						vec4(0.0, 0.0, 0.0, 1.0));
 
-	v_position = gl_ProjectionMatrix * gl_ModelViewMatrix * (gl_Vertex * instmat);
+	v_position = ModelViewProjectionMatrix * (gl_Vertex * instmat);
 	gl_Position = v_position;
 #else
-	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * gl_Vertex;
+	gl_Position = ModelViewProjectionMatrix * gl_Vertex;
 	v_position = gl_Position;
 #endif
 }

@@ -171,6 +171,8 @@ static void buttons_main_region_draw(const bContext *C, ARegion *ar)
 		ED_region_panels(C, ar, "constraint", sbuts->mainb, vertical);
 	else if (sbuts->mainb == BCONTEXT_BONE_CONSTRAINT)
 		ED_region_panels(C, ar, "bone_constraint", sbuts->mainb, vertical);
+	else if (sbuts->mainb == BCONTEXT_COLLECTION)
+		ED_region_panels(C, ar, "collection", sbuts->mainb, vertical);
 
 	sbuts->re_align = 0;
 	sbuts->mainbo = sbuts->mainb;
@@ -218,7 +220,8 @@ static void buttons_area_redraw(ScrArea *sa, short buttons)
 }
 
 /* reused! */
-static void buttons_area_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
+static void buttons_area_listener(
+        bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn, const Scene *UNUSED(scene))
 {
 	SpaceButs *sbuts = sa->spacedata.first;
 

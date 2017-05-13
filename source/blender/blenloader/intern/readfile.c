@@ -72,6 +72,7 @@
 #include "DNA_ipo_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_meta_types.h"
@@ -121,11 +122,11 @@
 #include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
-#include "BKE_depsgraph.h"
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h" // for G
 #include "BKE_group.h"
+#include "BKE_layer.h"
 #include "BKE_library.h" // for which_libbase
 #include "BKE_library_idmap.h"
 #include "BKE_library_query.h"
@@ -149,6 +150,8 @@
 #include "BKE_outliner_treehash.h"
 #include "BKE_sound.h"
 #include "BKE_colortools.h"
+
+#include "DEG_depsgraph.h"
 
 #include "NOD_common.h"
 #include "NOD_socket.h"
@@ -3362,7 +3365,7 @@ static void lib_link_pose(FileData *fd, Main *bmain, Object *ob, bPose *pose)
 	
 
 	if (rebuild) {
-		DAG_id_tag_update_ex(bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+		DEG_id_tag_update_ex(bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 		BKE_pose_tag_recalc(bmain, pose);
 	}
 }
@@ -3885,6 +3888,7 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 
 	cu->editnurb = NULL;
 	cu->editfont = NULL;
+	cu->batch_cache = NULL;
 	
 	for (nu = cu->nurb.first; nu; nu = nu->next) {
 		nu->bezt = newdataadr(fd, nu->bezt);
@@ -4392,6 +4396,8 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 
 		psys->tree = NULL;
 		psys->bvhtree = NULL;
+
+		psys->batch_cache = NULL;
 	}
 	return;
 }
@@ -4654,6 +4660,7 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 
 	mesh->bb = NULL;
 	mesh->edit_btmesh = NULL;
+	mesh->batch_cache = NULL;
 	
 	/* happens with old files */
 	if (mesh->mselect == NULL) {
@@ -4745,6 +4752,7 @@ static void direct_link_latt(FileData *fd, Lattice *lt)
 	direct_link_dverts(fd, lt->pntsu*lt->pntsv*lt->pntsw, lt->dvert);
 	
 	lt->editlatt = NULL;
+	lt->batch_cache = NULL;
 	
 	lt->adt = newdataadr(fd, lt->adt);
 	direct_link_animdata(fd, lt->adt);
@@ -5095,6 +5103,8 @@ static void direct_link_pose(FileData *fd, bPose *pose)
 		
 		/* in case this value changes in future, clamp else we get undefined behavior */
 		CLAMP(pchan->rotmode, ROT_MODE_MIN, ROT_MODE_MAX);
+
+		pchan->draw_data = NULL;
 	}
 	pose->ikdata = NULL;
 	if (pose->ikparam != NULL) {
@@ -5675,6 +5685,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 	ob->derivedDeform = NULL;
 	ob->derivedFinal = NULL;
 	BLI_listbase_clear(&ob->gpulamp);
+	BLI_listbase_clear(&ob->drawdata);
 	link_list(fd, &ob->pc_ids);
 
 	/* Runtime curve data  */
@@ -5691,6 +5702,8 @@ static void direct_link_object(FileData *fd, Object *ob)
 	ob->currentlod = ob->lodlevels.first;
 
 	ob->preview = direct_link_preview_image(fd, ob->preview);
+
+	ob->base_collection_properties = NULL;
 }
 
 /* ************ READ SCENE ***************** */
@@ -5755,6 +5768,23 @@ static bool scene_validate_setscene__liblink(Scene *sce, const int totscene)
 }
 #endif
 
+static void lib_link_scene_collection(FileData *fd, Library *lib, SceneCollection *sc)
+{
+	for (LinkData *link = sc->objects.first; link; link = link->next) {
+		link->data = newlibadr_us(fd, lib, link->data);
+		BLI_assert(link->data);
+	}
+
+	for (LinkData *link = sc->filter_objects.first; link; link = link->next) {
+		link->data = newlibadr_us(fd, lib, link->data);
+		BLI_assert(link->data);
+	}
+
+	for (SceneCollection *nsc = sc->scene_collections.first; nsc; nsc = nsc->next) {
+		lib_link_scene_collection(fd, lib, nsc);
+	}
+}
+
 static void lib_link_scene(FileData *fd, Main *main)
 {
 #ifdef USE_SETSCENE_CHECK
@@ -5802,17 +5832,17 @@ static void lib_link_scene(FileData *fd, Main *main)
 			
 			sce->toolsettings->particle.shape_object = newlibadr(fd, sce->id.lib, sce->toolsettings->particle.shape_object);
 			
-			for (Base *next, *base = sce->base.first; base; base = next) {
-				next = base->next;
+			for (BaseLegacy *base_legacy_next, *base_legacy = sce->base.first; base_legacy; base_legacy = base_legacy_next) {
+				base_legacy_next = base_legacy->next;
 				
-				base->object = newlibadr_us(fd, sce->id.lib, base->object);
+				base_legacy->object = newlibadr_us(fd, sce->id.lib, base_legacy->object);
 				
-				if (base->object == NULL) {
+				if (base_legacy->object == NULL) {
 					blo_reportf_wrap(fd->reports, RPT_WARNING, TIP_("LIB: object lost from scene: '%s'"),
 					                 sce->id.name + 2);
-					BLI_remlink(&sce->base, base);
-					if (base == sce->basact) sce->basact = NULL;
-					MEM_freeN(base);
+					BLI_remlink(&sce->base, base_legacy);
+					if (base_legacy == sce->basact) sce->basact = NULL;
+					MEM_freeN(base_legacy);
 				}
 			}
 			
@@ -5898,6 +5928,19 @@ static void lib_link_scene(FileData *fd, Main *main)
 
 			/* Motion Tracking */
 			sce->clip = newlibadr_us(fd, sce->id.lib, sce->clip);
+
+			lib_link_scene_collection(fd, sce->id.lib, sce->collection);
+
+			for (SceneLayer *sl = sce->render_layers.first; sl; sl = sl->next) {
+				/* tag scene layer to update for collection tree evaluation */
+				sl->flag |= SCENE_LAYER_ENGINE_DIRTY;
+				for (Base *base = sl->object_bases.first; base; base = base->next) {
+					/* we only bump the use count for the collection objects */
+					base->object = newlibadr(fd, sce->id.lib, base->object);
+					base->flag |= BASE_DIRTY_ENGINE_SETTINGS;
+					base->collection_properties = NULL;
+				}
+			}
 
 #ifdef USE_SETSCENE_CHECK
 			if (sce->set != NULL) {
@@ -6002,12 +6045,49 @@ static void direct_link_view_settings(FileData *fd, ColorManagedViewSettings *vi
 		direct_link_curvemapping(fd, view_settings->curve_mapping);
 }
 
+static void direct_link_scene_collection(FileData *fd, SceneCollection *sc)
+{
+	link_list(fd, &sc->objects);
+	link_list(fd, &sc->filter_objects);
+	link_list(fd, &sc->scene_collections);
+
+	for (SceneCollection *nsc = sc->scene_collections.first; nsc; nsc = nsc->next) {
+		direct_link_scene_collection(fd, nsc);
+	}
+}
+
+static void direct_link_layer_collections(FileData *fd, ListBase *lb)
+{
+	link_list(fd, lb);
+	for (LayerCollection *lc = lb->first; lc; lc = lc->next) {
+		lc->scene_collection = newdataadr(fd, lc->scene_collection);
+
+		link_list(fd, &lc->object_bases);
+
+		for (LinkData *link = lc->object_bases.first; link; link = link->next) {
+			link->data = newdataadr(fd, link->data);
+		}
+
+		link_list(fd, &lc->overrides);
+
+		if (lc->properties) {
+			lc->properties = newdataadr(fd, lc->properties);
+			IDP_DirectLinkGroup_OrFree(&lc->properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+			BKE_layer_collection_engine_settings_validate_collection(lc);
+		}
+		lc->properties_evaluated = NULL;
+
+		direct_link_layer_collections(fd, &lc->layer_collections);
+	}
+}
+
 static void direct_link_scene(FileData *fd, Scene *sce)
 {
 	Editing *ed;
 	Sequence *seq;
 	MetaStack *ms;
 	RigidBodyWorld *rbw;
+	SceneLayer *sl;
 	SceneRenderLayer *srl;
 	
 	sce->theDag = NULL;
@@ -6045,6 +6125,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 		sce->toolsettings->imapaint.paintcursor = NULL;
 		sce->toolsettings->particle.paintcursor = NULL;
 		sce->toolsettings->particle.scene = NULL;
+		sce->toolsettings->particle.scene_layer = NULL;
 		sce->toolsettings->particle.object = NULL;
 		sce->toolsettings->gp_sculpt.paintcursor = NULL;
 
@@ -6263,6 +6344,37 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	sce->preview = direct_link_preview_image(fd, sce->preview);
 
 	direct_link_curvemapping(fd, &sce->r.mblur_shutter_curve);
+
+	/* this runs before the very first doversion */
+	if (sce->collection) {
+		sce->collection = newdataadr(fd, sce->collection);
+		direct_link_scene_collection(fd, sce->collection);
+	}
+
+	link_list(fd, &sce->render_layers);
+	for (sl = sce->render_layers.first; sl; sl = sl->next) {
+		link_list(fd, &sl->object_bases);
+		sl->basact = newdataadr(fd, sl->basact);
+		direct_link_layer_collections(fd, &sl->layer_collections);
+
+		if (sl->properties != NULL) {
+			sl->properties = newdataadr(fd, sl->properties);
+			BLI_assert(sl->properties != NULL);
+			IDP_DirectLinkGroup_OrFree(&sl->properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+			BKE_scene_layer_engine_settings_validate_layer(sl);
+		}
+
+		sl->properties_evaluated = NULL;
+	}
+
+	sce->collection_properties = newdataadr(fd, sce->collection_properties);
+	IDP_DirectLinkGroup_OrFree(&sce->collection_properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+
+	sce->layer_properties = newdataadr(fd, sce->layer_properties);
+	IDP_DirectLinkGroup_OrFree(&sce->layer_properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+
+	BKE_layer_collection_engine_settings_validate_scene(sce);
+	BKE_scene_layer_engine_settings_validate_scene(sce);
 }
 
 /* ************ READ WM ***************** */
@@ -7074,6 +7186,7 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 				rv3d->sms = NULL;
 				rv3d->smooth_timer = NULL;
 				rv3d->compositor = NULL;
+				rv3d->viewport = NULL;
 			}
 		}
 	}
@@ -7090,6 +7203,7 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 	ar->type = NULL;
 	ar->swap = 0;
 	ar->do_draw = 0;
+	ar->manipulator_map = NULL;
 	ar->regiontimer = NULL;
 	memset(&ar->drawrct, 0, sizeof(ar->drawrct));
 }
@@ -7135,6 +7249,8 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 	
 	sc->mainwin = sc->subwinactive= 0;	/* indices */
 	sc->swap = 0;
+
+	sc->preview = direct_link_preview_image(fd, sc->preview);
 
 	/* edges */
 	for (se = sc->edgebase.first; se; se = se->next) {
@@ -7601,7 +7717,7 @@ static void lib_link_group(FileData *fd, Main *main)
 			if (add_us) {
 				id_us_ensure_real(&group->id);
 			}
-			BKE_group_object_unlink(group, NULL, NULL, NULL);	/* removes NULL entries */
+			BKE_group_object_unlink(group, NULL);	/* removes NULL entries */
 
 			group->id.tag &= ~LIB_TAG_NEED_LINK;
 		}
@@ -8526,8 +8642,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	blo_do_versions_250(fd, lib, main);
 	blo_do_versions_260(fd, lib, main);
 	blo_do_versions_270(fd, lib, main);
+	blo_do_versions_280(fd, lib, main);
 	blo_do_versions_upbge(fd, lib, main);
-
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init see do_versions_userdef() above! */
 
@@ -8540,6 +8656,7 @@ static void do_versions_after_linking(Main *main)
 //	       main->curlib ? "LIB" : "MAIN", main->versionfile, main->subversionfile);
 
 	do_versions_after_linking_270(main);
+	do_versions_after_linking_280(main);
 }
 
 static void lib_link_all(FileData *fd, Main *main)
@@ -9666,9 +9783,24 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 	}
 }
 
+static void expand_scene_collection(FileData *fd, Main *mainvar, SceneCollection *sc)
+{
+	for (LinkData *link = sc->objects.first; link; link = link->next) {
+		expand_doit(fd, mainvar, link->data);
+	}
+
+	for (LinkData *link = sc->filter_objects.first; link; link = link->next) {
+		expand_doit(fd, mainvar, link->data);
+	}
+
+	for (SceneCollection *nsc= sc->scene_collections.first; nsc; nsc = nsc->next) {
+		expand_scene_collection(fd, mainvar, nsc);
+	}
+}
+
 static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)
 {
-	Base *base;
+	BaseLegacy *base;
 	SceneRenderLayer *srl;
 	FreestyleModuleConfig *module;
 	FreestyleLineSet *lineset;
@@ -9734,6 +9866,8 @@ static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)
 	}
 
 	expand_doit(fd, mainvar, sce->clip);
+
+	expand_scene_collection(fd, mainvar, sce->collection);
 }
 
 static void expand_camera(FileData *fd, Main *mainvar, Camera *ca)
@@ -9982,7 +10116,7 @@ static bool object_in_any_scene(Main *mainvar, Object *ob)
 static void give_base_to_objects(Main *mainvar, Scene *scene, View3D *v3d, Library *lib, const short flag)
 {
 	Object *ob;
-	Base *base;
+	BaseLegacy *base;
 	const unsigned int active_lay = (flag & FILE_ACTIVELAY) ? BKE_screen_view3d_layer_active(v3d, scene) : 0;
 	const bool is_link = (flag & FILE_LINK) != 0;
 
@@ -10003,7 +10137,7 @@ static void give_base_to_objects(Main *mainvar, Scene *scene, View3D *v3d, Libra
 			}
 
 			if (do_it) {
-				base = MEM_callocN(sizeof(Base), __func__);
+				base = MEM_callocN(sizeof(BaseLegacy), __func__);
 				BLI_addtail(&scene->base, base);
 
 				if (active_lay) {
@@ -10018,7 +10152,7 @@ static void give_base_to_objects(Main *mainvar, Scene *scene, View3D *v3d, Libra
 
 				base->object = ob;
 				base->lay = ob->lay;
-				base->flag = ob->flag;
+				BKE_scene_base_flag_sync_from_object(base);
 
 				CLAMP_MIN(ob->id.us, 0);
 				id_us_plus_no_lib((ID *)ob);
@@ -10034,7 +10168,7 @@ static void give_base_to_groups(
         Main *mainvar, Scene *scene, View3D *v3d, Library *UNUSED(lib), const short UNUSED(flag))
 {
 	Group *group;
-	Base *base;
+	BaseLegacy *base;
 	Object *ob;
 	const unsigned int active_lay = BKE_screen_view3d_layer_active(v3d, scene);
 
@@ -10051,9 +10185,9 @@ static void give_base_to_groups(
 
 			/* assign the base */
 			base = BKE_scene_base_add(scene, ob);
-			base->flag |= SELECT;
-			base->object->flag = base->flag;
-			DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+			base->flag_legacy |= SELECT;
+			BKE_scene_base_flag_sync_from_base(base);
+			DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 			scene->basact = base;
 
 			/* assign the group */
@@ -10134,10 +10268,10 @@ static ID *link_named_part(
 static void link_object_postprocess(ID *id, Scene *scene, View3D *v3d, const short flag)
 {
 	if (scene) {
-		Base *base;
+		BaseLegacy *base;
 		Object *ob;
 
-		base = MEM_callocN(sizeof(Base), "app_nam_part");
+		base = MEM_callocN(sizeof(BaseLegacy), "app_nam_part");
 		BLI_addtail(&scene->base, base);
 
 		ob = (Object *)id;
@@ -10150,12 +10284,12 @@ static void link_object_postprocess(ID *id, Scene *scene, View3D *v3d, const sho
 		ob->mode = OB_MODE_OBJECT;
 		base->lay = ob->lay;
 		base->object = ob;
-		base->flag = ob->flag;
+		base->flag_legacy = ob->flag;
 		id_us_plus_no_lib((ID *)ob);
 
 		if (flag & FILE_AUTOSELECT) {
-			base->flag |= SELECT;
-			base->object->flag = base->flag;
+			base->flag_legacy |= SELECT;
+			BKE_scene_base_flag_sync_from_base(base);
 			/* do NOT make base active here! screws up GUI stuff, if you want it do it on src/ level */
 		}
 	}

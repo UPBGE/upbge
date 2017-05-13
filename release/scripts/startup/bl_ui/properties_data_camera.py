@@ -37,7 +37,7 @@ class CAMERA_MT_presets(Menu):
     bl_label = "Camera Presets"
     preset_subdir = "camera"
     preset_operator = "script.execute_preset"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME', 'BLENDER_CLAY', 'BLENDER_EEVEE'}
     draw = Menu.draw_preset
 
 
@@ -45,14 +45,14 @@ class SAFE_AREAS_MT_presets(Menu):
     bl_label = "Camera Presets"
     preset_subdir = "safe_areas"
     preset_operator = "script.execute_preset"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME', 'BLENDER_CLAY', 'BLENDER_EEVEE'}
     draw = Menu.draw_preset
 
 
 class DATA_PT_context_camera(CameraButtonsPanel, Panel):
     bl_label = ""
     bl_options = {'HIDE_HEADER'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME', 'BLENDER_CLAY', 'BLENDER_EEVEE'}
 
     def draw(self, context):
         layout = self.layout
@@ -72,7 +72,7 @@ class DATA_PT_context_camera(CameraButtonsPanel, Panel):
 
 class DATA_PT_lens(CameraButtonsPanel, Panel):
     bl_label = "Lens"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME', 'BLENDER_CLAY', 'BLENDER_EEVEE'}
 
     def draw(self, context):
         layout = self.layout
@@ -114,7 +114,7 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
                     sub = row.column(align=True)
                     sub.prop(ccam, "longitude_min")
                     sub.prop(ccam, "longitude_max")
-            elif engine == 'BLENDER_RENDER':
+            elif engine in {'BLENDER_RENDER', 'BLENDER_CLAY', 'BLENDER_EEVEE'}:
                 row = col.row()
                 if cam.lens_unit == 'MILLIMETERS':
                     row.prop(cam, "lens")
@@ -170,7 +170,7 @@ class DATA_PT_frustum_culling(CameraButtonsPanel, Panel):
 
 class DATA_PT_camera_stereoscopy(CameraButtonsPanel, Panel):
     bl_label = "Stereoscopy"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_CLAY', 'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -216,7 +216,7 @@ class DATA_PT_camera_stereoscopy(CameraButtonsPanel, Panel):
 
 class DATA_PT_camera(CameraButtonsPanel, Panel):
     bl_label = "Camera"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME', 'BLENDER_CLAY', 'BLENDER_EEVEE'}
 
     def draw(self, context):
         layout = self.layout
@@ -250,7 +250,7 @@ class DATA_PT_camera(CameraButtonsPanel, Panel):
 
 class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
     bl_label = "Depth of Field"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME', 'BLENDER_CLAY', 'BLENDER_EEVEE'}
 
     def draw(self, context):
         layout = self.layout
@@ -267,20 +267,30 @@ class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
         sub.active = (cam.dof_object is None)
         sub.prop(cam, "dof_distance", text="Distance")
 
-        hq_support = dof_options.is_hq_supported
-        col = split.column(align=True)
-        col.label("Viewport:")
-        sub = col.column()
-        sub.active = hq_support
-        sub.prop(dof_options, "use_high_quality")
-        col.prop(dof_options, "fstop")
-        if dof_options.use_high_quality and hq_support:
-            col.prop(dof_options, "blades")
+        if context.scene.render.engine == 'BLENDER_EEVEE':
+            col = split.column(align=True)
+            col.label("Aperture:")
+            engine = context.scene.render.engine
+            sub = col.column(align=True)
+            sub.prop(dof_options, "fstop")
+            sub.prop(dof_options, "blades")
+            sub.prop(dof_options, "rotation")
+            sub.prop(dof_options, "ratio")
+        else:
+            hq_support = dof_options.is_hq_supported
+            col = split.column(align=True)
+            col.label("Viewport:")
+            sub = col.column()
+            sub.active = hq_support
+            sub.prop(dof_options, "use_high_quality")
+            col.prop(dof_options, "fstop")
+            if dof_options.use_high_quality and hq_support:
+                col.prop(dof_options, "blades")
 
 
 class DATA_PT_camera_display(CameraButtonsPanel, Panel):
     bl_label = "Display"
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME', 'BLENDER_CLAY', 'BLENDER_EEVEE'}
 
     def draw(self, context):
         layout = self.layout
@@ -310,7 +320,7 @@ class DATA_PT_camera_display(CameraButtonsPanel, Panel):
 class DATA_PT_camera_safe_areas(CameraButtonsPanel, Panel):
     bl_label = "Safe Areas"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME', 'BLENDER_CLAY', 'BLENDER_EEVEE'}
 
     def draw_header(self, context):
         cam = context.camera
@@ -326,7 +336,7 @@ class DATA_PT_camera_safe_areas(CameraButtonsPanel, Panel):
 
 
 class DATA_PT_custom_props_camera(CameraButtonsPanel, PropertyPanel, Panel):
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME', 'BLENDER_CLAY', 'BLENDER_EEVEE'}
     _context_path = "object.data"
     _property_type = bpy.types.Camera
 

@@ -101,10 +101,36 @@ static PointerRNA rna_Context_main_get(PointerRNA *ptr)
 	return rna_pointer_inherit_refine(ptr, &RNA_BlendData, CTX_data_main(C));
 }
 
+static PointerRNA rna_Context_depsgraph_get(PointerRNA *ptr)
+{
+	bContext *C = (bContext *)ptr->data;
+	return rna_pointer_inherit_refine(ptr, &RNA_Depsgraph, CTX_data_depsgraph(C));
+}
+
 static PointerRNA rna_Context_scene_get(PointerRNA *ptr)
 {
 	bContext *C = (bContext *)ptr->data;
 	return rna_pointer_inherit_refine(ptr, &RNA_Scene, CTX_data_scene(C));
+}
+
+static PointerRNA rna_Context_scene_layer_get(PointerRNA *ptr)
+{
+	bContext *C = (bContext *)ptr->data;
+	return rna_pointer_inherit_refine(ptr, &RNA_SceneLayer, CTX_data_scene_layer(C));
+}
+
+static PointerRNA rna_Context_scene_collection_get(PointerRNA *ptr)
+{
+	bContext *C = (bContext *)ptr->data;
+	ptr->id.data = CTX_data_scene(C);
+	return rna_pointer_inherit_refine(ptr, &RNA_SceneCollection, CTX_data_scene_collection(C));
+}
+
+static PointerRNA rna_Context_layer_collection_get(PointerRNA *ptr)
+{
+	bContext *C = (bContext *)ptr->data;
+	ptr->id.data = CTX_data_scene(C);
+	return rna_pointer_inherit_refine(ptr, &RNA_LayerCollection, CTX_data_layer_collection(C));
 }
 
 static PointerRNA rna_Context_tool_settings_get(PointerRNA *ptr)
@@ -198,10 +224,30 @@ void RNA_def_context(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "BlendData");
 	RNA_def_property_pointer_funcs(prop, "rna_Context_main_get", NULL, NULL, NULL);
 
+	prop = RNA_def_property(srna, "depsgraph", PROP_POINTER, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_struct_type(prop, "Depsgraph");
+	RNA_def_property_pointer_funcs(prop, "rna_Context_depsgraph_get", NULL, NULL, NULL);
+
 	prop = RNA_def_property(srna, "scene", PROP_POINTER, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_struct_type(prop, "Scene");
 	RNA_def_property_pointer_funcs(prop, "rna_Context_scene_get", NULL, NULL, NULL);
+
+	prop = RNA_def_property(srna, "render_layer", PROP_POINTER, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_struct_type(prop, "SceneLayer");
+	RNA_def_property_pointer_funcs(prop, "rna_Context_scene_layer_get", NULL, NULL, NULL);
+
+	prop = RNA_def_property(srna, "scene_collection", PROP_POINTER, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_struct_type(prop, "SceneCollection");
+	RNA_def_property_pointer_funcs(prop, "rna_Context_scene_collection_get", NULL, NULL, NULL);
+
+	prop = RNA_def_property(srna, "layer_collection", PROP_POINTER, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_struct_type(prop, "LayerCollection");
+	RNA_def_property_pointer_funcs(prop, "rna_Context_layer_collection_get", NULL, NULL, NULL);
 
 	prop = RNA_def_property(srna, "tool_settings", PROP_POINTER, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

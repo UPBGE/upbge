@@ -181,7 +181,8 @@ typedef enum eSpaceButtons_Context {
 	BCONTEXT_CONSTRAINT = 11,
 	BCONTEXT_BONE_CONSTRAINT = 12,
 	BCONTEXT_RENDER_LAYER = 13,
-	
+	BCONTEXT_COLLECTION = 14,
+
 	/* always as last... */
 	BCONTEXT_TOT
 } eSpaceButtons_Context;
@@ -273,21 +274,23 @@ typedef enum eSpaceOutliner_Flag {
 
 /* SpaceOops->outlinevis */
 typedef enum eSpaceOutliner_Mode {
-	SO_ALL_SCENES = 0,
-	SO_CUR_SCENE = 1,
-	SO_VISIBLE = 2,
-	SO_SELECTED = 3,
-	SO_ACTIVE = 4,
-	SO_SAME_TYPE = 5,
-	SO_GROUPS = 6,
-	SO_LIBRARIES = 7,
-	/* SO_VERSE_SESSION = 8, */  /* deprecated! */
-	/* SO_VERSE_MS = 9, */       /* deprecated! */
-	SO_SEQUENCE = 10,
-	SO_DATABLOCKS = 11,
-	SO_USERDEF = 12,
-	/* SO_KEYMAP = 13, */        /* deprecated! */
-	SO_ID_ORPHANS = 14,
+	SO_ALL_SCENES     = 0,
+	SO_CUR_SCENE      = 1,
+	SO_VISIBLE        = 2,
+	SO_SELECTED       = 3,
+	SO_ACTIVE         = 4,
+	SO_SAME_TYPE      = 5,
+	SO_GROUPS         = 6,
+	SO_LIBRARIES      = 7,
+	/* SO_VERSE_SESSION  = 8, */  /* deprecated! */
+	/* SO_VERSE_MS       = 9, */  /* deprecated! */
+	SO_SEQUENCE       = 10,
+	SO_DATABLOCKS     = 11,
+	SO_USERDEF        = 12,
+	/* SO_KEYMAP      = 13, */    /* deprecated! */
+	SO_ID_ORPHANS     = 14,
+	SO_ACT_LAYER      = 15,
+	SO_COLLECTIONS    = 16,
 } eSpaceOutliner_Mode;
 
 /* SpaceOops->storeflag */

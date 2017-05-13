@@ -49,7 +49,6 @@
 
 #include "BKE_animsys.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_depsgraph.h"
 #include "BKE_font.h"
 #include "BKE_group.h"
 #include "BKE_global.h"
@@ -62,6 +61,7 @@
 #include "BKE_editmesh.h"
 #include "BKE_anim.h"
 
+#include "DEG_depsgraph.h"
 
 #include "BLI_strict_flags.h"
 #include "BLI_hash.h"
@@ -259,7 +259,7 @@ static void make_child_duplis(const DupliContext *ctx, void *userdata, MakeChild
 	else {
 		unsigned int lay = ctx->scene->lay;
 		int baseid = 0;
-		Base *base;
+		BaseLegacy *base;
 		for (base = ctx->scene->base.first; base; base = base->next, baseid++) {
 			Object *ob = base->object;
 

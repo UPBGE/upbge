@@ -185,11 +185,13 @@
 #define GLbitfield_ref(num)   &bgl_var##num
 #define GLbitfield_def(num)   /* unsigned */ int GLbitfield_var(num)
 
+#if 0
 /* typedef signed char GLbyte; */
 #define GLbyte_str        "b"
 #define GLbyte_var(num)     bgl_var##num
 #define GLbyte_ref(num)     &bgl_var##num
 #define GLbyte_def(num)     signed char GLbyte_var(num)
+#endif
 
 /* typedef short GLshort; */
 #define GLshort_str       "h"
@@ -227,11 +229,13 @@
 #define GLubyte_ref(num)    &bgl_var##num
 #define GLubyte_def(num)    /* unsigned */ char GLubyte_var(num)
 
+#if 0
 /* typedef unsigned short GLushort; */
 #define GLushort_str      "H"
 #define GLushort_var(num)   bgl_var##num
 #define GLushort_ref(num)   &bgl_var##num
 #define GLushort_def(num)   /* unsigned */ short GLushort_var(num)
+#endif
 
 /* typedef unsigned int GLuint; */
 #define GLuint_str        "I"
@@ -1015,358 +1019,71 @@ static PyObject *Method_##funcname (PyObject *UNUSED(self), PyObject *args)   \
 	ret_ret_##ret;                                                            \
 }
 
-#define BGLU_Wrap(funcname, ret, arg_list)                                    \
-static PyObject *Method_##funcname (PyObject *UNUSED(self), PyObject *args)   \
-{                                                                             \
-	arg_def arg_list;                                                         \
-	ret_def_##ret;                                                            \
-	if (!PyArg_ParseTuple(args, arg_str arg_list, arg_ref arg_list)) {        \
-		return NULL;                                                          \
-	}                                                                         \
-	ret_set_##ret glu##funcname (arg_var arg_list);                           \
-	ret_ret_##ret;                                                            \
-}
-
 /* GL_VERSION_1_0 */
-BGL_Wrap(Accum,                     void,      (GLenum, GLfloat))
-BGL_Wrap(AlphaFunc,                 void,      (GLenum, GLfloat))
-BGL_Wrap(Begin,                     void,      (GLenum))
-BGL_Wrap(Bitmap,                    void,      (GLsizei, GLsizei, GLfloat, GLfloat, GLfloat, GLfloat, GLubyteP))
 BGL_Wrap(BlendFunc,                 void,      (GLenum, GLenum))
-BGL_Wrap(CallList,                  void,      (GLuint))
-BGL_Wrap(CallLists,                 void,      (GLsizei, GLenum, GLvoidP))
 BGL_Wrap(Clear,                     void,      (GLbitfield))
-BGL_Wrap(ClearAccum,                void,      (GLfloat, GLfloat, GLfloat, GLfloat))
 BGL_Wrap(ClearColor,                void,      (GLfloat, GLfloat, GLfloat, GLfloat))
 BGL_Wrap(ClearDepth,                void,      (GLdouble))
-BGL_Wrap(ClearIndex,                void,      (GLfloat))
 BGL_Wrap(ClearStencil,              void,      (GLint))
-BGL_Wrap(ClipPlane,                 void,      (GLenum, GLdoubleP))
-BGL_Wrap(Color3b,                   void,      (GLbyte, GLbyte, GLbyte))
-BGL_Wrap(Color3bv,                  void,      (GLbyteP))
-BGL_Wrap(Color3d,                   void,      (GLdouble, GLdouble, GLdouble))
-BGL_Wrap(Color3dv,                  void,      (GLdoubleP))
-BGL_Wrap(Color3f,                   void,      (GLfloat, GLfloat, GLfloat))
-BGL_Wrap(Color3fv,                  void,      (GLfloatP))
-BGL_Wrap(Color3i,                   void,      (GLint, GLint, GLint))
-BGL_Wrap(Color3iv,                  void,      (GLintP))
-BGL_Wrap(Color3s,                   void,      (GLshort, GLshort, GLshort))
-BGL_Wrap(Color3sv,                  void,      (GLshortP))
-BGL_Wrap(Color3ub,                  void,      (GLubyte, GLubyte, GLubyte))
-BGL_Wrap(Color3ubv,                 void,      (GLubyteP))
-BGL_Wrap(Color3ui,                  void,      (GLuint, GLuint, GLuint))
-BGL_Wrap(Color3uiv,                 void,      (GLuintP))
-BGL_Wrap(Color3us,                  void,      (GLushort, GLushort, GLushort))
-BGL_Wrap(Color3usv,                 void,      (GLushortP))
-BGL_Wrap(Color4b,                   void,      (GLbyte, GLbyte, GLbyte, GLbyte))
-BGL_Wrap(Color4bv,                  void,      (GLbyteP))
-BGL_Wrap(Color4d,                   void,      (GLdouble, GLdouble, GLdouble, GLdouble))
-BGL_Wrap(Color4dv,                  void,      (GLdoubleP))
-BGL_Wrap(Color4f,                   void,      (GLfloat, GLfloat, GLfloat, GLfloat))
-BGL_Wrap(Color4fv,                  void,      (GLfloatP))
-BGL_Wrap(Color4i,                   void,      (GLint, GLint, GLint, GLint))
-BGL_Wrap(Color4iv,                  void,      (GLintP))
-BGL_Wrap(Color4s,                   void,      (GLshort, GLshort, GLshort, GLshort))
-BGL_Wrap(Color4sv,                  void,      (GLshortP))
-BGL_Wrap(Color4ub,                  void,      (GLubyte, GLubyte, GLubyte, GLubyte))
-BGL_Wrap(Color4ubv,                 void,      (GLubyteP))
-BGL_Wrap(Color4ui,                  void,      (GLuint, GLuint, GLuint, GLuint))
-BGL_Wrap(Color4uiv,                 void,      (GLuintP))
-BGL_Wrap(Color4us,                  void,      (GLushort, GLushort, GLushort, GLushort))
-BGL_Wrap(Color4usv,                 void,      (GLushortP))
 BGL_Wrap(ColorMask,                 void,      (GLboolean, GLboolean, GLboolean, GLboolean))
-BGL_Wrap(ColorMaterial,             void,      (GLenum, GLenum))
-BGL_Wrap(CopyPixels,                void,      (GLint, GLint, GLsizei, GLsizei, GLenum))
 BGL_Wrap(CullFace,                  void,      (GLenum))
-BGL_Wrap(DeleteLists,               void,      (GLuint, GLsizei))
 BGL_Wrap(DepthFunc,                 void,      (GLenum))
 BGL_Wrap(DepthMask,                 void,      (GLboolean))
 BGL_Wrap(DepthRange,                void,      (GLdouble, GLdouble))
 BGL_Wrap(Disable,                   void,      (GLenum))
 BGL_Wrap(DrawBuffer,                void,      (GLenum))
-BGL_Wrap(DrawPixels,                void,      (GLsizei, GLsizei, GLenum, GLenum, GLvoidP))
-BGL_Wrap(EdgeFlag,                  void,      (GLboolean))
-BGL_Wrap(EdgeFlagv,                 void,      (GLbooleanP))
 BGL_Wrap(Enable,                    void,      (GLenum))
-BGL_Wrap(End,                       void,      (void))
-BGL_Wrap(EndList,                   void,      (void))
-BGL_Wrap(EvalCoord1d,               void,      (GLdouble))
-BGL_Wrap(EvalCoord1dv,              void,      (GLdoubleP))
-BGL_Wrap(EvalCoord1f,               void,      (GLfloat))
-BGL_Wrap(EvalCoord1fv,              void,      (GLfloatP))
-BGL_Wrap(EvalCoord2d,               void,      (GLdouble, GLdouble))
-BGL_Wrap(EvalCoord2dv,              void,      (GLdoubleP))
-BGL_Wrap(EvalCoord2f,               void,      (GLfloat, GLfloat))
-BGL_Wrap(EvalCoord2fv,              void,      (GLfloatP))
-BGL_Wrap(EvalMesh1,                 void,      (GLenum, GLint, GLint))
-BGL_Wrap(EvalMesh2,                 void,      (GLenum, GLint, GLint, GLint, GLint))
-BGL_Wrap(EvalPoint1,                void,      (GLint))
-BGL_Wrap(EvalPoint2,                void,      (GLint, GLint))
-BGL_Wrap(FeedbackBuffer,            void,      (GLsizei, GLenum, GLfloatP))
 BGL_Wrap(Finish,                    void,      (void))
 BGL_Wrap(Flush,                     void,      (void))
-BGL_Wrap(Fogf,                      void,      (GLenum, GLfloat))
-BGL_Wrap(Fogfv,                     void,      (GLenum, GLfloatP))
-BGL_Wrap(Fogi,                      void,      (GLenum, GLint))
-BGL_Wrap(Fogiv,                     void,      (GLenum, GLintP))
 BGL_Wrap(FrontFace,                 void,      (GLenum))
-BGL_Wrap(Frustum,                   void,      (GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble))
-BGL_Wrap(GenLists,                  GLuint,    (GLsizei))
 BGL_Wrap(GetBooleanv,               void,      (GLenum, GLbooleanP))
-BGL_Wrap(GetClipPlane,              void,      (GLenum, GLdoubleP))
 BGL_Wrap(GetDoublev,                void,      (GLenum, GLdoubleP))
 BGL_Wrap(GetError,                  GLenum,    (void))
 BGL_Wrap(GetFloatv,                 void,      (GLenum, GLfloatP))
 BGL_Wrap(GetIntegerv,               void,      (GLenum, GLintP))
-BGL_Wrap(GetLightfv,                void,      (GLenum, GLenum, GLfloatP))
-BGL_Wrap(GetLightiv,                void,      (GLenum, GLenum, GLintP))
-BGL_Wrap(GetMapdv,                  void,      (GLenum, GLenum, GLdoubleP))
-BGL_Wrap(GetMapfv,                  void,      (GLenum, GLenum, GLfloatP))
-BGL_Wrap(GetMapiv,                  void,      (GLenum, GLenum, GLintP))
-BGL_Wrap(GetMaterialfv,             void,      (GLenum, GLenum, GLfloatP))
-BGL_Wrap(GetMaterialiv,             void,      (GLenum, GLenum, GLintP))
-BGL_Wrap(GetPixelMapfv,             void,      (GLenum, GLfloatP))
-BGL_Wrap(GetPixelMapuiv,            void,      (GLenum, GLuintP))
-BGL_Wrap(GetPixelMapusv,            void,      (GLenum, GLushortP))
-BGL_Wrap(GetPolygonStipple,         void,      (GLubyteP))
 BGL_Wrap(GetString,                 GLstring,  (GLenum))
-BGL_Wrap(GetTexEnvfv,               void,      (GLenum, GLenum, GLfloatP))
-BGL_Wrap(GetTexEnviv,               void,      (GLenum, GLenum, GLintP))
-BGL_Wrap(GetTexGendv,               void,      (GLenum, GLenum, GLdoubleP))
-BGL_Wrap(GetTexGenfv,               void,      (GLenum, GLenum, GLfloatP))
-BGL_Wrap(GetTexGeniv,               void,      (GLenum, GLenum, GLintP))
 BGL_Wrap(GetTexImage,               void,      (GLenum, GLint, GLenum, GLenum, GLvoidP))
 BGL_Wrap(GetTexLevelParameterfv,    void,      (GLenum, GLint, GLenum, GLfloatP))
 BGL_Wrap(GetTexLevelParameteriv,    void,      (GLenum, GLint, GLenum, GLintP))
 BGL_Wrap(GetTexParameterfv,         void,      (GLenum, GLenum, GLfloatP))
 BGL_Wrap(GetTexParameteriv,         void,      (GLenum, GLenum, GLintP))
 BGL_Wrap(Hint,                      void,      (GLenum, GLenum))
-BGL_Wrap(IndexMask,                 void,      (GLuint))
-BGL_Wrap(Indexd,                    void,      (GLdouble))
-BGL_Wrap(Indexdv,                   void,      (GLdoubleP))
-BGL_Wrap(Indexf,                    void,      (GLfloat))
-BGL_Wrap(Indexfv,                   void,      (GLfloatP))
-BGL_Wrap(Indexi,                    void,      (GLint))
-BGL_Wrap(Indexiv,                   void,      (GLintP))
-BGL_Wrap(Indexs,                    void,      (GLshort))
-BGL_Wrap(Indexsv,                   void,      (GLshortP))
-BGL_Wrap(InitNames,                 void,      (void))
 BGL_Wrap(IsEnabled,                 GLboolean, (GLenum))
-BGL_Wrap(IsList,                    GLboolean, (GLuint))
-BGL_Wrap(LightModelf,               void,      (GLenum, GLfloat))
-BGL_Wrap(LightModelfv,              void,      (GLenum, GLfloatP))
-BGL_Wrap(LightModeli,               void,      (GLenum, GLint))
-BGL_Wrap(LightModeliv,              void,      (GLenum, GLintP))
-BGL_Wrap(Lightf,                    void,      (GLenum, GLenum, GLfloat))
-BGL_Wrap(Lightfv,                   void,      (GLenum, GLenum, GLfloatP))
-BGL_Wrap(Lighti,                    void,      (GLenum, GLenum, GLint))
-BGL_Wrap(Lightiv,                   void,      (GLenum, GLenum, GLintP))
-BGL_Wrap(LineStipple,               void,      (GLint, GLushort))
 BGL_Wrap(LineWidth,                 void,      (GLfloat))
-BGL_Wrap(ListBase,                  void,      (GLuint))
-BGL_Wrap(LoadIdentity,              void,      (void))
-BGL_Wrap(LoadMatrixd,               void,      (GLdoubleP))
-BGL_Wrap(LoadMatrixf,               void,      (GLfloatP))
-BGL_Wrap(LoadName,                  void,      (GLuint))
 BGL_Wrap(LogicOp,                   void,      (GLenum))
-BGL_Wrap(Map1d,                     void,      (GLenum, GLdouble, GLdouble, GLint, GLint, GLdoubleP))
-BGL_Wrap(Map1f,                     void,      (GLenum, GLfloat, GLfloat, GLint, GLint, GLfloatP))
-BGL_Wrap(Map2d,                     void,      (GLenum, GLdouble, GLdouble, GLint, GLint, GLdouble, GLdouble, GLint, GLint, GLdoubleP))
-BGL_Wrap(Map2f,                     void,      (GLenum, GLfloat, GLfloat, GLint, GLint, GLfloat, GLfloat, GLint, GLint, GLfloatP))
-BGL_Wrap(MapGrid1d,                 void,      (GLint, GLdouble, GLdouble))
-BGL_Wrap(MapGrid1f,                 void,      (GLint, GLfloat, GLfloat))
-BGL_Wrap(MapGrid2d,                 void,      (GLint, GLdouble, GLdouble, GLint, GLdouble, GLdouble))
-BGL_Wrap(MapGrid2f,                 void,      (GLint, GLfloat, GLfloat, GLint, GLfloat, GLfloat))
-BGL_Wrap(Materialf,                 void,      (GLenum, GLenum, GLfloat))
-BGL_Wrap(Materialfv,                void,      (GLenum, GLenum, GLfloatP))
-BGL_Wrap(Materiali,                 void,      (GLenum, GLenum, GLint))
-BGL_Wrap(Materialiv,                void,      (GLenum, GLenum, GLintP))
-BGL_Wrap(MatrixMode,                void,      (GLenum))
-BGL_Wrap(MultMatrixd,               void,      (GLdoubleP))
-BGL_Wrap(MultMatrixf,               void,      (GLfloatP))
-BGL_Wrap(NewList,                   void,      (GLuint, GLenum))
-BGL_Wrap(Normal3b,                  void,      (GLbyte, GLbyte, GLbyte))
-BGL_Wrap(Normal3bv,                 void,      (GLbyteP))
-BGL_Wrap(Normal3d,                  void,      (GLdouble, GLdouble, GLdouble))
-BGL_Wrap(Normal3dv,                 void,      (GLdoubleP))
-BGL_Wrap(Normal3f,                  void,      (GLfloat, GLfloat, GLfloat))
-BGL_Wrap(Normal3fv,                 void,      (GLfloatP))
-BGL_Wrap(Normal3i,                  void,      (GLint, GLint, GLint))
-BGL_Wrap(Normal3iv,                 void,      (GLintP))
-BGL_Wrap(Normal3s,                  void,      (GLshort, GLshort, GLshort))
-BGL_Wrap(Normal3sv,                 void,      (GLshortP))
-BGL_Wrap(Ortho,                     void,      (GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble))
-BGL_Wrap(PassThrough,               void,      (GLfloat))
-BGL_Wrap(PixelMapfv,                void,      (GLenum, GLsizei, GLfloatP))
-BGL_Wrap(PixelMapuiv,               void,      (GLenum, GLsizei, GLuintP))
-BGL_Wrap(PixelMapusv,               void,      (GLenum, GLsizei, GLushortP))
 BGL_Wrap(PixelStoref,               void,      (GLenum, GLfloat))
 BGL_Wrap(PixelStorei,               void,      (GLenum, GLint))
-BGL_Wrap(PixelTransferf,            void,      (GLenum, GLfloat))
-BGL_Wrap(PixelTransferi,            void,      (GLenum, GLint))
-BGL_Wrap(PixelZoom,                 void,      (GLfloat, GLfloat))
 BGL_Wrap(PointSize,                 void,      (GLfloat))
 BGL_Wrap(PolygonMode,               void,      (GLenum, GLenum))
-BGL_Wrap(PolygonStipple,            void,      (GLubyteP))
-BGL_Wrap(PopAttrib,                 void,      (void))
-BGL_Wrap(PopMatrix,                 void,      (void))
-BGL_Wrap(PopName,                   void,      (void))
-BGL_Wrap(PushAttrib,                void,      (GLbitfield))
-BGL_Wrap(PushMatrix,                void,      (void))
-BGL_Wrap(PushName,                  void,      (GLuint))
-BGL_Wrap(RasterPos2d,               void,      (GLdouble, GLdouble))
-BGL_Wrap(RasterPos2dv,              void,      (GLdoubleP))
-BGL_Wrap(RasterPos2f,               void,      (GLfloat, GLfloat))
-BGL_Wrap(RasterPos2fv,              void,      (GLfloatP))
-BGL_Wrap(RasterPos2i,               void,      (GLint, GLint))
-BGL_Wrap(RasterPos2iv,              void,      (GLintP))
-BGL_Wrap(RasterPos2s,               void,      (GLshort, GLshort))
-BGL_Wrap(RasterPos2sv,              void,      (GLshortP))
-BGL_Wrap(RasterPos3d,               void,      (GLdouble, GLdouble, GLdouble))
-BGL_Wrap(RasterPos3dv,              void,      (GLdoubleP))
-BGL_Wrap(RasterPos3f,               void,      (GLfloat, GLfloat, GLfloat))
-BGL_Wrap(RasterPos3fv,              void,      (GLfloatP))
-BGL_Wrap(RasterPos3i,               void,      (GLint, GLint, GLint))
-BGL_Wrap(RasterPos3iv,              void,      (GLintP))
-BGL_Wrap(RasterPos3s,               void,      (GLshort, GLshort, GLshort))
-BGL_Wrap(RasterPos3sv,              void,      (GLshortP))
-BGL_Wrap(RasterPos4d,               void,      (GLdouble, GLdouble, GLdouble, GLdouble))
-BGL_Wrap(RasterPos4dv,              void,      (GLdoubleP))
-BGL_Wrap(RasterPos4f,               void,      (GLfloat, GLfloat, GLfloat, GLfloat))
-BGL_Wrap(RasterPos4fv,              void,      (GLfloatP))
-BGL_Wrap(RasterPos4i,               void,      (GLint, GLint, GLint, GLint))
-BGL_Wrap(RasterPos4iv,              void,      (GLintP))
-BGL_Wrap(RasterPos4s,               void,      (GLshort, GLshort, GLshort, GLshort))
-BGL_Wrap(RasterPos4sv,              void,      (GLshortP))
 BGL_Wrap(ReadBuffer,                void,      (GLenum))
 BGL_Wrap(ReadPixels,                void,      (GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, GLvoidP))
-BGL_Wrap(Rectd,                     void,      (GLdouble, GLdouble, GLdouble, GLdouble))
-BGL_Wrap(Rectdv,                    void,      (GLdoubleP, GLdoubleP))
-BGL_Wrap(Rectf,                     void,      (GLfloat, GLfloat, GLfloat, GLfloat))
-BGL_Wrap(Rectfv,                    void,      (GLfloatP, GLfloatP))
-BGL_Wrap(Recti,                     void,      (GLint, GLint, GLint, GLint))
-BGL_Wrap(Rectiv,                    void,      (GLintP, GLintP))
-BGL_Wrap(Rects,                     void,      (GLshort, GLshort, GLshort, GLshort))
-BGL_Wrap(Rectsv,                    void,      (GLshortP, GLshortP))
-BGL_Wrap(RenderMode,                GLint,     (GLenum))
-BGL_Wrap(Rotated,                   void,      (GLdouble, GLdouble, GLdouble, GLdouble))
-BGL_Wrap(Rotatef,                   void,      (GLfloat, GLfloat, GLfloat, GLfloat))
-BGL_Wrap(Scaled,                    void,      (GLdouble, GLdouble, GLdouble))
-BGL_Wrap(Scalef,                    void,      (GLfloat, GLfloat, GLfloat))
 BGL_Wrap(Scissor,                   void,      (GLint, GLint, GLsizei, GLsizei))
-BGL_Wrap(SelectBuffer,              void,      (GLsizei, GLuintP))
-BGL_Wrap(ShadeModel,                void,      (GLenum))
 BGL_Wrap(StencilFunc,               void,      (GLenum, GLint, GLuint))
 BGL_Wrap(StencilMask,               void,      (GLuint))
 BGL_Wrap(StencilOp,                 void,      (GLenum, GLenum, GLenum))
-BGL_Wrap(TexCoord1d,                void,      (GLdouble))
-BGL_Wrap(TexCoord1dv,               void,      (GLdoubleP))
-BGL_Wrap(TexCoord1f,                void,      (GLfloat))
-BGL_Wrap(TexCoord1fv,               void,      (GLfloatP))
-BGL_Wrap(TexCoord1i,                void,      (GLint))
-BGL_Wrap(TexCoord1iv,               void,      (GLintP))
-BGL_Wrap(TexCoord1s,                void,      (GLshort))
-BGL_Wrap(TexCoord1sv,               void,      (GLshortP))
-BGL_Wrap(TexCoord2d,                void,      (GLdouble, GLdouble))
-BGL_Wrap(TexCoord2dv,               void,      (GLdoubleP))
-BGL_Wrap(TexCoord2f,                void,      (GLfloat, GLfloat))
-BGL_Wrap(TexCoord2fv,               void,      (GLfloatP))
-BGL_Wrap(TexCoord2i,                void,      (GLint, GLint))
-BGL_Wrap(TexCoord2iv,               void,      (GLintP))
-BGL_Wrap(TexCoord2s,                void,      (GLshort, GLshort))
-BGL_Wrap(TexCoord2sv,               void,      (GLshortP))
-BGL_Wrap(TexCoord3d,                void,      (GLdouble, GLdouble, GLdouble))
-BGL_Wrap(TexCoord3dv,               void,      (GLdoubleP))
-BGL_Wrap(TexCoord3f,                void,      (GLfloat, GLfloat, GLfloat))
-BGL_Wrap(TexCoord3fv,               void,      (GLfloatP))
-BGL_Wrap(TexCoord3i,                void,      (GLint, GLint, GLint))
-BGL_Wrap(TexCoord3iv,               void,      (GLintP))
-BGL_Wrap(TexCoord3s,                void,      (GLshort, GLshort, GLshort))
-BGL_Wrap(TexCoord3sv,               void,      (GLshortP))
-BGL_Wrap(TexCoord4d,                void,      (GLdouble, GLdouble, GLdouble, GLdouble))
-BGL_Wrap(TexCoord4dv,               void,      (GLdoubleP))
-BGL_Wrap(TexCoord4f,                void,      (GLfloat, GLfloat, GLfloat, GLfloat))
-BGL_Wrap(TexCoord4fv,               void,      (GLfloatP))
-BGL_Wrap(TexCoord4i,                void,      (GLint, GLint, GLint, GLint))
-BGL_Wrap(TexCoord4iv,               void,      (GLintP))
-BGL_Wrap(TexCoord4s,                void,      (GLshort, GLshort, GLshort, GLshort))
-BGL_Wrap(TexCoord4sv,               void,      (GLshortP))
-BGL_Wrap(TexEnvf,                   void,      (GLenum, GLenum, GLfloat))
-BGL_Wrap(TexEnvfv,                  void,      (GLenum, GLenum, GLfloatP))
-BGL_Wrap(TexEnvi,                   void,      (GLenum, GLenum, GLint))
-BGL_Wrap(TexEnviv,                  void,      (GLenum, GLenum, GLintP))
-BGL_Wrap(TexGend,                   void,      (GLenum, GLenum, GLdouble))
-BGL_Wrap(TexGendv,                  void,      (GLenum, GLenum, GLdoubleP))
-BGL_Wrap(TexGenf,                   void,      (GLenum, GLenum, GLfloat))
-BGL_Wrap(TexGenfv,                  void,      (GLenum, GLenum, GLfloatP))
-BGL_Wrap(TexGeni,                   void,      (GLenum, GLenum, GLint))
-BGL_Wrap(TexGeniv,                  void,      (GLenum, GLenum, GLintP))
 BGL_Wrap(TexImage1D,                void,      (GLenum, GLint, GLint, GLsizei, GLint, GLenum, GLenum, GLvoidP))
 BGL_Wrap(TexImage2D,                void,      (GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, GLvoidP))
 BGL_Wrap(TexParameterf,             void,      (GLenum, GLenum, GLfloat))
 BGL_Wrap(TexParameterfv,            void,      (GLenum, GLenum, GLfloatP))
 BGL_Wrap(TexParameteri,             void,      (GLenum, GLenum, GLint))
 BGL_Wrap(TexParameteriv,            void,      (GLenum, GLenum, GLintP))
-BGL_Wrap(Translated,                void,      (GLdouble, GLdouble, GLdouble))
-BGL_Wrap(Translatef,                void,      (GLfloat, GLfloat, GLfloat))
-BGL_Wrap(Vertex2d,                  void,      (GLdouble, GLdouble))
-BGL_Wrap(Vertex2dv,                 void,      (GLdoubleP))
-BGL_Wrap(Vertex2f,                  void,      (GLfloat, GLfloat))
-BGL_Wrap(Vertex2fv,                 void,      (GLfloatP))
-BGL_Wrap(Vertex2i,                  void,      (GLint, GLint))
-BGL_Wrap(Vertex2iv,                 void,      (GLintP))
-BGL_Wrap(Vertex2s,                  void,      (GLshort, GLshort))
-BGL_Wrap(Vertex2sv,                 void,      (GLshortP))
-BGL_Wrap(Vertex3d,                  void,      (GLdouble, GLdouble, GLdouble))
-BGL_Wrap(Vertex3dv,                 void,      (GLdoubleP))
-BGL_Wrap(Vertex3f,                  void,      (GLfloat, GLfloat, GLfloat))
-BGL_Wrap(Vertex3fv,                 void,      (GLfloatP))
-BGL_Wrap(Vertex3i,                  void,      (GLint, GLint, GLint))
-BGL_Wrap(Vertex3iv,                 void,      (GLintP))
-BGL_Wrap(Vertex3s,                  void,      (GLshort, GLshort, GLshort))
-BGL_Wrap(Vertex3sv,                 void,      (GLshortP))
-BGL_Wrap(Vertex4d,                  void,      (GLdouble, GLdouble, GLdouble, GLdouble))
-BGL_Wrap(Vertex4dv,                 void,      (GLdoubleP))
-BGL_Wrap(Vertex4f,                  void,      (GLfloat, GLfloat, GLfloat, GLfloat))
-BGL_Wrap(Vertex4fv,                 void,      (GLfloatP))
-BGL_Wrap(Vertex4i,                  void,      (GLint, GLint, GLint, GLint))
-BGL_Wrap(Vertex4iv,                 void,      (GLintP))
-BGL_Wrap(Vertex4s,                  void,      (GLshort, GLshort, GLshort, GLshort))
-BGL_Wrap(Vertex4sv,                 void,      (GLshortP))
 BGL_Wrap(Viewport,                  void,      (GLint, GLint, GLsizei, GLsizei))
 
 
 /* GL_VERSION_1_1 */
-BGL_Wrap(AreTexturesResident,       GLboolean, (GLsizei, GLuintP, GLbooleanP))
-BGL_Wrap(ArrayElement,              void,      (GLint))
 BGL_Wrap(BindTexture,               void,      (GLenum, GLuint))
-BGL_Wrap(ColorPointer,              void,      (GLint, GLenum, GLsizei, GLvoidP))
 BGL_Wrap(CopyTexImage1D,            void,      (GLenum, GLint, GLenum, GLint, GLint, GLsizei, GLint))
 BGL_Wrap(CopyTexImage2D,            void,      (GLenum, GLint, GLenum, GLint, GLint, GLsizei, GLsizei, GLint))
 BGL_Wrap(CopyTexSubImage1D,         void,      (GLenum, GLint, GLint, GLint, GLint, GLsizei))
 BGL_Wrap(CopyTexSubImage2D,         void,      (GLenum, GLint, GLint, GLint, GLint, GLint, GLsizei, GLsizei))
 BGL_Wrap(DeleteTextures,            void,      (GLsizei, GLuintP))
-BGL_Wrap(DisableClientState,        void,      (GLenum))
 BGL_Wrap(DrawArrays,                void,      (GLenum, GLint, GLsizei))
 BGL_Wrap(DrawElements,              void,      (GLenum, GLsizei, GLenum, GLvoidP))
-BGL_Wrap(EdgeFlagPointer,           void,      (GLsizei, GLvoidP))
-BGL_Wrap(EnableClientState,         void,      (GLenum))
 BGL_Wrap(GenTextures,               void,      (GLsizei, GLuintP))
-BGL_Wrap(GetPointerv,               void,      (GLenum, GLvoidP))
-BGL_Wrap(IndexPointer,              void,      (GLenum, GLsizei, GLvoidP))
-BGL_Wrap(Indexub,                   void,      (GLubyte))
-BGL_Wrap(Indexubv,                  void,      (GLubyteP))
-BGL_Wrap(InterleavedArrays,         void,      (GLenum, GLsizei, GLvoidP))
 BGL_Wrap(IsTexture,                 GLboolean, (GLuint))
-BGL_Wrap(NormalPointer,             void,      (GLenum, GLsizei, GLvoidP))
 BGL_Wrap(PolygonOffset,             void,      (GLfloat, GLfloat))
-BGL_Wrap(PopClientAttrib,           void,      (void))
-BGL_Wrap(PrioritizeTextures,        void,      (GLsizei, GLuintP, GLfloatP))
-BGL_Wrap(PushClientAttrib,          void,      (GLbitfield))
-BGL_Wrap(TexCoordPointer,           void,      (GLint, GLenum, GLsizei, GLvoidP))
 BGL_Wrap(TexSubImage1D,             void,      (GLenum, GLint, GLint, GLsizei, GLenum, GLenum, GLvoidP))
 BGL_Wrap(TexSubImage2D,             void,      (GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, GLvoidP))
-BGL_Wrap(VertexPointer,             void,      (GLint, GLenum, GLsizei, GLvoidP))
 
 
 /* GL_VERSION_1_2 */
@@ -1378,7 +1095,6 @@ BGL_Wrap(TexSubImage3D,             void,      (GLenum, GLint, GLint, GLint, GLi
 
 /* GL_VERSION_1_3 */
 BGL_Wrap(ActiveTexture,             void,      (GLenum))
-BGL_Wrap(ClientActiveTexture,       void,      (GLenum))
 BGL_Wrap(CompressedTexImage1D,      void,      (GLenum, GLint, GLenum, GLsizei, GLint, GLsizei, GLvoidP))
 BGL_Wrap(CompressedTexImage2D,      void,      (GLenum, GLint, GLenum, GLsizei, GLsizei, GLint, GLsizei, GLvoidP))
 BGL_Wrap(CompressedTexImage3D,      void,      (GLenum, GLint, GLenum, GLsizei, GLsizei, GLsizei, GLint, GLsizei, GLvoidP))
@@ -1386,42 +1102,6 @@ BGL_Wrap(CompressedTexSubImage1D,   void,      (GLenum, GLint, GLint, GLsizei, G
 BGL_Wrap(CompressedTexSubImage2D,   void,      (GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLsizei, GLvoidP))
 BGL_Wrap(CompressedTexSubImage3D,   void,      (GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLsizei, GLvoidP))
 BGL_Wrap(GetCompressedTexImage,     void,      (GLenum, GLint, GLvoidP))
-BGL_Wrap(LoadTransposeMatrixd,      void,      (GLdoubleP))
-BGL_Wrap(LoadTransposeMatrixf,      void,      (GLfloatP))
-BGL_Wrap(MultTransposeMatrixd,      void,      (GLdoubleP))
-BGL_Wrap(MultTransposeMatrixf,      void,      (GLfloatP))
-BGL_Wrap(MultiTexCoord1d,           void,      (GLenum, GLdouble))
-BGL_Wrap(MultiTexCoord1dv,          void,      (GLenum, GLdoubleP))
-BGL_Wrap(MultiTexCoord1f,           void,      (GLenum, GLfloat))
-BGL_Wrap(MultiTexCoord1fv,          void,      (GLenum, GLfloatP))
-BGL_Wrap(MultiTexCoord1i,           void,      (GLenum, GLint))
-BGL_Wrap(MultiTexCoord1iv,          void,      (GLenum, GLintP))
-BGL_Wrap(MultiTexCoord1s,           void,      (GLenum, GLshort))
-BGL_Wrap(MultiTexCoord1sv,          void,      (GLenum, GLshortP))
-BGL_Wrap(MultiTexCoord2d,           void,      (GLenum, GLdouble, GLdouble))
-BGL_Wrap(MultiTexCoord2dv,          void,      (GLenum, GLdoubleP))
-BGL_Wrap(MultiTexCoord2f,           void,      (GLenum, GLfloat, GLfloat))
-BGL_Wrap(MultiTexCoord2fv,          void,      (GLenum, GLfloatP))
-BGL_Wrap(MultiTexCoord2i,           void,      (GLenum, GLint, GLint))
-BGL_Wrap(MultiTexCoord2iv,          void,      (GLenum, GLintP))
-BGL_Wrap(MultiTexCoord2s,           void,      (GLenum, GLshort, GLshort))
-BGL_Wrap(MultiTexCoord2sv,          void,      (GLenum, GLshortP))
-BGL_Wrap(MultiTexCoord3d,           void,      (GLenum, GLdouble, GLdouble, GLdouble))
-BGL_Wrap(MultiTexCoord3dv,          void,      (GLenum, GLdoubleP))
-BGL_Wrap(MultiTexCoord3f,           void,      (GLenum, GLfloat, GLfloat, GLfloat))
-BGL_Wrap(MultiTexCoord3fv,          void,      (GLenum, GLfloatP))
-BGL_Wrap(MultiTexCoord3i,           void,      (GLenum, GLint, GLint, GLint))
-BGL_Wrap(MultiTexCoord3iv,          void,      (GLenum, GLintP))
-BGL_Wrap(MultiTexCoord3s,           void,      (GLenum, GLshort, GLshort, GLshort))
-BGL_Wrap(MultiTexCoord3sv,          void,      (GLenum, GLshortP))
-BGL_Wrap(MultiTexCoord4d,           void,      (GLenum, GLdouble, GLdouble, GLdouble, GLdouble))
-BGL_Wrap(MultiTexCoord4dv,          void,      (GLenum, GLdoubleP))
-BGL_Wrap(MultiTexCoord4f,           void,      (GLenum, GLfloat, GLfloat, GLfloat, GLfloat))
-BGL_Wrap(MultiTexCoord4fv,          void,      (GLenum, GLfloatP))
-BGL_Wrap(MultiTexCoord4i,           void,      (GLenum, GLint, GLint, GLint, GLint))
-BGL_Wrap(MultiTexCoord4iv,          void,      (GLenum, GLintP))
-BGL_Wrap(MultiTexCoord4s,           void,      (GLenum, GLshort, GLshort, GLshort, GLshort))
-BGL_Wrap(MultiTexCoord4sv,          void,      (GLenum, GLshortP))
 BGL_Wrap(SampleCoverage,            void,      (GLfloat, GLboolean))
 
 
@@ -1587,44 +1267,7 @@ BGL_Wrap(TexImage3DMultisample,     void,      (GLenum, GLsizei, GLenum, GLsizei
 
 
 /* GL_VERSION_3_3 */
-BGL_Wrap(ColorP3ui,                 void,      (GLenum, GLuint))
-BGL_Wrap(ColorP3uiv,                void,      (GLenum, GLuintP))
-BGL_Wrap(ColorP4ui,                 void,      (GLenum, GLuint))
-BGL_Wrap(ColorP4uiv,                void,      (GLenum, GLuintP))
-BGL_Wrap(MultiTexCoordP1ui,         void,      (GLenum, GLenum, GLuint))
-BGL_Wrap(MultiTexCoordP1uiv,        void,      (GLenum, GLenum, GLuintP))
-BGL_Wrap(MultiTexCoordP2ui,         void,      (GLenum, GLenum, GLuint))
-BGL_Wrap(MultiTexCoordP2uiv,        void,      (GLenum, GLenum, GLuintP))
-BGL_Wrap(MultiTexCoordP3ui,         void,      (GLenum, GLenum, GLuint))
-BGL_Wrap(MultiTexCoordP3uiv,        void,      (GLenum, GLenum, GLuintP))
-BGL_Wrap(MultiTexCoordP4ui,         void,      (GLenum, GLenum, GLuint))
-BGL_Wrap(MultiTexCoordP4uiv,        void,      (GLenum, GLenum, GLuintP))
-BGL_Wrap(NormalP3ui,                void,      (GLenum, GLuint))
-BGL_Wrap(NormalP3uiv,               void,      (GLenum, GLuintP))
-BGL_Wrap(SecondaryColorP3ui,        void,      (GLenum, GLuint))
-BGL_Wrap(SecondaryColorP3uiv,       void,      (GLenum, GLuintP))
-BGL_Wrap(TexCoordP1ui,              void,      (GLenum, GLuint))
-BGL_Wrap(TexCoordP1uiv,             void,      (GLenum, GLuintP))
-BGL_Wrap(TexCoordP2ui,              void,      (GLenum, GLuint))
-BGL_Wrap(TexCoordP2uiv,             void,      (GLenum, GLuintP))
-BGL_Wrap(TexCoordP3ui,              void,      (GLenum, GLuint))
-BGL_Wrap(TexCoordP3uiv,             void,      (GLenum, GLuintP))
-BGL_Wrap(TexCoordP4ui,              void,      (GLenum, GLuint))
-BGL_Wrap(TexCoordP4uiv,             void,      (GLenum, GLuintP))
-BGL_Wrap(VertexP2ui,                void,      (GLenum, GLuint))
-BGL_Wrap(VertexP2uiv,               void,      (GLenum, GLuintP))
-BGL_Wrap(VertexP3ui,                void,      (GLenum, GLuint))
-BGL_Wrap(VertexP3uiv,               void,      (GLenum, GLuintP))
-BGL_Wrap(VertexP4ui,                void,      (GLenum, GLuint))
-BGL_Wrap(VertexP4uiv,               void,      (GLenum, GLuintP))
-
-
-BGLU_Wrap(Perspective,       void,       (GLdouble, GLdouble, GLdouble, GLdouble))
-BGLU_Wrap(LookAt,            void,       (GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble))
-BGLU_Wrap(Ortho2D,           void,       (GLdouble, GLdouble, GLdouble, GLdouble))
-BGLU_Wrap(PickMatrix,        void,       (GLdouble, GLdouble, GLdouble, GLdouble, GLintP))
-BGLU_Wrap(Project,           GLint,      (GLdouble, GLdouble, GLdouble, GLdoubleP, GLdoubleP, GLintP, GLdoubleP, GLdoubleP, GLdoubleP))
-BGLU_Wrap(UnProject,         GLint,      (GLdouble, GLdouble, GLdouble, GLdoubleP, GLdoubleP, GLintP, GLdoubleP, GLdoubleP, GLdoubleP))
+/* no new functions besides packed immediate mode (not part of core profile) */
 
 /** \} */
 
@@ -1634,26 +1277,12 @@ BGLU_Wrap(UnProject,         GLint,      (GLdouble, GLdouble, GLdouble, GLdouble
 /** \name Module Definition
  * \{ */
 
-#define MethodDefu(func) {"glu"#func, Method_##func, METH_VARARGS, NULL}
-
-static struct PyMethodDef BGL_methods[] = {
-	MethodDefu(Perspective),
-	MethodDefu(LookAt),
-	MethodDefu(Ortho2D),
-	MethodDefu(PickMatrix),
-	MethodDefu(Project),
-	MethodDefu(UnProject),
-	{NULL, NULL, 0, NULL}
-};
-
-#undef MethodDefu
-
 static struct PyModuleDef BGL_module_def = {
 	PyModuleDef_HEAD_INIT,
 	"bgl",  /* m_name */
 	NULL,  /* m_doc */
 	0,  /* m_size */
-	BGL_methods,  /* m_methods */
+	NULL,  /* m_methods */
 	NULL,  /* m_reload */
 	NULL,  /* m_traverse */
 	NULL,  /* m_clear */
@@ -1686,9 +1315,6 @@ static void py_module_dict_add_method(PyObject *submodule, PyObject *dict, PyMet
 		PyDict_SetItemString(dict, method_def->ml_name, Py_None);
 	}
 }
-
-/* TODO, expose to users */
-static bool use_deprecated = true;
 
 PyObject *BPyInit_bgl(void)
 {
@@ -1764,268 +1390,6 @@ PyObject *BPyInit_bgl(void)
 		PY_MOD_ADD_METHOD(TexParameteriv);
 		PY_MOD_ADD_METHOD(Viewport);
 	}
-	/* adding in GL_VERSION_1_0 removed from core profile */
-	if (use_deprecated == true) {
-		PY_MOD_ADD_METHOD(Accum);
-		PY_MOD_ADD_METHOD(AlphaFunc);
-		PY_MOD_ADD_METHOD(Begin);
-		PY_MOD_ADD_METHOD(Bitmap);
-		PY_MOD_ADD_METHOD(CallList);
-		PY_MOD_ADD_METHOD(CallLists);
-		PY_MOD_ADD_METHOD(ClearAccum);
-		PY_MOD_ADD_METHOD(ClearIndex);
-		PY_MOD_ADD_METHOD(ClipPlane);
-		PY_MOD_ADD_METHOD(Color3b);
-		PY_MOD_ADD_METHOD(Color3bv);
-		PY_MOD_ADD_METHOD(Color3d);
-		PY_MOD_ADD_METHOD(Color3dv);
-		PY_MOD_ADD_METHOD(Color3f);
-		PY_MOD_ADD_METHOD(Color3fv);
-		PY_MOD_ADD_METHOD(Color3i);
-		PY_MOD_ADD_METHOD(Color3iv);
-		PY_MOD_ADD_METHOD(Color3s);
-		PY_MOD_ADD_METHOD(Color3sv);
-		PY_MOD_ADD_METHOD(Color3ub);
-		PY_MOD_ADD_METHOD(Color3ubv);
-		PY_MOD_ADD_METHOD(Color3ui);
-		PY_MOD_ADD_METHOD(Color3uiv);
-		PY_MOD_ADD_METHOD(Color3us);
-		PY_MOD_ADD_METHOD(Color3usv);
-		PY_MOD_ADD_METHOD(Color4b);
-		PY_MOD_ADD_METHOD(Color4bv);
-		PY_MOD_ADD_METHOD(Color4d);
-		PY_MOD_ADD_METHOD(Color4dv);
-		PY_MOD_ADD_METHOD(Color4f);
-		PY_MOD_ADD_METHOD(Color4fv);
-		PY_MOD_ADD_METHOD(Color4i);
-		PY_MOD_ADD_METHOD(Color4iv);
-		PY_MOD_ADD_METHOD(Color4s);
-		PY_MOD_ADD_METHOD(Color4sv);
-		PY_MOD_ADD_METHOD(Color4ub);
-		PY_MOD_ADD_METHOD(Color4ubv);
-		PY_MOD_ADD_METHOD(Color4ui);
-		PY_MOD_ADD_METHOD(Color4uiv);
-		PY_MOD_ADD_METHOD(Color4us);
-		PY_MOD_ADD_METHOD(Color4usv);
-		PY_MOD_ADD_METHOD(ColorMaterial);
-		PY_MOD_ADD_METHOD(CopyPixels);
-		PY_MOD_ADD_METHOD(DeleteLists);
-		PY_MOD_ADD_METHOD(DrawPixels);
-		PY_MOD_ADD_METHOD(EdgeFlag);
-		PY_MOD_ADD_METHOD(EdgeFlagv);
-		PY_MOD_ADD_METHOD(End);
-		PY_MOD_ADD_METHOD(EndList);
-		PY_MOD_ADD_METHOD(EvalCoord1d);
-		PY_MOD_ADD_METHOD(EvalCoord1dv);
-		PY_MOD_ADD_METHOD(EvalCoord1f);
-		PY_MOD_ADD_METHOD(EvalCoord1fv);
-		PY_MOD_ADD_METHOD(EvalCoord2d);
-		PY_MOD_ADD_METHOD(EvalCoord2dv);
-		PY_MOD_ADD_METHOD(EvalCoord2f);
-		PY_MOD_ADD_METHOD(EvalCoord2fv);
-		PY_MOD_ADD_METHOD(EvalMesh1);
-		PY_MOD_ADD_METHOD(EvalMesh2);
-		PY_MOD_ADD_METHOD(EvalPoint1);
-		PY_MOD_ADD_METHOD(EvalPoint2);
-		PY_MOD_ADD_METHOD(FeedbackBuffer);
-		PY_MOD_ADD_METHOD(Fogf);
-		PY_MOD_ADD_METHOD(Fogfv);
-		PY_MOD_ADD_METHOD(Fogi);
-		PY_MOD_ADD_METHOD(Fogiv);
-		PY_MOD_ADD_METHOD(Frustum);
-		PY_MOD_ADD_METHOD(GenLists);
-		PY_MOD_ADD_METHOD(GetClipPlane);
-		PY_MOD_ADD_METHOD(GetLightfv);
-		PY_MOD_ADD_METHOD(GetLightiv);
-		PY_MOD_ADD_METHOD(GetMapdv);
-		PY_MOD_ADD_METHOD(GetMapfv);
-		PY_MOD_ADD_METHOD(GetMapiv);
-		PY_MOD_ADD_METHOD(GetMaterialfv);
-		PY_MOD_ADD_METHOD(GetMaterialiv);
-		PY_MOD_ADD_METHOD(GetPixelMapfv);
-		PY_MOD_ADD_METHOD(GetPixelMapuiv);
-		PY_MOD_ADD_METHOD(GetPixelMapusv);
-		PY_MOD_ADD_METHOD(GetPolygonStipple);
-		PY_MOD_ADD_METHOD(GetTexEnvfv);
-		PY_MOD_ADD_METHOD(GetTexEnviv);
-		PY_MOD_ADD_METHOD(GetTexGendv);
-		PY_MOD_ADD_METHOD(GetTexGenfv);
-		PY_MOD_ADD_METHOD(GetTexGeniv);
-		PY_MOD_ADD_METHOD(IndexMask);
-		PY_MOD_ADD_METHOD(Indexd);
-		PY_MOD_ADD_METHOD(Indexdv);
-		PY_MOD_ADD_METHOD(Indexf);
-		PY_MOD_ADD_METHOD(Indexfv);
-		PY_MOD_ADD_METHOD(Indexi);
-		PY_MOD_ADD_METHOD(Indexiv);
-		PY_MOD_ADD_METHOD(Indexs);
-		PY_MOD_ADD_METHOD(Indexsv);
-		PY_MOD_ADD_METHOD(InitNames);
-		PY_MOD_ADD_METHOD(IsList);
-		PY_MOD_ADD_METHOD(LightModelf);
-		PY_MOD_ADD_METHOD(LightModelfv);
-		PY_MOD_ADD_METHOD(LightModeli);
-		PY_MOD_ADD_METHOD(LightModeliv);
-		PY_MOD_ADD_METHOD(Lightf);
-		PY_MOD_ADD_METHOD(Lightfv);
-		PY_MOD_ADD_METHOD(Lighti);
-		PY_MOD_ADD_METHOD(Lightiv);
-		PY_MOD_ADD_METHOD(LineStipple);
-		PY_MOD_ADD_METHOD(ListBase);
-		PY_MOD_ADD_METHOD(LoadIdentity);
-		PY_MOD_ADD_METHOD(LoadMatrixd);
-		PY_MOD_ADD_METHOD(LoadMatrixf);
-		PY_MOD_ADD_METHOD(LoadName);
-		PY_MOD_ADD_METHOD(Map1d);
-		PY_MOD_ADD_METHOD(Map1f);
-		PY_MOD_ADD_METHOD(Map2d);
-		PY_MOD_ADD_METHOD(Map2f);
-		PY_MOD_ADD_METHOD(MapGrid1d);
-		PY_MOD_ADD_METHOD(MapGrid1f);
-		PY_MOD_ADD_METHOD(MapGrid2d);
-		PY_MOD_ADD_METHOD(MapGrid2f);
-		PY_MOD_ADD_METHOD(Materialf);
-		PY_MOD_ADD_METHOD(Materialfv);
-		PY_MOD_ADD_METHOD(Materiali);
-		PY_MOD_ADD_METHOD(Materialiv);
-		PY_MOD_ADD_METHOD(MatrixMode);
-		PY_MOD_ADD_METHOD(MultMatrixd);
-		PY_MOD_ADD_METHOD(MultMatrixf);
-		PY_MOD_ADD_METHOD(NewList);
-		PY_MOD_ADD_METHOD(Normal3b);
-		PY_MOD_ADD_METHOD(Normal3bv);
-		PY_MOD_ADD_METHOD(Normal3d);
-		PY_MOD_ADD_METHOD(Normal3dv);
-		PY_MOD_ADD_METHOD(Normal3f);
-		PY_MOD_ADD_METHOD(Normal3fv);
-		PY_MOD_ADD_METHOD(Normal3i);
-		PY_MOD_ADD_METHOD(Normal3iv);
-		PY_MOD_ADD_METHOD(Normal3s);
-		PY_MOD_ADD_METHOD(Normal3sv);
-		PY_MOD_ADD_METHOD(Ortho);
-		PY_MOD_ADD_METHOD(PassThrough);
-		PY_MOD_ADD_METHOD(PixelMapfv);
-		PY_MOD_ADD_METHOD(PixelMapuiv);
-		PY_MOD_ADD_METHOD(PixelMapusv);
-		PY_MOD_ADD_METHOD(PixelTransferf);
-		PY_MOD_ADD_METHOD(PixelTransferi);
-		PY_MOD_ADD_METHOD(PixelZoom);
-		PY_MOD_ADD_METHOD(PolygonStipple);
-		PY_MOD_ADD_METHOD(PopAttrib);
-		PY_MOD_ADD_METHOD(PopMatrix);
-		PY_MOD_ADD_METHOD(PopName);
-		PY_MOD_ADD_METHOD(PushAttrib);
-		PY_MOD_ADD_METHOD(PushMatrix);
-		PY_MOD_ADD_METHOD(PushName);
-		PY_MOD_ADD_METHOD(RasterPos2d);
-		PY_MOD_ADD_METHOD(RasterPos2dv);
-		PY_MOD_ADD_METHOD(RasterPos2f);
-		PY_MOD_ADD_METHOD(RasterPos2fv);
-		PY_MOD_ADD_METHOD(RasterPos2i);
-		PY_MOD_ADD_METHOD(RasterPos2iv);
-		PY_MOD_ADD_METHOD(RasterPos2s);
-		PY_MOD_ADD_METHOD(RasterPos2sv);
-		PY_MOD_ADD_METHOD(RasterPos3d);
-		PY_MOD_ADD_METHOD(RasterPos3dv);
-		PY_MOD_ADD_METHOD(RasterPos3f);
-		PY_MOD_ADD_METHOD(RasterPos3fv);
-		PY_MOD_ADD_METHOD(RasterPos3i);
-		PY_MOD_ADD_METHOD(RasterPos3iv);
-		PY_MOD_ADD_METHOD(RasterPos3s);
-		PY_MOD_ADD_METHOD(RasterPos3sv);
-		PY_MOD_ADD_METHOD(RasterPos4d);
-		PY_MOD_ADD_METHOD(RasterPos4dv);
-		PY_MOD_ADD_METHOD(RasterPos4f);
-		PY_MOD_ADD_METHOD(RasterPos4fv);
-		PY_MOD_ADD_METHOD(RasterPos4i);
-		PY_MOD_ADD_METHOD(RasterPos4iv);
-		PY_MOD_ADD_METHOD(RasterPos4s);
-		PY_MOD_ADD_METHOD(RasterPos4sv);
-		PY_MOD_ADD_METHOD(Rectd);
-		PY_MOD_ADD_METHOD(Rectdv);
-		PY_MOD_ADD_METHOD(Rectf);
-		PY_MOD_ADD_METHOD(Rectfv);
-		PY_MOD_ADD_METHOD(Recti);
-		PY_MOD_ADD_METHOD(Rectiv);
-		PY_MOD_ADD_METHOD(Rects);
-		PY_MOD_ADD_METHOD(Rectsv);
-		PY_MOD_ADD_METHOD(RenderMode);
-		PY_MOD_ADD_METHOD(Rotated);
-		PY_MOD_ADD_METHOD(Rotatef);
-		PY_MOD_ADD_METHOD(Scaled);
-		PY_MOD_ADD_METHOD(Scalef);
-		PY_MOD_ADD_METHOD(SelectBuffer);
-		PY_MOD_ADD_METHOD(ShadeModel);
-		PY_MOD_ADD_METHOD(TexCoord1d);
-		PY_MOD_ADD_METHOD(TexCoord1dv);
-		PY_MOD_ADD_METHOD(TexCoord1f);
-		PY_MOD_ADD_METHOD(TexCoord1fv);
-		PY_MOD_ADD_METHOD(TexCoord1i);
-		PY_MOD_ADD_METHOD(TexCoord1iv);
-		PY_MOD_ADD_METHOD(TexCoord1s);
-		PY_MOD_ADD_METHOD(TexCoord1sv);
-		PY_MOD_ADD_METHOD(TexCoord2d);
-		PY_MOD_ADD_METHOD(TexCoord2dv);
-		PY_MOD_ADD_METHOD(TexCoord2f);
-		PY_MOD_ADD_METHOD(TexCoord2fv);
-		PY_MOD_ADD_METHOD(TexCoord2i);
-		PY_MOD_ADD_METHOD(TexCoord2iv);
-		PY_MOD_ADD_METHOD(TexCoord2s);
-		PY_MOD_ADD_METHOD(TexCoord2sv);
-		PY_MOD_ADD_METHOD(TexCoord3d);
-		PY_MOD_ADD_METHOD(TexCoord3dv);
-		PY_MOD_ADD_METHOD(TexCoord3f);
-		PY_MOD_ADD_METHOD(TexCoord3fv);
-		PY_MOD_ADD_METHOD(TexCoord3i);
-		PY_MOD_ADD_METHOD(TexCoord3iv);
-		PY_MOD_ADD_METHOD(TexCoord3s);
-		PY_MOD_ADD_METHOD(TexCoord3sv);
-		PY_MOD_ADD_METHOD(TexCoord4d);
-		PY_MOD_ADD_METHOD(TexCoord4dv);
-		PY_MOD_ADD_METHOD(TexCoord4f);
-		PY_MOD_ADD_METHOD(TexCoord4fv);
-		PY_MOD_ADD_METHOD(TexCoord4i);
-		PY_MOD_ADD_METHOD(TexCoord4iv);
-		PY_MOD_ADD_METHOD(TexCoord4s);
-		PY_MOD_ADD_METHOD(TexCoord4sv);
-		PY_MOD_ADD_METHOD(TexEnvf);
-		PY_MOD_ADD_METHOD(TexEnvfv);
-		PY_MOD_ADD_METHOD(TexEnvi);
-		PY_MOD_ADD_METHOD(TexEnviv);
-		PY_MOD_ADD_METHOD(TexGend);
-		PY_MOD_ADD_METHOD(TexGendv);
-		PY_MOD_ADD_METHOD(TexGenf);
-		PY_MOD_ADD_METHOD(TexGenfv);
-		PY_MOD_ADD_METHOD(TexGeni);
-		PY_MOD_ADD_METHOD(TexGeniv);
-		PY_MOD_ADD_METHOD(Translated);
-		PY_MOD_ADD_METHOD(Translatef);
-		PY_MOD_ADD_METHOD(Vertex2d);
-		PY_MOD_ADD_METHOD(Vertex2dv);
-		PY_MOD_ADD_METHOD(Vertex2f);
-		PY_MOD_ADD_METHOD(Vertex2fv);
-		PY_MOD_ADD_METHOD(Vertex2i);
-		PY_MOD_ADD_METHOD(Vertex2iv);
-		PY_MOD_ADD_METHOD(Vertex2s);
-		PY_MOD_ADD_METHOD(Vertex2sv);
-		PY_MOD_ADD_METHOD(Vertex3d);
-		PY_MOD_ADD_METHOD(Vertex3dv);
-		PY_MOD_ADD_METHOD(Vertex3f);
-		PY_MOD_ADD_METHOD(Vertex3fv);
-		PY_MOD_ADD_METHOD(Vertex3i);
-		PY_MOD_ADD_METHOD(Vertex3iv);
-		PY_MOD_ADD_METHOD(Vertex3s);
-		PY_MOD_ADD_METHOD(Vertex3sv);
-		PY_MOD_ADD_METHOD(Vertex4d);
-		PY_MOD_ADD_METHOD(Vertex4dv);
-		PY_MOD_ADD_METHOD(Vertex4f);
-		PY_MOD_ADD_METHOD(Vertex4fv);
-		PY_MOD_ADD_METHOD(Vertex4i);
-		PY_MOD_ADD_METHOD(Vertex4iv);
-		PY_MOD_ADD_METHOD(Vertex4s);
-		PY_MOD_ADD_METHOD(Vertex4sv);
-	}
-
 
 	/* GL_VERSION_1_1 */
 	{
@@ -2043,27 +1407,6 @@ PyObject *BPyInit_bgl(void)
 		PY_MOD_ADD_METHOD(TexSubImage1D);
 		PY_MOD_ADD_METHOD(TexSubImage2D);
 	}
-	/* adding in GL_VERSION_1_1 removed from core profile */
-	if (use_deprecated == true) {
-		PY_MOD_ADD_METHOD(AreTexturesResident);
-		PY_MOD_ADD_METHOD(ArrayElement);
-		PY_MOD_ADD_METHOD(ColorPointer);
-		PY_MOD_ADD_METHOD(DisableClientState);
-		PY_MOD_ADD_METHOD(EdgeFlagPointer);
-		PY_MOD_ADD_METHOD(EnableClientState);
-		PY_MOD_ADD_METHOD(GetPointerv);
-		PY_MOD_ADD_METHOD(IndexPointer);
-		PY_MOD_ADD_METHOD(Indexub);
-		PY_MOD_ADD_METHOD(Indexubv);
-		PY_MOD_ADD_METHOD(InterleavedArrays);
-		PY_MOD_ADD_METHOD(NormalPointer);
-		PY_MOD_ADD_METHOD(PopClientAttrib);
-		PY_MOD_ADD_METHOD(PrioritizeTextures);
-		PY_MOD_ADD_METHOD(PushClientAttrib);
-		PY_MOD_ADD_METHOD(TexCoordPointer);
-		PY_MOD_ADD_METHOD(VertexPointer);
-	}
-
 
 	/* GL_VERSION_1_2 */
 	{
@@ -2072,7 +1415,6 @@ PyObject *BPyInit_bgl(void)
 		PY_MOD_ADD_METHOD(TexImage3D);
 		PY_MOD_ADD_METHOD(TexSubImage3D);
 	}
-
 
 	/* GL_VERSION_1_3 */
 	{
@@ -2086,54 +1428,12 @@ PyObject *BPyInit_bgl(void)
 		PY_MOD_ADD_METHOD(GetCompressedTexImage);
 		PY_MOD_ADD_METHOD(SampleCoverage);
 	}
-	/* adding in GL_VERSION_1_3 removed from core profile */
-	if (use_deprecated == true) {
-		PY_MOD_ADD_METHOD(ClientActiveTexture);
-		PY_MOD_ADD_METHOD(LoadTransposeMatrixd);
-		PY_MOD_ADD_METHOD(LoadTransposeMatrixf);
-		PY_MOD_ADD_METHOD(MultTransposeMatrixd);
-		PY_MOD_ADD_METHOD(MultTransposeMatrixf);
-		PY_MOD_ADD_METHOD(MultiTexCoord1d);
-		PY_MOD_ADD_METHOD(MultiTexCoord1dv);
-		PY_MOD_ADD_METHOD(MultiTexCoord1f);
-		PY_MOD_ADD_METHOD(MultiTexCoord1fv);
-		PY_MOD_ADD_METHOD(MultiTexCoord1i);
-		PY_MOD_ADD_METHOD(MultiTexCoord1iv);
-		PY_MOD_ADD_METHOD(MultiTexCoord1s);
-		PY_MOD_ADD_METHOD(MultiTexCoord1sv);
-		PY_MOD_ADD_METHOD(MultiTexCoord2d);
-		PY_MOD_ADD_METHOD(MultiTexCoord2dv);
-		PY_MOD_ADD_METHOD(MultiTexCoord2f);
-		PY_MOD_ADD_METHOD(MultiTexCoord2fv);
-		PY_MOD_ADD_METHOD(MultiTexCoord2i);
-		PY_MOD_ADD_METHOD(MultiTexCoord2iv);
-		PY_MOD_ADD_METHOD(MultiTexCoord2s);
-		PY_MOD_ADD_METHOD(MultiTexCoord2sv);
-		PY_MOD_ADD_METHOD(MultiTexCoord3d);
-		PY_MOD_ADD_METHOD(MultiTexCoord3dv);
-		PY_MOD_ADD_METHOD(MultiTexCoord3f);
-		PY_MOD_ADD_METHOD(MultiTexCoord3fv);
-		PY_MOD_ADD_METHOD(MultiTexCoord3i);
-		PY_MOD_ADD_METHOD(MultiTexCoord3iv);
-		PY_MOD_ADD_METHOD(MultiTexCoord3s);
-		PY_MOD_ADD_METHOD(MultiTexCoord3sv);
-		PY_MOD_ADD_METHOD(MultiTexCoord4d);
-		PY_MOD_ADD_METHOD(MultiTexCoord4dv);
-		PY_MOD_ADD_METHOD(MultiTexCoord4f);
-		PY_MOD_ADD_METHOD(MultiTexCoord4fv);
-		PY_MOD_ADD_METHOD(MultiTexCoord4i);
-		PY_MOD_ADD_METHOD(MultiTexCoord4iv);
-		PY_MOD_ADD_METHOD(MultiTexCoord4s);
-		PY_MOD_ADD_METHOD(MultiTexCoord4sv);
-	}
-
 
 	/* GL_VERSION_1_4 */
 	{
 		PY_MOD_ADD_METHOD(BlendColor);
 		PY_MOD_ADD_METHOD(BlendEquation);
 	}
-
 
 	/* GL_VERSION_1_5 */
 	{
@@ -2157,7 +1457,6 @@ PyObject *BPyInit_bgl(void)
 		PY_MOD_ADD_METHOD(MapBuffer);
 		PY_MOD_ADD_METHOD(UnmapBuffer);
 	}
-
 
 	/* GL_VERSION_2_0 */
 	{
@@ -2256,7 +1555,6 @@ PyObject *BPyInit_bgl(void)
 		PY_MOD_ADD_METHOD(VertexAttribPointer);
 	}
 
-
 	/* GL_VERSION_2_1 */
 	{
 		PY_MOD_ADD_METHOD(UniformMatrix2x3fv);
@@ -2267,7 +1565,6 @@ PyObject *BPyInit_bgl(void)
 		PY_MOD_ADD_METHOD(UniformMatrix4x3fv);
 	}
 
-
 	/* GL_VERSION_3_0 */
 	{
 		PY_MOD_ADD_METHOD(BindVertexArray);
@@ -2275,7 +1572,6 @@ PyObject *BPyInit_bgl(void)
 		PY_MOD_ADD_METHOD(GenVertexArrays);
 		PY_MOD_ADD_METHOD(IsVertexArray);
 	}
-
 
 	/* GL_VERSION_3_1 */
 	{
@@ -2291,7 +1587,6 @@ PyObject *BPyInit_bgl(void)
 		PY_MOD_ADD_METHOD(UniformBlockBinding);
 	}
 
-
 	/* GL_VERSION_3_2 */
 	{
 		PY_MOD_ADD_METHOD(FramebufferTexture);
@@ -2303,39 +1598,8 @@ PyObject *BPyInit_bgl(void)
 		PY_MOD_ADD_METHOD(TexImage3DMultisample);
 	}
 
-
 	/* GL_VERSION_3_3 */
 	{
-		PY_MOD_ADD_METHOD(ColorP3ui);
-		PY_MOD_ADD_METHOD(ColorP3uiv);
-		PY_MOD_ADD_METHOD(ColorP4ui);
-		PY_MOD_ADD_METHOD(ColorP4uiv);
-		PY_MOD_ADD_METHOD(MultiTexCoordP1ui);
-		PY_MOD_ADD_METHOD(MultiTexCoordP1uiv);
-		PY_MOD_ADD_METHOD(MultiTexCoordP2ui);
-		PY_MOD_ADD_METHOD(MultiTexCoordP2uiv);
-		PY_MOD_ADD_METHOD(MultiTexCoordP3ui);
-		PY_MOD_ADD_METHOD(MultiTexCoordP3uiv);
-		PY_MOD_ADD_METHOD(MultiTexCoordP4ui);
-		PY_MOD_ADD_METHOD(MultiTexCoordP4uiv);
-		PY_MOD_ADD_METHOD(NormalP3ui);
-		PY_MOD_ADD_METHOD(NormalP3uiv);
-		PY_MOD_ADD_METHOD(SecondaryColorP3ui);
-		PY_MOD_ADD_METHOD(SecondaryColorP3uiv);
-		PY_MOD_ADD_METHOD(TexCoordP1ui);
-		PY_MOD_ADD_METHOD(TexCoordP1uiv);
-		PY_MOD_ADD_METHOD(TexCoordP2ui);
-		PY_MOD_ADD_METHOD(TexCoordP2uiv);
-		PY_MOD_ADD_METHOD(TexCoordP3ui);
-		PY_MOD_ADD_METHOD(TexCoordP3uiv);
-		PY_MOD_ADD_METHOD(TexCoordP4ui);
-		PY_MOD_ADD_METHOD(TexCoordP4uiv);
-		PY_MOD_ADD_METHOD(VertexP2ui);
-		PY_MOD_ADD_METHOD(VertexP2uiv);
-		PY_MOD_ADD_METHOD(VertexP3ui);
-		PY_MOD_ADD_METHOD(VertexP3uiv);
-		PY_MOD_ADD_METHOD(VertexP4ui);
-		PY_MOD_ADD_METHOD(VertexP4uiv);
 	}
 
 #define PY_DICT_ADD_INT(x) py_module_dict_add_int(dict, #x, x)
@@ -2453,8 +1717,6 @@ PyObject *BPyInit_bgl(void)
 		PY_DICT_ADD_INT(GL_POINT);
 		PY_DICT_ADD_INT(GL_POINTS);
 		PY_DICT_ADD_INT(GL_POINT_SIZE);
-		PY_DICT_ADD_INT(GL_POINT_SIZE_GRANULARITY);
-		PY_DICT_ADD_INT(GL_POINT_SIZE_RANGE);
 		PY_DICT_ADD_INT(GL_POLYGON_MODE);
 		PY_DICT_ADD_INT(GL_POLYGON_OFFSET_FACTOR);
 		PY_DICT_ADD_INT(GL_POLYGON_OFFSET_FILL);
@@ -2544,338 +1806,6 @@ PyObject *BPyInit_bgl(void)
 		PY_DICT_ADD_INT(GL_XOR);
 		PY_DICT_ADD_INT(GL_ZERO);
 	}
-	/* adding in GL_VERSION_1_1 removed from core profile */
-	if (use_deprecated == true) {
-		PY_DICT_ADD_INT(GL_2D);
-		PY_DICT_ADD_INT(GL_2_BYTES);
-		PY_DICT_ADD_INT(GL_3D);
-		PY_DICT_ADD_INT(GL_3D_COLOR);
-		PY_DICT_ADD_INT(GL_3D_COLOR_TEXTURE);
-		PY_DICT_ADD_INT(GL_3_BYTES);
-		PY_DICT_ADD_INT(GL_4D_COLOR_TEXTURE);
-		PY_DICT_ADD_INT(GL_4_BYTES);
-		PY_DICT_ADD_INT(GL_ACCUM);
-		PY_DICT_ADD_INT(GL_ACCUM_ALPHA_BITS);
-		PY_DICT_ADD_INT(GL_ACCUM_BLUE_BITS);
-		PY_DICT_ADD_INT(GL_ACCUM_BUFFER_BIT);
-		PY_DICT_ADD_INT(GL_ACCUM_CLEAR_VALUE);
-		PY_DICT_ADD_INT(GL_ACCUM_GREEN_BITS);
-		PY_DICT_ADD_INT(GL_ACCUM_RED_BITS);
-		PY_DICT_ADD_INT(GL_ADD);
-		PY_DICT_ADD_INT(GL_ALL_ATTRIB_BITS);
-		PY_DICT_ADD_INT(GL_ALPHA12);
-		PY_DICT_ADD_INT(GL_ALPHA16);
-		PY_DICT_ADD_INT(GL_ALPHA4);
-		PY_DICT_ADD_INT(GL_ALPHA8);
-		PY_DICT_ADD_INT(GL_ALPHA_BIAS);
-		PY_DICT_ADD_INT(GL_ALPHA_BITS);
-		PY_DICT_ADD_INT(GL_ALPHA_SCALE);
-		PY_DICT_ADD_INT(GL_ALPHA_TEST);
-		PY_DICT_ADD_INT(GL_ALPHA_TEST_FUNC);
-		PY_DICT_ADD_INT(GL_ALPHA_TEST_REF);
-		PY_DICT_ADD_INT(GL_AMBIENT);
-		PY_DICT_ADD_INT(GL_AMBIENT_AND_DIFFUSE);
-		PY_DICT_ADD_INT(GL_ATTRIB_STACK_DEPTH);
-		PY_DICT_ADD_INT(GL_AUTO_NORMAL);
-		PY_DICT_ADD_INT(GL_AUX0);
-		PY_DICT_ADD_INT(GL_AUX1);
-		PY_DICT_ADD_INT(GL_AUX2);
-		PY_DICT_ADD_INT(GL_AUX3);
-		PY_DICT_ADD_INT(GL_AUX_BUFFERS);
-		PY_DICT_ADD_INT(GL_BITMAP);
-		PY_DICT_ADD_INT(GL_BITMAP_TOKEN);
-		PY_DICT_ADD_INT(GL_BLUE_BIAS);
-		PY_DICT_ADD_INT(GL_BLUE_BITS);
-		PY_DICT_ADD_INT(GL_BLUE_SCALE);
-		PY_DICT_ADD_INT(GL_C3F_V3F);
-		PY_DICT_ADD_INT(GL_C4F_N3F_V3F);
-		PY_DICT_ADD_INT(GL_C4UB_V2F);
-		PY_DICT_ADD_INT(GL_C4UB_V3F);
-		PY_DICT_ADD_INT(GL_CLAMP);
-		PY_DICT_ADD_INT(GL_CLIENT_ALL_ATTRIB_BITS);
-		PY_DICT_ADD_INT(GL_CLIENT_ATTRIB_STACK_DEPTH);
-		PY_DICT_ADD_INT(GL_CLIENT_PIXEL_STORE_BIT);
-		PY_DICT_ADD_INT(GL_CLIENT_VERTEX_ARRAY_BIT);
-		PY_DICT_ADD_INT(GL_CLIP_PLANE0);
-		PY_DICT_ADD_INT(GL_CLIP_PLANE1);
-		PY_DICT_ADD_INT(GL_CLIP_PLANE2);
-		PY_DICT_ADD_INT(GL_CLIP_PLANE3);
-		PY_DICT_ADD_INT(GL_CLIP_PLANE4);
-		PY_DICT_ADD_INT(GL_CLIP_PLANE5);
-		PY_DICT_ADD_INT(GL_COEFF);
-		PY_DICT_ADD_INT(GL_COLOR_ARRAY);
-		PY_DICT_ADD_INT(GL_COLOR_ARRAY_POINTER);
-		PY_DICT_ADD_INT(GL_COLOR_ARRAY_SIZE);
-		PY_DICT_ADD_INT(GL_COLOR_ARRAY_STRIDE);
-		PY_DICT_ADD_INT(GL_COLOR_ARRAY_TYPE);
-		PY_DICT_ADD_INT(GL_COLOR_INDEX);
-		PY_DICT_ADD_INT(GL_COLOR_INDEXES);
-		PY_DICT_ADD_INT(GL_COLOR_MATERIAL);
-		PY_DICT_ADD_INT(GL_COLOR_MATERIAL_FACE);
-		PY_DICT_ADD_INT(GL_COLOR_MATERIAL_PARAMETER);
-		PY_DICT_ADD_INT(GL_COMPILE);
-		PY_DICT_ADD_INT(GL_COMPILE_AND_EXECUTE);
-		PY_DICT_ADD_INT(GL_CONSTANT_ATTENUATION);
-		PY_DICT_ADD_INT(GL_COPY_PIXEL_TOKEN);
-		PY_DICT_ADD_INT(GL_CURRENT_BIT);
-		PY_DICT_ADD_INT(GL_CURRENT_COLOR);
-		PY_DICT_ADD_INT(GL_CURRENT_INDEX);
-		PY_DICT_ADD_INT(GL_CURRENT_NORMAL);
-		PY_DICT_ADD_INT(GL_CURRENT_RASTER_COLOR);
-		PY_DICT_ADD_INT(GL_CURRENT_RASTER_DISTANCE);
-		PY_DICT_ADD_INT(GL_CURRENT_RASTER_INDEX);
-		PY_DICT_ADD_INT(GL_CURRENT_RASTER_POSITION);
-		PY_DICT_ADD_INT(GL_CURRENT_RASTER_POSITION_VALID);
-		PY_DICT_ADD_INT(GL_CURRENT_RASTER_TEXTURE_COORDS);
-		PY_DICT_ADD_INT(GL_CURRENT_TEXTURE_COORDS);
-		PY_DICT_ADD_INT(GL_DECAL);
-		PY_DICT_ADD_INT(GL_DEPTH_BIAS);
-		PY_DICT_ADD_INT(GL_DEPTH_BITS);
-		PY_DICT_ADD_INT(GL_DEPTH_SCALE);
-		PY_DICT_ADD_INT(GL_DIFFUSE);
-		PY_DICT_ADD_INT(GL_DOMAIN);
-		PY_DICT_ADD_INT(GL_DRAW_PIXEL_TOKEN);
-		PY_DICT_ADD_INT(GL_EDGE_FLAG);
-		PY_DICT_ADD_INT(GL_EDGE_FLAG_ARRAY);
-		PY_DICT_ADD_INT(GL_EDGE_FLAG_ARRAY_POINTER);
-		PY_DICT_ADD_INT(GL_EDGE_FLAG_ARRAY_STRIDE);
-		PY_DICT_ADD_INT(GL_EMISSION);
-		PY_DICT_ADD_INT(GL_ENABLE_BIT);
-		PY_DICT_ADD_INT(GL_EVAL_BIT);
-		PY_DICT_ADD_INT(GL_EXP);
-		PY_DICT_ADD_INT(GL_EXP2);
-		PY_DICT_ADD_INT(GL_EYE_LINEAR);
-		PY_DICT_ADD_INT(GL_EYE_PLANE);
-		PY_DICT_ADD_INT(GL_FEEDBACK);
-		PY_DICT_ADD_INT(GL_FEEDBACK_BUFFER_POINTER);
-		PY_DICT_ADD_INT(GL_FEEDBACK_BUFFER_SIZE);
-		PY_DICT_ADD_INT(GL_FEEDBACK_BUFFER_TYPE);
-		PY_DICT_ADD_INT(GL_FLAT);
-		PY_DICT_ADD_INT(GL_FOG);
-		PY_DICT_ADD_INT(GL_FOG_BIT);
-		PY_DICT_ADD_INT(GL_FOG_COLOR);
-		PY_DICT_ADD_INT(GL_FOG_DENSITY);
-		PY_DICT_ADD_INT(GL_FOG_END);
-		PY_DICT_ADD_INT(GL_FOG_HINT);
-		PY_DICT_ADD_INT(GL_FOG_INDEX);
-		PY_DICT_ADD_INT(GL_FOG_MODE);
-		PY_DICT_ADD_INT(GL_FOG_START);
-		PY_DICT_ADD_INT(GL_GREEN_BIAS);
-		PY_DICT_ADD_INT(GL_GREEN_BITS);
-		PY_DICT_ADD_INT(GL_GREEN_SCALE);
-		PY_DICT_ADD_INT(GL_HINT_BIT);
-		PY_DICT_ADD_INT(GL_INDEX_ARRAY);
-		PY_DICT_ADD_INT(GL_INDEX_ARRAY_POINTER);
-		PY_DICT_ADD_INT(GL_INDEX_ARRAY_STRIDE);
-		PY_DICT_ADD_INT(GL_INDEX_ARRAY_TYPE);
-		PY_DICT_ADD_INT(GL_INDEX_BITS);
-		PY_DICT_ADD_INT(GL_INDEX_CLEAR_VALUE);
-		PY_DICT_ADD_INT(GL_INDEX_LOGIC_OP);
-		PY_DICT_ADD_INT(GL_INDEX_MODE);
-		PY_DICT_ADD_INT(GL_INDEX_OFFSET);
-		PY_DICT_ADD_INT(GL_INDEX_SHIFT);
-		PY_DICT_ADD_INT(GL_INDEX_WRITEMASK);
-		PY_DICT_ADD_INT(GL_INTENSITY);
-		PY_DICT_ADD_INT(GL_INTENSITY12);
-		PY_DICT_ADD_INT(GL_INTENSITY16);
-		PY_DICT_ADD_INT(GL_INTENSITY4);
-		PY_DICT_ADD_INT(GL_INTENSITY8);
-		PY_DICT_ADD_INT(GL_LIGHT0);
-		PY_DICT_ADD_INT(GL_LIGHT1);
-		PY_DICT_ADD_INT(GL_LIGHT2);
-		PY_DICT_ADD_INT(GL_LIGHT3);
-		PY_DICT_ADD_INT(GL_LIGHT4);
-		PY_DICT_ADD_INT(GL_LIGHT5);
-		PY_DICT_ADD_INT(GL_LIGHT6);
-		PY_DICT_ADD_INT(GL_LIGHT7);
-		PY_DICT_ADD_INT(GL_LIGHTING);
-		PY_DICT_ADD_INT(GL_LIGHTING_BIT);
-		PY_DICT_ADD_INT(GL_LIGHT_MODEL_AMBIENT);
-		PY_DICT_ADD_INT(GL_LIGHT_MODEL_LOCAL_VIEWER);
-		PY_DICT_ADD_INT(GL_LIGHT_MODEL_TWO_SIDE);
-		PY_DICT_ADD_INT(GL_LINEAR_ATTENUATION);
-		PY_DICT_ADD_INT(GL_LINE_BIT);
-		PY_DICT_ADD_INT(GL_LINE_RESET_TOKEN);
-		PY_DICT_ADD_INT(GL_LINE_STIPPLE);
-		PY_DICT_ADD_INT(GL_LINE_STIPPLE_PATTERN);
-		PY_DICT_ADD_INT(GL_LINE_STIPPLE_REPEAT);
-		PY_DICT_ADD_INT(GL_LINE_TOKEN);
-		PY_DICT_ADD_INT(GL_LIST_BASE);
-		PY_DICT_ADD_INT(GL_LIST_BIT);
-		PY_DICT_ADD_INT(GL_LIST_INDEX);
-		PY_DICT_ADD_INT(GL_LIST_MODE);
-		PY_DICT_ADD_INT(GL_LOAD);
-		PY_DICT_ADD_INT(GL_LOGIC_OP);
-		PY_DICT_ADD_INT(GL_LUMINANCE);
-		PY_DICT_ADD_INT(GL_LUMINANCE12);
-		PY_DICT_ADD_INT(GL_LUMINANCE12_ALPHA12);
-		PY_DICT_ADD_INT(GL_LUMINANCE12_ALPHA4);
-		PY_DICT_ADD_INT(GL_LUMINANCE16);
-		PY_DICT_ADD_INT(GL_LUMINANCE16_ALPHA16);
-		PY_DICT_ADD_INT(GL_LUMINANCE4);
-		PY_DICT_ADD_INT(GL_LUMINANCE4_ALPHA4);
-		PY_DICT_ADD_INT(GL_LUMINANCE6_ALPHA2);
-		PY_DICT_ADD_INT(GL_LUMINANCE8);
-		PY_DICT_ADD_INT(GL_LUMINANCE8_ALPHA8);
-		PY_DICT_ADD_INT(GL_LUMINANCE_ALPHA);
-		PY_DICT_ADD_INT(GL_MAP1_COLOR_4);
-		PY_DICT_ADD_INT(GL_MAP1_GRID_DOMAIN);
-		PY_DICT_ADD_INT(GL_MAP1_GRID_SEGMENTS);
-		PY_DICT_ADD_INT(GL_MAP1_INDEX);
-		PY_DICT_ADD_INT(GL_MAP1_NORMAL);
-		PY_DICT_ADD_INT(GL_MAP1_TEXTURE_COORD_1);
-		PY_DICT_ADD_INT(GL_MAP1_TEXTURE_COORD_2);
-		PY_DICT_ADD_INT(GL_MAP1_TEXTURE_COORD_3);
-		PY_DICT_ADD_INT(GL_MAP1_TEXTURE_COORD_4);
-		PY_DICT_ADD_INT(GL_MAP1_VERTEX_3);
-		PY_DICT_ADD_INT(GL_MAP1_VERTEX_4);
-		PY_DICT_ADD_INT(GL_MAP2_COLOR_4);
-		PY_DICT_ADD_INT(GL_MAP2_GRID_DOMAIN);
-		PY_DICT_ADD_INT(GL_MAP2_GRID_SEGMENTS);
-		PY_DICT_ADD_INT(GL_MAP2_INDEX);
-		PY_DICT_ADD_INT(GL_MAP2_NORMAL);
-		PY_DICT_ADD_INT(GL_MAP2_TEXTURE_COORD_1);
-		PY_DICT_ADD_INT(GL_MAP2_TEXTURE_COORD_2);
-		PY_DICT_ADD_INT(GL_MAP2_TEXTURE_COORD_3);
-		PY_DICT_ADD_INT(GL_MAP2_TEXTURE_COORD_4);
-		PY_DICT_ADD_INT(GL_MAP2_VERTEX_3);
-		PY_DICT_ADD_INT(GL_MAP2_VERTEX_4);
-		PY_DICT_ADD_INT(GL_MAP_COLOR);
-		PY_DICT_ADD_INT(GL_MAP_STENCIL);
-		PY_DICT_ADD_INT(GL_MATRIX_MODE);
-		PY_DICT_ADD_INT(GL_MAX_ATTRIB_STACK_DEPTH);
-		PY_DICT_ADD_INT(GL_MAX_CLIENT_ATTRIB_STACK_DEPTH);
-		PY_DICT_ADD_INT(GL_MAX_CLIP_PLANES);
-		PY_DICT_ADD_INT(GL_MAX_EVAL_ORDER);
-		PY_DICT_ADD_INT(GL_MAX_LIGHTS);
-		PY_DICT_ADD_INT(GL_MAX_LIST_NESTING);
-		PY_DICT_ADD_INT(GL_MAX_MODELVIEW_STACK_DEPTH);
-		PY_DICT_ADD_INT(GL_MAX_NAME_STACK_DEPTH);
-		PY_DICT_ADD_INT(GL_MAX_PIXEL_MAP_TABLE);
-		PY_DICT_ADD_INT(GL_MAX_PROJECTION_STACK_DEPTH);
-		PY_DICT_ADD_INT(GL_MAX_TEXTURE_STACK_DEPTH);
-		PY_DICT_ADD_INT(GL_MODELVIEW);
-		PY_DICT_ADD_INT(GL_MODELVIEW_MATRIX);
-		PY_DICT_ADD_INT(GL_MODELVIEW_STACK_DEPTH);
-		PY_DICT_ADD_INT(GL_MODULATE);
-		PY_DICT_ADD_INT(GL_MULT);
-		PY_DICT_ADD_INT(GL_N3F_V3F);
-		PY_DICT_ADD_INT(GL_NAME_STACK_DEPTH);
-		PY_DICT_ADD_INT(GL_NORMALIZE);
-		PY_DICT_ADD_INT(GL_NORMAL_ARRAY);
-		PY_DICT_ADD_INT(GL_NORMAL_ARRAY_POINTER);
-		PY_DICT_ADD_INT(GL_NORMAL_ARRAY_STRIDE);
-		PY_DICT_ADD_INT(GL_NORMAL_ARRAY_TYPE);
-		PY_DICT_ADD_INT(GL_OBJECT_LINEAR);
-		PY_DICT_ADD_INT(GL_OBJECT_PLANE);
-		PY_DICT_ADD_INT(GL_ORDER);
-		PY_DICT_ADD_INT(GL_PASS_THROUGH_TOKEN);
-		PY_DICT_ADD_INT(GL_PERSPECTIVE_CORRECTION_HINT);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_A_TO_A);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_A_TO_A_SIZE);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_B_TO_B);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_B_TO_B_SIZE);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_G_TO_G);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_G_TO_G_SIZE);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_I_TO_A);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_I_TO_A_SIZE);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_I_TO_B);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_I_TO_B_SIZE);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_I_TO_G);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_I_TO_G_SIZE);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_I_TO_I);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_I_TO_I_SIZE);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_I_TO_R);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_I_TO_R_SIZE);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_R_TO_R);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_R_TO_R_SIZE);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_S_TO_S);
-		PY_DICT_ADD_INT(GL_PIXEL_MAP_S_TO_S_SIZE);
-		PY_DICT_ADD_INT(GL_PIXEL_MODE_BIT);
-		PY_DICT_ADD_INT(GL_POINT_BIT);
-		PY_DICT_ADD_INT(GL_POINT_SMOOTH);
-		PY_DICT_ADD_INT(GL_POINT_SMOOTH_HINT);
-		PY_DICT_ADD_INT(GL_POINT_TOKEN);
-		PY_DICT_ADD_INT(GL_POLYGON);
-		PY_DICT_ADD_INT(GL_POLYGON_BIT);
-		PY_DICT_ADD_INT(GL_POLYGON_STIPPLE);
-		PY_DICT_ADD_INT(GL_POLYGON_STIPPLE_BIT);
-		PY_DICT_ADD_INT(GL_POLYGON_TOKEN);
-		PY_DICT_ADD_INT(GL_POSITION);
-		PY_DICT_ADD_INT(GL_PROJECTION);
-		PY_DICT_ADD_INT(GL_PROJECTION_MATRIX);
-		PY_DICT_ADD_INT(GL_PROJECTION_STACK_DEPTH);
-		PY_DICT_ADD_INT(GL_Q);
-		PY_DICT_ADD_INT(GL_QUADRATIC_ATTENUATION);
-		PY_DICT_ADD_INT(GL_QUADS);
-		PY_DICT_ADD_INT(GL_QUAD_STRIP);
-		PY_DICT_ADD_INT(GL_R);
-		PY_DICT_ADD_INT(GL_RED_BIAS);
-		PY_DICT_ADD_INT(GL_RED_BITS);
-		PY_DICT_ADD_INT(GL_RED_SCALE);
-		PY_DICT_ADD_INT(GL_RENDER);
-		PY_DICT_ADD_INT(GL_RENDER_MODE);
-		PY_DICT_ADD_INT(GL_RETURN);
-		PY_DICT_ADD_INT(GL_RGBA_MODE);
-		PY_DICT_ADD_INT(GL_S);
-		PY_DICT_ADD_INT(GL_SCISSOR_BIT);
-		PY_DICT_ADD_INT(GL_SELECT);
-		PY_DICT_ADD_INT(GL_SELECTION_BUFFER_POINTER);
-		PY_DICT_ADD_INT(GL_SELECTION_BUFFER_SIZE);
-		PY_DICT_ADD_INT(GL_SHADE_MODEL);
-		PY_DICT_ADD_INT(GL_SHININESS);
-		PY_DICT_ADD_INT(GL_SMOOTH);
-		PY_DICT_ADD_INT(GL_SPECULAR);
-		PY_DICT_ADD_INT(GL_SPHERE_MAP);
-		PY_DICT_ADD_INT(GL_SPOT_CUTOFF);
-		PY_DICT_ADD_INT(GL_SPOT_DIRECTION);
-		PY_DICT_ADD_INT(GL_SPOT_EXPONENT);
-		PY_DICT_ADD_INT(GL_STACK_OVERFLOW);
-		PY_DICT_ADD_INT(GL_STACK_UNDERFLOW);
-		PY_DICT_ADD_INT(GL_STENCIL_BITS);
-		PY_DICT_ADD_INT(GL_T);
-		PY_DICT_ADD_INT(GL_T2F_C3F_V3F);
-		PY_DICT_ADD_INT(GL_T2F_C4F_N3F_V3F);
-		PY_DICT_ADD_INT(GL_T2F_C4UB_V3F);
-		PY_DICT_ADD_INT(GL_T2F_N3F_V3F);
-		PY_DICT_ADD_INT(GL_T2F_V3F);
-		PY_DICT_ADD_INT(GL_T4F_C4F_N3F_V4F);
-		PY_DICT_ADD_INT(GL_T4F_V4F);
-		PY_DICT_ADD_INT(GL_TEXTURE_BIT);
-		PY_DICT_ADD_INT(GL_TEXTURE_BORDER);
-		PY_DICT_ADD_INT(GL_TEXTURE_COMPONENTS);
-		PY_DICT_ADD_INT(GL_TEXTURE_COORD_ARRAY);
-		PY_DICT_ADD_INT(GL_TEXTURE_COORD_ARRAY_POINTER);
-		PY_DICT_ADD_INT(GL_TEXTURE_COORD_ARRAY_SIZE);
-		PY_DICT_ADD_INT(GL_TEXTURE_COORD_ARRAY_STRIDE);
-		PY_DICT_ADD_INT(GL_TEXTURE_COORD_ARRAY_TYPE);
-		PY_DICT_ADD_INT(GL_TEXTURE_ENV);
-		PY_DICT_ADD_INT(GL_TEXTURE_ENV_COLOR);
-		PY_DICT_ADD_INT(GL_TEXTURE_ENV_MODE);
-		PY_DICT_ADD_INT(GL_TEXTURE_GEN_MODE);
-		PY_DICT_ADD_INT(GL_TEXTURE_GEN_Q);
-		PY_DICT_ADD_INT(GL_TEXTURE_GEN_R);
-		PY_DICT_ADD_INT(GL_TEXTURE_GEN_S);
-		PY_DICT_ADD_INT(GL_TEXTURE_GEN_T);
-		PY_DICT_ADD_INT(GL_TEXTURE_INTENSITY_SIZE);
-		PY_DICT_ADD_INT(GL_TEXTURE_LUMINANCE_SIZE);
-		PY_DICT_ADD_INT(GL_TEXTURE_MATRIX);
-		PY_DICT_ADD_INT(GL_TEXTURE_PRIORITY);
-		PY_DICT_ADD_INT(GL_TEXTURE_RESIDENT);
-		PY_DICT_ADD_INT(GL_TEXTURE_STACK_DEPTH);
-		PY_DICT_ADD_INT(GL_TRANSFORM_BIT);
-		PY_DICT_ADD_INT(GL_V2F);
-		PY_DICT_ADD_INT(GL_V3F);
-		PY_DICT_ADD_INT(GL_VERTEX_ARRAY);
-		PY_DICT_ADD_INT(GL_VERTEX_ARRAY_POINTER);
-		PY_DICT_ADD_INT(GL_VERTEX_ARRAY_SIZE);
-		PY_DICT_ADD_INT(GL_VERTEX_ARRAY_STRIDE);
-		PY_DICT_ADD_INT(GL_VERTEX_ARRAY_TYPE);
-		PY_DICT_ADD_INT(GL_VIEWPORT_BIT);
-		PY_DICT_ADD_INT(GL_ZOOM_X);
-		PY_DICT_ADD_INT(GL_ZOOM_Y);
-	}
-
 
 	/* GL_VERSION_1_2 */
 	{
@@ -2916,15 +1846,6 @@ PyObject *BPyInit_bgl(void)
 		PY_DICT_ADD_INT(GL_UNSIGNED_SHORT_5_6_5);
 		PY_DICT_ADD_INT(GL_UNSIGNED_SHORT_5_6_5_REV);
 	}
-	/* adding in GL_VERSION_1_2 removed from core profile */
-	if (use_deprecated == true) {
-		PY_DICT_ADD_INT(GL_ALIASED_POINT_SIZE_RANGE);
-		PY_DICT_ADD_INT(GL_LIGHT_MODEL_COLOR_CONTROL);
-		PY_DICT_ADD_INT(GL_RESCALE_NORMAL);
-		PY_DICT_ADD_INT(GL_SEPARATE_SPECULAR_COLOR);
-		PY_DICT_ADD_INT(GL_SINGLE_COLOR);
-	}
-
 
 	/* GL_VERSION_1_3 */
 	{
@@ -2988,47 +1909,6 @@ PyObject *BPyInit_bgl(void)
 		PY_DICT_ADD_INT(GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
 		PY_DICT_ADD_INT(GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
 	}
-	/* adding in GL_VERSION_1_3 removed from core profile */
-	if (use_deprecated == true) {
-		PY_DICT_ADD_INT(GL_ADD_SIGNED);
-		PY_DICT_ADD_INT(GL_CLIENT_ACTIVE_TEXTURE);
-		PY_DICT_ADD_INT(GL_COMBINE);
-		PY_DICT_ADD_INT(GL_COMBINE_ALPHA);
-		PY_DICT_ADD_INT(GL_COMBINE_RGB);
-		PY_DICT_ADD_INT(GL_COMPRESSED_ALPHA);
-		PY_DICT_ADD_INT(GL_COMPRESSED_INTENSITY);
-		PY_DICT_ADD_INT(GL_COMPRESSED_LUMINANCE);
-		PY_DICT_ADD_INT(GL_COMPRESSED_LUMINANCE_ALPHA);
-		PY_DICT_ADD_INT(GL_CONSTANT);
-		PY_DICT_ADD_INT(GL_DOT3_RGB);
-		PY_DICT_ADD_INT(GL_DOT3_RGBA);
-		PY_DICT_ADD_INT(GL_INTERPOLATE);
-		PY_DICT_ADD_INT(GL_MAX_TEXTURE_UNITS);
-		PY_DICT_ADD_INT(GL_MULTISAMPLE_BIT);
-		PY_DICT_ADD_INT(GL_NORMAL_MAP);
-		PY_DICT_ADD_INT(GL_OPERAND0_ALPHA);
-		PY_DICT_ADD_INT(GL_OPERAND0_RGB);
-		PY_DICT_ADD_INT(GL_OPERAND1_ALPHA);
-		PY_DICT_ADD_INT(GL_OPERAND1_RGB);
-		PY_DICT_ADD_INT(GL_OPERAND2_ALPHA);
-		PY_DICT_ADD_INT(GL_OPERAND2_RGB);
-		PY_DICT_ADD_INT(GL_PREVIOUS);
-		PY_DICT_ADD_INT(GL_PRIMARY_COLOR);
-		PY_DICT_ADD_INT(GL_REFLECTION_MAP);
-		PY_DICT_ADD_INT(GL_RGB_SCALE);
-		PY_DICT_ADD_INT(GL_SOURCE0_ALPHA);
-		PY_DICT_ADD_INT(GL_SOURCE0_RGB);
-		PY_DICT_ADD_INT(GL_SOURCE1_ALPHA);
-		PY_DICT_ADD_INT(GL_SOURCE1_RGB);
-		PY_DICT_ADD_INT(GL_SOURCE2_ALPHA);
-		PY_DICT_ADD_INT(GL_SOURCE2_RGB);
-		PY_DICT_ADD_INT(GL_SUBTRACT);
-		PY_DICT_ADD_INT(GL_TRANSPOSE_COLOR_MATRIX);
-		PY_DICT_ADD_INT(GL_TRANSPOSE_MODELVIEW_MATRIX);
-		PY_DICT_ADD_INT(GL_TRANSPOSE_PROJECTION_MATRIX);
-		PY_DICT_ADD_INT(GL_TRANSPOSE_TEXTURE_MATRIX);
-	}
-
 
 	/* GL_VERSION_1_4 */
 	{
@@ -3058,33 +1938,6 @@ PyObject *BPyInit_bgl(void)
 		PY_DICT_ADD_INT(GL_TEXTURE_DEPTH_SIZE);
 		PY_DICT_ADD_INT(GL_TEXTURE_LOD_BIAS);
 	}
-	/* adding in GL_VERSION_1_4 removed from core profile */
-	if (use_deprecated == true) {
-		PY_DICT_ADD_INT(GL_COLOR_SUM);
-		PY_DICT_ADD_INT(GL_COMPARE_R_TO_TEXTURE);
-		PY_DICT_ADD_INT(GL_CURRENT_FOG_COORDINATE);
-		PY_DICT_ADD_INT(GL_CURRENT_SECONDARY_COLOR);
-		PY_DICT_ADD_INT(GL_DEPTH_TEXTURE_MODE);
-		PY_DICT_ADD_INT(GL_FOG_COORDINATE);
-		PY_DICT_ADD_INT(GL_FOG_COORDINATE_ARRAY);
-		PY_DICT_ADD_INT(GL_FOG_COORDINATE_ARRAY_POINTER);
-		PY_DICT_ADD_INT(GL_FOG_COORDINATE_ARRAY_STRIDE);
-		PY_DICT_ADD_INT(GL_FOG_COORDINATE_ARRAY_TYPE);
-		PY_DICT_ADD_INT(GL_FOG_COORDINATE_SOURCE);
-		PY_DICT_ADD_INT(GL_FRAGMENT_DEPTH);
-		PY_DICT_ADD_INT(GL_GENERATE_MIPMAP);
-		PY_DICT_ADD_INT(GL_GENERATE_MIPMAP_HINT);
-		PY_DICT_ADD_INT(GL_POINT_DISTANCE_ATTENUATION);
-		PY_DICT_ADD_INT(GL_POINT_SIZE_MAX);
-		PY_DICT_ADD_INT(GL_POINT_SIZE_MIN);
-		PY_DICT_ADD_INT(GL_SECONDARY_COLOR_ARRAY);
-		PY_DICT_ADD_INT(GL_SECONDARY_COLOR_ARRAY_POINTER);
-		PY_DICT_ADD_INT(GL_SECONDARY_COLOR_ARRAY_SIZE);
-		PY_DICT_ADD_INT(GL_SECONDARY_COLOR_ARRAY_STRIDE);
-		PY_DICT_ADD_INT(GL_SECONDARY_COLOR_ARRAY_TYPE);
-		PY_DICT_ADD_INT(GL_TEXTURE_FILTER_CONTROL);
-	}
-
 
 	/* GL_VERSION_1_5 */
 	{
@@ -3107,7 +1960,6 @@ PyObject *BPyInit_bgl(void)
 		PY_DICT_ADD_INT(GL_READ_ONLY);
 		PY_DICT_ADD_INT(GL_READ_WRITE);
 		PY_DICT_ADD_INT(GL_SAMPLES_PASSED);
-		PY_DICT_ADD_INT(GL_SRC1_ALPHA);
 		PY_DICT_ADD_INT(GL_STATIC_COPY);
 		PY_DICT_ADD_INT(GL_STATIC_DRAW);
 		PY_DICT_ADD_INT(GL_STATIC_READ);
@@ -3117,32 +1969,6 @@ PyObject *BPyInit_bgl(void)
 		PY_DICT_ADD_INT(GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING);
 		PY_DICT_ADD_INT(GL_WRITE_ONLY);
 	}
-	/* adding in GL_VERSION_1_5 removed from core profile */
-	if (use_deprecated == true) {
-		PY_DICT_ADD_INT(GL_COLOR_ARRAY_BUFFER_BINDING);
-		PY_DICT_ADD_INT(GL_CURRENT_FOG_COORD);
-		PY_DICT_ADD_INT(GL_EDGE_FLAG_ARRAY_BUFFER_BINDING);
-		PY_DICT_ADD_INT(GL_FOG_COORD);
-		PY_DICT_ADD_INT(GL_FOG_COORDINATE_ARRAY_BUFFER_BINDING);
-		PY_DICT_ADD_INT(GL_FOG_COORD_ARRAY);
-		PY_DICT_ADD_INT(GL_FOG_COORD_ARRAY_BUFFER_BINDING);
-		PY_DICT_ADD_INT(GL_FOG_COORD_ARRAY_POINTER);
-		PY_DICT_ADD_INT(GL_FOG_COORD_ARRAY_STRIDE);
-		PY_DICT_ADD_INT(GL_FOG_COORD_ARRAY_TYPE);
-		PY_DICT_ADD_INT(GL_FOG_COORD_SRC);
-		PY_DICT_ADD_INT(GL_INDEX_ARRAY_BUFFER_BINDING);
-		PY_DICT_ADD_INT(GL_NORMAL_ARRAY_BUFFER_BINDING);
-		PY_DICT_ADD_INT(GL_SECONDARY_COLOR_ARRAY_BUFFER_BINDING);
-		PY_DICT_ADD_INT(GL_SRC0_ALPHA);
-		PY_DICT_ADD_INT(GL_SRC0_RGB);
-		PY_DICT_ADD_INT(GL_SRC1_RGB);
-		PY_DICT_ADD_INT(GL_SRC2_ALPHA);
-		PY_DICT_ADD_INT(GL_SRC2_RGB);
-		PY_DICT_ADD_INT(GL_TEXTURE_COORD_ARRAY_BUFFER_BINDING);
-		PY_DICT_ADD_INT(GL_VERTEX_ARRAY_BUFFER_BINDING);
-		PY_DICT_ADD_INT(GL_WEIGHT_ARRAY_BUFFER_BINDING);
-	}
-
 
 	/* GL_VERSION_2_0 */
 	{
@@ -3227,14 +2053,6 @@ PyObject *BPyInit_bgl(void)
 		PY_DICT_ADD_INT(GL_VERTEX_PROGRAM_POINT_SIZE);
 		PY_DICT_ADD_INT(GL_VERTEX_SHADER);
 	}
-	/* adding in GL_VERSION_2_0 removed from core profile */
-	if (use_deprecated == true) {
-		PY_DICT_ADD_INT(GL_COORD_REPLACE);
-		PY_DICT_ADD_INT(GL_MAX_TEXTURE_COORDS);
-		PY_DICT_ADD_INT(GL_POINT_SPRITE);
-		PY_DICT_ADD_INT(GL_VERTEX_PROGRAM_TWO_SIDE);
-	}
-
 
 	/* GL_VERSION_2_1 */
 	{
@@ -3254,16 +2072,6 @@ PyObject *BPyInit_bgl(void)
 		PY_DICT_ADD_INT(GL_SRGB8);
 		PY_DICT_ADD_INT(GL_SRGB8_ALPHA8);
 		PY_DICT_ADD_INT(GL_SRGB_ALPHA);
-	}
-	/* adding in GL_VERSION_2_1 removed from core profile */
-	if (use_deprecated == true) {
-		PY_DICT_ADD_INT(GL_COMPRESSED_SLUMINANCE);
-		PY_DICT_ADD_INT(GL_COMPRESSED_SLUMINANCE_ALPHA);
-		PY_DICT_ADD_INT(GL_CURRENT_RASTER_SECONDARY_COLOR);
-		PY_DICT_ADD_INT(GL_SLUMINANCE);
-		PY_DICT_ADD_INT(GL_SLUMINANCE8);
-		PY_DICT_ADD_INT(GL_SLUMINANCE8_ALPHA8);
-		PY_DICT_ADD_INT(GL_SLUMINANCE_ALPHA);
 	}
 
 	/* GL_VERSION_3_0 */
@@ -3505,14 +2313,6 @@ PyObject *BPyInit_bgl(void)
 		PY_DICT_ADD_INT(GL_VERTEX_ARRAY_BINDING);
 		PY_DICT_ADD_INT(GL_VERTEX_ATTRIB_ARRAY_INTEGER);
 	}
-	/* adding in GL_VERSION_3_0 removed from core profile */
-	if (use_deprecated == true) {
-		PY_DICT_ADD_INT(GL_ALPHA_INTEGER);
-		PY_DICT_ADD_INT(GL_CLAMP_FRAGMENT_COLOR);
-		PY_DICT_ADD_INT(GL_CLAMP_VERTEX_COLOR);
-		PY_DICT_ADD_INT(GL_TEXTURE_INTENSITY_TYPE);
-		PY_DICT_ADD_INT(GL_TEXTURE_LUMINANCE_TYPE);
-	}
 
 	/* GL_VERSION_3_1 */
 	{
@@ -3578,7 +2378,6 @@ PyObject *BPyInit_bgl(void)
 		PY_DICT_ADD_INT(GL_UNSIGNED_INT_SAMPLER_2D_RECT);
 		PY_DICT_ADD_INT(GL_UNSIGNED_INT_SAMPLER_BUFFER);
 	}
-
 
 	/* GL_VERSION_3_2 */
 	{

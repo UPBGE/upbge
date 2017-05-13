@@ -51,6 +51,7 @@ class BlenderSync {
 public:
 	BlenderSync(BL::RenderEngine& b_engine,
 	            BL::BlendData& b_data,
+	            BL::Depsgraph& b_graph,
 	            BL::Scene& b_scene,
 	            Scene *scene,
 	            bool preview,
@@ -160,6 +161,7 @@ private:
 	/* variables */
 	BL::RenderEngine b_engine;
 	BL::BlendData b_data;
+	BL::Depsgraph b_depsgraph;
 	BL::Scene b_scene;
 
 	id_map<void*, Shader> shader_map;
@@ -190,7 +192,6 @@ private:
 		  use_background_ao(true),
 		  use_surfaces(true),
 		  use_hair(true),
-		  use_viewport_visibility(false),
 		  samples(0), bound_samples(false)
 		{}
 
@@ -204,7 +205,6 @@ private:
 		bool use_background_ao;
 		bool use_surfaces;
 		bool use_hair;
-		bool use_viewport_visibility;
 		int samples;
 		bool bound_samples;
 	} render_layer;

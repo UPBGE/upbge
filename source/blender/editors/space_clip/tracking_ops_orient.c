@@ -44,6 +44,7 @@
 #include "BKE_tracking.h"
 #include "BKE_global.h"
 #include "BKE_depsgraph.h"
+#include "BKE_layer.h"
 #include "BKE_object.h"
 #include "BKE_report.h"
 
@@ -69,17 +70,16 @@ static Object *get_camera_with_movieclip(Scene *scene, MovieClip *clip)
 		return camera;
 	}
 
-	for (Base *base = scene->base.first;
-	     base != NULL;
-	     base = base->next)
+	FOREACH_SCENE_OBJECT(scene, ob)
 	{
-		if (base->object->type == OB_CAMERA) {
-			if (BKE_object_movieclip_get(scene, base->object, false) == clip) {
-				camera = base->object;
+		if (ob->type == OB_CAMERA) {
+			if (BKE_object_movieclip_get(scene, ob, false) == clip) {
+				camera = ob;
 				break;
 			}
 		}
 	}
+	FOREACH_SCENE_OBJECT_END
 
 	return camera;
 }
@@ -87,6 +87,7 @@ static Object *get_camera_with_movieclip(Scene *scene, MovieClip *clip)
 static Object *get_orientation_object(bContext *C)
 {
 	Scene *scene = CTX_data_scene(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTracking *tracking = &clip->tracking;
@@ -97,7 +98,7 @@ static Object *get_orientation_object(bContext *C)
 		object = get_camera_with_movieclip(scene, clip);
 	}
 	else {
-		object = OBACT;
+		object = OBACT_NEW;
 	}
 
 	if (object != NULL && object->parent != NULL) {
@@ -111,7 +112,7 @@ static int set_orientation_poll(bContext *C)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	if (sc != NULL) {
-		Scene *scene = CTX_data_scene(C);
+		SceneLayer *sl = CTX_data_scene_layer(C);
 		MovieClip *clip = ED_space_clip_get_clip(sc);
 		if (clip != NULL) {
 			MovieTracking *tracking = &clip->tracking;
@@ -120,7 +121,7 @@ static int set_orientation_poll(bContext *C)
 				return true;
 			}
 			else {
-				return OBACT != NULL;
+				return OBACT_NEW != NULL;
 			}
 		}
 	}

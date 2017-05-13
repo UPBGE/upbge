@@ -48,11 +48,14 @@ extern "C" {
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
+#include "BKE_layer.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_scene.h"
+
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 
 /* SpaceType struct has a member called 'new' which obviously conflicts with C++
  * so temporarily redefining the new keyword to make it compile. */
@@ -269,8 +272,7 @@ static void export_startjob(void *customdata, short *stop, short *do_update, flo
 		if (CFRA != orig_frame) {
 			CFRA = orig_frame;
 
-			BKE_scene_update_for_newframe(data->bmain->eval_ctx, data->bmain,
-			                              scene, scene->lay);
+			BKE_scene_update_for_newframe(data->bmain->eval_ctx, data->bmain, scene);
 		}
 
 		data->export_ok = !data->was_canceled;
@@ -330,13 +332,24 @@ bool ABC_export(
 	 * hardcore refactoring. */
 	new (&job->settings) ExportSettings();
 	job->settings.scene = job->scene;
+
+	/* Sybren: for now we only export the active scene layer.
+	 * Later in the 2.8 development process this may be replaced by using
+	 * a specific collection for Alembic I/O, which can then be toggled
+	 * between "real" objects and cached Alembic files. */
+	job->settings.sl = CTX_data_scene_layer(C);
+
 	job->settings.frame_start = params->frame_start;
 	job->settings.frame_end = params->frame_end;
 	job->settings.frame_step_xform = params->frame_step_xform;
 	job->settings.frame_step_shape = params->frame_step_shape;
 	job->settings.shutter_open = params->shutter_open;
 	job->settings.shutter_close = params->shutter_close;
+
+	/* Sybren: For now this is ignored, until we can get selection
+	 * detection working through Base pointers (instead of ob->flags). */
 	job->settings.selected_only = params->selected_only;
+
 	job->settings.export_face_sets = params->face_sets;
 	job->settings.export_normals = params->normals;
 	job->settings.export_uvs = params->uvs;
@@ -345,8 +358,13 @@ bool ABC_export(
 	job->settings.export_particles = params->export_particles;
 	job->settings.apply_subdiv = params->apply_subdiv;
 	job->settings.flatten_hierarchy = params->flatten_hierarchy;
+
+	/* Sybren: visible_layer & renderable only is ignored for now,
+	 * to be replaced with collections later in the 2.8 dev process
+	 * (also see note above). */
 	job->settings.visible_layers_only = params->visible_layers_only;
 	job->settings.renderable_only = params->renderable_only;
+
 	job->settings.use_subdiv_schema = params->use_subdiv_schema;
 	job->settings.export_ogawa = (params->compression_type == ABC_ARCHIVE_OGAWA);
 	job->settings.pack_uv = params->packuv;
@@ -605,6 +623,7 @@ enum {
 struct ImportJobData {
 	Main *bmain;
 	Scene *scene;
+	SceneLayer *scene_layer;
 
 	char filename[1024];
 	ImportSettings settings;
@@ -806,20 +825,32 @@ static void import_endjob(void *user_data)
 	else {
 		/* Add object to scene. */
 		Base *base;
+		LayerCollection *lc;
+		SceneLayer *sl = data->scene_layer;
 
-		BKE_scene_base_deselect_all(data->scene);
+		BKE_scene_layer_base_deselect_all(sl);
+
+		lc = BKE_layer_collection_active(sl);
+		if (lc == NULL) {
+			BLI_assert(BLI_listbase_count_ex(&sl->layer_collections, 1) == 0);
+			/* when there is no collection linked to this SceneLayer, create one */
+			SceneCollection *sc = BKE_collection_add(data->scene, NULL, NULL);
+			lc = BKE_collection_link(sl, sc);
+		}
 
 		for (iter = data->readers.begin(); iter != data->readers.end(); ++iter) {
 			Object *ob = (*iter)->object();
 			ob->lay = data->scene->lay;
 
-			base = BKE_scene_base_add(data->scene, ob);
-			BKE_scene_base_select(data->scene, base);
+			BKE_collection_object_add(data->scene, lc->scene_collection, ob);
 
-			DAG_id_tag_update_ex(data->bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+			base = BKE_scene_layer_base_find(sl, ob);
+			BKE_scene_layer_base_select(sl, base);
+
+			DEG_id_tag_update_ex(data->bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 		}
 
-		DAG_relations_tag_update(data->bmain);
+		DEG_relations_tag_update(data->bmain);
 	}
 
 	for (iter = data->readers.begin(); iter != data->readers.end(); ++iter) {
@@ -862,6 +893,7 @@ bool ABC_import(bContext *C, const char *filepath, float scale, bool is_sequence
 	ImportJobData *job = new ImportJobData();
 	job->bmain = CTX_data_main(C);
 	job->scene = CTX_data_scene(C);
+	job->scene_layer = CTX_data_scene_layer(C);
 	job->import_ok = false;
 	BLI_strncpy(job->filename, filepath, 1024);
 

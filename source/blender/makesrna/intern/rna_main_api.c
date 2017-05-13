@@ -1587,6 +1587,7 @@ void RNA_def_main_particles(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_boolean_funcs(prop, "rna_Main_particles_is_updated_get", NULL);
 }
+
 void RNA_def_main_palettes(BlenderRNA *brna, PropertyRNA *cprop)
 {
 	StructRNA *srna;

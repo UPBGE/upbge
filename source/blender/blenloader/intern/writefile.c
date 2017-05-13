@@ -120,6 +120,7 @@
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_lamp_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_mesh_types.h"
@@ -1760,6 +1761,8 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 			SmokeModifierData *smd = (SmokeModifierData *)md;
 
 			if (smd->type & MOD_SMOKE_TYPE_DOMAIN) {
+				writestruct(wd, DATA, SmokeDomainSettings, 1, smd->domain);
+
 				if (smd->domain) {
 					write_pointcaches(wd, &(smd->domain->ptcaches[0]));
 
@@ -1773,11 +1776,8 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 					if (smd->domain->coba) {
 						writestruct(wd, DATA, ColorBand, 1, smd->domain->coba);
 					}
-				}
 
-				writestruct(wd, DATA, SmokeDomainSettings, 1, smd->domain);
 
-				if (smd->domain) {
 					/* cleanup the fake pointcache */
 					BKE_ptcache_free_list(&smd->domain->ptcaches[1]);
 					smd->domain->point_cache[1] = NULL;
@@ -2573,6 +2573,34 @@ static void write_paint(WriteData *wd, Paint *p)
 	}
 }
 
+static void write_scene_collection(WriteData *wd, SceneCollection *sc)
+{
+	writestruct(wd, DATA, SceneCollection, 1, sc);
+
+	writelist(wd, DATA, LinkData, &sc->objects);
+	writelist(wd, DATA, LinkData, &sc->filter_objects);
+
+	for (SceneCollection *nsc = sc->scene_collections.first; nsc; nsc = nsc->next) {
+		write_scene_collection(wd, nsc);
+	}
+}
+
+static void write_layer_collections(WriteData *wd, ListBase *lb)
+{
+	for (LayerCollection *lc = lb->first; lc; lc = lc->next) {
+		writestruct(wd, DATA, LayerCollection, 1, lc);
+
+		writelist(wd, DATA, LinkData, &lc->object_bases);
+		writelist(wd, DATA, CollectionOverride, &lc->overrides);
+
+		if (lc->properties) {
+			IDP_WriteProperty(lc->properties, wd);
+		}
+
+		write_layer_collections(wd, &lc->layer_collections);
+	}
+}
+
 static void write_scene(WriteData *wd, Scene *sce)
 {
 	/* write LibData */
@@ -2585,8 +2613,8 @@ static void write_scene(WriteData *wd, Scene *sce)
 	write_keyingsets(wd, &sce->keyingsets);
 
 	/* direct data */
-	for (Base *base = sce->base.first; base; base = base->next) {
-		writestruct(wd, DATA, Base, 1, base);
+	for (BaseLegacy *base = sce->base.first; base; base = base->next) {
+		writestruct(wd, DATA, BaseLegacy, 1, base);
 	}
 
 	ToolSettings *tos = sce->toolsettings;
@@ -2779,6 +2807,24 @@ static void write_scene(WriteData *wd, Scene *sce)
 
 	write_previews(wd, sce->preview);
 	write_curvemapping_curves(wd, &sce->r.mblur_shutter_curve);
+	write_scene_collection(wd, sce->collection);
+
+	for (SceneLayer *sl = sce->render_layers.first; sl; sl = sl->next) {
+		writestruct(wd, DATA, SceneLayer, 1, sl);
+		writelist(wd, DATA, Base, &sl->object_bases);
+		if (sl->properties) {
+			IDP_WriteProperty(sl->properties, wd);
+		}
+		write_layer_collections(wd, &sl->layer_collections);
+	}
+
+	if (sce->layer_properties) {
+		IDP_WriteProperty(sce->layer_properties, wd);
+	}
+
+	if (sce->collection_properties) {
+		IDP_WriteProperty(sce->collection_properties, wd);
+	}
 }
 
 static void write_gpencil(WriteData *wd, bGPdata *gpd)
@@ -2911,6 +2957,8 @@ static void write_screen(WriteData *wd, bScreen *sc)
 	/* in 2.50+ files, the file identifier for screens is patched, forward compatibility */
 	writestruct(wd, ID_SCRN, bScreen, 1, sc);
 	write_iddata(wd, &sc->id);
+
+	write_previews(wd, sc->preview);
 
 	/* direct data */
 	for (ScrVert *sv = sc->vertbase.first; sv; sv = sv->next) {

@@ -70,6 +70,8 @@
 #include "ED_space_api.h"
 #include "ED_util.h"
 
+#include "GPU_immediate.h"
+
 #include "UI_interface.h"
 #include "UI_resources.h"
 
@@ -86,7 +88,8 @@ void ED_editors_init(bContext *C)
 	wmWindowManager *wm = CTX_wm_manager(C);
 	Main *bmain = CTX_data_main(C);
 	Scene *sce = CTX_data_scene(C);
-	Object *ob, *obact = (sce && sce->basact) ? sce->basact->object : NULL;
+	SceneLayer *sl = CTX_data_scene_layer(C);
+	Object *ob, *obact = (sl && sl->basact) ? sl->basact->object : NULL;
 	ID *data;
 
 	/* This is called during initialization, so we don't want to store any reports */
@@ -312,16 +315,28 @@ void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info
 {
 	wmWindow *win = CTX_wm_window(C);
 	const float *mval_src = (float *)arg_info;
-	const int mval_dst[2] = {win->eventstate->x - ar->winrct.xmin,
-	                         win->eventstate->y - ar->winrct.ymin};
+	const float mval_dst[2] = {win->eventstate->x - ar->winrct.xmin,
+	                           win->eventstate->y - ar->winrct.ymin};
 
-	UI_ThemeColor(TH_VIEW_OVERLAY);
-	setlinestyle(3);
-	glBegin(GL_LINES);
-	glVertex2iv(mval_dst);
-	glVertex2fv(mval_src);
-	glEnd();
-	setlinestyle(0);
+	const uint shdr_pos = VertexFormat_add_attrib(immVertexFormat(), "pos", COMP_F32, 2, KEEP_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_2D_LINE_DASHED_COLOR);
+
+	float viewport_size[4];
+	glGetFloatv(GL_VIEWPORT, viewport_size);
+	immUniform2f("viewport_size", viewport_size[2] / UI_DPI_FAC, viewport_size[3] / UI_DPI_FAC);
+
+	immUniform1i("num_colors", 0);  /* "simple" mode */
+	immUniformThemeColor(TH_VIEW_OVERLAY);
+	immUniform1f("dash_width", 6.0f);
+	immUniform1f("dash_factor", 0.5f);
+
+	immBegin(PRIM_LINES, 2);
+	immVertex2fv(shdr_pos, mval_src);
+	immVertex2fv(shdr_pos, mval_dst);
+	immEnd();
+
+	immUnbindProgram();
 }
 
 /**

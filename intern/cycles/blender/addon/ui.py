@@ -1665,6 +1665,7 @@ class CyclesScene_PT_simplify(CyclesButtonsPanel, Panel):
         row.prop(rd, "simplify_subdivision", text="Viewport")
         row.prop(rd, "simplify_subdivision_render", text="Render")
 
+
         col = layout.column(align=True)
         col.label(text="Child Particles")
         row = col.row(align=True)
@@ -1727,11 +1728,8 @@ def draw_pause(self, context):
     if scene.render.engine == "CYCLES":
         view = context.space_data
 
-        if view.viewport_shade == 'RENDERED':
-            cscene = scene.cycles
-            layername = scene.render.layers.active.name
-            layout.prop(cscene, "preview_pause", icon="PAUSE", text="")
-            layout.prop(cscene, "preview_active_layer", icon="RENDERLAYERS", text=layername)
+        cscene = scene.cycles
+        layout.prop(cscene, "preview_pause", icon="PAUSE", text="")
 
 
 def get_panels():

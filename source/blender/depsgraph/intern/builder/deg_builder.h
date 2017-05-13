@@ -39,6 +39,5 @@ namespace DEG {
 struct Depsgraph;
 
 void deg_graph_build_finalize(struct Depsgraph *graph);
-void deg_graph_build_flush_layers(struct Depsgraph *graph);
 
 }  // namespace DEG

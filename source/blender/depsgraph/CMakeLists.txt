@@ -43,11 +43,13 @@ set(SRC
 	intern/builder/deg_builder.cc
 	intern/builder/deg_builder_cycle.cc
 	intern/builder/deg_builder_nodes.cc
+	intern/builder/deg_builder_nodes_layer.cc
 	intern/builder/deg_builder_nodes_rig.cc
 	intern/builder/deg_builder_nodes_scene.cc
 	intern/builder/deg_builder_pchanmap.cc
 	intern/builder/deg_builder_relations.cc
 	intern/builder/deg_builder_relations_keys.cc
+	intern/builder/deg_builder_relations_layer.cc
 	intern/builder/deg_builder_relations_rig.cc
 	intern/builder/deg_builder_relations_scene.cc
 	intern/builder/deg_builder_transitive.cc
@@ -111,10 +113,6 @@ else()
 		add_definitions(-DDEG_NO_UNORDERED_MAP)
 		message(STATUS "Replacing unordered_map/set with map/set (warning: slower!)")
 	endif()
-endif()
-
-if(WITH_LEGACY_DEPSGRAPH)
-	add_definitions(-DWITH_LEGACY_DEPSGRAPH)
 endif()
 
 if(WITH_BOOST)

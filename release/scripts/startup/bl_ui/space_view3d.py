@@ -635,7 +635,6 @@ class VIEW3D_MT_select_object(Menu):
         layout.operator("object.select_all", text="Inverse").action = 'INVERT'
         layout.operator("object.select_random", text="Random")
         layout.operator("object.select_mirror", text="Mirror")
-        layout.operator("object.select_by_layer", text="Select All by Layer")
         layout.operator_menu_enum("object.select_by_type", "type", text="Select All by Type...")
         layout.operator("object.select_camera", text="Select Camera")
 
@@ -711,7 +710,6 @@ class VIEW3D_MT_select_particle(Menu):
         layout = self.layout
 
         layout.operator("view3d.select_border")
-        layout.operator("view3d.select_circle")
 
         layout.separator()
 
@@ -1327,15 +1325,6 @@ class VIEW3D_MT_object(Menu):
 
         layout.separator()
 
-        if is_local_view:
-            layout.operator_context = 'EXEC_REGION_WIN'
-            layout.operator("object.move_to_layer", text="Move out of Local View")
-            layout.operator_context = 'INVOKE_REGION_WIN'
-        else:
-            layout.operator("object.move_to_layer", text="Move to Layer...")
-
-        layout.menu("VIEW3D_MT_object_showhide")
-
         layout.operator_menu_enum("object.convert", "target")
 
 
@@ -1612,17 +1601,6 @@ class VIEW3D_MT_object_quick_effects(Menu):
         layout.operator("object.quick_explode")
         layout.operator("object.quick_smoke")
         layout.operator("object.quick_fluid")
-
-
-class VIEW3D_MT_object_showhide(Menu):
-    bl_label = "Show/Hide"
-
-    def draw(self, context):
-        layout = self.layout
-
-        layout.operator("object.hide_view_clear", text="Show Hidden")
-        layout.operator("object.hide_view_set", text="Hide Selected").unselected = False
-        layout.operator("object.hide_view_set", text="Hide Unselected").unselected = True
 
 
 class VIEW3D_MT_make_single_user(Menu):
@@ -3150,6 +3128,47 @@ class VIEW3D_MT_edit_gpencil_interpolate(Menu):
 # ********** Panel **********
 
 
+class VIEW3D_PT_viewport_debug(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_label = "Modern Viewport"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        view = context.space_data
+        return (view)
+
+    def draw_header(self, context):
+        view = context.space_data
+        self.layout.prop(view, "use_modern_viewport", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        view = context.space_data
+
+        layout.active = view.use_modern_viewport
+
+        col = layout.column()
+        col.label(text="Placeholder for debugging options")
+        col.separator()
+
+        row = col.row()
+        row.active = not view.show_combined_depth
+        row.prop(view, "show_scene_depth")
+        row = col.row()
+        row.active = not view.show_scene_depth
+        row.prop(view, "show_combined_depth")
+
+        row = col.row(align=True)
+        row.active = view.show_scene_depth or view.show_combined_depth
+        row.prop(view, "debug_near")
+        row.prop(view, "debug_far")
+
+        col.label(text="Background:")
+        col.row(align=True).prop(view, "debug_background", expand=True)
+
+
 class VIEW3D_PT_grease_pencil(GreasePencilDataPanel, Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -3263,7 +3282,7 @@ class VIEW3D_PT_view3d_display(Panel):
     @classmethod
     def poll(cls, context):
         view = context.space_data
-        return (view)
+        return (view) and not view.use_modern_viewport
 
     def draw(self, context):
         layout = self.layout
@@ -3363,6 +3382,11 @@ class VIEW3D_PT_view3d_shading(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_label = "Shading"
+
+    @classmethod
+    def poll(cls, context):
+        view = context.space_data
+        return (view) and not view.use_modern_viewport
 
     def draw(self, context):
         layout = self.layout
@@ -3856,7 +3880,6 @@ classes = (
     VIEW3D_MT_object_group,
     VIEW3D_MT_object_constraints,
     VIEW3D_MT_object_quick_effects,
-    VIEW3D_MT_object_showhide,
     VIEW3D_MT_make_single_user,
     VIEW3D_MT_make_links,
     VIEW3D_MT_object_game,
@@ -3917,6 +3940,7 @@ classes = (
     VIEW3D_MT_edit_armature_delete,
     VIEW3D_MT_edit_gpencil_transform,
     VIEW3D_MT_edit_gpencil_interpolate,
+    VIEW3D_PT_viewport_debug,
     VIEW3D_PT_grease_pencil,
     VIEW3D_PT_grease_pencil_palettecolor,
     VIEW3D_PT_view3d_properties,

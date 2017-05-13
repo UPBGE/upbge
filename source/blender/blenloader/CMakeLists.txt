@@ -33,7 +33,6 @@ set(INC
 	../makesdna
 	../makesrna
 	../nodes
-	../windowmanager
 	../render/extern/include
 	../../../intern/guardedalloc
 
@@ -54,6 +53,7 @@ set(SRC
 	intern/versioning_250.c
 	intern/versioning_260.c
 	intern/versioning_270.c
+	intern/versioning_280.c
 	intern/versioning_upbge.c
 	intern/versioning_defaults.c
 	intern/versioning_legacy.c
@@ -90,13 +90,6 @@ if(WITH_ALEMBIC)
 		../alembic
 	)
 	add_definitions(-DWITH_ALEMBIC)
-endif()
-
-if(WITH_GAMEENGINE_BPPLAYER)
-	list(APPEND INC
-		../../../intern/spindle
-	)
-	add_definitions(-DWITH_GAMEENGINE_BPPLAYER)
 endif()
 
 blender_add_lib(bf_blenloader "${SRC}" "${INC}" "${INC_SYS}")

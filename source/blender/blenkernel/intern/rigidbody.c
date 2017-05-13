@@ -55,7 +55,6 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_cdderivedmesh.h"
-#include "BKE_depsgraph.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
@@ -1589,7 +1588,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	}
 
 	/* advance simulation, we can only step one frame forward */
-	if (can_simulate) {
+	if (ctime == rbw->ltime + 1) {
 		/* write cache for first frame when on second frame */
 		if (rbw->ltime == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
 			BKE_ptcache_write(&pid, startframe);
@@ -1652,7 +1651,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime) {}
 /* -------------------- */
 /* Depsgraph evaluation */
 
-void BKE_rigidbody_rebuild_sim(EvaluationContext *UNUSED(eval_ctx),
+void BKE_rigidbody_rebuild_sim(struct EvaluationContext *UNUSED(eval_ctx),
                                Scene *scene)
 {
 	float ctime = BKE_scene_frame_get(scene);
@@ -1667,7 +1666,7 @@ void BKE_rigidbody_rebuild_sim(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_rigidbody_eval_simulation(EvaluationContext *UNUSED(eval_ctx),
+void BKE_rigidbody_eval_simulation(struct EvaluationContext *UNUSED(eval_ctx),
                                    Scene *scene)
 {
 	float ctime = BKE_scene_frame_get(scene);
@@ -1682,7 +1681,7 @@ void BKE_rigidbody_eval_simulation(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_rigidbody_object_sync_transforms(EvaluationContext *UNUSED(eval_ctx),
+void BKE_rigidbody_object_sync_transforms(struct EvaluationContext *UNUSED(eval_ctx),
                                           Scene *scene,
                                           Object *ob)
 {

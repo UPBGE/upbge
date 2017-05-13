@@ -11,8 +11,6 @@
 #include "BKE_library_query.h"
 #include "BKE_modifier.h"
 
-#include "depsgraph_private.h"
-
 #include "MEM_guardedalloc.h"
 
 #include "MOD_util.h"
@@ -166,21 +164,6 @@ static void foreachObjectLink(ModifierData *md, Object *ob, ObjectWalkFunc walk,
 	SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
 
 	walk(userData, ob, &smd->target, IDWALK_NOP);
-}
-
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob),
-                           DagNode *obNode)
-{
-	SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
-
-	if (smd->target) {
-		DagNode *curNode = dag_get_node(forest, smd->target);
-
-		dag_add_relation(forest, curNode, obNode, DAG_RL_DATA_DATA, "Surface Deform Modifier");
-	}
 }
 
 static void updateDepsgraph(ModifierData *md,
@@ -1219,7 +1202,6 @@ ModifierTypeInfo modifierType_SurfaceDeform = {
 	/* requiredDataMask */  NULL,
 	/* freeData */          freeData,
 	/* isDisabled */        isDisabled,
-	/* updateDepgraph */    updateDepgraph,
 	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */  NULL,

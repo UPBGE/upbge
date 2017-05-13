@@ -132,189 +132,6 @@ Object *ED_object_active_context(bContext *C)
 }
 
 
-/* ********* clear/set restrict view *********/
-static int object_hide_view_clear_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	Main *bmain = CTX_data_main(C);
-	ScrArea *sa = CTX_wm_area(C);
-	View3D *v3d = sa->spacedata.first;
-	Scene *scene = CTX_data_scene(C);
-	Base *base;
-	bool changed = false;
-	
-	/* XXX need a context loop to handle such cases */
-	for (base = FIRSTBASE; base; base = base->next) {
-		if ((base->lay & v3d->lay) && base->object->restrictflag & OB_RESTRICT_VIEW) {
-			if (!(base->object->restrictflag & OB_RESTRICT_SELECT)) {
-				base->flag |= SELECT;
-			}
-			base->object->flag = base->flag;
-			base->object->restrictflag &= ~OB_RESTRICT_VIEW; 
-			changed = true;
-		}
-	}
-	if (changed) {
-		DAG_id_type_tag(bmain, ID_OB);
-		DAG_relations_tag_update(bmain);
-		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-	}
-
-	return OPERATOR_FINISHED;
-}
-
-void OBJECT_OT_hide_view_clear(wmOperatorType *ot)
-{
-	
-	/* identifiers */
-	ot->name = "Clear Restrict View";
-	ot->description = "Reveal the object by setting the hide flag";
-	ot->idname = "OBJECT_OT_hide_view_clear";
-	
-	/* api callbacks */
-	ot->exec = object_hide_view_clear_exec;
-	ot->poll = ED_operator_view3d_active;
-	
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-static int object_hide_view_set_exec(bContext *C, wmOperator *op)
-{
-	Main *bmain = CTX_data_main(C);
-	Scene *scene = CTX_data_scene(C);
-	bool changed = false;
-	const bool unselected = RNA_boolean_get(op->ptr, "unselected");
-	
-	CTX_DATA_BEGIN(C, Base *, base, visible_bases)
-	{
-		if (!unselected) {
-			if (base->flag & SELECT) {
-				base->flag &= ~SELECT;
-				base->object->flag = base->flag;
-				base->object->restrictflag |= OB_RESTRICT_VIEW;
-				changed = true;
-				if (base == BASACT) {
-					ED_base_object_activate(C, NULL);
-				}
-			}
-		}
-		else {
-			if (!(base->flag & SELECT)) {
-				base->object->restrictflag |= OB_RESTRICT_VIEW;
-				changed = true;
-				if (base == BASACT) {
-					ED_base_object_activate(C, NULL);
-				}
-			}
-		}
-	}
-	CTX_DATA_END;
-
-	if (changed) {
-		DAG_id_type_tag(bmain, ID_OB);
-		DAG_relations_tag_update(bmain);
-		
-		WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-		
-	}
-
-	return OPERATOR_FINISHED;
-}
-
-void OBJECT_OT_hide_view_set(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Set Restrict View";
-	ot->description = "Hide the object by setting the hide flag";
-	ot->idname = "OBJECT_OT_hide_view_set";
-	
-	/* api callbacks */
-	ot->exec = object_hide_view_set_exec;
-	ot->poll = ED_operator_view3d_active;
-	
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-	
-	RNA_def_boolean(ot->srna, "unselected", 0, "Unselected", "Hide unselected rather than selected objects");
-	
-}
-
-/* 99% same as above except no need for scene refreshing (TODO, update render preview) */
-static int object_hide_render_clear_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	bool changed = false;
-
-	/* XXX need a context loop to handle such cases */
-	CTX_DATA_BEGIN(C, Object *, ob, selected_editable_objects)
-	{
-		if (ob->restrictflag & OB_RESTRICT_RENDER) {
-			ob->restrictflag &= ~OB_RESTRICT_RENDER;
-			changed = true;
-		}
-	}
-	CTX_DATA_END;
-
-	if (changed)
-		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, NULL);
-
-	return OPERATOR_FINISHED;
-}
-
-void OBJECT_OT_hide_render_clear(wmOperatorType *ot)
-{
-
-	/* identifiers */
-	ot->name = "Clear Restrict Render";
-	ot->description = "Reveal the render object by setting the hide render flag";
-	ot->idname = "OBJECT_OT_hide_render_clear";
-
-	/* api callbacks */
-	ot->exec = object_hide_render_clear_exec;
-	ot->poll = ED_operator_view3d_active;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-static int object_hide_render_set_exec(bContext *C, wmOperator *op)
-{
-	const bool unselected = RNA_boolean_get(op->ptr, "unselected");
-
-	CTX_DATA_BEGIN(C, Base *, base, visible_bases)
-	{
-		if (!unselected) {
-			if (base->flag & SELECT) {
-				base->object->restrictflag |= OB_RESTRICT_RENDER;
-			}
-		}
-		else {
-			if (!(base->flag & SELECT)) {
-				base->object->restrictflag |= OB_RESTRICT_RENDER;
-			}
-		}
-	}
-	CTX_DATA_END;
-	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, NULL);
-	return OPERATOR_FINISHED;
-}
-
-void OBJECT_OT_hide_render_set(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Set Restrict Render";
-	ot->description = "Hide the render object by setting the hide render flag";
-	ot->idname = "OBJECT_OT_hide_render_set";
-
-	/* api callbacks */
-	ot->exec = object_hide_render_set_exec;
-	ot->poll = ED_operator_view3d_active;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-	RNA_def_boolean(ot->srna, "unselected", 0, "Unselected", "Hide unselected rather than selected objects");
-}
-
 /* ******************* toggle editmode operator  ***************** */
 
 static bool mesh_needs_keyindex(const Mesh *me)
@@ -414,6 +231,7 @@ void ED_object_editmode_exit(bContext *C, int flag)
 	/* Note! only in exceptional cases should 'EM_DO_UNDO' NOT be in the flag */
 	/* Note! if 'EM_FREEDATA' isn't in the flag, use ED_object_editmode_load directly */
 	Scene *scene = CTX_data_scene(C);
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	Object *obedit = CTX_data_edit_object(C);
 	const bool freedata = (flag & EM_FREEDATA) != 0;
 
@@ -422,8 +240,8 @@ void ED_object_editmode_exit(bContext *C, int flag)
 	if (ED_object_editmode_load_ex(CTX_data_main(C), obedit, freedata) == false) {
 		/* in rare cases (background mode) its possible active object
 		 * is flagged for editmode, without 'obedit' being set [#35489] */
-		if (UNLIKELY(scene->basact && (scene->basact->object->mode & OB_MODE_EDIT))) {
-			scene->basact->object->mode &= ~OB_MODE_EDIT;
+		if (UNLIKELY(sl->basact && (sl->basact->object->mode & OB_MODE_EDIT))) {
+			sl->basact->object->mode &= ~OB_MODE_EDIT;
 		}
 		if (flag & EM_WAITCURSOR) waitcursor(0);
 		return;
@@ -465,31 +283,22 @@ void ED_object_editmode_exit(bContext *C, int flag)
 void ED_object_editmode_enter(bContext *C, int flag)
 {
 	Scene *scene = CTX_data_scene(C);
-	Base *base = NULL;
+	SceneLayer *sl = CTX_data_scene_layer(C);
 	Object *ob;
-	ScrArea *sa = CTX_wm_area(C);
-	View3D *v3d = NULL;
 	bool ok = false;
 
 	if (ID_IS_LINKED_DATABLOCK(scene)) return;
 
-	if (sa && sa->spacetype == SPACE_VIEW3D)
-		v3d = sa->spacedata.first;
-
 	if ((flag & EM_IGNORE_LAYER) == 0) {
-		base = CTX_data_active_base(C); /* active layer checked here for view3d */
+		ob = CTX_data_active_object(C); /* active layer checked here for view3d */
 
-		if (base == NULL) return;
-		else if (v3d && (base->lay & v3d->lay) == 0) return;
-		else if (!v3d && (base->lay & scene->lay) == 0) return;
+		if (ob == NULL) return;
 	}
 	else {
-		base = scene->basact;
+		ob = sl->basact->object;
 	}
 
-	if (ELEM(NULL, base, base->object, base->object->data)) return;
-
-	ob = base->object;
+	if (ELEM(NULL, ob, ob->data)) return;
 
 	/* this checks actual object->data, for cases when other scenes have it in editmode context */
 	if (BKE_object_is_in_editmode(ob))
@@ -694,7 +503,7 @@ void OBJECT_OT_posemode_toggle(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static void copymenu_properties(Scene *scene, View3D *v3d, Object *ob)
+static void copymenu_properties(SceneLayer *sl, Object *ob)
 {	
 //XXX no longer used - to be removed - replaced by game_properties_copy_exec
 	bProperty *prop;
@@ -727,8 +536,8 @@ static void copymenu_properties(Scene *scene, View3D *v3d, Object *ob)
 	nr = pupmenu(str);
 	
 	if (nr == 1 || nr == 2) {
-		for (base = FIRSTBASE; base; base = base->next) {
-			if ((base != BASACT) && (TESTBASELIB(v3d, base))) {
+		for (base = FIRSTBASE_NEW; base; base = base->next) {
+			if ((base != BASACT_NEW) && (TESTBASELIB_NEW(base))) {
 				if (nr == 1) { /* replace */
 					BKE_bproperty_copy_list(&base->object->prop, &ob->prop);
 				}
@@ -744,8 +553,8 @@ static void copymenu_properties(Scene *scene, View3D *v3d, Object *ob)
 		prop = BLI_findlink(&ob->prop, nr - 4); /* account for first 3 menu items & menu index starting at 1*/
 		
 		if (prop) {
-			for (base = FIRSTBASE; base; base = base->next) {
-				if ((base != BASACT) && (TESTBASELIB(v3d, base))) {
+			for (base = FIRSTBASE_NEW; base; base = base->next) {
+				if ((base != BASACT_NEW) && (TESTBASELIB_NEW(base))) {
 					BKE_bproperty_object_set(base->object, prop);
 				}
 			}
@@ -755,14 +564,14 @@ static void copymenu_properties(Scene *scene, View3D *v3d, Object *ob)
 	
 }
 
-static void copymenu_logicbricks(Scene *scene, View3D *v3d, Object *ob)
+static void copymenu_logicbricks(SceneLayer *sl, Object *ob)
 {
 //XXX no longer used - to be removed - replaced by logicbricks_copy_exec
 	Base *base;
 	
-	for (base = FIRSTBASE; base; base = base->next) {
+	for (base = FIRSTBASE_NEW; base; base = base->next) {
 		if (base->object != ob) {
-			if (TESTBASELIB(v3d, base)) {
+			if (TESTBASELIB_NEW(base)) {
 				
 				/* first: free all logic */
 				free_sensors(&base->object->sensors);
@@ -841,7 +650,7 @@ static void copy_texture_space(Object *to, Object *ob)
 }
 
 /* UNUSED, keep in case we want to copy functionality for use elsewhere */
-static void copy_attr(Main *bmain, Scene *scene, View3D *v3d, short event)
+static void copy_attr(Main *bmain, Scene *scene, SceneLayer *sl, short event)
 {
 	Object *ob;
 	Base *base;
@@ -851,18 +660,18 @@ static void copy_attr(Main *bmain, Scene *scene, View3D *v3d, short event)
 	
 	if (ID_IS_LINKED_DATABLOCK(scene)) return;
 
-	if (!(ob = OBACT)) return;
+	if (!(ob = OBACT_NEW)) return;
 	
 	if (scene->obedit) { // XXX get from context
 		/* obedit_copymenu(); */
 		return;
 	}
 	if (event == 9) {
-		copymenu_properties(scene, v3d, ob);
+		copymenu_properties(sl, ob);
 		return;
 	}
 	else if (event == 10) {
-		copymenu_logicbricks(scene, v3d, ob);
+		copymenu_logicbricks(sl, ob);
 		return;
 	}
 	else if (event == 24) {
@@ -871,9 +680,9 @@ static void copy_attr(Main *bmain, Scene *scene, View3D *v3d, short event)
 		return;
 	}
 
-	for (base = FIRSTBASE; base; base = base->next) {
-		if (base != BASACT) {
-			if (TESTBASELIB(v3d, base)) {
+	for (base = FIRSTBASE_NEW; base; base = base->next) {
+		if (base != BASACT_NEW) {
+			if (TESTBASELIB_NEW(base)) {
 				DAG_id_tag_update(&base->object->id, OB_RECALC_DATA);
 				
 				if (event == 1) {  /* loc */
@@ -1092,13 +901,13 @@ static void copy_attr(Main *bmain, Scene *scene, View3D *v3d, short event)
 		DAG_relations_tag_update(bmain);
 }
 
-static void UNUSED_FUNCTION(copy_attr_menu) (Main *bmain, Scene *scene, View3D *v3d)
+static void UNUSED_FUNCTION(copy_attr_menu) (Main *bmain, Scene *scene, SceneLayer *sl)
 {
 	Object *ob;
 	short event;
 	char str[512];
 	
-	if (!(ob = OBACT)) return;
+	if (!(ob = OBACT_NEW)) return;
 	
 	if (scene->obedit) { /* XXX get from context */
 /*		if (ob->type == OB_MESH) */
@@ -1146,7 +955,7 @@ static void UNUSED_FUNCTION(copy_attr_menu) (Main *bmain, Scene *scene, View3D *
 	event = pupmenu(str);
 	if (event <= 0) return;
 	
-	copy_attr(bmain, scene, v3d, event);
+	copy_attr(bmain, scene, sl, event);
 }
 
 /* ******************* force field toggle operator ***************** */
@@ -1509,7 +1318,7 @@ void OBJECT_OT_shade_smooth(wmOperatorType *ot)
 
 /* ********************** */
 
-static void UNUSED_FUNCTION(image_aspect) (Scene *scene, View3D *v3d)
+static void UNUSED_FUNCTION(image_aspect) (Scene *scene, SceneLayer *sl)
 {
 	/* all selected objects with an image map: scale in image aspect */
 	Base *base;
@@ -1522,8 +1331,8 @@ static void UNUSED_FUNCTION(image_aspect) (Scene *scene, View3D *v3d)
 	if (scene->obedit) return;  // XXX get from context
 	if (ID_IS_LINKED_DATABLOCK(scene)) return;
 	
-	for (base = FIRSTBASE; base; base = base->next) {
-		if (TESTBASELIB(v3d, base)) {
+	for (base = FIRSTBASE_NEW; base; base = base->next) {
+		if (TESTBASELIB_NEW(base)) {
 			ob = base->object;
 			done = false;
 			

@@ -54,6 +54,7 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_editmesh.h"
 #include "BKE_key.h"
+#include "BKE_layer.h"
 #include "BKE_library.h"
 #include "BKE_material.h"
 #include "BKE_modifier.h"
@@ -76,11 +77,12 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm);
 #include "BLI_sys_types.h" /* for intptr_t support */
 
 #include "GPU_buffers.h"
-#include "GPU_glew.h"
 #include "GPU_shader.h"
+#include "GPU_immediate.h"
 
 #ifdef WITH_OPENSUBDIV
-#  include "BKE_depsgraph.h"
+#  include "DEG_depsgraph.h"
+#  include "DEG_depsgraph_query.h"
 #  include "DNA_userdef_types.h"
 #endif
 
@@ -317,7 +319,7 @@ void DM_init(
 	dm->numPolyData = numPolys;
 
 	DM_init_funcs(dm);
-	
+
 	dm->needsFree = 1;
 	dm->auto_bump_scale = -1.0f;
 	dm->dirty = 0;
@@ -377,6 +379,7 @@ int DM_release(DerivedMesh *dm)
 	if (dm->needsFree) {
 		bvhcache_free(&dm->bvhCache);
 		GPU_drawobject_free(dm);
+
 		CustomData_free(&dm->vertData, dm->numVertData);
 		CustomData_free(&dm->edgeData, dm->numEdgeData);
 		CustomData_free(&dm->faceData, dm->numTessFaceData);
@@ -2599,7 +2602,7 @@ static bool calc_modifiers_skip_orco(Scene *scene,
 		else if ((ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)) != 0) {
 			return false;
 		}
-		else if ((DAG_get_eval_flags_for_object(scene, ob) & DAG_EVAL_NEED_CPU) != 0) {
+		else if ((DEG_get_eval_flags_for_id(scene->depsgraph, &ob->id) & DAG_EVAL_NEED_CPU) != 0) {
 			return false;
 		}
 		SubsurfModifierData *smd = (SubsurfModifierData *)last_md;
@@ -2675,7 +2678,9 @@ static void editbmesh_build_data(Scene *scene, Object *obedit, BMEditMesh *em, C
 
 static CustomDataMask object_get_datamask(const Scene *scene, Object *ob, bool *r_need_mapping)
 {
-	Object *actob = scene->basact ? scene->basact->object : NULL;
+	/* TODO(sergey): Avoid this linear list lookup. */
+	SceneLayer *sl = BKE_scene_layer_context_active(scene);
+	Object *actob = sl->basact ? sl->basact->object : NULL;
 	CustomDataMask mask = ob->customdata_mask;
 
 	if (r_need_mapping) {
@@ -3937,7 +3942,6 @@ BLI_INLINE void navmesh_intToCol(int i, float col[3])
 
 static void navmesh_drawColored(DerivedMesh *dm)
 {
-	int a, glmode;
 	MVert *mvert = (MVert *)CustomData_get_layer(&dm->vertData, CD_MVERT);
 	MFace *mface = (MFace *)CustomData_get_layer(&dm->faceData, CD_MFACE);
 	int *polygonIdx = (int *)CustomData_get_layer(&dm->polyData, CD_RECAST);
@@ -3952,34 +3956,42 @@ static void navmesh_drawColored(DerivedMesh *dm)
 	dm->drawEdges(dm, 0, 1);
 #endif
 
-	/* if (GPU_buffer_legacy(dm) ) */ /* TODO - VBO draw code, not high priority - campbell */
-	{
-		DEBUG_VBO("Using legacy code. drawNavMeshColored\n");
-		glBegin(glmode = GL_QUADS);
-		for (a = 0; a < dm->numTessFaceData; a++, mface++) {
-			int new_glmode = mface->v4 ? GL_QUADS : GL_TRIANGLES;
-			int pi = polygonIdx[a];
-			if (pi <= 0) {
-				zero_v3(col);
-			}
-			else {
-				navmesh_intToCol(pi, col);
-			}
+	VertexFormat *format = immVertexFormat();
+	unsigned int pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 3, KEEP_FLOAT);
+	unsigned int color = VertexFormat_add_attrib(format, "color", COMP_F32, 3, KEEP_FLOAT);
 
-			if (new_glmode != glmode) {
-				glEnd();
-				glBegin(glmode = new_glmode);
-			}
-			glColor3fv(col);
-			glVertex3fv(mvert[mface->v1].co);
-			glVertex3fv(mvert[mface->v2].co);
-			glVertex3fv(mvert[mface->v3].co);
-			if (mface->v4) {
-				glVertex3fv(mvert[mface->v4].co);
-			}
+	immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+
+	/* Note: batch drawing API would let us share vertices */
+	immBeginAtMost(PRIM_TRIANGLES, dm->numTessFaceData * 6);
+	for (int a = 0; a < dm->numTessFaceData; a++, mface++) {
+		int pi = polygonIdx[a];
+		if (pi <= 0) {
+			zero_v3(col);
 		}
-		glEnd();
+		else {
+			navmesh_intToCol(pi, col);
+		}
+
+		immSkipAttrib(color);
+		immVertex3fv(pos, mvert[mface->v1].co);
+		immSkipAttrib(color);
+		immVertex3fv(pos, mvert[mface->v2].co);
+		immAttrib3fv(color, col);
+		immVertex3fv(pos, mvert[mface->v3].co);
+
+		if (mface->v4) {
+			/* this tess face is a quad, so draw the other triangle */
+			immSkipAttrib(color);
+			immVertex3fv(pos, mvert[mface->v1].co);
+			immSkipAttrib(color);
+			immVertex3fv(pos, mvert[mface->v3].co);
+			immAttrib3fv(color, col);
+			immVertex3fv(pos, mvert[mface->v4].co);
+		}
 	}
+	immEnd();
+	immUnbindProgram();
 }
 
 static void navmesh_DM_drawFacesTex(

@@ -50,6 +50,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_rect.h"
 
+#include "BKE_icons.h"
 #include "BKE_idprop.h"
 #include "BKE_screen.h"
 
@@ -180,6 +181,7 @@ ARegion *BKE_area_region_copy(SpaceType *st, ARegion *ar)
 	BLI_listbase_clear(&newar->panels_category_active);
 	BLI_listbase_clear(&newar->ui_lists);
 	newar->swinid = 0;
+	newar->manipulator_map = NULL;
 	newar->regiontimer = NULL;
 	
 	/* use optional regiondata callback */
@@ -288,6 +290,17 @@ void BKE_spacedata_id_unref(struct ScrArea *sa, struct SpaceLink *sl, struct ID 
 	}
 }
 
+
+/**
+ * Avoid bad-level calls to #WM_manipulatormap_delete.
+ */
+static void (*region_free_manipulatormap_callback)(struct wmManipulatorMap *) = NULL;
+
+void BKE_region_callback_free_manipulatormap_set(void (*callback)(struct wmManipulatorMap *))
+{
+	region_free_manipulatormap_callback = callback;
+}
+
 /* not region itself */
 void BKE_area_region_free(SpaceType *st, ARegion *ar)
 {
@@ -337,6 +350,8 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 			MEM_freeN(uilst->properties);
 		}
 	}
+
+	region_free_manipulatormap_callback(ar->manipulator_map);
 	BLI_freelistN(&ar->ui_lists);
 	BLI_freelistN(&ar->ui_previews);
 	BLI_freelistN(&ar->panels_category);
@@ -380,6 +395,8 @@ void BKE_screen_free(bScreen *sc)
 	BLI_freelistN(&sc->vertbase);
 	BLI_freelistN(&sc->edgebase);
 	BLI_freelistN(&sc->areabase);
+
+	BKE_previewimg_free(&sc->preview);
 }
 
 /* for depsgraph */

@@ -1,3 +1,26 @@
+
+uniform mat4 ModelViewMatrix;
+#ifndef PROBE_CAPTURE
+#ifndef WORLD_BACKGROUND
+uniform mat4 ProjectionMatrix;
+#endif
+#endif
+uniform mat4 ModelMatrixInverse;
+uniform mat4 ModelViewMatrixInverse;
+uniform mat4 ViewMatrixInverse;
+uniform mat4 ProjectionMatrixInverse;
+uniform mat3 NormalMatrix;
+uniform vec4 CameraTexCoFactors;
+
+#if __VERSION__ == 120
+  #define fragColor gl_FragColor
+#else
+  out vec4 fragColor;
+  #define texture2D texture
+  #define shadow2D shadow
+  #define textureCube texture
+#endif
+
 /* Converters */
 
 float convert_rgba_to_float(vec4 color)
@@ -155,9 +178,12 @@ void color_to_blender_normal_new_shading(vec3 color, out vec3 normal)
 	normal.y = -2.0 * ((color.g) - 0.5);
 	normal.z = -2.0 * ((color.b) - 0.5);
 }
-
+#ifndef M_PI
 #define M_PI 3.14159265358979323846
-#define M_1_PI 0.31830988618379069
+#endif
+#ifndef M_1_PI
+#define M_1_PI 0.318309886183790671538
+#endif
 
 /*********** SHADER NODES ***************/
 
@@ -177,7 +203,7 @@ void geom(
         out vec3 normal, out vec4 vcol, out float vcol_alpha, out float frontback)
 {
 	local = co;
-	view = (gl_ProjectionMatrix[3][3] == 0.0) ? normalize(local) : vec3(0.0, 0.0, -1.0);
+	view = (ProjectionMatrix[3][3] == 0.0) ? normalize(local) : vec3(0.0, 0.0, -1.0);
 	global = (viewinvmat * vec4(local, 1.0)).xyz;
 	orco = attorco;
 	uv_attribute(attuv, uv);
@@ -1519,8 +1545,8 @@ void mtex_bump_init_objspace(
         out float fPrevMagnitude_out, out vec3 vNacc_out,
         out vec3 vR1, out vec3 vR2, out float fDet)
 {
-	mat3 obj2view = to_mat3(gl_ModelViewMatrix);
-	mat3 view2obj = to_mat3(gl_ModelViewMatrixInverse);
+	mat3 obj2view = to_mat3(ModelViewMatrix);
+	mat3 view2obj = to_mat3(ModelViewMatrixInverse);
 
 	vec3 vSigmaS = view2obj * dFdx(surf_pos);
 	vec3 vSigmaT = view2obj * dFdy(surf_pos);
@@ -1776,7 +1802,7 @@ void mtex_nspace_world(mat4 viewmat, vec3 texnormal, out vec3 outnormal)
 
 void mtex_nspace_object(vec3 texnormal, out vec3 outnormal)
 {
-	outnormal = normalize(gl_NormalMatrix * texnormal);
+	outnormal = normalize(NormalMatrix * texnormal);
 }
 
 void mtex_blend_normal(float norfac, vec3 normal, vec3 newnormal, out vec3 outnormal)
@@ -1912,7 +1938,7 @@ void shade_alpha_depth(vec3 vp, sampler2D ima, float alpha, float factor, out fl
 void world_paper_view(vec3 vec, out vec3 outvec)
 {
 	vec3 nvec = normalize(vec);
-	outvec = (gl_ProjectionMatrix[3][3] == 0.0) ? vec3(nvec.x, 0.0, nvec.y) : vec3(0.0, 0.0, -1.0);
+	outvec = (ProjectionMatrix[3][3] == 0.0) ? vec3(nvec.x, 0.0, nvec.y) : vec3(0.0, 0.0, -1.0);
 }
 
 void world_zen_mapping(vec3 view, float zenup, float zendown, out float zenfac)
@@ -1946,7 +1972,7 @@ void world_blend(vec3 vec, out float blend)
 void shade_view(vec3 co, out vec3 view)
 {
 	/* handle perspective/orthographic */
-	view = (gl_ProjectionMatrix[3][3] == 0.0) ? normalize(co) : vec3(0.0, 0.0, -1.0);
+	view = (ProjectionMatrix[3][3] == 0.0) ? normalize(co) : vec3(0.0, 0.0, -1.0);
 }
 
 void shade_tangent_v(vec3 lv, vec3 tang, out vec3 vn)
@@ -2394,7 +2420,11 @@ void test_shadowbuf(
 		co.z -= shadowbias * co.w;
 
 		if (co.w > 0.0 && co.x > 0.0 && co.x / co.w < 1.0 && co.y > 0.0 && co.y / co.w < 1.0) {
+#if __VERSION__ == 120
 			result = shadow2DProj(shadowmap, co).x;
+#else
+			result = textureProj(shadowmap, co);
+#endif
 		}
 		else {
 			result = 1.0;
@@ -2545,7 +2575,7 @@ void shade_mist_factor(
 	if (enable == 1.0) {
 		float fac, zcor;
 
-		zcor = (gl_ProjectionMatrix[3][3] == 0.0) ? length(co) : -co[2];
+		zcor = (ProjectionMatrix[3][3] == 0.0) ? length(co) : -co[2];
 
 		fac = clamp((zcor - miststa) / mistdist, 0.0, 1.0);
 		if (misttype == 0.0) fac *= fac;
@@ -2761,6 +2791,24 @@ vec3 rotate_vector(vec3 p, vec3 n, float theta) {
 
 #define NUM_LIGHTS 3
 
+#if __VERSION__ > 120
+struct glLight {
+	vec4 position;
+	vec4 diffuse;
+	vec4 specular;
+	vec4 halfVector;
+};
+
+layout(std140) uniform lightSource {
+	glLight glLightSource[NUM_LIGHTS];
+};
+
+#define gl_NormalMatrix NormalMatrix
+
+#else
+#define glLightSource gl_LightSource
+#endif
+
 /* bsdfs */
 
 void node_bsdf_diffuse(vec4 color, float roughness, vec3 N, out vec4 result)
@@ -2770,8 +2818,8 @@ void node_bsdf_diffuse(vec4 color, float roughness, vec3 N, out vec4 result)
 
 	/* directional lights */
 	for (int i = 0; i < NUM_LIGHTS; i++) {
-		vec3 light_position = gl_LightSource[i].position.xyz;
-		vec3 light_diffuse = gl_LightSource[i].diffuse.rgb;
+		vec3 light_position = glLightSource[i].position.xyz;
+		vec3 light_diffuse = glLightSource[i].diffuse.rgb;
 
 		float bsdf = max(dot(N, light_position), 0.0);
 		L += light_diffuse * bsdf;
@@ -2787,10 +2835,10 @@ void node_bsdf_glossy(vec4 color, float roughness, vec3 N, out vec4 result)
 
 	/* directional lights */
 	for (int i = 0; i < NUM_LIGHTS; i++) {
-		vec3 light_position = gl_LightSource[i].position.xyz;
-		vec3 H = gl_LightSource[i].halfVector.xyz;
-		vec3 light_diffuse = gl_LightSource[i].diffuse.rgb;
-		vec3 light_specular = gl_LightSource[i].specular.rgb;
+		vec3 light_position = glLightSource[i].position.xyz;
+		vec3 H = glLightSource[i].halfVector.xyz;
+		vec3 light_diffuse = glLightSource[i].diffuse.rgb;
+		vec3 light_specular = glLightSource[i].specular.rgb;
 
 		/* we mix in some diffuse so low roughness still shows up */
 		float bsdf = 0.5 * pow(max(dot(N, H), 0.0), 1.0 / roughness);
@@ -2861,12 +2909,12 @@ void node_bsdf_principled(vec4 base_color, float subsurface, vec3 subsurface_rad
 
 	/* directional lights */
 	for (int i = 0; i < NUM_LIGHTS; i++) {
-		vec3 light_position_world = gl_LightSource[i].position.xyz;
+		vec3 light_position_world = glLightSource[i].position.xyz;
 		vec3 light_position = normalize(gl_NormalMatrix * light_position_world);
 
 		vec3 H = normalize(light_position + V);
 
-		vec3 light_specular = gl_LightSource[i].specular.rgb;
+		vec3 light_specular = glLightSource[i].specular.rgb;
 
 		float NdotL = dot(N, light_position);
 		float NdotV = dot(N, V);
@@ -2990,14 +3038,29 @@ void node_emission(vec4 color, float strength, vec3 N, out vec4 result)
 
 void background_transform_to_world(vec3 viewvec, out vec3 worldvec)
 {
-	vec4 v = (gl_ProjectionMatrix[3][3] == 0.0) ? vec4(viewvec, 1.0) : vec4(0.0, 0.0, 1.0, 1.0);
-	vec4 co_homogenous = (gl_ProjectionMatrixInverse * v);
+	vec4 v = (ProjectionMatrix[3][3] == 0.0) ? vec4(viewvec, 1.0) : vec4(0.0, 0.0, 1.0, 1.0);
+	vec4 co_homogenous = (ProjectionMatrixInverse * v);
 
 	vec4 co = vec4(co_homogenous.xyz / co_homogenous.w, 0.0);
-	worldvec = (gl_ModelViewMatrixInverse * co).xyz;
+#ifdef WORLD_BACKGROUND
+	worldvec = (ViewMatrixInverse * co).xyz;
+#else
+	worldvec = (ModelViewMatrixInverse * co).xyz;
+#endif
 }
 
-void node_background(vec4 color, float strength, vec3 N, out vec4 result)
+#if defined(PROBE_CAPTURE) || defined(WORLD_BACKGROUND)
+void environment_default_vector(out vec3 worldvec)
+{
+#ifdef WORLD_BACKGROUND
+	background_transform_to_world(viewPosition, worldvec);
+#else
+	worldvec = normalize(worldPosition);
+#endif
+}
+#endif
+
+void node_background(vec4 color, float strength, out vec4 result)
 {
 	result = color * strength;
 }
@@ -3019,7 +3082,7 @@ void node_add_shader(vec4 shader1, vec4 shader2, out vec4 shader)
 void node_fresnel(float ior, vec3 N, vec3 I, out float result)
 {
 	/* handle perspective/orthographic */
-	vec3 I_view = (gl_ProjectionMatrix[3][3] == 0.0) ? normalize(I) : vec3(0.0, 0.0, -1.0);
+	vec3 I_view = (ProjectionMatrix[3][3] == 0.0) ? normalize(I) : vec3(0.0, 0.0, -1.0);
 
 	float eta = max(ior, 0.00001);
 	result = fresnel_dielectric(I_view, N, (gl_FrontFacing) ? eta : 1.0 / eta);
@@ -3031,7 +3094,7 @@ void node_layer_weight(float blend, vec3 N, vec3 I, out float fresnel, out float
 {
 	/* fresnel */
 	float eta = max(1.0 - blend, 0.00001);
-	vec3 I_view = (gl_ProjectionMatrix[3][3] == 0.0) ? normalize(I) : vec3(0.0, 0.0, -1.0);
+	vec3 I_view = (ProjectionMatrix[3][3] == 0.0) ? normalize(I) : vec3(0.0, 0.0, -1.0);
 
 	fresnel = fresnel_dielectric(I_view, N, (gl_FrontFacing) ? 1.0 / eta : eta);
 
@@ -3085,7 +3148,7 @@ void node_geometry(
 	true_normal = normal;
 
 	/* handle perspective/orthographic */
-	vec3 I_view = (gl_ProjectionMatrix[3][3] == 0.0) ? normalize(I) : vec3(0.0, 0.0, -1.0);
+	vec3 I_view = (ProjectionMatrix[3][3] == 0.0) ? normalize(I) : vec3(0.0, 0.0, -1.0);
 	incoming = -(toworld * vec4(I_view, 0.0)).xyz;
 
 	parametric = vec3(0.0);
@@ -3104,7 +3167,7 @@ void node_tex_coord(
 	uv = attr_uv;
 	object = (obinvmat * (viewinvmat * vec4(I, 1.0))).xyz;
 	camera = vec3(I.xy, -I.z);
-	vec4 projvec = gl_ProjectionMatrix * vec4(I, 1.0);
+	vec4 projvec = ProjectionMatrix * vec4(I, 1.0);
 	window = vec3(mtex_2d_mapping(projvec.xyz / projvec.w).xy * camerafac.xy + camerafac.zw, 0.0);
 
 	vec3 shade_I;
@@ -3119,13 +3182,20 @@ void node_tex_coord_background(
         out vec3 generated, out vec3 normal, out vec3 uv, out vec3 object,
         out vec3 camera, out vec3 window, out vec3 reflection)
 {
-	vec4 v = (gl_ProjectionMatrix[3][3] == 0.0) ? vec4(I, 1.0) : vec4(0.0, 0.0, 1.0, 1.0);
-	vec4 co_homogenous = (gl_ProjectionMatrixInverse * v);
+	vec4 v = (ProjectionMatrix[3][3] == 0.0) ? vec4(I, 1.0) : vec4(0.0, 0.0, 1.0, 1.0);
+	vec4 co_homogenous = (ProjectionMatrixInverse * v);
 
 	vec4 co = vec4(co_homogenous.xyz / co_homogenous.w, 0.0);
 
 	co = normalize(co);
-	vec3 coords = (gl_ModelViewMatrixInverse * co).xyz;
+
+#ifdef PROBE_CAPTURE
+	vec3 coords = normalize(worldPosition);
+#elif defined(WORLD_BACKGROUND)
+	vec3 coords = (ViewMatrixInverse * co).xyz;
+#else
+	vec3 coords = (ModelViewMatrixInverse * co).xyz;
+#endif
 
 	generated = coords;
 	normal = -coords;
@@ -3133,12 +3203,16 @@ void node_tex_coord_background(
 	object = coords;
 
 	camera = vec3(co.xy, -co.z);
-	window = (gl_ProjectionMatrix[3][3] == 0.0) ?
+	window = (ProjectionMatrix[3][3] == 0.0) ?
 	         vec3(mtex_2d_mapping(I).xy * camerafac.xy + camerafac.zw, 0.0) :
 	         vec3(vec2(0.5) * camerafac.xy + camerafac.zw, 0.0);
 
 	reflection = -coords;
 }
+
+#if defined(WORLD_BACKGROUND) || defined(PROBE_CAPTURE)
+#define node_tex_coord node_tex_coord_background
+#endif
 
 /* textures */
 
@@ -3285,7 +3359,19 @@ void node_tex_environment_equirectangular(vec3 co, sampler2D ima, float lodbias,
 	float u = -atan(nco.y, nco.x) / (2.0 * M_PI) + 0.5;
 	float v = atan(nco.z, hypot(nco.x, nco.y)) / M_PI + 0.5;
 
+#if __VERSION__ > 120
+	/* Fix pole bleeding */
+	float half_width = 0.5 / float(textureSize(ima, 0).x);
+	v = clamp(v, half_width, 1.0 - half_width);
+
+	/* Fix u = 0 seam */
+	/* This is caused by texture filtering, since uv don't have smooth derivatives
+	 * at u = 0 or 2PI, hardware filtering is using the smallest mipmap for certain
+	 * texels. So we force the highest mipmap and don't do anisotropic filtering. */
+	color = textureLod(ima, vec2(u, v), 0.0);
+#else
 	color = texture2D(ima, vec2(u, v), lodbias);
+#endif
 }
 
 void node_tex_environment_mirror_ball(vec3 co, sampler2D ima, float lodbias, out vec4 color)
@@ -3926,13 +4012,21 @@ void node_light_path(
 	out float transparent_depth,
 	out float transmission_depth)
 {
+#ifndef PROBE_CAPTURE
 	is_camera_ray = 1.0;
-	is_shadow_ray = 0.0;
-	is_diffuse_ray = 0.0;
 	is_glossy_ray = 0.0;
-	is_singular_ray = 0.0;
+	is_diffuse_ray = 0.0;
 	is_reflection_ray = 0.0;
 	is_transmission_ray = 0.0;
+#else
+	is_camera_ray = 0.0;
+	is_glossy_ray = 1.0;
+	is_diffuse_ray = 1.0;
+	is_reflection_ray = 1.0;
+	is_transmission_ray = 1.0;
+#endif
+	is_shadow_ray = 0.0;
+	is_singular_ray = 0.0;
 	ray_length = 1.0;
 	ray_depth = 1.0;
 	diffuse_depth = 1.0;
@@ -3999,7 +4093,7 @@ void node_output_material(vec4 surface, vec4 volume, float displacement, out vec
 
 void node_output_world(vec4 surface, vec4 volume, out vec4 result)
 {
-	result = surface;
+	result = vec4(surface.rgb, 1.0);
 }
 
 void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, mat3 mat, sampler2D ima, float numsteps,
@@ -4071,6 +4165,41 @@ void parallax_out(vec3 texco, vec3 vp, vec4 tangent, vec3 vn, vec3 size, mat3 ma
 
 	ptexcoord = vec3(finaltexuv, texco.z);
 }
+
+void convert_metallic_to_specular(vec4 basecol, float metallic, float specular_fac, out vec4 diffuse, out vec4 f0)
+{
+	vec4 dielectric = vec4(0.034) * specular_fac * 2.0;
+	diffuse = mix(basecol, vec4(0.0), metallic);
+	f0 = mix(dielectric, basecol, metallic);
+}
+
+/* TODO : clean this ifdef mess */
+/* EEVEE output */
+#ifdef PROBE_CAPTURE
+void world_normals_get(out vec3 N)
+{
+	N = gl_FrontFacing ? worldNormal : -worldNormal;
+}
+
+void node_output_metallic(
+        vec4 basecol, float metallic, float specular, float roughness, vec4 emissive, float transp, vec3 normal,
+        float clearcoat, float clearcoat_roughness, vec3 clearcoat_normal,
+        float occlusion, out vec4 result)
+{
+	vec4 diffuse, f0;
+	convert_metallic_to_specular(basecol, metallic, specular, diffuse, f0);
+
+	result = vec4(eevee_surface_lit(normal, diffuse.rgb, f0.rgb, roughness, occlusion) + emissive.rgb, 1.0 - transp);
+}
+
+void node_output_specular(
+        vec4 diffuse, vec4 specular, float roughness, vec4 emissive, float transp, vec3 normal,
+        float clearcoat, float clearcoat_roughness, vec3 clearcoat_normal,
+        float occlusion, out vec4 result)
+{
+	result = vec4(eevee_surface_lit(normal, diffuse.rgb, specular.rgb, roughness, occlusion) + emissive.rgb, 1.0 - transp);
+}
+#endif
 
 /* ********************** matcap style render ******************** */
 

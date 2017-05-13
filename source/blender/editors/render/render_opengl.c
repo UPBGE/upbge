@@ -70,9 +70,9 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "GPU_glew.h"
 #include "GPU_compositing.h"
 #include "GPU_framebuffer.h"
+#include "GPU_matrix.h"
 
 #include "render_intern.h"
 
@@ -91,6 +91,7 @@ typedef struct OGLRender {
 	Main *bmain;
 	Render *re;
 	Scene *scene;
+	SceneLayer *scene_layer;
 
 	View3D *v3d;
 	RegionView3D *rv3d;
@@ -147,17 +148,6 @@ typedef struct OGLRender {
 	double time_start;
 #endif
 } OGLRender;
-
-/* added because v3d is not always valid */
-static unsigned int screen_opengl_layers(OGLRender *oglrender)
-{
-	if (oglrender->v3d) {
-		return oglrender->scene->lay | oglrender->v3d->lay;
-	}
-	else {
-		return oglrender->scene->lay;
-	}
-}
 
 static bool screen_opengl_is_multiview(OGLRender *oglrender)
 {
@@ -274,6 +264,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
 static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 {
 	Scene *scene = oglrender->scene;
+	SceneLayer *sl = oglrender->scene_layer;
 	ARegion *ar = oglrender->ar;
 	View3D *v3d = oglrender->v3d;
 	RegionView3D *rv3d = oglrender->rv3d;
@@ -330,7 +321,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			wmOrtho2(0, sizex, 0, sizey);
-			glTranslatef(sizex / 2, sizey / 2, 0.0f);
+			gpuTranslate2f(sizex / 2, sizey / 2);
 
 			G.f |= G_RENDER_OGL;
 			ED_gpencil_draw_ex(scene, gpd, sizex, sizey, scene->r.cfra, SPACE_SEQ);
@@ -355,7 +346,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 
 		if (view_context) {
 			ibuf_view = ED_view3d_draw_offscreen_imbuf(
-			       scene, v3d, ar, sizex, sizey,
+			       scene, sl, v3d, ar, sizex, sizey,
 			       IB_rect, draw_bgpic,
 			       alpha_mode, oglrender->ofs_samples, oglrender->ofs_full_samples, viewname,
 			       oglrender->fx, oglrender->ofs, err_out);
@@ -367,7 +358,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 		}
 		else {
 			ibuf_view = ED_view3d_draw_offscreen_imbuf_simple(
-			        scene, scene->camera, oglrender->sizex, oglrender->sizey,
+			        scene, sl, scene->camera, oglrender->sizex, oglrender->sizey,
 			        IB_rect, OB_SOLID, false, true, true,
 			        alpha_mode, oglrender->ofs_samples, oglrender->ofs_full_samples, viewname,
 			        oglrender->fx, oglrender->ofs, err_out);
@@ -647,6 +638,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 	oglrender->sizey = sizey;
 	oglrender->bmain = CTX_data_main(C);
 	oglrender->scene = scene;
+	oglrender->scene_layer = CTX_data_scene_layer(C);
 	oglrender->cfrao = scene->r.cfra;
 
 	oglrender->write_still = is_write_still && !is_animation;
@@ -790,7 +782,7 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 
 	if (oglrender->timer) { /* exec will not have a timer */
 		scene->r.cfra = oglrender->cfrao;
-		BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, screen_opengl_layers(oglrender));
+		BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene);
 
 		WM_event_remove_timer(oglrender->wm, oglrender->win, oglrender->timer);
 	}
@@ -1000,12 +992,7 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 	if (CFRA < oglrender->nfra)
 		CFRA++;
 	while (CFRA < oglrender->nfra) {
-		unsigned int lay = screen_opengl_layers(oglrender);
-
-		if (lay & 0xFF000000)
-			lay &= 0xFF000000;
-
-		BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, lay);
+		BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene);
 		CFRA++;
 	}
 
@@ -1027,7 +1014,7 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 
 	WM_cursor_time(oglrender->win, scene->r.cfra);
 
-	BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, screen_opengl_layers(oglrender));
+	BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene);
 
 	if (view_context) {
 		if (oglrender->rv3d->persp == RV3D_CAMOB && oglrender->v3d->camera && oglrender->v3d->scenelock) {

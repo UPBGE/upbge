@@ -45,9 +45,8 @@
 #include "BKE_library_query.h"
 #include "BKE_modifier.h"
 
-#include "depsgraph_private.h"
+#include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
-
 
 static void initData(ModifierData *md)
 {
@@ -90,23 +89,6 @@ static void foreachObjectLink(
 	CurveModifierData *cmd = (CurveModifierData *) md;
 
 	walk(userData, ob, &cmd->object, IDWALK_CB_NOP);
-}
-
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           Scene *UNUSED(scene),
-                           Object *UNUSED(ob),
-                           DagNode *obNode)
-{
-	CurveModifierData *cmd = (CurveModifierData *) md;
-
-	if (cmd->object) {
-		DagNode *curNode = dag_get_node(forest, cmd->object);
-		curNode->eval_flags |= DAG_EVAL_NEED_CURVE_PATH;
-
-		dag_add_relation(forest, curNode, obNode,
-		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Curve Modifier");
-	}
 }
 
 static void updateDepsgraph(ModifierData *md,
@@ -178,7 +160,6 @@ ModifierTypeInfo modifierType_Curve = {
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
-	/* updateDepgraph */    updateDepgraph,
 	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */  NULL,

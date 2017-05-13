@@ -145,9 +145,6 @@ struct ComponentDepsNode : public DepsNode {
 	OperationDepsNode *exit_operation;
 
 	// XXX: a poll() callback to check if component's first node can be started?
-
-	/* Temporary bitmask, used during graph construction. */
-	unsigned int layers;
 };
 
 /* ---------------------------------------- */
@@ -198,6 +195,10 @@ struct ShadingComponentDepsNode : public ComponentDepsNode {
 };
 
 struct CacheComponentDepsNode : public ComponentDepsNode {
+	DEG_DEPSNODE_DECLARE;
+};
+
+struct LayerCollectionsDepsNode : public ComponentDepsNode {
 	DEG_DEPSNODE_DECLARE;
 };
 

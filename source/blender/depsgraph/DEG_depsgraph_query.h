@@ -36,6 +36,8 @@
 struct ID;
 
 struct Depsgraph;
+struct Iterator;
+struct SceneLayer;
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,6 +48,31 @@ bool DEG_id_type_tagged(struct Main *bmain, short idtype);
 
 /* Get additional evaluation flags for the given ID. */
 short DEG_get_eval_flags_for_id(struct Depsgraph *graph, struct ID *id);
+
+/* Get scene the despgraph is created for. */
+struct Scene *DAG_get_scene(struct Depsgraph *graph);
+
+/* Get scene layer the despgraph is created for. */
+struct SceneLayer *DAG_get_scene_layer(struct Depsgraph *graph);
+
+/* Get the object as properly evaluated by depsgraph. */
+struct Object *DAG_get_object(struct Depsgraph *depsgraph, struct Object *ob);
+
+/* ************************ DAG iterators ********************* */
+
+void DAG_objects_iterator_begin(struct Iterator *iter, void *data_in);
+void DAG_objects_iterator_next(struct Iterator *iter);
+void DAG_objects_iterator_end(struct Iterator *iter);
+
+/* Temporary hacky solution waiting for cow depsgrpah implementation. */
+#define DEG_OBJECT_ITER(graph_, instance_)                                    \
+	ITER_BEGIN(DAG_objects_iterator_begin,                                    \
+	           DAG_objects_iterator_next,                                     \
+	           DAG_objects_iterator_end,                                      \
+	           graph_, Object *, instance_)
+
+#define DEG_OBJECT_ITER_END                                                   \
+	ITER_END
 
 #ifdef __cplusplus
 } /* extern "C" */

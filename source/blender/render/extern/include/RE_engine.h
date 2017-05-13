@@ -39,6 +39,9 @@
 
 struct bNode;
 struct bNodeTree;
+struct Depsgraph;
+struct IDProperty;
+struct Main;
 struct Object;
 struct Render;
 struct RenderData;
@@ -63,6 +66,7 @@ struct BakePixel;
 #define RE_USE_TEXTURE_PREVIEW		128
 #define RE_USE_SHADING_NODES_CUSTOM 	256
 #define RE_USE_SPHERICAL_STEREO 512
+#define RE_USE_LEGACY_PIPELINE	1024 /* XXX Temporary flag, to be removed once draw manager is finished. */
 
 /* RenderEngine.flag */
 #define RE_ENGINE_ANIMATION		1
@@ -88,15 +92,22 @@ typedef struct RenderEngineType {
 	char name[64];
 	int flag;
 
-	void (*update)(struct RenderEngine *engine, struct Main *bmain, struct Scene *scene);
-	void (*render)(struct RenderEngine *engine, struct Scene *scene);
-	void (*bake)(struct RenderEngine *engine, struct Scene *scene, struct Object *object, const int pass_type, const int pass_filter, const int object_id, const struct BakePixel *pixel_array, const int num_pixels, const int depth, void *result);
+	void (*update)(struct RenderEngine *engine, struct Main *bmain, struct Depsgraph *depsgraph, struct Scene *scene);
+	void (*render_to_image)(struct RenderEngine *engine, struct Depsgraph *depsgraph);
+	void (*bake)(struct RenderEngine *engine, struct Scene *scene, struct Object *object, const int pass_type,
+	             const int pass_filter, const int object_id, const struct BakePixel *pixel_array, const int num_pixels,
+	             const int depth, void *result);
 
 	void (*view_update)(struct RenderEngine *engine, const struct bContext *context);
-	void (*view_draw)(struct RenderEngine *engine, const struct bContext *context);
+	void (*render_to_view)(struct RenderEngine *engine, const struct bContext *context);
 
 	void (*update_script_node)(struct RenderEngine *engine, struct bNodeTree *ntree, struct bNode *node);
 	void (*update_render_passes)(struct RenderEngine *engine, struct Scene *scene, struct SceneRenderLayer *srl);
+
+	void (*collection_settings_create)(struct RenderEngine *engine, struct IDProperty *props);
+	void (*render_settings_create)(struct RenderEngine *engine, struct IDProperty *props);
+
+	struct DrawEngineType *draw_engine;
 
 	/* RNA integration */
 	ExtensionRNA ext;
@@ -169,12 +180,14 @@ void RE_engine_register_pass(struct RenderEngine *engine, struct Scene *scene, s
 
 void RE_engines_init(void);
 void RE_engines_exit(void);
+void RE_engines_register(struct Main *bmain, RenderEngineType *render_type);
 
 RenderEngineType *RE_engines_find(const char *idname);
 
 rcti* RE_engine_get_current_tiles(struct Render *re, int *r_total_tiles, bool *r_needs_free);
 struct RenderData *RE_engine_get_render_data(struct Render *re);
-void RE_bake_engine_set_engine_parameters(struct Render *re, struct Main *bmain, struct Scene *scene);
+void RE_bake_engine_set_engine_parameters(
+        struct Render *re, struct Main *bmain, struct Depsgraph *graph, struct Scene *scene);
 
 #endif /* __RE_ENGINE_H__ */
 

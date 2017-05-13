@@ -204,7 +204,7 @@ bGPdata *ED_gpencil_data_get_active(const bContext *C)
 // XXX: this should be removed... We really shouldn't duplicate logic like this!
 bGPdata *ED_gpencil_data_get_active_v3d(Scene *scene, View3D *v3d)
 {
-	Base *base = scene->basact;
+	BaseLegacy *base = scene->basact;
 	bGPdata *gpd = NULL;
 	/* We have to make sure active object is actually visible and selected, else we must use default scene gpd,
 	 * to be consistent with ED_gpencil_data_get_active's behavior.
@@ -521,6 +521,7 @@ void gp_point_conversion_init(bContext *C, GP_SpaceConversion *r_gsc)
 	if (sa->spacetype == SPACE_VIEW3D) {
 		wmWindow *win = CTX_wm_window(C);
 		Scene *scene = CTX_data_scene(C);
+		struct Depsgraph *graph = CTX_data_depsgraph(C);
 		View3D *v3d = (View3D *)CTX_wm_space_data(C);
 		RegionView3D *rv3d = ar->regiondata;
 		
@@ -528,7 +529,7 @@ void gp_point_conversion_init(bContext *C, GP_SpaceConversion *r_gsc)
 		view3d_operator_needs_opengl(C);
 		
 		view3d_region_operator_needs_opengl(win, ar);
-		ED_view3d_autodist_init(scene, ar, v3d, 0);
+		ED_view3d_autodist_init(graph, ar, v3d, 0);
 		
 		/* for camera view set the subrect */
 		if (rv3d->persp == RV3D_CAMOB) {
@@ -868,8 +869,8 @@ bool gp_smooth_stroke_thickness(bGPDstroke *gps, int i, float inf)
 	ptc = &gps->points[after];
 
 	/* the optimal value is the corresponding to the interpolation of the pressure
-	*  at the distance of point b
-	*/
+	 *  at the distance of point b
+	 */
 	float fac = line_point_factor_v3(&ptb->x, &pta->x, &ptc->x);
 	float optimal = (1.0f - fac) * pta->pressure + fac * ptc->pressure;
 

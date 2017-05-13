@@ -45,6 +45,7 @@ struct GHash;
 struct GSet;
 struct PointerRNA;
 struct PropertyRNA;
+struct Scene;
 
 namespace DEG {
 
@@ -172,12 +173,9 @@ struct Depsgraph {
 	 */
 	SpinLock lock;
 
-	/* Layers Visibility .................. */
-
-	/* Visible layers bitfield, used for skipping invisible objects updates. */
-	unsigned int layers;
-
 	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
+
+	Scene *scene; /* XXX: We really shouldn't do that, but it's required for shader preview */
 };
 
 }  // namespace DEG

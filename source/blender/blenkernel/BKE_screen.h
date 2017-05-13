@@ -49,6 +49,7 @@ struct bScreen;
 struct uiLayout;
 struct uiList;
 struct wmKeyConfig;
+struct wmManipulatorMap;
 struct wmNotifier;
 struct wmWindow;
 struct wmWindowManager;
@@ -81,7 +82,8 @@ typedef struct SpaceType {
 	/* exit is called when the area is hidden or removed */
 	void (*exit)(struct wmWindowManager *, struct ScrArea *);
 	/* Listeners can react to bContext changes */
-	void (*listener)(struct bScreen *sc, struct ScrArea *, struct wmNotifier *);
+	void (*listener)(struct bScreen *sc, struct ScrArea *,
+	                 struct wmNotifier *, const struct Scene *scene);
 	
 	/* refresh context, called after filereads, ED_area_tag_refresh() */
 	void (*refresh)(const struct bContext *, struct ScrArea *);
@@ -95,6 +97,9 @@ typedef struct SpaceType {
 	void (*keymap)(struct wmKeyConfig *);
 	/* on startup, define dropboxes for spacetype+regions */
 	void (*dropboxes)(void);
+
+	/* initialize manipulator-map-types and manipulator-group-types with the region */
+	void (*manipulators)(void);
 
 	/* return context data */
 	int (*context)(const struct bContext *, const char *, struct bContextDataResult *);
@@ -129,8 +134,9 @@ typedef struct ARegionType {
 	/* draw entirely, view changes should be handled here */
 	void (*draw)(const struct bContext *, struct ARegion *);
 	/* contextual changes should be handled here */
-	void (*listener)(struct bScreen *sc, struct ScrArea *, struct ARegion *, struct wmNotifier *);
-	
+	void (*listener)(struct bScreen *, struct ScrArea *, struct ARegion *,
+	                 struct wmNotifier *, const struct Scene *scene);
+
 	void (*free)(struct ARegion *);
 
 	/* split region, copy data optionally */
@@ -284,6 +290,8 @@ void BKE_spacedata_id_unref(struct ScrArea *sa, struct SpaceLink *sl, struct ID 
 struct ARegion *BKE_area_region_copy(struct SpaceType *st, struct ARegion *ar);
 void            BKE_area_region_free(struct SpaceType *st, struct ARegion *ar);
 void            BKE_screen_area_free(struct ScrArea *sa);
+/* Manipulator-maps of a region need to be freed with the region. Uses callback to avoid low-level call. */
+void BKE_region_callback_free_manipulatormap_set(void (*callback)(struct wmManipulatorMap *));
 
 struct ARegion *BKE_area_find_region_type(struct ScrArea *sa, int type);
 struct ARegion *BKE_area_find_region_active_win(struct ScrArea *sa);

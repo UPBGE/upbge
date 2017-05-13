@@ -56,7 +56,7 @@
 #include "BLF_api.h"
 
 #ifndef BLF_STANDALONE
-#include "GPU_basic_shader.h"
+#include "GPU_immediate.h"
 #endif
 
 #include "blf_internal_types.h"
@@ -183,18 +183,7 @@ static void blf_glyph_cache_texture(FontBLF *font, GlyphCacheBLF *gc)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-#ifndef BLF_STANDALONE
-	/* needed since basic shader doesn't support alpha-only textures,
-	 * while we could add support this is only used in a few places
-	 * (an alternative could be to have a simple shader for BLF). */
-	if (GLEW_ARB_texture_swizzle && GPU_basic_shader_use_glsl_get()) {
-		GLint swizzle_mask[] = {GL_ONE, GL_ONE, GL_ONE, GL_ALPHA};
-		glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
-	}
-#endif
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA8, gc->p2_width, gc->p2_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, gc->p2_width, gc->p2_height, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
 }
 
 GlyphBLF *blf_glyph_search(GlyphCacheBLF *gc, unsigned int c)
@@ -327,73 +316,83 @@ void blf_glyph_free(GlyphBLF *g)
 	MEM_freeN(g);
 }
 
-static void blf_texture_draw(float uv[2][2], float dx, float y1, float dx1, float y2)
+static void blf_texture_draw(const unsigned char color[4], float uv[2][2], float dx, float y1, float dx1, float y2)
 {
-	glBegin(GL_QUADS);
-	glTexCoord2f(uv[0][0], uv[0][1]);
-	glVertex2f(dx, y1);
-	
-	glTexCoord2f(uv[0][0], uv[1][1]);
-	glVertex2f(dx, y2);
-	
-	glTexCoord2f(uv[1][0], uv[1][1]);
-	glVertex2f(dx1, y2);
-	
-	glTexCoord2f(uv[1][0], uv[0][1]);
-	glVertex2f(dx1, y1);
-	glEnd();
+	/* First triangle. */
+	immAttrib2f(BLF_COORD_ID, uv[0][0], uv[0][1]);
+	immSkipAttrib(BLF_COLOR_ID); /* skip color of most vertices */
+	immVertex2f(BLF_POS_ID, dx, y1);
+
+	immAttrib2f(BLF_COORD_ID, uv[0][0], uv[1][1]);
+	immSkipAttrib(BLF_COLOR_ID);
+	immVertex2f(BLF_POS_ID, dx, y2);
+
+	immAttrib2f(BLF_COORD_ID, uv[1][0], uv[1][1]);
+	immAttrib4ubv(BLF_COLOR_ID, color); /* set color of provoking vertex */
+	immVertex2f(BLF_POS_ID, dx1, y2);
+
+	/* Second triangle. */
+	immAttrib2f(BLF_COORD_ID, uv[0][0], uv[0][1]);
+	immSkipAttrib(BLF_COLOR_ID); /* skip color of most vertices */
+	immVertex2f(BLF_POS_ID, dx, y1);
+
+	immAttrib2f(BLF_COORD_ID, uv[1][0], uv[1][1]);
+	immSkipAttrib(BLF_COLOR_ID);
+	immVertex2f(BLF_POS_ID, dx1, y2);
+
+	immAttrib2f(BLF_COORD_ID, uv[1][0], uv[0][1]);
+	immAttrib4ubv(BLF_COLOR_ID, color); /* set color of provoking vertex */
+	immVertex2f(BLF_POS_ID, dx1, y1);
 }
 
-static void blf_texture5_draw(const float shadow_col[4], float uv[2][2], float x1, float y1, float x2, float y2)
+static void blf_texture5_draw(const unsigned char color_in[4], float uv[2][2], float x1, float y1, float x2, float y2)
 {
 	const float soft[25] = {1 / 60.0f, 1 / 60.0f, 2 / 60.0f, 1 / 60.0f, 1 / 60.0f,
 	                        1 / 60.0f, 3 / 60.0f, 5 / 60.0f, 3 / 60.0f, 1 / 60.0f,
 	                        2 / 60.0f, 5 / 60.0f, 8 / 60.0f, 5 / 60.0f, 2 / 60.0f,
 	                        1 / 60.0f, 3 / 60.0f, 5 / 60.0f, 3 / 60.0f, 1 / 60.0f,
 	                        1 / 60.0f, 1 / 60.0f, 2 / 60.0f, 1 / 60.0f, 1 / 60.0f};
-	
+
 	const float *fp = soft;
-	float color[4];
+	unsigned char color[4];
 	float dx, dy;
 
-	color[0] = shadow_col[0];
-	color[1] = shadow_col[1];
-	color[2] = shadow_col[2];
-	
+	color[0] = color_in[0];
+	color[1] = color_in[1];
+	color[2] = color_in[2];
+
+	const float alpha_in = (1 / 255.0f) * color_in[3];
+
 	for (dx = -2; dx < 3; dx++) {
 		for (dy = -2; dy < 3; dy++, fp++) {
-			color[3] = *(fp) * shadow_col[3];
-			glColor4fv(color);
-			blf_texture_draw(uv, x1 + dx, y1 + dy, x2 + dx, y2 + dy);
+			color[3] = FTOCHAR(*fp * alpha_in);
+			blf_texture_draw(color, uv, x1 + dx, y1 + dy, x2 + dx, y2 + dy);
 		}
 	}
-	
-	glColor4fv(color);
 }
 
-static void blf_texture3_draw(const float shadow_col[4], float uv[2][2], float x1, float y1, float x2, float y2)
+static void blf_texture3_draw(const unsigned char color_in[4], float uv[2][2], float x1, float y1, float x2, float y2)
 {
 	const float soft[9] = {1 / 16.0f, 2 / 16.0f, 1 / 16.0f,
 	                       2 / 16.0f, 4 / 16.0f, 2 / 16.0f,
 	                       1 / 16.0f, 2 / 16.0f, 1 / 16.0f};
 
 	const float *fp = soft;
-	float color[4];
+	unsigned char color[4];
 	float dx, dy;
 
-	color[0] = shadow_col[0];
-	color[1] = shadow_col[1];
-	color[2] = shadow_col[2];
+	color[0] = color_in[0];
+	color[1] = color_in[1];
+	color[2] = color_in[2];
+
+	const float alpha_in = (1 / 255.0f) * color_in[3];
 
 	for (dx = -1; dx < 2; dx++) {
 		for (dy = -1; dy < 2; dy++, fp++) {
-			color[3] = *(fp) * shadow_col[3];
-			glColor4fv(color);
-			blf_texture_draw(uv, x1 + dx, y1 + dy, x2 + dx, y2 + dy);
+			color[3] = FTOCHAR(*fp * alpha_in);
+			blf_texture_draw(color, uv, x1 + dx, y1 + dy, x2 + dx, y2 + dy);
 		}
 	}
-	
-	glColor4fv(color);
 }
 
 static void blf_glyph_calc_rect(rctf *rect, GlyphBLF *g, float x, float y)
@@ -450,14 +449,21 @@ void blf_glyph_render(FontBLF *font, GlyphBLF *g, float x, float y)
 		}
 
 
-		glPushClientAttrib(GL_CLIENT_PIXEL_STORE_BIT);
+		GLint lsb_first, row_length, alignment;
+		glGetIntegerv(GL_UNPACK_LSB_FIRST, &lsb_first);
+		glGetIntegerv(GL_UNPACK_ROW_LENGTH, &row_length);
+		glGetIntegerv(GL_UNPACK_ALIGNMENT, &alignment);
+
 		glPixelStorei(GL_UNPACK_LSB_FIRST, GL_FALSE);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 		glBindTexture(GL_TEXTURE_2D, g->tex);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, g->xoff, g->yoff, g->width, g->height, GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap);
-		glPopClientAttrib();
+		glTexSubImage2D(GL_TEXTURE_2D, 0, g->xoff, g->yoff, g->width, g->height, GL_RED, GL_UNSIGNED_BYTE, g->bitmap);
+
+		glPixelStorei(GL_UNPACK_LSB_FIRST, lsb_first);
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
 
 		g->uv[0][0] = ((float)g->xoff) / ((float)gc->p2_width);
 		g->uv[0][1] = ((float)g->yoff) / ((float)gc->p2_height);
@@ -487,39 +493,37 @@ void blf_glyph_render(FontBLF *font, GlyphBLF *g, float x, float y)
 		glBindTexture(GL_TEXTURE_2D, (font->tex_bind_state = g->tex));
 	}
 
+	/* TODO: blur & shadow in shader, single quad per glyph */
+
 	if (font->flags & BLF_SHADOW) {
 		rctf rect_ofs;
 		blf_glyph_calc_rect(&rect_ofs, g,
 		                    x + (float)font->shadow_x,
 		                    y + (float)font->shadow_y);
 
-		switch (font->shadow) {
-			case 3:
-				blf_texture3_draw(font->shadow_col, g->uv, rect_ofs.xmin, rect_ofs.ymin, rect_ofs.xmax, rect_ofs.ymax);
-				break;
-			case 5:
-				blf_texture5_draw(font->shadow_col, g->uv, rect_ofs.xmin, rect_ofs.ymin, rect_ofs.xmax, rect_ofs.ymax);
-				break;
-			default:
-				glColor4fv(font->shadow_col);
-				blf_texture_draw(g->uv, rect_ofs.xmin, rect_ofs.ymin, rect_ofs.xmax, rect_ofs.ymax);
-				break;
+		if (font->shadow == 0) {
+			blf_texture_draw(font->shadow_color, g->uv, rect_ofs.xmin, rect_ofs.ymin, rect_ofs.xmax, rect_ofs.ymax);
 		}
-
-		glColor4fv(font->orig_col);
+		else if (font->shadow <= 4) {
+			blf_texture3_draw(font->shadow_color, g->uv, rect_ofs.xmin, rect_ofs.ymin, rect_ofs.xmax, rect_ofs.ymax);
+		}
+		else {
+			blf_texture5_draw(font->shadow_color, g->uv, rect_ofs.xmin, rect_ofs.ymin, rect_ofs.xmax, rect_ofs.ymax);
+		}
 	}
 
+#if BLF_BLUR_ENABLE
 	switch (font->blur) {
 		case 3:
-			blf_texture3_draw(font->orig_col, g->uv, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+			blf_texture3_draw(font->color, g->uv, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
 			break;
 		case 5:
-			blf_texture5_draw(font->orig_col, g->uv, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+			blf_texture5_draw(font->color, g->uv, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
 			break;
 		default:
-			blf_texture_draw(g->uv, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
-			break;
+			blf_texture_draw(font->color, g->uv, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
 	}
-
-	return;
+#else
+	blf_texture_draw(font->color, g->uv, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+#endif
 }

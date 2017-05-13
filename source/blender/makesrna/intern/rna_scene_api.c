@@ -86,8 +86,7 @@ static void rna_Scene_frame_set(Scene *scene, int frame, float subframe)
 	BPy_BEGIN_ALLOW_THREADS;
 #endif
 
-	/* It's possible that here we're including layers which were never visible before. */
-	BKE_scene_update_for_newframe_ex(G.main->eval_ctx, G.main, scene, (1 << 20) - 1, true);
+	BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, scene);
 
 #ifdef WITH_PYTHON
 	BPy_END_ALLOW_THREADS;
@@ -153,14 +152,14 @@ static void rna_SceneRender_get_frame_path(RenderData *rd, int frame, int previe
 }
 
 static void rna_Scene_ray_cast(
-        Scene *scene, float origin[3], float direction[3], float ray_dist,
+        Scene *scene, SceneLayer *sl, float origin[3], float direction[3], float ray_dist,
         int *r_success, float r_location[3], float r_normal[3], int *r_index,
         Object **r_ob, float r_obmat[16])
 {
 	normalize_v3(direction);
 
 	SnapObjectContext *sctx = ED_transform_snap_object_context_create(
-	        G.main, scene, 0);
+	        G.main, scene, sl, 0);
 
 	bool ret = ED_transform_snap_object_project_ray_ex(
 	        sctx,
@@ -270,6 +269,7 @@ static void rna_Scene_alembic_export(
 /* Note: This definition must match to the generated function call */
 static void rna_Scene_collada_export(
         Scene *scene,
+        bContext *C,
         const char *filepath, 
         int apply_modifiers,
 
@@ -293,6 +293,7 @@ static void rna_Scene_collada_export(
         int keep_bind_info)
 {
 	collada_export(scene,
+		CTX_data_scene_layer(C),
 		filepath,
 
 		apply_modifiers,
@@ -350,6 +351,8 @@ void RNA_api_scene(StructRNA *srna)
 	/* Ray Cast */
 	func = RNA_def_function(srna, "ray_cast", "rna_Scene_ray_cast");
 	RNA_def_function_ui_description(func, "Cast a ray onto in object space");
+	parm = RNA_def_pointer(func, "scene_layer", "SceneLayer", "", "Scene Layer");
+	RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 	/* ray start and end */
 	parm = RNA_def_float_vector(func, "origin", 3, NULL, -FLT_MAX, FLT_MAX, "", "", -1e4, 1e4);
 	RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
@@ -435,6 +438,8 @@ void RNA_api_scene(StructRNA *srna)
 	RNA_def_boolean(func, "keep_bind_info", false,
 	                "Keep Bind Info",
 	                "Store bind pose information in custom bone properties for later use during Collada export");
+
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 
 #endif
 

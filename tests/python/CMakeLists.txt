@@ -475,3 +475,5 @@ if(WITH_ALEMBIC)
 		)
 	endif()
 endif()
+
+add_subdirectory(render_layer)

@@ -180,6 +180,18 @@ typedef enum eMotionPaths_BakeFlag {
 	MOTIONPATH_BAKE_HAS_PATHS       = (1 << 2)
 } eMotionPath_BakeFlag;
 
+/* runtime */
+#
+#
+typedef struct bPoseChannelDrawData {
+	float solid_color[4];
+	float wire_color[4];
+
+	int bbone_matrix_len;
+	/* keep last */
+	float bbone_matrix[0][4][4];
+} bPoseChannelDrawData;
+
 /* ************************************************ */
 /* Poses */
 
@@ -238,6 +250,8 @@ typedef struct bPoseChannel {
 	float chan_mat[4][4];           /* matrix result of loc/quat/size, and where we put deform in, see next line */
 	float pose_mat[4][4];           /* constraints accumulate here. in the end, pose_mat = bone->arm_mat * chan_mat
 	                                 * this matrix is object space */
+	float disp_mat[4][4];           /* for display, pose_mat with bone length applied */
+	float disp_tail_mat[4][4];      /* for display, pose_mat with bone length applied and translated to tail*/
 	float constinv[4][4];           /* inverse result of constraints.
 	                                 * doesn't include effect of restposition, parent, and local transform*/
 	
@@ -258,8 +272,10 @@ typedef struct bPoseChannel {
 	
 	struct bPoseChannel *bbone_prev; /* next/prev bones to use as handle references when calculating bbones (optional) */
 	struct bPoseChannel *bbone_next;
-	
+
 	void        *temp;              /* use for outliner */
+	/* Runtime data for color and bbone segment matrix. */
+	bPoseChannelDrawData *draw_data;
 } bPoseChannel;
 
 

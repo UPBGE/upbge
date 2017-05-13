@@ -51,7 +51,7 @@ class SimpleImportTest(unittest.TestCase):
 
         # The objects should be linked to scene_collection in Blender 2.8,
         # and to scene in Blender 2.7x.
-        objects = bpy.context.scene.objects
+        objects = bpy.context.scene_collection.objects
         self.assertEqual(13, len(objects))
 
         # Test the hierarchy.
@@ -83,7 +83,7 @@ class SimpleImportTest(unittest.TestCase):
 
         # All cubes should be selected, but the sphere shouldn't be.
         for ob in bpy.data.objects:
-            self.assertEqual('Cube' in ob.name, ob.select)
+            self.assertEqual('Cube' in ob.name, ob.select_get())
 
     def test_change_path_constraint(self):
         import math

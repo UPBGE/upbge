@@ -72,7 +72,6 @@ extern "C" {
 #include "BKE_animsys.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
-#include "BKE_depsgraph.h"
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_idcode.h"
@@ -125,7 +124,7 @@ static void modifier_walk(void *user_data,
 {
 	BuilderWalkUserData *data = (BuilderWalkUserData *)user_data;
 	if (*obpoin) {
-		data->builder->build_object(data->scene, NULL, *obpoin);
+		data->builder->build_object(data->scene, *obpoin);
 	}
 }
 
@@ -138,7 +137,7 @@ void constraint_walk(bConstraint * /*con*/,
 	if (*idpoin) {
 		ID *id = *idpoin;
 		if (GS(id->name) == ID_OB) {
-			data->builder->build_object(data->scene, NULL, (Object *)id);
+			data->builder->build_object(data->scene, (Object *)id);
 		}
 	}
 }
@@ -337,9 +336,7 @@ void DepsgraphNodeBuilder::begin_build(Main *bmain) {
 	} FOREACH_NODETREE_END
 }
 
-void DepsgraphNodeBuilder::build_group(Scene *scene,
-                                       Base *base,
-                                       Group *group)
+void DepsgraphNodeBuilder::build_group(Scene *scene, Group *group)
 {
 	ID *group_id = &group->id;
 	if (group_id->tag & LIB_TAG_DOIT) {
@@ -348,7 +345,7 @@ void DepsgraphNodeBuilder::build_group(Scene *scene,
 	group_id->tag |= LIB_TAG_DOIT;
 
 	LINKLIST_FOREACH (GroupObject *, go, &group->gobject) {
-		build_object(scene, base, go->ob);
+		build_object(scene, go->ob);
 	}
 }
 
@@ -387,35 +384,23 @@ SubgraphDepsNode *DepsgraphNodeBuilder::build_subgraph(Group *group)
 	return subgraph_node;
 }
 
-void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
+void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 {
-	const bool has_object = (ob->id.tag & LIB_TAG_DOIT);
-	IDDepsNode *id_node = (has_object)
-	        ? m_graph->find_id_node(&ob->id)
-	        : add_id_node(&ob->id);
-	/* Update node layers.
-	 * Do it for both new and existing ID nodes. This is so because several
-	 * bases might be sharing same object.
-	 */
-	if (base != NULL) {
-		id_node->layers |= base->lay;
-	}
-	if (ob == scene->camera) {
-		/* Camera should always be updated, it used directly by viewport. */
-		id_node->layers |= (unsigned int)(-1);
-	}
 	/* Skip rest of components if the ID node was already there. */
-	if (has_object) {
+	if (ob->id.tag & LIB_TAG_DOIT) {
 		return;
 	}
 	ob->id.tag |= LIB_TAG_DOIT;
+
+	/* Create ID node for obejct and begin init. */
+	IDDepsNode *id_node = add_id_node(&ob->id);
 	ob->customdata_mask = 0;
 
 	/* Standard components. */
 	build_object_transform(scene, ob);
 
 	if (ob->parent != NULL) {
-		build_object(scene, NULL, ob->parent);
+		build_object(scene, ob->parent);
 	}
 	if (ob->modifiers.first != NULL) {
 		BuilderWalkUserData data;
@@ -502,12 +487,12 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	/* Object that this is a proxy for. */
 	if (ob->proxy) {
 		ob->proxy->proxy_from = ob;
-		build_object(scene, base, ob->proxy);
+		build_object(scene, ob->proxy);
 	}
 
 	/* Object dupligroup. */
 	if (ob->dup_group != NULL) {
-		build_group(scene, base, ob->dup_group);
+		build_group(scene, ob->dup_group);
 	}
 }
 
@@ -951,13 +936,13 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			 */
 			Curve *cu = (Curve *)obdata;
 			if (cu->bevobj != NULL) {
-				build_object(scene, NULL, cu->bevobj);
+				build_object(scene, cu->bevobj);
 			}
 			if (cu->taperobj != NULL) {
-				build_object(scene, NULL, cu->taperobj);
+				build_object(scene, cu->taperobj);
 			}
 			if (ob->type == OB_FONT && cu->textoncurve != NULL) {
-				build_object(scene, NULL, cu->textoncurve);
+				build_object(scene, cu->textoncurve);
 			}
 			break;
 		}

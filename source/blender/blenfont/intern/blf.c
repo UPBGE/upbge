@@ -50,13 +50,14 @@
 #include "BLI_math.h"
 #include "BLI_threads.h"
 
-#include "BIF_gl.h"
 #include "BLF_api.h"
 
 #include "IMB_colormanagement.h"
 
 #ifndef BLF_STANDALONE
-#include "GPU_basic_shader.h"
+#include "GPU_shader.h"
+#include "GPU_matrix.h"
+#include "GPU_immediate.h"
 #endif
 
 #include "blf_internal_types.h"
@@ -172,6 +173,12 @@ void BLF_default_set(int fontid)
 	if (font || fontid == -1) {
 		global_font_default = fontid;
 	}
+}
+
+int BLF_default(void)
+{
+	ASSERT_DEFAULT_SET;
+	return global_font_default;
 }
 
 int BLF_load(const char *name)
@@ -357,24 +364,6 @@ void BLF_disable(int fontid, int option)
 	}
 }
 
-void BLF_enable_default(int option)
-{
-	FontBLF *font = blf_get(global_font_default);
-
-	if (font) {
-		font->flags |= option;
-	}
-}
-
-void BLF_disable_default(int option)
-{
-	FontBLF *font = blf_get(global_font_default);
-
-	if (font) {
-		font->flags &= ~option;
-	}
-}
-
 void BLF_aspect(int fontid, float x, float y, float z)
 {
 	FontBLF *font = blf_get(fontid);
@@ -453,6 +442,7 @@ void BLF_size(int fontid, int size, int dpi)
 	}
 }
 
+#if BLF_BLUR_ENABLE
 void BLF_blur(int fontid, int size)
 {
 	FontBLF *font = blf_get(fontid);
@@ -460,6 +450,77 @@ void BLF_blur(int fontid, int size)
 	if (font) {
 		font->blur = size;
 	}
+}
+#endif
+
+void BLF_color4ubv(int fontid, const unsigned char rgba[4])
+{
+	FontBLF *font = blf_get(fontid);
+
+	if (font) {
+		font->color[0] = rgba[0];
+		font->color[1] = rgba[1];
+		font->color[2] = rgba[2];
+		font->color[3] = rgba[3];
+	}
+}
+
+void BLF_color3ubv_alpha(int fontid, const unsigned char rgb[3], unsigned char alpha)
+{
+	FontBLF *font = blf_get(fontid);
+
+	if (font) {
+		font->color[0] = rgb[0];
+		font->color[1] = rgb[1];
+		font->color[2] = rgb[2];
+		font->color[3] = alpha;
+	}
+}
+
+void BLF_color3ubv(int fontid, const unsigned char rgb[3])
+{
+	BLF_color3ubv_alpha(fontid, rgb, 255);
+}
+
+void BLF_color3ub(int fontid, unsigned char r, unsigned char g, unsigned char b)
+{
+	FontBLF *font = blf_get(fontid);
+
+	if (font) {
+		font->color[0] = r;
+		font->color[1] = g;
+		font->color[2] = b;
+		font->color[3] = 255;
+	}
+}
+
+void BLF_color4fv(int fontid, const float rgba[4])
+{
+	FontBLF *font = blf_get(fontid);
+
+	if (font) {
+		rgba_float_to_uchar(font->color, rgba);
+	}
+}
+
+void BLF_color4f(int fontid, float r, float g, float b, float a)
+{
+	float rgba[4] = { r, g, b, a };
+	BLF_color4fv(fontid, rgba);
+}
+
+void BLF_color3fv_alpha(int fontid, const float rgb[3], float alpha)
+{
+	float rgba[4];
+	copy_v3_v3(rgba, rgb);
+	rgba[3] = alpha;
+	BLF_color4fv(fontid, rgba);
+}
+
+void BLF_color3f(int fontid, float r, float g, float b)
+{
+	float rgba[4] = { r, g, b, 1.0f };
+	BLF_color4fv(fontid, rgba);
 }
 
 void BLF_draw_default(float x, float y, float z, const char *str, size_t len)
@@ -481,16 +542,7 @@ void BLF_draw_default_ascii(float x, float y, float z, const char *str, size_t l
 	BLF_draw_ascii(global_font_default, str, len); /* XXX, use real length */
 }
 
-void BLF_rotation_default(float angle)
-{
-	FontBLF *font = blf_get(global_font_default);
-
-	if (font) {
-		font->angle = angle;
-	}
-}
-
-static void blf_draw_gl__start(FontBLF *font, GLint *mode)
+static void blf_draw_gl__start(FontBLF *font)
 {
 	/*
 	 * The pixmap alignment hack is handle
@@ -500,52 +552,44 @@ static void blf_draw_gl__start(FontBLF *font, GLint *mode)
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-#ifndef BLF_STANDALONE
-	GPU_basic_shader_bind(GPU_SHADER_TEXTURE_2D | GPU_SHADER_USE_COLOR);
-#endif
-
-	/* Save the current matrix mode. */
-	glGetIntegerv(GL_MATRIX_MODE, mode);
-
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glLoadIdentity();
-
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
+	gpuPushMatrix();
 
 	if (font->flags & BLF_MATRIX)
-		glMultMatrixf(font->m);
+		gpuMultMatrix(font->m);
 
-	glTranslate3fv(font->pos);
+	gpuTranslate3fv(font->pos);
 
 	if (font->flags & BLF_ASPECT)
-		glScalef(font->aspect[0], font->aspect[1], font->aspect[2]);
+		gpuScale3fv(font->aspect);
 
-	if (font->flags & BLF_ROTATION)  /* radians -> degrees */
-		glRotatef(font->angle * (float)(180.0 / M_PI), 0.0f, 0.0f, 1.0f);
+	if (font->flags & BLF_ROTATION)
+		gpuRotate2D(RAD2DEG(font->angle));
 
-	if (font->shadow || font->blur)
-		glGetFloatv(GL_CURRENT_COLOR, font->orig_col);
+#ifndef BLF_STANDALONE
+	VertexFormat *format = immVertexFormat();
+	unsigned int pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 2, KEEP_FLOAT);
+	unsigned int texCoord = VertexFormat_add_attrib(format, "texCoord", COMP_F32, 2, KEEP_FLOAT);
+	unsigned int color = VertexFormat_add_attrib(format, "color", COMP_U8, 4, NORMALIZE_INT_TO_FLOAT);
+
+	BLI_assert(pos == BLF_POS_ID);
+	BLI_assert(texCoord == BLF_COORD_ID);
+	BLI_assert(color == BLF_COLOR_ID);
+
+	immBindBuiltinProgram(GPU_SHADER_TEXT);
+#endif
 
 	/* always bind the texture for the first glyph */
 	font->tex_bind_state = -1;
 }
 
-static void blf_draw_gl__end(GLint mode)
+static void blf_draw_gl__end(void)
 {
-	glMatrixMode(GL_TEXTURE);
-	glPopMatrix();
-
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
-
-	if (mode != GL_MODELVIEW)
-		glMatrixMode(mode);
+	gpuPopMatrix();
 
 #ifndef BLF_STANDALONE
-	GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
+	immUnbindProgram();
 #endif
+
 	glDisable(GL_BLEND);
 }
 
@@ -554,23 +598,26 @@ void BLF_draw_ex(
         struct ResultBLF *r_info)
 {
 	FontBLF *font = blf_get(fontid);
-	GLint mode;
 
 	BLF_RESULT_CHECK_INIT(r_info);
 
 	if (font && font->glyph_cache) {
-		blf_draw_gl__start(font, &mode);
+		blf_draw_gl__start(font);
 		if (font->flags & BLF_WORD_WRAP) {
 			blf_font_draw__wrap(font, str, len, r_info);
 		}
 		else {
 			blf_font_draw(font, str, len, r_info);
 		}
-		blf_draw_gl__end(mode);
+		blf_draw_gl__end();
 	}
 }
 void BLF_draw(int fontid, const char *str, size_t len)
 {
+	if (len == 0 || str[0] == '\0') {
+		return;
+	}
+
 	BLF_draw_ex(fontid, str, len, NULL);
 }
 
@@ -579,12 +626,11 @@ void BLF_draw_ascii_ex(
         struct ResultBLF *r_info)
 {
 	FontBLF *font = blf_get(fontid);
-	GLint mode;
 
 	BLF_RESULT_CHECK_INIT(r_info);
 
 	if (font && font->glyph_cache) {
-		blf_draw_gl__start(font, &mode);
+		blf_draw_gl__start(font);
 		if (font->flags & BLF_WORD_WRAP) {
 			/* use non-ascii draw function for word-wrap */
 			blf_font_draw__wrap(font, str, len, r_info);
@@ -592,24 +638,31 @@ void BLF_draw_ascii_ex(
 		else {
 			blf_font_draw_ascii(font, str, len, r_info);
 		}
-		blf_draw_gl__end(mode);
+		blf_draw_gl__end();
 	}
 }
 void BLF_draw_ascii(int fontid, const char *str, size_t len)
 {
+	if (len == 0 || str[0] == '\0') {
+		return;
+	}
+
 	BLF_draw_ascii_ex(fontid, str, len, NULL);
 }
 
 int BLF_draw_mono(int fontid, const char *str, size_t len, int cwidth)
 {
+	if (len == 0 || str[0] == '\0') {
+		return 0;
+	}
+
 	FontBLF *font = blf_get(fontid);
-	GLint mode;
 	int columns = 0;
 
 	if (font && font->glyph_cache) {
-		blf_draw_gl__start(font, &mode);
+		blf_draw_gl__start(font);
 		columns = blf_font_draw_mono(font, str, len, cwidth);
-		blf_draw_gl__end(mode);
+		blf_draw_gl__end();
 	}
 
 	return columns;
@@ -689,14 +742,6 @@ void BLF_width_and_height(int fontid, const char *str, size_t len, float *r_widt
 	}
 }
 
-void BLF_width_and_height_default(const char *str, size_t len, float *r_width, float *r_height)
-{
-	ASSERT_DEFAULT_SET;
-
-	BLF_size(global_font_default, global_font_points, global_font_dpi);
-	BLF_width_and_height(global_font_default, str, len, r_width, r_height);
-}
-
 float BLF_width_ex(
         int fontid, const char *str, size_t len,
         struct ResultBLF *r_info)
@@ -725,14 +770,6 @@ float BLF_fixed_width(int fontid)
 	}
 
 	return 0.0f;
-}
-
-float BLF_width_default(const char *str, size_t len)
-{
-	ASSERT_DEFAULT_SET;
-
-	BLF_size(global_font_default, global_font_points, global_font_dpi);
-	return BLF_width(global_font_default, str, len);
 }
 
 float BLF_height_ex(
@@ -798,15 +835,6 @@ float BLF_ascender(int fontid)
 	return 0.0f;
 }
 
-float BLF_height_default(const char *str, size_t len)
-{
-	ASSERT_DEFAULT_SET;
-
-	BLF_size(global_font_default, global_font_points, global_font_dpi);
-
-	return BLF_height(global_font_default, str, len);
-}
-
 void BLF_rotation(int fontid, float angle)
 {
 	FontBLF *font = blf_get(fontid);
@@ -819,18 +847,6 @@ void BLF_rotation(int fontid, float angle)
 void BLF_clipping(int fontid, float xmin, float ymin, float xmax, float ymax)
 {
 	FontBLF *font = blf_get(fontid);
-
-	if (font) {
-		font->clip_rec.xmin = xmin;
-		font->clip_rec.ymin = ymin;
-		font->clip_rec.xmax = xmax;
-		font->clip_rec.ymax = ymax;
-	}
-}
-
-void BLF_clipping_default(float xmin, float ymin, float xmax, float ymax)
-{
-	FontBLF *font = blf_get(global_font_default);
 
 	if (font) {
 		font->clip_rec.xmin = xmin;
@@ -855,7 +871,7 @@ void BLF_shadow(int fontid, int level, const float rgba[4])
 
 	if (font) {
 		font->shadow = level;
-		copy_v4_v4(font->shadow_col, rgba);
+		rgba_float_to_uchar(font->shadow_color, rgba);
 	}
 }
 

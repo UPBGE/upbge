@@ -50,8 +50,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "depsgraph_private.h"
-
 #include "MOD_util.h"
 
 
@@ -97,22 +95,6 @@ static void foreachObjectLink(
 	ArmatureModifierData *amd = (ArmatureModifierData *) md;
 
 	walk(userData, ob, &amd->object, IDWALK_CB_NOP);
-}
-
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           struct Scene *UNUSED(scene),
-                           Object *UNUSED(ob),
-                           DagNode *obNode)
-{
-	ArmatureModifierData *amd = (ArmatureModifierData *) md;
-
-	if (amd->object) {
-		DagNode *curNode = dag_get_node(forest, amd->object);
-
-		dag_add_relation(forest, curNode, obNode,
-		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Armature Modifier");
-	}
 }
 
 static void updateDepsgraph(ModifierData *md,
@@ -221,7 +203,6 @@ ModifierTypeInfo modifierType_Armature = {
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
-	/* updateDepgraph */    updateDepgraph,
 	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,

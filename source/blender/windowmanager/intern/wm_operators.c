@@ -70,7 +70,6 @@
 #include "BKE_blender_version.h"
 #include "BKE_brush.h"
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_icons.h"
 #include "BKE_idprop.h"
 #include "BKE_image.h"
@@ -86,8 +85,11 @@
 
 #include "BKE_idcode.h"
 
-#include "BIF_glutil.h" /* for paint cursor */
 #include "BLF_api.h"
+
+#include "GPU_immediate.h"
+#include "GPU_immediate_util.h"
+#include "GPU_matrix.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
@@ -96,8 +98,6 @@
 #include "ED_screen.h"
 #include "ED_util.h"
 #include "ED_view3d.h"
-
-#include "GPU_basic_shader.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -173,6 +173,10 @@ void WM_operatortype_append(void (*opfunc)(wmOperatorType *))
 	if (ot->name == NULL) {
 		fprintf(stderr, "ERROR: Operator %s has no name property!\n", ot->idname);
 		ot->name = N_("Dummy Name");
+	}
+
+	if (ot->mgrouptype) {
+		ot->mgrouptype->flag |= WM_MANIPULATORGROUPTYPE_OP;
 	}
 
 	/* XXX All ops should have a description but for now allow them not to. */
@@ -491,6 +495,9 @@ void WM_operatortype_remove_ptr(wmOperatorType *ot)
 	BLI_ghash_remove(global_ops_hash, ot->idname, NULL, NULL);
 
 	WM_keyconfig_update_operatortype();
+	if (ot->mgrouptype) {
+		WM_manipulatorgrouptype_unregister(NULL, G.main, ot->mgrouptype);
+	}
 
 	MEM_freeN(ot);
 }
@@ -1104,46 +1111,70 @@ int WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 	return WM_menu_invoke_ex(C, op, WM_OP_INVOKE_REGION_WIN);
 }
 
+struct EnumSearchMenu {
+	wmOperator *op; /* the operator that will be executed when selecting an item */
+
+	bool use_previews;
+	short prv_cols, prv_rows;
+};
 
 /* generic enum search invoke popup */
-static uiBlock *wm_enum_search_menu(bContext *C, ARegion *ar, void *arg_op)
+static uiBlock *wm_enum_search_menu(bContext *C, ARegion *ar, void *arg)
 {
-	static char search[256] = "";
-	wmEvent event;
+	struct EnumSearchMenu *search_menu = arg;
 	wmWindow *win = CTX_wm_window(C);
+	wmOperator *op = search_menu->op;
+	/* template_ID uses 4 * widget_unit for width, we use a bit more, some items may have a suffix to show */
+	const int width = search_menu->use_previews ? 5 * U.widget_unit * search_menu->prv_cols : UI_searchbox_size_x();
+	const int height = search_menu->use_previews ? 5 * U.widget_unit * search_menu->prv_rows : UI_searchbox_size_y();
+	static char search[256] = "";
 	uiBlock *block;
 	uiBut *but;
-	wmOperator *op = (wmOperator *)arg_op;
 
 	block = UI_block_begin(C, ar, "_popup", UI_EMBOSS);
 	UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
 
 	search[0] = '\0';
+	BLI_assert(search_menu->use_previews || (search_menu->prv_cols == 0 && search_menu->prv_rows == 0));
 #if 0 /* ok, this isn't so easy... */
 	uiDefBut(block, UI_BTYPE_LABEL, 0, RNA_struct_ui_name(op->type->srna), 10, 10, UI_searchbox_size_x(), UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
 #endif
 	but = uiDefSearchButO_ptr(block, op->type, op->ptr->data, search, 0, ICON_VIEWZOOM, sizeof(search),
-	                          10, 10, UI_searchbox_size_x(), UI_UNIT_Y, 0, 0, "");
+	                          10, 10, width, UI_UNIT_Y, search_menu->prv_rows, search_menu->prv_cols, "");
 
 	/* fake button, it holds space for search items */
-	uiDefBut(block, UI_BTYPE_LABEL, 0, "", 10, 10 - UI_searchbox_size_y(), UI_searchbox_size_x(), UI_searchbox_size_y(), NULL, 0, 0, 0, 0, NULL);
+	uiDefBut(block, UI_BTYPE_LABEL, 0, "", 10, 10 - UI_searchbox_size_y(), width, height, NULL, 0, 0, 0, 0, NULL);
 
 	UI_block_bounds_set_popup(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */
-
-	wm_event_init_from_window(win, &event);
-	event.type = EVT_BUT_OPEN;
-	event.val = KM_PRESS;
-	event.customdata = but;
-	event.customdatafree = false;
-	wm_event_add(win, &event);
+	UI_but_focus_on_enter_event(win, but);
 
 	return block;
 }
 
+/**
+ * Similar to #WM_enum_search_invoke, but draws previews. Also, this can't
+ * be used as invoke callback directly since it needs additional info.
+ */
+int WM_enum_search_invoke_previews(
+        bContext *C, wmOperator *op, short prv_cols, short prv_rows)
+{
+	static struct EnumSearchMenu search_menu;
+
+	search_menu.op = op;
+	search_menu.use_previews = true;
+	search_menu.prv_cols = prv_cols;
+	search_menu.prv_rows = prv_rows;
+
+	UI_popup_block_invoke(C, wm_enum_search_menu, &search_menu);
+
+	return OPERATOR_INTERFACE;
+}
 
 int WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-	UI_popup_block_invoke(C, wm_enum_search_menu, op);
+	static struct EnumSearchMenu search_menu;
+	search_menu.op = op;
+	UI_popup_block_invoke(C, wm_enum_search_menu, &search_menu);
 	return OPERATOR_INTERFACE;
 }
 
@@ -2087,14 +2118,22 @@ static void WM_OT_window_close(wmOperatorType *ot)
 	ot->poll = WM_operator_winactive;
 }
 
-static void WM_OT_window_duplicate(wmOperatorType *ot)
+static void WM_OT_window_new(wmOperatorType *ot)
 {
-	ot->name = "Duplicate Window";
-	ot->idname = "WM_OT_window_duplicate";
-	ot->description = "Duplicate the current Blender window";
-		
-	ot->exec = wm_window_duplicate_exec;
+	PropertyRNA *prop;
+
+	ot->name = "New Window";
+	ot->idname = "WM_OT_window_new";
+	ot->description = "Create a new Blender window";
+
+	ot->exec = wm_window_new_exec;
+	ot->invoke = wm_window_new_invoke;
 	ot->poll = wm_operator_winactive_normal;
+
+	prop = RNA_def_enum(ot->srna, "screen", DummyRNA_NULL_items, 0, "Screen", "");
+	RNA_def_enum_funcs(prop, wm_window_new_screen_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
+	ot->prop = prop;
 }
 
 static void WM_OT_window_fullscreen_toggle(wmOperatorType *ot)
@@ -2997,8 +3036,8 @@ static void radial_control_set_tex(RadialControl *rc)
 			if ((ibuf = BKE_brush_gen_radial_control_imbuf(rc->image_id_ptr.data, rc->use_secondary_tex))) {
 				glGenTextures(1, &rc->gltex);
 				glBindTexture(GL_TEXTURE_2D, rc->gltex);
-				glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA8, ibuf->x, ibuf->y, 0,
-				             GL_ALPHA, GL_FLOAT, ibuf->rect_float);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, ibuf->x, ibuf->y, 0,
+				             GL_RED, GL_FLOAT, ibuf->rect_float);
 				MEM_freeN(ibuf->rect_float);
 				MEM_freeN(ibuf);
 			}
@@ -3031,43 +3070,63 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 
 		RNA_property_float_get_array(fill_ptr, fill_prop, col);
 	}
-	glColor4f(col[0], col[1], col[2], alpha);
+		
+	VertexFormat *format = immVertexFormat();
+	unsigned int pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 2, KEEP_FLOAT);
 
 	if (rc->gltex) {
+
+		unsigned int texCoord = VertexFormat_add_attrib(format, "texCoord", COMP_F32, 2, KEEP_FLOAT);
+
 		glBindTexture(GL_TEXTURE_2D, rc->gltex);
 
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		GLint swizzleMask[] = {GL_ZERO, GL_ZERO, GL_ZERO, GL_RED};
+		glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+
+		immBindBuiltinProgram(GPU_SHADER_2D_IMAGE_MASK_UNIFORM_COLOR);
+
+		immUniformColor3fvAlpha(col, alpha);
+		immUniform1i("image", GL_TEXTURE0);
 
 		/* set up rotation if available */
 		if (rc->rot_prop) {
 			rot = RNA_property_float_get(&rc->rot_ptr, rc->rot_prop);
-			glPushMatrix();
-			glRotatef(RAD2DEGF(rot), 0, 0, 1);
+			gpuPushMatrix();
+			gpuRotate2D(RAD2DEGF(rot));
 		}
 
 		/* draw textured quad */
-		GPU_basic_shader_bind(GPU_SHADER_TEXTURE_2D | GPU_SHADER_USE_COLOR);
-		glBegin(GL_QUADS);
-		glTexCoord2f(0, 0);
-		glVertex2f(-radius, -radius);
-		glTexCoord2f(1, 0);
-		glVertex2f(radius, -radius);
-		glTexCoord2f(1, 1);
-		glVertex2f(radius, radius);
-		glTexCoord2f(0, 1);
-		glVertex2f(-radius, radius);
-		glEnd();
-		GPU_basic_shader_bind(GPU_SHADER_USE_COLOR);
+		immBegin(PRIM_TRIANGLE_FAN, 4);
+
+		immAttrib2f(texCoord, 0, 0);
+		immVertex2f(pos, -radius, -radius);
+
+		immAttrib2f(texCoord, 1, 0);
+		immVertex2f(pos, radius, -radius);
+		
+		immAttrib2f(texCoord, 1, 1);
+		immVertex2f(pos, radius, radius);
+		
+		immAttrib2f(texCoord, 0, 1);
+		immVertex2f(pos, -radius, radius);
+
+		immEnd();
 
 		/* undo rotation */
 		if (rc->rot_prop)
-			glPopMatrix();
+			gpuPopMatrix();
 	}
 	else {
 		/* flat color if no texture available */
-		glutil_draw_filled_arc(0, M_PI * 2, radius, 40);
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+		immUniformColor3fvAlpha(col, alpha);
+		imm_draw_circle_fill(pos, 0.0f, 0.0f, radius, 40);
 	}
+	
+	immUnbindProgram();
 }
 
 static void radial_control_paint_cursor(bContext *C, int x, int y, void *customdata)
@@ -3126,7 +3185,7 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	/* Keep cursor in the original place */
 	x = rc->initial_mouse[0] - ar->winrct.xmin;
 	y = rc->initial_mouse[1] - ar->winrct.ymin;
-	glTranslatef((float)x, (float)y, 0.0f);
+	gpuTranslate2f((float)x, (float)y);
 
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
@@ -3134,7 +3193,7 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	/* apply zoom if available */
 	if (rc->zoom_prop) {
 		RNA_property_float_get_array(&rc->zoom_ptr, rc->zoom_prop, zoom);
-		glScalef(zoom[0], zoom[1], 1);
+		gpuScale2fv(zoom);
 	}
 
 	/* draw rotated texture */
@@ -3143,24 +3202,39 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	/* set line color */
 	if (rc->col_prop)
 		RNA_property_float_get_array(&rc->col_ptr, rc->col_prop, col);
-	glColor4f(col[0], col[1], col[2], 0.5);
+
+	VertexFormat *format = immVertexFormat();
+	unsigned int pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 2, KEEP_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+	immUniformColor3fvAlpha(col, 0.5f);
 
 	if (rc->subtype == PROP_ANGLE) {
-		glPushMatrix();
+		gpuPushMatrix();
+
 		/* draw original angle line */
-		glRotatef(RAD2DEGF(rc->initial_value), 0, 0, 1);
-		fdrawline((float)WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE, 0.0f, (float)WM_RADIAL_CONTROL_DISPLAY_SIZE, 0.0f);
+		gpuRotate2D(RAD2DEGF(rc->initial_value));
+		immBegin(PRIM_LINES, 2);
+		immVertex2f(pos, (float)WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE, 0.0f);
+		immVertex2f(pos, (float)WM_RADIAL_CONTROL_DISPLAY_SIZE, 0.0f);
+		immEnd();
+
 		/* draw new angle line */
-		glRotatef(RAD2DEGF(rc->current_value - rc->initial_value), 0, 0, 1);
-		fdrawline((float)WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE, 0.0f, (float)WM_RADIAL_CONTROL_DISPLAY_SIZE, 0.0f);
-		glPopMatrix();
+		gpuRotate2D(RAD2DEGF(rc->current_value - rc->initial_value));
+		immBegin(PRIM_LINES, 2);
+		immVertex2f(pos, (float)WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE, 0.0f);
+		immVertex2f(pos, (float)WM_RADIAL_CONTROL_DISPLAY_SIZE, 0.0f);
+		immEnd();
+
+		gpuPopMatrix();
 	}
 
 	/* draw circles on top */
-	glutil_draw_lined_arc(0.0, (float)(M_PI * 2.0), r1, 40);
-	glutil_draw_lined_arc(0.0, (float)(M_PI * 2.0), r2, 40);
+	imm_draw_circle_wire(pos, 0.0f, 0.0f, r1, 40);
+	imm_draw_circle_wire(pos, 0.0f, 0.0f, r2, 40);
 	if (rmin > 0.0f)
-		glutil_draw_lined_arc(0.0, (float)(M_PI * 2.0), rmin, 40);
+		imm_draw_circle_wire(pos, 0.0, 0.0f, rmin, 40);
+	immUnbindProgram();
 
 	BLF_size(fontid, 1.5 * fstyle_points * U.pixelsize, U.dpi);
 	BLF_enable(fontid, BLF_SHADOW);
@@ -3176,6 +3250,7 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 
 	glDisable(GL_BLEND);
 	glDisable(GL_LINE_SMOOTH);
+
 }
 
 typedef enum {
@@ -3781,7 +3856,7 @@ static void redraw_timer_step(
 	}
 	else if (type == eRTAnimationStep) {
 		scene->r.cfra += (cfra == scene->r.cfra) ? 1 : -1;
-		BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
+		BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene);
 	}
 	else if (type == eRTAnimationPlay) {
 		/* play anim, return on same frame as started with */
@@ -3793,7 +3868,7 @@ static void redraw_timer_step(
 			if (scene->r.cfra > scene->r.efra)
 				scene->r.cfra = scene->r.sfra;
 
-			BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
+			BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene);
 			redraw_timer_window_swap(C);
 		}
 	}
@@ -3879,28 +3954,6 @@ static void WM_OT_memory_statistics(wmOperatorType *ot)
 	ot->description = "Print memory statistics to the console";
 	
 	ot->exec = memory_statistics_exec;
-}
-
-/* ************************** memory statistics for testing ***************** */
-
-static int dependency_relations_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	Main *bmain = CTX_data_main(C);
-	Scene *scene = CTX_data_scene(C);
-	Object *ob = CTX_data_active_object(C);
-
-	DAG_print_dependencies(bmain, scene, ob);
-
-	return OPERATOR_FINISHED;
-}
-
-static void WM_OT_dependency_relations(wmOperatorType *ot)
-{
-	ot->name = "Dependency Relations";
-	ot->idname = "WM_OT_dependency_relations";
-	ot->description = "Print dependency graph relations to the console";
-	
-	ot->exec = dependency_relations_exec;
 }
 
 /* *************************** Mat/tex/etc. previews generation ************* */
@@ -4149,7 +4202,7 @@ void wm_operatortype_init(void)
 	global_ops_hash = BLI_ghash_str_new_ex("wm_operatortype_init gh", 2048);
 
 	WM_operatortype_append(WM_OT_window_close);
-	WM_operatortype_append(WM_OT_window_duplicate);
+	WM_operatortype_append(WM_OT_window_new);
 	WM_operatortype_append(WM_OT_read_history);
 	WM_operatortype_append(WM_OT_read_homefile);
 	WM_operatortype_append(WM_OT_read_factory_settings);
@@ -4171,7 +4224,6 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_save_mainfile);
 	WM_operatortype_append(WM_OT_redraw_timer);
 	WM_operatortype_append(WM_OT_memory_statistics);
-	WM_operatortype_append(WM_OT_dependency_relations);
 	WM_operatortype_append(WM_OT_debug_menu);
 	WM_operatortype_append(WM_OT_operator_defaults);
 	WM_operatortype_append(WM_OT_splash);
@@ -4186,6 +4238,10 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_previews_ensure);
 	WM_operatortype_append(WM_OT_previews_clear);
 	WM_operatortype_append(WM_OT_doc_view_manual_ui_context);
+
+	/* manipulators */
+	WM_operatortype_append(MANIPULATORGROUP_OT_manipulator_select);
+	WM_operatortype_append(MANIPULATORGROUP_OT_manipulator_tweak);
 }
 
 /* circleselect-like modal operators */
@@ -4387,7 +4443,7 @@ void wm_window_keymap(wmKeyConfig *keyconf)
 	wmKeyMapItem *kmi;
 	
 	/* note, this doesn't replace existing keymap items */
-	WM_keymap_verify_item(keymap, "WM_OT_window_duplicate", WKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
+	WM_keymap_verify_item(keymap, "WM_OT_window_new", WKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
 #ifdef __APPLE__
 	WM_keymap_add_item(keymap, "WM_OT_read_homefile", NKEY, KM_PRESS, KM_OSKEY, 0);
 	WM_keymap_add_menu(keymap, "INFO_MT_file_open_recent", OKEY, KM_PRESS, KM_SHIFT | KM_OSKEY, 0);
@@ -4491,6 +4547,7 @@ void wm_window_keymap(wmKeyConfig *keyconf)
 	RNA_float_set(kmi->ptr, "value", 1.0f / 1.5f);
 #endif /* WITH_INPUT_NDOF */
 
+	wm_manipulators_keymap(keyconf);
 	gesture_circle_modal_keymap(keyconf);
 	gesture_border_modal_keymap(keyconf);
 	gesture_zoom_border_modal_keymap(keyconf);

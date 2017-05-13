@@ -53,6 +53,7 @@
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_global.h"
+#include "BKE_icons.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_report.h"
@@ -571,8 +572,8 @@ int ED_operator_mask(bContext *C)
 			case SPACE_IMAGE:
 			{
 				SpaceImage *sima = sa->spacedata.first;
-				Scene *scene = CTX_data_scene(C);
-				return ED_space_image_check_show_maskedit(scene, sima);
+				SceneLayer *sl = CTX_data_scene_layer(C);
+				return ED_space_image_check_show_maskedit(sl, sima);
 			}
 		}
 	}
@@ -1220,6 +1221,8 @@ static void area_move_apply_do(bContext *C, int origval, int delta, int dir, int
 		}
 
 		WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL); /* redraw everything */
+		/* Update preview thumbnail */
+		BKE_icon_changed(sc->id.icon_id);
 	}
 }
 
@@ -1508,7 +1511,9 @@ static int area_split_apply(bContext *C, wmOperator *op)
 		ED_area_tag_redraw(sd->narea);
 
 		WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
-		
+		/* Update preview thumbnail */
+		BKE_icon_changed(sc->id.icon_id);
+
 		return 1;
 	}
 	

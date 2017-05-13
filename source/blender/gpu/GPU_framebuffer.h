@@ -52,10 +52,11 @@ typedef struct GPUOffScreen GPUOffScreen;
 void GPU_texture_bind_as_framebuffer(struct GPUTexture *tex);
 
 GPUFrameBuffer *GPU_framebuffer_create(void);
-int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, char err_out[256]);
+bool GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, struct GPUTexture *tex, int slot, int mip);
 int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, struct GPUTexture *tex, int target, int slot, char err_out[256]);
 void GPU_framebuffer_texture_detach(struct GPUTexture *tex);
 void GPU_framebuffer_texture_detach_target(GPUTexture *tex, int target);
+void GPU_framebuffer_bind(GPUFrameBuffer *fb);
 void GPU_framebuffer_slots_bind(GPUFrameBuffer *fb, int slot);
 void GPU_framebuffer_texture_unbind(GPUFrameBuffer *fb, struct GPUTexture *tex);
 void GPU_framebuffer_free(GPUFrameBuffer *fb);
@@ -91,6 +92,10 @@ int GPU_renderbuffer_width(const GPURenderBuffer *rb);
 int GPU_renderbuffer_height(const GPURenderBuffer *rb);
 
 
+void GPU_framebuffer_blit(
+        GPUFrameBuffer *fb_read, int read_slot,
+        GPUFrameBuffer *fb_write, int write_slot, bool use_depth);
+
 /* GPU OffScreen
  * - wrapper around framebuffer and texture for simple offscreen drawing
  * - changes size if graphics card can't support it */
@@ -115,6 +120,10 @@ int GPU_offscreen_samples(const GPUOffScreen *ofs);
 int GPU_offscreen_color_texture(const GPUOffScreen *ofs);
 GPUTexture *GPU_offscreen_texture(const GPUOffScreen *ofs);
 GPUTexture *GPU_offscreen_depth_texture(const GPUOffScreen *ofs);
+
+void GPU_offscreen_viewport_data_get(
+        GPUOffScreen *ofs,
+        GPUFrameBuffer **r_fb, struct GPUTexture **r_color, struct GPUTexture **r_depth);
 
 #ifdef __cplusplus
 }

@@ -560,7 +560,7 @@ const char *RNA_struct_translation_context(const StructRNA *type)
 	return type->translation_context;
 }
 
-PropertyRNA *RNA_struct_name_property(StructRNA *type)
+PropertyRNA *RNA_struct_name_property(const StructRNA *type)
 {
 	return type->nameproperty;
 }
@@ -1799,7 +1799,7 @@ static void rna_property_update(bContext *C, Main *bmain, Scene *scene, PointerR
 			 * parts of the code that need it still, so we have this exception */
 			if (prop->flag & PROP_CONTEXT_UPDATE) {
 				if (C) {
-					if (prop->flag & PROP_CONTEXT_PROPERTY_UPDATE) {
+					if ((prop->flag & PROP_CONTEXT_PROPERTY_UPDATE) == PROP_CONTEXT_PROPERTY_UPDATE) {
 						((ContextPropUpdateFunc)prop->update)(C, ptr, prop);
 					}
 					else {
@@ -2765,6 +2765,9 @@ char *RNA_property_string_get_alloc(PointerRNA *ptr, PropertyRNA *prop,
 	int length;
 
 	BLI_assert(RNA_property_type(prop) == PROP_STRING);
+	if (!ptr->data) {
+		return NULL;
+	}
 
 	length = RNA_property_string_length(ptr, prop);
 

@@ -78,9 +78,9 @@
 
 #include "GPU_draw.h"
 #include "GPU_buffers.h"
+#include "GPU_immediate.h"
 
 #include "BIF_gl.h"
-#include "BIF_glutil.h"
 
 #include "IMB_colormanagement.h"
 
@@ -721,12 +721,28 @@ static void gradient_draw_line(bContext *UNUSED(C), int x, int y, void *customda
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
 
+		VertexFormat *format = immVertexFormat();
+		unsigned int pos = VertexFormat_add_attrib(format, "pos", COMP_I32, 2, CONVERT_INT_TO_FLOAT);
+
+		immBindBuiltinProgram(GPU_SHADER_2D_UNIFORM_COLOR);
+
 		glLineWidth(4.0);
-		glColor4ub(0, 0, 0, 255);
-		sdrawline(x, y, pop->startmouse[0], pop->startmouse[1]);
+		immUniformColor4ub(0, 0, 0, 255);
+
+		immBegin(PRIM_LINES, 2);
+		immVertex2i(pos, x, y);
+		immVertex2i(pos, pop->startmouse[0], pop->startmouse[1]);
+		immEnd();
+
 		glLineWidth(2.0);
-		glColor4ub(255, 255, 255, 255);
-		sdrawline(x, y, pop->startmouse[0], pop->startmouse[1]);
+		immUniformColor4ub(255, 255, 255, 255);
+
+		immBegin(PRIM_LINES, 2);
+		immVertex2i(pos, x, y);
+		immVertex2i(pos, pop->startmouse[0], pop->startmouse[1]);
+		immEnd();
+
+		immUnbindProgram();
 
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
@@ -748,7 +764,8 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const flo
 
 	/* initialize from context */
 	if (CTX_wm_region_view3d(C)) {
-		Object *ob = OBACT;
+		SceneLayer *sl = CTX_data_scene_layer(C);
+		Object *ob = OBACT_NEW;
 		bool uvs, mat, tex, stencil;
 		if (!BKE_paint_proj_mesh_data_check(scene, ob, &uvs, &mat, &tex, &stencil)) {
 			BKE_paint_data_warning(op->reports, uvs, mat, tex, stencil);

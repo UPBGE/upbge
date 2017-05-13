@@ -43,7 +43,7 @@
 #include "BKE_armature.h"
 #include "BKE_action.h"
 #include "BKE_constraint.h"
-#include "BKE_depsgraph.h"
+#include "BKE_curve.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_animsys.h"
 #include "BKE_displist.h"
@@ -57,15 +57,12 @@
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
 #include "BKE_material.h"
+#include "BKE_mesh.h"
 #include "BKE_image.h"
 
 #include "DEG_depsgraph.h"
 
-#ifdef WITH_LEGACY_DEPSGRAPH
-#  define DEBUG_PRINT if (!DEG_depsgraph_use_legacy() && G.debug & G_DEBUG_DEPSGRAPH) printf
-#else
-#  define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
-#endif
+#define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
 
 static ThreadMutex material_lock = BLI_MUTEX_INITIALIZER;
 
@@ -345,6 +342,20 @@ void BKE_object_eval_uber_data(EvaluationContext *eval_ctx,
 	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
 	BLI_assert(ob->type != OB_ARMATURE);
 	BKE_object_handle_data_update(eval_ctx, scene, ob);
+
+	switch (ob->type) {
+		case OB_MESH:
+			BKE_mesh_batch_cache_dirty(ob->data, BKE_MESH_BATCH_DIRTY_ALL);
+			break;
+		case OB_LATTICE:
+			BKE_lattice_batch_cache_dirty(ob->data, BKE_LATTICE_BATCH_DIRTY_ALL);
+			break;
+		case OB_CURVE:
+		case OB_FONT:
+		case OB_SURF:
+			BKE_curve_batch_cache_dirty(ob->data, BKE_CURVE_BATCH_DIRTY_ALL);
+			break;
+	}
 
 	ob->recalc &= ~(OB_RECALC_DATA | OB_RECALC_TIME);
 }

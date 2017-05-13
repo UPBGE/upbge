@@ -1318,92 +1318,93 @@ GHOST_WindowX11::
 GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type)
 {
 	if (type == GHOST_kDrawingContextTypeOpenGL) {
-#if !defined(WITH_GL_EGL)
+
+		// During development:
+		//   try 4.x compatibility profile
+		//   try 3.3 compatibility profile
+		//   fall back to 3.0 if needed
+		//
+		// Final Blender 2.8:
+		//   try 4.x core profile
+		//   try 3.3 core profile
+		//   no fallbacks
 
 #if defined(WITH_GL_PROFILE_CORE)
-		GHOST_Context *context = new GHOST_ContextGLX(
-		        m_wantStereoVisual,
-		        m_wantNumOfAASamples,
-		        m_window,
-		        m_display,
-		        m_visualInfo,
-		        (GLXFBConfig)m_fbconfig,
-		        GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
-		        3, 2,
-		        GHOST_OPENGL_GLX_CONTEXT_FLAGS | (m_is_debug_context ? GLX_CONTEXT_DEBUG_BIT_ARB : 0),
-		        GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
-#elif defined(WITH_GL_PROFILE_ES20)
-		GHOST_Context *context = new GHOST_ContextGLX(
-		        m_wantStereoVisual,
-		        m_wantNumOfAASamples,
-		        m_window,
-		        m_display,
-		        m_visualInfo,
-		        (GLXFBConfig)m_fbconfig,
-		        GLX_CONTEXT_ES2_PROFILE_BIT_EXT,
-		        2, 0,
-		        GHOST_OPENGL_GLX_CONTEXT_FLAGS | (m_is_debug_context ? GLX_CONTEXT_DEBUG_BIT_ARB : 0),
-		        GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
-#elif defined(WITH_GL_PROFILE_COMPAT)
-		GHOST_Context *context = new GHOST_ContextGLX(
-		        m_wantStereoVisual,
-		        m_wantNumOfAASamples,
-		        m_window,
-		        m_display,
-		        m_visualInfo,
-		        (GLXFBConfig)m_fbconfig,
-		        0, // profile bit
-		        0, 0,
-		        GHOST_OPENGL_GLX_CONTEXT_FLAGS | (m_is_debug_context ? GLX_CONTEXT_DEBUG_BIT_ARB : 0),
-		        GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
-#else
-#  error
+		{
+			const char *version_major = (char*)glewGetString(GLEW_VERSION_MAJOR);
+			if (version_major != NULL && version_major[0] == '1') {
+				fprintf(stderr, "Error: GLEW version 2.0 and above is required.\n");
+				abort();
+			}
+		}
 #endif
 
-#else
-
+		const int profile_mask =
 #if defined(WITH_GL_PROFILE_CORE)
-		GHOST_Context *context = new GHOST_ContextEGL(
-		        m_wantStereoVisual,
-		        m_wantNumOfAASamples,
-		        m_window,
-		        m_display,
-		        EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
-		        3, 2,
-		        GHOST_OPENGL_EGL_CONTEXT_FLAGS,
-		        GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
-		        EGL_OPENGL_API);
-#elif defined(WITH_GL_PROFILE_ES20)
-		GHOST_Context *context = new GHOST_ContextEGL(
-		        m_wantStereoVisual,
-		        m_wantNumOfAASamples,
-		        m_window,
-		        m_display,
-		        0, // profile bit
-		        2, 0,
-		        GHOST_OPENGL_EGL_CONTEXT_FLAGS,
-		        GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
-		        EGL_OPENGL_ES_API);
+			GLX_CONTEXT_CORE_PROFILE_BIT_ARB;
 #elif defined(WITH_GL_PROFILE_COMPAT)
-		GHOST_Context *context = new GHOST_ContextEGL(
-		        m_wantStereoVisual,
-		        m_wantNumOfAASamples,
-		        m_window,
-		        m_display,
-		        0, // profile bit
-		        0, 0,
-		        GHOST_OPENGL_EGL_CONTEXT_FLAGS,
-		        GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
-		        EGL_OPENGL_API);
+			GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
 #else
-#  error
+#  error // must specify either core or compat at build time
 #endif
 
-#endif
+		GHOST_Context *context;
+
+		for (int minor = 5; minor >= 0; --minor) {
+			context = new GHOST_ContextGLX(
+			        m_wantStereoVisual,
+			        m_wantNumOfAASamples,
+			        m_window,
+			        m_display,
+			        m_visualInfo,
+			        (GLXFBConfig)m_fbconfig,
+			        profile_mask,
+			        4, minor,
+			        GHOST_OPENGL_GLX_CONTEXT_FLAGS | (m_is_debug_context ? GLX_CONTEXT_DEBUG_BIT_ARB : 0),
+			        GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
+
+			if (context->initializeDrawingContext())
+				return context;
+			else
+				delete context;
+		}
+
+		context = new GHOST_ContextGLX(
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_window,
+		        m_display,
+		        m_visualInfo,
+		        (GLXFBConfig)m_fbconfig,
+		        profile_mask,
+		        3, 3,
+		        GHOST_OPENGL_GLX_CONTEXT_FLAGS | (m_is_debug_context ? GLX_CONTEXT_DEBUG_BIT_ARB : 0),
+		        GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
+
 		if (context->initializeDrawingContext())
 			return context;
 		else
 			delete context;
+
+#ifdef WITH_LEGACY_OPENGL
+		// since that failed try 3.0 (mostly for Mesa, which doesn't implement compatibility profile)
+		context = new GHOST_ContextGLX(
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_window,
+		        m_display,
+		        m_visualInfo,
+		        (GLXFBConfig)m_fbconfig,
+		        0, // no profile bit
+		        3, 0,
+		        GHOST_OPENGL_GLX_CONTEXT_FLAGS | (m_is_debug_context ? GLX_CONTEXT_DEBUG_BIT_ARB : 0),
+		        GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
+
+		if (context->initializeDrawingContext())
+			return context;
+		else
+			delete context;
+#endif // WITH_LEGACY_OPENGL
 	}
 
 	return NULL;

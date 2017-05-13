@@ -91,7 +91,6 @@
 #include "BKE_cachefile.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
-#include "BKE_depsgraph.h"
 #include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
@@ -779,11 +778,11 @@ void BKE_main_lib_objects_recalc_all(Main *bmain)
 	/* flag for full recalc */
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
 		if (ID_IS_LINKED_DATABLOCK(ob)) {
-			DAG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+			DEG_id_tag_update(&ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 		}
 	}
 
-	DAG_id_type_tag(bmain, ID_OB);
+	DEG_id_type_tag(bmain, ID_OB);
 }
 
 /**
@@ -994,7 +993,7 @@ void *BKE_libblock_alloc(Main *bmain, short type, const char *name)
 		/* alphabetic insertion: is in new_id */
 		BKE_main_unlock(bmain);
 	}
-	DAG_id_type_tag(bmain, type);
+	DEG_id_type_tag(bmain, type);
 	return id;
 }
 
@@ -1220,41 +1219,41 @@ void BKE_main_free(Main *mainvar)
 			/* errors freeing ID's can be hard to track down,
 			 * enable this so valgrind will give the line number in its error log */
 			switch (a) {
-				case   0: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   1: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   2: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   3: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   4: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   5: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   6: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   7: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   8: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case   9: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  10: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  11: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  12: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  13: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  14: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  15: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  16: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  17: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  18: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  19: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  20: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  21: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  22: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  23: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  24: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  25: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  26: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  27: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  28: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  29: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  30: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  31: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  32: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  33: BKE_libblock_free_ex(mainvar, id, false, false); break;
-				case  34: BKE_libblock_free_ex(mainvar, id, false, false); break;
+				case   0: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   1: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   2: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   3: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   4: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   5: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   6: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   7: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   8: BKE_libblock_free_ex(mainvar, id, false); break;
+				case   9: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  10: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  11: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  12: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  13: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  14: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  15: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  16: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  17: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  18: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  19: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  20: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  21: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  22: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  23: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  24: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  25: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  26: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  27: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  28: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  29: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  30: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  31: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  32: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  33: BKE_libblock_free_ex(mainvar, id, false); break;
+				case  34: BKE_libblock_free_ex(mainvar, id, false); break;
 				default:
 					BLI_assert(0);
 					break;

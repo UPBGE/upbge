@@ -36,7 +36,7 @@
 
 struct GPULamp;
 struct Scene;
-struct Base;
+struct BaseLegacy;
 class KX_Scene;
 class KX_Camera;
 class RAS_Rasterizer;
@@ -51,7 +51,7 @@ protected:
 	/// Needed for registering and replication of lightobj.
 	RAS_Rasterizer *m_rasterizer;
 	Scene *m_blenderscene;
-	Base *m_base;
+	BaseLegacy *m_base;
 
 	bool m_showShadowFrustum;
 

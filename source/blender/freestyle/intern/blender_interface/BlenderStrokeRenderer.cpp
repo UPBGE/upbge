@@ -44,7 +44,6 @@ extern "C" {
 #include "DNA_scene_types.h"
 
 #include "BKE_customdata.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_library.h" /* free_libblock */
 #include "BKE_material.h"
@@ -58,6 +57,9 @@ extern "C" {
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
+
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 
 #include "RE_pipeline.h"
 
@@ -127,8 +129,8 @@ BlenderStrokeRenderer::BlenderStrokeRenderer(Render *re, int render_count) : Str
 	BKE_scene_set_background(freestyle_bmain, freestyle_scene);
 
 	// Camera
-	Object *object_camera = BKE_object_add(freestyle_bmain, freestyle_scene, OB_CAMERA, NULL);
-	DAG_relations_tag_update(freestyle_bmain);
+	Object *object_camera = BKE_object_add(freestyle_bmain, freestyle_scene, (SceneLayer *)freestyle_scene->render_layers.first, OB_CAMERA, NULL);
+	DEG_relations_tag_update(freestyle_bmain);
 
 	Camera *camera = (Camera *)object_camera->data;
 	camera->type = CAM_ORTHO;
@@ -166,7 +168,7 @@ BlenderStrokeRenderer::~BlenderStrokeRenderer()
 	// compositor has finished.
 
 	// release objects and data blocks
-	for (Base *b = (Base *)freestyle_scene->base.first; b; b = b->next) {
+	for (BaseLegacy *b = (BaseLegacy *)freestyle_scene->base.first; b; b = b->next) {
 		Object *ob = b->object;
 		void *data = ob->data;
 		char *name = ob->id.name;
@@ -510,7 +512,7 @@ void BlenderStrokeRenderer::RenderStrokeRepBasic(StrokeRep *iStrokeRep) const
 		// If still no material, create one
 		if (!has_mat) {
 			Material *ma = BKE_material_add(freestyle_bmain, "stroke_material");
-			DAG_relations_tag_update(freestyle_bmain);
+			DEG_relations_tag_update(freestyle_bmain);
 			ma->mode |= MA_VERTEXCOLP;
 			ma->mode |= MA_TRANSP;
 			ma->mode |= MA_SHLESS;
@@ -674,7 +676,7 @@ int BlenderStrokeRenderer::get_stroke_count() const
 void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
 {
 #if 0
-	Object *object_mesh = BKE_object_add(freestyle_bmain, freestyle_scene, OB_MESH);
+	Object *object_mesh = BKE_object_add(freestyle_bmain, freestyle_scene, (SceneLayer *)freestyle_scene->render_layers.first, OB_MESH);
 	DAG_relations_tag_update(freestyle_bmain);
 #else
 	Object *object_mesh = NewMesh();
@@ -922,7 +924,7 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
 Object *BlenderStrokeRenderer::NewMesh() const
 {
 	Object *ob;
-	Base *base;
+	BaseLegacy *base;
 	char name[MAX_ID_NAME];
 	unsigned int mesh_id = get_stroke_mesh_id();
 
@@ -933,7 +935,7 @@ Object *BlenderStrokeRenderer::NewMesh() const
 	ob->lay = 1;
 
 	base = BKE_scene_base_add(freestyle_scene, ob);
-	DAG_relations_tag_update(freestyle_bmain);
+	DEG_relations_tag_update(freestyle_bmain);
 #if 0
 	BKE_scene_base_deselect_all(scene);
 	BKE_scene_base_select(scene, base);
@@ -941,7 +943,7 @@ Object *BlenderStrokeRenderer::NewMesh() const
 	(void)base;
 #endif
 
-	DAG_id_tag_update_ex(freestyle_bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+	DEG_id_tag_update_ex(freestyle_bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 
 	return ob;
 }

@@ -32,7 +32,6 @@
 
 #include "intern/depsgraph_types.h"
 
-struct Base;
 struct CacheFile;
 struct bGPdata;
 struct ListBase;
@@ -42,6 +41,7 @@ struct Image;
 struct FCurve;
 struct Group;
 struct Key;
+struct LayerCollection;
 struct Main;
 struct Material;
 struct Mask;
@@ -126,8 +126,8 @@ struct DepsgraphNodeBuilder {
 
 	void build_scene(Main *bmain, Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
-	void build_group(Scene *scene, Base *base, Group *group);
-	void build_object(Scene *scene, Base *base, Object *ob);
+	void build_group(Scene *scene, Group *group);
+	void build_object(Scene *scene, Object *ob);
 	void build_object_transform(Scene *scene, Object *ob);
 	void build_object_constraints(Scene *scene, Object *ob);
 	void build_pose_constraints(Scene *scene, Object *ob, bPoseChannel *pchan);
@@ -162,6 +162,17 @@ struct DepsgraphNodeBuilder {
 	void build_mask(Mask *mask);
 	void build_movieclip(MovieClip *clip);
 
+	struct LayerCollectionState {
+		int index;
+		LayerCollection *parent;
+	};
+	void build_layer_collection(Scene *scene,
+	                            LayerCollection *layer_collection,
+	                            LayerCollectionState *state);
+	void build_layer_collections(Scene *scene,
+	                             ListBase *layer_collections,
+	                             LayerCollectionState *state);
+	void build_scene_layer_collections(Scene *scene);
 protected:
 	Main *m_bmain;
 	Depsgraph *m_graph;

@@ -223,7 +223,10 @@ typedef struct Object {
 	float jump_speed;
 	float fall_speed;
 	unsigned char max_jumps;
-	char pad2[3];
+	char pad2;
+
+	/* Depsgraph */
+	short base_flag; /* used by depsgraph, flushed from base */
 
 	/** Collision mask settings */
 	unsigned short col_group, col_mask;
@@ -307,7 +310,12 @@ typedef struct Object {
 
 	struct PreviewImage *preview;
 
+	struct IDProperty *base_collection_properties; /* used by depsgraph, flushed from base */
 	struct Mesh *gamePredefinedBound;
+
+	ListBase drawdata;		/* runtime, for draw engine datas */
+	int base_selection_color; /* flushed by depsgraph only */
+	int pad3[3];
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */

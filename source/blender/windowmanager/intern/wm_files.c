@@ -77,7 +77,6 @@
 #include "BKE_blendfile.h"
 #include "BKE_blender_undo.h"
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
@@ -118,6 +117,8 @@
 #ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
+
+#include "DEG_depsgraph.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -464,7 +465,7 @@ static void wm_file_read_post(bContext *C, bool is_startup_file)
 	CTX_wm_window_set(C, wm->windows.first);
 
 	ED_editors_init(C);
-	DAG_on_visible_update(CTX_data_main(C), true);
+	DEG_on_visible_update(CTX_data_main(C), true);
 
 #ifdef WITH_PYTHON
 	if (is_startup_file) {
@@ -974,7 +975,7 @@ static void wm_history_file_update(void)
 
 
 /* screen can be NULL */
-static ImBuf *blend_file_thumb(Scene *scene, bScreen *screen, BlendThumbnail **thumb_pt)
+static ImBuf *blend_file_thumb(Scene *scene, SceneLayer *sl, bScreen *screen, BlendThumbnail **thumb_pt)
 {
 	/* will be scaled down, but gives some nice oversampling */
 	ImBuf *ibuf;
@@ -1011,14 +1012,14 @@ static ImBuf *blend_file_thumb(Scene *scene, bScreen *screen, BlendThumbnail **t
 	/* gets scaled to BLEN_THUMB_SIZE */
 	if (scene->camera) {
 		ibuf = ED_view3d_draw_offscreen_imbuf_simple(
-		        scene, scene->camera,
+		        scene, sl, scene->camera,
 		        BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
 		        IB_rect, OB_SOLID, false, false, false, R_ALPHAPREMUL, 0, false, NULL,
 		        NULL, NULL, err_out);
 	}
 	else {
 		ibuf = ED_view3d_draw_offscreen_imbuf(
-		        scene, v3d, ar,
+		        scene, sl, v3d, ar,
 		        BLEN_THUMB_SIZE * 2, BLEN_THUMB_SIZE * 2,
 		        IB_rect, false, R_ALPHAPREMUL, 0, false, NULL,
 		        NULL, NULL, err_out);
@@ -1114,7 +1115,7 @@ static int wm_file_write(bContext *C, const char *filepath, int fileflags, Repor
 	/* Main now can store a .blend thumbnail, usefull for background mode or thumbnail customization. */
 	main_thumb = thumb = CTX_data_main(C)->blen_thumb;
 	if ((U.flag & USER_SAVE_PREVIEWS) && BLI_thread_is_main()) {
-		ibuf_thumb = blend_file_thumb(CTX_data_scene(C), CTX_wm_screen(C), &thumb);
+		ibuf_thumb = blend_file_thumb(CTX_data_scene(C), CTX_data_scene_layer(C), CTX_wm_screen(C), &thumb);
 	}
 
 	/* operator now handles overwrite checks */

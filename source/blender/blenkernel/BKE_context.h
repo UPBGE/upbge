@@ -40,12 +40,17 @@ extern "C" {
 struct ARegion;
 struct bScreen;
 struct CacheFile;
+struct Depsgraph;
+struct LayerCollection;
 struct ListBase;
 struct Main;
 struct Object;
+struct Base;
 struct PointerRNA;
 struct ReportList;
 struct Scene;
+struct SceneCollection;
+struct SceneLayer;
 struct ScrArea;
 struct SpaceLink;
 struct View3D;
@@ -239,9 +244,13 @@ int ctx_data_list_count(const bContext *C, int (*func)(const bContext *, ListBas
 
 struct Main *CTX_data_main(const bContext *C);
 struct Scene *CTX_data_scene(const bContext *C);
+struct LayerCollection *CTX_data_layer_collection(const bContext *C);
+struct SceneCollection *CTX_data_scene_collection(const bContext *C);
+struct SceneLayer *CTX_data_scene_layer(const bContext *C);
 struct ToolSettings *CTX_data_tool_settings(const bContext *C);
 
 const char *CTX_data_mode_string(const bContext *C);
+int CTX_data_mode_enum_ex(const struct Object *obedit, const struct Object *ob);
 int CTX_data_mode_enum(const bContext *C);
 
 void CTX_data_main_set(bContext *C, struct Main *bmain);
@@ -296,6 +305,7 @@ int CTX_data_visible_gpencil_layers(const bContext *C, ListBase *list);
 int CTX_data_editable_gpencil_layers(const bContext *C, ListBase *list);
 int CTX_data_editable_gpencil_strokes(const bContext *C, ListBase *list);
 
+struct Depsgraph *CTX_data_depsgraph(const bContext *C);
 
 #ifdef __cplusplus
 }

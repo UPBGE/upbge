@@ -35,9 +35,10 @@ extern "C" {
 
 #include "BLI_compiler_attrs.h"
 
-struct Base;
+struct BaseLegacy;
 struct EvaluationContext;
 struct Scene;
+struct SceneLayer;
 struct Object;
 struct BoundBox;
 struct View3D;
@@ -89,9 +90,9 @@ struct Object *BKE_object_add_only_object(
         int type, const char *name)
         ATTR_NONNULL(1) ATTR_RETURNS_NONNULL;
 struct Object *BKE_object_add(
-        struct Main *bmain, struct Scene *scene,
+        struct Main *bmain, struct Scene *scene, struct SceneLayer *sl,
         int type, const char *name)
-        ATTR_NONNULL(1, 2) ATTR_RETURNS_NONNULL;
+        ATTR_NONNULL(1, 2, 3) ATTR_RETURNS_NONNULL;
 void *BKE_object_obdata_add_from_type(
         struct Main *bmain,
         int type, const char *name)
@@ -101,9 +102,9 @@ void BKE_object_lod_add(struct Object *ob);
 void BKE_object_lod_sort(struct Object *ob);
 bool BKE_object_lod_remove(struct Object *ob, int level);
 void BKE_object_lod_update(struct Object *ob, const float camera_position[3]);
-bool BKE_object_lod_is_usable(struct Object *ob, struct Scene *scene);
-struct Object *BKE_object_lod_meshob_get(struct Object *ob, struct Scene *scene);
-struct Object *BKE_object_lod_matob_get(struct Object *ob, struct Scene *scene);
+bool BKE_object_lod_is_usable(struct Object *ob, struct SceneLayer *sl);
+struct Object *BKE_object_lod_meshob_get(struct Object *ob, struct SceneLayer *sl);
+struct Object *BKE_object_lod_matob_get(struct Object *ob, struct SceneLayer *sl);
 
 struct Object *BKE_object_copy_ex(struct Main *bmain, struct Object *ob, bool copy_caches);
 struct Object *BKE_object_copy(struct Main *bmain, struct Object *ob);
@@ -152,8 +153,7 @@ bool BKE_object_minmax_dupli(struct Scene *scene, struct Object *ob, float r_min
 void BKE_object_foreach_display_point(struct Object *ob, float obmat[4][4],
                                       void (*func_cb)(const float[3], void *), void *user_data);
 void BKE_scene_foreach_display_point(struct Scene *scene,
-                                     struct View3D *v3d,
-                                     const short flag,
+                                     struct SceneLayer *sl,
                                      void (*func_cb)(const float[3], void *), void *user_data);
 
 bool BKE_object_parent_loop_check(const struct Object *parent, const struct Object *ob);
@@ -255,9 +255,9 @@ typedef enum eObjectSet {
 	OB_SET_ALL       /* All Objects      */
 } eObjectSet;
 
-struct LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet objectSet, eObRelationTypes includeFilter);
+struct LinkNode *BKE_object_relational_superset(struct SceneLayer *scene_layer, eObjectSet objectSet, eObRelationTypes includeFilter);
 struct LinkNode *BKE_object_groups(struct Object *ob);
-void             BKE_object_groups_clear(struct Scene *scene, struct Base *base, struct Object *object);
+void             BKE_object_groups_clear(struct Object *object);
 
 struct KDTree *BKE_object_as_kdtree(struct Object *ob, int *r_tot);
 

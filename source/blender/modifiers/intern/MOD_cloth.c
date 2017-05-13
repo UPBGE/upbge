@@ -53,8 +53,6 @@
 #include "BKE_modifier.h"
 #include "BKE_pointcache.h"
 
-#include "depsgraph_private.h"
-
 #include "MOD_util.h"
 
 static void initData(ModifierData *md) 
@@ -117,26 +115,6 @@ static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData, 
 	dm->release(dm);
 }
 
-static void updateDepgraph(ModifierData *md, DagForest *forest,
-                           struct Main *UNUSED(bmain),
-                           Scene *scene, Object *ob, DagNode *obNode)
-{
-	ClothModifierData *clmd = (ClothModifierData *) md;
-	
-	if (clmd) {
-		/* Actual code uses get_collisionobjects */
-#ifdef WITH_LEGACY_DEPSGRAPH
-		dag_add_collision_relations(forest, scene, ob, obNode, clmd->coll_parms->group, ob->lay|scene->lay, eModifierType_Collision, NULL, true, "Cloth Collision");
-		dag_add_forcefield_relations(forest, scene, ob, obNode, clmd->sim_parms->effector_weights, true, 0, "Cloth Field");
-#else
-	(void)forest;
-	(void)scene;
-	(void)ob;
-	(void)obNode;
-#endif
-	}
-}
-
 static void updateDepsgraph(ModifierData *md,
                             struct Main *UNUSED(bmain),
                             struct Scene *scene,
@@ -146,7 +124,7 @@ static void updateDepsgraph(ModifierData *md,
 	ClothModifierData *clmd = (ClothModifierData *)md;
 	if (clmd != NULL) {
 		/* Actual code uses get_collisionobjects */
-		DEG_add_collision_relations(node, scene, ob, clmd->coll_parms->group, ob->lay|scene->lay, eModifierType_Collision, NULL, true, "Cloth Collision");
+		DEG_add_collision_relations(node, scene, ob, clmd->coll_parms->group, eModifierType_Collision, NULL, true, "Cloth Collision");
 
 		DEG_add_forcefield_relations(node, scene, ob, clmd->sim_parms->effector_weights, true, 0, "Cloth Field");
 	}
@@ -262,7 +240,6 @@ ModifierTypeInfo modifierType_Cloth = {
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          freeData,
 	/* isDisabled */        NULL,
-	/* updateDepgraph */    updateDepgraph,
 	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     dependsOnTime,
 	/* dependsOnNormals */	NULL,
