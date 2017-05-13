@@ -555,11 +555,6 @@ void GPU_shader_unbind(void)
 	glUseProgram(0);
 }
 
-int GPU_shader_program(GPUShader *shader)
-{
-	return shader->program;
-}
-
 void GPU_shader_free(GPUShader *shader)
 {
 	BLI_assert(shader);
@@ -654,7 +649,7 @@ void GPU_shader_uniform_float(GPUShader *UNUSED(shader), int location, float val
 	if (location == -1)
 		return;
 
-	GPU_CHECK_ERRORS_AROUND(glUniform1f(location, value));
+	glUniform1f(location, value);
 }
 
 void GPU_shader_uniform_buffer(GPUShader *shader, int location, GPUUniformBuffer *ubo)
@@ -708,7 +703,7 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 
 void GPU_shader_bind_attribute(GPUShader *shader, int location, const char *name)
 {
-	GPU_CHECK_ERRORS_AROUND(glBindAttribLocation(shader->program, location, name));
+	glBindAttribLocation(shader->program, location, name);
 }
 
 // Used only for VSM shader with geometry instancing support.
