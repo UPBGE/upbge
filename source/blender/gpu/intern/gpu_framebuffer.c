@@ -118,10 +118,10 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 
 bool GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, int slot, int mip)
 {
-	return GPU_framebuffer_texture_attach_target(fb, tex, GPU_texture_target(tex), slot, err_out);
+	return GPU_framebuffer_texture_attach_target(fb, tex, GPU_texture_target(tex), slot, mip);
 }
 
-int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, int target, int slot, char err_out[256])
+int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, int target, int slot, int mip)
 {
 	GLenum attachment;
 
@@ -156,7 +156,7 @@ int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, i
 	if (GLEW_VERSION_3_2)
 		glFramebufferTexture(GL_FRAMEBUFFER, attachment, GPU_texture_opengl_bindcode(tex), mip); /* normal core call, same as below */
 	else
-		glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GPU_texture_target(tex), GPU_texture_opengl_bindcode(tex), mip);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, target, GPU_texture_opengl_bindcode(tex), mip);
 #else
 	glFramebufferTexture(GL_FRAMEBUFFER, attachment, GPU_texture_opengl_bindcode(tex), mip);
 #endif
@@ -210,7 +210,7 @@ void GPU_framebuffer_texture_detach_target(GPUTexture *tex, int target)
 	if (GLEW_VERSION_3_2)
 		glFramebufferTexture(GL_FRAMEBUFFER, attachment, 0, 0); /* normal core call, same as below */
 	else
-		glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GPU_texture_target(tex), 0, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, target, 0, 0);
 #else
 	glFramebufferTexture(GL_FRAMEBUFFER, attachment, 0, 0);
 #endif
@@ -668,7 +668,7 @@ GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPU
 		rb->depth = true;
 	}
 	else {
-		GLenum internalformat = GL_RGBA8;
+		GLenum internalformat;
 		switch (data_type) {
 			case GPU_RGBA8:
 			{
@@ -685,6 +685,10 @@ GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPU
 			{
 				internalformat = GL_RGBA32F;
 				break;
+			}
+			default:
+			{
+				internalformat = GL_RGBA8;
 			}
 		}
 		if (samples > 0) {
@@ -806,32 +810,43 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUTextur
 		}
 	}
 	else {
-		ofs->color = GPU_texture_create_2D_multisample(width, height, NULL, data_type, samples, err_out);
+		ofs->color = GPU_texture_create_2D_custom(width, height, 4, data_type, samples, NULL, err_out);
 		if (!ofs->color) {
 			GPU_offscreen_free(ofs);
 			return NULL;
 		}
 
-	if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->depth, 0, err_out)) {
-		GPU_offscreen_free(ofs);
-		return NULL;
+		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->depth, 0, err_out)) {
+			GPU_offscreen_free(ofs);
+			return NULL;
+		}
 	}
 
-	ofs->color = GPU_texture_create_2D_multisample(width, height, NULL, GPU_HDR_NONE, samples, err_out);
-	if (!ofs->color) {
-		GPU_offscreen_free(ofs);
-		return NULL;
+	if (mode & GPU_OFFSCREEN_RENDERBUFFER_DEPTH) {
+		ofs->rbdepth = GPU_renderbuffer_create(width, height, samples, data_type, GPU_RENDERBUFFER_DEPTH, err_out);
+		if (!ofs->rbdepth) {
+			GPU_offscreen_free(ofs);
+			return NULL;
+		}
+
+		if (!GPU_framebuffer_renderbuffer_attach(ofs->fb, ofs->rbdepth, 0, err_out)) {
+			GPU_offscreen_free(ofs);
+			return NULL;
+		}
 	}
 	else {
-		ofs->depth = GPU_texture_create_depth_multisample(width, height, samples, (mode & GPU_OFFSCREEN_DEPTH_COMPARE), err_out);
+		ofs->depth = GPU_texture_create_depth_multisample(width, height, samples, err_out);
 		if (!ofs->depth) {
 			GPU_offscreen_free(ofs);
 			return NULL;
 		}
 
-	if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->color, 0, err_out)) {
-		GPU_offscreen_free(ofs);
-		return NULL;
+		GPU_texture_compare_mode(ofs->depth, mode & GPU_OFFSCREEN_DEPTH_COMPARE);
+
+		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->color, 0, err_out)) {
+			GPU_offscreen_free(ofs);
+			return NULL;
+		}
 	}
 
 	/* check validity at the very end! */

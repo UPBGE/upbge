@@ -423,10 +423,8 @@ static GPUTexture *GPU_texture_create_nD(
 	if (tex->depth) {
 		glTexParameteri(tex->target_base, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(tex->target_base, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		if (mode & GPU_TEXTURE_DEPTH_COMPARE) {
-			glTexParameteri(tex->target_base, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE);
-			glTexParameteri(tex->target_base, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
-		}
+		glTexParameteri(tex->target_base, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE);
+		glTexParameteri(tex->target_base, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 #ifdef WITH_LEGACY_OPENGL
 		glTexParameteri(tex->target_base, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);
 #endif
@@ -654,9 +652,9 @@ GPUTexture *GPU_texture_create_2D(int w, int h, const float *pixels, char err_ou
 }
 
 GPUTexture *GPU_texture_create_2D_custom(
-        int w, int h, int channels, GPUTextureFormat data_type, const float *pixels, char err_out[256])
+        int w, int h, int channels, GPUTextureFormat data_type, int samples, const float *pixels, char err_out[256])
 {
-	return GPU_texture_create_nD(w, h, 0, 2, pixels, data_type, channels, 0, false, err_out);
+	return GPU_texture_create_nD(w, h, 0, 2, pixels, data_type, channels, samples, false, err_out);
 }
 
 GPUTexture *GPU_texture_create_2D_multisample(int w, int h, const float *pixels, int samples, char err_out[256])
@@ -863,33 +861,6 @@ void GPU_texture_filter_mode(GPUTexture *tex, bool use_filter)
 
 	if (tex->number != 0)
 		glActiveTexture(GL_TEXTURE0);
-}
-
-void GPU_texture_generate_mipmap(GPUTexture *tex)
-{
-	if (tex->number >= GPU_max_textures()) {
-		fprintf(stderr, "Not enough texture slots.\n");
-		return;
-	}
-
-	if (tex->number == -1) {
-		return;
-	}
-
-	GPU_ASSERT_NO_GL_ERRORS("Pre Texture Unbind");
-
-	GLenum arbnumber = (GLenum)((GLuint)GL_TEXTURE0 + tex->number);
-	if (tex->number != 0) {
-		glActiveTexture(arbnumber);
-	}
-
-	glGenerateMipmap(tex->target);
-
-	if (tex->number != 0) {
-		glActiveTexture(GL_TEXTURE0);
-	}
-
-	GPU_ASSERT_NO_GL_ERRORS("Post Texture Unbind");
 }
 
 void GPU_texture_free(GPUTexture *tex)

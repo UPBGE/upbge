@@ -388,7 +388,7 @@ GPUTexture *DRW_texture_create_2D(int w, int h, DRWTextureFormat format, DRWText
 	int channels;
 
 	drw_texture_get_format(format, &data_type, &channels);
-	tex = GPU_texture_create_2D_custom(w, h, channels, data_type, fpixels, NULL);
+	tex = GPU_texture_create_2D_custom(w, h, channels, data_type, 0, fpixels, NULL);
 	drw_texture_set_parameters(tex, flags);
 
 	return tex;
@@ -1843,7 +1843,7 @@ void DRW_framebuffer_init(
 			GPUTextureFormat gpu_format = convert_tex_format(fbotex.format, &channels, &is_depth);
 
 			if (!*fbotex.tex) {
-				*fbotex.tex = GPU_texture_create_2D_custom(width, height, channels, gpu_format, NULL, NULL);
+				*fbotex.tex = GPU_texture_create_2D_custom(width, height, channels, gpu_format, 0, NULL, NULL);
 				drw_texture_set_parameters(*fbotex.tex, fbotex.flag);
 			}
 

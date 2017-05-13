@@ -20,7 +20,7 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Brecht Van Lommel, Clément Foucault.
+ * Contributor(s): Brecht Van Lommel, Cl??ment Foucault.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -211,7 +211,7 @@ static void gpu_lamp_shadow_free(GPULamp *lamp)
 
 static GPUTexture *gpu_lamp_create_vsm_shadow_map(int size)
 {
-	return GPU_texture_create_2D_custom(size, size, 2, GPU_RG32F, NULL, NULL);
+	return GPU_texture_create_2D_custom(size, size, 2, GPU_RG32F, 0, NULL, NULL);
 }
 
 LampEngineData *GPU_lamp_engine_data_get(Scene *scene, Object *ob, Object *par, struct RenderEngineType *re)

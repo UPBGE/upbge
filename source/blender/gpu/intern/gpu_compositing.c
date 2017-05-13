@@ -404,7 +404,7 @@ static GPUTexture * create_jitter_texture(void)
 		normalize_v2(jitter[i]);
 	}
 
-	tex = GPU_texture_create_2D_custom(64, 64, 2, GPU_RG16F, &jitter[0][0], NULL);
+	tex = GPU_texture_create_2D_custom(64, 64, 2, GPU_RG16F, 0, &jitter[0][0], NULL);
 
 	/* Set parameters */
 	GPU_texture_bind(tex, 0);
@@ -484,7 +484,7 @@ bool GPU_fx_compositor_initialize_passes(
 			return false;
 		}
 
-		if (!(fx->depth_buffer = GPU_texture_create_depth(w, h, true, err_out))) {
+		if (!(fx->depth_buffer = GPU_texture_create_depth(w, h, err_out))) {
 			printf("%.256s\n", err_out);
 			cleanup_fx_gl_data(fx, true);
 			return false;
@@ -545,7 +545,7 @@ bool GPU_fx_compositor_initialize_passes(
 				}
 
 				if (!(fx->dof_nearfar_coc = GPU_texture_create_2D_custom(
-				    fx->dof_downsampled_w, fx->dof_downsampled_h, 2, GPU_RG16F, NULL, err_out)))
+				    fx->dof_downsampled_w, fx->dof_downsampled_h, 2, GPU_RG16F, 0, NULL, err_out)))
 				{
 					printf("%.256s\n", err_out);
 					cleanup_fx_gl_data(fx, true);
@@ -557,7 +557,7 @@ bool GPU_fx_compositor_initialize_passes(
 				GPU_texture_unbind(fx->dof_nearfar_coc);
 
 				if (!(fx->dof_near_blur = GPU_texture_create_2D_custom(
-				    fx->dof_downsampled_w, fx->dof_downsampled_h, 4, GPU_RGBA16F, NULL, err_out)))
+				    fx->dof_downsampled_w, fx->dof_downsampled_h, 4, GPU_RGBA16F, 0, NULL, err_out)))
 				{
 					printf("%.256s\n", err_out);
 					cleanup_fx_gl_data(fx, true);
@@ -565,7 +565,7 @@ bool GPU_fx_compositor_initialize_passes(
 				}
 
 				if (!(fx->dof_far_blur = GPU_texture_create_2D_custom(
-				    fx->dof_downsampled_w, fx->dof_downsampled_h, 4, GPU_RGBA16F, NULL, err_out)))
+				    fx->dof_downsampled_w, fx->dof_downsampled_h, 4, GPU_RGBA16F, 0, NULL, err_out)))
 				{
 					printf("%.256s\n", err_out);
 					cleanup_fx_gl_data(fx, true);
@@ -687,7 +687,7 @@ void GPU_fx_compositor_setup_XRay_pass(GPUFX *fx, bool do_xray)
 
 	if (do_xray) {
 		if (!fx->depth_buffer_xray &&
-		    !(fx->depth_buffer_xray = GPU_texture_create_depth(fx->gbuffer_dim[0], fx->gbuffer_dim[1], true, err_out)))
+		    !(fx->depth_buffer_xray = GPU_texture_create_depth(fx->gbuffer_dim[0], fx->gbuffer_dim[1], err_out)))
 		{
 			printf("%.256s\n", err_out);
 			cleanup_fx_gl_data(fx, true);
