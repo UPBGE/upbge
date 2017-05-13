@@ -586,7 +586,6 @@ void GPU_framebuffer_blur(
 	Batch_draw(&batch);
 }
 
-	GPU_texture_unbind(blurtex);
 void GPU_framebuffer_blit(GPUFrameBuffer *fb_read, int read_slot, GPUFrameBuffer *fb_write, int write_slot, bool use_depth)
 {
 	GPUTexture *read_tex = (use_depth) ? fb_read->depthtex : fb_read->colortex[read_slot];
@@ -634,7 +633,7 @@ struct GPURenderBuffer {
 	unsigned int bindcode;
 };
 
-GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPUHDRType hdrtype, GPURenderBufferType type, char err_out[256])
+GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPUTextureFormat data_type, GPURenderBufferType type, char err_out[256])
 {
 	GPURenderBuffer *rb = MEM_callocN(sizeof(GPURenderBuffer), "GPURenderBuffer");
 
@@ -670,21 +669,21 @@ GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPU
 	}
 	else {
 		GLenum internalformat = GL_RGBA8;
-		switch (hdrtype) {
-			case GPU_HDR_NONE:
+		switch (data_type) {
+			case GPU_RGBA8:
 			{
 				internalformat = GL_RGBA8;
 				break;
 			}
 			/* the following formats rely on ARB_texture_float or OpenGL 3.0 */
-			case GPU_HDR_HALF_FLOAT:
+			case GPU_RGBA16F:
 			{
-				internalformat = GL_RGBA16F_ARB;
+				internalformat = GL_RGBA16F;
 				break;
 			}
-			case GPU_HDR_FULL_FLOAT:
+			case GPU_RGBA32F:
 			{
-				internalformat = GL_RGBA32F_ARB;
+				internalformat = GL_RGBA32F;
 				break;
 			}
 		}
@@ -758,7 +757,7 @@ struct GPUOffScreen {
 	int samples;
 };
 
-GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRType hdrtype, int mode, char err_out[256])
+GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUTextureFormat data_type, int mode, char err_out[256])
 {
 	GPUOffScreen *ofs;
 
@@ -795,7 +794,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRTyp
 	ofs->samples = samples;
 
 	if (mode & GPU_OFFSCREEN_RENDERBUFFER_COLOR) {
-		ofs->rbcolor = GPU_renderbuffer_create(width, height, samples, hdrtype, GPU_RENDERBUFFER_COLOR, err_out);
+		ofs->rbcolor = GPU_renderbuffer_create(width, height, samples, data_type, GPU_RENDERBUFFER_COLOR, err_out);
 		if (!ofs->rbcolor) {
 			GPU_offscreen_free(ofs);
 			return NULL;
@@ -807,7 +806,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRTyp
 		}
 	}
 	else {
-		ofs->color = GPU_texture_create_2D_multisample(width, height, NULL, hdrtype, samples, err_out);
+		ofs->color = GPU_texture_create_2D_multisample(width, height, NULL, data_type, samples, err_out);
 		if (!ofs->color) {
 			GPU_offscreen_free(ofs);
 			return NULL;

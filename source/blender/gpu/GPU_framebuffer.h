@@ -81,7 +81,7 @@ typedef enum GPURenderBufferType {
 	GPU_RENDERBUFFER_DEPTH = 1,
 } GPURenderBufferType;
 
-GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPUHDRType hdrtype, GPURenderBufferType type, char err_out[256]);
+GPURenderBuffer *GPU_renderbuffer_create(int width, int height, int samples, GPUTextureFormat data_type, GPURenderBufferType type, char err_out[256]);
 void GPU_renderbuffer_free(GPURenderBuffer *rb);
 GPUFrameBuffer *GPU_renderbuffer_framebuffer(GPURenderBuffer *rb);
 int GPU_renderbuffer_framebuffer_attachment(GPURenderBuffer *rb);
@@ -107,7 +107,7 @@ typedef enum GPUOffScreenMode {
 	GPU_OFFSCREEN_DEPTH_COMPARE = 1 << 2,
 } GPUOffScreenMode;
 
-GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUHDRType hdrtype, int mode, char err_out[256]);
+GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUTextureFormat data_type, int mode, char err_out[256]);
 void GPU_offscreen_free(GPUOffScreen *ofs);
 void GPU_offscreen_bind(GPUOffScreen *ofs, bool save);
 void GPU_offscreen_bind_simple(GPUOffScreen *ofs);
