@@ -2662,7 +2662,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(
 
 	if (own_ofs) {
 		/* bind */
-		ofs = GPU_offscreen_create(sizex, sizey, full_samples ? 0 : samples, GPU_HDR_NONE, GPU_OFFSCREEN_DEPTH_COMPARE, err_out);
+		ofs = GPU_offscreen_create(sizex, sizey, full_samples ? 0 : samples, GPU_RGBA8, GPU_OFFSCREEN_DEPTH_COMPARE, err_out);
 		if (ofs == NULL) {
 			return NULL;
 		}
