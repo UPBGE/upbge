@@ -87,7 +87,7 @@ typedef struct Camera {
 	struct GPUDOFSettings gpu_dof;
 
 	char sensor_fit;
-	char pad1[7];
+	char pad4[7];
 
 	/* runtime only, used for drawing */
 	float drwcorners[4][2];
