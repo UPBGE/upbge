@@ -569,9 +569,9 @@ typedef struct NodeEllipseMask {
 /* layer info for image node outputs */
 typedef struct NodeImageLayer {
 	/* index in the Image->layers->passes lists */
-	int pass_index;
-	/* render pass flag, in case this is an original render pass */
-	int pass_flag;
+	int pass_index  DNA_DEPRECATED;
+	/* render pass name */
+	char pass_name[64]; /* amount defined in openexr_multi.h */
 } NodeImageLayer;
 
 typedef struct NodeBlurData {

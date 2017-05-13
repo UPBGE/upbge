@@ -210,10 +210,9 @@ void BlenderSync::sync_data(BL::RenderSettings& b_render,
 	   scene->need_motion() == Scene::MOTION_NONE ||
 	   scene->camera->motion_position == Camera::MOTION_POSITION_CENTER)
 	{
-		sync_objects(b_v3d);
+		sync_objects();
 	}
 	sync_motion(b_render,
-	            b_v3d,
 	            b_override,
 	            width, height,
 	            python_thread_state);
@@ -478,6 +477,132 @@ void BlenderSync::sync_images()
 		}
 		/* TODO(sergey): Free builtin images not used by any shader. */
 	}
+}
+
+/* Passes */
+PassType BlenderSync::get_pass_type(BL::RenderPass& b_pass)
+{
+	string name = b_pass.name();
+#define MAP_PASS(passname, passtype) if(name == passname) return passtype;
+	/* NOTE: Keep in sync with defined names from DNA_scene_types.h */
+	MAP_PASS("Combined", PASS_COMBINED);
+	MAP_PASS("Depth", PASS_DEPTH);
+	MAP_PASS("Mist", PASS_MIST);
+	MAP_PASS("Normal", PASS_NORMAL);
+	MAP_PASS("IndexOB", PASS_OBJECT_ID);
+	MAP_PASS("UV", PASS_UV);
+	MAP_PASS("Vector", PASS_MOTION);
+	MAP_PASS("IndexMA", PASS_MATERIAL_ID);
+
+	MAP_PASS("DiffDir", PASS_DIFFUSE_DIRECT);
+	MAP_PASS("GlossDir", PASS_GLOSSY_DIRECT);
+	MAP_PASS("TransDir", PASS_TRANSMISSION_DIRECT);
+	MAP_PASS("SubsurfaceDir", PASS_SUBSURFACE_DIRECT);
+
+	MAP_PASS("DiffInd", PASS_DIFFUSE_INDIRECT);
+	MAP_PASS("GlossInd", PASS_GLOSSY_INDIRECT);
+	MAP_PASS("TransInd", PASS_TRANSMISSION_INDIRECT);
+	MAP_PASS("SubsurfaceInd", PASS_SUBSURFACE_INDIRECT);
+
+	MAP_PASS("DiffCol", PASS_DIFFUSE_COLOR);
+	MAP_PASS("GlossCol", PASS_GLOSSY_COLOR);
+	MAP_PASS("TransCol", PASS_TRANSMISSION_COLOR);
+	MAP_PASS("SubsurfaceCol", PASS_SUBSURFACE_COLOR);
+
+	MAP_PASS("Emit", PASS_EMISSION);
+	MAP_PASS("Env", PASS_BACKGROUND);
+	MAP_PASS("AO", PASS_AO);
+	MAP_PASS("Shadow", PASS_SHADOW);
+
+#ifdef __KERNEL_DEBUG__
+	MAP_PASS("Debug BVH Traversed Nodes", PASS_BVH_TRAVERSED_NODES);
+	MAP_PASS("Debug BVH Traversed Instances", PASS_BVH_TRAVERSED_INSTANCES);
+	MAP_PASS("Debug BVH Intersections", PASS_BVH_INTERSECTIONS);
+	MAP_PASS("Debug Ray Bounces", PASS_RAY_BOUNCES);
+#endif
+#undef MAP_PASS
+
+	return PASS_NONE;
+}
+
+int BlenderSync::get_denoising_pass(BL::RenderPass& b_pass)
+{
+	string name = b_pass.name();
+	if(name.substr(0, 10) != "Denoising ") {
+		return -1;
+	}
+	name = name.substr(10);
+
+#define MAP_PASS(passname, offset) if(name == passname) return offset;
+	MAP_PASS("Normal", DENOISING_PASS_NORMAL);
+	MAP_PASS("Normal Variance", DENOISING_PASS_NORMAL_VAR);
+	MAP_PASS("Albedo", DENOISING_PASS_ALBEDO);
+	MAP_PASS("Albedo Variance", DENOISING_PASS_ALBEDO_VAR);
+	MAP_PASS("Depth", DENOISING_PASS_DEPTH);
+	MAP_PASS("Depth Variance", DENOISING_PASS_DEPTH_VAR);
+	MAP_PASS("Shadow A", DENOISING_PASS_SHADOW_A);
+	MAP_PASS("Shadow B", DENOISING_PASS_SHADOW_B);
+	MAP_PASS("Image", DENOISING_PASS_COLOR);
+	MAP_PASS("Image Variance", DENOISING_PASS_COLOR_VAR);
+#undef MAP_PASS
+
+	return -1;
+}
+
+array<Pass> BlenderSync::sync_render_passes(BL::RenderLayer& b_rlay,
+                                            BL::SceneRenderLayer& b_srlay)
+{
+	array<Pass> passes;
+	Pass::add(PASS_COMBINED, passes);
+
+	/* loop over passes */
+	BL::RenderLayer::passes_iterator b_pass_iter;
+
+	for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
+		BL::RenderPass b_pass(*b_pass_iter);
+		PassType pass_type = get_pass_type(b_pass);
+
+		if(pass_type == PASS_MOTION && scene->integrator->motion_blur)
+			continue;
+		if(pass_type != PASS_NONE)
+			Pass::add(pass_type, passes);
+	}
+
+	PointerRNA crp = RNA_pointer_get(&b_srlay.ptr, "cycles");
+	if(get_boolean(crp, "denoising_store_passes")) {
+		b_engine.add_pass("Denoising Normal",          3, "XYZ", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Normal Variance", 3, "XYZ", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Albedo",          3, "RGB", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Albedo Variance", 3, "RGB", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Depth",           1, "Z",   b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Depth Variance",  1, "Z",   b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Shadow A",        3, "XYV", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Shadow B",        3, "XYV", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Image",           3, "RGB", b_srlay.name().c_str());
+		b_engine.add_pass("Denoising Image Variance",  3, "RGB", b_srlay.name().c_str());
+	}
+#ifdef __KERNEL_DEBUG__
+	if(get_boolean(crp, "pass_debug_bvh_traversed_nodes")) {
+		b_engine.add_pass("Debug BVH Traversed Nodes", 1, "X", b_srlay.name().c_str());
+		Pass::add(PASS_BVH_TRAVERSED_NODES, passes);
+	}
+	if(get_boolean(crp, "pass_debug_bvh_traversed_instances")) {
+		b_engine.add_pass("Debug BVH Traversed Instances", 1, "X", b_srlay.name().c_str());
+		Pass::add(PASS_BVH_TRAVERSED_INSTANCES, passes);
+	}
+	if(get_boolean(crp, "pass_debug_bvh_intersections")) {
+		b_engine.add_pass("Debug BVH Intersections", 1, "X", b_srlay.name().c_str());
+		Pass::add(PASS_BVH_INTERSECTIONS, passes);
+	}
+	if(get_boolean(crp, "pass_debug_ray_bounces")) {
+		b_engine.add_pass("Debug Ray Bounces", 1, "X", b_srlay.name().c_str());
+		Pass::add(PASS_RAY_BOUNCES, passes);
+	}
+#else
+	(void) b_srlay;  /* Ignored. */
+#endif
+
+	return passes;
 }
 
 /* Scene Parameters */

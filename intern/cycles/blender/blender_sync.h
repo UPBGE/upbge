@@ -67,6 +67,8 @@ public:
 	               void **python_thread_state,
 	               const char *layer = 0);
 	void sync_render_layers(BL::SpaceView3D& b_v3d, const char *layer);
+	array<Pass> sync_render_passes(BL::RenderLayer& b_rlay,
+	                               BL::SceneRenderLayer& b_srlay);
 	void sync_integrator();
 	void sync_camera(BL::RenderSettings& b_render,
 	                 BL::Object& b_override,
@@ -93,13 +95,15 @@ public:
 	                                      Camera *cam,
 	                                      int width, int height);
 
+	static PassType get_pass_type(BL::RenderPass& b_pass);
+	static int get_denoising_pass(BL::RenderPass& b_pass);
+
 private:
 	/* sync */
 	void sync_lamps(bool update_all);
 	void sync_materials(bool update_all);
-	void sync_objects(BL::SpaceView3D& b_v3d, float motion_time = 0.0f);
+	void sync_objects(float motion_time = 0.0f);
 	void sync_motion(BL::RenderSettings& b_render,
-	                 BL::SpaceView3D& b_v3d,
 	                 BL::Object& b_override,
 	                 int width, int height,
 	                 void **python_thread_state);

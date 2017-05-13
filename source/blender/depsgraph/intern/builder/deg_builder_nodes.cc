@@ -623,7 +623,7 @@ OperationDepsNode *DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcu)
 	OperationDepsNode *driver_op = find_operation_node(id,
 	                                                   DEPSNODE_TYPE_PARAMETERS,
 	                                                   DEG_OPCODE_DRIVER,
-	                                                   fcu->rna_path,
+	                                                   fcu->rna_path ? fcu->rna_path : "",
 	                                                   fcu->array_index);
 
 	if (driver_op == NULL) {
@@ -632,7 +632,7 @@ OperationDepsNode *DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcu)
 		                               DEPSOP_TYPE_EXEC,
 		                               function_bind(BKE_animsys_eval_driver, _1, id, fcu),
 		                               DEG_OPCODE_DRIVER,
-		                               fcu->rna_path,
+		                               fcu->rna_path ? fcu->rna_path : "",
 		                               fcu->array_index);
 	}
 
@@ -653,12 +653,13 @@ void DepsgraphNodeBuilder::build_world(World *world)
 		return;
 	}
 
-	/* world itself */
-	add_id_node(world_id); /* world shading/params? */
-
 	build_animdata(world_id);
 
-	/* TODO: other settings? */
+	/* world itself */
+	add_component_node(world_id, DEPSNODE_TYPE_PARAMETERS);
+
+	add_operation_node(world_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_EXEC, NULL,
+	                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
 
 	/* textures */
 	build_texture_stack(world->mtex);
@@ -854,18 +855,11 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	}
 
 	/* materials */
-	if (ob->totcol != 0) {
-		for (int a = 1; a <= ob->totcol; a++) {
-			Material *ma = give_current_material(ob, a);
-			if (ma != NULL) {
-				build_material(ma);
-			}
+	for (int a = 1; a <= ob->totcol; a++) {
+		Material *ma = give_current_material(ob, a);
+		if (ma != NULL) {
+			build_material(ma);
 		}
-		add_operation_node(&ob->id,
-		                   DEPSNODE_TYPE_SHADING,
-		                   DEPSOP_TYPE_EXEC,
-		                   NULL,
-		                   DEG_OPCODE_PLACEHOLDER, "Material Update");
 	}
 
 	/* geometry collision */

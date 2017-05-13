@@ -3076,7 +3076,7 @@ static void std_node_socket_draw(bContext *C, uiLayout *layout, PointerRNA *ptr,
 		node_file_output_socket_draw(C, layout, ptr, node_ptr);
 		return;
 	}
-	
+
 	if ((sock->in_out == SOCK_OUT) || (sock->flag & SOCK_IN_USE) || (sock->flag & SOCK_HIDE_VALUE)) {
 		node_socket_button_label(C, layout, ptr, node_ptr, text);
 		return;
@@ -3606,7 +3606,7 @@ void node_draw_link(View2D *v2d, SpaceNode *snode, bNodeLink *link)
 			return;
 		if (link->fromsock->flag & SOCK_UNAVAIL)
 			return;
-		
+
 		if (link->flag & NODE_LINK_VALID) {
 			/* special indicated link, on drop-node */
 			if (link->flag & NODE_LINKFLAG_HILITE) {
@@ -3626,7 +3626,7 @@ void node_draw_link(View2D *v2d, SpaceNode *snode, bNodeLink *link)
 			th_col1 = TH_REDALERT;
 		}
 	}
-	
+
 	node_draw_link_bezier(v2d, snode, link, th_col1, do_shaded, th_col2, do_triple, th_col3);
 //	node_draw_link_straight(v2d, snode, link, th_col1, do_shaded, th_col2, do_triple, th_col3);
 }

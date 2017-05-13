@@ -38,7 +38,7 @@
 #include "GPU_framebuffer.h"
 #include "GPU_texture.h"
 
-#include "glew-mx.h"
+#include "GPU_glew.h"
 
 #include "KX_Globals.h"
 #include "DNA_scene_types.h"

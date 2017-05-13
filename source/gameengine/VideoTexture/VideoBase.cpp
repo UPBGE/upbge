@@ -33,7 +33,7 @@
 #include <windows.h>
 #endif
 
-#include "glew-mx.h"
+#include "GPU_glew.h"
 
 #include "VideoBase.h"
 

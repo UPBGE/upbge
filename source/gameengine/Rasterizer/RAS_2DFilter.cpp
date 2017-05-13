@@ -28,11 +28,9 @@
 #include "RAS_OffScreen.h"
 #include "RAS_Rect.h"
 
-#include "BLI_utildefines.h" // for STRINGIFY
-
 #include "EXP_Value.h"
 
-#include "glew-mx.h"
+#include "GPU_glew.h"
 
 extern "C" {
 	extern char datatoc_RAS_VertexShader2DFilter_glsl[];

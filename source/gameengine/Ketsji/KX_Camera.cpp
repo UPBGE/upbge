@@ -31,7 +31,6 @@
  */
 
  
-#include "glew-mx.h"
 #include "KX_Camera.h"
 #include "KX_Scene.h"
 #include "KX_Globals.h"
@@ -41,6 +40,8 @@
 #include "MT_Frustum.h"
 
 #include "RAS_ICanvas.h"
+
+#include "GPU_glew.h"
 
 KX_Camera::KX_Camera(void* sgReplicationInfo,
                      SG_Callbacks callbacks,

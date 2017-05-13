@@ -22,6 +22,5 @@ __kernel void kernel_ocl_path_trace_shader_eval(
         ccl_global char *kg,
         ccl_constant KernelData *data)
 {
-	ccl_local unsigned int local_queue_atomics;
-	kernel_shader_eval((KernelGlobals*)kg, &local_queue_atomics);
+	kernel_shader_eval((KernelGlobals*)kg);
 }

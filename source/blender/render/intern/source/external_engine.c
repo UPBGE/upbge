@@ -62,13 +62,14 @@
 #include "renderpipeline.h"
 #include "render_types.h"
 #include "render_result.h"
+#include "rendercore.h"
 
 /* Render Engine Types */
 
 static RenderEngineType internal_render_type = {
 	NULL, NULL,
 	"BLENDER_RENDER", N_("Blender Render"), RE_INTERNAL,
-	NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL, render_internal_update_passes,
 	{NULL, NULL, NULL}
 };
 
@@ -77,7 +78,7 @@ static RenderEngineType internal_render_type = {
 static RenderEngineType internal_game_type = {
 	NULL, NULL,
 	"BLENDER_GAME", N_("Blender Game"), RE_INTERNAL | RE_GAME,
-	NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	{NULL, NULL, NULL}
 };
 
@@ -212,6 +213,8 @@ RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, 
 
 	/* can be NULL if we CLAMP the width or height to 0 */
 	if (result) {
+		render_result_clone_passes(re, result, viewname);
+
 		RenderPart *pa;
 
 		/* Copy EXR tile settings, so pipeline knows whether this is a result
@@ -245,7 +248,18 @@ void RE_engine_update_result(RenderEngine *engine, RenderResult *result)
 	}
 }
 
-void RE_engine_end_result(RenderEngine *engine, RenderResult *result, int cancel, int merge_results)
+void RE_engine_add_pass(RenderEngine *engine, const char *name, int channels, const char *chan_id, const char *layername)
+{
+	Render *re = engine->re;
+
+	if (!re || !re->result) {
+		return;
+	}
+
+	render_result_add_pass(re->result, name, channels, chan_id, layername, NULL);
+}
+
+void RE_engine_end_result(RenderEngine *engine, RenderResult *result, int cancel, int highlight, int merge_results)
 {
 	Render *re = engine->re;
 
@@ -254,7 +268,7 @@ void RE_engine_end_result(RenderEngine *engine, RenderResult *result, int cancel
 	}
 
 	/* merge. on break, don't merge in result for preview renders, looks nicer */
-	if (!cancel) {
+	if (!highlight) {
 		/* for exr tile render, detect tiles that are done */
 		RenderPart *pa = get_part_from_result(re, result);
 
@@ -760,3 +774,22 @@ int RE_engine_render(Render *re, int do_all)
 	return 1;
 }
 
+void RE_engine_register_pass(struct RenderEngine *engine, struct Scene *scene, struct SceneRenderLayer *srl,
+                             const char *name, int UNUSED(channels), const char *UNUSED(chanid), int type)
+{
+	/* The channel information is currently not used, but is part of the API in case it's needed in the future. */
+
+	if (!(scene && srl && engine)) {
+		return;
+	}
+
+	/* Register the pass in all scenes that have a render layer node for this layer.
+	 * Since multiple scenes can be used in the compositor, the code must loop over all scenes
+	 * and check whether their nodetree has a node that needs to be updated. */
+	Scene *sce;
+	for (sce = G.main->scene.first; sce; sce = sce->id.next) {
+		if (sce->nodetree) {
+			ntreeCompositRegisterPass(sce->nodetree, scene, srl, name, type);
+		}
+	}
+}

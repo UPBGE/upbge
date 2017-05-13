@@ -33,7 +33,7 @@
 #include "EXP_PyObjectPlus.h"
 #include <structmember.h>
 
-#include "glew-mx.h"
+#include "GPU_glew.h"
 
 #include "KX_Globals.h"
 #include "KX_KetsjiEngine.h"

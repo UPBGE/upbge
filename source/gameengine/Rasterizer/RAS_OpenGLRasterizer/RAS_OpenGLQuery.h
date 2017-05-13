@@ -31,7 +31,7 @@
 
 #include "RAS_Query.h"
 
-#include "glew-mx.h"
+#include "GPU_glew.h"
 
 class RAS_OpenGLQuery
 {

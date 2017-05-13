@@ -30,8 +30,7 @@
 #include "RAS_DebugDraw.h"
 
 #include "GPU_material.h"
-
-#include "glew-mx.h"
+#include "GPU_glew.h"
 
 extern "C" {
 #  include "BLF_api.h"

@@ -55,8 +55,9 @@
 #include "BLI_stack.h"
 #include "BLI_kdopbvh.h"
 #include "BLI_math.h"
-#include "BLI_strict_flags.h"
 #include "BLI_task.h"
+
+#include "BLI_strict_flags.h"
 
 /* used for iterative_raycast */
 // #define USE_SKIP_LINKS
@@ -129,7 +130,7 @@ typedef struct BVHOverlapData_Thread {
 } BVHOverlapData_Thread;
 
 typedef struct BVHNearestData {
-	BVHTree *tree;
+	const BVHTree *tree;
 	const float *co;
 	BVHTree_NearestPointCallback callback;
 	void    *userdata;
@@ -139,7 +140,7 @@ typedef struct BVHNearestData {
 } BVHNearestData;
 
 typedef struct BVHRayCastData {
-	BVHTree *tree;
+	const BVHTree *tree;
 
 	BVHTree_RayCastCallback callback;
 	void    *userdata;
@@ -171,9 +172,9 @@ typedef struct BVHRayCastData {
  */
 
 const float bvhtree_kdop_axes[13][3] = {
-	{1.0, 0, 0}, {0, 1.0, 0}, {0, 0, 1.0}, {1.0, 1.0, 1.0}, {1.0, -1.0, 1.0}, {1.0, 1.0, -1.0},
-	{1.0, -1.0, -1.0}, {1.0, 1.0, 0}, {1.0, 0, 1.0}, {0, 1.0, 1.0}, {1.0, -1.0, 0}, {1.0, 0, -1.0},
-	{0, 1.0, -1.0}
+	{1.0, 0, 0}, {0, 1.0, 0}, {0, 0, 1.0},
+	{1.0, 1.0, 1.0}, {1.0, -1.0, 1.0}, {1.0, 1.0, -1.0}, {1.0, -1.0, -1.0},
+	{1.0, 1.0, 0}, {1.0, 0, 1.0}, {0, 1.0, 1.0}, {1.0, -1.0, 0}, {1.0, 0, -1.0}, {0, 1.0, -1.0}
 };
 
 
@@ -321,11 +322,16 @@ static int bvh_partition(BVHNode **a, int lo, int hi, BVHNode *x, int axis)
 {
 	int i = lo, j = hi;
 	while (1) {
-		while ((a[i])->bv[axis] < x->bv[axis]) i++;
+		while (a[i]->bv[axis] < x->bv[axis]) {
+			i++;
+		}
 		j--;
-		while (x->bv[axis] < (a[j])->bv[axis]) j--;
-		if (!(i < j))
+		while (x->bv[axis] < a[j]->bv[axis]) {
+			j--;
+		}
+		if (!(i < j)) {
 			return i;
+		}
 		SWAP(BVHNode *, a[i], a[j]);
 		i++;
 	}
@@ -427,19 +433,18 @@ static void sort_along_axis(BVHTree *tree, int start, int end, int axis)
  * \note after a call to this function you can expect one of:
  * - every node to left of a[n] are smaller or equal to it
  * - every node to the right of a[n] are greater or equal to it */
-static int partition_nth_element(BVHNode **a, int _begin, int _end, int n, int axis)
+static void partition_nth_element(BVHNode **a, int begin, int end, const int n, const int axis)
 {
-	int begin = _begin, end = _end, cut;
 	while (end - begin > 3) {
-		cut = bvh_partition(a, begin, end, bvh_medianof3(a, begin, (begin + end) / 2, end - 1, axis), axis);
-		if (cut <= n)
+		const int cut = bvh_partition(a, begin, end, bvh_medianof3(a, begin, (begin + end) / 2, end - 1, axis), axis);
+		if (cut <= n) {
 			begin = cut;
-		else
+		}
+		else {
 			end = cut;
+		}
 	}
 	bvh_insertionsort(a, begin, end, axis);
-
-	return n;
 }
 
 #ifdef USE_SKIP_LINKS
@@ -464,7 +469,7 @@ static void build_skip_links(BVHTree *tree, BVHNode *node, BVHNode *left, BVHNod
 /*
  * BVHTree bounding volumes functions
  */
-static void create_kdop_hull(BVHTree *tree, BVHNode *node, const float *co, int numpoints, int moving)
+static void create_kdop_hull(const BVHTree *tree, BVHNode *node, const float *co, int numpoints, int moving)
 {
 	float newminmax;
 	float *bv = node->bv;
@@ -491,7 +496,7 @@ static void create_kdop_hull(BVHTree *tree, BVHNode *node, const float *co, int 
 /**
  * \note depends on the fact that the BVH's for each face is already build
  */
-static void refit_kdop_hull(BVHTree *tree, BVHNode *node, int start, int end)
+static void refit_kdop_hull(const BVHTree *tree, BVHNode *node, int start, int end)
 {
 	float newmin, newmax;
 	float *bv = node->bv;
@@ -593,10 +598,14 @@ static void bvhtree_print_tree(BVHTree *tree, BVHNode *node, int depth)
 static void bvhtree_info(BVHTree *tree)
 {
 	printf("BVHTree info\n");
-	printf("tree_type = %d, axis = %d, epsilon = %f\n", tree->tree_type, tree->axis, tree->epsilon);
-	printf("nodes = %d, branches = %d, leafs = %d\n", tree->totbranch + tree->totleaf,  tree->totbranch, tree->totleaf);
-	printf("Memory per node = %ldbytes\n", sizeof(BVHNode) + sizeof(BVHNode *) * tree->tree_type + sizeof(float) * tree->axis);
-	printf("BV memory = %dbytes\n", (int)MEM_allocN_len(tree->nodebv));
+	printf("tree_type = %d, axis = %d, epsilon = %f\n",
+	       tree->tree_type, tree->axis, tree->epsilon);
+	printf("nodes = %d, branches = %d, leafs = %d\n",
+	       tree->totbranch + tree->totleaf,  tree->totbranch, tree->totleaf);
+	printf("Memory per node = %ldbytes\n",
+	       sizeof(BVHNode) + sizeof(BVHNode *) * tree->tree_type + sizeof(float) * tree->axis);
+	printf("BV memory = %dbytes\n",
+	       (int)MEM_allocN_len(tree->nodebv));
 
 	printf("Total memory = %ldbytes\n", sizeof(BVHTree) +
 	       MEM_allocN_len(tree->nodes) +
@@ -649,12 +658,14 @@ static void verify_tree(BVHTree *tree)
 		}
 	}
 	
-	printf("branches: %d, leafs: %d, total: %d\n", tree->totbranch, tree->totleaf, tree->totbranch + tree->totleaf);
+	printf("branches: %d, leafs: %d, total: %d\n",
+	       tree->totbranch, tree->totleaf, tree->totbranch + tree->totleaf);
 }
 #endif
 
 /* Helper data and structures to build a min-leaf generalized implicit tree
- * This code can be easily reduced (basicly this is only method to calculate pow(k, n) in O(1).. and stuff like that) */
+ * This code can be easily reduced
+ * (basicly this is only method to calculate pow(k, n) in O(1).. and stuff like that) */
 typedef struct BVHBuildHelper {
 	int tree_type;              /* */
 	int totleafs;               /* */
@@ -666,7 +677,7 @@ typedef struct BVHBuildHelper {
 
 } BVHBuildHelper;
 
-static void build_implicit_tree_helper(BVHTree *tree, BVHBuildHelper *data)
+static void build_implicit_tree_helper(const BVHTree *tree, BVHBuildHelper *data)
 {
 	int depth = 0;
 	int remain;
@@ -696,7 +707,7 @@ static void build_implicit_tree_helper(BVHTree *tree, BVHBuildHelper *data)
 }
 
 // return the min index of all the leafs archivable with the given branch
-static int implicit_leafs_index(BVHBuildHelper *data, int depth, int child_index)
+static int implicit_leafs_index(const BVHBuildHelper *data, const int depth, const int child_index)
 {
 	int min_leaf_index = child_index * data->leafs_per_child[depth - 1];
 	if (min_leaf_index <= data->remain_leafs)
@@ -711,8 +722,8 @@ static int implicit_leafs_index(BVHBuildHelper *data, int depth, int child_index
  * Generalized implicit tree build
  *
  * An implicit tree is a tree where its structure is implied, thus there is no need to store child pointers or indexs.
- * Its possible to find the position of the child or the parent with simple maths (multiplication and adittion). This type
- * of tree is for example used on heaps.. where node N has its childs at indexs N*2 and N*2+1.
+ * Its possible to find the position of the child or the parent with simple maths (multiplication and adittion).
+ * This type of tree is for example used on heaps.. where node N has its childs at indexs N*2 and N*2+1.
  *
  * Although in this case the tree type is general.. and not know until runtime.
  * tree_type stands for the maximum number of childs that a tree node can have.
@@ -753,7 +764,7 @@ static int implicit_needed_branches(int tree_type, int leafs)
  *
  * TODO: This can be optimized a bit by doing a specialized nth_element instead of K nth_elements
  */
-static void split_leafs(BVHNode **leafs_array, int *nth, int partitions, int split_axis)
+static void split_leafs(BVHNode **leafs_array, const int nth[], const int partitions, const int split_axis)
 {
 	int i;
 	for (i = 0; i < partitions - 1; i++) {
@@ -765,14 +776,14 @@ static void split_leafs(BVHNode **leafs_array, int *nth, int partitions, int spl
 }
 
 typedef struct BVHDivNodesData {
-	BVHTree *tree;
+	const BVHTree *tree;
 	BVHNode *branches_array;
 	BVHNode **leafs_array;
 
 	int tree_type;
 	int tree_offset;
 
-	BVHBuildHelper *data;
+	const BVHBuildHelper *data;
 
 	int depth;
 	int i;
@@ -785,7 +796,7 @@ static void non_recursive_bvh_div_nodes_task_cb(void *userdata, const int j)
 
 	int k;
 	const int parent_level_index = j - data->i;
-	BVHNode *parent = data->branches_array + j;
+	BVHNode *parent = &data->branches_array[j];
 	int nth_positions[MAX_TREETYPE + 1];
 	char split_axis;
 
@@ -824,7 +835,7 @@ static void non_recursive_bvh_div_nodes_task_cb(void *userdata, const int j)
 		const int child_leafs_end   = implicit_leafs_index(data->data, data->depth + 1, child_level_index + 1);
 
 		if (child_leafs_end - child_leafs_begin > 1) {
-			parent->children[k] = data->branches_array + child_index;
+			parent->children[k] = &data->branches_array[child_index];
 			parent->children[k]->parent = parent;
 		}
 		else if (child_leafs_end - child_leafs_begin == 1) {
@@ -855,7 +866,8 @@ static void non_recursive_bvh_div_nodes_task_cb(void *userdata, const int j)
  * To archive this is necessary to find how much leafs are accessible from a certain branch, BVHBuildHelper
  * implicit_needed_branches and implicit_leafs_index are auxiliary functions to solve that "optimal-split".
  */
-static void non_recursive_bvh_div_nodes(BVHTree *tree, BVHNode *branches_array, BVHNode **leafs_array, int num_leafs)
+static void non_recursive_bvh_div_nodes(
+        const BVHTree *tree, BVHNode *branches_array, BVHNode **leafs_array, int num_leafs)
 {
 	int i;
 
@@ -867,13 +879,13 @@ static void non_recursive_bvh_div_nodes(BVHTree *tree, BVHNode *branches_array, 
 	int depth;
 	
 	/* set parent from root node to NULL */
-	BVHNode *tmp = branches_array + 0;
+	BVHNode *tmp = &branches_array[0];
 	tmp->parent = NULL;
 
 	/* Most of bvhtree code relies on 1-leaf trees having at least one branch
 	 * We handle that special case here */
 	if (num_leafs == 1) {
-		BVHNode *root = branches_array + 0;
+		BVHNode *root = &branches_array[0];
 		refit_kdop_hull(tree, root, 0, num_leafs);
 		root->main_axis = get_largest_axis(root->bv) / 2;
 		root->totnode = 1;
@@ -1021,7 +1033,8 @@ void BLI_bvhtree_balance(BVHTree *tree)
 	BVHNode *branches_array = tree->nodearray + tree->totleaf;
 	BVHNode **leafs_array    = tree->nodes;
 
-	/* This function should only be called once (some big bug goes here if its being called more than once per tree) */
+	/* This function should only be called once
+	 * (some big bug goes here if its being called more than once per tree) */
 	BLI_assert(tree->totbranch == 0);
 
 	/* Build the implicit tree */
@@ -1470,7 +1483,8 @@ static void bfs_find_nearest(BVHNearestData *data, BVHNode *node)
 			else {
 				/* adjust heap size */
 				if ((heap_size >= max_heap_size) &&
-				    ADJUST_MEMORY(default_heap, (void **)&heap, heap_size + 1, &max_heap_size, sizeof(heap[0])) == false)
+				    ADJUST_MEMORY(default_heap, (void **)&heap,
+				                  heap_size + 1, &max_heap_size, sizeof(heap[0])) == false)
 				{
 					printf("WARNING: bvh_find_nearest got out of memory\n");
 

@@ -243,90 +243,6 @@ void BlenderSession::free_session()
 	delete session;
 }
 
-static PassType get_pass_type(BL::RenderPass& b_pass)
-{
-	switch(b_pass.type()) {
-		case BL::RenderPass::type_COMBINED:
-			return PASS_COMBINED;
-
-		case BL::RenderPass::type_Z:
-			return PASS_DEPTH;
-		case BL::RenderPass::type_MIST:
-			return PASS_MIST;
-		case BL::RenderPass::type_NORMAL:
-			return PASS_NORMAL;
-		case BL::RenderPass::type_OBJECT_INDEX:
-			return PASS_OBJECT_ID;
-		case BL::RenderPass::type_UV:
-			return PASS_UV;
-		case BL::RenderPass::type_VECTOR:
-			return PASS_MOTION;
-		case BL::RenderPass::type_MATERIAL_INDEX:
-			return PASS_MATERIAL_ID;
-
-		case BL::RenderPass::type_DIFFUSE_DIRECT:
-			return PASS_DIFFUSE_DIRECT;
-		case BL::RenderPass::type_GLOSSY_DIRECT:
-			return PASS_GLOSSY_DIRECT;
-		case BL::RenderPass::type_TRANSMISSION_DIRECT:
-			return PASS_TRANSMISSION_DIRECT;
-		case BL::RenderPass::type_SUBSURFACE_DIRECT:
-			return PASS_SUBSURFACE_DIRECT;
-
-		case BL::RenderPass::type_DIFFUSE_INDIRECT:
-			return PASS_DIFFUSE_INDIRECT;
-		case BL::RenderPass::type_GLOSSY_INDIRECT:
-			return PASS_GLOSSY_INDIRECT;
-		case BL::RenderPass::type_TRANSMISSION_INDIRECT:
-			return PASS_TRANSMISSION_INDIRECT;
-		case BL::RenderPass::type_SUBSURFACE_INDIRECT:
-			return PASS_SUBSURFACE_INDIRECT;
-
-		case BL::RenderPass::type_DIFFUSE_COLOR:
-			return PASS_DIFFUSE_COLOR;
-		case BL::RenderPass::type_GLOSSY_COLOR:
-			return PASS_GLOSSY_COLOR;
-		case BL::RenderPass::type_TRANSMISSION_COLOR:
-			return PASS_TRANSMISSION_COLOR;
-		case BL::RenderPass::type_SUBSURFACE_COLOR:
-			return PASS_SUBSURFACE_COLOR;
-
-		case BL::RenderPass::type_EMIT:
-			return PASS_EMISSION;
-		case BL::RenderPass::type_ENVIRONMENT:
-			return PASS_BACKGROUND;
-		case BL::RenderPass::type_AO:
-			return PASS_AO;
-		case BL::RenderPass::type_SHADOW:
-			return PASS_SHADOW;
-
-		case BL::RenderPass::type_DIFFUSE:
-		case BL::RenderPass::type_COLOR:
-		case BL::RenderPass::type_REFRACTION:
-		case BL::RenderPass::type_SPECULAR:
-		case BL::RenderPass::type_REFLECTION:
-			return PASS_NONE;
-#ifdef WITH_CYCLES_DEBUG
-		case BL::RenderPass::type_DEBUG:
-		{
-			switch(b_pass.debug_type()) {
-				case BL::RenderPass::debug_type_BVH_TRAVERSED_NODES:
-					return PASS_BVH_TRAVERSED_NODES;
-				case BL::RenderPass::debug_type_BVH_TRAVERSED_INSTANCES:
-					return PASS_BVH_TRAVERSED_INSTANCES;
-				case BL::RenderPass::debug_type_BVH_INTERSECTIONS:
-					return PASS_BVH_INTERSECTIONS;
-				case BL::RenderPass::debug_type_RAY_BOUNCES:
-					return PASS_RAY_BOUNCES;
-			}
-			break;
-		}
-#endif
-	}
-	
-	return PASS_NONE;
-}
-
 static ShaderEvalType get_shader_type(const string& pass_type)
 {
 	const char *shader_type = pass_type.c_str();
@@ -383,12 +299,13 @@ static BL::RenderResult begin_render_result(BL::RenderEngine& b_engine,
 static void end_render_result(BL::RenderEngine& b_engine,
                               BL::RenderResult& b_rr,
                               bool cancel,
+                              bool highlight,
                               bool do_merge_results)
 {
-	b_engine.end_result(b_rr, (int)cancel, (int)do_merge_results);
+	b_engine.end_result(b_rr, (int)cancel, (int) highlight, (int)do_merge_results);
 }
 
-void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only)
+void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only, bool highlight)
 {
 	BufferParams& params = rtile.buffers->params;
 	int x = params.full_x - session->tile_manager.params.full_x;
@@ -424,37 +341,37 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 			update_render_result(b_rr, b_rlay, rtile);
 		}
 
-		end_render_result(b_engine, b_rr, true, true);
+		end_render_result(b_engine, b_rr, true, highlight, true);
 	}
 	else {
 		/* write result */
 		write_render_result(b_rr, b_rlay, rtile);
-		end_render_result(b_engine, b_rr, false, true);
+		end_render_result(b_engine, b_rr, false, false, true);
 	}
 }
 
 void BlenderSession::write_render_tile(RenderTile& rtile)
 {
-	do_write_update_render_tile(rtile, false);
+	do_write_update_render_tile(rtile, false, false);
 }
 
-void BlenderSession::update_render_tile(RenderTile& rtile)
+void BlenderSession::update_render_tile(RenderTile& rtile, bool highlight)
 {
 	/* use final write for preview renders, otherwise render result wouldn't be
 	 * be updated in blender side
 	 * would need to be investigated a bit further, but for now shall be fine
 	 */
 	if(!b_engine.is_preview())
-		do_write_update_render_tile(rtile, true);
+		do_write_update_render_tile(rtile, true, highlight);
 	else
-		do_write_update_render_tile(rtile, false);
+		do_write_update_render_tile(rtile, false, false);
 }
 
 void BlenderSession::render()
 {
 	/* set callback to write out render results */
 	session->write_render_tile_cb = function_bind(&BlenderSession::write_render_tile, this, _1);
-	session->update_render_tile_cb = function_bind(&BlenderSession::update_render_tile, this, _1);
+	session->update_render_tile_cb = function_bind(&BlenderSession::update_render_tile, this, _1, _2);
 
 	/* get buffer parameters */
 	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
@@ -475,7 +392,7 @@ void BlenderSession::render()
 
 		/* layer will be missing if it was disabled in the UI */
 		if(b_single_rlay == b_rr.layers.end()) {
-			end_render_result(b_engine, b_rr, true, false);
+			end_render_result(b_engine, b_rr, true, true, false);
 			continue;
 		}
 
@@ -483,25 +400,37 @@ void BlenderSession::render()
 
 		/* add passes */
 		array<Pass> passes;
-		Pass::add(PASS_COMBINED, passes);
-
 		if(session_params.device.advanced_shading) {
-
-			/* loop over passes */
-			BL::RenderLayer::passes_iterator b_pass_iter;
-
-			for(b_rlay.passes.begin(b_pass_iter); b_pass_iter != b_rlay.passes.end(); ++b_pass_iter) {
-				BL::RenderPass b_pass(*b_pass_iter);
-				PassType pass_type = get_pass_type(b_pass);
-
-				if(pass_type == PASS_MOTION && scene->integrator->motion_blur)
-					continue;
-				if(pass_type != PASS_NONE)
-					Pass::add(pass_type, passes);
-			}
+			passes = sync->sync_render_passes(b_rlay, *b_layer_iter);
+		}
+		else {
+			Pass::add(PASS_COMBINED, passes);
 		}
 
 		buffer_params.passes = passes;
+
+		PointerRNA crl = RNA_pointer_get(&b_layer_iter->ptr, "cycles");
+		bool use_denoising = !session_params.progressive_refine && get_boolean(crl, "use_denoising");
+		buffer_params.denoising_data_pass = use_denoising;
+		session->tile_manager.schedule_denoising = use_denoising;
+		session->params.use_denoising = use_denoising;
+		scene->film->denoising_data_pass = buffer_params.denoising_data_pass;
+		scene->film->denoising_flags = 0;
+		if(!get_boolean(crl, "denoising_diffuse_direct"))        scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_DIR;
+		if(!get_boolean(crl, "denoising_diffuse_indirect"))      scene->film->denoising_flags |= DENOISING_CLEAN_DIFFUSE_IND;
+		if(!get_boolean(crl, "denoising_glossy_direct"))         scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_DIR;
+		if(!get_boolean(crl, "denoising_glossy_indirect"))       scene->film->denoising_flags |= DENOISING_CLEAN_GLOSSY_IND;
+		if(!get_boolean(crl, "denoising_transmission_direct"))   scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_DIR;
+		if(!get_boolean(crl, "denoising_transmission_indirect")) scene->film->denoising_flags |= DENOISING_CLEAN_TRANSMISSION_IND;
+		if(!get_boolean(crl, "denoising_subsurface_direct"))     scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_DIR;
+		if(!get_boolean(crl, "denoising_subsurface_indirect"))   scene->film->denoising_flags |= DENOISING_CLEAN_SUBSURFACE_IND;
+		scene->film->denoising_clean_pass = (scene->film->denoising_flags & DENOISING_CLEAN_ALL_PASSES);
+		buffer_params.denoising_clean_pass = scene->film->denoising_clean_pass;
+		session->params.denoising_radius = get_int(crl, "denoising_radius");
+		session->params.denoising_strength = get_float(crl, "denoising_strength");
+		session->params.denoising_feature_strength = get_float(crl, "denoising_feature_strength");
+		session->params.denoising_relative_pca = get_boolean(crl, "denoising_relative_pca");
+
 		scene->film->pass_alpha_threshold = b_layer_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes);
 		scene->film->tag_update(scene);
@@ -555,7 +484,7 @@ void BlenderSession::render()
 		}
 
 		/* free result without merging */
-		end_render_result(b_engine, b_rr, true, false);
+		end_render_result(b_engine, b_rr, true, true, false);
 
 		if(session->progress.get_cancel())
 			break;
@@ -753,19 +682,31 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult& b_rr,
 			BL::RenderPass b_pass(*b_iter);
 
 			/* find matching pass type */
-			PassType pass_type = get_pass_type(b_pass);
+			PassType pass_type = BlenderSync::get_pass_type(b_pass);
 			int components = b_pass.channels();
 
-			/* copy pixels */
-			if(!buffers->get_pass_rect(pass_type, exposure, sample, components, &pixels[0]))
+			bool read = false;
+			if(pass_type != PASS_NONE) {
+				/* copy pixels */
+				read = buffers->get_pass_rect(pass_type, exposure, sample, components, &pixels[0]);
+			}
+			else {
+				int denoising_offset = BlenderSync::get_denoising_pass(b_pass);
+				if(denoising_offset >= 0) {
+					read = buffers->get_denoising_pass_rect(denoising_offset, exposure, sample, components, &pixels[0]);
+				}
+			}
+
+			if(!read) {
 				memset(&pixels[0], 0, pixels.size()*sizeof(float));
+			}
 
 			b_pass.rect(&pixels[0]);
 		}
 	}
 	else {
 		/* copy combined pass */
-		BL::RenderPass b_combined_pass(b_rlay.passes.find_by_type(BL::RenderPass::type_COMBINED, b_rview_name.c_str()));
+		BL::RenderPass b_combined_pass(b_rlay.passes.find_by_name("Combined", b_rview_name.c_str()));
 		if(buffers->get_pass_rect(PASS_COMBINED, exposure, sample, 4, &pixels[0]))
 			b_combined_pass.rect(&pixels[0]);
 	}

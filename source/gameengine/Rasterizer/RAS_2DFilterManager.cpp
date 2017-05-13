@@ -32,7 +32,7 @@
 
 #include "CM_Message.h"
 
-#include "glew-mx.h"
+#include "GPU_glew.h"
 
 extern "C" {
 	extern char datatoc_RAS_Blur2DFilter_glsl[];

@@ -106,7 +106,8 @@
 #include "view3d_intern.h"  /* own include */
 
 /* prototypes */
-static void view3d_stereo3d_setup(Scene *scene, View3D *v3d, ARegion *ar);
+static bool view3d_stereo3d_active(wmWindow *win, Scene *scene, View3D *v3d, RegionView3D *rv3d);
+static void view3d_stereo3d_setup(Scene *scene, View3D *v3d, ARegion *ar, const rcti *rect);
 static void view3d_stereo3d_setup_offscreen(Scene *scene, View3D *v3d, ARegion *ar,
                                             float winmat[4][4], const char *viewname);
 
@@ -2372,16 +2373,10 @@ void ED_view3d_draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d)
 	short zbuf = v3d->zbuf;
 	RegionView3D *rv3d = ar->regiondata;
 
-	view3d_winmatrix_set(ar, v3d, NULL);
-	view3d_viewmatrix_set(scene, v3d, rv3d);  /* note: calls BKE_object_where_is_calc for camera... */
-
-	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
-	invert_m4_m4(rv3d->persinv, rv3d->persmat);
-	invert_m4_m4(rv3d->viewinv, rv3d->viewmat);
+	/* Setup view matrix. */
+	ED_view3d_draw_setup_view(NULL, scene, ar, v3d, rv3d->winmat, rv3d->viewmat, NULL);
 
 	glClear(GL_DEPTH_BUFFER_BIT);
-
-	glLoadMatrixf(rv3d->viewmat);
 
 	v3d->zbuf = true;
 	glEnable(GL_DEPTH_TEST);
@@ -2391,7 +2386,6 @@ void ED_view3d_draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d)
 	}
 	
 	v3d->zbuf = zbuf;
-
 }
 
 static void view3d_draw_depth_loop(Scene *scene, ARegion *ar, View3D *v3d)
@@ -2490,16 +2484,10 @@ void ED_view3d_draw_depth(Scene *scene, ARegion *ar, View3D *v3d, bool alphaover
 	U.glalphaclip = alphaoverride ? 0.5f : glalphaclip; /* not that nice but means we wont zoom into billboards */
 	U.obcenter_dia = 0;
 	
-	view3d_winmatrix_set(ar, v3d, NULL);
-	view3d_viewmatrix_set(scene, v3d, rv3d);  /* note: calls BKE_object_where_is_calc for camera... */
-	
-	mul_m4_m4m4(rv3d->persmat, rv3d->winmat, rv3d->viewmat);
-	invert_m4_m4(rv3d->persinv, rv3d->persmat);
-	invert_m4_m4(rv3d->viewinv, rv3d->viewmat);
+	/* Setup view matrix. */
+	ED_view3d_draw_setup_view(NULL, scene, ar, v3d, rv3d->viewmat, rv3d->winmat, NULL);
 	
 	glClear(GL_DEPTH_BUFFER_BIT);
-	
-	glLoadMatrixf(rv3d->viewmat);
 	
 	if (rv3d->rflag & RV3D_CLIPPING) {
 		ED_view3d_clipping_set(rv3d);
@@ -2755,7 +2743,8 @@ CustomDataMask ED_view3d_screen_datamask(const bScreen *screen)
 /**
  * \note keep this synced with #ED_view3d_mats_rv3d_backup/#ED_view3d_mats_rv3d_restore
  */
-void ED_view3d_update_viewmat(Scene *scene, View3D *v3d, ARegion *ar, float viewmat[4][4], float winmat[4][4])
+void ED_view3d_update_viewmat(
+        Scene *scene, View3D *v3d, ARegion *ar, float viewmat[4][4], float winmat[4][4], const rcti *rect)
 {
 	RegionView3D *rv3d = ar->regiondata;
 
@@ -2763,7 +2752,7 @@ void ED_view3d_update_viewmat(Scene *scene, View3D *v3d, ARegion *ar, float view
 	if (winmat)
 		copy_m4_m4(rv3d->winmat, winmat);
 	else
-		view3d_winmatrix_set(ar, v3d, NULL);
+		view3d_winmatrix_set(ar, v3d, rect);
 
 	/* setup view matrix */
 	if (viewmat)
@@ -3026,11 +3015,12 @@ static void view3d_draw_objects(
 	}
 }
 
-static void view3d_main_region_setup_view(Scene *scene, View3D *v3d, ARegion *ar, float viewmat[4][4], float winmat[4][4])
+static void view3d_main_region_setup_view(
+        Scene *scene, View3D *v3d, ARegion *ar, float viewmat[4][4], float winmat[4][4], const rcti *rect)
 {
 	RegionView3D *rv3d = ar->regiondata;
 
-	ED_view3d_update_viewmat(scene, v3d, ar, viewmat, winmat);
+	ED_view3d_update_viewmat(scene, v3d, ar, viewmat, winmat, rect);
 
 	/* set for opengl */
 	glMatrixMode(GL_PROJECTION);
@@ -3213,7 +3203,7 @@ void ED_view3d_draw_offscreen(
 	if ((viewname != NULL && viewname[0] != '\0') && (viewmat == NULL) && rv3d->persp == RV3D_CAMOB && v3d->camera)
 		view3d_stereo3d_setup_offscreen(scene, v3d, ar, winmat, viewname);
 	else
-		view3d_main_region_setup_view(scene, v3d, ar, viewmat, winmat);
+		view3d_main_region_setup_view(scene, v3d, ar, viewmat, winmat, NULL);
 
 	/* framebuffer fx needed, we need to draw offscreen first */
 	if (v3d->fx_settings.fx_flag && fx) {
@@ -3273,6 +3263,23 @@ void ED_view3d_draw_offscreen(
 	UI_Theme_Restore(&theme_state);
 
 	G.f &= ~G_RENDER_OGL;
+}
+
+/**
+ * Set the correct matrices
+ */
+void ED_view3d_draw_setup_view(
+        wmWindow *win, Scene *scene, ARegion *ar, View3D *v3d, float viewmat[4][4], float winmat[4][4], const rcti *rect)
+{
+	RegionView3D *rv3d = ar->regiondata;
+
+	/* Setup the view matrix. */
+	if (view3d_stereo3d_active(win, scene, v3d, rv3d)) {
+		view3d_stereo3d_setup(scene, v3d, ar, rect);
+	}
+	else {
+		view3d_main_region_setup_view(scene, v3d, ar, viewmat, winmat, rect);
+	}
 }
 
 /**
@@ -3642,7 +3649,7 @@ static bool view3d_main_region_draw_engine(const bContext *C, Scene *scene,
 	}
 
 	/* setup view matrices */
-	view3d_main_region_setup_view(scene, v3d, ar, NULL, NULL);
+	view3d_main_region_setup_view(scene, v3d, ar, NULL, NULL, NULL);
 
 	/* background draw */
 	ED_region_pixelspace(ar);
@@ -3709,26 +3716,37 @@ static void view3d_main_region_draw_engine_info(View3D *v3d, RegionView3D *rv3d,
 	ED_region_info_draw(ar, rv3d->render_engine->text, fill_color, true);
 }
 
-static bool view3d_stereo3d_active(const bContext *C, Scene *scene, View3D *v3d, RegionView3D *rv3d)
+static bool view3d_stereo3d_active(wmWindow *win, Scene *scene, View3D *v3d, RegionView3D *rv3d)
 {
-	wmWindow *win = CTX_wm_window(C);
-
-	if ((scene->r.scemode & R_MULTIVIEW) == 0)
+	if ((scene->r.scemode & R_MULTIVIEW) == 0) {
 		return false;
-
-	if (WM_stereo3d_enabled(win, true) == false)
-		return false;
-
-	if ((v3d->camera == NULL) || (v3d->camera->type != OB_CAMERA) || rv3d->persp != RV3D_CAMOB)
-		return false;
-
-	if (scene->r.views_format & SCE_VIEWS_FORMAT_MULTIVIEW) {
-		if (v3d->stereo3d_camera == STEREO_MONO_ID)
-			return false;
-
-		return BKE_scene_multiview_is_stereo3d(&scene->r);
 	}
 
+	if ((v3d->camera == NULL) || (v3d->camera->type != OB_CAMERA) || rv3d->persp != RV3D_CAMOB) {
+		return false;
+	}
+
+	switch (v3d->stereo3d_camera) {
+		case STEREO_MONO_ID:
+			return false;
+			break;
+		case STEREO_3D_ID:
+			/* win will be NULL when calling this from the selection or draw loop. */
+			if ((win == NULL) || (WM_stereo3d_enabled(win, true) == false)) {
+				return false;
+			}
+			if (((scene->r.views_format & SCE_VIEWS_FORMAT_MULTIVIEW) != 0) &&
+			    !BKE_scene_multiview_is_stereo3d(&scene->r))
+			{
+				return false;
+			}
+			break;
+		/* We always need the stereo calculation for left and right cameras. */
+		case STEREO_LEFT_ID:
+		case STEREO_RIGHT_ID:
+		default:
+			break;
+	}
 	return true;
 }
 
@@ -3740,7 +3758,7 @@ static bool view3d_stereo3d_active(const bContext *C, Scene *scene, View3D *v3d,
  * we do a small hack to replace it temporarily so we don't need to change the
  * view3d)main_region_setup_view() code to account for that.
  */
-static void view3d_stereo3d_setup(Scene *scene, View3D *v3d, ARegion *ar)
+static void view3d_stereo3d_setup(Scene *scene, View3D *v3d, ARegion *ar, const rcti *rect)
 {
 	bool is_left;
 	const char *names[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
@@ -3766,7 +3784,7 @@ static void view3d_stereo3d_setup(Scene *scene, View3D *v3d, ARegion *ar)
 		data->shiftx = BKE_camera_multiview_shift_x(&scene->r, v3d->camera, viewname);
 
 		BKE_camera_multiview_view_matrix(&scene->r, v3d->camera, is_left, viewmat);
-		view3d_main_region_setup_view(scene, v3d, ar, viewmat, NULL);
+		view3d_main_region_setup_view(scene, v3d, ar, viewmat, NULL, rect);
 
 		data->shiftx = shiftx;
 		BLI_unlock_thread(LOCK_VIEW3D);
@@ -3780,7 +3798,7 @@ static void view3d_stereo3d_setup(Scene *scene, View3D *v3d, ARegion *ar)
 		v3d->camera = camera;
 
 		BKE_camera_multiview_view_matrix(&scene->r, camera, false, viewmat);
-		view3d_main_region_setup_view(scene, v3d, ar, viewmat, NULL);
+		view3d_main_region_setup_view(scene, v3d, ar, viewmat, NULL, rect);
 
 		v3d->camera = view_ob;
 		BLI_unlock_thread(LOCK_VIEW3D);
@@ -3796,14 +3814,14 @@ static void view3d_stereo3d_setup_offscreen(Scene *scene, View3D *v3d, ARegion *
 		const bool is_left = STREQ(viewname, STEREO_LEFT_NAME);
 
 		BKE_camera_multiview_view_matrix(&scene->r, v3d->camera, is_left, viewmat);
-		view3d_main_region_setup_view(scene, v3d, ar, viewmat, winmat);
+		view3d_main_region_setup_view(scene, v3d, ar, viewmat, winmat, NULL);
 	}
 	else { /* SCE_VIEWS_FORMAT_MULTIVIEW */
 		float viewmat[4][4];
 		Object *camera = BKE_camera_multiview_render(scene, v3d->camera, viewname);
 
 		BKE_camera_multiview_view_matrix(&scene->r, camera, false, viewmat);
-		view3d_main_region_setup_view(scene, v3d, ar, viewmat, winmat);
+		view3d_main_region_setup_view(scene, v3d, ar, viewmat, winmat, NULL);
 	}
 }
 
@@ -3841,11 +3859,8 @@ static void view3d_main_region_draw_objects(const bContext *C, Scene *scene, Vie
 		GPU_default_lights();
 	}
 
-	/* setup the view matrix */
-	if (view3d_stereo3d_active(C, scene, v3d, rv3d))
-		view3d_stereo3d_setup(scene, v3d, ar);
-	else
-		view3d_main_region_setup_view(scene, v3d, ar, NULL, NULL);
+	/* Setup the view matrix. */
+	ED_view3d_draw_setup_view(CTX_wm_window(C), scene, ar, v3d, NULL, NULL, NULL);
 
 	rv3d->rflag &= ~RV3D_IS_GAME_ENGINE;
 #ifdef WITH_GAMEENGINE

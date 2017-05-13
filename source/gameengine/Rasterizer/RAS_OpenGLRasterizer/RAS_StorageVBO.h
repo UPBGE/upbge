@@ -28,7 +28,7 @@
 #ifndef __RAS_STORAGE_VBO_H__
 #define __RAS_STORAGE_VBO_H__
 
-#include "glew-mx.h"
+#include "GPU_glew.h"
 
 #include "RAS_IStorageInfo.h"
 #include "RAS_Rasterizer.h"

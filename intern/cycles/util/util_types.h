@@ -94,6 +94,7 @@ CCL_NAMESPACE_BEGIN
 #ifndef __KERNEL_OPENCL__
 typedef unsigned char uchar;
 typedef unsigned int uint;
+typedef unsigned short ushort;
 #endif
 
 /* Fixed Bits Types */
@@ -132,6 +133,11 @@ ccl_device_inline size_t align_up(size_t offset, size_t alignment)
 	return (offset + alignment - 1) & ~(alignment - 1);
 }
 
+ccl_device_inline size_t divide_up(size_t x, size_t y)
+{
+	return (x + y - 1) / y;
+}
+
 ccl_device_inline size_t round_up(size_t x, size_t multiple)
 {
 	return ((x + multiple - 1) / multiple) * multiple;
@@ -156,7 +162,7 @@ enum InterpolationType {
 
 /* Texture types
  * Since we store the type in the lower bits of a flat index,
- * the shift and bit mask constant below need to be kept in sync. 
+ * the shift and bit mask constant below need to be kept in sync.
  */
 
 enum ImageDataType {
@@ -166,7 +172,7 @@ enum ImageDataType {
 	IMAGE_DATA_TYPE_FLOAT = 3,
 	IMAGE_DATA_TYPE_BYTE = 4,
 	IMAGE_DATA_TYPE_HALF = 5,
-	
+
 	IMAGE_DATA_NUM_TYPES
 };
 

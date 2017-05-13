@@ -27,7 +27,7 @@
 #include "RAS_DisplayArray.h"
 #include "RAS_MeshObject.h"
 
-#include "glew-mx.h"
+#include "GPU_glew.h"
 
 RAS_IDisplayArray::RAS_IDisplayArray(PrimitiveType type, const RAS_TexVertFormat& format)
 	:m_type(type),

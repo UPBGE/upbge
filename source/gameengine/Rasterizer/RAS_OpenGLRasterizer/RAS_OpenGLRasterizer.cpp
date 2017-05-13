@@ -32,7 +32,7 @@
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_IPolygonMaterial.h"
 
-#include "glew-mx.h"
+#include "GPU_glew.h"
 
 #include "RAS_MeshUser.h"
 

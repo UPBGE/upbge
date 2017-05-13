@@ -53,7 +53,7 @@
 
 #include <memory.h>
 
-#include "glew-mx.h"
+#include "GPU_glew.h"
 
 // macro for exception handling and logging
 #define CATCH_EXCP catch (Exception & exp) \

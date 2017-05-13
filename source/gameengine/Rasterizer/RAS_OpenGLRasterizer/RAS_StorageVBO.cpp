@@ -30,7 +30,7 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Deformer.h"
 
-#include "glew-mx.h"
+#include "GPU_glew.h"
 
 VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
 	:m_bound(false)

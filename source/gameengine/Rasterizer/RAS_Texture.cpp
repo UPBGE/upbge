@@ -22,10 +22,9 @@
  *  \ingroup ketsji
  */
 
-#include "glew-mx.h"
-
 #include "RAS_Texture.h"
 
+#include "GPU_glew.h"
 
 RAS_Texture::RAS_Texture()
 	:m_bindCode(-1),
