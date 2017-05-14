@@ -710,6 +710,21 @@ GPUTexture *GPU_texture_create_depth_multisample(int w, int h, int samples, char
 	return GPU_texture_create_nD(w, h, 0, 2, NULL, GPU_DEPTH_COMPONENT24, 1, samples, false, err_out);
 }
 
+GPUTexture **GPU_texture_global_depth_ptr(void)
+{
+	return &GG.depth_tex;
+}
+
+void GPU_texture_set_global_depth(GPUTexture *depthtex)
+{
+	if (depthtex) {
+		GG.depth_tex = depthtex;
+	}
+	else {
+		GG.depth_tex = GG.invalid_tex_2D;
+	}
+}
+
 void GPU_invalid_tex_init(void)
 {
 	memory_usage = 0;
@@ -858,6 +873,50 @@ void GPU_texture_filter_mode(GPUTexture *tex, bool use_filter)
 	GLenum filter = use_filter ? GL_LINEAR : GL_NEAREST;
 	glTexParameteri(tex->target_base, GL_TEXTURE_MAG_FILTER, filter);
 	glTexParameteri(tex->target_base, GL_TEXTURE_MIN_FILTER, filter);
+
+	if (tex->number != 0)
+		glActiveTexture(GL_TEXTURE0);
+}
+
+void GPU_texture_mipmap_mode(GPUTexture *tex, bool use_mipmap)
+{
+	if (tex->number >= GPU_max_textures()) {
+		fprintf(stderr, "Not enough texture slots.\n");
+		return;
+	}
+
+	if (tex->number == -1)
+		return;
+
+	if (tex->number != 0)
+		glActiveTexture(GL_TEXTURE0 + tex->number);
+
+	GLenum mipmap = use_mipmap ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR;
+	glTexParameteri(tex->target_base, GL_TEXTURE_MIN_FILTER, mipmap);
+
+	if (tex->number != 0)
+		glActiveTexture(GL_TEXTURE0);
+}
+
+void GPU_texture_wrap_mode(GPUTexture *tex, bool use_repeat)
+{
+	if (tex->number >= GPU_max_textures()) {
+		fprintf(stderr, "Not enough texture slots.\n");
+		return;
+	}
+
+	if (tex->number == -1)
+		return;
+
+	if (tex->number != 0)
+		glActiveTexture(GL_TEXTURE0 + tex->number);
+
+	GLenum repeat = use_repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE;
+	glTexParameteri(tex->target_base, GL_TEXTURE_WRAP_S, repeat);
+	if (tex->target_base != GL_TEXTURE_1D)
+		glTexParameteri(tex->target_base, GL_TEXTURE_WRAP_T, repeat);
+	if (tex->target_base == GL_TEXTURE_3D)
+		glTexParameteri(tex->target_base, GL_TEXTURE_WRAP_R, repeat);
 
 	if (tex->number != 0)
 		glActiveTexture(GL_TEXTURE0);
