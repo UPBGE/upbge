@@ -294,7 +294,7 @@ bool RAS_Shader::LinkProgram()
 	vert = m_progs[VERTEX_PROGRAM].c_str();
 	frag = m_progs[FRAGMENT_PROGRAM].c_str();
 	geom = (m_progs[GEOMETRY_PROGRAM].empty()) ? nullptr : m_progs[GEOMETRY_PROGRAM].c_str();
-	m_shader = GPU_shader_create_ex(vert, frag, geom, nullptr, nullptr, 0, 0, 0, GPU_SHADER_FLAGS_SPECIAL_RESET_LINE);
+	m_shader = GPU_shader_create_ex(vert, frag, geom, nullptr, nullptr, GPU_SHADER_FLAGS_SPECIAL_RESET_LINE);
 	if (!m_shader) {
 		goto program_error;
 	}
@@ -322,11 +322,6 @@ void RAS_Shader::ValidateProgram()
 bool RAS_Shader::GetError()
 {
 	return m_error;
-}
-
-unsigned int RAS_Shader::GetProg()
-{
-	return GPU_shader_program(m_shader);
 }
 
 GPUShader *RAS_Shader::GetGPUShader()

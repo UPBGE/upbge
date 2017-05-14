@@ -146,7 +146,6 @@ public:
 
 	void SetSampler(int loc, int unit);
 	bool Ok() const;
-	unsigned int GetProg();
 	GPUShader *GetGPUShader();
 	virtual void SetProg(bool enable);
 	void SetEnabled(bool enabled);
