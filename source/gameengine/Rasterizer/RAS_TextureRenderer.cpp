@@ -53,7 +53,7 @@ void RAS_TextureRenderer::Face::AttachTexture(GPUTexture *tex)
 	m_rb = GPU_renderbuffer_create(GPU_texture_width(tex), GPU_texture_height(tex),
 		0, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, nullptr);
 
-	GPU_framebuffer_texture_attach_target(m_fbo, tex, m_target, 0, nullptr);
+	GPU_framebuffer_texture_attach_target(m_fbo, tex, m_target, 0, 0);
 	GPU_framebuffer_renderbuffer_attach(m_fbo, m_rb, 0, nullptr);
 }
 

@@ -123,13 +123,13 @@ inline RAS_OffScreen *RAS_Rasterizer::OffScreens::GetOffScreen(OffScreenType typ
 			}
 
 			// WARNING: Always respect the order from RAS_Rasterizer::HdrType.
-			static const GPUHDRType hdrEnums[] = {
-				GPU_HDR_NONE, // RAS_HDR_NONE
-				GPU_HDR_HALF_FLOAT, // RAS_HDR_HALF_FLOAT
-				GPU_HDR_FULL_FLOAT // RAS_HDR_FULL_FLOAT
+			static const GPUTextureFormat dataTypeEnums[] = {
+				GPU_RGBA8, // RAS_HDR_NONE
+				GPU_RGBA16F, // RAS_HDR_HALF_FLOAT
+				GPU_RGBA32F // RAS_HDR_FULL_FLOAT
 			};
 
-			RAS_OffScreen *ofs = new RAS_OffScreen(m_width, m_height, sampleofs ? samples : 0, hdrEnums[m_hdr], mode, nullptr, type);
+			RAS_OffScreen *ofs = new RAS_OffScreen(m_width, m_height, sampleofs ? samples : 0, dataTypeEnums[m_hdr], mode, nullptr, type);
 			if (!ofs->GetValid()) {
 				delete ofs;
 				continue;

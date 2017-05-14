@@ -46,7 +46,7 @@ private:
 	static RAS_OffScreen *lastOffScreen;
 
 public:
-	RAS_OffScreen(unsigned int width, unsigned int height, int samples, GPUHDRType hdrType, GPUOffScreenMode mode, char errOut[256],
+	RAS_OffScreen(unsigned int width, unsigned int height, int samples, GPUTextureFormat dataType, GPUOffScreenMode mode, char errOut[256],
 				  RAS_Rasterizer::OffScreenType type);
 	~RAS_OffScreen();
 

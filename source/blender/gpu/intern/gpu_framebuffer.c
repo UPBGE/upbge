@@ -816,7 +816,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUTextur
 			return NULL;
 		}
 
-		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->depth, 0, err_out)) {
+		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->depth, 0, 0)) {
 			GPU_offscreen_free(ofs);
 			return NULL;
 		}
@@ -843,7 +843,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUTextur
 
 		GPU_texture_compare_mode(ofs->depth, mode & GPU_OFFSCREEN_DEPTH_COMPARE);
 
-		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->color, 0, err_out)) {
+		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->color, 0, 0)) {
 			GPU_offscreen_free(ofs);
 			return NULL;
 		}
