@@ -225,8 +225,6 @@ RAS_Rasterizer::RAS_Rasterizer()
 	m_storage.reset(new RAS_StorageVBO(&m_storageAttribs));
 
 	m_numgllights = m_impl->GetNumLights();
-
-	InitOverrideShadersInterface();
 }
 
 RAS_Rasterizer::~RAS_Rasterizer()
@@ -460,8 +458,7 @@ void RAS_Rasterizer::DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *d
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER);
 		GPU_shader_bind(shader);
 
-		OverrideShaderDrawFrameBufferInterface *interface = (OverrideShaderDrawFrameBufferInterface *)GPU_shader_get_interface(shader);
-		GPU_shader_uniform_int(shader, interface->colorTexLoc, 0);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "colortex"), 0);
 
 		DrawOverlayPlane();
 
@@ -516,14 +513,11 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_STIPPLE);
 		GPU_shader_bind(shader);
 
-		OverrideShaderStereoStippleInterface *interface = (OverrideShaderStereoStippleInterface *)GPU_shader_get_interface(shader);
-
-		leftOffScreen->BindColorTexture(0);
 		rightOffScreen->BindColorTexture(1);
 
-		GPU_shader_uniform_int(shader, interface->leftEyeTexLoc, 0);
-		GPU_shader_uniform_int(shader, interface->rightEyeTexLoc, 1);
-		GPU_shader_uniform_int(shader, interface->stippleIdLoc, (m_stereomode == RAS_STEREO_INTERLACED) ? 1 : 0);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "lefteyetex"), 0);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "righteyetex"), 1);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "stippleid"), (m_stereomode == RAS_STEREO_INTERLACED) ? 1 : 0);
 
 		DrawOverlayPlane();
 
@@ -536,13 +530,11 @@ void RAS_Rasterizer::DrawStereoOffScreen(RAS_ICanvas *canvas, RAS_OffScreen *lef
 		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_ANAGLYPH);
 		GPU_shader_bind(shader);
 
-		OverrideShaderStereoAnaglyph *interface = (OverrideShaderStereoAnaglyph *)GPU_shader_get_interface(shader);
-
 		leftOffScreen->BindColorTexture(0);
 		rightOffScreen->BindColorTexture(1);
 
-		GPU_shader_uniform_int(shader, interface->leftEyeTexLoc, 0);
-		GPU_shader_uniform_int(shader, interface->rightEyeTexLoc, 1);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "lefteyetex"), 0);
+		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "righteyetex"), 1);
 
 		DrawOverlayPlane();
 
@@ -1160,50 +1152,6 @@ RAS_Rasterizer::MipmapOption RAS_Rasterizer::GetMipmapping()
 	}
 	else {
 		return RAS_Rasterizer::RAS_MIPMAP_NONE;
-	}
-}
-
-void RAS_Rasterizer::InitOverrideShadersInterface()
-{
-	// Find uniform location for FBO shaders.
-
-	// Draw frame buffer shader.
-	{
-		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER);
-		if (!GPU_shader_get_interface(shader)) {
-			OverrideShaderDrawFrameBufferInterface *interface = (OverrideShaderDrawFrameBufferInterface *)MEM_mallocN(sizeof(OverrideShaderDrawFrameBufferInterface), "OverrideShaderDrawFrameBufferInterface");
-
-			interface->colorTexLoc = GPU_shader_get_uniform(shader, "colortex");
-
-			GPU_shader_set_interface(shader, interface); //////////////// C'est quoi ça? L'interface est déjà crée non?
-		}
-	}
-
-	// Stipple stereo shader.
-	{
-		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_STIPPLE);
-		if (!GPU_shader_get_interface(shader)) {
-			OverrideShaderStereoStippleInterface *interface = (OverrideShaderStereoStippleInterface *)MEM_mallocN(sizeof(OverrideShaderStereoStippleInterface), "OverrideShaderStereoStippleInterface");
-
-			interface->leftEyeTexLoc = GPU_shader_get_uniform(shader, "lefteyetex");
-			interface->rightEyeTexLoc = GPU_shader_get_uniform(shader, "righteyetex");
-			interface->stippleIdLoc = GPU_shader_get_uniform(shader, "stippleid");
-
-			GPU_shader_set_interface(shader, interface);
-		}
-	}
-
-	// Anaglyph stereo shader.
-	{
-		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_STEREO_ANAGLYPH);
-		if (!GPU_shader_get_interface(shader)) {
-			OverrideShaderStereoAnaglyph *interface = (OverrideShaderStereoAnaglyph *)MEM_mallocN(sizeof(OverrideShaderStereoAnaglyph), "OverrideShaderStereoAnaglyph");
-
-			interface->leftEyeTexLoc = GPU_shader_get_uniform(shader, "lefteyetex");
-			interface->rightEyeTexLoc = GPU_shader_get_uniform(shader, "righteyetex");
-
-			GPU_shader_set_interface(shader, interface);
-		}
 	}
 }
 

@@ -296,26 +296,6 @@ private:
 		float *mat;
 	};
 
-	/// \section Interfaces used for frame buffer shaders.
-
-	struct OverrideShaderDrawFrameBufferInterface
-	{
-		int colorTexLoc;
-	};
-
-	struct OverrideShaderStereoStippleInterface
-	{
-		int leftEyeTexLoc;
-		int rightEyeTexLoc;
-		int stippleIdLoc;
-	};
-
-	struct OverrideShaderStereoAnaglyph
-	{
-		int leftEyeTexLoc;
-		int rightEyeTexLoc;
-	};
-
 	// We store each debug shape by scene.
 	std::map<SCA_IScene *, RAS_DebugDraw> m_debugDraws;
 
@@ -365,9 +345,6 @@ private:
 
 	std::unique_ptr<RAS_StorageVBO> m_storage;
 	std::unique_ptr<RAS_OpenGLRasterizer> m_impl;
-
-	/// Initialize custom shader interface containing uniform location.
-	void InitOverrideShadersInterface();
 
 	/// Return GPUShader coresponding to the override shader enumeration.
 	GPUShader *GetOverrideGPUShader(OverrideShaderType type);
