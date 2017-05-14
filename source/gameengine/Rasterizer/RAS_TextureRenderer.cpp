@@ -51,7 +51,7 @@ void RAS_TextureRenderer::Face::AttachTexture(GPUTexture *tex)
 {
 	m_fbo = GPU_framebuffer_create();
 	m_rb = GPU_renderbuffer_create(GPU_texture_width(tex), GPU_texture_height(tex),
-		0, GPU_HDR_NONE, GPU_RENDERBUFFER_DEPTH, nullptr);
+		0, GPU_RGBA8, GPU_RENDERBUFFER_DEPTH, nullptr);
 
 	GPU_framebuffer_texture_attach_target(m_fbo, tex, m_target, 0, 0);
 	GPU_framebuffer_renderbuffer_attach(m_fbo, m_rb, 0, nullptr);
@@ -147,9 +147,7 @@ void RAS_TextureRenderer::GetValidTexture()
 
 	if (!m_useMipmap) {
 		// Disable mipmaping.
-		GPU_texture_bind(m_gpuTex, 0);
-		GPU_texture_filter_mode(m_gpuTex, false, (env->filtering == ENVMAP_MIPMAP_LINEAR), false);
-		GPU_texture_unbind(m_gpuTex);
+		GPU_texture_filter_mode(m_gpuTex, env->filtering == ENVMAP_MIPMAP_LINEAR);
 	}
 }
 
