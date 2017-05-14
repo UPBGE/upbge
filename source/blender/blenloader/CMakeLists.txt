@@ -29,11 +29,13 @@ set(INC
 	../blenkernel
 	../blenlib
 	../blentranslation
+	../depsgraph
 	../imbuf
 	../makesdna
 	../makesrna
 	../nodes
 	../render/extern/include
+	../windowmanager
 	../../../intern/guardedalloc
 
 	# for writefile.c: dna_type_offsets.h
