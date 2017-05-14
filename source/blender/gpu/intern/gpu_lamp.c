@@ -473,9 +473,19 @@ int GPU_lamp_shadow_bind_code(GPULamp *lamp)
 	return lamp->tex ? GPU_texture_opengl_bindcode(lamp->tex) : -1;
 }
 
-float *GPU_lamp_dynpersmat(GPULamp *lamp)
+const float *GPU_lamp_dynpersmat(GPULamp *lamp)
 {
 	return &lamp->dynpersmat[0][0];
+}
+
+const float *GPU_lamp_get_viewmat(GPULamp *lamp)
+{
+	return &lamp->viewmat[0][0];
+}
+
+const float *GPU_lamp_get_winmat(GPULamp *lamp)
+{
+	return &lamp->winmat[0][0];
 }
 
 int GPU_lamp_shadow_layer(GPULamp *lamp)
