@@ -84,6 +84,9 @@ extern "C" {
 #include "BLI_task.h"
 #include "CM_Message.h"
 
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
+
 KX_BlenderConverter::SceneSlot::SceneSlot() = default;
 
 KX_BlenderConverter::SceneSlot::SceneSlot(const KX_BlenderSceneConverter& converter)
@@ -117,8 +120,9 @@ void KX_BlenderConverter::SceneSlot::Merge(const KX_BlenderSceneConverter& conve
 	}
 }
 
-KX_BlenderConverter::KX_BlenderConverter(Main *maggie, KX_KetsjiEngine *engine)
+KX_BlenderConverter::KX_BlenderConverter(Main *maggie, Depsgraph *depsgraph, KX_KetsjiEngine *engine)
 	:m_maggie(maggie),
+	m_depsgraph(depsgraph),
 	m_ketsjiEngine(engine),
 	m_alwaysUseExpandFraming(false)
 {
@@ -181,6 +185,9 @@ void KX_BlenderConverter::ConvertScene(KX_Scene *destinationscene, RAS_Rasterize
 	// Find out which physics engine
 	Scene *blenderscene = destinationscene->GetBlenderScene();
 
+	blenderscene->depsgraph = m_depsgraph;
+	DEG_scene_relations_rebuild(m_maggie, blenderscene);
+
 	PHY_IPhysicsEnvironment *phy_env = nullptr;
 
 	e_PhysicsEngine physics_engine = UseBullet;
@@ -218,6 +225,7 @@ void KX_BlenderConverter::ConvertScene(KX_Scene *destinationscene, RAS_Rasterize
 
 	BL_ConvertBlenderObjects(
 		m_maggie,
+		m_depsgraph,
 		destinationscene,
 		m_ketsjiEngine,
 		physics_engine,

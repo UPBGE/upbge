@@ -73,6 +73,8 @@ extern "C"
 #  include "IMB_imbuf.h"
 #  include "IMB_moviecache.h"
 
+#include "DEG_depsgraph_build.h"
+
 #  ifdef __APPLE__
 	int GHOST_HACK_getFirstFile(char buf[]);
 #  endif
@@ -1196,6 +1198,8 @@ int main(
 						Main *maggie = bfd->main;
 						Scene *scene = bfd->curscene;
 						G.main = maggie;
+						DEG_scene_relations_rebuild(maggie, scene);
+						Depsgraph *depsgraph = scene->depsgraph;
 
 						if (firstTimeRunning) {
 							G.fileflags  = bfd->fileflags;
@@ -1359,7 +1363,7 @@ int main(
 						}
 
 						// This argc cant be argc_py_clamped, since python uses it.
-						LA_PlayerLauncher launcher(system, window, maggie, scene, &gs, stereomode, aasamples,
+						LA_PlayerLauncher launcher(system, window, maggie, depsgraph, scene, &gs, stereomode, aasamples,
 												   argc, argv, pythonControllerFile);
 #ifdef WITH_PYTHON
 						if (!globalDict) {

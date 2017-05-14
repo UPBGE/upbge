@@ -56,7 +56,8 @@ RAS_MeshSlot::RAS_MeshSlot()
 	m_pDeformer(nullptr),
 	m_pDerivedMesh(nullptr),
 	m_meshUser(nullptr),
-	m_batchPartIndex(-1)
+	m_batchPartIndex(-1),
+	m_gpuMat(nullptr)
 {
 }
 
@@ -175,6 +176,16 @@ void RAS_MeshSlot::SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket)
 
 	m_displayArrayBucket = arrayBucket;
 	m_displayArray = m_displayArrayBucket->GetDisplayArray();
+}
+
+void RAS_MeshSlot::SetGpuMat(GPUMaterial *mat)
+{
+	m_gpuMat = mat;
+}
+
+GPUMaterial *RAS_MeshSlot::GetGpuMat()
+{
+	return m_gpuMat;
 }
 
 void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode *root, RAS_UpwardTreeLeafs *leafs)

@@ -36,6 +36,7 @@ extern "C" {
 #include "BKE_idcode.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
+#include "BKE_scene.h"
 
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -130,7 +131,7 @@ void DAG_objects_iterator_next(Iterator *iter)
 	Base *base = data->base->next;
 
 	while (base) {
-		if ((base->flag & BASE_VISIBLED) != 0) {
+		if ((base->flag & BASE_VISIBLED) != 0 || BKE_scene_uses_blender_game(data->scene)) {
 			Object *ob = DAG_get_object(data->graph, base->object);
 			iter->current = ob;
 

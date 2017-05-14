@@ -194,6 +194,8 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 	if (!gpumat || !GPU_material_bound(gpumat))
 		return;
 
+	ms->SetGpuMat(gpumat);
+
 	MT_Matrix4x4 model;
 	model.setValue(ms->m_meshUser->GetMatrix());
 

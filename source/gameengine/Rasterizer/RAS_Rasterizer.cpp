@@ -57,6 +57,7 @@
 
 extern "C" {
 #  include "BLF_api.h"
+#  include "../gpu/intern/gpu_codegen.h"
 }
 
 #include "MEM_guardedalloc.h"
@@ -799,6 +800,16 @@ void RAS_Rasterizer::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
 
 void RAS_Rasterizer::IndexPrimitives(RAS_MeshSlot *ms)
 {
+	/* For blender shaders (not custom), we need
+	 * to bind shader to update uniforms.
+	 */
+	GPUMaterial *gpumat = ms->GetGpuMat();
+	if (gpumat) {
+		GPUPass *pass = GPU_material_get_pass(gpumat);
+		GPUShader *shader = GPU_pass_shader(pass);
+		GPU_shader_bind(shader);
+	}
+
 	if (ms->m_pDerivedMesh) {
 		m_impl->DrawDerivedMesh(ms, m_drawingmode);
 	}
@@ -1164,7 +1175,7 @@ void RAS_Rasterizer::InitOverrideShadersInterface()
 
 			interface->colorTexLoc = GPU_shader_get_uniform(shader, "colortex");
 
-			GPU_shader_set_interface(shader, interface);
+			GPU_shader_set_interface(shader, interface); //////////////// C'est quoi ça? L'interface est déjà crée non?
 		}
 	}
 
@@ -1533,7 +1544,8 @@ void RAS_Rasterizer::RenderText3D(
         int fontid, const std::string& text, int size, int dpi,
         const float color[4], const float mat[16], float aspect)
 {
-	m_impl->RenderText3D(fontid, text, size, dpi, color, mat, aspect);
+	/* TEMP: DISABLE TEXT DRAWING in 2.8 WAITING FOR REFACTOR */
+	//m_impl->RenderText3D(fontid, text, size, dpi, color, mat, aspect);
 }
 
 void RAS_Rasterizer::PushMatrix()

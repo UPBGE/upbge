@@ -266,7 +266,8 @@ void KX_KetsjiEngine::EndFrame()
 	// Show profiling info
 	m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds(), true);
 	if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES)) {
-		RenderDebugProperties();
+		/* TEMP: DISABLE TEXT DRAWING in 2.8 WAITING FOR REFACTOR */
+		//RenderDebugProperties();
 	}
 
 	double tottime = m_logger.GetAverage();

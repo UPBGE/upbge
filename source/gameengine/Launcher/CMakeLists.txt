@@ -40,6 +40,7 @@ set(INC
 	../VideoTexture
 	../../blender/blenkernel
 	../../blender/blenlib
+	../../blender/depsgraph
 	../../blender/gpu
 	../../blender/makesdna
 	../../blender/makesrna

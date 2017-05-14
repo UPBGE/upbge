@@ -45,6 +45,7 @@ set(INC
 	../../blender/blenlib
 	../../blender/blenloader
 	../../blender/blentranslation
+	../../blender/depsgraph
 	../../blender/gpu
 	../../blender/imbuf
 	../../blender/makesdna
