@@ -887,9 +887,6 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 
 	y = 1.0 - y; //to follow Blender window coordinate system (Top-Down)
 
-	MT_Vector3 vect;
-	MT_Vector3 campos, screenpos;
-
 	const GLint *viewport;
 	GLfloat vec[3];
 	GLfloat win[3];
@@ -914,7 +911,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 
 	gpuUnProject(vec, modelmatrix, projmatrix, viewport, win);
 
-	MT_Vector3 campos = GetCameraLocation();
+	MT_Vector3 campos = NodeGetWorldPosition();
 	MT_Vector3 screenpos(win[0], win[1], win[2]);
 	MT_Vector3 vect = campos - screenpos;
 	vect.normalize();
