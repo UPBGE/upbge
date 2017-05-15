@@ -455,7 +455,7 @@ void RAS_Rasterizer::DrawOffScreen(RAS_OffScreen *srcOffScreen, RAS_OffScreen *d
 	else {
 		srcOffScreen->BindColorTexture(0);
 
-		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER);
+		GPUShader *shader = GPU_shader_get_builtin_shader(GPU_SHADER_DRAW_FRAME_BUFFER); //temp
 		GPU_shader_bind(shader);
 
 		GPU_shader_uniform_int(shader, GPU_shader_get_uniform(shader, "colortex"), 0);
