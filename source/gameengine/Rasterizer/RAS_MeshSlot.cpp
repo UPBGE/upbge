@@ -177,10 +177,10 @@ void RAS_MeshSlot::SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket)
 	m_displayArray = m_displayArrayBucket->GetDisplayArray();
 }
 
-void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode *root, RAS_UpwardTreeLeafs *leafs)
+void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs)
 {
-	m_node.SetParent(root);
-	leafs->push_back(&m_node);
+	m_node.SetParent(&root);
+	leafs.push_back(&m_node);
 }
 
 void RAS_MeshSlot::RunNode(const RAS_RenderNodeArguments& args)

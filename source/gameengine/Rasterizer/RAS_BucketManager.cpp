@@ -97,7 +97,7 @@ void RAS_BucketManager::RenderSortedBuckets(const MT_Transform& cameratrans, RAS
 	BucketList& solidBuckets = m_buckets[bucketType];
 	RAS_UpwardTreeLeafs leafs;
 	for (RAS_MaterialBucket *bucket : solidBuckets) {
-		bucket->GenerateTree(&m_downwardNode, &m_upwardNode, &leafs, rasty, true);
+		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, rasty, true);
 	}
 
 	RAS_RenderNodeArguments args(cameratrans, rasty, true, rasty->GetOverrideShader() != RAS_Rasterizer::RAS_OVERRIDE_SHADER_NONE);
@@ -115,19 +115,20 @@ void RAS_BucketManager::RenderSortedBuckets(const MT_Transform& cameratrans, RAS
 
 		std::sort(sortedSlots.begin(), sortedSlots.end(), backtofront());
 
-		RAS_MeshSlotUpwardNodeIterator visitor;
+		RAS_MeshSlotUpwardNodeIterator iterator;
 		for (const SortedMeshSlot& sortedSlot : sortedSlots) {
-			visitor.NextNode(sortedSlot.m_node, args);
+			iterator.NextNode(sortedSlot.m_node, args);
 		}
-		visitor.Unbind(args);
+		iterator.Unbind(args);
 	}
 }
 
 void RAS_BucketManager::RenderBasicBuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, RAS_BucketManager::BucketType bucketType)
 {
 	BucketList& solidBuckets = m_buckets[bucketType];
+	RAS_UpwardTreeLeafs leafs;
 	for (RAS_MaterialBucket *bucket : solidBuckets) {
-		bucket->GenerateTree(&m_downwardNode, nullptr, nullptr, rasty, false);
+		bucket->GenerateTree(m_downwardNode, m_upwardNode, leafs, rasty, false);
 	}
 
 	if (m_downwardNode.GetValid()) {

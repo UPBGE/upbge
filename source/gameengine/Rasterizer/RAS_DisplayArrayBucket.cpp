@@ -242,8 +242,8 @@ void RAS_DisplayArrayBucket::SetAttribLayers(RAS_Rasterizer *rasty) const
 	rasty->SetAttribLayers(m_attribLayers);
 }
 
-void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode *downwardRoot, RAS_MaterialUpwardNode *upwardRoot,
-										  RAS_UpwardTreeLeafs *upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing)
+void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
+										  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing)
 {
 	if (m_activeMeshSlots.size() == 0) {
 		return;
@@ -253,20 +253,20 @@ void RAS_DisplayArrayBucket::GenerateTree(RAS_MaterialDownwardNode *downwardRoot
 	UpdateActiveMeshSlots(rasty);
 
 	if (instancing) {
-		downwardRoot->AddChild(&m_instancingNode);
+		downwardRoot.AddChild(&m_instancingNode);
 	}
 	else if (UseBatching()) {
-		downwardRoot->AddChild(&m_batchingNode);
+		downwardRoot.AddChild(&m_batchingNode);
 	}
 	else if (sort) {
 		for (RAS_MeshSlot *slot : m_activeMeshSlots) {
-			slot->GenerateTree(&m_upwardNode, upwardLeafs);
+			slot->GenerateTree(m_upwardNode, upwardLeafs);
 		}
 
-		m_upwardNode.SetParent(upwardRoot);
+		m_upwardNode.SetParent(&upwardRoot);
 	}
 	else {
-		downwardRoot->AddChild(&m_downwardNode);
+		downwardRoot.AddChild(&m_downwardNode);
 	}
 }
 

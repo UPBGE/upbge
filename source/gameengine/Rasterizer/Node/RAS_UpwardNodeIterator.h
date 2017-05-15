@@ -51,14 +51,16 @@ public:
 			return;
 		}
 
+		
+
 		if (m_node) {
 			m_node->Unbind(args);
 		}
 
-		/* Nodes request to be unbind or bind that their parent are keep bound.
+		/* Nodes request to be unbind or bind that when parent are kept bound.
 		 * The nodes are then unbind before their parent and bind after their parent.
-		 * This is proceed by doing the recursive call between unbind and bind, unbind
-		 * at recursion construction (upward), unbind at recursion destruction (downward).
+		 * This is proceeded by doing the recursive call between unbind and bind, unbind
+		 * at recursion construction (upward), bind at recursion destruction (downward).
 		 */
 		m_parent->NextNode(node->GetParent(), args);
 

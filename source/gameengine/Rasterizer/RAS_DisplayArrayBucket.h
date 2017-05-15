@@ -139,8 +139,8 @@ public:
 
 	void SetAttribLayers(RAS_Rasterizer *rasty) const;
 
-	void GenerateTree(RAS_MaterialDownwardNode *downwardRoot, RAS_MaterialUpwardNode *upwardRoot,
-					  RAS_UpwardTreeLeafs *upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing);
+	void GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
+					  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing);
 	void BindUpwardNode(const RAS_RenderNodeArguments& args);
 	void UnbindUpwardNode(const RAS_RenderNodeArguments& args);
 	void RunDownwardNode(const RAS_RenderNodeArguments& args);
