@@ -889,6 +889,24 @@ class OBJECT_MT_culling(ObjectButtonsPanel, Panel):
         layout.label(text="Predefined Bound:")
         layout.prop(game, "predefined_bound", "")
 
+class OBJECT_PT_activity_culling(ObjectButtonsPanel, Panel):
+    bl_label = "Activity Culling"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return context.scene.render.engine in cls.COMPAT_ENGINES and ob.type not in {'CAMERA', 'EMPTY', 'LAMP'}
+
+    def draw(self, context):
+        layout = self.layout
+        ob = context.object
+
+        row = layout.row()
+        row.prop(ob, "physics_culling_radius", text="Physics Culling Radius")
+        row = layout.row()
+        row.prop(ob, "logic_culling_radius", text="Logic Culling Radius")
+
 class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
     bl_label = "Levels of Detail"
     COMPAT_ENGINES = {'BLENDER_GAME'}
@@ -956,6 +974,7 @@ classes = (
     DATA_PT_shadow_game,
     OBJECT_MT_lod_tools,
     OBJECT_MT_culling,
+    OBJECT_PT_activity_culling,
     OBJECT_PT_levels_of_detail,
 )
 

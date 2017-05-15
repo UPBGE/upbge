@@ -98,7 +98,7 @@ public:
 	virtual void SetDamping(float linear, float angular) = 0;
 
 	virtual void RefreshCollisions() = 0;
-	virtual void SuspendPhysics() = 0;
+	virtual void SuspendPhysics(bool removeConstraints) = 0;
 	virtual void RestorePhysics() = 0;
 	virtual void SuspendDynamics(bool ghost = false) = 0;
 	virtual void RestoreDynamics() = 0;

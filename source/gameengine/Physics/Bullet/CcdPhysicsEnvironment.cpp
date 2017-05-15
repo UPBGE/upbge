@@ -552,7 +552,7 @@ void CcdPhysicsEnvironment::RemoveConstraint(btTypedConstraint *con)
 	delete con;
 }
 
-bool CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController *ctrl)
+bool CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController *ctrl, bool removeConstraints)
 {
 	// if the physics controller is already removed we do nothing
 	if (!m_controllers.erase(ctrl)) {
@@ -569,23 +569,27 @@ bool CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController *ctr
 		CleanPairCallback cleanPairs(proxy, pairCache, dispatcher);
 		pairCache->processAllOverlappingPairs(&cleanPairs, dispatcher);
 
-		for (int i = ctrl->getNumCcdConstraintRefs() - 1; i >= 0; i--) {
-			btTypedConstraint *con = ctrl->getCcdConstraintRef(i);
-			RemoveConstraint(con);
+		if (removeConstraints) {
+			for (int i = ctrl->getNumCcdConstraintRefs() - 1; i >= 0; i--) {
+				btTypedConstraint *con = ctrl->getCcdConstraintRef(i);
+				RemoveConstraint(con);
+			}
 		}
 		m_dynamicsWorld->removeRigidBody(ctrl->GetRigidBody());
 
-		// Handle potential vehicle constraints
-		int numVehicles = m_wrapperVehicles.size();
-		int vehicle_constraint = 0;
-		for (int i = 0; i < numVehicles; i++) {
-			WrapperVehicle *wrapperVehicle = m_wrapperVehicles[i];
-			if (wrapperVehicle->GetChassis() == ctrl)
-				vehicle_constraint = wrapperVehicle->GetVehicle()->getUserConstraintId();
-		}
+		if (removeConstraints) {
+			// Handle potential vehicle constraints
+			int numVehicles = m_wrapperVehicles.size();
+			int vehicle_constraint = 0;
+			for (int i = 0; i < numVehicles; i++) {
+				WrapperVehicle *wrapperVehicle = m_wrapperVehicles[i];
+				if (wrapperVehicle->GetChassis() == ctrl)
+					vehicle_constraint = wrapperVehicle->GetVehicle()->getUserConstraintId();
+			}
 
-		if (vehicle_constraint > 0)
-			RemoveConstraintById(vehicle_constraint);
+			if (vehicle_constraint > 0)
+				RemoveConstraintById(vehicle_constraint);
+		}
 	}
 	else {
 		//if a softbody

@@ -1481,6 +1481,57 @@ KX_CullingNode *KX_GameObject::GetCullingNode()
 	return &m_cullingNode;
 }
 
+ActivityCullingInfos KX_GameObject::GetActivityCullingInfos()
+{
+	return m_activityCullingInfos;
+}
+
+void KX_GameObject::SetActivityCulling(Object *blenderobject)
+{
+	if (blenderobject && blenderobject->type == OB_MESH) {
+		m_activityCullingInfos.logicCullingActive = blenderobject->logicCullingRadius != 0.0f ? true : false;
+		m_activityCullingInfos.physicsCullingActive = blenderobject->physicsCullingRadius != 0.0f ? true : false;
+		m_activityCullingInfos.physicsRadius = blenderobject->physicsCullingRadius;
+		m_activityCullingInfos.logicRadius = blenderobject->logicCullingRadius;
+	}
+	else {
+		m_activityCullingInfos.logicCullingActive = false;
+		m_activityCullingInfos.physicsCullingActive = false;
+		m_activityCullingInfos.physicsRadius = 0.0f;
+		m_activityCullingInfos.logicRadius = 0.0f;
+	}
+}
+
+void KX_GameObject::SuspendPhysics(bool removeConstraints)
+{
+	if (GetPhysicsController()) {
+		GetPhysicsController()->SuspendPhysics(removeConstraints);
+	}
+}
+
+void KX_GameObject::RestorePhysics()
+{
+	if (GetPhysicsController()) {
+		GetPhysicsController()->RestorePhysics();
+	}
+}
+
+void KX_GameObject::SuspendLogic()
+{
+	// Hack to suspend logic -> Set gameobject state to an inexistant state
+	if (!((GetState() & (1 << 21)) != 0)) {
+		m_activityCullingInfos.logicState = GetState();
+		SetState((1 << 21));
+	}	
+}
+
+void KX_GameObject::RestoreLogic()
+{
+	if ((GetState() & (1 << 21)) != 0) {
+		SetState(m_activityCullingInfos.logicState);
+	}
+}
+
 void KX_GameObject::UnregisterCollisionCallbacks()
 {
 	if (!GetPhysicsController()) {
@@ -3563,17 +3614,15 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
 
 PyObject *KX_GameObject::PySuspendPhysics()
 {
-	if (GetPhysicsController()) {
-		GetPhysicsController()->SuspendPhysics();
-	}
+	SuspendPhysics(false);
+	
 	Py_RETURN_NONE;
 }
 
 PyObject *KX_GameObject::PyRestorePhysics()
 {
-	if (GetPhysicsController()) {
-		GetPhysicsController()->RestorePhysics();
-	}
+	RestorePhysics();
+	
 	Py_RETURN_NONE;
 }
 

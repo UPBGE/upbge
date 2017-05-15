@@ -655,6 +655,8 @@ void BKE_object_init(Object *ob)
 	ob->max_jumps = 1;
 	ob->col_group = 0x01;
 	ob->col_mask = 0xffff;
+	ob->physicsCullingRadius = 0.0f;
+	ob->logicCullingRadius = 0.0f;
 	ob->lodfactor = 1.0f;
 	ob->preview = NULL;
 
