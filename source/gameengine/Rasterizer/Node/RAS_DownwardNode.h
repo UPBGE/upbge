@@ -28,6 +28,7 @@
 #include <vector>
 
 #ifdef DEBUG
+#  include <iostream>
 #  include <boost/type_index.hpp>
 #endif  // DEBUG
 
@@ -40,11 +41,11 @@
  *
  * \param _ChildType The children node type.
  */
-template <class _ChildType, class InfoType, RAS_NodeFlag Flag, class Args>
-class RAS_DownwardNode : public RAS_BaseNode<InfoType, Flag, Args>
+template <class _ChildType, class InfoType, bool Leaf, class Args>
+class RAS_DownwardNode : public RAS_BaseNode<InfoType, Leaf, Args>
 {
 public:
-	using typename RAS_BaseNode<InfoType, Flag, Args>::Function;
+	using typename RAS_BaseNode<InfoType, Leaf, Args>::Function;
 	typedef _ChildType ChildType;
 	typedef std::vector<ChildType *> ChildTypeList;
 
@@ -53,7 +54,7 @@ private:
 
 public:
 	RAS_DownwardNode(InfoType *info, Function bind, Function unbind)
-		:RAS_BaseNode<InfoType, Flag, Args>(info, bind, unbind)
+		:RAS_BaseNode<InfoType, Leaf, Args>(info, bind, unbind)
 	{
 	}
 
@@ -70,7 +71,7 @@ public:
 	 */
 	inline bool GetValid() const
 	{
-		if (Flag == RAS_NodeFlag::NEVER_FINAL) {
+		if (!Leaf) {
 			return m_children.size() > 0;
 		}
 		return true;
@@ -86,7 +87,7 @@ public:
 
 	inline void Clear()
 	{
-		if (Flag == RAS_NodeFlag::NEVER_FINAL) {
+		if (!Leaf) {
 			m_children.clear();
 		}
 	}

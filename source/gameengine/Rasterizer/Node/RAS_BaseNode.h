@@ -24,22 +24,14 @@
 #define __RAS_BASIC_NODE__
 
 #include <functional>
-#include <iostream>
-
-enum class RAS_NodeFlag {
-	/// The node is always a final node.
-	ALWAYS_FINAL,
-	/// The node is never a final node.
-	NEVER_FINAL
-};
 
 /** RAS_BaseNode is a class wrapping a rendering class by simulating it with a
  * binding and unbinding function.
  * \param InfoType The class to wrap functions from.
- * \param Flag The node flag to know the final state of a node.
+ * \param Leaf True if the node is a leaf of the tree.
  * \param Args The arguments type to pass to the binding and unbinding functions.
  */
-template <class InfoType, RAS_NodeFlag Flag, class Args>
+template <class InfoType, bool Leaf, class Args>
 class RAS_BaseNode
 {
 public:

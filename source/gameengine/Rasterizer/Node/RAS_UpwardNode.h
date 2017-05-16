@@ -26,6 +26,7 @@
 #include "RAS_BaseNode.h"
 
 #ifdef DEBUG
+#  include <iostream>
 #  include <boost/type_index.hpp>
 #endif  // DEBUG
 
@@ -37,11 +38,11 @@
  *
  * \param _ParentType The parent node type.
  */
-template <class _ParentType, class InfoType, RAS_NodeFlag Flag, class Args>
-class RAS_UpwardNode : public RAS_BaseNode<InfoType, Flag, Args>
+template <class _ParentType, class InfoType, bool Leaf, class Args>
+class RAS_UpwardNode : public RAS_BaseNode<InfoType, Leaf, Args>
 {
 public:
-	using typename RAS_BaseNode<InfoType, Flag, Args>::Function;
+	using typename RAS_BaseNode<InfoType, Leaf, Args>::Function;
 	typedef _ParentType ParentType;
 
 private:
@@ -49,7 +50,7 @@ private:
 
 public:
 	RAS_UpwardNode(InfoType *info, Function bind, Function unbind)
-		:RAS_BaseNode<InfoType, Flag, Args>(info, bind, unbind),
+		:RAS_BaseNode<InfoType, Leaf, Args>(info, bind, unbind),
 		m_parent(nullptr)
 	{
 	}
