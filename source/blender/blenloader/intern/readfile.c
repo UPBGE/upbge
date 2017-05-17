@@ -8522,8 +8522,6 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
 	
 	/* copy to bfd handle */
 	bfd->main->subversionfile = fg->subversion;
-	bfd->main->upbgeversionfile = fg->upbgeversion;
-	bfd->main->upbgesubversionfile = fg->upbgesubversion;
 	bfd->main->minversionfile = fg->minversion;
 	bfd->main->minsubversionfile = fg->minsubversion;
 	bfd->main->build_commit_timestamp = fg->build_commit_timestamp;
