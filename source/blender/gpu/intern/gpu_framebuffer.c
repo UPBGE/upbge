@@ -815,13 +815,11 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUTextur
 			GPU_offscreen_free(ofs);
 			return NULL;
 		}
-		/* WHEN we try to draw the cube I guess we should be in mode GPU_OFFSCREEN_RENDERBUFFER_COLOR
-		 * BUT we are in another mode
-		 */
-		/*if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->depth, 0, 0)) {
+
+		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->color, 0, 0)) {
 			GPU_offscreen_free(ofs);
 			return NULL;
-		}*/
+		}
 	}
 
 	if (mode & GPU_OFFSCREEN_RENDERBUFFER_DEPTH) {
@@ -845,7 +843,7 @@ GPUOffScreen *GPU_offscreen_create(int width, int height, int samples, GPUTextur
 
 		GPU_texture_compare_mode(ofs->depth, mode & GPU_OFFSCREEN_DEPTH_COMPARE);
 
-		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->color, 0, 0)) {
+		if (!GPU_framebuffer_texture_attach(ofs->fb, ofs->depth, 0, 0)) {
 			GPU_offscreen_free(ofs);
 			return NULL;
 		}
