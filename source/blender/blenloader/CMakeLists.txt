@@ -56,7 +56,6 @@ set(SRC
 	intern/versioning_260.c
 	intern/versioning_270.c
 	intern/versioning_280.c
-	intern/versioning_upbge.c
 	intern/versioning_defaults.c
 	intern/versioning_legacy.c
 	intern/writefile.c

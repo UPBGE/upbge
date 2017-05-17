@@ -2538,10 +2538,6 @@ PyMODINIT_FUNC initApplicationPythonBinding()
 		BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION));
 	PyDict_SetItemString(d, "version_char", PyUnicode_FromString(
 		STRINGIFY(BLENDER_VERSION_CHAR)));
-	PyDict_SetItemString(d, "upbge_version", Py_BuildValue("(iii)",
-		UPBGE_VERSION / 100, UPBGE_VERSION % 100, UPBGE_SUBVERSION));
-	PyDict_SetItemString(d, "upbge_version_string", PyUnicode_FromFormat("%d.%d (sub %d)",
-		UPBGE_VERSION / 100, UPBGE_VERSION % 100, UPBGE_SUBVERSION));
 
 	PyDict_SetItemString(d, "has_texture_ffmpeg",
 #ifdef WITH_FFMPEG

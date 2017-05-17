@@ -3844,8 +3844,6 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 	memcpy(fg.subvstr, subvstr, 4);
 	
 	fg.subversion= BLENDER_SUBVERSION;
-	fg.upbgeversion = UPBGE_VERSION;
-	fg.upbgesubversion = UPBGE_SUBVERSION;
 	fg.minversion= BLENDER_MINVERSION;
 	fg.minsubversion= BLENDER_MINSUBVERSION;
 #ifdef WITH_BUILDINFO
