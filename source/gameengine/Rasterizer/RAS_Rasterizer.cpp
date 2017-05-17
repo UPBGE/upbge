@@ -794,9 +794,19 @@ void RAS_Rasterizer::IndexPrimitives(RAS_MeshSlot *ms)
 {
 	/* For blender shaders (not custom), we need
 	 * to bind shader to update uniforms.
+	 * In shadow pass for now, we don't update
+	 * the ShaderInterface uniforms because
+	 * GPUMaterial is not accessible (RenderShadowBuffer
+	 * is called before main rendering and the GPUMaterial
+	 * is bound only when we do the main rendering).
+	 * Refs: - For drawing mode, rasterizer drawing mode is
+	 * set to RAS_SHADOWS in KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
+	 * - To see the order of rendering operations, this is in
+	 * KX_KetsjiEngine::Render() (RenderShadowBuffers is called
+	 * at the begining of Render()
 	 */
 	GPUMaterial *gpumat = ms->GetGpuMat();
-	if (gpumat) {
+	if (gpumat && !(m_drawingmode & RAS_SHADOW)) {
 		GPUPass *pass = GPU_material_get_pass(gpumat);
 		GPUShader *shader = GPU_pass_shader(pass);
 		GPU_shader_bind(shader);
