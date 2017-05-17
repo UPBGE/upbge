@@ -51,7 +51,7 @@ public:
 	virtual bool UseInstancing() const;
 	virtual const std::string GetTextureName() const;
 	virtual Material *GetBlenderMaterial() const;
-	virtual bool UsesLighting(RAS_Rasterizer *rasty) const;
+	virtual bool UsesLighting() const;
 	virtual void GetRGBAColor(unsigned char *rgba) const;
 	virtual Scene *GetBlenderScene() const;
 	virtual SCA_IScene *GetScene() const;

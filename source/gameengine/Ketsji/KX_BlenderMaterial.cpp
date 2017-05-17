@@ -328,9 +328,9 @@ void KX_BlenderMaterial::DesactivateInstancing()
 	}
 }
 
-bool KX_BlenderMaterial::UsesLighting(RAS_Rasterizer *rasty) const
+bool KX_BlenderMaterial::UsesLighting() const
 {
-	if (!RAS_IPolyMaterial::UsesLighting(rasty))
+	if (!RAS_IPolyMaterial::UsesLighting())
 		return false;
 
 	if (m_shader && m_shader->Ok())
@@ -914,7 +914,7 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 		if (!m_shader->GetError()) {
 			// Set the material to use custom shader.
 			m_flag &= ~RAS_BLENDERGLSL;
-			m_scene->GetBucketManager()->ReleaseDisplayLists(this);
+			m_scene->GetBucketManager()->UpdateShaders(this);
 		}
 	}
 

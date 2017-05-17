@@ -1092,7 +1092,7 @@ static PyObject *gPySetGLSLMaterialSetting(PyObject *,
 				// temporarily store the glsl settings in the scene for the GLSL materials
 				scene->GetBlenderScene()->gm.flag = gs->glslflag;
 				if (scene->GetBucketManager()) {
-					scene->GetBucketManager()->ReleaseDisplayLists();
+					scene->GetBucketManager()->UpdateShaders();
 					scene->GetBucketManager()->ReleaseMaterials();
 				}
 			}

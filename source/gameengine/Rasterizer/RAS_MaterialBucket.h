@@ -55,6 +55,9 @@ public:
 	bool IsWire() const;
 	bool UseInstancing() const;
 
+	/// Regenerate shader dependent data.
+	void UpdateShader();
+
 	// Rendering
 	void ActivateMaterial(RAS_Rasterizer *rasty);
 	void DesactivateMaterial(RAS_Rasterizer *rasty);
@@ -62,8 +65,8 @@ public:
 	// Render nodes.
 	void GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
 					  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort);
-	void BindNode(const RAS_RenderNodeArguments& args);
-	void UnbindNode(const RAS_RenderNodeArguments& args);
+	void BindNode(const RAS_MaterialNodeTuple& tuple);
+	void UnbindNode(const RAS_MaterialNodeTuple& tuple);
 
 	// Mesh Slot Access
 	RAS_MeshSlotList::iterator msBegin();
@@ -90,6 +93,7 @@ private:
 	RAS_IPolyMaterial *m_material;
 	RAS_DisplayArrayBucketList m_displayArrayBucketList;
 
+	RAS_MaterialNodeData m_nodeData;
 	RAS_MaterialDownwardNode m_downwardNode;
 	RAS_MaterialUpwardNode m_upwardNode;
 };

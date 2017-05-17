@@ -47,13 +47,16 @@
 #  include <windows.h>
 #endif // WIN32
 
+static RAS_DummyNodeData dummyNodeData;
+
 // mesh slot
 RAS_MeshSlot::RAS_MeshSlot()
 	:m_displayArray(nullptr),
-	m_node(this, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr),
+	m_node(this, &dummyNodeData, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr),
 	m_bucket(nullptr),
 	m_displayArrayBucket(nullptr),
 	m_mesh(nullptr),
+	m_meshMaterial(nullptr),
 	m_pDeformer(nullptr),
 	m_pDerivedMesh(nullptr),
 	m_meshUser(nullptr),
@@ -69,18 +72,17 @@ RAS_MeshSlot::~RAS_MeshSlot()
 }
 
 RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
+	:m_displayArray(slot.m_displayArray),
+	m_node(this, &dummyNodeData, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr),
+	m_bucket(slot.m_bucket),
+	m_displayArrayBucket(slot.m_displayArrayBucket),
+	m_mesh(slot.m_mesh),
+	m_meshMaterial(slot.m_meshMaterial),
+	m_pDeformer(nullptr),
+	m_pDerivedMesh(nullptr),
+	m_meshUser(nullptr),
+	m_batchPartIndex(-1)
 {
-	m_pDeformer = nullptr;
-	m_pDerivedMesh = nullptr;
-	m_meshUser = nullptr;
-	m_batchPartIndex = -1;
-	m_mesh = slot.m_mesh;
-	m_meshMaterial = slot.m_meshMaterial;
-	m_bucket = slot.m_bucket;
-	m_displayArrayBucket = slot.m_displayArrayBucket;
-	m_displayArray = slot.m_displayArray;
-	m_node = RAS_MeshSlotUpwardNode(this, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr);
-
 	if (m_displayArrayBucket) {
 		m_displayArrayBucket->AddRef();
 	}
@@ -156,32 +158,32 @@ void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTree
 	leafs.push_back(&m_node);
 }
 
-void RAS_MeshSlot::RunNode(const RAS_RenderNodeArguments& args)
+void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 {
-	RAS_Rasterizer *rasty = args.m_rasty;
+	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	RAS_MaterialNodeData *materialData = tuple.m_materialData;
+	RAS_Rasterizer *rasty = managerData->m_rasty;
 	rasty->SetClientObject(m_meshUser->GetClientObject());
 	rasty->SetFrontFace(m_meshUser->GetFrontFace());
 
-	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
 
-	if (!args.m_shaderOverride) {
-		bool uselights = material->UsesLighting(rasty);
-		rasty->ProcessLighting(uselights, args.m_trans);
-		material->ActivateMeshSlot(this, rasty);
+	if (!managerData->m_shaderOverride) {
+		rasty->ProcessLighting(materialData->m_useLighting, managerData->m_trans);
+		materialData->m_material->ActivateMeshSlot(this, rasty);
 	}
 
-	if (material->IsZSort() && rasty->GetDrawingMode() >= RAS_Rasterizer::RAS_SOLID) {
-		RAS_IStorageInfo *storage = m_displayArrayBucket->GetStorageInfo();
-		m_mesh->SortPolygons(this, args.m_trans * MT_Transform(m_meshUser->GetMatrix()), storage->GetIndexMap());
+	if (materialData->m_zsort && managerData->m_drawingMode >= RAS_Rasterizer::RAS_SOLID) {
+		RAS_IStorageInfo *storage = tuple.m_displayArrayData->m_storageInfo;
+		m_mesh->SortPolygons(this, managerData->m_trans * MT_Transform(m_meshUser->GetMatrix()), storage->GetIndexMap());
 		storage->FlushIndexMap();
 	}
 
 	rasty->PushMatrix();
 
-	const bool istext = material->IsText();
+	const bool istext = materialData->m_text;
 	if ((!m_pDeformer || !m_pDeformer->SkipVertexTransform()) && !istext) {
 		float mat[16];
-		rasty->GetTransform(m_meshUser->GetMatrix(), material->GetDrawingMode(), mat);
+		rasty->GetTransform(m_meshUser->GetMatrix(), materialData->m_drawingMode, mat);
 		rasty->MultMatrix(mat);
 	}
 
@@ -192,7 +194,7 @@ void RAS_MeshSlot::RunNode(const RAS_RenderNodeArguments& args)
 		rasty->IndexPrimitivesDerivedMesh(this);
 	}
 	else {
-		rasty->IndexPrimitives(m_displayArrayBucket->GetStorageInfo());
+		rasty->IndexPrimitives(tuple.m_displayArrayData->m_storageInfo);
 	}
 
 	rasty->PopMatrix();

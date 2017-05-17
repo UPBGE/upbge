@@ -81,6 +81,7 @@ private:
 	/// The attribute's layers used by the couple mesh material.
 	RAS_Rasterizer::AttribLayerList m_attribLayers;
 
+	RAS_DisplayArrayNodeData m_nodeData;
 	RAS_DisplayArrayDownwardNode m_downwardNode;
 	RAS_DisplayArrayUpwardNode m_upwardNode;
 
@@ -132,12 +133,12 @@ public:
 
 	void GenerateTree(RAS_MaterialDownwardNode& downwardRoot, RAS_MaterialUpwardNode& upwardRoot,
 					  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort, bool instancing);
-	void BindUpwardNode(const RAS_RenderNodeArguments& args);
-	void UnbindUpwardNode(const RAS_RenderNodeArguments& args);
-	void RunDownwardNode(const RAS_RenderNodeArguments& args);
-	void RunDownwardNodeNoArray(const RAS_RenderNodeArguments& args);
-	void RunInstancingNode(const RAS_RenderNodeArguments& args);
-	void RunBatchingNode(const RAS_RenderNodeArguments& args);
+	void BindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
+	void UnbindUpwardNode(const RAS_DisplayArrayNodeTuple& tuple);
+	void RunDownwardNode(const RAS_DisplayArrayNodeTuple& tuple);
+	void RunDownwardNodeNoArray(const RAS_DisplayArrayNodeTuple& tuple);
+	void RunInstancingNode(const RAS_DisplayArrayNodeTuple& tuple);
+	void RunBatchingNode(const RAS_DisplayArrayNodeTuple& tuple);
 
 	/// Replace the material bucket of this display array bucket by the one given.
 	void ChangeMaterialBucket(RAS_MaterialBucket *bucket);

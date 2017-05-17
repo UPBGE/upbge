@@ -24,6 +24,7 @@
 #define __RAS_DOWNWARD_NODE_H__
 
 #include "RAS_BaseNode.h"
+#include "RAS_DummyNode.h"
 
 #include <vector>
 
@@ -41,11 +42,15 @@
  *
  * \param _ChildType The children node type.
  */
-template <class _ChildType, class InfoType, bool Leaf, class Args>
-class RAS_DownwardNode : public RAS_BaseNode<InfoType, Leaf, Args>
+template <class NodeInfo, class _ChildType>
+class RAS_DownwardNode : public RAS_BaseNode<NodeInfo>
 {
 public:
-	using typename RAS_BaseNode<InfoType, Leaf, Args>::Function;
+	using typename RAS_BaseNode<NodeInfo>::OwnerType;
+	using typename RAS_BaseNode<NodeInfo>::DataType;
+	using typename RAS_BaseNode<NodeInfo>::TupleType;
+	using typename RAS_BaseNode<NodeInfo>::Leaf;
+	using typename RAS_BaseNode<NodeInfo>::Function;
 	typedef _ChildType ChildType;
 	typedef std::vector<ChildType *> ChildTypeList;
 
@@ -53,14 +58,12 @@ private:
 	ChildTypeList m_children;
 
 public:
-	RAS_DownwardNode(InfoType *info, Function bind, Function unbind)
-		:RAS_BaseNode<InfoType, Leaf, Args>(info, bind, unbind)
+	RAS_DownwardNode(OwnerType *owner, DataType *data, Function bind, Function unbind)
+		:RAS_BaseNode<NodeInfo>(owner, data, bind, unbind)
 	{
 	}
 
-	RAS_DownwardNode()
-	{
-	}
+	RAS_DownwardNode() = default;
 
 	~RAS_DownwardNode()
 	{
@@ -71,7 +74,7 @@ public:
 	 */
 	inline bool GetValid() const
 	{
-		if (!Leaf) {
+		if (!Leaf()) {
 			return m_children.size() > 0;
 		}
 		return true;
@@ -87,37 +90,52 @@ public:
 
 	inline void Clear()
 	{
-		if (!Leaf) {
+		if (!Leaf()) {
 			m_children.clear();
 		}
 	}
 
 	/** Recursive function calling the bind function, call itsefl in children nodes
 	 * and calling unbind function.
-	 * \param Args The function arguments to use for binding and unbinding.
+	 * \param tuple The function tuple argument to use for binding and unbinding.
 	 */
-	void Execute(const Args& args)
+	template <class T = ChildType>
+	inline typename std::enable_if<!std::is_same<T, RAS_DummyNode>::value, void>::type
+	Execute(const TupleType& tuple)
 	{
-		this->Bind(args);
+		this->Bind(tuple);
 
+		typename ChildType::TupleType childTuple(tuple, this->m_data);
 		for (ChildType *child : m_children) {
-			child->Execute(args);
+			child->Execute(childTuple);
 		}
 
-		this->Unbind(args);
+		this->Unbind(tuple);
 
 		// In the same time we can remove the children nodes.
 		Clear();
 	}
 
+	/// Function override to avoid try creating a RAS_DummyNodeTuple with arguments.
+	template <class T = ChildType>
+	inline typename std::enable_if<std::is_same<T, RAS_DummyNode>::value, void>::type
+	Execute(const TupleType& tuple)
+	{
+		this->Bind(tuple);
+
+		this->Unbind(tuple);
+
+		// No need to clear as dummy node are never instanced.
+	}
+
 #ifdef DEBUG
-	void Print(unsigned short level, bool recursive)
+	void Print(unsigned short level, bool recursive) const
 	{
 		for (unsigned short i = 0; i < level; ++i) {
 			std::cout << "\t";
 		}
 
-		std::cout << boost::typeindex::type_id<InfoType>().pretty_name() << "(" << this->m_info << ") "<< std::endl;
+		std::cout << boost::typeindex::type_id<OwnerType>().pretty_name() << "(" << this->m_owner << ") "<< std::endl;
 
 		if (recursive) {
 			for (ChildType *child : m_children) {

@@ -80,7 +80,7 @@ public:
 	void SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket);
 
 	void GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs);
-	void RunNode(const RAS_RenderNodeArguments& args);
+	void RunNode(const RAS_MeshSlotNodeTuple& tuple);
 };
 
 typedef std::vector<RAS_MeshSlot *> RAS_MeshSlotList;

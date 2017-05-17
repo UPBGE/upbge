@@ -6,6 +6,52 @@
 
 #include <memory>
 
+/** This class is a dummy node iterator doing none iteration.
+ * The node wrapped has the property to have also a dummy tuple.
+ */
+template <class NodeType>
+class RAS_DummyUpwardNodeIterator
+{
+public:
+	using DataType = typename NodeType::DataType;
+
+private:
+	NodeType *m_node;
+	RAS_DummyNodeTuple m_tuple;
+
+public:
+	RAS_DummyUpwardNodeIterator(NodeType *node)
+		:m_node(node)
+	{
+		m_node->Bind(m_tuple);
+	}
+
+	~RAS_DummyUpwardNodeIterator()
+	{
+		m_node->Unbind(m_tuple);
+	}
+
+	inline const RAS_DummyNodeTuple& GetTuple() const
+	{
+		return m_tuple;
+	}
+
+	inline DataType *GetData() const
+	{
+		return m_node->GetData();
+	}
+
+	inline bool NextNode(NodeType *node)
+	{
+		return false;
+	}
+
+	inline void Finish()
+	{
+		m_node->Unbind(m_tuple);
+	}
+};
+
 /** RAS_UpwardNodeIterator is class using to proceed the sorted render using RAS_UpwardNode.
  *
  * A sorted render is proceed comparing the parent node of the current node with the parent
@@ -15,68 +61,74 @@
  * The same operation is done recursively for parent node of parent node.
  *
  * \param NodeType The upward node type.
- * \param Args The arguments type used for upward node binding and unbinding function.
  */
-template <class NodeType, class Args>
+template <class _NodeType>
 class RAS_UpwardNodeIterator
 {
 public:
-	typedef typename NodeType::ParentType ParentNodeType;
-	typedef RAS_UpwardNodeIterator<ParentNodeType, Args> ParentType;
+	using NodeType = _NodeType;
+	using DataType = typename NodeType::DataType;
+	using ParentNodeType = typename NodeType::ParentType;
+	using TupleType = typename NodeType::TupleType;
+	using ParentTupleType = typename ParentNodeType::TupleType;
+	using ParentType = typename std::conditional<
+		std::is_same<ParentTupleType, RAS_DummyNodeTuple>::value,
+		RAS_DummyUpwardNodeIterator<ParentNodeType>,
+		RAS_UpwardNodeIterator<ParentNodeType> >::type;
 
 private:
 	NodeType *m_node;
-	std::unique_ptr<ParentType> m_parent;
+	ParentType m_parent;
+	TupleType m_tuple;
 
 public:
-	RAS_UpwardNodeIterator()
-		:m_node(nullptr)
+	RAS_UpwardNodeIterator(NodeType *node)
+		:m_node(node),
+		m_parent(node->GetParent()),
+		m_tuple(m_parent.GetTuple(), m_parent.GetData())
 	{
-		if (std::is_same<NodeType *, RAS_DummyNode *>()) {
-			m_parent.reset(nullptr);
-		}
-		else {
-			m_parent.reset(new ParentType());
-		}
+		m_node->Bind(m_tuple);
 	}
 
 	~RAS_UpwardNodeIterator()
 	{
+		m_node->Unbind(m_tuple);
 	}
 
-	void NextNode(NodeType *node, const Args& args)
+	inline const TupleType& GetTuple() const
 	{
-		// If the node type is dummy of the parent node is unchanged, nothing is done.
-		if (std::is_same<NodeType *, RAS_DummyNode *>() || node == m_node) {
-			return;
+		return m_tuple;
+	}
+
+	inline DataType *GetData() const
+	{
+		return m_node->GetData();
+	}
+
+	inline bool NextNode(NodeType *node)
+	{
+		// If the parent node is unchanged, nothing is done.
+		if (node == m_node) {
+			return false;
 		}
 
-		
+		// The node must be bound before to have a valid m_tuple.
+		m_node->Unbind(m_tuple);
 
-		if (m_node) {
-			m_node->Unbind(args);
-		}
-
-		/* Nodes request to be unbind or bind that when parent are kept bound.
+		/* Nodes request to be unbind or bind when their parent are kept bound.
 		 * The nodes are then unbind before their parent and bind after their parent.
 		 * This is proceeded by doing the recursive call between unbind and bind, unbind
 		 * at recursion construction (upward), bind at recursion destruction (downward).
 		 */
-		m_parent->NextNode(node->GetParent(), args);
-
-		m_node = node;
-		m_node->Bind(args);
-	}
-
-	/// This function is called at the end of the sorted render to unbind the previous nodes.
-	void Unbind(const Args& args)
-	{
-		if (std::is_same<NodeType *, RAS_DummyNode *>()) {
-			return;
+		if (m_parent.NextNode(node->GetParent())) {
+			// We regenerate tuple only when the parent node changed.
+			m_tuple = TupleType(m_parent.GetTuple(), m_parent.GetData());
 		}
 
-		m_node->Unbind(args);
-		m_parent->Unbind(args);
+		m_node = node;
+		m_node->Bind(m_tuple);
+
+		return true;
 	}
 };
 
