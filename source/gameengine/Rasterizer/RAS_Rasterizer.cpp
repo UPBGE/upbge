@@ -804,9 +804,11 @@ void RAS_Rasterizer::IndexPrimitives(RAS_MeshSlot *ms)
 	 * - To see the order of rendering operations, this is in
 	 * KX_KetsjiEngine::Render() (RenderShadowBuffers is called
 	 * at the begining of Render()
+	 * (m_drawingmode != 0) is used to avoid crash when we press
+	 * P while we are in wireframe viewport shading mode.
 	 */
 	GPUMaterial *gpumat = ms->GetGpuMat();
-	if (gpumat && !(m_drawingmode & RAS_SHADOW)) {
+	if (gpumat && !(m_drawingmode & RAS_SHADOW) && (m_drawingmode != 0)) {
 		GPUPass *pass = GPU_material_get_pass(gpumat);
 		GPUShader *shader = GPU_pass_shader(pass);
 		GPU_shader_bind(shader);
