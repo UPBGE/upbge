@@ -118,10 +118,10 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 
 bool GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, int slot, int mip)
 {
-	return GPU_framebuffer_texture_attach_target(fb, tex, GPU_texture_target(tex), slot, mip);
+	return GPU_framebuffer_texture_attach_target(fb, tex, GPU_texture_target(tex), slot, mip, false);
 }
 
-int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, int target, int slot, int mip)
+int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, int target, int slot, int mip, bool forcet2d)
 {
 	GLenum attachment;
 
@@ -153,7 +153,8 @@ int GPU_framebuffer_texture_attach_target(GPUFrameBuffer *fb, GPUTexture *tex, i
 #if defined(WITH_GL_PROFILE_COMPAT)
 	/* Workaround for Mac & Mesa compatibility profile, remove after we switch to core profile */
 	/* glFramebufferTexture was introduced in 3.2. It is *not* available in the ARB FBO extension */
-	if (GLEW_VERSION_3_2)
+	/* GTX 970 last drivers Windows 10: only glFramebufferTexture2D works for me (youle) */
+	if (GLEW_VERSION_3_2 && !forcet2d)
 		glFramebufferTexture(GL_FRAMEBUFFER, attachment, GPU_texture_opengl_bindcode(tex), mip); /* normal core call, same as below */
 	else
 		glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, target, GPU_texture_opengl_bindcode(tex), mip);
