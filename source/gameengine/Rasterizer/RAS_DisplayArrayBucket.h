@@ -49,8 +49,6 @@ class RAS_Deformer;
 class RAS_IStorageInfo;
 class RAS_InstancingBuffer;
 
-typedef std::vector<RAS_Deformer *> RAS_DeformerList;
-
 class RAS_DisplayArrayBucket : public CM_RefCount<RAS_DisplayArrayBucket>
 {
 private:
@@ -65,7 +63,7 @@ private:
 	/// The list fo all visible mesh slots to render this frame.
 	RAS_MeshSlotList m_activeMeshSlots;
 	/// The list of all deformer usign this display array.
-	RAS_DeformerList m_deformerList;
+	RAS_Deformer *m_deformer;
 
 	/// As m_useDisplayList but without rasterizer value.
 	bool m_useVao;
@@ -92,7 +90,8 @@ private:
 	RAS_DisplayArrayDownwardNode m_batchingNode;
 
 public:
-	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array, RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat);
+	RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
+						   RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer);
 	~RAS_DisplayArrayBucket();
 
 	/// \section Replication
@@ -112,10 +111,7 @@ public:
 	void RemoveActiveMeshSlots();
 
 	/// \section Deformer
-	/// Add a deformer user.
-	void AddDeformer(RAS_Deformer *deformer);
-	/// Remove the given deformer.
-	void RemoveDeformer(RAS_Deformer *deformer);
+	void SetDeformer(RAS_Deformer *deformer);
 
 	/// \section Render Infos
 	bool UseVao() const;

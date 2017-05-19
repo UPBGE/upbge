@@ -214,16 +214,6 @@ void RAS_MaterialBucket::SetDisplayArrayUnmodified()
 	}
 }
 
-RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_IDisplayArray *array, RAS_MeshObject *mesh)
-{
-	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
-		if (displayArrayBucket->GetDisplayArray() == array && displayArrayBucket->GetMesh() == mesh) {
-			return displayArrayBucket;
-		}
-	}
-	return nullptr;
-}
-
 void RAS_MaterialBucket::AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)
 {
 	m_displayArrayBucketList.push_back(bucket);

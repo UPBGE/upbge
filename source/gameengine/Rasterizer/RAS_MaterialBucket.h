@@ -80,8 +80,6 @@ public:
 	void RemoveActiveMeshSlots();
 	unsigned int GetNumActiveMeshSlots();
 
-	/// Find a display array bucket for the given display array.
-	RAS_DisplayArrayBucket *FindDisplayArrayBucket(RAS_IDisplayArray *array, RAS_MeshObject *mesh);
 	void AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 	void RemoveDisplayArrayBucket(RAS_DisplayArrayBucket *bucket);
 

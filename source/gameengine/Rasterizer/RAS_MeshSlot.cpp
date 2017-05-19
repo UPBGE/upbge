@@ -62,11 +62,6 @@ RAS_MeshSlot::RAS_MeshSlot()
 
 RAS_MeshSlot::~RAS_MeshSlot()
 {
-	if (m_pDeformer) {
-		// Remove the deformer user in the display array bucket.
-		m_displayArrayBucket->RemoveDeformer(m_pDeformer);
-	}
-
 	if (m_displayArrayBucket) {
 		m_displayArrayBucket->Release();
 	}
@@ -103,7 +98,7 @@ void RAS_MeshSlot::init(RAS_MaterialBucket *bucket, RAS_MeshObject *mesh,
 		m_displayArray = RAS_IDisplayArray::ConstructArray(type, format);
 	}
 
-	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, m_mesh, meshmat);
+	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, m_mesh, meshmat, m_pDeformer);
 }
 
 RAS_IDisplayArray *RAS_MeshSlot::GetDisplayArray()
@@ -114,50 +109,27 @@ RAS_IDisplayArray *RAS_MeshSlot::GetDisplayArray()
 void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 {
 	if (deformer && m_pDeformer != deformer) {
-		if (deformer->ShareVertexArray()) {
-			// this deformer uses the base vertex array, first release the current ones
-			m_displayArrayBucket->Release();
-			m_displayArrayBucket = nullptr;
-			// then hook to the base ones
-			if (m_meshMaterial && m_meshMaterial->m_baseslot) {
-				m_displayArrayBucket = m_meshMaterial->m_baseslot->m_displayArrayBucket->AddRef();
+		// no sharing
+		// we create local copy of RAS_DisplayArray when we have a deformer:
+		// this way we can avoid conflict between the vertex cache of duplicates
+		if (deformer->UseVertexArray()) {
+			// the deformer makes use of vertex array, make sure we have our local copy
+			if (m_displayArrayBucket->GetRefCount() > 1) {
+				// only need to copy if there are other users
+				// note that this is the usual case as vertex arrays are held by the material base slot
+				m_displayArrayBucket->Release();
+				m_displayArrayBucket = m_displayArrayBucket->GetReplica();
 			}
+			m_displayArrayBucket->SetDeformer(deformer);
 		}
 		else {
-			// no sharing
-			// we create local copy of RAS_DisplayArray when we have a deformer:
-			// this way we can avoid conflict between the vertex cache of duplicates
-			if (deformer->UseVertexArray()) {
-				// the deformer makes use of vertex array, make sure we have our local copy
-				if (m_displayArrayBucket->GetRefCount() > 1) {
-					// only need to copy if there are other users
-					// note that this is the usual case as vertex arrays are held by the material base slot
-					m_displayArrayBucket->Release();
-					m_displayArrayBucket = m_displayArrayBucket->GetReplica();
-				}
-			}
-			else {
-				// the deformer is not using vertex array (Modifier), release them
-				m_displayArrayBucket->Release();
-				m_displayArrayBucket = m_bucket->FindDisplayArrayBucket(nullptr, m_mesh);
-				if (m_displayArrayBucket) {
-					m_displayArrayBucket->AddRef();
-				}
-				else {
-					m_displayArrayBucket = new RAS_DisplayArrayBucket(m_bucket, nullptr, m_mesh, m_meshMaterial);
-				}
-			}
+			// the deformer is not using vertex array (Modifier), release them
+			m_displayArrayBucket->Release();
+			m_displayArrayBucket = new RAS_DisplayArrayBucket(m_bucket, nullptr, m_mesh, m_meshMaterial, deformer);
 		}
 
-		if (m_displayArrayBucket) {
-			// Add the deformer user in the display array bucket.
-			m_displayArrayBucket->AddDeformer(deformer);
-			// Update m_displayArray to the display array bucket.
-			m_displayArray = m_displayArrayBucket->GetDisplayArray();
-		}
-		else {
-			m_displayArray = nullptr;
-		}
+		// Update m_displayArray to the display array bucket.
+		m_displayArray = m_displayArrayBucket->GetDisplayArray();
 	}
 	m_pDeformer = deformer;
 }

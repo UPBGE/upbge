@@ -75,10 +75,6 @@ public:
 	{
 		return false;
 	}
-	virtual bool ShareVertexArray()
-	{
-		return true;
-	}
 	virtual bool UseVertexArray()
 	{
 		return true;

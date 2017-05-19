@@ -50,11 +50,13 @@
 #  include <windows.h>
 #endif // WIN32
 
-RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array, RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat)
+RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_IDisplayArray *array,
+											   RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, RAS_Deformer *deformer)
 	:m_bucket(bucket),
 	m_displayArray(array),
 	m_mesh(mesh),
 	m_meshMaterial(meshmat),
+	m_deformer(deformer),
 	m_useVao(true),
 	m_storageInfo(nullptr),
 	m_instancingBuffer(nullptr),
@@ -94,6 +96,7 @@ void RAS_DisplayArrayBucket::ProcessReplica()
 		m_displayArray = m_displayArray->GetReplica();
 	}
 
+	m_deformer = nullptr;
 	// Request to recreate storage info.
 	m_storageInfo = nullptr;
 
@@ -140,17 +143,9 @@ unsigned int RAS_DisplayArrayBucket::GetNumActiveMeshSlots() const
 	return m_activeMeshSlots.size();
 }
 
-void RAS_DisplayArrayBucket::AddDeformer(RAS_Deformer *deformer)
+void RAS_DisplayArrayBucket::SetDeformer(RAS_Deformer *deformer)
 {
-	m_deformerList.push_back(deformer);
-}
-
-void RAS_DisplayArrayBucket::RemoveDeformer(RAS_Deformer *deformer)
-{
-	RAS_DeformerList::iterator it = std::find(m_deformerList.begin(), m_deformerList.end(), deformer);
-	if (it != m_deformerList.end()) {
-		m_deformerList.erase(it);
-	}
+	m_deformer = deformer;
 }
 
 bool RAS_DisplayArrayBucket::UseVao() const
@@ -175,11 +170,11 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 		m_useVao = false;
 	}
 
-	for (RAS_Deformer *deformer : m_deformerList) {
-		deformer->Apply(material, m_meshMaterial);
+	if (m_deformer) {
+		m_deformer->Apply(material, m_meshMaterial);
 
-		// Test if one of deformers is dynamic.
-		if (deformer->IsDynamic()) {
+		// Test if deformer is dynamic.
+		if (m_deformer->IsDynamic()) {
 			arrayModified = true;
 		}
 	}

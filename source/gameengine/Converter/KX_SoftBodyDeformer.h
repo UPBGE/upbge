@@ -87,10 +87,6 @@ public:
 	{
 		return true;
 	}
-	virtual bool ShareVertexArray()
-	{
-		return false;
-	}
 };
 
 #endif
