@@ -140,6 +140,7 @@ public:
 	void BindUpwardNode(const RAS_RenderNodeArguments& args);
 	void UnbindUpwardNode(const RAS_RenderNodeArguments& args);
 	void RunDownwardNode(const RAS_RenderNodeArguments& args);
+	void RunDownwardNodeNoArray(const RAS_RenderNodeArguments& args);
 	void RunInstancingNode(const RAS_RenderNodeArguments& args);
 	void RunBatchingNode(const RAS_RenderNodeArguments& args);
 

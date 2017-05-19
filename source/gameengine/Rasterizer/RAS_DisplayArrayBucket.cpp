@@ -60,12 +60,21 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	m_useVao(true),
 	m_storageInfo(nullptr),
 	m_instancingBuffer(nullptr),
-	m_downwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNode), nullptr),
-	m_upwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::BindUpwardNode), std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode)),
 	m_instancingNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunInstancingNode), nullptr),
 	m_batchingNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunBatchingNode), nullptr)
 {
 	m_bucket->AddDisplayArrayBucket(this);
+
+	if (m_displayArray) {
+		m_downwardNode = RAS_DisplayArrayDownwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNode), nullptr);
+		m_upwardNode = RAS_DisplayArrayUpwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::BindUpwardNode),
+												  std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode));
+	}
+	else {
+		// If there's no display array then we draw using derived mesh, in this case the display array bind/unbind should be avoid.
+		m_downwardNode = RAS_DisplayArrayDownwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNodeNoArray), nullptr);
+		m_upwardNode = RAS_DisplayArrayUpwardNode(this, nullptr, nullptr);
+	}
 }
 
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
@@ -91,17 +100,18 @@ RAS_DisplayArrayBucket *RAS_DisplayArrayBucket::GetReplica()
 
 void RAS_DisplayArrayBucket::ProcessReplica()
 {
+	BLI_assert(m_displayArray);
+
 	m_activeMeshSlots.clear();
-	if (m_displayArray) {
-		m_displayArray = m_displayArray->GetReplica();
-	}
+	m_displayArray = m_displayArray->GetReplica();
 
 	m_deformer = nullptr;
 	// Request to recreate storage info.
 	m_storageInfo = nullptr;
 
 	m_downwardNode = RAS_DisplayArrayDownwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNode), nullptr);
-	m_upwardNode = RAS_DisplayArrayUpwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::BindUpwardNode), std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode));
+	m_upwardNode = RAS_DisplayArrayUpwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::BindUpwardNode),
+											  std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode));
 	m_instancingNode = RAS_DisplayArrayDownwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunInstancingNode), nullptr);
 	m_batchingNode = RAS_DisplayArrayDownwardNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunBatchingNode), nullptr);
 
@@ -145,6 +155,11 @@ unsigned int RAS_DisplayArrayBucket::GetNumActiveMeshSlots() const
 
 void RAS_DisplayArrayBucket::SetDeformer(RAS_Deformer *deformer)
 {
+	/* Only deformers using display array can be set to an existing display array bucket
+	 * containing a valid display array, else the display array bucket is recreated without
+	 * display array.
+	 */
+	BLI_assert((m_displayArray != nullptr) == deformer->UseVertexArray());
 	m_deformer = deformer;
 }
 
@@ -286,6 +301,14 @@ void RAS_DisplayArrayBucket::RunDownwardNode(const RAS_RenderNodeArguments& args
 	}
 
 	rasty->UnbindPrimitives(this);
+}
+
+void RAS_DisplayArrayBucket::RunDownwardNodeNoArray(const RAS_RenderNodeArguments& args)
+{
+	for (RAS_MeshSlot *ms : m_activeMeshSlots) {
+		// Reuse the node function without spend time storing RAS_MeshSlot under nodes.
+		ms->RunNode(args);
+	}
 }
 
 void RAS_DisplayArrayBucket::RunInstancingNode(const RAS_RenderNodeArguments& args)
