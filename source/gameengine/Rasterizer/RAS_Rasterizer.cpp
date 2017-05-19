@@ -726,6 +726,11 @@ const MT_Matrix4x4& RAS_Rasterizer::GetViewInvMatrix() const
 	return m_viewinvmatrix;
 }
 
+void RAS_Rasterizer::IndexPrimitives_3DText(RAS_MeshSlot *ms, RAS_IPolyMaterial *polymat)
+{
+	m_impl->IndexPrimitives_3DText(ms, polymat, static_cast<KX_ClientObjectInfo *>(m_clientobject), &m_storageAttribs);
+}
+
 void RAS_Rasterizer::IndexPrimitivesText(RAS_MeshSlot *ms)
 {
 	RAS_TextUser *textUser = (RAS_TextUser *)ms->m_meshUser;

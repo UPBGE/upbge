@@ -902,6 +902,11 @@ static void rna_def_material_gamesettings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Backface Culling", "Hide Back of the face in Game Engine ");
 	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
+	prop = RNA_def_property(srna, "text", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", GEMAT_TEXT); /* use bitflags */
+	RNA_def_property_ui_text(prop, "Text", "Use material as text in Game Engine ");
+	RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
 	prop = RNA_def_property(srna, "invisible", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GEMAT_INVISIBLE); /* use bitflags */
 	RNA_def_property_ui_text(prop, "Invisible", "Make face invisible");

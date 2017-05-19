@@ -66,7 +66,7 @@ int RAS_IPolyMaterial::ConvertFaceMode(struct GameSettings *game) const
 
 	int orimode = game->face_orientation;
 	int alpha_blend = game->alpha_blend;
-	int flags = game->flag & (GEMAT_BACKCULL);
+	int flags = game->flag & (GEMAT_TEXT | GEMAT_BACKCULL);
 
 	modefinal = orimode | alpha_blend | flags;
 

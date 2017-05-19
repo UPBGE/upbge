@@ -777,6 +777,127 @@ static DMDrawOption wpaint__setSolidDrawOptions_facemask(void *userData, int ind
 	return DM_DRAW_OPTION_NORMAL;
 }
 
+static void draw_mesh_text(Scene *scene, Object *ob, int glsl)
+{
+	Mesh *me = ob->data;
+	DerivedMesh *ddm;
+	MPoly *mp, *mface = me->mpoly;
+	MTexPoly *mtpoly = me->mtpoly;
+	MLoopUV *mloopuv = me->mloopuv;
+	MLoopUV *luv;
+	MLoopCol *mloopcol = me->mloopcol;  /* why does mcol exist? */
+	MLoopCol *lcol;
+	
+	bProperty *prop = BKE_bproperty_object_get(ob, "Text");
+	GPUVertexAttribs gattribs;
+	int a, totpoly = me->totpoly;
+
+	/* fake values to pass to GPU_render_text() */
+	MCol  tmp_mcol[4] = { { 0 } };
+	MCol *tmp_mcol_pt = mloopcol ? tmp_mcol : NULL;
+
+	/* don't draw without tfaces */
+	if (!mtpoly || !mloopuv)
+		return;
+
+	/* don't draw when editing */
+	if (ob->mode & OB_MODE_EDIT)
+		return;
+	else if (ob == OBACT)
+		if (BKE_paint_select_elem_test(ob))
+			return;
+
+	ddm = mesh_get_derived_deform(scene, ob, CD_MASK_BAREMESH);
+
+	for (a = 0, mp = mface; a < totpoly; a++, mtpoly++, mp++) {
+		short matnr = mp->mat_nr;
+		const bool mf_smooth = (mp->flag & ME_SMOOTH) != 0;
+		Material *mat = (me->mat) ? me->mat[matnr] : NULL;
+		int mode = mat ? mat->game.flag : GEMAT_INVISIBLE;
+
+		if (!(mode & GEMAT_INVISIBLE) && (mode & GEMAT_TEXT) && mp->totloop >= 3) {
+			/* get the polygon as a tri/quad */
+			int mp_vi[4];
+			float   v_quad_data[4][3];
+			const float  *v_quad[4];
+			const float *uv_quad[4];
+			char string[MAX_PROPSTRING];
+			int characters, i, glattrib = -1, badtex = 0;
+
+			/* TEXFACE */
+			
+			GPU_object_material_bind(matnr + 1, &gattribs);
+
+			for (i = 0; i < gattribs.totlayer; i++) {
+				if (gattribs.layer[i].type == CD_MTFACE) {
+					glattrib = gattribs.layer[i].glindex;
+					break;
+				}
+			}
+			
+			mp_vi[0] = me->mloop[mp->loopstart + 0].v;
+			mp_vi[1] = me->mloop[mp->loopstart + 1].v;
+			mp_vi[2] = me->mloop[mp->loopstart + 2].v;
+			mp_vi[3] = (mp->totloop >= 4) ? me->mloop[mp->loopstart + 3].v : 0;
+
+			/* UV */
+			luv = &mloopuv[mp->loopstart];
+			uv_quad[0] = luv->uv; luv++;
+			uv_quad[1] = luv->uv; luv++;
+			uv_quad[2] = luv->uv; luv++;
+			if (mp->totloop >= 4) {
+				uv_quad[3] = luv->uv;
+			}
+			else {
+				uv_quad[3] = NULL;
+			}
+			/* COLOR */
+			if (mloopcol) {
+				unsigned int totloop_clamp = min_ii(4, mp->totloop);
+				unsigned int j;
+				lcol = &mloopcol[mp->loopstart];
+
+				for (j = 0; j < totloop_clamp; j++, lcol++) {
+					MESH_MLOOPCOL_TO_MCOL(lcol, &tmp_mcol[j]);
+				}
+			}
+			/* LOCATION */
+			ddm->getVertCo(ddm, mp_vi[0], v_quad_data[0]);
+			ddm->getVertCo(ddm, mp_vi[1], v_quad_data[1]);
+			ddm->getVertCo(ddm, mp_vi[2], v_quad_data[2]);
+			if (mp->totloop >= 4) {
+				ddm->getVertCo(ddm, mp_vi[3], v_quad_data[3]);
+			}
+			v_quad[0] = v_quad_data[0];
+			v_quad[1] = v_quad_data[1];
+			v_quad[2] = v_quad_data[2];
+			if (mp->totloop >= 4) {
+				v_quad[3] = v_quad_data[2];
+			}
+			else {
+				v_quad[3] = NULL;
+			}
+			/* The BM_FONT handling is in the gpu module, shared with the
+			 * game engine, was duplicated previously */
+			BKE_bproperty_set_valstr(prop, string);
+			characters = strlen(string);
+			if (!BKE_image_has_ibuf(mtpoly->tpage, NULL))
+				characters = 0;
+			if (!mf_smooth) {
+				float nor[3];
+				normal_tri_v3(nor, v_quad[0], v_quad[1], v_quad[2]);
+				glNormal3fv(nor);
+			}
+			GPU_render_text(
+				mtpoly, mode, string, characters,
+				(unsigned int *)tmp_mcol_pt,
+				v_quad, uv_quad,
+				glattrib);
+		}
+	}
+	ddm->release(ddm);
+}
+
 static int compareDrawOptions(void *userData, int cur_index, int next_index)
 {
 	drawTFace_userData *data = userData;
@@ -891,6 +1012,13 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 			dm->drawFacesTex(
 			        dm, draw_tface__set_draw, compareDrawOptions,
 			        &userData, dm_draw_flag);
+		}
+	}
+
+	/* draw game engine text hack */
+	if (rv3d->rflag & RV3D_IS_GAME_ENGINE) {
+		if (BKE_bproperty_object_get(ob, "Text")) {
+			draw_mesh_text(scene, ob, 0);
 		}
 	}
 

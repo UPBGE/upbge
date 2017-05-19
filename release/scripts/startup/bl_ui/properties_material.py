@@ -671,6 +671,7 @@ class MATERIAL_PT_game_settings(MaterialButtonsPanel, Panel):
         col = split.column()
         col.prop(game, "use_backface_culling")
         col.prop(game, "invisible")
+        col.prop(game, "text")
         col.prop(game, "physics")
         col.label(text="Face Orientation:")
         col.prop(game, "face_orientation", text="")

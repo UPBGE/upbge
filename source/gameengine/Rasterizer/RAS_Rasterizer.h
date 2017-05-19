@@ -93,6 +93,7 @@ public:
 	/**
 	 */
 	enum {
+		RAS_RENDER_3DPOLYGON_TEXT = 64, // GEMAT_TEXT
 		RAS_BACKCULL = 16, // GEMAT_BACKCULL
 	};
 
@@ -560,6 +561,8 @@ public:
 	void IndexPrimitivesDerivedMesh(RAS_MeshSlot *ms);
 	/// Render text mesh slot using BLF functions.
 	void IndexPrimitivesText(RAS_MeshSlot *ms);
+
+	void IndexPrimitives_3DText(class RAS_MeshSlot *ms, class RAS_IPolyMaterial *polymat);
  
 	void SetProjectionMatrix(MT_CmMatrix4x4 &mat);
 
