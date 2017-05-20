@@ -1366,8 +1366,8 @@ static int game_engine_poll(bContext *C)
 	if (CTX_data_mode_enum(C) != CTX_MODE_OBJECT)
 		return 0;
 
-	if (!BKE_scene_uses_blender_game(screen->scene))
-		return 0;
+	/*if (!BKE_scene_uses_blender_game(screen->scene))
+		return 0;*/
 
 	return 1;
 }
