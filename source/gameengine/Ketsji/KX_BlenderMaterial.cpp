@@ -50,7 +50,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		Material *mat,
 		const std::string& name,
 		GameSettings *game,
-		MTFace *mtface,
 		int lightlayer)
 	:RAS_IPolyMaterial(name, game),
 	m_material(mat),
@@ -77,13 +76,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_savedData.specularalpha = m_material->spectra;
 
 	m_alphablend = mat->game.alpha_blend;
-
-	m_mtexPoly = new MTexPoly();
-	memset(m_mtexPoly, 0, sizeof(MTexPoly));
-
-	if (mtface) {
-		ME_MTEXFACE_CPY(m_mtexPoly, mtface);
-	}
 
 	// with ztransp enabled, enforce alpha blending mode
 	if ((mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (m_alphablend == GEMAT_SOLID)) {
@@ -126,19 +118,11 @@ KX_BlenderMaterial::~KX_BlenderMaterial()
 	m_material->amb = m_savedData.ambient;
 	m_material->spectra = m_savedData.specularalpha;
 
-	delete m_mtexPoly;
-
 	// cleanup work
 	if (m_constructed) {
 		// clean only if material was actually used
 		OnExit();
 	}
-}
-
-MTexPoly *KX_BlenderMaterial::GetMTexPoly() const
-{
-	// fonts on polys
-	return m_mtexPoly;
 }
 
 void KX_BlenderMaterial::GetRGBAColor(unsigned char *rgba) const
@@ -161,11 +145,6 @@ const std::string KX_BlenderMaterial::GetTextureName() const
 Material *KX_BlenderMaterial::GetBlenderMaterial() const
 {
 	return m_material;
-}
-
-Image *KX_BlenderMaterial::GetBlenderImage() const
-{
-	return (m_mtexPoly ? m_mtexPoly->tpage : nullptr);
 }
 
 Scene *KX_BlenderMaterial::GetBlenderScene() const

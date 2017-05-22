@@ -19,7 +19,6 @@ class KX_Scene;
 class BL_BlenderShader;
 class BL_Shader;
 struct Material;
-struct MTFace;
 
 #ifdef USE_MATHUTILS
 void KX_BlenderMaterial_Mathutils_Callback_Init(void);
@@ -35,7 +34,6 @@ public:
 			Material *mat,
 			const std::string& name,
 			GameSettings *game,
-			MTFace *mtface,
 			int lightlayer);
 
 	virtual ~KX_BlenderMaterial();
@@ -53,8 +51,6 @@ public:
 	virtual bool UseInstancing() const;
 	virtual const std::string GetTextureName() const;
 	virtual Material *GetBlenderMaterial() const;
-	virtual Image *GetBlenderImage() const;
-	virtual MTexPoly *GetMTexPoly() const;
 	virtual bool UsesLighting(RAS_Rasterizer *rasty) const;
 	virtual void GetRGBAColor(unsigned char *rgba) const;
 	virtual Scene *GetBlenderScene() const;
@@ -116,7 +112,6 @@ public:
 
 private:
 	Material *m_material;
-	MTexPoly *m_mtexPoly;
 	BL_Shader *m_shader;
 	BL_BlenderShader *m_blenderShader;
 	KX_Scene *m_scene;

@@ -42,9 +42,7 @@
 
 #include <map>
 
-struct MTexPoly;
 struct Material;
-struct Image;
 struct Scene;
 class SCA_IScene;
 struct GameSettings;
@@ -120,8 +118,6 @@ public:
 
 	virtual const std::string GetTextureName() const = 0;
 	virtual Material *GetBlenderMaterial() const = 0;
-	virtual Image *GetBlenderImage() const = 0;
-	virtual MTexPoly *GetMTexPoly() const = 0;
 	virtual Scene *GetBlenderScene() const = 0;
 	virtual SCA_IScene *GetScene() const = 0;
 	virtual bool UseInstancing() const = 0;
