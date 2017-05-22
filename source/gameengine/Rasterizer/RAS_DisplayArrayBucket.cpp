@@ -57,7 +57,6 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	m_mesh(mesh),
 	m_meshMaterial(meshmat),
 	m_deformer(deformer),
-	m_useVao(true),
 	m_storageInfo(nullptr),
 	m_instancingBuffer(nullptr),
 	m_instancingNode(this, std::mem_fn(&RAS_DisplayArrayBucket::RunInstancingNode), nullptr),
@@ -180,11 +179,6 @@ void RAS_DisplayArrayBucket::SetDeformer(RAS_Deformer *deformer)
 	m_deformer = deformer;
 }
 
-bool RAS_DisplayArrayBucket::UseVao() const
-{
-	return m_useVao;
-}
-
 bool RAS_DisplayArrayBucket::UseBatching() const
 {
 	return (m_displayArray && m_displayArray->GetType() == RAS_IDisplayArray::BATCHING);
@@ -192,17 +186,10 @@ bool RAS_DisplayArrayBucket::UseBatching() const
 
 void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 {
-	// Reset values to default.
-	m_useVao = true;
 	bool arrayModified = false;
 
-	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
-
-	if (material->IsZSort() || m_bucket->UseInstancing() || !m_displayArray || material->UsesObjectColor()) {
-		m_useVao = false;
-	}
-
 	if (m_deformer) {
+		RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
 		m_deformer->Apply(material, m_meshMaterial);
 
 		// Test if deformer is dynamic.
@@ -218,7 +205,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 
 		// Create the storage info if it was destructed or not yet created.
 		if (!m_storageInfo) {
-			m_storageInfo = rasty->GetStorageInfo(this);
+			m_storageInfo = rasty->GetStorageInfo(m_displayArray, m_bucket->UseInstancing());
 		}
 		// Set the storage info modified if the mesh is modified.
 		else if (arrayModified) {

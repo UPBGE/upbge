@@ -65,9 +65,6 @@ private:
 	/// The list of all deformer usign this display array.
 	RAS_Deformer *m_deformer;
 
-	/// As m_useDisplayList but without rasterizer value.
-	bool m_useVao;
-
 	/// True if a deformer is dynamic or the mesh i modified this frame.
 	bool m_meshModified;
 
@@ -119,7 +116,6 @@ public:
 	void SetDeformer(RAS_Deformer *deformer);
 
 	/// \section Render Infos
-	bool UseVao() const;
 	bool UseBatching() const;
 
 	/// Update render infos.

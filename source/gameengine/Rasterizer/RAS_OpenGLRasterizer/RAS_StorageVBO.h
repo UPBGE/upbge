@@ -38,7 +38,7 @@ class RAS_IDisplayArray;
 class VBO : public RAS_IStorageInfo
 {
 public:
-	VBO(RAS_DisplayArrayBucket *arrayBucket);
+	VBO(RAS_IDisplayArray *array, bool instancing);
 	virtual ~VBO();
 
 	virtual void UpdateVertexData();
@@ -71,9 +71,6 @@ private:
 	/// Set to true when the VAO was already filled in a VBO::Bind() call.
 	bool m_vaoInitialized[RAS_Rasterizer::RAS_DRAW_MAX];
 
-	/// Set to true when the VBO/VAO is bound.
-	bool m_bound;
-
 	void *m_vertex_offset;
 	void *m_normal_offset;
 	void *m_color_offset;
@@ -96,7 +93,7 @@ public:
 	void IndexPrimitivesInstancing(VBO *vbo, unsigned int numslots);
 	void IndexPrimitivesBatching(VBO *vbo, const std::vector<void *>& indices, const std::vector<int>& counts);
 
-	RAS_IStorageInfo *GetStorageInfo(RAS_DisplayArrayBucket *arrayBucket);
+	RAS_IStorageInfo *GetStorageInfo(RAS_IDisplayArray *array, bool instancing);
 
 	void SetDrawingMode(RAS_Rasterizer::DrawType drawingmode)
 	{

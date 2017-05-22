@@ -55,7 +55,7 @@ class RAS_IStorageInfo;
 class RAS_ICanvas;
 class RAS_OffScreen;
 class RAS_MeshSlot;
-class RAS_DisplayArrayBucket;
+class RAS_IDisplayArray;
 class RAS_ILightObject;
 class SCA_IScene;
 class RAS_ISync;
@@ -537,7 +537,12 @@ public:
 	 */
 	void SwapBuffers(RAS_ICanvas *canvas);
 
-	RAS_IStorageInfo *GetStorageInfo(RAS_DisplayArrayBucket *arrayBucket);
+	/** Create display array storage info for drawing (mainly VBO).
+	 * \param array The display array to use vertex and index data from.
+	 * \param instancing True if the storage is used for instancing draw.
+	 */
+	RAS_IStorageInfo *GetStorageInfo(RAS_IDisplayArray *array, bool instancing);
+
 	// Drawing Functions
 	/// Set all pre-render attributes for given mesh storage info.
 	void BindPrimitives(RAS_IStorageInfo *storageInfo);

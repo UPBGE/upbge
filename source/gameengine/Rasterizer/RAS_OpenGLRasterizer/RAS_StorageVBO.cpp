@@ -32,17 +32,15 @@
 
 #include "GPU_glew.h"
 
-VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
-	:m_bound(false)
+VBO::VBO(RAS_IDisplayArray *array, bool instancing)
+	:m_data(array),
+	m_useVao(!instancing && GLEW_ARB_vertex_array_object)
 {
-	m_data = arrayBucket->GetDisplayArray();
 	m_size = m_data->GetVertexCount();
 	m_indices = m_data->GetIndexCount();
 	m_stride = m_data->GetVertexMemorySize();
 
 	m_mode = m_data->GetOpenGLPrimitiveType();
-
-	m_useVao = arrayBucket->UseVao() && GLEW_ARB_vertex_array_object;
 
 	// Generate Buffers
 	glGenBuffersARB(1, &m_ibo);
@@ -112,7 +110,6 @@ void VBO::AllocData()
 
 void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::DrawType drawingmode)
 {
-	m_bound = true;
 	if (m_useVao) {
 		if (!m_vaos[drawingmode]) {
 			// Generate Vertex Array Object
@@ -229,7 +226,6 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 
 void VBO::Unbind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::DrawType drawingmode)
 {
-	m_bound = false;
 	if (m_useVao) {
 		glBindVertexArray(0);
 		return;
@@ -287,9 +283,9 @@ RAS_StorageVBO::~RAS_StorageVBO()
 {
 }
 
-RAS_IStorageInfo *RAS_StorageVBO::GetStorageInfo(RAS_DisplayArrayBucket *arrayBucket)
+RAS_IStorageInfo *RAS_StorageVBO::GetStorageInfo(RAS_IDisplayArray *array, bool instancing)
 {
-	VBO *vbo = new VBO(arrayBucket);
+	VBO *vbo = new VBO(array, instancing);
 	return vbo;
 }
 

@@ -781,9 +781,9 @@ void RAS_Rasterizer::SetAttribLayers(const RAS_Rasterizer::AttribLayerList& laye
 	m_storageAttribs.layers = layers;
 }
 
-RAS_IStorageInfo *RAS_Rasterizer::GetStorageInfo(RAS_DisplayArrayBucket *arrayBucket)
+RAS_IStorageInfo *RAS_Rasterizer::GetStorageInfo(RAS_IDisplayArray *array, bool instancing)
 {
-	return m_storage->GetStorageInfo(arrayBucket);
+	return m_storage->GetStorageInfo(array, instancing);
 }
 
 void RAS_Rasterizer::BindPrimitives(RAS_IStorageInfo *storageInfo)
