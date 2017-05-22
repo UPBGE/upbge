@@ -201,6 +201,7 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 	if (m_displayArray) {
 		if (m_displayArray->GetModifiedFlag() & RAS_IDisplayArray::MESH_MODIFIED) {
 			arrayModified = true;
+			m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
 		}
 
 		// Create the storage info if it was destructed or not yet created.
@@ -211,13 +212,6 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 		else if (arrayModified) {
 			m_storageInfo->UpdateVertexData();
 		}
-	}
-}
-
-void RAS_DisplayArrayBucket::SetDisplayArrayUnmodified()
-{
-	if (m_displayArray) {
-		m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
 	}
 }
 

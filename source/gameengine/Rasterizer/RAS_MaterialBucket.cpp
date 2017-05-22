@@ -207,13 +207,6 @@ void RAS_MaterialBucket::UnbindNode(const RAS_RenderNodeArguments& args)
 	}
 }
 
-void RAS_MaterialBucket::SetDisplayArrayUnmodified()
-{
-	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
-		displayArrayBucket->SetDisplayArrayUnmodified();
-	}
-}
-
 void RAS_MaterialBucket::AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)
 {
 	m_displayArrayBucketList.push_back(bucket);

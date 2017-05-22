@@ -309,18 +309,6 @@ void RAS_BucketManager::Renderbuckets(const MT_Transform& cameratrans, RAS_Raste
 		(*it)->RemoveActiveMeshSlots();
 	}
 
-	/* If we're drawing shadows and bucket wasn't rendered (outside of the lamp frustum or doesn't cast shadows)
-	 * then the mesh is still modified, so we don't want to set MeshModified to false yet (it will mess up
-	 * updating display lists). Just leave this step for the main render pass.
-	 */
-	if (rasty->GetDrawingMode() != RAS_Rasterizer::RAS_SHADOW) {
-		/* All meshes should be up to date now */
-		/* Don't do this while processing buckets because some meshes are split between buckets */
-		for (BucketList::iterator it = buckets.begin(), end = buckets.end(); it != end; ++it) {
-			(*it)->SetDisplayArrayUnmodified();
-		}
-	}
-
 	rasty->SetClientObject(nullptr);
 }
 

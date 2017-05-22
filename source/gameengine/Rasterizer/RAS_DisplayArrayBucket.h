@@ -120,10 +120,6 @@ public:
 
 	/// Update render infos.
 	void UpdateActiveMeshSlots(RAS_Rasterizer *rasty);
-	/// Set the mesh object as unmodified flag.
-	void SetDisplayArrayUnmodified();
-	/// Notice the storage info that the indices list (polygons) changed.
-	void SetPolygonsModified(RAS_Rasterizer *rasty);
 
 	void DestructStorageInfo();
 

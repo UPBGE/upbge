@@ -75,8 +75,6 @@ public:
 	void RemoveMesh(RAS_MeshSlot *ms);
 	/// Remove all mesh slot using the given mesh object.
 	void RemoveMeshObject(RAS_MeshObject *mesh);
-	/// Set the mesh object as unmodified flag.
-	void SetDisplayArrayUnmodified();
 	void RemoveActiveMeshSlots();
 	unsigned int GetNumActiveMeshSlots();
 
