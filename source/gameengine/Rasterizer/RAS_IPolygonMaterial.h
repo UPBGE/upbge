@@ -55,7 +55,6 @@ enum MaterialProps
 	RAS_BLENDERGLSL = (1 << 3),
 	RAS_CASTSHADOW = (1 << 4),
 	RAS_ONLYSHADOW = (1 << 5),
-	RAS_OBJECTCOLOR = (1 << 6),
 };
 
 enum MaterialRasterizerModes
@@ -115,7 +114,6 @@ public:
 	virtual std::string GetName();
 	unsigned int GetFlag() const;
 	bool IsAlphaShadow() const;
-	bool UsesObjectColor() const;
 	bool CastsShadows() const;
 	bool OnlyShadow() const;
 	RAS_Texture *GetTexture(unsigned int index);

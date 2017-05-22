@@ -339,12 +339,6 @@ static DMDrawOption CheckTexDM(MTexPoly *mtexpoly, const bool has_mcol, int matn
 		// must handle color.
 		if (current_wireframe)
 			return DM_DRAW_OPTION_NO_MCOL;
-		if (current_polymat->UsesObjectColor()) {
-			const MT_Vector4& rgba = current_ms->m_meshUser->GetColor();
-			glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
-			// don't use mcol
-			return DM_DRAW_OPTION_NO_MCOL;
-		}
 		if (!has_mcol) {
 			// we have to set the color from the material
 			unsigned char rgba[4];
