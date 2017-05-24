@@ -645,8 +645,8 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 		options |= KX_BlenderConverter::LIB_LOAD_VERBOSE;
 	if (load_scripts != 0)
 		options |= KX_BlenderConverter::LIB_LOAD_LOAD_SCRIPTS;
-// 	if (async != 0)
-// 		options |= KX_BlenderConverter::LIB_LOAD_ASYNC;
+	if (async != 0)
+		options |= KX_BlenderConverter::LIB_LOAD_ASYNC;
 
 	KX_BlenderConverter *converter = KX_GetActiveEngine()->GetConverter();
 
