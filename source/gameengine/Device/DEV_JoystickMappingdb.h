@@ -29,7 +29,8 @@
  * - Transform to string
  * - Remove platform parameter from string (Windows, Linux, MacOS)
  *
- * - Last commit updated: 16 January 2017, https://github.com/gabomdq/SDL_GameControllerDB/commit/aad1132bf5d8efa9f075b4bbdc47cf434fcf82aa
+ * - Last commit updated: 20 February 2017, https://github.com/gabomdq/SDL_GameControllerDB/commit/52a5565f696cf90ea8d5f9617848a69c14c8b5cd
+ * - plus Pull Request https://github.com/gabomdq/SDL_GameControllerDB/pull/135 for Logitech Extreme 3D Pro
  */
 
 #ifdef WITH_SDL
@@ -211,6 +212,8 @@ static const char *controller_mappings[] =
 	"030000001008000001e5000010010000,NEXT Classic USB Game Controller,a:b0,b:b1,back:b8,start:b9,rightx:a2,righty:a3,leftx:a0,lefty:a1",
 	"03000000100800000300000010010000,USB Gamepad,a:b2,b:b1,x:b3,y:b0,start:b9,back:b8,leftstick:b10,rightstick:b11,leftshoulder:b6,rightshoulder:b7,dpup:h0.1,dpleft:h0.8,dpdown:h0.4,dpright:h0.2,leftx:a0,lefty:a1,rightx:a3,righty:a2,lefttrigger:b4,righttrigger:b5",
 	"05000000ac0500003232000001000000,VR-BOX,a:b0,b:b1,x:b2,y:b3,start:b9,back:b8,leftstick:b10,rightstick:b11,leftshoulder:b6,rightshoulder:b7,dpup:h0.1,dpleft:h0.8,dpdown:h0.4,dpright:h0.2,leftx:a0,lefty:a1,rightx:a3,righty:a2,lefttrigger:b4,righttrigger:b5",
+	"03000000780000000600000010010000,Microntek USB Joystick,x:b3,a:b2,b:b1,y:b0,back:b8,start:b9,leftshoulder:b6,lefttrigger:b4,rightshoulder:b7,righttrigger:b5,leftx:a0,lefty:a1",
+	"030000006d04000015c2000010010000,Logitech Logitech Extreme 3D,a:b0,b:b4,x:b2,y:b5,back:b6,start:b7,guide:b8,leftshoulder:b9,rightshoulder:b10,leftstick:h0.8,rightstick:h0.2,leftx:a0,lefty:a1",
 #endif
 	nullptr
 };
