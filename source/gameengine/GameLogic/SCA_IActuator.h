@@ -33,7 +33,6 @@
 #define __SCA_IACTUATOR_H__
 
 #include "SCA_IController.h"
-#include <vector>
 
 /**
  * Use of SG_DList : None
@@ -43,22 +42,17 @@
 class SCA_IActuator : public SCA_ILogicBrick
 {
 	friend class SCA_LogicManager;
+
 protected:
-	int					 m_type;
-	int					 m_links;	// number of active links to controllers
-									// when 0, the actuator is automatically stopped
-	//std::vector<CValue*> m_events;
-	bool			     m_posevent;
-	bool			     m_negevent;
+	int m_type;
+	/// Number of active links to controllers when 0, the actuator is automatically stopped.
+	int m_links;
+	bool m_posevent;
+	bool m_negevent;
 
-	std::vector<class SCA_IController*>		m_linkedcontrollers;
+	std::vector<SCA_IController *> m_linkedcontrollers;
 
-	void RemoveAllEvents()
-	{
-		m_posevent = false;
-		m_negevent = false;
-	}
-
+	void RemoveAllEvents();
 
 public:
 	/**
@@ -93,7 +87,8 @@ public:
 		KX_ACT_MOUSE,
 	};
 
-	SCA_IActuator(SCA_IObject* gameobj, KX_ACTUATOR_TYPE type); 
+	SCA_IActuator(SCA_IObject *gameobj, KX_ACTUATOR_TYPE type);
+	virtual ~SCA_IActuator();
 
 	/**
 	 * UnlinkObject(...)
@@ -102,15 +97,15 @@ public:
 	 * sure that the actuator will not use it anymore.
 	 */
 
-	virtual bool UnlinkObject(SCA_IObject* clientobj) { return false; }
+	virtual bool UnlinkObject(SCA_IObject *clientobj);
 
 	/**
 	 * Update(...)
-	 * Update the actuator based upon the events received since 
+	 * Update the actuator based upon the events received since
 	 * the last call to Update, the current time and deltatime the
 	 * time elapsed in this frame ?
 	 * It is the responsibility of concrete Actuators to clear
-	 * their event's. This is usually done in the Update() method via 
+	 * their event's. This is usually done in the Update() method via
 	 * a call to RemoveAllEvents()
 	 */
 
@@ -118,53 +113,39 @@ public:
 	virtual bool Update(double curtime, bool frame);
 	virtual bool Update();
 
-	/** 
+	/**
 	 * Add an event to an actuator.
-	 */ 
-	//void AddEvent(CValue* event)
-	void AddEvent(bool event)
-	{
-		if (event)
-			m_posevent = true;
-		else
-			m_negevent = true;
-	}
+	 */
+	void AddEvent(bool event);
 
 	virtual void ProcessReplica();
 
-	/** 
+	/**
 	 * Return true if all the current events
 	 * are negative. The definition of negative event is
 	 * not immediately clear. But usually refers to key-up events
 	 * or events where no action is required.
 	 */
-	bool IsNegativeEvent() const
-	{
-		return !m_posevent && m_negevent;
-	}
-
-	bool IsPositiveEvent() const
-	{
-		return m_posevent && !m_negevent;
-	}
-
-	virtual ~SCA_IActuator();
+	bool IsNegativeEvent() const;
+	bool IsPositiveEvent() const;
 
 	/**
-	 * remove this actuator from the list of active actuators
+	 * Remove this actuator from the list of active actuators.
+	 * This function is only used to deactivate actuators outside the logic loop
+	 * e.g. when an object is deleted.
 	 */
 	virtual void Deactivate();
 	virtual void Activate(SG_DList& head);
 
-	void	LinkToController(SCA_IController* controller);
-	void	UnlinkController(class SCA_IController* cont);
-	void	UnlinkAllControllers();
+	void LinkToController(SCA_IController *controller);
+	void UnlinkController(SCA_IController *cont);
+	void UnlinkAllControllers();
 
-	void ClrLink() { m_links=0; }
-	void IncLink() { m_links++; }
+	void ClrLink();
+	void IncLink();
 	virtual void DecLink();
-	bool IsNoLink() const { return !m_links; }
-	bool IsType(KX_ACTUATOR_TYPE type) { return m_type == type; }
+	bool IsNoLink() const;
+	bool IsType(KX_ACTUATOR_TYPE type);
 };
 
-#endif  /* __SCA_IACTUATOR_H__ */
+#endif  // __SCA_IACTUATOR_H__
