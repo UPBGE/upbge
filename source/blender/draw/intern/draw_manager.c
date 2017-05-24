@@ -89,6 +89,7 @@
 #include "engines/eevee/eevee_engine.h"
 #include "engines/basic/basic_engine.h"
 #include "engines/external/external_engine.h"
+#include "engines/game/game_engine.h"
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
@@ -3398,6 +3399,7 @@ void DRW_engines_register(void)
 	RE_engines_register(NULL, &DRW_engine_viewport_clay_type);
 #endif
 	RE_engines_register(NULL, &DRW_engine_viewport_eevee_type);
+	RE_engines_register(NULL, &DRW_engine_viewport_game_type);
 
 	DRW_engine_register(&draw_engine_object_type);
 	DRW_engine_register(&draw_engine_edit_armature_type);
