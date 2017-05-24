@@ -2497,4 +2497,60 @@ KX_PYMETHODDEF_DOC(KX_Scene, get, "")
 	return def;
 }
 
+bool ConvertPythonToScene(PyObject *value, KX_Scene **scene, bool py_none_ok, const char *error_prefix)
+{
+	if (value == nullptr) {
+		PyErr_Format(PyExc_TypeError, "%s, python pointer nullptr, should never happen", error_prefix);
+		*scene = nullptr;
+		return false;
+	}
+
+	if (value == Py_None) {
+		*scene = nullptr;
+
+		if (py_none_ok) {
+			return true;
+		}
+		else {
+			PyErr_Format(PyExc_TypeError, "%s, expected KX_Scene or a KX_Scene name, None is invalid", error_prefix);
+			return false;
+		}
+	}
+
+	if (PyUnicode_Check(value)) {
+		*scene = (KX_Scene *)KX_GetActiveEngine()->CurrentScenes()->FindValue(std::string(_PyUnicode_AsString(value)));
+
+		if (*scene) {
+			return true;
+		}
+		else {
+			PyErr_Format(PyExc_ValueError, "%s, requested name \"%s\" did not match any in game", error_prefix, _PyUnicode_AsString(value));
+			return false;
+		}
+	}
+
+	if (PyObject_TypeCheck(value, &KX_Scene::Type)) {
+		*scene = static_cast<KX_Scene *>BGE_PROXY_REF(value);
+
+		// Sets the error.
+		if (*scene == nullptr) {
+			PyErr_Format(PyExc_SystemError, "%s, " BGE_PROXY_ERROR_MSG, error_prefix);
+			return false;
+		}
+
+		return true;
+	}
+
+	*scene = nullptr;
+
+	if (py_none_ok) {
+		PyErr_Format(PyExc_TypeError, "%s, expect a KX_Scene, a string or None", error_prefix);
+	}
+	else {
+		PyErr_Format(PyExc_TypeError, "%s, expect a KX_Scene or a string", error_prefix);
+	}
+
+	return false;
+}
+
 #endif // WITH_PYTHON

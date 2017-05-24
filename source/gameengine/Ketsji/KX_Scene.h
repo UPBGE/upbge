@@ -624,6 +624,10 @@ public:
 	//}
 };
 
+#ifdef WITH_PYTHON
+bool ConvertPythonToScene(PyObject *value, KX_Scene **scene, bool py_none_ok, const char *error_prefix);
+#endif
+
 typedef std::vector<KX_Scene*> KX_SceneList;
 
 #endif  /* __KX_SCENE_H__ */

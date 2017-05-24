@@ -621,7 +621,8 @@ static PyObject *pyPrintExt(PyObject *,PyObject *,PyObject *)
 
 static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 {
-	KX_Scene *kx_scene= KX_GetActiveScene();
+	KX_Scene *kx_scene = nullptr;
+	PyObject *pyscene = Py_None;
 	char *path;
 	char *group;
 	Py_buffer py_buffer;
@@ -632,11 +633,18 @@ static PyObject *gLibLoad(PyObject *, PyObject *args, PyObject *kwds)
 	short options=0;
 	int load_actions=0, verbose=0, load_scripts=1, async=0;
 
-	static const char *kwlist[] = {"path", "group", "buffer", "load_actions", "verbose", "load_scripts", "async", nullptr};
+	static const char *kwlist[] = {"path", "group", "buffer", "load_actions", "verbose", "load_scripts", "async", "scene", nullptr};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|y*iiIi:LibLoad", const_cast<char**>(kwlist),
-									&path, &group, &py_buffer, &load_actions, &verbose, &load_scripts, &async))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|y*iiIiO:LibLoad", const_cast<char**>(kwlist),
+									&path, &group, &py_buffer, &load_actions, &verbose, &load_scripts, &async, &pyscene))
 		return nullptr;
+
+	if (!ConvertPythonToScene(pyscene, &kx_scene, true, "invalid scene")) {
+		return nullptr;
+	}
+	if (!kx_scene) {
+		kx_scene = KX_GetActiveScene();
+	}
 
 	/* setup options */
 	if (load_actions != 0)
