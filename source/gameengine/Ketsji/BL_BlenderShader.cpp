@@ -186,7 +186,7 @@ void BL_BlenderShader::SetAttribs(RAS_Rasterizer *ras)
 
 void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 {
-	float obmat[4][4], viewmat[4][4], obcol[4];
+	float viewmat[4][4];
 	GPUMaterial *gpumat;
 
 	gpumat = m_GPUMat;
@@ -194,17 +194,11 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 	if (!gpumat || !GPU_material_bound(gpumat))
 		return;
 
-	MT_Matrix4x4 model;
-	model.setValue(ms->m_meshUser->GetMatrix());
-
-	// note: getValue gives back column major as needed by OpenGL
-	model.getValue((float *)obmat);
-
-	ms->m_meshUser->GetColor().getValue((float *)obcol);
+	float *obcol = (float *)ms->m_meshUser->GetColor().getValue();
 
 	rasty->GetViewMatrix().getValue((float *)viewmat);
 	float auto_bump_scale = ms->m_pDerivedMesh != 0 ? ms->m_pDerivedMesh->auto_bump_scale : 1.0f;
-	GPU_material_bind_uniforms(gpumat, obmat, viewmat, obcol, auto_bump_scale, nullptr, nullptr);
+	GPU_material_bind_uniforms(gpumat, (float (*)[4])ms->m_meshUser->GetMatrix(), viewmat, obcol, auto_bump_scale, nullptr, nullptr);
 
 	m_alphaBlend = GPU_material_alpha_blend(gpumat, obcol);
 }
