@@ -159,9 +159,10 @@ void SCA_IActuator::UnlinkController(SCA_IController *controller)
 	if (it != m_linkedcontrollers.end()) {
 		m_linkedcontrollers.erase(it);
 	}
-
-	CM_LogicBrickWarning(this, "Missing link from actuator " << m_gameobj->GetName() << ":"
-		<< GetName() << " to controller " << controller->GetParent()->GetName() << ":" << controller->GetName());
+	else {
+		CM_LogicBrickWarning(this, "Missing link from actuator " << m_gameobj->GetName() << ":"
+			<< GetName() << " to controller " << controller->GetParent()->GetName() << ":" << controller->GetName());
+	}
 }
 
 void SCA_IActuator::UnlinkAllControllers()

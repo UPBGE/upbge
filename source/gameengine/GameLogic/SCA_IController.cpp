@@ -103,9 +103,10 @@ void SCA_IController::UnlinkActuator(SCA_IActuator *actua)
 			actua->DecLink();
 		}
 	}
-
-	CM_LogicBrickWarning(this, "missing link from controller " << m_gameobj->GetName() << ":" << GetName()
-		<< " to actuator " << actua->GetParent()->GetName() << ":" << actua->GetName());
+	else {
+		CM_LogicBrickWarning(this, "missing link from controller " << m_gameobj->GetName() << ":" << GetName()
+			<< " to actuator " << actua->GetParent()->GetName() << ":" << actua->GetName());
+	}
 }
 
 void SCA_IController::LinkToSensor(SCA_ISensor *sensor)
@@ -125,9 +126,10 @@ void SCA_IController::UnlinkSensor(SCA_ISensor *sensor)
 			sensor->DecLink();
 		}
 	}
-
-	CM_LogicBrickWarning(this, "missing link from controller " << m_gameobj->GetName() << ":" << GetName()
-		<< " to sensor " << sensor->GetParent()->GetName() << ":" << sensor->GetName());
+	else {
+		CM_LogicBrickWarning(this, "missing link from controller " << m_gameobj->GetName() << ":" << GetName()
+			<< " to sensor " << sensor->GetParent()->GetName() << ":" << sensor->GetName());
+	}
 }
 
 void SCA_IController::SetState(unsigned int state)

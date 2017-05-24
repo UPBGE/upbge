@@ -227,8 +227,10 @@ void SCA_ISensor::UnlinkController(SCA_IController *controller)
 	if (it != m_linkedcontrollers.end()) {
 		m_linkedcontrollers.erase(it);
 	}
-	CM_LogicBrickWarning(this, "missing link from sensor " << m_gameobj->GetName() << ":" << GetName()
-		<< " to controller " << controller->GetParent()->GetName() << ":" << controller->GetName());
+	else {
+		CM_LogicBrickWarning(this, "missing link from sensor " << m_gameobj->GetName() << ":" << GetName()
+			<< " to controller " << controller->GetParent()->GetName() << ":" << controller->GetName());
+	}
 }
 
 void SCA_ISensor::UnlinkAllControllers()
