@@ -1138,7 +1138,8 @@ static EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext *UNUSED(C), 
 static void rna_SpaceProperties_context_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	SpaceButs *sbuts = (SpaceButs *)(ptr->data);
-	if (ELEM(sbuts->mainb, BCONTEXT_WORLD, BCONTEXT_MATERIAL, BCONTEXT_TEXTURE)) {
+	/* XXX BCONTEXT_DATA is ugly, but required for lamps... See T51318. */
+	if (ELEM(sbuts->mainb, BCONTEXT_WORLD, BCONTEXT_MATERIAL, BCONTEXT_TEXTURE, BCONTEXT_DATA)) {
 		sbuts->preview = 1;
 	}
 }
@@ -4421,11 +4422,6 @@ static void rna_def_space_node(BlenderRNA *brna)
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
 	RNA_def_property_enum_items(prop, backdrop_channels_items);
 	RNA_def_property_ui_text(prop, "Draw Channels", "Channels of the image to draw");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
-
-	prop = RNA_def_property(srna, "show_highlight", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", SNODE_SHOW_HIGHLIGHT);
-	RNA_def_property_ui_text(prop, "Highlight", "Highlight nodes that are being calculated");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
 
 	/* the mx/my "cursor" in the node editor is used only by operators to store the mouse position */

@@ -103,6 +103,8 @@ void            ED_text_format_register(TextFormatType *tft);
 void ED_text_format_register_py(void);
 void ED_text_format_register_osl(void);
 void ED_text_format_register_lua(void);
+void ED_text_format_register_pov(void);
+void ED_text_format_register_pov_ini(void);
 void ED_text_format_register_glsl(void);
 
 #define STR_LITERAL_STARTSWITH(str, str_literal, len_var) \
