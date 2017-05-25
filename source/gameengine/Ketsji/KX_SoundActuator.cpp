@@ -173,10 +173,8 @@ void KX_SoundActuator::ProcessReplica()
 #endif  // WITH_AUDASPACE
 }
 
-bool KX_SoundActuator::Update(double curtime, bool frame)
+bool KX_SoundActuator::Update(double curtime)
 {
-	if (!frame)
-		return true;
 	bool result = false;
 
 #ifdef WITH_AUDASPACE

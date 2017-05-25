@@ -57,7 +57,7 @@ public:
 						float	stride);
 
 	virtual ~BL_ActionActuator();
-	virtual	bool Update(double curtime, bool frame);
+	virtual	bool Update(double curtime);
 	virtual CValue* GetReplica();
 	virtual void ProcessReplica();
 	

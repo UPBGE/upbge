@@ -179,7 +179,7 @@ static void Kx_VecUpMat3(float vec[3], float mat[3][3], short axis)
 	cross_v3_v3v3(mat[cox], mat[coy], mat[coz]);
 }
 
-bool KX_CameraActuator::Update(double curtime, bool frame)
+bool KX_CameraActuator::Update(double curtime)
 {
 	/* wondering... is it really necessary/desirable to suppress negative    */
 	/* events here?                                                          */

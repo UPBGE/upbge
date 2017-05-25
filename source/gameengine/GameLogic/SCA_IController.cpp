@@ -59,11 +59,6 @@ std::vector<SCA_IActuator *>& SCA_IController::GetLinkedActuators()
 	return m_linkedactuators;
 }
 
-void SCA_IController::ReserveActuator(int num)
-{
-	m_linkedactuators.reserve(num);
-}
-
 void SCA_IController::UnlinkAllSensors()
 {
 	for (SCA_ISensor *sensor : m_linkedsensors) {

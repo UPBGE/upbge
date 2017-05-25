@@ -81,27 +81,6 @@ void SCA_ILogicBrick::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 	// nothing to do
 }
 
-CValue* SCA_ILogicBrick::Calc(VALUE_OPERATOR op, CValue *val)
-{
-	CValue* temp = new CBoolValue(false,"");
-	CValue* result = temp->Calc(op,val);
-	temp->Release();
-
-	return result;
-} 
-
-CValue* SCA_ILogicBrick::CalcFinal(VALUE_DATA_TYPE dtype,
-								   VALUE_OPERATOR op,
-								   CValue *val)
-{
-	// same as bool implementation, so...
-	CValue* temp = new CBoolValue(false,"");
-	CValue* result = temp->CalcFinal(dtype,op,val);
-	temp->Release();
-
-	return result;
-}
-
 const std::string SCA_ILogicBrick::GetText()
 { 
 	if (m_name.size())
@@ -118,13 +97,6 @@ std::string SCA_ILogicBrick::GetName()
 void SCA_ILogicBrick::SetName(const std::string& name)
 {
 	m_name = name;
-}
-
-bool SCA_ILogicBrick::LessComparedTo(SCA_ILogicBrick* other)
-{
-	return (this->m_Execute_Ueber_Priority < other->m_Execute_Ueber_Priority) 
-		|| ((this->m_Execute_Ueber_Priority == other->m_Execute_Ueber_Priority) && 
-		(this->m_Execute_Priority < other->m_Execute_Priority));
 }
 
 void SCA_ILogicBrick::SetLogicManager(SCA_LogicManager *logicmgr)
@@ -210,23 +182,6 @@ PyObject *SCA_ILogicBrick::pyattr_get_owner(PyObjectPlus *self_v, const KX_PYATT
 		return parent->GetProxy();
 	
 	Py_RETURN_NONE;
-}
-
-
-
-/* Conversions for making life better. */
-bool SCA_ILogicBrick::PyArgToBool(int boolArg)
-{
-	if (boolArg) {
-		return true;
-	} else {
-		return false;
-	}
-}
-
-PyObject *SCA_ILogicBrick::BoolToPyArg(bool boolarg)
-{
-	return PyLong_FromLong(boolarg ? KX_TRUE: KX_FALSE);
 }
 
 #endif // WITH_PYTHON

@@ -211,11 +211,6 @@ void SCA_ISensor::Replace_EventManager(class SCA_LogicManager *logicmgr)
 	}
 }
 
-void SCA_ISensor::ReserveController(int num)
-{
-	m_linkedcontrollers.reserve(num);
-}
-
 void SCA_ISensor::LinkToController(SCA_IController *controller)
 {
 	m_linkedcontrollers.push_back(controller);
@@ -412,17 +407,17 @@ PyObject *SCA_ISensor::pyattr_get_positive(PyObjectPlus *self_v, const KX_PYATTR
 PyObject *SCA_ISensor::pyattr_get_status(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_ISensor *self = static_cast<SCA_ISensor *>(self_v);
-	int status = 0;
+	int status = KX_SENSOR_INACTIVE;
 	if (self->GetState()) {
 		if (self->GetState() == self->GetPrevState()) {
-			status = 2;
+			status = KX_SENSOR_ACTIVE;
 		}
 		else {
-			status = 1;
+			status = KX_SENSOR_JUST_ACTIVATED;
 		}
 	}
 	else if (self->GetState() != self->GetPrevState()) {
-		status = 3;
+		status = KX_SENSOR_JUST_DEACTIVATED;
 	}
 	return PyLong_FromLong(status);
 }

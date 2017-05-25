@@ -134,20 +134,8 @@ public:
 	}
 
 	void AddSensor(SCA_ISensor* act);
-	void ReserveSensor(int num)
-	{
-		m_sensors.reserve(num);
-	}
 	void AddController(SCA_IController* act);
-	void ReserveController(int num)
-	{
-		m_controllers.reserve(num);
-	}
 	void AddActuator(SCA_IActuator* act);
-	void ReserveActuator(int num)
-	{
-		m_actuators.reserve(num);
-	}
 	void RegisterActuator(SCA_IActuator* act);
 	void UnregisterActuator(SCA_IActuator* act);
 	
@@ -214,8 +202,6 @@ public:
 	 * Get the object state
 	 */
 	unsigned int GetState(void)	{ return m_state; }
-
-//	const class MT_Vector3&	ConvertPythonPylist(PyObject *pylist);
 
 	virtual int GetGameObjectType() const {return -1;}
 	

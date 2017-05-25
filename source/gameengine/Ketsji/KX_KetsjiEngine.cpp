@@ -431,7 +431,7 @@ bool KX_KetsjiEngine::NextFrame()
 
 				// Do some cleanup work for this logic frame
 				m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
-				scene->LogicUpdateFrame(m_frameTime, true);
+				scene->LogicUpdateFrame(m_frameTime);
 
 				scene->LogicEndFrame();
 

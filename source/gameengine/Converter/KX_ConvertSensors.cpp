@@ -115,7 +115,6 @@ void BL_ConvertSensors(struct Object* blenderobject,
 		sens = sens->next;
 		count++;
 	}
-	gameobj->ReserveSensor(count);
 	sens = (bSensor*)blenderobject->sensors.first;
 
 	while (sens) {
@@ -624,12 +623,6 @@ void BL_ConvertSensors(struct Object* blenderobject,
 
 				gameobj->AddSensor(gamesensor);
 
-				// only register to manager if it's in an active layer
-				// Make registration dynamic: only when sensor is activated
-				//if (isInActiveLayer)
-				//	gamesensor->RegisterToManager();
-
-				gamesensor->ReserveController(sens->totlinks);
 				for (int i=0;i<sens->totlinks;i++)
 				{
 					bController* linkedcont = (bController*) sens->links[i];

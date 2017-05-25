@@ -106,10 +106,7 @@ public:
 	
 
 	/** Methods inherited from SCA_IActuator */
-	virtual bool Update(
-		double curtime,
-		bool frame
-	);
+	virtual bool Update(double curtime);
 	virtual bool	UnlinkObject(SCA_IObject* clientobj);
 
 	/** Methods inherited from SCA_ILogicBrick */

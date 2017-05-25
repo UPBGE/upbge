@@ -166,7 +166,7 @@ bool KX_ConstraintActuator::NeedRayCast(KX_ClientObjectInfo *client, void *UNUSE
 	return true;
 }
 
-bool KX_ConstraintActuator::Update(double curtime, bool frame)
+bool KX_ConstraintActuator::Update(double curtime)
 {
 
 	bool result = false;

@@ -361,7 +361,7 @@ public:
 	 * Initiate an update of the logic system.
 	 */
 	void LogicBeginFrame(double curtime, double framestep);
-	void LogicUpdateFrame(double curtime, bool frame);
+	void LogicUpdateFrame(double curtime);
 	void UpdateAnimations(double curtime);
 
 		void

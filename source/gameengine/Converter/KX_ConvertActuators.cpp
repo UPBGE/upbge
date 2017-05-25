@@ -136,7 +136,6 @@ void BL_ConvertActuators(const char* maggiename,
 		actcount++;
 		bact = bact->next;
 	}
-	gameobj->ReserveActuator(actcount);
 	bact = (bActuator*) blenderobject->actuators.first;
 	while (bact)
 	{

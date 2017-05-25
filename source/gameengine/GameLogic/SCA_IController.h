@@ -60,7 +60,6 @@ public:
 	void LinkToActuator(SCA_IActuator *);
 	std::vector<SCA_ISensor *>& GetLinkedSensors();
 	std::vector<SCA_IActuator *>& GetLinkedActuators();
-	void ReserveActuator(int num);
 	void UnlinkAllSensors();
 	void UnlinkAllActuators();
 	void UnlinkActuator(SCA_IActuator *actua);

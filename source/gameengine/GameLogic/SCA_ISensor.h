@@ -135,7 +135,6 @@ public:
 	virtual void RegisterToManager();
 	virtual void UnregisterToManager();
 	void Replace_EventManager(SCA_LogicManager *logicmgr);
-	void ReserveController(int num);
 	void LinkToController(SCA_IController *controller);
 	void UnlinkController(SCA_IController *controller);
 	void UnlinkAllControllers();

@@ -1585,7 +1585,7 @@ void KX_Scene::UpdateAnimations(double curtime)
 	BLI_task_pool_work_and_wait(m_animationPool);
 }
 
-void KX_Scene::LogicUpdateFrame(double curtime, bool frame)
+void KX_Scene::LogicUpdateFrame(double curtime)
 {
 	/* Update object components, we copy the object pointer in a second list to make sure that we iterate on a list
 	 * which will not be modified, indeed components can add objects in theirs initialization.
@@ -1600,7 +1600,7 @@ void KX_Scene::LogicUpdateFrame(double curtime, bool frame)
 		(*it)->UpdateComponents();
 	}
 
-	m_logicmgr->UpdateFrame(curtime, frame);
+	m_logicmgr->UpdateFrame(curtime);
 }
 
 void KX_Scene::LogicEndFrame()

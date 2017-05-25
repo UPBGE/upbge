@@ -56,30 +56,6 @@ SCA_LogicManager::~SCA_LogicManager()
 	BLI_assert(m_activeActuators.Empty());
 }
 
-#if 0
-// this kind of fixes bug 398 but breakes games, so better leave it out for now.
-// a removed object's gameobject (and logicbricks and stuff) didn't get released
-// because it was still in the m_mapStringToGameObjects map.
-void SCA_LogicManager::RemoveGameObject(const std::string& gameobjname)
-{
-	int numgameobj = m_mapStringToGameObjects.size();
-	for (int i = 0; i < numgameobj; i++)
-	{
-		CValue** gameobjptr = m_mapStringToGameObjects.at(i);
-		BLI_assert(gameobjptr);
-
-		if (gameobjptr)
-		{
-			if ((*gameobjptr)->GetName() == gameobjname)
-				(*gameobjptr)->Release();
-		}
-	}
-
-	m_mapStringToGameObjects.remove(gameobjname);
-}
-#endif
-
-
 void SCA_LogicManager::RegisterEventManager(SCA_EventManager* eventmgr)
 {
 	m_eventmanagers.push_back(eventmgr);
@@ -203,7 +179,7 @@ void SCA_LogicManager::BeginFrame(double curtime, double fixedtime)
 
 
 
-void SCA_LogicManager::UpdateFrame(double curtime, bool frame)
+void SCA_LogicManager::UpdateFrame(double curtime)
 {
 	for (std::vector<SCA_EventManager*>::const_iterator ie=m_eventmanagers.begin(); !(ie==m_eventmanagers.end()); ie++)
 		(*ie)->UpdateFrame();
@@ -220,7 +196,7 @@ void SCA_LogicManager::UpdateFrame(double curtime, bool frame)
 			SCA_IActuator* actua = *ia;
 			// increment first to allow removal of inactive actuators.
 			++ia;
-			if (!actua->Update(curtime, frame))
+			if (!actua->Update(curtime))
 			{
 				// this actuator is not active anymore, remove
 				actua->QDelink(); 

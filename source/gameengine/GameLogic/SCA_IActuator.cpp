@@ -55,13 +55,9 @@ bool SCA_IActuator::UnlinkObject(SCA_IObject *clientobj)
 	return false;
 }
 
-bool SCA_IActuator::Update(double curtime, bool frame)
+bool SCA_IActuator::Update(double curtime)
 {
-	if (frame) {
-		return Update();
-	}
-
-	return true;
+	return Update();
 }
 
 bool SCA_IActuator::Update()
