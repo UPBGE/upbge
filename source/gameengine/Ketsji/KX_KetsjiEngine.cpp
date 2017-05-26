@@ -1234,12 +1234,12 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
 			KX_Scene *scene = *sceit;
 			/* the 'normal' debug props */
-			std::vector<SCA_DebugProp *>& debugproplist = scene->GetDebugProperties();
+			const std::vector<SCA_DebugProp>& debugproplist = scene->GetDebugProperties();
 
 			for (unsigned i = 0; i < debugproplist.size() && propsAct < propsMax; i++) {
-				CValue *propobj = debugproplist[i]->m_obj;
+				CValue *propobj = debugproplist[i].m_obj;
 				std::string objname = propobj->GetName();
-				std::string propname = debugproplist[i]->m_name;
+				std::string propname = debugproplist[i].m_name;
 				propsAct++;
 				if (propname == "__state__") {
 					// reserve name for object state

@@ -35,8 +35,6 @@
 #include <vector>
 #include <string>
 
-#define DEBUG_MAX_DISPLAY 100
-
 class SCA_IObject;
 
 struct SCA_DebugProp
@@ -44,24 +42,24 @@ struct SCA_DebugProp
 	SCA_IObject *m_obj;
 	std::string m_name;
 
-	SCA_DebugProp();
+	SCA_DebugProp(SCA_IObject *gameobj, const std::string& name);
 	~SCA_DebugProp();
 };
 
 class SCA_IScene
 {
 private:
-	std::vector<SCA_DebugProp *> m_debugList;
+	std::vector<SCA_DebugProp> m_debugList;
 
 public:
 	SCA_IScene();
 	virtual ~SCA_IScene();
 
-	std::vector<SCA_DebugProp *>& GetDebugProperties();
+	const std::vector<SCA_DebugProp>& GetDebugProperties() const;
 	bool PropertyInDebugList(SCA_IObject *gameobj, const std::string &name);
 	bool ObjectInDebugList(SCA_IObject *gameobj);
 	void RemoveAllDebugProperties();
-	void AddDebugProperty(SCA_IObject *debugprop, const std::string &name);
+	void AddDebugProperty(SCA_IObject *gameobj, const std::string &name);
 	void RemoveDebugProperty(SCA_IObject *gameobj, const std::string &name);
 	void RemoveObjectDebugProperties(SCA_IObject *gameobj);
 };
