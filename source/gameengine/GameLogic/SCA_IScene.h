@@ -33,42 +33,43 @@
 #define __SCA_ISCENE_H__
 
 #include <vector>
-
 #include <string>
-#include "RAS_2DFilterData.h"
 
 #define DEBUG_MAX_DISPLAY 100
 
+class SCA_IObject;
+class CValue;
+
 struct SCA_DebugProp
 {
-	class CValue*	m_obj;
-	std::string 		m_name;
+	CValue *m_obj;
+	std::string m_name;
+
 	SCA_DebugProp();
 	~SCA_DebugProp();
 };
 
-class SCA_IScene 
+class SCA_IScene
 {
-	std::vector<SCA_DebugProp*> m_debugList;
+private:
+	std::vector<SCA_DebugProp *> m_debugList;
+
 public:
 	SCA_IScene();
 	virtual ~SCA_IScene();
-	virtual class SCA_IObject* AddReplicaObject(class CValue* gameobj,
-												class CValue* locationobj,
-												float lifespan=0.0f)=0;
-	virtual void	RemoveObject(class CValue* gameobj)=0;
-	virtual void	DelayedRemoveObject(class CValue* gameobj)=0;
-	//virtual void	DelayedReleaseObject(class CValue* gameobj)=0;
-	
-	virtual void	ReplaceMesh(class CValue* gameobj,
-								void* meshobj, bool use_gfx, bool use_phys)=0;
-	std::vector<SCA_DebugProp*>& GetDebugProperties();
-	bool			PropertyInDebugList(class CValue *gameobj, const std::string &name);
-	bool			ObjectInDebugList(class CValue *gameobj);
-	void			RemoveAllDebugProperties();
-	void			AddDebugProperty(class CValue* debugprop, const std::string &name);
-	void			RemoveDebugProperty(class CValue *gameobj, const std::string &name);
-	void			RemoveObjectDebugProperties(class CValue* gameobj);
+
+	virtual SCA_IObject *AddReplicaObject(CValue *gameobj, CValue *locationobj, float lifespan = 0.0f) = 0;
+	virtual void RemoveObject(CValue *gameobj) = 0;
+	virtual void DelayedRemoveObject(CValue *gameobj) = 0;
+
+	virtual void ReplaceMesh(CValue *gameobj, void *meshobj, bool use_gfx, bool use_phys) = 0;
+	std::vector<SCA_DebugProp *>& GetDebugProperties();
+	bool PropertyInDebugList(CValue *gameobj, const std::string &name);
+	bool ObjectInDebugList(CValue *gameobj);
+	void RemoveAllDebugProperties();
+	void AddDebugProperty(CValue *debugprop, const std::string &name);
+	void RemoveDebugProperty(CValue *gameobj, const std::string &name);
+	void RemoveObjectDebugProperties(CValue *gameobj);
 };
 
-#endif  /* __SCA_ISCENE_H__ */
+#endif  // __SCA_ISCENE_H__
