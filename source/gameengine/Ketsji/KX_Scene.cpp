@@ -1435,6 +1435,52 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nod
 	}
 }
 
+void KX_Scene::RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, unsigned short propsMax)
+{
+	static const MT_Vector4 white(1.0f, 1.0f, 1.0f, 1.0f);
+
+	// The 'normal' debug props.
+	const std::vector<SCA_DebugProp>& debugproplist = GetDebugProperties();
+
+	unsigned short numprop = debugproplist.size();
+	if (numprop > propsMax) {
+		numprop = propsMax;
+	}
+
+	for (unsigned i = 0; i < numprop; ++i) {
+		const SCA_DebugProp& debugProp = debugproplist[i];
+		SCA_IObject *gameobj = debugProp.m_obj;
+		const std::string objname = gameobj->GetName();
+		const std::string& propname = debugProp.m_name;
+		if (propname == "__state__") {
+			// reserve name for object state
+			unsigned int state = gameobj->GetState();
+			std::string debugtxt = objname + "." + propname + " = ";
+			bool first = true;
+			for (int statenum = 1; state; state >>= 1, statenum++) {
+				if (state & 1) {
+					if (!first) {
+						debugtxt += ",";
+					}
+					debugtxt += std::to_string(statenum);
+					first = false;
+				}
+			}
+			debugDraw.RenderText2D(debugtxt, MT_Vector2(xcoord + xindent, ycoord), white);
+			ycoord += ysize;
+		}
+		else {
+			CValue *propval = gameobj->GetProperty(propname);
+			if (propval) {
+				const std::string text = propval->GetText();
+				const std::string debugtxt = objname + ": '" + propname + "' = " + text;
+				debugDraw.RenderText2D(debugtxt, MT_Vector2(xcoord + xindent, ycoord), white);
+				ycoord += ysize;
+			}
+		}
+	}
+}
+
 // logic stuff
 void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 {

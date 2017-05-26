@@ -486,7 +486,10 @@ public:
 	void SetWorldInfo(class KX_WorldInfo* wi);
 	KX_WorldInfo* GetWorldInfo();
 	void CalculateVisibleMeshes(KX_CullingNodeList& nodes, KX_Camera *cam, int layer=0);
+
+	/// \section Debug draw.
 	void DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nodes);
+	void RenderDebugProperties(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, unsigned short propsMax);
 
 	/**
 	 * Replicate the logic bricks associated to this object.

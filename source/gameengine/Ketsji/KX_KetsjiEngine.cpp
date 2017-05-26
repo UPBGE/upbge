@@ -1228,47 +1228,11 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		ycoord += title_y_bottom_margin;
 
 		/* Calculate amount of properties that can displayed. */
-		unsigned propsAct = 0;
-		unsigned propsMax = (m_canvas->GetHeight() - ycoord) / const_ysize;
+		const unsigned short propsMax = (m_canvas->GetHeight() - ycoord) / const_ysize;
 
 		for (CListValue::iterator<KX_Scene> sceit = m_scenes->GetBegin(), sceend = m_scenes->GetEnd(); sceit != sceend; ++sceit) {
 			KX_Scene *scene = *sceit;
-			/* the 'normal' debug props */
-			const std::vector<SCA_DebugProp>& debugproplist = scene->GetDebugProperties();
-
-			for (unsigned i = 0; i < debugproplist.size() && propsAct < propsMax; i++) {
-				CValue *propobj = debugproplist[i].m_obj;
-				std::string objname = propobj->GetName();
-				std::string propname = debugproplist[i].m_name;
-				propsAct++;
-				if (propname == "__state__") {
-					// reserve name for object state
-					KX_GameObject *gameobj = static_cast<KX_GameObject *>(propobj);
-					unsigned int state = gameobj->GetState();
-					debugtxt = objname + "." + propname + " = ";
-					bool first = true;
-					for (int statenum = 1; state; state >>= 1, statenum++) {
-						if (state & 1) {
-							if (!first) {
-								debugtxt += ",";
-							}
-							debugtxt += std::to_string(statenum);
-							first = false;
-						}
-					}
-					debugDraw.RenderText2D(debugtxt, MT_Vector2(xcoord + const_xindent, ycoord), white);
-					ycoord += const_ysize;
-				}
-				else {
-					CValue *propval = propobj->GetProperty(propname);
-					if (propval) {
-						std::string text = propval->GetText();
-						debugtxt = objname + ": '" + propname + "' = " + text;
-						debugDraw.RenderText2D(debugtxt, MT_Vector2(xcoord + const_xindent, ycoord), white);
-						ycoord += const_ysize;
-					}
-				}
-			}
+			scene->RenderDebugProperties(debugDraw, const_xindent, const_ysize, xcoord, ycoord, propsMax);
 		}
 	}
 
