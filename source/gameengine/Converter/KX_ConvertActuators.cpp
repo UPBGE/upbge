@@ -426,7 +426,7 @@ void BL_ConvertActuators(const char* maggiename,
 						
 						// does the 'original' for replication exists, and 
 						// is it in a non-active layer ?
-						SCA_IObject* originalval = nullptr;
+						KX_GameObject *originalval = nullptr;
 						if (editobact->ob)
 						{
 							if (editobact->ob->lay & activeLayerBitInfo)

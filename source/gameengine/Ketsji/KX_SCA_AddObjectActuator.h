@@ -40,8 +40,8 @@
 
 #include "MT_Vector3.h"
 
-
-class SCA_IScene;
+class KX_Scene;
+class KX_GameObject;
 
 class KX_SCA_AddObjectActuator : public SCA_IActuator
 {
@@ -51,10 +51,10 @@ class KX_SCA_AddObjectActuator : public SCA_IActuator
 	float m_timeProp;
 
 	/// Original object reference (object to replicate)
-	SCA_IObject*	m_OriginalObject;
+	KX_GameObject *m_OriginalObject;
 
 	/// Object will be added to the following scene
-	SCA_IScene*	m_scene;
+	KX_Scene *m_scene;
 
 	/// Linear velocity upon creation of the object. 
 	float  m_linear_velocity[3];
@@ -66,10 +66,7 @@ class KX_SCA_AddObjectActuator : public SCA_IActuator
 	/// Apply the velocity locally 
 	bool m_localAngvFlag; 
 	
-	
-	
-	
-	SCA_IObject*	m_lastCreatedObject;
+	KX_GameObject*	m_lastCreatedObject;
 	
 public:
 
@@ -79,10 +76,10 @@ public:
 	 */
 
 	KX_SCA_AddObjectActuator(
-		SCA_IObject *gameobj,
-		SCA_IObject *original,
+		KX_GameObject *gameobj,
+		KX_GameObject *original,
 		float time,
-		SCA_IScene* scene,
+		KX_Scene* scene,
 		const float *linvel,
 		bool linv_local,
 		const float *angvel,
@@ -98,10 +95,7 @@ public:
 	virtual void 
 	ProcessReplica();
 
-	virtual void Replace_IScene(SCA_IScene *val)
-	{
-		m_scene= val;
-	};
+	virtual void Replace_IScene(SCA_IScene *val);
 
 	virtual bool 
 	UnlinkObject(SCA_IObject* clientobj);
@@ -112,7 +106,7 @@ public:
 	virtual bool 
 	Update();
 
-		SCA_IObject *
+		KX_GameObject *
 	GetLastCreatedObject(
 	) const;
 

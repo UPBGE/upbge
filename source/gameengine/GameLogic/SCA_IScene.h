@@ -38,11 +38,10 @@
 #define DEBUG_MAX_DISPLAY 100
 
 class SCA_IObject;
-class CValue;
 
 struct SCA_DebugProp
 {
-	CValue *m_obj;
+	SCA_IObject *m_obj;
 	std::string m_name;
 
 	SCA_DebugProp();
@@ -58,18 +57,13 @@ public:
 	SCA_IScene();
 	virtual ~SCA_IScene();
 
-	virtual SCA_IObject *AddReplicaObject(CValue *gameobj, CValue *locationobj, float lifespan = 0.0f) = 0;
-	virtual void RemoveObject(CValue *gameobj) = 0;
-	virtual void DelayedRemoveObject(CValue *gameobj) = 0;
-
-	virtual void ReplaceMesh(CValue *gameobj, void *meshobj, bool use_gfx, bool use_phys) = 0;
 	std::vector<SCA_DebugProp *>& GetDebugProperties();
-	bool PropertyInDebugList(CValue *gameobj, const std::string &name);
-	bool ObjectInDebugList(CValue *gameobj);
+	bool PropertyInDebugList(SCA_IObject *gameobj, const std::string &name);
+	bool ObjectInDebugList(SCA_IObject *gameobj);
 	void RemoveAllDebugProperties();
-	void AddDebugProperty(CValue *debugprop, const std::string &name);
-	void RemoveDebugProperty(CValue *gameobj, const std::string &name);
-	void RemoveObjectDebugProperties(CValue *gameobj);
+	void AddDebugProperty(SCA_IObject *debugprop, const std::string &name);
+	void RemoveDebugProperty(SCA_IObject *gameobj, const std::string &name);
+	void RemoveObjectDebugProperties(SCA_IObject *gameobj);
 };
 
 #endif  // __SCA_ISCENE_H__
