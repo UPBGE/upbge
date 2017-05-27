@@ -32,17 +32,15 @@
 
 #include "GPU_glew.h"
 
-VBO::VBO(RAS_DisplayArrayBucket *arrayBucket)
-	:m_bound(false)
+VBO::VBO(RAS_IDisplayArray *array, bool instancing)
+	:m_data(array),
+	m_useVao(!instancing && GLEW_ARB_vertex_array_object)
 {
-	m_data = arrayBucket->GetDisplayArray();
 	m_size = m_data->GetVertexCount();
 	m_indices = m_data->GetIndexCount();
 	m_stride = m_data->GetVertexMemorySize();
 
 	m_mode = m_data->GetOpenGLPrimitiveType();
-
-	m_useVao = arrayBucket->UseVao() && GLEW_ARB_vertex_array_object;
 
 	// Generate Buffers
 	glGenBuffersARB(1, &m_ibo);
@@ -75,20 +73,21 @@ VBO::~VBO()
 	}
 }
 
-void VBO::SetDataModified(RAS_Rasterizer::DrawType drawmode, DataType dataType)
+void VBO::UpdateVertexData()
 {
-	switch (dataType) {
-		case VERTEX_DATA:
-		{
-			UpdateData();
-			break;
-		}
-		case INDEX_DATA:
-		{
-			UpdateIndices();
-			break;
-		}
-	}
+	UpdateData();
+}
+
+unsigned int *VBO::GetIndexMap()
+{
+	void *buffer = glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, m_indices * sizeof(GLuint), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+
+	return (unsigned int *)buffer;
+}
+
+void VBO::FlushIndexMap()
+{
+	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 }
 
 void VBO::UpdateData()
@@ -96,21 +95,6 @@ void VBO::UpdateData()
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
 	glBufferSubDataARB(GL_ARRAY_BUFFER_ARB, 0, m_stride * m_size, m_data->GetVertexPointer());
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
-}
-
-void VBO::UpdateIndices()
-{
-	/* This function can be called when the VBO/VAO is already bound (in case of polygon sort).
-	 * In this case we must not unbound the element array buffer. */
-	if (!m_bound) {
-		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
-	}
-
-	glBufferSubDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0, m_indices * sizeof(GLuint), m_data->GetIndexPointer());
-
-	if (!m_bound) {
-		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
-	}
 }
 
 void VBO::AllocData()
@@ -126,7 +110,6 @@ void VBO::AllocData()
 
 void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::DrawType drawingmode)
 {
-	m_bound = true;
 	if (m_useVao) {
 		if (!m_vaos[drawingmode]) {
 			// Generate Vertex Array Object
@@ -243,7 +226,6 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 
 void VBO::Unbind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::DrawType drawingmode)
 {
-	m_bound = false;
 	if (m_useVao) {
 		glBindVertexArray(0);
 		return;
@@ -301,48 +283,34 @@ RAS_StorageVBO::~RAS_StorageVBO()
 {
 }
 
-VBO *RAS_StorageVBO::GetVBO(RAS_DisplayArrayBucket *arrayBucket)
+RAS_IStorageInfo *RAS_StorageVBO::GetStorageInfo(RAS_IDisplayArray *array, bool instancing)
 {
-	VBO *vbo = (VBO *)arrayBucket->GetStorageInfo();
-	if (!vbo) {
-		vbo = new VBO(arrayBucket);
-		arrayBucket->SetStorageInfo(vbo);
-	}
+	VBO *vbo = new VBO(array, instancing);
 	return vbo;
 }
 
-void RAS_StorageVBO::BindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
+void RAS_StorageVBO::BindPrimitives(VBO *vbo)
 {
-	VBO *vbo = GetVBO(arrayBucket);
-
 	vbo->Bind(m_storageAttribs, m_drawingmode);
 }
 
-void RAS_StorageVBO::UnbindPrimitives(RAS_DisplayArrayBucket *arrayBucket)
+void RAS_StorageVBO::UnbindPrimitives(VBO *vbo)
 {
-	VBO *vbo = GetVBO(arrayBucket);
 	vbo->Unbind(m_storageAttribs, m_drawingmode);
 }
 
-void RAS_StorageVBO::IndexPrimitives(RAS_MeshSlot *ms)
+void RAS_StorageVBO::IndexPrimitives(VBO *vbo)
 {
-	RAS_DisplayArrayBucket *arrayBucket = ms->m_displayArrayBucket;
-	VBO *vbo = GetVBO(arrayBucket);
-
 	vbo->Draw();
 }
 
-void RAS_StorageVBO::IndexPrimitivesInstancing(RAS_DisplayArrayBucket *arrayBucket)
+void RAS_StorageVBO::IndexPrimitivesInstancing(VBO *vbo, unsigned int numslots)
 {
-	VBO *vbo = GetVBO(arrayBucket);
-
-	vbo->DrawInstancing(arrayBucket->GetNumActiveMeshSlots());
+	vbo->DrawInstancing(numslots);
 }
 
-void RAS_StorageVBO::IndexPrimitivesBatching(RAS_DisplayArrayBucket *arrayBucket, const std::vector<void *>& indices,
+void RAS_StorageVBO::IndexPrimitivesBatching(VBO *vbo, const std::vector<void *>& indices,
 											 const std::vector<int>& counts)
 {
-	VBO *vbo = GetVBO(arrayBucket);
-
 	vbo->DrawBatching(indices, counts);
 }

@@ -24,70 +24,70 @@
 #define __RAS_BASIC_NODE__
 
 #include <functional>
-#include <iostream>
-
-enum class RAS_NodeFlag {
-	/// The node is always a final node.
-	ALWAYS_FINAL,
-	/// The node is never a final node.
-	NEVER_FINAL
-};
 
 /** RAS_BaseNode is a class wrapping a rendering class by simulating it with a
  * binding and unbinding function.
- * \param InfoType The class to wrap functions from.
- * \param Flag The node flag to know the final state of a node.
- * \param Args The arguments type to pass to the binding and unbinding functions.
+ * \param NodeInfo The node information.
  */
-template <class InfoType, RAS_NodeFlag Flag, class Args>
+template <class NodeInfo>
 class RAS_BaseNode
 {
 public:
+	using OwnerType = typename NodeInfo::OwnerType;
+	using TupleType = typename NodeInfo::TupleType;
+	using DataType = typename NodeInfo::DataType;
+	using Leaf = typename NodeInfo::Leaf;
+
 	/** The type of function to call for binding and unbinding.
-	 * It takes as arguments the class the node is wrapping and the structure
-	 * containing the arguments.
+	 * It takes as arguments the class the node is wrapping and the tuple
+	 * containing the data of the parent nodes.
 	 */
-	typedef std::function<void(InfoType *, const Args&)> Function;
+	typedef std::function<void(OwnerType *, const TupleType&)> Function;
 
 protected:
 	/// An instance of the wrapped class.
-	InfoType *m_info;
+	OwnerType *m_owner;
+	DataType *m_data;
 
 	Function m_bind;
 	Function m_unbind;
 
 public:
-	RAS_BaseNode(InfoType *info, Function bind, Function unbind)
-		:m_info(info),
+	RAS_BaseNode(OwnerType *owner, DataType *data, Function bind, Function unbind)
+		:m_owner(owner),
+		m_data(data),
 		m_bind(bind),
 		m_unbind(unbind)
 	{
 	}
 
-	RAS_BaseNode()
-	{
-	}
+	RAS_BaseNode() = default;
 
 	~RAS_BaseNode()
 	{
 	}
 
-	inline InfoType *GetInfo() const
+	inline OwnerType *GetOwner() const
 	{
-		return m_info;
+		return m_owner;
 	}
 
-	inline void Bind(const Args& args)
+	inline DataType *GetData() const
+	{
+		return m_data;
+	}
+
+	inline void Bind(const TupleType& tuple)
 	{
 		if (m_bind) {
-			m_bind(m_info, args);
+			m_bind(m_owner, tuple);
 		}
 	}
 
-	inline void Unbind(const Args& args)
+	inline void Unbind(const TupleType& tuple)
 	{
 		if (m_unbind) {
-			m_unbind(m_info, args);
+			m_unbind(m_owner, tuple);
 		}
 	}
 };

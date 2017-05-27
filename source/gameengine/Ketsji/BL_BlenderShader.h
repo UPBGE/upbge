@@ -54,7 +54,7 @@ private:
 	Material *m_mat;
 	int m_lightLayer;
 	int m_alphaBlend;
-	GPUMaterial *m_GPUMat;
+	GPUMaterial *m_gpuMat;
 
 	/// The material attributes passed to the rasterizer.
 	RAS_Rasterizer::TexCoGenList m_attribs;
@@ -66,13 +66,9 @@ public:
 	BL_BlenderShader(KX_Scene *scene, Material *ma, int lightlayer);
 	virtual ~BL_BlenderShader();
 
-	bool Ok() const
-	{
-		return (m_GPUMat != nullptr);
-	}
+	bool Ok() const;
 	void SetProg(bool enable, double time = 0.0, RAS_Rasterizer *rasty = nullptr);
 
-	int GetAttribNum() const;
 	void SetAttribs(RAS_Rasterizer *ras);
 
 	/** Return a map of the corresponding attribut layer for a given attribut index.
@@ -81,7 +77,7 @@ public:
 	 */
 	const RAS_Rasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const;
 
-	void Update(RAS_MeshSlot *ms, RAS_Rasterizer * rasty);
+	void Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty);
 
 	/// Return true if the shader uses a special vertex shader for geometry instancing.
 	bool UseInstancing() const;
@@ -92,4 +88,4 @@ public:
 	int GetAlphaBlend();
 };
 
-#endif /* __BL_BLENDERSHADER_H__ */
+#endif // __BL_BLENDERSHADER_H__

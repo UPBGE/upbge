@@ -136,7 +136,7 @@ unsigned int RAS_IPolyMaterial::GetFlag() const
 	return m_flag;
 }
 
-bool RAS_IPolyMaterial::UsesLighting(RAS_Rasterizer *rasty) const
+bool RAS_IPolyMaterial::UsesLighting() const
 {
 	// Return false only if material is shadeless.
 	return (m_flag & RAS_MULTILIGHT);
@@ -150,11 +150,6 @@ bool RAS_IPolyMaterial::CastsShadows() const
 bool RAS_IPolyMaterial::OnlyShadow() const
 {
 	return (m_flag & RAS_ONLYSHADOW) != 0;
-}
-
-bool RAS_IPolyMaterial::UsesObjectColor() const
-{
-	return (!(m_flag & RAS_BLENDERGLSL)) && (m_flag & RAS_OBJECTCOLOR);
 }
 
 RAS_Texture *RAS_IPolyMaterial::GetTexture(unsigned int index)

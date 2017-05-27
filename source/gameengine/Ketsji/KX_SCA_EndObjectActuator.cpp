@@ -38,12 +38,12 @@
 // \source\gameengine\GameLogic\SCA_EndObjectActuator.cpp
 // Please look here for revision history.
 
-#include "SCA_IActuator.h"
 #include "KX_SCA_EndObjectActuator.h"
-#include "SCA_IScene.h"
+#include "KX_Scene.h"
+#include "KX_GameObject.h"
 
-KX_SCA_EndObjectActuator::KX_SCA_EndObjectActuator(SCA_IObject *gameobj,
-                                                   SCA_IScene* scene):
+KX_SCA_EndObjectActuator::KX_SCA_EndObjectActuator(KX_GameObject *gameobj,
+                                                   KX_Scene *scene):
     SCA_IActuator(gameobj, KX_ACT_END_OBJECT),
     m_scene(scene)
 {
@@ -67,7 +67,7 @@ bool KX_SCA_EndObjectActuator::Update()
 
 	if (bNegativeEvent)
 		return false; // do nothing on negative events
-	m_scene->DelayedRemoveObject(GetParent());
+	m_scene->DelayedRemoveObject(static_cast<KX_GameObject *>(GetParent()));
 	
 	return false;
 }
@@ -83,6 +83,11 @@ CValue* KX_SCA_EndObjectActuator::GetReplica()
 	replica->ProcessReplica();
 	return replica;
 };
+
+void KX_SCA_EndObjectActuator::Replace_IScene(SCA_IScene *val)
+{
+	m_scene = static_cast<KX_Scene *>(val);
+}
 
 #ifdef WITH_PYTHON
 

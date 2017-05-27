@@ -44,8 +44,6 @@ public:
 
 	virtual const std::string GetTextureName() const;
 	virtual Material *GetBlenderMaterial() const;
-	virtual Image *GetBlenderImage() const;
-	virtual MTexPoly *GetMTexPoly() const;
 	virtual Scene *GetBlenderScene() const;
 	virtual SCA_IScene *GetScene() const;
 	virtual bool UseInstancing() const;

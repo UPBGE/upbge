@@ -286,7 +286,7 @@ base class --- :class:`SCA_IObject`
 
          This variable returns an invalid value if it is called outside the scene's callbacks :data:`KX_Scene.pre_draw` and :data:`KX_Scene.post_draw`.
 
-      :type: boolean
+      :type: boolean (read only)
 
    .. attribute:: color
 

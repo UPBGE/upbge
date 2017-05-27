@@ -23,37 +23,22 @@
 #ifndef __RAS_DUMMY_NODE_H__
 #define __RAS_DUMMY_NODE_H__
 
+struct RAS_DummyNodeData
+{
+};
+
+struct RAS_DummyNodeTuple
+{
+};
+
 class RAS_DummyNode
 {
 public:
+	using DataType = RAS_DummyNodeData;
+	using TupleType = RAS_DummyNodeTuple;
 	typedef RAS_DummyNode ParentType;
 
 	void Print(unsigned short level, bool recursive)
-	{
-	}
-
-	template <class Args>
-	void Bind(const Args& args)
-	{
-	}
-
-	template <class Args>
-	void Unbind(const Args& args)
-	{
-	}
-
-	template <class Args>
-	void Execute(const Args& args)
-	{
-	}
-
-	ParentType *GetParent()
-	{
-		return nullptr;
-	}
-
-	template <class NodeType>
-	void AddChild(NodeType subNode)
 	{
 	}
 };

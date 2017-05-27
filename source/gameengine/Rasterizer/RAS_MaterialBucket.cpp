@@ -48,9 +48,15 @@
 
 RAS_MaterialBucket::RAS_MaterialBucket(RAS_IPolyMaterial *mat)
 	:m_material(mat),
-	m_downwardNode(this, std::mem_fn(&RAS_MaterialBucket::BindNode), std::mem_fn(&RAS_MaterialBucket::UnbindNode)),
-	m_upwardNode(this, std::mem_fn(&RAS_MaterialBucket::BindNode), std::mem_fn(&RAS_MaterialBucket::UnbindNode))
+	m_downwardNode(this, &m_nodeData, std::mem_fn(&RAS_MaterialBucket::BindNode), std::mem_fn(&RAS_MaterialBucket::UnbindNode)),
+	m_upwardNode(this, &m_nodeData, std::mem_fn(&RAS_MaterialBucket::BindNode), std::mem_fn(&RAS_MaterialBucket::UnbindNode))
 {
+	m_nodeData.m_material = m_material;
+	m_nodeData.m_drawingMode = m_material->GetDrawingMode();
+	m_nodeData.m_cullFace = m_material->IsCullFace();
+	m_nodeData.m_zsort = m_material->IsZSort();
+	m_nodeData.m_text = m_material->IsText();
+	m_nodeData.m_useLighting = m_material->UsesLighting();
 }
 
 RAS_MaterialBucket::~RAS_MaterialBucket()
@@ -83,6 +89,15 @@ bool RAS_MaterialBucket::IsWire() const
 bool RAS_MaterialBucket::UseInstancing() const
 {
 	return (m_material->UseInstancing());
+}
+
+void RAS_MaterialBucket::UpdateShader()
+{
+	for (RAS_DisplayArrayBucket *arrayBucket : m_displayArrayBucketList) {
+		arrayBucket->DestructStorageInfo();
+	}
+
+	m_nodeData.m_useLighting = m_material->UsesLighting();
 }
 
 RAS_MeshSlot *RAS_MaterialBucket::NewMesh(RAS_MeshObject *mesh, RAS_MeshMaterial *meshmat, const RAS_TexVertFormat& format)
@@ -173,8 +188,8 @@ void RAS_MaterialBucket::DesactivateMaterial(RAS_Rasterizer *rasty)
 	m_material->Desactivate(rasty);
 }
 
-void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode *downwardRoot, RAS_ManagerUpwardNode *upwardRoot,
-									  RAS_UpwardTreeLeafs *upwardLeafs, RAS_Rasterizer *rasty, bool sort)
+void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode& downwardRoot, RAS_ManagerUpwardNode& upwardRoot,
+									  RAS_UpwardTreeLeafs& upwardLeafs, RAS_Rasterizer *rasty, bool sort)
 {
 	if (m_displayArrayBucketList.size() == 0) {
 		return;
@@ -182,46 +197,31 @@ void RAS_MaterialBucket::GenerateTree(RAS_ManagerDownwardNode *downwardRoot, RAS
 
 	const bool instancing = UseInstancing();
 	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
-		displayArrayBucket->GenerateTree(&m_downwardNode, &m_upwardNode, upwardLeafs, rasty, sort, instancing);
+		displayArrayBucket->GenerateTree(m_downwardNode, m_upwardNode, upwardLeafs, rasty, sort, instancing);
 	}
 
-	downwardRoot->AddChild(&m_downwardNode);
+	downwardRoot.AddChild(&m_downwardNode);
 
 	if (sort) {
-		m_upwardNode.SetParent(upwardRoot);
+		m_upwardNode.SetParent(&upwardRoot);
 	}
 }
 
-void RAS_MaterialBucket::BindNode(const RAS_RenderNodeArguments& args)
+void RAS_MaterialBucket::BindNode(const RAS_MaterialNodeTuple& tuple)
 {
-	args.m_rasty->SetCullFace(m_material->IsCullFace());
-	if (!args.m_shaderOverride) {
-		ActivateMaterial(args.m_rasty);
+	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	managerData->m_rasty->SetCullFace(m_nodeData.m_cullFace);
+	if (!managerData->m_shaderOverride) {
+		ActivateMaterial(managerData->m_rasty);
 	}
 }
 
-void RAS_MaterialBucket::UnbindNode(const RAS_RenderNodeArguments& args)
+void RAS_MaterialBucket::UnbindNode(const RAS_MaterialNodeTuple& tuple)
 {
-	if (!args.m_shaderOverride) {
-		DesactivateMaterial(args.m_rasty);
+	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	if (!managerData->m_shaderOverride) {
+		DesactivateMaterial(managerData->m_rasty);
 	}
-}
-
-void RAS_MaterialBucket::SetDisplayArrayUnmodified()
-{
-	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
-		displayArrayBucket->SetDisplayArrayUnmodified();
-	}
-}
-
-RAS_DisplayArrayBucket *RAS_MaterialBucket::FindDisplayArrayBucket(RAS_IDisplayArray *array, RAS_MeshObject *mesh)
-{
-	for (RAS_DisplayArrayBucket *displayArrayBucket : m_displayArrayBucketList) {
-		if (displayArrayBucket->GetDisplayArray() == array && displayArrayBucket->GetMesh() == mesh) {
-			return displayArrayBucket;
-		}
-	}
-	return nullptr;
 }
 
 void RAS_MaterialBucket::AddDisplayArrayBucket(RAS_DisplayArrayBucket *bucket)

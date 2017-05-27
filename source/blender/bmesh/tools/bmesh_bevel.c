@@ -916,8 +916,12 @@ static bool offset_meet_edge(EdgeHalf *e1, EdgeHalf *e2, BMVert *v,  float meetc
 		return false;
 	}
 	cross_v3_v3v3(fno, dir1, dir2);
-	if (dot_v3v3(fno, v->no) < 0.0f)
+	if (dot_v3v3(fno, v->no) < 0.0f) {
 		ang = 2.0f * (float)M_PI - ang;  /* angle is reflex */
+		if (r_angle)
+			*r_angle = ang;
+		return false;
+	}
 	if (r_angle)
 		*r_angle = ang;
 
@@ -2295,7 +2299,7 @@ static int interp_range(const float *frac, int n, const float f, float *r_rest)
 /* Interpolate given vmesh to make one with target nseg border vertices on the profiles */
 static VMesh *interp_vmesh(BevelParams *bp, VMesh *vm0, int nseg)
 {
-	int n, ns0, nseg2, odd, i, j, k, j0, k0, k0prev;
+	int n, ns0, nseg2, odd, i, j, k, j0, k0, k0prev, j0inc, k0inc;
 	float *prev_frac, *frac, *new_frac, *prev_new_frac;
 	float f, restj, restk, restkprev;
 	float quad[4][3], co[3], center[3];
@@ -2339,10 +2343,12 @@ static VMesh *interp_vmesh(BevelParams *bp, VMesh *vm0, int nseg)
 					copy_v3_v3(co, mesh_vert_canon(vm0, i, j0, k0)->co);
 				}
 				else {
+					j0inc = (restj < BEVEL_EPSILON || j0 == ns0) ? 0 : 1;
+					k0inc = (restk < BEVEL_EPSILON || k0 == ns0) ? 0 : 1;
 					copy_v3_v3(quad[0], mesh_vert_canon(vm0, i, j0, k0)->co);
-					copy_v3_v3(quad[1], mesh_vert_canon(vm0, i, j0, k0 + 1)->co);
-					copy_v3_v3(quad[2], mesh_vert_canon(vm0, i, j0 + 1, k0 + 1)->co);
-					copy_v3_v3(quad[3], mesh_vert_canon(vm0, i, j0 + 1, k0)->co);
+					copy_v3_v3(quad[1], mesh_vert_canon(vm0, i, j0, k0 + k0inc)->co);
+					copy_v3_v3(quad[2], mesh_vert_canon(vm0, i, j0 + j0inc, k0 + k0inc)->co);
+					copy_v3_v3(quad[3], mesh_vert_canon(vm0, i, j0 + j0inc, k0)->co);
 					interp_bilinear_quad_v3(quad, restk, restj, co);
 				}
 				copy_v3_v3(mesh_vert(vm1, i, j, k)->co, co);

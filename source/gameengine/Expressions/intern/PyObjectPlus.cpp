@@ -342,7 +342,7 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 						Py_DECREF(resultlist);
 						return nullptr;
 					}
-					// Walkthrough
+					ATTR_FALLTHROUGH;
 				}
 				case KX_PYATTRIBUTE_TYPE_INT:
 				{
@@ -416,7 +416,8 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 				}
 				// Walkthrough
 			}
-			case KX_PYATTRIBUTE_TYPE_INT:
+			// walkthrough
+		case KX_PYATTRIBUTE_TYPE_INT:
 			{
 				int *val = reinterpret_cast<int *>(ptr);
 				return PyLong_FromLong(*val);
@@ -644,7 +645,7 @@ int PyObjectPlus::py_set_attrdef(PyObject *self_py, PyObject *value, const PyAtt
 						PyErr_Format(PyExc_AttributeError, "Size check error for attribute, \"%s\", report to blender.org", attrdef->m_name.c_str());
 						goto UNDO_AND_ERROR;
 					}
-					// Walkthrough
+					ATTR_FALLTHROUGH;
 				}
 				case KX_PYATTRIBUTE_TYPE_INT:
 				{
@@ -889,7 +890,7 @@ UNDO_AND_ERROR:
 					PyErr_Format(PyExc_AttributeError, "attribute size check error for attribute \"%s\", report to blender.org", attrdef->m_name.c_str());
 					goto FREE_AND_ERROR;
 				}
-				// Walkthrough
+				ATTR_FALLTHROUGH;
 			}
 			case KX_PYATTRIBUTE_TYPE_INT:
 			{

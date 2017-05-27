@@ -58,6 +58,7 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 		m_do_color_management = BKE_scene_check_color_management_enabled(blenderscene);
 		m_hasworld = true;
 		m_hasmist = ((blenderworld->mode) & WO_MIST ? true : false);
+		m_hasEnvLight = ((blenderworld->mode) & WO_ENV_LIGHT ? true : false);
 		m_savedData.horizonColor[0] = blenderworld->horr;
 		m_savedData.horizonColor[1] = blenderworld->horg;
 		m_savedData.horizonColor[2] = blenderworld->horb;
@@ -65,6 +66,7 @@ KX_WorldInfo::KX_WorldInfo(Scene *blenderscene, World *blenderworld)
 		m_savedData.zenithColor[1] = blenderworld->zeng;
 		m_savedData.zenithColor[2] = blenderworld->zenb;
 		m_envLightEnergy = blenderworld->ao_env_energy;
+		m_envLightColor = blenderworld->aocolor;
 		m_misttype = blenderworld->mistype;
 		m_miststart = blenderworld->miststa;
 		m_mistdistance = blenderworld->mistdist;
@@ -298,6 +300,8 @@ PyAttributeDef KX_WorldInfo::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_RW("exposure", 0.0f, 1.0f, KX_WorldInfo, m_exposure),
 	KX_PYATTRIBUTE_FLOAT_RW("range", 0.2f, 5.0f, KX_WorldInfo, m_range),
 	KX_PYATTRIBUTE_FLOAT_RW("envLightEnergy", 0.0f, FLT_MAX, KX_WorldInfo, m_envLightEnergy),
+	KX_PYATTRIBUTE_BOOL_RO("envLightEnabled", KX_WorldInfo, m_hasEnvLight),
+	KX_PYATTRIBUTE_SHORT_RO("envLightColor", KX_WorldInfo, m_envLightColor),
 	KX_PYATTRIBUTE_NULL /* Sentinel */
 };
 

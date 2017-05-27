@@ -95,7 +95,7 @@ public:
 
 	~KX_SoundActuator();
 
-	virtual bool Update(double curtime, bool frame);
+	virtual bool Update(double curtime);
 
 	CValue* GetReplica();
 	void ProcessReplica();

@@ -479,7 +479,7 @@ void Session::release_tile(RenderTile& rtile)
 {
 	thread_scoped_lock tile_lock(tile_mutex);
 
-	progress.add_finished_tile();
+	progress.add_finished_tile(rtile.task == RenderTile::DENOISE);
 
 	bool delete_tile;
 
@@ -726,16 +726,20 @@ DeviceRequestedFeatures Session::get_requested_device_features()
 	return requested_features;
 }
 
-void Session::load_kernels()
+void Session::load_kernels(bool lock_scene)
 {
-	thread_scoped_lock scene_lock(scene->mutex);
+	thread_scoped_lock scene_lock;
+	if(lock_scene) {
+		scene_lock = thread_scoped_lock(scene->mutex);
+	}
 
-	if(!kernels_loaded) {
+	DeviceRequestedFeatures requested_features = get_requested_device_features();
+
+	if(!kernels_loaded || loaded_kernel_features.modified(requested_features)) {
 		progress.set_status("Loading render kernels (may take a few minutes the first time)");
 
 		scoped_timer timer;
 
-		DeviceRequestedFeatures requested_features = get_requested_device_features();
 		VLOG(2) << "Requested features:\n" << requested_features;
 		if(!device->load_kernels(requested_features)) {
 			string message = device->error_message();
@@ -752,6 +756,7 @@ void Session::load_kernels()
 		VLOG(1) << "Total time spent loading kernels: " << time_dt() - timer.get_start();
 
 		kernels_loaded = true;
+		loaded_kernel_features = requested_features;
 	}
 }
 
@@ -902,6 +907,8 @@ void Session::update_scene()
 
 	/* update scene */
 	if(scene->need_update()) {
+		load_kernels(false);
+
 		progress.set_status("Updating Scene");
 		MEM_GUARDED_CALL(&progress, scene->device_update, device, progress);
 	}
@@ -912,7 +919,7 @@ void Session::update_status_time(bool show_pause, bool show_done)
 	int progressive_sample = tile_manager.state.sample;
 	int num_samples = tile_manager.get_num_effective_samples();
 
-	int tile = progress.get_finished_tiles();
+	int tile = progress.get_rendered_tiles();
 	int num_tiles = tile_manager.state.num_tiles;
 
 	/* update status */
@@ -920,11 +927,12 @@ void Session::update_status_time(bool show_pause, bool show_done)
 
 	if(!params.progressive) {
 		const bool is_cpu = params.device.type == DEVICE_CPU;
+		const bool rendering_finished = (tile == num_tiles);
 		const bool is_last_tile = (tile + 1) == num_tiles;
 
 		substatus = string_printf("Path Tracing Tile %d/%d", tile, num_tiles);
 
-		if(device->show_samples() || (is_cpu && is_last_tile)) {
+		if(!rendering_finished && (device->show_samples() || (is_cpu && is_last_tile))) {
 			/* Some devices automatically support showing the sample number:
 			 * - CUDADevice
 			 * - OpenCLDevice when using the megakernel (the split kernel renders multiple
@@ -935,6 +943,9 @@ void Session::update_status_time(bool show_pause, bool show_done)
 			 * The other option is when the last tile is currently being rendered by the CPU.
 			 */
 			substatus += string_printf(", Sample %d/%d", progress.get_current_sample(), num_samples);
+		}
+		if(params.use_denoising) {
+			substatus += string_printf(", Denoised %d tiles", progress.get_denoised_tiles());
 		}
 	}
 	else if(tile_manager.num_samples == INT_MAX)

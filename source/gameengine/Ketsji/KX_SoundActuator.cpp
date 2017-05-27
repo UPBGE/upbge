@@ -115,7 +115,7 @@ void KX_SoundActuator::play()
 	case KX_SOUNDACT_LOOPBIDIRECTIONAL:
 	case KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP:
 		sound = AUD_Sound_pingpong(sound);
-		// fall through
+		ATTR_FALLTHROUGH;
 	case KX_SOUNDACT_LOOPEND:
 	case KX_SOUNDACT_LOOPSTOP:
 		loop = true;
@@ -173,10 +173,8 @@ void KX_SoundActuator::ProcessReplica()
 #endif  // WITH_AUDASPACE
 }
 
-bool KX_SoundActuator::Update(double curtime, bool frame)
+bool KX_SoundActuator::Update(double curtime)
 {
-	if (!frame)
-		return true;
 	bool result = false;
 
 #ifdef WITH_AUDASPACE

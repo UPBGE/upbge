@@ -95,7 +95,7 @@ public:
 							   class SCA_IActuator* actuator);
 	
 	void	BeginFrame(double curtime, double fixedtime);
-	void	UpdateFrame(double curtime, bool frame);
+	void	UpdateFrame(double curtime);
 	void	EndFrame();
 	void	AddActiveActuator(SCA_IActuator* actua,bool event)
 	{
@@ -107,8 +107,6 @@ public:
 	void	AddTriggeredController(SCA_IController* controller, SCA_ISensor* sensor);
 	SCA_EventManager*	FindEventManager(int eventmgrtype);
 	std::vector<class SCA_EventManager*>	GetEventManagers() { return m_eventmanagers; }
-	
-	void	RemoveGameObject(const std::string& gameobjname);
 
 	/**
 	 * remove Logic Bricks from the running logicmanager

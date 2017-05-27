@@ -451,38 +451,36 @@ void KX_Scene::AddObjectDebugProperties(class KX_GameObject* gameobj)
 		AddDebugProperty(gameobj, "__state__");
 }
 
-void KX_Scene::RemoveNodeDestructObject(class SG_Node* node,class CValue* gameobj)
+void KX_Scene::RemoveNodeDestructObject(SG_Node* node, KX_GameObject *gameobj)
 {
-	KX_GameObject* orgobj = (KX_GameObject*)gameobj;
-	if (NewRemoveObject(orgobj)) {
+	if (NewRemoveObject(gameobj)) {
 		// object is not yet deleted because a reference is hanging somewhere.
 		// This should not happen anymore since we use proxy object for Python
 		// confident enough to put an assert?
 		//assert(false);
-		CM_Warning("zombie object! name=" << orgobj->GetName());
-		orgobj->SetSGNode(nullptr);
-		PHY_IGraphicController* ctrl = orgobj->GetGraphicController();
+		CM_Warning("zombie object! name=" << gameobj->GetName());
+		gameobj->SetSGNode(nullptr);
+		PHY_IGraphicController* ctrl = gameobj->GetGraphicController();
 		if (ctrl)
 		{
 			// a graphic controller is set, we must delete it as the node will be deleted
 			delete ctrl;
-			orgobj->SetGraphicController(nullptr);
+			gameobj->SetGraphicController(nullptr);
 		}
 	}
 	if (node)
 		delete node;
 }
 
-KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_Node* node, class CValue* gameobj)
+KX_GameObject* KX_Scene::AddNodeReplicaObject(SG_Node* node, KX_GameObject *gameobj)
 {
 	// for group duplication, limit the duplication of the hierarchy to the
 	// objects that are part of the group. 
 	if (!IsObjectInGroup(gameobj))
 		return nullptr;
 	
-	KX_GameObject* orgobj = (KX_GameObject*)gameobj;
-	KX_GameObject* newobj = (KX_GameObject*)orgobj->GetReplica();
-	m_map_gameobject_to_replica[orgobj] = newobj;
+	KX_GameObject* newobj = (KX_GameObject*)gameobj->GetReplica();
+	m_map_gameobject_to_replica[gameobj] = newobj;
 
 	// also register 'timers' (time properties) of the replica
 	int numprops = newobj->GetPropertyCount();
@@ -504,7 +502,7 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_Node* node, class CValue*
 		m_rootnode = new SG_Node(newobj,this,KX_Scene::m_callbacks);
 	
 		// this fixes part of the scaling-added object bug
-		SG_Node* orgnode = orgobj->GetSGNode();
+		SG_Node* orgnode = gameobj->GetSGNode();
 		m_rootnode->SetLocalScale(orgnode->GetLocalScale());
 		m_rootnode->SetLocalPosition(orgnode->GetLocalPosition());
 		m_rootnode->SetLocalOrientation(orgnode->GetLocalOrientation());
@@ -521,7 +519,7 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_Node* node, class CValue*
 //	SG_Node* rootnode = (replicanode == m_rootnode ? nullptr : m_rootnode);
 
 	// Add the object in the obstacle simulation if needed.
-	if (m_obstacleSimulation && orgobj->GetBlenderObject()->gameflag & OB_HASOBSTACLE) {
+	if (m_obstacleSimulation && gameobj->GetBlenderObject()->gameflag & OB_HASOBSTACLE) {
 		m_obstacleSimulation->AddObstacleForObj(newobj);
 	}
 
@@ -556,7 +554,7 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_Node* node, class CValue*
 	// logic cannot be replicated, until the whole hierarchy is replicated.
 	m_logicHierarchicalGameObjects.push_back(newobj);
 	//replicate controllers of this node
-	SGControllerList	scenegraphcontrollers = orgobj->GetSGNode()->GetSGControllerList();
+	SGControllerList	scenegraphcontrollers = gameobj->GetSGNode()->GetSGControllerList();
 	replicanode->RemoveAllControllers();
 	SGControllerList::iterator cit;
 	//int numcont = scenegraphcontrollers.size();
@@ -574,19 +572,19 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_Node* node, class CValue*
 		}
 	}
 	// replicate graphic controller
-	if (orgobj->GetGraphicController())
+	if (gameobj->GetGraphicController())
 	{
 		PHY_IMotionState* motionstate = new KX_MotionState(newobj->GetSGNode());
-		PHY_IGraphicController* newctrl = orgobj->GetGraphicController()->GetReplica(motionstate);
+		PHY_IGraphicController* newctrl = gameobj->GetGraphicController()->GetReplica(motionstate);
 		newctrl->SetNewClientInfo(newobj->getClientInfo());
 		newobj->SetGraphicController(newctrl);
 	}
 
 	// replicate physics controller
-	if (orgobj->GetPhysicsController())
+	if (gameobj->GetPhysicsController())
 	{
 		PHY_IMotionState* motionstate = new KX_MotionState(newobj->GetSGNode());
-		PHY_IPhysicsController* newctrl = orgobj->GetPhysicsController()->GetReplica();
+		PHY_IPhysicsController* newctrl = gameobj->GetPhysicsController()->GetReplica();
 
 		KX_GameObject *parent = newobj->GetParent();
 		PHY_IPhysicsController* parentctrl = (parent) ? parent->GetPhysicsController() : nullptr;
@@ -647,7 +645,7 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 			SCA_ISensor* oldsensor = (*its);
 			SCA_IObject* oldsensorobj = oldsensor->GetParent();
 			// the original owner of the sensor has been replicated?
-			SCA_IObject* newsensorobj = (SCA_IObject *)m_map_gameobject_to_replica[oldsensorobj];
+			SCA_IObject* newsensorobj = m_map_gameobject_to_replica[oldsensorobj];
 
 			if (!newsensorobj)
 			{
@@ -682,7 +680,7 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 		{
 			SCA_IActuator* oldactuator = (*ita);
 			SCA_IObject* oldactuatorobj = oldactuator->GetParent();
-			SCA_IObject* newactuatorobj = (SCA_IObject *)m_map_gameobject_to_replica[oldactuatorobj];
+			SCA_IObject* newactuatorobj = m_map_gameobject_to_replica[oldactuatorobj];
 
 			if (!newactuatorobj)
 			{
@@ -717,9 +715,8 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 	newobj->ResetState();
 }
 
-void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
+void KX_Scene::DupliGroupRecurse(KX_GameObject *groupobj, int level)
 {
-	KX_GameObject* groupobj = (KX_GameObject*) obj;
 	KX_GameObject* replica;
 	KX_GameObject* gameobj;
 	Object* blgroupobj = groupobj->GetBlenderObject();
@@ -767,11 +764,7 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 		m_groupGameObjects.insert(gameobj);
 	}
 
-	std::set<CValue*>::iterator oit;
-	for (oit=m_groupGameObjects.begin(); oit != m_groupGameObjects.end(); oit++)
-	{
-		gameobj = (KX_GameObject*)(*oit);
-
+	for (KX_GameObject *gameobj : m_groupGameObjects) {
 		KX_GameObject *parent = gameobj->GetParent();
 		if (parent != nullptr)
 		{
@@ -825,62 +818,53 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 
 	// the logic must be replicated first because we need
 	// the new logic bricks before relinking
-	std::vector<KX_GameObject*>::iterator git;
-	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
-	{
-		(*git)->ReParentLogic();
+	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
+		gameobj->ReParentLogic();
 	}
 	
 	//	relink any pointers as necessary, sort of a temporary solution
-	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
-	{
+	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
 		// this will also relink the actuator to objects within the hierarchy
-		(*git)->Relink(m_map_gameobject_to_replica);
+		gameobj->Relink(m_map_gameobject_to_replica);
 		// add the object in the layer of the parent
-		(*git)->SetLayer(groupobj->GetLayer());
+		gameobj->SetLayer(groupobj->GetLayer());
 	}
 
 	// replicate crosslinks etc. between logic bricks
-	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
-	{
-		ReplicateLogic((*git));
+	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
+		ReplicateLogic(gameobj);
 	}
 	
 	// now look if object in the hierarchy have dupli group and recurse
-	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
-	{
+	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
 		/* Replicate all constraints. */
-		if ((*git)->GetPhysicsController()) {
-			(*git)->GetPhysicsController()->ReplicateConstraints((*git), m_logicHierarchicalGameObjects);
-			(*git)->ClearConstraints();
+		if (gameobj->GetPhysicsController()) {
+			gameobj->GetPhysicsController()->ReplicateConstraints(gameobj, m_logicHierarchicalGameObjects);
+			gameobj->ClearConstraints();
 		}
 
-		if ((*git) != groupobj && (*git)->IsDupliGroup())
+		if (gameobj != groupobj && gameobj->IsDupliGroup())
 			// can't instantiate group immediately as it destroys m_logicHierarchicalGameObjects
-			duplilist.push_back((*git));
+			duplilist.push_back(gameobj);
 
-		if ((*git)->GetBlenderGroupObject() == blgroupobj) {
+		if (gameobj->GetBlenderGroupObject() == blgroupobj) {
 			// set references for dupli-group
 			// groupobj holds a list of all objects, that belongs to this group
-			groupobj->AddInstanceObjects((*git));
+			groupobj->AddInstanceObjects(gameobj);
 
 			// every object gets the reference to its dupli-group object
-			(*git)->SetDupliGroupObject(groupobj);
+			gameobj->SetDupliGroupObject(groupobj);
 		}
 	}
 
-	for (git = duplilist.begin(); !(git == duplilist.end()); ++git)
-	{
-		DupliGroupRecurse((*git), level+1);
+	for (KX_GameObject *gameobj : duplilist) {
+		DupliGroupRecurse(gameobj, level+1);
 	}
 }
 
 
-SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
-										class CValue* referenceobject,
-										float lifespan)
+KX_GameObject *KX_Scene::AddReplicaObject(KX_GameObject *originalobject, KX_GameObject *referenceobject, float lifespan)
 {
-
 	m_logicHierarchicalGameObjects.clear();
 	m_map_gameobject_to_replica.clear();
 	m_groupGameObjects.clear();
@@ -942,46 +926,40 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 	replica->ActivateGraphicController(true);
 
 	// now replicate logic
-	std::vector<KX_GameObject*>::iterator git;
-	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
-	{
-		(*git)->ReParentLogic();
+	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
+		gameobj->ReParentLogic();
 	}
 	
 	//	relink any pointers as necessary, sort of a temporary solution
-	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
-	{
+	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
 		// this will also relink the actuators in the hierarchy
-		(*git)->Relink(m_map_gameobject_to_replica);
+		gameobj->Relink(m_map_gameobject_to_replica);
 		if (referenceobj) {
 			// add the object in the layer of the reference object
-			(*git)->SetLayer(referenceobj->GetLayer());
+			gameobj->SetLayer(referenceobj->GetLayer());
 		}
 		else {
 			// We don't know what layer set, so we set all visible layers in the blender scene.
-			(*git)->SetLayer(m_blenderScene->lay);
+			gameobj->SetLayer(m_blenderScene->lay);
 		}
 	}
 
 	// replicate crosslinks etc. between logic bricks
-	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
-	{
-		ReplicateLogic((*git));
+	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
+		ReplicateLogic(gameobj);
 	}
 	
 	// check if there are objects with dupligroup in the hierarchy
 	std::vector<KX_GameObject*> duplilist;
-	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
-	{
-		if ((*git)->IsDupliGroup())
+	for (KX_GameObject *gameobj : m_logicHierarchicalGameObjects) {
+		if (gameobj->IsDupliGroup())
 		{
 			// separate list as m_logicHierarchicalGameObjects is also used by DupliGroupRecurse()
-			duplilist.push_back(*git);
+			duplilist.push_back(gameobj);
 		}
 	}
-	for (git = duplilist.begin();!(git==duplilist.end());++git)
-	{
-		DupliGroupRecurse(*git, 0);
+	for (KX_GameObject *gameobj : duplilist) {
+		DupliGroupRecurse(gameobj, 0);
 	}
 
 	//	don't release replica here because we are returning it, not done with it...
@@ -990,12 +968,10 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 
 
 
-void KX_Scene::RemoveObject(class CValue* gameobj)
+void KX_Scene::RemoveObject(KX_GameObject *gameobj)
 {
-	KX_GameObject* newobj = (KX_GameObject*) gameobj;
-
 	// disconnect child from parent
-	SG_Node* node = newobj->GetSGNode();
+	SG_Node* node = gameobj->GetSGNode();
 
 	if (node)
 	{
@@ -1004,23 +980,19 @@ void KX_Scene::RemoveObject(class CValue* gameobj)
 		// recursively destruct
 		node->Destruct();
 	}
-	//no need to do that: the object is destroyed and memory released 
-	//newobj->SetSGNode(0);
 }
 
-void KX_Scene::RemoveDupliGroup(class CValue *gameobj)
+void KX_Scene::RemoveDupliGroup(KX_GameObject *gameobj)
 {
-	KX_GameObject *newobj = (KX_GameObject *) gameobj;
-
-	if (newobj->IsDupliGroup()) {
-		for (int i = 0; i < newobj->GetInstanceObjects()->GetCount(); i++) {
-			CValue *obj = newobj->GetInstanceObjects()->GetValue(i);
-			DelayedRemoveObject(obj);
+	if (gameobj->IsDupliGroup()) {
+		for (int i = 0; i < gameobj->GetInstanceObjects()->GetCount(); i++) {
+			CValue *obj = gameobj->GetInstanceObjects()->GetValue(i);
+			DelayedRemoveObject(static_cast<KX_GameObject *>(obj));
 		}
 	}
 }
 
-void KX_Scene::DelayedRemoveObject(class CValue* gameobj)
+void KX_Scene::DelayedRemoveObject(KX_GameObject *gameobj)
 {
 	RemoveDupliGroup(gameobj);
 
@@ -1030,39 +1002,37 @@ void KX_Scene::DelayedRemoveObject(class CValue* gameobj)
 	}
 }
 
-bool KX_Scene::NewRemoveObject(class CValue* gameobj)
+bool KX_Scene::NewRemoveObject(KX_GameObject *gameobj)
 {
-	KX_GameObject* newobj = (KX_GameObject*) gameobj;
-
 	/* remove property from debug list */
-	RemoveObjectDebugProperties(newobj);
+	RemoveObjectDebugProperties(gameobj);
 
 	/* Invalidate the python reference, since the object may exist in script lists
 	 * its possible that it wont be automatically invalidated, so do it manually here,
 	 * 
 	 * if for some reason the object is added back into the scene python can always get a new Proxy
 	 */
-	newobj->InvalidateProxy();
+	gameobj->InvalidateProxy();
 
 	// keep the blender->game object association up to date
 	// note that all the replicas of an object will have the same
 	// blender object, that's why we need to check the game object
 	// as only the deletion of the original object must be recorded
-	if (newobj->GetBlenderObject()) {
+	if (gameobj->GetBlenderObject()) {
 		// In some case the game object can contains a nullptr blender object e.g default camera.
-		m_logicmgr->UnregisterGameObj(newobj->GetBlenderObject(), gameobj);
+		m_logicmgr->UnregisterGameObj(gameobj->GetBlenderObject(), gameobj);
 	}
 
 	// remove all sensors/controllers/actuators from logicsystem...
 	
-	SCA_SensorList& sensors = newobj->GetSensors();
+	SCA_SensorList& sensors = gameobj->GetSensors();
 	for (SCA_SensorList::iterator its = sensors.begin();
 		 !(its==sensors.end());its++)
 	{
 		m_logicmgr->RemoveSensor(*its);
 	}
 
-	SCA_ControllerList& controllers = newobj->GetControllers();
+	SCA_ControllerList& controllers = gameobj->GetControllers();
 	for (SCA_ControllerList::iterator itc = controllers.begin();
 		 !(itc==controllers.end());itc++)
 	{
@@ -1070,7 +1040,7 @@ bool KX_Scene::NewRemoveObject(class CValue* gameobj)
 		(*itc)->ReParent(nullptr);
 	}
 
-	SCA_ActuatorList& actuators = newobj->GetActuators();
+	SCA_ActuatorList& actuators = gameobj->GetActuators();
 	for (SCA_ActuatorList::iterator ita = actuators.begin();
 		 !(ita==actuators.end());ita++)
 	{
@@ -1079,11 +1049,11 @@ bool KX_Scene::NewRemoveObject(class CValue* gameobj)
 	// the sensors/controllers/actuators must also be released, this is done in ~SCA_IObject
 
 	// now remove the timer properties from the time manager
-	int numprops = newobj->GetPropertyCount();
+	int numprops = gameobj->GetPropertyCount();
 
 	for (int i = 0; i < numprops; i++)
 	{
-		CValue* propval = newobj->GetProperty(i);
+		CValue* propval = gameobj->GetProperty(i);
 		if (propval->GetProperty("timer"))
 		{
 			m_timemgr->RemoveTimeProperty(propval);
@@ -1092,61 +1062,61 @@ bool KX_Scene::NewRemoveObject(class CValue* gameobj)
 
 	// if the object is the dupligroup proxy, you have to cleanup all m_pDupliGroupObject's in all
 	// instances refering to this group
-	if (newobj->GetInstanceObjects()) {
-		for (int i = 0; i < newobj->GetInstanceObjects()->GetCount(); i++) {
-			KX_GameObject* instance = (KX_GameObject*)newobj->GetInstanceObjects()->GetValue(i);
+	if (gameobj->GetInstanceObjects()) {
+		for (int i = 0; i < gameobj->GetInstanceObjects()->GetCount(); i++) {
+			KX_GameObject* instance = (KX_GameObject*)gameobj->GetInstanceObjects()->GetValue(i);
 			instance->RemoveDupliGroupObject();
 		}
 	}
 
 	// if this object was part of a group, make sure to remove it from that group's instance list
-	KX_GameObject* group = newobj->GetDupliGroupObject();
+	KX_GameObject* group = gameobj->GetDupliGroupObject();
 	if (group)
-		group->RemoveInstanceObject(newobj);
+		group->RemoveInstanceObject(gameobj);
 
 	if (m_obstacleSimulation) {
-		m_obstacleSimulation->DestroyObstacleForObj(newobj);
+		m_obstacleSimulation->DestroyObstacleForObj(gameobj);
 	}
 
-	newobj->RemoveMeshes();
+	gameobj->RemoveMeshes();
 
-	m_rendererManager->InvalidateViewpoint(newobj);
+	m_rendererManager->InvalidateViewpoint(gameobj);
 
 	bool ret = true;
-	if (newobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(newobj))
-		ret = (newobj->Release() != nullptr);
-	if (m_objectlist->RemoveValue(newobj))
-		ret = (newobj->Release() != nullptr);
-	if (m_tempObjectList->RemoveValue(newobj))
-		ret = (newobj->Release() != nullptr);
-	if (m_parentlist->RemoveValue(newobj))
-		ret = (newobj->Release() != nullptr);
-	if (m_inactivelist->RemoveValue(newobj))
-		ret = (newobj->Release() != nullptr);
-	if (m_euthanasyobjects->RemoveValue(newobj))
-		ret = (newobj->Release() != nullptr);
-	if (m_fontlist->RemoveValue(newobj)) {
-		ret = (newobj->Release() != nullptr);
+	if (gameobj->GetGameObjectType()==SCA_IObject::OBJ_LIGHT && m_lightlist->RemoveValue(gameobj))
+		ret = (gameobj->Release() != nullptr);
+	if (m_objectlist->RemoveValue(gameobj))
+		ret = (gameobj->Release() != nullptr);
+	if (m_tempObjectList->RemoveValue(gameobj))
+		ret = (gameobj->Release() != nullptr);
+	if (m_parentlist->RemoveValue(gameobj))
+		ret = (gameobj->Release() != nullptr);
+	if (m_inactivelist->RemoveValue(gameobj))
+		ret = (gameobj->Release() != nullptr);
+	if (m_euthanasyobjects->RemoveValue(gameobj))
+		ret = (gameobj->Release() != nullptr);
+	if (m_fontlist->RemoveValue(gameobj)) {
+		ret = (gameobj->Release() != nullptr);
 	}
-	if (m_cameralist->RemoveValue(newobj)) {
-		ret = (newobj->Release() != nullptr);
+	if (m_cameralist->RemoveValue(gameobj)) {
+		ret = (gameobj->Release() != nullptr);
 	}
 
-	/* Warning 'newobj' maye be freed now, only compare, don't access */
+	/* Warning 'gameobj' maye be freed now, only compare, don't access */
 
-	const std::vector<KX_GameObject *>::const_iterator animit = std::find(m_animatedlist.begin(), m_animatedlist.end(), newobj);
+	const std::vector<KX_GameObject *>::const_iterator animit = std::find(m_animatedlist.begin(), m_animatedlist.end(), gameobj);
 	if (animit != m_animatedlist.end()) {
 		m_animatedlist.erase(animit);
 	}
 
-	if (newobj == m_active_camera)
+	if (gameobj == m_active_camera)
 	{
 		//no AddRef done on m_active_camera so no Release
 		//m_active_camera->Release();
 		m_active_camera = nullptr;
 	}
 
-	if (newobj == m_overrideCullingCamera) {
+	if (gameobj == m_overrideCullingCamera) {
 		m_overrideCullingCamera = nullptr;
 	}
 
@@ -1157,11 +1127,8 @@ bool KX_Scene::NewRemoveObject(class CValue* gameobj)
 
 
 
-void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool use_phys)
+void KX_Scene::ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool use_gfx, bool use_phys)
 {
-	KX_GameObject* gameobj = static_cast<KX_GameObject*>(obj);
-	RAS_MeshObject* mesh = static_cast<RAS_MeshObject*>(meshobj);
-
 	if (!gameobj) {
 		CM_FunctionWarning("invalid object, doing nothing");
 		return;
@@ -1472,9 +1439,9 @@ void KX_Scene::DrawDebug(RAS_DebugDraw& debugDraw, const KX_CullingNodeList& nod
 void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 {
 	// have a look at temp objects ...
-	for (CListValue::VectorTypeIterator it = m_tempObjectList->GetBegin(), end = m_tempObjectList->GetEnd(); it != end; ++it) {
-		CValue *objval = *it;
-		CFloatValue* propval = (CFloatValue*) objval->GetProperty("::timebomb");
+	for (CListValue::iterator<KX_GameObject> it = m_tempObjectList->GetBegin(), end = m_tempObjectList->GetEnd(); it != end; ++it) {
+		KX_GameObject *gameobj = *it;
+		CFloatValue* propval = (CFloatValue*) gameobj->GetProperty("::timebomb");
 		
 		if (propval)
 		{
@@ -1486,7 +1453,7 @@ void KX_Scene::LogicBeginFrame(double curtime, double framestep)
 			}
 			else
 			{
-				DelayedRemoveObject(objval);
+				DelayedRemoveObject(gameobj);
 				// remove obj
 			}
 		}
@@ -1585,7 +1552,7 @@ void KX_Scene::UpdateAnimations(double curtime)
 	BLI_task_pool_work_and_wait(m_animationPool);
 }
 
-void KX_Scene::LogicUpdateFrame(double curtime, bool frame)
+void KX_Scene::LogicUpdateFrame(double curtime)
 {
 	/* Update object components, we copy the object pointer in a second list to make sure that we iterate on a list
 	 * which will not be modified, indeed components can add objects in theirs initialization.
@@ -1600,7 +1567,7 @@ void KX_Scene::LogicUpdateFrame(double curtime, bool frame)
 		(*it)->UpdateComponents();
 	}
 
-	m_logicmgr->UpdateFrame(curtime, frame);
+	m_logicmgr->UpdateFrame(curtime);
 }
 
 void KX_Scene::LogicEndFrame()
@@ -2407,7 +2374,7 @@ KX_PYMETHODDEF_DOC(KX_Scene, addObject,
 		PyErr_Format(PyExc_ValueError, "scene.addObject(object, reference, time): KX_Scene (first argument): object must be in an inactive layer");
 		return nullptr;
 	}
-	SCA_IObject *replica = AddReplicaObject((SCA_IObject*)ob, reference, time);
+	KX_GameObject *replica = AddReplicaObject(ob, reference, time);
 	
 	// release here because AddReplicaObject AddRef's
 	// the object is added to the scene so we don't want python to own a reference

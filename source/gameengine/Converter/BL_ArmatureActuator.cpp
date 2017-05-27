@@ -143,7 +143,7 @@ void BL_ArmatureActuator::FindConstraint()
 	}
 }
 
-bool BL_ArmatureActuator::Update(double curtime, bool frame)
+bool BL_ArmatureActuator::Update(double curtime)
 {
 	// the only role of this actuator is to ensure that the armature pose will be evaluated
 	bool result = false;

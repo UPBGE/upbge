@@ -77,16 +77,6 @@ Material *KX_TextMaterial::GetBlenderMaterial() const
 	return nullptr;
 }
 
-Image *KX_TextMaterial::GetBlenderImage() const
-{
-	return nullptr;
-}
-
-MTexPoly *KX_TextMaterial::GetMTexPoly() const
-{
-	return nullptr;
-}
-
 Scene *KX_TextMaterial::GetBlenderScene() const
 {
 	return nullptr;

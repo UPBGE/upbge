@@ -93,7 +93,7 @@ public:
 						bool enableVisualization,
 	                    bool lockzvel);
 	virtual ~KX_SteeringActuator();
-	virtual bool Update(double curtime, bool frame);
+	virtual bool Update(double curtime);
 
 	virtual CValue* GetReplica();
 	virtual void ProcessReplica();

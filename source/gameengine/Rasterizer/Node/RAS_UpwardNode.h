@@ -26,6 +26,7 @@
 #include "RAS_BaseNode.h"
 
 #ifdef DEBUG
+#  include <iostream>
 #  include <boost/type_index.hpp>
 #endif  // DEBUG
 
@@ -37,26 +38,26 @@
  *
  * \param _ParentType The parent node type.
  */
-template <class _ParentType, class InfoType, RAS_NodeFlag Flag, class Args>
-class RAS_UpwardNode : public RAS_BaseNode<InfoType, Flag, Args>
+template <class NodeInfo, class _ParentType>
+class RAS_UpwardNode : public RAS_BaseNode<NodeInfo>
 {
 public:
-	using typename RAS_BaseNode<InfoType, Flag, Args>::Function;
+	using typename RAS_BaseNode<NodeInfo>::OwnerType;
+	using typename RAS_BaseNode<NodeInfo>::DataType;
+	using typename RAS_BaseNode<NodeInfo>::Function;
 	typedef _ParentType ParentType;
 
 private:
 	ParentType *m_parent;
 
 public:
-	RAS_UpwardNode(InfoType *info, Function bind, Function unbind)
-		:RAS_BaseNode<InfoType, Flag, Args>(info, bind, unbind),
+	RAS_UpwardNode(OwnerType *owner, DataType *data, Function bind, Function unbind)
+		:RAS_BaseNode<NodeInfo>(owner, data, bind, unbind),
 		m_parent(nullptr)
 	{
 	}
 
-	RAS_UpwardNode()
-	{
-	}
+	RAS_UpwardNode() = default;
 
 	~RAS_UpwardNode()
 	{
@@ -79,7 +80,7 @@ public:
 			std::cout << "\t";
 		}
 
-		std::cout << boost::typeindex::type_id<InfoType>().pretty_name() << "(" << this->m_info << ") "<< std::endl;
+		std::cout << boost::typeindex::type_id<OwnerType>().pretty_name() << "(" << this->m_owner << ") "<< std::endl;
 
 		if (recursive) {
 			m_parent->Print(level + 1, recursive);

@@ -33,22 +33,31 @@
 #include "SCA_IActuator.h"
 #include "CM_Message.h"
 
-SCA_IActuator::SCA_IActuator(SCA_IObject* gameobj, KX_ACTUATOR_TYPE type) :
+#include <algorithm>
+
+SCA_IActuator::SCA_IActuator(SCA_IObject *gameobj, KX_ACTUATOR_TYPE type) :
 	SCA_ILogicBrick(gameobj),
 	m_type(type),
 	m_links(0),
 	m_posevent(false),
 	m_negevent(false)
 {
-	// nothing to do
 }
 
-bool SCA_IActuator::Update(double curtime, bool frame)
+void SCA_IActuator::RemoveAllEvents()
 {
-	if (frame)
-		return Update();
-	
-	return true;
+	m_posevent = false;
+	m_negevent = false;
+}
+
+bool SCA_IActuator::UnlinkObject(SCA_IObject *clientobj)
+{
+	return false;
+}
+
+bool SCA_IActuator::Update(double curtime)
+{
+	return Update();
 }
 
 bool SCA_IActuator::Update()
@@ -57,28 +66,44 @@ bool SCA_IActuator::Update()
 	return false;
 }
 
+void SCA_IActuator::AddEvent(bool event)
+{
+	if (event) {
+		m_posevent = true;
+	}
+	else {
+		m_negevent = true;
+	}
+}
+
+bool SCA_IActuator::IsNegativeEvent() const
+{
+	return !m_posevent && m_negevent;
+}
+
+bool SCA_IActuator::IsPositiveEvent() const
+{
+	return m_posevent && !m_negevent;
+}
+
 void SCA_IActuator::Activate(SG_DList& head)
 {
-	if (QEmpty())
-	{
+	if (QEmpty()) {
 		InsertActiveQList(m_gameobj->m_activeActuators);
 		head.AddBack(&m_gameobj->m_activeActuators);
 	}
 }
 
-// this function is only used to deactivate actuators outside the logic loop
-// e.g. when an object is deleted.
 void SCA_IActuator::Deactivate()
 {
-	if (QDelink())
-	{
+	if (QDelink()) {
 		// the actuator was in the active list
-		if (m_gameobj->m_activeActuators.QEmpty())
+		if (m_gameobj->m_activeActuators.QEmpty()) {
 			// the owner object has no more active actuators, remove it from the global list
 			m_gameobj->m_activeActuators.Delink();
+		}
 	}
 }
-
 
 void SCA_IActuator::ProcessReplica()
 {
@@ -87,51 +112,59 @@ void SCA_IActuator::ProcessReplica()
 	m_linkedcontrollers.clear();
 }
 
-
-
 SCA_IActuator::~SCA_IActuator()
 {
 	RemoveAllEvents();
 }
 
+void SCA_IActuator::ClrLink()
+{
+	m_links = 0;
+}
+void SCA_IActuator::IncLink()
+{
+	m_links++;
+}
+
 void SCA_IActuator::DecLink()
 {
-	m_links--;
-	if (m_links < 0) 
-	{
+	--m_links;
+	if (m_links < 0) {
 		CM_LogicBrickWarning(this, "actuator " << m_name << " has negative m_links: " << m_links);
 		m_links = 0;
 	}
 }
 
-void SCA_IActuator::LinkToController(SCA_IController* controller)
+bool SCA_IActuator::IsNoLink() const
+{
+	return !m_links;
+}
+bool SCA_IActuator::IsType(KX_ACTUATOR_TYPE type)
+{
+	return m_type == type;
+}
+
+void SCA_IActuator::LinkToController(SCA_IController *controller)
 {
 	m_linkedcontrollers.push_back(controller);
 }
 
-void SCA_IActuator::UnlinkController(SCA_IController* controller)
+void SCA_IActuator::UnlinkController(SCA_IController *controller)
 {
-	std::vector<class SCA_IController*>::iterator contit;
-	for (contit = m_linkedcontrollers.begin();!(contit==m_linkedcontrollers.end());++contit)
-	{
-		if ((*contit) == controller)
-		{
-			*contit = m_linkedcontrollers.back();
-			m_linkedcontrollers.pop_back();
-			return;
-		}
+	std::vector<SCA_IController *>::iterator it = std::find(m_linkedcontrollers.begin(), m_linkedcontrollers.end(), controller);
+	if (it != m_linkedcontrollers.end()) {
+		m_linkedcontrollers.erase(it);
 	}
-	CM_LogicBrickWarning(this, "Missing link from actuator " << m_gameobj->GetName() << ":"
-		<< GetName() << " to controller " << controller->GetParent()->GetName() << ":" << controller->GetName());
+	else {
+		CM_LogicBrickWarning(this, "Missing link from actuator " << m_gameobj->GetName() << ":"
+			<< GetName() << " to controller " << controller->GetParent()->GetName() << ":" << controller->GetName());
+	}
 }
 
 void SCA_IActuator::UnlinkAllControllers()
 {
-	std::vector<class SCA_IController*>::iterator contit;
-	for (contit = m_linkedcontrollers.begin();!(contit==m_linkedcontrollers.end());++contit)
-	{
-		(*contit)->UnlinkActuator(this);
+	for (SCA_IController *controller : m_linkedcontrollers) {
+		controller->UnlinkActuator(this);
 	}
 	m_linkedcontrollers.clear();
 }
-

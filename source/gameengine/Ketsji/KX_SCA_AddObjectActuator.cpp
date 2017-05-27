@@ -36,18 +36,17 @@
  * Please look here for revision history. */
 
 #include "KX_SCA_AddObjectActuator.h"
-#include "SCA_IScene.h"
+#include "KX_Scene.h"
 #include "KX_GameObject.h"
-#include "EXP_PyObjectPlus.h" 
 
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_SCA_AddObjectActuator::KX_SCA_AddObjectActuator(SCA_IObject *gameobj,
-												   SCA_IObject *original,
+KX_SCA_AddObjectActuator::KX_SCA_AddObjectActuator(KX_GameObject *gameobj,
+												   KX_GameObject *original,
 												   float time,
-												   SCA_IScene* scene,
+												   KX_Scene *scene,
 												   const float *linvel,
 												   bool linv_local,
 												   const float *angvel,
@@ -103,7 +102,7 @@ bool KX_SCA_AddObjectActuator::Update()
 
 
 
-SCA_IObject* KX_SCA_AddObjectActuator::GetLastCreatedObject() const 
+KX_GameObject *KX_SCA_AddObjectActuator::GetLastCreatedObject() const 
 {
 	return m_lastCreatedObject;
 }
@@ -131,6 +130,11 @@ void KX_SCA_AddObjectActuator::ProcessReplica()
 	SCA_IActuator::ProcessReplica();
 }
 
+void KX_SCA_AddObjectActuator::Replace_IScene(SCA_IScene *val)
+{
+	m_scene = static_cast<KX_Scene *>(val);
+}
+
 bool KX_SCA_AddObjectActuator::UnlinkObject(SCA_IObject* clientobj)
 {
 	if (clientobj == m_OriginalObject)
@@ -154,7 +158,7 @@ void KX_SCA_AddObjectActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& ob
 	if (obj) {
 		if (m_OriginalObject)
 			m_OriginalObject->UnregisterActuator(this);
-		m_OriginalObject = obj;
+		m_OriginalObject = static_cast<KX_GameObject *>(obj);
 		m_OriginalObject->RegisterActuator(this);
 	}
 }
@@ -222,7 +226,7 @@ int KX_SCA_AddObjectActuator::pyattr_set_object(PyObjectPlus *self, const struct
 	if (actuator->m_OriginalObject != nullptr)
 		actuator->m_OriginalObject->UnregisterActuator(actuator);
 
-	actuator->m_OriginalObject = (SCA_IObject*)gameobj;
+	actuator->m_OriginalObject = gameobj;
 		
 	if (actuator->m_OriginalObject)
 		actuator->m_OriginalObject->RegisterActuator(actuator);
@@ -254,11 +258,10 @@ void	KX_SCA_AddObjectActuator::InstantAddObject()
 	{
 		// Add an identical object, with properties inherited from the original object
 		// Now it needs to be added to the current scene.
-		SCA_IObject* replica = m_scene->AddReplicaObject(m_OriginalObject,GetParent(),m_timeProp );
-		KX_GameObject * game_obj = static_cast<KX_GameObject *>(replica);
-		game_obj->setLinearVelocity(MT_Vector3(m_linear_velocity), m_localLinvFlag);
-		game_obj->setAngularVelocity(MT_Vector3(m_angular_velocity),m_localAngvFlag);
-		game_obj->ResolveCombinedVelocities(MT_Vector3(m_linear_velocity), MT_Vector3(m_angular_velocity), m_localLinvFlag, m_localAngvFlag);
+		KX_GameObject *replica = m_scene->AddReplicaObject(m_OriginalObject, static_cast<KX_GameObject *>(GetParent()), m_timeProp);
+		replica->setLinearVelocity(MT_Vector3(m_linear_velocity), m_localLinvFlag);
+		replica->setAngularVelocity(MT_Vector3(m_angular_velocity),m_localAngvFlag);
+		replica->ResolveCombinedVelocities(MT_Vector3(m_linear_velocity), MT_Vector3(m_angular_velocity), m_localLinvFlag, m_localAngvFlag);
 
 		// keep a copy of the last object, to allow python scripters to change it
 		if (m_lastCreatedObject)

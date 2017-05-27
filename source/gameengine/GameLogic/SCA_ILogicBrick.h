@@ -69,10 +69,6 @@ public:
 	virtual void	Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map);
 	virtual void Delete() { Release(); }
 
-	// act as a BoolValue (with value IsPositiveTrigger)
-	virtual CValue*	Calc(VALUE_OPERATOR op, CValue *val);
-	virtual CValue*	CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-
 	virtual const std::string GetText();
 	virtual std::string GetName();
 	virtual void		SetName(const std::string& name);
@@ -122,8 +118,6 @@ public:
 		it.add_back(this);
 	}
 
-	virtual	bool		LessComparedTo(SCA_ILogicBrick* other);
-
 	virtual void SetLogicManager(SCA_LogicManager *logicmgr);
 	SCA_LogicManager *GetLogicManager();
 
@@ -145,16 +139,6 @@ public:
 		KX_FALSE,
 		KX_BOOL_MAX
 	};
-
-
-protected: 
-	/* Some conversions to go with the bool type. */
-	/** Convert a KX_TRUE, KX_FALSE in Python to a c++ value. */
-	bool PyArgToBool(int boolArg);
-
-	/** Convert a a c++ value to KX_TRUE, KX_FALSE in Python. */
-	PyObject *BoolToPyArg(bool);
-	
 #endif  /* WITH_PYTHON */
 
 };

@@ -81,8 +81,8 @@ public:
 	 */
 	void SetDisplayArrayBucket(RAS_DisplayArrayBucket *arrayBucket);
 
-	void GenerateTree(RAS_DisplayArrayUpwardNode *root, RAS_UpwardTreeLeafs *leafs);
-	void RunNode(const RAS_RenderNodeArguments& args);
+	void GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs);
+	void RunNode(const RAS_MeshSlotNodeTuple& tuple);
 
 	void SetGpuMat(GPUMaterial *mat);
 	GPUMaterial *GetGpuMat();

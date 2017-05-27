@@ -33,7 +33,8 @@
 #include "KX_TimeCategoryLogger.h"
 
 KX_TimeCategoryLogger::KX_TimeCategoryLogger(unsigned int maxNumMeasurements)
-	:m_maxNumMeasurements(maxNumMeasurements)
+	:m_maxNumMeasurements(maxNumMeasurements),
+	m_lastCategory(-1)
 {
 }
 
@@ -62,16 +63,13 @@ void KX_TimeCategoryLogger::AddCategory(TimeCategory tc)
 	}
 }
 
-void KX_TimeCategoryLogger::StartLog(TimeCategory tc, double now, bool endOtherCategories)
+void KX_TimeCategoryLogger::StartLog(TimeCategory tc, double now)
 {
-	if (endOtherCategories) {
-		for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
-			if (it->first != tc) {
-				it->second.EndLog(now);
-			}
-		}
+	if (m_lastCategory != -1) {
+		m_loggers[m_lastCategory].EndLog(now);
 	}
 	m_loggers[tc].StartLog(now);
+	m_lastCategory = tc;
 }
 
 void KX_TimeCategoryLogger::EndLog(TimeCategory tc, double now)
@@ -81,9 +79,8 @@ void KX_TimeCategoryLogger::EndLog(TimeCategory tc, double now)
 
 void KX_TimeCategoryLogger::EndLog(double now)
 {
-	for (TimeLoggerMap::iterator it = m_loggers.begin(), end = m_loggers.end(); it != end; ++it) {
-		it->second.EndLog(now);
-	}
+	m_loggers[m_lastCategory].EndLog(now);
+	m_lastCategory = -1;
 }
 
 void KX_TimeCategoryLogger::NextMeasurement(double now)

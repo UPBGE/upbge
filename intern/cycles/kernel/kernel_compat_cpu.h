@@ -42,8 +42,6 @@
 #include "util/util_types.h"
 #include "util/util_texture.h"
 
-#define ccl_restrict_ptr const * __restrict
-
 #define ccl_addr_space
 
 #define ccl_local_id(d) 0
@@ -197,7 +195,7 @@ template<typename T> struct texture_image  {
 					if(x < 0.0f || y < 0.0f || x > 1.0f || y > 1.0f) {
 						return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 					}
-					/* Fall through. */
+					ATTR_FALLTHROUGH;
 				case EXTENSION_EXTEND:
 					ix = wrap_clamp(ix, width);
 					iy = wrap_clamp(iy, height);
@@ -224,7 +222,7 @@ template<typename T> struct texture_image  {
 					if(x < 0.0f || y < 0.0f || x > 1.0f || y > 1.0f) {
 						return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 					}
-					/* Fall through. */
+					ATTR_FALLTHROUGH;
 				case EXTENSION_EXTEND:
 					nix = wrap_clamp(ix+1, width);
 					niy = wrap_clamp(iy+1, height);
@@ -267,7 +265,7 @@ template<typename T> struct texture_image  {
 					if(x < 0.0f || y < 0.0f || x > 1.0f || y > 1.0f) {
 						return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 					}
-					/* Fall through. */
+					ATTR_FALLTHROUGH;
 				case EXTENSION_EXTEND:
 					pix = wrap_clamp(ix-1, width);
 					piy = wrap_clamp(iy-1, height);
@@ -337,7 +335,7 @@ template<typename T> struct texture_image  {
 				{
 					return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 				}
-				/* Fall through. */
+				ATTR_FALLTHROUGH;
 			case EXTENSION_EXTEND:
 				ix = wrap_clamp(ix, width);
 				iy = wrap_clamp(iy, height);
@@ -376,7 +374,7 @@ template<typename T> struct texture_image  {
 				{
 					return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 				}
-				/* Fall through. */
+				ATTR_FALLTHROUGH;
 			case EXTENSION_EXTEND:
 				nix = wrap_clamp(ix+1, width);
 				niy = wrap_clamp(iy+1, height);
@@ -451,7 +449,7 @@ template<typename T> struct texture_image  {
 				{
 					return make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 				}
-				/* Fall through. */
+				ATTR_FALLTHROUGH;
 			case EXTENSION_EXTEND:
 				pix = wrap_clamp(ix-1, width);
 				piy = wrap_clamp(iy-1, height);

@@ -44,7 +44,7 @@ ccl_device void kernel_filter_divide_shadow(int sample,
 
 	int offset = tiles->offsets[tile];
 	int stride = tiles->strides[tile];
-	ccl_global float ccl_restrict_ptr center_buffer = (ccl_global float*) tiles->buffers[tile];
+	const ccl_global float *ccl_restrict center_buffer = (ccl_global float*) tiles->buffers[tile];
 	center_buffer += (y*stride + x + offset)*buffer_pass_stride;
 	center_buffer += buffer_denoising_offset + 14;
 
@@ -102,6 +102,57 @@ ccl_device void kernel_filter_get_feature(int sample,
 	else {
 		variance[idx] = center_buffer[v_offset] / (sample * (sample-1));
 	}
+}
+
+ccl_device void kernel_filter_detect_outliers(int x, int y,
+                                              ccl_global float *image,
+                                              ccl_global float *variance,
+                                              ccl_global float *depth,
+                                              ccl_global float *out,
+                                              int4 rect,
+                                              int pass_stride)
+{
+	int buffer_w = align_up(rect.z - rect.x, 4);
+
+	int n = 0;
+	float values[25];
+	for(int y1 = max(y-2, rect.y); y1 < min(y+3, rect.w); y1++) {
+		for(int x1 = max(x-2, rect.x); x1 < min(x+3, rect.z); x1++) {
+			int idx = (y1-rect.y)*buffer_w + (x1-rect.x);
+			float L = average(make_float3(image[idx], image[idx+pass_stride], image[idx+2*pass_stride]));
+
+			/* Find the position of L. */
+			int i;
+			for(i = 0; i < n; i++) {
+				if(values[i] > L) break;
+			}
+			/* Make space for L by shifting all following values to the right. */
+			for(int j = n; j > i; j--) {
+				values[j] = values[j-1];
+			}
+			/* Insert L. */
+			values[i] = L;
+			n++;
+		}
+	}
+
+	int idx = (y-rect.y)*buffer_w + (x-rect.x);
+	float L = average(make_float3(image[idx], image[idx+pass_stride], image[idx+2*pass_stride]));
+
+	float ref = 2.0f*values[(int)(n*0.75f)];
+	float fac = 1.0f;
+	if(L > ref) {
+		/* If the pixel is an outlier, negate the depth value to mark it as one.
+		 * Also, scale its brightness down to the outlier threshold to avoid trouble with the NLM weights. */
+		depth[idx] = -depth[idx];
+		fac = ref/L;
+		variance[idx              ] *= fac*fac;
+		variance[idx + pass_stride] *= fac*fac;
+		variance[idx+2*pass_stride] *= fac*fac;
+	}
+	out[idx              ] = fac*image[idx];
+	out[idx + pass_stride] = fac*image[idx + pass_stride];
+	out[idx+2*pass_stride] = fac*image[idx+2*pass_stride];
 }
 
 /* Combine A/B buffers.

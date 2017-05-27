@@ -78,7 +78,6 @@ LinkControllerToActuators(
 	// Iterate through the actuators of the game blender
 	// controller and find the corresponding ketsji actuator.
 
-	game_controller->ReserveActuator(bcontr->totlinks);
 	for (int i=0;i<bcontr->totlinks;i++)
 	{
 		bActuator* bact = (bActuator*) bcontr->links[i];
@@ -108,7 +107,6 @@ void BL_ConvertControllers(
 		bcontr = bcontr->next;
 		count++;
 	}
-	gameobj->ReserveController(count);
 	bcontr = (bController*)blenderobject->controllers.first;
 	while (bcontr)
 	{

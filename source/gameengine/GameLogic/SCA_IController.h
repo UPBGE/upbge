@@ -33,7 +33,6 @@
 #define __SCA_ICONTROLLER_H__
 
 #include "SCA_ILogicBrick.h"
-#include "EXP_PyObjectPlus.h"
 
 /**
  * Use of SG_DList element: none
@@ -43,70 +42,41 @@
 class SCA_IController : public SCA_ILogicBrick
 {
 	Py_Header
+
 protected:
-	std::vector<class SCA_ISensor*>		m_linkedsensors;
-	std::vector<class SCA_IActuator*>	m_linkedactuators;
-	unsigned int						m_statemask;
-	bool								m_justActivated;
-	bool								m_bookmark;
+	std::vector<SCA_ISensor *> m_linkedsensors;
+	std::vector<SCA_IActuator *> m_linkedactuators;
+	unsigned int m_statemask;
+	bool m_justActivated;
+	bool m_bookmark;
+
 public:
-	SCA_IController(SCA_IObject* gameobj);
+	SCA_IController(SCA_IObject *gameobj);
 	virtual ~SCA_IController();
-	virtual void Trigger(class SCA_LogicManager* logicmgr)=0;
-	void	LinkToSensor(SCA_ISensor* sensor);
-	void	LinkToActuator(SCA_IActuator*);
-	std::vector<class SCA_ISensor*>&	GetLinkedSensors();
-	std::vector<class SCA_IActuator*>&	GetLinkedActuators();
-	void	ReserveActuator(int num)
-	{
-		m_linkedactuators.reserve(num);
-	}
-	void	UnlinkAllSensors();
-	void	UnlinkAllActuators();
-	void	UnlinkActuator(class SCA_IActuator* actua);
-	void	UnlinkSensor(class SCA_ISensor* sensor);
-	void	SetState(unsigned int state) { m_statemask = state; }
-	void	ApplyState(unsigned int state);
-	void	Deactivate()
-	{
-		// the controller can only be part of a sensor m_newControllers list
-		Delink();
-	}
-	bool IsJustActivated()
-	{
-		return m_justActivated;
-	}
-	void ClrJustActivated()
-	{
-		m_justActivated = false;
-	}
-	void SetBookmark(bool bookmark)
-	{
-		m_bookmark = bookmark;
-	}
-	void Activate(SG_DList& head)
-	{
-		if (QEmpty())
-		{
-			if (m_bookmark)
-			{
-				m_gameobj->m_activeBookmarkedControllers.QAddBack(this);
-				head.AddFront(&m_gameobj->m_activeBookmarkedControllers);
-			}
-			else
-			{
-				InsertActiveQList(m_gameobj->m_activeControllers);
-				head.AddBack(&m_gameobj->m_activeControllers);
-			}
-		}
-	}
-	
+
+	virtual void Trigger(SCA_LogicManager *logicmgr) = 0;
+
+	void LinkToSensor(SCA_ISensor *sensor);
+	void LinkToActuator(SCA_IActuator *);
+	std::vector<SCA_ISensor *>& GetLinkedSensors();
+	std::vector<SCA_IActuator *>& GetLinkedActuators();
+	void UnlinkAllSensors();
+	void UnlinkAllActuators();
+	void UnlinkActuator(SCA_IActuator *actua);
+	void UnlinkSensor(SCA_ISensor *sensor);
+	void SetState(unsigned int state);
+	void ApplyState(unsigned int state);
+	void Deactivate();
+	bool IsJustActivated();
+	void ClrJustActivated();
+	void SetBookmark(bool bookmark);
+	void Activate(SG_DList& head);
 
 #ifdef WITH_PYTHON
-	static PyObject*	pyattr_get_state(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_sensors(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject*	pyattr_get_actuators(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-#endif  /* WITH_PYTHON */
+	static PyObject *pyattr_get_state(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_sensors(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_actuators(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+#endif  // WITH_PYTHON
 };
 
-#endif  /* __SCA_ICONTROLLER_H__ */
+#endif  // __SCA_ICONTROLLER_H__

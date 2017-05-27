@@ -83,9 +83,8 @@ public:
 	 * Starts logging in current measurement for the given category.
 	 * \param tc					The category to log to.
 	 * \param now					The current time.
-	 * \param endOtherCategories	Whether to stop logging to other categories.
 	 */
-	void StartLog(TimeCategory tc, double now, bool endOtherCategories = true);
+	void StartLog(TimeCategory tc, double now);
 
 	/**
 	 * End logging in current measurement for the given category.
@@ -122,6 +121,8 @@ protected:
 	TimeLoggerMap m_loggers;
 	/// Maximum number of measurements.
 	unsigned int m_maxNumMeasurements;
+
+	TimeCategory m_lastCategory;
 };
 
 #endif  /* __KX_TIMECATEGORYLOGGER_H__ */

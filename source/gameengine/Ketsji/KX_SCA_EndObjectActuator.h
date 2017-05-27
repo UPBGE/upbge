@@ -37,17 +37,18 @@
 
 #include "SCA_IActuator.h"
 
-class SCA_IScene;
+class KX_Scene;
+class KX_GameObject;
 
 class KX_SCA_EndObjectActuator : public SCA_IActuator
 {
 	Py_Header
-	SCA_IScene*		m_scene;
+	KX_Scene *m_scene;
 
  public:
 	KX_SCA_EndObjectActuator(
-		SCA_IObject* gameobj,
-		SCA_IScene* scene
+		KX_GameObject *gameobj,
+		KX_Scene *scene
 	);
 
 	~KX_SCA_EndObjectActuator();
@@ -59,10 +60,7 @@ class KX_SCA_EndObjectActuator : public SCA_IActuator
 	virtual bool 
 	Update();
 
-	virtual void Replace_IScene(SCA_IScene *val)
-	{
-		m_scene= val;
-	};
+	virtual void Replace_IScene(SCA_IScene *val);
 
 	/* --------------------------------------------------------------------- */
 	/* Python interface ---------------------------------------------------- */

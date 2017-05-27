@@ -838,13 +838,20 @@ class DATA_PT_shadow_game(DataButtonsPanel, Panel):
         col.label("Quality:")
         col = layout.column(align=True)
         col.prop(lamp, "shadow_buffer_size", text="Size")
-        col.prop(lamp, "shadow_buffer_bias", text="Bias")
         if lamp.ge_shadow_buffer_type == "VARIANCE":
-            col.prop(lamp, "shadow_buffer_bleed_bias", text="Bleed Bias")
             col.prop(lamp, "shadow_buffer_sharp", text="Sharpness")
         elif lamp.shadow_filter in ("PCF", "PCF_BAIL"):
             col.prop(lamp, "shadow_buffer_samples", text="Samples")
             col.prop(lamp, "shadow_buffer_soft", text="Soft")
+
+        row = layout.row()
+        row.label("Bias:")
+        row = layout.row(align=True)
+        row.prop(lamp, "shadow_buffer_bias", text="Bias")
+        if lamp.ge_shadow_buffer_type == "VARIANCE":
+            row.prop(lamp, "shadow_buffer_bleed_bias", text="Bleed Bias")
+        else:
+            row.prop(lamp, "shadow_buffer_slope_bias", text="Slope Bias")
 
         row = layout.row()
         row.label("Clipping:")

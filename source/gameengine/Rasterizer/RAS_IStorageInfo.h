@@ -43,7 +43,10 @@ public:
 	{
 	}
 
-	virtual void SetDataModified(RAS_Rasterizer::DrawType drawType, DataType dataType) = 0;
+	virtual void UpdateVertexData() = 0;
+	virtual unsigned int *GetIndexMap() = 0;
+	virtual void FlushIndexMap() = 0;
+	
 };
 
 #endif  // __RAS_ISTORAGE_INFO_H__

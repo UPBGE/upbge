@@ -37,6 +37,13 @@
 #include "RAS_MeshObject.h"
 #include "RAS_Deformer.h"
 #include "RAS_DisplayArray.h"
+#include "RAS_IStorageInfo.h"
+#include "GPU_material.h"
+#include "GPU_shader.h"
+
+extern "C" {
+#  include "../gpu/intern/gpu_codegen.h"
+}
 
 #ifdef _MSC_VER
 #  pragma warning (disable:4786)
@@ -46,13 +53,16 @@
 #  include <windows.h>
 #endif // WIN32
 
+static RAS_DummyNodeData dummyNodeData;
+
 // mesh slot
 RAS_MeshSlot::RAS_MeshSlot()
 	:m_displayArray(nullptr),
-	m_node(this, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr),
+	m_node(this, &dummyNodeData, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr),
 	m_bucket(nullptr),
 	m_displayArrayBucket(nullptr),
 	m_mesh(nullptr),
+	m_meshMaterial(nullptr),
 	m_pDeformer(nullptr),
 	m_pDerivedMesh(nullptr),
 	m_meshUser(nullptr),
@@ -63,29 +73,23 @@ RAS_MeshSlot::RAS_MeshSlot()
 
 RAS_MeshSlot::~RAS_MeshSlot()
 {
-	if (m_pDeformer) {
-		// Remove the deformer user in the display array bucket.
-		m_displayArrayBucket->RemoveDeformer(m_pDeformer);
-	}
-
 	if (m_displayArrayBucket) {
 		m_displayArrayBucket->Release();
 	}
 }
 
 RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
+	:m_displayArray(slot.m_displayArray),
+	m_node(this, &dummyNodeData, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr),
+	m_bucket(slot.m_bucket),
+	m_displayArrayBucket(slot.m_displayArrayBucket),
+	m_mesh(slot.m_mesh),
+	m_meshMaterial(slot.m_meshMaterial),
+	m_pDeformer(nullptr),
+	m_pDerivedMesh(nullptr),
+	m_meshUser(nullptr),
+	m_batchPartIndex(-1)
 {
-	m_pDeformer = nullptr;
-	m_pDerivedMesh = nullptr;
-	m_meshUser = nullptr;
-	m_batchPartIndex = -1;
-	m_mesh = slot.m_mesh;
-	m_meshMaterial = slot.m_meshMaterial;
-	m_bucket = slot.m_bucket;
-	m_displayArrayBucket = slot.m_displayArrayBucket;
-	m_displayArray = slot.m_displayArray;
-	m_node = RAS_MeshSlotUpwardNode(this, std::mem_fn(&RAS_MeshSlot::RunNode), nullptr);
-
 	if (m_displayArrayBucket) {
 		m_displayArrayBucket->AddRef();
 	}
@@ -104,7 +108,7 @@ void RAS_MeshSlot::init(RAS_MaterialBucket *bucket, RAS_MeshObject *mesh,
 		m_displayArray = RAS_IDisplayArray::ConstructArray(type, format);
 	}
 
-	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, m_mesh, meshmat);
+	m_displayArrayBucket = new RAS_DisplayArrayBucket(bucket, m_displayArray, m_mesh, meshmat, m_pDeformer);
 }
 
 RAS_IDisplayArray *RAS_MeshSlot::GetDisplayArray()
@@ -115,50 +119,27 @@ RAS_IDisplayArray *RAS_MeshSlot::GetDisplayArray()
 void RAS_MeshSlot::SetDeformer(RAS_Deformer *deformer)
 {
 	if (deformer && m_pDeformer != deformer) {
-		if (deformer->ShareVertexArray()) {
-			// this deformer uses the base vertex array, first release the current ones
-			m_displayArrayBucket->Release();
-			m_displayArrayBucket = nullptr;
-			// then hook to the base ones
-			if (m_meshMaterial && m_meshMaterial->m_baseslot) {
-				m_displayArrayBucket = m_meshMaterial->m_baseslot->m_displayArrayBucket->AddRef();
+		// no sharing
+		// we create local copy of RAS_DisplayArray when we have a deformer:
+		// this way we can avoid conflict between the vertex cache of duplicates
+		if (deformer->UseVertexArray()) {
+			// the deformer makes use of vertex array, make sure we have our local copy
+			if (m_displayArrayBucket->GetRefCount() > 1) {
+				// only need to copy if there are other users
+				// note that this is the usual case as vertex arrays are held by the material base slot
+				m_displayArrayBucket->Release();
+				m_displayArrayBucket = m_displayArrayBucket->GetReplica();
 			}
+			m_displayArrayBucket->SetDeformer(deformer);
 		}
 		else {
-			// no sharing
-			// we create local copy of RAS_DisplayArray when we have a deformer:
-			// this way we can avoid conflict between the vertex cache of duplicates
-			if (deformer->UseVertexArray()) {
-				// the deformer makes use of vertex array, make sure we have our local copy
-				if (m_displayArrayBucket->GetRefCount() > 1) {
-					// only need to copy if there are other users
-					// note that this is the usual case as vertex arrays are held by the material base slot
-					m_displayArrayBucket->Release();
-					m_displayArrayBucket = m_displayArrayBucket->GetReplica();
-				}
-			}
-			else {
-				// the deformer is not using vertex array (Modifier), release them
-				m_displayArrayBucket->Release();
-				m_displayArrayBucket = m_bucket->FindDisplayArrayBucket(nullptr, m_mesh);
-				if (m_displayArrayBucket) {
-					m_displayArrayBucket->AddRef();
-				}
-				else {
-					m_displayArrayBucket = new RAS_DisplayArrayBucket(m_bucket, nullptr, m_mesh, m_meshMaterial);
-				}
-			}
+			// the deformer is not using vertex array (Modifier), release them
+			m_displayArrayBucket->Release();
+			m_displayArrayBucket = new RAS_DisplayArrayBucket(m_bucket, nullptr, m_mesh, m_meshMaterial, deformer);
 		}
 
-		if (m_displayArrayBucket) {
-			// Add the deformer user in the display array bucket.
-			m_displayArrayBucket->AddDeformer(deformer);
-			// Update m_displayArray to the display array bucket.
-			m_displayArray = m_displayArrayBucket->GetDisplayArray();
-		}
-		else {
-			m_displayArray = nullptr;
-		}
+		// Update m_displayArray to the display array bucket.
+		m_displayArray = m_displayArrayBucket->GetDisplayArray();
 	}
 	m_pDeformer = deformer;
 }
@@ -188,45 +169,70 @@ GPUMaterial *RAS_MeshSlot::GetGpuMat()
 	return m_gpuMat;
 }
 
-void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode *root, RAS_UpwardTreeLeafs *leafs)
+void RAS_MeshSlot::GenerateTree(RAS_DisplayArrayUpwardNode& root, RAS_UpwardTreeLeafs& leafs)
 {
-	m_node.SetParent(root);
-	leafs->push_back(&m_node);
+	m_node.SetParent(&root);
+	leafs.push_back(&m_node);
 }
 
-void RAS_MeshSlot::RunNode(const RAS_RenderNodeArguments& args)
+void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 {
-	RAS_Rasterizer *rasty = args.m_rasty;
+	RAS_ManagerNodeData *managerData = tuple.m_managerData;
+	RAS_MaterialNodeData *materialData = tuple.m_materialData;
+	RAS_Rasterizer *rasty = managerData->m_rasty;
 	rasty->SetClientObject(m_meshUser->GetClientObject());
 	rasty->SetFrontFace(m_meshUser->GetFrontFace());
 
-	RAS_IPolyMaterial *material = m_bucket->GetPolyMaterial();
 
-	if (!args.m_shaderOverride) {
-		bool uselights = material->UsesLighting(rasty);
-		rasty->ProcessLighting(uselights, args.m_trans);
-		material->ActivateMeshSlot(this, rasty);
+	if (!managerData->m_shaderOverride) {
+		rasty->ProcessLighting(materialData->m_useLighting, managerData->m_trans);
+		materialData->m_material->ActivateMeshSlot(this, rasty);
 	}
 
-	if (material->IsZSort() && rasty->GetDrawingMode() >= RAS_Rasterizer::RAS_SOLID) {
-		m_mesh->SortPolygons(this, args.m_trans * MT_Transform(m_meshUser->GetMatrix()));
-		m_displayArrayBucket->SetPolygonsModified(rasty);
+	if (materialData->m_zsort && managerData->m_drawingMode >= RAS_Rasterizer::RAS_SOLID) {
+		RAS_IStorageInfo *storage = tuple.m_displayArrayData->m_storageInfo;
+		m_mesh->SortPolygons(this, managerData->m_trans * MT_Transform(m_meshUser->GetMatrix()), storage->GetIndexMap());
+		storage->FlushIndexMap();
 	}
 
 	rasty->PushMatrix();
 
-	const bool istext = material->IsText();
+	const bool istext = materialData->m_text;
 	if ((!m_pDeformer || !m_pDeformer->SkipVertexTransform()) && !istext) {
 		float mat[16];
-		rasty->GetTransform(m_meshUser->GetMatrix(), material->GetDrawingMode(), mat);
+		rasty->GetTransform(m_meshUser->GetMatrix(), materialData->m_drawingMode, mat);
 		rasty->MultMatrix(mat);
 	}
 
 	if (istext) {
 		rasty->IndexPrimitivesText(this);
 	}
+	else if (m_pDerivedMesh) {
+		rasty->IndexPrimitivesDerivedMesh(this);
+	}
 	else {
-		rasty->IndexPrimitives(this);
+		/* For blender shaders (not custom), we need
+		* to bind shader to update uniforms.
+		* In shadow pass for now, we don't update
+		* the ShaderInterface uniforms because
+		* GPUMaterial is not accessible (RenderShadowBuffer
+		* is called before main rendering and the GPUMaterial
+		* is bound only when we do the main rendering).
+		* Refs: - For drawing mode, rasterizer drawing mode is
+		* set to RAS_SHADOWS in KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
+		* - To see the order of rendering operations, this is in
+		* KX_KetsjiEngine::Render() (RenderShadowBuffers is called
+		* at the begining of Render()
+		* (m_drawingmode != 0) is used to avoid crash when we press
+		* P while we are in wireframe viewport shading mode.
+		*/
+		GPUMaterial *gpumat = GetGpuMat();
+		if (gpumat && !(rasty->GetDrawingMode() & RAS_Rasterizer::RAS_SHADOW) && (rasty->GetDrawingMode() != 0)) {
+			GPUPass *pass = GPU_material_get_pass(gpumat);
+			GPUShader *shader = GPU_pass_shader(pass);
+			GPU_shader_bind(shader);
+		}
+		rasty->IndexPrimitives(tuple.m_displayArrayData->m_storageInfo);
 	}
 
 	rasty->PopMatrix();

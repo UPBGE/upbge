@@ -38,12 +38,10 @@
 
 // Please look here for revision history.
 
-#include <stddef.h>
-
 #include "KX_SCA_ReplaceMeshActuator.h"
+#include "KX_Scene.h"
+#include "KX_GameObject.h"
 #include "KX_MeshProxy.h"
-
-#include "EXP_PyObjectPlus.h" 
 
 #ifdef WITH_PYTHON
 
@@ -121,9 +119,9 @@ KX_PYMETHODDEF_DOC(KX_SCA_ReplaceMeshActuator, instantReplaceMesh,
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 
-KX_SCA_ReplaceMeshActuator::KX_SCA_ReplaceMeshActuator(SCA_IObject *gameobj,
-													   class RAS_MeshObject *mesh,
-													   SCA_IScene* scene,
+KX_SCA_ReplaceMeshActuator::KX_SCA_ReplaceMeshActuator(KX_GameObject *gameobj,
+													   RAS_MeshObject *mesh,
+													   KX_Scene *scene,
 													   bool use_gfx,
 													   bool use_phys) :
 
@@ -154,7 +152,7 @@ bool KX_SCA_ReplaceMeshActuator::Update()
 		return false; // do nothing on negative events
 
 	if (m_mesh || m_use_phys) /* nullptr mesh is ok if were updating physics */
-		m_scene->ReplaceMesh(GetParent(),m_mesh, m_use_gfx, m_use_phys);
+		m_scene->ReplaceMesh(static_cast<KX_GameObject *>(GetParent()),m_mesh, m_use_gfx, m_use_phys);
 
 	return false;
 }
@@ -176,7 +174,12 @@ CValue* KX_SCA_ReplaceMeshActuator::GetReplica()
 
 void KX_SCA_ReplaceMeshActuator::InstantReplaceMesh()
 {
-	if (m_mesh) m_scene->ReplaceMesh(GetParent(),m_mesh, m_use_gfx, m_use_phys);
+	if (m_mesh) m_scene->ReplaceMesh(static_cast<KX_GameObject *>(GetParent()),m_mesh, m_use_gfx, m_use_phys);
+}
+
+void KX_SCA_ReplaceMeshActuator::Replace_IScene(SCA_IScene *val)
+{
+	m_scene = static_cast<KX_Scene *>(val);
 }
 
 /* eof */

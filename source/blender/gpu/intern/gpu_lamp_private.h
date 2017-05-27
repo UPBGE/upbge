@@ -60,7 +60,9 @@ struct GPULamp {
 	float coeff_const, coeff_lin, coeff_quad;
 	float shadow_color[3];
 
-	float bias, d, clipend;
+	float bias, slopebias, d, clipend;
+	float soft, compressthresh;
+	float bleedbias, pad;
 	float bufsharp;
 	int size;
 

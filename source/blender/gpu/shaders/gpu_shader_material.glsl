@@ -2406,25 +2406,117 @@ void shade_clamp_positive(vec4 col, out vec4 outcol)
 	outcol = max(col, vec4(0.0));
 }
 
-void test_shadowbuf(
-        vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat, float shadowbias, float inp,
+bool shadow_visibility(vec4 co)
+{
+	return (co.w > 0.0 && co.x > 0.0 && co.x / co.w < 1.0 && co.y > 0.0 && co.y / co.w < 1.0);
+}
+
+vec4 shadow_proj_coord(vec3 rco, mat4 shadowpersmat)
+{
+	vec4 lco = shadowpersmat * vec4(rco, 1.0);
+	return lco;
+}
+
+vec4 shadow_proj_coord(vec3 rco, vec3 vn, mat4 shadowpersmat, float bias, float slopebias)
+{
+	vec4 lco = shadowpersmat * vec4(rco + vn * slopebias, 1.0);
+	lco.z -= bias * lco.w;
+	return lco;
+}
+
+float test_shadow_simple(sampler2DShadow shadowmap, vec4 co)
+{
+	return shadow2DProj(shadowmap, co).x;
+}
+
+float texture_shadow_offset(sampler2DShadow shadowmap, vec4 co, vec2 offset)
+{
+	return shadow2DProj(shadowmap, vec4(co.xy + offset, co.z, co.w)).x;
+}
+
+float test_shadow_pcf_early_bail(sampler2DShadow shadowmap, vec4 co, float samples, float samplesize)
+{
+	float step = samplesize / samples;
+	float fullstep = samplesize - step * 0.95;
+	float halfsample = samplesize / 2.0 - step * 0.5 * 0.95;
+
+	float result = 0.0;
+	for (float y = -halfsample; y <= halfsample; y += fullstep) {
+		for (float x = -halfsample; x <= halfsample; x += fullstep) {
+			result += texture_shadow_offset(shadowmap, co, vec2(x, y) * 0.1);
+		}
+	}
+
+	if (result > 0.0 && result < 4.0) {
+		float sampleoffset = halfsample - step;
+		for (float y = -sampleoffset; y <= sampleoffset; y += step) {
+			for (float x = -halfsample; x <= halfsample; x += step) {
+				result += texture_shadow_offset(shadowmap, co, vec2(x, y) * 0.1);
+			}
+		}
+		for (float y = -halfsample; y <= halfsample; y += fullstep) {
+			for (float x = -sampleoffset; x <= sampleoffset; x += step) {
+				result += texture_shadow_offset(shadowmap, co, vec2(x, y) * 0.1);
+			}
+		}
+		result /= (samples * samples);
+	}
+	else {
+		result /= 4.0;
+	}
+
+	return result;
+}
+
+float test_shadow_pcf(sampler2DShadow shadowmap, vec4 co, float samples, float samplesize)
+{
+	float step = samplesize / samples;
+	float halfsample = samplesize / 2.0 - step * 0.5 * 0.95;
+
+	float result = 0.0;
+	for (float y = -halfsample; y <= halfsample; y += step) {
+		for (float x = -halfsample; x <= halfsample; x += step) {
+			result += texture_shadow_offset(shadowmap, co, vec2(x, y) * 0.1);
+		}
+	}
+	result /= (samples * samples);
+
+	return result;
+}
+
+float test_shadow_vsm(sampler2D shadowmap, vec4 co, float bias, float bleedbias)
+{
+	vec2 moments = texture2DProj(shadowmap, co).rg;
+	float dist = co.z;
+	float p = 0.0;
+
+	if (dist <= moments.x)
+		p = 1.0;
+
+	float variance = moments.y - (moments.x * moments.x);
+	variance = max(variance, bias / 10.0);
+
+	float d = moments.x - dist;
+	float p_max = variance / (variance + d * d);
+
+	// Now reduce light-bleeding by removing the [0, x] tail and linearly rescaling (x, 1]
+	p_max = clamp((p_max - bleedbias) / (1.0 - bleedbias), 0.0, 1.0);
+
+	return max(p, p_max);
+}
+
+void shadow_simple(
+        vec3 rco, vec3 vn, sampler2DShadow shadowmap, mat4 shadowpersmat, float bias, float slopebias, float inp,
         out float result)
 {
 	if (inp <= 0.0) {
 		result = 0.0;
 	}
 	else {
-		vec4 co = shadowpersmat * vec4(rco, 1.0);
+		vec4 co = shadow_proj_coord(rco, vn, shadowpersmat, bias, slopebias);
 
-		//float bias = (1.5 - inp*inp)*shadowbias;
-		co.z -= shadowbias * co.w;
-
-		if (co.w > 0.0 && co.x > 0.0 && co.x / co.w < 1.0 && co.y > 0.0 && co.y / co.w < 1.0) {
-#if __VERSION__ == 120
-			result = shadow2DProj(shadowmap, co).x;
-#else
-			result = textureProj(shadowmap, co);
-#endif
+		if (shadow_visibility(co)) {
+			result = test_shadow_simple(shadowmap, co);
 		}
 		else {
 			result = 1.0;
@@ -2432,48 +2524,19 @@ void test_shadowbuf(
 	}
 }
 
-void test_shadowbuf_pcf_early_bail(
-        vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat, float samples, float samplesize, float shadowbias, float inp,
+void shadow_pcf(
+        vec3 rco, vec3 vn, sampler2DShadow shadowmap, mat4 shadowpersmat, float bias, float slopebias,
+        float samples, float samplesize, float inp,
         out float result)
 {
 	if (inp <= 0.0) {
 		result = 0.0;
 	}
 	else {
-		vec4 co = shadowpersmat * vec4(rco, 1.0);
+		vec4 co = shadow_proj_coord(rco, vn, shadowpersmat, bias, slopebias);
 
-		//float bias = (1.5 - inp*inp)*shadowbias;
-		co.z -= shadowbias * co.w;
-
-		if (co.w > 0.0 && co.x > 0.0 && co.x / co.w < 1.0 && co.y > 0.0 && co.y / co.w < 1.0) {
-			float step = samplesize / samples;
-			float fullstep = samplesize - step * 0.95;
-			float halfsample = samplesize / 2.0 - step * 0.5 * 0.95;
-
-			result = 0.0;
-			for (float y = -halfsample; y <= halfsample; y += fullstep) {
-				for (float x = -halfsample; x <= halfsample; x += fullstep) {
-					result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.1, co.z, co.w)).x;
-				}
-			}
-
-			if (result > 0.0 && result < 4.0) {
-				float sampleoffset = halfsample - step;
-				for (float y = -sampleoffset; y <= sampleoffset; y += step) {
-					for (float x = -halfsample; x <= halfsample; x += step) {
-						result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.1, co.z, co.w)).x;
-					}
-				}
-				for (float y = -halfsample; y <= halfsample; y += fullstep) {
-					for (float x = -sampleoffset; x <= sampleoffset; x += step) {
-						result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.1, co.z, co.w)).x;
-					}
-				}
-				result /= (samples * samples);
-			}
-			else {
-				result /= 4.0;
-			}
+		if (shadow_visibility(co)) {
+			result = test_shadow_pcf(shadowmap, co, samples, samplesize);
 		}
 		else {
 			result = 1.0;
@@ -2481,30 +2544,19 @@ void test_shadowbuf_pcf_early_bail(
 	}
 }
 
-void test_shadowbuf_pcf(
-        vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat, float samples, float samplesize, float shadowbias, float inp,
+void shadow_pcf_early_bail(
+        vec3 rco, vec3 vn, sampler2DShadow shadowmap, mat4 shadowpersmat, float bias, float slopebias,
+        float samples, float samplesize, float inp,
         out float result)
 {
 	if (inp <= 0.0) {
 		result = 0.0;
 	}
 	else {
-		vec4 co = shadowpersmat * vec4(rco, 1.0);
+		vec4 co = shadow_proj_coord(rco, vn, shadowpersmat, bias, slopebias);
 
-		//float bias = (1.5 - inp*inp)*shadowbias;
-		co.z -= shadowbias * co.w;
-
-		if (co.w > 0.0 && co.x > 0.0 && co.x / co.w < 1.0 && co.y > 0.0 && co.y / co.w < 1.0) {
-			float step = samplesize / samples;
-			float halfsample = samplesize / 2.0 - step * 0.5 * 0.95;
-
-			result = 0.0;
-			for (float y = -halfsample; y <= halfsample; y += step) {
-				for (float x = -halfsample; x <= halfsample; x += step) {
-					result += shadow2DProj(shadowmap, vec4(co.xy + vec2(x, y) * 0.1, co.z, co.w)).x;
-				}
-			}
-			result /= (samples * samples);
+		if (shadow_visibility(co)) {
+			result = test_shadow_pcf_early_bail(shadowmap, co, samples, samplesize);
 		}
 		else {
 			result = 1.0;
@@ -2512,33 +2564,18 @@ void test_shadowbuf_pcf(
 	}
 }
 
-void test_shadowbuf_vsm(
-        vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float shadowbias, float bleedbias, float inp,
+void shadow_vsm(
+        vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float bias, float bleedbias, float inp,
         out float result)
 {
 	if (inp <= 0.0) {
 		result = 0.0;
 	}
 	else {
-		vec4 co = shadowpersmat * vec4(rco, 1.0);
-		if (co.w > 0.0 && co.x > 0.0 && co.x / co.w < 1.0 && co.y > 0.0 && co.y / co.w < 1.0) {
-			vec2 moments = texture2DProj(shadowmap, co).rg;
-			float dist = co.z / co.w;
-			float p = 0.0;
+		vec4 co = shadow_proj_coord(rco, shadowpersmat);
 
-			if (dist <= moments.x)
-				p = 1.0;
-
-			float variance = moments.y - (moments.x * moments.x);
-			variance = max(variance, shadowbias / 10.0);
-
-			float d = moments.x - dist;
-			float p_max = variance / (variance + d * d);
-
-			// Now reduce light-bleeding by removing the [0, x] tail and linearly rescaling (x, 1]
-			p_max = clamp((p_max - bleedbias) / (1.0 - bleedbias), 0.0, 1.0);
-
-			result = max(p, p_max);
+		if (shadow_visibility(co)) {
+			result = test_shadow_vsm(shadowmap, co, bias, bleedbias);
 		}
 		else {
 			result = 1.0;
@@ -2868,7 +2905,7 @@ void node_bsdf_toon(vec4 color, float size, float tsmooth, vec3 N, out vec4 resu
 
 void node_bsdf_principled(vec4 base_color, float subsurface, vec3 subsurface_radius, vec4 subsurface_color, float metallic, float specular,
 	float specular_tint, float roughness, float anisotropic, float anisotropic_rotation, float sheen, float sheen_tint, float clearcoat,
-	float clearcoat_gloss, float ior, float transparency, float refraction_roughness, vec3 N, vec3 CN, vec3 T, vec3 I, out vec4 result)
+	float clearcoat_gloss, float ior, float transmission, float transmission_roughness, vec3 N, vec3 CN, vec3 T, vec3 I, out vec4 result)
 {
 	/* ambient light */
 	// TODO: set ambient light to an appropriate value

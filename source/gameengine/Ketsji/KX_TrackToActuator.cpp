@@ -303,7 +303,7 @@ void KX_TrackToActuator::Relink(std::map<SCA_IObject *, SCA_IObject *>& obj_map)
 }
 
 
-bool KX_TrackToActuator::Update(double curtime, bool frame)
+bool KX_TrackToActuator::Update(double curtime)
 {
 	bool result = false;
 	bool bNegativeEvent = IsNegativeEvent();

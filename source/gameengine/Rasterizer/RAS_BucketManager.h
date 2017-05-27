@@ -88,6 +88,7 @@ protected:
 
 	BucketList m_buckets[NUM_BUCKET_TYPE];
 
+	RAS_ManagerNodeData m_nodeData;
 	RAS_ManagerDownwardNode m_downwardNode;
 	RAS_ManagerUpwardNode m_upwardNode;
 
@@ -99,7 +100,7 @@ public:
 
 	RAS_MaterialBucket *FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
 
-	void ReleaseDisplayLists(RAS_IPolyMaterial *material = nullptr);
+	void UpdateShaders(RAS_IPolyMaterial *material = nullptr);
 	void ReleaseMaterials(RAS_IPolyMaterial *material = nullptr);
 
 	// freeing scenes only
@@ -113,8 +114,8 @@ public:
 	}
 
 private:
-	void RenderBasicBuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, BucketType bucketType);
-	void RenderSortedBuckets(const MT_Transform& cameratrans, RAS_Rasterizer *rasty, BucketType bucketType);
+	void RenderBasicBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
+	void RenderSortedBuckets(RAS_Rasterizer *rasty, BucketType bucketType);
 };
 
 #endif // __RAS_BUCKETMANAGER_H__

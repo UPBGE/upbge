@@ -96,7 +96,8 @@ EnumPropertyItem rna_enum_exr_codec_items[] = {
 	{R_IMF_EXR_CODEC_B44, "B44", 0, "B44 (lossy)", ""},
 	{R_IMF_EXR_CODEC_B44A, "B44A", 0, "B44A (lossy)", ""},
 	{R_IMF_EXR_CODEC_DWAA, "DWAA", 0, "DWAA (lossy)", ""},
-	{R_IMF_EXR_CODEC_DWAB, "DWAB", 0, "DWAB (lossy)", ""},
+	/* NOTE: Commented out for until new OpenEXR is released, see T50673. */
+	/* {R_IMF_EXR_CODEC_DWAB, "DWAB", 0, "DWAB (lossy)", ""}, */
 	{0, NULL, 0, NULL, NULL}
 };
 #endif
@@ -1754,7 +1755,7 @@ static void rna_SceneRenderLayer_pass_update(Main *bmain, Scene *activescene, Po
 
 static void rna_SceneRenderLayer_update_render_passes(ID *id)
 {
-	Scene *scene = (Scene*) id;
+	Scene *scene = (Scene *)id;
 	if (scene->nodetree)
 		ntreeCompositUpdateRLayers(scene->nodetree);
 }
@@ -1840,7 +1841,7 @@ static void object_simplify_update(Object *ob)
 	}
 }
 
-static void rna_Scene_use_simplify_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
+static void rna_Scene_use_simplify_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Scene *sce = ptr->id.data;
 	Scene *sce_iter;
@@ -1851,6 +1852,7 @@ static void rna_Scene_use_simplify_update(Main *bmain, Scene *UNUSED(scene), Poi
 		object_simplify_update(base->object);
 	
 	WM_main_add_notifier(NC_GEOM | ND_DATA, NULL);
+	DAG_id_tag_update(&scene->id, 0);
 }
 
 static void rna_Scene_simplify_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)

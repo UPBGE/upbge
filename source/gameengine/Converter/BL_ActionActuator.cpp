@@ -168,10 +168,8 @@ CValue* BL_ActionActuator::GetReplica()
 	return replica;
 }
 
-bool BL_ActionActuator::Update(double curtime, bool frame)
+bool BL_ActionActuator::Update(double curtime)
 {
-	bool bNegativeEvent = false;
-	bool bPositiveEvent = false;
 	bool bUseContinue = false;
 	KX_GameObject *obj = (KX_GameObject*)GetParent();
 	short playtype = BL_Action::ACT_MODE_PLAY;
@@ -219,12 +217,9 @@ bool BL_ActionActuator::Update(double curtime, bool frame)
 	
 	
 	// Handle events
-	if (frame)
-	{
-		bNegativeEvent = m_negevent;
-		bPositiveEvent = m_posevent;
-		RemoveAllEvents();
-	}
+	bool bNegativeEvent = m_negevent;
+	bool bPositiveEvent = m_posevent;
+	RemoveAllEvents();
 
 	// "Active" actions need to keep updating their current frame
 	if (bUseContinue && (m_flag & ACT_FLAG_ACTIVE))

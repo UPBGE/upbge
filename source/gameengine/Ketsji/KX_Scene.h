@@ -74,6 +74,7 @@ class KX_WorldInfo;
 class KX_Camera;
 class KX_GameObject;
 class KX_LightObject;
+class RAS_MeshObject;
 class RAS_BoundingBoxManager;
 class RAS_BucketManager;
 class RAS_MaterialBucket;
@@ -234,7 +235,7 @@ protected:
 	 * Used in AddReplicaObject. If the list is empty, it
 	 * means don't care.
 	 */
-	std::set<CValue*>	m_groupGameObjects;
+	std::set<KX_GameObject *> m_groupGameObjects;
 	
 	/** 
 	 * Pointer to system variable passed in in constructor
@@ -332,27 +333,22 @@ public:
 	static bool KX_ScenegraphUpdateFunc(SG_Node* node,void* gameobj,void* scene);
 	static bool KX_ScenegraphRescheduleFunc(SG_Node* node,void* gameobj,void* scene);
 	void UpdateParents(double curtime);
-	void DupliGroupRecurse(CValue* gameobj, int level);
-	bool IsObjectInGroup(CValue* gameobj)
+	void DupliGroupRecurse(KX_GameObject *groupobj, int level);
+	bool IsObjectInGroup(KX_GameObject* gameobj)
 	{ 
 		return (m_groupGameObjects.empty() || 
 				m_groupGameObjects.find(gameobj) != m_groupGameObjects.end());
 	}
-	void AddObjectDebugProperties(class KX_GameObject* gameobj);
-	SCA_IObject* AddReplicaObject(CValue* gameobj,
-	                              CValue* locationobj,
-	                              float lifespan=0.0f);
-	KX_GameObject* AddNodeReplicaObject(SG_Node* node,
-	                                    CValue* gameobj);
-	void RemoveNodeDestructObject(SG_Node* node,
-	                              CValue* gameobj);
-	void RemoveObject(CValue* gameobj);
-	void RemoveDupliGroup(CValue *gameobj);
-	void DelayedRemoveObject(CValue* gameobj);
-	
-	bool NewRemoveObject(CValue* gameobj);
-	void ReplaceMesh(CValue* gameobj,
-	                 void* meshob, bool use_gfx, bool use_phys);
+	void AddObjectDebugProperties(KX_GameObject *gameobj);
+	KX_GameObject* AddReplicaObject(KX_GameObject *gameobj, KX_GameObject *locationobj, float lifespan=0.0f);
+	KX_GameObject* AddNodeReplicaObject(SG_Node* node, KX_GameObject *gameobj);
+	void RemoveNodeDestructObject(SG_Node *node, KX_GameObject *gameobj);
+	void RemoveObject(KX_GameObject *gameobj);
+	void RemoveDupliGroup(KX_GameObject *gameobj);
+	void DelayedRemoveObject(KX_GameObject *gameobj);
+
+	bool NewRemoveObject(KX_GameObject *gameobj);
+	void ReplaceMesh(KX_GameObject *gameobj, RAS_MeshObject *mesh, bool use_gfx, bool use_phys);
 
 	void AddAnimatedObject(KX_GameObject *gameobj);
 
@@ -361,7 +357,7 @@ public:
 	 * Initiate an update of the logic system.
 	 */
 	void LogicBeginFrame(double curtime, double framestep);
-	void LogicUpdateFrame(double curtime, bool frame);
+	void LogicUpdateFrame(double curtime);
 	void UpdateAnimations(double curtime);
 
 		void

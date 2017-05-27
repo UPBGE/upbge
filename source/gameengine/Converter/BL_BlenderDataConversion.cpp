@@ -433,7 +433,6 @@ static void GetUVs(const RAS_MeshObject::LayerList& layers, MFace *mface, MTFace
 
 static KX_BlenderMaterial *ConvertMaterial(
 	Material *mat,
-	MTFace *tface,
 	int lightlayer,
 	KX_Scene *scene)
 {
@@ -443,7 +442,7 @@ static KX_BlenderMaterial *ConvertMaterial(
 		name = "MA";
 	}
 
-	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, name, (mat ? &mat->game : nullptr), tface, lightlayer);
+	KX_BlenderMaterial *kx_blmat = new KX_BlenderMaterial(scene, mat, name, (mat ? &mat->game : nullptr), lightlayer);
 
 	return kx_blmat;
 }
@@ -459,12 +458,12 @@ static void uvsRgbFromMesh(Material *ma, MFace *mface, MTFace *tface, const RAS_
 	}
 }
 
-static RAS_MaterialBucket *material_from_mesh(Material *ma, MTFace *tface, int lightlayer, KX_Scene *scene, KX_BlenderSceneConverter& converter)
+static RAS_MaterialBucket *material_from_mesh(Material *ma, int lightlayer, KX_Scene *scene, KX_BlenderSceneConverter& converter)
 {
 	RAS_IPolyMaterial* polymat = converter.FindPolyMaterial(ma);
 
 	if (!polymat) {
-		polymat = ConvertMaterial(ma, tface, lightlayer, scene);
+		polymat = ConvertMaterial(ma, lightlayer, scene);
 		// this is needed to free up memory afterwards.
 		converter.RegisterPolyMaterial(polymat, ma);
 	}
@@ -605,7 +604,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			ma = &defmaterial;
 		}
 
-		RAS_MaterialBucket *bucket = material_from_mesh(ma, tface, lightlayer, scene, converter);
+		RAS_MaterialBucket *bucket = material_from_mesh(ma, lightlayer, scene, converter);
 		meshobj->AddMaterial(bucket, i, vertformat);
 	}
 

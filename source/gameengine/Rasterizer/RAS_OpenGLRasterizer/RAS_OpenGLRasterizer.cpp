@@ -311,104 +311,65 @@ void RAS_OpenGLRasterizer::DrawOverlayPlane()
 // Code for hooking into Blender's mesh drawing for derived meshes.
 // If/when we use more of Blender's drawing code, we may be able to
 // clean this up
-static bool current_wireframe;
-static RAS_MaterialBucket *current_bucket;
-static RAS_IPolyMaterial *current_polymat;
-static RAS_MeshSlot *current_ms;
-static RAS_MeshObject *current_mesh;
 static int current_blmat_nr;
 static GPUVertexAttribs current_gpu_attribs;
-static Image *current_image;
 static int CheckMaterialDM(int matnr, void *attribs)
 {
 	// only draw the current material
-	if (matnr != current_blmat_nr)
+	if (matnr != current_blmat_nr) {
 		return 0;
-	GPUVertexAttribs *gattribs = (GPUVertexAttribs *)attribs;
-	if (gattribs)
-		memcpy(gattribs, &current_gpu_attribs, sizeof(GPUVertexAttribs));
-	return 1;
-}
-
-static DMDrawOption CheckTexDM(MTexPoly *mtexpoly, const bool has_mcol, int matnr)
-{
-
-	// index is the original face index, retrieve the polygon
-	if (matnr == current_blmat_nr &&
-		(mtexpoly == nullptr || mtexpoly->tpage == current_image)) {
-		// must handle color.
-		if (current_wireframe)
-			return DM_DRAW_OPTION_NO_MCOL;
-		if (current_polymat->UsesObjectColor()) {
-			const MT_Vector4& rgba = current_ms->m_meshUser->GetColor();
-			glColor4d(rgba[0], rgba[1], rgba[2], rgba[3]);
-			// don't use mcol
-			return DM_DRAW_OPTION_NO_MCOL;
-		}
-		if (!has_mcol) {
-			// we have to set the color from the material
-			unsigned char rgba[4];
-			current_polymat->GetRGBAColor(rgba);
-			glColor4ubv((const GLubyte *)rgba);
-			return DM_DRAW_OPTION_NORMAL;
-		}
-		return DM_DRAW_OPTION_NORMAL;
 	}
-	return DM_DRAW_OPTION_SKIP;
+	GPUVertexAttribs *gattribs = (GPUVertexAttribs *)attribs;
+	if (gattribs) {
+		memcpy(gattribs, &current_gpu_attribs, sizeof(GPUVertexAttribs));
+	}
+	return 1;
 }
 
 void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::DrawType drawingmode)
 {
 	// mesh data is in derived mesh
-	current_bucket = ms->m_bucket;
-	current_polymat = current_bucket->GetPolyMaterial();
-	current_ms = ms;
-	current_mesh = ms->m_mesh;
-	current_wireframe = drawingmode <= RAS_Rasterizer::RAS_WIREFRAME;
-	// MCol *mcol = (MCol*)ms->m_pDerivedMesh->getFaceDataArray(ms->m_pDerivedMesh, CD_MCOL); /* UNUSED */
+	RAS_MaterialBucket *bucket = ms->m_bucket;
+	RAS_IPolyMaterial *material = bucket->GetPolyMaterial();
 
 	// handle two-side
-	if (current_polymat->GetDrawingMode() & RAS_Rasterizer::RAS_BACKCULL)
+	if (material->GetDrawingMode() & RAS_Rasterizer::RAS_BACKCULL) {
 		m_rasterizer->SetCullFace(true);
-	else
+	}
+	else {
 		m_rasterizer->SetCullFace(false);
+	}
 
-	if (current_bucket->IsWire()) {
+	if (bucket->IsWire()) {
 		SetLines(true);
 	}
 
 	bool wireframe = (drawingmode == RAS_Rasterizer::RAS_WIREFRAME);
-	if (current_polymat->GetFlag() & RAS_BLENDERGLSL) {
+	if (material->GetFlag() & RAS_BLENDERGLSL) {
 		// GetMaterialIndex return the original mface material index,
 		// increment by 1 to match what derived mesh is doing
-		current_blmat_nr = current_ms->m_meshMaterial->m_index + 1;
+		current_blmat_nr = ms->m_meshMaterial->m_index + 1;
 		// For GLSL we need to retrieve the GPU material attribute
-		Material* blmat = current_polymat->GetBlenderMaterial();
-		Scene* blscene = current_polymat->GetBlenderScene();
-		if (!current_wireframe && blscene && blmat)
-			GPU_material_vertex_attributes(GPU_material_from_blender(blscene, blmat, false, current_polymat->UseInstancing()), &current_gpu_attribs);
-		else
+		Material *blmat = material->GetBlenderMaterial();
+		Scene *blscene = material->GetBlenderScene();
+		if (wireframe && blscene && blmat) {
+			GPU_material_vertex_attributes(GPU_material_from_blender(blscene, blmat, false, material->UseInstancing()), &current_gpu_attribs);
+		}
+		else {
 			memset(&current_gpu_attribs, 0, sizeof(current_gpu_attribs));
-		// DM draw can mess up blending mode, restore at the end
-		int current_blend_mode = GPU_get_material_alpha_blend();
-
-		if (wireframe) {
-			glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
 		}
-		ms->m_pDerivedMesh->drawFacesGLSL(ms->m_pDerivedMesh, CheckMaterialDM);
-		GPU_set_material_alpha_blend(current_blend_mode);
-	} else {
-		//ms->m_pDerivedMesh->drawMappedFacesTex(ms->m_pDerivedMesh, CheckTexfaceDM, mcol);
-		current_blmat_nr = current_ms->m_meshMaterial->m_index;
-		current_image = current_polymat->GetBlenderImage();
-
-		if (wireframe) {
-			glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-		}
-		ms->m_pDerivedMesh->drawFacesTex(ms->m_pDerivedMesh, CheckTexDM, nullptr, nullptr, DM_DRAW_USE_ACTIVE_UV);
 	}
 
-	if (current_bucket->IsWire()) {
+	// DM draw can mess up blending mode, restore at the end
+	int current_blend_mode = GPU_get_material_alpha_blend();
+
+	if (wireframe) {
+		glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+	}
+	ms->m_pDerivedMesh->drawFacesGLSL(ms->m_pDerivedMesh, CheckMaterialDM);
+	GPU_set_material_alpha_blend(current_blend_mode);
+
+	if (bucket->IsWire()) {
 		SetLines(false);
 	}
 }
