@@ -36,9 +36,10 @@
 #  pragma warning (disable:4786)  /* suppress stl-MSVC debug info warning */
 #endif
 
-#include <map>
-
 #include "KX_TimeLogger.h"
+#include <array>
+
+class RAS_DebugDraw;
 
 /**
  * Stores and manages time measurements by category.
@@ -49,14 +50,10 @@
 class KX_TimeCategoryLogger
 {
 public:
-	typedef int TimeCategory;
-	typedef std::map<TimeCategory, KX_TimeLogger> TimeLoggerMap;
-
 	/**
 	 * Constructor.
-	 * \param maxNumMesasurements Maximum number of measurements stored (> 1).
 	 */
-	KX_TimeCategoryLogger(unsigned int maxNumMeasurements = 10);
+	KX_TimeCategoryLogger();
 
 	/**
 	 * Destructor.
@@ -64,34 +61,18 @@ public:
 	~KX_TimeCategoryLogger();
 
 	/**
-	 * Changes the maximum number of measurements that can be stored.
-	 */
-	void SetMaxNumMeasurements(unsigned int maxNumMeasurements);
-
-	/**
-	 * Changes the maximum number of measurements that can be stored.
-	 */
-	unsigned int GetMaxNumMeasurements() const;
-
-	/**
-	 * Adds a category.
-	 * \param category	The new category.
-	 */
-	void AddCategory(TimeCategory tc);
-
-	/**
 	 * Starts logging in current measurement for the given category.
 	 * \param tc					The category to log to.
 	 * \param now					The current time.
 	 */
-	void StartLog(TimeCategory tc, double now);
+	void StartLog(KX_TimeLogger::Category tc, double now);
 
 	/**
 	 * End logging in current measurement for the given category.
 	 * \param tc	The category to log to.
 	 * \param now	The current time.
 	 */
-	void EndLog(TimeCategory tc, double now);
+	void EndLog(KX_TimeLogger::Category tc, double now);
 
 	/**
 	 * End logging in current measurement for all categories.
@@ -109,20 +90,25 @@ public:
 	 * Returns average of all but the current measurement time.
 	 * \return The average of all but the current measurement.
 	 */
-	double GetAverage(TimeCategory tc);
+	double GetAverage(KX_TimeLogger::Category tc);
 
 	/**
 	 * Returns average for grand total.
 	 */
 	double GetAverage();
 
+	/// Return last frame times.
+	const std::array<double, KX_TimeLogger::NUM_CATEGORY>& GetLastAverages() const;
+
+	void RenderCategories(RAS_DebugDraw& debugDraw, double tottime, int xindent, int ysize, int& xcoord, int& ycoord, int profileIndent);
+
 protected:
 	/// Storage for the loggers.
-	TimeLoggerMap m_loggers;
-	/// Maximum number of measurements.
-	unsigned int m_maxNumMeasurements;
+	KX_TimeLogger m_loggers[KX_TimeLogger::NUM_CATEGORY];
 
-	TimeCategory m_lastCategory;
+	KX_TimeLogger::Category m_lastCategory;
+
+	std::array<double, KX_TimeLogger::NUM_CATEGORY> m_lastAverages;
 };
 
 #endif  /* __KX_TIMECATEGORYLOGGER_H__ */

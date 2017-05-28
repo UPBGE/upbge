@@ -44,26 +44,35 @@
 class KX_TimeLogger
 {
 public:
+	enum Measurement {
+		MAX_MEASUREMENTS = 25
+	};
+
+	/// Categories for profiling display.
+	enum Category {
+		NONE = -1,
+		PHYSICS = 0,
+		LOGIC,
+		ANIMATIONS,
+		NETWORK,
+		SCENEGRAPH,
+		RASTERIZER,
+		SERVICES, // time spent in miscelaneous activities
+		OVERHEAD, // profile info drawing overhead
+		OUTSIDE, // time spent outside main loop
+		LATENCY, // time spent waiting on the gpu
+		NUM_CATEGORY
+	};
+
 	/**
 	 * Constructor.
-	 * \param maxNumMesasurements Maximum number of measurements stored (>1).
 	 */
-	KX_TimeLogger(unsigned int maxNumMeasurements = 10);
+	KX_TimeLogger();
 
 	/**
 	 * Destructor.
 	 */
 	~KX_TimeLogger();
-
-	/**
-	 * Changes the maximum number of measurements that can be stored.
-	 */
-	void SetMaxNumMeasurements(unsigned int maxNumMeasurements);
-
-	/**
-	 * Changes the maximum number of measurements that can be stored.
-	 */
-	unsigned int GetMaxNumMeasurements() const;
 
 	/**
 	 * Starts logging in current measurement.
@@ -92,9 +101,6 @@ public:
 protected:
 	/// Storage for the measurements.
 	std::deque<double> m_measurements;
-
-	/// Maximum number of measurements.
-	unsigned int m_maxNumMeasurements;
 
 	/// Time at start of logging.
 	double m_logStart;

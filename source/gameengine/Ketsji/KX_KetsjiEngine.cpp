@@ -123,19 +123,6 @@ KX_KetsjiEngine::RenderData::RenderData(RAS_Rasterizer::StereoMode stereoMode, b
 }
 
 
-const std::string KX_KetsjiEngine::m_profileLabels[tc_numCategories] = {
-	"Physics:", // tc_physics
-	"Logic:", // tc_logic
-	"Animations:", // tc_animations
-	"Network:", // tc_network
-	"Scenegraph:", // tc_scenegraph
-	"Rasterizer:", // tc_rasterizer
-	"Services:", // tc_services
-	"Overhead:", // tc_overhead
-	"Outside:", // tc_outside
-	"GPU Latency:" // tc_latency
-};
-
 const std::string KX_KetsjiEngine::m_renderQueriesLabels[QUERY_MAX] = {
 	"Samples:", // QUERY_SAMPLES
 	"Primitives:", // QUERY_PRIMITIVES
@@ -172,22 +159,14 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_exitstring(""),
 	m_cameraZoom(1.0f),
 	m_overrideCamZoom(1.0f),
-	m_logger(KX_TimeCategoryLogger(25)),
 	m_average_framerate(0.0),
 	m_showBoundingBox(KX_DebugOption::DISABLE),
 	m_showArmature(KX_DebugOption::DISABLE),
 	m_showCameraFrustum(KX_DebugOption::DISABLE),
 	m_showShadowFrustum(KX_DebugOption::DISABLE),
-	m_globalsettings(
-{
-	0
-}),
+	m_globalsettings({0}),
 	m_taskscheduler(BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS))
 {
-	for (int i = tc_first; i < tc_numCategories; i++) {
-		m_logger.AddCategory((KX_TimeCategory)i);
-	}
-
 	m_renderQueries.emplace_back(RAS_Query::SAMPLES);
 	m_renderQueries.emplace_back(RAS_Query::PRIMITIVES);
 	m_renderQueries.emplace_back(RAS_Query::TIME);
@@ -256,14 +235,14 @@ void KX_KetsjiEngine::StartEngine()
 void KX_KetsjiEngine::BeginFrame()
 {
 	if (m_flags & SHOW_RENDER_QUERIES) {
-		m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
+		m_logger.StartLog(KX_TimeLogger::OVERHEAD, m_kxsystem->GetTimeInSeconds());
 
 		for (RAS_Query& query : m_renderQueries) {
 			query.Begin();
 		}
 	}
 
-	m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
+	m_logger.StartLog(KX_TimeLogger::RASTERIZER, m_kxsystem->GetTimeInSeconds());
 
 	m_rasterizer->BeginFrame(m_frameTime);
 
@@ -274,7 +253,7 @@ void KX_KetsjiEngine::EndFrame()
 {
 	m_rasterizer->MotionBlur();
 
-	m_logger.StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds());
+	m_logger.StartLog(KX_TimeLogger::OVERHEAD, m_kxsystem->GetTimeInSeconds());
 
 	if (m_flags & SHOW_RENDER_QUERIES) {
 		for (RAS_Query& query : m_renderQueries) {
@@ -283,6 +262,7 @@ void KX_KetsjiEngine::EndFrame()
 	}
 
 	// Show profiling info
+	m_logger.StartLog(KX_TimeLogger::OVERHEAD, m_kxsystem->GetTimeInSeconds());
 	if (m_flags & (SHOW_PROFILE | SHOW_FRAMERATE | SHOW_DEBUG_PROPERTIES | SHOW_RENDER_QUERIES)) {
 		RenderDebugProperties();
 	}
@@ -293,7 +273,7 @@ void KX_KetsjiEngine::EndFrame()
 	}
 
 #ifdef WITH_PYTHON
-	for (int i = tc_first; i < tc_numCategories; ++i) {
+	/*for (int i = tc_first; i < tc_numCategories; ++i) {
 		double time = m_logger.GetAverage((KX_TimeCategory)i);
 		PyObject *val = PyTuple_New(2);
 		PyTuple_SetItem(val, 0, PyFloat_FromDouble(time * 1000.0));
@@ -301,7 +281,7 @@ void KX_KetsjiEngine::EndFrame()
 
 		PyDict_SetItemString(m_pyprofiledict, m_profileLabels[i].c_str(), val);
 		Py_DECREF(val);
-	}
+	}*/
 #endif
 
 	m_average_framerate = 1.0 / tottime;
@@ -309,23 +289,23 @@ void KX_KetsjiEngine::EndFrame()
 	// Go to next profiling measurement, time spent after this call is shown in the next frame.
 	m_logger.NextMeasurement(m_kxsystem->GetTimeInSeconds());
 
-	m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
+	m_logger.StartLog(KX_TimeLogger::RASTERIZER, m_kxsystem->GetTimeInSeconds());
 	m_rasterizer->EndFrame();
 
-	m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
+	m_logger.StartLog(KX_TimeLogger::LOGIC, m_kxsystem->GetTimeInSeconds());
 	m_canvas->FlushScreenshots();
 
 	// swap backbuffer (drawing into this buffer) <-> front/visible buffer
-	m_logger.StartLog(tc_latency, m_kxsystem->GetTimeInSeconds());
+	m_logger.StartLog(KX_TimeLogger::LATENCY, m_kxsystem->GetTimeInSeconds());
 	m_canvas->SwapBuffers();
-	m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
+	m_logger.StartLog(KX_TimeLogger::RASTERIZER, m_kxsystem->GetTimeInSeconds());
 
 	m_canvas->EndDraw();
 }
 
 bool KX_KetsjiEngine::NextFrame()
 {
-	m_logger.StartLog(tc_services, m_kxsystem->GetTimeInSeconds());
+	m_logger.StartLog(KX_TimeLogger::SERVICES, m_kxsystem->GetTimeInSeconds());
 
 	/*
 	 * Clock advancement. There is basically two case:
@@ -420,12 +400,12 @@ bool KX_KetsjiEngine::NextFrame()
 			 * entire scene. Objects can be suspended individually, and
 			 * the settings for that precede the logic and physics
 			 * update. */
-			m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
+			m_logger.StartLog(KX_TimeLogger::LOGIC, m_kxsystem->GetTimeInSeconds());
 
 			scene->UpdateObjectActivity();
 
 			if (!scene->IsSuspended()) {
-				m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds());
+				m_logger.StartLog(KX_TimeLogger::PHYSICS, m_kxsystem->GetTimeInSeconds());
 				// set Python hooks for each scene
 #ifdef WITH_PYTHON
 				PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
@@ -433,44 +413,44 @@ bool KX_KetsjiEngine::NextFrame()
 				KX_SetActiveScene(scene);
 
 				// Process sensors, and controllers
-				m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
+				m_logger.StartLog(KX_TimeLogger::LOGIC, m_kxsystem->GetTimeInSeconds());
 				scene->LogicBeginFrame(m_frameTime, framestep);
 
 				// Scenegraph needs to be updated again, because Logic Controllers
 				// can affect the local matrices.
-				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
+				m_logger.StartLog(KX_TimeLogger::SCENEGRAPH, m_kxsystem->GetTimeInSeconds());
 				scene->UpdateParents();
 
 				// Process actuators
 
 				// Do some cleanup work for this logic frame
-				m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
+				m_logger.StartLog(KX_TimeLogger::LOGIC, m_kxsystem->GetTimeInSeconds());
 				scene->LogicUpdateFrame(m_frameTime);
 
 				scene->LogicEndFrame();
 
 				// Actuators can affect the scenegraph
-				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
+				m_logger.StartLog(KX_TimeLogger::SCENEGRAPH, m_kxsystem->GetTimeInSeconds());
 				scene->UpdateParents();
 
-				m_logger.StartLog(tc_physics, m_kxsystem->GetTimeInSeconds());
+				m_logger.StartLog(KX_TimeLogger::PHYSICS, m_kxsystem->GetTimeInSeconds());
 
 				// Perform physics calculations on the scene. This can involve
 				// many iterations of the physics solver.
 				scene->GetPhysicsEnvironment()->ProceedDeltaTime(m_frameTime, timestep, framestep);//m_deltatimerealDeltaTime);
 
-				m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
+				m_logger.StartLog(KX_TimeLogger::SCENEGRAPH, m_kxsystem->GetTimeInSeconds());
 				scene->UpdateParents();
 			}
 
-			m_logger.StartLog(tc_services, m_kxsystem->GetTimeInSeconds());
+			m_logger.StartLog(KX_TimeLogger::SERVICES, m_kxsystem->GetTimeInSeconds());
 		}
 
-		m_logger.StartLog(tc_network, m_kxsystem->GetTimeInSeconds());
+		m_logger.StartLog(KX_TimeLogger::NETWORK, m_kxsystem->GetTimeInSeconds());
 		m_networkMessageManager->ClearMessages();
 
 		// update system devices
-		m_logger.StartLog(tc_logic, m_kxsystem->GetTimeInSeconds());
+		m_logger.StartLog(KX_TimeLogger::LOGIC, m_kxsystem->GetTimeInSeconds());
 		if (m_inputDevice) {
 			m_inputDevice->ClearInputs();
 		}
@@ -481,7 +461,7 @@ bool KX_KetsjiEngine::NextFrame()
 	}
 
 	// Start logging time spent outside main loop
-	m_logger.StartLog(tc_outside, m_kxsystem->GetTimeInSeconds());
+	m_logger.StartLog(KX_TimeLogger::OUTSIDE, m_kxsystem->GetTimeInSeconds());
 
 	return doRender && m_doRender;
 }
@@ -633,7 +613,7 @@ KX_KetsjiEngine::RenderData KX_KetsjiEngine::GetRenderData()
 
 void KX_KetsjiEngine::Render()
 {
-	m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
+	m_logger.StartLog(KX_TimeLogger::RASTERIZER, m_kxsystem->GetTimeInSeconds());
 
 	BeginFrame();
 
@@ -874,9 +854,9 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 				/* update scene */
 				scene->CalculateVisibleMeshes(objects, cam, raslight->GetShadowLayer());
 
-				m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds());
+				m_logger.StartLog(KX_TimeLogger::ANIMATIONS, m_kxsystem->GetTimeInSeconds());
 				UpdateAnimations(scene);
-				m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
+				m_logger.StartLog(KX_TimeLogger::RASTERIZER, m_kxsystem->GetTimeInSeconds());
 
 				/* render */
 				m_rasterizer->Clear(RAS_Rasterizer::RAS_DEPTH_BUFFER_BIT | RAS_Rasterizer::RAS_COLOR_BUFFER_BIT);
@@ -1014,7 +994,7 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	// and this call though. Visibility is imparted when this call
 	// runs through the individual objects.
 
-	m_logger.StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds());
+	m_logger.StartLog(KX_TimeLogger::SCENEGRAPH, m_kxsystem->GetTimeInSeconds());
 
 	std::vector<KX_GameObject *> objects;
 	scene->CalculateVisibleMeshes(objects, cullingcam, 0);
@@ -1022,10 +1002,10 @@ void KX_KetsjiEngine::RenderCamera(KX_Scene *scene, const CameraRenderData& came
 	// update levels of detail
 	scene->UpdateObjectLods(cullingcam, objects);
 
-	m_logger.StartLog(tc_animations, m_kxsystem->GetTimeInSeconds());
+	m_logger.StartLog(KX_TimeLogger::ANIMATIONS, m_kxsystem->GetTimeInSeconds());
 	UpdateAnimations(scene);
 
-	m_logger.StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds());
+	m_logger.StartLog(KX_TimeLogger::RASTERIZER, m_kxsystem->GetTimeInSeconds());
 
 	RAS_DebugDraw& debugDraw = m_rasterizer->GetDebugDraw(scene);
 	// Draw debug infos like bouding box, armature ect.. if enabled.
@@ -1191,18 +1171,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 	// Profile display
 	if (m_flags & SHOW_PROFILE) {
-		for (int j = tc_first; j < tc_numCategories; j++) {
-			debugDraw.RenderText2d(m_profileLabels[j], mt::vec2(xcoord + const_xindent, ycoord), white);
-
-			double time = m_logger.GetAverage((KX_TimeCategory)j);
-
-			debugtxt = (boost::format("%5.2fms | %d%%") % (time * 1000.f) % (int)(time / tottime * 100.f)).str();
-			debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + const_xindent + profile_indent, ycoord), white);
-
-			const mt::vec2 boxSize(50 * (time / tottime), 9);
-			debugDraw.RenderBox2d(mt::vec2(xcoord + (int)(2.2 * profile_indent), ycoord), boxSize, white);
-			ycoord += const_ysize;
-		}
+		m_logger.RenderCategories(debugDraw, tottime, const_xindent, const_ysize, xcoord, ycoord, profile_indent);
 	}
 
 	if (m_flags & SHOW_RENDER_QUERIES) {

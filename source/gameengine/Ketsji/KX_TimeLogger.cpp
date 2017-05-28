@@ -32,28 +32,14 @@
 
 #include "KX_TimeLogger.h"
 
-KX_TimeLogger::KX_TimeLogger(unsigned int maxNumMeasurements)
-	:m_maxNumMeasurements(maxNumMeasurements),
-	m_logStart(0),
+KX_TimeLogger::KX_TimeLogger()
+	:m_logStart(0.0),
 	m_logging(false)
 {
 }
 
 KX_TimeLogger::~KX_TimeLogger()
 {
-}
-
-void KX_TimeLogger::SetMaxNumMeasurements(unsigned int maxNumMeasurements)
-{
-	if ((m_maxNumMeasurements != maxNumMeasurements) && maxNumMeasurements) {
-		// Actual removing is done in NextMeasurement()
-		m_maxNumMeasurements = maxNumMeasurements;
-	}
-}
-
-unsigned int KX_TimeLogger::GetMaxNumMeasurements() const
-{
-	return m_maxNumMeasurements;
 }
 
 void KX_TimeLogger::StartLog(double now)
@@ -85,8 +71,8 @@ void KX_TimeLogger::NextMeasurement(double now)
 	m_measurements.push_front(m);
 
 	// Remove measurement if we grow beyond the maximum size
-	if ((m_measurements.size()) > m_maxNumMeasurements) {
-		while (m_measurements.size() > m_maxNumMeasurements) {
+	if ((m_measurements.size()) > MAX_MEASUREMENTS) {
+		while (m_measurements.size() > MAX_MEASUREMENTS) {
 			m_measurements.pop_back();
 		}
 	}

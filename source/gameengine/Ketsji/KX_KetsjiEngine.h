@@ -211,26 +211,8 @@ private:
 	/// Default camera zoom.
 	float m_overrideCamZoom;
 
-	/// Categories for profiling display.
-	typedef enum {
-		tc_first = 0,
-		tc_physics = 0,
-		tc_logic,
-		tc_animations,
-		tc_network,
-		tc_scenegraph,
-		tc_rasterizer,
-		tc_services, // time spent in miscelaneous activities
-		tc_overhead, // profile info drawing overhead
-		tc_outside, // time spent outside main loop
-		tc_latency, // time spent waiting on the gpu
-		tc_numCategories
-	} KX_TimeCategory;
-
 	/// Time logger.
 	KX_TimeCategoryLogger m_logger;
-	/// Labels for profiling display.
-	static const std::string m_profileLabels[tc_numCategories];
 
 	enum QueryCategory {
 		QUERY_SAMPLES = 0,
