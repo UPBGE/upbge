@@ -112,7 +112,7 @@ void SCA_IScene::RemoveObjectDebugProperties(SCA_IObject *gameobj)
 
 		if (prop.m_obj == gameobj) {
 			it = m_debugList.erase(it);
-			break;
+			continue;
 		}
 		else {
 			++it;
