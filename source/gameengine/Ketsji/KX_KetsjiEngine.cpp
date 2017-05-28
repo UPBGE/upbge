@@ -138,9 +138,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem *system)
 	m_rasterizer(nullptr),
 	m_kxsystem(system),
 	m_converter(nullptr),
-#ifdef WITH_PYTHON
-	m_pythondictionary(nullptr),
-#endif
 	m_inputDevice(nullptr),
 	m_bInitialized(false),
 	m_flags(AUTO_ADD_DEBUG_PROPERTIES),
@@ -219,16 +216,6 @@ void KX_KetsjiEngine::SetNetworkMessageManager(KX_NetworkMessageManager *manager
 }
 
 #ifdef WITH_PYTHON
-/*
- * At the moment the bge.logic module is imported into 'pythondictionary' after this function is called.
- * if this function ever changes to assign a copy, make sure the game logic module is imported into this dictionary before hand.
- */
-void KX_KetsjiEngine::SetPyNamespace(PyObject *pythondictionary)
-{
-	BLI_assert(pythondictionary);
-	m_pythondictionary = pythondictionary;
-}
-
 PyObject *KX_KetsjiEngine::GetPyProfileDict()
 {
 	Py_INCREF(m_pyprofiledict);

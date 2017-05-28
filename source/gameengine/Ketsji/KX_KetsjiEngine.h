@@ -144,8 +144,6 @@ private:
 	KX_BlenderConverter *m_converter;
 	KX_NetworkMessageManager *m_networkMessageManager;
 #ifdef WITH_PYTHON
-	/// \note borrowed from sys.modules["__main__"], don't manage ref's
-	PyObject *m_pythondictionary;
 	PyObject *m_pyprofiledict;
 #endif
 	SCA_IInputDevice *m_inputDevice;
@@ -300,11 +298,6 @@ public:
 	void SetRasterizer(RAS_Rasterizer *rasterizer);
 	void SetNetworkMessageManager(KX_NetworkMessageManager *manager);
 #ifdef WITH_PYTHON
-	void SetPyNamespace(PyObject *pythondictionary);
-	PyObject *GetPyNamespace()
-	{
-		return m_pythondictionary;
-	}
 	PyObject *GetPyProfileDict();
 #endif
 	void SetConverter(KX_BlenderConverter *converter);

@@ -1988,7 +1988,7 @@ static struct _inittab bge_internal_modules[] = {
  * Python is not initialized.
  * see bpy_interface.c's BPY_python_start() which shares the same functionality in blender.
  */
-PyObject *initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
+void initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 {
 	/* Yet another gotcha in the py api
 	 * Cant run PySys_SetArgv more than once because this adds the
@@ -2065,8 +2065,6 @@ PyObject *initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 	first_time = false;
 	
 	PyObjectPlus::ClearDeprecationWarning();
-
-	return PyC_DefaultNameSpace(nullptr);
 }
 
 void exitGamePlayerPythonScripting()
@@ -2098,7 +2096,7 @@ void exitGamePlayerPythonScripting()
 /**
  * Python is already initialized.
  */
-PyObject *initGamePythonScripting(Main *maggie)
+void initGamePythonScripting(Main *maggie)
 {
 	/* no need to Py_SetProgramName, it was already taken care of in BPY_python_start */
 
@@ -2117,8 +2115,6 @@ PyObject *initGamePythonScripting(Main *maggie)
 	PyDict_SetItemString(PyImport_GetModuleDict(), "bge", initBGE());
 
 	PyObjectPlus::NullDeprecationWarning();
-
-	return PyC_DefaultNameSpace(nullptr);
 }
 
 void exitGamePythonScripting()
@@ -2147,14 +2143,12 @@ void exitGamePythonScripting()
 void setupGamePython(KX_KetsjiEngine* ketsjiengine, Main *blenderdata,
                      PyObject *pyGlobalDict, PyObject **gameLogic, int argc, char** argv)
 {
-	PyObject *modules, *dictionaryobject;
+	PyObject *modules;
 
 	if (argv) /* player only */
-		dictionaryobject= initGamePlayerPythonScripting(blenderdata, argc, argv);
+		initGamePlayerPythonScripting(blenderdata, argc, argv);
 	else
-		dictionaryobject= initGamePythonScripting(blenderdata);
-
-	ketsjiengine->SetPyNamespace(dictionaryobject);
+		initGamePythonScripting(blenderdata);
 
 	modules = PyImport_GetModuleDict();
 

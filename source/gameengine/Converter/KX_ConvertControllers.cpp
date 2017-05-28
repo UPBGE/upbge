@@ -158,10 +158,6 @@ void BL_ConvertControllers(
 				SCA_PythonController* pyctrl = new SCA_PythonController(gameobj, pycont->mode);
 				gamecontroller = pyctrl;
 #ifdef WITH_PYTHON
-				// When libloading, this is delayed to KX_Scene::MergeScene_LogicBrick to avoid GIL issues
-				if (!libloading)
-					pyctrl->SetNamespace(KX_GetActiveEngine()->GetPyNamespace());
-				
 				if (pycont->mode==SCA_PythonController::SCA_PYEXEC_SCRIPT) {
 					if (pycont->text)
 					{

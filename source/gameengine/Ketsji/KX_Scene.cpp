@@ -1829,19 +1829,6 @@ static void MergeScene_LogicBrick(SCA_ILogicBrick* brick, KX_Scene *from, KX_Sce
 	if (filter_actuator) {
 		filter_actuator->SetScene(to, to->Get2DFilterManager());
 	}
-
-#ifdef WITH_PYTHON
-	// Python must be called from the main thread unless we want to deal
-	// with GIL issues. So, this is delayed until here in case of async
-	// libload (originally in KX_ConvertControllers)
-	SCA_PythonController *pyctrl = dynamic_cast<SCA_PythonController*>(brick);
-	if (pyctrl) {
-		pyctrl->SetNamespace(KX_GetActiveEngine()->GetPyNamespace());
-
-		if (pyctrl->m_mode==SCA_PythonController::SCA_PYEXEC_SCRIPT)
-			pyctrl->Compile();
-	}
-#endif
 }
 
 static void MergeScene_GameObject(KX_GameObject* gameobj, KX_Scene *to, KX_Scene *from)
