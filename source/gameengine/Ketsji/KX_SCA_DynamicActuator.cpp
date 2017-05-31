@@ -144,7 +144,7 @@ bool KX_SCA_DynamicActuator::Update()
 		}
 		case KX_DYN_DISABLE_PHYSICS:
 		{
-			controller->SuspendPhysics(true);
+			controller->SuspendPhysics(false);
 			break;
 		}
 	}
