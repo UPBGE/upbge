@@ -741,9 +741,13 @@ base class --- :class:`SCA_IObject`
       :arg angular_damping: Angular ("rotational") damping factor.
       :type angular_damping: float ∈ [0, 1]
 
-   .. method:: suspendPhysics()
+   .. method:: suspendPhysics([freeConstraints])
 
       Suspends physics for this object.
+
+      :arg freeConstraints: When set to `True` physics constraints used by the object are deleted.
+          Else when `False` (the default) constraints are restored when restoring physics.
+      :type freeConstraints: bool
 
    .. method:: restorePhysics()
 

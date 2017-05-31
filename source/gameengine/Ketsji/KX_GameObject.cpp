@@ -3563,14 +3563,14 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
 
 PyObject *KX_GameObject::PySuspendPhysics(PyObject *args)
 {
-	int removeConstraint = true;
+	int freeConstraints = false;
 
-	if (!PyArg_ParseTuple(args, "|i:suspendPhysics", &removeConstraint)) {
+	if (!PyArg_ParseTuple(args, "|i:suspendPhysics", &freeConstraints)) {
 		return nullptr;
 	}
 
 	if (GetPhysicsController()) {
-		GetPhysicsController()->SuspendPhysics((bool)removeConstraint);
+		GetPhysicsController()->SuspendPhysics((bool)freeConstraints);
 	}
 	Py_RETURN_NONE;
 }

@@ -694,7 +694,7 @@ public:
 
 	virtual void ResolveCombinedVelocities(float linvelX, float linvelY, float linvelZ, float angVelX, float angVelY, float angVelZ);
 	virtual void RefreshCollisions();
-	virtual void SuspendPhysics(bool removeConstraints);
+	virtual void SuspendPhysics(bool freeConstraints);
 	virtual void RestorePhysics();
 	virtual void SuspendDynamics(bool ghost);
 	virtual void RestoreDynamics();
