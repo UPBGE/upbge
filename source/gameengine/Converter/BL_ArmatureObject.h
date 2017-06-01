@@ -41,7 +41,6 @@ struct Bone;
 struct bPose;
 struct bConstraint;
 struct Object;
-class BL_BlenderSceneConverter;
 class RAS_DebugDraw;
 
 class BL_ArmatureObject : public KX_GameObject
@@ -112,9 +111,9 @@ public:
 	BL_ArmatureChannel *GetChannel(const std::string& channel);
 	BL_ArmatureChannel *GetChannel(int index);
 
-	/// Retrieve the pose matrix for the specified bone.
+	/// Retrieve the pose transform for the specified bone.
 	/// Returns true on success.
-	bool GetBoneMatrix(Bone *bone, mt::mat3x4& trans);
+	bool GetBoneTransform(Bone *bone, mt::mat3x4& trans);
 
 	/// Returns the bone length.  The end of the bone is in the local y direction.
 	float GetBoneLength(Bone *bone) const;

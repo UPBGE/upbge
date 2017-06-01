@@ -1103,16 +1103,19 @@ static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter& converter,
                                            SCA_LogicManager *logicmgr, SCA_TimeEventManager *timemgr,
                                            bool isInActiveLayer)
 {
-	mt::vec3 pos(
+	const mt::vec3 pos(
 		blenderobject->loc[0] + blenderobject->dloc[0],
 		blenderobject->loc[1] + blenderobject->dloc[1],
 		blenderobject->loc[2] + blenderobject->dloc[2]);
 
 	float rotmat[3][3];
 	BKE_object_rot_to_mat3(blenderobject, rotmat, false);
-	mt::mat3 rotation(rotmat);
+	const mt::mat3 rotation(rotmat);
 
-	mt::vec3 scale(blenderobject->size);
+	const mt::vec3 scale(
+		blenderobject->size[0] * blenderobject->dscale[0],
+		blenderobject->size[1] * blenderobject->dscale[1],
+		blenderobject->size[2] * blenderobject->dscale[2]);
 
 	gameobj->NodeSetLocalPosition(pos);
 	gameobj->NodeSetLocalOrientation(rotation);
@@ -1140,31 +1143,13 @@ static void bl_ConvertBlenderObject_Single(BL_BlenderSceneConverter& converter,
 		pclink.m_gamechildnode = parentinversenode;
 		vec_parent_child.push_back(pclink);
 
-		float *fl = (float *)blenderobject->parentinv;
-		const mt::mat3x4 parinvtrans(fl);
-		parentinversenode->SetLocalPosition(parinvtrans.TranslationVector3D());
+		// Extract location, orientation and scale out of the inverse parent matrix.
+		float invp_loc[3], invp_rot[3][3], invp_size[3];
+		mat4_to_loc_rot_size(invp_loc, invp_rot, invp_size, blenderobject->parentinv);
 
-		// Extract the rotation and the scaling from the basis.
-		mt::mat3 ori(parinvtrans.RotationMatrix());
-		mt::vec3 x(ori.GetColumn(0));
-		mt::vec3 y(ori.GetColumn(1));
-		mt::vec3 z(ori.GetColumn(2));
-		mt::vec3 parscale(x.Length(), y.Length(), z.Length());
-		if (!mt::FuzzyZero(parscale[0])) {
-			x /= parscale[0];
-		}
-		if (!mt::FuzzyZero(parscale[1])) {
-			y /= parscale[1];
-		}
-		if (!mt::FuzzyZero(parscale[2])) {
-			z /= parscale[2];
-		}
-		ori.GetColumn(0) = x;
-		ori.GetColumn(1) = y;
-		ori.GetColumn(2) = z;
-		parentinversenode->SetLocalOrientation(ori);
-		parentinversenode->SetLocalScale(parscale);
-
+		parentinversenode->SetLocalPosition(mt::vec3(invp_loc));
+		parentinversenode->SetLocalOrientation(mt::mat3(invp_rot));
+		parentinversenode->SetLocalScale(mt::vec3(invp_size));
 		parentinversenode->AddChild(gameobj->GetSGNode());
 	}
 

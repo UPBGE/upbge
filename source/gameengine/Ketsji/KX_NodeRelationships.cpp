@@ -53,22 +53,23 @@ bool KX_NormalParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_No
 
 	parentUpdated = true;
 
-	// Simple case.
-	if (!parent) {
-		child->SetWorldFromLocalTransform();
-		child->ClearModified();
+	if (parent) {
+		const mt::mat3x4 trans = parent->GetWorldTransform() * child->GetLocalTransform();
+		const mt::vec3 scale = trans.ScaleVector3D();
+		const mt::vec3 invscale(1.0f / scale.x, 1.0f / scale.y, 1.0f / scale.z);
+		const mt::vec3 pos = trans.TranslationVector3D();
+		const mt::mat3 rot = trans.RotationMatrix().Scale(invscale);
+
+		child->SetWorldScale(scale);
+		child->SetWorldPosition(pos);
+		child->SetWorldOrientation(rot);
+
 	}
 	else {
-		// The childs world locations which we will update.
-		const mt::vec3 & p_world_scale = parent->GetWorldScaling();
-		const mt::vec3 & p_world_pos = parent->GetWorldPosition();
-		const mt::mat3 & p_world_rotation = parent->GetWorldOrientation();
-
-		child->SetWorldScale(p_world_scale * child->GetLocalScale());
-		child->SetWorldOrientation(p_world_rotation * child->GetLocalOrientation());
-		child->SetWorldPosition(p_world_pos + p_world_scale * (p_world_rotation * child->GetLocalPosition()));
-		child->ClearModified();
+		child->SetWorldFromLocalTransform();
 	}
+
+	child->ClearModified();
 
 	return true;
 }
@@ -136,62 +137,45 @@ bool KX_SlowParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_Node
 	// The child will move even if the parent is not.
 	parentUpdated = true;
 
-	const mt::vec3 & child_scale = child->GetLocalScale();
-	const mt::vec3 & child_pos = child->GetLocalPosition();
-	const mt::mat3 & child_rotation = child->GetLocalOrientation();
-
-	// The childs world locations which we will update.
-	mt::vec3 child_w_scale;
-	mt::vec3 child_w_pos;
-	mt::mat3 child_w_rotation;
-
 	if (parent) {
 		/* This is a slow parent relation
 		 * first compute the normal child world coordinates. */
-
-		const mt::vec3 & p_world_scale = parent->GetWorldScaling();
-		const mt::vec3 & p_world_pos = parent->GetWorldPosition();
-		const mt::mat3 & p_world_rotation = parent->GetWorldOrientation();
-
-		mt::vec3 child_n_scale = p_world_scale * child_scale;
-		mt::mat3 child_n_rotation = p_world_rotation * child_rotation;
-		mt::vec3 child_n_pos = p_world_pos + p_world_scale * (p_world_rotation * child_pos);
+		const mt::mat3x4 ntrans = parent->GetWorldTransform() * child->GetLocalTransform();
+		const mt::vec3 nscale = ntrans.ScaleVector3D();
+		const mt::vec3 ninvscale(1.0f / nscale.x, 1.0f / nscale.y, 1.0f / nscale.z);
+		const mt::vec3 npos = ntrans.TranslationVector3D();
+		const mt::mat3 nrot = ntrans.RotationMatrix().Scale(ninvscale);
 
 		if (m_initialized) {
-			// Get the current world positions.
-
-			child_w_scale = child->GetWorldScaling();
-			child_w_pos = child->GetWorldPosition();
-			child_w_rotation = child->GetWorldOrientation();
+			// Get the current world transform.
+			const mt::vec3& cscale = child->GetWorldScaling();
+			const mt::vec3& cpos = child->GetWorldPosition();
+			const mt::mat3& crot = child->GetWorldOrientation();
 
 			/* Now 'interpolate' the normal coordinates with the last
 			 * world coordinates to get the new world coordinates. */
+			const float weight = 1.0f / (m_relax + 1.0f);
+			const mt::vec3 scale = (m_relax * cscale + nscale) * weight;
+			const mt::vec3 pos = (m_relax * cpos + npos) * weight;
 
-			float weight = 1.0f / (m_relax + 1.0f);
-			child_w_scale = (m_relax * child_w_scale + child_n_scale) * weight;
-			child_w_pos = (m_relax * child_w_pos + child_n_pos) * weight;
 			// For rotation we must go through quaternion.
-			const mt::quat child_w_quat = mt::quat::FromMatrix(child_w_rotation).Normalized();
-			const mt::quat child_n_quat = mt::quat::FromMatrix(child_n_rotation).Normalized();
-			child_w_rotation = mt::quat::Slerp(child_w_quat, child_n_quat, weight).ToMatrix();
+			const mt::quat cquat = mt::quat::FromMatrix(crot).Normalized();
+			const mt::quat nquat = mt::quat::FromMatrix(nrot).Normalized();
+			const mt::mat3 rot = mt::quat::Slerp(cquat, nquat, weight).ToMatrix();
+
+			child->SetWorldScale(scale);
+			child->SetWorldPosition(pos);
+			child->SetWorldOrientation(rot);
 		}
 		else {
-			child_w_scale = child_n_scale;
-			child_w_pos = child_n_pos;
-			child_w_rotation = child_n_rotation;
+			child->SetWorldFromLocalTransform();
 			m_initialized = true;
 		}
 	}
 	else {
-
-		child_w_scale = child_scale;
-		child_w_pos = child_pos;
-		child_w_rotation = child_rotation;
+		child->SetWorldFromLocalTransform();
 	}
 
-	child->SetWorldScale(child_w_scale);
-	child->SetWorldPosition(child_w_pos);
-	child->SetWorldOrientation(child_w_rotation);
 	child->ClearModified();
 	// This node must always be updated, so reschedule it for next time.
 	child->ActivateRecheduleUpdateCallback();

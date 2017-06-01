@@ -506,7 +506,7 @@ double BL_ArmatureObject::GetLastFrame()
 	return m_lastframe;
 }
 
-bool BL_ArmatureObject::GetBoneMatrix(Bone *bone, mt::mat3x4& trans)
+bool BL_ArmatureObject::GetBoneTransform(Bone *bone, mt::mat3x4& trans)
 {
 	ApplyPose();
 	bPoseChannel *pchan = BKE_pose_channel_find_name(m_objArma->pose, bone->name);

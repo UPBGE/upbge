@@ -50,52 +50,44 @@ bool KX_BoneParentRelation::UpdateChildCoordinates(SG_Node *child, const SG_Node
 {
 	BLI_assert(child != nullptr);
 
-	/* This way of accessing child coordinates is a bit cumbersome
-	 * be nice to have non constant reference access to these values. */
-
-	const mt::vec3 & child_scale = child->GetLocalScale();
-	const mt::vec3 & child_pos = child->GetLocalPosition();
-	const mt::mat3 & child_rotation = child->GetLocalOrientation();
 	// We don't know if the armature has been updated or not, assume yes.
 	parentUpdated = true;
 
 	// The childs world locations which we will update.
-
-	mt::vec3 child_w_scale;
-	mt::vec3 child_w_pos;
-	mt::mat3 child_w_rotation;
-
 	bool valid_parent_transform = false;
 
 	if (parent) {
 		BL_ArmatureObject *armature = (BL_ArmatureObject *)(parent->GetSGClientObject());
 		if (armature) {
-			mt::mat3x4 bone_transform;
-			if (armature->GetBoneMatrix(m_bone, bone_transform)) {
-				// Get the child's transform, and the bone matrix.
-				mt::mat3x4 child_transform(child_rotation, child_pos + mt::vec3(0.0f, armature->GetBoneLength(m_bone), 0.0f), child_scale);
+			mt::mat3x4 bonetrans;
+			if (armature->GetBoneTransform(m_bone, bonetrans)) {
+				const mt::vec3& cscale = child->GetLocalScale();
+				const mt::vec3& cpos = child->GetLocalPosition();
+				const mt::mat3& crot = child->GetLocalOrientation();
 
 				// The child's world transform is parent * child
-				mt::mat3x4 parent_transform = parent->GetWorldTransform() * bone_transform;
-				child_transform = parent_transform * child_transform;
+				const mt::mat3x4 ptrans = parent->GetWorldTransform() * bonetrans;
+
+				// Get the child's transform, and the bone matrix.
+				const mt::mat3x4 trans = ptrans *
+						mt::mat3x4(crot, cpos + mt::vec3(0.0f, armature->GetBoneLength(m_bone), 0.0f), cscale);
 
 				// Recompute the child transform components from the transform.
-				child_w_rotation = child_transform.RotationMatrix();
-				child_w_scale = child_w_rotation.ScaleVector3D();
-				child_w_rotation = child_w_rotation.Scale(mt::vec3(1.0f / child_w_scale.x, 1.0f / child_w_scale.y, 1.0f / child_w_scale.z));
-				child_w_pos = child_transform.TranslationVector3D();
+				const mt::vec3 scale = trans.ScaleVector3D();
+				const mt::vec3 invscale(1.0f / scale.x, 1.0f / scale.y, 1.0f / scale.z);
+				const mt::vec3 pos = trans.TranslationVector3D();
+				const mt::mat3 rot = trans.RotationMatrix().Scale(invscale);
+
+				child->SetWorldScale(scale);
+				child->SetWorldPosition(pos);
+				child->SetWorldOrientation(rot);
 
 				valid_parent_transform = true;
 			}
 		}
 	}
 
-	if (valid_parent_transform) {
-		child->SetWorldScale(child_w_scale);
-		child->SetWorldPosition(child_w_pos);
-		child->SetWorldOrientation(child_w_rotation);
-	}
-	else {
+	if (!valid_parent_transform) {
 		child->SetWorldFromLocalTransform();
 	}
 
