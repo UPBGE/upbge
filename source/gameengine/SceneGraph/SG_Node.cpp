@@ -559,9 +559,12 @@ void SG_Node::SetWorldFromLocalTransform()
 
 MT_Transform SG_Node::GetWorldTransform() const
 {
-	return MT_Transform(m_worldPosition,
-	                    m_worldRotation.scaled(
-							m_worldScaling[0], m_worldScaling[1], m_worldScaling[2]));
+	return MT_Transform(m_worldPosition, m_worldRotation, m_worldScaling);
+}
+
+MT_Transform SG_Node::GetLocalTransform() const
+{
+	return MT_Transform(m_localPosition, m_localRotation, m_localScaling);
 }
 
 bool SG_Node::ComputeWorldTransforms(const SG_Node *parent, bool& parentUpdated)

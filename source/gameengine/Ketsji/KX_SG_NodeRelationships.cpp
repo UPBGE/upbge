@@ -65,21 +65,21 @@ UpdateChildCoordinates(
 
 	if (parent==nullptr) { /* Simple case */
 		child->SetWorldFromLocalTransform();
-		child->ClearModified();
-		return true; //false;
 	}
 	else {
-		// the childs world locations which we will update.
-		const MT_Vector3 & p_world_scale = parent->GetWorldScaling();
-		const MT_Vector3 & p_world_pos = parent->GetWorldPosition();
-		const MT_Matrix3x3 & p_world_rotation = parent->GetWorldOrientation();
+		const MT_Transform p_world_trans = parent->GetWorldTransform();
+		const MT_Transform c_local_trans = child->GetLocalTransform();
 
-		child->SetWorldScale(p_world_scale * child->GetLocalScale());
-		child->SetWorldOrientation(p_world_rotation * child->GetLocalOrientation());
-		child->SetWorldPosition(p_world_pos + p_world_scale * (p_world_rotation * child->GetLocalPosition()));
-		child->ClearModified();
-		return true;
+		MT_Transform tottrans = p_world_trans * c_local_trans;
+		const MT_Vector3 scale = tottrans.normalize();
+
+		child->SetWorldPosition(tottrans.getOrigin());
+		child->SetWorldOrientation(tottrans.getBasis());
+		child->SetWorldScale(scale);
 	}
+
+	child->ClearModified();
+	return true;
 }
 
 	SG_ParentRelation *
@@ -131,14 +131,21 @@ UpdateChildCoordinates(
 	if (!parentUpdated && !child->IsModified())
 		return false;
 
-	child->SetWorldScale(child->GetLocalScale());
+	if (parent) {
+		const MT_Transform p_world_trans = parent->GetWorldTransform();
+		const MT_Transform c_local_trans = child->GetLocalTransform();
+
+		MT_Transform tottrans = p_world_trans * c_local_trans;
+		const MT_Vector3 scale = tottrans.normalize();
+
+		child->SetWorldPosition(tottrans.getOrigin());
+		child->SetWorldScale(scale);
+		child->SetWorldOrientation(child->GetLocalOrientation());
+	}
+	else {
+		child->SetWorldFromLocalTransform();
+	}
 	
-	if (parent)
-		child->SetWorldPosition(child->GetLocalPosition()+parent->GetWorldPosition());
-	else
-		child->SetWorldPosition(child->GetLocalPosition());
-	
-	child->SetWorldOrientation(child->GetLocalOrientation());
 	child->ClearModified();
 	return true; //parent != nullptr;
 }
@@ -196,35 +203,22 @@ UpdateChildCoordinates(
 	// the child will move even if the parent is not
 	parentUpdated = true;
 
-	const MT_Vector3 & child_scale = child->GetLocalScale();
-	const MT_Vector3 & child_pos = child->GetLocalPosition();
-	const MT_Matrix3x3 & child_rotation = child->GetLocalOrientation();
-
-	// the childs world locations which we will update.
-	
-	MT_Vector3 child_w_scale;
-	MT_Vector3 child_w_pos;
-	MT_Matrix3x3 child_w_rotation;
-		
 	if (parent) {
-
 		// This is a slow parent relation
 		// first compute the normal child world coordinates.
 
-		MT_Vector3 child_n_scale;
-		MT_Vector3 child_n_pos;
-		MT_Matrix3x3 child_n_rotation;
+		const MT_Transform p_world_trans = parent->GetWorldTransform();
+		const MT_Transform c_local_trans = child->GetLocalTransform();
 
-		const MT_Vector3 & p_world_scale = parent->GetWorldScaling();
-		const MT_Vector3 & p_world_pos = parent->GetWorldPosition();
-		const MT_Matrix3x3 & p_world_rotation = parent->GetWorldOrientation();
+		MT_Transform tottrans = p_world_trans * c_local_trans;
 
-		child_n_scale = p_world_scale * child_scale;
-		child_n_rotation = p_world_rotation * child_rotation;
+		const MT_Vector3 child_n_scale = tottrans.normalize();
+		const MT_Vector3& child_n_pos = tottrans.getOrigin();
+		const MT_Matrix3x3& child_n_rotation = tottrans.getBasis();
 
-		child_n_pos = p_world_pos + p_world_scale * 
-			(p_world_rotation * child_pos);
-
+		MT_Vector3 child_w_scale;
+		MT_Vector3 child_w_pos;
+		MT_Matrix3x3 child_w_rotation;
 
 		if (m_initialized) {
 
@@ -244,23 +238,22 @@ UpdateChildCoordinates(
 			MT_Quaternion child_w_quat = child_w_rotation.getRotation().slerp(child_n_rotation.getRotation(), weight);
 			child_w_rotation.setRotation(child_w_quat);
 			//FIXME: update physics controller.
-		} else {
+		}
+		else {
 			child_w_scale = child_n_scale;
 			child_w_pos = child_n_pos;
 			child_w_rotation = child_n_rotation;
 			m_initialized = true;
 		}
-			
-	} else {
 
-		child_w_scale = child_scale;
-		child_w_pos = child_pos;
-		child_w_rotation = child_rotation;
+		child->SetWorldScale(child_w_scale);
+		child->SetWorldPosition(child_w_pos);
+		child->SetWorldOrientation(child_w_rotation);
+	}
+	else {
+		child->SetWorldFromLocalTransform();
 	}
 
-	child->SetWorldScale(child_w_scale);
-	child->SetWorldPosition(child_w_pos);
-	child->SetWorldOrientation(child_w_rotation);
 	child->ClearModified();
 	// this node must always be updated, so reschedule it for next time
 	child->ActivateRecheduleUpdateCallback();

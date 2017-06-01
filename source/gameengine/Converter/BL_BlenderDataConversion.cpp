@@ -1326,12 +1326,17 @@ static void bl_ConvertBlenderObject_Single(
 		blenderobject->loc[2]+blenderobject->dloc[2]
 	);
 
-	MT_Matrix3x3 rotation;
 	float rotmat[3][3];
-	BKE_object_rot_to_mat3(blenderobject, rotmat, false);
-	rotation.setValue3x3((float*)rotmat);
+	BKE_object_rot_to_mat3(blenderobject, rotmat, true);
 
-	MT_Vector3 scale(blenderobject->size);
+	MT_Matrix3x3 rotation;
+	rotation.setValue3x3(&rotmat[0][0]);
+
+	MT_Vector3 scale(
+		blenderobject->size[0] * blenderobject->dscale[0],
+		blenderobject->size[1] * blenderobject->dscale[1],
+		blenderobject->size[2] * blenderobject->dscale[2]
+	);
 
 	gameobj->NodeSetLocalPosition(pos);
 	gameobj->NodeSetLocalOrientation(rotation);
@@ -1360,33 +1365,15 @@ static void bl_ConvertBlenderObject_Single(
 		pclink.m_gamechildnode = parentinversenode;
 		vec_parent_child.push_back(pclink);
 
-		float* fl = (float*) blenderobject->parentinv;
-		MT_Transform parinvtrans(fl);
-		parentinversenode->SetLocalPosition(parinvtrans.getOrigin());
-		// problem here: the parent inverse transform combines scaling and rotation
-		// in the basis but the scenegraph needs separate rotation and scaling.
-		// This is not important for OpenGL (it uses 4x4 matrix) but it is important
-		// for the physic engine that needs a separate scaling
-		//parentinversenode->SetLocalOrientation(parinvtrans.getBasis());
+		// Extract location, orientation and scale out of the inverse parent matrix.
+		float invp_loc[3], invp_rot[3][3], invp_size[3];
+		mat4_to_loc_rot_size(invp_loc, invp_rot, invp_size, blenderobject->parentinv);
 
-		// Extract the rotation and the scaling from the basis
-		MT_Matrix3x3 ori(parinvtrans.getBasis());
-		MT_Vector3 x(ori.getColumn(0));
-		MT_Vector3 y(ori.getColumn(1));
-		MT_Vector3 z(ori.getColumn(2));
-		MT_Vector3 parscale(x.length(), y.length(), z.length());
-		if (!MT_fuzzyZero(parscale[0]))
-			x /= parscale[0];
-		if (!MT_fuzzyZero(parscale[1]))
-			y /= parscale[1];
-		if (!MT_fuzzyZero(parscale[2]))
-			z /= parscale[2];
-		ori.setColumn(0, x);
-		ori.setColumn(1, y);
-		ori.setColumn(2, z);
-		parentinversenode->SetLocalOrientation(ori);
-		parentinversenode->SetLocalScale(parscale);
-
+		MT_Matrix3x3 invp_rot_mt;
+		invp_rot_mt.setValue3x3((float *) invp_rot);
+		parentinversenode->SetLocalPosition(MT_Vector3(invp_loc));
+		parentinversenode->SetLocalOrientation(invp_rot_mt);
+		parentinversenode->SetLocalScale(MT_Vector3(invp_size));
 		parentinversenode->AddChild(gameobj->GetSGNode());
 	}
 

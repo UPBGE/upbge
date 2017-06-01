@@ -80,6 +80,13 @@ public:
 		setBasis(m);
 	}
 
+	explicit MT_Transform(const MT_Vector3& p, const MT_Matrix3x3& m, const MT_Vector3& s)
+		:m_type(IDENTITY | SCALING)
+	{
+		setOrigin(p);
+		setBasis(m.scaled(s.x(), s.y(), s.z()));
+	}
+
 	static const MT_Transform& Identity()
 	{
 		return identity;
@@ -142,7 +149,12 @@ public:
     
     void invert(const MT_Transform& t);
     void mult(const MT_Transform& t1, const MT_Transform& t2);
-    void multInverseLeft(const MT_Transform& t1, const MT_Transform& t2); 
+    void multInverseLeft(const MT_Transform& t1, const MT_Transform& t2);
+
+	MT_Vector3 normalize()
+	{
+		return m_basis.normalize();
+	}
     
 private:
     enum { 

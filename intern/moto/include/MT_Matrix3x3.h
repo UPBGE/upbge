@@ -184,12 +184,24 @@ public:
         m_el[2][0] *= x; m_el[2][1] *= y; m_el[2][2] *= z;
     }
 
-    MT_Matrix3x3 scaled(MT_Scalar x, MT_Scalar y, MT_Scalar z) const {
+	MT_Matrix3x3 scaled(MT_Scalar x, MT_Scalar y, MT_Scalar z) const {
         return MT_Matrix3x3(m_el[0][0] * x, m_el[0][1] * y, m_el[0][2] * z,
                             m_el[1][0] * x, m_el[1][1] * y, m_el[1][2] * z,
                             m_el[2][0] * x, m_el[2][1] * y, m_el[2][2] * z);
     }
-    
+
+	MT_Vector3 normalize()
+	{
+		MT_Vector3 s(
+			MT_Vector3(m_el[0][0], m_el[1][0], m_el[2][0]).length(),
+			MT_Vector3(m_el[0][1], m_el[1][1], m_el[2][1]).length(),
+			MT_Vector3(m_el[0][2], m_el[1][2], m_el[2][2]).length());
+
+		scale(1.0 / s.x(), 1.0 / s.y(), 1.0 / s.z());
+
+		return s;
+	}
+
 	static const MT_Matrix3x3& Identity()
 	{
 		return identity;
