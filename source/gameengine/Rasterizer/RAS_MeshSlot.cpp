@@ -162,6 +162,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 {
 	RAS_ManagerNodeData *managerData = tuple.m_managerData;
 	RAS_MaterialNodeData *materialData = tuple.m_materialData;
+	RAS_DisplayArrayNodeData *displayArrayData = tuple.m_displayArrayData;
 	RAS_Rasterizer *rasty = managerData->m_rasty;
 	rasty->SetClientObject(m_meshUser->GetClientObject());
 	rasty->SetFrontFace(m_meshUser->GetFrontFace());
@@ -172,8 +173,8 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 		materialData->m_material->ActivateMeshSlot(this, rasty);
 	}
 
-	if (materialData->m_zsort && managerData->m_drawingMode >= RAS_Rasterizer::RAS_SOLID) {
-		RAS_IStorageInfo *storage = tuple.m_displayArrayData->m_storageInfo;
+	if (materialData->m_zsort && managerData->m_drawingMode >= RAS_Rasterizer::RAS_SOLID && displayArrayData->m_storageInfo) {
+		RAS_IStorageInfo *storage = displayArrayData->m_storageInfo;
 		m_mesh->SortPolygons(this, managerData->m_trans * MT_Transform(m_meshUser->GetMatrix()), storage->GetIndexMap());
 		storage->FlushIndexMap();
 	}
@@ -194,7 +195,7 @@ void RAS_MeshSlot::RunNode(const RAS_MeshSlotNodeTuple& tuple)
 		rasty->IndexPrimitivesDerivedMesh(this);
 	}
 	else {
-		rasty->IndexPrimitives(tuple.m_displayArrayData->m_storageInfo);
+		rasty->IndexPrimitives(displayArrayData->m_storageInfo);
 	}
 
 	rasty->PopMatrix();
