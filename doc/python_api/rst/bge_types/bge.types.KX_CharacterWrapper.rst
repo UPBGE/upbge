@@ -43,3 +43,17 @@ base class --- :class:`PyObjectPlus`
 
       The character jumps based on it's jump speed.
 
+   .. method:: setVelocity(velocity, time, local=False)
+
+      Sets the character's linear velocity for a given period.
+
+      This method sets character's velocity through it's center of mass during a period.
+
+      :arg velocity: Linear velocity vector.
+      :type velocity: 3D Vector
+      :arg time: Period while applying linear velocity.
+      :type time: float
+      :arg local:
+         * False: you get the "global" velocity ie: relative to world orientation.
+         * True: you get the "local" velocity ie: relative to object orientation.
+      :type local: boolean

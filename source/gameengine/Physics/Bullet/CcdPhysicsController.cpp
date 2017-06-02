@@ -115,6 +115,22 @@ const btVector3& BlenderBulletCharacterController::getWalkDirection()
 	return m_walkDirection;
 }
 
+void BlenderBulletCharacterController::SetVelocity(btVector3 vel, float time, bool local)
+{
+	if (local) {
+		const btTransform xform = getGhostObject()->getWorldTransform();
+		vel = xform.getBasis() * vel;
+	}
+
+	setVelocityForTimeInterval(vel, time);
+}
+
+void BlenderBulletCharacterController::SetVelocity(const MT_Vector3& vel, float time, bool local)
+{
+	btVector3 vec = btVector3(vel[0], vel[1], vel[2]);
+	SetVelocity(vec, time, local);
+}
+
 bool CleanPairCallback::processOverlap(btBroadphasePair &pair)
 {
 	if ((pair.m_pProxy0 == m_cleanProxy) || (pair.m_pProxy1 == m_cleanProxy)) {

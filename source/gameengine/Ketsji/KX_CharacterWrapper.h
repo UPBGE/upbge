@@ -23,6 +23,7 @@ public:
 	virtual std::string GetName();
 #ifdef WITH_PYTHON
 	KX_PYMETHOD_DOC_NOARGS(KX_CharacterWrapper, jump);
+	KX_PYMETHOD_DOC(KX_CharacterWrapper, setVelocity);
 
 	static PyObject* pyattr_get_onground(PyObjectPlus *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	

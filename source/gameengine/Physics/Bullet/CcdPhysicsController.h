@@ -454,6 +454,8 @@ public:
 
 	const btVector3& getWalkDirection();
 
+	void SetVelocity(btVector3 vel, float time, bool local);
+
 	// PHY_ICharacter interface
 	virtual void Jump()
 	{
@@ -488,11 +490,14 @@ public:
 		btVector3 vec = btVector3(dir[0], dir[1], dir[2]);
 		setWalkDirection(vec);
 	}
+
 	virtual MT_Vector3 GetWalkDirection()
 	{
 		btVector3 vec = getWalkDirection();
 		return MT_Vector3(vec[0], vec[1], vec[2]);
 	}
+
+	virtual void SetVelocity(const MT_Vector3& vel, float time, bool local);
 };
 
 class CleanPairCallback : public btOverlapCallback

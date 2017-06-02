@@ -28,6 +28,8 @@ public:
 
 	virtual void SetWalkDirection(const class MT_Vector3& dir) = 0;
 	virtual MT_Vector3 GetWalkDirection() = 0;
+
+	virtual void SetVelocity(const MT_Vector3& vel, float time, bool local) = 0;
 };
 
 #endif //__PHY_ICHARACTER_H__
