@@ -352,7 +352,7 @@ void RAS_OpenGLRasterizer::DrawDerivedMesh(RAS_MeshSlot *ms, RAS_Rasterizer::Dra
 		// For GLSL we need to retrieve the GPU material attribute
 		Material *blmat = material->GetBlenderMaterial();
 		Scene *blscene = material->GetBlenderScene();
-		if (wireframe && blscene && blmat) {
+		if (!wireframe && blscene && blmat) {
 			GPU_material_vertex_attributes(GPU_material_from_blender(blscene, blmat, false, material->UseInstancing()), &current_gpu_attribs);
 		}
 		else {
