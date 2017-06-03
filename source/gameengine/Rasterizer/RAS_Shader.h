@@ -105,6 +105,12 @@ protected:
 	RAS_UniformVec m_uniforms;
 	RAS_UniformVecDef m_preDef;
 
+	/** Parse shader program to prevent redundant macro directives.
+	 * \param type The program type to parse.
+	 * \return The parsed program.
+	 */
+	std::string GetParsedProgram(ProgramType type) const;
+
 	// Compiles and links the shader
 	virtual bool LinkProgram();
 	void ValidateProgram();

@@ -297,7 +297,6 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	bool use_opensubdiv = false;
 #endif
 	bool use_instancing = (flags & GPU_SHADER_FLAGS_SPECIAL_INSTANCING) != 0;
-	bool resetline = (flags & GPU_SHADER_FLAGS_SPECIAL_RESET_LINE) != 0;
 	GLint status;
 	GLchar log[5000];
 	GLsizei length = 0;
@@ -336,7 +335,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	gpu_shader_standard_extensions(standard_extensions, geocode != NULL);
 
 	if (vertexcode) {
-		const char *source[7];
+		const char *source[6];
 		/* custom limit, may be too small, beware */
 		int num_source = 0;
 
@@ -346,10 +345,6 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		source[num_source++] = datatoc_gpu_shader_lib_glsl;
 
 		if (defines) source[num_source++] = defines;
-		if (resetline) {
-			/* Print error message with the correct line number corresponding to the passed code */
-			source[num_source++] = "#line 0\n";
-		}
 		source[num_source++] = vertexcode;
 
 		glAttachShader(shader->program, shader->vertex);
@@ -368,7 +363,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	}
 
 	if (fragcode) {
-		const char *source[9];
+		const char *source[8];
 		int num_source = 0;
 
 		source[num_source++] = gpu_shader_version();
@@ -390,10 +385,6 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 
 		if (defines) source[num_source++] = defines;
 		if (libcode) source[num_source++] = libcode;
-		if (resetline) {
-			/* Print error message with the correct line number corresponding to the passed code */
-			source[num_source++] = "#line 0\n";
-		}
 		source[num_source++] = fragcode;
 
 		glAttachShader(shader->program, shader->fragment);
@@ -412,7 +403,7 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 	}
 
 	if (geocode) {
-		const char *source[8];
+		const char *source[6];
 		int num_source = 0;
 
 		source[num_source++] = gpu_shader_version();
@@ -421,10 +412,6 @@ GPUShader *GPU_shader_create_ex(const char *vertexcode,
 		source[num_source++] = datatoc_gpu_shader_lib_glsl;
 
 		if (defines) source[num_source++] = defines;
-		if (resetline) {
-			/* Print error message with the correct line number corresponding to the passed code */
-			source[num_source++] = "#line 0\n";
-		}
 		source[num_source++] = geocode;
 
 		glAttachShader(shader->program, shader->geometry);

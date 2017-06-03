@@ -276,25 +276,46 @@ void RAS_Shader::DeleteShader()
 	}
 }
 
+std::string RAS_Shader::GetParsedProgram(ProgramType type) const
+{
+	std::string prog = m_progs[type];
+	if (prog.empty()) {
+		return prog;
+	}
+
+	const unsigned int pos = prog.find("#version");
+	if (pos != -1) {
+		CM_Warning("found redundant #version directive in shader program, directive ignored.");
+		const unsigned int nline = prog.find("\n", pos);
+		CM_Debug(pos << ", " << nline);
+		prog.erase(pos, nline - pos);
+	}
+
+	prog.insert(0, "#line 0\n");
+
+	return prog;
+}
+
 bool RAS_Shader::LinkProgram()
 {
-	const char *vert;
-	const char *frag;
-	const char *geom;
+	std::string vert;
+	std::string frag;
+	std::string geom;
 
 	if (m_error) {
 		goto program_error;
 	}
 
 	if (m_progs[VERTEX_PROGRAM].empty() || m_progs[FRAGMENT_PROGRAM].empty()) {
-		CM_Error("invalid GLSL sources");
+		CM_Error("invalid GLSL sources.");
 		return false;
 	}
 
-	vert = m_progs[VERTEX_PROGRAM].c_str();
-	frag = m_progs[FRAGMENT_PROGRAM].c_str();
-	geom = (m_progs[GEOMETRY_PROGRAM].empty()) ? nullptr : m_progs[GEOMETRY_PROGRAM].c_str();
-	m_shader = GPU_shader_create_ex(vert, frag, geom, nullptr, nullptr, 0, 0, 0, GPU_SHADER_FLAGS_SPECIAL_RESET_LINE);
+	vert = GetParsedProgram(VERTEX_PROGRAM);
+	frag = GetParsedProgram(FRAGMENT_PROGRAM);
+	geom = GetParsedProgram(GEOMETRY_PROGRAM);
+	m_shader = GPU_shader_create(vert.c_str(), frag.c_str(), geom.empty() ? nullptr : geom.c_str(),
+									nullptr, nullptr, 0, 0, 0);
 	if (!m_shader) {
 		goto program_error;
 	}
