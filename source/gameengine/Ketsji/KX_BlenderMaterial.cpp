@@ -380,14 +380,14 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_Rasterizer *rasty) const
 void KX_BlenderMaterial::ActivateTexGen(RAS_Rasterizer *ras) const
 {
 	if (m_shader->GetAttribute() == BL_Shader::SHD_TANGENT) {
-		RAS_Rasterizer::TexCoGenList attribs(2);
-		attribs[0] = RAS_Rasterizer::RAS_TEXCO_DISABLE;
-		attribs[1] = RAS_Rasterizer::RAS_TEXTANGENT;
+		RAS_Rasterizer::TexCoGenList attribs = {
+			{1, RAS_Rasterizer::RAS_TEXTANGENT}
+		};
 
 		ras->SetAttribs(attribs);
 	}
 
-	RAS_Rasterizer::TexCoGenList texcos(RAS_Texture::MaxUnits);
+	RAS_Rasterizer::TexCoGenList texcos;
 	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
 		RAS_Texture *texture = m_textures[i];
 		/* Here textures can return false to Ok() because we're looking only at
@@ -397,23 +397,20 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_Rasterizer *ras) const
 		if (texture) {
 			MTex *mtex = texture->GetMTex();
 			if (mtex->texco & (TEXCO_OBJECT | TEXCO_REFL)) {
-				texcos[i] = RAS_Rasterizer::RAS_TEXCO_GEN;
+				texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXCO_GEN);
 			}
 			else if (mtex->texco & (TEXCO_ORCO | TEXCO_GLOB)) {
-				texcos[i] = RAS_Rasterizer::RAS_TEXCO_ORCO;
+				texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXCO_ORCO);
 			}
 			else if (mtex->texco & TEXCO_UV) {
-				texcos[i] = RAS_Rasterizer::RAS_TEXCO_UV;
+				texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXCO_UV);
 			}
 			else if (mtex->texco & TEXCO_NORM) {
-				texcos[i] = RAS_Rasterizer::RAS_TEXCO_NORM;
+				texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXCO_NORM);
 			}
 			else if (mtex->texco & TEXCO_TANGENT) {
-				texcos[i] = RAS_Rasterizer::RAS_TEXTANGENT;
+				texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXTANGENT);
 			}
-		}
-		else {
-			texcos[i] = RAS_Rasterizer::RAS_TEXCO_DISABLE;
 		}
 	}
 	ras->SetTexCoords(texcos);

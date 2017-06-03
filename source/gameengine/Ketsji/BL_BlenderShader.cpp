@@ -48,7 +48,6 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lig
 	m_gpuMat(nullptr)
 {
 	ReloadMaterial();
-	ParseAttribs();
 }
 
 BL_BlenderShader::~BL_BlenderShader()
@@ -107,6 +106,7 @@ bool BL_BlenderShader::Ok() const
 void BL_BlenderShader::ReloadMaterial()
 {
 	m_gpuMat = (m_mat) ? GPU_material_from_blender(m_blenderScene, m_mat, false, UseInstancing()) : nullptr;
+	ParseAttribs();
 }
 
 void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
@@ -138,30 +138,25 @@ void BL_BlenderShader::ParseAttribs()
 	GPUVertexAttribs attribs;
 	GPU_material_vertex_attributes(m_gpuMat, &attribs);
 
-	unsigned short attrib_num = 0;
-	for (unsigned short i = 0; i < attribs.totlayer; i++) {
-		if (attribs.layer[i].glindex + 1 > attrib_num) {
-			attrib_num = attribs.layer[i].glindex + 1;
-		}
-	}
-
-	m_attribs.resize(attrib_num, RAS_Rasterizer::RAS_TEXCO_DISABLE);
+	m_attribs.clear();
 
 	for (unsigned short i = 0; i < attribs.totlayer; ++i) {
-		if (attribs.layer[i].type == CD_MTFACE) {
-			m_attribs[attribs.layer[i].glindex] = RAS_Rasterizer::RAS_TEXCO_UV;
+		const int type = attribs.layer[i].type;
+		const int glindex = attribs.layer[i].glindex;
+		if (type == CD_MTFACE) {
+			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXCO_UV);
 		}
-		else if (attribs.layer[i].type == CD_TANGENT) {
-			m_attribs[attribs.layer[i].glindex] = RAS_Rasterizer::RAS_TEXTANGENT;
+		else if (type == CD_TANGENT) {
+			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXTANGENT);
 		}
-		else if (attribs.layer[i].type == CD_ORCO) {
-			m_attribs[attribs.layer[i].glindex] = RAS_Rasterizer::RAS_TEXCO_ORCO;
+		else if (type == CD_ORCO) {
+			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXCO_ORCO);
 		}
-		else if (attribs.layer[i].type == CD_NORMAL) {
-			m_attribs[attribs.layer[i].glindex] = RAS_Rasterizer::RAS_TEXCO_NORM;
+		else if (type == CD_NORMAL) {
+			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXCO_NORM);
 		}
-		else if (attribs.layer[i].type == CD_MCOL) {
-			m_attribs[attribs.layer[i].glindex] = RAS_Rasterizer::RAS_TEXCO_VCOL;
+		else if (type == CD_MCOL) {
+			m_attribs.emplace_back(glindex, RAS_Rasterizer::RAS_TEXCO_VCOL);
 		}
 	}
 }

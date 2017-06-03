@@ -142,8 +142,9 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 		glColorPointer(4, GL_UNSIGNED_BYTE, m_stride, m_color_offset);
 	}
 
-	for (unsigned short unit = 0, size = storageAttribs->texcos.size(); unit < size; ++unit) {
-		switch (storageAttribs->texcos[unit]) {
+	for (const std::pair<int, RAS_Rasterizer::TexCoGen> pair : storageAttribs->texcos) {
+		const int unit = pair.first;
+		switch (pair.second) {
 			case RAS_Rasterizer::RAS_TEXCO_ORCO:
 			case RAS_Rasterizer::RAS_TEXCO_GLOB:
 			{
@@ -179,8 +180,9 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 	}
 	glClientActiveTextureARB(GL_TEXTURE0_ARB);
 
-	for (unsigned short unit = 0, size = storageAttribs->attribs.size(); unit < size; ++unit) {
-		switch (storageAttribs->attribs[unit]) {
+	for (const std::pair<int, RAS_Rasterizer::TexCoGen> pair : storageAttribs->attribs) {
+		const int unit = pair.first;
+		switch (pair.second) {
 			case RAS_Rasterizer::RAS_TEXCO_ORCO:
 			case RAS_Rasterizer::RAS_TEXCO_GLOB:
 			{
@@ -240,18 +242,14 @@ void VBO::Unbind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer:
 	}
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
-	for (unsigned short unit = 0, size = storageAttribs->texcos.size(); unit < size; ++unit) {
-		if (storageAttribs->texcos[unit] != RAS_Rasterizer::RAS_TEXCO_DISABLE) {
-			glClientActiveTextureARB(GL_TEXTURE0_ARB + unit);
-			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-		}
+	for (const std::pair<int, RAS_Rasterizer::TexCoGen> pair : storageAttribs->texcos) {
+		glClientActiveTextureARB(GL_TEXTURE0_ARB + pair.first);
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 	}
 	glClientActiveTextureARB(GL_TEXTURE0_ARB);
 
-	for (unsigned short unit = 0, size = storageAttribs->attribs.size(); unit < size; ++unit) {
-		if (storageAttribs->attribs[unit] != RAS_Rasterizer::RAS_TEXCO_DISABLE) {
-			glDisableVertexAttribArrayARB(unit);
-		}
+	for (const std::pair<int, RAS_Rasterizer::TexCoGen> pair : storageAttribs->attribs) {
+		glDisableVertexAttribArrayARB(pair.first);
 	}
 
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
