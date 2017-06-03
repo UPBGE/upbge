@@ -40,9 +40,7 @@
 #include "GPU_draw.h"
 #include "GPU_material.h" // for GPU_BLEND_SOLID
 
-#include "DNA_texture_types.h"
 #include "DNA_material_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
 
 KX_BlenderMaterial::KX_BlenderMaterial(
@@ -264,7 +262,7 @@ void KX_BlenderMaterial::ActivateShaders(RAS_Rasterizer *rasty)
 {
 	SetShaderData(rasty);
 	ActivateGLMaterials(rasty);
-	ActivateTexGen(rasty);
+	m_shader->SetAttribs(rasty);
 }
 
 void KX_BlenderMaterial::ActivateBlenderShaders(RAS_Rasterizer *rasty)
@@ -374,46 +372,6 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_Rasterizer *rasty) const
 	}
 
 	rasty->SetPolygonOffset(-m_material->zoffs, 0.0f);
-}
-
-
-void KX_BlenderMaterial::ActivateTexGen(RAS_Rasterizer *ras) const
-{
-	if (m_shader->GetAttribute() == BL_Shader::SHD_TANGENT) {
-		RAS_Rasterizer::TexCoGenList attribs = {
-			{1, RAS_Rasterizer::RAS_TEXTANGENT}
-		};
-
-		ras->SetAttribs(attribs);
-	}
-
-	RAS_Rasterizer::TexCoGenList texcos;
-	for (int i = 0; i < RAS_Texture::MaxUnits; i++) {
-		RAS_Texture *texture = m_textures[i];
-		/* Here textures can return false to Ok() because we're looking only at
-		 * texture attributs and not texture bind id like for the binding and
-		 * unbinding of textures. A nullptr BL_Texture means that the cooresponding
-		 * mtex is nullptr too (see InitTextures).*/
-		if (texture) {
-			MTex *mtex = texture->GetMTex();
-			if (mtex->texco & (TEXCO_OBJECT | TEXCO_REFL)) {
-				texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXCO_GEN);
-			}
-			else if (mtex->texco & (TEXCO_ORCO | TEXCO_GLOB)) {
-				texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXCO_ORCO);
-			}
-			else if (mtex->texco & TEXCO_UV) {
-				texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXCO_UV);
-			}
-			else if (mtex->texco & TEXCO_NORM) {
-				texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXCO_NORM);
-			}
-			else if (mtex->texco & TEXCO_TANGENT) {
-				texcos.emplace_back(i, RAS_Rasterizer::RAS_TEXTANGENT);
-			}
-		}
-	}
-	ras->SetTexCoords(texcos);
 }
 
 void KX_BlenderMaterial::UpdateIPO(
@@ -911,6 +869,7 @@ KX_PYMETHODDEF_DOC(KX_BlenderMaterial, getShader, "getShader()")
 		if (!m_shader->GetError()) {
 			// Set the material to use custom shader.
 			m_flag &= ~RAS_BLENDERGLSL;
+			m_shader->InitTexCo(m_textures);
 			m_scene->GetBucketManager()->UpdateShaders(this);
 		}
 	}

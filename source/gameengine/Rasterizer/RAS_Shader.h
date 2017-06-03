@@ -96,7 +96,6 @@ protected:
 
 	GPUShader *m_shader;
 	bool m_use;
-	int m_attr; // Tangent attribute
 	std::string m_progs[MAX_PROGRAM];
 	bool m_error;
 	bool m_dirty;
@@ -124,11 +123,6 @@ protected:
 public:
 	RAS_Shader();
 	virtual ~RAS_Shader();
-
-	// Unused for now tangent is set as tex coords
-	enum AttribTypes {
-		SHD_TANGENT = 1
-	};
 
 	enum GenType {
 		MODELVIEWMATRIX,

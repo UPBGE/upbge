@@ -136,7 +136,6 @@ private:
 	void SetBlenderGLSLShader();
 
 	void ActivateGLMaterials(RAS_Rasterizer *rasty) const;
-	void ActivateTexGen(RAS_Rasterizer *ras) const;
 
 	void SetBlenderShaderData(RAS_Rasterizer *ras);
 	void SetShaderData(RAS_Rasterizer *ras);

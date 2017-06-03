@@ -161,7 +161,6 @@ bool RAS_Shader::Ok() const
 RAS_Shader::RAS_Shader()
 	:m_shader(nullptr),
 	m_use(0),
-	m_attr(0),
 	m_error(0),
 	m_dirty(true)
 {
@@ -479,11 +478,6 @@ void RAS_Shader::Update(RAS_Rasterizer *rasty, const MT_Matrix4x4 model)
 				break;
 		}
 	}
-}
-
-int RAS_Shader::GetAttribute()
-{
-	return m_attr;
 }
 
 int RAS_Shader::GetAttribLocation(const std::string& name)
