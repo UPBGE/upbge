@@ -48,7 +48,8 @@ const std::string profileLabels[KX_TimeLogger::NUM_CATEGORY] = {
 };
 
 KX_TimeCategoryLogger::KX_TimeCategoryLogger()
-	:m_lastCategory(KX_TimeLogger::NONE)
+	:m_lastCategory(KX_TimeLogger::NONE),
+	m_lastTotalAverage(0.0)
 {
 	for (double& avg : m_lastAverages) {
 		avg = 0.0;
@@ -81,30 +82,36 @@ void KX_TimeCategoryLogger::EndLog(double now)
 
 void KX_TimeCategoryLogger::NextMeasurement(double now)
 {
-	for (KX_TimeLogger& logger : m_loggers) {
+	m_lastTotalAverage = 0.0;
+	for (unsigned short tc = 0; tc < KX_TimeLogger::NUM_CATEGORY; ++tc) {
+		KX_TimeLogger& logger = m_loggers[tc];
 		logger.NextMeasurement(now);
+
+		const double time = logger.GetAverage();
+		m_lastAverages[tc] = time;
+		m_lastTotalAverage += time;
 	}
 }
 
 double KX_TimeCategoryLogger::GetAverage(KX_TimeLogger::Category tc)
 {
-	return m_loggers[tc].GetAverage();
+	return m_lastAverages[tc];
 }
 
 double KX_TimeCategoryLogger::GetAverage()
 {
-	double time = 0.0;
-
-	for (const KX_TimeLogger& logger : m_loggers) {
-		time += logger.GetAverage();
-	}
-
-	return time;
+	return m_lastTotalAverage;
 }
 
-const std::array<double, KX_TimeLogger::NUM_CATEGORY>& KX_TimeCategoryLogger::GetLastAverages() const
+std::map<std::string, double> KX_TimeCategoryLogger::GetProfileDict()
 {
-	return m_lastAverages;
+	std::map<std::string, double> dict;
+
+	for (unsigned short tc = 0; tc < KX_TimeLogger::NUM_CATEGORY; ++tc) {
+		dict[profileLabels[tc]] = m_lastAverages[tc];
+	}
+
+	return dict;
 }
 
 void KX_TimeCategoryLogger::RenderCategories(RAS_DebugDraw& debugDraw, double tottime, int xindent, int ysize,
@@ -113,8 +120,7 @@ void KX_TimeCategoryLogger::RenderCategories(RAS_DebugDraw& debugDraw, double to
 	for (unsigned short tc = 0; tc < KX_TimeLogger::NUM_CATEGORY; ++tc) {
 		debugDraw.RenderText2d(profileLabels[tc] + ":", mt::vec2(xcoord + xindent, ycoord), mt::one4);
 
-		double time = m_loggers[tc].GetAverage();
-		m_lastAverages[tc] = time;
+		const double time = m_lastAverages[tc];
 
 		const std::string debugtxt = (boost::format("%5.2fms | %d%%") % (time*1000.f) % (int)(time/tottime * 100.f)).str();
 		debugDraw.RenderText2d(debugtxt, mt::vec2(xcoord + xindent + profileIndent, ycoord), mt::one4);

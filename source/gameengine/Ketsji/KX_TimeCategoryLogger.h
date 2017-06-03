@@ -38,6 +38,7 @@
 
 #include "KX_TimeLogger.h"
 #include <array>
+#include <map>
 
 class RAS_DebugDraw;
 
@@ -97,8 +98,8 @@ public:
 	 */
 	double GetAverage();
 
-	/// Return last frame times.
-	const std::array<double, KX_TimeLogger::NUM_CATEGORY>& GetLastAverages() const;
+	/// Return dictionary name : last frame times.
+	std::map<std::string, double> GetProfileDict();
 
 	void RenderCategories(RAS_DebugDraw& debugDraw, double tottime, int xindent, int ysize, int& xcoord, int& ycoord, int profileIndent);
 
@@ -109,6 +110,7 @@ protected:
 	KX_TimeLogger::Category m_lastCategory;
 
 	std::array<double, KX_TimeLogger::NUM_CATEGORY> m_lastAverages;
+	double m_lastTotalAverage;
 };
 
 #endif  /* __KX_TIMECATEGORYLOGGER_H__ */

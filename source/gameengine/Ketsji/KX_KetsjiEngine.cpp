@@ -211,13 +211,10 @@ void KX_KetsjiEngine::SetNetworkMessageManager(KX_NetworkMessageManager *manager
 	m_networkMessageManager = manager;
 }
 
-#ifdef WITH_PYTHON
-PyObject *KX_KetsjiEngine::GetPyProfileDict()
+std::map<std::string, double> KX_KetsjiEngine::GetProfileDict()
 {
-	Py_INCREF(m_pyprofiledict);
-	return m_pyprofiledict;
+	return m_logger.GetProfileDict();
 }
-#endif
 
 void KX_KetsjiEngine::SetConverter(BL_Converter *converter)
 {
@@ -271,18 +268,6 @@ void KX_KetsjiEngine::EndFrame()
 	if (tottime < 1e-6) {
 		tottime = 1e-6;
 	}
-
-#ifdef WITH_PYTHON
-	/*for (int i = tc_first; i < tc_numCategories; ++i) {
-		double time = m_logger.GetAverage((KX_TimeCategory)i);
-		PyObject *val = PyTuple_New(2);
-		PyTuple_SetItem(val, 0, PyFloat_FromDouble(time * 1000.0));
-		PyTuple_SetItem(val, 1, PyFloat_FromDouble(time / tottime * 100.0));
-
-		PyDict_SetItemString(m_pyprofiledict, m_profileLabels[i].c_str(), val);
-		Py_DECREF(val);
-	}*/
-#endif
 
 	m_average_framerate = 1.0 / tottime;
 

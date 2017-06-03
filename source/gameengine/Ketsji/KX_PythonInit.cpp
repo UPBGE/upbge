@@ -300,7 +300,23 @@ PyDoc_STRVAR(gPyGetProfileInfo_doc,
              );
 static PyObject *gPyGetProfileInfo(PyObject *)
 {
-	return KX_GetActiveEngine()->GetPyProfileDict();
+	KX_KetsjiEngine *engine = KX_GetActiveEngine();
+	const std::map<std::string, double> dict = engine->GetProfileDict();
+	double tottime = 1.0 / engine->GetAverageFrameRate();
+
+	PyObject *pydict = PyDict_New();
+
+	for (auto& pair : dict) {
+		const double time = pair.second;
+		PyObject *val = PyTuple_New(2);
+		PyTuple_SetItem(val, 0, PyFloat_FromDouble(time * 1000.0));
+		PyTuple_SetItem(val, 1, PyFloat_FromDouble(time / tottime * 100.0));
+
+		PyDict_SetItemString(pydict, pair.first.c_str(), val);
+		Py_DECREF(val);
+	}
+	
+	return pydict;
 }
 
 PyDoc_STRVAR(gPySendMessage_doc,
