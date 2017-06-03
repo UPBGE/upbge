@@ -3,10 +3,10 @@ uniform mat4 ModelViewMatrix;
 uniform mat4 ProjectionMatrix;
 uniform mat3 NormalMatrix;
 
-#ifdef USE_OPENSUBDIV
 in vec3 normal;
-in vec4 position;
+in vec3 position;
 
+#ifdef USE_OPENSUBDIV
 out block {
 	VertexData v;
 } outpt;
@@ -17,11 +17,11 @@ in mat3 ininstmatrix;
 in vec3 ininstposition;
 in vec4 ininstcolor;
 
-varying vec4 varinstcolor;
-varying mat4 varinstmat;
-varying mat4 varinstinvmat;
-varying mat4 varinstlocaltoviewmat;
-varying mat4 varinstinvlocaltoviewmat;
+out vec4 varinstcolor;
+out mat4 varinstmat;
+out mat4 varinstinvmat;
+out mat4 varinstlocaltoviewmat;
+out mat4 varinstinvlocaltoviewmat;
 
 uniform mat4 unfviewmat;
 #endif
@@ -108,10 +108,6 @@ void set_var_from_attr(vec4 attr, int info, out vec4 var)
 
 void main()
 {
-#ifndef USE_OPENSUBDIV
-	vec4 position = gl_Vertex;
-	vec3 normal = gl_Normal;
-#endif
 
 #ifdef USE_INSTANCING
 	mat4 instmat = mat4(vec4(ininstmatrix[0], ininstposition.x),
@@ -125,11 +121,11 @@ void main()
 	varinstinvlocaltoviewmat = inverse(varinstlocaltoviewmat);
 	varinstcolor = ininstcolor;
 
-	position *= instmat;
+	position = vec3(instmat * vec4(position, 1.0));
 	normal *= ininstmatrix;
 #endif
 
-	vec4 co = ModelViewMatrix * position;
+	vec4 co = ModelViewMatrix * vec4(position, 1.0);
 
 	varposition = co.xyz;
 	varnormal = normalize(NormalMatrix * normal);

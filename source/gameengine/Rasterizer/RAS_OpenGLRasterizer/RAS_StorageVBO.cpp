@@ -108,6 +108,9 @@ void VBO::AllocData()
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 }
 
+static int vertattribloc;
+static int normalattribloc;
+
 void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::DrawType drawingmode)
 {
 	if (m_useVao) {
@@ -124,17 +127,24 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 
 	bool wireframe = (drawingmode == RAS_Rasterizer::RAS_WIREFRAME);
 
+	int program;
+	glGetIntegerv(GL_CURRENT_PROGRAM, &program);
+
 	// Bind buffers
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
 
 	// Vertexes
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(3, GL_FLOAT, m_stride, m_vertex_offset);
+	char *vertattrib = "position";
+	vertattribloc = glGetAttribLocation(program, vertattrib);
+	glEnableVertexAttribArray(vertattribloc);
+	glVertexAttribPointer(vertattribloc, 3,	GL_FLOAT, GL_FALSE,	m_stride, m_vertex_offset);
 
 	// Normals
-	glEnableClientState(GL_NORMAL_ARRAY);
-	glNormalPointer(GL_FLOAT, m_stride, m_normal_offset);
+	char *normalattrib = "normal";
+	normalattribloc = glGetAttribLocation(program, normalattrib);
+	glEnableVertexAttribArray(normalattribloc);
+	glVertexAttribPointer(normalattribloc, 3, GL_FLOAT, GL_FALSE, m_stride, m_normal_offset);
 
 	// Colors
 	if (!wireframe) {
@@ -233,8 +243,8 @@ void VBO::Unbind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer:
 
 	bool wireframe = (drawingmode == RAS_Rasterizer::RAS_WIREFRAME);
 
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_NORMAL_ARRAY);
+	glDisableVertexAttribArray(vertattribloc);
+	glDisableVertexAttribArray(normalattribloc);
 	if (!wireframe) {
 		glDisableClientState(GL_COLOR_ARRAY);
 	}
