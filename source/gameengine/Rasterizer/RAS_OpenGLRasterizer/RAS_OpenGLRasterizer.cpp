@@ -40,6 +40,8 @@
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 #include "GPU_shader.h"
+#include "GPU_immediate.h"
+#include "GPU_matrix.h"
 
 extern "C" {
 #  include "BLF_api.h"
@@ -505,12 +507,12 @@ void RAS_OpenGLRasterizer::RenderText3D(
 
 void RAS_OpenGLRasterizer::PushMatrix()
 {
-	glPushMatrix();
+	gpuPushMatrix();
 }
 
 void RAS_OpenGLRasterizer::PopMatrix()
 {
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 void RAS_OpenGLRasterizer::SetMatrixMode(RAS_Rasterizer::MatrixMode mode)
@@ -520,17 +522,17 @@ void RAS_OpenGLRasterizer::SetMatrixMode(RAS_Rasterizer::MatrixMode mode)
 
 void RAS_OpenGLRasterizer::MultMatrix(const float mat[16])
 {
-	glMultMatrixf(mat);
+	gpuMultMatrix(mat);
 }
 
 void RAS_OpenGLRasterizer::LoadMatrix(const float mat[16])
 {
-	glLoadMatrixf(mat);
+	gpuLoadMatrix(mat);
 }
 
 void RAS_OpenGLRasterizer::LoadIdentity()
 {
-	glLoadIdentity();
+	gpuLoadIdentity();
 }
 
 void RAS_OpenGLRasterizer::MotionBlur(unsigned short state, float value)

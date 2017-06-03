@@ -33,6 +33,7 @@
 #include "GPU_glew.h"
 
 extern "C" {
+#  include "GPU_immediate.h"
 #  include "BLF_api.h"
 }
 
@@ -42,13 +43,28 @@ void RAS_OpenGLDebugDraw::Flush(RAS_Rasterizer *rasty, RAS_ICanvas *canvas, RAS_
 	rasty->SetAlphaBlend(GPU_BLEND_ALPHA);
 
 	// draw lines
-	glBegin(GL_LINES);
+	VertexFormat *format = immVertexFormat();
+	unsigned int pos = VertexFormat_add_attrib(format, "pos", COMP_F32, 3, KEEP_FLOAT);
+
+	immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
 	for (const RAS_DebugDraw::Line& line : debugDraw->m_lines) {
-		glColor4fv(line.m_color.getValue());
-		glVertex3fv(line.m_from.getValue());
-		glVertex3fv(line.m_to.getValue());
+		float col[4];
+		line.m_color.getValue(col);
+		immUniformColor4fv(col);
+
+		immBeginAtMost(PRIM_LINES, 2);
+
+		float frompos[3];
+		line.m_from.getValue(frompos);
+		immVertex3fv(pos, frompos);
+		float topos[3];
+		line.m_to.getValue(topos);
+		immVertex3fv(pos, topos);
+
+		immEnd();
 	}
-	glEnd();
+	immUnbindProgram();
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	// Draw aabbs
