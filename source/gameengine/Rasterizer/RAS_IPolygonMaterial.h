@@ -75,6 +75,7 @@ protected:
 	std::string m_name; // also needed for collisionsensor
 	int m_drawingmode;
 	int m_alphablend;
+	float m_zoffset;
 	int m_rasMode;
 	unsigned int m_flag;
 
@@ -109,6 +110,7 @@ public:
 	bool IsCullFace() const;
 	int GetDrawingMode() const;
 	int GetAlphaBlend() const;
+	float GetZOffset() const;
 	virtual std::string GetName();
 	unsigned int GetFlag() const;
 	bool IsAlphaShadow() const;

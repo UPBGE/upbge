@@ -80,6 +80,8 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		m_alphablend = GEMAT_ALPHA;
 	}
 
+	m_zoffset = mat->zoffs;
+
 	m_rasMode |= (mat->game.flag & GEMAT_BACKCULL) ? 0 : RAS_TWOSIDED;
 	m_rasMode |= (mat->material_type == MA_TYPE_WIRE) ? RAS_WIRE : 0;
 	m_rasMode |= (mat->mode2 & MA_DEPTH_TRANSP) ? RAS_DEPTH_ALPHA : 0;
@@ -268,7 +270,6 @@ void KX_BlenderMaterial::ActivateShaders(RAS_Rasterizer *rasty)
 void KX_BlenderMaterial::ActivateBlenderShaders(RAS_Rasterizer *rasty)
 {
 	SetBlenderShaderData(rasty);
-	ActivateGLMaterials(rasty);
 	m_blenderShader->SetAttribs(rasty);
 }
 
@@ -370,8 +371,6 @@ void KX_BlenderMaterial::ActivateGLMaterials(RAS_Rasterizer *rasty) const
 						   m_material->b * m_material->emit, 1.0f);
 		rasty->SetAmbient(m_material->amb);
 	}
-
-	rasty->SetPolygonOffset(-m_material->zoffs, 0.0f);
 }
 
 void KX_BlenderMaterial::UpdateIPO(
