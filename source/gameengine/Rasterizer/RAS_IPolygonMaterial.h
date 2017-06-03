@@ -44,7 +44,6 @@
 
 struct Material;
 struct Scene;
-class SCA_IScene;
 struct GameSettings;
 
 enum MaterialProps
@@ -131,9 +130,6 @@ public:
 						   MT_Scalar emit, MT_Scalar ambient, MT_Scalar alpha, MT_Scalar specalpha) = 0;
 
 	virtual const RAS_Rasterizer::AttribLayerList GetAttribLayers(const RAS_MeshObject::LayersInfo& layersInfo) const = 0;
-
-	/// Overridden by KX_BlenderMaterial
-	virtual void Replace_IScene(SCA_IScene *val) = 0;
 
 	/**
 	 * \return the equivalent drawing mode for the material settings (equivalent to old TexFace tface->mode).

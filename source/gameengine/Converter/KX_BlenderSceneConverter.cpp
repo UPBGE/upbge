@@ -72,15 +72,15 @@ RAS_MeshObject *KX_BlenderSceneConverter::FindGameMesh(Mesh *for_blendermesh)
 	return m_map_mesh_to_gamemesh[for_blendermesh];
 }
 
-void KX_BlenderSceneConverter::RegisterPolyMaterial(RAS_IPolyMaterial *polymat, Material *mat)
+void KX_BlenderSceneConverter::RegisterMaterial(KX_BlenderMaterial *blmat, Material *mat)
 {
 	if (mat) {
-		m_map_mesh_to_polyaterial[mat] = polymat;
+		m_map_mesh_to_polyaterial[mat] = blmat;
 	}
-	m_polymaterials.push_back(polymat);
+	m_materials.push_back(blmat);
 }
 
-RAS_IPolyMaterial *KX_BlenderSceneConverter::FindPolyMaterial(Material *mat)
+KX_BlenderMaterial *KX_BlenderSceneConverter::FindMaterial(Material *mat)
 {
 	return m_map_mesh_to_polyaterial[mat];
 }

@@ -457,18 +457,18 @@ static void uvsRgbFromMesh(Material *ma, MFace *mface, MTFace *tface, const RAS_
 
 static RAS_MaterialBucket *material_from_mesh(Material *ma, int lightlayer, KX_Scene *scene, KX_BlenderSceneConverter& converter)
 {
-	RAS_IPolyMaterial* polymat = converter.FindPolyMaterial(ma);
+	KX_BlenderMaterial* mat = converter.FindMaterial(ma);
 
-	if (!polymat) {
-		polymat = ConvertMaterial(ma, lightlayer, scene);
+	if (!mat) {
+		mat = ConvertMaterial(ma, lightlayer, scene);
 		// this is needed to free up memory afterwards.
-		converter.RegisterPolyMaterial(polymat, ma);
+		converter.RegisterMaterial(mat, ma);
 	}
 
 	// see if a bucket was reused or a new one was created
 	// this way only one KX_BlenderMaterial object has to exist per bucket
 	bool bucketCreated;
-	RAS_MaterialBucket* bucket = scene->FindBucket(polymat, bucketCreated);
+	RAS_MaterialBucket* bucket = scene->FindBucket(mat, bucketCreated);
 
 	return bucket;
 }

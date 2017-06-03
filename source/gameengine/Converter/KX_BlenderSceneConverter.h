@@ -40,7 +40,7 @@
 class SCA_IActuator;
 class SCA_IController;
 class RAS_MeshObject;
-class RAS_IPolyMaterial;
+class KX_BlenderMaterial;
 class KX_BlenderConverter;
 class KX_GameObject;
 class KX_Scene;
@@ -59,12 +59,12 @@ class KX_BlenderSceneConverter
 	friend KX_BlenderConverter;
 
 private:
-	std::vector<RAS_IPolyMaterial *> m_polymaterials;
+	std::vector<KX_BlenderMaterial *> m_materials;
 	std::vector<RAS_MeshObject *> m_meshobjects;
 
 	std::map<Object *, KX_GameObject *> m_map_blender_to_gameobject;
 	std::map<Mesh *, RAS_MeshObject *> m_map_mesh_to_gamemesh;
-	std::map<Material *, RAS_IPolyMaterial *> m_map_mesh_to_polyaterial;
+	std::map<Material *, KX_BlenderMaterial *> m_map_mesh_to_polyaterial;
 	std::map<bActuator *, SCA_IActuator *> m_map_blender_to_gameactuator;
 	std::map<bController *, SCA_IController *> m_map_blender_to_gamecontroller;
 
@@ -82,8 +82,8 @@ public:
 	void RegisterGameMesh(RAS_MeshObject *gamemesh, Mesh *for_blendermesh);
 	RAS_MeshObject *FindGameMesh(Mesh *for_blendermesh);
 
-	void RegisterPolyMaterial(RAS_IPolyMaterial *polymat, Material *mat);
-	RAS_IPolyMaterial *FindPolyMaterial(Material *mat);
+	void RegisterMaterial(KX_BlenderMaterial *blmat, Material *mat);
+	KX_BlenderMaterial *FindMaterial(Material *mat);
 
 	void RegisterGameActuator(SCA_IActuator *act, bActuator *for_actuator);
 	SCA_IActuator *FindGameActuator(bActuator *for_actuator);

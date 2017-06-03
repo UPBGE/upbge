@@ -412,10 +412,8 @@ const RAS_Rasterizer::AttribLayerList KX_BlenderMaterial::GetAttribLayers(const 
 	return attribLayers;
 }
 
-void KX_BlenderMaterial::Replace_IScene(SCA_IScene *val)
+void KX_BlenderMaterial::ReplaceScene(KX_Scene *scene)
 {
-	m_scene = static_cast<KX_Scene *>(val);
-
 	OnConstruction();
 }
 
