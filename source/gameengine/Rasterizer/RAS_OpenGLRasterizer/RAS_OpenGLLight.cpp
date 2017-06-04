@@ -67,91 +67,91 @@ RAS_OpenGLLight::~RAS_OpenGLLight()
 
 bool RAS_OpenGLLight::ApplyFixedFunctionLighting(KX_Scene *kxscene, int oblayer, int slot)
 {
-	KX_Scene *lightscene = (KX_Scene *)m_scene;
-	KX_LightObject *kxlight = (KX_LightObject *)m_light;
-	float vec[4];
-	int scenelayer = ~0;
+	//KX_Scene *lightscene = (KX_Scene *)m_scene;
+	//KX_LightObject *kxlight = (KX_LightObject *)m_light;
+	//float vec[4];
+	//int scenelayer = ~0;
 
-	if (kxscene && kxscene->GetBlenderScene())
-		scenelayer = kxscene->GetBlenderScene()->lay;
+	//if (kxscene && kxscene->GetBlenderScene())
+	//	scenelayer = kxscene->GetBlenderScene()->lay;
 
-	/* only use lights in the same layer as the object */
-	if (!(m_layer & oblayer))
-		return false;
-	/* only use lights in the same scene, and in a visible layer */
-	if (kxscene != lightscene || !(m_layer & scenelayer))
-		return false;
+	///* only use lights in the same layer as the object */
+	//if (!(m_layer & oblayer))
+	//	return false;
+	///* only use lights in the same scene, and in a visible layer */
+	//if (kxscene != lightscene || !(m_layer & scenelayer))
+	//	return false;
 
-	// lights don't get their openGL matrix updated, do it now
-	if (kxlight->GetSGNode()->IsDirty())
-		kxlight->GetOpenGLMatrix();
+	//// lights don't get their openGL matrix updated, do it now
+	//if (kxlight->GetSGNode()->IsDirty())
+	//	kxlight->GetOpenGLMatrix();
 
-	MT_CmMatrix4x4& worldmatrix = *kxlight->GetOpenGLMatrixPtr();
+	//MT_CmMatrix4x4& worldmatrix = *kxlight->GetOpenGLMatrixPtr();
 
-	vec[0] = worldmatrix(0, 3);
-	vec[1] = worldmatrix(1, 3);
-	vec[2] = worldmatrix(2, 3);
-	vec[3] = 1.0f;
+	//vec[0] = worldmatrix(0, 3);
+	//vec[1] = worldmatrix(1, 3);
+	//vec[2] = worldmatrix(2, 3);
+	//vec[3] = 1.0f;
 
-	if (m_type == RAS_ILightObject::LIGHT_SUN) {
+	//if (m_type == RAS_ILightObject::LIGHT_SUN) {
 
-		vec[0] = worldmatrix(0, 2);
-		vec[1] = worldmatrix(1, 2);
-		vec[2] = worldmatrix(2, 2);
-		//vec[0] = base->object->obmat[2][0];
-		//vec[1] = base->object->obmat[2][1];
-		//vec[2] = base->object->obmat[2][2];
-		vec[3] = 0.0f;
-		glLightfv((GLenum)(GL_LIGHT0 + slot), GL_POSITION, vec);
-	}
-	else {
-		//vec[3] = 1.0;
-		glLightfv((GLenum)(GL_LIGHT0 + slot), GL_POSITION, vec);
-		glLightf((GLenum)(GL_LIGHT0 + slot), GL_CONSTANT_ATTENUATION, 1.0f);
-		glLightf((GLenum)(GL_LIGHT0 + slot), GL_LINEAR_ATTENUATION, m_att1 / m_distance);
-		// without this next line it looks backward compatible.
-		//attennuation still is acceptable
-		glLightf((GLenum)(GL_LIGHT0 + slot), GL_QUADRATIC_ATTENUATION, m_att2 / (m_distance * m_distance));
+	//	vec[0] = worldmatrix(0, 2);
+	//	vec[1] = worldmatrix(1, 2);
+	//	vec[2] = worldmatrix(2, 2);
+	//	//vec[0] = base->object->obmat[2][0];
+	//	//vec[1] = base->object->obmat[2][1];
+	//	//vec[2] = base->object->obmat[2][2];
+	//	vec[3] = 0.0f;
+	//	glLightfv((GLenum)(GL_LIGHT0 + slot), GL_POSITION, vec);
+	//}
+	//else {
+	//	//vec[3] = 1.0;
+	//	glLightfv((GLenum)(GL_LIGHT0 + slot), GL_POSITION, vec);
+	//	glLightf((GLenum)(GL_LIGHT0 + slot), GL_CONSTANT_ATTENUATION, 1.0f);
+	//	glLightf((GLenum)(GL_LIGHT0 + slot), GL_LINEAR_ATTENUATION, m_att1 / m_distance);
+	//	// without this next line it looks backward compatible.
+	//	//attennuation still is acceptable
+	//	glLightf((GLenum)(GL_LIGHT0 + slot), GL_QUADRATIC_ATTENUATION, m_att2 / (m_distance * m_distance));
 
-		if (m_type == RAS_ILightObject::LIGHT_SPOT) {
-			vec[0] = -worldmatrix(0, 2);
-			vec[1] = -worldmatrix(1, 2);
-			vec[2] = -worldmatrix(2, 2);
-			//vec[0] = -base->object->obmat[2][0];
-			//vec[1] = -base->object->obmat[2][1];
-			//vec[2] = -base->object->obmat[2][2];
-			glLightfv((GLenum)(GL_LIGHT0 + slot), GL_SPOT_DIRECTION, vec);
-			glLightf((GLenum)(GL_LIGHT0 + slot), GL_SPOT_CUTOFF, m_spotsize / 2.0f);
-			glLightf((GLenum)(GL_LIGHT0 + slot), GL_SPOT_EXPONENT, 128.0f * m_spotblend);
-		}
-		else {
-			glLightf((GLenum)(GL_LIGHT0 + slot), GL_SPOT_CUTOFF, 180.0f);
-		}
-	}
+	//	if (m_type == RAS_ILightObject::LIGHT_SPOT) {
+	//		vec[0] = -worldmatrix(0, 2);
+	//		vec[1] = -worldmatrix(1, 2);
+	//		vec[2] = -worldmatrix(2, 2);
+	//		//vec[0] = -base->object->obmat[2][0];
+	//		//vec[1] = -base->object->obmat[2][1];
+	//		//vec[2] = -base->object->obmat[2][2];
+	//		glLightfv((GLenum)(GL_LIGHT0 + slot), GL_SPOT_DIRECTION, vec);
+	//		glLightf((GLenum)(GL_LIGHT0 + slot), GL_SPOT_CUTOFF, m_spotsize / 2.0f);
+	//		glLightf((GLenum)(GL_LIGHT0 + slot), GL_SPOT_EXPONENT, 128.0f * m_spotblend);
+	//	}
+	//	else {
+	//		glLightf((GLenum)(GL_LIGHT0 + slot), GL_SPOT_CUTOFF, 180.0f);
+	//	}
+	//}
 
-	if (m_nodiffuse) {
-		vec[0] = vec[1] = vec[2] = vec[3] = 0.0f;
-	}
-	else {
-		vec[0] = m_energy * m_color[0];
-		vec[1] = m_energy * m_color[1];
-		vec[2] = m_energy * m_color[2];
-		vec[3] = 1.0f;
-	}
+	//if (m_nodiffuse) {
+	//	vec[0] = vec[1] = vec[2] = vec[3] = 0.0f;
+	//}
+	//else {
+	//	vec[0] = m_energy * m_color[0];
+	//	vec[1] = m_energy * m_color[1];
+	//	vec[2] = m_energy * m_color[2];
+	//	vec[3] = 1.0f;
+	//}
 
-	glLightfv((GLenum)(GL_LIGHT0 + slot), GL_DIFFUSE, vec);
-	if (m_nospecular) {
-		vec[0] = vec[1] = vec[2] = vec[3] = 0.0f;
-	}
-	else if (m_nodiffuse) {
-		vec[0] = m_energy * m_color[0];
-		vec[1] = m_energy * m_color[1];
-		vec[2] = m_energy * m_color[2];
-		vec[3] = 1.0f;
-	}
+	//glLightfv((GLenum)(GL_LIGHT0 + slot), GL_DIFFUSE, vec);
+	//if (m_nospecular) {
+	//	vec[0] = vec[1] = vec[2] = vec[3] = 0.0f;
+	//}
+	//else if (m_nodiffuse) {
+	//	vec[0] = m_energy * m_color[0];
+	//	vec[1] = m_energy * m_color[1];
+	//	vec[2] = m_energy * m_color[2];
+	//	vec[3] = 1.0f;
+	//}
 
-	glLightfv((GLenum)(GL_LIGHT0 + slot), GL_SPECULAR, vec);
-	glEnable((GLenum)(GL_LIGHT0 + slot));
+	//glLightfv((GLenum)(GL_LIGHT0 + slot), GL_SPECULAR, vec);
+	//glEnable((GLenum)(GL_LIGHT0 + slot));
 
 	return true;
 }
