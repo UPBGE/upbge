@@ -88,7 +88,8 @@ RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
 	m_pDeformer(nullptr),
 	m_pDerivedMesh(nullptr),
 	m_meshUser(nullptr),
-	m_batchPartIndex(-1)
+	m_batchPartIndex(-1),
+	m_gpuMat(nullptr)
 {
 	if (m_displayArrayBucket) {
 		m_displayArrayBucket->AddRef();
