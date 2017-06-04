@@ -6,10 +6,12 @@
 #ifndef __RAS_SHADER_H__
 #define __RAS_SHADER_H__
 
+#include "RAS_Texture.h" // For RAS_Texture::MaxUnits.
+#include "RAS_Rasterizer.h" // For RAS_Rasterizer::TexCoGenList.
+
 #include "MT_Matrix4x4.h"
 
 #include <string>
-
 #include <vector>
 
 #define SORT_UNIFORMS 1
@@ -90,6 +92,24 @@ public:
 		MAX_PROGRAM
 	};
 
+	enum GenType {
+		MODELVIEWMATRIX,
+		MODELVIEWMATRIX_TRANSPOSE,
+		MODELVIEWMATRIX_INVERSE,
+		MODELVIEWMATRIX_INVERSETRANSPOSE,
+		MODELMATRIX,
+		MODELMATRIX_TRANSPOSE,
+		MODELMATRIX_INVERSE,
+		MODELMATRIX_INVERSETRANSPOSE,
+		VIEWMATRIX,
+		VIEWMATRIX_TRANSPOSE,
+		VIEWMATRIX_INVERSE,
+		VIEWMATRIX_INVERSETRANSPOSE,
+		CAM_POS,
+		CONSTANT_TIMER,
+		EYE
+	};
+
 protected:
 	typedef std::vector<RAS_Uniform *> RAS_UniformVec;
 	typedef std::vector<RAS_DefUniform *> RAS_UniformVecDef;
@@ -103,6 +123,9 @@ protected:
 	// Stored uniform variables
 	RAS_UniformVec m_uniforms;
 	RAS_UniformVecDef m_preDef;
+
+	RAS_Rasterizer::TexCoGenList m_texcos;
+	RAS_Rasterizer::TexCoGenList m_attribs;
 
 	/** Parse shader program to prevent redundant macro directives.
 	 * \param type The program type to parse.
@@ -124,34 +147,18 @@ public:
 	RAS_Shader();
 	virtual ~RAS_Shader();
 
-	enum GenType {
-		MODELVIEWMATRIX,
-		MODELVIEWMATRIX_TRANSPOSE,
-		MODELVIEWMATRIX_INVERSE,
-		MODELVIEWMATRIX_INVERSETRANSPOSE,
-		MODELMATRIX,
-		MODELMATRIX_TRANSPOSE,
-		MODELMATRIX_INVERSE,
-		MODELMATRIX_INVERSETRANSPOSE,
-		VIEWMATRIX,
-		VIEWMATRIX_TRANSPOSE,
-		VIEWMATRIX_INVERSE,
-		VIEWMATRIX_INVERSETRANSPOSE,
-		CAM_POS,
-		CONSTANT_TIMER,
-		EYE
-	};
-
 	bool GetError();
-
-	void SetSampler(int loc, int unit);
 	bool Ok() const;
-	unsigned int GetProg();
 	GPUShader *GetGPUShader();
+
+	unsigned int GetProg();
 	virtual void SetProg(bool enable);
+
+	const RAS_Rasterizer::TexCoGenList& GetTexCoords() const;
+	const RAS_Rasterizer::TexCoGenList& GetAttribs() const;
+
 	void SetEnabled(bool enabled);
 	bool GetEnabled() const;
-	int GetAttribute();
 
 	// Apply methods : sets colected uniforms
 	void ApplyShader();
@@ -160,6 +167,8 @@ public:
 
 	// Update predefined uniforms each render call
 	void Update(RAS_Rasterizer *rasty, MT_Matrix4x4 model);
+
+	void SetSampler(int loc, int unit);
 
 	void SetUniformfv(int location, int type, float *param, int size, unsigned int count, bool transpose = false);
 	void SetUniformiv(int location, int type, int *param, int size, unsigned int count, bool transpose = false);

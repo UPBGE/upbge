@@ -9,7 +9,6 @@
 #include "EXP_PyObjectPlus.h"
 #include "RAS_Shader.h"
 #include "RAS_Texture.h" // For RAS_Texture::MaxUnits.
-#include "RAS_Rasterizer.h" // For RAS_Rasterizer::TexCoGenList.
 
 class RAS_MeshSlot;
 
@@ -28,10 +27,6 @@ public:
 	};
 
 private:
-
-	RAS_Rasterizer::TexCoGenList m_texcos;
-	RAS_Rasterizer::TexCoGenList m_attribs;
-
 #ifdef WITH_PYTHON
 	PyObject *m_callbacks[CALLBACKS_MAX];
 #endif  // WITH_PYTHON
