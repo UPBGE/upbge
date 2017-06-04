@@ -2030,7 +2030,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 	}
 
 	if (!mat->alpha) {
-		if (world && (GPU_link_changed(shr->alpha) || ma->alpha != 1.0f))
+		if (world && (GPU_link_changed(shr->alpha) || ma->alpha != 1.0f || !(ma->constflag & MA_CONSTANT_WORLD)))
 			GPU_link(mat, "shade_world_mix", GPU_select_uniform(GPUWorld.horicol, GPU_DYNAMIC_HORIZON_COLOR, NULL, ma),
 			         shr->combined, &shr->combined);
 
