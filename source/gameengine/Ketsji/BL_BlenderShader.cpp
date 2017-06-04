@@ -40,6 +40,30 @@
 
 #include "KX_Scene.h"
 
+extern "C" {
+#include "BLI_dynstr.h"
+}
+
+extern "C" {
+	extern char datatoc_default_frag_glsl[];
+	extern char datatoc_default_world_frag_glsl[];
+	extern char datatoc_ltc_lib_glsl[];
+	extern char datatoc_bsdf_lut_frag_glsl[];
+	extern char datatoc_bsdf_common_lib_glsl[];
+	extern char datatoc_bsdf_direct_lib_glsl[];
+	extern char datatoc_bsdf_sampling_lib_glsl[];
+	extern char datatoc_lit_surface_frag_glsl[];
+	extern char datatoc_lit_surface_vert_glsl[];
+	extern char datatoc_shadow_frag_glsl[];
+	extern char datatoc_shadow_geom_glsl[];
+	extern char datatoc_shadow_vert_glsl[];
+	extern char datatoc_probe_filter_frag_glsl[];
+	extern char datatoc_probe_sh_frag_glsl[];
+	extern char datatoc_probe_geom_glsl[];
+	extern char datatoc_probe_vert_glsl[];
+	extern char datatoc_background_vert_glsl[];
+}
+
 BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer)
 	:m_blenderScene(scene->GetBlenderScene()),
 	m_mat(ma),

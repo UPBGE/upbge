@@ -52,6 +52,7 @@ set(INC
 	../../blender/python/generic
 	../../blender/python/mathutils
 	../../blender/python/intern
+	../../blender/engines/eevee/shaders
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
 )
