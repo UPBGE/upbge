@@ -135,13 +135,13 @@ void VBO::Bind(RAS_Rasterizer::StorageAttribs *storageAttribs, RAS_Rasterizer::D
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
 
 	// Vertexes
-	char *vertattrib = "position";
+	char *vertattrib = "pos";
 	vertattribloc = glGetAttribLocation(program, vertattrib);
 	glEnableVertexAttribArray(vertattribloc);
 	glVertexAttribPointer(vertattribloc, 3,	GL_FLOAT, GL_FALSE,	m_stride, m_vertex_offset);
 
 	// Normals
-	char *normalattrib = "normal";
+	char *normalattrib = "nor";
 	normalattribloc = glGetAttribLocation(program, normalattrib);
 	glEnableVertexAttribArray(normalattribloc);
 	glVertexAttribPointer(normalattribloc, 3, GL_FLOAT, GL_FALSE, m_stride, m_normal_offset);
