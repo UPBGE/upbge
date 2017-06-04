@@ -52,7 +52,7 @@ set(INC
 	../../blender/python/generic
 	../../blender/python/mathutils
 	../../blender/python/intern
-	../../blender/engines/eevee/shaders
+	../../blender/draw/engines/eevee/shaders
 	../../../intern/glew-mx
 	../../../intern/guardedalloc
 )
@@ -255,6 +255,29 @@ set(SRC
 	../Physics/Common/PHY_Pro.h
 
 )
+
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/default_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/default_world_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/background_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lit_surface_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/lit_surface_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/effect_bloom_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/effect_dof_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/effect_dof_geom.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/effect_dof_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/effect_motion_blur_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/probe_filter_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/probe_sh_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/probe_geom.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/probe_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/shadow_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/shadow_geom.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/shadow_vert.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/bsdf_lut_frag.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/bsdf_direct_lib.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/bsdf_common_lib.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/bsdf_sampling_lib.glsl SRC)
+data_to_c_simple(../../blender/draw/engines/eevee/shaders/ltc_lib.glsl SRC)
 
 add_definitions(${GL_DEFINITIONS})
 

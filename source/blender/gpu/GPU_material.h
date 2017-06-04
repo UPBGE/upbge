@@ -262,6 +262,8 @@ GPUMaterial *GPU_material_from_nodetree(
         struct Scene *scene, struct bNodeTree *ntree, struct ListBase *gpumaterials, void *engine_type, int options,
         const char *vert_code, const char *geom_code, const char *frag_lib, const char *defines);
 GPUMaterial *GPU_material_from_blender(struct Scene *scene, struct Material *ma, bool use_opensubdiv, bool is_instancing);
+GPUMaterial *GPU_material_from_eevee(struct Scene *scene, struct Material *ma, 
+	const char *vert_code, const char *geom_code, const char *frag_lib, const char *defines, bool is_instancing);
 GPUMaterial *GPU_material_matcap(struct Scene *scene, struct Material *ma, bool use_opensubdiv);
 void GPU_material_free(struct ListBase *gpumaterial);
 

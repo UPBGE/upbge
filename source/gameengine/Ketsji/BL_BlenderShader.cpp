@@ -130,7 +130,25 @@ bool BL_BlenderShader::Ok() const
 
 void BL_BlenderShader::ReloadMaterial()
 {
-	m_gpuMat = (m_mat) ? GPU_material_from_blender(m_blenderScene, m_mat, false, UseInstancing()) : nullptr;
+	/* Create shaders library */
+	char *fraglib;
+	DynStr *ds_frag = BLI_dynstr_new();
+	BLI_dynstr_append(ds_frag, datatoc_bsdf_common_lib_glsl);
+	BLI_dynstr_append(ds_frag, datatoc_ltc_lib_glsl);
+	BLI_dynstr_append(ds_frag, datatoc_bsdf_direct_lib_glsl);
+	BLI_dynstr_append(ds_frag, datatoc_lit_surface_frag_glsl);
+	fraglib = BLI_dynstr_get_cstring(ds_frag);
+	BLI_dynstr_free(ds_frag);
+
+	/* Get the material from eevee */
+	m_gpuMat = (m_mat) ? GPU_material_from_eevee(m_blenderScene, m_mat, datatoc_lit_surface_vert_glsl, NULL, fraglib,
+		"#define PROBE_CAPTURE\n"
+		"#define MAX_LIGHT 128\n"
+		"#define MAX_SHADOW_CUBE 42\n"
+		"#define MAX_SHADOW_MAP 64\n"
+		"#define MAX_SHADOW_CASCADE 8\n"
+		"#define MAX_CASCADE_NUM 4\n",
+		UseInstancing()) : nullptr;
 }
 
 void BL_BlenderShader::SetProg(bool enable, double time, RAS_Rasterizer *rasty)
