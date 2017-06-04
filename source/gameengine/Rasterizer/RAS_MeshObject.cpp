@@ -240,23 +240,21 @@ RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MeshMaterial *meshmat, int numverts,
 	poly->SetCollider(collider);
 	poly->SetTwoside(twoside);
 
+	for (unsigned short i = 0; i < numverts; ++i) {
+		poly->SetVertexOffset(i, indices[i]);
+	}
+
 	if (visible && !bucket->IsWire()) {
 		// Add the first triangle.
 		darray->AddIndex(indices[0]);
 		darray->AddIndex(indices[1]);
 		darray->AddIndex(indices[2]);
 
-		poly->SetVertexOffset(0, indices[0]);
-		poly->SetVertexOffset(1, indices[1]);
-		poly->SetVertexOffset(2, indices[2]);
-
 		if (numverts == 4) {
 			// Add the second triangle.
 			darray->AddIndex(indices[0]);
 			darray->AddIndex(indices[2]);
 			darray->AddIndex(indices[3]);
-
-			poly->SetVertexOffset(3, indices[3]);
 		}
 	}
 
