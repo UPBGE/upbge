@@ -104,7 +104,8 @@ public:
 	/// Return dictionary name : last frame times.
 	std::map<std::string, double> GetProfileDict();
 
-	void RenderCategories(RAS_DebugDraw& debugDraw, double tottime, int xindent, int ysize, int& xcoord, int& ycoord, int profileIndent);
+	void RenderFrameRate(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, int profileIndent);
+	void RenderCategories(RAS_DebugDraw& debugDraw, int xindent, int ysize, int& xcoord, int& ycoord, int profileIndent);
 
 protected:
 	/// Storage for the loggers.
